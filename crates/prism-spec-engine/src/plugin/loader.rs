@@ -34,9 +34,13 @@ impl PluginKvStore {
     /// Get a value scoped to `plugin_id`.
     pub fn get(&self, plugin_id: &str, key: &str) -> Option<String> {
         let scoped_key = format!("{}:{}", plugin_id, key);
+        // SEC-005: recover from lock poisoning — a panic in a previous lock holder should not
+        // prevent further KV reads. `into_inner()` extracts the inner guard from the poison error,
+        // making the data accessible. This is the standard Rust "best effort" recovery for Mutex
+        // poisoning (the data is still valid; the poison flag only indicates a prior panic).
         self.inner
             .lock()
-            .expect("PluginKvStore lock poisoned")
+            .unwrap_or_else(|p| p.into_inner())
             .get(&scoped_key)
             .cloned()
     }
@@ -44,7 +48,8 @@ impl PluginKvStore {
     /// Set a value scoped to `plugin_id`.
     pub fn set(&self, plugin_id: &str, key: &str, value: &str) -> Result<(), PluginError> {
         let scoped_key = format!("{}:{}", plugin_id, key);
-        let mut store = self.inner.lock().expect("PluginKvStore lock poisoned");
+        // SEC-005: recover from lock poisoning (see get() above for rationale).
+        let mut store = self.inner.lock().unwrap_or_else(|p| p.into_inner());
 
         let plugin_prefix = format!("{}:", plugin_id);
         let current_size: usize = store

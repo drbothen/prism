@@ -9,22 +9,13 @@
 // Host functions (imported by the plugin guest):
 //   host::http-request  — outbound HTTP via allowlisted reqwest::Client (AC-7)
 //   host::kv-get / kv-set — per-plugin persistent KV store (PluginKvStore)
-//   host::get-config    — config map lookup
+//   host::get-config    — config map lookup (returns client_id, client_secret, token_endpoint)
 //   host::log           — structured logging forwarded to tracing
-
-// sensor-auth.wit — WIT interface for sensor authentication plugins.
 //
-// Story: PLUGIN-MIGRATION-001-E
-// Traces to: BC-2.01.016 §Postcondition, BC-2.17.006 WIT validation gate.
-//
-// This interface must be exported by the crowdstrike-oauth2 plugin. The host
-// validates these exports at load time via PluginRuntime::load_plugin (AC-001).
-//
-// Host functions (imported by the plugin guest):
-//   host::http-request  — outbound HTTP via allowlisted reqwest::Client (AC-7)
-//   host::kv-get / kv-set — per-plugin persistent KV store (PluginKvStore)
-//   host::get-config    — config map lookup
-//   host::log           — structured logging forwarded to tracing
+// Credential substitution model (ADR-028 §D11 Option C):
+//   The host resolves credentials before dispatch and injects them into PluginConfigMap.
+//   The guest reads client_id + client_secret via host::get-config.
+//   The credential-handle param is removed from acquire-token / get-token (Path 4a).
 //
 // WIT syntax note (wit-bindgen 0.51+): record, enum, and variant types must be
 // defined inside an interface block. Types shared between interfaces are defined
@@ -112,14 +103,19 @@ interface sensor-auth {
     ///
     /// Called by PipelineExecutor::issue_request_with_retry on 401 response.
     /// MUST NOT use the KV cache — always issues POST /oauth2/token.
-    /// The credential_handle is an opaque string resolved by the host.
-    acquire-token: func(credential-handle: string) -> result<string, auth-error>;
+    ///
+    /// ADR-028 §D11 Option C (Path 4a): credential-handle param REMOVED.
+    /// The guest reads client_id + client_secret from host config via get-config.
+    /// token_endpoint is also read from host config via get-config("token_endpoint").
+    acquire-token: func() -> result<string, auth-error>;
 
     /// Get a cached or freshly-acquired token.
     ///
     /// Checks KV cache first; falls through to acquire-token on cache miss or expiry.
     /// TTL = expires_in - 30s buffer (matching CachedToken::is_valid semantics).
-    get-token: func(credential-handle: string) -> result<string, auth-error>;
+    ///
+    /// ADR-028 §D11 Option C (Path 4a): credential-handle param REMOVED.
+    get-token: func() -> result<string, auth-error>;
 }
 
 world crowdstrike-oauth2 {

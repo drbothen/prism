@@ -21,13 +21,16 @@
 //!   - The native stubs are gated under `#[cfg(test)]` proving non-production-reachability
 //!     (F-LP2-HIGH-004 closure). Tests use WAT fixtures, not this native lib.
 //!
-//! ## Credential Handling (AD-017)
+//! ## Credential Handling (AD-017, ADR-028 §D11 Option C)
 //!
-//! The WASM guest NEVER holds the raw client_secret. The `credential_handle` passed to
-//! `acquire_token` / `get_token` is an opaque string. In the test path, `credential_handle`
-//! encodes `client_id` + `client_secret` directly in the form body (since DTU clones do not
-//! enforce credential security). In production, the host resolves the handle to credentials
-//! via the keyring and injects the form body via `host_http_request` credential substitution.
+//! The WASM guest NEVER holds the raw client_secret beyond the scope of a single dispatch call.
+//! Credentials are injected into `PluginConfigMap` by `PluginAuthProvider::acquire_token`
+//! (after resolving via `prism_credentials::resolve_credential`). The guest reads them via
+//! `host::get-config("client_id")` and `host::get-config("client_secret")`.
+//! The `credential_handle` param has been removed from `acquire-token` / `get-token` (Path 4a).
+//!
+//! In tests, MockHost's config map is pre-populated with `"client_id" → "id"` and
+//! `"client_secret" → "secret"` by default (no DTU clone required; no credential_handle string).
 //!
 //! KV store keys (scoped by plugin_id automatically by PluginKvStore::set):
 //!   "token"           — cached bearer token string
@@ -52,11 +55,22 @@ pub enum AuthError {
     ///
     /// Maps to PipelineExecutor propagating SpecEngineError::AuthRefreshFailed.
     InvalidCredentials,
-    /// Token response body was not valid JSON or missing required fields.
+    /// Token response body was not valid JSON or missing required fields,
+    /// OR non-2xx non-401 non-5xx response status (e.g. 4xx client errors).
     ///
-    /// Detail string contains the parse failure reason (not the token value).
+    /// Detail string contains the parse failure reason or HTTP status code description
+    /// (not the token value or credential data).
+    /// Distinct from Transient: indicates a structural/client-side problem, not a
+    /// retryable server error.
     ResponseParse(String),
-    /// KV store size limit exceeded or other internal failure.
+    /// Token endpoint returned 5xx — transient server-side error, safe to retry.
+    ///
+    /// Detail string contains the HTTP status code description (not credential data).
+    /// Distinct from ResponseParse: the server responded with a server-error status,
+    /// not a malformed body. Callers may retry after backoff (RFC 6749 §5.2).
+    Transient(String),
+    /// client_id or client_secret absent from host config, KV size limit exceeded,
+    /// or other internal failure.
     ///
     /// Detail string describes the internal error (not credential data).
     Internal(String),
@@ -67,6 +81,9 @@ impl std::fmt::Display for AuthError {
         match self {
             AuthError::InvalidCredentials => write!(f, "invalid client credentials"),
             AuthError::ResponseParse(detail) => write!(f, "token response parse error: {detail}"),
+            AuthError::Transient(detail) => {
+                write!(f, "transient token endpoint error (5xx): {detail}")
+            }
             AuthError::Internal(detail) => write!(f, "internal auth error: {detail}"),
         }
     }
@@ -149,7 +166,7 @@ mod host_impl {
 
     /// Write to host::kv-set. Returns Err(msg) if KV limit exceeded.
     pub fn kv_set(key: &str, value: &str) -> Result<(), String> {
-        prism::crowdstrike_oauth2::host::kv_set(key, value).map_err(|e| e)
+        prism::crowdstrike_oauth2::host::kv_set(key, value)
     }
 
     /// Get current wall-clock time as Unix seconds.
@@ -171,6 +188,9 @@ mod host_impl {
         match e {
             AuthError::InvalidCredentials => WitAuthError::InvalidCredentials,
             AuthError::ResponseParse(msg) => WitAuthError::ResponseParse(msg),
+            // Transient 5xx → map to Internal for WIT transport (callers may inspect the detail).
+            // WIT auth-error variant does not have a Transient arm; Internal carries the detail.
+            AuthError::Transient(msg) => WitAuthError::Internal(format!("transient(5xx): {msg}")),
             AuthError::Internal(msg) => WitAuthError::Internal(msg),
         }
     }
@@ -199,38 +219,33 @@ mod host_impl {
 
         /// Force-acquire a fresh OAuth2 token (bypass KV cache).
         ///
-        /// Reads `token_endpoint` from host config map (`get-config("token_endpoint")`),
-        /// then delegates to `super::acquire_token` via WasmHost.
-        /// The WIT interface takes only `credential-handle` (not `token_endpoint` directly);
-        /// the endpoint is configuration-managed by the host per the plugin config map.
+        /// ADR-028 §D11 Option C (Path 4a): credential-handle param removed.
+        /// Reads `token_endpoint`, `client_id`, `client_secret` from host config map
+        /// via `get-config(...)`. Delegates to `super::acquire_token` via WasmHost.
         ///
         /// EC-006: absent `token_endpoint` in config → `AuthError::Internal`.
-        fn acquire_token(
-            credential_handle: String,
-        ) -> Result<String, exports::prism::crowdstrike_oauth2::sensor_auth::AuthError> {
+        fn acquire_token()
+        -> Result<String, exports::prism::crowdstrike_oauth2::sensor_auth::AuthError> {
             let token_endpoint = get_config("token_endpoint").ok_or_else(|| {
                 to_wit_auth_error(AuthError::Internal(
                     "token_endpoint absent from host config (EC-006)".to_string(),
                 ))
             })?;
-            super::acquire_token(&super::WasmHost, &credential_handle, &token_endpoint)
-                .map_err(to_wit_auth_error)
+            super::acquire_token(&super::WasmHost, &token_endpoint).map_err(to_wit_auth_error)
         }
 
         /// Get a cached or freshly-acquired token.
         ///
-        /// Reads `token_endpoint` from host config map (`get-config("token_endpoint")`),
-        /// then delegates to `super::get_token` via WasmHost.
-        fn get_token(
-            credential_handle: String,
-        ) -> Result<String, exports::prism::crowdstrike_oauth2::sensor_auth::AuthError> {
+        /// ADR-028 §D11 Option C (Path 4a): credential-handle param removed.
+        /// Reads `token_endpoint` from host config map, delegates to `super::get_token`.
+        fn get_token() -> Result<String, exports::prism::crowdstrike_oauth2::sensor_auth::AuthError>
+        {
             let token_endpoint = get_config("token_endpoint").ok_or_else(|| {
                 to_wit_auth_error(AuthError::Internal(
                     "token_endpoint absent from host config (EC-006)".to_string(),
                 ))
             })?;
-            super::get_token(&super::WasmHost, &credential_handle, &token_endpoint)
-                .map_err(to_wit_auth_error)
+            super::get_token(&super::WasmHost, &token_endpoint).map_err(to_wit_auth_error)
         }
     }
 
@@ -326,6 +341,50 @@ impl HostInterface for WasmHost {
 }
 
 // ---------------------------------------------------------------------------
+// URL encoding helper (RFC 3986 percent-encoding for OAuth2 form bodies)
+// ---------------------------------------------------------------------------
+
+/// Percent-encode a string for use in an `application/x-www-form-urlencoded` body.
+///
+/// Encodes all characters that are NOT unreserved per RFC 3986 §2.3:
+/// A-Z a-z 0-9 `-` `_` `.` `~`
+///
+/// Used to safely encode client_id and client_secret values in OAuth2 form bodies
+/// (ADR-028 §D11 Option C; F-PR154-LOW-004 closure).
+/// Prevents injection if values contain `&`, `=`, `+`, or other special characters.
+///
+/// This is a pure no-std-compatible implementation using only character classification —
+/// no external crate required (the `url` and `urlencoding` crates are not yet workspace deps;
+/// this bounded helper covers the OAuth2 use case without adding dependencies).
+#[cfg(any(target_arch = "wasm32", test))]
+pub(crate) fn url_encode(input: &str) -> String {
+    let mut out = String::with_capacity(input.len() * 3 / 2 + 1);
+    for byte in input.as_bytes() {
+        match byte {
+            // RFC 3986 §2.3 unreserved characters — pass through unchanged.
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
+                out.push(*byte as char);
+            }
+            // All other bytes → percent-encode as %XX (uppercase hex).
+            b => {
+                out.push('%');
+                out.push(
+                    char::from_digit((b >> 4) as u32, 16)
+                        .unwrap()
+                        .to_ascii_uppercase(),
+                );
+                out.push(
+                    char::from_digit((b & 0x0f) as u32, 16)
+                        .unwrap()
+                        .to_ascii_uppercase(),
+                );
+            }
+        }
+    }
+    out
+}
+
+// ---------------------------------------------------------------------------
 // SensorAuth WIT interface exports (sensor-auth interface)
 // ---------------------------------------------------------------------------
 
@@ -359,36 +418,57 @@ pub fn auth_type_name() -> &'static str {
 /// `PipelineExecutor::issue_request_with_retry` on HTTP 401 (VP-150).
 ///
 /// Steps (AC-003, AC-006):
-///   1. Call host.http_request POST to the OAuth2 token endpoint.
-///   2. Parse access_token + expires_in from the JSON response.
-///   3. Cache the new token in PluginKvStore via host.kv_set.
-///   4. Return Ok(access_token).
+///   1. Read client_id + client_secret from host config via get-config (ADR-028 §D11 Option C).
+///   2. URL-encode client_id and client_secret values (RFC 3986 form-encoding).
+///   3. Call host.http_request POST to the OAuth2 token endpoint.
+///   4. Parse access_token + expires_in from the JSON response.
+///   5. Cache the new token in PluginKvStore via host.kv_set.
+///   6. Return Ok(access_token).
 ///
 /// Error cases:
+///   - client_id absent from config → AuthError::Internal (EC-006b).
+///   - client_secret absent from config → AuthError::Internal (EC-006c).
 ///   - 401 response → AuthError::InvalidCredentials (EC-001).
+///   - 5xx response → AuthError::Transient (MED-3: distinct from ResponseParse).
+///   - Non-2xx, non-401, non-5xx → AuthError::ResponseParse (EC-002).
 ///   - Non-JSON or missing access_token → AuthError::ResponseParse (EC-002, EC-003).
 ///     The host-side `emit_acquire_token_parse_error_and_fail` (in `prism-spec-engine/src/plugin/mod.rs`)
-///     emits `plugin.auth_token_parse_error` when the dispatch completes without a cached token.
+///     emits `plugin_auth_token_parse_error` when the dispatch completes without a cached token.
 ///     The WASM guest does NOT emit tracing events — the host owns the tracing subscriber.
 ///   - expires_in missing or zero → default TTL 1799s per CrowdStrikeAdapter::acquire_token
 ///     `unwrap_or(1799)` semantics (EC-004).
 ///   - KV store full → AuthError::Internal("kv_store size limit exceeded") (EC-005).
 ///
-/// Security invariant (AD-017): credential_handle is opaque. The raw client_secret
-/// is NEVER stored in guest WASM memory — the host resolves the handle and injects
-/// the secret into the POST body via host::http-request credential-handle substitution.
+/// Security invariant (AD-017): credentials live in PluginConfigMap for this call only.
+/// They are NEVER stored in the KV store, NEVER logged by the host, and NEVER returned
+/// in error messages (EC-006b/EC-006c use key names only, not values).
 ///
 /// AC-003 Red Gate Test 3 / AC-006 Red Gate Test 6 drive this function.
 #[cfg(any(target_arch = "wasm32", test))]
 pub(crate) fn acquire_token(
     host: &impl HostInterface,
-    credential_handle: &str,
     token_endpoint: &str,
 ) -> Result<String, AuthError> {
-    // Build form body. In production, the host resolves the credential_handle
-    // to client_id + client_secret. In test DTU paths, the credential_handle
-    // encodes "client_id=<id>&client_secret=<secret>" directly.
-    let form_body = format!("{}&grant_type=client_credentials", credential_handle);
+    // ADR-028 §D11 Option C: read client_id and client_secret from host config.
+    // EC-006b: client_id absent → AuthError::Internal (key name only in message, never value).
+    let client_id = host.get_config("client_id").ok_or_else(|| {
+        AuthError::Internal("client_id absent from host config (EC-006b)".to_string())
+    })?;
+    // EC-006c: client_secret absent → AuthError::Internal.
+    let client_secret = host.get_config("client_secret").ok_or_else(|| {
+        AuthError::Internal("client_secret absent from host config (EC-006c)".to_string())
+    })?;
+
+    // URL-encode client_id and client_secret values per RFC 3986 form-encoding.
+    // This prevents injection if values contain '&', '=', or other special chars.
+    let encoded_client_id = url_encode(&client_id);
+    let encoded_client_secret = url_encode(&client_secret);
+
+    // Build form body with properly encoded values.
+    let form_body = format!(
+        "client_id={}&client_secret={}&grant_type=client_credentials",
+        encoded_client_id, encoded_client_secret
+    );
 
     // Issue POST /oauth2/token via HostInterface.
     let response = host.http_request("POST", token_endpoint, form_body.as_bytes());
@@ -398,7 +478,15 @@ pub(crate) fn acquire_token(
         return Err(AuthError::InvalidCredentials);
     }
 
-    // Non-2xx → parse error (EC-002).
+    // 5xx → transient server error, safe to retry (MED-3: distinct from ResponseParse).
+    if response.status >= 500 {
+        return Err(AuthError::Transient(format!(
+            "token endpoint returned HTTP {} (server error, retry after backoff)",
+            response.status
+        )));
+    }
+
+    // Non-2xx, non-401, non-5xx → ResponseParse (EC-002: structural client-side error).
     if response.status < 200 || response.status >= 300 {
         return Err(AuthError::ResponseParse(format!(
             "token endpoint returned HTTP {}",
@@ -445,16 +533,18 @@ pub(crate) fn acquire_token(
 /// Steps (AC-004, AC-005):
 ///   1. Read expires_at_secs from KV via host.kv_get("expires_at_secs").
 ///   2. If present and current_time_secs() < expires_at_secs → return cached token.
-///   3. Otherwise → fall through to acquire_token(host, credential_handle, token_endpoint).
+///   3. Otherwise → fall through to acquire_token(host, token_endpoint).
 ///
 /// TTL check: expires_at_secs was written as `token_issue_unix + expires_in - 30`.
 /// The 30-second buffer matches CachedToken::is_valid() semantics in the legacy adapter.
+///
+/// ADR-028 §D11 Option C: credential-handle param removed. Credentials are read from
+/// host config by acquire_token if a fresh token is needed.
 ///
 /// AC-004 Red Gate Test 4 / AC-005 Red Gate Test 5 drive this function.
 #[cfg(any(target_arch = "wasm32", test))]
 pub(crate) fn get_token(
     host: &impl HostInterface,
-    credential_handle: &str,
     token_endpoint: &str,
 ) -> Result<String, AuthError> {
     // Step 1: Check cache validity.
@@ -473,7 +563,7 @@ pub(crate) fn get_token(
     }
 
     // Cache miss or stale — acquire fresh token.
-    acquire_token(host, credential_handle, token_endpoint)
+    acquire_token(host, token_endpoint)
 }
 
 // ---------------------------------------------------------------------------
@@ -556,6 +646,7 @@ mod tests {
     /// MockHost records http_request calls and returns pre-configured canned responses.
     ///
     /// kv_* operations use an in-memory HashMap backed by RefCell for interior mutability.
+    /// config holds key/value pairs for get_config() (ADR-028 §D11 Option C).
     struct MockHost {
         /// Responses returned by http_request() in FIFO order.
         /// Each call pops the first element; panics if the queue is empty (unexpected call).
@@ -568,16 +659,28 @@ mod tests {
         kv_set_error: Option<String>,
         /// Simulated current time (Unix seconds).
         current_time: u64,
+        /// Config map for get_config() lookups (ADR-028 §D11 Option C).
+        ///
+        /// Tests prime this with `"client_id"` and `"client_secret"` entries so that
+        /// `acquire_token` can read them via `host.get_config(...)` instead of a
+        /// credential_handle positional parameter.
+        config: std::collections::HashMap<String, String>,
     }
 
     impl MockHost {
         fn new(current_time: u64) -> Self {
+            // Pre-populate with default test credentials per ADR-028 §D11 test transition.
+            // These are test values only — no real credentials.
+            let mut config = std::collections::HashMap::new();
+            config.insert("client_id".to_string(), "id".to_string());
+            config.insert("client_secret".to_string(), "secret".to_string());
             Self {
                 http_responses: RefCell::new(Vec::new()),
                 http_calls: RefCell::new(Vec::new()),
                 kv_store: RefCell::new(std::collections::HashMap::new()),
                 kv_set_error: None,
                 current_time,
+                config,
             }
         }
 
@@ -644,10 +747,10 @@ mod tests {
             self.current_time
         }
 
-        fn get_config(&self, _key: &str) -> Option<String> {
-            // Tests that require config lookups go through WasmHost (wasm32 target).
-            // Native unit tests drive acquire_token/get_token directly — no config lookup needed.
-            None
+        fn get_config(&self, key: &str) -> Option<String> {
+            // ADR-028 §D11 Option C: acquire_token now reads client_id + client_secret
+            // from config. MockHost returns values from the `config` HashMap.
+            self.config.get(key).cloned()
         }
     }
 
@@ -694,11 +797,7 @@ mod tests {
         let mut host = MockHost::new(1_000_000);
         host.push_http_response(401, r#"{"error": "invalid_client"}"#);
 
-        let result = acquire_token(
-            &host,
-            "client_id=id&client_secret=secret",
-            "https://example.com/oauth2/token",
-        );
+        let result = acquire_token(&host, "https://example.com/oauth2/token");
 
         assert!(
             matches!(result, Err(AuthError::InvalidCredentials)),
@@ -733,11 +832,7 @@ mod tests {
         // HTTP 200 with syntactically invalid JSON body — triggers serde_json::from_str error.
         host.push_http_response(200, "this is not JSON {[");
 
-        let result = acquire_token(
-            &host,
-            "client_id=id&client_secret=secret",
-            "https://example.com/oauth2/token",
-        );
+        let result = acquire_token(&host, "https://example.com/oauth2/token");
 
         assert!(
             matches!(&result, Err(AuthError::ResponseParse(_))),
@@ -758,36 +853,57 @@ mod tests {
         );
     }
 
-    /// Defense-in-depth: POST /oauth2/token returns non-2xx (e.g. 503) →
-    /// AuthError::ResponseParse.
+    /// MED-3: POST /oauth2/token returns 5xx → AuthError::Transient (NOT ResponseParse).
     ///
-    /// Note: This test covers a SEPARATE defense-in-depth path from EC-002. The spec's EC-002
-    /// scenario is "200 + invalid JSON" (see test_acquire_token_EC_002_invalid_json_returns_response_parse).
-    /// Non-2xx status is handled by the status-check branch BEFORE JSON parsing — a distinct
-    /// code path worth covering but not the named EC-002 scenario.
-    ///
-    /// Asserts variant match with detail string containing the status code.
-    /// Asserts no KV-set occurred (token must not be cached on error response).
+    /// 5xx responses are transient server errors distinct from ResponseParse (which
+    /// indicates a structural parse failure). Callers can safely retry 5xx after backoff.
+    /// Asserts: (a) variant-level match on AuthError::Transient, (b) detail contains "503",
+    /// (c) no token cached.
     #[test]
-    fn test_acquire_token_non_2xx_returns_response_parse() {
+    fn test_acquire_token_5xx_returns_transient() {
         let mut host = MockHost::new(1_000_000);
         host.push_http_response(503, "Service Unavailable");
 
-        let result = acquire_token(
-            &host,
-            "client_id=id&client_secret=secret",
-            "https://example.com/oauth2/token",
-        );
+        let result = acquire_token(&host, "https://example.com/oauth2/token");
 
         assert!(
-            matches!(&result, Err(AuthError::ResponseParse(msg)) if msg.contains("503")),
-            "non-2xx response MUST return AuthError::ResponseParse with status code, got: {:?}",
+            matches!(&result, Err(AuthError::Transient(msg)) if msg.contains("503")),
+            "5xx response MUST return AuthError::Transient with status code, got: {:?}",
             result
         );
         assert_eq!(
             host.kv_store.borrow().get("token"),
             None,
-            "non-2xx: token MUST NOT be cached on non-2xx response"
+            "5xx: token MUST NOT be cached on 5xx response"
+        );
+    }
+
+    /// Defense-in-depth: POST /oauth2/token returns non-2xx, non-401, non-5xx (e.g. 400) →
+    /// AuthError::ResponseParse.
+    ///
+    /// Note: This test covers the residual non-2xx path (4xx other than 401).
+    /// 5xx → Transient (see test_acquire_token_5xx_returns_transient).
+    /// 401 → InvalidCredentials (EC-001).
+    /// This covers 4xx like 400, 403, 404 → ResponseParse.
+    ///
+    /// Asserts variant match with detail string containing the status code.
+    /// Asserts no KV-set occurred (token must not be cached on error response).
+    #[test]
+    fn test_acquire_token_4xx_non_401_returns_response_parse() {
+        let mut host = MockHost::new(1_000_000);
+        host.push_http_response(400, "Bad Request");
+
+        let result = acquire_token(&host, "https://example.com/oauth2/token");
+
+        assert!(
+            matches!(&result, Err(AuthError::ResponseParse(msg)) if msg.contains("400")),
+            "4xx (non-401) response MUST return AuthError::ResponseParse with status code, got: {:?}",
+            result
+        );
+        assert_eq!(
+            host.kv_store.borrow().get("token"),
+            None,
+            "4xx: token MUST NOT be cached on non-2xx response"
         );
     }
 
@@ -800,11 +916,7 @@ mod tests {
         let mut host = MockHost::new(1_000_000);
         host.push_http_response(200, r#"{"token_type": "bearer", "expires_in": 3600}"#);
 
-        let result = acquire_token(
-            &host,
-            "client_id=id&client_secret=secret",
-            "https://example.com/oauth2/token",
-        );
+        let result = acquire_token(&host, "https://example.com/oauth2/token");
 
         assert!(
             matches!(&result, Err(AuthError::ResponseParse(msg)) if msg.contains("missing access_token")),
@@ -836,11 +948,7 @@ mod tests {
             r#"{"access_token": "tok-abc", "token_type": "bearer"}"#,
         );
 
-        let result = acquire_token(
-            &host,
-            "client_id=id&client_secret=secret",
-            "https://example.com/oauth2/token",
-        );
+        let result = acquire_token(&host, "https://example.com/oauth2/token");
 
         assert!(
             result.is_ok(),
@@ -889,11 +997,7 @@ mod tests {
             r#"{"access_token": "tok-abc", "token_type": "bearer", "expires_in": 0}"#,
         );
 
-        let result = acquire_token(
-            &host,
-            "client_id=id&client_secret=secret",
-            "https://example.com/oauth2/token",
-        );
+        let result = acquire_token(&host, "https://example.com/oauth2/token");
 
         assert!(
             result.is_ok(),
@@ -930,11 +1034,7 @@ mod tests {
         host.push_http_response(200, r#"{"access_token": "tok-abc", "expires_in": 3600}"#);
         host.fail_kv_set_with("kv_store size limit exceeded");
 
-        let result = acquire_token(
-            &host,
-            "client_id=id&client_secret=secret",
-            "https://example.com/oauth2/token",
-        );
+        let result = acquire_token(&host, "https://example.com/oauth2/token");
 
         assert!(
             matches!(&result, Err(AuthError::Internal(msg)) if msg.contains("kv_store size limit exceeded")),
@@ -960,11 +1060,7 @@ mod tests {
         host.set_kv("expires_at_secs", &expires_at.to_string());
         // No HTTP responses queued — if http_request is called, MockHost will panic.
 
-        let result = get_token(
-            &host,
-            "client_id=id&client_secret=secret",
-            "https://example.com/oauth2/token",
-        );
+        let result = get_token(&host, "https://example.com/oauth2/token");
 
         assert!(
             matches!(&result, Ok(tok) if tok == "cached-bearer-token"),
@@ -990,11 +1086,7 @@ mod tests {
             r#"{"access_token": "fresh-token", "expires_in": 3600}"#,
         );
 
-        let result = get_token(
-            &host,
-            "client_id=id&client_secret=secret",
-            "https://example.com/oauth2/token",
-        );
+        let result = get_token(&host, "https://example.com/oauth2/token");
 
         assert!(
             matches!(&result, Ok(tok) if tok == "fresh-token"),
@@ -1027,11 +1119,7 @@ mod tests {
             r#"{"access_token": "fresh-after-empty-cache", "expires_in": 3600}"#,
         );
 
-        let result = get_token(
-            &host,
-            "client_id=id&client_secret=secret",
-            "https://example.com/oauth2/token",
-        );
+        let result = get_token(&host, "https://example.com/oauth2/token");
 
         assert!(
             matches!(&result, Ok(tok) if tok == "fresh-after-empty-cache"),
@@ -1049,17 +1137,28 @@ mod tests {
     // Bonus: form body content assertion
     // -------------------------------------------------------------------------
 
-    /// Bonus: acquire_token form body contains grant_type=client_credentials.
+    /// Form body correctness: acquire_token form body contains client_id, client_secret,
+    /// and grant_type=client_credentials, read from host config (ADR-028 §D11 Option C).
     ///
-    /// Asserts the POST body sent to the token endpoint includes the required
-    /// `grant_type=client_credentials` parameter alongside the credential_handle.
+    /// Asserts:
+    ///   (a) grant_type=client_credentials present
+    ///   (b) client_id=my-id present (from host config, URL-encoded)
+    ///   (c) client_secret=my-secret present (from host config, URL-encoded)
+    ///
+    /// This is the LOAD-BEARING test for F-PR154-CRIT-2: the production defect was
+    /// `credential_handle = "sensor:crowdstrike"` producing an invalid form body.
+    /// With Option C, the form body is built from explicit client_id + client_secret config keys.
     #[test]
     fn test_acquire_token_form_body_contains_required_params() {
         let mut host = MockHost::new(1_000_000);
+        // Override default config with specific named values.
+        host.config
+            .insert("client_id".to_string(), "my-id".to_string());
+        host.config
+            .insert("client_secret".to_string(), "my-secret".to_string());
         host.push_http_response(200, r#"{"access_token": "tok-xyz", "expires_in": 3600}"#);
 
-        let credential_handle = "client_id=my-id&client_secret=my-secret";
-        let _ = acquire_token(&host, credential_handle, "https://example.com/oauth2/token");
+        let _ = acquire_token(&host, "https://example.com/oauth2/token");
 
         assert_eq!(host.http_call_count(), 1, "exactly one HTTP call expected");
         let body = host.http_call_body(0);
@@ -1069,13 +1168,97 @@ mod tests {
         );
         assert!(
             body.contains("client_id=my-id"),
-            "form body MUST contain the credential_handle prefix, got: {body:?}"
+            "form body MUST contain client_id from host config (EC-006b path), got: {body:?}"
+        );
+        assert!(
+            body.contains("client_secret=my-secret"),
+            "form body MUST contain client_secret from host config (EC-006c path), got: {body:?}"
+        );
+    }
+
+    /// EC-006b: client_id absent from host config → AuthError::Internal.
+    ///
+    /// ADR-028 §D11 error code EC-006b: acquire_token MUST fail with Internal when
+    /// client_id is not in the host config map.
+    #[test]
+    fn test_acquire_token_EC_006b_missing_client_id_returns_internal() {
+        let mut host = MockHost::new(1_000_000);
+        // Remove client_id from config.
+        host.config.remove("client_id");
+        // No HTTP response queued — should fail before making any HTTP call.
+
+        let result = acquire_token(&host, "https://example.com/oauth2/token");
+
+        assert!(
+            matches!(&result, Err(AuthError::Internal(msg)) if msg.contains("client_id absent") && msg.contains("EC-006b")),
+            "EC-006b: missing client_id MUST return AuthError::Internal with EC-006b code, got: {:?}",
+            result
+        );
+        assert_eq!(
+            host.http_call_count(),
+            0,
+            "EC-006b: NO HTTP call should be made when client_id is absent"
+        );
+    }
+
+    /// EC-006c: client_secret absent from host config → AuthError::Internal.
+    ///
+    /// ADR-028 §D11 error code EC-006c: acquire_token MUST fail with Internal when
+    /// client_secret is not in the host config map.
+    #[test]
+    fn test_acquire_token_EC_006c_missing_client_secret_returns_internal() {
+        let mut host = MockHost::new(1_000_000);
+        // Remove client_secret from config.
+        host.config.remove("client_secret");
+        // No HTTP response queued — should fail before making any HTTP call.
+
+        let result = acquire_token(&host, "https://example.com/oauth2/token");
+
+        assert!(
+            matches!(&result, Err(AuthError::Internal(msg)) if msg.contains("client_secret absent") && msg.contains("EC-006c")),
+            "EC-006c: missing client_secret MUST return AuthError::Internal with EC-006c code, got: {:?}",
+            result
+        );
+        assert_eq!(
+            host.http_call_count(),
+            0,
+            "EC-006c: NO HTTP call should be made when client_secret is absent"
+        );
+    }
+
+    /// URL encoding: special characters in client_id and client_secret are percent-encoded.
+    ///
+    /// Client credentials may contain `+`, `=`, `&`, `%` or other special chars.
+    /// These MUST be percent-encoded before splicing into the form body to prevent injection.
+    #[test]
+    fn test_acquire_token_url_encodes_credentials() {
+        let mut host = MockHost::new(1_000_000);
+        // Credentials with special characters that require encoding.
+        host.config
+            .insert("client_id".to_string(), "id+with spaces".to_string());
+        host.config.insert(
+            "client_secret".to_string(),
+            "secret&with=special".to_string(),
+        );
+        host.push_http_response(200, r#"{"access_token": "tok", "expires_in": 3600}"#);
+
+        let _ = acquire_token(&host, "https://example.com/oauth2/token");
+
+        let body = host.http_call_body(0);
+        // "id+with spaces" → "id%2Bwith%20spaces" (+ is %2B, space is %20)
+        assert!(
+            !body.contains("id+with spaces"),
+            "URL-encoding: literal '+' and space in client_id MUST be percent-encoded, got: {body:?}"
+        );
+        // "secret&with=special" → percent-encoded (& and = must be encoded)
+        assert!(
+            !body.contains("secret&with=special"),
+            "URL-encoding: literal '&' and '=' in client_secret MUST be percent-encoded, got: {body:?}"
+        );
+        // grant_type must still be present
+        assert!(
+            body.contains("grant_type=client_credentials"),
+            "URL-encoding: grant_type must still be present after encoding, got: {body:?}"
         );
     }
 }
-// F-LP8-MED-004 closure (PLUGIN-MIGRATION-001-E pass-8): removed duplicate EC-002 test
-// `test_acquire_token_EC_002_returns_response_parse_no_token_cached` orphaned by
-// FB-IMPL-6 CORRECTION signature revert. Canonical EC-002 test remains at
-// `test_acquire_token_EC_002_invalid_json_returns_response_parse` (line ~731).
-// The duplicate was a strict subset of the canonical test; its removal reduces
-// sibling-symmetry confusion and eliminates TD-VSDD-060 orphan sweep gap.

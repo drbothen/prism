@@ -13,11 +13,11 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use prism_spec_engine::LoadedPlugin;
+use prism_spec_engine::plugin::PluginRuntime;
 use prism_spec_engine::plugin::host_functions::{
     host_current_time_secs, host_http_request, host_kv_get, host_kv_set,
 };
-use prism_spec_engine::plugin::loader::{HostState, PluginKvStore};
-use prism_spec_engine::plugin::{CURRENT_SUPPORTED_VERSION, PluginRuntime};
+use prism_spec_engine::plugin::loader::HostState;
 use prism_spec_engine::spec_parser::SpecLoader;
 
 // ---------------------------------------------------------------------------
@@ -647,15 +647,31 @@ async fn test_PLUGIN_MIGRATION_001_E_006_401_triggers_plugin_token_refresh_and_r
 
     // Construct PluginAuthProvider from the loaded runtime.
     // This is the REAL plugin auth path (not MockAuthProvider).
-    // credential_handle = "client_id=test&client_secret=test" (DTU test form body)
-    // token_endpoint = mock_server.uri() + "/oauth2/token" (not used — WAT core module
-    //   dispatches auth-type-name only; for PipelineExecutor the acquire_token path
-    //   is invoked which returns "wat-fixture-token" sentinel from core-module dispatch).
+    //
+    // ADR-028 §D11 Option C: sensor_id (not credential_handle) is the 3rd arg.
+    // PluginAuthProvider resolves client_id/client_secret from prism_credentials at dispatch time.
+    //
+    // Test setup: inject credentials via env vars (the resolution chain checks
+    // CROWDSTRIKE_CLIENT_ID + CROWDSTRIKE_CLIENT_SECRET per BC-2.03.006 chain step 2).
+    // These test values are harmless sentinels; the WAT fixture ignores PluginConfigMap entirely
+    // (WAT core modules don't call host::get-config — only real WASM component guests do).
+    //
+    // Safety: set_var is unsafe in multi-threaded contexts. This async test runs in a
+    // single-threaded tokio context (#[tokio::test] default), so the set/remove is safe here.
+    // Test-only env var injection per SID-1 discipline.
+    //
+    // SAFETY: This test runs in a single-threaded tokio runtime (#[tokio::test]).
+    // No other threads are spawned that read these env vars concurrently.
+    #[allow(unused_unsafe)]
+    unsafe {
+        std::env::set_var("CROWDSTRIKE_CLIENT_ID", "test-client-id");
+        std::env::set_var("CROWDSTRIKE_CLIENT_SECRET", "test-client-secret");
+    }
     let runtime_arc = Arc::new(runtime);
     let auth_provider = PluginAuthProvider::new(
         runtime_arc.clone(),
         "crowdstrike-oauth2",
-        "client_id=test&client_secret=test",
+        "crowdstrike",
         &format!("{}/oauth2/token", mock_server.uri()),
     );
 
@@ -742,6 +758,14 @@ async fn test_PLUGIN_MIGRATION_001_E_006_401_triggers_plugin_token_refresh_and_r
          got {}",
         result.request_count
     );
+
+    // Cleanup: remove test env vars so they don't leak into other tests.
+    // SAFETY: same single-threaded context as set_var above.
+    #[allow(unused_unsafe)]
+    unsafe {
+        std::env::remove_var("CROWDSTRIKE_CLIENT_ID");
+        std::env::remove_var("CROWDSTRIKE_CLIENT_SECRET");
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -1375,11 +1399,12 @@ fn test_F_LP7_MED_001_host_dispatch_acquire_token_kv_miss_emits_audit_event() {
     (data (i32.const 48) "0.1.0")
     (func (export "auth-type-name") (result i32 i32)
       i32.const 18 i32.const 25)
-    (func (export "acquire-token") (param i32 i32) (result i32 i32)
+    ;; Path 4a: acquire-token/get-token take NO params (credential-handle removed).
+    (func (export "acquire-token") (result i32 i32)
       ;; Returns (0, 0) — does NOT call kv_set.
       ;; Host will find no "token" in KV store → triggers emission + error.
       i32.const 0 i32.const 0)
-    (func (export "get-token") (param i32 i32) (result i32 i32)
+    (func (export "get-token") (result i32 i32)
       i32.const 0 i32.const 0)
   )
   (core instance $i (instantiate $m))
@@ -1387,11 +1412,13 @@ fn test_F_LP7_MED_001_host_dispatch_acquire_token_kv_miss_emits_audit_event() {
     (core func $i "auth-type-name")
     (memory $i "memory")
   ))
-  (func (export "acquire-token") (param "credential-handle" string) (result (result string (error string))) (canon lift
+  ;; ADR-028 §D11 Option C (Path 4a): credential-handle param REMOVED.
+  ;; Credentials are injected by host into PluginConfigMap; guest reads via get-config.
+  (func (export "acquire-token") (result (result string (error string))) (canon lift
     (core func $i "acquire-token")
     (memory $i "memory")
   ))
-  (func (export "get-token") (param "credential-handle" string) (result (result string (error string))) (canon lift
+  (func (export "get-token") (result (result string (error string))) (canon lift
     (core func $i "get-token")
     (memory $i "memory")
   ))
@@ -1459,12 +1486,20 @@ fn test_F_LP7_MED_001_host_dispatch_acquire_token_kv_miss_emits_audit_event() {
         };
 
         // Dispatch acquire-token. The component does not call kv_set, so KV is empty.
-        // The host should emit plugin.auth_token_parse_error and return Err.
-        let dispatch_result = runtime.dispatch_plugin_acquire_token(
-            &plugin.metadata.plugin_id,
-            "client_id=id&client_secret=secret",
-            "https://api.crowdstrike.com/oauth2/token",
-        );
+        // The host should emit plugin_auth_token_parse_error and return Err.
+        // ADR-028 §D11 Option C (Path 4a): credentials injected via PluginConfigMap;
+        // no credential_handle param — guest reads via host::get-config.
+        use prism_spec_engine::plugin::PluginConfigMap;
+        let config = PluginConfigMap::from([
+            ("client_id".to_string(), "id".to_string()),
+            ("client_secret".to_string(), "secret".to_string()),
+            (
+                "token_endpoint".to_string(),
+                "https://api.crowdstrike.com/oauth2/token".to_string(),
+            ),
+        ]);
+        let dispatch_result =
+            runtime.dispatch_plugin_acquire_token(&plugin.metadata.plugin_id, &config);
 
         Some(dispatch_result)
     });
@@ -1514,11 +1549,13 @@ fn test_F_LP7_MED_001_host_dispatch_acquire_token_kv_miss_emits_audit_event() {
             let output = captured.lock().expect("capture mutex not poisoned").clone();
             let output_str = String::from_utf8_lossy(&output);
 
-            // Assertion (a): event_type field "plugin.auth_token_parse_error" present.
+            // Assertion (a): event_type field "plugin_auth_token_parse_error" present.
             // Load-bearing: this assertion FAILS if the host emission is removed.
+            // HIGH finding fix: event_type renamed from "plugin.auth_token_parse_error"
+            // to "plugin_auth_token_parse_error" (dot→underscore per BC-2.16.002 naming).
             assert!(
-                output_str.contains("plugin.auth_token_parse_error"),
-                "F-LP7-MED-001: HOST dispatch MUST emit 'plugin.auth_token_parse_error' \
+                output_str.contains("plugin_auth_token_parse_error"),
+                "F-LP7-MED-001: HOST dispatch MUST emit 'plugin_auth_token_parse_error' \
                  when acquire-token dispatch finds no token in KV store. \
                  This is a PRODUCTION-GRADE requirement (not #[cfg(test)] gated). \
                  Got captured output: {output_str}"

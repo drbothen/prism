@@ -122,8 +122,14 @@ pub fn host_http_request(
         return result;
     }
 
-    // Fallback: create new runtime (for tests without tokio context).
-    let result = match tokio::runtime::Runtime::new() {
+    // Fallback: create a current-thread runtime (for callers without a tokio context).
+    // PR-LOW-003: use current_thread + enable_all (not the multi-thread default from
+    // Runtime::new()) to match the expected minimal footprint for a one-shot HTTP call.
+    // This code path is only exercised in tests without a tokio runtime context.
+    let result = match tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+    {
         Ok(rt) => rt.block_on(do_http_request(state, method, url, &headers, body)),
         Err(e) => HttpResponse {
             status: 500,
@@ -236,6 +242,17 @@ async fn do_http_request(
 /// Forward a plugin log message to `tracing` at the appropriate level.
 ///
 /// Prefix format: `"[plugin:{plugin_id}] {message}"`.
+///
+/// # AD-017 Security Note
+///
+/// The `message` string is forwarded **unredacted** from the plugin guest to the host's
+/// tracing subscriber. Plugin code is responsible for NOT including credential values in
+/// log messages (the WIT interface is a trust boundary, not a redaction boundary).
+///
+/// Credential values are injected via `host::get-config` (which does NOT log values) and
+/// must NEVER be logged by plugin guest code — this is a guest-side discipline enforced
+/// by the plugin author's contract, not by the host. Log scrubbing at the tracing subscriber
+/// level is the production guard (external to prism-spec-engine; e.g., log pipeline).
 pub fn host_log(state: &HostState, level: LogLevel, message: &str) {
     let prefixed = format!("[plugin:{}] {}", state.plugin_id, message);
     match level {

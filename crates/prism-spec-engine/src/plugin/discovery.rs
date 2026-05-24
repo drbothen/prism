@@ -198,13 +198,23 @@ pub(crate) fn load_plugin_from_bytes(
 ) -> Result<LoadedPlugin, PluginError> {
     let path_str = path.display().to_string();
 
-    // Step 1: Extract export names from the raw bytes BEFORE compiling.
-    // For core WASM modules (wat fixtures), parse the WASM export section directly.
-    // For true Component Model binaries, fall back to filename-based approach.
-    let export_names = extract_exports_from_raw_bytes(bytes);
+    // Detect binary format: core module vs Component Model.
+    let is_core_module = bytes.len() >= 8 && bytes[4..8] == [0x01, 0x00, 0x00, 0x00];
+
+    // Step 1: Extract export names.
+    // PR-MED-2 fix: for Component Model binaries, compile first and use reflection API
+    // (wasmtime::component::Component::component_type().exports()) instead of returning
+    // an empty Vec. Core WASM modules parse the export section directly (no compilation needed).
+    let export_names = if is_core_module {
+        extract_exports_from_raw_bytes(bytes)
+    } else {
+        // Component Model binary: compile and extract exports via reflection.
+        // This is the authoritative source of truth for what a component exports.
+        extract_component_exports(engine, bytes)
+    };
     let export_refs: Vec<&str> = export_names.iter().map(|s| s.as_str()).collect();
 
-    // Step 2: Validate WIT interface using the raw export names.
+    // Step 2: Validate WIT interface using the extracted export names.
     let _plugin_type = validate_wit_interface(&export_refs, &path_str)?;
 
     // Step 3: Compile the component (wraps core module if needed).
@@ -215,8 +225,7 @@ pub(crate) fn load_plugin_from_bytes(
 
     // Step 5: Determine plugin name.
     // For core modules, try to call name() to get the actual name from WASM memory.
-    // For Component Model binaries, derive from file path.
-    let is_core_module = bytes.len() >= 8 && bytes[4..8] == [0x01, 0x00, 0x00, 0x00];
+    // For Component Model binaries, derive from file path (is_core_module computed above).
     let name = if is_core_module {
         // Call name() on the core module to get the plugin's actual name.
         call_name_fn(engine, bytes).unwrap_or_else(|| {
@@ -239,7 +248,13 @@ pub(crate) fn load_plugin_from_bytes(
         return Err(PluginError::EmptyPluginId { path: path_str });
     }
 
-    let version = "0.1.0".to_string();
+    // PR-OBS-3: placeholder version used here because load_plugin_from_bytes does not
+    // have access to the manifest. The production load path (PluginRuntime::load_plugin)
+    // overrides this via `plugin.metadata.version = plugin_version` after manifest parsing.
+    // This placeholder is visible only when load_plugin_from_bytes is called without a manifest
+    // (e.g., discover_plugins scan mode). It is intentionally "0.0.0" to distinguish it from
+    // a real semver version in logs/diagnostics.
+    let version = "0.0.0".to_string();
 
     let metadata = PluginMetadata {
         plugin_id: name.clone(),
@@ -311,6 +326,28 @@ fn call_name_fn(engine: &wasmtime::Engine, bytes: &[u8]) -> Option<String> {
 
     let name_bytes = &mem_data[start..end];
     std::str::from_utf8(name_bytes).ok().map(|s| s.to_string())
+}
+
+/// Extract export names from a Component Model binary using wasmtime reflection.
+///
+/// PR-MED-2 fix: for Component Model binaries (magic bytes `0x0d 0x00 0x01 0x00`), the raw
+/// WASM export section parsing in `extract_exports_from_raw_bytes` returns an empty Vec
+/// because Component Model binaries have a different internal structure. This function
+/// compiles the component and uses `Component::component_type().exports()` to get the
+/// authoritative export list via the wasmtime reflection API.
+///
+/// Returns empty Vec on compilation error — caller should handle missing exports as
+/// an InvalidInterface error during `validate_wit_interface`.
+fn extract_component_exports(engine: &wasmtime::Engine, bytes: &[u8]) -> Vec<String> {
+    let component = match wasmtime::component::Component::from_binary(engine, bytes) {
+        Ok(c) => c,
+        Err(_) => return Vec::new(),
+    };
+    component
+        .component_type()
+        .exports(engine)
+        .map(|(name, _ty)| name.to_string())
+        .collect()
 }
 
 /// Parse the export section of a raw WASM binary (core module format).

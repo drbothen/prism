@@ -217,7 +217,21 @@ impl SensorSpec {
     /// Construct a `SensorSpec` for the hot-reload config manager.
     ///
     /// Internal construction shortcut for forward-compatible external construction.
-    /// Sets `mode = DtuMode::Shared` (default) and `credential_refs = []`.
+    /// Sets `mode = DtuMode::Shared` (default), `credential_refs = []`, and
+    /// `auth_plugin = None` (plugin-authed sensors should call `.with_auth_plugin()`
+    /// after construction to set the `auth_plugin` field).
+    ///
+    /// ## `auth_plugin` field
+    ///
+    /// `auth_plugin` defaults to `None`. Sensors that declare `auth_plugin = "..."` in
+    /// their TOML spec must be constructed via:
+    ///
+    /// ```rust,ignore
+    /// let spec = SensorSpec::new_hot_reload(...).with_auth_plugin(Some("crowdstrike-oauth2".to_string()));
+    /// ```
+    ///
+    /// The `with_auth_plugin` builder method is the preferred path for setting `auth_plugin`
+    /// without breaking existing callers of `new_hot_reload` (PR-OBS-2 / PLUGIN-MIGRATION-001-E).
     #[allow(clippy::too_many_arguments)]
     pub fn new_hot_reload(
         sensor_id: impl Into<String>,
@@ -240,8 +254,22 @@ impl SensorSpec {
             source_path: source_path.into(),
             mode: DtuMode::default(),
             credential_refs: vec![],
-            auth_plugin: None, // F-LP2-CRIT-002: default to no plugin auth
+            auth_plugin: None,
         }
+    }
+
+    /// Builder method to set `auth_plugin` field (PR-OBS-2 / PLUGIN-MIGRATION-001-E).
+    ///
+    /// Use this after `new_hot_reload` when the sensor declares `auth_plugin = "..."`.
+    ///
+    /// Example:
+    /// ```rust,ignore
+    /// let spec = SensorSpec::new_hot_reload(...)
+    ///     .with_auth_plugin(Some("crowdstrike-oauth2".to_string()));
+    /// ```
+    pub fn with_auth_plugin(mut self, auth_plugin: Option<String>) -> Self {
+        self.auth_plugin = auth_plugin;
+        self
     }
 }
 

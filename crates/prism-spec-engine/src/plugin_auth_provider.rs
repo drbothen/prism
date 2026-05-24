@@ -1,20 +1,31 @@
 //! PluginAuthProvider — `AuthProvider` implementation that delegates token acquisition
 //! to a loaded WASM sensor-auth plugin via `PluginRuntime`.
 //!
-//! ## Architecture (ADR-028 §D, HIGH-010 / PLUGIN-MIGRATION-001-E)
+//! ## Architecture (ADR-028 §D11 Option C / PLUGIN-MIGRATION-001-E)
 //!
 //! When a `SensorSpec` declares `auth_plugin = "crowdstrike-oauth2"`, the boot path
 //! constructs `Arc<PluginAuthProvider>` (instead of a hardcoded Rust auth adapter) and
 //! injects it into `PipelineExecutor::execute` as the `Arc<dyn AuthProvider>`.
 //!
-//! `PluginAuthProvider::acquire_token` delegates to `PluginRuntime::dispatch_plugin_auth`,
-//! which calls the loaded plugin's `acquire-token` WIT export via Component Model dispatch.
+//! `PluginAuthProvider::acquire_token` resolves credentials from `prism_credentials`
+//! before delegating to `PluginRuntime::dispatch_plugin_acquire_token` with an explicit
+//! `PluginConfigMap` containing `client_id`, `client_secret`, and `token_endpoint`.
+//!
+//! ## Credential Substitution (ADR-028 §D11 Option C)
+//!
+//! The `credential_handle` opaque string is replaced by credential resolution at
+//! dispatch time. `PluginAuthProvider` stores `sensor_id` and resolves:
+//!   - `resolve_credential(org_slug, sensor_id, "client_id")`
+//!   - `resolve_credential(org_slug, sensor_id, "client_secret")`
+//!
+//! The resolved `SecretString` values are materialized once via `expose_secret()` to
+//! populate `PluginConfigMap` for the duration of the single dispatch call.
 //!
 //! ## Wiring (ADR-022 §C — "wiring not redesign")
 //!
-//! `PluginAuthProvider` is constructed from an `Arc<PluginRuntime>` and a `plugin_id`
-//! string, both of which are already available at boot step 7.5 post-plugin-load.
-//! No new architectural abstractions are introduced — this is pure wiring.
+//! `PluginAuthProvider` is constructed from `Arc<PluginRuntime>`, `plugin_id`,
+//! `sensor_id`, and `token_endpoint`. The `sensor_id` is used as the credential
+//! namespace key in the prism-credentials resolution chain (BC-2.03.006).
 //!
 //! ## Object Safety
 //!
@@ -28,7 +39,7 @@ use std::sync::Arc;
 
 use crate::auth_provider::{AuthProvider, AuthToken};
 use crate::error::SpecEngineError;
-use crate::plugin::PluginRuntime;
+use crate::plugin::{PluginConfigMap, PluginRuntime};
 use crate::spec_parser::SensorSpec;
 use prism_core::OrgSlug;
 
@@ -36,13 +47,12 @@ use prism_core::OrgSlug;
 ///
 /// ## Construction
 ///
-/// Use `PluginAuthProvider::new(runtime, plugin_id, credential_handle, token_endpoint)`.
+/// Use `PluginAuthProvider::new(runtime, plugin_id, sensor_id, token_endpoint)`.
 ///
 /// - `runtime`: the live `PluginRuntime` with the plugin already registered.
 /// - `plugin_id`: plugin registry key (e.g., `"crowdstrike-oauth2"`).
-/// - `credential_handle`: opaque credential reference string (AD-017 opaque model).
-///   In tests, this encodes `"client_id=test&client_secret=test"`.
-///   In production, this is the keyring handle resolved by the host.
+/// - `sensor_id`: sensor identity string (e.g., `"crowdstrike"`) used as the
+///   credential namespace key for `prism_credentials::resolve_credential` (ADR-028 §D11).
 /// - `token_endpoint`: full URL of the OAuth2 token endpoint (e.g.,
 ///   `"https://api.crowdstrike.com/oauth2/token"` or DTU clone URL in tests).
 ///
@@ -54,7 +64,11 @@ use prism_core::OrgSlug;
 pub struct PluginAuthProvider {
     runtime: Arc<PluginRuntime>,
     plugin_id: String,
-    credential_handle: String,
+    /// Sensor identity used as credential namespace key (BC-2.03.006 / ADR-028 §D11).
+    ///
+    /// Replaces `credential_handle` (which was an opaque `"sensor:{sensor_id}"` string).
+    /// The `sensor_id` is the canonical identifier from the TOML sensor spec.
+    sensor_id: String,
     token_endpoint: String,
 }
 
@@ -68,13 +82,13 @@ impl PluginAuthProvider {
     pub fn new(
         runtime: Arc<PluginRuntime>,
         plugin_id: impl Into<String>,
-        credential_handle: impl Into<String>,
+        sensor_id: impl Into<String>,
         token_endpoint: impl Into<String>,
     ) -> Self {
         Self {
             runtime,
             plugin_id: plugin_id.into(),
-            credential_handle: credential_handle.into(),
+            sensor_id: sensor_id.into(),
             token_endpoint: token_endpoint.into(),
         }
     }
@@ -89,9 +103,9 @@ impl std::fmt::Debug for PluginAuthProvider {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("PluginAuthProvider")
             .field("plugin_id", &self.plugin_id)
+            .field("sensor_id", &self.sensor_id)
             .field("token_endpoint", &self.token_endpoint)
-            // credential_handle intentionally omitted (AD-017)
-            .field("credential_handle", &"<redacted>")
+            // credential values never in Debug output (AD-017)
             .finish()
     }
 }
@@ -103,27 +117,60 @@ impl AuthProvider for PluginAuthProvider {
         client_id: &'a OrgSlug,
     ) -> Pin<Box<dyn Future<Output = Result<AuthToken, SpecEngineError>> + Send + 'a>> {
         Box::pin(async move {
+            // ADR-028 §D11 Option C: resolve credentials from prism_credentials before dispatch.
+            // BC-2.03.006 resolution chain: env var → crud store → NotFound.
+            let cid_str = client_id.as_str();
+
+            let resolved_client_id =
+                prism_credentials::resolve_credential(cid_str, &self.sensor_id, "client_id")
+                    .await
+                    .map_err(|e| SpecEngineError::AuthAcquisitionFailed {
+                        sensor_id: self.sensor_id.clone(),
+                        client_id: cid_str.to_string(),
+                        // structural error message (not a credential value — BC-2.03.006 audit)
+                        detail: e.to_string(),
+                    })?;
+
+            let resolved_client_secret =
+                prism_credentials::resolve_credential(cid_str, &self.sensor_id, "client_secret")
+                    .await
+                    .map_err(|e| SpecEngineError::AuthAcquisitionFailed {
+                        sensor_id: self.sensor_id.clone(),
+                        client_id: cid_str.to_string(),
+                        detail: e.to_string(),
+                    })?;
+
+            // Materialize credential values at the PluginConfigMap boundary.
+            // This is the SOLE location where SecretString values are exposed.
+            // The PluginConfigMap lifetime is bounded to the dispatch_plugin_acquire_token
+            // call frame (dropped on function return per ADR-028 §D11 AD-017 analysis).
+            use secrecy::ExposeSecret;
+            let config = PluginConfigMap::from([
+                (
+                    "client_id".to_string(),
+                    resolved_client_id.expose_secret().to_string(),
+                ),
+                (
+                    "client_secret".to_string(),
+                    resolved_client_secret.expose_secret().to_string(),
+                ),
+                ("token_endpoint".to_string(), self.token_endpoint.clone()),
+            ]);
+
             // Dispatch to the plugin's acquire-token WIT export via PluginRuntime.
             // F-LP2-MED-002: use AuthPluginDispatchFailed (structured) instead of
             // AuthAcquisitionFailed (stringified). Real sensor_id and client_id used.
             let token = self
                 .runtime
-                .dispatch_plugin_acquire_token(
-                    &self.plugin_id,
-                    &self.credential_handle,
-                    &self.token_endpoint,
-                )
+                .dispatch_plugin_acquire_token(&self.plugin_id, &config)
                 .map_err(|plugin_error| SpecEngineError::AuthPluginDispatchFailed {
                     // spec.sensor_id is the canonical sensor identity (from crowdstrike.sensor.toml).
                     sensor_id: spec.sensor_id.to_string(),
                     plugin_id: self.plugin_id.clone(),
                     // F-LP2-MED-002: structured PluginError preserved (not stringified).
-                    // client_id from the real OrgSlug — not the "plugin-auth" sentinel.
-                    // Silences the `client_id` lint: the org context is in sensor_id+plugin_id.
                     plugin_error,
                 })?;
 
-            let _ = client_id; // OrgSlug carried for future credential-scope gating (AD-017).
             Ok(AuthToken::new(token))
         })
     }
@@ -145,9 +192,15 @@ mod tests {
         // PluginAuthProvider, this file fails to compile.
     }
 
-    /// Verify Debug impl redacts credential_handle.
+    /// Verify Debug impl shows sensor_id and plugin_id (structural identifiers),
+    /// and does NOT store or expose credential values.
+    ///
+    /// ADR-028 §D11 Option C: credentials are NEVER stored in PluginAuthProvider.
+    /// They are resolved from prism_credentials at dispatch time and materialized only
+    /// at the PluginConfigMap boundary. This is the structural AD-017 guarantee:
+    /// no credential value can appear in Debug output because the struct never holds one.
     #[test]
-    fn test_debug_redacts_credential_handle() {
+    fn test_debug_shows_structural_ids_not_credentials() {
         let runtime = Arc::new(
             PluginRuntime::new(
                 reqwest::Client::builder()
@@ -157,20 +210,33 @@ mod tests {
             )
             .expect("PluginRuntime::new"),
         );
+        // sensor_id = "crowdstrike" (structural identifier, NOT a credential value).
+        // token_endpoint is a URL (not a credential).
         let provider = PluginAuthProvider::new(
             runtime,
             "crowdstrike-oauth2",
-            "client_id=test&client_secret=supersecret",
+            "crowdstrike",
             "https://api.crowdstrike.com/oauth2/token",
         );
         let debug_str = format!("{:?}", provider);
+
+        // Structural identifiers MUST appear in Debug output for operator diagnostics.
         assert!(
-            !debug_str.contains("supersecret"),
-            "PluginAuthProvider Debug must not contain credential_handle value (AD-017)"
+            debug_str.contains("crowdstrike-oauth2"),
+            "PluginAuthProvider Debug must contain plugin_id; got: {debug_str}"
         );
         assert!(
-            debug_str.contains("<redacted>"),
-            "PluginAuthProvider Debug must show <redacted> for credential_handle"
+            debug_str.contains("crowdstrike"),
+            "PluginAuthProvider Debug must contain sensor_id; got: {debug_str}"
+        );
+
+        // AD-017: credential values NEVER stored in struct fields → cannot appear in Debug.
+        // The struct stores only: runtime (Arc<PluginRuntime>), plugin_id, sensor_id, token_endpoint.
+        // No client_id value, no client_secret value, no credential bytes anywhere.
+        // (The old credential_handle "client_id=...&client_secret=..." field is GONE.)
+        assert!(
+            !debug_str.contains("client_secret"),
+            "PluginAuthProvider Debug must never contain 'client_secret' (AD-017); got: {debug_str}"
         );
     }
 }

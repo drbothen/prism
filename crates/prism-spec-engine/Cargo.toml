@@ -11,6 +11,13 @@ description = "Prism config-driven sensor adapter engine: TOML spec loading, pip
 
 [dependencies]
 prism-core = { path = "../prism-core", version = "0.2.0" }
+# ADR-028 §D11 Option C: credential resolution at dispatch time (PLUGIN-MIGRATION-001-E).
+# PluginAuthProvider calls resolve_credential(org, sensor_id, "client_id") + "client_secret"
+# before injecting into PluginConfigMap. PRODUCTION dep (not test-only).
+prism-credentials = { path = "../prism-credentials" }
+# secrecy: expose_secret() at the PluginConfigMap boundary (AD-017).
+# Credential bytes are NOT retained across the dispatch call frame.
+secrecy = { version = "0.8" }
 serde = { version = "1", features = ["derive"] }
 toml = "0.8"
 percent-encoding = "2"

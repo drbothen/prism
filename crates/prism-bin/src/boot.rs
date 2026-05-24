@@ -215,13 +215,41 @@ pub fn validate_and_construct_auth_providers(
         })?;
 
         if let Some(plugin_id) = sensor_spec.auth_plugin.as_deref() {
-            let credential_handle = format!("sensor:{sensor_id}");
+            // ADR-028 §D11 Option C: pass sensor_id (not opaque credential_handle).
+            // PluginAuthProvider resolves client_id/client_secret from prism_credentials
+            // at acquire_token dispatch time using sensor_id as the credential namespace key.
             let token_endpoint = format!("{}/oauth2/token", sensor_spec.base_url);
+
+            // SEC-003: validate token_endpoint host against plugin's allowed_urls at boot time.
+            // If the host is not allowlisted, the plugin's HTTP dispatch would return HTTP 403
+            // at runtime (host_http_request allowlist gate). Fail-fast at boot instead.
+            let plugin_arc = runtime.get_plugin(plugin_id).map_err(|e| {
+                BootError::ConfigInvalid(format!(
+                    "SEC-003: cannot retrieve plugin '{plugin_id}' for allowed_urls check: {e}"
+                ))
+            })?;
+            // Use reqwest::Url (re-exported from the `url` crate) to parse the endpoint.
+            // reqwest is already a direct dep of prism-bin for Client construction.
+            if let Ok(parsed) = reqwest::Url::parse(&token_endpoint) {
+                let endpoint_host = parsed.host_str().unwrap_or("");
+                let is_allowed = plugin_arc
+                    .allowed_urls
+                    .iter()
+                    .any(|allowed| !allowed.is_empty() && endpoint_host == allowed.as_str());
+                if !is_allowed {
+                    return Err(BootError::ConfigInvalid(format!(
+                        "SEC-003: sensor '{sensor_id}' token_endpoint host '{endpoint_host}' \
+                         is not in plugin '{plugin_id}' allowed_urls {:?}. \
+                         Add the host to the plugin manifest 'allowed_urls' field.",
+                        plugin_arc.allowed_urls
+                    )));
+                }
+            }
 
             let auth_provider = Arc::new(PluginAuthProvider::new(
                 Arc::clone(runtime),
                 plugin_id,
-                credential_handle,
+                sensor_id.as_str(),
                 token_endpoint,
             ));
 

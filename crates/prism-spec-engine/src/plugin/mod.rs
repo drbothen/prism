@@ -624,9 +624,10 @@ impl PluginRuntime {
 
     /// Dispatch the `acquire-token` WIT export on a sensor-auth plugin.
     ///
-    /// Calls the plugin's exported `acquire-token` function, which issues a POST
-    /// to the OAuth2 token endpoint via `host::http-request`, caches the token in
-    /// the plugin's KV store, and returns the bearer token string.
+    /// Calls the plugin's exported `acquire-token` function, which reads `client_id`,
+    /// `client_secret`, and `token_endpoint` from the host config map (PluginConfigMap),
+    /// issues a POST to the OAuth2 token endpoint via `host::http-request`, caches the
+    /// token in the plugin's KV store, and returns the bearer token string.
     ///
     /// For WAT-fixture plugins (core modules), this invokes the core-module export
     /// directly (the WAT fixture returns a hardcoded token for testing). For real
@@ -635,42 +636,38 @@ impl PluginRuntime {
     /// # Arguments
     ///
     /// - `plugin_id`: registry key for the sensor-auth plugin (e.g., `"crowdstrike-oauth2"`).
-    /// - `credential_handle`: opaque credential reference string (AD-017). The plugin guest
-    ///   appends this to the POST body as `grant_type=client_credentials` form params.
-    /// - `token_endpoint`: full URL for POST /oauth2/token.
+    /// - `config`: plugin config map (ADR-028 §D11 Option C) — MUST contain:
+    ///   - `"client_id"` — resolved OAuth2 client ID (never an opaque handle)
+    ///   - `"client_secret"` — resolved OAuth2 client secret (never an opaque handle)
+    ///   - `"token_endpoint"` — full URL for POST /oauth2/token
+    ///
+    /// The caller (PluginAuthProvider::acquire_token) resolves credentials from
+    /// prism_credentials before calling this function. Credentials are injected via
+    /// PluginConfigMap and are NOT passed as WIT parameters (AD-017 compliance).
     ///
     /// # Errors
     ///
     /// Returns `PluginError::NotLoaded` if `plugin_id` is not in the registry.
     /// Returns `PluginError::AuthTokenNotCached` (E-PLUGIN-022) if the WASM call fails.
     ///
-    /// Story: PLUGIN-MIGRATION-001-E / HIGH-010
-    /// Traces to: BC-2.01.016 §Postcondition; VP-150 end-to-end auth dispatch
+    /// Story: PLUGIN-MIGRATION-001-E / CRIT-1 + CRIT-2 (F-PR154-CRIT-1 + F-PR154-CRIT-2)
+    /// Traces to: BC-2.01.016 §Postcondition; VP-150 end-to-end auth dispatch; ADR-028 §D11
     pub fn dispatch_plugin_acquire_token(
         &self,
         plugin_id: &str,
-        credential_handle: &str,
-        token_endpoint: &str,
+        config: &PluginConfigMap,
     ) -> Result<String, PluginError> {
         let plugin = self.get_plugin(plugin_id)?;
-
-        // Build host state with the plugin's allowed_urls and a fresh KV store.
-        // The credential_handle + token_endpoint will be encoded into the WASM call params.
-        // The KV store is shared for the duration of this dispatch — the plugin reads/writes
-        // the token cache through host::kv-get / host::kv-set registered host functions.
-        let config = PluginConfigMap::from([
-            (
-                "credential_handle".to_string(),
-                credential_handle.to_string(),
-            ),
-            ("token_endpoint".to_string(), token_endpoint.to_string()),
-        ]);
         // F-LP2-CRIT-001: clone the plugin's persistent kv_store Arc — do NOT construct a fresh
         // PluginKvStore::new() here. All dispatches for the same plugin share the same instance
         // so the token cache survives across calls (AC-004 "token cached within TTL").
+        //
+        // ADR-028 §D11 Option C: use the caller-provided config directly (contains client_id,
+        // client_secret, token_endpoint). No internal PluginConfigMap construction here —
+        // the caller (PluginAuthProvider::acquire_token) already resolved credentials.
         let host_state = self.make_host_state(
             plugin_id,
-            &config,
+            config,
             plugin.kv_store.clone(),
             plugin.allowed_urls.clone(),
         );
@@ -683,7 +680,7 @@ impl PluginRuntime {
         // magic `[0x0d, 0x00, 0x01, 0x00]`). Production `.prx` files MUST be Component Model
         // binaries; WAT core-module bytes are only valid as test inputs.
         //
-        // Emission reachability note: `plugin.auth_token_parse_error` (BC-2.16.002 row 37)
+        // Emission reachability note: `plugin_auth_token_parse_error` (BC-2.16.002 row 37)
         // is emitted ONLY from the Component Model path below, NOT from this WAT path.
         // This is intentional — WAT fixture plugins short-circuit to a sentinel token return.
         // The unit test `test_F_LP7_MED_001_host_emit_acquire_token_parse_error_fires_unconditionally`
@@ -762,15 +759,20 @@ impl PluginRuntime {
                 missing_export: "acquire-token".to_string(),
             })?;
 
-        // Component Model ABI: credential_handle and token_endpoint are passed as (ptr, len) i32 pairs.
-        // The plugin returns ok=1 on success (token cached in KV), err=0 on failure.
-        let params = [
-            wasmtime::component::Val::S32(0), // credential_handle ptr (simplified)
-            wasmtime::component::Val::S32(credential_handle.len() as i32),
-            wasmtime::component::Val::S32(0), // token_endpoint ptr (simplified)
-            wasmtime::component::Val::S32(token_endpoint.len() as i32),
-        ];
-        let mut results = vec![wasmtime::component::Val::S64(0)];
+        // Component Model ABI (ADR-028 §D11 Option C, Path 4a — F-PR154-CRIT-1 closure):
+        // acquire-token takes ZERO WIT params. Credentials are passed via PluginConfigMap
+        // (HostState.config), which the guest reads via host::get-config("client_id") /
+        // host::get-config("client_secret") / host::get-config("token_endpoint").
+        //
+        // Result type: result<string, auth-error> — lifted WIT result enum.
+        // On success: guest calls host::kv-set("token", bearer_token); host reads from KV after return.
+        // On error: guest returns err variant; KV has no "token" key → emit_acquire_token_parse_error_and_fail.
+        let params: [wasmtime::component::Val; 0] = [];
+        // Val::Result(Result<Option<Box<Val>>, Option<Box<Val>>>):
+        // The variant payload is an unboxed Rust Result; the Ok/Err values are Box<Val>.
+        let mut results = vec![wasmtime::component::Val::Result(Ok(Some(Box::new(
+            wasmtime::component::Val::String(String::new()),
+        ))))];
 
         let call_result = func.call(&mut store, &params, &mut results);
         let elapsed_ms = start.elapsed().as_millis() as u64;
@@ -1128,7 +1130,7 @@ impl PluginRuntime {
 // Host-side acquire-token error emission helper (BC-2.16.002 row 37)
 // ---------------------------------------------------------------------------
 
-/// Emit the `plugin.auth_token_parse_error` audit event and return the appropriate error.
+/// Emit the `plugin_auth_token_parse_error` audit event and return the appropriate error.
 ///
 /// Called by `dispatch_plugin_acquire_token` when the Component Model guest's
 /// `acquire-token` call completes (`func.call` returns `Ok`) but no token was
@@ -1138,7 +1140,7 @@ impl PluginRuntime {
 /// ## Why a separate function?
 ///
 /// Extracted for testability: unit tests can call this function directly to assert
-/// the `plugin.auth_token_parse_error` emission fires. Tests that go through the full
+/// the `plugin_auth_token_parse_error` emission fires. Tests that go through the full
 /// `dispatch_plugin_acquire_token` Component Model path require a real `.prx` artifact
 /// (not available in unit tests). This function is the load-bearing test target.
 ///
@@ -1155,7 +1157,7 @@ pub(crate) fn emit_acquire_token_parse_error_and_fail(
     plugin_id: &str,
 ) -> Result<String, PluginError> {
     error!(
-        event_type = "plugin.auth_token_parse_error",
+        event_type = "plugin_auth_token_parse_error",
         plugin_id = %plugin_id,
         error = "acquire-token dispatch completed but no token was cached in KV store \
                  (guest AuthError::ResponseParse or missing kv_set call)",
@@ -1367,7 +1369,7 @@ mod tests {
     use std::sync::Arc;
 
     /// F-LP7-MED-001 CORRECTION (unit test): `emit_acquire_token_parse_error_and_fail`
-    /// emits `plugin.auth_token_parse_error` from the HOST and returns `Err`.
+    /// emits `plugin_auth_token_parse_error` from the HOST and returns `Err`.
     ///
     /// This is the LOAD-BEARING test for BC-2.16.002 row 37 host-side emission.
     ///
@@ -1442,13 +1444,13 @@ mod tests {
             "F-LP7-MED-001: emit_acquire_token_parse_error_and_fail MUST return Err; got Ok"
         );
 
-        // Assertion (a): event_type = "plugin.auth_token_parse_error" present.
+        // Assertion (a): event_type = "plugin_auth_token_parse_error" present.
         // LOAD-BEARING: this assertion FAILS if `error!` is removed from the helper,
         // or if the helper is wrapped in #[cfg(test)] (paper-fix pattern).
         assert!(
-            output_str.contains("plugin.auth_token_parse_error"),
+            output_str.contains("plugin_auth_token_parse_error"),
             "F-LP7-MED-001 CORRECTION: emit_acquire_token_parse_error_and_fail MUST emit \
-             event_type='plugin.auth_token_parse_error' UNCONDITIONALLY (no #[cfg(test)] gate). \
+             event_type='plugin_auth_token_parse_error' UNCONDITIONALLY (no #[cfg(test)] gate). \
              This is the production audit emission for AuthError::ResponseParse on the guest. \
              Captured output: {output_str}"
         );
@@ -1486,7 +1488,7 @@ mod tests {
     }
 
     /// F-LP7-MED-001 CORRECTION (integration test #[ignore]):
-    /// `dispatch_plugin_acquire_token` Component Model path emits `plugin.auth_token_parse_error`
+    /// `dispatch_plugin_acquire_token` Component Model path emits `plugin_auth_token_parse_error`
     /// when the guest acquire-token succeeds but doesn't cache a token.
     ///
     /// ## Why #[ignore]
@@ -1512,7 +1514,7 @@ mod tests {
         todo!(
             "F-LP7-MED-001 integration test: load pre-built crowdstrike-oauth2.prx, \
              call dispatch_plugin_acquire_token with modified plugin (core_module=None), \
-             assert plugin.auth_token_parse_error fires from host path"
+             assert plugin_auth_token_parse_error fires from host path"
         )
     }
 }
