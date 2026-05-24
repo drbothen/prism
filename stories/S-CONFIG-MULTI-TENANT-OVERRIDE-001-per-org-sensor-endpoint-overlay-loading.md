@@ -6,12 +6,12 @@ wave: 0
 epic_id: wave-0-plugin-prereqs
 priority: P0
 status: draft
-version: "v0.1"
+version: "v0.2"
 level: "L4"
 producer: story-writer
 timestamp: "2026-05-23T00:00:00Z"
 created: "2026-05-23"
-modified: "2026-05-23"
+modified: "2026-05-24"
 tdd_mode: strict
 # BC status: All 5 BCs (BC-2.06.012–016) are draft status (D-803 burst-3).
 # Per Spec-First Gate S-7.01, status must remain draft until BCs are promoted
@@ -424,7 +424,7 @@ Key lessons from adjacent stories that apply:
 
 - **`#[non_exhaustive]` discipline:** All new public TOML-deserialized types
   (`SensorInstanceOverlay`, `ResolvedSensorSpec`) require `#[non_exhaustive]`. The
-  `ci.yml` `EXPECTED=32` constant must be bumped by the number of new types. Verify the
+  `ci.yml` `EXPECTED=35` constant must be bumped by the number of new types. Verify the
   compile-fail gate crate at `tests/external/non-exhaustive-violation/`.
 
 - **Multi-error aggregation pattern (BC-2.06.005 precedent):** Boot-time config validation
@@ -460,7 +460,7 @@ Key lessons from adjacent stories that apply:
 | All five E-SPEC codes are FATAL/broken/validation — no downgrade to warning | BC-2.06.016 INV-ERR-001 | Every error path asserts exit code 2 |
 | Error messages MUST NOT include credential values | BC-2.06.016 INV-ERR-002 + AD-017 | Code review + security-reviewer pass |
 | New `tracing::*!(event_type=...)` sites require BC-2.16.002 catalog row | SAP-1 + PG-LP11-001 | Adversary SAP-1 sweep on every pass |
-| New public TOML-deserialized types require `#[non_exhaustive]` | CLAUDE.md + S-PLUGIN-PREREQ-C compile-fail gate | `ci.yml EXPECTED=32` count bump; compile-fail gate test |
+| New public TOML-deserialized types require `#[non_exhaustive]` | CLAUDE.md + S-PLUGIN-PREREQ-C compile-fail gate | `ci.yml EXPECTED=35` count bump; compile-fail gate test |
 | E-SPEC-018 is ALREADY ALLOCATED to TimestampParseFailure (ADR-028/BC-2.16.013) | BC-2.06.016 INV-ERR-005; Source-of-Truth Precedence Rule #3 | Do not define `SpecErrorCode::ESpec018` for overlay violations |
 
 ### Forbidden Dependencies
@@ -560,3 +560,4 @@ config-rs layering for overlays).
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
 | v0.1 | 2026-05-23 | story-writer | Initial stub — D-803 Burst 4/4; anchored to ADR-029 v1.1 + 5 new BCs BC-2.06.012–016; 7 ACs with Red Gate test names per SID-1 §5; subsystems SS-06 + SS-16; wave-0 prereq parallel to S-PLUGIN-CI-001. |
+| v0.2 | 2026-05-24 | story-writer | F-LP4-MED-004 closure — swept stale `ci.yml EXPECTED=32` → `EXPECTED=35` at Architecture Compliance Rules (§#[non_exhaustive] discipline) and Architecture Compliance Rules table row (compile-fail gate enforcement column). Fix-burst-3 bumped ci.yml but missed story body citations. POL-29 sibling-sweep: no other EXPECTED=32 citations in this story file. |
