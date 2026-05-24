@@ -2,7 +2,7 @@
 document_type: behavioral-contract
 level: L3
 bc_id: "BC-2.06.016"
-version: "1.0"
+version: "1.1"
 status: draft
 lifecycle_status: draft
 producer: product-owner
@@ -118,8 +118,8 @@ When an override violation occurs, the operator observes:
 | Category | validation |
 | Exit code | 2 |
 | Retryable | No |
-| Message template | `"Per-org overlay '{file}' for instance '{instance_id}' contains [[tables]] blocks. Schema overrides are forbidden in overlay files (ADR-029). Table schema must be declared in the TYPE spec '{extends_value}.sensor.toml' only."` |
-| Suggestion | `"Remove [[tables]] from the overlay file. If you need to add or modify a sensor table's schema, edit the TYPE spec '{extends_value}.sensor.toml' directly. Per-org overlays may only set: extends, instance_id, base_url, timeout_secs, rate_limit_hints."` |
+| Message template | `"Per-org overlay '{file}' for instance '{instance_id}' contains [[tables]] blocks. Schema overrides are forbidden in overlay files (ADR-029). Table schema must be declared in the TYPE spec only."` |
+| Suggestion | `"Remove [[tables]] from the overlay file. If you need to add or modify a sensor table's schema, edit the TYPE spec for this sensor in the root sensor_specs_dir (e.g., crates/prism-sensors/specs/<sensor>.sensor.toml). Per-org overlays may only set: extends, instance_id, base_url, timeout_secs, rate_limit_hints."` |
 | BC enforcement | BC-2.06.013 §Error Conditions (primary); BC-2.06.012 §Error Conditions |
 | Risk | This is the TOML array-replace footgun from ADR-029 §Decision Drivers. The error message must be maximally actionable because operators unfamiliar with TOML array semantics will naturally try to add per-org tables. |
 
@@ -146,7 +146,7 @@ When an override violation occurs, the operator observes:
 | Exit code | 2 |
 | Retryable | No |
 | Message template | `"Per-org overlay '{file}' contains unrecognized field '{field_name}'. Allowed overlay fields are: extends, instance_id, base_url, timeout_secs, rate_limit_hints (with sub-fields: requests_per_second, burst_size)."` |
-| Suggestion | `"Remove '{field_name}' from the overlay file. If this field controls sensor behavior, it belongs in the TYPE spec '{extends_value}.sensor.toml', not in a per-org overlay."` |
+| Suggestion | `"Remove '{field_name}' from the overlay file. If this field controls sensor behavior, it belongs in the TYPE spec for this sensor (e.g., crates/prism-sensors/specs/<sensor>.sensor.toml), not in a per-org overlay."` |
 | BC enforcement | BC-2.06.013 §Allowed vs Forbidden Overlay Fields (primary) |
 
 ## Invariants
@@ -232,3 +232,4 @@ S-CONFIG-MULTI-TENANT-OVERRIDE-001 (to-be-created)
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
 | 1.0 | D-803 burst-3 | 2026-05-23 | product-owner | Initial draft per ADR-029 Burst 3 handoff. Resolved E-SPEC-018 collision with ADR-028 TimestampParseFailure (error-taxonomy.md v1.43); allocated E-SPEC-019–023 instead of ADR-029 draft E-SPEC-018–022. All sibling BCs (BC-2.06.012, BC-2.06.013, BC-2.06.015) updated to cite the final codes. |
+| 1.1 | D-803 burst-4 | 2026-05-23 | product-owner | Fix E-SPEC-021 message template and suggestion text to remove infeasible `{extends_value}` interpolation. Structural `[[tables]]` check in overlay.rs fires BEFORE TOML deserialization into `SensorInstanceOverlay`, so `overlay.extends` has not been read and `{extends_value}` is unknown at that point. Corrected suggestion now directs operators to the TYPE spec in `crates/prism-sensors/specs/<sensor>.sensor.toml` using generic `<sensor>` placeholder instead. Also corrected E-SPEC-023 suggestion (same class of defect — `{extends_value}` also infeasible there since the code takes only `file_path`, `instance_id`, and `field_name`). Message template for E-SPEC-021 updated to match `make_e_spec_021_tables_in_overlay` exact emission: "...Table schema must be declared in the TYPE spec only." (no `{extends_value}.sensor.toml`). 3-way alignment confirmed: BC body ↔ taxonomy row ↔ code emission. taxonomy E-SPEC-021 row already correct (uses `<sensor>.sensor.toml` generic form); no taxonomy edit needed. POL-29 sweep: no `{extends_value}` references remain in BC-2.06.016 body; E-SPEC-019 and E-SPEC-023 references to `{extends_value}` in other rows are legitimate (E-SPEC-019 fires after deserialization; E-SPEC-023 suggestion was also fixed this burst). |
