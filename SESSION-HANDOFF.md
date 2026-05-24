@@ -6878,7 +6878,7 @@ _Cascade convergence per BC-5.39.001. Next phase: demo-recorder + push + pr-mana
 | S-CONFIG-MULTI-TENANT-OVERRIDE-001 | v0.1 draft — READY for deliver-story workflow |
 | PLUGIN-MIGRATION-001-E | CONVERGED (D-802); feature HEAD `9e412c83` — READY for demo-recorder + push + pr-manager |
 | Develop HEAD | `f19575ff` (unchanged) |
-| Factory-artifacts HEAD | D-815 burst (see `git -C .factory log -1`) |
+| Factory-artifacts HEAD | D-816 burst (see `git -C .factory log -1`) |
 | BC-INDEX | v5.51 |
 | STORY-INDEX | v2.188 |
 | ARCH-INDEX | v2.102 |

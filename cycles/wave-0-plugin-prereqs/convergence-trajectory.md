@@ -332,11 +332,11 @@ Extracted from STATE.md frontmatter (pass/burst SHA history):
 |-------|-------|
 | Story | S-CONFIG-MULTI-TENANT-OVERRIDE-001 |
 | Feature branch | feature/S-CONFIG-MULTI-TENANT-OVERRIDE-001 |
-| Feature HEAD at fix-burst-7 completion | `d600f7f4` (implementer d600f7f4 overlay.rs 2 sibling doc-comments; prior fix-burst-6 HEAD was 3416eea6) |
+| Feature HEAD at fix-burst-8 completion | `d600f7f4` (unchanged — fix-burst-8 is state-manager only; no code changes) |
 | Streak | 0/3 |
-| Total passes | 6 (pass-7 next) |
-| Total fix-bursts | 7 |
-| Cumulative findings closed | 17 (4 from pass-2 via fix-burst-3 + 2 from pass-3 via fix-burst-4 + 4 from pass-4 via fix-burst-5 + 3 from pass-5 via fix-burst-6 + 4 from pass-6 via fix-burst-7) |
+| Total passes | 7 (pass-8 next) |
+| Total fix-bursts | 8 |
+| Cumulative findings closed | 20 (4 from pass-2 via fix-burst-3 + 2 from pass-3 via fix-burst-4 + 4 from pass-4 via fix-burst-5 + 3 from pass-5 via fix-burst-6 + 4 from pass-6 via fix-burst-7 + 3 from pass-7 via fix-burst-8) |
 
 ### Trajectory
 
@@ -353,6 +353,8 @@ Extracted from STATE.md frontmatter (pass/burst SHA history):
 | fix-burst-6 | — | -3 closed | 1 MED + 1 LOW + 1 LOW closed | PO 513ee6b8: BC-2.06.016 v1.1→v1.2 (F-LP5-MED-001: `{sensor_id}@{org_slug}`→`{expected}` per BC-2.06.016 v1.2 changelog). Implementer 3416eea6: overlay.rs doc-comment forward-pointer fixes at `make_e_spec_019_unknown_extends` + `make_e_spec_020_instance_id_mismatch` + `make_e_spec_021_tables_in_overlay` (F-LP5-LOW-001). Architect 4ef6c650: S-POL-29 v0.1→v0.2 AC-006 Suggestion authority adjudication (F-LP5-LOW-002 Option B). OBS-LP5-001 state-manager narrative correction (D-814 burst): s-config-pass-4.md + convergence-trajectory.md pass-4 row + S-POL-29 §Originating Findings byte-sourced from BC changelogs. BC-INDEX v5.49→v5.50. STORY-INDEX v2.187→v2.188. Feature HEAD 5c11fc7b→3416eea6. Streak stays 0/3. |
 | pass-6 | 4 | +1 from pass-5 | 0 CRIT + 0 HIGH + 2 MED + 2 LOW | F-LP6-MED-001 s-config-fix-burst-6.md F-LP5-LOW-001 closure section cited non-existent `make_e_spec_019_instance_id_mismatch` (actual: `make_e_spec_019_unknown_extends`) + `make_e_spec_022_unknown_org_slug` as fixed site (actual: NOT in fix-burst-6; fix-burst-6 fixed `make_e_spec_020_instance_id_mismatch`); F-LP6-MED-002 lessons.md entry 41 bullets (1)+(2) still paraphrase-drifted despite OBS-LP5-001 meta-correction note (BC-2.06.013 v1.1 changelog authoritative: bullet (1) was E-SPEC-021 semicolon→period, not E-SPEC-020 colon→em-dash; bullet (2) was E-SPEC-023 `{field}`→`{field_name}`, not `{overlay_path}`→`{file}`); F-LP6-LOW-001 overlay.rs 2 sibling sites not swept by fix-burst-6 (`e_spec_022_unknown_org_slug` + `make_e_spec_023_unrecognized_field`); F-LP6-LOW-002 BC-2.06.016 EC-016-003 ambiguous on cross-file vs within-file aggregation. Feature HEAD 3416eea6 (unchanged — pass is read-only). Streak 0/3 → 0/3 (BLOCKED). |
 | fix-burst-7 | — | -4 closed | 2 MED CORRECTIVE + 1 LOW + 1 LOW closed | PO 455f9fbb: BC-2.06.016 v1.2→v1.3 (EC-016-003 cross-file aggregation + EC-016-005 within-file structural-suppresses-semantic boundary via `validate_overlay_toml` early-return in `prism-spec-engine/src/overlay.rs`; F-LP6-LOW-002). Implementer d600f7f4: overlay.rs `e_spec_022_unknown_org_slug` + `make_e_spec_023_unrecognized_field` forward-pointer style (F-LP6-LOW-001 sibling-sweep completion). State-manager D-815: s-config-fix-burst-6.md F-LP5-LOW-001 section rewritten with byte-quoted names `make_e_spec_019_unknown_extends` + `make_e_spec_020_instance_id_mismatch` + `make_e_spec_021_tables_in_overlay` (F-LP6-MED-001 CORRECTIVE); lessons.md entry 41 bullets rewritten with BC-2.06.013 v1.1 changelog text (F-LP6-MED-002 CORRECTIVE). BC-INDEX v5.50→v5.51. Feature HEAD 3416eea6→d600f7f4. Streak stays 0/3. |
+| pass-7 | 3 | -1 from pass-6 | 0 CRIT + 0 HIGH + 1 MED + 1 LOW + 1 LOW | F-LP7-MED-001 [process-gap] fix-burst-7 inner-quoted strings contained 4 trailing periods not present in BC-2.06.013 v1.1 §Changelog source — present in s-config-fix-burst-7.md lines 81+87 and lessons.md entry 41 (3rd-generation OBS-LP5-001 recurrence); F-LP7-LOW-001 [process-gap] lessons.md entry 43 placed under D-814 section header but Discovered tag cites D-815 — missing D-815 section header; F-LP7-LOW-002 [process-gap] lessons.md entries numerically inverted (41→43→42 order). Feature HEAD d600f7f4 (unchanged — pass is read-only). Streak 0/3 → 0/3 (BLOCKED). |
+| fix-burst-8 | — | -3 closed | 1 MED CORRECTIVE + 1 LOW + 1 LOW closed | State-manager D-816 byte-equality corrective: s-config-fix-burst-7.md lines 81+87 periods removed from inner quotes (3 strings, 4 sites total); lessons.md entry 41 periods removed from 6 inner-quote instances; byte-diff verified against BC-2.06.013 v1.1 §Changelog line 200 before commit (F-LP7-MED-001 CORRECTIVE). D-815 section header inserted before entry 43 (F-LP7-LOW-001). Entries reordered 41→42→43→44 (F-LP7-LOW-002). Lesson 44 [process-gap] [codified] appended. STATE v7.502→v7.503. Streak stays 0/3. Pass-8 next (streak attempt 0/3→1/3). |
 
 ### Fix-burst Log
 
@@ -365,6 +367,7 @@ Extracted from STATE.md frontmatter (pass/burst SHA history):
 | fix-burst-5 | 5c11fc7b (test-writer AC-005 byte-compare) / 6585f846 (PO BC-2.06.013+015) / 872f5a63 (story-writer S-CONFIG body) / ba69dcea (story-writer sibling PREREQ-E body) | F-LP4-MED-001 + F-LP4-MED-002 + F-LP4-MED-003 + F-LP4-MED-004 |
 | fix-burst-6 | 513ee6b8 (PO BC-2.06.016 v1.2) / 3416eea6 (implementer overlay.rs) / 4ef6c650 (architect S-POL-29 v0.2) + state-manager OBS-LP5-001 correction | F-LP5-MED-001 + F-LP5-LOW-001 + F-LP5-LOW-002 |
 | fix-burst-7 | 455f9fbb (PO BC-2.06.016 v1.3) / d600f7f4 (implementer overlay.rs 2 sibling sites) + state-manager D-815 corrective (F-LP6-MED-001+MED-002) | F-LP6-MED-001 CORRECTIVE + F-LP6-MED-002 CORRECTIVE + F-LP6-LOW-001 + F-LP6-LOW-002 |
+| fix-burst-8 | d600f7f4 (feature HEAD unchanged — state-manager only) | F-LP7-MED-001 CORRECTIVE + F-LP7-LOW-001 + F-LP7-LOW-002 |
 
 ---
 
