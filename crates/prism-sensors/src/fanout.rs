@@ -604,7 +604,7 @@ pub fn resolve_spec_for_fanout(
 /// `SensorSpec` (overlay base_url for Case A, TYPE spec for Case B).
 ///
 /// The `resolved_spec_map` is the boot-time map produced by
-/// `SpecLoader::load_all_with_overlays`.  It is passed as an `Arc<HashMap>` to
+/// `OverlayLoader::load_overlays`.  It is passed as an `Arc<HashMap>` to
 /// share the read-only map across concurrent fan-out tasks without contention
 /// (INV-OVL-006, INV-FANOUT-002).
 ///
