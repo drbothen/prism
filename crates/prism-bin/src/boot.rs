@@ -117,6 +117,20 @@ impl BootError {
 pub struct RunningServer {
     /// Resolved config directory used during boot.
     pub config_dir: PathBuf,
+    /// Per-org overlay resolved spec map produced by step 4 (S-CONFIG-MULTI-TENANT-OVERRIDE-001).
+    ///
+    /// Read-only after boot; shared via `Arc<HashMap>` for O(1) fanout dispatch
+    /// without mutex contention (INV-OVL-006, INV-FANOUT-002).
+    /// Key: `(OrgSlug, sensor_id_string)`; value: effective `ResolvedSensorSpec`.
+    ///
+    /// Empty map when no `customers/` directory exists (BC-2.06.012 backwards compat).
+    /// Threaded into `QueryEngine` for per-org endpoint resolution at query time (ADR-029).
+    pub resolved_spec_map: Arc<
+        std::collections::HashMap<
+            prism_spec_engine::ResolvedSpecKey,
+            prism_spec_engine::ResolvedSensorSpec,
+        >,
+    >,
 }
 
 /// Lightweight result of steps 1–6 (blocking boot to audit-ready state).
@@ -207,6 +221,7 @@ pub async fn run_boot_sequence(config_dir: &Path) -> Result<RunningServer, BootE
 
     Ok(RunningServer {
         config_dir: config_dir.to_path_buf(),
+        resolved_spec_map: ctx.resolved_spec_map,
     })
 }
 
