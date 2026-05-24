@@ -4,8 +4,8 @@ adr_id: "ADR-028"
 title: "TOML Spec URLs and auth_type Ground Against DTU Clone Routes (Real-API Canonical), Not Production Rust Adapter URLs"
 status: Proposed
 date: "2026-05-20"
-modified: "2026-05-21"  # v1.10 FB-IMPL-2
-version: "1.10"
+modified: "2026-05-24"  # v1.11 D11 credential substitution model
+version: "1.11"
 producer: architect
 subsystems_affected: [SS-01, SS-07, SS-16, SS-17]
 supersedes: ["ADR-026 §D3 (partial — auth_type_name() return values for Cyberint/Claroty/Armis non-CrowdStrike sensors)"]
@@ -13,7 +13,7 @@ superseded_by: null
 amends: null
 anchor_stories: [PLUGIN-MIGRATION-001-D, PLUGIN-MIGRATION-001-A, PLUGIN-MIGRATION-001-B, PLUGIN-MIGRATION-001-C, PLUGIN-MIGRATION-001-E]
 related_adrs: [ADR-003, ADR-023, ADR-027]
-related_bcs: [BC-2.16.013, BC-2.16.001, BC-2.16.009]
+related_bcs: [BC-2.16.013, BC-2.16.001, BC-2.16.009, BC-2.01.016]
 locked_decisions: ["D-737 Decision 1", "D-737 Decision 4"]
 wiring_deferred_to: null
 ---
@@ -275,6 +275,178 @@ ADR-028 §D6 documents the auth migration window. §D10 closes the window by spe
 
 Feature flags (Option b) are rejected: they add runtime branch complexity to solve a deployment-sequencing problem. The sequencing is already enforced by the story dependency graph and the co-merge contract stated here.
 
+### D11 — OAuth2 Credential Substitution Model for Plugin Dispatch (PLUGIN-MIGRATION-001-E)
+
+**Adjudicated 2026-05-24 (PLUGIN-MIGRATION-001-E PR-LEVEL CRIT #2, user-authorized Option A fix-in-scope).**
+
+#### Problem
+
+`boot.rs::validate_and_construct_auth_providers` constructs `credential_handle = format!("sensor:{sensor_id}")` (e.g., `"sensor:crowdstrike"`) — an opaque keyring reference per AD-017. The handle is forwarded to `dispatch_plugin_acquire_token`, which places it in `PluginConfigMap` under key `"credential_handle"`. The WASM guest `acquire_token` then executes:
+
+```rust
+let form_body = format!("{}&grant_type=client_credentials", credential_handle);
+```
+
+This produces `sensor:crowdstrike&grant_type=client_credentials` — not a valid OAuth2 form body. The real API rejects this with 4xx. Tests mask the bug because they pass literal `"client_id=my-id&client_secret=my-secret"` as `credential_handle`.
+
+#### Decision: Option C — Host Resolves at Dispatch Time via PluginConfigMap Injection
+
+Before calling `dispatch_plugin_acquire_token`, the host resolves `credential_handle` to `(client_id, client_secret)` via `prism_credentials::resolve_credential` and populates `PluginConfigMap` with explicit keys `"client_id"` and `"client_secret"`. The WASM guest reads these via `host::get-config` and builds the OAuth2 form body itself.
+
+**Option A (host_http_request sentinel substitution) — Rejected.** Sentinel parsing (`${credential:handle}` pattern in POST body) is fragile: any body escaping or field ordering change by the guest silently breaks substitution. The parsing is implicit magic buried in the HTTP layer, invisible to callers and reviewers. The sentinel approach also mixes two separate concerns (HTTP execution and credential resolution) in the same function, violating single-responsibility.
+
+**Option B (WIT param expansion to client_id/client_secret strings) — Rejected.** Passing resolved credential values as WIT string parameters exposes them to any wit-bindgen trace, debug log, or WASM memory inspector. AD-017 prohibits credential values from transiting AI context; wit-bindgen logging of WIT call parameters would be an AD-017 violation. Additionally, this requires a WIT versioning change and ADR amendment across BC-2.17.006, which has wider blast radius.
+
+**Option C is chosen** because:
+
+1. **Explicit data flow.** `get-config("client_id")` and `get-config("client_secret")` are direct, readable, and grep-able. No implicit substitution magic.
+2. **Lowest blast radius.** `PluginConfigMap` is the existing plumbing; no WIT changes, no new host functions, no signature changes to `dispatch_plugin_acquire_token`.
+3. **Bounded credential exposure.** Credentials live in `HostState.config` (a `HashMap<String,String>` wrapped in `Arc`) for the duration of the single wasmtime Store call. The Store is dropped when `dispatch_plugin_acquire_token` returns — credentials are not retained between calls.
+4. **Tracing audit compliance (AD-017).** `HostState.config` is never logged. `host_get_config` returns `Option<String>` to the guest — the guest can use the value in a format string (the POST body) but cannot emit it to the tracing subscriber (which is host-owned; guests call `host::log`, which uses the message string, not config values). The host must NOT add tracing of config values in `host_get_config`.
+
+#### AD-017 Compliance Analysis
+
+| Criterion | Option C assessment |
+|-----------|---------------------|
+| Credential values never in tracing logs | PASS — `host_get_config` must not emit the returned value; existing implementation returns silently |
+| Credential values never in error messages | PASS — `AuthError` variants carry structural descriptions, not values |
+| Credential values never in KV store | PASS — only `token` (the *result* bearer token) and `expires_at_secs` are KV-stored; never `client_secret` |
+| Credential values not retained across calls | PASS — `Arc<PluginConfigMap>` is constructed per-dispatch in `dispatch_plugin_acquire_token`; Store drop deallocates the Arc copy |
+| Credential values not readable from guest WASM linear memory after call | PASS — the WASM Store is dropped after `func.call`; linear memory is deallocated |
+
+**One required guard:** The host MUST NOT call `tracing::debug!` or any `tracing::*!` macro that would emit `client_id` or `client_secret` values retrieved from `PluginConfigMap`. The `host_get_config` implementation is currently silent — that MUST remain true.
+
+**TD-S-PLUGIN-PREREQ-B-002 note:** The `AuthToken` zeroize gap (bearer token in heap after drop) is pre-existing and tracked separately. Option C does not worsen it — `client_id` and `client_secret` strings in `PluginConfigMap` are analogously subject to the same gap, but they are short-lived (dropped on Store drop) and the existing TD scope already covers `AuthToken` zeroize as a future hardening task.
+
+#### Data Flow (Production)
+
+```
+boot.rs::validate_and_construct_auth_providers
+  ↳ PluginAuthProvider::new(runtime, plugin_id, "sensor:crowdstrike", token_endpoint)
+      → stores credential_handle = "sensor:crowdstrike"
+
+PipelineExecutor calls auth_provider.acquire_token()
+  ↳ PluginAuthProvider::acquire_token
+      ↳ resolve_credential("client_id_or_org", "crowdstrike", "client_id")
+             → SecretString("actual-client-id")
+        resolve_credential("client_id_or_org", "crowdstrike", "client_secret")
+             → SecretString("actual-client-secret")
+        PluginConfigMap {
+          "client_id"      → "actual-client-id",
+          "client_secret"  → "actual-client-secret",
+          "token_endpoint" → "https://api.crowdstrike.com/oauth2/token",
+        }
+      ↳ runtime.dispatch_plugin_acquire_token(plugin_id, &config)
+
+plugin guest acquire_token:
+  client_id     = host::get_config("client_id")     → "actual-client-id"
+  client_secret = host::get_config("client_secret") → "actual-client-secret"
+  form_body     = format!("client_id={client_id}&client_secret={client_secret}&grant_type=client_credentials")
+  → POST /oauth2/token with valid form body
+```
+
+#### Affected Files
+
+| File | Change |
+|------|--------|
+| `crates/prism-bin/src/boot.rs` | `validate_and_construct_auth_providers`: `PluginAuthProvider::new` signature change — replace `credential_handle: String` with explicit `(client_id_cred_name, client_secret_cred_name)` names OR add credential resolution call-site; see §Implementation Contract |
+| `crates/prism-spec-engine/src/auth_provider.rs` | `PluginAuthProvider::acquire_token`: resolve credentials before dispatch; pass resolved `client_id` and `client_secret` in PluginConfigMap |
+| `crates/prism-spec-engine/src/plugin/mod.rs` | `dispatch_plugin_acquire_token`: accept `config: &PluginConfigMap` (or add `client_id` and `client_secret` params) replacing the `credential_handle: &str` param |
+| `crates/prism-spec-engine/plugins/crowdstrike-oauth2/src/lib.rs` | `acquire_token`: replace `format!("{}&grant_type=client_credentials", credential_handle)` with `get_config("client_id")` + `get_config("client_secret")` reads; build form body explicitly |
+| Test files in `prism-spec-engine` | Transition literal-form-body tests: `credential_handle = "client_id=test&client_secret=test"` → explicit config map entries `"client_id" → "test"`, `"client_secret" → "test"` |
+
+#### Implementation Contract for Implementer
+
+**Signature change in `dispatch_plugin_acquire_token`** — replace the `credential_handle` param with a resolved config map:
+
+```rust
+pub fn dispatch_plugin_acquire_token(
+    &self,
+    plugin_id: &str,
+    config: &PluginConfigMap,   // contains "client_id", "client_secret", "token_endpoint"
+) -> Result<String, PluginError>
+```
+
+The `PluginConfigMap` passed in MUST contain at minimum:
+- `"client_id"` — resolved OAuth2 client ID (never an opaque handle)
+- `"client_secret"` — resolved OAuth2 client secret (never an opaque handle)
+- `"token_endpoint"` — full URL for POST /oauth2/token
+
+**Guest `acquire_token` change** — replace the credential_handle usage:
+
+```rust
+pub(crate) fn acquire_token(
+    host: &impl HostInterface,
+    token_endpoint: &str,
+) -> Result<String, AuthError> {
+    let client_id = host.get_config("client_id")
+        .ok_or_else(|| AuthError::Internal("client_id absent from host config (EC-006b)".to_string()))?;
+    let client_secret = host.get_config("client_secret")
+        .ok_or_else(|| AuthError::Internal("client_secret absent from host config (EC-006c)".to_string()))?;
+    let form_body = format!(
+        "client_id={}&client_secret={}&grant_type=client_credentials",
+        client_id, client_secret
+    );
+    // ... remainder unchanged
+}
+```
+
+Remove `credential_handle: &str` from the function signature. The WIT `acquire-token` export also loses the `credential-handle` param (or it is retained as an ignored compatibility stub — implementer decides based on WIT versioning constraints, but no production code path may use it to build a form body).
+
+**Credential resolution in `PluginAuthProvider::acquire_token`:**
+
+```rust
+// In prism-spec-engine/src/auth_provider.rs
+async fn acquire_token(&self) -> Result<AuthToken, SpecEngineError> {
+    // Resolve credentials from prism-credentials resolution chain (BC-2.03.006).
+    let client_id = prism_credentials::resolve_credential(
+        &self.client_id_or_org,     // org/tenant scoping
+        &self.sensor_id,
+        "client_id",
+    ).await.map_err(|e| SpecEngineError::AuthRefreshFailed {
+        sensor_id: self.sensor_id.clone(),
+        detail: e.to_string(),  // detail is structural (not a credential value)
+    })?;
+
+    let client_secret = prism_credentials::resolve_credential(
+        &self.client_id_or_org,
+        &self.sensor_id,
+        "client_secret",
+    ).await.map_err(|e| SpecEngineError::AuthRefreshFailed {
+        sensor_id: self.sensor_id.clone(),
+        detail: e.to_string(),
+    })?;
+
+    let config = PluginConfigMap::from([
+        ("client_id".to_string(), client_id.expose_secret().to_string()),
+        ("client_secret".to_string(), client_secret.expose_secret().to_string()),
+        ("token_endpoint".to_string(), self.token_endpoint.clone()),
+    ]);
+
+    let token_str = self.runtime.dispatch_plugin_acquire_token(&self.plugin_id, &config)?;
+    Ok(AuthToken::new(token_str))
+}
+```
+
+`expose_secret()` is called at the `PluginConfigMap` construction boundary — this is the sole location where credential values are materialized from `SecretString`. The `PluginConfigMap` lifetime is bounded to the `dispatch_plugin_acquire_token` call frame.
+
+**Test transition strategy:**
+
+Existing tests pass `credential_handle = "client_id=test&client_secret=test"` to `acquire_token`. After this change:
+1. Unit tests for `acquire_token` (in `lib.rs`) pass explicit config entries via `MockHost::get_config` returning `Some("test")` for `"client_id"` and `"client_secret"`.
+2. The existing `test_acquire_token_form_body_contains_required_params` is renamed/updated to verify `client_id=my-id` appears in the form body when `get_config("client_id")` returns `"my-id"`.
+3. Integration tests for `dispatch_plugin_acquire_token` (in `mod.rs`) pass an explicit `PluginConfigMap { "client_id" → "...", "client_secret" → "...", "token_endpoint" → "..." }`.
+
+No existing test behavior is lost — the same assertions on form body content and error paths remain; only the setup changes from a pre-formatted string to explicit config keys.
+
+**EC-006 error code extension:**
+- `EC-006` (existing): `token_endpoint` absent from host config → `AuthError::Internal`.
+- `EC-006b` (new): `client_id` absent from host config → `AuthError::Internal("client_id absent from host config (EC-006b)")`.
+- `EC-006c` (new): `client_secret` absent from host config → `AuthError::Internal("client_secret absent from host config (EC-006c)")`.
+
+**BC-2.16.002 catalog entries required** (SAP-1):
+No new `event_type` values are introduced by this change. The existing `plugin.auth_token_parse_error` emission (BC-2.16.002 row 37) remains unchanged. No new catalog rows required.
+
 ---
 
 ## Consequences
@@ -329,6 +501,7 @@ Feature flags (Option b) are rejected: they add runtime branch complexity to sol
 
 | Version | Date | Author | Summary |
 |---|---|---|---|
+| 1.11 | 2026-05-24 | architect | §D11 ADDED — OAuth2 Credential Substitution Model for Plugin Dispatch (PLUGIN-MIGRATION-001-E PR-LEVEL CRIT #2, user-authorized fix-in-scope). Locks Option C (host resolves credential_handle → client_id + client_secret via prism_credentials::resolve_credential; PluginConfigMap injection before dispatch). Options A (host_http_request sentinel) and B (WIT param expansion) rejected with rationale. Full AD-017 compliance analysis, data flow diagram, affected file list, implementer contract (dispatch signature change, guest acquire_token change, test transition strategy), and EC-006b/EC-006c error code extensions. BC-2.01.016 added to related_bcs. Closes F-LP12-PR-CRIT-2. |
 | 1.10 | 2026-05-21 | architect | FB-IMPL-2 architect adjudication: §D8-B AMENDED — canonical Armis fallback chain corrected from `["last_seen", "first_seen"]` to `["first_seen"]` (F-LP2-HIGH-004: `last_seen` self-reference is a semantic no-op; false doc-comment "Skip the primary field itself" had no code implementation; implementer must add defensive skip guard `if fb_field == &col.name { continue; }` and fix doc-comment). §D9 SCOPE CLARIFIED — documented-gap exception covers table-level gaps only, NOT parameter-level projections; `page_size = 100` in cyberint.sensor.toml removed per §D1 (`AlertListParams` struct has no `page_size` field confirmed at alerts.rs:38-40); DTU-EXT-005 registered in BC-2.16.013 §Known Gaps (F-LP2-MEDIUM-001). §Status self-cite advanced to v1.10. BC-2.16.013 v1.12→v1.13. |
 | 1.9 | 2026-05-21 | architect | (D-FB-IMPL-1-OPT-A) FB-IMPL-1 architect adjudication: §D8 LOCKS Option A (grammar extension) for BC-2.16.013 §O-001 — `timestamp_formats` + `timestamp_fallback_chain` fields added to `ColumnSpec`; Cyberint canonical formats iso8601+unix_epoch_seconds documented; Armis fallback chain `last_seen → first_seen → now()` locked; implementer contract for spec_parser.rs changes specified; E-SPEC-018 registered. §D9 clarifies §D5 documented-gap exception: incidents table REMAINS in crowdstrike.sensor.toml per documented-gap policy; AC-001 `tables.len() == 3` stands. §D10 co-merge contract: 001-D + 001-A MUST deploy to production simultaneously to prevent E-SPEC-012 regression on Claroty bearer_static vs live cookie_roundtrip; feature-flag Option b rejected; story §Postconditions annotated. |
 | 1.8 | 2026-05-20 | architect | Pass-17 FB-IMPL-P17-ARCH: §Changelog rows REVERTED to descending (project per-file convention locks at authoring; ADR-028 was authored at v1.0 with descending order). FB-IMPL-P16-ARCH's ascending flip was based on sample-biased 3-ADR enumeration that missed ADR-022's 6-precedent DESCENDING enforcement chain (D-611/D-628/D-635/D-659/D-670/D-671). F-LP17-HIGH-002 closure. 12th coherence-axis class (sample-biased sibling-convention closures) codified: convention closures MUST exhaustively enumerate ALL ADRs before declaring project rule. §D7 (Per-File §Changelog Convention Lock) added. §Status self-cite advanced to v1.8. |
