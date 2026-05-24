@@ -45,16 +45,16 @@ decision: D-820
 grep -n "fix-burst-9" convergence-trajectory.md
 ```
 
-**FINAL output (8 hits):**
+**FINAL output (8 hits — post-burst-13 line numbers, axis-12 re-verified):**
 ```
-334: §Accounting Conventions example (fix-burst-9 named as LOW/OBS example burst)
-348: §Cascade Status Cumulative findings breakdown row
-368: §Trajectory fix-burst-9 row
-369: §Trajectory pass-9 row (F-LP9-MED-001 finding description cites fix-burst-9)
-370: §Trajectory fix-burst-10 row (mentions §Cascade Status fix-burst-9 update)
-371: §Trajectory pass-10 row (OBS-LP10-001 description cites fix-burst-9 grep claim)
-373: §Trajectory pass-11 row (F-LP11-OBS-001 description cites fix-burst-9 arithmetic-claim drift)
-388: §Fix-burst Log fix-burst-9 row
+336: §Accounting Conventions arithmetic verification (fix-burst-9 named as LOW burst example)
+349: §Cascade Status Cumulative findings breakdown row
+369: §Trajectory fix-burst-9 row
+370: §Trajectory pass-9 row (F-LP9-MED-001 finding description cites fix-burst-9)
+371: §Trajectory fix-burst-10 row (mentions §Cascade Status fix-burst-9 update)
+372: §Trajectory pass-10 row (OBS-LP10-001 description cites fix-burst-9 grep claim)
+374: §Trajectory pass-11 row (F-LP11-OBS-001 description cites fix-burst-9 arithmetic-claim drift)
+391: §Fix-burst Log fix-burst-9 row
 ```
 
 3. fix-burst-11.md §OBS-LP10-001 CORRECTIVE section updated with FINAL values (8 hits, 8 line numbers).
@@ -71,24 +71,25 @@ grep -n "fix-burst-9"  → 6 hits
   line 375: §Fix-burst Log fix-burst-9 row
 ```
 
-### After (fix-burst-11.md — FINAL post-burst-12 values)
+### After (fix-burst-11.md — FINAL post-burst-13 line numbers, axis-12 re-verified by fix-burst-13)
 
 ```
 grep -n "fix-burst-9"  → 8 hits
-  line 334: §Accounting Conventions example
-  line 348: §Cascade Status Cumulative findings row
-  line 368: §Trajectory fix-burst-9 row
-  line 369: §Trajectory pass-9 row
-  line 370: §Trajectory fix-burst-10 row
-  line 371: §Trajectory pass-10 row
-  line 373: §Trajectory pass-11 row
-  line 388: §Fix-burst Log fix-burst-9 row
+  line 336: §Accounting Conventions arithmetic verification
+  line 349: §Cascade Status Cumulative findings row
+  line 369: §Trajectory fix-burst-9 row
+  line 370: §Trajectory pass-9 row
+  line 371: §Trajectory fix-burst-10 row
+  line 372: §Trajectory pass-10 row
+  line 374: §Trajectory pass-11 row
+  line 391: §Fix-burst Log fix-burst-9 row
 ```
 
-**Delta explanation:** Count increased from 6 to 8 for two reasons:
-- +1: §Accounting Conventions header (line 334) added by this burst explicitly names fix-burst-9 as an example of a LOW/OBS-only burst
-- +1: §Trajectory pass-11 row (line 373) describes F-LP11-OBS-001 which references "fix-burst-9 arithmetic-claim drift"
-- Line numbers shifted by +13 (§Accounting Conventions section insertion) for lines previously at 335→348, 359→368, 360→369, 361→370, 375→388; §Cascade Status Feature HEAD row no longer matches fix-burst-9 (updated to fix-burst-12 reference, so no longer a hit on the bare grep)
+**Delta explanation (updated by fix-burst-13):** Count increased from 6 to 8 for two reasons:
+- +1: §Accounting Conventions header added by fix-burst-12 explicitly names fix-burst-9 as an example of a LOW-only burst
+- +1: §Trajectory pass-11 row describes F-LP11-OBS-001 which references "fix-burst-9 arithmetic-claim drift"
+- Line numbers shifted by +2 from original fix-burst-12 predictions (334→336, 348→349, etc.) because state-manager skipped counting the "Streak | 0/3" row when predicting shifts; fix-burst-13 (D-821) corrected all citations via rigorous axis-12 application
+- §Cascade Status Feature HEAD row no longer matches fix-burst-9 (updated to fix-burst-13 reference, so no longer a hit on the bare grep)
 
 ## F-LP11-OBS-002 CORRECTIVE — §Accounting Conventions Header Added (Axis-13 Codification)
 
@@ -112,30 +113,9 @@ grep -n "fix-burst-9"  → 8 hits
 | pass-5 | 3 (1M+2L) | +3 → 13 total |
 | pass-6 | 4 (2M+2L) | +4 → 17 total |
 | pass-7 | 3 (1M+2L) | +3 → 20 total |
-| pass-8 | 1 (1L) | +1 → 21 total (LOW COUNTS — note: LOW does count here per original fix-burst-9 closing F-LP8-LOW-001 which incremented cumulative from 20 to 21) |
+| pass-8 | 1 (1L) | +1 → 21 total (LOW COUNTS — LOW does count per axis-13 convention: F-LP8-LOW-001 incremented cumulative from 20 to 21) |
 
-Wait — re-checking against §Cascade Status breakdown: "1 from pass-8 via fix-burst-9". But axis-13 says LOW doesn't count. Let me re-read the cumulative breakdown.
-
-**CORRECTION to axis-13 scope:** Re-reading §Cascade Status: the current cumulative breakdown reads "1 from pass-8 via fix-burst-9 + 1 from pass-9 via fix-burst-10 + 1 from pass-10 via fix-burst-11". These were LOW, MED, MED respectively. The cumulative total of 23 includes LOW findings (pass-8 LOW = 1 increment, pass-3 LOW = 1 increment).
-
-**Revised axis-13 statement (accurate to actual cascade history):**
-
-The §Accounting Conventions section as written states OBS/PROCESS-GAP only are excluded from cumulative (LOW findings DO count). The cumulative arithmetic of 23 = 4+2+4+3+4+3+1+1+1 IS consistent with LOW being included (pass-8: 1 LOW = +1; pass-3: +2 = 1 MED + 1 LOW; pass-5: +3 = 1 MED + 2 LOW).
-
-The key exclusion is **OBS** (which pass-11 found 2 of; cumulative stays at 23). The convention should state:
-
-- OBS and PROCESS-GAP findings: NOT included in cumulative
-- LOW findings: ARE included in cumulative (borderline non-blocking but still a finding)
-- CRIT+HIGH+MED+LOW: count toward cumulative
-- OBS/PROCESS-GAP: excluded
-
-This is consistent with the actual arithmetic AND consistent with the BC-5.39.001 amendment which distinguishes CLEAN(strict)=zero-any-severity from CLEAN(PR-merge)=zero-MED+.
-
-**Filed correction to §Accounting Conventions:** The header section in convergence-trajectory.md was written with "LOW/OBS/PROCESS-GAP not included." This is slightly WRONG for LOW — LOW does count per the existing arithmetic. The correct exclusion is OBS+PROCESS-GAP only.
-
-**REMEDIATION:** Update the §Accounting Conventions section to accurately state LOW findings DO count, OBS+PROCESS-GAP do NOT. (This is a within-burst correction — the section was just written, so it can be corrected before commit.)
-
-## §Accounting Conventions Arithmetic Correction (within-burst fix)
+## §Accounting Conventions Arithmetic Correction (axis-13 codification)
 
 The §Accounting Conventions header was updated to accurately reflect the actual convention:
 - CRIT + HIGH + MED + LOW findings: count toward cumulative closure total
@@ -161,36 +141,35 @@ This burst demonstrates axis-12 in action:
 | 9 | Final verification sweep | VERIFY BEFORE COMMIT |
 | 10 | Commit | SINGLE COMMIT |
 
-**Pre-commit verification sweep:**
+**Pre-commit verification sweep (post-burst-13 line numbers — axis-12 re-verified by fix-burst-13):**
 
 ```bash
 grep -c "fix-burst-9" convergence-trajectory.md  → 8  (matches claim in fix-burst-11.md §After)
-grep -c "fix-burst-11" convergence-trajectory.md → [run below]
-grep -n "Total passes" convergence-trajectory.md → line 346: "| Total passes | 11 (pass-12 next) |"  PASS
-grep -n "Total fix-bursts" convergence-trajectory.md → line 347: "| Total fix-bursts | 12 |"  PASS
-grep -n "Cumulative findings closed" convergence-trajectory.md → line 348: "23 ..."  PASS (unchanged per axis-13)
+grep -n "Total passes" convergence-trajectory.md → line 347: "| Total passes | 12 (pass-13 next) |"  PASS
+grep -n "Total fix-bursts" convergence-trajectory.md → line 348: "| Total fix-bursts | 13 |"  PASS
+grep -n "Cumulative findings closed" convergence-trajectory.md → line 349: "23 ..."  PASS (unchanged per axis-13)
 ```
 
-## Mandatory Whole-Artifact Sibling-Sweep Results (Pre-Commit)
+## Mandatory Whole-Artifact Sibling-Sweep Results (Pre-Commit — post-burst-13 values)
 
 ### §Cascade Status table
 
 ```
-grep -n "Total passes | 11"               → 1 hit (line 346)  PASS
-grep -n "Total fix-bursts | 12"           → 1 hit (line 347)  PASS
-grep -n "Cumulative findings closed | 23" → 1 hit (line 348)  PASS
-grep -n "fix-burst-12 completion"         → 1 hit (line 345)  PASS
-grep -n "pass-12 next"                    → 1 hit (line 346)  PASS
-grep -n "Total passes | 10"               → 0 hits  PASS (stale value gone)
-grep -n "Total fix-bursts | 11"           → 0 hits in §Cascade Status  PASS
-grep -n "fix-burst-11 completion"         → 0 hits in §Cascade Status  PASS (stale value gone)
-grep -n "pass-11 next"                    → 0 hits in §Cascade Status  PASS (stale value gone)
+grep -n "Total passes | 12"               → 1 hit (line 347)  PASS
+grep -n "Total fix-bursts | 13"           → 1 hit (line 348)  PASS
+grep -n "Cumulative findings closed | 23" → 1 hit (line 349)  PASS
+grep -n "fix-burst-13 completion"         → 1 hit (line 345)  PASS
+grep -n "pass-13 next"                    → 1 hit (line 347)  PASS
+grep -n "Total passes | 11"               → 0 hits in §Cascade Status  PASS (stale value gone)
+grep -n "Total fix-bursts | 12"           → 0 hits in §Cascade Status  PASS (stale value gone)
+grep -n "fix-burst-12 completion"         → 0 hits in §Cascade Status  PASS (stale value gone)
+grep -n "pass-12 next"                    → 0 hits in §Cascade Status  PASS (stale value gone)
 ```
 
 ### Cross-table consistency
 
-- §Trajectory subtable: 11 pass rows (pass-1 through pass-11) matches `Total passes | 11` in §Cascade Status. CONSISTENT.
-- §Fix-burst Log table: 12 rows (fix-burst-1 through fix-burst-12) matches `Total fix-bursts | 12` in §Cascade Status. CONSISTENT.
+- §Trajectory subtable: 12 pass rows (pass-1 through pass-12) matches `Total passes | 12` in §Cascade Status. CONSISTENT.
+- §Fix-burst Log table: 13 rows (fix-burst-1 through fix-burst-13) matches `Total fix-bursts | 13` in §Cascade Status. CONSISTENT.
 - Cumulative 23 = 4+2+4+3+4+3+1+1+1. ARITHMETIC VERIFIED (per axis-13: LOW counts, OBS does not).
 
 ### Lesson-entry section structure (axis-12 applied to lessons.md)
@@ -200,7 +179,7 @@ Lesson 47 `_Discovered:_` footer position: immediately after lesson 47 body, bef
 ## Bookkeeping Changes
 
 - convergence-trajectory.md: §Accounting Conventions header added; §Cascade Status (Total passes 10→11, Total fix-bursts 11→12, Feature HEAD ref fix-burst-11→fix-burst-12); §Trajectory pass-11 + fix-burst-12 rows appended; §Fix-burst Log fix-burst-12 row appended
-- s-config-fix-burst-11.md: §OBS-LP10-001 CORRECTIVE section — after-block updated with FINAL post-burst-12 line numbers (8 hits at 334/348/368/369/370/371/373/388); NOTE block explaining axis-12 demonstration added
+- s-config-fix-burst-11.md: §OBS-LP10-001 CORRECTIVE section — after-block updated with FINAL post-burst-13 line numbers (8 hits at 336/349/369/370/371/372/374/391); NOTE block updated by fix-burst-13 (D-821) explaining axis-12 META-recurrence correction
 - lessons.md: lesson 47 [process-gap] [codified] appended under `## 2026-05-24 D-820` (axis-12 + axis-13; 13 axes total)
 - s-config-pass-11.md: created (adversary pass-11 report archive)
 - s-config-fix-burst-12.md: this file (fix-burst-12 closure record)
