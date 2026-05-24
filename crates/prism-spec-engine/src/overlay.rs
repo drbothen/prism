@@ -665,9 +665,8 @@ impl OverlayLoader {
 
 /// Build the E-SPEC-021 error for a `[[tables]]` block in an overlay file.
 ///
-/// Canonical message template (BC-2.06.016 §Error Catalog):
-/// "Per-org overlay '{file}' for instance '{instance_id}' contains [[tables]] blocks.
-/// Schema overrides are forbidden in overlay files (ADR-029)."
+/// Canonical message template per `.factory/specs/prd-supplements/error-taxonomy.md`
+/// row E-SPEC-021. The `format!` body below produces the exact emission text.
 pub fn make_e_spec_021_tables_in_overlay(file_path: &str, instance_id: &str) -> PrismError {
     PrismError::Spec(SpecError {
         code: SpecErrorCode::ESpec021,
@@ -707,9 +706,8 @@ pub fn make_e_spec_023_unrecognized_field(file_path: &str, field_name: &str) -> 
 
 /// Build the E-SPEC-020 error for an `instance_id` mismatch in an overlay file.
 ///
-/// Canonical message template (BC-2.06.016 §Error Catalog):
-/// "Per-org overlay '{file}' instance_id '{actual}' does not match expected '{expected}'
-/// ({sensor_id}@{org_slug}). Rename or correct the instance_id field."
+/// Canonical message template per `.factory/specs/prd-supplements/error-taxonomy.md`
+/// row E-SPEC-020. The `format!` body below produces the exact emission text.
 pub fn make_e_spec_020_instance_id_mismatch(
     file_path: &str,
     actual_instance_id: &str,
@@ -730,10 +728,8 @@ pub fn make_e_spec_020_instance_id_mismatch(
 
 /// Build the E-SPEC-019 error for an unknown `extends` value in an overlay file.
 ///
-/// Canonical message template (BC-2.06.016 §Error Catalog):
-/// "Per-org overlay '{file}' extends '{extends_value}' which is not a loaded
-/// sensor TYPE spec. Add '{extends_value}.sensor.toml' to the spec directory or
-/// correct the extends field."
+/// Canonical message template per `.factory/specs/prd-supplements/error-taxonomy.md`
+/// row E-SPEC-019. The `format!` body below produces the exact emission text.
 pub fn make_e_spec_019_unknown_extends(file_path: &str, extends_value: &str) -> PrismError {
     PrismError::Spec(SpecError {
         code: SpecErrorCode::ESpec019,
