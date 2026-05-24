@@ -209,3 +209,13 @@ required-features = ["test-helpers"]
 name = "parity_armis"
 path = "tests/parity/armis.rs"
 required-features = ["test-helpers"]
+
+# S-CONFIG-MULTI-TENANT-OVERRIDE-001: Red Gate tests for AC-001..AC-007
+# BC-2.06.012 (overlay discovery + merge + backcompat)
+# BC-2.06.013 (scalar-only enforcement — E-SPEC-020/021/023)
+# BC-2.06.014 (fanout identity resolution)
+# BC-2.06.015 (OrgRegistry cross-validation — E-SPEC-022)
+# BC-2.06.016 (error taxonomy — all 5 E-SPEC codes)
+[[test]]
+name = "overlay_loading_tests"
+path = "tests/overlay_loading_tests.rs"
