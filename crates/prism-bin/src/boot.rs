@@ -593,6 +593,52 @@ pub async fn step4_load_sensor_specs(
     Ok(manager)
 }
 
+/// Step 4 extension [BLOCKING]: Load sensor TOML specs AND per-org overlay specs.
+///
+/// S-CONFIG-MULTI-TENANT-OVERRIDE-001 extension of `step4_load_sensor_specs`.
+///
+/// After loading all TYPE specs from the root `spec_dir`, walks `customers/`
+/// subdirectory for per-org overlay files and validates them against the OrgRegistry
+/// produced in step 3 (BC-2.06.015 INV-COMPAT-002 — step 3 must precede step 4).
+///
+/// Overlay validation errors (E-SPEC-019..E-SPEC-023) are collected and aggregated
+/// before returning — does NOT short-circuit at the first error (INV-ERR-003,
+/// BC-2.06.016). All errors are reported as `BootError::ConfigInvalid` (exit 2).
+///
+/// On success, returns:
+/// - `config_manager` — `Arc<ArcSwap<ConfigManager>>` for hot-reload support
+/// - `resolved_spec_map` — `Arc<HashMap<ResolvedSpecKey, ResolvedSensorSpec>>` for
+///   O(1) fanout dispatch (INV-OVL-006 — read-only after boot).
+///
+/// # BC-2.06.015 — OrgRegistry cross-validation
+/// Every `customers/<slug>/` directory is cross-checked against `OrgRegistry`.
+/// An unregistered slug → E-SPEC-022; boot aborts with exit 2.
+///
+/// # BC-2.06.012 — Backwards compatibility
+/// Absent `customers/` directory → zero `ResolvedSensorSpec` entries; boot
+/// continues normally. All fanout targets fall back to TYPE spec `base_url`.
+///
+/// Story: S-CONFIG-MULTI-TENANT-OVERRIDE-001 | BCs: BC-2.06.012..016
+// Parameters named for implementer; unused at stub stage (todo!() body).
+#[allow(unused_variables)]
+pub async fn step4_load_sensor_specs_with_overlays(
+    config: &PrismConfig,
+    org_registry: &Arc<prism_core::OrgRegistry>,
+) -> Result<
+    (
+        Arc<arc_swap::ArcSwap<prism_spec_engine::config_manager::ConfigManager>>,
+        Arc<
+            std::collections::HashMap<
+                prism_spec_engine::ResolvedSpecKey,
+                prism_spec_engine::ResolvedSensorSpec,
+            >,
+        >,
+    ),
+    BootError,
+> {
+    todo!()
+}
+
 // ---------------------------------------------------------------------------
 // CredentialRefProbe — injectable probe for step5 (BC-2.03.013 §Test Strategy)
 // ---------------------------------------------------------------------------
