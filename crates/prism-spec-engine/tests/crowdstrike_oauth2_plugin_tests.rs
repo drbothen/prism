@@ -212,7 +212,17 @@ fn invoke_auth_type_name_export(
 
     let mut store: Store<()> = Store::new(&runtime.engine, ());
     // Set epoch deadline for the store (required when epoch_interruption is enabled).
-    store.set_epoch_deadline(10); // 10 ticks = generous for a simple WAT call
+    //
+    // Use DEFAULT_TIMEOUT_SECONDS * EPOCH_TICKS_PER_SECOND (5s * 10_000 = 50_000 ticks) —
+    // the same budget the production create_store() gives plugin calls. The original value
+    // of 10 ticks (= 1ms at 10_000 ticks/sec) was too small on musl targets: the epoch
+    // ticker thread runs on a tight 500μs sleep loop and OS scheduler jitter on musl
+    // (smaller thread stacks, different pthread timing) can exhaust 10 ticks before the
+    // WASM call returns, causing a spurious `wasm trap: interrupt` on x86_64-unknown-linux-musl.
+    // 50_000 ticks = 5 seconds: more than sufficient for a trivial WAT auth-type-name call
+    // while still enforcing the epoch timeout mechanism.
+    use prism_spec_engine::plugin::sandbox::{DEFAULT_TIMEOUT_SECONDS, EPOCH_TICKS_PER_SECOND};
+    store.set_epoch_deadline(DEFAULT_TIMEOUT_SECONDS * EPOCH_TICKS_PER_SECOND);
 
     let linker: Linker<()> = Linker::new(&runtime.engine);
     let instance = linker

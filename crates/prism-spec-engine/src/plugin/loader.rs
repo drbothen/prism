@@ -82,6 +82,11 @@ pub struct PluginMetadata {
 }
 
 /// A compiled and pre-instantiated plugin binary.
+///
+/// Marked `#[non_exhaustive]` per project convention (CLAUDE.md §Conventions) — external callers
+/// must not construct this via struct literal; fields may expand as the plugin runtime evolves.
+/// Use `PluginRuntime::load_plugin()` to obtain instances.
+#[non_exhaustive]
 pub struct LoadedPlugin {
     pub metadata: PluginMetadata,
     pub component: wasmtime::component::Component,

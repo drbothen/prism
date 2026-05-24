@@ -88,8 +88,33 @@ test-helpers = []
 # cargo-semver-checks v0.47 fires `enum_missing` because the rustdoc item of kind
 # `enum` is gone from this crate's JSON even though the path is preserved via re-export.
 # This is an intentional, ADR-024-directed breaking change with path-stability preserved.
+#
+# `enum_marked_non_exhaustive = "allow"`: PluginType was added with `#[non_exhaustive]`
+# in PLUGIN-MIGRATION-001-E per CLAUDE.md §Conventions — all pub-API surface enums require
+# `#[non_exhaustive]`. cargo-semver-checks v0.47 flags adding `#[non_exhaustive]` to an
+# existing enum as a semver-breaking change. This is intentional project policy: downstream
+# crates MUST use wildcard match arms when pattern-matching on PluginType (enforced via
+# the non-exhaustive-violation compile-fail gate). The semver lint is suppressed here
+# because the breaking change is required by convention and is tracked in the gate.
+#
+# `constructible_struct_adds_field = "allow"`: LoadedPlugin gained `kv_store` in
+# PLUGIN-MIGRATION-001-E (F-LP1-CRIT-001). With `#[non_exhaustive]` now applied to
+# LoadedPlugin (CLAUDE.md §Conventions), external struct-literal construction was already
+# prevented. The semver lint is suppressed because the struct is now `#[non_exhaustive]`
+# and external callers must use `PluginRuntime::load_plugin()` (not struct literals).
+#
+# `struct_marked_non_exhaustive = "allow"`: Adding `#[non_exhaustive]` to LoadedPlugin
+# is flagged by cargo-semver-checks as a breaking change (previously, external struct-literal
+# construction was possible for a public struct with no private fields). This is intentional
+# project policy per CLAUDE.md §Conventions — all pub-API surface types require
+# `#[non_exhaustive]`. The breaking change prevents external struct-literal construction,
+# which was never intended as part of the public API (LoadedPlugin should only be obtained
+# via PluginRuntime::load_plugin()). Suppressed alongside constructible_struct_adds_field.
 [package.metadata.cargo-semver-checks.lints]
 enum_missing = "allow"
+enum_marked_non_exhaustive = "allow"
+constructible_struct_adds_field = "allow"
+struct_marked_non_exhaustive = "allow"
 
 [lints.rust]
 # Allow #[cfg(kani)] without a registered cfg — kani is not a Cargo feature
