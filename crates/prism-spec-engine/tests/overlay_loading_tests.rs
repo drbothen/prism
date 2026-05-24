@@ -717,9 +717,12 @@ fn extract_spec_message<'a>(errors: &'a [PrismError], expected_code: SpecErrorCo
 ///
 /// For each error code the test:
 ///   a. Asserts the correct `SpecErrorCode` variant is emitted.
-///   b. Reads the canonical `message_template` from
-///      `../../.factory/specs/prd-supplements/error-taxonomy.md` at test
-///      runtime (POL-25 safety net — test fails if taxonomy and code drift).
+///   b. Reads the canonical `message_template` from the embedded fixture
+///      `tests/fixtures/error-taxonomy-snapshot.md` (a branch-tracked copy of
+///      the E-SPEC-019..023 rows from `.factory/specs/prd-supplements/error-taxonomy.md`).
+///      The snapshot approach is CI-portable: `.factory/` is an orphan-branch worktree
+///      (factory-artifacts branch) that is NOT present in normal CI checkouts.
+///      (POL-25 safety net — test fails if taxonomy and code drift. F-LP14-CI-001.)
 ///   c. Substitutes placeholder values to build the expected message string.
 ///   d. Byte-compares the expected string against `SpecError::message` in the
 ///      production error (AC-005 wording: "message matches the canonical
@@ -729,47 +732,29 @@ fn extract_spec_message<'a>(errors: &'a [PrismError], expected_code: SpecErrorCo
 /// taxonomy template is amended without updating the production code, or vice
 /// versa, because the expected and actual strings will diverge.
 ///
+/// FIXTURE SYNC: this test reads `fixtures/error-taxonomy-snapshot.md`
+/// (at the crate root, per BC-3.7.001 AC-006 crate layout convention).
+/// The canonical source is `.factory/specs/prd-supplements/error-taxonomy.md`
+/// (factory-artifacts branch). When the canonical taxonomy E-SPEC-019..023
+/// rows are updated, the fixture MUST be updated in the same commit.
+///
 /// RED GATE: Panics with "not yet implemented" for `validate_overlay_toml`
 /// and `load_overlays` stubs.
 #[test]
 fn test_BC_2_06_016_error_messages_match_canonical_templates() {
-    use std::path::Path;
-
-    // Load the error taxonomy file once at the start of the test.
+    // Load the error taxonomy snapshot embedded at compile time.
     //
-    // The canonical path is `<workspace-root>/.factory/specs/prd-supplements/error-taxonomy.md`.
-    // `CARGO_MANIFEST_DIR` points to `crates/prism-spec-engine/` inside the workspace root.
-    // In per-story worktrees (.worktrees/<story>/) the workspace root is inside .worktrees/,
-    // while the factory-artifacts worktree is mounted two levels up at the main repo root.
-    // We walk up from CARGO_MANIFEST_DIR until we find a directory that contains
-    // `.factory/specs/prd-supplements/error-taxonomy.md`, which resolves correctly in
-    // both the main checkout and per-story worktrees.
-    let manifest_dir = env!("CARGO_MANIFEST_DIR");
-    let taxonomy_relative = ".factory/specs/prd-supplements/error-taxonomy.md";
-    let taxonomy_path = {
-        let mut candidate = Path::new(manifest_dir).to_path_buf();
-        loop {
-            let try_path = candidate.join(taxonomy_relative);
-            if try_path.exists() {
-                break try_path;
-            }
-            match candidate.parent() {
-                Some(parent) => candidate = parent.to_path_buf(),
-                None => panic!(
-                    "AC-005 safety net: could not find '{}' by walking up from '{}'. \
-                     Ensure the factory-artifacts worktree is mounted at the repo root.",
-                    taxonomy_relative, manifest_dir
-                ),
-            }
-        }
-    };
-    let taxonomy_content = std::fs::read_to_string(&taxonomy_path).unwrap_or_else(|e| {
-        panic!(
-            "AC-005 safety net: cannot read error-taxonomy.md at '{}': {}.",
-            taxonomy_path.display(),
-            e
-        )
-    });
+    // CI-PORTABILITY FIX (F-LP14-CI-001, PR #155): the original implementation walked up
+    // from CARGO_MANIFEST_DIR to find `.factory/specs/prd-supplements/error-taxonomy.md`
+    // at runtime. This fails in CI because `.factory/` is an orphan-branch worktree
+    // (factory-artifacts branch) that is not checked out during a normal `git checkout`.
+    // The fix: copy the relevant E-SPEC-019..023 rows into a branch-tracked fixture file
+    // and embed it with `include_str!()` so it is always present regardless of checkout
+    // configuration.
+    // Path is relative to this source file (tests/overlay_loading_tests.rs).
+    // The fixture lives at crates/prism-spec-engine/fixtures/ (crate root),
+    // per BC-3.7.001 AC-006 crate layout convention (fixtures at root, NOT tests/fixtures/).
+    let taxonomy_content = include_str!("../fixtures/error-taxonomy-snapshot.md");
 
     // ---------- E-SPEC-019: extends references unknown TYPE spec ----------
     {
