@@ -2,7 +2,7 @@
 document_type: behavioral-contract
 level: L3
 bc_id: "BC-2.06.015"
-version: "1.0"
+version: "1.1"
 status: draft
 lifecycle_status: draft
 producer: product-owner
@@ -12,7 +12,7 @@ origin: greenfield
 subsystem: "SS-06"
 capability: "CAP-009"
 introduced: "2026-05-23"
-modified: "2026-05-23"
+modified: "2026-05-24"
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -66,7 +66,7 @@ unregistered `customers/<slug>/` directory is an error.
 
 - `OrgRegistry::slug_exists(slug)` returns `false` for a `customers/<slug>/` directory.
 - `E-SPEC-022` is emitted with: directory path, unrecognized `org_slug`, and message:
-  `"Per-org overlay directory 'customers/{slug}/' references org slug '{slug}' which is not registered in OrgRegistry. Register the org in prism.toml [[orgs]] or remove the stale directory."`.
+  `"Per-org overlay directory 'customers/{slug}/' references org slug '{slug}' which is not registered in OrgRegistry. Check for typos or register the org in prism.toml [[orgs]]."`.
 - Boot exits with code 2 (`BootError::ConfigInvalid`).
 - No queries can be served until the stale directory is removed or the org is registered.
 
@@ -159,3 +159,4 @@ S-CONFIG-MULTI-TENANT-OVERRIDE-001 (to-be-created)
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
 | 1.0 | D-803 burst-3 | 2026-05-23 | product-owner | Initial draft per ADR-029 Burst 3 handoff. Note: E-SPEC-022 allocated for this error (unknown org slug) instead of ADR-029's proposed E-SPEC-021, because E-SPEC-021 is allocated to `[[tables]]` override and E-SPEC-022 is the next available code. Full error code allocation documented in BC-2.06.016. |
+| 1.1 | F-LP4-MED-003 | 2026-05-24 | product-owner | POL-25/POL-29 canonical-template byte-match restoration. F-LP4-MED-003: E-SPEC-022 message at line 69 — replaced paraphrase ("Register the org in prism.toml [[orgs]] or remove the stale directory") with canonical ("Check for typos or register the org in prism.toml [[orgs]]."). POL-29 sweep result: no additional variant forms of E-SPEC-022 message found in .factory/ beyond the fixed site. 4-way alignment confirmed: BC-2.06.015 v1.1 ↔ BC-2.06.016 line 135 ↔ error-taxonomy.md line 394 ↔ overlay.rs:650-653. |

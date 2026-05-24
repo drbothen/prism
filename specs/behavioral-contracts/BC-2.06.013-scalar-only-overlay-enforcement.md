@@ -2,7 +2,7 @@
 document_type: behavioral-contract
 level: L3
 bc_id: "BC-2.06.013"
-version: "1.0"
+version: "1.1"
 status: draft
 lifecycle_status: draft
 producer: product-owner
@@ -12,7 +12,7 @@ origin: greenfield
 subsystem: "SS-06"
 capability: "CAP-009"
 introduced: "2026-05-23"
-modified: "2026-05-23"
+modified: "2026-05-24"
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -70,7 +70,7 @@ fails validation is never merged.
 
 - The overlay file contains one or more `[[tables]]` array-of-tables blocks.
 - `E-SPEC-021` is emitted with: file path, org_slug, sensor_id, and message
-  `"Per-org overlay '{file}' for instance '{instance_id}' contains [[tables]] blocks; schema overrides are forbidden in overlay files (ADR-029). Remove [[tables]] and declare schema in the TYPE spec only."`.
+  `"Per-org overlay '{file}' for instance '{instance_id}' contains [[tables]] blocks. Schema overrides are forbidden in overlay files (ADR-029). Table schema must be declared in the TYPE spec only."`.
 - Boot exits with code 2 (`BootError::ConfigInvalid`).
 - No query can be served before this error is resolved.
 
@@ -79,7 +79,7 @@ fails validation is never merged.
 - The overlay file contains a field not in the allowed set (e.g., `auth_type`, `name`,
   or a custom field).
 - `E-SPEC-023` is emitted with: file path, org_slug, sensor_id, unrecognized field name,
-  and message `"Per-org overlay '{file}' contains unrecognized field '{field}'; allowed fields are: extends, instance_id, base_url, timeout_secs, rate_limit_hints"`.
+  and message `"Per-org overlay '{file}' contains unrecognized field '{field_name}'. Allowed overlay fields are: extends, instance_id, base_url, timeout_secs, rate_limit_hints (with sub-fields: requests_per_second, burst_size)."`.
 - Boot exits with code 2.
 
 ### Failure path — `instance_id` convention mismatch
@@ -197,3 +197,4 @@ S-CONFIG-MULTI-TENANT-OVERRIDE-001 (to-be-created)
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
 | 1.0 | D-803 burst-3 | 2026-05-23 | product-owner | Initial draft per ADR-029 Burst 3 handoff |
+| 1.1 | F-LP4-MED-001+002 | 2026-05-24 | product-owner | POL-25/POL-29 canonical-template byte-match restoration. F-LP4-MED-001: E-SPEC-021 message at line 73 — replaced paraphrase (semicolon-separated, "Remove [[tables]] and declare schema in the TYPE spec only") with canonical (period-separated, "Table schema must be declared in the TYPE spec only"). F-LP4-MED-002: E-SPEC-023 message at line 82 — replaced paraphrase (`{field}` placeholder, lowercase "allowed fields are:", no sub-fields clause) with canonical (`{field_name}` placeholder, "Allowed overlay fields are:", "(with sub-fields: requests_per_second, burst_size)" appended). POL-29 sweep result: zero additional variant forms found in .factory/ beyond the two fixed sites. 4-way alignment confirmed: BC-2.06.013 v1.1 ↔ BC-2.06.016 line 121/148 ↔ error-taxonomy.md lines 393/395 ↔ overlay.rs:675-678/697-700. |
