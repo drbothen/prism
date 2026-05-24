@@ -6790,8 +6790,8 @@ _Agent routing: see CLAUDE.md §Agent Routing Table._
 | S-PLUGIN-CI-001 | v0.1 status: draft (created earlier this session; closes PLUGIN-MIGRATION-001-E EC-006/EC-009/MED-001 deferrals) |
 | S-CONFIG-MULTI-TENANT-OVERRIDE-001 | v0.1 status: draft (NEW; this design sequence) |
 | ADR-029 | v1.1 status: PROPOSED (awaits human approval gate) |
-| BCs BC-2.06.012-016 | BC-2.06.013 v1.1 + BC-2.06.015 v1.1 (PO 6585f846 canonical template sweep); BC-2.06.016 v1.2 (PO 513ee6b8 F-LP5-MED-001: E-SPEC-020 placeholder `{sensor_id}@{org_slug}`→`{expected}`); others v1.0 status: draft (advance to active on first story merge per POL-14) |
-| BC-INDEX | v5.50 |
+| BCs BC-2.06.012-016 | BC-2.06.013 v1.1 + BC-2.06.015 v1.1 (PO 6585f846 canonical template sweep); BC-2.06.016 v1.3 (PO 455f9fbb F-LP6-LOW-002: EC-016-003 cross-file + EC-016-005 within-file suppression); others v1.0 status: draft (advance to active on first story merge per POL-14) |
+| BC-INDEX | v5.51 |
 | STORY-INDEX | v2.188 |
 | total_stories | 155 |
 | ARCH-INDEX | v2.101 |
@@ -6878,8 +6878,8 @@ _Cascade convergence per BC-5.39.001. Next phase: demo-recorder + push + pr-mana
 | S-CONFIG-MULTI-TENANT-OVERRIDE-001 | v0.1 draft — READY for deliver-story workflow |
 | PLUGIN-MIGRATION-001-E | CONVERGED (D-802); feature HEAD `9e412c83` — READY for demo-recorder + push + pr-manager |
 | Develop HEAD | `f19575ff` (unchanged) |
-| Factory-artifacts HEAD | D-814 burst (this commit) |
-| BC-INDEX | v5.50 |
+| Factory-artifacts HEAD | D-815 burst (see `git -C .factory log -1`) |
+| BC-INDEX | v5.51 |
 | STORY-INDEX | v2.188 |
 | ARCH-INDEX | v2.102 |
 | error-taxonomy | v1.52 (E-SPEC-019-023 rows ALREADY LANDED at v1.50; BC-2.06.016 suggestion alignment at v1.51; E-SPEC-023 line 395 infeasible Instance placeholder removed at v1.52 per F-LP3-MED-001 POL-25 sweep) |

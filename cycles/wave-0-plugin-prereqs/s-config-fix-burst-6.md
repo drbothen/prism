@@ -40,12 +40,14 @@ traces_to: convergence-trajectory.md
 
 **Closed by:** Implementer commit `3416eea6`
 **Feature HEAD:** `5c11fc7b` → `3416eea6`
-**Fix:** 3 doc-comment sites in overlay.rs corrected:
-1. `make_e_spec_019_instance_id_mismatch` forward-pointer — description corrected to match actual function semantics (instance_id format validation, not unrecognized field)
-2. `make_e_spec_021_tables_in_overlay` forward-pointer — description corrected to match actual function semantics (schema override forbidden, not scalar field check)
-3. `make_e_spec_022_unknown_org_slug` forward-pointer — description corrected to match actual function semantics (unknown org slug in directory, not instance_id mismatch)
+**Fix:** 3 doc-comment sites in overlay.rs corrected (byte-sourced from 3416eea6 commit message and overlay.rs; TD-VSDD-091 function-name anchors):
+1. `make_e_spec_019_unknown_extends` — doc-comment replaced paraphrased E-SPEC-019 template with forward-pointer: "Canonical message template per `.factory/specs/prd-supplements/error-taxonomy.md` row E-SPEC-019. The `format!` body below produces the exact emission text."
+2. `make_e_spec_020_instance_id_mismatch` — doc-comment replaced paraphrased E-SPEC-020 template (separator + semantic drift: `instance_id '{actual}' does not match expected '{expected}' ({sensor_id}@{org_slug})` vs canonical `declares instance_id='{actual}' but expected '{expected}' (derived from filename and parent directory)`) with forward-pointer.
+3. `make_e_spec_021_tables_in_overlay` — doc-comment replaced paraphrased E-SPEC-021 template (omission drift: missing "Table schema must be declared in the TYPE spec only." sentence) with forward-pointer.
 
-**Root cause:** initial doc-comment authoring cited function names without reading actual function bodies; forward-pointers drifted from the function they named.
+**Not included in fix-burst-6 (sibling-sweep gap):** `e_spec_022_unknown_org_slug` and `make_e_spec_023_unrecognized_field` retained paraphrased docs; these 2 remaining sites closed by fix-burst-7 implementer commit `d600f7f4` (F-LP6-LOW-001).
+
+**Root cause:** initial doc-comment authoring cited function names without reading actual function bodies; forward-pointers drifted from the function they named. Closure record originally misstated the 3 fixed sites as `make_e_spec_019_instance_id_mismatch` + `make_e_spec_021_tables_in_overlay` + `make_e_spec_022_unknown_org_slug` — the first and third names do not exist in overlay.rs (F-LP6-MED-001; corrected by D-815 burst).
 
 ---
 
