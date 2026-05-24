@@ -631,6 +631,81 @@ base_url    = "https://armis.unknown.io"
 // BC-2.06.016 §Error Catalog
 // ---------------------------------------------------------------------------
 
+/// Parse the `message_template` column value for a given error code from the
+/// error-taxonomy.md pipe-delimited table.
+///
+/// Reads the taxonomy file line by line and finds the row whose first column
+/// matches `code` (e.g., `"E-SPEC-019"`).  The message_template is the 4th
+/// pipe-delimited column (index 3, 0-based), with surrounding whitespace and
+/// the enclosing double-quotes stripped.
+///
+/// Returns `Some(template)` when the row is found, `None` otherwise.
+/// Panics (via `expect`) when called from a test on a malformed taxonomy row
+/// so that taxonomy format regressions surface immediately.
+fn parse_taxonomy_template(taxonomy_content: &str, code: &str) -> Option<String> {
+    for line in taxonomy_content.lines() {
+        // Only consider pipe-table rows that start with "| " and contain the code.
+        if !line.starts_with('|') {
+            continue;
+        }
+        // Split on '|' to get columns; columns[0] is empty (before the leading |).
+        let cols: Vec<&str> = line.split('|').collect();
+        // Minimum structure: | code | severity | category | message_template | ...
+        if cols.len() < 5 {
+            continue;
+        }
+        let row_code = cols[1].trim();
+        if row_code != code {
+            continue;
+        }
+        // cols[4] is the message_template column (0-based: [0]=empty, [1]=code,
+        // [2]=severity, [3]=category, [4]=message_template).
+        let raw_template = cols[4].trim();
+        // Strip the surrounding double-quotes that delimit the template in the table.
+        let template = raw_template
+            .strip_prefix('"')
+            .and_then(|s| s.strip_suffix('"'))
+            .unwrap_or(raw_template);
+        return Some(template.to_string());
+    }
+    None
+}
+
+/// Render a message template by substituting `{placeholder}` markers with
+/// concrete values from the provided slice of `(placeholder, value)` pairs.
+///
+/// Substitution is performed in order; if the same placeholder appears more
+/// than once all occurrences are replaced.  Unmatched placeholders are left
+/// in place (which will cause the byte-compare assertion to fail, surfacing
+/// the gap).
+fn render_template(template: &str, substitutions: &[(&str, &str)]) -> String {
+    let mut result = template.to_string();
+    for (placeholder, value) in substitutions {
+        let marker = format!("{{{placeholder}}}");
+        result = result.replace(&marker, value);
+    }
+    result
+}
+
+/// Extract the `SpecError::message` field from the first `PrismError::Spec`
+/// in the slice whose `code` matches the given `SpecErrorCode`.
+///
+/// Panics if no matching error is found — the caller asserts code presence
+/// before calling this helper.
+fn extract_spec_message<'a>(errors: &'a [PrismError], expected_code: SpecErrorCode) -> &'a str {
+    for e in errors {
+        if let PrismError::Spec(se) = e {
+            if se.code == expected_code {
+                return &se.message;
+            }
+        }
+    }
+    panic!(
+        "extract_spec_message: no error with code {:?} found in {:?}",
+        expected_code, errors
+    );
+}
+
 /// Red Gate test for AC-005 / BC-2.06.016.
 ///
 /// Triggers all five overlay error conditions in turn and asserts:
@@ -640,15 +715,67 @@ base_url    = "https://armis.unknown.io"
 /// 4. `SpecErrorCode::ESpec022` — unregistered org slug directory.
 /// 5. `SpecErrorCode::ESpec023` — unrecognized field in overlay.
 ///
-/// For each, asserts that the error code matches the canonical BC-2.06.016
-/// §Error Catalog code (INV-ERR-001: all are FATAL/broken/validation).
+/// For each error code the test:
+///   a. Asserts the correct `SpecErrorCode` variant is emitted.
+///   b. Reads the canonical `message_template` from
+///      `../../.factory/specs/prd-supplements/error-taxonomy.md` at test
+///      runtime (POL-25 safety net — test fails if taxonomy and code drift).
+///   c. Substitutes placeholder values to build the expected message string.
+///   d. Byte-compares the expected string against `SpecError::message` in the
+///      production error (AC-005 wording: "message matches the canonical
+///      template from error-taxonomy.md, test-driven validation").
+///
+/// PAPER-FIX DETECTION (TD-VSDD-059): the byte-compare step (d) fails if the
+/// taxonomy template is amended without updating the production code, or vice
+/// versa, because the expected and actual strings will diverge.
 ///
 /// RED GATE: Panics with "not yet implemented" for `validate_overlay_toml`
 /// and `load_overlays` stubs.
 #[test]
 fn test_BC_2_06_016_error_messages_match_canonical_templates() {
+    use std::path::Path;
+
+    // Load the error taxonomy file once at the start of the test.
+    //
+    // The canonical path is `<workspace-root>/.factory/specs/prd-supplements/error-taxonomy.md`.
+    // `CARGO_MANIFEST_DIR` points to `crates/prism-spec-engine/` inside the workspace root.
+    // In per-story worktrees (.worktrees/<story>/) the workspace root is inside .worktrees/,
+    // while the factory-artifacts worktree is mounted two levels up at the main repo root.
+    // We walk up from CARGO_MANIFEST_DIR until we find a directory that contains
+    // `.factory/specs/prd-supplements/error-taxonomy.md`, which resolves correctly in
+    // both the main checkout and per-story worktrees.
+    let manifest_dir = env!("CARGO_MANIFEST_DIR");
+    let taxonomy_relative = ".factory/specs/prd-supplements/error-taxonomy.md";
+    let taxonomy_path = {
+        let mut candidate = Path::new(manifest_dir).to_path_buf();
+        loop {
+            let try_path = candidate.join(taxonomy_relative);
+            if try_path.exists() {
+                break try_path;
+            }
+            match candidate.parent() {
+                Some(parent) => candidate = parent.to_path_buf(),
+                None => panic!(
+                    "AC-005 safety net: could not find '{}' by walking up from '{}'. \
+                     Ensure the factory-artifacts worktree is mounted at the repo root.",
+                    taxonomy_relative, manifest_dir
+                ),
+            }
+        }
+    };
+    let taxonomy_content = std::fs::read_to_string(&taxonomy_path).unwrap_or_else(|e| {
+        panic!(
+            "AC-005 safety net: cannot read error-taxonomy.md at '{}': {}.",
+            taxonomy_path.display(),
+            e
+        )
+    });
+
     // ---------- E-SPEC-019: extends references unknown TYPE spec ----------
     {
+        let file = "customers/acme/nonexistent_sensor.sensor.toml";
+        let extends_value = "nonexistent_sensor";
+
         let overlay_unknown_extends = r#"
 extends     = "nonexistent_sensor"
 instance_id = "nonexistent_sensor@acme"
@@ -657,8 +784,8 @@ base_url    = "https://example.com"
         // Empty type_specs → "nonexistent_sensor" not found.
         let result_019 = OverlayLoader::validate_overlay_toml(
             overlay_unknown_extends,
-            "customers/acme/nonexistent_sensor.sensor.toml",
-            "nonexistent_sensor",
+            file,
+            extends_value,
             "acme",
             &empty_type_specs(),
         );
@@ -680,18 +807,30 @@ base_url    = "https://example.com"
              got: {:?}",
             errs_019
         );
-        // BC-2.06.016: message includes the extends value.
-        let msg_contains_extends = errs_019
-            .iter()
-            .any(|e| format!("{}", e).contains("nonexistent_sensor"));
-        assert!(
-            msg_contains_extends,
-            "E-SPEC-019 message must include the extends value 'nonexistent_sensor'"
+
+        // AC-005 byte-compare: rendered taxonomy template == production SpecError::message.
+        let template_019 = parse_taxonomy_template(&taxonomy_content, "E-SPEC-019")
+            .expect("E-SPEC-019 row must exist in error-taxonomy.md (POL-25 safety net)");
+        let expected_019 = render_template(
+            &template_019,
+            &[("file", file), ("extends_value", extends_value)],
+        );
+        let actual_019 = extract_spec_message(&errs_019, SpecErrorCode::ESpec019);
+        assert_eq!(
+            actual_019, expected_019,
+            "E-SPEC-019 SpecError::message must byte-equal the canonical taxonomy \
+             template (AC-005 POL-25). Drift means taxonomy and code are out of sync.\n\
+             expected: {expected_019}\n\
+             actual:   {actual_019}"
         );
     }
 
     // ---------- E-SPEC-020: instance_id mismatch ----------
     {
+        let file = "customers/acme/armis.sensor.toml";
+        let actual_id = "armis@wrongorg";
+        let expected_id = "armis@acme";
+
         let overlay_bad_id = r#"
 extends     = "armis"
 instance_id = "armis@wrongorg"
@@ -699,7 +838,7 @@ base_url    = "https://armis.example.com"
 "#;
         let result_020 = OverlayLoader::validate_overlay_toml(
             overlay_bad_id,
-            "customers/acme/armis.sensor.toml",
+            file,
             "armis",
             "acme",
             &type_specs_with_armis(),
@@ -721,10 +860,33 @@ base_url    = "https://armis.example.com"
             "E-SPEC-020 must be emitted for instance_id mismatch; got: {:?}",
             errs_020
         );
+
+        // AC-005 byte-compare.
+        let template_020 = parse_taxonomy_template(&taxonomy_content, "E-SPEC-020")
+            .expect("E-SPEC-020 row must exist in error-taxonomy.md (POL-25 safety net)");
+        let expected_020 = render_template(
+            &template_020,
+            &[
+                ("file", file),
+                ("actual", actual_id),
+                ("expected", expected_id),
+            ],
+        );
+        let actual_020 = extract_spec_message(&errs_020, SpecErrorCode::ESpec020);
+        assert_eq!(
+            actual_020, expected_020,
+            "E-SPEC-020 SpecError::message must byte-equal the canonical taxonomy \
+             template (AC-005 POL-25). Drift means taxonomy and code are out of sync.\n\
+             expected: {expected_020}\n\
+             actual:   {actual_020}"
+        );
     }
 
     // ---------- E-SPEC-021: [[tables]] in overlay ----------
     {
+        let file = "customers/acme/armis.sensor.toml";
+        let instance_id = "armis@acme";
+
         let overlay_with_tables = r#"
 extends     = "armis"
 instance_id = "armis@acme"
@@ -736,7 +898,7 @@ ocsf_class = "device_inventory_info"
 "#;
         let result_021 = OverlayLoader::validate_overlay_toml(
             overlay_with_tables,
-            "customers/acme/armis.sensor.toml",
+            file,
             "armis",
             "acme",
             &type_specs_with_armis(),
@@ -758,10 +920,33 @@ ocsf_class = "device_inventory_info"
             "E-SPEC-021 must be emitted when [[tables]] present in overlay; got: {:?}",
             errs_021
         );
+
+        // AC-005 byte-compare.
+        let template_021 = parse_taxonomy_template(&taxonomy_content, "E-SPEC-021")
+            .expect("E-SPEC-021 row must exist in error-taxonomy.md (POL-25 safety net)");
+        let expected_021 = render_template(
+            &template_021,
+            &[("file", file), ("instance_id", instance_id)],
+        );
+        let actual_021 = extract_spec_message(&errs_021, SpecErrorCode::ESpec021);
+        assert_eq!(
+            actual_021, expected_021,
+            "E-SPEC-021 SpecError::message must byte-equal the canonical taxonomy \
+             template (AC-005 POL-25). Drift means taxonomy and code are out of sync.\n\
+             expected: {expected_021}\n\
+             actual:   {actual_021}"
+        );
     }
 
     // ---------- E-SPEC-022: unregistered org slug directory ----------
     {
+        let slug = "stale-corp";
+        // The production code builds customers_dir_name as "customers/{slug}/"
+        // and passes that as the first arg to e_spec_022_unknown_org_slug.
+        // The taxonomy template uses {slug} for both the directory path part and
+        // the bare slug; we substitute accordingly.
+        let customers_dir_name = format!("customers/{slug}/");
+
         let dir = tempfile::tempdir().expect("tempdir");
         let customers_dir = dir.path().join("customers");
 
@@ -795,19 +980,45 @@ base_url    = "https://armis.stale.io"
              errors: {:?}",
             result_022.errors
         );
-        // BC-2.06.016 E-SPEC-022 message includes the slug.
-        let msg_has_slug = result_022
-            .errors
-            .iter()
-            .any(|e| format!("{}", e).contains("stale-corp"));
+
+        // AC-005 byte-compare.
+        // E-SPEC-022 taxonomy template: "Per-org overlay directory 'customers/{slug}/'
+        // references org slug '{slug}' which is not registered in OrgRegistry. ..."
+        // The production code calls e_spec_022_unknown_org_slug(customers_dir_name, slug)
+        // where customers_dir_name = "customers/stale-corp/" and slug = "stale-corp".
+        // The template's {slug} placeholders map to the slug value alone; the
+        // full directory path ("customers/stale-corp/") is already embedded as
+        // the literal first occurrence of {slug} surrounded by 'customers/' and '/'.
+        // We substitute both {slug} occurrences with the bare slug value to reconstruct
+        // the same interpolation the production code performs.
+        let template_022 = parse_taxonomy_template(&taxonomy_content, "E-SPEC-022")
+            .expect("E-SPEC-022 row must exist in error-taxonomy.md (POL-25 safety net)");
+        let expected_022 = render_template(&template_022, &[("slug", slug)]);
+        // Verify the rendered template matches the customers_dir_name the code uses.
+        // (This assertion is a cross-check that our substitution logic is coherent with
+        // the production e_spec_022_unknown_org_slug(customers_dir_name, slug) signature.)
         assert!(
-            msg_has_slug,
-            "E-SPEC-022 message must include the unrecognized slug 'stale-corp'"
+            expected_022.contains(&customers_dir_name),
+            "E-SPEC-022 rendered template must contain the customers_dir_name '{}'; \
+             rendered: {}",
+            customers_dir_name,
+            expected_022
+        );
+        let actual_022 = extract_spec_message(&result_022.errors, SpecErrorCode::ESpec022);
+        assert_eq!(
+            actual_022, expected_022,
+            "E-SPEC-022 SpecError::message must byte-equal the canonical taxonomy \
+             template (AC-005 POL-25). Drift means taxonomy and code are out of sync.\n\
+             expected: {expected_022}\n\
+             actual:   {actual_022}"
         );
     }
 
     // ---------- E-SPEC-023: unrecognized field in overlay ----------
     {
+        let file = "customers/acme/armis.sensor.toml";
+        let field_name = "secret_key";
+
         let overlay_unknown_field = r#"
 extends     = "armis"
 instance_id = "armis@acme"
@@ -816,7 +1027,7 @@ secret_key  = "s3cr3t"
 "#;
         let result_023 = OverlayLoader::validate_overlay_toml(
             overlay_unknown_field,
-            "customers/acme/armis.sensor.toml",
+            file,
             "armis",
             "acme",
             &type_specs_with_armis(),
@@ -838,18 +1049,19 @@ secret_key  = "s3cr3t"
             "E-SPEC-023 must be emitted for unrecognized field 'secret_key'; got: {:?}",
             errs_023
         );
-        // BC-2.06.016 E-SPEC-023 message includes the field name.
-        let msg_has_field = errs_023
-            .iter()
-            .any(|e| format!("{}", e).contains("secret_key"));
-        assert!(
-            msg_has_field,
-            "E-SPEC-023 message must include the unrecognized field name 'secret_key'; \
-             messages: {:?}",
-            errs_023
-                .iter()
-                .map(|e| format!("{}", e))
-                .collect::<Vec<_>>()
+
+        // AC-005 byte-compare.
+        let template_023 = parse_taxonomy_template(&taxonomy_content, "E-SPEC-023")
+            .expect("E-SPEC-023 row must exist in error-taxonomy.md (POL-25 safety net)");
+        let expected_023 =
+            render_template(&template_023, &[("file", file), ("field_name", field_name)]);
+        let actual_023 = extract_spec_message(&errs_023, SpecErrorCode::ESpec023);
+        assert_eq!(
+            actual_023, expected_023,
+            "E-SPEC-023 SpecError::message must byte-equal the canonical taxonomy \
+             template (AC-005 POL-25). Drift means taxonomy and code are out of sync.\n\
+             expected: {expected_023}\n\
+             actual:   {actual_023}"
         );
     }
 }
