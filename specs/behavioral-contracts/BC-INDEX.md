@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "5.47"
+version: "5.48"
 status: draft
 producer: product-owner
 timestamp: 2026-05-23T00:00:00Z
@@ -375,6 +375,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v5.48 (2026-05-23, D-809 state-propagation burst):** state-manager | BC-2.06.016 v1.0→v1.1: product-owner fixed E-SPEC-021 suggestion text in BC body — original v1.0 suggestion included `{extends_value}` interpolation (infeasible: structural pre-deserialization check fires before `extends` field is parsed; code cannot know the value at E-SPEC-021 time); suggestion rewritten to use generic `<sensor>` placeholder and point to canonical path `crates/prism-sensors/specs/<sensor>.sensor.toml`. BC-2.06.016 also corrected E-SPEC-023 suggestion (same class — `{extends_value}` infeasible). 3-way alignment CONFIRMED: BC body (v1.1) ↔ error-taxonomy.md row (v1.50 data, unchanged) ↔ `make_e_spec_021_tables_in_overlay` code emission. Error taxonomy version advanced v1.49→v1.51 in same PO burst (E-SPEC-019-023 rows at v1.50 + E-SPEC-021/023 BC-suggestion alignment at v1.51). No BC table-row count changes (BC-2.06.016 was already registered at v5.47). BC-INDEX v5.47→v5.48.
 
 **v5.47 (2026-05-23, D-803 burst-3):** product-owner | ADR-029 Burst 3 handoff: 5 new BCs drafted for multi-tenant sensor endpoint override feature. BC-2.06.012 (per-tenant overlay loading + merge semantics), BC-2.06.013 (scalar-only overlay enforcement — boot-time rejection of `[[tables]]` and unrecognized fields), BC-2.06.014 (instance identity resolution at fanout — `(org_id, sensor_id)` → `ResolvedSensorSpec`), BC-2.06.015 (OrgRegistry cross-validation at boot — unknown slug dir triggers E-SPEC-022), BC-2.06.016 (error taxonomy for override violations — E-SPEC-019 through E-SPEC-023 with ADR-029 draft E-SPEC-018–022 collision resolved; E-SPEC-018 already allocated to ADR-028 TimestampParseFailure). All 5 BCs are `status: draft`, `lifecycle_status: draft`. Subsystem SS-06 count: 11→16. total_contracts 240→245. draft_contracts 2→7. BC-INDEX v5.46→v5.47.
 

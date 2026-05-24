@@ -168,7 +168,7 @@ ARTIFACT STATE AFTER D-540 (UNCHANGED FROM D-539 — no spec edits):
 DURABLE PIN BLOCK (CURRENT STATE — D-580 — DURABLE PRE-/CLEAR RESUME SNAPSHOT — 86th consecutive single-commit — STRATEGIC DECISION PENDING)
 ═══════════════════════════════════════════════════════════════════════
 
-- develop HEAD: 3f2de889 (current develop — PR #153 squash-merge 2026-05-22; D-776 SHA-currency sweep updated this pin; D-776 §RESUME SNAPSHOT 2026-05-22 is authoritative current state)
+- develop HEAD: f19575ff (current develop — docs(claude) D-778+D-779 session-review codification 2026-05-22; D-809 SHA-currency sweep updated this pin; §RESUME SNAPSHOT 2026-05-23-PATH-C-DUAL-WORKTREE is authoritative current state)
 - factory-artifacts: run `git -C .factory log -1 --format=’%H’` (per TD-VSDD-053; D-579 is this commit)
 - feature_branch_head: no active feature branch (spec-authoring-only burst; develop unchanged at a5ab742c)
 - feature_branch_remote_status: no feature branch (spec-only burst; develop@a5ab742c unchanged)
@@ -6663,7 +6663,7 @@ _Agent routing: see CLAUDE.md §Agent Routing Table._
 | Story S-PLUGIN-CI-001 | v0.1 status=draft — NEW stub created this session; closes PLUGIN-MIGRATION-001-E EC-006 + EC-009 + MED-001 #[ignore] deferrals |
 | BC-2.16.002 (Structured Event Catalog) | v1.43 (row 37 plugin.auth_token_parse_error added) |
 | BC-INDEX | v5.46 |
-| error-taxonomy.md | v1.49 (E-PLUGIN-022 AuthTokenNotCached added) |
+| error-taxonomy.md | v1.51 (E-PLUGIN-022 AuthTokenNotCached added at v1.49; E-SPEC-019-023 overlay boot errors added at v1.50; BC-2.06.016 suggestion alignment at v1.51) |
 | LOCAL adversary cascade status | **CONVERGED** per BC-5.39.001 3-CLEAN STRICT |
 | Cascade arc | 12 adversary passes / 8 fix-bursts / 55 findings closed / 3 paper-fix recurrences detected+corrected |
 | Decay trajectory | 20 → 12 → 3 → 0(false) → 2 → 3 → 3 → 7 → 6 → 0 → 0 → 0 |
@@ -6788,12 +6788,12 @@ _Agent routing: see CLAUDE.md §Agent Routing Table._
 | S-PLUGIN-CI-001 | v0.1 status: draft (created earlier this session; closes PLUGIN-MIGRATION-001-E EC-006/EC-009/MED-001 deferrals) |
 | S-CONFIG-MULTI-TENANT-OVERRIDE-001 | v0.1 status: draft (NEW; this design sequence) |
 | ADR-029 | v1.1 status: PROPOSED (awaits human approval gate) |
-| BCs BC-2.06.012-016 | v1.0 status: draft (advance to active on first story merge per POL-14) |
-| BC-INDEX | v5.47 |
+| BCs BC-2.06.012-016 | BC-2.06.016 v1.1 (PO fix E-SPEC-021/023 suggestion); others v1.0 status: draft (advance to active on first story merge per POL-14) |
+| BC-INDEX | v5.48 |
 | STORY-INDEX | v2.185 |
 | total_stories | 153 |
 | ARCH-INDEX | v2.101 |
-| error-taxonomy | v1.49 (note: E-SPEC-019-023 will land WITH the implementation story merge, not now) |
+| error-taxonomy | v1.51 (E-SPEC-019-023 rows landed at v1.50; BC-2.06.016 v1.1 suggestion alignment at v1.51 — ALREADY IN taxonomy, NOT deferred to implementation) |
 
 ### §3. HUMAN APPROVAL GATE (BLOCKING)
 
@@ -6876,10 +6876,10 @@ _Cascade convergence per BC-5.39.001. Next phase: demo-recorder + push + pr-mana
 | PLUGIN-MIGRATION-001-E | CONVERGED (D-802); feature HEAD `9e412c83` — READY for demo-recorder + push + pr-manager |
 | Develop HEAD | `f19575ff` (unchanged) |
 | Factory-artifacts HEAD | latest state-manager commit (this burst) |
-| BC-INDEX | v5.47 |
+| BC-INDEX | v5.48 |
 | STORY-INDEX | v2.185 |
 | ARCH-INDEX | v2.102 |
-| error-taxonomy | v1.49 (E-SPEC-019-023 land WITH S-CONFIG-MULTI-TENANT-OVERRIDE-001 implementation, not now) |
+| error-taxonomy | v1.51 (E-SPEC-019-023 rows ALREADY LANDED at v1.50; BC-2.06.016 suggestion alignment at v1.51 — NO longer deferred to implementation) |
 | total_stories | 153 |
 
 ### §2. Path C — Parallel Implementation Dispatch Plan
