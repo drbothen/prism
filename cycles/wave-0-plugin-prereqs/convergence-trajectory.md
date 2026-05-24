@@ -326,17 +326,27 @@ Extracted from STATE.md frontmatter (pass/burst SHA history):
 
 ## S-CONFIG-MULTI-TENANT-OVERRIDE-001 — LOCAL Adversary Cascade (IN PROGRESS)
 
+## Accounting Conventions
+
+- **§Cumulative findings closed:** counts CRIT + HIGH + MED + LOW severity findings closed.
+- **OBS and PROCESS-GAP findings** are NOT included in the cumulative closure count. They are tracked individually in §Trajectory pass rows and §Fix-burst Log but do not increment the §Cascade Status cumulative total.
+- **§Trajectory pass-N "Findings" column:** includes ALL severities (CRIT + HIGH + MED + LOW + OBS).
+- **§Fix-burst Log "Findings Closed" column:** when a burst closes only OBS/PROCESS-GAP findings (e.g., fix-burst-12 closing F-LP11-OBS-001 + F-LP11-OBS-002), the cumulative total is unchanged and this is explicitly noted with "0 closed (OBS-only burst)" in the Delta column.
+- **Rationale:** OBS = observational notes (non-blocking, no runtime impact); PROCESS-GAP = meta-process findings about agent workflow. LOW findings are real implementation gaps and count toward cumulative even though they are non-blocking for PR-merge. This convention is consistent with the CLEAN(strict) vs CLEAN(PR-merge) disambiguation documented in CLAUDE.md §BC-5.39.001 — CLEAN(strict) requires zero findings of ANY severity; CLEAN(PR-merge) requires zero MED+ findings. The cumulative closure metric tracks ALL non-observational findings.
+- **Arithmetic verification:** Cumulative 23 = 4+2+4+3+4+3+1+1+1. The +1 from pass-8 via fix-burst-9 closed F-LP8-LOW-001 (a LOW finding); it incremented cumulative from 20→21 — consistent with LOW-counts convention. Pass-9 via fix-burst-10 closed F-LP9-MED-001 (MED) → cumulative 21→22. Pass-10 via fix-burst-11 closed F-LP10-MED-001 (MED) → cumulative 22→23. Pass-11 found 2 OBS only → cumulative STAYS at 23. ARITHMETIC CONSISTENT.
+- **Codified:** D-820, fix-burst-12 close F-LP11-OBS-002 (axis-13 finding-class accounting convention).
+
 ### Cascade Status
 
 | Field | Value |
 |-------|-------|
 | Story | S-CONFIG-MULTI-TENANT-OVERRIDE-001 |
 | Feature branch | feature/S-CONFIG-MULTI-TENANT-OVERRIDE-001 |
-| Feature HEAD at fix-burst-11 completion | `d600f7f4` (unchanged — fix-burst-11 is state-manager only; no code changes) |
+| Feature HEAD at fix-burst-12 completion | `d600f7f4` (unchanged — fix-burst-12 is state-manager only; no code changes) |
 | Streak | 0/3 |
-| Total passes | 10 (pass-11 next) |
-| Total fix-bursts | 11 |
-| Cumulative findings closed | 23 (4 from pass-2 via fix-burst-3 + 2 from pass-3 via fix-burst-4 + 4 from pass-4 via fix-burst-5 + 3 from pass-5 via fix-burst-6 + 4 from pass-6 via fix-burst-7 + 3 from pass-7 via fix-burst-8 + 1 from pass-8 via fix-burst-9 + 1 from pass-9 via fix-burst-10 + 1 from pass-10 via fix-burst-11) |
+| Total passes | 11 (pass-12 next) |
+| Total fix-bursts | 12 |
+| Cumulative findings closed | 23 (4 from pass-2 via fix-burst-3 + 2 from pass-3 via fix-burst-4 + 4 from pass-4 via fix-burst-5 + 3 from pass-5 via fix-burst-6 + 4 from pass-6 via fix-burst-7 + 3 from pass-7 via fix-burst-8 + 1 from pass-8 via fix-burst-9 + 1 from pass-9 via fix-burst-10 + 1 from pass-10 via fix-burst-11) — NOTE: pass-11 found OBS-only findings; per axis-13 accounting convention, OBS+PROCESS-GAP do NOT increment cumulative total (LOW findings DO count) |
 
 ### Trajectory
 
@@ -361,6 +371,8 @@ Extracted from STATE.md frontmatter (pass/burst SHA history):
 | fix-burst-10 | — | -1 closed | 1 MED CORRECTIVE closed | State-manager D-818 (TD-VSDD-053 single-commit): §Cascade Status table updated (fix-burst-8→fix-burst-9, Total passes 7→9, Total fix-bursts 8→10, Cumulative findings closed 20→22); §Fix-burst Log rows fix-burst-9 + fix-burst-10 appended; §Trajectory pass-9 + fix-burst-10 rows appended. Mandatory whole-artifact sibling-sweep executed before commit — grep verified stale values GONE from all 3 tables. Lesson 45 [process-gap] [codified] appended. STATE v7.504→v7.505. Streak stays 0/3. Pass-10 next (streak attempt 0/3→1/3). |
 | pass-10 | 2 | n/a | 0 CRIT + 0 HIGH + 1 MED + 0 LOW + 1 OBS | F-LP10-MED-001 [process-gap]: lessons.md lesson 44 `_Discovered:_` footer orphaned at line 278 (after lesson 45 body + footer, after D-818 section boundary); canonical position is immediately after lesson 44 body, before next `## YYYY-MM-DD D-NNN` section header. 6th-generation recurrence of within-artifact sibling-sweep failure. OBS-LP10-001 [process-gap]: fix-burst-10.md line 75 arithmetic-claim drift — claimed `grep -n "fix-burst-9"` returned 4 hits; actual count is 6 hits (lines 335, 339, 359, 360, 361, 375 in convergence-trajectory.md). Feature HEAD d600f7f4 (read-only). CLEAN(strict)=NO, CLEAN(PR-merge)=YES. Streak 0/3→0/3 (BLOCKED). Fix-burst-11 dispatch. |
 | fix-burst-11 | — | -1 closed | 1 MED CORRECTIVE + 1 OBS CORRECTIVE closed | State-manager D-819 (TD-VSDD-053 single-commit): lessons.md lesson 44 `_Discovered:_` footer moved to canonical position (immediately after lesson 44 body, before D-818 section header). Lesson 45 scope extended: lesson-entry section structure (axis-10) + arithmetic-claim verification (axis-11) sub-axes added. Lesson 46 [process-gap] [codified] appended under `## 2026-05-24 D-819`. s-config-fix-burst-10.md line 75 arithmetic-claim corrected: 4 hits → 6 hits with all 6 line locations enumerated. s-config-pass-10.md + s-config-fix-burst-11.md archived. Mandatory whole-artifact + structural sibling-sweep executed before commit — lesson 44 footer canonical position PASS, lesson 44 footer orphan GONE, arithmetic claim corrected. STATE v7.505→v7.506. Streak stays 0/3. Pass-11 next (streak attempt 0/3→1/3). |
+| pass-11 | 2 | n/a | 0 CRIT + 0 HIGH + 0 MED + 0 LOW + 2 OBS | F-LP11-OBS-001 [process-gap]: s-config-fix-burst-11.md arithmetic-claim drift — OBS-LP10-001 CORRECTIVE section cited pre-burst line numbers (335, 339, 359, 360, 361, 375) for `grep -n "fix-burst-9"` in convergence-trajectory.md; these were correct PRE-burst but stale POST-burst (fix-burst-11's own edits shifted all subsequent line numbers). META-recurrence of axis-11 violation inside the axis-11 codification burst itself (1st gen of this meta-class was pass-6 F-LP6-MED-001/002). F-LP11-OBS-002 [process-gap]: §Cumulative findings closed convention "OBS+PROCESS-GAP don't count" (LOW findings DO count) was relied upon implicitly in pass-10/11 arithmetic but never documented — no explicit statement of OBS+PG exclusion from cumulative count in convergence-trajectory.md. Feature HEAD d600f7f4 (read-only). CLEAN(strict)=NO per Option A (OBS-class findings require codification). CLEAN(PR-merge)=YES (zero MED+). Streak 0/3→0/3 (BLOCKED per Option A). Fix-burst-12 dispatch (D-820). |
+| fix-burst-12 | — | 0 closed (OBS-only burst) | 2 OBS CORRECTIVE closed | State-manager D-820 (TD-VSDD-053 single-commit): F-LP11-OBS-001 CORRECTIVE — s-config-fix-burst-11.md OBS-LP10-001 CORRECTIVE section line numbers re-verified post-burst and updated to final post-burst values via axis-12 discipline (all convergence-trajectory.md edits applied FIRST; greps re-run AFTER; fix-burst-11.md updated with FINAL line numbers: 8 hits at lines 334/348/368/369/370/371/373/388). F-LP11-OBS-002 CORRECTIVE — §Accounting Conventions header section added to convergence-trajectory.md explicitly documenting OBS+PROCESS-GAP exclusion from cumulative closure count; LOW findings DO count (axis-13 codification — corrected from initial draft which incorrectly excluded LOW; cumulative arithmetic of 23 includes LOW findings from pass-3 + pass-8). Lesson 47 [process-gap] [codified] appended: axis-12 (post-commit re-verification) + axis-13 (finding-class accounting convention: OBS+PG excluded, LOW included). s-config-pass-11.md + s-config-fix-burst-12.md archived. Cumulative findings closed: 23 (unchanged — pass-11 OBS-only per axis-13 convention). STATE v7.506→v7.507. Streak stays 0/3. Pass-12 next (streak attempt 0/3→1/3). |
 
 ### Fix-burst Log
 
@@ -377,6 +389,7 @@ Extracted from STATE.md frontmatter (pass/burst SHA history):
 | fix-burst-9 | d600f7f4 (feature HEAD unchanged — state-manager only) | F-LP8-LOW-001 |
 | fix-burst-10 | d600f7f4 (feature HEAD unchanged — state-manager only) | F-LP9-MED-001 |
 | fix-burst-11 | d600f7f4 (feature HEAD unchanged — state-manager only) | F-LP10-MED-001 CORRECTIVE + OBS-LP10-001 CORRECTIVE |
+| fix-burst-12 | d600f7f4 (feature HEAD unchanged — state-manager only) | F-LP11-OBS-001 CORRECTIVE + F-LP11-OBS-002 CORRECTIVE |
 
 ---
 

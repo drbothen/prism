@@ -6939,7 +6939,7 @@ The two streams use SEPARATE worktrees pointing at SEPARATE feature branches bot
 
 ### §5. Resume Protocol
 
-1. Read STATE.md frontmatter (v7.506 + path_c_* fields)
+1. Read STATE.md frontmatter (v7.507 + path_c_* fields)
 2. Read this §RESUME SNAPSHOT 2026-05-23-PATH-C-DUAL-WORKTREE
 3. Optionally read prior snapshots for historical context
 4. Run `vsdd-factory:factory-worktree-health` skill (BLOCKING preflight)

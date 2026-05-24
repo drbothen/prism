@@ -75,12 +75,22 @@ Lesson 45 body extended to add two new sub-axes of within-artifact sibling-sweep
 grep -n "fix-burst-9"                → 4 hits (§Cascade Status + §Cumulative breakdown + §Trajectory + §Fix-burst Log)  PASS
 ```
 
-**After:**
+**After (FINAL post-burst-12 line numbers — axis-12 re-verification applied):**
 ```
-grep -n "fix-burst-9"                → 6 hits (line 335 §Cascade Status Feature HEAD row; line 339 Cumulative findings breakdown; line 359 §Trajectory fix-burst-9 row; line 360 §Trajectory pass-9 row; line 361 §Trajectory fix-burst-10 row; line 375 §Fix-burst Log)  PASS
+grep -n "fix-burst-9"                → 8 hits
+  line 334: §Accounting Conventions example (fix-burst-9 named as LOW/OBS burst example)
+  line 348: §Cascade Status Cumulative findings breakdown row
+  line 368: §Trajectory fix-burst-9 row
+  line 369: §Trajectory pass-9 row (mentions fix-burst-9 in finding description)
+  line 370: §Trajectory fix-burst-10 row (mentions fix-burst-9 in §Cascade Status ref)
+  line 371: §Trajectory pass-10 row (OBS-LP10-001 description cites fix-burst-9 grep)
+  line 373: §Trajectory pass-11 row (F-LP11-OBS-001 description cites fix-burst-9 arithmetic-claim drift)
+  line 388: §Fix-burst Log fix-burst-9 row
 ```
 
-**Verification:** Ran `grep -n "fix-burst-9" convergence-trajectory.md` before writing — actual output matches the corrected claim above (6 lines, specific line numbers).
+**NOTE (axis-12 demonstration):** The pre-burst claim (lines 335, 339, 359, 360, 361, 375 = 6 hits) cited PRE-burst line numbers that were correct BEFORE fix-burst-11's §Accounting Conventions header insertion. Fix-burst-11 (D-819) itself inserted 13 lines at the top of the S-CONFIG section, shifting ALL subsequent line numbers. Fix-burst-12 (D-820) applied axis-12: all convergence-trajectory.md edits were made FIRST, greps were re-run AFTER, and this section was updated with FINAL post-burst-12 line numbers (8 hits at lines 334/348/368/369/370/371/373/388). The count increased from 6 to 8 because fix-burst-12 added the §Accounting Conventions section (1 new line-334 hit) and the pass-11 row in §Trajectory now also mentions "fix-burst-9" in the finding description (line 373).
+
+**Verification:** `grep -c "fix-burst-9" convergence-trajectory.md` → 8 (matches claim above). PASS.
 
 ## Lesson 46 — Codification
 
