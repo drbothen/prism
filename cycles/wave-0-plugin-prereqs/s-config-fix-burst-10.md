@@ -72,7 +72,7 @@ grep -n "Total fix-bursts | 10"      → 1 hit   PASS
 grep -n "Cumulative findings closed | 22" → 1 hit  PASS
 grep -n "fix-burst-9 completion"     → 1 hit   PASS
 grep -n "pass-10 next"               → 1 hit   PASS
-grep -n "fix-burst-9"                → 4 hits (§Cascade Status + §Cumulative breakdown + §Trajectory + §Fix-burst Log)  PASS
+grep -n "fix-burst-9"                → 6 hits (line 335 §Cascade Status Feature HEAD row; line 339 Cumulative findings breakdown; line 359 §Trajectory fix-burst-9 row; line 360 §Trajectory pass-9 row; line 361 §Trajectory fix-burst-10 row; line 375 §Fix-burst Log)  PASS
 grep -n "fix-burst-10"               → 4 hits (§Cumulative breakdown + §Trajectory + §Fix-burst Log x2)  PASS
 ```
 

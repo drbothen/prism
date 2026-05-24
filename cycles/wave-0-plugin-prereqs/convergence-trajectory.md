@@ -332,11 +332,11 @@ Extracted from STATE.md frontmatter (pass/burst SHA history):
 |-------|-------|
 | Story | S-CONFIG-MULTI-TENANT-OVERRIDE-001 |
 | Feature branch | feature/S-CONFIG-MULTI-TENANT-OVERRIDE-001 |
-| Feature HEAD at fix-burst-9 completion | `d600f7f4` (unchanged — fix-burst-9 is state-manager only; no code changes) |
+| Feature HEAD at fix-burst-11 completion | `d600f7f4` (unchanged — fix-burst-11 is state-manager only; no code changes) |
 | Streak | 0/3 |
-| Total passes | 9 (pass-10 next) |
-| Total fix-bursts | 10 |
-| Cumulative findings closed | 22 (4 from pass-2 via fix-burst-3 + 2 from pass-3 via fix-burst-4 + 4 from pass-4 via fix-burst-5 + 3 from pass-5 via fix-burst-6 + 4 from pass-6 via fix-burst-7 + 3 from pass-7 via fix-burst-8 + 1 from pass-8 via fix-burst-9 + 1 from pass-9 via fix-burst-10) |
+| Total passes | 10 (pass-11 next) |
+| Total fix-bursts | 11 |
+| Cumulative findings closed | 23 (4 from pass-2 via fix-burst-3 + 2 from pass-3 via fix-burst-4 + 4 from pass-4 via fix-burst-5 + 3 from pass-5 via fix-burst-6 + 4 from pass-6 via fix-burst-7 + 3 from pass-7 via fix-burst-8 + 1 from pass-8 via fix-burst-9 + 1 from pass-9 via fix-burst-10 + 1 from pass-10 via fix-burst-11) |
 
 ### Trajectory
 
@@ -359,6 +359,8 @@ Extracted from STATE.md frontmatter (pass/burst SHA history):
 | fix-burst-9 | — | -1 closed | 1 LOW CORRECTIVE closed | State-manager D-817 (TD-VSDD-053 single-commit): sentence-terminal periods restored at 4 sites (s-config-fix-burst-7.md lines 81+87; lessons.md entry 41 bullets (1)+(2)). Byte-diff verified against BC-2.06.013 v1.1 §Changelog line 200 before commit — all 4 restored forms now byte-equal to source `).` sentence terminator. Lesson 44 scope extended: sentence-terminal punctuation after closing parentheses + whitespace + markdown markup added as explicit sub-axes of byte-equality discipline. STATE v7.503→v7.504. Streak stays 0/3. Pass-9 next (streak attempt 0/3→1/3). |
 | pass-9 | 1 | n/a | 0 CRIT + 0 HIGH + 1 MED + 0 LOW | F-LP9-MED-001 [process-gap]: convergence-trajectory.md §Cascade Status table stale (4 rows referencing fix-burst-8 not fix-burst-9, Total passes 7 not 9, Total fix-bursts 8 not 10, Cumulative findings closed 20 not 22); §Fix-burst Log table missing fix-burst-9 and fix-burst-10 rows; §Trajectory subtable missing pass-9 and fix-burst-10 rows. 5th-generation recurrence of POL-25 within-artifact sibling-sweep — fix-burst-9 updated §Trajectory subtable only, missed §Cascade Status + §Fix-burst Log sibling tables in the same file. Feature HEAD d600f7f4 (read-only). CLEAN(strict)=NO, CLEAN(PR-merge)=YES. Streak 0/3→0/3 (BLOCKED). Fix-burst-10 dispatch. |
 | fix-burst-10 | — | -1 closed | 1 MED CORRECTIVE closed | State-manager D-818 (TD-VSDD-053 single-commit): §Cascade Status table updated (fix-burst-8→fix-burst-9, Total passes 7→9, Total fix-bursts 8→10, Cumulative findings closed 20→22); §Fix-burst Log rows fix-burst-9 + fix-burst-10 appended; §Trajectory pass-9 + fix-burst-10 rows appended. Mandatory whole-artifact sibling-sweep executed before commit — grep verified stale values GONE from all 3 tables. Lesson 45 [process-gap] [codified] appended. STATE v7.504→v7.505. Streak stays 0/3. Pass-10 next (streak attempt 0/3→1/3). |
+| pass-10 | 2 | n/a | 0 CRIT + 0 HIGH + 1 MED + 0 LOW + 1 OBS | F-LP10-MED-001 [process-gap]: lessons.md lesson 44 `_Discovered:_` footer orphaned at line 278 (after lesson 45 body + footer, after D-818 section boundary); canonical position is immediately after lesson 44 body, before next `## YYYY-MM-DD D-NNN` section header. 6th-generation recurrence of within-artifact sibling-sweep failure. OBS-LP10-001 [process-gap]: fix-burst-10.md line 75 arithmetic-claim drift — claimed `grep -n "fix-burst-9"` returned 4 hits; actual count is 6 hits (lines 335, 339, 359, 360, 361, 375 in convergence-trajectory.md). Feature HEAD d600f7f4 (read-only). CLEAN(strict)=NO, CLEAN(PR-merge)=YES. Streak 0/3→0/3 (BLOCKED). Fix-burst-11 dispatch. |
+| fix-burst-11 | — | -1 closed | 1 MED CORRECTIVE + 1 OBS CORRECTIVE closed | State-manager D-819 (TD-VSDD-053 single-commit): lessons.md lesson 44 `_Discovered:_` footer moved to canonical position (immediately after lesson 44 body, before D-818 section header). Lesson 45 scope extended: lesson-entry section structure (axis-10) + arithmetic-claim verification (axis-11) sub-axes added. Lesson 46 [process-gap] [codified] appended under `## 2026-05-24 D-819`. s-config-fix-burst-10.md line 75 arithmetic-claim corrected: 4 hits → 6 hits with all 6 line locations enumerated. s-config-pass-10.md + s-config-fix-burst-11.md archived. Mandatory whole-artifact + structural sibling-sweep executed before commit — lesson 44 footer canonical position PASS, lesson 44 footer orphan GONE, arithmetic claim corrected. STATE v7.505→v7.506. Streak stays 0/3. Pass-11 next (streak attempt 0/3→1/3). |
 
 ### Fix-burst Log
 
@@ -374,6 +376,7 @@ Extracted from STATE.md frontmatter (pass/burst SHA history):
 | fix-burst-8 | d600f7f4 (feature HEAD unchanged — state-manager only) | F-LP7-MED-001 CORRECTIVE + F-LP7-LOW-001 + F-LP7-LOW-002 |
 | fix-burst-9 | d600f7f4 (feature HEAD unchanged — state-manager only) | F-LP8-LOW-001 |
 | fix-burst-10 | d600f7f4 (feature HEAD unchanged — state-manager only) | F-LP9-MED-001 |
+| fix-burst-11 | d600f7f4 (feature HEAD unchanged — state-manager only) | F-LP10-MED-001 CORRECTIVE + OBS-LP10-001 CORRECTIVE |
 
 ---
 
