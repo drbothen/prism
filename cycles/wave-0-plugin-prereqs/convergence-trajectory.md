@@ -332,11 +332,11 @@ Extracted from STATE.md frontmatter (pass/burst SHA history):
 |-------|-------|
 | Story | S-CONFIG-MULTI-TENANT-OVERRIDE-001 |
 | Feature branch | feature/S-CONFIG-MULTI-TENANT-OVERRIDE-001 |
-| Feature HEAD at fix-burst-4 completion | `5c11fc7b` |
+| Feature HEAD at fix-burst-5 completion | `5c11fc7b` (unchanged — fix-burst 5 was .factory/-only) |
 | Streak | 0/3 |
-| Total passes | 3 (pass-4 next) |
-| Total fix-bursts | 4 |
-| Cumulative findings closed | 6 (4 from pass-2 via fix-burst-3 + 2 from pass-3 via fix-burst-4) |
+| Total passes | 4 (pass-5 next) |
+| Total fix-bursts | 5 |
+| Cumulative findings closed | 10 (4 from pass-2 via fix-burst-3 + 2 from pass-3 via fix-burst-4 + 4 from pass-4 via fix-burst-5) |
 
 ### Trajectory
 
@@ -347,7 +347,9 @@ Extracted from STATE.md frontmatter (pass/burst SHA history):
 | fix-burst-3 | — | -4 closed | CRIT+HIGH+2×MED closed | F-LP2-LOW-001 deferred to S-SPEC-TYPE-UNIFICATION-001 (Wave 4; SID-1 §5) |
 | pass-3 | 2 | -3 from pass-2 | 0 CRIT + 0 HIGH + 1 MED + 1 LOW | F-LP3-MED-001 taxonomy line 395 POL-25 sibling-sweep miss (E-SPEC-023 infeasible Instance placeholder at secondary cite site); F-LP3-LOW-001 AC-005 hardcoded literal vs canonical-source read |
 | fix-burst-4 | — | -2 closed | MED+LOW closed | PO bd9ef119 taxonomy v1.51→v1.52; test-writer 5c11fc7b AC-005 byte-compare + negative-test. Streak stays 0/3. |
-| pass-4 | pending | — | — | First streak attempt 0/3→1/3 (dispatch pending) |
+| pass-4 | 4 | -2 from pass-3 | 0 CRIT + 0 HIGH + 4 MED | F-LP4-MED-001/002 BC-2.06.013 canonical template separator/placeholder drift; F-LP4-MED-003 BC-2.06.015 E-SPEC-022 paraphrase drift; F-LP4-MED-004 story body E-SPEC-020 omission drift. All [process-gap] class. |
+| fix-burst-5 | — | -4 closed | 4 MED closed | PO 6585f846 BC-2.06.013 v1.1 + BC-2.06.015 v1.1; story-writer 872f5a63 S-CONFIG body; story-writer sibling ba69dcea PLUGIN-MIGRATION-001-E body. Streak stays 0/3. |
+| pass-5 | pending | — | — | First streak attempt 0/3→1/3 (dispatch pending — fix-burst 5 closed all 4 MED) |
 
 ### Fix-burst Log
 
