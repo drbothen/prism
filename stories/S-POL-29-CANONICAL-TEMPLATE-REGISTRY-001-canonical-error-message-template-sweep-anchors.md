@@ -6,12 +6,12 @@ wave: maintenance
 epic_id: maintenance
 priority: P2
 status: planned
-version: "0.1"
+version: "0.2"
 level: ops
 producer: architect
 timestamp: "2026-05-24"
 created: "2026-05-24"
-modified: "2026-05-24"
+modified: "2026-05-24"  # v0.2: F-LP5-LOW-002 Suggestion field source-of-truth adjudication (Option B)
 tdd_mode: strict
 track: "Platform Engineering"
 subsystems: []
@@ -29,7 +29,7 @@ blocks:
 points: 2
 estimated_days: 0.5
 risk: LOW
-acceptance_criteria_count: 5
+acceptance_criteria_count: 6
 red_gate_tests: 0
 estimated_passes: "2-3"
 holdout_scenarios: []
@@ -202,6 +202,21 @@ E-SPEC-021, E-SPEC-022, or E-SPEC-023:
 - Resolution: this story (S-POL-29-CANONICAL-TEMPLATE-REGISTRY-001) + downstream S-MAINT-POL29-HOOK-001
 - Date: 2026-05-24
 
+### AC-006 — Suggestion field source-of-truth adjudication documented in POL-29 step 3a class (d)
+
+The POL-29 step 3a class (d) registry entry schema includes a `suggestion_authority` field
+that explicitly records: BC-2.06.016 `Suggestion` rows are canonical for operator-facing
+remediation guidance; taxonomy description-prose sub-clauses are informative-only and do not
+constitute a competing `Suggestion` authority. This prevents future adversary passes from
+re-raising this as a [pending intent verification] finding.
+
+**Verification:** adversary pass-1 reads POL-29 class (d) definition and confirms
+`suggestion_authority` field exists with the correct attribution. BC-2.06.016 Suggestion rows
+are used as the authoritative form in all AC-003 retroactive sweep comparisons (not taxonomy
+description-prose).
+
+**Originating finding:** F-LP5-LOW-002 (S-CONFIG pass-5; architect adjudication 2026-05-24 Option B).
+
 ### AC-005 — S-MAINT-POL29-HOOK-001 blocking dependency registered
 
 `S-MAINT-POL29-HOOK-001` frontmatter `depends_on:` list is updated to include
@@ -261,6 +276,17 @@ No TDD cycle needed (no code changes). Adversary pass-1 is the convergence gate.
   task descriptions that cite these templates are DOWNSTREAM. If conflict: taxonomy wins.
 - `policies.yaml` POL-29 step 3a class (d) registry is the sweep anchor source of truth.
   S-MAINT-POL29-HOOK-001 hook implementation consumes this registry.
+- **Suggestion field authority: BC-2.06.016 is canonical.** The taxonomy description column
+  embeds suggestion guidance as prose sub-clauses inside a free-form description field; it
+  does not have a dedicated Suggestion column. BC-2.06.016 has a first-class, structured
+  `Suggestion` row per error code containing fuller, operator-facing remediation detail. These
+  are not competing representations of the same field — they are different fields in different
+  schemas. CLAUDE.md Rule #3 (PRD supplements supersede PRD prose "for the same surface area")
+  applies to message_template, severity, category, exit code, and retryable flag — fields the
+  taxonomy explicitly columns out. It does NOT extend to Suggestion text, which has no
+  counterpart column in the taxonomy. AC-003 retroactive BC sweep should verify that
+  BC-2.06.013 and BC-2.06.015 Suggestion citations are consistent with BC-2.06.016 (not with
+  taxonomy description-prose). Adjudicated from F-LP5-LOW-002 (2026-05-24).
 
 ## §Originating Findings Cross-Reference
 
@@ -272,3 +298,4 @@ No TDD cycle needed (no code changes). Adversary pass-1 is the convergence gate.
 | F-LP4-MED-002 | S-CONFIG pass-4 | S-CONFIG-MULTI-TENANT-OVERRIDE-001 | fix-burst-5 PO 6585f846 | BC-2.06.013 §Error Cases placeholder name drift (`{overlay_path}` vs `{file}`) |
 | F-LP4-MED-003 | S-CONFIG pass-4 | S-CONFIG-MULTI-TENANT-OVERRIDE-001 | fix-burst-5 PO 6585f846 | BC-2.06.015 E-SPEC-022 omitted `sensor_id` field + capitalization drift |
 | F-LP4-MED-004 | S-CONFIG pass-4 | S-CONFIG-MULTI-TENANT-OVERRIDE-001 | fix-burst-5 story-writer 872f5a63 | S-CONFIG story body E-SPEC-020 shortened form (omission drift) |
+| F-LP5-LOW-002 | S-CONFIG pass-5 | S-CONFIG-MULTI-TENANT-OVERRIDE-001 | architect adjudication 2026-05-24 (Option B) | BC-2.06.016 Suggestion rows vs taxonomy description-prose suggestion clauses — source-of-truth adjudicated: BC-2.06.016 canonical for Suggestion field; taxonomy description-prose does not constitute a competing Suggestion authority |
