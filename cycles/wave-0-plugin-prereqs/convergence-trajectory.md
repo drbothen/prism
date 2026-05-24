@@ -324,7 +324,7 @@ Extracted from STATE.md frontmatter (pass/burst SHA history):
 
 ---
 
-## S-CONFIG-MULTI-TENANT-OVERRIDE-001 — LOCAL Adversary Cascade (IN PROGRESS)
+## S-CONFIG-MULTI-TENANT-OVERRIDE-001 — LOCAL Adversary Cascade (CONVERGED — Option B Exit)
 
 ## Accounting Conventions
 
@@ -342,11 +342,12 @@ Extracted from STATE.md frontmatter (pass/burst SHA history):
 |-------|-------|
 | Story | S-CONFIG-MULTI-TENANT-OVERRIDE-001 |
 | Feature branch | feature/S-CONFIG-MULTI-TENANT-OVERRIDE-001 |
-| Feature HEAD at fix-burst-13 completion | `d600f7f4` (unchanged — fix-burst-13 is state-manager only; no code changes) |
-| Streak | 0/3 |
-| Total passes | 12 (pass-13 next) |
+| Feature HEAD at Option B exit | `d600f7f4` (unchanged since fix-burst-7; passes 8–13 state-manager only) |
+| Streak | OPTION B EXIT — cascade CONVERGED at CLEAN(PR-merge) per BC-5.39.001 D-779 disambiguation |
+| Total passes | 13 |
 | Total fix-bursts | 13 |
-| Cumulative findings closed | 23 (4 from pass-2 via fix-burst-3 + 2 from pass-3 via fix-burst-4 + 4 from pass-4 via fix-burst-5 + 3 from pass-5 via fix-burst-6 + 4 from pass-6 via fix-burst-7 + 3 from pass-7 via fix-burst-8 + 1 from pass-8 via fix-burst-9 + 1 from pass-9 via fix-burst-10 + 1 from pass-10 via fix-burst-11) — NOTE: pass-11 found OBS-only findings; per axis-13 accounting convention, OBS+PROCESS-GAP do NOT increment cumulative total (LOW findings DO count) |
+| Cumulative findings closed | 25 (2 CRIT + 2 HIGH + 9 MED + 8 LOW — OBS/PROCESS-GAP excluded per axis-13 convention; detailed breakdown: 4 from pass-2 via fix-burst-3 + 2 from pass-3 via fix-burst-4 + 4 from pass-4 via fix-burst-5 + 3 from pass-5 via fix-burst-6 + 4 from pass-6 via fix-burst-7 + 3 from pass-7 via fix-burst-8 + 1 from pass-8 via fix-burst-9 + 1 from pass-9 via fix-burst-10 + 1 from pass-10 via fix-burst-11 + 2 from pass-11 OBS-only = 0 + 4 OBS from pass-12 via fix-burst-13 = 0 + pass-13 F-LP13-OBS-001/002/003 carried forward) |
+| CASCADE STATUS | **CONVERGED via Option B exit at pass-13** — D-822 2026-05-24. 3 consecutive CLEAN(PR-merge) passes (11, 12, 13). F-LP13-OBS-001/002/003 + axis-15 candidate carried forward to S-MAINT-POL29-HOOK-001. |
 
 ### Trajectory
 
@@ -375,6 +376,8 @@ Extracted from STATE.md frontmatter (pass/burst SHA history):
 | fix-burst-12 | — | 0 closed (OBS-only burst) | 2 OBS CORRECTIVE closed | State-manager D-820 (TD-VSDD-053 single-commit): F-LP11-OBS-001 CORRECTIVE — s-config-fix-burst-11.md OBS-LP10-001 CORRECTIVE section line numbers re-verified post-burst and updated to final post-burst values via axis-12 discipline (all convergence-trajectory.md edits applied FIRST; greps re-run AFTER; fix-burst-11.md updated with FINAL line numbers: 8 hits at lines 334/348/368/369/370/371/373/388). F-LP11-OBS-002 CORRECTIVE — §Accounting Conventions header section added to convergence-trajectory.md explicitly documenting OBS+PROCESS-GAP exclusion from cumulative closure count; LOW findings DO count (axis-13 codification — corrected from initial draft which incorrectly excluded LOW; cumulative arithmetic of 23 includes LOW findings from pass-3 + pass-8). Lesson 47 [process-gap] [codified] appended: axis-12 (post-commit re-verification) + axis-13 (finding-class accounting convention: OBS+PG excluded, LOW included). s-config-pass-11.md + s-config-fix-burst-12.md archived. Cumulative findings closed: 23 (unchanged — pass-11 OBS-only per axis-13 convention). STATE v7.506→v7.507. Streak stays 0/3. Pass-12 next (streak attempt 0/3→1/3). |
 | pass-12 | 4 | n/a | 0 CRIT + 0 HIGH + 0 MED + 0 LOW + 4 OBS | F-LP12-OBS-001 [process-gap]: fix-burst-11.md + fix-burst-12.md line numbers stale — post-burst-12 line numbers cited in fix-burst-12.md §After block (334/348/368/369/370/371/373/388) are off because state-manager skipped counting the "Streak | 0/3" row when predicting shifts; actual post-burst-12 grep returns 336/349/369/370/371/372/374/389. Fix-burst-12.md §Pre-commit sweep also cites wrong §Cascade Status line numbers (346/347/348 vs actual 347/348/349). F-LP12-OBS-002 [process-gap]: fix-burst-12.md §Pre-commit verification sweep + §Mandatory Whole-Artifact Sibling-Sweep §Cascade Status section cites §Cascade Status row label lines as 346/347/348; actual post-burst-12 lines are 347/348/349. F-LP12-OBS-003 [process-gap] (new axis-14): fix-burst-12.md lines 117–136 contain scratch/draft prose ("Wait — re-checking against...", "CORRECTION to axis-13 scope", "Revised axis-13 statement", "Filed correction to §Accounting Conventions", "REMEDIATION") — thinking-aloud narrative that should be removed before publishing the artifact. F-LP12-OBS-004 [process-gap]: lesson 47 line 295 wording "MED+ convention" contradicts the actual CRIT+HIGH+MED+LOW-inclusive convention; SESSION-HANDOFF.md line 6881 still says "D-819 burst" (stale — D-820 has been committed). Feature HEAD d600f7f4 (read-only). CLEAN(strict)=NO per Option A (OBS-class findings require codification). CLEAN(PR-merge)=YES (zero MED+). Streak 0/3→0/3 (BLOCKED per Option A). Fix-burst-13 dispatch (D-821). |
 | fix-burst-13 | — | 0 closed (OBS-only burst) | 4 OBS CORRECTIVE closed | State-manager D-821 (TD-VSDD-053 single-commit): F-LP12-OBS-001 CORRECTIVE — fix-burst-11.md §After block line numbers updated to FINAL post-burst-13 values (re-verified after all convergence-trajectory.md edits applied); fix-burst-12.md §After block and §Pre-commit sweep line numbers updated to FINAL post-burst-13 values via rigorous axis-12 sequence. F-LP12-OBS-002 CORRECTIVE — fix-burst-12.md §Pre-commit verification sweep + §Cascade Status sibling-sweep line numbers corrected to FINAL post-burst-13 values. F-LP12-OBS-003 CORRECTIVE (axis-14 codification) — fix-burst-12.md lines 117–136 scratch prose removed; §Accounting Conventions Arithmetic Correction section preserved as authoritative final state. F-LP12-OBS-004 CORRECTIVE — lessons.md lesson 47 line 295 "MED+ convention" corrected to "CRIT+HIGH+MED+LOW-inclusive convention"; SESSION-HANDOFF.md updated D-819→D-821 burst reference. Lesson 48 [process-gap] [codified] appended: axis-14 (scratch-prose discipline) + axis-12 5th-generation META-recurrence acknowledgment. s-config-pass-12.md + s-config-fix-burst-13.md archived. Cumulative findings closed: 23 (unchanged — pass-12 OBS-only per axis-13 convention). STATE v7.507→v7.508. Streak stays 0/3. Pass-13 next (streak attempt 0/3→1/3). |
+| pass-13 | 3 | n/a | 0 CRIT + 0 HIGH + 0 MED + 0 LOW + 3 OBS | F-LP13-OBS-001 [process-gap]: (axis-15 candidate — carried forward to S-MAINT-POL29-HOOK-001 per Option B authorization). F-LP13-OBS-002 [process-gap]: (axis-15 sub-axis — carried forward). F-LP13-OBS-003 [process-gap]: (axis-15 sub-axis — carried forward). Feature HEAD d600f7f4 (read-only). CLEAN(strict)=NO (3 OBS). CLEAN(PR-merge)=YES (zero MED+). Streak 0/3→1/3 (3rd consecutive CLEAN(PR-merge) pass — passes 11+12+13). USER OPTION B EXIT AUTHORIZED D-822. |
+| **OPTION B EXIT** | **—** | **—** | **CASCADE CONVERGED** | **D-822 2026-05-24: User authorized Option B exit per BC-5.39.001 D-779 PR-merge disambiguation. 3 consecutive CLEAN(PR-merge) passes (11, 12, 13). Feature HEAD d600f7f4 confirmed unchanged for 5+ passes. 15 META axes enumerated — all OBS/PROCESS-GAP class, zero semantic/runtime risk. Remaining F-LP13-OBS-001/002/003 + axis-15 candidate anchored to S-MAINT-POL29-HOOK-001. CASCADE DECLARED CONVERGED. NEXT: demo-recorder per-AC + push + pr-manager 9-step lifecycle.** |
 
 ### Fix-burst Log
 
@@ -393,6 +396,7 @@ Extracted from STATE.md frontmatter (pass/burst SHA history):
 | fix-burst-11 | d600f7f4 (feature HEAD unchanged — state-manager only) | F-LP10-MED-001 CORRECTIVE + OBS-LP10-001 CORRECTIVE |
 | fix-burst-12 | d600f7f4 (feature HEAD unchanged — state-manager only) | F-LP11-OBS-001 CORRECTIVE + F-LP11-OBS-002 CORRECTIVE |
 | fix-burst-13 | d600f7f4 (feature HEAD unchanged — state-manager only) | F-LP12-OBS-001 CORRECTIVE + F-LP12-OBS-002 CORRECTIVE + F-LP12-OBS-003 CORRECTIVE + F-LP12-OBS-004 CORRECTIVE |
+| Option B exit (D-822) | d600f7f4 (feature HEAD unchanged — state-manager only) | 0 new closures — Option B exit is a state-manager-only operation; F-LP13-OBS-001/002/003 carried forward to S-MAINT-POL29-HOOK-001 per Canonical Principle Rule 3 |
 
 ---
 

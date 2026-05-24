@@ -6878,7 +6878,7 @@ _Cascade convergence per BC-5.39.001. Next phase: demo-recorder + push + pr-mana
 | S-CONFIG-MULTI-TENANT-OVERRIDE-001 | v0.1 draft — READY for deliver-story workflow |
 | PLUGIN-MIGRATION-001-E | CONVERGED (D-802); feature HEAD `9e412c83` — READY for demo-recorder + push + pr-manager |
 | Develop HEAD | `f19575ff` (unchanged) |
-| Factory-artifacts HEAD | D-821 burst (see `git -C .factory log -1`) |
+| Factory-artifacts HEAD | D-822 burst (see `git -C .factory log -1`) |
 | BC-INDEX | v5.51 |
 | STORY-INDEX | v2.188 |
 | ARCH-INDEX | v2.102 |
@@ -6948,3 +6948,73 @@ The two streams use SEPARATE worktrees pointing at SEPARATE feature branches bot
 7. State-manager handles serialization of factory-artifacts commits across streams
 
 _Final session terminus: 2026-05-23. Cascade discipline lessons accumulated: 5 NEW standing axes + paper-fix-re-detection (D-799) + ADR-vs-BC sibling-sweep (D-806). State durable for /clear._
+
+---
+
+## §RESUME SNAPSHOT 2026-05-24-S-CONFIG-OPTION-B-EXIT (S-CONFIG LOCAL cascade CONVERGED — ready for demo-recorder + PR)
+
+**Purpose:** Final pre-/clear snapshot after S-CONFIG-MULTI-TENANT-OVERRIDE-001 LOCAL adversary cascade CONVERGED via User Option B exit at pass-13 (D-822). Supersedes §RESUME SNAPSHOT 2026-05-23-PATH-C-DUAL-WORKTREE as the most-recent durable checkpoint for S-CONFIG stream.
+
+### §1. State at /clear
+
+| Artifact | State |
+|---|---|
+| S-CONFIG-MULTI-TENANT-OVERRIDE-001 LOCAL cascade | **CONVERGED** — Option B exit at pass-13 (D-822, 2026-05-24) |
+| S-CONFIG feature HEAD | `d600f7f4` (stable since pass-8; unchanged for 5+ passes) |
+| S-CONFIG passes / fix-bursts | 13 / 13 |
+| S-CONFIG findings closed | 25 (2 CRIT + 2 HIGH + 9 MED + 8 LOW) |
+| S-CONFIG META axes → S-MAINT-POL29-HOOK-001 | 15 axes (F-LP13-OBS-001/002/003 + axis-15 candidate carried forward) |
+| PLUGIN-MIGRATION-001-E | CONVERGED (D-802); feature HEAD `9e412c83` — READY for demo-recorder + push + pr-manager |
+| Develop HEAD | `f19575ff` (unchanged) |
+| Factory-artifacts HEAD | D-822 burst (see `git -C .factory log -1`) |
+| BC-INDEX | v5.51 |
+| STORY-INDEX | v2.188 |
+| error-taxonomy | v1.52 |
+| STATE.md | v7.509 |
+| Lessons learned | 49 entries (lesson 49 = User Option B exit precedent) |
+
+### §2. Next Session Steps — S-CONFIG Stream
+
+1. `vsdd-factory:factory-worktree-health` (BLOCKING preflight)
+2. Verify S-CONFIG feature HEAD `d600f7f4` unchanged in `.worktrees/S-CONFIG-MULTI-TENANT-OVERRIDE-001/`
+3. Dispatch `vsdd-factory:demo-recorder` for S-CONFIG-MULTI-TENANT-OVERRIDE-001 all 7 ACs:
+   - AC-001 overlay discovery + merge
+   - AC-002 scalar-only enforcement (E-SPEC-021 with 2 sibling variants)
+   - AC-003 ResolvedSensorSpec at fanout
+   - AC-004 OrgRegistry cross-validation
+   - AC-005 error taxonomy templates
+   - AC-006 backcompat (no customers/ dir)
+   - AC-007 integration (two-org-overlays-distinct-spec)
+4. Push feature branch: `git -C .worktrees/S-CONFIG-MULTI-TENANT-OVERRIDE-001 push origin feature/S-CONFIG-MULTI-TENANT-OVERRIDE-001`
+5. Dispatch `vsdd-factory:pr-manager` for 9-step PR lifecycle targeting develop
+6. Post-merge: POL-14 BC auto-promotion (state-manager) — 5 draft BCs → active: BC-2.06.012 through BC-2.06.016
+
+### §3. Convergence Evidence Summary
+
+- **CLEAN(PR-merge) streak:** 3 consecutive (passes 11, 12, 13)
+- **CLEAN(strict) never achieved** — blocked by OBS-class META bookkeeping at each pass
+- **Option B rationale:** per BC-5.39.001 D-779 disambiguation + CLAUDE.md Boundaries clause
+  - Feature code is production-grade (passes 1–7 verified all CRIT/HIGH/MED/LOW)
+  - Feature HEAD stable 5+ passes (no code changes since fix-burst-7)
+  - 15 META axes have registered anchor: S-MAINT-POL29-HOOK-001
+  - Adversary recommended Option B at pass-13
+- **S-CONFIG-OPTION-B-EXIT record:** `.factory/cycles/wave-0-plugin-prereqs/s-config-option-b-exit.md`
+
+### §4. Critical Notes for Resume
+
+- **Do NOT re-dispatch LOCAL adversary.** Cascade is CONVERGED (D-822). Dispatching another LOCAL adversary pass would violate the Option B exit authorization.
+- **PR-LEVEL adversary is SEPARATE.** PR-LEVEL cascade begins fresh after pr-manager creates the PR. New 3-CLEAN streak required (PR-LEVEL uses CLEAN(strict) per CLAUDE.md; see PLUGIN-MIGRATION-001-D precedent).
+- **5 new BCs on merge:** BC-2.06.012-016 auto-promote draft → active per POL-14 on S-CONFIG PR merge.
+- **S-MAINT-POL29-HOOK-001 anchor:** F-LP13-OBS-001/002/003 + axis-15 candidate are explicitly anchored to this story per Canonical Principle Rule 3. They are NOT orphaned deferrals.
+- **PLUGIN-MIGRATION-001-E stream** (Stream 1) is independent — demo-recorder + pr-manager can run in parallel with S-CONFIG stream.
+
+### §5. Resume Protocol
+
+1. Read STATE.md frontmatter (v7.509 + s_config_* fields)
+2. Read this §RESUME SNAPSHOT 2026-05-24-S-CONFIG-OPTION-B-EXIT
+3. Run `vsdd-factory:factory-worktree-health` skill (BLOCKING preflight)
+4. Verify develop@f19575ff + S-CONFIG feature HEAD d600f7f4
+5. Dispatch demo-recorder for S-CONFIG-MULTI-TENANT-OVERRIDE-001 all 7 ACs
+6. Push + pr-manager 9-step lifecycle
+
+_Final session terminus: 2026-05-24. S-CONFIG-MULTI-TENANT-OVERRIDE-001 LOCAL adversary cascade CONVERGED via Option B exit. 13 passes / 13 fix-bursts / 25 findings closed / 15 META axes → S-MAINT-POL29-HOOK-001 / lesson 49 codified._
