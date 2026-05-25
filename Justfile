@@ -157,6 +157,13 @@ layout-report:
 check-non-exhaustive:
     @scripts/check-non-exhaustive.sh
 
+# Verify that crates/prism-spec-engine/fixtures/error-taxonomy-snapshot.md matches
+# the canonical E-SPEC-019..023 rows in .factory/specs/prd-supplements/error-taxonomy.md.
+# No-ops with a warning when .factory/ is not mounted (CI default).
+# PRR-008 fix: S-CONFIG-MULTI-TENANT-OVERRIDE-001 PR #155.
+check-taxonomy-snapshot:
+    @scripts/check-error-taxonomy-snapshot.sh
+
 # Install all development toolchain extensions (idempotent)
 setup:
     @bash scripts/dev-setup.sh

@@ -2,7 +2,8 @@
 
 **Story:** S-CONFIG-MULTI-TENANT-OVERRIDE-001 — Per-Org Sensor Endpoint Overlay Loading (ADR-029)
 **Branch:** feature/S-CONFIG-MULTI-TENANT-OVERRIDE-001
-**Feature HEAD:** d600f7f4
+**Feature HEAD:** 515fdc2e (fix-burst post: will be updated after PR #155 fix-burst commit)
+**Demo captured at:** d600f7f4 — AC-005 demo reflects behavior at that SHA; the only change in 515fdc2e was F-LP14-CI-001 (mechanical refactor: AC-005 test now uses include_str!() fixture instead of .factory/ walk-up; runtime behavior unchanged). PRR-007 fix: evidence-report now accurately reflects post-fix-burst HEAD.
 **Recording tool:** VHS 0.10.0
 **Font:** FiraCode Nerd Font Mono
 **Recorded:** 2026-05-24

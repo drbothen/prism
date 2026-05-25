@@ -605,9 +605,8 @@ pub fn resolve_spec_for_fanout(
 
     // Resolve org_id → org_slug via the registry.
     if let Some(org_slug) = org_registry.slug_for(&target.org_id) {
-        // Build the lookup key: (OrgSlug, sensor_id_string).
-        let sensor_id_str = target.sensor_id.as_ref().to_string();
-        let key = (org_slug, sensor_id_str);
+        // Build the lookup key: (OrgSlug, SensorId) — ADV-010 fix (SensorId newtype).
+        let key = (org_slug, target.sensor_id.clone());
 
         if let Some(resolved) = resolved_spec_map.get(&key) {
             // Case A: overlay found — inject the overlay base_url into sensor_config.

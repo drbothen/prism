@@ -155,8 +155,11 @@ impl CrowdStrikeAdapter {
 
         let http = Client::builder()
             .cookie_store(false)
+            .timeout(std::time::Duration::from_secs(30))
             .build()
-            .unwrap_or_default();
+            .unwrap_or_else(|e| {
+                panic!("CrowdStrikeAdapter HTTP client construction failed (unrecoverable): {e}")
+            });
 
         Self {
             org_id,

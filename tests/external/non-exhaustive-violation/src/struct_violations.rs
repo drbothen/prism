@@ -338,7 +338,10 @@ pub fn v35_resolved_sensor_spec() {
     let _resolved = ResolvedSensorSpec {
         spec: SensorSpec::default(),
         provenance: OverlayProvenance::default(),
-        org_slug: OrgSlug::new_unchecked("acme"),
+        // PRR-013 fix: use OrgSlug::new("acme").unwrap() instead of new_unchecked.
+        // "acme" is a known-valid literal — unwrap() is safe here and avoids the
+        // forbidden-pattern (OrgSlug::new_unchecked outside test-helpers feature gate).
+        org_slug: OrgSlug::new("acme"),
         instance_id: "armis@acme".to_string(),
     };
     let _ = _resolved;

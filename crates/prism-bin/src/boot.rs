@@ -703,7 +703,11 @@ pub async fn step4_load_sensor_specs_with_overlays(
 
     let resolved_spec_map = Arc::new(overlay_result.resolved);
 
+    // ADV-009 fix: add event_type for SAP-1 compliance (BC-2.16.002 catalog row added).
+    // event_type = "boot.overlays_loaded" | audit role: operational/boot-traceability
+    // recurrence: once per boot / config-reload when customers_dir is present
     tracing::info!(
+        event_type = "boot.overlays_loaded",
         customers_dir = %customers_dir.display(),
         overlay_count = resolved_spec_map.len(),
         "Per-org overlay specs loaded (BC-2.06.012..016)"
@@ -725,8 +729,10 @@ pub async fn step4_load_sensor_specs_with_overlays(
 /// stores `types::SensorSpec` (with `auth_type: String`).  The two types are distinct
 /// and cannot be interchanged without a lossy conversion.
 ///
-/// The function skips files that fail to parse (logging errors) but collects them for
-/// aggregation — same partial-failure semantics as `parse_spec_directory`.
+/// PRR-005 fix (Standing Rule 3 §2): parse failures are now fatal rather than silently
+/// swallowed.  A corrupt TYPE spec file would previously cause E-SPEC-019 (unknown extends)
+/// for any overlay that extends it — a misleading error.  Failing hard here produces
+/// a clear boot error at the file that is actually corrupt.
 ///
 /// On I/O failure reading the directory itself, returns `BootError::ConfigInvalid`.
 fn build_type_spec_map_for_overlay(
@@ -742,6 +748,7 @@ fn build_type_spec_map_for_overlay(
     })?;
 
     let mut type_specs = std::collections::HashMap::new();
+    let mut failed_specs: Vec<String> = Vec::new();
 
     for entry in read_dir.flatten() {
         let path = entry.path();
@@ -758,13 +765,15 @@ fn build_type_spec_map_for_overlay(
         let content = match std::fs::read_to_string(&path) {
             Ok(c) => c,
             Err(e) => {
-                // Log and skip — parse_spec_directory already validated these files;
-                // an I/O error here is transient and will be caught by the main load.
-                tracing::warn!(
+                // PRR-005: I/O failure reading a TYPE spec is a hard boot error.
+                // Emit event_type for SAP-1 catalog compliance before returning error.
+                tracing::error!(
+                    event_type = "boot.type_spec_read_failed",
                     file = %path.display(),
                     error = %e,
-                    "build_type_spec_map_for_overlay: skipping unreadable TYPE spec file"
+                    "build_type_spec_map_for_overlay: I/O failure reading TYPE spec file"
                 );
+                failed_specs.push(format!("{} (I/O error: {e})", path.display()));
                 continue;
             }
         };
@@ -774,15 +783,28 @@ fn build_type_spec_map_for_overlay(
                 type_specs.insert(spec.sensor_id.clone(), spec);
             }
             Err(e) => {
-                // Parse failure: already validated by step4_load_sensor_specs above;
-                // log and skip — overlay validation will catch any remaining issues.
-                tracing::warn!(
+                // PRR-005: parse failure for a TYPE spec file is a hard boot error.
+                // Previously warn-and-skip caused misleading E-SPEC-019 for any overlay
+                // that extends this sensor (the user would see "unknown extends" when the
+                // real problem is a corrupt TYPE spec).
+                tracing::error!(
+                    event_type = "boot.type_spec_parse_failed",
                     file = %path.display(),
                     error = %e,
-                    "build_type_spec_map_for_overlay: skipping unparseable TYPE spec file"
+                    "build_type_spec_map_for_overlay: parse failure for TYPE spec file"
                 );
+                failed_specs.push(format!("{} (parse error: {e})", path.display()));
             }
         }
+    }
+
+    if !failed_specs.is_empty() {
+        return Err(BootError::ConfigInvalid(format!(
+            "One or more TYPE spec files failed to parse during overlay map construction. \
+             Boot aborted to prevent misleading E-SPEC-019 errors for overlays that extend \
+             these sensors. Failed files:\n{}",
+            failed_specs.join("\n")
+        )));
     }
 
     Ok(type_specs)
@@ -1866,8 +1888,8 @@ base_url = "https://armis.acme-corp.io"
                 .await
                 .expect("boot must succeed with valid overlay (BC-2.06.012)");
 
-        // ResolvedSpecKey = (OrgSlug, String).
-        let key = (OrgSlug::new("acme"), "armis".to_string());
+        // ResolvedSpecKey = (OrgSlug, SensorId).
+        let key = (OrgSlug::new("acme"), prism_core::SensorId::from("armis"));
         let resolved = resolved_map.get(&key);
         assert!(
             resolved.is_some(),

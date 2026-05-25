@@ -182,8 +182,11 @@ impl ClarotyAdapter {
     pub fn new(org_id: prism_core::OrgId, auth: &ClarotyAuth, bearer_token: SecretString) -> Self {
         let http = Client::builder()
             .cookie_store(false)
+            .timeout(std::time::Duration::from_secs(30))
             .build()
-            .unwrap_or_default();
+            .unwrap_or_else(|e| {
+                panic!("ClarotyAdapter HTTP client construction failed (unrecoverable): {e}")
+            });
 
         Self {
             org_id,
@@ -195,13 +198,18 @@ impl ClarotyAdapter {
 
     /// Issues a POST-for-read request to `endpoint` with `body` as JSON.
     ///
+    /// `effective_base_url` — the base URL to use for this request.  When a per-org
+    /// overlay injects `sensor_config["base_url"]`, `fetch()` passes the overlay URL here
+    /// instead of `self.instance_url` (SEC-REDUX-001 / AC-003 fix: per-org endpoint routing).
+    ///
     /// Includes `Authorization: Bearer {self.bearer_token}` header.
     pub(crate) async fn post_read(
         &self,
         endpoint: &str,
         body: &serde_json::Value,
+        effective_base_url: &str,
     ) -> Result<serde_json::Value, SensorError> {
-        let url = format!("{}{}", self.instance_url, endpoint);
+        let url = format!("{}{}", effective_base_url, endpoint);
 
         let resp = self
             .http
@@ -279,11 +287,22 @@ impl SensorAdapter for ClarotyAdapter {
         // Acquire HTTP semaphore permit.
         let _permit = crate::http::acquire_http_permit().await?;
 
+        // Resolve effective base URL: prefer per-org overlay injected via sensor_config,
+        // fall back to self.instance_url (the TYPE-spec / auth default).
+        // SEC-REDUX-001 / AC-003 fix: per-org endpoint routing is live at fetch time.
+        let effective_base_url = spec
+            .sensor_config
+            .get("base_url")
+            .and_then(|v| v.as_str())
+            .filter(|s| !s.is_empty())
+            .unwrap_or(&self.instance_url)
+            .to_owned();
+
         let endpoint = Self::endpoint_from_spec(spec);
 
         if spec.source_table == "audit_logs" {
             // Use paginate_claroty() stream for audit_logs (BC-2.01.004).
-            let full_url = format!("{}{}", self.instance_url, endpoint);
+            let full_url = format!("{}{}", effective_base_url, endpoint);
             // Build a new client that carries the bearer token as a default header.
             let auth_client = Client::builder()
                 .default_headers({
@@ -299,8 +318,13 @@ impl SensorAdapter for ClarotyAdapter {
                     headers.insert(reqwest::header::AUTHORIZATION, auth_val);
                     headers
                 })
+                .timeout(std::time::Duration::from_secs(30))
                 .build()
-                .unwrap_or_default();
+                .unwrap_or_else(|e| {
+                    panic!(
+                        "ClarotyAdapter audit_logs HTTP client construction failed (unrecoverable): {e}"
+                    )
+                });
 
             let stream = crate::pagination::paginate_claroty(full_url, 100, auth_client);
             let pages: Vec<_> = stream.collect().await;
@@ -320,9 +344,11 @@ impl SensorAdapter for ClarotyAdapter {
             return Ok(vec![batch]);
         }
 
-        // Non-audit_logs: use POST-for-read.
+        // Non-audit_logs: use POST-for-read with the effective (possibly overlay) base URL.
         let body = serde_json::json!({});
-        let response = self.post_read(&endpoint, &body).await?;
+        let response = self
+            .post_read(&endpoint, &body, &effective_base_url)
+            .await?;
 
         // Extract objects/records from response.
         let records: Vec<serde_json::Value> = response
