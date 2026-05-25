@@ -7161,3 +7161,112 @@ The SEC-001 pattern (value wired into type but not consumed at production call s
 _Session terminus: 2026-05-24T18:00Z. Both PRs at PR-LEVEL phase-1. D-823 durable checkpoint committed. Safe to /clear._
 
 _Final session terminus: 2026-05-24. S-CONFIG-MULTI-TENANT-OVERRIDE-001 LOCAL adversary cascade CONVERGED via Option B exit. 13 passes / 13 fix-bursts / 25 findings closed / 15 META axes → S-MAINT-POL29-HOOK-001 / lesson 49 codified._
+
+---
+
+## §RESUME SNAPSHOT 2026-05-25-PRE-RESTART-SYSPOLICYD (D-824)
+
+**Purpose:** Pre-laptop-restart checkpoint. Supersedes §RESUME SNAPSHOT 2026-05-24-CLEAR-CHECKPOINT-BOTH-PRS as the most-recent durable checkpoint. Pipeline work paused for syspolicyd investigation.
+
+**Headline:** Two PRs in PR-LEVEL review phase. PR #154 has Semver fix committed but NOT pushed (blocked on syspolicyd). PR #155 has pass-1-redux complete but adversary findings NOT persisted to disk + implementer fix-burst NOT dispatched.
+
+---
+
+### §1. BLOCKING ISSUE — macOS syspolicyd CPU saturation
+
+**Problem:** `syspolicyd` (macOS Gatekeeper security scanning daemon) consumes 500%+ CPU when `cargo nextest` spawns ~3700 unsigned test binary processes. This makes the laptop unresponsive during `just check` (which lefthook pre-push also triggers). The build/tests themselves pass fine — the system impact is purely from Gatekeeper scanning.
+
+**Root cause:** macOS scans every newly-compiled unsigned binary for code signing. cargo-nextest spawns each test binary as a separate process. With 26 crates and ~3700 tests, that's thousands of binary invocations per test run.
+
+**Fix required (user action):** System Settings → Privacy & Security → Developer Tools → toggle ON for **iTerm2**. This tells macOS to skip Gatekeeper assessment for binaries launched from iTerm. `spctl developer-mode enable-terminal` was already run (adds Terminal.app) but iTerm2 requires separate UI toggle.
+
+**Verification:** After toggling, run `just check` in `.worktrees/PLUGIN-MIGRATION-001-E` and monitor `syspolicyd` CPU: `ps -eo pcpu,comm | grep syspolicyd`. Should stay below 50% instead of spiking to 500%+.
+
+**Other cleanup done this session:**
+- Cargo target dirs cleaned: 52.4 GB freed (W3-FIX-S307-001 target: 10G, main repo target: 37G)
+- Remaining: PLUGIN-MIGRATION-001-E target: 66G, S-CONFIG target: 31G (active worktrees, kept)
+
+---
+
+### §2. Stream 1 — PR #154 PLUGIN-MIGRATION-001-E
+
+| Artifact | State |
+|---|---|
+| Feature HEAD | `aaf1b95c` (Semver fix: explicit `impl UnwindSafe` for `InfusionLruCache`) |
+| Prior HEAD (fix-burst) | `a759d2b0` (PR-LEVEL pass-1 fix-burst — 23 findings closed) |
+| Remote HEAD | `a759d2b0` (Semver fix NOT pushed yet) |
+| `just check` | PASSED (exit 0) on aaf1b95c |
+| `cargo semver-checks` | 192/192 pass, 0 fail |
+| CI status | NOT RUNNING (commit not pushed) |
+| PR-LEVEL pass count | 1 (pass-1 complete; pass-2 pending push + CI green) |
+| Streak | 0/3 (pass-1 fix-burst committed; pass-2 not run) |
+
+**Semver fix root cause:** Adding `prism-credentials` crate (which pulls `tokio = { features = ["full"] }` including `parking_lot`) flipped the workspace feature union. With `parking_lot` enabled, tokio's internal `batch_semaphore::Semaphore` switches from `std::sync::Mutex` (UnwindSafe) to `parking_lot::Mutex` (not UnwindSafe via auto-derivation), transitively removing `InfusionLruCache`'s accidental auto UnwindSafe impl. Fix: explicit `impl UnwindSafe for InfusionLruCache` with documented safety argument.
+
+**Next steps for Stream 1:**
+1. Resolve syspolicyd (iTerm Developer Tools toggle)
+2. Push `aaf1b95c` to origin (`git -C .worktrees/PLUGIN-MIGRATION-001-E push origin feature/PLUGIN-MIGRATION-001-E`)
+3. Wait for CI green
+4. Dispatch PR-LEVEL adversary pass-2 + pr-reviewer pass-2 + security pass-2
+
+---
+
+### §3. Stream 2 — PR #155 S-CONFIG-MULTI-TENANT-OVERRIDE-001
+
+| Artifact | State |
+|---|---|
+| Feature HEAD | `515fdc2e` (unchanged) |
+| CI status on 515fdc2e | GREEN (all 36 jobs) |
+| LOCAL cascade | CONVERGED via Option B exit at pass-13 |
+| PR-LEVEL pass-1-redux | COMPLETE — 3 reviewers ran fresh-context |
+
+**Pass-1-redux review documents ON DISK:**
+- `/Users/jmagady/Dev/prism/.factory/cycles/wave-0-plugin-prereqs/S-CONFIG-pr-pass-1-redux-security.md` — 7 findings (1 CRIT + 2 HIGH + 2 MED + 1 LOW + 1 OBS)
+- `/Users/jmagady/Dev/prism/.factory/cycles/wave-0-plugin-prereqs/S-CONFIG-pr-pass-1-redux-pr-reviewer.md` — 14 findings (0 CRIT + 4 HIGH + 4 MED + 4 LOW + 2 OBS)
+
+**Pass-1-redux adversary review NOT ON DISK (12 findings: 1 CRIT + 3 HIGH + 3 MED + 5 LOW):**
+The adversary agent returned findings inline but could not Write files per its tool profile. The findings were captured in the orchestrator's conversation context but NOT persisted before the session ended. On resume, the orchestrator must either:
+(a) Re-dispatch the adversary against 515fdc2e (feature HEAD unchanged; fresh-context yields same findings), OR
+(b) State-manager persists the adversary findings from the prior conversation (if the orchestrator still has context).
+
+**Key adversary findings (summary for implementer context):**
+- F-PR155-REDUX-ADV-001 (CRIT): base_url consumer-doesn't-read at all 4 production adapters (Armis/Claroty/CrowdStrike/Cyberint). Same as SEC-REDUX-001.
+- F-PR155-REDUX-ADV-002 (HIGH): timeout_secs paper-fix — field parsed, provenance tracked, never applied to HTTP client. Same as SEC-REDUX-003.
+- F-PR155-REDUX-ADV-003 (HIGH): rate_limit_hints paper-fix — merged into ResolvedSensorSpec but PipelineExecutor reads from TYPE spec, not overlay-merged spec. NEW — security and pr-reviewer missed this.
+- F-PR155-REDUX-ADV-004 (HIGH): EC-010 config-reload unimplemented — OverlayLoader invoked only at boot, reload_config has zero references to it. NEW.
+- F-PR155-REDUX-ADV-005 (MED): PrismError::Io loses path context for forensic trace.
+- F-PR155-REDUX-ADV-006 (MED): AC-003 Red Gate test name mismatch + CapturingAdapter asserts at wrong layer.
+- F-PR155-REDUX-ADV-007 (MED): build_type_spec_map_for_overlay double-parses TOML specs.
+- F-PR155-REDUX-ADV-008 through ADV-012 (LOW): Various code-quality and observability items.
+
+**Consolidated unique findings (deduplicated across 3 reviewers): ~1 CRIT + 5 HIGH + 8 MED + ~6 LOW + 3 OBS = ~23 findings.**
+
+**User authorization:** Option A strict — fix ALL findings before PR can merge.
+
+**Next steps for Stream 2:**
+1. Persist adversary review document (re-dispatch adversary OR state-manager writes from prior context)
+2. Dispatch implementer for consolidated fix-burst (Option A strict; ~23 deduplicated findings)
+3. After fix-burst: push origin → dispatch pass-2 reviewers
+
+---
+
+### §4. Active Worktrees — DO NOT TOUCH on resume
+
+| Worktree | Branch | HEAD | Status |
+|---------|--------|------|--------|
+| `.worktrees/PLUGIN-MIGRATION-001-E` | feature/PLUGIN-MIGRATION-001-E | `aaf1b95c` | Semver fix committed; NOT pushed; just check passed |
+| `.worktrees/S-CONFIG-MULTI-TENANT-OVERRIDE-001` | feature/S-CONFIG-MULTI-TENANT-OVERRIDE-001 | `515fdc2e` | CI GREEN; pass-1-redux done; fix-burst pending |
+| `.worktrees/S-3.09` | feature/S-3.09 | (frozen) | FROZEN — BUG-S309-PLUGIN |
+| `.worktrees/W3-FIX-S307-001` | feature/W3-FIX-S307-001 | (blocked) | BLOCKED — target cleaned |
+
+---
+
+### §5. Resume Protocol (5 steps)
+
+1. **FIRST:** Toggle iTerm2 ON in System Settings → Privacy & Security → Developer Tools
+2. Verify fix: `just check` in `.worktrees/PLUGIN-MIGRATION-001-E` while monitoring `ps -eo pcpu,comm | grep syspolicyd` — should stay below 50%
+3. Read `STATE.md` frontmatter (v7.511) + this §RESUME SNAPSHOT
+4. **Stream 1:** Push PR #154 Semver fix → CI → pass-2 reviewers
+5. **Stream 2:** Persist adversary review (re-dispatch or from context) → dispatch implementer → push → pass-2 reviewers
+
+_Session terminus: 2026-05-25. Pre-restart checkpoint. syspolicyd investigation in progress._
