@@ -2,8 +2,8 @@
 
 **Story:** S-CONFIG-MULTI-TENANT-OVERRIDE-001 — Per-Org Sensor Endpoint Overlay Loading (ADR-029)
 **Branch:** feature/S-CONFIG-MULTI-TENANT-OVERRIDE-001
-**Feature HEAD:** 515fdc2e (fix-burst post: will be updated after PR #155 fix-burst commit)
-**Demo captured at:** d600f7f4 — AC-005 demo reflects behavior at that SHA; the only change in 515fdc2e was F-LP14-CI-001 (mechanical refactor: AC-005 test now uses include_str!() fixture instead of .factory/ walk-up; runtime behavior unchanged). PRR-007 fix: evidence-report now accurately reflects post-fix-burst HEAD.
+**Feature HEAD:** 46c759f6 (PR #155 fix-burst — 24-finding consolidation commit)
+**Demo captured at:** d600f7f4 — AC-001..007 demos reflect behavior at that SHA. The fix-burst at 46c759f6 addresses security and code-quality findings (SEC-REDUX-001..006, ADV-010, ADV-011, PRR-004..013) but does not change the overlay loading behavior observed in the recordings — the demos remain valid evidence for all ACs.
 **Recording tool:** VHS 0.10.0
 **Font:** FiraCode Nerd Font Mono
 **Recorded:** 2026-05-24
