@@ -144,8 +144,15 @@ impl AuthProvider for PluginAuthProvider {
             // This is the SOLE location where SecretString values are exposed.
             // The PluginConfigMap lifetime is bounded to the dispatch_plugin_acquire_token
             // call frame (dropped on function return per ADR-028 §D11 AD-017 analysis).
+            //
+            // SEC-005 (CWE-316): credential String allocations are explicitly zeroized before
+            // dropping via `zeroize::Zeroize`. The upstream `SecretString` values zeroize on
+            // drop; `.expose_secret().to_string()` creates a new heap allocation that does NOT
+            // inherit that guarantee. We hold the credential entries as mutable and zeroize them
+            // explicitly after dispatch returns, before `config` is dropped.
             use secrecy::ExposeSecret;
-            let config = PluginConfigMap::from([
+            use zeroize::Zeroize;
+            let mut config = PluginConfigMap::from([
                 (
                     "client_id".to_string(),
                     resolved_client_id.expose_secret().to_string(),
@@ -160,7 +167,7 @@ impl AuthProvider for PluginAuthProvider {
             // Dispatch to the plugin's acquire-token WIT export via PluginRuntime.
             // F-LP2-MED-002: use AuthPluginDispatchFailed (structured) instead of
             // AuthAcquisitionFailed (stringified). Real sensor_id and client_id used.
-            let token = self
+            let dispatch_result = self
                 .runtime
                 .dispatch_plugin_acquire_token(&self.plugin_id, &config)
                 .map_err(|plugin_error| SpecEngineError::AuthPluginDispatchFailed {
@@ -169,9 +176,18 @@ impl AuthProvider for PluginAuthProvider {
                     plugin_id: self.plugin_id.clone(),
                     // F-LP2-MED-002: structured PluginError preserved (not stringified).
                     plugin_error,
-                })?;
+                });
 
-            Ok(AuthToken::new(token))
+            // SEC-005: zeroize credential heap allocations before config drops.
+            // `token_endpoint` is not a credential; only client_id and client_secret require zeroing.
+            if let Some(v) = config.get_mut("client_id") {
+                v.zeroize();
+            }
+            if let Some(v) = config.get_mut("client_secret") {
+                v.zeroize();
+            }
+
+            Ok(AuthToken::new(dispatch_result?))
         })
     }
 }

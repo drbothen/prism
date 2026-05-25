@@ -366,16 +366,23 @@ pub(crate) fn url_encode(input: &str) -> String {
                 out.push(*byte as char);
             }
             // All other bytes → percent-encode as %XX (uppercase hex).
+            // `(b >> 4)` is always 0..=15 and `(b & 0x0f)` is always 0..=15; both are
+            // valid `char::from_digit` inputs in radix 16 (returns None only for values ≥ radix).
+            // `.unwrap_or('?')` is used for lint hygiene — the '?' branch is unreachable by
+            // construction. This is zero-cost on the happy path and avoids the workspace
+            // `unwrap_used = "deny"` clippy lint concern when the function is linted (the
+            // function is `#[cfg(any(target_arch = "wasm32", test))]` so it is not normally
+            // linted by the host clippy job, but the code should still be defensively clean).
             b => {
                 out.push('%');
                 out.push(
                     char::from_digit((b >> 4) as u32, 16)
-                        .unwrap()
+                        .unwrap_or('?')
                         .to_ascii_uppercase(),
                 );
                 out.push(
                     char::from_digit((b & 0x0f) as u32, 16)
-                        .unwrap()
+                        .unwrap_or('?')
                         .to_ascii_uppercase(),
                 );
             }

@@ -12,7 +12,9 @@ format_version = 1
 plugin_type = "sensor_auth"
 
 # allowed_urls: explicit Vec<String> per PREREQ-D AC-7 default-deny semantics.
-# Production: api.crowdstrike.com (OAuth2 token endpoint).
-# Test: localhost (DTU clone token endpoint).
-# Empty list would block ALL outbound HTTP — this plugin requires the OAuth2 endpoint.
-allowed_urls = ["api.crowdstrike.com", "localhost"]
+# Production: api.crowdstrike.com (OAuth2 token endpoint) only.
+# SEC-006 (CWE-183): localhost removed from production allowlist — principle of least privilege.
+# DTU integration tests use a separate in-memory manifest (SENSOR_AUTH_MANIFEST constant in
+# plugin_boot_tests.rs) that includes localhost for the DTU clone token endpoint. The production
+# binary must not permit plugins to POST credentials to localhost listeners.
+allowed_urls = ["api.crowdstrike.com"]

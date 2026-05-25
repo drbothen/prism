@@ -1296,7 +1296,7 @@ fn test_validate_auth_plugin_fields_passes_when_no_auth_plugin() {
 /// `plugin_result.plugin_auth_providers` for step 8 wiring.
 ///
 /// This test verifies the production construction path by calling `PluginAuthProvider::new`
-/// with the same arguments boot.rs uses (runtime + plugin_id + credential_handle + token_endpoint).
+/// with the same arguments boot.rs uses (runtime + plugin_id + sensor_id + token_endpoint).
 /// It is NOT a test helper construction — it uses the exact production API.
 ///
 /// Wire-up: `PluginAuthProvider::new` is called in run_boot_sequence step 7.5b (boot.rs).
@@ -1317,15 +1317,12 @@ async fn test_plugin_auth_provider_construction_production_api() {
 
     // Construct PluginAuthProvider using the same pattern as run_boot_sequence step 7.5b.
     // sensor_id = "crowdstrike", plugin_id = "crowdstrike-oauth2" — production args.
-    let credential_handle = "sensor:crowdstrike".to_string();
+    // (ADR-028 §D11 Option C: second parameter is sensor_id, not credential_handle)
+    let sensor_id = "sensor:crowdstrike".to_string();
     let token_endpoint = "https://api.crowdstrike.com/oauth2/token".to_string();
 
-    let provider = PluginAuthProvider::new(
-        runtime_arc,
-        "crowdstrike-oauth2",
-        credential_handle,
-        token_endpoint,
-    );
+    let provider =
+        PluginAuthProvider::new(runtime_arc, "crowdstrike-oauth2", sensor_id, token_endpoint);
 
     // Verify the provider carries the correct plugin_id.
     assert_eq!(
