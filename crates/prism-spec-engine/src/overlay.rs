@@ -30,7 +30,7 @@
 
 use std::collections::HashMap;
 
-use prism_core::{OrgRegistry, OrgSlug, PrismError, SpecError, SpecErrorCode};
+use prism_core::{OrgRegistry, OrgSlug, PrismError, SensorId, SpecError, SpecErrorCode};
 use serde::{Deserialize, Serialize};
 use toml::Value as TomlValue;
 
@@ -162,10 +162,10 @@ pub struct ResolvedSensorSpec {
 /// Lookup key for the `ResolvedSensorSpec` map: `(org_slug, sensor_id)`.
 ///
 /// Used by the fanout engine for O(1) dispatch (INV-FANOUT-002).
-/// `sensor_id` is a `String` here because `SensorId` from `prism-core` is not
-/// used directly in `prism-spec-engine` (no prism-sensors dependency; see
-/// Forbidden Dependencies rule in §Architecture Compliance Rules).
-pub type ResolvedSpecKey = (OrgSlug, String);
+/// `SensorId` is from `prism-core` (already a direct dependency of this crate);
+/// using the newtype avoids the raw-String footgun and aligns with the ADR-024
+/// canonical sensor ID type (ADV-010 fix).
+pub type ResolvedSpecKey = (OrgSlug, SensorId);
 
 // ---------------------------------------------------------------------------
 // Overlay load result
@@ -187,6 +187,14 @@ pub struct OverlayLoadResult {
 // ---------------------------------------------------------------------------
 // Allowed overlay fields (closed set per BC-2.06.013 INV-SCALAR-001)
 // ---------------------------------------------------------------------------
+
+/// Maximum permitted overlay file size in bytes (SEC-REDUX-005, CWE-400).
+///
+/// Overlay files are scalar-only tunables (BC-2.06.013 INV-SCALAR-001).
+/// A typical overlay is ~100 bytes; 64 KiB is a generous upper bound that
+/// prevents boot-time DoS from maliciously large files while accommodating
+/// any realistic overlay content.
+const MAX_OVERLAY_FILE_BYTES: u64 = 64 * 1024; // 64 KiB
 
 /// The closed set of allowed top-level scalar field names in an overlay file.
 ///
@@ -290,25 +298,46 @@ impl OverlayLoader {
         }
 
         // BC-2.06.015: cross-check each org directory against OrgRegistry.
+        // PRR-009 fix: compute OrgSlug once per entry and store it alongside
+        // the registration flag — eliminates the duplicate OrgSlug::new() in the
+        // second pass (the regex runs only once per org directory).
+        //
+        // `org_entries` stores (slug_str, path, org_slug, is_registered) tuples.
         // Collect E-SPEC-022 errors for ALL unregistered slugs before continuing.
-        // Track which slugs are registered so we can still scan their files below.
-        let mut slug_registered_map: Vec<bool> = Vec::with_capacity(org_dirs.len());
-        for (slug_str, _org_dir_path) in &org_dirs {
+        struct OrgDirEntry {
+            slug_str: String,
+            path: std::path::PathBuf,
+            /// The parsed OrgSlug — always present; carry validity state in the OrgSlug newtype.
+            org_slug: OrgSlug,
+            is_registered: bool,
+        }
+
+        let mut org_entries: Vec<OrgDirEntry> = Vec::with_capacity(org_dirs.len());
+        for (slug_str, path) in org_dirs {
+            // PRR-009: parse OrgSlug once; store in OrgDirEntry for reuse in second pass.
             let org_slug = OrgSlug::new(slug_str.as_str());
 
+            // PRR-012 fix: use OrgRegistry::slug_exists (spec AC-004 method name alignment).
             let is_registered = if org_slug.is_ok() {
-                org_registry.resolve(&org_slug).is_some()
+                org_registry.slug_exists(&org_slug)
             } else {
                 false
             };
 
             if !is_registered {
                 // BC-2.06.015 failure path: unknown org slug directory.
+                // PRR-006 fix: use free fn make_e_spec_022_unknown_org_slug (consistent
+                // with sibling make_e_spec_019..021..023 naming pattern).
                 let dir_display = format!("customers/{slug_str}/");
-                errors.push(Self::e_spec_022_unknown_org_slug(&dir_display, slug_str));
+                errors.push(make_e_spec_022_unknown_org_slug(&dir_display, &slug_str));
             }
 
-            slug_registered_map.push(is_registered);
+            org_entries.push(OrgDirEntry {
+                slug_str,
+                path,
+                org_slug,
+                is_registered,
+            });
         }
 
         // EC-016-002: continue scanning ALL directories (registered AND unregistered)
@@ -317,11 +346,13 @@ impl OverlayLoader {
         // to be collected before returning — removing the early-return guard here.
         //
         // Walk each org directory and load overlay files.
-        for ((slug_str, org_dir_path), is_registered) in
-            org_dirs.iter().zip(slug_registered_map.iter())
+        for OrgDirEntry {
+            slug_str,
+            path: org_dir_path,
+            org_slug,
+            is_registered,
+        } in &org_entries
         {
-            let org_slug = OrgSlug::new(slug_str.as_str());
-
             // Enumerate .sensor.toml files within this org dir.
             let file_entries = match std::fs::read_dir(org_dir_path) {
                 Ok(e) => e,
@@ -340,6 +371,21 @@ impl OverlayLoader {
                     }
                 };
 
+                // SEC-REDUX-002: reject symlinks at file level (CWE-59).
+                // DirEntry::file_type() uses lstat() on POSIX — is_file() returns false
+                // for symlinks, blocking path traversal and file-disclosure vectors.
+                let file_ft = match file_entry.file_type() {
+                    Ok(ft) => ft,
+                    Err(io_err) => {
+                        errors.push(PrismError::Io(io_err.to_string()));
+                        continue;
+                    }
+                };
+                if !file_ft.is_file() {
+                    // Skip symlinks, directories, and special files within org dirs.
+                    continue;
+                }
+
                 let file_name = file_entry.file_name().to_string_lossy().to_string();
 
                 // Only process *.sensor.toml files.
@@ -353,11 +399,40 @@ impl OverlayLoader {
                 // Build a human-readable file path for error messages.
                 let overlay_file_path = format!("customers/{slug_str}/{file_name}");
 
+                // SEC-REDUX-005: enforce overlay file size limit (CWE-400).
+                // Pre-check size via metadata() before reading to prevent boot-time DoS.
+                // Overlay files are scalar-only tunables (BC-2.06.013); 64 KiB is generous.
+                match file_entry.metadata() {
+                    Ok(meta) if meta.len() > MAX_OVERLAY_FILE_BYTES => {
+                        errors.push(PrismError::Spec(SpecError {
+                            code: SpecErrorCode::ESpec001,
+                            message: format!(
+                                "Per-org overlay '{overlay_file_path}' exceeds maximum allowed \
+                                 size ({} bytes > {MAX_OVERLAY_FILE_BYTES} bytes limit). \
+                                 Overlay files must be scalar-only tunables.",
+                                meta.len()
+                            ),
+                            toml_path: None,
+                            file_path: Some(overlay_file_path.clone()),
+                            line_number: None,
+                        }));
+                        continue;
+                    }
+                    Err(io_err) => {
+                        errors.push(PrismError::Io(io_err.to_string()));
+                        continue;
+                    }
+                    Ok(_) => {} // size OK, proceed
+                }
+
                 // Read TOML content.
                 let toml_content = match std::fs::read_to_string(file_entry.path()) {
                     Ok(c) => c,
                     Err(io_err) => {
-                        errors.push(PrismError::Io(io_err.to_string()));
+                        errors.push(PrismError::Io(format!(
+                            "Failed to read overlay file '{}': {}",
+                            overlay_file_path, io_err
+                        )));
                         continue;
                     }
                 };
@@ -403,6 +478,8 @@ impl OverlayLoader {
                             }
                         };
 
+                        // PRR-009: reuse the OrgSlug parsed in the first pass (no second regex run).
+                        // is_registered=true guarantees org_slug.is_ok() by construction.
                         let resolved_spec = Self::merge_overlay_onto_type_spec(
                             type_spec,
                             &overlay,
@@ -422,7 +499,7 @@ impl OverlayLoader {
                             "per-org overlay loaded and merged"
                         );
 
-                        let key = (org_slug.clone(), sensor_id.to_string());
+                        let key = (org_slug.clone(), SensorId::from(sensor_id));
                         resolved.insert(key, resolved_spec);
                     }
                     Err(overlay_errors) => {
@@ -526,8 +603,9 @@ impl OverlayLoader {
             return Err(validation_errors);
         }
 
-        // Deserialize into SensorInstanceOverlay now that structure is valid.
-        let overlay: SensorInstanceOverlay = match toml::from_str(toml_input) {
+        // Deserialize into SensorInstanceOverlay from the already-parsed raw TomlValue.
+        // ADV-011: avoid double-parse by reusing `raw` instead of calling toml::from_str again.
+        let overlay: SensorInstanceOverlay = match raw.clone().try_into() {
             Ok(o) => o,
             Err(e) => {
                 return Err(vec![PrismError::Spec(SpecError {
@@ -542,6 +620,28 @@ impl OverlayLoader {
                 })]);
             }
         };
+
+        // SEC-REDUX-006: validate overlay base_url scheme (CWE-918 SSRF prevention).
+        // The TYPE spec base_url is validated by validation.rs; the overlay must match.
+        // Allows http:// and https:// only — rejects file://, ftp://, and other schemes.
+        if let Some(ref overlay_base_url) = overlay.base_url
+            && !overlay_base_url.starts_with("https://")
+            && !overlay_base_url.starts_with("http://")
+        {
+            validation_errors.push(PrismError::Spec(SpecError {
+                code: SpecErrorCode::ESpec001,
+                message: format!(
+                    "Per-org overlay '{}' base_url '{}' is not a valid URL \
+                     (must start with http:// or https://). Non-HTTP schemes are \
+                     rejected to prevent SSRF attacks (CWE-918).",
+                    overlay_file_path,
+                    sanitize_for_log(overlay_base_url)
+                ),
+                toml_path: Some("base_url".to_string()),
+                file_path: Some(overlay_file_path.to_string()),
+                line_number: None,
+            }));
+        }
 
         // BC-2.06.013 Check 3: instance_id convention mismatch → E-SPEC-020.
         let expected_instance_id = format!("{}@{}", expected_sensor_id, expected_org_slug);
@@ -637,29 +737,57 @@ impl OverlayLoader {
             instance_id: overlay.instance_id.clone(),
         }
     }
+}
 
-    /// Build the canonical E-SPEC-022 error for an unknown org slug directory.
-    ///
-    /// Canonical message template per `.factory/specs/prd-supplements/error-taxonomy.md`
-    /// row E-SPEC-022. The `format!` body below produces the exact emission text.
-    pub fn e_spec_022_unknown_org_slug(customers_dir_name: &str, slug: &str) -> PrismError {
-        PrismError::Spec(SpecError {
-            code: SpecErrorCode::ESpec022,
-            message: format!(
-                "Per-org overlay directory '{customers_dir_name}' references org slug '{slug}' \
-                 which is not registered in OrgRegistry. Check for typos or register the org in \
-                 prism.toml [[orgs]]."
-            ),
-            toml_path: None,
-            file_path: Some(customers_dir_name.to_string()),
-            line_number: None,
-        })
-    }
+// ---------------------------------------------------------------------------
+// Log-injection sanitizer (SEC-REDUX-004, CWE-117)
+// ---------------------------------------------------------------------------
+
+/// Sanitize a user-controlled value before embedding it in an error message or log.
+///
+/// Replaces control characters (including `\n`, `\r`, `\t`, null bytes, and all
+/// Unicode control points) with U+FFFD (replacement character) and caps the output
+/// at 256 Unicode scalar values.  This prevents log injection when error messages
+/// are forwarded to SIEM/log aggregators (CWE-117).
+///
+/// Called on all TOML-sourced values that land in error message bodies:
+/// - `actual_instance_id` in `make_e_spec_020_instance_id_mismatch`
+/// - `field_name` in `make_e_spec_023_unrecognized_field`
+/// - `slug` in `make_e_spec_022_unknown_org_slug`
+fn sanitize_for_log(value: &str) -> String {
+    value
+        .chars()
+        .map(|c| if c.is_control() { '\u{FFFD}' } else { c })
+        .take(256)
+        .collect()
 }
 
 // ---------------------------------------------------------------------------
 // Public error constructor helpers — canonical template builders
 // ---------------------------------------------------------------------------
+
+/// Build the E-SPEC-022 error for an unregistered org slug directory.
+///
+/// Canonical message template per `.factory/specs/prd-supplements/error-taxonomy.md`
+/// row E-SPEC-022. The `format!` body below produces the exact emission text.
+///
+/// `slug` is sanitized via `sanitize_for_log` before embedding in the message
+/// to prevent log injection (PRR-010 / SEC-REDUX-004, CWE-117): the raw filesystem
+/// directory name may contain attacker-controlled data.
+pub fn make_e_spec_022_unknown_org_slug(customers_dir_name: &str, slug: &str) -> PrismError {
+    let safe_slug = sanitize_for_log(slug);
+    PrismError::Spec(SpecError {
+        code: SpecErrorCode::ESpec022,
+        message: format!(
+            "Per-org overlay directory '{customers_dir_name}' references org slug '{safe_slug}' \
+             which is not registered in OrgRegistry. Check for typos or register the org in \
+             prism.toml [[orgs]]."
+        ),
+        toml_path: None,
+        file_path: Some(customers_dir_name.to_string()),
+        line_number: None,
+    })
+}
 
 /// Build the E-SPEC-021 error for a `[[tables]]` block in an overlay file.
 ///
@@ -683,15 +811,19 @@ pub fn make_e_spec_021_tables_in_overlay(file_path: &str, instance_id: &str) -> 
 ///
 /// Canonical message template per `.factory/specs/prd-supplements/error-taxonomy.md`
 /// row E-SPEC-023. The `format!` body below produces the exact emission text.
+///
+/// `field_name` is sanitized via `sanitize_for_log` before embedding in the message
+/// to prevent log injection (SEC-REDUX-004, CWE-117).
 pub fn make_e_spec_023_unrecognized_field(file_path: &str, field_name: &str) -> PrismError {
+    let safe_field = sanitize_for_log(field_name);
     PrismError::Spec(SpecError {
         code: SpecErrorCode::ESpec023,
         message: format!(
-            "Per-org overlay '{file_path}' contains unrecognized field '{field_name}'. \
+            "Per-org overlay '{file_path}' contains unrecognized field '{safe_field}'. \
              Allowed overlay fields are: extends, instance_id, base_url, timeout_secs, \
              rate_limit_hints (with sub-fields: requests_per_second, burst_size)."
         ),
-        toml_path: Some(field_name.to_string()),
+        toml_path: Some(safe_field.to_string()),
         file_path: Some(file_path.to_string()),
         line_number: None,
     })
@@ -701,15 +833,19 @@ pub fn make_e_spec_023_unrecognized_field(file_path: &str, field_name: &str) -> 
 ///
 /// Canonical message template per `.factory/specs/prd-supplements/error-taxonomy.md`
 /// row E-SPEC-020. The `format!` body below produces the exact emission text.
+///
+/// `actual_instance_id` is sanitized via `sanitize_for_log` before embedding in the
+/// message to prevent log injection (SEC-REDUX-004, CWE-117).
 pub fn make_e_spec_020_instance_id_mismatch(
     file_path: &str,
     actual_instance_id: &str,
     expected_instance_id: &str,
 ) -> PrismError {
+    let safe_actual = sanitize_for_log(actual_instance_id);
     PrismError::Spec(SpecError {
         code: SpecErrorCode::ESpec020,
         message: format!(
-            "Per-org overlay '{file_path}' declares instance_id='{actual_instance_id}' but \
+            "Per-org overlay '{file_path}' declares instance_id='{safe_actual}' but \
              expected '{expected_instance_id}' (derived from filename and parent directory). \
              Rename or correct the instance_id field."
         ),

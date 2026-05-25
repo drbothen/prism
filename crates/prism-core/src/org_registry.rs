@@ -105,6 +105,15 @@ impl OrgRegistry {
             .copied()
     }
 
+    /// Return `true` if `slug` is registered in the `OrgRegistry`, `false` otherwise.
+    ///
+    /// Thin wrapper over `resolve(slug).is_some()` for readability and spec-code alignment.
+    /// Story spec AC-004 refers to this method by name (PRR-012 fix: code-vs-spec naming drift).
+    /// Pure read; no I/O.
+    pub fn slug_exists(&self, slug: &OrgSlug) -> bool {
+        self.resolve(slug).is_some()
+    }
+
     /// Return the `OrgSlug` bound to `id`, or `None` if not registered.
     ///
     /// BC-3.1.001 postcondition 4. Pure read; no I/O.
