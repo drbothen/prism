@@ -754,6 +754,8 @@ impl OverlayLoader {
 /// - `actual_instance_id` in `make_e_spec_020_instance_id_mismatch`
 /// - `field_name` in `make_e_spec_023_unrecognized_field`
 /// - `slug` in `make_e_spec_022_unknown_org_slug`
+/// - `extends_value` in `make_e_spec_019_unknown_extends`
+/// - `overlay_base_url` in the SEC-REDUX-006 SSRF rejection branch of `validate_overlay_toml`
 fn sanitize_for_log(value: &str) -> String {
     value
         .chars()
@@ -859,13 +861,19 @@ pub fn make_e_spec_020_instance_id_mismatch(
 ///
 /// Canonical message template per `.factory/specs/prd-supplements/error-taxonomy.md`
 /// row E-SPEC-019. The `format!` body below produces the exact emission text.
+///
+/// `extends_value` is sanitized via `sanitize_for_log` before embedding in the message
+/// to prevent log injection (SEC-PASS2-002 / SEC-REDUX-004, CWE-117): the TOML-sourced
+/// `extends` field may contain attacker-controlled data.  All three occurrences use the
+/// sanitized value (TD-VSDD-060 sibling-sweep compliance).
 pub fn make_e_spec_019_unknown_extends(file_path: &str, extends_value: &str) -> PrismError {
+    let safe_extends = sanitize_for_log(extends_value);
     PrismError::Spec(SpecError {
         code: SpecErrorCode::ESpec019,
         message: format!(
-            "Per-org overlay '{file_path}' declares extends='{extends_value}' but no sensor \
-             TYPE named '{extends_value}' is loaded. Check spelling or add a TYPE spec file \
-             named '{extends_value}.sensor.toml'."
+            "Per-org overlay '{file_path}' declares extends='{safe_extends}' but no sensor \
+             TYPE named '{safe_extends}' is loaded. Check spelling or add a TYPE spec file \
+             named '{safe_extends}.sensor.toml'."
         ),
         toml_path: Some("extends".to_string()),
         file_path: Some(file_path.to_string()),

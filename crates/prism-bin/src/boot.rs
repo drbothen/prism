@@ -1901,4 +1901,58 @@ base_url = "https://armis.acme-corp.io"
             "BC-2.06.012: overlay base_url must be used in resolved spec"
         );
     }
+
+    /// F-P2-MED-001 / PRR-005: corrupt TYPE spec file → hard boot abort with `BootError::ConfigInvalid`.
+    ///
+    /// Verifies the pass-1 fix that changed `build_type_spec_map_for_overlay` from
+    /// warn-and-skip to hard-abort on parse failure.  A corrupt `*.sensor.toml` must not
+    /// silently produce misleading E-SPEC-019 errors for overlays that extend the broken sensor;
+    /// instead boot must fail immediately with a `ConfigInvalid` error message that includes
+    /// the corrupt file path.
+    ///
+    /// TD-VSDD-059: this test provides the load-bearing assertion that the hard-failure path
+    /// is exercised — not just doc-commented.
+    #[tokio::test]
+    #[allow(non_snake_case)]
+    async fn test_F_P2_MED_001_corrupt_type_spec_file_aborts_boot_with_config_invalid() {
+        let v7 = uuid::Uuid::now_v7();
+        let v7_str = v7.to_string();
+        let (dir, config) = make_config_dir_with_sensor(&v7_str, "acme");
+        let _ = &dir; // keep alive
+
+        // Overwrite the valid armis.sensor.toml with corrupt TOML (unparseable).
+        let corrupt_path = config.spec_dir.join("armis.sensor.toml");
+        std::fs::write(
+            &corrupt_path,
+            "this is [not valid {{toml content at all\x00\n",
+        )
+        .expect("write corrupt sensor.toml");
+
+        let org_id = prism_core::OrgId::from_uuid(v7);
+        let registry = registry_with_org(org_id, "acme");
+
+        // boot step 4 must fail hard on the corrupt TYPE spec.
+        let result = step4_load_sensor_specs_with_overlays(&config, &registry).await;
+        match result {
+            Err(BootError::ConfigInvalid(msg)) => {
+                // Error message must mention the corrupt file path so operators know
+                // which file to fix (PRR-005 diagnostic requirement).
+                assert!(
+                    msg.contains("armis.sensor.toml"),
+                    "F-P2-MED-001: ConfigInvalid must contain the corrupt file path in message, got: {msg}"
+                );
+                // Confirm this is the parse-failure branch, not the I/O failure branch.
+                assert!(
+                    msg.contains("Failed") || msg.contains("failed") || msg.contains("parse"),
+                    "F-P2-MED-001: ConfigInvalid message should describe a parse failure, got: {msg}"
+                );
+            }
+            Ok(_) => panic!(
+                "F-P2-MED-001: boot must fail when a TYPE spec file is corrupt (PRR-005 hard-abort)"
+            ),
+            Err(e) => {
+                panic!("F-P2-MED-001: wrong error variant — expected ConfigInvalid, got: {e:?}")
+            }
+        }
+    }
 }
