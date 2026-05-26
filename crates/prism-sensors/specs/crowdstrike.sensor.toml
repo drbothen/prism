@@ -15,6 +15,12 @@
 sensor_id = "crowdstrike"
 name = "CrowdStrike Falcon"
 auth_type = "oauth2_client_credentials"
+# PLUGIN-MIGRATION-001-E: routes auth through the crowdstrike-oauth2 .prx WASM plugin.
+# Validated at spec-load time: PluginRuntime.registry must contain this plugin_id
+# or E-SPEC-012 is emitted (AC-007 / Task 1 validation rule).
+# ADR-028 §D10 co-merge: PLUGIN-MIGRATION-001-A deletion of crowdstrike.rs is
+# GATED on this story shipping the plugin replacement.
+auth_plugin = "crowdstrike-oauth2"
 base_url = "https://api.crowdstrike.com"
 version = "1.0.0"
 

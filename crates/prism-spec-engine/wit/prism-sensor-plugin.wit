@@ -8,34 +8,34 @@
 //   - version()    → string   : returns a semver string (e.g. "1.0.0")
 //   - fetch-page() → page-result : fetches a page of data from the sensor
 
+// WIT syntax note (wit-bindgen 0.51+): record, enum, and variant types must be
+// defined inside an interface block. Types shared between interfaces are defined
+// in the interface that owns them and re-exported via `use` in consumers.
+// See FB-IMPL-5 (PLUGIN-MIGRATION-001-E): sibling-sweep of the same defect that
+// broke sensor-auth.wit (F-LP5-HIGH-001). Fixed here before a wit-bindgen consumer
+// for sensor-plugin is authored (no `wit_bindgen::generate!` consumer yet).
+
 package prism:sensor-plugin@0.1.0;
-
-/// Log level enum shared across all Prism plugin WIT interfaces.
-enum log-level {
-    trace,
-    debug,
-    info,
-    warn,
-    error,
-}
-
-/// HTTP response returned to plugins by host::http-request.
-record http-response {
-    status: u16,
-    headers: list<tuple<string, string>>,
-    body: list<u8>,
-}
-
-/// A single page of fetched data returned by fetch-page.
-record page-result {
-    rows: list<string>,          // JSON-encoded rows
-    next-cursor: option<string>, // None if last page
-    total-hint: option<u64>,     // optional total row count hint
-}
 
 /// The host interface available to all Prism plugins.
 /// Plugins communicate with the host exclusively through these functions.
 interface host {
+    /// Log level enum shared across all Prism plugin WIT interfaces.
+    enum log-level {
+        trace,
+        debug,
+        info,
+        warn,
+        error,
+    }
+
+    /// HTTP response returned to plugins by host::http-request.
+    record http-response {
+        status: u16,
+        headers: list<tuple<string, string>>,
+        body: list<u8>,
+    }
+
     /// Proxy an HTTP request through the host. Direct WASM network calls are not allowed.
     http-request: func(
         method: string,
@@ -58,11 +58,29 @@ interface host {
     kv-set: func(key: string, value: string) -> result<_, string>;
 }
 
-/// The sensor plugin world. Plugins compile against this world.
-world sensor-plugin {
-    import host;
+/// The sensor plugin data interface exported by sensor plugins.
+interface sensor-plugin {
+    use host.{http-response};
 
-    export name: func() -> string;
-    export version: func() -> string;
-    export fetch-page: func(cursor: option<string>, page-size: u32) -> page-result;
+    /// A single page of fetched data returned by fetch-page.
+    record page-result {
+        rows: list<string>,          // JSON-encoded rows
+        next-cursor: option<string>, // None if last page
+        total-hint: option<u64>,     // optional total row count hint
+    }
+
+    /// Return the plugin identity string (must match plugin_id in plugin.toml).
+    name: func() -> string;
+
+    /// Return the plugin semver string (e.g. "1.0.0").
+    version: func() -> string;
+
+    /// Fetch a page of data from the sensor.
+    fetch-page: func(cursor: option<string>, page-size: u32) -> page-result;
+}
+
+/// The sensor plugin world. Plugins compile against this world.
+world sensor-plugin-world {
+    import host;
+    export sensor-plugin;
 }

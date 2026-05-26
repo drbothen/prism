@@ -42,6 +42,12 @@ struct RawSensorSection {
     version: Option<String>,
     auth_type: Option<String>,
     base_url: Option<String>,
+    /// WASM sensor-auth plugin ID (PLUGIN-MIGRATION-001-E F-LP2-CRIT-002).
+    ///
+    /// Parsed from `auth_plugin = "..."` in the sensor TOML spec. Stored in
+    /// `types::SensorSpec.auth_plugin` for boot-time registry validation.
+    #[serde(default)]
+    auth_plugin: Option<String>,
 }
 
 #[derive(serde::Deserialize)]
@@ -212,6 +218,8 @@ pub fn parse_and_validate_spec_toml(
         source_path: source_path.to_string(),
         mode: crate::types::DtuMode::default(),
         credential_refs,
+        // F-LP2-CRIT-002: parse auth_plugin from TOML; stored for boot-time registry validation.
+        auth_plugin: raw.sensor.auth_plugin,
     })
 }
 

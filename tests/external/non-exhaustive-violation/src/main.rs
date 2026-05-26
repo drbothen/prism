@@ -15,12 +15,13 @@
 //! AC-5 is implemented, but the expected behaviour is exit non-zero.
 //!
 //! GREEN: After AC-5 + fix-burst-2 + fix-burst-4 + F-LP22 + post-PREREQ-E +
-//!   S-CONFIG-MULTI-TENANT-OVERRIDE-001, `#[non_exhaustive]` is applied to all 35 types.
-//! `cargo check -p non-exhaustive-violation` exits non-zero with >=35 E0639/E0004 errors.
+//!   PLUGIN-MIGRATION-001-E + S-CONFIG-MULTI-TENANT-OVERRIDE-001,
+//!   `#[non_exhaustive]` is applied to all 36 types.
+//! `cargo check -p non-exhaustive-violation` exits non-zero with >=36 E0639/E0004 errors.
 //!
-//! Target types (all 35 — AC-5 original 14 + fix-burst-2 sibling sweep 15 + fix-burst-4
+//! Target types (all 36 — AC-5 original 14 + fix-burst-2 sibling sweep 15 + fix-burst-4
 //!   types::SensorSpec + F-LP22 PluginError + post-PREREQ-E WriteToolInvalidationMap +
-//!   S-CONFIG-MULTI-TENANT-OVERRIDE-001 overlay types):
+//!   PLUGIN-MIGRATION-001-E LoadedPlugin + S-CONFIG-MULTI-TENANT-OVERRIDE-001 overlay types):
 //!
 //! Original 14 (fix-burst-1):
 //!   1.  CredentialRef               — struct, spec_parser.rs
@@ -64,10 +65,13 @@
 //! post-PREREQ-E cleanup (pr-pass-4 OBS):
 //!   32. prism_query::invalidation::WriteToolInvalidationMap — struct, invalidation.rs
 //!
+//! PLUGIN-MIGRATION-001-E (kv_store field addition):
+//!   33. prism_spec_engine::plugin::LoadedPlugin — struct, plugin/loader.rs
+//!
 //! S-CONFIG-MULTI-TENANT-OVERRIDE-001 (ADR-029 per-org overlay types):
-//!   33. prism_spec_engine::overlay::SensorInstanceOverlay — struct, overlay.rs
-//!   34. prism_spec_engine::overlay::OverlayProvenance     — struct, overlay.rs
-//!   35. prism_spec_engine::overlay::ResolvedSensorSpec    — struct, overlay.rs
+//!   34. prism_spec_engine::overlay::SensorInstanceOverlay — struct, overlay.rs
+//!   35. prism_spec_engine::overlay::OverlayProvenance     — struct, overlay.rs
+//!   36. prism_spec_engine::overlay::ResolvedSensorSpec    — struct, overlay.rs
 //!
 //! Structure: violations are split across submodules (separate compile units) so that
 //! rustc's per-function error budget does not suppress later violations. The CI script

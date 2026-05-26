@@ -10,55 +10,33 @@
 //   - fire-case()   → action-result : create a case in an external system
 //   - fire-report() → action-result : generate/deliver a report
 
+// WIT syntax note (wit-bindgen 0.51+): record, enum, and variant types must be
+// defined inside an interface block. Types shared between interfaces are defined
+// in the interface that owns them and re-exported via `use` in consumers.
+// See FB-IMPL-5 (PLUGIN-MIGRATION-001-E): sibling-sweep of the same defect that
+// broke sensor-auth.wit (F-LP5-HIGH-001). Fixed here before a wit-bindgen consumer
+// for action-plugin is authored (no `wit_bindgen::generate!` consumer yet).
+
 package prism:action-plugin@0.1.0;
 
-/// Log level enum shared across all Prism plugin WIT interfaces.
-enum log-level {
-    trace,
-    debug,
-    info,
-    warn,
-    error,
-}
-
-/// HTTP response returned to plugins by host::http-request.
-record http-response {
-    status: u16,
-    headers: list<tuple<string, string>>,
-    body: list<u8>,
-}
-
-/// Context passed to fire-alert.
-record alert-context {
-    alert-id: string,
-    severity: string,
-    title: string,
-    raw-json: string, // JSON-encoded alert payload
-}
-
-/// Context passed to fire-case.
-record case-context {
-    case-id: string,
-    title: string,
-    raw-json: string, // JSON-encoded case payload
-}
-
-/// Context passed to fire-report.
-record report-context {
-    report-id: string,
-    title: string,
-    raw-json: string, // JSON-encoded report payload
-}
-
-/// Result returned by all action dispatch functions.
-record action-result {
-    success: bool,
-    message: option<string>,
-    raw-response: option<string>, // JSON-encoded response from external system
-}
-
-/// The host interface available to all Prism plugins.
+/// The host interface available to all Prism action plugins.
 interface host {
+    /// Log level enum shared across all Prism plugin WIT interfaces.
+    enum log-level {
+        trace,
+        debug,
+        info,
+        warn,
+        error,
+    }
+
+    /// HTTP response returned to plugins by host::http-request.
+    record http-response {
+        status: u16,
+        headers: list<tuple<string, string>>,
+        body: list<u8>,
+    }
+
     http-request: func(
         method: string,
         url: string,
@@ -72,13 +50,55 @@ interface host {
     kv-set: func(key: string, value: string) -> result<_, string>;
 }
 
-/// The action plugin world. Plugins compile against this world.
-world action-plugin {
-    import host;
+/// The action plugin interface exported by action plugins.
+interface action-plugin {
+    /// Context passed to fire-alert.
+    record alert-context {
+        alert-id: string,
+        severity: string,
+        title: string,
+        raw-json: string, // JSON-encoded alert payload
+    }
 
-    export name: func() -> string;
-    export version: func() -> string;
-    export fire-alert: func(ctx: alert-context) -> action-result;
-    export fire-case: func(ctx: case-context) -> action-result;
-    export fire-report: func(ctx: report-context) -> action-result;
+    /// Context passed to fire-case.
+    record case-context {
+        case-id: string,
+        title: string,
+        raw-json: string, // JSON-encoded case payload
+    }
+
+    /// Context passed to fire-report.
+    record report-context {
+        report-id: string,
+        title: string,
+        raw-json: string, // JSON-encoded report payload
+    }
+
+    /// Result returned by all action dispatch functions.
+    record action-result {
+        success: bool,
+        message: option<string>,
+        raw-response: option<string>, // JSON-encoded response from external system
+    }
+
+    /// Return the plugin identity string (must match plugin_id in plugin.toml).
+    name: func() -> string;
+
+    /// Return the plugin semver string (e.g. "1.0.0").
+    version: func() -> string;
+
+    /// Deliver an alert to an external system (SOAR/ticketing/etc.).
+    fire-alert: func(ctx: alert-context) -> action-result;
+
+    /// Create a case in an external system.
+    fire-case: func(ctx: case-context) -> action-result;
+
+    /// Generate or deliver a report.
+    fire-report: func(ctx: report-context) -> action-result;
+}
+
+/// The action plugin world. Plugins compile against this world.
+world action-plugin-world {
+    import host;
+    export action-plugin;
 }

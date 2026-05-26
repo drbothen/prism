@@ -19,6 +19,12 @@ pub const INFUSION_REQUIRED_EXPORTS: &[&str] = &["name", "version", "enrich-sing
 pub const ACTION_REQUIRED_EXPORTS: &[&str] =
     &["name", "version", "fire-alert", "fire-case", "fire-report"];
 
+/// Required WIT exports for a sensor-auth plugin (`prism:sensor-auth-plugin`).
+///
+/// PLUGIN-MIGRATION-001-E: crowdstrike-oauth2 plugin exports these functions
+/// per BC-2.17.006 WIT validation gate.
+pub const SENSOR_AUTH_REQUIRED_EXPORTS: &[&str] = &["auth-type-name", "acquire-token", "get-token"];
+
 /// Validate that a compiled WASM Component implements a recognized Prism WIT interface.
 ///
 /// Checks for the presence of required exports (`name`, `version`, and the primary
@@ -33,7 +39,7 @@ pub fn validate_wit_interface(
     component_exports: &[&str],
     path: &str,
 ) -> Result<PluginType, PluginError> {
-    // Try each plugin type in order: infusion, sensor, action.
+    // Try each plugin type in order: infusion, sensor, action, sensor-auth.
     // A component satisfies a type if it has ALL required exports for that type.
 
     // Check infusion first (most common).
@@ -48,21 +54,33 @@ pub fn validate_wit_interface(
     if find_missing_export(component_exports, ACTION_REQUIRED_EXPORTS).is_none() {
         return Ok(PluginType::Action);
     }
+    // Check sensor-auth (PLUGIN-MIGRATION-001-E / BC-2.17.006).
+    // Sensor-auth plugins export auth-type-name, acquire-token, get-token
+    // WITHOUT the name/version exports required by the other plugin types.
+    if find_missing_export(component_exports, SENSOR_AUTH_REQUIRED_EXPORTS).is_none() {
+        return Ok(PluginType::SensorAuth);
+    }
 
     // None matched. Return error naming the first missing export from the best-match type.
     // Best match = type with the highest count of present exports.
-    // Tie-break: prefer infusion > sensor > action (infusion is most common).
+    // Tie-break: prefer infusion > sensor > action > sensor-auth (infusion is most common).
     let infusion_matches = count_matches(component_exports, INFUSION_REQUIRED_EXPORTS);
     let sensor_matches = count_matches(component_exports, SENSOR_REQUIRED_EXPORTS);
     let action_matches = count_matches(component_exports, ACTION_REQUIRED_EXPORTS);
+    let sensor_auth_matches = count_matches(component_exports, SENSOR_AUTH_REQUIRED_EXPORTS);
 
-    let missing_export = if infusion_matches >= sensor_matches && infusion_matches >= action_matches
+    let missing_export = if infusion_matches >= sensor_matches
+        && infusion_matches >= action_matches
+        && infusion_matches >= sensor_auth_matches
     {
         find_missing_export(component_exports, INFUSION_REQUIRED_EXPORTS).unwrap_or("enrich-single")
-    } else if sensor_matches >= action_matches {
+    } else if sensor_matches >= action_matches && sensor_matches >= sensor_auth_matches {
         find_missing_export(component_exports, SENSOR_REQUIRED_EXPORTS).unwrap_or("fetch-page")
-    } else {
+    } else if action_matches >= sensor_auth_matches {
         find_missing_export(component_exports, ACTION_REQUIRED_EXPORTS).unwrap_or("fire-alert")
+    } else {
+        find_missing_export(component_exports, SENSOR_AUTH_REQUIRED_EXPORTS)
+            .unwrap_or("auth-type-name")
     };
 
     Err(PluginError::InvalidInterface {
@@ -180,13 +198,23 @@ pub(crate) fn load_plugin_from_bytes(
 ) -> Result<LoadedPlugin, PluginError> {
     let path_str = path.display().to_string();
 
-    // Step 1: Extract export names from the raw bytes BEFORE compiling.
-    // For core WASM modules (wat fixtures), parse the WASM export section directly.
-    // For true Component Model binaries, fall back to filename-based approach.
-    let export_names = extract_exports_from_raw_bytes(bytes);
+    // Detect binary format: core module vs Component Model.
+    let is_core_module = bytes.len() >= 8 && bytes[4..8] == [0x01, 0x00, 0x00, 0x00];
+
+    // Step 1: Extract export names.
+    // PR-MED-2 fix: for Component Model binaries, compile first and use reflection API
+    // (wasmtime::component::Component::component_type().exports()) instead of returning
+    // an empty Vec. Core WASM modules parse the export section directly (no compilation needed).
+    let export_names = if is_core_module {
+        extract_exports_from_raw_bytes(bytes)
+    } else {
+        // Component Model binary: compile and extract exports via reflection.
+        // This is the authoritative source of truth for what a component exports.
+        extract_component_exports(engine, bytes)
+    };
     let export_refs: Vec<&str> = export_names.iter().map(|s| s.as_str()).collect();
 
-    // Step 2: Validate WIT interface using the raw export names.
+    // Step 2: Validate WIT interface using the extracted export names.
     let _plugin_type = validate_wit_interface(&export_refs, &path_str)?;
 
     // Step 3: Compile the component (wraps core module if needed).
@@ -197,8 +225,7 @@ pub(crate) fn load_plugin_from_bytes(
 
     // Step 5: Determine plugin name.
     // For core modules, try to call name() to get the actual name from WASM memory.
-    // For Component Model binaries, derive from file path.
-    let is_core_module = bytes.len() >= 8 && bytes[4..8] == [0x01, 0x00, 0x00, 0x00];
+    // For Component Model binaries, derive from file path (is_core_module computed above).
     let name = if is_core_module {
         // Call name() on the core module to get the plugin's actual name.
         call_name_fn(engine, bytes).unwrap_or_else(|| {
@@ -221,7 +248,13 @@ pub(crate) fn load_plugin_from_bytes(
         return Err(PluginError::EmptyPluginId { path: path_str });
     }
 
-    let version = "0.1.0".to_string();
+    // PR-OBS-3: placeholder version used here because load_plugin_from_bytes does not
+    // have access to the manifest. The production load path (PluginRuntime::load_plugin)
+    // overrides this via `plugin.metadata.version = plugin_version` after manifest parsing.
+    // This placeholder is visible only when load_plugin_from_bytes is called without a manifest
+    // (e.g., discover_plugins scan mode). It is intentionally "0.0.0" to distinguish it from
+    // a real semver version in logs/diagnostics.
+    let version = "0.0.0".to_string();
 
     let metadata = PluginMetadata {
         plugin_id: name.clone(),
@@ -245,6 +278,10 @@ pub(crate) fn load_plugin_from_bytes(
         // Default-deny: discovery.rs does not parse manifests (that is load_all_plugins scope).
         // Callers that need allowlist enforcement should use PluginRuntime::load_all_plugins.
         allowed_urls: vec![],
+        // F-LP2-CRIT-001: each plugin gets its own persistent KV store Arc, created at load time.
+        // All dispatches for this plugin will clone this Arc — ensuring the token cache survives
+        // across separate dispatch calls (AC-004 "token cached within TTL").
+        kv_store: std::sync::Arc::new(crate::plugin::loader::PluginKvStore::new()),
     })
 }
 
@@ -289,6 +326,28 @@ fn call_name_fn(engine: &wasmtime::Engine, bytes: &[u8]) -> Option<String> {
 
     let name_bytes = &mem_data[start..end];
     std::str::from_utf8(name_bytes).ok().map(|s| s.to_string())
+}
+
+/// Extract export names from a Component Model binary using wasmtime reflection.
+///
+/// PR-MED-2 fix: for Component Model binaries (magic bytes `0x0d 0x00 0x01 0x00`), the raw
+/// WASM export section parsing in `extract_exports_from_raw_bytes` returns an empty Vec
+/// because Component Model binaries have a different internal structure. This function
+/// compiles the component and uses `Component::component_type().exports()` to get the
+/// authoritative export list via the wasmtime reflection API.
+///
+/// Returns empty Vec on compilation error — caller should handle missing exports as
+/// an InvalidInterface error during `validate_wit_interface`.
+fn extract_component_exports(engine: &wasmtime::Engine, bytes: &[u8]) -> Vec<String> {
+    let component = match wasmtime::component::Component::from_binary(engine, bytes) {
+        Ok(c) => c,
+        Err(_) => return Vec::new(),
+    };
+    component
+        .component_type()
+        .exports(engine)
+        .map(|(name, _ty)| name.to_string())
+        .collect()
 }
 
 /// Parse the export section of a raw WASM binary (core module format).

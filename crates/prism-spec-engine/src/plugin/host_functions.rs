@@ -122,8 +122,14 @@ pub fn host_http_request(
         return result;
     }
 
-    // Fallback: create new runtime (for tests without tokio context).
-    let result = match tokio::runtime::Runtime::new() {
+    // Fallback: create a current-thread runtime (for callers without a tokio context).
+    // PR-LOW-003: use current_thread + enable_all (not the multi-thread default from
+    // Runtime::new()) to match the expected minimal footprint for a one-shot HTTP call.
+    // This code path is only exercised in tests without a tokio runtime context.
+    let result = match tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+    {
         Ok(rt) => rt.block_on(do_http_request(state, method, url, &headers, body)),
         Err(e) => HttpResponse {
             status: 500,
@@ -236,6 +242,17 @@ async fn do_http_request(
 /// Forward a plugin log message to `tracing` at the appropriate level.
 ///
 /// Prefix format: `"[plugin:{plugin_id}] {message}"`.
+///
+/// # AD-017 Security Note
+///
+/// The `message` string is forwarded **unredacted** from the plugin guest to the host's
+/// tracing subscriber. Plugin code is responsible for NOT including credential values in
+/// log messages (the WIT interface is a trust boundary, not a redaction boundary).
+///
+/// Credential values are injected via `host::get-config` (which does NOT log values) and
+/// must NEVER be logged by plugin guest code — this is a guest-side discipline enforced
+/// by the plugin author's contract, not by the host. Log scrubbing at the tracing subscriber
+/// level is the production guard (external to prism-spec-engine; e.g., log pipeline).
 pub fn host_log(state: &HostState, level: LogLevel, message: &str) {
     let prefixed = format!("[plugin:{}] {}", state.plugin_id, message);
     match level {
@@ -250,8 +267,17 @@ pub fn host_log(state: &HostState, level: LogLevel, message: &str) {
 /// Look up a key in the plugin's config map (`HostState.config`).
 ///
 /// Returns `None` for unknown keys — never errors.
+///
+/// ## SEC-008 / AD-017
+///
+/// `PluginConfigMap` values are `SecretString`. We call `.expose_secret()` here —
+/// at the last possible moment before handing the value to the WASM guest — so the
+/// plaintext `String` exists only for the duration of this call frame. The returned
+/// `String` is owned by the caller (the `register_host_functions` closure) and is
+/// dropped after it is copied into the WIT `Val::String` result slot.
 pub fn host_get_config(state: &HostState, key: &str) -> Option<String> {
-    state.config.get(key).cloned()
+    use secrecy::ExposeSecret;
+    state.config.get(key).map(|s| s.expose_secret().to_owned())
 }
 
 /// Get a value from the plugin's KV store.
@@ -273,6 +299,28 @@ pub fn host_kv_set(
     state.kv_store.set(&state.plugin_id, key, value)
 }
 
+/// Return the current wall-clock time as Unix seconds (u64).
+///
+/// Used by sensor-auth plugins for token TTL management — the plugin stores
+/// `expires_at = current_time + expires_in - 30` in the KV store and checks
+/// this value on subsequent `get-token` calls to detect cache staleness.
+///
+/// PLUGIN-MIGRATION-001-E Known Gap resolution: this host function was not
+/// present in PREREQ-D; added in-scope per story Known Gaps §host_current_time_secs.
+///
+/// # Monotonicity
+///
+/// Uses `std::time::SystemTime::UNIX_EPOCH` (wall clock, not monotonic). This is
+/// intentional: the TTL calculation is wall-clock-based (expires_in comes from the
+/// OAuth2 server which uses wall time), and the 30-second buffer absorbs minor clock
+/// skew. Precision loss up to ~1 second is acceptable for TTL checks.
+pub fn host_current_time_secs() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::SystemTime::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0)
+}
+
 /// Register all host functions into the `Linker<HostState>`.
 ///
 /// This is called once during `PluginRuntime::build_linker()`. After this call,
@@ -286,6 +334,7 @@ pub fn host_kv_set(
 /// - `"get-config"` — key-value config map lookup (AC-8)
 /// - `"kv-get"` — per-plugin persistent KV get (AC-8)
 /// - `"kv-set"` — per-plugin persistent KV set (AC-8)
+/// - `"current-time-secs"` — wall-clock Unix seconds for TTL management (PLUGIN-MIGRATION-001-E)
 ///
 /// # Architecture Compliance
 /// MUST NOT call any `wasmtime_wasi::add_to_linker_*` function — WASI MUST NOT
@@ -643,6 +692,29 @@ pub fn register_host_functions(
                         results[0] = Val::Result(Err(Some(Box::new(Val::String(e.to_string())))));
                     }
                 }
+            }
+            Ok(())
+        },
+    )
+    .map_err(map_err)?;
+
+    // ------ host::current-time-secs ------
+    // WIT signature: current-time-secs: func() -> u64;
+    //
+    // Returns current Unix timestamp as u64 (wall-clock seconds since epoch).
+    // Used by sensor-auth plugins for token TTL management (PLUGIN-MIGRATION-001-E).
+    // PLUGIN-MIGRATION-001-E Known Gap: this function did not exist in PREREQ-D;
+    // added in-scope per story Known Gaps §host_current_time_secs.
+    host.func_new(
+        "current-time-secs",
+        |_ctx: StoreContextMut<'_, HostState>,
+         _func_type: ComponentFunc,
+         _params: &[Val],
+         results: &mut [Val]| {
+            let now_secs = host_current_time_secs();
+            // WIT u64 → Val::U64(u64)
+            if !results.is_empty() {
+                results[0] = Val::U64(now_secs);
             }
             Ok(())
         },

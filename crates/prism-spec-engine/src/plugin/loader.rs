@@ -6,9 +6,18 @@ use std::sync::Arc;
 
 use prism_core::PluginError;
 use reqwest::Client;
+use secrecy::SecretString;
 
-/// Per-plugin configuration map — string key/value pairs from `[plugin_config]` TOML.
-pub type PluginConfigMap = HashMap<String, String>;
+/// Per-plugin configuration map — string key / `SecretString` value pairs from `[plugin_config]` TOML.
+///
+/// All values are wrapped in `SecretString` so that credential bytes (e.g., `client_id`,
+/// `client_secret`) are zeroed automatically on drop regardless of how many `Arc::clone` copies
+/// of the map exist (SEC-008 / CWE-316 closure). Non-secret keys such as `token_endpoint` are
+/// also wrapped — the overhead is negligible and it avoids the need to track per-key sensitivity.
+///
+/// Callers that need to read a value must call `.expose_secret()` at the use site, keeping the
+/// plaintext lifetime as short as possible (AD-017).
+pub type PluginConfigMap = HashMap<String, SecretString>;
 
 /// KV_SIZE_LIMIT: 1MB per plugin total in the KV store (E-PLUGIN-003).
 const KV_SIZE_LIMIT_BYTES: usize = 1024 * 1024;
@@ -34,9 +43,13 @@ impl PluginKvStore {
     /// Get a value scoped to `plugin_id`.
     pub fn get(&self, plugin_id: &str, key: &str) -> Option<String> {
         let scoped_key = format!("{}:{}", plugin_id, key);
+        // SEC-005: recover from lock poisoning — a panic in a previous lock holder should not
+        // prevent further KV reads. `into_inner()` extracts the inner guard from the poison error,
+        // making the data accessible. This is the standard Rust "best effort" recovery for Mutex
+        // poisoning (the data is still valid; the poison flag only indicates a prior panic).
         self.inner
             .lock()
-            .expect("PluginKvStore lock poisoned")
+            .unwrap_or_else(|p| p.into_inner())
             .get(&scoped_key)
             .cloned()
     }
@@ -44,7 +57,8 @@ impl PluginKvStore {
     /// Set a value scoped to `plugin_id`.
     pub fn set(&self, plugin_id: &str, key: &str, value: &str) -> Result<(), PluginError> {
         let scoped_key = format!("{}:{}", plugin_id, key);
-        let mut store = self.inner.lock().expect("PluginKvStore lock poisoned");
+        // SEC-005: recover from lock poisoning (see get() above for rationale).
+        let mut store = self.inner.lock().unwrap_or_else(|p| p.into_inner());
 
         let plugin_prefix = format!("{}:", plugin_id);
         let current_size: usize = store
@@ -82,6 +96,11 @@ pub struct PluginMetadata {
 }
 
 /// A compiled and pre-instantiated plugin binary.
+///
+/// Marked `#[non_exhaustive]` per project convention (CLAUDE.md §Conventions) — external callers
+/// must not construct this via struct literal; fields may expand as the plugin runtime evolves.
+/// Use `PluginRuntime::load_plugin()` to obtain instances.
+#[non_exhaustive]
 pub struct LoadedPlugin {
     pub metadata: PluginMetadata,
     pub component: wasmtime::component::Component,
@@ -96,6 +115,15 @@ pub struct LoadedPlugin {
     /// Empty Vec = default-deny (no outbound HTTP). Stored here so `enrich_single`,
     /// `enrich_batch`, and other callers can pass it to `make_host_state()`.
     pub allowed_urls: Vec<String>,
+    /// Per-plugin persistent KV store (F-LP2-CRIT-001).
+    ///
+    /// Carried on `LoadedPlugin` so that every dispatch for the same plugin shares
+    /// the SAME `Arc<PluginKvStore>` — enabling the token cache to survive across
+    /// calls. `make_host_state` clones this Arc instead of constructing a fresh
+    /// `PluginKvStore::new()` on every call.
+    ///
+    /// Invariant: always `Arc::new(PluginKvStore::new())` at load time; never replaced.
+    pub kv_store: Arc<PluginKvStore>,
 }
 
 /// Thread-safe host state passed to every plugin invocation via `wasmtime::Store`.
@@ -155,6 +183,8 @@ impl HostState {
             limits: wasmtime::StoreLimits::default(),
         }
     }
+    // Note: PluginConfigMap values are SecretString — tests that need a pre-populated config
+    // must use SecretString::new(value) for each entry (SEC-008 closure).
 
     /// Test-only constructor with a specific `plugin_id` and default-deny `allowed_urls`.
     ///
