@@ -722,8 +722,15 @@ impl OverlayLoader {
         }
 
         // timeout_secs provenance (stored in provenance; no SensorSpec field for it yet).
-        if overlay.timeout_secs.is_some() {
+        if let Some(timeout_secs) = overlay.timeout_secs {
             provenance.timeout_secs_from_overlay = true;
+            tracing::warn!(
+                event_type = "overlay.timeout_secs_ignored",
+                sensor_id = %type_spec.sensor_id,
+                timeout_secs = timeout_secs,
+                "timeout_secs overlay field accepted but not yet wired to HTTP client; \
+                 deferred to S-CONFIG-MULTI-TENANT-OVERRIDE-002"
+            );
         }
 
         // INV-OVL-001: tables are NEVER overridden — inherited from TYPE spec (already in clone).
@@ -887,6 +894,8 @@ pub fn make_e_spec_019_unknown_extends(file_path: &str, extends_value: &str) -> 
 
 #[cfg(test)]
 mod tests {
+    use super::sanitize_for_log;
+
     /// Placeholder — real Red Gate tests for overlay loading are in
     /// `prism-spec-engine/tests/overlay_loading_tests.rs` (S-CONFIG-MULTI-TENANT-OVERRIDE-001).
     /// This placeholder ensures the module is reachable from the test binary.
@@ -895,5 +904,92 @@ mod tests {
         // This test intentionally does NOT call any stubbed functions —
         // those are in overlay_loading_tests.rs (the real Red Gate tests).
         // This placeholder passes by design (compilation check only).
+    }
+
+    // ---------------------------------------------------------------------------
+    // sanitize_for_log unit tests (F-PR155-P2-003)
+    // SEC-REDUX-004 / CWE-117: log injection sanitizer correctness
+    // ---------------------------------------------------------------------------
+
+    #[test]
+    fn sanitize_for_log_replaces_newline_with_replacement_char() {
+        let input = "value\nwith\nnewlines";
+        let output = sanitize_for_log(input);
+        assert!(
+            !output.contains('\n'),
+            "newlines must be replaced; got: {output:?}"
+        );
+        assert!(
+            output.contains('\u{FFFD}'),
+            "replacement char U+FFFD expected; got: {output:?}"
+        );
+    }
+
+    #[test]
+    fn sanitize_for_log_replaces_carriage_return() {
+        let input = "value\r\ninjected";
+        let output = sanitize_for_log(input);
+        assert!(
+            !output.contains('\r'),
+            "CR must be replaced; got: {output:?}"
+        );
+        assert!(
+            !output.contains('\n'),
+            "LF must be replaced; got: {output:?}"
+        );
+    }
+
+    #[test]
+    fn sanitize_for_log_replaces_null_byte() {
+        let input = "value\x00null";
+        let output = sanitize_for_log(input);
+        assert!(
+            !output.contains('\x00'),
+            "null byte must be replaced; got: {output:?}"
+        );
+        assert!(
+            output.contains('\u{FFFD}'),
+            "replacement char U+FFFD expected; got: {output:?}"
+        );
+    }
+
+    #[test]
+    fn sanitize_for_log_truncates_at_256_chars() {
+        let input = "a".repeat(300);
+        let output = sanitize_for_log(&input);
+        let char_count = output.chars().count();
+        assert_eq!(
+            char_count, 256,
+            "output must be capped at 256 chars; got {char_count}"
+        );
+    }
+
+    #[test]
+    fn sanitize_for_log_passes_clean_ascii_unchanged() {
+        let input = "clean-ascii-value_123";
+        let output = sanitize_for_log(input);
+        assert_eq!(
+            output, input,
+            "clean ASCII must pass through unchanged; got: {output:?}"
+        );
+    }
+
+    #[test]
+    fn sanitize_for_log_preserves_unicode_non_control() {
+        // Emoji and CJK are NOT control characters — must not be replaced.
+        let input = "hello \u{1F600} \u{4E2D}\u{6587}";
+        let output = sanitize_for_log(input);
+        assert!(
+            output.contains('\u{1F600}'),
+            "emoji must be preserved; got: {output:?}"
+        );
+        assert!(
+            output.contains('\u{4E2D}'),
+            "CJK char must be preserved; got: {output:?}"
+        );
+        assert!(
+            !output.contains('\u{FFFD}'),
+            "replacement char must NOT appear for non-control unicode; got: {output:?}"
+        );
     }
 }

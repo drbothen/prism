@@ -121,7 +121,7 @@ pub struct RunningServer {
     ///
     /// Read-only after boot; shared via `Arc<HashMap>` for O(1) fanout dispatch
     /// without mutex contention (INV-OVL-006, INV-FANOUT-002).
-    /// Key: `(OrgSlug, sensor_id_string)`; value: effective `ResolvedSensorSpec`.
+    /// Key: `(OrgSlug, SensorId)`; value: effective `ResolvedSensorSpec`.
     ///
     /// Empty map when no `customers/` directory exists (BC-2.06.012 backwards compat).
     /// Threaded into `QueryEngine` for per-org endpoint resolution at query time (ADR-029).
@@ -147,7 +147,7 @@ pub struct BootContext {
     ///
     /// Read-only after boot; shared via `Arc<HashMap>` for O(1) fanout dispatch
     /// without mutex contention (INV-OVL-006, INV-FANOUT-002).
-    /// Key: `(OrgSlug, sensor_id_string)`; value: effective `ResolvedSensorSpec`.
+    /// Key: `(OrgSlug, SensorId)`; value: effective `ResolvedSensorSpec`.
     ///
     /// Empty map when no `customers/` directory exists (BC-2.06.012 backwards compat).
     pub resolved_spec_map: Arc<
