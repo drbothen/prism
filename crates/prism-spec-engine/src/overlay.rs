@@ -397,7 +397,13 @@ impl OverlayLoader {
                 let sensor_id = &file_name[..file_name.len() - ".sensor.toml".len()];
 
                 // Build a human-readable file path for error messages.
-                let overlay_file_path = format!("customers/{slug_str}/{file_name}");
+                // SEC-PASS5-002: sanitize at derivation point — `file_name` comes from readdir
+                // and can contain control characters on Linux/macOS (CWE-117, SEC-REDUX-004).
+                // Sanitizing here covers all 9 downstream error constructors that embed
+                // `overlay_file_path`: E-SPEC-001 size-check, TOML parse, table-type, deser,
+                // SSRF rejection, and E-SPEC-019/020/021/023 validation errors.
+                let overlay_file_path =
+                    sanitize_for_log(&format!("customers/{slug_str}/{file_name}"));
 
                 // SEC-REDUX-005: enforce overlay file size limit (CWE-400).
                 // Pre-check size via metadata() before reading to prevent boot-time DoS.
@@ -653,7 +659,15 @@ impl OverlayLoader {
         }
 
         // BC-2.06.013 Check 3: instance_id convention mismatch → E-SPEC-020.
-        let expected_instance_id = format!("{}@{}", expected_sensor_id, expected_org_slug);
+        // SEC-PASS5-001: sanitize both components before concatenating — expected_sensor_id is a
+        // raw filesystem stem (no regex validation) and expected_org_slug is unsafe in the
+        // EC-016-002 path (CWE-117, SEC-REDUX-004). Mirrors the E-SPEC-021 sanitization at the
+        // [[tables]] check above (SEC-PASS4-002 / TD-VSDD-060).
+        let expected_instance_id = format!(
+            "{}@{}",
+            sanitize_for_log(expected_sensor_id),
+            sanitize_for_log(expected_org_slug)
+        );
         if overlay.instance_id != expected_instance_id {
             validation_errors.push(make_e_spec_020_instance_id_mismatch(
                 overlay_file_path,
@@ -774,6 +788,11 @@ impl OverlayLoader {
 /// - `overlay_base_url` in the SEC-REDUX-006 SSRF rejection branch of `validate_overlay_toml`
 /// - `expected_sensor_id` / `expected_org_slug` in the E-SPEC-021 `[[tables]]` error path
 ///   of `validate_overlay_toml` (SEC-PASS4-002 — final TD-VSDD-060 sibling-sweep site)
+/// - `overlay_file_path` derived from `readdir` `file_name` — sanitized at derivation point
+///   to cover all 9 error constructors that embed the path (SEC-PASS5-002, CWE-117)
+/// - `expected_instance_id` components in the E-SPEC-020 `instance_id` mismatch check
+///   (SEC-PASS5-001 — `expected_sensor_id` is an unvalidated filesystem stem;
+///   `expected_org_slug` is unsafe in the EC-016-002 registration path)
 fn sanitize_for_log(value: &str) -> String {
     value
         .chars()
