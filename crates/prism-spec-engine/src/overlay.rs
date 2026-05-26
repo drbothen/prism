@@ -328,7 +328,12 @@ impl OverlayLoader {
                 // BC-2.06.015 failure path: unknown org slug directory.
                 // PRR-006 fix: use free fn make_e_spec_022_unknown_org_slug (consistent
                 // with sibling make_e_spec_019..021..023 naming pattern).
-                let dir_display = format!("customers/{slug_str}/");
+                // SEC-PASS6-001: sanitize slug_str at derivation — readdir-sourced and may contain
+                // control characters.  `customers_dir_name` is embedded verbatim in the E-SPEC-022
+                // error message body (make_e_spec_022_unknown_org_slug line ~821) and file_path
+                // field; sanitize_for_log here mirrors the SEC-PASS5-002 pattern at line 405-406
+                // (overlay_file_path) to complete the TD-VSDD-060 sibling-sweep (CWE-117).
+                let dir_display = format!("customers/{}/", sanitize_for_log(&slug_str));
                 errors.push(make_e_spec_022_unknown_org_slug(&dir_display, &slug_str));
             }
 
@@ -793,6 +798,9 @@ impl OverlayLoader {
 /// - `expected_instance_id` components in the E-SPEC-020 `instance_id` mismatch check
 ///   (SEC-PASS5-001 — `expected_sensor_id` is an unvalidated filesystem stem;
 ///   `expected_org_slug` is unsafe in the EC-016-002 registration path)
+/// - `dir_display` in the E-SPEC-022 unknown-org-slug error path — `slug_str` is readdir-sourced
+///   and sanitized at derivation before constructing the `customers/{slug}/` display string
+///   (SEC-PASS6-001 — TD-VSDD-060 sibling-sweep completion, CWE-117)
 fn sanitize_for_log(value: &str) -> String {
     value
         .chars()
