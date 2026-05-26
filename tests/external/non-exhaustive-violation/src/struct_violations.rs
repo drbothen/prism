@@ -4,9 +4,18 @@
 //! struct-literal construction. After `#[non_exhaustive]` is applied, each
 //! literal MUST fail with E0639 (cannot create non-exhaustive struct expression).
 //!
-//! Violations 1-6, 9-12, 16-17, 20-24, 26, 30, 32-33 (21 total E0639 expected).
+//! Violations 1-6, 9-12, 16-17, 20-24, 26, 30, 32-36 (24 total E0639 expected).
+//!
+//! PLUGIN-MIGRATION-001-E addition:
+//!   33. plugin::LoadedPlugin            — struct, plugin/loader.rs
+//!
+//! S-CONFIG-MULTI-TENANT-OVERRIDE-001 additions (ADR-029):
+//!   34. overlay::SensorInstanceOverlay  — struct, overlay.rs
+//!   35. overlay::OverlayProvenance      — struct, overlay.rs
+//!   36. overlay::ResolvedSensorSpec     — struct, overlay.rs
 
 use prism_core::{ColumnType, RiskTier, SensorId, TableType};
+use prism_spec_engine::overlay::{OverlayProvenance, ResolvedSensorSpec, SensorInstanceOverlay};
 use prism_query::invalidation::WriteToolInvalidationMap;
 use prism_spec_engine::infusion::{
     BuiltInSourceType, CredentialRef as InfusionCredentialRef, InfusionField, InfusionSourceConfig,
@@ -296,4 +305,72 @@ pub fn v32_write_tool_invalidation_map() {
         plugin_name: "".to_string(),
     };
     let _ = _entry;
+}
+
+/// Violation 34: overlay::SensorInstanceOverlay struct literal (E0639).
+///
+/// `SensorInstanceOverlay` is a TOML-deserialized pub-API type for per-org overlay
+/// files (ADR-029 §C). `#[non_exhaustive]` ensures external crates cannot construct
+/// it via struct literal — future tunable scalar fields (e.g., `retry_policy`) may
+/// be added as the multi-tenant overlay grammar evolves (BC-2.06.012).
+/// External callers MUST use the TOML deserialization path.
+///
+/// Added: S-CONFIG-MULTI-TENANT-OVERRIDE-001 stubs.
+#[allow(dead_code)]
+pub fn v34_sensor_instance_overlay() {
+    let _overlay = SensorInstanceOverlay {
+        extends: "armis".to_string(),
+        instance_id: "armis@acme".to_string(),
+        base_url: Some("https://armis.acme-corp.io".to_string()),
+        timeout_secs: None,
+        rate_limit_hints: None,
+    };
+    let _ = _overlay;
+}
+
+/// Violation 35: overlay::OverlayProvenance struct literal (E0639).
+///
+/// `OverlayProvenance` tracks which scalar fields in a `ResolvedSensorSpec` came
+/// from an overlay vs the TYPE spec (ADR-029 §D). `#[non_exhaustive]` ensures new
+/// provenance fields can be added as tunable scalars expand (BC-2.06.012).
+/// External callers MUST use `..Default::default()` for initialization.
+///
+/// Added: S-CONFIG-MULTI-TENANT-OVERRIDE-001 stubs.
+#[allow(dead_code)]
+pub fn v35_overlay_provenance() {
+    let _provenance = OverlayProvenance {
+        base_url_from_overlay: true,
+        rps_from_overlay: false,
+        burst_size_from_overlay: false,
+        timeout_secs_from_overlay: false,
+    };
+    let _ = _provenance;
+}
+
+/// Violation 36: overlay::ResolvedSensorSpec struct literal (E0639).
+///
+/// `ResolvedSensorSpec` is the boot-time merge of a TYPE spec and per-org overlay
+/// scalars (ADR-029 §E). `#[non_exhaustive]` ensures future fields (e.g., applied
+/// rate limiter state, resolved credential refs) can be added without breaking
+/// downstream callers (BC-2.06.014, INV-OVL-006).
+/// External callers MUST use `OverlayLoader::merge_overlay_onto_type_spec(...)`.
+///
+/// Uses `SensorSpec::default()` for the inner `spec` field to avoid a second E0639
+/// from a nested SensorSpec struct literal — only the outer `ResolvedSensorSpec`
+/// literal is the target of this violation.
+///
+/// Added: S-CONFIG-MULTI-TENANT-OVERRIDE-001 stubs.
+#[allow(dead_code)]
+pub fn v36_resolved_sensor_spec() {
+    use prism_core::OrgSlug;
+    let _resolved = ResolvedSensorSpec {
+        spec: SensorSpec::default(),
+        provenance: OverlayProvenance::default(),
+        // PRR-013 fix: use OrgSlug::new("acme").unwrap() instead of new_unchecked.
+        // "acme" is a known-valid literal — unwrap() is safe here and avoids the
+        // forbidden-pattern (OrgSlug::new_unchecked outside test-helpers feature gate).
+        org_slug: OrgSlug::new("acme"),
+        instance_id: "armis@acme".to_string(),
+    };
+    let _ = _resolved;
 }

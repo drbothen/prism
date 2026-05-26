@@ -51,6 +51,9 @@ pub mod types;
 // S-3.1.05 — OrgId-keyed spec store (BC-3.1.001 / ADR-006 §4 Step 2)
 pub mod org_scoped_store;
 
+// S-CONFIG-MULTI-TENANT-OVERRIDE-001 — Per-org overlay loading (ADR-029)
+pub mod overlay;
+
 // S-PLUGIN-PREREQ-D — Plugin load audit sink (BC-2.05.012 / HIGH-002)
 pub mod plugin_audit_sink;
 
@@ -111,6 +114,12 @@ pub use plugin_auth_provider::PluginAuthProvider;
 
 // S-3.1.05 re-exports
 pub use org_scoped_store::OrgScopedSpecStore;
+
+// S-CONFIG-MULTI-TENANT-OVERRIDE-001 re-exports (ADR-029)
+pub use overlay::{
+    OverlayLoadResult, OverlayLoader, OverlayProvenance, ResolvedSensorSpec, ResolvedSpecKey,
+    SensorInstanceOverlay,
+};
 pub use types::{
     AddSensorSpecArgs, AddSensorSpecResult, ClientStatus, ColumnDef, ColumnType, ConfigSnapshot,
     DtuMode, ListSensorSpecsArgs, ListSensorSpecsResult, ModeChange, ModifiedSpec, PaginationType,

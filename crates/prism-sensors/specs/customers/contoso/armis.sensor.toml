@@ -1,0 +1,18 @@
+# Per-org overlay for Armis sensor — Contoso client (ADR-029 §Hybrid Sensor Instance)
+#
+# This is an INSTANCE overlay, NOT a TYPE spec.  Only scalar tunables are permitted.
+# Schema fields ([[tables]], auth_type, version, sensor_id) are FORBIDDEN here.
+# The base Armis TYPE spec is at ../../armis.sensor.toml.
+#
+# Overlay fields (all optional except extends and instance_id):
+#   extends      — must match the TYPE spec sensor_id
+#   instance_id  — must equal "{sensor_id}@{org_slug}" (i.e., "armis@contoso")
+#   base_url     — per-client Armis Centrix on-prem endpoint
+#
+# BC-2.06.012: Per-Tenant Overlay Loading and Merge Semantics
+# BC-2.06.013: Scalar-Only Overlay Enforcement
+# ADR-029:     Hybrid Sensor Instance with Per-Org Composition Directory
+
+extends     = "armis"
+instance_id = "armis@contoso"
+base_url    = "https://armis.contoso.com"
