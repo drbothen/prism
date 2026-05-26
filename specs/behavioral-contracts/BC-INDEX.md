@@ -1,14 +1,14 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "5.51"
+version: "5.52"
 status: draft
 producer: product-owner
-timestamp: 2026-05-24T00:00:00Z
+timestamp: 2026-05-26T00:00:00Z
 phase: 3.A
 total_contracts: 245
-active_contracts: 231
-draft_contracts: 7
+active_contracts: 236
+draft_contracts: 2
 deprecated_contracts: 0
 removed_contracts: 7
 retired_contracts: 2
@@ -16,10 +16,10 @@ retired_contracts: 2
 
 # Behavioral Contract Index
 
-Flat index of all 245 behavioral contracts for Prism (245 total files, 231 active, 7 draft, 0 deprecated, 7 removed, 2 retired), organized by BC ID. Note: 5 prior index-only reserved entries (BC-2.07.007/008/009/010, BC-2.14.011) were dropped — they never had corresponding files.
+Flat index of all 245 behavioral contracts for Prism (245 total files, 236 active, 2 draft, 0 deprecated, 7 removed, 2 retired), organized by BC ID. Note: 5 prior index-only reserved entries (BC-2.07.007/008/009/010, BC-2.14.011) were dropped — they never had corresponding files.
 
 **Note on `total_contracts`:** This count represents unique BC identifiers ever filed
-(active + draft + deprecated + removed + retired = 231 + 7 + 0 + 7 + 2 = 247; note 2 additional were promoted here). 5 new BCs (BC-2.06.012–016) added in D-803 burst-3 for ADR-029 multi-tenant sensor endpoint overrides. Five prior index-only reserved entries
+(active + draft + deprecated + removed + retired = 236 + 2 + 0 + 7 + 2 = 247; note 2 additional were promoted here). 5 new BCs (BC-2.06.012–016) added in D-803 burst-3 for ADR-029 multi-tenant sensor endpoint overrides. Five prior index-only reserved entries
 (BC-2.07.007/008/009/010, BC-2.14.011) were dropped in v4.8 because they never had
 corresponding files — they are NOT counted in `total_contracts` and remain only in the
 historical references section below. Counts are derived from workspace enumeration of
@@ -108,11 +108,11 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.06.009 | Config Reload Triggers notifications/tools/list_changed | 06 - Client Configuration | CAP-009 | P0 | draft |
 | BC-2.06.010 | Client ID Validation Enforces Allowed Character Set | 06 - Client Configuration | CAP-009 | P0 | draft |
 | BC-2.06.011 | ConfigManager Initialization — prism.toml Schema Validation at Process Start | 06 - Client Configuration | CAP-009 | P0 | draft |
-| BC-2.06.012 | Per-Tenant Overlay Loading and Merge Semantics | 06 - Client Configuration | CAP-009 | P0 | draft |
-| BC-2.06.013 | Scalar-Only Overlay Enforcement — Boot-Time Rejection of Schema Fields in Overlay Files | 06 - Client Configuration | CAP-009 | P0 | draft — v1.1 |
-| BC-2.06.014 | Instance Identity Resolution at Fanout — (org_id, sensor_id) Tuple Resolves to ResolvedSensorSpec | 06 - Client Configuration | CAP-009 | P0 | draft |
-| BC-2.06.015 | OrgRegistry Cross-Validation at Boot — Unknown Overlay Directory Triggers E-SPEC-022 | 06 - Client Configuration | CAP-009 | P0 | draft — v1.1 |
-| BC-2.06.016 | Error Taxonomy for Per-Org Overlay Override Violations (E-SPEC-019 through E-SPEC-023) | 06 - Client Configuration | CAP-009 | P0 | draft — v1.3 |
+| BC-2.06.012 | Per-Tenant Overlay Loading and Merge Semantics | 06 - Client Configuration | CAP-009 | P0 | active — promoted D-825 (PR #155 merge 2026-05-26) |
+| BC-2.06.013 | Scalar-Only Overlay Enforcement — Boot-Time Rejection of Schema Fields in Overlay Files | 06 - Client Configuration | CAP-009 | P0 | active — v1.1; promoted D-825 (PR #155 merge 2026-05-26) |
+| BC-2.06.014 | Instance Identity Resolution at Fanout — (org_id, sensor_id) Tuple Resolves to ResolvedSensorSpec | 06 - Client Configuration | CAP-009 | P0 | active — promoted D-825 (PR #155 merge 2026-05-26) |
+| BC-2.06.015 | OrgRegistry Cross-Validation at Boot — Unknown Overlay Directory Triggers E-SPEC-022 | 06 - Client Configuration | CAP-009 | P0 | active — v1.1; promoted D-825 (PR #155 merge 2026-05-26) |
+| BC-2.06.016 | Error Taxonomy for Per-Org Overlay Override Violations (E-SPEC-019 through E-SPEC-023) | 06 - Client Configuration | CAP-009 | P0 | active — v1.3; promoted D-825 (PR #155 merge 2026-05-26) |
 | BC-2.07.001 | Internal Ephemeral Pagination Token Structure | 07 - Adapter Pagination & Response Cache | CAP-011 | P0 | draft |
 | BC-2.07.002 | Internal Pagination Token Lifecycle — Forward Progress, Timeout, and Cleanup | 07 - Adapter Pagination & Response Cache | CAP-011 | P0 | draft |
 | BC-2.07.003 | Query Engine Sensor-Fetch Cache with Configurable TTL | 07 - Adapter Pagination & Response Cache | CAP-014 | P1 | draft |
@@ -375,6 +375,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v5.52 (2026-05-26, D-825 post-merge burst):** state-manager | POL-14 BC auto-promotion: BC-2.06.012/013/014/015/016 promoted draft→active per PR #155 S-CONFIG-MULTI-TENANT-OVERRIDE-001 merge at develop@3e822522 2026-05-26T19:01:58Z. active_contracts 231→236, draft_contracts 7→2 (BC-2.06.011 + BC-2.21.001 remain draft). BC-INDEX v5.51→v5.52.
 
 **v5.51 (2026-05-24, D-815 fix-burst-7 closure burst):** state-manager | BC-2.06.016 v1.2→v1.3 (F-LP6-LOW-002 closed by PO dispatch 455f9fbb: EC-016-003 amended to specify "each from a DIFFERENT overlay file or directory" and explain structural vs semantic code segregation; EC-016-005 added for within-file structural-suppresses-semantic boundary — `validate_overlay_toml` early-return in `prism-spec-engine/src/overlay.rs` prevents E-SPEC-019/020 when E-SPEC-021/023 fires on same file; INV-ERR-003 expanded with cross-file aggregation vs within-file suppression description per BC-2.06.016 v1.3 changelog). F-LP6-LOW-001 closed by implementer dispatch d600f7f4: `e_spec_022_unknown_org_slug` + `make_e_spec_023_unrecognized_field` doc-comments in overlay.rs replaced paraphrased templates with forward-pointers (sibling-sweep completion; fix-burst-6 covered `make_e_spec_019_unknown_extends` + `make_e_spec_020_instance_id_mismatch` + `make_e_spec_021_tables_in_overlay`; fix-burst-7 covers remaining 2 sites). F-LP6-MED-001 + F-LP6-MED-002 corrective: s-config-fix-burst-6.md F-LP5-LOW-001 closure section rewritten with byte-quoted function names from overlay.rs source; lessons.md entry 41 bullets (1)+(2) rewritten with byte-quoted text from BC-2.06.013 v1.1 changelog. Lessons entry 43 [process-gap]: meta-violation of lesson 42 inside its own codification burst. BC-INDEX v5.50→v5.51.
 

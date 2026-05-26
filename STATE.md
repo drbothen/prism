@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.511"
+version: "7.512"
 producer: state-manager
-timestamp: 2026-05-25T04:00:00Z
+timestamp: 2026-05-26T19:30:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -16,8 +16,11 @@ repos: [poller-cobra, poller-express, poller-bear, poller-coaster, serveMyAPI, t
 safe_to_compact: true
 pre_compact_snapshot: "SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-23-PATH-C-DUAL-WORKTREE"
 pre_compact_snapshot_at: "2026-05-23 (D-808 ADR-029 ACCEPTED; Path C dual-worktree parallel implementation locked; state-final for /clear-resume)"
-current_step: "D-824 pre-restart durable checkpoint (2026-05-25). PR #154: Semver fix committed aaf1b95c (explicit impl UnwindSafe for InfusionLruCache; root cause: parking_lot::Mutex via prism-credentials feature union). just check PASSED (exit 0). NOT pushed — lefthook pre-push triggers syspolicyd CPU saturation (macOS Gatekeeper scanning unsigned test binaries). PR #155: pass-1-redux complete (security 7 findings on disk; pr-reviewer 14 findings on disk; adversary 12 findings INLINE ONLY — not persisted to disk). Implementer fix-burst NOT dispatched. BLOCKING: syspolicyd investigation — iTerm needs Developer Tools toggle in System Settings. STATE v7.510→v7.511."
-s_config_status: "PR-LEVEL pass-1 COMPLETE; CI GREEN at 515fdc2e; user authorized Option A strict fix-burst; NEXT: dispatch implementer for consolidated fix-burst (1 CRIT + 2 HIGH + 6 MED + 5 LOW + 3 OBS across 3 reviewers); LOCAL cascade: OPTION B EXIT CONVERGED"
+current_step: "D-825 post-merge burst — PR #154 PLUGIN-MIGRATION-001-E MERGED at develop@6bf3f659 2026-05-26T05:06:14Z + PR #155 S-CONFIG-MULTI-TENANT-OVERRIDE-001 MERGED at develop@3e822522 2026-05-26T19:01:58Z. Both 3-CLEAN strict converged per BC-5.39.001. Worktrees cleaned. NEXT: context-clear → PLUGIN-MIGRATION-001-A delivery."
+s_config_status: "MERGED via PR #155 develop@3e822522 2026-05-26T19:01:58Z"
+s_config_merged_via_pr: 155
+s_config_merged_via_sha: "3e822522"
+s_config_merged_at: "2026-05-26T19:01:58Z"
 s_config_converged_at_pass: 13
 s_config_converged_at: "2026-05-24"
 s_config_local_total_findings_closed: 25
@@ -28,7 +31,7 @@ pr_155_pr_number: 155
 pr_155_url: "https://github.com/drbothen/prism/pull/155"
 pr_155_feature_head: "515fdc2e"
 pr_155_remote_pushed_at: "2026-05-24 ~15:35 CDT"
-pr_155_ci_status: "GREEN — all 36 jobs pass on 515fdc2e"
+pr_155_ci_status: "38/38 GREEN — MERGED"
 pr_155_pr_level_adversary_pass_count: 1
 pr_155_pr_level_adversary_status: "pass-1: 2 findings (1 LOW fixture sync + 1 OBS EC-016-005 untested); CLEAN(PR-merge)=YES per adversary — BUT security contradicted at deeper layer (SEC-001 CRIT missed by adversary)"
 pr_155_pr_level_security_critical_findings: "SEC-001 CRIT: base_url NO-OP at adapter layer — multi-tenant routing functionally inert (same paper-fix class as F-LP2-CRIT-001 + PR #154 SEC-001). security caught what adversary missed."
@@ -43,7 +46,10 @@ pr_155_cross_reviewer_asymmetry_lesson: "lesson 50 — adversary verified plumbi
 pending_design_decision_research_artifact: ".factory/research/multi-tenant-sensor-endpoint-overrides-2026-05-23.md"
 pending_design_decision_topic: "multi-tenant per-org sensor endpoint overrides"
 plugin_migration_001_e_local_adversary_passes: 12
-plugin_migration_001_e_status: "PR-LEVEL fix-burst COMMITTED at a759d2b0; pushed to origin 2026-05-24; CI re-running. NEXT: wait for CI green then dispatch PR-LEVEL adversary pass 2 + pr-reviewer pass 2 + security pass 2."
+plugin_migration_001_e_status: "MERGED via PR #154 develop@6bf3f659 2026-05-26T05:06:14Z"
+plugin_migration_001_e_merged_via_pr: 154
+plugin_migration_001_e_merged_via_sha: "6bf3f659"
+plugin_migration_001_e_merged_at: "2026-05-26T05:06:14Z"
 plugin_migration_001_e_local_fix_bursts: 8
 plugin_migration_001_e_local_findings_closed: 55
 plugin_migration_001_e_local_adversary_clean_streak: 3
@@ -62,8 +68,7 @@ pr_154_pr_level_security_findings_detail: "SEC-001 CRIT + 4 others (1 HIGH + 2 M
 pr_154_pr_level_pr_reviewer_findings_total: 15
 pr_154_pr_level_pr_reviewer_findings_detail: "15 findings closed in fix-burst at a759d2b0 (included ADR-028 §D11 Option C credential substitution — architect adjudication committed at factory-artifacts dced2268)"
 pr_154_adr_028_d11_option_c: "COMMITTED at factory-artifacts dced2268 — host resolves credential_handle via prism_credentials::resolve_credential before dispatch_plugin_acquire_token"
-pr_154_ci_status: "NOT PUSHED — blocked on syspolicyd investigation; just check passed locally"
-pr_154_open_dispatches: "1) resolve syspolicyd (iTerm Developer Tools toggle); 2) push aaf1b95c to origin; 3) wait for CI green; 4) dispatch PR-LEVEL adversary pass 2 + pr-reviewer pass 2 + security pass 2 (fresh 3-CLEAN streak begins)"
+pr_154_ci_status: "38/38 GREEN — MERGED"
 plugin_migration_001_d_red_gate_verified_at: 2026-05-21T20:15:00Z
 plugin_migration_001_d_tdd_green_at: 2026-05-21T21:29:04Z
 plugin_migration_001_d_feature_branch_head: "55b4f72d"
@@ -80,7 +85,7 @@ feature_branch_head: "merged to 80ebe794 at 2026-05-19 (PR #151) — a4c048ce wa
 pr_level_adversary_streak: "3/3 CONVERGED per BC-5.39.001 — passes 2/3/4 all CLEAN; PR #151 merged 2026-05-19; D-716 Option A standing satisfied"
 pr_level_adversary_pass_count: 4
 feature_branch_remote_status: "deleted (squash-merged to develop@80ebe794; remote branch feature/S-PLUGIN-PREREQ-E removed by GitHub)"
-worktree_status: "S-PLUGIN-PREREQ-E + maintenance-post-PREREQ-E + PLUGIN-MIGRATION-001-D worktrees cleaned; active: S-3.09 (FROZEN BUG-S309-PLUGIN) + W3-FIX-S307-001 (BLOCKED — scaffolding preserved at /tmp/prism-W3-FIX-S307-001-scaffolding-diff.patch for PLUGIN-MIGRATION-001-A reference)"
+worktree_status: "PLUGIN-MIGRATION-001-E + S-CONFIG-MULTI-TENANT-OVERRIDE-001 worktrees cleaned post-merge; remaining: S-3.09 (FROZEN BUG-S309-PLUGIN) + W3-FIX-S307-001 (BLOCKED)"
 merged_at: 2026-05-19
 merged_via_pr: 151
 merged_via_sha: 80ebe794
@@ -105,12 +110,12 @@ dtu_clones_built: in_progress
 dtu_strategy: "Option 2 — DTU-first"
 dtu_strategy_decided: 2026-04-20
 policy_registry_source_of_truth: .factory/policies.yaml
-develop_head: "f19575ff"
+develop_head: "3e822522"
 vsdd_factory_version: "1.0.0-rc.18 (re-activated 2026-05-13T15:00:19Z; upgrade chain rc.11 → rc.16 2026-05-10 → rc.18 2026-05-13)"
-workspace_test_count: 3503
+workspace_test_count: 3758
 user_directive_persistent: "No pragmatic convergence. Fix all issues before build."
 current_cycle_history: "wave-0-plugin-prereqs (PREREQ-E merged PR #151 2026-05-19); prior: wave-4-operations (active); wave-3-multi-tenant (COMPLETE)"
-bc_index_version: "5.51"
+bc_index_version: "5.52"
 vp_index_version: "1.76"
 story_index_version: "v2.188"
 plugin_migration_001_d_local_adversary_passes: 25
@@ -154,9 +159,9 @@ historical_cycles: [phase-1-convergence, wave-3-multi-tenant, wave-4-operations]
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-25 (D-824 pre-restart durable checkpoint — PR #154 Semver fix committed aaf1b95c / NOT pushed (syspolicyd blocking); PR #155 pass-1-redux COMPLETE / adversary 12 findings inline-only / implementer fix-burst pending; iTerm2 Developer Tools toggle BLOCKING; STATE v7.510→v7.511) |
-| **Current Phase** | Wave 3 Tier-3 COMPLETE — **Wave 3-A 4 of 4 SHIPPED**; plugin migration: PREREQ-F + PREREQ-A + PREREQ-B + PREREQ-C + PREREQ-D + PREREQ-E + **PLUGIN-MIGRATION-001-D MERGED** (PR #153 3f2de889 2026-05-22T09:05:47Z); ADR-028 §D10 co-merge gate now structurally satisfiable (FB-IMPL-2 wired); production deployment gated on PLUGIN-MIGRATION-001-A |
-| **Current Step** | D-823 /clear-and-resume durable checkpoint — DUAL-STREAM PR-LEVEL work. Stream 1 PR #154: PR-LEVEL fix-burst at a759d2b0 pushed; CI re-running. Stream 2 PR #155: CI GREEN at 515fdc2e; PR-LEVEL pass-1 complete; user authorized Option A strict; fix-burst pending implementer dispatch. Lesson 50 [codified] cross-reviewer asymmetry. STATE v7.509→v7.510. |
+| **Last Updated** | 2026-05-26 (D-825 post-merge burst — PR #154 PLUGIN-MIGRATION-001-E MERGED at develop@6bf3f659 + PR #155 S-CONFIG-MULTI-TENANT-OVERRIDE-001 MERGED at develop@3e822522; both 3-CLEAN strict converged; worktrees cleaned; syspolicyd resolved; STATE v7.511→v7.512) |
+| **Current Phase** | Wave 3 Tier-3 COMPLETE — **Wave 3-A 4 of 4 SHIPPED**; plugin migration: PREREQ-F + PREREQ-A + PREREQ-B + PREREQ-C + PREREQ-D + PREREQ-E + PLUGIN-MIGRATION-001-D + **PLUGIN-MIGRATION-001-E MERGED** (PR #154 6bf3f659 2026-05-26T05:06:14Z) + **S-CONFIG-MULTI-TENANT-OVERRIDE-001 MERGED** (PR #155 3e822522 2026-05-26T19:01:58Z); ADR-028 §D10 co-merge gate SATISFIED; production deployment gated on PLUGIN-MIGRATION-001-A |
+| **Current Step** | D-825 post-merge burst — BOTH PRs MERGED. PR #154 PLUGIN-MIGRATION-001-E: 4 PR-LEVEL passes, 3 fix-bursts, adversary passes 2/3/4 CLEAN(strict), 38/38 CI GREEN, merged develop@6bf3f659. PR #155 S-CONFIG-MULTI-TENANT-OVERRIDE-001: 9 PR-LEVEL passes, 7 fix-bursts, adversary passes 7/8/9 CLEAN(strict), 38/38 CI GREEN, merged develop@3e822522. POL-14: BC-2.06.012–016 promoted draft→active. Worktrees cleaned. NEXT: PLUGIN-MIGRATION-001-A. |
 
 ## Phase Progress
 
@@ -176,6 +181,8 @@ historical_cycles: [phase-1-convergence, wave-3-multi-tenant, wave-4-operations]
 | 3: PLUGIN-PREREQ-A through D | COMPLETE | 2026-05-10 | 2026-05-15 | PRs #143/#144/#146/#149 | PREREQ-A/B/C/D MERGED; develop@ec90fe8f |
 | **3: S-PLUGIN-PREREQ-E** | **MERGED** | 2026-05-16 | 2026-05-19 | PR #151 develop@80ebe794 | LOCAL 16 passes 3-CLEAN CONVERGED; PR-LEVEL 4 passes 3-CLEAN CONVERGED |
 | **3: PLUGIN-MIGRATION-001-D** | **MERGED** | 2026-05-21 | 2026-05-22 | PR #153 develop@3f2de889 | LOCAL 25 passes 3-CLEAN CONVERGED (per USER OPTION B); TDD GREEN 3724 tests; PR-LEVEL CONVERGED; 13/13 ACs demo-evidenced |
+| **3: PLUGIN-MIGRATION-001-E** | **MERGED** | 2026-05-23 | 2026-05-26 | PR #154 develop@6bf3f659 | LOCAL 12 passes 3-CLEAN CONVERGED; PR-LEVEL 4 passes (3 fix-bursts); adversary 2/3/4 CLEAN(strict); 38/38 CI GREEN |
+| **3: S-CONFIG-MULTI-TENANT-OVERRIDE-001** | **MERGED** | 2026-05-23 | 2026-05-26 | PR #155 develop@3e822522 | LOCAL 13 passes OPTION B EXIT; PR-LEVEL 9 passes (7 fix-bursts); adversary 7/8/9 CLEAN(strict); 38/38 CI GREEN; ADR-029 ACCEPTED |
 
 ## Current Phase Steps
 
@@ -184,12 +191,10 @@ historical_cycles: [phase-1-convergence, wave-3-multi-tenant, wave-4-operations]
 | Step | Agent | Status | Output |
 |------|-------|--------|--------|
 _D-735 and earlier archived to cycles/wave-0-plugin-prereqs/burst-log.md. D-736..D-748 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-748 archived D-776 burst 2026-05-22). D-749..D-755 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-777 burst 2026-05-22). D-756..D-757 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-778/D-779 bursts 2026-05-22). D-758..D-759 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-780 burst 2026-05-22). D-759 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-781 burst 2026-05-22). D-777 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-782 burst 2026-05-22). D-778 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-783 burst 2026-05-22). D-779 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-784 burst 2026-05-22). D-780 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-785 burst 2026-05-22). D-781 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-786 burst 2026-05-22). D-786 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-787 burst 2026-05-22). D-782..D-784 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-790 burst 2026-05-22). D-785 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-809 burst 2026-05-23). D-787 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-810 burst 2026-05-24). D-788 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-811 burst 2026-05-24). D-789 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-812 burst 2026-05-24). D-790..D-812 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-816 burst 2026-05-24). D-812 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-817 burst 2026-05-24)._
-_D-819 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-820 burst 2026-05-24). D-820 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-821 burst 2026-05-24). D-821 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-822 burst 2026-05-24). D-816 + D-817 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-824 burst 2026-05-25)._
-| D-824 — **Pre-restart durable checkpoint (TD-VSDD-053 single-commit).** PR #154 PLUGIN-MIGRATION-001-E: Semver fix committed at aaf1b95c (explicit `impl UnwindSafe` for `InfusionLruCache`; root cause: `parking_lot::Mutex` via prism-credentials tokio feature union flipping workspace feature unification). `just check` PASSED (exit 0). NOT PUSHED — lefthook pre-push triggers `syspolicyd` CPU saturation (543% CPU; macOS Gatekeeper scanning ~3700 unsigned test binaries spawned by cargo-nextest). BLOCKING ISSUE: iTerm2 must be added to System Settings → Privacy & Security → Developer Tools to exempt test binaries from Gatekeeper scanning. `spctl developer-mode enable-terminal` was run (adds Terminal.app) but iTerm2 requires separate UI toggle. PR #155 S-CONFIG-MULTI-TENANT-OVERRIDE-001: pass-1-redux COMPLETE — 3 reviewers ran fresh-context against 515fdc2e. Security (7 findings) written to `cycles/wave-0-plugin-prereqs/S-CONFIG-pr-pass-1-redux-security.md`. PR-reviewer (14 findings) written to `cycles/wave-0-plugin-prereqs/S-CONFIG-pr-pass-1-redux-pr-reviewer.md`. Adversary (12 findings: 1 CRIT + 3 HIGH + 3 MED + 5 LOW) returned INLINE — NOT persisted to disk (adversary tool profile denied Write). Implementer fix-burst NOT YET dispatched. Cargo target cleanup: 52.4 GB freed (W3-FIX-S307-001 10G + main repo 37G). STATE v7.510→v7.511. | state-manager (D-824 pre-restart) | CHECKPOINT COMMITTED | NEXT: (1) Add iTerm2 to Developer Tools; (2) push PR #154; (3) persist adversary review + dispatch implementer for PR #155. |
-| D-823 — **/clear-and-resume durable checkpoint — DUAL-STREAM PR-LEVEL work (TD-VSDD-053 single-commit).** PR #154 PLUGIN-MIGRATION-001-E: PR-LEVEL fix-burst committed at a759d2b0 + pushed to origin; CI re-running; pass-1 findings: 1 HIGH (F-PR154-P1-HIGH-001 Component Model dispatch ABI) + 1 MED + 1 LOW (adversary); 5 findings (SEC-001 CRIT + 1 HIGH + 2 MED + 1 OBS — security); 15 findings (pr-reviewer); ALL closed in fix-burst. ADR-028 §D11 Option C committed at factory-artifacts dced2268. PR #155 S-CONFIG-MULTI-TENANT-OVERRIDE-001: feature HEAD 515fdc2e; CI GREEN (all 36 jobs); PR-LEVEL pass-1 complete; consolidated findings = 1 CRIT (SEC-001 base_url NO-OP at adapter layer) + 2 HIGH + 6 MED + 5 LOW + 3 OBS across 3 reviewers; user authorized Option A strict fix-burst. Lesson 50 [process-gap] [codified]: cross-reviewer finding asymmetry — PR-LEVEL adversary verified plumbing-to-input but NOT adapter-internal consumption; security caught SEC-001 at deeper adapter layer; recurring class with F-LP2-CRIT-001 + PR #154 + PR #155. convergence-trajectory.md PR-LEVEL pass-1 entries for both streams appended. SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-24-CLEAR-CHECKPOINT-BOTH-PRS appended. STATE v7.509→v7.510.** | state-manager (D-823 /clear checkpoint) | CHECKPOINT COMMITTED | NEXT: (1) PR #154 — monitor CI on a759d2b0; on green dispatch pass 2 reviewers; (2) PR #155 — dispatch implementer consolidated fix-burst. |
-| D-822 — **S-CONFIG-MULTI-TENANT-OVERRIDE-001 OPTION B EXIT — CASCADE CONVERGED (TD-VSDD-053 single-commit). Pass-13 CLEAN(PR-merge)=YES: 0 CRIT + 0 HIGH + 0 MED + 0 LOW + 3 OBS (F-LP13-OBS-001/002/003 all META bookkeeping axis-15 candidates). 3 consecutive CLEAN(PR-merge) passes (11, 12, 13) achieved. Feature HEAD d600f7f4 stable since pass-8. User authorized Option B exit per BC-5.39.001 D-779 disambiguation. 13 passes / 13 fix-bursts / 25 findings closed (2 CRIT + 2 HIGH + 9 MED + 8 LOW). 15 META axes → S-MAINT-POL29-HOOK-001. s-config-pass-13.md + s-config-option-b-exit.md archived. Lesson 49 [process-gap] [codified]: User Option B exit precedent — adversarial cascade convergence at CLEAN(PR-merge) when META asymptote empirically confirmed. convergence-trajectory.md §Cascade Status (Total passes 12→13, CASCADE STATUS → CONVERGED); §Trajectory pass-13 + OPTION B EXIT rows appended; §Fix-burst Log Option B exit row appended. STATE v7.508→v7.509.** | state-manager (Option B exit + D-822) | OPTION B EXIT — CASCADE CONVERGED | NEXT: demo-recorder per-AC evidence for all 7 ACs + push + pr-manager 9-step lifecycle. |
-| D-819 — **S-CONFIG fix-burst-11 close F-LP10-MED-001 + OBS-LP10-001 (TD-VSDD-053 single-commit). lessons.md lesson 44 `_Discovered:_` footer moved to canonical position (after lesson 44 body, before D-818 section header — 6th-gen within-artifact recurrence). Lesson 45 scope extended: axes b (lesson-entry section structure) + c (arithmetic-claim verification) added. Lesson 46 [process-gap] [codified] under `## 2026-05-24 D-819`. fix-burst-10.md line 75 arithmetic-claim corrected: 4 hits → 6 hits (lines 335/339/359/360/361/375). convergence-trajectory.md §Cascade Status (Total passes 9→10, Total fix-bursts 10→11, Cumulative findings 22→23, Feature HEAD fix-burst-9→fix-burst-11); §Trajectory pass-10 + fix-burst-11 rows appended; §Fix-burst Log fix-burst-11 row appended. s-config-pass-10.md + s-config-fix-burst-11.md archived. Pre-commit whole-artifact + structural sibling-sweep PASS. STATE v7.505→v7.506.** | state-manager (fix-burst-11 closure) | FIX-BURST-11 CLOSED | PASS-11 BLOCKED (2 OBS). |
-| D-818 — **S-CONFIG fix-burst-10 close F-LP9-MED-001 (within-artifact sibling-sweep corrective, TD-VSDD-053 single-commit). convergence-trajectory.md §Cascade Status table (4 stale rows: fix-burst-8→fix-burst-9, Total passes 7→9, Total fix-bursts 8→10, Cumulative findings closed 20→22); §Fix-burst Log (fix-burst-9 + fix-burst-10 rows appended); §Trajectory (pass-9 + fix-burst-10 rows appended). Mandatory whole-artifact grep sweep: all stale values absent, all new values present, cross-table counts consistent. s-config-pass-9.md + s-config-fix-burst-10.md archived. Lesson 45 [process-gap] [codified]. STATE v7.504→v7.505.** | state-manager (fix-burst-10 closure) | FIX-BURST-10 CLOSED | NEXT: LOCAL adversary pass-10 (streak attempt 0/3→1/3). |
+_D-819 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-820 burst 2026-05-24). D-820 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-821 burst 2026-05-24). D-821 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-822 burst 2026-05-24). D-816 + D-817 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-824 burst 2026-05-25). D-818 + D-819 + D-822 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-825 burst 2026-05-26)._
+| D-825 — **Post-merge burst — BOTH PRs MERGED (TD-VSDD-053 single-commit).** PR #154 PLUGIN-MIGRATION-001-E MERGED at develop@6bf3f659 (2026-05-26T05:06Z): 4 PR-LEVEL passes, 3 fix-bursts (Semver UnwindSafe fix aaf1b95c, cargo-deny publish=false c2ff150e, SEC-008 SecretString 63f95759); adversary passes 2/3/4 CLEAN(strict); 38/38 CI GREEN. PR #155 S-CONFIG-MULTI-TENANT-OVERRIDE-001 MERGED at develop@3e822522 (2026-05-26T19:01Z): 9 PR-LEVEL passes, 7 fix-bursts (24-finding Option A strict → sanitize_for_log complete sweep → SecretString); adversary passes 7/8/9 CLEAN(strict); security passes 6/7/8 CLEAN; pr-reviewer passes 5/6/7/8 CLEAN; 38/38 CI GREEN. POL-14: BC-2.06.012–016 promoted draft→active (BC-INDEX v5.51→v5.52; active 231→236, draft 7→2). Worktrees cleaned. syspolicyd resolved (spctl --global-disable). 52.4 GB target cleanup. develop HEAD: 3e822522. workspace_test_count: 3758. STATE v7.511→v7.512. | state-manager (D-825 post-merge) | BOTH MERGED | NEXT: context-clear → PLUGIN-MIGRATION-001-A delivery. |
+| D-824 — **Pre-restart durable checkpoint (TD-VSDD-053 single-commit).** PR #154 PLUGIN-MIGRATION-001-E: Semver fix committed at aaf1b95c (explicit `impl UnwindSafe` for `InfusionLruCache`; root cause: `parking_lot::Mutex` via prism-credentials tokio feature union). `just check` PASSED (exit 0). NOT PUSHED — lefthook pre-push triggers `syspolicyd` CPU saturation (543% CPU; macOS Gatekeeper scanning ~3700 unsigned test binaries). BLOCKING ISSUE: iTerm2 must be added to System Settings → Privacy & Security → Developer Tools. `spctl developer-mode enable-terminal` was run (adds Terminal.app) but iTerm2 requires separate UI toggle. PR #155: pass-1-redux COMPLETE — security (7 findings) + PR-reviewer (14 findings) written to disk; adversary (12 findings) returned INLINE only. Implementer fix-burst NOT YET dispatched. Cargo target cleanup: 52.4 GB freed. STATE v7.510→v7.511. | state-manager (D-824 pre-restart) | CHECKPOINT COMMITTED | RESOLVED — both PRs merged at D-825. |
+| D-823 — **/clear-and-resume durable checkpoint — DUAL-STREAM PR-LEVEL work (TD-VSDD-053 single-commit).** PR #154: PR-LEVEL fix-burst at a759d2b0 pushed; pass-1 findings ALL closed (23 total: adversary 1H+1M+1L, security 1C+1H+2M+1OBS, pr-reviewer 15). ADR-028 §D11 Option C at factory-artifacts dced2268. PR #155: CI GREEN at 515fdc2e; pass-1 consolidated 1 CRIT + 2 HIGH + 6 MED + 5 LOW + 3 OBS; SEC-001 = base_url NO-OP; user authorized Option A strict. Lesson 50 [codified] cross-reviewer asymmetry. STATE v7.509→v7.510. | state-manager (D-823 /clear checkpoint) | CHECKPOINT COMMITTED | RESOLVED — both PRs merged at D-825. |
 
 
 ## Decisions Log
@@ -198,6 +203,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-825 | 2026-05-26 | **Post-merge burst — BOTH PRs MERGED (TD-VSDD-053 single-commit).** PR #154 PLUGIN-MIGRATION-001-E squash-merged to develop@6bf3f659 (2026-05-26T05:06:14Z): CrowdStrike OAuth2 refresh-on-401 PRX WASM plugin; 4 PR-LEVEL passes; 3 fix-bursts (Semver UnwindSafe, cargo-deny publish=false, SEC-008 SecretString); adversary passes 2/3/4 CLEAN(strict); 38/38 CI GREEN. PR #155 S-CONFIG-MULTI-TENANT-OVERRIDE-001 merge-committed to develop@3e822522 (2026-05-26T19:01:58Z): per-org sensor endpoint overlay loading per ADR-029; 9 PR-LEVEL passes; 7 fix-bursts; adversary passes 7/8/9 CLEAN(strict); security passes 6/7/8 CLEAN; pr-reviewer passes 5/6/7/8 CLEAN; 38/38 CI GREEN (after protoc 404 transient re-run); required merge conflict resolution with PR #154. POL-14 BC auto-promotions: BC-2.06.012/013/014/015/016 promoted draft→active (BC-INDEX v5.51→v5.52; active_contracts 231→236, draft_contracts 7→2). Worktrees cleaned. syspolicyd resolved via `sudo spctl --global-disable` (Gatekeeper disabled; Dev Tools toggle insufficient for tmux-launched Claude). 52.4 GB cargo target cleanup. develop HEAD: 3e822522. workspace_test_count: 3758. SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-26-BOTH-PRS-MERGED appended. STATE v7.511→v7.512. NEXT: PLUGIN-MIGRATION-001-A (all deps satisfied: PREREQ-A through E, 001-D, 001-E, S-CONFIG all merged). | state-manager (D-825 post-merge burst) |
 | D-824 | 2026-05-25 | **Pre-restart durable checkpoint (TD-VSDD-053 single-commit). Pipeline work paused for syspolicyd investigation.** PR #154 PLUGIN-MIGRATION-001-E: Semver fix committed at aaf1b95c (explicit `impl UnwindSafe` for `InfusionLruCache`; root cause: `parking_lot::Mutex` via prism-credentials tokio feature union flipping workspace feature unification). `just check` PASSED (exit 0). NOT PUSHED — lefthook pre-push triggers `syspolicyd` CPU saturation (543% CPU; macOS Gatekeeper scanning ~3700 unsigned test binaries). FIX: System Settings → Privacy & Security → Developer Tools → toggle ON for iTerm2. PR #155 S-CONFIG-MULTI-TENANT-OVERRIDE-001: pass-1-redux COMPLETE — 3 fresh-context reviewers ran against 515fdc2e. Security (7 findings) written to `cycles/wave-0-plugin-prereqs/S-CONFIG-pr-pass-1-redux-security.md`. PR-reviewer (14 findings) written to `cycles/wave-0-plugin-prereqs/S-CONFIG-pr-pass-1-redux-pr-reviewer.md`. Adversary (12 findings: 1 CRIT + 3 HIGH + 3 MED + 5 LOW) returned INLINE — NOT persisted to disk (adversary tool profile denied Write). Implementer fix-burst NOT dispatched. Cargo target cleanup: 52.4 GB freed (W3-FIX-S307-001 10G + main repo 37G). SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-25-PRE-RESTART-SYSPOLICYD appended. STATE v7.510→v7.511. | state-manager (D-824 pre-restart checkpoint) |
 | D-823 | 2026-05-24 | **Durable /clear-and-resume checkpoint (TD-VSDD-053 single-commit). Dual-stream PR-LEVEL work captured.** Stream 1 PR #154 PLUGIN-MIGRATION-001-E: feature HEAD a759d2b0 pushed to origin; PR-LEVEL pass-1 complete — 3+5+15=23 total findings across adversary (1H+1M+1L) + security (1C+1H+2M+1OBS) + pr-reviewer (15); ALL closed in fix-burst at a759d2b0; ADR-028 §D11 Option C committed at factory-artifacts dced2268; CI re-running; NEXT = wait for CI green then dispatch pass 2 reviewers. Stream 2 PR #155 S-CONFIG-MULTI-TENANT-OVERRIDE-001: feature HEAD 515fdc2e; CI GREEN (36/36); PR-LEVEL pass-1 complete — consolidated 1 CRIT + 2 HIGH + 6 MED + 5 LOW + 3 OBS across 3 reviewers; user authorized Option A strict fix-burst; SEC-001 = base_url NO-OP at adapter layer (multi-tenant routing functionally inert — same paper-fix class as F-LP2-CRIT-001 + PR #154 SEC-001); adversary missed SEC-001 (verified plumbing-to-input only; security caught adapter-internal consumption gap at deeper layer); NEXT = dispatch implementer consolidated fix-burst. Lesson 50 [process-gap] [codified]: cross-reviewer finding asymmetry — PR-LEVEL adversary scope must include "verify production consumer of injected value READS it", not just "verify value is injected". Recurring class: F-LP2-CRIT-001 + PR #154 SEC-001 + PR #155 SEC-001 + HIGH-001. SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-24-CLEAR-CHECKPOINT-BOTH-PRS appended. convergence-trajectory.md PR-LEVEL pass-1 entries for both streams appended. STATE v7.509→v7.510. | state-manager (D-823 durable checkpoint) |
 | D-822 | 2026-05-24 | **S-CONFIG-MULTI-TENANT-OVERRIDE-001 LOCAL adversary cascade CONVERGED via USER OPTION B EXIT — pass-13 CLEAN(PR-merge)=YES (3 consecutive CLEAN(PR-merge): passes 11+12+13); 13 passes / 13 fix-bursts / 25 findings closed (2 CRIT + 2 HIGH + 9 MED + 8 LOW); 15 META axes → S-MAINT-POL29-HOOK-001; F-LP13-OBS-001/002/003 + axis-15 candidate carried forward per Canonical Principle Rule 3; lesson 49 [process-gap] [codified]; TD-VSDD-053 single-commit.** User authorized Option B exit per BC-5.39.001 D-779 PR-merge disambiguation: (1) feature HEAD d600f7f4 unchanged for 5+ passes; (2) 3 consecutive CLEAN(PR-merge) achieved; (3) remaining findings are bookkeeping META-class only (zero semantic/runtime risk); (4) CLAUDE.md Boundaries clause — production-grade default satisfied; (5) 15 META axes have registered forward anchor S-MAINT-POL29-HOOK-001 per Canonical Principle Rule 3. Cascade summary: pass-1 baseline → passes 2–7 real implementation defects (2 CRIT + 2 HIGH + 9 MED + 8 LOW closed) → passes 8–10 LOW/MED bookkeeping meta-gaps → passes 11–13 OBS-only META bookkeeping (3 consecutive CLEAN(PR-merge)). cycle-artifacts: s-config-pass-13.md + s-config-option-b-exit.md archived. convergence-trajectory.md §Cascade Status (Total passes 12→13, STATUS → CONVERGED); §Trajectory pass-13 + OPTION B EXIT rows appended; §Fix-burst Log Option B exit row appended. STATE v7.508→v7.509. NEXT: demo-recorder per-AC evidence for all 7 ACs, then push, then pr-manager 9-step lifecycle. | state-manager (User Option B exit authorization) |
@@ -362,36 +368,35 @@ Prior cycle history:
 
 ---
 
-## Session Resume Checkpoint (2026-05-24 — D-823 /clear-and-resume durable checkpoint; dual-stream PR-LEVEL)
+## Session Resume Checkpoint (2026-05-26 — D-825 post-merge burst; both PRs merged)
 
-_Previous checkpoint (D-808 ADR-029 ACCEPTED; Path C dual-worktree locked) archived: [cycles/wave-0-plugin-prereqs/session-checkpoints.md](cycles/wave-0-plugin-prereqs/session-checkpoints.md)_
+_Previous checkpoint (D-823 /clear-and-resume durable checkpoint; dual-stream PR-LEVEL) archived: [cycles/wave-0-plugin-prereqs/session-checkpoints.md](cycles/wave-0-plugin-prereqs/session-checkpoints.md)_
 
-**STATE v7.510. D-823 durable /clear-and-resume checkpoint — both PRs at distinct phases.** safe_to_compact=false.
+**STATE v7.512. D-825 post-merge burst — both PRs merged, PLUGIN-MIGRATION-001-A unblocked.**
 
-**Stream 1 — PR #154 PLUGIN-MIGRATION-001-E:**
-- Feature HEAD: `a759d2b0` (PR-LEVEL fix-burst; pushed to origin 2026-05-24)
-- PR URL: https://github.com/drbothen/prism/pull/154
-- PR-LEVEL pass-1: 3+5+15=23 findings ALL closed in fix-burst. ADR-028 §D11 Option C: `dced2268`
-- CI status: PENDING (re-running on a759d2b0)
-- NEXT: wait for CI green; then dispatch PR-LEVEL adversary pass 2 + pr-reviewer pass 2 + security pass 2
+**What merged this session:**
+- PR #154 PLUGIN-MIGRATION-001-E: squash-merged develop@6bf3f659 (2026-05-26T05:06:14Z) — CrowdStrike OAuth2 refresh-on-401 PRX WASM plugin; 4 PR-LEVEL passes; 3 fix-bursts; 3-CLEAN strict
+- PR #155 S-CONFIG-MULTI-TENANT-OVERRIDE-001: merge-committed develop@3e822522 (2026-05-26T19:01:58Z) — per-org sensor endpoint overlay loading (ADR-029); 9 PR-LEVEL passes; 7 fix-bursts; 3-CLEAN strict
 
-**Stream 2 — PR #155 S-CONFIG-MULTI-TENANT-OVERRIDE-001:**
-- Feature HEAD: `515fdc2e` (AC-005 fixture CI-portability fix; pushed to origin 2026-05-24)
-- PR URL: https://github.com/drbothen/prism/pull/155
-- CI status: GREEN (36/36 jobs)
-- PR-LEVEL pass-1 complete: 1 CRIT + 2 HIGH + 6 MED + 5 LOW + 3 OBS (consolidated across 3 reviewers)
-- KEY: SEC-001 CRIT = base_url NO-OP at adapter layer (multi-tenant routing functionally inert)
-- User authorized Option A strict fix-burst
-- NEXT: dispatch implementer for consolidated fix-burst; then push + pass 2 reviewers
+**develop HEAD:** `3e822522`
 
-**Critical cross-stream lesson:**
-- Lesson 50 [codified]: adversary missed SEC-001 because it verified plumbing-to-input but not adapter-internal consumption. Security caught it. Recurring paper-fix class: F-LP2-CRIT-001, PR #154 SEC-001, PR #155 SEC-001+HIGH-001. PR-LEVEL adversary MUST include: "verify production consumer of injected value READS it."
+**Remaining worktrees:**
+- `.worktrees/S-3.09` — FROZEN (BUG-S309-PLUGIN)
+- `.worktrees/W3-FIX-S307-001` — BLOCKED
 
-**Next actions on resume:**
-1. Read SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-24-CLEAR-CHECKPOINT-BOTH-PRS (full detail)
+**PLUGIN-MIGRATION-001-A status:** UNBLOCKED — all dependencies satisfied:
+- PREREQ-A (PR #143), PREREQ-B (PR #144), PREREQ-C (PR #146), PREREQ-D (PR #149), PREREQ-E (PR #151) — all MERGED
+- PLUGIN-MIGRATION-001-D (PR #153) — MERGED
+- PLUGIN-MIGRATION-001-E (PR #154) — MERGED (ADR-028 §D10 co-merge gate SATISFIED)
+- S-CONFIG-MULTI-TENANT-OVERRIDE-001 (PR #155) — MERGED
+
+**Story spec:** `/Users/jmagady/Dev/prism/.factory/stories/PLUGIN-MIGRATION-001-A-*.md`
+
+**Resume protocol (5 steps):**
+1. Read SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-26-BOTH-PRS-MERGED
 2. Run `vsdd-factory:factory-worktree-health` (BLOCKING preflight)
-3. Check PR #154 CI status on a759d2b0 — if green, dispatch pass 2 reviewers; if not, monitor
-4. Dispatch PR #155 implementer consolidated fix-burst per Option A strict (1C+2H+6M+5L+3OBS)
-5. Both streams are independent; run in parallel
+3. Read STATE.md frontmatter (v7.512) + PLUGIN-MIGRATION-001-A story spec
+4. Dispatch `vsdd-factory:deliver-story` for PLUGIN-MIGRATION-001-A
+5. Per-story workflow: stubs → failing tests → TDD green → LOCAL adversary 3-CLEAN → demo-recorder → push → pr-manager 9-step → post-merge D-NNN burst
 
 _Agent routing: see CLAUDE.md §Agent Routing Table._

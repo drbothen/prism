@@ -7270,3 +7270,133 @@ The adversary agent returned findings inline but could not Write files per its t
 5. **Stream 2:** Persist adversary review (re-dispatch or from context) → dispatch implementer → push → pass-2 reviewers
 
 _Session terminus: 2026-05-25. Pre-restart checkpoint. syspolicyd investigation in progress._
+
+## §RESUME SNAPSHOT 2026-05-26-BOTH-PRS-MERGED (D-825)
+
+**Purpose:** Post-merge context-clear handoff. Both PR #154 (PLUGIN-MIGRATION-001-E) and PR #155 (S-CONFIG-MULTI-TENANT-OVERRIDE-001) merged to develop. PLUGIN-MIGRATION-001-A is now fully unblocked. Supersedes §RESUME SNAPSHOT 2026-05-25-PRE-RESTART-SYSPOLICYD as the most-recent durable checkpoint.
+
+---
+
+### §1. Session Summary — What Happened (2026-05-25/26)
+
+**macOS syspolicyd resolution:** Gatekeeper disabled via `sudo spctl --global-disable`. The Developer Tools toggle in System Settings was insufficient because Claude runs under tmux (not iTerm2 directly). `spctl --global-disable` is the authoritative fix. 85× CPU reduction confirmed (syspolicyd dropped from ~500% to ~6%).
+
+**Cargo target cleanup:** 52.4 GB freed (W3-FIX-S307-001 target: 10 GB, main repo target: 37 GB, additional workspace cleanup: 5.4 GB). Both active worktree targets (PLUGIN-MIGRATION-001-E and S-CONFIG) were preserved during delivery but cleaned post-merge.
+
+**Build optimization research:** research-agent completed multi-tenant sensor endpoint overrides research artifact at `.factory/research/multi-tenant-sensor-endpoint-overrides-2026-05-23.md`.
+
+---
+
+### §2. PR #154 — PLUGIN-MIGRATION-001-E — MERGED
+
+| Field | Value |
+|-------|-------|
+| PR URL | https://github.com/drbothen/prism/pull/154 |
+| Squash-merge SHA | `6bf3f659` |
+| Merged at | 2026-05-26T05:06:14Z |
+| develop HEAD after | `6bf3f659` |
+| CI | 38/38 GREEN |
+| PR-LEVEL passes | 4 |
+| PR-LEVEL fix-bursts | 3 |
+| 3-CLEAN strict streak | passes 2/3/4 |
+
+**PR-LEVEL fix-bursts summary:**
+1. Pass-1 fix-burst at `a759d2b0`: closed 23 findings (adversary 1H+1M+1L; security 1C+1H+2M+1OBS; pr-reviewer 15). ADR-028 §D11 Option C committed at factory-artifacts `dced2268`.
+2. Semver fix at `aaf1b95c`: explicit `impl UnwindSafe for InfusionLruCache`. Root cause: `parking_lot::Mutex` via prism-credentials tokio feature union flipped workspace feature unification; `parking_lot::Mutex` is not UnwindSafe. `cargo semver-checks`: 192/192 pass.
+3. Cargo-deny fix at `c2ff150e`: `publish = false` added to crowdstrike-oauth2 plugin manifest.
+4. SEC-008 fix at `63f95759`: `SecretString` wrapper for OAuth2 access tokens (prevents credential leakage in Debug output).
+
+**ADR-028 §D10 co-merge gate:** SATISFIED. PR #154 shipped the `.prx` plugin replacement for CrowdStrike OAuth2 auth. PLUGIN-MIGRATION-001-A can now delete `crates/prism-sensors/src/auth/crowdstrike.rs`.
+
+**LOCAL cascade recap:** 12 passes; 3-CLEAN strict converged at pass-12. 8 fix-bursts. 55 findings closed.
+
+---
+
+### §3. PR #155 — S-CONFIG-MULTI-TENANT-OVERRIDE-001 — MERGED
+
+| Field | Value |
+|-------|-------|
+| PR URL | https://github.com/drbothen/prism/pull/155 |
+| Merge-commit SHA | `3e822522` |
+| Merged at | 2026-05-26T19:01:58Z |
+| develop HEAD after | `3e822522` |
+| CI | 38/38 GREEN (protoc 404 transient required re-run) |
+| PR-LEVEL passes | 9 |
+| PR-LEVEL fix-bursts | 7 |
+| 3-CLEAN strict streak | adversary 7/8/9; security 6/7/8; pr-reviewer 5/6/7/8 |
+
+**PR-LEVEL cascade summary:**
+- Pass-1: adversary missed SEC-001 CRIT (base_url NO-OP at adapter layer — multi-tenant routing functionally inert). Security caught SEC-001 at deeper adapter-internal consumption layer. Lesson 50 [codified]: adversary scope MUST include "verify production consumer of injected value READS it."
+- 24-finding Option A strict fix-burst (passes 1–3): SEC-001 CRIT + 5 HIGH + 8 MED + 6 LOW + 3 OBS fixed.
+- sanitize_for_log complete sweep (pass 4 fix-burst): all log injection vectors covered.
+- SecretString fix-burst (pass 5): credential values wrapped in SecretString per ADR conventions.
+- Passes 5–9: converging on clean; final 3-CLEAN strict at passes 7/8/9 across all 3 reviewers.
+- Required merge conflict resolution: PR #155 needed rebase/merge against develop after PR #154 landed at `6bf3f659`.
+
+**ADR-029:** ACCEPTED (per ADR-029 §Status — auto-promotes at LOCAL 3-CLEAN convergence; confirmed active).
+
+**LOCAL cascade recap:** 13 passes; Option B exit at CLEAN(PR-merge) asymptote (pass-13). 13 fix-bursts. 25 findings closed (2C+2H+9M+8L).
+
+---
+
+### §4. POL-14 BC Auto-Promotions
+
+**S-CONFIG-MULTI-TENANT-OVERRIDE-001 (PR #155):** 5 BCs promoted draft→active:
+- BC-2.06.012 Per-Tenant Overlay Loading and Merge Semantics
+- BC-2.06.013 Scalar-Only Overlay Enforcement (v1.1)
+- BC-2.06.014 Instance Identity Resolution at Fanout
+- BC-2.06.015 OrgRegistry Cross-Validation at Boot (v1.1)
+- BC-2.06.016 Error Taxonomy for Override Violations (v1.3)
+
+BC-INDEX: v5.51→v5.52; active_contracts 231→236; draft_contracts 7→2 (BC-2.06.011 + BC-2.21.001 remain draft).
+
+**PLUGIN-MIGRATION-001-E (PR #154):** All BCs (BC-2.01.013/016, BC-2.16.013, BC-2.17.001/006/007, BC-2.22.001) were already active at prior story merges (PREREQ-D/E/001-D). No additional promotions required.
+
+---
+
+### §5. PLUGIN-MIGRATION-001-A — UNBLOCKED
+
+All dependencies now merged:
+
+| Dependency | PR | Merged |
+|---|---|---|
+| PREREQ-A | #143 | 2026-05-10 |
+| PREREQ-B | #144 | 2026-05-10 |
+| PREREQ-C | #146 | 2026-05-12 |
+| PREREQ-D | #149 | 2026-05-14 |
+| PREREQ-E | #151 | 2026-05-19 |
+| PLUGIN-MIGRATION-001-D | #153 | 2026-05-22 |
+| PLUGIN-MIGRATION-001-E | #154 | 2026-05-26 |
+| S-CONFIG-MULTI-TENANT-OVERRIDE-001 | #155 | 2026-05-26 |
+
+**Story spec:** `/Users/jmagady/Dev/prism/.factory/stories/PLUGIN-MIGRATION-001-A-*.md`
+
+**Key constraints for 001-A:**
+- ADR-028 §D10: CAN NOW delete `crates/prism-sensors/src/auth/crowdstrike.rs` (001-E co-merge gate satisfied)
+- ADR-028 §D5 Option A (D-747): Must rewrite `auth_type_name()` returns for Cyberint/Claroty/Armis; amend `test_BC_2_01_016_003` Red Gate test
+- SAP-2: DTU↔TOML schema parity probe required for any sensor TOML changes
+- SID-1: No ignored-test rationalization
+- `#[non_exhaustive]` discipline: CLAUDE.md §Conventions Highlights
+
+---
+
+### §6. Active Worktrees
+
+| Worktree | Branch | Status |
+|---------|--------|--------|
+| `.worktrees/S-3.09` | feature/S-3.09 | FROZEN — BUG-S309-PLUGIN |
+| `.worktrees/W3-FIX-S307-001` | feature/W3-FIX-S307-001 | BLOCKED |
+
+PLUGIN-MIGRATION-001-E and S-CONFIG-MULTI-TENANT-OVERRIDE-001 worktrees cleaned post-merge.
+
+---
+
+### §7. Resume Protocol (5 Steps)
+
+1. Run `vsdd-factory:factory-worktree-health` (BLOCKING preflight — verify `.factory/` worktree on factory-artifacts)
+2. Read `STATE.md` frontmatter (v7.512)
+3. Read this §RESUME SNAPSHOT 2026-05-26-BOTH-PRS-MERGED
+4. Read PLUGIN-MIGRATION-001-A story spec at `.factory/stories/PLUGIN-MIGRATION-001-A-*.md`
+5. Dispatch `vsdd-factory:deliver-story` for PLUGIN-MIGRATION-001-A
+
+_Session terminus: 2026-05-26. Both PRs merged. context-clear. PLUGIN-MIGRATION-001-A ready to dispatch._
