@@ -577,7 +577,16 @@ impl OverlayLoader {
         if table.contains_key("tables") {
             // The field exists — any shape of "tables" (array or table) is forbidden.
             // Derive instance_id from context for the error message.
-            let instance_id_for_msg = format!("{}@{}", expected_sensor_id, expected_org_slug);
+            // SEC-PASS4-002 / TD-VSDD-060: sanitize expected_sensor_id before embedding in error
+            // message — it originates from the filesystem path (attacker-controlled) and must be
+            // sanitized for log injection prevention (CWE-117, SEC-REDUX-004).
+            // expected_org_slug is also filesystem-sourced; sanitized via make_e_spec_022 elsewhere
+            // but sanitized here too for defense-in-depth at the concatenation site.
+            let instance_id_for_msg = format!(
+                "{}@{}",
+                sanitize_for_log(expected_sensor_id),
+                sanitize_for_log(expected_org_slug)
+            );
             validation_errors.push(make_e_spec_021_tables_in_overlay(
                 overlay_file_path,
                 &instance_id_for_msg,
@@ -763,6 +772,8 @@ impl OverlayLoader {
 /// - `slug` in `make_e_spec_022_unknown_org_slug`
 /// - `extends_value` in `make_e_spec_019_unknown_extends`
 /// - `overlay_base_url` in the SEC-REDUX-006 SSRF rejection branch of `validate_overlay_toml`
+/// - `expected_sensor_id` / `expected_org_slug` in the E-SPEC-021 `[[tables]]` error path
+///   of `validate_overlay_toml` (SEC-PASS4-002 — final TD-VSDD-060 sibling-sweep site)
 fn sanitize_for_log(value: &str) -> String {
     value
         .chars()
