@@ -267,8 +267,17 @@ pub fn host_log(state: &HostState, level: LogLevel, message: &str) {
 /// Look up a key in the plugin's config map (`HostState.config`).
 ///
 /// Returns `None` for unknown keys — never errors.
+///
+/// ## SEC-008 / AD-017
+///
+/// `PluginConfigMap` values are `SecretString`. We call `.expose_secret()` here —
+/// at the last possible moment before handing the value to the WASM guest — so the
+/// plaintext `String` exists only for the duration of this call frame. The returned
+/// `String` is owned by the caller (the `register_host_functions` closure) and is
+/// dropped after it is copied into the WIT `Val::String` result slot.
 pub fn host_get_config(state: &HostState, key: &str) -> Option<String> {
-    state.config.get(key).cloned()
+    use secrecy::ExposeSecret;
+    state.config.get(key).map(|s| s.expose_secret().to_owned())
 }
 
 /// Get a value from the plugin's KV store.

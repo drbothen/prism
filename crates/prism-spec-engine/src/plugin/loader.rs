@@ -6,9 +6,18 @@ use std::sync::Arc;
 
 use prism_core::PluginError;
 use reqwest::Client;
+use secrecy::SecretString;
 
-/// Per-plugin configuration map — string key/value pairs from `[plugin_config]` TOML.
-pub type PluginConfigMap = HashMap<String, String>;
+/// Per-plugin configuration map — string key / `SecretString` value pairs from `[plugin_config]` TOML.
+///
+/// All values are wrapped in `SecretString` so that credential bytes (e.g., `client_id`,
+/// `client_secret`) are zeroed automatically on drop regardless of how many `Arc::clone` copies
+/// of the map exist (SEC-008 / CWE-316 closure). Non-secret keys such as `token_endpoint` are
+/// also wrapped — the overhead is negligible and it avoids the need to track per-key sensitivity.
+///
+/// Callers that need to read a value must call `.expose_secret()` at the use site, keeping the
+/// plaintext lifetime as short as possible (AD-017).
+pub type PluginConfigMap = HashMap<String, SecretString>;
 
 /// KV_SIZE_LIMIT: 1MB per plugin total in the KV store (E-PLUGIN-003).
 const KV_SIZE_LIMIT_BYTES: usize = 1024 * 1024;
@@ -174,6 +183,8 @@ impl HostState {
             limits: wasmtime::StoreLimits::default(),
         }
     }
+    // Note: PluginConfigMap values are SecretString — tests that need a pre-populated config
+    // must use SecretString::new(value) for each entry (SEC-008 closure).
 
     /// Test-only constructor with a specific `plugin_id` and default-deny `allowed_urls`.
     ///

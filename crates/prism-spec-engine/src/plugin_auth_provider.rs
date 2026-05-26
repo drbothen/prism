@@ -140,28 +140,32 @@ impl AuthProvider for PluginAuthProvider {
                         detail: e.to_string(),
                     })?;
 
-            // Materialize credential values at the PluginConfigMap boundary.
-            // This is the SOLE location where SecretString values are exposed.
-            // The PluginConfigMap lifetime is bounded to the dispatch_plugin_acquire_token
-            // call frame (dropped on function return per ADR-028 §D11 AD-017 analysis).
+            // Build PluginConfigMap with SecretString values (SEC-008 / CWE-316 closure).
             //
-            // SEC-005 (CWE-316): credential String allocations are explicitly zeroized before
-            // dropping via `zeroize::Zeroize`. The upstream `SecretString` values zeroize on
-            // drop; `.expose_secret().to_string()` creates a new heap allocation that does NOT
-            // inherit that guarantee. We hold the credential entries as mutable and zeroize them
-            // explicitly after dispatch returns, before `config` is dropped.
-            use secrecy::ExposeSecret;
-            use zeroize::Zeroize;
-            let mut config = PluginConfigMap::from([
+            // All values — including `token_endpoint` — are wrapped in `SecretString`.
+            // This means ALL copies of the map (including the `Arc::clone` in `make_host_state`
+            // and the Arc stored in `HostState.config`) will automatically zeroize their heap
+            // allocations on drop. No explicit `zeroize()` calls are needed; `SecretString`
+            // handles it unconditionally for every copy.
+            //
+            // The prior SEC-005 explicit-zeroize approach (`.expose_secret().to_string()` +
+            // `zeroize()`) only protected the caller's copy — it missed the cloned-bytes-on-heap
+            // in `HostState.config` created by `make_host_state(config.clone())` (SEC-008).
+            // The `SecretString` approach is correct-by-construction: no copy escapes zeroization.
+            use secrecy::{ExposeSecret, SecretString};
+            let config = PluginConfigMap::from([
                 (
                     "client_id".to_string(),
-                    resolved_client_id.expose_secret().to_string(),
+                    SecretString::new(resolved_client_id.expose_secret().to_owned()),
                 ),
                 (
                     "client_secret".to_string(),
-                    resolved_client_secret.expose_secret().to_string(),
+                    SecretString::new(resolved_client_secret.expose_secret().to_owned()),
                 ),
-                ("token_endpoint".to_string(), self.token_endpoint.clone()),
+                (
+                    "token_endpoint".to_string(),
+                    SecretString::new(self.token_endpoint.clone()),
+                ),
             ]);
 
             // Dispatch to the plugin's acquire-token WIT export via PluginRuntime.
@@ -177,15 +181,8 @@ impl AuthProvider for PluginAuthProvider {
                     // F-LP2-MED-002: structured PluginError preserved (not stringified).
                     plugin_error,
                 });
-
-            // SEC-005: zeroize credential heap allocations before config drops.
-            // `token_endpoint` is not a credential; only client_id and client_secret require zeroing.
-            if let Some(v) = config.get_mut("client_id") {
-                v.zeroize();
-            }
-            if let Some(v) = config.get_mut("client_secret") {
-                v.zeroize();
-            }
+            // `config` and its SecretString values are dropped here and zeroized automatically.
+            // No explicit zeroize() calls needed — SecretString handles all copies on drop.
 
             Ok(AuthToken::new(dispatch_result?))
         })

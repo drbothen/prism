@@ -1490,12 +1490,16 @@ fn test_F_LP7_MED_001_host_dispatch_acquire_token_kv_miss_emits_audit_event() {
         // ADR-028 §D11 Option C (Path 4a): credentials injected via PluginConfigMap;
         // no credential_handle param — guest reads via host::get-config.
         use prism_spec_engine::plugin::PluginConfigMap;
+        use secrecy::SecretString;
         let config = PluginConfigMap::from([
-            ("client_id".to_string(), "id".to_string()),
-            ("client_secret".to_string(), "secret".to_string()),
+            ("client_id".to_string(), SecretString::new("id".to_owned())),
+            (
+                "client_secret".to_string(),
+                SecretString::new("secret".to_owned()),
+            ),
             (
                 "token_endpoint".to_string(),
-                "https://api.crowdstrike.com/oauth2/token".to_string(),
+                SecretString::new("https://api.crowdstrike.com/oauth2/token".to_owned()),
             ),
         ]);
         let dispatch_result =
