@@ -513,7 +513,7 @@ impl PipelineExecutor {
         // F-LP2-HIGH-001: removed redundant tracing::error!(event_type = "timestamp_parse_failure")
         // — not registered in BC-2.16.002 catalog; ? propagation carries full context via
         // SpecEngineError::TimestampParseFailure (E-SPEC-018) which includes sensor_id, column_name,
-        // attempted_formats, and raw value (error-taxonomy.md v1.44; PG-LP11-001).
+        // attempted_formats, and raw value (error-taxonomy.md v1.45; PG-LP11-001).
         let normalized_records =
             normalize_timestamp_fields(&all_records, &table.columns, spec.sensor_id.as_str())?;
 
@@ -1665,6 +1665,7 @@ mod execute_step_tests {
             rate_limit_hints: None,
             version: "1.0.0".to_string(),
             credential_refs: Vec::new(),
+            auth_plugin: None,
         }
     }
 
@@ -1914,6 +1915,7 @@ mod execute_step_tests {
             rate_limit_hints: None,
             version: "1.0.0".to_string(),
             credential_refs: Vec::new(),
+            auth_plugin: None,
         }
     }
 

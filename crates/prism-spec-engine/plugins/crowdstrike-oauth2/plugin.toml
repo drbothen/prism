@@ -1,0 +1,20 @@
+# crowdstrike-oauth2 plugin manifest
+#
+# BC-2.17.007 required fields: format_version, name, version, plugin_type, allowed_urls.
+# plugin_id is derived from `name` by PluginRuntime::load_all_plugins manifest parser.
+#
+# Story: PLUGIN-MIGRATION-001-E
+# Traces to: BC-2.17.007 §Postcondition, BC-2.01.016 §INV-AUTH-OPEN-003 Rule A
+
+name = "crowdstrike-oauth2"
+version = "0.1.0"
+format_version = 1
+plugin_type = "sensor_auth"
+
+# allowed_urls: explicit Vec<String> per PREREQ-D AC-7 default-deny semantics.
+# Production: api.crowdstrike.com (OAuth2 token endpoint) only.
+# SEC-006 (CWE-183): localhost removed from production allowlist — principle of least privilege.
+# DTU integration tests use a separate in-memory manifest (SENSOR_AUTH_MANIFEST constant in
+# plugin_boot_tests.rs) that includes localhost for the DTU clone token endpoint. The production
+# binary must not permit plugins to POST credentials to localhost listeners.
+allowed_urls = ["api.crowdstrike.com"]

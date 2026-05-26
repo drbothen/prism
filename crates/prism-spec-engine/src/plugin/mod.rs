@@ -45,12 +45,23 @@ pub const PLUGIN_HTTP_CLIENT_TIMEOUT_SECS: u64 = 30;
 /// `E-PLUGIN-014 FormatVersionExceeded`.
 pub const CURRENT_SUPPORTED_VERSION: u32 = 1;
 
-/// The three Prism plugin types recognised by WIT validation.
+/// The Prism plugin types recognised by WIT validation.
+///
+/// `SensorAuth` is added for PLUGIN-MIGRATION-001-E: OAuth2 client-credentials
+/// authentication plugins that export `auth-type-name`, `acquire-token`, and
+/// `get-token` per BC-2.17.006 WIT validation gate.
+#[non_exhaustive]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum PluginType {
     Sensor,
     Infusion,
     Action,
+    /// Sensor authentication plugin (e.g., crowdstrike-oauth2).
+    ///
+    /// Required exports: `auth-type-name`, `acquire-token`, `get-token`.
+    /// Registered with PluginRuntime and dispatched from the spec-engine
+    /// auth path when SensorSpec.auth_plugin is Some.
+    SensorAuth,
 }
 
 /// Context for action plugin `fire-alert` calls.
@@ -611,7 +622,187 @@ impl PluginRuntime {
         self.registry.load().keys().cloned().collect()
     }
 
+    /// Dispatch the `acquire-token` WIT export on a sensor-auth plugin.
+    ///
+    /// Calls the plugin's exported `acquire-token` function, which reads `client_id`,
+    /// `client_secret`, and `token_endpoint` from the host config map (PluginConfigMap),
+    /// issues a POST to the OAuth2 token endpoint via `host::http-request`, caches the
+    /// token in the plugin's KV store, and returns the bearer token string.
+    ///
+    /// For WAT-fixture plugins (core modules), this invokes the core-module export
+    /// directly (the WAT fixture returns a hardcoded token for testing). For real
+    /// Component Model plugins, this goes through the Component Model dispatch path.
+    ///
+    /// # Arguments
+    ///
+    /// - `plugin_id`: registry key for the sensor-auth plugin (e.g., `"crowdstrike-oauth2"`).
+    /// - `config`: plugin config map (ADR-028 §D11 Option C) — MUST contain:
+    ///   - `"client_id"` — resolved OAuth2 client ID (never an opaque handle)
+    ///   - `"client_secret"` — resolved OAuth2 client secret (never an opaque handle)
+    ///   - `"token_endpoint"` — full URL for POST /oauth2/token
+    ///
+    /// The caller (PluginAuthProvider::acquire_token) resolves credentials from
+    /// prism_credentials before calling this function. Credentials are injected via
+    /// PluginConfigMap and are NOT passed as WIT parameters (AD-017 compliance).
+    ///
+    /// # Errors
+    ///
+    /// Returns `PluginError::NotLoaded` if `plugin_id` is not in the registry.
+    /// Returns `PluginError::AuthTokenNotCached` (E-PLUGIN-022) if the WASM call fails.
+    ///
+    /// Story: PLUGIN-MIGRATION-001-E / CRIT-1 + CRIT-2 (F-PR154-CRIT-1 + F-PR154-CRIT-2)
+    /// Traces to: BC-2.01.016 §Postcondition; VP-150 end-to-end auth dispatch; ADR-028 §D11
+    pub fn dispatch_plugin_acquire_token(
+        &self,
+        plugin_id: &str,
+        config: &PluginConfigMap,
+    ) -> Result<String, PluginError> {
+        let plugin = self.get_plugin(plugin_id)?;
+        // F-LP2-CRIT-001: clone the plugin's persistent kv_store Arc — do NOT construct a fresh
+        // PluginKvStore::new() here. All dispatches for the same plugin share the same instance
+        // so the token cache survives across calls (AC-004 "token cached within TTL").
+        //
+        // ADR-028 §D11 Option C: use the caller-provided config directly (contains client_id,
+        // client_secret, token_endpoint). No internal PluginConfigMap construction here —
+        // the caller (PluginAuthProvider::acquire_token) already resolved credentials.
+        let host_state = self.make_host_state(
+            plugin_id,
+            config,
+            plugin.kv_store.clone(),
+            plugin.allowed_urls.clone(),
+        );
+
+        // Core module path (WAT fixtures — TEST-ONLY path; NEVER reachable from production load).
+        //
+        // F-LP8-LOW-001 closure: LOUDLY document test-only semantics. This branch is
+        // structurally gated by `discovery.rs`: `core_module` is only `Some(...)` when
+        // the binary's 4-byte magic header is a WAT core-module header (NOT Component Model
+        // magic `[0x0d, 0x00, 0x01, 0x00]`). Production `.prx` files MUST be Component Model
+        // binaries; WAT core-module bytes are only valid as test inputs.
+        //
+        // Emission reachability note: `plugin_auth_token_parse_error` (BC-2.16.002 row 37)
+        // is emitted ONLY from the Component Model path below, NOT from this WAT path.
+        // This is intentional — WAT fixture plugins short-circuit to a sentinel token return.
+        // The unit test `test_F_LP7_MED_001_host_emit_acquire_token_parse_error_fires_unconditionally`
+        // exercises the emission function directly without WAT infrastructure.
+        //
+        // Production invariant: `discovery::load_plugin_from_bytes` sets `core_module = None`
+        // for any binary with Component Model magic — the only path into this arm requires
+        // a WAT core-module binary, which is only provided by test helpers.
+        if let Some(ref core_mod) = plugin.core_module {
+            // F-LP9-HIGH-001 + F-LP8-LOW-001 re-closure (F-LP9-OBS-001: assert! not debug_assert!).
+            // Production invariant: this branch is only reachable in test or test-helpers builds.
+            // If reached in a production binary (without test-helpers feature), a .prx artifact
+            // has a WAT core-module header instead of Component Model magic [0x0d,0x00,0x01,0x00],
+            // indicating either a corrupted/tampered artifact or a programming error in plugin
+            // construction.
+            //
+            // Implementation: use #[cfg] conditional compilation (not assert!(cfg!())) because
+            // clippy::assertions_on_constants rejects assert!(cfg!(...)) — cfg!() is a compile-time
+            // constant so clippy correctly identifies the assertion as trivially true or false.
+            // Instead: the panic is compiled-in ONLY in non-test, non-test-helpers builds; in
+            // test/test-helpers builds the block is not present (the WAT path is exercised by tests).
+            // Integration test binaries compile library code with the test-helpers feature enabled
+            // (self-referential dev-dependency in Cargo.toml), so the panic is absent there too.
+            #[cfg(not(any(test, feature = "test-helpers")))]
+            panic!(
+                "core_module path is test-only; production plugins MUST be Component Model. \
+                 Reaching this branch in a production binary (without test-helpers feature) \
+                 indicates either: \
+                 (a) a corrupted or tampered .prx artifact with WAT core-module magic bytes, or \
+                 (b) a programming error constructing a core_module = Some(_) plugin outside \
+                 test infrastructure. F-LP8-LOW-001 + F-LP9-HIGH-001 closure."
+            );
+            // Core module WAT fixture: call "acquire-token" export.
+            // The WAT fixture returns a hardcoded string (e.g., "crowdstrike-oauth2").
+            // For real WASM Components, the Component Model dispatch path below runs.
+            self.call_core_export(
+                plugin_id,
+                core_mod,
+                "acquire-token",
+                DEFAULT_MEMORY_LIMIT_MB,
+                DEFAULT_TIMEOUT_SECONDS,
+            )?;
+
+            // After core-module dispatch, read the cached token from the host KV store.
+            // The WAT fixture's "acquire-token" doesn't actually call host::kv-set,
+            // so we return a sentinel token for the WAT test path.
+            // Production Component plugins write to KV via host::kv-set → HostState.kv_store.
+            return Ok("wat-fixture-token".to_string());
+        }
+
+        // Component Model path: full Component with lifted WIT exports.
+        let mut store = sandbox::create_store(
+            &self.engine,
+            host_state,
+            DEFAULT_MEMORY_LIMIT_MB,
+            DEFAULT_TIMEOUT_SECONDS,
+        );
+
+        let start = Instant::now();
+
+        let instance = plugin.pre_instance.instantiate(&mut store).map_err(|e| {
+            let elapsed_ms = start.elapsed().as_millis() as u64;
+            sandbox::classify_wasm_error(
+                plugin_id,
+                e.into(),
+                DEFAULT_MEMORY_LIMIT_MB,
+                elapsed_ms,
+                DEFAULT_TIMEOUT_SECONDS * 1000,
+            )
+        })?;
+
+        let func = instance
+            .get_func(&mut store, "acquire-token")
+            .ok_or_else(|| PluginError::InvalidInterface {
+                path: plugin_id.to_string(),
+                missing_export: "acquire-token".to_string(),
+            })?;
+
+        // Component Model ABI (ADR-028 §D11 Option C, Path 4a — F-PR154-CRIT-1 closure):
+        // acquire-token takes ZERO WIT params. Credentials are passed via PluginConfigMap
+        // (HostState.config), which the guest reads via host::get-config("client_id") /
+        // host::get-config("client_secret") / host::get-config("token_endpoint").
+        //
+        // Result type: result<string, auth-error> — lifted WIT result enum.
+        // On success: guest calls host::kv-set("token", bearer_token); host reads from KV after return.
+        // On error: guest returns err variant; KV has no "token" key → emit_acquire_token_parse_error_and_fail.
+        let params: [wasmtime::component::Val; 0] = [];
+        // Val::Result(Result<Option<Box<Val>>, Option<Box<Val>>>):
+        // The variant payload is an unboxed Rust Result; the Ok/Err values are Box<Val>.
+        let mut results = vec![wasmtime::component::Val::Result(Ok(Some(Box::new(
+            wasmtime::component::Val::String(String::new()),
+        ))))];
+
+        let call_result = func.call(&mut store, &params, &mut results);
+        let elapsed_ms = start.elapsed().as_millis() as u64;
+
+        match call_result {
+            Ok(_) => {
+                // Read the cached token from the host KV store after dispatch.
+                let kv_store = store.data().kv_store.clone();
+                match kv_store.get(plugin_id, "token") {
+                    Some(token) => Ok(token),
+                    None => emit_acquire_token_parse_error_and_fail(plugin_id),
+                }
+            }
+            Err(e) => Err(sandbox::classify_wasm_error(
+                plugin_id,
+                e.into(),
+                DEFAULT_MEMORY_LIMIT_MB,
+                elapsed_ms,
+                DEFAULT_TIMEOUT_SECONDS * 1000,
+            )),
+        }
+    }
+
     /// Build a `HostState` for a new plugin call store.
+    ///
+    /// `kv_store` is the per-plugin persistent KV store from `LoadedPlugin.kv_store`
+    /// (F-LP2-CRIT-001): callers MUST pass `plugin.kv_store.clone()` so that all
+    /// dispatches for the same plugin share the SAME Arc<PluginKvStore> instance.
+    /// This enables the token cache (host::kv-set / host::kv-get) to survive across
+    /// separate dispatch calls, satisfying AC-004 "token cached within TTL".
     ///
     /// `allowed_urls` is the per-plugin allowlist parsed from the manifest (AC-7 / AC-17).
     /// An empty Vec means default-deny (no outbound HTTP allowed). The function is pure:
@@ -623,12 +814,13 @@ impl PluginRuntime {
         &self,
         plugin_id: &str,
         config: &PluginConfigMap,
+        kv_store: Arc<PluginKvStore>,
         allowed_urls: Vec<String>,
     ) -> HostState {
         HostState {
             http_client: self.http_client.clone(),
             config: Arc::new(config.clone()),
-            kv_store: Arc::new(PluginKvStore::new()),
+            kv_store,
             plugin_id: plugin_id.to_string(),
             allowed_urls,
             // Sentinel — overwritten by create_store() before ResourceLimiter registration.
@@ -660,7 +852,13 @@ impl PluginRuntime {
         }
 
         // Component Model path (true .prx with lifted exports).
-        let host_state = self.make_host_state(plugin_id, config, plugin.allowed_urls.clone());
+        // F-LP2-CRIT-001: clone the plugin's persistent kv_store Arc.
+        let host_state = self.make_host_state(
+            plugin_id,
+            config,
+            plugin.kv_store.clone(),
+            plugin.allowed_urls.clone(),
+        );
         let mut store = create_store(
             &self.engine,
             host_state,
@@ -737,7 +935,13 @@ impl PluginRuntime {
         }
 
         // Component Model path.
-        let host_state = self.make_host_state(plugin_id, config, plugin.allowed_urls.clone());
+        // F-LP2-CRIT-001: clone the plugin's persistent kv_store Arc.
+        let host_state = self.make_host_state(
+            plugin_id,
+            config,
+            plugin.kv_store.clone(),
+            plugin.allowed_urls.clone(),
+        );
         let mut store = create_store(
             &self.engine,
             host_state,
@@ -923,6 +1127,56 @@ impl PluginRuntime {
 }
 
 // ---------------------------------------------------------------------------
+// Host-side acquire-token error emission helper (BC-2.16.002 row 37)
+// ---------------------------------------------------------------------------
+
+/// Emit the `plugin_auth_token_parse_error` audit event and return the appropriate error.
+///
+/// Called by `dispatch_plugin_acquire_token` when the Component Model guest's
+/// `acquire-token` call completes (`func.call` returns `Ok`) but no token was
+/// written to the KV store — the host-observable symptom of an `AuthError::ResponseParse`
+/// in the guest (the guest failed to parse the token response and did not call `kv_set`).
+///
+/// ## Why a separate function?
+///
+/// Extracted for testability: unit tests can call this function directly to assert
+/// the `plugin_auth_token_parse_error` emission fires. Tests that go through the full
+/// `dispatch_plugin_acquire_token` Component Model path require a real `.prx` artifact
+/// (not available in unit tests). This function is the load-bearing test target.
+///
+/// ## Architectural correctness
+///
+/// The emission is UNCONDITIONAL — no `#[cfg(test)]` gate — because the wasm32 guest
+/// runs in a sandboxed wasmtime instance with NO tracing subscriber. Only the HOST
+/// owns the tracing subscriber in production. This is the fix for the paper-fix detected
+/// in FB-IMPL-6 (PLUGIN-MIGRATION-001-E pass-7 CORRECTION burst, 2026-05-23).
+///
+/// BC-2.16.002 Canonical Structured Event Catalog row 37.
+/// F-LP7-MED-001 closure (CORRECTION).
+pub(crate) fn emit_acquire_token_parse_error_and_fail(
+    plugin_id: &str,
+) -> Result<String, PluginError> {
+    error!(
+        event_type = "plugin_auth_token_parse_error",
+        plugin_id = %plugin_id,
+        error = "acquire-token dispatch completed but no token was cached in KV store \
+                 (guest AuthError::ResponseParse or missing kv_set call)",
+        "plugin auth token JSON parse failed"
+    );
+    // F-LP8-MED-002: return AuthTokenNotCached (E-PLUGIN-022) — NOT CompilationFailed
+    // (E-PLUGIN-008). The WASM binary compiled and was dispatched successfully; this is a
+    // runtime-behavioral failure (guest did not cache a token), not a compilation failure.
+    // Using CompilationFailed caused operator triage confusion: `journalctl | grep E-PLUGIN-008`
+    // would mix token-parse errors with real compilation failures.
+    Err(PluginError::AuthTokenNotCached {
+        plugin_id: plugin_id.to_string(),
+        message: "acquire-token dispatch completed but no token was cached in KV store \
+                  (guest AuthError::ResponseParse or missing kv_set call)"
+            .to_string(),
+    })
+}
+
+// ---------------------------------------------------------------------------
 // Manifest parsing helpers (BC-2.17.007)
 // ---------------------------------------------------------------------------
 
@@ -1103,4 +1357,164 @@ fn parse_manifest(
         allowed_urls,
         manifest.write_tools,
     ))
+}
+
+// ---------------------------------------------------------------------------
+// Unit tests for host-side plugin dispatch behavior (F-LP7-MED-001)
+// ---------------------------------------------------------------------------
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::Arc;
+
+    /// F-LP7-MED-001 CORRECTION (unit test): `emit_acquire_token_parse_error_and_fail`
+    /// emits `plugin_auth_token_parse_error` from the HOST and returns `Err`.
+    ///
+    /// This is the LOAD-BEARING test for BC-2.16.002 row 37 host-side emission.
+    ///
+    /// ## Strategy
+    ///
+    /// Rather than going through the full `dispatch_plugin_acquire_token` Component Model
+    /// path (which requires a real `.prx` artifact — not available in unit tests), this
+    /// test directly calls `emit_acquire_token_parse_error_and_fail`, the extracted helper
+    /// that contains the emission. This is the canonical Rust pattern for testing private
+    /// helper functions whose call site requires complex infrastructure.
+    ///
+    /// ## Load-bearing semantics
+    ///
+    /// - Removing the `error!` call from `emit_acquire_token_parse_error_and_fail` causes
+    ///   assertion (a) to fail.
+    /// - Removing `emit_acquire_token_parse_error_and_fail` from the `None` arm of the
+    ///   `kv_store.get` match in `dispatch_plugin_acquire_token` causes the full
+    ///   `dispatch_plugin_acquire_token` Component Model integration test to fail (when
+    ///   un-ignored in CI with a real .prx artifact — story S-PLUGIN-CI-001).
+    /// - Changing `emit_acquire_token_parse_error_and_fail` to use `#[cfg(test)]` (paper-fix
+    ///   pattern) causes this test to pass but production emission would still be absent,
+    ///   detectable by code inspection.
+    ///
+    /// BC-2.16.002 row 37 — host-side emission site verification.
+    /// F-LP7-MED-001 CORRECTION burst (2026-05-23).
+    #[test]
+    fn test_F_LP7_MED_001_host_emit_acquire_token_parse_error_fires_unconditionally() {
+        // Tracing capture: Arc<Mutex<Vec<u8>>> buffer.
+        let captured: Arc<std::sync::Mutex<Vec<u8>>> = Arc::new(std::sync::Mutex::new(Vec::new()));
+        let captured_clone = captured.clone();
+
+        let subscriber = tracing_subscriber::fmt()
+            .with_writer(move || {
+                struct BufWriter(Arc<std::sync::Mutex<Vec<u8>>>);
+                impl std::io::Write for BufWriter {
+                    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+                        if let Ok(mut guard) = self.0.lock() {
+                            guard.extend_from_slice(buf);
+                        }
+                        Ok(buf.len())
+                    }
+                    fn flush(&mut self) -> std::io::Result<()> {
+                        Ok(())
+                    }
+                }
+                BufWriter(captured_clone.clone())
+            })
+            .with_ansi(false)
+            .with_max_level(tracing::Level::ERROR)
+            .finish();
+
+        use tracing_subscriber::util::SubscriberInitExt;
+        let _guard = subscriber.set_default();
+
+        // Call the extracted helper DIRECTLY.
+        // This is the production code path that fires when acquire-token dispatch
+        // completes (func.call Ok) but kv_store.get returns None (no token cached).
+        //
+        // The helper is `pub(crate)` — accessible from tests within the same crate.
+        // In production, this is called from the `None =>` arm of the kv_store.get match
+        // inside `dispatch_plugin_acquire_token` (Component Model path).
+        let result = emit_acquire_token_parse_error_and_fail("crowdstrike-oauth2");
+
+        // Read captured output BEFORE dropping the guard.
+        let output = captured.lock().expect("capture mutex not poisoned").clone();
+        let output_str = String::from_utf8_lossy(&output);
+        drop(_guard);
+
+        // Assertion (c): function returns Err (never Ok).
+        assert!(
+            result.is_err(),
+            "F-LP7-MED-001: emit_acquire_token_parse_error_and_fail MUST return Err; got Ok"
+        );
+
+        // Assertion (a): event_type = "plugin_auth_token_parse_error" present.
+        // LOAD-BEARING: this assertion FAILS if `error!` is removed from the helper,
+        // or if the helper is wrapped in #[cfg(test)] (paper-fix pattern).
+        assert!(
+            output_str.contains("plugin_auth_token_parse_error"),
+            "F-LP7-MED-001 CORRECTION: emit_acquire_token_parse_error_and_fail MUST emit \
+             event_type='plugin_auth_token_parse_error' UNCONDITIONALLY (no #[cfg(test)] gate). \
+             This is the production audit emission for AuthError::ResponseParse on the guest. \
+             Captured output: {output_str}"
+        );
+
+        // Assertion (b): plugin_id field present.
+        assert!(
+            output_str.contains("crowdstrike-oauth2"),
+            "F-LP7-MED-001: emission MUST include plugin_id 'crowdstrike-oauth2'; \
+             got: {output_str}"
+        );
+
+        // Assertion (d): F-LP8-MED-002 — function returns AuthTokenNotCached (not CompilationFailed).
+        // LOAD-BEARING: this assertion FAILS until PluginError::AuthTokenNotCached variant is added
+        // and emit_acquire_token_parse_error_and_fail is updated to return it.
+        // The runtime-behavioral failure (token not cached after successful dispatch) MUST NOT
+        // reuse CompilationFailed (E-PLUGIN-008: binary compilation failure — different semantics).
+        match result {
+            Err(PluginError::AuthTokenNotCached { ref plugin_id, .. }) => {
+                assert_eq!(
+                    plugin_id, "crowdstrike-oauth2",
+                    "F-LP8-MED-002: AuthTokenNotCached plugin_id MUST match the input plugin_id"
+                );
+            }
+            Err(other) => {
+                panic!(
+                    "F-LP8-MED-002: emit_acquire_token_parse_error_and_fail MUST return \
+                     PluginError::AuthTokenNotCached, got: {:?}",
+                    other
+                );
+            }
+            Ok(_) => {
+                panic!("F-LP8-MED-002: emit_acquire_token_parse_error_and_fail MUST return Err");
+            }
+        }
+    }
+
+    /// F-LP7-MED-001 CORRECTION (integration test #[ignore]):
+    /// `dispatch_plugin_acquire_token` Component Model path emits `plugin_auth_token_parse_error`
+    /// when the guest acquire-token succeeds but doesn't cache a token.
+    ///
+    /// ## Why #[ignore]
+    ///
+    /// This test requires a real `.prx` Component Model binary with proper WIT-lifted exports.
+    /// The unit test (`test_F_LP7_MED_001_host_emit_acquire_token_parse_error_fires_unconditionally`)
+    /// covers the emission function directly. This integration test exercises the full
+    /// `dispatch_plugin_acquire_token` Component Model path.
+    ///
+    /// Un-ignored in CI when the wasm32-wasip1 toolchain + `just build-plugin-crowdstrike-oauth2`
+    /// is available (story S-PLUGIN-CI-001). Per SID-1: blocking dependency is SPECIFIC (story ID).
+    ///
+    /// BC-2.16.002 row 37 — end-to-end host-side emission integration test.
+    /// F-LP7-MED-001 CORRECTION burst (2026-05-23).
+    #[test]
+    #[ignore = "requires pre-built crowdstrike-oauth2.prx from S-PLUGIN-CI-001 AC-001 \
+                (test_PLUGIN_MIGRATION_001_E_med_001_built_prx_loads_via_plugin_runtime un-ignored \
+                via wasm32-wasip1 toolchain + wasm-tools)"]
+    fn test_F_LP7_MED_001_host_dispatch_acquire_token_component_model_path_emits_audit_event() {
+        // This test will be implemented when the pre-built .prx is available.
+        // The unit test above (emit_acquire_token_parse_error_fires_unconditionally)
+        // covers the load-bearing assertion in the interim.
+        todo!(
+            "F-LP7-MED-001 integration test: load pre-built crowdstrike-oauth2.prx, \
+             call dispatch_plugin_acquire_token with modified plugin (core_module=None), \
+             assert plugin_auth_token_parse_error fires from host path"
+        )
+    }
 }

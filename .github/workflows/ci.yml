@@ -152,6 +152,41 @@ jobs:
           RUSTFLAGS: -C link-arg=-fuse-ld=mold
         run: cargo nextest run --workspace --no-default-features --exclude prism-dtu-demo-server --profile ci
 
+  wasm32-compile-check:
+    name: WASM32 compile check (F-LP5-HIGH-001 — crowdstrike-oauth2-plugin Guest impl)
+    # F-LP5-HIGH-001 closure: the crowdstrike-oauth2 plugin contains a wasm32-gated
+    # mod host_impl block with wit_bindgen::generate!, impl Guest for Component, and
+    # export!(Component). This code is NEVER compiled by host-target builds (clippy,
+    # test, check). Without this job, signature drift in the wit-bindgen Guest impl
+    # or WIT syntax errors in sensor-auth.wit would be invisible to CI.
+    #
+    # This job is the minimum enforcement gate: cargo check --target wasm32-wasip1
+    # on the crowdstrike-oauth2-plugin crate proves the Guest impl + wit-bindgen macro
+    # compiles correctly on every PR/push. If the macro produces compilation errors,
+    # CI fails — catching WIT drift, export signature mismatches, and macro errors.
+    #
+    # Note: cargo check does not link or produce a .wasm binary; it only validates
+    # the Rust type system and macro expansion. A full .prx build (S-PLUGIN-CI-001)
+    # requires wasm-tools + Wasmtime component adapter and is deferred to that story.
+    needs: clippy
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
+        with:
+          targets: wasm32-wasip1
+      # Optimization 1: Swatinem/rust-cache for incremental build caching.
+      # Separate shared-key from the host-target build to avoid cache namespace collision.
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+        with:
+          cache-on-failure: true
+          shared-key: wasm32-compile-check
+      - name: Check crowdstrike-oauth2-plugin compiles for wasm32-wasip1
+        run: |
+          cargo check --target wasm32-wasip1 -p crowdstrike-oauth2-plugin
+          echo "F-LP5-HIGH-001: wasm32-wasip1 compile check PASSED — Guest impl + wit-bindgen macro + export!(Component) compiled successfully"
+
   deny:
     name: Cargo deny (license + advisory)
     # Optimization 2: parallel with test — was: needs: test (chained through slowest job).
@@ -565,23 +600,23 @@ jobs:
             && CARGO_RC=0 || CARGO_RC=$?
           cat /tmp/non-exhaustive-check.log
           if [ "${CARGO_RC}" -eq 0 ]; then
-            echo "::error::REGRESSION: non-exhaustive-violation compiled successfully — one or more #[non_exhaustive] types lost their annotation. All 32 types must reject external struct-literal or exhaustive-match construction (spec_parser: CredentialRef, SensorSpec, SensorTableDescriptor, FetchStep, ColumnSpec, TableSpec, PaginationConfig, AuthType, RateLimitHints; types: SensorSpec, SensorTableDescriptor, CredentialRef, ColumnType, ColumnDef, PaginationType, SpecStatus, ClientStatus; infusion: CredentialRef, InfusionType, BuiltInSourceType, InfusionSourceConfig, InfusionField, PipeStageConfig, PluginConfig, InfusionSpec; write_endpoint: BatchMode, WriteStep, WriteEndpointSpec; prism_core: ColumnType, ColumnOptions, PluginError; prism_query: WriteToolInvalidationMap)."
+            echo "::error::REGRESSION: non-exhaustive-violation compiled successfully — one or more #[non_exhaustive] types lost their annotation. All 33 types must reject external struct-literal or exhaustive-match construction (spec_parser: CredentialRef, SensorSpec, SensorTableDescriptor, FetchStep, ColumnSpec, TableSpec, PaginationConfig, AuthType, RateLimitHints; types: SensorSpec, SensorTableDescriptor, CredentialRef, ColumnType, ColumnDef, PaginationType, SpecStatus, ClientStatus; infusion: CredentialRef, InfusionType, BuiltInSourceType, InfusionSourceConfig, InfusionField, PipeStageConfig, PluginConfig, InfusionSpec; write_endpoint: BatchMode, WriteStep, WriteEndpointSpec; prism_core: ColumnType, ColumnOptions, PluginError; prism_query: WriteToolInvalidationMap; plugin: LoadedPlugin)."
             exit 1
           fi
           # Count E0639/E0004 errors — must be >= the number of violations in the crate.
           # Violations are split across submodules (enum_violations.rs + struct_violations.rs)
           # so that rustc's per-file error budget does not suppress later violations.
           # Update EXPECTED when adding/removing violations from enum_violations.rs or
-          # struct_violations.rs (current: 20 E0639 struct literals + 12 E0004 enum matches = 32).
+          # struct_violations.rs (current: 21 E0639 struct literals + 12 E0004 enum matches = 33).
           E0639_COUNT=$(grep -c 'error\[E0639\]' /tmp/non-exhaustive-check.log || true)
           E0004_COUNT=$(grep -c 'error\[E0004\]' /tmp/non-exhaustive-check.log || true)
           TOTAL_COUNT=$((E0639_COUNT + E0004_COUNT))
-          EXPECTED=32
+          EXPECTED=33
           if [ "${TOTAL_COUNT}" -lt "${EXPECTED}" ]; then
             echo "::error::Expected at least ${EXPECTED} E0639/E0004 errors (one per #[non_exhaustive] type), got ${TOTAL_COUNT}. Some types may have lost their annotation. E0639=${E0639_COUNT} E0004=${E0004_COUNT}"
             exit 1
           fi
-          echo "Check passed: ${TOTAL_COUNT} types correctly reject external struct-literal or non-exhaustive match construction (E0639=${E0639_COUNT} E0004=${E0004_COUNT}, expected: ${EXPECTED}). Types validated: spec_parser::CredentialRef, SensorSpec, SensorTableDescriptor, FetchStep, ColumnSpec, TableSpec, PaginationConfig, AuthType, RateLimitHints; types::SensorSpec, SensorTableDescriptor, CredentialRef, ColumnType, ColumnDef, PaginationType, SpecStatus, ClientStatus; infusion::CredentialRef, InfusionType, BuiltInSourceType, InfusionSourceConfig, InfusionField, PipeStageConfig, PluginConfig, InfusionSpec; write_endpoint::BatchMode, WriteStep, WriteEndpointSpec; prism_core::ColumnType, ColumnOptions, PluginError; prism_query::invalidation::WriteToolInvalidationMap (BC-2.01.013 AC-5, F-LP22 D-572, post-PREREQ-E)."
+          echo "Check passed: ${TOTAL_COUNT} types correctly reject external struct-literal or non-exhaustive match construction (E0639=${E0639_COUNT} E0004=${E0004_COUNT}, expected: ${EXPECTED}). Types validated: spec_parser::CredentialRef, SensorSpec, SensorTableDescriptor, FetchStep, ColumnSpec, TableSpec, PaginationConfig, AuthType, RateLimitHints; types::SensorSpec, SensorTableDescriptor, CredentialRef, ColumnType, ColumnDef, PaginationType, SpecStatus, ClientStatus; infusion::CredentialRef, InfusionType, BuiltInSourceType, InfusionSourceConfig, InfusionField, PipeStageConfig, PluginConfig, InfusionSpec; write_endpoint::BatchMode, WriteStep, WriteEndpointSpec; prism_core::ColumnType, ColumnOptions, PluginError; prism_query::invalidation::WriteToolInvalidationMap; plugin::LoadedPlugin (BC-2.01.013 AC-5, F-LP22 D-572, post-PREREQ-E, PLUGIN-MIGRATION-001-E)."
 
   perimeter-symbols-sync:
     name: Perimeter symbols sync check (BC-2.11.006 OBS-001)
@@ -1068,4 +1103,13 @@ jobs:
             exit 1
           }
           echo 'AC-5 reachability check passed: non-exhaustive-violation-compile-fail job present.'
-          echo 'All AC-5..AC-8 reachability assertions pass.'
+          # F-LP5-HIGH-001 reachability assertion:
+          # The wasm32-compile-check job is the SOLE CI gate proving the crowdstrike-oauth2
+          # plugin's wit-bindgen Guest impl + export!(Component) macro actually compile.
+          # A future PR removing this job block would silently disable the gate.
+          grep -qE 'wasm32-compile-check' .github/workflows/ci.yml || {
+            echo "::error::F-LP5-HIGH-001: wasm32-compile-check job is missing from ci.yml — Guest impl compile gate removed (PLUGIN-MIGRATION-001-E F-LP5-HIGH-001)"
+            exit 1
+          }
+          echo 'F-LP5-HIGH-001 reachability check passed: wasm32-compile-check job present.'
+          echo 'All AC-5..AC-8 + F-LP5-HIGH-001 reachability assertions pass.'
