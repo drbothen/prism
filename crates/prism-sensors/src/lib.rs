@@ -59,8 +59,9 @@ pub use auth::crowdstrike::CrowdStrikeAdapter;
 pub use auth::cyberint::CyberintAdapter;
 pub use auth::{ArmisAuth, ClarotyAuth, CrowdStrikeAuth, CyberintAuth, SensorAuth};
 pub use fanout::{
-    error_to_retry_metadata, fan_out, CredentialResolver, FanOutError, FanOutResult, FanOutTarget,
-    RetryMetadata, MAX_FANOUT_CONCURRENCY,
+    error_to_retry_metadata, fan_out, fan_out_with_overlay_map, resolve_spec_for_fanout,
+    CredentialResolver, FanOutError, FanOutResult, FanOutTarget, RetryMetadata,
+    MAX_FANOUT_CONCURRENCY,
 };
 pub use http::{
     acquire_http_permit, available_http_permits, init_http_semaphore, HTTP_SEMAPHORE_PERMITS,

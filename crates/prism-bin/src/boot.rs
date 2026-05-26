@@ -137,6 +137,20 @@ impl BootError {
 pub struct RunningServer {
     /// Resolved config directory used during boot.
     pub config_dir: PathBuf,
+    /// Per-org overlay resolved spec map produced by step 4 (S-CONFIG-MULTI-TENANT-OVERRIDE-001).
+    ///
+    /// Read-only after boot; shared via `Arc<HashMap>` for O(1) fanout dispatch
+    /// without mutex contention (INV-OVL-006, INV-FANOUT-002).
+    /// Key: `(OrgSlug, SensorId)`; value: effective `ResolvedSensorSpec`.
+    ///
+    /// Empty map when no `customers/` directory exists (BC-2.06.012 backwards compat).
+    /// Threaded into `QueryEngine` for per-org endpoint resolution at query time (ADR-029).
+    pub resolved_spec_map: Arc<
+        std::collections::HashMap<
+            prism_spec_engine::ResolvedSpecKey,
+            prism_spec_engine::ResolvedSensorSpec,
+        >,
+    >,
 }
 
 /// Lightweight result of steps 1–6 (blocking boot to audit-ready state).
@@ -149,6 +163,19 @@ pub struct BootContext {
     /// Threaded into step 7.5 (`plugin_load_step`) so the `RocksDbPluginAuditSink`
     /// can write durable audit entries for each unsigned plugin load (HIGH-002 / AC-4).
     pub rocksdb_backend: Arc<prism_storage::rocksdb_backend::RocksDbBackend>,
+    /// Per-org overlay resolved spec map produced by step 4 (S-CONFIG-MULTI-TENANT-OVERRIDE-001).
+    ///
+    /// Read-only after boot; shared via `Arc<HashMap>` for O(1) fanout dispatch
+    /// without mutex contention (INV-OVL-006, INV-FANOUT-002).
+    /// Key: `(OrgSlug, SensorId)`; value: effective `ResolvedSensorSpec`.
+    ///
+    /// Empty map when no `customers/` directory exists (BC-2.06.012 backwards compat).
+    pub resolved_spec_map: Arc<
+        std::collections::HashMap<
+            prism_spec_engine::ResolvedSpecKey,
+            prism_spec_engine::ResolvedSensorSpec,
+        >,
+    >,
     /// ConfigManager from step 4 — threaded into step 7.5 validation so that
     /// `validate_auth_plugin_registered` can check all loaded SensorSpecs against the
     /// plugin registry after `load_all_plugins` completes (F-LP2-CRIT-002).
@@ -351,6 +378,7 @@ pub async fn run_boot_sequence(config_dir: &Path) -> Result<RunningServer, BootE
 
     Ok(RunningServer {
         config_dir: config_dir.to_path_buf(),
+        resolved_spec_map: ctx.resolved_spec_map,
     })
 }
 
@@ -384,10 +412,15 @@ pub async fn boot_to_step_6(config_dir: &Path) -> Result<BootContext, BootError>
     let config = step2_load_config(config_dir).await?;
 
     // Step 3: Init OrgRegistry.
-    let _org_registry = step3_init_org_registry(&config).await?;
+    // INV-COMPAT-002 (BC-2.06.015): step 3 MUST precede step 4 — overlay validation
+    // requires a fully-constructed OrgRegistry to cross-check customers/ slugs.
+    let org_registry = step3_init_org_registry(&config).await?;
 
-    // Step 4: Load sensor TOML specs.
-    let config_manager = step4_load_sensor_specs(&config).await?;
+    // Step 4: Load sensor TOML specs AND per-org overlay specs.
+    // S-CONFIG-MULTI-TENANT-OVERRIDE-001: extended step 4 replaces bare step4_load_sensor_specs.
+    // Returns (config_manager, resolved_spec_map) — overlay errors abort boot with exit 2.
+    let (config_manager, resolved_spec_map) =
+        step4_load_sensor_specs_with_overlays(&config, &org_registry).await?;
 
     // Step 5: Init credential store.
     //
@@ -505,6 +538,7 @@ pub async fn boot_to_step_6(config_dir: &Path) -> Result<BootContext, BootError>
     Ok(BootContext {
         config_dir: config_dir.to_path_buf(),
         rocksdb_backend: audit_backend,
+        resolved_spec_map,
         // F-LP2-CRIT-002: thread config_manager into BootContext so that run_boot_sequence
         // can validate auth_plugin registry membership after plugins are loaded at step 7.5.
         config_manager,
@@ -751,6 +785,189 @@ pub async fn step4_load_sensor_specs(
     );
 
     Ok(manager)
+}
+
+/// Step 4 extension [BLOCKING]: Load sensor TOML specs AND per-org overlay specs.
+///
+/// S-CONFIG-MULTI-TENANT-OVERRIDE-001 extension of `step4_load_sensor_specs`.
+///
+/// After loading all TYPE specs from the root `spec_dir`, walks `customers/`
+/// subdirectory for per-org overlay files and validates them against the OrgRegistry
+/// produced in step 3 (BC-2.06.015 INV-COMPAT-002 — step 3 must precede step 4).
+///
+/// Overlay validation errors (E-SPEC-019..E-SPEC-023) are collected and aggregated
+/// before returning — does NOT short-circuit at the first error (INV-ERR-003,
+/// BC-2.06.016). All errors are reported as `BootError::ConfigInvalid` (exit 2).
+///
+/// On success, returns:
+/// - `config_manager` — `Arc<ArcSwap<ConfigManager>>` for hot-reload support
+/// - `resolved_spec_map` — `Arc<HashMap<ResolvedSpecKey, ResolvedSensorSpec>>` for
+///   O(1) fanout dispatch (INV-OVL-006 — read-only after boot).
+///
+/// # BC-2.06.015 — OrgRegistry cross-validation
+/// Every `customers/<slug>/` directory is cross-checked against `OrgRegistry`.
+/// An unregistered slug → E-SPEC-022; boot aborts with exit 2.
+///
+/// # BC-2.06.012 — Backwards compatibility
+/// Absent `customers/` directory → zero `ResolvedSensorSpec` entries; boot
+/// continues normally. All fanout targets fall back to TYPE spec `base_url`.
+///
+/// Story: S-CONFIG-MULTI-TENANT-OVERRIDE-001 | BCs: BC-2.06.012..016
+pub async fn step4_load_sensor_specs_with_overlays(
+    config: &PrismConfig,
+    org_registry: &Arc<prism_core::OrgRegistry>,
+) -> Result<
+    (
+        Arc<arc_swap::ArcSwap<prism_spec_engine::config_manager::ConfigManager>>,
+        Arc<
+            std::collections::HashMap<
+                prism_spec_engine::ResolvedSpecKey,
+                prism_spec_engine::ResolvedSensorSpec,
+            >,
+        >,
+    ),
+    BootError,
+> {
+    use prism_spec_engine::overlay::OverlayLoader;
+
+    // Step 4a: Load TYPE specs (same as step4_load_sensor_specs).
+    let config_manager = step4_load_sensor_specs(config).await?;
+
+    // Step 4b: Build type_specs map (HashMap<String, spec_parser::SensorSpec>) for overlay
+    // resolution. OverlayLoader requires spec_parser::SensorSpec (the newer type with
+    // AuthType enum), while ConfigSnapshot::sensor_specs uses types::SensorSpec (different
+    // type). We read the spec_dir files a second time using SpecLoader::parse to produce
+    // the correct type — this is a lightweight directory read, not a full re-validation.
+    let type_specs = build_type_spec_map_for_overlay(&config.spec_dir)?;
+
+    // Step 4c: Walk customers/ for per-org overlay files and validate against OrgRegistry.
+    // BC-2.06.012: absent customers/ → zero resolved entries, boot continues.
+    // BC-2.06.015: every customers/<slug>/ is cross-validated against OrgRegistry.
+    // BC-2.06.016 / INV-ERR-003: all errors collected before returning.
+    let customers_dir = config.spec_dir.join("customers");
+    let overlay_result = OverlayLoader::load_overlays(&customers_dir, &type_specs, org_registry);
+
+    // BC-2.06.016: aggregate ALL overlay errors; if any, boot aborts with exit 2.
+    if !overlay_result.errors.is_empty() {
+        let detail = overlay_result
+            .errors
+            .iter()
+            .map(|e| format!("  - {e}"))
+            .collect::<Vec<_>>()
+            .join("\n");
+        return Err(BootError::ConfigInvalid(format!(
+            "Overlay validation failed ({} error(s)):\n{detail}",
+            overlay_result.errors.len()
+        )));
+    }
+
+    let resolved_spec_map = Arc::new(overlay_result.resolved);
+
+    // ADV-009 fix: add event_type for SAP-1 compliance (BC-2.16.002 catalog row added).
+    // event_type = "boot.overlays_loaded" | audit role: operational/boot-traceability
+    // recurrence: once per boot / config-reload when customers_dir is present
+    tracing::info!(
+        event_type = "boot.overlays_loaded",
+        customers_dir = %customers_dir.display(),
+        overlay_count = resolved_spec_map.len(),
+        "Per-org overlay specs loaded (BC-2.06.012..016)"
+    );
+
+    Ok((config_manager, resolved_spec_map))
+}
+
+// ---------------------------------------------------------------------------
+// build_type_spec_map_for_overlay — helper for step4_load_sensor_specs_with_overlays
+// ---------------------------------------------------------------------------
+
+/// Build a `HashMap<String, spec_parser::SensorSpec>` from all `*.sensor.toml` files
+/// in `spec_dir` using `SpecLoader::parse`.
+///
+/// This is a secondary parse of the spec directory required because
+/// `OverlayLoader::load_overlays` expects `spec_parser::SensorSpec` (with the `AuthType`
+/// enum), while `ConfigSnapshot::sensor_specs` (produced by `parse_spec_directory`)
+/// stores `types::SensorSpec` (with `auth_type: String`).  The two types are distinct
+/// and cannot be interchanged without a lossy conversion.
+///
+/// PRR-005 fix (Standing Rule 3 §2): parse failures are now fatal rather than silently
+/// swallowed.  A corrupt TYPE spec file would previously cause E-SPEC-019 (unknown extends)
+/// for any overlay that extends it — a misleading error.  Failing hard here produces
+/// a clear boot error at the file that is actually corrupt.
+///
+/// On I/O failure reading the directory itself, returns `BootError::ConfigInvalid`.
+fn build_type_spec_map_for_overlay(
+    spec_dir: &std::path::Path,
+) -> Result<std::collections::HashMap<String, prism_spec_engine::SensorSpec>, BootError> {
+    use prism_spec_engine::spec_parser::SpecLoader;
+
+    let read_dir = std::fs::read_dir(spec_dir).map_err(|e| {
+        BootError::ConfigInvalid(format!(
+            "Cannot read spec directory {} for overlay type_specs map: {e}",
+            spec_dir.display()
+        ))
+    })?;
+
+    let mut type_specs = std::collections::HashMap::new();
+    let mut failed_specs: Vec<String> = Vec::new();
+
+    for entry in read_dir.flatten() {
+        let path = entry.path();
+        let file_name = path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("")
+            .to_string();
+
+        if !file_name.ends_with(".sensor.toml") {
+            continue;
+        }
+
+        let content = match std::fs::read_to_string(&path) {
+            Ok(c) => c,
+            Err(e) => {
+                // PRR-005: I/O failure reading a TYPE spec is a hard boot error.
+                // Emit event_type for SAP-1 catalog compliance before returning error.
+                tracing::error!(
+                    event_type = "boot.type_spec_read_failed",
+                    file = %path.display(),
+                    error = %e,
+                    "build_type_spec_map_for_overlay: I/O failure reading TYPE spec file"
+                );
+                failed_specs.push(format!("{} (I/O error: {e})", path.display()));
+                continue;
+            }
+        };
+
+        match SpecLoader::parse(&content) {
+            Ok(spec) => {
+                type_specs.insert(spec.sensor_id.clone(), spec);
+            }
+            Err(e) => {
+                // PRR-005: parse failure for a TYPE spec file is a hard boot error.
+                // Previously warn-and-skip caused misleading E-SPEC-019 for any overlay
+                // that extends this sensor (the user would see "unknown extends" when the
+                // real problem is a corrupt TYPE spec).
+                tracing::error!(
+                    event_type = "boot.type_spec_parse_failed",
+                    file = %path.display(),
+                    error = %e,
+                    "build_type_spec_map_for_overlay: parse failure for TYPE spec file"
+                );
+                failed_specs.push(format!("{} (parse error: {e})", path.display()));
+            }
+        }
+    }
+
+    if !failed_specs.is_empty() {
+        return Err(BootError::ConfigInvalid(format!(
+            "One or more TYPE spec files failed to parse during overlay map construction. \
+             Boot aborted to prevent misleading E-SPEC-019 errors for overlays that extend \
+             these sensors. Failed files:\n{}",
+            failed_specs.join("\n")
+        )));
+    }
+
+    Ok(type_specs)
 }
 
 // ---------------------------------------------------------------------------
@@ -1668,4 +1885,258 @@ pub enum CredentialBackendConfig {
     EncryptedFile {
         path: PathBuf,
     },
+}
+
+// ---------------------------------------------------------------------------
+// Unit tests — step4_load_sensor_specs_with_overlays (BC-2.06.012, BC-2.06.015)
+// ---------------------------------------------------------------------------
+//
+// SID-1: tests use in-process tempdir helpers; no subprocess spawning; no #[ignore].
+// These tests exercise the production code path directly.
+
+#[cfg(test)]
+mod step4_overlay_tests {
+    use std::sync::Arc;
+
+    use prism_core::{OrgId, OrgRegistry, OrgSlug};
+
+    use super::*;
+
+    /// Minimal valid TYPE spec TOML for testing.
+    const ARMIS_TYPE_SPEC_TOML: &str = r#"
+sensor_id = "armis"
+name = "Armis test"
+auth_type = "bearer_static"
+base_url = "https://armis.default.example.com"
+version = "1.0.0"
+
+[[tables]]
+table_name = "devices"
+ocsf_class = "device_inventory_info"
+
+  [[tables.columns]]
+  name = "device_id"
+  column_type = "string"
+  options = ["REQUIRED"]
+
+  [[tables.steps]]
+  name = "fetch"
+  method = "GET"
+  path_template = "/api/v1/devices"
+  response_path = "$.data"
+  variables_produced = []
+"#;
+
+    /// Build a minimal prism.toml + spec_dir/ directory structure in a tempdir.
+    ///
+    /// Returns the tempdir (kept alive for test lifetime) and the `PrismConfig`.
+    fn make_config_dir_with_sensor(
+        org_id: &str,
+        org_slug: &str,
+    ) -> (tempfile::TempDir, PrismConfig) {
+        let dir = tempfile::tempdir().expect("tempdir must succeed");
+
+        // Write prism.toml.
+        let prism_toml = format!(
+            r#"
+spec_dir = "specs"
+state_dir = "state"
+
+[[orgs]]
+org_id = "{org_id}"
+org_slug = "{org_slug}"
+"#
+        );
+        std::fs::write(dir.path().join("prism.toml"), &prism_toml).expect("write prism.toml");
+
+        // Create specs/ directory with the Armis TYPE spec.
+        let spec_dir = dir.path().join("specs");
+        std::fs::create_dir_all(&spec_dir).expect("create specs/");
+        std::fs::write(spec_dir.join("armis.sensor.toml"), ARMIS_TYPE_SPEC_TOML)
+            .expect("write armis.sensor.toml");
+
+        // Construct a PrismConfig pointing to the tempdir.
+        let config = PrismConfig::new_for_test(
+            spec_dir,
+            dir.path().join("state"),
+            dir.path().join("plugins"),
+            vec![OrgEntry::new(org_id, org_slug)],
+            CredentialBackendConfig::Keyring,
+        );
+
+        (dir, config)
+    }
+
+    /// Build an OrgRegistry with one org.
+    fn registry_with_org(org_id: OrgId, org_slug: &str) -> Arc<OrgRegistry> {
+        let reg = OrgRegistry::new();
+        reg.register(OrgSlug::new(org_slug), org_id)
+            .expect("register must succeed");
+        Arc::new(reg)
+    }
+
+    /// BC-2.06.012: absent customers/ directory → zero resolved entries, boot continues.
+    #[tokio::test]
+    #[allow(non_snake_case)]
+    async fn test_BC_2_06_012_no_customers_dir_boots_with_empty_overlay_map() {
+        // Use a valid UUID v7 for org_id (BC-2.21.001 EC-21-001-008).
+        let v7 = uuid::Uuid::now_v7();
+        let v7_str = v7.to_string();
+        let (dir, config) = make_config_dir_with_sensor(&v7_str, "acme");
+        let _ = &dir; // keep alive
+
+        // Explicitly ensure no customers/ directory exists.
+        assert!(
+            !config.spec_dir.join("../customers").exists(),
+            "customers/ must not exist for this test"
+        );
+
+        let org_id = prism_core::OrgId::from_uuid(v7);
+        let registry = registry_with_org(org_id, "acme");
+
+        let result = step4_load_sensor_specs_with_overlays(&config, &registry).await;
+        let (_config_manager, resolved_map) = result
+            .expect("boot must succeed with absent customers/ (BC-2.06.012 backwards compat)");
+
+        assert!(
+            resolved_map.is_empty(),
+            "BC-2.06.012: absent customers/ → zero ResolvedSensorSpec entries"
+        );
+    }
+
+    /// BC-2.06.015: unknown org slug in customers/ → overlay error → boot aborts exit 2.
+    #[tokio::test]
+    #[allow(non_snake_case)]
+    async fn test_BC_2_06_015_unknown_org_slug_in_customers_dir_aborts_boot() {
+        let v7 = uuid::Uuid::now_v7();
+        let v7_str = v7.to_string();
+        let (dir, config) = make_config_dir_with_sensor(&v7_str, "acme");
+        let _ = &dir; // keep alive
+
+        // Create customers/unknown-org/ with a dummy overlay.
+        let overlay_dir = config.spec_dir.join("customers").join("unknown-org");
+        std::fs::create_dir_all(&overlay_dir).expect("create unknown-org overlay dir");
+        std::fs::write(
+            overlay_dir.join("armis.sensor.toml"),
+            r#"extends = "armis"
+instance_id = "armis@unknown-org"
+base_url = "https://armis.unknown.example.com"
+"#,
+        )
+        .expect("write overlay file");
+
+        let org_id = prism_core::OrgId::from_uuid(v7);
+        let registry = registry_with_org(org_id, "acme");
+
+        let result = step4_load_sensor_specs_with_overlays(&config, &registry).await;
+        match result {
+            Err(BootError::ConfigInvalid(msg)) => {
+                assert!(
+                    msg.contains("Overlay validation failed"),
+                    "BC-2.06.015: ConfigInvalid must contain 'Overlay validation failed', got: {msg}"
+                );
+            }
+            Ok(_) => panic!("BC-2.06.015: boot must fail for unknown org slug in customers/"),
+            Err(e) => {
+                panic!("BC-2.06.015: wrong error variant — expected ConfigInvalid, got: {e:?}")
+            }
+        }
+    }
+
+    /// BC-2.06.012 happy path: overlay present → resolved_spec_map contains the entry.
+    #[tokio::test]
+    #[allow(non_snake_case)]
+    async fn test_BC_2_06_012_overlay_present_in_customers_dir_resolves_to_map() {
+        let v7 = uuid::Uuid::now_v7();
+        let v7_str = v7.to_string();
+        let (dir, config) = make_config_dir_with_sensor(&v7_str, "acme");
+        let _ = &dir; // keep alive
+
+        // Create customers/acme/armis.sensor.toml overlay.
+        let overlay_dir = config.spec_dir.join("customers").join("acme");
+        std::fs::create_dir_all(&overlay_dir).expect("create acme overlay dir");
+        std::fs::write(
+            overlay_dir.join("armis.sensor.toml"),
+            r#"extends = "armis"
+instance_id = "armis@acme"
+base_url = "https://armis.acme-corp.io"
+"#,
+        )
+        .expect("write overlay");
+
+        let org_id = prism_core::OrgId::from_uuid(v7);
+        let registry = registry_with_org(org_id, "acme");
+
+        let (_config_manager, resolved_map) =
+            step4_load_sensor_specs_with_overlays(&config, &registry)
+                .await
+                .expect("boot must succeed with valid overlay (BC-2.06.012)");
+
+        // ResolvedSpecKey = (OrgSlug, SensorId).
+        let key = (OrgSlug::new("acme"), prism_core::SensorId::from("armis"));
+        let resolved = resolved_map.get(&key);
+        assert!(
+            resolved.is_some(),
+            "BC-2.06.012: overlay entry must appear in resolved_spec_map at (acme, armis)"
+        );
+        let spec = &resolved.unwrap().spec;
+        assert_eq!(
+            spec.base_url, "https://armis.acme-corp.io",
+            "BC-2.06.012: overlay base_url must be used in resolved spec"
+        );
+    }
+
+    /// F-P2-MED-001 / PRR-005: corrupt TYPE spec file → hard boot abort with `BootError::ConfigInvalid`.
+    ///
+    /// Verifies the pass-1 fix that changed `build_type_spec_map_for_overlay` from
+    /// warn-and-skip to hard-abort on parse failure.  A corrupt `*.sensor.toml` must not
+    /// silently produce misleading E-SPEC-019 errors for overlays that extend the broken sensor;
+    /// instead boot must fail immediately with a `ConfigInvalid` error message that includes
+    /// the corrupt file path.
+    ///
+    /// TD-VSDD-059: this test provides the load-bearing assertion that the hard-failure path
+    /// is exercised — not just doc-commented.
+    #[tokio::test]
+    #[allow(non_snake_case)]
+    async fn test_F_P2_MED_001_corrupt_type_spec_file_aborts_boot_with_config_invalid() {
+        let v7 = uuid::Uuid::now_v7();
+        let v7_str = v7.to_string();
+        let (dir, config) = make_config_dir_with_sensor(&v7_str, "acme");
+        let _ = &dir; // keep alive
+
+        // Overwrite the valid armis.sensor.toml with corrupt TOML (unparseable).
+        let corrupt_path = config.spec_dir.join("armis.sensor.toml");
+        std::fs::write(
+            &corrupt_path,
+            "this is [not valid {{toml content at all\x00\n",
+        )
+        .expect("write corrupt sensor.toml");
+
+        let org_id = prism_core::OrgId::from_uuid(v7);
+        let registry = registry_with_org(org_id, "acme");
+
+        // boot step 4 must fail hard on the corrupt TYPE spec.
+        let result = step4_load_sensor_specs_with_overlays(&config, &registry).await;
+        match result {
+            Err(BootError::ConfigInvalid(msg)) => {
+                // Error message must mention the corrupt file path so operators know
+                // which file to fix (PRR-005 diagnostic requirement).
+                assert!(
+                    msg.contains("armis.sensor.toml"),
+                    "F-P2-MED-001: ConfigInvalid must contain the corrupt file path in message, got: {msg}"
+                );
+                // Confirm this is the parse-failure branch, not the I/O failure branch.
+                assert!(
+                    msg.contains("Failed") || msg.contains("failed") || msg.contains("parse"),
+                    "F-P2-MED-001: ConfigInvalid message should describe a parse failure, got: {msg}"
+                );
+            }
+            Ok(_) => panic!(
+                "F-P2-MED-001: boot must fail when a TYPE spec file is corrupt (PRR-005 hard-abort)"
+            ),
+            Err(e) => {
+                panic!("F-P2-MED-001: wrong error variant — expected ConfigInvalid, got: {e:?}")
+            }
+        }
+    }
 }

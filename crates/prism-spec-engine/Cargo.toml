@@ -243,6 +243,16 @@ name = "parity_armis"
 path = "tests/parity/armis.rs"
 required-features = ["test-helpers"]
 
+# S-CONFIG-MULTI-TENANT-OVERRIDE-001: Red Gate tests for AC-001..AC-007
+# BC-2.06.012 (overlay discovery + merge + backcompat)
+# BC-2.06.013 (scalar-only enforcement — E-SPEC-020/021/023)
+# BC-2.06.014 (fanout identity resolution)
+# BC-2.06.015 (OrgRegistry cross-validation — E-SPEC-022)
+# BC-2.06.016 (error taxonomy — all 5 E-SPEC codes)
+[[test]]
+name = "overlay_loading_tests"
+path = "tests/overlay_loading_tests.rs"
+
 # PLUGIN-MIGRATION-001-E: Red Gate tests 1-10 + additional tests for CrowdStrike OAuth2 .prx WASM plugin.
 # FB-IMPL-2 fix-burst 2026-05-22: 14 ACs + CRIT-001 kv_store + MED-001 built-prx + MED-003 retry token.
 # F-LP2-MED-003: test_006 now asserts Bearer wat-fixture-token header + .expect(1) on retry mock.

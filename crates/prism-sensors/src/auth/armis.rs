@@ -376,8 +376,11 @@ impl ArmisAdapter {
     pub fn new(org_id: prism_core::OrgId, auth: &ArmisAuth, bearer_token: SecretString) -> Self {
         let http = Client::builder()
             .cookie_store(false)
+            .timeout(std::time::Duration::from_secs(30))
             .build()
-            .unwrap_or_default();
+            .unwrap_or_else(|e| {
+                panic!("ArmisAdapter HTTP client construction failed (unrecoverable): {e}")
+            });
 
         Self {
             org_id,
@@ -508,13 +511,19 @@ impl ArmisAdapter {
 
     /// Issues a GetSearch API call with the given AQL query.
     ///
+    /// `effective_base_url` — the base URL to use for this request.  When a per-org
+    /// overlay injects `sensor_config["base_url"]`, `fetch()` passes the overlay URL here
+    /// instead of `self.instance_url` (SEC-REDUX-001 / AC-003 fix: per-org endpoint routing).
+    /// Falls back to `self.instance_url` when no overlay is present.
+    ///
     /// Includes `Authorization: Bearer {self.bearer_token}` header.
     pub(crate) async fn get_search(
         &self,
         aql: &str,
         _params: &QueryParams,
+        effective_base_url: &str,
     ) -> Result<Vec<serde_json::Value>, SensorError> {
-        let url = format!("{}/api/v1/search", self.instance_url);
+        let url = format!("{}/api/v1/search", effective_base_url);
 
         let resp = self
             .http
@@ -589,11 +598,21 @@ impl SensorAdapter for ArmisAdapter {
         // BEFORE the HTTP semaphore is acquired (TV-BC-2.01.008-006).
         let aql = self.build_aql(spec, params)?;
 
+        // Resolve effective base URL: prefer per-org overlay injected via sensor_config,
+        // fall back to self.instance_url (the TYPE-spec / auth default).
+        // SEC-REDUX-001 / AC-003 fix: per-org endpoint routing is live at fetch time.
+        let effective_base_url = spec
+            .sensor_config
+            .get("base_url")
+            .and_then(|v| v.as_str())
+            .filter(|s| !s.is_empty())
+            .unwrap_or(&self.instance_url);
+
         // Acquire HTTP semaphore permit (after AQL validation, per ADR-005 ordering).
         let _permit = crate::http::acquire_http_permit().await?;
 
-        // Fetch records via GetSearch.
-        let records = self.get_search(&aql, params).await?;
+        // Fetch records via GetSearch using the effective (possibly overlay-overridden) URL.
+        let records = self.get_search(&aql, params, effective_base_url).await?;
 
         if records.is_empty() {
             return Ok(vec![]);

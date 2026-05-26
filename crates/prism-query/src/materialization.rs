@@ -188,6 +188,17 @@ pub struct MaterializationContext {
     /// OrgSlug → OrgId registry for per-org adapter selection. (F-LP1-CRIT-3)
     /// When `None`, falls back to `get_all_for_sensor` (test/MVP mode).
     pub(crate) org_registry: Option<Arc<prism_core::OrgRegistry>>,
+    /// Per-org overlay resolved spec map for per-org endpoint dispatch (ADR-029).
+    /// When `Some`, `fan_out_with_overlay_map` is used; when `None`, bare `fan_out` is used.
+    /// (F-LP2-CRIT-001 wiring — S-CONFIG-MULTI-TENANT-OVERRIDE-001)
+    pub(crate) resolved_spec_map: Option<
+        Arc<
+            std::collections::HashMap<
+                prism_spec_engine::ResolvedSpecKey,
+                prism_spec_engine::ResolvedSensorSpec,
+            >,
+        >,
+    >,
 }
 
 impl MaterializationContext {
@@ -205,20 +216,29 @@ impl MaterializationContext {
             max_records,
             Arc::new(crate::materialization::NullMaterializationCredentialResolver),
             None,
+            None,
         )
     }
 
     /// Construct a new `MaterializationContext` with explicit resolver and registry.
     ///
     /// Used by `QueryEngine::execute_inner` to inject the engine's
-    /// `CredentialResolver` and `OrgRegistry` into the pipeline.
-    /// (F-LP1-CRIT-2, F-LP1-CRIT-3)
+    /// `CredentialResolver`, `OrgRegistry`, and `resolved_spec_map` into the pipeline.
+    /// (F-LP1-CRIT-2, F-LP1-CRIT-3, F-LP2-CRIT-001)
     pub fn new_with_resolver(
         adapter_registry: Arc<AdapterRegistry>,
         ocsf_normalizer: Arc<OcsfNormalizer>,
         max_records: usize,
         credential_resolver: Arc<dyn CredentialResolver>,
         org_registry: Option<Arc<prism_core::OrgRegistry>>,
+        resolved_spec_map: Option<
+            Arc<
+                std::collections::HashMap<
+                    prism_spec_engine::ResolvedSpecKey,
+                    prism_spec_engine::ResolvedSensorSpec,
+                >,
+            >,
+        >,
     ) -> Self {
         Self {
             adapter_registry,
@@ -228,6 +248,7 @@ impl MaterializationContext {
             in_query_cache: std::collections::HashMap::new(),
             credential_resolver,
             org_registry,
+            resolved_spec_map,
         }
     }
 
@@ -424,13 +445,32 @@ pub async fn run_materialization_pipeline(
 
         // Call fan_out with a single target — preserves per-client identity for
         // virtual field injection. (BC-3.2.001 per-org isolation)
-        match prism_sensors::fan_out(
-            vec![fan_target],
-            Arc::clone(&mat_ctx.adapter_registry),
-            Arc::clone(&mat_ctx.credential_resolver),
-        )
-        .await
-        {
+        //
+        // F-LP2-CRIT-001 (ADR-029): use fan_out_with_overlay_map when both
+        // org_registry and resolved_spec_map are present, so per-org overlay
+        // base_url endpoints reach the HTTP client. Falls back to bare fan_out
+        // when either is absent (test/MVP mode — no overlay config loaded).
+        let fan_result = match (&mat_ctx.org_registry, &mat_ctx.resolved_spec_map) {
+            (Some(org_registry), Some(resolved_spec_map)) => {
+                prism_sensors::fan_out_with_overlay_map(
+                    vec![fan_target],
+                    Arc::clone(&mat_ctx.adapter_registry),
+                    Arc::clone(&mat_ctx.credential_resolver),
+                    Arc::clone(org_registry),
+                    Arc::clone(resolved_spec_map),
+                )
+                .await
+            }
+            _ => {
+                prism_sensors::fan_out(
+                    vec![fan_target],
+                    Arc::clone(&mat_ctx.adapter_registry),
+                    Arc::clone(&mat_ctx.credential_resolver),
+                )
+                .await
+            }
+        };
+        match fan_result {
             Ok(fan_result) => {
                 // Record sensor type in sensors_queried (BC-2.11.001, ADV-W3MT-P58-HIGH-005).
                 sensors_queried.insert(format!("{:?}", target.sensor_id));

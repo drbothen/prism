@@ -108,8 +108,11 @@ impl CyberintAdapter {
 
         let http = Client::builder()
             .cookie_store(true)
+            .timeout(std::time::Duration::from_secs(30))
             .build()
-            .unwrap_or_default();
+            .unwrap_or_else(|e| {
+                panic!("CyberintAdapter HTTP client construction failed (unrecoverable): {e}")
+            });
 
         Self {
             org_id,

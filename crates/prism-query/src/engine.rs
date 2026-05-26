@@ -212,6 +212,19 @@ pub struct QueryEngine {
     /// (F-LP1-CRIT-1: `register_internal_tables` invoked from `execute_inner`)
     /// When `None`, internal tables are not registered (e.g. query-only mode).
     pub(crate) storage: Option<Arc<dyn RocksStorageBackend>>,
+    /// Per-org overlay resolved spec map for per-org endpoint dispatch (ADR-029).
+    /// Produced at boot by `OverlayLoader::load_overlays` (step 4) and threaded through
+    /// `RunningServer` → `QueryEngine` → `MaterializationContext` for O(1) lookup at fan-out.
+    /// `None` when no overlay config exists (test/MVP mode).
+    /// (F-LP2-CRIT-001 + F-LP2-HIGH-001 wiring — S-CONFIG-MULTI-TENANT-OVERRIDE-001)
+    pub(crate) resolved_spec_map: Option<
+        Arc<
+            std::collections::HashMap<
+                prism_spec_engine::ResolvedSpecKey,
+                prism_spec_engine::ResolvedSensorSpec,
+            >,
+        >,
+    >,
 }
 
 impl QueryEngine {
@@ -276,6 +289,7 @@ impl QueryEngine {
             credential_resolver,
             org_registry: None,
             storage: None,
+            resolved_spec_map: None,
         }
     }
 
@@ -291,9 +305,10 @@ impl QueryEngine {
 
     /// Construct a `QueryEngine` with full production dependencies.
     ///
-    /// Includes `CredentialResolver`, `OrgRegistry`, and `RocksStorageBackend`
-    /// for end-to-end fan_out dispatch and internal table access.
-    /// (F-LP1-CRIT-1/2/3)
+    /// Includes `CredentialResolver`, `OrgRegistry`, `RocksStorageBackend`,
+    /// and `resolved_spec_map` for end-to-end fan_out dispatch with per-org
+    /// endpoint overlay resolution and internal table access.
+    /// (F-LP1-CRIT-1/2/3, F-LP2-CRIT-001 wiring)
     #[allow(clippy::too_many_arguments)]
     pub fn new_full(
         adapter_registry: Arc<AdapterRegistry>,
@@ -304,6 +319,12 @@ impl QueryEngine {
         credential_resolver: Arc<dyn CredentialResolver>,
         org_registry: Arc<prism_core::OrgRegistry>,
         storage: Arc<dyn RocksStorageBackend>,
+        resolved_spec_map: Arc<
+            std::collections::HashMap<
+                prism_spec_engine::ResolvedSpecKey,
+                prism_spec_engine::ResolvedSensorSpec,
+            >,
+        >,
     ) -> Self {
         let cursor_registry = Arc::new(Mutex::new(QueryCursorRegistry::new()));
         let cache = Arc::new(QueryCache::new(CacheConfig::default()));
@@ -323,6 +344,7 @@ impl QueryEngine {
             credential_resolver,
             org_registry: Some(org_registry),
             storage: Some(storage),
+            resolved_spec_map: Some(resolved_spec_map),
         }
     }
 }
@@ -436,12 +458,15 @@ impl QueryEngine {
         }
 
         // Step 3: Set up MaterializationContext with engine dependencies.
+        // F-LP2-CRIT-001: pass resolved_spec_map so fan_out_with_overlay_map is used
+        // when per-org overlay endpoints are configured (ADR-029).
         let mut mat_ctx = crate::materialization::MaterializationContext::new_with_resolver(
             Arc::clone(&self.adapter_registry),
             Arc::clone(&self.ocsf_normalizer),
             self.config.max_materialized_records,
             Arc::clone(&self.credential_resolver),
             self.org_registry.clone(),
+            self.resolved_spec_map.clone(),
         );
 
         // Step 4: Resolve effective options (merge client scope into options).
@@ -595,12 +620,15 @@ impl QueryEngine {
         }
 
         // Set up MaterializationContext.
+        // F-LP2-CRIT-001: pass resolved_spec_map so fan_out_with_overlay_map is used
+        // when per-org overlay endpoints are configured (ADR-029).
         let mut mat_ctx = crate::materialization::MaterializationContext::new_with_resolver(
             Arc::clone(&self.adapter_registry),
             Arc::clone(&self.ocsf_normalizer),
             self.config.max_materialized_records,
             Arc::clone(&self.credential_resolver),
             self.org_registry.clone(),
+            self.resolved_spec_map.clone(),
         );
 
         let effective_options = QueryOptions {
