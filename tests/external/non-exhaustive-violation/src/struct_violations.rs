@@ -4,12 +4,15 @@
 //! struct-literal construction. After `#[non_exhaustive]` is applied, each
 //! literal MUST fail with E0639 (cannot create non-exhaustive struct expression).
 //!
-//! Violations 1-6, 9-12, 16-17, 20-24, 26, 30, 32-35 (23 total E0639 expected).
+//! Violations 1-6, 9-12, 16-17, 20-24, 26, 30, 32-36 (24 total E0639 expected).
+//!
+//! PLUGIN-MIGRATION-001-E addition:
+//!   33. plugin::LoadedPlugin            — struct, plugin/loader.rs
 //!
 //! S-CONFIG-MULTI-TENANT-OVERRIDE-001 additions (ADR-029):
-//!   33. overlay::SensorInstanceOverlay  — struct, overlay.rs
-//!   34. overlay::OverlayProvenance      — struct, overlay.rs
-//!   35. overlay::ResolvedSensorSpec     — struct, overlay.rs
+//!   34. overlay::SensorInstanceOverlay  — struct, overlay.rs
+//!   35. overlay::OverlayProvenance      — struct, overlay.rs
+//!   36. overlay::ResolvedSensorSpec     — struct, overlay.rs
 
 use prism_core::{ColumnType, RiskTier, SensorId, TableType};
 use prism_spec_engine::overlay::{OverlayProvenance, ResolvedSensorSpec, SensorInstanceOverlay};
@@ -259,6 +262,31 @@ pub fn v30_types_sensor_spec() {
     let _ = _spec;
 }
 
+/// Violation 33: LoadedPlugin (prism_spec_engine) struct literal (E0639).
+///
+/// `LoadedPlugin` is the runtime handle for a compiled `.prx` plugin. It is a pub-API
+/// surface type returned by `PluginRuntime::load_plugin()`. `#[non_exhaustive]` was added
+/// in PLUGIN-MIGRATION-001-E (kv_store field addition) per CLAUDE.md §Conventions — external
+/// crates must not struct-literal-construct it; fields may expand as the plugin runtime evolves.
+///
+/// Note: `LoadedPlugin` contains `wasmtime::component::Component` and
+/// `wasmtime::component::InstancePre` which cannot be constructed externally. The struct
+/// literal here uses `todo!()` for all fields because E0639 fires at the struct-expression
+/// level (before field type-checking) once `#[non_exhaustive]` is applied.
+#[allow(dead_code)]
+pub fn v33_loaded_plugin() {
+    let _plugin = prism_spec_engine::LoadedPlugin {
+        metadata: todo!(),
+        component: todo!(),
+        pre_instance: todo!(),
+        core_module: todo!(),
+        raw_bytes: todo!(),
+        allowed_urls: todo!(),
+        kv_store: todo!(),
+    };
+    let _ = _plugin;
+}
+
 /// Violation 32: WriteToolInvalidationMap (prism_query::invalidation) struct literal (E0639).
 ///
 /// `WriteToolInvalidationMap` is a pub-API surface type used by plugins to register write
@@ -279,7 +307,7 @@ pub fn v32_write_tool_invalidation_map() {
     let _ = _entry;
 }
 
-/// Violation 33: overlay::SensorInstanceOverlay struct literal (E0639).
+/// Violation 34: overlay::SensorInstanceOverlay struct literal (E0639).
 ///
 /// `SensorInstanceOverlay` is a TOML-deserialized pub-API type for per-org overlay
 /// files (ADR-029 §C). `#[non_exhaustive]` ensures external crates cannot construct
@@ -289,7 +317,7 @@ pub fn v32_write_tool_invalidation_map() {
 ///
 /// Added: S-CONFIG-MULTI-TENANT-OVERRIDE-001 stubs.
 #[allow(dead_code)]
-pub fn v33_sensor_instance_overlay() {
+pub fn v34_sensor_instance_overlay() {
     let _overlay = SensorInstanceOverlay {
         extends: "armis".to_string(),
         instance_id: "armis@acme".to_string(),
@@ -300,7 +328,7 @@ pub fn v33_sensor_instance_overlay() {
     let _ = _overlay;
 }
 
-/// Violation 34: overlay::OverlayProvenance struct literal (E0639).
+/// Violation 35: overlay::OverlayProvenance struct literal (E0639).
 ///
 /// `OverlayProvenance` tracks which scalar fields in a `ResolvedSensorSpec` came
 /// from an overlay vs the TYPE spec (ADR-029 §D). `#[non_exhaustive]` ensures new
@@ -309,7 +337,7 @@ pub fn v33_sensor_instance_overlay() {
 ///
 /// Added: S-CONFIG-MULTI-TENANT-OVERRIDE-001 stubs.
 #[allow(dead_code)]
-pub fn v34_overlay_provenance() {
+pub fn v35_overlay_provenance() {
     let _provenance = OverlayProvenance {
         base_url_from_overlay: true,
         rps_from_overlay: false,
@@ -319,7 +347,7 @@ pub fn v34_overlay_provenance() {
     let _ = _provenance;
 }
 
-/// Violation 35: overlay::ResolvedSensorSpec struct literal (E0639).
+/// Violation 36: overlay::ResolvedSensorSpec struct literal (E0639).
 ///
 /// `ResolvedSensorSpec` is the boot-time merge of a TYPE spec and per-org overlay
 /// scalars (ADR-029 §E). `#[non_exhaustive]` ensures future fields (e.g., applied
@@ -333,7 +361,7 @@ pub fn v34_overlay_provenance() {
 ///
 /// Added: S-CONFIG-MULTI-TENANT-OVERRIDE-001 stubs.
 #[allow(dead_code)]
-pub fn v35_resolved_sensor_spec() {
+pub fn v36_resolved_sensor_spec() {
     use prism_core::OrgSlug;
     let _resolved = ResolvedSensorSpec {
         spec: SensorSpec::default(),

@@ -1,0 +1,124 @@
+// sensor-auth.wit — WIT interface for sensor authentication plugins.
+//
+// Story: PLUGIN-MIGRATION-001-E
+// Traces to: BC-2.01.016 §Postcondition, BC-2.17.006 WIT validation gate.
+//
+// This interface must be exported by the crowdstrike-oauth2 plugin. The host
+// validates these exports at load time via PluginRuntime::load_plugin (AC-001).
+//
+// Host functions (imported by the plugin guest):
+//   host::http-request  — outbound HTTP via allowlisted reqwest::Client (AC-7)
+//   host::kv-get / kv-set — per-plugin persistent KV store (PluginKvStore)
+//   host::get-config    — config map lookup (returns client_id, client_secret, token_endpoint)
+//   host::log           — structured logging forwarded to tracing
+//
+// Credential substitution model (ADR-028 §D11 Option C):
+//   The host resolves credentials before dispatch and injects them into PluginConfigMap.
+//   The guest reads client_id + client_secret via host::get-config.
+//   The credential-handle param is removed from acquire-token / get-token (Path 4a).
+//
+// WIT syntax note (wit-bindgen 0.51+): record, enum, and variant types must be
+// defined inside an interface block. Types shared between interfaces are defined
+// in the interface that owns them and re-exported via `use` in consumers.
+
+package prism:crowdstrike-oauth2@0.1.0;
+
+/// Host interface imported by the plugin guest.
+///
+/// Registered by register_host_functions() in host_functions.rs.
+/// Plugin guest code calls these to perform I/O; the host enforces
+/// allowlists, timeouts, and KV size limits.
+interface host {
+    /// HTTP response returned by http-request.
+    record http-response {
+        status: u16,
+        headers: list<tuple<string, string>>,
+        body: list<u8>,
+    }
+
+    /// Log level for the log() host function.
+    enum log-level {
+        trace,
+        debug,
+        info,
+        warn,
+        error,
+    }
+
+    /// Auth error variants returned by acquire-token and get-token.
+    variant auth-error {
+        /// POST /oauth2/token returned 4xx with invalid client credentials.
+        invalid-credentials,
+        /// Token response was not valid JSON or missing required fields.
+        response-parse(string),
+        /// KV store limit exceeded; token cannot be cached.
+        internal(string),
+    }
+
+    /// Issue an HTTP request. URL host must be in plugin's allowed_urls.
+    http-request: func(
+        method: string,
+        url: string,
+        headers: list<tuple<string, string>>,
+        body: option<list<u8>>,
+    ) -> http-response;
+
+    /// Forward a log message to the host's tracing subscriber.
+    log: func(level: log-level, message: string);
+
+    /// Look up a key in the plugin config map.
+    get-config: func(key: string) -> option<string>;
+
+    /// Get a value from the plugin's KV store (scoped by plugin_id).
+    kv-get: func(key: string) -> option<string>;
+
+    /// Set a value in the plugin's KV store (scoped by plugin_id).
+    /// Returns Err(error_message) if 1MB KV limit is exceeded.
+    kv-set: func(key: string, value: string) -> result<_, string>;
+
+    /// Return the current wall-clock time as Unix seconds (u64).
+    ///
+    /// Used for token TTL management: store `expires_at = current-time-secs() + expires_in - 30`
+    /// and check `current-time-secs() < expires_at` on get-token calls.
+    ///
+    /// PLUGIN-MIGRATION-001-E Known Gap resolution: added in-scope (CRIT-004 / MED-015).
+    /// Registered by host_functions.rs::register_host_functions as "current-time-secs".
+    current-time-secs: func() -> u64;
+}
+
+/// SensorAuth WIT interface exported by this plugin.
+///
+/// BC-2.17.006: these exports must be present for WIT validation to pass.
+/// BC-2.01.016: auth-type-name() must return "oauth2_client_credentials".
+interface sensor-auth {
+    use host.{auth-error};
+
+    /// Return the canonical auth type name.
+    ///
+    /// MUST return "oauth2_client_credentials" (INV-AUTH-OPEN-003 Rule A).
+    /// This value is matched against crowdstrike.sensor.toml auth_type field.
+    auth-type-name: func() -> string;
+
+    /// Force-acquire a fresh OAuth2 token (bypass KV cache).
+    ///
+    /// Called by PipelineExecutor::issue_request_with_retry on 401 response.
+    /// MUST NOT use the KV cache — always issues POST /oauth2/token.
+    ///
+    /// ADR-028 §D11 Option C (Path 4a): credential-handle param REMOVED.
+    /// The guest reads client_id + client_secret from host config via get-config.
+    /// token_endpoint is also read from host config via get-config("token_endpoint").
+    acquire-token: func() -> result<string, auth-error>;
+
+    /// Get a cached or freshly-acquired token.
+    ///
+    /// Checks KV cache first; falls through to acquire-token on cache miss or expiry.
+    /// TTL = expires_in - 30s buffer (matching CachedToken::is_valid semantics).
+    ///
+    /// ADR-028 §D11 Option C (Path 4a): credential-handle param REMOVED.
+    get-token: func() -> result<string, auth-error>;
+}
+
+world crowdstrike-oauth2 {
+    import host;
+    export sensor-auth;
+}

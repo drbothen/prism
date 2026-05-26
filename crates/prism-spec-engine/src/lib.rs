@@ -57,6 +57,11 @@ pub mod overlay;
 // S-PLUGIN-PREREQ-D — Plugin load audit sink (BC-2.05.012 / HIGH-002)
 pub mod plugin_audit_sink;
 
+// PLUGIN-MIGRATION-001-E — PluginAuthProvider adapter (HIGH-010)
+// AuthProvider implementation that delegates acquire_token to a loaded WASM sensor-auth plugin.
+// Wired in boot path when SensorSpec.auth_plugin = Some(plugin_id) (ADR-028 §D).
+pub mod plugin_auth_provider;
+
 // S-1.11 re-exports
 pub use column_mapping::{ColumnMapping, MappingResult};
 // S-1.14 infusion exports
@@ -80,7 +85,10 @@ pub use spec_parser::{
 };
 // TableType is now re-exported from prism-core (S-2.08 Defect 2 fix)
 pub use prism_core::TableType;
-pub use validation::{ValidationError, ValidationWarning, ValidatorOutput, validate_sensor_spec};
+pub use validation::{
+    ValidationError, ValidationWarning, ValidatorOutput, validate_auth_plugin_fields,
+    validate_auth_plugin_registered, validate_sensor_spec,
+};
 pub use write_endpoint::{
     BatchMode, WriteEndpointRegistry, WriteEndpointSpec, WriteStep, WriteTableDescriptor,
     check_reserved_keyword, validate_write_endpoints,
@@ -100,6 +108,9 @@ pub use auth_provider::{AuthProvider, AuthToken};
 pub use auth_provider::{
     AuthOutcome, ChainAuthProvider, FailingAuthProvider, MockAuthProvider, NullAuthProvider,
 };
+
+// PLUGIN-MIGRATION-001-E — PluginAuthProvider re-export (HIGH-010)
+pub use plugin_auth_provider::PluginAuthProvider;
 
 // S-3.1.05 re-exports
 pub use org_scoped_store::OrgScopedSpecStore;

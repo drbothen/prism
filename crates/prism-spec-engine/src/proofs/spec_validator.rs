@@ -77,6 +77,7 @@ fn minimal_valid_spec() -> SensorSpec {
         rate_limit_hints: None,
         version: "1.0.0".to_string(),
         credential_refs: Vec::new(),
+        auth_plugin: None,
     }
 }
 

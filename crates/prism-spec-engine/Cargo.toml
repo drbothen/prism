@@ -3,6 +3,7 @@ name = "prism-spec-engine"
 version = "0.9.0"
 edition = "2024"
 license = "MIT"
+publish = false
 description = "Prism config-driven sensor adapter engine: TOML spec loading, pipeline execution, OCSF mapping, infusion enrichment framework, WASM plugin runtime (S-1.15), and hot reload + runtime management (S-1.12)"
 
 # ARCHITECTURE COMPLIANCE: prism-spec-engine MUST NOT depend on datafusion or arrow.
@@ -11,6 +12,13 @@ description = "Prism config-driven sensor adapter engine: TOML spec loading, pip
 
 [dependencies]
 prism-core = { path = "../prism-core", version = "0.2.0" }
+# ADR-028 §D11 Option C: credential resolution at dispatch time (PLUGIN-MIGRATION-001-E).
+# PluginAuthProvider calls resolve_credential(org, sensor_id, "client_id") + "client_secret"
+# before injecting into PluginConfigMap. PRODUCTION dep (not test-only).
+prism-credentials = { path = "../prism-credentials" }
+# secrecy: expose_secret() at the PluginConfigMap boundary (AD-017).
+# Credential bytes are NOT retained across the dispatch call frame.
+secrecy = { version = "0.8" }
 serde = { version = "1", features = ["derive"] }
 toml = "0.8"
 percent-encoding = "2"
@@ -88,8 +96,33 @@ test-helpers = []
 # cargo-semver-checks v0.47 fires `enum_missing` because the rustdoc item of kind
 # `enum` is gone from this crate's JSON even though the path is preserved via re-export.
 # This is an intentional, ADR-024-directed breaking change with path-stability preserved.
+#
+# `enum_marked_non_exhaustive = "allow"`: PluginType was added with `#[non_exhaustive]`
+# in PLUGIN-MIGRATION-001-E per CLAUDE.md §Conventions — all pub-API surface enums require
+# `#[non_exhaustive]`. cargo-semver-checks v0.47 flags adding `#[non_exhaustive]` to an
+# existing enum as a semver-breaking change. This is intentional project policy: downstream
+# crates MUST use wildcard match arms when pattern-matching on PluginType (enforced via
+# the non-exhaustive-violation compile-fail gate). The semver lint is suppressed here
+# because the breaking change is required by convention and is tracked in the gate.
+#
+# `constructible_struct_adds_field = "allow"`: LoadedPlugin gained `kv_store` in
+# PLUGIN-MIGRATION-001-E (F-LP1-CRIT-001). With `#[non_exhaustive]` now applied to
+# LoadedPlugin (CLAUDE.md §Conventions), external struct-literal construction was already
+# prevented. The semver lint is suppressed because the struct is now `#[non_exhaustive]`
+# and external callers must use `PluginRuntime::load_plugin()` (not struct literals).
+#
+# `struct_marked_non_exhaustive = "allow"`: Adding `#[non_exhaustive]` to LoadedPlugin
+# is flagged by cargo-semver-checks as a breaking change (previously, external struct-literal
+# construction was possible for a public struct with no private fields). This is intentional
+# project policy per CLAUDE.md §Conventions — all pub-API surface types require
+# `#[non_exhaustive]`. The breaking change prevents external struct-literal construction,
+# which was never intended as part of the public API (LoadedPlugin should only be obtained
+# via PluginRuntime::load_plugin()). Suppressed alongside constructible_struct_adds_field.
 [package.metadata.cargo-semver-checks.lints]
 enum_missing = "allow"
+enum_marked_non_exhaustive = "allow"
+constructible_struct_adds_field = "allow"
+struct_marked_non_exhaustive = "allow"
 
 [lints.rust]
 # Allow #[cfg(kani)] without a registered cfg — kani is not a Cargo feature
@@ -219,3 +252,13 @@ required-features = ["test-helpers"]
 [[test]]
 name = "overlay_loading_tests"
 path = "tests/overlay_loading_tests.rs"
+
+# PLUGIN-MIGRATION-001-E: Red Gate tests 1-10 + additional tests for CrowdStrike OAuth2 .prx WASM plugin.
+# FB-IMPL-2 fix-burst 2026-05-22: 14 ACs + CRIT-001 kv_store + MED-001 built-prx + MED-003 retry token.
+# F-LP2-MED-003: test_006 now asserts Bearer wat-fixture-token header + .expect(1) on retry mock.
+# F-LP2-CRIT-001: test_crit_001 verifies kv_store Arc is shared across dispatches.
+# required-features: test-helpers (HostState constructors, PluginAuthProvider, PluginRuntime)
+[[test]]
+name = "crowdstrike_oauth2_plugin_tests"
+path = "tests/crowdstrike_oauth2_plugin_tests.rs"
+required-features = ["test-helpers"]
