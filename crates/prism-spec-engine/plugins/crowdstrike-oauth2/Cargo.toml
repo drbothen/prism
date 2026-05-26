@@ -1,0 +1,43 @@
+[package]
+name = "crowdstrike-oauth2-plugin"
+version = "0.1.0"
+edition = "2024"
+description = "CrowdStrike OAuth2 client-credentials auth as an in-repo .prx WASM plugin (PLUGIN-MIGRATION-001-E)"
+license = "MIT"
+# WASM plugin — not for crates.io publication (loaded as in-repo .prx artifact)
+publish = false
+
+# This crate is a WASM guest — compiled to wasm32-wasip1 or wasm32-unknown-unknown.
+# It MUST NOT depend on prism-sensors (circular dep) or reqwest (HTTP via host_http_request).
+# Credential handling uses opaque handles — no secrecy crate (WASM compat constraints).
+
+[lib]
+crate-type = ["cdylib", "lib"]
+
+# Inheriting workspace lints (MED-012 closure).
+# Note: unwrap_used and expect_used are denied by workspace lints; the plugin code
+# uses panics only in stub paths (native build, tests) which are acceptable.
+# The #[cfg(test)] module uses .expect() which is acceptable in test paths.
+[lints]
+workspace = true
+
+[dependencies]
+# JSON parsing for OAuth2 token response (access_token, expires_in).
+# Using workspace-inherited versions per story Library and Framework Requirements
+# "Do NOT pin new library versions in the plugin crate" (F-LP1-MED-013 closure).
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+# F-LP2-HIGH-002: WASM guest binding generator — replaces manual #[link] extern blocks
+# with type-safe bindings generated from wit/sensor-auth.wit. Active on wasm32 targets;
+# native builds use the #[cfg(not(target_arch = "wasm32"))] stub module.
+wit-bindgen = { workspace = true }
+
+[dev-dependencies]
+# Tracing subscriber for capturing tracing events in unit tests.
+# Only used in cfg(test) paths — not compiled into the WASM guest binary.
+# Version pins match prism-spec-engine Cargo.toml (no workspace.dependencies for tracing).
+tracing-subscriber = { version = "0.3", features = ["fmt", "env-filter"] }
+tracing = "0.1"
+
+[features]
+# No features — production-grade default applies to all builds.

@@ -85,6 +85,26 @@ pub struct InfusionLruCache {
     capacity: usize,
 }
 
+// SAFETY: `InfusionLruCache` is `UnwindSafe` because:
+// 1. `lru::LruCache<String, LruCacheEntry>` holds only `serde_json::Value` (plain data) and
+//    `u64` — no invariants that can be broken by a panic.
+// 2. `tokio::sync::Mutex` does NOT poison on panic (unlike `std::sync::Mutex`); it remains
+//    locked until the owning task is dropped. No lock-poisoning state machine exists.
+// 3. The `capacity: usize` field has no invariants at all.
+//
+// The `UnwindSafe` impl was an accidental property on develop (where tokio compiled without
+// the `parking_lot` feature, causing `batch_semaphore::Semaphore` to use `std::sync::Mutex`
+// which IS `UnwindSafe`). Adding `prism-credentials` (which pulls `tokio = { features = ["full"] }`,
+// including `parking_lot`) flipped the feature union: `batch_semaphore::Semaphore` now uses
+// `parking_lot::Mutex` (not `UnwindSafe` via auto-derivation), transitively removing
+// `InfusionLruCache`'s auto-impl. This explicit impl restores the guarantee intentionally,
+// with the above safety argument, rather than relying on transitive feature-union accidents.
+//
+// Story: PLUGIN-MIGRATION-001-E / semver-checks CI fix
+// Tracks: cargo-semver-checks `auto_trait_impl_removed` (prism-spec-engine 0.9.0)
+impl std::panic::UnwindSafe for InfusionLruCache {}
+impl std::panic::RefUnwindSafe for InfusionLruCache {}
+
 impl std::fmt::Debug for InfusionLruCache {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("InfusionLruCache")

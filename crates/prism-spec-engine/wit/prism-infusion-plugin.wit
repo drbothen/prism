@@ -9,29 +9,33 @@
 //   - enrich-single() → enrichment      : enrich a single value
 //   - enrich-batch()  → list<enrichment>: enrich a batch of values
 
+// WIT syntax note (wit-bindgen 0.51+): record, enum, and variant types must be
+// defined inside an interface block. Types shared between interfaces are defined
+// in the interface that owns them and re-exported via `use` in consumers.
+// See FB-IMPL-5 (PLUGIN-MIGRATION-001-E): sibling-sweep of the same defect that
+// broke sensor-auth.wit (F-LP5-HIGH-001). Fixed here before a wit-bindgen consumer
+// for infusion-plugin is authored (no `wit_bindgen::generate!` consumer yet).
+
 package prism:infusion-plugin@0.1.0;
 
-/// Log level enum shared across all Prism plugin WIT interfaces.
-enum log-level {
-    trace,
-    debug,
-    info,
-    warn,
-    error,
-}
-
-/// HTTP response returned to plugins by host::http-request.
-record http-response {
-    status: u16,
-    headers: list<tuple<string, string>>,
-    body: list<u8>,
-}
-
-/// The result of enriching a single value. None if no enrichment data found.
-type enrichment = option<string>; // JSON-encoded enrichment object or null
-
-/// The host interface available to all Prism plugins.
+/// The host interface available to all Prism infusion plugins.
 interface host {
+    /// Log level enum shared across all Prism plugin WIT interfaces.
+    enum log-level {
+        trace,
+        debug,
+        info,
+        warn,
+        error,
+    }
+
+    /// HTTP response returned to plugins by host::http-request.
+    record http-response {
+        status: u16,
+        headers: list<tuple<string, string>>,
+        body: list<u8>,
+    }
+
     http-request: func(
         method: string,
         url: string,
@@ -45,22 +49,32 @@ interface host {
     kv-set: func(key: string, value: string) -> result<_, string>;
 }
 
-/// The infusion plugin world. Plugins compile against this world.
-world infusion-plugin {
-    import host;
+/// The infusion plugin interface exported by infusion plugins.
+interface infusion-plugin {
+    /// The result of enriching a single value. None if no enrichment data found.
+    type enrichment = option<string>; // JSON-encoded enrichment object or null
 
-    export name: func() -> string;
-    export version: func() -> string;
+    /// Return the plugin identity string (must match plugin_id in plugin.toml).
+    name: func() -> string;
+
+    /// Return the plugin semver string (e.g. "1.0.0").
+    version: func() -> string;
 
     /// Enrich a single value. Returns JSON-encoded enrichment data or none.
-    export enrich-single: func(
+    enrich-single: func(
         input-value: string,
         input-type: string,
     ) -> enrichment;
 
     /// Enrich a batch of values. Returns one enrichment per input (in order).
-    export enrich-batch: func(
+    enrich-batch: func(
         inputs: list<string>,
         input-type: string,
     ) -> list<enrichment>;
+}
+
+/// The infusion plugin world. Plugins compile against this world.
+world infusion-plugin-world {
+    import host;
+    export infusion-plugin;
 }

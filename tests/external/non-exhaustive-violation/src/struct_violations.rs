@@ -4,7 +4,7 @@
 //! struct-literal construction. After `#[non_exhaustive]` is applied, each
 //! literal MUST fail with E0639 (cannot create non-exhaustive struct expression).
 //!
-//! Violations 1-6, 9-12, 16-17, 20-24, 26, 30, 32 (20 total E0639 expected).
+//! Violations 1-6, 9-12, 16-17, 20-24, 26, 30, 32-33 (21 total E0639 expected).
 
 use prism_core::{ColumnType, RiskTier, SensorId, TableType};
 use prism_query::invalidation::WriteToolInvalidationMap;
@@ -251,6 +251,31 @@ pub fn v30_types_sensor_spec() {
         // of whether all fields are supplied.
     };
     let _ = _spec;
+}
+
+/// Violation 33: LoadedPlugin (prism_spec_engine) struct literal (E0639).
+///
+/// `LoadedPlugin` is the runtime handle for a compiled `.prx` plugin. It is a pub-API
+/// surface type returned by `PluginRuntime::load_plugin()`. `#[non_exhaustive]` was added
+/// in PLUGIN-MIGRATION-001-E (kv_store field addition) per CLAUDE.md §Conventions — external
+/// crates must not struct-literal-construct it; fields may expand as the plugin runtime evolves.
+///
+/// Note: `LoadedPlugin` contains `wasmtime::component::Component` and
+/// `wasmtime::component::InstancePre` which cannot be constructed externally. The struct
+/// literal here uses `todo!()` for all fields because E0639 fires at the struct-expression
+/// level (before field type-checking) once `#[non_exhaustive]` is applied.
+#[allow(dead_code)]
+pub fn v33_loaded_plugin() {
+    let _plugin = prism_spec_engine::LoadedPlugin {
+        metadata: todo!(),
+        component: todo!(),
+        pre_instance: todo!(),
+        core_module: todo!(),
+        raw_bytes: todo!(),
+        allowed_urls: todo!(),
+        kv_store: todo!(),
+    };
+    let _ = _plugin;
 }
 
 /// Violation 32: WriteToolInvalidationMap (prism_query::invalidation) struct literal (E0639).

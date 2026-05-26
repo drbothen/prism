@@ -180,3 +180,76 @@ build-fixture-component_model_dispatch:
         -o tests/fixtures/component_model_dispatch.prx
     @echo "Built tests/fixtures/component_model_dispatch.prx"
     @wasm-tools component wit tests/fixtures/component_model_dispatch.prx
+
+# Build the crowdstrike-oauth2 .prx WASM plugin from Rust source (PLUGIN-MIGRATION-001-E).
+#
+# This recipe compiles the plugin Rust crate to wasm32-wasip1 cdylib, then wraps it
+# with wasm-tools into a valid WASM Component binary (.prx).
+#
+# Prerequisites:
+#   - Rust wasm32-wasip1 target: `rustup target add wasm32-wasip1`
+#   - wasm-tools 1.248.0+: `cargo install wasm-tools --version 1.248.0`
+#   - wasm-opt (optional, for size reduction): `brew install binaryen` or apt install binaryen
+#
+# Output:
+#   crates/prism-spec-engine/plugins/crowdstrike-oauth2/crowdstrike-oauth2.prx
+#
+# The output .prx file is loaded by PluginRuntime::load_all_plugins at boot step 7.5.
+# In CI, the pre-built .prx is checked into the repository for reproducible builds.
+# Rebuild when changing src/lib.rs, wit/sensor-auth.wit, or manifest plugin.toml.
+#
+# Validation:
+#   wasm-tools validate --features=component-model crowdstrike-oauth2.prx
+#
+# Story: PLUGIN-MIGRATION-001-E (F-LP1-MED-017 closure)
+build-plugin-crowdstrike-oauth2:
+    @echo "Building crowdstrike-oauth2 plugin (wasm32-wasip1 → Component)"
+    # F-LP2-HIGH-003: fail-fast if wasi_snapshot_preview1.wasm is missing (required for --adapt).
+    test -f tests/fixtures/wasi_snapshot_preview1.wasm || \
+        (echo "ERROR: tests/fixtures/wasi_snapshot_preview1.wasm is missing (required for --adapt)"; exit 1)
+    cargo build \
+        -p crowdstrike-oauth2-plugin \
+        --target wasm32-wasip1 \
+        --release
+    @echo "Lifting to WASM Component via wasm-tools..."
+    # F-LP2-HIGH-003: try with --adapt (WASI reactor → Component) first, then bare wrap.
+    # Both paths must exit non-zero on failure — || exit 1 replaces the prior silent || echo "INFO".
+    wasm-tools component new \
+        target/wasm32-wasip1/release/crowdstrike_oauth2_plugin.wasm \
+        --adapt wasi_snapshot_preview1=tests/fixtures/wasi_snapshot_preview1.wasm \
+        -o crates/prism-spec-engine/plugins/crowdstrike-oauth2/crowdstrike-oauth2.prx \
+        2>/dev/null || \
+    wasm-tools component new \
+        target/wasm32-wasip1/release/crowdstrike_oauth2_plugin.wasm \
+        -o crates/prism-spec-engine/plugins/crowdstrike-oauth2/crowdstrike-oauth2.prx || \
+        (echo "ERROR: wasm-tools component new failed — build aborted"; exit 1)
+    @echo "Validating Component Model binary..."
+    # F-LP2-HIGH-003: validate exits non-zero on failure; positive assertion checks '(component'
+    # in wasm-tools print output. Both gates exit 1 on failure (no silent fallthrough).
+    wasm-tools validate \
+        --features=component-model \
+        crates/prism-spec-engine/plugins/crowdstrike-oauth2/crowdstrike-oauth2.prx || \
+        (echo "ERROR: crowdstrike-oauth2.prx failed Component Model validation"; exit 1)
+    wasm-tools print \
+        crates/prism-spec-engine/plugins/crowdstrike-oauth2/crowdstrike-oauth2.prx | \
+        grep -q '(component' || \
+        (echo "ERROR: crowdstrike-oauth2.prx is a core WASM module, not a Component"; exit 1)
+    @echo "PASS: crowdstrike-oauth2.prx is a valid WASM Component"
+    # F-LP3-HIGH-001: verify all 3 required WIT sensor-auth exports are present in the component.
+    # wit-bindgen's export!(Component) must emit auth-type-name, acquire-token, get-token
+    # as kebab-case WIT export names (validate_wit_interface requires these; discovery.rs:26).
+    wasm-tools print \
+        crates/prism-spec-engine/plugins/crowdstrike-oauth2/crowdstrike-oauth2.prx | \
+        grep -E '(auth-type-name|acquire-token|get-token)' | \
+        grep -qE 'auth-type-name' || \
+        (echo "ERROR: auth-type-name export absent from crowdstrike-oauth2.prx"; exit 1)
+    wasm-tools print \
+        crates/prism-spec-engine/plugins/crowdstrike-oauth2/crowdstrike-oauth2.prx | \
+        grep -qE 'acquire-token' || \
+        (echo "ERROR: acquire-token export absent from crowdstrike-oauth2.prx"; exit 1)
+    wasm-tools print \
+        crates/prism-spec-engine/plugins/crowdstrike-oauth2/crowdstrike-oauth2.prx | \
+        grep -qE 'get-token' || \
+        (echo "ERROR: get-token export absent from crowdstrike-oauth2.prx"; exit 1)
+    @echo "PASS: crowdstrike-oauth2.prx has all 3 required sensor-auth WIT exports"
+    @echo "Done: crates/prism-spec-engine/plugins/crowdstrike-oauth2/crowdstrike-oauth2.prx"
