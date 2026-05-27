@@ -168,7 +168,7 @@ ARTIFACT STATE AFTER D-540 (UNCHANGED FROM D-539 — no spec edits):
 DURABLE PIN BLOCK (CURRENT STATE — D-580 — DURABLE PRE-/CLEAR RESUME SNAPSHOT — 86th consecutive single-commit — STRATEGIC DECISION PENDING)
 ═══════════════════════════════════════════════════════════════════════
 
-- develop HEAD: 7ee54657 (current develop — PLUGIN-MIGRATION-001-B PR #157 MERGED 2026-05-27T06:43:42Z; §RESUME SNAPSHOT 2026-05-27-001-B-MERGED is authoritative current state)
+- develop HEAD: 7ee54657 (current develop — PLUGIN-MIGRATION-001-B PR #157 MERGED 2026-05-27T06:43:42Z; §RESUME SNAPSHOT 2026-05-27-001-A-001-B-SHIPPED is authoritative current state)
 - factory-artifacts: run `git -C .factory log -1 --format=’%H’` (per TD-VSDD-053; D-579 is this commit)
 - feature_branch_head: no active feature branch (spec-authoring-only burst; develop unchanged at a5ab742c)
 - feature_branch_remote_status: no feature branch (spec-only burst; develop@a5ab742c unchanged)
@@ -7403,9 +7403,9 @@ _Session terminus: 2026-05-26. Both PRs merged. context-clear. PLUGIN-MIGRATION-
 
 ---
 
-## §RESUME SNAPSHOT 2026-05-27-001-B-MERGED (D-828)
+## §RESUME SNAPSHOT 2026-05-27-001-A-001-B-SHIPPED (D-829)
 
-**Purpose:** Post-merge context-clear handoff. PLUGIN-MIGRATION-001-A (PR #156) and PLUGIN-MIGRATION-001-B (PR #157) both merged same session. 001-C (prism-ocsf SpecDrivenMapper) is now fully unblocked. Supersedes §RESUME SNAPSHOT 2026-05-26-BOTH-PRS-MERGED as the most-recent durable checkpoint.
+**Purpose:** Post-merge context-clear handoff. PLUGIN-MIGRATION-001-A (PR #156) and PLUGIN-MIGRATION-001-B (PR #157) both merged same session. 001-C (prism-ocsf SpecDrivenMapper) is now fully unblocked. Supersedes §RESUME SNAPSHOT 2026-05-27-001-B-MERGED as the most-recent durable checkpoint.
 
 ---
 
@@ -7422,7 +7422,7 @@ _Session terminus: 2026-05-26. Both PRs merged. context-clear. PLUGIN-MIGRATION-
 | PR-LEVEL fix-bursts | 0 |
 | LOCAL cascade | 17 passes, 6 fix-bursts, 16 findings closed, 3-CLEAN at passes 15/16/17 |
 
-**Summary:** All 4 hardcoded auth modules deleted (crowdstrike.rs, cyberint.rs, claroty.rs, armis.rs). Spec-catalog lookups wired throughout. PR-LEVEL reviewer found zero findings — APPROVE on pass-1.
+**Summary:** Deleted all 4 hardcoded auth modules (crowdstrike.rs, cyberint.rs, claroty.rs, armis.rs). Corrected auth_type_name() per ADR-028 §D2. Rewrote init_registry_for_org to empty-registry pattern (GAP-002-A). Removed dead features/deps (secrecy, prism-credentials, tokio-stream, cookies). BCs verified: 2.01.016, 2.01.013, 2.16.012, 3.2.001. PR-LEVEL reviewer found zero findings — APPROVE on pass-1.
 
 ---
 
@@ -7439,28 +7439,68 @@ _Session terminus: 2026-05-26. Both PRs merged. context-clear. PLUGIN-MIGRATION-
 | PR-LEVEL fix-bursts | 1 |
 | LOCAL cascade | 10 passes, 3 fix-bursts, 5 findings closed, 3-CLEAN at passes 8/9/10 |
 
-**Summary:** Converted 3 sensor-name dispatch sites to spec-catalog lookup (explain.rs latency annotation, write_pipeline.rs gate check, invalidation.rs registration). Restored 24 silently dropped tests via empty feature stubs. PR-LEVEL: verb sanitization in error messages, vacuous test asserting nothing, stale module-level doc comment — all fixed.
+**Summary:** Converted 3 sensor-name dispatch sites to spec-catalog lookup (explain.rs latency annotation, write_pipeline.rs gate check, invalidation.rs registration). Restored 24 silently dropped tests via empty feature stubs. Added verb hyphen→underscore sanitization for CapabilityPath. PR-LEVEL: verb sanitization in error messages, vacuous test asserting nothing, stale module-level doc comment — all fixed. BCs verified: 2.16.012 (INV-SPEC-PARSER-OPEN-001), 2.01.013.
 
 ---
 
-### §3. Pipeline Status
+### §3. Wave 1 Plugin Migration Scoreboard
+
+| Story | Status | PR |
+|-------|--------|-----|
+| 001-D (TOML specs) | MERGED | #153 |
+| 001-E (CrowdStrike .prx) | MERGED | #154 |
+| S-CONFIG (per-org overlay) | MERGED | #155 |
+| 001-A (delete auth modules) | MERGED | #156 |
+| 001-B (dispatch conversion) | MERGED | #157 |
+| 001-C (SpecDrivenMapper) | NEXT — deps satisfied, no story spec yet |
+| S-PLUGIN-CI-001 (CI toolchain) | draft — deps satisfied |
+| 001-F (test rewrite) | planned — Wave 2, deps satisfied |
+| 001-G (doc sweep) | planned — Wave 2, blocked on 001-C |
+| 001-H (story supersession) | planned — Wave 2, deps satisfied |
+
+---
+
+### §4. Pipeline Status
 
 | Item | Status |
 |------|--------|
 | develop HEAD | `7ee54657` |
-| Wave 1 plugin migration | 4/8 stories complete (001-D, 001-E, 001-A, 001-B merged) |
+| Workspace test count | ~3,700+ (includes 24 recovered write-gate tests) |
+| Wave 1 plugin migration | 5/8 stories shipped |
 | Next story | PLUGIN-MIGRATION-001-C (prism-ocsf SpecDrivenMapper) |
 | Blocking issues | None |
-| Frozen worktrees | S-3.09 (BUG-S309-PLUGIN), W3-FIX-S307-001 (superseded) |
+| Open PRs | None |
+| Frozen worktrees | S-3.09 (BUG-S309-PLUGIN, stale 2026-05-11), W3-FIX-S307-001 (superseded D-333, stale 2026-05-24) |
 
 ---
 
-### §4. Resume Protocol (5 steps)
+### §5. Key Architectural State
+
+- All 4 hardcoded auth modules DELETED from prism-sensors
+- init_registry_for_org returns empty AdapterRegistry (GAP-002-A: spec-catalog dispatch deferred to boot)
+- 3 sensor-name dispatch sites in prism-query CONVERTED to registry/catalog lookup
+- register_builtin_write_tools() wired at boot step 7.5c
+- Write-feature stubs restored as empty declarations for test coverage
+- OCSF hardcoded mappers in prism-ocsf still present — 001-C target
+
+---
+
+### §6. Next Actions (in priority order)
+
+1. **Author story spec for PLUGIN-MIGRATION-001-C** — dispatch story-writer. Crates: prism-ocsf, prism-spec-engine. Scope: merge 4 hardcoded OCSF mappers into SpecDrivenMapper + .prx WASM transformers. Deps: PREREQ-C, PREREQ-D, 001-A all satisfied.
+2. **Deliver 001-C** through full per-story TDD pipeline (stubs → tests → TDD → adversary 3-CLEAN → demo → PR → merge)
+3. **Author + deliver 001-F** (test rewrite, Wave 2) — can run after 001-C or in parallel
+4. **Deliver 001-H** (.factory metadata, quick) — can run anytime
+5. **Deliver 001-G** (doc sweep) — after 001-C merges
+
+---
+
+### §7. Resume Protocol (5 steps)
 
 1. Run `vsdd-factory:factory-worktree-health` (BLOCKING preflight)
-2. Read `STATE.md` frontmatter (v7.515)
-3. Read this §RESUME SNAPSHOT 2026-05-27-001-B-MERGED
-4. Read PLUGIN-MIGRATION-001-C story spec at `.factory/stories/PLUGIN-MIGRATION-001-C-*.md`
-5. Dispatch `vsdd-factory:deliver-story` for PLUGIN-MIGRATION-001-C
+2. Read `STATE.md` frontmatter (v7.516)
+3. Read this §RESUME SNAPSHOT 2026-05-27-001-A-001-B-SHIPPED
+4. Read PLUGIN-MIGRATION-001-C story spec at `.factory/stories/PLUGIN-MIGRATION-001-C-*.md` (if it exists)
+5. Dispatch story-writer to author PLUGIN-MIGRATION-001-C spec, then deliver via `vsdd-factory:deliver-story`
 
-_Session terminus: 2026-05-27. Both 001-A + 001-B merged same session. context-clear. PLUGIN-MIGRATION-001-C ready to dispatch._
+_Session terminus: 2026-05-27. Both 001-A + 001-B merged same session. context-clear. PLUGIN-MIGRATION-001-C ready to author + dispatch._
