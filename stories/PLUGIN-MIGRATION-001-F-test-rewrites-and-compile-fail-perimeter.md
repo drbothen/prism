@@ -151,7 +151,7 @@ phase: 3
 
 **Story ID:** PLUGIN-MIGRATION-001-F
 **Status:** draft
-**Version:** v1.3
+**Version:** v1.4
 **Wave:** 2 (cleanup wave; ordered after PLUGIN-MIGRATION-001-A + 001-B both merged)
 
 ---
