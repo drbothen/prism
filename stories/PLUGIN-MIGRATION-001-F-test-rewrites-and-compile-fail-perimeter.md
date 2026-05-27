@@ -6,7 +6,7 @@ wave: 2
 epic_id: PLUGIN-MIGRATION-001
 priority: P0
 status: draft
-version: "v1.0"
+version: "v1.1"
 level: "L4"
 producer: story-writer
 timestamp: "2026-05-27T00:00:00Z"
@@ -41,9 +41,10 @@ behavioral_contracts:
   - BC-2.01.013  # DataSource Trait — the compile-fail perimeter enforces that no non-test
                  # production code holds hardcoded sensor name references; the open-trait
                  # spec-driven path is the only valid adapter construction mechanism
-  - BC-2.16.009  # TOML Bundled-Spec Validation — rewritten test files must load sensor
-                 # specs from TOML fixtures, not hardcode sensor types; this BC covers
-                 # the spec-load validation contract exercised by the rewrites
+  - BC-2.16.009  # Spec File Validation — Schema Validation, Variable Reference Resolution,
+                 # OCSF Field Validation — rewritten test files must load sensor specs from
+                 # TOML fixtures, not hardcode sensor types; this BC covers the spec-load
+                 # validation contract exercised by the rewrites
   - BC-2.16.012  # PluginRegistry Dispatch — no sensor-named match arms in non-DTU
                  # production code; the compile-fail perimeter guards this invariant
 # BC status: The above 3 BCs are active per BC-INDEX.md v5.53. No BC-TBD placeholders.
@@ -97,7 +98,7 @@ risk: MEDIUM
 # prism-dtu-harness/src/clones/ are NOT in scope for this story per the scope
 # decision in §DTU Harness Scope Decision — they ARE legitimately sensor-named.
 acceptance_criteria_count: 8
-red_gate_tests: 6
+red_gate_tests: 7
 estimated_passes: "2-3 LOCAL adversary passes"
 holdout_scenarios: []
 assumption_validations: []
@@ -149,7 +150,7 @@ phase: 3
 
 **Story ID:** PLUGIN-MIGRATION-001-F
 **Status:** draft
-**Version:** v1.0
+**Version:** v1.1
 **Wave:** 2 (cleanup wave; ordered after PLUGIN-MIGRATION-001-A + 001-B both merged)
 
 ---
@@ -221,7 +222,7 @@ reach for sensor names.
 | BC ID | Version | Title | Subsystem | Role in This Story |
 |-------|---------|-------|-----------|-------------------|
 | BC-2.01.013 | 1.7 | DataSource Trait Eliminates Per-Sensor Code Duplication | SS-01 | **Primary** — compile-fail perimeter enforces that no non-DTU code imports sensor-named adapter types; the open-trait spec-driven path is the only permitted construction |
-| BC-2.16.009 | 1.4 | TOML Bundled-Spec Validation | SS-16 | **Primary** — rewritten parity tests exercise spec loading via `SpecLoader::load_all()` on the 4 bundled TOML specs; spec-load validation is the gate for each rewritten test |
+| BC-2.16.009 | 1.4 | Spec File Validation — Schema Validation, Variable Reference Resolution, OCSF Field Validation | SS-16 | **Primary** — rewritten parity tests exercise spec loading via `SpecLoader::parse()` on the 4 bundled TOML specs; spec-load validation is the gate for each rewritten test |
 | BC-2.16.012 | 1.3 | PluginRegistry Dispatch Migration | SS-16 | **Anti-regression** — no sensor-named match arms must remain in non-DTU code after this story; the compile-fail perimeter guards this invariant |
 
 ---
@@ -258,18 +259,18 @@ The four parity test files at `crates/prism-spec-engine/tests/parity/` are rewri
 
 | File | Old Pattern | New Pattern | Red Gate Test |
 |------|-------------|-------------|---------------|
-| `parity/crowdstrike.rs` | `CrowdStrikeAdapter::new(...)` or named sensor type | `SpecLoader::load_all(&spec_dir)` → spec-catalog lookup by `"crowdstrike"` SensorId | `test_PLUGIN_MIGRATION_001_F_parity_crowdstrike_toml_fixture_loading` |
-| `parity/claroty.rs` | Same pattern for Claroty | `SpecLoader::load_all()` → `"claroty"` | `test_PLUGIN_MIGRATION_001_F_parity_claroty_toml_fixture_loading` |
-| `parity/cyberint.rs` | Same pattern for Cyberint | `SpecLoader::load_all()` → `"cyberint"` | `test_PLUGIN_MIGRATION_001_F_parity_cyberint_toml_fixture_loading` |
-| `parity/armis.rs` | Same pattern for Armis | `SpecLoader::load_all()` → `"armis"` | `test_PLUGIN_MIGRATION_001_F_parity_armis_toml_fixture_loading` |
+| `parity/crowdstrike.rs` | `CrowdStrikeAdapter::new(...)` or named sensor type | `SpecLoader::parse(&spec_dir)` → spec-catalog lookup by `"crowdstrike"` SensorId | `test_PLUGIN_MIGRATION_001_F_parity_crowdstrike_toml_fixture_loading` |
+| `parity/claroty.rs` | Same pattern for Claroty | `SpecLoader::parse()` → `"claroty"` | `test_PLUGIN_MIGRATION_001_F_parity_claroty_toml_fixture_loading` |
+| `parity/cyberint.rs` | Same pattern for Cyberint | `SpecLoader::parse()` → `"cyberint"` | `test_PLUGIN_MIGRATION_001_F_parity_cyberint_toml_fixture_loading` |
+| `parity/armis.rs` | Same pattern for Armis | `SpecLoader::parse()` → `"armis"` | `test_PLUGIN_MIGRATION_001_F_parity_armis_toml_fixture_loading` |
 
 Each rewritten test:
-- Loads the production TOML spec from `.prism/specs/sensors/{sensor}.sensor.toml` via `SpecLoader::load_all()`
+- Loads the production TOML spec from `.prism/specs/sensors/{sensor}.sensor.toml` via `SpecLoader::parse()` (required for test-time `base_url` override to point at the DTU clone)
 - Constructs a `PipelineExecutor` via the spec-catalog without naming any sensor adapter type directly
 - Runs against the prism-dtu-harness clone via `DtuHarness` in logical-isolation mode
 - Asserts OCSF output matches expected fixture (TS-PLUGIN-PARITY-001 canonicalization)
 
-(traces to BC-2.01.013 postcondition 3 — DataSource trait enables spec-driven lookup without sensor-named import; traces to BC-2.16.009 postcondition 1 — bundled specs are loadable via SpecLoader::load_all)
+(traces to BC-2.01.013 postcondition 3 — DataSource trait enables spec-driven lookup without sensor-named import; traces to BC-2.16.009 postcondition 1 — bundled specs are loadable via SpecLoader::parse, which accepts a base_url override for test-time DTU targeting)
 
 ### AC-002: `bc_2_16_002_crowdstrike_two_step.rs` rewritten — TOML + DTU harness (traces to BC-2.16.009 postcondition — spec-load validates two-step fetch configuration)
 
@@ -569,3 +570,4 @@ things that should not be tested here. This must fail a CI lint check or archite
 | Version | Date | Author | Description |
 |---------|------|--------|-------------|
 | v1.0 | 2026-05-27 | story-writer | Initial draft — 8 AC + 10 tasks; PLUGIN-MIGRATION-001-F Wave 2 materialization |
+| v1.1 | 2026-05-27 | story-writer | MED-001: BC-2.16.009 title corrected to canonical form in BC table and frontmatter comment. LOW-001: `SpecLoader::load_all()` → `SpecLoader::parse()` in AC-001 (table, bullet, trace note) and BC table. LOW-002: `red_gate_tests` 6 → 7 (implementation delivers 7 named test functions). |
