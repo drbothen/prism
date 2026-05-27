@@ -17,7 +17,7 @@ use std::sync::Arc;
 use chrono::{DateTime, NaiveDateTime, TimeZone, Utc};
 use prism_core::{ColumnType, PrismError};
 use prism_spec_engine::{ConfigManager, PluginRuntime};
-use prost_reflect::{DynamicMessage, Value as ProtoValue};
+use prost_reflect::{DynamicMessage, Kind, ReflectMessage, Value as ProtoValue};
 
 /// Spec-driven OCSF field mapper.
 ///
@@ -77,7 +77,17 @@ impl SpecDrivenMapper {
             .keys()
             .next()
             .map(|s| Box::leak(s.clone().into_boxed_str()) as &'static str)
-            .unwrap_or("");
+            .unwrap_or_else(|| {
+                // F-LP2-MED-001: warn when config has no sensors — empty sensor_id will cause
+                // every subsequent map() call to fail with OcsfNormalizationFailed (sensor not
+                // found). The warning makes this misconfiguration observable in operator logs.
+                tracing::warn!(
+                    event_type = "ocsf.spec_driven_mapper_empty_sensor_id",
+                    "SpecDrivenMapper constructed with empty config snapshot (no sensors); \
+                     all map() calls will return OcsfNormalizationFailed until config is populated"
+                );
+                ""
+            });
 
         Self {
             config_manager,
@@ -147,26 +157,21 @@ impl super::SensorMapper for SpecDrivenMapper {
 
         // Find the table descriptor matching record_type.
         // The table_name is "{sensor_id}.{table_suffix}" format.
-        // We match against record_type using the following priority order:
+        // We match against record_type using two strategies only (F-LP2-MED-002: the
+        // overly-broad prefix-fallback has been removed):
         //   1. Exact match: "{sensor_id}.{record_type}"
         //   2. Plural match: "{sensor_id}.{record_type}s"
-        //   3. Prefix match: table suffix starts with record_type
         // This handles the common case where TOML specs use plural table names
         // (e.g., "crowdstrike.detections") but the normalizer uses singular record_type
         // ("detection") derived from EventClassSelector.
+        // The prefix fallback (`suffix.starts_with(record_type)`) was removed because it
+        // could match wrong tables (e.g., "detection" matching "detections_v2").
         let exact_name = format!("{}.{}", self.sensor_id, record_type);
         let plural_name = format!("{}.{}s", self.sensor_id, record_type);
         let table_descriptor = sensor_spec
             .tables
             .iter()
-            .find(|t| {
-                t.table_name == exact_name
-                    || t.table_name == plural_name
-                    || t.table_name
-                        .strip_prefix(&format!("{}.", self.sensor_id))
-                        .map(|suffix| suffix.starts_with(record_type))
-                        .unwrap_or(false)
-            })
+            .find(|t| t.table_name == exact_name || t.table_name == plural_name)
             .ok_or_else(|| PrismError::OcsfNormalizationFailed {
                 source_id: format!("<{}>", self.sensor_id),
                 reason: format!(
@@ -191,17 +196,19 @@ impl super::SensorMapper for SpecDrivenMapper {
             if let Some(ocsf_target) = &col.ocsf_field {
                 // This column has an OCSF field mapping.
 
-                // HIGH-005: if the column is declared in spec but absent in raw, place
-                // Null in extensions and emit a debug trace so operators can detect
-                // schema drift between spec and actual data source.
-                if raw_value.is_none() {
+                // F-LP2-HIGH-001 + HIGH-005: if the column is declared in spec but absent
+                // in raw (None) OR explicitly null in raw (Some(Value::Null)), treat both
+                // identically — place Null in extensions and emit a debug trace.
+                // `Some(Value::Null).to_string()` would produce the string `"null"` which
+                // is incorrect; we must handle the null case explicitly here.
+                if raw_value.is_none() || raw_value == Some(&serde_json::Value::Null) {
                     extensions.insert(col.name.clone(), serde_json::Value::Null);
                     tracing::debug!(
                         sensor_id = %self.sensor_id,
                         column = %col.name,
                         ocsf_field = %ocsf_target,
                         event_type = "ocsf.spec_column_absent_in_raw",
-                        "spec-declared column absent in raw record; inserted Null into extensions"
+                        "spec-declared column absent or null in raw record; inserted Null into extensions"
                     );
                     continue;
                 }
@@ -263,9 +270,10 @@ impl super::SensorMapper for SpecDrivenMapper {
                                 Ok(epoch_ms) => {
                                     let mapped_str = epoch_ms.to_string();
                                     // Write epoch-millis as I64 into the OCSF DynamicMessage.
-                                    // `set_field_by_name` is a no-op when the field does not
-                                    // exist in the descriptor (stub or partial schema) — safe.
-                                    msg.set_field_by_name(ocsf_target, ProtoValue::I64(epoch_ms));
+                                    // set_nested_field handles dotted paths (e.g. "time") and
+                                    // is a no-op when the field does not exist in the descriptor
+                                    // (stub or partial schema) — safe.
+                                    set_nested_field(msg, ocsf_target, ProtoValue::I64(epoch_ms));
                                     if source_id.is_none() {
                                         source_id = Some(mapped_str);
                                     }
@@ -288,16 +296,22 @@ impl super::SensorMapper for SpecDrivenMapper {
                     }
                     ColumnType::Integer => {
                         // Integer → string cast for OCSF string fields (AC-001 part 3).
+                        // AC-001 specifies "integer-to-string cast" — the OCSF target field
+                        // is typed as string, so we always write ProtoValue::String (F-LP2-MED-003).
                         if let Some(v) = raw_value {
-                            let (mapped_str, proto_val) = if let Some(n) = v.as_i64() {
-                                (n.to_string(), ProtoValue::I64(n))
+                            let mapped_str = if let Some(n) = v.as_i64() {
+                                n.to_string()
                             } else if let Some(n) = v.as_u64() {
-                                (n.to_string(), ProtoValue::U64(n))
+                                n.to_string()
                             } else {
-                                (v.to_string(), ProtoValue::String(v.to_string()))
+                                v.to_string()
                             };
-                            // Write integer value into OCSF DynamicMessage (CRIT-001).
-                            msg.set_field_by_name(ocsf_target, proto_val);
+                            // Write integer-as-string into OCSF DynamicMessage via nested path.
+                            set_nested_field(
+                                msg,
+                                ocsf_target,
+                                ProtoValue::String(mapped_str.clone()),
+                            );
                             if source_id.is_none() {
                                 source_id = Some(mapped_str);
                             }
@@ -324,9 +338,10 @@ impl super::SensorMapper for SpecDrivenMapper {
                                 }
                                 other => (other.to_string(), ProtoValue::String(other.to_string())),
                             };
-                            // `set_field_by_name` is a no-op when the field doesn't exist in
+                            // set_nested_field handles both flat names and dotted paths
+                            // (e.g. "finding_info.uid"). No-op when field doesn't exist in
                             // the descriptor (stub descriptor or partial OCSF schema) — safe.
-                            msg.set_field_by_name(ocsf_target, proto_val);
+                            set_nested_field(msg, ocsf_target, proto_val);
                             if source_id.is_none() {
                                 source_id = Some(mapped_str);
                             }
@@ -373,6 +388,69 @@ impl super::SensorMapper for SpecDrivenMapper {
         });
 
         Ok(final_source_id)
+    }
+}
+
+/// Set a field in a `DynamicMessage` using a dotted-path OCSF field name.
+///
+/// `ocsf_field` is either:
+/// - A flat name like `"severity"` → calls `set_field_by_name` directly.
+/// - A dotted path like `"finding_info.uid"` → navigates the intermediate sub-message
+///   chain, creating or updating each intermediate `Value::Message`, and sets the leaf field.
+///
+/// ## Stub-Descriptor Safety
+///
+/// When the OCSF descriptor pool is a stub (zero bytes at build time), the message has no
+/// fields. `get_field_by_name` returns `None`, and `set_nested_field` silently no-ops —
+/// identical to the existing `set_field_by_name` behavior for unknown fields. Tests that
+/// use the stub descriptor cannot assert on DynamicMessage field values; the real test
+/// for field correctness uses the actual OCSF descriptor pool (F-LP2-HIGH-002 compliance).
+///
+/// ## Multi-Segment Path Algorithm
+///
+/// For a path `"a.b.c"`:
+/// 1. Look up field `"a"` on `msg.descriptor()`. If not found → no-op (stub).
+/// 2. Verify field `"a"` has Kind::Message (a sub-message field). If not → no-op (schema mismatch).
+/// 3. Retrieve the current `Value::Message(sub_msg)` via `msg.get_field(&field_a_desc)` → clone.
+/// 4. Recurse with the sub-message and path `"b.c"`.
+/// 5. After recursion, write the mutated sub-message back via `msg.set_field(&field_a_desc, Value::Message(sub_msg))`.
+fn set_nested_field(msg: &mut DynamicMessage, ocsf_field: &str, value: ProtoValue) {
+    let dot_pos = ocsf_field.find('.');
+    match dot_pos {
+        None => {
+            // Flat field: delegate directly to set_field_by_name (no-op on unknown field).
+            msg.set_field_by_name(ocsf_field, value);
+        }
+        Some(dot) => {
+            // Dotted path: navigate the intermediate sub-message.
+            let head = &ocsf_field[..dot];
+            let tail = &ocsf_field[dot + 1..];
+
+            // Look up the intermediate field descriptor on the current message.
+            let field_desc = match msg.descriptor().get_field_by_name(head) {
+                Some(fd) => fd,
+                None => return, // Unknown field — stub descriptor or schema gap; no-op.
+            };
+
+            // Verify this is a sub-message field (not a scalar).
+            match field_desc.kind() {
+                Kind::Message(_) => {}
+                _ => return, // Schema mismatch — not a message field; no-op.
+            }
+
+            // Retrieve the current sub-message value (or the default empty sub-message).
+            // get_field returns Cow — clone into owned DynamicMessage.
+            let mut sub_msg = match msg.get_field(&field_desc).into_owned() {
+                ProtoValue::Message(m) => m,
+                _ => return, // Unexpected value type for a message field — no-op.
+            };
+
+            // Recursively set the tail path on the sub-message.
+            set_nested_field(&mut sub_msg, tail, value);
+
+            // Write the mutated sub-message back into the parent.
+            msg.set_field(&field_desc, ProtoValue::Message(sub_msg));
+        }
     }
 }
 

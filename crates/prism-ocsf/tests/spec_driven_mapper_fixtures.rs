@@ -916,3 +916,130 @@ fn test_BC_2_02_002_spec_driven_identity_passthrough() {
          (it was mapped to msg via ocsf_field)"
     );
 }
+
+// ---------------------------------------------------------------------------
+// F-LP2-HIGH-001: Value::Null in raw JSON must not corrupt to string "null"
+// ---------------------------------------------------------------------------
+
+/// F-LP2-HIGH-001: When a raw JSON record contains an explicit `null` value for a
+/// spec-declared column with `ocsf_field`, the value must be placed into `extensions`
+/// as `Value::Null` — NOT written to the DynamicMessage as the string `"null"`.
+///
+/// The bug was: `raw_value.is_none()` was false for `Some(Value::Null)`, so the
+/// null fell through to the `other.to_string()` branch which produced `"null"` as a
+/// ProtoValue::String — corrupting the field.
+///
+/// Fix: treat `None` and `Some(Value::Null)` identically in the absent/null branch.
+#[test]
+fn test_F_LP2_HIGH_001_json_null_value_placed_in_extensions_not_corrupted_to_string_null() {
+    let columns = vec![
+        string_col_with_ocsf("detection_id", "finding_info.uid"),
+        string_col_with_ocsf("severity", "severity"), // value will be explicit null
+    ];
+    let config_manager = config_manager_with_ocsf_columns("test-sensor", "detections", columns);
+    let mapper = SpecDrivenMapper::new(config_manager, empty_plugin_runtime());
+
+    // severity is explicitly null in the raw JSON.
+    let raw = serde_json::json!({ "detection_id": "DET-X", "severity": null });
+    let mut msg = stub_dynamic_message();
+    let mut extensions = serde_json::Map::new();
+
+    let result = mapper.map("detections", &raw, &mut msg, &mut extensions);
+    let source_id = result.expect(
+        "F-LP2-HIGH-001: map() must succeed even when an ocsf_field column has explicit null value",
+    );
+
+    assert_eq!(
+        source_id, "DET-X",
+        "F-LP2-HIGH-001: source_id must equal detection_id, not the null severity"
+    );
+
+    // The null severity must appear as Value::Null in extensions — NOT as the string "null".
+    assert!(
+        extensions.contains_key("severity"),
+        "F-LP2-HIGH-001: explicit-null ocsf_field column must appear in extensions"
+    );
+    assert_eq!(
+        extensions.get("severity"),
+        Some(&serde_json::Value::Null),
+        "F-LP2-HIGH-001: explicit-null value must be serde_json::Value::Null in extensions, \
+         not the string 'null'"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// F-LP2-HIGH-002: DynamicMessage field value assertion using real OCSF descriptor
+// ---------------------------------------------------------------------------
+
+/// F-LP2-HIGH-002: Assert that `set_field_by_name` / `set_nested_field` writes the
+/// expected value into the real OCSF `DynamicMessage` for a FLAT field.
+///
+/// Previous tests used `stub_dynamic_message()` with a zero-field descriptor, meaning
+/// all `set_field_by_name` calls were no-ops. This test uses the real OCSF descriptor
+/// pool (via `OcsfNormalizer::with_mappers`) to verify that the value actually lands in
+/// the protobuf message.
+///
+/// DetectionFinding (class_uid=2004) has a top-level `string severity = 55` field.
+/// This test maps `{"severity": "High"}` through a SpecDrivenMapper with
+/// `ocsf_field = "severity"` and asserts the real DynamicMessage has that value.
+///
+/// Note: If the OCSF descriptor binary is a zero-byte stub (build without ocsf-proto-gen),
+/// the pool won't have the DetectionFinding descriptor and the test is skipped via
+/// `if let Ok` on the normalizer result.
+#[test]
+fn test_F_LP2_HIGH_002_dynamic_message_field_value_written_to_real_descriptor() {
+    use prism_ocsf::normalizer::OcsfNormalizer;
+    use prost_reflect::ReflectMessage;
+
+    // Build a SpecDrivenMapper for "crowdstrike" / "detections" with a flat
+    // `severity` → `severity` mapping. This matches the real OCSF DetectionFinding
+    // string field `severity` (field #55).
+    let config_manager = config_manager_with_ocsf_columns(
+        "crowdstrike",
+        "detections",
+        vec![string_col_with_ocsf("severity", "severity")],
+    );
+    let mapper = SpecDrivenMapper::new(config_manager, empty_plugin_runtime());
+    let normalizer = OcsfNormalizer::with_mappers(vec![Box::new(mapper)]);
+
+    let raw = serde_json::json!({ "severity": "High" });
+
+    // normalize_with_mappers requires the real pool to have class_uid 2004.
+    // If the pool is a stub (empty binary), this returns OcsfDescriptorNotFound — skip.
+    let result = normalizer.normalize_with_mappers("crowdstrike", "detection", raw);
+    let (msg, source_id) = match result {
+        Ok(pair) => pair,
+        Err(prism_core::PrismError::OcsfDescriptorNotFound { .. }) => {
+            // Stub pool — skip the real-descriptor assertion.
+            // This branch runs when ocsf-proto-gen has not been run.
+            return;
+        }
+        Err(e) => panic!(
+            "F-LP2-HIGH-002: unexpected error from normalize_with_mappers: {:?}",
+            e
+        ),
+    };
+
+    // Assert source_id is correct.
+    assert_eq!(
+        source_id, "High",
+        "F-LP2-HIGH-002: source_id must equal the mapped severity value"
+    );
+
+    // Assert the flat 'severity' field was written into the DynamicMessage.
+    // This exercises set_nested_field (flat case) on a REAL descriptor — if
+    // set_field_by_name / set_nested_field was a no-op, get_field_by_name returns None
+    // or the default empty string.
+    let severity_field = msg
+        .descriptor()
+        .get_field_by_name("severity")
+        .expect("F-LP2-HIGH-002: DetectionFinding descriptor must have a 'severity' string field");
+
+    let severity_value = msg.get_field(&severity_field);
+    assert_eq!(
+        severity_value.as_ref(),
+        &prost_reflect::Value::String("High".to_owned()),
+        "F-LP2-HIGH-002: DynamicMessage 'severity' field must equal 'High' after mapping; \
+         set_nested_field (flat path) must write the actual value, not no-op"
+    );
+}
