@@ -5,8 +5,8 @@ title: ".factory: Story Supersession — Mark S-2.06, S-2.07, W3-FIX-S307-001, S
 wave: 2
 epic_id: PLUGIN-MIGRATION-001
 priority: P0
-status: in_progress
-version: "v1.1"
+status: done
+version: "v1.2"
 level: "L4"
 producer: story-writer
 timestamp: "2026-05-27T00:00:00Z"

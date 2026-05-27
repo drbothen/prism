@@ -924,6 +924,22 @@ Pass-1 adversary (agent a598496b1b1bf90c4) returned 15 findings (4 CRIT + 5 HIGH
 
 ---
 
+### D-836 — PLUGIN-MIGRATION-001-H COMPLETE (completion burst 2026-05-27)
+
+| Step | Agent | Status | Output |
+|------|-------|--------|--------|
+| D-836 — **PLUGIN-MIGRATION-001-H COMPLETE (factory-only admin story; TD-VSDD-053 single-commit).** 4 stories marked superseded by ADR-023: S-2.06 (supersession note added, merged status preserved), S-2.07 (supersession note added, merged status preserved), W3-FIX-S307-001 (status draft→superseded, supersession note added), S-3.1.06-ImplPhase (supersession note added, merged status preserved). Story-writer executed ACs in commit db42da72 (STORY-INDEX v2.192→v2.193). Adversary pass-1: 1 IMPORTANT finding (IMP-001 W3-FIX-S307-001 pre-change status was "draft" in story spec, not "planned" as stated). Fix-burst story-writer da19ad5d: IMP-001 corrected, story v1.0→v1.1. State-manager closure: story status in_progress→done, story file v1.1→v1.2, STORY-INDEX v2.193→v2.194. Wave 2 progress: 1/3 complete (001-H done; 001-G + 001-F pending). No PR to develop — factory-only story. STATE v7.522→v7.523. | state-manager (D-836 completion burst) | DONE | COMMITTED — Wave 2 1/3. |
+
+---
+
+### D-831 — PLUGIN-MIGRATION-001-C PR #158 MERGED (post-merge burst 2026-05-27, archived from STATE.md D-836 burst)
+
+| Step | Agent | Status | Output |
+|------|-------|--------|--------|
+| D-831 — **Post-merge burst — PLUGIN-MIGRATION-001-C MERGED (TD-VSDD-053 single-commit).** PR #158 PLUGIN-MIGRATION-001-C MERGED at develop@282013a6 (2026-05-27T10:53:03Z): SpecDrivenMapper replaces 4 hardcoded OCSF mapper modules (crowdstrike_mapper, cyberint_mapper, claroty_mapper, armis_mapper) per ADR-023 Rule 1. LOCAL adversary cascade: 5 passes, 2 fix-bursts, 18 findings closed, 3-CLEAN CONVERGED (passes 3/4/5). PR-LEVEL: pass-1 APPROVE (0 blocking findings); security review CLEAN; CI all GREEN. Demo evidence: 10/10 ACs at docs/demo-evidence/PLUGIN-MIGRATION-001-C/. 13 tests added to prism-ocsf; 602 lines deleted (4 mapper files + mapper_tests.rs). BC-2.16.002 v1.47→v1.49 (4 new event_type catalog rows). WASM plugin scaffold at crates/plugins/ocsf-complex-transforms/. POL-14: BC-2.02.002 + BC-2.02.007 promoted draft→active. Worktree `.worktrees/PLUGIN-MIGRATION-001-C/` cleaned. develop HEAD: 282013a6. Wave 1 plugin migration: 6 of 8 shipped (001-D/001-E/S-CONFIG/001-A/001-B/001-C). STORY-INDEX v2.189→v2.190. workspace_test_count 3758→3698. STATE v7.517→v7.518. | state-manager (D-831 post-merge burst) | MERGED | COMMITTED — 001-C shipped. |
+
+---
+
 ### D-828 — PLUGIN-MIGRATION-001-B PR #157 MERGED (post-merge burst 2026-05-27)
 
 | Step | Agent | Status | Output |
