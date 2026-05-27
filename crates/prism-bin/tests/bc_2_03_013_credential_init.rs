@@ -270,8 +270,8 @@ fn test_BC_2_03_013_sensor_spec_credential_refs_parsed_from_toml() {
 fn test_BC_2_03_013_sensor_spec_no_cred_refs_is_empty_not_error() {
     use prism_spec_engine::add_sensor_spec::parse_and_validate_spec_toml;
 
+    // ADR-030 Approach D: SpecLoader::parse uses flat top-level TOML format (no [sensor] section).
     let toml_no_refs = r#"
-[sensor]
 sensor_id = "minimal-sensor"
 name = "Minimal Sensor (no cred refs)"
 version = "0.1.0"
@@ -411,8 +411,10 @@ fn test_BC_2_03_013_OQ1_non_leak_invariant_approach_a_type_level() {
 /// BC-2.01.016 Rule B (exactly 1 credential_ref per auth method; E-SPEC-013).
 /// A fixture with 2 refs would be rejected at parse time. N=1 satisfies the
 /// "N>0 refs iterated" behavioral coverage requirement for step5 tests.
+///
+/// ADR-030 Approach D: uses flat top-level TOML format (no [sensor] section)
+/// as required by SpecLoader::parse → toml::from_str::<SensorSpec>.
 const CRED_REF_FIXTURE_TOML: &str = r#"
-[sensor]
 sensor_id = "test-sensor"
 name = "Test Sensor (credential ref fixture)"
 version = "0.1.0"
@@ -668,9 +670,9 @@ async fn test_BC_2_01_016_rule_c_credential_shape_mismatch_via_step5() {
 
     // Write a fixture sensor TOML declaring auth_type = "oauth2_client_credentials"
     // with 1 credential_ref. The credential probe will report "api_key" — a mismatch.
+    // ADR-030 Approach D: uses flat top-level TOML format (no [sensor] section).
     let spec_tmp = tempfile::TempDir::new().unwrap();
     let oauth2_sensor_toml = r#"
-[sensor]
 sensor_id = "oauth2-sensor"
 name = "OAuth2 Sensor (Rule C test)"
 version = "0.1.0"
@@ -769,9 +771,9 @@ async fn test_BC_2_01_016_rule_c_matching_shape_via_step5_succeeds() {
     use arc_swap::ArcSwap;
     use prism_spec_engine::config_manager::{ConfigManager, parse_spec_directory};
 
+    // ADR-030 Approach D: uses flat top-level TOML format (no [sensor] section).
     let spec_tmp = tempfile::TempDir::new().unwrap();
     let api_key_sensor_toml = r#"
-[sensor]
 sensor_id = "api-key-sensor"
 name = "API Key Sensor (Rule C match test)"
 version = "0.1.0"

@@ -7,240 +7,70 @@ use std::path::Path;
 
 use crate::config_manager::compute_file_hash;
 use crate::error::SpecEngineError;
+use crate::spec_parser::{SensorSpec, SpecLoader};
 use crate::types::{
-    AddSensorSpecArgs, AddSensorSpecResult, ColumnDef, ColumnType, PaginationType, SensorSpec,
-    SensorTableDescriptor, ValidationError,
+    AddSensorSpecArgs, AddSensorSpecResult, SensorTableDescriptor, ValidationError,
+    sensor_table_descriptor_from_table_spec,
 };
 
-// ──────────────────────────────────────────────────────────────────────────────
-// TOML shape mirrors the minimal_valid_sensor_toml helper in the test suite.
-// ──────────────────────────────────────────────────────────────────────────────
-
-#[derive(serde::Deserialize)]
-struct RawSpec {
-    sensor: RawSensorSection,
-    #[serde(default)]
-    tables: Vec<RawTable>,
-    /// F-PASS2-HIGH-3 (S-WAVE5-PREP-01): credential refs declared in the TOML spec.
-    /// Parsed from `[[credential_refs]]` sections. Deserialized as raw refs then
-    /// converted to `types::CredentialRef`.
-    #[serde(default)]
-    credential_refs: Vec<RawCredentialRef>,
-}
-
-/// Raw TOML representation of a `[[credential_refs]]` section.
-#[derive(serde::Deserialize)]
-struct RawCredentialRef {
-    /// Logical credential name within this sensor's keyring namespace.
-    name: String,
-}
-
-#[derive(serde::Deserialize)]
-struct RawSensorSection {
-    sensor_id: Option<String>,
-    name: Option<String>,
-    version: Option<String>,
-    auth_type: Option<String>,
-    base_url: Option<String>,
-    /// WASM sensor-auth plugin ID (PLUGIN-MIGRATION-001-E F-LP2-CRIT-002).
-    ///
-    /// Parsed from `auth_plugin = "..."` in the sensor TOML spec. Stored in
-    /// `types::SensorSpec.auth_plugin` for boot-time registry validation.
-    #[serde(default)]
-    auth_plugin: Option<String>,
-}
-
-#[derive(serde::Deserialize)]
-struct RawTable {
-    table_name: String,
-    #[serde(default)]
-    columns: Vec<RawColumn>,
-    #[serde(default)]
-    steps: Vec<RawStep>,
-}
-
-#[derive(serde::Deserialize)]
-struct RawColumn {
-    name: String,
-    #[serde(rename = "type")]
-    column_type: String,
-    #[serde(default = "default_true")]
-    nullable: bool,
-}
-
-fn default_true() -> bool {
-    true
-}
-
-#[derive(serde::Deserialize, Default)]
-struct RawStep {
-    #[allow(dead_code)]
-    url: Option<String>,
-    #[allow(dead_code)]
-    method: Option<String>,
-    #[serde(default)]
-    pagination: Option<String>,
-}
-
 /// Parse and validate a TOML spec string.
-/// Returns the parsed SensorSpec or a list of validation errors.
+/// Returns the parsed `spec_parser::SensorSpec` or a list of validation errors.
 ///
 /// # Contract (BC-2.16.008 precondition)
-/// - Rejects invalid TOML syntax before any I/O
-/// - Validates required fields: sensor_id, name, version, auth_type, base_url
-/// - A spec with no tables is valid (edge case: no steps are registered)
+/// - Routes through `SpecLoader::parse` as the primary parse path (ADR-030 §D3).
+///   This avoids duplicating the `RawSpec → SensorSpec` conversion logic.
+/// - Additionally validates that required fields (sensor_id, name, version, auth_type,
+///   base_url) are non-empty — these are enforced by the TOML schema, but we collect
+///   actionable messages if they are blank.
+/// - A spec with no tables is valid (edge case: no steps are registered).
+/// - The `file_hash`, `source_path`, and `mode` fields are NOT set here — they are
+///   set by the caller immediately after this function returns (ADR-030 §D2).
 pub fn parse_and_validate_spec_toml(
     toml_content: &str,
     source_path: &str,
 ) -> Result<SensorSpec, Vec<ValidationError>> {
-    // Step 1: parse TOML syntax
-    let raw: RawSpec = toml::from_str(toml_content).map_err(|e| {
+    // Route through SpecLoader::parse — this is the canonical TOML → SensorSpec path.
+    // It handles: serde deserialization, AuthType enum mapping, cross-composition Rule A+B,
+    // timestamp_formats validation, and timestamp_fallback_chain field-name resolution.
+    let spec = SpecLoader::parse(toml_content).map_err(|e| {
         vec![ValidationError {
             sensor_id: None,
             source_path: source_path.to_string(),
-            errors: vec![format!("TOML parse error: {}", e)],
+            errors: vec![format!("{e}")],
         }]
     })?;
 
-    // Step 2: validate required sensor section fields
+    // Additional validation: required fields must be non-empty.
+    // SpecLoader::parse performs serde deserialization which requires these fields to
+    // be present in the TOML; we collect actionable messages for blank/missing values.
     let mut field_errors: Vec<String> = Vec::new();
 
-    if raw.sensor.sensor_id.as_deref().unwrap_or("").is_empty() {
+    if spec.sensor_id.is_empty() {
         field_errors.push("missing required field: sensor.sensor_id".to_string());
     }
-    if raw.sensor.name.as_deref().unwrap_or("").is_empty() {
+    if spec.name.is_empty() {
         field_errors.push("missing required field: sensor.name".to_string());
     }
-    if raw.sensor.version.as_deref().unwrap_or("").is_empty() {
+    if spec.version.is_empty() {
         field_errors.push("missing required field: sensor.version".to_string());
     }
-    if raw.sensor.auth_type.as_deref().unwrap_or("").is_empty() {
-        field_errors.push("missing required field: sensor.auth_type".to_string());
-    }
-    if raw.sensor.base_url.as_deref().unwrap_or("").is_empty() {
+    if spec.base_url.is_empty() {
         field_errors.push("missing required field: sensor.base_url".to_string());
     }
 
     if !field_errors.is_empty() {
         return Err(vec![ValidationError {
-            sensor_id: raw.sensor.sensor_id.clone(),
+            sensor_id: Some(spec.sensor_id.clone()),
             source_path: source_path.to_string(),
             errors: field_errors,
         }]);
     }
 
-    // Safety: all fields validated above — None/empty checked and returned early
-    let sensor_id = raw.sensor.sensor_id.expect("sensor_id validated above");
-    let name = raw.sensor.name.expect("name validated above");
-    let version = raw.sensor.version.expect("version validated above");
-    let auth_type = raw.sensor.auth_type.expect("auth_type validated above");
-    let base_url = raw.sensor.base_url.expect("base_url validated above");
-
-    // Step 3: convert tables
-    let mut tables = Vec::new();
-    for raw_table in &raw.tables {
-        let columns: Vec<ColumnDef> = raw_table
-            .columns
-            .iter()
-            .map(|c| ColumnDef {
-                name: c.name.clone(),
-                column_type: parse_column_type(&c.column_type),
-                ocsf_field: None,
-                nullable: c.nullable,
-            })
-            .collect();
-
-        let pagination_type = raw_table
-            .steps
-            .first()
-            .and_then(|s| s.pagination.as_deref())
-            .map(parse_pagination_type)
-            .unwrap_or(PaginationType::None);
-
-        // Fully-qualified table name: "{sensor_id}.{table_name}"
-        let table_name = format!("{}.{}", sensor_id, raw_table.table_name);
-
-        tables.push(SensorTableDescriptor {
-            table_name,
-            columns,
-            steps_count: raw_table.steps.len(),
-            pagination_type,
-        });
-    }
-
-    // F-PASS2-HIGH-3: collect credential refs from TOML into types::CredentialRef.
-    // No rename-mapping needed — RawCredentialRef.name maps 1-to-1 to CredentialRef.name.
-    // Consolidation: TD-S-PLUGIN-PREREQ-C-001-A (Canonical Principle Rule 3, CLAUDE.md).
-    let credential_refs: Vec<crate::types::CredentialRef> = raw
-        .credential_refs
-        .into_iter()
-        .map(|r| crate::types::CredentialRef::new(r.name))
-        .collect();
-
-    // F-LP-IMPL-P2-001: cross-composition Rule A+B validation at parse time
-    // (BC-2.01.016 Rule A/B, ADR-026 §D3, ADR-023 Rule 2).
-    //
-    // Applies to sensors with credential_refs declared. Sensors with 0 credential_refs
-    // are auth-unconfigured and pass without validation (auth fails at runtime if needed).
-    // Sensors with ≥ 1 credential_ref must satisfy Rule A (valid auth_type) and
-    // Rule B (exactly 1 credential_ref per auth method).
-    //
-    // Rule C (E-SPEC-014, auth_type/credential structural mismatch) is enforced at
-    // step5_init_credential_store_with_probe (boot time) via CredentialRefProbe::probe()
-    // returning Some(actual_shape). Parse time has no access to the resolved credential
-    // type (AD-017 AI-opaque credential model). Both shape args are auth_type here so
-    // that Rule A+B fire correctly; Rule C equality check is intentionally trivially
-    // satisfied (actual == expected) because shape resolution requires the credential store.
-    if !credential_refs.is_empty()
-        && let Err(spec_err) = crate::spec_parser::SpecLoader::validate_cross_composition(
-            &sensor_id,
-            &auth_type,
-            credential_refs.len(),
-            &auth_type, // expected_shape: Rule A+B only at parse time
-            &auth_type, // actual_shape: same — Rule C not enforced at parse time (no credential access)
-        )
-    {
-        return Err(vec![ValidationError {
-            sensor_id: Some(sensor_id),
-            source_path: source_path.to_string(),
-            errors: vec![format!("{spec_err}")],
-        }]);
-    }
-
-    Ok(SensorSpec {
-        sensor_id,
-        name,
-        version,
-        auth_type,
-        base_url,
-        tables,
-        file_hash: String::new(), // filled by caller
-        source_path: source_path.to_string(),
-        mode: crate::types::DtuMode::default(),
-        credential_refs,
-        // F-LP2-CRIT-002: parse auth_plugin from TOML; stored for boot-time registry validation.
-        auth_plugin: raw.sensor.auth_plugin,
-    })
-}
-
-fn parse_column_type(s: &str) -> ColumnType {
-    match s.to_lowercase().as_str() {
-        "string" | "text" | "varchar" => ColumnType::String,
-        "int64" | "int" | "integer" | "bigint" => ColumnType::Integer,
-        "float64" | "float" | "double" | "real" => ColumnType::Float,
-        "boolean" | "bool" => ColumnType::Boolean,
-        "timestamp" | "datetime" => ColumnType::Datetime,
-        "json" | "object" => ColumnType::Json,
-        _ => ColumnType::String, // default to string for unknown types
-    }
-}
-
-fn parse_pagination_type(s: &str) -> PaginationType {
-    match s.to_lowercase().as_str() {
-        "cursor" => PaginationType::Cursor,
-        "offset" => PaginationType::Offset,
-        _ => PaginationType::None,
-    }
+    // Note: `file_hash`, `source_path`, and `mode` are NOT set here — they are
+    // post-parse metadata set by the caller (config_manager, hot_reload, add_sensor_spec).
+    // The returned spec has `file_hash = ""`, `source_path = ""`, `mode = DtuMode::Shared`
+    // (defaults from #[serde(default)]). The caller overwrites these fields after this call.
+    Ok(spec)
 }
 
 /// Generate a write-gate confirmation token for updating an existing spec.
@@ -285,9 +115,16 @@ pub fn add_sensor_spec(
 
     // Step 2: dry run — return preview without writing
     if args.dry_run {
+        // Convert Vec<TableSpec> → Vec<SensorTableDescriptor> for the MCP wire type (ADR-030 §D7).
+        let sid = sensor_id.as_str();
+        let tables: Vec<SensorTableDescriptor> = spec
+            .tables
+            .iter()
+            .map(|t| sensor_table_descriptor_from_table_spec(sid, t))
+            .collect();
         return Ok(AddSensorSpecResult::DryRun {
             sensor_id,
-            tables: spec.tables.clone(),
+            tables,
             validation_errors: Vec::new(),
         });
     }
@@ -340,7 +177,13 @@ pub fn add_sensor_spec(
     }
 
     // Step 5: update ConfigManager with new spec
-    let tables = spec.tables.clone();
+    // Convert Vec<TableSpec> → Vec<SensorTableDescriptor> for the MCP wire type (ADR-030 §D7).
+    let sid = sensor_id.as_str();
+    let tables: Vec<SensorTableDescriptor> = spec
+        .tables
+        .iter()
+        .map(|t| sensor_table_descriptor_from_table_spec(sid, t))
+        .collect();
     let file_hash = compute_file_hash(&args.spec_toml);
     let mut new_spec = spec;
     new_spec.file_hash = file_hash;

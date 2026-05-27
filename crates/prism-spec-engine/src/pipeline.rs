@@ -1666,6 +1666,11 @@ mod execute_step_tests {
             version: "1.0.0".to_string(),
             credential_refs: Vec::new(),
             auth_plugin: None,
+            // ADR-030 Approach D: post-parse metadata fields. Test-constructed specs use
+            // empty values — these are set by file-loading callers in production.
+            file_hash: String::new(),
+            source_path: String::new(),
+            mode: crate::types::DtuMode::Shared,
         }
     }
 
@@ -1916,6 +1921,11 @@ mod execute_step_tests {
             version: "1.0.0".to_string(),
             credential_refs: Vec::new(),
             auth_plugin: None,
+            // ADR-030 Approach D: post-parse metadata fields. Test-constructed specs use
+            // empty values — these are set by file-loading callers in production.
+            file_hash: String::new(),
+            source_path: String::new(),
+            mode: crate::types::DtuMode::Shared,
         }
     }
 

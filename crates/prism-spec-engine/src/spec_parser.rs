@@ -35,6 +35,12 @@ pub enum AuthType {
     CookieRoundtrip,
     /// API key injected as header or query parameter.
     ApiKey,
+    /// Authentication delegated to a WASM plugin (PLUGIN-MIGRATION-001-E).
+    ///
+    /// The plugin implementing auth is named via `auth_plugin` field in the sensor spec.
+    /// Plugin-based auth participates in Rule C enforcement: the probe shape must match
+    /// `"custom_via_plugin"` if a ShapedProbe is used (BC-2.01.016 Rule C).
+    CustomViaPlugin,
 }
 
 /// Pagination configuration for a fetch step (BC-2.16.002).
@@ -376,6 +382,14 @@ pub use crate::types::CredentialRef;
 
 /// The top-level sensor spec parsed from a `*.sensor.toml` file (BC-2.16.001).
 ///
+/// This is the **canonical** sensor spec type for `prism-spec-engine` (ADR-030 Approach D).
+/// `ConfigSnapshot::sensor_specs` stores this type directly; `types::SensorSpec` is retired.
+///
+/// The three post-parse metadata fields (`file_hash`, `source_path`, `mode`) are set by the
+/// file-loading caller immediately after `SpecLoader::parse` returns — they are not TOML
+/// grammar fields. `#[serde(default)]` ensures existing TOML files without these fields
+/// continue to parse (they are infrastructure metadata, not spec grammar).
+///
 /// `#[non_exhaustive]`: forward-compat for plugin TOML schema evolution — root spec
 /// type; fields will expand with ADR-023 grammar. Fields may expand without a semver bump;
 /// use the `Default` impl or builder pattern for external construction.
@@ -391,6 +405,11 @@ pub struct SensorSpec {
     /// Base URL for the sensor's API.
     pub base_url: String,
     /// Tables exposed by this sensor.
+    ///
+    /// `#[serde(default)]` allows sensor specs with no `[[tables]]` sections to parse
+    /// (credential-only specs, boot test fixtures). An empty tables vec is valid at
+    /// parse time; DataFusion registration simply registers zero tables.
+    #[serde(default)]
     pub tables: Vec<TableSpec>,
     /// Rate limit hints for requests to this sensor's API.
     pub rate_limit_hints: Option<RateLimitHints>,
@@ -421,6 +440,34 @@ pub struct SensorSpec {
     /// Traces to: BC-2.01.016 §Plugin-Implementable Auth; BC-2.17.007 manifest gate.
     #[serde(default)]
     pub auth_plugin: Option<String>,
+
+    // -------------------------------------------------------------------------
+    // ADR-030 §D2 — Post-parse hot-reload metadata fields (not TOML grammar).
+    //
+    // These three fields are populated by the file-loading caller immediately after
+    // `SpecLoader::parse` returns. They are NOT present in `.sensor.toml` files;
+    // `#[serde(default)]` ensures backward-compatible deserialization.
+    // -------------------------------------------------------------------------
+    /// SHA-256 hash of the source file content (for hot-reload change detection).
+    ///
+    /// Set by the file-loading caller (config_manager, hot_reload) immediately
+    /// after parse. Empty string indicates the spec was constructed without a
+    /// file source (e.g., via AddSensorSpec MCP tool from in-memory TOML).
+    #[serde(default)]
+    pub file_hash: String,
+
+    /// Source file path of the `.sensor.toml` file from which this spec was parsed.
+    ///
+    /// Set by the file-loading caller. Empty string for in-memory-constructed specs.
+    #[serde(default)]
+    pub source_path: String,
+
+    /// DTU deployment mode — set at parse time from the `[sensor]` TOML table.
+    ///
+    /// Defaults to `DtuMode::Shared` for backward compatibility. Governs the
+    /// DTU topology used for this sensor's data flow (BC-3.2.005).
+    #[serde(default)]
+    pub mode: crate::types::DtuMode,
 }
 
 impl Default for SensorSpec {
@@ -448,6 +495,9 @@ impl Default for SensorSpec {
             version: "1.0.0".to_string(),
             credential_refs: vec![],
             auth_plugin: None,
+            file_hash: String::new(),
+            source_path: String::new(),
+            mode: crate::types::DtuMode::default(),
         }
     }
 }
@@ -466,6 +516,7 @@ impl AuthType {
             AuthType::BearerStatic => "bearer_static",
             AuthType::CookieRoundtrip => "cookie_roundtrip",
             AuthType::ApiKey => "api_key",
+            AuthType::CustomViaPlugin => "custom_via_plugin",
         }
     }
 }
@@ -496,6 +547,9 @@ impl SensorSpec {
             version: version.into(),
             credential_refs,
             auth_plugin: None,
+            file_hash: String::new(),
+            source_path: String::new(),
+            mode: crate::types::DtuMode::default(),
         }
     }
 }

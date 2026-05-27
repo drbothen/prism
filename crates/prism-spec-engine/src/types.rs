@@ -98,6 +98,57 @@ impl SensorTableDescriptor {
     }
 }
 
+/// Convert a `spec_parser::TableSpec` to a `SensorTableDescriptor` (MCP wire type).
+///
+/// ADR-030 §D7: `SensorSpecEntry.tables` uses `SensorTableDescriptor` as the MCP protocol
+/// wire type. After unification, `ConfigSnapshot::sensor_specs` holds `spec_parser::SensorSpec`
+/// with `Vec<TableSpec>`. This function performs the on-demand conversion when building
+/// the `SensorSpecEntry` response for `list_sensor_specs`.
+///
+/// Field mapping:
+/// - `table_name` — qualified as `"{sensor_id}.{table_name}"` to preserve the fully-qualified
+///   name convention in `SensorTableDescriptor` (MCP wire type). `TableSpec.table_name` stores
+///   the UNQUALIFIED suffix from TOML (e.g. `"events"`); callers must pass the owning
+///   `sensor_id` so this function can produce `"crowdstrike.events"`.
+/// - `columns` — each `ColumnSpec` → `ColumnDef` (1-to-1 name/type/ocsf_field/nullable)
+/// - `steps_count` — `ts.steps.len()`
+/// - `pagination_type` — derived from the first step's pagination config, or `None`
+pub fn sensor_table_descriptor_from_table_spec(
+    sensor_id: &str,
+    ts: &crate::spec_parser::TableSpec,
+) -> SensorTableDescriptor {
+    let columns: Vec<ColumnDef> = ts
+        .columns
+        .iter()
+        .map(|col| ColumnDef {
+            name: col.name.clone(),
+            column_type: col.column_type.clone(),
+            ocsf_field: col.ocsf_field.clone(),
+            nullable: true, // ColumnSpec does not carry nullable; wire type defaults to true
+        })
+        .collect();
+
+    let pagination_type = ts
+        .steps
+        .first()
+        .and_then(|step| step.pagination.as_ref())
+        .map(|pag| match pag {
+            crate::spec_parser::PaginationConfig::CursorToken { .. } => PaginationType::Cursor,
+            crate::spec_parser::PaginationConfig::OffsetLimit { .. } => PaginationType::Offset,
+            crate::spec_parser::PaginationConfig::None => PaginationType::None,
+        })
+        .unwrap_or(PaginationType::None);
+
+    SensorTableDescriptor {
+        // Fully-qualified: "sensor_id.table_name" — matches SensorTableDescriptor.table_name
+        // convention (doc on field: "Fully-qualified table name: '{sensor_id}.{table_name}'").
+        table_name: format!("{}.{}", sensor_id, ts.table_name),
+        columns,
+        steps_count: ts.steps.len(),
+        pagination_type,
+    }
+}
+
 /// A credential reference declared in a sensor spec.
 ///
 /// References the credential by sensor name and logical key name within that
@@ -139,137 +190,6 @@ impl CredentialRef {
     /// `..Default::default()` for forward compatibility when new fields are added.
     pub fn new(name: impl Into<String>) -> Self {
         Self { name: name.into() }
-    }
-}
-
-/// Parsed representation of a .sensor.toml file.
-/// Origin: S-1.11 — SensorSpec is the parsed representation established there.
-///
-/// `#[non_exhaustive]`: forward-compat for hot-reload config schema evolution —
-/// root spec type; fields will expand with ADR-023 grammar. External construction
-/// must use `..Default::default()` pattern.
-///
-/// Note: This is the hot-reload infrastructure type (distinct from
-/// `spec_parser::SensorSpec` which is the TOML spec-parser output type).
-#[non_exhaustive]
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct SensorSpec {
-    pub sensor_id: String,
-    pub name: String,
-    pub version: String,
-    pub auth_type: String,
-    pub base_url: String,
-    pub tables: Vec<SensorTableDescriptor>,
-    /// SHA-256 hash of the source file content (for change detection)
-    pub file_hash: String,
-    /// Source file path
-    pub source_path: String,
-    /// DTU deployment mode — set at TOML parse time, never changed at runtime.
-    ///
-    /// Defaults to `DtuMode::Shared` for backward compatibility with existing
-    /// TOML files that do not specify a `mode` field (BC-3.2.005, D-161 lesson).
-    #[serde(default)]
-    pub mode: DtuMode,
-    /// Credential references declared by this sensor spec.
-    ///
-    /// Each ref names a credential in the sensor's keyring namespace that must be
-    /// resolvable at boot time (BC-2.03.013 §Postconditions bullet 2).
-    /// Empty when the sensor declares no credentials (EC-03-013-001: zero refs
-    /// validated is not an error — boot continues normally).
-    ///
-    /// F-PASS2-HIGH-3 (S-WAVE5-PREP-01): added to support credential-ref
-    /// iteration in step5_init_credential_store. Future sensor TOML specs that
-    /// declare `[[credential_refs]]` sections will have their refs validated here.
-    #[serde(default)]
-    pub credential_refs: Vec<CredentialRef>,
-
-    /// Optional WASM sensor-auth plugin ID (F-LP2-CRIT-002 / PLUGIN-MIGRATION-001-E).
-    ///
-    /// When `Some(plugin_id)`, the boot sequence validates that a plugin with that ID
-    /// was successfully loaded at step 7.5 (`validate_auth_plugin_registered`). A typo'd
-    /// or missing plugin causes `BootError::UnknownAuthPlugin` (exit 2, config-invalid).
-    ///
-    /// Maps to `auth_plugin = "..."` in the sensor TOML spec. `None` = no plugin auth
-    /// (backward-compatible default — existing sensors without this field continue to work).
-    #[serde(default)]
-    pub auth_plugin: Option<String>,
-}
-
-impl Default for SensorSpec {
-    fn default() -> Self {
-        Self {
-            sensor_id: String::new(),
-            name: String::new(),
-            version: "1.0.0".to_string(),
-            auth_type: "api_key".to_string(),
-            base_url: String::new(),
-            tables: vec![],
-            file_hash: String::new(),
-            source_path: String::new(),
-            mode: DtuMode::default(),
-            credential_refs: vec![],
-            auth_plugin: None,
-        }
-    }
-}
-
-impl SensorSpec {
-    /// Construct a `SensorSpec` for the hot-reload config manager.
-    ///
-    /// Internal construction shortcut for forward-compatible external construction.
-    /// Sets `mode = DtuMode::Shared` (default), `credential_refs = []`, and
-    /// `auth_plugin = None` (plugin-authed sensors should call `.with_auth_plugin()`
-    /// after construction to set the `auth_plugin` field).
-    ///
-    /// ## `auth_plugin` field
-    ///
-    /// `auth_plugin` defaults to `None`. Sensors that declare `auth_plugin = "..."` in
-    /// their TOML spec must be constructed via:
-    ///
-    /// ```rust,ignore
-    /// let spec = SensorSpec::new_hot_reload(...).with_auth_plugin(Some("crowdstrike-oauth2".to_string()));
-    /// ```
-    ///
-    /// The `with_auth_plugin` builder method is the preferred path for setting `auth_plugin`
-    /// without breaking existing callers of `new_hot_reload` (PR-OBS-2 / PLUGIN-MIGRATION-001-E).
-    #[allow(clippy::too_many_arguments)]
-    pub fn new_hot_reload(
-        sensor_id: impl Into<String>,
-        name: impl Into<String>,
-        version: impl Into<String>,
-        auth_type: impl Into<String>,
-        base_url: impl Into<String>,
-        tables: Vec<SensorTableDescriptor>,
-        file_hash: impl Into<String>,
-        source_path: impl Into<String>,
-    ) -> Self {
-        Self {
-            sensor_id: sensor_id.into(),
-            name: name.into(),
-            version: version.into(),
-            auth_type: auth_type.into(),
-            base_url: base_url.into(),
-            tables,
-            file_hash: file_hash.into(),
-            source_path: source_path.into(),
-            mode: DtuMode::default(),
-            credential_refs: vec![],
-            auth_plugin: None,
-        }
-    }
-
-    /// Builder method to set `auth_plugin` field (PR-OBS-2 / PLUGIN-MIGRATION-001-E).
-    ///
-    /// Use this after `new_hot_reload` when the sensor declares `auth_plugin = "..."`.
-    ///
-    /// Example:
-    /// ```rust,ignore
-    /// let spec = SensorSpec::new_hot_reload(...)
-    ///     .with_auth_plugin(Some("crowdstrike-oauth2".to_string()));
-    /// ```
-    pub fn with_auth_plugin(mut self, auth_plugin: Option<String>) -> Self {
-        self.auth_plugin = auth_plugin;
-        self
     }
 }
 
@@ -341,8 +261,12 @@ pub struct SensorSpecEntry {
 /// adjudication.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ConfigSnapshot {
-    /// All successfully loaded sensor specs, keyed by sensor_id
-    pub sensor_specs: std::collections::HashMap<String, SensorSpec>,
+    /// All successfully loaded sensor specs, keyed by sensor_id.
+    ///
+    /// ADR-030 Approach D: unified on `spec_parser::SensorSpec` — the single canonical
+    /// sensor spec type. `types::SensorSpec` is retired; this field now carries the richer
+    /// type with structured `AuthType` enum and full `Vec<TableSpec>`.
+    pub sensor_specs: std::collections::HashMap<String, crate::spec_parser::SensorSpec>,
     /// Specs that failed validation (tracked for list_sensor_specs status)
     pub failed_specs: std::collections::HashMap<String, ValidationError>,
     /// SHA-256 hash of all config files combined (for change detection)

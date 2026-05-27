@@ -5,6 +5,7 @@ use crate::config_manager::ConfigManager;
 use crate::error::SpecEngineError;
 use crate::types::{
     ClientStatus, ListSensorSpecsArgs, ListSensorSpecsResult, SensorSpecEntry, SpecStatus,
+    sensor_table_descriptor_from_table_spec,
 };
 
 /// Return all loaded sensor specs from the current ConfigSnapshot.
@@ -33,13 +34,23 @@ pub fn list_sensor_specs(
 
         let client_status = args.client_id.as_ref().map(|_| ClientStatus::Configured);
 
+        // Convert spec_parser::SensorSpec fields to SensorSpecEntry (MCP wire type).
+        // ADR-030 §D7: auth_type is AuthType enum → use .as_str() for wire String.
+        // tables is Vec<TableSpec> → convert to Vec<SensorTableDescriptor> on-demand.
+        // Pass sensor_id so the converter can produce fully-qualified table names
+        // ("sensor_id.table_name") — TableSpec stores unqualified names from TOML.
+        let wire_tables = spec
+            .tables
+            .iter()
+            .map(|t| sensor_table_descriptor_from_table_spec(sensor_id.as_str(), t))
+            .collect();
         specs.push(SensorSpecEntry {
             sensor_id: sensor_id.clone(),
             name: spec.name.clone(),
             version: spec.version.clone(),
-            auth_type: spec.auth_type.clone(),
+            auth_type: spec.auth_type.as_str().to_string(),
             base_url: spec.base_url.clone(),
-            tables: spec.tables.clone(),
+            tables: wire_tables,
             status: SpecStatus::Loaded,
             client_status,
         });

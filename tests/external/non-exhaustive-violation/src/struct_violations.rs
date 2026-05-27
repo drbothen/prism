@@ -4,7 +4,10 @@
 //! struct-literal construction. After `#[non_exhaustive]` is applied, each
 //! literal MUST fail with E0639 (cannot create non-exhaustive struct expression).
 //!
-//! Violations 1-6, 9-12, 16-17, 20-24, 26, 30, 32-36 (24 total E0639 expected).
+//! Violations 1-6, 9-12, 16-17, 20-24, 26, 32-36 (23 total E0639 expected).
+//!
+//! S-SPEC-TYPE-UNIFICATION-001: Violation 30 (types::SensorSpec) removed.
+//! `types::SensorSpec` was deleted (ADR-030 Approach D — unified on spec_parser::SensorSpec).
 //!
 //! PLUGIN-MIGRATION-001-E addition:
 //!   33. plugin::LoadedPlugin            — struct, plugin/loader.rs
@@ -27,7 +30,7 @@ use prism_spec_engine::spec_parser::{
 };
 use prism_spec_engine::types::{
     ColumnDef, ColumnType as TypesColumnType, CredentialRef as TypesCredentialRef,
-    SensorSpec as TypesSensorSpec, SensorTableDescriptor as TypesSensorTableDescriptor,
+    SensorTableDescriptor as TypesSensorTableDescriptor,
 };
 use prism_spec_engine::write_endpoint::{BatchMode, WriteEndpointSpec, WriteStep};
 
@@ -235,31 +238,6 @@ pub fn v26_column_def() {
         nullable: false,
     };
     let _ = _column_def;
-}
-
-/// Violation 30: types::SensorSpec struct literal (E0639).
-///
-/// `prism_spec_engine::types::SensorSpec` is annotated `#[non_exhaustive]`
-/// (hot-reload infrastructure type, distinct from spec_parser::SensorSpec).
-/// External crates MUST NOT construct it via struct literal — fields may expand
-/// as ADR-023 grammar evolves. This violation exercises the annotation to ensure
-/// it is never silently removed.
-#[allow(dead_code)]
-pub fn v30_types_sensor_spec() {
-    let _spec = TypesSensorSpec {
-        sensor_id: "crowdstrike".to_string(),
-        name: "CrowdStrike".to_string(),
-        version: "1.0.0".to_string(),
-        auth_type: "oauth2_client_credentials".to_string(),
-        base_url: "https://api.crowdstrike.com".to_string(),
-        tables: vec![],
-        file_hash: "abc123".to_string(),
-        source_path: "/specs/crowdstrike.sensor.toml".to_string(),
-        // Intentionally omitting `mode` and `credential_refs` — E0639 fires because
-        // #[non_exhaustive] prevents external struct-literal construction regardless
-        // of whether all fields are supplied.
-    };
-    let _ = _spec;
 }
 
 /// Violation 33: LoadedPlugin (prism_spec_engine) struct literal (E0639).

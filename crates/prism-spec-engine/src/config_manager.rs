@@ -9,7 +9,8 @@ use std::path::Path;
 use std::sync::Arc;
 
 use crate::error::SpecEngineError;
-use crate::types::{ConfigSnapshot, SensorSpec, ValidationError};
+use crate::spec_parser::SensorSpec;
+use crate::types::{ConfigSnapshot, ValidationError};
 
 /// ConfigManager wraps ArcSwap<ConfigSnapshot> providing lock-free reads on the
 /// query hot path and atomic swap for hot reload.

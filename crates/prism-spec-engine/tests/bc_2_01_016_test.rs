@@ -258,10 +258,11 @@ fn test_BC_2_01_016_e_spec_013_rejected_via_parse_spec_directory() {
 
     let dir = TempDir::new().expect("tempdir must be created");
 
-    // Write a cross-composition TOML with 2 credential_refs (uses [sensor] format
-    // for parse_and_validate_spec_toml, which is the format used by parse_spec_directory).
+    // Write a cross-composition TOML with 2 credential_refs.
+    // ADR-030 Approach D: SpecLoader::parse uses flat top-level TOML format.
+    // Uses `column_type` field (not `type`) per ColumnSpec serde field name.
+    // Includes minimal [[tables.steps]] because `steps: Vec<FetchStep>` has no #[serde(default)].
     let toml_content = r#"
-[sensor]
 sensor_id = "xcomp_boot_sensor"
 name = "Cross-Composition Boot Test"
 base_url = "https://api.example.com"
@@ -276,10 +277,18 @@ name = "cred_two"
 
 [[tables]]
 table_name = "boot_table"
+ocsf_class = "security_finding"
 
 [[tables.columns]]
 name = "id"
-type = "string"
+column_type = "string"
+
+[[tables.steps]]
+name = "fetch"
+method = "GET"
+path_template = "/api/v1/boot"
+response_path = "$.items"
+variables_produced = []
 "#;
 
     let file_path = dir.path().join("xcomp_boot_sensor.sensor.toml");
@@ -333,8 +342,10 @@ fn test_BC_2_01_016_e_spec_012_rejected_via_add_sensor_spec_mcp_tool() {
     let dir = TempDir::new().expect("tempdir must be created");
     let manager = Arc::new(ConfigManager::empty());
 
+    // ADR-030 Approach D: SpecLoader::parse uses flat top-level TOML format (no [sensor] section).
+    // Uses `column_type` field (not `type`) per ColumnSpec serde field name.
+    // Includes minimal [[tables.steps]] because `steps: Vec<FetchStep>` has no #[serde(default)].
     let toml_with_multiple_cred_refs = r#"
-[sensor]
 sensor_id = "xcomp_mcp_sensor"
 name = "Cross-Composition MCP Test"
 base_url = "https://api.example.com"
@@ -349,10 +360,18 @@ name = "cred_two"
 
 [[tables]]
 table_name = "mcp_table"
+ocsf_class = "security_finding"
 
 [[tables.columns]]
 name = "id"
-type = "string"
+column_type = "string"
+
+[[tables.steps]]
+name = "fetch"
+method = "GET"
+path_template = "/api/v1/mcp"
+response_path = "$.items"
+variables_produced = []
 "#;
 
     let args = AddSensorSpecArgs {
@@ -420,8 +439,10 @@ fn test_BC_2_01_016_e_spec_014_rejected_via_hot_reload() {
     let dir = TempDir::new().expect("tempdir must be created");
     let manager = Arc::new(ConfigManager::empty());
 
+    // ADR-030 Approach D: SpecLoader::parse uses flat top-level TOML format.
+    // Uses `column_type` field (not `type`) per ColumnSpec serde field name.
+    // Includes minimal [[tables.steps]] because `steps: Vec<FetchStep>` has no #[serde(default)].
     let toml_content = r#"
-[sensor]
 sensor_id = "xcomp_reload_sensor"
 name = "Cross-Composition Hot-Reload Test"
 base_url = "https://api.example.com"
@@ -436,10 +457,18 @@ name = "cred_two"
 
 [[tables]]
 table_name = "reload_table"
+ocsf_class = "security_finding"
 
 [[tables.columns]]
 name = "id"
-type = "string"
+column_type = "string"
+
+[[tables.steps]]
+name = "fetch"
+method = "GET"
+path_template = "/api/v1/reload"
+response_path = "$.items"
+variables_produced = []
 "#;
 
     let file_path = dir.path().join("xcomp_reload_sensor.sensor.toml");

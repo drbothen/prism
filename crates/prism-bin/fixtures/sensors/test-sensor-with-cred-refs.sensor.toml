@@ -12,8 +12,10 @@
 #
 # The [[credential_refs]] section is parsed by parse_and_validate_spec_toml()
 # in prism-spec-engine::add_sensor_spec (F-PASS2-HIGH-3 implementation).
+#
+# ADR-030 Approach D: uses flat top-level TOML format (no [sensor] section).
+# SpecLoader::parse uses toml::from_str::<SensorSpec> which requires flat fields.
 
-[sensor]
 sensor_id = "test-sensor"
 name = "Test Sensor (credential ref fixture)"
 version = "0.1.0"

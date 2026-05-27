@@ -384,8 +384,7 @@ fn test_BC_3_3_004_CR003_load_and_validate_is_the_public_entry_point() {
     // Verified property: `validate_all` has `pub(crate)` visibility (AC-002).
     // This assertion enforces the runtime side: load_and_validate is the one reachable
     // public API, and it delegates to validate_all internally.
-    assert!(
-        true,
-        "AC-002: compile-time guard confirmed; validate_all is not accessible externally"
-    );
+    // AC-002: compile-time guard confirmed; validate_all is not accessible externally.
+    // (This is a compile-time invariant — if the `use` above resolves without importing
+    // validate_all, the perimeter holds. No runtime assertion needed.)
 }

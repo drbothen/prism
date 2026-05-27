@@ -125,8 +125,10 @@ pub fn process_spec_changes(
                     Ok(mut spec) => {
                         spec.file_hash = file_hash;
                         spec.source_path = path.to_string_lossy().to_string();
+                        // Qualify table names ("sensor_id.table_name") to match
+                        // SensorTableDescriptor convention used by DataFusion registration.
                         for table in &spec.tables {
-                            added.push(table.table_name.clone());
+                            added.push(format!("{}.{}", spec.sensor_id, table.table_name));
                         }
                         new_snapshot
                             .sensor_specs
@@ -159,8 +161,10 @@ pub fn process_spec_changes(
                 let sensor_id = extract_sensor_id_from_path(&file_name);
 
                 if let Some(old_spec) = new_snapshot.sensor_specs.remove(&sensor_id) {
+                    // Qualify table names ("sensor_id.table_name") to match
+                    // SensorTableDescriptor convention used by DataFusion registration.
                     for table in &old_spec.tables {
-                        removed.push(table.table_name.clone());
+                        removed.push(format!("{}.{}", sensor_id, table.table_name));
                     }
                 }
                 new_snapshot.failed_specs.remove(&sensor_id);
@@ -218,10 +222,12 @@ pub fn process_spec_changes(
                             .map(|old| old.tables != new_spec.tables)
                             .unwrap_or(true);
 
+                        // Qualify table names ("sensor_id.table_name") to match
+                        // SensorTableDescriptor convention used by DataFusion registration.
                         let table_names: Vec<String> = new_spec
                             .tables
                             .iter()
-                            .map(|t| t.table_name.clone())
+                            .map(|t| format!("{}.{}", sensor_id, t.table_name))
                             .collect();
 
                         modified.push(ModifiedSpec {
