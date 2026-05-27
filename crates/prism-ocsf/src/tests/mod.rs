@@ -10,15 +10,16 @@
 //!   - BC-2.02.012 → bc_2_02_012_class_selector.rs
 //!   - VP-016     → proptest_normalizer.rs
 //!
-//! S-1.05 tests:
-//!   - BC-2.02.003 → mapper_tests.rs (AC-1, AC-2)
-//!   - BC-2.02.004 → mapper_tests.rs (AC-3, AC-4)
-//!   - BC-2.02.005 → mapper_tests.rs (AC-5)
-//!   - BC-2.02.006 → mapper_tests.rs (AC-6)
-//!   - BC-2.02.007 → mapper_tests.rs (AC-7)
+//! S-1.05 tests (post-PLUGIN-MIGRATION-001-C):
+//!   - BC-2.02.003–006, BC-2.02.007, BC-2.02.011 → covered by SpecDrivenMapper
+//!     integration tests in spec_driven_mapper_fixtures.rs (external test crate)
+//!     and by proptest_extensions.rs (VP-017, AC-10)
 //!   - BC-2.02.008 → alias_tests.rs  (AC-8)
-//!   - BC-2.02.011 → mapper_tests.rs (AC-9)
 //!   - VP-017     → proptest_extensions.rs (AC-10)
+//!
+//! Note: mapper_tests.rs (per-sensor hardcoded mapper unit tests) was removed in
+//! PLUGIN-MIGRATION-001-C when the four per-sensor modules were deleted and replaced
+//! by SpecDrivenMapper.
 #![allow(non_snake_case)]
 
 // S-1.04 test modules
@@ -31,5 +32,4 @@ pub mod proptest_normalizer;
 
 // S-1.05 test modules
 pub mod alias_tests;
-pub mod mapper_tests;
 pub mod proptest_extensions;

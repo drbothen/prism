@@ -1,33 +1,25 @@
-//! Sensor-specific field mappers for OCSF normalization.
+//! Spec-driven OCSF field mapper for sensor normalization.
 //!
-//! This module defines the `SensorMapper` trait and re-exports the four sensor
-//! implementations: CrowdStrike (BC-2.02.003), Cyberint (BC-2.02.004),
-//! Claroty (BC-2.02.005), and Armis (BC-2.02.006).
+//! This module defines the `SensorMapper` trait and re-exports `SpecDrivenMapper`,
+//! the single config-driven implementation that replaced the four hardcoded
+//! per-sensor modules (CrowdStrike, Cyberint, Claroty, Armis) as part of
+//! PLUGIN-MIGRATION-001-C.
 //!
-//! # Architecture (S-1.05 Task 1)
+//! # Architecture (PLUGIN-MIGRATION-001-C)
+//!
+//! `SpecDrivenMapper` reads `ocsf_field` column annotations from the spec-catalog
+//! (`TableSpec` / `ColumnSpec`) at runtime and dispatches complex transforms to
+//! WASM plugins via `PluginRuntime`. New sensors are added by writing a TOML spec —
+//! no Rust code changes required.
 //!
 //! The normalizer dispatches via `SensorMapper::sensor_id()` — never via
-//! `match sensor {}`. This ensures new sensors can be added without touching
-//! the normalizer. (S-1.05 Architecture Compliance Rules)
-//!
-//! # Implementation Status
-//!
-//! All four mapper implementations are complete (S-1.05). Red Gate phase is over.
+//! `match sensor {}`. (S-1.05 Architecture Compliance Rules)
 
 use prism_core::PrismError;
 use prost_reflect::DynamicMessage;
 
-pub mod armis;
-pub mod claroty;
-pub mod crowdstrike;
-pub mod cyberint;
-// PLUGIN-MIGRATION-001-C: spec-driven mapper stub (replaces per-sensor modules in implementation phase)
 pub mod spec_driven;
 
-pub use armis::ArmisMapper;
-pub use claroty::ClarotyMapper;
-pub use crowdstrike::CrowdStrikeMapper;
-pub use cyberint::CyberintMapper;
 pub use spec_driven::SpecDrivenMapper;
 
 /// Trait implemented by each sensor-specific field mapper.

@@ -255,6 +255,23 @@ impl super::SensorMapper for SpecDrivenMapper {
             }
         }
 
+        // BC-2.02.007: Preserve any raw fields NOT declared in the spec into extensions.
+        // The spec's column list is the declared schema; fields beyond it are vendor-specific
+        // extras that must not be silently dropped.
+        let declared_column_names: std::collections::HashSet<&str> = table_descriptor
+            .columns
+            .iter()
+            .map(|c| c.name.as_str())
+            .collect();
+        for (key, value) in raw_obj {
+            if !declared_column_names.contains(key.as_str()) {
+                // Field not declared in the spec — preserve in extensions.
+                extensions
+                    .entry(key.clone())
+                    .or_insert_with(|| value.clone());
+            }
+        }
+
         // BC-2.02.002 postcondition: return source record ID.
         // Fall back to a synthesis from raw data if no ID was captured.
         let final_source_id = source_id.unwrap_or_else(|| {

@@ -120,15 +120,15 @@ pub enum PrismError {
 
     /// E-OCSF-023: Sensor record_type not in the mapper's supported set.
     ///
-    /// Returned by `ClarotyMapper` and `ArmisMapper` when the record_type is not one
-    /// of their declared supported types. (BC-2.02.005, BC-2.02.006, S-1.05 Edge Cases)
+    /// Returned by `SpecDrivenMapper` when the record_type is not one of the table
+    /// names declared in the sensor's spec. (BC-2.02.005, BC-2.02.006, S-1.05 Edge Cases)
     #[error("E-OCSF-023: unknown record type for sensor={sensor}: record_type={record_type}")]
     OcsfUnknownRecordType { sensor: String, record_type: String },
 
     /// E-OCSF-024: Timestamp field could not be parsed using any supported format.
     ///
-    /// Returned by `CyberintMapper` when `created_date` fails all four parse attempts.
-    /// (BC-2.02.004, AC-4, S-1.05 Edge Cases)
+    /// Returned by `SpecDrivenMapper` when a datetime column value fails all parse
+    /// attempts. (BC-2.02.004, AC-4, S-1.05 Edge Cases)
     #[error("E-OCSF-024: timestamp parse failed for field={field}: raw value={raw}")]
     OcsfTimestampParseError { field: String, raw: String },
 

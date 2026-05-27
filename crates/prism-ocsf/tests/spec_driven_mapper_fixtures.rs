@@ -506,8 +506,10 @@ fn test_PLUGIN_MIGRATION_001_C_005_no_hardcoded_mapper_symbols_in_production_src
     // Find the prism-ocsf src directory relative to this test binary's manifest.
     // In Cargo test runs, CARGO_MANIFEST_DIR resolves to the crate root.
     let src_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src");
+    // The tests/ subdirectory is #[cfg(test)] code; it may legitimately reference
+    // these symbol names in test helpers. We exclude it from the production scan.
+    let tests_subdir = src_dir.join("tests");
 
-    let mut hardcoded_symbol_count = 0usize;
     let symbols_to_ban = [
         "CrowdStrikeMapper",
         "CyberintMapper",
@@ -515,32 +517,49 @@ fn test_PLUGIN_MIGRATION_001_C_005_no_hardcoded_mapper_symbols_in_production_src
         "ArmisMapper",
     ];
 
-    // Walk all .rs files under src/ and count occurrences outside test blocks.
-    // We use a simplified check: count total occurrences in non-test code.
-    // A robust implementation would parse cfg(test) blocks; for Red Gate purposes
-    // we count all occurrences (test code imports these symbols, so count > 0).
-    if let Ok(entries) = fs::read_dir(&src_dir) {
-        for entry in entries.flatten() {
+    // Recursive walk helper: collect all .rs files under `dir`, excluding `exclude`.
+    fn collect_rs_files(
+        dir: &PathBuf,
+        exclude: &PathBuf,
+        out: &mut Vec<PathBuf>,
+    ) -> std::io::Result<()> {
+        for entry in fs::read_dir(dir)?.flatten() {
             let path = entry.path();
-            if path.extension().and_then(|e| e.to_str()) == Some("rs") {
-                let contents = fs::read_to_string(&path).unwrap_or_default();
-                // Skip test files (they legitimately reference these symbols).
-                // We check files directly under src/ — the mapper implementations.
-                for &sym in &symbols_to_ban {
-                    // Count occurrences outside obvious test contexts.
-                    // "pub struct CrowdStrikeMapper" or "CrowdStrikeMapper;" in production code.
-                    hardcoded_symbol_count += contents.matches(sym).count();
-                }
+            if path == *exclude {
+                continue;
+            }
+            if path.is_dir() {
+                collect_rs_files(&path, exclude, out)?;
+            } else if path.extension().and_then(|e| e.to_str()) == Some("rs") {
+                out.push(path);
+            }
+        }
+        Ok(())
+    }
+
+    let mut production_files: Vec<PathBuf> = Vec::new();
+    collect_rs_files(&src_dir, &tests_subdir, &mut production_files)
+        .expect("AC-005: failed to walk src/ for production .rs files");
+
+    let mut findings: Vec<String> = Vec::new();
+    for path in &production_files {
+        let contents = fs::read_to_string(path).unwrap_or_default();
+        for &sym in &symbols_to_ban {
+            let count = contents.matches(sym).count();
+            if count > 0 {
+                findings.push(format!(
+                    "{path}: {count} occurrence(s) of '{sym}'",
+                    path = path.display()
+                ));
             }
         }
     }
 
-    // AC-005 post-migration assertion: ZERO occurrences in production src.
-    // During Red Gate this FAILS because the mapper files still exist.
-    assert_eq!(
-        hardcoded_symbol_count, 0,
-        "AC-005: Found {hardcoded_symbol_count} hardcoded per-sensor mapper symbol(s) in \
-         production src/. These must be removed when SpecDrivenMapper replaces them."
+    // AC-005 post-migration assertion: ZERO occurrences in production src (excl. src/tests/).
+    assert!(
+        findings.is_empty(),
+        "AC-005: Found hardcoded per-sensor mapper symbol(s) in production src/:\n{}",
+        findings.join("\n")
     );
 }
 
