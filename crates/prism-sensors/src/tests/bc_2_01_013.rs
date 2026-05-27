@@ -66,7 +66,7 @@ fn stub(sensor_id: SensorId, name: &'static str) -> Arc<dyn SensorAdapter> {
 // AC-3 / TV-BC-2.01.013-001: registry register + get round-trip
 // ---------------------------------------------------------------------------
 
-/// AC-3: After registering a CrowdStrikeAdapter, `get(SensorId::from("crowdstrike"))`
+/// AC-3: After registering a stub adapter, `get(SensorId::from("crowdstrike"))`
 /// returns the same `Arc` instance (by pointer equality).
 ///
 /// TV-BC-2.01.013-001
