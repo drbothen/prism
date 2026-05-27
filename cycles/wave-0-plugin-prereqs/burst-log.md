@@ -921,3 +921,11 @@ Pass-1 adversary (agent a598496b1b1bf90c4) returned 15 findings (4 CRIT + 5 HIGH
 | Step | Agent | Status | Output |
 |------|-------|--------|--------|
 | D-827 — **Post-merge burst — PLUGIN-MIGRATION-001-A MERGED (TD-VSDD-053 single-commit).** PR #156 PLUGIN-MIGRATION-001-A MERGED at develop@948a709f (2026-05-27T03:39:00Z): all 4 hardcoded auth modules deleted; 17-pass LOCAL adversary cascade CONVERGED (3-CLEAN passes 15/16/17 per BC-5.39.001 strict); 6 fix-bursts; 16 findings closed; PR-LEVEL pass-1: APPROVE (zero findings); 38/38 CI GREEN. Worktree `.worktrees/PLUGIN-MIGRATION-001-A/` cleaned. develop HEAD: 948a709f. Unblocks 001-B + 001-C. STATE v7.513→v7.514. | state-manager (D-827 post-merge burst) | MERGED | RESOLVED — 001-B + 001-C unblocked. |
+
+---
+
+### D-828 — PLUGIN-MIGRATION-001-B PR #157 MERGED (post-merge burst 2026-05-27)
+
+| Step | Agent | Status | Output |
+|------|-------|--------|--------|
+| D-828 — **Post-merge burst — PLUGIN-MIGRATION-001-B MERGED (TD-VSDD-053 single-commit).** PR #157 PLUGIN-MIGRATION-001-B MERGED at develop@7ee54657 (2026-05-27T06:43:42Z): converted 3 sensor-name dispatch sites to spec-catalog lookup (explain.rs latency annotation, write_pipeline.rs gate check, invalidation.rs registration); restored 24 silently dropped tests via empty feature stubs; LOCAL 10-pass adversary cascade CONVERGED (3-CLEAN passes 8/9/10 per BC-5.39.001 strict); 3 fix-bursts; 5 findings closed; PR-LEVEL 3 findings found + fixed (verb sanitization in error messages, vacuous test asserting nothing, stale module-level doc comment); 30/38 CI GREEN (8 cancelled from superseded push — 0 failures). Worktree `.worktrees/PLUGIN-MIGRATION-001-B/` cleaned. develop HEAD: 7ee54657. Wave 1 plugin migration 4 of 8 stories complete (001-D, 001-E, 001-A, 001-B merged). Unblocks 001-C. STATE v7.514→v7.515. | state-manager (D-828 post-merge burst) | MERGED | RESOLVED — 001-C unblocked. |

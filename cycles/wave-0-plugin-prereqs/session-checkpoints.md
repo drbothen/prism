@@ -235,3 +235,22 @@ _Archived from STATE.md by D-827 post-merge burst 2026-05-27. Superseded by D-82
 **Worktree at archival:** `.worktrees/PLUGIN-MIGRATION-001-A/` (branch: `feature/PLUGIN-MIGRATION-001-A`)
 
 _Superseded by D-827 checkpoint (PR #156 MERGED at develop@948a709f 2026-05-27T03:39:00Z)._
+
+---
+
+## D-827 Checkpoint (archived by D-828 burst 2026-05-27)
+
+**STATE v7.514. D-827 — PLUGIN-MIGRATION-001-A PR #156 MERGED at develop@948a709f.**
+
+**PLUGIN-MIGRATION-001-A merge summary:**
+- PR #156 MERGED at develop@948a709f (2026-05-27T03:39:00Z)
+- 38/38 CI GREEN
+- 17 adversary passes, 6 fix-bursts, 16 findings closed
+- Passes 15/16/17: 3-CLEAN CONVERGED per BC-5.39.001 (strict)
+- All 4 hardcoded auth modules deleted
+- PR-LEVEL pass-1: APPROVE (zero findings)
+- Worktree `.worktrees/PLUGIN-MIGRATION-001-A/` cleaned
+
+**develop HEAD at archival:** `948a709f`
+
+_Superseded by D-828 checkpoint (PR #157 MERGED at develop@7ee54657 2026-05-27T06:43:42Z)._
