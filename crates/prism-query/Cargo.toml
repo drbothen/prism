@@ -110,6 +110,15 @@ kani-verifier = "=0.67.0"
 # (alias.write = allow in the client's TOML) must be present for writes to succeed
 # (BC-2.04.004 two-tier capability model, F-HIGH-002).
 alias-write = []
+# S-3.07 write-test feature gates. These features now serve solely as test-gating
+# mechanisms after PLUGIN-MIGRATION-001-A removed the cross-crate forwarding chain.
+# The write pipeline itself is registry-driven (BC-2.16.012); these gates preserve
+# existing test coverage under `--all-features` until PLUGIN-MIGRATION-001-F de-gates them.
+crowdstrike-write = []
+cyberint-write = []
+claroty-write = []
+armis-write = []
+all-write = ["crowdstrike-write", "cyberint-write", "claroty-write", "armis-write"]
 # Exposes global reset helpers (reset_dynamic_registry_global, reset_query_phase_global)
 # for cross-crate integration tests. NEVER enable in production deps.
 test-helpers = []

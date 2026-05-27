@@ -22,10 +22,7 @@ use std::sync::Arc;
 
 use prism_core::{OrgSlug, PrismError, RiskTier};
 use prism_security::confirmation_token::ConfirmationTokenStore;
-use prism_security::feature_flag::{
-    armis_write_gate, claroty_write_gate, crowdstrike_write_gate, cyberint_write_gate,
-    FeatureFlagEvaluator,
-};
+use prism_security::feature_flag::FeatureFlagEvaluator;
 use prism_sensors::AdapterRegistry;
 use prism_spec_engine::write_endpoint::WriteEndpointRegistry;
 
@@ -282,10 +279,23 @@ impl WriteExecutor {
         // HIGH-4: composite source check via registry (replaces hardcoded string compare).
         let is_composite = WriteEndpointRegistry::is_composite(&plan.sensor);
 
+        // Sanitize the sensor name and verb for use in the capability path: replace hyphens
+        // with underscores so that plugin-registered sensors and verbs (whose names may
+        // contain hyphens per ADR-026 plugin manifest naming) produce valid CapabilityPath
+        // segments. CapabilityPath::new() only accepts [a-zA-Z0-9_] per
+        // prism-core/src/capability.rs. If a hyphenated verb were used unsanitized,
+        // CapabilityPath::new() would reject it, producing DeniedRuntime instead of a
+        // structured error. Sanitized forms are used ONLY for the capability path string —
+        // raw sensor name and verb are retained for all other uses (registry lookups,
+        // audit fields, etc.).
+        let sanitized_sensor = plan.sensor.replace('-', "_");
+        let sanitized_verb = plan.verb.replace('-', "_");
+        let capability_path_string = format!("sensor.{}.{}", sanitized_sensor, sanitized_verb);
+
         let target = WriteTargetDescriptor {
             sensor: &plan.sensor,
             verb: &plan.verb,
-            capability_path: &format!("sensor.{}.{}", plan.sensor, plan.verb),
+            capability_path: &capability_path_string,
             is_composite_source: is_composite,
             is_internal_table: is_internal,
         };
@@ -297,16 +307,30 @@ impl WriteExecutor {
             plan.verb.clone(),
             plan.target_table.clone(),
             RiskTier::Irreversible, // default conservative: Irreversible
-            format!("sensor.{}.{}", plan.sensor, plan.verb),
+            capability_path_string.clone(),
             100,
             prism_spec_engine::write_endpoint::BatchMode::Serial,
             "id",
             vec![],
         );
-        let endpoint_spec = self
-            .endpoint_registry
-            .get(&plan.sensor, &plan.verb)
-            .unwrap_or(&default_spec);
+        // Single registry lookup: derive both endpoint_spec and compile_gate from the Option.
+        // INV-SPEC-PARSER-OPEN-001 (BC-2.16.012): no hardcoded sensor-name match arms in
+        // dispatch contexts. Post-PLUGIN-MIGRATION-001-B, the WriteEndpointRegistry presence
+        // IS the authoritative compile-time capability signal: a sensor has write capability
+        // if and only if its TOML spec declares [[write_endpoints]] sections and those specs
+        // are loaded at boot. The {sensor}-write Cargo features are now empty test-gating
+        // declarations in prism-query only. The write pipeline dispatch is registry-driven
+        // (BC-2.16.012); the features preserve existing test coverage under --all-features
+        // until PLUGIN-MIGRATION-001-F de-gates them. Dispatch in prism-query must be driven
+        // by the spec registry, not per-sensor function calls (ADR-023 Rule 2).
+        let maybe_spec = self.endpoint_registry.get(&plan.sensor, &plan.verb);
+        // BC-2.04.001: compile-time feature gate derived from registry presence.
+        let compile_gate: CompileFeatureGate = if maybe_spec.is_some() {
+            CompileFeatureGate::Present
+        } else {
+            CompileFeatureGate::Absent
+        };
+        let endpoint_spec = maybe_spec.unwrap_or(&default_spec);
 
         // Resolve batch limit: endpoint × client override × system ceiling
         let resolved_limit = resolve_batch_limit(
@@ -314,21 +338,6 @@ impl WriteExecutor {
             None, // client override: resolved from config in production
             SYSTEM_BATCH_CEILING,
         );
-
-        // BC-2.04.001: compile-time feature gate derived from sensor name.
-        // F-PASS2-HIGH-001: call prism-security gate functions as the single source
-        // of truth for the cfg gate topology. Each function uses #[cfg(feature = "...")]
-        // internally; enabling a *-write feature in prism-query (which chains to
-        // prism-security/prism-sensors via Cargo feature propagation) lights up the
-        // gate here automatically without duplication.
-        let compile_gate: CompileFeatureGate = match plan.sensor.as_str() {
-            "crowdstrike" => crowdstrike_write_gate().into(),
-            "cyberint" => cyberint_write_gate().into(),
-            "claroty" => claroty_write_gate().into(),
-            "armis" => armis_write_gate().into(),
-            // Unknown sensor: no write feature → Absent
-            _ => CompileFeatureGate::Absent,
-        };
 
         // Run Phase 2 — will Err on any gate failure
         let safety_passed = phase2_safety_check(

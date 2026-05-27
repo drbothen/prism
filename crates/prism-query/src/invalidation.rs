@@ -242,13 +242,15 @@ pub fn reset_query_phase_global() {
     QUERY_PHASE_STARTED.store(false, Ordering::Release);
 }
 
-/// Lazily-initialized mapping of all write tools to their invalidation targets.
+/// Built-in write tool invalidation map for the four initial sensors.
 ///
-/// Currently populated with the four built-in sensors (crowdstrike, cyberint,
-/// claroty, armis). The `Vec` shape (not `&[...]` static slice) is a forward-
-/// compatibility choice — runtime extensibility for plugin-registered write tools
-/// requires additional infrastructure (RwLock + register API); that work is
-/// deferred to PREREQ-E (see TD-S-PLUGIN-PREREQ-A-003 P1).
+/// **Transitional:** This static list is the source for `register_builtin_write_tools()`
+/// which populates `DYNAMIC_WRITE_TOOLS` at boot. After PLUGIN-MIGRATION-001-F
+/// (test rewrite), this static will be emptied and `DYNAMIC_WRITE_TOOLS` will be
+/// the sole source. The static is retained in this story to avoid breaking the
+/// existing `invalidate_for_sensor` code path which currently iterates both.
+///
+/// Story: PLUGIN-MIGRATION-001-B AC-003 | BC-2.16.012 INV-INVALIDATION-EXT-001
 pub static WRITE_TOOL_INVALIDATION_MAP: LazyLock<Vec<WriteToolInvalidationMap>> =
     LazyLock::new(|| {
         vec![
@@ -308,6 +310,31 @@ pub static WRITE_TOOL_INVALIDATION_MAP: LazyLock<Vec<WriteToolInvalidationMap>> 
             },
         ]
     });
+
+/// Populate `DYNAMIC_WRITE_TOOLS` from the built-in static map.
+///
+/// Called ONCE at boot, before `mark_query_phase_started()`. After this call,
+/// `DYNAMIC_WRITE_TOOLS` contains a copy of all built-in entries. Both the static
+/// `WRITE_TOOL_INVALIDATION_MAP` and `DYNAMIC_WRITE_TOOLS` are still consulted by
+/// `invalidate_for_*` methods (transitional; see `WRITE_TOOL_INVALIDATION_MAP` doc
+/// comment for removal plan).
+///
+/// Not idempotent: if called on an already-populated registry (duplicate tool_name
+/// returns `Err(DuplicateWriteToolRegistration)` per BC-2.16.012 EC-016-012-004 —
+/// caller must ensure this is called exactly once per process).
+///
+/// # Boot wiring
+/// Must be called at step 7.5c of `crates/prism-bin/src/boot.rs`, immediately after
+/// plugin loading (step 7.5) and before `mark_query_phase_started()` at step 8.
+/// See PLUGIN-MIGRATION-001-B AC-003 and BC-2.16.012 INV-INVALIDATION-EXT-001.
+///
+/// Story: PLUGIN-MIGRATION-001-B AC-003 | BC-2.16.012 INV-INVALIDATION-EXT-001
+pub fn register_builtin_write_tools() -> Result<(), SpecEngineError> {
+    for entry in WRITE_TOOL_INVALIDATION_MAP.iter() {
+        register_write_tool(entry.clone())?;
+    }
+    Ok(())
+}
 
 // ---------------------------------------------------------------------------
 // CacheInvalidator
@@ -1009,6 +1036,93 @@ mod tests {
             cache.get(&key).expect("get must not fail").is_none(),
             "BC-2.07.004 / F-LP-IMPL-P1-001: cache entry must be evicted after \
              invalidate_for_write_tool for dynamically-registered write tool"
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // RG-03 — PLUGIN-MIGRATION-001-B AC-003 (GREEN post-implementation)
+    // test_BC_2_16_012_B_003_register_builtin_write_tools_populates_dynamic_registry
+    //
+    // BC-2.16.012 invariant INV-INVALIDATION-EXT-001:
+    // WRITE_TOOL_INVALIDATION_MAP entries are accessible via
+    // `register_builtin_write_tools()` at boot, which populates DYNAMIC_WRITE_TOOLS.
+    //
+    // SITE-3 implemented: `register_builtin_write_tools()` exists and passes all 4
+    // sub-assertions (§1 empty-before, §2 count==8-after, §3 sensor-id membership,
+    // §4 duplicate-returns-Err). Test went GREEN with PLUGIN-MIGRATION-001-B SITE-3.
+    // -----------------------------------------------------------------------
+
+    /// RG-03 / AC-003 (PLUGIN-MIGRATION-001-B) — GREEN.
+    /// `register_builtin_write_tools()` populates `DYNAMIC_WRITE_TOOLS`
+    /// with all 8 entries from `WRITE_TOOL_INVALIDATION_MAP`.
+    ///
+    /// Traces to BC-2.16.012 invariant INV-INVALIDATION-EXT-001:
+    /// WRITE_TOOL_INVALIDATION_MAP → DYNAMIC_WRITE_TOOLS boot registration path.
+    ///
+    /// Story: PLUGIN-MIGRATION-001-B AC-003
+    #[test]
+    fn test_BC_2_16_012_B_003_register_builtin_write_tools_populates_dynamic_registry() {
+        // Reset global state for test isolation (F-LP-IMPL-P1-005).
+        // Must reset QUERY_PHASE_STARTED to false so register_write_tool() is accepted.
+        // Must reset DYNAMIC_WRITE_TOOLS to empty so the count starts at 0.
+        reset_query_phase_for_test();
+        reset_dynamic_registry_for_test();
+
+        // AC-003 §1: Before the call, DYNAMIC_WRITE_TOOLS count is 0.
+        let before_count = dynamic_write_tool_count();
+        assert_eq!(
+            before_count, 0,
+            "RG-03 §1: DYNAMIC_WRITE_TOOLS must be empty before register_builtin_write_tools(); \
+             got: {before_count}"
+        );
+
+        // AC-003 §2: One call populates DYNAMIC_WRITE_TOOLS with all 8 built-in entries.
+        let first_result = register_builtin_write_tools();
+        assert!(
+            first_result.is_ok(),
+            "RG-03 §2: register_builtin_write_tools() must return Ok(()) on first call; \
+             got: {:?}",
+            first_result.err()
+        );
+
+        let after_count = dynamic_write_tool_count();
+        assert_eq!(
+            after_count, 8,
+            "RG-03 §2 (BC-2.16.012 INV-INVALIDATION-EXT-001): \
+             after register_builtin_write_tools(), dynamic_write_tool_count() must be 8 \
+             (one entry per row in WRITE_TOOL_INVALIDATION_MAP); got: {after_count}"
+        );
+
+        // AC-003 §3: Each registered entry's sensor_id is one of the 4 built-in sensors.
+        let valid_sensors = ["crowdstrike", "cyberint", "claroty", "armis"];
+        let guard = DYNAMIC_WRITE_TOOLS
+            .read()
+            .expect("DYNAMIC_WRITE_TOOLS must not be poisoned");
+        for entry in guard.iter() {
+            let sensor_str = entry.sensor_id.as_ref();
+            assert!(
+                valid_sensors.contains(&sensor_str),
+                "RG-03 §3: registered entry sensor_id '{}' must be one of the \
+                 4 built-in sensors {:?}",
+                sensor_str,
+                valid_sensors
+            );
+        }
+        drop(guard);
+
+        // AC-003 §4: A second call returns Err(DuplicateWriteToolRegistration) for
+        // the first duplicate tool_name encountered (BC-2.16.012 EC-016-012-004).
+        let second_result = register_builtin_write_tools();
+        assert!(
+            second_result.is_err(),
+            "RG-03 §4: second call to register_builtin_write_tools() must return Err \
+             (DuplicateWriteToolRegistration per BC-2.16.012 EC-016-012-004); \
+             got Ok(())"
+        );
+        let err_str = format!("{:?}", second_result.unwrap_err());
+        assert!(
+            err_str.to_lowercase().contains("duplicate"),
+            "RG-03 §4: duplicate error must mention 'duplicate'; got: {err_str}"
         );
     }
 }

@@ -1577,3 +1577,54 @@ mod proptest_invariants {
         }
     }
 }
+
+// ---------------------------------------------------------------------------
+// Red Gate — PLUGIN-MIGRATION-001-B (BC-2.16.012 INV-SPEC-PARSER-OPEN-001)
+// ---------------------------------------------------------------------------
+
+/// Red Gate RG-01 / AC-001 (PLUGIN-MIGRATION-001-B):
+/// `explain.rs` latency heuristic must NOT special-case "crowdstrike" —
+/// after the SITE-1 conversion, all sensors (including "crowdstrike") must
+/// receive the uniform 300ms default.
+///
+/// **Red Gate contract:** This test MUST FAIL against pre-migration code.
+/// Before migration: `match src.sensor_id.as_ref() { "crowdstrike" => 250, ... }`
+/// returns 250 for "crowdstrike" → assertion `== 300` fails RED.
+/// After migration: `let latency_ms = 300_u64;` returns 300 for all sensors →
+/// assertion passes GREEN.
+///
+/// Traces to BC-2.16.012 invariant INV-SPEC-PARSER-OPEN-001:
+/// no hardcoded sensor-name match arms in dispatch contexts.
+///
+/// Story: PLUGIN-MIGRATION-001-B AC-001
+#[test]
+fn test_BC_2_16_012_B_001_explain_unknown_sensor_latency_is_300() {
+    // Query targeting "crowdstrike" — currently has a hardcoded 250ms arm.
+    // After SITE-1 migration, the uniform default is 300ms for ALL sensors.
+    let result = explain(
+        "crowdstrike.detections | severity = 'critical'",
+        default_opts(),
+    );
+    assert!(
+        result.is_ok(),
+        "explain() must return Ok for a valid sensor query; got: {result:?}"
+    );
+    let r = result.expect("already checked is_ok");
+
+    // Find the crowdstrike entry in per_sensor_latency_ms.
+    let latency = r
+        .estimated_cost
+        .per_sensor_latency_ms
+        .get("crowdstrike")
+        .copied();
+
+    assert_eq!(
+        latency,
+        Some(300),
+        "RG-01 (BC-2.16.012 INV-SPEC-PARSER-OPEN-001): \
+         after SITE-1 migration, 'crowdstrike' must have the uniform 300ms default, \
+         not the hardcoded 250ms arm. \
+         Got: {latency:?}. \
+         This test FAILS (RED) against pre-migration code that returns 250."
+    );
+}

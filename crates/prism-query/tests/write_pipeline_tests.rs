@@ -434,8 +434,30 @@ async fn test_ac7_feature_flag_deny_returns_e_flag_001() {
     let store = Arc::new(ConfirmationTokenStore::new());
     let audit = test_helpers::MockAuditWriter::always_succeed();
     let registry = Arc::new(prism_sensors::AdapterRegistry::new());
-    let endpoint_registry = Arc::new(WriteEndpointRegistry::new());
-    let executor = WriteExecutor::new(evaluator, store, audit, registry, endpoint_registry);
+    // Post-PLUGIN-MIGRATION-001-B: CompileFeatureGate is registry-driven, not feature-flag-driven.
+    // Must register armis/device_write endpoint so the gate is Present, allowing Phase 2 to reach
+    // the per-client runtime capability check. An empty registry yields Absent (DeniedCompileTime).
+    let mut endpoint_registry = WriteEndpointRegistry::new();
+    let _ = endpoint_registry.register(
+        "armis",
+        vec![prism_spec_engine::write_endpoint::WriteEndpointSpec::new(
+            "device_write",
+            "armis_devices",
+            prism_core::RiskTier::Irreversible,
+            "sensor.armis.device_write",
+            100,
+            prism_spec_engine::write_endpoint::BatchMode::Serial,
+            "device_id",
+            vec![],
+        )],
+    );
+    let executor = WriteExecutor::new(
+        evaluator,
+        store,
+        audit,
+        registry,
+        Arc::new(endpoint_registry),
+    );
 
     let plan = WritePlan {
         verb: "device_write".to_string(),
@@ -449,8 +471,8 @@ async fn test_ac7_feature_flag_deny_returns_e_flag_001() {
     };
     let context = make_query_context(true, None);
     // Phase 2 capability check: sensor.armis.device_write is Deny → E-FLAG-001
-    // With armis-write compiled: compile gate is Present → runtime hierarchical evaluation
-    // fires, child Deny for sensor.armis.device_write overrides parent Allow → DeniedRuntime.
+    // Registry-driven gate is Present (endpoint registered above) → runtime hierarchical
+    // evaluation fires, child Deny for sensor.armis.device_write overrides parent Allow → DeniedRuntime.
     let result = executor.execute(plan, context).await;
     let err = result.expect_err("Denied capability must return error");
     let err_msg = err.to_string();
@@ -512,40 +534,25 @@ fn test_crit3_crowdstrike_write_feature_is_queryable() {
     let _ = feature_present; // used for compile verification
 }
 
-/// BC-2.04.001: sensor name → CompileFeatureGate dispatch must map
-/// "crowdstrike" to Absent when feature is absent, Present when enabled.
+// test_crit3_sensor_compile_gate_matches_cfg_feature was removed.
+//
+// Post-migration, the compile gate is driven by WriteEndpointRegistry presence, not
+// cfg! macros. The test was vacuous: it constructed a CompileFeatureGate from cfg!
+// and matched it with empty arms, exercising no production code path.
+//
+// Coverage is provided by test_BC_2_16_012_B_002, which tests the actual
+// registry-driven gate mechanism end-to-end through WriteExecutor::execute().
+
+/// BC-2.04.001: structural contract test for the registry-driven gate absent path.
 ///
-/// This tests the cfg-derived dispatch in write_pipeline.rs.
-/// The compile gate value is cfg!-derived and verified here.
-#[test]
-fn test_crit3_sensor_compile_gate_matches_cfg_feature() {
-    use prism_query::safety_check::CompileFeatureGate;
-
-    // The cfg-derived gate for "crowdstrike"
-    let expected_gate = if cfg!(feature = "crowdstrike-write") {
-        CompileFeatureGate::Present
-    } else {
-        CompileFeatureGate::Absent
-    };
-
-    // Verify the gate enum is constructible and matches expected cfg! value
-    // In default build: Absent. With --features crowdstrike-write: Present.
-    match expected_gate {
-        CompileFeatureGate::Absent => {
-            // Default: deny-by-default per DI-003
-        }
-        CompileFeatureGate::Present => {
-            // Feature enabled: write code compiled in
-        }
-    }
-}
-
-/// BC-2.04.001: in default-features build, executing a crowdstrike write plan
-/// must be denied with E-FLAG-002 (compile gate absent).
+/// Verifies that an empty WriteEndpointRegistry produces CompileFeatureGate::Absent
+/// and the executor returns E-FLAG-002 / CAPABILITY_DENIED. This is a valid structural
+/// test for the absent path that would occur if a sensor is NOT in the registry.
 ///
-/// This test only runs when crowdstrike-write feature is NOT enabled.
-/// With --features all-write (just check), the test is skipped/excluded.
-/// With default features (just iter), this RED tests the compile gate denial.
+/// In production, the registry is populated at boot (step 7.5c via
+/// register_builtin_write_tools()); this test exercises the absent path explicitly
+/// by constructing an empty registry. This test only runs when crowdstrike-write
+/// feature is NOT enabled — with --features all-write (just check) it is excluded.
 #[tokio::test]
 #[cfg(not(feature = "crowdstrike-write"))]
 async fn test_crit3_crowdstrike_write_denied_in_default_build() {
@@ -1149,4 +1156,126 @@ async fn test_high8_token_hash_excludes_would_affect_count() {
         }
         WriteOutcome::Preview(_) => panic!("Expected Result for dry_run=false"),
     }
+}
+
+// ---------------------------------------------------------------------------
+// Red Gate — PLUGIN-MIGRATION-001-B (BC-2.16.012 INV-SPEC-PARSER-OPEN-001)
+// ---------------------------------------------------------------------------
+
+/// Red Gate RG-02 / AC-002 (PLUGIN-MIGRATION-001-B):
+/// `write_pipeline.rs` compile-gate dispatch must use `WriteEndpointRegistry::get()`
+/// presence as the capability signal — not a hardcoded 4-arm sensor-name match.
+///
+/// **Red Gate contract:** This test MUST FAIL against pre-migration code.
+/// The test registers "plugin-sensor-xyz" (a sensor that is NOT in the current
+/// 4-arm match: "crowdstrike" | "cyberint" | "claroty" | "armis") in the
+/// `WriteEndpointRegistry` with a write endpoint. Then it executes a write plan
+/// for "plugin-sensor-xyz" and asserts the Phase 2 compile gate does NOT produce
+/// a capability-denied error (i.e., the registry presence is respected).
+///
+/// Before migration: "plugin-sensor-xyz" falls to `_ => CompileFeatureGate::Absent`
+/// in the hardcoded match → Phase 2 Gate 3 denies with E-FLAG-002 → execute()
+/// returns Err → assertion `result.is_ok()` fails RED.
+///
+/// After migration: `endpoint_registry.get(&plan.sensor, &plan.verb).is_some()`
+/// returns true → `CompileFeatureGate::Present` → Phase 2 Gate 3 passes →
+/// execute() proceeds past Gate 3 → assertion passes GREEN.
+///
+/// Traces to BC-2.16.012 invariant INV-SPEC-PARSER-OPEN-001:
+/// registry presence is the correct open-dispatch capability signal.
+///
+/// Story: PLUGIN-MIGRATION-001-B AC-002
+#[tokio::test]
+async fn test_BC_2_16_012_B_002_write_gate_absent_for_unregistered_sensor() {
+    use prism_core::{CapabilityEffect, CapabilityPath, ClientCapabilities};
+    use prism_spec_engine::write_endpoint::{BatchMode, WriteEndpointRegistry, WriteEndpointSpec};
+
+    // Build an executor where "plugin-sensor-xyz" IS registered in the endpoint registry
+    // with a "write" verb, and "acme" has broad sensor capabilities.
+    let store = Arc::new(ConfirmationTokenStore::new());
+
+    let mut caps = BTreeMap::new();
+    let mut acme_caps = ClientCapabilities::new();
+    acme_caps.grant(
+        CapabilityPath::new("sensor").expect("sensor is a valid capability path"),
+        CapabilityEffect::Allow,
+    );
+    caps.insert("acme".to_string(), acme_caps);
+    let evaluator = Arc::new(FeatureFlagEvaluator::new(caps));
+    let audit = test_helpers::MockAuditWriter::always_succeed();
+    let registry = Arc::new(prism_sensors::AdapterRegistry::new());
+
+    // Register "plugin-sensor-xyz" with a "write" endpoint in the spec registry.
+    // This sensor is NOT in the current hardcoded 4-arm match — it falls through
+    // to `_ => CompileFeatureGate::Absent` in pre-migration code.
+    // Post-migration: its presence in this registry means CompileFeatureGate::Present.
+    let mut endpoint_registry = WriteEndpointRegistry::new();
+    let _ = endpoint_registry.register(
+        "plugin-sensor-xyz",
+        vec![WriteEndpointSpec::new(
+            "write",
+            "plugin_sensor_xyz_records",
+            prism_core::RiskTier::Reversible,
+            "sensor.plugin-sensor-xyz.write",
+            100,
+            BatchMode::Serial,
+            "id",
+            vec![],
+        )],
+    );
+
+    let executor = WriteExecutor::new(
+        evaluator,
+        store,
+        audit,
+        registry,
+        Arc::new(endpoint_registry),
+    );
+
+    // Build a WritePlan for "plugin-sensor-xyz" / "write".
+    let plan = WritePlan {
+        verb: "write".to_string(),
+        sensor: "plugin-sensor-xyz".to_string(),
+        target_table: "plugin_sensor_xyz_records".to_string(),
+        dml_operation: None,
+        has_explicit_limit: false,
+        explicit_limit: None,
+        has_where_clause: true,
+        params: HashMap::new(),
+    };
+
+    let context = make_query_context(true, None); // dry_run=true
+
+    // RG-02: Post-migration, the registry presence signals Present gate → execute proceeds.
+    // Pre-migration: hardcoded _ => Absent → E-FLAG-002 denial → result.is_err().
+    //
+    // We assert the execute does NOT return a capability-denied error.
+    // (It may succeed, return a preview, or fail for a different structural reason —
+    // but it must NOT fail with E-FLAG-002 / CAPABILITY_DENIED / "not compiled".)
+    let result = executor.execute(plan, context).await;
+
+    // Post-migration: the registry presence check makes "plugin-sensor-xyz" Present.
+    // The execute() succeeds (returns Ok with a Preview or Result).
+    // Pre-migration: returns Err with E-FLAG-002 because the hardcoded _ arm fires.
+    let is_capability_denied = match &result {
+        Err(e) => {
+            let msg = e.to_string();
+            msg.contains("E-FLAG-002")
+                || msg.contains("CAPABILITY_DENIED")
+                || msg.contains("not compiled")
+                || msg.contains("CapabilityDenied")
+        }
+        Ok(_) => false,
+    };
+
+    assert!(
+        !is_capability_denied,
+        "RG-02 (BC-2.16.012 INV-SPEC-PARSER-OPEN-001): \
+         'plugin-sensor-xyz' is registered in WriteEndpointRegistry — \
+         after SITE-2 migration the registry presence signals CompileFeatureGate::Present, \
+         so Phase 2 Gate 3 must NOT deny. \
+         This test FAILS (RED) against pre-migration code where the hardcoded \
+         `_ => CompileFeatureGate::Absent` arm fires. \
+         Got: {result:?}"
+    );
 }

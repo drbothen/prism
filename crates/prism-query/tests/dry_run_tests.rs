@@ -558,12 +558,31 @@ async fn test_BC_2_04_001_flag_disabled_between_calls_second_call_returns_e_flag
         }
     }
 
+    // Post-PLUGIN-MIGRATION-001-B: CompileFeatureGate is registry-driven, not feature-flag-driven.
+    // Must register the crowdstrike/contain endpoint so the gate is Present, which allows Phase 2
+    // to reach the per-client runtime capability check. An empty registry yields Absent (DeniedCompileTime),
+    // which is the wrong path for this test.
+    let mut endpoint_registry = prism_spec_engine::write_endpoint::WriteEndpointRegistry::new();
+    let _ = endpoint_registry.register(
+        "crowdstrike",
+        vec![prism_spec_engine::write_endpoint::WriteEndpointSpec::new(
+            "contain",
+            "crowdstrike_contained_hosts",
+            prism_core::RiskTier::Irreversible,
+            "sensor.crowdstrike.contain",
+            100,
+            prism_spec_engine::write_endpoint::BatchMode::Serial,
+            "device_id",
+            vec![],
+        )],
+    );
+
     let executor = WriteExecutor::new(
         evaluator,
         store,
         Arc::new(NoOpAudit),
         Arc::new(prism_sensors::AdapterRegistry::new()),
-        Arc::new(prism_spec_engine::write_endpoint::WriteEndpointRegistry::new()),
+        Arc::new(endpoint_registry),
     );
 
     let plan = helpers::make_irreversible_plan();
@@ -576,7 +595,7 @@ async fn test_BC_2_04_001_flag_disabled_between_calls_second_call_returns_e_flag
     };
 
     // Post-implementation: must return E-FLAG-001 (CapabilityDenied) for restricted client.
-    // With crowdstrike-write compiled: compile gate is Present → runtime evaluation fires.
+    // Registry-driven gate is Present (endpoint registered above) → runtime evaluation fires.
     // MED-002 tightened: assert DeniedRuntime path is exercised (not DeniedCompileTime).
     let result = executor.execute(plan, ctx).await;
     let err = result.expect_err("denied client must be rejected");
