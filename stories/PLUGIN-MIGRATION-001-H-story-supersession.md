@@ -6,7 +6,7 @@ wave: 2
 epic_id: PLUGIN-MIGRATION-001
 priority: P0
 status: in_progress
-version: "v1.0"
+version: "v1.1"
 level: "L4"
 producer: story-writer
 timestamp: "2026-05-27T00:00:00Z"
@@ -92,7 +92,7 @@ phase: 3
 
 **Story ID:** PLUGIN-MIGRATION-001-H
 **Status:** in_progress
-**Version:** v1.0
+**Version:** v1.1
 **Wave:** 2 (ordered after PLUGIN-MIGRATION-001-A; can be dispatched in parallel with 001-F and 001-G)
 
 ---
@@ -138,12 +138,12 @@ Each of the 4 stories is analyzed for the basis of supersession:
   Preserve `status: merged`.
 
 ### W3-FIX-S307-001 — Concrete Sensor Adapter Write Overrides (never merged)
-- **Status before this story:** planned, BLOCKED
+- **Status before this story:** draft, BLOCKED
 - **Supersession basis:** This story was registered to implement `fn write(...)` overrides
   in each of the four built-in sensor adapters. ADR-023 Rule 1 makes this moot:
   there are no built-in sensor adapters in Rust. Write operations for sensors are
   handled by the plugin-only path. D-333 (2026-05-08) recorded this BLOCKED status.
-- **Supersession action:** Transition `status: planned` → `status: superseded` in the
+- **Supersession action:** Transition `status: draft` → `status: superseded` in the
   story file AND the STORY-INDEX row. Add `superseded_by: ADR-023` frontmatter.
   The STORY-INDEX row already has the BLOCKED annotation; extend it with the formal
   supersession marker.
@@ -277,12 +277,12 @@ Rust code. ADR-023 delivers these via TOML spec [fetch_step], [fetch_step.enrich
 
 ### AC-003: W3-FIX-S307-001 story file — status transitioned to superseded; STORY-INDEX row updated (traces to BC-2.01.013 postcondition — sensor write operations are spec-driven, not implemented as per-sensor Rust adapter overrides)
 
-W3-FIX-S307-001 was never merged (status: planned, BLOCKED per D-333):
+W3-FIX-S307-001 was never merged (status: draft, BLOCKED per D-333):
 
 **Frontmatter change:**
 ```yaml
 # Before:
-status: planned
+status: draft
 
 # After:
 status: superseded
@@ -347,7 +347,7 @@ as the canonical sensor identifier; no adapter-constructor OrgId binding exists)
 - [ ] **Task 2:** Add `superseded_by: ADR-023` and `supersession_note:` to S-2.06 frontmatter;
       append §Supersession Note section to S-2.06 body; bump `version:` +0.1; update `modified:`
 - [ ] **Task 3:** Same for S-2.07
-- [ ] **Task 4:** Update W3-FIX-S307-001: change `status: planned` → `status: superseded`;
+- [ ] **Task 4:** Update W3-FIX-S307-001: change `status: draft` → `status: superseded`;
       add `superseded_by: ADR-023`; append §Supersession Note section; bump version; update modified
 - [ ] **Task 5:** Add `superseded_by: ADR-023` and `supersession_note:` to S-3.1.06-ImplPhase
       frontmatter; preserve `status: merged`; append §Supersession Note section; bump version
@@ -366,7 +366,7 @@ as the canonical sensor identifier; no adapter-constructor OrgId binding exists)
    whether the approach was later superseded architecturally.
 
 2. **`status: superseded` is applied only to W3-FIX-S307-001.** This story was never merged
-   (planned/BLOCKED) and its scope was fully superseded before implementation. It is the
+   (draft/BLOCKED) and its scope was fully superseded before implementation. It is the
    only one of the 4 that receives a `status: superseded` transition.
 
 3. **Spec-First Gate S-7.01:** `behavioral_contracts:` is non-empty (`[BC-2.01.013]`) and
@@ -395,7 +395,7 @@ as the canonical sensor identifier; no adapter-constructor OrgId binding exists)
 |--------|-----------|-------|
 | MODIFY | `.factory/stories/S-2.06-*.md` (exact filename TBD via ls) | Add supersession frontmatter + body note; preserve status: merged |
 | MODIFY | `.factory/stories/S-2.07-*.md` (exact filename TBD via ls) | Same |
-| MODIFY | `.factory/stories/W3-FIX-S307-001-*.md` (exact filename TBD via ls) | Change status: planned → superseded; add supersession frontmatter + body note |
+| MODIFY | `.factory/stories/W3-FIX-S307-001-*.md` (exact filename TBD via ls) | Change status: draft → superseded; add supersession frontmatter + body note |
 | MODIFY | `.factory/stories/S-3.1.06-ImplPhase-*.md` (or equivalent) | Add supersession frontmatter + body note; preserve status: merged |
 | MODIFY | `.factory/stories/STORY-INDEX.md` | 4 row annotations + version bump |
 
@@ -458,4 +458,5 @@ The implementer must NOT touch:
 
 | Version | Date | Author | Description |
 |---------|------|--------|-------------|
+| v1.1 | 2026-05-27 | story-writer | IMP-001 fix: corrected W3-FIX-S307-001 pre-change status from `planned` to `draft` (confirmed via git history of v1.0 frontmatter) |
 | v1.0 | 2026-05-27 | story-writer | Initial draft — 4 ACs + 7 tasks; PLUGIN-MIGRATION-001-H Wave 2 materialization |
