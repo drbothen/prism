@@ -690,15 +690,17 @@ jobs:
             echo "::error::REGRESSION: no-hardcoded-sensors compiled successfully — sensor-named auth module symbols are accessible from prism-sensors public API. ADR-023 Rule 3 violated. Deleted paths prism_sensors::auth::{armis,claroty,crowdstrike,cyberint} must not be re-exported."
             exit 1
           fi
-          # Per-symbol positive-coverage check (primary gate, IMP-001):
-          # Verify each of the 4 deleted auth symbols appears BY NAME in the error
-          # output. A count-only check would pass even if the wrong symbols regressed.
-          for SYM in ArmisAuth ClarotyAuth CrowdStrikeAuth CyberintAuth; do
-            if ! grep -q "error\[E0432\].*${SYM}\|unresolved import.*${SYM}" /tmp/no-hardcoded-sensors-check.log; then
-              echo "::error::FAIL: Expected E0432 for ${SYM} but not found in error output. Deleted path prism_sensors::auth::<module>::${SYM} may have been re-exported (ADR-023 Rule 3 violation, AC-006 PLUGIN-MIGRATION-001-F)."
+          # Per-module positive-coverage check (primary gate, IMP-001):
+          # Verify each of the 4 deleted auth module paths appears BY MODULE NAME in
+          # the error output. Cargo E0432 reports the module path (e.g.,
+          # prism_sensors::auth::armis), not the type name (e.g., ArmisAuth).
+          # A count-only check would pass even if the wrong modules regressed.
+          for MOD in armis claroty crowdstrike cyberint; do
+            if ! grep -q "error\[E0432\].*auth::${MOD}\|unresolved import.*auth::${MOD}" /tmp/no-hardcoded-sensors-check.log; then
+              echo "::error::FAIL: Expected E0432 for auth::${MOD} but not found in error output. Deleted path prism_sensors::auth::${MOD} may have been re-exported (ADR-023 Rule 3 violation, AC-006 PLUGIN-MIGRATION-001-F)."
               exit 1
             fi
-            echo "PASS: ${SYM} correctly fails to resolve (E0432)"
+            echo "PASS: auth::${MOD} correctly fails to resolve (E0432)"
           done
           # Redundant count assertion — must have at least 4 E0432 errors total.
           E0432_COUNT=$(grep -c 'error\[E0432\]' /tmp/no-hardcoded-sensors-check.log || true)
@@ -707,7 +709,7 @@ jobs:
             echo "::error::Expected at least ${EXPECTED} E0432 errors (one per deleted auth module: armis, claroty, crowdstrike, cyberint), got ${E0432_COUNT}. Some deleted paths may have been partially re-exported."
             exit 1
           fi
-          echo "PASS: no-hardcoded-sensors correctly fails to compile with ${E0432_COUNT} E0432 errors (expected: ${EXPECTED}). Deleted sensor-named auth modules are not accessible: prism_sensors::auth::{armis::ArmisAuth, claroty::ClarotyAuth, crowdstrike::CrowdStrikeAuth, cyberint::CyberintAuth} (ADR-023 Rule 3, AC-006 PLUGIN-MIGRATION-001-F)."
+          echo "PASS: no-hardcoded-sensors correctly fails to compile with ${E0432_COUNT} E0432 errors (expected: ${EXPECTED}). Deleted sensor-named auth modules are not accessible: prism_sensors::auth::{armis, claroty, crowdstrike, cyberint} (ADR-023 Rule 3, AC-006 PLUGIN-MIGRATION-001-F)."
 
   perimeter-symbols-sync:
     name: Perimeter symbols sync check (BC-2.11.006 OBS-001)
