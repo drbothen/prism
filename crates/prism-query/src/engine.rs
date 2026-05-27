@@ -203,7 +203,7 @@ pub struct QueryEngine {
     /// Held to ensure the task is aborted on Drop — not a dead field.
     cleanup_handle: Option<JoinHandle<()>>,
     /// Credential resolver for per-(org, sensor) auth dispatch in fan_out().
-    /// (F-LP1-CRIT-2: replaces placeholder CrowdStrikeAuth construction)
+    /// (F-LP1-CRIT-2: replaces placeholder auth construction; all built-in auth types deleted in PLUGIN-MIGRATION-001-A)
     pub(crate) credential_resolver: Arc<dyn CredentialResolver>,
     /// OrgSlug → OrgId mapping for per-org adapter selection. (F-LP1-CRIT-3)
     /// When `None`, falls back to `get_all_for_sensor` (test/MVP mode).

@@ -114,11 +114,9 @@ mod helpers {
     // StubCredentialResolver — succeeds for any (client, sensor) pair
     // -----------------------------------------------------------------------
 
-    /// Test-only `CredentialResolver` that returns a dummy `CrowdStrikeAuth`
-    /// for any request.
-    ///
-    /// Production adapters (CrowdStrikeAdapter, etc.) would reject this auth.
-    /// `StubAdapter::fetch` ignores `_auth` entirely, so this is safe for tests.
+    /// Test-only `CredentialResolver` that returns a stub `SensorAuth` impl for any request.
+    /// All built-in auth types were deleted in PLUGIN-MIGRATION-001-A; this stub satisfies
+    /// the trait bound for tests.
     /// (F-LP1-CRIT-2: prevents NullCredentialResolver from short-circuiting fan_out)
     pub struct StubCredentialResolver;
 

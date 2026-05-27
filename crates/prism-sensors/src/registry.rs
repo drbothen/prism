@@ -1,7 +1,8 @@
 //! `AdapterRegistry` — maps `(OrgId, SensorId)` to `Arc<dyn SensorAdapter>`.
 //!
-//! The registry is populated at startup by `init_registry_for_org()` with all
-//! built-in sensor adapters keyed by org identity.  The query engine obtains
+//! The registry starts empty and is populated at boot time by spec-catalog dispatch:
+//! each loaded sensor TOML spec results in a WASM plugin adapter being registered
+//! for the corresponding `(OrgId, SensorId)` key.  The query engine obtains
 //! a shared reference to the registry and calls `get()` to look up the adapter for
 //! each fan-out target (BC-2.01.013, AC-3, AC-002).
 //!
@@ -25,7 +26,8 @@ use crate::adapter::SensorAdapter;
 
 /// Registry mapping `(OrgId, SensorId)` composite keys to `SensorAdapter` instances.
 ///
-/// Populated at process startup with all built-in sensor adapters per org.
+/// Starts empty; populated at boot time by spec-catalog dispatch — each loaded
+/// sensor TOML spec registers a WASM plugin adapter for the corresponding key.
 /// After initialization the registry is immutable — adapters are registered
 /// once and never removed at runtime.
 ///

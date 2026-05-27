@@ -7,8 +7,8 @@
 //! - Lookup returns the *same* `Arc` instance after registration
 //! - `get()` for an unregistered `SensorId` returns `None`
 //! - Registry `len()` / `is_empty()` helpers
-//! - Sealed trait: `SensorAuth` cannot be implemented outside `prism_sensors`
-//!   (verified structurally — the private module is not accessible from tests)
+//! - Open trait: `SensorAuth` is externally implementable (BC-2.01.016, unsealed in S-PLUGIN-PREREQ-E;
+//!   built-in impls deleted in PLUGIN-MIGRATION-001-A)
 //! - Adapter registered for each of the four sensor names
 //!
 //! Story: S-2.06 | BC: BC-2.01.013

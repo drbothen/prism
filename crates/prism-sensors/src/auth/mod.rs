@@ -104,7 +104,7 @@ mod tests {
     }
 
     // -----------------------------------------------------------------------
-    // Test 3 -- test_BC_2_01_016_003_four_auth_impls_minimal_diff_post_unsealing
+    // Test 3 -- test_BC_2_01_016_003_auth_type_name_valid_discriminator_post_deletion
     //
     // The four built-in auth impls (CrowdStrike, Cyberint, Claroty, Armis) were
     // deleted in PLUGIN-MIGRATION-001-A (AC-003, AC-006). Their corrected
@@ -134,7 +134,7 @@ mod tests {
     ///
     /// Story: PLUGIN-MIGRATION-001-A AC-002 | BC: BC-2.01.016 | ADR-028 §D2/§D6
     #[test]
-    fn test_BC_2_01_016_003_four_auth_impls_minimal_diff_post_unsealing() {
+    fn test_BC_2_01_016_003_auth_type_name_valid_discriminator_post_deletion() {
         // All four built-in impls deleted in PLUGIN-MIGRATION-001-A (AC-003, AC-006).
         // Their corrected auth_type_name() values are recorded in the wip commit
         // before deletion:
