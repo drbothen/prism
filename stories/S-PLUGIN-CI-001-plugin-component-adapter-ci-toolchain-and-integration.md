@@ -5,12 +5,15 @@ title: "Plugin component-adapter CI toolchain + production .prx artifact + end-t
 wave: 1
 epic_id: PLUGIN-MIGRATION-001
 priority: P1
-status: draft
-version: "v0.1"
+status: merged
+version: "v0.2"
 level: "L4"
-producer: story-writer
+producer: state-manager
 timestamp: "2026-05-23T00:00:00Z"
-modified: "2026-05-23"
+modified: "2026-05-27"
+merged_at: "2026-05-27T15:05:34Z"
+merged_via_pr: 159
+merged_via_sha: "de1d5db7"
 tdd_mode: strict
 # BC status: pending PO authorship for BC-2.17.005 and any new boot-error BCs.
 # Existing BCs below are sufficient for status=draft; all must be non-empty and
