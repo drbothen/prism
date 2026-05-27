@@ -1011,4 +1011,130 @@ mod tests {
              invalidate_for_write_tool for dynamically-registered write tool"
         );
     }
+
+    // -----------------------------------------------------------------------
+    // Red Gate — PLUGIN-MIGRATION-001-B AC-003
+    // test_BC_2_16_012_B_003_register_builtin_write_tools_populates_dynamic_registry
+    //
+    // BC-2.16.012 invariant INV-INVALIDATION-EXT-001:
+    // WRITE_TOOL_INVALIDATION_MAP entries must be accessible via
+    // `register_builtin_write_tools()` at boot, which populates DYNAMIC_WRITE_TOOLS.
+    //
+    // Red Gate contract: `register_builtin_write_tools()` does NOT exist until
+    // PLUGIN-MIGRATION-001-B SITE-3 is implemented. This test fails RED at
+    // runtime — the two `panic!()` markers must be replaced by the implementer
+    // with actual `register_builtin_write_tools()` calls.
+    //
+    // The test compiles now (uses panic! as a runtime-failing stub) so that
+    // RG-01 and the rest of the lib test suite remain visible during review.
+    //
+    // IMPLEMENTER INSTRUCTIONS:
+    //   1. Add `pub fn register_builtin_write_tools() -> Result<(), SpecEngineError>`
+    //      to `invalidation.rs` (see §Functional Summary SITE-3 in the story spec).
+    //   2. Replace the two `panic!(...)` markers below with the real function call:
+    //      `register_builtin_write_tools()`
+    //   3. Remove the `#[allow(...)]` attributes that suppress unreachable-code
+    //      warnings for the dead assertions below the first panic!().
+    //
+    // After implementation the test verifies 4 sub-assertions (AC-003 §1-4):
+    //   §1. Before the call, DYNAMIC_WRITE_TOOLS count is 0 (fresh-reset baseline).
+    //   §2. After one call, dynamic_write_tool_count() == 8 (all 8 built-in entries).
+    //   §3. Each registered entry's sensor_id is one of the 4 built-in sensors.
+    //   §4. A second call returns Err containing "duplicate" (DuplicateWriteToolRegistration
+    //       per BC-2.16.012 EC-016-012-004).
+    // -----------------------------------------------------------------------
+
+    /// Red Gate RG-03 / AC-003 (PLUGIN-MIGRATION-001-B):
+    /// `register_builtin_write_tools()` must exist and populate `DYNAMIC_WRITE_TOOLS`
+    /// with all 8 entries from `WRITE_TOOL_INVALIDATION_MAP`.
+    ///
+    /// **Red Gate contract:** This test MUST FAIL against pre-migration code.
+    /// Pre-migration: the two `panic!()` markers below fire → test fails RED.
+    /// Post-migration: implementer replaces `panic!()` with `register_builtin_write_tools()`
+    /// calls → all 4 sub-assertions pass GREEN.
+    ///
+    /// Traces to BC-2.16.012 invariant INV-INVALIDATION-EXT-001:
+    /// WRITE_TOOL_INVALIDATION_MAP → DYNAMIC_WRITE_TOOLS boot registration path.
+    ///
+    /// Story: PLUGIN-MIGRATION-001-B AC-003
+    #[test]
+    #[allow(clippy::diverging_sub_expression, unreachable_code)]
+    fn test_BC_2_16_012_B_003_register_builtin_write_tools_populates_dynamic_registry() {
+        // Reset global state for test isolation (F-LP-IMPL-P1-005).
+        // Must reset QUERY_PHASE_STARTED to false so register_write_tool() is accepted.
+        // Must reset DYNAMIC_WRITE_TOOLS to empty so the count starts at 0.
+        reset_query_phase_for_test();
+        reset_dynamic_registry_for_test();
+
+        // AC-003 §1: Before the call, DYNAMIC_WRITE_TOOLS count is 0.
+        let before_count = dynamic_write_tool_count();
+        assert_eq!(
+            before_count, 0,
+            "RG-03 §1: DYNAMIC_WRITE_TOOLS must be empty before register_builtin_write_tools(); \
+             got: {before_count}"
+        );
+
+        // AC-003 §2: One call populates DYNAMIC_WRITE_TOOLS with all 8 built-in entries.
+        //
+        // IMPLEMENTER: replace the panic!() below with:
+        //   let first_result = register_builtin_write_tools();
+        let first_result: Result<(), SpecEngineError> = panic!(
+            "RG-03: register_builtin_write_tools() stub — \
+             replace this panic!() with `register_builtin_write_tools()` \
+             when implementing PLUGIN-MIGRATION-001-B SITE-3 (AC-003)"
+        );
+        assert!(
+            first_result.is_ok(),
+            "RG-03 §2: register_builtin_write_tools() must return Ok(()) on first call; \
+             got: {:?}",
+            first_result.err()
+        );
+
+        let after_count = dynamic_write_tool_count();
+        assert_eq!(
+            after_count, 8,
+            "RG-03 §2 (BC-2.16.012 INV-INVALIDATION-EXT-001): \
+             after register_builtin_write_tools(), dynamic_write_tool_count() must be 8 \
+             (one entry per row in WRITE_TOOL_INVALIDATION_MAP); got: {after_count}"
+        );
+
+        // AC-003 §3: Each registered entry's sensor_id is one of the 4 built-in sensors.
+        let valid_sensors = ["crowdstrike", "cyberint", "claroty", "armis"];
+        let guard = DYNAMIC_WRITE_TOOLS
+            .read()
+            .expect("DYNAMIC_WRITE_TOOLS must not be poisoned");
+        for entry in guard.iter() {
+            let sensor_str = entry.sensor_id.as_ref();
+            assert!(
+                valid_sensors.contains(&sensor_str),
+                "RG-03 §3: registered entry sensor_id '{}' must be one of the \
+                 4 built-in sensors {:?}",
+                sensor_str,
+                valid_sensors
+            );
+        }
+        drop(guard);
+
+        // AC-003 §4: A second call returns Err(DuplicateWriteToolRegistration) for
+        // the first duplicate tool_name encountered (BC-2.16.012 EC-016-012-004).
+        //
+        // IMPLEMENTER: replace the panic!() below with:
+        //   let second_result = register_builtin_write_tools();
+        let second_result: Result<(), SpecEngineError> = panic!(
+            "RG-03: register_builtin_write_tools() stub (second call) — \
+             replace this panic!() with `register_builtin_write_tools()` \
+             when implementing PLUGIN-MIGRATION-001-B SITE-3 (AC-003)"
+        );
+        assert!(
+            second_result.is_err(),
+            "RG-03 §4: second call to register_builtin_write_tools() must return Err \
+             (DuplicateWriteToolRegistration per BC-2.16.012 EC-016-012-004); \
+             got Ok(())"
+        );
+        let err_str = format!("{:?}", second_result.unwrap_err());
+        assert!(
+            err_str.to_lowercase().contains("duplicate"),
+            "RG-03 §4: duplicate error must mention 'duplicate'; got: {err_str}"
+        );
+    }
 }
