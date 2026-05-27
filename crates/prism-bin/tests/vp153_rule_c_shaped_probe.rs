@@ -106,9 +106,9 @@ fn make_config_manager_for_auth_type(
     sensor_id: &str,
     auth_type: &str,
 ) -> Arc<ArcSwap<ConfigManager>> {
+    // ADR-030 Approach D: SpecLoader::parse uses flat top-level TOML format (no [sensor] section).
     let sensor_toml = format!(
         r#"
-[sensor]
 sensor_id = "{sensor_id}"
 name = "VP153 Test Sensor"
 version = "0.1.0"

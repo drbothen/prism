@@ -156,22 +156,24 @@ impl super::SensorMapper for SpecDrivenMapper {
         })?;
 
         // Find the table descriptor matching record_type.
-        // The table_name is "{sensor_id}.{table_suffix}" format.
-        // We match against record_type using two strategies only (F-LP2-MED-002: the
-        // overly-broad prefix-fallback has been removed):
-        //   1. Exact match: "{sensor_id}.{record_type}"
-        //   2. Plural match: "{sensor_id}.{record_type}s"
+        // The table_name in spec_parser::SensorSpec is UNQUALIFIED (e.g., "events", not
+        // "crowdstrike.events"). TOML loading stores the raw table name; qualification as
+        // "{sensor_id}.{table_name}" happens at DataFusion registration time in
+        // sensor_table_descriptor_from_table_spec. We compare record_type directly
+        // against t.table_name (unqualified), using two strategies only
+        // (F-LP2-MED-002: the overly-broad prefix-fallback has been removed):
+        //   1. Exact match: record_type == t.table_name (e.g., "detections" == "detections")
+        //   2. Plural match: record_type + "s" == t.table_name (e.g., "detection" → "detections")
         // This handles the common case where TOML specs use plural table names
-        // (e.g., "crowdstrike.detections") but the normalizer uses singular record_type
+        // (e.g., "detections") but the normalizer uses singular record_type
         // ("detection") derived from EventClassSelector.
         // The prefix fallback (`suffix.starts_with(record_type)`) was removed because it
         // could match wrong tables (e.g., "detection" matching "detections_v2").
-        let exact_name = format!("{}.{}", self.sensor_id, record_type);
-        let plural_name = format!("{}.{}s", self.sensor_id, record_type);
+        let plural_record_type = format!("{}s", record_type);
         let table_descriptor = sensor_spec
             .tables
             .iter()
-            .find(|t| t.table_name == exact_name || t.table_name == plural_name)
+            .find(|t| t.table_name == record_type || t.table_name == plural_record_type)
             .ok_or_else(|| PrismError::OcsfNormalizationFailed {
                 source_id: format!("<{}>", self.sensor_id),
                 reason: format!(

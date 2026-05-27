@@ -41,9 +41,10 @@ use prism_spec_engine::{
     ColumnType,
     config_manager::ConfigManager,
     reload_config::{detect_mode_changes, reload_config},
+    spec_parser::{AuthType, SensorSpec},
     types::{
         ConfigSnapshot, DtuMode, ModeChange, ModifiedSpec, ReloadConfigArgs, ReloadResult,
-        ReloadStatus, SensorSpec, SensorTableDescriptor, ValidationError,
+        ReloadStatus, ValidationError,
     },
 };
 
@@ -52,26 +53,32 @@ use prism_spec_engine::{
 // ---------------------------------------------------------------------------
 
 /// Build a minimal `SensorSpec` with `DtuMode::Shared` (default).
+///
+/// ADR-030 Approach D: constructs `spec_parser::SensorSpec` directly.
 fn make_config_sensor_spec(sensor_id: &str) -> SensorSpec {
     make_config_sensor_spec_with_mode(sensor_id, DtuMode::Shared)
 }
 
 /// Build a minimal `SensorSpec` with an explicit DTU mode.
+///
+/// ADR-030 Approach D: constructs `spec_parser::SensorSpec` via `SensorSpec::new()` +
+/// post-construction field mutation (external crates cannot use struct literals on
+/// `#[non_exhaustive]` types).
 fn make_config_sensor_spec_with_mode(sensor_id: &str, mode: DtuMode) -> SensorSpec {
-    {
-        let mut spec = SensorSpec::new_hot_reload(
-            sensor_id,
-            &format!("Test {sensor_id}"),
-            "1.0",
-            "api_key",
-            "https://api.example.com",
-            vec![],
-            &format!("hash_{sensor_id}"),
-            &format!("/specs/{sensor_id}.sensor.toml"),
-        );
-        spec.mode = mode;
-        spec
-    }
+    let mut spec = SensorSpec::new(
+        sensor_id,
+        format!("Test {sensor_id}"),
+        AuthType::ApiKey,
+        "https://api.example.com",
+        vec![],
+        None,
+        "1.0",
+        vec![],
+    );
+    spec.file_hash = format!("hash_{sensor_id}");
+    spec.source_path = format!("/specs/{sensor_id}.sensor.toml");
+    spec.mode = mode;
+    spec
 }
 
 /// Build a `ConfigSnapshot` with a single sensor spec at `DtuMode::Shared`.

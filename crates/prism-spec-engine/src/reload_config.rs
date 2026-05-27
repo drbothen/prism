@@ -195,9 +195,9 @@ fn diff_snapshots(
     for (sensor_id, old_spec) in &old.sensor_specs {
         match new.sensor_specs.get(sensor_id) {
             None => {
-                // Removed: all tables from old spec
+                // Removed: all tables from old spec (fully-qualified: "sensor_id.table_name")
                 for table in &old_spec.tables {
-                    removed.push(table.table_name.clone());
+                    removed.push(format!("{}.{}", sensor_id, table.table_name));
                 }
             }
             Some(new_spec) => {
@@ -206,10 +206,12 @@ fn diff_snapshots(
                 } else {
                     // Modified: check if schema changed
                     let schema_changed = old_spec.tables != new_spec.tables;
+                    // Fully-qualified table names ("sensor_id.table_name") to match
+                    // SensorTableDescriptor convention used by DataFusion registration.
                     let table_names: Vec<String> = new_spec
                         .tables
                         .iter()
-                        .map(|t| t.table_name.clone())
+                        .map(|t| format!("{}.{}", sensor_id, t.table_name))
                         .collect();
                     modified.push(ModifiedSpec {
                         sensor_id: sensor_id.clone(),
@@ -221,11 +223,14 @@ fn diff_snapshots(
         }
     }
 
-    // Find added
+    // Find added — qualify table names to match SensorTableDescriptor convention
+    // (fully-qualified: "sensor_id.table_name"). TableSpec.table_name stores the
+    // unqualified suffix from TOML (e.g. "events"); callers and DataFusion registration
+    // expect the fully-qualified form (e.g. "crowdstrike.events").
     for (sensor_id, new_spec) in &new.sensor_specs {
         if !old.sensor_specs.contains_key(sensor_id) {
             for table in &new_spec.tables {
-                added.push(table.table_name.clone());
+                added.push(format!("{}.{}", sensor_id, table.table_name));
             }
         }
     }
