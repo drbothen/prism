@@ -1,8 +1,8 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.4"
-status: draft
+version: "1.5"
+status: active
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
 phase: 1a
@@ -17,9 +17,8 @@ input-hash: "76729b7"
 traces_to: ["CAP-003"]
 extracted_from: ".factory/specs/prd.md"
 scheduled_amendment_in: ADR-023
-amendment_lifecycle: pending
 introduced: cycle-1
-modified: "2026-05-11"
+modified: "2026-05-27"
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -30,11 +29,17 @@ removal_reason: null
 
 # BC-2.02.006: Armis Centrix Field Mapping to OCSF (7 Data Sources)
 
-> **PENDING AMENDMENT — ADR-023**: This BC is being amended for plugin-only architecture per ADR-023. The sensor auth and field-mapping behavior described here will be replaced by TOML spec configuration and, where required, `.prx` WASM plugins. Full BC amendment language is authored in PLUGIN-MIGRATION-001-G (Wave 2/G). See PLUGIN-MIGRATION-001-D for replacement TOMLs.
-
 ## Description
 
-The Armis normalizer maps records fetched via AQL GetSearch from 7 Armis sources to appropriate OCSF event classes. Key mappings are `ipaddress` → `device.ip`, `name` → `device.hostname`, alert severity → `severity_id`, and `riskLevel` → OCSF risk score fields. Armis-specific fields (`aqlResults`, `connectionType`, `riskFactors`) and records from sources with no dedicated OCSF class are preserved in `raw_extensions`. Timestamp fallback (pre-processed by the adapter) is used when no primary timestamp field exists.
+> **Amendment — ADR-023 (PLUGIN-MIGRATION-001-G):** This BC previously described a
+> hardcoded Rust mapper module (`prism-ocsf/src/mappers/armis.rs`). That
+> implementation was deleted in PLUGIN-MIGRATION-001-C (PR #158). The field-mapping behavior
+> described here is now delivered by `SpecDrivenMapper` reading `ocsf_field` column
+> annotations from the Armis TOML sensor spec. The behavioral contract itself
+> is unchanged — the same OCSF field mappings must be produced; they are now
+> data-driven via TOML annotations per ADR-023 Rule 1.
+
+`SpecDrivenMapper` reads `ocsf_field` column annotations from the Armis TOML sensor spec and converts records fetched via AQL GetSearch from 7 Armis sources to appropriate OCSF event classes. Key mappings are `ipaddress` → `device.ip`, `name` → `device.hostname`, alert severity → `severity_id`, and `riskLevel` → OCSF risk score fields. Armis-specific fields (`aqlResults`, `connectionType`, `riskFactors`) and records from sources with no dedicated OCSF class are preserved in `raw_extensions`. Timestamp fallback is used when no primary timestamp field exists.
 
 ## Preconditions
 - An Armis record has been fetched via AQL GetSearch from one of the 7 sources
@@ -91,6 +96,7 @@ The Armis normalizer maps records fetched via AQL GetSearch from 7 Armis sources
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.5 | PLUGIN-MIGRATION-001-G | 2026-05-27 | product-owner | AC-002 amendment: removed PENDING AMENDMENT banner; added Amendment Note to Description; updated mechanism language from deleted `prism-ocsf/src/mappers/armis.rs` to SpecDrivenMapper + ocsf_field TOML annotations; removed adapter reference from timestamp fallback prose; bumped status draft→active; removed amendment_lifecycle: pending. |
 | 1.4 | prereq-f | 2026-05-11 | product-owner | PREREQ-F prefix note: added PENDING AMENDMENT — ADR-023 callout under H1 per ADR-023 L370 wording; added scheduled_amendment_in: ADR-023 and amendment_lifecycle: pending to frontmatter. No semantic change to BC body. Full amendment in Wave 2/G. |
 | 1.3 | pass-73-fix | 2026-04-20 | state-manager | Deterministic changelog reorder: sorted all rows to descending version order (pass-73 bash script). |
 | 1.2 | pass-69-housekeeping | 2026-04-20 | product-owner | Normalized changelog schema to canonical 5-col schema. |

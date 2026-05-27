@@ -1,8 +1,8 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.5"
-status: draft
+version: "1.6"
+status: active
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
 phase: 1a
@@ -17,9 +17,8 @@ input-hash: "76729b7"
 traces_to: ["CAP-003"]
 extracted_from: ".factory/specs/prd.md"
 scheduled_amendment_in: ADR-023
-amendment_lifecycle: pending
 introduced: cycle-1
-modified: "2026-05-11"
+modified: "2026-05-27"
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -30,11 +29,17 @@ removal_reason: null
 
 # BC-2.02.003: CrowdStrike Alert Field Mapping to OCSF
 
-> **PENDING AMENDMENT — ADR-023**: This BC is being amended for plugin-only architecture per ADR-023. The sensor auth and field-mapping behavior described here will be replaced by TOML spec configuration and, where required, `.prx` WASM plugins. Full BC amendment language is authored in PLUGIN-MIGRATION-001-G (Wave 2/G). See PLUGIN-MIGRATION-001-D for replacement TOMLs.
-
 ## Description
 
-The CrowdStrike normalizer maps CrowdStrike alert fields to their canonical OCSF Detection Finding (class 2004) equivalents. Key mappings include `device.hostname` → `device.name`, `device.local_ip` → `device.ip`, severity string (e.g., `"High"`) → `severity_id` integer via OCSF v1.x name-to-id mapping, `created_timestamp` → OCSF `time` (RFC 3339), and MITRE ATT&CK `behaviors[*].tactic`/`technique` to `attacks[*].tactic.name`/`technique.name`. The original CrowdStrike `severity_name` string is preserved in `raw_extensions["crowdstrike_severity_name"]`. Any CrowdStrike-specific fields lacking an OCSF equivalent (e.g., `agent_id`, `cid`) are preserved in `raw_extensions` without loss.
+> **Amendment — ADR-023 (PLUGIN-MIGRATION-001-G):** This BC previously described a
+> hardcoded Rust mapper module (`prism-ocsf/src/mappers/crowdstrike.rs`). That
+> implementation was deleted in PLUGIN-MIGRATION-001-C (PR #158). The field-mapping behavior
+> described here is now delivered by `SpecDrivenMapper` reading `ocsf_field` column
+> annotations from the CrowdStrike TOML sensor spec. The behavioral contract itself
+> is unchanged — the same OCSF field mappings must be produced; they are now
+> data-driven via TOML annotations per ADR-023 Rule 1.
+
+`SpecDrivenMapper` reads `ocsf_field` column annotations from `.prism/specs/sensors/crowdstrike.sensor.toml` and converts CrowdStrike alert fields to their canonical OCSF Detection Finding (class 2004) equivalents. Key mappings include `device.hostname` → `device.name`, `device.local_ip` → `device.ip`, severity string (e.g., `"High"`) → `severity_id` integer via OCSF v1.x name-to-id mapping, `created_timestamp` → OCSF `time` (RFC 3339), and MITRE ATT&CK `behaviors[*].tactic`/`technique` to `attacks[*].tactic.name`/`technique.name`. The original CrowdStrike `severity_name` string is preserved in `raw_extensions["crowdstrike_severity_name"]`. Any CrowdStrike-specific fields lacking an OCSF equivalent (e.g., `agent_id`, `cid`) are preserved in `raw_extensions` without loss.
 
 ## Preconditions
 - A CrowdStrike alert record has been fetched via the two-step QueryV2/PostEntities flow
@@ -62,7 +67,7 @@ The CrowdStrike normalizer maps CrowdStrike alert fields to their canonical OCSF
 |-------|-----------|----------|
 | Warning | CrowdStrike `severity` string does not match any OCSF v1.x severity name (unrecognized string) | Mapped to OCSF `severity_id: 99` (Other); warning logged with the raw string value |
 | Warning | `created_timestamp` is null or missing | OCSF `time` set to fetch timestamp; warning logged |
-| Error | `detection_id` field is missing from a detection record | Returns `Err(PrismError::OcsfNormalizationFailed)` containing field name and source context |
+| Error | `detection_id` field is missing from a detection record | SpecDrivenMapper returns `Err(PrismError::OcsfNormalizationFailed)` containing field name and source context |
 
 ## Edge Cases
 | ID | Description | Expected Behavior |
@@ -100,6 +105,7 @@ The CrowdStrike normalizer maps CrowdStrike alert fields to their canonical OCSF
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.6 | PLUGIN-MIGRATION-001-G | 2026-05-27 | product-owner | AC-002 amendment: removed PENDING AMENDMENT banner; added Amendment Note to Description; updated mechanism language from deleted `prism-ocsf/src/mappers/crowdstrike.rs` to SpecDrivenMapper + ocsf_field TOML annotations; updated detection_id error case to cite SpecDrivenMapper; bumped status draft→active; removed amendment_lifecycle: pending. |
 | 1.5 | prereq-f | 2026-05-11 | product-owner | PREREQ-F prefix note: added PENDING AMENDMENT — ADR-023 callout under H1 per ADR-023 L370 wording; added scheduled_amendment_in: ADR-023 and amendment_lifecycle: pending to frontmatter. No semantic change to BC body. Full amendment in Wave 2/G. |
 | 1.4 | BLOCK-WV1-04 | 2026-04-22 | product-owner | Severity format fix: corrected CrowdStrike severity from integer (1-5) to string (e.g., "High") with OCSF v1.x name-to-id mapping; added severity_name preservation in raw_extensions; expanded postconditions with full field list per S-1.05 Task 2; updated test vectors to use string severity; added missing-detection_id error case. |
 | 1.3 | pass-73-fix | 2026-04-20 | state-manager | Deterministic changelog reorder: sorted all rows to descending version order (pass-73 bash script). |
