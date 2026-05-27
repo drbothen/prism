@@ -197,56 +197,29 @@ fn test_BC_3_2_001_fan_out_target_org_id_field_is_org_id_type() {
 }
 
 /// BC-3.2.001 precondition 4: `init_registry_for_org` must accept an `OrgId`
-/// as its first parameter and return an `AdapterRegistry`.
+/// as its first (and only) parameter and return an `AdapterRegistry`.
 ///
-/// Red Gate: This test verifies the stub signature compiles.  The FAILING
-/// behavior is that `init_registry_for_org` currently ignores `org_id`
-/// (stub delegates to legacy `init_registry`).  The implementation phase
-/// must wire `org_id` into each adapter constructor — this test's assertions
-/// about OrgId-keyed dispatch (below) will fail until then.
+/// Post-deletion state (PLUGIN-MIGRATION-001-A AC-004): All four built-in adapters
+/// (CrowdStrike, Cyberint, Claroty, Armis) have been deleted. `init_registry_for_org`
+/// returns an empty registry; spec-catalog dispatch wiring is a boot-time concern in
+/// `prism-bin` (ADR-028 §D3, GAP-002-A). The registry starts empty — adapters are
+/// registered via the plugin-catalog path at runtime.
 #[test]
 fn test_BC_3_2_001_init_registry_for_org_accepts_org_id_parameter() {
-    use crate::{ArmisAuth, ClarotyAuth, CrowdStrikeAuth, CyberintAuth};
-    use secrecy::SecretString;
-
     let org_id = OrgId::new();
 
-    let crowdstrike_auth = CrowdStrikeAuth {
-        client_id: "cs-test".into(),
-        client_secret: SecretString::new("secret".into()),
-        cloud_region: "us-1".into(),
-    };
-    let cyberint_auth = CyberintAuth {
-        environment: "portal".into(),
-        api_key: SecretString::new("cy-key".into()),
-    };
-    let claroty_auth = ClarotyAuth {
-        instance_url: "https://claroty.example.com".into(),
-        username: "claro-user".into(),
-        password: SecretString::new("claro-pass".into()),
-    };
-    let armis_auth = ArmisAuth {
-        instance_url: "https://armis.example.com".into(),
-        secret_key: SecretString::new("armis-secret".into()),
-    };
+    // Post-deletion: init_registry_for_org takes only org_id (1 argument).
+    // All four built-in adapter constructors removed per PLUGIN-MIGRATION-001-A AC-004.
+    let registry = crate::init_registry_for_org(org_id);
 
-    // This must compile — verifies the stub signature exists.
-    let registry = crate::init_registry_for_org(
-        org_id,
-        &crowdstrike_auth,
-        &cyberint_auth,
-        &claroty_auth,
-        SecretString::new("claroty-token".into()),
-        &armis_auth,
-        SecretString::new("armis-token".into()),
-    );
-
-    // The registry must contain all four built-in adapters.
-    // GREEN GATE: init_registry_for_org returns all 4 built-in adapters (BC-3.2.001 precondition 4).
+    // Post-deletion: registry is empty at init; spec-catalog dispatch wiring (GAP-002-A)
+    // populates it at boot time in prism-bin, not here.
+    // BC-3.2.001 precondition 4 is preserved: the org_id parameter is accepted.
     assert_eq!(
         registry.len(),
-        4,
-        "init_registry_for_org must register all 4 built-in adapters keyed by org_id"
+        0,
+        "init_registry_for_org post-deletion must return empty registry; \
+         spec-catalog wiring belongs in prism-bin boot (ADR-028 §D3, GAP-002-A)"
     );
 }
 

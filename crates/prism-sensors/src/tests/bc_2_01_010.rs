@@ -170,6 +170,16 @@ async fn test_BC_2_01_010_fan_out_all_targets_fail_returns_all_targets_failed() 
         }
     }
 
+    // All built-in auth types deleted in PLUGIN-MIGRATION-001-A (AC-003, AC-006).
+    struct TestStubAuth;
+    impl crate::auth::SensorAuth for TestStubAuth {
+        fn as_any(&self) -> &dyn std::any::Any {
+            self
+        }
+        fn auth_type_name(&self) -> &'static str {
+            "custom_via_plugin"
+        }
+    }
     struct StubCreds;
     impl CredentialResolver for StubCreds {
         fn resolve(
@@ -177,12 +187,7 @@ async fn test_BC_2_01_010_fan_out_all_targets_fail_returns_all_targets_failed() 
             _client_id: &str,
             _sensor_id: SensorId,
         ) -> Result<Box<dyn SensorAuth>, SensorError> {
-            use secrecy::SecretString;
-            Ok(Box::new(crate::auth::CrowdStrikeAuth {
-                client_id: "stub".into(),
-                client_secret: SecretString::new("s".into()),
-                cloud_region: "us-1".into(),
-            }))
+            Ok(Box::new(TestStubAuth))
         }
     }
 
@@ -294,6 +299,16 @@ async fn test_BC_2_01_010_fan_out_five_succeed_one_503_returns_partial_result() 
         }
     }
 
+    // All built-in auth types deleted in PLUGIN-MIGRATION-001-A (AC-003, AC-006).
+    struct TestStubAuth2;
+    impl crate::auth::SensorAuth for TestStubAuth2 {
+        fn as_any(&self) -> &dyn std::any::Any {
+            self
+        }
+        fn auth_type_name(&self) -> &'static str {
+            "custom_via_plugin"
+        }
+    }
     struct StubCreds;
     impl CredentialResolver for StubCreds {
         fn resolve(
@@ -301,12 +316,7 @@ async fn test_BC_2_01_010_fan_out_five_succeed_one_503_returns_partial_result() 
             _client_id: &str,
             _sensor_id: SensorId,
         ) -> Result<Box<dyn SensorAuth>, SensorError> {
-            use secrecy::SecretString;
-            Ok(Box::new(crate::auth::CrowdStrikeAuth {
-                client_id: "stub".into(),
-                client_secret: SecretString::new("s".into()),
-                cloud_region: "us-1".into(),
-            }))
+            Ok(Box::new(TestStubAuth2))
         }
     }
 

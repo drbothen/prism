@@ -1,14 +1,15 @@
-//! Integration test root for S-2.07 per-sensor auth adapters.
+//! Integration test root for prism-sensors.
 //!
-//! Test bodies are provided by the Test Writer agent (next dispatch).
-//! This file declares the sub-modules so `cargo check --tests` validates
-//! the structure without requiring any test bodies yet.
+//! As of PLUGIN-MIGRATION-001-A, the four per-sensor adapter test modules
+//! (test_armis, test_claroty, test_crowdstrike, test_cyberint) have been
+//! superseded by spec-catalog dispatch parity tests in `prism-spec-engine/tests/parity/`.
+//! They are no longer declared here (AC-003, AC-006 of PLUGIN-MIGRATION-001-A).
 //!
-//! Story: S-2.07 | BC: BC-2.01.004–BC-2.01.008
+//! Retained sub-modules cover infrastructure that remains in `prism-sensors`:
+//! - `test_pagination`: `paginate_claroty()` stream and `OffsetCursor` (S-2.07)
+//! - `test_timestamp`: multi-format timestamp parsing (S-2.07)
+//!
+//! Story: PLUGIN-MIGRATION-001-A | BC: BC-2.01.013, BC-2.01.016
 
-mod test_armis;
-mod test_claroty;
-mod test_crowdstrike;
-mod test_cyberint;
 mod test_pagination;
 mod test_timestamp;

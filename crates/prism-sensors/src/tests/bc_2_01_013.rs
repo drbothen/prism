@@ -200,34 +200,47 @@ fn test_BC_2_01_013_registry_stores_dyn_adapters_for_all_sensor_types() {
 // SensorAuth sealed trait: structural verification
 // ---------------------------------------------------------------------------
 
-/// Verifies that `SensorAuth` is implemented by the four built-in types and
-/// that those types implement `Send + Sync + 'static` (required for cross-task
-/// sharing). This is a compile-time bound check expressed as a static assertion.
+/// Verifies that an external `SensorAuth` implementation is `Send + Sync + 'static`.
 ///
-/// BC-2.01.013 invariant: sealed trait — external impls are compile-impossible.
-/// The sealed guarantee is enforced by the private `Sealed` marker in `auth::private`,
-/// which is not re-exported and therefore unreachable from this test crate.
+/// All four built-in auth types (CrowdStrike, Cyberint, Claroty, Armis) were deleted
+/// in PLUGIN-MIGRATION-001-A (AC-003, AC-006). This test verifies the open trait
+/// continues to enforce Send + Sync + 'static via an inline stub impl.
+///
+/// BC-2.01.016: SensorAuth is externally implementable (open trait after PREREQ-E).
 #[test]
 fn test_BC_2_01_013_sensor_auth_subtypes_are_send_sync_static() {
     fn assert_send_sync_static<T: Send + Sync + 'static>() {}
 
-    assert_send_sync_static::<crate::auth::CrowdStrikeAuth>();
-    assert_send_sync_static::<crate::auth::CyberintAuth>();
-    assert_send_sync_static::<crate::auth::ClarotyAuth>();
-    assert_send_sync_static::<crate::auth::ArmisAuth>();
+    // All four built-in auth types deleted in PLUGIN-MIGRATION-001-A (AC-003, AC-006).
+    // Verify the open trait itself continues to be Send + Sync + 'static via inline stub.
+    struct TestExternalAuth;
+    impl crate::auth::SensorAuth for TestExternalAuth {
+        fn as_any(&self) -> &dyn std::any::Any {
+            self
+        }
+        fn auth_type_name(&self) -> &'static str {
+            "custom_via_plugin"
+        }
+    }
+    assert_send_sync_static::<TestExternalAuth>();
 }
 
 /// Verifies that `dyn SensorAuth` can be held in a `Box` (object-safe).
 /// This mirrors how `CredentialResolver::resolve()` returns `Box<dyn SensorAuth>`.
 #[test]
 fn test_BC_2_01_013_sensor_auth_is_object_safe_boxed() {
-    use secrecy::SecretString;
-
-    let auth: Box<dyn SensorAuth> = Box::new(crate::auth::CrowdStrikeAuth {
-        client_id: "test-client".into(),
-        client_secret: SecretString::new("secret".into()),
-        cloud_region: "us-1".into(),
-    });
+    // All four built-in auth types deleted in PLUGIN-MIGRATION-001-A (AC-003, AC-006).
+    // Verify object-safety via inline stub impl (plugin-provided auth path).
+    struct TestExternalAuth;
+    impl crate::auth::SensorAuth for TestExternalAuth {
+        fn as_any(&self) -> &dyn std::any::Any {
+            self
+        }
+        fn auth_type_name(&self) -> &'static str {
+            "custom_via_plugin"
+        }
+    }
+    let auth: Box<dyn SensorAuth> = Box::new(TestExternalAuth);
     // If this compiles, `dyn SensorAuth` is object-safe.
     let _ = auth;
 }

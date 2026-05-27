@@ -198,6 +198,17 @@ async fn test_BC_2_01_002_fan_out_six_targets_all_succeed() {
     }
 
     // Stub credential resolver
+    // All built-in auth types deleted in PLUGIN-MIGRATION-001-A (AC-003, AC-006).
+    // Use an inline test stub that implements SensorAuth via custom_via_plugin path.
+    struct TestStubAuth;
+    impl crate::auth::SensorAuth for TestStubAuth {
+        fn as_any(&self) -> &dyn std::any::Any {
+            self
+        }
+        fn auth_type_name(&self) -> &'static str {
+            "custom_via_plugin"
+        }
+    }
     struct StubCreds;
     impl CredentialResolver for StubCreds {
         fn resolve(
@@ -205,12 +216,7 @@ async fn test_BC_2_01_002_fan_out_six_targets_all_succeed() {
             _client_id: &str,
             _sensor_id: SensorId,
         ) -> Result<Box<dyn SensorAuth>, SensorError> {
-            use secrecy::SecretString;
-            Ok(Box::new(crate::auth::CrowdStrikeAuth {
-                client_id: "stub".into(),
-                client_secret: SecretString::new("s".into()),
-                cloud_region: "us-1".into(),
-            }))
+            Ok(Box::new(TestStubAuth))
         }
     }
 
