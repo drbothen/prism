@@ -363,6 +363,13 @@ pub async fn run_boot_sequence(config_dir: &Path) -> Result<RunningServer, BootE
         plugin_result.plugin_auth_providers = providers;
     }
 
+    // Step 7.5c: Register built-in write tools into DYNAMIC_WRITE_TOOLS before step 8
+    // closes the registration window via mark_query_phase_started().
+    // BC-2.16.012 INV-INVALIDATION-EXT-001 / PLUGIN-MIGRATION-001-B AC-003.
+    // Must execute AFTER step 7.5 plugin-load AND BEFORE step 8 mark_query_phase_started().
+    prism_query::invalidation::register_builtin_write_tools()
+        .map_err(|e| BootError::InternalError(format!("write tool registration failed: {e}")))?;
+
     // Step 7 [BLOCKING]: Storage + internal-tables provider init.
     // Positioned AFTER step 7.5 — plugin-load does not depend on storage tables.
     step7_init_storage().await?;
