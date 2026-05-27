@@ -5,12 +5,17 @@ title: ".factory: Doc/ADR/BC Body Sweep — Generalize 8 Sensor-Named BCs + Arch
 wave: 2
 epic_id: PLUGIN-MIGRATION-001
 priority: P0
-status: draft
-version: "v1.0"
+status: done
+version: "v2.0"
 level: "L4"
 producer: story-writer
 timestamp: "2026-05-27T00:00:00Z"
 modified: "2026-05-27"
+completion_date: "2026-05-27"
+completion_method: factory-only
+adversary_passes: 1
+adversary_findings_closed: 2
+factory_bursts: 4
 tdd_mode: strict
 subsystems: [SS-01, SS-02, SS-16]
 # Subsystem anchor justifications:
