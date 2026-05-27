@@ -1,7 +1,7 @@
 ---
 document_type: architecture-index
 level: L3
-version: "2.102"
+version: "2.103"
 status: draft
 producer: state-manager
 timestamp: 2026-05-20T00:00:00
@@ -96,6 +96,7 @@ deployment_topology: single-service  # planned — no service binary exists yet 
 | ADR-027 | CustomAdapter Rust Trait Same-Burst Removal — Perimeter Enforcement in Wave 1/A | PROPOSED v1.9 | 2026-05-17 | decisions/ADR-027-custom-adapter-deprecation-removal.md |
 | ADR-028 | TOML Spec URLs and auth_type Ground Against DTU Clone Routes (Real-API Canonical), Not Production Rust Adapter URLs | PROPOSED v1.10 | 2026-05-21 | decisions/ADR-028-toml-spec-grounding-vs-dtu-routes.md |
 | ADR-029 | Multi-Tenant Sensor Endpoint Overrides — Hybrid Sensor Instance with Per-Org Composition Directory | ACCEPTED v1.2 | 2026-05-23 | decisions/ADR-029-multi-tenant-sensor-endpoint-overrides.md |
+| ADR-030 | SensorSpec Type Unification — Dep-Cycle Resolution Approach for types::SensorSpec Retirement | PROPOSED v1.0 | 2026-05-27 | decisions/ADR-030-sensor-spec-type-unification.md |
 
 ## Architecture Decisions
 
@@ -155,6 +156,7 @@ deployment_topology: single-service  # planned — no service binary exists yet 
 
 | Version | Pass | Date | Author | Change |
 |---------|------|------|--------|--------|
+| 2.103 | D-ADR-030 | 2026-05-27 | architect | ADR-030 registered (SensorSpec type unification — Approach D selected: field-augment spec_parser::SensorSpec, delete types::SensorSpec; dep cycle confirmed non-existent for this migration; prism-core::ConfigSnapshot is a shell struct). ARCH-INDEX v2.102→v2.103. |
 | 2.102 | D-808 | 2026-05-23 | state-manager (human-approval) | ADR-029 status: PROPOSED v1.1 → ACCEPTED v1.2 (human approval per user directive 2026-05-23; Path C locked). ARCH-INDEX v2.101→v2.102. |
 | 2.101 | D-803 | 2026-05-23 | architect | ADR-029 registered (multi-tenant sensor endpoint overrides — hybrid per-org composition directory). ARCH-INDEX v2.100→v2.101. |
 | 2.100 | FB-IMPL-5 | 2026-05-21 | architect | (D-FB-IMPL-5-ADR-026-PIN) ADR-026 in-line row v1.33→v1.34 (BC-2.16.002 cite-pin v1.36→v1.37; POL-29 sibling-sweep residue closure from FB-IMPL-5 PO burst a2ef75e1). ARCH-INDEX v2.99→v2.100. |
