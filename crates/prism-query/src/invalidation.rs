@@ -1038,45 +1038,21 @@ mod tests {
     }
 
     // -----------------------------------------------------------------------
-    // Red Gate — PLUGIN-MIGRATION-001-B AC-003
+    // RG-03 — PLUGIN-MIGRATION-001-B AC-003 (GREEN post-implementation)
     // test_BC_2_16_012_B_003_register_builtin_write_tools_populates_dynamic_registry
     //
     // BC-2.16.012 invariant INV-INVALIDATION-EXT-001:
-    // WRITE_TOOL_INVALIDATION_MAP entries must be accessible via
+    // WRITE_TOOL_INVALIDATION_MAP entries are accessible via
     // `register_builtin_write_tools()` at boot, which populates DYNAMIC_WRITE_TOOLS.
     //
-    // Red Gate contract: `register_builtin_write_tools()` does NOT exist until
-    // PLUGIN-MIGRATION-001-B SITE-3 is implemented. This test fails RED at
-    // runtime — the two `panic!()` markers must be replaced by the implementer
-    // with actual `register_builtin_write_tools()` calls.
-    //
-    // The test compiles now (uses panic! as a runtime-failing stub) so that
-    // RG-01 and the rest of the lib test suite remain visible during review.
-    //
-    // IMPLEMENTER INSTRUCTIONS:
-    //   1. Add `pub fn register_builtin_write_tools() -> Result<(), SpecEngineError>`
-    //      to `invalidation.rs` (see §Functional Summary SITE-3 in the story spec).
-    //   2. Replace the two `panic!(...)` markers below with the real function call:
-    //      `register_builtin_write_tools()`
-    //   3. Remove the `#[allow(...)]` attributes that suppress unreachable-code
-    //      warnings for the dead assertions below the first panic!().
-    //
-    // After implementation the test verifies 4 sub-assertions (AC-003 §1-4):
-    //   §1. Before the call, DYNAMIC_WRITE_TOOLS count is 0 (fresh-reset baseline).
-    //   §2. After one call, dynamic_write_tool_count() == 8 (all 8 built-in entries).
-    //   §3. Each registered entry's sensor_id is one of the 4 built-in sensors.
-    //   §4. A second call returns Err containing "duplicate" (DuplicateWriteToolRegistration
-    //       per BC-2.16.012 EC-016-012-004).
+    // SITE-3 implemented: `register_builtin_write_tools()` exists and passes all 4
+    // sub-assertions (§1 empty-before, §2 count==8-after, §3 sensor-id membership,
+    // §4 duplicate-returns-Err). Test went GREEN with PLUGIN-MIGRATION-001-B SITE-3.
     // -----------------------------------------------------------------------
 
-    /// Red Gate RG-03 / AC-003 (PLUGIN-MIGRATION-001-B):
-    /// `register_builtin_write_tools()` must exist and populate `DYNAMIC_WRITE_TOOLS`
+    /// RG-03 / AC-003 (PLUGIN-MIGRATION-001-B) — GREEN.
+    /// `register_builtin_write_tools()` populates `DYNAMIC_WRITE_TOOLS`
     /// with all 8 entries from `WRITE_TOOL_INVALIDATION_MAP`.
-    ///
-    /// **Red Gate contract:** This test MUST FAIL against pre-migration code.
-    /// Pre-migration: the two `panic!()` markers below fire → test fails RED.
-    /// Post-migration: implementer replaces `panic!()` with `register_builtin_write_tools()`
-    /// calls → all 4 sub-assertions pass GREEN.
     ///
     /// Traces to BC-2.16.012 invariant INV-INVALIDATION-EXT-001:
     /// WRITE_TOOL_INVALIDATION_MAP → DYNAMIC_WRITE_TOOLS boot registration path.

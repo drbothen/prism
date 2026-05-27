@@ -309,19 +309,7 @@ impl WriteExecutor {
             "id",
             vec![],
         );
-        let endpoint_spec = self
-            .endpoint_registry
-            .get(&plan.sensor, &plan.verb)
-            .unwrap_or(&default_spec);
-
-        // Resolve batch limit: endpoint × client override × system ceiling
-        let resolved_limit = resolve_batch_limit(
-            endpoint_spec.batch_limit,
-            None, // client override: resolved from config in production
-            SYSTEM_BATCH_CEILING,
-        );
-
-        // BC-2.04.001: compile-time feature gate derived from registry presence.
+        // Single registry lookup: derive both endpoint_spec and compile_gate from the Option.
         // INV-SPEC-PARSER-OPEN-001 (BC-2.16.012): no hardcoded sensor-name match arms in
         // dispatch contexts. Post-PLUGIN-MIGRATION-001-B, the WriteEndpointRegistry presence
         // IS the authoritative compile-time capability signal: a sensor has write capability
@@ -329,15 +317,21 @@ impl WriteExecutor {
         // are loaded at boot. The {sensor}-write Cargo features remain active (they gate the
         // prism-security and prism-sensors write codepaths), but dispatch in prism-query must
         // be driven by the spec registry, not per-sensor function calls (ADR-023 Rule 2).
-        let compile_gate: CompileFeatureGate = if self
-            .endpoint_registry
-            .get(&plan.sensor, &plan.verb)
-            .is_some()
-        {
+        let maybe_spec = self.endpoint_registry.get(&plan.sensor, &plan.verb);
+        // BC-2.04.001: compile-time feature gate derived from registry presence.
+        let compile_gate: CompileFeatureGate = if maybe_spec.is_some() {
             CompileFeatureGate::Present
         } else {
             CompileFeatureGate::Absent
         };
+        let endpoint_spec = maybe_spec.unwrap_or(&default_spec);
+
+        // Resolve batch limit: endpoint × client override × system ceiling
+        let resolved_limit = resolve_batch_limit(
+            endpoint_spec.batch_limit,
+            None, // client override: resolved from config in production
+            SYSTEM_BATCH_CEILING,
+        );
 
         // Run Phase 2 — will Err on any gate failure
         let safety_passed = phase2_safety_check(
