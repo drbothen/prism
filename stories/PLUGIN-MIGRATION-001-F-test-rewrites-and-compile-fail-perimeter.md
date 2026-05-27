@@ -6,7 +6,7 @@ wave: 2
 epic_id: PLUGIN-MIGRATION-001
 priority: P0
 status: draft
-version: "v1.4"
+version: "v1.5"
 level: "L4"
 producer: story-writer
 timestamp: "2026-05-27T00:00:00Z"
@@ -147,11 +147,11 @@ cycle: "v1.0.0-greenfield"
 phase: 3
 ---
 
-# PLUGIN-MIGRATION-001-F: tests — Rewrite 12 Sensor-Named Test Files + Compile-Fail Perimeter `no-hardcoded-sensors`
+# PLUGIN-MIGRATION-001-F: tests — Rewrite 12 Sensor-Named Test Files to TOML Fixture Loading + Compile-Fail Perimeter `no-hardcoded-sensors`
 
 **Story ID:** PLUGIN-MIGRATION-001-F
 **Status:** draft
-**Version:** v1.4
+**Version:** v1.5
 **Wave:** 2 (cleanup wave; ordered after PLUGIN-MIGRATION-001-A + 001-B both merged)
 
 ---
@@ -606,3 +606,4 @@ things that should not be tested here. This must fail a CI lint check or archite
 | v1.2 | 2026-05-27 | story-writer | IMP-001: BC-2.16.012 body table title corrected to canonical "PluginRegistry Dispatch in spec_parser.rs — Hardcoded Sensor Names Replaced with Registry Lookup" (was "PluginRegistry Dispatch Migration"). IMP-002: `inputs:` path corrected from `BC-2.16.009-bundled-spec-validation.md` to `BC-2.16.009-spec-file-validation.md`. IMP-003: `SpecLoader::load()` → `SpecLoader::parse()` in §Story-Level Goal bullet 1; `SpecLoader::load_all()` → `SpecLoader::parse()` in Task 2. OBS-003: BC-2.16.009 version v1.4 → v1.5; BC-2.16.012 version v1.3 → v1.33. OBS-001: AC-006 CI snippet updated to use `--manifest-path tests/external/no-hardcoded-sensors/Cargo.toml` + `--color=never` (was `-p no-hardcoded-sensors`). OBS-002: AC-007 CI YAML template updated with `--color=never`, `--manifest-path`, log capture, and per-symbol positive-coverage assertions for all 4 deleted auth symbols (mirrors perimeter-compile-fail job pattern). |
 | v1.3 | 2026-05-27 | story-writer | Pass-3 OBS-001: `prism-dtu-harness` added to `crates_touched` (AC-008 audits 4 clone files — was missing from frontmatter). Pass-3 IMP-001: AC-007 CI job already contained per-symbol positive-coverage loop (added in v1.2/OBS-002) — confirmed complete; no body change needed. |
 | v1.4 | 2026-05-27 | story-writer | Pass-4 LOW-001: Task 7 `-p no-hardcoded-sensors` replaced with `--manifest-path tests/external/no-hardcoded-sensors/Cargo.toml` — the compile-fail crate is excluded from the workspace so `-p` resolution does not apply; `--manifest-path` is the correct invocation (mirrors AC-006 and AC-007 which were already corrected in v1.2/OBS-001). |
+| v1.5 | 2026-05-27 | story-writer | Pass-6 LOW-001: H1 title synced to frontmatter — added "to TOML Fixture Loading" (frontmatter is authoritative per bc_h1_is_title_source_of_truth). Pass-6 LOW-002: STORY-INDEX crates column updated to include `prism-dtu-harness` (was missing; added in v1.3 to crates_touched but not propagated to index row). STORY-INDEX row version annotation updated from [draft v1.0] to [draft v1.4]. |
