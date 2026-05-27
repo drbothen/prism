@@ -27,10 +27,8 @@ use std::time::Duration;
 
 use prism_core::ColumnType;
 use prism_spec_engine::{
-    types::{
-        ColumnDef, ConfigSnapshot, PaginationType, SensorSpec as HotReloadSensorSpec,
-        SensorTableDescriptor as HotReloadTableDescriptor,
-    },
+    spec_parser::{AuthType, ColumnSpec, SensorSpec, TableSpec},
+    types::ConfigSnapshot,
     ConfigManager, PluginRuntime,
 };
 use proptest::prelude::*;
@@ -62,29 +60,29 @@ fn empty_plugin_runtime() -> Arc<PluginRuntime> {
 
 /// Build a `ConfigManager` containing a single synthetic sensor spec entry.
 ///
-/// The `types::SensorSpec` contains a `SensorTableDescriptor` whose `ColumnDef` list
-/// drives `ocsf_field` lookups in `SpecDrivenMapper::map()`.
+/// ADR-030 Approach D: constructs `spec_parser::SensorSpec` directly with `Vec<TableSpec>`.
+/// `SpecDrivenMapper::map()` reads `ocsf_field` from `TableSpec.columns` (type `ColumnSpec`).
 fn config_manager_with_ocsf_columns(
     sensor_id: &str,
     table_name: &str,
-    columns: Vec<ColumnDef>,
+    columns: Vec<ColumnSpec>,
 ) -> Arc<ConfigManager> {
-    let descriptor = HotReloadTableDescriptor::new(
+    let table = TableSpec::new_point_in_time(
         format!("{}.{}", sensor_id, table_name),
+        "security_finding",
         columns,
-        0,
-        PaginationType::None,
+        vec![],
     );
 
-    let sensor_spec = HotReloadSensorSpec::new_hot_reload(
+    let sensor_spec = SensorSpec::new(
         sensor_id,
         sensor_id,
-        "1.0.0",
-        "api_key",
+        AuthType::ApiKey,
         "https://example.test",
-        vec![descriptor],
-        "",
-        "",
+        vec![table],
+        None,
+        "1.0.0",
+        vec![],
     );
 
     let mut sensor_specs = HashMap::new();
@@ -99,9 +97,12 @@ fn config_manager_with_ocsf_columns(
     Arc::new(ConfigManager::new(snapshot))
 }
 
-/// Build a `ColumnDef` with a string type and an OCSF field mapping.
-fn string_col_with_ocsf(name: &str, ocsf_field: &str) -> ColumnDef {
-    let mut col = ColumnDef::default();
+/// Build a `ColumnSpec` with a string type and an OCSF field mapping.
+///
+/// ADR-030 Approach D: uses `ColumnSpec` (spec_parser type) since `ConfigSnapshot`
+/// now holds `spec_parser::SensorSpec` with `Vec<TableSpec>` → `Vec<ColumnSpec>`.
+fn string_col_with_ocsf(name: &str, ocsf_field: &str) -> ColumnSpec {
+    let mut col = ColumnSpec::default();
     col.name = name.to_string();
     col.column_type = ColumnType::String;
     col.ocsf_field = Some(ocsf_field.to_string());

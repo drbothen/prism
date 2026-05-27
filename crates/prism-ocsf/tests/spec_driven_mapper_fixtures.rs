@@ -31,10 +31,8 @@ use std::time::Duration;
 use prism_core::{ColumnType, PrismError};
 use prism_ocsf::mappers::{SensorMapper, SpecDrivenMapper};
 use prism_spec_engine::{
-    types::{
-        ColumnDef, ConfigSnapshot, PaginationType, SensorSpec as HotReloadSensorSpec,
-        SensorTableDescriptor as HotReloadTableDescriptor,
-    },
+    spec_parser::{AuthType, ColumnSpec, SensorSpec, TableSpec},
+    types::ConfigSnapshot,
     ConfigManager, PluginRuntime,
 };
 use prost_reflect::{DescriptorPool, DynamicMessage};
@@ -64,33 +62,32 @@ fn empty_plugin_runtime() -> Arc<PluginRuntime> {
 
 /// Build a `ConfigManager` containing a single synthetic sensor spec entry.
 ///
-/// The `types::SensorSpec` contains a `SensorTableDescriptor` whose `ColumnDef` list
-/// drives `ocsf_field` lookups in `SpecDrivenMapper::map()`. This is the hot-reload
-/// infrastructure type (`types::SensorSpec`, not `spec_parser::SensorSpec`).
+/// ADR-030 Approach D: constructs `spec_parser::SensorSpec` directly with `Vec<TableSpec>`.
+/// `SpecDrivenMapper::map()` reads `ocsf_field` from `TableSpec.columns` (type `ColumnSpec`).
 ///
 /// `sensor_id` must match whatever `SpecDrivenMapper::sensor_id()` returns for it
 /// to be dispatched correctly by `OcsfNormalizer::normalize_with_mappers()`.
 fn config_manager_with_ocsf_columns(
     sensor_id: &str,
     table_name: &str,
-    columns: Vec<ColumnDef>,
+    columns: Vec<ColumnSpec>,
 ) -> Arc<ConfigManager> {
-    let descriptor = HotReloadTableDescriptor::new(
+    let table = TableSpec::new_point_in_time(
         format!("{}.{}", sensor_id, table_name),
+        "security_finding",
         columns,
-        0,
-        PaginationType::None,
+        vec![],
     );
 
-    let sensor_spec = HotReloadSensorSpec::new_hot_reload(
+    let sensor_spec = SensorSpec::new(
         sensor_id,
         sensor_id,
-        "1.0.0",
-        "api_key",
+        AuthType::ApiKey,
         "https://example.test",
-        vec![descriptor],
-        "",
-        "",
+        vec![table],
+        None,
+        "1.0.0",
+        vec![],
     );
 
     let mut sensor_specs = HashMap::new();
@@ -131,54 +128,55 @@ fn stub_dynamic_message() -> DynamicMessage {
     DynamicMessage::new(desc)
 }
 
-/// Build a `ColumnDef` with a string type and an OCSF field mapping.
+/// Build a `ColumnSpec` with a string type and an OCSF field mapping.
 ///
-/// Uses `Default::default()` and field mutation to comply with the `#[non_exhaustive]`
-/// annotation on `ColumnDef` (prevents struct-literal construction from external crates).
-fn string_col_with_ocsf(name: &str, ocsf_field: &str) -> ColumnDef {
-    let mut col = ColumnDef::default();
+/// ADR-030 Approach D: uses `ColumnSpec` (spec_parser type) now that `ConfigSnapshot`
+/// holds `spec_parser::SensorSpec` with `Vec<TableSpec>` → `Vec<ColumnSpec>`.
+/// Uses `Default::default()` + mutation for `#[non_exhaustive]` forward-compat.
+fn string_col_with_ocsf(name: &str, ocsf_field: &str) -> ColumnSpec {
+    let mut col = ColumnSpec::default();
     col.name = name.to_string();
     col.column_type = ColumnType::String;
     col.ocsf_field = Some(ocsf_field.to_string());
     col
 }
 
-/// Build a `ColumnDef` with a string type and NO OCSF field mapping.
+/// Build a `ColumnSpec` with a string type and NO OCSF field mapping.
 ///
 /// Columns without `ocsf_field` land in the `extensions` map (BC-2.02.007).
-fn string_col_unmapped(name: &str) -> ColumnDef {
-    let mut col = ColumnDef::default();
+fn string_col_unmapped(name: &str) -> ColumnSpec {
+    let mut col = ColumnSpec::default();
     col.name = name.to_string();
     col.column_type = ColumnType::String;
     col.ocsf_field = None;
     col
 }
 
-/// Build a `ColumnDef` for a datetime column with `ocsf_field` mapping.
+/// Build a `ColumnSpec` for a datetime column with `ocsf_field` mapping.
 ///
-/// NOTE: `ColumnDef` does not have a `timestamp_formats` field (that is a
-/// `spec_parser::ColumnSpec` field). The datetime format hint is provided at
-/// the `SpecDrivenMapper` level via the column_type = Datetime signal.
-fn datetime_col_with_ocsf(name: &str, ocsf_field: &str, _formats: Vec<String>) -> ColumnDef {
-    let mut col = ColumnDef::default();
+/// `ColumnSpec.timestamp_formats` is available (unlike the retired `ColumnDef`).
+/// The `_formats` arg is accepted for API compatibility but stored as-is.
+fn datetime_col_with_ocsf(name: &str, ocsf_field: &str, formats: Vec<String>) -> ColumnSpec {
+    let mut col = ColumnSpec::default();
     col.name = name.to_string();
     col.column_type = ColumnType::Datetime;
     col.ocsf_field = Some(ocsf_field.to_string());
+    col.timestamp_formats = formats;
     col
 }
 
-/// Build a `ColumnDef` for an integer column with `ocsf_field` mapping.
-fn integer_col_with_ocsf(name: &str, ocsf_field: &str) -> ColumnDef {
-    let mut col = ColumnDef::default();
+/// Build a `ColumnSpec` for an integer column with `ocsf_field` mapping.
+fn integer_col_with_ocsf(name: &str, ocsf_field: &str) -> ColumnSpec {
+    let mut col = ColumnSpec::default();
     col.name = name.to_string();
     col.column_type = ColumnType::Integer;
     col.ocsf_field = Some(ocsf_field.to_string());
     col
 }
 
-/// Build a `ColumnDef` for a JSON column with `ocsf_field` mapping (complex transform path).
-fn json_col_with_ocsf(name: &str, ocsf_field: &str) -> ColumnDef {
-    let mut col = ColumnDef::default();
+/// Build a `ColumnSpec` for a JSON column with `ocsf_field` mapping (complex transform path).
+fn json_col_with_ocsf(name: &str, ocsf_field: &str) -> ColumnSpec {
+    let mut col = ColumnSpec::default();
     col.name = name.to_string();
     col.column_type = ColumnType::Json;
     col.ocsf_field = Some(ocsf_field.to_string());

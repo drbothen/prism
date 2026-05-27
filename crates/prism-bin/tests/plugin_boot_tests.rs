@@ -1385,21 +1385,27 @@ allowed_urls = ["api.crowdstrike.com", "localhost"]
 /// Build a ConfigSnapshot with the given sensors.
 ///
 /// Each entry is (sensor_id, base_url, auth_plugin).
+///
+/// ADR-030 Approach D: constructs `spec_parser::SensorSpec` via `SensorSpec::new()` +
+/// post-construction field mutation (external crates cannot use struct literals on
+/// `#[non_exhaustive]` types).
 fn make_config_snapshot(
     sensors: &[(&str, &str, Option<&str>)],
 ) -> prism_spec_engine::types::ConfigSnapshot {
     let mut snapshot = prism_spec_engine::types::ConfigSnapshot::empty();
     for (sensor_id, base_url, auth_plugin) in sensors {
-        let mut spec = prism_spec_engine::types::SensorSpec::new_hot_reload(
+        let mut spec = prism_spec_engine::spec_parser::SensorSpec::new(
             *sensor_id,
             "Test Sensor",
-            "1.0.0",
-            "oauth2_client_credentials",
+            prism_spec_engine::spec_parser::AuthType::Oauth2ClientCredentials,
             *base_url,
             vec![],
-            "deadbeef",
-            "/tmp/test.toml",
+            None,
+            "1.0.0",
+            vec![],
         );
+        spec.file_hash = "deadbeef".to_string();
+        spec.source_path = "/tmp/test.toml".to_string();
         spec.auth_plugin = auth_plugin.map(|s| s.to_string());
         snapshot.sensor_specs.insert(sensor_id.to_string(), spec);
     }

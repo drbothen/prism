@@ -78,6 +78,10 @@ fn minimal_valid_spec() -> SensorSpec {
         version: "1.0.0".to_string(),
         credential_refs: Vec::new(),
         auth_plugin: None,
+        // ADR-030 Approach D: post-parse metadata fields — set by file-loading callers.
+        file_hash: String::new(),
+        source_path: String::new(),
+        mode: crate::types::DtuMode::Shared,
     }
 }
 

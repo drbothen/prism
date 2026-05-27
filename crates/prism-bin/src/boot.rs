@@ -840,12 +840,52 @@ pub async fn step4_load_sensor_specs_with_overlays(
     // Step 4a: Load TYPE specs (same as step4_load_sensor_specs).
     let config_manager = step4_load_sensor_specs(config).await?;
 
-    // Step 4b: Build type_specs map (HashMap<String, spec_parser::SensorSpec>) for overlay
-    // resolution. OverlayLoader requires spec_parser::SensorSpec (the newer type with
-    // AuthType enum), while ConfigSnapshot::sensor_specs uses types::SensorSpec (different
-    // type). We read the spec_dir files a second time using SpecLoader::parse to produce
-    // the correct type — this is a lightweight directory read, not a full re-validation.
-    let type_specs = build_type_spec_map_for_overlay(&config.spec_dir)?;
+    // Step 4b: Extract type_specs map from the loaded ConfigSnapshot.
+    //
+    // ADR-030 Approach D: ConfigSnapshot::sensor_specs now carries spec_parser::SensorSpec
+    // directly (unified type). OverlayLoader::load_overlays expects the same type, so we
+    // pass sensor_specs directly — no secondary parse, no type conversion (AC-002).
+    //
+    // This eliminates the build_type_spec_map_for_overlay double-parse that existed while
+    // types::SensorSpec (auth_type: String) and spec_parser::SensorSpec (AuthType enum)
+    // were distinct. With the unified type, every boot parses each .sensor.toml exactly once.
+    let type_specs = {
+        let guard = config_manager.load();
+        let snapshot = guard.load();
+
+        // PRR-005 invariant preserved: hard-abort on failed TYPE specs before overlay resolution.
+        //
+        // If any sensor TOML files failed to parse (stored in failed_specs), abort boot with
+        // a clear diagnostic. A corrupt TYPE spec would otherwise produce misleading E-SPEC-019
+        // "unknown extends" errors for any overlay that references the broken sensor.
+        //
+        // This replaces the hard-abort that was in build_type_spec_map_for_overlay — the
+        // check is now performed against failed_specs populated by parse_spec_directory,
+        // rather than a separate directory scan. Behavioral outcome is identical: boot
+        // aborts with ConfigInvalid containing the corrupt file path (PRR-005, TD-VSDD-059).
+        if !snapshot.failed_specs.is_empty() {
+            let detail = snapshot
+                .failed_specs
+                .iter()
+                .map(|(sensor_id, err)| {
+                    format!(
+                        "  - {} ({}): {}",
+                        sensor_id,
+                        err.source_path,
+                        err.errors.join("; ")
+                    )
+                })
+                .collect::<Vec<_>>()
+                .join("\n");
+            return Err(BootError::ConfigInvalid(format!(
+                "One or more TYPE spec files failed to parse during overlay map construction. \
+                 Boot aborted to prevent misleading E-SPEC-019 errors for overlays that extend \
+                 these sensors. Failed files:\n{detail}"
+            )));
+        }
+
+        snapshot.sensor_specs.clone()
+    };
 
     // Step 4c: Walk customers/ for per-org overlay files and validate against OrgRegistry.
     // BC-2.06.012: absent customers/ → zero resolved entries, boot continues.
@@ -881,100 +921,6 @@ pub async fn step4_load_sensor_specs_with_overlays(
     );
 
     Ok((config_manager, resolved_spec_map))
-}
-
-// ---------------------------------------------------------------------------
-// build_type_spec_map_for_overlay — helper for step4_load_sensor_specs_with_overlays
-// ---------------------------------------------------------------------------
-
-/// Build a `HashMap<String, spec_parser::SensorSpec>` from all `*.sensor.toml` files
-/// in `spec_dir` using `SpecLoader::parse`.
-///
-/// This is a secondary parse of the spec directory required because
-/// `OverlayLoader::load_overlays` expects `spec_parser::SensorSpec` (with the `AuthType`
-/// enum), while `ConfigSnapshot::sensor_specs` (produced by `parse_spec_directory`)
-/// stores `types::SensorSpec` (with `auth_type: String`).  The two types are distinct
-/// and cannot be interchanged without a lossy conversion.
-///
-/// PRR-005 fix (Standing Rule 3 §2): parse failures are now fatal rather than silently
-/// swallowed.  A corrupt TYPE spec file would previously cause E-SPEC-019 (unknown extends)
-/// for any overlay that extends it — a misleading error.  Failing hard here produces
-/// a clear boot error at the file that is actually corrupt.
-///
-/// On I/O failure reading the directory itself, returns `BootError::ConfigInvalid`.
-fn build_type_spec_map_for_overlay(
-    spec_dir: &std::path::Path,
-) -> Result<std::collections::HashMap<String, prism_spec_engine::SensorSpec>, BootError> {
-    use prism_spec_engine::spec_parser::SpecLoader;
-
-    let read_dir = std::fs::read_dir(spec_dir).map_err(|e| {
-        BootError::ConfigInvalid(format!(
-            "Cannot read spec directory {} for overlay type_specs map: {e}",
-            spec_dir.display()
-        ))
-    })?;
-
-    let mut type_specs = std::collections::HashMap::new();
-    let mut failed_specs: Vec<String> = Vec::new();
-
-    for entry in read_dir.flatten() {
-        let path = entry.path();
-        let file_name = path
-            .file_name()
-            .and_then(|n| n.to_str())
-            .unwrap_or("")
-            .to_string();
-
-        if !file_name.ends_with(".sensor.toml") {
-            continue;
-        }
-
-        let content = match std::fs::read_to_string(&path) {
-            Ok(c) => c,
-            Err(e) => {
-                // PRR-005: I/O failure reading a TYPE spec is a hard boot error.
-                // Emit event_type for SAP-1 catalog compliance before returning error.
-                tracing::error!(
-                    event_type = "boot.type_spec_read_failed",
-                    file = %path.display(),
-                    error = %e,
-                    "build_type_spec_map_for_overlay: I/O failure reading TYPE spec file"
-                );
-                failed_specs.push(format!("{} (I/O error: {e})", path.display()));
-                continue;
-            }
-        };
-
-        match SpecLoader::parse(&content) {
-            Ok(spec) => {
-                type_specs.insert(spec.sensor_id.clone(), spec);
-            }
-            Err(e) => {
-                // PRR-005: parse failure for a TYPE spec file is a hard boot error.
-                // Previously warn-and-skip caused misleading E-SPEC-019 for any overlay
-                // that extends this sensor (the user would see "unknown extends" when the
-                // real problem is a corrupt TYPE spec).
-                tracing::error!(
-                    event_type = "boot.type_spec_parse_failed",
-                    file = %path.display(),
-                    error = %e,
-                    "build_type_spec_map_for_overlay: parse failure for TYPE spec file"
-                );
-                failed_specs.push(format!("{} (parse error: {e})", path.display()));
-            }
-        }
-    }
-
-    if !failed_specs.is_empty() {
-        return Err(BootError::ConfigInvalid(format!(
-            "One or more TYPE spec files failed to parse during overlay map construction. \
-             Boot aborted to prevent misleading E-SPEC-019 errors for overlays that extend \
-             these sensors. Failed files:\n{}",
-            failed_specs.join("\n")
-        )));
-    }
-
-    Ok(type_specs)
 }
 
 // ---------------------------------------------------------------------------
@@ -1175,14 +1121,19 @@ pub async fn step5_init_credential_store_with_probe(
         // ADR-023 Rule 2 Rule C. Credential values MUST NOT appear in the error (AD-017).
 
         // Step 5: Credential reference existence probing + Rule C shape check.
+        //
+        // ADR-030 AC-004: sensor_spec.auth_type is now AuthType enum (not String).
+        // Use .as_str() to compare against the probe's String return (Rule C E-SPEC-014).
+        // .as_str() returns the canonical snake_case form (e.g. "api_key", "bearer_static")
+        // which matches the TOML auth_type field — no behavioral change (AC-003/EC-003).
         for cred_ref in &sensor_spec.credential_refs {
             let actual_shape_opt = probe.probe(sensor_id, &cred_ref.name)?;
             if let Some(actual_shape) = actual_shape_opt {
-                let expected_shape = &sensor_spec.auth_type;
-                if &actual_shape != expected_shape {
+                let expected_shape = sensor_spec.auth_type.as_str();
+                if actual_shape != expected_shape {
                     return Err(BootError::AuthTypeCredentialMismatch {
                         sensor_id: sensor_id.clone(),
-                        expected_shape: expected_shape.clone(),
+                        expected_shape: expected_shape.to_string(),
                         actual_shape,
                     });
                 }

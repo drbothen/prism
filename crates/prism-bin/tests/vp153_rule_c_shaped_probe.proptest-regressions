@@ -5,3 +5,4 @@
 # It is recommended to check this file in to source control so that
 # everyone who runs the test benefits from these saved cases.
 cc 1d6a0b08ea779b793ad50c44a8a12820b49a3f0dd9ecc136af5c3a5f6cf9b1e7 # shrinks to (spec_auth_type, probe_shape) = ("oauth2_client_credentials", "bearer_static")
+cc 2aa7cb869456b820e2d7889d27ef1083922d2152f0caec5d7ce57ef3d4ff20d5 # shrinks to (spec_auth_type, probe_shape) = ("custom_via_plugin", "oauth2_client_credentials")
