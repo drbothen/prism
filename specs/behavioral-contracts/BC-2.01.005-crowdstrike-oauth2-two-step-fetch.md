@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.4"
+version: "1.5"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -17,9 +17,9 @@ input-hash: "76729b7"
 traces_to: ["CAP-001"]
 extracted_from: ".factory/specs/prd.md"
 scheduled_amendment_in: ADR-023
-amendment_lifecycle: pending
+amendment_lifecycle: null
 introduced: cycle-1
-modified: "2026-05-11"
+modified: "2026-05-27"
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -30,11 +30,19 @@ removal_reason: null
 
 # BC-2.01.005: CrowdStrike OAuth2 Authentication and Two-Step Fetch
 
-> **PENDING AMENDMENT — ADR-023**: This BC is being amended for plugin-only architecture per ADR-023. The sensor auth and field-mapping behavior described here will be replaced by TOML spec configuration and, where required, `.prx` WASM plugins. Full BC amendment language is authored in PLUGIN-MIGRATION-001-G (Wave 2/G). See PLUGIN-MIGRATION-001-D for replacement TOMLs.
-
 ## Description
 
-The CrowdStrike adapter authenticates using OAuth2 client credentials grant, then follows a mandatory two-step fetch pattern: a QueryV2 call returns alert IDs, and PostEntities batches (up to 1000 IDs per batch) return fully-hydrated alert records. Token refresh occurs transparently on 401 responses. This two-step pattern means each paginated page requires at least two HTTP calls, which must be accounted for in per-page latency budgets.
+> **Amendment — ADR-023 (PLUGIN-MIGRATION-001-G):** This BC previously described a
+> hardcoded Rust adapter (`CrowdStrikeAuth`). That implementation was deleted in
+> PLUGIN-MIGRATION-001-A (PR #156). The auth behavior described here is now delivered by the
+> CrowdStrike TOML sensor spec (`.prism/specs/sensors/crowdstrike.sensor.toml`)
+> with `[auth] type = "oauth2_client_credentials"` and the CrowdStrike `.prx` WASM
+> plugin for OAuth2 refresh-on-401 (PLUGIN-MIGRATION-001-E). The behavioral
+> contract itself is unchanged — preconditions, postconditions, and invariants
+> describe what the system must do, not how. The `SensorAuth` open trait
+> (BC-2.01.016) is the runtime interface.
+
+The CrowdStrike sensor authenticates using OAuth2 client credentials grant, then follows a mandatory two-step fetch pattern: a QueryV2 call returns alert IDs, and PostEntities batches (up to 1000 IDs per batch) return fully-hydrated alert records. Token refresh occurs transparently on 401 responses via the `crowdstrike-oauth2.prx` WASM plugin. This two-step pattern means each paginated page requires at least two HTTP calls, which must be accounted for in per-page latency budgets.
 
 ## Preconditions
 - CrowdStrike sensor is configured with `client_id` and `client_secret` OAuth2 credentials
@@ -47,7 +55,7 @@ The CrowdStrike adapter authenticates using OAuth2 client credentials grant, the
 - Token refresh happens transparently on 401 responses without caller awareness
 
 ## Invariants
-- DI-012: Sealed auth trait -- CrowdStrike OAuth2 flow cannot be accidentally composed with other sensor auth mechanisms
+- DI-012 (retired in S-PLUGIN-PREREQ-E): The sealed auth trait that prevented cross-composition has been replaced by `SpecLoader::validate_cross_composition()` runtime enforcement per BC-2.01.016 §Invariants. CrowdStrike OAuth2 flow cannot be accidentally composed with other sensor auth mechanisms — this invariant is now enforced at spec-load time, not via a sealed trait.
 
 ## Error Cases
 | Error | Condition | Behavior |
@@ -90,6 +98,7 @@ The CrowdStrike adapter authenticates using OAuth2 client credentials grant, the
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.5 | PLUGIN-MIGRATION-001-G | 2026-05-27 | product-owner | ADR-023 amendment: removed PENDING AMENDMENT banner; added Amendment Note to Description; updated Description prose from deleted `CrowdStrikeAuth` Rust adapter to TOML spec `[auth] type = "oauth2_client_credentials"` + `crowdstrike-oauth2.prx` WASM plugin language; updated DI-012 invariant from sealed-trait to `SpecLoader::validate_cross_composition()` runtime enforcement per BC-2.01.016; set amendment_lifecycle to null. Behavioral semantics (preconditions, postconditions, error cases, test vectors) unchanged. |
 | 1.4 | prereq-f | 2026-05-11 | product-owner | PREREQ-F prefix note: added PENDING AMENDMENT — ADR-023 callout under H1 per ADR-023 L370 wording; added scheduled_amendment_in: ADR-023 and amendment_lifecycle: pending to frontmatter. No semantic change to BC body. Full amendment in Wave 2/G. |
 | 1.3 | pass-73-fix | 2026-04-20 | state-manager | Deterministic changelog reorder: sorted all rows to descending version order (pass-73 bash script). |
 | 1.2 | pass-69-housekeeping | 2026-04-20 | product-owner | Normalized changelog schema to canonical 5-col schema. |

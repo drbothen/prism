@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.5"
+version: "1.6"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -17,9 +17,9 @@ input-hash: "76729b7"
 traces_to: ["CAP-001"]
 extracted_from: ".factory/specs/prd.md"
 scheduled_amendment_in: ADR-023
-amendment_lifecycle: pending
+amendment_lifecycle: null
 introduced: cycle-1
-modified: "2026-05-11"
+modified: "2026-05-27"
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -30,11 +30,19 @@ removal_reason: null
 
 # BC-2.01.008: Armis Bearer Token Auth with AQL Query Forwarding and Timestamp Fallback
 
-> **PENDING AMENDMENT — ADR-023**: This BC is being amended for plugin-only architecture per ADR-023. The sensor auth and field-mapping behavior described here will be replaced by TOML spec configuration and, where required, `.prx` WASM plugins. Full BC amendment language is authored in PLUGIN-MIGRATION-001-G (Wave 2/G). See PLUGIN-MIGRATION-001-D for replacement TOMLs.
-
 ## Description
 
-The Armis Centrix adapter authenticates via a static API key (bearer token) and forwards queries as AQL (Armis Query Language) to the GetSearch endpoint. Because Armis records use inconsistent timestamp and ID field names across its 7 data sources, the adapter employs per-source fallback chains (1-3 candidate timestamp fields, 2-4 candidate ID fields) to reliably construct a `(Timestamp, TypeSpecificID)` cursor. Records with no valid timestamp in any fallback field are included in results but do not advance the cursor.
+> **Amendment — ADR-023 (PLUGIN-MIGRATION-001-G):** This BC previously described a
+> hardcoded Rust adapter (`ArmisAuth`). That implementation was deleted in
+> PLUGIN-MIGRATION-001-A (PR #156). The auth behavior described here is now delivered by the
+> Armis TOML sensor spec (`.prism/specs/sensors/armis.sensor.toml`)
+> with `[auth] type = "bearer_static"` and AQL query forwarding config (declarative TOML;
+> no `.prx` WASM plugin required for this auth mechanism). The behavioral
+> contract itself is unchanged — preconditions, postconditions, and invariants
+> describe what the system must do, not how. The `SensorAuth` open trait
+> (BC-2.01.016) is the runtime interface.
+
+The Armis Centrix sensor authenticates via a static API key (bearer token) declared in the TOML spec under `[auth] type = "bearer_static"` and forwards queries as AQL (Armis Query Language) to the GetSearch endpoint via AQL query forwarding config in the TOML spec. Because Armis records use inconsistent timestamp and ID field names across its 7 data sources, the spec-driven adapter employs per-source fallback chains (1-3 candidate timestamp fields, 2-4 candidate ID fields) to reliably construct a `(Timestamp, TypeSpecificID)` cursor. Records with no valid timestamp in any fallback field are included in results but do not advance the cursor.
 
 ## Preconditions
 - Armis Centrix sensor is configured with a static API key (bearer token)
@@ -48,7 +56,7 @@ The Armis Centrix adapter authenticates via a static API key (bearer token) and 
 - Cursor is a `(Timestamp, TypeSpecificID)` 2-tuple
 
 ## Invariants
-- DI-012: Sealed auth trait
+- DI-012 (retired in S-PLUGIN-PREREQ-E): The sealed auth trait that prevented cross-composition has been replaced by `SpecLoader::validate_cross_composition()` runtime enforcement per BC-2.01.016 §Invariants. Armis bearer token auth cannot be composed with other sensor auth mechanisms — this invariant is now enforced at spec-load time, not via a sealed trait.
 - DI-001: Cursor forward progress
 
 ## Error Cases
@@ -92,6 +100,7 @@ The Armis Centrix adapter authenticates via a static API key (bearer token) and 
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.6 | PLUGIN-MIGRATION-001-G | 2026-05-27 | product-owner | ADR-023 amendment: removed PENDING AMENDMENT banner; added Amendment Note to Description; updated Description prose from deleted `ArmisAuth` Rust adapter to TOML spec `[auth] type = "bearer_static"` + AQL query forwarding config declarative language; updated DI-012 invariant from sealed-trait to `SpecLoader::validate_cross_composition()` runtime enforcement per BC-2.01.016; set amendment_lifecycle to null. Behavioral semantics (preconditions, postconditions, error cases, test vectors) unchanged. |
 | 1.5 | prereq-f | 2026-05-11 | product-owner | PREREQ-F prefix note: added PENDING AMENDMENT — ADR-023 callout under H1 per ADR-023 L370 wording; added scheduled_amendment_in: ADR-023 and amendment_lifecycle: pending to frontmatter. No semantic change to BC body. Full amendment in Wave 2/G. |
 | 1.4 | W2-FIX-I-PO | 2026-04-26 | product-owner | Added TV-BC-2.01.008-006: pre-wire `ConfigValidation` rejection case per ADR-005 Q3 decision. |
 | 1.3 | pass-73-fix | 2026-04-20 | state-manager | Deterministic changelog reorder: sorted all rows to descending version order (pass-73 bash script). |
