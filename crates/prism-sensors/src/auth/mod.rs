@@ -103,64 +103,10 @@ mod tests {
         );
     }
 
-    // -----------------------------------------------------------------------
-    // Test 3 -- test_BC_2_01_016_003_auth_type_name_valid_discriminator_post_deletion
-    //
-    // The four built-in auth impls (CrowdStrike, Cyberint, Claroty, Armis) were
-    // deleted in PLUGIN-MIGRATION-001-A (AC-003, AC-006). Their corrected
-    // auth_type_name() values (ADR-028 §D2/§D6) were committed in the wip commit
-    // immediately before deletion — the correction is permanently observable in
-    // git history per ADR-028 §D4/§D6 Action 2.
-    //
-    // Corrected values before deletion:
-    //   - CrowdStrikeAuth: "oauth2_client_credentials" (unchanged, ADR-028 §D6)
-    //   - CyberintAuth:    "cookie_roundtrip" (corrected from "bearer_static")
-    //   - ClarotyAuth:     "bearer_static"    (corrected from "cookie_roundtrip")
-    //   - ArmisAuth:       "bearer_static"    (corrected from "api_key")
-    //
-    // Post-deletion this test verifies only that the SensorAuth trait itself
-    // remains consistent with its contract (external impls can return valid values).
-    //
-    // Story: PLUGIN-MIGRATION-001-A AC-002/AC-003/AC-006 | BC: BC-2.01.016 INV-AUTH-OPEN-002
-    // -----------------------------------------------------------------------
-
-    /// BC-2.01.016 AC-2 (post-deletion): auth_type_name correctness.
-    ///
-    /// The four built-in auth impls were deleted in PLUGIN-MIGRATION-001-A after
-    /// their auth_type_name() values were corrected to DTU-grounded values per
-    /// ADR-028 §D2/§D6 (observable in the wip commit before deletion).
-    ///
-    /// This test verifies the trait contract remains consistent for external impls.
-    ///
-    /// Story: PLUGIN-MIGRATION-001-A AC-002 | BC: BC-2.01.016 | ADR-028 §D2/§D6
-    #[test]
-    fn test_BC_2_01_016_003_auth_type_name_valid_discriminator_post_deletion() {
-        // All four built-in impls deleted in PLUGIN-MIGRATION-001-A (AC-003, AC-006).
-        // Their corrected auth_type_name() values are recorded in the wip commit
-        // before deletion:
-        //   - CrowdStrikeAuth: "oauth2_client_credentials" (ADR-028 §D6: unchanged)
-        //   - CyberintAuth:    "cookie_roundtrip"           (ADR-028 §D2 correction)
-        //   - ClarotyAuth:     "bearer_static"              (ADR-028 §D2 correction)
-        //   - ArmisAuth:       "bearer_static"              (ADR-028 §D2 correction)
-        //
-        // Verify the open trait itself continues to work for plugin-provided impls.
-        let plugin_auth: Box<dyn SensorAuth> = Box::new(TestExternalAuth {
-            name: "crowdstrike".to_string(),
-        });
-        // Plugin impls may return any of the valid discriminator values.
-        let type_name = plugin_auth.auth_type_name();
-        assert!(
-            matches!(
-                type_name,
-                "oauth2_client_credentials"
-                    | "bearer_static"
-                    | "cookie_roundtrip"
-                    | "api_key"
-                    | "custom_via_plugin"
-            ),
-            "auth_type_name must return a valid discriminator value; got: {type_name:?}"
-        );
-    }
+    // test_BC_2_01_016_003 (Red Gate for auth_type_name DTU-grounded corrections):
+    // Removed post-deletion — corrections proven at commit 36f04029 before auth
+    // module deletion. Trait contract coverage provided by test_BC_2_01_016_001.
+    // See ADR-028 §D6 Action 2 for git-history observability rationale.
 
     // -----------------------------------------------------------------------
     // AC-007: No orphan re-export symbols after deletion
