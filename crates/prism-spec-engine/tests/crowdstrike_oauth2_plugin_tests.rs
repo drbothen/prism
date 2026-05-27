@@ -1296,12 +1296,17 @@ fn test_PLUGIN_MIGRATION_001_E_crit_001_kv_store_arc_shared_across_dispatches() 
 /// Per SID-1: the cited blocking dependency is SPECIFIC (wasm32-wasip1 toolchain + story ID).
 /// This is NOT a permanent ignore — it will be activated when CI adds the WASM build step.
 #[test]
-#[ignore = "requires pre-built .prx from `just build-plugin-crowdstrike-oauth2`; \
-            un-ignored in CI job with wasm32-wasip1 toolchain (S-PLUGIN-CI-001)"]
 fn test_PLUGIN_MIGRATION_001_E_med_001_built_prx_loads_via_plugin_runtime() {
-    let prx_path = std::path::Path::new(
-        "crates/prism-spec-engine/plugins/crowdstrike-oauth2/crowdstrike-oauth2.prx",
-    );
+    // S-PLUGIN-CI-001 AC-001: #[ignore] removed — CI now builds the .prx via
+    // `just build-plugin-crowdstrike-oauth2` before running this test.
+    //
+    // Use CARGO_MANIFEST_DIR (set at compile time) to form an absolute path —
+    // test binaries do not reliably run with cwd at the workspace root across
+    // all cargo / nextest configurations.
+    let prx_path = std::path::PathBuf::from(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/plugins/crowdstrike-oauth2/crowdstrike-oauth2.prx"
+    ));
 
     assert!(
         prx_path.exists(),
@@ -1313,7 +1318,7 @@ fn test_PLUGIN_MIGRATION_001_E_med_001_built_prx_loads_via_plugin_runtime() {
     let runtime = build_test_runtime();
 
     let plugin = runtime
-        .load_plugin(prx_path)
+        .load_plugin(&prx_path)
         .expect("F-LP2-MED-001: built crowdstrike-oauth2.prx must load without error");
 
     assert_eq!(
@@ -1330,6 +1335,210 @@ fn test_PLUGIN_MIGRATION_001_E_med_001_built_prx_loads_via_plugin_runtime() {
          registered: {:?}",
         registered
     );
+}
+
+// ---------------------------------------------------------------------------
+// S-PLUGIN-CI-001 AC-002: missing .prx at boot continues with error log (recoverable)
+// Traces to: BC-2.17.001 §n-1 survivor rule; error-taxonomy E-PLUGIN-001
+// ---------------------------------------------------------------------------
+
+/// AC-002: `PluginRuntime::load_plugin` called with a non-existent path returns
+/// `Err(PluginError::CompilationFailed { .. })` — NOT a panic.
+///
+/// This test verifies the boot-path n-1 survivor rule: a missing .prx must produce
+/// a recoverable `Err` so the caller (load_all_plugins) can log and continue loading
+/// the remaining plugins.  The server MUST NOT crash on a missing .prx file.
+///
+/// Assertions:
+///   (a) `load_plugin` returns `Err` (not `Ok` and not a panic).
+///   (b) The error is `PluginError::CompilationFailed` with the missing-file path.
+///   (c) A second `load_plugin` on a valid plugin succeeds — runtime is not poisoned.
+#[test]
+fn test_S_PLUGIN_CI_001_002_missing_prx_at_boot_continues_with_error_log() {
+    let runtime = build_test_runtime();
+
+    // AC-002a/b: load_plugin on a non-existent path must return Err, not panic.
+    let missing = std::path::Path::new("/tmp/does-not-exist-s-plugin-ci-001.prx");
+    let result = runtime.load_plugin(missing);
+    assert!(
+        result.is_err(),
+        "AC-002: load_plugin with missing .prx MUST return Err, not Ok"
+    );
+    let err = match result {
+        Err(e) => e,
+        Ok(_) => unreachable!("asserted is_err above"),
+    };
+
+    // The error must be CompilationFailed (failed to read file).
+    match &err {
+        prism_core::PluginError::CompilationFailed { path, message } => {
+            assert!(
+                path.contains("does-not-exist-s-plugin-ci-001"),
+                "AC-002: CompilationFailed path must reference the missing file; got: {path}"
+            );
+            assert!(
+                !message.is_empty(),
+                "AC-002: CompilationFailed message must be non-empty; got empty string"
+            );
+        }
+        other => panic!(
+            "AC-002: expected PluginError::CompilationFailed, got: {:?}",
+            other
+        ),
+    }
+
+    // AC-002c: runtime is not poisoned — a valid plugin loads successfully afterwards.
+    // This proves the n-1 survivor rule: one failed load does not break subsequent loads.
+    let bytes = compile_wat(CROWDSTRIKE_OAUTH2_WAT);
+    let dir = tempfile::tempdir().expect("temp dir");
+    let prx_path = write_prx(&dir, "crowdstrike-oauth2", &bytes);
+    write_manifest(&dir, "crowdstrike-oauth2", CROWDSTRIKE_OAUTH2_MANIFEST);
+
+    let plugin = runtime.load_plugin(&prx_path).expect(
+        "AC-002: runtime must not be poisoned after a failed load — valid plugin must load",
+    );
+    assert_eq!(
+        plugin.metadata.plugin_id, "crowdstrike-oauth2",
+        "AC-002: plugin loaded after failed attempt must have correct plugin_id"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// S-PLUGIN-CI-001 AC-003: double-401 → AuthRefreshFailed via plugin auth path
+// Traces to: BC-2.16.002 AC-5 abort; BC-2.17.001 sandbox error paths; BC-2.22.001
+// ---------------------------------------------------------------------------
+
+/// AC-003: `PipelineExecutor::execute` wired with the WAT plugin via `PluginAuthProvider`
+/// aborts with `Err(SpecEngineError::AuthRefreshFailed)` when BOTH the initial request
+/// AND the post-refresh retry return HTTP 401.
+///
+/// This test closes PLUGIN-MIGRATION-001-E EC-009 deferral:
+/// "double-401 terminal failure case end-to-end via plugin auth path".
+///
+/// Strategy (SID-1 compliant — no DTU clone required):
+/// - Use wiremock to return HTTP 401 for all requests to the detection query endpoint.
+/// - Wire the crowdstrike-oauth2 WAT plugin fixture as the auth provider via PluginAuthProvider.
+/// - Execute the pipeline and assert `Err(SpecEngineError::AuthRefreshFailed)`.
+///
+/// The WAT fixture's `acquire-token` export returns "oauth2_client_credentials" from linear
+/// memory (sentinel value). PluginRuntime.dispatch_plugin_acquire_token for WAT core modules
+/// returns "wat-fixture-token" (same as AC-006 success path). The pipeline uses this token
+/// for the initial request AND the refresh-retry — both return 401 → abort.
+///
+/// Assertions:
+///   (a) `execute` returns `Err(...)` — not Ok.
+///   (b) Error is `SpecEngineError::AuthRefreshFailed` (or wraps it in PrismError).
+///   (c) No panic occurs — sandbox error paths do not panic the host (BC-2.17.001 invariant).
+#[tokio::test]
+async fn test_S_PLUGIN_CI_001_003_double_401_returns_auth_refresh_failed() {
+    use prism_core::{ColumnType, OrgSlug};
+    use prism_spec_engine::PluginAuthProvider;
+    use prism_spec_engine::pipeline::{FetchContext, PipelineExecutor};
+    use prism_spec_engine::spec_parser::{AuthType, ColumnSpec, FetchStep, SensorSpec, TableSpec};
+    use wiremock::matchers::{method, path};
+    use wiremock::{Mock, MockServer, ResponseTemplate};
+
+    let mock_server = MockServer::start().await;
+
+    // ALL requests return 401 — both the initial and the post-refresh retry.
+    Mock::given(method("GET"))
+        .and(path("/detects/queries/detects/v1"))
+        .respond_with(ResponseTemplate::new(401))
+        .mount(&mock_server)
+        .await;
+
+    // Load the crowdstrike-oauth2 WAT plugin fixture into PluginRuntime.
+    let runtime = build_test_runtime();
+    let bytes = compile_wat(CROWDSTRIKE_OAUTH2_WAT);
+    let dir = tempfile::tempdir().expect("temp dir");
+    let prx_path = write_prx(&dir, "crowdstrike-oauth2", &bytes);
+    write_manifest(&dir, "crowdstrike-oauth2", CROWDSTRIKE_OAUTH2_MANIFEST);
+    runtime
+        .load_plugin(&prx_path)
+        .expect("AC-003: WAT plugin must load for PluginAuthProvider");
+
+    // SAFETY: This test runs in a single-threaded tokio runtime (#[tokio::test]).
+    // No other threads are spawned that read these env vars concurrently.
+    #[allow(unused_unsafe)]
+    unsafe {
+        std::env::set_var("CROWDSTRIKE_CLIENT_ID", "test-client-id-ac003");
+        std::env::set_var("CROWDSTRIKE_CLIENT_SECRET", "test-client-secret-ac003");
+    }
+
+    let runtime_arc = Arc::new(runtime);
+    let auth_provider = PluginAuthProvider::new(
+        runtime_arc.clone(),
+        "crowdstrike-oauth2",
+        "crowdstrike",
+        &format!("{}/oauth2/token", mock_server.uri()),
+    );
+
+    // Minimal single-step spec that hits the 401-returning endpoint.
+    let spec = SensorSpec::new(
+        "crowdstrike-ac3",
+        "CrowdStrike AC-003 Test",
+        AuthType::Oauth2ClientCredentials,
+        &mock_server.uri(),
+        vec![TableSpec::new_point_in_time(
+            "detections",
+            "security_finding",
+            vec![ColumnSpec::new(
+                "detection_id",
+                ColumnType::String,
+                None,
+                vec![],
+            )],
+            vec![FetchStep::new(
+                "query_ids",
+                "GET",
+                "/detects/queries/detects/v1",
+                None,
+                "$.resources",
+                None,
+                vec![],
+                None,
+                None,
+            )],
+        )],
+        None,
+        "1.0.0",
+        vec![],
+    );
+
+    let table = spec.tables[0].clone();
+    let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new());
+    let http_client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .expect("reqwest client build");
+
+    // (c) No panic — execute must return Err, not panic.
+    let result =
+        PipelineExecutor::execute(&spec, &table, &context, &http_client, &auth_provider).await;
+
+    // (a) Double-401 must produce Err.
+    assert!(
+        result.is_err(),
+        "AC-003: double-401 via plugin auth path MUST return Err; \
+         got Ok with records"
+    );
+
+    // (b) The error must be (or wrap) AuthRefreshFailed.
+    // PipelineExecutor returns PrismError which wraps SpecEngineError::AuthRefreshFailed.
+    let err_str = format!("{:?}", result.err().unwrap());
+    assert!(
+        err_str.contains("AuthRefreshFailed") || err_str.contains("E-AUTH-002"),
+        "AC-003: double-401 error MUST be AuthRefreshFailed (E-AUTH-002); \
+         got error: {err_str}"
+    );
+
+    // Cleanup: remove test env vars.
+    // SAFETY: same single-threaded context as set_var above.
+    #[allow(unused_unsafe)]
+    unsafe {
+        std::env::remove_var("CROWDSTRIKE_CLIENT_ID");
+        std::env::remove_var("CROWDSTRIKE_CLIENT_SECRET");
+    }
 }
 
 // ---------------------------------------------------------------------------

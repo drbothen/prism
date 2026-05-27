@@ -189,6 +189,32 @@ pub fn discover_plugins(
     loaded
 }
 
+/// Scan a Component Model binary's imports for the Prism host interface namespace.
+///
+/// Real `.prx` files built with `wasm-tools component new --adapt wasi_snapshot_preview1`
+/// import the Prism host functions under a WIT-package-scoped name, e.g.:
+///   `"prism:crowdstrike-oauth2/host@0.1.0"`
+///
+/// This function compiles the component and iterates its imports looking for an instance
+/// whose name matches `*/host@*` (any WIT namespace prefix + host interface + version).
+/// Returns the full interface name (e.g., `"prism:crowdstrike-oauth2/host@0.1.0"`) if found,
+/// or `None` if no such import exists (bare "host" plugins, future plugin types, etc.).
+fn find_host_interface_namespace(
+    engine: &wasmtime::Engine,
+    component: &wasmtime::component::Component,
+) -> Option<String> {
+    let ct = component.component_type();
+    for (name, item) in ct.imports(engine) {
+        if let wasmtime::component::types::ComponentItem::ComponentInstance(_) = item {
+            // Match `*/host@*` pattern: namespace + "/host@" + version
+            if name.contains("/host@") {
+                return Some(name.to_string());
+            }
+        }
+    }
+    None
+}
+
 /// Load a single plugin from bytes (compile + validate + build metadata).
 pub(crate) fn load_plugin_from_bytes(
     engine: &wasmtime::Engine,
@@ -220,8 +246,48 @@ pub(crate) fn load_plugin_from_bytes(
     // Step 3: Compile the component (wraps core module if needed).
     let component = compile_component(engine, path, bytes)?;
 
-    // Step 4: Pre-instantiate (this rejects WASI-importing components).
-    let pre_instance = pre_instantiate(linker, &component, path)?;
+    // Step 4: Pre-instantiate.
+    //
+    // For core modules (WAT test fixtures), use the base linker directly — they import only
+    // the bare "host" namespace which is already registered.
+    //
+    // For real Component Model .prx binaries (wasm32-wasip1 Rust std + wasm-tools --adapt),
+    // build a per-component linker that:
+    //   (a) registers Prism host functions under the WIT-namespaced import interface, and
+    //   (b) satisfies any WASI Preview 2 imports with trap stubs (BC-2.17.002: no real WASI).
+    // This path is identified by detecting that the direct pre_instantiate call would fail due
+    // to unsatisfied imports — or by checking is_core_module == false.
+    //
+    // S-PLUGIN-CI-001 AC-001: enables loading of real crowdstrike-oauth2.prx.
+    let pre_instance = if is_core_module {
+        pre_instantiate(linker, &component, path)?
+    } else {
+        // Real Component Model binary: detect the WIT-namespaced host interface name from
+        // the component's imports, then build a per-component linker with the correct namespace.
+        //
+        // Detection: scan the component's imports for an instance whose name starts with
+        // a known Prism host-interface prefix ("*/host@*"). If found, use that name;
+        // otherwise fall back to trying the bare linker (forward-compat: future plugins
+        // that use only the bare "host" namespace should still work).
+        let host_namespace = find_host_interface_namespace(engine, &component);
+        match host_namespace {
+            Some(ns) => {
+                // Build a per-component linker with WIT-namespaced host functions + WASI stubs.
+                let component_linker =
+                    crate::plugin::host_functions::build_component_linker(linker, &component, &ns)
+                        .map_err(|e| PluginError::CompilationFailed {
+                            path: path_str.clone(),
+                            message: format!("failed to build component linker: {e}"),
+                        })?;
+                pre_instantiate(&component_linker, &component, path)?
+            }
+            None => {
+                // No WIT-namespaced host import found; try bare linker (may succeed for
+                // future plugins that don't use WASI or use only bare "host").
+                pre_instantiate(linker, &component, path)?
+            }
+        }
+    };
 
     // Step 5: Determine plugin name.
     // For core modules, try to call name() to get the actual name from WASM memory.
@@ -336,6 +402,14 @@ fn call_name_fn(engine: &wasmtime::Engine, bytes: &[u8]) -> Option<String> {
 /// compiles the component and uses `Component::component_type().exports()` to get the
 /// authoritative export list via the wasmtime reflection API.
 ///
+/// S-PLUGIN-CI-001 fix: real Component Model binaries produced by `wasm-tools component new`
+/// export WIT interfaces as `ComponentInstance` items (e.g., the outer export is
+/// `"prism:crowdstrike-oauth2/sensor-auth@0.1.0"`, not the bare function names). To allow
+/// `validate_wit_interface` to match the sensor-auth type against bare function names
+/// (`auth-type-name`, `acquire-token`, `get-token`), we flatten one level: if an outer
+/// export is a `ComponentInstance`, we also enumerate the bare function names within it.
+/// Both the interface name AND the function names within it are included in the result.
+///
 /// Returns empty Vec on compilation error — caller should handle missing exports as
 /// an InvalidInterface error during `validate_wit_interface`.
 fn extract_component_exports(engine: &wasmtime::Engine, bytes: &[u8]) -> Vec<String> {
@@ -343,11 +417,21 @@ fn extract_component_exports(engine: &wasmtime::Engine, bytes: &[u8]) -> Vec<Str
         Ok(c) => c,
         Err(_) => return Vec::new(),
     };
-    component
-        .component_type()
-        .exports(engine)
-        .map(|(name, _ty)| name.to_string())
-        .collect()
+
+    let mut names: Vec<String> = Vec::new();
+    for (name, item) in component.component_type().exports(engine) {
+        names.push(name.to_string());
+        // Flatten one level: if the export is a ComponentInstance (WIT interface),
+        // also collect the bare function names from within the interface.
+        // This allows validate_wit_interface to match bare names like "acquire-token"
+        // even when they are nested inside "prism:crowdstrike-oauth2/sensor-auth@0.1.0".
+        if let wasmtime::component::types::ComponentItem::ComponentInstance(inst) = item {
+            for (fn_name, _fn_ty) in inst.exports(engine) {
+                names.push(fn_name.to_string());
+            }
+        }
+    }
+    names
 }
 
 /// Parse the export section of a raw WASM binary (core module format).
