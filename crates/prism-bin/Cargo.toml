@@ -114,6 +114,12 @@ path = "tests/exit_code_contract.rs"
 name = "plugin_boot_tests"
 path = "tests/plugin_boot_tests.rs"
 
+# S-3.02-FOLLOWUP-RUNTIME: boot steps 7–8 wiring tests (BC-2.11.001, BC-2.11.005, BC-2.15.011).
+# Tests are injection-free (no PRISM_TEST_* env-vars needed).
+[[test]]
+name = "boot_steps_7_8_tests"
+path = "tests/boot_steps_7_8_tests.rs"
+
 # VP-153: SensorAuth Runtime Cross-Composition Prevention — Rule C proptest via ShapedProbe.
 # Rule C (E-SPEC-014): auth_type/credential structural shape mismatch rejected at
 # credential-resolution time via step5_init_credential_store_with_probe.
@@ -132,11 +138,20 @@ libc = "0.2"
 serde_json = "1"
 chrono = { version = "0.4", features = ["serde"] }
 prism-spec-engine = { path = "../prism-spec-engine", version = "0.9.0", features = ["test-helpers"] }
-prism-storage = { path = "../prism-storage", version = "0.1.0" }
+prism-storage = { path = "../prism-storage", version = "0.1.0", features = ["test-utils"] }
 prism-core = { path = "../prism-core", version = "0.2.0" }
 # test-helpers: exposes reset_dynamic_registry_global / reset_query_phase_global for
 # F-LP-IMPL-P1-002 cross-crate integration test isolation (F-LP-IMPL-P1-005).
 prism-query = { path = "../prism-query", version = "0.1.0", features = ["test-helpers"] }
+# S-3.02-FOLLOWUP-RUNTIME: boot_steps_7_8_tests.rs needs QueryEngine/WriteExecutor
+# dependency constructors (OcsfNormalizer, AdapterRegistry, FeatureFlagEvaluator, etc.)
+prism-ocsf = { path = "../prism-ocsf" }
+prism-sensors = { path = "../prism-sensors" }
+prism-security = { path = "../prism-security" }
+async-trait = "0.1"
+secrecy = { version = "0.8", features = ["serde"] }
+ulid = { version = "1", features = ["serde"] }
+datafusion = "53.1"
 bincode = "2"
 wat = "1"
 # VP-153 Rule C proptest (ShapedProbe injection via step5_init_credential_store_with_probe)
