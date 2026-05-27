@@ -39,6 +39,8 @@ tracing = "0.1.44"
 proptest = "1.11.0"
 # Test helper: minimal proto descriptor construction for DynamicMessage creation in tests.
 prost-types = "0.13"
+# Required to construct PluginRuntime in spec_driven_mapper_fixtures.rs (PluginRuntime::new takes reqwest::Client).
+reqwest = { version = "0.12", features = ["rustls-tls"], default-features = false }
 
 [build-dependencies]
 # ocsf-proto-gen: generates .proto files from the bundled OCSF JSON schema.
