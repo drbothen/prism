@@ -5,8 +5,8 @@ title: "tests: Rewrite 12 Sensor-Named Test Files to TOML Fixture Loading + Comp
 wave: 2
 epic_id: PLUGIN-MIGRATION-001
 priority: P0
-status: draft
-version: "v1.6"
+status: done
+version: "v1.7"
 level: "L4"
 producer: story-writer
 timestamp: "2026-05-27T00:00:00Z"
@@ -151,7 +151,7 @@ phase: 3
 
 **Story ID:** PLUGIN-MIGRATION-001-F
 **Status:** draft
-**Version:** v1.6
+**Version:** v1.7
 **Wave:** 2 (cleanup wave; ordered after PLUGIN-MIGRATION-001-A + 001-B both merged)
 
 ---
@@ -610,3 +610,4 @@ things that should not be tested here. This must fail a CI lint check or archite
 | v1.4 | 2026-05-27 | story-writer | Pass-4 LOW-001: Task 7 `-p no-hardcoded-sensors` replaced with `--manifest-path tests/external/no-hardcoded-sensors/Cargo.toml` — the compile-fail crate is excluded from the workspace so `-p` resolution does not apply; `--manifest-path` is the correct invocation (mirrors AC-006 and AC-007 which were already corrected in v1.2/OBS-001). |
 | v1.5 | 2026-05-27 | story-writer | Pass-6 LOW-001: H1 title synced to frontmatter — added "to TOML Fixture Loading" (frontmatter is authoritative per bc_h1_is_title_source_of_truth). Pass-6 LOW-002: STORY-INDEX crates column updated to include `prism-dtu-harness` (was missing; added in v1.3 to crates_touched but not propagated to index row). STORY-INDEX row version annotation updated from [draft v1.0] to [draft v1.4]. |
 | v1.6 | 2026-05-27 | story-writer | CI grep fix: AC-007 per-symbol loop replaced with per-module loop. cargo E0432 reports module paths (`auth::armis`, not `ArmisAuth`) so grep pattern changed from `${SYM}` type-name match to `auth::${MOD}` module-path match. Loop variable renamed `SYM` → `MOD`; echo messages updated accordingly. Note added in comment explaining why module names are used. |
+| v1.7 | 2026-05-27 | state-manager | Post-merge status update (D-839): status draft→done. PR #160 squash-merged to develop@2dda655f 2026-05-27T18:56:10Z. CI 21/21 GREEN. 8/8 ACs demo-evidenced. Wave 2 COMPLETE. Plugin migration saga CLOSED. |
