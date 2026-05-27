@@ -1528,7 +1528,7 @@ async fn test_S_PLUGIN_CI_001_003_double_401_returns_auth_refresh_failed() {
     );
 
     // (b) The error must be (or wrap) AuthRefreshFailed.
-    // PipelineExecutor returns PrismError which wraps SpecEngineError::AuthRefreshFailed.
+    // PipelineExecutor returns SpecEngineError::AuthRefreshFailed directly.
     let err_str = format!("{:?}", result.err().unwrap());
     assert!(
         err_str.contains("AuthRefreshFailed") || err_str.contains("E-AUTH-002"),
@@ -1582,14 +1582,14 @@ async fn test_S_PLUGIN_CI_001_003_double_401_returns_auth_refresh_failed() {
 /// F-LP8-MED-001 closure: converted `None =>` arm to hard `panic!` (no longer a paper-fix
 /// silent-pass). The test is `#[ignore]`'d because Component Model WAT support in the `wat`
 /// crate is unavailable in this environment — the `wat::parse_str("(component ...)")` call
-/// fails, triggering the panic. Un-ignored when S-PLUGIN-CI-001 AC-001 brings the Component
-/// Model WAT infrastructure. The CANONICAL load-bearing test is the unit test
+/// fails, triggering the panic. Un-ignored when `wat` crate gains Component Model WAT support
+/// (tracked as a future improvement). The CANONICAL load-bearing test is the unit test
 /// `test_F_LP7_MED_001_host_emit_acquire_token_parse_error_fires_unconditionally` at
 /// `plugin/mod.rs` — it runs unconditionally without WAT infrastructure.
 #[test]
-#[ignore = "requires Component Model WAT parse support in `wat` crate; \
-            un-ignored via S-PLUGIN-CI-001 AC-001 \
-            (test_PLUGIN_MIGRATION_001_E_med_001_built_prx_loads_via_plugin_runtime)"]
+#[ignore = "requires Component Model WAT parse support in `wat` crate — \
+            `wat::parse_str(\"(component ...)\")` fails in current `wat` version; \
+            tracked as future improvement when `wat` gains component-model support"]
 fn test_F_LP7_MED_001_host_dispatch_acquire_token_kv_miss_emits_audit_event() {
     // This test requires Component Model WAT syntax to produce a true component binary
     // (not a core module). The wasmtime Component Model WAT format uses "(component ...)".

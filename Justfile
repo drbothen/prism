@@ -219,17 +219,14 @@ build-plugin-crowdstrike-oauth2:
         --target wasm32-wasip1 \
         --release
     @echo "Lifting to WASM Component via wasm-tools..."
-    # F-LP2-HIGH-003: try with --adapt (WASI reactor → Component) first, then bare wrap.
-    # Both paths must exit non-zero on failure — || exit 1 replaces the prior silent || echo "INFO".
+    # F-LP2-HIGH-003 / F-LPCI3-MED-001: --adapt path is required for WASI reactor → Component
+    # lifting. The bare-wrap fallback produces a non-functional artifact (core module, not
+    # component) so it is removed. Fail-fast on any error; stderr is preserved to the terminal.
     wasm-tools component new \
         target/wasm32-wasip1/release/crowdstrike_oauth2_plugin.wasm \
         --adapt wasi_snapshot_preview1=tests/fixtures/wasi_snapshot_preview1.wasm \
-        -o crates/prism-spec-engine/plugins/crowdstrike-oauth2/crowdstrike-oauth2.prx \
-        2>/dev/null || \
-    wasm-tools component new \
-        target/wasm32-wasip1/release/crowdstrike_oauth2_plugin.wasm \
         -o crates/prism-spec-engine/plugins/crowdstrike-oauth2/crowdstrike-oauth2.prx || \
-        (echo "ERROR: wasm-tools component new failed — build aborted"; exit 1)
+        (echo "ERROR: wasm-tools component new --adapt failed — build aborted"; exit 1)
     @echo "Validating Component Model binary..."
     # F-LP2-HIGH-003: validate exits non-zero on failure; positive assertion checks '(component'
     # in wasm-tools print output. Both gates exit 1 on failure (no silent fallthrough).
