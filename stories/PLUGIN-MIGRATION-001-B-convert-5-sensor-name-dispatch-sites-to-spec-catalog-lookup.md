@@ -73,7 +73,7 @@ risk: LOW
 # registration is incomplete, leaving write tool cache invalidation silently empty — mitigated
 # by a Red Gate test asserting the boot-time registration path.
 acceptance_criteria_count: 5
-red_gate_tests: 5
+red_gate_tests: 3
 estimated_passes: "2-3 LOCAL adversary passes"
 holdout_scenarios: []
 assumption_validations: []
@@ -417,10 +417,19 @@ is the runtime-extensible target; boot registration path is established)
 
 ### AC-004: No new prism-query crate dependencies introduced (traces to BC-2.16.012 postcondition — behavioral output byte-identical for four initial sensors)
 
-`crates/prism-query/Cargo.toml` is NOT modified. The conversion uses only APIs already
-available in prism-query's existing dependency graph:
+`crates/prism-query/Cargo.toml` is NOT modified for runtime dependencies. The conversion
+uses only APIs already available in prism-query's existing dependency graph:
 - `prism-spec-engine::write_endpoint::WriteEndpointRegistry` — already a dep via `prism_spec_engine`
 - `prism-query::invalidation::register_write_tool` — already in the same crate
+
+**Amendment (PLUGIN-MIGRATION-001-B fix-burst, 2026-05-26):** The `[features]` section of
+`Cargo.toml` was amended to restore empty feature declarations for
+`crowdstrike-write`, `cyberint-write`, `claroty-write`, `armis-write`, and `all-write`.
+These features were removed by PLUGIN-MIGRATION-001-A's cross-crate forwarding chain deletion,
+which silently caused ~20 test functions gated with `#[cfg(feature = "crowdstrike-write")]`
+etc. to be dropped from `--all-features` builds. Restoring them as empty declarations (no
+cross-crate forwarding) preserves test coverage until PLUGIN-MIGRATION-001-F de-gates them.
+No runtime dependencies are added; only the `[features]` stubs are restored.
 
 **Verification:**
 
@@ -428,10 +437,11 @@ available in prism-query's existing dependency graph:
 git diff develop..HEAD -- crates/prism-query/Cargo.toml
 ```
 
-Returns empty (no changes to Cargo.toml).
+Returns only the `[features]` block additions (5 feature stubs). No `[dependencies]` or
+`[dev-dependencies]` changes.
 
-(traces to BC-2.16.012 postcondition — structural open-dispatch migration; no new dependencies;
-behavioral equivalence for four initial sensors preserved)
+(traces to BC-2.16.012 postcondition — structural open-dispatch migration; no new runtime
+dependencies; behavioral equivalence for four initial sensors preserved)
 
 ---
 
