@@ -129,7 +129,7 @@ name = "vp156_write_tool_post_boot_proptest"
 required-features = ["test-helpers"]
 
 [lints.rust]
-unexpected_cfgs = { level = "warn", check-cfg = ['cfg(kani)', 'cfg(feature, values("alias-write", "test-helpers"))'] }
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(kani)', 'cfg(feature, values("alias-write", "test-helpers", "crowdstrike-write", "cyberint-write", "claroty-write", "armis-write", "all-write"))'] }
 non_snake_case = "allow"
 
 [lints.clippy]
