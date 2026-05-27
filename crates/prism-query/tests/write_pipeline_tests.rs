@@ -534,40 +534,25 @@ fn test_crit3_crowdstrike_write_feature_is_queryable() {
     let _ = feature_present; // used for compile verification
 }
 
-/// BC-2.04.001: sensor name → CompileFeatureGate dispatch must map
-/// "crowdstrike" to Absent when feature is absent, Present when enabled.
+// test_crit3_sensor_compile_gate_matches_cfg_feature was removed.
+//
+// Post-migration, the compile gate is driven by WriteEndpointRegistry presence, not
+// cfg! macros. The test was vacuous: it constructed a CompileFeatureGate from cfg!
+// and matched it with empty arms, exercising no production code path.
+//
+// Coverage is provided by test_BC_2_16_012_B_002, which tests the actual
+// registry-driven gate mechanism end-to-end through WriteExecutor::execute().
+
+/// BC-2.04.001: structural contract test for the registry-driven gate absent path.
 ///
-/// This tests the cfg-derived dispatch in write_pipeline.rs.
-/// The compile gate value is cfg!-derived and verified here.
-#[test]
-fn test_crit3_sensor_compile_gate_matches_cfg_feature() {
-    use prism_query::safety_check::CompileFeatureGate;
-
-    // The cfg-derived gate for "crowdstrike"
-    let expected_gate = if cfg!(feature = "crowdstrike-write") {
-        CompileFeatureGate::Present
-    } else {
-        CompileFeatureGate::Absent
-    };
-
-    // Verify the gate enum is constructible and matches expected cfg! value
-    // In default build: Absent. With --features crowdstrike-write: Present.
-    match expected_gate {
-        CompileFeatureGate::Absent => {
-            // Default: deny-by-default per DI-003
-        }
-        CompileFeatureGate::Present => {
-            // Feature enabled: write code compiled in
-        }
-    }
-}
-
-/// BC-2.04.001: in default-features build, executing a crowdstrike write plan
-/// must be denied with E-FLAG-002 (compile gate absent).
+/// Verifies that an empty WriteEndpointRegistry produces CompileFeatureGate::Absent
+/// and the executor returns E-FLAG-002 / CAPABILITY_DENIED. This is a valid structural
+/// test for the absent path that would occur if a sensor is NOT in the registry.
 ///
-/// This test only runs when crowdstrike-write feature is NOT enabled.
-/// With --features all-write (just check), the test is skipped/excluded.
-/// With default features (just iter), this RED tests the compile gate denial.
+/// In production, the registry is populated at boot (step 7.5c via
+/// register_builtin_write_tools()); this test exercises the absent path explicitly
+/// by constructing an empty registry. This test only runs when crowdstrike-write
+/// feature is NOT enabled — with --features all-write (just check) it is excluded.
 #[tokio::test]
 #[cfg(not(feature = "crowdstrike-write"))]
 async fn test_crit3_crowdstrike_write_denied_in_default_build() {

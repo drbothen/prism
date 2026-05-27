@@ -279,14 +279,18 @@ impl WriteExecutor {
         // HIGH-4: composite source check via registry (replaces hardcoded string compare).
         let is_composite = WriteEndpointRegistry::is_composite(&plan.sensor);
 
-        // Sanitize the sensor name for use in the capability path: replace hyphens with
-        // underscores so that plugin-registered sensors (whose names may contain hyphens
-        // per ADR-026 plugin manifest naming) produce valid CapabilityPath segments.
-        // CapabilityPath::new() only accepts [a-zA-Z0-9_] per prism-core/src/capability.rs.
-        // The sanitized form is used ONLY for the capability path string — the raw sensor
-        // name is retained for all other uses (registry lookups, audit fields, etc.).
+        // Sanitize the sensor name and verb for use in the capability path: replace hyphens
+        // with underscores so that plugin-registered sensors and verbs (whose names may
+        // contain hyphens per ADR-026 plugin manifest naming) produce valid CapabilityPath
+        // segments. CapabilityPath::new() only accepts [a-zA-Z0-9_] per
+        // prism-core/src/capability.rs. If a hyphenated verb were used unsanitized,
+        // CapabilityPath::new() would reject it, producing DeniedRuntime instead of a
+        // structured error. Sanitized forms are used ONLY for the capability path string —
+        // raw sensor name and verb are retained for all other uses (registry lookups,
+        // audit fields, etc.).
         let sanitized_sensor = plan.sensor.replace('-', "_");
-        let capability_path_string = format!("sensor.{}.{}", sanitized_sensor, plan.verb);
+        let sanitized_verb = plan.verb.replace('-', "_");
+        let capability_path_string = format!("sensor.{}.{}", sanitized_sensor, sanitized_verb);
 
         let target = WriteTargetDescriptor {
             sensor: &plan.sensor,
