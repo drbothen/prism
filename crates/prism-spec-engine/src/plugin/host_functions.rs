@@ -321,30 +321,13 @@ pub fn host_current_time_secs() -> u64 {
         .unwrap_or(0)
 }
 
-/// Register all host functions into the `Linker<HostState>`.
+/// Register all host functions under a specific instance namespace.
 ///
-/// This is called once during `PluginRuntime::build_linker()`. After this call,
-/// the linker is ready to pre-instantiate any plugin component that uses only
-/// the Prism host interface — including production `.prx` files built with WIT
-/// bindings that import from the `"host"` instance namespace.
-///
-/// Registered functions (all in the `"host"` instance namespace):
-/// - `"http-request"` — outbound HTTP via the allowlisted `reqwest::Client` (AC-7)
-/// - `"log"` — structured logging forwarded to `tracing` (AC-8)
-/// - `"get-config"` — key-value config map lookup (AC-8)
-/// - `"kv-get"` — per-plugin persistent KV get (AC-8)
-/// - `"kv-set"` — per-plugin persistent KV set (AC-8)
-/// - `"current-time-secs"` — wall-clock Unix seconds for TTL management (PLUGIN-MIGRATION-001-E)
-///
-/// # Architecture Compliance
-/// MUST NOT call any `wasmtime_wasi::add_to_linker_*` function — WASI MUST NOT
-/// be added to plugin instances (BC-2.17.002 / VP-040 / INV-PLUGIN-002).
-///
-/// # WIT Integration Note
-/// These registrations use `func_new` (untyped `Val`-based callbacks) which are
-/// compatible with WIT bindgen-generated calls and dynamically-typed plugin interfaces.
-/// For typed bindings generated from the WIT IDL, use `func_wrap` via the standard
-/// WIT bindgen workflow.
+/// Called by `register_host_functions` with:
+/// - `"host"` — bare namespace, used by WAT test fixtures
+/// - `"prism:crowdstrike-oauth2/host@0.1.0"` — WIT-namespaced interface,
+///   used by real Component Model .prx binaries produced by `wasm-tools component new`
+///   (S-PLUGIN-CI-001: real component imports are WIT-package-scoped).
 ///
 /// # Val-type correctness (F-PASS3-CRIT-002)
 /// - WIT `u16`  → `Val::U16(u16)` (NOT Val::U32)
@@ -353,8 +336,9 @@ pub fn host_current_time_secs() -> u64 {
 ///   (NOT three scalar slots)
 /// - Schema violations (wrong Val variant from plugin) → `Err(wasmtime::Error::msg(...))`
 ///   (Component Model trap; NOT silent default coercion)
-pub fn register_host_functions(
+fn register_host_functions_for_namespace(
     linker: &mut wasmtime::component::Linker<HostState>,
+    namespace: &str,
 ) -> Result<(), prism_core::PrismError> {
     use prism_core::PrismError;
     use wasmtime::StoreContextMut;
@@ -362,11 +346,10 @@ pub fn register_host_functions(
     use wasmtime::component::types::ComponentFunc;
 
     let map_err = |e: wasmtime::Error| PrismError::Internal {
-        detail: format!("failed to register host function in Linker: {e}"),
+        detail: format!("failed to register host function in Linker (namespace={namespace}): {e}"),
     };
 
-    // Create the "host" instance namespace.
-    let mut host = linker.instance("host").map_err(map_err)?;
+    let mut host = linker.instance(namespace).map_err(map_err)?;
 
     // ------ host::http-request ------
     // WIT signature:
@@ -722,4 +705,72 @@ pub fn register_host_functions(
     .map_err(map_err)?;
 
     Ok(())
+}
+
+/// Register all Prism host functions with the `Linker<HostState>`.
+///
+/// Registers only under the bare `"host"` namespace — used by WAT test fixtures and
+/// the legacy host-side test path. Production `.prx` Component Model binaries (produced
+/// by `wasm-tools component new --adapt wasi_snapshot_preview1`) import the WIT-package-
+/// scoped namespace (`"prism:crowdstrike-oauth2/host@0.1.0"`); those are registered
+/// by `register_host_functions_for_component` which also adds WASI trap stubs.
+///
+/// # Architecture Compliance
+/// MUST NOT call any `wasmtime_wasi::add_to_linker_*` function — WASI MUST NOT
+/// be added to plugin instances (BC-2.17.002 / VP-040 / INV-PLUGIN-002).
+pub fn register_host_functions(
+    linker: &mut wasmtime::component::Linker<HostState>,
+) -> Result<(), prism_core::PrismError> {
+    register_host_functions_for_namespace(linker, "host")
+}
+
+/// Build a per-component linker that satisfies a real Component Model `.prx` import set.
+///
+/// Real `.prx` files produced by `cargo build --target wasm32-wasip1` + `wasm-tools
+/// component new --adapt wasi_snapshot_preview1` import TWO interface families:
+/// 1. `"prism:crowdstrike-oauth2/host@0.1.0"` — Prism host functions (production I/O)
+/// 2. Various `"wasi:*"` interfaces — from the WASI reactor adapter wrapping Rust std
+///
+/// This function clones `base_linker` (which has bare `"host"` functions registered),
+/// then:
+/// 1. Registers Prism host functions under the WIT-namespaced interface name.
+/// 2. Calls `define_unknown_imports_as_traps(component)` to satisfy remaining WASI
+///    imports with trap stubs (BC-2.17.002: no real WASI access, trapping = deny).
+///
+/// S-PLUGIN-CI-001 AC-001: enables `test_PLUGIN_MIGRATION_001_E_med_001` to pass.
+pub(crate) fn build_component_linker(
+    base_linker: &wasmtime::component::Linker<HostState>,
+    component: &wasmtime::component::Component,
+    wit_namespace: &str,
+) -> Result<wasmtime::component::Linker<HostState>, prism_core::PrismError> {
+    // Strategy (S-PLUGIN-CI-001 AC-001):
+    // 1. Call define_unknown_imports_as_traps on the clone to satisfy ALL unresolved
+    //    imports (WASI + the WIT-namespaced host interface) with trap stubs.
+    //    This is done BEFORE registering the real Prism host functions.
+    // 2. Enable allow_shadowing so that the subsequent register call can overwrite
+    //    the trap stub for wit_namespace with the real implementations.
+    //    (Wasmtime's Linker::instance returns an error on duplicate name unless
+    //    allow_shadowing is true.)
+    // 3. Register the real Prism host functions under wit_namespace — overwrites trap stub.
+    //
+    // BC-2.17.002: WASI stubs trap on call — no real filesystem/network access exposed.
+    // The crowdstrike plugin may call WASI for Rust std init (environ_get, clock_time_get,
+    // etc.) — those will trap. The auth path (acquire-token) only needs host::http-request,
+    // host::kv-set, host::get-config which ARE real implementations registered in step 3.
+    let mut linker = base_linker.clone();
+    // Step 1: Add trap stubs for all unresolved imports (WASI + wit_namespace).
+    linker
+        .define_unknown_imports_as_traps(component)
+        .map_err(|e| prism_core::PrismError::Internal {
+            detail: format!(
+                "failed to define WASI trap stubs for component ({wit_namespace}): {e}"
+            ),
+        })?;
+    // Step 2: Enable shadowing so we can overwrite the trap stub for wit_namespace.
+    linker.allow_shadowing(true);
+    // Step 3: Register real Prism host functions under wit_namespace (overwrites trap stub).
+    register_host_functions_for_namespace(&mut linker, wit_namespace)?;
+    // Restore: disable shadowing after the overwrite to prevent accidental re-registration.
+    linker.allow_shadowing(false);
+    Ok(linker)
 }

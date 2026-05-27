@@ -1498,15 +1498,16 @@ mod tests {
     /// covers the emission function directly. This integration test exercises the full
     /// `dispatch_plugin_acquire_token` Component Model path.
     ///
-    /// Un-ignored in CI when the wasm32-wasip1 toolchain + `just build-plugin-crowdstrike-oauth2`
-    /// is available (story S-PLUGIN-CI-001). Per SID-1: blocking dependency is SPECIFIC (story ID).
+    /// Un-ignored when the `todo!()` body is replaced with a real implementation that loads
+    /// the pre-built `.prx` and exercises the full Component Model dispatch path.
     ///
     /// BC-2.16.002 row 37 — end-to-end host-side emission integration test.
     /// F-LP7-MED-001 CORRECTION burst (2026-05-23).
     #[test]
-    #[ignore = "requires pre-built crowdstrike-oauth2.prx from S-PLUGIN-CI-001 AC-001 \
-                (test_PLUGIN_MIGRATION_001_E_med_001_built_prx_loads_via_plugin_runtime un-ignored \
-                via wasm32-wasip1 toolchain + wasm-tools)"]
+    #[ignore = "todo!() body — integration test requires pre-built crowdstrike-oauth2.prx \
+                and full dispatch_plugin_acquire_token Component Model path wiring; \
+                unit test test_F_LP7_MED_001_host_emit_acquire_token_parse_error_fires_unconditionally \
+                covers the load-bearing emission assertion in the interim"]
     fn test_F_LP7_MED_001_host_dispatch_acquire_token_component_model_path_emits_audit_event() {
         // This test will be implemented when the pre-built .prx is available.
         // The unit test above (emit_acquire_token_parse_error_fires_unconditionally)
