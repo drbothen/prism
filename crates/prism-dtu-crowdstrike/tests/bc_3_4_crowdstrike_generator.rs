@@ -1,3 +1,7 @@
+// Legitimately sensor-named: this IS the CrowdStrike DTU generator test. Exempt from
+// tests/external/no-hardcoded-sensors/ compile-fail gate per ADR-023 §DTU-EXEMPT.
+// PLUGIN-MIGRATION-001-F AC-005 audit: no stale imports from deleted prism-sensors::auth modules.
+//
 //! Failing acceptance tests for S-3.7.05 — CrowdStrike fixture generator.
 //!
 //! Covers:

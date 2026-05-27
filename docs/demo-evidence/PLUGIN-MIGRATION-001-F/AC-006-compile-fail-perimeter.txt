@@ -1,0 +1,47 @@
+PLUGIN-MIGRATION-001-F — AC-006: Compile-Fail Perimeter Evidence
+================================================================
+Date: 2026-05-27
+Command: cargo check --manifest-path tests/external/no-hardcoded-sensors/Cargo.toml --color=never 2>&1
+Exit code: 101 (non-zero — PASS for compile-fail gate; expected behavior)
+
+Output (stderr/stdout merged):
+    Checking no-hardcoded-sensors v0.1.0 (/Users/jmagady/Dev/prism/.worktrees/PLUGIN-MIGRATION-001-F/tests/external/no-hardcoded-sensors)
+error[E0432]: unresolved import `prism_sensors::auth::armis`
+  --> src/main.rs:13:26
+   |
+13 | use prism_sensors::auth::armis::ArmisAuth; // DELETED in PLUGIN-MIGRATION-001-A
+   |                          ^^^^^ could not find `armis` in `auth`
+
+error[E0432]: unresolved import `prism_sensors::auth::claroty`
+  --> src/main.rs:14:26
+   |
+14 | use prism_sensors::auth::claroty::ClarotyAuth; // DELETED in PLUGIN-MIGRATION-001-A
+   |                          ^^^^^^^ could not find `claroty` in `auth`
+
+error[E0432]: unresolved import `prism_sensors::auth::crowdstrike`
+  --> src/main.rs:15:26
+   |
+15 | use prism_sensors::auth::crowdstrike::CrowdStrikeAuth; // DELETED in PLUGIN-MIGRATION-001-A
+   |                          ^^^^^^^^^^^ could not find `crowdstrike` in `auth`
+
+error[E0432]: unresolved import `prism_sensors::auth::cyberint`
+  --> src/main.rs:16:26
+   |
+16 | use prism_sensors::auth::cyberint::CyberintAuth; // DELETED in PLUGIN-MIGRATION-001-A
+   |                          ^^^^^^^^ could not find `cyberint` in `auth`
+
+For more information about this error, try `rustc --explain E0432`.
+error: could not compile `no-hardcoded-sensors` (bin "no-hardcoded-sensors") due to 4 previous errors
+
+---
+Verification of per-symbol positive coverage:
+  ArmisAuth    -> E0432: unresolved import `prism_sensors::auth::armis`      CONFIRMED
+  ClarotyAuth  -> E0432: unresolved import `prism_sensors::auth::claroty`    CONFIRMED
+  CrowdStrikeAuth -> E0432: unresolved import `prism_sensors::auth::crowdstrike` CONFIRMED
+  CyberintAuth -> E0432: unresolved import `prism_sensors::auth::cyberint`   CONFIRMED
+
+AC-006 VERDICT: PASS
+  - cargo check exits non-zero (exit code 101) as required
+  - All 4 deleted auth symbols produce E0432 errors
+  - No sensor-named auth module is accessible from outside prism-sensors
+  - ADR-023 Rule 3 perimeter is intact

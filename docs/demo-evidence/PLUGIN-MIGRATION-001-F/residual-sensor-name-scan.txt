@@ -1,0 +1,70 @@
+PLUGIN-MIGRATION-001-F — Residual Sensor-Name Scan
+===================================================
+Date: 2026-05-27
+Command: rg 'CrowdStrikeAdapter|CrowdStrikeAuth|ClarotyAuth|ArmisAuth|CyberintAuth|SensorType::' crates/ --type rust -l
+
+Files with matches:
+  crates/prism-query/tests/crowdstrike_session_isolation.rs
+  crates/prism-query/tests/sensorid_dispatch_redgate.rs
+  crates/prism-sensors/src/lib.rs
+  crates/prism-sensors/src/auth/mod.rs
+  crates/prism-spec-engine/plugins/crowdstrike-oauth2/src/lib.rs
+  crates/prism-spec-engine/tests/bc_2_16_002_crowdstrike_two_step.rs
+  crates/prism-dtu-demo-server/tests/ac_2_crowdstrike_fixture.rs
+  crates/prism-spec-engine/tests/crowdstrike_oauth2_plugin_tests.rs
+  crates/prism-spec-engine/tests/parity/armis.rs
+
+---
+Detailed analysis of each match (all are comments/doc strings — NOT live code references):
+
+crates/prism-sensors/src/lib.rs
+  -> "//   - CrowdStrikeAdapter::new (deleted: PLUGIN-MIGRATION-001-A AC-006)"
+  -> COMMENT documenting what was deleted. Not a live symbol reference. CLEAN.
+
+crates/prism-sensors/src/auth/mod.rs
+  -> "// The deleted symbols (CyberintAuth, ClarotyAuth, ArmisAuth, CrowdStrikeAuth, ..."
+  -> "// CyberintAdapter, ClarotyAdapter, ArmisAdapter, CrowdStrikeAdapter) must NOT"
+  -> "//   grep -rn \"CyberintAuth\\|ClarotyAuth\\|ArmisAuth\\|CrowdStrikeAuth\\"
+  -> COMMENTS in the auth/mod.rs documenting the deletion invariant. CLEAN.
+
+crates/prism-query/tests/crowdstrike_session_isolation.rs (AC-004 rewritten file)
+  -> "//   (no SensorType::CrowdStrike closed-enum reference permitted in non-DTU code)"
+  -> "/// canonical sensor identifier — no `SensorType::CrowdStrike` closed-enum."
+  -> "// No SensorType::CrowdStrike enum import — the string IS the identifier."
+  -> DOC COMMENTS explaining the absence of the enum. Not a live usage. CLEAN.
+
+crates/prism-query/tests/sensorid_dispatch_redgate.rs
+  -> "//   match sensor_type { SensorType::X => \"x\" }"
+  -> COMMENT showing the forbidden pattern in a red-gate test. CLEAN.
+
+crates/prism-spec-engine/plugins/crowdstrike-oauth2/src/lib.rs
+  -> "(CrowdStrikeAuth + token acquisition logic) with a WASM Component ..."
+  -> "from the legacy CrowdStrikeAdapter; RFC 6749 ..."
+  -> "expires_in missing or zero → default TTL 1799s per CrowdStrikeAdapter::acquire_token"
+  -> DOC COMMENTS in the crowdstrike OAuth2 plugin — legitimate sensor-named code
+     (this IS a DTU/plugin file). CLEAN.
+
+crates/prism-spec-engine/tests/bc_2_16_002_crowdstrike_two_step.rs (AC-002 rewritten)
+  -> "/// TOML-driven path with no direct CrowdStrikeAdapter or CrowdStrikeAuth import."
+  -> "// TOML-driven spec loading — no CrowdStrikeAdapter or CrowdStrikeAuth import."
+  -> COMMENTS documenting the absence of the old pattern. CLEAN.
+
+crates/prism-dtu-demo-server/tests/ac_2_crowdstrike_fixture.rs (AC-005 audited)
+  -> "// PLUGIN-MIGRATION-001-F AC-005 audit: uses DemoHarness (not CrowdStrikeAdapter directly)."
+  -> COMMENT documenting audit outcome. CLEAN.
+
+crates/prism-spec-engine/tests/crowdstrike_oauth2_plugin_tests.rs (AC-003 rewritten)
+  -> "// Load the production CrowdStrike TOML spec — no CrowdStrikeAuth import."
+  -> COMMENT documenting the absence of the old pattern. CLEAN.
+
+crates/prism-spec-engine/tests/parity/armis.rs (AC-001 rewritten)
+  -> "(ADR-028 §D2; HS-016). Legacy ArmisAuth::auth_type_name() returned 'api_key' — \"
+  -> DOC COMMENT in test function documenting historical context. CLEAN.
+
+---
+VERDICT: CLEAN
+  No live sensor-named symbol references exist outside DTU clone crates.
+  All matches are in comments/doc strings explaining deletions or documenting
+  the absence of the old patterns.
+  Only DTU clone files (prism-spec-engine/plugins/crowdstrike-oauth2/ and
+  prism-dtu-*/) contain sensor names — all are legitimately sensor-named.

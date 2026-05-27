@@ -11,7 +11,7 @@
 //!
 //! Tagged #[ignore = "requires prism-dtu-claroty DTU clone"] until S-6.08 merges.
 //!
-//! AC coverage: AC-008 (Claroty DTU parity + polymorphic ID)
+//! AC coverage: AC-008 (Claroty DTU parity + polymorphic ID), PLUGIN-MIGRATION-001-F AC-001 (TOML fixture loading)
 //! HS coverage: HS-014
 
 use prism_core::OrgSlug;
@@ -273,4 +273,45 @@ fn test_BC_2_16_013_compute_parity_verdict_empty_fixture_returns_error() {
              must return Error"
         ),
     }
+}
+
+// ---------------------------------------------------------------------------
+// PLUGIN-MIGRATION-001-F AC-001: TOML fixture loading gate (non-#[ignore] part)
+// ---------------------------------------------------------------------------
+
+/// PLUGIN-MIGRATION-001-F / AC-001 / BC-2.16.009 postcondition 1:
+/// test_PLUGIN_MIGRATION_001_F_parity_claroty_toml_fixture_loading
+///
+/// Asserts that the Claroty production TOML spec is parseable and declares
+/// the alerts table. This is the non-#[ignore] portion of AC-001.
+///
+/// The full parity assertion (pipeline run + OCSF fixture comparison) is in
+/// test_BC_2_16_013_dtu_parity_claroty (tagged #[ignore] until S-6.08 merges).
+///
+/// AC-001 postcondition: claroty.sensor.toml loads via SpecLoader::parse,
+/// contains an alerts table, and does NOT require a sensor-named adapter type.
+#[test]
+fn test_PLUGIN_MIGRATION_001_F_parity_claroty_toml_fixture_loading() {
+    let spec_content = std::fs::read_to_string(
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../prism-sensors/specs/claroty.sensor.toml"),
+    )
+    .expect("claroty.sensor.toml must be readable (AC-001: TOML spec must exist)");
+
+    let spec = prism_spec_engine::spec_parser::SpecLoader::parse(&spec_content)
+        .expect("claroty.sensor.toml must parse without error (AC-001: TOML spec must be valid)");
+
+    // AC-001: spec-catalog lookup by SensorId string "claroty" — no sensor-named adapter.
+    assert_eq!(
+        spec.sensor_id, "claroty",
+        "AC-001: claroty TOML spec must declare sensor_id = \"claroty\""
+    );
+
+    // AC-001: spec must declare an alerts table (parity test anchor).
+    let alerts = spec.tables.iter().find(|t| t.table_name == "alerts");
+    assert!(
+        alerts.is_some(),
+        "AC-001: claroty.sensor.toml must declare an 'alerts' table; \
+         spec-driven lookup requires the table to be present (BC-2.16.009 postcondition 1)"
+    );
 }
