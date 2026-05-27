@@ -17,7 +17,7 @@ use std::sync::Arc;
 use chrono::{DateTime, NaiveDateTime, TimeZone, Utc};
 use prism_core::{ColumnType, PrismError};
 use prism_spec_engine::{ConfigManager, PluginRuntime};
-use prost_reflect::DynamicMessage;
+use prost_reflect::{DynamicMessage, Value as ProtoValue};
 
 /// Spec-driven OCSF field mapper.
 ///
@@ -31,6 +31,20 @@ use prost_reflect::DynamicMessage;
 /// Each `SpecDrivenMapper` instance is bound to a single sensor ID — the sensor ID
 /// is derived at construction time from the first (and typically only) sensor in the
 /// config snapshot. The boot path constructs one `SpecDrivenMapper` per sensor.
+///
+/// # Memory Note on `Box::leak` usage
+///
+/// `sensor_id` is derived from the config snapshot at construction time and stored as
+/// a `&'static str` to satisfy the `SensorMapper` trait signature. `Box::leak` is used
+/// to produce the `'static` lifetime.
+///
+/// SAFETY: bounded leak — one allocation per sensor at boot time. In production this is
+/// at most one allocation per registered sensor (typically 4–10). In test runs, each
+/// `SpecDrivenMapper::new()` call leaks a string (~8–32 bytes). A 1000-test run leaks at
+/// most ~32KB — well within the OS reclaim-at-process-exit guarantee. A static
+/// interning cache would avoid this but adds complexity not justified by the memory
+/// profile at this usage frequency.
+#[non_exhaustive]
 pub struct SpecDrivenMapper {
     /// Live spec catalog — supports ArcSwap hot reload per ADR-007 / AD-018.
     config_manager: Arc<ConfigManager>,
@@ -97,11 +111,15 @@ impl super::SensorMapper for SpecDrivenMapper {
     /// `extensions` (unknown fields) using `ocsf_field` annotations from the spec-catalog.
     ///
     /// For each column in the matching sensor table spec:
-    /// - `ColumnType::Json` columns → WASM dispatch via `PluginRuntime`
-    /// - `ColumnType::Datetime` columns → RFC3339 parse → epoch-millis
-    /// - `ColumnType::Integer` columns with `ocsf_field` → int-to-string cast
-    /// - All other typed columns with `ocsf_field` → direct string representation
+    /// - `ColumnType::Json` columns → WASM dispatch via `PluginRuntime` (when plugin
+    ///   present, raw value placed in `extensions` with a deferred-dispatch warning;
+    ///   when plugin absent, returns `OcsfNormalizationFailed`)
+    /// - `ColumnType::Datetime` columns → RFC3339 parse → epoch-millis written to `msg`;
+    ///   on parse failure the raw value is placed in `extensions` and a warning emitted
+    /// - `ColumnType::Integer` columns with `ocsf_field` → int-to-string cast written to `msg`
+    /// - All other typed columns with `ocsf_field` → direct string representation written to `msg`
     /// - Columns without `ocsf_field` → placed into `extensions` (BC-2.02.007)
+    /// - Columns present in spec but absent in raw → placed as Null in `extensions` (HIGH-005)
     ///
     /// The first column with `ocsf_field` mapped is returned as the `source_id`.
     ///
@@ -114,7 +132,7 @@ impl super::SensorMapper for SpecDrivenMapper {
         &self,
         record_type: &str,
         raw: &serde_json::Value,
-        _msg: &mut DynamicMessage,
+        msg: &mut DynamicMessage,
         extensions: &mut serde_json::Map<String, serde_json::Value>,
     ) -> Result<String, PrismError> {
         let snapshot = self.config_manager.load();
@@ -172,6 +190,22 @@ impl super::SensorMapper for SpecDrivenMapper {
 
             if let Some(ocsf_target) = &col.ocsf_field {
                 // This column has an OCSF field mapping.
+
+                // HIGH-005: if the column is declared in spec but absent in raw, place
+                // Null in extensions and emit a debug trace so operators can detect
+                // schema drift between spec and actual data source.
+                if raw_value.is_none() {
+                    extensions.insert(col.name.clone(), serde_json::Value::Null);
+                    tracing::debug!(
+                        sensor_id = %self.sensor_id,
+                        column = %col.name,
+                        ocsf_field = %ocsf_target,
+                        event_type = "ocsf.spec_column_absent_in_raw",
+                        "spec-declared column absent in raw record; inserted Null into extensions"
+                    );
+                    continue;
+                }
+
                 match col.column_type {
                     ColumnType::Json => {
                         // Complex transform path — dispatch to WASM plugin (AC-002/AC-003).
@@ -181,13 +215,27 @@ impl super::SensorMapper for SpecDrivenMapper {
 
                         match plugin_result {
                             Ok(_plugin) => {
-                                // Plugin is present — in a full implementation, call it here.
-                                // For now, record the raw value as the source_id if applicable.
-                                if source_id.is_none() {
-                                    if let Some(v) = raw_value {
+                                // CRIT-002: Plugin is present but the WIT call_ocsf_transform
+                                // interface does not yet exist on PluginRuntime. Per BC-2.02.007,
+                                // preserve the raw value in extensions rather than silently
+                                // dropping it (production-grade graceful degradation).
+                                // The ocsf.wasm_dispatch_deferred warning makes this observable
+                                // to operators (EC-009 edge case).
+                                if let Some(v) = raw_value {
+                                    extensions.insert(col.name.clone(), v.clone());
+                                    if source_id.is_none() {
                                         source_id = Some(v.to_string());
                                     }
                                 }
+                                tracing::warn!(
+                                    sensor_id = %self.sensor_id,
+                                    column = %col.name,
+                                    ocsf_field = %ocsf_target,
+                                    plugin_id = %plugin_id,
+                                    event_type = "ocsf.wasm_dispatch_deferred",
+                                    "WASM plugin found but call_ocsf_transform interface not yet \
+                                     wired; raw column value preserved in extensions (BC-2.02.007)"
+                                );
                             }
                             Err(_) => {
                                 // No plugin registered — return structured error (AC-003).
@@ -207,23 +255,49 @@ impl super::SensorMapper for SpecDrivenMapper {
                     }
                     ColumnType::Datetime => {
                         // RFC3339 timestamp → epoch-millis (AC-001 part 2).
+                        // CRIT-003: Replace `?` with graceful degradation on parse failure.
+                        // On error, place raw value in extensions and emit a warning rather
+                        // than aborting the entire record (EC-004, BC-2.02.002).
                         if let Some(v) = raw_value {
-                            let epoch_ms = parse_timestamp_to_epoch_ms(&col.name, v)?;
-                            let mapped_str = epoch_ms.to_string();
-                            if source_id.is_none() {
-                                source_id = Some(mapped_str);
+                            match parse_timestamp_to_epoch_ms(&col.name, v) {
+                                Ok(epoch_ms) => {
+                                    let mapped_str = epoch_ms.to_string();
+                                    // Write epoch-millis as I64 into the OCSF DynamicMessage.
+                                    // `set_field_by_name` is a no-op when the field does not
+                                    // exist in the descriptor (stub or partial schema) — safe.
+                                    msg.set_field_by_name(ocsf_target, ProtoValue::I64(epoch_ms));
+                                    if source_id.is_none() {
+                                        source_id = Some(mapped_str);
+                                    }
+                                }
+                                Err(e) => {
+                                    // EC-004: timestamp parse failure degrades gracefully.
+                                    // Preserve raw value in extensions so no data is lost.
+                                    extensions.insert(col.name.clone(), v.clone());
+                                    tracing::warn!(
+                                        sensor_id = %self.sensor_id,
+                                        field = %col.name,
+                                        ocsf_field = %ocsf_target,
+                                        error = %e,
+                                        event_type = "ocsf.timestamp_parse_failed",
+                                        "timestamp parse failed; raw value preserved in extensions"
+                                    );
+                                }
                             }
                         }
-                        // Datetime column with ocsf_field — do NOT add to extensions.
                     }
                     ColumnType::Integer => {
                         // Integer → string cast for OCSF string fields (AC-001 part 3).
                         if let Some(v) = raw_value {
-                            let mapped_str = v
-                                .as_i64()
-                                .map(|n| n.to_string())
-                                .or_else(|| v.as_u64().map(|n| n.to_string()))
-                                .unwrap_or_else(|| v.to_string());
+                            let (mapped_str, proto_val) = if let Some(n) = v.as_i64() {
+                                (n.to_string(), ProtoValue::I64(n))
+                            } else if let Some(n) = v.as_u64() {
+                                (n.to_string(), ProtoValue::U64(n))
+                            } else {
+                                (v.to_string(), ProtoValue::String(v.to_string()))
+                            };
+                            // Write integer value into OCSF DynamicMessage (CRIT-001).
+                            msg.set_field_by_name(ocsf_target, proto_val);
                             if source_id.is_none() {
                                 source_id = Some(mapped_str);
                             }
@@ -232,14 +306,27 @@ impl super::SensorMapper for SpecDrivenMapper {
                     }
                     _ => {
                         // String, Float, Boolean, or other — direct mapping.
-                        // Extract string representation as source_id candidate.
+                        // Extract string representation and write to OCSF DynamicMessage (CRIT-001).
                         if let Some(v) = raw_value {
-                            let mapped_str = match v {
-                                serde_json::Value::String(s) => s.clone(),
-                                serde_json::Value::Bool(b) => b.to_string(),
-                                serde_json::Value::Number(n) => n.to_string(),
-                                other => other.to_string(),
+                            let (mapped_str, proto_val) = match v {
+                                serde_json::Value::String(s) => {
+                                    (s.clone(), ProtoValue::String(s.clone()))
+                                }
+                                serde_json::Value::Bool(b) => (b.to_string(), ProtoValue::Bool(*b)),
+                                serde_json::Value::Number(n) => {
+                                    if let Some(i) = n.as_i64() {
+                                        (n.to_string(), ProtoValue::I64(i))
+                                    } else if let Some(f) = n.as_f64() {
+                                        (n.to_string(), ProtoValue::F64(f))
+                                    } else {
+                                        (n.to_string(), ProtoValue::String(n.to_string()))
+                                    }
+                                }
+                                other => (other.to_string(), ProtoValue::String(other.to_string())),
                             };
+                            // `set_field_by_name` is a no-op when the field doesn't exist in
+                            // the descriptor (stub descriptor or partial OCSF schema) — safe.
+                            msg.set_field_by_name(ocsf_target, proto_val);
                             if source_id.is_none() {
                                 source_id = Some(mapped_str);
                             }
@@ -252,6 +339,8 @@ impl super::SensorMapper for SpecDrivenMapper {
                 if let Some(v) = raw_value {
                     extensions.insert(col.name.clone(), v.clone());
                 }
+                // If absent in raw, nothing to do — undeclared-ocsf columns with no
+                // raw value are simply not present (no Null insertion needed here).
             }
         }
 
