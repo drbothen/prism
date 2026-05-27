@@ -314,9 +314,11 @@ impl WriteExecutor {
         // dispatch contexts. Post-PLUGIN-MIGRATION-001-B, the WriteEndpointRegistry presence
         // IS the authoritative compile-time capability signal: a sensor has write capability
         // if and only if its TOML spec declares [[write_endpoints]] sections and those specs
-        // are loaded at boot. The {sensor}-write Cargo features remain active (they gate the
-        // prism-security and prism-sensors write codepaths), but dispatch in prism-query must
-        // be driven by the spec registry, not per-sensor function calls (ADR-023 Rule 2).
+        // are loaded at boot. The {sensor}-write Cargo features are now empty test-gating
+        // declarations in prism-query only. The write pipeline dispatch is registry-driven
+        // (BC-2.16.012); the features preserve existing test coverage under --all-features
+        // until PLUGIN-MIGRATION-001-F de-gates them. Dispatch in prism-query must be driven
+        // by the spec registry, not per-sensor function calls (ADR-023 Rule 2).
         let maybe_spec = self.endpoint_registry.get(&plan.sensor, &plan.verb);
         // BC-2.04.001: compile-time feature gate derived from registry presence.
         let compile_gate: CompileFeatureGate = if maybe_spec.is_some() {

@@ -324,8 +324,8 @@ pub static WRITE_TOOL_INVALIDATION_MAP: LazyLock<Vec<WriteToolInvalidationMap>> 
 /// caller must ensure this is called exactly once per process).
 ///
 /// # Boot wiring
-/// Must be called at step 7.5 of `crates/prism-bin/src/boot.rs`, immediately after
-/// plugin loading and before `mark_query_phase_started()` at step 8.
+/// Must be called at step 7.5c of `crates/prism-bin/src/boot.rs`, immediately after
+/// plugin loading (step 7.5) and before `mark_query_phase_started()` at step 8.
 /// See PLUGIN-MIGRATION-001-B AC-003 and BC-2.16.012 INV-INVALIDATION-EXT-001.
 ///
 /// Story: PLUGIN-MIGRATION-001-B AC-003 | BC-2.16.012 INV-INVALIDATION-EXT-001

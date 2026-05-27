@@ -434,8 +434,30 @@ async fn test_ac7_feature_flag_deny_returns_e_flag_001() {
     let store = Arc::new(ConfirmationTokenStore::new());
     let audit = test_helpers::MockAuditWriter::always_succeed();
     let registry = Arc::new(prism_sensors::AdapterRegistry::new());
-    let endpoint_registry = Arc::new(WriteEndpointRegistry::new());
-    let executor = WriteExecutor::new(evaluator, store, audit, registry, endpoint_registry);
+    // Post-PLUGIN-MIGRATION-001-B: CompileFeatureGate is registry-driven, not feature-flag-driven.
+    // Must register armis/device_write endpoint so the gate is Present, allowing Phase 2 to reach
+    // the per-client runtime capability check. An empty registry yields Absent (DeniedCompileTime).
+    let mut endpoint_registry = WriteEndpointRegistry::new();
+    let _ = endpoint_registry.register(
+        "armis",
+        vec![prism_spec_engine::write_endpoint::WriteEndpointSpec::new(
+            "device_write",
+            "armis_devices",
+            prism_core::RiskTier::Irreversible,
+            "sensor.armis.device_write",
+            100,
+            prism_spec_engine::write_endpoint::BatchMode::Serial,
+            "device_id",
+            vec![],
+        )],
+    );
+    let executor = WriteExecutor::new(
+        evaluator,
+        store,
+        audit,
+        registry,
+        Arc::new(endpoint_registry),
+    );
 
     let plan = WritePlan {
         verb: "device_write".to_string(),
@@ -449,8 +471,8 @@ async fn test_ac7_feature_flag_deny_returns_e_flag_001() {
     };
     let context = make_query_context(true, None);
     // Phase 2 capability check: sensor.armis.device_write is Deny → E-FLAG-001
-    // With armis-write compiled: compile gate is Present → runtime hierarchical evaluation
-    // fires, child Deny for sensor.armis.device_write overrides parent Allow → DeniedRuntime.
+    // Registry-driven gate is Present (endpoint registered above) → runtime hierarchical
+    // evaluation fires, child Deny for sensor.armis.device_write overrides parent Allow → DeniedRuntime.
     let result = executor.execute(plan, context).await;
     let err = result.expect_err("Denied capability must return error");
     let err_msg = err.to_string();
