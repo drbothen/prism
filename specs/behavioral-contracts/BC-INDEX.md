@@ -1,10 +1,10 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "5.53"
+version: "5.54"
 status: draft
 producer: product-owner
-timestamp: 2026-05-26T00:00:00Z
+timestamp: 2026-05-27T00:00:00Z
 phase: 3.A
 total_contracts: 245
 active_contracts: 236
@@ -23,7 +23,7 @@ Flat index of all 245 behavioral contracts for Prism (245 total files, 236 activ
 (BC-2.07.007/008/009/010, BC-2.14.011) were dropped in v4.8 because they never had
 corresponding files — they are NOT counted in `total_contracts` and remain only in the
 historical references section below. Counts are derived from workspace enumeration of
-individual BC file `lifecycle_status` frontmatter fields (ground truth per VSDD). `draft_contracts: 2` covers BC-2.06.011 and BC-2.21.001. BC-2.16.013, BC-2.16.001, and BC-2.16.009 promoted draft→active at D-776 per POL-14 (PR #153 merge 2026-05-22); BC-2.01.016, BC-2.16.011, and BC-2.16.012 promoted draft→active at D-726 per POL-14 (PR #151 merge). BC-2.16.004 lifecycle_status was already `removed`; `status` field aligned to `removed` at D-726 (was draft, inconsistent). `deprecated_contracts: 0` — BC-2.16.004 fully removed.
+individual BC file `lifecycle_status` frontmatter fields (ground truth per VSDD). `draft_contracts: 2` covers BC-2.06.011 and BC-2.21.001. BC-2.16.013, BC-2.16.001, and BC-2.16.009 promoted draft→active at D-776 per POL-14 (PR #153 merge 2026-05-22); BC-2.01.016, BC-2.16.011, and BC-2.16.012 promoted draft→active at D-726 per POL-14 (PR #151 merge). BC-2.16.004 lifecycle_status was already `removed`; `status` field aligned to `removed` at D-726 (was draft, inconsistent). `deprecated_contracts: 0` — BC-2.16.004 fully removed. BC-2.01.005/006/007/008 and BC-2.02.003/004/005/006 amendment_lifecycle: pending cleared at PLUGIN-MIGRATION-001-G burst-3 (v5.54); all 8 now reflect `active (amended per ADR-023/PLUGIN-MIGRATION-001-G)` — lifecycle_status was already active in BC files prior to this index update.
 
 Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close traceability gaps for AD-019 (WASM plugins), AD-020 (infusions), AD-021 (actions), CAP-022 (auto-case-creation), and BC-2.14.012 stub completion. Burst 2.5: 4 additional BCs closing remaining gaps flagged by story-writer: BC-2.08.008/009 (diagnostics tool + resources, S-5.08), BC-2.05.011 (audit forwarding at-least-once, S-5.10), BC-2.13.014 (IOC file loading, S-4.03).
 
@@ -33,10 +33,10 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.01.002 | Cross-Client Fan-Out — Query Engine Orchestrates Parallel Sensor Fetches | 01 - Sensor Adapters | CAP-002 | P0 | draft |
 | BC-2.01.003 | ~~Cursor-Based Forward-Only Pagination (MCP-Exposed)~~ | 01 - Sensor Adapters | CAP-001 | P0 | removed |
 | BC-2.01.004 | Offset-Based Hybrid Pagination for Claroty Audit Logs | 01 - Sensor Adapters | CAP-001 | P0 | draft |
-| BC-2.01.005 | CrowdStrike OAuth2 Authentication and Two-Step Fetch | 01 - Sensor Adapters | CAP-001 | P0 | draft (amendment_lifecycle: pending — ADR-023) |
-| BC-2.01.006 | Cyberint Cookie-Based Authentication and Multi-Format Timestamp Parsing | 01 - Sensor Adapters | CAP-001 | P0 | draft (amendment_lifecycle: pending — ADR-023) |
-| BC-2.01.007 | Claroty Bearer Token Auth with Polymorphic ID Handling | 01 - Sensor Adapters | CAP-001 | P0 | draft (amendment_lifecycle: pending — ADR-023) |
-| BC-2.01.008 | Armis Bearer Token Auth with AQL Query Forwarding and Timestamp Fallback | 01 - Sensor Adapters | CAP-001 | P0 | draft (amendment_lifecycle: pending — ADR-023) |
+| BC-2.01.005 | CrowdStrike OAuth2 Authentication and Two-Step Fetch | 01 - Sensor Adapters | CAP-001 | P0 | active (amended per ADR-023/PLUGIN-MIGRATION-001-G; v1.5) |
+| BC-2.01.006 | Cyberint Cookie-Based Authentication and Multi-Format Timestamp Parsing | 01 - Sensor Adapters | CAP-001 | P0 | active (amended per ADR-023/PLUGIN-MIGRATION-001-G; v1.5) |
+| BC-2.01.007 | Claroty Bearer Token Auth with Polymorphic ID Handling | 01 - Sensor Adapters | CAP-001 | P0 | active (amended per ADR-023/PLUGIN-MIGRATION-001-G; v1.5) |
+| BC-2.01.008 | Armis Bearer Token Auth with AQL Query Forwarding and Timestamp Fallback | 01 - Sensor Adapters | CAP-001 | P0 | active (amended per ADR-023/PLUGIN-MIGRATION-001-G; v1.6) |
 | BC-2.01.009 | ~~Query Filtering and Sorting Parameters~~ | 01 - Sensor Adapters | CAP-001 | P0 | removed |
 | BC-2.01.010 | Partial Failure Handling for Paginated and Cross-Client Queries | 01 - Sensor Adapters | CAP-001, CAP-002 | P0 | draft |
 | BC-2.01.011 | ~~Cross-Sensor Correlation via OCSF Field Alignment~~ | 01 - Sensor Adapters | CAP-012 | P1 | removed |
@@ -47,10 +47,10 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.01.016 | SensorAuth Open Trait — Plugin-Implementable Auth Contract (No Sealed Marker) | 01 - Sensor Adapters | CAP-001 | P0 | active (promoted draft→active D-726 per POL-14; anchor story S-PLUGIN-PREREQ-E merged PR #151 develop@80ebe794 2026-05-19) — v1.11 |
 | BC-2.02.001 | OCSF Schema Loading at Build Time via ocsf-proto-gen | 02 - OCSF Normalization | CAP-003 | P0 | draft |
 | BC-2.02.002 | DynamicMessage Creation from Sensor Records | 02 - OCSF Normalization | CAP-003 | P0 | active |
-| BC-2.02.003 | CrowdStrike Alert Field Mapping to OCSF | 02 - OCSF Normalization | CAP-003 | P0 | draft (amendment_lifecycle: pending — ADR-023) |
-| BC-2.02.004 | Cyberint Alert Field Mapping to OCSF | 02 - OCSF Normalization | CAP-003 | P0 | draft (amendment_lifecycle: pending — ADR-023) |
-| BC-2.02.005 | Claroty xDome Field Mapping to OCSF (9 Data Sources) | 02 - OCSF Normalization | CAP-003 | P0 | draft (amendment_lifecycle: pending — ADR-023) |
-| BC-2.02.006 | Armis Centrix Field Mapping to OCSF (7 Data Sources) | 02 - OCSF Normalization | CAP-003 | P0 | draft (amendment_lifecycle: pending — ADR-023) |
+| BC-2.02.003 | CrowdStrike Alert Field Mapping to OCSF | 02 - OCSF Normalization | CAP-003 | P0 | active (amended per ADR-023/PLUGIN-MIGRATION-001-G; v1.6) |
+| BC-2.02.004 | Cyberint Alert Field Mapping to OCSF | 02 - OCSF Normalization | CAP-003 | P0 | active (amended per ADR-023/PLUGIN-MIGRATION-001-G; v1.6) |
+| BC-2.02.005 | Claroty xDome Field Mapping to OCSF (9 Data Sources) | 02 - OCSF Normalization | CAP-003 | P0 | active (amended per ADR-023/PLUGIN-MIGRATION-001-G; v1.5) |
+| BC-2.02.006 | Armis Centrix Field Mapping to OCSF (7 Data Sources) | 02 - OCSF Normalization | CAP-003 | P0 | active (amended per ADR-023/PLUGIN-MIGRATION-001-G; v1.5) |
 | BC-2.02.007 | Vendor Extension Preservation in raw_extensions | 02 - OCSF Normalization | CAP-003 | P0 | active |
 | BC-2.02.008 | Four-Tier Field Alias Resolution | 02 - OCSF Normalization | CAP-003 | P0 | draft |
 | BC-2.02.009 | OCSF Version Pinning Per Release | 02 - OCSF Normalization | CAP-003 | P0 | draft |
@@ -375,6 +375,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v5.54 (2026-05-27, PLUGIN-MIGRATION-001-G burst-3):** product-owner | AC-003: 8 BC index rows updated — amendment_lifecycle: pending cleared; status changed to active (amended per ADR-023/PLUGIN-MIGRATION-001-G). BC-2.01.005 v1.4→v1.5, BC-2.01.006 v1.4→v1.5, BC-2.01.007 v1.4→v1.5, BC-2.01.008 v1.5→v1.6 (auth BCs; prior burst 38db97b9). BC-2.02.003 v1.5→v1.6, BC-2.02.004 v1.5→v1.6, BC-2.02.005 v1.4→v1.5, BC-2.02.006 v1.4→v1.5 (OCSF field-mapping BCs; prior burst 69eb4028). active_contracts 236 (unchanged — lifecycle_status was already active for all 8; status column now aligned). draft_contracts 2 (unchanged — BC-2.06.011 + BC-2.21.001 remain draft). AC-004: module-decomposition.md grep sweep CLEAN — no CrowdStrikeAdapter/ClarotyAdapter/CyberintAdapter/ArmisAdapter/CrowdStrikeAuth/ClarotyAuth/CyberintAuth/ArmisAuth/SensorType:: hits; DTU crate references (prism-dtu-crowdstrike etc.) are correct per ADR-023 and untouched. AC-005: sensor-adapters.md grep sweep CLEAN — same pattern; two-tier model language (Tier 1 TOML spec, Tier 2 .prx WASM plugin) preserved. AC-006: POL-29 cite-pin sweep CLEAN — no version-pinned BC references found in STORY-INDEX.md, S-2.07, S-1.05, PLUGIN-MIGRATION-001-C, W3-FIX-S307-001, PLUGIN-MIGRATION-001-H, or other spec files; bare BC-ID references (no version suffix) are correct per project convention. BC-INDEX v5.53→v5.54.
 
 **v5.53 (2026-05-27, D-831 post-merge burst):** state-manager | POL-14 BC auto-promotion: BC-2.02.002 v1.3→v1.4 (status draft→active; lifecycle_status already active — idempotent confirm) + BC-2.02.007 v1.3→v1.4 (status draft→active; lifecycle_status already active — idempotent confirm) per PR #158 PLUGIN-MIGRATION-001-C merge at develop@282013a6 2026-05-27T10:53:03Z. active_contracts 236 (unchanged — lifecycle_status was already active for both; status field now aligned). draft_contracts 2 (unchanged — BC-2.06.011 + BC-2.21.001 remain draft). BC-INDEX v5.52→v5.53.
 
