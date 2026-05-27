@@ -938,12 +938,18 @@ base_url = "{overlay_base_url}"
             _client_id: &str,
             _sensor_id: SensorId,
         ) -> Result<Box<dyn crate::auth::SensorAuth>, crate::adapter::SensorError> {
-            use crate::auth::ArmisAuth;
-            use secrecy::SecretString;
-            Ok(Box::new(ArmisAuth {
-                instance_url: "https://stub.armis.io".into(),
-                secret_key: SecretString::new("stub-bearer".into()),
-            }))
+            // All built-in auth types deleted in PLUGIN-MIGRATION-001-A.
+            // Use a minimal test-local SensorAuth impl instead.
+            struct TestStubAuth;
+            impl crate::auth::SensorAuth for TestStubAuth {
+                fn as_any(&self) -> &dyn std::any::Any {
+                    self
+                }
+                fn auth_type_name(&self) -> &'static str {
+                    "custom_via_plugin"
+                }
+            }
+            Ok(Box::new(TestStubAuth))
         }
     }
 
