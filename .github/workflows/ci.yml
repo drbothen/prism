@@ -649,6 +649,68 @@ jobs:
           fi
           echo "Check passed: ${TOTAL_COUNT} types correctly reject external struct-literal or non-exhaustive match construction (E0639=${E0639_COUNT} E0004=${E0004_COUNT}, expected: ${EXPECTED}). Types validated: spec_parser::CredentialRef, SensorSpec, SensorTableDescriptor, FetchStep, ColumnSpec, TableSpec, PaginationConfig, AuthType, RateLimitHints; types::SensorSpec, SensorTableDescriptor, CredentialRef, ColumnType, ColumnDef, PaginationType, SpecStatus, ClientStatus; infusion::CredentialRef, InfusionType, BuiltInSourceType, InfusionSourceConfig, InfusionField, PipeStageConfig, PluginConfig, InfusionSpec; write_endpoint::BatchMode, WriteStep, WriteEndpointSpec; prism_core::ColumnType, ColumnOptions, PluginError; prism_query::invalidation::WriteToolInvalidationMap; plugin::LoadedPlugin; overlay::SensorInstanceOverlay, OverlayProvenance, ResolvedSensorSpec (BC-2.01.013 AC-5, F-LP22 D-572, post-PREREQ-E, PLUGIN-MIGRATION-001-E, S-CONFIG-MULTI-TENANT-OVERRIDE-001)."
 
+  no-hardcoded-sensors-compile-fail:
+    name: "ADR-023 No-Hardcoded-Sensors compile-fail gate (AC-006 PLUGIN-MIGRATION-001-F)"
+    # AC-006 (PLUGIN-MIGRATION-001-F) postcondition: the 4 sensor-named auth module paths
+    # deleted in PLUGIN-MIGRATION-001-A (prism_sensors::auth::{armis,claroty,crowdstrike,cyberint})
+    # MUST NOT be reachable from outside prism-sensors.
+    # This job compiles tests/external/no-hardcoded-sensors (a deliberate violator crate
+    # that imports those deleted paths) and asserts that `cargo check` fails with E0432.
+    # If cargo check exits 0, a deleted sensor-named symbol has been accidentally
+    # re-exported — this is an ADR-023 Rule 3 violation.
+    #
+    # This crate depends ONLY on prism-sensors (no prism-dtu-* deps to avoid
+    # false-positives from legitimate DTU clone exemptions per ADR-023 §DTU-EXEMPT).
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
+      - name: Install protoc (required by prost-build for prism-ocsf transitive dep)
+        uses: arduino/setup-protoc@c65c819552d16ad3c9b72d9dfd5ba5237b9c906b # v3.0.0
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+        with:
+          cache-on-failure: true
+          shared-key: no-hardcoded-sensors-compile-fail
+      - name: Assert no-hardcoded-sensors does NOT compile (E0432 expected)
+        run: |
+          set -uo pipefail
+          cargo check \
+            --color=never \
+            --manifest-path tests/external/no-hardcoded-sensors/Cargo.toml \
+            > /tmp/no-hardcoded-sensors-check.log 2>&1 \
+            && CARGO_RC=0 || CARGO_RC=$?
+          cat /tmp/no-hardcoded-sensors-check.log
+          if [ "${CARGO_RC}" -eq 0 ]; then
+            echo "::error::REGRESSION: no-hardcoded-sensors compiled successfully — sensor-named auth module symbols are accessible from prism-sensors public API. ADR-023 Rule 3 violated. Deleted paths prism_sensors::auth::{armis,claroty,crowdstrike,cyberint} must not be re-exported."
+            exit 1
+          fi
+          # Per-module positive-coverage check (primary gate, IMP-001):
+          # Verify each of the 4 deleted auth module paths appears BY MODULE NAME in
+          # the error output. Cargo E0432 reports the module path (e.g.,
+          # prism_sensors::auth::armis), not the type name (e.g., ArmisAuth).
+          # A count-only check would pass even if the wrong modules regressed.
+          for MOD in armis claroty crowdstrike cyberint; do
+            if ! grep -q "error\[E0432\].*auth::${MOD}\|unresolved import.*auth::${MOD}" /tmp/no-hardcoded-sensors-check.log; then
+              echo "::error::FAIL: Expected E0432 for auth::${MOD} but not found in error output. Deleted path prism_sensors::auth::${MOD} may have been re-exported (ADR-023 Rule 3 violation, AC-006 PLUGIN-MIGRATION-001-F)."
+              exit 1
+            fi
+            echo "PASS: auth::${MOD} correctly fails to resolve (E0432)"
+          done
+          # Redundant count assertion — must have at least 4 E0432 errors total.
+          E0432_COUNT=$(grep -c 'error\[E0432\]' /tmp/no-hardcoded-sensors-check.log || true)
+          EXPECTED=4
+          if [ "${E0432_COUNT}" -lt "${EXPECTED}" ]; then
+            echo "::error::Expected at least ${EXPECTED} E0432 errors (one per deleted auth module: armis, claroty, crowdstrike, cyberint), got ${E0432_COUNT}. Some deleted paths may have been partially re-exported."
+            exit 1
+          fi
+          echo "PASS: no-hardcoded-sensors correctly fails to compile with ${E0432_COUNT} E0432 errors (expected: ${EXPECTED}). Deleted sensor-named auth modules are not accessible: prism_sensors::auth::{armis, claroty, crowdstrike, cyberint} (ADR-023 Rule 3, AC-006 PLUGIN-MIGRATION-001-F)."
+
   perimeter-symbols-sync:
     name: Perimeter symbols sync check (BC-2.11.006 OBS-001)
     # Adversary pass-6 OBS-001 [process-gap] remediation.
@@ -1151,4 +1213,14 @@ jobs:
             exit 1
           }
           echo 'S-PLUGIN-CI-001 AC-001 reachability check passed: build-plugin-crowdstrike-oauth2 step present.'
-          echo 'All AC-5..AC-8 + F-LP5-HIGH-001 + S-PLUGIN-CI-001-AC-001 reachability assertions pass.'
+          # AC-006 PLUGIN-MIGRATION-001-F reachability assertion:
+          # The no-hardcoded-sensors-compile-fail job is the SOLE CI gate enforcing ADR-023
+          # Rule 3 (no sensor-named module references outside DTU clones). A future PR
+          # removing this job block would silently allow regression of the deleted auth
+          # modules (prism_sensors::auth::{armis,claroty,crowdstrike,cyberint}).
+          grep -qE 'no-hardcoded-sensors-compile-fail' .github/workflows/ci.yml || {
+            echo "::error::AC-006 PLUGIN-MIGRATION-001-F: 'no-hardcoded-sensors-compile-fail' job is missing from ci.yml — ADR-023 Rule 3 compile-fail enforcement removed"
+            exit 1
+          }
+          echo 'AC-006 reachability check passed: no-hardcoded-sensors-compile-fail job present.'
+          echo 'All AC-5..AC-8 + F-LP5-HIGH-001 + S-PLUGIN-CI-001-AC-001 + AC-006 reachability assertions pass.'

@@ -1,0 +1,51 @@
+PLUGIN-MIGRATION-001-F — AC-001 through AC-004: Test Execution Evidence
+========================================================================
+Date: 2026-05-27
+Command: cargo nextest run -p prism-spec-engine -E 'test(/test_PLUGIN_MIGRATION_001_F/)' --no-fail-fast 2>&1
+
+Output:
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.46s
+────────────
+ Nextest run ID 0cc9e609-d91e-449f-b57c-c025bad8eee0 with nextest profile: default
+    Starting 6 tests across 34 binaries (475 tests skipped)
+        PASS [   0.022s] (1/6) prism-spec-engine::parity_claroty test_PLUGIN_MIGRATION_001_F_parity_claroty_toml_fixture_loading
+        PASS [   0.023s] (2/6) prism-spec-engine::parity_armis test_PLUGIN_MIGRATION_001_F_parity_armis_toml_fixture_loading
+        PASS [   0.022s] (3/6) prism-spec-engine::parity_cyberint test_PLUGIN_MIGRATION_001_F_parity_cyberint_toml_fixture_loading
+        PASS [   0.024s] (4/6) prism-spec-engine::parity_crowdstrike test_PLUGIN_MIGRATION_001_F_parity_crowdstrike_toml_fixture_loading
+        PASS [   0.028s] (5/6) prism-spec-engine::crowdstrike_oauth2_plugin_tests test_PLUGIN_MIGRATION_001_F_crowdstrike_oauth2_plugin_dispatch_via_toml
+        PASS [   0.144s] (6/6) prism-spec-engine::bc_2_16_002_crowdstrike_two_step test_PLUGIN_MIGRATION_001_F_bc_2_16_002_crowdstrike_two_step_toml_driven
+────────────
+     Summary [   0.145s] 6 tests run: 6 passed, 475 skipped
+
+---
+
+AC Coverage Map (prism-spec-engine tests):
+  AC-001: PASS — 4 parity tests (crowdstrike, claroty, cyberint, armis) — TOML fixture loading
+    test_PLUGIN_MIGRATION_001_F_parity_crowdstrike_toml_fixture_loading  PASS  0.024s
+    test_PLUGIN_MIGRATION_001_F_parity_claroty_toml_fixture_loading      PASS  0.022s
+    test_PLUGIN_MIGRATION_001_F_parity_cyberint_toml_fixture_loading     PASS  0.022s
+    test_PLUGIN_MIGRATION_001_F_parity_armis_toml_fixture_loading        PASS  0.023s
+  AC-002: PASS — two-step TOML-driven test
+    test_PLUGIN_MIGRATION_001_F_bc_2_16_002_crowdstrike_two_step_toml_driven  PASS  0.144s
+  AC-003: PASS — OAuth2 plugin dispatch via TOML
+    test_PLUGIN_MIGRATION_001_F_crowdstrike_oauth2_plugin_dispatch_via_toml   PASS  0.028s
+
+---
+
+Command: cargo nextest run -p prism-query -E 'test(/test_PLUGIN_MIGRATION_001_F/)' --no-fail-fast 2>&1
+
+Output:
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.51s
+────────────
+ Nextest run ID ddb7617b-765a-41b5-8190-ba311ef72e1b with nextest profile: default
+    Starting 1 test across 12 binaries (911 tests skipped)
+        PASS [   0.025s] (1/1) prism-query::crowdstrike_session_isolation test_PLUGIN_MIGRATION_001_F_crowdstrike_session_isolation_sensor_id_key
+────────────
+     Summary [   0.025s] 1 test run: 1 passed, 911 skipped
+
+  AC-004: PASS — session isolation with SensorId string key (no SensorType enum)
+    test_PLUGIN_MIGRATION_001_F_crowdstrike_session_isolation_sensor_id_key  PASS  0.025s
+
+---
+TOTAL: 7 tests run, 7 PASSED, 0 FAILED
+All AC-001 through AC-004 red-gate tests green.

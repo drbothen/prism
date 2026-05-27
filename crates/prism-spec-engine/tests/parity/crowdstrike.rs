@@ -14,7 +14,7 @@
 //! Per story §Implementation Discipline TD-VSDD-059: "the #[ignore] tag is the
 //! mechanism that prevents CI failure, not an incomplete test body."
 //!
-//! AC coverage: AC-007 (CrowdStrike DTU parity)
+//! AC coverage: AC-007 (CrowdStrike DTU parity), PLUGIN-MIGRATION-001-F AC-001 (TOML fixture loading)
 //! HS coverage: HS-013
 
 use prism_core::OrgSlug;
@@ -315,4 +315,49 @@ fn test_BC_2_16_013_compute_parity_verdict_empty_fixture_returns_error() {
              must return Error"
         ),
     }
+}
+
+// ---------------------------------------------------------------------------
+// PLUGIN-MIGRATION-001-F AC-001: TOML fixture loading gate (non-#[ignore] part)
+// ---------------------------------------------------------------------------
+
+/// PLUGIN-MIGRATION-001-F / AC-001 / BC-2.16.009 postcondition 1:
+/// test_PLUGIN_MIGRATION_001_F_parity_crowdstrike_toml_fixture_loading
+///
+/// Asserts that the CrowdStrike production TOML spec is parseable and declares
+/// the detections table. This is the non-#[ignore] portion of AC-001 — it
+/// verifies the spec-loading path without requiring the DTU clone.
+///
+/// The full parity assertion (pipeline run + OCSF fixture comparison) is in
+/// test_BC_2_16_013_dtu_parity_crowdstrike (tagged #[ignore] until S-6.07 merges).
+///
+/// AC-001 postcondition: crowdstrike.sensor.toml loads via SpecLoader::parse,
+/// contains a detections table, and does NOT require a sensor-named adapter type.
+#[test]
+fn test_PLUGIN_MIGRATION_001_F_parity_crowdstrike_toml_fixture_loading() {
+    // Load the production TOML spec (ADR-023 Rule 3 — no hardcoded sensor adapter type).
+    let spec_content = std::fs::read_to_string(
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../prism-sensors/specs/crowdstrike.sensor.toml"),
+    )
+    .expect("crowdstrike.sensor.toml must be readable (AC-001: TOML spec must exist)");
+
+    let spec = prism_spec_engine::spec_parser::SpecLoader::parse(&spec_content).expect(
+        "crowdstrike.sensor.toml must parse without error (AC-001: TOML spec must be valid)",
+    );
+
+    // AC-001 postcondition: spec-catalog lookup by SensorId string "crowdstrike" —
+    // no sensor-named adapter type in scope.
+    assert_eq!(
+        spec.sensor_id, "crowdstrike",
+        "AC-001: crowdstrike TOML spec must declare sensor_id = \"crowdstrike\""
+    );
+
+    // AC-001: spec must declare a detections table (two-step pipeline anchor).
+    let detections = spec.tables.iter().find(|t| t.table_name == "detections");
+    assert!(
+        detections.is_some(),
+        "AC-001: crowdstrike.sensor.toml must declare a 'detections' table; \
+         spec-driven lookup requires the table to be present (BC-2.16.009 postcondition 1)"
+    );
 }

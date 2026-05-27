@@ -1,0 +1,27 @@
+[package]
+name = "no-hardcoded-sensors"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+# ADR-023 Rule 3 — No hardcoded sensor name enforcement.
+#
+# This crate deliberately attempts to reference sensor-named symbols that
+# were DELETED in PLUGIN-MIGRATION-001-A. It MUST NOT compile.
+# CI job `no-hardcoded-sensors-compile-fail` asserts non-zero exit.
+#
+# If this crate ever compiles, a sensor-named symbol has been accidentally
+# re-exported, which is an ADR-023 Rule 3 violation.
+#
+# This crate is EXCLUDED from the workspace default members (see root Cargo.toml).
+# It is NEVER built as part of `cargo build --workspace`.
+#
+# Forbidden dependencies: prism-spec-engine, prism-query, prism-ocsf, prism-dtu-*
+# (would false-positive on legitimate DTU clone exemptions).
+
+[dependencies]
+prism-sensors = { path = "../../../crates/prism-sensors" }
+
+# Empty workspace table: opts this crate out of the parent workspace resolver
+# so it can be compiled standalone (required for the CI compile-fail pattern).
+[workspace]

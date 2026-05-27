@@ -13,7 +13,7 @@
 //! Per EC-016-013-002: the cyberint.incidents DTU gap is an explicit SKIP assertion,
 //! not an ignored test.
 //!
-//! AC coverage: AC-009 (Cyberint DTU parity + incidents SKIP)
+//! AC coverage: AC-009 (Cyberint DTU parity + incidents SKIP), PLUGIN-MIGRATION-001-F AC-001 (TOML fixture loading)
 //! HS coverage: HS-015
 
 use prism_core::OrgSlug;
@@ -330,4 +330,54 @@ fn test_BC_2_16_013_compute_parity_verdict_empty_fixture_returns_error() {
              must return Error"
         ),
     }
+}
+
+// ---------------------------------------------------------------------------
+// PLUGIN-MIGRATION-001-F AC-001: TOML fixture loading gate (non-#[ignore] part)
+// ---------------------------------------------------------------------------
+
+/// PLUGIN-MIGRATION-001-F / AC-001 / BC-2.16.009 postcondition 1:
+/// test_PLUGIN_MIGRATION_001_F_parity_cyberint_toml_fixture_loading
+///
+/// Asserts that the Cyberint production TOML spec is parseable and declares
+/// both alerts and incidents tables. This is the non-#[ignore] portion of AC-001.
+///
+/// The full parity assertion (pipeline run + OCSF fixture comparison) is in
+/// test_BC_2_16_013_dtu_parity_cyberint (tagged #[ignore] until S-6.09 merges).
+/// The incidents parity is an explicit SKIP per EC-016-013-002.
+///
+/// AC-001 postcondition: cyberint.sensor.toml loads via SpecLoader::parse,
+/// and does NOT require a sensor-named adapter type.
+#[test]
+fn test_PLUGIN_MIGRATION_001_F_parity_cyberint_toml_fixture_loading() {
+    let spec_content = std::fs::read_to_string(
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../prism-sensors/specs/cyberint.sensor.toml"),
+    )
+    .expect("cyberint.sensor.toml must be readable (AC-001: TOML spec must exist)");
+
+    let spec = prism_spec_engine::spec_parser::SpecLoader::parse(&spec_content)
+        .expect("cyberint.sensor.toml must parse without error (AC-001: TOML spec must be valid)");
+
+    // AC-001: spec-catalog lookup by SensorId string "cyberint" — no sensor-named adapter.
+    assert_eq!(
+        spec.sensor_id, "cyberint",
+        "AC-001: cyberint TOML spec must declare sensor_id = \"cyberint\""
+    );
+
+    // AC-001: spec must declare an alerts table.
+    let alerts = spec.tables.iter().find(|t| t.table_name == "alerts");
+    assert!(
+        alerts.is_some(),
+        "AC-001: cyberint.sensor.toml must declare an 'alerts' table; \
+         spec-driven lookup requires the table to be present (BC-2.16.009 postcondition 1)"
+    );
+
+    // AC-001: spec must also declare an incidents table (even though parity is SKIP per EC-016-013-002).
+    let incidents = spec.tables.iter().find(|t| t.table_name == "incidents");
+    assert!(
+        incidents.is_some(),
+        "AC-001: cyberint.sensor.toml must declare an 'incidents' table; \
+         the DTU gap is an explicit SKIP (EC-016-013-002), not a missing table"
+    );
 }

@@ -9,6 +9,11 @@ exclude = [
     # Building this crate is expected to fail (E0639 — non-exhaustive struct expression); including
     # it in the workspace would break every `cargo build --workspace` run.
     "tests/external/non-exhaustive-violation",
+    # AC-006 PLUGIN-MIGRATION-001-F: compile-fail no-hardcoded-sensors test — must NOT be in workspace members.
+    # Building this crate is expected to fail (E0432 — unresolved import of deleted auth modules);
+    # including it in the workspace would break every `cargo build --workspace` run.
+    # ADR-023 Rule 3: no sensor-named module references outside DTU clones.
+    "tests/external/no-hardcoded-sensors",
     # AC-008 PLUGIN-MIGRATION-001-C: WASM plugin scaffold — compiled for wasm32-wasip1 target,
     # not the native host target. Excluded from workspace to avoid cross-compilation issues
     # during `cargo build --workspace` on the default host target. Build explicitly with

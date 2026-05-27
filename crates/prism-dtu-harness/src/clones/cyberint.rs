@@ -1,3 +1,9 @@
+// ADR-023 §DTU-EXEMPT: This file IS the DTU behavioral clone for Cyberint.
+// Sensor-named references here are intentional — this IS the clone, not a consumer.
+// Exempt from tests/external/no-hardcoded-sensors/ compile-fail gate.
+// Imports from deleted prism-sensors::auth::cyberint modules (001-A) verified absent.
+// PLUGIN-MIGRATION-001-F AC-008 audit: no stale imports from deleted prism-sensors::auth modules.
+//
 //! Cyberint-specific harness clone router.
 //!
 //! Self-contained axum Router factory for `DtuType::Cyberint`.  Provides all
