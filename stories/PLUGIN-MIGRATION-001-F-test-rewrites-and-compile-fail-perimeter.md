@@ -6,7 +6,7 @@ wave: 2
 epic_id: PLUGIN-MIGRATION-001
 priority: P0
 status: draft
-version: "v1.3"
+version: "v1.4"
 level: "L4"
 producer: story-writer
 timestamp: "2026-05-27T00:00:00Z"
@@ -473,7 +473,7 @@ on these files would break the workspace build.
 - [ ] **Task 6:** Audit the 4 DTU generator test files (ac-005) and `ac_2_crowdstrike_fixture.rs`;
       add exemption comments or remove stale imports as appropriate
 - [ ] **Task 7:** Create `tests/external/no-hardcoded-sensors/` crate per AC-006 template;
-      verify `cargo check -p no-hardcoded-sensors` fails with E0432
+      verify `cargo check --manifest-path tests/external/no-hardcoded-sensors/Cargo.toml` fails with E0432
 - [ ] **Task 8:** Update `ci.yml` to add `no-hardcoded-sensors-compile-fail` job per AC-007
 - [ ] **Task 9:** Audit 4 DTU harness clone files per AC-008; add exemption comments; remove
       stale imports from deleted prism-sensors::auth modules if present
@@ -605,3 +605,4 @@ things that should not be tested here. This must fail a CI lint check or archite
 | v1.1 | 2026-05-27 | story-writer | MED-001: BC-2.16.009 title corrected to canonical form in BC table and frontmatter comment. LOW-001: `SpecLoader::load_all()` → `SpecLoader::parse()` in AC-001 (table, bullet, trace note) and BC table. LOW-002: `red_gate_tests` 6 → 7 (implementation delivers 7 named test functions). |
 | v1.2 | 2026-05-27 | story-writer | IMP-001: BC-2.16.012 body table title corrected to canonical "PluginRegistry Dispatch in spec_parser.rs — Hardcoded Sensor Names Replaced with Registry Lookup" (was "PluginRegistry Dispatch Migration"). IMP-002: `inputs:` path corrected from `BC-2.16.009-bundled-spec-validation.md` to `BC-2.16.009-spec-file-validation.md`. IMP-003: `SpecLoader::load()` → `SpecLoader::parse()` in §Story-Level Goal bullet 1; `SpecLoader::load_all()` → `SpecLoader::parse()` in Task 2. OBS-003: BC-2.16.009 version v1.4 → v1.5; BC-2.16.012 version v1.3 → v1.33. OBS-001: AC-006 CI snippet updated to use `--manifest-path tests/external/no-hardcoded-sensors/Cargo.toml` + `--color=never` (was `-p no-hardcoded-sensors`). OBS-002: AC-007 CI YAML template updated with `--color=never`, `--manifest-path`, log capture, and per-symbol positive-coverage assertions for all 4 deleted auth symbols (mirrors perimeter-compile-fail job pattern). |
 | v1.3 | 2026-05-27 | story-writer | Pass-3 OBS-001: `prism-dtu-harness` added to `crates_touched` (AC-008 audits 4 clone files — was missing from frontmatter). Pass-3 IMP-001: AC-007 CI job already contained per-symbol positive-coverage loop (added in v1.2/OBS-002) — confirmed complete; no body change needed. |
+| v1.4 | 2026-05-27 | story-writer | Pass-4 LOW-001: Task 7 `-p no-hardcoded-sensors` replaced with `--manifest-path tests/external/no-hardcoded-sensors/Cargo.toml` — the compile-fail crate is excluded from the workspace so `-p` resolution does not apply; `--manifest-path` is the correct invocation (mirrors AC-006 and AC-007 which were already corrected in v1.2/OBS-001). |
