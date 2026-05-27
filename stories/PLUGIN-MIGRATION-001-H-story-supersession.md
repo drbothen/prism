@@ -5,7 +5,7 @@ title: ".factory: Story Supersession — Mark S-2.06, S-2.07, W3-FIX-S307-001, S
 wave: 2
 epic_id: PLUGIN-MIGRATION-001
 priority: P0
-status: draft
+status: in_progress
 version: "v1.0"
 level: "L4"
 producer: story-writer
@@ -91,7 +91,7 @@ phase: 3
 # PLUGIN-MIGRATION-001-H: .factory — Story Supersession — Mark 4 Stories Superseded by ADR-023
 
 **Story ID:** PLUGIN-MIGRATION-001-H
-**Status:** draft
+**Status:** in_progress
 **Version:** v1.0
 **Wave:** 2 (ordered after PLUGIN-MIGRATION-001-A; can be dispatched in parallel with 001-F and 001-G)
 

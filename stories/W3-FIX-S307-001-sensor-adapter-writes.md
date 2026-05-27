@@ -10,9 +10,16 @@ blocks: [W3-FIX-S307-002-write-capability-and-observability, S-5.01-FOLLOWUP-MCP
 estimated_days: 3
 points: 5
 risk: MEDIUM
-status: draft
+status: superseded
 document_type: story
-version: "1.0"
+version: "1.1"
+modified: "2026-05-27"
+superseded_by: ADR-023
+supersession_note: >
+  W3-FIX-S307-001 was planned to implement `fn write(...)` overrides in the four
+  built-in sensor adapters. ADR-023 makes this moot: there are no built-in sensor
+  adapters. Write operations are handled by the plugin-only path per ADR-023 Rule 1.
+  Recorded as BLOCKED per D-333 (2026-05-08). Formally superseded per PLUGIN-MIGRATION-001-H.
 level: "L4"
 producer: story-writer
 timestamp: "2026-05-08T00:00:00Z"
@@ -337,8 +344,22 @@ implementing write overrides to confirm the client field name.
 
 ---
 
+## §Supersession Note (ADR-023)
+
+**Superseded by:** ADR-023 Plugin-Only Sensor Architecture
+**Supersession date:** 2026-05-27 (PLUGIN-MIGRATION-001-H)
+**Reason:** W3-FIX-S307-001 was planned to implement `fn write(...)` overrides in each
+of the four built-in sensor adapters (CrowdStrike, Armis, Claroty, Cyberint). ADR-023
+Rule 1 makes this moot: there are no built-in sensor adapters in Rust. Write operations
+for sensors are handled by the plugin-only path. This story was recorded as BLOCKED per
+D-333 (2026-05-08) and was never merged.
+**Successor:** Plugin-only write operations via ADR-023 Rule 1 + BC-2.01.013.
+
+---
+
 ## Changelog
 
 | Version | Burst | Date | Author | Changes |
 |---------|-------|------|--------|---------|
+| 1.1 | PLUGIN-MIGRATION-001-H | 2026-05-27 | story-writer | status: draft → superseded; added superseded_by: ADR-023 frontmatter and §Supersession Note body section per AC-003. |
 | 1.0 | Bundle-B-Phase-B-1 | 2026-05-08 | story-writer | Initial story creation from ADR-022 §G seed (Story 3). |
