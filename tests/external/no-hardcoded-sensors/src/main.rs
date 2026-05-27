@@ -5,7 +5,7 @@
 // This file MUST NOT compile successfully.
 // CI job `no-hardcoded-sensors-compile-fail` asserts non-zero exit code.
 //
-// If `cargo check -p no-hardcoded-sensors` ever exits 0, a deleted sensor-named
+// If `cargo check --manifest-path tests/external/no-hardcoded-sensors/Cargo.toml` ever exits 0, a deleted sensor-named
 // symbol has been accidentally re-exported — this is an ADR-023 Rule 3 violation.
 //
 // Expected compiler error: E0432 "unresolved import"
