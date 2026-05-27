@@ -6,7 +6,7 @@ wave: 2
 epic_id: PLUGIN-MIGRATION-001
 priority: P0
 status: draft
-version: "v1.2"
+version: "v1.3"
 level: "L4"
 producer: story-writer
 timestamp: "2026-05-27T00:00:00Z"
@@ -35,6 +35,7 @@ crates_touched:
   - prism-dtu-crowdstrike # bc_3_4_crowdstrike_generator.rs
   - prism-dtu-cyberint  # bc_3_4_cyberint_generator.rs
   - prism-dtu-demo-server # ac_2_crowdstrike_fixture.rs
+  - prism-dtu-harness   # AC-008 audit: exemption comments on 4 clone files (no behavioral change)
 target_module: tests/external/no-hardcoded-sensors
 capabilities: [CAP-029]
 behavioral_contracts:
@@ -150,7 +151,7 @@ phase: 3
 
 **Story ID:** PLUGIN-MIGRATION-001-F
 **Status:** draft
-**Version:** v1.2
+**Version:** v1.3
 **Wave:** 2 (cleanup wave; ordered after PLUGIN-MIGRATION-001-A + 001-B both merged)
 
 ---
@@ -603,3 +604,4 @@ things that should not be tested here. This must fail a CI lint check or archite
 | v1.0 | 2026-05-27 | story-writer | Initial draft — 8 AC + 10 tasks; PLUGIN-MIGRATION-001-F Wave 2 materialization |
 | v1.1 | 2026-05-27 | story-writer | MED-001: BC-2.16.009 title corrected to canonical form in BC table and frontmatter comment. LOW-001: `SpecLoader::load_all()` → `SpecLoader::parse()` in AC-001 (table, bullet, trace note) and BC table. LOW-002: `red_gate_tests` 6 → 7 (implementation delivers 7 named test functions). |
 | v1.2 | 2026-05-27 | story-writer | IMP-001: BC-2.16.012 body table title corrected to canonical "PluginRegistry Dispatch in spec_parser.rs — Hardcoded Sensor Names Replaced with Registry Lookup" (was "PluginRegistry Dispatch Migration"). IMP-002: `inputs:` path corrected from `BC-2.16.009-bundled-spec-validation.md` to `BC-2.16.009-spec-file-validation.md`. IMP-003: `SpecLoader::load()` → `SpecLoader::parse()` in §Story-Level Goal bullet 1; `SpecLoader::load_all()` → `SpecLoader::parse()` in Task 2. OBS-003: BC-2.16.009 version v1.4 → v1.5; BC-2.16.012 version v1.3 → v1.33. OBS-001: AC-006 CI snippet updated to use `--manifest-path tests/external/no-hardcoded-sensors/Cargo.toml` + `--color=never` (was `-p no-hardcoded-sensors`). OBS-002: AC-007 CI YAML template updated with `--color=never`, `--manifest-path`, log capture, and per-symbol positive-coverage assertions for all 4 deleted auth symbols (mirrors perimeter-compile-fail job pattern). |
+| v1.3 | 2026-05-27 | story-writer | Pass-3 OBS-001: `prism-dtu-harness` added to `crates_touched` (AC-008 audits 4 clone files — was missing from frontmatter). Pass-3 IMP-001: AC-007 CI job already contained per-symbol positive-coverage loop (added in v1.2/OBS-002) — confirmed complete; no body change needed. |
