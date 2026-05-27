@@ -33,7 +33,9 @@ pub use alias::{AliasResolver, AliasResult};
 pub use class_selector::EventClassSelector;
 pub use enum_map::OcsfEnumMap;
 pub use event::OcsfEvent;
-pub use mappers::{ArmisMapper, ClarotyMapper, CrowdStrikeMapper, CyberintMapper, SensorMapper};
+pub use mappers::{
+    ArmisMapper, ClarotyMapper, CrowdStrikeMapper, CyberintMapper, SensorMapper, SpecDrivenMapper,
+};
 pub use normalizer::OcsfNormalizer;
 pub use pool::OcsfDescriptors;
 pub use version::ocsf_version;

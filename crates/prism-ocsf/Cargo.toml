@@ -11,6 +11,9 @@ name = "prism_ocsf"
 
 [dependencies]
 prism-core = { path = "../prism-core" }
+# PLUGIN-MIGRATION-001-C: SpecDrivenMapper reads ocsf_field annotations from the spec-catalog
+# and dispatches WASM plugin transforms via PluginRuntime.
+prism-spec-engine = { path = "../prism-spec-engine" }
 
 # Protobuf runtime: serialisation and deserialisation of compiled OCSF schema messages.
 prost = "0.13.5"

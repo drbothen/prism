@@ -21,11 +21,14 @@ pub mod armis;
 pub mod claroty;
 pub mod crowdstrike;
 pub mod cyberint;
+// PLUGIN-MIGRATION-001-C: spec-driven mapper stub (replaces per-sensor modules in implementation phase)
+pub mod spec_driven;
 
 pub use armis::ArmisMapper;
 pub use claroty::ClarotyMapper;
 pub use crowdstrike::CrowdStrikeMapper;
 pub use cyberint::CyberintMapper;
+pub use spec_driven::SpecDrivenMapper;
 
 /// Trait implemented by each sensor-specific field mapper.
 ///
