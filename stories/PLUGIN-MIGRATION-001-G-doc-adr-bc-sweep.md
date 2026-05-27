@@ -83,7 +83,7 @@ risk: LOW
 # risk is over-amending a BC (removing behavior that is still active). Each BC body amendment
 # must preserve all behavioral semantics (preconditions, postconditions, invariants) —
 # only the implementation-mechanism language changes ("CrowdStrikeAdapter" → "TOML spec
-# with [auth] type = 'oauth2_client_credentials'"). The adversary catch for this is
+# with auth_type = 'oauth2_client_credentials'"). The adversary catch for this is
 # consistency-validator comparing BC bodies against the corresponding TOML spec files.
 acceptance_criteria_count: 6
 red_gate_tests: 0
@@ -198,7 +198,7 @@ a mandatory two-step fetch pattern...
 > hardcoded Rust adapter (`CrowdStrikeAuth`). That implementation was deleted in
 > PLUGIN-MIGRATION-001-A. The auth behavior described here is now delivered by the
 > CrowdStrike TOML sensor spec (`.prism/specs/sensors/crowdstrike.sensor.toml`)
-> with `[auth] type = "oauth2_client_credentials"` and the CrowdStrike `.prx` WASM
+> with `auth_type = "oauth2_client_credentials"` and the CrowdStrike `.prx` WASM
 > plugin for OAuth2 refresh-on-401 (PLUGIN-MIGRATION-001-E). The behavioral
 > contract itself is unchanged — preconditions, postconditions, and invariants
 > describe what the system must do, not how. The `SensorAuth` open trait
@@ -259,7 +259,7 @@ exactly — these describe WHAT the system must do. Only the HOW (hardcoded Rust
 
 | BC ID | Version | Title | Subsystem | Role in This Story |
 |-------|---------|-------|-----------|-------------------|
-| BC-2.01.005 | 1.4 | CrowdStrike OAuth2 Authentication and Two-Step Fetch | SS-01 | **Primary** — body amendment: PENDING AMENDMENT banner removed; OAuth2 auth mechanism updated from deleted Rust adapter to TOML spec `[auth] type = "oauth2_client_credentials"` + .prx WASM plugin |
+| BC-2.01.005 | 1.4 | CrowdStrike OAuth2 Authentication and Two-Step Fetch | SS-01 | **Primary** — body amendment: PENDING AMENDMENT banner removed; OAuth2 auth mechanism updated from deleted Rust adapter to TOML spec `auth_type = "oauth2_client_credentials"` + .prx WASM plugin |
 | BC-2.01.006 | 1.4 | Cyberint Cookie-Based Authentication and Multi-Format Timestamp Parsing | SS-01 | **Primary** — same amendment pattern for Cyberint cookie auth |
 | BC-2.01.007 | 1.4 | Claroty Bearer Token Auth with Polymorphic ID Handling | SS-01 | **Primary** — same amendment pattern for Claroty bearer auth |
 | BC-2.01.008 | 1.4 | Armis Bearer Token Auth with AQL Query Forwarding and Timestamp Fallback | SS-01 | **Primary** — same amendment pattern for Armis bearer auth |
@@ -302,7 +302,7 @@ Each of the 4 auth BCs (BC-2.01.005, BC-2.01.006, BC-2.01.007, BC-2.01.008):
 - PENDING AMENDMENT banner (the `> **PENDING AMENDMENT — ADR-023**: ...` block quote) is removed
 - The BC gains an Amendment Note at the top of the Description section per §Amendment Pattern
 - All prose references to `{Sensor}Adapter`, `{Sensor}Auth Rust type`, "the adapter authenticates..."
-  are updated to "the TOML sensor spec with `[auth] type = ...`" language
+  are updated to "the TOML sensor spec with `auth_type = ...`" language
 - The `DI-012` sealed-trait invariant reference is updated to reference `SpecLoader::validate_cross_composition()` runtime enforcement (BC-2.01.016) — DI-012 itself was retired in S-PLUGIN-PREREQ-E
 - Preconditions, postconditions, error cases, and field behavior tables are PRESERVED exactly
 - `version:` frontmatter field is bumped +0.1 (e.g., `"1.4"` → `"1.5"`)
@@ -310,9 +310,9 @@ Each of the 4 auth BCs (BC-2.01.005, BC-2.01.006, BC-2.01.007, BC-2.01.008):
 - `amendment_lifecycle: pending` frontmatter field is removed (or set to `null`)
 
 (traces to BC-2.01.005 postcondition — OAuth2 token obtained via client credentials grant before any API call; mechanism is now TOML spec + .prx WASM plugin; contract unchanged)
-(traces to BC-2.01.006 postcondition — Cyberint cookie auth mechanism now TOML spec `[auth] type = "cookie_roundtrip"`; contract unchanged)
-(traces to BC-2.01.007 postcondition — Claroty bearer token auth mechanism now TOML spec `[auth] type = "bearer_static"`; contract unchanged)
-(traces to BC-2.01.008 postcondition — Armis bearer token auth + AQL forwarding mechanism now TOML spec `[auth] type = "bearer_static"` + query forwarding config; contract unchanged)
+(traces to BC-2.01.006 postcondition — Cyberint cookie auth mechanism now TOML spec `auth_type = "cookie_roundtrip"`; contract unchanged)
+(traces to BC-2.01.007 postcondition — Claroty bearer token auth mechanism now TOML spec `auth_type = "bearer_static"`; contract unchanged)
+(traces to BC-2.01.008 postcondition — Armis bearer token auth + AQL forwarding mechanism now TOML spec `auth_type = "bearer_static"` + query forwarding config; contract unchanged)
 
 ### AC-002: 4 field-mapping BCs amended — PENDING AMENDMENT banners removed, bodies updated to SpecDrivenMapper + ocsf_field annotation language (traces to BC-2.02.003/004/005/006 postconditions — field mappings delivered by SpecDrivenMapper reading ocsf_field annotations from TOML sensor specs, not by deleted hardcoded mapper modules)
 
@@ -485,7 +485,7 @@ Previous stories in the PLUGIN-MIGRATION-001 saga that define the as-built state
    implemented SpecDrivenMapper. BC-2.02.003–006 bodies should now describe SpecDrivenMapper
    + ocsf_field annotations.
 4. **PLUGIN-MIGRATION-001-D (merged PR #153):** Authored the 4 production TOML sensor specs.
-   The TOML spec field names (e.g., `[auth] type = "oauth2_client_credentials"`) are the
+   The TOML spec field names (e.g., `auth_type = "oauth2_client_credentials"`) are the
    canonical mechanism references to use in the BC body amendments.
 
 Key lesson from prior PLUGIN-MIGRATION stories: the POL-29 cite-pin sweep is essential.

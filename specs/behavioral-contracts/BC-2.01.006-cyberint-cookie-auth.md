@@ -2,7 +2,7 @@
 document_type: behavioral-contract
 level: L3
 version: "1.5"
-status: draft
+status: active
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
 phase: 1a
@@ -36,12 +36,12 @@ removal_reason: null
 > hardcoded Rust adapter (`CyberintAuth`). That implementation was deleted in
 > PLUGIN-MIGRATION-001-A (PR #156). The auth behavior described here is now delivered by the
 > Cyberint TOML sensor spec (`.prism/specs/sensors/cyberint.sensor.toml`)
-> with `[auth] type = "cookie_roundtrip"` (declarative TOML; no `.prx` WASM plugin required
+> with `auth_type = "cookie_roundtrip"` (declarative TOML; no `.prx` WASM plugin required
 > for this auth mechanism). The behavioral contract itself is unchanged — preconditions,
 > postconditions, and invariants describe what the system must do, not how. The `SensorAuth`
 > open trait (BC-2.01.016) is the runtime interface.
 
-The Cyberint sensor authenticates via an `access_token` cookie declared in the TOML spec under `[auth] type = "cookie_roundtrip"`. Because Cyberint responses use inconsistent timestamp formats, the spec-driven adapter employs a 4-format CyberintTime parser (ISO 8601, RFC 3339, Unix epoch seconds, Cyberint custom format) and maintains a `(Timestamp, RecordID)` 2-tuple cursor. Timestamps that cannot be parsed through any format fall back to the fetch timestamp, with the raw string preserved in `raw_extensions`.
+The Cyberint sensor authenticates via an `access_token` cookie declared in the TOML spec under `auth_type = "cookie_roundtrip"`. Because Cyberint responses use inconsistent timestamp formats, the spec-driven adapter employs a 4-format CyberintTime parser (ISO 8601, RFC 3339, Unix epoch seconds, Cyberint custom format) and maintains a `(Timestamp, RecordID)` 2-tuple cursor. Timestamps that cannot be parsed through any format fall back to the fetch timestamp, with the raw string preserved in `raw_extensions`.
 
 ## Preconditions
 - Cyberint sensor is configured with an `access_token` credential
@@ -94,7 +94,7 @@ The Cyberint sensor authenticates via an `access_token` cookie declared in the T
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
-| 1.5 | PLUGIN-MIGRATION-001-G | 2026-05-27 | product-owner | ADR-023 amendment: removed PENDING AMENDMENT banner; added Amendment Note to Description; updated Description prose from deleted `CyberintAuth` Rust adapter to TOML spec `[auth] type = "cookie_roundtrip"` declarative language; updated DI-012 invariant from sealed-trait to `SpecLoader::validate_cross_composition()` runtime enforcement per BC-2.01.016; set amendment_lifecycle to null. Behavioral semantics (preconditions, postconditions, error cases, test vectors) unchanged. |
+| 1.5 | PLUGIN-MIGRATION-001-G | 2026-05-27 | product-owner | ADR-023 amendment: removed PENDING AMENDMENT banner; added Amendment Note to Description; updated Description prose from deleted `CyberintAuth` Rust adapter to TOML spec `auth_type = "cookie_roundtrip"` declarative language; updated DI-012 invariant from sealed-trait to `SpecLoader::validate_cross_composition()` runtime enforcement per BC-2.01.016; set amendment_lifecycle to null; bumped status draft→active. Behavioral semantics (preconditions, postconditions, error cases, test vectors) unchanged. |
 | 1.4 | prereq-f | 2026-05-11 | product-owner | PREREQ-F prefix note: added PENDING AMENDMENT — ADR-023 callout under H1 per ADR-023 L370 wording; added scheduled_amendment_in: ADR-023 and amendment_lifecycle: pending to frontmatter. No semantic change to BC body. Full amendment in Wave 2/G. |
 | 1.3 | pass-73-fix | 2026-04-20 | state-manager | Deterministic changelog reorder: sorted all rows to descending version order (pass-73 bash script). |
 | 1.2 | pass-69-housekeeping | 2026-04-20 | product-owner | Normalized changelog schema to canonical 5-col schema. |

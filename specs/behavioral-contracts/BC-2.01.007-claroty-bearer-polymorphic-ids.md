@@ -2,7 +2,7 @@
 document_type: behavioral-contract
 level: L3
 version: "1.5"
-status: draft
+status: active
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
 phase: 1a
@@ -36,12 +36,12 @@ removal_reason: null
 > hardcoded Rust adapter (`ClarotyAuth`). That implementation was deleted in
 > PLUGIN-MIGRATION-001-A (PR #156). The auth behavior described here is now delivered by the
 > Claroty TOML sensor spec (`.prism/specs/sensors/claroty.sensor.toml`)
-> with `[auth] type = "bearer_static"` (declarative TOML; no `.prx` WASM plugin required
+> with `auth_type = "bearer_static"` (declarative TOML; no `.prx` WASM plugin required
 > for this auth mechanism). The behavioral contract itself is unchanged — preconditions,
 > postconditions, and invariants describe what the system must do, not how. The `SensorAuth`
 > open trait (BC-2.01.016) is the runtime interface.
 
-The Claroty xDome sensor authenticates via bearer token declared in the TOML spec under `[auth] type = "bearer_static"` and uses Claroty's POST-for-read pattern (POST requests for read operations). A key behavioral detail is polymorphic ID normalization: Claroty returns IDs inconsistently as either JSON numbers (`12345`) or JSON strings (`"12345"`), which the spec-driven adapter normalizes to a `PolymorphicId` enum for deterministic cursor comparison and deduplication. Cursor arity varies by source: 2-tuple for most, 3-tuple where required.
+The Claroty xDome sensor authenticates via bearer token declared in the TOML spec under `auth_type = "bearer_static"` and uses Claroty's POST-for-read pattern (POST requests for read operations). A key behavioral detail is polymorphic ID normalization: Claroty returns IDs inconsistently as either JSON numbers (`12345`) or JSON strings (`"12345"`), which the spec-driven adapter normalizes to a `PolymorphicId` enum for deterministic cursor comparison and deduplication. Cursor arity varies by source: 2-tuple for most, 3-tuple where required.
 
 ## Preconditions
 - Claroty xDome sensor is configured with a bearer token credential
@@ -95,7 +95,7 @@ The Claroty xDome sensor authenticates via bearer token declared in the TOML spe
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
-| 1.5 | PLUGIN-MIGRATION-001-G | 2026-05-27 | product-owner | ADR-023 amendment: removed PENDING AMENDMENT banner; added Amendment Note to Description; updated Description prose from deleted `ClarotyAuth` Rust adapter to TOML spec `[auth] type = "bearer_static"` declarative language; updated DI-012 invariant from sealed-trait to `SpecLoader::validate_cross_composition()` runtime enforcement per BC-2.01.016; set amendment_lifecycle to null. Behavioral semantics (preconditions, postconditions, error cases, test vectors) unchanged. |
+| 1.5 | PLUGIN-MIGRATION-001-G | 2026-05-27 | product-owner | ADR-023 amendment: removed PENDING AMENDMENT banner; added Amendment Note to Description; updated Description prose from deleted `ClarotyAuth` Rust adapter to TOML spec `auth_type = "bearer_static"` declarative language; updated DI-012 invariant from sealed-trait to `SpecLoader::validate_cross_composition()` runtime enforcement per BC-2.01.016; set amendment_lifecycle to null; bumped status draft→active. Behavioral semantics (preconditions, postconditions, error cases, test vectors) unchanged. |
 | 1.4 | prereq-f | 2026-05-11 | product-owner | PREREQ-F prefix note: added PENDING AMENDMENT — ADR-023 callout under H1 per ADR-023 L370 wording; added scheduled_amendment_in: ADR-023 and amendment_lifecycle: pending to frontmatter. No semantic change to BC body. Full amendment in Wave 2/G. |
 | 1.3 | pass-73-fix | 2026-04-20 | state-manager | Deterministic changelog reorder: sorted all rows to descending version order (pass-73 bash script). |
 | 1.2 | pass-69-housekeeping | 2026-04-20 | product-owner | Normalized changelog schema to canonical 5-col schema. |
