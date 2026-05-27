@@ -1,0 +1,33 @@
+PLUGIN-MIGRATION-001-F — AC-007: CI Job Evidence
+================================================
+Date: 2026-05-27
+Command: grep -A5 'no-hardcoded-sensors-compile-fail' .github/workflows/ci.yml | head -20
+
+Output:
+  no-hardcoded-sensors-compile-fail:
+    name: "ADR-023 No-Hardcoded-Sensors compile-fail gate (AC-006 PLUGIN-MIGRATION-001-F)"
+    # AC-006 (PLUGIN-MIGRATION-001-F) postcondition: the 4 sensor-named auth module paths
+    # deleted in PLUGIN-MIGRATION-001-A (prism_sensors::auth::{armis,claroty,crowdstrike,cyberint})
+    # MUST NOT be reachable from outside prism-sensors.
+    # This job compiles tests/external/no-hardcoded-sensors (a deliberate violator crate
+--
+          shared-key: no-hardcoded-sensors-compile-fail
+      - name: Assert no-hardcoded-sensors does NOT compile (E0432 expected)
+        run: |
+          set -uo pipefail
+          cargo check \
+            --color=never \
+--
+          # The no-hardcoded-sensors-compile-fail job is the SOLE CI gate enforcing ADR-023
+          # Rule 3 (no sensor-named module references outside DTU clones). A future PR
+          # removing this job block would silently allow regression of the deleted auth
+          # modules (prism_sensors::auth::{armis,claroty,crowdstrike,cyberint}).
+          grep -qE 'no-hardcoded-sensors-compile-fail' .github/workflows/ci.yml || {
+            echo "::error::AC-006 PLUGIN-MIGRATION-001-F: 'no-hardcoded-sensors-compile-fail' job is missing from ci.yml — ADR-023 Rule 3 compile-fail enforcement removed"
+
+---
+AC-007 VERDICT: PASS
+  - Job name "no-hardcoded-sensors-compile-fail" exists in .github/workflows/ci.yml
+  - Job uses --color=never and --manifest-path (mirrors perimeter-compile-fail pattern)
+  - Job contains per-symbol positive-coverage assertions for all 4 deleted auth symbols
+  - Job contains self-referential guard to detect accidental job removal from CI

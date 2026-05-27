@@ -1,0 +1,32 @@
+PLUGIN-MIGRATION-001-F — AC-005 + AC-008: Exemption Comment Evidence
+====================================================================
+Date: 2026-05-27
+Command: rg 'ADR-023.*DTU-EXEMPT' crates/prism-dtu-*/tests/ crates/prism-dtu-harness/src/clones/
+
+Output:
+crates/prism-dtu-claroty/tests/bc_3_4_claroty_generator.rs:// tests/external/no-hardcoded-sensors/ compile-fail gate per ADR-023 §DTU-EXEMPT.
+crates/prism-dtu-cyberint/tests/bc_3_4_cyberint_generator.rs:// tests/external/no-hardcoded-sensors/ compile-fail gate per ADR-023 §DTU-EXEMPT.
+crates/prism-dtu-crowdstrike/tests/bc_3_4_crowdstrike_generator.rs:// tests/external/no-hardcoded-sensors/ compile-fail gate per ADR-023 §DTU-EXEMPT.
+crates/prism-dtu-armis/tests/bc_3_4_armis_generator.rs:// tests/external/no-hardcoded-sensors/ compile-fail gate per ADR-023 §DTU-EXEMPT.
+crates/prism-dtu-harness/src/clones/crowdstrike.rs:// ADR-023 §DTU-EXEMPT: This file IS the DTU behavioral clone for CrowdStrike.
+crates/prism-dtu-harness/src/clones/armis.rs:// ADR-023 §DTU-EXEMPT: This file IS the DTU behavioral clone for Armis.
+crates/prism-dtu-harness/src/clones/cyberint.rs:// ADR-023 §DTU-EXEMPT: This file IS the DTU behavioral clone for Cyberint.
+crates/prism-dtu-harness/src/clones/claroty.rs:// ADR-023 §DTU-EXEMPT: This file IS the DTU behavioral clone for Claroty.
+
+---
+Coverage Map:
+
+AC-005 — DTU generator test files audited (4 files):
+  crates/prism-dtu-armis/tests/bc_3_4_armis_generator.rs       -> ADR-023 §DTU-EXEMPT comment PRESENT
+  crates/prism-dtu-claroty/tests/bc_3_4_claroty_generator.rs   -> ADR-023 §DTU-EXEMPT comment PRESENT
+  crates/prism-dtu-crowdstrike/tests/bc_3_4_crowdstrike_generator.rs -> ADR-023 §DTU-EXEMPT comment PRESENT
+  crates/prism-dtu-cyberint/tests/bc_3_4_cyberint_generator.rs -> ADR-023 §DTU-EXEMPT comment PRESENT
+
+AC-008 — DTU harness clone files audited (4 files):
+  crates/prism-dtu-harness/src/clones/crowdstrike.rs  -> ADR-023 §DTU-EXEMPT comment PRESENT
+  crates/prism-dtu-harness/src/clones/armis.rs        -> ADR-023 §DTU-EXEMPT comment PRESENT
+  crates/prism-dtu-harness/src/clones/cyberint.rs     -> ADR-023 §DTU-EXEMPT comment PRESENT
+  crates/prism-dtu-harness/src/clones/claroty.rs      -> ADR-023 §DTU-EXEMPT comment PRESENT
+
+AC-005 VERDICT: PASS — all 4 DTU generator test files carry exemption comments
+AC-008 VERDICT: PASS — all 4 DTU harness clone files carry ADR-023 §DTU-EXEMPT comments
