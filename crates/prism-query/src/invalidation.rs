@@ -314,10 +314,12 @@ pub static WRITE_TOOL_INVALIDATION_MAP: LazyLock<Vec<WriteToolInvalidationMap>> 
 /// Populate `DYNAMIC_WRITE_TOOLS` from the built-in static map.
 ///
 /// Called ONCE at boot, before `mark_query_phase_started()`. After this call,
-/// `WRITE_TOOL_INVALIDATION_MAP` is no longer consulted — all invalidation goes
-/// through `DYNAMIC_WRITE_TOOLS`.
+/// `DYNAMIC_WRITE_TOOLS` contains a copy of all built-in entries. Both the static
+/// `WRITE_TOOL_INVALIDATION_MAP` and `DYNAMIC_WRITE_TOOLS` are still consulted by
+/// `invalidate_for_*` methods (transitional; see `WRITE_TOOL_INVALIDATION_MAP` doc
+/// comment for removal plan).
 ///
-/// Idempotent if called on an already-populated registry (duplicate tool_name
+/// Not idempotent: if called on an already-populated registry (duplicate tool_name
 /// returns `Err(DuplicateWriteToolRegistration)` per BC-2.16.012 EC-016-012-004 —
 /// caller must ensure this is called exactly once per process).
 ///
