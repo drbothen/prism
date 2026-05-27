@@ -653,7 +653,7 @@ pub fn validate_auth_plugin_registered(
 ///
 /// Companion to `validate_auth_plugin_registered` — accepts `sensor_id` and `auth_plugin`
 /// as primitive refs rather than `spec_parser::SensorSpec`. Used by boot.rs step 7.5b to
-/// validate `types::SensorSpec` entries from the ConfigSnapshot (F-LP2-CRIT-002 closure).
+/// validate sensor spec entries from the ConfigSnapshot (F-LP2-CRIT-002 closure).
 ///
 /// Story: PLUGIN-MIGRATION-001-E / F-LP2-CRIT-002
 /// Traces to: BC-2.01.016 §Error Cases; ADR-028 §D2; error-taxonomy.md E-SPEC-012

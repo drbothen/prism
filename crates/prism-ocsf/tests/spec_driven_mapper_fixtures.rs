@@ -67,13 +67,18 @@ fn empty_plugin_runtime() -> Arc<PluginRuntime> {
 ///
 /// `sensor_id` must match whatever `SpecDrivenMapper::sensor_id()` returns for it
 /// to be dispatched correctly by `OcsfNormalizer::normalize_with_mappers()`.
+///
+/// NOTE: `table_name` is passed UNQUALIFIED (e.g., `"detections"` not
+/// `"crowdstrike.detections"`) — mirroring how TOML loading stores table names in
+/// `spec_parser::TableSpec.table_name`. Qualification as `{sensor_id}.{table_name}`
+/// happens at DataFusion registration time (MED-001 fix).
 fn config_manager_with_ocsf_columns(
     sensor_id: &str,
     table_name: &str,
     columns: Vec<ColumnSpec>,
 ) -> Arc<ConfigManager> {
     let table = TableSpec::new_point_in_time(
-        format!("{}.{}", sensor_id, table_name),
+        table_name, // UNQUALIFIED — matches TOML-loaded spec behavior (MED-001)
         "security_finding",
         columns,
         vec![],
