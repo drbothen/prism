@@ -13,19 +13,16 @@ name = "prism_sensors"
 prism-core = { path = "../prism-core" }
 # S-3.07 — write() method needs WriteEndpointSpec for HTTP step dispatch.
 prism-spec-engine = { path = "../prism-spec-engine" }
-prism-credentials = { path = "../prism-credentials" }
 prism-storage = { path = "../prism-storage" }
 
 async-trait = "0.1"
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "time", "sync"] }
 tokio-util = { version = "0.7", features = ["rt"] }
 futures = "0.3"
-reqwest = { version = "0.12", features = ["json", "rustls-tls", "cookies"], default-features = false }
+reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-features = false }
 rand = "0.8"
-secrecy = "0.8"
 chrono = { version = "0.4", features = ["serde"] }
 uuid = { version = "1", features = ["serde", "v4"] }
-tokio-stream = "0.1"
 arrow = { version = "58", features = ["ipc"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
@@ -40,18 +37,8 @@ prism-storage = { path = "../prism-storage", version = "0.1.0", features = ["tes
 proptest = "1"
 tempfile = "3"
 
-# S-3.07 — BC-2.04.001 compile-time write feature gates (deny-by-default per DI-003).
-# Each sensor's write code is gated behind a separate Cargo feature.
-# Default features intentionally excludes all *-write features.
-[features]
-crowdstrike-write = []
-cyberint-write = []
-claroty-write = []
-armis-write = []
-all-write = ["crowdstrike-write", "cyberint-write", "claroty-write", "armis-write"]
-
 [lints.rust]
-unexpected_cfgs = { level = "warn", check-cfg = ['cfg(kani)', 'cfg(feature, values("crowdstrike-write", "cyberint-write", "claroty-write", "armis-write", "all-write"))'] }
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(kani)'] }
 non_snake_case = "allow"
 
 [lints.clippy]

@@ -1,34 +1,36 @@
-//! RED integration tests for S-3.1.06-ImplPhase: adapter OrgId binding.
+//! Integration tests for PLUGIN-MIGRATION-001-A: adapter OrgId binding post-deletion.
 //!
-//! These tests verify the structural OrgId enforcement contracts defined in
-//! BC-3.1.001–BC-3.1.004 (org identity) and BC-3.2.001 (per-org sensor data
-//! isolation). Every test in this file is a RED test — all will panic at runtime
-//! with `todo!()` until the implementation phase wires `OrgId` through the full
-//! adapter construction and registry dispatch stack.
+//! After PLUGIN-MIGRATION-001-A, all four built-in sensor adapters (CrowdStrike,
+//! Cyberint, Claroty, Armis) have been deleted from `prism-sensors`. The
+//! `init_registry_for_org` function now accepts only `org_id: OrgId` and returns
+//! an empty `AdapterRegistry`. Spec-catalog dispatch (populating the registry from
+//! loaded `SensorSpec` catalog via `PluginRegistry`) is wired in `prism-bin` at
+//! boot time (BC-2.16.012 INV-SPEC-PARSER-OPEN-001; GAP-002-A deferred to
+//! S-WAVE5-PREP-01 / S-3.02-FOLLOWUP-RUNTIME).
 //!
-//! # Test Naming
-//! All tests follow the `test_AC_NNN_*` pattern for traceability to story ACs.
+//! # Tests retained
 //!
-//! # Red Gate Invariant
-//! Before the implementation phase begins:
-//! - `test_AC_001_*` — panics in `init_registry_for_org` (`todo!()`)
-//! - `test_AC_002_*` — panics in `AdapterRegistry::register` or `get` (`todo!()`)
-//! - `test_AC_003_*` — panics in adapter `fetch()` (org_id mismatch guard is not
-//!   yet executed; currently panics via `todo!()` in `init_registry_for_org`)
-//! - `test_AC_004_*` — panics verifying `OrgIdMismatch` variant exists (compiles)
-//! - `test_AC_005_*` — deprecation attribute smoke test (compile-time check)
+//! - `test_AC_001_*` — init_registry_for_org accepts org_id and returns a registry
+//! - `test_AC_002_*` — AdapterRegistry (OrgId, SensorId) composite key — uses test
+//!   adapter stubs since built-in adapters are deleted
+//! - `test_AC_003_*` — OrgIdMismatch enforcement — use a test adapter stub
+//! - `test_AC_004_*` — deprecated init_registry() smoke test (new zero-arg signature)
+//! - `test_AC_005_*` — init_registry_for_org with valid OrgId returns empty registry
+//! - `test_AC_006_*` — OrgId sentinel construction idempotence
 //!
-//! Story: S-3.1.06-ImplPhase | BCs: BC-3.1.001, BC-3.1.002, BC-3.1.003, BC-3.1.004, BC-3.2.001
+//! Story: S-3.1.06-ImplPhase → PLUGIN-MIGRATION-001-A | BCs: BC-3.2.001
+
 #![allow(clippy::expect_used, clippy::unwrap_used)]
 
-use secrecy::SecretString;
+use std::sync::Arc;
 
-use prism_sensors::adapter::{QueryParams, SensorError, SensorSpec};
-use prism_sensors::auth::armis::{ArmisAdapter, ArmisAuth};
-use prism_sensors::auth::SensorAuth;
+use arrow::record_batch::RecordBatch;
+use async_trait::async_trait;
+use prism_core::SensorId;
 use prism_sensors::{
-    AdapterRegistry, ArmisAuth as PubArmisAuth, ClarotyAuth, CrowdStrikeAuth, CyberintAuth, OrgId,
-    SensorAdapter,
+    adapter::{QueryParams, SensorAdapter, SensorError, SensorSpec},
+    auth::SensorAuth,
+    AdapterRegistry, OrgId,
 };
 
 // ---------------------------------------------------------------------------
@@ -36,10 +38,6 @@ use prism_sensors::{
 // ---------------------------------------------------------------------------
 
 /// Returns the canonical test-sentinel `OrgId` for org A.
-///
-/// Replicates `DEFAULT_ORG_ID_BYTES` from `lib.rs` (same byte value).
-/// `DEFAULT_ORG_ID_BYTES` is `#[cfg(test)]` gated in the library and therefore
-/// not accessible from external integration test crates; we inline the value.
 fn org_a() -> OrgId {
     OrgId::from_uuid(uuid::Uuid::from_bytes([
         0x01, 0x8e, 0x3f, 0x71, 0x5c, 0x6d, 0x7a, 0x8b, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -50,6 +48,52 @@ fn org_a() -> OrgId {
 /// Returns a fresh `OrgId` for org B (distinct from `org_a()`).
 fn org_b() -> OrgId {
     OrgId::new()
+}
+
+/// Minimal test-only `SensorAuth` impl (all built-in impls deleted in PLUGIN-MIGRATION-001-A).
+struct StubAuth;
+
+impl SensorAuth for StubAuth {
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+    fn auth_type_name(&self) -> &'static str {
+        "custom_via_plugin"
+    }
+}
+
+/// Minimal test-only `SensorAdapter` for testing registry keying.
+///
+/// Used in tests that previously used ArmisAdapter (deleted in PLUGIN-MIGRATION-001-A).
+struct StubAdapter {
+    org_id: OrgId,
+    sensor_id: SensorId,
+}
+
+#[async_trait]
+impl SensorAdapter for StubAdapter {
+    fn sensor_type(&self) -> SensorId {
+        self.sensor_id.clone()
+    }
+
+    fn sensor_name(&self) -> &'static str {
+        "stub"
+    }
+
+    async fn fetch(
+        &self,
+        spec: &SensorSpec,
+        _params: &QueryParams,
+        _auth: &dyn SensorAuth,
+    ) -> Result<Vec<RecordBatch>, SensorError> {
+        if spec.org_id != self.org_id {
+            return Err(SensorError::OrgIdMismatch {
+                adapter_org_id: self.org_id,
+                query_org_id: spec.org_id,
+            });
+        }
+        Ok(vec![])
+    }
 }
 
 /// Minimal `SensorSpec` with the given `org_id`.
@@ -63,71 +107,38 @@ fn make_spec(org_id: OrgId, table: &str) -> SensorSpec {
     }
 }
 
-fn make_armis_auth(instance_url: &str) -> ArmisAuth {
-    ArmisAuth {
-        instance_url: instance_url.to_string(),
-        secret_key: SecretString::new("test-armis-secret".into()),
-    }
-}
-
 // ---------------------------------------------------------------------------
-// AC-001: init_registry_for_org uses org_id in adapter constructors
+// AC-001: init_registry_for_org accepts org_id in its signature
 // (traces to BC-3.1.001 postcondition 1 and BC-3.2.001 precondition 4)
 // ---------------------------------------------------------------------------
 
-/// AC-001 (RED): `init_registry_for_org` with org_id_A must produce a registry
-/// that returns `Some` for `(org_id_A, SensorId::from("crowdstrike"))` and `None`
-/// for `(org_id_B, SensorId::from("crowdstrike"))` where org_id_B ≠ org_id_A.
+/// AC-001: `init_registry_for_org` with org_id_A must produce a registry
+/// (even if empty after PLUGIN-MIGRATION-001-A deletion — spec-catalog dispatch
+/// populates it in prism-bin at boot time, not here).
 ///
-/// RED: panics via `todo!("AC-001: propagate org_id through adapter constructors")`
-/// in `init_registry_for_org` until the implementation phase.
-///
-/// Story: S-3.1.06-ImplPhase | AC-001 | BC-3.2.001 precondition 4
+/// Story: S-3.1.06-ImplPhase → PLUGIN-MIGRATION-001-A AC-004 | BC-3.2.001 precondition 4
 #[test]
 fn test_AC_001_init_registry_for_org_uses_org_id_in_signature() {
-    use prism_core::SensorId;
     use prism_sensors::init_registry_for_org;
 
     let a = org_a();
     let b = org_b();
     assert_ne!(a, b, "test precondition: org_a and org_b must be distinct");
 
-    let cs_auth = CrowdStrikeAuth {
-        client_id: "cs-test".into(),
-        client_secret: SecretString::new("cs-secret".into()),
-        cloud_region: "us-1".into(),
-    };
-    let cy_auth = CyberintAuth {
-        environment: "portal".into(),
-        api_key: SecretString::new("cy-key".into()),
-    };
-    let cl_auth = ClarotyAuth {
-        instance_url: "https://claroty.example.com".into(),
-        username: "user".into(),
-        password: SecretString::new("pass".into()),
-    };
-    let ar_auth = PubArmisAuth {
-        instance_url: "https://armis.example.com".into(),
-        secret_key: SecretString::new("ar-key".into()),
-    };
+    // After PLUGIN-MIGRATION-001-A: init_registry_for_org takes only org_id.
+    // Returns empty registry — spec-catalog dispatch is in prism-bin (GAP-002-A).
+    let registry = init_registry_for_org(a);
 
-    // RED: init_registry_for_org panics with todo!() until implementation wires org_id
-    let registry = init_registry_for_org(
-        a,
-        &cs_auth,
-        &cy_auth,
-        &cl_auth,
-        SecretString::new("claroty-tok".into()),
-        &ar_auth,
-        SecretString::new("armis-tok".into()),
+    // Empty after deletion — spec-catalog dispatch wired in prism-bin (AC-004, GAP-002-A).
+    assert_eq!(
+        registry.len(),
+        0,
+        "AC-001: init_registry_for_org post-deletion returns empty registry \
+         (spec-catalog dispatch in prism-bin, BC-2.16.012); got len={}",
+        registry.len()
     );
 
-    // After implementation: registry keyed under org_a should have CrowdStrike
-    assert!(
-        registry.get(a, &SensorId::from("crowdstrike")).is_some(),
-        "AC-001: registry for org_a must contain CrowdStrike adapter"
-    );
-    // After implementation: registry for org_a should NOT serve org_b
+    // Cross-org isolation: registry for org_a never serves org_b (empty in both cases).
     assert!(
         registry.get(b, &SensorId::from("crowdstrike")).is_none(),
         "AC-001: registry for org_a must NOT return adapter for org_b"
@@ -139,47 +150,36 @@ fn test_AC_001_init_registry_for_org_uses_org_id_in_signature() {
 // (traces to BC-3.2.001 invariant 1 and BC-3.1.003 invariant 2)
 // ---------------------------------------------------------------------------
 
-/// AC-002 (RED): Registering adapters for two distinct OrgIds under the same
+/// AC-002: Registering adapters for two distinct OrgIds under the same
 /// SensorId produces two independent registry entries.
 ///
-/// Specifically: `get(org_id_A, SensorId::from("crowdstrike"))` and
-/// `get(org_id_B, SensorId::from("crowdstrike"))` must return different Arc pointers.
+/// Uses `StubAdapter` since built-in adapters were deleted in PLUGIN-MIGRATION-001-A.
 ///
-/// RED: panics via `todo!()` in `AdapterRegistry::register` until implementation.
-///
-/// Story: S-3.1.06-ImplPhase | AC-002 | BC-3.2.001 invariant 1
+/// Story: S-3.1.06-ImplPhase → PLUGIN-MIGRATION-001-A AC-003 | BC-3.2.001 invariant 1
 #[test]
 fn test_AC_002_adapter_registry_keyed_by_org_id_and_sensor_type() {
-    use prism_core::SensorId;
-    use std::sync::Arc;
-
     let a = org_a();
     let b = org_b();
     assert_ne!(a, b, "test precondition: org_a and org_b must be distinct");
 
-    // Build two minimal ArmisAdapters for the two orgs
-    let auth_a = make_armis_auth("https://a.armis.com");
-    let auth_b = make_armis_auth("https://b.armis.com");
-
-    let adapter_a: Arc<dyn SensorAdapter> = Arc::new(ArmisAdapter::new(
-        a,
-        &auth_a,
-        SecretString::new("tok-a".into()),
-    ));
-    let adapter_b: Arc<dyn SensorAdapter> = Arc::new(ArmisAdapter::new(
-        b,
-        &auth_b,
-        SecretString::new("tok-b".into()),
-    ));
+    // Build two minimal test adapters for the two orgs.
+    // (ArmisAdapter deleted in PLUGIN-MIGRATION-001-A; use StubAdapter.)
+    let adapter_a: Arc<dyn SensorAdapter> = Arc::new(StubAdapter {
+        org_id: a,
+        sensor_id: SensorId::from("armis"),
+    });
+    let adapter_b: Arc<dyn SensorAdapter> = Arc::new(StubAdapter {
+        org_id: b,
+        sensor_id: SensorId::from("armis"),
+    });
     let ptr_a = Arc::as_ptr(&adapter_a);
     let ptr_b = Arc::as_ptr(&adapter_b);
 
     let mut registry = AdapterRegistry::new();
-    // RED: register panics via todo!() until implementation
     registry.register(a, adapter_a);
     registry.register(b, adapter_b);
 
-    // After implementation: separate entries per org
+    // After registration: separate entries per org.
     let got_a = registry
         .get(a, &SensorId::from("armis"))
         .expect("AC-002: adapter for org_a must be registered");
@@ -203,11 +203,10 @@ fn test_AC_002_adapter_registry_keyed_by_org_id_and_sensor_type() {
         "AC-002: org_a and org_b adapters must be distinct Arc instances"
     );
 
-    // EC-001: org_a's adapter must NOT be visible via org_b's key
-    // (by pointer: the pointer addresses for a and b are different, proven above)
+    // EC-001: org_a's adapter must NOT be visible via org_b's key.
     assert!(
         registry.get(b, &SensorId::from("crowdstrike")).is_none(),
-        "AC-002: org_b must not have a CrowdStrike adapter (only Armis was registered for org_b)"
+        "AC-002: org_b must not have a CrowdStrike adapter (only Armis stub was registered for org_b)"
     );
 }
 
@@ -216,75 +215,39 @@ fn test_AC_002_adapter_registry_keyed_by_org_id_and_sensor_type() {
 // (traces to BC-3.2.001 precondition 4 / EC-003 / EC-004)
 // ---------------------------------------------------------------------------
 
-/// AC-003 (RED): Constructing an ArmisAdapter for org_A, then calling `fetch()`
+/// AC-003: Constructing a StubAdapter for org_A, then calling `fetch()`
 /// with a SensorSpec carrying org_B, must return
 /// `Err(SensorError::OrgIdMismatch { .. })`.
 ///
-/// No network call must be issued (the mismatch guard fires before any I/O).
+/// Uses `StubAdapter` since ArmisAdapter was deleted in PLUGIN-MIGRATION-001-A.
 ///
-/// # RED failure explanation
-/// In the pre-implementation state, `ArmisAdapter::fetch()` has NO OrgId mismatch
-/// guard.  It proceeds past the guard site and into `build_aql()` / `get_search()`.
-/// The HTTP call fails immediately with a connection-refused error against the
-/// loopback address (127.0.0.1:1), returning `SensorError::Internal { .. }`.
-///
-/// The test fails at the `matches!(err, SensorError::OrgIdMismatch { .. })`
-/// assertion with a message like:
-///   "AC-003: error must be OrgIdMismatch … got: Internal { detail: "… connection refused" }"
-///
-/// This failure directly points at the production gap: the early-return guard
-/// ```ignore
-/// if spec.org_id != self.org_id {
-///     return Err(SensorError::OrgIdMismatch { .. });
-/// }
-/// ```
-/// must be added at the top of `ArmisAdapter::fetch()` (and every other
-/// adapter's `fetch()`) to make this test pass (BC-3.2.001 precondition 4,
-/// AC-004 in the story).
-///
-/// Using `127.0.0.1:1` (loopback port 1) guarantees an immediate connection-
-/// refused error without DNS lookup — deterministic and fast regardless of
-/// network environment.
-///
-/// Story: S-3.1.06-ImplPhase | AC-003 / AC-004 | BC-3.2.001 EC-003 / EC-004
+/// Story: S-3.1.06-ImplPhase → PLUGIN-MIGRATION-001-A | BC-3.2.001 EC-003 / EC-004
 #[tokio::test]
 async fn test_AC_003_org_id_mismatch_returns_typed_error() {
     let a = org_a();
     let b = org_b();
     assert_ne!(a, b, "test precondition: org_a and org_b must be distinct");
 
-    // Use loopback port 1 — immediately connection-refused without DNS lookup.
-    // This ensures the test fails deterministically at the assertion rather than
-    // timing out waiting for a real network response.
-    let auth = make_armis_auth("http://127.0.0.1:1");
-    // Adapter constructed for org_a
-    let adapter = ArmisAdapter::new(a, &auth, SecretString::new("tok".into()));
+    // Adapter constructed for org_a.
+    let adapter = StubAdapter {
+        org_id: a,
+        sensor_id: SensorId::from("stub"),
+    };
 
-    // Spec carries org_b — mismatch
-    let spec = make_spec(b, "armis_device");
+    // Spec carries org_b — mismatch.
+    let spec = make_spec(b, "stub_table");
     let params = QueryParams::default();
+    let auth = StubAuth;
 
-    // RED: ArmisAdapter::fetch() has no OrgId mismatch guard yet.
-    // It falls through to build_aql() and get_search(), which fails with
-    // SensorError::Internal (connection refused to 127.0.0.1:1).
-    //
-    // GREEN: once the guard `if spec.org_id != self.org_id { return Err(OrgIdMismatch) }`
-    // is added at the top of fetch(), the HTTP call is never reached and this
-    // test passes.
     let result = adapter
         .fetch(&spec, &params, &auth as &dyn SensorAuth)
         .await;
 
-    // After implementation: must be Err(OrgIdMismatch { .. }).
-    // In RED state: result is Err(Internal { .. }) from connection refused —
-    // the assertion below fails, pointing directly at the missing guard.
     assert!(
         result.is_err(),
         "AC-003: dispatch with mismatched OrgId must return Err; got Ok"
     );
     let err = result.unwrap_err();
-    // RED failure point: this assertion fails with "got: Internal { detail: … connection refused }"
-    // The implementer must add the OrgId mismatch guard BEFORE the HTTP call to make this pass.
     assert!(
         matches!(
             err,
@@ -294,9 +257,7 @@ async fn test_AC_003_org_id_mismatch_returns_typed_error() {
             } if *adapter_org_id == a && *query_org_id == b
         ),
         "AC-003: error must be SensorError::OrgIdMismatch {{ adapter_org_id: {a}, query_org_id: {b} }}; \
-         got: {err:?} — \
-         PRODUCTION GAP: add `if spec.org_id != self.org_id {{ return Err(OrgIdMismatch {{ .. }}) }}` \
-         at the top of ArmisAdapter::fetch() (BC-3.2.001 precondition 4)"
+         got: {err:?}"
     );
     assert!(
         !err.is_transient(),
@@ -309,51 +270,29 @@ async fn test_AC_003_org_id_mismatch_returns_typed_error() {
 // (traces to BC-3.1.001 invariant 1 — org identity resolution available during migration)
 // ---------------------------------------------------------------------------
 
-/// AC-004 (compile-time / smoke): `init_registry` is `#[deprecated]` — calling
-/// it with `#[allow(deprecated)]` must compile but must panic with `todo!()` at
-/// runtime since adapters now require OrgId.
+/// AC-004 (smoke): `init_registry` is `#[deprecated]` — calling it with
+/// `#[allow(deprecated)]` must compile and return an empty registry.
 ///
-/// The deprecation attribute is verified structurally: the test block would NOT
-/// compile without `#[allow(deprecated)]`, confirming the attribute is present.
+/// After PLUGIN-MIGRATION-001-A: init_registry() takes NO arguments (all
+/// built-in adapter credential parameters removed).
 ///
-/// Story: S-3.1.06-ImplPhase | AC-005 | BC-3.1.001 invariant 1
+/// Story: PLUGIN-MIGRATION-001-A AC-003/AC-005 | BC-3.1.001 invariant 1
 #[test]
 fn test_AC_004_legacy_init_registry_deprecated_warning() {
-    use prism_sensors::{init_registry, ArmisAuth as PubArmisAuth2};
-
-    let cs_auth = CrowdStrikeAuth {
-        client_id: "cs-id".into(),
-        client_secret: SecretString::new("cs-secret".into()),
-        cloud_region: "us-1".into(),
-    };
-    let cy_auth = CyberintAuth {
-        environment: "portal".into(),
-        api_key: SecretString::new("cy-key".into()),
-    };
-    let cl_auth = ClarotyAuth {
-        instance_url: "https://acme.claroty.com".into(),
-        username: "user".into(),
-        password: SecretString::new("pass".into()),
-    };
-    let ar_auth = PubArmisAuth2 {
-        instance_url: "https://acme.armis.com".into(),
-        secret_key: SecretString::new("ar-key".into()),
-    };
+    use prism_sensors::init_registry;
 
     // `#[allow(deprecated)]` is required to call `init_registry`.
     // Its presence here proves the function has `#[deprecated]` on it.
-    // At runtime this panics via todo!() because adapters require OrgId (AC-001).
+    // After PLUGIN-MIGRATION-001-A: zero arguments, returns empty registry.
     #[allow(deprecated)]
-    let _registry = init_registry(
-        &cs_auth,
-        &cy_auth,
-        &cl_auth,
-        SecretString::new("cl-tok".into()),
-        &ar_auth,
-        SecretString::new("ar-tok".into()),
+    let registry = init_registry();
+
+    // Empty registry — spec-catalog dispatch is in prism-bin.
+    assert_eq!(
+        registry.len(),
+        0,
+        "AC-004: deprecated init_registry post-deletion returns empty registry"
     );
-    // If we reach here (post-implementation): confirms deprecated path still compiles
-    // for the migration window (AC-005 — removal deferred to Wave 5).
 }
 
 // ---------------------------------------------------------------------------
@@ -361,163 +300,74 @@ fn test_AC_004_legacy_init_registry_deprecated_warning() {
 // (traces to BC-3.1.003 invariant 1 — bijectivity at all times)
 // ---------------------------------------------------------------------------
 
-/// AC-005 (RED): `init_registry_for_org` with a valid OrgId must return a
-/// registry where `len()` == 4 (all four built-in adapters registered under
-/// the given OrgId).
+/// AC-005: `init_registry_for_org` with a valid OrgId returns an empty registry.
 ///
-/// This test mirrors the existing `test_BC_3_2_001_init_registry_for_org_accepts_org_id_parameter`
-/// from `bc_3_2_001_org_id_dispatch.rs`, but from the external test harness to
-/// confirm the public API is correct for downstream callers.
+/// After PLUGIN-MIGRATION-001-A: all four built-in adapters are deleted;
+/// registry is populated by spec-catalog dispatch in prism-bin at boot time
+/// (GAP-002-A; S-WAVE5-PREP-01 / S-3.02-FOLLOWUP-RUNTIME).
 ///
-/// RED: panics via `todo!()` in `init_registry_for_org` until implementation.
-///
-/// Story: S-3.1.06-ImplPhase | AC-005 / AC-006 | BC-3.1.003 invariant 1
+/// Story: PLUGIN-MIGRATION-001-A AC-004 | BC-3.1.003 invariant 1
 #[test]
 fn test_AC_005_downstream_callers_migrate_to_init_registry_for_org() {
     use prism_sensors::init_registry_for_org;
 
     let org_id = org_a();
 
-    let cs_auth = CrowdStrikeAuth {
-        client_id: "cs-id".into(),
-        client_secret: SecretString::new("cs-secret".into()),
-        cloud_region: "us-1".into(),
-    };
-    let cy_auth = CyberintAuth {
-        environment: "portal".into(),
-        api_key: SecretString::new("cy-key".into()),
-    };
-    let cl_auth = ClarotyAuth {
-        instance_url: "https://acme.claroty.com".into(),
-        username: "user".into(),
-        password: SecretString::new("pass".into()),
-    };
-    let ar_auth = PubArmisAuth {
-        instance_url: "https://acme.armis.com".into(),
-        secret_key: SecretString::new("ar-key".into()),
-    };
+    // After PLUGIN-MIGRATION-001-A: init_registry_for_org takes only org_id.
+    let registry = init_registry_for_org(org_id);
 
-    // RED: panics via todo!() until implementation
-    let registry = init_registry_for_org(
-        org_id,
-        &cs_auth,
-        &cy_auth,
-        &cl_auth,
-        SecretString::new("cl-tok".into()),
-        &ar_auth,
-        SecretString::new("ar-tok".into()),
-    );
-
+    // Empty after deletion (spec-catalog dispatch in prism-bin, GAP-002-A).
     assert_eq!(
         registry.len(),
-        4,
-        "AC-005: init_registry_for_org must register all 4 built-in adapters; \
-         got: {}",
+        0,
+        "AC-005: init_registry_for_org post-deletion must return empty registry; got: {}",
         registry.len()
     );
 }
 
 // ---------------------------------------------------------------------------
 // AC-006: test callers construct OrgId from the DEFAULT_ORG_ID_BYTES constant
-// (traces to BC-3.1.003 invariant 1 — bijectivity holds at all times, so
-//  test callers must provide a valid OrgId that matches the canonical sentinel)
+// (traces to BC-3.1.003 invariant 1 — bijectivity holds at all times)
 // ---------------------------------------------------------------------------
 
-/// AC-006 (RED): `init_registry_for_org` called with the canonical sentinel
+/// AC-006: `init_registry_for_org` called with the canonical sentinel
 /// `OrgId` (derived from the same bytes as `DEFAULT_ORG_ID_BYTES`) must produce
-/// a registry containing exactly 4 adapters, all keyed under that sentinel
-/// `OrgId` — and the sentinel `OrgId` must be deterministically constructible
-/// from a fixed byte array (reproducible across test runs).
+/// a registry (empty post-deletion).
 ///
-/// This test exercises the downstream-caller migration path (AC-006 in the
-/// story): all test callers in `tests/test_armis.rs`, `tests/test_claroty.rs`,
-/// etc. will call `Adapter::new(org_id, ...)` where `org_id` is derived from
-/// the `DEFAULT_ORG_ID_BYTES` sentinel bytes.  This test confirms that the
-/// sentinel `OrgId` construction idiom is correct and that the `OrgId` type
-/// supports the `from_uuid(Uuid::from_bytes(...))` call chain.
+/// OrgId construction from sentinel bytes remains idempotent.
 ///
-/// # RED failure explanation
-/// `init_registry_for_org` panics via `todo!()` at `lib.rs:155` until the
-/// implementation phase wires `org_id` into each adapter constructor.
-///
-/// Secondary assertion: the sentinel `OrgId` constructed twice from the same
-/// bytes must be equal (idempotent construction).  This is a type-level
-/// property that verifies `OrgId` correctly wraps the UUID without lossy
-/// conversion — it holds even in the RED state (so the test fails at the
-/// `init_registry_for_org` call, not here).
-///
-/// Story: S-3.1.06-ImplPhase | AC-006 | BC-3.1.003 invariant 1
+/// Story: PLUGIN-MIGRATION-001-A AC-004 | BC-3.1.003 invariant 1
 #[test]
 #[allow(clippy::similar_names)]
 fn test_AC_006_test_callers_use_OrgId_from_const_helper() {
-    // The canonical sentinel bytes — same value as DEFAULT_ORG_ID_BYTES in lib.rs.
-    // Integration test crates cannot import DEFAULT_ORG_ID_BYTES directly because
-    // it is #[cfg(test)]-gated in the library (EC-005, BC-3.2.001 invariant 3).
-    // Test callers therefore inline the bytes, as AC-006 states.
     let sentinel_bytes: [u8; 16] = [
         0x01, 0x8e, 0x3f, 0x71, 0x5c, 0x6d, 0x7a, 0x8b, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
         0x01,
     ];
 
-    // AC-006 secondary assertion (must hold even in RED state):
-    // OrgId construction from the sentinel bytes is idempotent.
+    // OrgId construction from sentinel bytes is idempotent.
     let sentinel_1 = OrgId::from_uuid(uuid::Uuid::from_bytes(sentinel_bytes));
     let sentinel_2 = OrgId::from_uuid(uuid::Uuid::from_bytes(sentinel_bytes));
     assert_eq!(
         sentinel_1, sentinel_2,
-        "AC-006: OrgId construction from sentinel bytes must be idempotent \
-         (deterministic across test runs)"
+        "AC-006: OrgId construction from sentinel bytes must be idempotent"
     );
-
-    // The sentinel must equal org_a() — the helper used throughout this test file.
     assert_eq!(
         sentinel_1,
         org_a(),
-        "AC-006: sentinel OrgId from inlined bytes must equal org_a() helper — \
-         confirm bytes match DEFAULT_ORG_ID_BYTES in lib.rs"
+        "AC-006: sentinel OrgId from inlined bytes must equal org_a()"
     );
 
-    // AC-006 primary assertion (RED — panics via todo!() until impl):
-    // Calling init_registry_for_org with the sentinel OrgId must succeed and
-    // register all 4 adapters.  This mirrors how migrated test callers will
-    // invoke the function.
     use prism_sensors::init_registry_for_org;
 
-    let cs_auth = CrowdStrikeAuth {
-        client_id: "cs-id".into(),
-        client_secret: SecretString::new("cs-secret".into()),
-        cloud_region: "us-1".into(),
-    };
-    let cy_auth = CyberintAuth {
-        environment: "portal".into(),
-        api_key: SecretString::new("cy-key".into()),
-    };
-    let cl_auth = ClarotyAuth {
-        instance_url: "https://acme.claroty.com".into(),
-        username: "user".into(),
-        password: SecretString::new("pass".into()),
-    };
-    let ar_auth = PubArmisAuth {
-        instance_url: "https://acme.armis.com".into(),
-        secret_key: SecretString::new("ar-key".into()),
-    };
+    // After PLUGIN-MIGRATION-001-A: init_registry_for_org takes only org_id.
+    let registry = init_registry_for_org(sentinel_1);
 
-    // RED: panics via todo!() until init_registry_for_org is implemented.
-    let registry = init_registry_for_org(
-        sentinel_1,
-        &cs_auth,
-        &cy_auth,
-        &cl_auth,
-        SecretString::new("cl-tok".into()),
-        &ar_auth,
-        SecretString::new("ar-tok".into()),
-    );
-
+    // Empty after deletion (spec-catalog dispatch in prism-bin, GAP-002-A).
     assert_eq!(
         registry.len(),
-        4,
-        "AC-006: init_registry_for_org with sentinel OrgId must register all 4 \
-         built-in adapters (downstream caller migration); got: {}",
+        0,
+        "AC-006: init_registry_for_org with sentinel OrgId post-deletion returns empty registry; got: {}",
         registry.len()
     );
 }

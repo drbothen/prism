@@ -9,18 +9,9 @@ publish = false
 [lib]
 name = "prism_security"
 
-# ─── Compile-time write feature gates (BC-2.04.001) ─────────────────────────
-# Write operation code families are entirely absent from the binary unless
-# the corresponding feature is explicitly enabled at build time.
-# This is Tier 1 of the two-tier write gate (VP-020).
 [features]
 default = ["read-all"]
 read-all = []
-crowdstrike-write = []
-cyberint-write = []
-claroty-write = []
-armis-write = []
-all-write = ["crowdstrike-write", "cyberint-write", "claroty-write", "armis-write"]
 
 [dependencies]
 prism-core = { path = "../prism-core", version = "0.2.0" }

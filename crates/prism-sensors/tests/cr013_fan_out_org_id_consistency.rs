@@ -33,8 +33,6 @@ use prism_sensors::{
     fanout::{CredentialResolver, FanOutTarget},
     AdapterRegistry,
 };
-use secrecy::SecretString;
-
 // ---------------------------------------------------------------------------
 // Test helpers
 // ---------------------------------------------------------------------------
@@ -60,6 +58,17 @@ impl SensorAdapter for NoopAdapter {
     }
 }
 
+// Minimal test-only SensorAuth impl (all built-in impls deleted in PLUGIN-MIGRATION-001-A).
+struct StubAuth;
+impl SensorAuth for StubAuth {
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+    fn auth_type_name(&self) -> &'static str {
+        "custom_via_plugin"
+    }
+}
+
 struct StubCreds;
 impl CredentialResolver for StubCreds {
     fn resolve(
@@ -67,11 +76,8 @@ impl CredentialResolver for StubCreds {
         _client_id: &str,
         _sensor_id: SensorId,
     ) -> Result<Box<dyn SensorAuth>, SensorError> {
-        Ok(Box::new(prism_sensors::auth::CrowdStrikeAuth {
-            client_id: "stub".into(),
-            client_secret: SecretString::new("s".into()),
-            cloud_region: "us-1".into(),
-        }))
+        // All built-in auth types deleted in PLUGIN-MIGRATION-001-A.
+        Ok(Box::new(StubAuth))
     }
 }
 
