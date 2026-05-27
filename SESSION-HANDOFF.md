@@ -168,7 +168,7 @@ ARTIFACT STATE AFTER D-540 (UNCHANGED FROM D-539 — no spec edits):
 DURABLE PIN BLOCK (CURRENT STATE — D-580 — DURABLE PRE-/CLEAR RESUME SNAPSHOT — 86th consecutive single-commit — STRATEGIC DECISION PENDING)
 ═══════════════════════════════════════════════════════════════════════
 
-- develop HEAD: f19575ff (current develop — docs(claude) D-778+D-779 session-review codification 2026-05-22; D-809 SHA-currency sweep updated this pin; §RESUME SNAPSHOT 2026-05-23-PATH-C-DUAL-WORKTREE is authoritative current state)
+- develop HEAD: 7ee54657 (current develop — PLUGIN-MIGRATION-001-B PR #157 MERGED 2026-05-27T06:43:42Z; §RESUME SNAPSHOT 2026-05-27-001-B-MERGED is authoritative current state)
 - factory-artifacts: run `git -C .factory log -1 --format=’%H’` (per TD-VSDD-053; D-579 is this commit)
 - feature_branch_head: no active feature branch (spec-authoring-only burst; develop unchanged at a5ab742c)
 - feature_branch_remote_status: no feature branch (spec-only burst; develop@a5ab742c unchanged)
@@ -7400,3 +7400,67 @@ PLUGIN-MIGRATION-001-E and S-CONFIG-MULTI-TENANT-OVERRIDE-001 worktrees cleaned 
 5. Dispatch `vsdd-factory:deliver-story` for PLUGIN-MIGRATION-001-A
 
 _Session terminus: 2026-05-26. Both PRs merged. context-clear. PLUGIN-MIGRATION-001-A ready to dispatch._
+
+---
+
+## §RESUME SNAPSHOT 2026-05-27-001-B-MERGED (D-828)
+
+**Purpose:** Post-merge context-clear handoff. PLUGIN-MIGRATION-001-A (PR #156) and PLUGIN-MIGRATION-001-B (PR #157) both merged same session. 001-C (prism-ocsf SpecDrivenMapper) is now fully unblocked. Supersedes §RESUME SNAPSHOT 2026-05-26-BOTH-PRS-MERGED as the most-recent durable checkpoint.
+
+---
+
+### §1. PR #156 — PLUGIN-MIGRATION-001-A — MERGED
+
+| Field | Value |
+|-------|-------|
+| PR URL | https://github.com/drbothen/prism/pull/156 |
+| Squash-merge SHA | `948a709f` |
+| Merged at | 2026-05-27T03:39:00Z |
+| develop HEAD after | `948a709f` |
+| CI | 38/38 GREEN |
+| PR-LEVEL passes | 1 (pass-1 APPROVE — zero findings) |
+| PR-LEVEL fix-bursts | 0 |
+| LOCAL cascade | 17 passes, 6 fix-bursts, 16 findings closed, 3-CLEAN at passes 15/16/17 |
+
+**Summary:** All 4 hardcoded auth modules deleted (crowdstrike.rs, cyberint.rs, claroty.rs, armis.rs). Spec-catalog lookups wired throughout. PR-LEVEL reviewer found zero findings — APPROVE on pass-1.
+
+---
+
+### §2. PR #157 — PLUGIN-MIGRATION-001-B — MERGED
+
+| Field | Value |
+|-------|-------|
+| PR URL | https://github.com/drbothen/prism/pull/157 |
+| Squash-merge SHA | `7ee54657` |
+| Merged at | 2026-05-27T06:43:42Z |
+| develop HEAD after | `7ee54657` |
+| CI | 30/38 GREEN (8 cancelled from superseded push — 0 failures) |
+| PR-LEVEL passes | 1 (3 findings found + fixed) |
+| PR-LEVEL fix-bursts | 1 |
+| LOCAL cascade | 10 passes, 3 fix-bursts, 5 findings closed, 3-CLEAN at passes 8/9/10 |
+
+**Summary:** Converted 3 sensor-name dispatch sites to spec-catalog lookup (explain.rs latency annotation, write_pipeline.rs gate check, invalidation.rs registration). Restored 24 silently dropped tests via empty feature stubs. PR-LEVEL: verb sanitization in error messages, vacuous test asserting nothing, stale module-level doc comment — all fixed.
+
+---
+
+### §3. Pipeline Status
+
+| Item | Status |
+|------|--------|
+| develop HEAD | `7ee54657` |
+| Wave 1 plugin migration | 4/8 stories complete (001-D, 001-E, 001-A, 001-B merged) |
+| Next story | PLUGIN-MIGRATION-001-C (prism-ocsf SpecDrivenMapper) |
+| Blocking issues | None |
+| Frozen worktrees | S-3.09 (BUG-S309-PLUGIN), W3-FIX-S307-001 (superseded) |
+
+---
+
+### §4. Resume Protocol (5 steps)
+
+1. Run `vsdd-factory:factory-worktree-health` (BLOCKING preflight)
+2. Read `STATE.md` frontmatter (v7.515)
+3. Read this §RESUME SNAPSHOT 2026-05-27-001-B-MERGED
+4. Read PLUGIN-MIGRATION-001-C story spec at `.factory/stories/PLUGIN-MIGRATION-001-C-*.md`
+5. Dispatch `vsdd-factory:deliver-story` for PLUGIN-MIGRATION-001-C
+
+_Session terminus: 2026-05-27. Both 001-A + 001-B merged same session. context-clear. PLUGIN-MIGRATION-001-C ready to dispatch._
