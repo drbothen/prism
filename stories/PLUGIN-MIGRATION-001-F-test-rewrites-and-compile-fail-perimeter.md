@@ -6,7 +6,7 @@ wave: 2
 epic_id: PLUGIN-MIGRATION-001
 priority: P0
 status: draft
-version: "v1.1"
+version: "v1.2"
 level: "L4"
 producer: story-writer
 timestamp: "2026-05-27T00:00:00Z"
@@ -135,7 +135,7 @@ inputs:
   - "tests/external/perimeter-violation/Cargo.toml"
   - "tests/external/perimeter-violation/src/main.rs"
   - ".factory/specs/behavioral-contracts/BC-2.01.013-datasource-trait-adapter-pattern.md"
-  - ".factory/specs/behavioral-contracts/BC-2.16.009-bundled-spec-validation.md"
+  - ".factory/specs/behavioral-contracts/BC-2.16.009-spec-file-validation.md"
   - ".factory/specs/behavioral-contracts/BC-2.16.012-plugin-registry-dispatch-migration.md"
   - ".factory/specs/architecture/decisions/ADR-023-plugin-only-sensor-architecture.md"
   - ".factory/stories/PLUGIN-MIGRATION-001-A-delete-4-named-auth-modules-and-replace-init-registry-for-org.md"
@@ -150,7 +150,7 @@ phase: 3
 
 **Story ID:** PLUGIN-MIGRATION-001-F
 **Status:** draft
-**Version:** v1.1
+**Version:** v1.2
 **Wave:** 2 (cleanup wave; ordered after PLUGIN-MIGRATION-001-A + 001-B both merged)
 
 ---
@@ -195,7 +195,7 @@ a dependency.
 At merge:
 
 1. All 8 non-DTU-harness sensor-named test files are rewritten to use TOML fixture loading
-   via `SpecLoader::load()` and the prism-dtu-harness `DtuHarness` API — no hardcoded
+   via `SpecLoader::parse()` and the prism-dtu-harness `DtuHarness` API — no hardcoded
    `SensorType::CrowdStrike` or `CrowdStrikeAdapter::new()` style construction.
 2. The 4 DTU generator test files (bc_3_4_*_generator.rs) are audited and receive
    exemption comments if clean; any stale sensor-named imports are updated.
@@ -222,8 +222,8 @@ reach for sensor names.
 | BC ID | Version | Title | Subsystem | Role in This Story |
 |-------|---------|-------|-----------|-------------------|
 | BC-2.01.013 | 1.7 | DataSource Trait Eliminates Per-Sensor Code Duplication | SS-01 | **Primary** — compile-fail perimeter enforces that no non-DTU code imports sensor-named adapter types; the open-trait spec-driven path is the only permitted construction |
-| BC-2.16.009 | 1.4 | Spec File Validation — Schema Validation, Variable Reference Resolution, OCSF Field Validation | SS-16 | **Primary** — rewritten parity tests exercise spec loading via `SpecLoader::parse()` on the 4 bundled TOML specs; spec-load validation is the gate for each rewritten test |
-| BC-2.16.012 | 1.3 | PluginRegistry Dispatch Migration | SS-16 | **Anti-regression** — no sensor-named match arms must remain in non-DTU code after this story; the compile-fail perimeter guards this invariant |
+| BC-2.16.009 | 1.5 | Spec File Validation — Schema Validation, Variable Reference Resolution, OCSF Field Validation | SS-16 | **Primary** — rewritten parity tests exercise spec loading via `SpecLoader::parse()` on the 4 bundled TOML specs; spec-load validation is the gate for each rewritten test |
+| BC-2.16.012 | 1.33 | PluginRegistry Dispatch in spec_parser.rs — Hardcoded Sensor Names Replaced with Registry Lookup | SS-16 | **Anti-regression** — no sensor-named match arms must remain in non-DTU code after this story; the compile-fail perimeter guards this invariant |
 
 ---
 
@@ -365,11 +365,19 @@ fn main() {}
 
 The CI job `no-hardcoded-sensors-compile-fail` runs:
 ```bash
-cargo check -p no-hardcoded-sensors 2>&1 | grep "error\[E"
+cargo check \
+  --color=never \
+  --manifest-path tests/external/no-hardcoded-sensors/Cargo.toml \
+  > /tmp/no-hardcoded-check.log 2>&1 \
+  && CARGO_RC=0 || CARGO_RC=$?
 # Assert non-zero exit from `cargo check` (expected: E0432 unresolved import)
+# --manifest-path is required: the crate has a separate [workspace] stanza and
+# is excluded from the root workspace members; -p flag would not resolve it.
+# --color=never is required: modern cargo (1.85+) emits ANSI codes without it,
+# breaking downstream grep/pattern matching on error codes.
 ```
 
-Red Gate test name: `test_PLUGIN_MIGRATION_001_F_006_no_hardcoded_sensors_compile_fail_gate` (this is a CI-job test, verified by asserting `cargo check -p no-hardcoded-sensors` returns a non-zero exit code in the CI script, analogous to the perimeter-violation job).
+Red Gate test name: `test_PLUGIN_MIGRATION_001_F_006_no_hardcoded_sensors_compile_fail_gate` (this is a CI-job test, verified by asserting `cargo check --manifest-path tests/external/no-hardcoded-sensors/Cargo.toml` returns a non-zero exit code in the CI script, analogous to the perimeter-violation job).
 
 (traces to BC-2.01.013 postcondition — deleted adapter modules are not accessible; BC-2.16.012 postcondition — sensor-named match arms are not constructible from sensor module imports)
 
@@ -386,15 +394,38 @@ no-hardcoded-sensors-compile-fail:
     - uses: dtolnay/rust-toolchain@stable
     - name: Assert no-hardcoded-sensors does NOT compile
       run: |
-        if cargo check -p no-hardcoded-sensors 2>/dev/null; then
-          echo "FAIL: no-hardcoded-sensors compiled successfully — sensor-named symbols are accessible"
+        set -uo pipefail
+        # --color=never is REQUIRED: without it, modern cargo (1.85+) emits ANSI
+        # color codes even when stdout is redirected, breaking downstream grep on
+        # error codes (mirrors perimeter-compile-fail job rationale).
+        # --manifest-path is REQUIRED: this crate has a separate [workspace] stanza
+        # and is excluded from root workspace members; -p flag would not resolve it.
+        cargo check \
+          --color=never \
+          --manifest-path tests/external/no-hardcoded-sensors/Cargo.toml \
+          > /tmp/no-hardcoded-check.log 2>&1 \
+          && CARGO_RC=0 || CARGO_RC=$?
+        cat /tmp/no-hardcoded-check.log
+        if [ "${CARGO_RC}" -eq 0 ]; then
+          echo "::error::no-hardcoded-sensors compiled successfully — sensor-named auth modules are accessible (ADR-023 Rule 3 regression)"
           exit 1
         fi
-        echo "PASS: no-hardcoded-sensors correctly fails to compile"
+        # Per-symbol positive-coverage: verify all 4 deleted auth symbols appear
+        # in E0432 errors. A single-symbol regression (one symbol re-exported while
+        # siblings remain deleted) produces non-zero cargo exit but is MISSING from
+        # the error list — this assertion catches that case.
+        for SYM in ArmisAuth ClarotyAuth CrowdStrikeAuth CyberintAuth; do
+          if ! grep -q "error\[E0432\].*${SYM}\|unresolved import.*${SYM}" /tmp/no-hardcoded-check.log; then
+            echo "::error::Expected E0432 for deleted symbol ${SYM} but it was not in cargo output. Symbol may have been re-exported."
+            exit 1
+          fi
+        done
+        echo "PASS: no-hardcoded-sensors correctly fails to compile; all 4 deleted auth symbols produce E0432 errors"
 ```
 
-This job mirrors the existing `perimeter-compile-fail` job structure and uses the
-`EXPECTED=non-zero` pattern from the perimeter-violation CI job.
+This job mirrors the existing `perimeter-compile-fail` job structure, including
+`--color=never`, `--manifest-path`, log capture, and per-symbol positive-coverage
+assertions — the same pattern used by the non-exhaustive-violation-compile-fail job.
 
 (traces to BC-2.01.013 invariant 3 — sensor identification is by SensorId string, not by compiled-in enum or module; the CI gate enforces this at every PR)
 
@@ -430,7 +461,7 @@ on these files would break the workspace build.
 
 - [ ] **Task 1:** Read the 8 non-DTU-generator test files listed in §Inputs; identify every
       sensor-named import (`use prism_sensors::auth::*`, `SensorType::*`, `CrowdStrikeAdapter::*`)
-- [ ] **Task 2:** For each parity test file (4 files): rewrite to `SpecLoader::load_all()` +
+- [ ] **Task 2:** For each parity test file (4 files): rewrite to `SpecLoader::parse()` +
       `DtuHarness` construction pattern; rename test functions per AC-001 naming
 - [ ] **Task 3:** Rewrite `bc_2_16_002_crowdstrike_two_step.rs` per AC-002; verify two-step
       fetch fires correctly against DTU clone in TOML-driven mode
@@ -571,3 +602,4 @@ things that should not be tested here. This must fail a CI lint check or archite
 |---------|------|--------|-------------|
 | v1.0 | 2026-05-27 | story-writer | Initial draft — 8 AC + 10 tasks; PLUGIN-MIGRATION-001-F Wave 2 materialization |
 | v1.1 | 2026-05-27 | story-writer | MED-001: BC-2.16.009 title corrected to canonical form in BC table and frontmatter comment. LOW-001: `SpecLoader::load_all()` → `SpecLoader::parse()` in AC-001 (table, bullet, trace note) and BC table. LOW-002: `red_gate_tests` 6 → 7 (implementation delivers 7 named test functions). |
+| v1.2 | 2026-05-27 | story-writer | IMP-001: BC-2.16.012 body table title corrected to canonical "PluginRegistry Dispatch in spec_parser.rs — Hardcoded Sensor Names Replaced with Registry Lookup" (was "PluginRegistry Dispatch Migration"). IMP-002: `inputs:` path corrected from `BC-2.16.009-bundled-spec-validation.md` to `BC-2.16.009-spec-file-validation.md`. IMP-003: `SpecLoader::load()` → `SpecLoader::parse()` in §Story-Level Goal bullet 1; `SpecLoader::load_all()` → `SpecLoader::parse()` in Task 2. OBS-003: BC-2.16.009 version v1.4 → v1.5; BC-2.16.012 version v1.3 → v1.33. OBS-001: AC-006 CI snippet updated to use `--manifest-path tests/external/no-hardcoded-sensors/Cargo.toml` + `--color=never` (was `-p no-hardcoded-sensors`). OBS-002: AC-007 CI YAML template updated with `--color=never`, `--manifest-path`, log capture, and per-symbol positive-coverage assertions for all 4 deleted auth symbols (mirrors perimeter-compile-fail job pattern). |
