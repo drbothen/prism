@@ -5,7 +5,7 @@
 //! (stubs) and fully implemented in S-3.1.06 Green Gate:
 //!   - `SensorSpec.org_id: OrgId` (BC-3.2.001 precondition 3)
 //!   - `FanOutTarget.org_id: OrgId` (BC-3.2.001 precondition 4)
-//!   - `init_registry_for_org(org_id, ...)` full impl (BC-3.2.001 precondition 4)
+//!   - `init_registry_for_org(org_id)` full impl (BC-3.2.001 precondition 4)
 //!   - `DEFAULT_ORG_ID_BYTES` cfg(test) sentinel (BC-3.2.001 invariant 3, EC-005)
 //!   - Event buffer key prefix uses OrgId::to_string() (UUID format) (BC-3.2.001 invariant 1)
 //!   - Cross-org isolation via composite `(OrgId, String)` state map (postconditions 1–4)

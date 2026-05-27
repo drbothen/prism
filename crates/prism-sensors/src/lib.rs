@@ -71,7 +71,6 @@ pub use http::{
 pub use pagination::{paginate_claroty, OffsetCursor};
 pub use registry::AdapterRegistry;
 pub use retry::{retry_with_backoff, RetryConfig, DEFAULT_TRANSIENT_CODES};
-pub use secrecy::SecretString;
 pub use timestamp::parse_timestamp;
 pub use types::RequestParams;
 
@@ -97,8 +96,10 @@ pub use write_result::{RecordWriteResult, WriteStatus};
 /// through the spec engine at boot time (ADR-023, ADR-028 §D10).
 ///
 /// Spec-catalog dispatch wiring belongs in `prism-bin` at boot (boot.rs step 7)
-/// rather than here, because `prism-sensors` MUST NOT depend on `prism-spec-engine`
-/// (architecture Forbidden Dependencies rule, ADR-028 §D3).
+/// rather than here, because `prism-sensors` MUST NOT gain any NEW `prism-spec-engine`
+/// imports for spec-catalog dispatch wiring (ADR-028 §D3); the existing dependency
+/// is limited to `WriteEndpointSpec` and overlay resolution per S-3.07 /
+/// S-CONFIG-MULTI-TENANT-OVERRIDE-001.
 ///
 /// # Deprecated
 /// Use `init_registry_for_org` instead. Retained for backward compat during
@@ -131,8 +132,10 @@ pub fn init_registry() -> AdapterRegistry {
 ///
 /// Spec-catalog dispatch wiring is deferred to `S-WAVE5-PREP-01` /
 /// `S-3.02-FOLLOWUP-RUNTIME`. The wiring belongs in `prism-bin` (boot-time
-/// orchestration concern) because `prism-sensors` MUST NOT depend on
-/// `prism-spec-engine` (ADR-028 §D3 Forbidden Dependencies rule).
+/// orchestration concern) because `prism-sensors` MUST NOT gain any NEW
+/// `prism-spec-engine` imports for spec-catalog dispatch wiring (ADR-028 §D3);
+/// the existing dependency is limited to `WriteEndpointSpec` and overlay
+/// resolution per S-3.07 / S-CONFIG-MULTI-TENANT-OVERRIDE-001.
 ///
 /// # Arguments
 /// - `org_id` — canonical org identity for this adapter set (BC-3.2.001 precondition 4).
@@ -147,7 +150,10 @@ pub fn init_registry_for_org(org_id: prism_core::OrgId) -> AdapterRegistry {
     //
     // Spec-catalog dispatch (BC-2.16.012) is the replacement path.
     // Wiring is a boot-time concern in prism-bin, not prism-sensors, because
-    // prism-sensors MUST NOT depend on prism-spec-engine (ADR-028 §D3).
+    // prism-sensors MUST NOT gain any NEW prism-spec-engine imports for
+    // spec-catalog dispatch wiring (ADR-028 §D3); the existing dependency
+    // is limited to WriteEndpointSpec and overlay resolution (S-3.07 /
+    // S-CONFIG-MULTI-TENANT-OVERRIDE-001).
     //
     // GAP-002-A: Full spec-catalog dispatch wiring deferred to S-WAVE5-PREP-01.
     let _ = org_id; // org_id preserved in signature per BC-3.2.001 precondition 4
