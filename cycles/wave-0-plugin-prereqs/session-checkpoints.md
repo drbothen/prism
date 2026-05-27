@@ -212,3 +212,26 @@ _Archived from STATE.md Session Resume Checkpoint by D-823 burst 2026-05-24._
 4. Dispatch Stream 1 (demo-recorder) AND Stream 2 (worktree-create + deliver-story) in parallel
 
 _Superseded by D-823 checkpoint (PR-LEVEL dual-stream 2026-05-24)._
+
+---
+
+## Session Resume Checkpoint (2026-05-27 — D-826 PLUGIN-MIGRATION-001-A PR #156 OPEN) — ARCHIVED
+
+_Archived from STATE.md by D-827 post-merge burst 2026-05-27. Superseded by D-827 checkpoint._
+
+**STATE v7.513. D-826 — PLUGIN-MIGRATION-001-A PR #156 OPEN. CI pending.**
+
+**PLUGIN-MIGRATION-001-A LOCAL cascade summary:**
+- 17 adversary passes, 6 fix-bursts, 16 findings closed
+- Passes 15/16/17: 3-CLEAN CONVERGED per BC-5.39.001 (strict)
+- All 9 ACs satisfied. All 4 BCs verified. `just check` GREEN
+- Branch: `feature/PLUGIN-MIGRATION-001-A` (+391 additions, -4,790 deletions, 27 files changed)
+- PR #156: https://github.com/drbothen/prism/pull/156
+- PR-LEVEL pass-1: APPROVE (zero findings)
+- CI: pending (38 checks)
+
+**develop HEAD at archival:** `3e822522`
+
+**Worktree at archival:** `.worktrees/PLUGIN-MIGRATION-001-A/` (branch: `feature/PLUGIN-MIGRATION-001-A`)
+
+_Superseded by D-827 checkpoint (PR #156 MERGED at develop@948a709f 2026-05-27T03:39:00Z)._
