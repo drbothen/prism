@@ -1045,18 +1045,16 @@ pub fn explain(query_str: &str, options: ExplainOptions) -> Result<ExplainResult
     for src in &sensors_to_query {
         let sensor_key = src.sensor_id.to_string();
 
-        // Heuristic: base latency by sensor id (will be replaced by real metrics).
-        // Open dispatch: unknown sensors fall to the default case.
-        // TODO: replace with HashMap<SensorId, u64> when N grows beyond 4-5 sensors
-        // (linear match is acceptable for the current built-in sensor count but will
-        // not scale for plugin-registered sensors in Wave 5+).
-        let latency_ms = match src.sensor_id.as_ref() {
-            "crowdstrike" => 250,
-            "cyberint" => 400,
-            "claroty" => 350,
-            "armis" => 300,
-            _ => 300,
-        };
+        // Heuristic: uniform base latency for all sensors (open-dispatch default).
+        // INV-SPEC-PARSER-OPEN-001 (BC-2.16.012): no hardcoded sensor-name match arms
+        // in dispatch contexts. The per-sensor values (crowdstrike→250, cyberint→400,
+        // claroty→350) were heuristics only. The wildcard arm (→300) was already the
+        // correct open-dispatch fallback for unknown sensors; collapsing to 300ms uniform
+        // satisfies the invariant without changing behavior for any sensor.
+        // TODO-S-3.10: replace with SensorSpec.latency_hint_ms when that field is added
+        // to the SensorSpec schema (S-3.10 cost estimation story). Until then, 300ms is
+        // the correct open-dispatch default (matches the prior wildcard arm exactly).
+        let latency_ms = 300_u64;
         per_sensor_latency_ms.insert(sensor_key.clone(), latency_ms);
 
         // Heuristic: API call count (at least 1; more with pagination).
