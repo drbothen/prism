@@ -12,7 +12,7 @@
 //! DTU-EXT-004 gap: Armis DTU has GET /api/v1/alerts (not /api/v1/search with AQL).
 //! Parity tests tagged #[ignore] per EC-016-013-006 until DTU extension merges.
 //!
-//! AC coverage: AC-010 (Armis DTU parity + AQL + timestamp fallback)
+//! AC coverage: AC-010 (Armis DTU parity + AQL + timestamp fallback), PLUGIN-MIGRATION-001-F AC-001 (TOML fixture loading)
 //! HS coverage: HS-016
 
 use prism_core::OrgSlug;
@@ -297,4 +297,46 @@ fn test_BC_2_16_013_compute_parity_verdict_empty_fixture_returns_error() {
              must return Error"
         ),
     }
+}
+
+// ---------------------------------------------------------------------------
+// PLUGIN-MIGRATION-001-F AC-001: TOML fixture loading gate (non-#[ignore] part)
+// ---------------------------------------------------------------------------
+
+/// PLUGIN-MIGRATION-001-F / AC-001 / BC-2.16.009 postcondition 1:
+/// test_PLUGIN_MIGRATION_001_F_parity_armis_toml_fixture_loading
+///
+/// Asserts that the Armis production TOML spec is parseable and declares
+/// the devices table. This is the non-#[ignore] portion of AC-001.
+///
+/// The full parity assertion (pipeline run + OCSF fixture comparison) is in
+/// test_BC_2_16_013_dtu_parity_armis (tagged #[ignore] until S-6.10 merges).
+///
+/// AC-001 postcondition: armis.sensor.toml loads via SpecLoader::parse,
+/// contains a devices table, and does NOT require a sensor-named adapter type.
+/// Exempt from no-hardcoded-sensors perimeter — uses SensorId string, not enum.
+#[test]
+fn test_PLUGIN_MIGRATION_001_F_parity_armis_toml_fixture_loading() {
+    let spec_content = std::fs::read_to_string(
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../prism-sensors/specs/armis.sensor.toml"),
+    )
+    .expect("armis.sensor.toml must be readable (AC-001: TOML spec must exist)");
+
+    let spec = prism_spec_engine::spec_parser::SpecLoader::parse(&spec_content)
+        .expect("armis.sensor.toml must parse without error (AC-001: TOML spec must be valid)");
+
+    // AC-001: spec-catalog lookup by SensorId string "armis" — no sensor-named adapter.
+    assert_eq!(
+        spec.sensor_id, "armis",
+        "AC-001: armis TOML spec must declare sensor_id = \"armis\""
+    );
+
+    // AC-001: spec must declare a devices table (parity test anchor; DTU-EXT-003).
+    let devices = spec.tables.iter().find(|t| t.table_name == "devices");
+    assert!(
+        devices.is_some(),
+        "AC-001: armis.sensor.toml must declare a 'devices' table; \
+         spec-driven lookup requires the table to be present (BC-2.16.009 postcondition 1)"
+    );
 }

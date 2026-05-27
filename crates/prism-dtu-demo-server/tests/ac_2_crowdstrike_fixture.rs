@@ -1,3 +1,8 @@
+// PLUGIN-MIGRATION-001-F AC-005 audit: uses DemoHarness (not CrowdStrikeAdapter directly).
+// No stale imports from deleted prism-sensors::auth modules.
+// This test exercises the DTU harness path — the fixture contract, not the sensor adapter layer.
+// The name "crowdstrike" here refers to the DTU clone config, not a sensor-named type import.
+//
 //! AC-2: CrowdStrike clone fixture contract — devices query returns cursor pagination.
 //!
 //! Given the harness is running with the crowdstrike clone, when

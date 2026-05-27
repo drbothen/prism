@@ -1,3 +1,9 @@
+// ADR-023 §DTU-EXEMPT: This file IS the DTU behavioral clone for Claroty.
+// Sensor-named references here are intentional — this IS the clone, not a consumer.
+// Exempt from tests/external/no-hardcoded-sensors/ compile-fail gate.
+// Imports from deleted prism-sensors::auth::claroty modules (001-A) verified absent.
+// PLUGIN-MIGRATION-001-F AC-008 audit: no stale imports from deleted prism-sensors::auth modules.
+//
 //! Self-contained Claroty xDome DTU behavioral clone for the harness.
 //!
 //! This module provides a complete Claroty API implementation suitable for
