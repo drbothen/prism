@@ -33,9 +33,12 @@ pub use alias::{AliasResolver, AliasResult};
 pub use class_selector::EventClassSelector;
 pub use enum_map::OcsfEnumMap;
 pub use event::OcsfEvent;
-pub use mappers::{
-    ArmisMapper, ClarotyMapper, CrowdStrikeMapper, CyberintMapper, SensorMapper, SpecDrivenMapper,
-};
+// PLUGIN-MIGRATION-001-C: Per-sensor hardcoded mapper types are no longer exported from
+// the public API. Use SpecDrivenMapper for config-driven OCSF normalization.
+// The internal mapper modules (armis, claroty, crowdstrike, cyberint) are retained
+// for backward compatibility with existing internal tests and may be removed in a
+// future story.
+pub use mappers::{SensorMapper, SpecDrivenMapper};
 pub use normalizer::OcsfNormalizer;
 pub use pool::OcsfDescriptors;
 pub use version::ocsf_version;
