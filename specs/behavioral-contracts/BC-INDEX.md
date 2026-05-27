@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "5.52"
+version: "5.53"
 status: draft
 producer: product-owner
 timestamp: 2026-05-26T00:00:00Z
@@ -46,12 +46,12 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.01.015 | ~~MCP Tool Response Envelope Structure~~ | 01 - Sensor Adapters | CAP-001 | P0 | removed |
 | BC-2.01.016 | SensorAuth Open Trait — Plugin-Implementable Auth Contract (No Sealed Marker) | 01 - Sensor Adapters | CAP-001 | P0 | active (promoted draft→active D-726 per POL-14; anchor story S-PLUGIN-PREREQ-E merged PR #151 develop@80ebe794 2026-05-19) — v1.11 |
 | BC-2.02.001 | OCSF Schema Loading at Build Time via ocsf-proto-gen | 02 - OCSF Normalization | CAP-003 | P0 | draft |
-| BC-2.02.002 | DynamicMessage Creation from Sensor Records | 02 - OCSF Normalization | CAP-003 | P0 | draft |
+| BC-2.02.002 | DynamicMessage Creation from Sensor Records | 02 - OCSF Normalization | CAP-003 | P0 | active |
 | BC-2.02.003 | CrowdStrike Alert Field Mapping to OCSF | 02 - OCSF Normalization | CAP-003 | P0 | draft (amendment_lifecycle: pending — ADR-023) |
 | BC-2.02.004 | Cyberint Alert Field Mapping to OCSF | 02 - OCSF Normalization | CAP-003 | P0 | draft (amendment_lifecycle: pending — ADR-023) |
 | BC-2.02.005 | Claroty xDome Field Mapping to OCSF (9 Data Sources) | 02 - OCSF Normalization | CAP-003 | P0 | draft (amendment_lifecycle: pending — ADR-023) |
 | BC-2.02.006 | Armis Centrix Field Mapping to OCSF (7 Data Sources) | 02 - OCSF Normalization | CAP-003 | P0 | draft (amendment_lifecycle: pending — ADR-023) |
-| BC-2.02.007 | Vendor Extension Preservation in raw_extensions | 02 - OCSF Normalization | CAP-003 | P0 | draft |
+| BC-2.02.007 | Vendor Extension Preservation in raw_extensions | 02 - OCSF Normalization | CAP-003 | P0 | active |
 | BC-2.02.008 | Four-Tier Field Alias Resolution | 02 - OCSF Normalization | CAP-003 | P0 | draft |
 | BC-2.02.009 | OCSF Version Pinning Per Release | 02 - OCSF Normalization | CAP-003 | P0 | draft |
 | BC-2.02.010 | OCSF Enum Value Map for Runtime Display Names | 02 - OCSF Normalization | CAP-003 | P0 | draft |
@@ -375,6 +375,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v5.53 (2026-05-27, D-831 post-merge burst):** state-manager | POL-14 BC auto-promotion: BC-2.02.002 v1.3→v1.4 (status draft→active; lifecycle_status already active — idempotent confirm) + BC-2.02.007 v1.3→v1.4 (status draft→active; lifecycle_status already active — idempotent confirm) per PR #158 PLUGIN-MIGRATION-001-C merge at develop@282013a6 2026-05-27T10:53:03Z. active_contracts 236 (unchanged — lifecycle_status was already active for both; status field now aligned). draft_contracts 2 (unchanged — BC-2.06.011 + BC-2.21.001 remain draft). BC-INDEX v5.52→v5.53.
 
 **v5.52 (2026-05-26, D-825 post-merge burst):** state-manager | POL-14 BC auto-promotion: BC-2.06.012/013/014/015/016 promoted draft→active per PR #155 S-CONFIG-MULTI-TENANT-OVERRIDE-001 merge at develop@3e822522 2026-05-26T19:01:58Z. active_contracts 231→236, draft_contracts 7→2 (BC-2.06.011 + BC-2.21.001 remain draft). BC-INDEX v5.51→v5.52.
 

@@ -5,7 +5,10 @@ title: "prism-ocsf: Merge 4 Hardcoded Mappers → SpecDrivenMapper + .prx WASM T
 wave: 1
 epic_id: PLUGIN-MIGRATION-001
 priority: P0
-status: draft
+status: merged
+merged_at: "2026-05-27T10:53:03Z"
+merged_via_pr: 158
+merged_via_sha: "282013a6"
 version: "v1.0"
 level: "L4"
 producer: story-writer

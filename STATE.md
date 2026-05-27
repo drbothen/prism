@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.517"
+version: "7.518"
 producer: state-manager
 timestamp: 2026-05-27T08:00:00Z
 inputs: []
@@ -16,7 +16,7 @@ repos: [poller-cobra, poller-express, poller-bear, poller-coaster, serveMyAPI, t
 safe_to_compact: true
 pre_compact_snapshot: "SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-27-001-A-001-B-SHIPPED"
 pre_compact_snapshot_at: "2026-05-27 (D-829 SESSION CHECKPOINT; 001-A PR #156 + 001-B PR #157 MERGED; Wave 1 5/8 shipped; state-final for /clear-resume)"
-current_step: "D-830 PLUGIN-MIGRATION-001-C story authored (v1.0; 13 pts; 10 ACs; 7 Red Gate tests). NEXT: deliver via per-story TDD pipeline."
+current_step: "D-831 PLUGIN-MIGRATION-001-C PR #158 MERGED. Wave 1 plugin migration: 6 of 8 shipped (001-D/001-E/S-CONFIG/001-A/001-B/001-C). NEXT: author + deliver remaining Wave 1 stories (S-PLUGIN-CI-001 or 001-F/001-G/001-H)."
 s_config_status: "MERGED via PR #155 develop@3e822522 2026-05-26T19:01:58Z"
 s_config_merged_via_pr: 155
 s_config_merged_via_sha: "3e822522"
@@ -43,6 +43,14 @@ pr_155_option_a_note: "User authorized Option A strict fix-burst for ALL 17 cons
 pr_155_no_hanging_integration_tests: true
 pr_155_open_dispatches: "dispatch implementer for consolidated fix-burst; NO hanging integration tests; after fix-burst push origin + dispatch pass 2 reviewers"
 pr_155_cross_reviewer_asymmetry_lesson: "lesson 50 — adversary verified plumbing-to-input but not adapter-internal consumption; security caught SEC-001 at deeper adapter layer. PR-LEVEL adversary scope must include: verify production consumer of injected value READS it, not just that the value is injected."
+plugin_migration_001_c_status: "MERGED via PR #158 develop@282013a6 2026-05-27T10:53:03Z"
+plugin_migration_001_c_merged_via_pr: 158
+plugin_migration_001_c_merged_via_sha: "282013a6"
+plugin_migration_001_c_merged_at: "2026-05-27T10:53:03Z"
+plugin_migration_001_c_local_adversary_passes: 5
+plugin_migration_001_c_local_fix_bursts: 2
+plugin_migration_001_c_local_findings_closed: 18
+plugin_migration_001_c_local_converged_at_pass: 5
 plugin_migration_001_b_status: "MERGED via PR #157 develop@7ee54657 2026-05-27T06:43:42Z"
 plugin_migration_001_b_merged_via_pr: 157
 plugin_migration_001_b_merged_via_sha: "7ee54657"
@@ -108,7 +116,7 @@ feature_branch_head: "merged to 80ebe794 at 2026-05-19 (PR #151) — a4c048ce wa
 pr_level_adversary_streak: "3/3 CONVERGED per BC-5.39.001 — passes 2/3/4 all CLEAN; PR #151 merged 2026-05-19; D-716 Option A standing satisfied"
 pr_level_adversary_pass_count: 4
 feature_branch_remote_status: "deleted (squash-merged to develop@80ebe794; remote branch feature/S-PLUGIN-PREREQ-E removed by GitHub)"
-worktree_status: "001-A + 001-B cleaned; remaining: S-3.09 (FROZEN BUG-S309-PLUGIN) + W3-FIX-S307-001 (BLOCKED superseded)"
+worktree_status: "001-C cleaned; remaining: S-3.09 (FROZEN) + W3-FIX-S307-001 (BLOCKED superseded)"
 merged_at: 2026-05-19
 merged_via_pr: 151
 merged_via_sha: 80ebe794
@@ -133,14 +141,14 @@ dtu_clones_built: in_progress
 dtu_strategy: "Option 2 — DTU-first"
 dtu_strategy_decided: 2026-04-20
 policy_registry_source_of_truth: .factory/policies.yaml
-develop_head: "7ee54657"
+develop_head: "282013a6"
 vsdd_factory_version: "1.0.0-rc.18 (re-activated 2026-05-13T15:00:19Z; upgrade chain rc.11 → rc.16 2026-05-10 → rc.18 2026-05-13)"
-workspace_test_count: 3758
+workspace_test_count: 3698
 user_directive_persistent: "No pragmatic convergence. Fix all issues before build."
 current_cycle_history: "wave-0-plugin-prereqs (PREREQ-E merged PR #151 2026-05-19); prior: wave-4-operations (active); wave-3-multi-tenant (COMPLETE)"
-bc_index_version: "5.52"
+bc_index_version: "5.53"
 vp_index_version: "1.76"
-story_index_version: "v2.189"
+story_index_version: "v2.190"
 plugin_migration_001_d_local_adversary_passes: 25
 plugin_migration_001_d_local_fix_bursts: 19
 plugin_migration_001_d_status: "MERGED via PR #153 develop@3f2de889 2026-05-22"
@@ -182,9 +190,9 @@ historical_cycles: [phase-1-convergence, wave-3-multi-tenant, wave-4-operations]
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-27 (D-830 PLUGIN-MIGRATION-001-C story authored v1.0; STATE v7.516→v7.517) |
-| **Current Phase** | Wave 3 Tier-3 COMPLETE — **Wave 3-A 4 of 4 SHIPPED**; plugin migration: PREREQ-F + PREREQ-A + PREREQ-B + PREREQ-C + PREREQ-D + PREREQ-E + PLUGIN-MIGRATION-001-D + PLUGIN-MIGRATION-001-E MERGED (PR #154) + S-CONFIG-MULTI-TENANT-OVERRIDE-001 MERGED (PR #155) + PLUGIN-MIGRATION-001-A MERGED (PR #156) + **PLUGIN-MIGRATION-001-B MERGED (PR #157 develop@7ee54657)**; production deployment gated on 001-C |
-| **Current Step** | D-830 PLUGIN-MIGRATION-001-C story authored (v1.0; 13 pts; 10 ACs; 7 Red Gate tests; BCs: BC-2.02.002, BC-2.02.007; VPs: VP-151, VP-016, VP-017; STORY-INDEX v2.188→v2.189). NEXT: deliver via per-story TDD pipeline (worktree → stubs → tests → TDD → adversary 3-CLEAN → demo → PR → merge). |
+| **Last Updated** | 2026-05-27 (D-831 PLUGIN-MIGRATION-001-C PR #158 MERGED develop@282013a6; STATE v7.517→v7.518) |
+| **Current Phase** | Wave 3 Tier-3 COMPLETE — **Wave 3-A 4 of 4 SHIPPED**; plugin migration: PREREQ-F + PREREQ-A + PREREQ-B + PREREQ-C + PREREQ-D + PREREQ-E + PLUGIN-MIGRATION-001-D + PLUGIN-MIGRATION-001-E MERGED (PR #154) + S-CONFIG-MULTI-TENANT-OVERRIDE-001 MERGED (PR #155) + PLUGIN-MIGRATION-001-A MERGED (PR #156) + PLUGIN-MIGRATION-001-B MERGED (PR #157) + **PLUGIN-MIGRATION-001-C MERGED (PR #158 develop@282013a6)**; Wave 1 plugin migration 6 of 8 shipped |
+| **Current Step** | D-831 PLUGIN-MIGRATION-001-C PR #158 MERGED at develop@282013a6 (2026-05-27T10:53:03Z). SpecDrivenMapper replaces 4 hardcoded OCSF mappers per ADR-023 Rule 1. 5-pass LOCAL adversary cascade, 2 fix-bursts, 18 findings closed, 3-CLEAN CONVERGED. PR-LEVEL pass-1 APPROVE. 10/10 ACs demo-evidenced. Worktree cleaned. STORY-INDEX v2.189→v2.190. NEXT: author + deliver remaining Wave 1 stories (S-PLUGIN-CI-001 or 001-F/001-G/001-H). |
 
 ## Phase Progress
 
@@ -208,6 +216,7 @@ historical_cycles: [phase-1-convergence, wave-3-multi-tenant, wave-4-operations]
 | **3: S-CONFIG-MULTI-TENANT-OVERRIDE-001** | **MERGED** | 2026-05-23 | 2026-05-26 | PR #155 develop@3e822522 | LOCAL 13 passes OPTION B EXIT; PR-LEVEL 9 passes (7 fix-bursts); adversary 7/8/9 CLEAN(strict); 38/38 CI GREEN; ADR-029 ACCEPTED |
 | **3: PLUGIN-MIGRATION-001-A** | **MERGED** | 2026-05-27 | 2026-05-27 | PR #156 develop@948a709f | LOCAL 17 passes 3-CLEAN CONVERGED; PR-LEVEL pass-1 APPROVE (zero findings); 38/38 CI GREEN |
 | **3: PLUGIN-MIGRATION-001-B** | **MERGED** | 2026-05-27 | 2026-05-27 | PR #157 develop@7ee54657 | LOCAL 10 passes 3-CLEAN CONVERGED; 3 PR-LEVEL findings fixed (verb sanitization, vacuous test, stale doc); 30/38 CI GREEN (8 cancelled) |
+| **3: PLUGIN-MIGRATION-001-C** | **MERGED** | 2026-05-27 | 2026-05-27 | PR #158 develop@282013a6 | LOCAL 5 passes 3-CLEAN CONVERGED; PR-LEVEL pass-1 APPROVE; 13 new tests; 602 lines deleted; 18 findings closed |
 
 ## Current Phase Steps
 
@@ -216,12 +225,12 @@ historical_cycles: [phase-1-convergence, wave-3-multi-tenant, wave-4-operations]
 | Step | Agent | Status | Output |
 |------|-------|--------|--------|
 _D-735 and earlier archived to cycles/wave-0-plugin-prereqs/burst-log.md. D-736..D-748 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-748 archived D-776 burst 2026-05-22). D-749..D-755 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-777 burst 2026-05-22). D-756..D-757 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-778/D-779 bursts 2026-05-22). D-758..D-759 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-780 burst 2026-05-22). D-759 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-781 burst 2026-05-22). D-777 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-782 burst 2026-05-22). D-778 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-783 burst 2026-05-22). D-779 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-784 burst 2026-05-22). D-780 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-785 burst 2026-05-22). D-781 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-786 burst 2026-05-22). D-786 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-787 burst 2026-05-22). D-782..D-784 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-790 burst 2026-05-22). D-785 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-809 burst 2026-05-23). D-787 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-810 burst 2026-05-24). D-788 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-811 burst 2026-05-24). D-789 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-812 burst 2026-05-24). D-790..D-812 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-816 burst 2026-05-24). D-812 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-817 burst 2026-05-24)._
-_D-819 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-820 burst 2026-05-24). D-820 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-821 burst 2026-05-24). D-821 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-822 burst 2026-05-24). D-816 + D-817 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-824 burst 2026-05-25). D-818 + D-819 + D-822 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-825 burst 2026-05-26). D-823 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-826 burst 2026-05-27). D-826 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-827 burst 2026-05-27). D-827 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-828 burst 2026-05-27). D-824 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-830 burst 2026-05-27)._
+_D-819 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-820 burst 2026-05-24). D-820 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-821 burst 2026-05-24). D-821 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-822 burst 2026-05-24). D-816 + D-817 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-824 burst 2026-05-25). D-818 + D-819 + D-822 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-825 burst 2026-05-26). D-823 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-826 burst 2026-05-27). D-826 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-827 burst 2026-05-27). D-827 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-828 burst 2026-05-27). D-824 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-830 burst 2026-05-27). D-825 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-831 burst 2026-05-27)._
+| D-831 — **PLUGIN-MIGRATION-001-C PR #158 MERGED at develop@282013a6 (2026-05-27T10:53:03Z). SpecDrivenMapper replaces 4 hardcoded OCSF mappers per ADR-023 Rule 1. 5-pass LOCAL adversary cascade, 2 fix-bursts, 18 findings closed, 3-CLEAN CONVERGED (passes 3/4/5). PR-LEVEL pass-1 APPROVE (0 blocking findings). Security review CLEAN. CI all GREEN. 10/10 ACs demo-evidenced. 13 tests added to prism-ocsf; 602 lines deleted. BC-2.16.002 v1.47→v1.49 (4 new catalog rows). POL-14: BC-2.02.002 + BC-2.02.007 promoted draft→active. WASM plugin scaffold at crates/plugins/ocsf-complex-transforms/. Worktree cleaned. Wave 1 plugin migration: 6 of 8 shipped. STORY-INDEX v2.189→v2.190. STATE v7.517→v7.518.** | state-manager (D-831 post-merge burst) | PR #158 MERGED | COMMITTED |
 | D-830 — **PLUGIN-MIGRATION-001-C story spec authored (story-writer). v1.0; 13 pts; 10 ACs; 7 Red Gate tests. BCs: BC-2.02.002, BC-2.02.007. VPs: VP-151, VP-016, VP-017. STORY-INDEX v2.188→v2.189. NEXT: deliver via per-story TDD pipeline (worktree → stubs → tests → TDD → adversary 3-CLEAN → demo → PR → merge). STATE v7.516→v7.517.** | state-manager (D-830 story-authored burst) | STORY AUTHORED | COMMITTED |
 | D-829 — **SESSION CHECKPOINT for /clear-resume. 001-A (PR #156 develop@948a709f) + 001-B (PR #157 develop@7ee54657) MERGED. Wave 1 plugin migration: 5 of 8 shipped (001-D/001-E/S-CONFIG/001-A/001-B). SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-27-001-A-001-B-SHIPPED written. No open PRs. No active worktrees. NEXT: PLUGIN-MIGRATION-001-C story authoring + delivery. STATE v7.515→v7.516.** | state-manager (D-829 session-checkpoint burst) | SESSION CHECKPOINT | COMMITTED — /clear-resume ready. |
 | D-828 — **PLUGIN-MIGRATION-001-B PR #157 MERGED at develop@7ee54657 (2026-05-27T06:43:42Z). 30/38 CI GREEN (8 cancelled superseded). 3 sensor-name dispatch sites converted to spec-catalog lookup. 10-pass LOCAL adversary cascade, 3 fix-bursts, 5 findings closed. 3 PR-LEVEL findings fixed (verb sanitization, vacuous test, stale doc). Worktree cleaned. Both 001-A + 001-B shipped same session. STATE v7.514→v7.515.** | state-manager (D-828 post-merge burst) | PR #157 MERGED | RESOLVED — 001-C unblocked. |
 | D-827 — **PLUGIN-MIGRATION-001-A PR #156 MERGED at develop@948a709f (2026-05-27T03:39:00Z). 38/38 CI GREEN. All 4 hardcoded auth modules deleted. 17-pass LOCAL adversary cascade, 6 fix-bursts, 16 findings closed. PR-LEVEL pass-1: APPROVE (zero findings). Worktree cleaned. Unblocks 001-B + 001-C. STATE v7.513→v7.514.** | state-manager (D-827 post-merge burst) | PR #156 MERGED | RESOLVED — 001-B + 001-C unblocked. |
-| D-825 — **Post-merge burst — BOTH PRs MERGED (TD-VSDD-053 single-commit).** PR #154 PLUGIN-MIGRATION-001-E MERGED at develop@6bf3f659 (2026-05-26T05:06Z); PR #155 S-CONFIG-MULTI-TENANT-OVERRIDE-001 MERGED at develop@3e822522 (2026-05-26T19:01Z). develop HEAD: 3e822522. STATE v7.511→v7.512. | state-manager (D-825 post-merge) | BOTH MERGED | RESOLVED — PLUGIN-MIGRATION-001-A unblocked. |
 
 
 ## Decisions Log
@@ -230,6 +239,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-831 | 2026-05-27 | **PLUGIN-MIGRATION-001-C: PR #158 MERGED at develop@282013a6 (2026-05-27T10:53:03Z). SpecDrivenMapper replaces 4 hardcoded OCSF mapper modules (crowdstrike_mapper, cyberint_mapper, claroty_mapper, armis_mapper) per ADR-023 Rule 1. LOCAL adversary cascade: 5 passes, 2 fix-bursts, 18 findings closed, 3-CLEAN CONVERGED (passes 3/4/5). PR-LEVEL: pass-1 APPROVE (0 blocking findings); security review CLEAN; CI all GREEN. Demo evidence: 10/10 ACs at docs/demo-evidence/PLUGIN-MIGRATION-001-C/. 13 tests added to prism-ocsf; 602 lines deleted (4 mapper files + mapper_tests.rs). BC-2.16.002 v1.47→v1.49 (4 new event_type catalog rows). WASM plugin scaffold at crates/plugins/ocsf-complex-transforms/. POL-14: BC-2.02.002 + BC-2.02.007 promoted draft→active. Worktree cleaned. Wave 1 plugin migration: 6 of 8 shipped (001-D/001-E/S-CONFIG/001-A/001-B/001-C). STORY-INDEX v2.189→v2.190. workspace_test_count 3758→3698. TD-VSDD-053 single-commit. STATE v7.517→v7.518. NEXT: author + deliver remaining Wave 1 stories (S-PLUGIN-CI-001 or 001-F/001-G/001-H).** | state-manager (D-831 post-merge burst) | Phase 3 / wave-0-plugin-prereqs | 2026-05-27 |
 | D-830 | 2026-05-27 | **PLUGIN-MIGRATION-001-C story spec authored by story-writer (v1.0; draft; 13 pts; 10 ACs; 7 Red Gate tests). Story file: `.factory/stories/PLUGIN-MIGRATION-001-C-prism-ocsf-spec-driven-mapper.md`. BCs: BC-2.02.002, BC-2.02.007. VPs: VP-151 (VP-PLUGIN-006), VP-016, VP-017. Crates: prism-ocsf, prism-spec-engine. Subsystems: SS-02, SS-16, SS-17. Depends: PREREQ-C + PREREQ-D + 001-A (all MERGED). Blocks: 001-G. STORY-INDEX v2.188→v2.189 (001-C materialized from [planned] to [draft v1.0]). TD-VSDD-053 single-commit. STATE v7.516→v7.517. NEXT: deliver via per-story TDD pipeline (worktree → stubs → tests → TDD → adversary 3-CLEAN → demo → PR → merge).** | state-manager (D-830 story-authored burst) | Phase 3 / wave-0-plugin-prereqs | 2026-05-27 |
 | D-829 | 2026-05-27 | **SESSION CHECKPOINT for /clear-resume. 001-A (PR #156 develop@948a709f) + 001-B (PR #157 develop@7ee54657) MERGED same session. Wave 1 plugin migration: 5 of 8 shipped (001-D/001-E/S-CONFIG/001-A/001-B). SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-27-001-A-001-B-SHIPPED written (supersedes §RESUME SNAPSHOT 2026-05-27-001-B-MERGED). No open PRs. No active worktrees for active stories. NEXT: author PLUGIN-MIGRATION-001-C story spec (dispatch story-writer), then deliver via per-story TDD pipeline. No new standing orchestrator rules this session. TD-VSDD-053 single-commit. STATE v7.515→v7.516.** | state-manager (D-829 session-checkpoint burst) | Phase 3 / wave-0-plugin-prereqs | 2026-05-27 |
 | D-828 | 2026-05-27 | **PLUGIN-MIGRATION-001-B: PR #157 MERGED at develop@7ee54657 (2026-05-27T06:43:42Z). 30/38 CI GREEN (8 cancelled superseded — 0 failures). LOCAL 10-pass adversary cascade CONVERGED (3-CLEAN passes 8/9/10); 3 fix-bursts closed 5 findings. Converted 3 sensor-name dispatch sites to spec-catalog lookup (explain.rs latency, write_pipeline.rs gate, invalidation.rs registration). Restored 24 silently dropped tests via empty feature stubs. PR-LEVEL: 3 findings found + fixed (verb sanitization, vacuous test, stale doc). Worktree cleaned. Wave 1 plugin migration 4 of 8 stories complete (001-D, 001-E, 001-A, 001-B merged). Unblocks 001-C. TD-VSDD-053 single-commit. STATE v7.514→v7.515.** | state-manager (D-828 post-merge burst) |
@@ -400,21 +410,21 @@ Prior cycle history:
 
 ---
 
-## Session Resume Checkpoint (2026-05-27 — D-830 STORY AUTHORED)
+## Session Resume Checkpoint (2026-05-27 — D-831 PLUGIN-MIGRATION-001-C MERGED)
 
-_Previous checkpoint (D-829 session-checkpoint; 001-A PR #156 + 001-B PR #157 MERGED) archived: [cycles/wave-0-plugin-prereqs/session-checkpoints.md](cycles/wave-0-plugin-prereqs/session-checkpoints.md)_
+_Previous checkpoint (D-830 story-authored; PLUGIN-MIGRATION-001-C story spec v1.0 authored) archived: [cycles/wave-0-plugin-prereqs/session-checkpoints.md](cycles/wave-0-plugin-prereqs/session-checkpoints.md)_
 
-**STATE v7.517. D-830 — PLUGIN-MIGRATION-001-C story authored (v1.0).**
+**STATE v7.518. D-831 — PLUGIN-MIGRATION-001-C PR #158 MERGED at develop@282013a6.**
 
-**Wave 1 plugin migration scoreboard (5 of 8 shipped; 001-C ready for delivery):**
+**Wave 1 plugin migration scoreboard (6 of 8 shipped; 001-F/001-G/001-H/S-PLUGIN-CI-001 remaining):**
 - 001-D (TOML specs) — MERGED PR #153
 - 001-E (CrowdStrike .prx) — MERGED PR #154
 - S-CONFIG (per-org overlay) — MERGED PR #155
 - 001-A (delete auth modules) — MERGED PR #156 develop@948a709f
 - 001-B (dispatch conversion) — MERGED PR #157 develop@7ee54657
-- 001-C (SpecDrivenMapper) — STORY SPEC READY at `.factory/stories/PLUGIN-MIGRATION-001-C-prism-ocsf-spec-driven-mapper.md` v1.0; deliver via TDD pipeline
+- 001-C (SpecDrivenMapper) — MERGED PR #158 develop@282013a6
 
-**develop HEAD:** `7ee54657`
+**develop HEAD:** `282013a6`
 
 **Active worktrees:**
 - `.worktrees/S-3.09` — FROZEN (BUG-S309-PLUGIN), stale since 2026-05-11
@@ -423,11 +433,10 @@ _Previous checkpoint (D-829 session-checkpoint; 001-A PR #156 + 001-B PR #157 ME
 
 **Open PRs:** None.
 
-**Resume protocol (5 steps):**
+**Resume protocol (4 steps):**
 1. Run `vsdd-factory:factory-worktree-health` (BLOCKING preflight)
-2. Read STATE.md frontmatter (v7.517)
-3. Read SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-27-001-A-001-B-SHIPPED
-4. Read `.factory/stories/PLUGIN-MIGRATION-001-C-prism-ocsf-spec-driven-mapper.md` (v1.0 draft; 13 pts; 10 ACs; 7 Red Gate tests)
-5. Deliver PLUGIN-MIGRATION-001-C via `vsdd-factory:deliver-story`
+2. Read STATE.md frontmatter (v7.518)
+3. Read SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-27-001-A-001-B-SHIPPED (last checkpoint; update if needed)
+4. Author + deliver next Wave 1 story: S-PLUGIN-CI-001 (closes PLUGIN-MIGRATION-001-E EC-006/009 #[ignore] deferrals) OR 001-F/001-G/001-H
 
 _Agent routing: see CLAUDE.md §Agent Routing Table._
