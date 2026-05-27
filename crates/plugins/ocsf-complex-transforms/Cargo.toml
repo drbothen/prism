@@ -1,0 +1,30 @@
+# AC-008 PLUGIN-MIGRATION-001-C: standalone WASM plugin — NOT in workspace members.
+# The empty [workspace] table below tells Cargo this package is its own workspace root,
+# preventing Cargo from walking up to the prism workspace (which excludes WASM cdylib targets).
+[workspace]
+
+[package]
+name = "ocsf-complex-transforms"
+version = "0.1.0"
+edition = "2024"
+description = "OCSF complex-transform WASM plugin scaffold — stub WIT exports for sensor-specific transforms (AC-008, PLUGIN-MIGRATION-001-C)"
+license = "MIT"
+# WASM plugin — not for crates.io publication (loaded as in-repo .prx artifact)
+publish = false
+
+# This crate is a WASM guest cdylib — compiled to wasm32-wasip1 for the .prx plugin format.
+# It MUST NOT depend on prism-sensors (circular dep) or reqwest (HTTP via host_http_request).
+
+[lib]
+crate-type = ["cdylib", "lib"]
+
+# AC-008: This crate is NOT in workspace members — it is a standalone WASM plugin
+# scaffold. The workspace Cargo.toml excludes this path. Build via:
+#   cargo build --manifest-path crates/plugins/ocsf-complex-transforms/Cargo.toml \
+#     --target wasm32-wasip1
+# The stub implementations use todo!() which compiles but panics at runtime.
+# Full implementation is deferred to the story that wires call_ocsf_transform WIT exports.
+
+[lints.clippy]
+# todo_used is expected in this scaffold — every export is a stub
+todo_used = "allow"

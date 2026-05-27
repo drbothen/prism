@@ -9,6 +9,11 @@ exclude = [
     # Building this crate is expected to fail (E0639 — non-exhaustive struct expression); including
     # it in the workspace would break every `cargo build --workspace` run.
     "tests/external/non-exhaustive-violation",
+    # AC-008 PLUGIN-MIGRATION-001-C: WASM plugin scaffold — compiled for wasm32-wasip1 target,
+    # not the native host target. Excluded from workspace to avoid cross-compilation issues
+    # during `cargo build --workspace` on the default host target. Build explicitly with
+    # --target wasm32-wasip1 when compiling to .prx artifact.
+    "crates/plugins/ocsf-complex-transforms",
 ]
 members = [
     "crates/ocsf-proto-gen",
