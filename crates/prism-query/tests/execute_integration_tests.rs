@@ -128,11 +128,19 @@ mod helpers {
             _client_id: &str,
             _sensor_id: prism_core::SensorId,
         ) -> Result<Box<dyn prism_sensors::auth::SensorAuth>, SensorError> {
-            Ok(Box::new(prism_sensors::CrowdStrikeAuth {
-                client_id: "test-stub".to_string(),
-                client_secret: prism_sensors::SecretString::new("test-secret".to_string()),
-                cloud_region: "us-1".to_string(),
-            }))
+            // All built-in auth types deleted in PLUGIN-MIGRATION-001-A (AC-003, AC-006).
+            // Use an inline test stub that satisfies the SensorAuth bound.
+            // StubAdapter::fetch ignores _auth entirely (F-LP1-CRIT-2).
+            struct TestStubAuth;
+            impl prism_sensors::auth::SensorAuth for TestStubAuth {
+                fn as_any(&self) -> &dyn std::any::Any {
+                    self
+                }
+                fn auth_type_name(&self) -> &'static str {
+                    "custom_via_plugin"
+                }
+            }
+            Ok(Box::new(TestStubAuth))
         }
     }
 
