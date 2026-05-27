@@ -55,7 +55,7 @@ impl SensorAuth for CyberintAuth {
     }
 
     fn auth_type_name(&self) -> &'static str {
-        "bearer_static"
+        "cookie_roundtrip"
     }
 }
 

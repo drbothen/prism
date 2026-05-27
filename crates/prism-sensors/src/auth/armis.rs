@@ -57,7 +57,7 @@ impl SensorAuth for ArmisAuth {
     }
 
     fn auth_type_name(&self) -> &'static str {
-        "api_key"
+        "bearer_static"
     }
 }
 

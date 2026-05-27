@@ -61,7 +61,7 @@ impl SensorAuth for ClarotyAuth {
     }
 
     fn auth_type_name(&self) -> &'static str {
-        "cookie_roundtrip"
+        "bearer_static"
     }
 }
 
