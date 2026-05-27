@@ -13,7 +13,6 @@ name = "prism_sensors"
 prism-core = { path = "../prism-core" }
 # S-3.07 — write() method needs WriteEndpointSpec for HTTP step dispatch.
 prism-spec-engine = { path = "../prism-spec-engine" }
-prism-credentials = { path = "../prism-credentials" }
 prism-storage = { path = "../prism-storage" }
 
 async-trait = "0.1"
@@ -24,7 +23,6 @@ reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-feature
 rand = "0.8"
 chrono = { version = "0.4", features = ["serde"] }
 uuid = { version = "1", features = ["serde", "v4"] }
-tokio-stream = "0.1"
 arrow = { version = "58", features = ["ipc"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
