@@ -7503,4 +7503,95 @@ _Session terminus: 2026-05-26. Both PRs merged. context-clear. PLUGIN-MIGRATION-
 4. Read PLUGIN-MIGRATION-001-C story spec at `.factory/stories/PLUGIN-MIGRATION-001-C-*.md` (if it exists)
 5. Dispatch story-writer to author PLUGIN-MIGRATION-001-C spec, then deliver via `vsdd-factory:deliver-story`
 
+---
+
+## §RESUME SNAPSHOT 2026-05-27-WAVE1-COMPLETE (D-834)
+
+**Purpose:** Post-session context-clear handoff. Wave 1 plugin migration is fully COMPLETE (7/7 stories merged). Both PLUGIN-MIGRATION-001-C (PR #158) and S-PLUGIN-CI-001 (PR #159) merged in the same session as this checkpoint. Supersedes §RESUME SNAPSHOT 2026-05-27-001-A-001-B-SHIPPED as the most-recent durable checkpoint. All prior snapshots remain valid historical context.
+
+---
+
+### §1. Session Deliverables
+
+| Story | PR | Merged SHA | Merged At |
+|-------|-----|-----------|-----------|
+| PLUGIN-MIGRATION-001-C | #158 | `282013a6` | 2026-05-27T10:53:03Z |
+| S-PLUGIN-CI-001 | #159 | `de1d5db7` | 2026-05-27T15:05:34Z |
+
+---
+
+### §2. Wave 1 Plugin Migration Scoreboard — COMPLETE (7/7)
+
+| Story | Status | PR |
+|-------|--------|-----|
+| 001-D (TOML specs) | MERGED | #153 |
+| 001-E (CrowdStrike .prx) | MERGED | #154 |
+| S-CONFIG (per-org overlay) | MERGED | #155 |
+| 001-A (delete auth modules) | MERGED | #156 |
+| 001-B (dispatch conversion) | MERGED | #157 |
+| 001-C (SpecDrivenMapper) | MERGED | #158 |
+| S-PLUGIN-CI-001 (CI toolchain) | MERGED | #159 |
+
+---
+
+### §3. Wave 2 Stories — NEXT (3 remaining, all need spec authoring)
+
+| Story | Type | Deps Satisfied? | Story Spec Exists? |
+|-------|------|-----------------|-------------------|
+| 001-F (test rewrite) | test sweep | YES (001-A + 001-B merged) | NO — needs authoring |
+| 001-G (doc/BC sweep) | documentation | YES (001-A + 001-B + 001-C merged) | NO — needs authoring |
+| 001-H (story supersession) | .factory metadata | YES (001-A merged) | NO — needs authoring |
+
+---
+
+### §4. Pipeline Status
+
+| Item | Status |
+|------|--------|
+| develop HEAD | `de1d5db7` |
+| Workspace test count | ~3698 |
+| Wave 1 plugin migration | COMPLETE (7/7) |
+| Wave 2 remaining | 3 stories (001-F, 001-G, 001-H) — all need spec authoring |
+| Open PRs | None |
+| Frozen worktrees | S-3.09 (BUG-S309-PLUGIN, stale 2026-05-11), W3-FIX-S307-001 (superseded D-333, stale 2026-05-24) |
+| BC-2.16.002 version | v1.49 (4 new event_type rows from 001-C) |
+| STORY-INDEX version | v2.191 |
+| STATE version | v7.521 |
+
+---
+
+### §5. Key Architectural State Post-Wave-1
+
+- All 4 hardcoded OCSF mapper modules DELETED (001-C) — replaced by SpecDrivenMapper
+- All 4 hardcoded auth modules DELETED (001-A) — replaced by spec-catalog dispatch
+- 3 sensor-name dispatch sites CONVERTED to registry lookup (001-B)
+- CrowdStrike OAuth2 .prx WASM plugin committed and CI-built (001-E + S-PLUGIN-CI-001)
+- Per-org sensor endpoint overlays working (S-CONFIG, ADR-029)
+- 4 production TOML sensor specs authored and parity-tested (001-D)
+- WASM Component Model toolchain wired into CI (S-PLUGIN-CI-001): wasm-tools 1.248.0, wasi_snapshot_preview1.wasm
+- PluginRuntime loads real Component Model binaries via build_component_linker
+- WASM plugin scaffold at crates/plugins/ocsf-complex-transforms/ (stub for future complex transforms)
+
+---
+
+### §6. Next Actions (in priority order)
+
+1. Author story spec for 001-F — dispatch story-writer. Scope: rename sensor-named test files, update compile-fail perimeter tests to reflect deleted modules.
+2. Author story spec for 001-G — dispatch story-writer. Scope: amend BC-2.02.003/004/005/006, generalize ADR docs to sensor-agnostic language.
+3. Author story spec for 001-H — dispatch story-writer. Scope: mark old superseded stories in STORY-INDEX as superseded.
+4. Deliver 001-F via per-story TDD pipeline (stubs → tests → TDD → adversary 3-CLEAN → demo → PR → merge).
+5. Deliver 001-G via per-story TDD pipeline.
+6. Deliver 001-H via per-story TDD pipeline.
+7. After all 3 merge: run wave gate for Wave 1+2 completion (`vsdd-factory:wave-gate`).
+
+---
+
+### §7. Resume Protocol (5 steps)
+
+1. Run `vsdd-factory:factory-worktree-health` (BLOCKING preflight)
+2. Read `STATE.md` frontmatter (v7.521+)
+3. Read this §RESUME SNAPSHOT 2026-05-27-WAVE1-COMPLETE
+4. Dispatch story-writer to author 001-F, 001-G, and 001-H story specs (can be dispatched in parallel)
+5. Deliver each via `vsdd-factory:deliver-story` once its spec is authored
+
 _Session terminus: 2026-05-27. Both 001-A + 001-B merged same session. context-clear. PLUGIN-MIGRATION-001-C ready to author + dispatch._
