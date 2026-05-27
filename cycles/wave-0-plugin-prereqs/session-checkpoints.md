@@ -254,3 +254,23 @@ _Superseded by D-827 checkpoint (PR #156 MERGED at develop@948a709f 2026-05-27T0
 **develop HEAD at archival:** `948a709f`
 
 _Superseded by D-828 checkpoint (PR #157 MERGED at develop@7ee54657 2026-05-27T06:43:42Z)._
+
+---
+
+## D-839 Checkpoint (archived by D-841 burst 2026-05-27)
+
+_Archived from STATE.md Session Resume Checkpoint section. Superseded by D-841 checkpoint._
+
+**STATE v7.526. D-839 — PLUGIN-MIGRATION-001-F MERGED. Wave 2 COMPLETE (3/3). Plugin migration saga CLOSED (16/16 stories).**
+
+**Plugin migration scoreboard at archival — ALL COMPLETE:**
+
+Wave 0 prereqs (6): PREREQ-A through PREREQ-F — MERGED (PRs #143/#144/#146/#149/#150/#151)
+Wave 1 (7): 001-D/E/S-CONFIG/001-A/001-B/001-C/S-PLUGIN-CI-001 — MERGED (PRs #153–#159)
+Wave 2 (3): 001-H (DONE) + 001-G (DONE) + 001-F (MERGED PR #160 develop@2dda655f)
+
+**develop HEAD at archival:** `2dda655f`
+**Workspace test count at archival:** 3708
+**Active worktrees:** `.worktrees/PLUGIN-MIGRATION-001-F` pending cleanup; S-3.09 FROZEN; W3-FIX-S307-001 superseded.
+
+_Superseded by D-841 checkpoint (SESSION CHECKPOINT — S-SPEC-TYPE-UNIFICATION-001 MERGED PR #161 develop@af79f160; 3711 tests; STATE v7.528)._

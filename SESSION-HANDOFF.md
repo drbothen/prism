@@ -7595,3 +7595,126 @@ _Session terminus: 2026-05-26. Both PRs merged. context-clear. PLUGIN-MIGRATION-
 5. Deliver each via `vsdd-factory:deliver-story` once its spec is authored
 
 _Session terminus: 2026-05-27. Both 001-A + 001-B merged same session. context-clear. PLUGIN-MIGRATION-001-C ready to author + dispatch._
+
+---
+
+## §RESUME SNAPSHOT 2026-05-27-PLUGIN-MIGRATION-SAGA-CLOSED (D-841)
+
+**Purpose:** Post-session context-clear handoff. Plugin migration saga FULLY CLOSED (16/16 stories — Waves 0+1+2). S-SPEC-TYPE-UNIFICATION-001 (ADR-030) also merged this session. Supersedes §RESUME SNAPSHOT 2026-05-27-WAVE1-COMPLETE as the most-recent durable checkpoint. All prior snapshots remain valid historical context.
+
+---
+
+### §1. Session Deliverables (This Session — Post-Wave-1-COMPLETE Continuation)
+
+| Story | Type | Status | PR / SHA |
+|-------|------|--------|----------|
+| PLUGIN-MIGRATION-001-H | Factory-only (story supersession) | DONE | n/a — factory-only |
+| PLUGIN-MIGRATION-001-G | Factory-only (BC sweep, 8 BCs amended) | DONE | n/a — factory-only |
+| PLUGIN-MIGRATION-001-F | Code + test (12 test file rewrites + compile-fail perimeter) | MERGED | PR #160 `2dda655f` |
+| S-SPEC-TYPE-UNIFICATION-001 | Code (ADR-030 type unification) | MERGED | PR #161 `af79f160` |
+
+---
+
+### §2. Plugin Migration Saga — ALL COMPLETE (16/16)
+
+| Wave | Stories | Status |
+|------|---------|--------|
+| Wave 0 prereqs (6) | PREREQ-A/B/C/D/E/F | MERGED (PRs #143/#144/#146/#149/#150/#151) |
+| Wave 1 (7) | 001-D, 001-E, S-CONFIG, 001-A, 001-B, 001-C, S-PLUGIN-CI-001 | MERGED (PRs #153–#159) |
+| Wave 2 (3) | 001-H (factory-only), 001-G (factory-only), 001-F | DONE/MERGED (PR #160) |
+
+---
+
+### §3. ADR-030 — Type Unification (ACCEPTED)
+
+Decision: Approach D — retire `prism_core::types::ColumnType` shadow alias and unify on `prism_spec_engine::spec_parser::SensorSpec`.
+
+Key changes delivered:
+- `types::SensorSpec` struct DELETED from `prism-core`
+- `ConfigSnapshot::sensor_specs` changed to `HashMap<String, prism_spec_engine::spec_parser::SensorSpec>`
+- `build_type_spec_map_for_overlay` DELETED (eliminated double-parse: 8→4 boot TOML parses)
+- `AuthType::CustomViaPlugin` variant ADDED
+- `SpecDrivenMapper` table_name qualification mismatch FIXED (latent integration bug)
+- `#[non_exhaustive]` EXPECTED count 36→35
+- CI 40/40 GREEN; 3 new AC tests; 7/7 ACs demo-evidenced
+
+---
+
+### §4. Pipeline Status
+
+| Item | Status |
+|------|--------|
+| develop HEAD | `af79f160` |
+| Workspace test count | 3711 |
+| Plugin migration saga | CLOSED (16/16 stories) |
+| ADR-030 | ACCEPTED |
+| BC-INDEX version | v5.54 |
+| ARCH-INDEX version | v2.104 |
+| STORY-INDEX version | v2.200 |
+| Open PRs | None |
+| Stale worktrees | S-3.09 (FROZEN BUG-S309-PLUGIN), W3-FIX-S307-001 (superseded D-333), PLUGIN-MIGRATION-001-F (pending cleanup) |
+| STATE version | v7.528 |
+
+---
+
+### §5. Demo Readiness Assessment
+
+| Boot Step | Component | Status |
+|-----------|-----------|--------|
+| Steps 1-6 | Config, credentials, OrgRegistry, audit, SpecCatalog, PluginRuntime | IMPLEMENTED |
+| Step 7 | RocksDB construction | `todo!()` stub |
+| Step 8 | QueryEngine wiring | `todo!()` stub |
+| Step 9 | MCP stdio server (rmcp 1.4 PrismServer) | `todo!()` stub |
+| Steps 10-11 | Tool router, health check | `todo!()` stub |
+
+**Gap:** 2 stories (S-3.02-FOLLOWUP-RUNTIME + S-5.01-FOLLOWUP-MCP-BOOT) wire boot steps 7-9. Once merged, `prism start` runs end-to-end with MCP tools and live DTU clones.
+
+---
+
+### §6. Next Session Priorities (User-Directed)
+
+1. **S-3.02-FOLLOWUP-RUNTIME** (8 pts, Wave 5, E-CLEANUP-02 epic)
+   - Scope: boot steps 7+8 — `engine.rs` RocksDB construction + `materialization.rs` + `internal_tables.rs` QueryEngine wiring
+   - Graduates S-3.02 from partial-merge; implements the boot path stubs
+   - Depends: S-WAVE5-PREP-01 MERGED (satisfied — develop@af79f160)
+   - Ready to start immediately
+
+2. **S-5.01-FOLLOWUP-MCP-BOOT** (8 pts, Wave 5, E-CLEANUP-02 epic)
+   - Scope: boot step 9 — rmcp 1.4 `PrismServer` + tool router + stdio transport
+   - Depends: S-3.02-FOLLOWUP-RUNTIME (sequential — must merge first)
+
+3. **Cycle close + session review** (wave-0-plugin-prereqs formal closure)
+   - Formal closure of wave-0-plugin-prereqs cycle: lessons codification (entries 50+ from this session), cycle manifest final metrics, convergence report
+   - Per S-7.02 discipline
+   - Can run after boot wiring stories OR before, per orchestrator judgment
+
+4. **POL-29 maintenance** (S-MAINT-POL29-HOOK-001 axis sweep)
+   - **SKIPPED per user direction** — deferred; no action required next session
+
+---
+
+### §7. Key Architectural State Post-Plugin-Migration
+
+- All 4 hardcoded OCSF mapper modules DELETED (001-C) — replaced by SpecDrivenMapper
+- All 4 hardcoded auth modules DELETED (001-A) — replaced by spec-catalog dispatch
+- 3 sensor-name dispatch sites CONVERTED to registry lookup (001-B)
+- CrowdStrike OAuth2 .prx WASM plugin committed and CI-built (001-E + S-PLUGIN-CI-001)
+- Per-org sensor endpoint overlays working (S-CONFIG, ADR-029 ACCEPTED)
+- 4 production TOML sensor specs authored and parity-tested (001-D)
+- WASM Component Model toolchain wired into CI (S-PLUGIN-CI-001)
+- Sensor-named test files eliminated — all 12 rewritten to TOML fixture loading (001-F)
+- Compile-fail perimeter `tests/external/no-hardcoded-sensors/` enforced (001-F)
+- `types::SensorSpec` shadow alias eliminated — `spec_parser::SensorSpec` canonical (ADR-030)
+- Boot steps 1-6 fully implemented; steps 7-11 are `todo!()` stubs awaiting boot wiring stories
+
+---
+
+### §8. Resume Protocol (5 steps)
+
+1. Run `vsdd-factory:factory-worktree-health` (BLOCKING preflight)
+2. Read `STATE.md` frontmatter (v7.528)
+3. Read this §RESUME SNAPSHOT 2026-05-27-PLUGIN-MIGRATION-SAGA-CLOSED
+4. Read story spec for S-3.02-FOLLOWUP-RUNTIME at `.factory/stories/` (confirm spec exists and is current)
+5. Deliver S-3.02-FOLLOWUP-RUNTIME via `vsdd-factory:deliver-story` (worktree → stubs → failing tests → TDD green → LOCAL adversary 3-CLEAN → demo-recorder → push → pr-manager 9-step PR cycle → merge)
+
+_Session terminus: 2026-05-27. Plugin migration 16/16 CLOSED. ADR-030 ACCEPTED. context-clear. Boot wiring stories are the next priority._
