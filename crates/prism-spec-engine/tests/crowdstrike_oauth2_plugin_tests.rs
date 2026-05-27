@@ -1283,18 +1283,22 @@ fn test_PLUGIN_MIGRATION_001_E_crit_001_kv_store_arc_shared_across_dispatches() 
 /// 2. Manifest is correctly parsed (plugin_id = "crowdstrike-oauth2")
 /// 3. plugin_id is registered in PluginRuntime after load
 ///
-/// # Why #[ignore]
+/// # Current state (S-PLUGIN-CI-001 AC-001)
 ///
-/// This test requires the .prx to be pre-built via `just build-plugin-crowdstrike-oauth2`.
-/// The .prx is NOT rebuilt automatically by cargo test. CI runs this test in a dedicated
-/// job that first runs `just build-plugin-crowdstrike-oauth2` then un-ignores this test
-/// (via `cargo nextest run ... -- --include-ignored`).
+/// `#[ignore]` was removed by story S-PLUGIN-CI-001. The test now loads the `.prx`
+/// binary that is committed to the repository at
+/// `crates/prism-spec-engine/plugins/crowdstrike-oauth2/crowdstrike-oauth2.prx`.
 ///
-/// Story citation for un-ignore: PLUGIN-MIGRATION-001-E (follow-up: add to CI job after
-/// wasm32-wasip1 toolchain is available in the pipeline, story S-PLUGIN-CI-001).
+/// CI rebuilds the `.prx` in the `wasm32-compile-check` job (`.github/workflows/ci.yml`)
+/// before running the test suite, ensuring CI always tests the binary built from current
+/// source. If the plugin source changes, rebuild the `.prx` locally before committing:
 ///
-/// Per SID-1: the cited blocking dependency is SPECIFIC (wasm32-wasip1 toolchain + story ID).
-/// This is NOT a permanent ignore — it will be activated when CI adds the WASM build step.
+/// ```text
+/// just build-plugin-crowdstrike-oauth2
+/// ```
+///
+/// See `tests/fixtures/README.md` for the full update procedure (Wasmtime adapter version,
+/// wasm-tools pin, and staleness guidance).
 #[test]
 fn test_PLUGIN_MIGRATION_001_E_med_001_built_prx_loads_via_plugin_runtime() {
     // S-PLUGIN-CI-001 AC-001: #[ignore] removed — CI now builds the .prx via
