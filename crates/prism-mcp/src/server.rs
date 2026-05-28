@@ -3760,13 +3760,21 @@ impl PrismServer {
 impl ServerHandler for PrismServer {
     fn get_info(&self) -> ServerInfo {
         // HIGH-006 fix: server name is "prism" (not the crate name "prism_mcp").
-        // HIGH-007 fix: declare tools + prompts + resources capabilities.
-        // prompts and resources are empty stubs but declared so clients know
-        // to check for their presence (MCP capability negotiation).
-        // HIGH-007: declare tools capability (prompts and resources not declared —
-        // rmcp builder does not support declaring them without implementation).
-        ServerInfo::new(ServerCapabilities::builder().enable_tools().build())
-            .with_server_info(Implementation::new("prism", "0.1.0"))
+        // F-PASS11-MED-3 fix: declare tools + prompts + resources capabilities.
+        // rmcp-1.7.0 ServerCapabilities::builder() supports all three; prompts and
+        // resources are declared as empty stubs so MCP clients know to negotiate
+        // their presence (MCP capability negotiation protocol). The list_prompts and
+        // list_resources handlers are provided by the default ServerHandler impl
+        // (empty lists), which satisfies the MCP spec for declared-but-empty
+        // capability sets (clients must not assume capabilities are non-empty).
+        ServerInfo::new(
+            ServerCapabilities::builder()
+                .enable_tools()
+                .enable_prompts()
+                .enable_resources()
+                .build(),
+        )
+        .with_server_info(Implementation::new("prism", "0.1.0"))
     }
 }
 
@@ -3987,6 +3995,30 @@ mod tests {
         assert!(
             info.capabilities.tools.is_some(),
             "HIGH-007: ServerCapabilities must declare tools capability"
+        );
+    }
+
+    /// F-PASS11-MED-3: get_info declares prompts capability (empty stub).
+    #[test]
+    fn test_server_info_declares_prompts_capability() {
+        let server = PrismServer::new();
+        let info = server.get_info();
+        assert!(
+            info.capabilities.prompts.is_some(),
+            "F-PASS11-MED-3: ServerCapabilities must declare prompts capability; \
+             rmcp-1.7.0 builder supports enable_prompts()"
+        );
+    }
+
+    /// F-PASS11-MED-3: get_info declares resources capability (empty stub).
+    #[test]
+    fn test_server_info_declares_resources_capability() {
+        let server = PrismServer::new();
+        let info = server.get_info();
+        assert!(
+            info.capabilities.resources.is_some(),
+            "F-PASS11-MED-3: ServerCapabilities must declare resources capability; \
+             rmcp-1.7.0 builder supports enable_resources()"
         );
     }
 
