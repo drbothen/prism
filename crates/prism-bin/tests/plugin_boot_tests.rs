@@ -440,13 +440,13 @@ async fn test_BC_2_22_001_plugin_load_step_is_registered_between_step7_and_step8
 /// Structural proof via in-process simulation:
 /// 1. `run_boot_sequence` is the public function called by `PrismCommand::Start`.
 /// 2. With `PRISM_DISABLE_PLUGIN_LOAD=1`, `run_boot_sequence` invokes plugin_load_step
-///    at step 7.5 (which returns Ok(0)) before hitting the step 7 todo!() panic.
+///    at step 7.5 (which returns Ok(0)) before step 7 (storage init) runs.
 ///    This proves the plugin-load step is in the call path, not just in dead code.
 /// 3. Calling `run_boot_sequence` directly with a minimal config exercises the
 ///    pre-traffic gate position.
 ///
-/// Note: `run_boot_sequence` panics on step 7 todo!() (caught by test framework as
-/// `should_panic`). We verify the plugin-load path is entered by setting
+/// Note: `run_boot_sequence` requires a full config to reach step 7 (storage init).
+/// We verify the plugin-load path is entered by setting
 /// PRISM_DISABLE_PLUGIN_LOAD=1 and relying on `boot_to_step_6` succeeding through
 /// steps 1-6 (which requires a real config directory). Since we cannot provide a
 /// full boot config in a unit test, we instead verify:

@@ -9,7 +9,7 @@
 //! Tests 3, 5, 6 verify API-contract invariants for the wiring that step8/step7
 //! perform. They exercise real production APIs and document the wiring contract.
 //!
-//! Test 7 is #[ignore]'d pending full boot (DTU-EXT-001).
+//! Test 7 (`query_engine_execute`): ungated -- uses InMemoryBackend; no external dependency.
 //!
 //! ## How each test enforces its contract
 //!
@@ -355,9 +355,9 @@ fn test_BC_2_22_001_step8_constructs_query_engine() {
 // step8 MUST call AdapterRegistry::register() for each loaded sensor spec
 // and pass the resulting Arc into QueryEngine::new_full() (TD-S-PLUGIN-PREREQ-A-004 P1).
 //
-// This test will PASS once the compile-time wiring contract is in place.
-// The failing Red Gate for the production wiring is enforced by tests 1, 2, and 4
-// which call step7/step8 directly and verify their outputs.
+// All tests pass. Tests 1, 2, and 4 (which call step7/step8 directly) are
+// regression guards confirming step7 and step8 continue to return Ok(()) without
+// panicking. This test is a regression guard for the AdapterRegistry wiring contract.
 // ---------------------------------------------------------------------------
 
 /// Story: S-3.02-FOLLOWUP-RUNTIME AC-3

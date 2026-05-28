@@ -306,8 +306,9 @@ pub fn validate_and_construct_auth_providers(
 /// Correct execution order:
 ///   steps 1–6 (boot_to_step_6) → step 7.5 (plugin-load) → step 7 (storage) → steps 8–11
 ///
-/// This ordering ensures `plugin_load_step_with_audit` is REACHABLE at runtime
-/// (step 7's `todo!()` panic fires AFTER plugin-load, not before).
+/// This ordering ensures `plugin_load_step_with_audit` is REACHABLE at runtime:
+/// step 7 (storage init) runs AFTER plugin-load completes, so plugin-load is
+/// never skipped.
 pub async fn run_boot_sequence(config_dir: &Path) -> Result<RunningServer, BootError> {
     let ctx = boot_to_step_6(config_dir).await?;
 
@@ -318,8 +319,8 @@ pub async fn run_boot_sequence(config_dir: &Path) -> Result<RunningServer, BootE
     // Step 7.5 [BLOCKING]: Plugin-load step — BC-2.22.001 §Sequencing Invariant.
     // Positioned BEFORE step 7 (storage init) — plugin-load only requires the RocksDB
     // audit backend from step 6 (ctx.rocksdb_backend), which boot_to_step_6 already
-    // provides.  This ordering makes plugin-load REACHABLE at runtime: step 7's todo!()
-    // panic fires AFTER plugin-load completes, not before.
+    // provides.  This ordering makes plugin-load REACHABLE at runtime: step 7
+    // (storage init) runs AFTER plugin-load completes, so plugin-load is never skipped.
     //
     // Pre-traffic gate (AC-2): MCP server (step 9) does NOT bind before this completes.
     // ADR-023 §C4 + ADR-022 §B.
