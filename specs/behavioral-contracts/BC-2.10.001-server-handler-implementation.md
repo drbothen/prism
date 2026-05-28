@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.3"
+version: "1.4"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -28,11 +28,11 @@ removal_reason: null
 
 ## Description
 
-The `prism-mcp` crate implements `rmcp::ServerHandler` against the rmcp 1.4 SDK (version-pinned in `Cargo.toml`). The handler delegates tool dispatch to the tool router, resource reads to resource handlers, and prompt retrieval to prompt handlers; `capabilities()` declares support for tools, resources, prompts, and notifications. All tool dispatch flows through a middleware layer that validates `client_id`, emits AuditEntry per DI-004, and evaluates feature flags for write tools per DI-003. One server handler instance per stdio session (one per analyst).
+The `prism-mcp` crate implements `rmcp::ServerHandler` against the rmcp 1.7 SDK (version-pinned in `Cargo.toml`). The handler delegates tool dispatch to the tool router, resource reads to resource handlers, and prompt retrieval to prompt handlers; `capabilities()` declares support for tools, resources, prompts, and notifications. All tool dispatch flows through a middleware layer that validates `client_id`, emits AuditEntry per DI-004, and evaluates feature flags for write tools per DI-003. One server handler instance per stdio session (one per analyst).
 
 ## Preconditions
 - The `prism-mcp` crate implements the `rmcp::ServerHandler` trait
-- The rmcp 1.4 SDK is pinned to an exact version in `Cargo.toml`
+- The rmcp 1.7 SDK is pinned to an exact version in `Cargo.toml`
 
 ## Postconditions
 - `server_info()` returns server name (`"prism"`), version (from `Cargo.toml`), and protocol version

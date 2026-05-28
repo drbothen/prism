@@ -1,7 +1,7 @@
 ---
 document_type: prd
 level: L3
-version: "1.10"
+version: "1.11"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T06:00:00
@@ -476,7 +476,7 @@ Full specification: [prd-supplements/interface-definitions.md](prd-supplements/i
 - **Security** -- AES-256-GCM credential encryption at rest, prompt injection defense for attacker-controlled content, secret redaction in all outputs
 - **Reliability** -- Ephemeral pagination with automatic cleanup, response caching with TTL-based eviction, graceful shutdown within 5 seconds
 - **Observability** -- Structured JSON logging via `tracing`, Vector pipeline compatibility, audit trail completeness
-- **Compatibility** -- Cross-platform (Linux, macOS, Windows), OCSF v1.x version pinning, rmcp 1.4 SDK compatibility (upgraded from 0.8 during architecture phase; rmcp reached 1.x stability)
+- **Compatibility** -- Cross-platform (Linux, macOS, Windows), OCSF v1.x version pinning, rmcp 1.7 SDK compatibility (upgraded from 0.8 during architecture phase; rmcp reached 1.x stability; further bumped to 1.7 for F-PASS9-MED-1 sibling sweep)
 
 Full specification: [prd-supplements/nfr-catalog.md](prd-supplements/nfr-catalog.md)
 
