@@ -118,8 +118,9 @@ async fn dispatch(args: CliArgs) -> i32 {
             match boot::run_boot_sequence(&config_dir).await {
                 Ok(server) => {
                     // Wait until the MCP server exits (stdin EOF or signal).
-                    server.wait_for_shutdown().await;
-                    EXIT_SUCCESS
+                    // Returns the canonical exit code per BC-2.10.010 + ADR-022 §A:
+                    //   0 = clean shutdown, 1 = graceful-drain timeout, 4 = task panic.
+                    server.wait_for_shutdown().await
                 }
                 Err(e) => {
                     let code = e.exit_code();
