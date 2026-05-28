@@ -144,6 +144,13 @@ path = "tests/boot_steps_7_8_tests.rs"
 name = "vp153_rule_c_shaped_probe"
 path = "tests/vp153_rule_c_shaped_probe.rs"
 
+# MED-005 fix: AC-10 / POL-12 extension to prism-bin production source.
+# Scans prism-bin/src/ for todo!()/unimplemented!() without a story-ID citation.
+# Intentional deferrals (step10, step11) are allowed when they cite S-* story IDs.
+[[test]]
+name = "pol_12_no_todo"
+path = "tests/pol_12_no_todo.rs"
+
 [dev-dependencies]
 tempfile = "3"
 libc = "0.2"

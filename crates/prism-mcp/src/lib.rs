@@ -11,6 +11,6 @@ pub mod server;
 pub mod tool_registry;
 pub mod tools;
 
-pub use safety_envelope::{ResponseEnvelope, SafetyEnvelopeBuilder};
+pub use safety_envelope::{ResponseEnvelope, ResponseEnvelopeSchema, SafetyEnvelopeBuilder};
 pub use server::PrismServer;
 pub use tool_registry::{ToolDescriptionRegistrar, ToolRegistration};

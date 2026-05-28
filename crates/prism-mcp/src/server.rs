@@ -26,6 +26,7 @@
 use std::sync::Arc;
 
 use rmcp::{
+    handler::server::tool::schema_for_type,
     handler::server::wrapper::Parameters,
     model::{Implementation, ServerCapabilities, ServerInfo},
     schemars::JsonSchema,
@@ -37,7 +38,9 @@ use serde::Deserialize;
 use tokio::signal;
 
 use crate::error_mapping::{codes, to_error_data};
-use crate::safety_envelope::{DataSource, ResponseEnvelope, SafetyEnvelopeBuilder};
+use crate::safety_envelope::{
+    DataSource, ResponseEnvelope, ResponseEnvelopeSchema, SafetyEnvelopeBuilder,
+};
 use prism_core::error::PrismError;
 use prism_query::{
     engine::QueryEngine, write_dispatch::AuditWriter, write_pipeline::WriteExecutor,
@@ -410,6 +413,275 @@ pub struct UpdateCaseParams {
     pub description: Option<String>,
 }
 
+/// Parameters for the `list_credentials` tool.
+#[non_exhaustive]
+#[derive(Debug, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ListCredentialsParams {
+    /// Client ID to scope credential listing.
+    pub client_id: String,
+}
+
+/// Parameters for the `credential_status` tool.
+#[non_exhaustive]
+#[derive(Debug, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct CredentialStatusParams {
+    /// Client ID to scope credential status.
+    pub client_id: String,
+}
+
+/// Parameters for the `configure_credential_source` tool.
+#[non_exhaustive]
+#[derive(Debug, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ConfigureCredentialSourceParams {
+    /// Client ID for scoping.
+    pub client_id: String,
+    /// Sensor ID for which the credential is configured.
+    pub sensor_id: String,
+    /// Credential name (references only — never raw values per AD-017).
+    pub name: String,
+    /// Source type: "env", "file", "vault", or "keyring".
+    pub source: String,
+}
+
+/// Parameters for the `delete_credential` tool.
+#[non_exhaustive]
+#[derive(Debug, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct DeleteCredentialParams {
+    /// Client ID for scoping.
+    pub client_id: String,
+    /// Sensor ID for which the credential is deleted.
+    pub sensor_id: String,
+    /// Credential name to delete.
+    pub name: String,
+}
+
+/// Parameters for the `watchdog_status` tool.
+#[non_exhaustive]
+#[derive(Debug, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct WatchdogStatusParams {
+    /// Clear the denylist as part of this status read (capability-gated sub-operation).
+    pub clear_denylist: Option<bool>,
+}
+
+/// Parameters for the `list_alerts` tool.
+#[non_exhaustive]
+#[derive(Debug, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ListAlertsParams {
+    /// Client ID for scoping.
+    pub client_id: Option<String>,
+    /// Filter by severity.
+    pub severity: Option<String>,
+    /// Filter by rule_id.
+    pub rule_id: Option<String>,
+    /// Filter by status.
+    pub status: Option<String>,
+    /// Return alerts since this timestamp.
+    pub since: Option<String>,
+}
+
+/// Parameters for the `get_alert` tool.
+#[non_exhaustive]
+#[derive(Debug, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct GetAlertParams {
+    /// Alert ID.
+    pub alert_id: String,
+}
+
+/// Parameters for the `acknowledge_alert` tool.
+#[non_exhaustive]
+#[derive(Debug, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct AcknowledgeAlertParams {
+    /// Alert ID to acknowledge.
+    pub alert_id: String,
+}
+
+/// Parameters for the `crowdstrike_contain_host` tool.
+#[non_exhaustive]
+#[derive(Debug, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct CrowdstrikeContainHostParams {
+    /// Client ID for scoping.
+    pub client_id: String,
+    /// CrowdStrike device ID to contain.
+    pub device_id: String,
+}
+
+/// Parameters for the `crowdstrike_lift_containment` tool.
+#[non_exhaustive]
+#[derive(Debug, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct CrowdstrikeLiftContainmentParams {
+    /// Client ID for scoping.
+    pub client_id: String,
+    /// CrowdStrike device ID to lift containment for.
+    pub device_id: String,
+}
+
+/// Parameters for the `list_packs` tool (no client scoping — packs are global).
+#[non_exhaustive]
+#[derive(Debug, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ListPacksParams {}
+
+/// Parameters for the `explain_pack` tool.
+#[non_exhaustive]
+#[derive(Debug, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ExplainPackParams {
+    /// Pack ID.
+    pub pack_id: String,
+    /// Client ID for client-scoped pack discovery status.
+    pub client_id: Option<String>,
+}
+
+/// Parameters for the `create_pack` tool.
+#[non_exhaustive]
+#[derive(Debug, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct CreatePackParams {
+    /// Pack name.
+    pub pack_name: String,
+    /// Pack queries (as JSON array of query strings).
+    pub queries: Option<Vec<String>>,
+    /// Pack rules (as JSON array of rule IDs).
+    pub rules: Option<Vec<String>>,
+    /// Pack aliases (as JSON array of alias names).
+    pub aliases: Option<Vec<String>>,
+}
+
+/// Parameters for the `delete_pack` tool.
+#[non_exhaustive]
+#[derive(Debug, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct DeletePackParams {
+    /// Pack ID to delete.
+    pub pack_id: String,
+}
+
+/// Parameters for the `list_infusions` tool.
+#[non_exhaustive]
+#[derive(Debug, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ListInfusionsParams {
+    /// Optional client ID scope.
+    pub client_id: Option<String>,
+}
+
+/// Parameters for the `infusion_status` tool.
+#[non_exhaustive]
+#[derive(Debug, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct InfusionStatusParams {
+    /// Infusion ID.
+    pub infusion_id: String,
+}
+
+/// Parameters for the `reload_infusion` tool.
+#[non_exhaustive]
+#[derive(Debug, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ReloadInfusionParams {
+    /// Infusion ID to reload.
+    pub infusion_id: String,
+}
+
+/// Parameters for the `list_plugins` tool (no params — global listing).
+#[non_exhaustive]
+#[derive(Debug, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ListPluginsParams {}
+
+/// Parameters for the `plugin_status` tool.
+#[non_exhaustive]
+#[derive(Debug, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct PluginStatusParams {
+    /// Plugin ID.
+    pub plugin_id: String,
+}
+
+/// Parameters for the `reload_plugin` tool.
+#[non_exhaustive]
+#[derive(Debug, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ReloadPluginParams {
+    /// Plugin ID to hot-reload.
+    pub plugin_id: String,
+}
+
+/// Parameters for the `list_actions` tool.
+#[non_exhaustive]
+#[derive(Debug, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ListActionsParams {
+    /// Optional client ID scope.
+    pub client_id: Option<String>,
+}
+
+/// Parameters for the `action_status` tool.
+#[non_exhaustive]
+#[derive(Debug, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ActionStatusParams {
+    /// Action ID.
+    pub action_id: String,
+}
+
+/// Parameters for the `fire_action` tool.
+#[non_exhaustive]
+#[derive(Debug, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct FireActionParams {
+    /// Action ID to fire.
+    pub action_id: String,
+    /// Context JSON for action execution.
+    pub context: Option<String>,
+}
+
+/// Parameters for the `test_action` tool.
+#[non_exhaustive]
+#[derive(Debug, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct TestActionParams {
+    /// Action ID to test.
+    pub action_id: String,
+}
+
+/// Parameters for the `create_action` tool.
+#[non_exhaustive]
+#[derive(Debug, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct CreateActionParams {
+    /// Action spec TOML content.
+    pub spec_toml: String,
+}
+
+/// Parameters for the `delete_action` tool.
+#[non_exhaustive]
+#[derive(Debug, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct DeleteActionParams {
+    /// Action ID to delete.
+    pub action_id: String,
+}
+
+/// Parameters for the `get_help` tool.
+#[non_exhaustive]
+#[derive(Debug, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct GetHelpParams {
+    /// Help topic: prismql, prismql.functions, prismql.pipes, ocsf.fields, detection-rules, errors, errors.{code}.
+    pub topic: String,
+}
+
 // ─── Helper functions ─────────────────────────────────────────────────────────
 
 /// Scan a slice of `(field_name, value)` pairs with the injection scanner.
@@ -514,7 +786,8 @@ impl PrismServer {
         description = "Execute a PrismQL query against configured sensor data sources.\n\
         DATA TRUST LEVEL: External/untrusted — results are sensor-originated.\n\
         SECURITY NOTE: All parameters are scanned for prompt injection before execution.\n\
-        DATA SOURCE: Configured sensor adapters (CrowdStrike, Armis, Claroty, Cyberint, etc.)"
+        DATA SOURCE: Configured sensor adapters (CrowdStrike, Armis, Claroty, Cyberint, etc.)",
+        output_schema = schema_for_type::<ResponseEnvelopeSchema>()
     )]
     pub async fn query(
         &self,
@@ -589,7 +862,8 @@ impl PrismServer {
         description = "Explain the execution plan for a PrismQL query without executing it.\n\
         DATA TRUST LEVEL: External/untrusted.\n\
         SECURITY NOTE: Parameters scanned for prompt injection before execution.\n\
-        DATA SOURCE: Internal query planner (no sensor data accessed)."
+        DATA SOURCE: Internal query planner (no sensor data accessed).",
+        output_schema = schema_for_type::<ResponseEnvelopeSchema>()
     )]
     pub async fn explain_query(
         &self,
@@ -648,7 +922,8 @@ impl PrismServer {
         description = "Create a named PrismQL alias (stored query shorthand).\n\
         DATA TRUST LEVEL: External/untrusted.\n\
         SECURITY NOTE: Name, query body, and description are scanned for prompt injection.\n\
-        DATA SOURCE: Internal alias registry."
+        DATA SOURCE: Internal alias registry.",
+        output_schema = schema_for_type::<ResponseEnvelopeSchema>()
     )]
     pub async fn create_alias(
         &self,
@@ -693,7 +968,8 @@ impl PrismServer {
         description = "List all named PrismQL aliases for the calling client.\n\
         DATA TRUST LEVEL: External/untrusted.\n\
         SECURITY NOTE: Client parameter scanned for prompt injection.\n\
-        DATA SOURCE: Internal alias registry."
+        DATA SOURCE: Internal alias registry.",
+        output_schema = schema_for_type::<ResponseEnvelopeSchema>()
     )]
     pub async fn list_aliases(
         &self,
@@ -730,10 +1006,13 @@ impl PrismServer {
     /// DATA TRUST LEVEL: External/untrusted.
     /// SECURITY NOTE: Name and scope parameters scanned for prompt injection.
     /// DATA SOURCE: Internal alias registry.
-    #[tool(description = "Delete a named PrismQL alias.\n\
+    #[tool(
+        description = "Delete a named PrismQL alias.\n\
         DATA TRUST LEVEL: External/untrusted.\n\
         SECURITY NOTE: Name and scope parameters scanned for prompt injection.\n\
-        DATA SOURCE: Internal alias registry.")]
+        DATA SOURCE: Internal alias registry.",
+        output_schema = schema_for_type::<ResponseEnvelopeSchema>()
+    )]
     pub async fn delete_alias(
         &self,
         Parameters(params): Parameters<DeleteAliasParams>,
@@ -770,7 +1049,8 @@ impl PrismServer {
         description = "Explain what a named alias expands to, without executing it.\n\
         DATA TRUST LEVEL: External/untrusted.\n\
         SECURITY NOTE: Name and scope parameters scanned for prompt injection.\n\
-        DATA SOURCE: Internal alias registry."
+        DATA SOURCE: Internal alias registry.",
+        output_schema = schema_for_type::<ResponseEnvelopeSchema>()
     )]
     pub async fn explain_alias(
         &self,
@@ -810,7 +1090,8 @@ impl PrismServer {
         description = "Confirm an irreversible write operation by confirmation token.\n\
         DATA TRUST LEVEL: External/untrusted.\n\
         SECURITY NOTE: Token and client_id parameters scanned for prompt injection.\n\
-        DATA SOURCE: Internal write executor (sensor write via configured adapter)."
+        DATA SOURCE: Internal write executor (sensor write via configured adapter).",
+        output_schema = schema_for_type::<ResponseEnvelopeSchema>()
     )]
     pub async fn confirm_action(
         &self,
@@ -860,7 +1141,8 @@ impl PrismServer {
         description = "Check the connectivity and authentication status of configured sensors.\n\
         DATA TRUST LEVEL: External/untrusted — connectivity status is sensor-originated.\n\
         SECURITY NOTE: Sensor name parameter scanned for prompt injection.\n\
-        DATA SOURCE: Configured sensor adapters."
+        DATA SOURCE: Configured sensor adapters.",
+        output_schema = schema_for_type::<ResponseEnvelopeSchema>()
     )]
     pub async fn check_sensor_health(
         &self,
@@ -896,7 +1178,8 @@ impl PrismServer {
         description = "Retrieve diagnostic information for a specific sensor or all sensors.\n\
         DATA TRUST LEVEL: External/untrusted — diagnostic data is sensor-originated.\n\
         SECURITY NOTE: Sensor name parameter scanned for prompt injection.\n\
-        DATA SOURCE: Configured sensor adapters."
+        DATA SOURCE: Configured sensor adapters.",
+        output_schema = schema_for_type::<ResponseEnvelopeSchema>()
     )]
     pub async fn get_diagnostics(
         &self,
@@ -930,10 +1213,13 @@ impl PrismServer {
     /// DATA TRUST LEVEL: Internal — configuration is operator-controlled.
     /// SECURITY NOTE: No user-controlled parameters; safe to call without parameter scan.
     /// DATA SOURCE: Prism config directory on disk.
-    #[tool(description = "Hot-reload the running configuration from disk.\n\
+    #[tool(
+        description = "Hot-reload the running configuration from disk.\n\
         DATA TRUST LEVEL: Internal — configuration is operator-controlled.\n\
         SECURITY NOTE: No user-controlled parameters.\n\
-        DATA SOURCE: Prism config directory on disk.")]
+        DATA SOURCE: Prism config directory on disk.",
+        output_schema = schema_for_type::<ResponseEnvelopeSchema>()
+    )]
     pub async fn reload_config(&self) -> Result<String, rmcp::model::ErrorData> {
         emit_tool_audit(self.audit_writer.as_ref(), "reload_config", None, "invoked");
 
@@ -947,10 +1233,13 @@ impl PrismServer {
     /// DATA TRUST LEVEL: External/untrusted — TOML content is attacker-controlled in MCP context.
     /// SECURITY NOTE: Name and TOML content scanned for prompt injection.
     /// DATA SOURCE: Internal spec engine.
-    #[tool(description = "Add or update a sensor spec from a TOML string.\n\
+    #[tool(
+        description = "Add or update a sensor spec from a TOML string.\n\
         DATA TRUST LEVEL: External/untrusted — TOML content is attacker-controlled in MCP context.\n\
         SECURITY NOTE: Name and TOML content scanned for prompt injection.\n\
-        DATA SOURCE: Internal spec engine.")]
+        DATA SOURCE: Internal spec engine.",
+        output_schema = schema_for_type::<ResponseEnvelopeSchema>()
+    )]
     pub async fn add_sensor_spec(
         &self,
         Parameters(params): Parameters<AddSensorSpecParams>,
@@ -984,7 +1273,8 @@ impl PrismServer {
         description = "List all currently loaded sensor specs with their metadata.\n\
         DATA TRUST LEVEL: Internal — spec metadata is operator-managed.\n\
         SECURITY NOTE: No user-controlled parameters.\n\
-        DATA SOURCE: Internal spec engine."
+        DATA SOURCE: Internal spec engine.",
+        output_schema = schema_for_type::<ResponseEnvelopeSchema>()
     )]
     pub async fn list_sensor_specs(&self) -> Result<String, rmcp::model::ErrorData> {
         emit_tool_audit(
@@ -1008,7 +1298,8 @@ impl PrismServer {
         description = "Validate a sensor spec TOML string without loading it.\n\
         DATA TRUST LEVEL: External/untrusted — TOML content is attacker-controlled.\n\
         SECURITY NOTE: TOML content scanned for prompt injection.\n\
-        DATA SOURCE: Internal spec engine (validation only)."
+        DATA SOURCE: Internal spec engine (validation only).",
+        output_schema = schema_for_type::<ResponseEnvelopeSchema>()
     )]
     pub async fn validate_config(
         &self,
@@ -1040,7 +1331,8 @@ impl PrismServer {
         description = "List capabilities available for the calling client's feature flags.\n\
         DATA TRUST LEVEL: Internal — capability metadata is operator-configured.\n\
         SECURITY NOTE: Client ID parameter scanned for prompt injection.\n\
-        DATA SOURCE: Internal feature flag registry."
+        DATA SOURCE: Internal feature flag registry.",
+        output_schema = schema_for_type::<ResponseEnvelopeSchema>()
     )]
     pub async fn list_capabilities(
         &self,
@@ -1074,10 +1366,13 @@ impl PrismServer {
     /// DATA TRUST LEVEL: External/untrusted.
     /// SECURITY NOTE: Query and cron parameters scanned for prompt injection.
     /// DATA SOURCE: prism-operations (not yet merged).
-    #[tool(description = "Create a recurring PrismQL query schedule.\n\
+    #[tool(
+        description = "Create a recurring PrismQL query schedule.\n\
         DATA TRUST LEVEL: External/untrusted.\n\
         SECURITY NOTE: Query and cron parameters scanned for prompt injection.\n\
-        DATA SOURCE: prism-operations (not yet merged).")]
+        DATA SOURCE: prism-operations (not yet merged).",
+        output_schema = schema_for_type::<ResponseEnvelopeSchema>()
+    )]
     pub async fn create_schedule(
         &self,
         Parameters(params): Parameters<CreateScheduleParams>,
@@ -1102,7 +1397,8 @@ impl PrismServer {
         description = "List all PrismQL query schedules for the calling client.\n\
         DATA TRUST LEVEL: External/untrusted.\n\
         SECURITY NOTE: No user-controlled parameters.\n\
-        DATA SOURCE: prism-operations (not yet merged)."
+        DATA SOURCE: prism-operations (not yet merged).",
+        output_schema = schema_for_type::<ResponseEnvelopeSchema>()
     )]
     pub async fn list_schedules(&self) -> Result<String, rmcp::model::ErrorData> {
         Err(not_yet_available_msg("schedule management"))
@@ -1113,10 +1409,13 @@ impl PrismServer {
     /// DATA TRUST LEVEL: External/untrusted.
     /// SECURITY NOTE: ID parameter scanned for prompt injection.
     /// DATA SOURCE: prism-operations (not yet merged).
-    #[tool(description = "Delete a PrismQL query schedule by ID.\n\
+    #[tool(
+        description = "Delete a PrismQL query schedule by ID.\n\
         DATA TRUST LEVEL: External/untrusted.\n\
         SECURITY NOTE: ID parameter scanned for prompt injection.\n\
-        DATA SOURCE: prism-operations (not yet merged).")]
+        DATA SOURCE: prism-operations (not yet merged).",
+        output_schema = schema_for_type::<ResponseEnvelopeSchema>()
+    )]
     pub async fn delete_schedule(
         &self,
         Parameters(params): Parameters<DeleteScheduleParams>,
@@ -1134,7 +1433,8 @@ impl PrismServer {
         description = "Retrieve diff results from the most recent schedule run.\n\
         DATA TRUST LEVEL: External/untrusted.\n\
         SECURITY NOTE: ID parameter scanned for prompt injection.\n\
-        DATA SOURCE: prism-operations (not yet merged)."
+        DATA SOURCE: prism-operations (not yet merged).",
+        output_schema = schema_for_type::<ResponseEnvelopeSchema>()
     )]
     pub async fn get_diff_results(
         &self,
@@ -1149,10 +1449,13 @@ impl PrismServer {
     /// DATA TRUST LEVEL: External/untrusted.
     /// SECURITY NOTE: Name and query parameters scanned for prompt injection.
     /// DATA SOURCE: prism-operations (not yet merged).
-    #[tool(description = "Create a detection rule from a PrismQL query.\n\
+    #[tool(
+        description = "Create a detection rule from a PrismQL query.\n\
         DATA TRUST LEVEL: External/untrusted.\n\
         SECURITY NOTE: Name and query parameters scanned for prompt injection.\n\
-        DATA SOURCE: prism-operations (not yet merged).")]
+        DATA SOURCE: prism-operations (not yet merged).",
+        output_schema = schema_for_type::<ResponseEnvelopeSchema>()
+    )]
     pub async fn create_rule(
         &self,
         Parameters(params): Parameters<CreateRuleParams>,
@@ -1173,10 +1476,13 @@ impl PrismServer {
     /// DATA TRUST LEVEL: External/untrusted.
     /// SECURITY NOTE: No user-controlled parameters.
     /// DATA SOURCE: prism-operations (not yet merged).
-    #[tool(description = "List all detection rules for the calling client.\n\
+    #[tool(
+        description = "List all detection rules for the calling client.\n\
         DATA TRUST LEVEL: External/untrusted.\n\
         SECURITY NOTE: No user-controlled parameters.\n\
-        DATA SOURCE: prism-operations (not yet merged).")]
+        DATA SOURCE: prism-operations (not yet merged).",
+        output_schema = schema_for_type::<ResponseEnvelopeSchema>()
+    )]
     pub async fn list_rules(&self) -> Result<String, rmcp::model::ErrorData> {
         Err(not_yet_available_msg("detection rules"))
     }
@@ -1186,10 +1492,13 @@ impl PrismServer {
     /// DATA TRUST LEVEL: External/untrusted.
     /// SECURITY NOTE: ID parameter scanned for prompt injection.
     /// DATA SOURCE: prism-operations (not yet merged).
-    #[tool(description = "Delete a detection rule by ID.\n\
+    #[tool(
+        description = "Delete a detection rule by ID.\n\
         DATA TRUST LEVEL: External/untrusted.\n\
         SECURITY NOTE: ID parameter scanned for prompt injection.\n\
-        DATA SOURCE: prism-operations (not yet merged).")]
+        DATA SOURCE: prism-operations (not yet merged).",
+        output_schema = schema_for_type::<ResponseEnvelopeSchema>()
+    )]
     pub async fn delete_rule(
         &self,
         Parameters(params): Parameters<DeleteRuleParams>,
@@ -1203,10 +1512,13 @@ impl PrismServer {
     /// DATA TRUST LEVEL: External/untrusted.
     /// SECURITY NOTE: Title and description scanned for prompt injection.
     /// DATA SOURCE: prism-operations (not yet merged).
-    #[tool(description = "Create a new security case.\n\
+    #[tool(
+        description = "Create a new security case.\n\
         DATA TRUST LEVEL: External/untrusted.\n\
         SECURITY NOTE: Title and description scanned for prompt injection.\n\
-        DATA SOURCE: prism-operations (not yet merged).")]
+        DATA SOURCE: prism-operations (not yet merged).",
+        output_schema = schema_for_type::<ResponseEnvelopeSchema>()
+    )]
     pub async fn create_case(
         &self,
         Parameters(params): Parameters<CreateCaseParams>,
@@ -1227,10 +1539,13 @@ impl PrismServer {
     /// DATA TRUST LEVEL: External/untrusted.
     /// SECURITY NOTE: No user-controlled parameters.
     /// DATA SOURCE: prism-operations (not yet merged).
-    #[tool(description = "List security cases for the calling client.\n\
+    #[tool(
+        description = "List security cases for the calling client.\n\
         DATA TRUST LEVEL: External/untrusted.\n\
         SECURITY NOTE: No user-controlled parameters.\n\
-        DATA SOURCE: prism-operations (not yet merged).")]
+        DATA SOURCE: prism-operations (not yet merged).",
+        output_schema = schema_for_type::<ResponseEnvelopeSchema>()
+    )]
     pub async fn list_cases(&self) -> Result<String, rmcp::model::ErrorData> {
         Err(not_yet_available_msg("case management"))
     }
@@ -1240,10 +1555,13 @@ impl PrismServer {
     /// DATA TRUST LEVEL: External/untrusted.
     /// SECURITY NOTE: ID parameter scanned for prompt injection.
     /// DATA SOURCE: prism-operations (not yet merged).
-    #[tool(description = "Get a specific security case by ID.\n\
+    #[tool(
+        description = "Get a specific security case by ID.\n\
         DATA TRUST LEVEL: External/untrusted.\n\
         SECURITY NOTE: ID parameter scanned for prompt injection.\n\
-        DATA SOURCE: prism-operations (not yet merged).")]
+        DATA SOURCE: prism-operations (not yet merged).",
+        output_schema = schema_for_type::<ResponseEnvelopeSchema>()
+    )]
     pub async fn get_case(
         &self,
         Parameters(params): Parameters<GetCaseParams>,
@@ -1257,10 +1575,13 @@ impl PrismServer {
     /// DATA TRUST LEVEL: External/untrusted.
     /// SECURITY NOTE: ID, title, and description scanned for prompt injection.
     /// DATA SOURCE: prism-operations (not yet merged).
-    #[tool(description = "Update fields on an existing security case.\n\
+    #[tool(
+        description = "Update fields on an existing security case.\n\
         DATA TRUST LEVEL: External/untrusted.\n\
         SECURITY NOTE: ID, title, and description scanned for prompt injection.\n\
-        DATA SOURCE: prism-operations (not yet merged).")]
+        DATA SOURCE: prism-operations (not yet merged).",
+        output_schema = schema_for_type::<ResponseEnvelopeSchema>()
+    )]
     pub async fn update_case(
         &self,
         Parameters(params): Parameters<UpdateCaseParams>,
@@ -1281,12 +1602,800 @@ impl PrismServer {
     /// DATA TRUST LEVEL: External/untrusted.
     /// SECURITY NOTE: No user-controlled parameters.
     /// DATA SOURCE: prism-operations (not yet merged).
-    #[tool(description = "Retrieve aggregated metrics across security cases.\n\
+    #[tool(
+        description = "Retrieve aggregated metrics across security cases.\n\
         DATA TRUST LEVEL: External/untrusted.\n\
         SECURITY NOTE: No user-controlled parameters.\n\
-        DATA SOURCE: prism-operations (not yet merged).")]
+        DATA SOURCE: prism-operations (not yet merged).",
+        output_schema = schema_for_type::<ResponseEnvelopeSchema>()
+    )]
     pub async fn case_metrics(&self) -> Result<String, rmcp::model::ErrorData> {
         Err(not_yet_available_msg("case management"))
+    }
+
+    // ─── Credential management tools ──────────────────────────────────────────
+
+    /// List credential references for the given client (names only, never raw values).
+    ///
+    /// DATA TRUST LEVEL: Internal — credential names are operator-managed references.
+    /// SECURITY NOTE: Client ID scanned for prompt injection. Credential values NEVER exposed (AD-017).
+    /// DATA SOURCE: Credential store (not yet wired).
+    #[tool(
+        description = "List credential references for the given client (names only, never raw values per AD-017).\n\
+        DATA TRUST LEVEL: Internal — credential names are operator-managed references.\n\
+        SECURITY NOTE: Client ID scanned for prompt injection. Credential values NEVER exposed (AD-017).\n\
+        DATA SOURCE: Credential store (not yet wired).",
+        output_schema = schema_for_type::<ResponseEnvelopeSchema>()
+    )]
+    pub async fn list_credentials(
+        &self,
+        Parameters(params): Parameters<ListCredentialsParams>,
+    ) -> Result<String, rmcp::model::ErrorData> {
+        scan_inputs(
+            &self.injection_scanner,
+            &[("client_id", params.client_id.as_str())],
+        )?;
+        validate_client_ids(std::slice::from_ref(&params.client_id))?;
+        emit_tool_audit(
+            self.audit_writer.as_ref(),
+            "list_credentials",
+            Some(params.client_id.as_str()),
+            "invoked",
+        );
+        Err(not_yet_available_msg("credential management"))
+    }
+
+    /// Check the status of a credential reference for the given client.
+    ///
+    /// DATA TRUST LEVEL: Internal — credential status is operator-managed.
+    /// SECURITY NOTE: Client ID scanned for prompt injection. Credential values NEVER exposed (AD-017).
+    /// DATA SOURCE: Credential store (not yet wired).
+    #[tool(
+        description = "Check the status of a credential reference for the given client.\n\
+        DATA TRUST LEVEL: Internal — credential status is operator-managed.\n\
+        SECURITY NOTE: Client ID scanned for prompt injection. Credential values NEVER exposed (AD-017).\n\
+        DATA SOURCE: Credential store (not yet wired).",
+        output_schema = schema_for_type::<ResponseEnvelopeSchema>()
+    )]
+    pub async fn credential_status(
+        &self,
+        Parameters(params): Parameters<CredentialStatusParams>,
+    ) -> Result<String, rmcp::model::ErrorData> {
+        scan_inputs(
+            &self.injection_scanner,
+            &[("client_id", params.client_id.as_str())],
+        )?;
+        validate_client_ids(std::slice::from_ref(&params.client_id))?;
+        emit_tool_audit(
+            self.audit_writer.as_ref(),
+            "credential_status",
+            Some(params.client_id.as_str()),
+            "invoked",
+        );
+        Err(not_yet_available_msg("credential management"))
+    }
+
+    /// Configure a credential source for a sensor (env, file, vault, or keyring reference).
+    ///
+    /// DATA TRUST LEVEL: External/untrusted — source path references are attacker-controlled in MCP context.
+    /// SECURITY NOTE: All string fields scanned for prompt injection. Credential values NEVER stored (AD-017).
+    /// DATA SOURCE: Credential store (not yet wired).
+    #[tool(
+        description = "Configure a credential source for a sensor (env, file, vault, or keyring reference).\n\
+        DATA TRUST LEVEL: External/untrusted — source path references are attacker-controlled.\n\
+        SECURITY NOTE: All string fields scanned for prompt injection. Credential values NEVER stored (AD-017).\n\
+        DATA SOURCE: Credential store (not yet wired).",
+        output_schema = schema_for_type::<ResponseEnvelopeSchema>()
+    )]
+    pub async fn configure_credential_source(
+        &self,
+        Parameters(params): Parameters<ConfigureCredentialSourceParams>,
+    ) -> Result<String, rmcp::model::ErrorData> {
+        scan_inputs(
+            &self.injection_scanner,
+            &[
+                ("client_id", params.client_id.as_str()),
+                ("sensor_id", params.sensor_id.as_str()),
+                ("name", params.name.as_str()),
+                ("source", params.source.as_str()),
+            ],
+        )?;
+        validate_client_ids(std::slice::from_ref(&params.client_id))?;
+        emit_tool_audit(
+            self.audit_writer.as_ref(),
+            "configure_credential_source",
+            Some(params.client_id.as_str()),
+            "invoked",
+        );
+        Err(not_yet_available_msg("credential management"))
+    }
+
+    /// Delete a credential reference for a sensor (removes the reference, not any external value).
+    ///
+    /// DATA TRUST LEVEL: External/untrusted.
+    /// SECURITY NOTE: All string fields scanned for prompt injection.
+    /// DATA SOURCE: Credential store (not yet wired).
+    #[tool(
+        description = "Delete a credential reference for a sensor (removes the reference, not any external value).\n\
+        DATA TRUST LEVEL: External/untrusted.\n\
+        SECURITY NOTE: All string fields scanned for prompt injection.\n\
+        DATA SOURCE: Credential store (not yet wired).",
+        output_schema = schema_for_type::<ResponseEnvelopeSchema>()
+    )]
+    pub async fn delete_credential(
+        &self,
+        Parameters(params): Parameters<DeleteCredentialParams>,
+    ) -> Result<String, rmcp::model::ErrorData> {
+        scan_inputs(
+            &self.injection_scanner,
+            &[
+                ("client_id", params.client_id.as_str()),
+                ("sensor_id", params.sensor_id.as_str()),
+                ("name", params.name.as_str()),
+            ],
+        )?;
+        validate_client_ids(std::slice::from_ref(&params.client_id))?;
+        emit_tool_audit(
+            self.audit_writer.as_ref(),
+            "delete_credential",
+            Some(params.client_id.as_str()),
+            "invoked",
+        );
+        Err(not_yet_available_msg("credential management"))
+    }
+
+    // ─── Watchdog and alerting tools ──────────────────────────────────────────
+
+    /// Retrieve the watchdog status for the Prism process (memory, query queue, denylist).
+    ///
+    /// DATA TRUST LEVEL: Internal — watchdog metrics are process-internal.
+    /// SECURITY NOTE: No user-controlled input strings. Optional denylist-clear is capability-gated.
+    /// DATA SOURCE: Internal watchdog subsystem (not yet wired).
+    #[tool(
+        description = "Retrieve the watchdog status for the Prism process (memory, query queue, denylist).\n\
+        DATA TRUST LEVEL: Internal — watchdog metrics are process-internal.\n\
+        SECURITY NOTE: No user-controlled input strings. Optional denylist-clear is capability-gated.\n\
+        DATA SOURCE: Internal watchdog subsystem (not yet wired).",
+        output_schema = schema_for_type::<ResponseEnvelopeSchema>()
+    )]
+    pub async fn watchdog_status(
+        &self,
+        Parameters(_params): Parameters<WatchdogStatusParams>,
+    ) -> Result<String, rmcp::model::ErrorData> {
+        emit_tool_audit(
+            self.audit_writer.as_ref(),
+            "watchdog_status",
+            None,
+            "invoked",
+        );
+        Err(not_yet_available_msg("watchdog"))
+    }
+
+    /// List alerts for the given client, with optional severity/rule/status filters.
+    ///
+    /// DATA TRUST LEVEL: External/untrusted — filter values are attacker-controlled in MCP context.
+    /// SECURITY NOTE: All string filter parameters scanned for prompt injection.
+    /// DATA SOURCE: prism-operations alert store (not yet wired).
+    #[tool(
+        description = "List alerts for the given client, with optional severity/rule/status filters.\n\
+        DATA TRUST LEVEL: External/untrusted — filter values are attacker-controlled.\n\
+        SECURITY NOTE: All string filter parameters scanned for prompt injection.\n\
+        DATA SOURCE: prism-operations alert store (not yet wired).",
+        output_schema = schema_for_type::<ResponseEnvelopeSchema>()
+    )]
+    pub async fn list_alerts(
+        &self,
+        Parameters(params): Parameters<ListAlertsParams>,
+    ) -> Result<String, rmcp::model::ErrorData> {
+        let mut inputs: Vec<(&str, &str)> = Vec::new();
+        let client_id_storage;
+        let severity_storage;
+        let rule_id_storage;
+        let status_storage;
+        let since_storage;
+        if let Some(ref v) = params.client_id {
+            client_id_storage = v.as_str();
+            inputs.push(("client_id", client_id_storage));
+        }
+        if let Some(ref v) = params.severity {
+            severity_storage = v.as_str();
+            inputs.push(("severity", severity_storage));
+        }
+        if let Some(ref v) = params.rule_id {
+            rule_id_storage = v.as_str();
+            inputs.push(("rule_id", rule_id_storage));
+        }
+        if let Some(ref v) = params.status {
+            status_storage = v.as_str();
+            inputs.push(("status", status_storage));
+        }
+        if let Some(ref v) = params.since {
+            since_storage = v.as_str();
+            inputs.push(("since", since_storage));
+        }
+        if !inputs.is_empty() {
+            scan_inputs(&self.injection_scanner, &inputs)?;
+        }
+        if let Some(ref client_id) = params.client_id {
+            validate_client_ids(std::slice::from_ref(client_id))?;
+        }
+        emit_tool_audit(
+            self.audit_writer.as_ref(),
+            "list_alerts",
+            params.client_id.as_deref(),
+            "invoked",
+        );
+        Err(not_yet_available_msg("alerting"))
+    }
+
+    /// Get a specific alert by ID.
+    ///
+    /// DATA TRUST LEVEL: External/untrusted — alert ID is attacker-controlled in MCP context.
+    /// SECURITY NOTE: alert_id scanned for prompt injection.
+    /// DATA SOURCE: prism-operations alert store (not yet wired).
+    #[tool(
+        description = "Get a specific alert by ID.\n\
+        DATA TRUST LEVEL: External/untrusted — alert ID is attacker-controlled.\n\
+        SECURITY NOTE: alert_id scanned for prompt injection.\n\
+        DATA SOURCE: prism-operations alert store (not yet wired).",
+        output_schema = schema_for_type::<ResponseEnvelopeSchema>()
+    )]
+    pub async fn get_alert(
+        &self,
+        Parameters(params): Parameters<GetAlertParams>,
+    ) -> Result<String, rmcp::model::ErrorData> {
+        scan_inputs(
+            &self.injection_scanner,
+            &[("alert_id", params.alert_id.as_str())],
+        )?;
+        emit_tool_audit(self.audit_writer.as_ref(), "get_alert", None, "invoked");
+        Err(not_yet_available_msg("alerting"))
+    }
+
+    /// Acknowledge an alert to suppress repeat notifications.
+    ///
+    /// DATA TRUST LEVEL: External/untrusted — alert ID is attacker-controlled in MCP context.
+    /// SECURITY NOTE: alert_id scanned for prompt injection.
+    /// DATA SOURCE: prism-operations alert store (not yet wired).
+    #[tool(
+        description = "Acknowledge an alert to suppress repeat notifications.\n\
+        DATA TRUST LEVEL: External/untrusted — alert ID is attacker-controlled.\n\
+        SECURITY NOTE: alert_id scanned for prompt injection.\n\
+        DATA SOURCE: prism-operations alert store (not yet wired).",
+        output_schema = schema_for_type::<ResponseEnvelopeSchema>()
+    )]
+    pub async fn acknowledge_alert(
+        &self,
+        Parameters(params): Parameters<AcknowledgeAlertParams>,
+    ) -> Result<String, rmcp::model::ErrorData> {
+        scan_inputs(
+            &self.injection_scanner,
+            &[("alert_id", params.alert_id.as_str())],
+        )?;
+        emit_tool_audit(
+            self.audit_writer.as_ref(),
+            "acknowledge_alert",
+            None,
+            "invoked",
+        );
+        Err(not_yet_available_msg("alerting"))
+    }
+
+    // ─── CrowdStrike sensor action tools ─────────────────────────────────────
+
+    /// Contain (network-isolate) a CrowdStrike-managed host.
+    ///
+    /// DATA TRUST LEVEL: External/untrusted — device_id is attacker-controlled in MCP context.
+    /// SECURITY NOTE: client_id and device_id scanned for prompt injection.
+    /// DATA SOURCE: CrowdStrike sensor adapter (not yet wired — capability-gated write).
+    #[tool(
+        description = "Contain (network-isolate) a CrowdStrike-managed host.\n\
+        DATA TRUST LEVEL: External/untrusted — device_id is attacker-controlled.\n\
+        SECURITY NOTE: client_id and device_id scanned for prompt injection.\n\
+        DATA SOURCE: CrowdStrike sensor adapter (not yet wired — capability-gated write).",
+        output_schema = schema_for_type::<ResponseEnvelopeSchema>()
+    )]
+    pub async fn crowdstrike_contain_host(
+        &self,
+        Parameters(params): Parameters<CrowdstrikeContainHostParams>,
+    ) -> Result<String, rmcp::model::ErrorData> {
+        scan_inputs(
+            &self.injection_scanner,
+            &[
+                ("client_id", params.client_id.as_str()),
+                ("device_id", params.device_id.as_str()),
+            ],
+        )?;
+        validate_client_ids(std::slice::from_ref(&params.client_id))?;
+        emit_tool_audit(
+            self.audit_writer.as_ref(),
+            "crowdstrike_contain_host",
+            Some(params.client_id.as_str()),
+            "invoked",
+        );
+        Err(not_yet_available_msg("crowdstrike sensor actions"))
+    }
+
+    /// Lift network containment from a CrowdStrike-managed host.
+    ///
+    /// DATA TRUST LEVEL: External/untrusted — device_id is attacker-controlled in MCP context.
+    /// SECURITY NOTE: client_id and device_id scanned for prompt injection.
+    /// DATA SOURCE: CrowdStrike sensor adapter (not yet wired — capability-gated write).
+    #[tool(
+        description = "Lift network containment from a CrowdStrike-managed host.\n\
+        DATA TRUST LEVEL: External/untrusted — device_id is attacker-controlled.\n\
+        SECURITY NOTE: client_id and device_id scanned for prompt injection.\n\
+        DATA SOURCE: CrowdStrike sensor adapter (not yet wired — capability-gated write).",
+        output_schema = schema_for_type::<ResponseEnvelopeSchema>()
+    )]
+    pub async fn crowdstrike_lift_containment(
+        &self,
+        Parameters(params): Parameters<CrowdstrikeLiftContainmentParams>,
+    ) -> Result<String, rmcp::model::ErrorData> {
+        scan_inputs(
+            &self.injection_scanner,
+            &[
+                ("client_id", params.client_id.as_str()),
+                ("device_id", params.device_id.as_str()),
+            ],
+        )?;
+        validate_client_ids(std::slice::from_ref(&params.client_id))?;
+        emit_tool_audit(
+            self.audit_writer.as_ref(),
+            "crowdstrike_lift_containment",
+            Some(params.client_id.as_str()),
+            "invoked",
+        );
+        Err(not_yet_available_msg("crowdstrike sensor actions"))
+    }
+
+    // ─── Pack management tools ────────────────────────────────────────────────
+
+    /// List all available query packs (bundles of queries, rules, and aliases).
+    ///
+    /// DATA TRUST LEVEL: Internal — pack metadata is operator-managed.
+    /// SECURITY NOTE: No user-controlled parameters.
+    /// DATA SOURCE: Internal pack registry (not yet wired).
+    #[tool(
+        description = "List all available query packs (bundles of queries, rules, and aliases).\n\
+        DATA TRUST LEVEL: Internal — pack metadata is operator-managed.\n\
+        SECURITY NOTE: No user-controlled parameters.\n\
+        DATA SOURCE: Internal pack registry (not yet wired).",
+        output_schema = schema_for_type::<ResponseEnvelopeSchema>()
+    )]
+    pub async fn list_packs(
+        &self,
+        Parameters(_params): Parameters<ListPacksParams>,
+    ) -> Result<String, rmcp::model::ErrorData> {
+        emit_tool_audit(self.audit_writer.as_ref(), "list_packs", None, "invoked");
+        Err(not_yet_available_msg("pack management"))
+    }
+
+    /// Explain the contents and discovery status of a specific pack.
+    ///
+    /// DATA TRUST LEVEL: External/untrusted — pack_id is attacker-controlled in MCP context.
+    /// SECURITY NOTE: pack_id and client_id scanned for prompt injection.
+    /// DATA SOURCE: Internal pack registry (not yet wired).
+    #[tool(
+        description = "Explain the contents and discovery status of a specific pack.\n\
+        DATA TRUST LEVEL: External/untrusted — pack_id is attacker-controlled.\n\
+        SECURITY NOTE: pack_id and client_id scanned for prompt injection.\n\
+        DATA SOURCE: Internal pack registry (not yet wired).",
+        output_schema = schema_for_type::<ResponseEnvelopeSchema>()
+    )]
+    pub async fn explain_pack(
+        &self,
+        Parameters(params): Parameters<ExplainPackParams>,
+    ) -> Result<String, rmcp::model::ErrorData> {
+        let mut inputs = vec![("pack_id", params.pack_id.as_str())];
+        if let Some(ref client_id) = params.client_id {
+            inputs.push(("client_id", client_id.as_str()));
+        }
+        scan_inputs(&self.injection_scanner, &inputs)?;
+        if let Some(ref client_id) = params.client_id {
+            validate_client_ids(std::slice::from_ref(client_id))?;
+        }
+        emit_tool_audit(
+            self.audit_writer.as_ref(),
+            "explain_pack",
+            params.client_id.as_deref(),
+            "invoked",
+        );
+        Err(not_yet_available_msg("pack management"))
+    }
+
+    /// Create a new query pack from the given queries, rules, and aliases.
+    ///
+    /// DATA TRUST LEVEL: External/untrusted — pack_name and queries are attacker-controlled in MCP context.
+    /// SECURITY NOTE: pack_name and all query strings scanned for prompt injection.
+    /// DATA SOURCE: Internal pack registry (not yet wired).
+    #[tool(
+        description = "Create a new query pack from the given queries, rules, and aliases.\n\
+        DATA TRUST LEVEL: External/untrusted — pack_name and queries are attacker-controlled.\n\
+        SECURITY NOTE: pack_name and all query strings scanned for prompt injection.\n\
+        DATA SOURCE: Internal pack registry (not yet wired).",
+        output_schema = schema_for_type::<ResponseEnvelopeSchema>()
+    )]
+    pub async fn create_pack(
+        &self,
+        Parameters(params): Parameters<CreatePackParams>,
+    ) -> Result<String, rmcp::model::ErrorData> {
+        let mut inputs = vec![("pack_name", params.pack_name.as_str())];
+        // Scan each query string individually for injection.
+        let query_strings: Vec<String>;
+        if let Some(ref queries) = params.queries {
+            query_strings = queries.clone();
+            for q in &query_strings {
+                inputs.push(("query", q.as_str()));
+            }
+        }
+        scan_inputs(&self.injection_scanner, &inputs)?;
+        emit_tool_audit(self.audit_writer.as_ref(), "create_pack", None, "invoked");
+        Err(not_yet_available_msg("pack management"))
+    }
+
+    /// Delete a query pack by ID.
+    ///
+    /// DATA TRUST LEVEL: External/untrusted — pack_id is attacker-controlled in MCP context.
+    /// SECURITY NOTE: pack_id scanned for prompt injection.
+    /// DATA SOURCE: Internal pack registry (not yet wired).
+    #[tool(
+        description = "Delete a query pack by ID.\n\
+        DATA TRUST LEVEL: External/untrusted — pack_id is attacker-controlled.\n\
+        SECURITY NOTE: pack_id scanned for prompt injection.\n\
+        DATA SOURCE: Internal pack registry (not yet wired).",
+        output_schema = schema_for_type::<ResponseEnvelopeSchema>()
+    )]
+    pub async fn delete_pack(
+        &self,
+        Parameters(params): Parameters<DeletePackParams>,
+    ) -> Result<String, rmcp::model::ErrorData> {
+        scan_inputs(
+            &self.injection_scanner,
+            &[("pack_id", params.pack_id.as_str())],
+        )?;
+        emit_tool_audit(self.audit_writer.as_ref(), "delete_pack", None, "invoked");
+        Err(not_yet_available_msg("pack management"))
+    }
+
+    // ─── Infusion management tools ────────────────────────────────────────────
+
+    /// List all configured infusions (data enrichment pipelines).
+    ///
+    /// DATA TRUST LEVEL: Internal — infusion metadata is operator-managed.
+    /// SECURITY NOTE: Optional client_id scanned for prompt injection.
+    /// DATA SOURCE: Internal infusion registry (not yet wired).
+    #[tool(
+        description = "List all configured infusions (data enrichment pipelines).\n\
+        DATA TRUST LEVEL: Internal — infusion metadata is operator-managed.\n\
+        SECURITY NOTE: Optional client_id scanned for prompt injection.\n\
+        DATA SOURCE: Internal infusion registry (not yet wired).",
+        output_schema = schema_for_type::<ResponseEnvelopeSchema>()
+    )]
+    pub async fn list_infusions(
+        &self,
+        Parameters(params): Parameters<ListInfusionsParams>,
+    ) -> Result<String, rmcp::model::ErrorData> {
+        if let Some(ref client_id) = params.client_id {
+            scan_inputs(
+                &self.injection_scanner,
+                &[("client_id", client_id.as_str())],
+            )?;
+            validate_client_ids(std::slice::from_ref(client_id))?;
+        }
+        emit_tool_audit(
+            self.audit_writer.as_ref(),
+            "list_infusions",
+            params.client_id.as_deref(),
+            "invoked",
+        );
+        Err(not_yet_available_msg("infusion management"))
+    }
+
+    /// Retrieve the status of a specific infusion pipeline.
+    ///
+    /// DATA TRUST LEVEL: External/untrusted — infusion_id is attacker-controlled in MCP context.
+    /// SECURITY NOTE: infusion_id scanned for prompt injection.
+    /// DATA SOURCE: Internal infusion registry (not yet wired).
+    #[tool(
+        description = "Retrieve the status of a specific infusion pipeline.\n\
+        DATA TRUST LEVEL: External/untrusted — infusion_id is attacker-controlled.\n\
+        SECURITY NOTE: infusion_id scanned for prompt injection.\n\
+        DATA SOURCE: Internal infusion registry (not yet wired).",
+        output_schema = schema_for_type::<ResponseEnvelopeSchema>()
+    )]
+    pub async fn infusion_status(
+        &self,
+        Parameters(params): Parameters<InfusionStatusParams>,
+    ) -> Result<String, rmcp::model::ErrorData> {
+        scan_inputs(
+            &self.injection_scanner,
+            &[("infusion_id", params.infusion_id.as_str())],
+        )?;
+        emit_tool_audit(
+            self.audit_writer.as_ref(),
+            "infusion_status",
+            None,
+            "invoked",
+        );
+        Err(not_yet_available_msg("infusion management"))
+    }
+
+    /// Hot-reload an infusion pipeline configuration without restarting Prism.
+    ///
+    /// DATA TRUST LEVEL: External/untrusted — infusion_id is attacker-controlled in MCP context.
+    /// SECURITY NOTE: infusion_id scanned for prompt injection.
+    /// DATA SOURCE: Internal infusion registry (not yet wired).
+    #[tool(
+        description = "Hot-reload an infusion pipeline configuration without restarting Prism.\n\
+        DATA TRUST LEVEL: External/untrusted — infusion_id is attacker-controlled.\n\
+        SECURITY NOTE: infusion_id scanned for prompt injection.\n\
+        DATA SOURCE: Internal infusion registry (not yet wired).",
+        output_schema = schema_for_type::<ResponseEnvelopeSchema>()
+    )]
+    pub async fn reload_infusion(
+        &self,
+        Parameters(params): Parameters<ReloadInfusionParams>,
+    ) -> Result<String, rmcp::model::ErrorData> {
+        scan_inputs(
+            &self.injection_scanner,
+            &[("infusion_id", params.infusion_id.as_str())],
+        )?;
+        emit_tool_audit(
+            self.audit_writer.as_ref(),
+            "reload_infusion",
+            None,
+            "invoked",
+        );
+        Err(not_yet_available_msg("infusion management"))
+    }
+
+    // ─── Plugin management tools ──────────────────────────────────────────────
+
+    /// List all loaded WASM plugins.
+    ///
+    /// DATA TRUST LEVEL: Internal — plugin metadata is operator-managed.
+    /// SECURITY NOTE: No user-controlled parameters.
+    /// DATA SOURCE: Internal WASM plugin runtime (not yet wired).
+    #[tool(
+        description = "List all loaded WASM plugins.\n\
+        DATA TRUST LEVEL: Internal — plugin metadata is operator-managed.\n\
+        SECURITY NOTE: No user-controlled parameters.\n\
+        DATA SOURCE: Internal WASM plugin runtime (not yet wired).",
+        output_schema = schema_for_type::<ResponseEnvelopeSchema>()
+    )]
+    pub async fn list_plugins(
+        &self,
+        Parameters(_params): Parameters<ListPluginsParams>,
+    ) -> Result<String, rmcp::model::ErrorData> {
+        emit_tool_audit(self.audit_writer.as_ref(), "list_plugins", None, "invoked");
+        Err(not_yet_available_msg("plugin management"))
+    }
+
+    /// Retrieve the status and metrics of a specific WASM plugin.
+    ///
+    /// DATA TRUST LEVEL: External/untrusted — plugin_id is attacker-controlled in MCP context.
+    /// SECURITY NOTE: plugin_id scanned for prompt injection.
+    /// DATA SOURCE: Internal WASM plugin runtime (not yet wired).
+    #[tool(
+        description = "Retrieve the status and metrics of a specific WASM plugin.\n\
+        DATA TRUST LEVEL: External/untrusted — plugin_id is attacker-controlled.\n\
+        SECURITY NOTE: plugin_id scanned for prompt injection.\n\
+        DATA SOURCE: Internal WASM plugin runtime (not yet wired).",
+        output_schema = schema_for_type::<ResponseEnvelopeSchema>()
+    )]
+    pub async fn plugin_status(
+        &self,
+        Parameters(params): Parameters<PluginStatusParams>,
+    ) -> Result<String, rmcp::model::ErrorData> {
+        scan_inputs(
+            &self.injection_scanner,
+            &[("plugin_id", params.plugin_id.as_str())],
+        )?;
+        emit_tool_audit(self.audit_writer.as_ref(), "plugin_status", None, "invoked");
+        Err(not_yet_available_msg("plugin management"))
+    }
+
+    /// Hot-reload a WASM plugin without restarting Prism.
+    ///
+    /// DATA TRUST LEVEL: External/untrusted — plugin_id is attacker-controlled in MCP context.
+    /// SECURITY NOTE: plugin_id scanned for prompt injection.
+    /// DATA SOURCE: Internal WASM plugin runtime (not yet wired).
+    #[tool(
+        description = "Hot-reload a WASM plugin without restarting Prism.\n\
+        DATA TRUST LEVEL: External/untrusted — plugin_id is attacker-controlled.\n\
+        SECURITY NOTE: plugin_id scanned for prompt injection.\n\
+        DATA SOURCE: Internal WASM plugin runtime (not yet wired).",
+        output_schema = schema_for_type::<ResponseEnvelopeSchema>()
+    )]
+    pub async fn reload_plugin(
+        &self,
+        Parameters(params): Parameters<ReloadPluginParams>,
+    ) -> Result<String, rmcp::model::ErrorData> {
+        scan_inputs(
+            &self.injection_scanner,
+            &[("plugin_id", params.plugin_id.as_str())],
+        )?;
+        emit_tool_audit(self.audit_writer.as_ref(), "reload_plugin", None, "invoked");
+        Err(not_yet_available_msg("plugin management"))
+    }
+
+    // ─── Action management tools ──────────────────────────────────────────────
+
+    /// List all configured actions (automated response playbooks).
+    ///
+    /// DATA TRUST LEVEL: Internal — action metadata is operator-managed.
+    /// SECURITY NOTE: Optional client_id scanned for prompt injection.
+    /// DATA SOURCE: Internal action registry (not yet wired).
+    #[tool(
+        description = "List all configured actions (automated response playbooks).\n\
+        DATA TRUST LEVEL: Internal — action metadata is operator-managed.\n\
+        SECURITY NOTE: Optional client_id scanned for prompt injection.\n\
+        DATA SOURCE: Internal action registry (not yet wired).",
+        output_schema = schema_for_type::<ResponseEnvelopeSchema>()
+    )]
+    pub async fn list_actions(
+        &self,
+        Parameters(params): Parameters<ListActionsParams>,
+    ) -> Result<String, rmcp::model::ErrorData> {
+        if let Some(ref client_id) = params.client_id {
+            scan_inputs(
+                &self.injection_scanner,
+                &[("client_id", client_id.as_str())],
+            )?;
+            validate_client_ids(std::slice::from_ref(client_id))?;
+        }
+        emit_tool_audit(
+            self.audit_writer.as_ref(),
+            "list_actions",
+            params.client_id.as_deref(),
+            "invoked",
+        );
+        Err(not_yet_available_msg("action management"))
+    }
+
+    /// Retrieve the status and last-run metadata of a specific action.
+    ///
+    /// DATA TRUST LEVEL: External/untrusted — action_id is attacker-controlled in MCP context.
+    /// SECURITY NOTE: action_id scanned for prompt injection.
+    /// DATA SOURCE: Internal action registry (not yet wired).
+    #[tool(
+        description = "Retrieve the status and last-run metadata of a specific action.\n\
+        DATA TRUST LEVEL: External/untrusted — action_id is attacker-controlled.\n\
+        SECURITY NOTE: action_id scanned for prompt injection.\n\
+        DATA SOURCE: Internal action registry (not yet wired).",
+        output_schema = schema_for_type::<ResponseEnvelopeSchema>()
+    )]
+    pub async fn action_status(
+        &self,
+        Parameters(params): Parameters<ActionStatusParams>,
+    ) -> Result<String, rmcp::model::ErrorData> {
+        scan_inputs(
+            &self.injection_scanner,
+            &[("action_id", params.action_id.as_str())],
+        )?;
+        emit_tool_audit(self.audit_writer.as_ref(), "action_status", None, "invoked");
+        Err(not_yet_available_msg("action management"))
+    }
+
+    /// Fire (execute) an action immediately with optional context.
+    ///
+    /// DATA TRUST LEVEL: External/untrusted — action_id and context are attacker-controlled in MCP context.
+    /// SECURITY NOTE: action_id and context scanned for prompt injection.
+    /// DATA SOURCE: Internal action runtime (not yet wired — capability-gated write).
+    #[tool(
+        description = "Fire (execute) an action immediately with optional context.\n\
+        DATA TRUST LEVEL: External/untrusted — action_id and context are attacker-controlled.\n\
+        SECURITY NOTE: action_id and context scanned for prompt injection.\n\
+        DATA SOURCE: Internal action runtime (not yet wired — capability-gated write).",
+        output_schema = schema_for_type::<ResponseEnvelopeSchema>()
+    )]
+    pub async fn fire_action(
+        &self,
+        Parameters(params): Parameters<FireActionParams>,
+    ) -> Result<String, rmcp::model::ErrorData> {
+        let mut inputs = vec![("action_id", params.action_id.as_str())];
+        if let Some(ref ctx) = params.context {
+            inputs.push(("context", ctx.as_str()));
+        }
+        scan_inputs(&self.injection_scanner, &inputs)?;
+        emit_tool_audit(self.audit_writer.as_ref(), "fire_action", None, "invoked");
+        Err(not_yet_available_msg("action management"))
+    }
+
+    /// Test an action in dry-run mode (no side effects).
+    ///
+    /// DATA TRUST LEVEL: External/untrusted — action_id is attacker-controlled in MCP context.
+    /// SECURITY NOTE: action_id scanned for prompt injection.
+    /// DATA SOURCE: Internal action runtime (not yet wired).
+    #[tool(
+        description = "Test an action in dry-run mode (no side effects).\n\
+        DATA TRUST LEVEL: External/untrusted — action_id is attacker-controlled.\n\
+        SECURITY NOTE: action_id scanned for prompt injection.\n\
+        DATA SOURCE: Internal action runtime (not yet wired).",
+        output_schema = schema_for_type::<ResponseEnvelopeSchema>()
+    )]
+    pub async fn test_action(
+        &self,
+        Parameters(params): Parameters<TestActionParams>,
+    ) -> Result<String, rmcp::model::ErrorData> {
+        scan_inputs(
+            &self.injection_scanner,
+            &[("action_id", params.action_id.as_str())],
+        )?;
+        emit_tool_audit(self.audit_writer.as_ref(), "test_action", None, "invoked");
+        Err(not_yet_available_msg("action management"))
+    }
+
+    /// Create a new action from a TOML spec.
+    ///
+    /// DATA TRUST LEVEL: External/untrusted — TOML spec is attacker-controlled in MCP context.
+    /// SECURITY NOTE: spec_toml scanned for prompt injection.
+    /// DATA SOURCE: Internal action registry (not yet wired — capability-gated write).
+    #[tool(
+        description = "Create a new action from a TOML spec.\n\
+        DATA TRUST LEVEL: External/untrusted — TOML spec is attacker-controlled.\n\
+        SECURITY NOTE: spec_toml scanned for prompt injection.\n\
+        DATA SOURCE: Internal action registry (not yet wired — capability-gated write).",
+        output_schema = schema_for_type::<ResponseEnvelopeSchema>()
+    )]
+    pub async fn create_action(
+        &self,
+        Parameters(params): Parameters<CreateActionParams>,
+    ) -> Result<String, rmcp::model::ErrorData> {
+        scan_inputs(
+            &self.injection_scanner,
+            &[("spec_toml", params.spec_toml.as_str())],
+        )?;
+        emit_tool_audit(self.audit_writer.as_ref(), "create_action", None, "invoked");
+        Err(not_yet_available_msg("action management"))
+    }
+
+    /// Delete an action by ID.
+    ///
+    /// DATA TRUST LEVEL: External/untrusted — action_id is attacker-controlled in MCP context.
+    /// SECURITY NOTE: action_id scanned for prompt injection.
+    /// DATA SOURCE: Internal action registry (not yet wired — capability-gated write).
+    #[tool(
+        description = "Delete an action by ID.\n\
+        DATA TRUST LEVEL: External/untrusted — action_id is attacker-controlled.\n\
+        SECURITY NOTE: action_id scanned for prompt injection.\n\
+        DATA SOURCE: Internal action registry (not yet wired — capability-gated write).",
+        output_schema = schema_for_type::<ResponseEnvelopeSchema>()
+    )]
+    pub async fn delete_action(
+        &self,
+        Parameters(params): Parameters<DeleteActionParams>,
+    ) -> Result<String, rmcp::model::ErrorData> {
+        scan_inputs(
+            &self.injection_scanner,
+            &[("action_id", params.action_id.as_str())],
+        )?;
+        emit_tool_audit(self.audit_writer.as_ref(), "delete_action", None, "invoked");
+        Err(not_yet_available_msg("action management"))
+    }
+
+    // ─── Help tool ────────────────────────────────────────────────────────────
+
+    /// Get structured help on a Prism topic (PrismQL, OCSF fields, detection rules, error codes).
+    ///
+    /// DATA TRUST LEVEL: External/untrusted — topic string is attacker-controlled in MCP context.
+    /// SECURITY NOTE: topic scanned for prompt injection.
+    /// DATA SOURCE: Internal documentation registry (not yet wired).
+    #[tool(
+        description = "Get structured help on a Prism topic (PrismQL, OCSF fields, detection rules, error codes).\n\
+        DATA TRUST LEVEL: External/untrusted — topic string is attacker-controlled.\n\
+        SECURITY NOTE: topic scanned for prompt injection.\n\
+        DATA SOURCE: Internal documentation registry (not yet wired).",
+        output_schema = schema_for_type::<ResponseEnvelopeSchema>()
+    )]
+    pub async fn get_help(
+        &self,
+        Parameters(params): Parameters<GetHelpParams>,
+    ) -> Result<String, rmcp::model::ErrorData> {
+        scan_inputs(&self.injection_scanner, &[("topic", params.topic.as_str())])?;
+        emit_tool_audit(self.audit_writer.as_ref(), "get_help", None, "invoked");
+        Err(not_yet_available_msg("help system"))
     }
 }
 

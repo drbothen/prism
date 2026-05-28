@@ -33,6 +33,7 @@
 use chrono::Utc;
 use prism_core::{SafetyFlag, TrustLevel};
 use prism_security::{injection_scanner::InjectionScanner, trust_level::trust_level_for_tool};
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -186,4 +187,62 @@ impl SafetyEnvelopeBuilder {
         // The check is structural — the field exists regardless of content.
         true
     }
+}
+
+// ─── Schema-only types for outputSchema generation (HIGH-002) ─────────────────
+//
+// These types mirror the ResponseEnvelope shape but derive JsonSchema so they
+// can be passed to `rmcp::handler::server::tool::schema_for_type::<T>()`.
+// They are NOT used at runtime — only for MCP `tools/list` outputSchema declaration.
+// BC-2.09.007: every tool must declare an outputSchema with _meta + results fields.
+
+/// Schema-only representation of a single `_meta.safety_flags` item.
+///
+/// BC-2.09.007: `{field, index, pattern, category}` — NO per-field parallel fields.
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub struct SafetyFlagSchema {
+    /// Sensor record field that triggered detection.
+    pub field: String,
+    /// Zero-based index of the item in the results array.
+    pub index: u64,
+    /// Human-readable description of the matched pattern.
+    pub pattern: String,
+    /// Detection category (e.g. "prompt_injection", "role_impersonation").
+    pub category: String,
+}
+
+/// Schema-only representation of the `_meta` envelope (BC-2.09.007, BC-2.09.008).
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub struct MetaEnvelopeSchemaType {
+    pub tool: String,
+    /// Sensor identifier(s). String for single-sensor; array for cross-client queries.
+    pub data_source: serde_json::Value,
+    /// ISO8601 timestamp of query execution.
+    pub query_time: String,
+    /// Trust classification: "untrusted_external" | "internal".
+    pub trust_level: String,
+    /// Centralized injection detection flags. Empty array when no patterns detected.
+    pub safety_flags: Vec<SafetyFlagSchema>,
+    pub total_results: u64,
+    pub page: u64,
+    pub has_more: bool,
+    pub next_cursor: Option<String>,
+}
+
+/// Schema-only representation of the full response envelope (BC-2.09.007, BC-2.09.008).
+///
+/// Used exclusively for `outputSchema` generation via
+/// `rmcp::handler::server::tool::schema_for_type::<ResponseEnvelopeSchema>()`.
+/// The actual runtime type is `ResponseEnvelope` — this is a parallel schema mirror.
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+pub struct ResponseEnvelopeSchema {
+    #[serde(rename = "_meta")]
+    pub meta: MetaEnvelopeSchemaType,
+    /// Sensor results — typed array of JSON objects.
+    pub results: Vec<serde_json::Value>,
+    /// Prose summary — counts and metadata ONLY (BC-2.09.001).
+    pub content: Vec<serde_json::Value>,
+    /// Structured sensor data for LLM field-level inspection (BC-2.09.001).
+    #[serde(rename = "structuredContent")]
+    pub structured_content: serde_json::Value,
 }
