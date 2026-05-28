@@ -1819,28 +1819,49 @@ pub async fn step9_start_mcp_server(
 
 /// Step 10 [BACKGROUND]: Install HotReloadWatcher.
 ///
-/// TODO(S-WAVE5-PREP-01/S-1.12-FOLLOWUP): Install HotReloadWatcher.
-/// HotReloadWatcher::start is unimplemented!() at hot_reload.rs:66 — resolved by S-1.12-FOLLOWUP.
-/// Non-fatal: boot continues if watcher fails; emit degraded-mode audit entry.
+/// The HotReloadWatcher (S-1.12-FOLLOWUP) is not yet implemented — boot continues
+/// without the hot-reload watcher.  This is non-fatal: the server operates in
+/// degraded mode (no filesystem change detection) until S-1.12-FOLLOWUP ships.
+///
+/// This step MUST NOT use `todo!()` — a `todo!()` would cause `prism start` to panic
+/// at boot time.  The structured log below surfaces the deferred feature to operators.
+///
+/// BC-2.22.001 step 10 deferred contract: returns `Ok(())` immediately; emits
+/// `boot.step10.deferred` WARN so monitoring can detect degraded-mode operation.
 pub async fn step10_start_hot_reload() -> Result<(), BootError> {
-    todo!("S-WAVE5-PREP-01 step 10 — hot-reload watcher — resolved by S-1.12-FOLLOWUP")
+    tracing::warn!(
+        event_type = "boot.step10.deferred",
+        target = "boot",
+        "Hot-reload watcher deferred to S-1.12-FOLLOWUP — \
+         boot continues without filesystem watcher (degraded mode)"
+    );
+    Ok(())
 }
 
 /// Step 11 [BACKGROUND]: Install tokio signal handlers.
 ///
-/// NOTE: Signal handler registration itself calls `crate::signals` functions
-/// which are NOT todo!() — they are implemented in signals.rs.
-/// What is deferred here is the SIGHUP reload path which requires steps 7–10
-/// to be complete (HotReloadWatcher) and the full channel wiring for shutdown.
+/// The full SIGHUP reload path requires `HotReloadWatcher` (S-1.12-FOLLOWUP).
+/// Signal handlers for SIGTERM/SIGINT are already wired inside
+/// `PrismServer::serve_stdio` (BC-2.10.010).  The additional SIGHUP handler
+/// that triggers a config reload is deferred.
+///
+/// This step MUST NOT use `todo!()` — a `todo!()` would cause `prism start` to panic.
+/// The channels are accepted but not connected until S-1.12-FOLLOWUP ships the
+/// HotReloadWatcher and SIGHUP dispatch.
+///
+/// BC-2.22.001 step 11 deferred contract: returns `Ok(())` immediately; emits
+/// `boot.step11.deferred` WARN so monitoring can detect degraded-mode operation.
 pub async fn step11_install_signal_handlers(
     _shutdown_tx: tokio::sync::broadcast::Sender<()>,
     _reload_tx: tokio::sync::mpsc::Sender<()>,
 ) -> Result<(), BootError> {
-    todo!(
-        "S-WAVE5-PREP-01 step 11 — wire SIGTERM/SIGHUP channels to signal handlers in signals.rs; \
-         SIGHUP reload path deferred until S-1.12-FOLLOWUP provides HotReloadWatcher. \
-         MCP server boot (step 9) deferred to MCP server chassis story (see STORY-INDEX)."
-    )
+    tracing::warn!(
+        event_type = "boot.step11.deferred",
+        target = "boot",
+        "SIGHUP config-reload handler deferred to S-1.12-FOLLOWUP — \
+         SIGTERM/SIGINT handled by PrismServer::serve_stdio (BC-2.10.010)"
+    );
+    Ok(())
 }
 
 // ---------------------------------------------------------------------------
