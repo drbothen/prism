@@ -64,7 +64,8 @@ pub use list_capabilities::{
 // ─────────────────────────────────────────────────────────────
 
 pub use confirmation_token::{
-    BoundingMetadata, ConfirmationToken, ConfirmationTokenStore, TOKEN_CAP, TOKEN_TTL,
+    BoundingDmlOperation, BoundingMetadata, ConfirmationToken, ConfirmationTokenStore, TOKEN_CAP,
+    TOKEN_TTL,
 };
 pub use content_hash::compute_action_hash;
 pub use risk_tier::{DryRunResponse, GateDecision, RiskTier};

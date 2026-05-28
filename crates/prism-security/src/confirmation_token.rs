@@ -33,6 +33,23 @@ use crate::content_hash::compute_action_hash;
 // BoundingMetadata
 // ─────────────────────────────────────────────────────────────────────────────
 
+/// Mirrored DML operation discriminant for bounding metadata storage (OBS-1 fix).
+///
+/// `prism-security` cannot depend on `prism-query` (circular dependency), so
+/// `DmlOperation` from `prism-query::write_ast` is mirrored here.  The
+/// conversion is implemented as `From<DmlOperation> for BoundingDmlOperation` in
+/// `prism-query::dry_run`.  Any new variant in `DmlOperation` must be reflected
+/// here and in the conversion.
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub enum BoundingDmlOperation {
+    /// `INSERT INTO table_name (col_list) SELECT …`
+    InsertInto,
+    /// `UPDATE table_name SET col = val [, …] WHERE expr`
+    Update,
+    /// `DELETE FROM table_name WHERE expr`
+    Delete,
+}
+
 /// Bounding-constraint metadata captured at token generation time (CRIT-1 fix).
 ///
 /// Phase 2 `check_unbounded_write` fires on the reconstructed `WritePlan` during
@@ -46,6 +63,12 @@ use crate::content_hash::compute_action_hash;
 /// signals are orthogonal to action identity; including them would cause spurious
 /// hash mismatches if (e.g.) a WHERE-clause-only plan later executes with a
 /// LIMIT added by the confirmation path.
+///
+/// # OBS-1 addition
+/// `dml_operation` captures the SQL DML kind (if any) so that `confirm_action`
+/// can restore `WritePlan.dml_operation`.  Without this, a DELETE-from token
+/// re-dispatched via confirm_action would silently lose the DELETE discriminant
+/// that triggers `classify_risk_tier`'s unconditional-Irreversible path (AD-022).
 #[derive(Clone, Debug, Serialize, Deserialize, Default)]
 pub struct BoundingMetadata {
     /// Whether the originating query had a WHERE clause (or pipe-mode filter stage).
@@ -54,6 +77,12 @@ pub struct BoundingMetadata {
     pub has_explicit_limit: bool,
     /// The explicit limit value, if present.
     pub explicit_limit: Option<u64>,
+    /// SQL DML operation kind from the originating write plan, if any (OBS-1 fix).
+    ///
+    /// `None` for pipe-mode write plans (which have no DML discriminant).
+    /// Populated for SQL-mode plans so `confirm_action` can restore
+    /// `WritePlan.dml_operation` and preserve the DELETE→Irreversible invariant.
+    pub dml_operation: Option<BoundingDmlOperation>,
 }
 
 /// The maximum number of active (non-expired, non-consumed) tokens in the store.

@@ -18,12 +18,45 @@
 use arrow::record_batch::RecordBatch;
 use prism_core::{PrismError, RiskTier};
 use prism_security::confirmation_token::ConfirmationTokenStore;
+use prism_security::BoundingDmlOperation;
 use serde_json::Value;
 use std::sync::Arc;
 use ulid::Ulid;
 
+use crate::write_ast::DmlOperation;
 use crate::write_pipeline::{QueryContext, WriteOutcome, WritePlan};
 use crate::write_result::{ConfirmationTokenPreview, WritePreview};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DmlOperation → BoundingDmlOperation conversion (OBS-1 fix)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Mirror `DmlOperation` into `BoundingDmlOperation` so `confirm_action` can
+/// restore `WritePlan.dml_operation` from the confirmation token (OBS-1 fix).
+///
+/// `prism-security` cannot depend on `prism-query` (would be circular), so both
+/// conversion directions live here in `prism-query` where both types are in scope.
+impl From<DmlOperation> for BoundingDmlOperation {
+    fn from(op: DmlOperation) -> Self {
+        match op {
+            DmlOperation::InsertInto => BoundingDmlOperation::InsertInto,
+            DmlOperation::Update => BoundingDmlOperation::Update,
+            DmlOperation::Delete => BoundingDmlOperation::Delete,
+        }
+    }
+}
+
+/// Restore `BoundingDmlOperation` back to `DmlOperation` for `WritePlan` reconstruction
+/// in `confirm_action` (OBS-1 fix — inverse of the above conversion).
+impl From<BoundingDmlOperation> for DmlOperation {
+    fn from(op: BoundingDmlOperation) -> Self {
+        match op {
+            BoundingDmlOperation::InsertInto => DmlOperation::InsertInto,
+            BoundingDmlOperation::Update => DmlOperation::Update,
+            BoundingDmlOperation::Delete => DmlOperation::Delete,
+        }
+    }
+}
 
 // ---------------------------------------------------------------------------
 // DryRunGate
@@ -211,10 +244,13 @@ impl DryRunGate {
 
         // CRIT-1: capture bounding signals from the originating plan so confirm_action
         // can reconstruct a WritePlan that passes Phase 2 check_unbounded_write.
+        // OBS-1: also capture dml_operation so confirm_action restores the DELETE→Irreversible
+        // invariant (classify_risk_tier is unconditional-Irreversible for DmlOperation::Delete).
         let bounding_metadata = prism_security::BoundingMetadata {
             has_where_clause: plan.has_where_clause,
             has_explicit_limit: plan.has_explicit_limit,
             explicit_limit: plan.explicit_limit,
+            dml_operation: plan.dml_operation.clone().map(BoundingDmlOperation::from),
         };
 
         let token = self.confirmation_store.generate_with_bounding(
