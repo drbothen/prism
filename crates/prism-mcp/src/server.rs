@@ -947,20 +947,25 @@ fn scan_inputs(
     }
 }
 
-/// Validate that every string in `client_ids` matches `[a-zA-Z0-9_-]+`.
+/// Validate that every string in `client_ids` matches `[a-zA-Z0-9_-]{1,64}`.
 ///
 /// Returns `Err(ErrorData)` with INVALID_PARAMS code if any entry is invalid.
 /// BC-2.10.004: client_id/clients entries must be validated before use.
+///
+/// The 64-character upper bound matches `OrgSlug` validation (`^[a-zA-Z0-9_-]{1,64}$`).
+/// Without this bound a caller could send a 65+-char client_id that passes this check
+/// but causes `OrgSlug::new` to return Invalid, and then `OrgSlug::as_str()` to panic.
 fn validate_client_ids(client_ids: &[String]) -> Result<(), rmcp::model::ErrorData> {
     for id in client_ids {
         if id.is_empty()
+            || id.len() > 64
             || !id
                 .chars()
                 .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
         {
             return Err(rmcp::model::ErrorData::new(
                 rmcp::model::ErrorCode(codes::INVALID_PARAMS),
-                format!("Invalid client_id '{id}': must match [a-zA-Z0-9_-]+ (BC-2.10.004)"),
+                format!("Invalid client_id '{id}': must match [a-zA-Z0-9_-]{{1,64}} (BC-2.10.004)"),
                 None,
             ));
         }
@@ -1046,7 +1051,7 @@ impl PrismServer {
     pub async fn query(
         &self,
         Parameters(params): Parameters<QueryToolParams>,
-    ) -> Result<String, rmcp::model::ErrorData> {
+    ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
         // BC-2.09.001 — NON-NEGOTIABLE: injection scan BEFORE any domain logic.
         let mut inputs = vec![("query", params.query.as_str())];
         if let Some(ref clients) = params.clients {
@@ -1146,12 +1151,12 @@ impl PrismServer {
             result.is_truncated,
             None,
         );
-        let envelope_str = serde_json::to_string(&envelope).map_err(|e| {
+        let envelope_val = serde_json::to_value(&envelope).map_err(|e| {
             to_error_data(PrismError::Internal {
                 detail: format!("Failed to serialize response envelope: {e}"),
             })
         })?;
-        Ok(envelope_str)
+        Ok(rmcp::model::CallToolResult::structured(envelope_val))
     }
 
     /// Explain the execution plan for a PrismQL query without executing it.
@@ -1175,7 +1180,7 @@ impl PrismServer {
     pub async fn explain_query(
         &self,
         Parameters(params): Parameters<ExplainQueryParams>,
-    ) -> Result<String, rmcp::model::ErrorData> {
+    ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
         let mut inputs = vec![("query", params.query.as_str())];
         if let Some(ref clients) = params.clients {
             for c in clients {
@@ -1215,9 +1220,11 @@ impl PrismServer {
                         .map(|e| (e.name.clone(), e.query.clone()))
                         .collect(),
                     Err(_) => {
-                        // Poisoned lock — degrade gracefully with empty registry rather than
-                        // returning an error for a read-only explain operation.
-                        std::collections::HashMap::new()
+                        // Poisoned lock — return Internal error (matches the 6 sibling sites).
+                        // SOUL.md #4: do not silently swallow failures that affect correctness.
+                        return Err(to_error_data(PrismError::Internal {
+                            detail: "AliasStore lock poisoned in explain_query".to_owned(),
+                        }));
                     }
                 }
             } else {
@@ -1259,11 +1266,13 @@ impl PrismServer {
             false,
             None,
         );
-        serde_json::to_string(&envelope).map_err(|e| {
-            to_error_data(PrismError::Internal {
-                detail: format!("Failed to serialize explain result: {e}"),
+        serde_json::to_value(&envelope)
+            .map(rmcp::model::CallToolResult::structured)
+            .map_err(|e| {
+                to_error_data(PrismError::Internal {
+                    detail: format!("Failed to serialize explain result: {e}"),
+                })
             })
-        })
     }
 
     /// Create a named PrismQL alias (stored query shorthand).
@@ -1287,7 +1296,7 @@ impl PrismServer {
     pub async fn create_alias(
         &self,
         Parameters(params): Parameters<CreateAliasParams>,
-    ) -> Result<String, rmcp::model::ErrorData> {
+    ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
         let mut inputs = vec![
             ("name", params.name.as_str()),
             ("query", params.query.as_str()),
@@ -1359,11 +1368,13 @@ impl PrismServer {
             false,
             None,
         );
-        serde_json::to_string(&envelope).map_err(|e| {
-            to_error_data(PrismError::Internal {
-                detail: format!("Failed to serialize response: {e}"),
+        serde_json::to_value(&envelope)
+            .map(rmcp::model::CallToolResult::structured)
+            .map_err(|e| {
+                to_error_data(PrismError::Internal {
+                    detail: format!("Failed to serialize response: {e}"),
+                })
             })
-        })
     }
 
     /// List all named PrismQL aliases for the calling client.
@@ -1387,7 +1398,7 @@ impl PrismServer {
     pub async fn list_aliases(
         &self,
         Parameters(params): Parameters<ListAliasesParams>,
-    ) -> Result<String, rmcp::model::ErrorData> {
+    ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
         // MED-003 fix: list_aliases now accepts client_id for scoping (BC-2.10.004).
         if let Some(ref client_id) = params.client_id {
             scan_inputs(
@@ -1428,11 +1439,13 @@ impl PrismServer {
             false,
             None,
         );
-        serde_json::to_string(&envelope).map_err(|e| {
-            to_error_data(PrismError::Internal {
-                detail: format!("Failed to serialize response: {e}"),
+        serde_json::to_value(&envelope)
+            .map(rmcp::model::CallToolResult::structured)
+            .map_err(|e| {
+                to_error_data(PrismError::Internal {
+                    detail: format!("Failed to serialize response: {e}"),
+                })
             })
-        })
     }
 
     /// Delete a named PrismQL alias.
@@ -1456,7 +1469,7 @@ impl PrismServer {
     pub async fn delete_alias(
         &self,
         Parameters(params): Parameters<DeleteAliasParams>,
-    ) -> Result<String, rmcp::model::ErrorData> {
+    ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
         let mut inputs = vec![("name", params.name.as_str())];
         if let Some(ref scope) = params.scope {
             inputs.push(("scope", scope.as_str()));
@@ -1512,11 +1525,13 @@ impl PrismServer {
             false,
             None,
         );
-        serde_json::to_string(&envelope).map_err(|e| {
-            to_error_data(PrismError::Internal {
-                detail: format!("Failed to serialize response: {e}"),
+        serde_json::to_value(&envelope)
+            .map(rmcp::model::CallToolResult::structured)
+            .map_err(|e| {
+                to_error_data(PrismError::Internal {
+                    detail: format!("Failed to serialize response: {e}"),
+                })
             })
-        })
     }
 
     /// Explain what a named alias expands to, without executing it.
@@ -1540,7 +1555,7 @@ impl PrismServer {
     pub async fn explain_alias(
         &self,
         Parameters(params): Parameters<ExplainAliasParams>,
-    ) -> Result<String, rmcp::model::ErrorData> {
+    ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
         let mut inputs = vec![("name", params.name.as_str())];
         if let Some(ref scope) = params.scope {
             inputs.push(("scope", scope.as_str()));
@@ -1584,11 +1599,13 @@ impl PrismServer {
             false,
             None,
         );
-        serde_json::to_string(&envelope).map_err(|e| {
-            to_error_data(PrismError::Internal {
-                detail: format!("Failed to serialize response: {e}"),
+        serde_json::to_value(&envelope)
+            .map(rmcp::model::CallToolResult::structured)
+            .map_err(|e| {
+                to_error_data(PrismError::Internal {
+                    detail: format!("Failed to serialize response: {e}"),
+                })
             })
-        })
     }
 
     // ─── Write tools ──────────────────────────────────────────────────────────
@@ -1614,7 +1631,7 @@ impl PrismServer {
     pub async fn confirm_action(
         &self,
         Parameters(params): Parameters<ConfirmActionParams>,
-    ) -> Result<String, rmcp::model::ErrorData> {
+    ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
         scan_inputs(
             &self.injection_scanner,
             &[
@@ -1691,20 +1708,38 @@ impl PrismServer {
                 // dispatch will succeed at the token validation phase but fail at the adapter
                 // dispatch phase.  This is correct: the token IS consumed and the intent IS
                 // audit-logged; the write returns AdapterNotFound (not Internal).
+                // Extract required fields from token action_params — return Internal if missing.
+                // Token corruption (missing "sensor" / "target_table") must surface as a
+                // structured error, not silently substitute "unknown" (HIGH-4 fix).
+                let sensor_val = stored_token
+                    .action_params
+                    .get("sensor")
+                    .and_then(|v| v.as_str())
+                    .ok_or_else(|| {
+                        to_error_data(PrismError::Internal {
+                            detail: "confirm_action: token action_params missing required field \
+                                     'sensor' — token may be corrupted"
+                                .to_owned(),
+                        })
+                    })?
+                    .to_owned();
+                let target_table_val = stored_token
+                    .action_params
+                    .get("target_table")
+                    .and_then(|v| v.as_str())
+                    .ok_or_else(|| {
+                        to_error_data(PrismError::Internal {
+                            detail: "confirm_action: token action_params missing required field \
+                                     'target_table' — token may be corrupted"
+                                .to_owned(),
+                        })
+                    })?
+                    .to_owned();
+
                 let plan = prism_query::write_pipeline::WritePlan {
                     verb,
-                    sensor: stored_token
-                        .action_params
-                        .get("sensor")
-                        .and_then(|v| v.as_str())
-                        .unwrap_or("unknown")
-                        .to_owned(),
-                    target_table: stored_token
-                        .action_params
-                        .get("target_table")
-                        .and_then(|v| v.as_str())
-                        .unwrap_or("unknown")
-                        .to_owned(),
+                    sensor: sensor_val,
+                    target_table: target_table_val,
                     dml_operation: restored_dml_operation,
                     has_explicit_limit: bm.has_explicit_limit,
                     explicit_limit: bm.explicit_limit,
@@ -1937,11 +1972,13 @@ impl PrismServer {
         // result_json is populated by the match arms above (write or alias path).
         let envelope =
             SafetyEnvelopeBuilder::wrap("confirm_action", datasource, result_json, 1, false, None);
-        serde_json::to_string(&envelope).map_err(|e| {
-            to_error_data(PrismError::Internal {
-                detail: format!("Failed to serialize response: {e}"),
+        serde_json::to_value(&envelope)
+            .map(rmcp::model::CallToolResult::structured)
+            .map_err(|e| {
+                to_error_data(PrismError::Internal {
+                    detail: format!("Failed to serialize response: {e}"),
+                })
             })
-        })
     }
 
     // ─── Sensor health tools ──────────────────────────────────────────────────
@@ -1967,7 +2004,7 @@ impl PrismServer {
     pub async fn check_sensor_health(
         &self,
         Parameters(params): Parameters<CheckSensorHealthParams>,
-    ) -> Result<String, rmcp::model::ErrorData> {
+    ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
         if let Some(ref sensor) = params.sensor {
             scan_inputs(&self.injection_scanner, &[("sensor", sensor.as_str())])?;
         }
@@ -2010,7 +2047,7 @@ impl PrismServer {
     pub async fn get_diagnostics(
         &self,
         Parameters(params): Parameters<GetDiagnosticsParams>,
-    ) -> Result<String, rmcp::model::ErrorData> {
+    ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
         if let Some(ref sensor) = params.sensor {
             scan_inputs(&self.injection_scanner, &[("sensor", sensor.as_str())])?;
         }
@@ -2050,7 +2087,9 @@ impl PrismServer {
         ERRORS: -32000 internal error, spec parse failure details included in message",
         output_schema = schema_for_type::<ResponseEnvelopeSchema>()
     )]
-    pub async fn reload_config(&self) -> Result<String, rmcp::model::ErrorData> {
+    pub async fn reload_config(
+        &self,
+    ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
         emit_tool_audit(self.audit_writer.as_ref(), "reload_config", None, "invoked");
 
         // CRIT-4 fix: reload from disk using real ConfigManager + spec_dir.
@@ -2092,11 +2131,13 @@ impl PrismServer {
             false,
             None,
         );
-        serde_json::to_string(&envelope).map_err(|e| {
-            to_error_data(PrismError::Internal {
-                detail: format!("Failed to serialize response: {e}"),
+        serde_json::to_value(&envelope)
+            .map(rmcp::model::CallToolResult::structured)
+            .map_err(|e| {
+                to_error_data(PrismError::Internal {
+                    detail: format!("Failed to serialize response: {e}"),
+                })
             })
-        })
     }
 
     /// Add or update a sensor spec from a TOML string.
@@ -2120,7 +2161,7 @@ impl PrismServer {
     pub async fn add_sensor_spec(
         &self,
         Parameters(params): Parameters<AddSensorSpecParams>,
-    ) -> Result<String, rmcp::model::ErrorData> {
+    ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
         scan_inputs(
             &self.injection_scanner,
             &[
@@ -2210,11 +2251,13 @@ impl PrismServer {
             false,
             None,
         );
-        serde_json::to_string(&envelope).map_err(|e| {
-            to_error_data(PrismError::Internal {
-                detail: format!("Failed to serialize response: {e}"),
+        serde_json::to_value(&envelope)
+            .map(rmcp::model::CallToolResult::structured)
+            .map_err(|e| {
+                to_error_data(PrismError::Internal {
+                    detail: format!("Failed to serialize response: {e}"),
+                })
             })
-        })
     }
 
     /// List all currently loaded sensor specs with their metadata.
@@ -2235,7 +2278,9 @@ impl PrismServer {
         ERRORS: -32000 internal error",
         output_schema = schema_for_type::<ResponseEnvelopeSchema>()
     )]
-    pub async fn list_sensor_specs(&self) -> Result<String, rmcp::model::ErrorData> {
+    pub async fn list_sensor_specs(
+        &self,
+    ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
         emit_tool_audit(
             self.audit_writer.as_ref(),
             "list_sensor_specs",
@@ -2284,11 +2329,13 @@ impl PrismServer {
             false,
             None,
         );
-        serde_json::to_string(&envelope).map_err(|e| {
-            to_error_data(PrismError::Internal {
-                detail: format!("Failed to serialize response: {e}"),
+        serde_json::to_value(&envelope)
+            .map(rmcp::model::CallToolResult::structured)
+            .map_err(|e| {
+                to_error_data(PrismError::Internal {
+                    detail: format!("Failed to serialize response: {e}"),
+                })
             })
-        })
     }
 
     /// Validate a sensor spec TOML string without loading it.
@@ -2312,7 +2359,7 @@ impl PrismServer {
     pub async fn validate_config(
         &self,
         Parameters(params): Parameters<ValidateConfigParams>,
-    ) -> Result<String, rmcp::model::ErrorData> {
+    ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
         scan_inputs(
             &self.injection_scanner,
             &[("toml_content", params.toml_content.as_str())],
@@ -2363,11 +2410,13 @@ impl PrismServer {
             None,
         );
         let _ = valid; // captured in the JSON above
-        serde_json::to_string(&envelope).map_err(|e| {
-            to_error_data(PrismError::Internal {
-                detail: format!("Failed to serialize response: {e}"),
+        serde_json::to_value(&envelope)
+            .map(rmcp::model::CallToolResult::structured)
+            .map_err(|e| {
+                to_error_data(PrismError::Internal {
+                    detail: format!("Failed to serialize response: {e}"),
+                })
             })
-        })
     }
 
     /// List capabilities available for the calling client's feature flags.
@@ -2391,7 +2440,7 @@ impl PrismServer {
     pub async fn list_capabilities(
         &self,
         Parameters(params): Parameters<ListCapabilitiesParams>,
-    ) -> Result<String, rmcp::model::ErrorData> {
+    ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
         // MED-003 fix: list_capabilities now accepts client_id for scoping (BC-2.10.004).
         if let Some(ref client_id) = params.client_id {
             scan_inputs(
@@ -2453,11 +2502,13 @@ impl PrismServer {
             false,
             None,
         );
-        serde_json::to_string(&envelope).map_err(|e| {
-            to_error_data(PrismError::Internal {
-                detail: format!("Failed to serialize response: {e}"),
+        serde_json::to_value(&envelope)
+            .map(rmcp::model::CallToolResult::structured)
+            .map_err(|e| {
+                to_error_data(PrismError::Internal {
+                    detail: format!("Failed to serialize response: {e}"),
+                })
             })
-        })
     }
 
     // ─── Operations tools (NotImplemented — prism-operations not merged) ───────
@@ -2483,7 +2534,7 @@ impl PrismServer {
     pub async fn create_schedule(
         &self,
         Parameters(params): Parameters<CreateScheduleParams>,
-    ) -> Result<String, rmcp::model::ErrorData> {
+    ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
         let mut inputs = vec![
             ("query", params.query.as_str()),
             ("cron", params.cron.as_str()),
@@ -2519,7 +2570,9 @@ impl PrismServer {
         ERRORS: -32003 not implemented, prism-operations not yet merged",
         output_schema = schema_for_type::<ResponseEnvelopeSchema>()
     )]
-    pub async fn list_schedules(&self) -> Result<String, rmcp::model::ErrorData> {
+    pub async fn list_schedules(
+        &self,
+    ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
         emit_tool_audit(
             self.audit_writer.as_ref(),
             "list_schedules",
@@ -2550,7 +2603,7 @@ impl PrismServer {
     pub async fn delete_schedule(
         &self,
         Parameters(params): Parameters<DeleteScheduleParams>,
-    ) -> Result<String, rmcp::model::ErrorData> {
+    ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
         scan_inputs(&self.injection_scanner, &[("id", params.id.as_str())])?;
         emit_tool_audit(
             self.audit_writer.as_ref(),
@@ -2582,7 +2635,7 @@ impl PrismServer {
     pub async fn get_diff_results(
         &self,
         Parameters(params): Parameters<GetDiffResultsParams>,
-    ) -> Result<String, rmcp::model::ErrorData> {
+    ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
         scan_inputs(&self.injection_scanner, &[("id", params.id.as_str())])?;
         emit_tool_audit(
             self.audit_writer.as_ref(),
@@ -2614,7 +2667,7 @@ impl PrismServer {
     pub async fn create_rule(
         &self,
         Parameters(params): Parameters<CreateRuleParams>,
-    ) -> Result<String, rmcp::model::ErrorData> {
+    ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
         let mut inputs = vec![
             ("name", params.name.as_str()),
             ("query", params.query.as_str()),
@@ -2645,7 +2698,7 @@ impl PrismServer {
         ERRORS: -32003 not implemented, prism-operations not yet merged",
         output_schema = schema_for_type::<ResponseEnvelopeSchema>()
     )]
-    pub async fn list_rules(&self) -> Result<String, rmcp::model::ErrorData> {
+    pub async fn list_rules(&self) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
         emit_tool_audit(self.audit_writer.as_ref(), "list_rules", None, "invoked");
         Err(not_yet_available_msg("detection rules"))
     }
@@ -2671,7 +2724,7 @@ impl PrismServer {
     pub async fn delete_rule(
         &self,
         Parameters(params): Parameters<DeleteRuleParams>,
-    ) -> Result<String, rmcp::model::ErrorData> {
+    ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
         scan_inputs(&self.injection_scanner, &[("id", params.id.as_str())])?;
         emit_tool_audit(self.audit_writer.as_ref(), "delete_rule", None, "invoked");
         Err(not_yet_available_msg("detection rules"))
@@ -2698,7 +2751,7 @@ impl PrismServer {
     pub async fn create_case(
         &self,
         Parameters(params): Parameters<CreateCaseParams>,
-    ) -> Result<String, rmcp::model::ErrorData> {
+    ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
         let mut inputs = vec![("title", params.title.as_str())];
         if let Some(ref desc) = params.description {
             inputs.push(("description", desc.as_str()));
@@ -2729,7 +2782,7 @@ impl PrismServer {
         ERRORS: -32003 not implemented, prism-operations not yet merged",
         output_schema = schema_for_type::<ResponseEnvelopeSchema>()
     )]
-    pub async fn list_cases(&self) -> Result<String, rmcp::model::ErrorData> {
+    pub async fn list_cases(&self) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
         emit_tool_audit(self.audit_writer.as_ref(), "list_cases", None, "invoked");
         Err(not_yet_available_msg("case management"))
     }
@@ -2755,7 +2808,7 @@ impl PrismServer {
     pub async fn get_case(
         &self,
         Parameters(params): Parameters<GetCaseParams>,
-    ) -> Result<String, rmcp::model::ErrorData> {
+    ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
         scan_inputs(&self.injection_scanner, &[("id", params.id.as_str())])?;
         emit_tool_audit(self.audit_writer.as_ref(), "get_case", None, "invoked");
         Err(not_yet_available_msg("case management"))
@@ -2782,7 +2835,7 @@ impl PrismServer {
     pub async fn update_case(
         &self,
         Parameters(params): Parameters<UpdateCaseParams>,
-    ) -> Result<String, rmcp::model::ErrorData> {
+    ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
         let mut inputs = vec![("id", params.id.as_str())];
         if let Some(ref title) = params.title {
             inputs.push(("title", title.as_str()));
@@ -2813,7 +2866,9 @@ impl PrismServer {
         ERRORS: -32003 not implemented, prism-operations not yet merged",
         output_schema = schema_for_type::<ResponseEnvelopeSchema>()
     )]
-    pub async fn case_metrics(&self) -> Result<String, rmcp::model::ErrorData> {
+    pub async fn case_metrics(
+        &self,
+    ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
         emit_tool_audit(self.audit_writer.as_ref(), "case_metrics", None, "invoked");
         Err(not_yet_available_msg("case management"))
     }
@@ -2841,7 +2896,7 @@ impl PrismServer {
     pub async fn list_credentials(
         &self,
         Parameters(params): Parameters<ListCredentialsParams>,
-    ) -> Result<String, rmcp::model::ErrorData> {
+    ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
         scan_inputs(
             &self.injection_scanner,
             &[("client_id", params.client_id.as_str())],
@@ -2877,7 +2932,7 @@ impl PrismServer {
     pub async fn credential_status(
         &self,
         Parameters(params): Parameters<CredentialStatusParams>,
-    ) -> Result<String, rmcp::model::ErrorData> {
+    ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
         scan_inputs(
             &self.injection_scanner,
             &[("client_id", params.client_id.as_str())],
@@ -2913,7 +2968,7 @@ impl PrismServer {
     pub async fn configure_credential_source(
         &self,
         Parameters(params): Parameters<ConfigureCredentialSourceParams>,
-    ) -> Result<String, rmcp::model::ErrorData> {
+    ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
         scan_inputs(
             &self.injection_scanner,
             &[
@@ -2954,7 +3009,7 @@ impl PrismServer {
     pub async fn delete_credential(
         &self,
         Parameters(params): Parameters<DeleteCredentialParams>,
-    ) -> Result<String, rmcp::model::ErrorData> {
+    ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
         scan_inputs(
             &self.injection_scanner,
             &[
@@ -2996,7 +3051,7 @@ impl PrismServer {
     pub async fn watchdog_status(
         &self,
         Parameters(_params): Parameters<WatchdogStatusParams>,
-    ) -> Result<String, rmcp::model::ErrorData> {
+    ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
         emit_tool_audit(
             self.audit_writer.as_ref(),
             "watchdog_status",
@@ -3027,7 +3082,7 @@ impl PrismServer {
     pub async fn list_alerts(
         &self,
         Parameters(params): Parameters<ListAlertsParams>,
-    ) -> Result<String, rmcp::model::ErrorData> {
+    ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
         let mut inputs: Vec<(&str, &str)> = Vec::new();
         let client_id_storage;
         let severity_storage;
@@ -3090,7 +3145,7 @@ impl PrismServer {
     pub async fn get_alert(
         &self,
         Parameters(params): Parameters<GetAlertParams>,
-    ) -> Result<String, rmcp::model::ErrorData> {
+    ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
         scan_inputs(
             &self.injection_scanner,
             &[("alert_id", params.alert_id.as_str())],
@@ -3120,7 +3175,7 @@ impl PrismServer {
     pub async fn acknowledge_alert(
         &self,
         Parameters(params): Parameters<AcknowledgeAlertParams>,
-    ) -> Result<String, rmcp::model::ErrorData> {
+    ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
         scan_inputs(
             &self.injection_scanner,
             &[("alert_id", params.alert_id.as_str())],
@@ -3157,7 +3212,7 @@ impl PrismServer {
     pub async fn crowdstrike_contain_host(
         &self,
         Parameters(params): Parameters<CrowdstrikeContainHostParams>,
-    ) -> Result<String, rmcp::model::ErrorData> {
+    ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
         scan_inputs(
             &self.injection_scanner,
             &[
@@ -3196,7 +3251,7 @@ impl PrismServer {
     pub async fn crowdstrike_lift_containment(
         &self,
         Parameters(params): Parameters<CrowdstrikeLiftContainmentParams>,
-    ) -> Result<String, rmcp::model::ErrorData> {
+    ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
         scan_inputs(
             &self.injection_scanner,
             &[
@@ -3237,7 +3292,7 @@ impl PrismServer {
     pub async fn list_packs(
         &self,
         Parameters(_params): Parameters<ListPacksParams>,
-    ) -> Result<String, rmcp::model::ErrorData> {
+    ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
         emit_tool_audit(self.audit_writer.as_ref(), "list_packs", None, "invoked");
         Err(not_yet_available_msg("pack management"))
     }
@@ -3263,7 +3318,7 @@ impl PrismServer {
     pub async fn explain_pack(
         &self,
         Parameters(params): Parameters<ExplainPackParams>,
-    ) -> Result<String, rmcp::model::ErrorData> {
+    ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
         let mut inputs = vec![("pack_id", params.pack_id.as_str())];
         if let Some(ref client_id) = params.client_id {
             inputs.push(("client_id", client_id.as_str()));
@@ -3302,7 +3357,7 @@ impl PrismServer {
     pub async fn create_pack(
         &self,
         Parameters(params): Parameters<CreatePackParams>,
-    ) -> Result<String, rmcp::model::ErrorData> {
+    ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
         let mut inputs = vec![("pack_name", params.pack_name.as_str())];
         // HIGH-3 fix: scan queries, rules, AND aliases arrays for injection (all are user-controlled).
         let query_strings: Vec<String>;
@@ -3352,7 +3407,7 @@ impl PrismServer {
     pub async fn delete_pack(
         &self,
         Parameters(params): Parameters<DeletePackParams>,
-    ) -> Result<String, rmcp::model::ErrorData> {
+    ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
         scan_inputs(
             &self.injection_scanner,
             &[("pack_id", params.pack_id.as_str())],
@@ -3384,7 +3439,7 @@ impl PrismServer {
     pub async fn list_infusions(
         &self,
         Parameters(params): Parameters<ListInfusionsParams>,
-    ) -> Result<String, rmcp::model::ErrorData> {
+    ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
         if let Some(ref client_id) = params.client_id {
             scan_inputs(
                 &self.injection_scanner,
@@ -3422,7 +3477,7 @@ impl PrismServer {
     pub async fn infusion_status(
         &self,
         Parameters(params): Parameters<InfusionStatusParams>,
-    ) -> Result<String, rmcp::model::ErrorData> {
+    ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
         scan_inputs(
             &self.injection_scanner,
             &[("infusion_id", params.infusion_id.as_str())],
@@ -3457,7 +3512,7 @@ impl PrismServer {
     pub async fn reload_infusion(
         &self,
         Parameters(params): Parameters<ReloadInfusionParams>,
-    ) -> Result<String, rmcp::model::ErrorData> {
+    ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
         scan_inputs(
             &self.injection_scanner,
             &[("infusion_id", params.infusion_id.as_str())],
@@ -3494,7 +3549,7 @@ impl PrismServer {
     pub async fn list_plugins(
         &self,
         Parameters(_params): Parameters<ListPluginsParams>,
-    ) -> Result<String, rmcp::model::ErrorData> {
+    ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
         emit_tool_audit(self.audit_writer.as_ref(), "list_plugins", None, "invoked");
         Err(not_yet_available_msg("plugin management"))
     }
@@ -3520,7 +3575,7 @@ impl PrismServer {
     pub async fn plugin_status(
         &self,
         Parameters(params): Parameters<PluginStatusParams>,
-    ) -> Result<String, rmcp::model::ErrorData> {
+    ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
         scan_inputs(
             &self.injection_scanner,
             &[("plugin_id", params.plugin_id.as_str())],
@@ -3550,7 +3605,7 @@ impl PrismServer {
     pub async fn reload_plugin(
         &self,
         Parameters(params): Parameters<ReloadPluginParams>,
-    ) -> Result<String, rmcp::model::ErrorData> {
+    ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
         scan_inputs(
             &self.injection_scanner,
             &[("plugin_id", params.plugin_id.as_str())],
@@ -3582,7 +3637,7 @@ impl PrismServer {
     pub async fn list_actions(
         &self,
         Parameters(params): Parameters<ListActionsParams>,
-    ) -> Result<String, rmcp::model::ErrorData> {
+    ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
         if let Some(ref client_id) = params.client_id {
             scan_inputs(
                 &self.injection_scanner,
@@ -3620,7 +3675,7 @@ impl PrismServer {
     pub async fn action_status(
         &self,
         Parameters(params): Parameters<ActionStatusParams>,
-    ) -> Result<String, rmcp::model::ErrorData> {
+    ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
         scan_inputs(
             &self.injection_scanner,
             &[("action_id", params.action_id.as_str())],
@@ -3650,7 +3705,7 @@ impl PrismServer {
     pub async fn fire_action(
         &self,
         Parameters(params): Parameters<FireActionParams>,
-    ) -> Result<String, rmcp::model::ErrorData> {
+    ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
         let mut inputs = vec![("action_id", params.action_id.as_str())];
         if let Some(ref ctx) = params.context {
             inputs.push(("context", ctx.as_str()));
@@ -3681,7 +3736,7 @@ impl PrismServer {
     pub async fn test_action(
         &self,
         Parameters(params): Parameters<TestActionParams>,
-    ) -> Result<String, rmcp::model::ErrorData> {
+    ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
         scan_inputs(
             &self.injection_scanner,
             &[("action_id", params.action_id.as_str())],
@@ -3711,7 +3766,7 @@ impl PrismServer {
     pub async fn create_action(
         &self,
         Parameters(params): Parameters<CreateActionParams>,
-    ) -> Result<String, rmcp::model::ErrorData> {
+    ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
         scan_inputs(
             &self.injection_scanner,
             &[("spec_toml", params.spec_toml.as_str())],
@@ -3741,7 +3796,7 @@ impl PrismServer {
     pub async fn delete_action(
         &self,
         Parameters(params): Parameters<DeleteActionParams>,
-    ) -> Result<String, rmcp::model::ErrorData> {
+    ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
         scan_inputs(
             &self.injection_scanner,
             &[("action_id", params.action_id.as_str())],
@@ -3773,7 +3828,7 @@ impl PrismServer {
     pub async fn get_help(
         &self,
         Parameters(params): Parameters<GetHelpParams>,
-    ) -> Result<String, rmcp::model::ErrorData> {
+    ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
         scan_inputs(&self.injection_scanner, &[("topic", params.topic.as_str())])?;
         emit_tool_audit(self.audit_writer.as_ref(), "get_help", None, "invoked");
         Err(not_yet_available_msg("help system"))

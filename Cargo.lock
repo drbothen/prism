@@ -4800,6 +4800,7 @@ version = "0.1.0"
 dependencies = [
  "arc-swap",
  "arrow-json",
+ "async-trait",
  "chrono",
  "prism-audit",
  "prism-core",
@@ -4815,6 +4816,7 @@ dependencies = [
  "tokio",
  "tracing",
  "tracing-subscriber",
+ "ulid",
 ]
 
 [[package]]
