@@ -1850,11 +1850,18 @@ impl PrismServer {
 
                 // Reconstruct CreateAliasInput from the stored action_params.
                 // action_params shape for create_alias: {"name": ..., "scope": ...}
+                // F-PASS15-MED-1: "name" is required — missing means token corruption.
                 let name = stored_token
                     .action_params
                     .get("name")
                     .and_then(|v| v.as_str())
-                    .unwrap_or("")
+                    .ok_or_else(|| {
+                        to_error_data(PrismError::Internal {
+                            detail: "confirm_action: token action_params missing required field \
+                                     'name' for alias path — token may be corrupted"
+                                .to_owned(),
+                        })
+                    })?
                     .to_owned();
                 let scope = stored_token
                     .action_params
@@ -1931,11 +1938,18 @@ impl PrismServer {
 
                 // Reconstruct DeleteAliasInput from stored action_params.
                 // action_params shape: {"name": ..., "scope": ..., "force": ...}
+                // F-PASS15-MED-1: "name" is required — missing means token corruption.
                 let name = stored_token
                     .action_params
                     .get("name")
                     .and_then(|v| v.as_str())
-                    .unwrap_or("")
+                    .ok_or_else(|| {
+                        to_error_data(PrismError::Internal {
+                            detail: "confirm_action: token action_params missing required field \
+                                     'name' for alias path — token may be corrupted"
+                                .to_owned(),
+                        })
+                    })?
                     .to_owned();
                 let scope = stored_token
                     .action_params
@@ -3001,6 +3015,8 @@ impl PrismServer {
         &self,
         Parameters(params): Parameters<ConfigureCredentialSourceParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
+        // F-PASS15-HIGH-1: validate sensor_id length before injection scan.
+        validate_id_field("sensor_id", params.sensor_id.as_str())?;
         scan_inputs(
             &self.injection_scanner,
             &[
@@ -3042,6 +3058,8 @@ impl PrismServer {
         &self,
         Parameters(params): Parameters<DeleteCredentialParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
+        // F-PASS15-HIGH-1: validate sensor_id length before injection scan.
+        validate_id_field("sensor_id", params.sensor_id.as_str())?;
         scan_inputs(
             &self.injection_scanner,
             &[
@@ -3131,6 +3149,8 @@ impl PrismServer {
         }
         if let Some(ref v) = params.rule_id {
             rule_id_storage = v.as_str();
+            // F-PASS15-HIGH-1: validate rule_id length before injection scan.
+            validate_id_field("rule_id", rule_id_storage)?;
             inputs.push(("rule_id", rule_id_storage));
         }
         if let Some(ref v) = params.status {
@@ -3355,6 +3375,8 @@ impl PrismServer {
         &self,
         Parameters(params): Parameters<ExplainPackParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
+        // F-PASS15-HIGH-1: validate pack_id length before injection scan.
+        validate_id_field("pack_id", params.pack_id.as_str())?;
         let mut inputs = vec![("pack_id", params.pack_id.as_str())];
         if let Some(ref client_id) = params.client_id {
             inputs.push(("client_id", client_id.as_str()));
@@ -3444,6 +3466,8 @@ impl PrismServer {
         &self,
         Parameters(params): Parameters<DeletePackParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
+        // F-PASS15-HIGH-1: validate pack_id length before injection scan.
+        validate_id_field("pack_id", params.pack_id.as_str())?;
         scan_inputs(
             &self.injection_scanner,
             &[("pack_id", params.pack_id.as_str())],
@@ -4412,6 +4436,160 @@ mod tests {
         let err = not_yet_available_msg("test feature");
         assert_eq!(err.code.0, codes::NOT_IMPLEMENTED);
         assert!(err.message.contains("test feature"));
+    }
+
+    // ─── F-PASS15-HIGH-1 — validate_id_field swept to explain_pack ──────────────
+    //
+    // LOAD-BEARING: calls PrismServer::explain_pack with a 257-char pack_id.
+    // If the validate_id_field("pack_id", ...) call is removed from explain_pack,
+    // the function falls through to not_yet_available_msg (NOT_IMPLEMENTED -32003)
+    // instead of returning INVALID_PARAMS (-32602) — this test fails.
+
+    /// F-PASS15-HIGH-1: explain_pack must reject a 257-char pack_id with INVALID_PARAMS.
+    ///
+    /// LOAD-BEARING: exercises PrismServer::explain_pack production path.
+    /// If validate_id_field("pack_id", ...) is removed from explain_pack,
+    /// this test fails because explain_pack returns NOT_IMPLEMENTED (-32003)
+    /// instead of INVALID_PARAMS (-32602).
+    #[tokio::test]
+    async fn test_validate_id_field_swept_to_explain_pack() {
+        let server = PrismServer {
+            injection_scanner: Arc::new(InjectionScanner),
+            query_engine: None,
+            write_executor: None,
+            audit_writer: None,
+            config_manager: None,
+            spec_dir: None,
+            alias_store: None,
+        };
+        // 257 'p' chars — 1 over the 256-char limit.
+        let oversized_pack_id = "p".repeat(257);
+        let params = ExplainPackParams {
+            pack_id: oversized_pack_id,
+            client_id: None,
+        };
+        let result = server.explain_pack(Parameters(params)).await;
+        let err = result
+            .expect_err("F-PASS15-HIGH-1: explain_pack must return Err for a 257-char pack_id");
+        assert_eq!(
+            err.code.0,
+            codes::INVALID_PARAMS,
+            "F-PASS15-HIGH-1: rejection must use INVALID_PARAMS (-32602), not -32003; \
+             if validate_id_field('pack_id') was removed, explain_pack returns NOT_IMPLEMENTED instead"
+        );
+    }
+
+    // ─── F-PASS15-MED-1 — confirm_action alias path missing 'name' → INTERNAL ────
+    //
+    // LOAD-BEARING: pre-stores a "create_alias" token with action_params lacking "name",
+    // then calls confirm_action.  If unwrap_or("") is restored (reverting the fix),
+    // confirm_action does NOT return Internal — it proceeds with name="" and eventually
+    // fails differently (AliasNotFound or similar), NOT with INTERNAL_ERROR (-32000).
+    // This test verifies the structured ok_or_else(...Internal...) path fires.
+
+    /// F-PASS15-MED-1: confirm_action for create_alias token with missing 'name'
+    /// must return INTERNAL_ERROR, not silently use name="".
+    ///
+    /// LOAD-BEARING: if unwrap_or("") is restored, this test fails because
+    /// confirm_action does NOT return INTERNAL_ERROR (-32000); it returns a
+    /// different error (AliasNotFound or similar) — the code.0 assertion fails.
+    #[tokio::test]
+    async fn test_F_PASS15_MED_1_confirm_action_alias_missing_name_returns_internal() {
+        use prism_core::RiskTier;
+        use prism_query::alias_store::AliasStore;
+        use prism_query::write_pipeline::WriteExecutor;
+        use prism_security::confirmation_token::{BoundingMetadata, ConfirmationTokenStore};
+        use prism_security::FeatureFlagEvaluator;
+        use prism_sensors::registry::AdapterRegistry;
+        use prism_spec_engine::write_endpoint::{
+            BatchMode, WriteEndpointRegistry, WriteEndpointSpec, WriteStep,
+        };
+        use std::collections::BTreeMap;
+        use std::sync::{Arc, Mutex};
+
+        // Build a minimal WriteExecutor — confirm_action requires it even for alias tokens.
+        let mut endpoint_registry = WriteEndpointRegistry::new();
+        let endpoint_spec = WriteEndpointSpec::new(
+            "test_verb",
+            "test_sensor_table",
+            RiskTier::Reversible,
+            "sensor.test_sensor.test_verb",
+            100,
+            BatchMode::Serial,
+            "id",
+            vec![WriteStep::new("PUT", "/test/{id}", None, None)],
+        );
+        endpoint_registry
+            .register("test_sensor", vec![endpoint_spec])
+            .expect("endpoint registration must succeed");
+
+        let feature_flags = Arc::new(FeatureFlagEvaluator::new(BTreeMap::new()));
+        let confirmation_store = Arc::new(ConfirmationTokenStore::new());
+        let adapter_registry = Arc::new(AdapterRegistry::new());
+
+        // Pre-store a "create_alias" token with action_params that is MISSING "name".
+        // This simulates a corrupted token.
+        let client_id = "test-client";
+        let action_params_no_name = serde_json::json!({
+            "scope": "global"
+            // deliberately omitted: "name" field
+        });
+        let token = confirmation_store
+            .generate(
+                client_id,
+                "create_alias",
+                action_params_no_name,
+                "alias token",
+            )
+            .expect("token generation must succeed");
+
+        let write_executor = Arc::new(WriteExecutor::new(
+            feature_flags,
+            confirmation_store,
+            Arc::new(HighOneStubAudit),
+            adapter_registry,
+            Arc::new(endpoint_registry),
+        ));
+
+        // Wire alias_store so confirm_action reaches the 'name' extraction step.
+        // AliasStore::empty() takes a path but does no I/O — safe to use a dummy path.
+        let alias_store = Arc::new(Mutex::new(AliasStore::empty(std::path::Path::new(
+            "/tmp/prism-test-aliases",
+        ))));
+
+        let server = PrismServer {
+            injection_scanner: Arc::new(InjectionScanner),
+            query_engine: None,
+            write_executor: Some(write_executor),
+            audit_writer: None,
+            config_manager: None,
+            spec_dir: None,
+            alias_store: Some(alias_store),
+        };
+
+        let params = ConfirmActionParams {
+            token: token.token_id.clone(),
+            client_id: client_id.to_owned(),
+        };
+
+        let result = server.confirm_action(Parameters(params)).await;
+        let err = result.expect_err(
+            "F-PASS15-MED-1: confirm_action must return Err when alias token missing 'name'",
+        );
+        assert_eq!(
+            err.code.0,
+            codes::INTERNAL_ERROR,
+            "F-PASS15-MED-1: missing 'name' in alias token must return INTERNAL_ERROR (-32000); \
+             if unwrap_or(\"\") is restored, code will NOT be -32000 — instead the code falls \
+             through to AliasNotFound (-32602) or similar (test fails)"
+        );
+        // PrismError::Internal suppresses detail in the MCP message per error-mapping.rs;
+        // the generic message is the expected output.
+        assert!(
+            err.message.contains("Internal error") || err.message.contains("audit log"),
+            "error message must indicate an internal error; got: '{}'",
+            err.message
+        );
     }
 
     // ─── BC-2.10.010 shutdown sequence tests (F-PASS6-HIGH-1 fix) ───────────────
