@@ -346,6 +346,112 @@ fn test_BC_2_09_006_tool_descriptions_contain_security_warnings() {
     );
 }
 
+// ─── BC-2.09.006 — All production sensor tool descriptions have 9 required sections ──
+
+/// BC-2.09.006 (F-PASS11-HIGH-1): every inline `#[tool(description = "...")]` attribute
+/// in `server.rs` that belongs to a sensor tool MUST contain all 9 required sections:
+/// DATA SOURCE, DATA TRUST LEVEL, WHEN TO USE, WHEN NOT TO USE, PARAMETERS,
+/// PAGINATION, RESPONSE, ERRORS, SECURITY NOTE.
+///
+/// This test scans the production server.rs source and extracts each description string,
+/// then verifies completeness. Regression guard: catches regressions where sections are
+/// accidentally dropped when editing tool attributes.
+#[test]
+fn test_BC_2_09_006_all_inline_sensor_tool_descriptions_have_9_sections() {
+    use prism_security::ToolDescriptionTemplate;
+    use std::path::Path;
+
+    let src = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("src")
+        .join("server.rs");
+    let content = std::fs::read_to_string(&src)
+        .expect("server.rs must be readable from prism-mcp crate root");
+
+    // Extract all `description = "..."` blocks from #[tool(...)] attributes.
+    // Each block is a multi-line string with \n\ continuations.
+    // We collect description content between `description = "` and the closing `"` before `,`.
+    let mut descriptions: Vec<(usize, String)> = Vec::new();
+    let mut pos = 0;
+    while let Some(start) = content[pos..].find("description = \"") {
+        let abs_start = pos + start + "description = \"".len();
+        // Find the closing `"` that ends the description string.
+        // Description strings end with `"` followed by optional whitespace and `,` or `)`.
+        // We find the pattern `",` or `"\n` or `")` after the description start.
+        // Use a simple scan: find the next unescaped `"` that's followed by `,` or whitespace+`,`.
+        let mut i = abs_start;
+        let bytes = content.as_bytes();
+        let mut found_end = None;
+        while i < bytes.len() {
+            if bytes[i] == b'"' {
+                // Check if this is the closing quote: next non-whitespace must be `,` or `)`
+                let mut j = i + 1;
+                while j < bytes.len()
+                    && (bytes[j] == b' ' || bytes[j] == b'\n' || bytes[j] == b'\t')
+                {
+                    j += 1;
+                }
+                if j < bytes.len() && (bytes[j] == b',' || bytes[j] == b')') {
+                    found_end = Some(i);
+                    break;
+                }
+            }
+            i += 1;
+        }
+        if let Some(end) = found_end {
+            let raw = &content[abs_start..end];
+            // Unescape Rust string continuation: `\n\` + actual_newline + whitespace
+            // becomes a single conceptual newline in the logical content.
+            let unescaped = raw
+                .replace("\\\n", " ") // Rust line continuation: backslash + newline
+                .replace("\\n", "\n"); // \n escape sequences
+            let line_num = content[..abs_start].lines().count();
+            descriptions.push((line_num, unescaped));
+            pos = end + 1;
+        } else {
+            pos = abs_start;
+        }
+    }
+
+    assert!(
+        !descriptions.is_empty(),
+        "Expected to find tool descriptions in server.rs; none found. \
+         Check that the source file path is correct."
+    );
+
+    // Filter to sensor tool descriptions (those containing "DATA SOURCE:").
+    let sensor_descriptions: Vec<_> = descriptions
+        .iter()
+        .filter(|(_, d)| d.contains("DATA SOURCE:"))
+        .collect();
+
+    assert_eq!(
+        sensor_descriptions.len(),
+        53,
+        "Expected 53 sensor tool descriptions in server.rs; found {}. \
+         A tool may have been added or removed without updating this test.",
+        sensor_descriptions.len()
+    );
+
+    // Verify all 9 sections are present in each sensor tool description.
+    let mut failures: Vec<String> = Vec::new();
+    for (line, desc) in &sensor_descriptions {
+        let missing = ToolDescriptionTemplate::missing_sections(desc);
+        if !missing.is_empty() {
+            failures.push(format!(
+                "  server.rs ~line {}: missing sections: {:?}",
+                line, missing
+            ));
+        }
+    }
+
+    assert!(
+        failures.is_empty(),
+        "BC-2.09.006 VIOLATION: {} sensor tool description(s) are missing required sections:\n{}",
+        failures.len(),
+        failures.join("\n")
+    );
+}
+
 // ─── AC-10 / POL-12 — No todo!() in production code ─────────────────────────
 
 /// POL-12 (AC-10): no `todo!()` or `unimplemented!()` in production source files.

@@ -1034,7 +1034,13 @@ impl PrismServer {
         description = "Execute a PrismQL query against configured sensor data sources.\n\
         DATA TRUST LEVEL: External/untrusted — results are sensor-originated.\n\
         SECURITY NOTE: All parameters are scanned for prompt injection before execution.\n\
-        DATA SOURCE: Configured sensor adapters (CrowdStrike, Armis, Claroty, Cyberint, etc.)",
+        DATA SOURCE: Configured sensor adapters (CrowdStrike, Armis, Claroty, Cyberint, etc.)\n\
+        WHEN TO USE: when you need to retrieve sensor data for analysis or investigation\n\
+        WHEN NOT TO USE: do not use for write operations — use confirm_action for confirmed writes\n\
+        PARAMETERS: query (required PrismQL string), clients (optional list of client IDs), limit (optional)\n\
+        PAGINATION: cursor-based; check _meta.has_more and _meta.next_cursor for continuation\n\
+        RESPONSE: _meta envelope with trust_level plus safety_flags; results array with sensor records\n\
+        ERRORS: -32602 parse error, -32001 timeout, -32002 capability denied, -32000 internal",
         output_schema = schema_for_type::<ResponseEnvelopeSchema>()
     )]
     pub async fn query(
@@ -1136,7 +1142,13 @@ impl PrismServer {
         description = "Explain the execution plan for a PrismQL query without executing it.\n\
         DATA TRUST LEVEL: External/untrusted.\n\
         SECURITY NOTE: Parameters scanned for prompt injection before execution.\n\
-        DATA SOURCE: Internal query planner (no sensor data accessed).",
+        DATA SOURCE: Internal query planner (no sensor data accessed).\n\
+        WHEN TO USE: before executing a complex query to verify the execution plan\n\
+        WHEN NOT TO USE: do not use for actual data retrieval — use query tool instead\n\
+        PARAMETERS: query (required PrismQL string), clients (optional list of client IDs)\n\
+        PAGINATION: not applicable — returns a single explain result\n\
+        RESPONSE: parsed_mode, original_query, expanded_query, alias_expansion fields\n\
+        ERRORS: -32602 parse error, -32000 internal error",
         output_schema = schema_for_type::<ResponseEnvelopeSchema>()
     )]
     pub async fn explain_query(
@@ -1231,7 +1243,13 @@ impl PrismServer {
         description = "Create a named PrismQL alias (stored query shorthand).\n\
         DATA TRUST LEVEL: External/untrusted.\n\
         SECURITY NOTE: Name, query body, and description are scanned for prompt injection.\n\
-        DATA SOURCE: Internal alias registry.",
+        DATA SOURCE: Internal alias registry.\n\
+        WHEN TO USE: when saving a frequently-used PrismQL query as a named shorthand\n\
+        WHEN NOT TO USE: do not use for one-off queries — use query tool directly\n\
+        PARAMETERS: name (required), query (required PrismQL), description (optional), scope (optional)\n\
+        PAGINATION: not applicable — returns single creation result\n\
+        RESPONSE: envelope with alias creation status or confirmation_token for updates\n\
+        ERRORS: -32602 invalid alias name or query, -32000 internal error",
         output_schema = schema_for_type::<ResponseEnvelopeSchema>()
     )]
     pub async fn create_alias(
@@ -1325,7 +1343,13 @@ impl PrismServer {
         description = "List all named PrismQL aliases for the calling client.\n\
         DATA TRUST LEVEL: External/untrusted.\n\
         SECURITY NOTE: Client parameter scanned for prompt injection.\n\
-        DATA SOURCE: Internal alias registry.",
+        DATA SOURCE: Internal alias registry.\n\
+        WHEN TO USE: when discovering what named aliases are available for query expansion\n\
+        WHEN NOT TO USE: do not use when you need actual query data — use query tool instead\n\
+        PARAMETERS: client_id (optional scopes to client aliases), scope (optional)\n\
+        PAGINATION: not applicable — returns all matching aliases\n\
+        RESPONSE: envelope with list of alias definitions and expansion text\n\
+        ERRORS: -32000 internal error",
         output_schema = schema_for_type::<ResponseEnvelopeSchema>()
     )]
     pub async fn list_aliases(
@@ -1388,7 +1412,13 @@ impl PrismServer {
         description = "Delete a named PrismQL alias.\n\
         DATA TRUST LEVEL: External/untrusted.\n\
         SECURITY NOTE: Name and scope parameters scanned for prompt injection.\n\
-        DATA SOURCE: Internal alias registry.",
+        DATA SOURCE: Internal alias registry.\n\
+        WHEN TO USE: when removing a named alias that is no longer needed\n\
+        WHEN NOT TO USE: do not delete aliases currently referenced by active queries\n\
+        PARAMETERS: name (required alias name), scope (optional client scope)\n\
+        PAGINATION: not applicable\n\
+        RESPONSE: envelope with deletion status or confirmation_token for two-step gate\n\
+        ERRORS: -32602 alias not found, -32000 internal error",
         output_schema = schema_for_type::<ResponseEnvelopeSchema>()
     )]
     pub async fn delete_alias(
@@ -1466,7 +1496,13 @@ impl PrismServer {
         description = "Explain what a named alias expands to, without executing it.\n\
         DATA TRUST LEVEL: External/untrusted.\n\
         SECURITY NOTE: Name and scope parameters scanned for prompt injection.\n\
-        DATA SOURCE: Internal alias registry.",
+        DATA SOURCE: Internal alias registry.\n\
+        WHEN TO USE: when you want to understand what a named alias expands to\n\
+        WHEN NOT TO USE: do not use for actual data retrieval — use query tool instead\n\
+        PARAMETERS: name (required alias name), scope (optional client scope)\n\
+        PAGINATION: not applicable\n\
+        RESPONSE: expanded query text and parameter schema for the named alias\n\
+        ERRORS: -32602 alias not found, -32000 internal error",
         output_schema = schema_for_type::<ResponseEnvelopeSchema>()
     )]
     pub async fn explain_alias(
@@ -1534,7 +1570,13 @@ impl PrismServer {
         description = "Confirm an irreversible write operation by confirmation token.\n\
         DATA TRUST LEVEL: External/untrusted.\n\
         SECURITY NOTE: Token and client_id parameters scanned for prompt injection.\n\
-        DATA SOURCE: Internal write executor (sensor write via configured adapter).",
+        DATA SOURCE: Internal write executor (sensor write via configured adapter).\n\
+        WHEN TO USE: ONLY after reviewing the write preview and deciding to proceed\n\
+        WHEN NOT TO USE: do not skip the dry-run preview step before confirming\n\
+        PARAMETERS: token_id (required confirmation token), client_id (required)\n\
+        PAGINATION: not applicable — single write operation result\n\
+        RESPONSE: write outcome with succeeded_count, failed_count, audit trail reference\n\
+        ERRORS: -32602 invalid or expired token, -32002 capability denied, -32000 internal",
         output_schema = schema_for_type::<ResponseEnvelopeSchema>()
     )]
     pub async fn confirm_action(
@@ -1869,7 +1911,13 @@ impl PrismServer {
         description = "Check the connectivity and authentication status of configured sensors.\n\
         DATA TRUST LEVEL: External/untrusted — connectivity status is sensor-originated.\n\
         SECURITY NOTE: Sensor name parameter scanned for prompt injection.\n\
-        DATA SOURCE: Configured sensor adapters.",
+        DATA SOURCE: Configured sensor adapters.\n\
+        WHEN TO USE: when diagnosing connectivity or authentication issues with sensors\n\
+        WHEN NOT TO USE: do not use for data retrieval — use query tool instead\n\
+        PARAMETERS: sensor (optional specific sensor name; omit for all sensors)\n\
+        PAGINATION: not applicable\n\
+        RESPONSE: connectivity and authentication status per sensor\n\
+        ERRORS: -32003 not yet implemented, -32000 internal error",
         output_schema = schema_for_type::<ResponseEnvelopeSchema>()
     )]
     pub async fn check_sensor_health(
@@ -1906,7 +1954,13 @@ impl PrismServer {
         description = "Retrieve diagnostic information for a specific sensor or all sensors.\n\
         DATA TRUST LEVEL: External/untrusted — diagnostic data is sensor-originated.\n\
         SECURITY NOTE: Sensor name parameter scanned for prompt injection.\n\
-        DATA SOURCE: Configured sensor adapters.",
+        DATA SOURCE: Configured sensor adapters.\n\
+        WHEN TO USE: when investigating sensor adapter behavior or performance issues\n\
+        WHEN NOT TO USE: do not use for data retrieval — use query tool instead\n\
+        PARAMETERS: sensor (optional specific sensor name; omit for all sensors)\n\
+        PAGINATION: not applicable\n\
+        RESPONSE: diagnostic data per sensor (request counts, latency, error rates)\n\
+        ERRORS: -32003 not yet implemented, -32000 internal error",
         output_schema = schema_for_type::<ResponseEnvelopeSchema>()
     )]
     pub async fn get_diagnostics(
@@ -1943,7 +1997,13 @@ impl PrismServer {
         description = "Hot-reload the running configuration from disk.\n\
         DATA TRUST LEVEL: Internal — configuration is operator-controlled.\n\
         SECURITY NOTE: No user-controlled parameters.\n\
-        DATA SOURCE: Prism config directory on disk.",
+        DATA SOURCE: Prism config directory on disk.\n\
+        WHEN TO USE: after modifying sensor spec TOML files on disk to apply changes\n\
+        WHEN NOT TO USE: do not call repeatedly without spec file changes\n\
+        PARAMETERS: none — operates on the configured spec directory\n\
+        PAGINATION: not applicable\n\
+        RESPONSE: reload result with added, removed, modified, and unchanged sensor counts\n\
+        ERRORS: -32000 internal error, spec parse failure details included in message",
         output_schema = schema_for_type::<ResponseEnvelopeSchema>()
     )]
     pub async fn reload_config(&self) -> Result<String, rmcp::model::ErrorData> {
@@ -2004,7 +2064,13 @@ impl PrismServer {
         description = "Add or update a sensor spec from a TOML string.\n\
         DATA TRUST LEVEL: External/untrusted — TOML content is attacker-controlled in MCP context.\n\
         SECURITY NOTE: Name and TOML content scanned for prompt injection.\n\
-        DATA SOURCE: Internal spec engine.",
+        DATA SOURCE: Internal spec engine.\n\
+        WHEN TO USE: when adding a new sensor or updating an existing sensor spec from TOML\n\
+        WHEN NOT TO USE: do not use for bulk spec management — use reload_config instead\n\
+        PARAMETERS: name (required file name), toml_content (required TOML spec string)\n\
+        PAGINATION: not applicable\n\
+        RESPONSE: status (added, confirmation_required, validation_failed, dry_run) with details\n\
+        ERRORS: -32602 invalid TOML or spec validation failure, -32000 internal error",
         output_schema = schema_for_type::<ResponseEnvelopeSchema>()
     )]
     pub async fn add_sensor_spec(
@@ -2116,7 +2182,13 @@ impl PrismServer {
         description = "List all currently loaded sensor specs with their metadata.\n\
         DATA TRUST LEVEL: Internal — spec metadata is operator-managed.\n\
         SECURITY NOTE: No user-controlled parameters.\n\
-        DATA SOURCE: Internal spec engine.",
+        DATA SOURCE: Internal spec engine.\n\
+        WHEN TO USE: when auditing which sensors are configured and their current status\n\
+        WHEN NOT TO USE: do not use for querying sensor data — use query tool instead\n\
+        PARAMETERS: none\n\
+        PAGINATION: not applicable — returns all loaded sensor specs\n\
+        RESPONSE: list of sensor specs with sensor_id, name, version, auth_type, table_count, status\n\
+        ERRORS: -32000 internal error",
         output_schema = schema_for_type::<ResponseEnvelopeSchema>()
     )]
     pub async fn list_sensor_specs(&self) -> Result<String, rmcp::model::ErrorData> {
@@ -2184,7 +2256,13 @@ impl PrismServer {
         description = "Validate a sensor spec TOML string without loading it.\n\
         DATA TRUST LEVEL: External/untrusted — TOML content is attacker-controlled.\n\
         SECURITY NOTE: TOML content scanned for prompt injection.\n\
-        DATA SOURCE: Internal spec engine (validation only).",
+        DATA SOURCE: Internal spec engine (validation only).\n\
+        WHEN TO USE: before loading a sensor spec to catch TOML or schema errors early\n\
+        WHEN NOT TO USE: do not use as a substitute for add_sensor_spec with dry_run\n\
+        PARAMETERS: toml_content (required TOML string to validate)\n\
+        PAGINATION: not applicable\n\
+        RESPONSE: valid (bool), sensor_id, name, table_count; or errors list if invalid\n\
+        ERRORS: -32602 injection detected in TOML, -32000 internal error",
         output_schema = schema_for_type::<ResponseEnvelopeSchema>()
     )]
     pub async fn validate_config(
@@ -2257,7 +2335,13 @@ impl PrismServer {
         description = "List capabilities available for the calling client's feature flags.\n\
         DATA TRUST LEVEL: Internal — capability metadata is operator-configured.\n\
         SECURITY NOTE: Client ID parameter scanned for prompt injection.\n\
-        DATA SOURCE: Internal feature flag registry.",
+        DATA SOURCE: Internal feature flag registry.\n\
+        WHEN TO USE: when determining what operations are available for a given client\n\
+        WHEN NOT TO USE: do not use to discover sensor data — use list_sensor_specs instead\n\
+        PARAMETERS: client_id (optional scopes to a specific client's capabilities)\n\
+        PAGINATION: not applicable — returns complete capability set\n\
+        RESPONSE: client_registered flag and capabilities map with tool enablement status\n\
+        ERRORS: -32000 internal error",
         output_schema = schema_for_type::<ResponseEnvelopeSchema>()
     )]
     pub async fn list_capabilities(
@@ -2343,7 +2427,13 @@ impl PrismServer {
         description = "Create a recurring PrismQL query schedule.\n\
         DATA TRUST LEVEL: External/untrusted.\n\
         SECURITY NOTE: Query and cron parameters scanned for prompt injection.\n\
-        DATA SOURCE: prism-operations (not yet merged).",
+        DATA SOURCE: prism-operations (not yet merged).\n\
+        WHEN TO USE: when managing prism-operations features once that module is available\n\
+        WHEN NOT TO USE: currently not available — prism-operations module not yet merged\n\
+        PARAMETERS: see tool schema; all string inputs are injection-scanned\n\
+        PAGINATION: not applicable in the current not-yet-available state\n\
+        RESPONSE: not yet available — returns -32003 not implemented\n\
+        ERRORS: -32003 not implemented, prism-operations not yet merged",
         output_schema = schema_for_type::<ResponseEnvelopeSchema>()
     )]
     pub async fn create_schedule(
@@ -2370,7 +2460,13 @@ impl PrismServer {
         description = "List all PrismQL query schedules for the calling client.\n\
         DATA TRUST LEVEL: External/untrusted.\n\
         SECURITY NOTE: No user-controlled parameters.\n\
-        DATA SOURCE: prism-operations (not yet merged).",
+        DATA SOURCE: prism-operations (not yet merged).\n\
+        WHEN TO USE: when managing prism-operations features once that module is available\n\
+        WHEN NOT TO USE: currently not available — prism-operations module not yet merged\n\
+        PARAMETERS: see tool schema; all string inputs are injection-scanned\n\
+        PAGINATION: not applicable in the current not-yet-available state\n\
+        RESPONSE: not yet available — returns -32003 not implemented\n\
+        ERRORS: -32003 not implemented, prism-operations not yet merged",
         output_schema = schema_for_type::<ResponseEnvelopeSchema>()
     )]
     pub async fn list_schedules(&self) -> Result<String, rmcp::model::ErrorData> {
@@ -2386,7 +2482,13 @@ impl PrismServer {
         description = "Delete a PrismQL query schedule by ID.\n\
         DATA TRUST LEVEL: External/untrusted.\n\
         SECURITY NOTE: ID parameter scanned for prompt injection.\n\
-        DATA SOURCE: prism-operations (not yet merged).",
+        DATA SOURCE: prism-operations (not yet merged).\n\
+        WHEN TO USE: when managing prism-operations features once that module is available\n\
+        WHEN NOT TO USE: currently not available — prism-operations module not yet merged\n\
+        PARAMETERS: see tool schema; all string inputs are injection-scanned\n\
+        PAGINATION: not applicable in the current not-yet-available state\n\
+        RESPONSE: not yet available — returns -32003 not implemented\n\
+        ERRORS: -32003 not implemented, prism-operations not yet merged",
         output_schema = schema_for_type::<ResponseEnvelopeSchema>()
     )]
     pub async fn delete_schedule(
@@ -2406,7 +2508,13 @@ impl PrismServer {
         description = "Retrieve diff results from the most recent schedule run.\n\
         DATA TRUST LEVEL: External/untrusted.\n\
         SECURITY NOTE: ID parameter scanned for prompt injection.\n\
-        DATA SOURCE: prism-operations (not yet merged).",
+        DATA SOURCE: prism-operations (not yet merged).\n\
+        WHEN TO USE: when managing prism-operations features once that module is available\n\
+        WHEN NOT TO USE: currently not available — prism-operations module not yet merged\n\
+        PARAMETERS: see tool schema; all string inputs are injection-scanned\n\
+        PAGINATION: not applicable in the current not-yet-available state\n\
+        RESPONSE: not yet available — returns -32003 not implemented\n\
+        ERRORS: -32003 not implemented, prism-operations not yet merged",
         output_schema = schema_for_type::<ResponseEnvelopeSchema>()
     )]
     pub async fn get_diff_results(
@@ -2426,7 +2534,13 @@ impl PrismServer {
         description = "Create a detection rule from a PrismQL query.\n\
         DATA TRUST LEVEL: External/untrusted.\n\
         SECURITY NOTE: Name and query parameters scanned for prompt injection.\n\
-        DATA SOURCE: prism-operations (not yet merged).",
+        DATA SOURCE: prism-operations (not yet merged).\n\
+        WHEN TO USE: when managing prism-operations features once that module is available\n\
+        WHEN NOT TO USE: currently not available — prism-operations module not yet merged\n\
+        PARAMETERS: see tool schema; all string inputs are injection-scanned\n\
+        PAGINATION: not applicable in the current not-yet-available state\n\
+        RESPONSE: not yet available — returns -32003 not implemented\n\
+        ERRORS: -32003 not implemented, prism-operations not yet merged",
         output_schema = schema_for_type::<ResponseEnvelopeSchema>()
     )]
     pub async fn create_rule(
@@ -2453,7 +2567,13 @@ impl PrismServer {
         description = "List all detection rules for the calling client.\n\
         DATA TRUST LEVEL: External/untrusted.\n\
         SECURITY NOTE: No user-controlled parameters.\n\
-        DATA SOURCE: prism-operations (not yet merged).",
+        DATA SOURCE: prism-operations (not yet merged).\n\
+        WHEN TO USE: when managing prism-operations features once that module is available\n\
+        WHEN NOT TO USE: currently not available — prism-operations module not yet merged\n\
+        PARAMETERS: see tool schema; all string inputs are injection-scanned\n\
+        PAGINATION: not applicable in the current not-yet-available state\n\
+        RESPONSE: not yet available — returns -32003 not implemented\n\
+        ERRORS: -32003 not implemented, prism-operations not yet merged",
         output_schema = schema_for_type::<ResponseEnvelopeSchema>()
     )]
     pub async fn list_rules(&self) -> Result<String, rmcp::model::ErrorData> {
@@ -2469,7 +2589,13 @@ impl PrismServer {
         description = "Delete a detection rule by ID.\n\
         DATA TRUST LEVEL: External/untrusted.\n\
         SECURITY NOTE: ID parameter scanned for prompt injection.\n\
-        DATA SOURCE: prism-operations (not yet merged).",
+        DATA SOURCE: prism-operations (not yet merged).\n\
+        WHEN TO USE: when managing prism-operations features once that module is available\n\
+        WHEN NOT TO USE: currently not available — prism-operations module not yet merged\n\
+        PARAMETERS: see tool schema; all string inputs are injection-scanned\n\
+        PAGINATION: not applicable in the current not-yet-available state\n\
+        RESPONSE: not yet available — returns -32003 not implemented\n\
+        ERRORS: -32003 not implemented, prism-operations not yet merged",
         output_schema = schema_for_type::<ResponseEnvelopeSchema>()
     )]
     pub async fn delete_rule(
@@ -2489,7 +2615,13 @@ impl PrismServer {
         description = "Create a new security case.\n\
         DATA TRUST LEVEL: External/untrusted.\n\
         SECURITY NOTE: Title and description scanned for prompt injection.\n\
-        DATA SOURCE: prism-operations (not yet merged).",
+        DATA SOURCE: prism-operations (not yet merged).\n\
+        WHEN TO USE: when managing prism-operations features once that module is available\n\
+        WHEN NOT TO USE: currently not available — prism-operations module not yet merged\n\
+        PARAMETERS: see tool schema; all string inputs are injection-scanned\n\
+        PAGINATION: not applicable in the current not-yet-available state\n\
+        RESPONSE: not yet available — returns -32003 not implemented\n\
+        ERRORS: -32003 not implemented, prism-operations not yet merged",
         output_schema = schema_for_type::<ResponseEnvelopeSchema>()
     )]
     pub async fn create_case(
@@ -2516,7 +2648,13 @@ impl PrismServer {
         description = "List security cases for the calling client.\n\
         DATA TRUST LEVEL: External/untrusted.\n\
         SECURITY NOTE: No user-controlled parameters.\n\
-        DATA SOURCE: prism-operations (not yet merged).",
+        DATA SOURCE: prism-operations (not yet merged).\n\
+        WHEN TO USE: when managing prism-operations features once that module is available\n\
+        WHEN NOT TO USE: currently not available — prism-operations module not yet merged\n\
+        PARAMETERS: see tool schema; all string inputs are injection-scanned\n\
+        PAGINATION: not applicable in the current not-yet-available state\n\
+        RESPONSE: not yet available — returns -32003 not implemented\n\
+        ERRORS: -32003 not implemented, prism-operations not yet merged",
         output_schema = schema_for_type::<ResponseEnvelopeSchema>()
     )]
     pub async fn list_cases(&self) -> Result<String, rmcp::model::ErrorData> {
@@ -2532,7 +2670,13 @@ impl PrismServer {
         description = "Get a specific security case by ID.\n\
         DATA TRUST LEVEL: External/untrusted.\n\
         SECURITY NOTE: ID parameter scanned for prompt injection.\n\
-        DATA SOURCE: prism-operations (not yet merged).",
+        DATA SOURCE: prism-operations (not yet merged).\n\
+        WHEN TO USE: when managing prism-operations features once that module is available\n\
+        WHEN NOT TO USE: currently not available — prism-operations module not yet merged\n\
+        PARAMETERS: see tool schema; all string inputs are injection-scanned\n\
+        PAGINATION: not applicable in the current not-yet-available state\n\
+        RESPONSE: not yet available — returns -32003 not implemented\n\
+        ERRORS: -32003 not implemented, prism-operations not yet merged",
         output_schema = schema_for_type::<ResponseEnvelopeSchema>()
     )]
     pub async fn get_case(
@@ -2552,7 +2696,13 @@ impl PrismServer {
         description = "Update fields on an existing security case.\n\
         DATA TRUST LEVEL: External/untrusted.\n\
         SECURITY NOTE: ID, title, and description scanned for prompt injection.\n\
-        DATA SOURCE: prism-operations (not yet merged).",
+        DATA SOURCE: prism-operations (not yet merged).\n\
+        WHEN TO USE: when managing prism-operations features once that module is available\n\
+        WHEN NOT TO USE: currently not available — prism-operations module not yet merged\n\
+        PARAMETERS: see tool schema; all string inputs are injection-scanned\n\
+        PAGINATION: not applicable in the current not-yet-available state\n\
+        RESPONSE: not yet available — returns -32003 not implemented\n\
+        ERRORS: -32003 not implemented, prism-operations not yet merged",
         output_schema = schema_for_type::<ResponseEnvelopeSchema>()
     )]
     pub async fn update_case(
@@ -2579,7 +2729,13 @@ impl PrismServer {
         description = "Retrieve aggregated metrics across security cases.\n\
         DATA TRUST LEVEL: External/untrusted.\n\
         SECURITY NOTE: No user-controlled parameters.\n\
-        DATA SOURCE: prism-operations (not yet merged).",
+        DATA SOURCE: prism-operations (not yet merged).\n\
+        WHEN TO USE: when managing prism-operations features once that module is available\n\
+        WHEN NOT TO USE: currently not available — prism-operations module not yet merged\n\
+        PARAMETERS: see tool schema; all string inputs are injection-scanned\n\
+        PAGINATION: not applicable in the current not-yet-available state\n\
+        RESPONSE: not yet available — returns -32003 not implemented\n\
+        ERRORS: -32003 not implemented, prism-operations not yet merged",
         output_schema = schema_for_type::<ResponseEnvelopeSchema>()
     )]
     pub async fn case_metrics(&self) -> Result<String, rmcp::model::ErrorData> {
@@ -2597,7 +2753,13 @@ impl PrismServer {
         description = "List credential references for the given client (names only, never raw values per AD-017).\n\
         DATA TRUST LEVEL: Internal — credential names are operator-managed references.\n\
         SECURITY NOTE: Client ID scanned for prompt injection. Credential values NEVER exposed (AD-017).\n\
-        DATA SOURCE: Credential store (not yet wired).",
+        DATA SOURCE: Credential store (not yet wired).\n\
+        WHEN TO USE: when managing credential references for sensor authentication (AD-017)\n\
+        WHEN NOT TO USE: credential VALUES are never exposed or stored — references only\n\
+        PARAMETERS: client_id (required), sensor_id (required for per-sensor operations)\n\
+        PAGINATION: not applicable\n\
+        RESPONSE: credential reference names and status; never raw credential values\n\
+        ERRORS: -32003 not yet implemented, -32000 internal error",
         output_schema = schema_for_type::<ResponseEnvelopeSchema>()
     )]
     pub async fn list_credentials(
@@ -2627,7 +2789,13 @@ impl PrismServer {
         description = "Check the status of a credential reference for the given client.\n\
         DATA TRUST LEVEL: Internal — credential status is operator-managed.\n\
         SECURITY NOTE: Client ID scanned for prompt injection. Credential values NEVER exposed (AD-017).\n\
-        DATA SOURCE: Credential store (not yet wired).",
+        DATA SOURCE: Credential store (not yet wired).\n\
+        WHEN TO USE: when managing credential references for sensor authentication (AD-017)\n\
+        WHEN NOT TO USE: credential VALUES are never exposed or stored — references only\n\
+        PARAMETERS: client_id (required), sensor_id (required for per-sensor operations)\n\
+        PAGINATION: not applicable\n\
+        RESPONSE: credential reference names and status; never raw credential values\n\
+        ERRORS: -32003 not yet implemented, -32000 internal error",
         output_schema = schema_for_type::<ResponseEnvelopeSchema>()
     )]
     pub async fn credential_status(
@@ -2657,7 +2825,13 @@ impl PrismServer {
         description = "Configure a credential source for a sensor (env, file, vault, or keyring reference).\n\
         DATA TRUST LEVEL: External/untrusted — source path references are attacker-controlled.\n\
         SECURITY NOTE: All string fields scanned for prompt injection. Credential values NEVER stored (AD-017).\n\
-        DATA SOURCE: Credential store (not yet wired).",
+        DATA SOURCE: Credential store (not yet wired).\n\
+        WHEN TO USE: when managing credential references for sensor authentication (AD-017)\n\
+        WHEN NOT TO USE: credential VALUES are never exposed or stored — references only\n\
+        PARAMETERS: client_id (required), sensor_id (required for per-sensor operations)\n\
+        PAGINATION: not applicable\n\
+        RESPONSE: credential reference names and status; never raw credential values\n\
+        ERRORS: -32003 not yet implemented, -32000 internal error",
         output_schema = schema_for_type::<ResponseEnvelopeSchema>()
     )]
     pub async fn configure_credential_source(
@@ -2692,7 +2866,13 @@ impl PrismServer {
         description = "Delete a credential reference for a sensor (removes the reference, not any external value).\n\
         DATA TRUST LEVEL: External/untrusted.\n\
         SECURITY NOTE: All string fields scanned for prompt injection.\n\
-        DATA SOURCE: Credential store (not yet wired).",
+        DATA SOURCE: Credential store (not yet wired).\n\
+        WHEN TO USE: when managing credential references for sensor authentication (AD-017)\n\
+        WHEN NOT TO USE: credential VALUES are never exposed or stored — references only\n\
+        PARAMETERS: client_id (required), sensor_id (required for per-sensor operations)\n\
+        PAGINATION: not applicable\n\
+        RESPONSE: credential reference names and status; never raw credential values\n\
+        ERRORS: -32003 not yet implemented, -32000 internal error",
         output_schema = schema_for_type::<ResponseEnvelopeSchema>()
     )]
     pub async fn delete_credential(
@@ -2728,7 +2908,13 @@ impl PrismServer {
         description = "Retrieve the watchdog status for the Prism process (memory, query queue, denylist).\n\
         DATA TRUST LEVEL: Internal — watchdog metrics are process-internal.\n\
         SECURITY NOTE: No user-controlled input strings. Optional denylist-clear is capability-gated.\n\
-        DATA SOURCE: Internal watchdog subsystem (not yet wired).",
+        DATA SOURCE: Internal watchdog subsystem (not yet wired).\n\
+        WHEN TO USE: when monitoring Prism process health (memory, query queue, denylist)\n\
+        WHEN NOT TO USE: not for sensor data retrieval\n\
+        PARAMETERS: none\n\
+        PAGINATION: not applicable\n\
+        RESPONSE: watchdog metrics including memory usage, queue depth, denylist entries\n\
+        ERRORS: -32003 not yet implemented, -32000 internal error",
         output_schema = schema_for_type::<ResponseEnvelopeSchema>()
     )]
     pub async fn watchdog_status(
@@ -2753,7 +2939,13 @@ impl PrismServer {
         description = "List alerts for the given client, with optional severity/rule/status filters.\n\
         DATA TRUST LEVEL: External/untrusted — filter values are attacker-controlled.\n\
         SECURITY NOTE: All string filter parameters scanned for prompt injection.\n\
-        DATA SOURCE: prism-operations alert store (not yet wired).",
+        DATA SOURCE: prism-operations alert store (not yet wired).\n\
+        WHEN TO USE: when managing prism-operations features once that module is available\n\
+        WHEN NOT TO USE: currently not available — prism-operations module not yet merged\n\
+        PARAMETERS: see tool schema; all string inputs are injection-scanned\n\
+        PAGINATION: not applicable in the current not-yet-available state\n\
+        RESPONSE: not yet available — returns -32003 not implemented\n\
+        ERRORS: -32003 not implemented, prism-operations not yet merged",
         output_schema = schema_for_type::<ResponseEnvelopeSchema>()
     )]
     pub async fn list_alerts(
@@ -2810,7 +3002,13 @@ impl PrismServer {
         description = "Get a specific alert by ID.\n\
         DATA TRUST LEVEL: External/untrusted — alert ID is attacker-controlled.\n\
         SECURITY NOTE: alert_id scanned for prompt injection.\n\
-        DATA SOURCE: prism-operations alert store (not yet wired).",
+        DATA SOURCE: prism-operations alert store (not yet wired).\n\
+        WHEN TO USE: when managing prism-operations features once that module is available\n\
+        WHEN NOT TO USE: currently not available — prism-operations module not yet merged\n\
+        PARAMETERS: see tool schema; all string inputs are injection-scanned\n\
+        PAGINATION: not applicable in the current not-yet-available state\n\
+        RESPONSE: not yet available — returns -32003 not implemented\n\
+        ERRORS: -32003 not implemented, prism-operations not yet merged",
         output_schema = schema_for_type::<ResponseEnvelopeSchema>()
     )]
     pub async fn get_alert(
@@ -2834,7 +3032,13 @@ impl PrismServer {
         description = "Acknowledge an alert to suppress repeat notifications.\n\
         DATA TRUST LEVEL: External/untrusted — alert ID is attacker-controlled.\n\
         SECURITY NOTE: alert_id scanned for prompt injection.\n\
-        DATA SOURCE: prism-operations alert store (not yet wired).",
+        DATA SOURCE: prism-operations alert store (not yet wired).\n\
+        WHEN TO USE: when managing prism-operations features once that module is available\n\
+        WHEN NOT TO USE: currently not available — prism-operations module not yet merged\n\
+        PARAMETERS: see tool schema; all string inputs are injection-scanned\n\
+        PAGINATION: not applicable in the current not-yet-available state\n\
+        RESPONSE: not yet available — returns -32003 not implemented\n\
+        ERRORS: -32003 not implemented, prism-operations not yet merged",
         output_schema = schema_for_type::<ResponseEnvelopeSchema>()
     )]
     pub async fn acknowledge_alert(
@@ -2865,7 +3069,13 @@ impl PrismServer {
         description = "Contain (network-isolate) a CrowdStrike-managed host.\n\
         DATA TRUST LEVEL: External/untrusted — device_id is attacker-controlled.\n\
         SECURITY NOTE: client_id and device_id scanned for prompt injection.\n\
-        DATA SOURCE: CrowdStrike sensor adapter (not yet wired — capability-gated write).",
+        DATA SOURCE: CrowdStrike sensor adapter (not yet wired — capability-gated write).\n\
+        WHEN TO USE: when executing a confirmed sensor write action on a CrowdStrike device\n\
+        WHEN NOT TO USE: do not execute without prior dry-run approval and confirmation token\n\
+        PARAMETERS: client_id (required), device_id (required CrowdStrike device identifier)\n\
+        PAGINATION: not applicable — single write operation\n\
+        RESPONSE: write outcome with action status and audit trail reference\n\
+        ERRORS: -32602 invalid device_id, -32002 capability denied, -32000 internal",
         output_schema = schema_for_type::<ResponseEnvelopeSchema>()
     )]
     pub async fn crowdstrike_contain_host(
@@ -2898,7 +3108,13 @@ impl PrismServer {
         description = "Lift network containment from a CrowdStrike-managed host.\n\
         DATA TRUST LEVEL: External/untrusted — device_id is attacker-controlled.\n\
         SECURITY NOTE: client_id and device_id scanned for prompt injection.\n\
-        DATA SOURCE: CrowdStrike sensor adapter (not yet wired — capability-gated write).",
+        DATA SOURCE: CrowdStrike sensor adapter (not yet wired — capability-gated write).\n\
+        WHEN TO USE: when executing a confirmed sensor write action on a CrowdStrike device\n\
+        WHEN NOT TO USE: do not execute without prior dry-run approval and confirmation token\n\
+        PARAMETERS: client_id (required), device_id (required CrowdStrike device identifier)\n\
+        PAGINATION: not applicable — single write operation\n\
+        RESPONSE: write outcome with action status and audit trail reference\n\
+        ERRORS: -32602 invalid device_id, -32002 capability denied, -32000 internal",
         output_schema = schema_for_type::<ResponseEnvelopeSchema>()
     )]
     pub async fn crowdstrike_lift_containment(
@@ -2933,7 +3149,13 @@ impl PrismServer {
         description = "List all available query packs (bundles of queries, rules, and aliases).\n\
         DATA TRUST LEVEL: Internal — pack metadata is operator-managed.\n\
         SECURITY NOTE: No user-controlled parameters.\n\
-        DATA SOURCE: Internal pack registry (not yet wired).",
+        DATA SOURCE: Internal pack registry (not yet wired).\n\
+        WHEN TO USE: when managing query packs — bundles of queries, rules, and aliases\n\
+        WHEN NOT TO USE: not for executing queries directly — use query tool instead\n\
+        PARAMETERS: see tool schema; pack_id or pack_name required for specific operations\n\
+        PAGINATION: not applicable\n\
+        RESPONSE: pack metadata with name, version, and contained query/rule/alias counts\n\
+        ERRORS: -32003 not yet implemented, -32000 internal error",
         output_schema = schema_for_type::<ResponseEnvelopeSchema>()
     )]
     pub async fn list_packs(
@@ -2953,7 +3175,13 @@ impl PrismServer {
         description = "Explain the contents and discovery status of a specific pack.\n\
         DATA TRUST LEVEL: External/untrusted — pack_id is attacker-controlled.\n\
         SECURITY NOTE: pack_id and client_id scanned for prompt injection.\n\
-        DATA SOURCE: Internal pack registry (not yet wired).",
+        DATA SOURCE: Internal pack registry (not yet wired).\n\
+        WHEN TO USE: when managing query packs — bundles of queries, rules, and aliases\n\
+        WHEN NOT TO USE: not for executing queries directly — use query tool instead\n\
+        PARAMETERS: see tool schema; pack_id or pack_name required for specific operations\n\
+        PAGINATION: not applicable\n\
+        RESPONSE: pack metadata with name, version, and contained query/rule/alias counts\n\
+        ERRORS: -32003 not yet implemented, -32000 internal error",
         output_schema = schema_for_type::<ResponseEnvelopeSchema>()
     )]
     pub async fn explain_pack(
@@ -2986,7 +3214,13 @@ impl PrismServer {
         description = "Create a new query pack from the given queries, rules, and aliases.\n\
         DATA TRUST LEVEL: External/untrusted — pack_name and queries are attacker-controlled.\n\
         SECURITY NOTE: pack_name and all query strings scanned for prompt injection.\n\
-        DATA SOURCE: Internal pack registry (not yet wired).",
+        DATA SOURCE: Internal pack registry (not yet wired).\n\
+        WHEN TO USE: when managing query packs — bundles of queries, rules, and aliases\n\
+        WHEN NOT TO USE: not for executing queries directly — use query tool instead\n\
+        PARAMETERS: see tool schema; pack_id or pack_name required for specific operations\n\
+        PAGINATION: not applicable\n\
+        RESPONSE: pack metadata with name, version, and contained query/rule/alias counts\n\
+        ERRORS: -32003 not yet implemented, -32000 internal error",
         output_schema = schema_for_type::<ResponseEnvelopeSchema>()
     )]
     pub async fn create_pack(
@@ -3030,7 +3264,13 @@ impl PrismServer {
         description = "Delete a query pack by ID.\n\
         DATA TRUST LEVEL: External/untrusted — pack_id is attacker-controlled.\n\
         SECURITY NOTE: pack_id scanned for prompt injection.\n\
-        DATA SOURCE: Internal pack registry (not yet wired).",
+        DATA SOURCE: Internal pack registry (not yet wired).\n\
+        WHEN TO USE: when managing query packs — bundles of queries, rules, and aliases\n\
+        WHEN NOT TO USE: not for executing queries directly — use query tool instead\n\
+        PARAMETERS: see tool schema; pack_id or pack_name required for specific operations\n\
+        PAGINATION: not applicable\n\
+        RESPONSE: pack metadata with name, version, and contained query/rule/alias counts\n\
+        ERRORS: -32003 not yet implemented, -32000 internal error",
         output_schema = schema_for_type::<ResponseEnvelopeSchema>()
     )]
     pub async fn delete_pack(
@@ -3056,7 +3296,13 @@ impl PrismServer {
         description = "List all configured infusions (data enrichment pipelines).\n\
         DATA TRUST LEVEL: Internal — infusion metadata is operator-managed.\n\
         SECURITY NOTE: Optional client_id scanned for prompt injection.\n\
-        DATA SOURCE: Internal infusion registry (not yet wired).",
+        DATA SOURCE: Internal infusion registry (not yet wired).\n\
+        WHEN TO USE: when managing data enrichment pipeline configurations\n\
+        WHEN NOT TO USE: not for sensor data queries — use query tool instead\n\
+        PARAMETERS: see tool schema; infusion_id required for specific infusion operations\n\
+        PAGINATION: not applicable\n\
+        RESPONSE: infusion pipeline status and configuration metadata\n\
+        ERRORS: -32003 not yet implemented, -32000 internal error",
         output_schema = schema_for_type::<ResponseEnvelopeSchema>()
     )]
     pub async fn list_infusions(
@@ -3088,7 +3334,13 @@ impl PrismServer {
         description = "Retrieve the status of a specific infusion pipeline.\n\
         DATA TRUST LEVEL: External/untrusted — infusion_id is attacker-controlled.\n\
         SECURITY NOTE: infusion_id scanned for prompt injection.\n\
-        DATA SOURCE: Internal infusion registry (not yet wired).",
+        DATA SOURCE: Internal infusion registry (not yet wired).\n\
+        WHEN TO USE: when managing data enrichment pipeline configurations\n\
+        WHEN NOT TO USE: not for sensor data queries — use query tool instead\n\
+        PARAMETERS: see tool schema; infusion_id required for specific infusion operations\n\
+        PAGINATION: not applicable\n\
+        RESPONSE: infusion pipeline status and configuration metadata\n\
+        ERRORS: -32003 not yet implemented, -32000 internal error",
         output_schema = schema_for_type::<ResponseEnvelopeSchema>()
     )]
     pub async fn infusion_status(
@@ -3117,7 +3369,13 @@ impl PrismServer {
         description = "Hot-reload an infusion pipeline configuration without restarting Prism.\n\
         DATA TRUST LEVEL: External/untrusted — infusion_id is attacker-controlled.\n\
         SECURITY NOTE: infusion_id scanned for prompt injection.\n\
-        DATA SOURCE: Internal infusion registry (not yet wired).",
+        DATA SOURCE: Internal infusion registry (not yet wired).\n\
+        WHEN TO USE: when managing data enrichment pipeline configurations\n\
+        WHEN NOT TO USE: not for sensor data queries — use query tool instead\n\
+        PARAMETERS: see tool schema; infusion_id required for specific infusion operations\n\
+        PAGINATION: not applicable\n\
+        RESPONSE: infusion pipeline status and configuration metadata\n\
+        ERRORS: -32003 not yet implemented, -32000 internal error",
         output_schema = schema_for_type::<ResponseEnvelopeSchema>()
     )]
     pub async fn reload_infusion(
@@ -3148,7 +3406,13 @@ impl PrismServer {
         description = "List all loaded WASM plugins.\n\
         DATA TRUST LEVEL: Internal — plugin metadata is operator-managed.\n\
         SECURITY NOTE: No user-controlled parameters.\n\
-        DATA SOURCE: Internal WASM plugin runtime (not yet wired).",
+        DATA SOURCE: Internal WASM plugin runtime (not yet wired).\n\
+        WHEN TO USE: when managing WASM plugin runtime state\n\
+        WHEN NOT TO USE: not for data retrieval — use query tool instead\n\
+        PARAMETERS: see tool schema; plugin_id required for specific plugin operations\n\
+        PAGINATION: not applicable\n\
+        RESPONSE: plugin status including loaded state, version, and metrics\n\
+        ERRORS: -32003 not yet implemented, -32000 internal error",
         output_schema = schema_for_type::<ResponseEnvelopeSchema>()
     )]
     pub async fn list_plugins(
@@ -3168,7 +3432,13 @@ impl PrismServer {
         description = "Retrieve the status and metrics of a specific WASM plugin.\n\
         DATA TRUST LEVEL: External/untrusted — plugin_id is attacker-controlled.\n\
         SECURITY NOTE: plugin_id scanned for prompt injection.\n\
-        DATA SOURCE: Internal WASM plugin runtime (not yet wired).",
+        DATA SOURCE: Internal WASM plugin runtime (not yet wired).\n\
+        WHEN TO USE: when managing WASM plugin runtime state\n\
+        WHEN NOT TO USE: not for data retrieval — use query tool instead\n\
+        PARAMETERS: see tool schema; plugin_id required for specific plugin operations\n\
+        PAGINATION: not applicable\n\
+        RESPONSE: plugin status including loaded state, version, and metrics\n\
+        ERRORS: -32003 not yet implemented, -32000 internal error",
         output_schema = schema_for_type::<ResponseEnvelopeSchema>()
     )]
     pub async fn plugin_status(
@@ -3192,7 +3462,13 @@ impl PrismServer {
         description = "Hot-reload a WASM plugin without restarting Prism.\n\
         DATA TRUST LEVEL: External/untrusted — plugin_id is attacker-controlled.\n\
         SECURITY NOTE: plugin_id scanned for prompt injection.\n\
-        DATA SOURCE: Internal WASM plugin runtime (not yet wired).",
+        DATA SOURCE: Internal WASM plugin runtime (not yet wired).\n\
+        WHEN TO USE: when managing WASM plugin runtime state\n\
+        WHEN NOT TO USE: not for data retrieval — use query tool instead\n\
+        PARAMETERS: see tool schema; plugin_id required for specific plugin operations\n\
+        PAGINATION: not applicable\n\
+        RESPONSE: plugin status including loaded state, version, and metrics\n\
+        ERRORS: -32003 not yet implemented, -32000 internal error",
         output_schema = schema_for_type::<ResponseEnvelopeSchema>()
     )]
     pub async fn reload_plugin(
@@ -3218,7 +3494,13 @@ impl PrismServer {
         description = "List all configured actions (automated response playbooks).\n\
         DATA TRUST LEVEL: Internal — action metadata is operator-managed.\n\
         SECURITY NOTE: Optional client_id scanned for prompt injection.\n\
-        DATA SOURCE: Internal action registry (not yet wired).",
+        DATA SOURCE: Internal action registry (not yet wired).\n\
+        WHEN TO USE: when managing or executing automated response playbooks\n\
+        WHEN NOT TO USE: not for data retrieval — use query tool instead\n\
+        PARAMETERS: see tool schema; action_id required for specific action operations\n\
+        PAGINATION: not applicable\n\
+        RESPONSE: action status, metadata, or execution result\n\
+        ERRORS: -32003 not yet implemented, -32002 capability denied, -32000 internal",
         output_schema = schema_for_type::<ResponseEnvelopeSchema>()
     )]
     pub async fn list_actions(
@@ -3250,7 +3532,13 @@ impl PrismServer {
         description = "Retrieve the status and last-run metadata of a specific action.\n\
         DATA TRUST LEVEL: External/untrusted — action_id is attacker-controlled.\n\
         SECURITY NOTE: action_id scanned for prompt injection.\n\
-        DATA SOURCE: Internal action registry (not yet wired).",
+        DATA SOURCE: Internal action registry (not yet wired).\n\
+        WHEN TO USE: when managing or executing automated response playbooks\n\
+        WHEN NOT TO USE: not for data retrieval — use query tool instead\n\
+        PARAMETERS: see tool schema; action_id required for specific action operations\n\
+        PAGINATION: not applicable\n\
+        RESPONSE: action status, metadata, or execution result\n\
+        ERRORS: -32003 not yet implemented, -32002 capability denied, -32000 internal",
         output_schema = schema_for_type::<ResponseEnvelopeSchema>()
     )]
     pub async fn action_status(
@@ -3274,7 +3562,13 @@ impl PrismServer {
         description = "Fire (execute) an action immediately with optional context.\n\
         DATA TRUST LEVEL: External/untrusted — action_id and context are attacker-controlled.\n\
         SECURITY NOTE: action_id and context scanned for prompt injection.\n\
-        DATA SOURCE: Internal action runtime (not yet wired — capability-gated write).",
+        DATA SOURCE: Internal action runtime (not yet wired — capability-gated write).\n\
+        WHEN TO USE: when managing or executing automated response playbooks\n\
+        WHEN NOT TO USE: not for data retrieval — use query tool instead\n\
+        PARAMETERS: see tool schema; action_id required for specific action operations\n\
+        PAGINATION: not applicable\n\
+        RESPONSE: action status, metadata, or execution result\n\
+        ERRORS: -32003 not yet implemented, -32002 capability denied, -32000 internal",
         output_schema = schema_for_type::<ResponseEnvelopeSchema>()
     )]
     pub async fn fire_action(
@@ -3299,7 +3593,13 @@ impl PrismServer {
         description = "Test an action in dry-run mode (no side effects).\n\
         DATA TRUST LEVEL: External/untrusted — action_id is attacker-controlled.\n\
         SECURITY NOTE: action_id scanned for prompt injection.\n\
-        DATA SOURCE: Internal action runtime (not yet wired).",
+        DATA SOURCE: Internal action runtime (not yet wired).\n\
+        WHEN TO USE: when managing or executing automated response playbooks\n\
+        WHEN NOT TO USE: not for data retrieval — use query tool instead\n\
+        PARAMETERS: see tool schema; action_id required for specific action operations\n\
+        PAGINATION: not applicable\n\
+        RESPONSE: action status, metadata, or execution result\n\
+        ERRORS: -32003 not yet implemented, -32002 capability denied, -32000 internal",
         output_schema = schema_for_type::<ResponseEnvelopeSchema>()
     )]
     pub async fn test_action(
@@ -3323,7 +3623,13 @@ impl PrismServer {
         description = "Create a new action from a TOML spec.\n\
         DATA TRUST LEVEL: External/untrusted — TOML spec is attacker-controlled.\n\
         SECURITY NOTE: spec_toml scanned for prompt injection.\n\
-        DATA SOURCE: Internal action registry (not yet wired — capability-gated write).",
+        DATA SOURCE: Internal action registry (not yet wired — capability-gated write).\n\
+        WHEN TO USE: when managing or executing automated response playbooks\n\
+        WHEN NOT TO USE: not for data retrieval — use query tool instead\n\
+        PARAMETERS: see tool schema; action_id required for specific action operations\n\
+        PAGINATION: not applicable\n\
+        RESPONSE: action status, metadata, or execution result\n\
+        ERRORS: -32003 not yet implemented, -32002 capability denied, -32000 internal",
         output_schema = schema_for_type::<ResponseEnvelopeSchema>()
     )]
     pub async fn create_action(
@@ -3347,7 +3653,13 @@ impl PrismServer {
         description = "Delete an action by ID.\n\
         DATA TRUST LEVEL: External/untrusted — action_id is attacker-controlled.\n\
         SECURITY NOTE: action_id scanned for prompt injection.\n\
-        DATA SOURCE: Internal action registry (not yet wired — capability-gated write).",
+        DATA SOURCE: Internal action registry (not yet wired — capability-gated write).\n\
+        WHEN TO USE: when managing or executing automated response playbooks\n\
+        WHEN NOT TO USE: not for data retrieval — use query tool instead\n\
+        PARAMETERS: see tool schema; action_id required for specific action operations\n\
+        PAGINATION: not applicable\n\
+        RESPONSE: action status, metadata, or execution result\n\
+        ERRORS: -32003 not yet implemented, -32002 capability denied, -32000 internal",
         output_schema = schema_for_type::<ResponseEnvelopeSchema>()
     )]
     pub async fn delete_action(
@@ -3373,7 +3685,13 @@ impl PrismServer {
         description = "Get structured help on a Prism topic (PrismQL, OCSF fields, detection rules, error codes).\n\
         DATA TRUST LEVEL: External/untrusted — topic string is attacker-controlled.\n\
         SECURITY NOTE: topic scanned for prompt injection.\n\
-        DATA SOURCE: Internal documentation registry (not yet wired).",
+        DATA SOURCE: Internal documentation registry (not yet wired).\n\
+        WHEN TO USE: when you need documentation on PrismQL syntax, OCSF fields, or error codes\n\
+        WHEN NOT TO USE: not for data retrieval — use query tool for sensor data\n\
+        PARAMETERS: topic (required e.g. prismql, ocsf, errors, detection-rules)\n\
+        PAGINATION: not applicable\n\
+        RESPONSE: structured help content for the requested topic\n\
+        ERRORS: -32003 not yet implemented, -32000 internal error",
         output_schema = schema_for_type::<ResponseEnvelopeSchema>()
     )]
     pub async fn get_help(
