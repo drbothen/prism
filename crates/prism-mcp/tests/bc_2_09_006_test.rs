@@ -12,12 +12,12 @@ use prism_security::provenance::ToolDescriptionTemplate;
 #[test]
 fn test_BC_2_09_006_registrar_appends_security_sections_to_minimal_description() {
     let registrar = ToolDescriptionRegistrar;
-    let minimal = ToolRegistration {
-        name: "crowdstrike_detections".to_owned(),
-        description: "Retrieves CrowdStrike detections.".to_owned(),
-        is_sensor_tool: true,
-        output_schema: None,
-    };
+    let minimal = ToolRegistration::new(
+        "crowdstrike_detections",
+        "Retrieves CrowdStrike detections.",
+        true,
+        None,
+    );
 
     let registered = registrar.register(minimal);
 
@@ -34,19 +34,19 @@ fn test_BC_2_09_006_registrar_security_sections_are_idempotent() {
     let registrar = ToolDescriptionRegistrar;
     let desc = "Retrieves CrowdStrike detections.".to_owned();
 
-    let first = registrar.register(ToolRegistration {
-        name: "crowdstrike_detections".to_owned(),
-        description: desc.clone(),
-        is_sensor_tool: true,
-        output_schema: None,
-    });
+    let first = registrar.register(ToolRegistration::new(
+        "crowdstrike_detections",
+        desc.as_str(),
+        true,
+        None,
+    ));
 
-    let second = registrar.register(ToolRegistration {
-        name: "crowdstrike_detections".to_owned(),
-        description: first.description.clone(),
-        is_sensor_tool: true,
-        output_schema: None,
-    });
+    let second = registrar.register(ToolRegistration::new(
+        "crowdstrike_detections",
+        first.description.as_str(),
+        true,
+        None,
+    ));
 
     let security_note_count = second.description.matches("SECURITY NOTE:").count();
     assert_eq!(
@@ -60,12 +60,12 @@ fn test_BC_2_09_006_registrar_security_sections_are_idempotent() {
 #[test]
 fn test_BC_2_09_006_non_sensor_tool_not_given_security_sections() {
     let registrar = ToolDescriptionRegistrar;
-    let health = ToolRegistration {
-        name: "check_sensor_health".to_owned(),
-        description: "Checks the health of all sensors.".to_owned(),
-        is_sensor_tool: false,
-        output_schema: None,
-    };
+    let health = ToolRegistration::new(
+        "check_sensor_health",
+        "Checks the health of all sensors.",
+        false,
+        None,
+    );
 
     let registered = registrar.register(health);
 

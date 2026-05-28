@@ -7,11 +7,33 @@
 use prism_security::provenance::{SecurityWarning, ToolDescriptionTemplate};
 
 /// A registered MCP tool definition with description and optional outputSchema.
+#[non_exhaustive]
 pub struct ToolRegistration {
     pub name: String,
     pub description: String,
     pub is_sensor_tool: bool,
     pub output_schema: Option<serde_json::Value>,
+}
+
+impl ToolRegistration {
+    /// Construct a new ToolRegistration.
+    ///
+    /// This constructor allows external crates to build ToolRegistrations without
+    /// breaking the `#[non_exhaustive]` struct literal restriction. New fields added
+    /// to ToolRegistration in future versions can be initialized here with defaults.
+    pub fn new(
+        name: impl Into<String>,
+        description: impl Into<String>,
+        is_sensor_tool: bool,
+        output_schema: Option<serde_json::Value>,
+    ) -> Self {
+        Self {
+            name: name.into(),
+            description: description.into(),
+            is_sensor_tool,
+            output_schema,
+        }
+    }
 }
 
 /// Registrar that enforces provenance framing and security warnings on all

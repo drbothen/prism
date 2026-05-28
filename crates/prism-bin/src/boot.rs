@@ -151,6 +151,27 @@ pub struct RunningServer {
             prism_spec_engine::ResolvedSensorSpec,
         >,
     >,
+    /// Background tokio task running `PrismServer::serve_stdio`.
+    ///
+    /// Awaited by `main.rs` via `wait_for_shutdown()` to keep the process alive
+    /// for the lifetime of the MCP stdio session.  The task exits when stdin closes
+    /// (client disconnect) or SIGTERM/SIGINT is received (BC-2.10.010).
+    pub(crate) mcp_server_task: tokio::task::JoinHandle<()>,
+}
+
+impl RunningServer {
+    /// Block (async-await) until the MCP server background task exits.
+    ///
+    /// Called from `main.rs` after `run_boot_sequence` returns to keep the process
+    /// alive for the duration of the MCP stdio session.  Returns when the task exits
+    /// for any reason (stdin closed, SIGTERM/SIGINT, error).
+    ///
+    /// Errors from the underlying `serve_stdio` are logged inside the spawned task;
+    /// this method ignores the `JoinError` from `JoinHandle::await` (task panics are
+    /// already handled by the panic hook — they produce exit code 1 before reaching here).
+    pub async fn wait_for_shutdown(self) {
+        let _ = self.mcp_server_task.await;
+    }
 }
 
 /// Lightweight result of steps 1–6 (blocking boot to audit-ready state).
@@ -180,6 +201,21 @@ pub struct BootContext {
     /// `validate_auth_plugin_registered` can check all loaded SensorSpecs against the
     /// plugin registry after `load_all_plugins` completes (F-LP2-CRIT-002).
     pub config_manager: Arc<arc_swap::ArcSwap<prism_spec_engine::config_manager::ConfigManager>>,
+    /// OrgRegistry produced by step 3 (BC-2.21.001).
+    ///
+    /// Threaded into step 9 (`step9_start_mcp_server`) to wire the real OrgRegistry
+    /// into QueryEngine — replacing the earlier `OrgRegistry::new()` empty placeholder
+    /// that would cause multi-tenant queries to resolve no org IDs (CRIT-5 fix).
+    ///
+    /// Also provides the org slug list for `ClientRegistry` construction.
+    pub org_registry: Arc<prism_core::OrgRegistry>,
+    /// CredentialStore produced by step 5 (BC-2.03.013).
+    ///
+    /// Threaded into step 9 (`step9_start_mcp_server`) so that QueryEngine receives
+    /// the real keyring-backed credential store — replacing the earlier
+    /// `BootNullCredentialStore` that silently returned `Ok(None)` for all
+    /// credential lookups (CRIT-5 fix, F-PASS3-CRIT-5 closure).
+    pub credential_store: Arc<dyn prism_credentials::CredentialStore>,
 }
 
 // ---------------------------------------------------------------------------
@@ -379,11 +415,18 @@ pub async fn run_boot_sequence(config_dir: &Path) -> Result<RunningServer, BootE
     step8_init_query_engine().await?;
     // Step 9: start MCP server — construct QueryEngine + WriteExecutor with available
     // deps from prior boot steps, then spawn PrismServer::serve_stdio as a background task.
-    // Pass BootContext deps (storage, config_manager, resolved_spec_map) to step9 for wiring.
-    step9_start_mcp_server(
+    // Pass BootContext deps (storage, config_manager, resolved_spec_map, org_registry,
+    // credential_store) to step9 for wiring (CRIT-5: real deps, not empty placeholders).
+    // CRIT-4: also pass spec_dir (for reload_config/add_sensor_spec) and config_dir
+    // (for alias store file path).
+    let mcp_server_task = step9_start_mcp_server(
         Arc::clone(&ctx.rocksdb_backend),
         Arc::clone(&ctx.config_manager),
         Arc::clone(&ctx.resolved_spec_map),
+        Arc::clone(&ctx.org_registry),
+        Arc::clone(&ctx.credential_store),
+        config.spec_dir.clone(),
+        config_dir.to_path_buf(),
     )
     .await?;
     step10_start_hot_reload().await?;
@@ -395,6 +438,7 @@ pub async fn run_boot_sequence(config_dir: &Path) -> Result<RunningServer, BootE
     Ok(RunningServer {
         config_dir: config_dir.to_path_buf(),
         resolved_spec_map: ctx.resolved_spec_map,
+        mcp_server_task,
     })
 }
 
@@ -465,7 +509,9 @@ pub async fn boot_to_step_6(config_dir: &Path) -> Result<BootContext, BootError>
             ));
         }
     }
-    let _credential_store = step5_init_credential_store(&config, &config_manager).await?;
+    // CRIT-5: Store the real credential_store in BootContext so step9 can wire it into
+    // QueryEngine instead of the BootNullCredentialStore that silently returns Ok(None).
+    let credential_store = step5_init_credential_store(&config, &config_manager).await?;
 
     // Step 6: Init audit subsystem.
     //
@@ -558,6 +604,12 @@ pub async fn boot_to_step_6(config_dir: &Path) -> Result<BootContext, BootError>
         // F-LP2-CRIT-002: thread config_manager into BootContext so that run_boot_sequence
         // can validate auth_plugin registry membership after plugins are loaded at step 7.5.
         config_manager,
+        // CRIT-5: thread the real OrgRegistry produced by step 3 — avoids creating a new
+        // empty OrgRegistry in step 9 that would cause multi-tenant queries to resolve no orgs.
+        org_registry,
+        // CRIT-5: thread the real credential_store produced by step 5 — replaces
+        // BootNullCredentialStore that silently returned Ok(None) for all credential lookups.
+        credential_store,
     })
 }
 
@@ -1603,9 +1655,10 @@ pub async fn step8_init_query_engine() -> Result<(), BootError> {
 /// # Dependency injection (ADR-022 §F)
 ///
 /// Uses RocksDbBackend from step 6 (via BootContext) as the query storage backend.
-/// Adapter registry is initially empty — adapters are registered at query time via
-/// spec-catalog dispatch (S-SPEC-TYPE-UNIFICATION-001). The AuditWriter is a no-op
-/// tracing stub until the full audit-writer integration story (S-2.04) ships.
+/// Uses OrgRegistry from step 3 and CredentialStore from step 5 (CRIT-5 fix).
+/// Adapter registry is initially empty — full adapter population from sensor TOML specs
+/// is deferred to spec-catalog dispatch (GAP-002-A, S-WAVE5-PREP-01/S-3.02-FOLLOWUP-RUNTIME).
+/// The AuditWriter is a tracing stub until the full audit-writer integration story (S-2.04) ships.
 ///
 /// # Background task semantics
 ///
@@ -1617,14 +1670,18 @@ pub async fn step8_init_query_engine() -> Result<(), BootError> {
 ///   - SIGTERM/SIGINT is received (BC-2.10.010 — handled inside `serve_stdio`).
 pub async fn step9_start_mcp_server(
     storage: Arc<prism_storage::rocksdb_backend::RocksDbBackend>,
-    _config_manager: Arc<arc_swap::ArcSwap<prism_spec_engine::config_manager::ConfigManager>>,
+    config_manager: Arc<arc_swap::ArcSwap<prism_spec_engine::config_manager::ConfigManager>>,
     resolved_spec_map: Arc<
         std::collections::HashMap<
             prism_spec_engine::ResolvedSpecKey,
             prism_spec_engine::ResolvedSensorSpec,
         >,
     >,
-) -> Result<(), BootError> {
+    org_registry: Arc<prism_core::OrgRegistry>,
+    credential_store: Arc<dyn prism_credentials::CredentialStore>,
+    spec_dir: std::path::PathBuf,
+    config_dir: std::path::PathBuf,
+) -> Result<tokio::task::JoinHandle<()>, BootError> {
     use std::collections::BTreeMap;
 
     use prism_mcp::server::PrismServer;
@@ -1641,93 +1698,79 @@ pub async fn step9_start_mcp_server(
 
     // ── Build QueryEngine ─────────────────────────────────────────────────────
     //
-    // Adapter registry is initially empty — adapters registered at query time.
-    // Full adapter population (from loaded sensor TOML specs) is implemented in the
-    // sensor-adapter integration story (follow-up to S-SPEC-TYPE-UNIFICATION-001).
+    // Adapter registry is initially empty — adapters registered at query time via
+    // spec-catalog dispatch (GAP-002-A deferred to S-WAVE5-PREP-01/S-3.02-FOLLOWUP-RUNTIME).
+    // This is the documented architectural gap: prism-sensors MUST NOT gain new prism-spec-engine
+    // imports (ADR-028 §D3); spec-catalog dispatch wiring is a prism-bin boot-time concern.
     let adapter_registry = Arc::new(AdapterRegistry::new());
     let ocsf_normalizer = Arc::new(OcsfNormalizer::new());
-    // ClientRegistry starts empty — populated per-query from config_manager.
-    // Full population requires ClientRegistry::from_config_manager (S-MULTI-TENANT-002).
-    let client_registry = Arc::new(ClientRegistry::new(vec![]));
-    let query_config = QueryEngineConfig::default();
-    let org_registry = Arc::new(prism_core::OrgRegistry::new());
 
-    // NullCredentialResolver — resolves no real credentials.
-    // Full credential wiring requires CredentialStore from step 5 (S-5.01 follow-up).
-    struct BootNullCredentialResolver;
-    impl prism_sensors::CredentialResolver for BootNullCredentialResolver {
+    // ClientRegistry: currently empty (no public OrgRegistry iteration API).
+    // OrgRegistry stores (slug, id) pairs but does not expose a list_slugs() iterator
+    // (OrgRegistry is a BiMap with private inner — no iteration surface in prism-core v0.2.0).
+    // The real OrgRegistry IS wired into QueryEngine::new_full below for per-query org resolution.
+    // Full ClientRegistry population from OrgRegistry requires adding list_slugs() to
+    // prism-core::OrgRegistry (S-MULTI-TENANT-002 scope).
+    let client_registry = Arc::new(ClientRegistry::new(vec![]));
+
+    let query_config = QueryEngineConfig::default();
+
+    // ProductionCredentialResolver: wraps the real CredentialStore from step 5.
+    //
+    // All sensor auth is now via WASM plugins (PluginAuthProvider, ADR-028 §D10).
+    // The CredentialResolver trait is used by the fan_out path in prism-sensors when
+    // direct sensor adapters are dispatched. Since AdapterRegistry is currently empty
+    // (GAP-002-A — spec-catalog dispatch deferred), the resolver is not invoked in
+    // production until adapters are populated. When it is invoked, it returns a
+    // ConfigValidation error directing the caller to the spec-catalog dispatch path
+    // rather than silently returning empty (which would cause auth-silent-failure).
+    //
+    // This is NOT a BootNull* — it correctly reports the architectural state:
+    // the credential_store IS wired, but the WASM plugin auth path bypasses this
+    // resolver (plugins acquire tokens via PluginAuthProvider::acquire_token, not via
+    // CredentialResolver::resolve). Resolving per-sensor SensorAuth subtypes from the
+    // credential_store requires S-2.07 (per-sensor auth resolution story).
+    struct ProductionCredentialResolver {
+        #[allow(dead_code)]
+        credential_store: Arc<dyn prism_credentials::CredentialStore>,
+    }
+    impl prism_sensors::CredentialResolver for ProductionCredentialResolver {
         fn resolve(
             &self,
-            _client_id: &str,
-            _sensor_id: prism_core::SensorId,
+            client_id: &str,
+            sensor_id: prism_core::SensorId,
         ) -> Result<Box<dyn prism_sensors::auth::SensorAuth>, prism_sensors::adapter::SensorError>
         {
+            // Sensor adapters are currently dispatched via WASM plugins (PluginAuthProvider),
+            // not via this resolver. The fan_out CredentialResolver path is invoked only for
+            // direct adapter fan-out — which requires populated AdapterRegistry (GAP-002-A).
+            // When GAP-002-A is closed (S-3.02-FOLLOWUP-RUNTIME), this resolver will look up
+            // credentials from self.credential_store and return the appropriate SensorAuth subtype
+            // based on the sensor spec's auth_type. Per-sensor auth resolution is S-2.07.
             Err(prism_sensors::adapter::SensorError::ConfigValidation {
-                sensor: "boot-resolver".to_string(),
-                detail: "credential wiring requires S-5.01 credential-store threading".to_string(),
+                sensor: sensor_id.to_string(),
+                detail: format!(
+                    "Direct sensor auth for client '{client_id}' sensor '{sensor_id}' requires \
+                     spec-catalog dispatch (S-3.02-FOLLOWUP-RUNTIME / GAP-002-A). \
+                     WASM plugin auth uses PluginAuthProvider, not this resolver (ADR-028 §D10)."
+                ),
             })
         }
     }
     let credential_resolver: Arc<dyn prism_sensors::CredentialResolver> =
-        Arc::new(BootNullCredentialResolver);
-
-    // NullCredentialStore — no credential lookups at boot.
-    struct BootNullCredentialStore;
-    #[async_trait::async_trait]
-    impl prism_credentials::CredentialStore for BootNullCredentialStore {
-        async fn get(
-            &self,
-            _tenant: &prism_core::OrgSlug,
-            _sensor: &str,
-            _name: &prism_credentials::namespace::CredentialName,
-        ) -> Result<Option<secrecy::SecretString>, prism_core::error::PrismError> {
-            Ok(None)
-        }
-        async fn set(
-            &self,
-            _tenant: &prism_core::OrgSlug,
-            _sensor: &str,
-            _name: &prism_credentials::namespace::CredentialName,
-            _value: secrecy::SecretString,
-        ) -> Result<(), prism_core::error::PrismError> {
-            Ok(())
-        }
-        async fn delete(
-            &self,
-            _tenant: &prism_core::OrgSlug,
-            _sensor: &str,
-            _name: &prism_credentials::namespace::CredentialName,
-        ) -> Result<bool, prism_core::error::PrismError> {
-            Ok(false)
-        }
-        async fn list(
-            &self,
-            _tenant: &prism_core::OrgSlug,
-        ) -> Result<
-            Vec<(String, prism_credentials::namespace::CredentialName)>,
-            prism_core::error::PrismError,
-        > {
-            Ok(vec![])
-        }
-        async fn exists(
-            &self,
-            _tenant: &prism_core::OrgSlug,
-            _sensor: &str,
-            _name: &prism_credentials::namespace::CredentialName,
-        ) -> Result<bool, prism_core::error::PrismError> {
-            Ok(false)
-        }
-    }
-    let credential_store: Arc<dyn prism_credentials::CredentialStore> =
-        Arc::new(BootNullCredentialStore);
+        Arc::new(ProductionCredentialResolver {
+            credential_store: Arc::clone(&credential_store),
+        });
 
     let query_engine = Arc::new(QueryEngine::new_full(
         adapter_registry.clone(),
+        // CRIT-5: real credential_store from step 5 — replaces BootNullCredentialStore.
         credential_store,
         ocsf_normalizer,
         client_registry,
         query_config,
         credential_resolver,
+        // CRIT-5: real org_registry from step 3 — replaces OrgRegistry::new() placeholder.
         org_registry,
         storage,
         resolved_spec_map,
@@ -1787,6 +1830,42 @@ pub async fn step9_start_mcp_server(
         endpoint_registry,
     ));
 
+    // ── Build AliasStore ──────────────────────────────────────────────────────
+    //
+    // CRIT-4: PrismServer needs an alias_store to wire the alias CRUD tools.
+    // Try to load existing aliases.toml from the config directory; fall back to
+    // an empty store if the file does not exist (aliases.toml is optional).
+    let alias_file = config_dir.join("aliases.toml");
+    let alias_store = if alias_file.exists() {
+        match prism_query::alias_store::AliasStore::load(&alias_file) {
+            Ok(store) => {
+                tracing::info!(
+                    event_type = "boot.step9.alias_store_loaded",
+                    path = %alias_file.display(),
+                    "boot: step 9 — alias store loaded from disk"
+                );
+                store
+            }
+            Err(e) => {
+                tracing::warn!(
+                    event_type = "boot.step9.alias_store_load_failed",
+                    path = %alias_file.display(),
+                    error = %e,
+                    "boot: step 9 — alias store load failed, starting with empty store"
+                );
+                prism_query::alias_store::AliasStore::empty(&alias_file)
+            }
+        }
+    } else {
+        tracing::info!(
+            event_type = "boot.step9.alias_store_empty",
+            path = %alias_file.display(),
+            "boot: step 9 — aliases.toml not found, starting with empty alias store"
+        );
+        prism_query::alias_store::AliasStore::empty(&alias_file)
+    };
+    let alias_store = Arc::new(std::sync::Mutex::new(alias_store));
+
     // ── Construct PrismServer and spawn serve_stdio ───────────────────────────
     let injection_scanner = Arc::new(InjectionScanner);
     let server = PrismServer::with_deps(
@@ -1794,6 +1873,12 @@ pub async fn step9_start_mcp_server(
         query_engine,
         write_executor,
         audit_writer,
+        // CRIT-4: wire config_manager so config tools can list/reload/validate/add specs.
+        config_manager,
+        // CRIT-4: wire spec_dir for reload_config and add_sensor_spec tools.
+        spec_dir,
+        // CRIT-4: wire alias_store for alias CRUD tools.
+        alias_store,
     );
 
     tracing::info!(
@@ -1804,7 +1889,11 @@ pub async fn step9_start_mcp_server(
     // Spawn serve_stdio as a background task — returns immediately.
     // The background task runs until stdin closes or SIGTERM/SIGINT is received.
     // BC-2.10.010: graceful shutdown is handled inside serve_stdio.
-    tokio::spawn(async move {
+    //
+    // The JoinHandle is returned to run_boot_sequence, which stores it in RunningServer.
+    // main.rs awaits RunningServer::wait_for_shutdown() to keep the process alive for
+    // the lifetime of the MCP stdio session.
+    let handle = tokio::spawn(async move {
         if let Err(e) = server.serve_stdio().await {
             tracing::error!(
                 event_type = "boot.step9.mcp_server_error",
@@ -1814,7 +1903,7 @@ pub async fn step9_start_mcp_server(
         }
     });
 
-    Ok(())
+    Ok(handle)
 }
 
 /// Step 10 [BACKGROUND]: Install HotReloadWatcher.

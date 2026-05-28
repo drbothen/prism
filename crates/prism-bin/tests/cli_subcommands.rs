@@ -188,15 +188,18 @@ fn test_cli_help_documents_exit_codes() {
 // CLI: prism start subcommand (dispatches boot sequence)
 // ---------------------------------------------------------------------------
 
-/// Story: S-WAVE5-PREP-01
+/// Story: S-5.01-FOLLOWUP-MCP-BOOT
 /// BC: BC-2.10.001 — start subcommand dispatches boot sequence
 ///
-/// `prism start` with valid config will panic at step 7 (todo!() stub).
-/// This test verifies that the subcommand reaches dispatch() and invokes
-/// the boot sequence (not just returning 0 without doing anything).
+/// `prism start` with valid config completes all 11 boot steps and exits
+/// cleanly when stdin is closed (no hanging clients). Steps 10-11 are
+/// structured deferred-ok (no todo!() panics), so the boot sequence
+/// completes without panic.
 ///
-/// RED GATE: Fails today because `dispatch()` is `todo!()` — it panics
-/// at the dispatch level before even reaching step 1.
+/// RED GATE RETIRED: The prior assertion (`!= 0`) was a red-gate for when
+/// steps 7-11 were todo!() stubs. All steps now complete successfully
+/// (steps 10-11 emit structured WARN and return Ok(())). The green-gate
+/// is exit-code 0 (clean shutdown when stdin is closed).
 #[test]
 fn test_cli_start_subcommand_reaches_boot_sequence() {
     // F-PASS2-MED-2 (fix-pass-2): migrated from static fixtures/config/valid fixture
@@ -210,22 +213,24 @@ fn test_cli_start_subcommand_reaches_boot_sequence() {
         .output()
         .expect("failed to spawn prism binary");
 
-    // The process must exit non-zero because steps 7-8 are todo!() stubs.
-    // If it exits 0, the boot sequence was short-circuited (test design error).
-    assert_ne!(
-        output.status.code(),
-        Some(0),
-        "prism start must not exit 0 while boot steps 7-11 are todo!() stubs; \
-         the boot sequence must be invoked and fail at step 7"
-    );
-
-    // The process must exit with a process code (not signal-killed, i.e., code is Some).
-    // todo!() panics produce exit code 101 on Rust by default without a panic hook;
-    // with the panic hook installed, they produce exit 1 (AC-12).
+    // The process must exit with a code (not signal-killed).
     assert!(
         output.status.code().is_some(),
-        "prism start must exit with a code (not signal-killed); \
-         panic hook must call process::exit(1)"
+        "prism start must exit with a code (not signal-killed)"
+    );
+
+    // S-5.01-FOLLOWUP-MCP-BOOT: boot sequence completes successfully when stdin is
+    // immediately closed (subprocess has no piped stdin client). The server spawns on
+    // stdio, detects stdin-EOF, and exits cleanly with code 0.
+    // Step 10/11 now return Ok(()) (structured deferred-ok) rather than todo!() panic.
+    assert_eq!(
+        output.status.code(),
+        Some(0),
+        "prism start must exit 0 after all 11 boot steps complete cleanly \
+         (steps 10-11 are structured deferred-ok, not todo!() panics); \
+         got exit code {:?}; stderr: {}",
+        output.status.code(),
+        String::from_utf8_lossy(&output.stderr)
     );
 }
 

@@ -38,6 +38,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 /// The `_meta` section of a Prism MCP response envelope (BC-2.09.008).
+#[non_exhaustive]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ResponseMeta {
     pub tool: String,
@@ -54,6 +55,7 @@ pub struct ResponseMeta {
 /// Data source: single sensor or multiple sensors (cross-client query).
 ///
 /// BC-2.09.008 EC-09-019: cross-client queries report an array.
+#[non_exhaustive]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum DataSource {
@@ -64,6 +66,7 @@ pub enum DataSource {
 /// One entry in the `content` array — plain text prose for the LLM.
 ///
 /// BC-2.09.001: `text` contains ONLY counts and metadata, never sensor field values.
+#[non_exhaustive]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ContentEntry {
     #[serde(rename = "type")]
@@ -74,12 +77,14 @@ pub struct ContentEntry {
 /// Structured content wrapper — sensor data presented as typed JSON for LLM inspection.
 ///
 /// BC-2.09.001: all sensor field values live here, never in `content[].text`.
+#[non_exhaustive]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StructuredContent {
     pub results: Value,
 }
 
 /// The full response envelope (BC-2.09.008).
+#[non_exhaustive]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ResponseEnvelope {
     #[serde(rename = "_meta")]
@@ -199,6 +204,7 @@ impl SafetyEnvelopeBuilder {
 /// Schema-only representation of a single `_meta.safety_flags` item.
 ///
 /// BC-2.09.007: `{field, index, pattern, category}` — NO per-field parallel fields.
+#[non_exhaustive]
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
 pub struct SafetyFlagSchema {
     /// Sensor record field that triggered detection.
@@ -212,6 +218,7 @@ pub struct SafetyFlagSchema {
 }
 
 /// Schema-only representation of the `_meta` envelope (BC-2.09.007, BC-2.09.008).
+#[non_exhaustive]
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
 pub struct MetaEnvelopeSchemaType {
     pub tool: String,
@@ -234,6 +241,7 @@ pub struct MetaEnvelopeSchemaType {
 /// Used exclusively for `outputSchema` generation via
 /// `rmcp::handler::server::tool::schema_for_type::<ResponseEnvelopeSchema>()`.
 /// The actual runtime type is `ResponseEnvelope` — this is a parallel schema mirror.
+#[non_exhaustive]
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
 pub struct ResponseEnvelopeSchema {
     #[serde(rename = "_meta")]

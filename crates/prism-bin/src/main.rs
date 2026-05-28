@@ -107,20 +107,20 @@ async fn dispatch(args: CliArgs) -> i32 {
         PrismCommand::Start => {
             // Run the canonical full boot sequence (steps 1-11).
             //
-            // `run_boot_sequence` executes steps in this order (F-PASS3-CRIT-001 fix):
+            // `run_boot_sequence` executes steps in this order:
             //   steps 1-6 (boot_to_step_6) → step 7.5 plugin-load → step 7 storage init →
             //   steps 8-11
             //
-            // Step 7.5 (plugin-load) runs BEFORE step 7 (storage) because plugin-load
-            // only needs the RocksDB audit backend from step 6.  This ordering ensures
-            // plugin-load is reachable at runtime: step 7's todo!() panic fires AFTER
-            // plugin-load completes (ADR-023 §C4 pre-traffic gate, POL-15 enforcement).
-            //
-            // Steps 7-11 are todo!() stubs for sibling stories (S-3.02-FOLLOWUP-RUNTIME,
-            // S-5.01-FOLLOWUP-MCP-BOOT, S-1.12-FOLLOWUP). The process will panic at
-            // step 7's todo!() — caught by the panic hook → exit 1.
+            // Step 9 spawns `PrismServer::serve_stdio` as a background tokio task and
+            // returns immediately.  `RunningServer::wait_for_shutdown()` then blocks until
+            // that task exits (stdin closed by the MCP client, or SIGTERM/SIGINT received
+            // per BC-2.10.010).  This keeps the process alive for the full session lifetime.
             match boot::run_boot_sequence(&config_dir).await {
-                Ok(_server) => EXIT_SUCCESS,
+                Ok(server) => {
+                    // Wait until the MCP server exits (stdin EOF or signal).
+                    server.wait_for_shutdown().await;
+                    EXIT_SUCCESS
+                }
                 Err(e) => {
                     let code = e.exit_code();
                     eprintln!("prism start failed: {e}");

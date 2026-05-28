@@ -317,12 +317,12 @@ fn test_BC_2_09_008_response_envelope_safety_flags_populated_on_injection() {
 #[test]
 fn test_BC_2_09_006_tool_descriptions_contain_security_warnings() {
     let registrar = ToolDescriptionRegistrar;
-    let minimal_query_tool = ToolRegistration {
-        name: "query".to_owned(),
-        description: "Execute a PrismQL query against sensor data.".to_owned(),
-        is_sensor_tool: true,
-        output_schema: None,
-    };
+    let minimal_query_tool = ToolRegistration::new(
+        "query",
+        "Execute a PrismQL query against sensor data.",
+        true,
+        None,
+    );
 
     let registered = registrar.register(minimal_query_tool);
 
@@ -512,12 +512,12 @@ fn test_BC_2_09_007_tool_registration_carries_output_schema_with_meta_fields() {
         "required": ["_meta", "results"]
     });
 
-    let tool = ToolRegistration {
-        name: "query".to_owned(),
-        description: "Query sensor data.".to_owned(),
-        is_sensor_tool: true,
-        output_schema: Some(output_schema.clone()),
-    };
+    let tool = ToolRegistration::new(
+        "query",
+        "Query sensor data.",
+        true,
+        Some(output_schema.clone()),
+    );
 
     // BC-2.09.007: outputSchema must declare _meta.safety_flags as array
     let schema = tool.output_schema.expect("output_schema must be present");

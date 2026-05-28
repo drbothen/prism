@@ -4,10 +4,20 @@
 //! struct-literal construction. After `#[non_exhaustive]` is applied, each
 //! literal MUST fail with E0639 (cannot create non-exhaustive struct expression).
 //!
-//! Violations 1-6, 9-12, 16-17, 20-24, 26, 32-36 (23 total E0639 expected).
+//! Violations 1-6, 9-12, 16-17, 20-24, 26, 32-36, 37-43, 45 (31 total E0639 expected).
 //!
 //! S-SPEC-TYPE-UNIFICATION-001: Violation 30 (types::SensorSpec) removed.
 //! `types::SensorSpec` was deleted (ADR-030 Approach D — unified on spec_parser::SensorSpec).
+//!
+//! S-5.01-FOLLOWUP-MCP-BOOT additions (prism-mcp pub API types):
+//!   37. prism_mcp::safety_envelope::ResponseMeta       — struct, safety_envelope.rs
+//!   38. prism_mcp::safety_envelope::ContentEntry       — struct, safety_envelope.rs
+//!   39. prism_mcp::safety_envelope::StructuredContent  — struct, safety_envelope.rs
+//!   40. prism_mcp::safety_envelope::ResponseEnvelope   — struct, safety_envelope.rs
+//!   41. prism_mcp::safety_envelope::SafetyFlagSchema   — struct, safety_envelope.rs
+//!   42. prism_mcp::safety_envelope::MetaEnvelopeSchemaType — struct, safety_envelope.rs
+//!   43. prism_mcp::safety_envelope::ResponseEnvelopeSchema — struct, safety_envelope.rs
+//!   45. prism_mcp::tool_registry::ToolRegistration     — struct, tool_registry.rs
 //!
 //! PLUGIN-MIGRATION-001-E addition:
 //!   33. plugin::LoadedPlugin            — struct, plugin/loader.rs
@@ -351,4 +361,170 @@ pub fn v36_resolved_sensor_spec() {
         instance_id: "armis@acme".to_string(),
     };
     let _ = _resolved;
+}
+
+// ─── S-5.01-FOLLOWUP-MCP-BOOT: prism-mcp safety_envelope pub types ─────────────
+//
+// These 7 structs are the public API surface of prism-mcp's ResponseEnvelope stack.
+// `#[non_exhaustive]` ensures future field additions (pagination cursors, new trust
+// metadata, additional schema annotations) do not break downstream callers.
+// External crates MUST construct via SafetyEnvelopeBuilder::wrap() (ResponseMeta,
+// ContentEntry, StructuredContent, ResponseEnvelope) or schemars generation
+// (SafetyFlagSchema, MetaEnvelopeSchemaType, ResponseEnvelopeSchema).
+
+use prism_mcp::safety_envelope::{
+    ContentEntry, MetaEnvelopeSchemaType, ResponseEnvelope, ResponseEnvelopeSchema, ResponseMeta,
+    SafetyFlagSchema, StructuredContent,
+};
+
+/// Violation 37: prism_mcp::safety_envelope::ResponseMeta struct literal (E0639).
+///
+/// `ResponseMeta` is the `_meta` section of every MCP response envelope (BC-2.09.008).
+/// `#[non_exhaustive]` ensures new metadata fields (e.g., query_duration, warning_count)
+/// can be added without breaking external serialization deserializers.
+/// External callers MUST construct via `SafetyEnvelopeBuilder::wrap(...)`.
+///
+/// Added: S-5.01-FOLLOWUP-MCP-BOOT.
+#[allow(dead_code)]
+pub fn v37_response_meta() {
+    let _meta = ResponseMeta {
+        tool: "query".to_string(),
+        data_source: todo!(),
+        query_time: "2026-01-01T00:00:00Z".to_string(),
+        trust_level: todo!(),
+        safety_flags: vec![],
+        total_results: 0,
+        page: 1,
+        has_more: false,
+        next_cursor: None,
+    };
+    let _ = _meta;
+}
+
+/// Violation 38: prism_mcp::safety_envelope::ContentEntry struct literal (E0639).
+///
+/// `ContentEntry` is a prose summary line in the MCP response (BC-2.09.001).
+/// `#[non_exhaustive]` ensures future content fields can be added without breaking
+/// external deserializers. External callers MUST use `SafetyEnvelopeBuilder::wrap(...)`.
+///
+/// Added: S-5.01-FOLLOWUP-MCP-BOOT.
+#[allow(dead_code)]
+pub fn v38_content_entry() {
+    let _entry = ContentEntry {
+        content_type: "text".to_string(),
+        text: "3 results found".to_string(),
+    };
+    let _ = _entry;
+}
+
+/// Violation 39: prism_mcp::safety_envelope::StructuredContent struct literal (E0639).
+///
+/// `StructuredContent` wraps sensor data in the structured portion of the envelope
+/// (BC-2.09.001 postcondition 3). `#[non_exhaustive]` ensures future content fields
+/// can be added. External callers MUST use `SafetyEnvelopeBuilder::wrap(...)`.
+///
+/// Added: S-5.01-FOLLOWUP-MCP-BOOT.
+#[allow(dead_code)]
+pub fn v39_structured_content() {
+    let _content = StructuredContent {
+        results: serde_json::json!([]),
+    };
+    let _ = _content;
+}
+
+/// Violation 40: prism_mcp::safety_envelope::ResponseEnvelope struct literal (E0639).
+///
+/// `ResponseEnvelope` is the full MCP response shape (BC-2.09.008). `#[non_exhaustive]`
+/// ensures future top-level fields can be added without breaking external consumers.
+/// External callers MUST use `SafetyEnvelopeBuilder::wrap(...)`.
+///
+/// Added: S-5.01-FOLLOWUP-MCP-BOOT.
+#[allow(dead_code)]
+pub fn v40_response_envelope() {
+    let _envelope = ResponseEnvelope {
+        meta: todo!(),
+        results: serde_json::json!([]),
+        content: vec![],
+        structured_content: todo!(),
+    };
+    let _ = _envelope;
+}
+
+/// Violation 41: prism_mcp::safety_envelope::SafetyFlagSchema struct literal (E0639).
+///
+/// `SafetyFlagSchema` is the schema-only type for `_meta.safety_flags` entries (BC-2.09.007).
+/// `#[non_exhaustive]` ensures future flag annotation fields can be added.
+/// External callers use only for outputSchema generation (read-only).
+///
+/// Added: S-5.01-FOLLOWUP-MCP-BOOT.
+#[allow(dead_code)]
+pub fn v41_safety_flag_schema() {
+    let _flag = SafetyFlagSchema {
+        field: "hostname".to_string(),
+        index: 0,
+        pattern: "role impersonation".to_string(),
+        category: "prompt_injection".to_string(),
+    };
+    let _ = _flag;
+}
+
+/// Violation 42: prism_mcp::safety_envelope::MetaEnvelopeSchemaType struct literal (E0639).
+///
+/// `MetaEnvelopeSchemaType` is the schema-only `_meta` mirror (BC-2.09.007, BC-2.09.008).
+/// `#[non_exhaustive]` ensures future metadata schema fields can be added.
+/// External callers use only for outputSchema generation (read-only).
+///
+/// Added: S-5.01-FOLLOWUP-MCP-BOOT.
+#[allow(dead_code)]
+pub fn v42_meta_envelope_schema_type() {
+    let _meta = MetaEnvelopeSchemaType {
+        tool: "query".to_string(),
+        data_source: serde_json::json!("crowdstrike"),
+        query_time: "2026-01-01T00:00:00Z".to_string(),
+        trust_level: "untrusted_external".to_string(),
+        safety_flags: vec![],
+        total_results: 0,
+        page: 1,
+        has_more: false,
+        next_cursor: None,
+    };
+    let _ = _meta;
+}
+
+/// Violation 43: prism_mcp::safety_envelope::ResponseEnvelopeSchema struct literal (E0639).
+///
+/// `ResponseEnvelopeSchema` is the full schema-only response envelope mirror (BC-2.09.007).
+/// `#[non_exhaustive]` ensures future top-level schema fields can be added.
+/// External callers use only for outputSchema generation (read-only).
+///
+/// Added: S-5.01-FOLLOWUP-MCP-BOOT.
+#[allow(dead_code)]
+pub fn v43_response_envelope_schema() {
+    let _schema = ResponseEnvelopeSchema {
+        meta: todo!(),
+        results: vec![],
+        content: vec![],
+        structured_content: serde_json::json!({}),
+    };
+    let _ = _schema;
+}
+
+/// Violation 45: prism_mcp::tool_registry::ToolRegistration struct literal (E0639).
+///
+/// `ToolRegistration` is the pub MCP tool definition record passed to
+/// `ToolDescriptionRegistrar::register()` (BC-2.09.006). `#[non_exhaustive]` ensures
+/// future fields (e.g., `capability_required`, `rate_limit`) can be added without
+/// requiring external callers to update struct literals. External callers MUST use
+/// `ToolRegistration::new(...)`.
+///
+/// Added: S-5.01-FOLLOWUP-MCP-BOOT.
+#[allow(dead_code)]
+pub fn v45_tool_registration() {
+    let _reg = prism_mcp::tool_registry::ToolRegistration {
+        name: "query".to_string(),
+        description: "Execute a query.".to_string(),
+        is_sensor_tool: true,
+        output_schema: None,
+    };
+    let _ = _reg;
 }

@@ -4797,6 +4797,8 @@ dependencies = [
 name = "prism-mcp"
 version = "0.1.0"
 dependencies = [
+ "arc-swap",
+ "arrow-json",
  "chrono",
  "prism-audit",
  "prism-core",
@@ -4804,6 +4806,7 @@ dependencies = [
  "prism-query",
  "prism-security",
  "prism-sensors",
+ "prism-spec-engine",
  "rmcp",
  "schemars",
  "serde",

@@ -4,7 +4,10 @@
 //! without a wildcard arm. After `#[non_exhaustive]` is applied, each match MUST fail
 //! with E0004 (non-exhaustive patterns).
 //!
-//! Violations 7-8, 13-15, 18-19, 25, 27-29, 31 (12 total E0004 expected).
+//! Violations 7-8, 13-15, 18-19, 25, 27-29, 31, 44 (13 total E0004 expected).
+//!
+//! S-5.01-FOLLOWUP-MCP-BOOT additions (prism-mcp pub enum types):
+//!   44. prism_mcp::safety_envelope::DataSource — enum, safety_envelope.rs
 
 use prism_core::{ColumnOptions, ColumnType, PluginError};
 use prism_spec_engine::infusion::{BuiltInSourceType, InfusionType};
@@ -161,5 +164,24 @@ pub fn v31_plugin_error_match() {
         PluginError::CompilationFailed { .. } => {}
         PluginError::EmptyPluginId { .. } => {}
         // After F-LP22: E0004 — `_` arm required for #[non_exhaustive] enum
+    }
+}
+
+/// Violation 44: prism_mcp::safety_envelope::DataSource exhaustive match (E0004).
+///
+/// `DataSource` is the `_meta.data_source` field of the MCP response envelope
+/// (BC-2.09.008 EC-09-019). `#[non_exhaustive]` ensures new data source types
+/// (e.g., `Stream`, `Cache`, `Federated`) can be added without requiring all
+/// downstream match arms to be updated immediately.
+/// External callers MUST include a wildcard arm: `_ => { /* unknown source */ }`.
+///
+/// Added: S-5.01-FOLLOWUP-MCP-BOOT.
+pub fn v44_data_source_match() {
+    use prism_mcp::safety_envelope::DataSource;
+    let ds: DataSource = DataSource::Single("crowdstrike".to_string());
+    match ds {
+        DataSource::Single(_) => {}
+        DataSource::Multiple(_) => {}
+        // After S-5.01-FOLLOWUP-MCP-BOOT: E0004 — `_` arm required for #[non_exhaustive] enum
     }
 }

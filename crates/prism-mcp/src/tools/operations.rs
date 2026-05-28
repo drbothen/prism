@@ -14,52 +14,9 @@
 //!
 //! EC-005: "Tool for prism-operations feature invoked before prism-operations merges
 //! → Returns structured error, 'Feature not yet available: schedule management' — NOT panic."
-
-/// Structured "not yet available" error message for prism-operations tools.
-///
-/// Returns the standard error message string for tools that depend on
-/// `prism-operations` (not yet merged). Tool handlers on `PrismServer` return
-/// `Err(not_yet_available_msg("schedule management"))` per EC-005.
-///
-/// # Naming
-///
-/// Feature strings per EC-005:
-/// - Schedule management: `"schedule management"`
-/// - Detection rules: `"detection rules"`
-/// - Case management: `"case management"`
-pub fn not_yet_available_msg(feature: &str) -> String {
-    format!("Feature not yet available: {feature}")
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    /// EC-005: `not_yet_available_msg` produces a structured message (not a panic).
-    ///
-    /// Tests the shared message builder used by every operations tool handler.
-    #[test]
-    fn test_not_yet_available_produces_structured_error() {
-        let msg = not_yet_available_msg("schedule management");
-        assert!(
-            msg.contains("Feature not yet available"),
-            "message must contain 'Feature not yet available'; got: '{msg}'"
-        );
-        assert!(
-            msg.contains("schedule management"),
-            "message must name the feature; got: '{msg}'"
-        );
-    }
-
-    /// Verify every feature category has the correct "not yet available" message.
-    #[test]
-    fn test_not_yet_available_all_feature_categories() {
-        for feature in &["schedule management", "detection rules", "case management"] {
-            let msg = not_yet_available_msg(feature);
-            assert!(
-                msg.contains(feature),
-                "message must name feature '{feature}'; got: '{msg}'"
-            );
-        }
-    }
-}
+//!
+//! MED-1 fix: the `not_yet_available_msg` function that returned a plain `String` was
+//! dead code (no callers in this crate). The canonical `not_yet_available_msg` that
+//! returns `rmcp::model::ErrorData` lives in `crate::server` — that is the one used
+//! by all tool handlers. This module is retained as a doc anchor for the operations
+//! tool category.
