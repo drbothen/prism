@@ -12,6 +12,7 @@
 //! - `-32000` Internal error  — all other PrismError variants (audit log has detail)
 
 use prism_core::error::PrismError;
+use rmcp::model::{ErrorCode, ErrorData};
 
 /// Map a `PrismError` to an MCP-compatible error representation.
 ///
@@ -332,4 +333,23 @@ pub mod codes {
     pub const TIMEOUT: i32 = -32001;
     /// Internal error — all other variants; audit log has detail.
     pub const INTERNAL_ERROR: i32 = -32000;
+}
+
+/// Map a `PrismError` to an rmcp `ErrorData` for protocol-level MCP error responses.
+///
+/// This function converts a `PrismError` into an `rmcp::ErrorData` suitable for
+/// returning from `ServerHandler` methods that return `Result<T, ErrorData>`.
+///
+/// The code mapping is identical to `map_prism_error` — this function exists as
+/// the rmcp-native companion so that callers don't need to construct `ErrorData`
+/// manually from the `(i32, String)` tuple.
+///
+/// # Note on test compatibility
+///
+/// `map_prism_error` returns `(i32, String)` for test assertability without the
+/// rmcp dependency in test scope. This function is the production-path variant
+/// that returns rmcp types. Both use the same code table (ADR-022 §F).
+pub fn to_error_data(err: PrismError) -> ErrorData {
+    let (code, message) = map_prism_error(err);
+    ErrorData::new(ErrorCode(code), message, None)
 }

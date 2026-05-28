@@ -1,15 +1,21 @@
 //! Tool handler modules for PrismServer (BC-2.10.002).
 //!
-//! All tools registered via `#[tool_router]` macro live under this module.
-//! Every tool handler must call `injection_scanner.scan_all()` at entry before
-//! any domain logic (BC-2.09.001 invariant, ADR-022 §F NON-NEGOTIABLE).
+//! All tool handlers are implemented as methods on `PrismServer` in `crate::server`
+//! via the `#[tool_router(server_handler)]` macro. Each submodule here serves as
+//! documentation for the corresponding tool category.
 //!
 //! Tool categories per BC-2.13.* catalog:
-//! - `query`          — PrismQL query execution + explain + alias CRUD
-//! - `write`          — confirm_action (irreversible write confirmation via WriteExecutor)
-//! - `sensor_health`  — sensor connectivity + diagnostics
-//! - `config`         — config reload + sensor spec management + capability listing
+//! - `query`          — PrismQL query execution + explain + alias CRUD (PrismServer methods)
+//! - `write`          — confirm_action (irreversible write confirmation, PrismServer method)
+//! - `sensor_health`  — sensor connectivity + diagnostics (PrismServer methods)
+//! - `config`         — config reload + sensor spec management + capability listing (PrismServer methods)
 //! - `operations`     — schedule / detection / case management (NotImplemented until prism-operations merges)
+//!
+//! # Injection Defense (BC-2.09.001 — NON-NEGOTIABLE)
+//!
+//! Every tool handler method on PrismServer calls `scan_inputs(self.injection_scanner, ...)`
+//! before any domain logic. There are no exempt tool paths. This is enforced structurally
+//! via the `injection_scanner` field on PrismServer (constructed at boot via `new()`).
 
 pub mod config;
 pub mod operations;
