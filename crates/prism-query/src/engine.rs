@@ -316,6 +316,16 @@ impl QueryEngine {
         self
     }
 
+    /// Return the `ClientRegistry` used by this engine for client-scope resolution.
+    ///
+    /// Exposed publicly so that callers in adjacent crates (e.g., `prism-mcp`) can
+    /// pass the same `ClientRegistry` to `ExplainOptions::client_registry` for
+    /// consistent client-scope semantics between `explain_query` and `query`
+    /// (F-PASS10-HIGH-3 fix; ADR-022 §F wiring discipline).
+    pub fn client_registry(&self) -> Arc<crate::scoping::ClientRegistry> {
+        Arc::clone(&self.client_registry)
+    }
+
     /// Construct a `QueryEngine` with full production dependencies.
     ///
     /// Includes `CredentialResolver`, `OrgRegistry`, `RocksStorageBackend`,

@@ -297,26 +297,27 @@ mod shutdown_exit_code_tests {
     /// When `serve()` fails because stdin is already closed (MCP client never
     /// connected), this is functionally a clean disconnect. Map to exit 0 so that
     /// `prism start` with no piped MCP client exits cleanly.
+    ///
+    /// Uses `RmcpError::TransportCreation` (the canonical transport-init-error variant)
+    /// to exercise the `Ok(Err(e))` catch-all arm.  This test is LOAD-BEARING: if
+    /// line 215 (`EXIT_SUCCESS`) is changed to `EXIT_GENERIC_ERROR`, this test fails.
     #[tokio::test]
     async fn test_wait_for_shutdown_transport_error_returns_exit_0() {
-        // Simulate a transport/init error that is NOT TaskError or Runtime.
-        // rmcp::RmcpError is #[non_exhaustive]; use a TaskError variant with a name
-        // that clearly distinguishes it from the drain-timeout case, but for testing
-        // we check the OTHER-error arm so we use a TaskError here.
-        // NOTE: We cannot construct a non-Runtime, non-TaskError variant without
-        // access to rmcp internals, so we verify the mapping directly:
-        //
-        // We simulate an "unknown" rmcp error by using the fact that TaskError != Runtime
-        // and verify the mapping is exit 0 via a custom task.
-        // The real scenario is: serve() fails with a transport error → Err(e) arm → 0.
-        // We test that arm coverage by verifying the clean-shutdown case for now.
-        // (A dedicated rmcp transport-error variant cannot be constructed without rmcp privates.)
-        let handle = tokio::spawn(async { Ok(()) });
+        // Use RmcpError::transport_creation::<()>() to construct a TransportCreation
+        // variant — the canonical transport-init-error type in rmcp 1.7. This falls
+        // into the `Ok(Err(e))` catch-all arm of wait_for_shutdown (not TaskError,
+        // not Runtime), which MUST map to EXIT_SUCCESS (exit 0) per the spec.
+        let transport_err = rmcp::RmcpError::transport_creation::<()>(std::io::Error::new(
+            std::io::ErrorKind::BrokenPipe,
+            "stdin closed before serve()",
+        ));
+        let handle = tokio::spawn(async move { Err::<(), _>(transport_err) });
         let server = make_server(handle);
         assert_eq!(
             server.wait_for_shutdown().await,
             0,
-            "Clean Ok(()) must return exit 0"
+            "TransportCreation error (stdin closed, no client connected) must return exit 0 \
+             per boot.shutdown.transport_init_error semantics (ADR-022 §A, BC-2.10.010)"
         );
     }
 
