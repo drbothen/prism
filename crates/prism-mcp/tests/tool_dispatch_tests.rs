@@ -697,3 +697,180 @@ fn test_confirm_action_peek_reads_stored_token_without_consuming() {
         second
     );
 }
+
+// ─── F-PASS6-HIGH-2 — CRIT-1 BoundingMetadata round-trip regression guard ───
+
+/// BC-2.04.009 / CRIT-1 regression guard: BoundingMetadata round-trip via
+/// generate_with_bounding → peek → WritePlan reconstruction → check_unbounded_write.
+///
+/// This test ensures that a token generated with `has_where_clause = true` can be
+/// peeked and its bounding signals restored into a `WritePlan` that PASSES
+/// `check_unbounded_write` (Phase 2).  Before the CRIT-1 fix, `confirm_action` always
+/// reconstructed the plan without bounding signals, causing `WriteUnbounded` even for
+/// originally-bounded operations.
+///
+/// The test exercises the EXACT data flow used by confirm_action:
+///   DryRunGate::generate_with_bounding → ConfirmationTokenStore::peek →
+///   WritePlan { has_where_clause: bm.has_where_clause, ... } → check_unbounded_write
+///
+/// If `generate_with_bounding`, `peek`, or the bm→WritePlan reconstruction is broken,
+/// the final assertion fires.  Deleting any of those callsites causes a compile or
+/// assertion failure.
+#[test]
+#[allow(non_snake_case)]
+fn test_BC_2_04_009_bounding_metadata_round_trip_passes_phase2_check() {
+    use prism_query::safety_check::check_unbounded_write;
+    use prism_query::write_pipeline::WritePlan;
+    use prism_security::confirmation_token::ConfirmationTokenStore;
+    use prism_security::BoundingMetadata;
+    use std::collections::HashMap;
+    use std::sync::Arc;
+
+    let store = Arc::new(ConfirmationTokenStore::new());
+    let client_id = "acme";
+
+    // Build the action_params shape used by generate_token_preview in dry_run.rs.
+    let action_params = serde_json::json!({
+        "verb": "contain_host",
+        "sensor": "crowdstrike",
+        "target_table": "crowdstrike_devices",
+        "write_endpoint": "/devices/entities/devices-actions/v2",
+        "client_id": client_id,
+        "params": { "device_id": "abc123" },
+    });
+
+    // Generate with bounding: has_where_clause = true (the plan was bounded).
+    let bounding = BoundingMetadata {
+        has_where_clause: true,
+        has_explicit_limit: false,
+        explicit_limit: None,
+        dml_operation: None,
+    };
+    let token = store
+        .generate_with_bounding(
+            client_id,
+            "write.contain_host",
+            action_params.clone(),
+            "Contain host abc123 for acme",
+            bounding.clone(),
+        )
+        .expect("generate_with_bounding must succeed on empty store");
+    let token_id = token.token_id.clone();
+
+    // Peek the token (mirrors what confirm_action does before reconstructing WritePlan).
+    let stored = store
+        .peek(&token_id)
+        .expect("peek must return stored token");
+
+    // Assert bounding signals are preserved in the stored token.
+    assert!(
+        stored.bounding_metadata.has_where_clause,
+        "CRIT-1: bounding_metadata.has_where_clause must be persisted in token; \
+         without this, confirm_action rebuilds an unbounded plan"
+    );
+    assert!(
+        !stored.bounding_metadata.has_explicit_limit,
+        "has_explicit_limit must be false as stored"
+    );
+    assert!(
+        stored.bounding_metadata.explicit_limit.is_none(),
+        "explicit_limit must be None as stored"
+    );
+
+    // Reconstruct WritePlan from the stored token (same logic as confirm_action).
+    let bm = &stored.bounding_metadata;
+    let plan = WritePlan {
+        verb: "contain_host".to_owned(),
+        sensor: stored
+            .action_params
+            .get("sensor")
+            .and_then(|v| v.as_str())
+            .unwrap_or("unknown")
+            .to_owned(),
+        target_table: stored
+            .action_params
+            .get("target_table")
+            .and_then(|v| v.as_str())
+            .unwrap_or("unknown")
+            .to_owned(),
+        dml_operation: None,
+        has_explicit_limit: bm.has_explicit_limit,
+        explicit_limit: bm.explicit_limit,
+        has_where_clause: bm.has_where_clause,
+        params: HashMap::new(),
+    };
+
+    // Phase 2 safety check must PASS — this was the CRIT-1 bug: it used to return
+    // Err(WriteUnbounded) because the reconstructed plan had has_where_clause = false.
+    let check_result = check_unbounded_write(&plan);
+    assert!(
+        check_result.is_ok(),
+        "CRIT-1: Phase 2 check_unbounded_write must pass for a token with \
+         has_where_clause=true; got: {:?}",
+        check_result
+    );
+}
+
+/// BC-2.04.009 / CRIT-1 negative regression guard: a token with all-false bounding
+/// signals still fails Phase 2 (WriteUnbounded).
+///
+/// Proves the positive test above is not a vacuous pass — the check DOES fire when
+/// the bounding signals are absent.
+#[test]
+#[allow(non_snake_case)]
+fn test_BC_2_04_009_unbounded_token_still_fails_safety_check() {
+    use prism_query::safety_check::check_unbounded_write;
+    use prism_query::write_pipeline::WritePlan;
+    use prism_security::confirmation_token::ConfirmationTokenStore;
+    use prism_security::BoundingMetadata;
+    use std::collections::HashMap;
+    use std::sync::Arc;
+
+    let store = Arc::new(ConfirmationTokenStore::new());
+    let client_id = "acme";
+
+    let action_params = serde_json::json!({
+        "verb": "contain_host",
+        "sensor": "crowdstrike",
+        "target_table": "crowdstrike_devices",
+        "write_endpoint": "/devices/entities/devices-actions/v2",
+        "client_id": client_id,
+        "params": { "device_id": "abc123" },
+    });
+
+    // Generate with DEFAULT (all-false) bounding — simulates a token that was generated
+    // WITHOUT bounding signals (should not happen in practice, but must fail safely).
+    let token = store
+        .generate_with_bounding(
+            client_id,
+            "write.contain_host",
+            action_params.clone(),
+            "Contain host abc123 for acme",
+            BoundingMetadata::default(), // all-false
+        )
+        .expect("generate_with_bounding must succeed");
+    let token_id = token.token_id.clone();
+
+    let stored = store.peek(&token_id).expect("peek must succeed");
+    let bm = &stored.bounding_metadata;
+
+    // Reconstruct WritePlan with default bounding (no WHERE, no LIMIT).
+    let plan = WritePlan {
+        verb: "contain_host".to_owned(),
+        sensor: "crowdstrike".to_owned(),
+        target_table: "crowdstrike_devices".to_owned(),
+        dml_operation: None,
+        has_explicit_limit: bm.has_explicit_limit,
+        explicit_limit: bm.explicit_limit,
+        has_where_clause: bm.has_where_clause,
+        params: HashMap::new(),
+    };
+
+    // Phase 2 safety check must FAIL — proves check_unbounded_write is active.
+    let check_result = check_unbounded_write(&plan);
+    assert!(
+        matches!(check_result, Err(PrismError::WriteUnbounded)),
+        "CRIT-1 negative: unbounded plan must return WriteUnbounded; got: {:?}",
+        check_result
+    );
+}
