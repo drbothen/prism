@@ -246,6 +246,35 @@ impl PrismServer {
         T: rmcp::transport::IntoTransport<rmcp::RoleServer, E, A>,
         E: std::error::Error + Send + Sync + 'static,
     {
+        self.serve_with_transport_and_shutdown_inner(
+            transport,
+            shutdown,
+            std::time::Duration::from_secs(5),
+        )
+        .await
+    }
+
+    /// Inner implementation of the shutdown sequence with a configurable grace window.
+    ///
+    /// Production callers use [`serve_with_transport_and_shutdown`] which fixes the
+    /// grace window at 5 seconds (BC-2.10.010 Step 6).  Tests call this method directly
+    /// with a short grace (e.g., 100 ms) to exercise the timeout path without blocking
+    /// the test suite for 5 seconds.
+    ///
+    /// # Parameters
+    /// - `transport`: any type that satisfies `IntoTransport` (stdio, duplex, etc.)
+    /// - `shutdown`: future that resolves when a shutdown signal is received
+    /// - `grace`: how long to wait for in-flight drain before returning `Err(TaskError)`
+    async fn serve_with_transport_and_shutdown_inner<T, E, A>(
+        self,
+        transport: T,
+        shutdown: impl std::future::Future<Output = &'static str>,
+        grace: std::time::Duration,
+    ) -> Result<(), rmcp::RmcpError>
+    where
+        T: rmcp::transport::IntoTransport<rmcp::RoleServer, E, A>,
+        E: std::error::Error + Send + Sync + 'static,
+    {
         let mut service = self.serve(transport).await?;
 
         // Await a shutdown trigger: injected future or natural transport closure.
@@ -256,9 +285,18 @@ impl PrismServer {
         // (HIGH-1 fix: sleep(100ms) instead of yield_now() avoids busy-waiting at ~100%
         // CPU).  In production, stdin EOF propagates within one 100ms tick; this is
         // imperceptible to users and costs zero CPU between ticks.
+        //
+        // CORRECTNESS NOTE: We poll `service.is_transport_closed()` (not `is_closed()`).
+        // `is_closed()` checks `handle.is_none() || cancellation_token.is_cancelled()`.
+        // When the peer disconnects naturally, the background task exits and drops its
+        // channel senders — but the JoinHandle remains `Some(finished_handle)` and the
+        // CT is not cancelled, so `is_closed()` stays `false`.
+        // `is_transport_closed()` delegates to `tx.is_closed()` on the peer's channel;
+        // when the background task drops its `tx` clone on exit, `tx.is_closed()`
+        // returns `true`.  This is the correct signal for natural transport closure.
         let natural_close_fut = async {
             loop {
-                if service.is_closed() {
+                if service.is_transport_closed() {
                     return;
                 }
                 tokio::time::sleep(std::time::Duration::from_millis(100)).await;
@@ -288,16 +326,16 @@ impl PrismServer {
             "MCP server shutdown initiated — draining in-flight requests (BC-2.10.010)"
         );
 
-        // BC-2.10.010 Step 2: cancel in-flight tasks with 5-second grace.
+        // BC-2.10.010 Step 2: cancel in-flight tasks with `grace` window.
         // HIGH-4 fix (EC-10-019): race drain against a second SIGINT.  If the user
-        // sends a second Ctrl-C during the 5-second drain window, exit immediately
+        // sends a second Ctrl-C during the drain window, exit immediately
         // with code 130 (128 + SIGINT) — the standard Unix convention for SIGINT-killed.
         // `process::exit(130)` is intentional here: the user explicitly requested force-kill.
         let drain_result = {
             #[cfg(unix)]
             {
                 tokio::select! {
-                    result = service.close_with_timeout(std::time::Duration::from_secs(5)) => result,
+                    result = service.close_with_timeout(grace) => result,
                     _ = signal::ctrl_c() => {
                         tracing::warn!(
                             event_type = "mcp.server.shutdown.force",
@@ -311,18 +349,17 @@ impl PrismServer {
             }
             #[cfg(not(unix))]
             {
-                service
-                    .close_with_timeout(std::time::Duration::from_secs(5))
-                    .await
+                service.close_with_timeout(grace).await
             }
         };
 
+        let grace_secs = grace.as_secs();
         match drain_result {
             Ok(Some(_quit_reason)) => {
                 // Tasks drained within the grace window.
                 tracing::info!(
                     event_type = "mcp.server.shutdown.tasks_drained",
-                    "In-flight MCP requests drained within 5-second grace window (BC-2.10.010)"
+                    "In-flight MCP requests drained within grace window (BC-2.10.010)"
                 );
             }
             Ok(None) => {
@@ -332,12 +369,13 @@ impl PrismServer {
                 // The caller (boot.rs step9 / main.rs) maps this Err to exit code 1.
                 tracing::warn!(
                     event_type = "mcp.server.shutdown.timeout",
-                    grace_secs = 5u64,
-                    "5-second grace window exceeded; returning timeout error (BC-2.10.010)"
+                    grace_secs,
+                    "Grace window exceeded; returning timeout error (BC-2.10.010)"
                 );
-                return Err(rmcp::RmcpError::TaskError(
-                    "MCP server shutdown timed out after 5 seconds (BC-2.10.010 Step 6)".to_owned(),
-                ));
+                return Err(rmcp::RmcpError::TaskError(format!(
+                    "MCP server shutdown timed out after {} seconds (BC-2.10.010 Step 6)",
+                    grace_secs
+                )));
             }
             Err(join_err) => {
                 // Background task panicked or was cancelled unexpectedly.
@@ -3602,64 +3640,65 @@ mod tests {
         client_write.flush().await.unwrap();
     }
 
-    /// BC-2.10.010 natural-close path: client disconnect + subsequent shutdown signal returns Ok.
+    /// BC-2.10.010 natural-close path: client disconnect triggers `is_transport_closed()`
+    /// → natural_close_fut returns → `path="natural_close"` emitted → Ok(()) returned.
     ///
     /// LOAD-BEARING: calls `serve_with_transport_and_shutdown` with a real duplex
     /// transport.  If the function is deleted, this test fails.
     ///
-    /// Implementation note on natural-close detection: `service.is_closed()` becomes
-    /// `true` when the rmcp background task's cancellation token is cancelled.  This
-    /// does NOT happen automatically when the client disconnects; the signal-drain or
-    /// close() must fire to cancel the CT.  The natural_close_fut polling loop detects
-    /// the closed state only when the shutdown signal fires AND the service has already
-    /// become closed (either path completes correctly).
+    /// Natural-close detection uses `service.is_transport_closed()`.  When the peer
+    /// disconnects, the rmcp background task exits and drops its channel senders;
+    /// `is_transport_closed()` (`tx.is_closed()`) returns `true` within one 100ms
+    /// poll tick.  The `natural_close_fut` loop sees `true` → fires the select arm
+    /// that emits `path="natural_close"` and returns `Ok(())`.
     ///
     /// This test exercises the production code path by:
     /// 1. Completing the MCP handshake (server now initialized),
-    /// 2. Closing the client connection (rmcp background task exits naturally),
-    /// 3. Sending a shutdown signal (triggers signal-drain; no in-flight tasks remain),
-    /// 4. Asserting Ok(()) is returned (all paths exercised, no process::exit).
+    /// 2. Closing the client connection (rmcp background task exits naturally,
+    ///    dropping tx → is_transport_closed() returns true),
+    /// 3. Asserting Ok(()) is returned via the natural_close_fut arm.
     #[tokio::test]
     async fn test_shutdown_natural_close_drives_serve_with_transport() {
         use tokio::io::{AsyncWriteExt, BufReader};
 
         // Create an in-process MCP transport pair (64 KB buffer).
         let (server_stream, client_stream) = tokio::io::duplex(65536);
-        let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel::<()>();
-        let shutdown_fut = async move {
-            let _ = shutdown_rx.await;
-            "SIGTERM"
-        };
 
-        // Spawn the server — it will block until the client disconnects or a signal fires.
+        // The shutdown future never fires — the natural-close path must return Ok(())
+        // on its own when is_transport_closed() becomes true after the client disconnects.
+        // Using a pending future guarantees the signal-drain path cannot win the select.
+        let shutdown_fut = std::future::pending::<&'static str>();
+
+        // Spawn the server — it will block until the client disconnects.
         let server_task = tokio::spawn(async move {
             PrismServer::new()
                 .serve_with_transport_and_shutdown(server_stream, shutdown_fut)
                 .await
         });
 
-        // Client side: complete the MCP handshake, then drop to simulate natural close.
+        // Client side: complete the MCP handshake, then close write half to simulate
+        // natural peer disconnect (stdin EOF in production).
         {
             let (client_read_half, mut client_write_half) = tokio::io::split(client_stream);
             let mut client_read_buf = BufReader::new(client_read_half);
             mcp_client_handshake_raw(&mut client_write_half, &mut client_read_buf).await;
             // Explicitly shut down the write half so rmcp sees EOF.
             let _ = client_write_half.shutdown().await;
-            // Both halves dropped here — client connection closed.
+            // Both halves dropped here — rmcp background task exits, drops tx,
+            // is_transport_closed() → true within one 100ms poll tick.
         }
 
-        // Send a shutdown signal (exercises the signal-drain path after client disconnect).
-        let _ = shutdown_tx.send(());
-
-        // Server should complete with Ok(()) — no in-flight tasks, drain succeeds.
+        // Server should complete with Ok(()) via the natural_close_fut arm.
+        // The pending shutdown future ensures only the natural-close path can win.
         let result = tokio::time::timeout(std::time::Duration::from_secs(5), server_task)
             .await
-            .expect("server task must complete within 5 seconds")
+            .expect("server task must complete within 5 seconds after client disconnect")
             .expect("JoinHandle must not panic");
 
         assert!(
             result.is_ok(),
-            "BC-2.10.010: serve_with_transport_and_shutdown must return Ok(()); got: {:?}",
+            "BC-2.10.010 natural_close path: serve_with_transport_and_shutdown must \
+             return Ok(()); got: {:?}",
             result
         );
     }
@@ -3709,54 +3748,409 @@ mod tests {
         );
     }
 
-    /// BC-2.10.010 timeout path: `RmcpError::TaskError` is returned (not process::exit).
+    /// BC-2.10.010 timeout path: `serve_with_transport_and_shutdown_inner` returns
+    /// `Err(RmcpError::TaskError)` when the grace window expires before drain completes.
     ///
-    /// Structural compile-time assertion: the `TaskError` variant exists in `rmcp::RmcpError`
-    /// and the timeout error message matches the expected format.  This verifies the return
-    /// type contract without spawning a live server (spinning a real timeout would cost ≥5s).
-    #[test]
-    fn test_shutdown_timeout_error_is_task_error_variant() {
-        // Construct the error the same way serve_with_transport_and_shutdown does on timeout.
-        let err = rmcp::RmcpError::TaskError(
-            "MCP server shutdown timed out after 5 seconds (BC-2.10.010 Step 6)".to_owned(),
-        );
-        let formatted = format!("{err}");
+    /// LOAD-BEARING: forces the `Ok(None)` branch by filling the duplex write buffer
+    /// so that `transport.send()` in rmcp's internal drain blocks indefinitely.
+    ///
+    /// Mechanism:
+    /// 1. Use a 1 KiB duplex buffer — small enough that the tools/list response
+    ///    (~20 KiB for 53 tools) overflows it.
+    /// 2. Complete the MCP handshake (reads initialize response, emptying the buffer).
+    /// 3. Send a tools/list request but do NOT read the response — the server's
+    ///    transport.send() blocks once the 1 KiB buffer fills.
+    /// 4. Trigger shutdown.  rmcp's background task exits its select loop (Cancelled),
+    ///    then the internal drain waits for response_send_tasks to complete.
+    ///    The pending transport.send() future in response_send_tasks blocks indefinitely.
+    /// 5. close_with_timeout(grace) times out at `grace` ms → Ok(None) →
+    ///    our Err(TaskError) branch returns.
+    ///
+    /// If the `Ok(None) → Err(TaskError)` branch is removed, this test panics because
+    /// the returned value would be Ok(()) or a different variant.
+    ///
+    /// Note: the client-read half is held open (not dropped) so the blocked send is due
+    /// to buffer saturation, not EOF/broken-pipe.
+    #[tokio::test]
+    async fn test_shutdown_timeout_drives_task_error_return() {
+        use tokio::io::{AsyncWriteExt, BufReader};
+
+        // Grace window passed to serve_with_transport_and_shutdown_inner.
+        // Must be shorter than the test's outer timeout (3 s) so the test completes.
+        let grace = std::time::Duration::from_millis(500);
+
+        // 1 KiB duplex buffer: small enough that the tools/list response (~20 KB for
+        // PrismServer's 53 tools) fills it and blocks transport.send().
+        let (server_stream, client_stream) = tokio::io::duplex(1024);
+
+        let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel::<()>();
+        let shutdown_fut = async move {
+            let _ = shutdown_rx.await;
+            "SIGTERM"
+        };
+
+        let server_task = tokio::spawn(async move {
+            PrismServer::new()
+                .serve_with_transport_and_shutdown_inner(server_stream, shutdown_fut, grace)
+                .await
+        });
+
+        // Split client so we can keep the read half alive (prevents broken-pipe) while
+        // choosing not to read — allowing the buffer to fill on the server's write side.
+        let (client_read_half, mut client_write_half) = tokio::io::split(client_stream);
+        let mut client_read_buf = BufReader::new(client_read_half);
+
+        // Complete the handshake — reads initialize response, emptying the buffer.
+        mcp_client_handshake_raw(&mut client_write_half, &mut client_read_buf).await;
+
+        // Send a tools/list request.  The server will generate a ~20 KB JSON response
+        // for all 53 registered tools and try to write it into the 1 KiB buffer.
+        // Once the buffer fills, transport.send() in response_send_tasks blocks.
+        let tools_list_req = r#"{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}"#;
+        client_write_half
+            .write_all(format!("{tools_list_req}\n").as_bytes())
+            .await
+            .unwrap();
+        client_write_half.flush().await.unwrap();
+
+        // Give the server a moment to: (a) receive the tools/list request, (b) spawn the
+        // handler, (c) start the transport.send() of the large response, and (d) block.
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+
+        // Trigger shutdown.  Server enters signal-drain path:
+        //   service.close_with_timeout(500 ms)
+        //     → cancels background task → QuitReason::Cancelled
+        //     → internal drain waits for response_send_tasks (transport.send is blocked)
+        //     → 500 ms outer grace fires → Ok(None)
+        //     → our branch: return Err(RmcpError::TaskError("timed out … BC-2.10.010"))
+        let _ = shutdown_tx.send(());
+
+        // The server task must complete within `grace` + overhead.
+        // Upper bound: 3 s gives 2.4 s headroom above the 500 ms grace window.
+        let result = tokio::time::timeout(std::time::Duration::from_secs(3), server_task)
+            .await
+            .expect("server task must complete within 3 seconds after shutdown signal")
+            .expect("JoinHandle must not panic");
+
+        match result {
+            Err(rmcp::RmcpError::TaskError(ref msg)) => {
+                assert!(
+                    msg.contains("timed out"),
+                    "BC-2.10.010: TaskError message must contain 'timed out'; got: '{msg}'"
+                );
+                assert!(
+                    msg.contains("BC-2.10.010"),
+                    "BC-2.10.010: TaskError message must cite BC; got: '{msg}'"
+                );
+            }
+            other => {
+                panic!(
+                    "BC-2.10.010 timeout path must return Err(RmcpError::TaskError(_)); \
+                     if Ok(()) is returned the Ok(None) branch was removed; got: {other:?}"
+                );
+            }
+        }
+    }
+
+    /// BC-2.10.010: join_error path maps to `Err(RmcpError::Runtime)`.
+    ///
+    /// LOAD-BEARING: uses a `TriggeredPanickingTransport` that delegates normally
+    /// until a shared `AtomicBool` flag is set, then panics in `poll_read`.
+    ///
+    /// Sequence:
+    /// 1. Server starts with `flag = false` → MCP handshake succeeds (rmcp background
+    ///    task is now spawned and waiting in its select loop).
+    /// 2. Test sets `flag = true`, then yields to let the background task run.
+    /// 3. Background task polls `transport.receive()` → `poll_read` panics → the
+    ///    background task's `JoinHandle` captures a `JoinError::Panic`.
+    ///    NOTE: The cancellation token is NOT yet set at this point, so the
+    ///    `cancelled()` arm is not ready — `transport.receive()` is the only
+    ///    eligible branch and the panic fires deterministically.
+    /// 4. Test sends the shutdown signal.  Server calls `close_with_timeout`.
+    ///    `handle.await` immediately returns `Err(JoinError::Panic)` (task already done).
+    /// 5. Our production match arm: `Err(join_err) => Err(RmcpError::Runtime(join_err))`.
+    ///
+    /// If the `Err(join_err) => Err(RmcpError::Runtime(join_err))` branch is removed,
+    /// this test panics (the returned value would be Ok or a different variant).
+    ///
+    /// The test itself does NOT panic — the panic is contained inside the rmcp
+    /// background task and captured by its `JoinHandle` (tokio catches it with
+    /// `std::panic::catch_unwind`).
+    #[tokio::test]
+    async fn test_shutdown_join_error_maps_to_runtime_variant() {
+        use std::io;
+        use std::pin::Pin;
+        use std::sync::atomic::{AtomicBool, Ordering};
+        use std::sync::Arc;
+        use std::task::{Context, Poll};
+        use tokio::io::{AsyncRead, AsyncWrite, BufReader, ReadBuf};
+
+        /// A transport wrapper that delegates to its inner stream until `panic_flag`
+        /// is set to `true`, at which point `poll_read` panics.
+        ///
+        /// This ensures the MCP handshake (initialize → initialized) succeeds with
+        /// `flag = false`, so rmcp spawns its background task.  Once the flag is set
+        /// to `true`, the background task's next `transport.receive()` call panics
+        /// and produces a `JoinError::Panic` on the background task's JoinHandle.
+        struct TriggeredPanickingTransport {
+            /// Read half of the duplex stream used for the real MCP handshake.
+            inner_read: tokio::io::ReadHalf<tokio::io::DuplexStream>,
+            /// Write half of the duplex stream used for the real MCP handshake.
+            inner_write: tokio::io::WriteHalf<tokio::io::DuplexStream>,
+            /// When `true`, the next `poll_read` call panics.
+            panic_flag: Arc<AtomicBool>,
+        }
+
+        impl AsyncRead for TriggeredPanickingTransport {
+            fn poll_read(
+                mut self: Pin<&mut Self>,
+                cx: &mut Context<'_>,
+                buf: &mut ReadBuf<'_>,
+            ) -> Poll<io::Result<()>> {
+                if self.panic_flag.load(Ordering::Acquire) {
+                    panic!(
+                        "TriggeredPanickingTransport: intentional panic to trigger \
+                         JoinError path in rmcp background task (F-PASS7-HIGH-1)"
+                    );
+                }
+                Pin::new(&mut self.inner_read).poll_read(cx, buf)
+            }
+        }
+
+        impl AsyncWrite for TriggeredPanickingTransport {
+            fn poll_write(
+                mut self: Pin<&mut Self>,
+                cx: &mut Context<'_>,
+                buf: &[u8],
+            ) -> Poll<io::Result<usize>> {
+                Pin::new(&mut self.inner_write).poll_write(cx, buf)
+            }
+
+            fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
+                Pin::new(&mut self.inner_write).poll_flush(cx)
+            }
+
+            fn poll_shutdown(
+                mut self: Pin<&mut Self>,
+                cx: &mut Context<'_>,
+            ) -> Poll<io::Result<()>> {
+                Pin::new(&mut self.inner_write).poll_shutdown(cx)
+            }
+        }
+
+        impl Unpin for TriggeredPanickingTransport {}
+
+        // Shared flag: test sets to true after handshake to trigger panic in background task.
+        let panic_flag = Arc::new(AtomicBool::new(false));
+        let panic_flag_server = Arc::clone(&panic_flag);
+
+        let (server_stream, client_stream) = tokio::io::duplex(65536);
+        let (server_read, server_write) = tokio::io::split(server_stream);
+        let transport = TriggeredPanickingTransport {
+            inner_read: server_read,
+            inner_write: server_write,
+            panic_flag: panic_flag_server,
+        };
+
+        let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel::<()>();
+        let shutdown_fut = async move {
+            let _ = shutdown_rx.await;
+            "SIGTERM"
+        };
+
+        let server_task = tokio::spawn(async move {
+            PrismServer::new()
+                .serve_with_transport_and_shutdown(transport, shutdown_fut)
+                .await
+        });
+
+        // Client: complete the MCP handshake so rmcp spawns its background task.
+        // With panic_flag = false, the transport delegates normally.
+        let (client_read_half, mut client_write_half) = tokio::io::split(client_stream);
+        let mut client_read_buf = BufReader::new(client_read_half);
+        mcp_client_handshake_raw(&mut client_write_half, &mut client_read_buf).await;
+
+        // Step 1: Arm the panic.  The background task is now looping in its select,
+        // waiting for either new client data or a cancellation signal.
+        // Crucially, the cancellation token is NOT yet set — only `transport.receive()`
+        // can fire, so the panic in `poll_read` is the only possible branch outcome.
+        panic_flag.store(true, Ordering::Release);
+
+        // Step 2: Yield to let the background task run and hit the panicking poll_read.
+        // In the current-thread tokio runtime, tasks only run at cooperative yield points.
+        // Ten yields is more than enough for the background task to execute one select
+        // iteration and call transport.receive().
+        for _ in 0..10 {
+            tokio::task::yield_now().await;
+        }
+
+        // Step 3: Send shutdown.  The background task has already panicked; its handle
+        // is ready with Err(JoinError::Panic).  close_with_timeout immediately returns
+        // Err(JoinError::Panic), which our match arm maps to Err(RmcpError::Runtime).
+        let _ = shutdown_tx.send(());
+
+        let result = tokio::time::timeout(std::time::Duration::from_secs(5), server_task)
+            .await
+            .expect("server task must complete within 5 s")
+            .expect("outer server task must not panic — only the rmcp background task panics");
+
         assert!(
-            formatted.contains("timed out"),
-            "BC-2.10.010 timeout error must mention timeout; got: '{formatted}'"
-        );
-        assert!(
-            formatted.contains("BC-2.10.010"),
-            "BC-2.10.010 timeout error must cite the BC; got: '{formatted}'"
+            matches!(result, Err(rmcp::RmcpError::Runtime(_))),
+            "BC-2.10.010 join_error path must return Err(RmcpError::Runtime); got: {:?}",
+            result
         );
     }
 
-    /// BC-2.10.010: join_error path maps to RmcpError::Runtime (compile-time check).
+    /// BC-2.10.010 / OBS-2: shutdown-complete event emits `path` field with correct value.
     ///
-    /// Structural assertion that `rmcp::RmcpError::Runtime` accepts a `JoinError` —
-    /// verified at compile time by the fact that the `serve_with_transport_and_shutdown`
-    /// body compiles with `Err(rmcp::RmcpError::Runtime(join_err))`.
-    #[test]
-    fn test_shutdown_join_error_maps_to_runtime_variant_compile_check() {
-        // Compile-time verification: RmcpError::Runtime exists (enforced by the code in
-        // serve_with_transport_and_shutdown that constructs it).  The PhantomData is just
-        // to reference the type in a no-op test body.
-        let _: std::marker::PhantomData<rmcp::RmcpError> = std::marker::PhantomData;
-    }
+    /// LOAD-BEARING: calls `serve_with_transport_and_shutdown` through both the
+    /// natural-close path and the signal-drain path, capturing tracing events via a
+    /// custom subscriber.  Asserts:
+    /// - natural-close path emits `event_type="mcp.server.shutdown.complete"` +
+    ///   `path="natural_close"`.
+    /// - signal-drain path emits `event_type="mcp.server.shutdown.complete"` +
+    ///   `path="signal_drain"`.
+    ///
+    /// If the `path` literal in either tracing macro is changed or removed, this test
+    /// fails.  Replacing vacuous string-literal tautology (F-PASS7-MED-1 + MED-2).
+    ///
+    /// DESIGN NOTE on async tracing capture:
+    /// `tracing::subscriber::with_default` takes a SYNC closure — the subscriber guard
+    /// is dropped before any async work runs.  Instead, we use
+    /// `tracing::subscriber::set_default` which returns a `DefaultGuard`.  Because the
+    /// guard is stored as a local variable in this async function, it persists across
+    /// `.await` points (Rust stores locals in the Future's state machine).  When spawned
+    /// tasks run on the same OS thread (current-thread runtime), they see the thread-local
+    /// subscriber that is kept alive by the guard, so their events are captured.
+    #[tokio::test]
+    async fn test_shutdown_complete_path_field_emitted_by_production_code() {
+        use std::sync::{Arc, Mutex};
+        use tokio::io::{AsyncWriteExt, BufReader};
 
-    /// BC-2.10.010 / OBS-2: shutdown-complete event path values are semantically distinct.
-    ///
-    /// The `path` field on `mcp.server.shutdown.complete` must differ between the
-    /// natural-close and signal-drain code paths to disambiguate two emission sites.
-    #[test]
-    fn test_shutdown_complete_path_values_are_distinct() {
-        let natural_close_path = "natural_close";
-        let signal_drain_path = "signal_drain";
+        // ── natural-close path ───────────────────────────────────────────────────
+        // Capture tracing events from the natural-close code path.
+        let captured_natural: Arc<Mutex<Vec<u8>>> = Arc::new(Mutex::new(Vec::new()));
+        {
+            let buf = Arc::clone(&captured_natural);
+            let make_writer = move || WriterGuard(Arc::clone(&buf));
+            let subscriber = tracing_subscriber::fmt()
+                .with_writer(make_writer)
+                .with_max_level(tracing::Level::INFO)
+                .finish();
+
+            // Install subscriber as thread-local default.  The guard is a local variable
+            // in this async function — it lives across all .await points below.
+            let _guard = tracing::subscriber::set_default(subscriber);
+
+            let (server_stream, client_stream) = tokio::io::duplex(65536);
+
+            // Natural-close path: shutdown future never fires; the server must detect
+            // natural closure and return Ok(()) via the natural_close_fut arm.
+            let server_task = tokio::spawn(async move {
+                PrismServer::new()
+                    .serve_with_transport_and_shutdown(
+                        server_stream,
+                        std::future::pending::<&'static str>(),
+                    )
+                    .await
+            });
+
+            // Complete handshake, then close the write half.
+            let (client_read_half, mut client_write_half) = tokio::io::split(client_stream);
+            let mut client_read_buf = BufReader::new(client_read_half);
+            mcp_client_handshake_raw(&mut client_write_half, &mut client_read_buf).await;
+            let _ = client_write_half.shutdown().await;
+
+            // Await server task — runs on this thread while _guard keeps the subscriber
+            // active.  Server emits path="natural_close" when is_transport_closed() → true.
+            let _result =
+                tokio::time::timeout(std::time::Duration::from_secs(5), server_task).await;
+
+            // _guard dropped here → subscriber uninstalled.
+        }
+
+        let output_natural = {
+            let lock = captured_natural.lock().unwrap();
+            String::from_utf8_lossy(&lock).to_string()
+        };
+        assert!(
+            output_natural.contains("natural_close"),
+            "OBS-2 MED-1: natural-close path must emit path=\"natural_close\" in tracing \
+             output (F-PASS7-MED-1); captured output was:\n{output_natural}"
+        );
+
+        // ── signal-drain path ────────────────────────────────────────────────────
+        // Capture tracing events from the signal-drain code path.
+        let captured_signal: Arc<Mutex<Vec<u8>>> = Arc::new(Mutex::new(Vec::new()));
+        {
+            let buf = Arc::clone(&captured_signal);
+            let make_writer = move || WriterGuard(Arc::clone(&buf));
+            let subscriber = tracing_subscriber::fmt()
+                .with_writer(make_writer)
+                .with_max_level(tracing::Level::INFO)
+                .finish();
+
+            let _guard = tracing::subscriber::set_default(subscriber);
+
+            let (server_stream, client_stream) = tokio::io::duplex(65536);
+            let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel::<()>();
+            let shutdown_fut = async move {
+                let _ = shutdown_rx.await;
+                "SIGTERM"
+            };
+
+            let server_task = tokio::spawn(async move {
+                PrismServer::new()
+                    .serve_with_transport_and_shutdown(server_stream, shutdown_fut)
+                    .await
+            });
+
+            // Complete handshake, then send shutdown signal (no client disconnect).
+            let (client_read_half, mut client_write_half) = tokio::io::split(client_stream);
+            let mut client_read_buf = BufReader::new(client_read_half);
+            mcp_client_handshake_raw(&mut client_write_half, &mut client_read_buf).await;
+            let _ = shutdown_tx.send(());
+
+            // Await server task — server emits path="signal_drain" in this path.
+            let _result =
+                tokio::time::timeout(std::time::Duration::from_secs(5), server_task).await;
+
+            // _guard dropped here → subscriber uninstalled.
+        }
+
+        let output_signal = {
+            let lock = captured_signal.lock().unwrap();
+            String::from_utf8_lossy(&lock).to_string()
+        };
+        assert!(
+            output_signal.contains("signal_drain"),
+            "OBS-2 MED-2: signal-drain path must emit path=\"signal_drain\" in tracing \
+             output (F-PASS7-MED-2); captured output was:\n{output_signal}"
+        );
+
+        // Cross-check: distinct path values mean the two emission sites are independent.
+        // If the production code used the same literal for both paths, one assertion
+        // above would fail.
         assert_ne!(
-            natural_close_path, signal_drain_path,
-            "OBS-2: path values for mcp.server.shutdown.complete must be distinct"
+            output_natural, output_signal,
+            "OBS-2: natural_close and signal_drain must produce distinct tracing output"
         );
-        assert_eq!(natural_close_path, "natural_close");
-        assert_eq!(signal_drain_path, "signal_drain");
+    }
+
+    /// Helper writer guard for tracing-subscriber capture in tests.
+    ///
+    /// Wraps `Arc<Mutex<Vec<u8>>>` so `tracing_subscriber::fmt().with_writer(...)` can
+    /// accept it as a `MakeWriter`.
+    struct WriterGuard(Arc<std::sync::Mutex<Vec<u8>>>);
+
+    impl std::io::Write for WriterGuard {
+        fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+            self.0.lock().unwrap().extend_from_slice(buf);
+            Ok(buf.len())
+        }
+
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
     }
 }

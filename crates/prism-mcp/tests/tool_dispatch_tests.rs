@@ -874,3 +874,128 @@ fn test_BC_2_04_009_unbounded_token_still_fails_safety_check() {
         check_result
     );
 }
+
+// ─── BC-2.04.009 / OBS-1 — dml_operation round-trip preserves Delete→Irreversible ─
+
+/// OBS-1 regression guard: `BoundingMetadata.dml_operation` survives the full
+/// generate → peek → restore → classify_risk_tier round-trip.
+///
+/// LOAD-BEARING: exercises the EXACT data path that `confirm_action` uses.
+///   1. `generate_with_bounding` stores `BoundingDmlOperation::Delete` in the token.
+///   2. `peek` retrieves the token (mirrors `confirm_action`'s read step).
+///   3. `DmlOperation::from(BoundingDmlOperation::Delete)` restores the discriminant.
+///   4. A `WritePlan` with `dml_operation = Some(DmlOperation::Delete)` is built.
+///   5. `classify_risk_tier` against a `Reversible` endpoint spec returns `Irreversible`
+///      (DELETE FROM always overrides spec, per AD-022).
+///
+/// If `dml_operation` is not stored/retrieved correctly (e.g., set to None), step 5
+/// would return `Reversible` and the final assertion fails.
+///
+/// If `classify_risk_tier` no longer gives DELETE unconditional-Irreversible, the
+/// assertion also fails, catching any regression in the AD-022 invariant.
+#[test]
+#[allow(non_snake_case)]
+fn test_BC_2_04_009_dml_operation_round_trip_preserves_delete_irreversible() {
+    use prism_core::RiskTier;
+    use prism_query::safety_check::classify_risk_tier;
+    use prism_query::write_ast::DmlOperation;
+    use prism_query::write_pipeline::WritePlan;
+    use prism_security::confirmation_token::ConfirmationTokenStore;
+    use prism_security::BoundingMetadata;
+    use prism_spec_engine::write_endpoint::{BatchMode, WriteEndpointSpec, WriteStep};
+    use std::collections::HashMap;
+
+    let store = ConfirmationTokenStore::new();
+    let client_id = "acme";
+
+    let action_params = serde_json::json!({
+        "verb": "delete_alert",
+        "sensor": "crowdstrike",
+        "target_table": "crowdstrike_alerts",
+        "write_endpoint": "/alerts/{id}",
+        "client_id": client_id,
+        "params": { "id": "abc-001" },
+    });
+
+    // OBS-1: dml_operation = Some(Delete) must be stored in the token.
+    let bounding = BoundingMetadata {
+        has_where_clause: true,
+        has_explicit_limit: true,
+        explicit_limit: Some(1),
+        dml_operation: Some(prism_security::BoundingDmlOperation::Delete),
+    };
+
+    let token = store
+        .generate_with_bounding(
+            client_id,
+            "write.delete_alert",
+            action_params,
+            "Delete alert abc-001 for acme",
+            bounding,
+        )
+        .expect("generate_with_bounding must succeed on empty store");
+    let token_id = token.token_id.clone();
+
+    // Peek the token (mirrors confirm_action's store.peek call).
+    let stored = store
+        .peek(&token_id)
+        .expect("peek must return stored token");
+
+    // Assert dml_operation is preserved in the stored token.
+    assert!(
+        stored.bounding_metadata.dml_operation.is_some(),
+        "OBS-1: bounding_metadata.dml_operation must be Some(Delete) after round-trip; \
+         got None — confirm_action would lose the DELETE discriminant"
+    );
+
+    // Restore DmlOperation from BoundingDmlOperation (mirrors confirm_action logic).
+    // From<prism_security::BoundingDmlOperation> for DmlOperation is in prism_query::dry_run.
+    let restored_dml: Option<DmlOperation> = stored
+        .bounding_metadata
+        .dml_operation
+        .clone()
+        .map(DmlOperation::from);
+
+    assert_eq!(
+        restored_dml,
+        Some(DmlOperation::Delete),
+        "OBS-1: restored dml_operation must be Some(Delete); got: {:?}",
+        restored_dml
+    );
+
+    // Build WritePlan with restored DML (same as confirm_action's reconstruction).
+    let bm = &stored.bounding_metadata;
+    let plan = WritePlan {
+        verb: "delete_alert".to_owned(),
+        sensor: "crowdstrike".to_owned(),
+        target_table: "crowdstrike_alerts".to_owned(),
+        dml_operation: restored_dml,
+        has_explicit_limit: bm.has_explicit_limit,
+        explicit_limit: bm.explicit_limit,
+        has_where_clause: bm.has_where_clause,
+        params: HashMap::new(),
+    };
+
+    // Build a Reversible endpoint spec — to prove DELETE overrides the spec (AD-022).
+    let endpoint_spec = WriteEndpointSpec::new(
+        "delete_alert",
+        "crowdstrike_alerts",
+        RiskTier::Reversible, // intentionally Reversible — DELETE must override this
+        "sensor.crowdstrike.alert.delete",
+        100,
+        BatchMode::Serial,
+        "id",
+        vec![WriteStep::new("DELETE", "/alerts/{id}", None, None)],
+    );
+
+    // classify_risk_tier must return Irreversible — DELETE unconditionally overrides
+    // the spec-declared Reversible tier (AD-022, BC-2.04.007).
+    let tier = classify_risk_tier(&plan, &endpoint_spec);
+    assert_eq!(
+        tier,
+        RiskTier::Irreversible,
+        "OBS-1: DELETE from a token must classify as Irreversible even with a \
+         Reversible endpoint spec; got: {:?} — the AD-022 invariant is broken",
+        tier
+    );
+}
