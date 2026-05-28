@@ -274,3 +274,25 @@ Wave 2 (3): 001-H (DONE) + 001-G (DONE) + 001-F (MERGED PR #160 develop@2dda655f
 **Active worktrees:** `.worktrees/PLUGIN-MIGRATION-001-F` pending cleanup; S-3.09 FROZEN; W3-FIX-S307-001 superseded.
 
 _Superseded by D-841 checkpoint (SESSION CHECKPOINT — S-SPEC-TYPE-UNIFICATION-001 MERGED PR #161 develop@af79f160; 3711 tests; STATE v7.528)._
+
+---
+
+## D-841 Checkpoint (archived by D-842 burst 2026-05-28)
+
+_Archived from STATE.md Session Resume Checkpoint section. Superseded by D-842 checkpoint._
+
+**STATE v7.528. D-841 — Session checkpoint. Plugin migration 16/16 CLOSED. ADR-030 ACCEPTED. develop HEAD: af79f160. 3711 tests.**
+
+Plugin migration scoreboard at archival — ALL COMPLETE (16/16):
+Wave 0 prereqs (6): PREREQ-A through PREREQ-F — MERGED (PRs #143/#144/#146/#149/#150/#151)
+Wave 1 (7): 001-D/E/S-CONFIG/001-A/001-B/001-C/S-PLUGIN-CI-001 — MERGED (PRs #153–#159)
+Wave 2 (3): 001-H (factory-only DONE) + 001-G (factory-only DONE) + 001-F (MERGED PR #160 develop@2dda655f)
+
+S-SPEC-TYPE-UNIFICATION-001: MERGED PR #161 develop@af79f160. ADR-030 Approach D: types::SensorSpec deleted, spec_parser::SensorSpec canonical, 8→4 boot TOML parses, AuthType::CustomViaPlugin added, SpecDrivenMapper table_name fix, EXPECTED 36→35.
+
+**develop HEAD at archival:** `af79f160`
+**Workspace test count at archival:** 3711
+**Active worktrees:** `.worktrees/PLUGIN-MIGRATION-001-F` pending cleanup; S-3.09 FROZEN; W3-FIX-S307-001 superseded.
+**Next session priority at archival:** S-3.02-FOLLOWUP-RUNTIME (boot steps 7+8) then S-5.01-FOLLOWUP-MCP-BOOT (boot step 9).
+
+_Superseded by D-842 checkpoint (S-3.02-FOLLOWUP-RUNTIME MERGED PR #162 develop@a55bd930; 3718 tests; STATE v7.529)._

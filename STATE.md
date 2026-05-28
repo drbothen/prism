@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.528"
+version: "7.529"
 producer: state-manager
-timestamp: 2026-05-27T23:00:00Z
+timestamp: 2026-05-28T01:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -16,7 +16,19 @@ repos: [poller-cobra, poller-express, poller-bear, poller-coaster, serveMyAPI, t
 safe_to_compact: true
 pre_compact_snapshot: "SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-27-PLUGIN-MIGRATION-SAGA-CLOSED"
 pre_compact_snapshot_at: "2026-05-27 (D-841 SESSION CHECKPOINT; Plugin migration 16/16 CLOSED; S-SPEC-TYPE-UNIFICATION-001 PR #161 MERGED; develop@af79f160; 3711 tests; state-final for /clear-resume)"
-current_step: "D-841 SESSION CHECKPOINT for /clear-resume. Post-Wave-1-COMPLETE continuation session: 4 stories delivered. PLUGIN-MIGRATION-001-H (factory-only, 4 supersessions), PLUGIN-MIGRATION-001-G (factory-only, 8 BCs amended, BC-INDEX v5.54), PLUGIN-MIGRATION-001-F (MERGED PR #160 develop@2dda655f, 12 test files, compile-fail perimeter, Wave 2 COMPLETE), S-SPEC-TYPE-UNIFICATION-001 (MERGED PR #161 develop@af79f160, ADR-030 Approach D). Plugin migration saga CLOSED (16/16). develop HEAD: af79f160. 3711 tests. STATE v7.527→v7.528. NEXT SESSION: S-3.02-FOLLOWUP-RUNTIME (boot steps 7+8, 8 pts) then S-5.01-FOLLOWUP-MCP-BOOT (boot step 9, 8 pts) — connects built subsystems into runnable prism start binary with MCP tools."
+current_step: "D-842 S-3.02-FOLLOWUP-RUNTIME MERGED (PR #162 develop@a55bd930 2026-05-28T00:48:00Z). Boot steps 7+8 delivered: step7_init_storage (RocksDB health_check probe + boot.step7.storage_validated event) + step8_init_query_engine (mark_query_phase_started() + boot.step8.query_engine_started event). BC-2.16.002 catalog v1.31→v1.32 (rows 47-48). 7 new tests in boot_steps_7_8_tests.rs. LOCAL 5-pass adversary cascade: 2 fix-bursts, 10 findings closed, 3-CLEAN CONVERGED (passes 3/4/5). Trajectory: 7→3→0→0→0. Security review 0 findings. CI 20/20 GREEN. Demo evidence 4 VHS recordings at docs/demo-evidence/S-3.02-FOLLOWUP-RUNTIME/. S-3.02 graduated partial-merge→merged (ADR-020). develop HEAD: a55bd930. 3718 tests. STATE v7.528→v7.529. NEXT: S-5.01-FOLLOWUP-MCP-BOOT (boot step 9, 8 pts)."
+s_3_02_followup_runtime_status: "MERGED via PR #162 develop@a55bd930 2026-05-28T00:48:00Z"
+s_3_02_followup_runtime_merged_via_pr: 162
+s_3_02_followup_runtime_merged_via_sha: "a55bd930"
+s_3_02_followup_runtime_merged_at: "2026-05-28T00:48:00Z"
+s_3_02_followup_runtime_local_adversary_passes: 5
+s_3_02_followup_runtime_local_fix_bursts: 2
+s_3_02_followup_runtime_local_findings_closed: 10
+s_3_02_followup_runtime_local_converged_at_pass: 5
+s_3_02_followup_runtime_local_trajectory: "7→3→0→0→0"
+s_3_02_followup_runtime_demo_evidence_path: "docs/demo-evidence/S-3.02-FOLLOWUP-RUNTIME/"
+s_3_02_followup_runtime_demo_evidence_complete: true
+s_3_02_followup_runtime_ci_status: "20/20 GREEN — MERGED"
 s_plugin_ci_001_status: "MERGED via PR #159 develop@de1d5db7 2026-05-27T15:05:34Z"
 s_plugin_ci_001_merged_via_pr: 159
 s_plugin_ci_001_merged_via_sha: "de1d5db7"
@@ -163,11 +175,11 @@ dtu_clones_built: in_progress
 dtu_strategy: "Option 2 — DTU-first"
 dtu_strategy_decided: 2026-04-20
 policy_registry_source_of_truth: .factory/policies.yaml
-develop_head: "af79f160"
+develop_head: "a55bd930"
 workspace_test_count_at_001_f_pr: 3708
 workspace_test_count_at_001_f_merge: 3708
 vsdd_factory_version: "1.0.0-rc.18 (re-activated 2026-05-13T15:00:19Z; upgrade chain rc.11 → rc.16 2026-05-10 → rc.18 2026-05-13)"
-workspace_test_count: 3711
+workspace_test_count: 3718
 s_spec_type_unification_001_status: "MERGED via PR #161 develop@af79f160 2026-05-27T22:00:22Z. ADR-030 Approach D: deleted types::SensorSpec, unified on spec_parser::SensorSpec, deleted build_type_spec_map_for_overlay (8→4 TOML parses), added AuthType::CustomViaPlugin, fixed SpecDrivenMapper table_name mismatch, non_exhaustive EXPECTED 36→35, clippy assertions_on_constants fixed. 3711 tests (3 new AC tests). LOCAL 4 passes, 1 fix-burst, 4 findings closed, 3-CLEAN CONVERGED (passes 2/3/4). CI 40/40 GREEN. Demo evidence: docs/demo-evidence/S-SPEC-TYPE-UNIFICATION-001/. Story spec v1.1→done."
 s_spec_type_unification_001_merged_via_pr: 161
 s_spec_type_unification_001_merged_via_sha: "af79f160"
@@ -183,7 +195,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 current_cycle_history: "wave-0-plugin-prereqs (PREREQ-E merged PR #151 2026-05-19); prior: wave-4-operations (active); wave-3-multi-tenant (COMPLETE)"
 bc_index_version: "5.54"
 vp_index_version: "1.76"
-story_index_version: "v2.200"
+story_index_version: "v2.201"
 plugin_migration_001_d_local_adversary_passes: 25
 plugin_migration_001_d_local_fix_bursts: 19
 plugin_migration_001_d_status: "MERGED via PR #153 develop@3f2de889 2026-05-22"
@@ -225,9 +237,9 @@ historical_cycles: [phase-1-convergence, wave-3-multi-tenant, wave-4-operations]
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-27 (D-841 SESSION CHECKPOINT — plugin migration 16/16 CLOSED; S-SPEC-TYPE-UNIFICATION-001 MERGED PR #161 develop@af79f160; 3711 tests; STATE v7.527→v7.528) |
-| **Current Phase** | Wave 3 Tier-3 COMPLETE — **Wave 3-A 4 of 4 SHIPPED**; plugin migration COMPLETE (16 stories); ADR-030 ACCEPTED; **NEXT: S-3.02-FOLLOWUP-RUNTIME + S-5.01-FOLLOWUP-MCP-BOOT (boot steps 7-9 wiring — Wave 5)** |
-| **Current Step** | D-841 SESSION CHECKPOINT for /clear-resume. 4 stories delivered this session: PLUGIN-MIGRATION-001-H (factory-only), PLUGIN-MIGRATION-001-G (factory-only, BC-INDEX v5.54), PLUGIN-MIGRATION-001-F (MERGED PR #160 develop@2dda655f, Wave 2 COMPLETE), S-SPEC-TYPE-UNIFICATION-001 (MERGED PR #161 develop@af79f160, ADR-030 Approach D). Plugin migration saga CLOSED 16/16. develop HEAD: af79f160. 3711 tests. NEXT SESSION: S-3.02-FOLLOWUP-RUNTIME (boot steps 7+8 RocksDB + QueryEngine wiring) then S-5.01-FOLLOWUP-MCP-BOOT (boot step 9 MCP stdio server). |
+| **Last Updated** | 2026-05-28 (D-842 S-3.02-FOLLOWUP-RUNTIME MERGED PR #162 develop@a55bd930; 3718 tests; STATE v7.528→v7.529) |
+| **Current Phase** | Wave 3 Tier-3 COMPLETE — **boot steps 7+8 SHIPPED** (S-3.02-FOLLOWUP-RUNTIME PR #162); **NEXT: S-5.01-FOLLOWUP-MCP-BOOT (boot step 9 — rmcp 1.4 PrismServer + tool router)** |
+| **Current Step** | D-842 S-3.02-FOLLOWUP-RUNTIME MERGED PR #162 develop@a55bd930. Boot steps 7+8 delivered. S-3.02 graduated partial-merge→merged. 3718 tests. NEXT: S-5.01-FOLLOWUP-MCP-BOOT (boot step 9, 8 pts — depends_on S-3.02-FOLLOWUP-RUNTIME now satisfied). |
 
 ## Phase Progress
 
@@ -256,6 +268,7 @@ historical_cycles: [phase-1-convergence, wave-3-multi-tenant, wave-4-operations]
 | **3: PLUGIN-MIGRATION-001-G** | **DONE (factory-only)** | 2026-05-27 | 2026-05-27 | factory-only; no PR to develop | 1 adversary pass; 1 fix-burst; 2 MED findings closed; 8 BCs amended; BC-INDEX v5.53→v5.54; 8 PENDING AMENDMENT banners removed; 6 ACs satisfied |
 | **3: PLUGIN-MIGRATION-001-F** | **MERGED** | 2026-05-27 | 2026-05-27 | PR #160 develop@2dda655f; 21/21 CI GREEN | LOCAL 10 passes 3-CLEAN CONVERGED (passes 8/9/10); 7 fix-bursts; 15 findings closed; trajectory 3→6→2→1→1→2→1→0→0→0; PR-LEVEL security CLEAN + pr-reviewer APPROVE; 3708 tests; 8/8 ACs demo-evidenced; Wave 2 COMPLETE |
 | **3: S-SPEC-TYPE-UNIFICATION-001** | **MERGED** | 2026-05-27 | 2026-05-27 | PR #161 develop@af79f160; 40/40 CI GREEN | LOCAL 4 passes 3-CLEAN CONVERGED (passes 2/3/4); 1 fix-burst; 4 findings closed; ADR-030 Approach D: types::SensorSpec deleted, spec_parser::SensorSpec canonical, 8→4 boot TOML parses, AuthType::CustomViaPlugin, SpecDrivenMapper table_name fix, EXPECTED 36→35; 3711 tests; 3 new AC tests; 7/7 ACs demo-evidenced |
+| **3: S-3.02-FOLLOWUP-RUNTIME** | **MERGED** | 2026-05-27 | 2026-05-28 | PR #162 develop@a55bd930; 20/20 CI GREEN | LOCAL 5 passes 3-CLEAN CONVERGED (passes 3/4/5); 2 fix-bursts; 10 findings closed; trajectory 7→3→0→0→0; boot steps 7+8 (step7_init_storage health_check + step8_init_query_engine mark_query_phase_started); BC-2.16.002 v1.31→v1.32 (rows 47-48); 3718 tests; 7 new tests; security 0 findings; 4 VHS demo recordings; S-3.02 graduated partial-merge→merged |
 
 ## Current Phase Steps
 
@@ -265,6 +278,7 @@ historical_cycles: [phase-1-convergence, wave-3-multi-tenant, wave-4-operations]
 |------|-------|--------|--------|
 _D-735 and earlier archived to cycles/wave-0-plugin-prereqs/burst-log.md. D-736..D-748 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-748 archived D-776 burst 2026-05-22). D-749..D-755 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-777 burst 2026-05-22). D-756..D-757 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-778/D-779 bursts 2026-05-22). D-758..D-759 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-780 burst 2026-05-22). D-759 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-781 burst 2026-05-22). D-777 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-782 burst 2026-05-22). D-778 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-783 burst 2026-05-22). D-779 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-784 burst 2026-05-22). D-780 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-785 burst 2026-05-22). D-781 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-786 burst 2026-05-22). D-786 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-787 burst 2026-05-22). D-782..D-784 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-790 burst 2026-05-22). D-785 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-809 burst 2026-05-23). D-787 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-810 burst 2026-05-24). D-788 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-811 burst 2026-05-24). D-789 archived to cycles/wave-0-plugin-prereqs/burst-log.md. **D-834 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-840 burst 2026-05-27).** (D-812 burst 2026-05-24). D-790..D-812 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-816 burst 2026-05-24). D-812 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-817 burst 2026-05-24)._
 _D-819 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-820 burst 2026-05-24). D-820 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-821 burst 2026-05-24). D-821 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-822 burst 2026-05-24). D-816 + D-817 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-824 burst 2026-05-25). D-818 + D-819 + D-822 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-825 burst 2026-05-26). D-823 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-826 burst 2026-05-27). D-826 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-827 burst 2026-05-27). D-827 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-828 burst 2026-05-27). D-824 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-830 burst 2026-05-27). D-825 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-831 burst 2026-05-27). D-827 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-832 burst 2026-05-27). D-828 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-833 burst 2026-05-27). D-829 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-834 burst 2026-05-27). D-830 + D-834 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-835 burst 2026-05-27). D-831 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-836 burst 2026-05-27). D-832 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-837 burst 2026-05-27). D-833 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-838 burst 2026-05-27). D-838 archived to cycles/wave-0-plugin-prereqs/burst-log.md (D-839 burst 2026-05-27)._
+| D-842 — **S-3.02-FOLLOWUP-RUNTIME MERGED (PR #162 squash-merged to develop@a55bd930 2026-05-28T00:48:00Z). Boot steps 7+8 delivered in crates/prism-bin/src/boot.rs: step7_init_storage accepts &Arc<RocksDbBackend>, calls health_check() (write/read/delete probe + CF verification), emits boot.step7.storage_validated event; step8_init_query_engine calls mark_query_phase_started() (closes write-tool registration window), emits boot.step8.query_engine_started event. BC-2.16.002 catalog updated v1.31→v1.32 (rows 47-48 for both new event_type entries). 7 new tests in boot_steps_7_8_tests.rs; 3718 workspace tests total (+7). LOCAL 5-pass adversary cascade: pass-1 2C+3H+2M, pass-2 1M+2L, passes 3/4/5 CLEAN(strict); 2 fix-bursts, 10 findings closed, 3-CLEAN CONVERGED (passes 3/4/5). Trajectory: 7→3→0→0→0. PR-LEVEL: security review 0 findings CLEAN; CI 20/20 GREEN. Demo evidence: 4 VHS recordings at docs/demo-evidence/S-3.02-FOLLOWUP-RUNTIME/. BCs traced: BC-2.11.001/005/006/007/011/012 + BC-2.15.011 (all lifecycle_status: active — no POL-14 promotions needed). S-3.02 graduated partial-merge→merged per ADR-020. QueryEngine + WriteExecutor full construction deferred to S-5.01-FOLLOWUP-MCP-BOOT (boot step 9). STORY-INDEX v2.200→v2.201. TD-VSDD-053 single-commit. STATE v7.528→v7.529.** | state-manager (D-842 post-merge burst) | MERGED | develop@a55bd930 |
 | D-840 — **S-SPEC-TYPE-UNIFICATION-001 MERGED (PR #161 squash-merged to develop@af79f160 2026-05-27T22:00:22Z). ADR-030 Approach D delivered: deleted types::SensorSpec, unified on spec_parser::SensorSpec (ConfigSnapshot::sensor_specs field type changed), deleted build_type_spec_map_for_overlay (eliminated double-parse boot: 8→4 TOML parses), added AuthType::CustomViaPlugin variant, fixed SpecDrivenMapper table_name qualification mismatch (latent integration bug), non-exhaustive EXPECTED 36→35, pre-existing clippy assertions_on_constants lint fixed. 3711 tests (3 new AC tests). LOCAL adversary cascade: 4 passes, 1 fix-burst, 4 findings closed, 3-CLEAN CONVERGED (passes 2/3/4). CI 40/40 GREEN. Demo evidence: docs/demo-evidence/S-SPEC-TYPE-UNIFICATION-001/ (7/7 ACs). Story spec v1.1 → done. ARCH-INDEX ADR-030 PROPOSED→ACCEPTED v2.103→v2.104. POL-14: BC-2.16.001 + BC-2.06.012 already lifecycle_status: active — no promotions needed. STORY-INDEX v2.199→v2.200. TD-VSDD-053 single-commit. STATE v7.526→v7.527.** | state-manager (D-840 post-merge burst) | MERGED | develop@af79f160 |
 | D-839 — **PLUGIN-MIGRATION-001-F MERGED (PR #160 squash-merged to develop@2dda655f 2026-05-27T18:56:10Z). 7 new test_PLUGIN_MIGRATION_001_F_* tests (3708 total workspace tests). 12 sensor-named test files rewritten to TOML fixture loading. Compile-fail perimeter tests/external/no-hardcoded-sensors/ (E0432 verified; CI job no-hardcoded-sensors-compile-fail with per-symbol positive-coverage). LOCAL 10-pass adversary cascade: 7 fix-bursts, 15 findings closed, 3-CLEAN CONVERGED (passes 8/9/10). Trajectory: 3→6→2→1→1→2→1→0→0→0. PR-LEVEL: security CLEAN (0 findings), pr-reviewer APPROVE (0 findings), CI GREEN (21/21). Demo evidence: docs/demo-evidence/PLUGIN-MIGRATION-001-F/ (8/8 ACs). Story spec v1.6 → done. POL-14: BC-2.01.013 + BC-2.16.009 + BC-2.16.012 already lifecycle_status: active — no promotions needed. Wave 2 COMPLETE (3/3): 001-H DONE + 001-G DONE + 001-F MERGED. Plugin migration saga CLOSED: Wave 0 prereqs (PREREQ-A through F, 6 stories) + Wave 1 (001-D, 001-E, S-CONFIG, 001-A, 001-B, 001-C, S-PLUGIN-CI-001 — 7 stories) + Wave 2 (001-F, 001-G, 001-H — 3 stories) = 16 stories ALL COMPLETE. STORY-INDEX v2.196→v2.197 (001-F row updated draft→done/merged). Worktree PLUGIN-MIGRATION-001-F pending cleanup. TD-VSDD-053 single-commit. STATE v7.525→v7.526.** | state-manager (D-839 post-merge burst) | MERGED | develop@2dda655f; Wave 2 COMPLETE; plugin migration saga CLOSED. |
 | D-837 — **PLUGIN-MIGRATION-001-G COMPLETE (factory-only). 8 sensor-named BCs amended per ADR-023: auth BCs (BC-2.01.005 v1.5, BC-2.01.006 v1.5, BC-2.01.007 v1.5, BC-2.01.008 v1.6) + field-mapping BCs (BC-2.02.003 v1.6, BC-2.02.004 v1.6, BC-2.02.005 v1.5, BC-2.02.006 v1.5). BC-INDEX v5.53→v5.54. 1 adversary pass: 2 MED findings (MED-001 auth BC status draft→active, MED-002 auth_type key path) found + fixed in fix-burst (commits 38db97b9 + 69eb4028 + f8f3458d + c431f3bb). All 6 ACs satisfied. 8 PENDING AMENDMENT banners removed. Behavioral semantics preserved in all 8 BCs. Architecture docs CLEAN. POL-29 sweep CLEAN. No PR to develop (factory-only). Story draft→done. STORY-INDEX v2.194→v2.195. STATE v7.523→v7.524. Wave 2: 2/3 complete. NEXT: PLUGIN-MIGRATION-001-F (code changes, full TDD pipeline).** | state-manager (D-837 completion burst) | DONE | COMMITTED — Wave 2 2/3. |
@@ -278,6 +292,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-842 | 2026-05-28 | **S-3.02-FOLLOWUP-RUNTIME MERGED (PR #162 squash-merged to develop@a55bd930 2026-05-28T00:48:00Z). Boot steps 7+8 delivered in crates/prism-bin/src/boot.rs: step7_init_storage accepts &Arc<RocksDbBackend>, calls health_check() (write/read/delete probe + CF verification), emits boot.step7.storage_validated event; step8_init_query_engine calls mark_query_phase_started() (closes write-tool registration window), emits boot.step8.query_engine_started event. BC-2.16.002 catalog v1.31→v1.32 (rows 47-48 for 2 new event_type entries). 7 new tests in boot_steps_7_8_tests.rs; 3718 workspace tests total. LOCAL 5-pass adversary cascade: pass-1 2C+3H+2M closed in fix-burst-1; pass-2 1M+2L closed in fix-burst-2; passes 3/4/5 CLEAN(strict); 2 fix-bursts, 10 findings closed, 3-CLEAN CONVERGED (passes 3/4/5). Trajectory: 7→3→0→0→0. PR-LEVEL: security review CLEAN (0 findings); CI 20/20 GREEN. Demo evidence: 4 VHS recordings at docs/demo-evidence/S-3.02-FOLLOWUP-RUNTIME/. BCs traced: BC-2.11.001/005/006/007/011/012 + BC-2.15.011 (all lifecycle_status: active — no POL-14 promotions needed). S-3.02 graduated partial-merge→merged per ADR-020. QueryEngine + WriteExecutor full construction deferred to S-5.01-FOLLOWUP-MCP-BOOT (boot step 9). STORY-INDEX v2.200→v2.201. TD-VSDD-053 single-commit. STATE v7.528→v7.529. NEXT: S-5.01-FOLLOWUP-MCP-BOOT (8 pts, depends_on S-3.02-FOLLOWUP-RUNTIME now satisfied).** | state-manager (D-842 post-merge burst) | Phase 3 / wave-0-plugin-prereqs | 2026-05-28 |
 | D-841 | 2026-05-27 | **SESSION CHECKPOINT for /clear-resume (D-841). Post-Wave-1-COMPLETE continuation session. 4 stories delivered: (1) PLUGIN-MIGRATION-001-H DONE (factory-only — 4 stories marked superseded by ADR-023: S-2.06, S-2.07, W3-FIX-S307-001, S-3.1.06-ImplPhase; 1 adversary pass, 1 fix-burst); (2) PLUGIN-MIGRATION-001-G DONE (factory-only — 8 sensor-named BCs amended per ADR-023; BC-INDEX v5.53→v5.54; 1 adversary pass, 2 MED findings fixed); (3) PLUGIN-MIGRATION-001-F MERGED PR #160 develop@2dda655f (12 test files rewritten to TOML fixture loading, compile-fail perimeter tests/external/no-hardcoded-sensors/, 10 adversary passes, 7 fix-bursts, 15 findings closed, 3-CLEAN CONVERGED passes 8/9/10, CI 21/21 GREEN; Wave 2 COMPLETE 3/3); (4) S-SPEC-TYPE-UNIFICATION-001 MERGED PR #161 develop@af79f160 (ADR-030 Approach D: deleted types::SensorSpec, unified on spec_parser::SensorSpec, deleted build_type_spec_map_for_overlay 8→4 TOML parses, added AuthType::CustomViaPlugin, fixed SpecDrivenMapper table_name mismatch, EXPECTED 36→35; 4 adversary passes, 1 fix-burst, 4 findings closed, 3-CLEAN CONVERGED passes 2/3/4; CI 40/40 GREEN). Plugin migration saga CLOSED 16/16 (Wave 0 prereqs 6 + Wave 1 7 + Wave 2 3). develop HEAD: af79f160. 3711 tests. No open PRs. Stale worktrees: S-3.09 (FROZEN), W3-FIX-S307-001 (superseded). SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-27-PLUGIN-MIGRATION-SAGA-CLOSED written. BC-INDEX v5.54. ARCH-INDEX v2.104. STORY-INDEX v2.200. NEXT SESSION PRIORITY 1: S-3.02-FOLLOWUP-RUNTIME (8 pts, boot steps 7+8 — RocksDB + QueryEngine construction wiring; depends_on S-WAVE5-PREP-01 MERGED). NEXT SESSION PRIORITY 2: S-5.01-FOLLOWUP-MCP-BOOT (8 pts, boot step 9 — rmcp 1.4 PrismServer + tool router + stdio transport; depends_on S-3.02-FOLLOWUP-RUNTIME). Boot steps 1-6 implemented, steps 7-11 are todo!() stubs. 2 stories connect the built subsystems into a runnable prism start binary with live MCP tools. User goal: end-to-end demo with MCP + DTU clones. POL-29 maintenance deferred per user direction. TD-VSDD-053 single-commit. STATE v7.527→v7.528.** | state-manager (D-841 session-checkpoint burst) | Phase 3 / wave-0-plugin-prereqs | 2026-05-27 |
 | D-840 | 2026-05-27 | **S-SPEC-TYPE-UNIFICATION-001 MERGED (PR #161 squash-merged to develop@af79f160 2026-05-27T22:00:22Z). ADR-030 Approach D delivered: deleted types::SensorSpec, unified on spec_parser::SensorSpec (ConfigSnapshot::sensor_specs type changed), deleted build_type_spec_map_for_overlay (8→4 boot TOML parses), added AuthType::CustomViaPlugin variant, fixed SpecDrivenMapper table_name qualification mismatch (latent integration bug), non-exhaustive EXPECTED 36→35, pre-existing clippy assertions_on_constants lint fixed. 3711 tests (3 new AC tests). LOCAL adversary cascade: 4 passes, 1 fix-burst, 4 findings closed, 3-CLEAN CONVERGED (passes 2/3/4). CI 40/40 GREEN. Demo evidence: docs/demo-evidence/S-SPEC-TYPE-UNIFICATION-001/ (7/7 ACs). Story spec v1.1 → done. ARCH-INDEX ADR-030 PROPOSED→ACCEPTED v2.103→v2.104. POL-14: BC-2.16.001 + BC-2.06.012 already lifecycle_status: active — no promotions needed. STORY-INDEX v2.199→v2.200. TD-VSDD-053 single-commit. STATE v7.526→v7.527.** | state-manager (D-840 post-merge burst) | Phase 3 / wave-0-plugin-prereqs | 2026-05-27 |
 | D-839 | 2026-05-27 | **PLUGIN-MIGRATION-001-F MERGED (PR #160 squash-merged to develop@2dda655f 2026-05-27T18:56:10Z). 7 new test_PLUGIN_MIGRATION_001_F_* tests (3708 total workspace tests). 12 sensor-named test files rewritten to TOML fixture loading. Compile-fail perimeter tests/external/no-hardcoded-sensors/ (E0432 verified). LOCAL 10-pass adversary cascade: 7 fix-bursts, 15 findings closed, 3-CLEAN CONVERGED (passes 8/9/10). Trajectory: 3→6→2→1→1→2→1→0→0→0. PR-LEVEL: security CLEAN, pr-reviewer APPROVE, CI GREEN (21/21). Demo evidence 8/8 ACs. Story spec v1.6 → done. POL-14: BC-2.01.013 + BC-2.16.009 + BC-2.16.012 already active — no promotions needed. Wave 2 COMPLETE (3/3). Plugin migration saga CLOSED: 16 stories ALL COMPLETE (Wave 0 prereqs 6 + Wave 1 7 + Wave 2 3). STORY-INDEX v2.196→v2.197. Worktree pending cleanup. TD-VSDD-053 single-commit. STATE v7.525→v7.526.** | state-manager (D-839 post-merge burst) | Phase 3 / wave-0-plugin-prereqs | 2026-05-27 |
@@ -459,11 +474,13 @@ Prior cycle history:
 
 ---
 
-## Session Resume Checkpoint (2026-05-27 — D-841 SESSION CHECKPOINT; Plugin Migration Saga CLOSED; ADR-030 ACCEPTED; NEXT: Boot Wiring)
+## Session Resume Checkpoint (2026-05-28 — D-842 S-3.02-FOLLOWUP-RUNTIME MERGED; NEXT: S-5.01-FOLLOWUP-MCP-BOOT)
 
-_Previous checkpoint (D-839 PLUGIN-MIGRATION-001-F MERGED; Wave 2 COMPLETE; Plugin Migration Saga CLOSED) archived: [cycles/wave-0-plugin-prereqs/session-checkpoints.md](cycles/wave-0-plugin-prereqs/session-checkpoints.md)_
+_Previous checkpoint (D-841 SESSION CHECKPOINT; Plugin Migration Saga CLOSED; ADR-030 ACCEPTED) archived: [cycles/wave-0-plugin-prereqs/session-checkpoints.md](cycles/wave-0-plugin-prereqs/session-checkpoints.md)_
 
-**STATE v7.528. D-841 — Session checkpoint. Plugin migration 16/16 CLOSED. ADR-030 ACCEPTED. develop HEAD: af79f160. 3711 tests.**
+**STATE v7.529. D-842 — S-3.02-FOLLOWUP-RUNTIME MERGED PR #162 develop@a55bd930. Boot steps 7+8 delivered. S-3.02 graduated partial-merge→merged. 3718 tests.**
+
+**S-3.02-FOLLOWUP-RUNTIME:** MERGED PR #162 develop@a55bd930. step7_init_storage (RocksDB health_check probe + boot.step7.storage_validated event) + step8_init_query_engine (mark_query_phase_started() + boot.step8.query_engine_started event). BC-2.16.002 v1.31→v1.32. LOCAL 5-pass cascade 3-CLEAN CONVERGED (passes 3/4/5). CI 20/20 GREEN. Demo evidence 4/4 VHS.
 
 **Plugin migration scoreboard — ALL COMPLETE (16/16):**
 
@@ -471,22 +488,20 @@ Wave 0 prereqs (6): PREREQ-A through PREREQ-F — MERGED (PRs #143/#144/#146/#14
 Wave 1 (7): 001-D/E/S-CONFIG/001-A/001-B/001-C/S-PLUGIN-CI-001 — MERGED (PRs #153–#159)
 Wave 2 (3): 001-H (factory-only DONE) + 001-G (factory-only DONE) + 001-F (MERGED PR #160 develop@2dda655f)
 
-**S-SPEC-TYPE-UNIFICATION-001:** MERGED PR #161 develop@af79f160. ADR-030 Approach D: types::SensorSpec deleted, spec_parser::SensorSpec canonical, 8→4 boot TOML parses, AuthType::CustomViaPlugin added, SpecDrivenMapper table_name fix, EXPECTED 36→35.
+**develop HEAD:** `a55bd930`
 
-**develop HEAD:** `af79f160`
-
-**Workspace test count:** 3711
+**Workspace test count:** 3718
 
 **Active worktrees (stale — pending cleanup):**
-- `.worktrees/PLUGIN-MIGRATION-001-F` — pending cleanup (PR #160 merged)
+- `.worktrees/S-3.02-FOLLOWUP-RUNTIME` — pending cleanup (PR #162 merged)
 - `.worktrees/S-3.09` — FROZEN (BUG-S309-PLUGIN), stale since 2026-05-11
 - `.worktrees/W3-FIX-S307-001` — BLOCKED (superseded by 001-A per D-333), stale since 2026-05-24
 
 **Open PRs:** None.
 
 **NEXT SESSION PRIORITIES:**
-1. **S-3.02-FOLLOWUP-RUNTIME** (8 pts) — boot steps 7+8: RocksDB construction + QueryEngine wiring. Depends: S-WAVE5-PREP-01 MERGED (satisfied). Story in E-CLEANUP-02 (Runtime Reality) epic, Wave 5.
-2. **S-5.01-FOLLOWUP-MCP-BOOT** (8 pts) — boot step 9: rmcp 1.4 PrismServer + tool router + stdio transport. Depends: S-3.02-FOLLOWUP-RUNTIME (sequential).
+1. **S-5.01-FOLLOWUP-MCP-BOOT** (8 pts) — boot step 9: rmcp 1.4 PrismServer + tool router + stdio transport. Depends: S-3.02-FOLLOWUP-RUNTIME MERGED (satisfied). Story in E-CLEANUP-02 (Runtime Reality) epic.
+2. Boot steps 10-11 TBD — full QueryEngine + WriteExecutor construction + MCP tool wiring.
 
 **Demo readiness:** Boot steps 1-6 IMPLEMENTED. Steps 7-11 are `todo!()` stubs. These 2 stories close the gap to a runnable `prism start` binary with live MCP tools.
 
