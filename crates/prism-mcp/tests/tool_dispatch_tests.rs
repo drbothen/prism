@@ -12,10 +12,7 @@
 //! Tests for AC-1, AC-6, AC-8 require rmcp runtime integration and are
 //! not included here (rmcp is not yet a workspace dependency per OQ-1).
 //!
-//! Red Gate: all tests exercising todo!() stubs fail before implementation.
-//! Tests exercising already-implemented components (InjectionScanner,
-//! SafetyEnvelopeBuilder, ToolDescriptionRegistrar, error code constants)
-//! are expected to pass.
+//! All tests are regression guards verifying implemented behavior. No stubs remain.
 
 use prism_core::error::PrismError;
 use prism_mcp::error_mapping::codes;
@@ -109,65 +106,39 @@ fn test_BC_2_09_003_invariant_original_value_preserved_after_scan() {
 ///
 /// AC-5 test vector from story spec: "PrismError::ParseError → -32602".
 /// Note: the canonical variant is `QueryParseFailed` (E-QUERY-001).
-///
-/// Red Gate: `map_prism_error` is `todo!()` → this test MUST FAIL before implementation.
 #[test]
 fn test_BC_2_10_007_map_prism_error_parse_error_to_32602() {
     let err = PrismError::QueryParseFailed {
         offset: 0,
         detail: "unexpected token 'FLOM' at offset 0".to_owned(),
     };
-    let result = std::panic::catch_unwind(|| map_prism_error(err));
-    match result {
-        Ok((code, _message)) => {
-            assert_eq!(
-                code,
-                codes::INVALID_PARAMS,
-                "QueryParseFailed must map to INVALID_PARAMS ({}) for AC-5; got {}",
-                codes::INVALID_PARAMS,
-                code
-            );
-        }
-        Err(_) => {
-            panic!(
-                "map_prism_error panicked (todo! not yet implemented) — Red Gate confirmed. \
-                 Implementer: implement map_prism_error to close AC-5."
-            );
-        }
-    }
+    let (code, _message) = map_prism_error(err);
+    assert_eq!(
+        code,
+        codes::INVALID_PARAMS,
+        "QueryParseFailed must map to INVALID_PARAMS ({}) for AC-5; got {}",
+        codes::INVALID_PARAMS,
+        code
+    );
 }
 
 /// BC-2.10.007: PrismError::QueryTimeout maps to -32001 (Timeout).
-///
-/// Red Gate: `map_prism_error` is `todo!()` → this test MUST FAIL before implementation.
 #[test]
 fn test_BC_2_10_007_map_prism_error_timeout_to_32001() {
     let err = PrismError::QueryTimeout { elapsed_ms: 30_000 };
-    let result = std::panic::catch_unwind(|| map_prism_error(err));
-    match result {
-        Ok((code, _message)) => {
-            assert_eq!(
-                code,
-                codes::TIMEOUT,
-                "QueryTimeout must map to TIMEOUT ({}) ; got {}",
-                codes::TIMEOUT,
-                code
-            );
-        }
-        Err(_) => {
-            panic!(
-                "map_prism_error panicked (todo! not yet implemented) — Red Gate confirmed. \
-                 Implementer: implement QueryTimeout mapping."
-            );
-        }
-    }
+    let (code, _message) = map_prism_error(err);
+    assert_eq!(
+        code,
+        codes::TIMEOUT,
+        "QueryTimeout must map to TIMEOUT ({}) ; got {}",
+        codes::TIMEOUT,
+        code
+    );
 }
 
 /// BC-2.10.007 / AC-7: PrismError::CapabilityDenied maps to -32002 (Forbidden).
 ///
 /// AC-7 test vector: write-disabled sensor → feature flag denied → -32002.
-///
-/// Red Gate: `map_prism_error` is `todo!()` → this test MUST FAIL before implementation.
 #[test]
 fn test_BC_2_10_007_map_prism_error_capability_denied_to_32002() {
     let err = PrismError::CapabilityDenied {
@@ -177,119 +148,73 @@ fn test_BC_2_10_007_map_prism_error_capability_denied_to_32002() {
         suggestion: "Enable sensor.crowdstrike.containment in prism.toml".to_owned(),
         resolution_trace: vec!["sensor.crowdstrike.containment=deny".to_owned()],
     };
-    let result = std::panic::catch_unwind(|| map_prism_error(err));
-    match result {
-        Ok((code, _message)) => {
-            assert_eq!(
-                code,
-                codes::FORBIDDEN,
-                "CapabilityDenied must map to FORBIDDEN ({}) for AC-7; got {}",
-                codes::FORBIDDEN,
-                code
-            );
-        }
-        Err(_) => {
-            panic!(
-                "map_prism_error panicked (todo! not yet implemented) — Red Gate confirmed. \
-                 Implementer: implement CapabilityDenied mapping."
-            );
-        }
-    }
+    let (code, _message) = map_prism_error(err);
+    assert_eq!(
+        code,
+        codes::FORBIDDEN,
+        "CapabilityDenied must map to FORBIDDEN ({}) for AC-7; got {}",
+        codes::FORBIDDEN,
+        code
+    );
 }
 
 /// BC-2.10.007: PrismError::FeatureFlagDisabled maps to -32002 (Forbidden).
 ///
 /// Canonical variant for feature-flag-denied scenario per ADR-022 §F.
-///
-/// Red Gate: `map_prism_error` is `todo!()` → this test MUST FAIL before implementation.
 #[test]
 fn test_BC_2_10_007_map_prism_error_feature_flag_disabled_to_32002() {
     let err = PrismError::FeatureFlagDisabled {
         flag: "write.crowdstrike".to_owned(),
     };
-    let result = std::panic::catch_unwind(|| map_prism_error(err));
-    match result {
-        Ok((code, _message)) => {
-            assert_eq!(
-                code,
-                codes::FORBIDDEN,
-                "FeatureFlagDisabled must map to FORBIDDEN ({}) for AC-7; got {}",
-                codes::FORBIDDEN,
-                code
-            );
-        }
-        Err(_) => {
-            panic!(
-                "map_prism_error panicked (todo! not yet implemented) — Red Gate confirmed. \
-                 Implementer: implement FeatureFlagDisabled mapping."
-            );
-        }
-    }
+    let (code, _message) = map_prism_error(err);
+    assert_eq!(
+        code,
+        codes::FORBIDDEN,
+        "FeatureFlagDisabled must map to FORBIDDEN ({}) for AC-7; got {}",
+        codes::FORBIDDEN,
+        code
+    );
 }
 
 /// BC-2.10.007: PrismError::McpParameterInvalid maps to -32602 (Invalid params).
 ///
 /// Models AC-4: missing required field produces parameter-invalid error.
-///
-/// Red Gate: `map_prism_error` is `todo!()` → this test MUST FAIL before implementation.
 #[test]
 fn test_BC_2_10_007_map_prism_error_mcp_parameter_invalid_to_32602() {
     let err = PrismError::McpParameterInvalid {
         tool: "query".to_owned(),
         detail: "required field 'query' is missing".to_owned(),
     };
-    let result = std::panic::catch_unwind(|| map_prism_error(err));
-    match result {
-        Ok((code, message)) => {
-            assert_eq!(
-                code,
-                codes::INVALID_PARAMS,
-                "McpParameterInvalid must map to INVALID_PARAMS ({}) for AC-4; got {}",
-                codes::INVALID_PARAMS,
-                code
-            );
-            assert!(
-                message.contains("query") || message.contains("missing"),
-                "message must reference the invalid field; got: '{message}'"
-            );
-        }
-        Err(_) => {
-            panic!(
-                "map_prism_error panicked (todo! not yet implemented) — Red Gate confirmed. \
-                 Implementer: implement McpParameterInvalid mapping."
-            );
-        }
-    }
+    let (code, message) = map_prism_error(err);
+    assert_eq!(
+        code,
+        codes::INVALID_PARAMS,
+        "McpParameterInvalid must map to INVALID_PARAMS ({}) for AC-4; got {}",
+        codes::INVALID_PARAMS,
+        code
+    );
+    assert!(
+        message.contains("query") || message.contains("missing"),
+        "message must reference the invalid field; got: '{message}'"
+    );
 }
 
 /// BC-2.10.007: PrismError::Internal maps to -32000 (Internal error).
 ///
 /// Catch-all for unrecognized errors — must not expose detail in message.
-///
-/// Red Gate: `map_prism_error` is `todo!()` → this test MUST FAIL before implementation.
 #[test]
 fn test_BC_2_10_007_map_prism_error_internal_to_32000() {
     let err = PrismError::Internal {
         detail: "unexpected state in planner".to_owned(),
     };
-    let result = std::panic::catch_unwind(|| map_prism_error(err));
-    match result {
-        Ok((code, _message)) => {
-            assert_eq!(
-                code,
-                codes::INTERNAL_ERROR,
-                "Internal error must map to INTERNAL_ERROR ({}) ; got {}",
-                codes::INTERNAL_ERROR,
-                code
-            );
-        }
-        Err(_) => {
-            panic!(
-                "map_prism_error panicked (todo! not yet implemented) — Red Gate confirmed. \
-                 Implementer: implement catch-all Internal mapping."
-            );
-        }
-    }
+    let (code, _message) = map_prism_error(err);
+    assert_eq!(
+        code,
+        codes::INTERNAL_ERROR,
+        "Internal error must map to INTERNAL_ERROR ({}) ; got {}",
+        codes::INTERNAL_ERROR,
+        code
+    );
 }
 
 // ─── Error code constants — always pass (constants already defined) ───────────
@@ -428,8 +353,7 @@ fn test_BC_2_09_006_tool_descriptions_contain_security_warnings() {
 /// Scans the prism-mcp production source tree for todo!/unimplemented! macros.
 /// Excludes test files (tests/**/*.rs, *_test.rs).
 ///
-/// Red Gate: production stubs currently have todo!() → this test MUST FAIL before
-/// implementation. After implementation, the test passes.
+/// Regression guard: verifies implementation is complete and no stubs remain.
 #[test]
 fn test_AC_10_no_todo_in_production_code() {
     use std::path::Path;
@@ -477,8 +401,8 @@ fn test_AC_10_no_todo_in_production_code() {
 
 /// BC-2.10.002 (AC-2): PrismServer::new() must construct without panicking.
 ///
-/// Red Gate: `PrismServer::new()` is `todo!()` → this test MUST FAIL before
-/// implementation via catch_unwind detecting the panic.
+/// Regression guard: catch_unwind ensures construction remains panic-free as
+/// implementation evolves.
 #[test]
 fn test_BC_2_10_002_prism_server_construction_does_not_panic() {
     use prism_mcp::server::PrismServer;
@@ -489,9 +413,7 @@ fn test_BC_2_10_002_prism_server_construction_does_not_panic() {
 
     assert!(
         result.is_ok(),
-        "PrismServer::new() must not panic — currently todo!() (Red Gate). \
-         Implementer: wire Arc<QueryEngine>, Arc<WriteExecutor>, Arc<AuditEmitter>, \
-         Arc<SecurityConfig> per ADR-022 §F."
+        "PrismServer::new() must not panic — regression guard per BC-2.10.002."
     );
 }
 
@@ -614,30 +536,21 @@ fn test_BC_2_09_007_tool_registration_carries_output_schema_with_meta_fields() {
 /// BC-2.10.007: map_prism_error for QueryParseFailed must include "PrismQL" in message.
 ///
 /// AC-5 requires the message format: "PrismQL parse error: {detail}".
-///
-/// Red Gate: `map_prism_error` is `todo!()` → this test MUST FAIL before implementation.
 #[test]
 fn test_BC_2_10_007_parse_error_message_contains_prismql() {
     let err = PrismError::QueryParseFailed {
         offset: 10,
         detail: "unexpected EOF".to_owned(),
     };
-    let result = std::panic::catch_unwind(|| map_prism_error(err));
-    match result {
-        Ok((code, message)) => {
-            assert_eq!(
-                code,
-                codes::INVALID_PARAMS,
-                "code must be INVALID_PARAMS for parse error"
-            );
-            let msg_lower = message.to_lowercase();
-            assert!(
-                msg_lower.contains("parse") || msg_lower.contains("prismql"),
-                "AC-5: message must reference 'parse' or 'PrismQL'; got: '{message}'"
-            );
-        }
-        Err(_) => {
-            panic!("map_prism_error panicked (todo! not yet implemented) — Red Gate confirmed.");
-        }
-    }
+    let (code, message) = map_prism_error(err);
+    assert_eq!(
+        code,
+        codes::INVALID_PARAMS,
+        "code must be INVALID_PARAMS for parse error"
+    );
+    let msg_lower = message.to_lowercase();
+    assert!(
+        msg_lower.contains("parse") || msg_lower.contains("prismql"),
+        "AC-5: message must reference 'parse' or 'PrismQL'; got: '{message}'"
+    );
 }
