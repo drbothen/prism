@@ -6,6 +6,12 @@
 //!
 //! Injection defense (BC-2.09.001) applies here exactly as in query tools —
 //! `injection_scanner.scan_all()` before any WriteExecutor call.
+//!
+//! Note: Full implementation requires Arc<WriteExecutor> wiring via PrismServer
+//! (ADR-022 §F). The standalone function here is a stub that will be superseded by
+//! the `#[tool_router]` macro block on PrismServer once rmcp is wired (OQ-1).
+
+use std::io::{Error, ErrorKind};
 
 /// Confirm an irreversible write operation by confirmation token.
 ///
@@ -20,6 +26,14 @@
 /// # Token Expiry (EC-006)
 /// If the confirmation token has expired, WriteExecutor returns `TokenExpired`
 /// which `map_prism_error` maps to `-32002` with an expiry message.
-pub async fn tool_confirm_action() -> Result<(), Box<dyn std::error::Error>> {
-    todo!("S-5.01-FOLLOWUP-MCP-BOOT: tool_confirm_action — injection scan → validate token → write_executor.execute → ResponseEnvelope")
+///
+/// # Implementation Status
+/// Full implementation is in `PrismServer::tool_confirm_action` (method on the
+/// `#[tool_router]` impl block) once rmcp is wired as a workspace dep (OQ-1).
+pub async fn tool_confirm_action() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    Err(Box::new(Error::new(
+        ErrorKind::Unsupported,
+        "Tool 'confirm_action' requires Arc<WriteExecutor> wiring via PrismServer. \
+         Wire rmcp workspace dependency (OQ-1) to complete this tool handler.",
+    )))
 }

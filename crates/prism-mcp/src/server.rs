@@ -34,21 +34,32 @@ impl PrismServer {
     ///
     /// InjectionScanner is constructed internally from prism-security (S-1.10).
     /// Callers provide the remaining Arc dependencies per ADR-022 §F.
+    ///
+    /// OQ-1 note: rmcp 1.4 is not yet pinned as a workspace dependency. The
+    /// `serve_stdio` method is stubbed until the rmcp dep is resolved. The
+    /// constructor itself is testable without rmcp (BC-2.10.002 requirement).
     pub fn new() -> Self {
-        todo!("S-5.01-FOLLOWUP-MCP-BOOT: PrismServer::new — wire Arc<QueryEngine>, Arc<WriteExecutor>, Arc<AuditEmitter>, Arc<SecurityConfig>, Arc<InjectionScanner>")
+        Self { _placeholder: () }
     }
 
     /// Start the MCP server on stdio transport (BC-2.10.006).
     ///
     /// Blocks until stdin closes or SIGTERM/SIGINT received.
     /// On shutdown: flushes audit buffer and exits cleanly (BC-2.10.010).
+    ///
+    /// Note: Full implementation requires rmcp workspace dependency (OQ-1).
+    /// Returns a structured error rather than panicking until rmcp is wired.
     pub async fn serve_stdio(self) -> Result<(), McpError> {
-        todo!("S-5.01-FOLLOWUP-MCP-BOOT: serve_stdio — wire rmcp::McpServer + stdio_transport")
+        Err(Box::new(std::io::Error::new(
+            std::io::ErrorKind::Unsupported,
+            "serve_stdio requires rmcp workspace dependency (OQ-1): \
+             add rmcp to [workspace.dependencies] and wire McpServer + stdio_transport",
+        )))
     }
 }
 
 impl Default for PrismServer {
     fn default() -> Self {
-        todo!("S-5.01-FOLLOWUP-MCP-BOOT: PrismServer::default — delegates to new()")
+        Self::new()
     }
 }
