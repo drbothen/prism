@@ -56,6 +56,18 @@ libc = { version = "0.2", optional = true }
 # and injects it into PluginRuntime::new(). reqwest is a transitive dep via prism-spec-engine
 # but must be declared here for boot.rs to call reqwest::Client::builder() directly.
 reqwest = { version = "0.12", features = ["rustls-tls"], default-features = false }
+# S-5.01-FOLLOWUP-MCP-BOOT: step9 constructs BootNullCredentialStore + TracingAuditWriter
+# inline. These require secrecy::SecretString (for CredentialStore), ulid::Ulid (for
+# AuditWriter::write_intent), and async-trait (for async trait impls on boot-local structs).
+secrecy = { version = "0.8" }
+ulid = { version = "1", features = ["serde"] }
+async-trait = "0.1"
+# step9 also needs prism-ocsf for OcsfNormalizer, prism-sensors for AdapterRegistry +
+# CredentialResolver, prism-security for InjectionScanner + FeatureFlagEvaluator +
+# ConfirmationTokenStore.
+prism-ocsf = { path = "../prism-ocsf", version = "0.1.0" }
+prism-sensors = { path = "../prism-sensors", version = "0.2.0" }
+prism-security = { path = "../prism-security", version = "0.1.0" }
 
 # ---------------------------------------------------------------------------
 # Integration test targets — explicit declarations required for required-features

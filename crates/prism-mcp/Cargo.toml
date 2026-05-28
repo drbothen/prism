@@ -12,10 +12,16 @@ name = "prism_mcp"
 [dependencies]
 prism-core = { path = "../prism-core", version = "0.2.0" }
 prism-security = { path = "../prism-security", version = "0.1.0" }
+prism-query = { path = "../prism-query", version = "0.1.0" }
+prism-sensors = { path = "../prism-sensors", version = "0.2.0" }
+prism-ocsf = { path = "../prism-ocsf", version = "0.1.0" }
+prism-audit = { path = "../prism-audit", version = "0.1.0" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 chrono = { version = "0.4", features = ["serde"] }
 tracing = "0.1"
+# tokio: async runtime for serve_stdio and signal handling (BC-2.10.006, BC-2.10.010).
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "signal", "time"] }
 # rmcp 1.7: Official Rust MCP SDK — server transport, macro-driven tool router, schemars integration.
 # Required for PrismServer ServerHandler impl and stdio transport (BC-2.10.001, BC-2.10.006).
 rmcp = { workspace = true }

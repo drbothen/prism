@@ -376,9 +376,16 @@ pub async fn run_boot_sequence(config_dir: &Path) -> Result<RunningServer, BootE
     // Pass ctx.rocksdb_backend (opened in step 6) so step7 can health-check it.
     step7_init_storage(&ctx.rocksdb_backend).await?;
 
-    // Steps 9–11 are todo!() stubs for sibling stories.
     step8_init_query_engine().await?;
-    step9_start_mcp_server().await?;
+    // Step 9: start MCP server — construct QueryEngine + WriteExecutor with available
+    // deps from prior boot steps, then spawn PrismServer::serve_stdio as a background task.
+    // Pass BootContext deps (storage, config_manager, resolved_spec_map) to step9 for wiring.
+    step9_start_mcp_server(
+        Arc::clone(&ctx.rocksdb_backend),
+        Arc::clone(&ctx.config_manager),
+        Arc::clone(&ctx.resolved_spec_map),
+    )
+    .await?;
     step10_start_hot_reload().await?;
 
     let (shutdown_tx, _) = tokio::sync::broadcast::channel(1);
@@ -1587,11 +1594,227 @@ pub async fn step8_init_query_engine() -> Result<(), BootError> {
 
 /// Step 9 [BACKGROUND]: MCP server start.
 ///
-/// TODO(S-WAVE5-PREP-01/S-5.01-FOLLOWUP-MCP-BOOT): Start PrismServer stdio transport.
-/// PrismServer struct does not exist yet — resolved by S-5.01-FOLLOWUP-MCP-BOOT.
+/// Constructs `QueryEngine` + `WriteExecutor` from available boot deps, builds
+/// `PrismServer::with_deps(...)`, and spawns `serve_stdio` as a background tokio task.
+///
 /// Gate: MCP server MUST NOT start before step 8 completes (BC-2.22.001 pre-traffic gate).
-pub async fn step9_start_mcp_server() -> Result<(), BootError> {
-    todo!("S-WAVE5-PREP-01 step 9 — MCP server boot — resolved by S-5.01-FOLLOWUP-MCP-BOOT")
+/// Step 8 calls `mark_query_phase_started()` — step 9 only runs after step 8 returns Ok(()).
+///
+/// # Dependency injection (ADR-022 §F)
+///
+/// Uses RocksDbBackend from step 6 (via BootContext) as the query storage backend.
+/// Adapter registry is initially empty — adapters are registered at query time via
+/// spec-catalog dispatch (S-SPEC-TYPE-UNIFICATION-001). The AuditWriter is a no-op
+/// tracing stub until the full audit-writer integration story (S-2.04) ships.
+///
+/// # Background task semantics
+///
+/// `serve_stdio` runs for the lifetime of the server process.  This function
+/// returns `Ok(())` immediately after spawning the background task — the caller
+/// (`run_boot_sequence`) proceeds to steps 10–11.  The background serve task
+/// exits when:
+///   - stdin closes (client disconnect), or
+///   - SIGTERM/SIGINT is received (BC-2.10.010 — handled inside `serve_stdio`).
+pub async fn step9_start_mcp_server(
+    storage: Arc<prism_storage::rocksdb_backend::RocksDbBackend>,
+    _config_manager: Arc<arc_swap::ArcSwap<prism_spec_engine::config_manager::ConfigManager>>,
+    resolved_spec_map: Arc<
+        std::collections::HashMap<
+            prism_spec_engine::ResolvedSpecKey,
+            prism_spec_engine::ResolvedSensorSpec,
+        >,
+    >,
+) -> Result<(), BootError> {
+    use std::collections::BTreeMap;
+
+    use prism_mcp::server::PrismServer;
+    use prism_ocsf::OcsfNormalizer;
+    use prism_query::engine::{QueryEngine, QueryEngineConfig};
+    use prism_query::scoping::ClientRegistry;
+    use prism_query::write_dispatch::AuditWriter;
+    use prism_query::{WriteExecutor, WritePlan, WriteResult};
+    use prism_security::confirmation_token::ConfirmationTokenStore;
+    use prism_security::feature_flag::{CapabilityCheckResult, FeatureFlagEvaluator};
+    use prism_security::injection_scanner::InjectionScanner;
+    use prism_sensors::AdapterRegistry;
+    use prism_spec_engine::write_endpoint::WriteEndpointRegistry;
+
+    // ── Build QueryEngine ─────────────────────────────────────────────────────
+    //
+    // Adapter registry is initially empty — adapters registered at query time.
+    // Full adapter population (from loaded sensor TOML specs) is implemented in the
+    // sensor-adapter integration story (follow-up to S-SPEC-TYPE-UNIFICATION-001).
+    let adapter_registry = Arc::new(AdapterRegistry::new());
+    let ocsf_normalizer = Arc::new(OcsfNormalizer::new());
+    // ClientRegistry starts empty — populated per-query from config_manager.
+    // Full population requires ClientRegistry::from_config_manager (S-MULTI-TENANT-002).
+    let client_registry = Arc::new(ClientRegistry::new(vec![]));
+    let query_config = QueryEngineConfig::default();
+    let org_registry = Arc::new(prism_core::OrgRegistry::new());
+
+    // NullCredentialResolver — resolves no real credentials.
+    // Full credential wiring requires CredentialStore from step 5 (S-5.01 follow-up).
+    struct BootNullCredentialResolver;
+    impl prism_sensors::CredentialResolver for BootNullCredentialResolver {
+        fn resolve(
+            &self,
+            _client_id: &str,
+            _sensor_id: prism_core::SensorId,
+        ) -> Result<Box<dyn prism_sensors::auth::SensorAuth>, prism_sensors::adapter::SensorError>
+        {
+            Err(prism_sensors::adapter::SensorError::ConfigValidation {
+                sensor: "boot-resolver".to_string(),
+                detail: "credential wiring requires S-5.01 credential-store threading".to_string(),
+            })
+        }
+    }
+    let credential_resolver: Arc<dyn prism_sensors::CredentialResolver> =
+        Arc::new(BootNullCredentialResolver);
+
+    // NullCredentialStore — no credential lookups at boot.
+    struct BootNullCredentialStore;
+    #[async_trait::async_trait]
+    impl prism_credentials::CredentialStore for BootNullCredentialStore {
+        async fn get(
+            &self,
+            _tenant: &prism_core::OrgSlug,
+            _sensor: &str,
+            _name: &prism_credentials::namespace::CredentialName,
+        ) -> Result<Option<secrecy::SecretString>, prism_core::error::PrismError> {
+            Ok(None)
+        }
+        async fn set(
+            &self,
+            _tenant: &prism_core::OrgSlug,
+            _sensor: &str,
+            _name: &prism_credentials::namespace::CredentialName,
+            _value: secrecy::SecretString,
+        ) -> Result<(), prism_core::error::PrismError> {
+            Ok(())
+        }
+        async fn delete(
+            &self,
+            _tenant: &prism_core::OrgSlug,
+            _sensor: &str,
+            _name: &prism_credentials::namespace::CredentialName,
+        ) -> Result<bool, prism_core::error::PrismError> {
+            Ok(false)
+        }
+        async fn list(
+            &self,
+            _tenant: &prism_core::OrgSlug,
+        ) -> Result<
+            Vec<(String, prism_credentials::namespace::CredentialName)>,
+            prism_core::error::PrismError,
+        > {
+            Ok(vec![])
+        }
+        async fn exists(
+            &self,
+            _tenant: &prism_core::OrgSlug,
+            _sensor: &str,
+            _name: &prism_credentials::namespace::CredentialName,
+        ) -> Result<bool, prism_core::error::PrismError> {
+            Ok(false)
+        }
+    }
+    let credential_store: Arc<dyn prism_credentials::CredentialStore> =
+        Arc::new(BootNullCredentialStore);
+
+    let query_engine = Arc::new(QueryEngine::new_full(
+        adapter_registry.clone(),
+        credential_store,
+        ocsf_normalizer,
+        client_registry,
+        query_config,
+        credential_resolver,
+        org_registry,
+        storage,
+        resolved_spec_map,
+    ));
+
+    // ── Build WriteExecutor ───────────────────────────────────────────────────
+    //
+    // Feature flags start with no overrides — all capabilities enabled by default.
+    // Full feature-flag wiring requires config-driven FeatureFlagEvaluator (S-2.03).
+    let feature_flags = Arc::new(FeatureFlagEvaluator::new(BTreeMap::new()));
+    let confirmation_store = Arc::new(ConfirmationTokenStore::new());
+
+    // TracingAuditWriter — emits structured tracing events for write audit entries.
+    // Full AuditEmitter integration via Tower layer requires S-2.04.
+    struct TracingAuditWriter;
+    #[async_trait::async_trait]
+    impl AuditWriter for TracingAuditWriter {
+        async fn write_intent(
+            &self,
+            plan: &WritePlan,
+            _context: &prism_query::QueryContext,
+            _capability_check: &CapabilityCheckResult,
+        ) -> Result<ulid::Ulid, prism_core::error::PrismError> {
+            let id = ulid::Ulid::new();
+            tracing::info!(
+                event_type = "write.intent.recorded",
+                intent_id = %id,
+                sensor = %plan.sensor,
+                "write intent recorded (BC-2.05.009 tracing audit stub)"
+            );
+            Ok(id)
+        }
+        async fn write_outcome(
+            &self,
+            intent_id: ulid::Ulid,
+            result: &WriteResult,
+        ) -> Result<(), prism_core::error::PrismError> {
+            tracing::info!(
+                event_type = "write.outcome.recorded",
+                intent_id = %intent_id,
+                succeeded = result.succeeded_count,
+                failed = result.failed_count,
+                "write outcome recorded (BC-2.05.009 tracing audit stub)"
+            );
+            Ok(())
+        }
+    }
+    let audit_writer: Arc<dyn AuditWriter> = Arc::new(TracingAuditWriter);
+    let write_adapter_registry = Arc::new(AdapterRegistry::new());
+    let endpoint_registry = Arc::new(WriteEndpointRegistry::new());
+
+    let write_executor = Arc::new(WriteExecutor::new(
+        feature_flags,
+        confirmation_store,
+        audit_writer.clone(),
+        write_adapter_registry,
+        endpoint_registry,
+    ));
+
+    // ── Construct PrismServer and spawn serve_stdio ───────────────────────────
+    let injection_scanner = Arc::new(InjectionScanner);
+    let server = PrismServer::with_deps(
+        injection_scanner,
+        query_engine,
+        write_executor,
+        audit_writer,
+    );
+
+    tracing::info!(
+        event_type = "boot.step9.mcp_server_started",
+        "boot: step 9 — PrismServer spawned on stdio transport (BC-2.10.006)"
+    );
+
+    // Spawn serve_stdio as a background task — returns immediately.
+    // The background task runs until stdin closes or SIGTERM/SIGINT is received.
+    // BC-2.10.010: graceful shutdown is handled inside serve_stdio.
+    tokio::spawn(async move {
+        if let Err(e) = server.serve_stdio().await {
+            tracing::error!(
+                event_type = "boot.step9.mcp_server_error",
+                error = %e,
+                "MCP server exited with error (step 9, BC-2.10.006)"
+            );
+        }
+    });
+
+    Ok(())
 }
 
 /// Step 10 [BACKGROUND]: Install HotReloadWatcher.
