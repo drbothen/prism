@@ -440,13 +440,13 @@ async fn test_BC_2_22_001_plugin_load_step_is_registered_between_step7_and_step8
 /// Structural proof via in-process simulation:
 /// 1. `run_boot_sequence` is the public function called by `PrismCommand::Start`.
 /// 2. With `PRISM_DISABLE_PLUGIN_LOAD=1`, `run_boot_sequence` invokes plugin_load_step
-///    at step 7.5 (which returns Ok(0)) before hitting the step 7 todo!() panic.
+///    at step 7.5 (which returns Ok(0)) before step 7 (storage init) runs.
 ///    This proves the plugin-load step is in the call path, not just in dead code.
 /// 3. Calling `run_boot_sequence` directly with a minimal config exercises the
 ///    pre-traffic gate position.
 ///
-/// Note: `run_boot_sequence` panics on step 7 todo!() (caught by test framework as
-/// `should_panic`). We verify the plugin-load path is entered by setting
+/// Note: `run_boot_sequence` requires a full config to reach step 7 (storage init).
+/// We verify the plugin-load path is entered by setting
 /// PRISM_DISABLE_PLUGIN_LOAD=1 and relying on `boot_to_step_6` succeeding through
 /// steps 1-6 (which requires a real config directory). Since we cannot provide a
 /// full boot config in a unit test, we instead verify:
@@ -623,32 +623,29 @@ async fn test_AC_4_VP_PLUGIN_004_unsigned_plugin_durable_audit_entry() {
 }
 
 // ---------------------------------------------------------------------------
-// F-PASS3-CRIT-001 — run_boot_sequence step ordering: plugin-load BEFORE step-7 todo!()
+// F-PASS3-CRIT-001 — run_boot_sequence step ordering: plugin-load BEFORE step-7
 // ---------------------------------------------------------------------------
 
 /// F-PASS3-CRIT-001 — Proves that `plugin_load_step_with_audit` executes and returns
-/// successfully BEFORE `step7_init_storage` would panic with its `todo!()`.
+/// successfully BEFORE `step7_init_storage`.
 ///
 /// This test exercises the corrected call order in `run_boot_sequence`:
-///   steps 1-6 → step 7.5 (plugin-load) → step 7 (storage, todo!) → steps 8-11
+///   steps 1-6 → step 7.5 (plugin-load) → step 7 (storage) → steps 8-11
 ///
 /// Because `run_boot_sequence` requires a full boot config (RocksDB, prism.toml, orgs),
 /// we prove the ordering by calling the two critical steps in the correct order directly:
 /// 1. `plugin_load_step_with_audit` with 0 .prx files → MUST return Ok(0) (step 7.5 reachable)
-/// 2. `step7_init_storage()` in a panic-catching context → MUST panic with todo!() payload
-///    containing "S-WAVE5-PREP-01 step 7" (proving step 7's todo!() fires AFTER step 7.5)
+/// 2. `step7_init_storage(&backend)` → MUST return Ok(()) (step 7 implemented and healthy)
 ///
 /// This is load-bearing: if step 7 were called BEFORE plugin-load (the pre-fix bug),
-/// the panic from step 7's todo!() would prevent plugin-load from ever running.
-/// By calling them in order here and confirming both outcomes, we prove the ordering.
-///
-/// The panic payload check is intentionally specific: "S-WAVE5-PREP-01 step 7" appears
-/// verbatim in the step7_init_storage todo!() string — this string will change when
-/// step 7 is implemented, which is the correct behavior (test updates to match).
+/// step 7's logic would run before plugin auth providers are wired.
+/// By calling them in order here and confirming both succeed, we prove the ordering
+/// (S-3.02-FOLLOWUP-RUNTIME: step7_init_storage is implemented; passes health_check()).
 #[tokio::test]
 #[allow(non_snake_case)]
-async fn test_F_PASS3_CRIT_001_plugin_load_runs_before_step7_todo() {
+async fn test_F_PASS3_CRIT_001_plugin_load_runs_before_step7() {
     use prism_bin::boot::{plugin_load_step_with_audit, step7_init_storage};
+    use prism_storage::rocksdb_backend::RocksDbBackend;
 
     // --- Part 1: plugin_load_step_with_audit (step 7.5) MUST succeed before step 7 ---
     //
@@ -661,7 +658,7 @@ async fn test_F_PASS3_CRIT_001_plugin_load_runs_before_step7_todo() {
     assert!(
         step7_5_result.is_ok(),
         "F-PASS3-CRIT-001: plugin_load_step_with_audit (step 7.5) must return Ok \
-         before step 7's todo!() is reached; got Err: {:?}",
+         before step 7 is reached; got Err: {:?}",
         step7_5_result.err()
     );
     assert_eq!(
@@ -670,48 +667,26 @@ async fn test_F_PASS3_CRIT_001_plugin_load_runs_before_step7_todo() {
         "F-PASS3-CRIT-001: empty plugin dir must yield 0 plugins loaded (EC-D-002)"
     );
 
-    // --- Part 2: step7_init_storage (step 7) MUST panic with todo!() AFTER plugin-load ---
+    // --- Part 2: step7_init_storage (step 7) MUST return Ok(()) AFTER plugin-load ---
     //
-    // We spawn a separate task so the panic is isolated from the test thread.
-    // A `JoinHandle::is_err()` catches the task panic without aborting the test.
-    // If step 7 is later implemented (todo!() replaced with real code), the task
-    // will return Ok(()) or Err(BootError), and the assert must be updated to verify
-    // the ordering in a different way (e.g., by calling run_boot_sequence end-to-end
-    // with a real config directory).
-    let step7_join = tokio::task::spawn(async { step7_init_storage().await });
-
-    // step7_init_storage is a todo!() — the spawned task MUST fail with a panic.
-    let step7_result = step7_join.await;
-    assert!(
-        step7_result.is_err(),
-        "F-PASS3-CRIT-001: step7_init_storage must panic (it is todo!()); \
-         if it no longer panics, step 7 has been implemented and this test must be updated \
-         to verify the ordering in a different way (e.g., run_boot_sequence end-to-end \
-         with a real config directory)"
+    // S-3.02-FOLLOWUP-RUNTIME: step7_init_storage is implemented — accepts Arc<RocksDbBackend>
+    // and calls health_check() to confirm the backend is alive and all CFs are accessible.
+    // The ordering invariant (plugin-load before step 7) is proven by calling them in
+    // sequence and confirming both return successfully.
+    // BC-2.22.001 §Sequencing Invariant: step 7.5 must complete before step 7 starts.
+    let state_dir = tempfile::tempdir().expect("create temp state dir for step7 health check");
+    let backend = Arc::new(
+        RocksDbBackend::open(state_dir.path().to_path_buf())
+            .expect("RocksDbBackend::open must succeed in tempdir"),
     );
-
-    // Confirm the join error is a panic (cancelled tasks produce different errors).
-    let join_err = step7_result.unwrap_err();
+    let step7_result = step7_init_storage(&backend).await;
     assert!(
-        join_err.is_panic(),
-        "F-PASS3-CRIT-001: step7_init_storage join error must be a panic (todo!()); \
-         got a cancellation or other join error instead: {:?}",
-        join_err
+        step7_result.is_ok(),
+        "F-PASS3-CRIT-001: step7_init_storage must return Ok(()) after step 7.5 succeeds; \
+         ordering invariant (step 7.5 → step 7) is proven by sequential calls both returning Ok. \
+         Got: {:?}",
+        step7_result
     );
-
-    // The panic payload MUST mention step 7 or S-WAVE5-PREP-01 from the todo!() string.
-    // This confirms we're catching step 7's panic, not some unrelated source.
-    // The payload_str check is intentionally loose to survive minor todo!() message changes.
-    if let Ok(payload_str) = join_err.into_panic().downcast::<&'static str>() {
-        assert!(
-            payload_str.contains("step 7") || payload_str.contains("S-WAVE5-PREP-01"),
-            "F-PASS3-CRIT-001: step7_init_storage panic payload must describe 'step 7' or \
-             'S-WAVE5-PREP-01' from the todo!() message — got: {:?}",
-            payload_str
-        );
-    }
-    // If downcast fails (panic with non-&str payload), the is_panic() assertion above
-    // is sufficient to confirm step 7 panicked after plugin-load succeeded.
 }
 
 // ---------------------------------------------------------------------------
