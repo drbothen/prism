@@ -3,8 +3,21 @@
 **Story:** prism-query: QueryEngine Execution Pipeline — Fill todo!() Sites
 **Commit SHA:** `20829c80`
 **Branch:** feature/S-3.02-FOLLOWUP-RUNTIME
-**Evidence Date:** 2026-05-10
+**Evidence Date:** 2026-05-10 (VHS recordings added 2026-05-27)
 **Adversarial Cascade:** 9 passes (6 BLOCKED + 3 CLEAN = convergence)
+
+---
+
+## VHS Recordings (Visual Evidence)
+
+| Recording | AC | BC | Tape | GIF | WEBM |
+|-----------|----|----|------|-----|------|
+| QueryEngine::execute with virtual fields | AC-1 | BC-2.11.001, BC-2.11.012 | [tape](AC-001-query-engine-execute-virtual-fields.tape) | [gif](AC-001-query-engine-execute-virtual-fields.gif) | [webm](AC-001-query-engine-execute-virtual-fields.webm) |
+| Internal tables accessible after step7 | AC-5 | BC-2.15.011 | [tape](AC-005-internal-tables-accessible-after-step7.tape) | [gif](AC-005-internal-tables-accessible-after-step7.gif) | [webm](AC-005-internal-tables-accessible-after-step7.webm) |
+| No todo!/unimplemented! stub residue | AC-8 | POL-12 | [tape](AC-008-no-todo-stub-residue.tape) | [gif](AC-008-no-todo-stub-residue.gif) | [webm](AC-008-no-todo-stub-residue.webm) |
+| Boot steps 7+8 sequential integration | Boot | BC-2.22.001 | [tape](BOOT-STEPS-step7-step8-sequential.tape) | [gif](BOOT-STEPS-step7-step8-sequential.gif) | [webm](BOOT-STEPS-step7-step8-sequential.webm) |
+
+All recordings use FiraCode Nerd Font Mono, Catppuccin Mocha theme, 1200x600.
 
 ---
 
