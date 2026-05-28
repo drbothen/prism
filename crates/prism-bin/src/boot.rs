@@ -2053,11 +2053,6 @@ pub async fn step9_start_mcp_server(
         alias_store,
     );
 
-    tracing::info!(
-        event_type = "boot.step9.mcp_server_started",
-        "boot: step 9 — PrismServer spawned on stdio transport (BC-2.10.006)"
-    );
-
     // Spawn serve_stdio as a background task — returns immediately.
     // The background task runs until stdin closes or SIGTERM/SIGINT is received.
     // BC-2.10.010: graceful shutdown is handled inside serve_stdio.
@@ -2066,6 +2061,14 @@ pub async fn step9_start_mcp_server(
     // main.rs awaits RunningServer::wait_for_shutdown() → translates the Result to
     // an exit code (BC-2.10.010: timeout → exit 1; clean → exit 0; panic → exit 4).
     let handle = tokio::spawn(async move { server.serve_stdio().await });
+
+    // F-PASS12-MED-3: emit mcp_server_started AFTER tokio::spawn so the catalog statement
+    // "emitted once the background transport task is running" is accurate (BC-2.16.002).
+    // Pre-spawn emission was a catalog drift (the server was not yet spawned).
+    tracing::info!(
+        event_type = "boot.step9.mcp_server_started",
+        "boot: step 9 — PrismServer spawned on stdio transport (BC-2.10.006)"
+    );
 
     Ok(handle)
 }

@@ -1075,7 +1075,18 @@ impl PrismServer {
             }));
         };
 
-        let opts = prism_query::engine::QueryOptions::default();
+        // F-PASS12-CRIT-2: params.clients must be forwarded to QueryOptions so multi-tenant
+        // client scoping works correctly. Using ::default() silently dropped the clients filter.
+        // OrgSlug::new is infallible (validation already performed by validate_client_ids above).
+        let clients_opt: Option<Vec<prism_core::OrgSlug>> = params.clients.as_ref().map(|cs| {
+            cs.iter()
+                .map(|s| prism_core::OrgSlug::new(s.clone()))
+                .collect()
+        });
+        let opts = prism_query::engine::QueryOptions {
+            clients: clients_opt,
+            ..Default::default()
+        };
         let result = qe
             .execute(&params.query, opts)
             .await
@@ -1237,7 +1248,18 @@ impl PrismServer {
             "expanded_query": result.expanded_query,
             "alias_expansion": result.alias_expansion,
         });
-        serde_json::to_string(&result_json).map_err(|e| {
+        // F-PASS12-CRIT-1: BC-2.09.008 requires every Ok tool response wrapped in ResponseEnvelope.
+        // explain_query is an internal query planner call — no sensor data accessed — so
+        // DataSource::Multiple(vec![]) is correct (no sensor provenance to carry).
+        let envelope = SafetyEnvelopeBuilder::wrap(
+            "explain_query",
+            DataSource::Multiple(vec![]),
+            result_json,
+            1,
+            false,
+            None,
+        );
+        serde_json::to_string(&envelope).map_err(|e| {
             to_error_data(PrismError::Internal {
                 detail: format!("Failed to serialize explain result: {e}"),
             })
@@ -1583,7 +1605,7 @@ impl PrismServer {
         DATA SOURCE: Internal write executor (sensor write via configured adapter).\n\
         WHEN TO USE: ONLY after reviewing the write preview and deciding to proceed\n\
         WHEN NOT TO USE: do not skip the dry-run preview step before confirming\n\
-        PARAMETERS: token_id (required confirmation token), client_id (required)\n\
+        PARAMETERS: token (required confirmation token), client_id (required)\n\
         PAGINATION: not applicable — single write operation result\n\
         RESPONSE: write outcome with succeeded_count, failed_count, audit trail reference\n\
         ERRORS: -32602 invalid or expired token, -32002 capability denied, -32000 internal",
@@ -1894,15 +1916,27 @@ impl PrismServer {
             }
         };
 
+        // F-PASS12-HIGH-2: DataSource must carry sensor identity, not client identity.
+        // Extract the sensor name from the stored token's action_params (present for write.* tokens).
+        // Alias tokens (create_alias, delete_alias) access no sensor — use empty DataSource.
+        // "unknown" is the safe fallback when a write token lacks a sensor field.
+        let sensor_for_envelope = stored_token
+            .action_params
+            .get("sensor")
+            .and_then(|v| v.as_str())
+            .unwrap_or("unknown")
+            .to_owned();
+        // For alias operations (no sensor accessed), the DataSource is intentionally empty —
+        // these tools operate on the internal alias registry, not any sensor adapter.
+        let datasource = if stored_token.tool_name.starts_with("write.") {
+            DataSource::Multiple(vec![sensor_for_envelope])
+        } else {
+            // create_alias / delete_alias: no sensor data accessed.
+            DataSource::Multiple(vec![])
+        };
         // result_json is populated by the match arms above (write or alias path).
-        let envelope = SafetyEnvelopeBuilder::wrap(
-            "confirm_action",
-            DataSource::Multiple(vec![params.client_id]),
-            result_json,
-            1,
-            false,
-            None,
-        );
+        let envelope =
+            SafetyEnvelopeBuilder::wrap("confirm_action", datasource, result_json, 1, false, None);
         serde_json::to_string(&envelope).map_err(|e| {
             to_error_data(PrismError::Internal {
                 detail: format!("Failed to serialize response: {e}"),
