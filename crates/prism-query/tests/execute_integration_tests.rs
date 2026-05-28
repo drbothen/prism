@@ -272,6 +272,18 @@ mod helpers {
     /// Uses `StubCredentialResolver` so `fan_out()` can reach `StubAdapter::fetch`
     /// without credential failures. The `OrgId` is saved so the adapter can be
     /// found via `get_all_for_sensor`. (F-LP1-CRIT-2)
+    /// Build an empty `AliasStore` wrapped in `Arc<Mutex<>>` for test use.
+    ///
+    /// F-PASS9-LOW-1: `QueryEngine::new_full` now requires an alias_store.
+    /// Tests that don't exercise alias functionality pass this no-op store.
+    pub fn make_empty_alias_store() -> Arc<std::sync::Mutex<prism_query::alias_store::AliasStore>> {
+        Arc::new(std::sync::Mutex::new(
+            prism_query::alias_store::AliasStore::empty(std::path::Path::new(
+                "/tmp/test-aliases.toml",
+            )),
+        ))
+    }
+
     pub fn make_mat_ctx_with_stub(max_records: usize, row_count: usize) -> MaterializationContext {
         let org_id = OrgId::new();
         let mut registry = AdapterRegistry::new();
@@ -675,6 +687,7 @@ async fn test_AC_6_cross_client_query_all_scope_fans_out() {
         org_registry,
         storage as Arc<dyn prism_storage::backend::RocksStorageBackend>,
         Arc::new(std::collections::HashMap::new()),
+        helpers::make_empty_alias_store(),
     );
 
     // clients: None = ALL scope — both orgs fanned out.
@@ -922,6 +935,7 @@ async fn test_HIGH_3_audit_read_capability_gate_deny() {
         org_registry,
         storage as Arc<dyn prism_storage::backend::RocksStorageBackend>,
         Arc::new(std::collections::HashMap::new()),
+        helpers::make_empty_alias_store(),
     );
 
     // No capabilities — AuditRead NOT granted.
@@ -971,6 +985,7 @@ async fn test_HIGH_3_audit_read_capability_gate_allow() {
         org_registry,
         storage as Arc<dyn prism_storage::backend::RocksStorageBackend>,
         Arc::new(std::collections::HashMap::new()),
+        helpers::make_empty_alias_store(),
     );
 
     // AuditRead capability granted — must succeed.
@@ -1032,6 +1047,7 @@ async fn test_HIGH_4_internal_table_virtual_fields_present() {
         org_registry,
         storage as Arc<dyn prism_storage::backend::RocksStorageBackend>,
         Arc::new(std::collections::HashMap::new()),
+        helpers::make_empty_alias_store(),
     );
 
     let options = QueryOptions {
@@ -1204,6 +1220,7 @@ async fn test_CRIT_1_internal_table_queryable_through_execute() {
         org_registry,
         storage as Arc<dyn prism_storage::backend::RocksStorageBackend>,
         Arc::new(std::collections::HashMap::new()),
+        helpers::make_empty_alias_store(),
     );
 
     let options = QueryOptions {
@@ -1284,6 +1301,7 @@ async fn test_HIGH_2_audit_entry_bincode_deserialization() {
         org_registry,
         storage as Arc<dyn prism_storage::backend::RocksStorageBackend>,
         Arc::new(std::collections::HashMap::new()),
+        helpers::make_empty_alias_store(),
     );
 
     let options = QueryOptions {
@@ -1435,6 +1453,7 @@ async fn test_LP2_CRIT_1_subquery_in_where_blocked_without_audit_read() {
         org_registry,
         storage as Arc<dyn prism_storage::backend::RocksStorageBackend>,
         Arc::new(std::collections::HashMap::new()),
+        helpers::make_empty_alias_store(),
     );
 
     // No AuditRead capability — subquery references prism_audit.
@@ -1502,6 +1521,7 @@ async fn test_LP2_CRIT_1_with_audit_read_capability_subquery_allowed() {
         org_registry,
         storage as Arc<dyn prism_storage::backend::RocksStorageBackend>,
         Arc::new(std::collections::HashMap::new()),
+        helpers::make_empty_alias_store(),
     );
 
     // AuditRead granted — should NOT be rejected at the capability gate.
@@ -1569,6 +1589,7 @@ async fn test_LP2_CRIT_1_having_subquery_blocked_without_audit_read() {
         org_registry,
         storage as Arc<dyn prism_storage::backend::RocksStorageBackend>,
         Arc::new(std::collections::HashMap::new()),
+        helpers::make_empty_alias_store(),
     );
 
     let options = QueryOptions {
@@ -2095,6 +2116,7 @@ async fn test_AC_timeout_returns_query_timeout_error() {
         org_registry,
         storage as Arc<dyn prism_storage::backend::RocksStorageBackend>,
         Arc::new(std::collections::HashMap::new()),
+        helpers::make_empty_alias_store(),
     );
 
     let options = QueryOptions {

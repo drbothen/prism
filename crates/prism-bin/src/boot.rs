@@ -1923,6 +1923,49 @@ pub async fn step9_start_mcp_server(
             credential_store: Arc::clone(&credential_store),
         });
 
+    // ── Build AliasStore ──────────────────────────────────────────────────────
+    //
+    // Constructed BEFORE QueryEngine so the same Arc<Mutex<AliasStore>> can be
+    // shared between:
+    //   1. QueryEngine — for @alias expansion at query execution time (F-PASS9-LOW-1).
+    //   2. PrismServer — for alias CRUD tools (create/list/delete/explain_alias).
+    //
+    // BC-2.11.008: aliases created via MCP tools are live-queryable immediately
+    // because both subsystems share the same lock-protected in-memory store.
+    //
+    // Try to load existing aliases.toml from the config directory; fall back to
+    // an empty store if the file does not exist (aliases.toml is optional).
+    let alias_file = config_dir.join("aliases.toml");
+    let alias_store = if alias_file.exists() {
+        match prism_query::alias_store::AliasStore::load(&alias_file) {
+            Ok(store) => {
+                tracing::info!(
+                    event_type = "boot.step9.alias_store_loaded",
+                    path = %alias_file.display(),
+                    "boot: step 9 — alias store loaded from disk"
+                );
+                store
+            }
+            Err(e) => {
+                tracing::warn!(
+                    event_type = "boot.step9.alias_store_load_failed",
+                    path = %alias_file.display(),
+                    error = %e,
+                    "boot: step 9 — alias store load failed, starting with empty store"
+                );
+                prism_query::alias_store::AliasStore::empty(&alias_file)
+            }
+        }
+    } else {
+        tracing::info!(
+            event_type = "boot.step9.alias_store_empty",
+            path = %alias_file.display(),
+            "boot: step 9 — aliases.toml not found, starting with empty alias store"
+        );
+        prism_query::alias_store::AliasStore::empty(&alias_file)
+    };
+    let alias_store = Arc::new(std::sync::Mutex::new(alias_store));
+
     let query_engine = Arc::new(QueryEngine::new_full(
         adapter_registry.clone(),
         // CRIT-5: real credential_store from step 5 — replaces BootNullCredentialStore.
@@ -1935,6 +1978,9 @@ pub async fn step9_start_mcp_server(
         org_registry,
         storage,
         resolved_spec_map,
+        // F-PASS9-LOW-1: alias_store shared with PrismServer so @alias tokens in queries
+        // are resolved against aliases created via MCP tools (BC-2.11.008).
+        Arc::clone(&alias_store),
     ));
 
     // ── Build WriteExecutor ───────────────────────────────────────────────────
@@ -1990,42 +2036,6 @@ pub async fn step9_start_mcp_server(
         write_adapter_registry,
         endpoint_registry,
     ));
-
-    // ── Build AliasStore ──────────────────────────────────────────────────────
-    //
-    // CRIT-4: PrismServer needs an alias_store to wire the alias CRUD tools.
-    // Try to load existing aliases.toml from the config directory; fall back to
-    // an empty store if the file does not exist (aliases.toml is optional).
-    let alias_file = config_dir.join("aliases.toml");
-    let alias_store = if alias_file.exists() {
-        match prism_query::alias_store::AliasStore::load(&alias_file) {
-            Ok(store) => {
-                tracing::info!(
-                    event_type = "boot.step9.alias_store_loaded",
-                    path = %alias_file.display(),
-                    "boot: step 9 — alias store loaded from disk"
-                );
-                store
-            }
-            Err(e) => {
-                tracing::warn!(
-                    event_type = "boot.step9.alias_store_load_failed",
-                    path = %alias_file.display(),
-                    error = %e,
-                    "boot: step 9 — alias store load failed, starting with empty store"
-                );
-                prism_query::alias_store::AliasStore::empty(&alias_file)
-            }
-        }
-    } else {
-        tracing::info!(
-            event_type = "boot.step9.alias_store_empty",
-            path = %alias_file.display(),
-            "boot: step 9 — aliases.toml not found, starting with empty alias store"
-        );
-        prism_query::alias_store::AliasStore::empty(&alias_file)
-    };
-    let alias_store = Arc::new(std::sync::Mutex::new(alias_store));
 
     // ── Construct PrismServer and spawn serve_stdio ───────────────────────────
     let injection_scanner = Arc::new(InjectionScanner);

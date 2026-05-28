@@ -4424,6 +4424,7 @@ dependencies = [
  "prism-storage",
  "proptest",
  "reqwest",
+ "rmcp",
  "secrecy",
  "serde",
  "serde_json",
