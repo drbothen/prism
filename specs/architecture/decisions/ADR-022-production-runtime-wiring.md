@@ -4,7 +4,7 @@ adr_id: "ADR-022"
 title: "Production Runtime Wiring — prism-bin Chassis, Boot Sequence, Wiring Contracts, Infusion Fate, Hot-Reload Watcher, MCP Topology"
 status: ACCEPTED
 date: "2026-05-17"
-version: "1.12"
+version: "1.13"
 producer: architect
 subsystems_affected: [SS-06, SS-10, SS-11, SS-16, SS-17, SS-19]
 supersedes: null
@@ -25,7 +25,7 @@ runtime_deliverables:
   - crates/prism-bin/src/boot.rs           # boot sequence orchestrator
   - crates/prism-bin/src/cli.rs            # clap CLI surface
   - crates/prism-bin/src/signals.rs        # signal handlers (SIGTERM, SIGHUP)
-  - crates/prism-mcp/src/server.rs         # rmcp 1.4 PrismServer struct
+  - crates/prism-mcp/src/server.rs         # rmcp 1.7 PrismServer struct
   - crates/prism-mcp/src/tools/mod.rs      # tool router + all 35+ tool implementations
   - crates/prism-spec-engine/src/hot_reload.rs  # HotReloadWatcher::start/stop (notify 7)
 wiring_deferred_to: null  # This ADR IS the wiring specification — no further deferral
@@ -79,7 +79,7 @@ approved at D-302. This ADR is the Phase B-0 architecture output for Bundle B.
 
 The Prism workspace acquires a `prism-bin` binary crate as the sole `[[bin]]` target. The
 binary implements an ordered 11-step boot sequence (§B) that constructs all subsystems in
-dependency order and exposes them via an rmcp 1.4 stdio MCP server. Infusions (§D) are
+dependency order and exposes them via an rmcp 1.7 stdio MCP server. Infusions (§D) are
 retained but deferred to Wave 5 (REDO). Hot-reload watcher (§E) runs as a background task
 post-boot. Full wiring contracts per subsystem are specified in §C.
 
@@ -168,7 +168,7 @@ Per the per-analyst deployment model (CLAUDE.md, memory), the MCP server transpo
 (stdin reads MCP JSON-RPC requests; stdout writes MCP JSON-RPC responses). This matches how
 Claude Code / MCP clients connect. No TCP or Unix socket transport is specified for MVP.
 
-The `start` subcommand connects the rmcp 1.4 server to stdio transport. This is the only
+The `start` subcommand connects the rmcp 1.7 server to stdio transport. This is the only
 transport mode in scope for `S-WAVE5-PREP-01` and `S-5.01-FOLLOWUP-MCP-BOOT`.
 
 ---
@@ -250,7 +250,7 @@ Step 8   [BLOCKING → BACKGROUND] QueryEngine + WriteExecutor construction
 
 Step 9   [BACKGROUND] MCP server start
          Action: call PrismServer::new(engine, write_executor, audit_emitter, security_config)
-         Action: bind rmcp 1.4 stdio transport
+         Action: bind rmcp 1.7 stdio transport
          Action: register all tools via #[tool_router] macro (§F tool inventory)
          Action: enable prompt-injection defense middleware (§F, BC-2.09.001..008)
          Once: write "{\"jsonrpc\":\"2.0\",\"method\":\"notifications/initialized\"}" to stdout
@@ -519,9 +519,9 @@ SIGHUP triggers the same code path as the filesystem watcher:
 
 ## §F — MCP Runtime Topology
 
-### rmcp 1.4 integration
+### rmcp 1.7 integration
 
-`prism-mcp` gains a dependency on `rmcp` version 1.4 (per AD-005). This must be added to
+`prism-mcp` gains a dependency on `rmcp` version 1.7 (per AD-005; version updated from 1.4 per OQ-1 / F-PASS9-MED-1). This must be added to
 `crates/prism-mcp/Cargo.toml` and to the workspace `[workspace.dependencies]` table.
 
 ```rust
@@ -548,7 +548,7 @@ impl PrismServer {
 
 ### Tool registration via `#[tool_router]` macro
 
-All tools are registered in a single `#[tool_router]` impl block per the rmcp 1.4 API.
+All tools are registered in a single `#[tool_router]` impl block per the rmcp 1.7 API.
 The 35-tool claim in `module-decomposition.md` is aspirational but grounded in BC-2.13.*
 (the tool catalog BC). Tool count at MVP target: the full BC-2.13.* catalog.
 
@@ -715,7 +715,7 @@ handler integration, cross-platform quirk handling per §E table.
 ### Story 6: S-5.01-FOLLOWUP-MCP-BOOT — MCP Server Boot + Tool Registration
 
 **Scope:** Implement the full `prism-mcp` crate per §F of this ADR:
-- Add `rmcp 1.4` dependency to `prism-mcp/Cargo.toml` and workspace.
+- Add `rmcp 1.7` dependency to `prism-mcp/Cargo.toml` and workspace.
 - Create `crates/prism-mcp/src/server.rs` with `PrismServer` struct and `serve_stdio`.
 - Implement `#[tool_router]` for all tools declared in `api-surface.md` BC-2.13.* catalog.
 - Wire injection defense (BC-2.09.001..008 scanner) at every tool entry boundary.
@@ -786,6 +786,7 @@ Bundle B Phase B-0 architecture output. Authored at D-302 from workspace audit D
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.13 | 2026-05-28 | implementer | F-PASS9-MED-1 closure: all 7 "rmcp 1.4" narrative references updated to "rmcp 1.7" (frontmatter runtime_deliverables, §Decision, §F transport note, §B Step 9, §F heading, §F inline dependency sentence, §G Story 6 scope). OQ-1 confirmed: rmcp 1.4 unavailable on crates.io; 1.7 is the actual published version used at TDD time. ARCH-INDEX AD-005 row updated in same burst (F-PASS9-MED-1). Version 1.12→1.13. |
 | 1.12 | 2026-05-17 | architect | FB73 F-LP85-HIGH-001 closure (architect scope): ADR-026 §D7 v1.22→v1.23 at line 243 §B Step 8 first-statement note (1 site). 7th 1-finding cascade-restart-#4 attempt — cross-value-class side-effect dimension. PO swept 7 spec files in same burst. POL-29 v1.25→v1.26 step 8g by SM. Sibling-sweep other ADRs: 0 additional sites found. |
 | 1.11 | 2026-05-17 | architect | FB69 F-LP81-HIGH-002 closure (architect scope): ADR-026 §D7 pin v1.21→v1.22 at line 243 §B Step 8 first-statement note (1 site). 22nd+ recurrence of POL-29 step 3a class (b) — META-META gap revealed: FB62 SM step 8b iteration bumped ADR-026 v1.21→v1.22 but didn't trigger own external-cite sweep. POL-29 v1.22→v1.23 step 8d META-META transitive closure by state-manager. PO swept 6 spec files in same burst. POL-29 step 8c grep evidence (architecture-domain): variant 1 pre=0 post=0, variant 2 pre=1 post=0, variant 3 pre=0 post=0, variant 4 pre=0 post=0. Sibling-sweep across other ADRs: 0 additional sites found. |
 | 1.10 | 2026-05-17 | architect | F-LP74-HIGH-001 closure (architect scope): ADR-026 §D7 pin v1.19→v1.21 at line 243 §B Step 8 first-statement note (1 site). Recurrence #20 of POL-29 step 3a registry class (b); META-gap revealed by pass-74 — POL-29 v1.17 step 8a single-pass enforcement misses transitively-introduced staleness within own application cycle. PO swept 6 spec files (story v1.38 + BC-2.16.012 v1.23 + BC-2.16.002 v1.27 + error-taxonomy v1.35 + VP-156 v0.15 + HS-003 v1.12) in same burst. POL-29 v1.17→v1.18 step 8b transitive closure amendment by state-manager (in-burst META-gap closure per user strategic direction). POL-29 step 8a grep evidence (architecture-domain): pre-grep 1 → post-grep 0. Sibling-sweep across other ADRs: 0 additional sites found. |

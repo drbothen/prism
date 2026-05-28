@@ -260,7 +260,7 @@ prism-dtu-otlp            = { path = "prism-dtu-otlp" }
 
 | External Crate | Used By | Purpose | Version |
 |----------------|---------|---------|---------|
-| rmcp | prism-mcp | MCP SDK (server, tools, transport) | 1.4 |
+| rmcp | prism-mcp | MCP SDK (server, tools, transport) | 1.7 |
 | datafusion | prism-query | SQL execution engine | 53 |
 | arrow | prism-query, prism-ocsf | Columnar in-memory format | 53 |
 | chumsky | prism-query | PrismQL parser combinator | 0.12 |

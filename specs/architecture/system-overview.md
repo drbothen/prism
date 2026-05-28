@@ -202,7 +202,7 @@ The Prism process runs for the **entire Claude Code session** — it is a persis
 graph TB
     subgraph CC["Claude Code (Analyst's Terminal)"]
         subgraph PRISM["Prism MCP Server (single binary, stdio transport)"]
-            MCP["MCP Layer<br/>rmcp 1.4 | tool registration | routing"]
+            MCP["MCP Layer<br/>rmcp 1.7 | tool registration | routing"]
             QE["Query Engine<br/>Chumsky parser + DataFusion executor"]
             
             subgraph MIDDLE["Domain Layer"]

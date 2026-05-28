@@ -1,7 +1,7 @@
 ---
 document_type: architecture-index
 level: L3
-version: "2.104"
+version: "2.105"
 status: draft
 producer: state-manager
 timestamp: 2026-05-20T00:00:00
@@ -87,7 +87,7 @@ deployment_topology: single-service  # planned — no service binary exists yet 
 | ADR-019 | SIEM Output Formats | PROPOSED v0.4 | 2026-05-03 | decisions/ADR-019-siem-output-formats.md |
 | ADR-020 | Story Status Taxonomy Reform — Closed Enum, Partial-Merge Semantics, and Graduation Contract | ACCEPTED v1.1 | 2026-05-08 | decisions/ADR-020-story-status-taxonomy-reform.md |
 | ADR-021 | BC/VP Promotion Lifecycle — Draft → Active → Verified Transitions, Audit Cadence, and BC-INDEX Count Authority | ACCEPTED v1.1 | 2026-05-08 | decisions/ADR-021-bc-vp-promotion-lifecycle.md |
-| ADR-022 | Production Runtime Wiring — prism-bin Chassis, Boot Sequence, Wiring Contracts, Infusion Fate, Hot-Reload Watcher, MCP Topology | ACCEPTED v1.12 | 2026-05-17 | decisions/ADR-022-production-runtime-wiring.md |
+| ADR-022 | Production Runtime Wiring — prism-bin Chassis, Boot Sequence, Wiring Contracts, Infusion Fate, Hot-Reload Watcher, MCP Topology | ACCEPTED v1.13 | 2026-05-28 | decisions/ADR-022-production-runtime-wiring.md |
 | ADR-023 | Plugin-Only Sensor Architecture — TOML Specs as Declarative Baseline, .prx WASM for Non-Declarative Cases, Retired CustomAdapter Rust Trait | COMMITTED v1.19 | 2026-05-15 | decisions/ADR-023-plugin-only-sensor-architecture.md |
 | ADR-024 | ColumnType Canonical Naming — Domain-Level Variant Names for Sensor Schema API; prism-spec-engine Shadow Enum Retirement | ACCEPTED v1.0 | 2026-05-12 | decisions/ADR-024-column-type-canonical-naming.md |
 | ADR-025 | BC Lifecycle Field Canonical Scheme — Single status Field Governs; lifecycle Field Retired | ACCEPTED v1.0 | 2026-05-12 | decisions/ADR-025-bc-lifecycle-field-canonical-scheme.md |
@@ -106,7 +106,7 @@ deployment_topology: single-service  # planned — no service binary exists yet 
 | AD-002 | DataFusion as SQL execution engine | Provides Arrow-native SQL with UDF extensibility; ephemeral SessionContext per query aligns with data-in-flight model |
 | AD-003 | Chumsky 0.12 for PrismQL parsing | Zero-copy parser combinators with error recovery; axiathon reference proves pattern viability |
 | AD-004 | RocksDB with 17 column families | Domain-isolated persistence for operational state; osquery-proven pattern; single-process LOCK fits stdio model. CFs: default, schedules, diff_results, detection_rules, detection_state, alerts, cases, audit_buffer, dirty_bits, watchdog, aliases, decorators, action_state, infusion_cache, plugin_state, event_buffer, case_dedup_idx. |
-| AD-005 | rmcp 1.4 as MCP SDK | Official Anthropic SDK; #[tool_router] macro for 35+ tool registration; native tokio async. [NOT IMPLEMENTED — prism-mcp is a 10-line stub (verified 2026-05-08); no rmcp dep in Cargo.toml; covered by ADR-022 §F; tracked by S-5.01-FOLLOWUP-MCP-BOOT] |
+| AD-005 | rmcp 1.7 as MCP SDK | Official Anthropic SDK; #[tool_router] macro for 35+ tool registration; native tokio async. Version updated from 1.4 → 1.7 per OQ-1 (1.4 unavailable at TDD time; 1.7 is actual published version; F-PASS9-MED-1 closure). |
 | AD-006 | Config-driven sensor adapters via TOML spec files | 80% of sensors need zero Rust code; eat-our-own-dog-food principle for built-in sensors |
 | AD-007 | arc-swap for hot config reload | Lock-free reads on query hot path; atomic snapshot swap; in-flight queries unaffected |
 | AD-008 | Pure core / effectful shell separation | Maximizes formal verification surface; domain logic testable without I/O mocking |
@@ -156,6 +156,7 @@ deployment_topology: single-service  # planned — no service binary exists yet 
 
 | Version | Pass | Date | Author | Change |
 |---------|------|------|--------|--------|
+| 2.105 | F-PASS9-MED-1 | 2026-05-28 | implementer | F-PASS9-MED-1 closure: AD-005 row updated rmcp 1.4 → 1.7 (OQ-1: 1.4 unavailable on crates.io; 1.7 is actual published version). ADR-022 in-line row v1.12 → v1.13 (7 "rmcp 1.4" narrative sites updated). dependency-graph.md External Dependency table row updated 1.4 → 1.7. module-decomposition.md L3 mermaid diagram updated. system-overview.md MCP Layer mermaid updated. S-5.01-FOLLOWUP-MCP-BOOT-mcp-server.md story spec all 1.4 references updated to 1.7. ARCH-INDEX v2.104→v2.105. |
 | 2.104 | D-840 | 2026-05-27 | state-manager | ADR-030 status: PROPOSED v1.0 → ACCEPTED (S-SPEC-TYPE-UNIFICATION-001 merged PR #161 develop@af79f160; Approach D fully implemented: types::SensorSpec deleted, spec_parser::SensorSpec canonical, build_type_spec_map_for_overlay deleted, AuthType::CustomViaPlugin added). ARCH-INDEX v2.103→v2.104. |
 | 2.103 | D-ADR-030 | 2026-05-27 | architect | ADR-030 registered (SensorSpec type unification — Approach D selected: field-augment spec_parser::SensorSpec, delete types::SensorSpec; dep cycle confirmed non-existent for this migration; prism-core::ConfigSnapshot is a shell struct). ARCH-INDEX v2.102→v2.103. |
 | 2.102 | D-808 | 2026-05-23 | state-manager (human-approval) | ADR-029 status: PROPOSED v1.1 → ACCEPTED v1.2 (human approval per user directive 2026-05-23; Path C locked). ARCH-INDEX v2.101→v2.102. |

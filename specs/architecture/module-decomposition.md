@@ -67,7 +67,7 @@ graph TB
     end
 
     subgraph L3["Layer 3: Presentation"]
-        MCP["prism-mcp<br/><i>rmcp 1.4, 35+ tools, middleware</i>"]
+        MCP["prism-mcp<br/><i>rmcp 1.7, 35+ tools, middleware</i>"]
     end
 
     subgraph L2["Layer 2: Business Logic"]
