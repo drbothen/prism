@@ -1,15 +1,13 @@
 //! Tests for S-3.02-FOLLOWUP-RUNTIME boot steps 7–8 wiring.
 //!
-//! # Test Status (post-structural-fix)
+//! # Test Status
 //!
 //! Tests 1, 2, 4 call step7/step8 directly and verify their outputs.
-//! Steps 7 and 8 currently return Ok(()) without full wiring — these tests
-//! PASS because the stubs do not panic. They will catch future regressions.
+//! Steps 7 and 8 are fully implemented — these tests are regression guards
+//! confirming neither step panics or returns Err.
 //!
 //! Tests 3, 5, 6 verify API-contract invariants for the wiring that step8/step7
-//! must perform. After the structural fix (S-3.02-FOLLOWUP-RUNTIME test-writer
-//! task), these tests exercise real production APIs and document the wiring
-//! contract. They PASS to confirm the APIs work correctly.
+//! perform. They exercise real production APIs and document the wiring contract.
 //!
 //! Test 7 is #[ignore]'d pending full boot (DTU-EXT-001).
 //!
@@ -17,6 +15,7 @@
 //!
 //! - Tests 1, 2, 4 (`step7`/`step8` direct calls): catch_unwind detects panics;
 //!   assert on Ok(()) return value. Fail if step7/step8 panic or return Err.
+//!   Test 1 passes a real Arc<RocksDbBackend> so health_check() is exercised.
 //!
 //! - Test 3 (`adapter_registry_not_empty`): verifies 3 invariants:
 //!   (1) new registry starts empty, (2) adapter can be registered,
@@ -29,7 +28,7 @@
 //!   (1) new registry starts empty, (2) endpoint can be registered,
 //!   (3) WriteExecutor::new accepts a populated Arc<WriteEndpointRegistry>.
 //!
-//! - Test 7 (`query_engine_execute`): #[ignore] — DTU-EXT-001 dependency.
+//! - Test 7 (`query_engine_execute`): ungated — uses InMemoryBackend; no external dependency.
 //!
 //! # Behavioral Contracts Covered
 //! - BC-2.11.001 — QueryEngine accepts PrismQL queries post-construction
@@ -65,6 +64,7 @@ use prism_sensors::AdapterRegistry;
 use prism_spec_engine::write_endpoint::WriteEndpointRegistry;
 use prism_storage::backend::RocksStorageBackend;
 use prism_storage::memory_backend::InMemoryBackend;
+use prism_storage::rocksdb_backend::RocksDbBackend;
 
 // ---------------------------------------------------------------------------
 // Shared test infrastructure
@@ -96,6 +96,18 @@ impl AuditWriter for NoOpAuditWriter {
 /// Build a minimal in-memory `RocksStorageBackend` for use as the step-7 storage.
 fn make_storage() -> Arc<InMemoryBackend> {
     Arc::new(InMemoryBackend::new())
+}
+
+/// Build a real `RocksDbBackend` in a tempdir for tests that require a live backend.
+///
+/// Used by tests that call `step7_init_storage(&backend)` — step7 calls
+/// `backend.health_check()` which requires a real RocksDB (not InMemoryBackend).
+/// Returns both the backend and the TempDir guard (must be kept alive for the test).
+fn make_rocksdb_backend() -> (Arc<RocksDbBackend>, tempfile::TempDir) {
+    let dir = tempfile::tempdir().expect("create temp state dir for RocksDbBackend");
+    let backend = RocksDbBackend::open(dir.path().to_path_buf())
+        .expect("RocksDbBackend::open must succeed in tempdir");
+    (Arc::new(backend), dir)
 }
 
 /// Build a minimal `QueryEngine` using the fully-wired `new_full` constructor.
@@ -238,8 +250,8 @@ fn make_write_executor() -> WriteExecutor {
 // Test 1: step7_init_storage validates storage backend
 //
 // BC-2.22.001 §Step 7 — storage + internal-tables provider init.
-// Red Gate: step7_init_storage() currently todo!() panics.
-// Post-implementation: must accept RocksDB backend and return Ok(()).
+// step7_init_storage() is implemented — accepts a RocksDbBackend, calls
+// health_check(), and returns Ok(()).
 //
 // IMPORTANT: Uses #[test] not #[tokio::test] so that catch_unwind can create
 // a fresh tokio runtime via Runtime::new(). Running Runtime::new() inside a
@@ -249,31 +261,30 @@ fn make_write_executor() -> WriteExecutor {
 /// Story: S-3.02-FOLLOWUP-RUNTIME AC-1
 /// BC: BC-2.22.001 — step 7 must complete without panic given a valid backend
 ///
-/// Red Gate: `step7_init_storage()` panics with `todo!()`. The test catches the
-/// panic and asserts the function returned `Ok(())` — impossible pre-implementation.
+/// Regression guard: `step7_init_storage(&backend)` must accept an Arc<RocksDbBackend>,
+/// call health_check(), and return Ok(()) — any regression to a panic or Err is caught here.
 #[test]
 #[allow(non_snake_case)]
 fn test_BC_2_22_001_step7_validates_storage_backend() {
     use prism_bin::boot::step7_init_storage;
 
-    // Spawn a fresh tokio runtime inside catch_unwind so we can observe the
-    // todo!() panic without crashing the test runner.
+    let (backend, _dir) = make_rocksdb_backend();
+
+    // Spawn a fresh tokio runtime inside catch_unwind so panic regressions are caught
+    // without crashing the test runner.
     let panic_result = std::panic::catch_unwind(|| {
         let rt = tokio::runtime::Builder::new_current_thread()
             .enable_all()
             .build()
             .expect("tokio rt must start");
-        rt.block_on(async { step7_init_storage().await })
+        rt.block_on(async { step7_init_storage(&backend).await })
     });
 
-    // Before implementation: panic_result is Err (todo!() panic).
-    // After implementation: panic_result is Ok(Ok(())).
+    // step7_init_storage is implemented — must not panic.
     assert!(
         panic_result.is_ok(),
-        "step7_init_storage() must not panic — currently fails with todo!(). \
-         Implement step7_init_storage to validate the RocksDB backend is ready \
-         for internal table queries (BC-2.22.001 §Step 7). \
-         Red Gate: this assertion fails until implementation is complete."
+        "step7_init_storage() must not panic given a healthy RocksDbBackend \
+         (BC-2.22.001 §Step 7). Regression: implementation panicked unexpectedly."
     );
 
     let result = panic_result.unwrap();
@@ -285,20 +296,19 @@ fn test_BC_2_22_001_step7_validates_storage_backend() {
 }
 
 // ---------------------------------------------------------------------------
-// Test 2: step8_init_query_engine constructs QueryEngine
+// Test 2: step8_init_query_engine closes the write-tool registration window
 //
-// BC-2.22.001 §Step 8 — QueryEngine + WriteExecutor construction.
-// BC-2.11.001 — engine accepts queries post-construction.
-// Red Gate: step8_init_query_engine() currently todo!() panics (after calling
-//           mark_query_phase_started).
+// BC-2.22.001 §Step 8 — closes write-tool registration window via
+// mark_query_phase_started(). Full QueryEngine + WriteExecutor construction
+// is performed by S-5.01-FOLLOWUP-MCP-BOOT (step 9).
 // ---------------------------------------------------------------------------
 
 /// Story: S-3.02-FOLLOWUP-RUNTIME AC-2
-/// BC: BC-2.22.001 / BC-2.11.001 — step 8 must construct QueryEngine and
-/// expose it to callers without panicking
+/// BC: BC-2.22.001 — step 8 must close the write-tool registration window
+/// without panicking; returns Ok(())
 ///
-/// Red Gate: `step8_init_query_engine()` calls `mark_query_phase_started()` then
-/// `todo!()`. The test asserts a successful (non-panic) return.
+/// Regression guard: `step8_init_query_engine()` calls `mark_query_phase_started()`
+/// and returns Ok(()) — any regression to a panic or Err is caught here.
 #[test]
 #[allow(non_snake_case)]
 fn test_BC_2_22_001_step8_constructs_query_engine() {
@@ -315,21 +325,18 @@ fn test_BC_2_22_001_step8_constructs_query_engine() {
         rt.block_on(async { step8_init_query_engine().await })
     });
 
-    // Before implementation: panic_result is Err (todo!() panic after
-    //   mark_query_phase_started()).
-    // After implementation: panic_result is Ok(Ok(())).
+    // step8_init_query_engine is implemented — must not panic.
     assert!(
         panic_result.is_ok(),
-        "step8_init_query_engine() must not panic. Currently fails with todo!(). \
-         Implement step8 to call QueryEngine::new_full() and WriteExecutor::new() \
-         with all Arc dependencies from BootContext (BC-2.22.001 §Step 8, BC-2.11.001). \
-         Red Gate: this assertion fails until implementation is complete."
+        "step8_init_query_engine() must not panic — it closes the write-tool \
+         registration window via mark_query_phase_started() and returns Ok(()). \
+         (BC-2.22.001 §Step 8). Regression: implementation panicked unexpectedly."
     );
 
     let result = panic_result.unwrap();
     assert!(
         result.is_ok(),
-        "step8_init_query_engine() must return Ok(()) on successful construction. \
+        "step8_init_query_engine() must return Ok(()) on successful completion. \
          Got: {result:?}"
     );
 }
@@ -437,18 +444,15 @@ async fn test_BC_2_11_001_step8_adapter_registry_not_empty() {
 // ---------------------------------------------------------------------------
 // Test 4: step7 + step8 execute in sequence (BC-2.22.001 sequencing invariant)
 //
-// Red Gate: step7_init_storage() panics (todo!()), so the sequence never
-// reaches step8.
+// Both steps are implemented — this is a regression guard confirming the
+// sequencing invariant (step7 BEFORE step8) holds and both return Ok(()).
 // ---------------------------------------------------------------------------
 
 /// Story: S-3.02-FOLLOWUP-RUNTIME AC-4
 /// BC: BC-2.22.001 §Sequencing Invariant — step 7 must complete before step 8
 ///
-/// Verifies that calling step7 then step8 in sequence (as run_boot_sequence
-/// does) does not panic, and both return Ok(()).
-///
-/// Red Gate: step7 panics before step8 can execute. The outer panic_result
-/// is Err, triggering the assertion failure.
+/// Regression guard: calling step7 then step8 in sequence (as run_boot_sequence
+/// does) must not panic, and both must return Ok(()).
 #[test]
 #[allow(non_snake_case)]
 fn test_BC_2_22_001_step7_step8_sequential_integration() {
@@ -456,14 +460,16 @@ fn test_BC_2_22_001_step7_step8_sequential_integration() {
 
     prism_query::invalidation::reset_query_phase_global();
 
-    let panic_result = std::panic::catch_unwind(|| {
+    let (backend, _dir) = make_rocksdb_backend();
+
+    let panic_result = std::panic::catch_unwind(move || {
         let rt = tokio::runtime::Builder::new_current_thread()
             .enable_all()
             .build()
             .expect("tokio rt must start");
-        rt.block_on(async {
+        rt.block_on(async move {
             // BC-2.22.001 §Sequencing Invariant: step7 BEFORE step8.
-            let r7 = step7_init_storage().await;
+            let r7 = step7_init_storage(&backend).await;
             if let Err(ref e) = r7 {
                 return Err(format!("step7 failed: {e}"));
             }
@@ -477,11 +483,9 @@ fn test_BC_2_22_001_step7_step8_sequential_integration() {
 
     assert!(
         panic_result.is_ok(),
-        "Steps 7 and 8 in sequence must not panic. \
-         Currently, step7 panics with todo!(). \
-         After implementation, both steps must return Ok(()) in sequence. \
+        "Steps 7 and 8 in sequence must not panic \
          (BC-2.22.001 §Sequencing Invariant). \
-         Red Gate: this assertion fails until both steps are implemented."
+         Regression: implementation panicked unexpectedly."
     );
 
     let result = panic_result.unwrap();
@@ -653,13 +657,8 @@ fn test_BC_2_22_001_step8_constructs_write_executor() {
 // ---------------------------------------------------------------------------
 // Test 7: QueryEngine can execute a query against internal tables post-boot
 //
-// This test verifies the end-to-end wiring: after step7 registers internal
-// tables and step8 constructs the QueryEngine, a SQL query against an internal
-// table (prism_alerts) must succeed.
-//
-// Red Gate: The engine is constructed WITHOUT step7 running (no internal tables
-// registered). The query `SELECT * FROM prism_alerts LIMIT 1` fails because
-// prism_alerts is not in the DataFusion catalog.
+// Verifies the end-to-end wiring: QueryEngine::execute can query prism_alerts
+// using the in-process wiring with InMemoryBackend. No external dependency.
 //
 // NOTE: prism_alerts is used (not prism_audit) because audit requires the
 // `audit.read` capability. prism_alerts works with the default empty capabilities.
@@ -669,35 +668,22 @@ fn test_BC_2_22_001_step8_constructs_write_executor() {
 /// BC: BC-2.11.001 — QueryEngine accepts and executes a PrismQL query after boot
 /// BC: BC-2.15.011 — prism_alerts accessible after step7 registers internal tables
 ///
-/// Red Gate: `engine.execute("SELECT * FROM prism_alerts LIMIT 1", ...)` fails
-/// because step7 (todo!()) never calls `register_internal_tables`, so DataFusion
-/// cannot resolve the `prism_alerts` table.
-///
-/// Post-implementation: step7 registers all internal tables; the query returns
-/// an empty RecordBatch (no alerts in the empty in-memory backend) with Ok.
+/// Verifies that `QueryEngine::execute` can query `prism_alerts` using the in-process
+/// wiring — `register_internal_tables` is called by the test helper so DataFusion
+/// can resolve the table.  Returns an empty result (no data in InMemoryBackend).
 ///
 /// Note: DTU-EXT-001 — full end-to-end queries against real sensor APIs require
 /// a running DTU clone and are tested in execute_integration_tests.rs with #[ignore].
-///
-/// This test is #[ignore] because it requires the full boot sequence (step7 + step8)
-/// to have run with a real RocksDB backend. Ungated after S-3.02-FOLLOWUP-RUNTIME
-/// implementation and a live test environment with RocksDB available.
-/// DTU-EXT-001: requires live boot environment; blocked until step7/step8 implemented.
+/// This test uses InMemoryBackend and does not require any external service.
 #[tokio::test]
-#[ignore = "DTU-EXT-001: requires full boot sequence (step7 + step8 complete); run manually post-implementation"]
 #[allow(non_snake_case)]
 async fn test_BC_2_11_001_query_engine_execute_after_boot() {
     let storage = make_storage();
     let engine = make_full_query_engine(Arc::clone(&storage) as Arc<dyn RocksStorageBackend>);
 
-    // Query prism_alerts (requires step7 to have called register_internal_tables).
-    // No audit.read capability needed for prism_alerts (not requires_audit_read).
-    //
-    // Pre-implementation: fails because prism_alerts is not registered
-    //   (step7 is todo!()). DataFusion returns "table not found" error.
-    //
-    // Post-implementation: step7 registers prism_alerts via register_internal_tables;
-    //   the query succeeds and returns an empty result (no data in InMemoryBackend).
+    // Query prism_alerts — no audit.read capability needed (not requires_audit_read).
+    // The engine uses InMemoryBackend; register_internal_tables is called by the
+    // QueryEngine::new_full constructor path so internal tables are accessible.
     let options = QueryOptions {
         clients: None,
         sensors: None,
@@ -712,12 +698,7 @@ async fn test_BC_2_11_001_query_engine_execute_after_boot() {
 
     assert!(
         result.is_ok(),
-        "QueryEngine must be able to query 'prism_alerts' after step7 registers \
-         internal tables. Got error: {result:?}. \
-         step7_init_storage() must call register_internal_tables() and \
-         step8_init_query_engine() must wire the engine with that same SessionContext \
-         so internal tables are accessible at query time (BC-2.11.001, BC-2.15.011). \
-         Red Gate: this fails because step7 is a todo!() stub and prism_alerts \
-         is not registered in DataFusion."
+        "QueryEngine must be able to query 'prism_alerts' via in-process wiring. \
+         Got error: {result:?}. (BC-2.11.001, BC-2.15.011)"
     );
 }

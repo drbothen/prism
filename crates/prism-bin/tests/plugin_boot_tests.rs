@@ -623,7 +623,7 @@ async fn test_AC_4_VP_PLUGIN_004_unsigned_plugin_durable_audit_entry() {
 }
 
 // ---------------------------------------------------------------------------
-// F-PASS3-CRIT-001 — run_boot_sequence step ordering: plugin-load BEFORE step-7 todo!()
+// F-PASS3-CRIT-001 — run_boot_sequence step ordering: plugin-load BEFORE step-7
 // ---------------------------------------------------------------------------
 
 /// F-PASS3-CRIT-001 — Proves that `plugin_load_step_with_audit` executes and returns
@@ -635,16 +635,17 @@ async fn test_AC_4_VP_PLUGIN_004_unsigned_plugin_durable_audit_entry() {
 /// Because `run_boot_sequence` requires a full boot config (RocksDB, prism.toml, orgs),
 /// we prove the ordering by calling the two critical steps in the correct order directly:
 /// 1. `plugin_load_step_with_audit` with 0 .prx files → MUST return Ok(0) (step 7.5 reachable)
-/// 2. `step7_init_storage()` → MUST return Ok(()) without panicking (step 7 implemented)
+/// 2. `step7_init_storage(&backend)` → MUST return Ok(()) (step 7 implemented and healthy)
 ///
 /// This is load-bearing: if step 7 were called BEFORE plugin-load (the pre-fix bug),
 /// step 7's logic would run before plugin auth providers are wired.
 /// By calling them in order here and confirming both succeed, we prove the ordering
-/// (S-3.02-FOLLOWUP-RUNTIME: step7_init_storage is now implemented; no longer todo!()).
+/// (S-3.02-FOLLOWUP-RUNTIME: step7_init_storage is implemented; passes health_check()).
 #[tokio::test]
 #[allow(non_snake_case)]
-async fn test_F_PASS3_CRIT_001_plugin_load_runs_before_step7_todo() {
+async fn test_F_PASS3_CRIT_001_plugin_load_runs_before_step7() {
     use prism_bin::boot::{plugin_load_step_with_audit, step7_init_storage};
+    use prism_storage::rocksdb_backend::RocksDbBackend;
 
     // --- Part 1: plugin_load_step_with_audit (step 7.5) MUST succeed before step 7 ---
     //
@@ -668,11 +669,17 @@ async fn test_F_PASS3_CRIT_001_plugin_load_runs_before_step7_todo() {
 
     // --- Part 2: step7_init_storage (step 7) MUST return Ok(()) AFTER plugin-load ---
     //
-    // S-3.02-FOLLOWUP-RUNTIME: step7_init_storage is now implemented (no longer todo!()).
+    // S-3.02-FOLLOWUP-RUNTIME: step7_init_storage is implemented — accepts Arc<RocksDbBackend>
+    // and calls health_check() to confirm the backend is alive and all CFs are accessible.
     // The ordering invariant (plugin-load before step 7) is proven by calling them in
     // sequence and confirming both return successfully.
     // BC-2.22.001 §Sequencing Invariant: step 7.5 must complete before step 7 starts.
-    let step7_result = step7_init_storage().await;
+    let state_dir = tempfile::tempdir().expect("create temp state dir for step7 health check");
+    let backend = Arc::new(
+        RocksDbBackend::open(state_dir.path().to_path_buf())
+            .expect("RocksDbBackend::open must succeed in tempdir"),
+    );
+    let step7_result = step7_init_storage(&backend).await;
     assert!(
         step7_result.is_ok(),
         "F-PASS3-CRIT-001: step7_init_storage must return Ok(()) after step 7.5 succeeds; \
