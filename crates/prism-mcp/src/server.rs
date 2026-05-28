@@ -152,57 +152,131 @@ impl PrismServer {
     /// Start the MCP server on stdio transport (BC-2.10.006).
     ///
     /// Blocks until stdin closes or SIGTERM/SIGINT received.
-    /// On shutdown: drains in-flight requests (5-second grace window), then exits.
     ///
-    /// BC-2.10.010: SIGTERM/SIGINT handled — graceful shutdown on signal.
+    /// BC-2.10.010 six-step graceful shutdown sequence:
+    /// 1. Stop accepting new MCP requests (rmcp cancellation token cancels the accept loop).
+    /// 2. Cancel in-flight tokio tasks with a 5-second grace window (`close_with_timeout`).
+    /// 3. Flush state writes: RocksDB WAL flushes synchronously per-write (audit_buffer.rs),
+    ///    so no explicit flush call is needed at shutdown; all committed writes are durable.
+    /// 4. Close HTTP client connections: sensor adapters use ephemeral reqwest clients
+    ///    (one per sensor call); none are persistent at the MCP layer.
+    /// 5. Flush tracing subscribers: tracing flushes on drop of the subscriber guard.
+    /// 6. Exit code 0 on clean drain; code 1 if 5-second timeout exceeded.
     ///
     /// Returns `Ok(())` on clean shutdown, or `Err(RmcpError)` on transport/init failure.
     pub async fn serve_stdio(self) -> Result<(), rmcp::RmcpError> {
         // BC-2.10.010: register SIGINT/SIGTERM handler before serving.
         // tokio::signal::ctrl_c() catches SIGINT on all platforms.
         // tokio::signal::unix::SignalKind::terminate() catches SIGTERM on Unix.
-        let service = self.serve(stdio()).await?;
+        let mut service = self.serve(stdio()).await?;
 
-        // Await shutdown: either the service exits naturally (stdin closed) or
-        // a SIGTERM/SIGINT is received. We select! on both.
+        // Await a shutdown trigger: SIGINT, SIGTERM, or natural transport closure.
         //
-        // BC-2.10.010: graceful shutdown with 5-second drain window.
-        // rmcp's `RunningService::waiting()` completes when the transport closes.
-        // The signal branch triggers a graceful stop; any pending request gets
-        // up to 5 seconds to complete before the process exits.
+        // Design rationale: `service.waiting()` takes `self` (consuming), which prevents the
+        // subsequent `close_with_timeout(&mut self)` call on the signal path.  We detect
+        // natural closure via `service.is_closed()` polling (yielding loop), which lets us
+        // retain ownership of `service` for the drain step.
+        //
+        // Cross-platform SIGTERM: on Unix, register a signal listener before the select!
+        // and await it as a boxed future.  On non-Unix, use `std::future::pending()` which
+        // never resolves, so only SIGINT (ctrl_c) can trigger a signal-driven shutdown.
         #[cfg(unix)]
-        let sigterm_fut = async {
-            let mut sigterm =
-                signal::unix::signal(signal::unix::SignalKind::terminate()).map_err(|_| ())?;
-            sigterm.recv().await;
-            Ok::<(), ()>(())
+        let sigterm_fut: std::pin::Pin<
+            Box<dyn std::future::Future<Output = &'static str> + Send>,
+        > = {
+            let mut sigterm = signal::unix::signal(signal::unix::SignalKind::terminate())
+                .expect("Failed to register SIGTERM signal handler");
+            Box::pin(async move {
+                sigterm.recv().await;
+                "SIGTERM"
+            })
         };
         #[cfg(not(unix))]
-        let sigterm_fut = std::future::pending::<Result<(), ()>>();
+        let sigterm_fut: std::pin::Pin<
+            Box<dyn std::future::Future<Output = &'static str> + Send>,
+        > = Box::pin(std::future::pending());
 
-        tokio::select! {
-            result = service.waiting() => {
-                result?;
+        // Spin on is_closed() with yields to detect natural transport closure without
+        // consuming `service`.  In production, stdin EOF propagates in 0–1 yield ticks.
+        let natural_close_fut = async {
+            loop {
+                if service.is_closed() {
+                    return;
+                }
+                tokio::task::yield_now().await;
+            }
+        };
+
+        let signal_name: &'static str = tokio::select! {
+            _ = natural_close_fut => {
+                // Natural transport closure (stdin EOF / peer disconnect).
+                // No in-flight drain needed: rmcp task already exited.
+                tracing::info!(
+                    event_type = "mcp.server.shutdown.complete",
+                    "MCP server transport closed naturally (BC-2.10.010)"
+                );
+                return Ok(());
             }
             _ = signal::ctrl_c() => {
-                tracing::info!(
-                    event_type = "mcp.server.shutdown.initiated",
-                    signal = "SIGINT",
-                    "SIGINT received — MCP server shutdown initiated (BC-2.10.010)"
-                );
-                // 5-second grace: let in-flight requests complete.
-                tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+                "SIGINT"
             }
-            _ = async { let _ = sigterm_fut.await; } => {
+            signal = sigterm_fut => {
+                signal
+            }
+        };
+
+        // BC-2.10.010 Step 1: log shutdown initiation.
+        tracing::info!(
+            event_type = "mcp.server.shutdown.initiated",
+            signal = signal_name,
+            "MCP server shutdown initiated — draining in-flight requests (BC-2.10.010)"
+        );
+
+        // BC-2.10.010 Step 2: cancel in-flight tasks with 5-second grace.
+        // `close_with_timeout` cancels the rmcp background task (stopping new request
+        // acceptance) and waits up to the timeout for in-flight requests to complete.
+        match service
+            .close_with_timeout(std::time::Duration::from_secs(5))
+            .await
+        {
+            Ok(Some(_quit_reason)) => {
+                // Tasks drained within the grace window.
                 tracing::info!(
-                    event_type = "mcp.server.shutdown.initiated",
-                    signal = "SIGTERM",
-                    "SIGTERM received — MCP server shutdown initiated (BC-2.10.010)"
+                    event_type = "mcp.server.shutdown.tasks_drained",
+                    "In-flight MCP requests drained within 5-second grace window (BC-2.10.010)"
                 );
-                tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+            }
+            Ok(None) => {
+                // Timeout elapsed — force exit with code 1 per BC-2.10.010.
+                tracing::warn!(
+                    event_type = "mcp.server.shutdown.timeout",
+                    grace_secs = 5u64,
+                    "5-second grace window exceeded; forcing exit with code 1 (BC-2.10.010)"
+                );
+                // BC-2.10.010 Step 6: force exit code 1 on timeout.
+                std::process::exit(1);
+            }
+            Err(join_err) => {
+                // Background task panicked or was cancelled unexpectedly.
+                tracing::warn!(
+                    event_type = "mcp.server.shutdown.timeout",
+                    error = %join_err,
+                    "MCP background task join error during shutdown; exiting with code 1"
+                );
+                std::process::exit(1);
             }
         }
 
+        // BC-2.10.010 Steps 3–5: state flush, HTTP client close, tracing flush.
+        // Step 3: RocksDB WAL flushes synchronously per-write (append_audit_entry_sync in
+        //         prism-storage/src/audit_buffer.rs). No explicit flush call is required at
+        //         shutdown — all committed writes are already durable by WAL invariant.
+        // Step 4: Sensor adapters use ephemeral reqwest clients (spawned per sensor call);
+        //         no persistent HTTP connections exist at the MCP layer to close.
+        // Step 5: Tracing subscribers flush on drop of the subscriber guard (held in main);
+        //         no explicit flush call is needed here.
+
+        // BC-2.10.010 Step 6: exit code 0 on clean shutdown.
         tracing::info!(
             event_type = "mcp.server.shutdown.complete",
             "MCP server shutdown complete (BC-2.10.010)"
@@ -1314,7 +1388,7 @@ impl PrismServer {
             "invoked",
         );
 
-        // CRIT-2 fix: WriteExecutor IS wired — dispatch through the real confirmation store.
+        // WriteExecutor must be wired — enforced by boot step 9.
         let Some(we) = &self.write_executor else {
             return Err(to_error_data(PrismError::Internal {
                 detail: "WriteExecutor not wired at PrismServer (boot step 9 \
@@ -1323,35 +1397,54 @@ impl PrismServer {
             }));
         };
 
-        // Step 1: consume the confirmation token (validates client_id + action hash).
-        // The token was generated by a prior write-plan tool call and contains the
-        // original action_params needed to reconstruct the WritePlan (BC-2.04.009).
+        // Step 1: Peek at the stored token to extract tool_name and action_params
+        // WITHOUT consuming it.  Consumption happens inside DryRunGate::consume_token()
+        // via WriteExecutor::execute() (Step 3 below).  The DryRunGate reconstitutes the
+        // action_params hash using the SAME shape as generate_token_preview (BC-2.04.012):
+        //   {"verb": ..., "sensor": ..., "target_table": ..., "write_endpoint": ...,
+        //    "client_id": ..., "params": ...}
+        // A direct consume() call here with a different shape would always fail with
+        // TokenContentHashMismatch (F-PASS4-CRIT-1 root cause — now fixed by delegating).
         let token_store = we.confirmation_store();
-        let action_params = serde_json::json!({
-            "token": params.token,
-            "client_id": params.client_id,
-        });
-        let token = token_store
-            .consume(&params.token, &params.client_id, &action_params)
-            .map_err(to_error_data)?;
+        let stored_token = token_store.peek(&params.token).map_err(to_error_data)?;
 
-        // Step 2: reconstruct WritePlan from the consumed token's stored action params.
-        // token.tool_name holds the originating tool (e.g. "crowdstrike_contain_host").
-        // token.action_params holds the original params as JSON.
+        // Step 2: Reconstruct WritePlan from the token's stored action_params.
         //
-        // For the current story scope (GAP-002-A — AdapterRegistry is empty), write dispatch
-        // will succeed at the token validation phase but fail at the adapter dispatch phase.
-        // This is correct behavior: the token IS consumed and the intent IS audit-logged;
-        // the write returns AdapterNotFound (not Internal) to indicate the architectural gap.
+        // token.tool_name is stored as "write.{verb}" (see generate_token_preview in
+        // dry_run.rs).  Strip the "write." prefix to recover the plain verb.
+        // F-PASS4-HIGH-3: verb must be the bare verb ("contain"), not "write.contain".
+        let raw_verb = stored_token.tool_name.as_str();
+        let verb = raw_verb
+            .strip_prefix("write.")
+            .unwrap_or(raw_verb)
+            .to_owned();
+
+        // F-PASS4-HIGH-2: populate plan.params from token.action_params["params"] so
+        // DryRunGate's hash reconstruction matches the generation-time params exactly.
+        let plan_params: std::collections::HashMap<String, String> = stored_token
+            .action_params
+            .get("params")
+            .and_then(|v| v.as_object())
+            .map(|map| {
+                map.iter()
+                    .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_owned())))
+                    .collect()
+            })
+            .unwrap_or_default();
+
+        // For the current story scope (GAP-002-A — AdapterRegistry is empty), write
+        // dispatch will succeed at the token validation phase but fail at the adapter
+        // dispatch phase.  This is correct: the token IS consumed and the intent IS
+        // audit-logged; the write returns AdapterNotFound (not Internal).
         let plan = prism_query::write_pipeline::WritePlan {
-            verb: token.tool_name.clone(),
-            sensor: token
+            verb,
+            sensor: stored_token
                 .action_params
                 .get("sensor")
                 .and_then(|v| v.as_str())
                 .unwrap_or("unknown")
                 .to_owned(),
-            target_table: token
+            target_table: stored_token
                 .action_params
                 .get("target_table")
                 .and_then(|v| v.as_str())
@@ -1361,12 +1454,10 @@ impl PrismServer {
             has_explicit_limit: false,
             explicit_limit: None,
             has_where_clause: false,
-            params: std::collections::HashMap::new(),
+            params: plan_params,
         };
 
-        // OrgSlug::new() returns OrgSlug directly (valid/invalid state, not Result).
-        // client_id was already validated by validate_client_ids() above — but confirm
-        // the slug parses correctly for write context wiring.
+        // client_id was already validated by validate_client_ids() above.
         let org_slug = prism_core::OrgSlug::new(&params.client_id);
         if org_slug.is_err() {
             return Err(to_error_data(PrismError::Internal {
@@ -1377,13 +1468,16 @@ impl PrismServer {
             client_id: params.client_id.clone(),
             org_slug,
             dry_run: false,
+            // DryRunGate::consume_token() reads this to look up + consume the token.
             confirmation_token_id: Some(params.token.clone()),
             analyst_id: None,
         };
 
-        // Step 3: execute via WriteExecutor.
+        // Step 3: Delegate to WriteExecutor which internally runs DryRunGate::consume_token()
+        // with the correct action_params hash (F-PASS4-CRIT-1 fix).
         let outcome = we.execute(plan, context).await.map_err(to_error_data)?;
 
+        // F-PASS4-HIGH-1: include all WriteResult fields in the response envelope.
         let result_json = match outcome {
             prism_query::write_pipeline::WriteOutcome::Preview(preview) => serde_json::json!({
                 "outcome": "dry_run",
@@ -1394,8 +1488,26 @@ impl PrismServer {
             }),
             prism_query::write_pipeline::WriteOutcome::Result(result) => serde_json::json!({
                 "outcome": "executed",
+                "operation_id": result.operation_id.to_string(),
+                "audit_intent_id": result.audit_intent_id.to_string(),
+                "write_endpoint": result.write_endpoint,
+                "risk_tier": format!("{:?}", result.risk_tier),
+                "confirmed_by_token": result.confirmed_by_token,
+                "execution_started_at": result.execution_started_at.to_rfc3339(),
+                "execution_completed_at": result.execution_completed_at.to_rfc3339(),
+                "affected_count": result.affected_count,
                 "succeeded_count": result.succeeded_count,
                 "failed_count": result.failed_count,
+                "per_record_results": result.per_record_results.iter().map(|r| serde_json::json!({
+                    "record_id": r.record_id,
+                    "status": format!("{:?}", r.status),
+                })).collect::<Vec<_>>(),
+                "sensor_errors": result.sensor_errors.iter().map(|e| serde_json::json!({
+                    "sensor": e.sensor,
+                    "client_id": e.client_id,
+                    "error_code": e.error_code,
+                    "detail": e.detail,
+                })).collect::<Vec<_>>(),
             }),
         };
         let envelope = SafetyEnvelopeBuilder::wrap(

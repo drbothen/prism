@@ -311,6 +311,32 @@ impl ConfirmationTokenStore {
         Ok(consumed_token)
     }
 
+    /// Peek at a token's stored data without consuming it.
+    ///
+    /// Returns a clone of the token for the caller to read `tool_name` and
+    /// `action_params` before reconstructing the `WritePlan` for `WriteExecutor`.
+    ///
+    /// This is a read-only operation — the token remains valid and unconsumed after
+    /// a `peek()`. The caller MUST NOT use the returned token to authorise an action;
+    /// consumption and hash verification happen inside `consume()` (invoked by
+    /// `DryRunGate::consume_token()` through `WriteExecutor::execute()`).
+    ///
+    /// # Returns
+    /// - `Ok(ConfirmationToken)` — clone of the stored token (may still be expired).
+    /// - `Err(PrismError::TokenNotFound)` — no token with `token_id` in the store.
+    ///
+    /// # Security note
+    /// `peek()` does NOT validate expiry or the content hash. Those checks are
+    /// performed by `consume()`. The caller must not bypass `consume()`.
+    pub fn peek(&self, token_id: &str) -> Result<ConfirmationToken, PrismError> {
+        self.tokens
+            .get(token_id)
+            .map(|entry| entry.clone())
+            .ok_or_else(|| PrismError::TokenNotFound {
+                token_id: token_id.to_string(),
+            })
+    }
+
     /// Return the count of active tokens in the store.
     ///
     /// Used for cap enforcement and test assertions.

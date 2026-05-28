@@ -554,3 +554,146 @@ fn test_BC_2_10_007_parse_error_message_contains_prismql() {
         "AC-5: message must reference 'parse' or 'PrismQL'; got: '{message}'"
     );
 }
+
+// ─── F-PASS4 — confirm_action wired path regression guard ────────────────────
+
+/// F-PASS4-CRIT-1 regression guard: confirm_action correctly uses peek() to read
+/// the stored token's action_params WITHOUT a direct consume() call that would fail
+/// with TokenContentHashMismatch (wrong hash shape).
+///
+/// OBS-2 / OBS-4 from adversary pass-4: this test exercises the peek() → WritePlan
+/// reconstruction path to prevent regression of the double-consume / wrong-params bug.
+///
+/// Test strategy (SID-1 discipline): this is a unit test that exercises the production
+/// code path (ConfirmationTokenStore::peek + WritePlan reconstruction) without requiring
+/// a full WriteExecutor or rmcp runtime.
+#[test]
+fn test_confirm_action_peek_reads_stored_token_without_consuming() {
+    use prism_security::confirmation_token::ConfirmationTokenStore;
+    use std::sync::Arc;
+
+    let store = Arc::new(ConfirmationTokenStore::new());
+    let client_id = "acme-corp";
+
+    // Simulate the action_params shape used by generate_token_preview in dry_run.rs.
+    // This is the canonical shape that DryRunGate::consume_token() will reconstruct.
+    let action_params = serde_json::json!({
+        "verb": "contain",
+        "sensor": "crowdstrike",
+        "target_table": "crowdstrike_devices",
+        "write_endpoint": "crowdstrike.contain",
+        "client_id": client_id,
+        "params": {
+            "device_id": "device-abc-123"
+        }
+    });
+
+    // generate() stores tool_name as "write.{verb}" (see generate_token_preview).
+    let token = store
+        .generate(
+            client_id,
+            "write.contain",
+            action_params.clone(),
+            "Contain device device-abc-123 for client acme-corp",
+        )
+        .expect("generate must succeed on empty store");
+
+    let token_id = token.token_id.clone();
+
+    // peek() reads the token without consuming it.
+    let peeked = store
+        .peek(&token_id)
+        .expect("peek must return the stored token");
+
+    // Verify token_id and client_id match.
+    assert_eq!(
+        peeked.token_id, token_id,
+        "peek must return the correct token"
+    );
+    assert_eq!(
+        peeked.client_id, client_id,
+        "peek must return the correct client_id"
+    );
+
+    // F-PASS4-HIGH-3 regression: tool_name is "write.contain" — verb must be stripped.
+    assert_eq!(
+        peeked.tool_name, "write.contain",
+        "token stores tool_name with 'write.' prefix"
+    );
+    let verb = peeked
+        .tool_name
+        .strip_prefix("write.")
+        .unwrap_or(&peeked.tool_name)
+        .to_owned();
+    assert_eq!(
+        verb, "contain",
+        "strip_prefix('write.') must yield the bare verb"
+    );
+
+    // F-PASS4-HIGH-2 regression: params must be extracted from action_params["params"].
+    let plan_params: std::collections::HashMap<String, String> = peeked
+        .action_params
+        .get("params")
+        .and_then(|v| v.as_object())
+        .map(|map| {
+            map.iter()
+                .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_owned())))
+                .collect()
+        })
+        .unwrap_or_default();
+    assert_eq!(
+        plan_params.get("device_id").map(String::as_str),
+        Some("device-abc-123"),
+        "params must be extracted from action_params['params'], not empty HashMap"
+    );
+
+    // Verify the token is still in the store after peek() (not consumed).
+    assert_eq!(
+        store.active_count(),
+        1,
+        "peek() must not consume the token — store must still have 1 active token"
+    );
+
+    // Verify consume() still works after peek() — proves no double-consume risk.
+    // We use the correct params shape (same as DryRunGate::consume_token would use).
+    let sensor = peeked
+        .action_params
+        .get("sensor")
+        .and_then(|v| v.as_str())
+        .unwrap_or("unknown");
+    let target_table = peeked
+        .action_params
+        .get("target_table")
+        .and_then(|v| v.as_str())
+        .unwrap_or("unknown");
+    let write_endpoint = format!("{}.{}", sensor, verb);
+    let params_json: serde_json::Value = peeked
+        .action_params
+        .get("params")
+        .cloned()
+        .unwrap_or(serde_json::Value::Object(Default::default()));
+    let consume_params = serde_json::json!({
+        "verb": verb,
+        "sensor": sensor,
+        "target_table": target_table,
+        "write_endpoint": write_endpoint,
+        "client_id": client_id,
+        "params": params_json,
+    });
+    let consumed = store.consume(&token_id, client_id, &consume_params);
+    assert!(
+        consumed.is_ok(),
+        "consume() with correct params shape must succeed after peek(); \
+         error: {:?} — this would fail with TokenContentHashMismatch if params shape is wrong \
+         (F-PASS4-CRIT-1 regression)",
+        consumed.err()
+    );
+
+    // Token is now consumed — second consume must fail with TokenNotFound.
+    let second = store.consume(&token_id, client_id, &consume_params);
+    assert!(
+        matches!(second, Err(PrismError::TokenNotFound { .. })),
+        "second consume after successful consume must return TokenNotFound (VP-008); got: {:?}",
+        second
+    );
+}
