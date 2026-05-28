@@ -973,6 +973,29 @@ fn validate_client_ids(client_ids: &[String]) -> Result<(), rmcp::model::ErrorDa
     Ok(())
 }
 
+/// Validate a single *_id / id field against a 256-char upper bound.
+///
+/// F-PASS14-HIGH-3: all *_id fields in tool param structs must be length-bounded
+/// before use to prevent unbounded string allocation in tool handlers. A 256-char
+/// limit is generous for ULIDs (26 chars), UUIDs (36 chars), and other ID schemes
+/// while blocking pathologically large inputs.
+///
+/// Returns `Err(ErrorData)` with INVALID_PARAMS if `value.len() > 256`.
+fn validate_id_field(field_name: &str, value: &str) -> Result<(), rmcp::model::ErrorData> {
+    const ID_MAX_LEN: usize = 256;
+    if value.len() > ID_MAX_LEN {
+        return Err(rmcp::model::ErrorData::new(
+            rmcp::model::ErrorCode(codes::INVALID_PARAMS),
+            format!(
+                "Invalid {field_name}: length {} exceeds maximum {ID_MAX_LEN} (F-PASS14-HIGH-3)",
+                value.len()
+            ),
+            None,
+        ));
+    }
+    Ok(())
+}
+
 /// Return a structured "not yet available" error for prism-operations tools.
 ///
 /// HIGH-008 / MED-001: uses `codes::NOT_IMPLEMENTED` (-32003) consistently.
@@ -1951,19 +1974,26 @@ impl PrismServer {
             }
         };
 
-        // F-PASS12-HIGH-2: DataSource must carry sensor identity, not client identity.
-        // Extract the sensor name from the stored token's action_params (present for write.* tokens).
-        // Alias tokens (create_alias, delete_alias) access no sensor — use empty DataSource.
-        // "unknown" is the safe fallback when a write token lacks a sensor field.
-        let sensor_for_envelope = stored_token
-            .action_params
-            .get("sensor")
-            .and_then(|v| v.as_str())
-            .unwrap_or("unknown")
-            .to_owned();
-        // For alias operations (no sensor accessed), the DataSource is intentionally empty —
-        // these tools operate on the internal alias registry, not any sensor adapter.
+        // F-PASS12-HIGH-2 / F-PASS14-HIGH-2: DataSource must carry sensor identity, not
+        // client identity. For write tokens, extract the sensor from action_params using the
+        // same pattern as the write match arm above — return Internal if the field is missing
+        // (same production-grade pattern as the write arm's sensor_val extraction).
+        // For alias tokens (create_alias, delete_alias), no sensor is accessed —
+        // use DataSource::Multiple(vec![]) which is correct for internal-registry operations.
         let datasource = if stored_token.tool_name.starts_with("write.") {
+            // write tokens must have "sensor" in action_params — missing field = corruption.
+            let sensor_for_envelope = stored_token
+                .action_params
+                .get("sensor")
+                .and_then(|v| v.as_str())
+                .ok_or_else(|| {
+                    to_error_data(PrismError::Internal {
+                        detail: "confirm_action: token action_params missing required field \
+                                 'sensor' for envelope construction — token may be corrupted"
+                            .to_owned(),
+                    })
+                })?
+                .to_owned();
             DataSource::Multiple(vec![sensor_for_envelope])
         } else {
             // create_alias / delete_alias: no sensor data accessed.
@@ -2604,6 +2634,7 @@ impl PrismServer {
         &self,
         Parameters(params): Parameters<DeleteScheduleParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
+        validate_id_field("id", params.id.as_str())?;
         scan_inputs(&self.injection_scanner, &[("id", params.id.as_str())])?;
         emit_tool_audit(
             self.audit_writer.as_ref(),
@@ -2636,6 +2667,7 @@ impl PrismServer {
         &self,
         Parameters(params): Parameters<GetDiffResultsParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
+        validate_id_field("id", params.id.as_str())?;
         scan_inputs(&self.injection_scanner, &[("id", params.id.as_str())])?;
         emit_tool_audit(
             self.audit_writer.as_ref(),
@@ -3146,6 +3178,7 @@ impl PrismServer {
         &self,
         Parameters(params): Parameters<GetAlertParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
+        validate_id_field("alert_id", params.alert_id.as_str())?;
         scan_inputs(
             &self.injection_scanner,
             &[("alert_id", params.alert_id.as_str())],
@@ -3176,6 +3209,7 @@ impl PrismServer {
         &self,
         Parameters(params): Parameters<AcknowledgeAlertParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
+        validate_id_field("alert_id", params.alert_id.as_str())?;
         scan_inputs(
             &self.injection_scanner,
             &[("alert_id", params.alert_id.as_str())],
@@ -3213,6 +3247,7 @@ impl PrismServer {
         &self,
         Parameters(params): Parameters<CrowdstrikeContainHostParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
+        validate_id_field("device_id", params.device_id.as_str())?;
         scan_inputs(
             &self.injection_scanner,
             &[
@@ -3252,6 +3287,7 @@ impl PrismServer {
         &self,
         Parameters(params): Parameters<CrowdstrikeLiftContainmentParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
+        validate_id_field("device_id", params.device_id.as_str())?;
         scan_inputs(
             &self.injection_scanner,
             &[
@@ -3478,6 +3514,7 @@ impl PrismServer {
         &self,
         Parameters(params): Parameters<InfusionStatusParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
+        validate_id_field("infusion_id", params.infusion_id.as_str())?;
         scan_inputs(
             &self.injection_scanner,
             &[("infusion_id", params.infusion_id.as_str())],
@@ -3513,6 +3550,7 @@ impl PrismServer {
         &self,
         Parameters(params): Parameters<ReloadInfusionParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
+        validate_id_field("infusion_id", params.infusion_id.as_str())?;
         scan_inputs(
             &self.injection_scanner,
             &[("infusion_id", params.infusion_id.as_str())],
@@ -3576,6 +3614,7 @@ impl PrismServer {
         &self,
         Parameters(params): Parameters<PluginStatusParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
+        validate_id_field("plugin_id", params.plugin_id.as_str())?;
         scan_inputs(
             &self.injection_scanner,
             &[("plugin_id", params.plugin_id.as_str())],
@@ -3606,6 +3645,7 @@ impl PrismServer {
         &self,
         Parameters(params): Parameters<ReloadPluginParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
+        validate_id_field("plugin_id", params.plugin_id.as_str())?;
         scan_inputs(
             &self.injection_scanner,
             &[("plugin_id", params.plugin_id.as_str())],
@@ -3676,6 +3716,7 @@ impl PrismServer {
         &self,
         Parameters(params): Parameters<ActionStatusParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
+        validate_id_field("action_id", params.action_id.as_str())?;
         scan_inputs(
             &self.injection_scanner,
             &[("action_id", params.action_id.as_str())],
@@ -3706,6 +3747,7 @@ impl PrismServer {
         &self,
         Parameters(params): Parameters<FireActionParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
+        validate_id_field("action_id", params.action_id.as_str())?;
         let mut inputs = vec![("action_id", params.action_id.as_str())];
         if let Some(ref ctx) = params.context {
             inputs.push(("context", ctx.as_str()));
@@ -3737,6 +3779,7 @@ impl PrismServer {
         &self,
         Parameters(params): Parameters<TestActionParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
+        validate_id_field("action_id", params.action_id.as_str())?;
         scan_inputs(
             &self.injection_scanner,
             &[("action_id", params.action_id.as_str())],
@@ -3797,6 +3840,7 @@ impl PrismServer {
         &self,
         Parameters(params): Parameters<DeleteActionParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
+        validate_id_field("action_id", params.action_id.as_str())?;
         scan_inputs(
             &self.injection_scanner,
             &[("action_id", params.action_id.as_str())],
@@ -3985,6 +4029,172 @@ mod tests {
         );
     }
 
+    // ─── F-PASS14-HIGH-1 — AC-7 confirm_action CapabilityDenied → FORBIDDEN ────
+    //
+    // This test drives the FULL AC-7 path through PrismServer::confirm_action.
+    // Previous pass-13 test was a paper-fix: it called WriteExecutor::execute and
+    // map_prism_error directly, bypassing confirm_action entirely.
+    //
+    // Mental-deletion proof: if `we.execute(plan, context).await.map_err(to_error_data)?`
+    // in confirm_action is replaced with `Ok(success_outcome)`, this test fails because
+    // the returned result would be Ok (not Err with FORBIDDEN).
+    //
+    // LOAD-BEARING path:
+    //   confirm_action
+    //     → token_store.peek → success (token pre-stored)
+    //     → extract sensor_val + target_table_val from action_params
+    //     → reconstruct WritePlan
+    //     → we.execute(plan, context) → phase2_safety_check
+    //       → feature_flags.check_permission (empty map → DeniedRuntime)
+    //       → PrismError::CapabilityDenied
+    //     → map_err(to_error_data) → ErrorData.code == FORBIDDEN (-32002)
+
+    /// Stub AuditWriter for F-PASS14-HIGH-1 test.
+    /// Not reached — CapabilityDenied fires in Phase 2, before Phase 5a audit intent.
+    struct HighOneStubAudit;
+
+    #[async_trait::async_trait]
+    impl prism_query::write_dispatch::AuditWriter for HighOneStubAudit {
+        async fn write_intent(
+            &self,
+            _plan: &prism_query::WritePlan,
+            _context: &prism_query::QueryContext,
+            _check: &prism_security::CapabilityCheckResult,
+        ) -> Result<ulid::Ulid, prism_core::error::PrismError> {
+            Ok(ulid::Ulid::new())
+        }
+        async fn write_outcome(
+            &self,
+            _intent_id: ulid::Ulid,
+            _result: &prism_query::WriteResult,
+        ) -> Result<(), prism_core::error::PrismError> {
+            Ok(())
+        }
+    }
+
+    /// F-PASS14-HIGH-1 / AC-7: confirm_action → CapabilityDenied → FORBIDDEN (-32002).
+    ///
+    /// LOAD-BEARING: exercises the FULL confirm_action production code path.
+    ///
+    /// Previous pass-13 test was a paper-fix: it called WriteExecutor::execute and
+    /// map_prism_error directly, bypassing confirm_action.
+    ///
+    /// Mental-deletion proof: if `we.execute(plan, context).await.map_err(to_error_data)?`
+    /// in confirm_action is replaced with `Ok(success_outcome)`, this test fails because
+    /// the returned result would be Ok (not Err with FORBIDDEN).
+    ///
+    /// LOAD-BEARING path through production code:
+    ///   PrismServer::confirm_action
+    ///     → token_store.peek → success (token pre-stored)
+    ///     → extract sensor_val + target_table_val from action_params
+    ///     → reconstruct WritePlan
+    ///     → we.execute(plan, context) → phase2_safety_check
+    ///       → feature_flags.check_permission (empty map → DeniedRuntime)
+    ///       → PrismError::CapabilityDenied
+    ///     → map_err(to_error_data) → ErrorData.code == FORBIDDEN (-32002)
+    #[tokio::test]
+    async fn test_F_PASS14_HIGH_1_confirm_action_capability_denied_maps_to_32002() {
+        use prism_core::RiskTier;
+        use prism_query::write_pipeline::WriteExecutor;
+        use prism_security::confirmation_token::{BoundingMetadata, ConfirmationTokenStore};
+        use prism_security::FeatureFlagEvaluator;
+        use prism_sensors::registry::AdapterRegistry;
+        use prism_spec_engine::write_endpoint::{
+            BatchMode, WriteEndpointRegistry, WriteEndpointSpec, WriteStep,
+        };
+        use std::collections::BTreeMap;
+        use std::sync::Arc;
+
+        // Build WriteEndpointRegistry with test_sensor/test_verb so compile_gate = Present.
+        let mut endpoint_registry = WriteEndpointRegistry::new();
+        let endpoint_spec = WriteEndpointSpec::new(
+            "test_verb",
+            "test_sensor_table",
+            RiskTier::Reversible,
+            "sensor.test_sensor.test_verb",
+            100,
+            BatchMode::Serial,
+            "id",
+            vec![WriteStep::new("PUT", "/test/{id}", None, None)],
+        );
+        endpoint_registry
+            .register("test_sensor", vec![endpoint_spec])
+            .expect("endpoint registration must succeed");
+
+        // FeatureFlagEvaluator with empty client map — deny-by-default for any client.
+        let feature_flags = Arc::new(FeatureFlagEvaluator::new(BTreeMap::new()));
+        let confirmation_store = Arc::new(ConfirmationTokenStore::new());
+        let adapter_registry = Arc::new(AdapterRegistry::new());
+
+        // Pre-generate a write token in the store.
+        // tool_name starts with "write." so confirm_action takes the write path.
+        // action_params must have "sensor" and "target_table" for confirm_action to
+        // reconstruct the WritePlan without returning Internal.
+        let client_id = "test-client";
+        let action_params = serde_json::json!({
+            "sensor": "test_sensor",
+            "target_table": "test_sensor_table",
+            "verb": "test_verb",
+            "params": {}
+        });
+        let token = confirmation_store
+            .generate_with_bounding(
+                client_id,
+                "write.test_verb",
+                action_params,
+                "test action",
+                BoundingMetadata {
+                    has_where_clause: true,
+                    has_explicit_limit: false,
+                    explicit_limit: None,
+                    dml_operation: None,
+                },
+            )
+            .expect("token generation must succeed");
+
+        let write_executor = Arc::new(WriteExecutor::new(
+            feature_flags,
+            confirmation_store,
+            Arc::new(HighOneStubAudit),
+            adapter_registry,
+            Arc::new(endpoint_registry),
+        ));
+
+        // Construct PrismServer with only write_executor wired.
+        // Other deps are None — confirm_action only uses write_executor + injection_scanner.
+        // Uses struct literal (accessible from child mod tests via use super::*).
+        let server = PrismServer {
+            injection_scanner: Arc::new(InjectionScanner),
+            query_engine: None,
+            write_executor: Some(write_executor),
+            audit_writer: None,
+            config_manager: None,
+            spec_dir: None,
+            alias_store: None,
+        };
+
+        // Call confirm_action with the pre-stored token and matching client_id.
+        let params = ConfirmActionParams {
+            token: token.token_id.clone(),
+            client_id: client_id.to_owned(),
+        };
+
+        let result = server.confirm_action(Parameters(params)).await;
+
+        // Must return Err with FORBIDDEN (-32002) — CapabilityDenied from Phase 2.
+        let err = result.expect_err(
+            "F-PASS14-HIGH-1 / AC-7: confirm_action must return Err when \
+             FeatureFlagEvaluator denies the capability for an unknown client",
+        );
+        assert_eq!(
+            err.code.0,
+            codes::FORBIDDEN,
+            "F-PASS14-HIGH-1 / AC-7: CapabilityDenied must map to FORBIDDEN (-32002) \
+             via confirm_action → to_error_data; got code {}",
+            err.code.0
+        );
+    }
+
     /// BC-2.10.003: confirm_action returns Internal error when WriteExecutor is not wired.
     ///
     /// MED-006 fix: should NOT return FeatureFlagDisabled (implies policy denial),
@@ -4033,6 +4243,50 @@ mod tests {
     fn test_validate_client_ids_accepts_valid_slug() {
         let result = validate_client_ids(&["acme-corp".to_string(), "org_123".to_string()]);
         assert!(result.is_ok(), "must accept valid kebab/underscore slugs");
+    }
+
+    // ─── F-PASS14-CRIT-1 — validate_client_ids length-bound tests ────────────
+    //
+    // These tests call validate_client_ids directly (private function accessible from
+    // child mod tests via use super::*). Mental-deletion proof: removing `|| id.len() > 64`
+    // from validate_client_ids causes test_validate_client_ids_rejects_65_char_id to fail
+    // because validate_client_ids would return Ok(()) instead of Err(INVALID_PARAMS).
+
+    /// F-PASS14-CRIT-1: validate_client_ids must reject ids longer than 64 chars.
+    ///
+    /// LOAD-BEARING: directly calls validate_client_ids. If the `|| id.len() > 64` guard
+    /// is removed from validate_client_ids, this test fails (Ok returned, not Err).
+    #[test]
+    fn test_validate_client_ids_rejects_65_char_id() {
+        // 65 'a' chars — valid charset, 1 over the 64-char OrgSlug limit.
+        let oversized = vec!["a".repeat(65)];
+        let result = validate_client_ids(&oversized);
+        assert!(
+            result.is_err(),
+            "validate_client_ids must reject a 65-char id (exceeds 64-char OrgSlug limit); \
+             got Ok — the || id.len() > 64 guard was removed or bypassed"
+        );
+        assert_eq!(
+            result.unwrap_err().code.0,
+            codes::INVALID_PARAMS,
+            "rejection must use INVALID_PARAMS (-32602), not another code"
+        );
+    }
+
+    /// F-PASS14-CRIT-1: validate_client_ids must accept a 64-char id (boundary value).
+    ///
+    /// LOAD-BEARING: directly calls validate_client_ids. If validate_client_ids
+    /// wrongly rejects at len == 64 (off-by-one), this test fails.
+    #[test]
+    fn test_validate_client_ids_accepts_64_char_id() {
+        // 64 'a' chars — exactly at OrgSlug limit.
+        let max_size = vec!["a".repeat(64)];
+        let result = validate_client_ids(&max_size);
+        assert!(
+            result.is_ok(),
+            "validate_client_ids must accept a 64-char id (at OrgSlug limit); \
+             got Err — the guard is using > 64 not >= 65 (off-by-one)"
+        );
     }
 
     /// MED-001 / HIGH-008: operations tools return NOT_IMPLEMENTED (-32003), not raw string.
@@ -4108,6 +4362,47 @@ mod tests {
             info.capabilities.resources.is_some(),
             "F-PASS11-MED-3: ServerCapabilities must declare resources capability; \
              rmcp-1.7.0 builder supports enable_resources()"
+        );
+    }
+
+    // ─── F-PASS14-HIGH-3 — validate_id_field length-bound test ───────────────
+    //
+    // LOAD-BEARING: calls validate_id_field directly. If the `value.len() > 256` guard
+    // is removed from validate_id_field, this test fails (Ok returned, not Err).
+
+    /// F-PASS14-HIGH-3: validate_id_field must reject ids longer than 256 chars.
+    ///
+    /// LOAD-BEARING: directly calls validate_id_field (private fn accessible from
+    /// child mod tests). If the guard is removed, result.is_err() → false → panic.
+    #[test]
+    fn test_validate_id_field_rejects_257_char_id() {
+        // 257 'x' chars — 1 over the 256-char limit.
+        let oversized = "x".repeat(257);
+        let result = validate_id_field("action_id", oversized.as_str());
+        assert!(
+            result.is_err(),
+            "validate_id_field must reject a 257-char id; \
+             got Ok — the || value.len() > 256 guard was removed"
+        );
+        assert_eq!(
+            result.unwrap_err().code.0,
+            codes::INVALID_PARAMS,
+            "rejection must use INVALID_PARAMS (-32602)"
+        );
+    }
+
+    /// F-PASS14-HIGH-3: validate_id_field must accept a 256-char id (boundary value).
+    ///
+    /// LOAD-BEARING: if validate_id_field wrongly rejects at len == 256 (off-by-one),
+    /// this test fails.
+    #[test]
+    fn test_validate_id_field_accepts_256_char_id() {
+        // 256 'x' chars — exactly at the limit.
+        let max_size = "x".repeat(256);
+        let result = validate_id_field("action_id", max_size.as_str());
+        assert!(
+            result.is_ok(),
+            "validate_id_field must accept a 256-char id; got Err"
         );
     }
 
