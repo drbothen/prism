@@ -132,6 +132,7 @@ Tools are organized by subsystem. Write tools follow the hidden-tools pattern (B
 | `list_packs` | SS-12 | — | List query packs with contents and status. Pack definitions are global (not client-scoped) — all analysts see all pack definitions. Per-client activation is determined by discovery queries, not pack ownership. |
 | `explain_pack` | SS-12 | pack_id, client_id | Show pack contents, discovery status, client assignments |
 | `list_sensor_specs` | SS-16 | — | List loaded sensor specs with table schemas |
+| `validate_config` | SS-16 | toml_content | Validate a sensor spec TOML string without loading it — returns validation errors or success with sensor_id/table_count (S-5.01-FOLLOWUP-MCP-BOOT) |
 | `list_infusions` | SS-19 | client_id (optional) | List all loaded infusion specs with status, source type, data age, and cache hit rates |
 | `infusion_status` | SS-19 | infusion_id | Detailed status for a named infusion: data file path, age, records loaded, three-tier cache stats, next scheduled reload |
 | `list_plugins` | SS-17 | — | List all loaded WASM plugins with load status, ABI version, memory usage, and CPU epoch stats |
