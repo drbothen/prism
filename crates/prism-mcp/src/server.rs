@@ -2448,6 +2448,12 @@ impl PrismServer {
             inputs.push(("scope", scope.as_str()));
         }
         scan_inputs(&self.injection_scanner, &inputs)?;
+        emit_tool_audit(
+            self.audit_writer.as_ref(),
+            "create_schedule",
+            None,
+            "invoked",
+        );
         Err(not_yet_available_msg("schedule management"))
     }
 
@@ -2470,6 +2476,12 @@ impl PrismServer {
         output_schema = schema_for_type::<ResponseEnvelopeSchema>()
     )]
     pub async fn list_schedules(&self) -> Result<String, rmcp::model::ErrorData> {
+        emit_tool_audit(
+            self.audit_writer.as_ref(),
+            "list_schedules",
+            None,
+            "invoked",
+        );
         Err(not_yet_available_msg("schedule management"))
     }
 
@@ -2496,6 +2508,12 @@ impl PrismServer {
         Parameters(params): Parameters<DeleteScheduleParams>,
     ) -> Result<String, rmcp::model::ErrorData> {
         scan_inputs(&self.injection_scanner, &[("id", params.id.as_str())])?;
+        emit_tool_audit(
+            self.audit_writer.as_ref(),
+            "delete_schedule",
+            None,
+            "invoked",
+        );
         Err(not_yet_available_msg("schedule management"))
     }
 
@@ -2522,6 +2540,12 @@ impl PrismServer {
         Parameters(params): Parameters<GetDiffResultsParams>,
     ) -> Result<String, rmcp::model::ErrorData> {
         scan_inputs(&self.injection_scanner, &[("id", params.id.as_str())])?;
+        emit_tool_audit(
+            self.audit_writer.as_ref(),
+            "get_diff_results",
+            None,
+            "invoked",
+        );
         Err(not_yet_available_msg("schedule management"))
     }
 
@@ -2555,6 +2579,7 @@ impl PrismServer {
             inputs.push(("scope", scope.as_str()));
         }
         scan_inputs(&self.injection_scanner, &inputs)?;
+        emit_tool_audit(self.audit_writer.as_ref(), "create_rule", None, "invoked");
         Err(not_yet_available_msg("detection rules"))
     }
 
@@ -2577,6 +2602,7 @@ impl PrismServer {
         output_schema = schema_for_type::<ResponseEnvelopeSchema>()
     )]
     pub async fn list_rules(&self) -> Result<String, rmcp::model::ErrorData> {
+        emit_tool_audit(self.audit_writer.as_ref(), "list_rules", None, "invoked");
         Err(not_yet_available_msg("detection rules"))
     }
 
@@ -2603,6 +2629,7 @@ impl PrismServer {
         Parameters(params): Parameters<DeleteRuleParams>,
     ) -> Result<String, rmcp::model::ErrorData> {
         scan_inputs(&self.injection_scanner, &[("id", params.id.as_str())])?;
+        emit_tool_audit(self.audit_writer.as_ref(), "delete_rule", None, "invoked");
         Err(not_yet_available_msg("detection rules"))
     }
 
@@ -2636,6 +2663,7 @@ impl PrismServer {
             inputs.push(("scope", scope.as_str()));
         }
         scan_inputs(&self.injection_scanner, &inputs)?;
+        emit_tool_audit(self.audit_writer.as_ref(), "create_case", None, "invoked");
         Err(not_yet_available_msg("case management"))
     }
 
@@ -2658,6 +2686,7 @@ impl PrismServer {
         output_schema = schema_for_type::<ResponseEnvelopeSchema>()
     )]
     pub async fn list_cases(&self) -> Result<String, rmcp::model::ErrorData> {
+        emit_tool_audit(self.audit_writer.as_ref(), "list_cases", None, "invoked");
         Err(not_yet_available_msg("case management"))
     }
 
@@ -2684,6 +2713,7 @@ impl PrismServer {
         Parameters(params): Parameters<GetCaseParams>,
     ) -> Result<String, rmcp::model::ErrorData> {
         scan_inputs(&self.injection_scanner, &[("id", params.id.as_str())])?;
+        emit_tool_audit(self.audit_writer.as_ref(), "get_case", None, "invoked");
         Err(not_yet_available_msg("case management"))
     }
 
@@ -2717,6 +2747,7 @@ impl PrismServer {
             inputs.push(("description", desc.as_str()));
         }
         scan_inputs(&self.injection_scanner, &inputs)?;
+        emit_tool_audit(self.audit_writer.as_ref(), "update_case", None, "invoked");
         Err(not_yet_available_msg("case management"))
     }
 
@@ -2739,6 +2770,7 @@ impl PrismServer {
         output_schema = schema_for_type::<ResponseEnvelopeSchema>()
     )]
     pub async fn case_metrics(&self) -> Result<String, rmcp::model::ErrorData> {
+        emit_tool_audit(self.audit_writer.as_ref(), "case_metrics", None, "invoked");
         Err(not_yet_available_msg("case management"))
     }
 
