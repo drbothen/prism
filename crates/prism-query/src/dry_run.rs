@@ -209,11 +209,20 @@ impl DryRunGate {
             plan.verb, would_affect_count, write_endpoint, context.client_id
         );
 
-        let token = self.confirmation_store.generate(
+        // CRIT-1: capture bounding signals from the originating plan so confirm_action
+        // can reconstruct a WritePlan that passes Phase 2 check_unbounded_write.
+        let bounding_metadata = prism_security::BoundingMetadata {
+            has_where_clause: plan.has_where_clause,
+            has_explicit_limit: plan.has_explicit_limit,
+            explicit_limit: plan.explicit_limit,
+        };
+
+        let token = self.confirmation_store.generate_with_bounding(
             &context.client_id,
             &format!("write.{}", plan.verb),
             action_params,
             &action_summary,
+            bounding_metadata,
         )?;
 
         // Convert SystemTime to DateTime<Utc> for serialization
