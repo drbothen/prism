@@ -1117,9 +1117,19 @@ impl PrismServer {
             "total_available": result.total_available,
             "is_truncated": result.is_truncated,
         });
+        // F-PASS11-MED-2: DataSource must carry sensor IDs (which sensors were queried),
+        // not client IDs (who asked). result.context.sensors_queried is populated by the
+        // fan-out pipeline for each sensor table fetched. If the query touches no sensor
+        // tables (e.g., internal metadata query), we fall back to ["unknown"] so the
+        // safety envelope always carries meaningful provenance context.
+        let sensor_ids = if result.context.sensors_queried.is_empty() {
+            vec!["unknown".to_string()]
+        } else {
+            result.context.sensors_queried.clone()
+        };
         let envelope = SafetyEnvelopeBuilder::wrap(
             "query",
-            DataSource::Multiple(params.clients.clone().unwrap_or_default()),
+            DataSource::Multiple(sensor_ids),
             payload,
             1,
             result.is_truncated,
