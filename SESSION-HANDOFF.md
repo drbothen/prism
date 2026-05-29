@@ -7914,29 +7914,34 @@ GAP-002-A (AdapterRegistry empty at boot) is the architectural keystone blocking
 
 ### §4. Story Execution Order (Critical Path)
 
-_Updated D-847 (2026-05-29): DTU=true-DTU reversal (ADR-031). Cyberint auth corrected. S-DTU-CYBERINT-AUTH-FIDELITY-001 added as P0-pre-demo-BLOCKING. S-DEMO-001 v1.2→v1.3 (StaticCookieAuthProvider + access_token). Critical path extended by one story._
+_Updated D-849 (2026-05-29): Claroty audit_log + pagination stubs elevated to P1-pre-demo-BLOCKING per user decisions. S-DEMO-MULTI-TENANT-DTU-001 stub registered. Critical path estimate +~1 session for Claroty elevation._
 
 ```
-S-CONFIG-MULTI-TENANT-OVERRIDE-001 (P0, draft, ready)   → per-story-delivery   [next dispatchable]
-  [can run in parallel:]
-S-DTU-CYBERINT-AUTH-FIDELITY-001 (P0, stub, pre-demo-BLOCKING — ADR-031 §D3)
-  → story-writer materialization → per-story-delivery
-  [both must merge before S-DEMO-001]
+[BOTH parallel — separate worktrees:]
+  S-DTU-CYBERINT-AUTH-FIDELITY-001 (P0-pre-demo-BLOCKING, ready v1.1, 8 pts)
+    → per-story-delivery [DTU + prism-side AuthProvider, depends_on PLUGIN-MIGRATION-001-A merged]
+  S-CONFIG-MULTI-TENANT-OVERRIDE-001 (P0 critical-path, ready v1.2, ? pts)
+    → per-story-delivery [per-org overlay loading, ADR-029]
+        ↓ (both must merge before)
+[BOTH parallel — Claroty pre-demo fidelity:]
+  S-DEMO-CLAROTY-AUDIT-DTU-001 (P1-pre-demo-BLOCKING, planned)
+    → story-writer materialization → per-story-delivery [DTU /api/v1/audit_log/get route]
+  S-DEMO-CLAROTY-PAGINATION-001 (P1-pre-demo-BLOCKING, planned)
+    → story-writer materialization → per-story-delivery [pipeline OffsetLimit POST body]
         ↓
-S-DEMO-001 (P0, draft v1.3, KEYSTONE — closes GAP-002-A; OQ-1/2/6 architect-resolved;
-  v1.3: StaticCookieAuthProvider + Cookie: access_token={api_key}; depends_on S-DTU-CYBERINT-AUTH-FIDELITY-001)
-  → per-story-delivery (architect rescope complete)
+S-DEMO-001 (P0 KEYSTONE, ready v1.3, closes GAP-002-A)
+  → per-story-delivery [SpecDrivenSensorAdapter + boot step 9A]
         ↓
-S-DEMO-002 (P0, draft v1.2, multi-org ACs added)        → per-story-delivery after S-DEMO-001
+S-DEMO-002 (P0, ready v1.2, multi-org E2E smoke test) → per-story-delivery
         ↓
 [parallel:]
-  S-DEMO-003 (P1, draft)                                → per-story-delivery
-  S-5.04-FIX-001 (P2, draft, factory-only)              → per-story-delivery
-  S-DEMO-CLAROTY-PAGINATION-001 (P1, stub)              → story-writer materialization first, then per-story-delivery
-  (5 more P2/P3 follow-up stubs as post-demo work)
+  S-DEMO-003 (P1, draft) → story-writer materialize → per-story-delivery [setup scripts + runbook]
+  S-5.04-FIX-001 (P2, draft) → per-story-delivery [factory-only]
+  S-DEMO-MULTI-TENANT-DTU-001 (P2, stub) → story-writer materialize → per-story-delivery
+  (3 P2/P3 post-demo follow-ups: Claroty-trailing-slash, Armis-AQL, CrowdStrike-multiregion)
 ```
 
-**Critical path session estimate:** ~5.1 sessions (updated from 4.6 — added S-DTU-CYBERINT-AUTH-FIDELITY-001)
+**Critical path session estimate:** ~5-6 sessions (previously 5.1; Claroty elevation adds ~1 session)
 
 **Story file paths:**
 - `S-DEMO-001-spec-driven-sensor-adapter-and-boot-step-9a.md` (29 KB, 11 pts, v1.3)
@@ -7981,16 +7986,17 @@ BC-INDEX version: **v5.55** (unchanged — no new BCs, no promotions in this pla
 
 ### §7. Resume Protocol (5 Steps — Zero Prior Context Required)
 
-_Updated D-847 (2026-05-29): DTU=true-DTU reversal; S-DTU-CYBERINT-AUTH-FIDELITY-001 added; S-DEMO-001 v1.3; ADR-031 authored. Critical path: S-CONFIG → S-DTU-CYBERINT (parallel) → S-DEMO-001._
+_Updated D-849 (2026-05-29): D-849 final reconciliation complete; S-DTU-CYBERINT-AUTH-FIDELITY-001 v1.1 + S-CONFIG-MULTI-TENANT-OVERRIDE-001 v1.2 both dispatch-ready. Claroty pre-demo stubs elevated to P1-pre-demo-BLOCKING. Critical path: parallel dispatch S-DTU-CYBERINT + S-CONFIG → Claroty fidelity stories → S-DEMO-001 keystone._
 
 1. **Run `vsdd-factory:factory-worktree-health`** (BLOCKING preflight — must pass before any other action)
-2. **Read `STATE.md` frontmatter** — confirm `develop_head: "72baf413"` and note D-847 is the current state
+2. **Read `STATE.md` frontmatter** — confirm `develop_head: "72baf413"` and `version: "7.536"` (D-849 most-recent checkpoint)
 3. **Read this §RESUME SNAPSHOT** (you are reading it now)
 4. **Read `.factory/proposals/E2E-DEMO-WIRING-PLAN.md` v1.3** + `ADR-031-dtu-equals-true-dtu-fidelity-principle.md` (MUST read — foundational changes from D-847)
-5. **Dispatch next per-story-delivery cycle:**
-   - S-CONFIG-MULTI-TENANT-OVERRIDE-001 (status: draft, ready — all deps merged) — dispatch first
-   - S-DTU-CYBERINT-AUTH-FIDELITY-001 (status: stub — needs story-writer materialization first) — dispatch in parallel with S-CONFIG via separate worktree
-   - S-DEMO-001 (status: draft v1.3, OQ-1/2/6 resolved; depends on S-DTU-CYBERINT-AUTH-FIDELITY-001) — dispatch after both above merge
+5. **Dispatch parallel per-story-delivery cycles (separate worktrees):**
+   - S-DTU-CYBERINT-AUTH-FIDELITY-001 (status: ready v1.1, P0-pre-demo-BLOCKING — all deps merged via PLUGIN-MIGRATION-001-A) — dispatch first worktree
+   - S-CONFIG-MULTI-TENANT-OVERRIDE-001 (status: ready v1.2, P0 — all deps merged) — dispatch second worktree in parallel
+   - After BOTH merge: story-writer materialize S-DEMO-CLAROTY-AUDIT-DTU-001 + S-DEMO-CLAROTY-PAGINATION-001 (both P1-pre-demo-BLOCKING) → parallel delivery
+   - After Claroty stories merge: S-DEMO-001 keystone (status: draft v1.3, OQ-1/2/6 resolved; depends on S-DTU-CYBERINT + S-CONFIG + Claroty fidelity stories)
    - Standard per-story-delivery cycle: stubs → failing tests → TDD → adversary 3-CLEAN cascade → demo → push → pr-manager → state-manager post-merge burst
 
 ---

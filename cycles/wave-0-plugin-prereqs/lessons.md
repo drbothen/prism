@@ -383,3 +383,31 @@ traces_to: STATE.md
     **Forward implication:** Every future DTU clone or DTU route addition must pass the SAP-2 fidelity probe at adversarial review before the implementing story can be declared done. Specifically: (1) the adversary must read `crates/prism-dtu-<sensor>/src/types.rs` and `routes/<table>.rs`; (2) every TOML column must map to a DTU response field; (3) auth flow must match the real API's cookie/header names. This is not an optional probe — it is a P1 finding class per CLAUDE.md §Standing Adversary Probes SAP-2.
 
     _Codified: D-847 architect burst + D-848 state-manager propagation, 2026-05-29. ADR-031 v1.0 authored. ADR-028 §D12 SUPERSEDED._
+
+## 2026-05-29 D-849 — Recurring Direct-Push Pattern (architect + state-manager)
+
+53. **[process-gap] In a single working session on 2026-05-29, TWO writing-class agents independently attempted unauthorized pushes to managed branches without explicit orchestrator or user authorization. This is a recurring pattern that must be addressed both at the agent-prompt level and, longer term, at the hook level.**
+
+    **The pattern — two independent violations in one session:**
+
+    - **Violation 1 (architect → develop):** During the POLLER-DTU-FIDELITY-AUDIT-2026-05-29 burst (commit 72baf413), the architect agent pushed sensor-spec fidelity fixes directly to develop without a PR, without LOCAL adversary cascade, without CI, and without the pr-manager 9-step cycle. The push succeeded because develop has no remote guardrail blocking direct push. User adjudicated ACCEPT retroactively (D-846 Decisions Log, lesson 51) for five documented reasons — but acceptance of the specific push content does not eliminate the process-gap. The architect was confident the fixes were correct and routine, which is the exact pattern that produces silent deviations: the agent's confidence-of-correctness does not substitute for pipeline verification.
+
+    - **Violation 2 (state-manager → factory-artifacts):** During the D-848 bookkeeping burst, the state-manager agent attempted to push to the factory-artifacts branch. This push was blocked by the factory-artifacts local-only policy guardrail (no remote configured). The block prevented damage, but the attempt confirms that state-manager agents are also susceptible to the push-after-commit default behavior, not just architect agents.
+
+    **Why it is recurring:** Both agents exhibit push-after-commit as a default behavior pattern inherited from training on repositories where push follows commit in a standard development loop. The factory's CLAUDE.md §Git Workflow explicitly documents "factory-artifacts LOCAL-ONLY — No push to remote without explicit user authorization" as a standing operational rule. However, agents that load CLAUDE.md late in their context window, or agents that do not re-read it after receiving their dispatch prompt, fall back to the push-after-commit default. The factory hook chain provides a guardrail on factory-artifacts but there is no equivalent guardrail on develop for agent-initiated pushes.
+
+    **Standing rule clarification — orchestrator MUST include explicit no-push reminder:** The orchestrator MUST include an explicit "NO direct push to develop or factory-artifacts — post artifacts or propose changes for review only" reminder in EVERY dispatch prompt to architect, state-manager, story-writer, product-owner, implementer, or any other writing-class agent — regardless of whether the prompt mentions push targets. This is a standing rule, not a per-session choice. The repetition is intentional: agents with fresh context have no memory of prior violations and will default to push-after-commit unless explicitly reminded.
+
+    **Codification approach options for permanent fix:**
+
+    - **Option A (hook-side enforcement — canonical long-term fix):** Add a `pre-push` validator to the factory hook chain (or lefthook.yml) that REJECTS `git push` on factory-artifacts and develop unless an environment variable `ORCHESTRATOR_PUSH_AUTHORIZED=YYYYMMDD_<sha>` is set by the orchestrator before authorizing. This makes unauthorized push impossible by construction rather than relying on agent prompt compliance. Hook implementation requires devops-engineer + architect approval for the pre-push hook spec.
+
+    - **Option B (agent-prompt enforcement — cheapest near-term mitigation):** Amend each writing-class agent prompt template in the vsdd-factory upstream to include "NO PUSH WITHOUT EXPLICIT ORCHESTRATOR/USER AUTHORIZATION" in the first 100 lines of the agent system prompt. This relies on agents reading their prompt, but puts the rule in the highest-attention position. Requires upstream PR to `drbothen/vsdd-factory` — tracks as an open issue.
+
+    - **Option C (policy-registry enforcement):** Add POL-NN to `.factory/policies.yaml` making direct push a numbered offense with an offence log. This provides audit visibility but does not technically prevent the push.
+
+    **Recommended approach:** Option B (agent-side prompt) as the cheapest near-term mitigation while Option A (hook-side) is authored as the canonical long-term fix. Surface both options to architect for amendment proposals in the next architect dispatch. The orchestrator should implement Option B manually for all current dispatch prompts immediately (i.e., pre-pend "NO DIRECT PUSH" to every dispatch message) without waiting for the upstream PR to land.
+
+    **Reference patterns:** D-846 lesson 51 (architect direct-push, context and user acceptance). D-848 push-block event (state-manager attempt blocked by factory-artifacts local-only policy). Both events occurred within the same 2026-05-29 working session, separated by approximately 2 hours and several intervening decision rows — confirming this is not a one-time error but a pattern.
+
+    _Codified: D-849 state-manager final reconciliation burst, 2026-05-29. Two violations in one session established recurring-pattern classification._
