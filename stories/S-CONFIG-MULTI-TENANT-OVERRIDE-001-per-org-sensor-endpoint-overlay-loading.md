@@ -5,17 +5,18 @@ title: "Per-Org Sensor Endpoint Overlay Loading — ADR-029 Hybrid Sensor Instan
 wave: 0
 epic_id: wave-0-plugin-prereqs
 priority: P0
-status: draft
-version: "v1.1"
+status: ready
+version: "v1.2"
 level: "L4"
 producer: story-writer
 timestamp: "2026-05-23T00:00:00Z"
 created: "2026-05-23"
-modified: "2026-05-29"
+modified: "2026-05-29T22:00:00Z"
 tdd_mode: strict
-# BC status: All 5 BCs (BC-2.06.012–016) are draft status (D-803 burst-3).
-# Per Spec-First Gate S-7.01, status must remain draft until BCs are promoted
-# and bidirectional AC↔BC traces are verified. All ACs cite specific BC clauses below.
+# BC status: All 5 BCs (BC-2.06.012–016) are status: active + lifecycle_status: active
+# per BC-INDEX v5.52. Auto-promoted via POL-14 at S-CONFIG merge develop@3e822522
+# (2026-05-26). PO confirmed active status at commit b8cf19e1 (2026-05-29).
+# S-7.01 gate cleared: behavioral_contracts non-empty + all BCs active. status=ready.
 subsystems: [SS-06, SS-16]
 # Subsystem anchor justifications:
 #   SS-06 (Client Configuration, prism-spec-engine config subsystem) owns the entire
@@ -128,8 +129,8 @@ phase: 3
 # S-CONFIG-MULTI-TENANT-OVERRIDE-001: Per-Org Sensor Endpoint Overlay Loading
 
 **Story ID:** S-CONFIG-MULTI-TENANT-OVERRIDE-001
-**Status:** draft
-**Version:** v0.1
+**Status:** ready
+**Version:** v1.2
 **Wave:** 0 (prereq; parallel to S-PLUGIN-CI-001; both unblock multi-tenant deployments)
 
 ---
@@ -640,3 +641,4 @@ prerequisites; no hard ordering between them — dispatch in parallel where poss
 | v0.1 | 2026-05-23 | story-writer | Initial stub — D-803 Burst 4/4; anchored to ADR-029 v1.1 + 5 new BCs BC-2.06.012–016; 7 ACs with Red Gate test names per SID-1 §5; subsystems SS-06 + SS-16; wave-0 prereq parallel to S-PLUGIN-CI-001. |
 | v0.2 | 2026-05-24 | story-writer | F-LP4-MED-004 closure — swept stale `ci.yml EXPECTED=32` → `EXPECTED=35` at Architecture Compliance Rules (§#[non_exhaustive] discipline) and Architecture Compliance Rules table row (compile-fail gate enforcement column). Fix-burst-3 bumped ci.yml but missed story body citations. POL-29 sibling-sweep: no other EXPECTED=32 citations in this story file. |
 | v1.1 | 2026-05-29 | story-writer | Pre-dispatch refinement per orchestrator direction 2026-05-29: (1) Added AC-008 (paper-fix resistance — injected base_url actually consumed at HTTP dispatch layer, D-823 / SAP-3-candidate; Red Gate: test_S_CONFIG_PROD_CONSUMER_READS_INJECTED_BASE_URL); (2) Added AC-009 (DTU emulation gap documented under ADR-031 DTU=true-DTU principle — single-DTU emulation described; full multi-instance DTU gap surfaced as S-DEMO-MULTI-TENANT-DTU-001 stub needed; Red Gate: test_S_CONFIG_DTU_BASE_URL_OVERLAY_ROUTES_TO_CORRECT_DTU_INSTANCE); (3) Updated blocks: to include S-DEMO-001 (boot step 9A depends on ResolvedSensorSpec map from this story per S-DEMO-001 v1.3 depends_on); (4) Added dispatch order note: S-CONFIG + S-DTU-CYBERINT parallel → S-DEMO-001 after both merge; (5) acceptance_criteria_count 7→9, red_gate_tests 7→9. Status remains draft: BC-2.06.012–016 are draft status; Spec-First Gate S-7.01 requires non-empty behavioral_contracts with active (not draft) BCs before status=ready. |
+| v1.2 | 2026-05-29 | story-writer | D-849-prep: status flipped `draft → ready` per BC-2.06.012–016 confirmed active in BC-INDEX v5.52 (PO finding commit b8cf19e1 2026-05-29). All 5 anchor BCs are status: active + lifecycle_status: active (auto-promoted at S-CONFIG merge develop@3e822522 2026-05-26 per POL-14). S-7.01 gate cleared: behavioral_contracts non-empty, all BC IDs match BC-\d+\.\d{2}\.\d{3} pattern, all BCs active, bidirectional AC↔BC traces verified (all ACs cite specific BC clauses). Body Version v0.1→v1.2, Status draft→ready. BC status frontmatter comment updated to reflect confirmed-active status. |

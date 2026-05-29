@@ -6,13 +6,14 @@ wave: 5
 epic_id: E-DTU-FIDELITY
 priority: P0
 status: draft
-# BC status: pending PO authorship — behavioral_contracts below are existing BCs that cover
-# the adapter pattern, auth open-trait, and DTU-parity verification. No NEW BCs authored here.
-# PO must author a BC for StaticCookieAuthProvider contract semantics before status=ready.
-version: "1.0"
+# BC status: BC-2.01.017 authored by PO at commit b8cf19e1 (2026-05-29). All 4 BCs are
+# either active (BC-2.01.013, BC-2.01.016, BC-2.16.013) or draft-pending-POL-14 (BC-2.01.017).
+# status=ready is blocked until BC-2.01.017 auto-promotes to active at this story's merge.
+version: "1.1"
 level: "L4"
 producer: story-writer
 timestamp: "2026-05-29T00:00:00Z"
+modified: "2026-05-29"
 tdd_mode: strict
 subsystems: [SS-01, SS-16, SS-17]
 # Subsystem anchor justifications:
@@ -30,8 +31,14 @@ behavioral_contracts:
                  # is the spec-driven auth implementation for cookie_roundtrip sensors.
   - BC-2.01.016  # SensorAuth Open Trait — auth_type_name() must return "cookie_roundtrip" for
                  # Cyberint; this story implements the correct behavior for that value.
+  - BC-2.01.017  # Static Cookie AuthProvider Contract — No-Login-Roundtrip Cookie Injection.
+                 # ADR-031 §D1-b no-HTTP-call invariant; PO authored 2026-05-29 b8cf19e1.
+                 # AC-005 traces to §Postconditions (no-HTTP acquire_token);
+                 # AC-006 traces to §Invariants (zero HTTP calls during acquire_token);
+                 # AC-010 traces to §Edge Cases E-AUTH-006 (empty/invalid api_key).
   - BC-2.16.013  # Bundled Sensor Spec Authoring and DTU-Parity Verification — this story
                  # restores DTU parity: DTU enforces access_token (matching real Cyberint API).
+                 # cookie shape assertion now in scope per BC-2.01.017 no-login invariant.
 verification_properties:
   - VP-148  # VP-PLUGIN-003 DTU parity — parity tests exercise the pipeline auth path that
             # this story fixes; after fix, a passing parity test proves real-API compatibility.
@@ -75,7 +82,7 @@ risk: HIGH
 #   even though the change is localized to CookieRoundtrip. Both sides must be tested
 #   end-to-end (DTU running, pipeline connecting) to verify the cookie name is correct.
 acceptance_criteria_count: 11
-red_gate_tests: 6
+red_gate_tests: 7
 estimated_passes: "2-3 LOCAL adversary passes"
 holdout_scenarios: []
 assumption_validations: []
@@ -108,6 +115,7 @@ inputs:
   - "crates/prism-bin/src/boot.rs"
   - ".factory/specs/behavioral-contracts/BC-2.01.013-datasource-trait-adapter-pattern.md"
   - ".factory/specs/behavioral-contracts/BC-2.01.016-sensor-auth-open-trait-contract.md"
+  - ".factory/specs/behavioral-contracts/BC-2.01.017-static-cookie-auth-provider-no-login-roundtrip.md"
   - ".factory/specs/behavioral-contracts/BC-2.16.013-bundled-sensor-spec-dtu-parity.md"
   - ".factory/specs/architecture/decisions/ADR-031-dtu-equals-true-dtu-fidelity-principle.md"
   - ".factory/specs/architecture/decisions/ADR-028-toml-spec-grounding-vs-dtu-routes.md"
@@ -120,11 +128,11 @@ cycle: "v1.0.0-brownfield"
 phase: 3
 ---
 
-# S-DTU-CYBERINT-AUTH-FIDELITY-001 v1.0 — Cyberint DTU Auth Fidelity
+# S-DTU-CYBERINT-AUTH-FIDELITY-001 v1.1 — Cyberint DTU Auth Fidelity
 
 **Story ID:** S-DTU-CYBERINT-AUTH-FIDELITY-001
 **Status:** draft
-**Version:** v1.0
+**Version:** v1.1
 **Wave:** 5
 **Priority:** P0 (pre-demo BLOCKING)
 **Points:** 8
@@ -202,7 +210,8 @@ After this story merges:
 |-------|-------|-------------------|
 | BC-2.01.013 | DataSource Trait Eliminates Per-Sensor Code Duplication | StaticCookieAuthProvider is the spec-driven auth implementation for cookie_roundtrip sensors; AC-005/AC-006 cover it. |
 | BC-2.01.016 | SensorAuth Open Trait — Plugin-Implementable Auth Contract | auth_type_name() for Cyberint must return "cookie_roundtrip"; the BEHAVIOR of that type changes in this story. AC-006 covers the trait contract. |
-| BC-2.16.013 | Bundled Sensor Spec Authoring and DTU-Parity Verification | DTU parity: after this story, DTU access_token cookie enforcement matches real Cyberint API. AC-001/AC-004 cover DTU parity. |
+| BC-2.01.017 | Static Cookie AuthProvider Contract — No-Login-Roundtrip Cookie Injection | Canonical contract for StaticCookieAuthProvider. §Postconditions: acquire_token returns api_key without HTTP call. §Invariants: zero HTTP calls during acquire_token (ADR-031 §D1-b). §Edge Cases: E-AUTH-006 on empty/whitespace/illegal-char/oversized api_key. AC-005/AC-006/AC-010 implement it. PO authored 2026-05-29 b8cf19e1. |
+| BC-2.16.013 | Bundled Sensor Spec Authoring and DTU-Parity Verification | DTU parity: after this story, DTU access_token cookie enforcement matches real Cyberint API. AC-001/AC-004 cover DTU parity. Cookie shape assertion now in scope per BC-2.01.017 no-login invariant. |
 
 ---
 
@@ -269,7 +278,8 @@ Constructor: `StaticCookieAuthProvider::new(sensor_id: SensorId, credential_reso
 - Returns `Ok(AuthToken::new(api_key_value))`.
 - Makes NO HTTP call during `acquire_token`. The token returned is the raw API key.
 - On credential resolution failure: returns `Err(SpecEngineError::AuthAcquisitionFailed { ... })`.
-(traces to BC-2.01.013 postcondition 4 — spec-driven adapter auth provider; ADR-031 §D3-b rule 2)
+(traces to BC-2.01.013 postcondition 4 — spec-driven adapter auth provider; ADR-031 §D3-b rule 2;
+ traces to BC-2.01.017 §Postconditions — acquire_token returns api_key value without any HTTP call)
 Red Gate test: `test_BC_2_01_013_static_cookie_auth_provider_returns_api_key_without_http_call`
 
 #### AC-006: StaticCookieAuthProvider::acquire_token never issues an HTTP request
@@ -279,7 +289,9 @@ tests with a mock HTTP server), the mock server receives ZERO HTTP requests duri
 This is a mandatory invariant per ADR-031 §D1-b: if the real API requires no login step,
 the auth provider must not introduce one.
 (traces to BC-2.01.016 postcondition — auth contract: acquire_token for cookie_roundtrip
-sensor is a credential read, not an HTTP exchange)
+sensor is a credential read, not an HTTP exchange;
+ traces to BC-2.01.017 §Invariants — zero HTTP calls during acquire_token is a hard invariant
+ of the StaticCookieAuthProvider contract; any HTTP call is a BC-2.01.017 violation)
 Red Gate test: `test_BC_2_01_016_static_cookie_auth_provider_acquire_token_no_http_call`
 
 #### AC-007: build_request injects Cookie: access_token header for CookieRoundtrip
@@ -308,13 +320,18 @@ explicitly rejected, not silently ignored.
 (traces to BC-2.16.013 invariant — ADR-031 §D1-a and §D5: parity tests must assert
 cookie names match and reject wrong names)
 
-#### AC-010: E-AUTH-004 surfaced on auth failure (error taxonomy compliance)
+#### AC-010: E-AUTH-004/E-AUTH-006 surfaced on auth failure (error taxonomy compliance)
 When `StaticCookieAuthProvider::acquire_token` fails (credential not found in store), the
 error propagates as `SpecEngineError::AuthAcquisitionFailed` with detail matching the
 `E-AUTH-004` taxonomy entry: "Cookie authentication failed for {sensor} on client
 '{client_id}'". No panic; no generic error; the error code is `E-AUTH-004` as defined in
 `.factory/specs/prd-supplements/error-taxonomy.md`.
-(traces to BC-2.01.013 error case — adapter error taxonomy compliance)
+When the api_key credential is present but is empty, all-whitespace, contains illegal
+characters, or exceeds the maximum allowed length, the error code is `E-AUTH-006` per
+error-taxonomy.md v1.53 (NEW in v1.53 — introduced with BC-2.01.017).
+(traces to BC-2.01.013 error case — adapter error taxonomy compliance;
+ traces to BC-2.01.017 §Edge Cases — E-AUTH-006 on empty/whitespace/illegal-char/oversized
+ api_key credential per error-taxonomy.md v1.53 §E-AUTH-006)
 
 #### AC-011: No event_type emission without BC-2.16.002 catalog row (SAP-1)
 If any new `tracing::*!(event_type = ...)` site is introduced in this story's implementation
@@ -333,7 +350,8 @@ recurrence policy. Zero uncatalogued `event_type` emissions are permitted.
 | `test_BC_2_01_013_dtu_extract_access_token_parses_cookie_header` | AC-002 | prism-dtu-cyberint | extract_access_token extracts access_token; returns None for cyberint_session |
 | `test_BC_2_16_013_dtu_check_auth_requires_access_token_cookie_not_session` | AC-003 | prism-dtu-cyberint | check_auth: access_token cookie → 200; cyberint_session cookie → 401 |
 | `test_BC_2_16_013_dtu_state_access_token_allowlist_not_session_uuid` | AC-004 | prism-dtu-cyberint | CyberintState: no UUID issuance; allowlist-based validation |
-| `test_BC_2_01_013_static_cookie_auth_provider_returns_api_key_without_http_call` | AC-005 | prism-spec-engine | StaticCookieAuthProvider::acquire_token returns api_key; no HTTP call |
+| `test_BC_2_01_013_static_cookie_auth_provider_returns_api_key_without_http_call` | AC-005 | prism-spec-engine | StaticCookieAuthProvider::acquire_token returns api_key; no HTTP call (BC-2.01.017 §Postconditions) |
+| `test_BC_2_01_016_static_cookie_auth_provider_acquire_token_no_http_call` | AC-006 | prism-spec-engine | Zero HTTP calls during acquire_token (BC-2.01.017 §Invariants — no-HTTP-call invariant) |
 | `test_BC_2_01_013_build_request_injects_access_token_cookie_for_cookie_roundtrip` | AC-007 | prism-spec-engine | build_request dispatches Cookie: access_token for CookieRoundtrip |
 
 ---
@@ -571,6 +589,14 @@ N/A — first story in E-DTU-FIDELITY epic. Key lessons from adjacent stories:
 
 ## Notes for Implementer
 
+**BC-2.01.017 — canonical contract for StaticCookieAuthProvider:** BC-2.01.017 (authored
+by PO at commit b8cf19e1, 2026-05-29) is the primary behavioral contract for this story's
+key deliverable. Read it before implementing `StaticCookieAuthProvider`. Its §Postconditions
+assert AC-005 (acquire_token returns api_key without HTTP call); its §Invariants assert
+AC-006 (zero HTTP calls during acquire_token per ADR-031 §D1-b); its §Edge Cases assert
+AC-010 (E-AUTH-006 on empty/whitespace/illegal-char/oversized api_key). The 8 canonical
+test vectors in BC-2.01.017 are the ground truth for Red Gate test design.
+
 **Cookie name invariant (CRITICAL):** The cookie name on the outbound HTTP request MUST be
 `access_token`. Not `cyberint_session`. Not `Access_Token`. Not `session`. The adversary
 will assert the exact cookie name per SAP-2 (DTU↔TOML schema parity probe, extended here
@@ -610,7 +636,7 @@ Only the BEHAVIOR of the CookieRoundtrip path changes.
 | Context source | Estimated tokens |
 |----------------|-----------------|
 | This story spec | ~5,000 |
-| BC files (3 BCs) | ~4,500 |
+| BC files (4 BCs) | ~6,000 |
 | crates/prism-dtu-cyberint/src/routes/auth.rs | ~500 |
 | crates/prism-dtu-cyberint/src/routes/alerts.rs | ~3,000 |
 | crates/prism-dtu-cyberint/src/state.rs | ~2,000 |
@@ -624,7 +650,7 @@ Only the BEHAVIOR of the CookieRoundtrip path changes.
 | error-taxonomy.md (E-AUTH-NNN section) | ~500 |
 | Test files (prism-dtu-cyberint/tests/) | ~3,000 |
 | Tool outputs (cargo nextest) | ~2,000 |
-| **Total estimate** | **~42,500 tokens (~17% of 256K context)** |
+| **Total estimate** | **~44,000 tokens (~17% of 256K context)** |
 
 Well within the 20-30% budget.
 
@@ -635,3 +661,4 @@ Well within the 20-30% budget.
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
 | 1.0 | 2026-05-29 | story-writer | Initial materialization from [planned] stub per ADR-031 §D3-c and user directive 2026-05-29. Structured as DTU-side ACs + prism-side ACs per user direction. 11 ACs, 6 Red Gate tests, 8 pts, wave 5, P0-pre-demo-BLOCKING. |
+| 1.1 | 2026-05-29 | story-writer | D-849-prep: BC-2.01.017 (Static Cookie AuthProvider Contract — No-Login-Roundtrip Cookie Injection; PO authored commit b8cf19e1) propagated into story per bc_array_changes_propagate_to_body_and_acs policy. Changes: (1) behavioral_contracts: BC-2.01.017 added (4 BCs total); (2) Body BC table: BC-2.01.017 row added; (3) AC-005 citation: BC-2.01.017 §Postconditions added; (4) AC-006 citation: BC-2.01.017 §Invariants added; (5) AC-010 expanded to cover E-AUTH-006 per error-taxonomy.md v1.53 + BC-2.01.017 §Edge Cases; (6) Red Gate tests table: test_BC_2_01_016_static_cookie_auth_provider_acquire_token_no_http_call added (was in AC-006 body but absent from summary table); red_gate_tests 6→7; (7) Token Budget: BC files 3→4, ~4,500→~6,000 tokens; (8) Notes for Implementer: BC-2.01.017 canonical-contract note added; (9) inputs: BC-2.01.017 file added; (10) BC status comment updated to reflect PO authorship complete. |
