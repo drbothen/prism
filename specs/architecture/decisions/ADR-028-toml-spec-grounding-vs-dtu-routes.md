@@ -4,14 +4,14 @@ adr_id: "ADR-028"
 title: "TOML Spec URLs and auth_type Ground Against DTU Clone Routes (Real-API Canonical), Not Production Rust Adapter URLs"
 status: Proposed
 date: "2026-05-20"
-modified: "2026-05-24"  # v1.11 D11 credential substitution model
-version: "1.11"
+modified: "2026-05-29"  # v1.12 D12 Cyberint cookie auth real-API vs DTU divergence
+version: "1.12"
 producer: architect
 subsystems_affected: [SS-01, SS-07, SS-16, SS-17]
 supersedes: ["ADR-026 §D3 (partial — auth_type_name() return values for Cyberint/Claroty/Armis non-CrowdStrike sensors)"]
 superseded_by: null
 amends: null
-anchor_stories: [PLUGIN-MIGRATION-001-D, PLUGIN-MIGRATION-001-A, PLUGIN-MIGRATION-001-B, PLUGIN-MIGRATION-001-C, PLUGIN-MIGRATION-001-E]
+anchor_stories: [PLUGIN-MIGRATION-001-D, PLUGIN-MIGRATION-001-A, PLUGIN-MIGRATION-001-B, PLUGIN-MIGRATION-001-C, PLUGIN-MIGRATION-001-E, S-DEMO-001]
 related_adrs: [ADR-003, ADR-023, ADR-027]
 related_bcs: [BC-2.16.013, BC-2.16.001, BC-2.16.009, BC-2.01.016]
 locked_decisions: ["D-737 Decision 1", "D-737 Decision 4"]
@@ -447,6 +447,59 @@ No existing test behavior is lost — the same assertions on form body content a
 **BC-2.16.002 catalog entries required** (SAP-1):
 No new `event_type` values are introduced by this change. The existing `plugin.auth_token_parse_error` emission (BC-2.16.002 row 37) remains unchanged. No new catalog rows required.
 
+### D12 — Cyberint Cookie Auth: Real-API vs DTU Model Divergence (S-DEMO-001)
+
+**Adjudicated 2026-05-29 (architect, S-DEMO-001 v1.1 gap analysis; reference: poller-express semport).**
+
+#### Background
+
+The `auth_type = "cookie_roundtrip"` label for Cyberint (§D2, D-737 LOCKED) correctly identifies that Cyberint uses cookie-based auth. However the label name is ambiguous: it implies an actual round-trip login exchange, but the real Cyberint API uses a simpler pattern.
+
+**Real Cyberint API (poller-express reference):** The Go reference implementation (`poller-express`, `.factory/semport/poller-express/poller-express-broad-sweep.md §2.1`) injects the API key as a static `access_token` cookie on every HTTP request via a `cookieTransport` (`http.RoundTripper`). There is NO login step. The credential is an API key loaded from `CYBERINT_API_KEY` (or file-backed variant), not a session token. The cookie name is `access_token`.
+
+**DTU clone model (`prism-dtu-cyberint`):** The DTU implements a stateful session model — `POST /login` generates a UUID session token and issues it as `Set-Cookie: cyberint_session={uuid}`. Subsequent requests present this session cookie. The cookie name is `cyberint_session`. This is a deliberate simplification that tests cookie-handling behavior without requiring a real credential exchange.
+
+#### Cookie Name Reconciliation
+
+| Context | Cookie name | Mechanism |
+|---------|-------------|-----------|
+| Real Cyberint API (poller-express) | `access_token` | Static API key injection; no login step |
+| DTU clone (`prism-dtu-cyberint`) | `cyberint_session` | UUID session token from `POST /login`; per-session |
+
+The two names are intentionally different. The DTU's `cyberint_session` name exercises the session-cookie pattern; the real API's `access_token` name reflects static-credential injection. Both are `cookie_roundtrip` auth_type under the current taxonomy.
+
+#### S-DEMO-001 Scope Decision
+
+For the live demo (which runs against the DTU clone), the **DTU model governs**:
+- `CookieLoginAuthProvider` performs `POST {base_url}/login` → parses `Set-Cookie: cyberint_session={token}` → returns the token string.
+- `PipelineExecutor::build_request` (amended in S-DEMO-001) injects `Cookie: cyberint_session={token}` for `AuthType::CookieRoundtrip`.
+- The `CookieLoginAuthProvider` MUST use the `base_url` from `ResolvedSensorSpec` (with per-org overlay applied) — not the raw type-spec `base_url`. Failure here breaks demo routing to the DTU clone (see S-DEMO-001 EC-005).
+
+#### Production Path (Future Story)
+
+For production Cyberint auth (real API), the correct model is static-cookie injection matching poller-express:
+- A future `StaticCookieAuthProvider` injects `Cookie: access_token={api_key}` on every request without any login step.
+- The `api_key` comes from the credential store at fetch time (not held at construction per AD-017).
+- `build_request` already dispatches on `AuthType` — adding `AuthType::CookieStatic` requires a new enum variant and a new `StaticCookieAuthProvider` in a separate follow-up story.
+- Alternatively, a new TOML field `auth_cookie_name` (MEDIUM complexity) could parameterize the cookie name under the existing `cookie_roundtrip` type, eliminating the need for a new auth_type variant.
+
+**Decision for whether to add `auth_cookie_name` or `AuthType::CookieStatic`:** Deferred to the production Cyberint auth story. S-DEMO-001 MUST NOT change the `auth_type` enum or add `auth_cookie_name` to the TOML grammar — that is a scope-expanding cross-cutting change. S-DEMO-001 ships only the DTU-model path; the auth_type taxonomy amendment is a follow-up.
+
+#### `build_request` Pipeline Amendment Scope
+
+`PipelineExecutor::build_request` currently injects ALL tokens as `Authorization: Bearer {token}`. For `AuthType::CookieRoundtrip`, it must inject `Cookie: cyberint_session={token}` instead. The amended function signature gains `auth_type: &AuthType` (passed from `issue_request_with_retry` which already has access to `spec`). Dispatch table:
+
+| AuthType | Header injected |
+|----------|----------------|
+| `CookieRoundtrip` | `Cookie: cyberint_session={token}` |
+| `BearerStatic` | `Authorization: Bearer {token}` |
+| `Oauth2ClientCredentials` | `Authorization: Bearer {token}` |
+| `CustomViaPlugin` | `Authorization: Bearer {token}` |
+
+The cookie name `cyberint_session` is hardcoded for the `CookieRoundtrip` variant in S-DEMO-001. When `auth_cookie_name` or `CookieStatic` lands, this dispatch will be generalized.
+
+**Invariant:** `build_request` must dispatch by auth_type, not assume all tokens are bearer tokens. The pre-S-DEMO-001 behavior (always `Authorization: Bearer`) was an implementation gap, not an architectural decision.
+
 ---
 
 ## Consequences
@@ -501,6 +554,7 @@ No new `event_type` values are introduced by this change. The existing `plugin.a
 
 | Version | Date | Author | Summary |
 |---|---|---|---|
+| 1.12 | 2026-05-29 | architect | §D12 ADDED — Cyberint cookie auth real-API vs DTU model divergence (S-DEMO-001). Documents `access_token` (real API, static injection per poller-express) vs `cyberint_session` (DTU, POST /login session token) divergence. Locks DTU model for S-DEMO-001 (`CookieLoginAuthProvider` + `build_request` amendment to `Cookie: cyberint_session={token}`). Documents production path via future `StaticCookieAuthProvider` or `auth_cookie_name` TOML field. Documents `build_request` auth-type-aware dispatch invariant. anchor_stories += S-DEMO-001. |
 | 1.11 | 2026-05-24 | architect | §D11 ADDED — OAuth2 Credential Substitution Model for Plugin Dispatch (PLUGIN-MIGRATION-001-E PR-LEVEL CRIT #2, user-authorized fix-in-scope). Locks Option C (host resolves credential_handle → client_id + client_secret via prism_credentials::resolve_credential; PluginConfigMap injection before dispatch). Options A (host_http_request sentinel) and B (WIT param expansion) rejected with rationale. Full AD-017 compliance analysis, data flow diagram, affected file list, implementer contract (dispatch signature change, guest acquire_token change, test transition strategy), and EC-006b/EC-006c error code extensions. BC-2.01.016 added to related_bcs. Closes F-LP12-PR-CRIT-2. |
 | 1.10 | 2026-05-21 | architect | FB-IMPL-2 architect adjudication: §D8-B AMENDED — canonical Armis fallback chain corrected from `["last_seen", "first_seen"]` to `["first_seen"]` (F-LP2-HIGH-004: `last_seen` self-reference is a semantic no-op; false doc-comment "Skip the primary field itself" had no code implementation; implementer must add defensive skip guard `if fb_field == &col.name { continue; }` and fix doc-comment). §D9 SCOPE CLARIFIED — documented-gap exception covers table-level gaps only, NOT parameter-level projections; `page_size = 100` in cyberint.sensor.toml removed per §D1 (`AlertListParams` struct has no `page_size` field confirmed at alerts.rs:38-40); DTU-EXT-005 registered in BC-2.16.013 §Known Gaps (F-LP2-MEDIUM-001). §Status self-cite advanced to v1.10. BC-2.16.013 v1.12→v1.13. |
 | 1.9 | 2026-05-21 | architect | (D-FB-IMPL-1-OPT-A) FB-IMPL-1 architect adjudication: §D8 LOCKS Option A (grammar extension) for BC-2.16.013 §O-001 — `timestamp_formats` + `timestamp_fallback_chain` fields added to `ColumnSpec`; Cyberint canonical formats iso8601+unix_epoch_seconds documented; Armis fallback chain `last_seen → first_seen → now()` locked; implementer contract for spec_parser.rs changes specified; E-SPEC-018 registered. §D9 clarifies §D5 documented-gap exception: incidents table REMAINS in crowdstrike.sensor.toml per documented-gap policy; AC-001 `tables.len() == 3` stands. §D10 co-merge contract: 001-D + 001-A MUST deploy to production simultaneously to prevent E-SPEC-012 regression on Claroty bearer_static vs live cookie_roundtrip; feature-flag Option b rejected; story §Postconditions annotated. |

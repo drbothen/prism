@@ -1,12 +1,12 @@
 ---
 document_type: story
 story_id: S-DEMO-002
-title: "prism-bin: E2E Subprocess Smoke Test — All 4 Sensors via DTU Clones + MCP Round-Trip"
+title: "prism-bin: E2E Subprocess Smoke Test — All 4 Sensors + Multi-Org Isolation via DTU Clones + MCP Round-Trip"
 wave: 5
 epic_id: E-DEMO
 priority: P0
 status: draft
-version: "1.0"
+version: "1.1"
 level: "L4"
 producer: story-writer
 timestamp: "2026-05-29T00:00:00Z"
@@ -36,6 +36,9 @@ behavioral_contracts:
                  # over stdio, exercising BC-2.10.001 postcondition 1.
   - BC-2.10.010  # Graceful Shutdown on SIGTERM/SIGINT — test sends SIGTERM after queries
                  # complete; verifies both prism-bin and DTU server exit cleanly.
+  - BC-3.2.001   # Per-Org Sensor Data Isolation — AC-011..013 verify that org-A queries cannot
+                 # return org-B data and that AdapterNotFound is returned for sensors not
+                 # registered for a given org. Multi-org registration is the structural proof.
 verification_properties:
   - VP-148  # VP-PLUGIN-003 DTU parity — this test is the end-to-end validator that VP-148
             # was intended to enable; it exercises all 4 sensor DTU clones in a single test run.
@@ -44,8 +47,8 @@ depends_on:
   - S-CONFIG-MULTI-TENANT-OVERRIDE-001  # Per-org overlay loading needed for DTU base_url routing.
 blocks:
   - S-DEMO-003   # Demo setup scripts should not ship until the smoke test confirms the green path.
-points: 8
-# Points justification:
+points: 11
+# Points justification (revised v1.0→v1.1: +3 pts for multi-org isolation scope):
 #   - Subprocess launch + port-ready polling for DTU demo server: ~1 pt
 #   - Subprocess launch for prism-bin with temp config: ~1 pt
 #   - MCP handshake over stdio (initialize → tools/list): ~1.5 pts
@@ -53,7 +56,10 @@ points: 8
 #   - ResponseEnvelope _meta field assertions: ~1 pt
 #   - SIGTERM + clean exit assertions: ~0.5 pts
 #   - CI profile setup (e2e nextest profile): ~1 pt
-#   Total: 8 points (~1.5-2 days)
+#   - AC-011: multi-org registration (3 orgs × different sensor combos): ~1 pt
+#   - AC-012: cross-org isolation probe (AdapterNotFound for wrong-org sensor): ~1 pt
+#   - AC-013: DTU multi-tenant scope documentation + single-clone multi-org wiring: ~1 pt
+#   Total: 11 points (~2-2.5 days)
 estimated_days: 2
 risk: MEDIUM
 # Risk justification: Subprocess integration tests have process timing sensitivity (port
@@ -61,8 +67,8 @@ risk: MEDIUM
 # for that file in the test harness introduces flake risk if timeout is too short. Mitigation:
 # use a generous timeout (30s) with backoff polling. Subprocess test teardown (SIGTERM) must
 # handle both clean exits and timeouts gracefully to avoid zombie processes in CI.
-acceptance_criteria_count: 10
-red_gate_tests: 4
+acceptance_criteria_count: 13
+red_gate_tests: 5
 estimated_passes: "2-3 LOCAL adversary passes"
 holdout_scenarios: []
 assumption_validations: []
@@ -97,14 +103,14 @@ cycle: "v1.0.0-brownfield"
 phase: 3
 ---
 
-# S-DEMO-002 — prism-bin: E2E Subprocess Smoke Test (All 4 Sensors)
+# S-DEMO-002 v1.1 — prism-bin: E2E Subprocess Smoke Test (All 4 Sensors + Multi-Org Isolation)
 
 **Story ID:** S-DEMO-002
 **Status:** draft
-**Version:** v1.0
+**Version:** v1.1
 **Wave:** 5
 **Priority:** P0
-**Points:** 8
+**Points:** 11
 
 ---
 
@@ -112,6 +118,11 @@ phase: 3
 
 New story required per E2E-DEMO-WIRING-PLAN.md §2 (h) "End-to-end smoke test harness".
 User scope decision 2026-05-29: all 4 sensors exercised in the same test run.
+
+v1.1 expansion (architect 2026-05-29): Multi-org isolation ACs added per user requirement:
+"multiple client orgs registered in prism, each with a DIFFERENT sensor combo" exercises
+ADR-029 per-org overlay resolution and BC-3.2.001 isolation. S-DEMO-002 v1.0 had no ACs
+for multi-org registration or cross-org isolation probing — a confirmed spec gap.
 
 Auth model (corrected per S-DEMO-001 v1.1 architect revision 2026-05-29):
 - CrowdStrike uses OAuth2 WASM plugin path (`PluginAuthProvider`).
@@ -125,11 +136,13 @@ Cyberint. `cyberint.sensor.toml` declares `auth_type = "cookie_roundtrip"` (D-73
 
 ## Narrative
 
-As a Prism platform engineer, I want an end-to-end integration test that launches the DTU
-demo server and prism-bin as real subprocesses, drives the complete MCP stdio round-trip
-(initialize → tools/call → tool_query), and asserts live Arrow data returns from all 4
-sensor DTU clones, so that regressions in the GAP-002-A closure are caught automatically
-before merging.
+As a Prism platform engineer, I want an end-to-end integration test that (1) launches the
+DTU demo server and prism-bin as real subprocesses with multiple registered orgs, (2) drives
+the complete MCP stdio round-trip (initialize → tools/call → tool_query) for all 4 sensor
+DTU clones, (3) verifies that each org's query reaches the correct sensor, and (4) verifies
+that querying a sensor NOT registered for an org returns an isolation error rather than data,
+so that regressions in both GAP-002-A closure and BC-3.2.001 org isolation are caught
+automatically before merging.
 
 ---
 
@@ -142,6 +155,7 @@ before merging.
 | BC-2.09.008 | Response Envelope with Trust Annotations |
 | BC-2.10.001 | rmcp ServerHandler Implementation |
 | BC-2.10.010 | Graceful Shutdown on SIGTERM/SIGINT |
+| BC-3.2.001 | Per-Org Sensor Data Isolation via Composite HashMap Key |
 
 ---
 
@@ -224,6 +238,51 @@ The `#[ignore]` annotation includes a code comment: `// E2E-001: requires DTU se
 running; un-gated in CI via 'e2e' nextest profile.`
 (traces to BC-2.22.001 invariant: "boot orchestration makes startup deterministic and testable")
 
+### AC-011: Multiple orgs with different sensor combos can be registered simultaneously
+Given: Prism starts with 3 orgs configured:
+  - `demo-org-a`: CrowdStrike + Armis (2 sensors)
+  - `demo-org-b`: Claroty + Cyberint (2 sensors)
+  - `demo-org-c`: all 4 sensors (CrowdStrike + Armis + Claroty + Cyberint)
+Each org has a distinct `org_id` (UUIDv7) and `org_slug` with corresponding
+`customers/{org_slug}/` overlay directories setting DTU clone `base_url` per sensor.
+When: Boot step 9A completes.
+Then: `AdapterRegistry` contains 8 entries (2+2+4); each (org_id, sensor_id) pair resolves
+to the correct `SpecDrivenSensorAdapter`; no cross-org aliasing exists in the registry.
+(traces to BC-2.22.001 postcondition + ADR-029 per-org overlay resolution)
+Red Gate test: `test_BC_3_2_001_e2e_multi_org_boot_registers_correct_adapter_count`
+
+### AC-012: Cross-org isolation — querying a sensor not registered for an org returns AdapterNotFound
+Given: `demo-org-a` has CrowdStrike + Armis but NOT Claroty or Cyberint.
+When: The test sends `tool_query "FROM claroty_alerts LIMIT 5"` with org context `demo-org-a`.
+Then: The ResponseEnvelope contains an error indicating `AdapterNotFound` or equivalent isolation
+error (sensor not registered for this org); zero data rows are returned; no Claroty data from
+`demo-org-b` is leaked into the response.
+(traces to BC-3.2.001 postcondition 1: "state.lookup(org_id_A, resource_id) returns None when
+entry was stored under org_id_B"; ADR-007 §2.2 adapter dispatch OrgId verification)
+Red Gate test: `test_BC_3_2_001_e2e_cross_org_sensor_query_returns_adapter_not_found`
+
+### AC-013: DTU multi-tenant emulation — each org's queries reach the correct DTU clone port
+Given: The demo DTU server runs with all 4 sensor clones, each on an ephemeral port; each org's
+`customers/{slug}/{sensor}.sensor.toml` overlay points to the correct port for that sensor clone.
+When: The test issues `tool_query "FROM crowdstrike_detections LIMIT 5"` for each of the 3 orgs.
+Then: All 3 queries succeed (each org's CrowdStrike adapter points to the same DTU clone port
+for CrowdStrike — different orgs can share the same DTU clone port in the demo context because
+the DTU clone operates in single-tenant mode without org-level data segregation at the HTTP layer;
+org isolation is enforced at the `AdapterRegistry` dispatch layer per BC-3.2.001, not at the DTU
+HTTP layer in the demo configuration).
+
+**Scope clarification (DTU multi-tenant architecture):** The `prism-dtu-*` clones in the demo
+run in single-tenant mode — each clone instance serves all HTTP requests without per-org data
+segregation at the transport layer. The multi-tenant isolation guarantee in BC-3.2.001 is
+structural at the `AdapterRegistry` keying layer: two different orgs that both have CrowdStrike
+can point to the same DTU clone port and receive the same synthetic data — what is isolated is
+the *adapter lookup* (Org A cannot accidentally get Org B's adapter), not the *data content* (both
+orgs' adapters return the same DTU fixture data). True per-org data segregation at the DTU HTTP
+layer is a Wave 3 S-3.2.xx story scope (BC-3.2.003/BC-3.2.004); it is NOT required for the demo.
+This scoping decision MUST be documented in a code comment in the test helper: `// DTU-MULTI-001:
+demo DTU operates in single-tenant mode; org isolation is at AdapterRegistry layer only.`
+(traces to BC-3.2.001 postcondition 3; ADR-006 §3.1 cross-tenant threat model)
+
 ---
 
 ## Architecture Compliance Rules
@@ -280,8 +339,17 @@ Version source: workspace `Cargo.toml`. `rmcp` version confirmed from S-5.01-FOL
 12. **Implement** `_meta` assertions (AC-007) — parse `ResponseEnvelope` JSON; assert `trust_level` and `safety_flags`.
 13. **Implement** SIGTERM teardown (AC-008) in `SubprocessGuard::drop()`.
 14. **Add** `[profile.e2e]` to nextest config — un-ignores tests tagged `// E2E-001:`.
-15. **Run** `cargo nextest run -p prism-bin --profile e2e` after S-DEMO-001 merges; all assertions must pass GREEN.
-16. **Run** `just check` — final pre-push gate.
+15. **Implement** `write_multi_org_demo_config()` helper — generates 3-org config with overlapping
+    and non-overlapping sensor sets (demo-org-a: CrowdStrike+Armis; demo-org-b: Claroty+Cyberint;
+    demo-org-c: all 4). Writes per-org `customers/{slug}/` overlay directories for each sensor.
+16. **Write Red Gate test** `test_BC_3_2_001_e2e_multi_org_boot_registers_correct_adapter_count`
+    (AC-011): asserts `AdapterRegistry` contains exactly 8 entries after boot with 3-org config.
+17. **Write Red Gate test** `test_BC_3_2_001_e2e_cross_org_sensor_query_returns_adapter_not_found`
+    (AC-012): asserts that `tool_query "FROM claroty_alerts LIMIT 5"` for `demo-org-a` returns
+    an error envelope (not data) because Claroty is not registered for that org.
+18. **Implement** AC-013 assertion and document DTU-MULTI-001 comment per scope clarification.
+19. **Run** `cargo nextest run -p prism-bin --profile e2e` after S-DEMO-001 merges; all assertions must pass GREEN.
+20. **Run** `just check` — final pre-push gate.
 
 ---
 
@@ -315,6 +383,9 @@ Version source: workspace `Cargo.toml`. `rmcp` version confirmed from S-5.01-FOL
 | EC-003 | A sensor query returns zero rows (DTU returned empty) | Test fails with AC assertion: "expected at least 1 row"; this is a data fidelity issue in the DTU clone, not a framework issue |
 | EC-004 | `LIMIT 0` query variant | An additional edge-case test verifies that `LIMIT 0` returns empty-but-not-error response (E2E-DEMO-WIRING-PLAN §6 Risk 3 mitigation) |
 | EC-005 | `LIMIT 200` query variant | An additional edge-case test verifies that `LIMIT 200` triggers pagination in the DTU clone and returns 200 rows (exercises pagination at least one extra page per E2E-DEMO-WIRING-PLAN §6 Risk 3 mitigation) |
+| EC-006 | Org registered with zero sensors (all overlays missing) | Boot step 9A produces 0 adapters for that org; the org entry itself remains in `OrgRegistry`; no error; org-specific query returns `AdapterNotFound` |
+| EC-007 | Two orgs both have CrowdStrike; same DTU clone port in both overlays | Both orgs' CrowdStrike queries succeed and return identical fixture data (DTU single-tenant mode — DTU-MULTI-001 scope); no cross-org data is modified |
+| EC-008 | Org A queries sensor registered for Org C but not Org A | Returns `AdapterNotFound` error envelope; Org C's adapter is not accessible from Org A's call context per BC-3.2.001 |
 
 ---
 
@@ -351,4 +422,5 @@ Well within budget; second-cheapest story in the E-DEMO epic.
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.1 | 2026-05-29 | architect | Multi-org isolation scope added: AC-011 (3-org registration + 8-adapter count), AC-012 (cross-org AdapterNotFound isolation probe), AC-013 (DTU multi-tenant scope clarification + DTU-MULTI-001 comment requirement). BC-3.2.001 added to behavioral_contracts. Points 8→11 (+3 pts for multi-org ACs). acceptance_criteria_count 10→13. red_gate_tests 4→5. EC-006..008 added. Title updated to reflect multi-org scope. |
 | 1.0 | 2026-05-29 | story-writer | Initial draft — all 4 sensors scope per user 2026-05-29 decision |
