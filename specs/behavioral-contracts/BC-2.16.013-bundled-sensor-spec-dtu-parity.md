@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.16"
+version: "1.17"
 status: active
 producer: product-owner
 timestamp: 2026-05-20T00:00:00Z
@@ -396,6 +396,7 @@ never registered in error-taxonomy.md and does not exist as a runtime error.)
 - BC-2.01.006: Cyberint Cookie-Based Auth — prior implementation preserved by cyberint.sensor.toml (supersedes within spec-driven scope)
 - BC-2.01.007: Claroty Bearer Token Auth — prior implementation preserved by claroty.sensor.toml (supersedes within spec-driven scope)
 - BC-2.01.008: Armis Bearer Token Auth — prior implementation preserved by armis.sensor.toml (supersedes within spec-driven scope)
+- BC-2.01.017: StaticCookieAuthProvider Contract — No-Login-Roundtrip Cookie Injection: sibling contract specifying the corrected Cyberint auth behavior per ADR-031 §D3. The DTU-parity test family for Cyberint (VP-PLUGIN-003 / VP-148) MUST assert `Cookie: access_token=...` header shape per BC-2.01.017 TV-BC-2.01.017-002/003; test vectors that pass with `cyberint_session` are not DTU-parity evidence under ADR-031 §D5.
 
 ## Architecture Anchors
 
@@ -437,6 +438,7 @@ PLUGIN-MIGRATION-001-D (implementing story; planned → draft after PO authoring
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.17 | D-849 | 2026-05-29 | product-owner | §Related BCs: added BC-2.01.017 (StaticCookieAuthProvider — No-Login-Roundtrip Cookie Injection) cross-reference. DTU-parity tests for Cyberint (VP-148) must assert `Cookie: access_token=...` per ADR-031 §D5 and BC-2.01.017 TV-002/003. `cyberint_session` parity evidence is no longer sufficient per ADR-031 §D3. |
 | 1.16 | D-776-post-merge | 2026-05-22 | state-manager | POL-14 auto-promotion at merge: PR #153 (PLUGIN-MIGRATION-001-D) squash-merged to develop@3f2de889 at 2026-05-22T09:05:47Z; status draft→active, lifecycle_status draft→active. |
 | 1.11 | FB-IMPL-P22-PO | 2026-05-21 | product-owner | F-LP22-MED-001 closure (16th coherence-axis: same-line dual-format cite-pin escape): swept `error-taxonomy.md v1.41` → `v1.42` at 1 active-prose site (§Error Conditions E-SPEC-017 row line 331). BC-2.16.013 v1.10→v1.11. |
 | 1.15 | FB-IMPL-9 | 2026-05-21 | state-manager | F-LP10-LOW-001 closure — §Error Conditions lines 357-358 transitive cite-pin sweep: `error-taxonomy.md v1.42` → `v1.44` (E-SPEC-017 row) and `error-taxonomy.md v1.43` → `v1.44` (E-SPEC-018 row) per FB-IMPL-P22 PREREQ-E precedent + implementer current-authority code-comment pattern. 5th POL-29 axis recurrence (transitive cite-pin chain). No semantic content change. |

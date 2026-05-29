@@ -2,11 +2,11 @@
 document_type: prd-supplement
 level: L3
 section: "error-taxonomy"
-version: "1.52"
+version: "1.53"
 status: active
 producer: product-owner
 timestamp: 2026-05-16T00:00:00Z
-modified: "2026-05-23"
+modified: "2026-05-29"
 phase: 1a
 origin: greenfield
 inputs: [".factory/specs/prd.md", ".factory/specs/behavioral-contracts/**"]
@@ -37,6 +37,7 @@ All Prism errors follow the code format `E-{CATEGORY}-{NNN}` and are surfaced as
 | E-AUTH-003 | broken | authentication | "Bearer token rejected by {sensor} for client '{client_id}' (HTTP {status})" | No | Claroty/Armis static bearer token is invalid or revoked |
 | E-AUTH-004 | broken | authentication | "Cookie authentication failed for {sensor} on client '{client_id}'" | No | Cyberint cookie-based auth flow failed |
 | E-AUTH-005 | broken | authentication | "Credentials not found for ({client_id}, {sensor_id})" | No | No credentials in keyring or file backend for the specified sensor |
+| E-AUTH-006 | broken | authentication | "Empty or invalid API key for cookie_roundtrip sensor '{sensor}' on client '{client_id}'" | No | API key resolved but is empty, whitespace-only, exceeds maximum cookie value length (4096 bytes), or contains RFC 6265-illegal cookie characters (e.g., semicolons, control characters). Fail-fast at acquire_token time; no HTTP request attempted. Enforced by StaticCookieAuthProvider per BC-2.01.017. |
 
 ## SENSOR: Sensor API Errors
 

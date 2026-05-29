@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.11"
+version: "1.12"
 status: active
 producer: product-owner
 timestamp: 2026-05-16T12:00:00Z
@@ -11,7 +11,7 @@ subsystem: "SS-01"
 capability: "CAP-001"
 lifecycle_status: active
 introduced: "2026-05-15"
-modified: "2026-05-22"
+modified: "2026-05-29"
 deprecated: ~
 deprecated_by: ~
 replacement: ~
@@ -136,6 +136,7 @@ restriction.
 ## Related BCs
 
 - BC-2.01.013 (DataSource Trait — Spec-Driven Adapter Pattern): parent contract; establishes that `SensorAuth` is NOT sealed per ADR-023 Rule 2 (amended in PREREQ-F). This BC operationalizes that amendment.
+- BC-2.01.017 (StaticCookieAuthProvider Contract — No-Login-Roundtrip Cookie Injection): child contract; specifies the `StaticCookieAuthProvider` concrete implementation for `auth_type = "cookie_roundtrip"` sensors. This BC establishes the `auth_type_name()` return value `"cookie_roundtrip"` as one entry in the 5-value canonical auth_type set; BC-2.01.017 specifies the full behavioral contract for that auth variant (no HTTP call during acquire_token, `Cookie: access_token={token}` header injection, E-AUTH-006 for empty/invalid key).
 - BC-2.16.011 (CustomAdapter Rust Trait Retirement): sibling contract retired in this same story; the `CustomAuth` duplicate (which proxied around sealed `SensorAuth`) is deleted here.
 - BC-2.16.012 (PluginRegistry Call-Site Migration): sibling contract; the PluginRegistry dispatch path opened by unsealing is exercised in spec_parser.rs migration sites.
 
@@ -168,6 +169,7 @@ S-PLUGIN-PREREQ-E
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.12 | D-849 | 2026-05-29 | product-owner | §Related BCs: added BC-2.01.017 (StaticCookieAuthProvider — No-Login-Roundtrip Cookie Injection) as child contract; BC-2.01.017 operationalizes the `"cookie_roundtrip"` entry in the 5-value canonical auth_type set established here. Cross-reference added per bc_array_changes_propagate_to_body_and_acs anchor-back policy. |
 | 1.11 | D-776-post-merge | 2026-05-22 | state-manager | POL-14 verification (no-op confirm): PR #153 (PLUGIN-MIGRATION-001-D) squash-merged to develop@3f2de889 at 2026-05-22T09:05:47Z; status already active (promoted draft→active D-726 per POL-14 PR #151) — idempotent confirm. |
 | 1.10 | D-726-post-merge | 2026-05-19 | state-manager | POL-14 auto-promotion at merge: PR #151 (S-PLUGIN-PREREQ-E) squash-merged to develop@80ebe794 at 2026-05-19T18:06:44Z; PR-LEVEL adversary cascade BC-5.39.001 3-CLEAN CONVERGED; status draft→active, lifecycle_status draft→active. |
 | 1.9 | FB-IMPL-4 | 2026-05-18 | state-manager | D-707: §Error Cases E-SPEC-014 Behavior cell: backend qualification appended (D-706 architect adjudication text mechanically applied) — Rule C fires only when credential backend exposes shape metadata via `CredentialRefProbe::probe()` returning `Some(shape)`; current keyring backend returns `Ok(None)`; production enforcement deferred to PLUGIN-MIGRATION-001-A; test-fixture `ShapedProbe` + VP-153 proptest provide regression coverage in PREREQ-E scope. Closes F-LP-IMPL-P5-001 spec-amendment route. |

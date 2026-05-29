@@ -1,0 +1,230 @@
+---
+document_type: behavioral-contract
+level: L3
+version: "1.0"
+status: draft
+producer: product-owner
+timestamp: 2026-05-29T00:00:00Z
+phase: 1a
+origin: greenfield
+subsystem: "SS-01"
+capability: "CAP-001"
+lifecycle_status: active
+introduced: "2026-05-29"
+modified: "2026-05-29"
+deprecated: ~
+deprecated_by: ~
+replacement: ~
+retired: ~
+removed: ~
+removal_reason: ~
+inputs:
+  - ".factory/specs/architecture/decisions/ADR-031-dtu-equals-true-dtu-fidelity-principle.md"
+  - ".factory/specs/architecture/decisions/ADR-028-toml-spec-grounding-vs-dtu-routes.md"
+  - ".factory/specs/domain-spec/capabilities.md"
+  - ".factory/specs/behavioral-contracts/BC-2.01.016-sensor-auth-open-trait-contract.md"
+  - ".factory/stories/S-DTU-CYBERINT-AUTH-FIDELITY-001-cyberint-dtu-static-cookie-auth.md"
+input-hash: null
+traces_to:
+  - "CAP-001"
+  - "ADR-031"
+  - "ADR-028"
+  - "BC-2.01.016"
+  - "S-DTU-CYBERINT-AUTH-FIDELITY-001"
+extracted_from: null
+error_codes:
+  - "E-AUTH-004"
+  - "E-AUTH-005"
+  - "E-AUTH-006"
+---
+
+# BC-2.01.017: StaticCookieAuthProvider Contract — No-Login-Roundtrip Cookie Injection
+
+## Description
+
+`StaticCookieAuthProvider` implements the `SensorAuth` trait for sensors that authenticate via
+a static API key injected as a named HTTP `Cookie` header on every request, with NO prior login
+step. The provider's `acquire_token()` method reads the API key from the credential resolver and
+returns it directly as the token value — it makes zero HTTP calls. `PipelineExecutor::build_request`
+then injects `Cookie: {cookie_name}={token}` on every data-fetch request. This is the correct
+auth implementation for Cyberint (where the real API uses `Cookie: access_token={api_key}` per
+poller-express), and it supersedes the incorrect `CookieLoginAuthProvider` (which performed a
+`POST /login` round-trip to obtain a `cyberint_session` cookie, violating the ADR-031 §D1-b
+DTU=True-DTU fidelity principle).
+
+## Preconditions
+
+- `auth_type = "cookie_roundtrip"` is declared in the sensor's TOML spec. The `auth_plugin`
+  field is NOT declared (the static-cookie path applies when the built-in provider handles
+  `CookieRoundtrip`; plugin authors may override via `auth_plugin`).
+- A `credential_ref` is declared in the TOML spec naming a credential reference for the API
+  key. The credential resolver can resolve this reference to an API key string value via the
+  OS keyring or file backend per AD-017 (reference-only model; credential value never transits
+  AI context).
+- The cookie name for this sensor is `access_token` (Cyberint canonical per poller-express
+  §2.1). Future sensors may parameterize the cookie name via an `auth_cookie_name` TOML field
+  per ADR-031 §D2 permitted-divergence process; the default for `cookie_roundtrip` is
+  `access_token` unless overridden.
+- `SensorAuth` trait is open and implementable per BC-2.01.016. `StaticCookieAuthProvider`
+  implements `SensorAuth` and satisfies `auth_type_name()` returning `"cookie_roundtrip"`.
+- The 5-value canonical auth_type set (BC-2.01.016 §Postconditions) includes
+  `"cookie_roundtrip"` as a valid value. No spec-load rejection occurs for this sensor.
+
+## Postconditions
+
+### P1 — Token Acquisition (acquire_token)
+
+- `StaticCookieAuthProvider::acquire_token()` calls the `CredentialResolver` with the
+  `credential_ref` declared in the sensor TOML spec. The resolver returns the API key string.
+- `acquire_token()` returns `Ok(token)` where `token` wraps the raw API key string value.
+- **`acquire_token()` makes zero HTTP calls.** No request is dispatched to any endpoint
+  (including `/login`, `/auth`, `/session`, `/token`, or any other path) during token
+  acquisition. The API key IS the token; there is no authentication exchange.
+- The API key value is never written to logs, error messages, or MCP responses per AD-017.
+
+### P2 — Request Header Injection (build_request)
+
+- `PipelineExecutor::build_request` for a sensor using `CookieRoundtrip` auth injects the
+  following HTTP header on every data-fetch request:
+  ```
+  Cookie: access_token={token_value}
+  ```
+  where `{token_value}` is the value returned by `acquire_token()`.
+- The `Authorization` header is NOT set for `CookieRoundtrip` sensors. The full dispatch
+  table per ADR-031 §D3-b is:
+
+  | AuthType | Header injected |
+  |----------|----------------|
+  | `CookieRoundtrip` | `Cookie: access_token={token}` |
+  | `BearerStatic` | `Authorization: Bearer {token}` |
+  | `Oauth2ClientCredentials` | `Authorization: Bearer {token}` |
+  | `CustomViaPlugin` | `Authorization: Bearer {token}` |
+
+- No `cyberint_session` cookie is ever injected. The header name `cyberint_session` is
+  permanently superseded by `access_token` per ADR-031 §D3 and §D4.
+
+### P3 — Auth Type Name
+
+- `StaticCookieAuthProvider::auth_type_name()` returns `"cookie_roundtrip"` (preserves the
+  `AuthType::CookieRoundtrip` enum variant and the 5-value canonical auth_type set per
+  BC-2.01.016 §Postconditions INV-AUTH-OPEN-002/003).
+
+### P4 — Zero Login-Shaped Requests
+
+- The set of HTTP requests made during a complete sensor fetch for a `cookie_roundtrip` sensor
+  contains ZERO requests to any login-shaped endpoint. Login-shaped endpoints are defined as
+  endpoints whose path contains one or more of: `/login`, `/auth`, `/session`, `/token` (as
+  path components, not query parameters or data field names).
+- The DTU clone (`prism-dtu-cyberint`) MUST also satisfy this property after ADR-031 §D3-a
+  correction: its `POST /login` route is removed or repurposed as a no-op, and auth is
+  validated via static `access_token` allowlist on every request.
+
+## Invariants
+
+- **INV-COOKIE-001 (No-HTTP-Call Invariant):** `acquire_token()` never makes an HTTP request.
+  This is a hard invariant provable by static analysis (the method body does not hold a
+  reference to any `reqwest::Client` or HTTP call site). A Kani proof or mock-client assertion
+  (zero-call-count) can verify this property at the unit test level.
+- **INV-COOKIE-002 (Cookie-Name Immutability):** For Cyberint sensors, the cookie name is
+  canonically `access_token`. This name is derived from poller-express (`cookieTransport`
+  struct, `Name: "access_token"` per `.factory/semport/poller-express/`) and is immutable for
+  the Cyberint sensor spec. Future sensors with different cookie names MUST explicitly declare
+  `auth_cookie_name` in their TOML spec.
+- **INV-COOKIE-003 (Token = API Key Identity):** The token returned by `acquire_token()` is
+  exactly the API key string from the credential resolver, with no transformation. There is no
+  encoding, hashing, or session-token wrapping.
+- **INV-COOKIE-004 (No Authorization Header):** For `CookieRoundtrip` sensors, the HTTP
+  `Authorization` header is never set. Prism's `build_request` dispatch checks `auth_type`
+  before header injection; the `CookieRoundtrip` branch injects only the `Cookie` header.
+- **INV-COOKIE-005 (AD-017 Credential Safety):** The API key value never appears in:
+  (a) `tracing::*!` log output (at any log level), (b) error messages returned to the MCP
+  caller, (c) structured event catalog fields. Error messages cite sensor name and client_id
+  only; the credential value is fully redacted.
+
+## Error Cases
+
+| Error | Condition | Behavior |
+|-------|-----------|----------|
+| `E-AUTH-005` | Credential resolver finds no credential entry for `(client_id, sensor_id)` — API key not present in keyring or file backend | `acquire_token()` returns `Err(E-AUTH-005)`. Message: `"Credentials not found for ({client_id}, {sensor_id})"`. Pipeline propagates as a per-sensor partial failure (BC-2.01.010). No HTTP fetch attempted for this sensor. |
+| `E-AUTH-006` | Credential resolver returns an empty string value for the API key | `acquire_token()` returns `Err(E-AUTH-006)`. Message: `"Empty API key for cookie_roundtrip sensor '{sensor}' on client '{client_id}'"`. Empty-string API keys are meaningless for static-cookie auth and would produce requests that the real API will unconditionally reject. Fail fast at token acquisition, not at DTU 401. |
+| `E-AUTH-004` | DTU (or real Cyberint API) returns HTTP 401 for a request carrying `Cookie: access_token={token}` | The HTTP 401 is propagated as a sensor fetch error. The pipeline does NOT retry with a refreshed token (there is no refresh mechanism — the API key is static). The error is surfaced in `sensor_errors` (BC-2.01.010). Root cause: API key is invalid, expired, or revoked. Operator must update the credential in the keyring. |
+| Cookie format characters invalid | API key contains characters that are illegal in an HTTP cookie value (e.g., control characters, spaces unescaped, or semicolons) | `acquire_token()` validates the API key against RFC 6265 cookie-value syntax at construction time (newtype validation per AD-017 credential discipline). Returns `E-AUTH-006` with message `"API key for cookie_roundtrip sensor '{sensor}' contains invalid cookie characters"`. |
+
+## Edge Cases
+
+| ID | Description | Expected Behavior |
+|----|-------------|-------------------|
+| EC-017-001 | Valid API key present; sensor DTU returns 200 on first request | Happy path. `acquire_token()` returns `Ok(token)`; `build_request` injects `Cookie: access_token={token}`; HTTP 200 received; data pipeline continues normally. |
+| EC-017-002 | DTU returns 401 on request carrying `Cookie: access_token={token}` | Pipeline surfaces a `E-AUTH-004` error in `sensor_errors`. No retry, no token refresh. Operator must update credential. |
+| EC-017-003 | Operator provides credential but stores it with a typo (wrong key name) | `E-AUTH-005` — resolver finds no entry for the canonical `(client_id, sensor_id)` pair. |
+| EC-017-004 | API key string contains a semicolon (`;`) | Newtype validation rejects at token acquisition time with `E-AUTH-006` (invalid cookie characters). Semicolon is the cookie-attribute separator in RFC 6265 and must not appear unescaped in cookie values. |
+| EC-017-005 | API key string contains only whitespace | `E-AUTH-006` (empty/invalid API key). Whitespace-only credentials are semantically equivalent to empty. |
+| EC-017-006 | Concurrent fan-out to two Cyberint instances (multi-org via BC-2.06.014) | Each fan-out target independently calls `acquire_token()` with its own `(org_id, sensor_id)` credential lookup. No shared mutable state. Two independent tokens, two independent requests. |
+| EC-017-007 | Config hot-reload changes the credential_ref for `cookie_roundtrip` sensor | Next `acquire_token()` call resolves the new reference from the updated config snapshot (ArcSwap per AD-007 per BC-2.16.006). In-flight requests use their own snapshot; no race condition. |
+| EC-017-008 | `auth_type = "cookie_roundtrip"` sensor but `credential_ref` absent from TOML spec | This is a spec-load-time error (E-SPEC-013 per BC-2.01.016 §Error Cases — each auth method must declare exactly one `credential_ref`). Rejected at boot, not at query time. |
+| EC-017-009 | API key length exceeds 4096 bytes | `E-AUTH-006` with message `"API key for cookie_roundtrip sensor exceeds maximum cookie value length"`. Cookie values above 4KB violate RFC 6265 §4.1 and common HTTP server limits. |
+
+## Canonical Test Vectors
+
+| Test Vector ID | Description | Setup | Expected |
+|----------------|-------------|-------|----------|
+| TV-BC-2.01.017-001 | Happy path — acquire_token with valid api_key | `CredentialResolver` returns `"test-api-key-abc123"` for the sensor's `credential_ref`; no HTTP mock configured | `acquire_token()` returns `Ok(token)` where token value is `"test-api-key-abc123"`; HTTP call count on any mock client is 0 |
+| TV-BC-2.01.017-002 | build_request injects Cookie header, no Authorization | `acquire_token()` called with valid key; `build_request` called | Outgoing request has header `Cookie: access_token=test-api-key-abc123`; `Authorization` header absent |
+| TV-BC-2.01.017-003 | build_request uses `access_token` cookie name, not `cyberint_session` | Same setup as TV-002 | Header value contains `access_token=`; must NOT contain `cyberint_session=` |
+| TV-BC-2.01.017-004 | Missing credential returns E-AUTH-005 | `CredentialResolver` returns `Err(CredNotFound)` for `(client_id, sensor_id)` | `acquire_token()` returns `Err` containing `E-AUTH-005`; no HTTP request made |
+| TV-BC-2.01.017-005 | Empty credential returns E-AUTH-006 | `CredentialResolver` returns `Ok("")` (empty string) | `acquire_token()` returns `Err` containing `E-AUTH-006`; message includes sensor name and client_id; no HTTP request made |
+| TV-BC-2.01.017-006 | DTU 401 response surfaces E-AUTH-004 | Valid token acquired; mock HTTP server returns 401 on data fetch | Fetch error surfaced in `sensor_errors` with `E-AUTH-004`; no retry attempt; call count == 1 |
+| TV-BC-2.01.017-007 | Cookie value with semicolon rejected | `CredentialResolver` returns `Ok("key;with;semicolons")` | `acquire_token()` returns `Err(E-AUTH-006)` with invalid-cookie-characters message; no HTTP request made |
+| TV-BC-2.01.017-008 | auth_type_name returns canonical string | Call `StaticCookieAuthProvider::auth_type_name()` | Returns `"cookie_roundtrip"` |
+
+## Verification Properties
+
+| VP ID | Description |
+|-------|-------------|
+| VP-148 (VP-PLUGIN-003) | DTU parity for sensor spec driven against DTU clone (verified GREEN by PLUGIN-MIGRATION-001-D for the wrapper layer). This BC adds the cookie-shape verification dimension: parity test MUST assert `Cookie: access_token=...` header (not `cyberint_session`) in the outgoing request captured by the DTU mock server. |
+| VP-TBD (No-HTTP-Call during acquire_token) | Formal property: `acquire_token()` body contains no calls to `reqwest::Client::*` or any async HTTP-initiating function. Provable by Kani proof on the provider's acquire_token method body (static call graph analysis) or by unit test with a zero-call-count mock HTTP client. Surface to architect for VP catalog assignment. Likely VP-NNN after VP-148 in the verification-properties catalog. |
+
+## Related BCs
+
+- BC-2.01.016 (SensorAuth Open Trait — Plugin-Implementable Auth Contract): parent contract establishing the `SensorAuth` trait surface. This BC specifies the `StaticCookieAuthProvider` as one concrete impl that satisfies the trait. The 5-value canonical auth_type set (including `"cookie_roundtrip"`) and the `auth_type_name()` method contract are established there; this BC operationalizes them for the static-cookie behavior variant.
+- BC-2.01.005 (CrowdStrike OAuth2 Authentication): sibling auth BC; contrasts by having a live HTTP token-acquisition step (OAuth2 `acquire_token` makes an HTTP request to the token endpoint). Illustrates the architectural contrast: CrowdStrike auth is stateful (acquired token), Cyberint static-cookie auth is stateless (API key IS the token).
+- BC-2.01.006 (Cyberint Cookie-Based Authentication and Multi-Format Timestamp Parsing): predecessor BC covering the old `CookieLoginAuthProvider` behavior (login step + `cyberint_session`). Superseded-in-behavior by this BC per ADR-031 §D3/D4. BC-2.01.006 remains active as it covers timestamp parsing and other Cyberint behaviors; only the auth flow description within it is superseded. Story-writer must update BC-2.01.006's Related BCs section to cross-reference this BC.
+- BC-2.16.013 (Bundled Sensor Spec Authoring and DTU-Parity Verification — 4 Initial Sensors): covers DTU parity validation for all four initial sensors including Cyberint. The DTU-parity test family for Cyberint MUST now assert the `Cookie: access_token=...` shape per this BC's TV-BC-2.01.017-002/003. This cross-reference enables test-writer to identify and update the Cyberint parity tests.
+
+## Architecture Anchors
+
+- ADR-031 §D1-b — "Auth flow: if the real API requires static cookie injection (no login step) → DTU MUST also accept static cookie injection."
+- ADR-031 §D3-b — Prism-side changes required: `StaticCookieAuthProvider` description; `build_request` dispatch table; `Cookie: access_token={token}` injection.
+- ADR-031 §D3-b — "does NOT perform any HTTP request during `acquire_token`"
+- ADR-028 §D-747 LOCKED — `auth_type_label = "cookie_roundtrip"` is preserved (label not changed); behavior changes.
+- ADR-026 §D1 — 2-method `SensorAuth` trait surface: `as_any()` + `auth_type_name()`. `StaticCookieAuthProvider` implements both methods.
+- `crates/prism-sensors/src/auth/mod.rs` — `SensorAuth` trait definition; `StaticCookieAuthProvider` implementation site.
+- `crates/prism-spec-engine/src/pipeline.rs` — `PipelineExecutor::build_request` Cookie header injection site for `CookieRoundtrip` auth type.
+- `.factory/semport/poller-express/poller-express-broad-sweep.md §2.1` — canonical reference for `access_token` cookie name from real Cyberint API.
+
+## Story Anchor
+
+S-DTU-CYBERINT-AUTH-FIDELITY-001
+
+## VP Anchors
+
+- VP-148 (VP-PLUGIN-003 DTU parity — Cyberint cookie-shape verification dimension added by this BC)
+- VP-TBD (No-HTTP-Call during acquire_token — to be assigned by architect)
+
+## Traceability
+
+| Field | Value |
+|-------|-------|
+| L2 Capability | CAP-001 |
+| Capability Anchor Justification | CAP-001 ("Sensor Adapter Layer (Internal)") per capabilities.md §CAP-001. This BC specifies the authentication mechanism by which `StaticCookieAuthProvider` acquires credentials and injects them into sensor API requests — exactly the "auth (OAuth2, cookie, bearer)" behavior that CAP-001 defines for the sensor adapter layer. The no-login-roundtrip static-cookie injection is a direct variant of the cookie auth mechanism described in CAP-001's per-sensor auth handling. |
+| L2 Invariants | DI-012 (auth composition prevention — `cookie_roundtrip` is a single auth_type; the static-cookie path cannot be combined with another auth type in a single spec; runtime Rule 2 enforcement per ADR-023 applies) |
+| Related BCs | BC-2.01.016 (parent SensorAuth trait contract), BC-2.01.006 (Cyberint auth predecessor), BC-2.16.013 (DTU parity verification family) |
+| Priority | P0 |
+| ADR | ADR-031 (DTU = True DTU — Fidelity Principle), ADR-028 (TOML Spec Grounding vs DTU Routes) |
+| Story | S-DTU-CYBERINT-AUTH-FIDELITY-001 |
+
+## Changelog
+
+| Version | Burst | Date | Author | Change |
+|---------|-------|------|--------|--------|
+| 1.0 | D-849 | 2026-05-29 | product-owner | Initial draft. Authored to close BC gap surfaced by story-writer during S-DTU-CYBERINT-AUTH-FIDELITY-001 materialization. Specifies `StaticCookieAuthProvider` no-login-roundtrip contract per ADR-031 §D1-b/D3-b. Error codes: E-AUTH-004 (DTU 401), E-AUTH-005 (missing credential), E-AUTH-006 (new — empty/invalid API key value). VP-TBD (No-HTTP-Call) surfaced for architect VP catalog assignment. |

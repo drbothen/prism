@@ -1,14 +1,14 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "5.55"
+version: "5.56"
 status: draft
 producer: product-owner
 timestamp: 2026-05-29T00:00:00Z
 phase: 3.A
-total_contracts: 245
+total_contracts: 246
 active_contracts: 236
-draft_contracts: 2
+draft_contracts: 3
 deprecated_contracts: 0
 removed_contracts: 7
 retired_contracts: 2
@@ -16,14 +16,14 @@ retired_contracts: 2
 
 # Behavioral Contract Index
 
-Flat index of all 245 behavioral contracts for Prism (245 total files, 236 active, 2 draft, 0 deprecated, 7 removed, 2 retired), organized by BC ID. Note: 5 prior index-only reserved entries (BC-2.07.007/008/009/010, BC-2.14.011) were dropped — they never had corresponding files.
+Flat index of all 246 behavioral contracts for Prism (246 total files, 236 active, 3 draft, 0 deprecated, 7 removed, 2 retired), organized by BC ID. Note: 5 prior index-only reserved entries (BC-2.07.007/008/009/010, BC-2.14.011) were dropped — they never had corresponding files.
 
 **Note on `total_contracts`:** This count represents unique BC identifiers ever filed
-(active + draft + deprecated + removed + retired = 236 + 2 + 0 + 7 + 2 = 247; note 2 additional were promoted here). 5 new BCs (BC-2.06.012–016) added in D-803 burst-3 for ADR-029 multi-tenant sensor endpoint overrides. Five prior index-only reserved entries
+(active + draft + deprecated + removed + retired = 236 + 3 + 0 + 7 + 2 = 248; note 2 additional were promoted here). 1 new BC (BC-2.01.017) added in D-849 for ADR-031 StaticCookieAuthProvider no-login-roundtrip contract. 5 new BCs (BC-2.06.012–016) added in D-803 burst-3 for ADR-029 multi-tenant sensor endpoint overrides. Five prior index-only reserved entries
 (BC-2.07.007/008/009/010, BC-2.14.011) were dropped in v4.8 because they never had
 corresponding files — they are NOT counted in `total_contracts` and remain only in the
 historical references section below. Counts are derived from workspace enumeration of
-individual BC file `lifecycle_status` frontmatter fields (ground truth per VSDD). `draft_contracts: 2` covers BC-2.06.011 and BC-2.21.001. BC-2.16.013, BC-2.16.001, and BC-2.16.009 promoted draft→active at D-776 per POL-14 (PR #153 merge 2026-05-22); BC-2.01.016, BC-2.16.011, and BC-2.16.012 promoted draft→active at D-726 per POL-14 (PR #151 merge). BC-2.16.004 lifecycle_status was already `removed`; `status` field aligned to `removed` at D-726 (was draft, inconsistent). `deprecated_contracts: 0` — BC-2.16.004 fully removed. BC-2.01.005/006/007/008 and BC-2.02.003/004/005/006 amendment_lifecycle: pending cleared at PLUGIN-MIGRATION-001-G burst-3 (v5.54); all 8 now reflect `active (amended per ADR-023/PLUGIN-MIGRATION-001-G)` — lifecycle_status was already active in BC files prior to this index update.
+individual BC file `lifecycle_status` frontmatter fields (ground truth per VSDD). `draft_contracts: 3` covers BC-2.06.011, BC-2.21.001, and BC-2.01.017 (new). BC-2.01.017 will auto-promote to active at S-DTU-CYBERINT-AUTH-FIDELITY-001 merge per POL-14. BC-2.16.013, BC-2.16.001, and BC-2.16.009 promoted draft→active at D-776 per POL-14 (PR #153 merge 2026-05-22); BC-2.01.016, BC-2.16.011, and BC-2.16.012 promoted draft→active at D-726 per POL-14 (PR #151 merge). BC-2.16.004 lifecycle_status was already `removed`; `status` field aligned to `removed` at D-726 (was draft, inconsistent). `deprecated_contracts: 0` — BC-2.16.004 fully removed. BC-2.01.005/006/007/008 and BC-2.02.003/004/005/006 amendment_lifecycle: pending cleared at PLUGIN-MIGRATION-001-G burst-3 (v5.54); all 8 now reflect `active (amended per ADR-023/PLUGIN-MIGRATION-001-G)` — lifecycle_status was already active in BC files prior to this index update.
 
 Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close traceability gaps for AD-019 (WASM plugins), AD-020 (infusions), AD-021 (actions), CAP-022 (auto-case-creation), and BC-2.14.012 stub completion. Burst 2.5: 4 additional BCs closing remaining gaps flagged by story-writer: BC-2.08.008/009 (diagnostics tool + resources, S-5.08), BC-2.05.011 (audit forwarding at-least-once, S-5.10), BC-2.13.014 (IOC file loading, S-4.03).
 
@@ -44,7 +44,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.01.013 | DataSource Trait Eliminates Per-Sensor Code Duplication | 01 - Sensor Adapters | CAP-001 | P0 | active (promoted draft→active D-398 per POL-14; anchor story S-PLUGIN-PREREQ-A merged PR #142 develop@90d7c80f) — v1.7 |
 | BC-2.01.014 | Exponential Backoff and Retry for Transient Sensor API Errors | 01 - Sensor Adapters | CAP-001 | P0 | draft |
 | BC-2.01.015 | ~~MCP Tool Response Envelope Structure~~ | 01 - Sensor Adapters | CAP-001 | P0 | removed |
-| BC-2.01.016 | SensorAuth Open Trait — Plugin-Implementable Auth Contract (No Sealed Marker) | 01 - Sensor Adapters | CAP-001 | P0 | active (promoted draft→active D-726 per POL-14; anchor story S-PLUGIN-PREREQ-E merged PR #151 develop@80ebe794 2026-05-19) — v1.11 |
+| BC-2.01.016 | SensorAuth Open Trait — Plugin-Implementable Auth Contract (No Sealed Marker) | 01 - Sensor Adapters | CAP-001 | P0 | active (promoted draft→active D-726 per POL-14; anchor story S-PLUGIN-PREREQ-E merged PR #151 develop@80ebe794 2026-05-19) — v1.12 |
+| BC-2.01.017 | StaticCookieAuthProvider Contract — No-Login-Roundtrip Cookie Injection | 01 - Sensor Adapters | CAP-001 | P0 | draft |
 | BC-2.02.001 | OCSF Schema Loading at Build Time via ocsf-proto-gen | 02 - OCSF Normalization | CAP-003 | P0 | draft |
 | BC-2.02.002 | DynamicMessage Creation from Sensor Records | 02 - OCSF Normalization | CAP-003 | P0 | active |
 | BC-2.02.003 | CrowdStrike Alert Field Mapping to OCSF | 02 - OCSF Normalization | CAP-003 | P0 | active (amended per ADR-023/PLUGIN-MIGRATION-001-G; v1.6) |
@@ -375,6 +376,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v5.56 (2026-05-29, D-849 BC-2.01.017 authoring burst):** product-owner | New BC-2.01.017 (StaticCookieAuthProvider Contract — No-Login-Roundtrip Cookie Injection) authored to close BC gap surfaced by story-writer during S-DTU-CYBERINT-AUTH-FIDELITY-001 materialization. ADR-031 §D1-b/D3-b no-HTTP-call invariant now has a behavioral contract home. total_contracts 245→246, draft_contracts 2→3 (BC-2.01.017 status: draft; will auto-promote at S-DTU-CYBERINT-AUTH-FIDELITY-001 merge per POL-14). active_contracts 236 unchanged. New error code E-AUTH-006 (empty/invalid API key for cookie_roundtrip) appended to error-taxonomy.md v1.52→v1.53. BC-2.01.016 v1.11→v1.12 (§Related BCs cross-reference to BC-2.01.017 added). BC-2.16.013 v1.16→v1.17 (§Related BCs cross-reference to BC-2.01.017 added; DTU-parity test family for Cyberint must assert access_token shape per ADR-031 §D5). BC-INDEX v5.55→v5.56.
 
 **v5.55 (2026-05-29, D-844 S-5.01-FOLLOWUP-MCP-BOOT post-merge burst):** state-manager | POL-14 BC auto-promotion: 7 BC-2.10.* promoted status draft→active per PR #163 S-5.01-FOLLOWUP-MCP-BOOT merge at develop@e898c3c9 2026-05-29T16:44:42Z. BC-2.10.001 v1.4→v1.5, BC-2.10.002 v2.7→v2.8, BC-2.10.003 v1.3→v1.4, BC-2.10.004 v2.5→v2.6, BC-2.10.006 v1.3→v1.4, BC-2.10.007 v1.3→v1.4, BC-2.10.010 v1.3→v1.4. active_contracts 236 (unchanged — lifecycle_status was already active for all 7; status field now aligned, idempotent confirm). draft_contracts 2 (unchanged — BC-2.06.011 + BC-2.21.001 remain draft). BC-2.09.001..008 already active (promoted at S-1.10 merge) — no promotions needed. BC-INDEX v5.54→v5.55.
 
