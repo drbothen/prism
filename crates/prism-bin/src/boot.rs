@@ -244,9 +244,14 @@ mod shutdown_exit_code_tests {
     use super::*;
 
     /// Construct a `RunningServer` with a pre-resolved task for testing.
+    ///
+    /// `config_dir` is set to `std::env::temp_dir()` — these tests never perform
+    /// filesystem I/O via `config_dir` (only `mcp_server_task` is exercised), but
+    /// the field must be populated. `std::env::temp_dir()` works on all platforms
+    /// including Windows (returns `%TEMP%` or `%TMP%`), unlike a hardcoded `/tmp/`.
     fn make_server(task: tokio::task::JoinHandle<Result<(), rmcp::RmcpError>>) -> RunningServer {
         RunningServer {
-            config_dir: PathBuf::from("/tmp/test"),
+            config_dir: std::env::temp_dir().join("prism-test"),
             resolved_spec_map: Arc::new(std::collections::HashMap::new()),
             mcp_server_task: task,
         }

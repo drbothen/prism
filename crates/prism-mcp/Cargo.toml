@@ -40,6 +40,7 @@ arrow-json = "58"
 serde_json = "1"
 prism-security = { path = "../prism-security", version = "0.1.0" }
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "test-util"] }
+tempfile = "3"
 # tracing-subscriber: used in shutdown tests to capture tracing event fields
 # and assert that event_type + path fields are emitted by production code paths
 # (F-PASS7-MED-1, F-PASS7-MED-2 fix: replace vacuous string-literal tests).

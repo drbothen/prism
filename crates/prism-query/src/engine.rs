@@ -899,7 +899,8 @@ mod alias_wiring_tests {
     #[tokio::test]
     async fn test_alias_store_wired_into_execute_expands_at_query_time() {
         // Build an alias store with one global alias: @crowdstrike_alerts → "SELECT * FROM alerts"
-        let mut store = AliasStore::empty(Path::new("/tmp/test-alias-wiring.toml"));
+        let _tmpdir = tempfile::tempdir().expect("create tempdir for alias wiring test store");
+        let mut store = AliasStore::empty(_tmpdir.path().join("test-alias-wiring.toml"));
         let create_result = store
             .create_or_update(
                 AliasEntry {

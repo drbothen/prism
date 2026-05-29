@@ -4839,10 +4839,10 @@ mod tests {
         ));
 
         // Wire alias_store so confirm_action reaches the 'name' extraction step.
-        // AliasStore::empty() takes a path but does no I/O — safe to use a dummy path.
-        let alias_store = Arc::new(Mutex::new(AliasStore::empty(std::path::Path::new(
-            "/tmp/prism-test-aliases",
-        ))));
+        let _tmpdir = tempfile::tempdir().expect("create tempdir for test alias store");
+        let alias_store = Arc::new(Mutex::new(AliasStore::empty(
+            _tmpdir.path().join("prism-test-aliases.toml"),
+        )));
 
         let server = PrismServer {
             injection_scanner: Arc::new(InjectionScanner),
@@ -5487,7 +5487,8 @@ mod tests {
         use std::collections::{HashMap, HashSet};
 
         // Build an AliasStore and add alias: devices = "SELECT * FROM crowdstrike.devices".
-        let mut store = AliasStore::empty("/tmp/test-aliases-high3.toml");
+        let _tmpdir = tempfile::tempdir().expect("create tempdir for test alias store");
+        let mut store = AliasStore::empty(_tmpdir.path().join("test-aliases-high3.toml"));
         let token_store = ConfirmationTokenStore::new();
         create_alias_with_clients_gated(
             CreateAliasInput {
@@ -5651,9 +5652,15 @@ mod tests {
     // The INTERNAL_ERROR assertion then fails, proving the fix is load-bearing.
 
     /// Helper: build a minimal WriteExecutor + AliasStore + server for F-PASS16-MED-2 tests.
+    ///
+    /// Returns `(server, confirmation_store, _tmpdir)`. The caller MUST hold `_tmpdir`
+    /// alive for the duration of the test — it is a `TempDir` that owns the alias store
+    /// directory and is auto-cleaned on drop. Dropping it before the server is used may
+    /// cause `AliasStore::write_entries_to_file` to fail on any path that writes aliases.
     fn build_server_for_f_pass16_med2_tests() -> (
         PrismServer,
         Arc<prism_security::confirmation_token::ConfirmationTokenStore>,
+        tempfile::TempDir,
     ) {
         use prism_core::RiskTier;
         use prism_query::alias_store::AliasStore;
@@ -5694,9 +5701,10 @@ mod tests {
             Arc::new(endpoint_registry),
         ));
 
-        let alias_store = Arc::new(Mutex::new(AliasStore::empty(std::path::Path::new(
-            "/tmp/prism-test-aliases-f-pass16",
-        ))));
+        let tmpdir = tempfile::tempdir().expect("create tempdir for f-pass16 test alias store");
+        let alias_store = Arc::new(Mutex::new(AliasStore::empty(
+            tmpdir.path().join("prism-test-aliases-f-pass16.toml"),
+        )));
 
         let server = PrismServer {
             injection_scanner: Arc::new(InjectionScanner),
@@ -5709,7 +5717,7 @@ mod tests {
             org_registry: None,
         };
 
-        (server, confirmation_store)
+        (server, confirmation_store, tmpdir)
     }
 
     /// F-PASS16-MED-2: confirm_action for create_alias token missing 'scope' must return
@@ -5721,7 +5729,7 @@ mod tests {
     /// (-32602) or a different error — the INTERNAL_ERROR assertion fails.
     #[tokio::test]
     async fn test_F_PASS16_MED_2_confirm_action_create_alias_missing_scope_returns_internal() {
-        let (server, confirmation_store) = build_server_for_f_pass16_med2_tests();
+        let (server, confirmation_store, _tmpdir) = build_server_for_f_pass16_med2_tests();
 
         // Pre-store a "create_alias" token with action_params MISSING "scope".
         // "name" is present (to pass the F-PASS15-MED-1 guard), only "scope" is missing.
@@ -5772,7 +5780,7 @@ mod tests {
     /// or a different error code — the INTERNAL_ERROR assertion fails.
     #[tokio::test]
     async fn test_F_PASS16_MED_2_confirm_action_delete_alias_missing_scope_returns_internal() {
-        let (server, confirmation_store) = build_server_for_f_pass16_med2_tests();
+        let (server, confirmation_store, _tmpdir) = build_server_for_f_pass16_med2_tests();
 
         // Pre-store a "delete_alias" token with action_params MISSING "scope".
         // "name" and "force" are present — only "scope" is missing.
@@ -5823,7 +5831,7 @@ mod tests {
     /// — the INTERNAL_ERROR assertion fails.
     #[tokio::test]
     async fn test_F_PASS16_MED_2_confirm_action_delete_alias_missing_force_returns_internal() {
-        let (server, confirmation_store) = build_server_for_f_pass16_med2_tests();
+        let (server, confirmation_store, _tmpdir) = build_server_for_f_pass16_med2_tests();
 
         // Pre-store a "delete_alias" token with action_params MISSING "force".
         // "name" and "scope" are present — only "force" is missing.
@@ -5878,9 +5886,10 @@ mod tests {
     async fn test_F_PR163_IMP_8_create_alias_requires_write_executor() {
         use prism_query::alias_store::AliasStore;
 
-        let alias_store = Arc::new(Mutex::new(AliasStore::empty(std::path::Path::new(
-            "/tmp/prism-test-imp8-create-alias",
-        ))));
+        let _tmpdir = tempfile::tempdir().expect("create tempdir for imp8 create-alias test");
+        let alias_store = Arc::new(Mutex::new(AliasStore::empty(
+            _tmpdir.path().join("prism-test-imp8-create-alias.toml"),
+        )));
         // Deliberately omit write_executor (None) — SUG-4 fix must return INTERNAL_ERROR.
         let server = PrismServer {
             injection_scanner: Arc::new(InjectionScanner),
@@ -5922,9 +5931,10 @@ mod tests {
     async fn test_F_PR163_IMP_8_delete_alias_requires_write_executor() {
         use prism_query::alias_store::AliasStore;
 
-        let alias_store = Arc::new(Mutex::new(AliasStore::empty(std::path::Path::new(
-            "/tmp/prism-test-imp8-delete-alias",
-        ))));
+        let _tmpdir = tempfile::tempdir().expect("create tempdir for imp8 delete-alias test");
+        let alias_store = Arc::new(Mutex::new(AliasStore::empty(
+            _tmpdir.path().join("prism-test-imp8-delete-alias.toml"),
+        )));
         let server = PrismServer {
             injection_scanner: Arc::new(InjectionScanner),
             query_engine: None,
