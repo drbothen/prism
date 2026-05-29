@@ -244,6 +244,21 @@ impl WriteExecutor {
         }
     }
 
+    /// Return a reference to the confirmation token store.
+    ///
+    /// Used by `PrismServer::confirm_action` to validate and consume tokens
+    /// before dispatching write execution (BC-2.04.009, BC-2.04.010).
+    pub fn confirmation_store(&self) -> &Arc<ConfirmationTokenStore> {
+        &self.confirmation_store
+    }
+
+    /// Return a reference to the feature flag evaluator.
+    ///
+    /// Used by `PrismServer::list_capabilities` to report client capability status.
+    pub fn feature_flags(&self) -> &Arc<FeatureFlagEvaluator> {
+        &self.feature_flags
+    }
+
     /// Execute the write pipeline for the given `WritePlan`.
     ///
     /// Runs all six phases:

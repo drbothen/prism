@@ -82,6 +82,7 @@ ulid = { version = "1", features = ["serde"] }
 [dev-dependencies]
 # S-2.08 — isolation tests: LruCache mirrors prism-dtu-crowdstrike session_registry (dev-only)
 lru = "0.17"
+tempfile = "3"
 # S-3.02 VP-031 — proptest property tests: REQUIRED columns always push-down (BC-2.11.007).
 # S-3.06 — property-based tests for write-mode AST round-trips (VP-021 corpus extension)
 proptest = "1.11"
@@ -120,8 +121,9 @@ claroty-write = []
 armis-write = []
 all-write = ["crowdstrike-write", "cyberint-write", "claroty-write", "armis-write"]
 # Exposes global reset helpers (reset_dynamic_registry_global, reset_query_phase_global)
-# for cross-crate integration tests. NEVER enable in production deps.
-test-helpers = []
+# for cross-crate integration tests, and enables BoundingDmlOperation::__TestUnknown via
+# prism-security/test-helpers (F-PR163-PASS3-MED-4). NEVER enable in production deps.
+test-helpers = ["prism-security/test-helpers"]
 
 # VP-156 proptest integration test binaries — require test-helpers feature to access
 # reset_dynamic_registry_global / reset_query_phase_global (process-global state reset

@@ -12,14 +12,43 @@ name = "prism_mcp"
 [dependencies]
 prism-core = { path = "../prism-core", version = "0.2.0" }
 prism-security = { path = "../prism-security", version = "0.1.0" }
+prism-query = { path = "../prism-query", version = "0.1.0" }
+prism-sensors = { path = "../prism-sensors", version = "0.2.0" }
+prism-ocsf = { path = "../prism-ocsf", version = "0.1.0" }
+prism-audit = { path = "../prism-audit", version = "0.1.0" }
+# prism-spec-engine: config manager, sensor spec tools (CRIT-4 — reload/list/validate/add tools).
+prism-spec-engine = { path = "../prism-spec-engine", version = "0.9.0" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 chrono = { version = "0.4", features = ["serde"] }
 tracing = "0.1"
+# tokio: async runtime for serve_stdio and signal handling (BC-2.10.006, BC-2.10.010).
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "signal", "time"] }
+# rmcp 1.7: Official Rust MCP SDK — server transport, macro-driven tool router, schemars integration.
+# Required for PrismServer ServerHandler impl and stdio transport (BC-2.10.001, BC-2.10.006).
+rmcp = { workspace = true }
+# schemars 1.x: JSON Schema generation for rmcp tool parameter types.
+# rmcp re-exports schemars as rmcp::schemars; we depend on it directly for derive macros.
+schemars = { workspace = true }
+# arc-swap: lock-free ArcSwap<ConfigManager> — same version used by prism-spec-engine.
+arc-swap = "1"
+# arrow-json: RecordBatch → JSON rows serialization for the query tool (CRIT-1).
+# Transitive via arrow←datafusion; explicit dep pins the same version.
+arrow-json = "58"
 
 [dev-dependencies]
 serde_json = "1"
 prism-security = { path = "../prism-security", version = "0.1.0" }
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "test-util"] }
+tempfile = "3"
+# tracing-subscriber: used in shutdown tests to capture tracing event fields
+# and assert that event_type + path fields are emitted by production code paths
+# (F-PASS7-MED-1, F-PASS7-MED-2 fix: replace vacuous string-literal tests).
+tracing-subscriber = { version = "0.3", features = ["fmt", "env-filter"] }
+# async-trait + ulid: needed for AuditWriter stub in F-PASS13-HIGH-2 AC-7 test.
+# Both are already transitive dependencies via prism-query; pinned here for test stability.
+async-trait = "0.1"
+ulid = { version = "1", features = ["serde"] }
 
 [lints.clippy]
 # From workspace

@@ -183,6 +183,20 @@ impl OrgRegistry {
             .expect("OrgRegistry RwLock poisoned")
             .is_empty()
     }
+
+    /// Return all registered slugs as a `Vec<String>`.
+    ///
+    /// Used by boot step 9 to supply the valid-client allowlist to `PrismServer`
+    /// (IMP-8: OrgRegistry → list_slugs() → PrismServer.org_registry →
+    /// alias CRUD capability gate).  Pure read; no I/O.
+    pub fn list_slugs(&self) -> Vec<String> {
+        self.inner
+            .read()
+            .expect("OrgRegistry RwLock poisoned")
+            .left_values()
+            .map(|slug| slug.as_str().to_owned())
+            .collect()
+    }
 }
 
 impl Default for OrgRegistry {

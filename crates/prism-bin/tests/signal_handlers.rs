@@ -188,49 +188,6 @@ fn test_AC_12_panic_hook_produces_exit_code_1() {
 }
 
 // ---------------------------------------------------------------------------
-// AC-12 — panic without hook produces 101 (demonstrates why hook matters)
-// ---------------------------------------------------------------------------
-
-/// Story: S-WAVE5-PREP-01 AC-12 (negative companion test)
-/// BC: BC-2.10.010 — panic must produce exit 1 (hook required)
-///
-/// This companion test documents that today (Red Gate) the todo!() in dispatch()
-/// causes an exit that is NOT 1 (because the hook is not yet installed).
-/// After implementation, this test should be removed or inverted.
-///
-/// RED GATE: Documents the pre-implementation state. If this test suddenly
-/// passes (exit != 1), it means the panic hook is installed and AC-12 is satisfied.
-/// Remove this test when test_AC_12_panic_hook_produces_exit_code_1 passes.
-#[test]
-fn test_AC_12_red_gate_dispatch_todo_panics_without_hook() {
-    // After implementation: panic hook installed in main.rs → exits 1.
-    // MED-5: use isolated dirs (prism start now reaches step 6, needs RocksDB).
-    let (config_dir, _state_tmp, _spec_tmp) = make_valid_config_dir();
-    let output = Command::new(prism_bin())
-        .args(["start"])
-        .env("PRISM_CONFIG_DIR", config_dir.path())
-        .output()
-        .expect("failed to spawn prism binary");
-
-    // The process must not exit cleanly (0) — it panics on todo!().
-    assert_ne!(
-        output.status.code(),
-        Some(0),
-        "RED GATE: prism start must not exit 0 while todo!() stubs exist; \
-         AC-12 panic hook is not yet installed"
-    );
-
-    // Document the current exit code for awareness (101 without hook, 1 with hook).
-    // This assertion will FLIP to assert_eq!(code, Some(1)) after implementation.
-    // For now it just verifies non-zero.
-    let code = output.status.code();
-    eprintln!(
-        "Red Gate: prism start currently exits {:?} (expected 101 without hook, 1 after AC-12 implementation)",
-        code
-    );
-}
-
-// ---------------------------------------------------------------------------
 // Signal handler API surface (unit test — types compile correctly)
 // ---------------------------------------------------------------------------
 

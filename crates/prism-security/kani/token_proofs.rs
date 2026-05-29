@@ -67,6 +67,7 @@ mod proofs {
             created_at,
             expires_at,
             consumed: false,
+            bounding_metadata: prism_security::BoundingMetadata::default(),
         };
 
         let now = created_at + Duration::from_secs(delta_secs);

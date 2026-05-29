@@ -63,7 +63,10 @@ pub use list_capabilities::{
 // Public re-exports — S-1.09
 // ─────────────────────────────────────────────────────────────
 
-pub use confirmation_token::{ConfirmationToken, ConfirmationTokenStore, TOKEN_CAP, TOKEN_TTL};
+pub use confirmation_token::{
+    BoundingDmlOperation, BoundingMetadata, ConfirmationToken, ConfirmationTokenStore, TOKEN_CAP,
+    TOKEN_TTL,
+};
 pub use content_hash::compute_action_hash;
 pub use risk_tier::{DryRunResponse, GateDecision, RiskTier};
 

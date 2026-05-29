@@ -213,6 +213,12 @@ fn make_full_query_engine_with_registry(
     let credential_resolver: Arc<dyn CredentialResolver> = Arc::new(StubCredentialResolver);
     let org_registry = Arc::new(OrgRegistry::new());
     let resolved_spec_map = Arc::new(HashMap::new());
+    // F-PASS9-LOW-1: new_full now requires an alias_store for @alias expansion.
+    // Tests use an empty in-memory store (no aliases.toml needed).
+    let _alias_tmpdir = tempfile::tempdir().expect("create tempdir for boot test alias store");
+    let alias_store = Arc::new(std::sync::Mutex::new(
+        prism_query::alias_store::AliasStore::empty(_alias_tmpdir.path().join("test-aliases.toml")),
+    ));
 
     QueryEngine::new_full(
         adapter_registry,
@@ -224,6 +230,7 @@ fn make_full_query_engine_with_registry(
         org_registry,
         storage,
         resolved_spec_map,
+        alias_store,
     )
 }
 

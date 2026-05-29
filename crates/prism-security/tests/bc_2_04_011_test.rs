@@ -41,6 +41,7 @@ fn synthetic_token(created_at: SystemTime) -> ConfirmationToken {
         created_at,
         expires_at: created_at + TOKEN_TTL,
         consumed: false,
+        bounding_metadata: prism_security::BoundingMetadata::default(),
     }
 }
 

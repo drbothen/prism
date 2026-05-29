@@ -29,6 +29,104 @@ use prism_core::error::PrismError;
 
 use crate::content_hash::compute_action_hash;
 
+// ─────────────────────────────────────────────────────────────────────────────
+// BoundingMetadata
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Mirrored DML operation discriminant for bounding metadata storage (OBS-1 fix).
+///
+/// `prism-security` cannot depend on `prism-query` (circular dependency), so
+/// `DmlOperation` from `prism-query::write_ast` is mirrored here.  The
+/// conversion is implemented as `From<DmlOperation> for BoundingDmlOperation` in
+/// `prism-query::dry_run`.  Any new variant in `DmlOperation` must be reflected
+/// here and in the conversion.
+///
+/// `#[non_exhaustive]` ensures external match arms include a wildcard `_ => {}`
+/// so new DML variants can be added without breaking downstream callers
+/// (F-PR163-IMP-1).
+#[non_exhaustive]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub enum BoundingDmlOperation {
+    /// `INSERT INTO table_name (col_list) SELECT …`
+    InsertInto,
+    /// `UPDATE table_name SET col = val [, …] WHERE expr`
+    Update,
+    /// `DELETE FROM table_name WHERE expr`
+    Delete,
+    /// Synthetic unknown variant for testing the wildcard arm in `dry_run.rs`.
+    ///
+    /// F-PR163-PASS3-MED-4: provides a constructable unknown variant so tests can
+    /// verify the `_ => DmlOperation::Delete` wildcard arm in `From<BoundingDmlOperation>
+    /// for DmlOperation` is load-bearing. Pattern mirrors `OrgSlug::new_unchecked`
+    /// (AD-017) — test-only, never appear in production code paths.
+    ///
+    /// `#[doc(hidden)]` prevents rustdoc from advertising this variant.
+    #[cfg(feature = "test-helpers")]
+    #[doc(hidden)]
+    __TestUnknown,
+}
+
+/// Bounding-constraint metadata captured at token generation time (CRIT-1 fix).
+///
+/// Phase 2 `check_unbounded_write` fires on the reconstructed `WritePlan` during
+/// `confirm_action`.  The original plan that passed Phase 2 *had* bounding signals
+/// (`has_where_clause`, `has_explicit_limit`, etc.) which are not preserved in
+/// `action_params`.  Storing them in the token lets `confirm_action` losslessly
+/// reconstruct a plan that passes the same Phase 2 gate it originally passed.
+///
+/// These fields are NOT included in the content hash (`compute_action_hash`) —
+/// the hash covers only `client_id + tool_name + action_params`.  Bounding
+/// signals are orthogonal to action identity; including them would cause spurious
+/// hash mismatches if (e.g.) a WHERE-clause-only plan later executes with a
+/// LIMIT added by the confirmation path.
+///
+/// # OBS-1 addition
+/// `dml_operation` captures the SQL DML kind (if any) so that `confirm_action`
+/// can restore `WritePlan.dml_operation`.  Without this, a DELETE-from token
+/// re-dispatched via confirm_action would silently lose the DELETE discriminant
+/// that triggers `classify_risk_tier`'s unconditional-Irreversible path (AD-022).
+///
+/// `#[non_exhaustive]` ensures external struct-literal construction is forbidden;
+/// future bounding fields can be added without breaking downstream callers
+/// (F-PR163-IMP-1). External crates must use `BoundingMetadata::new(...)` or
+/// `BoundingMetadata::default()` — struct literal syntax is prohibited by `#[non_exhaustive]`.
+#[non_exhaustive]
+#[derive(Clone, Debug, Serialize, Deserialize, Default)]
+pub struct BoundingMetadata {
+    /// Whether the originating query had a WHERE clause (or pipe-mode filter stage).
+    pub has_where_clause: bool,
+    /// Whether the originating query had an explicit LIMIT clause.
+    pub has_explicit_limit: bool,
+    /// The explicit limit value, if present.
+    pub explicit_limit: Option<u64>,
+    /// SQL DML operation kind from the originating write plan, if any (OBS-1 fix).
+    ///
+    /// `None` for pipe-mode write plans (which have no DML discriminant).
+    /// Populated for SQL-mode plans so `confirm_action` can restore
+    /// `WritePlan.dml_operation` and preserve the DELETE→Irreversible invariant.
+    pub dml_operation: Option<BoundingDmlOperation>,
+}
+
+impl BoundingMetadata {
+    /// Construct a fully-specified `BoundingMetadata` from known write-plan signals.
+    ///
+    /// External crates use this constructor because `#[non_exhaustive]` prohibits
+    /// struct literal syntax from outside the defining crate.
+    pub fn new(
+        has_where_clause: bool,
+        has_explicit_limit: bool,
+        explicit_limit: Option<u64>,
+        dml_operation: Option<BoundingDmlOperation>,
+    ) -> Self {
+        Self {
+            has_where_clause,
+            has_explicit_limit,
+            explicit_limit,
+            dml_operation,
+        }
+    }
+}
+
 /// The maximum number of active (non-expired, non-consumed) tokens in the store.
 ///
 /// Hard cap enforced by `generate()` after sweeping expired/consumed tokens.
@@ -88,6 +186,17 @@ pub struct ConfirmationToken {
     /// Single-use flag. Set to `true` before the action is dispatched
     /// (BC-2.04.010 invariant; VP-008).
     pub consumed: bool,
+
+    /// Bounding-constraint metadata from the originating write plan (CRIT-1 fix).
+    ///
+    /// Populated at generation time so `confirm_action` can reconstruct a
+    /// `WritePlan` whose bounding signals match those of the original plan that
+    /// passed Phase 2.  Without this, Phase 2 `check_unbounded_write` fires on
+    /// the reconstructed plan even though the original was bounded.
+    ///
+    /// Defaults to all-false via `BoundingMetadata::default()` for tokens
+    /// generated by the alias path (which has no WritePlan).
+    pub bounding_metadata: BoundingMetadata,
 }
 
 impl ConfirmationToken {
@@ -174,6 +283,7 @@ impl ConfirmationTokenStore {
     ///   - `action_hash`: SHA-256 of `compute_action_hash(client_id, tool_name, action_params)`.
     ///   - `expires_at = SystemTime::now() + TOKEN_TTL` (300s).
     ///   - `consumed = false`.
+    ///   - `bounding_metadata`: bounding signals from the originating plan (CRIT-1).
     /// - Returns the new token.
     ///
     /// # Invariant
@@ -184,6 +294,31 @@ impl ConfirmationTokenStore {
         tool_name: &str,
         action_params: Value,
         action_summary: &str,
+    ) -> Result<ConfirmationToken, PrismError> {
+        self.generate_with_bounding(
+            client_id,
+            tool_name,
+            action_params,
+            action_summary,
+            BoundingMetadata::default(),
+        )
+    }
+
+    /// Generate a confirmation token with explicit bounding metadata (CRIT-1 fix).
+    ///
+    /// Called by the write pipeline (`dry_run.rs::generate_token_preview`) to capture
+    /// the originating plan's bounding signals so `confirm_action` can reconstruct a
+    /// plan that passes Phase 2 `check_unbounded_write`.
+    ///
+    /// The alias path continues to use `generate()` which defaults to all-false
+    /// bounding metadata (alias tokens have no WritePlan).
+    pub fn generate_with_bounding(
+        &self,
+        client_id: &str,
+        tool_name: &str,
+        action_params: Value,
+        action_summary: &str,
+        bounding_metadata: BoundingMetadata,
     ) -> Result<ConfirmationToken, PrismError> {
         // Step 1: Sweep expired/consumed tokens (lazy cleanup, BC-2.04.009).
         self.sweep_expired();
@@ -208,6 +343,7 @@ impl ConfirmationTokenStore {
             created_at: now,
             expires_at: now + TOKEN_TTL,
             consumed: false,
+            bounding_metadata,
         };
 
         // Step 4: Insert and return.
@@ -309,6 +445,32 @@ impl ConfirmationTokenStore {
         consumed_token.consumed = true;
 
         Ok(consumed_token)
+    }
+
+    /// Peek at a token's stored data without consuming it.
+    ///
+    /// Returns a clone of the token for the caller to read `tool_name` and
+    /// `action_params` before reconstructing the `WritePlan` for `WriteExecutor`.
+    ///
+    /// This is a read-only operation — the token remains valid and unconsumed after
+    /// a `peek()`. The caller MUST NOT use the returned token to authorise an action;
+    /// consumption and hash verification happen inside `consume()` (invoked by
+    /// `DryRunGate::consume_token()` through `WriteExecutor::execute()`).
+    ///
+    /// # Returns
+    /// - `Ok(ConfirmationToken)` — clone of the stored token (may still be expired).
+    /// - `Err(PrismError::TokenNotFound)` — no token with `token_id` in the store.
+    ///
+    /// # Security note
+    /// `peek()` does NOT validate expiry or the content hash. Those checks are
+    /// performed by `consume()`. The caller must not bypass `consume()`.
+    pub fn peek(&self, token_id: &str) -> Result<ConfirmationToken, PrismError> {
+        self.tokens
+            .get(token_id)
+            .map(|entry| entry.clone())
+            .ok_or_else(|| PrismError::TokenNotFound {
+                token_id: token_id.to_string(),
+            })
     }
 
     /// Return the count of active tokens in the store.

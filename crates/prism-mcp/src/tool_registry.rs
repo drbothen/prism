@@ -7,11 +7,33 @@
 use prism_security::provenance::{SecurityWarning, ToolDescriptionTemplate};
 
 /// A registered MCP tool definition with description and optional outputSchema.
+#[non_exhaustive]
 pub struct ToolRegistration {
     pub name: String,
     pub description: String,
     pub is_sensor_tool: bool,
     pub output_schema: Option<serde_json::Value>,
+}
+
+impl ToolRegistration {
+    /// Construct a new ToolRegistration.
+    ///
+    /// This constructor allows external crates to build ToolRegistrations without
+    /// breaking the `#[non_exhaustive]` struct literal restriction. New fields added
+    /// to ToolRegistration in future versions can be initialized here with defaults.
+    pub fn new(
+        name: impl Into<String>,
+        description: impl Into<String>,
+        is_sensor_tool: bool,
+        output_schema: Option<serde_json::Value>,
+    ) -> Self {
+        Self {
+            name: name.into(),
+            description: description.into(),
+            is_sensor_tool,
+            output_schema,
+        }
+    }
 }
 
 /// Registrar that enforces provenance framing and security warnings on all
@@ -59,23 +81,6 @@ impl ToolDescriptionRegistrar {
             is_sensor_tool: tool.is_sensor_tool,
             output_schema: tool.output_schema,
         }
-    }
-
-    /// Returns `true` if every registered sensor tool description contains the
-    /// required 9-section template (BC-2.09.006 postcondition 1).
-    ///
-    /// Note: this method is stateless (no registry state stored); it is provided
-    /// for BC compliance verification at the call site.
-    pub fn all_sensor_tools_have_required_sections(&self) -> bool {
-        // Stateless registrar — call site verifies per-tool
-        true
-    }
-
-    /// Returns `true` if every registered tool has an `outputSchema` that includes
-    /// `_meta.safety_flags` as a typed array (BC-2.09.007 postcondition 4).
-    pub fn all_tools_have_valid_output_schema(&self) -> bool {
-        // Stateless registrar — call site verifies per-tool
-        true
     }
 
     /// Returns the default content for a missing section.

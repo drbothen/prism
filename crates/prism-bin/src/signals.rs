@@ -62,11 +62,11 @@ pub async fn install_sigterm_handler(shutdown_tx: broadcast::Sender<()>) {
                 let _ = shutdown_tx.send(());
 
                 // BC-2.10.010: flush audit buffer before exit.
-                // In the full implementation (post S-3.02-FOLLOWUP-RUNTIME), this flushes
-                // the RocksDB audit_buffer CF. For the chassis, the tracing subscriber
-                // handles buffering and the OS flushes stdout/stderr on exit.
+                // RocksDB WAL flushes synchronously per-write (audit_buffer.rs).
+                // No explicit flush call is required at shutdown — all committed writes
+                // are already durable by WAL invariant (implemented develop@a55bd930, PR #162).
                 tracing::info!(
-                    "Audit buffer flush deferred to S-3.02-FOLLOWUP-RUNTIME (chassis only) — exiting cleanly"
+                    "Audit buffer durable via RocksDB WAL — exiting cleanly (BC-2.10.010)"
                 );
 
                 // AC-6: exit 0 on clean SIGTERM shutdown.
@@ -77,7 +77,7 @@ pub async fn install_sigterm_handler(shutdown_tx: broadcast::Sender<()>) {
                 tracing::info!("Received SIGTERM — shutting down");
                 let _ = shutdown_tx.send(());
                 tracing::info!(
-                    "Audit buffer flush deferred to S-3.02-FOLLOWUP-RUNTIME (chassis only) — exiting cleanly"
+                    "Audit buffer durable via RocksDB WAL — exiting cleanly (BC-2.10.010)"
                 );
                 std::process::exit(0);
             }
@@ -90,9 +90,7 @@ pub async fn install_sigterm_handler(shutdown_tx: broadcast::Sender<()>) {
         if let Ok(()) = tokio::signal::ctrl_c().await {
             tracing::info!("Received SIGTERM — shutting down");
             let _ = shutdown_tx.send(());
-            tracing::info!(
-                "Audit buffer flush deferred to S-3.02-FOLLOWUP-RUNTIME (chassis only) — exiting cleanly"
-            );
+            tracing::info!("Audit buffer durable via RocksDB WAL — exiting cleanly (BC-2.10.010)");
             std::process::exit(0);
         } else {
             tracing::error!("Ctrl-C signal handler failed; continuing without SIGTERM handler");
@@ -145,7 +143,7 @@ pub fn create_sigterm_future(
                 tracing::info!("Received SIGTERM — shutting down");
                 let _ = shutdown_tx.send(());
                 tracing::info!(
-                    "Audit buffer flush deferred to S-3.02-FOLLOWUP-RUNTIME (chassis only) — exiting cleanly"
+                    "Audit buffer durable via RocksDB WAL — exiting cleanly (BC-2.10.010)"
                 );
                 std::process::exit(0);
             }
@@ -153,7 +151,7 @@ pub fn create_sigterm_future(
                 tracing::info!("Received SIGTERM — shutting down");
                 let _ = shutdown_tx.send(());
                 tracing::info!(
-                    "Audit buffer flush deferred to S-3.02-FOLLOWUP-RUNTIME (chassis only) — exiting cleanly"
+                    "Audit buffer durable via RocksDB WAL — exiting cleanly (BC-2.10.010)"
                 );
                 std::process::exit(0);
             }

@@ -240,55 +240,46 @@ fn test_BC_2_22_001_step2_failure_blocks_step3() {
 // BC-2.22.001 — pre-traffic gate: no MCP output before step 8 (AC-10)
 // ---------------------------------------------------------------------------
 
-/// Story: S-WAVE5-PREP-01 AC-10
+/// Story: S-5.01-FOLLOWUP-MCP-BOOT (updated from S-WAVE5-PREP-01 AC-10)
 /// BC: BC-2.22.001 §Pre-Traffic Gate Invariant
-/// TV-22-001-008: Steps 7-8 are todo!() stubs — the binary must NOT emit
-/// MCP JSON-RPC on stdout before step 8 completes.
+/// TV-22-001-008: No MCP JSON-RPC bytes must appear on stdout from `prism start`
+/// unless an MCP client is connected and has completed the JSON-RPC handshake.
 ///
-/// Since steps 7 and 8 are currently todo!() stubs, running `prism start`
-/// must panic (exit non-zero) before reaching step 9 (MCP stdio bind).
-/// No MCP protocol bytes (JSON-RPC lines) should appear on stdout.
+/// With stdin connected to /dev/null (no MCP client), `prism start` completes
+/// all boot steps 1-11, spawns the MCP server background task, then
+/// `wait_for_shutdown()` returns quickly when stdin EOF is detected.
+/// The process exits 0.  No MCP JSON-RPC initialization messages (which require
+/// a connected client to trigger) appear on stdout.
 ///
-/// RED GATE: Fails today because `dispatch()` is `todo!()` — but the
-/// assertion we want verified is: if the binary somehow doesn't panic at
-/// steps 7/8, it still must not emit MCP traffic before those complete.
+/// GREEN (S-5.01-FOLLOWUP-MCP-BOOT): steps 7-11 no longer use todo!() and the
+/// binary exits 0.  The invariant tested here — no JSON-RPC bytes without a client —
+/// holds because the MCP transport needs a connected client before emitting anything.
 #[test]
 fn test_BC_2_22_001_no_mcp_output_before_step8_completes() {
-    // Run prism start with a valid config. It will panic at step 7 (todo!()).
-    // Assert:
-    // 1. The process exits non-zero (steps 7-8 are stubs)
-    // 2. Stdout does NOT begin with MCP JSON-RPC handshake bytes
+    // Run prism start with a valid config and no MCP client (stdin = /dev/null).
+    // Assert: stdout does NOT contain MCP JSON-RPC handshake bytes.
     // MED-5: isolated per-test dirs to avoid parallel RocksDB LOCK collisions.
     let (config_dir, _state_tmp, _spec_tmp) = make_valid_config_dir();
 
-    // Use a timeout via std::process: give the process 5 seconds max.
-    // Steps 7/8 are todo!() so it will exit quickly.
     let output = Command::new(prism_bin())
         .args(["start"])
         .env("PRISM_CONFIG_DIR", config_dir.path())
-        // Ensure steps 1-6 complete (valid config, no injected failures).
-        // Steps 7-8 will panic on todo!().
+        // stdin(Stdio::null()): no MCP client; serve_stdio exits on stdin EOF.
+        .stdin(std::process::Stdio::null())
         .output()
         .expect("failed to spawn prism binary");
 
     let stdout = String::from_utf8_lossy(&output.stdout);
 
     // The MCP JSON-RPC initialized notification that would appear if the
-    // server accidentally started: '{"jsonrpc":"2.0","method":"notifications/initialized"}'.
-    // BC-2.22.001 §Pre-Traffic Gate: this must NOT appear before step 8 completes.
+    // server accidentally started with a client:
+    // '{"jsonrpc":"2.0","method":"notifications/initialized"}'.
+    // BC-2.22.001 §Pre-Traffic Gate: this must NOT appear without a connected client.
     assert!(
         !stdout.contains("\"jsonrpc\""),
-        "MCP JSON-RPC bytes must not appear on stdout before step 8 completes; \
+        "MCP JSON-RPC bytes must not appear on stdout without a connected MCP client; \
          BC-2.22.001 pre-traffic gate invariant (AC-10); \
          stdout: {stdout}"
-    );
-
-    // The process must NOT exit 0 (steps 7-8 are stubs that todo!()-panic).
-    assert_ne!(
-        output.status.code(),
-        Some(0),
-        "prism start must not exit 0 while steps 7-11 are todo!() stubs; \
-         BC-2.22.001 (steps 7-8 stubs must remain unfilled)"
     );
 }
 

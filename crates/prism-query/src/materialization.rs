@@ -473,7 +473,9 @@ pub async fn run_materialization_pipeline(
         match fan_result {
             Ok(fan_result) => {
                 // Record sensor type in sensors_queried (BC-2.11.001, ADV-W3MT-P58-HIGH-005).
-                sensors_queried.insert(format!("{:?}", target.sensor_id));
+                // F-PASS12-HIGH-1: use Display (to_string) not Debug format — Debug produces
+                // `SensorId("crowdstrike")` while the safety envelope expects `"crowdstrike"`.
+                sensors_queried.insert(target.sensor_id.to_string());
 
                 // Collect successes with per-target virtual field injection.
                 let mut fetched_batches: Vec<RecordBatch> = Vec::new();
@@ -1671,6 +1673,54 @@ mod walker_coverage_tests {
             names.iter().any(|n| n == "prism_audit"),
             "F-LP6-LOW-1: extract_source_names_recursive must discover `prism_audit` \
              in DML filter (DELETE WHERE host_id IN (SELECT FROM prism_audit)); got names: {names:?}"
+        );
+    }
+}
+
+#[cfg(test)]
+mod sensors_queried_format_tests {
+    //! Unit tests for F-PASS12-HIGH-1: sensors_queried must use Display format (not Debug).
+    //!
+    //! SensorId::fmt (Display) → "crowdstrike"
+    //! SensorId::fmt (Debug)   → "SensorId(\"crowdstrike\")"
+    //!
+    //! The safety envelope DataSource carries the Display form; the Debug form is unusable
+    //! by downstream consumers and violates BC-2.09.008 data provenance expectations.
+
+    use prism_core::SensorId;
+
+    #[test]
+    fn sensor_id_display_is_bare_slug_not_debug_wrapper() {
+        let id = SensorId::new("crowdstrike");
+        let display_form = id.to_string();
+        let debug_form = format!("{:?}", id);
+
+        // Display must be the bare slug — no wrapper.
+        assert_eq!(
+            display_form, "crowdstrike",
+            "SensorId Display must be the bare slug; got: {display_form:?}"
+        );
+
+        // Verify Debug is the wrapped form so the distinction is clear in test output.
+        assert!(
+            debug_form.contains("SensorId"),
+            "SensorId Debug should contain 'SensorId(...)' wrapper; got: {debug_form:?}"
+        );
+
+        // The sensors_queried insert uses to_string() (Display) — assert it produces
+        // the bare slug, NOT the Debug-wrapped form with quotes and type prefix.
+        let mut sensors_queried: std::collections::HashSet<String> =
+            std::collections::HashSet::new();
+        sensors_queried.insert(id.to_string()); // F-PASS12-HIGH-1 fix — was format!("{:?}", id)
+
+        assert!(
+            sensors_queried.contains("crowdstrike"),
+            "sensors_queried must contain bare slug 'crowdstrike', not Debug form; \
+             set contents: {sensors_queried:?}"
+        );
+        assert!(
+            !sensors_queried.contains(debug_form.as_str()),
+            "sensors_queried must NOT contain Debug-wrapped form '{debug_form}'"
         );
     }
 }
