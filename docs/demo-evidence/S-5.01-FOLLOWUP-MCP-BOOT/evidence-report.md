@@ -1,7 +1,7 @@
 # S-5.01-FOLLOWUP-MCP-BOOT — Evidence Report
 
 **Story:** S-5.01-FOLLOWUP-MCP-BOOT — prism-mcp: PrismServer, rmcp 1.7, Tool Router, Injection Defense  
-**HEAD:** `0dfaf97f`  
+**HEAD:** S-5.01-FOLLOWUP-MCP-BOOT feature branch (post-PR-LEVEL fix-burst 7)  
 **LOCAL cascade:** CONVERGED at pass-19 (3-CLEAN per BC-5.39.001)  
 **Tests at convergence:** 108 / 108 PASS (prism-mcp)  
 **Recording date:** 2026-05-28  
@@ -94,4 +94,4 @@ All 10 acceptance criteria have recorded VHS evidence. Evidence strategy:
 - **AC-6** — 5 dedicated shutdown-path tests covering BC-2.10.010 (natural close, signal drain, timeout, join_error panic path, complete_path event emission); VHS shows all 5 passing.
 - **AC-10** — dual evidence: `rg` static scan returns exit 1 (zero matches = clean) + `test_AC_10_no_todo_in_production_code` passes; VHS shows both.
 
-No ACs required escalation. No gaps found during demo recording. The implementation is demonstrably correct at HEAD `0dfaf97f`.
+No ACs required escalation. No gaps found during demo recording. The implementation is demonstrably correct at the S-5.01-FOLLOWUP-MCP-BOOT feature branch HEAD (post-PR-LEVEL fix-burst 7).
