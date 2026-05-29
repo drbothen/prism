@@ -168,7 +168,7 @@ ARTIFACT STATE AFTER D-540 (UNCHANGED FROM D-539 — no spec edits):
 DURABLE PIN BLOCK (CURRENT STATE — D-580 — DURABLE PRE-/CLEAR RESUME SNAPSHOT — 86th consecutive single-commit — STRATEGIC DECISION PENDING)
 ═══════════════════════════════════════════════════════════════════════
 
-- develop HEAD: 282013a6 (current develop — PLUGIN-MIGRATION-001-C PR #158 MERGED 2026-05-27T10:53:03Z; §RESUME SNAPSHOT 2026-05-27-001-A-001-B-SHIPPED is last full checkpoint; D-831 post-merge is current state)
+- develop HEAD: e898c3c9 (current develop — S-5.01-FOLLOWUP-MCP-BOOT PR #163 MERGED 2026-05-29T16:44:42Z; §RESUME SNAPSHOT 2026-05-29-E2E-DEMO-WIRING-PLAN-LOCKED is last full checkpoint; D-845 planning burst is current state)
 - factory-artifacts: run `git -C .factory log -1 --format=’%H’` (per TD-VSDD-053; D-579 is this commit)
 - feature_branch_head: no active feature branch (spec-authoring-only burst; develop unchanged at a5ab742c)
 - feature_branch_remote_status: no feature branch (spec-only burst; develop@a5ab742c unchanged)
