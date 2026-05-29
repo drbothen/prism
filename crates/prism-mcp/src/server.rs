@@ -5116,6 +5116,11 @@ mod tests {
         /// `flag = false`, so rmcp spawns its background task.  Once the flag is set
         /// to `true`, the background task's next `transport.receive()` call panics
         /// and produces a `JoinError::Panic` on the background task's JoinHandle.
+        ///
+        /// `panic_fired` is set to `true` **immediately before** the `panic!()` fires.
+        /// The test polls this flag to deterministically confirm the panic has occurred
+        /// before sending the shutdown signal.  This eliminates the yield-based race
+        /// (Option B from the deflake analysis — fixed under parallel load).
         struct TriggeredPanickingTransport {
             /// Read half of the duplex stream used for the real MCP handshake.
             inner_read: tokio::io::ReadHalf<tokio::io::DuplexStream>,
@@ -5123,6 +5128,9 @@ mod tests {
             inner_write: tokio::io::WriteHalf<tokio::io::DuplexStream>,
             /// When `true`, the next `poll_read` call panics.
             panic_flag: Arc<AtomicBool>,
+            /// Set to `true` immediately before the `panic!()` fires.
+            /// Test polls this to know the panic is in-flight before sending shutdown.
+            panic_fired: Arc<AtomicBool>,
         }
 
         impl AsyncRead for TriggeredPanickingTransport {
@@ -5132,6 +5140,9 @@ mod tests {
                 buf: &mut ReadBuf<'_>,
             ) -> Poll<io::Result<()>> {
                 if self.panic_flag.load(Ordering::Acquire) {
+                    // Signal that the panic is about to fire BEFORE calling panic!().
+                    // The test polls panic_fired to wait for this moment deterministically.
+                    self.panic_fired.store(true, Ordering::Release);
                     panic!(
                         "TriggeredPanickingTransport: intentional panic to trigger \
                          JoinError path in rmcp background task (F-PASS7-HIGH-1)"
@@ -5164,9 +5175,11 @@ mod tests {
 
         impl Unpin for TriggeredPanickingTransport {}
 
-        // Shared flag: test sets to true after handshake to trigger panic in background task.
+        // Shared flags: panic_flag arms the panic; panic_fired confirms it fired.
         let panic_flag = Arc::new(AtomicBool::new(false));
         let panic_flag_server = Arc::clone(&panic_flag);
+        let panic_fired = Arc::new(AtomicBool::new(false));
+        let panic_fired_server = Arc::clone(&panic_fired);
 
         let (server_stream, client_stream) = tokio::io::duplex(65536);
         let (server_read, server_write) = tokio::io::split(server_stream);
@@ -5174,6 +5187,7 @@ mod tests {
             inner_read: server_read,
             inner_write: server_write,
             panic_flag: panic_flag_server,
+            panic_fired: panic_fired_server,
         };
 
         let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel::<()>();
@@ -5200,13 +5214,36 @@ mod tests {
         // can fire, so the panic in `poll_read` is the only possible branch outcome.
         panic_flag.store(true, Ordering::Release);
 
-        // Step 2: Yield to let the background task run and hit the panicking poll_read.
-        // In the current-thread tokio runtime, tasks only run at cooperative yield points.
-        // Ten yields is more than enough for the background task to execute one select
-        // iteration and call transport.receive().
-        for _ in 0..10 {
-            tokio::task::yield_now().await;
+        // Step 2 (Option B — deterministic): Write a byte to the client stream so the
+        // rmcp background task's transport.receive() wakes up and calls poll_read, which
+        // will now panic (panic_flag is true).  poll_read sets panic_fired immediately
+        // before calling panic!(), giving us a reliable observation point.
+        //
+        // A yield-only approach (10× yield_now) was insufficient under parallel load
+        // because the background task might not have reached poll_read before the CPU
+        // scheduler pre-empted it.  Writing to the stream causes the Tokio I/O driver
+        // to mark the task as ready, guaranteeing poll_read is called soon.
+        use tokio::io::AsyncWriteExt as _;
+        let _ = client_write_half.write_all(b"\n").await;
+        let _ = client_write_half.flush().await;
+
+        // Poll panic_fired with a bounded wait.  Once we observe panic_fired == true,
+        // the panic!() macro is guaranteed to have been called (the store happens
+        // immediately before it), so the rmcp background task is in its panic-unwind path.
+        let mut waited_ms = 0u64;
+        const MAX_WAIT_MS: u64 = 2_000;
+        const POLL_INTERVAL_MS: u64 = 5;
+        while !panic_fired.load(Ordering::Acquire) && waited_ms < MAX_WAIT_MS {
+            tokio::time::sleep(std::time::Duration::from_millis(POLL_INTERVAL_MS)).await;
+            waited_ms += POLL_INTERVAL_MS;
         }
+        assert!(
+            panic_fired.load(Ordering::Acquire),
+            "background task must set panic_fired within {}ms; waited {}ms \
+             (deflake guard — panic_flag was armed and data was written to stream)",
+            MAX_WAIT_MS,
+            waited_ms,
+        );
 
         // Step 3: Send shutdown.  The background task has already panicked; its handle
         // is ready with Err(JoinError::Panic).  close_with_timeout immediately returns
