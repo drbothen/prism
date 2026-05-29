@@ -32,6 +32,10 @@ publish = false
 prism-spec-engine = { path = "../../../crates/prism-spec-engine" }
 prism-core = { path = "../../../crates/prism-core" }
 prism-query = { path = "../../../crates/prism-query" }
+# S-5.01-FOLLOWUP-MCP-BOOT: prism-mcp pub types carry #[non_exhaustive] (violations 37-45).
+prism-mcp = { path = "../../../crates/prism-mcp" }
+# S-5.01-FOLLOWUP-MCP-BOOT: prism-security BoundingDmlOperation + BoundingMetadata (violations 46-47).
+prism-security = { path = "../../../crates/prism-security" }
 serde_json = "1"
 
 # Empty workspace table: opts this crate out of the parent workspace resolver.

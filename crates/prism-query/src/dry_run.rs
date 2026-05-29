@@ -18,12 +18,155 @@
 use arrow::record_batch::RecordBatch;
 use prism_core::{PrismError, RiskTier};
 use prism_security::confirmation_token::ConfirmationTokenStore;
+use prism_security::BoundingDmlOperation;
 use serde_json::Value;
 use std::sync::Arc;
 use ulid::Ulid;
 
+use crate::write_ast::DmlOperation;
 use crate::write_pipeline::{QueryContext, WriteOutcome, WritePlan};
 use crate::write_result::{ConfirmationTokenPreview, WritePreview};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DmlOperation → BoundingDmlOperation conversion (OBS-1 fix)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Mirror `DmlOperation` into `BoundingDmlOperation` so `confirm_action` can
+/// restore `WritePlan.dml_operation` from the confirmation token (OBS-1 fix).
+///
+/// `prism-security` cannot depend on `prism-query` (would be circular), so both
+/// conversion directions live here in `prism-query` where both types are in scope.
+impl From<DmlOperation> for BoundingDmlOperation {
+    fn from(op: DmlOperation) -> Self {
+        match op {
+            DmlOperation::InsertInto => BoundingDmlOperation::InsertInto,
+            DmlOperation::Update => BoundingDmlOperation::Update,
+            DmlOperation::Delete => BoundingDmlOperation::Delete,
+        }
+    }
+}
+
+/// Restore `BoundingDmlOperation` back to `DmlOperation` for `WritePlan` reconstruction
+/// in `confirm_action` (OBS-1 fix — inverse of the above conversion).
+impl From<BoundingDmlOperation> for DmlOperation {
+    fn from(op: BoundingDmlOperation) -> Self {
+        match op {
+            BoundingDmlOperation::InsertInto => DmlOperation::InsertInto,
+            BoundingDmlOperation::Update => DmlOperation::Update,
+            BoundingDmlOperation::Delete => DmlOperation::Delete,
+            // #[non_exhaustive] wildcard: unknown future BoundingDmlOperation variants
+            // map to Delete (the MOST destructive DML kind) — fail-closed safety choice
+            // (F-PR163-PASS2-IMP-3).
+            //
+            // Rationale: if a future variant (e.g., Truncate) is added and a
+            // TRUNCATE-token is re-dispatched in confirm_action, the BoundingDmlOperation
+            // wildcard path is hit. Mapping to InsertInto (fail-open) would silently
+            // bypass classify_risk_tier's Irreversible gate, allowing an unreviewed
+            // destructive operation to execute as Reversible.  Mapping to Delete
+            // ensures classify_risk_tier returns Irreversible — the confirmation token
+            // gate fires and the operation is blocked until the new variant is handled.
+            _ => DmlOperation::Delete,
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Unit tests — BoundingDmlOperation conversion invariants
+// ---------------------------------------------------------------------------
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use prism_security::BoundingDmlOperation;
+
+    /// F-PR163-PASS2-IMP-3: all known BoundingDmlOperation variants map to the
+    /// correct DmlOperation, and the wildcard is Delete (fail-closed), not InsertInto.
+    ///
+    /// Mental-deletion proof: if the wildcard arm is changed from `Delete` back to
+    /// `InsertInto`, the invariant comment changes but this test still passes for the
+    /// 3 known variants.  The CRITICAL invariant — that unknown variants map to Delete
+    /// (Irreversible), not InsertInto (Reversible) — is enforced by the code comment
+    /// and the fail-closed-by-design architecture rationale.
+    ///
+    /// Rationale for no "unknown-variant" test: `BoundingDmlOperation` is
+    /// `#[non_exhaustive]`, so constructing an unknown variant in this crate is
+    /// impossible without `unsafe` or a test-helpers feature not present here.
+    /// The 3-known-variants test IS load-bearing: if the match arms are miswired
+    /// (e.g., Delete→InsertInto or InsertInto→Delete), this test catches it.
+    #[test]
+    fn test_F_PR163_PASS2_IMP_3_bounding_dml_known_variants_map_correctly() {
+        // InsertInto → InsertInto (Reversible-friendly DML)
+        assert_eq!(
+            DmlOperation::from(BoundingDmlOperation::InsertInto),
+            DmlOperation::InsertInto,
+            "BoundingDmlOperation::InsertInto must map to DmlOperation::InsertInto"
+        );
+
+        // Update → Update
+        assert_eq!(
+            DmlOperation::from(BoundingDmlOperation::Update),
+            DmlOperation::Update,
+            "BoundingDmlOperation::Update must map to DmlOperation::Update"
+        );
+
+        // Delete → Delete (Irreversible — fail-closed invariant)
+        assert_eq!(
+            DmlOperation::from(BoundingDmlOperation::Delete),
+            DmlOperation::Delete,
+            "BoundingDmlOperation::Delete must map to DmlOperation::Delete (Irreversible)"
+        );
+    }
+
+    /// F-PR163-PASS3-MED-4: wildcard arm `_ => DmlOperation::Delete` must map unknown
+    /// BoundingDmlOperation variants to Delete (fail-closed).
+    ///
+    /// Requires `prism-security/test-helpers` feature (via prism-query `test-helpers`) to
+    /// construct `BoundingDmlOperation::__TestUnknown`. Pattern mirrors `OrgSlug::new_unchecked`
+    /// (AD-017) — test-helpers-gated, never in production code paths.
+    ///
+    /// Mental-deletion proof: if the wildcard arm is changed to `_ => DmlOperation::InsertInto`
+    /// (fail-open), `DmlOperation::from(BoundingDmlOperation::__TestUnknown)` returns
+    /// `DmlOperation::InsertInto`, and the `assert_eq!(dml, DmlOperation::Delete)` assertion
+    /// FAILS. Therefore the wildcard-to-Delete mapping is load-bearing for this test.
+    #[cfg(feature = "test-helpers")]
+    #[test]
+    fn test_F_PR163_PASS3_MED_4_wildcard_unknown_variant_maps_to_delete_fail_closed() {
+        // Construct the test-only synthetic unknown variant.
+        let unknown = BoundingDmlOperation::__TestUnknown;
+        let dml: DmlOperation = unknown.into();
+        assert_eq!(
+            dml,
+            DmlOperation::Delete,
+            "Wildcard arm must fail-closed: unknown BoundingDmlOperation must map to Delete, \
+             not InsertInto; if _ => InsertInto, this assertion FAILS"
+        );
+    }
+
+    /// F-PR163-PASS2-IMP-3 complementary: the reverse conversion (DmlOperation →
+    /// BoundingDmlOperation) is the lossless mirror used at token generation time.
+    ///
+    /// Mental-deletion proof: if any arm is dropped from the `impl From<DmlOperation>
+    /// for BoundingDmlOperation` match, the compile fails because the match becomes
+    /// non-exhaustive (no wildcard on that direction).
+    #[test]
+    fn test_F_PR163_PASS2_IMP_3_dml_to_bounding_round_trips() {
+        // Round-trip: DmlOperation → BoundingDmlOperation → DmlOperation
+        // must be identity for all 3 known variants.
+        for op in [
+            DmlOperation::InsertInto,
+            DmlOperation::Update,
+            DmlOperation::Delete,
+        ] {
+            let bounding = BoundingDmlOperation::from(op.clone());
+            let back = DmlOperation::from(bounding);
+            assert_eq!(
+                back, op,
+                "DmlOperation round-trip must be identity; {:?} did not round-trip",
+                op
+            );
+        }
+    }
+}
 
 // ---------------------------------------------------------------------------
 // DryRunGate
@@ -209,11 +352,25 @@ impl DryRunGate {
             plan.verb, would_affect_count, write_endpoint, context.client_id
         );
 
-        let token = self.confirmation_store.generate(
+        // CRIT-1: capture bounding signals from the originating plan so confirm_action
+        // can reconstruct a WritePlan that passes Phase 2 check_unbounded_write.
+        // OBS-1: also capture dml_operation so confirm_action restores the DELETE→Irreversible
+        // invariant (classify_risk_tier is unconditional-Irreversible for DmlOperation::Delete).
+        // #[non_exhaustive]: use BoundingMetadata::new() — struct literal syntax is prohibited
+        // from external crates by the #[non_exhaustive] attribute (F-PR163-IMP-1).
+        let bounding_metadata = prism_security::BoundingMetadata::new(
+            plan.has_where_clause,
+            plan.has_explicit_limit,
+            plan.explicit_limit,
+            plan.dml_operation.clone().map(BoundingDmlOperation::from),
+        );
+
+        let token = self.confirmation_store.generate_with_bounding(
             &context.client_id,
             &format!("write.{}", plan.verb),
             action_params,
             &action_summary,
+            bounding_metadata,
         )?;
 
         // Convert SystemTime to DateTime<Utc> for serialization

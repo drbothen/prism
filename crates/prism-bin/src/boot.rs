@@ -1,8 +1,10 @@
 //! Boot sequence orchestrator for `prism start`.
 //!
 //! Implements the 11-step boot sequence specified in ADR-022 §B and wired to
-//! BC-2.22.001 (orchestration contract).  Steps 1–8 are implemented.
-//! Steps 9–11 are annotated `todo!()` stubs for sibling stories.
+//! BC-2.22.001 (orchestration contract).  Steps 1–9 are implemented.
+//! Steps 10–11 are intentional deferrals to S-1.12-FOLLOWUP per
+//! BC-2.22.001 §step10-deferred-contract and §step11-deferred-contract —
+//! they emit a WARN structured-log on entry and return `Ok(())` rather than panic.
 //! Step 7.5 (plugin-load) is implemented by S-PLUGIN-PREREQ-D.
 //!
 //! # Sequencing Invariant (BC-2.22.001)
@@ -151,6 +153,194 @@ pub struct RunningServer {
             prism_spec_engine::ResolvedSensorSpec,
         >,
     >,
+    /// Background tokio task running `PrismServer::serve_stdio`.
+    ///
+    /// Awaited by `main.rs` via `wait_for_shutdown()` to keep the process alive
+    /// for the lifetime of the MCP stdio session.  The task exits when stdin closes
+    /// (client disconnect) or SIGTERM/SIGINT is received (BC-2.10.010).
+    ///
+    /// The `Result` propagates the serve_stdio return value so `wait_for_shutdown()`
+    /// can translate rmcp error variants to canonical exit codes (BC-2.10.010, ADR-022 §A).
+    pub(crate) mcp_server_task: tokio::task::JoinHandle<Result<(), rmcp::RmcpError>>,
+}
+
+impl RunningServer {
+    /// Block (async-await) until the MCP server background task exits.
+    ///
+    /// Called from `main.rs` after `run_boot_sequence` returns to keep the process
+    /// alive for the duration of the MCP stdio session.  Returns when the task exits
+    /// for any reason (stdin closed, SIGTERM/SIGINT, error).
+    ///
+    /// # Exit-code mapping (BC-2.10.010 + ADR-022 §A)
+    ///
+    /// | `serve_stdio` result               | Exit code |
+    /// |------------------------------------|-----------|
+    /// | `Ok(())`                           | `0` — clean shutdown                |
+    /// | `Err(RmcpError::TaskError(_))`     | `1` — graceful-drain timeout        |
+    /// | `Err(RmcpError::Runtime(_))`       | `4` — task panic / join error       |
+    /// | `Err(<other rmcp variant>)`        | `0` — transport init fail / stdin-EOF|
+    /// | `JoinError` (task panicked)        | `4` — internal error                |
+    ///
+    /// **`Err(<other rmcp variant>)` → exit 0 rationale**: when the MCP client
+    /// disconnects before rmcp can complete transport initialization (e.g., stdin is
+    /// already closed when `serve()` is called), rmcp returns a transport error that
+    /// is functionally equivalent to a clean client disconnect.  There is no active
+    /// session to drain, and the process should exit cleanly.  Only the explicit
+    /// 5-second drain timeout (`TaskError`) warrants exit 1 per BC-2.10.010.
+    ///
+    /// Panics in the MCP task are caught here as `JoinError`; the panic hook also
+    /// runs (emitting the structured log) before this point.
+    pub async fn wait_for_shutdown(self) -> i32 {
+        use crate::exit_codes::{EXIT_GENERIC_ERROR, EXIT_INTERNAL_ERROR, EXIT_SUCCESS};
+        match self.mcp_server_task.await {
+            // Clean shutdown — stdin closed by client or SIGTERM/SIGINT drained.
+            Ok(Ok(())) => EXIT_SUCCESS,
+            // BC-2.10.010: graceful-drain timeout exceeded → exit 1 (EXIT_GENERIC_ERROR).
+            Ok(Err(rmcp::RmcpError::TaskError(_))) => {
+                tracing::warn!(
+                    event_type = "boot.shutdown.timeout",
+                    "MCP server graceful-drain timeout exceeded (BC-2.10.010); exit 1"
+                );
+                EXIT_GENERIC_ERROR
+            }
+            // Task panicked (join error wraps a panic payload) → exit 4 (EXIT_INTERNAL_ERROR).
+            Ok(Err(rmcp::RmcpError::Runtime(_))) => {
+                tracing::error!(
+                    event_type = "boot.shutdown.runtime_error",
+                    "MCP server exited with runtime error; exit 4"
+                );
+                EXIT_INTERNAL_ERROR
+            }
+            // Transport init failure (e.g., stdin already closed before serve() completes).
+            // Functionally equivalent to a clean client-never-connected case.
+            // Log at WARN so the condition is observable, but exit 0 — no session was active.
+            Ok(Err(e)) => {
+                tracing::warn!(
+                    event_type = "boot.shutdown.transport_init_error",
+                    error = %e,
+                    "MCP server transport init error (stdin EOF before connect?); exit 0"
+                );
+                EXIT_SUCCESS
+            }
+            // JoinError: the task panicked — panic hook already fired, exit 4.
+            Err(_join_err) => {
+                tracing::error!(
+                    event_type = "boot.shutdown.task_panic",
+                    "MCP server task panicked; exit 4"
+                );
+                EXIT_INTERNAL_ERROR
+            }
+        }
+    }
+}
+
+/// Unit tests for `RunningServer::wait_for_shutdown` exit-code mapping.
+///
+/// These tests exercise BC-2.10.010 exit-code contract without spawning a real
+/// MCP server. Each test constructs a `RunningServer` with a pre-resolved
+/// `JoinHandle` and asserts the returned exit code matches the ADR-022 §A table.
+#[cfg(test)]
+mod shutdown_exit_code_tests {
+    use super::*;
+
+    /// Construct a `RunningServer` with a pre-resolved task for testing.
+    ///
+    /// `config_dir` is set to `std::env::temp_dir()` — these tests never perform
+    /// filesystem I/O via `config_dir` (only `mcp_server_task` is exercised), but
+    /// the field must be populated. `std::env::temp_dir()` works on all platforms
+    /// including Windows (returns `%TEMP%` or `%TMP%`), unlike a hardcoded `/tmp/`.
+    fn make_server(task: tokio::task::JoinHandle<Result<(), rmcp::RmcpError>>) -> RunningServer {
+        RunningServer {
+            config_dir: std::env::temp_dir().join("prism-test"),
+            resolved_spec_map: Arc::new(std::collections::HashMap::new()),
+            mcp_server_task: task,
+        }
+    }
+
+    /// BC-2.10.010 + ADR-022 §A: clean shutdown → exit 0.
+    #[tokio::test]
+    async fn test_wait_for_shutdown_clean_returns_exit_0() {
+        let handle = tokio::spawn(async { Ok(()) });
+        let server = make_server(handle);
+        assert_eq!(
+            server.wait_for_shutdown().await,
+            0,
+            "clean MCP shutdown must return exit 0 (BC-2.10.010, ADR-022 §A)"
+        );
+    }
+
+    /// BC-2.10.010 + ADR-022 §A: graceful-drain timeout (TaskError) → exit 1.
+    #[tokio::test]
+    async fn test_wait_for_shutdown_task_error_returns_exit_1() {
+        let handle =
+            tokio::spawn(async { Err(rmcp::RmcpError::TaskError("shutdown timeout".to_string())) });
+        let server = make_server(handle);
+        assert_eq!(
+            server.wait_for_shutdown().await,
+            1,
+            "TaskError (graceful-drain timeout) must return exit 1 (BC-2.10.010)"
+        );
+    }
+
+    /// BC-2.10.010 + ADR-022 §A: Runtime error (task panic wrapper) → exit 4.
+    #[tokio::test]
+    async fn test_wait_for_shutdown_runtime_error_returns_exit_4() {
+        let handle = tokio::spawn(async {
+            let join_err = tokio::spawn(async { panic!("simulated panic") })
+                .await
+                .unwrap_err();
+            Err::<(), _>(rmcp::RmcpError::Runtime(join_err))
+        });
+        let server = make_server(handle);
+        assert_eq!(
+            server.wait_for_shutdown().await,
+            4,
+            "RmcpError::Runtime must return exit 4 (ADR-022 §A internal-error)"
+        );
+    }
+
+    /// Transport init failure (stdin already closed) → exit 0.
+    ///
+    /// When `serve()` fails because stdin is already closed (MCP client never
+    /// connected), this is functionally a clean disconnect. Map to exit 0 so that
+    /// `prism start` with no piped MCP client exits cleanly.
+    ///
+    /// Uses `RmcpError::TransportCreation` (the canonical transport-init-error variant)
+    /// to exercise the `Ok(Err(e))` catch-all arm.  This test is LOAD-BEARING: if
+    /// line 215 (`EXIT_SUCCESS`) is changed to `EXIT_GENERIC_ERROR`, this test fails.
+    #[tokio::test]
+    async fn test_wait_for_shutdown_transport_error_returns_exit_0() {
+        // Use RmcpError::transport_creation::<()>() to construct a TransportCreation
+        // variant — the canonical transport-init-error type in rmcp 1.7. This falls
+        // into the `Ok(Err(e))` catch-all arm of wait_for_shutdown (not TaskError,
+        // not Runtime), which MUST map to EXIT_SUCCESS (exit 0) per the spec.
+        let transport_err = rmcp::RmcpError::transport_creation::<()>(std::io::Error::new(
+            std::io::ErrorKind::BrokenPipe,
+            "stdin closed before serve()",
+        ));
+        let handle = tokio::spawn(async move { Err::<(), _>(transport_err) });
+        let server = make_server(handle);
+        assert_eq!(
+            server.wait_for_shutdown().await,
+            0,
+            "TransportCreation error (stdin closed, no client connected) must return exit 0 \
+             per boot.shutdown.transport_init_error semantics (ADR-022 §A, BC-2.10.010)"
+        );
+    }
+
+    /// BC-2.10.010 + ADR-022 §A: task itself panics (JoinError) → exit 4.
+    #[tokio::test]
+    async fn test_wait_for_shutdown_join_error_returns_exit_4() {
+        // Type annotation drives inference so the spawn closure has the right signature.
+        let handle: tokio::task::JoinHandle<Result<(), rmcp::RmcpError>> =
+            tokio::spawn(async { panic!("task panicked") });
+        let server = make_server(handle);
+        assert_eq!(
+            server.wait_for_shutdown().await,
+            4,
+            "JoinError from panicking task must return exit 4 (ADR-022 §A internal-error)"
+        );
+    }
 }
 
 /// Lightweight result of steps 1–6 (blocking boot to audit-ready state).
@@ -180,6 +370,21 @@ pub struct BootContext {
     /// `validate_auth_plugin_registered` can check all loaded SensorSpecs against the
     /// plugin registry after `load_all_plugins` completes (F-LP2-CRIT-002).
     pub config_manager: Arc<arc_swap::ArcSwap<prism_spec_engine::config_manager::ConfigManager>>,
+    /// OrgRegistry produced by step 3 (BC-2.21.001).
+    ///
+    /// Threaded into step 9 (`step9_start_mcp_server`) to wire the real OrgRegistry
+    /// into QueryEngine — replacing the earlier `OrgRegistry::new()` empty placeholder
+    /// that would cause multi-tenant queries to resolve no org IDs (CRIT-5 fix).
+    ///
+    /// Also provides the org slug list for `ClientRegistry` construction.
+    pub org_registry: Arc<prism_core::OrgRegistry>,
+    /// CredentialStore produced by step 5 (BC-2.03.013).
+    ///
+    /// Threaded into step 9 (`step9_start_mcp_server`) so that QueryEngine receives
+    /// the real keyring-backed credential store — replacing the earlier
+    /// `BootNullCredentialStore` that silently returned `Ok(None)` for all
+    /// credential lookups (CRIT-5 fix, F-PASS3-CRIT-5 closure).
+    pub credential_store: Arc<dyn prism_credentials::CredentialStore>,
 }
 
 // ---------------------------------------------------------------------------
@@ -289,8 +494,10 @@ pub fn validate_and_construct_auth_providers(
 
 /// Execute the full 11-step boot sequence (steps 1–11).
 ///
-/// Steps 1–8 are blocking and must complete in order (BC-2.22.001 sequencing
-/// invariant).  Steps 9–11 are `todo!()` stubs for sibling stories.
+/// Steps 1–9 are implemented. Steps 10–11 are intentional deferrals to
+/// S-1.12-FOLLOWUP per BC-2.22.001 §step10-deferred-contract and
+/// §step11-deferred-contract — they emit a WARN structured-log on entry
+/// and return `Ok(())` rather than panic.
 ///
 /// On success, returns a `RunningServer` handle.  On any step failure, this
 /// function does NOT return — it calls `std::process::exit` with the mapped
@@ -376,9 +583,23 @@ pub async fn run_boot_sequence(config_dir: &Path) -> Result<RunningServer, BootE
     // Pass ctx.rocksdb_backend (opened in step 6) so step7 can health-check it.
     step7_init_storage(&ctx.rocksdb_backend).await?;
 
-    // Steps 9–11 are todo!() stubs for sibling stories.
     step8_init_query_engine().await?;
-    step9_start_mcp_server().await?;
+    // Step 9: start MCP server — construct QueryEngine + WriteExecutor with available
+    // deps from prior boot steps, then spawn PrismServer::serve_stdio as a background task.
+    // Pass BootContext deps (storage, config_manager, resolved_spec_map, org_registry,
+    // credential_store) to step9 for wiring (CRIT-5: real deps, not empty placeholders).
+    // CRIT-4: also pass spec_dir (for reload_config/add_sensor_spec) and config_dir
+    // (for alias store file path).
+    let mcp_server_task = step9_start_mcp_server(
+        Arc::clone(&ctx.rocksdb_backend),
+        Arc::clone(&ctx.config_manager),
+        Arc::clone(&ctx.resolved_spec_map),
+        Arc::clone(&ctx.org_registry),
+        Arc::clone(&ctx.credential_store),
+        config.spec_dir.clone(),
+        config_dir.to_path_buf(),
+    )
+    .await?;
     step10_start_hot_reload().await?;
 
     let (shutdown_tx, _) = tokio::sync::broadcast::channel(1);
@@ -388,6 +609,7 @@ pub async fn run_boot_sequence(config_dir: &Path) -> Result<RunningServer, BootE
     Ok(RunningServer {
         config_dir: config_dir.to_path_buf(),
         resolved_spec_map: ctx.resolved_spec_map,
+        mcp_server_task,
     })
 }
 
@@ -458,7 +680,9 @@ pub async fn boot_to_step_6(config_dir: &Path) -> Result<BootContext, BootError>
             ));
         }
     }
-    let _credential_store = step5_init_credential_store(&config, &config_manager).await?;
+    // CRIT-5: Store the real credential_store in BootContext so step9 can wire it into
+    // QueryEngine instead of the BootNullCredentialStore that silently returns Ok(None).
+    let credential_store = step5_init_credential_store(&config, &config_manager).await?;
 
     // Step 6: Init audit subsystem.
     //
@@ -551,6 +775,12 @@ pub async fn boot_to_step_6(config_dir: &Path) -> Result<BootContext, BootError>
         // F-LP2-CRIT-002: thread config_manager into BootContext so that run_boot_sequence
         // can validate auth_plugin registry membership after plugins are loaded at step 7.5.
         config_manager,
+        // CRIT-5: thread the real OrgRegistry produced by step 3 — avoids creating a new
+        // empty OrgRegistry in step 9 that would cause multi-tenant queries to resolve no orgs.
+        org_registry,
+        // CRIT-5: thread the real credential_store produced by step 5 — replaces
+        // BootNullCredentialStore that silently returned Ok(None) for all credential lookups.
+        credential_store,
     })
 }
 
@@ -1507,7 +1737,7 @@ pub async fn plugin_load_step_with_audit(
 }
 
 // ---------------------------------------------------------------------------
-// Steps 7–8 implementations + Steps 9–11 stubs for sibling stories
+// Steps 7–9 implementations + Steps 10–11 deferred to S-1.12-FOLLOWUP
 // ---------------------------------------------------------------------------
 
 /// Step 7 [BLOCKING]: Storage + internal-tables provider init.
@@ -1525,7 +1755,7 @@ pub async fn plugin_load_step_with_audit(
 /// # Structured Event
 ///
 /// Emits `boot.step7.storage_validated` (INFO) on success per BC-2.16.002 catalog
-/// (S-3.02-FOLLOWUP-RUNTIME).
+/// (implemented in S-3.02-FOLLOWUP-RUNTIME, PR #162).
 ///
 /// # Errors
 ///
@@ -1550,7 +1780,7 @@ pub async fn step7_init_storage(
 ///
 /// Calls [`prism_query::invalidation::mark_query_phase_started`] to permanently
 /// close the write-tool registration window (ADR-026 §D7; ADR-022 §B step 7.5/8).
-/// This is the sole load-bearing act of this step in S-3.02-FOLLOWUP-RUNTIME.
+/// This is the sole load-bearing act of this step (implemented in S-3.02-FOLLOWUP-RUNTIME, PR #162).
 ///
 /// QueryEngine + WriteExecutor construction and wiring into PrismServer is
 /// performed by S-5.01-FOLLOWUP-MCP-BOOT (boot step 9), which is the first
@@ -1587,37 +1817,325 @@ pub async fn step8_init_query_engine() -> Result<(), BootError> {
 
 /// Step 9 [BACKGROUND]: MCP server start.
 ///
-/// TODO(S-WAVE5-PREP-01/S-5.01-FOLLOWUP-MCP-BOOT): Start PrismServer stdio transport.
-/// PrismServer struct does not exist yet — resolved by S-5.01-FOLLOWUP-MCP-BOOT.
+/// Constructs `QueryEngine` + `WriteExecutor` from available boot deps, builds
+/// `PrismServer::with_deps(...)`, and spawns `serve_stdio` as a background tokio task.
+///
 /// Gate: MCP server MUST NOT start before step 8 completes (BC-2.22.001 pre-traffic gate).
-pub async fn step9_start_mcp_server() -> Result<(), BootError> {
-    todo!("S-WAVE5-PREP-01 step 9 — MCP server boot — resolved by S-5.01-FOLLOWUP-MCP-BOOT")
+/// Step 8 calls `mark_query_phase_started()` — step 9 only runs after step 8 returns Ok(()).
+///
+/// # Dependency injection (ADR-022 §F)
+///
+/// Uses RocksDbBackend from step 6 (via BootContext) as the query storage backend.
+/// Uses OrgRegistry from step 3 and CredentialStore from step 5 (CRIT-5 fix).
+/// Adapter registry is initially empty — full adapter population from sensor TOML specs
+/// is deferred to spec-catalog dispatch (GAP-002-A, S-5.04-SENSOR-HEALTH-ADAPTER-DISPATCH).
+/// The AuditWriter is a tracing stub until the full audit-writer integration story (S-2.04) ships.
+///
+/// # Background task semantics
+///
+/// `serve_stdio` runs for the lifetime of the server process.  This function
+/// returns `Ok(())` immediately after spawning the background task — the caller
+/// (`run_boot_sequence`) proceeds to steps 10–11.  The background serve task
+/// exits when:
+///   - stdin closes (client disconnect), or
+///   - SIGTERM/SIGINT is received (BC-2.10.010 — handled inside `serve_stdio`).
+pub async fn step9_start_mcp_server(
+    storage: Arc<prism_storage::rocksdb_backend::RocksDbBackend>,
+    config_manager: Arc<arc_swap::ArcSwap<prism_spec_engine::config_manager::ConfigManager>>,
+    resolved_spec_map: Arc<
+        std::collections::HashMap<
+            prism_spec_engine::ResolvedSpecKey,
+            prism_spec_engine::ResolvedSensorSpec,
+        >,
+    >,
+    org_registry: Arc<prism_core::OrgRegistry>,
+    credential_store: Arc<dyn prism_credentials::CredentialStore>,
+    spec_dir: std::path::PathBuf,
+    config_dir: std::path::PathBuf,
+) -> Result<tokio::task::JoinHandle<Result<(), rmcp::RmcpError>>, BootError> {
+    use std::collections::BTreeMap;
+
+    use prism_mcp::server::PrismServer;
+    use prism_ocsf::OcsfNormalizer;
+    use prism_query::engine::{QueryEngine, QueryEngineConfig};
+    use prism_query::scoping::ClientRegistry;
+    use prism_query::write_dispatch::AuditWriter;
+    use prism_query::{WriteExecutor, WritePlan, WriteResult};
+    use prism_security::confirmation_token::ConfirmationTokenStore;
+    use prism_security::feature_flag::{CapabilityCheckResult, FeatureFlagEvaluator};
+    use prism_security::injection_scanner::InjectionScanner;
+    use prism_sensors::AdapterRegistry;
+    use prism_spec_engine::write_endpoint::WriteEndpointRegistry;
+
+    // ── Build QueryEngine ─────────────────────────────────────────────────────
+    //
+    // Adapter registry is initially empty — adapters are dispatched via WASM plugins
+    // (PluginAuthProvider, ADR-028 §D10). Direct spec-catalog adapter wiring (GAP-002-A)
+    // targets S-5.04-SENSOR-HEALTH-ADAPTER-DISPATCH; prism-sensors MUST NOT gain new
+    // prism-spec-engine imports (ADR-028 §D3).
+    let adapter_registry = Arc::new(AdapterRegistry::new());
+    let ocsf_normalizer = Arc::new(OcsfNormalizer::new());
+
+    // ClientRegistry: populated from OrgRegistry slug list (F-PR163-IMP-8).
+    // OrgRegistry::list_slugs() returns Vec<String>; ClientRegistry::new expects Vec<OrgSlug>.
+    let client_slugs: Vec<prism_core::tenant::OrgSlug> = org_registry
+        .list_slugs()
+        .into_iter()
+        .map(prism_core::tenant::OrgSlug::new)
+        .collect();
+    let client_registry = Arc::new(ClientRegistry::new(client_slugs));
+
+    let query_config = QueryEngineConfig::default();
+
+    // ProductionCredentialResolver: wraps the real CredentialStore from step 5.
+    //
+    // All sensor auth is now via WASM plugins (PluginAuthProvider, ADR-028 §D10).
+    // The CredentialResolver trait is used by the fan_out path in prism-sensors when
+    // direct sensor adapters are dispatched. Since AdapterRegistry is currently empty
+    // (GAP-002-A — spec-catalog dispatch deferred), the resolver is not invoked in
+    // production until adapters are populated. When it is invoked, it returns a
+    // ConfigValidation error directing the caller to the spec-catalog dispatch path
+    // rather than silently returning empty (which would cause auth-silent-failure).
+    //
+    // This is NOT a BootNull* — it correctly reports the architectural state:
+    // the credential_store IS wired, but the WASM plugin auth path bypasses this
+    // resolver (plugins acquire tokens via PluginAuthProvider::acquire_token, not via
+    // CredentialResolver::resolve). Resolving per-sensor SensorAuth subtypes from the
+    // credential_store requires S-2.07 (per-sensor auth resolution story).
+    struct ProductionCredentialResolver {
+        #[allow(dead_code)]
+        credential_store: Arc<dyn prism_credentials::CredentialStore>,
+    }
+    impl prism_sensors::CredentialResolver for ProductionCredentialResolver {
+        fn resolve(
+            &self,
+            client_id: &str,
+            sensor_id: prism_core::SensorId,
+        ) -> Result<Box<dyn prism_sensors::auth::SensorAuth>, prism_sensors::adapter::SensorError>
+        {
+            // Sensor adapters are currently dispatched via WASM plugins (PluginAuthProvider),
+            // not via this resolver. The fan_out CredentialResolver path is invoked only for
+            // direct adapter fan-out — which requires populated AdapterRegistry (GAP-002-A).
+            // When GAP-002-A is closed (target: S-5.04-SENSOR-HEALTH-ADAPTER-DISPATCH), this
+            // resolver will look up credentials from self.credential_store and return the
+            // appropriate SensorAuth subtype based on the sensor spec's auth_type.
+            // Per-sensor auth resolution is S-2.07.
+            Err(prism_sensors::adapter::SensorError::ConfigValidation {
+                sensor: sensor_id.to_string(),
+                detail: format!(
+                    "Direct sensor auth for client '{client_id}' sensor '{sensor_id}' requires \
+                     spec-catalog adapter dispatch (GAP-002-A; target: S-5.04-SENSOR-HEALTH-ADAPTER-DISPATCH). \
+                     WASM plugin auth uses PluginAuthProvider, not this resolver (ADR-028 §D10)."
+                ),
+            })
+        }
+    }
+    let credential_resolver: Arc<dyn prism_sensors::CredentialResolver> =
+        Arc::new(ProductionCredentialResolver {
+            credential_store: Arc::clone(&credential_store),
+        });
+
+    // ── Build AliasStore ──────────────────────────────────────────────────────
+    //
+    // Constructed BEFORE QueryEngine so the same Arc<Mutex<AliasStore>> can be
+    // shared between:
+    //   1. QueryEngine — for @alias expansion at query execution time (F-PASS9-LOW-1).
+    //   2. PrismServer — for alias CRUD tools (create/list/delete/explain_alias).
+    //
+    // BC-2.11.008: aliases created via MCP tools are live-queryable immediately
+    // because both subsystems share the same lock-protected in-memory store.
+    //
+    // Try to load existing aliases.toml from the config directory; fall back to
+    // an empty store if the file does not exist (aliases.toml is optional).
+    let alias_file = config_dir.join("aliases.toml");
+    let alias_store = if alias_file.exists() {
+        match prism_query::alias_store::AliasStore::load(&alias_file) {
+            Ok(store) => {
+                tracing::info!(
+                    event_type = "boot.step9.alias_store_loaded",
+                    path = %alias_file.display(),
+                    "boot: step 9 — alias store loaded from disk"
+                );
+                store
+            }
+            Err(e) => {
+                tracing::warn!(
+                    event_type = "boot.step9.alias_store_load_failed",
+                    path = %alias_file.display(),
+                    error = %e,
+                    "boot: step 9 — alias store load failed, starting with empty store"
+                );
+                prism_query::alias_store::AliasStore::empty(&alias_file)
+            }
+        }
+    } else {
+        tracing::info!(
+            event_type = "boot.step9.alias_store_empty",
+            path = %alias_file.display(),
+            "boot: step 9 — aliases.toml not found, starting with empty alias store"
+        );
+        prism_query::alias_store::AliasStore::empty(&alias_file)
+    };
+    let alias_store = Arc::new(std::sync::Mutex::new(alias_store));
+
+    // IMP-8: retain org_registry Arc so it can be passed to both QueryEngine and PrismServer.
+    // Arc::clone before the move into QueryEngine::new_full so PrismServer::with_deps
+    // can also receive the registry for alias CRUD allowlist validation.
+    let org_registry_for_server = Arc::clone(&org_registry);
+    let query_engine = Arc::new(QueryEngine::new_full(
+        adapter_registry.clone(),
+        // CRIT-5: real credential_store from step 5 — replaces BootNullCredentialStore.
+        credential_store,
+        ocsf_normalizer,
+        client_registry,
+        query_config,
+        credential_resolver,
+        // CRIT-5: real org_registry from step 3 — replaces OrgRegistry::new() placeholder.
+        org_registry,
+        storage,
+        resolved_spec_map,
+        // F-PASS9-LOW-1: alias_store shared with PrismServer so @alias tokens in queries
+        // are resolved against aliases created via MCP tools (BC-2.11.008).
+        Arc::clone(&alias_store),
+    ));
+
+    // ── Build WriteExecutor ───────────────────────────────────────────────────
+    //
+    // Feature flags start with empty client capability map — all write capabilities deny-by-default
+    // until the per-client capability config loads (S-2.03). The deny-by-default posture matches
+    // the production security-default; do not interpret the empty map as "all-open".
+    let feature_flags = Arc::new(FeatureFlagEvaluator::new(BTreeMap::new()));
+    let confirmation_store = Arc::new(ConfirmationTokenStore::new());
+
+    // TracingAuditWriter — emits structured tracing events for write audit entries.
+    // Full AuditEmitter integration via Tower layer requires S-2.04.
+    struct TracingAuditWriter;
+    #[async_trait::async_trait]
+    impl AuditWriter for TracingAuditWriter {
+        async fn write_intent(
+            &self,
+            plan: &WritePlan,
+            _context: &prism_query::QueryContext,
+            _capability_check: &CapabilityCheckResult,
+        ) -> Result<ulid::Ulid, prism_core::error::PrismError> {
+            let id = ulid::Ulid::new();
+            tracing::info!(
+                event_type = "write.intent.recorded",
+                intent_id = %id,
+                sensor = %plan.sensor,
+                "write intent recorded (BC-2.05.009 tracing audit stub)"
+            );
+            Ok(id)
+        }
+        async fn write_outcome(
+            &self,
+            intent_id: ulid::Ulid,
+            result: &WriteResult,
+        ) -> Result<(), prism_core::error::PrismError> {
+            tracing::info!(
+                event_type = "write.outcome.recorded",
+                intent_id = %intent_id,
+                succeeded = result.succeeded_count,
+                failed = result.failed_count,
+                "write outcome recorded (BC-2.05.009 tracing audit stub)"
+            );
+            Ok(())
+        }
+    }
+    let audit_writer: Arc<dyn AuditWriter> = Arc::new(TracingAuditWriter);
+    let write_adapter_registry = Arc::new(AdapterRegistry::new());
+    let endpoint_registry = Arc::new(WriteEndpointRegistry::new());
+
+    let write_executor = Arc::new(WriteExecutor::new(
+        feature_flags,
+        confirmation_store,
+        audit_writer.clone(),
+        write_adapter_registry,
+        endpoint_registry,
+    ));
+
+    // ── Construct PrismServer and spawn serve_stdio ───────────────────────────
+    let injection_scanner = Arc::new(InjectionScanner);
+    let server = PrismServer::with_deps(
+        injection_scanner,
+        query_engine,
+        write_executor,
+        audit_writer,
+        // CRIT-4: wire config_manager so config tools can list/reload/validate/add specs.
+        config_manager,
+        // CRIT-4: wire spec_dir for reload_config and add_sensor_spec tools.
+        spec_dir,
+        // CRIT-4: wire alias_store for alias CRUD tools.
+        alias_store,
+        // IMP-8: wire org_registry for alias CRUD allowlist validation.
+        org_registry_for_server,
+    );
+
+    // Spawn serve_stdio as a background task — returns immediately.
+    // The background task runs until stdin closes or SIGTERM/SIGINT is received.
+    // BC-2.10.010: graceful shutdown is handled inside serve_stdio.
+    //
+    // The JoinHandle<Result<(), rmcp::RmcpError>> is stored in RunningServer.
+    // main.rs awaits RunningServer::wait_for_shutdown() → translates the Result to
+    // an exit code (BC-2.10.010: timeout → exit 1; clean → exit 0; panic → exit 4).
+    let handle = tokio::spawn(async move { server.serve_stdio().await });
+
+    // F-PASS12-MED-3: emit mcp_server_started AFTER tokio::spawn so the catalog statement
+    // "emitted once the background transport task is running" is accurate (BC-2.16.002).
+    // Pre-spawn emission was a catalog drift (the server was not yet spawned).
+    tracing::info!(
+        event_type = "boot.step9.mcp_server_started",
+        "boot: step 9 — PrismServer spawned on stdio transport (BC-2.10.006)"
+    );
+
+    Ok(handle)
 }
 
 /// Step 10 [BACKGROUND]: Install HotReloadWatcher.
 ///
-/// TODO(S-WAVE5-PREP-01/S-1.12-FOLLOWUP): Install HotReloadWatcher.
-/// HotReloadWatcher::start is unimplemented!() at hot_reload.rs:66 — resolved by S-1.12-FOLLOWUP.
-/// Non-fatal: boot continues if watcher fails; emit degraded-mode audit entry.
+/// The HotReloadWatcher (S-1.12-FOLLOWUP) is not yet implemented — boot continues
+/// without the hot-reload watcher.  This is non-fatal: the server operates in
+/// degraded mode (no filesystem change detection) until S-1.12-FOLLOWUP ships.
+///
+/// This step MUST NOT use `todo!()` — a `todo!()` would cause `prism start` to panic
+/// at boot time.  The structured log below surfaces the deferred feature to operators.
+///
+/// BC-2.22.001 step 10 deferred contract: returns `Ok(())` immediately; emits
+/// `boot.step10.deferred` WARN so monitoring can detect degraded-mode operation.
 pub async fn step10_start_hot_reload() -> Result<(), BootError> {
-    todo!("S-WAVE5-PREP-01 step 10 — hot-reload watcher — resolved by S-1.12-FOLLOWUP")
+    tracing::warn!(
+        event_type = "boot.step10.deferred",
+        target = "boot",
+        "Hot-reload watcher deferred to S-1.12-FOLLOWUP — \
+         boot continues without filesystem watcher (degraded mode)"
+    );
+    Ok(())
 }
 
 /// Step 11 [BACKGROUND]: Install tokio signal handlers.
 ///
-/// NOTE: Signal handler registration itself calls `crate::signals` functions
-/// which are NOT todo!() — they are implemented in signals.rs.
-/// What is deferred here is the SIGHUP reload path which requires steps 7–10
-/// to be complete (HotReloadWatcher) and the full channel wiring for shutdown.
+/// The full SIGHUP reload path requires `HotReloadWatcher` (S-1.12-FOLLOWUP).
+/// Signal handlers for SIGTERM/SIGINT are already wired inside
+/// `PrismServer::serve_stdio` (BC-2.10.010).  The additional SIGHUP handler
+/// that triggers a config reload is deferred.
+///
+/// This step MUST NOT use `todo!()` — a `todo!()` would cause `prism start` to panic.
+/// The channels are accepted but not connected until S-1.12-FOLLOWUP ships the
+/// HotReloadWatcher and SIGHUP dispatch.
+///
+/// BC-2.22.001 step 11 deferred contract: returns `Ok(())` immediately; emits
+/// `boot.step11.deferred` WARN so monitoring can detect degraded-mode operation.
 pub async fn step11_install_signal_handlers(
     _shutdown_tx: tokio::sync::broadcast::Sender<()>,
     _reload_tx: tokio::sync::mpsc::Sender<()>,
 ) -> Result<(), BootError> {
-    todo!(
-        "S-WAVE5-PREP-01 step 11 — wire SIGTERM/SIGHUP channels to signal handlers in signals.rs; \
-         SIGHUP reload path deferred until S-1.12-FOLLOWUP provides HotReloadWatcher. \
-         MCP server boot (step 9) deferred to MCP server chassis story (see STORY-INDEX)."
-    )
+    tracing::warn!(
+        event_type = "boot.step11.deferred",
+        target = "boot",
+        "SIGHUP config-reload handler deferred to S-1.12-FOLLOWUP — \
+         SIGTERM/SIGINT handled by PrismServer::serve_stdio (BC-2.10.010)"
+    );
+    Ok(())
 }
 
 // ---------------------------------------------------------------------------

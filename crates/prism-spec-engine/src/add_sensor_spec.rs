@@ -1,9 +1,14 @@
 // S-1.12: add_sensor_spec MCP tool logic.
 // BC-2.16.008: Upload a New Sensor Spec at Runtime.
 // E-SPEC-002: filesystem write failure with path and OS error.
+// SEC-001: CWE-22 path traversal defense — sensor_id format validation + path canonicalization.
 
 use std::io::{ErrorKind, Write};
 use std::path::Path;
+
+use std::sync::LazyLock;
+
+use regex::Regex;
 
 use crate::config_manager::compute_file_hash;
 use crate::error::SpecEngineError;
@@ -12,6 +17,22 @@ use crate::types::{
     AddSensorSpecArgs, AddSensorSpecResult, SensorTableDescriptor, ValidationError,
     sensor_table_descriptor_from_table_spec,
 };
+
+/// SEC-001 (CWE-22): Regex enforcing the documented `sensor_id` format constraint.
+///
+/// The format `^[a-z][a-z0-9_-]*$` is documented in `SensorSpec.sensor_id` (spec_parser.rs)
+/// but was previously not enforced at runtime. Without enforcement, a `sensor_id` like
+/// `"../../etc/cron.d/evil"` would pass the empty-check and be interpolated directly into
+/// `spec_dir.join(format!("{}.sensor.toml", sensor_id))`, enabling arbitrary file write
+/// (CWE-22 / OWASP A01:2021 Path Traversal).
+///
+/// This regex is used as Layer 1 of the defense-in-depth (format validation in
+/// `parse_and_validate_spec_toml`). Layer 2 is the canonicalization check in
+/// `add_sensor_spec` itself.
+static SENSOR_ID_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"^[a-z][a-z0-9_-]*$")
+        .expect("SEC-001 sensor_id regex must compile — pattern is a literal constant")
+});
 
 /// Parse and validate a TOML spec string.
 /// Returns the parsed `spec_parser::SensorSpec` or a list of validation errors.
@@ -47,6 +68,16 @@ pub fn parse_and_validate_spec_toml(
 
     if spec.sensor_id.is_empty() {
         field_errors.push("missing required field: sensor.sensor_id".to_string());
+    } else if !SENSOR_ID_RE.is_match(&spec.sensor_id) {
+        // SEC-001 fix (Layer 1): enforce documented sensor_id format.
+        // Prevents path traversal via sensor_id used in spec_dir.join() downstream.
+        // The regex ^[a-z][a-z0-9_-]*$ is documented in SensorSpec.sensor_id (spec_parser.rs)
+        // but was not previously enforced at runtime, enabling CWE-22 / OWASP A01:2021.
+        field_errors.push(format!(
+            "invalid sensor_id '{}': must match ^[a-z][a-z0-9_-]*$ \
+             (CWE-22 path traversal defense — slashes, dots, and uppercase disallowed)",
+            spec.sensor_id
+        ));
     }
     if spec.name.is_empty() {
         field_errors.push("missing required field: sensor.name".to_string());
@@ -136,6 +167,65 @@ pub fn add_sensor_spec(
     };
     let file_path = spec_dir.join(format!("{}.sensor.toml", sensor_id));
 
+    // SEC-001 defense-in-depth (Layer 2): canonicalization check.
+    //
+    // Belt-and-suspenders: parse_and_validate_spec_toml() (Layer 1) should already have
+    // rejected any sensor_id that does not match ^[a-z][a-z0-9_-]*$, which makes ../ and /
+    // impossible. This Layer 2 check catches unforeseen format-validation gaps, symlink-based
+    // bypasses, or any future path where this function is called without Layer 1 validation.
+    //
+    // We canonicalize spec_dir (which exists) and the parent of file_path (also spec_dir
+    // since sensor_id is a basename, not a path). Both must canonicalize to the same path.
+    // We use file_path.parent() rather than canonicalizing file_path itself because the
+    // file does not exist yet (create_new semantics below).
+    {
+        let canonical_spec_dir =
+            spec_dir
+                .canonicalize()
+                .map_err(|e| SpecEngineError::SpecWriteError {
+                    path: spec_dir.to_string_lossy().to_string(),
+                    os_error: format!("spec_dir canonicalize failed (SEC-001): {e}"),
+                })?;
+        let file_parent = file_path
+            .parent()
+            .ok_or_else(|| SpecEngineError::SpecWriteError {
+                path: file_path.to_string_lossy().to_string(),
+                os_error: "file_path has no parent component (SEC-001)".to_string(),
+            })?;
+        // file_parent IS spec_dir for a well-formed sensor_id (no directory separator).
+        // Canonicalize the parent — if file_path.parent() is already canonical (same as
+        // spec_dir), this is a no-op. If sensor_id somehow contains a subdirectory component
+        // that escaped Layer 1 validation, the canonicalized parent will differ from
+        // canonical_spec_dir, and we reject the write.
+        let canonical_parent =
+            file_parent
+                .canonicalize()
+                .map_err(|e| SpecEngineError::SpecWriteError {
+                    path: file_parent.to_string_lossy().to_string(),
+                    os_error: format!("file path parent canonicalize failed (SEC-001): {e}"),
+                })?;
+        // We require EXACT equality (not just starts_with) because file_path's parent
+        // should be spec_dir itself, never a subdirectory. `starts_with` would accept
+        // spec_dir/subdir/ as a valid parent, but a well-formed sensor_id (basename only,
+        // no path separator) always places the file directly in spec_dir.
+        //
+        // Note: a direct unit test for Layer 2 alone is structurally difficult because
+        // Layer 1's regex rejects all inputs (sensor_id containing '/' or '..') that would
+        // cause Layer 2's inequality to fire. Coverage is implicit: Layer 1's load-bearing
+        // tests AND Layer 2's presence together guarantee that any future call path bypassing
+        // Layer 1 (e.g., a new SpecLoader entry point that skips parse_and_validate_spec_toml)
+        // still hits Layer 2 before write.
+        if canonical_parent != canonical_spec_dir {
+            return Err(SpecEngineError::SpecWriteError {
+                path: file_path.to_string_lossy().to_string(),
+                os_error: format!(
+                    "sensor_id '{}' escapes spec_dir — write blocked (CWE-22 traversal blocked, SEC-001)",
+                    sensor_id
+                ),
+            });
+        }
+    }
+
     if already_exists_in_memory {
         let token = generate_confirmation_token(&sensor_id);
         return Ok(AddSensorSpecResult::ConfirmationRequired {
@@ -209,4 +299,162 @@ pub fn add_sensor_spec(
     manager.store(new_snapshot);
 
     Ok(AddSensorSpecResult::Added { sensor_id, tables })
+}
+
+// ---------------------------------------------------------------------------
+// Unit tests — SEC-001 path traversal defense (load-bearing)
+// ---------------------------------------------------------------------------
+//
+// Mental-deletion proof: if the SENSOR_ID_RE check is removed from
+// parse_and_validate_spec_toml, all `test_SEC_001_*_rejected` tests below
+// will fail (the function will return Ok instead of Err). The
+// `test_SEC_001_valid_sensor_id_accepted` test must remain passing in both
+// cases (it documents the non-traversal happy path).
+//
+// These tests target parse_and_validate_spec_toml (Layer 1 of the defense).
+// Layer 2 (canonicalization in add_sensor_spec) is an I/O-level check that
+// requires a real filesystem; it is verified by the integration tests in
+// tests/hot_reload_tests.rs which exercise the full add_sensor_spec path.
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // Minimal valid TOML content for SEC-001 tests.
+    // Uses flat top-level fields (no `[sensor]` section) — that is what
+    // `SpecLoader::parse` → `toml::from_str::<SensorSpec>` expects.
+    // auth_type = "api_key" is one of the valid closed-enum values (AuthType::ApiKey).
+    const VALID_BASE_TOML_TEMPLATE: &str = "sensor_id = \"{SENSOR_ID}\"\n\
+         name = \"Test Sensor\"\n\
+         version = \"1.0.0\"\n\
+         base_url = \"https://example.com\"\n\
+         auth_type = \"api_key\"\n";
+
+    fn toml_with_sensor_id(id: &str) -> String {
+        VALID_BASE_TOML_TEMPLATE.replace("{SENSOR_ID}", id)
+    }
+
+    /// SEC-001: sensor_id containing `../` path traversal components must be rejected
+    /// by parse_and_validate_spec_toml (Layer 1 format validation).
+    ///
+    /// Load-bearing: removing the SENSOR_ID_RE check causes this test to FAIL
+    /// (function returns Ok instead of Err, and the attacker payload would reach
+    /// the filesystem join in add_sensor_spec).
+    #[test]
+    #[allow(non_snake_case)]
+    fn test_SEC_001_sensor_id_path_traversal_rejected() {
+        let traversal_toml = toml_with_sensor_id("../../etc/cron.d/evil");
+        let result = parse_and_validate_spec_toml(&traversal_toml, "<upload>");
+        assert!(
+            result.is_err(),
+            "SEC-001: path traversal sensor_id '../../etc/cron.d/evil' must be rejected; got Ok"
+        );
+        let err = result.unwrap_err();
+        let err_text = format!("{:?}", err);
+        assert!(
+            err_text.contains("sensor_id") && err_text.contains("^[a-z]"),
+            "SEC-001: error must cite sensor_id regex constraint; got: {err_text}"
+        );
+    }
+
+    /// SEC-001: sensor_id containing a forward slash must be rejected (would insert
+    /// a subdirectory component into the path join in add_sensor_spec).
+    ///
+    /// Load-bearing: removing SENSOR_ID_RE check causes this test to FAIL.
+    #[test]
+    #[allow(non_snake_case)]
+    fn test_SEC_001_sensor_id_with_slash_rejected() {
+        let toml_with_slash = toml_with_sensor_id("subdir/payload");
+        let result = parse_and_validate_spec_toml(&toml_with_slash, "<upload>");
+        assert!(
+            result.is_err(),
+            "SEC-001: forward-slash sensor_id 'subdir/payload' must be rejected; got Ok"
+        );
+    }
+
+    /// SEC-001: sensor_id starting with `.` must be rejected (first char must be [a-z]).
+    /// A `..hidden` sensor_id would also insert a dot-prefix into the filename, which
+    /// could confuse filesystem tooling and glob patterns.
+    ///
+    /// Load-bearing: removing SENSOR_ID_RE check causes this test to FAIL.
+    #[test]
+    #[allow(non_snake_case)]
+    fn test_SEC_001_sensor_id_with_dot_prefix_rejected() {
+        let toml_with_dot = toml_with_sensor_id("..hidden");
+        let result = parse_and_validate_spec_toml(&toml_with_dot, "<upload>");
+        assert!(
+            result.is_err(),
+            "SEC-001: dot-prefixed sensor_id '..hidden' must be rejected (not matching ^[a-z]); got Ok"
+        );
+    }
+
+    /// SEC-001: sensor_id starting with uppercase must be rejected (first char must be [a-z]).
+    ///
+    /// Load-bearing: removing SENSOR_ID_RE check causes this test to FAIL.
+    #[test]
+    #[allow(non_snake_case)]
+    fn test_SEC_001_sensor_id_uppercase_rejected() {
+        let toml_uppercase = toml_with_sensor_id("CrowdStrike");
+        let result = parse_and_validate_spec_toml(&toml_uppercase, "<upload>");
+        assert!(
+            result.is_err(),
+            "SEC-001: uppercase sensor_id 'CrowdStrike' must be rejected; got Ok"
+        );
+    }
+
+    /// SEC-001: a well-formed sensor_id conforming to ^[a-z][a-z0-9_-]*$ must be
+    /// accepted by parse_and_validate_spec_toml.
+    ///
+    /// This test remains passing regardless of whether the SENSOR_ID_RE check is
+    /// present (no load-bearing delta on its own, but confirms the happy path is
+    /// not broken by the SEC-001 fix).
+    #[test]
+    #[allow(non_snake_case)]
+    fn test_SEC_001_valid_sensor_id_accepted() {
+        let valid_toml = toml_with_sensor_id("valid-sensor-id-123");
+        let result = parse_and_validate_spec_toml(&valid_toml, "<upload>");
+        assert!(
+            result.is_ok(),
+            "SEC-001: valid sensor_id 'valid-sensor-id-123' must be accepted; got: {result:?}"
+        );
+    }
+
+    /// SEC-001: sensor_id with digits in the body must be accepted.
+    #[test]
+    #[allow(non_snake_case)]
+    fn test_SEC_001_sensor_id_with_digits_accepted() {
+        let toml_with_digits = toml_with_sensor_id("sensor42");
+        let result = parse_and_validate_spec_toml(&toml_with_digits, "<upload>");
+        assert!(
+            result.is_ok(),
+            "SEC-001: sensor_id 'sensor42' must be accepted; got: {result:?}"
+        );
+    }
+
+    /// SEC-001: sensor_id with underscores must be accepted.
+    #[test]
+    #[allow(non_snake_case)]
+    fn test_SEC_001_sensor_id_with_underscores_accepted() {
+        let toml_with_underscores = toml_with_sensor_id("my_sensor_v2");
+        let result = parse_and_validate_spec_toml(&toml_with_underscores, "<upload>");
+        assert!(
+            result.is_ok(),
+            "SEC-001: sensor_id 'my_sensor_v2' must be accepted; got: {result:?}"
+        );
+    }
+
+    /// SEC-001: real sensor IDs used in production must remain accepted.
+    /// This test catches regressions where the regex is accidentally too strict.
+    #[test]
+    #[allow(non_snake_case)]
+    fn test_SEC_001_production_sensor_ids_accepted() {
+        for id in &["crowdstrike", "claroty", "cyberint", "armis"] {
+            let toml = toml_with_sensor_id(id);
+            let result = parse_and_validate_spec_toml(&toml, "<upload>");
+            assert!(
+                result.is_ok(),
+                "SEC-001: production sensor_id '{id}' must be accepted; got: {result:?}"
+            );
+        }
+    }
 }

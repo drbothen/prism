@@ -21,7 +21,12 @@ pub enum PatternCategory {
     CodeFenceEscape,
     /// Base64-encoded payload that decodes to injection content.
     Base64Encoded,
-    /// Field value exceeded scan length limit; only partially scanned.
+    /// Scan coverage incomplete — either field value exceeded scan length limit
+    /// (`SCAN_LIMIT_BYTES = 10240`) or nested-object recursion exceeded depth limit
+    /// (`MAX_SCAN_DEPTH = 64`). In both cases, the safety flag indicates "scan was
+    /// truncated; treat the response with extra caution; some content may be
+    /// unscanned." Consumers must not interpret absence of other `PatternCategory`
+    /// flags as proof of injection-free content when a `TruncatedScan` flag is present.
     TruncatedScan,
 }
 

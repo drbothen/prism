@@ -38,6 +38,8 @@ use prism_storage::RocksStorageBackend;
 use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 
+use crate::alias_store::AliasStore;
+use crate::alias_types::AliasScope;
 use crate::cache::{CacheConfig, QueryCache};
 use crate::cursor::{spawn_cursor_cleanup_task, QueryCursorRegistry};
 use crate::scoping::ClientRegistry;
@@ -225,6 +227,16 @@ pub struct QueryEngine {
             >,
         >,
     >,
+    /// Alias store for `@alias_name` expansion in PrismQL queries (BC-2.11.008).
+    ///
+    /// When `Some`, `execute_inner` resolves all `@alias` tokens from the store
+    /// before passing the expanded query to the materialization pipeline.
+    /// When `None`, alias tokens are passed through unchanged (query-only / test mode).
+    ///
+    /// The `Arc<Mutex<>>` matches the PrismServer wiring so both the CRUD tools
+    /// and the query executor share the same live AliasStore instance.
+    /// (F-PASS9-LOW-1 fix — S-5.01-FOLLOWUP-MCP-BOOT)
+    pub(crate) alias_store: Option<Arc<Mutex<AliasStore>>>,
 }
 
 impl QueryEngine {
@@ -290,6 +302,7 @@ impl QueryEngine {
             org_registry: None,
             storage: None,
             resolved_spec_map: None,
+            alias_store: None,
         }
     }
 
@@ -303,12 +316,23 @@ impl QueryEngine {
         self
     }
 
+    /// Return the `ClientRegistry` used by this engine for client-scope resolution.
+    ///
+    /// Exposed publicly so that callers in adjacent crates (e.g., `prism-mcp`) can
+    /// pass the same `ClientRegistry` to `ExplainOptions::client_registry` for
+    /// consistent client-scope semantics between `explain_query` and `query`
+    /// (F-PASS10-HIGH-3 fix; ADR-022 §F wiring discipline).
+    pub fn client_registry(&self) -> Arc<crate::scoping::ClientRegistry> {
+        Arc::clone(&self.client_registry)
+    }
+
     /// Construct a `QueryEngine` with full production dependencies.
     ///
     /// Includes `CredentialResolver`, `OrgRegistry`, `RocksStorageBackend`,
-    /// and `resolved_spec_map` for end-to-end fan_out dispatch with per-org
-    /// endpoint overlay resolution and internal table access.
-    /// (F-LP1-CRIT-1/2/3, F-LP2-CRIT-001 wiring)
+    /// `resolved_spec_map`, and `alias_store` for end-to-end fan_out dispatch
+    /// with per-org endpoint overlay resolution, internal table access, and
+    /// `@alias` expansion in PrismQL queries (BC-2.11.008).
+    /// (F-LP1-CRIT-1/2/3, F-LP2-CRIT-001 wiring, F-PASS9-LOW-1)
     #[allow(clippy::too_many_arguments)]
     pub fn new_full(
         adapter_registry: Arc<AdapterRegistry>,
@@ -325,6 +349,7 @@ impl QueryEngine {
                 prism_spec_engine::ResolvedSensorSpec,
             >,
         >,
+        alias_store: Arc<Mutex<AliasStore>>,
     ) -> Self {
         let cursor_registry = Arc::new(Mutex::new(QueryCursorRegistry::new()));
         let cache = Arc::new(QueryCache::new(CacheConfig::default()));
@@ -345,6 +370,7 @@ impl QueryEngine {
             org_registry: Some(org_registry),
             storage: Some(storage),
             resolved_spec_map: Some(resolved_spec_map),
+            alias_store: Some(alias_store),
         }
     }
 }
@@ -427,6 +453,39 @@ impl QueryEngine {
         query_str: &str,
         options: QueryOptions,
     ) -> Result<QueryResult, PrismError> {
+        // Step 0: Alias expansion — resolve all `@alias_name` tokens before parsing.
+        //
+        // BC-2.11.008: aliases created via MCP tools must be consulted at query time.
+        // F-PASS9-LOW-1: alias_store is wired into QueryEngine via new_full() so both
+        // the CRUD tools and the query executor share the same live AliasStore.
+        //
+        // Scope: "global" — queries expand against the global alias scope at execute time.
+        // Per-client scope override is architecturally deferred to S-3.01-ALIAS-SCOPE (BC-2.11.014)
+        // which will thread the OrgSlug from QueryContext into the AliasResolver.
+        // (SUG-8 fix: replaced stale "for now" comment with proper deferral citation.)
+        let (effective_query, expanded_query_for_context) =
+            if let Some(ref store_arc) = self.alias_store {
+                // Lock is held only for the duration of alias expansion — not across the
+                // full async pipeline (which awaits sensor fetches).
+                let expanded = {
+                    let store = store_arc.lock().map_err(|_| PrismError::Internal {
+                        detail: "alias_store lock poisoned during query execution".to_string(),
+                    })?;
+                    crate::alias_resolver::AliasResolver::expand(
+                        query_str,
+                        &store,
+                        &AliasScope::Global,
+                        &std::collections::HashMap::new(),
+                        0,
+                    )?
+                };
+                let display = expanded.clone();
+                (std::borrow::Cow::Owned(expanded), display)
+            } else {
+                (std::borrow::Cow::Borrowed(query_str), query_str.to_string())
+            };
+        let effective_query: &str = &effective_query;
+
         // Step 1: Resolve client scope (BC-2.11.011).
         let clients =
             crate::scoping::resolve_clients(options.clients.clone(), &self.client_registry)?;
@@ -441,7 +500,8 @@ impl QueryEngine {
         // Pre-execution capability gate: if the query references `prism_audit` but the
         // caller lacks `Capability::AuditRead`, reject with E-QUERY-011. This runs before
         // any storage scan, not inside the DataFusion `scan()` trait method (approach b).
-        check_internal_table_capabilities(query_str, &options.capabilities)?;
+        // Check against the EXPANDED query so alias-resolved table refs are caught.
+        check_internal_table_capabilities(effective_query, &options.capabilities)?;
 
         // F-LP1-CRIT-1 / F-LP2-CRIT-1 Layer 2: register internal tables into the session context
         // before materialization so `prism_*` table references resolve in DataFusion.
@@ -478,8 +538,9 @@ impl QueryEngine {
 
         // Step 5: Run the materialization pipeline → DataFusion execution → batches.
         // F-LP1-CRIT-5: pipeline now returns MaterializationOutput with both batches and sensor_errors.
+        // Use effective_query (alias-expanded) so @alias tokens are resolved before parsing.
         let output = crate::materialization::run_materialization_pipeline(
-            query_str,
+            effective_query,
             &effective_options,
             &mut mat_ctx,
             &session_ctx,
@@ -501,9 +562,10 @@ impl QueryEngine {
 
         // Step 7: Build QueryResult.
         // ADV-W3MT-P58-HIGH-005: sensors_queried now populated from materialization output.
+        // F-PASS9-LOW-1: expanded_query reflects alias resolution (BC-2.11.008).
         let context = QueryResultContext {
             original_query: query_str.to_string(),
-            expanded_query: query_str.to_string(),
+            expanded_query: expanded_query_for_context,
             clients_queried: clients,
             sensors_queried: output.sensors_queried,
             execution_time_ms: 0, // filled in by execute()
@@ -741,6 +803,178 @@ impl CredentialResolver for NullCredentialResolver {
                  use QueryEngine::new_full with a real CredentialResolver in production"
             ),
         })
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Unit tests: alias_store wiring in execute (F-PASS9-LOW-1 / BC-2.11.008)
+// ---------------------------------------------------------------------------
+
+#[cfg(test)]
+mod alias_wiring_tests {
+    use std::path::Path;
+    use std::sync::{Arc, Mutex};
+
+    use super::*;
+    use crate::alias_store::AliasStore;
+    use crate::alias_types::{AliasEntry, AliasScope};
+
+    /// Minimal no-op credential store for unit tests that don't exercise auth.
+    struct NoopCs;
+
+    #[async_trait::async_trait]
+    impl prism_credentials::CredentialStore for NoopCs {
+        async fn get(
+            &self,
+            _t: &prism_core::OrgSlug,
+            _s: &str,
+            _n: &prism_credentials::namespace::CredentialName,
+        ) -> Result<Option<secrecy::SecretString>, PrismError> {
+            Ok(None)
+        }
+        async fn set(
+            &self,
+            _t: &prism_core::OrgSlug,
+            _s: &str,
+            _n: &prism_credentials::namespace::CredentialName,
+            _v: secrecy::SecretString,
+        ) -> Result<(), PrismError> {
+            Ok(())
+        }
+        async fn delete(
+            &self,
+            _t: &prism_core::OrgSlug,
+            _s: &str,
+            _n: &prism_credentials::namespace::CredentialName,
+        ) -> Result<bool, PrismError> {
+            Ok(false)
+        }
+        async fn list(
+            &self,
+            _t: &prism_core::OrgSlug,
+        ) -> Result<Vec<(String, prism_credentials::namespace::CredentialName)>, PrismError>
+        {
+            Ok(vec![])
+        }
+        async fn exists(
+            &self,
+            _t: &prism_core::OrgSlug,
+            _s: &str,
+            _n: &prism_credentials::namespace::CredentialName,
+        ) -> Result<bool, PrismError> {
+            Ok(false)
+        }
+    }
+
+    /// Build a minimal `QueryEngine` with an alias_store for unit tests.
+    ///
+    /// Uses `new_with_cache_config` + manual field injection so we don't need
+    /// the full production dependency tree (OrgRegistry, RocksDB, etc.).
+    fn make_engine_with_alias_store(alias_store: Arc<Mutex<AliasStore>>) -> QueryEngine {
+        use prism_sensors::AdapterRegistry;
+
+        let mut engine = QueryEngine::new_with_cache_config(
+            Arc::new(AdapterRegistry::new()),
+            Arc::new(NoopCs),
+            Arc::new(prism_ocsf::OcsfNormalizer::new()),
+            Arc::new(crate::scoping::ClientRegistry::new(vec![])),
+            QueryEngineConfig::default(),
+            crate::cache::CacheConfig::default(),
+        );
+        // Inject alias_store directly (field is pub(crate) for test access).
+        engine.alias_store = Some(alias_store);
+        engine
+    }
+
+    /// BC-2.11.008: when alias_store is wired, @alias tokens in query strings
+    /// are expanded before the pipeline executes.
+    ///
+    /// This test verifies the expansion path by checking that `expanded_query`
+    /// in the QueryResult reflects the alias substitution.
+    ///
+    /// NOTE: The engine has no sensor adapters so the materialization pipeline
+    /// returns empty results — but the alias expansion happens in Step 0
+    /// of execute_inner BEFORE the pipeline, so we can observe it via the
+    /// `context.expanded_query` field.
+    #[tokio::test]
+    async fn test_alias_store_wired_into_execute_expands_at_query_time() {
+        // Build an alias store with one global alias: @crowdstrike_alerts → "SELECT * FROM alerts"
+        let _tmpdir = tempfile::tempdir().expect("create tempdir for alias wiring test store");
+        let mut store = AliasStore::empty(_tmpdir.path().join("test-alias-wiring.toml"));
+        let create_result = store
+            .create_or_update(
+                AliasEntry {
+                    name: "crowdstrike_alerts".to_string(),
+                    scope: AliasScope::Global,
+                    query: "SELECT * FROM alerts".to_string(),
+                    parameters: None,
+                    description: None,
+                },
+                None, // no confirmation token needed for new alias
+            )
+            .expect("store.create_or_update must succeed for test alias");
+        // Verify it was created (not ConfirmationRequired) — it's a new alias.
+        assert!(
+            matches!(create_result, crate::alias_types::CreateResult::Created(_)),
+            "new alias must be Created, not ConfirmationRequired"
+        );
+
+        let engine = make_engine_with_alias_store(Arc::new(Mutex::new(store)));
+
+        // Execute a query that references the alias.
+        // The engine has no adapters → result is empty batches, but the
+        // expansion MUST happen before the pipeline (observable via context).
+        let result = engine
+            .execute("@crowdstrike_alerts", QueryOptions::default())
+            .await
+            .expect("execute with alias must succeed (expansion → empty pipeline)");
+
+        assert_eq!(
+            result.context.original_query, "@crowdstrike_alerts",
+            "original_query must preserve the raw query before alias expansion"
+        );
+        assert_eq!(
+            result.context.expanded_query, "SELECT * FROM alerts",
+            "expanded_query must reflect alias expansion (BC-2.11.008)"
+        );
+    }
+
+    /// BC-2.11.008: when alias_store is None (test/query-only mode),
+    /// query strings are passed through unchanged.
+    ///
+    /// Uses a valid PrismQL query (no @alias tokens) to verify that the
+    /// original_query == expanded_query when no store is wired.
+    #[tokio::test]
+    async fn test_alias_store_absent_passes_query_through_unchanged() {
+        // Use the same NoopCs helper from this module.
+        let engine = QueryEngine::new_with_cache_config(
+            Arc::new(prism_sensors::AdapterRegistry::new()),
+            Arc::new(NoopCs),
+            Arc::new(prism_ocsf::OcsfNormalizer::new()),
+            Arc::new(crate::scoping::ClientRegistry::new(vec![])),
+            QueryEngineConfig::default(),
+            crate::cache::CacheConfig::default(),
+        );
+        // alias_store is None by default in new_with_cache_config.
+
+        // Use a valid PrismQL SELECT query (no alias tokens).
+        // Engine has no adapters → empty batches, but expansion path executes.
+        let result = engine
+            .execute(
+                "SELECT * FROM crowdstrike_detections LIMIT 5",
+                QueryOptions::default(),
+            )
+            .await
+            .expect("execute with no alias store must succeed");
+
+        assert_eq!(
+            result.context.original_query, "SELECT * FROM crowdstrike_detections LIMIT 5",
+            "original_query must be preserved"
+        );
+        assert_eq!(
+            result.context.expanded_query, "SELECT * FROM crowdstrike_detections LIMIT 5",
+            "without alias_store, expanded_query == original_query"
+        );
     }
 }
 
