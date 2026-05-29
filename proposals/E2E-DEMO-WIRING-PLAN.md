@@ -4,7 +4,7 @@ title: "E2E Demo Wiring Plan — Live DTU Round-Trip via Claude MCP"
 author: architect
 date: "2026-05-29"
 status: DRAFT
-version: "1.1"
+version: "1.2"
 anchor_gap: GAP-002-A
 revision_notes: |
   v1.1 (2026-05-29): Corrected Cyberint auth model in §1(b) and §5. Cyberint uses
@@ -21,6 +21,27 @@ revision_notes: |
   PipelineExecutor gap: build_request currently injects all tokens as Authorization: Bearer.
   For CookieRoundtrip, it must inject Cookie: cyberint_session={token} instead.
   This is a pipeline-level amendment required in the same PR as S-DEMO-001.
+
+  v1.2 (2026-05-29): Cross-poller DTU fidelity audit findings incorporated.
+  Full audit document: .factory/proposals/POLLER-DTU-FIDELITY-AUDIT-2026-05-29.md.
+  TOML fixes applied in same burst (see §1(e) updated):
+    - crowdstrike.sensor.toml: Gap-CS-001 fixed — column "id" renamed to "detection_id"
+      to match DTU fixture key (routes/detections.rs: record.get("detection_id")).
+    - claroty.sensor.toml: Gap-CL-002 fixed — audit_log path corrected to /api/v1/audit_log/get.
+    - claroty.sensor.toml: Gap-CL-003 fixed — devices [[tables]] block added (DTU-grounded).
+    - claroty.sensor.toml: Gap-CL-005 fixed — alert column names aligned to DTU ClarotyAlert struct.
+  Known gaps remaining (pipeline stories required):
+    - Gap-CL-004: Claroty offset pagination must be in POST body; tracked in S-DEMO-CLAROTY-PAGINATION-001.
+    - Gap-CL-001: Trailing slash on Claroty paths; tracked in S-DEMO-CLAROTY-TRAILING-SLASH-001.
+    - Gap-AR-001: Armis AQL endpoint; tracked DTU-EXT-003/004.
+    - Gap-CY-002: Cyberint live-API endpoint path/method; DTU demo path unaffected.
+  Demo-readiness (DTU path, post-TOML-fix):
+    CrowdStrike: READY (after Gap-CS-001 fix)
+    Claroty: PARTIAL (alerts page-1 + devices page-1; Gap-CL-004 limits multi-page)
+    Armis: READY
+    Cyberint: READY (DTU path)
+  S-DEMO-002 AC table updated to reference detection_id, alert_type_name, detected_time,
+  updated_time, and claroty_devices table per these fixes.
 ---
 
 # E2E Demo Wiring Plan — Live DTU Round-Trip via Claude MCP
@@ -172,10 +193,9 @@ No new story required for orchestration itself. The demo runbook story
 
 #### (e) Sensor spec configuration for demo
 
-Status: PARTIALLY EXISTS — specs at `crates/prism-sensors/specs/` have production
+Status: MOSTLY FIXED — specs at `crates/prism-sensors/specs/` have production
 `base_url = "https://api.crowdstrike.com"`. For a demo against DTU clones, these
-must either (1) be overridden via per-org overlay in `customers/demo/` or (2) a
-demo-specific variant spec must point at `http://127.0.0.1:<PORT>`.
+must be overridden via per-org overlay in `customers/demo/`.
 
 The ADR-029 overlay mechanism is the correct approach: write a
 `customers/demo-org/crowdstrike.sensor.toml` overlay with
@@ -187,6 +207,27 @@ server starts. The demo setup script reads that file and writes the overlay.
 
 This is in-scope for the demo setup runbook story (S-DEMO-003). The overlay
 mechanism itself is already implemented (S-CONFIG-MULTI-TENANT-OVERRIDE-001, merged).
+
+**TOML spec fidelity fixes applied (2026-05-29 fidelity audit):**
+
+| Spec file | Fixes applied | Gaps remaining |
+|-----------|---------------|----------------|
+| `crowdstrike.sensor.toml` | Gap-CS-001: `detections.id` → `detections.detection_id` (matches DTU fixture key) | Gap-CS-002: detections vs alerts API endpoint (medium, non-blocking) |
+| `claroty.sensor.toml` | Gap-CL-002: audit_log path → `/api/v1/audit_log/get`; Gap-CL-003: `[[tables]] devices` added; Gap-CL-005: alert columns renamed to match DTU ClarotyAlert struct (`alert_type_name`, `detected_time`, `updated_time`) | Gap-CL-001: trailing slash (low for DTU, medium for live); Gap-CL-004: offset pagination needs POST body (pipeline story S-DEMO-CLAROTY-PAGINATION-001) |
+| `armis.sensor.toml` | No changes — Armis is demo-READY | Gap-AR-001: AQL vs direct endpoints (medium, DTU not affected) |
+| `cyberint.sensor.toml` | No changes — already correct for DTU demo path | Gap-CY-001/CY-002: live-API path mismatches (DTU demo unaffected) |
+
+**Column name reference for S-DEMO-002 query assertions:**
+
+| Sensor | Table | Primary key column | Timestamp columns | Notes |
+|--------|-------|--------------------|-------------------|-------|
+| CrowdStrike | `crowdstrike_detections` | `detection_id` | `created_timestamp` | NOT `id` — Gap-CS-001 fix |
+| Claroty | `claroty_alerts` | `id` | `detected_time`, `updated_time` | NOT `created_at`/`updated_at` — Gap-CL-005 fix |
+| Claroty | `claroty_devices` | `uid` | n/a | New table — Gap-CL-003 fix |
+| Claroty | `claroty_audit_logs` | `id` | `timestamp` | DTU route gap; queries return 404 until S-DEMO-CLAROTY-AUDIT-DTU-001 |
+| Armis | `armis_devices` | `device_id` | `last_seen`, `first_seen` | No changes |
+| Armis | `armis_alerts` | `alert_id` | `created_at`, `updated_at` | No changes |
+| Cyberint | `cyberint_alerts` | `alert_id` | `created_at` | No changes; DTU path works |
 
 #### (f) Credential bootstrap for demo
 

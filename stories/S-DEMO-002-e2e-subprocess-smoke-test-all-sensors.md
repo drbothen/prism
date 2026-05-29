@@ -6,7 +6,7 @@ wave: 5
 epic_id: E-DEMO
 priority: P0
 status: draft
-version: "1.1"
+version: "1.2"
 level: "L4"
 producer: story-writer
 timestamp: "2026-05-29T00:00:00Z"
@@ -103,11 +103,11 @@ cycle: "v1.0.0-brownfield"
 phase: 3
 ---
 
-# S-DEMO-002 v1.1 — prism-bin: E2E Subprocess Smoke Test (All 4 Sensors + Multi-Org Isolation)
+# S-DEMO-002 v1.2 — prism-bin: E2E Subprocess Smoke Test (All 4 Sensors + Multi-Org Isolation)
 
 **Story ID:** S-DEMO-002
 **Status:** draft
-**Version:** v1.1
+**Version:** v1.2
 **Wave:** 5
 **Priority:** P0
 **Points:** 11
@@ -180,7 +180,8 @@ Then: The response contains `tool_query` in the tools array.
 Given: Demo-org's CrowdStrike sensor spec has `base_url` overlaid to point at the DTU clone.
 When: The test sends `tools/call` with `tool_query` and input `"FROM crowdstrike_detections LIMIT 5"`.
 Then: The ResponseEnvelope contains at least 1 row of data; the `category_uid` and `class_uid`
-fields are present and non-null; no error code in the response.
+fields are present and non-null; the `detection_id` column (the primary key per Gap-CS-001 fix —
+NOT `id`) is present and non-null for each row; no error code in the response.
 (traces to BC-2.11.005 postcondition: "Sensor responses are normalized to OCSF via the OCSF normalizer")
 Red Gate test: `test_BC_2_11_005_e2e_crowdstrike_query_returns_ocsf_data`
 
@@ -194,9 +195,13 @@ Red Gate test: `test_BC_2_11_005_e2e_armis_query_returns_data`
 
 ### AC-005: Claroty query returns non-empty Arrow batches
 Given: Demo-org's Claroty sensor spec has `base_url` overlaid to point at the DTU clone.
-When: The test sends `tools/call` with `tool_query` and input `"FROM claroty_assets LIMIT 5"`
-(or the canonical table name for Claroty per the TOML spec).
-Then: The ResponseEnvelope contains at least 1 row; no error code.
+When: The test sends `tools/call` with `tool_query` and input `"FROM claroty_alerts LIMIT 5"`.
+Then: The ResponseEnvelope contains at least 1 row; the `alert_type_name` column (not `type`)
+and `detected_time` column (not `created_at`) are present per Gap-CL-005 TOML fix; no error code.
+Also test `"FROM claroty_devices LIMIT 5"` — expects at least 1 row with `uid` column present
+(Gap-CL-003 fix — devices table added to claroty.sensor.toml).
+Note: queries beyond page 1 are limited by Gap-CL-004 (offset pagination sent as URL params, not
+POST body) — assert only for page-1 result rows (≤ page_size=100).
 (traces to BC-2.11.005 postcondition: same as AC-003 for Claroty sensor)
 
 ### AC-006: Cyberint query returns non-empty Arrow batches
@@ -422,5 +427,6 @@ Well within budget; second-cheapest story in the E-DEMO epic.
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.2 | 2026-05-29 | architect | AC-003: assert `detection_id` column (not `id`) per Gap-CS-001 TOML fix. AC-005: corrected query from `claroty_assets` (table does not exist) to `claroty_alerts`; added `claroty_devices` query per Gap-CL-003 fix; asserted `alert_type_name`/`detected_time` column names per Gap-CL-005 fix; noted Gap-CL-004 single-page limitation. Story bumped to v1.2 from v1.1. |
 | 1.1 | 2026-05-29 | architect | Multi-org isolation scope added: AC-011 (3-org registration + 8-adapter count), AC-012 (cross-org AdapterNotFound isolation probe), AC-013 (DTU multi-tenant scope clarification + DTU-MULTI-001 comment requirement). BC-3.2.001 added to behavioral_contracts. Points 8→11 (+3 pts for multi-org ACs). acceptance_criteria_count 10→13. red_gate_tests 4→5. EC-006..008 added. Title updated to reflect multi-org scope. |
 | 1.0 | 2026-05-29 | story-writer | Initial draft — all 4 sensors scope per user 2026-05-29 decision |

@@ -6,7 +6,7 @@ wave: 5
 epic_id: E-DEMO
 priority: P0
 status: draft
-version: "1.1"
+version: "1.2"
 level: "L4"
 producer: story-writer
 revised_by: architect
@@ -131,11 +131,11 @@ cycle: "v1.0.0-brownfield"
 phase: 3
 ---
 
-# S-DEMO-001 v1.1 — prism-bin: SpecDrivenSensorAdapter + Boot Step 9A (closes GAP-002-A)
+# S-DEMO-001 v1.2 — prism-bin: SpecDrivenSensorAdapter + Boot Step 9A (closes GAP-002-A)
 
 **Story ID:** S-DEMO-001
 **Status:** draft
-**Version:** v1.1
+**Version:** v1.2
 **Wave:** 5
 **Priority:** P0
 **Points:** 11
@@ -374,7 +374,10 @@ Given: Cyberint sensor spec loaded at boot (auth_type is `cookie_roundtrip`, no 
 DTU clone running and accepting `POST /login` → `Set-Cookie: cyberint_session={token}`.
 When: `SpecDrivenSensorAdapter::fetch()` is called for Cyberint.
 Then: The adapter uses its held `CookieLoginAuthProvider`, which (a) calls `POST {base_url}/login`,
-(b) parses `cyberint_session` from the `Set-Cookie` response header, (c) returns the token string.
+(b) parses the `Set-Cookie` response header, (c) extracts the value of the cookie named
+`cyberint_session` (NOT `access_token` — that is the real Cyberint API cookie name, which differs
+from the DTU's session cookie; see §Cyberint Cookie Auth Design for the reconciliation),
+(d) returns the token string.
 The pipeline injects it as `Cookie: cyberint_session={token}` (NOT `Authorization: Bearer`).
 The response contains `Vec<RecordBatch>` from the DTU clone.
 (traces to BC-2.01.013 postcondition 4; closes cookie_roundtrip gap in pipeline)
@@ -422,9 +425,19 @@ header per the BearerStatic path in `build_request`.
 Given: A `SpecDrivenSensorAdapter` for Cyberint is called with a running DTU clone.
 When: `CookieLoginAuthProvider::acquire_token()` is called; the DTU clone's `POST /login` responds with
 `Set-Cookie: cyberint_session=some-uuid`.
-Then: The HTTP request to `GET /api/v1/alerts` carries `Cookie: cyberint_session=some-uuid`,
-NOT `Authorization: Bearer some-uuid`.
+Then:
+(a) `CookieLoginAuthProvider` parses the cookie name `cyberint_session` from the `Set-Cookie` header
+    (the DTU uses `cyberint_session`; the real Cyberint API uses `access_token` — a different cookie
+    name; see §Cyberint Cookie Auth Design. The implementation must parse `cyberint_session` for the
+    DTU demo path).
+(b) The HTTP request to `GET /api/v1/alerts` carries `Cookie: cyberint_session=some-uuid`,
+    NOT `Authorization: Bearer some-uuid`.
 (closes the `build_request` cookie-injection gap per §Cyberint Cookie Auth Design)
+
+**Implementation constraint:** `CookieLoginAuthProvider` must extract the `cyberint_session` cookie
+from the `Set-Cookie` header value. The cookie parser must handle the standard `Set-Cookie` format:
+`cyberint_session=<value>; Path=/; HttpOnly`. Extracting `<value>` by splitting on `=` and then
+on `;` is sufficient (no exotic cookie attributes in the DTU response).
 
 ### AC-010: Adapter fetch returns OCSF-normalized Arrow RecordBatches
 Given: A `SpecDrivenSensorAdapter::fetch()` call is made for any of the 4 sensors.
@@ -607,3 +620,4 @@ if context pressure is felt during implementation.
 |---------|------|--------|-------|
 | 1.0 | 2026-05-29 | story-writer | Initial draft — all 4 sensors scope per user 2026-05-29 decision |
 | 1.1 | 2026-05-29 | architect | Corrected Cyberint auth model (cookie_roundtrip ≠ bearer_static); resolved OQ-1, OQ-2, OQ-6; added CookieLoginAuthProvider design; amended build_request pipeline gap; added new AC-003/AC-009/AC-012; revised points 8→11; risk MEDIUM→HIGH |
+| 1.2 | 2026-05-29 | architect | AC-003/AC-009: tightened `cyberint_session` cookie name specification per fidelity audit (POLLER-DTU-FIDELITY-AUDIT-2026-05-29). Added Set-Cookie parse constraint to AC-009 (cookie name `cyberint_session` not `access_token` for DTU demo path). Cross-poller audit surfaced Gap-CS-001/CL-002/CL-003/CL-004/CL-005; TOML fixes applied to crowdstrike.sensor.toml and claroty.sensor.toml in same burst. |
