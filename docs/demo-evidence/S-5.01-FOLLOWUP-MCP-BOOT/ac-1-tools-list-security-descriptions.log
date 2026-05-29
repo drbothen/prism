@@ -1,0 +1,78 @@
+warning: unreachable statement
+   --> crates/prism-spec-engine/src/plugin/mod.rs:719:13
+    |
+708 | /             panic!(
+709 | |                 "core_module path is test-only; production plugins MUST be Component Model. \
+710 | |                  Reaching this branch in a production binary (without test-helpers feature) \
+711 | |                  indicates either: \
+...   |
+714 | |                  test infrastructure. F-LP8-LOW-001 + F-LP9-HIGH-001 closure."
+715 | |             );
+    | |_____________- any code following this expression is unreachable
+...
+719 | /             self.call_core_export(
+720 | |                 plugin_id,
+721 | |                 core_mod,
+722 | |                 "acquire-token",
+723 | |                 DEFAULT_MEMORY_LIMIT_MB,
+724 | |                 DEFAULT_TIMEOUT_SECONDS,
+725 | |             )?;
+    | |_______________^ unreachable statement
+    |
+    = note: `#[warn(unreachable_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `core_mod`
+   --> crates/prism-spec-engine/src/plugin/mod.rs:692:21
+    |
+692 |         if let Some(ref core_mod) = plugin.core_module {
+    |                     ^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_core_mod`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: `prism-spec-engine` (lib) generated 2 warnings (run `cargo fix --lib -p prism-spec-engine` to apply 1 suggestion)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.39s
+────────────
+ Nextest run ID f2be71be-a9ea-402c-ac77-4434b9644cf8 with nextest profile: default
+    Starting 5 tests across 7 binaries (74 tests skipped)
+       START [         ] (1/5) prism-mcp::bc_2_09_006_test test_BC_2_09_006_non_sensor_tool_not_given_security_sections
+
+running 1 test
+test test_BC_2_09_006_non_sensor_tool_not_given_security_sections ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+        PASS [   0.010s] (1/5) prism-mcp::bc_2_09_006_test test_BC_2_09_006_non_sensor_tool_not_given_security_sections
+       START [         ] (2/5) prism-mcp::bc_2_09_006_test test_BC_2_09_006_registrar_appends_security_sections_to_minimal_description
+
+running 1 test
+test test_BC_2_09_006_registrar_appends_security_sections_to_minimal_description ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+        PASS [   0.008s] (2/5) prism-mcp::bc_2_09_006_test test_BC_2_09_006_registrar_appends_security_sections_to_minimal_description
+       START [         ] (3/5) prism-mcp::bc_2_09_006_test test_BC_2_09_006_registrar_security_sections_are_idempotent
+
+running 1 test
+test test_BC_2_09_006_registrar_security_sections_are_idempotent ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+        PASS [   0.008s] (3/5) prism-mcp::bc_2_09_006_test test_BC_2_09_006_registrar_security_sections_are_idempotent
+       START [         ] (4/5) prism-mcp::tool_dispatch_tests test_BC_2_09_006_all_inline_sensor_tool_descriptions_have_9_sections
+
+running 1 test
+test test_BC_2_09_006_all_inline_sensor_tool_descriptions_have_9_sections ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 24 filtered out; finished in 0.01s
+
+        PASS [   0.036s] (4/5) prism-mcp::tool_dispatch_tests test_BC_2_09_006_all_inline_sensor_tool_descriptions_have_9_sections
+       START [         ] (5/5) prism-mcp::tool_dispatch_tests test_BC_2_09_006_tool_descriptions_contain_security_warnings
+
+running 1 test
+test test_BC_2_09_006_tool_descriptions_contain_security_warnings ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 24 filtered out; finished in 0.00s
+
+        PASS [   0.028s] (5/5) prism-mcp::tool_dispatch_tests test_BC_2_09_006_tool_descriptions_contain_security_warnings
+────────────
+     Summary [   0.091s] 5 tests run: 5 passed, 74 skipped

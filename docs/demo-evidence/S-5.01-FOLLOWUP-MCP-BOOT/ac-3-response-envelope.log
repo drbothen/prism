@@ -1,0 +1,134 @@
+warning: unreachable statement
+   --> crates/prism-spec-engine/src/plugin/mod.rs:719:13
+    |
+708 | /             panic!(
+709 | |                 "core_module path is test-only; production plugins MUST be Component Model. \
+710 | |                  Reaching this branch in a production binary (without test-helpers feature) \
+711 | |                  indicates either: \
+...   |
+714 | |                  test infrastructure. F-LP8-LOW-001 + F-LP9-HIGH-001 closure."
+715 | |             );
+    | |_____________- any code following this expression is unreachable
+...
+719 | /             self.call_core_export(
+720 | |                 plugin_id,
+721 | |                 core_mod,
+722 | |                 "acquire-token",
+723 | |                 DEFAULT_MEMORY_LIMIT_MB,
+724 | |                 DEFAULT_TIMEOUT_SECONDS,
+725 | |             )?;
+    | |_______________^ unreachable statement
+    |
+    = note: `#[warn(unreachable_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `core_mod`
+   --> crates/prism-spec-engine/src/plugin/mod.rs:692:21
+    |
+692 |         if let Some(ref core_mod) = plugin.core_module {
+    |                     ^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_core_mod`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: `prism-spec-engine` (lib) generated 2 warnings (run `cargo fix --lib -p prism-spec-engine` to apply 1 suggestion)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.42s
+────────────
+ Nextest run ID 1a6e74f1-4ed2-44c7-bb3c-21dd6cdc2976 with nextest profile: default
+    Starting 12 tests across 7 binaries (67 tests skipped)
+       START [         ] ( 1/12) prism-mcp::bc_2_09_008_test test_BC_2_09_008_cross_client_query_data_source_is_array
+
+running 1 test
+test test_BC_2_09_008_cross_client_query_data_source_is_array ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 0.01s
+
+        PASS [   0.041s] ( 1/12) prism-mcp::bc_2_09_008_test test_BC_2_09_008_cross_client_query_data_source_is_array
+       START [         ] ( 2/12) prism-mcp::bc_2_09_008_test test_BC_2_09_008_envelope_has_meta_and_results_fields
+
+running 1 test
+test test_BC_2_09_008_envelope_has_meta_and_results_fields ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 0.02s
+
+        PASS [   0.041s] ( 2/12) prism-mcp::bc_2_09_008_test test_BC_2_09_008_envelope_has_meta_and_results_fields
+       START [         ] ( 3/12) prism-mcp::bc_2_09_008_test test_BC_2_09_008_envelope_trust_level_is_untrusted_external
+
+running 1 test
+test test_BC_2_09_008_envelope_trust_level_is_untrusted_external ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 0.01s
+
+        PASS [   0.043s] ( 3/12) prism-mcp::bc_2_09_008_test test_BC_2_09_008_envelope_trust_level_is_untrusted_external
+       START [         ] ( 4/12) prism-mcp::bc_2_09_008_test test_BC_2_09_008_invariant_meta_and_results_are_typed_separately
+
+running 1 test
+test test_BC_2_09_008_invariant_meta_and_results_are_typed_separately ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 0.01s
+
+        PASS [   0.042s] ( 4/12) prism-mcp::bc_2_09_008_test test_BC_2_09_008_invariant_meta_and_results_are_typed_separately
+       START [         ] ( 5/12) prism-mcp::bc_2_09_008_test test_BC_2_09_008_meta_data_source_identifies_sensor
+
+running 1 test
+test test_BC_2_09_008_meta_data_source_identifies_sensor ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 0.02s
+
+        PASS [   0.043s] ( 5/12) prism-mcp::bc_2_09_008_test test_BC_2_09_008_meta_data_source_identifies_sensor
+       START [         ] ( 6/12) prism-mcp::bc_2_09_008_test test_BC_2_09_008_meta_query_time_is_present
+
+running 1 test
+test test_BC_2_09_008_meta_query_time_is_present ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 0.01s
+
+        PASS [   0.046s] ( 6/12) prism-mcp::bc_2_09_008_test test_BC_2_09_008_meta_query_time_is_present
+       START [         ] ( 7/12) prism-mcp::bc_2_09_008_test test_BC_2_09_008_pagination_fields_present_when_paginating
+
+running 1 test
+test test_BC_2_09_008_pagination_fields_present_when_paginating ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 0.02s
+
+        PASS [   0.045s] ( 7/12) prism-mcp::bc_2_09_008_test test_BC_2_09_008_pagination_fields_present_when_paginating
+       START [         ] ( 8/12) prism-mcp::bc_2_09_008_test test_BC_2_09_008_safety_flags_always_present_in_envelope
+
+running 1 test
+test test_BC_2_09_008_safety_flags_always_present_in_envelope ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 0.02s
+
+        PASS [   0.040s] ( 8/12) prism-mcp::bc_2_09_008_test test_BC_2_09_008_safety_flags_always_present_in_envelope
+       START [         ] ( 9/12) prism-mcp::bc_2_09_008_test test_BC_2_09_008_safety_flags_empty_array_for_clean_records
+
+running 1 test
+test test_BC_2_09_008_safety_flags_empty_array_for_clean_records ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 0.01s
+
+        PASS [   0.042s] ( 9/12) prism-mcp::bc_2_09_008_test test_BC_2_09_008_safety_flags_empty_array_for_clean_records
+       START [         ] (10/12) prism-mcp::bc_2_09_008_test test_BC_2_09_008_zero_results_envelope_still_present
+
+running 1 test
+test test_BC_2_09_008_zero_results_envelope_still_present ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 0.01s
+
+        PASS [   0.041s] (10/12) prism-mcp::bc_2_09_008_test test_BC_2_09_008_zero_results_envelope_still_present
+       START [         ] (11/12) prism-mcp::tool_dispatch_tests test_BC_2_09_008_response_envelope_safety_flags_populated_on_injection
+
+running 1 test
+test test_BC_2_09_008_response_envelope_safety_flags_populated_on_injection ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 24 filtered out; finished in 0.01s
+
+        PASS [   0.042s] (11/12) prism-mcp::tool_dispatch_tests test_BC_2_09_008_response_envelope_safety_flags_populated_on_injection
+       START [         ] (12/12) prism-mcp::tool_dispatch_tests test_BC_2_09_008_response_envelope_wrapping_with_trust_metadata
+
+running 1 test
+test test_BC_2_09_008_response_envelope_wrapping_with_trust_metadata ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 24 filtered out; finished in 0.02s
+
+        PASS [   0.042s] (12/12) prism-mcp::tool_dispatch_tests test_BC_2_09_008_response_envelope_wrapping_with_trust_metadata
+────────────
+     Summary [   0.507s] 12 tests run: 12 passed, 67 skipped
