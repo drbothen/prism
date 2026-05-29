@@ -83,23 +83,6 @@ impl ToolDescriptionRegistrar {
         }
     }
 
-    /// Returns `true` if every registered sensor tool description contains the
-    /// required 9-section template (BC-2.09.006 postcondition 1).
-    ///
-    /// Note: this method is stateless (no registry state stored); it is provided
-    /// for BC compliance verification at the call site.
-    pub fn all_sensor_tools_have_required_sections(&self) -> bool {
-        // Stateless registrar — call site verifies per-tool
-        true
-    }
-
-    /// Returns `true` if every registered tool has an `outputSchema` that includes
-    /// `_meta.safety_flags` as a typed array (BC-2.09.007 postcondition 4).
-    pub fn all_tools_have_valid_output_schema(&self) -> bool {
-        // Stateless registrar — call site verifies per-tool
-        true
-    }
-
     /// Returns the default content for a missing section.
     fn default_section_content(section: &str) -> String {
         match section {

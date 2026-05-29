@@ -848,12 +848,9 @@ fn test_BC_2_04_009_bounding_metadata_round_trip_passes_phase2_check() {
     });
 
     // Generate with bounding: has_where_clause = true (the plan was bounded).
-    let bounding = BoundingMetadata {
-        has_where_clause: true,
-        has_explicit_limit: false,
-        explicit_limit: None,
-        dml_operation: None,
-    };
+    // #[non_exhaustive]: use BoundingMetadata::new() — struct literal syntax
+    // is prohibited from external crates (F-PR163-IMP-1).
+    let bounding = BoundingMetadata::new(true, false, None, None);
     let token = store
         .generate_with_bounding(
             client_id,
@@ -1026,12 +1023,14 @@ fn test_BC_2_04_009_dml_operation_round_trip_preserves_delete_irreversible() {
     });
 
     // OBS-1: dml_operation = Some(Delete) must be stored in the token.
-    let bounding = BoundingMetadata {
-        has_where_clause: true,
-        has_explicit_limit: true,
-        explicit_limit: Some(1),
-        dml_operation: Some(prism_security::BoundingDmlOperation::Delete),
-    };
+    // #[non_exhaustive]: use BoundingMetadata::new() — struct literal syntax
+    // is prohibited from external crates (F-PR163-IMP-1).
+    let bounding = BoundingMetadata::new(
+        true,
+        true,
+        Some(1),
+        Some(prism_security::BoundingDmlOperation::Delete),
+    );
 
     let token = store
         .generate_with_bounding(

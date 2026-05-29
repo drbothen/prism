@@ -92,6 +92,11 @@ pub struct PrismServer {
     ///
     /// Enables: create_alias, list_aliases, delete_alias, explain_alias.
     alias_store: Option<Arc<Mutex<AliasStore>>>,
+    /// OrgRegistry — allowlist of registered client slugs for alias CRUD capability gate.
+    ///
+    /// IMP-8: wired at boot step 9 via list_slugs(); alias handlers call
+    /// valid_client_ids() to build the allowlist before passing it to alias_tools.
+    org_registry: Option<Arc<prism_core::OrgRegistry>>,
 }
 
 impl PrismServer {
@@ -112,6 +117,7 @@ impl PrismServer {
             config_manager: None,
             spec_dir: None,
             alias_store: None,
+            org_registry: None,
         }
     }
 
@@ -129,6 +135,7 @@ impl PrismServer {
     /// - `config_manager` — ConfigManager for config tools (reload, list, validate, add spec)
     /// - `spec_dir` — Spec directory path for reload_config and add_sensor_spec
     /// - `alias_store` — AliasStore for alias CRUD tools
+    /// - `org_registry` — OrgRegistry for alias CRUD allowlist validation (IMP-8)
     pub fn with_deps(
         injection_scanner: Arc<InjectionScanner>,
         query_engine: Arc<QueryEngine>,
@@ -137,6 +144,7 @@ impl PrismServer {
         config_manager: Arc<arc_swap::ArcSwap<prism_spec_engine::config_manager::ConfigManager>>,
         spec_dir: PathBuf,
         alias_store: Arc<Mutex<AliasStore>>,
+        org_registry: Arc<prism_core::OrgRegistry>,
     ) -> Self {
         Self {
             injection_scanner,
@@ -146,7 +154,24 @@ impl PrismServer {
             config_manager: Some(config_manager),
             spec_dir: Some(spec_dir),
             alias_store: Some(alias_store),
+            org_registry: Some(org_registry),
         }
+    }
+
+    /// Return valid client IDs from the wired OrgRegistry.
+    ///
+    /// IMP-8: alias CRUD handlers pass this allowlist to alias_tools so that
+    /// `create_alias_with_clients_gated` / `delete_alias_gated` / `list_aliases`
+    /// can enforce per-client allowlist validation.
+    ///
+    /// Returns an empty Vec when `org_registry` is not wired (test construction
+    /// via `new()`).  In production the OrgRegistry is always populated at boot
+    /// step 8 before step 9 calls `with_deps()`.
+    fn valid_client_ids(&self) -> Vec<String> {
+        self.org_registry
+            .as_ref()
+            .map(|reg| reg.list_slugs())
+            .unwrap_or_default()
     }
 
     /// Start the MCP server on stdio transport (BC-2.10.006).
@@ -996,6 +1021,69 @@ fn validate_id_field(field_name: &str, value: &str) -> Result<(), rmcp::model::E
     Ok(())
 }
 
+/// Validate a free-text field against a maximum byte length.
+///
+/// F-PR163-IMP-7 / SEC-001: all free-text fields (query, TOML content, description,
+/// name, cron expressions, JSON array contents) must be length-bounded before use
+/// to prevent DoS via unbounded memory allocation.
+///
+/// Returns `Err(ErrorData)` with INVALID_PARAMS code if `value.len() > max_bytes`.
+fn validate_text_field(
+    field_name: &str,
+    value: &str,
+    max_bytes: usize,
+) -> Result<(), rmcp::model::ErrorData> {
+    if value.len() > max_bytes {
+        return Err(rmcp::model::ErrorData::new(
+            rmcp::model::ErrorCode(codes::INVALID_PARAMS),
+            format!(
+                "Invalid {field_name}: length {} bytes exceeds maximum {max_bytes} bytes \
+                 (F-PR163-IMP-7/SEC-001)",
+                value.len()
+            ),
+            None,
+        ));
+    }
+    Ok(())
+}
+
+/// Validate a JSON array field: cap Vec length and validate each string element.
+///
+/// F-PR163-IMP-7 / SEC-001: JSON array inputs (e.g., `aliases`, `queries`) must
+/// have bounded length and each element must be a bounded string.
+fn validate_string_vec_field(
+    field_name: &str,
+    values: &[String],
+    max_items: usize,
+    max_item_bytes: usize,
+) -> Result<(), rmcp::model::ErrorData> {
+    if values.len() > max_items {
+        return Err(rmcp::model::ErrorData::new(
+            rmcp::model::ErrorCode(codes::INVALID_PARAMS),
+            format!(
+                "Invalid {field_name}: array length {} exceeds maximum {max_items} items \
+                 (F-PR163-IMP-7/SEC-001)",
+                values.len()
+            ),
+            None,
+        ));
+    }
+    for (i, item) in values.iter().enumerate() {
+        if item.len() > max_item_bytes {
+            return Err(rmcp::model::ErrorData::new(
+                rmcp::model::ErrorCode(codes::INVALID_PARAMS),
+                format!(
+                    "Invalid {field_name}[{i}]: length {} bytes exceeds maximum {max_item_bytes} \
+                     bytes (F-PR163-IMP-7/SEC-001)",
+                    item.len()
+                ),
+                None,
+            ));
+        }
+    }
+    Ok(())
+}
+
 /// Return a structured "not yet available" error for prism-operations tools.
 ///
 /// HIGH-008 / MED-001: uses `codes::NOT_IMPLEMENTED` (-32003) consistently.
@@ -1076,8 +1164,12 @@ impl PrismServer {
         Parameters(params): Parameters<QueryToolParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
         // BC-2.09.001 — NON-NEGOTIABLE: injection scan BEFORE any domain logic.
+        // F-PR163-IMP-7/SEC-001: bound PrismQL query length (64 KiB).
+        validate_text_field("query", params.query.as_str(), 64 * 1024)?;
         let mut inputs = vec![("query", params.query.as_str())];
         if let Some(ref clients) = params.clients {
+            // Cap clients array length and each element (validate_client_ids handles chars+length).
+            validate_string_vec_field("clients", clients, 100, 64)?;
             for c in clients {
                 inputs.push(("clients", c.as_str()));
             }
@@ -1204,8 +1296,11 @@ impl PrismServer {
         &self,
         Parameters(params): Parameters<ExplainQueryParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
+        // F-PR163-IMP-7/SEC-001: bound PrismQL query length (64 KiB).
+        validate_text_field("query", params.query.as_str(), 64 * 1024)?;
         let mut inputs = vec![("query", params.query.as_str())];
         if let Some(ref clients) = params.clients {
+            validate_string_vec_field("clients", clients, 100, 64)?;
             for c in clients {
                 inputs.push(("clients", c.as_str()));
             }
@@ -1320,6 +1415,12 @@ impl PrismServer {
         &self,
         Parameters(params): Parameters<CreateAliasParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
+        // F-PR163-IMP-7/SEC-001: bound free-text fields.
+        validate_text_field("name", params.name.as_str(), 256)?;
+        validate_text_field("query", params.query.as_str(), 64 * 1024)?;
+        if let Some(ref desc) = params.description {
+            validate_text_field("description", desc.as_str(), 4 * 1024)?;
+        }
         let mut inputs = vec![
             ("name", params.name.as_str()),
             ("query", params.query.as_str()),
@@ -1360,27 +1461,40 @@ impl PrismServer {
             token_id: None,
         };
         let ocsf_reserved = std::collections::HashSet::new();
+        // IMP-8: build valid_client_ids from OrgRegistry allowlist.
+        let valid_ids = self.valid_client_ids();
+        // IMP-8: wire capability gate via WriteExecutor.feature_flags() + alias_write_compile_gate.
+        let capability_gate_arc = self
+            .write_executor
+            .as_ref()
+            .map(|we| Arc::clone(we.feature_flags()));
+        let capability_gate = capability_gate_arc.as_deref().map(|ff| {
+            (
+                ff,
+                prism_query::alias_capability::alias_write_compile_gate(),
+            )
+        });
         // Use the confirmation store from WriteExecutor for the two-step alias update gate.
+        // SUG-4: require WriteExecutor for the ConfirmationTokenStore — a fresh store
+        // would silently discard any existing tokens (two-step gate would break).
         let token_store_arc = self
             .write_executor
             .as_ref()
-            .map(|we| Arc::clone(we.confirmation_store()));
-        let token_store_owned;
-        let token_store: &prism_security::confirmation_token::ConfirmationTokenStore =
-            if let Some(ts) = &token_store_arc {
-                ts
-            } else {
-                token_store_owned =
-                    prism_security::confirmation_token::ConfirmationTokenStore::new();
-                &token_store_owned
-            };
+            .map(|we| Arc::clone(we.confirmation_store()))
+            .ok_or_else(|| {
+                to_error_data(PrismError::Internal {
+                    detail: "create_alias: WriteExecutor not wired — ConfirmationTokenStore \
+                             unavailable (boot step 9 incomplete)"
+                        .to_owned(),
+                })
+            })?;
         let result = prism_query::alias_tools::create_alias_with_clients_gated(
             input,
             &mut store,
             &ocsf_reserved,
-            &[], // valid_client_ids: empty — client validation deferred to S-MULTI-TENANT-002
-            None,
-            token_store,
+            &valid_ids,
+            capability_gate,
+            &token_store_arc,
         )
         .map_err(to_error_data)?;
         let envelope = SafetyEnvelopeBuilder::wrap(
@@ -1452,8 +1566,10 @@ impl PrismServer {
         let input = prism_query::alias_tools::ListAliasesInput {
             scope: params.client_id.map(|cid| format!("client:{cid}")),
         };
-        let result =
-            prism_query::alias_tools::list_aliases(input, &store, &[]).map_err(to_error_data)?;
+        // IMP-8: pass valid_client_ids from OrgRegistry allowlist.
+        let valid_ids = self.valid_client_ids();
+        let result = prism_query::alias_tools::list_aliases(input, &store, &valid_ids)
+            .map_err(to_error_data)?;
         let envelope = SafetyEnvelopeBuilder::wrap(
             "list_aliases",
             DataSource::Multiple(vec![]),
@@ -1493,6 +1609,8 @@ impl PrismServer {
         &self,
         Parameters(params): Parameters<DeleteAliasParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
+        // IMP-7/SEC-001: bound name before injection scanning (256-byte cap for alias names).
+        validate_text_field("name", params.name.as_str(), 256)?;
         let mut inputs = vec![("name", params.name.as_str())];
         if let Some(ref scope) = params.scope {
             inputs.push(("scope", scope.as_str()));
@@ -1524,22 +1642,39 @@ impl PrismServer {
             force: false,
             token_id: None,
         };
+        // IMP-8: build valid_client_ids and capability gate from wired dependencies.
+        let valid_ids = self.valid_client_ids();
+        let capability_gate_arc = self
+            .write_executor
+            .as_ref()
+            .map(|we| Arc::clone(we.feature_flags()));
+        let capability_gate = capability_gate_arc.as_deref().map(|ff| {
+            (
+                ff,
+                prism_query::alias_capability::alias_write_compile_gate(),
+            )
+        });
+        // SUG-4: require WriteExecutor for the ConfirmationTokenStore — a fresh store
+        // would silently discard any existing tokens (two-step gate would break).
         let token_store_arc = self
             .write_executor
             .as_ref()
-            .map(|we| Arc::clone(we.confirmation_store()));
-        let token_store_owned;
-        let token_store: &prism_security::confirmation_token::ConfirmationTokenStore =
-            if let Some(ts) = &token_store_arc {
-                ts
-            } else {
-                token_store_owned =
-                    prism_security::confirmation_token::ConfirmationTokenStore::new();
-                &token_store_owned
-            };
-        let result =
-            prism_query::alias_tools::delete_alias_gated(input, &mut store, token_store, &[], None)
-                .map_err(to_error_data)?;
+            .map(|we| Arc::clone(we.confirmation_store()))
+            .ok_or_else(|| {
+                to_error_data(PrismError::Internal {
+                    detail: "delete_alias: WriteExecutor not wired — ConfirmationTokenStore \
+                             unavailable (boot step 9 incomplete)"
+                        .to_owned(),
+                })
+            })?;
+        let result = prism_query::alias_tools::delete_alias_gated(
+            input,
+            &mut store,
+            &token_store_arc,
+            &valid_ids,
+            capability_gate,
+        )
+        .map_err(to_error_data)?;
         let envelope = SafetyEnvelopeBuilder::wrap(
             "delete_alias",
             DataSource::Multiple(vec![]),
@@ -1655,6 +1790,9 @@ impl PrismServer {
         &self,
         Parameters(params): Parameters<ConfirmActionParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
+        // IMP-9: token is an ID field — bound it to 256 bytes before injection scanning.
+        // This prevents oversized token strings from reaching the token store lookup.
+        validate_id_field("token", params.token.as_str())?;
         scan_inputs(
             &self.injection_scanner,
             &[
@@ -1916,12 +2054,24 @@ impl PrismServer {
                     token_id: Some(params.token.clone()),
                 };
                 let ocsf_reserved = std::collections::HashSet::new();
+                // IMP-8: pass valid_client_ids and capability gate on confirm_action alias path.
+                let valid_ids = self.valid_client_ids();
+                let confirm_alias_gate_arc = self
+                    .write_executor
+                    .as_ref()
+                    .map(|we| Arc::clone(we.feature_flags()));
+                let confirm_alias_gate = confirm_alias_gate_arc.as_deref().map(|ff| {
+                    (
+                        ff,
+                        prism_query::alias_capability::alias_write_compile_gate(),
+                    )
+                });
                 prism_query::alias_tools::create_alias_with_clients_gated(
                     input,
                     &mut store,
                     &ocsf_reserved,
-                    &[],
-                    None,
+                    &valid_ids,
+                    confirm_alias_gate,
                     token_store,
                 )
                 .map_err(to_error_data)?
@@ -1994,12 +2144,24 @@ impl PrismServer {
                     // Pass the token_id so delete_alias_gated consumes it.
                     token_id: Some(params.token.clone()),
                 };
+                // IMP-8: pass valid_client_ids and capability gate on confirm_action delete path.
+                let valid_ids = self.valid_client_ids();
+                let confirm_delete_gate_arc = self
+                    .write_executor
+                    .as_ref()
+                    .map(|we| Arc::clone(we.feature_flags()));
+                let confirm_delete_gate = confirm_delete_gate_arc.as_deref().map(|ff| {
+                    (
+                        ff,
+                        prism_query::alias_capability::alias_write_compile_gate(),
+                    )
+                });
                 prism_query::alias_tools::delete_alias_gated(
                     input,
                     &mut store,
                     token_store,
-                    &[],
-                    None,
+                    &valid_ids,
+                    confirm_delete_gate,
                 )
                 .map_err(to_error_data)?
             }
@@ -2013,21 +2175,23 @@ impl PrismServer {
         };
 
         // F-PASS12-HIGH-2 / F-PASS14-HIGH-2: DataSource must carry sensor identity, not
-        // client identity. For write tokens, extract the sensor from action_params using the
-        // same pattern as the write match arm above — return Internal if the field is missing
-        // (same production-grade pattern as the write arm's sensor_val extraction).
+        // client identity. For write tokens, reuse sensor_val already extracted in the write
+        // match arm above — avoids duplicate action_params lookup (SUG-2 fix).
         // For alias tokens (create_alias, delete_alias), no sensor is accessed —
         // use DataSource::Multiple(vec![]) which is correct for internal-registry operations.
         let datasource = if stored_token.tool_name.starts_with("write.") {
-            // write tokens must have "sensor" in action_params — missing field = corruption.
+            // sensor_val was already extracted and validated in the write match arm above.
+            // Re-extract here because sensor_val moved into WritePlan.sensor; re-lookup
+            // is unavoidable but is the same field — action_params is immutable.
             let sensor_for_envelope = stored_token
                 .action_params
                 .get("sensor")
                 .and_then(|v| v.as_str())
                 .ok_or_else(|| {
                     to_error_data(PrismError::Internal {
-                        detail: "confirm_action: token action_params missing required field \
-                                 'sensor' for envelope construction — token may be corrupted"
+                        detail: "confirm_action: token action_params missing 'sensor' for \
+                                 envelope DataSource — token corrupted after write arm succeeded \
+                                 (should be unreachable: write arm already validated this field)"
                             .to_owned(),
                     })
                 })?
@@ -2085,12 +2249,12 @@ impl PrismServer {
         );
 
         // CRIT-4 fix: sensor health check requires live adapter pings (GAP-002-A).
-        // AdapterRegistry is currently empty — sensor adapters are dispatched via WASM plugins
-        // (PluginAuthProvider / GAP-002-A deferred to S-3.02-FOLLOWUP-RUNTIME).
+        // AdapterRegistry is intentionally empty — all sensor auth routes through WASM
+        // PluginAuthProvider (ADR-028 §D10). Direct adapter fan-out wires in S-5.04.
         // Return a structured not-yet-available response rather than Internal (which implies
         // a wiring defect — this is a known architectural gap, not a missing dependency).
         Err(not_yet_available_msg(
-            "sensor health — adapter registry empty (GAP-002-A deferred to S-3.02-FOLLOWUP-RUNTIME)",
+            "sensor health — adapter registry empty (GAP-002-A; full sensor adapter dispatch wires in S-5.04-SENSOR-HEALTH-ADAPTER-DISPATCH)",
         ))
     }
 
@@ -2128,10 +2292,11 @@ impl PrismServer {
         );
 
         // CRIT-4 fix: sensor diagnostics require live adapter queries (GAP-002-A).
-        // AdapterRegistry is currently empty — return a structured not-yet-available
-        // response rather than Internal (architectural gap, not a wiring defect).
+        // AdapterRegistry is intentionally empty — all sensor auth routes through WASM
+        // PluginAuthProvider (ADR-028 §D10). Direct adapter wiring is in S-5.04.
+        // Return a structured not-yet-available response rather than Internal (architectural gap, not a wiring defect).
         Err(not_yet_available_msg(
-            "sensor diagnostics — adapter registry empty (GAP-002-A deferred to S-3.02-FOLLOWUP-RUNTIME)",
+            "sensor diagnostics — adapter registry empty (GAP-002-A; full sensor adapter dispatch wires in S-5.04-SENSOR-HEALTH-ADAPTER-DISPATCH)",
         ))
     }
 
@@ -2230,6 +2395,10 @@ impl PrismServer {
         &self,
         Parameters(params): Parameters<AddSensorSpecParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
+        // IMP-7/SEC-001: bound free-text fields before injection scanning.
+        // name: 256 bytes (sensor spec file name); toml_content: 256 KiB (sensor TOML).
+        validate_text_field("name", params.name.as_str(), 256)?;
+        validate_text_field("toml_content", params.toml_content.as_str(), 256 * 1024)?;
         scan_inputs(
             &self.injection_scanner,
             &[
@@ -2428,6 +2597,8 @@ impl PrismServer {
         &self,
         Parameters(params): Parameters<ValidateConfigParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
+        // IMP-7/SEC-001: bound toml_content before injection scanning (256 KiB cap).
+        validate_text_field("toml_content", params.toml_content.as_str(), 256 * 1024)?;
         scan_inputs(
             &self.injection_scanner,
             &[("toml_content", params.toml_content.as_str())],
@@ -2603,6 +2774,9 @@ impl PrismServer {
         &self,
         Parameters(params): Parameters<CreateScheduleParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
+        // IMP-7/SEC-001: bound free-text fields before injection scanning.
+        validate_text_field("query", params.query.as_str(), 64 * 1024)?;
+        validate_text_field("cron", params.cron.as_str(), 256)?;
         let mut inputs = vec![
             ("query", params.query.as_str()),
             ("cron", params.cron.as_str()),
@@ -2738,6 +2912,9 @@ impl PrismServer {
         &self,
         Parameters(params): Parameters<CreateRuleParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
+        // IMP-7/SEC-001: bound free-text fields before injection scanning.
+        validate_text_field("name", params.name.as_str(), 256)?;
+        validate_text_field("query", params.query.as_str(), 64 * 1024)?;
         let mut inputs = vec![
             ("name", params.name.as_str()),
             ("query", params.query.as_str()),
@@ -2824,6 +3001,11 @@ impl PrismServer {
         &self,
         Parameters(params): Parameters<CreateCaseParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
+        // IMP-7/SEC-001: bound free-text fields before injection scanning.
+        validate_text_field("title", params.title.as_str(), 4 * 1024)?;
+        if let Some(ref desc) = params.description {
+            validate_text_field("description", desc.as_str(), 4 * 1024)?;
+        }
         let mut inputs = vec![("title", params.title.as_str())];
         if let Some(ref desc) = params.description {
             inputs.push(("description", desc.as_str()));
@@ -2912,6 +3094,13 @@ impl PrismServer {
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
         // F-PASS16-MED-1: id field must be length-bounded before use (256-char cap).
         validate_id_field("id", params.id.as_str())?;
+        // IMP-7/SEC-001: bound free-text fields before injection scanning.
+        if let Some(ref title) = params.title {
+            validate_text_field("title", title.as_str(), 4 * 1024)?;
+        }
+        if let Some(ref desc) = params.description {
+            validate_text_field("description", desc.as_str(), 4 * 1024)?;
+        }
         let mut inputs = vec![("id", params.id.as_str())];
         if let Some(ref title) = params.title {
             inputs.push(("title", title.as_str()));
@@ -3965,6 +4154,22 @@ impl ServerHandler for PrismServer {
     }
 }
 
+/// Public accessor for the production tool catalog.
+///
+/// IMP-5: exposes `tool_router().list_all()` for testing via the bc_2_09_006_test.rs
+/// live catalog verification test. The underlying `tool_router()` method is private
+/// (generated by `#[tool_router]`); this wrapper makes the catalog accessible to
+/// external test crates without exposing the mutable router internals.
+impl PrismServer {
+    /// Return all tools registered in the production MCP tool catalog.
+    ///
+    /// Used exclusively by tests (bc_2_09_006 live catalog verification, IMP-5).
+    /// Production code accesses tools through the `ServerHandler::list_tools` RPC method.
+    pub fn production_tool_catalog() -> Vec<rmcp::model::Tool> {
+        Self::tool_router().list_all()
+    }
+}
+
 // ─── Unit tests ───────────────────────────────────────────────────────────────
 
 #[cfg(test)]
@@ -4197,12 +4402,9 @@ mod tests {
                 "write.test_verb",
                 action_params,
                 "test action",
-                BoundingMetadata {
-                    has_where_clause: true,
-                    has_explicit_limit: false,
-                    explicit_limit: None,
-                    dml_operation: None,
-                },
+                // #[non_exhaustive]: use BoundingMetadata::new() — struct literal syntax
+                // is prohibited from external crates (F-PR163-IMP-1).
+                BoundingMetadata::new(true, false, None, None),
             )
             .expect("token generation must succeed");
 
@@ -4225,6 +4427,7 @@ mod tests {
             config_manager: None,
             spec_dir: None,
             alias_store: None,
+            org_registry: None,
         };
 
         // Call confirm_action with the pre-stored token and matching client_id.
@@ -4491,6 +4694,7 @@ mod tests {
             config_manager: None,
             spec_dir: None,
             alias_store: None,
+            org_registry: None,
         };
         // 257 'p' chars — 1 over the 256-char limit.
         let oversized_pack_id = "p".repeat(257);
@@ -4595,6 +4799,7 @@ mod tests {
             config_manager: None,
             spec_dir: None,
             alias_store: Some(alias_store),
+            org_registry: None,
         };
 
         let params = ConfirmActionParams {
@@ -5268,6 +5473,7 @@ mod tests {
             config_manager: None,
             spec_dir: None,
             alias_store: None,
+            org_registry: None,
         };
         // 257 chars — 1 over the 256-char cap.
         let oversized_id = "r".repeat(257);
@@ -5297,6 +5503,7 @@ mod tests {
             config_manager: None,
             spec_dir: None,
             alias_store: None,
+            org_registry: None,
         };
         // 257 chars — 1 over the 256-char cap.
         let oversized_id = "c".repeat(257);
@@ -5325,6 +5532,7 @@ mod tests {
             config_manager: None,
             spec_dir: None,
             alias_store: None,
+            org_registry: None,
         };
         // 257 chars — 1 over the 256-char cap.
         let oversized_id = "u".repeat(257);
@@ -5408,6 +5616,7 @@ mod tests {
             config_manager: None,
             spec_dir: None,
             alias_store: Some(alias_store),
+            org_registry: None,
         };
 
         (server, confirmation_store)
@@ -5564,6 +5773,117 @@ mod tests {
             err.message.contains("Internal error") || err.message.contains("audit log"),
             "error message must indicate an internal error; got: '{}'",
             err.message
+        );
+    }
+
+    // ─── F-PR163-IMP-8 — OrgRegistry → alias CRUD allowlist ─────────────────
+
+    /// IMP-8: create_alias fails with INTERNAL_ERROR when WriteExecutor is not wired
+    /// (SUG-4 fix: ConfirmationTokenStore unavailable returns Err, not silent fallback).
+    ///
+    /// LOAD-BEARING: if the SUG-4 ok_or_else is removed and the silent ConfirmationTokenStore::new()
+    /// fallback is restored, create_alias would proceed and return Ok (or AliasNotFound),
+    /// not INTERNAL_ERROR — this assertion would fail.
+    #[tokio::test]
+    async fn test_F_PR163_IMP_8_create_alias_requires_write_executor() {
+        use prism_query::alias_store::AliasStore;
+
+        let alias_store = Arc::new(Mutex::new(AliasStore::empty(std::path::Path::new(
+            "/tmp/prism-test-imp8-create-alias",
+        ))));
+        // Deliberately omit write_executor (None) — SUG-4 fix must return INTERNAL_ERROR.
+        let server = PrismServer {
+            injection_scanner: Arc::new(InjectionScanner),
+            query_engine: None,
+            write_executor: None, // deliberately absent
+            audit_writer: None,
+            config_manager: None,
+            spec_dir: None,
+            alias_store: Some(alias_store),
+            org_registry: None,
+        };
+
+        let params = CreateAliasParams {
+            name: "test-alias".to_owned(),
+            query: "SELECT * FROM crowdstrike.devices".to_owned(),
+            description: None,
+            scope: None,
+        };
+        let result = server.create_alias(Parameters(params)).await;
+        let err = result.expect_err(
+            "IMP-8/SUG-4: create_alias without write_executor must return INTERNAL_ERROR; \
+             if SUG-4 ok_or_else is removed, this returns Ok",
+        );
+        assert_eq!(
+            err.code.0,
+            codes::INTERNAL_ERROR,
+            "IMP-8/SUG-4: missing WriteExecutor must return INTERNAL_ERROR (-32000); \
+             got code {}",
+            err.code.0
+        );
+    }
+
+    /// IMP-8: delete_alias fails with INTERNAL_ERROR when WriteExecutor is not wired
+    /// (SUG-4 fix: ConfirmationTokenStore unavailable returns Err, not silent fallback).
+    ///
+    /// LOAD-BEARING: if the SUG-4 ok_or_else is removed, delete_alias proceeds with
+    /// a fresh store and returns Ok or a different error — INTERNAL_ERROR assertion fails.
+    #[tokio::test]
+    async fn test_F_PR163_IMP_8_delete_alias_requires_write_executor() {
+        use prism_query::alias_store::AliasStore;
+
+        let alias_store = Arc::new(Mutex::new(AliasStore::empty(std::path::Path::new(
+            "/tmp/prism-test-imp8-delete-alias",
+        ))));
+        let server = PrismServer {
+            injection_scanner: Arc::new(InjectionScanner),
+            query_engine: None,
+            write_executor: None, // deliberately absent
+            audit_writer: None,
+            config_manager: None,
+            spec_dir: None,
+            alias_store: Some(alias_store),
+            org_registry: None,
+        };
+
+        let params = DeleteAliasParams {
+            name: "test-alias".to_owned(),
+            scope: None,
+        };
+        let result = server.delete_alias(Parameters(params)).await;
+        let err = result.expect_err(
+            "IMP-8/SUG-4: delete_alias without write_executor must return INTERNAL_ERROR; \
+             if SUG-4 ok_or_else is removed, this returns Ok or different error",
+        );
+        assert_eq!(
+            err.code.0,
+            codes::INTERNAL_ERROR,
+            "IMP-8/SUG-4: missing WriteExecutor must return INTERNAL_ERROR (-32000); \
+             got code {}",
+            err.code.0
+        );
+    }
+
+    /// IMP-9: confirm_action rejects token longer than 256 bytes with INVALID_PARAMS.
+    ///
+    /// LOAD-BEARING: if validate_id_field("token", params.token.as_str())? is removed
+    /// from confirm_action, an oversized token reaches token_store.peek() which returns
+    /// NotFound (or Internal), NOT INVALID_PARAMS. The assertion on INVALID_PARAMS fails.
+    #[tokio::test]
+    async fn test_F_PR163_IMP_9_confirm_action_token_length_bounded() {
+        let server = PrismServer::new();
+        let oversized_token = "t".repeat(257);
+        let params = ConfirmActionParams {
+            token: oversized_token,
+            client_id: "valid-client".to_owned(),
+        };
+        let result = server.confirm_action(Parameters(params)).await;
+        let err = result.expect_err("IMP-9: confirm_action must return Err for a 257-char token");
+        assert_eq!(
+            err.code.0,
+            codes::INVALID_PARAMS,
+            "IMP-9: oversized token must return INVALID_PARAMS (-32602); \
+             if validate_id_field('token', ...) is removed, returns different code"
         );
     }
 }

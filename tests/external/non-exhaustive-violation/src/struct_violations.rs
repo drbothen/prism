@@ -475,11 +475,13 @@ pub fn v41_safety_flag_schema() {
 /// External callers use only for outputSchema generation (read-only).
 ///
 /// Added: S-5.01-FOLLOWUP-MCP-BOOT.
+/// IMP-10: data_source field updated from serde_json::Value to DataSource.
 #[allow(dead_code)]
 pub fn v42_meta_envelope_schema_type() {
+    use prism_mcp::safety_envelope::DataSource;
     let _meta = MetaEnvelopeSchemaType {
         tool: "query".to_string(),
-        data_source: serde_json::json!("crowdstrike"),
+        data_source: DataSource::Single("crowdstrike".to_string()),
         query_time: "2026-01-01T00:00:00Z".to_string(),
         trust_level: "untrusted_external".to_string(),
         safety_flags: vec![],
@@ -507,6 +509,27 @@ pub fn v43_response_envelope_schema() {
         structured_content: serde_json::json!({}),
     };
     let _ = _schema;
+}
+
+/// Violation 47: prism_security::confirmation_token::BoundingMetadata struct literal (E0639).
+///
+/// `BoundingMetadata` stores per-token bounding constraint signals (CRIT-1 fix,
+/// confirmation_token.rs). `#[non_exhaustive]` ensures external crates cannot
+/// struct-literal-construct it — future bounding fields (e.g., `row_count_estimate`,
+/// `is_time_bounded`) can be added without breaking downstream callers (F-PR163-IMP-1).
+/// External callers MUST use `BoundingMetadata::new(...)` or `BoundingMetadata::default()`.
+///
+/// Added: S-5.01-FOLLOWUP-MCP-BOOT.
+#[allow(dead_code)]
+pub fn v47_bounding_metadata() {
+    use prism_security::confirmation_token::BoundingMetadata;
+    let _meta = BoundingMetadata {
+        has_where_clause: true,
+        has_explicit_limit: false,
+        explicit_limit: None,
+        dml_operation: None,
+    };
+    let _ = _meta;
 }
 
 /// Violation 45: prism_mcp::tool_registry::ToolRegistration struct literal (E0639).

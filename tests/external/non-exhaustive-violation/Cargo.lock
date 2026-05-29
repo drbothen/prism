@@ -2935,6 +2935,7 @@ dependencies = [
  "prism-core",
  "prism-mcp",
  "prism-query",
+ "prism-security",
  "prism-spec-engine",
  "serde_json",
 ]

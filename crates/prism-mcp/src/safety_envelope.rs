@@ -55,8 +55,13 @@ pub struct ResponseMeta {
 /// Data source: single sensor or multiple sensors (cross-client query).
 ///
 /// BC-2.09.008 EC-09-019: cross-client queries report an array.
+///
+/// The `JsonSchema` derive makes this type usable in `MetaEnvelopeSchemaType` so
+/// the outputSchema's `data_source` field correctly represents
+/// `oneOf: [{"type": "string"}, {"type": "array", "items": {"type": "string"}}]`
+/// instead of untyped `serde_json::Value` (IMP-10 fix).
 #[non_exhaustive]
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(untagged)]
 pub enum DataSource {
     Single(String),
@@ -132,18 +137,16 @@ impl SafetyEnvelopeBuilder {
             0
         };
 
-        // Collect all string fields from the results array for scanning
+        // Collect all string fields from the results array for scanning.
+        // IMP-6 fix: recurse into nested Object and Array values so that
+        // attacker-controlled strings in nested structures are scanned.
         let mut safety_flags: Vec<SafetyFlag> = Vec::new();
         if let Some(arr) = results.as_array() {
             for (item_index, item) in arr.iter().enumerate() {
-                if let Some(obj) = item.as_object() {
-                    let fields: Vec<(&str, usize, &str)> = obj
-                        .iter()
-                        .filter_map(|(k, v)| v.as_str().map(|s| (k.as_str(), item_index, s)))
-                        .collect();
-                    let flags = scanner.scan_record(&fields);
-                    safety_flags.extend(flags);
-                }
+                let mut fields: Vec<(&str, usize, &str)> = Vec::new();
+                collect_string_fields(item, item_index, &mut fields);
+                let flags = scanner.scan_record(&fields);
+                safety_flags.extend(flags);
             }
         }
 
@@ -194,6 +197,49 @@ impl SafetyEnvelopeBuilder {
     }
 }
 
+/// Collect all scannable string fields from a JSON value, recursing into nested
+/// objects and arrays (IMP-6 fix: depth-2+ injection detection coverage).
+///
+/// # Arguments
+/// - `value` — the JSON value to collect strings from.
+/// - `item_index` — the zero-based index of the parent result-array item (used for `SafetyFlag.index`).
+/// - `fields` — accumulator for `(field_name, item_index, field_value)` triples.
+///
+/// Recursion terminates at leaf string values. Arrays within objects are iterated;
+/// objects within objects are recursed. Non-string scalar values (numbers, booleans,
+/// null) are skipped — they cannot carry prompt injection payloads.
+fn collect_string_fields<'a>(
+    value: &'a Value,
+    item_index: usize,
+    fields: &mut Vec<(&'a str, usize, &'a str)>,
+) {
+    match value {
+        Value::String(s) => {
+            // Top-level string (e.g. a bare array element) — use empty key.
+            fields.push(("", item_index, s.as_str()));
+        }
+        Value::Object(obj) => {
+            for (k, v) in obj.iter() {
+                match v {
+                    Value::String(s) => {
+                        fields.push((k.as_str(), item_index, s.as_str()));
+                    }
+                    Value::Object(_) | Value::Array(_) => {
+                        collect_string_fields(v, item_index, fields);
+                    }
+                    _ => {}
+                }
+            }
+        }
+        Value::Array(arr) => {
+            for element in arr.iter() {
+                collect_string_fields(element, item_index, fields);
+            }
+        }
+        _ => {}
+    }
+}
+
 // ─── Schema-only types for outputSchema generation (HIGH-002) ─────────────────
 //
 // These types mirror the ResponseEnvelope shape but derive JsonSchema so they
@@ -222,8 +268,10 @@ pub struct SafetyFlagSchema {
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
 pub struct MetaEnvelopeSchemaType {
     pub tool: String,
-    /// Sensor identifier(s). String for single-sensor; array for cross-client queries.
-    pub data_source: serde_json::Value,
+    /// Sensor identifier(s). Single string for single-sensor; string array for cross-client queries.
+    /// Generates `oneOf: [{"type": "string"}, {"type": "array", "items": {"type": "string"}}]`
+    /// in the outputSchema (IMP-10 fix — previously untyped serde_json::Value).
+    pub data_source: DataSource,
     /// ISO8601 timestamp of query execution.
     pub query_time: String,
     /// Trust classification: "untrusted_external" | "internal".

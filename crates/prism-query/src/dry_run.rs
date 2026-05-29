@@ -54,6 +54,10 @@ impl From<BoundingDmlOperation> for DmlOperation {
             BoundingDmlOperation::InsertInto => DmlOperation::InsertInto,
             BoundingDmlOperation::Update => DmlOperation::Update,
             BoundingDmlOperation::Delete => DmlOperation::Delete,
+            // #[non_exhaustive] wildcard: future BoundingDmlOperation variants default
+            // to InsertInto (the least-destructive DML kind) to avoid a panic on
+            // unknown operations (F-PR163-IMP-1).
+            _ => DmlOperation::InsertInto,
         }
     }
 }
@@ -246,12 +250,14 @@ impl DryRunGate {
         // can reconstruct a WritePlan that passes Phase 2 check_unbounded_write.
         // OBS-1: also capture dml_operation so confirm_action restores the DELETE→Irreversible
         // invariant (classify_risk_tier is unconditional-Irreversible for DmlOperation::Delete).
-        let bounding_metadata = prism_security::BoundingMetadata {
-            has_where_clause: plan.has_where_clause,
-            has_explicit_limit: plan.has_explicit_limit,
-            explicit_limit: plan.explicit_limit,
-            dml_operation: plan.dml_operation.clone().map(BoundingDmlOperation::from),
-        };
+        // #[non_exhaustive]: use BoundingMetadata::new() — struct literal syntax is prohibited
+        // from external crates by the #[non_exhaustive] attribute (F-PR163-IMP-1).
+        let bounding_metadata = prism_security::BoundingMetadata::new(
+            plan.has_where_clause,
+            plan.has_explicit_limit,
+            plan.explicit_limit,
+            plan.dml_operation.clone().map(BoundingDmlOperation::from),
+        );
 
         let token = self.confirmation_store.generate_with_bounding(
             &context.client_id,

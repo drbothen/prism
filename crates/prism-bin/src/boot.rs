@@ -1,8 +1,10 @@
 //! Boot sequence orchestrator for `prism start`.
 //!
 //! Implements the 11-step boot sequence specified in ADR-022 §B and wired to
-//! BC-2.22.001 (orchestration contract).  Steps 1–8 are implemented.
-//! Steps 9–11 are annotated `todo!()` stubs for sibling stories.
+//! BC-2.22.001 (orchestration contract).  Steps 1–9 are implemented.
+//! Steps 10–11 are intentional deferrals to S-1.12-FOLLOWUP per
+//! BC-2.22.001 §step10-deferred-contract and §step11-deferred-contract —
+//! they emit a WARN structured-log on entry and return `Ok(())` rather than panic.
 //! Step 7.5 (plugin-load) is implemented by S-PLUGIN-PREREQ-D.
 //!
 //! # Sequencing Invariant (BC-2.22.001)
@@ -487,8 +489,10 @@ pub fn validate_and_construct_auth_providers(
 
 /// Execute the full 11-step boot sequence (steps 1–11).
 ///
-/// Steps 1–8 are blocking and must complete in order (BC-2.22.001 sequencing
-/// invariant).  Steps 9–11 are `todo!()` stubs for sibling stories.
+/// Steps 1–9 are implemented. Steps 10–11 are intentional deferrals to
+/// S-1.12-FOLLOWUP per BC-2.22.001 §step10-deferred-contract and
+/// §step11-deferred-contract — they emit a WARN structured-log on entry
+/// and return `Ok(())` rather than panic.
 ///
 /// On success, returns a `RunningServer` handle.  On any step failure, this
 /// function does NOT return — it calls `std::process::exit` with the mapped
@@ -1728,7 +1732,7 @@ pub async fn plugin_load_step_with_audit(
 }
 
 // ---------------------------------------------------------------------------
-// Steps 7–8 implementations + Steps 9–11 stubs for sibling stories
+// Steps 7–9 implementations + Steps 10–11 deferred to S-1.12-FOLLOWUP
 // ---------------------------------------------------------------------------
 
 /// Step 7 [BLOCKING]: Storage + internal-tables provider init.
@@ -1819,7 +1823,7 @@ pub async fn step8_init_query_engine() -> Result<(), BootError> {
 /// Uses RocksDbBackend from step 6 (via BootContext) as the query storage backend.
 /// Uses OrgRegistry from step 3 and CredentialStore from step 5 (CRIT-5 fix).
 /// Adapter registry is initially empty — full adapter population from sensor TOML specs
-/// is deferred to spec-catalog dispatch (GAP-002-A, S-WAVE5-PREP-01/S-3.02-FOLLOWUP-RUNTIME).
+/// is deferred to spec-catalog dispatch (GAP-002-A, S-5.04-SENSOR-HEALTH-ADAPTER-DISPATCH).
 /// The AuditWriter is a tracing stub until the full audit-writer integration story (S-2.04) ships.
 ///
 /// # Background task semantics
@@ -1860,20 +1864,21 @@ pub async fn step9_start_mcp_server(
 
     // ── Build QueryEngine ─────────────────────────────────────────────────────
     //
-    // Adapter registry is initially empty — adapters registered at query time via
-    // spec-catalog dispatch (GAP-002-A deferred to S-WAVE5-PREP-01/S-3.02-FOLLOWUP-RUNTIME).
-    // This is the documented architectural gap: prism-sensors MUST NOT gain new prism-spec-engine
-    // imports (ADR-028 §D3); spec-catalog dispatch wiring is a prism-bin boot-time concern.
+    // Adapter registry is initially empty — adapters are dispatched via WASM plugins
+    // (PluginAuthProvider, ADR-028 §D10). Direct spec-catalog adapter wiring (GAP-002-A)
+    // targets S-5.04-SENSOR-HEALTH-ADAPTER-DISPATCH; prism-sensors MUST NOT gain new
+    // prism-spec-engine imports (ADR-028 §D3).
     let adapter_registry = Arc::new(AdapterRegistry::new());
     let ocsf_normalizer = Arc::new(OcsfNormalizer::new());
 
-    // ClientRegistry: currently empty (no public OrgRegistry iteration API).
-    // OrgRegistry stores (slug, id) pairs but does not expose a list_slugs() iterator
-    // (OrgRegistry is a BiMap with private inner — no iteration surface in prism-core v0.2.0).
-    // The real OrgRegistry IS wired into QueryEngine::new_full below for per-query org resolution.
-    // Full ClientRegistry population from OrgRegistry requires adding list_slugs() to
-    // prism-core::OrgRegistry (S-MULTI-TENANT-002 scope).
-    let client_registry = Arc::new(ClientRegistry::new(vec![]));
+    // ClientRegistry: populated from OrgRegistry slug list (F-PR163-IMP-8).
+    // OrgRegistry::list_slugs() returns Vec<String>; ClientRegistry::new expects Vec<OrgSlug>.
+    let client_slugs: Vec<prism_core::tenant::OrgSlug> = org_registry
+        .list_slugs()
+        .into_iter()
+        .map(prism_core::tenant::OrgSlug::new)
+        .collect();
+    let client_registry = Arc::new(ClientRegistry::new(client_slugs));
 
     let query_config = QueryEngineConfig::default();
 
@@ -1913,7 +1918,7 @@ pub async fn step9_start_mcp_server(
                 sensor: sensor_id.to_string(),
                 detail: format!(
                     "Direct sensor auth for client '{client_id}' sensor '{sensor_id}' requires \
-                     spec-catalog dispatch (S-3.02-FOLLOWUP-RUNTIME / GAP-002-A). \
+                     spec-catalog adapter dispatch (GAP-002-A; target: S-5.04-SENSOR-HEALTH-ADAPTER-DISPATCH). \
                      WASM plugin auth uses PluginAuthProvider, not this resolver (ADR-028 §D10)."
                 ),
             })
@@ -1967,6 +1972,10 @@ pub async fn step9_start_mcp_server(
     };
     let alias_store = Arc::new(std::sync::Mutex::new(alias_store));
 
+    // IMP-8: retain org_registry Arc so it can be passed to both QueryEngine and PrismServer.
+    // Arc::clone before the move into QueryEngine::new_full so PrismServer::with_deps
+    // can also receive the registry for alias CRUD allowlist validation.
+    let org_registry_for_server = Arc::clone(&org_registry);
     let query_engine = Arc::new(QueryEngine::new_full(
         adapter_registry.clone(),
         // CRIT-5: real credential_store from step 5 — replaces BootNullCredentialStore.
@@ -1986,8 +1995,9 @@ pub async fn step9_start_mcp_server(
 
     // ── Build WriteExecutor ───────────────────────────────────────────────────
     //
-    // Feature flags start with no overrides — all capabilities enabled by default.
-    // Full feature-flag wiring requires config-driven FeatureFlagEvaluator (S-2.03).
+    // Feature flags start with empty client capability map — all write capabilities deny-by-default
+    // until the per-client capability config loads (S-2.03). The deny-by-default posture matches
+    // the production security-default; do not interpret the empty map as "all-open".
     let feature_flags = Arc::new(FeatureFlagEvaluator::new(BTreeMap::new()));
     let confirmation_store = Arc::new(ConfirmationTokenStore::new());
 
@@ -2051,6 +2061,8 @@ pub async fn step9_start_mcp_server(
         spec_dir,
         // CRIT-4: wire alias_store for alias CRUD tools.
         alias_store,
+        // IMP-8: wire org_registry for alias CRUD allowlist validation.
+        org_registry_for_server,
     );
 
     // Spawn serve_stdio as a background task — returns immediately.

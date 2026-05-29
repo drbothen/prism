@@ -459,8 +459,10 @@ impl QueryEngine {
         // F-PASS9-LOW-1: alias_store is wired into QueryEngine via new_full() so both
         // the CRUD tools and the query executor share the same live AliasStore.
         //
-        // Scope: "global" — no per-client scope at execute time; per-client override
-        // is a future story (BC-2.11.014). For now, all clients share global aliases.
+        // Scope: "global" — queries expand against the global alias scope at execute time.
+        // Per-client scope override is architecturally deferred to S-3.01-ALIAS-SCOPE (BC-2.11.014)
+        // which will thread the OrgSlug from QueryContext into the AliasResolver.
+        // (SUG-8 fix: replaced stale "for now" comment with proper deferral citation.)
         let (effective_query, expanded_query_for_context) =
             if let Some(ref store_arc) = self.alias_store {
                 // Lock is held only for the duration of alias expansion — not across the

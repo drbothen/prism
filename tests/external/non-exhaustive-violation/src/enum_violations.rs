@@ -167,6 +167,26 @@ pub fn v31_plugin_error_match() {
     }
 }
 
+/// Violation 46: prism_security::confirmation_token::BoundingDmlOperation exhaustive match (E0004).
+///
+/// `BoundingDmlOperation` is the mirrored DML kind stored in confirmation tokens
+/// (OBS-1 fix, confirmation_token.rs). `#[non_exhaustive]` ensures external match arms
+/// include a wildcard so new DML kinds (e.g., `Truncate`, `Upsert`) can be added
+/// without requiring all downstream match consumers to update immediately
+/// (F-PR163-IMP-1). External callers MUST include `_ => {}`.
+///
+/// Added: S-5.01-FOLLOWUP-MCP-BOOT.
+pub fn v46_bounding_dml_operation_match() {
+    use prism_security::confirmation_token::BoundingDmlOperation;
+    let op: BoundingDmlOperation = BoundingDmlOperation::InsertInto;
+    match op {
+        BoundingDmlOperation::InsertInto => {}
+        BoundingDmlOperation::Update => {}
+        BoundingDmlOperation::Delete => {}
+        // After F-PR163-IMP-1: E0004 — `_` arm required for #[non_exhaustive] enum
+    }
+}
+
 /// Violation 44: prism_mcp::safety_envelope::DataSource exhaustive match (E0004).
 ///
 /// `DataSource` is the `_meta.data_source` field of the MCP response envelope

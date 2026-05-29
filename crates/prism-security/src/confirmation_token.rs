@@ -40,6 +40,11 @@ use crate::content_hash::compute_action_hash;
 /// conversion is implemented as `From<DmlOperation> for BoundingDmlOperation` in
 /// `prism-query::dry_run`.  Any new variant in `DmlOperation` must be reflected
 /// here and in the conversion.
+///
+/// `#[non_exhaustive]` ensures external match arms include a wildcard `_ => {}`
+/// so new DML variants can be added without breaking downstream callers
+/// (F-PR163-IMP-1).
+#[non_exhaustive]
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub enum BoundingDmlOperation {
     /// `INSERT INTO table_name (col_list) SELECT …`
@@ -69,6 +74,12 @@ pub enum BoundingDmlOperation {
 /// can restore `WritePlan.dml_operation`.  Without this, a DELETE-from token
 /// re-dispatched via confirm_action would silently lose the DELETE discriminant
 /// that triggers `classify_risk_tier`'s unconditional-Irreversible path (AD-022).
+///
+/// `#[non_exhaustive]` ensures external struct-literal construction is forbidden;
+/// future bounding fields can be added without breaking downstream callers
+/// (F-PR163-IMP-1). External crates must use `BoundingMetadata::new(...)` or
+/// `BoundingMetadata::default()` — struct literal syntax is prohibited by `#[non_exhaustive]`.
+#[non_exhaustive]
 #[derive(Clone, Debug, Serialize, Deserialize, Default)]
 pub struct BoundingMetadata {
     /// Whether the originating query had a WHERE clause (or pipe-mode filter stage).
@@ -83,6 +94,26 @@ pub struct BoundingMetadata {
     /// Populated for SQL-mode plans so `confirm_action` can restore
     /// `WritePlan.dml_operation` and preserve the DELETE→Irreversible invariant.
     pub dml_operation: Option<BoundingDmlOperation>,
+}
+
+impl BoundingMetadata {
+    /// Construct a fully-specified `BoundingMetadata` from known write-plan signals.
+    ///
+    /// External crates use this constructor because `#[non_exhaustive]` prohibits
+    /// struct literal syntax from outside the defining crate.
+    pub fn new(
+        has_where_clause: bool,
+        has_explicit_limit: bool,
+        explicit_limit: Option<u64>,
+        dml_operation: Option<BoundingDmlOperation>,
+    ) -> Self {
+        Self {
+            has_where_clause,
+            has_explicit_limit,
+            explicit_limit,
+            dml_operation,
+        }
+    }
 }
 
 /// The maximum number of active (non-expired, non-consumed) tokens in the store.

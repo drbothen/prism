@@ -16,12 +16,9 @@ use rmcp::model::{ErrorCode, ErrorData};
 
 /// Map a `PrismError` to an MCP-compatible error representation.
 ///
-/// Returns `(code, message)` where `code` is the JSON-RPC error code and
-/// `message` is the human-readable description suitable for MCP client display.
-///
-/// The caller wraps this in the rmcp `McpError::custom(code, message)` call.
-/// The signature uses `(i32, String)` so the stub compiles without the rmcp dep.
-/// Implementer replaces return type with `McpError` once rmcp is wired.
+/// Returns `(code, message)` directly (test-assertable shape). Production callers
+/// needing `rmcp::ErrorData` use the `to_error_data` wrapper below; this two-function
+/// split exists so unit tests can assert error codes without instantiating rmcp types.
 ///
 /// Per ADR-022 §F error mapping table.
 pub fn map_prism_error(err: PrismError) -> (i32, String) {
@@ -87,7 +84,9 @@ pub fn map_prism_error(err: PrismError) -> (i32, String) {
         // E-QUERY-011: Audit table access denied → -32002 Forbidden
         PrismError::AuditTableAccessDenied => (codes::FORBIDDEN, format!("{err}")),
 
-        // E-MCP-001: Tool not found → -32603 (use INVALID_PARAMS per MCP convention)
+        // E-MCP-001: Tool not found → -32602 InvalidParams. MCP convention treats tool-not-found
+        // as a caller-supplied invalid 'name' parameter rather than JSON-RPC -32601 'method not
+        // found' (which would imply protocol-level method, not tool-name).
         PrismError::McpToolNotFound { tool } => {
             (codes::INVALID_PARAMS, format!("MCP tool not found: {tool}"))
         }

@@ -3,6 +3,9 @@
 //! Verifies: ToolDescriptionRegistrar appends required security sections to sensor tools;
 //! sections survive re-registration (idempotent).
 //!
+//! IMP-5: also includes live ToolRouter test that verifies the production tool catalog
+//! via the macro-generated ToolRouter::list_all() API (not a source-file scan).
+//!
 //! All tests pass (implementation complete).
 
 use prism_mcp::tool_registry::{ToolDescriptionRegistrar, ToolRegistration};
@@ -76,5 +79,62 @@ fn test_BC_2_09_006_non_sensor_tool_not_given_security_sections() {
     assert!(
         !registered.description.contains("SECURITY NOTE:"),
         "non-sensor tool must not have SECURITY NOTE section"
+    );
+}
+
+/// IMP-5: live ToolRouter test — verifies the production tool catalog via
+/// `PrismServer::production_tool_catalog()` (runtime catalog, not source-file scan).
+///
+/// For every tool whose description contains "DATA SOURCE:" (identified as a sensor tool),
+/// all 9 required sections must be present (BC-2.09.006 postcondition 1).
+///
+/// LOAD-BEARING: if a sensor tool is added to the router without all 9 sections,
+/// this test fails. Source-level scan (in tool_dispatch_tests) could miss tools
+/// registered programmatically; this test catches those too.
+#[test]
+fn test_BC_2_09_006_live_tool_catalog_sensor_tools_have_9_sections() {
+    use prism_mcp::server::PrismServer;
+
+    let tools = PrismServer::production_tool_catalog();
+
+    assert!(
+        !tools.is_empty(),
+        "IMP-5: tool_router().list_all() must return at least one tool; got empty list. \
+         Check that #[tool_router] macro is applied correctly to PrismServer."
+    );
+
+    let sensor_tools: Vec<_> = tools
+        .iter()
+        .filter(|t| {
+            t.description
+                .as_deref()
+                .unwrap_or("")
+                .contains("DATA SOURCE:")
+        })
+        .collect();
+
+    assert!(
+        !sensor_tools.is_empty(),
+        "IMP-5: expected at least one sensor tool in the catalog (with DATA SOURCE: section); \
+         found none. Check #[tool_router] macro and tool description attributes."
+    );
+
+    let mut failures: Vec<String> = Vec::new();
+    for tool in &sensor_tools {
+        let desc = tool.description.as_deref().unwrap_or("");
+        let missing = ToolDescriptionTemplate::missing_sections(desc);
+        if !missing.is_empty() {
+            failures.push(format!(
+                "  tool '{}': missing sections: {:?}",
+                tool.name, missing
+            ));
+        }
+    }
+
+    assert!(
+        failures.is_empty(),
+        "BC-2.09.006 VIOLATION (live catalog): {} sensor tool(s) missing required sections:\n{}",
+        failures.len(),
+        failures.join("\n")
     );
 }
