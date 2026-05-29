@@ -1,10 +1,10 @@
 ---
 document_type: story-index
 level: "L4"
-version: "v2.207"
+version: "v2.208"
 status: draft
 producer: state-manager
-timestamp: 2026-05-29T20:00:00Z
+timestamp: 2026-05-29T22:00:00Z
 phase: 3
 total_stories: 165
 total_active_bcs: 222
@@ -417,9 +417,9 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 | PLUGIN-MIGRATION-001-H | .factory: Story Supersession — Mark S-2.06/S-2.07/W3-FIX-S307-001/S-3.1.06-ImplPhase Superseded by ADR-023 [PLUGIN-MIGRATION Wave 2] [done v1.2; factory-only; state-manager 2026-05-27] | .factory | 1 (BC-2.01.013) | -- | 3 | PLUGIN-MIGRATION-001-A |
 | S-MAINT-POL29-HOOK-001 | Implement validate-cite-pin-completeness.sh — POL-29 step-8 mechanization [maintenance] [planned P2 — source: session-review D-777 Group E lint hook recommendation] | maintenance | 0 (TBD) | -- | tbd | S-POL-29-CANONICAL-TEMPLATE-REGISTRY-001 |
 | S-POL-29-CANONICAL-TEMPLATE-REGISTRY-001 | POL-29 Canonical Error-Message-Template Registry — Variant-Form Enumeration for Paraphrase Drift Detection [maintenance] [planned P2 — v0.2; resolves [process-gap] F-LP4-MED-001/002/003/004; AC-006 Suggestion authority added (F-LP5-LOW-002 architect adjudication); architect commits 18746995 + 4ef6c650] | .factory/policies.yaml,.factory/specs/prd-supplements/error-taxonomy.md | 0 | -- | 2 | -- |
-| S-CONFIG-MULTI-TENANT-OVERRIDE-001 | prism-spec-engine/prism-bin: Per-Org Sensor Endpoint Overlay Loading — ADR-029 Hybrid Sensor Instance with Per-Org Composition Directory [wave-0 prereq; draft] | prism-spec-engine,prism-bin,prism-core,prism-sensors | 5 (BC-2.06.012, BC-2.06.013, BC-2.06.014, BC-2.06.015, BC-2.06.016) | -- | 8 | S-WAVE5-PREP-01 |
+| S-CONFIG-MULTI-TENANT-OVERRIDE-001 | prism-spec-engine/prism-bin: Per-Org Sensor Endpoint Overlay Loading — ADR-029 Hybrid Sensor Instance with Per-Org Composition Directory [wave-0 prereq; **draft v1.1** (story-writer 2026-05-29: AC-008 paper-fix resistance + AC-009 DTU emulation gap added; blocks S-DEMO-001 noted; status draft per S-7.01 gate — BCs still draft); 9 ACs; 9 Red Gate tests] | prism-spec-engine,prism-bin,prism-core,prism-sensors | 5 (BC-2.06.012, BC-2.06.013, BC-2.06.014, BC-2.06.015, BC-2.06.016) | -- | 8 | S-WAVE5-PREP-01 |
 | S-SPEC-TYPE-UNIFICATION-001 | prism-spec-engine/prism-bin/prism-ocsf: Retire types::SensorSpec — Unify on spec_parser::SensorSpec as Canonical [Wave 4; **merged** PR #161 develop@af79f160 2026-05-27 — ADR-030 Approach D ACCEPTED; types::SensorSpec deleted; 8→4 boot TOML parses; 3711 tests] | prism-spec-engine,prism-bin,prism-ocsf | 2 (BC-2.16.001, BC-2.06.012) | -- | 5 | S-CONFIG-MULTI-TENANT-OVERRIDE-001 |
-| S-DEMO-001 | prism-bin: SpecDrivenSensorAdapter + Boot Step 9A — Bridge PipelineExecutor to AdapterRegistry (closes GAP-002-A) [Wave 5; E-DEMO; P0; **draft v1.1** (architect 2026-05-29: Cyberint cookie_roundtrip corrected, OQ-1/OQ-2/OQ-6 resolved, CookieLoginAuthProvider + build_request amendment added); 4 BCs: BC-2.01.013+BC-2.11.005+BC-2.06.014+BC-2.22.001; 12 ACs; 5 Red Gate tests; 3 AuthProvider impls (PluginAuth+BearerStatic+CookieLogin)] | prism-bin,prism-spec-engine | 4 (BC-2.01.013, BC-2.11.005, BC-2.06.014, BC-2.22.001) | VP-148 | 11 | PLUGIN-MIGRATION-001-A,PLUGIN-MIGRATION-001-E,S-CONFIG-MULTI-TENANT-OVERRIDE-001 |
+| S-DEMO-001 | prism-bin: SpecDrivenSensorAdapter + Boot Step 9A — Bridge PipelineExecutor to AdapterRegistry (closes GAP-002-A) [Wave 5; E-DEMO; P0; **draft v1.3** (architect 2026-05-29: CookieLoginAuthProvider→StaticCookieAuthProvider per ADR-031 DTU=true-DTU; access_token cookie; S-DTU-CYBERINT-AUTH-FIDELITY-001 added as depends_on); 4 BCs: BC-2.01.013+BC-2.11.005+BC-2.06.014+BC-2.22.001; 12 ACs; 5 Red Gate tests; 3 AuthProvider impls (PluginAuth+BearerStatic+StaticCookie)] | prism-bin,prism-spec-engine | 4 (BC-2.01.013, BC-2.11.005, BC-2.06.014, BC-2.22.001) | VP-148 | 11 | PLUGIN-MIGRATION-001-A,PLUGIN-MIGRATION-001-E,S-CONFIG-MULTI-TENANT-OVERRIDE-001,S-DTU-CYBERINT-AUTH-FIDELITY-001 |
 | S-DEMO-002 | prism-bin: E2E Subprocess Smoke Test — All 4 Sensors + Multi-Org Isolation via DTU Clones + MCP Round-Trip [Wave 5; E-DEMO; P0; **draft v1.1** (architect 2026-05-29: multi-org ACs AC-011..013 added, BC-3.2.001 added, 13 ACs total); 6 BCs: BC-2.11.001+BC-2.11.005+BC-2.09.008+BC-2.10.001+BC-2.10.010+BC-3.2.001] | prism-bin | 6 (BC-2.11.001, BC-2.11.005, BC-2.09.008, BC-2.10.001, BC-2.10.010, BC-3.2.001) | VP-148 | 11 | S-DEMO-001,S-CONFIG-MULTI-TENANT-OVERRIDE-001 |
 | S-DEMO-003 | scripts: Demo Setup Scripts + prism-credential-set CLI Subcommand + Operator Runbook [Wave 5; E-DEMO; P1; draft v1.0; 4 BCs: BC-2.03.005+BC-2.03.007+BC-2.06.001+BC-2.22.001] | prism-bin | 4 (BC-2.03.005, BC-2.03.007, BC-2.06.001, BC-2.22.001) | -- | 5 | S-DEMO-001,S-DEMO-002 |
 | S-5.04-FIX-001 | .factory: Fix S-5.04 depends_on — replace superseded S-2.07 with S-DEMO-001 [Wave 5; E-DEMO housekeeping; P2; draft v1.0; factory-only] | .factory | 1 (BC-2.08.001) | -- | 0 | -- |
@@ -427,7 +427,7 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 | S-DEMO-CLAROTY-AUDIT-DTU-001 | prism-dtu-claroty: Add /api/v1/audit_log/get route to prism-dtu-claroty [Wave 5; E-DEMO follow-up; P2; planned; DTU: YES — add /api/v1/audit_log/get route; Blocking: CONDITIONAL on demo script] | prism-dtu-claroty | 0 (TBD) | -- | -- | develop@72baf413 |
 | S-DEMO-CLAROTY-TRAILING-SLASH-001 | prism-spec-engine, prism-sensors: Trailing-slash on Claroty API paths [Wave 5; E-DEMO follow-up; P2; planned; DTU: YES — verify axum trailing-slash; Non-blocking] | prism-spec-engine,prism-sensors | 0 (TBD) | -- | -- | develop@72baf413 |
 | S-DEMO-ARMIS-AQL-001 | prism-spec-engine, prism-sensors: AQL search endpoint support for Armis [Wave 5; E-DEMO follow-up; P2; planned; DTU: YES — AQL route + TOML + pipeline; Non-blocking per ADR-031 §D2] | prism-spec-engine,prism-sensors | 0 (TBD) | -- | -- | S-DEMO-001 |
-| S-DTU-CYBERINT-AUTH-FIDELITY-001 | prism-dtu-cyberint + prism-spec-engine: Remove POST /login DTU route; implement StaticCookieAuthProvider; inject Cookie: access_token={api_key}; no session UUID [Wave 5; DTU fidelity; P0-pre-demo-BLOCKING; planned — stub awaiting story-writer materialization] | prism-dtu-cyberint,prism-spec-engine,prism-bin | 0 (TBD) | -- | -- | PLUGIN-MIGRATION-001-A |
+| S-DTU-CYBERINT-AUTH-FIDELITY-001 | prism-dtu-cyberint + prism-spec-engine: Remove POST /login DTU route; implement StaticCookieAuthProvider; inject Cookie: access_token={api_key}; no session UUID [Wave 5; E-DTU-FIDELITY; P0-pre-demo-BLOCKING; **draft v1.0** (story-writer 2026-05-29: materialized from stub; 11 ACs; 6 Red Gate tests; DTU-side + prism-side ACs split; depends_on PLUGIN-MIGRATION-001-A; blocks S-DEMO-001); file: S-DTU-CYBERINT-AUTH-FIDELITY-001-cyberint-dtu-static-cookie-auth.md] | prism-dtu-cyberint,prism-spec-engine,prism-bin | 3 (BC-2.01.013, BC-2.01.016, BC-2.16.013) | VP-148 | 8 | PLUGIN-MIGRATION-001-A |
 | S-DEMO-CROWDSTRIKE-MULTIREGION-001 | prism-sensors: Multi-region base_url for CrowdStrike (FedRAMP / EU / commercial) [Wave 5; E-DEMO follow-up; P3; planned; DTU: YES — multi-region DTU config; Non-blocking] | prism-sensors | 0 (TBD) | -- | -- | S-DEMO-001 |
 
 [*] S-5.10 is in the `prism-audit` crate — note that all other Wave 5 stories are in `prism-mcp`. This is intentional: audit trail forwarding belongs to the audit subsystem by BC-2.05.011, but the Wave 5 slot reflects its topological dependency on S-2.04 (Wave 2 anchor).
@@ -449,7 +449,7 @@ Every active BC maps to the story that implements it.
 | BC-2.01.007 | S-2.07, PLUGIN-MIGRATION-001-G |
 | BC-2.01.008 | S-2.07, PLUGIN-MIGRATION-001-G |
 | BC-2.01.010 | S-2.06 |
-| BC-2.01.013 | S-2.06, PLUGIN-MIGRATION-001-F, PLUGIN-MIGRATION-001-H, S-DEMO-001 |
+| BC-2.01.013 | S-2.06, PLUGIN-MIGRATION-001-F, PLUGIN-MIGRATION-001-H, S-DEMO-001, S-DTU-CYBERINT-AUTH-FIDELITY-001 |
 | BC-2.01.014 | S-2.06 |
 | BC-2.02.001 | S-1.04 |
 | BC-2.02.002 | S-1.04 |
@@ -623,6 +623,8 @@ Every active BC maps to the story that implements it.
 | BC-2.16.008 | S-1.12 |
 | BC-2.16.009 | S-1.11, S-1.13, PLUGIN-MIGRATION-001-F |
 | BC-2.16.012 | S-PLUGIN-PREREQ-E, PLUGIN-MIGRATION-001-A, PLUGIN-MIGRATION-001-F |
+| BC-2.16.013 | PLUGIN-MIGRATION-001-D, S-DTU-CYBERINT-AUTH-FIDELITY-001 |
+| BC-2.01.016 | S-PLUGIN-PREREQ-E, PLUGIN-MIGRATION-001-A, PLUGIN-MIGRATION-001-D, PLUGIN-MIGRATION-001-E, S-DTU-CYBERINT-AUTH-FIDELITY-001 |
 | BC-2.16.010 | S-1.12 |
 | BC-2.17.001 | S-1.15 |
 | BC-2.17.002 | S-1.15 |
@@ -965,6 +967,7 @@ All 13 new DTU clones: Wave 0, 0 BCs, priority P0, depends_on: [S-6.06].
 
 | Version | Date | Summary |
 |---------|------|---------|
+| v2.208 | 2026-05-29 | story-writer burst: (1) S-DTU-CYBERINT-AUTH-FIDELITY-001 materialized from [planned] stub to full draft spec v1.0 (8 pts; 11 ACs: 4 DTU-side + 7 prism-side; 6 Red Gate tests; BCs: BC-2.01.013+BC-2.01.016+BC-2.16.013; VP-148; depends_on PLUGIN-MIGRATION-001-A; blocks S-DEMO-001; file: S-DTU-CYBERINT-AUTH-FIDELITY-001-cyberint-dtu-static-cookie-auth.md; per ADR-031 §D3-c and user directive 2026-05-29). (2) S-CONFIG-MULTI-TENANT-OVERRIDE-001 v0.2→v1.1 refinement: AC-008 paper-fix-resistance (D-823 / SAP-3-candidate; test_S_CONFIG_PROD_CONSUMER_READS_INJECTED_BASE_URL); AC-009 DTU emulation gap (ADR-031 DTU=true-DTU; test_S_CONFIG_DTU_BASE_URL_OVERLAY_ROUTES_TO_CORRECT_DTU_INSTANCE; full multi-instance DTU routing surfaced as S-DEMO-MULTI-TENANT-DTU-001 new stub); blocks S-DEMO-001 added; parallel dispatch order documented; acceptance_criteria_count 7→9; red_gate_tests 7→9. BC Traceability Matrix: BC-2.01.013 += S-DTU-CYBERINT-AUTH-FIDELITY-001; BC-2.01.016 row added (S-PLUGIN-PREREQ-E+PLUGIN-MIGRATION-001-A+D+E+S-DTU-CYBERINT-AUTH-FIDELITY-001); BC-2.16.013 row added (PLUGIN-MIGRATION-001-D+S-DTU-CYBERINT-AUTH-FIDELITY-001). Status S-CONFIG remains draft (Spec-First Gate S-7.01: BCs still draft; status=ready requires active BCs). S-DTU-CYBERINT story row: [planned]→[draft v1.0] with actual BCs/VPs/pts. total_stories 165 (unchanged — S-DTU-CYBERINT was a pre-registered stub). |
 | v2.207 | 2026-05-29 | D-848 state-manager propagation cleanup: 5 non-Cyberint stub rows annotated with audit §6.3 DTU-change + blocking dispositions per POLLER-DTU-FIDELITY-AUDIT-2026-05-29 v1.1: S-DEMO-CLAROTY-PAGINATION-001 [DTU: NO — pipeline only; Soft-blocking if demo >100 rows]; S-DEMO-CLAROTY-AUDIT-DTU-001 [DTU: YES — add /api/v1/audit_log/get route; Blocking: CONDITIONAL]; S-DEMO-CLAROTY-TRAILING-SLASH-001 [DTU: YES — verify axum trailing-slash; Non-blocking]; S-DEMO-ARMIS-AQL-001 [DTU: YES — AQL route + TOML + pipeline; Non-blocking per ADR-031 §D2]; S-DEMO-CROWDSTRIKE-MULTIREGION-001 [DTU: YES — multi-region DTU config; Non-blocking]. Priorities unchanged (architect's deliberate classification). total_stories 165 (unchanged). |
 | v2.206 | 2026-05-29 | D-847 architect DTU=true-DTU burst: S-DEMO-CYBERINT-LIVE-AUTH-001 RENAMED → S-DTU-CYBERINT-AUTH-FIDELITY-001; priority P2-post-demo→P0-pre-demo-BLOCKING; description updated to reflect DTU code changes (remove POST /login, StaticCookieAuthProvider, access_token injection); depends_on updated to PLUGIN-MIGRATION-001-A (unblocked sooner than S-DEMO-001). Story-writer materialization of full spec PENDING. total_stories 165 (unchanged — stub renamed, not new). |
 | v2.205 | 2026-05-29 | D-846 bookkeeping sweep (state-manager): 001-A/B/E rows reconciled to MERGED (001-A: PR #156 develop@948a709f; 001-B: PR #157 develop@7ee54657; 001-E: PR #154 develop@6bf3f659). 6 follow-up stubs registered: S-DEMO-CLAROTY-PAGINATION-001 (P1), S-DEMO-CLAROTY-AUDIT-DTU-001 (P2), S-DEMO-CLAROTY-TRAILING-SLASH-001 (P2), S-DEMO-ARMIS-AQL-001 (P2), S-DEMO-CYBERINT-LIVE-AUTH-001 (P2-post-demo), S-DEMO-CROWDSTRIKE-MULTIREGION-001 (P3). All stubs from POLLER-DTU-FIDELITY-AUDIT-2026-05-29. total_stories 159→165. |

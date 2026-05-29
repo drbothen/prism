@@ -6,12 +6,12 @@ wave: 0
 epic_id: wave-0-plugin-prereqs
 priority: P0
 status: draft
-version: "v0.2"
+version: "v1.1"
 level: "L4"
 producer: story-writer
 timestamp: "2026-05-23T00:00:00Z"
 created: "2026-05-23"
-modified: "2026-05-24"
+modified: "2026-05-29"
 tdd_mode: strict
 # BC status: All 5 BCs (BC-2.06.012–016) are draft status (D-803 burst-3).
 # Per Spec-First Gate S-7.01, status must remain draft until BCs are promoted
@@ -57,6 +57,11 @@ blocks:
   - PLUGIN-MIGRATION-001-F  # Multi-tenant prism deployments that route per-org Armis/
                             # Claroty queries to per-instance endpoints depend on this
                             # story's ResolvedSensorSpec fanout wiring.
+  - S-DEMO-001              # S-DEMO-001 boot step 9A iterates the ResolvedSensorSpec map
+                            # (produced by this story) to construct one SpecDrivenSensorAdapter
+                            # per (org, sensor) pair. S-DEMO-001 cannot start boot step 9A
+                            # without the map this story delivers. See S-DEMO-001 v1.3
+                            # depends_on field.
 # Dependency anchor justifications:
 #   depends_on S-WAVE5-PREP-01: step4_load_sensor_specs is defined in prism-bin/src/boot.rs
 #   (authored in S-WAVE5-PREP-01). This story extends that step. Without the boot chassis,
@@ -64,7 +69,12 @@ blocks:
 #   blocks PLUGIN-MIGRATION-001-F: Wave 1 plugin migration stories that test multi-tenant
 #   sensor dispatch need a working ResolvedSensorSpec fanout to exercise per-org base_url
 #   routing end-to-end. This story delivers that infrastructure.
-#   Parallel to S-PLUGIN-CI-001: both wave-0 prereqs; no hard ordering between them.
+#   blocks S-DEMO-001: boot step 9A depends on ResolvedSensorSpec map from this story.
+#   Parallel to S-PLUGIN-CI-001 and S-DTU-CYBERINT-AUTH-FIDELITY-001: both are S-DEMO-001
+#   prerequisites but have no hard ordering between each other.
+#   Parallel to S-DTU-CYBERINT-AUTH-FIDELITY-001: both wave-5 prereqs for S-DEMO-001;
+#   no hard ordering between them. Dispatch sequence: S-CONFIG + S-DTU-CYBERINT in
+#   parallel → S-DEMO-001 after both merge.
 points: 8
 # Points justification:
 #   - New types: SensorInstanceOverlay, ResolvedSensorSpec (prism-spec-engine + prism-core):
@@ -83,8 +93,8 @@ risk: MEDIUM
 # carry a ResolvedSensorSpec reference; adding it may require threading changes through
 # prism-sensors. Boot validation multi-error aggregation (BC-2.06.016 INV-ERR-003) requires
 # collecting ALL overlay errors before aborting — must not short-circuit.
-acceptance_criteria_count: 7
-red_gate_tests: 7
+acceptance_criteria_count: 9
+red_gate_tests: 9
 estimated_passes: "2-4 LOCAL adversary passes"
 holdout_scenarios: []
 assumption_validations: []
@@ -340,6 +350,68 @@ schemas from the TYPE spec.
 
 **Red Gate Test:** `test_S_CONFIG_MULTI_TENANT_OVERRIDE_001_007_two_org_overlays_produce_distinct_resolved_specs`
 
+### AC-008: Paper-fix resistance — injected base_url is actually consumed by the HTTP dispatch layer (D-823 / SAP-3)
+
+Given org A has overlay `base_url = "https://armis.acme-corp.io"` and org B has overlay
+`base_url = "https://armis.contoso.com"`, when `FanOutTarget` dispatches for `(org_A, armis)`,
+the HTTP request goes to `https://armis.acme-corp.io` (not the TYPE spec default). When
+`FanOutTarget` dispatches for `(org_B, armis)`, the HTTP request goes to
+`https://armis.contoso.com`.
+
+This AC explicitly verifies that the `base_url` value is NOT merely stored in the
+`ResolvedSensorSpec` map — it must actually reach the HTTP client's `reqwest::Client`
+(or whatever the production HTTP dispatch layer is). A test that only asserts the map
+CONTAINS the overlay value without verifying the HTTP request destination is a paper-fix
+(D-823 paper-fix detection; SAP-3-candidate for future adversary standing probe).
+
+This AC also covers the negative: org B's HTTP dispatch MUST NOT use org A's `base_url`
+(no cross-tenant URL leakage).
+
+(traces to BC-2.06.014 postcondition Case A — fanout uses overlay base_url at HTTP dispatch,
+not just at spec construction time)
+
+**Red Gate Test:** `test_S_CONFIG_PROD_CONSUMER_READS_INJECTED_BASE_URL`
+
+This test: sets up two mock HTTP servers at distinct addresses; configures org A → server A,
+org B → server B via overlays; dispatches fanout for each org; asserts server A received
+exactly org A's requests and server B received exactly org B's requests. Zero requests from
+org A to server B and vice versa.
+
+### AC-009: DTU multi-tenant emulation — per-tenant routing testable against DTU clones (ADR-031 DTU=true-DTU)
+
+Under the DTU=true-DTU principle (ADR-031), per-tenant overlay changes must be exercisable
+against DTU clones, not only against mock HTTP servers. Specifically:
+
+**Case A (single DTU, per-org base_url pointing to same DTU):** If both `org_A` and `org_B`
+overlay the `base_url` to the same DTU clone address (the typical demo scenario), both
+orgs should receive valid data. This proves the overlay plumbing works end-to-end with
+a real DTU.
+
+**Case B (gap acknowledged):** The `prism-dtu-demo-server` or individual DTU clones
+(`prism-dtu-armis`, `prism-dtu-claroty`) do NOT currently support binding multiple
+network addresses to simulate different tenant instances. This means the full "org A to
+instance A, org B to instance B" routing cannot be tested against separate DTU processes
+in this story. This gap is documented here and deferred to
+`S-DEMO-MULTI-TENANT-DTU-001` (new story stub — add to STORY-INDEX after this story
+dispatches; P2).
+
+**Current AC scope:** Add a comment to `test_BC_2_06_014_resolved_spec_overlays_base_url`
+(AC-003 Red Gate test) that documents the DTU limitation: "Full per-org DTU routing
+tested in S-DEMO-MULTI-TENANT-DTU-001; this test verifies the overlay plumbing using
+a mock HTTP server per AC-008." This ensures the limitation is visible to implementers
+and reviewers without blocking this story's dispatch.
+
+(traces to BC-2.16.013 postcondition — DTU parity discipline; ADR-031 §D5 validation:
+parity tests should exercise real DTU paths where possible)
+
+**Red Gate Test:** `test_S_CONFIG_DTU_BASE_URL_OVERLAY_ROUTES_TO_CORRECT_DTU_INSTANCE`
+
+This test: starts one `prism-dtu-armis` clone; configures org A overlay `base_url` to
+the clone address; dispatches fanout for `(org_A, armis)` via PipelineExecutor with the
+ResolvedSensorSpec; asserts non-empty data returned from the DTU. Also asserts that
+org B (no overlay for armis) falls back to TYPE spec base_url (which will NOT match the
+DTU address, so the fallback path returns an HTTP error — verifying the isolation).
+
 ---
 
 ## Tasks
@@ -362,6 +434,8 @@ High-level TDD order. Full task breakdown happens during ready-for-implementatio
    - `test_BC_2_06_016_error_messages_match_canonical_templates` (AC-005)
    - `test_BC_2_06_012_backcompat_no_customers_dir_uses_type_spec_only` (AC-006)
    - `test_S_CONFIG_MULTI_TENANT_OVERRIDE_001_007_two_org_overlays_produce_distinct_resolved_specs` (AC-007)
+   - `test_S_CONFIG_PROD_CONSUMER_READS_INJECTED_BASE_URL` (AC-008 — paper-fix resistance)
+   - `test_S_CONFIG_DTU_BASE_URL_OVERLAY_ROUTES_TO_CORRECT_DTU_INSTANCE` (AC-009 — DTU emulation)
 
 3. **Add `SensorInstanceOverlay` and `ResolvedSensorSpec` types** to
    `prism-spec-engine/src/spec_parser.rs` (or a new `overlay.rs` module). Both types must
@@ -509,7 +583,7 @@ config-rs layering for overlays).
 | `crates/prism-sensors/specs/customers/contoso/armis.sensor.toml` | CREATE | Example overlay fixture: `base_url = "https://armis.contoso.com"` |
 | `crates/prism-sensors/specs/armis.sensor.toml` | MODIFY | Update `base_url` comment to document per-org override path per ADR-029 §Consequences |
 | `crates/prism-sensors/specs/claroty.sensor.toml` | MODIFY | Same base_url comment update |
-| `crates/prism-spec-engine/tests/overlay_loading_tests.rs` | CREATE | Red Gate tests for AC-001 through AC-007 |
+| `crates/prism-spec-engine/tests/overlay_loading_tests.rs` | CREATE | Red Gate tests for AC-001 through AC-009 (includes AC-008 paper-fix resistance + AC-009 DTU emulation) |
 | `tests/external/non-exhaustive-violation/src/lib.rs` | MODIFY | Assert new `SensorInstanceOverlay` / `ResolvedSensorSpec` types are non_exhaustive (if needed); bump EXPECTED count in `ci.yml` |
 
 ---
@@ -541,7 +615,11 @@ config-rs layering for overlays).
 
 **Surfaced by:** PLUGIN-MIGRATION-001-E architecture-clarification (D-803, 2026-05-23) — the gap between per-tenant credential resolution (existing) and per-tenant endpoint resolution (missing) was identified during the PLUGIN-MIGRATION-001-E cascade.
 
-**Parallel to:** S-PLUGIN-CI-001 (both wave-0 prereqs in the same epic; no hard ordering between them)
+**Parallel to:** S-PLUGIN-CI-001 and S-DTU-CYBERINT-AUTH-FIDELITY-001 (all three are S-DEMO-001
+prerequisites; no hard ordering between them — dispatch in parallel where possible).
+
+**Critical-path dispatch order:** S-CONFIG-MULTI-TENANT-OVERRIDE-001 + S-DTU-CYBERINT-AUTH-FIDELITY-001
+(parallel) → S-DEMO-001 (after both merge) → S-DEMO-002.
 
 **Depends on:** S-WAVE5-PREP-01 (merged 2026-05-10, PR #138) — boot chassis with `step4_load_sensor_specs` extension point
 
@@ -561,3 +639,4 @@ config-rs layering for overlays).
 |---------|------|--------|--------|
 | v0.1 | 2026-05-23 | story-writer | Initial stub — D-803 Burst 4/4; anchored to ADR-029 v1.1 + 5 new BCs BC-2.06.012–016; 7 ACs with Red Gate test names per SID-1 §5; subsystems SS-06 + SS-16; wave-0 prereq parallel to S-PLUGIN-CI-001. |
 | v0.2 | 2026-05-24 | story-writer | F-LP4-MED-004 closure — swept stale `ci.yml EXPECTED=32` → `EXPECTED=35` at Architecture Compliance Rules (§#[non_exhaustive] discipline) and Architecture Compliance Rules table row (compile-fail gate enforcement column). Fix-burst-3 bumped ci.yml but missed story body citations. POL-29 sibling-sweep: no other EXPECTED=32 citations in this story file. |
+| v1.1 | 2026-05-29 | story-writer | Pre-dispatch refinement per orchestrator direction 2026-05-29: (1) Added AC-008 (paper-fix resistance — injected base_url actually consumed at HTTP dispatch layer, D-823 / SAP-3-candidate; Red Gate: test_S_CONFIG_PROD_CONSUMER_READS_INJECTED_BASE_URL); (2) Added AC-009 (DTU emulation gap documented under ADR-031 DTU=true-DTU principle — single-DTU emulation described; full multi-instance DTU gap surfaced as S-DEMO-MULTI-TENANT-DTU-001 stub needed; Red Gate: test_S_CONFIG_DTU_BASE_URL_OVERLAY_ROUTES_TO_CORRECT_DTU_INSTANCE); (3) Updated blocks: to include S-DEMO-001 (boot step 9A depends on ResolvedSensorSpec map from this story per S-DEMO-001 v1.3 depends_on); (4) Added dispatch order note: S-CONFIG + S-DTU-CYBERINT parallel → S-DEMO-001 after both merge; (5) acceptance_criteria_count 7→9, red_gate_tests 7→9. Status remains draft: BC-2.06.012–016 are draft status; Spec-First Gate S-7.01 requires non-empty behavioral_contracts with active (not draft) BCs before status=ready. |
