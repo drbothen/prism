@@ -4,8 +4,23 @@ title: "E2E Demo Wiring Plan — Live DTU Round-Trip via Claude MCP"
 author: architect
 date: "2026-05-29"
 status: DRAFT
-version: "1.0"
+version: "1.1"
 anchor_gap: GAP-002-A
+revision_notes: |
+  v1.1 (2026-05-29): Corrected Cyberint auth model in §1(b) and §5. Cyberint uses
+  auth_type = "cookie_roundtrip" (D-737 LOCKED), NOT bearer_static. The three non-CrowdStrike
+  sensors do NOT all share the same auth path. Auth model per sensor:
+    - CrowdStrike: CustomViaPlugin (OAuth2 WASM plugin, PluginAuthProvider)
+    - Armis: BearerStatic (BearerStaticAuthProvider, constructed per-fetch)
+    - Claroty: BearerStatic (BearerStaticAuthProvider, same as Armis)
+    - Cyberint: CookieRoundtrip (CookieLoginAuthProvider: POST /login → cyberint_session cookie)
+  Root cause of v1.0 error: story-writer relied on the legacy label "bearer_static" from
+  the retired CyberintAuth::auth_type_name() (PLUGIN-MIGRATION-001-A deleted it). The
+  cyberint.sensor.toml TOML spec has auth_type = "cookie_roundtrip" (D-737 LOCKED per
+  ADR-028 §D2). TOML spec wins per CLAUDE.md §SoT #7.
+  PipelineExecutor gap: build_request currently injects all tokens as Authorization: Bearer.
+  For CookieRoundtrip, it must inject Cookie: cyberint_session={token} instead.
+  This is a pipeline-level amendment required in the same PR as S-DEMO-001.
 ---
 
 # E2E Demo Wiring Plan — Live DTU Round-Trip via Claude MCP
@@ -64,60 +79,80 @@ Priority: P0 — nothing else in the demo works without this.
 #### (b) Per-sensor adapter implementation
 
 Status: Partially addressed by existing infrastructure, but the bridge struct is
-missing.
+missing. (v1.1 update: auth model correction below.)
 
 What exists:
 - `PipelineExecutor::execute()` is fully implemented (PLUGIN-PREREQ-B, merged).
   It reads `SensorSpec`, runs HTTP steps, handles JSONPath, pagination, auth via
-  `Arc<dyn AuthProvider>`, 401-refresh via plugin, returns `Vec<RecordBatch>`.
+  `&dyn AuthProvider`, 401-refresh, returns `Vec<RecordBatch>`.
 - `PluginAuthProvider` is implemented (PLUGIN-PREREQ-E + S-PLUGIN-CI-001, both
   merged). The `crowdstrike-oauth2.prx` plugin artifact is committed.
 - TOML sensor specs for CrowdStrike, Claroty, Cyberint, Armis exist at
   `crates/prism-sensors/specs/` (PLUGIN-MIGRATION-001-D, merged). They include
-  `auth_plugin = "crowdstrike-oauth2"` and DTU-grounded URLs.
+  `auth_plugin = "crowdstrike-oauth2"` for CrowdStrike and DTU-grounded URLs.
 
 What is missing:
 - The `SpecDrivenSensorAdapter` struct that wraps `PipelineExecutor::execute()`
   to satisfy the `dyn SensorAdapter` interface.
 - The boot-time loop that instantiates one `SpecDrivenSensorAdapter` per sensor
   spec and calls `AdapterRegistry::register()`.
+- `BearerStaticAuthProvider` — for Armis + Claroty (auth_type = bearer_static).
+- `CookieLoginAuthProvider` — for Cyberint (auth_type = cookie_roundtrip).
+- Amendment to `PipelineExecutor::build_request` to inject auth as a Cookie header
+  (not Authorization: Bearer) for CookieRoundtrip sensors.
 
-ADR-023 explicitly permits `PipelineExecutor` in production; it is in the
-Permitted Patterns section. Building a `SpecDrivenSensorAdapter` that calls
-`PipelineExecutor` is architecturally correct — it is the intended end state of
-PLUGIN-MIGRATION-001.
+**Auth model per sensor (v1.1 corrected from v1.0):**
 
-No concrete sensor-specific Rust adapters need to be written. The TOML spec
-files already encode all sensor-specific behavior.
+| Sensor | auth_type | AuthProvider | Token injection |
+|--------|-----------|--------------|-----------------|
+| CrowdStrike | custom_via_plugin | `PluginAuthProvider` (held at construction) | Authorization: Bearer (OAuth2 access_token) |
+| Armis | bearer_static | `BearerStaticAuthProvider` (constructed per-fetch from SensorAuth arg) | Authorization: Bearer |
+| Claroty | bearer_static | `BearerStaticAuthProvider` (same as Armis) | Authorization: Bearer |
+| Cyberint | cookie_roundtrip | `CookieLoginAuthProvider` (held at construction; POST /login → cyberint_session) | Cookie: cyberint_session={token} |
 
-There is one complication: `SensorAdapter::fetch()` takes `&dyn SensorAuth`
-(from the legacy auth trait), while `PipelineExecutor::execute()` takes
-`Arc<dyn AuthProvider>` (the newer plugin-auth trait). The `SpecDrivenSensorAdapter`
-must hold the `Arc<PluginAuthProvider>` from boot step 7.5b
-(`plugin_result.plugin_auth_providers`) and use it via `AuthProvider` rather than
-routing through `SensorAuth`. This means the `SensorAuth` argument to
-`SensorAdapter::fetch()` should be ignored when the adapter holds a plugin
-auth provider. This is architecturally clean: plugin-authed sensors bypass the
-legacy credential resolver entirely per ADR-028 §D10.
+**v1.0 error:** This section stated "Armis/Claroty/Cyberint via bearer_static auth path."
+That claim is wrong for Cyberint. `cyberint.sensor.toml` declares `auth_type = "cookie_roundtrip"`
+(D-737 LOCKED per ADR-028 §D2). The legacy `CyberintAuth::auth_type_name()` returned
+`"bearer_static"` — but that module is deleted by PLUGIN-MIGRATION-001-A; the TOML spec
+is now the source of truth (CLAUDE.md §SoT #7). Cyberint requires a login step.
+
+**PipelineExecutor gap:** `build_request` injects all tokens as `Authorization: Bearer {token}`.
+For `AuthType::CookieRoundtrip`, it must inject `Cookie: cyberint_session={token}`. This is a
+pipeline-level amendment required in the same PR as S-DEMO-001 — see S-DEMO-001 v1.1
+§Cyberint Cookie Auth Design for the full design decision (Option B recommended).
+
+ADR-023 explicitly permits `PipelineExecutor` in production. Building a `SpecDrivenSensorAdapter`
+that calls `PipelineExecutor` is architecturally correct — it is the intended end state.
 
 Covered in new story S-DEMO-001 scope.
 
 #### (c) Auth resolution per-sensor
 
-Status: The plugin auth path is the correct production path (ADR-028 §D10).
+Status: Three distinct auth paths are required for the 4-sensor demo (v1.1 corrected).
 
-For the demo, CrowdStrike uses `auth_plugin = "crowdstrike-oauth2"`. At boot
-step 7.5b, `validate_and_construct_auth_providers()` already constructs a
-`PluginAuthProvider` for CrowdStrike. The `plugin_result.plugin_auth_providers`
-HashMap carries this. The `SpecDrivenSensorAdapter` for CrowdStrike must hold
-this `Arc<PluginAuthProvider>` and pass it to `PipelineExecutor::execute()`.
+**CrowdStrike (CustomViaPlugin):** `auth_plugin = "crowdstrike-oauth2"`. Boot step 7.5b
+constructs `PluginAuthProvider`. `SpecDrivenSensorAdapter` holds `Arc<PluginAuthProvider>`
+and ignores the `SensorAuth` arg at fetch time (ADR-028 §D10).
 
-For sensors without `auth_plugin` (if any for the demo), the
-`ProductionCredentialResolver` path applies. For the initial demo scope (CrowdStrike
-only), the plugin path is sufficient.
+**Armis + Claroty (BearerStatic):** `auth_type = "bearer_static"`. No `auth_plugin` field.
+`BearerStaticAuthProvider` is constructed per-fetch from the `SensorAuth::BearerStatic { token }`
+argument. The bearer token comes from the credential store at query time; boot step 9A registers
+the adapter with `AdapterAuthStrategy::BearerStatic` sentinel (no token held at construction).
+
+**Cyberint (CookieRoundtrip):** `auth_type = "cookie_roundtrip"` (D-737 LOCKED). No `auth_plugin`.
+`CookieLoginAuthProvider` is held at construction time (constructed during boot step 9A with the
+DTU `base_url` overlay). At fetch time, it issues `POST {base_url}/login` → parses
+`Set-Cookie: cyberint_session={token}` → returns the token string. The pipeline's `build_request`
+function is amended to inject this as `Cookie: cyberint_session={token}`.
+
+Reference behavior: poller-express (the brownfield Go Cyberint poller, `.factory/semport/poller-express/`)
+uses a `cookieTransport` that injects `Cookie: access_token={api_key}` on every request — no login
+step. The DTU clone uses a different model (login step → session cookie). For the demo against
+DTU, the DTU model governs. For production, a future `StaticCookieAuthProvider` will implement
+the poller-express static-cookie-injection pattern (see ADR-028 §D12, added in S-DEMO-001 PR).
 
 S-2.07 (per-sensor auth + pagination) was superseded by ADR-023 (PLUGIN-MIGRATION-001-H).
-The plugin auth path IS the production auth path; S-2.07 patterns are retired.
+The three-path auth model is the production auth path for the 4-sensor scope.
 
 Auth resolution is in-scope for S-DEMO-001.
 
@@ -507,9 +542,10 @@ S-DEMO-001:
 | ADR | Amendment needed |
 |-----|-----------------|
 | ADR-022 §B | Add boot step 9A (`spec_driven_adapter_registry_populate`) to the sequencing invariant table. Between step 7.5b (auth provider construction) and step 9 (MCP server start). |
-| ADR-023 §Permitted Patterns | Add `SpecDrivenSensorAdapter` (struct in `prism-bin` implementing `dyn SensorAdapter` via `PipelineExecutor`) to the permitted patterns list. This clarifies that the bridge pattern is architecturally intended. |
+| ADR-023 §Permitted Patterns | Add `SpecDrivenSensorAdapter` (struct in `prism-bin` implementing `dyn SensorAdapter` via `PipelineExecutor`), `CookieLoginAuthProvider` (in `prism-spec-engine`), and `BearerStaticAuthProvider` (in `prism-bin`) to the permitted patterns list. |
 | ADR-022 §F (dependency wiring) | Update the comment that `adapter_registry` is empty at step 9 — after S-DEMO-001, it is populated from the spec catalog. |
-| ADR-028 | Add §D11 note: demo credential setup uses dummy values against DTU clones; the OAuth2 flow is exercised but no real secrets are required. |
+| ADR-028 §D12 (NEW) | Document real-API vs DTU Cyberint cookie model divergence: real API uses static `Cookie: access_token={api_key}` (poller-express reference), DTU uses `POST /login → cyberint_session` session cookies. Document path to production `StaticCookieAuthProvider` in a future story. Also document that `build_request` in `PipelineExecutor` must be auth-type-aware (CookieRoundtrip → Cookie header, not Authorization Bearer). |
+| `prism-spec-engine/src/pipeline.rs` `build_request` | Pipeline-level amendment: add `auth_type: &AuthType` parameter; dispatch `CookieRoundtrip` to `Cookie: cyberint_session={token}` injection, all other variants to `Authorization: Bearer {token}`. This is a code change, not an ADR, but must ship in the same PR as S-DEMO-001. |
 
 Story-writer should note these in S-DEMO-001 under "Spec Updates" section.
 

@@ -112,8 +112,14 @@ phase: 3
 
 New story required per E2E-DEMO-WIRING-PLAN.md §2 (h) "End-to-end smoke test harness".
 User scope decision 2026-05-29: all 4 sensors exercised in the same test run.
-CrowdStrike uses OAuth2 plugin path; Armis/Claroty/Cyberint use bearer_static path via
-`SpecDrivenSensorAdapter` (no per-sensor WASM plugin needed).
+
+Auth model (corrected per S-DEMO-001 v1.1 architect revision 2026-05-29):
+- CrowdStrike uses OAuth2 WASM plugin path (`PluginAuthProvider`).
+- Armis + Claroty use `bearer_static` path via `BearerStaticAuthProvider` (no WASM plugin).
+- Cyberint uses `cookie_roundtrip` path via `CookieLoginAuthProvider` (POST /login → cyberint_session cookie).
+
+Previous v1.0 statement "Armis/Claroty/Cyberint use bearer_static path" was incorrect for
+Cyberint. `cyberint.sensor.toml` declares `auth_type = "cookie_roundtrip"` (D-737 LOCKED).
 
 ---
 
