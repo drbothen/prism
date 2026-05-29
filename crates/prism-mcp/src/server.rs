@@ -1714,6 +1714,8 @@ impl PrismServer {
         &self,
         Parameters(params): Parameters<ExplainAliasParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
+        // F-PR163-PASS2-IMP-2: bound name before injection scan (256-byte cap, matches delete_alias).
+        validate_text_field("name", params.name.as_str(), 256)?;
         let mut inputs = vec![("name", params.name.as_str())];
         if let Some(ref scope) = params.scope {
             inputs.push(("scope", scope.as_str()));
@@ -3236,6 +3238,9 @@ impl PrismServer {
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
         // F-PASS15-HIGH-1: validate sensor_id length before injection scan.
         validate_id_field("sensor_id", params.sensor_id.as_str())?;
+        // F-PR163-PASS2-IMP-2: bound name (256 B) and source (1 KiB) before injection scan.
+        validate_text_field("name", params.name.as_str(), 256)?;
+        validate_text_field("source", params.source.as_str(), 1024)?;
         scan_inputs(
             &self.injection_scanner,
             &[
@@ -3279,6 +3284,8 @@ impl PrismServer {
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
         // F-PASS15-HIGH-1: validate sensor_id length before injection scan.
         validate_id_field("sensor_id", params.sensor_id.as_str())?;
+        // F-PR163-PASS2-IMP-2: bound name before injection scan (256 B).
+        validate_text_field("name", params.name.as_str(), 256)?;
         scan_inputs(
             &self.injection_scanner,
             &[
@@ -3352,6 +3359,18 @@ impl PrismServer {
         &self,
         Parameters(params): Parameters<ListAlertsParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
+        // F-PR163-PASS2-IMP-2: bound filter strings before injection scan.
+        // severity, status are enum-like (short) — 256 B cap.
+        // since is ISO8601 timestamp — 256 B cap (ISO8601 is ~30 chars max).
+        if let Some(ref v) = params.severity {
+            validate_text_field("severity", v.as_str(), 256)?;
+        }
+        if let Some(ref v) = params.status {
+            validate_text_field("status", v.as_str(), 256)?;
+        }
+        if let Some(ref v) = params.since {
+            validate_text_field("since", v.as_str(), 256)?;
+        }
         let mut inputs: Vec<(&str, &str)> = Vec::new();
         let client_id_storage;
         let severity_storage;
@@ -3635,26 +3654,34 @@ impl PrismServer {
         &self,
         Parameters(params): Parameters<CreatePackParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
+        // F-PR163-PASS2-IMP-2: bound all free-text fields before injection scan.
+        validate_text_field("pack_name", params.pack_name.as_str(), 256)?;
+        if let Some(ref queries) = params.queries {
+            // queries: each is a PrismQL string — cap at 100 items × 64 KiB each.
+            validate_string_vec_field("queries", queries, 100, 64 * 1024)?;
+        }
+        if let Some(ref rules) = params.rules {
+            // rules: each is a rule ID reference — cap at 100 items × 256 B each.
+            validate_string_vec_field("rules", rules, 100, 256)?;
+        }
+        if let Some(ref aliases) = params.aliases {
+            // aliases: each is an alias name reference — cap at 100 items × 256 B each.
+            validate_string_vec_field("aliases", aliases, 100, 256)?;
+        }
         let mut inputs = vec![("pack_name", params.pack_name.as_str())];
         // HIGH-3 fix: scan queries, rules, AND aliases arrays for injection (all are user-controlled).
-        let query_strings: Vec<String>;
-        let rule_strings: Vec<String>;
-        let alias_strings: Vec<String>;
         if let Some(ref queries) = params.queries {
-            query_strings = queries.clone();
-            for q in &query_strings {
+            for q in queries {
                 inputs.push(("query", q.as_str()));
             }
         }
         if let Some(ref rules) = params.rules {
-            rule_strings = rules.clone();
-            for r in &rule_strings {
+            for r in rules {
                 inputs.push(("rule", r.as_str()));
             }
         }
         if let Some(ref aliases) = params.aliases {
-            alias_strings = aliases.clone();
-            for a in &alias_strings {
+            for a in aliases {
                 inputs.push(("alias", a.as_str()));
             }
         }
@@ -3991,6 +4018,10 @@ impl PrismServer {
         Parameters(params): Parameters<FireActionParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
         validate_id_field("action_id", params.action_id.as_str())?;
+        // F-PR163-PASS2-IMP-2: bound context before injection scan (4 KiB).
+        if let Some(ref ctx) = params.context {
+            validate_text_field("context", ctx.as_str(), 4 * 1024)?;
+        }
         let mut inputs = vec![("action_id", params.action_id.as_str())];
         if let Some(ref ctx) = params.context {
             inputs.push(("context", ctx.as_str()));
@@ -4053,6 +4084,8 @@ impl PrismServer {
         &self,
         Parameters(params): Parameters<CreateActionParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
+        // F-PR163-PASS2-IMP-2: bound spec_toml before injection scan (256 KiB, matches add_sensor_spec).
+        validate_text_field("spec_toml", params.spec_toml.as_str(), 256 * 1024)?;
         scan_inputs(
             &self.injection_scanner,
             &[("spec_toml", params.spec_toml.as_str())],
@@ -4116,6 +4149,8 @@ impl PrismServer {
         &self,
         Parameters(params): Parameters<GetHelpParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
+        // F-PR163-PASS2-IMP-2: bound topic before injection scan (256 B).
+        validate_text_field("topic", params.topic.as_str(), 256)?;
         scan_inputs(&self.injection_scanner, &[("topic", params.topic.as_str())])?;
         emit_tool_audit(self.audit_writer.as_ref(), "get_help", None, "invoked");
         Err(not_yet_available_msg("help system"))
@@ -5921,6 +5956,270 @@ mod tests {
             codes::INVALID_PARAMS,
             "IMP-9: oversized token must return INVALID_PARAMS (-32602); \
              if validate_id_field('token', ...) is removed, returns different code"
+        );
+    }
+
+    // ─── F-PR163-PASS2-IMP-2 — sibling-sweep load-bearing tests ─────────────
+    //
+    // Each test asserts INVALID_PARAMS on oversized input for one specific handler.
+    // Mental-deletion proof per test: if the corresponding validate_text_field call
+    // is removed from the handler, the handler either (a) returns a different error
+    // code (e.g. injection-scan FORBIDDEN, or not-yet-available NOT_IMPLEMENTED),
+    // or (b) returns no error at all. Either way the INVALID_PARAMS assertion fails.
+
+    /// F-PR163-PASS2-IMP-2: explain_alias rejects oversized name (> 256 B).
+    #[tokio::test]
+    async fn test_F_PR163_PASS2_IMP_2_explain_alias_name_length_bounded() {
+        let server = PrismServer::new();
+        let params = ExplainAliasParams {
+            name: "a".repeat(257),
+            scope: None,
+        };
+        let err = server
+            .explain_alias(Parameters(params))
+            .await
+            .expect_err("explain_alias must reject oversized name");
+        assert_eq!(
+            err.code.0,
+            codes::INVALID_PARAMS,
+            "oversized name must return INVALID_PARAMS (-32602); got code {}",
+            err.code.0
+        );
+    }
+
+    /// F-PR163-PASS2-IMP-2: create_pack rejects oversized pack_name (> 256 B).
+    #[tokio::test]
+    async fn test_F_PR163_PASS2_IMP_2_create_pack_pack_name_length_bounded() {
+        let server = PrismServer::new();
+        let params = CreatePackParams {
+            pack_name: "p".repeat(257),
+            queries: None,
+            rules: None,
+            aliases: None,
+        };
+        let err = server
+            .create_pack(Parameters(params))
+            .await
+            .expect_err("create_pack must reject oversized pack_name");
+        assert_eq!(
+            err.code.0,
+            codes::INVALID_PARAMS,
+            "oversized pack_name must return INVALID_PARAMS (-32602); got code {}",
+            err.code.0
+        );
+    }
+
+    /// F-PR163-PASS2-IMP-2: create_pack rejects oversized queries Vec (> 100 items).
+    #[tokio::test]
+    async fn test_F_PR163_PASS2_IMP_2_create_pack_queries_vec_length_bounded() {
+        let server = PrismServer::new();
+        let params = CreatePackParams {
+            pack_name: "test_pack".to_owned(),
+            queries: Some(vec!["SELECT 1".to_owned(); 101]),
+            rules: None,
+            aliases: None,
+        };
+        let err = server
+            .create_pack(Parameters(params))
+            .await
+            .expect_err("create_pack must reject queries Vec > 100 items");
+        assert_eq!(
+            err.code.0,
+            codes::INVALID_PARAMS,
+            "queries Vec > 100 items must return INVALID_PARAMS (-32602); got code {}",
+            err.code.0
+        );
+    }
+
+    /// F-PR163-PASS2-IMP-2: create_action rejects oversized spec_toml (> 256 KiB).
+    #[tokio::test]
+    async fn test_F_PR163_PASS2_IMP_2_create_action_spec_toml_length_bounded() {
+        let server = PrismServer::new();
+        let params = CreateActionParams {
+            spec_toml: "x".repeat(256 * 1024 + 1),
+        };
+        let err = server
+            .create_action(Parameters(params))
+            .await
+            .expect_err("create_action must reject spec_toml > 256 KiB");
+        assert_eq!(
+            err.code.0,
+            codes::INVALID_PARAMS,
+            "oversized spec_toml must return INVALID_PARAMS (-32602); got code {}",
+            err.code.0
+        );
+    }
+
+    /// F-PR163-PASS2-IMP-2: fire_action rejects oversized context (> 4 KiB).
+    #[tokio::test]
+    async fn test_F_PR163_PASS2_IMP_2_fire_action_context_length_bounded() {
+        let server = PrismServer::new();
+        let params = FireActionParams {
+            action_id: "valid-action-id".to_owned(),
+            context: Some("c".repeat(4 * 1024 + 1)),
+        };
+        let err = server
+            .fire_action(Parameters(params))
+            .await
+            .expect_err("fire_action must reject context > 4 KiB");
+        assert_eq!(
+            err.code.0,
+            codes::INVALID_PARAMS,
+            "oversized context must return INVALID_PARAMS (-32602); got code {}",
+            err.code.0
+        );
+    }
+
+    /// F-PR163-PASS2-IMP-2: get_help rejects oversized topic (> 256 B).
+    #[tokio::test]
+    async fn test_F_PR163_PASS2_IMP_2_get_help_topic_length_bounded() {
+        let server = PrismServer::new();
+        let params = GetHelpParams {
+            topic: "t".repeat(257),
+        };
+        let err = server
+            .get_help(Parameters(params))
+            .await
+            .expect_err("get_help must reject oversized topic");
+        assert_eq!(
+            err.code.0,
+            codes::INVALID_PARAMS,
+            "oversized topic must return INVALID_PARAMS (-32602); got code {}",
+            err.code.0
+        );
+    }
+
+    /// F-PR163-PASS2-IMP-2: configure_credential_source rejects oversized name (> 256 B).
+    #[tokio::test]
+    async fn test_F_PR163_PASS2_IMP_2_configure_credential_source_name_length_bounded() {
+        let server = PrismServer::new();
+        let params = ConfigureCredentialSourceParams {
+            client_id: "valid-client".to_owned(),
+            sensor_id: "sensor-id".to_owned(),
+            name: "n".repeat(257),
+            source: "env".to_owned(),
+        };
+        let err = server
+            .configure_credential_source(Parameters(params))
+            .await
+            .expect_err("configure_credential_source must reject oversized name");
+        assert_eq!(
+            err.code.0,
+            codes::INVALID_PARAMS,
+            "oversized name must return INVALID_PARAMS (-32602); got code {}",
+            err.code.0
+        );
+    }
+
+    /// F-PR163-PASS2-IMP-2: configure_credential_source rejects oversized source (> 1 KiB).
+    #[tokio::test]
+    async fn test_F_PR163_PASS2_IMP_2_configure_credential_source_source_length_bounded() {
+        let server = PrismServer::new();
+        let params = ConfigureCredentialSourceParams {
+            client_id: "valid-client".to_owned(),
+            sensor_id: "sensor-id".to_owned(),
+            name: "my-credential".to_owned(),
+            source: "s".repeat(1025),
+        };
+        let err = server
+            .configure_credential_source(Parameters(params))
+            .await
+            .expect_err("configure_credential_source must reject oversized source");
+        assert_eq!(
+            err.code.0,
+            codes::INVALID_PARAMS,
+            "oversized source must return INVALID_PARAMS (-32602); got code {}",
+            err.code.0
+        );
+    }
+
+    /// F-PR163-PASS2-IMP-2: delete_credential rejects oversized name (> 256 B).
+    #[tokio::test]
+    async fn test_F_PR163_PASS2_IMP_2_delete_credential_name_length_bounded() {
+        let server = PrismServer::new();
+        let params = DeleteCredentialParams {
+            client_id: "valid-client".to_owned(),
+            sensor_id: "sensor-id".to_owned(),
+            name: "n".repeat(257),
+        };
+        let err = server
+            .delete_credential(Parameters(params))
+            .await
+            .expect_err("delete_credential must reject oversized name");
+        assert_eq!(
+            err.code.0,
+            codes::INVALID_PARAMS,
+            "oversized name must return INVALID_PARAMS (-32602); got code {}",
+            err.code.0
+        );
+    }
+
+    /// F-PR163-PASS2-IMP-2: list_alerts rejects oversized severity (> 256 B).
+    #[tokio::test]
+    async fn test_F_PR163_PASS2_IMP_2_list_alerts_severity_length_bounded() {
+        let server = PrismServer::new();
+        let params = ListAlertsParams {
+            client_id: None,
+            severity: Some("s".repeat(257)),
+            rule_id: None,
+            status: None,
+            since: None,
+        };
+        let err = server
+            .list_alerts(Parameters(params))
+            .await
+            .expect_err("list_alerts must reject oversized severity");
+        assert_eq!(
+            err.code.0,
+            codes::INVALID_PARAMS,
+            "oversized severity must return INVALID_PARAMS (-32602); got code {}",
+            err.code.0
+        );
+    }
+
+    /// F-PR163-PASS2-IMP-2: list_alerts rejects oversized status (> 256 B).
+    #[tokio::test]
+    async fn test_F_PR163_PASS2_IMP_2_list_alerts_status_length_bounded() {
+        let server = PrismServer::new();
+        let params = ListAlertsParams {
+            client_id: None,
+            severity: None,
+            rule_id: None,
+            status: Some("s".repeat(257)),
+            since: None,
+        };
+        let err = server
+            .list_alerts(Parameters(params))
+            .await
+            .expect_err("list_alerts must reject oversized status");
+        assert_eq!(
+            err.code.0,
+            codes::INVALID_PARAMS,
+            "oversized status must return INVALID_PARAMS (-32602); got code {}",
+            err.code.0
+        );
+    }
+
+    /// F-PR163-PASS2-IMP-2: list_alerts rejects oversized since (> 256 B).
+    #[tokio::test]
+    async fn test_F_PR163_PASS2_IMP_2_list_alerts_since_length_bounded() {
+        let server = PrismServer::new();
+        let params = ListAlertsParams {
+            client_id: None,
+            severity: None,
+            rule_id: None,
+            status: None,
+            since: Some("s".repeat(257)),
+        };
+        let err = server
+            .list_alerts(Parameters(params))
+            .await
+            .expect_err("list_alerts must reject oversized since");
+        assert_eq!(
+            err.code.0,
+            codes::INVALID_PARAMS,
+            "oversized since must return INVALID_PARAMS (-32602); got code {}",
+            err.code.0
         );
     }
 }

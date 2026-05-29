@@ -54,10 +54,91 @@ impl From<BoundingDmlOperation> for DmlOperation {
             BoundingDmlOperation::InsertInto => DmlOperation::InsertInto,
             BoundingDmlOperation::Update => DmlOperation::Update,
             BoundingDmlOperation::Delete => DmlOperation::Delete,
-            // #[non_exhaustive] wildcard: future BoundingDmlOperation variants default
-            // to InsertInto (the least-destructive DML kind) to avoid a panic on
-            // unknown operations (F-PR163-IMP-1).
-            _ => DmlOperation::InsertInto,
+            // #[non_exhaustive] wildcard: unknown future BoundingDmlOperation variants
+            // map to Delete (the MOST destructive DML kind) — fail-closed safety choice
+            // (F-PR163-PASS2-IMP-3).
+            //
+            // Rationale: if a future variant (e.g., Truncate) is added and a
+            // TRUNCATE-token is re-dispatched in confirm_action, the BoundingDmlOperation
+            // wildcard path is hit. Mapping to InsertInto (fail-open) would silently
+            // bypass classify_risk_tier's Irreversible gate, allowing an unreviewed
+            // destructive operation to execute as Reversible.  Mapping to Delete
+            // ensures classify_risk_tier returns Irreversible — the confirmation token
+            // gate fires and the operation is blocked until the new variant is handled.
+            _ => DmlOperation::Delete,
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Unit tests — BoundingDmlOperation conversion invariants
+// ---------------------------------------------------------------------------
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use prism_security::BoundingDmlOperation;
+
+    /// F-PR163-PASS2-IMP-3: all known BoundingDmlOperation variants map to the
+    /// correct DmlOperation, and the wildcard is Delete (fail-closed), not InsertInto.
+    ///
+    /// Mental-deletion proof: if the wildcard arm is changed from `Delete` back to
+    /// `InsertInto`, the invariant comment changes but this test still passes for the
+    /// 3 known variants.  The CRITICAL invariant — that unknown variants map to Delete
+    /// (Irreversible), not InsertInto (Reversible) — is enforced by the code comment
+    /// and the fail-closed-by-design architecture rationale.
+    ///
+    /// Rationale for no "unknown-variant" test: `BoundingDmlOperation` is
+    /// `#[non_exhaustive]`, so constructing an unknown variant in this crate is
+    /// impossible without `unsafe` or a test-helpers feature not present here.
+    /// The 3-known-variants test IS load-bearing: if the match arms are miswired
+    /// (e.g., Delete→InsertInto or InsertInto→Delete), this test catches it.
+    #[test]
+    fn test_F_PR163_PASS2_IMP_3_bounding_dml_known_variants_map_correctly() {
+        // InsertInto → InsertInto (Reversible-friendly DML)
+        assert_eq!(
+            DmlOperation::from(BoundingDmlOperation::InsertInto),
+            DmlOperation::InsertInto,
+            "BoundingDmlOperation::InsertInto must map to DmlOperation::InsertInto"
+        );
+
+        // Update → Update
+        assert_eq!(
+            DmlOperation::from(BoundingDmlOperation::Update),
+            DmlOperation::Update,
+            "BoundingDmlOperation::Update must map to DmlOperation::Update"
+        );
+
+        // Delete → Delete (Irreversible — fail-closed invariant)
+        assert_eq!(
+            DmlOperation::from(BoundingDmlOperation::Delete),
+            DmlOperation::Delete,
+            "BoundingDmlOperation::Delete must map to DmlOperation::Delete (Irreversible)"
+        );
+    }
+
+    /// F-PR163-PASS2-IMP-3 complementary: the reverse conversion (DmlOperation →
+    /// BoundingDmlOperation) is the lossless mirror used at token generation time.
+    ///
+    /// Mental-deletion proof: if any arm is dropped from the `impl From<DmlOperation>
+    /// for BoundingDmlOperation` match, the compile fails because the match becomes
+    /// non-exhaustive (no wildcard on that direction).
+    #[test]
+    fn test_F_PR163_PASS2_IMP_3_dml_to_bounding_round_trips() {
+        // Round-trip: DmlOperation → BoundingDmlOperation → DmlOperation
+        // must be identity for all 3 known variants.
+        for op in [
+            DmlOperation::InsertInto,
+            DmlOperation::Update,
+            DmlOperation::Delete,
+        ] {
+            let bounding = BoundingDmlOperation::from(op.clone());
+            let back = DmlOperation::from(bounding);
+            assert_eq!(
+                back, op,
+                "DmlOperation round-trip must be identity; {:?} did not round-trip",
+                op
+            );
         }
     }
 }

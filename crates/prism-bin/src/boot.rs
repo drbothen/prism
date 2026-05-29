@@ -1750,7 +1750,7 @@ pub async fn plugin_load_step_with_audit(
 /// # Structured Event
 ///
 /// Emits `boot.step7.storage_validated` (INFO) on success per BC-2.16.002 catalog
-/// (S-3.02-FOLLOWUP-RUNTIME).
+/// (implemented as of develop@a55bd930, PR #162).
 ///
 /// # Errors
 ///
@@ -1775,7 +1775,7 @@ pub async fn step7_init_storage(
 ///
 /// Calls [`prism_query::invalidation::mark_query_phase_started`] to permanently
 /// close the write-tool registration window (ADR-026 §D7; ADR-022 §B step 7.5/8).
-/// This is the sole load-bearing act of this step in S-3.02-FOLLOWUP-RUNTIME.
+/// This is the sole load-bearing act of this step (implemented as of develop@a55bd930, PR #162).
 ///
 /// QueryEngine + WriteExecutor construction and wiring into PrismServer is
 /// performed by S-5.01-FOLLOWUP-MCP-BOOT (boot step 9), which is the first
@@ -1911,9 +1911,10 @@ pub async fn step9_start_mcp_server(
             // Sensor adapters are currently dispatched via WASM plugins (PluginAuthProvider),
             // not via this resolver. The fan_out CredentialResolver path is invoked only for
             // direct adapter fan-out — which requires populated AdapterRegistry (GAP-002-A).
-            // When GAP-002-A is closed (S-3.02-FOLLOWUP-RUNTIME), this resolver will look up
-            // credentials from self.credential_store and return the appropriate SensorAuth subtype
-            // based on the sensor spec's auth_type. Per-sensor auth resolution is S-2.07.
+            // When GAP-002-A is closed (target: S-5.04-SENSOR-HEALTH-ADAPTER-DISPATCH), this
+            // resolver will look up credentials from self.credential_store and return the
+            // appropriate SensorAuth subtype based on the sensor spec's auth_type.
+            // Per-sensor auth resolution is S-2.07.
             Err(prism_sensors::adapter::SensorError::ConfigValidation {
                 sensor: sensor_id.to_string(),
                 detail: format!(

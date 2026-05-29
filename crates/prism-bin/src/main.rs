@@ -131,13 +131,12 @@ async fn dispatch(args: CliArgs) -> i32 {
         }
 
         PrismCommand::Query { query_str: _ } => {
-            // QueryEngine::execute is todo!() until S-3.02-FOLLOWUP-RUNTIME.
+            // The `prism query` CLI subcommand is not yet wired to QueryEngine.
+            // QueryEngine execution pipeline is implemented in prism-mcp (develop@a55bd930, PR #162).
+            // The CLI subcommand wiring is deferred to S-5.04-SENSOR-HEALTH-ADAPTER-DISPATCH.
             // AC-11: must not return exit 2 (that's for unknown subcommand).
-            // Return exit 4 (internal-error) because QueryEngine is not yet initialized.
-            eprintln!(
-                "prism query: QueryEngine not yet implemented \
-                 (deferred to S-3.02-FOLLOWUP-RUNTIME); exit 4"
-            );
+            // Return exit 4 (internal-error) because QueryEngine is not yet wired at CLI.
+            eprintln!("prism query: CLI subcommand not yet wired to QueryEngine; exit 4");
             EXIT_INTERNAL_ERROR
         }
     }
