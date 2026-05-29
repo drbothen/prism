@@ -4,12 +4,12 @@ adr_id: "ADR-028"
 title: "TOML Spec URLs and auth_type Ground Against DTU Clone Routes (Real-API Canonical), Not Production Rust Adapter URLs"
 status: Proposed
 date: "2026-05-20"
-modified: "2026-05-29"  # v1.12 D12 Cyberint cookie auth real-API vs DTU divergence
-version: "1.12"
+modified: "2026-05-29"  # v1.13 §D12 superseded annotation (ADR-031 D4 — DTU=true-DTU reversal)
+version: "1.13"
 producer: architect
 subsystems_affected: [SS-01, SS-07, SS-16, SS-17]
 supersedes: ["ADR-026 §D3 (partial — auth_type_name() return values for Cyberint/Claroty/Armis non-CrowdStrike sensors)"]
-superseded_by: null
+superseded_by: "ADR-031 §D4 (partial — §D12 only: Cyberint cookie auth DTU-shortcut acceptance reversed by DTU=true-DTU principle 2026-05-29)"
 amends: null
 anchor_stories: [PLUGIN-MIGRATION-001-D, PLUGIN-MIGRATION-001-A, PLUGIN-MIGRATION-001-B, PLUGIN-MIGRATION-001-C, PLUGIN-MIGRATION-001-E, S-DEMO-001]
 related_adrs: [ADR-003, ADR-023, ADR-027]
@@ -449,6 +449,14 @@ No new `event_type` values are introduced by this change. The existing `plugin.a
 
 ### D12 — Cyberint Cookie Auth: Real-API vs DTU Model Divergence (S-DEMO-001)
 
+> **[SUPERSEDED by ADR-031 §D4 2026-05-29 — DTU=true-DTU principle adoption]**
+> §D12's acceptance of the `cyberint_session` DTU shortcut is reversed. The correct
+> cookie name is `access_token` (matching poller-express real-API behavior). The correct
+> prism implementation is `StaticCookieAuthProvider` (no login step), not `CookieLoginAuthProvider`.
+> The `build_request` dispatch for `CookieRoundtrip` must inject `Cookie: access_token={token}`.
+> This body is preserved for traceability (POL-1 append-only). Do NOT implement per §D12 contract.
+> Implement per ADR-031 §D3 contract.
+
 **Adjudicated 2026-05-29 (architect, S-DEMO-001 v1.1 gap analysis; reference: poller-express semport).**
 
 #### Background
@@ -554,6 +562,7 @@ The cookie name `cyberint_session` is hardcoded for the `CookieRoundtrip` varian
 
 | Version | Date | Author | Summary |
 |---|---|---|---|
+| 1.13 | 2026-05-29 | architect | §D12 SUPERSEDED — ADR-031 §D4 reverses the DTU-shortcut acceptance. §D12 body annotated `[SUPERSEDED by ADR-031 §D4 2026-05-29 — DTU=true-DTU principle adoption]`. Correct contract is now ADR-031 §D3: `access_token` cookie (not `cyberint_session`), `StaticCookieAuthProvider` (no login step), `build_request` dispatches `CookieRoundtrip → Cookie: access_token={token}`. frontmatter `superseded_by:` updated. frontmatter `version:` bumped v1.12→v1.13. |
 | 1.12 | 2026-05-29 | architect | §D12 ADDED — Cyberint cookie auth real-API vs DTU model divergence (S-DEMO-001). Documents `access_token` (real API, static injection per poller-express) vs `cyberint_session` (DTU, POST /login session token) divergence. Locks DTU model for S-DEMO-001 (`CookieLoginAuthProvider` + `build_request` amendment to `Cookie: cyberint_session={token}`). Documents production path via future `StaticCookieAuthProvider` or `auth_cookie_name` TOML field. Documents `build_request` auth-type-aware dispatch invariant. anchor_stories += S-DEMO-001. |
 | 1.11 | 2026-05-24 | architect | §D11 ADDED — OAuth2 Credential Substitution Model for Plugin Dispatch (PLUGIN-MIGRATION-001-E PR-LEVEL CRIT #2, user-authorized fix-in-scope). Locks Option C (host resolves credential_handle → client_id + client_secret via prism_credentials::resolve_credential; PluginConfigMap injection before dispatch). Options A (host_http_request sentinel) and B (WIT param expansion) rejected with rationale. Full AD-017 compliance analysis, data flow diagram, affected file list, implementer contract (dispatch signature change, guest acquire_token change, test transition strategy), and EC-006b/EC-006c error code extensions. BC-2.01.016 added to related_bcs. Closes F-LP12-PR-CRIT-2. |
 | 1.10 | 2026-05-21 | architect | FB-IMPL-2 architect adjudication: §D8-B AMENDED — canonical Armis fallback chain corrected from `["last_seen", "first_seen"]` to `["first_seen"]` (F-LP2-HIGH-004: `last_seen` self-reference is a semantic no-op; false doc-comment "Skip the primary field itself" had no code implementation; implementer must add defensive skip guard `if fb_field == &col.name { continue; }` and fix doc-comment). §D9 SCOPE CLARIFIED — documented-gap exception covers table-level gaps only, NOT parameter-level projections; `page_size = 100` in cyberint.sensor.toml removed per §D1 (`AlertListParams` struct has no `page_size` field confirmed at alerts.rs:38-40); DTU-EXT-005 registered in BC-2.16.013 §Known Gaps (F-LP2-MEDIUM-001). §Status self-cite advanced to v1.10. BC-2.16.013 v1.12→v1.13. |

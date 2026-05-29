@@ -7914,12 +7914,17 @@ GAP-002-A (AdapterRegistry empty at boot) is the architectural keystone blocking
 
 ### §4. Story Execution Order (Critical Path)
 
-_Updated D-846 (2026-05-29): 001-A/001-B/001-E all MERGED; critical path head corrected._
+_Updated D-847 (2026-05-29): DTU=true-DTU reversal (ADR-031). Cyberint auth corrected. S-DTU-CYBERINT-AUTH-FIDELITY-001 added as P0-pre-demo-BLOCKING. S-DEMO-001 v1.2→v1.3 (StaticCookieAuthProvider + access_token). Critical path extended by one story._
 
 ```
 S-CONFIG-MULTI-TENANT-OVERRIDE-001 (P0, draft, ready)   → per-story-delivery   [next dispatchable]
+  [can run in parallel:]
+S-DTU-CYBERINT-AUTH-FIDELITY-001 (P0, stub, pre-demo-BLOCKING — ADR-031 §D3)
+  → story-writer materialization → per-story-delivery
+  [both must merge before S-DEMO-001]
         ↓
-S-DEMO-001 (P0, draft v1.2, KEYSTONE — closes GAP-002-A; OQ-1/2/6 architect-resolved)
+S-DEMO-001 (P0, draft v1.3, KEYSTONE — closes GAP-002-A; OQ-1/2/6 architect-resolved;
+  v1.3: StaticCookieAuthProvider + Cookie: access_token={api_key}; depends_on S-DTU-CYBERINT-AUTH-FIDELITY-001)
   → per-story-delivery (architect rescope complete)
         ↓
 S-DEMO-002 (P0, draft v1.2, multi-org ACs added)        → per-story-delivery after S-DEMO-001
@@ -7931,10 +7936,10 @@ S-DEMO-002 (P0, draft v1.2, multi-org ACs added)        → per-story-delivery a
   (5 more P2/P3 follow-up stubs as post-demo work)
 ```
 
-**Critical path session estimate:** ~4.6 sessions (architect estimate, story-writer-confirmed)
+**Critical path session estimate:** ~5.1 sessions (updated from 4.6 — added S-DTU-CYBERINT-AUTH-FIDELITY-001)
 
 **Story file paths:**
-- `S-DEMO-001-spec-driven-sensor-adapter-and-boot-step-9a.md` (27 KB, 8 pts)
+- `S-DEMO-001-spec-driven-sensor-adapter-and-boot-step-9a.md` (29 KB, 11 pts, v1.3)
 - `S-DEMO-002-e2e-subprocess-smoke-test-all-sensors.md` (21 KB, 8 pts)
 - `S-DEMO-003-demo-setup-scripts-and-runbook.md` (21 KB, 5 pts)
 - `S-5.04-FIX-001-update-depends-on-for-superseded-s207.md` (7 KB, 1 pt)
@@ -7944,15 +7949,18 @@ S-DEMO-002 (P0, draft v1.2, multi-org ACs added)        → per-story-delivery a
 
 ### §5. Open Questions for Architect/Human (Before S-DEMO-001 Dispatch)
 
-These 5 open questions were identified by story-writer in the draft specs. Address with architect BEFORE dispatching per-story-delivery for S-DEMO-001:
+These open questions were identified by story-writer in the draft specs.
+OQ-1 and OQ-2 are resolved. OQ-6 (Cyberint auth) is resolved + reversed by ADR-031.
+Address OQ-3/4/5 with architect BEFORE dispatching per-story-delivery for the respective story.
 
-| OQ | Story | Question |
-|----|-------|---------|
-| OQ-1 | S-DEMO-001 | `BearerStaticAuthProvider` construction timing — per-fetch (recommended Option A: construct in `fetch()` from `ResolvedSensorSpec::auth`) vs enum-strategy field on `SpecDrivenSensorAdapter` |
-| OQ-2 | S-DEMO-001 | `ResolvedSensorSpec` iteration type — map key `OrgSlug` vs `OrgId`? Is translation needed in boot step 9A? |
-| OQ-3 | S-DEMO-002 | Windows CI for subprocess teardown — `#[cfg(unix)]` gate for SIGTERM vs Windows taskkill path? |
-| OQ-4 | S-DEMO-003 | `rpassword` crate — workspace-level dependency or prism-bin only? |
-| OQ-5 | S-DEMO-003 | Exact committed path of `crowdstrike-oauth2.prx` artifact from S-PLUGIN-CI-001 (S-DEMO-003 install script references it) |
+| OQ | Story | Question | Status |
+|----|-------|---------|--------|
+| OQ-1 | S-DEMO-001 | `BearerStaticAuthProvider` construction timing | RESOLVED (v1.1): per-fetch from SensorAuth arg; `AdapterAuthStrategy::BearerStatic` sentinel |
+| OQ-2 | S-DEMO-001 | `ResolvedSensorSpec` iteration map key type | RESOLVED (v1.1): read S-CONFIG-MULTI-TENANT-OVERRIDE-001 story at impl time; OrgSlug→OrgId translation likely needed |
+| OQ-3 | S-DEMO-002 | Windows CI for subprocess teardown | OPEN — `#[cfg(unix)]` gate for SIGTERM vs Windows taskkill path |
+| OQ-4 | S-DEMO-003 | `rpassword` crate — workspace-level dependency or prism-bin only? | OPEN |
+| OQ-5 | S-DEMO-003 | Exact committed path of `crowdstrike-oauth2.prx` artifact from S-PLUGIN-CI-001 | OPEN |
+| OQ-6 | S-DEMO-001 | Cyberint cookie auth design — `CookieLoginAuthProvider` (login step) vs `StaticCookieAuthProvider` (static injection) | RESOLVED + REVERSED (D-847, ADR-031): `StaticCookieAuthProvider` is the correct implementation. Cookie name is `access_token`. DTU corrected by S-DTU-CYBERINT-AUTH-FIDELITY-001. No login step. |
 
 ---
 
@@ -7973,15 +7981,16 @@ BC-INDEX version: **v5.55** (unchanged — no new BCs, no promotions in this pla
 
 ### §7. Resume Protocol (5 Steps — Zero Prior Context Required)
 
-_Updated D-846 (2026-05-29): develop@72baf413 (TOML fidelity fixes accepted); critical path head is S-CONFIG-MULTI-TENANT-OVERRIDE-001._
+_Updated D-847 (2026-05-29): DTU=true-DTU reversal; S-DTU-CYBERINT-AUTH-FIDELITY-001 added; S-DEMO-001 v1.3; ADR-031 authored. Critical path: S-CONFIG → S-DTU-CYBERINT (parallel) → S-DEMO-001._
 
 1. **Run `vsdd-factory:factory-worktree-health`** (BLOCKING preflight — must pass before any other action)
-2. **Read `STATE.md` frontmatter** — confirm `version: "7.533"` and `develop_head: "72baf413"`
-3. **Read this §RESUME SNAPSHOT 2026-05-29-E2E-DEMO-WIRING-PLAN-LOCKED** (you are reading it now)
-4. **Read `.factory/proposals/E2E-DEMO-WIRING-PLAN.md`** (679 lines — architect's full gap analysis, MUST read)
+2. **Read `STATE.md` frontmatter** — confirm `develop_head: "72baf413"` and note D-847 is the current state
+3. **Read this §RESUME SNAPSHOT** (you are reading it now)
+4. **Read `.factory/proposals/E2E-DEMO-WIRING-PLAN.md` v1.3** + `ADR-031-dtu-equals-true-dtu-fidelity-principle.md` (MUST read — foundational changes from D-847)
 5. **Dispatch next per-story-delivery cycle:**
-   - S-CONFIG-MULTI-TENANT-OVERRIDE-001 (status: draft, ready — all deps merged) — start here
-   - S-DEMO-001 (status: draft v1.2, OQ-1/2/6 resolved by architect) — dispatch after S-CONFIG
+   - S-CONFIG-MULTI-TENANT-OVERRIDE-001 (status: draft, ready — all deps merged) — dispatch first
+   - S-DTU-CYBERINT-AUTH-FIDELITY-001 (status: stub — needs story-writer materialization first) — dispatch in parallel with S-CONFIG via separate worktree
+   - S-DEMO-001 (status: draft v1.3, OQ-1/2/6 resolved; depends on S-DTU-CYBERINT-AUTH-FIDELITY-001) — dispatch after both above merge
    - Standard per-story-delivery cycle: stubs → failing tests → TDD → adversary 3-CLEAN cascade → demo → push → pr-manager → state-manager post-merge burst
 
 ---

@@ -4,44 +4,32 @@ title: "E2E Demo Wiring Plan — Live DTU Round-Trip via Claude MCP"
 author: architect
 date: "2026-05-29"
 status: DRAFT
-version: "1.2"
+version: "1.3"
 anchor_gap: GAP-002-A
 revision_notes: |
   v1.1 (2026-05-29): Corrected Cyberint auth model in §1(b) and §5. Cyberint uses
-  auth_type = "cookie_roundtrip" (D-737 LOCKED), NOT bearer_static. The three non-CrowdStrike
-  sensors do NOT all share the same auth path. Auth model per sensor:
+  auth_type = "cookie_roundtrip" (D-747 LOCKED), NOT bearer_static. Auth model per sensor:
     - CrowdStrike: CustomViaPlugin (OAuth2 WASM plugin, PluginAuthProvider)
     - Armis: BearerStatic (BearerStaticAuthProvider, constructed per-fetch)
     - Claroty: BearerStatic (BearerStaticAuthProvider, same as Armis)
     - Cyberint: CookieRoundtrip (CookieLoginAuthProvider: POST /login → cyberint_session cookie)
-  Root cause of v1.0 error: story-writer relied on the legacy label "bearer_static" from
-  the retired CyberintAuth::auth_type_name() (PLUGIN-MIGRATION-001-A deleted it). The
-  cyberint.sensor.toml TOML spec has auth_type = "cookie_roundtrip" (D-737 LOCKED per
-  ADR-028 §D2). TOML spec wins per CLAUDE.md §SoT #7.
-  PipelineExecutor gap: build_request currently injects all tokens as Authorization: Bearer.
-  For CookieRoundtrip, it must inject Cookie: cyberint_session={token} instead.
-  This is a pipeline-level amendment required in the same PR as S-DEMO-001.
+  NOTE: v1.1 Cyberint model was CORRECT about the auth_type but WRONG about the cookie name.
+  See v1.3 reversal.
 
   v1.2 (2026-05-29): Cross-poller DTU fidelity audit findings incorporated.
   Full audit document: .factory/proposals/POLLER-DTU-FIDELITY-AUDIT-2026-05-29.md.
-  TOML fixes applied in same burst (see §1(e) updated):
-    - crowdstrike.sensor.toml: Gap-CS-001 fixed — column "id" renamed to "detection_id"
-      to match DTU fixture key (routes/detections.rs: record.get("detection_id")).
-    - claroty.sensor.toml: Gap-CL-002 fixed — audit_log path corrected to /api/v1/audit_log/get.
-    - claroty.sensor.toml: Gap-CL-003 fixed — devices [[tables]] block added (DTU-grounded).
-    - claroty.sensor.toml: Gap-CL-005 fixed — alert column names aligned to DTU ClarotyAlert struct.
-  Known gaps remaining (pipeline stories required):
-    - Gap-CL-004: Claroty offset pagination must be in POST body; tracked in S-DEMO-CLAROTY-PAGINATION-001.
-    - Gap-CL-001: Trailing slash on Claroty paths; tracked in S-DEMO-CLAROTY-TRAILING-SLASH-001.
-    - Gap-AR-001: Armis AQL endpoint; tracked DTU-EXT-003/004.
-    - Gap-CY-002: Cyberint live-API endpoint path/method; DTU demo path unaffected.
-  Demo-readiness (DTU path, post-TOML-fix):
-    CrowdStrike: READY (after Gap-CS-001 fix)
-    Claroty: PARTIAL (alerts page-1 + devices page-1; Gap-CL-004 limits multi-page)
-    Armis: READY
-    Cyberint: READY (DTU path)
-  S-DEMO-002 AC table updated to reference detection_id, alert_type_name, detected_time,
-  updated_time, and claroty_devices table per these fixes.
+  TOML fixes applied in same burst. See v1.2 notes below.
+
+  v1.3 (2026-05-29): DTU=true-DTU reversal per ADR-031 (user directive 2026-05-29).
+  v1.1/v1.2 specified CookieLoginAuthProvider (POST /login → cyberint_session). WRONG.
+  The real Cyberint API uses Cookie: access_token={api_key} with NO login step
+  (poller-express cookieTransport; Name: "access_token"). The DTU must be corrected.
+  Auth model update for Cyberint:
+    - CookieRoundtrip: StaticCookieAuthProvider (reads api_key from credential store;
+      NO HTTP call; NO login step); build_request injects Cookie: access_token={api_key}.
+  New blocking dependency for S-DEMO-001: S-DTU-CYBERINT-AUTH-FIDELITY-001 (P0-pre-demo).
+  Demo-readiness updated: Cyberint is NOT READY until S-DTU-CYBERINT-AUTH-FIDELITY-001 merges.
+  POLLER-DTU-FIDELITY-AUDIT v1.1 documents all gap dispositions under DTU=true-DTU lens.
 ---
 
 # E2E Demo Wiring Plan — Live DTU Round-Trip via Claude MCP
@@ -129,18 +117,18 @@ What is missing:
 | CrowdStrike | custom_via_plugin | `PluginAuthProvider` (held at construction) | Authorization: Bearer (OAuth2 access_token) |
 | Armis | bearer_static | `BearerStaticAuthProvider` (constructed per-fetch from SensorAuth arg) | Authorization: Bearer |
 | Claroty | bearer_static | `BearerStaticAuthProvider` (same as Armis) | Authorization: Bearer |
-| Cyberint | cookie_roundtrip | `CookieLoginAuthProvider` (held at construction; POST /login → cyberint_session) | Cookie: cyberint_session={token} |
+| Cyberint | cookie_roundtrip | `StaticCookieAuthProvider` (held at construction; reads api_key from credential store; NO HTTP call; NO login step) | Cookie: access_token={api_key} |
 
-**v1.0 error:** This section stated "Armis/Claroty/Cyberint via bearer_static auth path."
-That claim is wrong for Cyberint. `cyberint.sensor.toml` declares `auth_type = "cookie_roundtrip"`
-(D-737 LOCKED per ADR-028 §D2). The legacy `CyberintAuth::auth_type_name()` returned
-`"bearer_static"` — but that module is deleted by PLUGIN-MIGRATION-001-A; the TOML spec
-is now the source of truth (CLAUDE.md §SoT #7). Cyberint requires a login step.
+**v1.3 correction (ADR-031 DTU=true-DTU):** v1.1/v1.2 specified `CookieLoginAuthProvider` (POST
+/login → `cyberint_session` cookie). This is WRONG under ADR-031. The real Cyberint API uses
+`Cookie: access_token={api_key}` with no login step (poller-express cookieTransport). The DTU
+must be corrected first (S-DTU-CYBERINT-AUTH-FIDELITY-001 P0-pre-demo-BLOCKING). Then prism
+implements `StaticCookieAuthProvider` which reads the api_key and returns it; `build_request`
+injects `Cookie: access_token={api_key}`. See ADR-031 §D3 and S-DEMO-001 v1.3 §Cyberint Cookie Auth Design.
 
-**PipelineExecutor gap:** `build_request` injects all tokens as `Authorization: Bearer {token}`.
-For `AuthType::CookieRoundtrip`, it must inject `Cookie: cyberint_session={token}`. This is a
-pipeline-level amendment required in the same PR as S-DEMO-001 — see S-DEMO-001 v1.1
-§Cyberint Cookie Auth Design for the full design decision (Option B recommended).
+**PipelineExecutor gap (updated):** `build_request` injects all tokens as `Authorization: Bearer {token}`.
+For `AuthType::CookieRoundtrip`, it must inject `Cookie: access_token={token}` (NOT `cyberint_session`).
+This is a pipeline-level amendment required in the same PR as S-DEMO-001.
 
 ADR-023 explicitly permits `PipelineExecutor` in production. Building a `SpecDrivenSensorAdapter`
 that calls `PipelineExecutor` is architecturally correct — it is the intended end state.
@@ -160,17 +148,17 @@ and ignores the `SensorAuth` arg at fetch time (ADR-028 §D10).
 argument. The bearer token comes from the credential store at query time; boot step 9A registers
 the adapter with `AdapterAuthStrategy::BearerStatic` sentinel (no token held at construction).
 
-**Cyberint (CookieRoundtrip):** `auth_type = "cookie_roundtrip"` (D-737 LOCKED). No `auth_plugin`.
-`CookieLoginAuthProvider` is held at construction time (constructed during boot step 9A with the
-DTU `base_url` overlay). At fetch time, it issues `POST {base_url}/login` → parses
-`Set-Cookie: cyberint_session={token}` → returns the token string. The pipeline's `build_request`
-function is amended to inject this as `Cookie: cyberint_session={token}`.
+**Cyberint (CookieRoundtrip):** `auth_type = "cookie_roundtrip"` (D-747 LOCKED). No `auth_plugin`.
+`StaticCookieAuthProvider` is held at construction time (constructed during boot step 9A).
+At acquire-token time, it reads the `api_key` from the credential store (NO HTTP call; NO login step).
+The pipeline's `build_request` function is amended to inject this as `Cookie: access_token={api_key}`
+(per real Cyberint API; per ADR-031 §D3-b).
 
-Reference behavior: poller-express (the brownfield Go Cyberint poller, `.factory/semport/poller-express/`)
-uses a `cookieTransport` that injects `Cookie: access_token={api_key}` on every request — no login
-step. The DTU clone uses a different model (login step → session cookie). For the demo against
-DTU, the DTU model governs. For production, a future `StaticCookieAuthProvider` will implement
-the poller-express static-cookie-injection pattern (see ADR-028 §D12, added in S-DEMO-001 PR).
+Reference behavior: poller-express (`.factory/semport/poller-express/`) uses a `cookieTransport`
+that injects `Cookie: access_token={api_key}` on every request — no login step. This IS the
+implementation we build, not a "future follow-up." The DTU is corrected by
+S-DTU-CYBERINT-AUTH-FIDELITY-001 to accept `access_token` before S-DEMO-001 is implemented.
+See ADR-031 §D3 for the full decision rationale (reversal of ADR-028 §D12).
 
 S-2.07 (per-sensor auth + pagination) was superseded by ADR-023 (PLUGIN-MIGRATION-001-H).
 The three-path auth model is the production auth path for the 4-sensor scope.
@@ -215,7 +203,7 @@ mechanism itself is already implemented (S-CONFIG-MULTI-TENANT-OVERRIDE-001, mer
 | `crowdstrike.sensor.toml` | Gap-CS-001: `detections.id` → `detections.detection_id` (matches DTU fixture key) | Gap-CS-002: detections vs alerts API endpoint (medium, non-blocking) |
 | `claroty.sensor.toml` | Gap-CL-002: audit_log path → `/api/v1/audit_log/get`; Gap-CL-003: `[[tables]] devices` added; Gap-CL-005: alert columns renamed to match DTU ClarotyAlert struct (`alert_type_name`, `detected_time`, `updated_time`) | Gap-CL-001: trailing slash (low for DTU, medium for live); Gap-CL-004: offset pagination needs POST body (pipeline story S-DEMO-CLAROTY-PAGINATION-001) |
 | `armis.sensor.toml` | No changes — Armis is demo-READY | Gap-AR-001: AQL vs direct endpoints (medium, DTU not affected) |
-| `cyberint.sensor.toml` | No changes — already correct for DTU demo path | Gap-CY-001/CY-002: live-API path mismatches (DTU demo unaffected) |
+| `cyberint.sensor.toml` | No TOML changes needed — TOML `auth_type = "cookie_roundtrip"` correct. DTU code must change (S-DTU-CYBERINT-AUTH-FIDELITY-001). | Gap-CY-001: DTU emits wrong cookie `cyberint_session`; must become `access_token` (ADR-031 §D3) — BLOCKING; Gap-CY-002: live-API endpoint path/method mismatch (DTU demo path unaffected) |
 
 **Column name reference for S-DEMO-002 query assertions:**
 
@@ -480,9 +468,13 @@ S-CONFIG-MULTI-TENANT-OVERRIDE-001  (draft → must ship)
 1. S-CONFIG-MULTI-TENANT-OVERRIDE-001 (must merge — overlay loading for DTU URLs)
 2. PLUGIN-MIGRATION-001-A (must merge — legacy adapter deletion)
 3. PLUGIN-MIGRATION-001-E (must merge — OAuth2 plugin integration at boot)
-4. S-DEMO-001 (keystone — SpecDrivenSensorAdapter + AdapterRegistry population)
-5. S-DEMO-002 (E2E smoke test)
-6. S-DEMO-003 (runbook)
+4. **S-DTU-CYBERINT-AUTH-FIDELITY-001** (NEW — P0-pre-demo-BLOCKING; corrects Cyberint DTU
+   `access_token` cookie per ADR-031 §D3; must merge before or alongside S-DEMO-001;
+   can be dispatched in parallel with S-CONFIG/001-A/001-E if worktrees are separate)
+5. S-DEMO-001 (keystone — SpecDrivenSensorAdapter + AdapterRegistry population;
+   now depends on S-DTU-CYBERINT-AUTH-FIDELITY-001)
+6. S-DEMO-002 (E2E smoke test)
+7. S-DEMO-003 (runbook)
 
 ### Parallelizable work
 
@@ -585,7 +577,8 @@ S-DEMO-001:
 | ADR-022 §B | Add boot step 9A (`spec_driven_adapter_registry_populate`) to the sequencing invariant table. Between step 7.5b (auth provider construction) and step 9 (MCP server start). |
 | ADR-023 §Permitted Patterns | Add `SpecDrivenSensorAdapter` (struct in `prism-bin` implementing `dyn SensorAdapter` via `PipelineExecutor`), `CookieLoginAuthProvider` (in `prism-spec-engine`), and `BearerStaticAuthProvider` (in `prism-bin`) to the permitted patterns list. |
 | ADR-022 §F (dependency wiring) | Update the comment that `adapter_registry` is empty at step 9 — after S-DEMO-001, it is populated from the spec catalog. |
-| ADR-028 §D12 (NEW) | Document real-API vs DTU Cyberint cookie model divergence: real API uses static `Cookie: access_token={api_key}` (poller-express reference), DTU uses `POST /login → cyberint_session` session cookies. Document path to production `StaticCookieAuthProvider` in a future story. Also document that `build_request` in `PipelineExecutor` must be auth-type-aware (CookieRoundtrip → Cookie header, not Authorization Bearer). |
+| ADR-028 §D12 | SUPERSEDED by ADR-031 §D4 (2026-05-29). §D12 body preserved for traceability but annotated. Do NOT implement per §D12 contract. |
+| ADR-031 (NEW — AUTHORED) | DTU=true-DTU fidelity principle. Authored in factory-artifacts burst 2026-05-29. Establishes: (a) real API governs, DTU conforms; (b) Cyberint must use `access_token` cookie + no login step; (c) S-DTU-CYBERINT-AUTH-FIDELITY-001 is P0-pre-demo-BLOCKING. Stories must cite ADR-031 §D3-b. |
 | `prism-spec-engine/src/pipeline.rs` `build_request` | Pipeline-level amendment: add `auth_type: &AuthType` parameter; dispatch `CookieRoundtrip` to `Cookie: cyberint_session={token}` injection, all other variants to `Authorization: Bearer {token}`. This is a code change, not an ADR, but must ship in the same PR as S-DEMO-001. |
 
 Story-writer should note these in S-DEMO-001 under "Spec Updates" section.

@@ -6,11 +6,11 @@ wave: 5
 epic_id: E-DEMO
 priority: P0
 status: draft
-version: "1.2"
+version: "1.3"
 level: "L4"
 producer: story-writer
 revised_by: architect
-timestamp: "2026-05-29T00:00:00Z"
+timestamp: "2026-05-29T12:00:00Z"
 tdd_mode: strict
 subsystems: [SS-01, SS-16, SS-22]
 # Subsystem anchor justifications:
@@ -47,25 +47,33 @@ depends_on:
   - S-CONFIG-MULTI-TENANT-OVERRIDE-001  # Must merge first: per-org overlay loading (ADR-029)
                                          # produces ResolvedSensorSpec map; boot 9A iterates this
                                          # map to construct one SpecDrivenSensorAdapter per (org, sensor).
+  - S-DTU-CYBERINT-AUTH-FIDELITY-001    # Must merge first: corrects prism-dtu-cyberint to use
+                                         # access_token cookie (not cyberint_session) and removes
+                                         # the login step. This story's Cyberint auth implementation
+                                         # (StaticCookieAuthProvider + access_token injection) requires
+                                         # the corrected DTU to be running. See ADR-031 §D3.
 blocks:
   - S-DEMO-002   # E2E smoke test cannot run without adapters in the registry.
   - S-5.04       # Sensor health checks call the registered adapter; health subsystem is
                  # downstream of GAP-002-A closure.
   - S-5.04-FIX-001  # Spec fix story depends on this story existing as the new S-5.04 dep.
 points: 11
-# Points justification (revised from v1.0's 8 pts — 3 pts added for Cyberint cookie auth work):
+# Points justification (revised from v1.0's 8 pts):
+#   v1.3 note: CookieLoginAuthProvider (login-step, 2 pts) is REPLACED by
+#   StaticCookieAuthProvider (no login step, credential-store read, ~1 pt less complexity).
+#   DTU code changes are out-of-scope (in S-DTU-CYBERINT-AUTH-FIDELITY-001).
+#   Net: points UNCHANGED at 11 — StaticCookieAuthProvider simpler but must depend on
+#   corrected DTU + additional test coverage for access_token cookie injection path.
 #   - SpecDrivenSensorAdapter struct + SensorAdapter impl (plugin auth path): ~1.5 pts
 #   - BearerStaticAuthProvider for Armis + Claroty (bearer_static auth type): ~1 pt
-#   - CookieLoginAuthProvider for Cyberint (cookie_roundtrip auth type):
-#       • login step in TOML spec (POST /login → capture Set-Cookie) OR
-#       • PipelineExecutor build_request auth-type-aware dispatch to Cookie header: ~2 pts
-#     (see §Cyberint Cookie Auth Design — architect recommends TOML login-step approach)
+#   - StaticCookieAuthProvider for Cyberint (cookie_roundtrip, access_token, no login step): ~1.5 pts
+#     (replaces CookieLoginAuthProvider; simpler but requires build_request dispatch change)
+#   - PipelineExecutor build_request auth-type-aware dispatch (Cookie: access_token=): ~0.5 pts
 #   - Boot step 9A loop + AdapterRegistry::register() calls: ~1.5 pts
 #   - reqwest::Client construction with 30s timeout (AD-017 compliant): ~0.5 pts
 #   - BC-2.16.002 catalog row for boot.step9a.adapter_registry_populated: ~0.5 pts
-#   - Red Gate tests (4 required, see ACs): ~2 pts
+#   - Red Gate tests (5 required, see ACs): ~2 pts
 #   - ADR-022 §B + ADR-023 §Permitted-Patterns amendment: ~0.5 pts
-#   - ADR-028 §D10 amendment (cookie_roundtrip login-step design): ~1 pt
 #   - OQ-1 resolution (bearer_static per-fetch construction): ~0.5 pts
 #   Total: 11 points (~3 days of focused TDD work)
 estimated_days: 3
@@ -95,9 +103,9 @@ risk_mitigations:
   - "CookieRoundtrip auth: PipelineExecutor::build_request must be amended to check spec.auth_type.
     When AuthType::CookieRoundtrip, inject Cookie header (cyberint_session={token}) instead of
     Authorization: Bearer {token}. The AuthProvider for Cyberint performs the POST /login step
-    and returns the session token value (without the cookie name prefix). CookieLoginAuthProvider
-    is the production implementation; it calls POST /login, parses Set-Cookie: cyberint_session=,
-    and returns the token string."
+    and returns the api_key value. StaticCookieAuthProvider
+    is the production implementation; it reads the api_key from the credential store
+    and returns the api_key string. No HTTP call is made (per ADR-031 D1-b)."
   - "reqwest::Client timeout: SpecDrivenSensorAdapter::new() constructs reqwest::Client with
     .timeout(Duration::from_secs(30)) per CLAUDE.md conventions. Missing this is a P2 finding."
   - "ADR-028 amendment: The §D10 note on cookie_roundtrip auth must be expanded to document
@@ -150,15 +158,23 @@ target, but that story ID does not exist. GAP-002-A is independent of S-5.04; it
 be closed here first. User scope decision 2026-05-29: all 4 sensors (CrowdStrike + Armis +
 Claroty + Cyberint).
 
-**Auth model (v1.1 correction from v1.0):**
+**Auth model (v1.3 correction from v1.2 — DTU=true-DTU principle, ADR-031):**
 - CrowdStrike: WASM `crowdstrike-oauth2.prx` plugin path via `PluginAuthProvider` (held at construction).
 - Armis: `bearer_static` auth via `BearerStaticAuthProvider` constructed per-fetch from `SensorAuth` arg.
 - Claroty: `bearer_static` auth via `BearerStaticAuthProvider` — same as Armis.
-- Cyberint: `cookie_roundtrip` auth via `CookieLoginAuthProvider` (new) + `PipelineExecutor::build_request`
-  amendment to inject `Cookie: cyberint_session={token}` instead of `Authorization: Bearer`.
-  NOT `bearer_static` as incorrectly stated in v1.0.
+- Cyberint: `cookie_roundtrip` auth via `StaticCookieAuthProvider` (new, replaces CookieLoginAuthProvider)
+  + `PipelineExecutor::build_request` amendment to inject `Cookie: access_token={token}`.
+  NOT `cyberint_session` as incorrectly specified in v1.1/v1.2.
 
-v1.0 §Origin was incorrect: it stated "Armis/Claroty/Cyberint use bearer_static". Cyberint uses
+v1.1/v1.2 §Origin was incorrect on the Cyberint cookie name. It specified `cyberint_session` because
+"the DTU uses that name." Under ADR-031 DTU=true-DTU principle (user directive 2026-05-29), the DTU
+must conform to the real API — not the other way around. The real API uses `access_token`
+(poller-express `cookieTransport`; no login step). The DTU is corrected in
+S-DTU-CYBERINT-AUTH-FIDELITY-001 before this story is implemented. This story implements
+`StaticCookieAuthProvider` (no HTTP calls at acquire_token time, no login step) and
+injects `Cookie: access_token={api_key}` in `build_request`.
+
+v1.0 §Origin was also incorrect: it stated "Armis/Claroty/Cyberint use bearer_static". Cyberint uses
 `auth_type = "cookie_roundtrip"` per D-737 LOCKED (ADR-028 §D2; TOML spec wins per CLAUDE.md §SoT #7).
 
 ---
@@ -182,8 +198,13 @@ After this story merges:
 3. `fan_out()` in `prism-query/src/materialization.rs` returns live Arrow batches for all 4 sensors.
 4. GAP-002-A comment in boot.rs is removed and replaced with a working implementation.
 5. `BearerStaticAuthProvider` is implemented for Armis + Claroty (bearer_static sensors).
-6. `CookieLoginAuthProvider` is implemented for Cyberint (cookie_roundtrip sensor).
-7. `PipelineExecutor::build_request` is amended to inject `Cookie` header when `spec.auth_type == CookieRoundtrip`.
+6. `StaticCookieAuthProvider` is implemented for Cyberint (cookie_roundtrip sensor).
+   This provider reads the API key from the credential store at acquire-token time; makes NO
+   HTTP call during `acquire_token` (no login step); returns the raw API key as the token value.
+   The DTU `prism-dtu-cyberint` has been corrected by S-DTU-CYBERINT-AUTH-FIDELITY-001 to
+   accept `Cookie: access_token={api_key}` before this story is implemented.
+7. `PipelineExecutor::build_request` is amended to inject `Cookie: access_token={token}` when
+   `spec.auth_type == CookieRoundtrip` (NOT `cyberint_session` — see ADR-031 §D3-b).
 
 ---
 
@@ -198,94 +219,80 @@ After this story merges:
 
 ---
 
-## Cyberint Cookie Auth Design (OQ-6 Resolution)
+## Cyberint Cookie Auth Design (OQ-6 Resolution — v1.3 revised per ADR-031)
 
-### Background: poller-express reference behavior
+> **v1.3 REVISION:** This section is materially changed from v1.1/v1.2.
+> v1.1/v1.2 specified `CookieLoginAuthProvider` (login step + `cyberint_session` cookie).
+> That design is WRONG under ADR-031 DTU=true-DTU (user directive 2026-05-29).
+> The correct design is `StaticCookieAuthProvider` + `access_token` cookie.
+> The old design documentation is struck through below for traceability.
+
+### Background: poller-express reference behavior (the ground truth)
 
 The reference Go implementation (`poller-express`) injects the Cyberint API key as a cookie
 named `access_token` on every HTTP request via a `cookieTransport` (custom `http.RoundTripper`).
-There is NO actual round-trip login step in poller-express — the name `cookie_roundtrip` is
-misleading. The API key is static and injected directly as a cookie value on every request
-without any prior authentication exchange.
+There is NO login step. The API key IS the credential; it is injected directly as a cookie on
+every request.
 
-The DTU clone (`prism-dtu-cyberint`) implements a DIFFERENT model: it requires a `POST /login`
-step that returns `Set-Cookie: cyberint_session={uuid}`. Subsequent requests must include this
-session token as `Cookie: cyberint_session={token}`. The DTU uses `cyberint_session` as the
-cookie name, not `access_token`.
+```go
+func (t *cookieTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+    req.AddCookie(&http.Cookie{Name: "access_token", Value: t.apiKey})
+    return http.DefaultTransport.RoundTrip(req)
+}
+```
 
-### Cookie name reconciliation: `access_token` vs `cyberint_session`
+### Cookie name: `access_token` (canonical)
 
-| Source | Cookie name | Mechanism |
-|--------|-------------|-----------|
-| poller-express (real API reference) | `access_token` | Static API key injected as cookie; no login step |
-| DTU clone (`prism-dtu-cyberint`) | `cyberint_session` | UUID session token issued by POST /login; per-session |
+| Source | Cookie name | Mechanism | Is canonical? |
+|--------|-------------|-----------|---------------|
+| poller-express (real API reference) | `access_token` | Static API key injected as cookie; no login step | YES — source of truth per ADR-031 |
+| DTU clone v1 (pre-fix) | `cyberint_session` | UUID session token issued by POST /login; per-session | NO — DTU fidelity violation; CORRECTED by S-DTU-CYBERINT-AUTH-FIDELITY-001 |
+| DTU clone v2 (post-fix) | `access_token` | Static API key accepted; no login step; per ADR-031 | YES — correct |
 
-The two models are intentionally different: the real API uses a static key; the DTU simulates
-a stateful session to test cookie handling behavior more faithfully. For the demo (which runs
-against the DTU clone), the DTU model governs.
+The v1.1/v1.2 decision that "the DTU model governs for the demo" is reversed by ADR-031.
+The real API governs. The DTU must conform to the real API.
 
-**Decision for S-DEMO-001:** The `CookieLoginAuthProvider` performs `POST {base_url}/login` and
-parses `Set-Cookie: cyberint_session={token}` from the response. It returns the token string
-(not the full `cyberint_session={token}` form — just the value). The `PipelineExecutor::build_request`
-amendment injects it as `Cookie: cyberint_session={token}`.
+### Decision for S-DEMO-001 (v1.3)
 
-For production readiness (real Cyberint API): a future story will implement a second mode —
-`StaticCookieAuthProvider` — that injects the API key as `Cookie: access_token={api_key}` without
-any login step. This maps to the poller-express behavior for the real API. The two modes are
-controlled by a new TOML field `auth_cookie_name` (or distinguished by a future `auth_type`
-value `cookie_static`). This is NOT in-scope for S-DEMO-001 — the demo only needs to work
-against the DTU clone.
+`StaticCookieAuthProvider` is the Cyberint auth implementation:
+- Reads the API key from the credential store at `acquire_token()` time (NOT at construction
+  time per AD-017 — credentials never held at construction).
+- Makes NO HTTP call during `acquire_token()`. No login step.
+- Returns the raw API key string as the `AuthToken` value.
 
-**Action item (follow-up ADR, not blocking S-DEMO-001):** ADR-028 should be amended with §D12
-to document the real-API vs DTU cookie model divergence and the path to production-grade real
-Cyberint auth. The architect will amend ADR-028 §D12 as part of this story's spec updates.
+`PipelineExecutor::build_request` injects the token as `Cookie: access_token={api_key}`.
+
+Prerequisite: `prism-dtu-cyberint` must be corrected by `S-DTU-CYBERINT-AUTH-FIDELITY-001`
+before this story is implemented. S-DEMO-001 depends_on that story.
 
 ### Pipeline-level fix: build_request must be auth-type-aware
 
-**Root cause discovered:** `PipelineExecutor::build_request` (in `prism-spec-engine/src/pipeline.rs`)
-currently injects ALL auth tokens as `Authorization: Bearer {token}`, regardless of `spec.auth_type`.
-This is incorrect for `CookieRoundtrip` auth — the token must be injected as `Cookie: cyberint_session={token}`.
+**Root cause:** `PipelineExecutor::build_request` injects ALL auth tokens as
+`Authorization: Bearer {token}`, regardless of `spec.auth_type`. For `CookieRoundtrip`, the
+token must be injected as `Cookie: access_token={token}`.
 
-**Two design options:**
+**Decision: pipeline auth-type-aware dispatch (unchanged from v1.1/v1.2 — method correct; cookie name corrected).**
 
-**Option A (TOML login-step approach):** Add a `login` FetchStep to the Cyberint TOML spec that
-performs `POST /login` and captures the `Set-Cookie` header into a step variable. Subsequent steps
-reference that variable as the cookie value. This requires PipelineExecutor to extract response
-headers (not just JSON body via JSONPath) into step variables — a capability it currently lacks.
+- `build_request` signature gains `auth_type: &AuthType`.
+- `issue_request_with_retry` passes `spec` down to `build_request`.
+- `StaticCookieAuthProvider::acquire_token()` reads API key from credential store; returns it.
+- On 401: existing 401-retry logic re-calls `acquire_token` (which re-reads credential store);
+  no session to refresh. 401 from real Cyberint would indicate an invalid/expired API key.
 
-**Option B (pipeline auth-type-aware dispatch):** Amend `build_request` to accept `&SensorSpec`
-(or `AuthType`) and dispatch the auth header based on auth_type:
-- `BearerStatic`, `Oauth2ClientCredentials`, `CustomViaPlugin`: `Authorization: Bearer {token}`
-- `CookieRoundtrip`: `Cookie: cyberint_session={token}`
-- `ApiKey`: `{key_header}: {token}` (future, not in-scope)
+**Updated dispatch table:**
 
-`CookieLoginAuthProvider` performs the login step and returns the session token. The pipeline
-calls `CookieLoginAuthProvider::acquire_token` before the steps loop (per the existing eager
-token acquisition pattern) and injects it as a cookie on every step request.
+| AuthType | Header injected |
+|----------|----------------|
+| `CookieRoundtrip` | `Cookie: access_token={token}` |
+| `BearerStatic` | `Authorization: Bearer {token}` |
+| `Oauth2ClientCredentials` | `Authorization: Bearer {token}` |
+| `CustomViaPlugin` | `Authorization: Bearer {token}` |
 
-**Architect recommendation: Option B.**
-
-Option A requires a non-trivial PipelineExecutor capability extension (header capture into step
-vars). Option B is a minimal targeted change to `build_request` that respects the existing
-auth-type-aware design intent of the `AuthType` enum. The `AuthType` enum already models all
-four variants; `build_request` ignoring auth_type was an implementation gap, not an architectural
-decision. Closing it in Option B is the production-grade fix.
-
-**Option B change surface:**
-- `build_request` function signature gains `auth_type: &AuthType` (or `spec: &SensorSpec`).
-- `issue_request_with_retry` passes `spec` down to `build_request` (already passes `spec` for error reporting).
-- `CookieLoginAuthProvider` implements `AuthProvider`: calls `POST {spec.base_url}/login`, parses
-  `Set-Cookie: cyberint_session={value}`, returns `AuthToken::new(value)`.
-- On 401: the existing 401-retry logic re-calls `auth_provider.acquire_token` (which re-logins).
-  This is correct for cookie auth — a 401 means the session expired; re-login gets a fresh token.
-
-**Crate ownership note:** `build_request` is in `prism-spec-engine`. `CookieLoginAuthProvider` is
-also a new type in `prism-spec-engine/src/auth_provider.rs` (not in `prism-bin`). It is a
-production implementation of `AuthProvider` used by `SpecDrivenSensorAdapter` when `auth_type ==
-CookieRoundtrip`. Unlike `BearerStaticAuthProvider` (which lives in `prism-bin` because it
-bridges the SensorAuth↔AuthProvider interface), `CookieLoginAuthProvider` makes HTTP calls and
-belongs in `prism-spec-engine` near `PipelineExecutor`. Mark it `pub` (not feature-gated) — it is
-a production type.
+**Crate ownership:** `build_request` is in `prism-spec-engine`. `StaticCookieAuthProvider` is
+a new type in `prism-spec-engine/src/auth_provider.rs`. Unlike `BearerStaticAuthProvider`
+(which lives in `prism-bin` because it bridges `SensorAuth↔AuthProvider`), `StaticCookieAuthProvider`
+is a pure-prism-spec-engine type that reads credentials and injects them as cookies.
+Mark it `pub` — it is a production type, not feature-gated.
 
 ---
 
@@ -305,14 +312,17 @@ cheap (struct with one String) and avoids the complexity of an enum-strategy fie
 **Implementation:** `SpecDrivenSensorAdapter::fetch()` matches on `auth: &dyn SensorAuth`:
 - Downcast to `SensorAuth::BearerStatic { token }`: construct `BearerStaticAuthProvider::new(token)`.
 - Auth strategy from construction time is `PluginAuth`: use the held `Arc<PluginAuthProvider>`.
-- Auth strategy from construction time is `CookieAuth`: use the held `Arc<CookieLoginAuthProvider>`.
+- Auth strategy from construction time is `StaticCookie`: use the held `Arc<StaticCookieAuthProvider>`.
 
 The `SpecDrivenSensorAdapter` holds an enum `AdapterAuthStrategy`:
 ```rust
 enum AdapterAuthStrategy {
-    Plugin(Arc<dyn AuthProvider>),   // CrowdStrike: held PluginAuthProvider
-    BearerStatic,                    // Armis/Claroty: extracted at fetch() from SensorAuth
-    CookieLogin(Arc<dyn AuthProvider>), // Cyberint: held CookieLoginAuthProvider
+    Plugin(Arc<dyn AuthProvider>),        // CrowdStrike: held PluginAuthProvider
+    BearerStatic,                         // Armis/Claroty: extracted at fetch() from SensorAuth
+    StaticCookie(Arc<dyn AuthProvider>),  // Cyberint: held StaticCookieAuthProvider
+                                          // NOTE: was CookieLogin in v1.1/v1.2; renamed per ADR-031
+                                          // StaticCookieAuthProvider makes NO HTTP calls at acquire_token;
+                                          // reads api_key from credential store and returns it directly.
 }
 ```
 
@@ -371,17 +381,19 @@ Red Gate test: `test_BC_2_01_013_spec_driven_adapter_bearer_static_extracts_toke
 
 ### AC-003: SpecDrivenSensorAdapter delegates for cookie_roundtrip sensor (Cyberint)
 Given: Cyberint sensor spec loaded at boot (auth_type is `cookie_roundtrip`, no `auth_plugin` field);
-DTU clone running and accepting `POST /login` → `Set-Cookie: cyberint_session={token}`.
+DTU clone running and accepting `Cookie: access_token={api_key}` (corrected by
+S-DTU-CYBERINT-AUTH-FIDELITY-001 per ADR-031 §D3-a — no login step required).
 When: `SpecDrivenSensorAdapter::fetch()` is called for Cyberint.
-Then: The adapter uses its held `CookieLoginAuthProvider`, which (a) calls `POST {base_url}/login`,
-(b) parses the `Set-Cookie` response header, (c) extracts the value of the cookie named
-`cyberint_session` (NOT `access_token` — that is the real Cyberint API cookie name, which differs
-from the DTU's session cookie; see §Cyberint Cookie Auth Design for the reconciliation),
-(d) returns the token string.
-The pipeline injects it as `Cookie: cyberint_session={token}` (NOT `Authorization: Bearer`).
+Then: The adapter uses its held `StaticCookieAuthProvider`, which (a) reads the Cyberint API key
+from the credential store at acquire-token time, (b) makes NO HTTP call during acquire_token
+(no login step — this is the real Cyberint API behavior per poller-express `cookieTransport`),
+(c) returns the API key string as the token value.
+The pipeline injects it as `Cookie: access_token={api_key}` (NOT `cyberint_session` — that was
+the DTU's pre-fix incorrect model; see ADR-031 §D3 and §Cyberint Cookie Auth Design).
+The pipeline does NOT call `Authorization: Bearer`.
 The response contains `Vec<RecordBatch>` from the DTU clone.
-(traces to BC-2.01.013 postcondition 4; closes cookie_roundtrip gap in pipeline)
-Red Gate test: `test_BC_2_01_013_spec_driven_adapter_cyberint_cookie_auth_injects_cookie_header`
+(traces to BC-2.01.013 postcondition 4; closes cookie_roundtrip gap in pipeline per ADR-031)
+Red Gate test: `test_BC_2_01_013_spec_driven_adapter_cyberint_cookie_auth_injects_access_token_cookie`
 
 ### AC-004: Boot step 9A registers exactly N adapters (N = sum of per-org × per-sensor specs)
 Given: `spec_catalog` has M resolved sensor specs for each of K orgs.
@@ -421,23 +433,20 @@ Then: The HTTP request emitted by `PipelineExecutor` carries `Authorization: Bea
 header per the BearerStatic path in `build_request`.
 (traces to BC-2.01.013 precondition)
 
-### AC-009: CookieLoginAuthProvider injects Cookie header, not Authorization Bearer
-Given: A `SpecDrivenSensorAdapter` for Cyberint is called with a running DTU clone.
-When: `CookieLoginAuthProvider::acquire_token()` is called; the DTU clone's `POST /login` responds with
-`Set-Cookie: cyberint_session=some-uuid`.
+### AC-009: StaticCookieAuthProvider injects Cookie: access_token header, not Authorization Bearer
+Given: A `SpecDrivenSensorAdapter` for Cyberint is called with a running DTU clone (corrected by
+S-DTU-CYBERINT-AUTH-FIDELITY-001 to accept `Cookie: access_token={api_key}`).
+When: `StaticCookieAuthProvider::acquire_token()` is called.
 Then:
-(a) `CookieLoginAuthProvider` parses the cookie name `cyberint_session` from the `Set-Cookie` header
-    (the DTU uses `cyberint_session`; the real Cyberint API uses `access_token` — a different cookie
-    name; see §Cyberint Cookie Auth Design. The implementation must parse `cyberint_session` for the
-    DTU demo path).
-(b) The HTTP request to `GET /api/v1/alerts` carries `Cookie: cyberint_session=some-uuid`,
-    NOT `Authorization: Bearer some-uuid`.
-(closes the `build_request` cookie-injection gap per §Cyberint Cookie Auth Design)
+(a) `StaticCookieAuthProvider` reads the Cyberint API key from the credential store (NO HTTP call;
+    NO `POST /login`; NO `Set-Cookie` header parsing).
+(b) The HTTP request to `GET /api/v1/alerts` carries `Cookie: access_token={api_key}`,
+    NOT `Authorization: Bearer {api_key}`, NOT `Cookie: cyberint_session={anything}`.
+(closes the `build_request` cookie-injection gap per §Cyberint Cookie Auth Design and ADR-031 §D3-b)
 
-**Implementation constraint:** `CookieLoginAuthProvider` must extract the `cyberint_session` cookie
-from the `Set-Cookie` header value. The cookie parser must handle the standard `Set-Cookie` format:
-`cyberint_session=<value>; Path=/; HttpOnly`. Extracting `<value>` by splitting on `=` and then
-on `;` is sufficient (no exotic cookie attributes in the DTU response).
+**Implementation constraint:** The cookie name is `access_token` — the real Cyberint API cookie
+name per poller-express `cookieTransport`. Any implementation that uses `cyberint_session` as the
+cookie name is WRONG under ADR-031 D1-a. The adversary will probe for this specifically.
 
 ### AC-010: Adapter fetch returns OCSF-normalized Arrow RecordBatches
 Given: A `SpecDrivenSensorAdapter::fetch()` call is made for any of the 4 sensors.
@@ -447,7 +456,7 @@ Then: The returned `Vec<RecordBatch>` contains at least the OCSF hot fields: `ca
 transit the return value without OCSF normalization.
 (traces to BC-2.11.005 postcondition)
 
-### AC-011: No `todo!()` or `unimplemented!()` in adapter, boot step 9A, or CookieLoginAuthProvider (POL-12)
+### AC-011: No `todo!()` or `unimplemented!()` in adapter, boot step 9A, or StaticCookieAuthProvider (POL-12)
 Given: The implementation is complete and all 4 sensor paths are exercised by tests.
 When: The codebase is searched for `todo!()` or `unimplemented!()` in the new files.
 Then: Zero occurrences found.
@@ -467,14 +476,16 @@ from the error taxonomy); no panic; the response envelope wraps the error correc
 | Rule | Source | Enforcement |
 |------|--------|-------------|
 | `SpecDrivenSensorAdapter` MUST live in `prism-bin`, NOT `prism-sensors` | ADR-023 §D3 Forbidden Dependencies | Build fails if `prism-sensors/Cargo.toml` gains dep on `prism-spec-engine` |
-| `CookieLoginAuthProvider` lives in `prism-spec-engine/src/auth_provider.rs` | Crate cohesion — it makes HTTP calls, belongs near PipelineExecutor | Not in `prism-bin` |
+| `StaticCookieAuthProvider` lives in `prism-spec-engine/src/auth_provider.rs` | Crate cohesion — it reads credentials and injects them as cookies, belongs near PipelineExecutor | Not in `prism-bin`; makes NO HTTP calls during acquire_token |
 | `BearerStaticAuthProvider` lives in `prism-bin/src/spec_driven_adapter.rs` | It bridges `SensorAuth` (prism-sensors) ↔ `AuthProvider` (prism-spec-engine); only prism-bin imports both | ADR-023 §Permitted Patterns |
 | `prism-bin` may import both `prism-sensors` and `prism-spec-engine` | ADR-023 §Permitted Patterns | Existing workspace deps already present in prism-bin |
 | `SensorAdapter::fetch(&dyn SensorAuth)` arg ignored for plugin-authed sensors | ADR-028 §D10 | Documented in impl with inline comment citing ADR-028 §D10 |
 | `reqwest::Client` MUST set `.timeout(Duration::from_secs(30))` | CLAUDE.md Conventions | Adversary probes for missing timeout on every pass |
 | `boot.step9a.adapter_registry_populated` MUST have a BC-2.16.002 catalog row | SAP-1 (standing probe) | Adversary greps `event_type =` on every pass |
 | Boot step 9A MUST appear between steps 7.5b and 9 in ADR-022 §B table | BC-2.22.001 + ADR-022 | ADR-022 §B amendment required in same PR |
-| `PipelineExecutor::build_request` MUST dispatch header by auth_type | This story (§Cyberint Cookie Auth Design) | CookieRoundtrip → Cookie header; BearerStatic → Authorization: Bearer |
+| `PipelineExecutor::build_request` MUST dispatch header by auth_type | ADR-031 §D3-b + §Cyberint Cookie Auth Design | `CookieRoundtrip → Cookie: access_token={token}` (NOT `cyberint_session`); BearerStatic → Authorization: Bearer |
+| `StaticCookieAuthProvider::acquire_token` MUST NOT make HTTP calls | ADR-031 D1-b | Static cookie injection requires no login step; any HTTP call during acquire_token is a fidelity violation |
+| Cookie name for CookieRoundtrip MUST be `access_token` | ADR-031 D1-a; poller-express `cookieTransport` | `cyberint_session` is WRONG; adversary probes for this specifically per SAP-2 |
 
 ---
 
@@ -482,9 +493,9 @@ from the error taxonomy); no panic; the response envelope wraps the error correc
 
 | Library | Version | Purpose |
 |---------|---------|---------|
-| `prism-spec-engine` (workspace) | current workspace path | PipelineExecutor, AuthProvider trait, CookieLoginAuthProvider |
+| `prism-spec-engine` (workspace) | current workspace path | PipelineExecutor, AuthProvider trait, StaticCookieAuthProvider |
 | `prism-sensors` (workspace) | current workspace path | SensorAdapter trait and SensorAuth types |
-| `reqwest` | workspace version | HTTP client inside PipelineExecutor + CookieLoginAuthProvider login step |
+| `reqwest` | workspace version | HTTP client inside PipelineExecutor (StaticCookieAuthProvider does NOT use reqwest at acquire_token time) |
 | `tokio` | workspace version | async runtime for PipelineExecutor::execute() |
 | `arrow` | workspace version | RecordBatch return type |
 | `tracing` | workspace version | boot.step9a.adapter_registry_populated event emission |
@@ -500,11 +511,11 @@ Version source: `Cargo.toml` workspace `[dependencies]` table. Do not pin versio
 | `crates/prism-bin/src/spec_driven_adapter.rs` | CREATE | New module: `SpecDrivenSensorAdapter` struct + `SensorAdapter` impl + `BearerStaticAuthProvider` wrapper |
 | `crates/prism-bin/src/lib.rs` (or `main.rs`) | MODIFY | Add `mod spec_driven_adapter;` |
 | `crates/prism-bin/src/boot.rs` | MODIFY | Add boot step 9A; remove GAP-002-A comment; emit event |
-| `crates/prism-spec-engine/src/auth_provider.rs` | MODIFY | Add `CookieLoginAuthProvider` (production impl; NOT feature-gated) |
+| `crates/prism-spec-engine/src/auth_provider.rs` | MODIFY | Add `StaticCookieAuthProvider` (production impl; NOT feature-gated; NO HTTP calls at acquire_token; per ADR-031 D1-b) |
 | `crates/prism-spec-engine/src/pipeline.rs` | MODIFY | Amend `build_request` to accept auth_type; inject Cookie header for CookieRoundtrip |
 | `.factory/specs/behavioral-contracts/BC-2.16.002-*.md` | MODIFY | Add catalog row for `boot.step9a.adapter_registry_populated` event per SAP-1 obligation |
 | `.factory/specs/architecture/decisions/ADR-022-*.md` | MODIFY | Add boot step 9A to §B sequencing table |
-| `.factory/specs/architecture/decisions/ADR-023-*.md` | MODIFY | Add `SpecDrivenSensorAdapter` + `CookieLoginAuthProvider` to §Permitted Patterns list |
+| `.factory/specs/architecture/decisions/ADR-023-*.md` | MODIFY | Add `SpecDrivenSensorAdapter` + `StaticCookieAuthProvider` + `BearerStaticAuthProvider` to §Permitted Patterns list |
 | `.factory/specs/architecture/decisions/ADR-028-*.md` | MODIFY | Add §D12: cookie_roundtrip production vs DTU design divergence |
 
 ---
@@ -522,11 +533,14 @@ Version source: `Cargo.toml` workspace `[dependencies]` table. Do not pin versio
    - `CookieRoundtrip` → `Cookie: {sensor's cookie name}={token}` (cookie name: `cyberint_session`)
    - All other variants → `Authorization: Bearer {token}` (existing behavior unchanged)
    - Update all callers of `build_request` to pass `spec.auth_type` (two call sites: `issue_request_with_retry`).
-9. **Implement** `CookieLoginAuthProvider` in `prism-spec-engine/src/auth_provider.rs`:
-   - Fields: `login_url: String` (constructed as `{spec.base_url}/login`), `http_client: reqwest::Client`.
-   - Constructor `new(base_url: &str) -> Self` — builds with `.timeout(Duration::from_secs(30))`.
-   - `AuthProvider::acquire_token()` — POSTs `{}` to `{login_url}`, extracts `cyberint_session` value from `Set-Cookie` header, returns `AuthToken::new(session_token)`.
-   - Error path: missing `Set-Cookie` header → `SpecEngineError::AuthAcquisitionFailed`.
+9. **Implement** `StaticCookieAuthProvider` in `prism-spec-engine/src/auth_provider.rs`:
+   - Fields: `sensor_id: SensorId` (for credential store lookup), `credential_resolver: Arc<dyn CredentialResolver>`.
+   - Constructor `new(sensor_id: SensorId, credential_resolver: Arc<dyn CredentialResolver>) -> Self`.
+   - `AuthProvider::acquire_token()` — resolves the `api_key` credential via `credential_resolver.resolve(sensor_id, "api_key")`; returns `AuthToken::new(api_key)`. Makes NO HTTP call.
+   - Error path: credential resolve failure → `SpecEngineError::AuthAcquisitionFailed`.
+   - This replaces the v1.1/v1.2 `CookieLoginAuthProvider` (which made HTTP calls to `POST /login`).
+   - INVARIANT: `acquire_token` must never make an HTTP call. If this invariant is violated, the
+     adversary will flag it as an ADR-031 D1-b violation.
 10. **Write stub** `crates/prism-bin/src/spec_driven_adapter.rs` with `todo!()` bodies (Red Gate setup).
 11. **Write Red Gate tests** (see AC-001, AC-003, AC-004, AC-005 test names) — all must fail (RED) before implementation.
 12. **Implement** `SpecDrivenSensorAdapter`:
@@ -541,12 +555,12 @@ Version source: `Cargo.toml` workspace `[dependencies]` table. Do not pin versio
     - For each `(org_id, sensor_id, resolved_spec)`: inspect `resolved_spec.auth_type`:
       - `CustomViaPlugin`: look up `plugin_auth_providers.get(&sensor_id)` → `AdapterAuthStrategy::Plugin`.
       - `BearerStatic`: → `AdapterAuthStrategy::BearerStatic`.
-      - `CookieRoundtrip`: construct `CookieLoginAuthProvider::new(&resolved_spec.base_url)` → `AdapterAuthStrategy::CookieLogin`.
+      - `CookieRoundtrip`: construct `StaticCookieAuthProvider::new(sensor_id, Arc::clone(&credential_resolver))` → `AdapterAuthStrategy::StaticCookie`.
       - Others: log E-SPEC-012 (auth type mismatch); skip.
     - Register adapters; emit `boot.step9a.adapter_registry_populated` event.
 15. **Amend BC-2.16.002** — add catalog row for `boot.step9a.adapter_registry_populated` per SAP-1.
 16. **Amend ADR-022 §B** — add boot step 9A to the sequencing invariant table.
-17. **Amend ADR-023 §Permitted Patterns** — add `SpecDrivenSensorAdapter`, `CookieLoginAuthProvider`, `BearerStaticAuthProvider` patterns.
+17. **Amend ADR-023 §Permitted Patterns** — add `SpecDrivenSensorAdapter`, `StaticCookieAuthProvider`, `BearerStaticAuthProvider` patterns.
 18. **Amend ADR-028** — add §D12: document real-API vs DTU cookie model divergence; note `access_token` (real API) vs `cyberint_session` (DTU); path to production-grade real Cyberint auth via `StaticCookieAuthProvider` in a future story.
 19. **Run tests**: `just iter prism-bin` and `just iter prism-spec-engine` — all Red Gate tests GREEN.
 20. **Run** `just check` — final pre-push gate.
@@ -568,14 +582,14 @@ Version source: `Cargo.toml` workspace `[dependencies]` table. Do not pin versio
 
 | ID | Description | Expected Behavior |
 |----|-------------|-------------------|
-| EC-001 | Sensor spec has `auth_type = "cookie_roundtrip"` but DTU login endpoint returns non-200 | `CookieLoginAuthProvider::acquire_token` returns `SpecEngineError::AuthAcquisitionFailed`; adapter not registered |
-| EC-002 | `POST /login` succeeds but `Set-Cookie` header is absent or has no `cyberint_session` cookie | `CookieLoginAuthProvider::acquire_token` returns `AuthAcquisitionFailed` with detail "missing cyberint_session cookie" |
+| EC-001 | Sensor spec has `auth_type = "cookie_roundtrip"` but credential store has no `api_key` entry for the sensor | `StaticCookieAuthProvider::acquire_token` returns `SpecEngineError::AuthAcquisitionFailed` with detail "api_key not found in credential store"; adapter not registered |
+| EC-002 | Cyberint DTU returns 401 (invalid `access_token` cookie value) | `PipelineExecutor::issue_request_with_retry` triggers 401-retry; `acquire_token` is called again (credential re-read); if second attempt also returns 401, `AuthRefreshFailed` is returned. N.B.: `StaticCookieAuthProvider` cannot "refresh" a static key — 401 after retry means the demo credential store has the wrong value. |
 | EC-003 | org_registry has orgs but spec_catalog is empty | Boot step 9A produces 0 registrations; no error; boot continues to step 9 |
 | EC-004 | PluginAuthProvider fails at step 7.5b | Step 7.5b handles; step 9A skips sensors with missing auth providers |
-| EC-005 | ResolvedSensorSpec has per-org base_url overlay but CookieLoginAuthProvider not updated | CRITICAL: CookieLoginAuthProvider MUST use `resolved_spec.base_url` (with overlay applied), not the type spec base_url. Verify at AC-005. |
+| EC-005 | ResolvedSensorSpec has per-org base_url overlay — StaticCookieAuthProvider does not use base_url | StaticCookieAuthProvider does NOT need base_url (no HTTP calls at acquire_token). The overlay is used by PipelineExecutor for the actual fetch requests. This EC is not a risk for StaticCookieAuthProvider. |
 | EC-006 | Double-401 from sensor API during SpecDrivenSensorAdapter::fetch() | PipelineExecutor handles the refresh; on second 401, returns SpecEngineError::AuthRefreshFailed. Adapter propagates this. |
 | EC-007 | Sensor spec has unsupported `auth_type` (e.g., `api_key`) — not yet implemented in SpecDrivenSensorAdapter | Boot logs E-SPEC-012 (auth type mismatch); adapter NOT registered for that sensor; boot continues |
-| EC-008 | CookieLoginAuthProvider 401-retry: Cyberint session cookie expires mid-pipeline | Existing `issue_request_with_retry` calls `acquire_token` again (re-logins); fresh session cookie returned; pipeline retries once. |
+| EC-008 | StaticCookieAuthProvider 401-retry: 401 from Cyberint DTU mid-pipeline | `issue_request_with_retry` calls `acquire_token` again (re-reads credential store); same `access_token` returned (static credential). 401 on second attempt → `AuthRefreshFailed`. There is no "session expiry" for static cookie auth. |
 
 ---
 
@@ -584,9 +598,10 @@ Version source: `Cargo.toml` workspace `[dependencies]` table. Do not pin versio
 | Document | Amendment |
 |----------|-----------|
 | ADR-022 §B | Add boot step 9A (`spec_driven_adapter_registry_populate`) between step 7.5b and step 9 |
-| ADR-023 §Permitted Patterns | Add `SpecDrivenSensorAdapter`, `CookieLoginAuthProvider`, `BearerStaticAuthProvider` pattern notes |
+| ADR-023 §Permitted Patterns | Add `SpecDrivenSensorAdapter`, `StaticCookieAuthProvider`, `BearerStaticAuthProvider` pattern notes |
 | ADR-022 §F | Update comment that `adapter_registry` is empty at step 9 — post-story it is populated |
-| ADR-028 §D12 (NEW) | Document real-API `access_token` cookie vs DTU `cyberint_session` cookie divergence; path to production-grade `StaticCookieAuthProvider` |
+| ADR-028 §D12 | ALREADY annotated `[SUPERSEDED by ADR-031 §D4 2026-05-29]` in factory-artifacts burst. No further amendment needed in this story's PR. |
+| ADR-031 | ALREADY authored in factory-artifacts burst. Cite in story implementation notes. |
 | BC-2.16.002 Structured Event Catalog | Add `boot.step9a.adapter_registry_populated` row with `sensor_count`, `org_count` fields |
 
 ---
@@ -621,3 +636,4 @@ if context pressure is felt during implementation.
 | 1.0 | 2026-05-29 | story-writer | Initial draft — all 4 sensors scope per user 2026-05-29 decision |
 | 1.1 | 2026-05-29 | architect | Corrected Cyberint auth model (cookie_roundtrip ≠ bearer_static); resolved OQ-1, OQ-2, OQ-6; added CookieLoginAuthProvider design; amended build_request pipeline gap; added new AC-003/AC-009/AC-012; revised points 8→11; risk MEDIUM→HIGH |
 | 1.2 | 2026-05-29 | architect | AC-003/AC-009: tightened `cyberint_session` cookie name specification per fidelity audit (POLLER-DTU-FIDELITY-AUDIT-2026-05-29). Added Set-Cookie parse constraint to AC-009 (cookie name `cyberint_session` not `access_token` for DTU demo path). Cross-poller audit surfaced Gap-CS-001/CL-002/CL-003/CL-004/CL-005; TOML fixes applied to crowdstrike.sensor.toml and claroty.sensor.toml in same burst. |
+| 1.3 | 2026-05-29 | architect | **DTU=true-DTU REVERSAL (ADR-031 user directive 2026-05-29).** `cyberint_session` decision reversed. ALL Cyberint references updated: `CookieLoginAuthProvider` (login-step) → `StaticCookieAuthProvider` (no login step, credential-store read); cookie name `cyberint_session` → `access_token`; `build_request` dispatch `Cookie: cyberint_session` → `Cookie: access_token`. §Origin updated. §Cyberint Cookie Auth Design section rewritten. AC-003/AC-009 rewritten. OQ-1 enum variant `CookieLogin` → `StaticCookie`. EC-001/EC-002/EC-005/EC-008 updated. Library/framework table updated. ADR-028 §D12 → pre-authored in factory-artifacts burst (now annotated SUPERSEDED). ADR-031 cited throughout. New depends_on: S-DTU-CYBERINT-AUTH-FIDELITY-001 (P0-pre-demo-BLOCKING — DTU correction required before implementation). |

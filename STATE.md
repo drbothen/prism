@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.533"
+version: "7.534"
 producer: state-manager
 timestamp: 2026-05-29T20:00:00Z
 inputs: []
@@ -16,12 +16,15 @@ repos: [poller-cobra, poller-express, poller-bear, poller-coaster, serveMyAPI, t
 safe_to_compact: false
 pre_compact_snapshot: "SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-27-PLUGIN-MIGRATION-SAGA-CLOSED"
 pre_compact_snapshot_at: "2026-05-27 (D-841 SESSION CHECKPOINT; Plugin migration 16/16 CLOSED; S-SPEC-TYPE-UNIFICATION-001 PR #161 MERGED; develop@af79f160; 3711 tests; state-final for /clear-resume)"
-current_step: "D-846 — POLLER-DTU-FIDELITY-AUDIT COMPLETE; develop@72baf413 with TOML fidelity fixes; S-DEMO-001 v1.2 + S-DEMO-002 v1.2 architect-revised for full multi-client/multi-sensor demo scope; next: dispatch per-story-delivery for S-CONFIG-MULTI-TENANT-OVERRIDE-001 (P0 draft, critical path) OR S-DEMO-001 (P0 draft v1.2 KEYSTONE, architect-resolved OQ-1/2/6) — user adjudication pending."
+current_step: "D-847 — DTU=true-DTU PRINCIPLE CODIFIED. ADR-031 authored (binding fidelity principle). ADR-028 §D12 annotated SUPERSEDED. POLLER-DTU-FIDELITY-AUDIT v1.1 (Cyberint GAP-CY-001 reclassified CRITICAL pre-demo BLOCKING). S-DEMO-001 v1.3 (StaticCookieAuthProvider + Cookie: access_token; S-DTU-CYBERINT-AUTH-FIDELITY-001 as P0 depends_on). E2E-DEMO-WIRING-PLAN v1.3. SESSION-HANDOFF D-847. S-DTU-CYBERINT-AUTH-FIDELITY-001 reclassified P0-pre-demo-BLOCKING. develop@72baf413 (unchanged). STATE v7.534."
 e2e_demo_plan_locked: true
 e2e_demo_plan_document: ".factory/proposals/E2E-DEMO-WIRING-PLAN.md"
 e2e_demo_critical_path: "PLUGIN-MIGRATION-001-A → 001-E → S-CONFIG-MULTI-TENANT-OVERRIDE-001 → S-DEMO-001 → S-DEMO-002 → S-DEMO-003 → S-5.04-FIX-001"
-e2e_demo_estimated_sessions: "~4.6 sessions (architect estimate, story-writer-confirmed)"
+e2e_demo_estimated_sessions: "~5.1 sessions (architect estimate, updated D-847 for S-DTU-CYBERINT-AUTH-FIDELITY-001 P0 insertion)"
 e2e_demo_scope_decision: "user-authorized all-4-sensors 2026-05-29 (CrowdStrike + Armis + Claroty + Cyberint)"
+dtu_fidelity_principle: "DTU=true-DTU (ADR-031 2026-05-29) — DTU clones must mirror real API field names, auth flows, cookie names, endpoints, response shapes. Binding principle; no mock shortcuts."
+adr_031_status: "AUTHORED 2026-05-29 — DTU=true-DTU fidelity principle; supersedes ADR-028 §D12"
+s_dtu_cyberint_auth_fidelity_001_priority: "P0-pre-demo-BLOCKING (reclassified from P2-post-demo via D-847; was S-DEMO-CYBERINT-LIVE-AUTH-001)"
 s_5_01_followup_mcp_boot_status: "MERGED via PR #163 develop@e898c3c9 2026-05-29T16:44:42Z"
 s_5_01_followup_mcp_boot_merged_via_pr: 163
 s_5_01_followup_mcp_boot_merged_via_sha: "e898c3c9"
@@ -210,7 +213,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 current_cycle_history: "wave-0-plugin-prereqs (PREREQ-E merged PR #151 2026-05-19); prior: wave-4-operations (active); wave-3-multi-tenant (COMPLETE)"
 bc_index_version: "5.55"
 vp_index_version: "1.76"
-story_index_version: "v2.205"
+story_index_version: "v2.206"
 plugin_migration_001_d_local_adversary_passes: 25
 plugin_migration_001_d_local_fix_bursts: 19
 plugin_migration_001_d_status: "MERGED via PR #153 develop@3f2de889 2026-05-22"
@@ -252,9 +255,9 @@ historical_cycles: [phase-1-convergence, wave-3-multi-tenant, wave-4-operations]
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-29 (D-846 bookkeeping sweep — direct-push acceptance develop@72baf413 fidelity audit; 001-A/B/E status reconcile; 6 follow-up stubs registered; STORY-INDEX v2.205; STATE v7.532→v7.533) |
+| **Last Updated** | 2026-05-29 (D-847 architect burst — DTU=true-DTU principle codified; ADR-031 authored; ADR-028 §D12 superseded; POLLER-DTU-FIDELITY-AUDIT v1.1; S-DEMO-001 v1.3; E2E-DEMO-WIRING-PLAN v1.3; S-DTU-CYBERINT-AUTH-FIDELITY-001 P0-pre-demo-BLOCKING; STATE v7.533→v7.534) |
 | **Current Phase** | Wave 3 Tier-3 complete — E2E demo wiring planned; TOML fidelity audit complete (develop@72baf413). Next: S-CONFIG-MULTI-TENANT-OVERRIDE-001 OR S-DEMO-001 KEYSTONE — user adjudication pending. |
-| **Current Step** | D-846 — POLLER-DTU-FIDELITY-AUDIT COMPLETE; develop@72baf413 with TOML fidelity fixes; S-DEMO-001 v1.2 + S-DEMO-002 v1.2 architect-revised; 6 follow-up stubs registered (STORY-INDEX v2.205); 001-A/B/E status reconciled to MERGED. STATE v7.533. |
+| **Current Step** | D-847 — DTU=true-DTU CODIFIED. ADR-031 authored. ADR-028 §D12 SUPERSEDED. POLLER-DTU-FIDELITY-AUDIT v1.1 (GAP-CY-001 CRITICAL). S-DEMO-001 v1.3 (StaticCookieAuthProvider + access_token). E2E-DEMO-WIRING-PLAN v1.3. S-DTU-CYBERINT-AUTH-FIDELITY-001 = P0-pre-demo-BLOCKING. develop@72baf413. STATE v7.534. |
 
 ## Phase Progress
 
@@ -293,6 +296,7 @@ historical_cycles: [phase-1-convergence, wave-3-multi-tenant, wave-4-operations]
 | Step | Agent | Status | Output |
 |------|-------|--------|--------|
 _D-735 through D-838 archived to cycles/wave-0-plugin-prereqs/burst-log.md (compacted D-843 burst 2026-05-28). D-835+D-836+D-837 removed from Phase Steps (archived in Decisions Log)._
+| D-847 — **DTU=true-DTU PRINCIPLE CODIFICATION BURST (architect, 2026-05-29). ADR-031 authored: 6 fidelity requirements (D1), exhaustive permitted divergences (D2), Cyberint DTU correction (D3: StaticCookieAuthProvider replacing CookieLoginAuthProvider + POST /login removal + Cookie: access_token injection), ADR-028 §D12 supersession (D4), validation discipline (D5), cross-sensor applicability table (D6). ADR-028 v1.12→v1.13: §D12 annotated [SUPERSEDED by ADR-031 §D4 2026-05-29]. POLLER-DTU-FIDELITY-AUDIT v1.0→v1.1: all gap tables updated with DTU change required Y/N + real-API reference; GAP-CY-001 reclassified CRITICAL pre-demo BLOCKING (was "DTU demo path consistent"). Cross-sensor summary: 3 sensors clear (CrowdStrike/Armis/Claroty audit-log gap only), 1 BLOCKING (Cyberint). S-DEMO-001 v1.2→v1.3: CookieLoginAuthProvider→StaticCookieAuthProvider throughout; cyberint_session→access_token cookie; AC-003/AC-009/EC-001/EC-002/EC-005/EC-008 rewritten; depends_on: S-DTU-CYBERINT-AUTH-FIDELITY-001 added; Red Gate test renamed. E2E-DEMO-WIRING-PLAN v1.2→v1.3: §1(b)/(c)/(e) updated; §3 critical path: S-DTU-CYBERINT-AUTH-FIDELITY-001 inserted as P0 parallel step; §5 ADR Updates updated. SESSION-HANDOFF.md D-847 update: §4 critical path + estimates, §5 OQ-1/2/6 status, §7 resume protocol steps 4+5. S-DEMO-CYBERINT-LIVE-AUTH-001 RECLASSIFIED → S-DTU-CYBERINT-AUTH-FIDELITY-001 P0-pre-demo-BLOCKING; STORY-INDEX v2.205→v2.206 (stub renamed). e2e_demo_estimated_sessions 4.6→5.1. develop@72baf413 (unchanged). STATE v7.533→v7.534.** | architect (D-847 DTU=true-DTU principle burst) | CHECKPOINT | ADR-031 v1.0 AUTHORED; ADR-028 §D12 SUPERSEDED; S-DTU-CYBERINT-AUTH-FIDELITY-001 P0-pre-demo-BLOCKING |
 | D-846 — **BOOKKEEPING SWEEP — Direct-push retroactive acceptance (develop@72baf413 sensor-spec fidelity fixes: crowdstrike detection_id rename + claroty devices table + audit_log path + column alignment). 001-A/B/E STORY-INDEX rows reconciled to MERGED. 6 follow-up stubs registered (S-DEMO-CLAROTY-PAGINATION-001 + S-DEMO-CLAROTY-AUDIT-DTU-001 + S-DEMO-CLAROTY-TRAILING-SLASH-001 + S-DEMO-ARMIS-AQL-001 + S-DEMO-CYBERINT-LIVE-AUTH-001 + S-DEMO-CROWDSTRIKE-MULTIREGION-001). total_stories 159→165. STORY-INDEX v2.204→v2.205. SESSION-HANDOFF.md §4+§7 updated. Lesson 51 [process-gap] added. D-846 decision row added. STATE v7.532→v7.533.** | state-manager (D-846 bookkeeping sweep) | CHECKPOINT | STORY-INDEX v2.205; develop@72baf413 accepted |
 | D-845 — **PLANNING CHECKPOINT — E2E DTU demo wiring scoped. Architect adjudicated GAP-002-A closure (SpecDrivenSensorAdapter in prism-bin + boot step 9A). User authorized all-4-sensors scope. Story-writer drafted S-DEMO-001 (P0, keystone) + S-DEMO-002 (P0, E2E smoke) + S-DEMO-003 (P1, scripts + CLI) + S-5.04-FIX-001 (P2, factory-only). STORY-INDEX v2.203. total_stories 155→159. RESUME SNAPSHOT 2026-05-29-E2E-DEMO-WIRING-PLAN-LOCKED written. STATE v7.531→v7.532. Ready for /clear.** | state-manager (D-845 planning burst) | CHECKPOINT | STORY-INDEX v2.203; e2e_demo_plan_locked=true |
 | D-844 — **S-5.01-FOLLOWUP-MCP-BOOT MERGED (PR #163 squash-merged to develop@e898c3c9 2026-05-29T16:44:42Z). prism-mcp PrismServer fully delivered: rmcp 1.7 ServerHandler, #[tool_router] macro, per-tool InjectionScanner, ResponseEnvelope wrapping, per-tool input validation with MCP error codes, stdio transport, graceful shutdown. LOCAL cascade: 19 passes, 16 fix-bursts, CONVERGED 3-CLEAN (passes 17/18/19). PR-LEVEL cascade: 16 passes per reviewer, 10 fix-bursts; security 3/3 CLEAN at pass 15; pr-reviewer 3/3 CLEAN at pass 16. Notable: SEC-001 CWE-22 path traversal in add_sensor_spec fixed (pass 12); real shutdown race bug fixed (CI investigation pass 8); Windows /tmp/ hardcoding fixed (pass 8). CI 40/40 GREEN including Windows MSVC. POL-14 BC auto-promotion: 7 BC-2.10.* (001/002/003/004/006/007/010) status draft→active; lifecycle_status already active (idempotent confirms); BC-2.09.001..008 already active. BC-INDEX v5.54→v5.55. STORY-INDEX v2.201→v2.202. Worktree .worktrees/S-5.01-FOLLOWUP-MCP-BOOT pending cleanup. STATE v7.530→v7.531.** | state-manager (D-844 post-merge burst) | MERGED | develop@e898c3c9; 40/40 CI GREEN |
@@ -309,6 +313,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-847 | 2026-05-29 | architect | **DTU=true-DTU PRINCIPLE CODIFICATION — User standing rule 2026-05-29: "DTU = true DTU." Every DTU clone must mirror real-world API behavior exactly. No mock shortcuts. Fidelity, not convenience, is the DTU's value. Specific reversal: ADR-028 §D12 (accepted cyberint_session vs access_token divergence as "acceptable demo shortcut"; deferred real-auth to P2-post-demo S-DEMO-CYBERINT-LIVE-AUTH-001) is WRONG by construction under DTU=true-DTU. Reversal executed: (1) ADR-031 authored at `.factory/specs/architecture/decisions/ADR-031-dtu-equals-true-dtu-fidelity-principle.md` v1.0 — 6 sections: D1 fidelity requirements, D2 exhaustive permitted divergences (rate limits / credential format / TLS / persistence semantics), D3 Cyberint correction (StaticCookieAuthProvider: no HTTP call, reads API key from credential store, injects Cookie: access_token={token}; DTU removes POST /login route + extract_session_token; routes inject access_token not cyberint_session), D4 ADR-028 §D12 supersession, D5 validation discipline, D6 cross-sensor applicability (CrowdStrike: no change; Claroty: audit-log gap only; Armis: AQL permitted under D2; Cyberint: BLOCKING). (2) ADR-028 v1.12→v1.13: `superseded_by` frontmatter set; §D12 header annotated [SUPERSEDED by ADR-031 §D4 2026-05-29]; v1.13 changelog row prepended. (3) POLLER-DTU-FIDELITY-AUDIT v1.0→v1.1: all 4 sensor gap tables re-evaluated under DTU=true-DTU; GAP-CY-001 reclassified CRITICAL pre-demo BLOCKING (was "DTU demo path consistent"); Option A (split per-sensor stories) recommended; demo-readiness: Cyberint changed from YES to NO. (4) S-DEMO-001 v1.2→v1.3: all CookieLoginAuthProvider/cyberint_session/POST /login references corrected to StaticCookieAuthProvider/access_token; AC-003/AC-009/EC-001/EC-002/EC-005/EC-008 rewritten; depends_on S-DTU-CYBERINT-AUTH-FIDELITY-001 added; Red Gate test renamed to test_BC_2_01_013_spec_driven_adapter_cyberint_cookie_auth_injects_access_token_cookie. (5) E2E-DEMO-WIRING-PLAN v1.2→v1.3: §1(b)/(c)/(e) updated; §3 critical path includes S-DTU-CYBERINT-AUTH-FIDELITY-001 as parallel P0 step; §5 ADR Updates. (6) SESSION-HANDOFF.md D-847: §4 critical path updated + estimates 4.6→5.1 sessions; §5 OQ-6 RESOLVED+REVERSED; §7 resume protocol steps 4+5 updated. Story S-DEMO-CYBERINT-LIVE-AUTH-001 RECLASSIFIED → S-DTU-CYBERINT-AUTH-FIDELITY-001 P0-pre-demo-BLOCKING; STORY-INDEX stub row renamed + priority/description updated (STORY-INDEX v2.205→v2.206). Full story spec materialization PENDING story-writer dispatch. Blocked until S-DTU-CYBERINT-AUTH-FIDELITY-001 merged: S-DEMO-001 cannot ship with CookieLoginAuthProvider. develop@72baf413 unchanged. STATE v7.533→v7.534. TD-VSDD-053 single-commit.** | Phase 3 / wave-0-plugin-prereqs | 2026-05-29 |
 | D-846 | 2026-05-29 | user + architect + state-manager | **DIRECT-PUSH ACCEPTANCE — develop@72baf413 sensor-spec fidelity fixes — retroactive governance bookkeeping.** Architect (agent ID a5ae11376729976f2) pushed `fix(sensor-specs): fidelity audit fixes` directly to develop without a PR during the POLLER-DTU-FIDELITY-AUDIT-2026-05-29 burst. Changes: crowdstrike.sensor.toml `id` → `detection_id` rename (Gap-CS-001 — would have produced NULL primary keys in live demo had it shipped), claroty.sensor.toml audit_logs path `/api/v1/audit_logs` → `/api/v1/audit_log/get` (Gap-CL-002), claroty.sensor.toml `devices` [[tables]] block added (Gap-CL-003), claroty.sensor.toml column name alignment (Gap-CL-005). All fixes grounded in poller-bear semport ingest + DTU clone source (POLLER-DTU-FIDELITY-AUDIT-2026-05-29.md). User adjudication 2026-05-29: ACCEPT retroactively because (a) all changes are spec-correctness fixes grounded in real-API/DTU reference, (b) zero code logic change, (c) the audit doc POLLER-DTU-FIDELITY-AUDIT-2026-05-29.md provides full traceability for every fix, (d) reverting would discard correct fidelity work for process-purity with no production benefit, (e) the bypass is acknowledged as a process-gap and codified as lesson 51 in cycles/wave-0-plugin-prereqs/lessons.md. Workflow bypass acknowledged: no LOCAL adversary cascade, no PR-LEVEL adversary cascade, no full CI matrix, no pr-manager 9-step cycle on these spec fixes. **CODIFICATION**: lesson 51 added to cycles/wave-0-plugin-prereqs/lessons.md tagged `[process-gap]` — "Architect direct-push of factory-routed spec fixes to develop bypasses per-story-delivery; future spec-fidelity bursts must route through pr-manager even when zero-code-logic, OR an explicit fast-path skill must be authored (e.g., quick-dev-routing) for audit-grounded spec corrections." Status: ACCEPTED. | Phase 3 / wave-0-plugin-prereqs | 2026-05-29 |
 | D-845 | 2026-05-29 | **PLANNING BURST — E2E DTU demo wiring scoped. Architect adjudicated GAP-002-A closure pattern: SpecDrivenSensorAdapter in `crates/prism-bin/src/spec_driven_adapter.rs` (NOT prism-sensors per ADR-023) wraps PipelineExecutor to satisfy dyn SensorAdapter interface; new boot step 9A iterates spec_catalog × org_registry and registers one adapter per (org, sensor). User authorized full-4-sensor scope per ADR-023: CrowdStrike via WASM OAuth2 plugin; Armis/Claroty/Cyberint via bearer_static + spec-catalog. Story-writer drafted 4 stories: S-DEMO-001 (P0, 8 pts, keystone — closes GAP-002-A; BCs: BC-2.01.013+BC-2.11.005+BC-2.06.014+BC-2.22.001; depends_on: PLUGIN-MIGRATION-001-A+001-E+S-CONFIG-MULTI-TENANT-OVERRIDE-001+S-DEMO-001); S-DEMO-002 (P0, 8 pts, E2E subprocess smoke test all 4 sensors; BCs: BC-2.11.001+BC-2.11.005+BC-2.09.008+BC-2.10.001+BC-2.10.010; depends_on: S-DEMO-001+S-CONFIG-MULTI-TENANT-OVERRIDE-001); S-DEMO-003 (P1, 5 pts, demo scripts + `prism credential set` CLI subcommand + operator runbook; BCs: BC-2.03.005+BC-2.03.007+BC-2.06.001+BC-2.22.001; depends_on: S-DEMO-001+S-DEMO-002); S-5.04-FIX-001 (P2, 1 pt, depends_on correction removing superseded S-2.07; factory-only; BC: BC-2.08.001). S-5.04 depends_on updated v1.5→v1.6 (S-2.07 removed, S-DEMO-001 added). STORY-INDEX v2.202→v2.203. total_stories 155→159. No new BCs created — all anchor BCs are existing active/draft BCs. Architect's full gap analysis at .factory/proposals/E2E-DEMO-WIRING-PLAN.md (679 lines). Critical path estimate: ~4.6 sessions. RESUME SNAPSHOT 2026-05-29-E2E-DEMO-WIRING-PLAN-LOCKED written to SESSION-HANDOFF.md. STATE v7.531→v7.532. TD-VSDD-053 single-commit.** | state-manager (D-845 planning burst) | Phase 3 / wave-0-plugin-prereqs | 2026-05-29 |
 | D-844 | 2026-05-29 | **S-5.01-FOLLOWUP-MCP-BOOT MERGED (PR #163 squash-merged to develop@e898c3c9 2026-05-29T16:44:42Z). prism-mcp PrismServer fully delivered: rmcp 1.7 ServerHandler, #[tool_router] macro for all BC-2.13.* tools, per-tool InjectionScanner, ResponseEnvelope wrapping, per-tool input validation with MCP error codes, stdio transport, graceful shutdown. No todo!() or unimplemented!() per POL-12. LOCAL cascade: 19 passes, 16 fix-bursts, 3-CLEAN CONVERGED (passes 17/18/19); trajectory: 2C+4H→6C+8H+6M→5C+6H+6M→2C+3H→2C+4H→3H+2M→3H+2M→CLEAN→1H+1M+1L→3H+2M→2H+3M→2C+2H+3M→2C+4H→1C+3H→1H+1M→2M→CLEAN→CLEAN→CLEAN. PR-LEVEL cascade: 16 passes per reviewer (security + pr-reviewer), 10 fix-bursts; security 3/3 CLEAN at pass 15; pr-reviewer 3/3 CLEAN at pass 16. Notable catches: SEC-001 CWE-22 path traversal in add_sensor_spec (pass 12 — security caught what LOCAL missed); real production shutdown race bug in serve_with_transport_and_shutdown_inner natural_close_fut arm masking JoinError::Panic (CI investigation pass 8); Windows CI failure from hardcoded /tmp/ paths (pass 8); sibling-sweep misses across validate_text_field extension. CI: 40/40 GREEN including Windows x86_64-pc-windows-msvc. HEAD at PR-merge: ee36f589. POL-14 BC auto-promotion: BC-2.10.001 v1.4→v1.5, BC-2.10.002 v2.7→v2.8, BC-2.10.003 v1.3→v1.4, BC-2.10.004 v2.5→v2.6, BC-2.10.006 v1.3→v1.4, BC-2.10.007 v1.3→v1.4, BC-2.10.010 v1.3→v1.4; lifecycle_status was already active for all 7 (idempotent confirms); active_contracts 236 (unchanged); draft_contracts 2 (unchanged — BC-2.06.011 + BC-2.21.001 remain draft). BC-2.09.001..008 already active — no promotions needed. BC-INDEX v5.54→v5.55. STORY-INDEX v2.201→v2.202 (S-5.01-FOLLOWUP-MCP-BOOT [draft BLOCKED]→[merged PR #163]). Worktree .worktrees/S-5.01-FOLLOWUP-MCP-BOOT pending cleanup. develop_head: e898c3c9. TD-VSDD-053 single-commit. STATE v7.530→v7.531.** | state-manager (D-844 post-merge burst) | Phase 3 / wave-0-plugin-prereqs | 2026-05-29 |
@@ -476,20 +481,20 @@ Prior cycle history:
 
 ---
 
-## Session Resume Checkpoint (2026-05-29 — D-846 bookkeeping sweep; develop@72baf413)
+## Session Resume Checkpoint (2026-05-29 — D-847 DTU=true-DTU principle codification; develop@72baf413)
 
-_Previous checkpoint (D-845 E2E DEMO WIRING PLAN LOCKED; develop@e898c3c9) archived: [cycles/wave-0-plugin-prereqs/session-checkpoints.md](cycles/wave-0-plugin-prereqs/session-checkpoints.md)_
+_Previous checkpoint (D-846 bookkeeping sweep; develop@72baf413) preserved in place — no /clear since D-846._
 
-**STATE v7.533. D-846 — direct-push retroactive acceptance develop@72baf413 (TOML fidelity fixes); STORY-INDEX v2.205; total_stories: 165. BC-INDEX v5.55 (unchanged — no new BCs in this burst). develop@72baf413.**
+**STATE v7.534. D-847 — DTU=true-DTU codified (ADR-031); ADR-028 §D12 SUPERSEDED; S-DEMO-001 v1.3; E2E-DEMO-WIRING-PLAN v1.3; S-DTU-CYBERINT-AUTH-FIDELITY-001 P0-pre-demo-BLOCKING. STORY-INDEX v2.205 (stub rename to S-DTU-CYBERINT-AUTH-FIDELITY-001 PENDING story-writer dispatch). BC-INDEX v5.55 (no new BCs). develop@72baf413 (unchanged).**
 
-**develop HEAD:** `72baf413` | **Workspace test count:** 3718 (test count unchanged — TOML spec-only changes in 72baf413) | **e2e_demo_plan_locked:** true
+**develop HEAD:** `72baf413` | **Workspace test count:** 3718 | **e2e_demo_plan_locked:** true | **e2e_demo_estimated_sessions:** ~5.1
 
 **Critical path (next actions):**
-1. S-CONFIG-MULTI-TENANT-OVERRIDE-001 (P0, draft, ready) → per-story-delivery [next dispatchable]
-2. S-DEMO-001 (P0, draft v1.2, KEYSTONE — closes GAP-002-A; OQ-1/2/6 architect-resolved) → per-story-delivery
-3. S-DEMO-002 (P0, draft v1.2, multi-org ACs added) → per-story-delivery after S-DEMO-001
-4. S-DEMO-003 (P1, draft) + S-5.04-FIX-001 (P2, draft, factory-only) → per-story-delivery in parallel
-5. S-DEMO-CLAROTY-PAGINATION-001 (P1, stub) → story-writer materialization first, then per-story-delivery
+1. **[UNBLOCK FIRST]** S-DTU-CYBERINT-AUTH-FIDELITY-001 (P0-pre-demo-BLOCKING) → story-writer materialization from stub, then per-story-delivery (DTU code changes: remove POST /login, StaticCookieAuthProvider, access_token injection; parallel with S-CONFIG)
+2. S-CONFIG-MULTI-TENANT-OVERRIDE-001 (P0, draft, ready) → per-story-delivery [parallel with #1]
+3. S-DEMO-001 (P0, draft v1.3, KEYSTONE — depends_on S-DTU-CYBERINT-AUTH-FIDELITY-001) → per-story-delivery after #1 + #2
+4. S-DEMO-002 (P0, draft v1.2) → per-story-delivery after S-DEMO-001
+5. S-DEMO-003 (P1, draft) + S-5.04-FIX-001 (P2, factory-only) → per-story-delivery in parallel
 
 **Active worktrees:**
 - `.worktrees/S-3.09` — FROZEN (BUG-S309-PLUGIN), stale since 2026-05-11; deferred per user direction
@@ -497,11 +502,12 @@ _Previous checkpoint (D-845 E2E DEMO WIRING PLAN LOCKED; develop@e898c3c9) archi
 
 **Open PRs:** None.
 
-**Resume protocol (5 steps — see §RESUME SNAPSHOT 2026-05-29-E2E-DEMO-WIRING-PLAN-LOCKED in SESSION-HANDOFF.md):**
+**Resume protocol (6 steps — see §RESUME SNAPSHOT D-847 in SESSION-HANDOFF.md):**
 1. Run `vsdd-factory:factory-worktree-health` (BLOCKING preflight)
-2. Read STATE.md frontmatter — confirm `version: "7.533"` and `develop_head: "72baf413"`
-3. Read §RESUME SNAPSHOT 2026-05-29-E2E-DEMO-WIRING-PLAN-LOCKED in SESSION-HANDOFF.md
-4. Read `.factory/proposals/E2E-DEMO-WIRING-PLAN.md` (679 lines — architect's full gap analysis)
-5. Dispatch per-story-delivery for S-CONFIG-MULTI-TENANT-OVERRIDE-001 (first ready story in critical path)
+2. Read STATE.md frontmatter — confirm `version: "7.534"` and `develop_head: "72baf413"`
+3. Read §RESUME SNAPSHOT D-847 in SESSION-HANDOFF.md
+4. Read `.factory/proposals/E2E-DEMO-WIRING-PLAN.md` v1.3 (architect's gap analysis with Cyberint corrected)
+5. Read `ADR-031-dtu-equals-true-dtu-fidelity-principle.md` (new binding principle)
+6. Dispatch story-writer materialization for S-DTU-CYBERINT-AUTH-FIDELITY-001 stub (P0-pre-demo-BLOCKING; parallel with S-CONFIG-MULTI-TENANT-OVERRIDE-001 per-story-delivery)
 
 _Agent routing: see CLAUDE.md §Agent Routing Table._
