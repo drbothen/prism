@@ -120,6 +120,17 @@ impl SafetyEnvelopeBuilder {
     /// 5. Set `_meta.query_time` to the current UTC timestamp.
     /// 6. Build prose summary with counts only (BC-2.09.001).
     /// 7. Never modify `results` values (flag-don't-strip).
+    ///
+    /// ## Scope limitation (pre-existing — see SS-09 hardening follow-up)
+    ///
+    /// When `results` is a JSON Object (not an Array), `collect_string_fields` is
+    /// not invoked and `safety_flags` will be empty regardless of result content.
+    /// Object-shaped responses from MCP tool handlers (e.g., `explain_query`,
+    /// `create_alias`, alias CRUD, `confirm_action`, `reload_config`, sensor-spec
+    /// management) bypass the injection scanner. Trust-level metadata is still
+    /// applied via `_meta.trust_level = "untrusted_external"`. Full coverage of
+    /// object-shaped responses is tracked under SS-09 hardening (BC-2.09.001
+    /// "no exempt fields" invariant) and is out-of-scope for S-5.01-FOLLOWUP-MCP-BOOT.
     pub fn wrap(
         tool: &str,
         data_source: DataSource,
@@ -250,9 +261,9 @@ const SCAN_TRUNCATED_SENTINEL: &str = "<scan-truncated: nested-depth-exceeded>";
 /// objects within objects are recursed. Non-string scalar values (numbers, booleans,
 /// null) are skipped — they cannot carry prompt injection payloads.
 ///
-/// When depth reaches `MAX_SCAN_DEPTH`, `depth_truncated` is set to `true` and a
-/// synthetic sentinel entry is pushed into `fields` for legacy callers. The caller
-/// (`wrap`) checks `depth_truncated` and pushes the `SafetyFlag` directly.
+/// When depth reaches `MAX_SCAN_DEPTH`, `depth_truncated` is set to `true` and
+/// recursion stops immediately. The caller (`wrap`) checks `depth_truncated` and
+/// pushes the `SafetyFlag` directly into `safety_flags`.
 fn collect_string_fields<'a>(
     value: &'a Value,
     item_index: usize,
@@ -262,13 +273,11 @@ fn collect_string_fields<'a>(
 ) {
     // SEC-005: depth guard — stop recursing when the limit is reached.
     // F-PR163-PASS4-MED-1: set depth_truncated so caller (wrap) pushes a SafetyFlag
-    // directly into safety_flags — bypassing the InjectionScanner regex path which
-    // does not match the sentinel literal (SOUL.md #4: do not silently discard coverage).
+    // directly into safety_flags. The out-param approach (rather than a sentinel push
+    // into `fields`) guarantees the signal reaches _meta.safety_flags regardless of
+    // InjectionScanner pattern table contents (SOUL.md #4: do not silently discard coverage).
     if depth >= MAX_SCAN_DEPTH {
         *depth_truncated = true;
-        // Also push the sentinel into fields for the internal-invariant test assertion
-        // that directly calls collect_string_fields.
-        fields.push((SCAN_TRUNCATED_SENTINEL, item_index, SCAN_TRUNCATED_SENTINEL));
         return;
     }
     match value {
@@ -582,8 +591,13 @@ mod tests {
             envelope.meta.safety_flags
         );
 
-        // Also verify the collect_string_fields sentinel push directly (internal invariant).
-        let mut sentinel_fields: Vec<(&str, usize, &str)> = Vec::new();
+        // Also verify collect_string_fields sets depth_truncated=true directly
+        // (internal-invariant assertion via out-param, not via fields sentinel push).
+        // F-PR163-PASS5-NIT-1: the sentinel fields.push() was dead production code;
+        // the load-bearing invariant is that depth_truncated is set to true, which
+        // drives the SafetyFlag emission in wrap(). This assertion is the correct
+        // verification of that invariant.
+        let mut check_fields: Vec<(&str, usize, &str)> = Vec::new();
         let mut deep_inner2: serde_json::Value = json!("deep payload — not a real injection");
         for _ in 0..DEPTH_OVER_LIMIT {
             deep_inner2 = json!({ "a": deep_inner2 });
@@ -593,22 +607,26 @@ mod tests {
         collect_string_fields(
             &outer2.as_array().unwrap()[0],
             0,
-            &mut sentinel_fields,
+            &mut check_fields,
             0,
             &mut truncated_flag,
         );
-        let has_sentinel_field = sentinel_fields
+        assert!(
+            truncated_flag,
+            "collect_string_fields must set depth_truncated=true when depth >= MAX_SCAN_DEPTH={}; \
+             mental-deletion proof: removing the depth guard causes this assert to FAIL",
+            MAX_SCAN_DEPTH,
+        );
+        // No sentinel entry in fields — the signal travels via the out-param only.
+        let has_sentinel_in_fields = check_fields
             .iter()
             .any(|(field, _, _)| field.contains("scan-truncated"));
         assert!(
-            has_sentinel_field,
-            "collect_string_fields must push a sentinel entry when depth >= MAX_SCAN_DEPTH={}; \
+            !has_sentinel_in_fields,
+            "collect_string_fields must NOT push sentinel into fields (F-PR163-PASS5-NIT-1: \
+             sentinel push was dead production code; the out-param is the load-bearing path); \
              got fields: {:?}",
-            MAX_SCAN_DEPTH,
-            sentinel_fields
-                .iter()
-                .map(|(f, _, _)| *f)
-                .collect::<Vec<_>>()
+            check_fields.iter().map(|(f, _, _)| *f).collect::<Vec<_>>()
         );
     }
 
