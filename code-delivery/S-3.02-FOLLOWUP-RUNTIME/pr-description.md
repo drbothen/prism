@@ -1,11 +1,11 @@
-# [S-3.02-FOLLOWUP-RUNTIME] prism-query: QueryEngine Execution Pipeline — Fill 9 todo!() Sites
+# [S-3.02-FOLLOWUP-RUNTIME] prism-query: QueryEngine Execution Pipeline — Fill todo!() Sites
 
-**Epic:** E-CLEANUP-02 — QueryEngine Execution Completeness
-**Mode:** feature
-**Convergence:** CONVERGED after 9 LOCAL adversarial passes (6 fix-passes, 3-CLEAN streak at HEAD cca5cb32)
+**Epic:** E-CLEANUP-02 — Query Engine Completion
+**Mode:** brownfield
+**Convergence:** CONVERGED after 9 adversarial passes (6 BLOCKED + 3 CLEAN)
 
-![Tests](https://img.shields.io/badge/tests-891%2F891-brightgreen)
-![Workspace](https://img.shields.io/badge/workspace-3489%20tests-brightgreen)
+![Tests](https://img.shields.io/badge/tests-3718%2F3718-brightgreen)
+![prism--query](https://img.shields.io/badge/prism--query-891%20tests-brightgreen)
 ![just%20check](https://img.shields.io/badge/just%20check-PASS-brightgreen)
 ![Adversarial](https://img.shields.io/badge/adversarial-9%20passes%20CONVERGED-blue)
 
@@ -146,7 +146,16 @@ Demo evidence: `docs/demo-evidence/S-3.02-FOLLOWUP-RUNTIME/` (per-AC logs + walk
 ## Demo Evidence
 
 All demo evidence is committed in the feature branch at
-`docs/demo-evidence/S-3.02-FOLLOWUP-RUNTIME/` (commit cca5cb32).
+`docs/demo-evidence/S-3.02-FOLLOWUP-RUNTIME/` (commit 99574e3a — "docs: add per-AC demo evidence").
+
+4 VHS recordings (.gif + .webm + .tape) are included:
+
+| Recording | ACs Covered |
+|-----------|-------------|
+| `AC-001-query-engine-execute-virtual-fields.{gif,webm,tape}` | AC-1, AC-7 |
+| `AC-005-internal-tables-accessible-after-step7.{gif,webm,tape}` | AC-5 |
+| `AC-008-no-todo-stub-residue.{gif,webm,tape}` | AC-8 |
+| `BOOT-STEPS-step7-step8-sequential.{gif,webm,tape}` | AC-2, AC-5 (boot sequence) |
 
 | AC | Demo Log | Verdict |
 |----|----------|---------|
@@ -174,7 +183,7 @@ returns zero matches.
 | Metric | Value | Threshold | Status |
 |--------|-------|-----------|--------|
 | prism-query tests | 891 / 891 pass | 100% | PASS |
-| Workspace tests | 3489 / 3489 pass | 100% | PASS |
+| Workspace tests | 3718 / 3718 pass | 100% | PASS |
 | `just check` | PASS (exit 0) | — | PASS |
 | Walker LP-prefix tests | 16 / 16 pass | 100% | PASS |
 
@@ -201,8 +210,8 @@ graph LR
 | Metric | Value |
 |--------|-------|
 | **New tests added** | 891 prism-query (net; includes 8 AC tests + 16 LP-prefix walker tests across 6 fix-passes) |
-| **Total workspace suite** | 3489 tests PASS |
-| **`just check` result** | PASS exit 0 (confirmed at fix-pass-6 closure, SHA 20829c80 → rebased cca5cb32) |
+| **Total workspace suite** | 3718 tests PASS |
+| **`just check` result** | PASS exit 0 (confirmed at fix-pass-6 closure, SHA 20829c80) |
 | **Regressions** | 0 |
 
 <details>
@@ -445,8 +454,8 @@ models-used:
   pr-manager: claude-sonnet-4-6
 generated-at: "2026-05-10T00:00:00Z"
 story-id: S-3.02-FOLLOWUP-RUNTIME
-branch: feature/S-3.02-FOLLOWUP-RUNTIME
-post-rebase-head: cca5cb32
+branch: feature/S-3.02-FOLLOWUP-RUNTIME-query-engine
+head: 99574e3a
 ```
 
 </details>

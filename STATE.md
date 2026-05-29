@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.530"
+version: "7.531"
 producer: state-manager
-timestamp: 2026-05-28T06:00:00Z
+timestamp: 2026-05-29T17:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -16,19 +16,17 @@ repos: [poller-cobra, poller-express, poller-bear, poller-coaster, serveMyAPI, t
 safe_to_compact: true
 pre_compact_snapshot: "SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-27-PLUGIN-MIGRATION-SAGA-CLOSED"
 pre_compact_snapshot_at: "2026-05-27 (D-841 SESSION CHECKPOINT; Plugin migration 16/16 CLOSED; S-SPEC-TYPE-UNIFICATION-001 PR #161 MERGED; develop@af79f160; 3711 tests; state-final for /clear-resume)"
-current_step: "D-843 PAUSE CHECKPOINT — S-5.01-FOLLOWUP-MCP-BOOT LOCAL adversary cascade in progress. Worktree .worktrees/S-5.01-FOLLOWUP-MCP-BOOT branch feature/S-5.01-FOLLOWUP-MCP-BOOT-mcp-server HEAD ac213273 (27 commits ahead of develop@a55bd930). 15 LOCAL adversary passes complete, 14 fix-bursts, streak 0/3 (pass-15 findings fixed in ac213273; pass-16 PENDING). 3778/3778 tests pass. PAUSED for user relocation — resume with adversary pass 16."
-s_5_01_followup_mcp_boot_status: "in_progress_adversary_convergence — pass 15 fixed (ac213273), streak 0/3, awaiting pass 16"
-s_5_01_followup_mcp_boot_worktree: ".worktrees/S-5.01-FOLLOWUP-MCP-BOOT"
-s_5_01_followup_mcp_boot_branch: "feature/S-5.01-FOLLOWUP-MCP-BOOT-mcp-server"
-s_5_01_followup_mcp_boot_head: "ac213273"
-s_5_01_followup_mcp_boot_base: "a55bd930"
-s_5_01_followup_mcp_boot_commits_ahead: 27
-s_5_01_followup_mcp_boot_local_adversary_passes: 15
-s_5_01_followup_mcp_boot_local_fix_bursts: 14
-s_5_01_followup_mcp_boot_local_clean_streak: 0
-s_5_01_followup_mcp_boot_test_count: 3778
-s_5_01_followup_mcp_boot_paused: true
-s_5_01_followup_mcp_boot_pause_reason: "user relocation — resume with adversary pass 16"
+current_step: "D-844 S-5.01-FOLLOWUP-MCP-BOOT MERGED via PR #163 develop@e898c3c9 2026-05-29T16:44:42Z. POL-14 BC auto-promotion: 7 BC-2.10.* status draft→active (BC-INDEX v5.54→v5.55). STORY-INDEX v2.201→v2.202. STATE v7.530→v7.531. NEXT: Wave 3 multi-tenant remaining stories or next priority per queue."
+s_5_01_followup_mcp_boot_status: "MERGED via PR #163 develop@e898c3c9 2026-05-29T16:44:42Z"
+s_5_01_followup_mcp_boot_merged_via_pr: 163
+s_5_01_followup_mcp_boot_merged_via_sha: "e898c3c9"
+s_5_01_followup_mcp_boot_merged_at: "2026-05-29T16:44:42Z"
+s_5_01_followup_mcp_boot_local_adversary_passes: 19
+s_5_01_followup_mcp_boot_local_fix_bursts: 16
+s_5_01_followup_mcp_boot_pr_level_reviewer_passes: 16
+s_5_01_followup_mcp_boot_pr_level_fix_bursts: 10
+s_5_01_followup_mcp_boot_pr_number: 163
+s_5_01_followup_mcp_boot_ci_status: "40/40 GREEN — MERGED"
 s_3_02_followup_runtime_status: "MERGED via PR #162 develop@a55bd930 2026-05-28T00:48:00Z"
 s_3_02_followup_runtime_merged_via_pr: 162
 s_3_02_followup_runtime_merged_via_sha: "a55bd930"
@@ -187,7 +185,7 @@ dtu_clones_built: in_progress
 dtu_strategy: "Option 2 — DTU-first"
 dtu_strategy_decided: 2026-04-20
 policy_registry_source_of_truth: .factory/policies.yaml
-develop_head: "a55bd930"
+develop_head: "e898c3c9"
 workspace_test_count_at_001_f_pr: 3708
 workspace_test_count_at_001_f_merge: 3708
 vsdd_factory_version: "1.0.0-rc.18 (re-activated 2026-05-13T15:00:19Z; upgrade chain rc.11 → rc.16 2026-05-10 → rc.18 2026-05-13)"
@@ -205,9 +203,9 @@ s_spec_type_unification_001_demo_evidence_path: "docs/demo-evidence/S-SPEC-TYPE-
 s_spec_type_unification_001_demo_evidence_complete: true
 user_directive_persistent: "No pragmatic convergence. Fix all issues before build."
 current_cycle_history: "wave-0-plugin-prereqs (PREREQ-E merged PR #151 2026-05-19); prior: wave-4-operations (active); wave-3-multi-tenant (COMPLETE)"
-bc_index_version: "5.54"
+bc_index_version: "5.55"
 vp_index_version: "1.76"
-story_index_version: "v2.201"
+story_index_version: "v2.202"
 plugin_migration_001_d_local_adversary_passes: 25
 plugin_migration_001_d_local_fix_bursts: 19
 plugin_migration_001_d_status: "MERGED via PR #153 develop@3f2de889 2026-05-22"
@@ -249,9 +247,9 @@ historical_cycles: [phase-1-convergence, wave-3-multi-tenant, wave-4-operations]
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-28 (D-843 S-5.01-FOLLOWUP-MCP-BOOT PAUSE CHECKPOINT; 15 LOCAL passes, pass-15 fixed, streak 0/3; STATE v7.529→v7.530) |
-| **Current Phase** | Wave 3 Tier-3 / S-5.01-FOLLOWUP-MCP-BOOT — **LOCAL adversary cascade pass 15 fixed; PAUSED for user relocation; resume at pass 16** |
-| **Current Step** | D-843 S-5.01-FOLLOWUP-MCP-BOOT adversary cascade paused at pass 15 fixed (HEAD ac213273). Streak 0/3. 3778 tests GREEN. Resume: dispatch adversary pass 16 → target CLEAN(strict) → streak 1/3 → passes 17+18 → convergence → demo-recorder → push → pr-manager. |
+| **Last Updated** | 2026-05-29 (D-844 S-5.01-FOLLOWUP-MCP-BOOT MERGED PR #163 develop@e898c3c9; POL-14 7 BC-2.10.* promoted; BC-INDEX v5.55; STORY-INDEX v2.202; STATE v7.530→v7.531) |
+| **Current Phase** | Wave 3 Tier-3 complete — S-5.01-FOLLOWUP-MCP-BOOT **MERGED** PR #163 develop@e898c3c9. Next: identify next wave priority. |
+| **Current Step** | D-844 S-5.01-FOLLOWUP-MCP-BOOT MERGED via PR #163 (develop@e898c3c9 2026-05-29T16:44:42Z). 19 LOCAL passes + 16 PR-LEVEL passes (per reviewer). POL-14 BC auto-promotion complete. BC-INDEX v5.55. STORY-INDEX v2.202. STATE v7.531. |
 
 ## Phase Progress
 
@@ -281,7 +279,7 @@ historical_cycles: [phase-1-convergence, wave-3-multi-tenant, wave-4-operations]
 | **3: PLUGIN-MIGRATION-001-F** | **MERGED** | 2026-05-27 | 2026-05-27 | PR #160 develop@2dda655f; 21/21 CI GREEN | LOCAL 10 passes 3-CLEAN CONVERGED (passes 8/9/10); 7 fix-bursts; 15 findings closed; trajectory 3→6→2→1→1→2→1→0→0→0; PR-LEVEL security CLEAN + pr-reviewer APPROVE; 3708 tests; 8/8 ACs demo-evidenced; Wave 2 COMPLETE |
 | **3: S-SPEC-TYPE-UNIFICATION-001** | **MERGED** | 2026-05-27 | 2026-05-27 | PR #161 develop@af79f160; 40/40 CI GREEN | LOCAL 4 passes 3-CLEAN CONVERGED (passes 2/3/4); 1 fix-burst; 4 findings closed; ADR-030 Approach D: types::SensorSpec deleted, spec_parser::SensorSpec canonical, 8→4 boot TOML parses, AuthType::CustomViaPlugin, SpecDrivenMapper table_name fix, EXPECTED 36→35; 3711 tests; 3 new AC tests; 7/7 ACs demo-evidenced |
 | **3: S-3.02-FOLLOWUP-RUNTIME** | **MERGED** | 2026-05-27 | 2026-05-28 | PR #162 develop@a55bd930; 20/20 CI GREEN | LOCAL 5 passes 3-CLEAN CONVERGED (passes 3/4/5); 2 fix-bursts; 10 findings closed; trajectory 7→3→0→0→0; boot steps 7+8 (step7_init_storage health_check + step8_init_query_engine mark_query_phase_started); BC-2.16.002 v1.31→v1.32 (rows 47-48); 3718 tests; 7 new tests; security 0 findings; 4 VHS demo recordings; S-3.02 graduated partial-merge→merged |
-| **3: S-5.01-FOLLOWUP-MCP-BOOT** | **IN PROGRESS (adversary cascade paused)** | 2026-05-28 | — | LOCAL 15 passes, 14 fix-bursts, streak 0/3 | HEAD ac213273 (27 commits ahead of develop@a55bd930); 3778/3778 tests; F-PASS15 fixed; pass 16 pending; see SESSION-HANDOFF §RESUME SNAPSHOT 2026-05-28-S-5-01-PAUSE-MID-ADVERSARY |
+| **3: S-5.01-FOLLOWUP-MCP-BOOT** | **MERGED** | 2026-05-28 | 2026-05-29 | PR #163 develop@e898c3c9; 40/40 CI GREEN | LOCAL 19 passes 3-CLEAN CONVERGED (passes 17/18/19); 16 fix-bursts; PR-LEVEL 16 passes per reviewer, 10 fix-bursts; security 3/3 CLEAN (pass 15); pr-reviewer 3/3 CLEAN (pass 16); SEC-001 CWE-22 path traversal caught (pass 12); shutdown race bug caught (CI pass 8); Windows /tmp/ hardcoding (pass 8) |
 
 ## Current Phase Steps
 
@@ -289,7 +287,8 @@ historical_cycles: [phase-1-convergence, wave-3-multi-tenant, wave-4-operations]
 
 | Step | Agent | Status | Output |
 |------|-------|--------|--------|
-_D-735 through D-838 archived to cycles/wave-0-plugin-prereqs/burst-log.md (compacted D-843 burst 2026-05-28). D-835+D-836 removed from Phase Steps (archived in Decisions Log)._
+_D-735 through D-838 archived to cycles/wave-0-plugin-prereqs/burst-log.md (compacted D-843 burst 2026-05-28). D-835+D-836+D-837 removed from Phase Steps (archived in Decisions Log)._
+| D-844 — **S-5.01-FOLLOWUP-MCP-BOOT MERGED (PR #163 squash-merged to develop@e898c3c9 2026-05-29T16:44:42Z). prism-mcp PrismServer fully delivered: rmcp 1.7 ServerHandler, #[tool_router] macro, per-tool InjectionScanner, ResponseEnvelope wrapping, per-tool input validation with MCP error codes, stdio transport, graceful shutdown. LOCAL cascade: 19 passes, 16 fix-bursts, CONVERGED 3-CLEAN (passes 17/18/19). PR-LEVEL cascade: 16 passes per reviewer, 10 fix-bursts; security 3/3 CLEAN at pass 15; pr-reviewer 3/3 CLEAN at pass 16. Notable: SEC-001 CWE-22 path traversal in add_sensor_spec fixed (pass 12); real shutdown race bug fixed (CI investigation pass 8); Windows /tmp/ hardcoding fixed (pass 8). CI 40/40 GREEN including Windows MSVC. POL-14 BC auto-promotion: 7 BC-2.10.* (001/002/003/004/006/007/010) status draft→active; lifecycle_status already active (idempotent confirms); BC-2.09.001..008 already active. BC-INDEX v5.54→v5.55. STORY-INDEX v2.201→v2.202. Worktree .worktrees/S-5.01-FOLLOWUP-MCP-BOOT pending cleanup. STATE v7.530→v7.531.** | state-manager (D-844 post-merge burst) | MERGED | develop@e898c3c9; 40/40 CI GREEN |
 | D-843 — **PAUSE CHECKPOINT — S-5.01-FOLLOWUP-MCP-BOOT mid-adversary-cascade. 15 LOCAL adversary passes complete, 14 fix-bursts, streak 0/3. Pass-15 findings (F-PASS15-HIGH-1 + F-PASS15-MED-1) fixed in commit ac213273. Worktree .worktrees/S-5.01-FOLLOWUP-MCP-BOOT HEAD ac213273 (27 commits ahead of develop@a55bd930). 3778/3778 tests GREEN. just check GREEN. SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-28-S-5-01-PAUSE-MID-ADVERSARY written. STATE v7.529→v7.530. NEXT: adversary pass 16.** | state-manager (D-843 pause-checkpoint burst) | PAUSE | pass 15 fixed; streak 0/3; pass 16 pending |
 | D-842 — **S-3.02-FOLLOWUP-RUNTIME MERGED (PR #162 squash-merged to develop@a55bd930 2026-05-28T00:48:00Z). Boot steps 7+8 delivered in crates/prism-bin/src/boot.rs: step7_init_storage accepts &Arc<RocksDbBackend>, calls health_check() (write/read/delete probe + CF verification), emits boot.step7.storage_validated event; step8_init_query_engine calls mark_query_phase_started() (closes write-tool registration window), emits boot.step8.query_engine_started event. BC-2.16.002 catalog updated v1.31→v1.32 (rows 47-48 for both new event_type entries). 7 new tests in boot_steps_7_8_tests.rs; 3718 workspace tests total (+7). LOCAL 5-pass adversary cascade: pass-1 2C+3H+2M, pass-2 1M+2L, passes 3/4/5 CLEAN(strict); 2 fix-bursts, 10 findings closed, 3-CLEAN CONVERGED (passes 3/4/5). Trajectory: 7→3→0→0→0. PR-LEVEL: security review 0 findings CLEAN; CI 20/20 GREEN. Demo evidence: 4 VHS recordings at docs/demo-evidence/S-3.02-FOLLOWUP-RUNTIME/. BCs traced: BC-2.11.001/005/006/007/011/012 + BC-2.15.011 (all lifecycle_status: active — no POL-14 promotions needed). S-3.02 graduated partial-merge→merged per ADR-020. QueryEngine + WriteExecutor full construction deferred to S-5.01-FOLLOWUP-MCP-BOOT (boot step 9). STORY-INDEX v2.200→v2.201. TD-VSDD-053 single-commit. STATE v7.528→v7.529.** | state-manager (D-842 post-merge burst) | MERGED | develop@a55bd930 |
 | D-840 — **S-SPEC-TYPE-UNIFICATION-001 MERGED (PR #161 squash-merged to develop@af79f160 2026-05-27T22:00:22Z). ADR-030 Approach D delivered: deleted types::SensorSpec, unified on spec_parser::SensorSpec (ConfigSnapshot::sensor_specs field type changed), deleted build_type_spec_map_for_overlay (eliminated double-parse boot: 8→4 TOML parses), added AuthType::CustomViaPlugin variant, fixed SpecDrivenMapper table_name qualification mismatch (latent integration bug), non-exhaustive EXPECTED 36→35, pre-existing clippy assertions_on_constants lint fixed. 3711 tests (3 new AC tests). LOCAL adversary cascade: 4 passes, 1 fix-burst, 4 findings closed, 3-CLEAN CONVERGED (passes 2/3/4). CI 40/40 GREEN. Demo evidence: docs/demo-evidence/S-SPEC-TYPE-UNIFICATION-001/ (7/7 ACs). Story spec v1.1 → done. ARCH-INDEX ADR-030 PROPOSED→ACCEPTED v2.103→v2.104. POL-14: BC-2.16.001 + BC-2.06.012 already lifecycle_status: active — no promotions needed. STORY-INDEX v2.199→v2.200. TD-VSDD-053 single-commit. STATE v7.526→v7.527.** | state-manager (D-840 post-merge burst) | MERGED | develop@af79f160 |
@@ -303,6 +302,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-844 | 2026-05-29 | **S-5.01-FOLLOWUP-MCP-BOOT MERGED (PR #163 squash-merged to develop@e898c3c9 2026-05-29T16:44:42Z). prism-mcp PrismServer fully delivered: rmcp 1.7 ServerHandler, #[tool_router] macro for all BC-2.13.* tools, per-tool InjectionScanner, ResponseEnvelope wrapping, per-tool input validation with MCP error codes, stdio transport, graceful shutdown. No todo!() or unimplemented!() per POL-12. LOCAL cascade: 19 passes, 16 fix-bursts, 3-CLEAN CONVERGED (passes 17/18/19); trajectory: 2C+4H→6C+8H+6M→5C+6H+6M→2C+3H→2C+4H→3H+2M→3H+2M→CLEAN→1H+1M+1L→3H+2M→2H+3M→2C+2H+3M→2C+4H→1C+3H→1H+1M→2M→CLEAN→CLEAN→CLEAN. PR-LEVEL cascade: 16 passes per reviewer (security + pr-reviewer), 10 fix-bursts; security 3/3 CLEAN at pass 15; pr-reviewer 3/3 CLEAN at pass 16. Notable catches: SEC-001 CWE-22 path traversal in add_sensor_spec (pass 12 — security caught what LOCAL missed); real production shutdown race bug in serve_with_transport_and_shutdown_inner natural_close_fut arm masking JoinError::Panic (CI investigation pass 8); Windows CI failure from hardcoded /tmp/ paths (pass 8); sibling-sweep misses across validate_text_field extension. CI: 40/40 GREEN including Windows x86_64-pc-windows-msvc. HEAD at PR-merge: ee36f589. POL-14 BC auto-promotion: BC-2.10.001 v1.4→v1.5, BC-2.10.002 v2.7→v2.8, BC-2.10.003 v1.3→v1.4, BC-2.10.004 v2.5→v2.6, BC-2.10.006 v1.3→v1.4, BC-2.10.007 v1.3→v1.4, BC-2.10.010 v1.3→v1.4; lifecycle_status was already active for all 7 (idempotent confirms); active_contracts 236 (unchanged); draft_contracts 2 (unchanged — BC-2.06.011 + BC-2.21.001 remain draft). BC-2.09.001..008 already active — no promotions needed. BC-INDEX v5.54→v5.55. STORY-INDEX v2.201→v2.202 (S-5.01-FOLLOWUP-MCP-BOOT [draft BLOCKED]→[merged PR #163]). Worktree .worktrees/S-5.01-FOLLOWUP-MCP-BOOT pending cleanup. develop_head: e898c3c9. TD-VSDD-053 single-commit. STATE v7.530→v7.531.** | state-manager (D-844 post-merge burst) | Phase 3 / wave-0-plugin-prereqs | 2026-05-29 |
 | D-843 | 2026-05-28 | **PAUSE CHECKPOINT — S-5.01-FOLLOWUP-MCP-BOOT mid-adversary-cascade (D-843). 15 LOCAL adversary passes complete, 14 fix-bursts. Pass-15 findings (F-PASS15-HIGH-1 + F-PASS15-MED-1) fixed in commit ac213273. Streak 0/3 (pass-8 was sole clean pass; pass-9 reset the streak). Worktree .worktrees/S-5.01-FOLLOWUP-MCP-BOOT branch feature/S-5.01-FOLLOWUP-MCP-BOOT-mcp-server HEAD ac213273 (27 commits ahead of develop@a55bd930). 3778/3778 tests pass. just check GREEN. SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-28-S-5-01-PAUSE-MID-ADVERSARY written. STATE v7.529→v7.530. NEXT: dispatch adversary pass 16 to verify pass-15 fixes; target CLEAN(strict) → streak 1/3 → passes 17+18 for 3-CLEAN convergence per BC-5.39.001.** | state-manager (D-843 pause-checkpoint burst) | Phase 3 / wave-0-plugin-prereqs | 2026-05-28 |
 | D-842 | 2026-05-28 | **S-3.02-FOLLOWUP-RUNTIME MERGED (PR #162 squash-merged to develop@a55bd930 2026-05-28T00:48:00Z). Boot steps 7+8 delivered in crates/prism-bin/src/boot.rs: step7_init_storage accepts &Arc<RocksDbBackend>, calls health_check() (write/read/delete probe + CF verification), emits boot.step7.storage_validated event; step8_init_query_engine calls mark_query_phase_started() (closes write-tool registration window), emits boot.step8.query_engine_started event. BC-2.16.002 catalog v1.31→v1.32 (rows 47-48 for 2 new event_type entries). 7 new tests in boot_steps_7_8_tests.rs; 3718 workspace tests total. LOCAL 5-pass adversary cascade: pass-1 2C+3H+2M closed in fix-burst-1; pass-2 1M+2L closed in fix-burst-2; passes 3/4/5 CLEAN(strict); 2 fix-bursts, 10 findings closed, 3-CLEAN CONVERGED (passes 3/4/5). Trajectory: 7→3→0→0→0. PR-LEVEL: security review CLEAN (0 findings); CI 20/20 GREEN. Demo evidence: 4 VHS recordings at docs/demo-evidence/S-3.02-FOLLOWUP-RUNTIME/. BCs traced: BC-2.11.001/005/006/007/011/012 + BC-2.15.011 (all lifecycle_status: active — no POL-14 promotions needed). S-3.02 graduated partial-merge→merged per ADR-020. QueryEngine + WriteExecutor full construction deferred to S-5.01-FOLLOWUP-MCP-BOOT (boot step 9). STORY-INDEX v2.200→v2.201. TD-VSDD-053 single-commit. STATE v7.528→v7.529. NEXT: S-5.01-FOLLOWUP-MCP-BOOT (8 pts, depends_on S-3.02-FOLLOWUP-RUNTIME now satisfied).** | state-manager (D-842 post-merge burst) | Phase 3 / wave-0-plugin-prereqs | 2026-05-28 |
 | D-841 | 2026-05-27 | **SESSION CHECKPOINT for /clear-resume (D-841). Post-Wave-1-COMPLETE continuation session. 4 stories delivered: (1) PLUGIN-MIGRATION-001-H DONE (factory-only — 4 stories marked superseded by ADR-023: S-2.06, S-2.07, W3-FIX-S307-001, S-3.1.06-ImplPhase; 1 adversary pass, 1 fix-burst); (2) PLUGIN-MIGRATION-001-G DONE (factory-only — 8 sensor-named BCs amended per ADR-023; BC-INDEX v5.53→v5.54; 1 adversary pass, 2 MED findings fixed); (3) PLUGIN-MIGRATION-001-F MERGED PR #160 develop@2dda655f (12 test files rewritten to TOML fixture loading, compile-fail perimeter tests/external/no-hardcoded-sensors/, 10 adversary passes, 7 fix-bursts, 15 findings closed, 3-CLEAN CONVERGED passes 8/9/10, CI 21/21 GREEN; Wave 2 COMPLETE 3/3); (4) S-SPEC-TYPE-UNIFICATION-001 MERGED PR #161 develop@af79f160 (ADR-030 Approach D: deleted types::SensorSpec, unified on spec_parser::SensorSpec, deleted build_type_spec_map_for_overlay 8→4 TOML parses, added AuthType::CustomViaPlugin, fixed SpecDrivenMapper table_name mismatch, EXPECTED 36→35; 4 adversary passes, 1 fix-burst, 4 findings closed, 3-CLEAN CONVERGED passes 2/3/4; CI 40/40 GREEN). Plugin migration saga CLOSED 16/16 (Wave 0 prereqs 6 + Wave 1 7 + Wave 2 3). develop HEAD: af79f160. 3711 tests. No open PRs. Stale worktrees: S-3.09 (FROZEN), W3-FIX-S307-001 (superseded). SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-27-PLUGIN-MIGRATION-SAGA-CLOSED written. BC-INDEX v5.54. ARCH-INDEX v2.104. STORY-INDEX v2.200. NEXT SESSION PRIORITY 1: S-3.02-FOLLOWUP-RUNTIME (8 pts, boot steps 7+8 — RocksDB + QueryEngine construction wiring; depends_on S-WAVE5-PREP-01 MERGED). NEXT SESSION PRIORITY 2: S-5.01-FOLLOWUP-MCP-BOOT (8 pts, boot step 9 — rmcp 1.4 PrismServer + tool router + stdio transport; depends_on S-3.02-FOLLOWUP-RUNTIME). Boot steps 1-6 implemented, steps 7-11 are todo!() stubs. 2 stories connect the built subsystems into a runnable prism start binary with live MCP tools. User goal: end-to-end demo with MCP + DTU clones. POL-29 maintenance deferred per user direction. TD-VSDD-053 single-commit. STATE v7.527→v7.528.** | state-manager (D-841 session-checkpoint burst) | Phase 3 / wave-0-plugin-prereqs | 2026-05-27 |
@@ -467,33 +467,28 @@ Prior cycle history:
 
 ---
 
-## Session Resume Checkpoint (2026-05-28 — D-843 S-5.01-FOLLOWUP-MCP-BOOT PAUSE; pass 15 fixed, streak 0/3)
+## Session Resume Checkpoint (2026-05-29 — D-844 S-5.01-FOLLOWUP-MCP-BOOT MERGED; develop@e898c3c9)
 
-_Previous checkpoint (D-842 S-3.02-FOLLOWUP-RUNTIME MERGED; NEXT: S-5.01-FOLLOWUP-MCP-BOOT) archived: [cycles/wave-0-plugin-prereqs/session-checkpoints.md](cycles/wave-0-plugin-prereqs/session-checkpoints.md)_
+_Previous checkpoint (D-843 S-5.01-FOLLOWUP-MCP-BOOT PAUSE; pass 15 fixed, streak 0/3) archived: [cycles/wave-0-plugin-prereqs/session-checkpoints.md](cycles/wave-0-plugin-prereqs/session-checkpoints.md)_
 
-**STATE v7.530. D-843 — S-5.01-FOLLOWUP-MCP-BOOT PAUSE CHECKPOINT. 15 LOCAL adversary passes complete, 14 fix-bursts. Pass-15 findings fixed in commit ac213273. Streak 0/3. 3778 tests GREEN. PAUSED for user relocation.**
+**STATE v7.531. D-844 — S-5.01-FOLLOWUP-MCP-BOOT MERGED via PR #163 (develop@e898c3c9 2026-05-29T16:44:42Z). POL-14 BC auto-promotion complete: 7 BC-2.10.* promoted status draft→active. BC-INDEX v5.55. STORY-INDEX v2.202.**
 
-**Worktree:** `.worktrees/S-5.01-FOLLOWUP-MCP-BOOT` | **Branch:** `feature/S-5.01-FOLLOWUP-MCP-BOOT-mcp-server` | **HEAD:** `ac213273` (27 commits ahead of develop@`a55bd930`)
-
-**Adversary trajectory (15 passes):** 2C+4H → 6C+8H+6M → 5C+6H+6M → 2C+3H → 2C+4H → 3H+2M → 3H+2M → **CLEAN** (streak 1/3) → 1H+1M+1L → 3H+2M → 2H+3M → 2C+2H+3M → 2C+4H → 1C+3H → 1H+1M (fixed, pass 16 pending)
-
-**develop HEAD:** `a55bd930` | **Workspace test count (develop):** 3718 | **Worktree test count:** 3778/3778 pass
+**develop HEAD:** `e898c3c9` | **Workspace test count:** ~3778 (40/40 CI GREEN at merge)
 
 **Active worktrees:**
-- `.worktrees/S-5.01-FOLLOWUP-MCP-BOOT` — ACTIVE (HEAD ac213273, pass 16 pending)
+- `.worktrees/S-5.01-FOLLOWUP-MCP-BOOT` — pending cleanup (PR #163 merged)
 - `.worktrees/S-3.02-FOLLOWUP-RUNTIME` — pending cleanup (PR #162 merged)
 - `.worktrees/S-3.09` — FROZEN (BUG-S309-PLUGIN), stale since 2026-05-11
 - `.worktrees/W3-FIX-S307-001` — BLOCKED (superseded), stale since 2026-05-24
 
 **Open PRs:** None.
 
-**Resume protocol (5 steps):**
+**Resume protocol (4 steps):**
 1. Run `vsdd-factory:factory-worktree-health` (BLOCKING preflight)
-2. Read STATE.md frontmatter (v7.530)
-3. Read SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-28-S-5-01-PAUSE-MID-ADVERSARY
-4. Verify worktree HEAD: `git -C /Users/jmagady/Dev/prism/.worktrees/S-5.01-FOLLOWUP-MCP-BOOT log -1 --format=%H` → must be `ac213273`
-5. Dispatch adversary pass 16 against worktree HEAD — target CLEAN(strict) → streak 1/3 → passes 17+18 for 3-CLEAN convergence
+2. Read STATE.md frontmatter (v7.531)
+3. Verify develop HEAD: `git rev-parse origin/develop` → must be `e898c3c9`
+4. Identify next story priority from wave schedule
 
-_After convergence: Step 5 demo-recorder → Step 6 push → Step 7 pr-manager (9-step) → Step 8 worktree cleanup → Step 9 state-manager post-merge (POL-14 BC auto-promotion)._
+_Worktree cleanup recommended: .worktrees/S-5.01-FOLLOWUP-MCP-BOOT + .worktrees/S-3.02-FOLLOWUP-RUNTIME (both merged)._
 
 _Agent routing: see CLAUDE.md §Agent Routing Table._

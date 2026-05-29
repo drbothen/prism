@@ -1,10 +1,10 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "5.54"
+version: "5.55"
 status: draft
 producer: product-owner
-timestamp: 2026-05-27T00:00:00Z
+timestamp: 2026-05-29T00:00:00Z
 phase: 3.A
 total_contracts: 245
 active_contracts: 236
@@ -136,16 +136,16 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.09.006 | Tool Description Security Warnings | 09 - Prompt Injection Defense | CAP-010 | P0 | active |
 | BC-2.09.007 | OutputSchema for Type-Safe LLM Reasoning | 09 - Prompt Injection Defense | CAP-010 | P0 | active |
 | BC-2.09.008 | Response Envelope with Trust Annotations | 09 - Prompt Injection Defense | CAP-010 | P0 | active |
-| BC-2.10.001 | rmcp ServerHandler Implementation | 10 - MCP Interface | CAP-034 | P0 | draft |
-| BC-2.10.002 | Tool Registration via #[tool_router] | 10 - MCP Interface | CAP-005, CAP-015 | P0 | draft |
-| BC-2.10.003 | Conditional Tool Registration (Feature-Flag Gated) | 10 - MCP Interface | CAP-005 | P0 | draft |
-| BC-2.10.004 | Client Scoping on Every Tool (Stateless Model) | 10 - MCP Interface | CAP-009 | P0 | draft |
+| BC-2.10.001 | rmcp ServerHandler Implementation | 10 - MCP Interface | CAP-034 | P0 | active |
+| BC-2.10.002 | Tool Registration via #[tool_router] | 10 - MCP Interface | CAP-005, CAP-015 | P0 | active |
+| BC-2.10.003 | Conditional Tool Registration (Feature-Flag Gated) | 10 - MCP Interface | CAP-005 | P0 | active |
+| BC-2.10.004 | Client Scoping on Every Tool (Stateless Model) | 10 - MCP Interface | CAP-009 | P0 | active |
 | BC-2.10.005 | notifications/tools/list_changed on Config Reload | 10 - MCP Interface | CAP-005, CAP-009 | P0 | draft |
-| BC-2.10.006 | Stdio Transport | 10 - MCP Interface | CAP-034 | P0 | draft |
-| BC-2.10.007 | Structured Error Responses | 10 - MCP Interface | CAP-034 | P0 | draft |
+| BC-2.10.006 | Stdio Transport | 10 - MCP Interface | CAP-034 | P0 | active |
+| BC-2.10.007 | Structured Error Responses | 10 - MCP Interface | CAP-034 | P0 | active |
 | BC-2.10.008 | MCP Resources for Client List and Sensor Inventory | 10 - MCP Interface | CAP-008, CAP-009 | P0 | draft |
 | BC-2.10.009 | MCP Prompts for Common Workflows | 10 - MCP Interface | CAP-034 | P1 | draft |
-| BC-2.10.010 | Graceful Shutdown on SIGTERM/SIGINT | 10 - MCP Interface | CAP-034 | P0 | draft |
+| BC-2.10.010 | Graceful Shutdown on SIGTERM/SIGINT | 10 - MCP Interface | CAP-034 | P0 | active |
 | BC-2.10.011 | list_capabilities Meta-Tool | 10 - MCP Interface | CAP-005 | P0 | draft |
 | BC-2.11.001 | `query` MCP Tool Accepts Scoping + PrismQL Query String | 11 - Query Execution | CAP-015 | P0 | draft |
 | BC-2.11.002 | PrismQL Filter Mode Parsing | 11 - Query Execution | CAP-015 | P0 | draft |
@@ -375,6 +375,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v5.55 (2026-05-29, D-844 S-5.01-FOLLOWUP-MCP-BOOT post-merge burst):** state-manager | POL-14 BC auto-promotion: 7 BC-2.10.* promoted status draft→active per PR #163 S-5.01-FOLLOWUP-MCP-BOOT merge at develop@e898c3c9 2026-05-29T16:44:42Z. BC-2.10.001 v1.4→v1.5, BC-2.10.002 v2.7→v2.8, BC-2.10.003 v1.3→v1.4, BC-2.10.004 v2.5→v2.6, BC-2.10.006 v1.3→v1.4, BC-2.10.007 v1.3→v1.4, BC-2.10.010 v1.3→v1.4. active_contracts 236 (unchanged — lifecycle_status was already active for all 7; status field now aligned, idempotent confirm). draft_contracts 2 (unchanged — BC-2.06.011 + BC-2.21.001 remain draft). BC-2.09.001..008 already active (promoted at S-1.10 merge) — no promotions needed. BC-INDEX v5.54→v5.55.
 
 **v5.54 (2026-05-27, PLUGIN-MIGRATION-001-G burst-3):** product-owner | AC-003: 8 BC index rows updated — amendment_lifecycle: pending cleared; status changed to active (amended per ADR-023/PLUGIN-MIGRATION-001-G). BC-2.01.005 v1.4→v1.5, BC-2.01.006 v1.4→v1.5, BC-2.01.007 v1.4→v1.5, BC-2.01.008 v1.5→v1.6 (auth BCs; prior burst 38db97b9). BC-2.02.003 v1.5→v1.6, BC-2.02.004 v1.5→v1.6, BC-2.02.005 v1.4→v1.5, BC-2.02.006 v1.4→v1.5 (OCSF field-mapping BCs; prior burst 69eb4028). active_contracts 236 (unchanged — lifecycle_status was already active for all 8; status column now aligned). draft_contracts 2 (unchanged — BC-2.06.011 + BC-2.21.001 remain draft). AC-004: module-decomposition.md grep sweep CLEAN — no CrowdStrikeAdapter/ClarotyAdapter/CyberintAdapter/ArmisAdapter/CrowdStrikeAuth/ClarotyAuth/CyberintAuth/ArmisAuth/SensorType:: hits; DTU crate references (prism-dtu-crowdstrike etc.) are correct per ADR-023 and untouched. AC-005: sensor-adapters.md grep sweep CLEAN — same pattern; two-tier model language (Tier 1 TOML spec, Tier 2 .prx WASM plugin) preserved. AC-006: POL-29 cite-pin sweep CLEAN — no version-pinned BC references found in STORY-INDEX.md, S-2.07, S-1.05, PLUGIN-MIGRATION-001-C, W3-FIX-S307-001, PLUGIN-MIGRATION-001-H, or other spec files; bare BC-ID references (no version suffix) are correct per project convention. BC-INDEX v5.53→v5.54.
 

@@ -296,3 +296,19 @@ S-SPEC-TYPE-UNIFICATION-001: MERGED PR #161 develop@af79f160. ADR-030 Approach D
 **Next session priority at archival:** S-3.02-FOLLOWUP-RUNTIME (boot steps 7+8) then S-5.01-FOLLOWUP-MCP-BOOT (boot step 9).
 
 _Superseded by D-842 checkpoint (S-3.02-FOLLOWUP-RUNTIME MERGED PR #162 develop@a55bd930; 3718 tests; STATE v7.529)._
+
+## D-843 Checkpoint (archived by D-844 burst 2026-05-29)
+
+_Archived from STATE.md Session Resume Checkpoint section. Superseded by D-844 checkpoint._
+
+**STATE v7.530. D-843 — S-5.01-FOLLOWUP-MCP-BOOT PAUSE CHECKPOINT. 15 LOCAL adversary passes complete, 14 fix-bursts. Pass-15 findings fixed in commit ac213273. Streak 0/3. 3778 tests GREEN. PAUSED for user relocation.**
+
+**Worktree:** `.worktrees/S-5.01-FOLLOWUP-MCP-BOOT` | **Branch:** `feature/S-5.01-FOLLOWUP-MCP-BOOT-mcp-server` | **HEAD:** `ac213273` (27 commits ahead of develop@`a55bd930`)
+
+**Adversary trajectory (15 passes):** 2C+4H → 6C+8H+6M → 5C+6H+6M → 2C+3H → 2C+4H → 3H+2M → 3H+2M → CLEAN (streak 1/3) → 1H+1M+1L → 3H+2M → 2H+3M → 2C+2H+3M → 2C+4H → 1C+3H → 1H+1M (fixed, pass 16 pending)
+
+**develop HEAD at archival:** `a55bd930`
+**Workspace test count at archival:** 3718 (develop) / 3778 (worktree)
+**Next step at archival:** Adversary pass 16 against ac213273.
+
+_Superseded by D-844 checkpoint (S-5.01-FOLLOWUP-MCP-BOOT MERGED PR #163 develop@e898c3c9 2026-05-29T16:44:42Z; STATE v7.531)._
