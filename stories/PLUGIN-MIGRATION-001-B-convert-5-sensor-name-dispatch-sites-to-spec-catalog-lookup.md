@@ -5,12 +5,12 @@ title: "prism-query: Convert 3 Sensor-Name Dispatch Sites to Spec-Catalog Lookup
 wave: 1
 epic_id: PLUGIN-MIGRATION-001
 priority: P0
-status: ready
-version: "v1.0"
+status: merged
+version: "v1.1"
 level: "L4"
 producer: story-writer
 timestamp: "2026-05-26T00:00:00Z"
-modified: "2026-05-26"
+modified: "2026-05-27"
 tdd_mode: strict
 subsystems: [SS-07, SS-16]
 # Subsystem anchor justifications:

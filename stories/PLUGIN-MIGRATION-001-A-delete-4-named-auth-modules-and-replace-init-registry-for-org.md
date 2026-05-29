@@ -5,12 +5,12 @@ title: "prism-sensors: Delete 4 Named Auth Modules + Re-exports + Replace init_r
 wave: 1
 epic_id: PLUGIN-MIGRATION-001
 priority: P0
-status: ready
-version: "v1.0"
+status: merged
+version: "v1.1"
 level: "L4"
 producer: story-writer
 timestamp: "2026-05-22T00:00:00Z"
-modified: "2026-05-22"
+modified: "2026-05-27"
 tdd_mode: strict
 subsystems: [SS-01, SS-16]
 # Subsystem anchor justifications:

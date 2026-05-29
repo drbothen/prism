@@ -168,7 +168,7 @@ ARTIFACT STATE AFTER D-540 (UNCHANGED FROM D-539 — no spec edits):
 DURABLE PIN BLOCK (CURRENT STATE — D-580 — DURABLE PRE-/CLEAR RESUME SNAPSHOT — 86th consecutive single-commit — STRATEGIC DECISION PENDING)
 ═══════════════════════════════════════════════════════════════════════
 
-- develop HEAD: e898c3c9 (current develop — S-5.01-FOLLOWUP-MCP-BOOT PR #163 MERGED 2026-05-29T16:44:42Z; §RESUME SNAPSHOT 2026-05-29-E2E-DEMO-WIRING-PLAN-LOCKED is last full checkpoint; D-845 planning burst is current state)
+- develop HEAD: 72baf413 (current develop — fix(sensor-specs) fidelity audit fixes ACCEPTED D-846 2026-05-29; §RESUME SNAPSHOT 2026-05-29-E2E-DEMO-WIRING-PLAN-LOCKED is last full checkpoint; D-846 bookkeeping sweep is current state)
 - factory-artifacts: run `git -C .factory log -1 --format=’%H’` (per TD-VSDD-053; D-579 is this commit)
 - feature_branch_head: no active feature branch (spec-authoring-only burst; develop unchanged at a5ab742c)
 - feature_branch_remote_status: no feature branch (spec-only burst; develop@a5ab742c unchanged)
@@ -7914,26 +7914,21 @@ GAP-002-A (AdapterRegistry empty at boot) is the architectural keystone blocking
 
 ### §4. Story Execution Order (Critical Path)
 
+_Updated D-846 (2026-05-29): 001-A/001-B/001-E all MERGED; critical path head corrected._
+
 ```
-PLUGIN-MIGRATION-001-A (P0, ready — all deps merged) → per-story-delivery
+S-CONFIG-MULTI-TENANT-OVERRIDE-001 (P0, draft, ready)   → per-story-delivery   [next dispatchable]
         ↓
-PLUGIN-MIGRATION-001-E (P0, ready)                  → per-story-delivery
-  [parallelizable with S-CONFIG below]
+S-DEMO-001 (P0, draft v1.2, KEYSTONE — closes GAP-002-A; OQ-1/2/6 architect-resolved)
+  → per-story-delivery (architect rescope complete)
         ↓
-S-CONFIG-MULTI-TENANT-OVERRIDE-001 (P0, draft, ready) → per-story-delivery
-  [parallelizable with 001-E]
-        ↓
-PLUGIN-MIGRATION-001-B (P0, ready)                  → per-story-delivery
-  [parallelizable with S-CONFIG or after 001-E]
-        ↓
-S-DEMO-001 (P0, draft, KEYSTONE — closes GAP-002-A)
-  → address OQ-1+OQ-2 with architect BEFORE dispatching per-story-delivery
-        ↓
-S-DEMO-002 (P0, draft) → per-story-delivery after S-DEMO-001 merged
+S-DEMO-002 (P0, draft v1.2, multi-org ACs added)        → per-story-delivery after S-DEMO-001
         ↓
 [parallel:]
-  S-DEMO-003 (P1, draft) → per-story-delivery (setup scripts + runbook + credential CLI)
-  S-5.04-FIX-001 (P2, draft, factory-only) → per-story-delivery (depends_on cleanup)
+  S-DEMO-003 (P1, draft)                                → per-story-delivery
+  S-5.04-FIX-001 (P2, draft, factory-only)              → per-story-delivery
+  S-DEMO-CLAROTY-PAGINATION-001 (P1, stub)              → story-writer materialization first, then per-story-delivery
+  (5 more P2/P3 follow-up stubs as post-demo work)
 ```
 
 **Critical path session estimate:** ~4.6 sessions (architect estimate, story-writer-confirmed)
@@ -7978,14 +7973,15 @@ BC-INDEX version: **v5.55** (unchanged — no new BCs, no promotions in this pla
 
 ### §7. Resume Protocol (5 Steps — Zero Prior Context Required)
 
+_Updated D-846 (2026-05-29): develop@72baf413 (TOML fidelity fixes accepted); critical path head is S-CONFIG-MULTI-TENANT-OVERRIDE-001._
+
 1. **Run `vsdd-factory:factory-worktree-health`** (BLOCKING preflight — must pass before any other action)
-2. **Read `STATE.md` frontmatter** — confirm `version: "7.532"` and `e2e_demo_plan_locked: true`
+2. **Read `STATE.md` frontmatter** — confirm `version: "7.533"` and `develop_head: "72baf413"`
 3. **Read this §RESUME SNAPSHOT 2026-05-29-E2E-DEMO-WIRING-PLAN-LOCKED** (you are reading it now)
 4. **Read `.factory/proposals/E2E-DEMO-WIRING-PLAN.md`** (679 lines — architect's full gap analysis, MUST read)
 5. **Dispatch next per-story-delivery cycle:**
-   - PLUGIN-MIGRATION-001-A (status: ready) — start here
-   - OR per-story-delivery for PLUGIN-MIGRATION-001-E (if user prefers different sequencing)
-   - For drafts needing OQ resolution (S-DEMO-001): dispatch architect before per-story-delivery
+   - S-CONFIG-MULTI-TENANT-OVERRIDE-001 (status: draft, ready — all deps merged) — start here
+   - S-DEMO-001 (status: draft v1.2, OQ-1/2/6 resolved by architect) — dispatch after S-CONFIG
    - Standard per-story-delivery cycle: stubs → failing tests → TDD → adversary 3-CLEAN cascade → demo → push → pr-manager → state-manager post-merge burst
 
 ---

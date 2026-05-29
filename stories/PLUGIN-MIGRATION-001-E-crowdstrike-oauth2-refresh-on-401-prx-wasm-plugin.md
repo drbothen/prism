@@ -5,12 +5,12 @@ title: "prism-spec-engine: CrowdStrike OAuth2 Refresh-on-401 as In-Repo .prx WAS
 wave: 1
 epic_id: PLUGIN-MIGRATION-001
 priority: P0
-status: ready
-version: "v1.4"
+status: merged
+version: "v1.5"
 level: "L4"
 producer: story-writer
 timestamp: "2026-05-23T00:00:00Z"
-modified: "2026-05-24"
+modified: "2026-05-26"
 tdd_mode: strict
 subsystems: [SS-01, SS-16, SS-17]
 # Subsystem anchor justifications:
