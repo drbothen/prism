@@ -1863,11 +1863,19 @@ impl PrismServer {
                         })
                     })?
                     .to_owned();
+                // F-PASS16-MED-2: "scope" is always populated by create_alias_with_clients_gated
+                // — missing "scope" = token corruption → return Internal, not silently default.
                 let scope = stored_token
                     .action_params
                     .get("scope")
                     .and_then(|v| v.as_str())
-                    .unwrap_or("global")
+                    .ok_or_else(|| {
+                        to_error_data(PrismError::Internal {
+                            detail: "confirm_action: token action_params missing required field \
+                                     'scope' for create_alias path — token may be corrupted"
+                                .to_owned(),
+                        })
+                    })?
                     .to_owned();
 
                 // We cannot reconstruct the original `query` from action_params (it was not
@@ -1951,17 +1959,33 @@ impl PrismServer {
                         })
                     })?
                     .to_owned();
+                // F-PASS16-MED-2: "scope" is always populated by delete_alias_gated
+                // — missing "scope" = token corruption → return Internal, not silently default.
                 let scope = stored_token
                     .action_params
                     .get("scope")
                     .and_then(|v| v.as_str())
-                    .unwrap_or("global")
+                    .ok_or_else(|| {
+                        to_error_data(PrismError::Internal {
+                            detail: "confirm_action: token action_params missing required field \
+                                     'scope' for delete_alias path — token may be corrupted"
+                                .to_owned(),
+                        })
+                    })?
                     .to_owned();
+                // F-PASS16-MED-2: "force" is always populated by delete_alias_gated
+                // — missing "force" = token corruption → return Internal, not silently default.
                 let force = stored_token
                     .action_params
                     .get("force")
                     .and_then(|v| v.as_bool())
-                    .unwrap_or(false);
+                    .ok_or_else(|| {
+                        to_error_data(PrismError::Internal {
+                            detail: "confirm_action: token action_params missing required field \
+                                     'force' for delete_alias path — token may be corrupted"
+                                .to_owned(),
+                        })
+                    })?;
 
                 let input = prism_query::alias_tools::DeleteAliasInput {
                     name,
@@ -2771,6 +2795,8 @@ impl PrismServer {
         &self,
         Parameters(params): Parameters<DeleteRuleParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
+        // F-PASS16-MED-1: id field must be length-bounded before use (256-char cap).
+        validate_id_field("id", params.id.as_str())?;
         scan_inputs(&self.injection_scanner, &[("id", params.id.as_str())])?;
         emit_tool_audit(self.audit_writer.as_ref(), "delete_rule", None, "invoked");
         Err(not_yet_available_msg("detection rules"))
@@ -2855,6 +2881,8 @@ impl PrismServer {
         &self,
         Parameters(params): Parameters<GetCaseParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
+        // F-PASS16-MED-1: id field must be length-bounded before use (256-char cap).
+        validate_id_field("id", params.id.as_str())?;
         scan_inputs(&self.injection_scanner, &[("id", params.id.as_str())])?;
         emit_tool_audit(self.audit_writer.as_ref(), "get_case", None, "invoked");
         Err(not_yet_available_msg("case management"))
@@ -2882,6 +2910,8 @@ impl PrismServer {
         &self,
         Parameters(params): Parameters<UpdateCaseParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
+        // F-PASS16-MED-1: id field must be length-bounded before use (256-char cap).
+        validate_id_field("id", params.id.as_str())?;
         let mut inputs = vec![("id", params.id.as_str())];
         if let Some(ref title) = params.title {
             inputs.push(("title", title.as_str()));
@@ -5214,6 +5244,326 @@ mod tests {
         assert!(
             expanded.contains("crowdstrike") || expanded.contains("devices"),
             "expanded_query must reflect the alias body after explain; got: '{expanded}'"
+        );
+    }
+
+    // ─── F-PASS16-MED-1 — validate_id_field swept to delete_rule / get_case / update_case ─
+    //
+    // LOAD-BEARING: each test calls the handler with a 257-char `id`.
+    // If validate_id_field("id", ...) is removed from the handler, the handler
+    // falls through to not_yet_available_msg → NOT_IMPLEMENTED (-32003),
+    // and the INVALID_PARAMS (-32602) assertion fails.
+
+    /// F-PASS16-MED-1: delete_rule must reject a 257-char `id` with INVALID_PARAMS (-32602).
+    ///
+    /// Mental-deletion proof: if validate_id_field("id", params.id.as_str())?  is removed
+    /// from delete_rule, the handler reaches not_yet_available_msg → -32003, not -32602.
+    #[tokio::test]
+    async fn test_F_PASS16_MED_1_delete_rule_id_length_bounded() {
+        let server = PrismServer {
+            injection_scanner: Arc::new(InjectionScanner),
+            query_engine: None,
+            write_executor: None,
+            audit_writer: None,
+            config_manager: None,
+            spec_dir: None,
+            alias_store: None,
+        };
+        // 257 chars — 1 over the 256-char cap.
+        let oversized_id = "r".repeat(257);
+        let params = DeleteRuleParams { id: oversized_id };
+        let result = server.delete_rule(Parameters(params)).await;
+        let err =
+            result.expect_err("F-PASS16-MED-1: delete_rule must return Err for a 257-char id");
+        assert_eq!(
+            err.code.0,
+            codes::INVALID_PARAMS,
+            "F-PASS16-MED-1: delete_rule must return INVALID_PARAMS (-32602) for 257-char id; \
+             if validate_id_field is removed, delete_rule returns NOT_IMPLEMENTED (-32003) instead"
+        );
+    }
+
+    /// F-PASS16-MED-1: get_case must reject a 257-char `id` with INVALID_PARAMS (-32602).
+    ///
+    /// Mental-deletion proof: if validate_id_field("id", params.id.as_str())?  is removed
+    /// from get_case, the handler reaches not_yet_available_msg → -32003, not -32602.
+    #[tokio::test]
+    async fn test_F_PASS16_MED_1_get_case_id_length_bounded() {
+        let server = PrismServer {
+            injection_scanner: Arc::new(InjectionScanner),
+            query_engine: None,
+            write_executor: None,
+            audit_writer: None,
+            config_manager: None,
+            spec_dir: None,
+            alias_store: None,
+        };
+        // 257 chars — 1 over the 256-char cap.
+        let oversized_id = "c".repeat(257);
+        let params = GetCaseParams { id: oversized_id };
+        let result = server.get_case(Parameters(params)).await;
+        let err = result.expect_err("F-PASS16-MED-1: get_case must return Err for a 257-char id");
+        assert_eq!(
+            err.code.0,
+            codes::INVALID_PARAMS,
+            "F-PASS16-MED-1: get_case must return INVALID_PARAMS (-32602) for 257-char id; \
+             if validate_id_field is removed, get_case returns NOT_IMPLEMENTED (-32003) instead"
+        );
+    }
+
+    /// F-PASS16-MED-1: update_case must reject a 257-char `id` with INVALID_PARAMS (-32602).
+    ///
+    /// Mental-deletion proof: if validate_id_field("id", params.id.as_str())?  is removed
+    /// from update_case, the handler reaches not_yet_available_msg → -32003, not -32602.
+    #[tokio::test]
+    async fn test_F_PASS16_MED_1_update_case_id_length_bounded() {
+        let server = PrismServer {
+            injection_scanner: Arc::new(InjectionScanner),
+            query_engine: None,
+            write_executor: None,
+            audit_writer: None,
+            config_manager: None,
+            spec_dir: None,
+            alias_store: None,
+        };
+        // 257 chars — 1 over the 256-char cap.
+        let oversized_id = "u".repeat(257);
+        let params = UpdateCaseParams {
+            id: oversized_id,
+            title: None,
+            description: None,
+        };
+        let result = server.update_case(Parameters(params)).await;
+        let err =
+            result.expect_err("F-PASS16-MED-1: update_case must return Err for a 257-char id");
+        assert_eq!(
+            err.code.0,
+            codes::INVALID_PARAMS,
+            "F-PASS16-MED-1: update_case must return INVALID_PARAMS (-32602) for 257-char id; \
+             if validate_id_field is removed, update_case returns NOT_IMPLEMENTED (-32003) instead"
+        );
+    }
+
+    // ─── F-PASS16-MED-2 — confirm_action alias path: scope + force corruption → INTERNAL ──
+    //
+    // LOAD-BEARING: each test pre-stores a token with action_params missing a required
+    // field, then calls confirm_action.  If ok_or_else(...Internal...) is reverted to
+    // unwrap_or(...), the handler proceeds with the default value and eventually returns
+    // either AliasNotFound (-32602) or NOT_IMPLEMENTED (-32003) — NOT INTERNAL_ERROR.
+    // The INTERNAL_ERROR assertion then fails, proving the fix is load-bearing.
+
+    /// Helper: build a minimal WriteExecutor + AliasStore + server for F-PASS16-MED-2 tests.
+    fn build_server_for_f_pass16_med2_tests() -> (
+        PrismServer,
+        Arc<prism_security::confirmation_token::ConfirmationTokenStore>,
+    ) {
+        use prism_core::RiskTier;
+        use prism_query::alias_store::AliasStore;
+        use prism_query::write_pipeline::WriteExecutor;
+        use prism_security::FeatureFlagEvaluator;
+        use prism_sensors::registry::AdapterRegistry;
+        use prism_spec_engine::write_endpoint::{
+            BatchMode, WriteEndpointRegistry, WriteEndpointSpec, WriteStep,
+        };
+        use std::collections::BTreeMap;
+        use std::sync::{Arc, Mutex};
+
+        let mut endpoint_registry = WriteEndpointRegistry::new();
+        let endpoint_spec = WriteEndpointSpec::new(
+            "test_verb",
+            "test_sensor_table",
+            RiskTier::Reversible,
+            "sensor.test_sensor.test_verb",
+            100,
+            BatchMode::Serial,
+            "id",
+            vec![WriteStep::new("PUT", "/test/{id}", None, None)],
+        );
+        endpoint_registry
+            .register("test_sensor", vec![endpoint_spec])
+            .expect("endpoint registration must succeed");
+
+        let feature_flags = Arc::new(FeatureFlagEvaluator::new(BTreeMap::new()));
+        let confirmation_store =
+            Arc::new(prism_security::confirmation_token::ConfirmationTokenStore::new());
+        let adapter_registry = Arc::new(AdapterRegistry::new());
+
+        let write_executor = Arc::new(WriteExecutor::new(
+            feature_flags,
+            Arc::clone(&confirmation_store),
+            Arc::new(HighOneStubAudit),
+            adapter_registry,
+            Arc::new(endpoint_registry),
+        ));
+
+        let alias_store = Arc::new(Mutex::new(AliasStore::empty(std::path::Path::new(
+            "/tmp/prism-test-aliases-f-pass16",
+        ))));
+
+        let server = PrismServer {
+            injection_scanner: Arc::new(InjectionScanner),
+            query_engine: None,
+            write_executor: Some(write_executor),
+            audit_writer: None,
+            config_manager: None,
+            spec_dir: None,
+            alias_store: Some(alias_store),
+        };
+
+        (server, confirmation_store)
+    }
+
+    /// F-PASS16-MED-2: confirm_action for create_alias token missing 'scope' must return
+    /// INTERNAL_ERROR (-32000), not silently use scope="global".
+    ///
+    /// Mental-deletion proof: if ok_or_else(...Internal...) for 'scope' in the create_alias
+    /// arm is reverted to unwrap_or("global"), confirm_action does NOT return INTERNAL_ERROR.
+    /// Instead, it proceeds with scope="global" and reaches AliasStore::get → AliasNotFound
+    /// (-32602) or a different error — the INTERNAL_ERROR assertion fails.
+    #[tokio::test]
+    async fn test_F_PASS16_MED_2_confirm_action_create_alias_missing_scope_returns_internal() {
+        let (server, confirmation_store) = build_server_for_f_pass16_med2_tests();
+
+        // Pre-store a "create_alias" token with action_params MISSING "scope".
+        // "name" is present (to pass the F-PASS15-MED-1 guard), only "scope" is missing.
+        // Producer (prism_query::alias_tools::create_alias_with_clients_gated) always
+        // populates "name" AND "scope" — missing "scope" = token corruption.
+        let action_params_no_scope = serde_json::json!({
+            "name": "test-alias"
+            // deliberately omitted: "scope" field
+        });
+        let client_id = "test-client";
+        let token = confirmation_store
+            .generate(
+                client_id,
+                "create_alias",
+                action_params_no_scope,
+                "alias token",
+            )
+            .expect("token generation must succeed");
+
+        let params = ConfirmActionParams {
+            token: token.token_id.clone(),
+            client_id: client_id.to_owned(),
+        };
+
+        let result = server.confirm_action(Parameters(params)).await;
+        let err = result.expect_err(
+            "F-PASS16-MED-2: confirm_action must return Err when create_alias token missing 'scope'",
+        );
+        assert_eq!(
+            err.code.0,
+            codes::INTERNAL_ERROR,
+            "F-PASS16-MED-2: missing 'scope' in create_alias token must return INTERNAL_ERROR (-32000); \
+             if unwrap_or(\"global\") is restored, code will be -32602 (AliasNotFound) — test fails"
+        );
+        assert!(
+            err.message.contains("Internal error") || err.message.contains("audit log"),
+            "error message must indicate an internal error; got: '{}'",
+            err.message
+        );
+    }
+
+    /// F-PASS16-MED-2: confirm_action for delete_alias token missing 'scope' must return
+    /// INTERNAL_ERROR (-32000), not silently use scope="global".
+    ///
+    /// Mental-deletion proof: if ok_or_else(...Internal...) for 'scope' in the delete_alias
+    /// arm is reverted to unwrap_or("global"), confirm_action does NOT return INTERNAL_ERROR.
+    /// Instead, it proceeds with scope="global" and reaches delete_alias_gated → AliasNotFound
+    /// or a different error code — the INTERNAL_ERROR assertion fails.
+    #[tokio::test]
+    async fn test_F_PASS16_MED_2_confirm_action_delete_alias_missing_scope_returns_internal() {
+        let (server, confirmation_store) = build_server_for_f_pass16_med2_tests();
+
+        // Pre-store a "delete_alias" token with action_params MISSING "scope".
+        // "name" and "force" are present — only "scope" is missing.
+        let action_params_no_scope = serde_json::json!({
+            "name": "test-alias",
+            "force": false
+            // deliberately omitted: "scope" field
+        });
+        let client_id = "test-client";
+        let token = confirmation_store
+            .generate(
+                client_id,
+                "delete_alias",
+                action_params_no_scope,
+                "alias token",
+            )
+            .expect("token generation must succeed");
+
+        let params = ConfirmActionParams {
+            token: token.token_id.clone(),
+            client_id: client_id.to_owned(),
+        };
+
+        let result = server.confirm_action(Parameters(params)).await;
+        let err = result.expect_err(
+            "F-PASS16-MED-2: confirm_action must return Err when delete_alias token missing 'scope'",
+        );
+        assert_eq!(
+            err.code.0,
+            codes::INTERNAL_ERROR,
+            "F-PASS16-MED-2: missing 'scope' in delete_alias token must return INTERNAL_ERROR (-32000); \
+             if unwrap_or(\"global\") is restored, code will be different — test fails"
+        );
+        assert!(
+            err.message.contains("Internal error") || err.message.contains("audit log"),
+            "error message must indicate an internal error; got: '{}'",
+            err.message
+        );
+    }
+
+    /// F-PASS16-MED-2: confirm_action for delete_alias token missing 'force' must return
+    /// INTERNAL_ERROR (-32000), not silently use force=false.
+    ///
+    /// Mental-deletion proof: if ok_or_else(...Internal...) for 'force' in the delete_alias
+    /// arm is reverted to unwrap_or(false), confirm_action does NOT return INTERNAL_ERROR.
+    /// Instead, it proceeds with force=false and reaches delete_alias_gated →
+    /// DeleteAliasInput::force=false which may return AliasNotFound or another error code
+    /// — the INTERNAL_ERROR assertion fails.
+    #[tokio::test]
+    async fn test_F_PASS16_MED_2_confirm_action_delete_alias_missing_force_returns_internal() {
+        let (server, confirmation_store) = build_server_for_f_pass16_med2_tests();
+
+        // Pre-store a "delete_alias" token with action_params MISSING "force".
+        // "name" and "scope" are present — only "force" is missing.
+        // Producer (prism_query::alias_tools::delete_alias_gated) always
+        // populates "name", "scope", AND "force" — missing "force" = token corruption.
+        let action_params_no_force = serde_json::json!({
+            "name": "test-alias",
+            "scope": "global"
+            // deliberately omitted: "force" field
+        });
+        let client_id = "test-client";
+        let token = confirmation_store
+            .generate(
+                client_id,
+                "delete_alias",
+                action_params_no_force,
+                "alias token",
+            )
+            .expect("token generation must succeed");
+
+        let params = ConfirmActionParams {
+            token: token.token_id.clone(),
+            client_id: client_id.to_owned(),
+        };
+
+        let result = server.confirm_action(Parameters(params)).await;
+        let err = result.expect_err(
+            "F-PASS16-MED-2: confirm_action must return Err when delete_alias token missing 'force'",
+        );
+        assert_eq!(
+            err.code.0,
+            codes::INTERNAL_ERROR,
+            "F-PASS16-MED-2: missing 'force' in delete_alias token must return INTERNAL_ERROR (-32000); \
+             if unwrap_or(false) is restored, code will be different — test fails"
+        );
+        assert!(
+            err.message.contains("Internal error") || err.message.contains("audit log"),
+            "error message must indicate an internal error; got: '{}'",
+            err.message
         );
     }
 }
