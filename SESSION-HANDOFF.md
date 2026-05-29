@@ -7718,3 +7718,151 @@ Key changes delivered:
 5. Deliver S-3.02-FOLLOWUP-RUNTIME via `vsdd-factory:deliver-story` (worktree → stubs → failing tests → TDD green → LOCAL adversary 3-CLEAN → demo-recorder → push → pr-manager 9-step PR cycle → merge)
 
 _Session terminus: 2026-05-27. Plugin migration 16/16 CLOSED. ADR-030 ACCEPTED. context-clear. Boot wiring stories are the next priority._
+
+---
+
+## §RESUME SNAPSHOT 2026-05-28-S-5-01-PAUSE-MID-ADVERSARY (D-843)
+
+**Snapshot created:** 2026-05-28 | **Reason:** User relocation — durable pause mid-adversary cascade | **STATE version:** 7.530
+
+---
+
+### §1. Pause Reason
+
+User paused for relocation after pass-15 fix-burst completed (commit ac213273). A fresh `/clear` session must resume from this snapshot without any prior context. The worktree is clean and all pass-15 findings are fixed. The next required action is adversary pass 16.
+
+---
+
+### §2. Worktree State
+
+| Field | Value |
+|-------|-------|
+| Worktree path | `/Users/jmagady/Dev/prism/.worktrees/S-5.01-FOLLOWUP-MCP-BOOT` |
+| Branch | `feature/S-5.01-FOLLOWUP-MCP-BOOT-mcp-server` |
+| HEAD commit | `ac213273` |
+| Base (develop) | `a55bd930` (S-3.02-FOLLOWUP-RUNTIME merge) |
+| Commits ahead of develop | 27 |
+| Worktree status | Clean — everything committed |
+| `just check` | GREEN |
+
+---
+
+### §3. Test State
+
+| Scope | Count | Status |
+|-------|-------|--------|
+| Worktree (`just iter prism-mcp` + full) | 3778 / 3778 | PASS |
+| `prism-mcp` crate only | 73 / 73 | PASS |
+| develop workspace (baseline) | 3718 | PASS |
+| Skipped | 26 | (DTU/external-service gated) |
+
+---
+
+### §4. Adversary Convergence Trajectory (15 passes)
+
+| Pass | Findings | Severity | Notes |
+|------|----------|----------|-------|
+| 1 | 6 | 2C+4H | Fixed |
+| 2 | 20 | 6C+8H+6M | Fixed |
+| 3 | 17 | 5C+6H+6M | Fixed |
+| 4 | 5 | 2C+3H | Fixed |
+| 5 | 6 | 2C+4H | Fixed |
+| 6 | 5 | 3H+2M | Fixed |
+| 7 | 5 | 3H+2M | Fixed |
+| **8** | **0** | **CLEAN** | **Streak 1/3** |
+| 9 | 3 | 1H+1M+1L | Fixed — streak reset to 0/3 |
+| 10 | 5 | 3H+2M | Fixed |
+| 11 | 5 | 2H+3M | Fixed |
+| 12 | 7 | 2C+2H+3M | Fixed |
+| 13 | 6 | 2C+4H | Fixed |
+| 14 | 4 | 1C+3H | Fixed |
+| 15 | 2 | 1H+1M | Fixed in commit `ac213273` |
+| **16** | **PENDING** | — | **Dispatch next** |
+
+**Total fix-bursts:** 14 | **Current streak:** 0/3 | **Novelty note:** Adversary noted at pass 15 that novelty is decaying; no fresh CRIT-class structural defects since pass 13.
+
+---
+
+### §5. Implementation Deliverables Summary
+
+All of the following are committed to the feature branch (27 commits ahead of develop@a55bd930):
+
+- **rmcp 1.7 integrated** — workspace dependency with features: server, macros, transport-io
+- **53 canonical MCP tools registered** via `#[tool_router(server_handler)]` macro
+- **All tools return `Result<CallToolResult, ErrorData>`** with structured response envelope
+- **Injection defense** at every tool boundary (prompt injection, command injection guards)
+- **BC-2.10.010 graceful shutdown** — real task cancellation + exit code propagation
+- **ConfirmationToken extended** with `BoundingMetadata` for confirm_action plan reconstruction
+- **alias_store wired** into both PrismServer (CRUD tools) and QueryEngine (read path)
+- **validate_client_ids + validate_id_field** bounds: 256-char ID limit, 64-char client_id limit
+- **Tool descriptions** follow 9-section template per BC-2.09.006
+- **AuditEmitter wired** (emit_tool_audit is tracing-only; durable AuditWriter via Tower layer pending S-2.04)
+- **ServerCapabilities** declares tools, prompts, resources
+- **Tool param structs** use `#[non_exhaustive]` + `#[serde(deny_unknown_fields)]`
+- **9 event_type emissions** cataloged in BC-2.16.002
+
+---
+
+### §6. Commit History (27 commits on feature branch, oldest first)
+
+```
+5ce33b13 feat: add module stubs
+3912259e test: add failing tests for MCP server components
+11b06838 feat: implement map_prism_error, PrismServer::new, eliminate 33 todo!() stubs
+32bc4cc5 feat: wire real rmcp 1.7 MCP server — PrismServer with injection-first tool router
+30205246 test: update stale Red Gate comments — tests now regression guards
+eadfe7bf feat: close CRIT-001..006, HIGH-003/004/006/007/008, MED-001/002/003/004/006
+d774315f feat: complete MCP server — 52/52 canonical tools, outputSchema, AC-10 prism-bin gate
+6474c48b fix: close F-PASS3-MED-3 — step10/step11 todo!() → structured deferred Ok(())
+1013bb85 fix: close pass-3 findings — non-exhaustive gate 44, SAP-1, server lifecycle
+941c3be4 fix: close F-PASS4-CRIT-1/HIGH-1/2/3 and F-PASS4-CRIT-2
+1c1cdb61 fix: close CRIT-1 — BoundingMetadata on ConfirmationToken
+8cf79e08 fix: close CRIT-2, HIGH-1/2/3/4, OBS-1/2/3 — server.rs overhaul
+9c6f7636 fix: close F-PASS6-OBS-1 — BoundingMetadata.dml_operation field + sibling-site sweep
+33d7d66a fix: close F-PASS6-HIGH-1 + F-PASS6-HIGH-3 — real transport tests + join_error event_type
+376ab50d fix: close F-PASS6-HIGH-2 — CRIT-1 BoundingMetadata round-trip regression tests
+db23a6b8 fix: close F-PASS7-HIGH-1 F-PASS7-HIGH-2 F-PASS7-HIGH-3 F-PASS7-MED-1 F-PASS7-MED-2
+f7d3d819 fix: close F-PASS9-HIGH-1 — propagate BC-2.10.010 exit code end-to-end
+891ac3aa fix: close F-PASS9-LOW-1 — wire alias_store into QueryEngine
+2d31987d fix: close F-PASS10-HIGH-3, F-PASS10-MED-1, F-PASS10-MED-2
+3fec5bed fix: close F-PASS11-HIGH-1
+8eba9a67 fix: close F-PASS11-HIGH-2
+42869f65 fix: close F-PASS11-MED-2
+2565963a fix: close F-PASS11-MED-3
+1fb54330 fix: close F-PASS12 adversary findings (2 CRIT + 2 HIGH + 3 MED)
+3e7a3c68 fix: close F-PASS13-CRIT-1, CRIT-2, HIGH-1..4
+c3b43176 fix: close F-PASS14 — CRIT-1 + HIGH-1 + HIGH-2 + HIGH-3
+ac213273 fix: close F-PASS15-HIGH-1 + F-PASS15-MED-1   ← HEAD
+```
+
+---
+
+### §7. Resume Protocol (5 steps)
+
+1. **Run `vsdd-factory:factory-worktree-health`** (BLOCKING preflight — must pass before any other action)
+2. **Read `STATE.md` frontmatter** — confirm `version: "7.530"` and `s_5_01_followup_mcp_boot_paused: true`
+3. **Read this §RESUME SNAPSHOT 2026-05-28-S-5-01-PAUSE-MID-ADVERSARY** (you are reading it now)
+4. **Verify worktree HEAD**: `git -C /Users/jmagady/Dev/prism/.worktrees/S-5.01-FOLLOWUP-MCP-BOOT log -1 --format=%H` must return `ac213273`
+5. **Dispatch adversary pass 16** against worktree HEAD `ac213273` — target CLEAN(strict) to advance streak to 1/3, then passes 17 and 18 for 3-CLEAN convergence per BC-5.39.001
+
+**After convergence (passes 16+17+18 all CLEAN strict):**
+- Step 5: demo-recorder — per-AC VHS demos
+- Step 6: push feature branch `feature/S-5.01-FOLLOWUP-MCP-BOOT-mcp-server` to origin
+- Step 7: pr-manager — full 9-step PR lifecycle (create PR → security review → pr-reviewer → fix-bursts as needed → CI green → merge)
+- Step 8: cleanup worktree `.worktrees/S-5.01-FOLLOWUP-MCP-BOOT`
+- Step 9: state-manager post-merge burst (POL-14 BC auto-promotion for BCs in `behavioral_contracts` frontmatter of the story spec)
+
+---
+
+### §8. Stale Worktrees Note
+
+These stale worktrees exist and are pending cleanup (non-blocking):
+- `.worktrees/S-3.02-FOLLOWUP-RUNTIME` — pending cleanup (PR #162 merged 2026-05-28T00:48:00Z)
+- `.worktrees/S-3.09` — FROZEN (BUG-S309-PLUGIN), stale since 2026-05-11
+- `.worktrees/W3-FIX-S307-001` — BLOCKED (superseded by 001-A per D-333), stale since 2026-05-24
+
+Cleanup of stale worktrees is deferred per user direction. Do not clean up `.worktrees/S-5.01-FOLLOWUP-MCP-BOOT` — it is ACTIVE.
+
+---
+
+_Snapshot terminus: 2026-05-28. S-5.01-FOLLOWUP-MCP-BOOT LOCAL adversary cascade paused at pass 15 fixed, streak 0/3. context-clear. Resume with adversary pass 16._
