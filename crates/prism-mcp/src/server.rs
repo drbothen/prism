@@ -330,14 +330,41 @@ impl PrismServer {
 
         let signal_name: &'static str = tokio::select! {
             _ = natural_close_fut => {
-                // Natural transport closure (stdin EOF / peer disconnect).
-                // No in-flight drain needed: rmcp background task already exited.
-                tracing::info!(
-                    event_type = "mcp.server.shutdown.complete",
-                    path = "natural_close",
-                    "MCP server transport closed naturally (BC-2.10.010)"
-                );
-                return Ok(());
+                // Transport closed (stdin EOF, peer disconnect, or bg-task panic).
+                //
+                // CORRECTNESS: `is_transport_closed()` becomes true when the bg task drops its
+                // tx clone, which happens both on graceful exit AND on panic unwind.  We must
+                // distinguish the two by joining the JoinHandle:
+                //   - Clean exit   → Ok(Some(_)) → natural_close path → Ok(())
+                //   - Panic        → Err(JoinError::Panic) → join_error path → Err(Runtime)
+                //
+                // `close_with_timeout` with the same grace window is correct here:
+                //   - If the handle is already resolved (bg task exited), it returns immediately.
+                //   - CT.cancel() is idempotent — safe to call even if CT was already fired.
+                //   - Timeout path (Ok(None)) is unreachable: the bg task already exited (that's
+                //     why is_transport_closed() is true), so handle.await returns without blocking.
+                let drain = service.close_with_timeout(grace).await;
+                match drain {
+                    Ok(_) => {
+                        // Clean exit — natural close path.
+                        tracing::info!(
+                            event_type = "mcp.server.shutdown.complete",
+                            path = "natural_close",
+                            "MCP server transport closed naturally (BC-2.10.010)"
+                        );
+                        return Ok(());
+                    }
+                    Err(join_err) => {
+                        // Bg task panicked during normal operation (before shutdown signal).
+                        // Surface the error so the caller can map to a non-zero exit code.
+                        tracing::warn!(
+                            event_type = "mcp.server.shutdown.join_error",
+                            error = %join_err,
+                            "MCP background task join error during natural close (BC-2.10.010)"
+                        );
+                        return Err(rmcp::RmcpError::Runtime(join_err));
+                    }
+                }
             }
             sig = shutdown => {
                 sig
@@ -5137,18 +5164,23 @@ mod tests {
     /// Sequence:
     /// 1. Server starts with `flag = false` → MCP handshake succeeds (rmcp background
     ///    task is now spawned and waiting in its select loop).
-    /// 2. Test sets `flag = true`, then yields to let the background task run.
+    /// 2. Test sets `flag = true`, writes a byte to wake the background task.
     /// 3. Background task polls `transport.receive()` → `poll_read` panics → the
     ///    background task's `JoinHandle` captures a `JoinError::Panic`.
-    ///    NOTE: The cancellation token is NOT yet set at this point, so the
-    ///    `cancelled()` arm is not ready — `transport.receive()` is the only
-    ///    eligible branch and the panic fires deterministically.
-    /// 4. Test sends the shutdown signal.  Server calls `close_with_timeout`.
-    ///    `handle.await` immediately returns `Err(JoinError::Panic)` (task already done).
-    /// 5. Our production match arm: `Err(join_err) => Err(RmcpError::Runtime(join_err))`.
+    ///    The bg task drops its tx clone on unwind → `is_transport_closed()` = true.
+    /// 4. The outer `natural_close_fut` loop (100ms poll) detects `is_transport_closed()`
+    ///    and fires BEFORE (or instead of) the shutdown signal arriving.
+    ///    Production fix: the natural_close_fut arm calls `close_with_timeout`, which
+    ///    joins the already-finished JoinHandle and returns `Err(JoinError::Panic)`.
+    ///    This propagates as `Err(RmcpError::Runtime)` on the natural-close path.
+    /// 5. If the shutdown signal arrives first (races with natural_close_fut), the
+    ///    shutdown arm calls `close_with_timeout` → same `Err(JoinError::Panic)` result.
     ///
-    /// If the `Err(join_err) => Err(RmcpError::Runtime(join_err))` branch is removed,
-    /// this test panics (the returned value would be Ok or a different variant).
+    /// Both code paths now correctly propagate the JoinError.  The test result is
+    /// deterministic regardless of which select arm wins the race.
+    ///
+    /// If the `Err(join_err) => Err(RmcpError::Runtime(join_err))` branch is removed
+    /// from EITHER select arm, this test fails.
     ///
     /// The test itself does NOT panic — the panic is contained inside the rmcp
     /// background task and captured by its `JoinHandle` (tokio catches it with
@@ -5298,9 +5330,17 @@ mod tests {
             waited_ms,
         );
 
-        // Step 3: Send shutdown.  The background task has already panicked; its handle
-        // is ready with Err(JoinError::Panic).  close_with_timeout immediately returns
-        // Err(JoinError::Panic), which our match arm maps to Err(RmcpError::Runtime).
+        // Step 3: panic_fired = true means the rmcp background task has called panic!(),
+        // is unwinding, and will drop its tx clone (making is_transport_closed() true).
+        //
+        // Production-code fix (PR-163 deeper deflake): the natural_close_fut arm now calls
+        // close_with_timeout after detecting is_transport_closed(), which joins the JoinHandle
+        // and surfaces Err(JoinError::Panic) when the bg task panicked.  This means the test
+        // result is correct regardless of whether the natural-close arm or the shutdown arm
+        // wins the outer select — both arms now propagate the JoinError correctly.
+        //
+        // We still send shutdown_tx as a belt-and-suspenders measure; it does not need to
+        // beat the natural_close_fut arm to produce the correct result.
         let _ = shutdown_tx.send(());
 
         let result = tokio::time::timeout(std::time::Duration::from_secs(5), server_task)
