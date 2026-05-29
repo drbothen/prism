@@ -1429,6 +1429,10 @@ impl PrismServer {
             inputs.push(("description", desc.as_str()));
         }
         if let Some(ref scope) = params.scope {
+            // F-PR163-PASS3-MED-1: scope is length-bounded before injection scan (256-byte cap).
+            // Scope maps to "global" or "client:<id>"; bounded by downstream regex but an
+            // explicit cap here prevents unbounded allocation before the regex runs.
+            validate_text_field("scope", scope.as_str(), 256)?;
             inputs.push(("scope", scope.as_str()));
         }
         scan_inputs(&self.injection_scanner, &inputs)?;
@@ -1590,12 +1594,12 @@ impl PrismServer {
     /// Delete a named PrismQL alias.
     ///
     /// DATA TRUST LEVEL: External/untrusted.
-    /// SECURITY NOTE: Name and scope parameters scanned for prompt injection.
+    /// SECURITY NOTE: Name and scope parameters length-bounded and scanned for prompt injection.
     /// DATA SOURCE: Internal alias registry.
     #[tool(
         description = "Delete a named PrismQL alias.\n\
         DATA TRUST LEVEL: External/untrusted.\n\
-        SECURITY NOTE: Name and scope parameters scanned for prompt injection.\n\
+        SECURITY NOTE: Name and scope parameters length-bounded and scanned for prompt injection.\n\
         DATA SOURCE: Internal alias registry.\n\
         WHEN TO USE: when removing a named alias that is no longer needed\n\
         WHEN NOT TO USE: do not delete aliases currently referenced by active queries\n\
@@ -1613,6 +1617,8 @@ impl PrismServer {
         validate_text_field("name", params.name.as_str(), 256)?;
         let mut inputs = vec![("name", params.name.as_str())];
         if let Some(ref scope) = params.scope {
+            // F-PR163-PASS3-MED-1: scope is length-bounded before injection scan (256-byte cap).
+            validate_text_field("scope", scope.as_str(), 256)?;
             inputs.push(("scope", scope.as_str()));
         }
         scan_inputs(&self.injection_scanner, &inputs)?;
@@ -1695,12 +1701,12 @@ impl PrismServer {
     /// Explain what a named alias expands to, without executing it.
     ///
     /// DATA TRUST LEVEL: External/untrusted.
-    /// SECURITY NOTE: Name and scope parameters scanned for prompt injection.
+    /// SECURITY NOTE: Name and scope parameters length-bounded and scanned for prompt injection.
     /// DATA SOURCE: Internal alias registry.
     #[tool(
         description = "Explain what a named alias expands to, without executing it.\n\
         DATA TRUST LEVEL: External/untrusted.\n\
-        SECURITY NOTE: Name and scope parameters scanned for prompt injection.\n\
+        SECURITY NOTE: Name and scope parameters length-bounded and scanned for prompt injection.\n\
         DATA SOURCE: Internal alias registry.\n\
         WHEN TO USE: when you want to understand what a named alias expands to\n\
         WHEN NOT TO USE: do not use for actual data retrieval — use query tool instead\n\
@@ -1718,6 +1724,8 @@ impl PrismServer {
         validate_text_field("name", params.name.as_str(), 256)?;
         let mut inputs = vec![("name", params.name.as_str())];
         if let Some(ref scope) = params.scope {
+            // F-PR163-PASS3-MED-1: scope is length-bounded before injection scan (256-byte cap).
+            validate_text_field("scope", scope.as_str(), 256)?;
             inputs.push(("scope", scope.as_str()));
         }
         scan_inputs(&self.injection_scanner, &inputs)?;
@@ -2240,6 +2248,8 @@ impl PrismServer {
         Parameters(params): Parameters<CheckSensorHealthParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
         if let Some(ref sensor) = params.sensor {
+            // F-PR163-PASS3-MED-1: sensor name is length-bounded before injection scan (256-byte cap).
+            validate_text_field("sensor", sensor.as_str(), 256)?;
             scan_inputs(&self.injection_scanner, &[("sensor", sensor.as_str())])?;
         }
 
@@ -2283,6 +2293,8 @@ impl PrismServer {
         Parameters(params): Parameters<GetDiagnosticsParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
         if let Some(ref sensor) = params.sensor {
+            // F-PR163-PASS3-MED-1: sensor name is length-bounded before injection scan (256-byte cap).
+            validate_text_field("sensor", sensor.as_str(), 256)?;
             scan_inputs(&self.injection_scanner, &[("sensor", sensor.as_str())])?;
         }
 
@@ -2784,6 +2796,8 @@ impl PrismServer {
             ("cron", params.cron.as_str()),
         ];
         if let Some(ref scope) = params.scope {
+            // F-PR163-PASS3-MED-1: scope is length-bounded before injection scan (256-byte cap).
+            validate_text_field("scope", scope.as_str(), 256)?;
             inputs.push(("scope", scope.as_str()));
         }
         scan_inputs(&self.injection_scanner, &inputs)?;
@@ -2922,6 +2936,8 @@ impl PrismServer {
             ("query", params.query.as_str()),
         ];
         if let Some(ref scope) = params.scope {
+            // F-PR163-PASS3-MED-1: scope is length-bounded before injection scan (256-byte cap).
+            validate_text_field("scope", scope.as_str(), 256)?;
             inputs.push(("scope", scope.as_str()));
         }
         scan_inputs(&self.injection_scanner, &inputs)?;
@@ -3013,6 +3029,8 @@ impl PrismServer {
             inputs.push(("description", desc.as_str()));
         }
         if let Some(ref scope) = params.scope {
+            // F-PR163-PASS3-MED-1: scope is length-bounded before injection scan (256-byte cap).
+            validate_text_field("scope", scope.as_str(), 256)?;
             inputs.push(("scope", scope.as_str()));
         }
         scan_inputs(&self.injection_scanner, &inputs)?;
@@ -6220,6 +6238,174 @@ mod tests {
             codes::INVALID_PARAMS,
             "oversized since must return INVALID_PARAMS (-32602); got code {}",
             err.code.0
+        );
+    }
+
+    // ─── F-PR163-PASS3-MED-1 — scope/sensor sibling-sweep length-bound tests ────
+    //
+    // Load-bearing tests: each calls a handler with a 257-byte scope or sensor string.
+    // If the validate_text_field("scope"/"sensor", ..., 256) call is removed from the
+    // handler, the input bypasses the bound and the handler returns NOT_IMPLEMENTED
+    // (-32003) or another non-INVALID_PARAMS code — the assert_eq!(code, INVALID_PARAMS)
+    // assertion fails.
+
+    /// F-PR163-PASS3-MED-1: create_alias rejects a 257-byte scope with INVALID_PARAMS.
+    #[tokio::test]
+    async fn test_F_PR163_PASS3_MED_1_create_alias_scope_length_bounded() {
+        let server = PrismServer::new();
+        let params = CreateAliasParams {
+            name: "my_alias".to_owned(),
+            query: "SELECT 1".to_owned(),
+            description: None,
+            scope: Some("s".repeat(257)),
+        };
+        let err = server
+            .create_alias(Parameters(params))
+            .await
+            .expect_err("create_alias must reject a 257-byte scope");
+        assert_eq!(
+            err.code.0,
+            codes::INVALID_PARAMS,
+            "create_alias: 257-byte scope must return INVALID_PARAMS (-32602); \
+             mental-deletion proof: removing validate_text_field(\"scope\",...) causes \
+             the handler to reach AliasStore (not wired) returning INTERNAL_ERROR (-32000), \
+             not INVALID_PARAMS — the assertion fails"
+        );
+    }
+
+    /// F-PR163-PASS3-MED-1: delete_alias rejects a 257-byte scope with INVALID_PARAMS.
+    #[tokio::test]
+    async fn test_F_PR163_PASS3_MED_1_delete_alias_scope_length_bounded() {
+        let server = PrismServer::new();
+        let params = DeleteAliasParams {
+            name: "my_alias".to_owned(),
+            scope: Some("s".repeat(257)),
+        };
+        let err = server
+            .delete_alias(Parameters(params))
+            .await
+            .expect_err("delete_alias must reject a 257-byte scope");
+        assert_eq!(
+            err.code.0,
+            codes::INVALID_PARAMS,
+            "delete_alias: 257-byte scope must return INVALID_PARAMS (-32602)"
+        );
+    }
+
+    /// F-PR163-PASS3-MED-1: explain_alias rejects a 257-byte scope with INVALID_PARAMS.
+    #[tokio::test]
+    async fn test_F_PR163_PASS3_MED_1_explain_alias_scope_length_bounded() {
+        let server = PrismServer::new();
+        let params = ExplainAliasParams {
+            name: "my_alias".to_owned(),
+            scope: Some("s".repeat(257)),
+        };
+        let err = server
+            .explain_alias(Parameters(params))
+            .await
+            .expect_err("explain_alias must reject a 257-byte scope");
+        assert_eq!(
+            err.code.0,
+            codes::INVALID_PARAMS,
+            "explain_alias: 257-byte scope must return INVALID_PARAMS (-32602)"
+        );
+    }
+
+    /// F-PR163-PASS3-MED-1: create_rule rejects a 257-byte scope with INVALID_PARAMS.
+    #[tokio::test]
+    async fn test_F_PR163_PASS3_MED_1_create_rule_scope_length_bounded() {
+        let server = PrismServer::new();
+        let params = CreateRuleParams {
+            name: "my_rule".to_owned(),
+            query: "SELECT 1".to_owned(),
+            scope: Some("s".repeat(257)),
+        };
+        let err = server
+            .create_rule(Parameters(params))
+            .await
+            .expect_err("create_rule must reject a 257-byte scope");
+        assert_eq!(
+            err.code.0,
+            codes::INVALID_PARAMS,
+            "create_rule: 257-byte scope must return INVALID_PARAMS (-32602)"
+        );
+    }
+
+    /// F-PR163-PASS3-MED-1: create_case rejects a 257-byte scope with INVALID_PARAMS.
+    #[tokio::test]
+    async fn test_F_PR163_PASS3_MED_1_create_case_scope_length_bounded() {
+        let server = PrismServer::new();
+        let params = CreateCaseParams {
+            title: "My Case".to_owned(),
+            description: None,
+            scope: Some("s".repeat(257)),
+        };
+        let err = server
+            .create_case(Parameters(params))
+            .await
+            .expect_err("create_case must reject a 257-byte scope");
+        assert_eq!(
+            err.code.0,
+            codes::INVALID_PARAMS,
+            "create_case: 257-byte scope must return INVALID_PARAMS (-32602)"
+        );
+    }
+
+    /// F-PR163-PASS3-MED-1: create_schedule rejects a 257-byte scope with INVALID_PARAMS.
+    #[tokio::test]
+    async fn test_F_PR163_PASS3_MED_1_create_schedule_scope_length_bounded() {
+        let server = PrismServer::new();
+        let params = CreateScheduleParams {
+            query: "SELECT 1".to_owned(),
+            cron: "0 * * * *".to_owned(),
+            scope: Some("s".repeat(257)),
+        };
+        let err = server
+            .create_schedule(Parameters(params))
+            .await
+            .expect_err("create_schedule must reject a 257-byte scope");
+        assert_eq!(
+            err.code.0,
+            codes::INVALID_PARAMS,
+            "create_schedule: 257-byte scope must return INVALID_PARAMS (-32602)"
+        );
+    }
+
+    /// F-PR163-PASS3-MED-1: check_sensor_health rejects a 257-byte sensor name with INVALID_PARAMS.
+    #[tokio::test]
+    async fn test_F_PR163_PASS3_MED_1_check_sensor_health_sensor_length_bounded() {
+        let server = PrismServer::new();
+        let params = CheckSensorHealthParams {
+            sensor: Some("s".repeat(257)),
+        };
+        let err = server
+            .check_sensor_health(Parameters(params))
+            .await
+            .expect_err("check_sensor_health must reject a 257-byte sensor name");
+        assert_eq!(
+            err.code.0,
+            codes::INVALID_PARAMS,
+            "check_sensor_health: 257-byte sensor must return INVALID_PARAMS (-32602); \
+             mental-deletion proof: removing validate_text_field(\"sensor\",...) causes the \
+             handler to return NOT_IMPLEMENTED (-32003), not INVALID_PARAMS — assertion fails"
+        );
+    }
+
+    /// F-PR163-PASS3-MED-1: get_diagnostics rejects a 257-byte sensor name with INVALID_PARAMS.
+    #[tokio::test]
+    async fn test_F_PR163_PASS3_MED_1_get_diagnostics_sensor_length_bounded() {
+        let server = PrismServer::new();
+        let params = GetDiagnosticsParams {
+            sensor: Some("s".repeat(257)),
+        };
+        let err = server
+            .get_diagnostics(Parameters(params))
+            .await
+            .expect_err("get_diagnostics must reject a 257-byte sensor name");
+        assert_eq!(
+            err.code.0,
+            codes::INVALID_PARAMS,
+            "get_diagnostics: 257-byte sensor must return INVALID_PARAMS (-32602)"
         );
     }
 }

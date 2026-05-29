@@ -1750,7 +1750,7 @@ pub async fn plugin_load_step_with_audit(
 /// # Structured Event
 ///
 /// Emits `boot.step7.storage_validated` (INFO) on success per BC-2.16.002 catalog
-/// (implemented as of develop@a55bd930, PR #162).
+/// (implemented in S-3.02-FOLLOWUP-RUNTIME, PR #162).
 ///
 /// # Errors
 ///
@@ -1775,7 +1775,7 @@ pub async fn step7_init_storage(
 ///
 /// Calls [`prism_query::invalidation::mark_query_phase_started`] to permanently
 /// close the write-tool registration window (ADR-026 §D7; ADR-022 §B step 7.5/8).
-/// This is the sole load-bearing act of this step (implemented as of develop@a55bd930, PR #162).
+/// This is the sole load-bearing act of this step (implemented in S-3.02-FOLLOWUP-RUNTIME, PR #162).
 ///
 /// QueryEngine + WriteExecutor construction and wiring into PrismServer is
 /// performed by S-5.01-FOLLOWUP-MCP-BOOT (boot step 9), which is the first

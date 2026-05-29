@@ -53,6 +53,17 @@ pub enum BoundingDmlOperation {
     Update,
     /// `DELETE FROM table_name WHERE expr`
     Delete,
+    /// Synthetic unknown variant for testing the wildcard arm in `dry_run.rs`.
+    ///
+    /// F-PR163-PASS3-MED-4: provides a constructable unknown variant so tests can
+    /// verify the `_ => DmlOperation::Delete` wildcard arm in `From<BoundingDmlOperation>
+    /// for DmlOperation` is load-bearing. Pattern mirrors `OrgSlug::new_unchecked`
+    /// (AD-017) — test-only, never appear in production code paths.
+    ///
+    /// `#[doc(hidden)]` prevents rustdoc from advertising this variant.
+    #[cfg(feature = "test-helpers")]
+    #[doc(hidden)]
+    __TestUnknown,
 }
 
 /// Bounding-constraint metadata captured at token generation time (CRIT-1 fix).

@@ -117,6 +117,31 @@ mod tests {
         );
     }
 
+    /// F-PR163-PASS3-MED-4: wildcard arm `_ => DmlOperation::Delete` must map unknown
+    /// BoundingDmlOperation variants to Delete (fail-closed).
+    ///
+    /// Requires `prism-security/test-helpers` feature (via prism-query `test-helpers`) to
+    /// construct `BoundingDmlOperation::__TestUnknown`. Pattern mirrors `OrgSlug::new_unchecked`
+    /// (AD-017) — test-helpers-gated, never in production code paths.
+    ///
+    /// Mental-deletion proof: if the wildcard arm is changed to `_ => DmlOperation::InsertInto`
+    /// (fail-open), `DmlOperation::from(BoundingDmlOperation::__TestUnknown)` returns
+    /// `DmlOperation::InsertInto`, and the `assert_eq!(dml, DmlOperation::Delete)` assertion
+    /// FAILS. Therefore the wildcard-to-Delete mapping is load-bearing for this test.
+    #[cfg(feature = "test-helpers")]
+    #[test]
+    fn test_F_PR163_PASS3_MED_4_wildcard_unknown_variant_maps_to_delete_fail_closed() {
+        // Construct the test-only synthetic unknown variant.
+        let unknown = BoundingDmlOperation::__TestUnknown;
+        let dml: DmlOperation = unknown.into();
+        assert_eq!(
+            dml,
+            DmlOperation::Delete,
+            "Wildcard arm must fail-closed: unknown BoundingDmlOperation must map to Delete, \
+             not InsertInto; if _ => InsertInto, this assertion FAILS"
+        );
+    }
+
     /// F-PR163-PASS2-IMP-3 complementary: the reverse conversion (DmlOperation →
     /// BoundingDmlOperation) is the lossless mirror used at token generation time.
     ///
