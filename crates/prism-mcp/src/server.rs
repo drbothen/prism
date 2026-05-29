@@ -341,9 +341,18 @@ impl PrismServer {
                 // `close_with_timeout` with the same grace window is correct here:
                 //   - If the handle is already resolved (bg task exited), it returns immediately.
                 //   - CT.cancel() is idempotent — safe to call even if CT was already fired.
-                //   - Timeout path (Ok(None)) is unreachable: the bg task already exited (that's
-                //     why is_transport_closed() is true), so handle.await returns without blocking.
-                let drain = service.close_with_timeout(grace).await;
+                //   - Timeout path (Ok(None)) is essentially immediate: the bg task already
+                //     dropped its tx clone (is_transport_closed()=true), meaning it has either
+                //     exited cleanly or entered panic unwind. The JoinHandle resolves in <1ms
+                //     typical, bounded by panic unwind time. The 5-second timeout exists for
+                //     paranoia but is not expected to fire.
+                //
+                // SIGINT-escape symmetry: we use the same close_with_sigint_escape helper
+                // as the signal_drain arm. In practice the natural-close path resolves the
+                // JoinHandle in <1ms (bg task already exited), so the SIGINT race window is
+                // negligible — but symmetric behavior under unforeseen race conditions is
+                // correct and removes code duplication.
+                let drain = close_with_sigint_escape(&mut service, grace).await;
                 match drain {
                     Ok(_) => {
                         // Clean exit — natural close path.
@@ -383,27 +392,8 @@ impl PrismServer {
         // sends a second Ctrl-C during the drain window, exit immediately
         // with code 130 (128 + SIGINT) — the standard Unix convention for SIGINT-killed.
         // `process::exit(130)` is intentional here: the user explicitly requested force-kill.
-        let drain_result = {
-            #[cfg(unix)]
-            {
-                tokio::select! {
-                    result = service.close_with_timeout(grace) => result,
-                    _ = signal::ctrl_c() => {
-                        tracing::warn!(
-                            event_type = "mcp.server.shutdown.force",
-                            "Second SIGINT received during drain window; forcing exit(130) (EC-10-019)"
-                        );
-                        // Flush stdout before exit to avoid losing buffered output.
-                        let _ = std::io::Write::flush(&mut std::io::stdout());
-                        std::process::exit(130); // 128 + 2 (SIGINT)
-                    }
-                }
-            }
-            #[cfg(not(unix))]
-            {
-                service.close_with_timeout(grace).await
-            }
-        };
+        // Uses close_with_sigint_escape to share the pattern with the natural_close arm.
+        let drain_result = close_with_sigint_escape(&mut service, grace).await;
 
         let grace_secs = grace.as_secs();
         match drain_result {
@@ -474,6 +464,63 @@ impl PrismServer {
 impl Default for PrismServer {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+// ─── Shutdown helpers ─────────────────────────────────────────────────────────
+
+/// Drain a running service with a SIGINT escape hatch on Unix.
+///
+/// Wraps `service.close_with_timeout(grace)` and, on Unix, races it against
+/// a second SIGINT.  If a second Ctrl-C arrives during the drain window the
+/// function logs the force-exit event and calls `process::exit(130)` per
+/// EC-10-019 (128 + SIGINT = 130, the standard Unix convention for SIGINT-killed).
+///
+/// `process::exit(130)` is intentional and documented: the user explicitly
+/// requested force-kill.  It is the ONLY path in the MCP server that calls
+/// `process::exit`; all other shutdown paths return `Result`.
+///
+/// On non-Unix platforms (Windows) the second-SIGINT escape is not available;
+/// `close_with_timeout` runs unconditionally.
+///
+/// # Why a shared helper?
+///
+/// The natural-close arm and the signal-drain arm both need this pattern.
+/// Extracting it here eliminates duplication and ensures that any future
+/// change to the force-exit behaviour (e.g., flushing additional buffers) is
+/// applied to both arms automatically.
+///
+/// # Test-path note
+///
+/// The `process::exit(130)` branch cannot be reached by unit tests — it
+/// terminates the test process.  Integration tests that verify signal handling
+/// cover this path.
+async fn close_with_sigint_escape<R, S>(
+    service: &mut rmcp::service::RunningService<R, S>,
+    grace: std::time::Duration,
+) -> Result<Option<rmcp::service::QuitReason>, tokio::task::JoinError>
+where
+    R: rmcp::service::ServiceRole,
+    S: rmcp::Service<R>,
+{
+    #[cfg(unix)]
+    {
+        tokio::select! {
+            result = service.close_with_timeout(grace) => result,
+            _ = signal::ctrl_c() => {
+                tracing::warn!(
+                    event_type = "mcp.server.shutdown.force",
+                    "Second SIGINT received during drain window; forcing exit(130) (EC-10-019)"
+                );
+                // Flush stdout before exit to avoid losing buffered output.
+                let _ = std::io::Write::flush(&mut std::io::stdout());
+                std::process::exit(130); // 128 + 2 (SIGINT)
+            }
+        }
+    }
+    #[cfg(not(unix))]
+    {
+        service.close_with_timeout(grace).await
     }
 }
 

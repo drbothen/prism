@@ -204,9 +204,18 @@ pub fn add_sensor_spec(
                     path: file_parent.to_string_lossy().to_string(),
                     os_error: format!("file path parent canonicalize failed (SEC-001): {e}"),
                 })?;
-        if !canonical_parent.starts_with(&canonical_spec_dir)
-            || canonical_parent != canonical_spec_dir
-        {
+        // We require EXACT equality (not just starts_with) because file_path's parent
+        // should be spec_dir itself, never a subdirectory. `starts_with` would accept
+        // spec_dir/subdir/ as a valid parent, but a well-formed sensor_id (basename only,
+        // no path separator) always places the file directly in spec_dir.
+        //
+        // Note: a direct unit test for Layer 2 alone is structurally difficult because
+        // Layer 1's regex rejects all inputs (sensor_id containing '/' or '..') that would
+        // cause Layer 2's inequality to fire. Coverage is implicit: Layer 1's load-bearing
+        // tests AND Layer 2's presence together guarantee that any future call path bypassing
+        // Layer 1 (e.g., a new SpecLoader entry point that skips parse_and_validate_spec_toml)
+        // still hits Layer 2 before write.
+        if canonical_parent != canonical_spec_dir {
             return Err(SpecEngineError::SpecWriteError {
                 path: file_path.to_string_lossy().to_string(),
                 os_error: format!(
