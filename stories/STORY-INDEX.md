@@ -1,12 +1,12 @@
 ---
 document_type: story-index
 level: "L4"
-version: "v2.202"
+version: "v2.203"
 status: draft
 producer: state-manager
 timestamp: 2026-05-29T17:00:00Z
 phase: 3
-total_stories: 155
+total_stories: 159
 total_active_bcs: 222
 # 230 total registered (222 active + 6 removed + 2 retired) — stories cover active BCs only
 total_vps_assigned: 145
@@ -22,6 +22,7 @@ before its dependencies are complete.
 
 - **S-POL-29-CANONICAL-TEMPLATE-REGISTRY-001 registration (2026-05-24):** S-POL-29-CANONICAL-TEMPLATE-REGISTRY-001 registered (v0.1; 2 pts; maintenance wave; P2; depends_on []; blocks S-MAINT-POL29-HOOK-001; Platform Engineering track; no BCs/VPs/crates_touched; target: .factory/policies.yaml + error-taxonomy.md). Resolves [process-gap] originating from F-LP4-MED-001/002/003/004 (S-CONFIG pass-4; 4 cascade recurrences of canonical error-message-template paraphrase drift not caught by POL-29 step 3a grep). Architect commit 18746995 authored the story. S-MAINT-POL29-HOOK-001 depends_on updated to include S-POL-29-CANONICAL-TEMPLATE-REGISTRY-001 (architect adjudication). Full Story List row inserted after S-MAINT-POL29-HOOK-001. total_stories 154→155. STORY-INDEX v2.186→v2.187.
 - **PLUGIN-MIGRATION-001-F/G/H story specs authored (2026-05-27):** Wave 2 cleanup stories materialized from [planned] stubs to full draft specs by story-writer. PLUGIN-MIGRATION-001-F (test rewrites + compile-fail perimeter; v1.0; 8 pts; P0; Wave 2; 8 ACs; BCs: BC-2.01.013+BC-2.16.009+BC-2.16.012; VP-146; depends_on: PLUGIN-MIGRATION-001-A+B+S-CONFIG-MULTI-TENANT-OVERRIDE-001; crates: prism-spec-engine+prism-query+prism-dtu-{armis,claroty,crowdstrike,cyberint,demo-server}; story file: PLUGIN-MIGRATION-001-F-test-rewrites-and-compile-fail-perimeter.md). PLUGIN-MIGRATION-001-G (doc/ADR/BC body sweep; v1.0; 8 pts; P0; Wave 2; 6 ACs; BCs: BC-2.01.005+006+007+008+BC-2.02.003+004+005+006; no VPs; depends_on: PLUGIN-MIGRATION-001-A+B+C; .factory-only; story file: PLUGIN-MIGRATION-001-G-doc-adr-bc-sweep.md). PLUGIN-MIGRATION-001-H (story supersession; v1.0; 3 pts; P0; Wave 2; 4 ACs; BCs: BC-2.01.013; no VPs; depends_on: PLUGIN-MIGRATION-001-A; .factory-only; story file: PLUGIN-MIGRATION-001-H-story-supersession.md). Full Story List rows updated: [planned]→[draft] for all 3 stories; 0 BCs→actual BC counts; -- pts→actual pts. BC Traceability Matrix: BC-2.01.013 += PLUGIN-MIGRATION-001-F+H; BC-2.16.009 += PLUGIN-MIGRATION-001-F; BC-2.16.012 += PLUGIN-MIGRATION-001-F; BC-2.01.005/006/007/008 += PLUGIN-MIGRATION-001-G; BC-2.02.003/004/005/006 += PLUGIN-MIGRATION-001-G. total_stories unchanged at 155 (stories were pre-registered). STORY-INDEX v2.191→v2.192.
+- **E-DEMO story registration (2026-05-29):** 4 new E-DEMO stories registered (S-DEMO-001, S-DEMO-002, S-DEMO-003, S-5.04-FIX-001) per architect proposal E2E-DEMO-WIRING-PLAN.md and user scope decision (all 4 sensors). S-DEMO-001 (P0; Wave 5; 8 pts; 4 BCs: BC-2.01.013+BC-2.11.005+BC-2.06.014+BC-2.22.001; VP-148; depends_on: PLUGIN-MIGRATION-001-A+PLUGIN-MIGRATION-001-E+S-CONFIG-MULTI-TENANT-OVERRIDE-001; closes GAP-002-A: SpecDrivenSensorAdapter + boot step 9A wires all 4 sensor specs into AdapterRegistry; file: S-DEMO-001-spec-driven-sensor-adapter-and-boot-step-9a.md). S-DEMO-002 (P0; Wave 5; 8 pts; 5 BCs: BC-2.11.001+BC-2.11.005+BC-2.09.008+BC-2.10.001+BC-2.10.010; VP-148; depends_on: S-DEMO-001+S-CONFIG-MULTI-TENANT-OVERRIDE-001; E2E subprocess smoke test for all 4 sensors; file: S-DEMO-002-e2e-subprocess-smoke-test-all-sensors.md). S-DEMO-003 (P1; Wave 5; 5 pts; 4 BCs: BC-2.03.005+BC-2.03.007+BC-2.06.001+BC-2.22.001; depends_on: S-DEMO-001+S-DEMO-002; demo scripts + prism-credential-set CLI + operator runbook; file: S-DEMO-003-demo-setup-scripts-and-runbook.md). S-5.04-FIX-001 (P2; Wave 5; 1 pt; 1 BC: BC-2.08.001; factory-only; file: S-5.04-FIX-001-update-depends-on-for-superseded-s207.md). S-5.04 depends_on updated S-2.07→S-DEMO-001 (v1.5→v1.6). Full Story List: 4 new rows added; S-5.04 row annotated. BC Traceability Matrix updated (state-manager D-845 burst): BC-2.01.013 += S-DEMO-001; BC-2.03.005 += S-DEMO-003; BC-2.03.007 += S-DEMO-003; BC-2.06.001 += S-DEMO-003; BC-2.06.014 += S-DEMO-001; BC-2.08.001 += S-5.04-FIX-001; BC-2.09.008 += S-DEMO-002; BC-2.10.001 += S-DEMO-002; BC-2.10.010 += S-DEMO-002; BC-2.11.001 += S-DEMO-002; BC-2.11.005 += S-DEMO-001+S-DEMO-002; BC-2.22.001 row added (S-PLUGIN-PREREQ-D, S-PLUGIN-CI-001, S-DEMO-001, S-DEMO-003). total_stories 155→159. STORY-INDEX v2.202→v2.203.
 - **S-5.01-FOLLOWUP-MCP-BOOT MERGED (2026-05-29):** PR #163 squash-merged to develop@e898c3c9 (2026-05-29T16:44:42Z). prism-mcp PrismServer fully implemented: rmcp 1.7 ServerHandler, #[tool_router] macro for all BC-2.13.* tools, per-tool prompt injection defense via InjectionScanner, ResponseEnvelope wrapping, per-tool input validation with MCP error codes, stdio transport, graceful shutdown. LOCAL cascade: 19 passes, 16 fix-bursts, CONVERGED 3-CLEAN at passes 17/18/19; trajectory: 2C+4H→…→CLEAN+CLEAN+CLEAN. PR-LEVEL cascade: 16 passes per reviewer (security + pr-reviewer), 10 fix-bursts; security 3/3 CLEAN at pass 15; pr-reviewer 3/3 CLEAN at pass 16. Notable: SEC-001 CWE-22 path traversal in add_sensor_spec (pass 12); real shutdown race bug in serve_with_transport_and_shutdown_inner (CI investigation pass 8); Windows CI /tmp/ hardcoding (pass 8). CI 40/40 GREEN including Windows x86_64-pc-windows-msvc. Demo evidence: docs/demo-evidence/S-5.01-FOLLOWUP-MCP-BOOT/. POL-14: BC-2.10.001/002/003/004/006/007/010 promoted status draft→active (lifecycle_status was already active — idempotent confirm); BC-2.09.001..008 already active (no promotions needed). BC-INDEX v5.54→v5.55. Full Story List row updated: S-5.01-FOLLOWUP-MCP-BOOT [draft BLOCKED]→[merged PR #163 develop@e898c3c9]. total_stories unchanged at 155. STORY-INDEX v2.201→v2.202.
 - **S-3.02-FOLLOWUP-RUNTIME MERGED (2026-05-28):** PR #162 squash-merged to develop@a55bd930 (2026-05-28T00:48:00Z). Boot steps 7+8 delivered in crates/prism-bin/src/boot.rs: step7_init_storage (RocksDB health_check probe + boot.step7.storage_validated event) + step8_init_query_engine (mark_query_phase_started() + boot.step8.query_engine_started event). BC-2.16.002 catalog updated v1.31→v1.32 (rows 47-48). 7 new tests in boot_steps_7_8_tests.rs; 3718 workspace tests. LOCAL 5-pass adversary cascade: 2 fix-bursts, 10 findings closed, 3-CLEAN CONVERGED (passes 3/4/5). Trajectory: 7→3→0→0→0. Security review 0 findings. CI 20/20 GREEN. Demo evidence: 4 VHS recordings at docs/demo-evidence/S-3.02-FOLLOWUP-RUNTIME/. BCs: BC-2.11.001/005/006/007/011/012 + BC-2.15.011 (all lifecycle_status: active — no POL-14 promotions). S-3.02 graduated partial-merge→merged per ADR-020. Full Story List rows updated: S-3.02-FOLLOWUP-RUNTIME [draft]→[merged PR #162]; S-3.02 annotation [partial-merge]→[merged — graduated]. STORY-INDEX v2.200→v2.201.
 - **S-SPEC-TYPE-UNIFICATION-001 MERGED (2026-05-27):** PR #161 squash-merged to develop@af79f160 (2026-05-27T22:00:22Z). ADR-030 Approach D delivered: deleted types::SensorSpec, unified on spec_parser::SensorSpec (ConfigSnapshot::sensor_specs type changed to spec_parser::SensorSpec), deleted build_type_spec_map_for_overlay (eliminated double-parse boot: 8→4 TOML parses), added AuthType::CustomViaPlugin variant, fixed SpecDrivenMapper table_name qualification mismatch (latent integration bug), non-exhaustive EXPECTED 36→35, pre-existing clippy assertions_on_constants lint fixed. 3711 tests (3 new AC tests). LOCAL adversary cascade: 4 passes, 1 fix-burst, 4 findings closed, 3-CLEAN CONVERGED (passes 2/3/4). CI 40/40 GREEN. Demo evidence: docs/demo-evidence/S-SPEC-TYPE-UNIFICATION-001/ (7/7 ACs). Story spec v1.1 → done. POL-14: BC-2.16.001 + BC-2.06.012 already lifecycle_status: active — no promotions needed. Full Story List row updated: draft v1.1 → merged. STORY-INDEX v2.199→v2.200.
@@ -325,7 +326,7 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 | S-5.01 | Server Bootstrap and Tool Registration | prism-mcp | 7 | -- | 3 | S-1.08,S-3.02,S-4.01 |
 | S-5.02 | Tool Routing, Errors, and Client Scoping | prism-mcp | 3 | -- | 2 | S-5.01 |
 | S-5.03 | Resources and Prompts | prism-mcp | 4 | VP-050 | 2 | S-5.02 |
-| S-5.04 | Sensor Health Subsystem | prism-mcp | 5 | -- | 2 | S-5.03,S-2.07 |
+| S-5.04 | Sensor Health Subsystem [depends_on updated S-5.04-FIX-001 2026-05-29: S-2.07→S-DEMO-001 per ADR-023 supersession; v1.6] | prism-mcp | 5 | -- | 2 | S-5.03,S-DEMO-001 |
 | S-5.05 | Config Loading and Validation | prism-mcp | 10 | -- | 3 | S-5.01,S-1.06 |
 | S-5.06 | Action and Infusion MCP Tools [v1.11] | prism-mcp | 4 | -- | 2 | S-5.01,S-4.08,S-1.14,S-6.11,S-6.12,S-6.13,S-6.14,S-6.15 |
 | S-5.07 | Multi-Repo Git Config Subscriptions | prism-mcp | 8 | -- | 4 | S-5.05,S-1.12 |
@@ -416,6 +417,10 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 | S-POL-29-CANONICAL-TEMPLATE-REGISTRY-001 | POL-29 Canonical Error-Message-Template Registry — Variant-Form Enumeration for Paraphrase Drift Detection [maintenance] [planned P2 — v0.2; resolves [process-gap] F-LP4-MED-001/002/003/004; AC-006 Suggestion authority added (F-LP5-LOW-002 architect adjudication); architect commits 18746995 + 4ef6c650] | .factory/policies.yaml,.factory/specs/prd-supplements/error-taxonomy.md | 0 | -- | 2 | -- |
 | S-CONFIG-MULTI-TENANT-OVERRIDE-001 | prism-spec-engine/prism-bin: Per-Org Sensor Endpoint Overlay Loading — ADR-029 Hybrid Sensor Instance with Per-Org Composition Directory [wave-0 prereq; draft] | prism-spec-engine,prism-bin,prism-core,prism-sensors | 5 (BC-2.06.012, BC-2.06.013, BC-2.06.014, BC-2.06.015, BC-2.06.016) | -- | 8 | S-WAVE5-PREP-01 |
 | S-SPEC-TYPE-UNIFICATION-001 | prism-spec-engine/prism-bin/prism-ocsf: Retire types::SensorSpec — Unify on spec_parser::SensorSpec as Canonical [Wave 4; **merged** PR #161 develop@af79f160 2026-05-27 — ADR-030 Approach D ACCEPTED; types::SensorSpec deleted; 8→4 boot TOML parses; 3711 tests] | prism-spec-engine,prism-bin,prism-ocsf | 2 (BC-2.16.001, BC-2.06.012) | -- | 5 | S-CONFIG-MULTI-TENANT-OVERRIDE-001 |
+| S-DEMO-001 | prism-bin: SpecDrivenSensorAdapter + Boot Step 9A — Bridge PipelineExecutor to AdapterRegistry (closes GAP-002-A) [Wave 5; E-DEMO; P0; draft v1.0; 4 BCs: BC-2.01.013+BC-2.11.005+BC-2.06.014+BC-2.22.001] | prism-bin | 4 (BC-2.01.013, BC-2.11.005, BC-2.06.014, BC-2.22.001) | VP-148 | 8 | PLUGIN-MIGRATION-001-A,PLUGIN-MIGRATION-001-E,S-CONFIG-MULTI-TENANT-OVERRIDE-001 |
+| S-DEMO-002 | prism-bin: E2E Subprocess Smoke Test — All 4 Sensors via DTU Clones + MCP Round-Trip [Wave 5; E-DEMO; P0; draft v1.0; 5 BCs: BC-2.11.001+BC-2.11.005+BC-2.09.008+BC-2.10.001+BC-2.10.010] | prism-bin | 5 (BC-2.11.001, BC-2.11.005, BC-2.09.008, BC-2.10.001, BC-2.10.010) | VP-148 | 8 | S-DEMO-001,S-CONFIG-MULTI-TENANT-OVERRIDE-001 |
+| S-DEMO-003 | scripts: Demo Setup Scripts + prism-credential-set CLI Subcommand + Operator Runbook [Wave 5; E-DEMO; P1; draft v1.0; 4 BCs: BC-2.03.005+BC-2.03.007+BC-2.06.001+BC-2.22.001] | prism-bin | 4 (BC-2.03.005, BC-2.03.007, BC-2.06.001, BC-2.22.001) | -- | 5 | S-DEMO-001,S-DEMO-002 |
+| S-5.04-FIX-001 | .factory: Fix S-5.04 depends_on — replace superseded S-2.07 with S-DEMO-001 [Wave 5; E-DEMO housekeeping; P2; draft v1.0; factory-only] | .factory | 1 (BC-2.08.001) | -- | 0 | -- |
 
 [*] S-5.10 is in the `prism-audit` crate — note that all other Wave 5 stories are in `prism-mcp`. This is intentional: audit trail forwarding belongs to the audit subsystem by BC-2.05.011, but the Wave 5 slot reflects its topological dependency on S-2.04 (Wave 2 anchor).
 
@@ -436,7 +441,7 @@ Every active BC maps to the story that implements it.
 | BC-2.01.007 | S-2.07, PLUGIN-MIGRATION-001-G |
 | BC-2.01.008 | S-2.07, PLUGIN-MIGRATION-001-G |
 | BC-2.01.010 | S-2.06 |
-| BC-2.01.013 | S-2.06, PLUGIN-MIGRATION-001-F, PLUGIN-MIGRATION-001-H |
+| BC-2.01.013 | S-2.06, PLUGIN-MIGRATION-001-F, PLUGIN-MIGRATION-001-H, S-DEMO-001 |
 | BC-2.01.014 | S-2.06 |
 | BC-2.02.001 | S-1.04 |
 | BC-2.02.002 | S-1.04 |
@@ -454,9 +459,9 @@ Every active BC maps to the story that implements it.
 | BC-2.03.002 | S-1.06, S-6.04 |
 | BC-2.03.003 | S-1.06, S-6.04 |
 | BC-2.03.004 | S-1.06, S-6.04 |
-| BC-2.03.005 | S-1.07, S-6.04 |
+| BC-2.03.005 | S-1.07, S-6.04, S-DEMO-003 |
 | BC-2.03.006 | S-1.07, S-6.04 |
-| BC-2.03.007 | S-1.07, S-6.04 |
+| BC-2.03.007 | S-1.07, S-6.04, S-DEMO-003 |
 | BC-2.03.008 | S-1.06, S-6.04 |
 | BC-2.03.009 | S-1.07, S-6.04 |
 | BC-2.03.010 | S-1.07, S-6.04 |
@@ -488,7 +493,7 @@ Every active BC maps to the story that implements it.
 | BC-2.05.009 | S-2.05, S-3.07 |
 | BC-2.05.010 | S-2.05 |
 | BC-2.05.011 | S-5.10 |
-| BC-2.06.001 | S-5.05 |
+| BC-2.06.001 | S-5.05, S-DEMO-003 |
 | BC-2.06.002 | S-5.05 |
 | BC-2.06.003 | S-5.05 |
 | BC-2.06.004 | S-5.05 |
@@ -501,7 +506,7 @@ Every active BC maps to the story that implements it.
 | BC-2.06.011 | S-WAVE5-PREP-01 |
 | BC-2.06.012 | S-CONFIG-MULTI-TENANT-OVERRIDE-001, S-SPEC-TYPE-UNIFICATION-001 |
 | BC-2.06.013 | S-CONFIG-MULTI-TENANT-OVERRIDE-001 |
-| BC-2.06.014 | S-CONFIG-MULTI-TENANT-OVERRIDE-001 |
+| BC-2.06.014 | S-CONFIG-MULTI-TENANT-OVERRIDE-001, S-DEMO-001 |
 | BC-2.06.015 | S-CONFIG-MULTI-TENANT-OVERRIDE-001 |
 | BC-2.06.016 | S-CONFIG-MULTI-TENANT-OVERRIDE-001 |
 | BC-2.07.001 | S-3.05 |
@@ -510,7 +515,7 @@ Every active BC maps to the story that implements it.
 | BC-2.07.004 | S-3.05 |
 | BC-2.07.005 | S-3.05 |
 | BC-2.07.006 | S-3.05 |
-| BC-2.08.001 | S-5.04 |
+| BC-2.08.001 | S-5.04, S-5.04-FIX-001 |
 | BC-2.08.002 | S-5.04 |
 | BC-2.08.003 | S-5.04 |
 | BC-2.08.004 | S-5.04 |
@@ -526,8 +531,8 @@ Every active BC maps to the story that implements it.
 | BC-2.09.005 | S-1.10 |
 | BC-2.09.006 | S-1.10 |
 | BC-2.09.007 | S-1.10 |
-| BC-2.09.008 | S-1.10 |
-| BC-2.10.001 | S-5.01 |
+| BC-2.09.008 | S-1.10, S-DEMO-002 |
+| BC-2.10.001 | S-5.01, S-DEMO-002 |
 | BC-2.10.002 | S-5.01 |
 | BC-2.10.003 | S-5.01 |
 | BC-2.10.004 | S-5.02 |
@@ -536,13 +541,13 @@ Every active BC maps to the story that implements it.
 | BC-2.10.007 | S-5.02 |
 | BC-2.10.008 | S-5.03 |
 | BC-2.10.009 | S-5.03 |
-| BC-2.10.010 | S-5.01 |
+| BC-2.10.010 | S-5.01, S-DEMO-002 |
 | BC-2.10.011 | S-5.02 |
-| BC-2.11.001 | S-3.02, S-3.08 (proxy), S-3.09 (proxy), S-3.13 (proxy) |
+| BC-2.11.001 | S-3.02, S-3.08 (proxy), S-3.09 (proxy), S-3.13 (proxy), S-DEMO-002 |
 | BC-2.11.002 | S-3.01 |
 | BC-2.11.003 | S-3.01 |
 | BC-2.11.004 | S-3.01, S-3.06 |
-| BC-2.11.005 | S-3.02, S-3.08 (proxy), S-3.11 (proxy) |
+| BC-2.11.005 | S-3.02, S-3.08 (proxy), S-3.11 (proxy), S-DEMO-001, S-DEMO-002 |
 | BC-2.11.006 | S-3.01, S-3.02 |
 | BC-2.11.007 | S-3.02, S-3.10 (proxy), S-3.12 (proxy) |
 | BC-2.11.008 | S-3.04 |
@@ -636,6 +641,7 @@ Every active BC maps to the story that implements it.
 | BC-2.20.003 | S-5.09 |
 | BC-2.20.004 | S-5.09 |
 | BC-2.20.005 | S-5.09 |
+| BC-2.22.001 | S-PLUGIN-PREREQ-D, S-PLUGIN-CI-001, S-DEMO-001, S-DEMO-003 |
 | BC-3.1.001 | S-3.1.01, S-3.1.02, S-3.1.03, S-3.1.05, S-3.1.07, S-3.1.06-ImplPhase |
 | BC-3.1.002 | S-3.1.07, S-3.1.06-ImplPhase, W3-FIX-CODE-002 |
 | BC-3.1.003 | S-3.1.03, S-3.3.02, S-3.1.06-ImplPhase |
@@ -951,6 +957,8 @@ All 13 new DTU clones: Wave 0, 0 BCs, priority P0, depends_on: [S-6.06].
 
 | Version | Date | Summary |
 |---------|------|---------|
+| v2.203 | 2026-05-29 | E-DEMO story registration + BC Traceability Matrix update (state-manager, D-845): 4 E2E demo wiring stories registered. S-DEMO-001 (P0; Wave 5; 8 pts; 4 BCs; VP-148; keystone — closes GAP-002-A via SpecDrivenSensorAdapter + boot step 9A). S-DEMO-002 (P0; Wave 5; 8 pts; 5 BCs; VP-148; E2E subprocess smoke test all 4 sensors). S-DEMO-003 (P1; Wave 5; 5 pts; 4 BCs; demo scripts + prism-credential-set CLI + operator runbook). S-5.04-FIX-001 (P2; Wave 5; 1 pt; 1 BC; factory-only; fixes S-5.04 depends_on removing superseded S-2.07). S-5.04 depends_on v1.5→v1.6 (S-2.07 removed, S-DEMO-001 added). BC Traceability Matrix: BC-2.01.013 += S-DEMO-001; BC-2.03.005 += S-DEMO-003; BC-2.03.007 += S-DEMO-003; BC-2.06.001 += S-DEMO-003; BC-2.06.014 += S-DEMO-001; BC-2.08.001 += S-5.04-FIX-001; BC-2.09.008 += S-DEMO-002; BC-2.10.001 += S-DEMO-002; BC-2.10.010 += S-DEMO-002; BC-2.11.001 += S-DEMO-002; BC-2.11.005 += S-DEMO-001+S-DEMO-002; BC-2.22.001 row added (S-PLUGIN-PREREQ-D+S-PLUGIN-CI-001+S-DEMO-001+S-DEMO-003). total_stories 155→159. |
+| v2.202 | 2026-05-29 | S-5.01-FOLLOWUP-MCP-BOOT MERGED (state-manager, D-844): PR #163 squash-merged to develop@e898c3c9 (2026-05-29T16:44:42Z). POL-14: BC-2.10.001/002/003/004/006/007/010 status draft→active; BC-2.09.001..008 already active. BC-INDEX v5.54→v5.55. Full Story List row: S-5.01-FOLLOWUP-MCP-BOOT [draft BLOCKED]→[merged PR #163]. total_stories unchanged at 155. |
 | v2.190 | 2026-05-27 | PLUGIN-MIGRATION-001-C MERGED (state-manager, D-831): PR #158 squash-merged to develop@282013a6 (2026-05-27T10:53:03Z). SpecDrivenMapper replaces 4 hardcoded OCSF mapper modules per ADR-023 Rule 1. LOCAL 5-pass adversary cascade CONVERGED (3-CLEAN passes 3/4/5); 2 fix-bursts; 18 findings closed. PR-LEVEL pass-1 APPROVE (0 blocking findings); security review CLEAN; CI all GREEN. 10/10 ACs demo-evidenced at docs/demo-evidence/PLUGIN-MIGRATION-001-C/. 13 tests added to prism-ocsf; 602 lines deleted (4 mapper files + mapper_tests.rs). BC-2.16.002 v1.47→v1.49 (4 new event_type catalog rows). WASM plugin scaffold at crates/plugins/ocsf-complex-transforms/. POL-14: BC-2.02.002 + BC-2.02.007 promoted draft→active. Full Story List row updated: draft v1.0→merged PR #158. Wave 1 plugin migration: 6 of 8 shipped. STORY-INDEX v2.189→v2.190. |
 | v2.189 | 2026-05-27 | PLUGIN-MIGRATION-001-C story spec authored (story-writer): PLUGIN-MIGRATION-001-C materialized from [planned] stub to full draft spec (v1.0; 13 pts; P0; Wave 1; 10 ACs; 7 Red Gate tests; BCs: BC-2.02.002+BC-2.02.007; VPs: VP-151+VP-016+VP-017; depends_on S-PLUGIN-PREREQ-C+D+PLUGIN-MIGRATION-001-A; blocks PLUGIN-MIGRATION-001-G; crates prism-ocsf+prism-spec-engine; subsystems SS-02+SS-16+SS-17). Implements SpecDrivenMapper replacing 4 hardcoded OCSF mapper modules per ADR-023 Rule 1. Story file: PLUGIN-MIGRATION-001-C-prism-ocsf-spec-driven-mapper.md. Full Story List row updated: planned→draft, 0 BCs→2 BCs, no VPs→3 VPs, 3 pts→13 pts. total_stories unchanged at 155 (story was pre-registered). STORY-INDEX v2.188→v2.189. |
 | v2.188 | 2026-05-24 | S-POL-29-CANONICAL-TEMPLATE-REGISTRY-001 v0.1→v0.2 (state-manager, D-814): F-LP5-LOW-002 closed via architect adjudication (Option B — 4ef6c650). AC-006 added: Suggestion field source-of-truth adjudicated — BC-2.06.016 `Suggestion` rows canonical for operator-facing remediation guidance; taxonomy description-prose sub-clauses informative-only (not competing authority). Story row updated to reflect v0.2 + AC count 5→6. STORY-INDEX v2.187→v2.188. |

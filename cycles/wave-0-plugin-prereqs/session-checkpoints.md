@@ -312,3 +312,16 @@ _Archived from STATE.md Session Resume Checkpoint section. Superseded by D-844 c
 **Next step at archival:** Adversary pass 16 against ac213273.
 
 _Superseded by D-844 checkpoint (S-5.01-FOLLOWUP-MCP-BOOT MERGED PR #163 develop@e898c3c9 2026-05-29T16:44:42Z; STATE v7.531)._
+
+## D-844 Checkpoint (archived by D-845 burst 2026-05-29)
+
+_Archived from STATE.md Session Resume Checkpoint section. Superseded by D-845 planning checkpoint._
+
+**STATE v7.531. D-844 — S-5.01-FOLLOWUP-MCP-BOOT MERGED via PR #163 (develop@e898c3c9 2026-05-29T16:44:42Z). POL-14 BC auto-promotion complete: 7 BC-2.10.* (001/002/003/004/006/007/010) promoted status draft→active. BC-INDEX v5.55. STORY-INDEX v2.202.**
+
+**develop HEAD at archival:** `e898c3c9`
+**Workspace test count at archival:** ~3778 (40/40 CI GREEN at merge)
+**Active worktrees at archival:** .worktrees/S-5.01-FOLLOWUP-MCP-BOOT + .worktrees/S-3.02-FOLLOWUP-RUNTIME (both pending cleanup post-merge); S-3.09 FROZEN; W3-FIX-S307-001 superseded.
+**Next step at archival:** Identify next wave priority.
+
+_Superseded by D-845 checkpoint (E2E demo wiring scoped; STORY-INDEX v2.203; total_stories 159; STATE v7.532)._

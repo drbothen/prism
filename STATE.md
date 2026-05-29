@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.531"
+version: "7.532"
 producer: state-manager
-timestamp: 2026-05-29T17:00:00Z
+timestamp: 2026-05-29T18:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -16,7 +16,12 @@ repos: [poller-cobra, poller-express, poller-bear, poller-coaster, serveMyAPI, t
 safe_to_compact: true
 pre_compact_snapshot: "SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-27-PLUGIN-MIGRATION-SAGA-CLOSED"
 pre_compact_snapshot_at: "2026-05-27 (D-841 SESSION CHECKPOINT; Plugin migration 16/16 CLOSED; S-SPEC-TYPE-UNIFICATION-001 PR #161 MERGED; develop@af79f160; 3711 tests; state-final for /clear-resume)"
-current_step: "D-844 S-5.01-FOLLOWUP-MCP-BOOT MERGED via PR #163 develop@e898c3c9 2026-05-29T16:44:42Z. POL-14 BC auto-promotion: 7 BC-2.10.* status draft→active (BC-INDEX v5.54→v5.55). STORY-INDEX v2.201→v2.202. STATE v7.530→v7.531. NEXT: Wave 3 multi-tenant remaining stories or next priority per queue."
+current_step: "D-845 PLANNING CHECKPOINT — E2E demo wiring scoped and 4 stories drafted. Next: dispatch per-story-delivery for PLUGIN-MIGRATION-001-A (ready) → PLUGIN-MIGRATION-001-E (ready) → S-CONFIG-MULTI-TENANT-OVERRIDE-001 (refine draft → implement) → S-DEMO-001 (keystone — closes GAP-002-A) → S-DEMO-002 (E2E smoke test all 4 sensors) → S-DEMO-003 (setup scripts + runbook + credential CLI) → S-5.04-FIX-001 (factory housekeeping)."
+e2e_demo_plan_locked: true
+e2e_demo_plan_document: ".factory/proposals/E2E-DEMO-WIRING-PLAN.md"
+e2e_demo_critical_path: "PLUGIN-MIGRATION-001-A → 001-E → S-CONFIG-MULTI-TENANT-OVERRIDE-001 → S-DEMO-001 → S-DEMO-002 → S-DEMO-003 → S-5.04-FIX-001"
+e2e_demo_estimated_sessions: "~4.6 sessions (architect estimate, story-writer-confirmed)"
+e2e_demo_scope_decision: "user-authorized all-4-sensors 2026-05-29 (CrowdStrike + Armis + Claroty + Cyberint)"
 s_5_01_followup_mcp_boot_status: "MERGED via PR #163 develop@e898c3c9 2026-05-29T16:44:42Z"
 s_5_01_followup_mcp_boot_merged_via_pr: 163
 s_5_01_followup_mcp_boot_merged_via_sha: "e898c3c9"
@@ -205,7 +210,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 current_cycle_history: "wave-0-plugin-prereqs (PREREQ-E merged PR #151 2026-05-19); prior: wave-4-operations (active); wave-3-multi-tenant (COMPLETE)"
 bc_index_version: "5.55"
 vp_index_version: "1.76"
-story_index_version: "v2.202"
+story_index_version: "v2.203"
 plugin_migration_001_d_local_adversary_passes: 25
 plugin_migration_001_d_local_fix_bursts: 19
 plugin_migration_001_d_status: "MERGED via PR #153 develop@3f2de889 2026-05-22"
@@ -221,7 +226,7 @@ architectural_decisions_locked:
   - "4 LOCKED Option-A: TOML auth_type declares REAL behavior (cyberint=cookie_roundtrip, claroty=bearer_static) per CLAUDE.md Source-of-Truth Precedence #7; legacy auth_type_name() strings are bugs in code 001-A deletes"
   - "5 LOCKED Path-A (D-747): ADR-028 §D2 explicitly supersedes ADR-026 §D3 (partial — auth_type_name() return values for Cyberint/Claroty/Armis); PLUGIN-MIGRATION-001-A scope EXPANDS to include rewriting these auth_type_name() returns + amending Red Gate test_BC_2_01_016_003. CrowdStrike unchanged."
 policies_version: "1.30"
-total_stories: 155
+total_stories: 159
 bc_count_corrected: 245
 subsystem_count: 22
 vp_count: 156
@@ -247,9 +252,9 @@ historical_cycles: [phase-1-convergence, wave-3-multi-tenant, wave-4-operations]
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-29 (D-844 S-5.01-FOLLOWUP-MCP-BOOT MERGED PR #163 develop@e898c3c9; POL-14 7 BC-2.10.* promoted; BC-INDEX v5.55; STORY-INDEX v2.202; STATE v7.530→v7.531) |
-| **Current Phase** | Wave 3 Tier-3 complete — S-5.01-FOLLOWUP-MCP-BOOT **MERGED** PR #163 develop@e898c3c9. Next: identify next wave priority. |
-| **Current Step** | D-844 S-5.01-FOLLOWUP-MCP-BOOT MERGED via PR #163 (develop@e898c3c9 2026-05-29T16:44:42Z). 19 LOCAL passes + 16 PR-LEVEL passes (per reviewer). POL-14 BC auto-promotion complete. BC-INDEX v5.55. STORY-INDEX v2.202. STATE v7.531. |
+| **Last Updated** | 2026-05-29 (D-845 E2E demo wiring scoped — 4 stories drafted; STORY-INDEX v2.203; STATE v7.531→v7.532; RESUME SNAPSHOT 2026-05-29-E2E-DEMO-WIRING-PLAN-LOCKED written) |
+| **Current Phase** | Wave 3 Tier-3 complete — E2E demo wiring planned. Next: PLUGIN-MIGRATION-001-A → 001-E → S-CONFIG → S-DEMO-001 → S-DEMO-002 → S-DEMO-003 → S-5.04-FIX-001 (critical path ~4.6 sessions). |
+| **Current Step** | D-845 PLANNING CHECKPOINT — Architect scoped E2E DTU demo wiring; GAP-002-A closure pattern (SpecDrivenSensorAdapter in prism-bin); user authorized all-4-sensor scope; 4 stories drafted (S-DEMO-001/002/003 + S-5.04-FIX-001). STORY-INDEX v2.203. STATE v7.532. |
 
 ## Phase Progress
 
@@ -288,6 +293,7 @@ historical_cycles: [phase-1-convergence, wave-3-multi-tenant, wave-4-operations]
 | Step | Agent | Status | Output |
 |------|-------|--------|--------|
 _D-735 through D-838 archived to cycles/wave-0-plugin-prereqs/burst-log.md (compacted D-843 burst 2026-05-28). D-835+D-836+D-837 removed from Phase Steps (archived in Decisions Log)._
+| D-845 — **PLANNING CHECKPOINT — E2E DTU demo wiring scoped. Architect adjudicated GAP-002-A closure (SpecDrivenSensorAdapter in prism-bin + boot step 9A). User authorized all-4-sensors scope. Story-writer drafted S-DEMO-001 (P0, keystone) + S-DEMO-002 (P0, E2E smoke) + S-DEMO-003 (P1, scripts + CLI) + S-5.04-FIX-001 (P2, factory-only). STORY-INDEX v2.203. total_stories 155→159. RESUME SNAPSHOT 2026-05-29-E2E-DEMO-WIRING-PLAN-LOCKED written. STATE v7.531→v7.532. Ready for /clear.** | state-manager (D-845 planning burst) | CHECKPOINT | STORY-INDEX v2.203; e2e_demo_plan_locked=true |
 | D-844 — **S-5.01-FOLLOWUP-MCP-BOOT MERGED (PR #163 squash-merged to develop@e898c3c9 2026-05-29T16:44:42Z). prism-mcp PrismServer fully delivered: rmcp 1.7 ServerHandler, #[tool_router] macro, per-tool InjectionScanner, ResponseEnvelope wrapping, per-tool input validation with MCP error codes, stdio transport, graceful shutdown. LOCAL cascade: 19 passes, 16 fix-bursts, CONVERGED 3-CLEAN (passes 17/18/19). PR-LEVEL cascade: 16 passes per reviewer, 10 fix-bursts; security 3/3 CLEAN at pass 15; pr-reviewer 3/3 CLEAN at pass 16. Notable: SEC-001 CWE-22 path traversal in add_sensor_spec fixed (pass 12); real shutdown race bug fixed (CI investigation pass 8); Windows /tmp/ hardcoding fixed (pass 8). CI 40/40 GREEN including Windows MSVC. POL-14 BC auto-promotion: 7 BC-2.10.* (001/002/003/004/006/007/010) status draft→active; lifecycle_status already active (idempotent confirms); BC-2.09.001..008 already active. BC-INDEX v5.54→v5.55. STORY-INDEX v2.201→v2.202. Worktree .worktrees/S-5.01-FOLLOWUP-MCP-BOOT pending cleanup. STATE v7.530→v7.531.** | state-manager (D-844 post-merge burst) | MERGED | develop@e898c3c9; 40/40 CI GREEN |
 | D-843 — **PAUSE CHECKPOINT — S-5.01-FOLLOWUP-MCP-BOOT mid-adversary-cascade. 15 LOCAL adversary passes complete, 14 fix-bursts, streak 0/3. Pass-15 findings (F-PASS15-HIGH-1 + F-PASS15-MED-1) fixed in commit ac213273. Worktree .worktrees/S-5.01-FOLLOWUP-MCP-BOOT HEAD ac213273 (27 commits ahead of develop@a55bd930). 3778/3778 tests GREEN. just check GREEN. SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-28-S-5-01-PAUSE-MID-ADVERSARY written. STATE v7.529→v7.530. NEXT: adversary pass 16.** | state-manager (D-843 pause-checkpoint burst) | PAUSE | pass 15 fixed; streak 0/3; pass 16 pending |
 | D-842 — **S-3.02-FOLLOWUP-RUNTIME MERGED (PR #162 squash-merged to develop@a55bd930 2026-05-28T00:48:00Z). Boot steps 7+8 delivered in crates/prism-bin/src/boot.rs: step7_init_storage accepts &Arc<RocksDbBackend>, calls health_check() (write/read/delete probe + CF verification), emits boot.step7.storage_validated event; step8_init_query_engine calls mark_query_phase_started() (closes write-tool registration window), emits boot.step8.query_engine_started event. BC-2.16.002 catalog updated v1.31→v1.32 (rows 47-48 for both new event_type entries). 7 new tests in boot_steps_7_8_tests.rs; 3718 workspace tests total (+7). LOCAL 5-pass adversary cascade: pass-1 2C+3H+2M, pass-2 1M+2L, passes 3/4/5 CLEAN(strict); 2 fix-bursts, 10 findings closed, 3-CLEAN CONVERGED (passes 3/4/5). Trajectory: 7→3→0→0→0. PR-LEVEL: security review 0 findings CLEAN; CI 20/20 GREEN. Demo evidence: 4 VHS recordings at docs/demo-evidence/S-3.02-FOLLOWUP-RUNTIME/. BCs traced: BC-2.11.001/005/006/007/011/012 + BC-2.15.011 (all lifecycle_status: active — no POL-14 promotions needed). S-3.02 graduated partial-merge→merged per ADR-020. QueryEngine + WriteExecutor full construction deferred to S-5.01-FOLLOWUP-MCP-BOOT (boot step 9). STORY-INDEX v2.200→v2.201. TD-VSDD-053 single-commit. STATE v7.528→v7.529.** | state-manager (D-842 post-merge burst) | MERGED | develop@a55bd930 |
@@ -302,6 +308,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-845 | 2026-05-29 | **PLANNING BURST — E2E DTU demo wiring scoped. Architect adjudicated GAP-002-A closure pattern: SpecDrivenSensorAdapter in `crates/prism-bin/src/spec_driven_adapter.rs` (NOT prism-sensors per ADR-023) wraps PipelineExecutor to satisfy dyn SensorAdapter interface; new boot step 9A iterates spec_catalog × org_registry and registers one adapter per (org, sensor). User authorized full-4-sensor scope per ADR-023: CrowdStrike via WASM OAuth2 plugin; Armis/Claroty/Cyberint via bearer_static + spec-catalog. Story-writer drafted 4 stories: S-DEMO-001 (P0, 8 pts, keystone — closes GAP-002-A; BCs: BC-2.01.013+BC-2.11.005+BC-2.06.014+BC-2.22.001; depends_on: PLUGIN-MIGRATION-001-A+001-E+S-CONFIG-MULTI-TENANT-OVERRIDE-001+S-DEMO-001); S-DEMO-002 (P0, 8 pts, E2E subprocess smoke test all 4 sensors; BCs: BC-2.11.001+BC-2.11.005+BC-2.09.008+BC-2.10.001+BC-2.10.010; depends_on: S-DEMO-001+S-CONFIG-MULTI-TENANT-OVERRIDE-001); S-DEMO-003 (P1, 5 pts, demo scripts + `prism credential set` CLI subcommand + operator runbook; BCs: BC-2.03.005+BC-2.03.007+BC-2.06.001+BC-2.22.001; depends_on: S-DEMO-001+S-DEMO-002); S-5.04-FIX-001 (P2, 1 pt, depends_on correction removing superseded S-2.07; factory-only; BC: BC-2.08.001). S-5.04 depends_on updated v1.5→v1.6 (S-2.07 removed, S-DEMO-001 added). STORY-INDEX v2.202→v2.203. total_stories 155→159. No new BCs created — all anchor BCs are existing active/draft BCs. Architect's full gap analysis at .factory/proposals/E2E-DEMO-WIRING-PLAN.md (679 lines). Critical path estimate: ~4.6 sessions. RESUME SNAPSHOT 2026-05-29-E2E-DEMO-WIRING-PLAN-LOCKED written to SESSION-HANDOFF.md. STATE v7.531→v7.532. TD-VSDD-053 single-commit.** | state-manager (D-845 planning burst) | Phase 3 / wave-0-plugin-prereqs | 2026-05-29 |
 | D-844 | 2026-05-29 | **S-5.01-FOLLOWUP-MCP-BOOT MERGED (PR #163 squash-merged to develop@e898c3c9 2026-05-29T16:44:42Z). prism-mcp PrismServer fully delivered: rmcp 1.7 ServerHandler, #[tool_router] macro for all BC-2.13.* tools, per-tool InjectionScanner, ResponseEnvelope wrapping, per-tool input validation with MCP error codes, stdio transport, graceful shutdown. No todo!() or unimplemented!() per POL-12. LOCAL cascade: 19 passes, 16 fix-bursts, 3-CLEAN CONVERGED (passes 17/18/19); trajectory: 2C+4H→6C+8H+6M→5C+6H+6M→2C+3H→2C+4H→3H+2M→3H+2M→CLEAN→1H+1M+1L→3H+2M→2H+3M→2C+2H+3M→2C+4H→1C+3H→1H+1M→2M→CLEAN→CLEAN→CLEAN. PR-LEVEL cascade: 16 passes per reviewer (security + pr-reviewer), 10 fix-bursts; security 3/3 CLEAN at pass 15; pr-reviewer 3/3 CLEAN at pass 16. Notable catches: SEC-001 CWE-22 path traversal in add_sensor_spec (pass 12 — security caught what LOCAL missed); real production shutdown race bug in serve_with_transport_and_shutdown_inner natural_close_fut arm masking JoinError::Panic (CI investigation pass 8); Windows CI failure from hardcoded /tmp/ paths (pass 8); sibling-sweep misses across validate_text_field extension. CI: 40/40 GREEN including Windows x86_64-pc-windows-msvc. HEAD at PR-merge: ee36f589. POL-14 BC auto-promotion: BC-2.10.001 v1.4→v1.5, BC-2.10.002 v2.7→v2.8, BC-2.10.003 v1.3→v1.4, BC-2.10.004 v2.5→v2.6, BC-2.10.006 v1.3→v1.4, BC-2.10.007 v1.3→v1.4, BC-2.10.010 v1.3→v1.4; lifecycle_status was already active for all 7 (idempotent confirms); active_contracts 236 (unchanged); draft_contracts 2 (unchanged — BC-2.06.011 + BC-2.21.001 remain draft). BC-2.09.001..008 already active — no promotions needed. BC-INDEX v5.54→v5.55. STORY-INDEX v2.201→v2.202 (S-5.01-FOLLOWUP-MCP-BOOT [draft BLOCKED]→[merged PR #163]). Worktree .worktrees/S-5.01-FOLLOWUP-MCP-BOOT pending cleanup. develop_head: e898c3c9. TD-VSDD-053 single-commit. STATE v7.530→v7.531.** | state-manager (D-844 post-merge burst) | Phase 3 / wave-0-plugin-prereqs | 2026-05-29 |
 | D-843 | 2026-05-28 | **PAUSE CHECKPOINT — S-5.01-FOLLOWUP-MCP-BOOT mid-adversary-cascade (D-843). 15 LOCAL adversary passes complete, 14 fix-bursts. Pass-15 findings (F-PASS15-HIGH-1 + F-PASS15-MED-1) fixed in commit ac213273. Streak 0/3 (pass-8 was sole clean pass; pass-9 reset the streak). Worktree .worktrees/S-5.01-FOLLOWUP-MCP-BOOT branch feature/S-5.01-FOLLOWUP-MCP-BOOT-mcp-server HEAD ac213273 (27 commits ahead of develop@a55bd930). 3778/3778 tests pass. just check GREEN. SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-28-S-5-01-PAUSE-MID-ADVERSARY written. STATE v7.529→v7.530. NEXT: dispatch adversary pass 16 to verify pass-15 fixes; target CLEAN(strict) → streak 1/3 → passes 17+18 for 3-CLEAN convergence per BC-5.39.001.** | state-manager (D-843 pause-checkpoint burst) | Phase 3 / wave-0-plugin-prereqs | 2026-05-28 |
 | D-842 | 2026-05-28 | **S-3.02-FOLLOWUP-RUNTIME MERGED (PR #162 squash-merged to develop@a55bd930 2026-05-28T00:48:00Z). Boot steps 7+8 delivered in crates/prism-bin/src/boot.rs: step7_init_storage accepts &Arc<RocksDbBackend>, calls health_check() (write/read/delete probe + CF verification), emits boot.step7.storage_validated event; step8_init_query_engine calls mark_query_phase_started() (closes write-tool registration window), emits boot.step8.query_engine_started event. BC-2.16.002 catalog v1.31→v1.32 (rows 47-48 for 2 new event_type entries). 7 new tests in boot_steps_7_8_tests.rs; 3718 workspace tests total. LOCAL 5-pass adversary cascade: pass-1 2C+3H+2M closed in fix-burst-1; pass-2 1M+2L closed in fix-burst-2; passes 3/4/5 CLEAN(strict); 2 fix-bursts, 10 findings closed, 3-CLEAN CONVERGED (passes 3/4/5). Trajectory: 7→3→0→0→0. PR-LEVEL: security review CLEAN (0 findings); CI 20/20 GREEN. Demo evidence: 4 VHS recordings at docs/demo-evidence/S-3.02-FOLLOWUP-RUNTIME/. BCs traced: BC-2.11.001/005/006/007/011/012 + BC-2.15.011 (all lifecycle_status: active — no POL-14 promotions needed). S-3.02 graduated partial-merge→merged per ADR-020. QueryEngine + WriteExecutor full construction deferred to S-5.01-FOLLOWUP-MCP-BOOT (boot step 9). STORY-INDEX v2.200→v2.201. TD-VSDD-053 single-commit. STATE v7.528→v7.529. NEXT: S-5.01-FOLLOWUP-MCP-BOOT (8 pts, depends_on S-3.02-FOLLOWUP-RUNTIME now satisfied).** | state-manager (D-842 post-merge burst) | Phase 3 / wave-0-plugin-prereqs | 2026-05-28 |
@@ -467,28 +474,34 @@ Prior cycle history:
 
 ---
 
-## Session Resume Checkpoint (2026-05-29 — D-844 S-5.01-FOLLOWUP-MCP-BOOT MERGED; develop@e898c3c9)
+## Session Resume Checkpoint (2026-05-29 — D-845 E2E DEMO WIRING PLAN LOCKED; develop@e898c3c9)
 
-_Previous checkpoint (D-843 S-5.01-FOLLOWUP-MCP-BOOT PAUSE; pass 15 fixed, streak 0/3) archived: [cycles/wave-0-plugin-prereqs/session-checkpoints.md](cycles/wave-0-plugin-prereqs/session-checkpoints.md)_
+_Previous checkpoint (D-844 S-5.01-FOLLOWUP-MCP-BOOT MERGED; develop@e898c3c9) archived: [cycles/wave-0-plugin-prereqs/session-checkpoints.md](cycles/wave-0-plugin-prereqs/session-checkpoints.md)_
 
-**STATE v7.531. D-844 — S-5.01-FOLLOWUP-MCP-BOOT MERGED via PR #163 (develop@e898c3c9 2026-05-29T16:44:42Z). POL-14 BC auto-promotion complete: 7 BC-2.10.* promoted status draft→active. BC-INDEX v5.55. STORY-INDEX v2.202.**
+**STATE v7.532. D-845 — E2E demo wiring scoped; 4 stories drafted (S-DEMO-001/002/003 + S-5.04-FIX-001). STORY-INDEX v2.203. total_stories: 159. BC-INDEX v5.55 (unchanged). develop@e898c3c9.**
 
-**develop HEAD:** `e898c3c9` | **Workspace test count:** ~3778 (40/40 CI GREEN at merge)
+**develop HEAD:** `e898c3c9` | **Workspace test count:** 3718 (40/40 CI GREEN at last merge) | **e2e_demo_plan_locked:** true
+
+**Critical path (next actions):**
+1. PLUGIN-MIGRATION-001-A (ready — all deps merged) → per-story-delivery
+2. PLUGIN-MIGRATION-001-E (ready) → per-story-delivery [parallelizable with S-CONFIG]
+3. S-CONFIG-MULTI-TENANT-OVERRIDE-001 (draft, ready) → per-story-delivery [parallelizable with 001-E]
+4. S-DEMO-001 (draft, KEYSTONE — closes GAP-002-A) → address OQ-1+OQ-2 with architect first
+5. S-DEMO-002 (draft) → per-story-delivery after S-DEMO-001
+6. S-DEMO-003 (draft) + S-5.04-FIX-001 (draft, factory-only) → per-story-delivery in parallel
 
 **Active worktrees:**
-- `.worktrees/S-5.01-FOLLOWUP-MCP-BOOT` — pending cleanup (PR #163 merged)
-- `.worktrees/S-3.02-FOLLOWUP-RUNTIME` — pending cleanup (PR #162 merged)
-- `.worktrees/S-3.09` — FROZEN (BUG-S309-PLUGIN), stale since 2026-05-11
-- `.worktrees/W3-FIX-S307-001` — BLOCKED (superseded), stale since 2026-05-24
+- `.worktrees/S-3.09` — FROZEN (BUG-S309-PLUGIN), stale since 2026-05-11; deferred per user direction
+- `.worktrees/W3-FIX-S307-001` — BLOCKED (superseded), stale since 2026-05-24; deferred per user direction
+- `.worktrees/S-5.01-FOLLOWUP-MCP-BOOT` + `.worktrees/S-3.02-FOLLOWUP-RUNTIME` — removed post-merge
 
 **Open PRs:** None.
 
-**Resume protocol (4 steps):**
+**Resume protocol (5 steps — see §RESUME SNAPSHOT 2026-05-29-E2E-DEMO-WIRING-PLAN-LOCKED in SESSION-HANDOFF.md):**
 1. Run `vsdd-factory:factory-worktree-health` (BLOCKING preflight)
-2. Read STATE.md frontmatter (v7.531)
-3. Verify develop HEAD: `git rev-parse origin/develop` → must be `e898c3c9`
-4. Identify next story priority from wave schedule
-
-_Worktree cleanup recommended: .worktrees/S-5.01-FOLLOWUP-MCP-BOOT + .worktrees/S-3.02-FOLLOWUP-RUNTIME (both merged)._
+2. Read STATE.md frontmatter — confirm `version: "7.532"` and `e2e_demo_plan_locked: true`
+3. Read §RESUME SNAPSHOT 2026-05-29-E2E-DEMO-WIRING-PLAN-LOCKED in SESSION-HANDOFF.md
+4. Read `.factory/proposals/E2E-DEMO-WIRING-PLAN.md` (679 lines — architect's full gap analysis)
+5. Dispatch per-story-delivery for PLUGIN-MIGRATION-001-A (first ready story in critical path)
 
 _Agent routing: see CLAUDE.md §Agent Routing Table._

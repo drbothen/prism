@@ -7866,3 +7866,174 @@ Cleanup of stale worktrees is deferred per user direction. Do not clean up `.wor
 ---
 
 _Snapshot terminus: 2026-05-28. S-5.01-FOLLOWUP-MCP-BOOT LOCAL adversary cascade paused at pass 15 fixed, streak 0/3. context-clear. Resume with adversary pass 16._
+
+## §RESUME SNAPSHOT 2026-05-29-E2E-DEMO-WIRING-PLAN-LOCKED (D-845)
+
+**Snapshot created:** 2026-05-29 | **Reason:** Pre-/clear durability — E2E demo wiring planned, 4 stories drafted | **STATE version:** 7.532
+
+---
+
+### §1. What Just Completed (This Session)
+
+| Event | Detail |
+|-------|--------|
+| PR #163 merged | S-5.01-FOLLOWUP-MCP-BOOT squash-merged to develop@e898c3c9 at 2026-05-29T16:44:42Z |
+| LOCAL cascade | 19 passes, 16 fix-bursts, 3-CLEAN CONVERGED (passes 17/18/19) |
+| PR-LEVEL cascade | 16 passes per reviewer (security + pr-reviewer), 10 fix-bursts; security 3/3 CLEAN at pass 15; pr-reviewer 3/3 CLEAN at pass 16 |
+| Notable catches | SEC-001 CWE-22 path traversal in `add_sensor_spec` (pass 12 — security found what LOCAL missed); real shutdown race bug in `serve_with_transport_and_shutdown_inner` natural_close_fut arm masking JoinError::Panic (CI investigation pass 8); Windows /tmp/ hardcoding (pass 8) |
+| D-844 post-merge burst | factory@fb36ac40 — POL-14 BC promotions (7 BC-2.10.*); STATE.md v7.531; BC-INDEX v5.55; STORY-INDEX v2.202 |
+| D-845 planning burst | E2E demo wiring scoped; 4 stories drafted; STORY-INDEX v2.203; STATE.md v7.532 (this burst) |
+| Cascade record | `.factory/code-delivery/S-5.01-FOLLOWUP-MCP-BOOT/{cascade-summary,convergence-trajectory,lessons}.md` |
+
+---
+
+### §2. What the User Authorized (2026-05-29 Session Continuation)
+
+- Full-4-sensor E2E DTU demo wiring (CrowdStrike + Armis + Claroty + Cyberint)
+- Per ADR-023: all sensors via spec-catalog (CrowdStrike via WASM OAuth2 plugin; Armis/Claroty/Cyberint via bearer_static auth path)
+- Install and setup scripts in scope (S-DEMO-003)
+- State must be fully durable before /clear — this snapshot IS that durability
+
+---
+
+### §3. Architect's Keystone Finding (GAP-002-A)
+
+GAP-002-A (AdapterRegistry empty at boot) is the architectural keystone blocking E2E demo.
+
+**Closure pattern (from E2E-DEMO-WIRING-PLAN.md):**
+- New file: `crates/prism-bin/src/spec_driven_adapter.rs`
+- Struct: `SpecDrivenSensorAdapter` implementing `dyn SensorAdapter` interface
+- NOT in `prism-sensors` crate (ADR-023: no legacy adapter code)
+- Wraps `PipelineExecutor` (fully implemented) to satisfy the SensorAdapter interface
+- New boot step 9A: iterate `spec_catalog × org_registry`, register one adapter per `(org_id, sensor_id)` tuple
+- Unblocks: `fan_out()` → DTU → OCSF normalization → Arrow RecordBatch → ResponseEnvelope (the full query pipeline)
+
+**Full architect plan:** `.factory/proposals/E2E-DEMO-WIRING-PLAN.md` (679 lines — MUST read on resume)
+
+---
+
+### §4. Story Execution Order (Critical Path)
+
+```
+PLUGIN-MIGRATION-001-A (P0, ready — all deps merged) → per-story-delivery
+        ↓
+PLUGIN-MIGRATION-001-E (P0, ready)                  → per-story-delivery
+  [parallelizable with S-CONFIG below]
+        ↓
+S-CONFIG-MULTI-TENANT-OVERRIDE-001 (P0, draft, ready) → per-story-delivery
+  [parallelizable with 001-E]
+        ↓
+PLUGIN-MIGRATION-001-B (P0, ready)                  → per-story-delivery
+  [parallelizable with S-CONFIG or after 001-E]
+        ↓
+S-DEMO-001 (P0, draft, KEYSTONE — closes GAP-002-A)
+  → address OQ-1+OQ-2 with architect BEFORE dispatching per-story-delivery
+        ↓
+S-DEMO-002 (P0, draft) → per-story-delivery after S-DEMO-001 merged
+        ↓
+[parallel:]
+  S-DEMO-003 (P1, draft) → per-story-delivery (setup scripts + runbook + credential CLI)
+  S-5.04-FIX-001 (P2, draft, factory-only) → per-story-delivery (depends_on cleanup)
+```
+
+**Critical path session estimate:** ~4.6 sessions (architect estimate, story-writer-confirmed)
+
+**Story file paths:**
+- `S-DEMO-001-spec-driven-sensor-adapter-and-boot-step-9a.md` (27 KB, 8 pts)
+- `S-DEMO-002-e2e-subprocess-smoke-test-all-sensors.md` (21 KB, 8 pts)
+- `S-DEMO-003-demo-setup-scripts-and-runbook.md` (21 KB, 5 pts)
+- `S-5.04-FIX-001-update-depends-on-for-superseded-s207.md` (7 KB, 1 pt)
+- `S-5.04-sensor-health.md` — depends_on updated v1.5→v1.6 (S-2.07 removed, S-DEMO-001 added)
+
+---
+
+### §5. Open Questions for Architect/Human (Before S-DEMO-001 Dispatch)
+
+These 5 open questions were identified by story-writer in the draft specs. Address with architect BEFORE dispatching per-story-delivery for S-DEMO-001:
+
+| OQ | Story | Question |
+|----|-------|---------|
+| OQ-1 | S-DEMO-001 | `BearerStaticAuthProvider` construction timing — per-fetch (recommended Option A: construct in `fetch()` from `ResolvedSensorSpec::auth`) vs enum-strategy field on `SpecDrivenSensorAdapter` |
+| OQ-2 | S-DEMO-001 | `ResolvedSensorSpec` iteration type — map key `OrgSlug` vs `OrgId`? Is translation needed in boot step 9A? |
+| OQ-3 | S-DEMO-002 | Windows CI for subprocess teardown — `#[cfg(unix)]` gate for SIGTERM vs Windows taskkill path? |
+| OQ-4 | S-DEMO-003 | `rpassword` crate — workspace-level dependency or prism-bin only? |
+| OQ-5 | S-DEMO-003 | Exact committed path of `crowdstrike-oauth2.prx` artifact from S-PLUGIN-CI-001 (S-DEMO-003 install script references it) |
+
+---
+
+### §6. Story BC Anchors (Verification Snapshot)
+
+All anchor BCs are existing active or draft BCs — NO new BCs were created:
+
+| Story | BCs | Status in BC-INDEX |
+|-------|-----|--------------------|
+| S-DEMO-001 | BC-2.01.013, BC-2.11.005, BC-2.06.014, BC-2.22.001 | active / draft / active / active |
+| S-DEMO-002 | BC-2.11.001, BC-2.11.005, BC-2.09.008, BC-2.10.001, BC-2.10.010 | draft / draft / active / active / active |
+| S-DEMO-003 | BC-2.03.005, BC-2.03.007, BC-2.06.001, BC-2.22.001 | draft / draft / draft / active |
+| S-5.04-FIX-001 | BC-2.08.001 | draft |
+
+BC-INDEX version: **v5.55** (unchanged — no new BCs, no promotions in this planning burst)
+
+---
+
+### §7. Resume Protocol (5 Steps — Zero Prior Context Required)
+
+1. **Run `vsdd-factory:factory-worktree-health`** (BLOCKING preflight — must pass before any other action)
+2. **Read `STATE.md` frontmatter** — confirm `version: "7.532"` and `e2e_demo_plan_locked: true`
+3. **Read this §RESUME SNAPSHOT 2026-05-29-E2E-DEMO-WIRING-PLAN-LOCKED** (you are reading it now)
+4. **Read `.factory/proposals/E2E-DEMO-WIRING-PLAN.md`** (679 lines — architect's full gap analysis, MUST read)
+5. **Dispatch next per-story-delivery cycle:**
+   - PLUGIN-MIGRATION-001-A (status: ready) — start here
+   - OR per-story-delivery for PLUGIN-MIGRATION-001-E (if user prefers different sequencing)
+   - For drafts needing OQ resolution (S-DEMO-001): dispatch architect before per-story-delivery
+   - Standard per-story-delivery cycle: stubs → failing tests → TDD → adversary 3-CLEAN cascade → demo → push → pr-manager → state-manager post-merge burst
+
+---
+
+### §8. Active Worktrees
+
+| Worktree | Status | Action |
+|----------|--------|--------|
+| `.worktrees/S-5.01-FOLLOWUP-MCP-BOOT` | REMOVED — PR #163 merged 2026-05-29 | Cleanup completed this session |
+| `.worktrees/S-3.02-FOLLOWUP-RUNTIME` | pending cleanup | PR #162 merged 2026-05-28; low priority |
+| `.worktrees/S-3.09` | FROZEN (BUG-S309-PLUGIN) | Stale since 2026-05-11; deferred per user direction |
+| `.worktrees/W3-FIX-S307-001` | BLOCKED (superseded by ADR-023) | Stale since 2026-05-24; deferred per user direction |
+
+**Open PRs:** None.
+
+---
+
+### §9. Standing Operational Rules (Do Not Lose)
+
+| Rule | Authority | Description |
+|------|-----------|-------------|
+| No pragmatic convergence | User directive (persistent) | Fix all issues before build — no "good enough for now" |
+| CANONICAL PRINCIPLE | CLAUDE.md | Production-grade default; Option A authorization pattern |
+| Per-story-delivery cycle | VSDD workflow | 8-step: stubs → red-gate → TDD → adversary → demo → push → PR → state-burst |
+| BC-5.39.001 | CLAUDE.md §Operational Discipline | 3-CLEAN strict streak for cascade convergence (D-779 dual-CLEAN amendment: strict = zero findings all severities; PR-merge = zero CRIT+HIGH+MED) |
+| TD-VSDD-053 | CLAUDE.md | Single-commit-per-burst in .factory/ |
+| TD-VSDD-059 | CLAUDE.md | Paper-fix detection — empirical probe > paper-trust |
+| TD-VSDD-060 | CLAUDE.md | Sibling-sweep on value changes |
+| TD-VSDD-091 | CLAUDE.md | Anti-volatile-pin — use story IDs, not SHAs (except merge commit SHAs as immutable anchors) |
+| POL-14 | policies.yaml | BC auto-promotion draft→active at story PR merge |
+| SAP-1 | CLAUDE.md §Standing Adversary Probes | Every `event_type` value must have BC-2.16.002 catalog row |
+| AD-017 | project memory | Credentials never transit AI context — reference-only |
+| ADR-023 | .factory/specs/architecture/adr/ | Plugin migration — no legacy direct-adapter code; all sensors via spec-catalog |
+| ADR-022 | .factory/specs/architecture/adr/ | Production runtime wiring contract; Arc-DI, no placeholder-construct |
+| factory-artifacts LOCAL-ONLY | Orchestrator standing rule | No push to remote without explicit user authorization |
+
+---
+
+### §10. Lessons Codified from S-5.01-FOLLOWUP-MCP-BOOT Cascade
+
+- Cross-reviewer asymmetry is real — security found SEC-001 CWE-22 at pass 12 that LOCAL missed after 11 passes; pr-reviewer caught the shutdown race via CI log investigation at pass 8
+- PR-LEVEL cascade reliably catches production bugs LOCAL does not (2 structural bugs found in last 2 stories via PR-LEVEL only)
+- Sibling-sweep discipline (TD-VSDD-060) remains a high-value recurring defect class across `validate_text_field` extension sites
+- Paper-fix detection (TD-VSDD-059) is high-value — empirical probe required, implementer self-disclosure is NOT authoritative
+- Cross-platform pre-push gap: macOS-only pre-push misses Windows MSVC failures; CI is the safety net but adds latency
+- Process-gap: hardcoded `/tmp/` in test fixtures — convention candidate for CLAUDE.md or `.factory/policies.yaml`
+- Full cascade record: `.factory/code-delivery/S-5.01-FOLLOWUP-MCP-BOOT/{cascade-summary,convergence-trajectory,lessons}.md`
+
+---
+
+_Snapshot terminus: 2026-05-29. E2E demo wiring plan locked. 4 stories drafted. Ready for /clear. Resume with step 1: `vsdd-factory:factory-worktree-health`._
