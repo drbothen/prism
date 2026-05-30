@@ -8522,3 +8522,62 @@ _Snapshot terminus: 2026-05-30. Cyberint cascade at Step 4.5 mid-fix. Pass 1 fix
 **Anti-volatile-pin note (TD-VSDD-091):** All citations use story/BC/function-name/test-name anchors per TD-VSDD-091. Load-bearing line citations in local-pass-5.md (auth_provider.rs:358, :146-157, :287; harness cyberint.rs:168; clone.rs:111) accepted per TD-VSDD-091 carve-out for small code citations as load-bearing evidence in adversary pass reports.
 
 **Resume §7 step update:** Step 6 (Pass 1 complete), Step 7 (Pass 2 fix-burst COMPLETE), Step 8 (Pass 3 fix-burst COMPLETE, 4/4 findings closed), Step 9 (Pass 4 CLEAN(strict) streak 1/3), Step 10 (Pass 5 REJECTED — re-dispatch with grounds-truth preamble), Step 11 (Pass 5 REDUX CLEAN(strict) streak 2/3 — lesson 58 demonstrated). Next action = Pass 6 LOCAL adversary dispatch against feature HEAD `89aa9bd1`.
+
+## §ADDENDUM 2026-05-30-PASS-6-LOW-RESET-STREAK (D-862)
+
+**Pass 6 result:** CLEAN(strict) = NO (1 LOW finding F-LP6-LOW-001). CLEAN(PR-merge) = YES (zero CRIT/HIGH/MED).
+
+**Streak:** reset **2/3 → 0/3** per BC-5.39.001 D-779 strict criterion (1 LOW finding present).
+
+**Feature HEAD:** `89aa9bd1` — unchanged. No code changes needed. Defect is in story spec, not implementation.
+
+**Grounding-truth preamble:** Adversary confirmed worktree cwd + branch + HEAD per lesson 58. All probes operated on verified feature implementation. SAP-1, SAP-2, SID-1, cross-doc consistency, sibling-sweep all PASS. Pass 3 closures re-confirmed load-bearing. Adversary noted: `access_token_store` exists in harness clone (`crates/prism-dtu-harness/src/clones/cyberint.rs`), NOT in `prism-dtu-cyberint/src/`. Orchestrator preamble had wrong crate; pre-existing absence, not a defect.
+
+**F-LP6-LOW-001 — Test name BC prefix mis-anchor in story spec §Red Gate Tests table:**
+
+Four Red Gate test names in story spec (lines ~350-360) use BC ID prefixes that do not match the BC their descriptions cite:
+
+| Test name | Prefix | Description cites | Status |
+|-----------|--------|-------------------|--------|
+| `test_BC_2_01_013_dtu_extract_access_token_*` (AC-002) | BC-2.01.013 DataSource Trait | BC-2.01.017 §Postconditions | MISMATCH |
+| `test_BC_2_01_013_static_cookie_auth_provider_returns_api_key_without_http_call` (AC-005) | BC-2.01.013 DataSource Trait | BC-2.01.017 §Postconditions | MISMATCH |
+| `test_BC_2_01_016_static_cookie_auth_provider_acquire_token_no_http_call` (AC-006) | BC-2.01.016 SensorAuth Open Trait | BC-2.01.017 §Invariants | MISMATCH |
+| `test_BC_2_01_013_build_request_injects_access_token_cookie_for_cookie_roundtrip` (AC-007) | BC-2.01.013 DataSource Trait | BC-2.01.017 CookieRoundtrip | MISMATCH |
+
+DTU-side tests (AC-001, AC-003, AC-004) with `test_BC_2_16_013_*` prefix are CORRECT (BC-2.16.013 is the Cyberint DTU BC).
+
+Implementer faithfully copied these names from story spec per CLAUDE.md Source-of-Truth Precedence. Story-writer is the authoritative voice on test-naming convention (per CLAUDE.md Agent Routing Table). Two convention interpretations are possible:
+
+**(a) "Prefix by primary BC anchor" convention** — rename 4 test names to BC-2.01.017 prefix in story spec (v1.2 → v1.3) + dispatch implementer to rename matching tests in code. POL-4 semantic-anchoring satisfied.
+
+**(b) "Prefix by BC being proven" convention** — current names demonstrate that BC-2.01.013's invariant ("DataSource Trait eliminates per-sensor code duplication") holds by showing StaticCookieAuthProvider works without per-sensor code. Add inline convention note to story spec clarifying why current prefixes are correct. No code rename needed. POL-4 satisfied via convention documentation.
+
+**Story-writer dispatch requirements:**
+1. Declare which convention applies to this project (this is a prism-wide naming decision)
+2. If convention (a): update story spec §Red Gate Tests table — rename 4 test name cells to `test_BC_2_01_017_*` equivalent names; bump story spec version v1.2 → v1.3; dispatch implementer to rename matching code tests
+3. If convention (b): add inline convention note to story spec §Red Gate Tests table header or footnote; bump story spec version v1.2 → v1.3; no code rename needed
+4. After story spec update: dispatch Pass 7 LOCAL adversary to verify convention is clear and no new issues
+
+**D-LP6-001 deferred (CredentialResolutionError #[non_exhaustive]):**
+- Location: `prism-credentials/src/resolution.rs:19`
+- Pre-existing, project-wide concern; NOT introduced by this story
+- Routes to Phase 5 architectural pub-API audit (full workspace `#[non_exhaustive]` sweep)
+- CLAUDE.md Rule 3 compliance: pre-existing + future phase dependency + not AI-default defer of in-scope work
+- NOT a TD entry for this story
+
+**Cascade state after Pass 6:**
+- Streak: **0/3** (reset per D-779 strict criterion — 1 LOW finding)
+- Status: PASS_6_LOW_FINDING_F_LP6_LOW_001_REQUIRES_STORY_WRITER_ADJUDICATION
+- Feature HEAD: `89aa9bd1` (unchanged)
+- Next action: Story-writer adjudicates F-LP6-LOW-001 → (story spec update + implementer follow-on if convention a) → Pass 7
+
+**Re-cascade after fix:**
+- Pass 7, 8, 9 must ALL be CLEAN(strict) for streak 3/3 → LOCAL CONVERGED
+- Mandatory lesson 58 preamble applies to Pass 7+ (adversary must confirm cwd+branch+HEAD before probes)
+- If story-writer chooses convention (b) (no rename), implementer dispatch is NOT required; story spec update alone suffices; story-writer may update story spec + dispatch state-manager directly
+
+**D-862 burst marker:** This burst (D-862 state-manager) records Pass 6 1 LOW finding. Artifacts written: adversarial-review/local-pass-6.md (new), adversary-convergence-state.json pass-6 entry + current_streak=0 + status=PASS_6_LOW_FINDING_F_LP6_LOW_001_REQUIRES_STORY_WRITER_ADJUDICATION (updated), STATE.md v7.547, SESSION-HANDOFF.md §ADDENDUM 2026-05-30-PASS-6-LOW-RESET-STREAK (this section).
+
+**Anti-volatile-pin note (TD-VSDD-091):** All citations use story/BC/function-name/test-name anchors per TD-VSDD-091. Load-bearing line citations in local-pass-6.md (lines ~350-360 story spec) accepted per TD-VSDD-091 carve-out for load-bearing evidence in adversary pass reports.
+
+**Resume §7 step update:** Step 6 (Pass 1 complete), Step 7 (Pass 2 fix-burst COMPLETE), Step 8 (Pass 3 fix-burst COMPLETE, 4/4 findings closed), Step 9 (Pass 4 CLEAN(strict) streak 1/3), Step 10 (Pass 5 REJECTED — lesson 58 codified), Step 11 (Pass 5 REDUX CLEAN(strict) streak 2/3), Step 12 (Pass 6 NOT CLEAN(strict) — 1 LOW F-LP6-LOW-001; streak reset 0/3; story-writer adjudication → Pass 7). Next action = story-writer dispatch to adjudicate F-LP6-LOW-001 convention.

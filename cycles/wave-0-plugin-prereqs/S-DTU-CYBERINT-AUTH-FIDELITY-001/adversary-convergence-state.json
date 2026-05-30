@@ -172,9 +172,49 @@
       "state_manager_commit": "TBD (D-861 this burst)"
     }
   ],
-  "current_streak": 2,
+    {
+      "pass": 6,
+      "date": "2026-05-30",
+      "clean_strict": false,
+      "clean_pr_merge": true,
+      "findings_count": 1,
+      "findings_by_severity": {
+        "CRIT": 0,
+        "HIGH": 0,
+        "MED": 0,
+        "LOW": 1,
+        "OBS": 0,
+        "PROCESS-GAP": 0
+      },
+      "streak": 0,
+      "novelty": "LOW",
+      "feature_head_at_pass": "89aa9bd1",
+      "key_finding": "F-LP6-LOW-001 — Red Gate test name BC prefix mis-anchor in story spec §Red Gate Tests table (4 test names use BC-2.01.013/BC-2.01.016 prefix; descriptions cite BC-2.01.017). POL-4 semantic anchoring concern. Convention adjudication required from story-writer.",
+      "deferred_findings": [
+        {
+          "finding_id": "D-LP6-001",
+          "category": "pre-existing-project-wide",
+          "description": "CredentialResolutionError enum at prism-credentials/src/resolution.rs:19 lacks #[non_exhaustive]",
+          "deferral_target": "Phase 5 architectural pub-API audit",
+          "not_introduced_by": "S-DTU-CYBERINT-AUTH-FIDELITY-001",
+          "rule_3_compliance": "pre-existing + future phase dependency (Phase 5 pub-API audit) + not AI-default defer of in-scope work"
+        }
+      ],
+      "state_manager_commit": "TBD (D-862 this burst)"
+    }
+  ],
+  "current_streak": 0,
   "target_streak": 3,
-  "status": "PASS_5_REDUX_CLEAN_STRICT_STREAK_2_OF_3",
-  "next_action": "Dispatch Pass 6 LOCAL adversary against feature HEAD 89aa9bd1 (final pass). If CLEAN(strict) → streak 3/3 LOCAL CONVERGED. Then demo-recorder → push → PR cycle.",
+  "status": "PASS_6_LOW_FINDING_F_LP6_LOW_001_REQUIRES_STORY_WRITER_ADJUDICATION",
+  "next_action": "Dispatch story-writer to adjudicate F-LP6-LOW-001 test-name convention. Either (a) rename 4 test names to BC-2.01.017 prefix in story spec v1.2→v1.3 + dispatch implementer follow-on, OR (b) add inline convention note documenting why current prefixes are correct (BC being proven vs BC being exercised). Then restart 3-CLEAN streak from Pass 7.",
+  "deferred_findings": [
+    {
+      "finding_id": "D-LP6-001",
+      "category": "pre-existing-project-wide",
+      "description": "CredentialResolutionError enum at prism-credentials/src/resolution.rs:19 lacks #[non_exhaustive]",
+      "deferral_target": "Phase 5 architectural pub-API audit",
+      "not_introduced_by": "S-DTU-CYBERINT-AUTH-FIDELITY-001"
+    }
+  ],
   "protocol": "BC-5.39.001 3-CLEAN (D-779 amendment: strict=zero all severities for streak; PR-merge=zero CRIT+HIGH+MED)"
 }
