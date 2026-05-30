@@ -1,0 +1,37 @@
+{
+  "cycle": "wave-0-plugin-prereqs",
+  "story_id": "S-DTU-CYBERINT-AUTH-FIDELITY-001",
+  "passes": [
+    {
+      "pass": 1,
+      "date": "2026-05-30",
+      "clean_strict": false,
+      "clean_pr_merge": false,
+      "findings_count": 13,
+      "findings_by_severity": {
+        "CRIT": 2,
+        "HIGH": 4,
+        "MED": 4,
+        "LOW": 2,
+        "OBS": 1
+      },
+      "streak": 0,
+      "novelty": "HIGH",
+      "feature_head_at_pass": "dba6eb95",
+      "blocked_on": "F-LP1-CRIT-001 — architect harness-clone audit required before fix-burst dispatch",
+      "architect_dispatch_agent_id": "a1161dc86ddae5c53",
+      "architect_decision_committed": "12378e35",
+      "architect_pattern_decision": "Pattern B (in-place rewrite) for Cyberint harness; Scope-1 (in-current-story) expansion",
+      "architect_scope_expansion_deliverables": [
+        "crates/prism-dtu-harness/src/clones/cyberint.rs: rewrite auth model (access_token cookie, no POST /login, access_token_store)",
+        "rg 'cyberint_session|/login' crates/prism-dtu-harness/ must return zero hits after fix",
+        "ALL harness tests that reference cyberint_session or POST /login must be updated"
+      ]
+    }
+  ],
+  "current_streak": 0,
+  "target_streak": 3,
+  "status": "ARCHITECT_DECISION_COMMITTED_READY_FOR_PASS2_PREP",
+  "next_action": "Dispatch implementer for Pass 1 fix-burst (F-LP1-CRIT-001 + F-LP1-CRIT-002 + F-LP1-HIGH-001..004 + F-LP1-MED-001/003/004 + F-LP1-LOW-001/002) + dispatch product-owner for F-LP1-MED-002 (BC-2.01.017 EC-017-005 E-AUTH-005 vs E-AUTH-006 decision); then Pass 2 adversary",
+  "protocol": "BC-5.39.001 3-CLEAN (D-779 amendment: strict=zero all severities for streak; PR-merge=zero CRIT+HIGH+MED)"
+}

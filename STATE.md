@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.537"
+version: "7.538"
 producer: state-manager
-timestamp: 2026-05-29T23:59:30Z
+timestamp: 2026-05-30T02:30:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -13,10 +13,17 @@ phase: 3
 status: in_progress
 started: 2026-04-13
 repos: [poller-cobra, poller-express, poller-bear, poller-coaster, serveMyAPI, tally, axiathon, ocsf-proto-gen, mcp-claroty-xdome]
-safe_to_compact: false
-pre_compact_snapshot: "SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-27-PLUGIN-MIGRATION-SAGA-CLOSED"
-pre_compact_snapshot_at: "2026-05-27 (D-841 SESSION CHECKPOINT; Plugin migration 16/16 CLOSED; S-SPEC-TYPE-UNIFICATION-001 PR #161 MERGED; develop@af79f160; 3711 tests; state-final for /clear-resume)"
-current_step: "D-850 deliver-story prereq satisfaction — S-DTU-CYBERINT-AUTH-FIDELITY-001 promoted ready v1.2; sprint-state.yaml created (first creation on prism). STATE v7.537; STORY-INDEX v2.212. Next: dispatch vsdd-factory:deliver-story for S-DTU-CYBERINT-AUTH-FIDELITY-001."
+safe_to_compact: true
+pre_compact_snapshot: "SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-30-CYBERINT-CASCADE-PASS-1-MID-FIX"
+pre_compact_snapshot_at: "2026-05-30 (D-851 PRE-CLEAR durability snapshot; Cyberint cascade Step 4.5 Pass 1 blocked on architect harness audit; architect background agent a1161dc86ddae5c53; architect decision committed 12378e35)"
+current_step: "D-851 — pre-clear durability snapshot. Cyberint per-story-delivery cascade at Step 4.5 mid-fix (Pass 1 BLOCKED resolved — architect committed 12378e35, Pattern B Scope-1, harness fix in-current-story). Next session: dispatch implementer for Pass 1 fixes (12 findings) + PO for F-LP1-MED-002, then Pass 2 adversary."
+cyberint_cascade_in_progress: true
+cyberint_cascade_step: "4.5 LOCAL adversary Pass 1 — fix-burst pending (architect decision committed)"
+cyberint_cascade_feature_head: "dba6eb95"
+architect_dispatch_in_flight_agent_id: "a1161dc86ddae5c53"
+architect_dispatch_in_flight_output_file: "/private/tmp/claude-501/-Users-jmagady-Dev-prism/a8e3ded8-cdc6-453c-9cff-061d64d5690e/tasks/a1161dc86ddae5c53.output"
+architect_dispatch_purpose: "HARNESS-DTU-FIDELITY-AUDIT 4 sensors + pattern decision + ADR-031 §D1 amendment"
+architect_dispatch_result_committed: "12378e35 — feat(architect/D-850): harness-clone DTU fidelity audit — ADR-031 §D7 scope expansion"
 e2e_demo_plan_locked: true
 e2e_demo_plan_document: ".factory/proposals/E2E-DEMO-WIRING-PLAN.md"
 e2e_demo_critical_path: "PLUGIN-MIGRATION-001-A → 001-E → S-CONFIG-MULTI-TENANT-OVERRIDE-001 → S-DEMO-001 → S-DEMO-002 → S-DEMO-003 → S-5.04-FIX-001"
@@ -256,9 +263,9 @@ historical_cycles: [phase-1-convergence, wave-3-multi-tenant, wave-4-operations]
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-29 (D-850 state-manager deliver-story prereq burst — Cyberint ready v1.2 + sprint-state.yaml created + STATE v7.537) |
-| **Current Phase** | Wave 3 Tier-3 complete — E2E demo wiring planned; TOML fidelity audit complete (develop@72baf413). Next: dispatch per-story-delivery in parallel worktrees for S-DTU-CYBERINT-AUTH-FIDELITY-001 + S-CONFIG-MULTI-TENANT-OVERRIDE-001. |
-| **Current Step** | D-850 — deliver-story prereq satisfaction complete. S-DTU-CYBERINT-AUTH-FIDELITY-001 promoted ready v1.2. sprint-state.yaml created (first creation on prism). STORY-INDEX v2.212. STATE v7.537. Next: vsdd-factory:deliver-story for S-DTU-CYBERINT-AUTH-FIDELITY-001. |
+| **Last Updated** | 2026-05-30 (D-851 state-manager pre-clear durability snapshot — Cyberint Pass 1 mid-fix + architect decision committed + STATE v7.538) |
+| **Current Phase** | Wave 3 Tier-3 complete — S-DTU-CYBERINT-AUTH-FIDELITY-001 per-story-delivery cascade at Step 4.5 (LOCAL adversary Pass 1 complete; fix-burst pending; architect Pattern B Scope-1 decision committed at 12378e35). develop@72baf413. |
+| **Current Step** | D-851 — pre-clear durability snapshot. Cyberint cascade: Pass 1 13 findings (2 CRIT + 4 HIGH + 4 MED + 2 LOW + 1 OBS). Architect committed 12378e35 (HARNESS-DTU-FIDELITY-AUDIT + ADR-031 §D7). Next: implementer fix-burst (12 open findings + harness scope expansion) + PO dispatch (F-LP1-MED-002), then Pass 2 adversary. |
 
 ## Phase Progress
 
@@ -315,6 +322,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-851 | 2026-05-30 | user + state-manager | **PRE-CLEAR DURABILITY SNAPSHOT — Cyberint cascade Step 4.5 mid-fix.** User direction 2026-05-30: context overused; capture durable state for /clear-and-resume in fresh session. This burst captures: (a) §RESUME SNAPSHOT 2026-05-30-CYBERINT-CASCADE-PASS-1-MID-FIX written to SESSION-HANDOFF.md (10 sections: D-846..851 session history, 9 user decisions, architect keystone ADR-031+BC-2.01.017, story execution order, 4 open questions including architect pattern/scope decisions, story BC anchors, 6-step resume protocol, active worktrees, standing rules, lessons 52+53); (b) STATE v7.537→v7.538 with safe_to_compact: true, pre_compact_snapshot pointer, cyberint cascade in-progress metadata (feature HEAD dba6eb95, architect agent a1161dc86ddae5c53, architect decision committed 12378e35); (c) 3 new cycle files created: adversary-convergence-state.json (Pass 1 state: 13 findings, streak 0/3, Pattern B Scope-1 architect decision), implementation/red-gate-log.md (Step 3 outcome: 12/16 fail todo!(), 4 pass structurally, commits 75bd39bd + 47ab523c + dba6eb95), adversarial-review/local-pass-1.md (full 13-finding table with routes and current status — F-LP1-CRIT-001 RESOLVED by 12378e35, all others OPEN); (d) D-851 decision row (this row). Architect's commit 12378e35 already landed on factory-artifacts BEFORE this burst: HARNESS-DTU-FIDELITY-AUDIT-2026-05-30.md v1.0 + ADR-031 v1.0→v1.1 §D7 + POLLER-DTU-FIDELITY-AUDIT addendum. Pass 1 fix-burst pending in new session. 251st consecutive single-commit per TD-VSDD-053. | plugin-migration | 2026-05-30 | Decided by: user (pre-clear directive) + state-manager (burst execution). Status: APPROVED |
 | D-850 | 2026-05-29 | user + state-manager | **deliver-story skill prereq satisfaction for S-DTU-CYBERINT-AUTH-FIDELITY-001 dispatch.** Two project-convention deviations from the vsdd-factory deliver-story skill's strict prereqs: (a) prism precedent is draft-at-dispatch with POL-14 auto-promotion at merge (PLUGIN-MIGRATION-001-A/B/C/D/E + S-CONFIG all entered cascade as draft); skill enforces strict `ready` at dispatch. User direction 2026-05-29: administrative status flip Cyberint v1.1 draft → v1.2 ready to satisfy skill prereq; no content/maturity change. BC-2.01.017 (new draft per PO b8cf19e1) and BC-2.16.013 will auto-promote draft→active at this story's merge per POL-14. (b) `.factory/stories/sprint-state.yaml` does not exist on prism (project uses STORY-INDEX + STATE as canonical state); user direction: create the file as derived view aligning with deliver-story skill expectation. Sprint state declares 9 active-dispatch stories (S-DTU-CYBERINT pending, S-CONFIG pending, plus 7 draft/stub) and 3 deferred-post-demo. Bumped STORY-INDEX v2.211→v2.212 with Cyberint row status annotation. STATE v7.536→v7.537. Codification candidate: lesson 54 [process-gap] for vsdd-factory skill prereq divergence from prism convention — opportunity to amend skill upstream or formalize prism override in CLAUDE.md §Conventions. Also: traceability for Claroty story-writer commit 65cf835e (S-DEMO-CLAROTY-AUDIT-DTU-001 + S-DEMO-CLAROTY-PAGINATION-001 materialized; STORY-INDEX v2.210→v2.211; BC-2.16.002 POST-body-vs-GET-URL dispatch clause gap surfaced for PO follow-up). 250th consecutive single-commit per TD-VSDD-053. | plugin-migration | 2026-05-29 | Decided by: user (prereq fix authorization) + state-manager (burst execution). Status: APPROVED |
 | D-849 | 2026-05-29 | story-writer + product-owner + state-manager + orchestrator | **Multi-burst E-DEMO critical-path readiness cascade — S-DTU-CYBERINT-AUTH-FIDELITY-001 v1.1 + S-CONFIG-MULTI-TENANT-OVERRIDE-001 v1.2 ready for per-story-delivery dispatch.** This single decision row records the cumulative result of 3 prep bursts: (a) D-849-prep-a story-writer materialized S-DTU-CYBERINT-AUTH-FIDELITY-001 from stub to v1.0 (8 pts, 11 ACs split 4 DTU + 7 prism, depends only on PLUGIN-MIGRATION-001-A merged) AND refined S-CONFIG-MULTI-TENANT-OVERRIDE-001 v0.2 → v1.1 (added AC-008 paper-fix-resistance per D-823, AC-009 DTU emulation surfacing S-DEMO-MULTI-TENANT-DTU-001 stub need); story-writer surfaced 2 concerns at b0c3a87f: BC gap for StaticCookieAuthProvider + S-CONFIG status blocker. (b) D-849-prep-b product-owner authored BC-2.01.017 (Static Cookie AuthProvider Contract — No-Login-Roundtrip Cookie Injection) covering ADR-031 §D1-b no-HTTP-call invariant + 4 error cases + 9 edge cases + 8 canonical TVs; allocated E-AUTH-006 in error-taxonomy.md v1.52→v1.53 (empty/whitespace/RFC6265-illegal-chars/oversized api_key); updated BC-2.01.016 v1.11→v1.12 + BC-2.16.013 v1.16→v1.17 with cross-refs; assessment of BC-2.06.012-016 returned ALL ACTIVE per BC-INDEX v5.52 (POL-14 auto-promoted at S-CONFIG merge develop@3e822522 2026-05-26) — story-writer's "draft-gate blocking S-CONFIG" concern was based on stale frontmatter inspection; no S-7.01 violation; S-CONFIG can promote ready; BC-INDEX v5.55→v5.56 at b8cf19e1. (c) D-849-prep-c story-writer propagated BC-2.01.017 into Cyberint story body+ACs (frontmatter array, body table, AC-005/006/010 citations, Red Gate table — caught + fixed in-scope a missing RG entry); flipped S-CONFIG v1.1 → v1.2 status draft→ready; STORY-INDEX v2.208→v2.209 at 10c3804a. (d) This D-849 final reconciliation: Claroty stub re-prioritizations per user decisions (audit_logs YES + pagination >100 rows YES → both elevate to P1-pre-demo-BLOCKING); registered new stub S-DEMO-MULTI-TENANT-DTU-001 (P2; surfaced by S-CONFIG AC-009; total_stories 165→166); lesson 53 [process-gap] for recurring direct-push pattern (architect D-846 success + state-manager D-848 attempt blocked); 2 architect-side drift items queued (ADR-031 related_bcs missing BC-2.01.017; VP-TBD No-HTTP-Call invariant); STORY-INDEX v2.209→v2.210 final; STATE v7.535→v7.536. ALL pre-demo work primary-blocked by: S-DTU-CYBERINT-AUTH-FIDELITY-001 + S-CONFIG-MULTI-TENANT-OVERRIDE-001 + S-DEMO-CLAROTY-AUDIT-DTU-001 + S-DEMO-CLAROTY-PAGINATION-001 → S-DEMO-001 keystone. 249th consecutive single-commit per TD-VSDD-053. | plugin-migration | 2026-05-29 | Decided by: orchestrator (cascade dispatch sequencing) + user (2 Claroty decisions) + product-owner (BC-2.01.017 authoring) + story-writer (story materialization + propagation) + state-manager (D-849 final reconciliation). Status: APPROVED |
 | D-848 | 2026-05-29 | state-manager | **D-847 PROPAGATION CLEANUP — STORY-INDEX stub annotations + lessons codification.** Architect's D-847 burst (commit 9d67fe8f) authored ADR-031 + audit v1.1 + S-DEMO-001 v1.3 but did not propagate audit §6.3 stub re-classifications to STORY-INDEX rows nor add the principle-codification lesson entry. This burst closes both: (a) 5 non-Cyberint stub rows annotated with audit DTU-change + blocking dispositions (priorities unchanged per architect's deliberate classification): S-DEMO-CLAROTY-PAGINATION-001 [DTU: NO — pipeline only; Soft-blocking if demo >100 rows]; S-DEMO-CLAROTY-AUDIT-DTU-001 [DTU: YES — add /api/v1/audit_log/get route; Blocking: CONDITIONAL on demo script]; S-DEMO-CLAROTY-TRAILING-SLASH-001 [DTU: YES — verify axum trailing-slash; Non-blocking]; S-DEMO-ARMIS-AQL-001 [DTU: YES — AQL route + TOML + pipeline; Non-blocking per ADR-031 §D2]; S-DEMO-CROWDSTRIKE-MULTIREGION-001 [DTU: YES — multi-region DTU config; Non-blocking]; (b) lesson 52 [principle-codification] added to cycles/wave-0-plugin-prereqs/lessons.md establishing DTU=True-DTU as binding rule (≥350 words covering: binding rule, pattern that triggered codification, user direction 2026-05-29, supersession trail ADR-028 §D12→ADR-031 §D4, validation discipline SAP-2 + ADR-003 §D3, implementation evidence S-DTU-CYBERINT-AUTH-FIDELITY-001 P0 + ADR-031 §D6, forward implication for all future DTU work). POL-NN not registered — architect's ADR-031 §D5 deferred to existing SAP-2 + ADR-003 §D3 validation discipline (no new policy needed). STORY-INDEX v2.206→v2.207. STATE v7.534→v7.535. 248th consecutive single-commit per TD-VSDD-053. | plugin-migration | 2026-05-29 | Decided by: state-manager (D-847 propagation cleanup). Status: APPROVED |
@@ -489,34 +497,42 @@ Prior cycle history:
 
 ---
 
-## Session Resume Checkpoint (2026-05-29 — D-850 deliver-story prereq burst; develop@72baf413)
+## Session Resume Checkpoint (2026-05-30 — D-851 pre-clear durability snapshot; develop@72baf413)
 
-_Previous checkpoint (D-849 E-DEMO critical-path readiness cascade; develop@72baf413) superseded by D-850 deliver-story prereq burst._
+_Previous checkpoint (D-850 deliver-story prereq burst; develop@72baf413) superseded by D-851 pre-clear durability snapshot._
 
-**STATE v7.537. D-850 — deliver-story prereq satisfaction complete: S-DTU-CYBERINT-AUTH-FIDELITY-001 promoted ready v1.2 (administrative flip per user direction; no content change). sprint-state.yaml created (first creation on prism; derived view for deliver-story skill compatibility). BC-INDEX v5.56. STORY-INDEX v2.212 (total_stories 166). develop@72baf413 (unchanged).**
+**STATE v7.538. D-851 — PRE-CLEAR DURABILITY SNAPSHOT. Cyberint per-story-delivery cascade at Step 4.5: LOCAL adversary Pass 1 complete (13 findings; 2 CRIT + 4 HIGH + 4 MED + 2 LOW + 1 OBS). Architect committed 12378e35 (Pattern B Scope-1, harness fix in current story, ADR-031 §D7). Fix-burst pending. develop@72baf413. Feature branch feature/S-DTU-CYBERINT-AUTH-FIDELITY-001@dba6eb95.**
 
-**develop HEAD:** `72baf413` | **Workspace test count:** 3718 | **e2e_demo_plan_locked:** true | **e2e_demo_estimated_sessions:** ~5-6
+**develop HEAD:** `72baf413` | **Workspace test count:** 3718 | **Feature branch HEAD:** `dba6eb95` | **Cyberint cascade streak:** 0/3
 
-**Critical path (next actions):**
-1. **[DISPATCH IN PARALLEL — two worktrees]**
-   - S-DTU-CYBERINT-AUTH-FIDELITY-001 (P0-pre-demo-BLOCKING, **ready v1.2**) → `vsdd-factory:deliver-story` [DTU remove POST /login, StaticCookieAuthProvider, Cookie: access_token injection]
-   - S-CONFIG-MULTI-TENANT-OVERRIDE-001 (P0, ready v1.2) → `vsdd-factory:deliver-story` [per-org overlay loading, ADR-029]
-2. After both merge: S-DEMO-CLAROTY-AUDIT-DTU-001 + S-DEMO-CLAROTY-PAGINATION-001 (both P1-pre-demo-BLOCKING, draft v1.0) → parallel per-story-delivery
-3. S-DEMO-001 (P0, draft v1.3, KEYSTONE) → per-story-delivery after #1 + #2
-4. S-DEMO-002 (P0, draft v1.2) → per-story-delivery after S-DEMO-001
-5. S-DEMO-003 (P1, draft) + S-5.04-FIX-001 (P2, factory-only) → per-story-delivery in parallel
+**Critical path (next actions for new session):**
+1. **READ `SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-30-CYBERINT-CASCADE-PASS-1-MID-FIX`** — full 10-section snapshot with all context
+2. **Dispatch implementer fix-burst** in worktree `.worktrees/S-DTU-CYBERINT-AUTH-FIDELITY-001/` against feature HEAD `dba6eb95`:
+   - F-LP1-CRIT-001 (harness clone — Pattern B per 12378e35 §8 deliverables: rename extract_session_token → extract_access_token, remove POST /login, rename session_store → access_token_store, add register_access_token, update check_auth, update reset)
+   - F-LP1-CRIT-002 (cyberint.sensor.toml grounding comment)
+   - F-LP1-HIGH-001/002/003/004 (doc-comment session_store references)
+   - F-LP1-MED-001 (DRY: extract shared auth helper)
+   - F-LP1-MED-003 (parity test comment)
+   - F-LP1-MED-004 (secrecy::SecretString::new deprecation)
+   - F-LP1-LOW-001 (routes/auth.rs placeholder removal)
+   - F-LP1-LOW-002 (unsafe set_var refactor to MockCredentialResolver injection)
+3. **Dispatch product-owner** (concurrent with implementer): F-LP1-MED-002 (BC-2.01.017 EC-017-005: E-AUTH-005 vs E-AUTH-006 adjudication)
+4. After implementer fix-burst + PO adjudication: **Pass 2 adversary dispatch**
+5. Continue cascade to 3-CLEAN convergence (BC-5.39.001)
 
 **Active worktrees:**
+- `.worktrees/S-DTU-CYBERINT-AUTH-FIDELITY-001` — IN PROGRESS (Pass 1 fix-burst pending; feature HEAD dba6eb95)
 - `.worktrees/S-3.09` — FROZEN (BUG-S309-PLUGIN), stale since 2026-05-11; deferred per user direction
 - `.worktrees/W3-FIX-S307-001` — BLOCKED (superseded), stale since 2026-05-24; deferred per user direction
 
 **Open PRs:** None.
 
-**Resume protocol (5 steps — see §RESUME SNAPSHOT 2026-05-29-E2E-DEMO-WIRING-PLAN-LOCKED §7 in SESSION-HANDOFF.md, updated D-849):**
+**Resume protocol (6 steps — full detail in §RESUME SNAPSHOT 2026-05-30-CYBERINT-CASCADE-PASS-1-MID-FIX §7):**
 1. Run `vsdd-factory:factory-worktree-health` (BLOCKING preflight)
-2. Read STATE.md frontmatter — confirm `version: "7.537"` and `develop_head: "72baf413"` (D-850 checkpoint)
-3. Read §RESUME SNAPSHOT 2026-05-29-E2E-DEMO-WIRING-PLAN-LOCKED in SESSION-HANDOFF.md (§4 + §7 updated D-849; still current)
-4. Read `.factory/proposals/E2E-DEMO-WIRING-PLAN.md` v1.3 + `ADR-031-dtu-equals-true-dtu-fidelity-principle.md`
-5. Dispatch S-DTU-CYBERINT-AUTH-FIDELITY-001 via `vsdd-factory:deliver-story` (ready v1.2; sprint-state.yaml present; skill prereqs satisfied)
+2. Read STATE.md frontmatter — confirm `version: "7.538"` and `develop_head: "72baf413"` (D-851 checkpoint)
+3. Read `SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-30-CYBERINT-CASCADE-PASS-1-MID-FIX`
+4. Check architect dispatch output and committed factory artifacts (12378e35 already landed)
+5. Verify architect's commit on factory-artifacts: `git -C .factory log --oneline | head -5`
+6. Dispatch implementer fix-burst + PO per F-LP1-MED-002, then Pass 2
 
 _Agent routing: see CLAUDE.md §Agent Routing Table._

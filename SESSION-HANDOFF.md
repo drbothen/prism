@@ -8048,3 +8048,223 @@ _Updated D-849 (2026-05-29): D-849 final reconciliation complete; S-DTU-CYBERINT
 ---
 
 _Snapshot terminus: 2026-05-29. E2E demo wiring plan locked. 4 stories drafted. Ready for /clear. Resume with step 1: `vsdd-factory:factory-worktree-health`._
+
+---
+
+## §RESUME SNAPSHOT 2026-05-30-CYBERINT-CASCADE-PASS-1-MID-FIX (D-851)
+
+**Snapshot created:** 2026-05-30 | **Reason:** Pre-/clear durability — Cyberint per-story-delivery cascade at Step 4.5 mid-fix (Pass 1 complete; architect decision committed; fix-burst pending) | **STATE version:** 7.538
+
+---
+
+### §1. What Just Completed This Session (D-846 through D-851)
+
+| D# | SHA (factory-artifacts) | Event | Detail |
+|----|------------------------|-------|--------|
+| D-846 | `877dd520` | state bookkeeping sweep | Direct-push retroactive acceptance (develop@72baf413 sensor-spec fidelity fixes). 001-A/B/E STORY-INDEX rows reconciled. 6 follow-up stubs registered. total_stories 159→165. Lesson 51. STATE v7.532→v7.533. |
+| D-847 | `9d67fe8f` | architect DTU=true-DTU principle codification | ADR-031 authored (6 fidelity requirements, Cyberint DTU correction). ADR-028 §D12 SUPERSEDED. POLLER-DTU-FIDELITY-AUDIT v1.0→v1.1. S-DEMO-001 v1.2→v1.3 (StaticCookieAuthProvider). S-DTU-CYBERINT-AUTH-FIDELITY-001 P0-pre-demo-BLOCKING. STATE v7.533→v7.534. |
+| D-848 | `bd9f3b44` | state D-847 propagation cleanup | 5 non-Cyberint stub rows annotated. Lesson 52 [principle-codification] DTU=true-DTU. STORY-INDEX v2.206→v2.207. STATE v7.534→v7.535. |
+| D-849-prep-a | `b0c3a87f` | story-writer S-DTU-CYBERINT materialization | S-DTU-CYBERINT-AUTH-FIDELITY-001 stub→v1.0 (8 pts, 11 ACs). S-CONFIG-MULTI-TENANT-OVERRIDE-001 v0.2→v1.1. |
+| D-849-prep-b | `b8cf19e1` | product-owner BC-2.01.017 authored | BC-2.01.017 StaticCookieAuthProvider contract. E-AUTH-006 allocated. error-taxonomy v1.52→v1.53. BC-INDEX v5.55→v5.56. |
+| D-849-prep-c | `10c3804a` | story-writer BC-2.01.017 propagation | BC-2.01.017 into Cyberint story body+ACs. S-CONFIG v1.1 draft→v1.2 ready. STORY-INDEX v2.208→v2.209. |
+| D-849 | `dd224f28` | state E-DEMO readiness final reconciliation | Claroty stubs elevated P1-pre-demo-BLOCKING. Lesson 53. STORY-INDEX v2.209→v2.210. STATE v7.535→v7.536. |
+| (mid) | `65cf835e` | story-writer Claroty stories materialized | S-DEMO-CLAROTY-AUDIT-DTU-001 + S-DEMO-CLAROTY-PAGINATION-001 draft v1.0. STORY-INDEX v2.210→v2.211. |
+| D-850 | `9f8a2fc7` | state deliver-story prereq prep | Cyberint v1.1 draft→v1.2 ready (administrative). sprint-state.yaml created. STORY-INDEX v2.211→v2.212. STATE v7.536→v7.537. |
+| D-850 (architect) | `12378e35` | architect harness-clone DTU fidelity audit | HARNESS-DTU-FIDELITY-AUDIT-2026-05-30.md v1.0 authored. ADR-031 v1.0→v1.1 §D7. Pattern B Scope-1 decision for Cyberint. All 4 harness clones audited. |
+| D-851 | (this burst) | state pre-clear durability snapshot | §RESUME SNAPSHOT written. STATE v7.538. safe_to_compact: true. 3 cycle files created. D-851 decision row. |
+
+**Per-story-delivery progress for S-DTU-CYBERINT-AUTH-FIDELITY-001:**
+
+| Step | Status | Commit(s) |
+|------|--------|-----------|
+| Step 1: devops-engineer created worktree | DONE | verified |
+| Step 2: test-writer Stub Architect stubs | DONE | `6fee66a3` |
+| Step 3: test-writer Red Gate failing tests | DONE | `75bd39bd` — 12/16 fail todo!(), 4 pass structurally |
+| Step 4: implementer TDD green | DONE | `47ab523c` (wip) + `dba6eb95` (step 4 exit conditions) — 3835/3836 pass; ZERO todo!() prod; Arc-DI CredentialResolver |
+| Step 4.5: LOCAL adversary Pass 1 | DONE (NOT CLEAN) | 13 findings; streak 0/3; architect dispatched |
+| Architect harness audit | DONE | `12378e35` — Pattern B Scope-1; ADR-031 §D7 |
+| Pass 1 fix-burst | PENDING | next session |
+| PO F-LP1-MED-002 adjudication | PENDING | next session |
+| Pass 2 adversary | PENDING | after fix-burst |
+
+---
+
+### §2. User Decisions Made This Session
+
+| Decision | Date | Authority |
+|----------|------|-----------|
+| Architect rescopes S-DEMO-001 for cookie_roundtrip per poller-express reference | 2026-05-29 | user (Option 1) |
+| DTU = true DTU principle: all DTU clones mirror real API exactly | 2026-05-29 | user direct |
+| Cyberint pre-demo (not post-demo); stories include DTU change scope | 2026-05-29 | user direct |
+| `claroty_audit_logs` IN demo → S-DEMO-CLAROTY-AUDIT-DTU-001 P1 pre-demo BLOCKING | 2026-05-29 | user choice |
+| Claroty queries >100 rows → S-DEMO-CLAROTY-PAGINATION-001 P1 pre-demo BLOCKING | 2026-05-29 | user choice |
+| Direct push 72baf413 accepted retroactively (D-846) | 2026-05-29 | user choice |
+| deliver-story prereqs fixed first: promote draft→ready + create sprint-state.yaml (D-850) | 2026-05-29 | user choice |
+| 72baf413 routing: accept bundled with Cyberint PR diff (not separate push develop) | 2026-05-29 | user choice |
+| F-LP1-CRIT-001 path: audit all 4 harness clones first, THEN architect picks unifying pattern | 2026-05-30 | user choice |
+
+---
+
+### §3. Architectural Keystone Status
+
+**Keystone 1 — BC-2.01.017 (D-849, authored by PO at `b8cf19e1`):**
+BC-2.01.017 StaticCookieAuthProvider — No-Login-Roundtrip Cookie Injection. Covers ADR-031 §D1-b invariant: `acquire_token` MUST inject `access_token` header directly from resolved api_key WITHOUT HTTP calls. 4 error cases, 9 edge cases, 8 canonical test vectors. E-AUTH-006 allocated for resolver failures.
+
+**OPEN QUESTION (F-LP1-MED-002):** BC-2.01.017 §Error Cases EC-017-005 mandates E-AUTH-006 for empty resolved api_key. But implementation at `dba6eb95` returns E-AUTH-005 on the resolver path. BC is source-of-truth (CLAUDE.md §Source-of-Truth Precedence). PO must adjudicate: amend BC to E-AUTH-005, or implementer fixes impl to return E-AUTH-006. Production-grade default: fix impl.
+
+**Keystone 2 — ADR-031 DTU=true-DTU Fidelity Principle (D-847, v1.0→v1.1 at `12378e35`):**
+Binding principle for ALL DTU clones including `prism-dtu-harness/src/clones/`. §D7 added by architect: harness-clones path is in scope. Cyberint harness correction is Pattern B Scope-1 (same story as canonical DTU).
+
+**GAP-002-A (AdapterRegistry empty at boot) — STILL the demo keystone:**
+GAP-002-A remains the architectural blocker for E2E demo. Closure pattern unchanged: `SpecDrivenSensorAdapter` in `crates/prism-bin/src/spec_driven_adapter.rs` + boot step 9A. Full plan: `.factory/proposals/E2E-DEMO-WIRING-PLAN.md` (679 lines, v1.3).
+
+---
+
+### §4. Story Execution Order (Critical Path)
+
+_Updated D-851 (2026-05-30): Cyberint cascade at Step 4.5 in-flight. Architect decision committed 12378e35. Harness scope expansion in-current-story per Scope-1._
+
+```
+[IN FLIGHT — .worktrees/S-DTU-CYBERINT-AUTH-FIDELITY-001 @ dba6eb95:]
+  S-DTU-CYBERINT-AUTH-FIDELITY-001 (P0-pre-demo-BLOCKING, ready v1.2, 8 pts)
+    Step 4.5: Pass 1 fix-burst pending (12 findings + harness scope expansion)
+    + PO adjudication: F-LP1-MED-002 (E-AUTH-005 vs E-AUTH-006)
+    → Pass 2 adversary → cascade to 3-CLEAN → demo-recorder → push → PR cycle
+
+[PARALLEL — NOT YET STARTED:]
+  S-CONFIG-MULTI-TENANT-OVERRIDE-001 (P0 critical-path, ready v1.2)
+    → dispatch per-story-delivery [per-org overlay loading, ADR-029]
+    NOTE: was planned in parallel with Cyberint; still pending dispatch
+
+        ↓ (both S-DTU-CYBERINT + S-CONFIG must merge before:)
+
+[BOTH parallel — Claroty pre-demo fidelity:]
+  S-DEMO-CLAROTY-AUDIT-DTU-001 (P1-pre-demo-BLOCKING, draft v1.0)
+    → per-story-delivery [DTU /api/v1/audit_log/get — add route to BOTH
+       prism-dtu-claroty AND prism-dtu-harness/src/clones/claroty.rs per 12378e35 §7]
+  S-DEMO-CLAROTY-PAGINATION-001 (P1-pre-demo-BLOCKING, draft v1.0)
+    → per-story-delivery [pipeline OffsetLimit POST body fix]
+
+        ↓
+
+S-DEMO-001 (P0 KEYSTONE, draft v1.3, closes GAP-002-A)
+  → per-story-delivery [SpecDrivenSensorAdapter + boot step 9A]
+
+        ↓
+
+S-DEMO-002 (P0, ready v1.2, multi-org E2E smoke test) → per-story-delivery
+
+        ↓
+
+[parallel:]
+  S-DEMO-003 (P1, draft) → story-writer materialize → per-story-delivery
+  S-5.04-FIX-001 (P2, draft) → per-story-delivery [factory-only]
+  S-DEMO-MULTI-TENANT-DTU-001 (P2, stub) → story-writer materialize → per-story-delivery
+  (3 P2/P3 post-demo follow-ups: Claroty-trailing-slash, Armis-AQL, CrowdStrike-multiregion)
+```
+
+**Critical path session estimate:** ~5-6 sessions (Cyberint cascade in progress; previously 5-6)
+
+---
+
+### §5. Open Questions for Next Session
+
+| OQ | Story | Question | Status |
+|----|-------|---------|--------|
+| OQ-MED-002 | S-DTU-CYBERINT | F-LP1-MED-002: BC-2.01.017 EC-017-005 mandates E-AUTH-006 for empty resolved api_key, but impl returns E-AUTH-005. BC is SoT. PO must adjudicate: amend BC or fix impl. Production-grade default: fix impl to return E-AUTH-006. | OPEN — PO dispatch pending |
+| OQ-ARCH | Architect decisions | Were all architect decisions from 12378e35 consumed correctly? Verify: (1) HARNESS-DTU-FIDELITY-AUDIT-2026-05-30.md §8 scope expansion deliverables understood by implementer; (2) ADR-031 §D7 contains harness-clone scope enumeration; (3) DRIFT-D849-001 (ADR-031 related_bcs missing BC-2.01.017) — check if 12378e35 also resolved this | RESOLVED by 12378e35 (pattern+scope committed) — verify DRIFT-D849-001 closure |
+| OQ-3 | S-DEMO-002 | Windows CI for subprocess teardown — `#[cfg(unix)]` gate for SIGTERM vs Windows taskkill path | OPEN |
+| OQ-4 | S-DEMO-003 | `rpassword` crate — workspace-level dependency or prism-bin only? | OPEN |
+| OQ-5 | S-DEMO-003 | Exact committed path of `crowdstrike-oauth2.prx` artifact from S-PLUGIN-CI-001 | OPEN |
+| OQ-DRIFT-D849-002 | formal-verifier | VP-TBD No-HTTP-Call invariant during StaticCookieAuthProvider::acquire_token — VP-NNN allocation + proof harness skeleton | OPEN — architect or formal-verifier dispatch |
+
+---
+
+### §6. Story BC Anchors (Current State)
+
+| Story | BCs | Status in BC-INDEX |
+|-------|-----|--------------------|
+| S-DTU-CYBERINT-AUTH-FIDELITY-001 (IN FLIGHT) | BC-2.01.017, BC-2.16.013 | draft (will auto-promote draft→active at PR merge per POL-14) |
+| S-CONFIG-MULTI-TENANT-OVERRIDE-001 | BC-2.06.014, BC-2.22.001 | active / active |
+| S-DEMO-001 | BC-2.01.013, BC-2.11.005, BC-2.06.014, BC-2.22.001 | active / draft / active / active |
+| S-DEMO-002 | BC-2.11.001, BC-2.11.005, BC-2.09.008, BC-2.10.001, BC-2.10.010 | draft / draft / active / active / active |
+| S-DEMO-003 | BC-2.03.005, BC-2.03.007, BC-2.06.001, BC-2.22.001 | draft / draft / draft / active |
+| S-5.04-FIX-001 | BC-2.08.001 | draft |
+
+BC-INDEX version: **v5.56** | Error taxonomy version: **v1.53**
+
+---
+
+### §7. Resume Protocol (6 Steps — Zero Prior Context Required)
+
+_D-851 (2026-05-30): Cyberint cascade at Step 4.5. Architect decision committed 12378e35. Pass 1 fix-burst pending. PO F-LP1-MED-002 adjudication pending._
+
+1. **Run `vsdd-factory:factory-worktree-health`** (BLOCKING preflight — must pass before any other action)
+2. **Read `STATE.md` frontmatter** — confirm `version: "7.538"` and `develop_head: "72baf413"` and `cyberint_cascade_in_progress: true` (D-851 most-recent checkpoint)
+3. **Read this §RESUME SNAPSHOT 2026-05-30-CYBERINT-CASCADE-PASS-1-MID-FIX** (you are reading it now)
+4. **Check architect dispatch result** — the architect's work is already committed:
+   - `git -C .factory log --oneline | head -5` — verify `12378e35` is present
+   - Read `.factory/proposals/HARNESS-DTU-FIDELITY-AUDIT-2026-05-30.md` §6 (Pattern decision) + §7 (Scope decision) + §8 (scope expansion deliverables for S-DTU-CYBERINT)
+   - Read `.factory/specs/architecture/decisions/ADR-031-dtu-equals-true-dtu-fidelity-principle.md` v1.1 §D7 (harness-clone scope)
+5. **Verify architect's output file (if desired):** `cat "/private/tmp/claude-501/-Users-jmagady-Dev-prism/a8e3ded8-cdc6-453c-9cff-061d64d5690e/tasks/a1161dc86ddae5c53.output" | tail -100` — note: architect's committed factory-artifacts work (12378e35) is the authoritative source; tmp output is supplementary
+6. **Dispatch Pass 1 fix-burst (two parallel dispatches):**
+   - **Implementer dispatch** in worktree `.worktrees/S-DTU-CYBERINT-AUTH-FIDELITY-001/` against feature HEAD `dba6eb95`. Fix all 12 open findings: F-LP1-CRIT-001 (harness clone expansion per HARNESS-DTU-FIDELITY-AUDIT §8), F-LP1-CRIT-002, F-LP1-HIGH-001 through 004, F-LP1-MED-001/003/004, F-LP1-LOW-001/002. Verify `rg 'cyberint_session|/login' crates/prism-dtu-harness/` = zero hits. Run `just check` at end of fix-burst.
+   - **Product-owner dispatch** (concurrent): F-LP1-MED-002 adjudication — BC-2.01.017 EC-017-005: E-AUTH-005 vs E-AUTH-006. PO must decide: (a) amend BC EC-017-005 to mandate E-AUTH-005 (implementation wins), or (b) PO affirms E-AUTH-006 is correct (BC wins, implementer fixes the error code return in fix-burst). Production-grade default per CLAUDE.md: BC is SoT, fix impl to return E-AUTH-006.
+   - After both: **Pass 2 adversary dispatch** → cascade to 3-CLEAN → demo-recorder → push → PR lifecycle
+
+**CRITICAL CONSTRAINT:** Do NOT push to remote (factory-artifacts or any branch) without explicit user authorization. Lesson 53: recurring direct-push pattern caught 5+ times this session. factory-artifacts LOCAL-ONLY per CLAUDE.md.
+
+---
+
+### §8. Active Worktrees
+
+| Worktree | Branch | Status | Action |
+|----------|--------|--------|--------|
+| `.worktrees/S-DTU-CYBERINT-AUTH-FIDELITY-001` | `feature/S-DTU-CYBERINT-AUTH-FIDELITY-001` | IN PROGRESS @ `dba6eb95` | Pass 1 fix-burst pending in next session |
+| `.worktrees/S-3.02-FOLLOWUP-RUNTIME` | (merged) | pending cleanup | PR #162 merged 2026-05-28; low priority |
+| `.worktrees/S-3.09` | (stale) | FROZEN (BUG-S309-PLUGIN) | Stale since 2026-05-11; deferred per user direction |
+| `.worktrees/W3-FIX-S307-001` | (stale) | BLOCKED (superseded by ADR-023) | Stale since 2026-05-24; deferred per user direction |
+
+**Open PRs:** None.
+
+**Develop HEAD:** `72baf413` (1 ahead of origin; will bundle with Cyberint PR per user decision 2026-05-29)
+
+---
+
+### §9. Standing Operational Rules (Do Not Lose)
+
+| Rule | Authority | Description |
+|------|-----------|-------------|
+| No pragmatic convergence | User directive (persistent; `user_directive_persistent` in STATE.md) | Fix all issues before build — no "good enough for now" |
+| CANONICAL PRINCIPLE | CLAUDE.md §Canonical Principle | Production-grade default; no MVP deferrals; tech debt register for human-directed deferrals only |
+| Per-story-delivery cycle | VSDD workflow | 8-step: stubs → red-gate → TDD → adversary 3-CLEAN → demo → push → PR → state-burst |
+| BC-5.39.001 | CLAUDE.md §Operational Discipline | 3-CLEAN strict (zero findings ALL severities) for streak advancement; PR-merge = zero CRIT+HIGH+MED only. D-779 dual-CLEAN amendment. |
+| TD-VSDD-053 | CLAUDE.md | Single-commit-per-burst in .factory/ |
+| TD-VSDD-059 | CLAUDE.md | Paper-fix detection — empirical probe > paper-trust |
+| TD-VSDD-060 | CLAUDE.md | Sibling-sweep on value changes (all callsites) |
+| TD-VSDD-091 | CLAUDE.md | Anti-volatile-pin — use story IDs/symbol anchors, NOT raw line numbers |
+| POL-14 | policies.yaml | BC auto-promotion draft→active at story PR merge |
+| SAP-1 | CLAUDE.md §Standing Adversary Probes | Every `event_type` value must have BC-2.16.002 catalog row; violation = P1 finding |
+| SAP-2 | CLAUDE.md §Standing Adversary Probes | DTU↔TOML schema parity check for every sensor-spec story pass |
+| SID-1 | CLAUDE.md §Standing Adversary Probes | No-ignored-test rationalization — unit test must drive behavior without external dep |
+| AD-017 | project memory | Credentials never transit AI context — reference-only model |
+| ADR-023 | .factory/specs/architecture/adr/ | Plugin migration — no legacy direct-adapter code; all sensors via spec-catalog |
+| ADR-022 | .factory/specs/architecture/adr/ | Production runtime wiring contract; Arc-DI, no placeholder-construct |
+| ADR-031 v1.1 | .factory/specs/architecture/decisions/ | DTU=true-DTU fidelity principle; NOW includes harness-clones scope (§D7 added 12378e35) |
+| factory-artifacts LOCAL-ONLY | Orchestrator standing rule | **NO push to remote without EXPLICIT user authorization.** Lesson 53: 5+ direct-push violations caught this session. |
+
+---
+
+### §10. Lessons Codified This Session
+
+**Lesson 52 [principle-codification] — DTU=true-DTU binding rule (D-848, 2026-05-29):**
+ADR-031 §D1 states all 6 fidelity requirements are BINDING, not aspirational. The POLLER-DTU-FIDELITY-AUDIT was incomplete: it inspected `crates/prism-dtu-{sensor}/src/` paths but NOT `crates/prism-dtu-harness/src/clones/` — yielding a false-clean assessment for Cyberint harness. ADR-031 v1.1 §D7 now explicitly enumerates the harness-clones path as in-scope for all future DTU fidelity audits. Adversary must include `crates/prism-dtu-harness/src/clones/{sensor}.rs` in SAP-2 scope going forward.
+
+**Lesson 53 [process-gap] — Recurring direct-push pattern (D-849, 2026-05-29):**
+Direct push to develop bypassing PR/worktree workflow recurred 5+ times this session. Architect committed 72baf413 directly (accepted retroactively per user choice D-846). State-manager attempted a direct push to factory-artifacts (blocked by hooks — correct behavior). The pattern: agents find a "quick fix" and attempt to push without routing through the established workflow. Standing rule CLAUDE.md §Git Workflow "Non-negotiable git rules" forbids this. Factory-artifacts is explicitly LOCAL-ONLY. All develop changes MUST go through per-story-delivery worktree→PR cycle unless user explicitly authorizes direct push. The hooks work — they blocked the state-manager violation. The architect violation was only detectable post-facto.
+
+Full lessons history: `.factory/cycles/wave-0-plugin-prereqs/lessons.md`
+
+---
+
+_Snapshot terminus: 2026-05-30. Cyberint cascade at Step 4.5 mid-fix. Pass 1 fix-burst pending. Architect decision committed (12378e35). Ready for /clear. Resume with step 1: `vsdd-factory:factory-worktree-health`._
