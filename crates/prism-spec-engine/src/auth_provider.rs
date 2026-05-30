@@ -704,46 +704,34 @@ mod tests {
     }
 
     /// AC-005 / BC-2.01.017 §Postconditions P1: StaticCookieAuthProvider::acquire_token
-    /// reads the API key from the credential resolver (env var chain) and returns Ok(AuthToken).
+    /// injects the resolved API key as the AuthToken value.
     ///
-    /// SID-1 compliance: since the integration test (bc_2_01_017_static_cookie_auth_provider
-    /// test 1) requires CYBERINT_API_KEY to be set in the environment, this unit test exercises
-    /// the same production code path deterministically by setting the env var in-process before
-    /// the call, and restoring it after. This drives the real acquire_token production code path
-    /// without any external dependency.
+    /// Verifies the StaticCookieAuthProvider's contract: given a resolved credential value,
+    /// acquire_token returns Ok(AuthToken) containing that value, with ZERO HTTP calls
+    /// (INV-COOKIE-001). Uses MockDI injection (MockCredentialResolver via new_with_resolver)
+    /// to decouple StaticCookieAuthProvider's contract from the credential backend
+    /// (BC-2.03.006 env-var resolver chain is tested in prism-credentials, not here).
     ///
-    /// INV-COOKIE-001: no HTTP call is made — StaticCookieAuthProvider holds no reqwest::Client.
+    /// ADR-022 §C wiring; INV-COOKIE-001; BC-2.01.017 §Postconditions P1.
     #[tokio::test]
-    async fn test_static_cookie_auth_provider_resolves_api_key_from_env() {
-        // Set the env var that resolve_credential checks for sensor_id="cyberint".
-        // The canonical env var name is CYBERINT_API_KEY (sensor_upper + "_" + name_upper).
-        let env_key = "CYBERINT_API_KEY";
+    async fn test_static_cookie_auth_provider_injects_resolved_token_from_credentials() {
         let test_value = "unit-test-api-key-value";
-        // SAFETY: This test exercises the BC-2.03.006 env-var resolver backend of
-        // PrismCredentialResolver — the production path where CYBERINT_API_KEY is read
-        // from the process environment. This is the ONLY test that must use the real
-        // env-var resolver (not MockDI) to prove the BC-2.03.006 lookup chain works.
-        // The set_var/remove_var pair brackets the acquire_token call. Process isolation
-        // via nextest (out-of-process mode) prevents data races with other test binaries.
-        unsafe {
-            std::env::set_var(env_key, test_value);
-        }
-
-        let provider = StaticCookieAuthProvider::new("cyberint");
+        // Inject the resolved credential value via MockCredentialResolver — no env var
+        // mutation required. This tests that StaticCookieAuthProvider correctly wraps the
+        // resolved value in AuthToken and returns Ok. BC-2.03.006 env-var chain coverage
+        // lives in prism-credentials unit tests (where the resolver backend lives).
+        let provider = StaticCookieAuthProvider::new_with_resolver(
+            "cyberint",
+            Arc::new(MockCredentialResolver::new(test_value)),
+        );
         let spec = cookie_roundtrip_spec();
         let client_id = OrgSlug::new("test-org-unit");
 
         let result = provider.acquire_token(&spec, &client_id).await;
 
-        // Clean up the env var immediately after the await returns.
-        // SAFETY: same BC-2.03.006 env-var resolver isolation guarantee as set_var above.
-        unsafe {
-            std::env::remove_var(env_key);
-        }
-
         assert!(
             result.is_ok(),
-            "AC-005: acquire_token must return Ok(AuthToken) when CYBERINT_API_KEY is set. \
+            "AC-005: acquire_token must return Ok(AuthToken) when credential is resolved. \
              Got: {:?}",
             result
         );
@@ -751,7 +739,8 @@ mod tests {
         assert_eq!(
             token.as_str(),
             test_value,
-            "AC-005: AuthToken value must equal the resolved API key from the env var"
+            "AC-005: AuthToken value must equal the injected resolved credential value. \
+             BC-2.01.017 §Postconditions P1."
         );
     }
 
@@ -790,19 +779,18 @@ mod tests {
         );
     }
 
-    /// E-AUTH-005: acquire_token returns E-AUTH-005 when the credential is absent.
+    /// E-AUTH-005: acquire_token returns E-AUTH-005 when the credential resolver returns Err.
     ///
-    /// When the credential resolver returns Err (not-found), acquire_token must return
-    /// E-AUTH-005. An empty env var is treated as "not set" by PrismCredentialResolver
-    /// (it filters empty strings), which results in Err("not found") — the same path
-    /// exercised here via NotFoundCredentialResolver injection (BC-2.03.006 semantics).
+    /// Verifies BC-2.01.017 v1.2 EC-017-003 (credential not found path):
+    /// when resolve_credential returns Err (not-found), acquire_token wraps the error
+    /// as E-AUTH-005 and returns immediately without any HTTP call.
     ///
     /// Uses MockDI injection (NotFoundCredentialResolver via new_with_resolver) — no env var
     /// mutation required. TD-VSDD-059 load-bearing assertion: checks E-AUTH-005 error code.
     ///
-    /// BC-2.01.017 v1.1 EC-017-005 + BC-2.03.006; ADR-022 §C.
+    /// BC-2.01.017 v1.2 EC-017-003; ADR-022 §C.
     #[tokio::test]
-    async fn test_static_cookie_auth_provider_rejects_empty_api_key() {
+    async fn test_static_cookie_auth_provider_missing_credential_returns_e_auth_005() {
         let provider = StaticCookieAuthProvider::new_with_resolver(
             "cyberint",
             Arc::new(NotFoundCredentialResolver),
@@ -812,20 +800,61 @@ mod tests {
 
         let result = provider.acquire_token(&spec, &client_id).await;
 
-        // Empty env var → PrismCredentialResolver returns Err("not found") → E-AUTH-005.
-        // NotFoundCredentialResolver exercises the same E-AUTH-005 path without env mutation.
-        // This is correct per BC-2.03.006 semantics — empty credential equals absent credential.
         assert!(
             result.is_err(),
-            "BC-2.01.017 EC-017-005: acquire_token must return Err when credential is absent. \
-             Got Ok."
+            "BC-2.01.017 v1.2 EC-017-003: acquire_token must return Err when credential \
+             resolver returns Err (not-found path). Got Ok."
         );
         let err_str = result.unwrap_err().to_string();
         assert!(
             err_str.contains("E-AUTH-005"),
-            "empty env var path must yield E-AUTH-005 (not E-AUTH-006). \
+            "missing credential MUST yield E-AUTH-005. \
              Got: {err_str}. \
-             BC-2.01.017 v1.1 EC-017-005 + BC-2.03.006 (empty env-var → not-found → E-AUTH-005)."
+             BC-2.01.017 v1.2 EC-017-003 (resolver Err path)."
+        );
+    }
+
+    /// E-AUTH-006: acquire_token returns E-AUTH-006 when the resolved credential is empty.
+    ///
+    /// Verifies BC-2.01.017 v1.2 EC-017-005 (empty/whitespace value path):
+    /// when resolve_credential returns Ok(SecretString("")) — the case where the credential
+    /// name is known but the value is empty (e.g., direct-env branch with empty value per
+    /// resolve_secret.rs EC-017-005 semantics) — acquire_token's api_key.is_empty() guard
+    /// returns E-AUTH-006, not E-AUTH-005.
+    ///
+    /// Uses MockDI injection (MockCredentialResolver::new("") via new_with_resolver) to
+    /// inject an empty SecretString directly without env var mutation. MockCredentialResolver
+    /// accepts empty string because test-helpers deliberately allow injection of invalid values
+    /// to exercise validation gates in the production code under test.
+    ///
+    /// TD-VSDD-059 load-bearing assertion: checks E-AUTH-006 error code.
+    /// BC-2.01.017 v1.2 EC-017-005; ADR-022 §C.
+    #[tokio::test]
+    async fn test_static_cookie_auth_provider_empty_value_returns_e_auth_006() {
+        // Inject an empty resolved credential value via MockCredentialResolver.
+        // MockCredentialResolver::new("") returns Ok(SecretString("")) — simulating the case
+        // where the credential store resolves the name but the value is empty.
+        // This exercises the acquire_token api_key.is_empty() guard (E-AUTH-006 path).
+        let provider = StaticCookieAuthProvider::new_with_resolver(
+            "cyberint",
+            Arc::new(MockCredentialResolver::new("")),
+        );
+        let spec = cookie_roundtrip_spec();
+        let client_id = OrgSlug::new("test-org-unit");
+
+        let result = provider.acquire_token(&spec, &client_id).await;
+
+        assert!(
+            result.is_err(),
+            "BC-2.01.017 v1.2 EC-017-005: acquire_token must return Err when resolved \
+             credential value is empty. Got Ok."
+        );
+        let err_str = result.unwrap_err().to_string();
+        assert!(
+            err_str.contains("E-AUTH-006"),
+            "empty resolved value MUST yield E-AUTH-006. \
+             Got: {err_str}. \
+             BC-2.01.017 v1.2 EC-017-005 (resolver Ok(empty) path)."
         );
     }
 
