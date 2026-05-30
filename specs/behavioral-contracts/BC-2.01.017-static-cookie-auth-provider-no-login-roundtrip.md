@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.2"
+version: "1.3"
 status: draft
 producer: product-owner
 timestamp: 2026-05-29T00:00:00Z
@@ -36,6 +36,7 @@ error_codes:
   - "E-AUTH-004"
   - "E-AUTH-005"
   - "E-AUTH-006"
+  - "E-AUTH-007"
 ---
 
 # BC-2.01.017: StaticCookieAuthProvider Contract — No-Login-Roundtrip Cookie Injection
@@ -145,10 +146,11 @@ DTU=True-DTU fidelity principle).
 
 | Error | Condition | Behavior |
 |-------|-----------|----------|
-| `E-AUTH-005` | Credential resolver finds no credential entry for `(client_id, sensor_id)` — API key not present in keyring or file backend | `acquire_token()` returns `Err(E-AUTH-005)`. Message: `"Credentials not found for ({client_id}, {sensor_id})"`. Pipeline propagates as a per-sensor partial failure (BC-2.01.010). No HTTP fetch attempted for this sensor. |
+| `E-AUTH-005` | Credential resolver finds no credential entry for `(client_id, sensor_id)` — backend is healthy but no API key is configured (`CredentialResolutionError::NotFound`). Distinct from E-AUTH-007 where the backend itself has failed. | `acquire_token()` returns `Err(E-AUTH-005)`. Message: `"Credentials not found for ({client_id}, {sensor_id})"`. Pipeline propagates as a per-sensor partial failure (BC-2.01.010). No HTTP fetch attempted for this sensor. |
 | `E-AUTH-006` | Credential resolver returns an empty or invalid value for the API key: empty string (including env var set to `""`), all-whitespace, exceeds 4096 bytes, or contains RFC 6265-illegal characters (e.g., semicolons, control characters) | `acquire_token()` returns `Err(E-AUTH-006)`. Message: `"Empty or invalid API key for cookie_roundtrip sensor '{sensor}' on client '{client_id}'"`. This fires when the resolver SUCCEEDS (`Ok(Some(SecretString))`) but the value fails validation. NOTE: `prism_credentials::resolve_secret` (see `crates/prism-credentials/src/resolve_secret.rs` lines 78-81) performs NO empty-string filtering on the direct-env path — `std::env::var` returns `Ok(value)` for any set env var including `""`, which is then wrapped in `SecretString` and returned as `Ok(Some(...))`. Therefore `CYBERINT_API_KEY=""` produces `Ok(Some(SecretString("")))`, NOT `Ok(None)`, and flows through `acquire_token`'s `is_empty()` check returning E-AUTH-006. |
 | `E-AUTH-004` | DTU (or real Cyberint API) returns HTTP 401 for a request carrying `Cookie: access_token={token}` | The HTTP 401 is propagated as a sensor fetch error. The pipeline does NOT retry with a refreshed token (there is no refresh mechanism — the API key is static). The error is surfaced in `sensor_errors` (BC-2.01.010). Root cause: API key is invalid, expired, or revoked. Operator must update the credential in the keyring. |
 | Cookie format characters invalid | API key contains characters that are illegal in an HTTP cookie value (e.g., control characters, spaces unescaped, or semicolons) | `acquire_token()` validates the API key against RFC 6265 cookie-value syntax at construction time (newtype validation per AD-017 credential discipline). Returns `E-AUTH-006` with message `"API key for cookie_roundtrip sensor '{sensor}' contains invalid cookie characters"`. |
+| `E-AUTH-007` | Credential backend infrastructure failed (`CredentialResolutionError::BackendUnavailable`) — file read error (the _FILE env var path exists but is unreadable due to permissions or I/O failure), keyring daemon unavailable, or other backend-level failure. Distinct from E-AUTH-005: here the backend is DOWN, not merely missing the entry. | `acquire_token()` returns `Err(E-AUTH-007)`. Message: `"Credential resolver backend unavailable for ({client_id}, {sensor_id}): {detail}"`. Retryable — the backend condition (keyring daemon restart, permission fix) may recover. Pipeline propagates as a per-sensor partial failure (BC-2.01.010). No HTTP fetch attempted for this sensor. |
 
 ## Edge Cases
 
@@ -163,6 +165,7 @@ DTU=True-DTU fidelity principle).
 | EC-017-007 | Config hot-reload changes the credential_ref for `cookie_roundtrip` sensor | Next `acquire_token()` call resolves the new reference from the updated config snapshot (ArcSwap per AD-007 per BC-2.16.006). In-flight requests use their own snapshot; no race condition. |
 | EC-017-008 | `auth_type = "cookie_roundtrip"` sensor but `credential_ref` absent from TOML spec | This is a spec-load-time error (E-SPEC-013 per BC-2.01.016 §Error Cases — each auth method must declare exactly one `credential_ref`). Rejected at boot, not at query time. |
 | EC-017-009 | API key length exceeds 4096 bytes | `E-AUTH-006` with message `"API key for cookie_roundtrip sensor exceeds maximum cookie value length"`. Cookie values above 4KB violate RFC 6265 §4.1 and common HTTP server limits. |
+| EC-017-010 | Credential backend unavailable: `CredentialResolutionError::BackendUnavailable` returned (e.g., _FILE env var set but file unreadable, keyring daemon stopped) | `E-AUTH-007` — NOT E-AUTH-005. The error code label must reflect the backend-failure semantic, not "credential not found." Distinct from EC-017-003 (NotFound: backend works, no entry → E-AUTH-005). Message includes the `detail` string from `BackendUnavailable.detail`. Implementer must pattern-match on `CredentialResolutionError` variants in `StaticCookieAuthProvider::acquire_token` and emit separate error codes. |
 
 ## Canonical Test Vectors
 
@@ -176,6 +179,7 @@ DTU=True-DTU fidelity principle).
 | TV-BC-2.01.017-006 | DTU 401 response surfaces E-AUTH-004 | Valid token acquired; mock HTTP server returns 401 on data fetch | Fetch error surfaced in `sensor_errors` with `E-AUTH-004`; no retry attempt; call count == 1 |
 | TV-BC-2.01.017-007 | Cookie value with semicolon rejected | `CredentialResolver` returns `Ok("key;with;semicolons")` | `acquire_token()` returns `Err(E-AUTH-006)` with invalid-cookie-characters message; no HTTP request made |
 | TV-BC-2.01.017-008 | auth_type_name returns canonical string | Call `StaticCookieAuthProvider::auth_type_name()` | Returns `"cookie_roundtrip"` |
+| TV-BC-2.01.017-009 | Backend unavailable returns E-AUTH-007 (not E-AUTH-005) | Inject a `BackendUnavailableCredentialResolver` (returns `CredentialResolutionError::BackendUnavailable{detail: "keyring daemon stopped"}` — or inject as `String` via `CredentialResolver` trait returning `Err("E-AUTH-007: backend unavailable: keyring daemon stopped")`) | `acquire_token()` returns `Err` containing `E-AUTH-007`; error string must NOT contain `E-AUTH-005`; no HTTP request made |
 
 ## Verification Properties
 
@@ -227,6 +231,8 @@ S-DTU-CYBERINT-AUTH-FIDELITY-001
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.3 | D-857 F-LP3-HIGH-001 | 2026-05-30 | product-owner | F-LP3-HIGH-001 resolution: allocate E-AUTH-007 for `CredentialResolutionError::BackendUnavailable`. Add EC-017-010 (BackendUnavailable → E-AUTH-007, distinct from EC-017-003 NotFound → E-AUTH-005). Add TV-BC-2.01.017-009 (BackendUnavailable test vector). Update E-AUTH-005 Error Cases row to explicitly scope it to `CredentialResolutionError::NotFound`. Add E-AUTH-007 Error Cases row. `error_codes` frontmatter: add E-AUTH-007. error-taxonomy.md v1.53→v1.54. BC-INDEX v5.58→v5.59. Implementer follow-on: match-arm on CredentialResolutionError variants in `StaticCookieAuthProvider::acquire_token` — NotFound→E-AUTH-005, BackendUnavailable→E-AUTH-007. Add `BackendUnavailableCredentialResolver` test helper and unit test asserting E-AUTH-007. |
+| 1.2 | D-854 | 2026-05-30 | product-owner | F-LP1-MED-002 RE-ADJUDICATION — revert v1.1 EC-017-005 amendment per F-LP2-CRIT-001. v1.1 amendment was based on a fabricated BC-2.03.006 normalization claim that does not exist in BC-2.03.006 text or `crates/prism-credentials/src/resolve_secret.rs`. Orchestrator independently verified against source (lines 78-81): `std::env::var(direct_env)` returns `Ok(value)` for ANY set env var including empty string; there is NO `is_empty()` filter, no whitespace check, no normalization. `CYBERINT_API_KEY=""` resolves as `Ok(Some(SecretString("")))`, propagates through `acquire_token`'s `is_empty()` check, and returns E-AUTH-006 — exactly what BC v1.0 EC-017-005 originally specified. BC v1.0 original author was correct. Restored EC-017-005 to E-AUTH-006 semantics with precise resolver behavior cited verbatim from source (lines 78-81). Updated E-AUTH-006 Error Cases row to accurately describe "resolver returns empty value" as the trigger (not just non-empty-invalid). Restored TV-BC-2.01.017-005 to assert E-AUTH-006 for MockCredentialResolver returning `Ok(SecretString(""))`. BC-INDEX v5.57→v5.58. |
 | 1.0 | D-849 | 2026-05-29 | product-owner | Initial draft. Authored to close BC gap surfaced by story-writer during S-DTU-CYBERINT-AUTH-FIDELITY-001 materialization. Specifies `StaticCookieAuthProvider` no-login-roundtrip contract per ADR-031 §D1-b/D3-b. Error codes: E-AUTH-004 (DTU 401), E-AUTH-005 (missing credential), E-AUTH-006 (new — empty/invalid API key value). VP-TBD (No-HTTP-Call) surfaced for architect VP catalog assignment. |
 | 1.2 | D-854 | 2026-05-30 | product-owner | F-LP1-MED-002 RE-ADJUDICATION — revert v1.1 EC-017-005 amendment per F-LP2-CRIT-001. v1.1 amendment was based on a fabricated BC-2.03.006 normalization claim that does not exist in BC-2.03.006 text or `crates/prism-credentials/src/resolve_secret.rs`. Orchestrator independently verified against source (lines 78-81): `std::env::var(direct_env)` returns `Ok(value)` for ANY set env var including empty string; there is NO `is_empty()` filter, no whitespace check, no normalization. `CYBERINT_API_KEY=""` resolves as `Ok(Some(SecretString("")))`, propagates through `acquire_token`'s `is_empty()` check, and returns E-AUTH-006 — exactly what BC v1.0 EC-017-005 originally specified. BC v1.0 original author was correct. Restored EC-017-005 to E-AUTH-006 semantics with precise resolver behavior cited verbatim from source (lines 78-81). Updated E-AUTH-006 Error Cases row to accurately describe "resolver returns empty value" as the trigger (not just non-empty-invalid). Restored TV-BC-2.01.017-005 to assert E-AUTH-006 for MockCredentialResolver returning `Ok(SecretString(""))`. BC-INDEX v5.57→v5.58. |
 | 1.1 | D-852 | 2026-05-30 | product-owner | F-LP1-MED-002 adjudication (Option A — impl wins) — SUPERSEDED BY v1.2 (fabricated evidence). Corrected EC-017-005 and TV-BC-2.01.017-005: empty env-var path returns E-AUTH-005 (resolver-not-found), NOT E-AUTH-006 (value-validation). THIS AMENDMENT WAS INCORRECT: it relied on a claim that BC-2.03.006 normalizes empty strings as not-found, but BC-2.03.006 makes no such claim and resolve_secret.rs lines 78-81 confirm no such normalization exists. Retained for audit trail per append_only_numbering policy. |
