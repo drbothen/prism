@@ -10,7 +10,7 @@
 //! | Test                                                               | AC     | BC         |
 //! |--------------------------------------------------------------------|--------|------------|
 //! | test_BC_2_16_013_dtu_post_login_route_removed_returns_404          | AC-001 | BC-2.16.013 |
-//! | test_BC_2_01_013_dtu_extract_access_token_parses_cookie_header     | AC-002 | BC-2.01.013 |
+//! | test_BC_2_01_017_dtu_extract_access_token_parses_cookie_header     | AC-002 | BC-2.01.017 |
 //! | test_BC_2_16_013_dtu_check_auth_requires_access_token_cookie_not_session | AC-003 | BC-2.16.013 |
 //! | test_BC_2_16_013_dtu_state_access_token_allowlist_not_session_uuid | AC-004 | BC-2.16.013 |
 //!
@@ -132,7 +132,7 @@ mod bc_2_01_017_dtu {
     ///
     /// Story: S-DTU-CYBERINT-AUTH-FIDELITY-001 AC-002 | BC-2.01.013 | BC-2.01.017
     #[test]
-    fn test_BC_2_01_013_dtu_extract_access_token_parses_cookie_header() {
+    fn test_BC_2_01_017_dtu_extract_access_token_parses_cookie_header() {
         use prism_dtu_cyberint::routes::alerts::extract_access_token;
 
         // ── Case 1: Happy path — access_token cookie present ──────────────

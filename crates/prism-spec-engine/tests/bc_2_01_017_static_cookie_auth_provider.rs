@@ -8,9 +8,9 @@
 //!
 //! | Test                                                                               | AC     | BC          |
 //! |------------------------------------------------------------------------------------|--------|-------------|
-//! | test_BC_2_01_013_static_cookie_auth_provider_returns_api_key_without_http_call     | AC-005 | BC-2.01.017 |
-//! | test_BC_2_01_016_static_cookie_auth_provider_acquire_token_no_http_call            | AC-006 | BC-2.01.017 |
-//! | test_BC_2_01_013_build_request_injects_access_token_cookie_for_cookie_roundtrip    | AC-007 | BC-2.01.017 |
+//! | test_BC_2_01_017_static_cookie_auth_provider_returns_api_key_without_http_call     | AC-005 | BC-2.01.017 |
+//! | test_BC_2_01_017_static_cookie_auth_provider_acquire_token_no_http_call            | AC-006 | BC-2.01.017 |
+//! | test_BC_2_01_017_build_request_injects_access_token_cookie_for_cookie_roundtrip    | AC-007 | BC-2.01.017 |
 //!
 //! # Red Gate state
 //!
@@ -108,7 +108,7 @@ fn cookie_roundtrip_spec(base_url: &str) -> SensorSpec {
 /// Story: S-DTU-CYBERINT-AUTH-FIDELITY-001 AC-005 | BC-2.01.017 §Postconditions P1
 /// | INV-COOKIE-001 | TV-BC-2.01.017-001 | ADR-031 §D1-b §D3-b rule 2
 #[tokio::test]
-async fn test_BC_2_01_013_static_cookie_auth_provider_returns_api_key_without_http_call() {
+async fn test_BC_2_01_017_static_cookie_auth_provider_returns_api_key_without_http_call() {
     // Construct the provider with an injectable MockCredentialResolver (ADR-022 §C; AC-005).
     // The mock returns "test-api-key-abc123" without touching the real credential store
     // (env vars, keyring). This is the production-grade DI pattern — no env var setup
@@ -179,7 +179,7 @@ async fn test_BC_2_01_013_static_cookie_auth_provider_returns_api_key_without_ht
 /// Story: S-DTU-CYBERINT-AUTH-FIDELITY-001 AC-006 | BC-2.01.017 §Invariants INV-COOKIE-001
 /// | ADR-031 §D1-b | TV-BC-2.01.017-001
 #[tokio::test]
-async fn test_BC_2_01_016_static_cookie_auth_provider_acquire_token_no_http_call() {
+async fn test_BC_2_01_017_static_cookie_auth_provider_acquire_token_no_http_call() {
     use wiremock::MockServer;
 
     // Start a mock HTTP server to detect any rogue HTTP calls from acquire_token.
@@ -242,7 +242,7 @@ async fn test_BC_2_01_016_static_cookie_auth_provider_acquire_token_no_http_call
 /// Story: S-DTU-CYBERINT-AUTH-FIDELITY-001 AC-007 | BC-2.01.017 §Postconditions P2
 /// | ADR-031 §D3-b | TV-BC-2.01.017-002 | TV-BC-2.01.017-003
 #[tokio::test]
-async fn test_BC_2_01_013_build_request_injects_access_token_cookie_for_cookie_roundtrip() {
+async fn test_BC_2_01_017_build_request_injects_access_token_cookie_for_cookie_roundtrip() {
     use std::collections::HashMap;
 
     use prism_spec_engine::{
@@ -286,7 +286,7 @@ async fn test_BC_2_01_013_build_request_injects_access_token_cookie_for_cookie_r
     let http_client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(5))
         .build()
-        .expect("test_BC_2_01_013: reqwest client build");
+        .expect("test_BC_2_01_017: reqwest client build");
 
     // ── Step 4: Execute pipeline ──────────────────────────────────────────
     // PipelineExecutor::execute calls build_request with auth_type=CookieRoundtrip.
