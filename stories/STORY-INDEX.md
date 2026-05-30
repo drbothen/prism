@@ -1,7 +1,7 @@
 ---
 document_type: story-index
 level: "L4"
-version: "v2.215"
+version: "v2.216"
 status: draft
 producer: state-manager
 timestamp: 2026-05-29T23:59:00Z
@@ -429,7 +429,7 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 | S-DEMO-MULTI-TENANT-DTU-001 | prism-dtu-demo-server: Per-DTU-instance multi-address binding for multi-tenant overlay testing [Wave 5; E-DEMO follow-up; P2; planned; DTU: YES — per-instance multi-address binding; Non-blocking for single-tenant demo] | prism-dtu-demo-server,prism-dtu-harness | 0 (TBD) | -- | -- | S-CONFIG-MULTI-TENANT-OVERRIDE-001 |
 | S-DEMO-CLAROTY-TRAILING-SLASH-001 | prism-spec-engine, prism-sensors: Trailing-slash on Claroty API paths [Wave 5; E-DEMO follow-up; P2; planned; DTU: YES — verify axum trailing-slash; Non-blocking] | prism-spec-engine,prism-sensors | 0 (TBD) | -- | -- | develop@72baf413 |
 | S-DEMO-ARMIS-AQL-001 | prism-spec-engine, prism-sensors: AQL search endpoint support for Armis [Wave 5; E-DEMO follow-up; P2; planned; DTU: YES — AQL route + TOML + pipeline; Non-blocking per ADR-031 §D2] | prism-spec-engine,prism-sensors | 0 (TBD) | -- | -- | S-DEMO-001 |
-| S-DTU-CYBERINT-AUTH-FIDELITY-001 | prism-dtu-cyberint + prism-spec-engine: Remove POST /login DTU route; implement StaticCookieAuthProvider; inject Cookie: access_token={api_key}; no session UUID [Wave 5; E-DTU-FIDELITY; P0-pre-demo-BLOCKING; **ready v1.4** (story-writer D-868 2026-05-30: F-LP9-MED-001 — changelog reorder to monotonic descending; no content/AC change); file: S-DTU-CYBERINT-AUTH-FIDELITY-001-cyberint-dtu-static-cookie-auth.md] | prism-dtu-cyberint,prism-spec-engine,prism-bin | 4 (BC-2.01.013, BC-2.01.016, BC-2.01.017, BC-2.16.013) | VP-148 | 8 | PLUGIN-MIGRATION-001-A |
+| S-DTU-CYBERINT-AUTH-FIDELITY-001 | prism-dtu-cyberint + prism-spec-engine: Remove POST /login DTU route; implement StaticCookieAuthProvider; inject Cookie: access_token={api_key}; no session UUID [Wave 5; E-DTU-FIDELITY; P0-pre-demo-BLOCKING; **ready v1.5** (story-writer D-874 2026-05-30: F-LP12-MED-001 — body-sync H1 v1.1→v1.5 + §Version v1.3→v1.5 to match frontmatter; no content/AC change); file: S-DTU-CYBERINT-AUTH-FIDELITY-001-cyberint-dtu-static-cookie-auth.md] | prism-dtu-cyberint,prism-spec-engine,prism-bin | 4 (BC-2.01.013, BC-2.01.016, BC-2.01.017, BC-2.16.013) | VP-148 | 8 | PLUGIN-MIGRATION-001-A |
 | S-DEMO-CROWDSTRIKE-MULTIREGION-001 | prism-sensors: Multi-region base_url for CrowdStrike (FedRAMP / EU / commercial) [Wave 5; E-DEMO follow-up; P3; planned; DTU: YES — multi-region DTU config; Non-blocking] | prism-sensors | 0 (TBD) | -- | -- | S-DEMO-001 |
 
 [*] S-5.10 is in the `prism-audit` crate — note that all other Wave 5 stories are in `prism-mcp`. This is intentional: audit trail forwarding belongs to the audit subsystem by BC-2.05.011, but the Wave 5 slot reflects its topological dependency on S-2.04 (Wave 2 anchor).
@@ -970,6 +970,7 @@ All 13 new DTU clones: Wave 0, 0 BCs, priority P0, depends_on: [S-6.06].
 
 | Version | Date | Summary |
 |---------|------|---------|
+| v2.216 | 2026-05-30 | story-writer D-874 F-LP12-MED-001 closure: S-DTU-CYBERINT-AUTH-FIDELITY-001 v1.4→v1.5 — body-sync H1 + §Version field to match frontmatter (was H1 v1.1 + §Version v1.3 vs frontmatter v1.4 — three distinct version values). POL-29 step 8b body-sync was missed at D-850, D-863, D-868; retroactively synchronized. Full Story List row: **ready v1.4** → **ready v1.5**. No content/AC change. total_stories 166 (unchanged). |
 | v2.215 | 2026-05-30 | product-owner D-870 F-LP10-MED-001 comprehensive sweep: STORY-INDEX changelog rows v2.185–v2.200 reordered to monotonic descending per POL-32 (changelog_monotonic_descending). Pre-existing non-monotonic block: v2.190–v2.185 were inserted before v2.191–v2.200 (all 2026-05-27 entries); v2.200/v2.199 were out of order relative to v2.198 (v2.198 appeared before v2.200 and v2.199). Correct monotonic descending order: v2.200→v2.199→v2.198→v2.197→v2.196→v2.195→v2.194→v2.193→v2.192→v2.191→v2.190→v2.189→v2.188→v2.187→v2.186→v2.185. No content change to any row. total_stories 166 (unchanged). |
 | v2.214 | 2026-05-30 | story-writer D-868 F-LP9-MED-001 closure: S-DTU-CYBERINT-AUTH-FIDELITY-001 v1.3→v1.4 — changelog row reorder to monotonic descending (was non-monotonic: 1.0, 1.1, 1.3, 1.2). Sibling-sweep on F-LP8-MED-001 (BC-2.01.017 v1.4 monotonic descending convention established by PO D-866 at 399ef378). Story changelog now 1.4 → 1.3 → 1.2 → 1.1 → 1.0. No content/AC change. total_stories 166 (unchanged). |
 | v2.213 | 2026-05-30 | story-writer D-863 F-LP6-LOW-001 adjudication: S-DTU-CYBERINT-AUTH-FIDELITY-001 v1.2→v1.3 — Option A (rename) — corrected 4 Red Gate test names to BC-2.01.017 primary-BC prefix per project-wide convention; implementer follow-on dispatch required to rename 4 test functions in code. total_stories 166 (unchanged). |

@@ -12,7 +12,7 @@ status: ready
 # skill strict prereq. No content/maturity change. BC-2.01.017 will auto-promote draft→active
 # at this story's merge per POL-14. Prism precedent is draft-at-dispatch + POL-14-promote-at-merge;
 # this flip is purely to satisfy the vsdd-factory deliver-story skill's strict prereq gate.
-version: "1.4"
+version: "1.5"
 level: "L4"
 producer: story-writer
 timestamp: "2026-05-29T00:00:00Z"
@@ -131,11 +131,11 @@ cycle: "v1.0.0-brownfield"
 phase: 3
 ---
 
-# S-DTU-CYBERINT-AUTH-FIDELITY-001 v1.1 — Cyberint DTU Auth Fidelity
+# S-DTU-CYBERINT-AUTH-FIDELITY-001 v1.5 — Cyberint DTU Auth Fidelity
 
 **Story ID:** S-DTU-CYBERINT-AUTH-FIDELITY-001
 **Status:** ready
-**Version:** v1.3
+**Version:** v1.5
 **Wave:** 5
 **Priority:** P0 (pre-demo BLOCKING)
 **Points:** 8
@@ -676,6 +676,7 @@ Well within the 20-30% budget.
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.5 | 2026-05-30 | story-writer D-874 | F-LP12-MED-001 closure: body-sync H1 + §Version field to match frontmatter (was H1 v1.1 + §Version v1.3 vs frontmatter v1.4 — three distinct version values). POL-29 step 8b body-sync was missed at v1.1 → v1.2 (D-850) and v1.2 → v1.3 (D-863) and v1.3 → v1.4 (D-868); this burst retroactively synchronizes the body. No content change. STORY-INDEX v2.215 → v2.216. |
 | 1.4 | 2026-05-30 | story-writer D-868 | F-LP9-MED-001 closure: changelog row reorder to monotonic descending (was 1.0, 1.1, 1.3, 1.2 non-monotonic). Sibling-sweep on F-LP8-MED-001 (BC-2.01.017 v1.4 monotonic descending convention established by PO D-866 at 399ef378). Story changelog now matches BC convention: 1.4 → 1.3 → 1.2 → 1.1 → 1.0. No content change to story body or ACs. STORY-INDEX v2.213→v2.214. |
 | 1.3 | 2026-05-30 | story-writer D-863 | F-LP6-LOW-001 Option A (rename): corrected 4 Red Gate test names from wrong BC prefix to primary-BC prefix per project-wide prefix-by-primary-BC convention (S-CONFIG/S-PLUGIN-PREREQ-E evidence). (1) `test_BC_2_01_013_dtu_extract_access_token_parses_cookie_header` → `test_BC_2_01_017_*`: proves extract_access_token behavior which is BC-2.01.017 §Postconditions, not BC-2.01.013. (2) `test_BC_2_01_013_static_cookie_auth_provider_returns_api_key_without_http_call` → `test_BC_2_01_017_*`: proves StaticCookieAuthProvider::acquire_token which is BC-2.01.017 §Postconditions. (3) `test_BC_2_01_016_static_cookie_auth_provider_acquire_token_no_http_call` → `test_BC_2_01_017_*`: proves no-HTTP-call invariant which is BC-2.01.017 §Invariants, not BC-2.01.016. (4) `test_BC_2_01_013_build_request_injects_access_token_cookie_for_cookie_roundtrip` → `test_BC_2_01_017_*`: proves build_request Cookie: access_token dispatch which is BC-2.01.017 behavior. Red Gate table, AC body inline citations, and Tasks step-6/step-19 all updated. Test naming convention note added to §Notes for Implementer. Implementer follow-on: rename 4 test functions in `crates/prism-spec-engine/` and `crates/prism-dtu-cyberint/` test files to match. STORY-INDEX v2.212→v2.213. |
 | 1.2 | 2026-05-29 | state-manager D-850 | Administrative status flip `draft` → `ready` per user direction 2026-05-29 to satisfy vsdd-factory deliver-story skill strict prereq. No content or maturity change. Prism precedent is draft-at-dispatch with POL-14 auto-promotion at merge (PLUGIN-MIGRATION-001-A/B/C/D/E + S-CONFIG all entered cascade as draft); this flip is purely administrative to satisfy the skill gate. BCs BC-2.01.017 (new draft per PO b8cf19e1) and BC-2.16.013 will auto-promote draft→active at this story's merge per POL-14. Also: created `.factory/stories/sprint-state.yaml` (first creation on prism; derived view for deliver-story skill compatibility; STORY-INDEX is canonical source of truth). STORY-INDEX v2.211→v2.212. STATE v7.536→v7.537. 250th consecutive single-commit per TD-VSDD-053. |
