@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.544"
+version: "7.545"
 producer: state-manager
 timestamp: 2026-05-30T02:30:00Z
 inputs: []
@@ -16,10 +16,12 @@ repos: [poller-cobra, poller-express, poller-bear, poller-coaster, serveMyAPI, t
 safe_to_compact: true
 pre_compact_snapshot: "SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-30-CYBERINT-CASCADE-PASS-1-MID-FIX"
 pre_compact_snapshot_at: "2026-05-30 (D-851 PRE-CLEAR durability snapshot; Cyberint cascade Step 4.5 Pass 1 blocked on architect harness audit; architect background agent a1161dc86ddae5c53; architect decision committed 12378e35)"
-current_step: "Cyberint cascade: Pass 4 CLEAN(strict) — streak 1/3. Feature HEAD unchanged at 89aa9bd1. Next: Pass 5 dispatch (no code changes needed; same HEAD)."
+current_step: "Cyberint cascade: Pass 5 REJECTED (fabricated 9 findings claiming implementation doesn't exist; orchestrator independently verified all findings false — StaticCookieAuthProvider + BackendUnavailableCredentialResolver + match-arms + tests all exist at cited lines; auth_provider.rs is 1092 lines not 354). Streak unchanged at 1/3. Re-dispatching Pass 5 with strict grounding-truth requirements."
 pass_2_findings: {CRIT: 1, HIGH: 1, MED: 1, PROCESS_GAP: 1}
 cyberint_cascade_in_progress: true
-cyberint_cascade_step: "4.5 LOCAL adversary streak 1/3 — Pass 5 next"
+cyberint_cascade_step: "4.5 LOCAL adversary Pass 5 REJECTED — re-dispatch pending with grounds-truth probes"
+pass_5_rejected: true
+pass_5_rejection_reason: "fabricated — orchestrator-verified counter-evidence shows cited symbols + lines exist at feature HEAD 89aa9bd1; adversary likely read wrong branch/cwd (develop@72baf413 has no implementation)"
 pass_3_findings: { HIGH: 1, MED: 2, LOW: 2, deferred: 1 }
 pass_3_deferred_to_maintenance: "F-LP3-LOW-002 — prism-bin/tests/plugin_boot_tests.rs unsafe SAFETY-comment quality (4 sites)"
 pass_4_clean_strict: true
@@ -276,9 +278,9 @@ historical_cycles: [phase-1-convergence, wave-3-multi-tenant, wave-4-operations]
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-30 (D-859 state-manager Pass 4 CLEAN(strict) persistence — zero findings; streak 1/3; feature HEAD unchanged at 89aa9bd1; STATE v7.544) |
-| **Current Phase** | Wave 3 Tier-3 complete — S-DTU-CYBERINT-AUTH-FIDELITY-001 per-story-delivery cascade at Step 4.5 (LOCAL adversary Pass 4 CLEAN(strict); streak 1/3; feature@89aa9bd1; Pass 5 next). develop@72baf413. |
-| **Current Step** | D-859 — Pass 4 CLEAN(strict). Zero findings at any severity. Streak 0/3 → 1/3. CLEAN(PR-merge)=YES. Novelty: ZERO. All Pass 3 closures verified load-bearing: F-LP3-HIGH-001 (Path β BackendUnavailable→E-AUTH-007 match arm + test), F-LP3-MED-001 (lib.rs doc), F-LP3-MED-002 (parity comment), F-LP3-LOW-001 (validation order + regression test). SAP-1/SAP-2/SID-1 all PASS. Sibling-sweep PASS. Cross-doc consistency PASS. F-LP3-LOW-002 deferred status confirmed. Feature HEAD 89aa9bd1 unchanged. Next: Pass 5 dispatch (same HEAD). |
+| **Last Updated** | 2026-05-30 (D-860 state-manager Pass 5 REJECTED persistence — fabricated 9 findings; streak unchanged 1/3; lesson 58 codified; feature HEAD unchanged at 89aa9bd1; STATE v7.545) |
+| **Current Phase** | Wave 3 Tier-3 complete — S-DTU-CYBERINT-AUTH-FIDELITY-001 per-story-delivery cascade at Step 4.5 (Pass 5 REJECTED; streak 1/3 unchanged; feature@89aa9bd1; Pass 5 re-dispatch with grounds-truth probes next). develop@72baf413. |
+| **Current Step** | D-860 — Pass 5 REJECTED (fabricated). Pass 5 adversary claimed 9 CRIT/HIGH findings asserting the entire implementation does not exist. Orchestrator independently verified: auth_provider.rs is 1092 lines (not 354); StaticCookieAuthProvider at line 358; CredentialResolver trait at lines 146-157; BackendUnavailableCredentialResolver at line 287; clone.rs line 111 documents intentional POST /login ABSENCE; extract_access_token at alerts.rs:56 + harness:760; access_token_store at harness:168. All 9 findings refuted. Streak unchanged at 1/3. Lesson 58 codified: adversary must self-verify cwd+branch+HEAD before probes; orchestrator independently verifies CRIT/HIGH before accepting. Re-dispatch Pass 5 with strict grounding-truth preamble. |
 
 ## Phase Progress
 
@@ -334,6 +336,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-860 | 2026-05-30 | state-manager | **CYBERINT PASS 5 REJECTED — FABRICATED REPORT. Streak unchanged 1/3. Lesson 58 codified.** Pass 5 LOCAL adversary submitted 9 findings (5 CRIT + 2 HIGH + 1 MED + 1 PROCESS-GAP) claiming the entire cyberint auth-fidelity implementation does not exist: `StaticCookieAuthProvider` absent, `CredentialResolver` trait absent, `BackendUnavailableCredentialResolver` absent, `POST /login` still registered, `extract_session_token` still present, `access_token_store` absent, harness Pattern B deliverables unfulfilled, `lib.rs` still advertises `POST /login`, Pass 4 closures fabricated. Orchestrator independent verification against feature worktree HEAD `89aa9bd1`: (a) `auth_provider.rs` is **1092 lines** (adversary claimed 354 — file had been pre-implementation before Pass 1); (b) `StaticCookieAuthProvider` EXISTS at line 358; (c) `CredentialResolver` trait EXISTS at lines 146-157; (d) `BackendUnavailableCredentialResolver` EXISTS at line 287; (e) `clone.rs:111` has NOTE comment documenting intentional ABSENCE of `POST /login`; (f) `extract_access_token` EXISTS at `alerts.rs:56` + `harness clones/cyberint.rs:760`; (g) `access_token_store` EXISTS at `harness cyberint.rs:168`; (h) `lib.rs` grep returns 0 hits for `POST /login`. All 9 findings refuted. Hypothesis: adversary operated on `develop` branch (`72baf413`, pre-implementation) instead of feature worktree (`89aa9bd1`). OR stale context from prior session. Cannot be conclusively determined without adversary-side telemetry. REJECTION: Pass 5 report not accepted. Streak unchanged at 1/3 (REJECTED pass does not reset streak). Lesson 58 codified [process-gap]: adversary must self-verify cwd + branch + HEAD as first step; orchestrator must independently verify CRIT/HIGH findings before accepting. STATE v7.544→v7.545. 258th consecutive single-commit per TD-VSDD-053. Anti-volatile-pin per TD-VSDD-091. | plugin-migration | 2026-05-30 | Decided by: orchestrator (independent verification + rejection decision) + state-manager (D-860 persistence burst). Status: APPROVED — Pass 5 REJECTED; lesson 58 codified |
 | D-859 | 2026-05-30 | state-manager | **CYBERINT PASS 4 CLEAN(strict) — STREAK 1/3. Zero findings at any severity. CLEAN(strict)=YES. CLEAN(PR-merge)=YES. Novelty: ZERO. Streak advances 0/3 → 1/3. Feature HEAD unchanged at 89aa9bd1 (same HEAD as Pass 3 fix-burst). Pass 3 closures all verified load-bearing: F-LP3-HIGH-001 (BackendUnavailable match arm + test_static_cookie_auth_provider_backend_unavailable_returns_e_auth_007 — cannot pass without the arm); F-LP3-MED-001 (lib.rs no POST /login text); F-LP3-MED-002 (parity/cyberint.rs:144 no cyberint_session; StaticCookieAuthProvider cited); F-LP3-LOW-001 (len()>4096 before is_empty; regression test asserts 'exceeds 4096' detail on 5000-byte whitespace). SAP-1 PASS (no new event_type emission sites). SAP-2 PASS (no TOML/DTU struct changes in fix-burst). SID-1 PASS (both new tests are in-process unit tests, not #[ignore]'d). Sibling-sweep PASS (compiler-enforced trait contract; workspace just check 3839/3839). Cross-doc consistency PASS (BC-2.01.017 v1.3 + error-taxonomy.md v1.54 + BC-INDEX v5.59 all consistent with auth_provider.rs). F-LP3-LOW-002 deferred status confirmed (out-of-scope plugin-boot sites; correct scope boundary). Artifacts: adversarial-review/local-pass-4.md (new), adversary-convergence-state.json pass-4 entry + current_streak=1 (updated), STATE.md v7.544. Anti-volatile-pin per TD-VSDD-091 — load-bearing line citations (auth_provider.rs:146-157, :463-487, :286, :1015-1044, :500-516; resolution.rs:18-34; lib.rs:1-25; parity/cyberint.rs:144-148; harness clones cyberint.rs:760-769) accepted per TD-VSDD-091 carve-out for small code citations as load-bearing evidence. STATE v7.543→v7.544. 257th consecutive single-commit per TD-VSDD-053.** | plugin-migration | 2026-05-30 | Decided by: adversary (Pass 4 report, feature HEAD 89aa9bd1) + state-manager (D-859 persistence burst). Status: APPROVED |
 | D-858 | 2026-05-30 | state-manager | **CYBERINT PASS 3 FIX-BURST CLOSURE — 4 in-scope findings CLOSED load-bearing at feature@89aa9bd1. Path β chosen: `CredentialResolver` trait signature changed to return `Result<SecretString, CredentialResolutionError>` (eliminates `.map_err(|e| e.to_string())` type erasure). `acquire_token` match-arms on `NotFound → E-AUTH-005` and `BackendUnavailable → E-AUTH-007`. New `BackendUnavailableCredentialResolver` test helper (AD-017 cfg-gated). New unit test `test_static_cookie_auth_provider_backend_unavailable_returns_e_auth_007`. Load-bearing verified via revert-fail-restore-pass workflow. F-LP3-MED-001 CLOSED: `prism-dtu-cyberint/src/lib.rs` module doc cleaned — stale `POST /login (CookieRoundtrip pattern)` text + 9-line route list removed; replaced with `access_token` cookie injection + `StaticCookieAuthProvider` per ADR-031 §D1-b + §D3-a. F-LP3-MED-002 CLOSED (lesson 57 compliance demonstrated): Implementer applied lesson 57 — searched workspace-wide before declaring N/A. File confirmed at `crates/prism-spec-engine/tests/parity/cyberint.rs`. Line 144 comment updated to current narrative (BC-2.01.017 §P2 + ADR-031 §D3-a). Sibling-sweep clean. F-LP3-LOW-001 CLOSED (Option a): Validation order in `acquire_token` — `len() > 4096` moved BEFORE `is_empty() OR all-whitespace`. 5000-byte whitespace key now reports "exceeds 4096" detail. New regression test `test_static_cookie_auth_provider_rejects_oversized_whitespace_with_length_detail`. F-LP3-LOW-002 deferred maintenance (plugin-boot unsafe SAFETY-comment quality; 4 sites in `prism-bin/tests/plugin_boot_tests.rs`; cross-story; not a TD per Rule 3). Verification: `just check` 3839/3839 PASS, 26 skipped; prism-spec-engine 7/7 auth_provider tests (5 existing + 2 new); prism-dtu-cyberint 109/109; prism-credentials 111/111; sibling-sweep clean; `#[non_exhaustive]` perimeter EXPECTED=46 unaffected; workspace +3 tests (3836→3839). PO work (0fab3437) already on factory-artifacts: E-AUTH-007 allocated, BC-2.01.017 v1.3, BC-INDEX v5.59, error-taxonomy v1.54. Cascade state: adversary-convergence-state.json status=PASS_3_FIX_BURST_COMPLETE_READY_FOR_PASS_4; streak 0/3. STATE v7.542→v7.543. 256th consecutive single-commit per TD-VSDD-053. Anti-volatile-pin per TD-VSDD-091.** | plugin-migration | 2026-05-30 | Decided by: implementer (89aa9bd1 fix-burst) + PO (0fab3437 taxonomy + BC amendment) + state-manager (D-858 closure burst). Status: APPROVED |
 | D-857 | 2026-05-30 | product-owner | **CYBERINT F-LP3-HIGH-001 PO ADJUDICATION — E-AUTH-007 allocation + BC-2.01.017 v1.2→v1.3.** Path β confirmed as production-grade preferred path (CLAUDE.md Rule 5). `CredentialResolutionError::BackendUnavailable` (file-backend path unreadable / permissions denied) is a distinct failure class from "no entry found" (E-AUTH-005). E-AUTH-007 allocated in error-taxonomy.md v1.53→v1.54 for BackendUnavailable. BC-2.01.017 v1.2→v1.3: new EC-017-010 `BackendUnavailable → E-AUTH-007`; new TV-BC-2.01.017-009. BC-INDEX v5.58→v5.59. PO adjudication doc authored at `.factory/cycles/wave-0-plugin-prereqs/S-DTU-CYBERINT-AUTH-FIDELITY-001/po-adjudications/F-LP3-HIGH-001.md`. Committed 0fab3437 on factory-artifacts. Rejected Path α (sentinel-prefix string gymnastics) per Rule 5 (cheapest mechanism vs correct mechanism). | plugin-migration | 2026-05-30 | Decided by: product-owner (F-LP3-HIGH-001 adjudication). Status: APPROVED |
@@ -517,31 +520,34 @@ Prior cycle history:
 
 ---
 
-## Session Resume Checkpoint (2026-05-30 — D-859 Pass 4 CLEAN streak 1/3; develop@72baf413)
+## Session Resume Checkpoint (2026-05-30 — D-860 Pass 5 REJECTED; streak 1/3 unchanged; develop@72baf413)
 
-_Previous checkpoint (D-858 Pass 3 fix-burst complete; develop@72baf413) superseded by D-859 Pass 4 CLEAN persistence._
+_Previous checkpoint (D-859 Pass 4 CLEAN streak 1/3; develop@72baf413) superseded by D-860 Pass 5 REJECTED persistence._
 
-**STATE v7.544. D-859 — PASS 4 CLEAN(strict). Cyberint per-story-delivery cascade at Step 4.5: streak 1/3. Feature HEAD 89aa9bd1 (unchanged). BC-INDEX v5.59. error-taxonomy v1.54. develop@72baf413.**
+**STATE v7.545. D-860 — PASS 5 REJECTED (fabricated). Cyberint per-story-delivery cascade at Step 4.5: streak still 1/3. Feature HEAD 89aa9bd1 (unchanged). BC-INDEX v5.59. error-taxonomy v1.54. develop@72baf413.**
 
 **develop HEAD:** `72baf413` | **Workspace test count:** 3839 | **Feature branch HEAD:** `89aa9bd1` | **Cyberint cascade streak:** 1/3
 
+**IMPORTANT — Lesson 58 now active.** Pass 5 adversary submitted 9 fabricated findings (claimed file is 354 lines; it is 1092). Re-dispatch Pass 5 with strict grounding-truth preamble (see SESSION-HANDOFF.md §ADDENDUM 2026-05-30-PASS-5-REJECTED).
+
 **Critical path (next actions for new session):**
-1. **READ `SESSION-HANDOFF.md §ADDENDUM 2026-05-30-PASS-4-CLEAN-STREAK-1-OF-3`** — Pass 4 closure summary + Pass 5 dispatch
-2. **Dispatch Pass 5 LOCAL adversary** against feature HEAD `89aa9bd1` (same HEAD — no code change needed)
-3. **Re-run SAP-1/SAP-2/SAP-3/SID-1** — standard probes apply
-4. **State-manager records result** (CLEAN(strict) → streak 2/3; NOT CLEAN → dispatch fix-burst + streak reset)
+1. **READ `SESSION-HANDOFF.md §ADDENDUM 2026-05-30-PASS-5-REJECTED`** — rejection evidence + re-dispatch requirements
+2. **Re-dispatch Pass 5 LOCAL adversary** with mandatory grounding-truth preamble: `pwd && git branch --show-current && git rev-parse HEAD` BEFORE any probes; confirm worktree + branch + HEAD = `.worktrees/S-DTU-CYBERINT-AUTH-FIDELITY-001` + `feature/S-DTU-CYBERINT-AUTH-FIDELITY-001` + `89aa9bd1`
+3. **Adversary must include `wc -l` + `rg` literal output** for every existence claim
+4. **State-manager records result** (CLEAN(strict) → streak 2/3; NOT CLEAN → fix-burst + reset)
 
 **Active worktrees:**
-- `.worktrees/S-DTU-CYBERINT-AUTH-FIDELITY-001` — IN PROGRESS (Pass 4 CLEAN; streak 1/3; feature HEAD 89aa9bd1; Pass 5 adversary next)
+- `.worktrees/S-DTU-CYBERINT-AUTH-FIDELITY-001` — IN PROGRESS (streak 1/3; feature HEAD 89aa9bd1; Pass 5 re-dispatch next with grounds-truth probes)
 - `.worktrees/S-3.09` — FROZEN (BUG-S309-PLUGIN), stale since 2026-05-11; deferred per user direction
 - `.worktrees/W3-FIX-S307-001` — BLOCKED (superseded), stale since 2026-05-24; deferred per user direction
 
 **Open PRs:** None.
 
-**Resume protocol (4 steps — Pass 5 ready):**
+**Resume protocol (5 steps — Pass 5 re-dispatch with lesson 58 probes):**
 1. Run `vsdd-factory:factory-worktree-health` (BLOCKING preflight)
-2. Read STATE.md frontmatter — confirm `version: "7.544"` and `develop_head: "72baf413"` (D-859 checkpoint)
-3. Dispatch Pass 5 LOCAL adversary against feature HEAD `89aa9bd1` (no code change between Pass 4 and Pass 5)
-4. State-manager records result; if CLEAN(strict) streak=2/3; if NOT CLEAN dispatch fix-burst + reset streak
+2. Read STATE.md frontmatter — confirm `version: "7.545"` and `develop_head: "72baf413"` (D-860 checkpoint)
+3. Re-dispatch Pass 5 LOCAL adversary with MANDATORY preamble: agent runs `pwd && git branch --show-current && git rev-parse HEAD` FIRST; confirms `.worktrees/S-DTU-CYBERINT-AUTH-FIDELITY-001` + `feature/S-DTU-CYBERINT-AUTH-FIDELITY-001` + `89aa9bd1`; stops if any mismatch
+4. Adversary must include `wc -l <file>` + `rg <symbol> <file>` literal output for EVERY existence claim (lesson 58 requirement)
+5. State-manager records result; if CLEAN(strict) streak=2/3; if NOT CLEAN dispatch fix-burst + reset streak
 
 _Agent routing: see CLAUDE.md §Agent Routing Table._

@@ -518,3 +518,82 @@ traces_to: STATE.md
     **Scope of this pattern:** This discipline applies to any implementer N/A declaration where the adversary has cited a specific file path. It does NOT require workspace-wide search for every finding — only for the specific case where the literal adversary path does not resolve.
 
     _Discovered: D-856 Pass 3 LOCAL adversary cascade, 2026-05-30. F-LP3-MED-002 from S-DTU-CYBERINT-AUTH-FIDELITY-001 Pass 3 re-opens F-LP1-MED-003 closed N/A in Pass 1. Same wrong-crate pattern as F-LP1-LOW-002 (closed at 79e3b545 during cleanup burst). Second occurrence in S-DTU-CYBERINT-AUTH-FIDELITY-001 cascade — codification warranted._
+
+## 2026-05-30 D-860 — Adversary Grounding-Truth Requirement (Pass 5 REJECTED)
+
+58. **[process-gap] [codified] Adversary must self-verify cwd + branch + HEAD as FIRST action before conducting any probes. Orchestrator must independently verify CRIT/HIGH adversary findings before accepting them as real. Adversary reports that claim symbols "do not exist" require `wc -l` + `rg` literal output as evidence — bare assertions are not acceptable.**
+
+    **Evidence — Pass 5 LOCAL adversary REJECTED (S-DTU-CYBERINT-AUTH-FIDELITY-001):** Pass 5 adversary returned 9 findings (5 CRIT + 2 HIGH + 1 MED + 1 PROCESS-GAP) claiming the entire cyberint auth-fidelity implementation does not exist:
+
+    - F-LP5-CRIT-001: `StaticCookieAuthProvider` absent from `auth_provider.rs`; file claimed to be 354 lines
+    - F-LP5-CRIT-002: `CredentialResolver` trait + `BackendUnavailableCredentialResolver` absent
+    - F-LP5-CRIT-003: `clone.rs:113` still registers `POST /login`
+    - F-LP5-CRIT-004: `extract_session_token` still present; no `extract_access_token`
+    - F-LP5-CRIT-005: `build_request` unconditionally injects `Authorization: Bearer`
+    - F-LP5-HIGH-001: `session_store` UUID naming still in harness (not renamed to `access_token_store`)
+    - F-LP5-HIGH-002: Pattern B Scope-1 deliverables unfulfilled; `access_token_store` absent from harness
+    - F-LP5-MED-001: `lib.rs:5` still advertises `POST /login`
+    - F-LP5-PG-001: Pass 4 closure verification was fabricated
+
+    The report was internally consistent and persuasive. Orchestrator independent verification (running `rg`/`wc -l`/`sed -n` against the actual feature worktree at HEAD `89aa9bd1`) showed ALL 9 findings are false:
+
+    - `auth_provider.rs` is **1092 lines** (not 354)
+    - `StaticCookieAuthProvider` EXISTS at line 358
+    - `CredentialResolver` trait EXISTS at lines 146-157
+    - `BackendUnavailableCredentialResolver` EXISTS at line 287 (cfg-gated for AD-017)
+    - `clone.rs:111` has `// NOTE: POST /login route is intentionally ABSENT.` — no route registered
+    - `extract_access_token` EXISTS at `alerts.rs:56` + `harness clones/cyberint.rs:760`
+    - `access_token_store` EXISTS at `harness cyberint.rs:168`
+    - `lib.rs` has 0 hits for `POST /login`
+    - Pass 4 line citations all verified accurate against the 1092-line file
+
+    **Hypothesis:** The adversary's "354 lines" claim for `auth_provider.rs` is consistent with the file's line count on `develop@72baf413` (pre-implementation state, before the Pass 1-3 fix-bursts). The adversary likely resolved file paths against the main working tree (`/Users/jmagady/Dev/prism`) rather than the feature worktree (`.worktrees/S-DTU-CYBERINT-AUTH-FIDELITY-001`). Alternatively, stale context from a prior session session carried pre-implementation file snapshots into the Pass 5 review. Pure hallucination is less likely given the specificity of "354 lines" (a plausible pre-implementation size).
+
+    **This is the "structurally-plausible fabrication" pattern:** adversary output that LOOKS rigorous (specific line numbers, specific function names, specific error messages) but is grounded in stale or wrong-branch context. It passes a naive plausibility check because the language is precise. The defense is not stylistic — it is empirical re-verification.
+
+    **Three codifications:**
+
+    **Codification 1 — Adversary self-verification preamble (mandatory for every LOCAL adversary dispatch):**
+
+    Every adversary dispatch prompt MUST require the agent to run the following as its FIRST action before any probes:
+
+    ```bash
+    pwd && git branch --show-current && git rev-parse HEAD
+    ```
+
+    The agent MUST confirm the output matches the orchestrator-provided expected values:
+    - `pwd` must end with the story worktree path (e.g., `.worktrees/S-DTU-CYBERINT-AUTH-FIDELITY-001`)
+    - `git branch --show-current` must match the expected feature branch (e.g., `feature/S-DTU-CYBERINT-AUTH-FIDELITY-001`)
+    - `git rev-parse HEAD` must match the expected feature HEAD SHA (e.g., `89aa9bd1...`)
+
+    If ANY check fails, the agent MUST STOP and report the mismatch to the orchestrator. The agent must NOT proceed with probes if the preamble check fails.
+
+    **Codification 2 — File-existence proof requirement:**
+
+    When an adversary claims a symbol or file does NOT exist, the finding MUST include:
+    - The exact `rg <pattern> <path>` or `rg <pattern> crates/` command run
+    - The literal output showing 0 hits (copy-paste, not paraphrase)
+    - `wc -l <file>` showing the file's line count
+    - `head -1 <file>` or equivalent showing the file exists and is readable
+
+    Without this triad of evidence, "doesn't exist" claims are treated as SUSPECT and may be rejected by the orchestrator without a fix-burst. The orchestrator runs independent verification before accepting any existence-negation claim.
+
+    **Codification 3 — Orchestrator independent verification of CRIT/HIGH findings:**
+
+    When adversary returns a finding of severity CRIT or HIGH, the orchestrator MUST independently run the adversary's cited verification command against the claimed file path BEFORE dispatching any fix-burst. Protocol:
+
+    1. Run `rg <adversary_cited_symbol> <adversary_cited_path>` independently
+    2. If symbol EXISTS where adversary claimed it doesn't: finding is REJECTED; mark pass as FABRICATED; increment `pass_N_rejected` counter; do NOT reset streak
+    3. If symbol DOES NOT EXIST as claimed: finding is CONFIRMED; proceed with fix-burst dispatch
+    4. Orchestrator logs the independent verification result in the convergence-state.json `rejection_basis` field
+
+    **Escalation: when an entire pass is fabricated:** If the orchestrator's independent verification shows that MULTIPLE CRIT/HIGH findings in a single pass are all false, the orchestrator should consider the entire pass suspect and reject it wholesale (rather than cherry-picking individual findings). A pass with 5+ CRIT findings that all fail independent verification is strong evidence of wrong-branch or stale-context pathology, not individual probe error.
+
+    **State-manager obligation:** When recording a pass rejection, state-manager MUST:
+    1. Write `adversarial-review/local-pass-N-REJECTED.md` with §1 (verbatim adversary report), §2 (orchestrator refutation with literal command outputs), §3 (root cause hypothesis), §4 (disposition)
+    2. Update `adversary-convergence-state.json` with a `"pass": "N-REJECTED"` entry — NOT a normal pass entry that would advance the streak
+    3. Update `current_streak` to UNCHANGED (REJECTED pass does not reset and does not advance)
+    4. Set `status: "PASS_N_REJECTED_REDISPATCH_PENDING"`
+    5. Update STATE.md `pass_N_rejected: true` + `pass_N_rejection_reason`
+
+    _Discovered: D-860 Pass 5 LOCAL adversary rejection, 2026-05-30. S-DTU-CYBERINT-AUTH-FIDELITY-001 cascade. Adversary agent ID a12ee1d29ff472fbf. First occurrence of whole-pass fabrication in this project's adversarial history. 9/9 CRIT/HIGH findings refuted by orchestrator independent verification._

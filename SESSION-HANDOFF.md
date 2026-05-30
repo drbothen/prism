@@ -8447,3 +8447,49 @@ _Snapshot terminus: 2026-05-30. Cyberint cascade at Step 4.5 mid-fix. Pass 1 fix
 **Anti-volatile-pin note (TD-VSDD-091):** Load-bearing line citations in local-pass-4.md (auth_provider.rs:146-157, :463-487, :286, :1015-1044, :500-516; resolution.rs:18-34; lib.rs:1-25; parity/cyberint.rs:144-148; harness clones cyberint.rs:760-769) are accepted per the TD-VSDD-091 carve-out for small code citations used as load-bearing evidence in adversary pass reports. All other citations use story/BC/function-name/test-name anchors.
 
 **Resume §7 step update:** Step 6 (Pass 1 complete), Step 7 (Pass 2 fix-burst COMPLETE), Step 8 (Pass 3 fix-burst COMPLETE, 4/4 findings closed). Next action = Pass 4 LOCAL adversary dispatch against feature HEAD `89aa9bd1`.
+
+## §ADDENDUM 2026-05-30-PASS-5-REJECTED (D-860)
+
+**Pass 5 result:** REJECTED — FABRICATED. 9 findings submitted; 0 verified as real. Streak unchanged at 1/3.
+
+**Adversary claimed:** 5 CRIT + 2 HIGH + 1 MED + 1 PROCESS-GAP. All 9 findings claimed the entire cyberint implementation does not exist. Adversary stated `auth_provider.rs` is 354 lines; `StaticCookieAuthProvider` absent; `CredentialResolver` trait absent; `BackendUnavailableCredentialResolver` absent; `POST /login` still registered; `extract_session_token` still present; `access_token_store` absent from harness; `lib.rs` still advertises `POST /login`; Pass 4 closures fabricated.
+
+**Orchestrator independent verification (all refuted):**
+
+| Finding | Adversary claim | Verified reality (feature HEAD 89aa9bd1) |
+|---------|----------------|------------------------------------------|
+| F-LP5-CRIT-001 | auth_provider.rs = 354 lines; StaticCookieAuthProvider absent | File = 1092 lines; StaticCookieAuthProvider at line 358 |
+| F-LP5-CRIT-002 | CredentialResolver trait absent; BackendUnavailableCredentialResolver absent | CredentialResolver at lines 146-157; BackendUnavailableCredentialResolver at line 287 |
+| F-LP5-CRIT-003 | clone.rs:113 registers POST /login | Line 111: NOTE comment documents intentional ABSENCE; 0 route registrations |
+| F-LP5-CRIT-004 | extract_session_token still present; no extract_access_token | extract_access_token at alerts.rs:56 + harness clones/cyberint.rs:760 |
+| F-LP5-CRIT-005 | build_request unconditionally injects Authorization: Bearer | rg 'Authorization.*Bearer' crates/prism-dtu-cyberint/ = 0 hits |
+| F-LP5-HIGH-001 | session_store UUID still in harness | access_token_store at harness cyberint.rs:168; session_store = 0 hits |
+| F-LP5-HIGH-002 | Pattern B Scope-1 deliverables unfulfilled | access_token_store + register_access_token + check_auth all present |
+| F-LP5-MED-001 | lib.rs:5 still advertises POST /login | rg 'POST /login' lib.rs = 0 hits |
+| F-LP5-PG-001 | Pass 4 closures fabricated | Pass 4 line citations verified accurate against 1092-line file |
+
+**Root cause hypothesis:** Adversary resolved file paths to `develop@72baf413` (pre-implementation state, where `auth_provider.rs` is ~354 lines) instead of feature worktree `89aa9bd1`. The "354 lines" claim is too specific to be pure hallucination — consistent with reading the wrong-branch file. Alternatively, stale context from a prior session carried pre-implementation snapshots.
+
+**Lesson 58 codified [process-gap]:**
+1. Adversary must run `pwd && git branch --show-current && git rev-parse HEAD` as FIRST action and confirm matches expected worktree/branch/HEAD before any probes
+2. "Symbol doesn't exist" claims MUST include `wc -l <file>` + `rg <symbol> <file>` literal output (0 hits)
+3. Orchestrator MUST independently verify CRIT/HIGH findings before dispatching any fix-burst
+
+**Cascade state after Pass 5 REJECTED:**
+- Streak: **1/3** (UNCHANGED — rejected pass does not reset)
+- Status: PASS_5_REJECTED_REDISPATCH_PENDING
+- Feature HEAD: `89aa9bd1` (unchanged; no code changes needed)
+- Next action: Re-dispatch Pass 5 LOCAL adversary with MANDATORY grounding-truth preamble
+
+**Mandatory preamble for re-dispatched Pass 5:**
+1. Agent runs `pwd && git branch --show-current && git rev-parse HEAD` FIRST
+2. Confirms: `.worktrees/S-DTU-CYBERINT-AUTH-FIDELITY-001` + `feature/S-DTU-CYBERINT-AUTH-FIDELITY-001` + `89aa9bd1...`
+3. If ANY mismatch: STOP and report; do NOT proceed with probes
+4. For every existence claim in probes: include `rg <symbol> <file>` literal output
+5. For every "doesn't exist" claim: include `wc -l <file>` + `rg <symbol> <file>` showing 0 hits
+
+**D-860 burst marker:** This burst (D-860 state-manager) records Pass 5 REJECTED. Artifacts written: local-pass-5-REJECTED.md (new), adversary-convergence-state.json pass-5-REJECTED entry + status=PASS_5_REJECTED_REDISPATCH_PENDING (updated), lessons.md lesson 58 (appended), SESSION-HANDOFF.md §ADDENDUM 2026-05-30-PASS-5-REJECTED (this section), STATE.md v7.545.
+
+**Anti-volatile-pin note (TD-VSDD-091):** All citations use story/BC/function-name/test-name anchors per TD-VSDD-091. Load-bearing line citations in local-pass-5-REJECTED.md refutation section (auth_provider.rs:358, :146-157, :287, :463-487; alerts.rs:56; harness cyberint.rs:168, :760; clone.rs:111) accepted per TD-VSDD-091 carve-out for small code citations as load-bearing evidence in rejection reports.
+
+**Resume §7 step update:** Step 6 (Pass 1 complete), Step 7 (Pass 2 fix-burst COMPLETE), Step 8 (Pass 3 fix-burst COMPLETE, 4/4 findings closed), Step 9 (Pass 4 CLEAN(strict) streak 1/3), Step 10 (Pass 5 REJECTED — re-dispatch with grounds-truth preamble). Next action = Re-dispatch Pass 5 LOCAL adversary with lesson 58 preamble requirements.

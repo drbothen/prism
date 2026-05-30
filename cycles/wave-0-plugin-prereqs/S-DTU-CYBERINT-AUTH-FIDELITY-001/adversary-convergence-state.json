@@ -138,11 +138,23 @@
         "F-LP3-LOW-002": "DEFERRED — scope boundary correct; routes to maintenance follow-up at wave-gate"
       },
       "state_manager_commit": "TBD (D-859 this burst)"
+    },
+    {
+      "pass": "5-REJECTED",
+      "date": "2026-05-30",
+      "status": "FABRICATED",
+      "findings_count_claimed": 9,
+      "findings_count_verified": 0,
+      "rejection_basis": "Orchestrator independently verified all 9 findings cite symbols/files that DO exist. auth_provider.rs is 1092 lines (claimed 354); StaticCookieAuthProvider exists at line 358; CredentialResolver trait at lines 146-157; BackendUnavailableCredentialResolver at line 287; clone.rs line 111 has NOTE comment documenting intentional ABSENCE of POST /login (no route registered); extract_access_token exists at alerts.rs:56 + harness clones/cyberint.rs:760; access_token_store exists in harness clone at line 168.",
+      "hypothesis_root_cause": "Adversary may have read files from develop branch (72baf413, no implementation) instead of feature worktree (89aa9bd1). OR hallucination from stale context. OR tooling issue with file resolution at adversary's cwd.",
+      "feature_head_at_pass": "89aa9bd1",
+      "streak_unchanged": 1,
+      "disposition": "REJECTED — re-dispatch Pass 5 with strict grounding-truth requirements (cwd confirmation, file-size confirmation, rg-output-capture per existence claim)"
     }
   ],
   "current_streak": 1,
   "target_streak": 3,
-  "status": "PASS_4_CLEAN_STRICT_STREAK_1_OF_3",
-  "next_action": "Dispatch Pass 5 LOCAL adversary against feature HEAD 89aa9bd1 (no code change required). If CLEAN(strict) → streak 2/3 → Pass 6 (final). If not CLEAN → fix-burst + reset.",
+  "status": "PASS_5_REJECTED_REDISPATCH_PENDING",
+  "next_action": "Re-dispatch Pass 5 LOCAL adversary with strict grounding-truth requirements: must run pwd + git branch + git rev-parse HEAD as first verification; must run wc -l on every cited file; must run rg with literal output capture for every existence claim. If re-dispatched Pass 5 is CLEAN(strict) with verified grounds, streak → 2/3 and dispatch Pass 6.",
   "protocol": "BC-5.39.001 3-CLEAN (D-779 amendment: strict=zero all severities for streak; PR-merge=zero CRIT+HIGH+MED)"
 }
