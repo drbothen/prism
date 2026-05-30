@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.548"
+version: "7.549"
 producer: state-manager
 timestamp: 2026-05-30T03:00:00Z
 inputs: []
@@ -16,10 +16,10 @@ repos: [poller-cobra, poller-express, poller-bear, poller-coaster, serveMyAPI, t
 safe_to_compact: true
 pre_compact_snapshot: "SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-30-CYBERINT-CASCADE-PASS-1-MID-FIX"
 pre_compact_snapshot_at: "2026-05-30 (D-851 PRE-CLEAR durability snapshot; Cyberint cascade Step 4.5 Pass 1 blocked on architect harness audit; architect background agent a1161dc86ddae5c53; architect decision committed 12378e35)"
-current_step: "Cyberint cascade: Pass 6 fix-burst COMPLETE — story v1.2→v1.3 (Option A convention adjudication via ea80ed72) + 4 test renames in code (via 4f5b5404). Feature HEAD 4f5b5404. Streak 0/3 awaiting Pass 7 → 1/3 → Pass 8 → 2/3 → Pass 9 → 3/3 CONVERGED."
+current_step: "Cyberint cascade: Pass 7 CLEAN(strict) — streak 1/3. Feature HEAD 4f5b5404. Pass 8 + Pass 9 needed for full 3-CLEAN convergence."
 pass_2_findings: {CRIT: 1, HIGH: 1, MED: 1, PROCESS_GAP: 1}
 cyberint_cascade_in_progress: true
-cyberint_cascade_step: "4.5 LOCAL adversary Pass 6 fix-burst COMPLETE — feature@4f5b5404; ready for Pass 7 (need 3 consecutive CLEAN for convergence)"
+cyberint_cascade_step: "4.5 LOCAL adversary streak 1/3 — Pass 8 next"
 pass_5_rejected: true
 pass_5_rejection_reason: "fabricated — orchestrator-verified counter-evidence shows cited symbols + lines exist at feature HEAD 89aa9bd1; adversary likely read wrong branch/cwd (develop@72baf413 has no implementation)"
 pass_5_redux_clean_strict: true
@@ -30,6 +30,8 @@ pass_6_clean_strict: false
 pass_6_clean_pr_merge: true
 pass_6_findings: {LOW: 1, deferred: 1}
 pass_6_streak_after: "0/3"
+pass_7_clean_strict: true
+pass_7_streak: "1/3"
 pass_3_findings: { HIGH: 1, MED: 2, LOW: 2, deferred: 1 }
 pass_3_deferred_to_maintenance: "F-LP3-LOW-002 — prism-bin/tests/plugin_boot_tests.rs unsafe SAFETY-comment quality (4 sites)"
 pass_4_clean_strict: true
@@ -289,9 +291,9 @@ historical_cycles: [phase-1-convergence, wave-3-multi-tenant, wave-4-operations]
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-30 (D-864 state-manager Pass 6 fix-burst closure — story v1.2→v1.3 Option A (ea80ed72) + 4 test renames (4f5b5404); feature HEAD 4f5b5404; streak 0/3; ready for Pass 7; STATE v7.548) |
-| **Current Phase** | Wave 3 Tier-3 complete — S-DTU-CYBERINT-AUTH-FIDELITY-001 per-story-delivery cascade at Step 4.5 (Pass 6 fix-burst COMPLETE; streak 0/3; feature HEAD 4f5b5404; ready for Pass 7). develop@72baf413. |
-| **Current Step** | D-864 — Pass 6 fix-burst COMPLETE. F-LP6-LOW-001 CLOSED load-bearing: story v1.2→v1.3 Option A via story-writer (ea80ed72) + 4 test function renames in code via implementer (4f5b5404). just check EXIT 0, 3839/3839 tests. Streak remains 0/3 (Pass 6 was NOT CLEAN(strict) — fix-burst addresses the finding; Pass 7 begins new streak attempt). D-LP6-001 still deferred (CredentialResolutionError #[non_exhaustive] pre-existing → Phase 5 pub-API audit). Feature HEAD advanced 89aa9bd1 → 4f5b5404. Next: Pass 7 LOCAL adversary with lesson 58 grounding-truth preamble. |
+| **Last Updated** | 2026-05-30 (D-865 state-manager Pass 7 CLEAN(strict) — streak 1/3; feature HEAD 4f5b5404; STATE v7.549) |
+| **Current Phase** | Wave 3 Tier-3 complete — S-DTU-CYBERINT-AUTH-FIDELITY-001 per-story-delivery cascade at Step 4.5 (Pass 7 CLEAN(strict); streak 1/3; feature HEAD 4f5b5404; Pass 8 next). develop@72baf413. |
+| **Current Step** | D-865 — Pass 7 CLEAN(strict). Zero findings. Novelty ZERO. Streak 0/3 → 1/3. F-LP6-LOW-001 closure load-bearing verified (4 renamed tests at expected paths; bodies + mock assertions intact; story v1.3 consistent). SAP-1/SAP-2/SID-1 PASS. Feature HEAD 4f5b5404. Next: Pass 8 LOCAL adversary with lesson 58 grounding-truth preamble. |
 
 ## Phase Progress
 
@@ -329,12 +331,12 @@ historical_cycles: [phase-1-convergence, wave-3-multi-tenant, wave-4-operations]
 
 | Step | Agent | Status | Output |
 |------|-------|--------|--------|
-_D-735 through D-847 archived to cycles/wave-0-plugin-prereqs/burst-log.md. D-835+D-836+D-837 removed from Phase Steps (archived in Decisions Log). D-849/851/852/853/855/856/857/858/859/860/861 archived to burst-log.md._
+_D-735 through D-847 archived to cycles/wave-0-plugin-prereqs/burst-log.md. D-835+D-836+D-837 removed from Phase Steps (archived in Decisions Log). D-849/851/852/853/855/856/857/858/859/860/861/862/863/864 archived to burst-log.md._
+| D-865 — **CYBERINT PASS 7 CLEAN(strict) — STREAK 1/3 (state-manager, 2026-05-30). Zero findings. F-LP6-LOW-001 closure load-bearing verified. Feature HEAD 4f5b5404. STATE v7.548→v7.549.** | state-manager (D-865 pass-7 burst) | PASS-7-CLEAN-STRICT-STREAK-1-OF-3 | Pass 8 next (lesson 58 preamble required) |
 | D-864 — **CYBERINT PASS 6 FIX-BURST CLOSURE (state-manager, 2026-05-30). F-LP6-LOW-001 CLOSED: story v1.3 Option A (ea80ed72) + 4 test renames code (4f5b5404). Feature HEAD 89aa9bd1 → 4f5b5404. 3839/3839 tests. Streak 0/3 awaiting Pass 7. STATE v7.547→v7.548.** | state-manager (D-864 closure burst) | PASS-6-FIX-BURST-COMPLETE-READY-FOR-PASS-7 | Pass 7 next (lesson 58 preamble required) |
 | D-863 — **CYBERINT PASS 6 F-LP6-LOW-001 STORY-WRITER ADJUDICATION (story-writer, 2026-05-30). Option A chosen: rename test names to BC-2.01.017 prefix. Story v1.2→v1.3 (ea80ed72). 4 test names + AC bodies + Tasks + convention note updated. STORY-INDEX v2.212→v2.213.** | story-writer (D-863 adjudication) | F-LP6-LOW-001-OPTION-A-ADJUDICATED | implementer follow-on dispatched; ea80ed72 |
 | D-862 — **CYBERINT PASS 6 — 1 LOW FINDING (state-manager, 2026-05-30). F-LP6-LOW-001 test-name BC prefix mis-anchor. CLEAN(strict)=NO. Streak reset 2/3 → 0/3. STATE v7.546→v7.547.** | state-manager (D-862 pass-6 burst) | PASS-6-LOW-STREAK-RESET-0-OF-3 | story-writer adjudication → D-863 |
 | D-861 — **CYBERINT PASS 5 REDUX CLEAN(strict) (state-manager, 2026-05-30). Streak 2/3. Lesson 58 first application. STATE v7.545→v7.546.** | state-manager (D-861 pass-5-redux-clean burst) | PASS-5-REDUX-CLEAN-STRICT-STREAK-2-OF-3 | feature@89aa9bd1; streak 2/3 |
-| D-860 — **CYBERINT PASS 5 REJECTED — FABRICATED (state-manager, 2026-05-30). 9 claimed findings; 0 verified. Streak unchanged 1/3. Lesson 58 codified. STATE v7.544→v7.545.** | state-manager (D-860 pass-5-rejected burst) | PASS-5-REJECTED | streak unchanged 1/3 |
 
 
 ## Decisions Log
@@ -343,6 +345,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-865 | 2026-05-30 | state-manager | **CYBERINT PASS 7 CLEAN(strict) — STREAK 1/3. Zero findings. Novelty: ZERO. F-LP6-LOW-001 closure verified load-bearing.** Pass 7 LOCAL adversary operated on feature worktree HEAD `4f5b5404` with mandatory lesson 58 grounding-truth preamble (cwd + branch + HEAD + symbol existence confirmed via Read+Grep before probes). Zero findings at any severity. CLEAN(strict)=YES. CLEAN(PR-merge)=YES. Novelty: ZERO. Streak advances 0/3 → 1/3. F-LP6-LOW-001 closure verified load-bearing: 4 renamed test functions at expected paths in `bc_2_01_017_access_token_auth.rs` + `bc_2_01_017_static_cookie_auth_provider.rs`; bodies + mock assertions intact; story spec v1.3 §Red Gate Tests table fully consistent. SAP-1 PASS, SAP-2 PASS, SID-1 PASS, cross-doc consistency PASS, sibling-sweep PASS. D-LP6-001 deferred status unchanged (CredentialResolutionError `#[non_exhaustive]` pre-existing → Phase 5 pub-API audit). Feature HEAD unchanged at `4f5b5404`. Artifacts: adversarial-review/local-pass-7.md (new), adversary-convergence-state.json pass-7 entry + current_streak=1 + status=PASS_7_CLEAN_STRICT_STREAK_1_OF_3 (updated), STATE.md v7.549, SESSION-HANDOFF.md §ADDENDUM 2026-05-30-PASS-7-CLEAN-STREAK-1-OF-3 (appended). Anti-volatile-pin per TD-VSDD-091. 262nd consecutive single-commit per TD-VSDD-053. | plugin-migration | 2026-05-30 | Decided by: adversary (Pass 7 report, feature HEAD 4f5b5404, lesson 58 preamble) + state-manager (D-865 persistence burst). Status: APPROVED — Pass 8 next |
 | D-864 | 2026-05-30 | state-manager | **CYBERINT PASS 6 FIX-BURST CLOSURE — F-LP6-LOW-001 CLOSED load-bearing at feature@4f5b5404. Option A: prefix-by-primary-BC-anchor convention.** Story-writer Option A adjudication (ea80ed72, factory-artifacts): 4 Red Gate test names in story spec §Red Gate Tests table renamed to `test_BC_2_01_017_*` prefix (story v1.2→v1.3); AC bodies, Tasks step 6 + step 19, and Notes for Implementer convention paragraph all updated; STORY-INDEX v2.212→v2.213. Implementer follow-on (4f5b5404, feature branch): 4 test function renames in code — `test_BC_2_01_013_*` (3 functions) and `test_BC_2_01_016_*` (1 function) renamed to `test_BC_2_01_017_*` prefix. Files: `crates/prism-dtu-cyberint/tests/bc_2_01_017_access_token_auth.rs` + `crates/prism-spec-engine/tests/bc_2_01_017_static_cookie_auth_provider.rs`. Module-level test table doc comments updated (3 rows). Inline `expect("test_BC_2_01_013: ...")` → `expect("test_BC_2_01_017: ...")` (1 site). Sibling-sweep CLEAN — zero old names remain in story scope (other `test_BC_2_01_013_*`/`test_BC_2_01_016_*` tests in workspace are legitimate; verified by test-body reading). `just check` EXIT 0 — 3839/3839 tests pass + 26 skipped. Test count delta 0 (pure rename, structurally idempotent). Feature HEAD advanced: 89aa9bd1 → 4f5b5404. Streak 0/3 unchanged (Pass 6 was NOT CLEAN(strict); fix addresses finding; Pass 7 begins new streak attempt). D-LP6-001 still deferred (CredentialResolutionError `#[non_exhaustive]` pre-existing → Phase 5 pub-API audit; CLAUDE.md Rule 3 compliant). Artifacts: adversary-convergence-state.json pass_6_resolution + status=PASS_6_FIX_BURST_COMPLETE_READY_FOR_PASS_7 (updated), STATE.md v7.548, SESSION-HANDOFF.md §ADDENDUM 2026-05-30-PASS-6-FIX-BURST-COMPLETE (appended). Anti-volatile-pin per TD-VSDD-091. 261st consecutive single-commit per TD-VSDD-053. | plugin-migration | 2026-05-30 | Decided by: story-writer (ea80ed72 Option A adjudication) + implementer (4f5b5404 rename fix-burst) + state-manager (D-864 closure burst). Status: APPROVED — Pass 7 next |
 | D-863 | 2026-05-30 | story-writer | **CYBERINT PASS 6 F-LP6-LOW-001 STORY-WRITER ADJUDICATION — Option A selected: "prefix by primary BC anchor" convention. Story v1.2→v1.3, ea80ed72.** F-LP6-LOW-001 finding: 4 Red Gate test names in story spec §Red Gate Tests table used BC-2.01.013 (DataSource Trait) and BC-2.01.016 (SensorAuth Open Trait) prefixes, but their descriptions cited BC-2.01.017 §Postconditions/§Invariants. Two conventions were under consideration: (a) "prefix by primary BC anchor" — rename to BC-2.01.017 prefix; (b) "prefix by BC being proven" — add inline convention note, no rename. Story-writer selected Option A per project precedent established in S-CONFIG (where test names prefix the BC being directly proven/tested) and PLUGIN-MIGRATION-001-E (same convention applied), and per POL-4 semantic-anchoring. Convention documented in story v1.3 "Notes for Implementer" section to prevent recurrence. Updates: §Red Gate Tests table — 4 test name cells renamed to `test_BC_2_01_017_*` equivalents; §Acceptance Criteria bodies updated (AC-002, AC-005, AC-006, AC-007 references aligned); §Tasks step 6 + step 19 updated. STORY-INDEX v2.212→v2.213 (story v1.2→v1.3 bump). Implementer dispatch required for code rename. factory-artifacts commit ea80ed72. | plugin-migration | 2026-05-30 | Decided by: story-writer (F-LP6-LOW-001 convention adjudication). Status: APPROVED — Option A |
 | D-862 | 2026-05-30 | state-manager | **CYBERINT PASS 6 — 1 LOW FINDING F-LP6-LOW-001 — STREAK RESET 2/3 → 0/3.** Pass 6 LOCAL adversary operated on feature HEAD `89aa9bd1` (unchanged). Grounding-truth preamble confirmed per lesson 58. SAP-1 PASS, SAP-2 PASS, SID-1 PASS, cross-doc consistency PASS, sibling-sweep PASS, Pass 3 closures re-confirmed load-bearing. Sole finding: F-LP6-LOW-001 — 4 Red Gate test names in story spec §Red Gate Tests table use BC ID prefixes that do not match the BC their descriptions cite. `test_BC_2_01_013_*` prefix (BC-2.01.013 DataSource Trait) + `test_BC_2_01_016_*` prefix (BC-2.01.016 SensorAuth Open Trait) appear on 4 tests whose descriptions cite BC-2.01.017 §Postconditions/§Invariants. DTU-side test names using BC-2.16.013 prefix (AC-001, AC-003, AC-004) are correct. POL-4 semantic-anchoring concern — pending story-writer convention adjudication: (a) "Prefix by primary BC anchor" convention → rename to BC-2.01.017 prefix (story spec v1.2→v1.3 + implementer follow-on); (b) "Prefix by BC being proven" convention → add inline note (no rename needed). Implementer faithfully copied test names from story spec. Defect origin is in story spec, not code. CLEAN(strict)=NO (1 LOW). CLEAN(PR-merge)=YES (zero CRIT/HIGH/MED). Streak reset 2/3 → 0/3 per BC-5.39.001 D-779 strict criterion. D-LP6-001 DEFERRED (CredentialResolutionError #[non_exhaustive] at prism-credentials/src/resolution.rs:19 — pre-existing, project-wide; not introduced by this story; routes to Phase 5 pub-API audit per CLAUDE.md Rule 3). Feature HEAD unchanged at `89aa9bd1`. Artifacts written: adversarial-review/local-pass-6.md (new), adversary-convergence-state.json pass-6 entry + current_streak=0 + status=PASS_6_LOW_FINDING_F_LP6_LOW_001_REQUIRES_STORY_WRITER_ADJUDICATION (updated), STATE.md v7.547, SESSION-HANDOFF.md §ADDENDUM 2026-05-30-PASS-6-LOW-RESET-STREAK (appended). Anti-volatile-pin per TD-VSDD-091. 260th consecutive single-commit per TD-VSDD-053. | plugin-migration | 2026-05-30 | Decided by: adversary (Pass 6 report, feature HEAD 89aa9bd1) + state-manager (D-862 persistence burst). Status: APPROVED — story-writer adjudication of F-LP6-LOW-001 pending |
@@ -531,31 +534,31 @@ Prior cycle history:
 
 ---
 
-## Session Resume Checkpoint (2026-05-30 — D-864 Pass 6 fix-burst COMPLETE; streak 0/3; feature@4f5b5404; develop@72baf413)
+## Session Resume Checkpoint (2026-05-30 — D-865 Pass 7 CLEAN(strict); streak 1/3; feature@4f5b5404; develop@72baf413)
 
-_Previous checkpoint (D-862 Pass 6 1 LOW F-LP6-LOW-001; streak 0/3) superseded by D-864 Pass 6 fix-burst closure._
+_Previous checkpoint (D-864 Pass 6 fix-burst COMPLETE; streak 0/3) superseded by D-865 Pass 7 CLEAN(strict) — streak 1/3._
 
-**STATE v7.548. D-864 — PASS 6 FIX-BURST COMPLETE. F-LP6-LOW-001 CLOSED: story v1.3 Option A (ea80ed72) + 4 test renames (4f5b5404). Feature HEAD 4f5b5404. BC-INDEX v5.59. error-taxonomy v1.54. develop@72baf413. Pass 7 LOCAL adversary next.**
+**STATE v7.549. D-865 — PASS 7 CLEAN(strict). Zero findings. Streak 1/3. Feature HEAD 4f5b5404. BC-INDEX v5.59. error-taxonomy v1.54. develop@72baf413. Pass 8 LOCAL adversary next.**
 
-**develop HEAD:** `72baf413` | **Workspace test count:** 3839 | **Feature branch HEAD:** `4f5b5404` | **Cyberint cascade streak:** 0/3 (awaiting Pass 7)
+**develop HEAD:** `72baf413` | **Workspace test count:** 3839 | **Feature branch HEAD:** `4f5b5404` | **Cyberint cascade streak:** 1/3
 
-**Pass 6 fix-burst COMPLETE.** F-LP6-LOW-001 CLOSED load-bearing via Option A (rename to BC-2.01.017 prefix). Story-writer convention adjudication (ea80ed72) + implementer 4 test renames (4f5b5404). `just check` EXIT 0, 3839/3839 tests. D-LP6-001 still deferred (CredentialResolutionError `#[non_exhaustive]` pre-existing → Phase 5 pub-API audit). Streak 0/3 — Pass 7 begins new streak attempt.
+**Pass 7 CLEAN(strict).** Zero findings at any severity. Novelty ZERO. F-LP6-LOW-001 closure load-bearing verified (4 renamed tests at expected paths; bodies + mock assertions intact). SAP-1/SAP-2/SID-1 PASS. D-LP6-001 still deferred (CredentialResolutionError `#[non_exhaustive]` pre-existing → Phase 5 pub-API audit). Streak advances 0/3 → 1/3.
 
 **Critical path (next actions for new session):**
-1. **READ `SESSION-HANDOFF.md §ADDENDUM 2026-05-30-PASS-6-FIX-BURST-COMPLETE`** — closure summary
-2. **Dispatch Pass 7 LOCAL adversary** against feature HEAD `4f5b5404` with mandatory lesson 58 grounding-truth preamble (cwd+branch+HEAD+symbol existence confirmed via Read+Grep before any probes)
-3. **Pass 7/8/9 must all be CLEAN(strict)** for 3/3 convergence → demo-recorder → push → PR cycle
+1. **READ `SESSION-HANDOFF.md §ADDENDUM 2026-05-30-PASS-7-CLEAN-STREAK-1-OF-3`** — Pass 7 summary
+2. **Dispatch Pass 8 LOCAL adversary** against feature HEAD `4f5b5404` with mandatory lesson 58 grounding-truth preamble (cwd+branch+HEAD+symbol existence confirmed via Read+Grep before any probes)
+3. **Pass 8 + Pass 9 must both be CLEAN(strict)** for 3/3 convergence → demo-recorder → push → PR cycle
 
 **Active worktrees:**
-- `.worktrees/S-DTU-CYBERINT-AUTH-FIDELITY-001` — IN PROGRESS (streak 0/3; feature HEAD 4f5b5404; Pass 7 next)
+- `.worktrees/S-DTU-CYBERINT-AUTH-FIDELITY-001` — IN PROGRESS (streak 1/3; feature HEAD 4f5b5404; Pass 8 next)
 - `.worktrees/S-3.09` — FROZEN (BUG-S309-PLUGIN), stale since 2026-05-11; deferred per user direction
 - `.worktrees/W3-FIX-S307-001` — BLOCKED (superseded), stale since 2026-05-24; deferred per user direction
 
 **Open PRs:** None.
 
-**Resume protocol (3 steps — Pass 7 adversary):**
+**Resume protocol (3 steps — Pass 8 adversary):**
 1. Run `vsdd-factory:factory-worktree-health` (BLOCKING preflight)
-2. Read STATE.md frontmatter — confirm `version: "7.548"` and `develop_head: "72baf413"` (D-864 checkpoint)
-3. Dispatch Pass 7 LOCAL adversary against feature HEAD `4f5b5404` with lesson 58 grounding-truth preamble; streak 0/3 → need 3 consecutive CLEAN(strict) for convergence
+2. Read STATE.md frontmatter — confirm `version: "7.549"` and `develop_head: "72baf413"` (D-865 checkpoint)
+3. Dispatch Pass 8 LOCAL adversary against feature HEAD `4f5b5404` with lesson 58 grounding-truth preamble; streak 1/3 → need 2 more consecutive CLEAN(strict) for convergence
 
 _Agent routing: see CLAUDE.md §Agent Routing Table._

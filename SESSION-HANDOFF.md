@@ -8627,3 +8627,41 @@ Implementer Code Rename (4f5b5404, feature/S-DTU-CYBERINT-AUTH-FIDELITY-001):
 **D-864 burst marker:** This burst (D-864 state-manager) records Pass 6 fix-burst closure. Artifacts written: adversary-convergence-state.json pass_6_resolution + status=PASS_6_FIX_BURST_COMPLETE_READY_FOR_PASS_7 (updated), STATE.md v7.548, SESSION-HANDOFF.md §ADDENDUM 2026-05-30-PASS-6-FIX-BURST-COMPLETE (this section). 261st consecutive single-commit per TD-VSDD-053.
 
 **Resume §7 step update (full chain):** Step 6 (Pass 1 complete), Step 7 (Pass 2 fix-burst COMPLETE), Step 8 (Pass 3 fix-burst COMPLETE, 4/4 findings closed), Step 9 (Pass 4 CLEAN(strict) streak 1/3), Step 10 (Pass 5 REJECTED — lesson 58 codified), Step 11 (Pass 5 REDUX CLEAN(strict) streak 2/3), Step 12 (Pass 6 NOT CLEAN(strict) — 1 LOW F-LP6-LOW-001; streak reset 0/3), Step 13 (Pass 6 fix-burst COMPLETE — F-LP6-LOW-001 CLOSED; feature HEAD 4f5b5404; streak 0/3). Next action = Pass 7 LOCAL adversary dispatch.
+
+---
+
+## §ADDENDUM 2026-05-30-PASS-7-CLEAN-STREAK-1-OF-3
+
+**D-865 burst marker.** Pass 7 LOCAL adversary CLEAN(strict). Streak 0/3 → 1/3. Feature HEAD unchanged at `4f5b5404`.
+
+**Pass 7 result:**
+- CLEAN(strict): YES (zero findings at any severity)
+- CLEAN(PR-merge): YES
+- Novelty: ZERO
+- Streak: **1/3**
+- Feature HEAD: `4f5b5404` (unchanged)
+
+**F-LP6-LOW-001 closure verified load-bearing:**
+- `crates/prism-dtu-cyberint/tests/bc_2_01_017_access_token_auth.rs` — 3 renamed test functions (`test_BC_2_01_017_*`) at expected paths; bodies + mock assertions intact; module doc + expect() string updated
+- `crates/prism-spec-engine/tests/bc_2_01_017_static_cookie_auth_provider.rs` — 1 renamed test function; body + mock assertions intact
+- Story spec v1.3 §Red Gate Tests table — all 4 test name cells confirmed as `test_BC_2_01_017_*` prefix; AC bodies + Tasks + Notes for Implementer all consistent
+
+**Standing probes:** SAP-1 PASS, SAP-2 PASS, SID-1 PASS. Cross-doc consistency PASS. Sibling sweep PASS.
+
+**D-LP6-001 deferred status unchanged:** CredentialResolutionError `#[non_exhaustive]` pre-existing concern routes to Phase 5 pub-API audit. Not introduced by S-DTU-CYBERINT-AUTH-FIDELITY-001. CLAUDE.md Rule 3 compliant.
+
+**Cascade state after Pass 7:**
+- Streak: **1/3** (Pass 7 CLEAN(strict); two more required)
+- Status: PASS_7_CLEAN_STRICT_STREAK_1_OF_3
+- Feature HEAD: `4f5b5404`
+- Next: Pass 8 LOCAL adversary with mandatory lesson 58 grounding-truth preamble
+
+**Path to convergence:**
+- Pass 8: adversary against feature HEAD `4f5b5404` with lesson 58 preamble. If CLEAN(strict) → streak 2/3
+- Pass 9: adversary with lesson 58 preamble. If CLEAN(strict) → streak 3/3 → LOCAL CONVERGED → demo-recorder → push → PR cycle
+
+**Anti-volatile-pin note (TD-VSDD-091):** All citations use story/BC/function-name/test-name anchors. No file:line-number citations in this addendum.
+
+**D-865 burst marker:** This burst (D-865 state-manager) records Pass 7 CLEAN(strict). Artifacts written: adversarial-review/local-pass-7.md (new), adversary-convergence-state.json pass-7 entry + current_streak=1 + status=PASS_7_CLEAN_STRICT_STREAK_1_OF_3 (updated), STATE.md v7.549, SESSION-HANDOFF.md §ADDENDUM 2026-05-30-PASS-7-CLEAN-STREAK-1-OF-3 (this section). 262nd consecutive single-commit per TD-VSDD-053.
+
+**Resume §7 step update (full chain):** Step 6 (Pass 1 complete), Step 7 (Pass 2 fix-burst COMPLETE), Step 8 (Pass 3 fix-burst COMPLETE, 4/4 findings closed), Step 9 (Pass 4 CLEAN(strict) streak 1/3), Step 10 (Pass 5 REJECTED — lesson 58 codified), Step 11 (Pass 5 REDUX CLEAN(strict) streak 2/3), Step 12 (Pass 6 NOT CLEAN(strict) — 1 LOW F-LP6-LOW-001; streak reset 0/3), Step 13 (Pass 6 fix-burst COMPLETE — F-LP6-LOW-001 CLOSED; feature HEAD 4f5b5404; streak 0/3), Step 14 (Pass 7 CLEAN(strict) — streak 1/3; feature HEAD 4f5b5404). Next action = Pass 8 LOCAL adversary dispatch.
