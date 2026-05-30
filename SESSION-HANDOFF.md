@@ -8374,3 +8374,39 @@ _Snapshot terminus: 2026-05-30. Cyberint cascade at Step 4.5 mid-fix. Pass 1 fix
 **Anti-volatile-pin note (TD-VSDD-091):** All citations use story/BC/function-name/test-name anchors. The `prism-spec-engine/tests/parity/cyberint.rs:144` line-number reference is preserved as load-bearing evidence for F-LP3-MED-002's finding location; the approximate `plugin_boot_tests.rs` advisory line citations (~167/192/210/489) remain approximate as noted in the Pass 2 addendum.
 
 **Resume §7 step update:** Step 6 (Pass 1 complete), Step 7 (Pass 2 fix-burst COMPLETE, all 4 findings closed). Next action = Pass 3 LOCAL adversary dispatch against feature HEAD `d697425b`.
+
+## §ADDENDUM 2026-05-30-PASS-3-FIX-BURST-COMPLETE (D-858)
+
+**State update:** Pass 3 fix-burst COMPLETE. All 4 in-scope findings closed load-bearing. Feature HEAD: `89aa9bd1`. STATE: v7.543.
+
+**Pass 3 fix-burst closure summary:**
+
+| Route | Findings | Key action |
+|-------|----------|------------|
+| PO (0fab3437) | F-LP3-HIGH-001 (BC + taxonomy) | E-AUTH-007 allocated in error-taxonomy.md v1.54; BC-2.01.017 v1.2→v1.3 (EC-017-010 + TV-BC-2.01.017-009); BC-INDEX v5.59; PO adjudication doc F-LP3-HIGH-001.md |
+| Implementer (89aa9bd1) | F-LP3-HIGH-001 (impl) | Path β: `CredentialResolver` trait sig → `Result<SecretString, CredentialResolutionError>`; `acquire_token` match `NotFound→E-AUTH-005` + `BackendUnavailable→E-AUTH-007`; `BackendUnavailableCredentialResolver` AD-017 cfg-gated; new test `test_static_cookie_auth_provider_backend_unavailable_returns_e_auth_007` |
+| Implementer (89aa9bd1) | F-LP3-MED-001 | `prism-dtu-cyberint/src/lib.rs` module doc: stale `POST /login (CookieRoundtrip pattern)` + 9-line route list removed; replaced with `access_token` cookie injection + `StaticCookieAuthProvider` per ADR-031 §D1-b + §D3-a |
+| Implementer (89aa9bd1) | F-LP3-MED-002 | `prism-spec-engine/tests/parity/cyberint.rs:144` comment updated to current narrative; lesson 57 compliance: workspace-wide search confirmed file location before update |
+| Implementer (89aa9bd1) | F-LP3-LOW-001 | Validation order reordered: `len() > 4096` BEFORE `is_empty()/all-whitespace`; new regression test `test_static_cookie_auth_provider_rejects_oversized_whitespace_with_length_detail` |
+| Deferred | F-LP3-LOW-002 | `prism-bin/tests/plugin_boot_tests.rs` 4 unsafe SAFETY-comment-quality sites; cross-story; maintenance follow-up; NOT filed as TD per CLAUDE.md Rule 3 |
+
+**Path β rationale (CLAUDE.md Rule 5 compliance):** Path α (sentinel-prefix string gymnastics) was rejected because it is the cheaper mechanism, not the correct mechanism. Path β (trait signature change preserving `CredentialResolutionError` fidelity) is the production-grade path. PO confirmed via adjudication doc.
+
+**Lesson 57 compliance demonstrated:** Implementer applied lesson 57 — searched workspace-wide for `parity/cyberint.rs` BEFORE declaring N/A. File confirmed at `crates/prism-spec-engine/tests/parity/cyberint.rs` (Pass 1 had wrong-crate-search at `crates/prism-dtu-cyberint/tests/parity/`).
+
+**Verification at feature HEAD 89aa9bd1:**
+- `just check` (full workspace): 3839/3839 PASS, 26 skipped
+- `prism-spec-engine` auth_provider tests: 7/7 PASS (5 existing + 2 new)
+- `prism-dtu-cyberint`: 109/109 PASS
+- `prism-credentials`: 111/111 PASS
+- Sibling-sweep clean (CredentialResolver impls all local-only in auth_provider.rs)
+- `#[non_exhaustive]` perimeter gate: EXPECTED=46 unaffected
+- Workspace test count: 3839 (was 3836; net +3)
+
+**F-LP3-LOW-002 deferral status:** Unchanged from Pass 3 persistence (D-856). 4 `unsafe { std::env::set_var }` sites in `prism-bin/tests/plugin_boot_tests.rs` (approximate lines ~167/192/210/489). Cross-story; maintenance follow-up; NOT filed as TD per CLAUDE.md Rule 3 (no human direction, no concrete future dependency).
+
+**D-858 cascade closure marker:** This commit (D-858 state-manager burst) is the cascade closure marker for the Pass 3 cycle. Next: Pass 4 LOCAL adversary dispatch against feature HEAD `89aa9bd1`.
+
+**Anti-volatile-pin note (TD-VSDD-091):** All citations use story/BC/function-name/test-name anchors per TD-VSDD-091. The `plugin_boot_tests.rs` line-number citations (~167/192/210/489) remain approximate advisory references as noted in prior addenda.
+
+**Resume §7 step update:** Step 6 (Pass 1 complete), Step 7 (Pass 2 fix-burst COMPLETE), Step 8 (Pass 3 fix-burst COMPLETE, 4/4 findings closed). Next action = Pass 4 LOCAL adversary dispatch against feature HEAD `89aa9bd1`.
