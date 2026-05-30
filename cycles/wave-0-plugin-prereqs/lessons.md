@@ -622,3 +622,34 @@ traces_to: STATE.md
 **Codification evidence:** F-LP8-MED-001 closed via PO commit 399ef378 (Pass 8 fix, D-866). F-LP9-MED-001 closed via story-writer commit ac0843a4 (Pass 9 fix, D-868). F-LP10-MED-001 closed via PO comprehensive sweep 559ab76d (Pass 10 fix, D-870) + POL-32 codified at same burst.
 
 _Discovered: D-870 PO comprehensive sweep, 2026-05-30. S-DTU-CYBERINT-AUTH-FIDELITY-001 cascade. Third occurrence of changelog monotonic-descending ordering class. POL-32 codified in policies.yaml v1.31._
+
+## 2026-05-30 D-876 — SAP-4 BC Cite-Pin Sweep Probe + POL-29 Hygiene-Only-Bump Exemption
+
+**Tags:** [process-gap] [codified]
+
+**Lesson 60:** F-LP12-LOW-001 surfaced 21 cite-pins to BC-2.01.017 v1.3 or v1.2 in `crates/prism-spec-engine/src/auth_provider.rs` after BC was bumped v1.3 → v1.4 (D-866 Pass 8 PO fix — hygiene-only changelog cleanup, no semantic change). POL-29 step 8f v1.29 mandates sibling-sweep "including no-semantic-change bumps" but PO adjudication (D-875, commit 23a17f6d) determined all 21 pins are Category A "introduced-in" anchors: e.g., `BC-2.01.017 v1.3 EC-017-010` means EC-017-010 was introduced in v1.3, so the cite-pin is the canonical introduced-in anchor — not a stale pin to update. Two codifications result from this investigation:
+
+**SAP-4 — BC cite-pin sweep probe (new standing adversary probe):**
+
+For every BC/ADR/VP frontmatter version bump surfaced in prior passes, the adversary MUST run:
+
+```bash
+rg '<artifact-ID> v<prior-version>' crates/ --type rust
+```
+
+For each hit, categorize as:
+
+- **Category A (introduced-in anchor):** The cite-pin points to the version when the cited contract element (EC, postcondition, invariant, error code) was *introduced*. Example: `BC-2.01.017 v1.3 EC-017-010` at an error-handling site means EC-017-010 was introduced in v1.3. Per TD-VSDD-091 introduced-in anchor convention (now documented in BC-2.01.017 v1.5 §Notes), these anchors are correct and must NOT be updated when BC version advances.
+- **Category B (current-version pin):** The cite-pin is meant to reference "the current version of this BC" — a general citation that should track the latest version. These MUST be updated when BC version advances.
+
+**Adversary report:** `MED` finding if Category B hits are found without corresponding code update; `LOW` finding (pending-intent) if all hits appear to be introduced-in anchors but no convention is documented in the BC or POL; `CLEAN` (no finding) if convention is documented (BC §Notes or POL entry). F-LP12-LOW-001 was `LOW/pending-intent` because no documentation existed at the time — resolved to `CLEAN` by BC-2.01.017 v1.5 §Notes (D-875) documenting the introduced-in anchor convention project-wide.
+
+**POL-29 step 8f v1.29 hygiene-only-bump exemption (PO recommendation for formal amendment):**
+
+PO recommended amending POL-29 step 8f to read: "including no-semantic-change bumps EXCEPT hygiene-only commits (changelog reorder, schema normalization, formatting) where no EC, postcondition, invariant, or error code was changed." This exemption is proposed because D-866 was a hygiene-only changelog reorder (monotonic descending fix per POL-32) with zero semantic content change — it added no new ECs, did not change any postcondition semantics, and did not add or remove any invariants or error codes. Requiring a full crates cite-pin sweep on hygiene-only commits produces false-positive sweep findings (all 21 hits are introduced-in anchors that correctly point to v1.3 when EC-017-010 was introduced). The exemption would make the sweep obligation proportional to the semantic change level of the bump.
+
+**Orchestrator dispatch:** Policy-owner + spec-steward to formally evaluate and draft POL-29 v1.30 amendment in next session. Until the amendment is formally adopted, the standing rule (POL-29 v1.29 step 8f) applies and the orchestrator must apply SAP-4 to classify all hits before dispatching any fix-burst.
+
+**BC-2.01.017 v1.5 §Notes documentation:** BC now contains a project-wide introduced-in anchor convention description. Future BC authors should follow this pattern when citing specific contract elements in code documentation: use `<BC-ID> v<version> <element-ID>` form where `<version>` is the version when `<element-ID>` was introduced (not the current BC version).
+
+_Discovered: D-876 state-manager closure burst, 2026-05-30. F-LP12-LOW-001 from S-DTU-CYBERINT-AUTH-FIDELITY-001 Pass 12 LOCAL adversary cascade. PO adjudication D-875 (commit 23a17f6d): all 21 cite-pins Category A. BC-2.01.017 v1.5 §Notes documents convention. Orchestrator codification queue: SAP-4 CLAUDE.md amendment + POL-29 step 8f hygiene-only-bump exemption._
