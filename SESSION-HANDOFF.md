@@ -8493,3 +8493,32 @@ _Snapshot terminus: 2026-05-30. Cyberint cascade at Step 4.5 mid-fix. Pass 1 fix
 **Anti-volatile-pin note (TD-VSDD-091):** All citations use story/BC/function-name/test-name anchors per TD-VSDD-091. Load-bearing line citations in local-pass-5-REJECTED.md refutation section (auth_provider.rs:358, :146-157, :287, :463-487; alerts.rs:56; harness cyberint.rs:168, :760; clone.rs:111) accepted per TD-VSDD-091 carve-out for small code citations as load-bearing evidence in rejection reports.
 
 **Resume §7 step update:** Step 6 (Pass 1 complete), Step 7 (Pass 2 fix-burst COMPLETE), Step 8 (Pass 3 fix-burst COMPLETE, 4/4 findings closed), Step 9 (Pass 4 CLEAN(strict) streak 1/3), Step 10 (Pass 5 REJECTED — re-dispatch with grounds-truth preamble). Next action = Re-dispatch Pass 5 LOCAL adversary with lesson 58 preamble requirements.
+
+## §ADDENDUM 2026-05-30-PASS-5-REDUX-CLEAN-STREAK-2-OF-3 (D-861)
+
+**Pass 5 REDUX result:** CLEAN(strict) = YES. CLEAN(PR-merge) = YES. Streak 1/3 → 2/3. Zero findings at any severity. Novelty: ZERO.
+
+**Feature HEAD:** `89aa9bd1` — unchanged from Pass 3 fix-burst close. No code changes between D-860 and Pass 5 REDUX dispatch.
+
+**Lesson 58 first application:** Adversary confirmed worktree cwd + branch + HEAD + all orchestrator-asserted symbols via Read+Grep grounding-truth preamble before probes. Demonstrated that lesson 58 protocol works — grounding-truth preamble enabled correct adversarial analysis against the actual feature implementation. The rejected Pass 5 (local-pass-5-REJECTED.md) was a wrong-branch/cwd failure; this canonical Pass 5 operates on verified grounding.
+
+**Pass 5 REJECTED superseded:** `local-pass-5-REJECTED.md` superseded by canonical `local-pass-5.md`. The REJECTED document remains in adversarial-review/ for audit trail per TD-VSDD-091. adversary-convergence-state.json updated with pass-5-REDUX entry.
+
+**Cascade state after Pass 5 REDUX:**
+- Streak: **2/3** (requires 1 more consecutive CLEAN(strict) pass)
+- Status: PASS_5_REDUX_CLEAN_STRICT_STREAK_2_OF_3
+- Feature HEAD: `89aa9bd1` (unchanged; no code changes needed)
+- Next action: Pass 6 LOCAL adversary dispatch against same HEAD `89aa9bd1`. Mandatory lesson 58 preamble applies.
+
+**Pass 6 dispatch requirement (final pass):**
+1. Agent runs `pwd` + `git branch --show-current` + `git rev-parse HEAD` via Read+Grep as FIRST action
+2. Confirms: `.worktrees/S-DTU-CYBERINT-AUTH-FIDELITY-001` + `feature/S-DTU-CYBERINT-AUTH-FIDELITY-001` + `89aa9bd1`
+3. If ANY mismatch: STOP and report; do NOT proceed with probes
+4. If Pass 6 CLEAN(strict): streak 3/3 → LOCAL CONVERGED → demo-recorder → push → PR cycle
+5. If Pass 6 NOT CLEAN: fix-burst → streak resets to 0/3
+
+**D-861 burst marker:** This burst (D-861 state-manager) records Pass 5 REDUX CLEAN. Artifacts written: adversarial-review/local-pass-5.md (new — canonical Pass 5), adversary-convergence-state.json pass-5-REDUX entry + current_streak=2 + status=PASS_5_REDUX_CLEAN_STRICT_STREAK_2_OF_3 (updated), STATE.md v7.546, SESSION-HANDOFF.md §ADDENDUM 2026-05-30-PASS-5-REDUX-CLEAN-STREAK-2-OF-3 (this section).
+
+**Anti-volatile-pin note (TD-VSDD-091):** All citations use story/BC/function-name/test-name anchors per TD-VSDD-091. Load-bearing line citations in local-pass-5.md (auth_provider.rs:358, :146-157, :287; harness cyberint.rs:168; clone.rs:111) accepted per TD-VSDD-091 carve-out for small code citations as load-bearing evidence in adversary pass reports.
+
+**Resume §7 step update:** Step 6 (Pass 1 complete), Step 7 (Pass 2 fix-burst COMPLETE), Step 8 (Pass 3 fix-burst COMPLETE, 4/4 findings closed), Step 9 (Pass 4 CLEAN(strict) streak 1/3), Step 10 (Pass 5 REJECTED — re-dispatch with grounds-truth preamble), Step 11 (Pass 5 REDUX CLEAN(strict) streak 2/3 — lesson 58 demonstrated). Next action = Pass 6 LOCAL adversary dispatch against feature HEAD `89aa9bd1`.

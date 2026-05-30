@@ -150,11 +150,31 @@
       "feature_head_at_pass": "89aa9bd1",
       "streak_unchanged": 1,
       "disposition": "REJECTED — re-dispatch Pass 5 with strict grounding-truth requirements (cwd confirmation, file-size confirmation, rg-output-capture per existence claim)"
+    },
+    {
+      "pass": "5-REDUX",
+      "date": "2026-05-30",
+      "clean_strict": true,
+      "clean_pr_merge": true,
+      "findings_count": 0,
+      "findings_by_severity": {"CRIT": 0, "HIGH": 0, "MED": 0, "LOW": 0, "OBS": 0, "PROCESS-GAP": 0},
+      "streak": 2,
+      "novelty": "ZERO",
+      "feature_head_at_pass": "89aa9bd1",
+      "supersedes": "local-pass-5-REJECTED.md",
+      "lesson_58_demonstrated": true,
+      "grounding_truth_preamble": "Adversary confirmed worktree cwd + branch + HEAD + symbol existence via Read+Grep before probes. All orchestrator-asserted symbols verified at expected locations. First application of lesson 58.",
+      "sap_1_result": "PASS — no new uncataloged event_type emission sites at 89aa9bd1",
+      "sap_2_result": "PASS — no TOML or DTU struct modifications in Pass 3 fix-burst",
+      "sid_1_result": "PASS — both new tests are in-process unit tests, not #[ignore]'d",
+      "cross_doc_consistency": "PASS — BC-2.01.017 v1.3, error-taxonomy.md v1.54, BC-INDEX v5.59, auth_provider.rs all consistent",
+      "sibling_sweep_result": "PASS — compiler-enforced trait contract; workspace just check 3839/3839",
+      "state_manager_commit": "TBD (D-861 this burst)"
     }
   ],
-  "current_streak": 1,
+  "current_streak": 2,
   "target_streak": 3,
-  "status": "PASS_5_REJECTED_REDISPATCH_PENDING",
-  "next_action": "Re-dispatch Pass 5 LOCAL adversary with strict grounding-truth requirements: must run pwd + git branch + git rev-parse HEAD as first verification; must run wc -l on every cited file; must run rg with literal output capture for every existence claim. If re-dispatched Pass 5 is CLEAN(strict) with verified grounds, streak → 2/3 and dispatch Pass 6.",
+  "status": "PASS_5_REDUX_CLEAN_STRICT_STREAK_2_OF_3",
+  "next_action": "Dispatch Pass 6 LOCAL adversary against feature HEAD 89aa9bd1 (final pass). If CLEAN(strict) → streak 3/3 LOCAL CONVERGED. Then demo-recorder → push → PR cycle.",
   "protocol": "BC-5.39.001 3-CLEAN (D-779 amendment: strict=zero all severities for streak; PR-merge=zero CRIT+HIGH+MED)"
 }
