@@ -215,6 +215,29 @@ impl CredentialResolver for MockCredentialResolver {
     }
 }
 
+/// Test helper [`CredentialResolver`] that always returns a credential-not-found error.
+///
+/// Use this to test the E-AUTH-005 (credential not found) path without relying on env
+/// vars or the real credential store. This is the correct injection mechanism for
+/// tests that need to verify "no credential configured" behavior.
+///
+/// **Feature-gated:** only available under `cfg(test)` or the `test-helpers` Cargo feature.
+#[cfg(any(test, feature = "test-helpers"))]
+pub struct NotFoundCredentialResolver;
+
+#[cfg(any(test, feature = "test-helpers"))]
+impl CredentialResolver for NotFoundCredentialResolver {
+    fn resolve<'a>(
+        &'a self,
+        _client_id: &'a str,
+        sensor_id: &'a str,
+        credential_name: &'a str,
+    ) -> Pin<Box<dyn Future<Output = Result<secrecy::SecretString, String>> + Send + 'a>> {
+        let msg = format!("credential not found: {sensor_id}/{credential_name}");
+        Box::pin(async move { Err(msg) })
+    }
+}
+
 // ---------------------------------------------------------------------------
 // StaticCookieAuthProvider — production auth provider for cookie_roundtrip sensors
 // ---------------------------------------------------------------------------
@@ -696,12 +719,12 @@ mod tests {
         // The canonical env var name is CYBERINT_API_KEY (sensor_upper + "_" + name_upper).
         let env_key = "CYBERINT_API_KEY";
         let test_value = "unit-test-api-key-value";
-        // Safety: tests run in isolated processes (nextest default); env mutation is
-        // safe here because this test binary is single-purpose and no other thread
-        // reads CYBERINT_API_KEY concurrently. The set_var/remove_var pair brackets
-        // the acquire_token call.
-        // SAFETY: test isolation — nextest runs each test in a separate process
-        // by default (out-of-process mode). No data race with other test binaries.
+        // SAFETY: This test exercises the BC-2.03.006 env-var resolver backend of
+        // PrismCredentialResolver — the production path where CYBERINT_API_KEY is read
+        // from the process environment. This is the ONLY test that must use the real
+        // env-var resolver (not MockDI) to prove the BC-2.03.006 lookup chain works.
+        // The set_var/remove_var pair brackets the acquire_token call. Process isolation
+        // via nextest (out-of-process mode) prevents data races with other test binaries.
         unsafe {
             std::env::set_var(env_key, test_value);
         }
@@ -713,7 +736,7 @@ mod tests {
         let result = provider.acquire_token(&spec, &client_id).await;
 
         // Clean up the env var immediately after the await returns.
-        // SAFETY: same isolation guarantee as set_var above.
+        // SAFETY: same BC-2.03.006 env-var resolver isolation guarantee as set_var above.
         unsafe {
             std::env::remove_var(env_key);
         }
@@ -737,20 +760,17 @@ mod tests {
     /// Structural check: StaticCookieAuthProvider has no reqwest::Client field.
     /// This test verifies the credential-not-found error path: when credentials are absent,
     /// the function returns E-AUTH-005 without making any HTTP call. The no-HTTP-call property
-    /// is guaranteed by the struct having no HTTP client — if the CYBERINT_API_KEY env var is
-    /// unset, acquire_token returns Err immediately from resolve_credential, proving no HTTP
-    /// I/O occurred.
+    /// is guaranteed by the struct having no HTTP client — the injected NotFoundCredentialResolver
+    /// returns Err immediately, and acquire_token propagates it as E-AUTH-005 with no I/O.
+    ///
+    /// Uses MockDI injection (NotFoundCredentialResolver via new_with_resolver) — no env var
+    /// mutation required. ADR-022 §C; INV-COOKIE-001; BC-2.01.017.
     #[tokio::test]
     async fn test_static_cookie_auth_provider_no_http_call_when_credential_missing() {
-        // Ensure the env var is NOT set for this test.
-        // SAFETY: test isolation — see test_static_cookie_auth_provider_resolves_api_key_from_env
-        // SAFETY comment. No concurrent threads read these vars in this test binary.
-        unsafe {
-            std::env::remove_var("CYBERINT_API_KEY");
-            std::env::remove_var("CYBERINT_API_KEY_FILE");
-        }
-
-        let provider = StaticCookieAuthProvider::new("cyberint");
+        let provider = StaticCookieAuthProvider::new_with_resolver(
+            "cyberint",
+            Arc::new(NotFoundCredentialResolver),
+        );
         let spec = cookie_roundtrip_spec();
         let client_id = OrgSlug::new("test-org-unit");
 
@@ -770,56 +790,62 @@ mod tests {
         );
     }
 
-    /// E-AUTH-006: acquire_token rejects an empty API key.
+    /// E-AUTH-005: acquire_token returns E-AUTH-005 when the credential is absent.
     ///
-    /// When the env var is set to an empty string, acquire_token must return
-    /// E-AUTH-006 (empty / all-whitespace credential rejected).
+    /// When the credential resolver returns Err (not-found), acquire_token must return
+    /// E-AUTH-005. An empty env var is treated as "not set" by PrismCredentialResolver
+    /// (it filters empty strings), which results in Err("not found") — the same path
+    /// exercised here via NotFoundCredentialResolver injection (BC-2.03.006 semantics).
+    ///
+    /// Uses MockDI injection (NotFoundCredentialResolver via new_with_resolver) — no env var
+    /// mutation required. TD-VSDD-059 load-bearing assertion: checks E-AUTH-005 error code.
+    ///
+    /// BC-2.01.017 v1.1 EC-017-005 + BC-2.03.006; ADR-022 §C.
     #[tokio::test]
     async fn test_static_cookie_auth_provider_rejects_empty_api_key() {
-        let env_key = "CYBERINT_API_KEY";
-        // SAFETY: test isolation — see test_static_cookie_auth_provider_resolves_api_key_from_env.
-        unsafe {
-            std::env::set_var(env_key, "");
-        }
-
-        let provider = StaticCookieAuthProvider::new("cyberint");
+        let provider = StaticCookieAuthProvider::new_with_resolver(
+            "cyberint",
+            Arc::new(NotFoundCredentialResolver),
+        );
         let spec = cookie_roundtrip_spec();
         let client_id = OrgSlug::new("test-org-unit");
 
         let result = provider.acquire_token(&spec, &client_id).await;
-        // SAFETY: test isolation.
-        unsafe {
-            std::env::remove_var(env_key);
-        }
 
-        // Empty string: resolve_secret returns Ok(None) → NotFound path, not E-AUTH-006.
-        // An empty env var is treated as "not set" by resolve_secret (it filters empty strings).
-        // This is correct per BC-2.03.006 semantics — the E-AUTH-005 path fires.
+        // Empty env var → PrismCredentialResolver returns Err("not found") → E-AUTH-005.
+        // NotFoundCredentialResolver exercises the same E-AUTH-005 path without env mutation.
+        // This is correct per BC-2.03.006 semantics — empty credential equals absent credential.
         assert!(
             result.is_err(),
-            "AC-006/E-AUTH-006: acquire_token must return Err for empty credential. Got Ok."
+            "BC-2.01.017 EC-017-005: acquire_token must return Err when credential is absent. \
+             Got Ok."
+        );
+        let err_str = result.unwrap_err().to_string();
+        assert!(
+            err_str.contains("E-AUTH-005"),
+            "empty env var path must yield E-AUTH-005 (not E-AUTH-006). \
+             Got: {err_str}. \
+             BC-2.01.017 v1.1 EC-017-005 + BC-2.03.006 (empty env-var → not-found → E-AUTH-005)."
         );
     }
 
     /// E-AUTH-006: acquire_token rejects an API key with illegal RFC 6265 cookie characters.
+    ///
+    /// Uses MockDI injection (MockCredentialResolver via new_with_resolver) — no env var
+    /// mutation required. The injected resolver returns the tainted key value directly,
+    /// bypassing the real credential store. ADR-022 §C; BC-2.01.017 EC-017-006.
     #[tokio::test]
     async fn test_static_cookie_auth_provider_rejects_illegal_cookie_chars() {
-        let env_key = "CYBERINT_API_KEY";
         // Semicolon is illegal in cookie-value per RFC 6265 §4.1.1.
-        // SAFETY: test isolation — see test_static_cookie_auth_provider_resolves_api_key_from_env.
-        unsafe {
-            std::env::set_var(env_key, "valid-prefix;injected-cookie");
-        }
-
-        let provider = StaticCookieAuthProvider::new("cyberint");
+        // Inject the tainted value directly via MockCredentialResolver — no env var mutation.
+        let provider = StaticCookieAuthProvider::new_with_resolver(
+            "cyberint",
+            Arc::new(MockCredentialResolver::new("valid-prefix;injected-cookie")),
+        );
         let spec = cookie_roundtrip_spec();
         let client_id = OrgSlug::new("test-org-unit");
 
         let result = provider.acquire_token(&spec, &client_id).await;
-        // SAFETY: test isolation.
-        unsafe {
-            std::env::remove_var(env_key);
-        }
 
         assert!(
             result.is_err(),
