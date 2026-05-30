@@ -8939,3 +8939,45 @@ Pass 12 LOCAL adversary operated on feature HEAD `4f5b5404` with mandatory lesso
 **D-877 burst marker:** 269th consecutive single-commit per TD-VSDD-053. Anti-volatile-pin per TD-VSDD-091.
 
 **Resume §7 step update (full chain):** Step 6 (Pass 1 complete), Step 7 (Pass 2 fix-burst COMPLETE), Step 8 (Pass 3 fix-burst COMPLETE, 4/4 findings closed), Step 9 (Pass 4 CLEAN(strict) streak 1/3), Step 10 (Pass 5 REJECTED — lesson 58 codified), Step 11 (Pass 5 REDUX CLEAN(strict) streak 2/3), Step 12 (Pass 6 NOT CLEAN(strict) — 1 LOW F-LP6-LOW-001; streak reset 0/3), Step 13 (Pass 6 fix-burst COMPLETE — F-LP6-LOW-001 CLOSED; feature HEAD 4f5b5404; streak 0/3), Step 14 (Pass 7 CLEAN(strict) — streak 1/3; feature HEAD 4f5b5404), Step 15 (Pass 8 NOT CLEAN(strict) — 1 MED F-LP8-MED-001; streak reset 0/3; PO fix 399ef378), Step 16 (Pass 8 fix-burst COMPLETE — F-LP8-MED-001 CLOSED; feature HEAD 4f5b5404 unchanged; BC v1.4; streak 0/3), Step 17 (Pass 9 NOT CLEAN(strict) — 1 MED F-LP9-MED-001; streak 0/3 unchanged; story-writer fix ac0843a4), Step 18 (Pass 9 fix-burst COMPLETE — F-LP9-MED-001 CLOSED; feature HEAD 4f5b5404 unchanged; story v1.4; STORY-INDEX v2.214; streak 0/3), Step 19 (Pass 10 NOT CLEAN(strict) — 1 MED F-LP10-MED-001; third recurrence triggers lesson 59 three-recurrence rule; PO comprehensive sweep 559ab76d + POL-32 codified), Step 20 (Pass 10 comprehensive fix-burst COMPLETE — F-LP10-MED-001 CLOSED + D-LP9-001 promoted in-scope; feature HEAD 4f5b5404 unchanged; error-taxonomy v1.55; STORY-INDEX v2.215; BC-INDEX v5.61; POL-32 codified; streak 0/3), Step 21 (Pass 11 CLEAN(strict) — streak 1/3; feature HEAD 4f5b5404 unchanged; POL-32 workspace sample PASS), Step 22 (Pass 12 NOT CLEAN — streak reset 1/3→0/3; F-LP12-MED-001+F-LP12-LOW-001+F-LP12-PG-001), Step 23 (Pass 12 fix-burst COMPLETE — F-LP12-MED-001 CLOSED story v1.5 9fb28d50 + F-LP12-LOW-001 CLOSED Option A 23a17f6d + lesson 60 SAP-4+POL-29-hygiene-exempt; BC-INDEX v5.62; STORY-INDEX v2.216; streak 0/3), Step 24 (Pass 13 NOT CLEAN(strict) — F-LP13-LOW-001 narrative count 21 vs actual 20 cite-pins; CLEAN(PR-merge)=YES; fix-burst COMPLETE via D-877 state-manager narrative correction; streak 0/3 unchanged). Next action = Pass 14 LOCAL adversary dispatch with lesson 58 preamble.
+
+## §ADDENDUM 2026-05-30-PASS-14-COMPREHENSIVE-SWEEP-COMPLETE (D-878)
+
+**D-878 burst marker.** Pass 14 comprehensive narrative-hygiene sweep COMPLETE. Streak **0/3** unchanged. Feature HEAD `4f5b5404` unchanged throughout. User-authorized Option A (comprehensive sweep + continue strict).
+
+**Pass 14 result:** NOT CLEAN(strict). CLEAN(PR-merge). F-LP14-LOW-001 [LOW]: Pass 13 closure was incomplete — D-877 description said "verdict line + 3 summary lines" but §3 Rationale point 2 in `po-adjudications/F-LP12-LOW-001.md` still read "Forcing 21 cite-pin updates" (active forward-looking argumentation prose, not a historical-immutable row). CLEAN(strict)=NO; CLEAN(PR-merge)=YES. Streak 0/3 → 0/3 (no advance per BC-5.39.001 D-779 strict criterion).
+
+**F-LP14-LOW-001 CLOSED** (state-manager D-878 comprehensive narrative-hygiene sweep, user-authorized Option A):
+
+Comprehensive sweep results:
+- **Active narrative sites FIXED (1 total):** `po-adjudications/F-LP12-LOW-001.md` §3 Rationale point 2 — "Forcing 21 cite-pin updates" → "Forcing 20 cite-pin updates"
+- **Historical-immutable sites PRESERVED per TD-VSDD-091 (multiple):**
+  - `adversarial-review/local-pass-12.md` lines 83+95 — immutable pass report (preserves original adversary text at time of discovery)
+  - `adversarial-review/local-pass-13.md` — immutable pass report documenting F-LP13-LOW-001 (preserves adversary's documented finding)
+  - `STATE.md` Decision Log rows D-873/D-875/D-876/D-877 — immutable audit trail D-rows (preserve what was believed at each decision point)
+  - `SESSION-HANDOFF.md §ADDENDUM 2026-05-30-PASS-12-FIX-BURST-COMPLETE` and `§ADDENDUM 2026-05-30-PASS-13-NARRATIVE-FIX-COMPLETE` — immutable narrative snapshots
+  - `BC-2.01.017` changelog row v1.5 — immutable changelog table entry documenting D-875 adjudication event
+
+Verification grep after fix: `rg "21 cite-pin" .factory/` in active narrative scope — zero residuals in non-historical-immutable locations.
+
+**Artifacts written this burst:**
+- `adversarial-review/local-pass-14.md` (new — Pass 14 adversary report)
+- `po-adjudications/F-LP12-LOW-001.md` (§3 Rationale point 2 corrected: "21 cite-pin updates" → "20 cite-pin updates"; 1 site)
+- `adversary-convergence-state.json` (pass-14 entry added with comprehensive sweep resolution block; status=PASS_14_COMPREHENSIVE_SWEEP_COMPLETE_READY_FOR_PASS_15; next_action updated)
+- `STATE.md` v7.556→v7.557 (frontmatter version + pass_14 fields + current_step + cyberint_cascade_step + D-878 decision row + Session Resume Checkpoint updated + Current Phase Steps updated)
+- `SESSION-HANDOFF.md §ADDENDUM 2026-05-30-PASS-14-COMPREHENSIVE-SWEEP-COMPLETE` (this section)
+
+**Cascade state after Pass 14 comprehensive sweep:**
+- Streak: **0/3** (Pass 14 NOT CLEAN(strict); comprehensive sweep fix complete; ready for Pass 15)
+- Feature HEAD: `4f5b5404` (unchanged throughout)
+- Story: v1.5 | BC-2.01.017: v1.5 | BC-INDEX: v5.62 | STORY-INDEX: v2.216 | error-taxonomy.md: v1.55 | policies.yaml: v1.31
+
+**Path to convergence:**
+- Pass 15: adversary with lesson 58 preamble. If CLEAN(strict) → streak 1/3
+- Pass 16: adversary with lesson 58 preamble. If CLEAN(strict) → streak 2/3
+- Pass 17: adversary with lesson 58 preamble. If CLEAN(strict) → streak 3/3 → LOCAL CONVERGED → demo-recorder → push → PR cycle
+
+**Anti-volatile-pin note (TD-VSDD-091):** All citations use story/BC/finding-ID/function-name anchors. No file:line-number citations in this addendum.
+
+**D-878 burst marker:** 270th consecutive single-commit per TD-VSDD-053. Anti-volatile-pin per TD-VSDD-091.
+
+**Resume §7 step update (full chain):** Step 6 (Pass 1 complete), Step 7 (Pass 2 fix-burst COMPLETE), Step 8 (Pass 3 fix-burst COMPLETE, 4/4 findings closed), Step 9 (Pass 4 CLEAN(strict) streak 1/3), Step 10 (Pass 5 REJECTED — lesson 58 codified), Step 11 (Pass 5 REDUX CLEAN(strict) streak 2/3), Step 12 (Pass 6 NOT CLEAN(strict) — 1 LOW F-LP6-LOW-001; streak reset 0/3), Step 13 (Pass 6 fix-burst COMPLETE — F-LP6-LOW-001 CLOSED; feature HEAD 4f5b5404; streak 0/3), Step 14 (Pass 7 CLEAN(strict) — streak 1/3; feature HEAD 4f5b5404), Step 15 (Pass 8 NOT CLEAN(strict) — 1 MED F-LP8-MED-001; streak reset 0/3; PO fix 399ef378), Step 16 (Pass 8 fix-burst COMPLETE — F-LP8-MED-001 CLOSED; feature HEAD 4f5b5404 unchanged; BC v1.4; streak 0/3), Step 17 (Pass 9 NOT CLEAN(strict) — 1 MED F-LP9-MED-001; streak 0/3 unchanged; story-writer fix ac0843a4), Step 18 (Pass 9 fix-burst COMPLETE — F-LP9-MED-001 CLOSED; feature HEAD 4f5b5404 unchanged; story v1.4; STORY-INDEX v2.214; streak 0/3), Step 19 (Pass 10 NOT CLEAN(strict) — 1 MED F-LP10-MED-001; third recurrence triggers lesson 59 three-recurrence rule; PO comprehensive sweep 559ab76d + POL-32 codified), Step 20 (Pass 10 comprehensive fix-burst COMPLETE — F-LP10-MED-001 CLOSED + D-LP9-001 promoted in-scope; feature HEAD 4f5b5404 unchanged; error-taxonomy v1.55; STORY-INDEX v2.215; BC-INDEX v5.61; POL-32 codified; streak 0/3), Step 21 (Pass 11 CLEAN(strict) — streak 1/3; feature HEAD 4f5b5404 unchanged; POL-32 workspace sample PASS), Step 22 (Pass 12 NOT CLEAN — streak reset 1/3→0/3; F-LP12-MED-001+F-LP12-LOW-001+F-LP12-PG-001), Step 23 (Pass 12 fix-burst COMPLETE — F-LP12-MED-001 CLOSED story v1.5 9fb28d50 + F-LP12-LOW-001 CLOSED Option A 23a17f6d + lesson 60 SAP-4+POL-29-hygiene-exempt; BC-INDEX v5.62; STORY-INDEX v2.216; streak 0/3), Step 24 (Pass 13 NOT CLEAN(strict) — F-LP13-LOW-001 narrative count 21 vs actual 20 cite-pins; CLEAN(PR-merge)=YES; fix-burst COMPLETE via D-877 state-manager narrative correction; streak 0/3 unchanged), Step 25 (Pass 14 NOT CLEAN(strict) — F-LP14-LOW-001 Pass 13 closure incomplete; §3 Rationale point 2 in PO adjudication doc residual; CLEAN(PR-merge)=YES; comprehensive sweep COMPLETE via D-878; 1 active site fixed; streak 0/3 unchanged). Next action = Pass 15 LOCAL adversary dispatch with lesson 58 preamble.

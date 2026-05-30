@@ -88,7 +88,7 @@ Rationale:
 
 1. **All 20 cite-pins are semantically correct.** Each pin cites the BC version that introduced or re-established the specific EC/postcondition being anchored. Updating to v1.4 would replace a semantically meaningful anchor with a version whose only content change was changelog hygiene — which conveys less information.
 
-2. **v1.4 adds nothing relevant.** The D-866 v1.4 bump was explicitly a "no semantic content change" operation (changelog row deduplication + reorder). There is no EC, postcondition, or invariant that a v1.4 cite-pin would provide over v1.3. Forcing 21 cite-pin updates for a hygiene-only bump is the "mechanically correct but semantically empty" outcome.
+2. **v1.4 adds nothing relevant.** The D-866 v1.4 bump was explicitly a "no semantic content change" operation (changelog row deduplication + reorder). There is no EC, postcondition, or invariant that a v1.4 cite-pin would provide over v1.3. Forcing 20 cite-pin updates for a hygiene-only bump is the "mechanically correct but semantically empty" outcome.
 
 3. **Project convention (BC-2.16.001 precedent) supports pinned-at-write-time.** BC-2.16.001 code cites v1.6 while the BC is at v1.7 — and this was not flagged as an error in the codebase. Same pattern.
 
