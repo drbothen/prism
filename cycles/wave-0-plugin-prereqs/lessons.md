@@ -486,3 +486,35 @@ traces_to: STATE.md
     **Borderline escalation note:** This was the first occurrence of PO adjudication fabrication in the project. Codified at CRITICAL severity (F-LP2-CRIT-001) because: (a) the fabrication was plausible — it sounded like correct spec-narrative reasoning; (b) it was caught only by the adversary's fresh-context pass 2, not by any inline review; (c) the consequence was a spec-contract regression that would have caused E2E test failures in the next `just check` after implementer shipped the empty-value guard.
 
     _Discovered: D-854 Pass 2 LOCAL adversary cascade, 2026-05-30. F-LP2-CRIT-001 from S-DTU-CYBERINT-AUTH-FIDELITY-001 Pass 2 adversary report._
+
+## 2026-05-30 D-856 — Wrong-Crate-Search N/A Pattern (Pass 3 F-LP3-MED-002)
+
+57. **[process-gap] [codified] Implementer must search ALL plausible crates workspace-wide when the adversary cites a file path that does not exist at the cited location. Declaring N/A on "file doesn't exist" without a workspace-wide symbol search is a false closure.**
+
+    **Evidence — F-LP3-MED-002 (Pass 3) re-opens F-LP1-MED-003 (Pass 1):** Pass 1 closed F-LP1-MED-003 as "N/A — file doesn't exist." The adversary's cited path was `crates/prism-dtu-cyberint/tests/parity/cyberint.rs:144`. The implementer searched `crates/prism-dtu-cyberint/tests/parity/` (the adversary's literal path), found no `parity/` directory there, and declared N/A. Pass 3 discovered that the stale comment (claiming "DTU cookie check validates non-empty cyberint_session cookie") actually exists at `crates/prism-spec-engine/tests/parity/cyberint.rs:144` — a different crate entirely.
+
+    **Same wrong-crate pattern as F-LP1-LOW-002 (also in this cascade):** Pass 1 adversary cited `prism-dtu-cyberint/src/auth_provider.rs` for the `unsafe { std::env::set_var }` refactoring finding. The implementer initially searched that path, found it did not exist at that crate, and the correct file was identified as `prism-spec-engine/src/auth_provider.rs`. That instance was caught and corrected during the cleanup burst at commit `79e3b545`. The F-LP1-MED-003 instance was NOT caught — it reached Pass 3 as an unresolved finding.
+
+    **Root cause:** The implementer accepted the adversary's literal file path as authoritative and stopped searching when the literal path did not exist. The adversary's cited paths ARE evidence, not ground truth — they reflect the adversary's best recollection or inference at review time, and adversaries can cite wrong-crate paths when a symbol with the same name exists in multiple crates or when the adversary inferred a likely path from the symbol name.
+
+    **Codification — mandatory implementer discipline for N/A declarations:**
+
+    When the adversary cites a file path and the implementer cannot find the file at the cited location, the implementer MUST execute the following protocol BEFORE declaring N/A:
+
+    1. **Workspace-wide grep for the cited symbol, function, or key phrase:**
+       ```bash
+       rg '<cited_symbol_or_phrase>' crates/ --type rust
+       ```
+       For example: `rg 'cyberint_session' crates/ --type rust` or `rg 'cookie check validates' crates/ --type rust`
+
+    2. **Document the actual location in the closure note** — state explicitly which crate/file the symbol was found in (or confirm it was found in ZERO locations workspace-wide)
+
+    3. **Close the finding at the correct location** if the symbol exists in a different crate
+
+    4. **If genuinely no analog exists anywhere in the workspace**, document the workspace-wide grep command and result as evidence for the N/A declaration (e.g., "rg 'cyberint_session' crates/ --type rust returned 0 hits; finding is N/A")
+
+    **State-manager check:** When reviewing implementer fix-burst reports, scan for "N/A — file doesn't exist" closure claims. For each such claim, verify that the closure note includes either (a) a workspace-wide grep result showing zero hits, or (b) a confirmed correct-crate location that was inspected and found clean. Absence of either is an incomplete closure that should be returned to the implementer.
+
+    **Scope of this pattern:** This discipline applies to any implementer N/A declaration where the adversary has cited a specific file path. It does NOT require workspace-wide search for every finding — only for the specific case where the literal adversary path does not resolve.
+
+    _Discovered: D-856 Pass 3 LOCAL adversary cascade, 2026-05-30. F-LP3-MED-002 from S-DTU-CYBERINT-AUTH-FIDELITY-001 Pass 3 re-opens F-LP1-MED-003 closed N/A in Pass 1. Same wrong-crate pattern as F-LP1-LOW-002 (closed at 79e3b545 during cleanup burst). Second occurrence in S-DTU-CYBERINT-AUTH-FIDELITY-001 cascade — codification warranted._

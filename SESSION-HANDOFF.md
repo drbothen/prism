@@ -8342,4 +8342,35 @@ _Snapshot terminus: 2026-05-30. Cyberint cascade at Step 4.5 mid-fix. Pass 1 fix
 
 **Anti-volatile-pin note (TD-VSDD-091):** All citations in this addendum use story/BC/function-name/test-name anchors per TD-VSDD-091. The `plugin_boot_tests.rs` line-number citations (~167, ~192, ~210, ~489) are approximate advisory references, not load-bearing; they serve to orient future investigation and are explicitly qualified as approximate.
 
+## §ADDENDUM 2026-05-30-PASS-3-FIX-BURST-PENDING (D-856)
+
+**State update:** Pass 3 LOCAL adversary COMPLETE — NOT CLEAN. 5 findings (0 CRIT + 1 HIGH + 2 MED + 2 LOW; 1 finding deferred to maintenance). Feature HEAD: `d697425b` (unchanged from Pass 2). STATE: v7.542.
+
+**Pass 3 findings summary:**
+
+| Finding ID | Severity | Route | Description |
+|------------|----------|-------|-------------|
+| F-LP3-HIGH-001 | HIGH | PO + implementer | `StaticCookieAuthProvider::acquire_token` blanket-maps every `CredentialResolutionError` Err to E-AUTH-005; `BackendUnavailable` mis-labeled "credential not found" — requires E-AUTH-007 + BC-2.01.017 v1.3 |
+| F-LP3-MED-001 | MED | implementer | `prism-dtu-cyberint` `lib.rs` module doc still advertises deleted `POST /login` route |
+| F-LP3-MED-002 | MED | implementer | `prism-spec-engine/tests/parity/cyberint.rs` stale `cyberint_session` comment (also surfaces Pass 1 F-LP1-MED-003 wrong-crate N/A; lesson 57) |
+| F-LP3-LOW-001 | LOW | implementer | Validation order: `is_empty/whitespace` before `len>4096`; `detail` text mis-describes 5000-byte whitespace keys |
+| F-LP3-LOW-002 | LOW | DEFERRED | `prism-bin/tests/plugin_boot_tests.rs` unsafe SAFETY-comment quality (4 sites) — cross-story; maintenance follow-up; NOT held in this cascade |
+
+**Pass 2 closure re-verification:**
+- F-LP2-CRIT-001 test split: LOAD-BEARING (verified via reverse-tracing `acquire_token` error-code branches)
+- F-LP2-HIGH-001 MockCredentialResolver injection: LOAD-BEARING (test asserts AuthToken content)
+- PO revert `2707ee69`: VERIFIED (BC-2.01.017 v1.2 EC-017-003=E-AUTH-005, EC-017-005=E-AUTH-006; `resolve_secret.rs` EnvVar arm no empty filter)
+
+**F-LP3-LOW-002 deferral rationale:** The 4 `unsafe { std::env::set_var }` sites are in `prism-bin`'s plugin-boot test infrastructure, outside the cyberint auth fidelity story scope. Adversary correctly classified as cross-story. Routes to maintenance follow-up story (wave-gate). NOT blocking this cascade. Sibling to closed F-LP1-LOW-002 (which addressed `prism-spec-engine/src/auth_provider.rs` tests).
+
+**Lesson 57 [process-gap] codified:** F-LP3-MED-002 surfaced that Pass 1 F-LP1-MED-003 was closed as N/A incorrectly because the implementer searched the adversary's literal path (`prism-dtu-cyberint/tests/parity/`) instead of performing a workspace-wide symbol search. Same wrong-crate pattern as F-LP1-LOW-002. Lesson 57 mandates workspace-wide grep before any N/A declaration on "file doesn't exist."
+
+**Next dispatch sequence:**
+1. PO — E-AUTH-007 allocation in error-taxonomy.md v1.53→v1.54 + BC-2.01.017 v1.2→v1.3 (new EC for `CredentialResolutionError::BackendUnavailable`)
+2. Implementer — fix-burst: F-LP3-HIGH-001 (branch `acquire_token` on `BackendUnavailable` → E-AUTH-007) + F-LP3-MED-001 (`lib.rs` doc sweep) + F-LP3-MED-002 (parity comment sweep) + F-LP3-LOW-001 (validation reorder)
+3. State-manager — fix-burst closure persistence
+4. Pass 4 LOCAL adversary against post-fix-burst feature HEAD
+
+**Anti-volatile-pin note (TD-VSDD-091):** All citations use story/BC/function-name/test-name anchors. The `prism-spec-engine/tests/parity/cyberint.rs:144` line-number reference is preserved as load-bearing evidence for F-LP3-MED-002's finding location; the approximate `plugin_boot_tests.rs` advisory line citations (~167/192/210/489) remain approximate as noted in the Pass 2 addendum.
+
 **Resume §7 step update:** Step 6 (Pass 1 complete), Step 7 (Pass 2 fix-burst COMPLETE, all 4 findings closed). Next action = Pass 3 LOCAL adversary dispatch against feature HEAD `d697425b`.
