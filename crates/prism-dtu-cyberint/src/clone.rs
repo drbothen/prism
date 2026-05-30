@@ -22,6 +22,8 @@ use axum::{
     routing::{get, patch, post},
     Router,
 };
+// NOTE: `post` is retained for `/api/v1/alerts` POST route (get_alerts also accepts POST)
+// and `/api/v1/alerts/:id/close` (post_close_alert). Do not remove.
 use prism_dtu_common::BehavioralClone;
 use tokio::sync::broadcast;
 use tokio::task::JoinHandle;
@@ -30,7 +32,6 @@ use prism_core::OrgId;
 
 use crate::routes::{
     alerts::{get_alert_by_id, get_alerts, patch_alert_status, post_close_alert},
-    auth::post_login,
     dtu::{get_health, post_configure, post_reset},
     threats::get_threat_intel,
 };
@@ -108,9 +109,11 @@ impl CyberintClone {
     }
 
     fn build_router(&self) -> Router {
+        // NOTE: POST /login route is intentionally ABSENT.
+        // ADR-031 §D3-a rule 1: the real Cyberint API has no login step.
+        // Auth is validated via `access_token` cookie on every data request.
+        // AC-001 (S-DTU-CYBERINT-AUTH-FIDELITY-001): any request to POST /login returns 404.
         Router::new()
-            // Auth
-            .route("/login", post(post_login))
             // Alerts
             .route("/api/v1/alerts", get(get_alerts))
             .route("/api/v1/alerts", post(get_alerts))

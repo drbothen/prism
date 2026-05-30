@@ -101,6 +101,10 @@ pub use error::SpecEngineError;
 // S-PLUGIN-PREREQ-B — auth interface re-exports (BC-2.01.013 / ADR-023 §C2)
 pub use auth_provider::{AuthProvider, AuthToken};
 
+// S-DTU-CYBERINT-AUTH-FIDELITY-001 — production auth provider for cookie_roundtrip sensors
+// (BC-2.01.017; ADR-031 §D3-b; NOT feature-gated — this is a production type)
+pub use auth_provider::StaticCookieAuthProvider;
+
 // NullAuthProvider + MockAuthProvider + FailingAuthProvider: test-only; feature-gated
 // to prevent accidental use in production callers that would silently bypass real auth.
 // Enable the `test-helpers` Cargo feature in [dev-dependencies] to access these.

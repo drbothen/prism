@@ -2,7 +2,7 @@
 //!
 //! Maintains:
 //! - Alert store: `(OrgId, alert_id) → AlertStatus` (stateful, mutable; BC-3.2.001)
-//! - Session store: set of valid `(OrgId, token)` pairs issued by `POST /login` (BC-3.2.003)
+//! - Access-token allowlist: set of valid `access_token` strings (ADR-031 §D3-a; AC-004)
 //! - Immutable alert fixture registry (pre-loaded from `fixtures/alerts.json`)
 //! - Runtime configuration (auth_mode, rate_limit_after)
 
@@ -16,6 +16,11 @@ use crate::types::{Alert, AlertStatus};
 /// Validated configuration payload for `POST /dtu/configure` (TD-WV0-04).
 ///
 /// Unknown fields are rejected by serde to prevent silent misconfiguration.
+///
+/// AC-004 (S-DTU-CYBERINT-AUTH-FIDELITY-001): `access_token` field added to allow
+/// test harnesses to register the demo token via `POST /dtu/configure` without
+/// restarting the DTU. The `apply_config` method calls `register_access_token` when
+/// this field is present.
 #[derive(Debug, serde::Deserialize, Default)]
 #[serde(deny_unknown_fields)]
 struct ConfigPayload {
@@ -25,12 +30,21 @@ struct ConfigPayload {
     /// Number of authenticated requests before 429 rate-limit is triggered.
     #[serde(default)]
     rate_limit_after: Option<u32>,
+    /// Register an access_token value in the static allowlist.
+    ///
+    /// When present, the token is added to `access_token_allowlist` via
+    /// `register_access_token()`. Multiple calls are additive (each registered token
+    /// remains valid until `reset()` clears the allowlist).
+    ///
+    /// AC-004 (S-DTU-CYBERINT-AUTH-FIDELITY-001); ADR-031 §D3-a rule 3.
+    #[serde(default)]
+    access_token: Option<String>,
 }
 
 /// Auth mode governing how cookie-based auth is handled.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub enum AuthMode {
-    /// Default: validate cookie from session_store.
+    /// Default: validate access_token cookie against allowlist.
     #[default]
     Accept,
     /// `auth_mode=reject`: all authenticated requests receive 401 regardless of cookie.
@@ -66,10 +80,16 @@ pub struct CyberintState {
     /// `with_org_id_and_admin_token()` and restored on `reset_all()`.
     pub alert_store: Mutex<HashMap<(OrgId, String), AlertStatus>>,
 
-    /// Valid session tokens keyed by `(OrgId, token_string)`.
+    /// Static access-token allowlist for the Cyberint DTU.
     ///
-    /// Re-keyed from `HashSet<String>` per BC-3.2.003.  Cleared on `reset_all()`.
-    pub session_store: Mutex<HashSet<(OrgId, String)>>,
+    /// Replaces the session_store model: `access_token` values are registered at
+    /// startup (or via `POST /dtu/configure`) rather than issued per-login.
+    ///
+    /// Auth validation checks the `access_token` cookie value against this set.
+    ///
+    /// ADR-031 §D3-a rule 3: session-store becomes static-auth registry.
+    /// AC-004 (S-DTU-CYBERINT-AUTH-FIDELITY-001).
+    pub access_token_allowlist: Mutex<HashSet<String>>,
 
     /// Runtime auth mode — toggled via `POST /dtu/configure`.
     pub auth_mode: Mutex<AuthMode>,
@@ -150,7 +170,7 @@ impl CyberintState {
             alert_fixture_page2,
             threat_fixture,
             alert_store: Mutex::new(alert_store),
-            session_store: Mutex::new(HashSet::new()),
+            access_token_allowlist: Mutex::new(HashSet::new()),
             auth_mode: Mutex::new(AuthMode::default()),
             rate_limit_after: Mutex::new(None),
             auth_request_count: Mutex::new(0),
@@ -218,9 +238,9 @@ impl CyberintState {
         }
         // SAFETY: same as above.
         #[allow(clippy::expect_used)]
-        self.session_store
+        self.access_token_allowlist
             .lock()
-            .expect("session_store poisoned")
+            .expect("access_token_allowlist poisoned")
             .clear();
         // SAFETY: same as above.
         #[allow(clippy::expect_used)]
@@ -262,12 +282,9 @@ impl CyberintState {
             .expect("alert_store poisoned")
             .retain(|(key_org, _), _| *key_org != org_id);
 
-        // SAFETY: same as above.
-        #[allow(clippy::expect_used)]
-        self.session_store
-            .lock()
-            .expect("session_store poisoned")
-            .retain(|(key_org, _)| *key_org != org_id);
+        // NOTE: access_token_allowlist is org-agnostic (ADR-031 §D3-a rule 3).
+        // Tokens are global to the clone instance; per-org selective clear is a no-op here.
+        // If a per-org reset is needed in future, the allowlist model must be extended.
     }
 
     /// Apply a JSON configuration patch (from `POST /dtu/configure`).
@@ -275,6 +292,7 @@ impl CyberintState {
     /// Supported fields:
     /// - `"auth_mode"`: `"accept"` | `"reject"`
     /// - `"rate_limit_after"`: u32 — number of authenticated requests before 429
+    /// - `"access_token"`: String — register an allowed access token (AC-004)
     ///
     /// Unknown fields are rejected with an error (TD-WV0-04: `deny_unknown_fields`).
     pub fn apply_config(&self, config: &serde_json::Value) -> anyhow::Result<()> {
@@ -301,35 +319,49 @@ impl CyberintState {
             *limit = Some(n);
         }
 
+        if let Some(token) = payload.access_token {
+            // AC-004: register the access_token in the static allowlist.
+            // This allows test harnesses to provision the demo token at runtime
+            // without restarting the DTU.
+            self.register_access_token(token);
+        }
+
         Ok(())
     }
 
-    /// Check if a session token is valid for the given `org_id`.
+    /// Check if an `access_token` cookie value is valid for this DTU clone.
     ///
-    /// # BC-3.2.003 invariant 2
+    /// Validates the token against the static allowlist — no org-scoping needed because
+    /// the real Cyberint API issues API keys at the account level, not per-org.
     ///
-    /// Token validation always takes `(org_id, token)` as input — never `token` alone.
-    pub fn is_valid_session(&self, org_id: OrgId, token: &str) -> bool {
-        // SAFETY: mutex poison only occurs if a previous holder panicked — not possible in normal operation.
-        #[allow(clippy::expect_used)]
-        self.session_store
-            .lock()
-            .expect("session_store poisoned")
-            .contains(&(org_id, token.to_owned()))
+    /// # ADR-031 §D3-a rule 3 / AC-004 (S-DTU-CYBERINT-AUTH-FIDELITY-001)
+    #[allow(unused_variables)]
+    pub fn is_valid_access_token(&self, token: &str) -> bool {
+        todo!("AC-004: check token against access_token_allowlist (set contains token)")
     }
 
-    /// Register a new session token scoped to `org_id`.
+    /// Register an `access_token` value in the static allowlist.
     ///
-    /// # BC-3.2.003 postcondition 1
+    /// Called at startup (or via `/dtu/configure`) to provision the demo token.
+    /// No UUID issuance — the token is provided externally (API key or demo value).
     ///
-    /// The token is stored as `(org_id, token)`, not as a bare string.
-    pub fn register_session(&self, org_id: OrgId, token: String) {
-        // SAFETY: mutex poison only occurs if a previous holder panicked — not possible in normal operation.
-        #[allow(clippy::expect_used)]
-        self.session_store
-            .lock()
-            .expect("session_store poisoned")
-            .insert((org_id, token));
+    /// # ADR-031 §D3-a rule 3 / AC-004 (S-DTU-CYBERINT-AUTH-FIDELITY-001)
+    #[allow(unused_variables)]
+    pub fn register_access_token(&self, token: String) {
+        todo!("AC-004: insert token into access_token_allowlist")
+    }
+
+    /// Builder: register a demo access token and return `self`.
+    ///
+    /// Convenience for test harnesses that specify the allowed `access_token` at
+    /// construction time without a separate `register_access_token()` / `configure()` call.
+    ///
+    /// Consuming builder pattern: `CyberintState::with_org_id_and_admin_token(...).with_demo_token(token)`
+    ///
+    /// # ADR-031 §D3-a / AC-004 (S-DTU-CYBERINT-AUTH-FIDELITY-001)
+    #[allow(unused_variables)]
+    pub fn with_demo_token(self, demo_token: String) -> Self {
+        todo!("AC-004: insert demo_token into self.access_token_allowlist; return self")
     }
 
     /// Check and increment the authenticated request counter for rate limiting.

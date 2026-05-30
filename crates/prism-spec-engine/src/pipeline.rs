@@ -718,21 +718,28 @@ async fn issue_request_with_retry(
     step_vars: &HashMap<String, serde_json::Value>,
 ) -> Result<(serde_json::Value, AuthToken), SpecEngineError> {
     // Issue the first request.
-    let response = build_request(http_client, step, url, &current_token, step_vars)
-        .map_err(|e| SpecEngineError::HttpRequestFailed {
-            sensor_id: spec.sensor_id.clone(),
-            step_name: step.name.clone(),
-            status_code: 0,
-            detail: format!("body interpolation failed: {e}"),
-        })?
-        .send()
-        .await
-        .map_err(|e| SpecEngineError::HttpRequestFailed {
-            sensor_id: spec.sensor_id.clone(),
-            step_name: step.name.clone(),
-            status_code: 0,
-            detail: e.to_string(),
-        })?;
+    let response = build_request(
+        http_client,
+        step,
+        url,
+        &current_token,
+        &spec.auth_type,
+        step_vars,
+    )
+    .map_err(|e| SpecEngineError::HttpRequestFailed {
+        sensor_id: spec.sensor_id.clone(),
+        step_name: step.name.clone(),
+        status_code: 0,
+        detail: format!("body interpolation failed: {e}"),
+    })?
+    .send()
+    .await
+    .map_err(|e| SpecEngineError::HttpRequestFailed {
+        sensor_id: spec.sensor_id.clone(),
+        step_name: step.name.clone(),
+        status_code: 0,
+        detail: e.to_string(),
+    })?;
     *request_count += 1;
 
     let status = response.status();
@@ -772,21 +779,28 @@ async fn issue_request_with_retry(
             }
         };
 
-        let retry_response = build_request(http_client, step, url, &fresh_token, step_vars)
-            .map_err(|e| SpecEngineError::HttpRequestFailed {
-                sensor_id: spec.sensor_id.clone(),
-                step_name: step.name.clone(),
-                status_code: 0,
-                detail: format!("body interpolation failed on retry: {e}"),
-            })?
-            .send()
-            .await
-            .map_err(|e| SpecEngineError::HttpRequestFailed {
-                sensor_id: spec.sensor_id.clone(),
-                step_name: step.name.clone(),
-                status_code: 0,
-                detail: e.to_string(),
-            })?;
+        let retry_response = build_request(
+            http_client,
+            step,
+            url,
+            &fresh_token,
+            &spec.auth_type,
+            step_vars,
+        )
+        .map_err(|e| SpecEngineError::HttpRequestFailed {
+            sensor_id: spec.sensor_id.clone(),
+            step_name: step.name.clone(),
+            status_code: 0,
+            detail: format!("body interpolation failed on retry: {e}"),
+        })?
+        .send()
+        .await
+        .map_err(|e| SpecEngineError::HttpRequestFailed {
+            sensor_id: spec.sensor_id.clone(),
+            step_name: step.name.clone(),
+            status_code: 0,
+            detail: e.to_string(),
+        })?;
         *request_count += 1;
 
         let retry_status = retry_response.status();
@@ -857,11 +871,22 @@ async fn issue_request_with_retry(
 /// Content-Type is derived from body shape:
 ///   - JSON object (`{...}`) → `application/json`
 ///   - Otherwise → `application/x-www-form-urlencoded`
+///
+/// ## Auth Header Dispatch (ADR-031 §D3-b / AC-007 S-DTU-CYBERINT-AUTH-FIDELITY-001)
+///
+/// | AuthType | Header injected |
+/// |----------|----------------|
+/// | `CookieRoundtrip` | `Cookie: access_token={token}` |
+/// | All other variants | `Authorization: Bearer {token}` |
+///
+/// Cookie name MUST be `access_token`. The former `cyberint_session` value is permanently
+/// superseded per ADR-031 §D3 and §D4.
 fn build_request(
     http_client: &reqwest::Client,
     step: &FetchStep,
     url: &str,
     token: &AuthToken,
+    auth_type: &crate::spec_parser::AuthType,
     step_vars: &HashMap<String, serde_json::Value>,
 ) -> Result<reqwest::RequestBuilder, String> {
     let method = match step.method.to_ascii_uppercase().as_str() {
@@ -874,9 +899,17 @@ fn build_request(
 
     let mut req = http_client.request(method, url);
 
-    // Add bearer token if non-empty.
+    // Auth header dispatch per auth_type (ADR-031 §D3-b; AC-007).
     if !token.as_str().is_empty() {
-        req = req.header("Authorization", format!("Bearer {}", token.as_str()));
+        req = match auth_type {
+            crate::spec_parser::AuthType::CookieRoundtrip => {
+                todo!(
+                    "AC-007: inject 'cookie' header with value 'access_token=<token>'; \
+                     cookie name MUST be 'access_token' NOT 'cyberint_session' (ADR-031 §D3-b)"
+                )
+            }
+            _ => req.header("Authorization", format!("Bearer {}", token.as_str())),
+        };
     }
 
     // F-LP1-CRIT-001: Add request body for POST/PUT/PATCH.

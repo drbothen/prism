@@ -3,8 +3,10 @@
 //!
 //! Anchors:
 //! - BC-2.01.013 (DataSource Trait: Spec-Driven Adapter Pattern)
+//! - BC-2.01.017 (Static Cookie AuthProvider Contract — No-Login-Roundtrip Cookie Injection)
 //! - ADR-023 §C2 (Plugin-Only Sensor Architecture — Real PipelineExecutor)
-//! - Story: S-PLUGIN-PREREQ-B
+//! - ADR-031 §D3-b (Cyberint DTU correction — StaticCookieAuthProvider)
+//! - Story: S-PLUGIN-PREREQ-B, S-DTU-CYBERINT-AUTH-FIDELITY-001
 //!
 //! `AuthProvider` is the TOML-driven replacement for compile-time SensorAuth dispatch.
 //! It is injected into `PipelineExecutor::execute` at call sites and is not coupled to
@@ -21,6 +23,13 @@
 //!
 //! `AuthProvider` MUST live in `prism-spec-engine` only. It MUST NOT be imported by
 //! `prism-sensors` or `prism-query` (forbidden dependency per PREREQ-B scope boundary).
+//!
+//! # Production Implementors
+//!
+//! - [`StaticCookieAuthProvider`] — production type for `auth_type = "cookie_roundtrip"` sensors
+//!   (e.g., Cyberint). Reads the API key from the credential resolver at `acquire_token()` time.
+//!   Makes NO HTTP call. Returns the raw API key as the token. NOT feature-gated.
+//!   AC-005, AC-006 (S-DTU-CYBERINT-AUTH-FIDELITY-001); BC-2.01.017 §Postconditions.
 
 use crate::error::SpecEngineError;
 use crate::spec_parser::SensorSpec;
@@ -101,6 +110,114 @@ pub trait AuthProvider: Send + Sync {
         spec: &'a SensorSpec,
         client_id: &'a OrgSlug,
     ) -> Pin<Box<dyn Future<Output = Result<AuthToken, SpecEngineError>> + Send + 'a>>;
+}
+
+// ---------------------------------------------------------------------------
+// StaticCookieAuthProvider — production auth provider for cookie_roundtrip sensors
+// ---------------------------------------------------------------------------
+
+/// Production `AuthProvider` for sensors using `auth_type = "cookie_roundtrip"`.
+///
+/// Reads the API key from the credential resolver at `acquire_token()` time via
+/// `prism_credentials::resolve_credential`. Makes NO HTTP call. Returns the raw API key
+/// as the `AuthToken`.
+///
+/// The token is then injected by `PipelineExecutor::build_request` as
+/// `Cookie: access_token={token}` per ADR-031 §D3-b.
+///
+/// ## Preconditions (BC-2.01.017)
+///
+/// - `auth_type = "cookie_roundtrip"` declared in the sensor's TOML spec.
+/// - A `credential_ref` naming the API key is declared in the TOML spec.
+/// - `prism_credentials::resolve_credential(client_id, sensor_id, "api_key")` must
+///   succeed at `acquire_token()` time.
+///
+/// ## Postconditions (BC-2.01.017 §Postconditions P1)
+///
+/// - Returns `Ok(AuthToken)` wrapping the raw API key string.
+/// - Makes ZERO HTTP calls during `acquire_token` (INV-COOKIE-001, ADR-031 §D1-b).
+///
+/// ## Errors
+///
+/// - `E-AUTH-005`: credential not found in keyring/env for `(client_id, sensor_id)`.
+/// - `E-AUTH-006`: API key is empty, all-whitespace, contains illegal cookie characters,
+///   or exceeds 4096 bytes. Error-taxonomy.md v1.53 §E-AUTH-006.
+///
+/// ## AD-017 Credential Safety
+///
+/// The API key value MUST NOT appear in log output at any level. The struct holds ONLY
+/// the `sensor_id` string (used as the credential namespace key) — NOT the API key itself.
+/// The API key is resolved at `acquire_token()` time from the credential store and
+/// immediately wrapped in `AuthToken(Zeroizing<String>)` — never stored as a field.
+///
+/// AC-005, AC-006, AC-010 (S-DTU-CYBERINT-AUTH-FIDELITY-001).
+/// BC-2.01.017; ADR-031 §D3-b rule 2; AD-017.
+pub struct StaticCookieAuthProvider {
+    /// Sensor ID used as the credential namespace key.
+    ///
+    /// This is the plain sensor name string (e.g., `"cyberint"`). The API key itself
+    /// is NEVER stored here — AD-017 compliance.
+    ///
+    /// `#[allow(dead_code)]`: field is unused while the `new()` body is `todo!()`.
+    /// The implementer will use this in `acquire_token` to resolve credentials.
+    #[allow(dead_code)]
+    sensor_id: String,
+}
+
+impl StaticCookieAuthProvider {
+    /// Construct a new `StaticCookieAuthProvider` for the given sensor.
+    ///
+    /// The `sensor_id` is the sensor name string from the TOML spec (used as the
+    /// credential namespace key in `prism_credentials::resolve_credential`).
+    ///
+    /// Does NOT accept the API key as a constructor argument (AD-017: credentials
+    /// must not be held at construction time; resolved at acquire_token() time only).
+    ///
+    /// AC-005 (S-DTU-CYBERINT-AUTH-FIDELITY-001)
+    ///
+    /// `#[allow(unused_variables)]`: parameter is referenced in the `todo!()` message
+    /// but not actually used until the implementer fills in the body.
+    #[allow(unused_variables)]
+    pub fn new(sensor_id: impl Into<String>) -> Self {
+        todo!("AC-005: construct StaticCookieAuthProvider with sensor_id; no credential stored")
+    }
+}
+
+impl AuthProvider for StaticCookieAuthProvider {
+    /// Acquire the static cookie token for the sensor.
+    ///
+    /// Calls `prism_credentials::resolve_credential(client_id, sensor_id, "api_key")`.
+    /// Returns `Ok(AuthToken(api_key_value))` without making any HTTP call.
+    ///
+    /// Validates the resolved api_key per E-AUTH-006: rejects empty strings, all-whitespace,
+    /// strings with illegal RFC 6265 cookie-value characters (e.g., `;`), and strings
+    /// exceeding 4096 bytes.
+    ///
+    /// # Errors
+    ///
+    /// - `E-AUTH-005`: credential not found → `SpecEngineError::AuthAcquisitionFailed`
+    ///   with message matching error-taxonomy.md v1.53 §E-AUTH-005 template.
+    /// - `E-AUTH-006`: empty/invalid api_key → `SpecEngineError::AuthAcquisitionFailed`
+    ///   with message matching error-taxonomy.md v1.53 §E-AUTH-006 template.
+    ///
+    /// BC-2.01.017 §Postconditions P1; INV-COOKIE-001; AC-005, AC-006, AC-010.
+    ///
+    /// `#[allow(unused_variables)]`: parameters are referenced in the `todo!()` body
+    /// message but not actually used until the implementer fills in the body.
+    #[allow(unused_variables)]
+    fn acquire_token<'a>(
+        &'a self,
+        spec: &'a SensorSpec,
+        client_id: &'a OrgSlug,
+    ) -> Pin<Box<dyn Future<Output = Result<AuthToken, SpecEngineError>> + Send + 'a>> {
+        Box::pin(async move {
+            todo!(
+                "AC-005/AC-006/AC-010: call prism_credentials::resolve_credential(client_id, sensor_id, 'api_key'); \
+                 validate api_key (E-AUTH-006: reject empty/whitespace/illegal-chars/oversized); \
+                 return Ok(AuthToken::new(api_key_value)); ZERO HTTP calls"
+            )
+        })
+    }
 }
 
 // ---------------------------------------------------------------------------
