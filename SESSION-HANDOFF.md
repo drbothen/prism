@@ -8665,3 +8665,45 @@ Implementer Code Rename (4f5b5404, feature/S-DTU-CYBERINT-AUTH-FIDELITY-001):
 **D-865 burst marker:** This burst (D-865 state-manager) records Pass 7 CLEAN(strict). Artifacts written: adversarial-review/local-pass-7.md (new), adversary-convergence-state.json pass-7 entry + current_streak=1 + status=PASS_7_CLEAN_STRICT_STREAK_1_OF_3 (updated), STATE.md v7.549, SESSION-HANDOFF.md §ADDENDUM 2026-05-30-PASS-7-CLEAN-STREAK-1-OF-3 (this section). 262nd consecutive single-commit per TD-VSDD-053.
 
 **Resume §7 step update (full chain):** Step 6 (Pass 1 complete), Step 7 (Pass 2 fix-burst COMPLETE), Step 8 (Pass 3 fix-burst COMPLETE, 4/4 findings closed), Step 9 (Pass 4 CLEAN(strict) streak 1/3), Step 10 (Pass 5 REJECTED — lesson 58 codified), Step 11 (Pass 5 REDUX CLEAN(strict) streak 2/3), Step 12 (Pass 6 NOT CLEAN(strict) — 1 LOW F-LP6-LOW-001; streak reset 0/3), Step 13 (Pass 6 fix-burst COMPLETE — F-LP6-LOW-001 CLOSED; feature HEAD 4f5b5404; streak 0/3), Step 14 (Pass 7 CLEAN(strict) — streak 1/3; feature HEAD 4f5b5404). Next action = Pass 8 LOCAL adversary dispatch.
+
+---
+
+## §ADDENDUM 2026-05-30-PASS-8-FIX-BURST-COMPLETE
+
+**D-867 burst marker.** Pass 8 fix-burst CLOSED. Feature HEAD unchanged at `4f5b5404` (PO-only fix — no code change).
+
+**Pass 8 finding:**
+
+Pass 8 LOCAL adversary operated on feature HEAD `4f5b5404` with mandatory lesson 58 grounding-truth preamble. SAP-1/SAP-2/SID-1 PASS. One finding:
+
+F-LP8-MED-001 (MED): BC-2.01.017 changelog section contained a byte-identical duplicate v1.2 row and non-monotonic chronological ordering. No semantic contract content affected. CLEAN(strict)=NO (1 MED). CLEAN(PR-merge)=YES. Streak reset 1/3 → 0/3 per BC-5.39.001 D-779 strict criterion.
+
+**F-LP8-MED-001 closure (PO commit 399ef378 — load-bearing):**
+
+Product-Owner fix-burst (399ef378, factory-artifacts):
+- Deleted byte-identical duplicate v1.2 changelog row (was at line 237)
+- Reordered changelog to monotonic descending: v1.4 → v1.3 → v1.2 → v1.1 → v1.0
+- BC-2.01.017 frontmatter version v1.3 → v1.4 (no semantic content change — changelog cleanup only)
+- BC-INDEX header v5.59 → v5.60
+- PO adjudication doc authored (F-LP8-MED-001.md per D-866)
+
+**Feature branch HEAD:** `4f5b5404` — unchanged. This was a PO-only fix (BC changelog hygiene; no code touched).
+
+**Cascade state after Pass 8 fix-burst:**
+- Streak: **0/3** (Pass 8 was NOT CLEAN(strict); PO fix addresses F-LP8-MED-001; Pass 9 begins new streak attempt)
+- Status: PASS_8_FIX_BURST_COMPLETE_READY_FOR_PASS_9
+- Feature HEAD: `4f5b5404`
+- BC version: v1.4 (via 399ef378)
+- BC-INDEX version: v5.60 (via 399ef378)
+- Next: Pass 9 LOCAL adversary with mandatory lesson 58 grounding-truth preamble
+
+**Path to convergence:**
+- Pass 9: adversary against feature HEAD `4f5b5404` (no code change), BC v1.4 / BC-INDEX v5.60, with lesson 58 preamble. If CLEAN(strict) → streak 1/3
+- Pass 10: adversary with lesson 58 preamble. If CLEAN(strict) → streak 2/3
+- Pass 11: adversary with lesson 58 preamble. If CLEAN(strict) → streak 3/3 → LOCAL CONVERGED → demo-recorder → push → PR cycle
+
+**Anti-volatile-pin note (TD-VSDD-091):** All citations use story/BC/function-name/test-name anchors. No file:line-number citations in this addendum. Historical line citations in pass reports are excepted per TD-VSDD-091 carve-out for load-bearing adversary pass evidence.
+
+**D-867 burst marker:** This burst (D-867 state-manager) records Pass 8 fix-burst closure. Artifacts written: adversarial-review/local-pass-8.md (new), adversary-convergence-state.json pass-8 entry + current_streak=0 + status=PASS_8_FIX_BURST_COMPLETE_READY_FOR_PASS_9 (updated), STATE.md v7.550, SESSION-HANDOFF.md §ADDENDUM 2026-05-30-PASS-8-FIX-BURST-COMPLETE (this section). 263rd consecutive single-commit per TD-VSDD-053.
+
+**Resume §7 step update (full chain):** Step 6 (Pass 1 complete), Step 7 (Pass 2 fix-burst COMPLETE), Step 8 (Pass 3 fix-burst COMPLETE, 4/4 findings closed), Step 9 (Pass 4 CLEAN(strict) streak 1/3), Step 10 (Pass 5 REJECTED — lesson 58 codified), Step 11 (Pass 5 REDUX CLEAN(strict) streak 2/3), Step 12 (Pass 6 NOT CLEAN(strict) — 1 LOW F-LP6-LOW-001; streak reset 0/3), Step 13 (Pass 6 fix-burst COMPLETE — F-LP6-LOW-001 CLOSED; feature HEAD 4f5b5404; streak 0/3), Step 14 (Pass 7 CLEAN(strict) — streak 1/3; feature HEAD 4f5b5404), Step 15 (Pass 8 NOT CLEAN(strict) — 1 MED F-LP8-MED-001; streak reset 0/3; PO fix 399ef378), Step 16 (Pass 8 fix-burst COMPLETE — F-LP8-MED-001 CLOSED; feature HEAD 4f5b5404 unchanged; BC v1.4; streak 0/3). Next action = Pass 9 LOCAL adversary dispatch.

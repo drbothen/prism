@@ -243,12 +243,45 @@
         "story_spec_v1_3": "§Red Gate Tests table: 4 test name cells all confirm test_BC_2_01_017_* prefix; AC bodies + Tasks + Notes for Implementer consistent"
       },
       "state_manager_commit": "D-865 (this burst)"
+    },
+    {
+      "pass": 8,
+      "date": "2026-05-30",
+      "clean_strict": false,
+      "clean_pr_merge": true,
+      "findings_count": 1,
+      "findings_by_severity": {
+        "CRIT": 0,
+        "HIGH": 0,
+        "MED": 1,
+        "LOW": 0,
+        "OBS": 0,
+        "PROCESS-GAP": 0
+      },
+      "streak": 0,
+      "novelty": "LOW",
+      "feature_head_at_pass": "4f5b5404",
+      "lesson_58_preamble": true,
+      "key_finding": "F-LP8-MED-001 — BC-2.01.017 changelog hygiene: byte-identical duplicate v1.2 row at line 237 + non-monotonic chronological ordering",
+      "sap_1_result": "PASS — no new event_type emission sites; no production code changes since Pass 7",
+      "sap_2_result": "PASS — no TOML or DTU struct modifications since Pass 7",
+      "sid_1_result": "PASS — no new test functions; all tests remain non-#[ignore]'d unit tests",
+      "cross_doc_consistency": "FAIL — BC-2.01.017 changelog non-monotonic (F-LP8-MED-001); semantic contract content unaffected",
+      "sibling_sweep_result": "PASS (N/A — no code change since Pass 7)",
+      "pass_8_resolution": {
+        "closed_by_po": 1,
+        "total_closed": 1
+      },
+      "pass_8_po_commit": "399ef378",
+      "pass_8_feature_head_at_resolution": "4f5b5404",
+      "pass_8_po_adjudication": "F-LP8-MED-001: BC-2.01.017 v1.3→v1.4 — deleted byte-identical duplicate v1.2 row; reordered changelog to monotonic descending (1.4→1.3→1.2→1.1→1.0); BC-INDEX v5.59→v5.60 header bump; no semantic content change",
+      "state_manager_commit": "D-867 (this burst)"
     }
   ],
-  "current_streak": 1,
+  "current_streak": 0,
   "target_streak": 3,
-  "status": "PASS_7_CLEAN_STRICT_STREAK_1_OF_3",
-  "next_action": "Dispatch Pass 8 LOCAL adversary against feature HEAD 4f5b5404. If CLEAN(strict) → streak 2/3 → Pass 9 (final). Two more CLEAN passes for full convergence.",
+  "status": "PASS_8_FIX_BURST_COMPLETE_READY_FOR_PASS_9",
+  "next_action": "Dispatch Pass 9 LOCAL adversary against feature HEAD 4f5b5404 (no code change). BC v1.4 / BC-INDEX v5.60 (PO 399ef378). If CLEAN(strict) → streak 1/3 → Pass 10 → Pass 11 for full 3-CLEAN convergence.",
   "deferred_findings": [
     {
       "finding_id": "D-LP6-001",
