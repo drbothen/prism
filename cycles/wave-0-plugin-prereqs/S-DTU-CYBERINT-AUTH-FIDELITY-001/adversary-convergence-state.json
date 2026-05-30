@@ -42,11 +42,37 @@
         "F-LP1-MED-004": "workspace secrecy = 0.8.0; SecretString::new deprecation does not apply until >= 0.10"
       },
       "pass_1_po_adjudication": "F-LP1-MED-002 Option A: BC amendment wins; BC-2.01.017 v1.0→v1.1 EC-017-005 corrected to mandate E-AUTH-005 (resolver Ok(None)→NotFound→E-AUTH-005 per BC-2.03.006 normalization); BC-INDEX v5.56→v5.57"
+    },
+    {
+      "pass": 2,
+      "date": "2026-05-30",
+      "clean_strict": false,
+      "clean_pr_merge": false,
+      "findings_count": 4,
+      "findings_by_severity": {
+        "CRIT": 1,
+        "HIGH": 1,
+        "MED": 1,
+        "LOW": 0,
+        "OBS": 0,
+        "PROCESS-GAP": 1
+      },
+      "streak": 0,
+      "novelty": "HIGH",
+      "feature_head_at_pass": "79e3b545",
+      "key_finding": "F-LP2-CRIT-001 — PO Option A adjudication built on fabricated BC-2.03.006 normalization claim; BC-2.01.017 v1.1 EC-017-005 was wrong; orchestrator independently verified against resolve_secret.rs:78-81",
+      "po_re_adjudication": {
+        "commit": "2707ee69",
+        "result": "REVERT — BC-2.01.017 v1.1 → v1.2 (restored v1.0 EC-017-005 semantics: empty value → E-AUTH-006)",
+        "bc_index_version": "5.58"
+      },
+      "implementer_dispatched_for": ["test split (NotFound vs empty value)", "F-LP2-HIGH-001 unsafe env_var resolves_api_key_from_env"],
+      "state_manager_dispatched_for": ["Pass 2 persistence (this burst)", "SAP-2 TD entry F-LP2-MED-001", "F-LP2-PG-001 lesson 56 codification"]
     }
   ],
   "current_streak": 0,
   "target_streak": 3,
-  "status": "PASS_1_FIX_BURST_COMPLETE_READY_FOR_PASS_2",
-  "next_action": "Dispatch Pass 2 LOCAL adversary against feature HEAD 79e3b545; verify all 13 findings closure + SAP-1/SAP-2/SID-1 probes; report CLEAN(strict) + CLEAN(PR-merge) per D-779 amendment",
+  "status": "PASS_2_FIX_BURST_DISPATCHED_F_LP2_CRIT_001_PO_REVERTED",
+  "next_action": "Wait for implementer test split + F-LP2-HIGH-001 close; then dispatch state-manager closure burst (D-855); then dispatch Pass 3 LOCAL adversary against new feature HEAD",
   "protocol": "BC-5.39.001 3-CLEAN (D-779 amendment: strict=zero all severities for streak; PR-merge=zero CRIT+HIGH+MED)"
 }

@@ -453,3 +453,36 @@ traces_to: STATE.md
     **Borderline codification note:** This was a single occurrence in one cascade. Codified because (a) the false-N/A was caught only by PO investigation (not by the implementer's own verification), and (b) the symbol-search-before-N/A rule is a generalizable implementer discipline that would have caught this without PO intervention.
 
     _Discovered: D-853 implementer cleanup burst, 2026-05-30. F-LP1-LOW-002 from S-DTU-CYBERINT-AUTH-FIDELITY-001 Pass 1 LOCAL adversary cascade._
+
+## 2026-05-30 D-854 — PO Adjudication Requires Verbatim Code Quote from Cited Source-of-Truth Code Path
+
+56. **[process-gap] [codified] PO adjudications resolving code-vs-spec conflicts MUST include verbatim code quotes from the cited code path (file + function/line anchor + actual code text). Adjudications based on spec-narrative derivation alone carry fabrication risk.**
+
+    **Evidence:** PO's Option A adjudication for F-LP1-MED-002 (D-852, commit `4baa0e91`) amended BC-2.01.017 EC-017-005 from E-AUTH-006 to E-AUTH-005, based on the stated rationale: "BC-2.03.006 (credential-backend, more specific) normalizes empty env-var as not-found → Ok(None) → E-AUTH-005." This claim was derived from BC-2.03.006 prose narrative, not from the actual `prism_credentials::resolve_secret` source code.
+
+    **The fabrication exposed by Pass 2 adversary (F-LP2-CRIT-001):** Independent fresh-context re-derivation from `crates/prism-credentials/src/resolve_secret.rs` — `EnvVar` arm — shows that an env-var set to the empty string returns `Ok(Some(SecretString("")))`, NOT `Ok(None)`. The resolver does NOT normalize empty strings as not-found. The "normalization" happens only at the consumer layer if the consumer explicitly guards for empty content. BC-2.03.006 prose describes the CONSUMER's responsibility, not the resolver's wire behavior.
+
+    **Consequence:** BC-2.01.017 v1.1 EC-017-005 mandated the wrong error code for an entire category of auth failures. PO re-adjudicated at `2707ee69`: BC-2.01.017 v1.2 restores E-AUTH-006 for the empty-value path. The fix-burst was avoided only because the adversary's fresh-context pass caught it before the implementer shipped code relying on the wrong contract.
+
+    **CODIFICATION:**
+
+    **PO rule:** When resolving a finding of the form "code returns X but BC mandates Y," the adjudication note MUST include:
+    1. The exact function name and module path of the code path cited (e.g., `prism_credentials::resolve_secret` → `EnvVar` arm)
+    2. The verbatim code text (or a meaningful excerpt) showing the actual return value
+    3. An explicit statement of which behavior (code or spec) is correct and WHY, grounded in the code text
+
+    Example of a compliant adjudication note:
+    ```
+    resolve_secret.rs EnvVar arm:
+        let val = std::env::var(var_name).ok();
+        Ok(val.map(SecretString::new))
+    For var_name set to "" → std::env::var returns Ok("") → val = Some("") → Ok(Some(SecretString("")))
+    This is NOT Ok(None). The resolver does not normalize empty strings.
+    Therefore: BC wins at the consumer layer — StaticCookieAuthProvider must guard for empty and return E-AUTH-006.
+    ```
+
+    **Orchestrator rule:** When reviewing PO adjudication output for code-vs-spec findings, scan for direct code quotes. If absent, route back to PO for evidence supplementation BEFORE accepting the adjudication. Do not merge the adjudication commit until quotes are present.
+
+    **Borderline escalation note:** This was the first occurrence of PO adjudication fabrication in the project. Codified at CRITICAL severity (F-LP2-CRIT-001) because: (a) the fabrication was plausible — it sounded like correct spec-narrative reasoning; (b) it was caught only by the adversary's fresh-context pass 2, not by any inline review; (c) the consequence was a spec-contract regression that would have caused E2E test failures in the next `just check` after implementer shipped the empty-value guard.
+
+    _Discovered: D-854 Pass 2 LOCAL adversary cascade, 2026-05-30. F-LP2-CRIT-001 from S-DTU-CYBERINT-AUTH-FIDELITY-001 Pass 2 adversary report._

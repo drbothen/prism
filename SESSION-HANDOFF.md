@@ -8290,3 +8290,31 @@ _Snapshot terminus: 2026-05-30. Cyberint cascade at Step 4.5 mid-fix. Pass 1 fix
 **Resume §7 step update:** Step 6 (Pass 1 fix-burst) COMPLETE. Next action = Pass 2 LOCAL adversary dispatch against feature HEAD `79e3b545`.
 
 **Lesson 55 added [process-gap]:** Adversary mislabeled finding path (F-LP1-LOW-002 cited prism-dtu-cyberint; file lives in prism-spec-engine). Implementer's literal-path N/A was caught by PO investigation. Rule: adversary must verify file existence before citing path; implementer must search by symbol name before declaring N/A.
+
+---
+
+## §ADDENDUM 2026-05-30-PASS-2-FIX-BURST-IN-FLIGHT (D-854)
+
+**State update:** Pass 2 LOCAL adversary against feature HEAD `79e3b545` — NOT CLEAN. 4 findings (1 CRIT + 1 HIGH + 1 MED + 1 PROCESS-GAP). Streak 0/3 (unchanged). STATE: v7.540. BC-INDEX: v5.58.
+
+**Pass 2 findings summary:**
+
+| Finding | Severity | Status |
+|---------|----------|--------|
+| F-LP2-CRIT-001 | CRITICAL | CLOSED — PO revert `2707ee69` (BC-2.01.017 v1.2 / BC-INDEX v5.58) |
+| F-LP2-HIGH-001 | HIGH | DISPATCHED to implementer — test split + E-AUTH-006 guard |
+| F-LP2-MED-001 | MEDIUM | DEFERRED — TD-FOLLOWUP-ARRAY-COLUMNTYPE-001 (P2) filed; `ColumnType::Array` not yet supported |
+| F-LP2-PG-001 | PROCESS-GAP | CODIFIED — lesson 56 (PO adjudication requires verbatim code quotes) |
+
+**F-LP2-CRIT-001 root cause:** PO's D-852 Option A adjudication (`4baa0e91`) stated "BC-2.03.006 normalizes empty env-var as not-found → E-AUTH-005." Independent verification shows `prism_credentials::resolve_secret` `EnvVar` arm returns `Ok(Some(SecretString("")))` for an empty env-var — NOT `Ok(None)`. The normalization claim was fabricated from spec-narrative, not code. BC-2.01.017 v1.2 reverts EC-017-005 to E-AUTH-006 (empty value → invalid format). Committed `2707ee69`.
+
+**Open dispatches:**
+1. **Implementer in flight** — test split at `feature/S-DTU-CYBERINT-AUTH-FIDELITY-001`: (a) `EnvVar` backend-path coverage test (BC-2.03.006; no error-code assertion), (b) empty-value error-code test using `MockCredentialResolver` asserting E-AUTH-006 per BC-2.01.017 v1.2. `StaticCookieAuthProvider::authenticate` must guard `Ok(Some(""))` → E-AUTH-006.
+2. **D-855 closure burst (state-manager)** — after implementer returns: record test split + new feature HEAD + adversary-convergence-state.json implementer resolution entry.
+3. **Pass 3 LOCAL adversary** — dispatch after D-855 against new feature HEAD; verify BC-2.01.017 v1.2 semantics + E-AUTH-006 guard (F-LP2-CRIT-001 closure) + test split (F-LP2-HIGH-001 closure) + SAP-1/SAP-2/SID-1 probes.
+
+**Lesson 56 added [process-gap]:** PO adjudication of code-vs-spec findings must include verbatim code quotes. Absence of code quotes = fabrication risk. Orchestrator must route back to PO for evidence supplementation if absent.
+
+**Anti-volatile-pin note (TD-VSDD-091):** Citations in this addendum use story/BC/function-name anchors. The `resolve_secret.rs:78-81` citation is load-bearing verifiable code evidence (exception per TD-VSDD-091 carve-out) — this is the specific code excerpt that disproved the normalization claim.
+
+**Resume §7 update:** Step 6 (Pass 1 complete) and Step 7 (Pass 2 fix-burst dispatched) complete. Next: await implementer → D-855 → Pass 3.
