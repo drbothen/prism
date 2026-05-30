@@ -35,7 +35,8 @@
 //! # Static cookie auth
 //!
 //! Cyberint uses static cookie-based auth (`access_token=<api_key>`) per ADR-031 §D3-a.
-//! There is no `POST /login` step — the real Cyberint API requires no login endpoint.
+//! There is no legacy session-acquisition route; the real Cyberint API requires no
+//! such endpoint (ADR-031 §D1-b).
 //! The per-clone `CyberintCloneState` holds an `access_token_store: HashSet<String>`
 //! (static allowlist; no org-keying needed in single-instance harness clones).
 //! A demo token is registered at startup via `register_access_token()`.
@@ -755,7 +756,7 @@ pub struct CyberintRouteState {
 
 /// Extract the `access_token` cookie value from the `Cookie` header.
 ///
-/// ADR-031 §D3-a: validates `access_token` cookie (NOT `cyberint_session`).
+/// ADR-031 §D3-a: validates the `access_token` cookie (NOT the legacy session-identifier cookie).
 fn extract_access_token(headers: &HeaderMap) -> Option<String> {
     let cookie_str = headers.get("cookie")?.to_str().ok()?;
     for part in cookie_str.split(';') {
@@ -779,7 +780,7 @@ fn unauthorized() -> axum::response::Response {
 /// Check cookie auth and rate limit. Returns `Ok(())` to proceed or `Err(response)` to short-circuit.
 ///
 /// Validates the `access_token` cookie against the static allowlist (ADR-031 §D3-a).
-/// The legacy `cyberint_session` cookie name is NOT accepted.
+/// The legacy session-identifier cookie name is NOT accepted.
 #[allow(clippy::result_large_err)]
 fn check_auth(
     state: &CyberintCloneState,
@@ -1308,7 +1309,7 @@ fn classify_bearer(headers: &HeaderMap, admin_token: &str) -> BearerCheck {
 /// Build the Cyberint-specific axum Router for use in the harness.
 ///
 /// Routes handle static access_token cookie auth, alert lifecycle, threat-intel, and DTU
-/// control endpoints.  No `POST /login` route is registered (ADR-031 §D1-b).
+/// control endpoints.  No legacy session-acquisition route is registered (ADR-031 §D1-b).
 /// The `clone_state` provides the generic failure-injection machinery and admin token;
 /// the `cyberint_state` provides Cyberint-specific access_token/alert state.
 fn build_cyberint_router(
@@ -1321,7 +1322,7 @@ fn build_cyberint_router(
     });
 
     Router::new()
-        // Alert routes (no /login — ADR-031 §D1-b)
+        // Alert routes (no legacy session-acquisition route — ADR-031 §D1-b)
         .route("/api/v1/alerts", get(get_alerts))
         .route("/api/v1/alerts", post(get_alerts))
         .route("/api/v1/alerts/:alert_id", get(get_alert_by_id))
@@ -1431,7 +1432,7 @@ fn build_cyberint_network_router(
     };
 
     Router::new()
-        // No /login route — ADR-031 §D1-b
+        // No legacy session-acquisition route — ADR-031 §D1-b
         .route("/api/v1/alerts", get(alerts_with_bearer))
         .route("/api/v1/alerts/:alert_id", get(get_alert_by_id))
         .route("/api/v1/alerts/:alert_id/status", patch(patch_alert_status))
