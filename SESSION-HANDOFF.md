@@ -8798,3 +8798,84 @@ Product-Owner comprehensive sweep (559ab76d, factory-artifacts, D-870):
 **D-871 burst marker:** This burst (D-871 state-manager) records Pass 10 comprehensive fix-burst closure. Artifacts written: adversarial-review/local-pass-10.md (new), adversary-convergence-state.json pass-10 entry + current_streak=0 + status=PASS_10_COMPREHENSIVE_FIX_BURST_COMPLETE_READY_FOR_PASS_11 (updated), STATE.md v7.552, lessons.md lesson 59 (appended), SESSION-HANDOFF.md §ADDENDUM 2026-05-30-PASS-10-COMPREHENSIVE-SWEEP-COMPLETE (this section). 265th consecutive single-commit per TD-VSDD-053.
 
 **Resume §7 step update (full chain):** Step 6 (Pass 1 complete), Step 7 (Pass 2 fix-burst COMPLETE), Step 8 (Pass 3 fix-burst COMPLETE, 4/4 findings closed), Step 9 (Pass 4 CLEAN(strict) streak 1/3), Step 10 (Pass 5 REJECTED — lesson 58 codified), Step 11 (Pass 5 REDUX CLEAN(strict) streak 2/3), Step 12 (Pass 6 NOT CLEAN(strict) — 1 LOW F-LP6-LOW-001; streak reset 0/3), Step 13 (Pass 6 fix-burst COMPLETE — F-LP6-LOW-001 CLOSED; feature HEAD 4f5b5404; streak 0/3), Step 14 (Pass 7 CLEAN(strict) — streak 1/3; feature HEAD 4f5b5404), Step 15 (Pass 8 NOT CLEAN(strict) — 1 MED F-LP8-MED-001; streak reset 0/3; PO fix 399ef378), Step 16 (Pass 8 fix-burst COMPLETE — F-LP8-MED-001 CLOSED; feature HEAD 4f5b5404 unchanged; BC v1.4; streak 0/3), Step 17 (Pass 9 NOT CLEAN(strict) — 1 MED F-LP9-MED-001; streak 0/3 unchanged; story-writer fix ac0843a4), Step 18 (Pass 9 fix-burst COMPLETE — F-LP9-MED-001 CLOSED; feature HEAD 4f5b5404 unchanged; story v1.4; STORY-INDEX v2.214; streak 0/3), Step 19 (Pass 10 NOT CLEAN(strict) — 1 MED F-LP10-MED-001; third recurrence triggers lesson 59 three-recurrence rule; PO comprehensive sweep 559ab76d + POL-32 codified), Step 20 (Pass 10 comprehensive fix-burst COMPLETE — F-LP10-MED-001 CLOSED + D-LP9-001 promoted in-scope; feature HEAD 4f5b5404 unchanged; error-taxonomy v1.55; STORY-INDEX v2.215; BC-INDEX v5.61; POL-32 codified; streak 0/3). Next action = Pass 11 LOCAL adversary dispatch.
+
+## §ADDENDUM 2026-05-30-PASS-11-CLEAN-STREAK-1-OF-3 (D-872)
+
+**D-872 burst marker.** Pass 11 CLEAN(strict). Streak 0/3 → **1/3**. Feature HEAD unchanged at `4f5b5404`.
+
+**Pass 11 result:**
+
+Pass 11 LOCAL adversary operated on feature HEAD `4f5b5404` with mandatory lesson 58 grounding-truth preamble (cwd + branch + HEAD + symbol existence confirmed via Read+Grep before probes). Zero findings at any severity. CLEAN(strict)=YES. CLEAN(PR-merge)=YES. Novelty: ZERO.
+
+**Probe results:**
+- SAP-1: PASS — no new uncataloged event_type emissions; no production code changes since Pass 10
+- SAP-2: PASS — no TOML or DTU struct modifications since Pass 10
+- SID-1: PASS — no new test functions; all tests non-#[ignore]'d
+- POL-32 workspace sample: PASS — BC-2.01.017 v1.4 + error-taxonomy.md v1.55 + STORY-INDEX v2.215 + BC-INDEX v5.61 + BC-2.16.013 v1.18 all confirmed monotonic descending; zero violations
+- Cross-doc consistency: PASS — all artifacts consistent
+- Sibling-sweep: PASS (N/A — no code change)
+
+**Cascade state after Pass 11:**
+- Streak: **1/3** (Pass 11 CLEAN(strict))
+- Feature HEAD: `4f5b5404` (unchanged)
+- BC-2.01.017: v1.4 | error-taxonomy.md: v1.55 | BC-INDEX: v5.61 | STORY-INDEX: v2.215 | POL-32: codified
+
+**Next actions:**
+- Pass 12: adversary against feature HEAD `4f5b5404` with mandatory lesson 58 preamble + POL-32 workspace sample. If CLEAN(strict) → streak 2/3
+- Pass 13: adversary with lesson 58 preamble. If CLEAN(strict) → streak 3/3 → LOCAL CONVERGED → demo-recorder → push → PR cycle
+
+**Anti-volatile-pin note (TD-VSDD-091):** All citations use story/BC/function-name/test-name anchors. No file:line-number citations in this addendum.
+
+**D-872 burst marker:** This burst (D-872 state-manager) records Pass 11 CLEAN(strict) streak 1/3. Artifacts written: adversarial-review/local-pass-11.md (new), adversary-convergence-state.json pass-11 entry + current_streak=1 + status=PASS_11_CLEAN_STRICT_STREAK_1_OF_3 (updated), STATE.md v7.553, SESSION-HANDOFF.md §ADDENDUM 2026-05-30-PASS-11-CLEAN-STREAK-1-OF-3 (this section). 266th consecutive single-commit per TD-VSDD-053.
+
+**Resume §7 step update (full chain):** Step 6 (Pass 1 complete), Step 7 (Pass 2 fix-burst COMPLETE), Step 8 (Pass 3 fix-burst COMPLETE, 4/4 findings closed), Step 9 (Pass 4 CLEAN(strict) streak 1/3), Step 10 (Pass 5 REJECTED — lesson 58 codified), Step 11 (Pass 5 REDUX CLEAN(strict) streak 2/3), Step 12 (Pass 6 NOT CLEAN(strict) — 1 LOW F-LP6-LOW-001; streak reset 0/3), Step 13 (Pass 6 fix-burst COMPLETE — F-LP6-LOW-001 CLOSED; feature HEAD 4f5b5404; streak 0/3), Step 14 (Pass 7 CLEAN(strict) — streak 1/3; feature HEAD 4f5b5404), Step 15 (Pass 8 NOT CLEAN(strict) — 1 MED F-LP8-MED-001; streak reset 0/3; PO fix 399ef378), Step 16 (Pass 8 fix-burst COMPLETE — F-LP8-MED-001 CLOSED; feature HEAD 4f5b5404 unchanged; BC v1.4; streak 0/3), Step 17 (Pass 9 NOT CLEAN(strict) — 1 MED F-LP9-MED-001; streak 0/3 unchanged; story-writer fix ac0843a4), Step 18 (Pass 9 fix-burst COMPLETE — F-LP9-MED-001 CLOSED; feature HEAD 4f5b5404 unchanged; story v1.4; STORY-INDEX v2.214; streak 0/3), Step 19 (Pass 10 NOT CLEAN(strict) — 1 MED F-LP10-MED-001; third recurrence triggers lesson 59 three-recurrence rule; PO comprehensive sweep 559ab76d + POL-32 codified), Step 20 (Pass 10 comprehensive fix-burst COMPLETE — F-LP10-MED-001 CLOSED + D-LP9-001 promoted in-scope; feature HEAD 4f5b5404 unchanged; error-taxonomy v1.55; STORY-INDEX v2.215; BC-INDEX v5.61; POL-32 codified; streak 0/3), Step 21 (Pass 11 CLEAN(strict) — streak 1/3; feature HEAD 4f5b5404 unchanged; POL-32 workspace sample PASS). Next action = Pass 12 LOCAL adversary dispatch.
+
+## §ADDENDUM 2026-05-30-PASS-12-2-FINDINGS-RESET (D-873)
+
+**D-873 burst marker.** Pass 12 NOT CLEAN. Streak 1/3 → **0/3 (RESET)**. Feature HEAD unchanged at `4f5b5404`.
+
+**Pass 12 result:**
+
+Pass 12 LOCAL adversary operated on feature HEAD `4f5b5404` with mandatory lesson 58 grounding-truth preamble (cwd + branch + HEAD + symbol existence confirmed via Read+Grep before probes). 3 findings. CLEAN(strict)=NO. CLEAN(PR-merge)=NO. Streak reset 1/3 → 0/3.
+
+**Preamble anomaly (non-blocking, documented):** Adversary prompt cited `crates/prism-dtu-cyberint/src/auth_provider.rs` but actual file is `crates/prism-spec-engine/src/auth_provider.rs`. Content verified at correct path. Transcription error in prompt only; all behavior verification unaffected.
+
+**Findings:**
+
+**F-LP12-MED-001 (story body H1 + §Version version drift):** Story spec frontmatter `version: 1.4` (current) but body H1 still says `v1.1` and §Version field still says `v1.3`. Three distinct version values in same file. Root cause: POL-29 step 8b body-sync was missed at D-850 (v1.1→v1.2), D-863 (v1.2→v1.3), and D-868 (v1.3→v1.4) — three sequential misses. Route: story-writer. Fix: story v1.4 → v1.5 with H1 updated to `v1.5` and §Version updated to `v1.5`; v1.5 changelog row added; STORY-INDEX bump.
+
+**F-LP12-LOW-001 (21 BC cite-pins pending PO intent adjudication):** `crates/prism-spec-engine/src/auth_provider.rs` contains 21 cite-pins referencing `BC-2.01.017 v1.3` or `v1.2`. BC current version is v1.4. POL-29 step 8f v1.29 crates-cite-pin sweep was not performed at D-866 (Pass 8 PO closure). Ambiguity: some may be intentional "introduced-in" anchors (TD-VSDD-091 exemption applies); others may be stale sweep misses. PO adjudication required. Route: PO.
+
+**F-LP12-PG-001 (process-gap — SAP-4 codification):** Standing adversary probe set (SAP-1/SAP-2/SID-1) lacks a POL-29 v1.29 crates cite-pin sweep probe. F-LP12-LOW-001 root cause: no probe required the sweep at D-866. Recommended SAP-4 text provided in local-pass-12.md. Route: orchestrator codification queue (CLAUDE.md amendment). Non-blocking for current cascade.
+
+**Probe results:**
+- SAP-1: PASS — no new uncataloged event_type emissions; no production code changes since Pass 11
+- SAP-2: PASS — no TOML or DTU struct modifications since Pass 11
+- SID-1: PASS — no new test functions; all tests non-#[ignore]'d
+- Cross-doc consistency: FAIL — F-LP12-MED-001 (story body version drift)
+- Sibling-sweep: N/A — no code change since Pass 11
+
+**Prior closure spot-check:**
+- F-LP3-HIGH-001: LOAD-BEARING confirmed
+- F-LP6-LOW-001: LOAD-BEARING confirmed
+- F-LP8-MED-001: LOAD-BEARING confirmed
+- F-LP9-MED-001: LOAD-BEARING confirmed
+- F-LP10-MED-001: LOAD-BEARING confirmed
+
+**Cascade state after Pass 12:**
+- Streak: **0/3** (Pass 12 NOT CLEAN; 1/3 streak reset)
+- Feature HEAD: `4f5b5404` (unchanged)
+- BC-2.01.017: v1.4 | error-taxonomy.md: v1.55 | BC-INDEX: v5.61 | STORY-INDEX: v2.215 | POL-32: codified
+
+**Path to convergence:**
+- Fix-burst: story-writer body-sync F-LP12-MED-001 (v1.4→v1.5) + PO adjudication F-LP12-LOW-001 (21 cite-pins)
+- State-manager closure burst
+- Pass 13: adversary against feature HEAD with mandatory lesson 58 preamble. If CLEAN(strict) → streak 1/3
+- Pass 14: adversary with lesson 58 preamble. If CLEAN(strict) → streak 2/3
+- Pass 15: adversary with lesson 58 preamble. If CLEAN(strict) → streak 3/3 → LOCAL CONVERGED → demo-recorder → push → PR cycle
+
+**Anti-volatile-pin note (TD-VSDD-091):** All citations use story/BC/function-name/test-name anchors. No file:line-number citations in this addendum.
+
+**D-873 burst marker:** This burst (D-873 state-manager) records Pass 12 NOT CLEAN findings + streak reset. Artifacts written: adversarial-review/local-pass-12.md (new), adversary-convergence-state.json pass-12 entry + current_streak=0 + status=PASS_12_2_FINDINGS_FIX_BURST_PENDING (updated), STATE.md v7.553→v7.554, SESSION-HANDOFF.md §ADDENDUM 2026-05-30-PASS-12-2-FINDINGS-RESET (this section). 267th consecutive single-commit per TD-VSDD-053.
+
+**Resume §7 step update (full chain):** Step 6 (Pass 1 complete), Step 7 (Pass 2 fix-burst COMPLETE), Step 8 (Pass 3 fix-burst COMPLETE, 4/4 findings closed), Step 9 (Pass 4 CLEAN(strict) streak 1/3), Step 10 (Pass 5 REJECTED — lesson 58 codified), Step 11 (Pass 5 REDUX CLEAN(strict) streak 2/3), Step 12 (Pass 6 NOT CLEAN(strict) — 1 LOW F-LP6-LOW-001; streak reset 0/3), Step 13 (Pass 6 fix-burst COMPLETE — F-LP6-LOW-001 CLOSED; feature HEAD 4f5b5404; streak 0/3), Step 14 (Pass 7 CLEAN(strict) — streak 1/3; feature HEAD 4f5b5404), Step 15 (Pass 8 NOT CLEAN(strict) — 1 MED F-LP8-MED-001; streak reset 0/3; PO fix 399ef378), Step 16 (Pass 8 fix-burst COMPLETE — F-LP8-MED-001 CLOSED; feature HEAD 4f5b5404 unchanged; BC v1.4; streak 0/3), Step 17 (Pass 9 NOT CLEAN(strict) — 1 MED F-LP9-MED-001; streak 0/3 unchanged; story-writer fix ac0843a4), Step 18 (Pass 9 fix-burst COMPLETE — F-LP9-MED-001 CLOSED; feature HEAD 4f5b5404 unchanged; story v1.4; STORY-INDEX v2.214; streak 0/3), Step 19 (Pass 10 NOT CLEAN(strict) — 1 MED F-LP10-MED-001; third recurrence triggers lesson 59 three-recurrence rule; PO comprehensive sweep 559ab76d + POL-32 codified), Step 20 (Pass 10 comprehensive fix-burst COMPLETE — F-LP10-MED-001 CLOSED + D-LP9-001 promoted in-scope; feature HEAD 4f5b5404 unchanged; error-taxonomy v1.55; STORY-INDEX v2.215; BC-INDEX v5.61; POL-32 codified; streak 0/3), Step 21 (Pass 11 CLEAN(strict) — streak 1/3; feature HEAD 4f5b5404 unchanged; POL-32 workspace sample PASS), Step 22 (Pass 12 NOT CLEAN — streak reset 1/3→0/3; F-LP12-MED-001+F-LP12-LOW-001+F-LP12-PG-001; story-writer body-sync + PO adjudication pending). Next action = story-writer dispatch F-LP12-MED-001 + PO dispatch F-LP12-LOW-001 → state-manager closure → Pass 13.

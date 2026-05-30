@@ -378,12 +378,50 @@
         "F-LP10-MED-001": "LOAD-BEARING — error-taxonomy v1.55 changelog monotonic descending"
       },
       "state_manager_commit": "D-872 (this burst)"
+    },
+    {
+      "pass": 12,
+      "date": "2026-05-30",
+      "clean_strict": false,
+      "clean_pr_merge": false,
+      "findings_count": 3,
+      "findings_by_severity": {
+        "CRIT": 0,
+        "HIGH": 0,
+        "MED": 1,
+        "LOW": 1,
+        "OBS": 0,
+        "PROCESS-GAP": 1
+      },
+      "streak": 0,
+      "streak_reset": "1/3 → 0/3",
+      "novelty": "LOW",
+      "feature_head_at_pass": "4f5b5404",
+      "lesson_58_preamble": true,
+      "preamble_anomaly": "Adversary prompt cited crates/prism-dtu-cyberint/src/auth_provider.rs but actual file is crates/prism-spec-engine/src/auth_provider.rs — transcription error in prompt; content verified at correct path; non-blocking",
+      "key_findings": [
+        "F-LP12-MED-001 — Story body H1 (v1.1) + §Version field (v1.3) stale vs frontmatter (v1.4); POL-29 step 8b body-sync missed across v1.1→v1.2 (D-850), v1.2→v1.3 (D-863), v1.3→v1.4 (D-868); three distinct version values in same file. Route: story-writer.",
+        "F-LP12-LOW-001 — 21 cite-pins to BC-2.01.017 v1.3 or v1.2 in crates/prism-spec-engine/src/auth_provider.rs; BC currently v1.4; POL-29 step 8f v1.29 crates-cite-pin sweep not performed at D-866; MAY be intentional introduced-in anchors. Route: PO adjudication required.",
+        "F-LP12-PG-001 [process-gap] — Standing adversary probe set lacks POL-29 v1.29 crates cite-pin sweep probe; SAP-4 candidate. Route: orchestrator codification queue."
+      ],
+      "sap_1_result": "PASS — no new uncataloged event_type emission sites at 4f5b5404",
+      "sap_2_result": "PASS — no TOML or DTU struct modifications since Pass 11",
+      "sid_1_result": "PASS — no new test functions; all tests remain non-#[ignore]'d unit tests",
+      "cross_doc_consistency": "FAIL — story body H1 + §Version field version drift (F-LP12-MED-001)",
+      "prior_closures_spot_check": {
+        "F-LP3-HIGH-001": "LOAD-BEARING confirmed",
+        "F-LP6-LOW-001": "LOAD-BEARING confirmed",
+        "F-LP8-MED-001": "LOAD-BEARING confirmed",
+        "F-LP9-MED-001": "LOAD-BEARING confirmed",
+        "F-LP10-MED-001": "LOAD-BEARING confirmed"
+      },
+      "state_manager_commit": "D-873 (this burst)"
     }
   ],
-  "current_streak": 1,
+  "current_streak": 0,
   "target_streak": 3,
-  "status": "PASS_11_CLEAN_STRICT_STREAK_1_OF_3",
-  "next_action": "Dispatch Pass 12 LOCAL adversary against feature HEAD 4f5b5404. POL-32 active. If CLEAN(strict) → streak 2/3 → Pass 13 (final). Two more CLEAN passes for convergence.",
+  "status": "PASS_12_2_FINDINGS_FIX_BURST_PENDING",
+  "next_action": "Dispatch story-writer for F-LP12-MED-001 body-sync (story v1.4→v1.5: H1 + §Version field) + PO for F-LP12-LOW-001 intent adjudication (intentional 'introduced-in' anchors vs POL-29 v1.29 strict sweep). Then state-manager closure. Pass 13 restarts 3-CLEAN streak.",
   "deferred_findings": [
     {
       "finding_id": "D-LP6-001",

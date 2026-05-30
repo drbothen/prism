@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.553"
+version: "7.554"
 producer: state-manager
 timestamp: 2026-05-30T03:00:00Z
 inputs: []
@@ -16,10 +16,10 @@ repos: [poller-cobra, poller-express, poller-bear, poller-coaster, serveMyAPI, t
 safe_to_compact: true
 pre_compact_snapshot: "SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-30-CYBERINT-CASCADE-PASS-1-MID-FIX"
 pre_compact_snapshot_at: "2026-05-30 (D-851 PRE-CLEAR durability snapshot; Cyberint cascade Step 4.5 Pass 1 blocked on architect harness audit; architect background agent a1161dc86ddae5c53; architect decision committed 12378e35)"
-current_step: "Cyberint cascade: Pass 11 CLEAN(strict) — streak 1/3. POL-32 codification successful — workspace sample CLEAN. Pass 12 + Pass 13 needed for full 3-CLEAN convergence."
+current_step: "Cyberint cascade: Pass 12 NOT CLEAN — F-LP12-MED-001 (story body H1/Version drift), F-LP12-LOW-001 (21 BC cite-pins pending intent), F-LP12-PG-001 (SAP-4 codification). Streak 1/3 → 0/3 reset. Story-writer + PO adjudications next."
 pass_2_findings: {CRIT: 1, HIGH: 1, MED: 1, PROCESS_GAP: 1}
 cyberint_cascade_in_progress: true
-cyberint_cascade_step: "4.5 LOCAL adversary streak 1/3 — Pass 12 next"
+cyberint_cascade_step: "4.5 LOCAL adversary Pass 12 fix-burst pending — story-writer body-sync + PO intent adjudication"
 pass_5_rejected: true
 pass_5_rejection_reason: "fabricated — orchestrator-verified counter-evidence shows cited symbols + lines exist at feature HEAD 89aa9bd1; adversary likely read wrong branch/cwd (develop@72baf413 has no implementation)"
 pass_5_redux_clean_strict: true
@@ -45,6 +45,9 @@ pass_10_po_commit: "559ab76d"
 pol_32_codified_at: "D-870 (po 559ab76d)"
 pass_11_clean_strict: true
 pass_11_streak: "1/3"
+pass_12_clean_strict: false
+pass_12_findings: {MED: 1, LOW: 1, PROCESS_GAP: 1}
+pass_12_streak_reset: "1/3 → 0/3"
 pass_8_feature_head_at_resolution: "4f5b5404"
 pass_3_findings: { HIGH: 1, MED: 2, LOW: 2, deferred: 1 }
 pass_3_deferred_to_maintenance: "F-LP3-LOW-002 — prism-bin/tests/plugin_boot_tests.rs unsafe SAFETY-comment quality (4 sites)"
@@ -305,9 +308,9 @@ historical_cycles: [phase-1-convergence, wave-3-multi-tenant, wave-4-operations]
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-30 (D-872 state-manager Pass 11 CLEAN(strict) — streak 1/3; POL-32 workspace sample PASS; feature HEAD 4f5b5404; STATE v7.553) |
-| **Current Phase** | Wave 3 Tier-3 complete — S-DTU-CYBERINT-AUTH-FIDELITY-001 per-story-delivery cascade at Step 4.5 (streak 1/3; Pass 11 CLEAN(strict); feature HEAD 4f5b5404; Pass 12 next). develop@72baf413. |
-| **Current Step** | D-872 — Pass 11 CLEAN(strict). Zero findings. Novelty ZERO. POL-32 workspace sample PASS — BC-2.01.017 v1.4 + error-taxonomy.md v1.55 + STORY-INDEX v2.215 + BC-INDEX v5.61 all confirmed monotonic descending. Streak 0/3 → 1/3. Feature HEAD 4f5b5404 unchanged. Pass 12 next (lesson 58 preamble required). |
+| **Last Updated** | 2026-05-30 (D-873 state-manager Pass 12 NOT CLEAN — streak reset 1/3→0/3; F-LP12-MED-001+F-LP12-LOW-001+F-LP12-PG-001; feature HEAD 4f5b5404; STATE v7.554) |
+| **Current Phase** | Wave 3 Tier-3 complete — S-DTU-CYBERINT-AUTH-FIDELITY-001 per-story-delivery cascade at Step 4.5 (streak 0/3 reset; Pass 12 NOT CLEAN; F-LP12-MED-001+F-LP12-LOW-001 pending fix; feature HEAD 4f5b5404). develop@72baf413. |
+| **Current Step** | D-873 — Pass 12 NOT CLEAN. F-LP12-MED-001 (story body H1+§Version drift — 3 version values in same file), F-LP12-LOW-001 (21 BC cite-pins pending PO intent adjudication), F-LP12-PG-001 (SAP-4 process-gap). Streak 1/3 → 0/3 reset. Story-writer body-sync + PO adjudications next. Feature HEAD 4f5b5404 unchanged. |
 
 ## Phase Progress
 
@@ -345,8 +348,9 @@ historical_cycles: [phase-1-convergence, wave-3-multi-tenant, wave-4-operations]
 
 | Step | Agent | Status | Output |
 |------|-------|--------|--------|
-_D-735 through D-847 archived to cycles/wave-0-plugin-prereqs/burst-log.md. D-835+D-836+D-837 removed from Phase Steps (archived in Decisions Log). D-849/851/852/853/855/856/857/858/859/860/861/862/863/864/865/866/867/868/869/870/871 archived to burst-log.md._
-| D-872 — **CYBERINT PASS 11 CLEAN(strict) — STREAK 1/3 (state-manager, 2026-05-30). Zero findings. Novelty ZERO. POL-32 workspace sample PASS. Lesson 58 preamble confirmed. SAP-1/SAP-2/SID-1 PASS. Feature HEAD 4f5b5404 unchanged. STATE v7.552→v7.553.** | state-manager (D-872 Pass 11 persistence burst) | PASS-11-CLEAN-STRICT-STREAK-1-OF-3 | Pass 12 next (lesson 58 preamble required) |
+_D-735 through D-847 archived to cycles/wave-0-plugin-prereqs/burst-log.md. D-835+D-836+D-837 removed from Phase Steps (archived in Decisions Log). D-849/851/852/853/855/856/857/858/859/860/861/862/863/864/865/866/867/868/869/870/871/872 archived to burst-log.md._
+| D-873 — **CYBERINT PASS 12 NOT CLEAN — STREAK RESET 1/3 → 0/3 (state-manager, 2026-05-30). F-LP12-MED-001 story body H1+§Version drift (3 version values in same file), F-LP12-LOW-001 21 BC cite-pins pending PO intent adjudication, F-LP12-PG-001 SAP-4 codification. Story-writer body-sync + PO adjudication next. STATE v7.553→v7.554.** | state-manager (D-873 Pass 12 persistence burst) | PASS-12-NOT-CLEAN-FIX-BURST-PENDING | story-writer body-sync F-LP12-MED-001 + PO adjudication F-LP12-LOW-001 next |
+| D-872 — **CYBERINT PASS 11 CLEAN(strict) — STREAK 1/3 (state-manager, 2026-05-30). Zero findings. Novelty ZERO. POL-32 workspace sample PASS. Lesson 58 preamble confirmed. SAP-1/SAP-2/SID-1 PASS. Feature HEAD 4f5b5404 unchanged. STATE v7.552→v7.553.** | state-manager (D-872 Pass 11 persistence burst) | PASS-11-CLEAN-STRICT-STREAK-1-OF-3 | Pass 12 dispatched (streak reset 0/3 per D-873) |
 | D-869 — **CYBERINT PASS 9 FIX-BURST CLOSURE (state-manager, 2026-05-30). F-LP9-MED-001 CLOSED: story v1.4 changelog reorder (story-writer ac0843a4). STORY-INDEX v2.213→v2.214. No code change. Streak 0/3 awaiting Pass 10. STATE v7.550→v7.551.** | state-manager (D-869 closure burst) | PASS-9-FIX-BURST-COMPLETE-READY-FOR-PASS-10 | Pass 10 next (lesson 58 preamble required) |
 | D-868 — **CYBERINT PASS 9 — 1 MED FINDING (story-writer, 2026-05-30). F-LP9-MED-001 story changelog non-monotonic ordering (1.0, 1.1, 1.3, 1.2). Sibling-sweep of F-LP8-MED-001 class. Story-writer commit ac0843a4: v1.3→v1.4 reorder. STORY-INDEX v2.213→v2.214. CLEAN(strict)=NO.** | story-writer (D-868 ac0843a4) | PASS-9-MED-F-LP9-MED-001-CLOSED | state-manager closure D-869 |
 | D-867 — **CYBERINT PASS 8 FIX-BURST CLOSURE (state-manager, 2026-05-30). F-LP8-MED-001 CLOSED: BC-2.01.017 v1.4 changelog cleanup (PO 399ef378). BC-INDEX v5.59→v5.60. No code change. Streak 0/3 awaiting Pass 9. STATE v7.549→v7.550.** | state-manager (D-867 closure burst) | PASS-8-FIX-BURST-COMPLETE-READY-FOR-PASS-9 | Pass 9 next (lesson 58 preamble required) |
@@ -358,6 +362,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-873 | 2026-05-30 | state-manager | **CYBERINT PASS 12 NOT CLEAN — STREAK RESET 1/3 → 0/3. F-LP12-MED-001 (story body H1+§Version drift), F-LP12-LOW-001 (21 BC cite-pins pending intent), F-LP12-PG-001 (SAP-4 codification). Fix-burst pending.** Pass 12 LOCAL adversary operated on feature HEAD `4f5b5404` with mandatory lesson 58 grounding-truth preamble. 3 findings: (1) F-LP12-MED-001 MED — story body H1 says `v1.1`, §Version field says `v1.3`, frontmatter says `1.4`; POL-29 step 8b body-sync missed across three sequential bumps (D-850 v1.1→v1.2, D-863 v1.2→v1.3, D-868 v1.3→v1.4); route story-writer for v1.5 bump with H1+§Version fix; (2) F-LP12-LOW-001 LOW — 21 cite-pins to BC-2.01.017 v1.3 or v1.2 in crates/prism-spec-engine/src/auth_provider.rs; BC current v1.4; MAY be intentional "introduced-in" anchors or stale sweep misses; PO adjudication required; (3) F-LP12-PG-001 PROCESS-GAP — standing adversary probe set lacks POL-29 v1.29 crates cite-pin sweep probe; SAP-4 candidate for CLAUDE.md amendment. Preamble anomaly (non-blocking): adversary prompt cited wrong file path (prism-dtu-cyberint vs prism-spec-engine); content verified at correct path; transcription error only. CLEAN(strict)=NO. CLEAN(PR-merge)=NO. Streak 1/3 → 0/3 (reset). SAP-1 PASS, SAP-2 PASS, SID-1 PASS. Feature HEAD `4f5b5404` unchanged. Artifacts: adversarial-review/local-pass-12.md (new), adversary-convergence-state.json pass-12 entry + current_streak=0 + status=PASS_12_2_FINDINGS_FIX_BURST_PENDING (updated), STATE.md v7.553→v7.554, SESSION-HANDOFF.md §ADDENDUM 2026-05-30-PASS-12-2-FINDINGS-RESET (appended). Next: story-writer body-sync (v1.4→v1.5) + PO intent adjudication (21 cite-pins) → state-manager closure → Pass 13 restarts streak attempt. 267th consecutive single-commit per TD-VSDD-053. Anti-volatile-pin per TD-VSDD-091. | plugin-migration | 2026-05-30 | Decided by: adversary (Pass 12 report, feature HEAD 4f5b5404, lesson 58 preamble) + state-manager (D-873 persistence burst). Status: APPROVED — story-writer body-sync + PO adjudication next |
 | D-872 | 2026-05-30 | state-manager | **CYBERINT PASS 11 CLEAN(strict) — STREAK 1/3. Zero findings. Novelty ZERO. POL-32 workspace sample PASS.** Pass 11 LOCAL adversary operated on feature worktree HEAD `4f5b5404` with mandatory lesson 58 grounding-truth preamble (cwd + branch + HEAD + symbol existence confirmed via Read+Grep before probes). Zero findings at any severity. CLEAN(strict)=YES. CLEAN(PR-merge)=YES. Novelty: ZERO. Streak advances 0/3 → 1/3. SAP-1 PASS (no new uncataloged event_type emissions; no production code changes since Pass 10). SAP-2 PASS (no TOML or DTU struct modifications). SID-1 PASS (no new test functions; all tests remain non-#[ignore]'d). POL-32 workspace sample PASS: BC-2.01.017 v1.4 + error-taxonomy.md v1.55 + STORY-INDEX v2.215 + BC-INDEX v5.61 + BC-2.16.013 v1.18 all confirmed monotonic descending — zero violations. Cross-doc consistency PASS. Prior pass closures re-verified load-bearing: F-LP3-HIGH-001 (BackendUnavailable arm + test), F-LP6-LOW-001 (4 test_BC_2_01_017_* prefix confirmed), F-LP8-MED-001 (BC changelog no duplicates), F-LP9-MED-001 (story changelog monotonic), F-LP10-MED-001 (error-taxonomy changelog monotonic). Feature HEAD unchanged at `4f5b5404`. Artifacts: adversarial-review/local-pass-11.md (new), adversary-convergence-state.json pass-11 entry + current_streak=1 + status=PASS_11_CLEAN_STRICT_STREAK_1_OF_3 (updated), STATE.md v7.552→v7.553, SESSION-HANDOFF.md §ADDENDUM 2026-05-30-PASS-11-CLEAN-STREAK-1-OF-3 (appended). Need 2 more consecutive CLEAN(strict) passes for convergence: Pass 12 → 2/3 → Pass 13 → 3/3 → LOCAL CONVERGED → demo-recorder → push → PR cycle. 266th consecutive single-commit per TD-VSDD-053. Anti-volatile-pin per TD-VSDD-091. | plugin-migration | 2026-05-30 | Decided by: adversary (Pass 11 report, feature HEAD 4f5b5404, lesson 58 preamble) + state-manager (D-872 persistence burst). Status: APPROVED — Pass 12 next |
 | D-871 | 2026-05-30 | state-manager | **CYBERINT PASS 10 COMPREHENSIVE FIX-BURST COMPLETE — F-LP10-MED-001 CLOSED via PO comprehensive sweep commit 559ab76d (D-870). Third recurrence of changelog monotonic-descending ordering class (F-LP8=BC + F-LP9=story + F-LP10=error-taxonomy) triggered lesson 59 three-recurrence rule: PO comprehensive sweep of ALL artifacts + POL-32 policy codification in same atomic burst.** PO burst 559ab76d artifacts: (1) error-taxonomy.md v1.54→v1.55 (v1.53 + v1.23 tombstone rows reordered to descending); (2) STORY-INDEX v2.214→v2.215 (16-row block at v2.185–v2.200 reordered monotonic descending — concurrent write paths); (3) BC-INDEX v5.60→v5.61 (BC-2.16.013 in-line catalog row v1.16→v1.18; v5 section already monotonic confirmed); (4) BC-2.16.013 v1.17→v1.18 (D-LP9-001 deferral promoted to in-scope via comprehensive sweep rationale); (5) POL-32 (changelog_monotonic_descending) codified in policies.yaml v1.30→v1.31; (6) adjudication doc F-LP10-MED-001.md authored; (7) BC-INDEX v4 historical section: deferred per TD-VSDD-091 immutable historical narrative. D-LP9-001 promoted from deferred_findings to in-scope (closed within D-870). Feature HEAD `4f5b5404` unchanged — PO-only fix, no code change. Lesson 59 appended to cycles/wave-0-plugin-prereqs/lessons.md (three-recurrence rule for sibling-sweep defects). SESSION-HANDOFF.md §ADDENDUM 2026-05-30-PASS-10-COMPREHENSIVE-SWEEP-COMPLETE appended. Streak 0/3 (Pass 10 NOT CLEAN(strict); comprehensive fix addresses F-LP10-MED-001 + D-LP9-001; Pass 11 begins new streak attempt). Need 3 consecutive CLEAN(strict) for convergence: Pass 11 → 1/3 → Pass 12 → 2/3 → Pass 13 → 3/3 → LOCAL CONVERGED → demo-recorder → push → PR cycle. STATE v7.551→v7.552. 265th consecutive single-commit per TD-VSDD-053. Anti-volatile-pin per TD-VSDD-091. | plugin-migration | 2026-05-30 | Decided by: product-owner (559ab76d comprehensive sweep D-870) + state-manager (D-871 closure burst). Status: APPROVED — Pass 11 next |
 | D-870 | 2026-05-30 | product-owner | **CYBERINT PASS 10 — F-LP10-MED-001 COMPREHENSIVE SWEEP + POL-32 CODIFICATION.** Third recurrence of changelog monotonic-descending ordering class within S-DTU-CYBERINT-AUTH-FIDELITY-001 cascade (F-LP8-MED-001 BC + F-LP9-MED-001 story + F-LP10-MED-001 error-taxonomy) triggered lesson 59 three-recurrence rule: comprehensive sweep of ALL affected artifacts + policy codification in same atomic burst. PO burst 559ab76d: (1) error-taxonomy.md v1.54→v1.55: reordered changelog to monotonic descending; v1.53 row (E-AUTH-007 BackendUnavailable allocation) placed correctly after v1.54 header; v1.23 tombstone row placed correctly; version history section consistent with actual edit dates; (2) STORY-INDEX v2.214→v2.215: 16-row block at v2.185–v2.200 reordered to monotonic descending — concurrent write paths from multiple story-writer dispatches had produced ascending sub-sequence in that region; no story content changed; (3) BC-INDEX v5.60→v5.61: BC-2.16.013 in-line catalog row version v1.16→v1.18 (reflects BC-2.16.013 v1.18 promotion); v5 section changelog confirmed already monotonic; (4) BC-2.16.013 v1.17→v1.18: D-LP9-001 deferral (CredentialResolutionError non_exhaustive for PO-owned policy completeness) promoted to in-scope and closed — comprehensive sweep rationale: third recurrence demonstrates in-scope fix is appropriate; note that actual CredentialResolutionError `#[non_exhaustive]` annotation remains deferred to Phase 5 pub-API audit (D-LP6-001) since it is a code change; BC-2.16.013 v1.18 adds text note that conformance annotation is tracked; (5) POL-32 codified in policies.yaml v1.30→v1.31: `changelog_monotonic_descending — All artifact changelog sections must use monotonic descending version ordering (newest first). Violations are MED findings under adversarial review.`; (6) Adjudication doc authored at `.factory/cycles/wave-0-plugin-prereqs/S-DTU-CYBERINT-AUTH-FIDELITY-001/po-adjudications/F-LP10-MED-001.md`; (7) BC-INDEX v4 historical section: NOT retroactively updated — immutable historical narrative per TD-VSDD-091; this is explicitly deferred not as an AI-default deferral but as a TD-VSDD-091 carve-out. Lesson 59 candidate text provided (three-recurrence rule for sibling-sweep defects). Feature HEAD `4f5b5404` unchanged. | plugin-migration | 2026-05-30 | Decided by: product-owner (F-LP10-MED-001 comprehensive sweep + POL-32 codification). Status: APPROVED |
@@ -554,31 +559,35 @@ Prior cycle history:
 
 ---
 
-## Session Resume Checkpoint (2026-05-30 — D-872 Pass 11 CLEAN(strict); streak 1/3; feature@4f5b5404; develop@72baf413)
+## Session Resume Checkpoint (2026-05-30 — D-873 Pass 12 NOT CLEAN; streak 0/3 reset; feature@4f5b5404; develop@72baf413)
 
-_Previous checkpoint (D-869 Pass 9 fix-burst COMPLETE; streak 0/3) superseded by D-872 Pass 11 CLEAN(strict) — streak 1/3. Pass 10 comprehensive sweep + POL-32 codification (D-871/D-870) followed by Pass 11 CLEAN(strict) advancing streak._
+_Previous checkpoint (D-872 Pass 11 CLEAN(strict); streak 1/3) superseded by D-873 Pass 12 NOT CLEAN — streak reset 1/3→0/3. F-LP12-MED-001 + F-LP12-LOW-001 + F-LP12-PG-001 found; fix-burst pending._
 
-**STATE v7.553. D-872 — PASS 11 CLEAN(strict) STREAK 1/3. Feature HEAD 4f5b5404. BC v1.4 / BC-INDEX v5.61 / error-taxonomy v1.55 / STORY-INDEX v2.215 / POL-32 codified. develop@72baf413. Pass 12 LOCAL adversary next.**
+**STATE v7.554. D-873 — PASS 12 NOT CLEAN — STREAK RESET 0/3. Feature HEAD 4f5b5404. story-writer body-sync + PO intent adjudication pending. develop@72baf413.**
 
-**develop HEAD:** `72baf413` | **Workspace test count:** 3839 | **Feature branch HEAD:** `4f5b5404` | **Cyberint cascade streak:** 1/3
+**develop HEAD:** `72baf413` | **Workspace test count:** 3839 | **Feature branch HEAD:** `4f5b5404` | **Cyberint cascade streak:** 0/3 (reset)
 
-**Pass 11 CLEAN(strict).** Zero findings. Novelty ZERO. POL-32 workspace sample PASS (BC-2.01.017 v1.4 + error-taxonomy.md v1.55 + STORY-INDEX v2.215 + BC-INDEX v5.61 + BC-2.16.013 v1.18 all confirmed monotonic descending). SAP-1/SAP-2/SID-1 PASS. All prior closures re-verified load-bearing. Streak advances 0/3 → 1/3.
+**Pass 12 NOT CLEAN(strict).** 3 findings: F-LP12-MED-001 (story body H1=v1.1 + §Version=v1.3 stale vs frontmatter=1.4; POL-29 step 8b missed across 3 bumps), F-LP12-LOW-001 (21 BC cite-pins to v1.3/v1.2 pending PO intent adjudication), F-LP12-PG-001 (SAP-4 codification process-gap). Streak 1/3 → 0/3 reset per BC-5.39.001.
 
 **Critical path (next actions for new session):**
-1. **READ `SESSION-HANDOFF.md §ADDENDUM 2026-05-30-PASS-11-CLEAN-STREAK-1-OF-3`** — Pass 11 summary
-2. **Dispatch Pass 12 LOCAL adversary** against feature HEAD `4f5b5404` with mandatory lesson 58 grounding-truth preamble + POL-32 workspace sample
-3. **Pass 12 → Pass 13 must both be CLEAN(strict)** for 3/3 convergence → demo-recorder → push → PR cycle
+1. **READ `SESSION-HANDOFF.md §ADDENDUM 2026-05-30-PASS-12-2-FINDINGS-RESET`** — Pass 12 result + fix-burst plan
+2. **Dispatch story-writer** for F-LP12-MED-001 body-sync: story spec v1.4 → v1.5 (H1 updated to `v1.5`, §Version field updated to `v1.5`, v1.5 changelog row added, STORY-INDEX bump)
+3. **Dispatch PO** for F-LP12-LOW-001 intent adjudication: 21 cite-pins in `crates/prism-spec-engine/src/auth_provider.rs` to BC-2.01.017 v1.3/v1.2 — adjudicate each as intentional "introduced-in" anchor (leave as-is) or stale sweep miss (update to v1.4)
+4. **State-manager closure burst** after both dispatches complete
+5. **Dispatch Pass 13** with lesson 58 preamble — restarts 3-CLEAN streak (0/3 → need 1/3 → 2/3 → 3/3)
+6. **Queue SAP-4 codification** (F-LP12-PG-001) for next CLAUDE.md amendment cycle
 
 **Active worktrees:**
-- `.worktrees/S-DTU-CYBERINT-AUTH-FIDELITY-001` — IN PROGRESS (streak 1/3; feature HEAD 4f5b5404; Pass 12 next)
+- `.worktrees/S-DTU-CYBERINT-AUTH-FIDELITY-001` — IN PROGRESS (streak 0/3 reset; feature HEAD 4f5b5404; Pass 12 fix-burst pending)
 - `.worktrees/S-3.09` — FROZEN (BUG-S309-PLUGIN), stale since 2026-05-11; deferred per user direction
 - `.worktrees/W3-FIX-S307-001` — BLOCKED (superseded), stale since 2026-05-24; deferred per user direction
 
 **Open PRs:** None.
 
-**Resume protocol (3 steps — Pass 12 adversary):**
+**Resume protocol (4 steps — Pass 12 fix-burst):**
 1. Run `vsdd-factory:factory-worktree-health` (BLOCKING preflight)
-2. Read STATE.md frontmatter — confirm `version: "7.553"` and `develop_head: "72baf413"` (D-872 checkpoint)
-3. Dispatch Pass 12 LOCAL adversary against feature HEAD `4f5b5404` with lesson 58 grounding-truth preamble + POL-32 workspace sample; streak 1/3 → need 2 more consecutive CLEAN(strict) (Pass 12 → 2/3 → Pass 13 → 3/3 → LOCAL CONVERGED)
+2. Read STATE.md frontmatter — confirm `version: "7.554"` and `develop_head: "72baf413"` (D-873 checkpoint)
+3. Dispatch story-writer for F-LP12-MED-001 body-sync (story v1.4→v1.5) + PO for F-LP12-LOW-001 cite-pin adjudication
+4. State-manager closure burst → Pass 13 LOCAL adversary (restart 3-CLEAN streak, feature HEAD 4f5b5404)
 
 _Agent routing: see CLAUDE.md §Agent Routing Table._
