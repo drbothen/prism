@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "5.60"
+version: "5.61"
 status: draft
 producer: product-owner
 timestamp: 2026-05-30T00:00:00Z
@@ -224,7 +224,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.16.010 | `list_sensor_specs` MCP Tool — List Loaded Sensor Specs with Table Schemas and Status | 16 - Spec Engine | CAP-029 | P0 | draft |
 | BC-2.16.011 | CustomAdapter Rust Trait Retirement — Removal of Trait, Registry, and All Call Sites | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-726 per POL-14; anchor story S-PLUGIN-PREREQ-E merged PR #151 develop@80ebe794 2026-05-19) — v1.12 |
 | BC-2.16.012 | PluginRegistry Dispatch in spec_parser.rs — Hardcoded Sensor Names Replaced with Registry Lookup | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-726 per POL-14; anchor story S-PLUGIN-PREREQ-E merged PR #151 develop@80ebe794 2026-05-19) — v1.33 |
-| BC-2.16.013 | Bundled Sensor Spec Authoring and DTU-Parity Verification — 4 Initial Sensors | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-776 per POL-14; anchor story PLUGIN-MIGRATION-001-D merged PR #153 develop@3f2de889 2026-05-22) — v1.16 |
+| BC-2.16.013 | Bundled Sensor Spec Authoring and DTU-Parity Verification — 4 Initial Sensors | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-776 per POL-14; anchor story PLUGIN-MIGRATION-001-D merged PR #153 develop@3f2de889 2026-05-22) — v1.18 |
 | BC-2.17.001 | Plugin Panic Isolation — Crashed Plugin Does Not Terminate Host Process | 17 - WASM Plugin Runtime | CAP-032 | P0 | active (POL-14 auto-promotion D-568 S-PLUGIN-PREREQ-D merge PR #149 ec90fe8f 2026-05-15) |
 | BC-2.17.002 | Plugin Sandbox — No Direct Filesystem or Network Access | 17 - WASM Plugin Runtime | CAP-032 | P0 | active (POL-14 auto-promotion D-568 S-PLUGIN-PREREQ-D merge PR #149 ec90fe8f 2026-05-15) |
 | BC-2.17.003 | Plugin Sandbox — Memory Limit Enforced Per Plugin Instance (default 64MB) | 17 - WASM Plugin Runtime | CAP-032 | P0 | active (POL-14 auto-promotion D-568 S-PLUGIN-PREREQ-D merge PR #149 ec90fe8f 2026-05-15) |
@@ -376,6 +376,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v5.61 (2026-05-30, D-870 F-LP10-MED-001 comprehensive sweep):** product-owner | F-LP10-MED-001 comprehensive sweep: (1) error-taxonomy.md v1.54→v1.55: moved v1.54 row to correct position, added tombstone v1.53 (E-AUTH-006 introduction D-849), added tombstone v1.23 (POL-30 cite-pin v1.22→v1.23 propagation), added v1.55 sweep row. (2) BC-2.16.013 v1.17→v1.18: changelog hygiene — moved v1.11 row from between v1.16 and v1.15 to correct position between v1.12 and v1.10 (pre-existing defect deferred at D-LP9-001, promoted to in-scope under comprehensive sweep). (3) STORY-INDEX v2.214→v2.215: reordered rows v2.185–v2.200 to monotonic descending (v2.200→v2.199→v2.198→v2.197→v2.196→v2.195→v2.194→v2.193→v2.192→v2.191→v2.190→v2.189→v2.188→v2.187→v2.186→v2.185). (4) BC-INDEX v5.60→v5.61: this row. (5) policies.yaml v1.30→v1.31: POL-32 changelog_monotonic_descending codified. (6) Adjudication doc: .factory/cycles/wave-0-plugin-prereqs/S-DTU-CYBERINT-AUTH-FIDELITY-001/po-adjudications/F-LP10-MED-001.md created. BC-2.01.013 and BC-2.01.016 changelogs verified monotonic descending — no changes needed. BC-INDEX v5 section verified monotonic descending — no changes needed. Sibling-sweep: no stale cites to error-taxonomy.md v1.53 or v1.54 in live-narrative outside §Changelog rows (TD-VSDD-091 exempt). BC-INDEX v5.60→v5.61.
 
 **v5.60 (2026-05-30, D-866 F-LP8-MED-001):** product-owner | BC-2.01.017 v1.3→v1.4: changelog hygiene only — deleted byte-identical duplicate v1.2 row (was at line 237, identical to canonical v1.2 row at line 235); reordered changelog rows to monotonic descending by version (1.4 → 1.3 → 1.2 → 1.1 → 1.0). No semantic content change to BC. Adjudication: cycles/wave-0-plugin-prereqs/S-DTU-CYBERINT-AUTH-FIDELITY-001/po-adjudications/F-LP8-MED-001.md.
 

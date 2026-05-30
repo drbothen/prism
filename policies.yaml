@@ -23,8 +23,14 @@
 #                                   # here so the adversary knows HOW to verify them.
 
 metadata:
-  version: "1.30"
+  version: "1.31"
   changelog:
+    - version: "1.31"
+      date: 2026-05-30
+      burst: D-870-F-LP10-MED-001-comprehensive-sweep
+      decision: D-870
+      findings: [F-LP8-MED-001, F-LP9-MED-001, F-LP10-MED-001]
+      change: "v1.30 → v1.31 2026-05-30 — POL-32 changelog_monotonic_descending codified. Three consecutive pass findings (F-LP8-MED-001 BC-2.01.017 changelog, F-LP9-MED-001 story changelog, F-LP10-MED-001 error-taxonomy.md changelog) established the pattern requiring explicit policy codification. Severity: MEDIUM. Scope: all .factory/ artifact §Changelog tables. Enforced by: adversary-prompt, consistency-validator, state-manager."
     - version: "1.30"
       date: 2026-05-22
       burst: D-778-codification-burst-1
@@ -686,6 +692,34 @@ policies:
       - "Step 8g (v1.26 amendment — CROSS-VALUE-CLASS SIDE-EFFECT BUMP DETECTION): When step 8d detects a self-induced source-of-truth frontmatter bump (e.g., ADR-026 frontmatter v1.22→v1.23 because step 8b advanced a pin INSIDE ADR-026 §D7 line 312), state-manager MUST enumerate ALL parallel value classes anchored to that source-of-truth artifact (e.g., ADR-026 anchors D3, D5, D7 — multiple distinct pin value classes) and re-grep workspace for EACH parallel value class's predecessor version. For each class with stale live-narrative hits, apply cross-workspace propagation sweep advancing to new source-of-truth version. Iterate via step 8e fixed-point until all parallel value classes converge. Closes F-LP85-HIGH-001 META class: FB71 fixed error-taxonomy class but left ADR-026 D7 pin class stale at v1.22 across 22 sites because step 8e only iterated within originating value class. D-695."
       - "Step 8h (v1.28 amendment — SAME-BURST DEPENDENT-ARTIFACT SELF-BUMP DETECTION): When step 8b/8c/8e/8g iteration applies pin advancement at a site INSIDE a non-source-of-truth artifact (e.g., FB73 PO sweep updated error-taxonomy lines 459+467 with ADR-026 D7 v1.22→v1.23 advancement), state-manager MUST detect whether THAT artifact's own frontmatter version field will bump as a §Changelog event (because PO is editing its body — triggering version increment per POL-26). If yes, enumerate the dependent artifact's version-pin as an ADDITIONAL parallel value class for cross-workspace sweep within the same iteration loop. Closes F-LP87-HIGH-001 META-class: FB73 closed F-LP85 by sweeping ADR-026 D7 v1.22→v1.23 but the sweep itself bumped error-taxonomy v1.37→v1.38 as §Changelog event, and step 8g's cross-value-class enumeration did NOT recognize this DEPENDENT-ARTIFACT-SELF-BUMP class. Sibling to step 8d but at WITHIN-BURST layer. D-697."
       - "Step 8i (v1.28 amendment — WITHIN-FILE SELF-CITE ENUMERATION): When step 8b/8c/8d/8e/8g/8h sweeps cite-pins for value class X (e.g., ADR-026 D7 pin) across external workspace, state-manager MUST ALSO grep the source-of-truth file Z (where X is declared/anchored) for SELF-CITES to X's predecessor pin values. Procedure: for source-of-truth artifact Z anchoring value class X with new version vN, grep `rg \"X v[predecessor]\" <path-to-Z>` and enumerate hits; for each hit, advance to vN within Z's body (NOT inside Z's §Changelog rows which are TD-VSDD-091 exempt). Closes F-LP87-HIGH-002 META-class: ADR-026 line 24 runtime_deliverables self-cite `(per D7 v1.16)` survived 7 architect-domain bursts because POL-29 step 8 enumerated EXTERNAL workspace siblings only — never the source-of-truth file's own frontmatter/body. D-697."
+
+  - id: 32
+    name: changelog_monotonic_descending
+    description: "All .factory/ artifact §Changelog tables MUST be ordered monotonic descending by version (newest first, oldest last). Duplicate rows are prohibited. Missing rows must be added as tombstones rather than silently skipped."
+    adopted: D-870-F-LP10-MED-001-comprehensive-sweep-2026-05-30
+    severity: MEDIUM
+    enforced_by: [adversary-prompt, consistency-validator, state-manager]
+    scope: [bc, vp, story, ic, story-index, bc-index, vp-index, error-taxonomy, prd-supplements, policies]
+    lint_hook: null
+    references: [F-LP8-MED-001, F-LP9-MED-001, F-LP10-MED-001]
+    rationale: |
+      Three consecutive adversarial pass findings across the S-DTU-CYBERINT-AUTH-FIDELITY-001
+      cascade surfaced the same class of changelog ordering defect:
+        - F-LP8-MED-001 (Pass 8): BC-2.01.017 had duplicate v1.2 row + non-monotonic order.
+        - F-LP9-MED-001 (Pass 9): Story changelog non-monotonic (1.0, 1.1, 1.3, 1.2).
+        - F-LP10-MED-001 (Pass 10): error-taxonomy.md had v1.54 row inserted between v1.25
+          and v1.24, plus v1.53 and v1.23 rows entirely absent.
+      Three consecutive pass findings of the same class = pattern requiring codification per
+      the project's 3-recurrence threshold (consistent with POL-29 criterion).
+    verification_steps:
+      - "For each .factory/ artifact with a §Changelog section, parse the version column of the changelog table."
+      - "Verify rows are in monotonic descending order (e.g., 1.4 → 1.3 → 1.2 → 1.1 → 1.0). Any row where version > preceding row = violation."
+      - "Verify no duplicate rows: scan for two rows with byte-identical version fields. Duplicates are violations regardless of whether the row content differs."
+      - "Verify no missing rows: if an artifact's frontmatter version is N and the changelog table's highest version row is M where M < N, check whether intermediary versions (M+1..N-1) are documented or were intentionally skipped (e.g., a version that was bumped then immediately superseded in the same burst). Undocumented gaps = violation."
+      - "When adding a new changelog row, the row MUST be prepended to the top of the table (before all existing rows), making it the new highest version."
+      - "When fixing a non-monotonic table, reorder ALL rows to descending order and add a new top-row citing the hygiene-cleanup finding ID. The cleanup row's version = previous_highest_version + 1."
+      - "Missing rows should be added as tombstone rows with content prefixed '[TOMBSTONE — row was absent from changelog]' and content reconstructed from external cites (BC-INDEX, STORY-INDEX, adjacent changelog rows) if available."
+      - "Shell verification one-liner for a single file: grep '^|' <file> | grep -E '\\| [0-9]+\\.[0-9]+ \\|' | awk -F'|' '{print $2}' | sed 's/ //g' | awk 'NR>1{if($1>prev) print \"OUT-OF-ORDER: \"prev\" then \"$1; prev=$1} NR==1{prev=$1}' — empty output = PASS."
 
   - id: 31
     name: vp_proof_harness_skeleton_symbol_validation
