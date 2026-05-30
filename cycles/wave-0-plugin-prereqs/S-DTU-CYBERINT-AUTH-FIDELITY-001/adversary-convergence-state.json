@@ -601,12 +601,46 @@
         "F-LP14-LOW-001": "LOAD-BEARING confirmed — po-adjudications/F-LP12-LOW-001.md §3 Rationale point 2 reads 20 cite-pin updates; zero residuals in non-historical-immutable scope"
       },
       "state_manager_commit": "D-879 (this burst)"
+    },
+    {
+      "pass": 16,
+      "date": "2026-05-30",
+      "clean_strict": true,
+      "clean_pr_merge": true,
+      "findings_count": 0,
+      "findings_by_severity": {
+        "CRIT": 0,
+        "HIGH": 0,
+        "MED": 0,
+        "LOW": 0,
+        "OBS": 0,
+        "PROCESS-GAP": 0
+      },
+      "streak": 2,
+      "novelty": "ZERO",
+      "feature_head_at_pass": "4f5b5404",
+      "lesson_58_preamble": true,
+      "sap_1_result": "PASS — no new uncataloged event_type emission sites; no production code changes since Pass 15",
+      "sap_2_result": "PASS — no TOML or DTU struct modifications since Pass 15",
+      "sid_1_result": "PASS — all tests remain non-#[ignore]'d unit tests",
+      "prior_closures_spot_check": {
+        "F-LP3-HIGH-001": "LOAD-BEARING confirmed",
+        "F-LP6-LOW-001": "LOAD-BEARING confirmed",
+        "F-LP8-MED-001": "LOAD-BEARING confirmed",
+        "F-LP9-MED-001": "LOAD-BEARING confirmed",
+        "F-LP10-MED-001": "LOAD-BEARING confirmed",
+        "F-LP12-MED-001": "LOAD-BEARING confirmed — story v1.5 H1+§Version consistent",
+        "F-LP12-LOW-001": "LOAD-BEARING confirmed — BC-2.01.017 v1.5 §Notes documents introduced-in anchor convention; 20 cite-pins intentional",
+        "F-LP13-LOW-001": "LOAD-BEARING confirmed — 20 cite-pins across all active-narrative sites; historical-immutable preserved",
+        "F-LP14-LOW-001": "LOAD-BEARING confirmed — po-adjudications/F-LP12-LOW-001.md §3 Rationale point 2 reads 20 cite-pin updates; zero residuals in non-historical-immutable scope"
+      },
+      "state_manager_commit": "D-880 (this burst)"
     }
   ],
-  "current_streak": 1,
+  "current_streak": 2,
   "target_streak": 3,
-  "status": "PASS_15_CLEAN_STRICT_STREAK_1_OF_3",
-  "next_action": "Dispatch Pass 16 against feature HEAD 4f5b5404. If CLEAN(strict) → streak 2/3 → Pass 17 → 3/3 LOCAL CONVERGED.",
+  "status": "PASS_16_CLEAN_STRICT_STREAK_2_OF_3",
+  "next_action": "Dispatch Pass 17 LOCAL adversary (FINAL pass) against feature HEAD 4f5b5404. If CLEAN(strict) → streak 3/3 → LOCAL CONVERGED → demo-recorder dispatch.",
   "deferred_findings": [
     {
       "finding_id": "D-LP6-001",
