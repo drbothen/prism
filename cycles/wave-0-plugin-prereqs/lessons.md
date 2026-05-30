@@ -597,3 +597,28 @@ traces_to: STATE.md
     5. Update STATE.md `pass_N_rejected: true` + `pass_N_rejection_reason`
 
     _Discovered: D-860 Pass 5 LOCAL adversary rejection, 2026-05-30. S-DTU-CYBERINT-AUTH-FIDELITY-001 cascade. Adversary agent ID a12ee1d29ff472fbf. First occurrence of whole-pass fabrication in this project's adversarial history. 9/9 CRIT/HIGH findings refuted by orchestrator independent verification._
+
+---
+
+## 2026-05-30 D-870 — Three-Recurrence Rule for Sibling-Sweep Defects: Comprehensive Sweep + Policy Codification on Third Occurrence
+
+**Tags:** [process-gap] [codified]
+
+**Lesson 59:** Three consecutive adversarial pass findings of the same class (changelog monotonic-descending ordering — F-LP8-MED-001 BC-2.01.017 + F-LP9-MED-001 story spec + F-LP10-MED-001 error-taxonomy) within a single cascade demonstrates that reactive single-artifact fixes are insufficient when the root cause is a missing or unenforced convention. The reactive pattern (fix the reported site, pass the next pass, surface the same class in a sibling artifact) is a compounding cycle that consumes adversary pass budget without eliminating the defect class.
+
+**Root cause:** No policy existed requiring monotonic descending changelog ordering across all factory artifacts. Each reactive fix addressed only the specific file surfaced by the adversary, leaving all sibling artifacts unchecked. The sibling-sweep discipline (TD-VSDD-060) was applied correctly to code changes, but was not being applied to changelog hygiene across spec/index/taxonomy files.
+
+**Response pattern (three-recurrence rule):** On the THIRD occurrence of the same finding class within a cascade, the orchestrator MUST:
+
+1. Declare the reactive-fix pattern exhausted. The third occurrence is definitive evidence that convention codification has not happened.
+2. Route to PO/architect for a **comprehensive sweep** — ALL artifacts in the factory corpus that could contain the same defect class must be enumerated and checked, not just the reported site and its immediate siblings.
+3. Execute the comprehensive sweep and the policy codification in the **same atomic burst**. Codifying the policy without sweeping leaves the defect class still present in unchecked artifacts. Sweeping without codifying leaves the convention unenforced for future artifacts.
+4. The policy must include: the convention statement, the enforcement scope (which artifact types it applies to), and the finding severity for violations under adversarial review.
+
+**This session's application:** D-870 (commit 559ab76d) executed: (1) comprehensive sweep of error-taxonomy.md, STORY-INDEX, BC-INDEX, and BC-2.16.013; (2) POL-32 codified in `policies.yaml` — `changelog_monotonic_descending: All artifact changelog sections must use monotonic descending version ordering (newest first). Violations are MED findings under adversarial review.` The sweep also promoted D-LP9-001 from deferred to in-scope, closing 2 findings within a single PO burst.
+
+**Forward guidance for state-manager:** When an adversary pass surfaces a finding-class that has appeared in 2 or more prior passes of the same cascade, flag this to the orchestrator as a "recurrence pattern" requiring escalation to the three-recurrence rule protocol. Do not wait for the third occurrence to surface the pattern. The orchestrator decides whether to invoke comprehensive sweep + codification immediately (on second recurrence) or wait for third. The default trigger is THIRD recurrence; the orchestrator may invoke earlier if the recurrence count suggests the class is systemic.
+
+**Codification evidence:** F-LP8-MED-001 closed via PO commit 399ef378 (Pass 8 fix, D-866). F-LP9-MED-001 closed via story-writer commit ac0843a4 (Pass 9 fix, D-868). F-LP10-MED-001 closed via PO comprehensive sweep 559ab76d (Pass 10 fix, D-870) + POL-32 codified at same burst.
+
+_Discovered: D-870 PO comprehensive sweep, 2026-05-30. S-DTU-CYBERINT-AUTH-FIDELITY-001 cascade. Third occurrence of changelog monotonic-descending ordering class. POL-32 codified in policies.yaml v1.31._
