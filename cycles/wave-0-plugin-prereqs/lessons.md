@@ -439,3 +439,17 @@ traces_to: STATE.md
     **Remediation:** ADR-031 amended to v1.1 with §D7 explicitly enumerating harness-clone paths as in-scope. POLLER-DTU-FIDELITY-AUDIT-2026-05-29 updated to v1.2 with scope-incompleteness addendum. HARNESS-DTU-FIDELITY-AUDIT-2026-05-30 produced as the corrective audit. S-DTU-CYBERINT-AUTH-FIDELITY-001 scope expanded (Scope-1) to include `prism-dtu-harness/src/clones/cyberint.rs` rewrite in the same PR as the canonical DTU fix. Claroty harness audit_log gap co-scoped with S-DEMO-CLAROTY-AUDIT-DTU-001.
 
     _Discovered: D-850 architect harness-clone audit burst, 2026-05-30. F-LP1-OBS-001 from S-DTU-CYBERINT-AUTH-FIDELITY-001 Pass 1 LOCAL adversary cascade. Triggered by F-LP1-CRIT-001 which surfaced the parallel Cyberint harness clone violation._
+
+## 2026-05-30 D-853 — Adversary Mislabeled File Path Causes Implementer N/A Mis-declaration
+
+55. **[process-gap] [codified] Adversary reports MUST verify that cited file paths actually exist before including them in findings. Implementer declarations of N/A MUST search by symbol/function name across the workspace, not accept the adversary's literal path at face value.**
+
+    **Evidence:** F-LP1-LOW-002 (S-DTU-CYBERINT-AUTH-FIDELITY-001 Pass 1) cited `prism-dtu-cyberint/src/auth_provider.rs` as the file requiring `unsafe { std::env::set_var }` refactoring. The implementer searched that path, found it did not exist, and declared the finding N/A. The PO investigation revealed the file actually lives at `prism-spec-engine/src/auth_provider.rs` — a different crate entirely. The cleanup burst (79e3b545) correctly refactored the 3 unit tests in the real file using `MockCredentialResolver` / `NotFoundCredentialResolver` injection.
+
+    **Adversary rule:** When citing a file path for a finding, verify existence via `test -f <path>` or `rg --files <crate>/src/ | grep <filename>` before finalizing the report. A finding that cites a nonexistent file path is defective and will cause the implementer to declare N/A incorrectly.
+
+    **Implementer rule:** When the adversary's cited file does not exist, search the workspace for the symbol, function name, or pattern before declaring N/A. The correct flow: `rg 'set_var\|unsafe' crates/ --type rust` — find the actual file, then close the finding against the real location.
+
+    **Borderline codification note:** This was a single occurrence in one cascade. Codified because (a) the false-N/A was caught only by PO investigation (not by the implementer's own verification), and (b) the symbol-search-before-N/A rule is a generalizable implementer discipline that would have caught this without PO intervention.
+
+    _Discovered: D-853 implementer cleanup burst, 2026-05-30. F-LP1-LOW-002 from S-DTU-CYBERINT-AUTH-FIDELITY-001 Pass 1 LOCAL adversary cascade._

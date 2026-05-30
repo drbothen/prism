@@ -8083,9 +8083,9 @@ _Snapshot terminus: 2026-05-29. E2E demo wiring plan locked. 4 stories drafted. 
 | Step 4: implementer TDD green | DONE | `47ab523c` (wip) + `dba6eb95` (step 4 exit conditions) — 3835/3836 pass; ZERO todo!() prod; Arc-DI CredentialResolver |
 | Step 4.5: LOCAL adversary Pass 1 | DONE (NOT CLEAN) | 13 findings; streak 0/3; architect dispatched |
 | Architect harness audit | DONE | `12378e35` — Pattern B Scope-1; ADR-031 §D7 |
-| Pass 1 fix-burst | PENDING | next session |
-| PO F-LP1-MED-002 adjudication | PENDING | next session |
-| Pass 2 adversary | PENDING | after fix-burst |
+| Pass 1 fix-burst | COMPLETE | `2f4cd3a8` (implementer fix-burst) + `c25bc598` (mid-cleanup) + `79e3b545` (cleanup final) — 13/13 closed |
+| PO F-LP1-MED-002 adjudication | COMPLETE | `4baa0e91` (factory-artifacts) — Option A: BC-2.01.017 v1.1 EC-017-005→E-AUTH-005; BC-INDEX v5.57 |
+| Pass 2 adversary | PENDING | feature HEAD `79e3b545`; just check EXIT 0; 3836 tests |
 
 ---
 
@@ -8268,3 +8268,25 @@ Full lessons history: `.factory/cycles/wave-0-plugin-prereqs/lessons.md`
 ---
 
 _Snapshot terminus: 2026-05-30. Cyberint cascade at Step 4.5 mid-fix. Pass 1 fix-burst pending. Architect decision committed (12378e35). Ready for /clear. Resume with step 1: `vsdd-factory:factory-worktree-health`._
+
+---
+
+## §ADDENDUM 2026-05-30-CYBERINT-CASCADE-PASS-1-COMPLETE (D-853)
+
+**State update:** Pass 1 fix-burst COMPLETE. All 13 findings closed. Feature HEAD: `79e3b545`. STATE: v7.539.
+
+**Pass 1 closure summary (per adversary-convergence-state.json):**
+
+| Route | Findings | Key action |
+|-------|----------|------------|
+| Architect (12378e35) | F-LP1-CRIT-001 + F-LP1-OBS-001 | Pattern B Scope-1 harness rewrite decision |
+| Implementer fix-burst (2f4cd3a8) | F-LP1-CRIT-002, HIGH-001..004, MED-001, LOW-001 | Harness access_token rewrite, DRY extraction, doc-corrections |
+| Implementer cleanup (79e3b545) | F-LP1-LOW-002 (correct file) | prism-spec-engine/src/auth_provider.rs 3 tests → MockCredentialResolver injection; TD-VSDD-059 assert |
+| PO Option A (4baa0e91) | F-LP1-MED-002 | BC-2.01.017 v1.1 EC-017-005→E-AUTH-005; BC-INDEX v5.57 |
+| N/A with evidence | F-LP1-MED-003 + F-LP1-MED-004 | File does not exist; secrecy < 0.10 |
+
+**Verification at feature HEAD 79e3b545:** `just check` EXIT 0 (3836 tests). `rg 'cyberint_session|/login' crates/prism-dtu-harness/` = 0 hits. `rg 'unsafe.*set_var' crates/prism-spec-engine/src/auth_provider.rs` = 0 hits.
+
+**Resume §7 step update:** Step 6 (Pass 1 fix-burst) COMPLETE. Next action = Pass 2 LOCAL adversary dispatch against feature HEAD `79e3b545`.
+
+**Lesson 55 added [process-gap]:** Adversary mislabeled finding path (F-LP1-LOW-002 cited prism-dtu-cyberint; file lives in prism-spec-engine). Implementer's literal-path N/A was caught by PO investigation. Rule: adversary must verify file existence before citing path; implementer must search by symbol name before declaring N/A.
