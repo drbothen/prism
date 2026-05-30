@@ -401,7 +401,7 @@
       "preamble_anomaly": "Adversary prompt cited crates/prism-dtu-cyberint/src/auth_provider.rs but actual file is crates/prism-spec-engine/src/auth_provider.rs — transcription error in prompt; content verified at correct path; non-blocking",
       "key_findings": [
         "F-LP12-MED-001 — Story body H1 (v1.1) + §Version field (v1.3) stale vs frontmatter (v1.4); POL-29 step 8b body-sync missed across v1.1→v1.2 (D-850), v1.2→v1.3 (D-863), v1.3→v1.4 (D-868); three distinct version values in same file. Route: story-writer.",
-        "F-LP12-LOW-001 — 21 cite-pins to BC-2.01.017 v1.3 or v1.2 in crates/prism-spec-engine/src/auth_provider.rs; BC currently v1.4; POL-29 step 8f v1.29 crates-cite-pin sweep not performed at D-866; MAY be intentional introduced-in anchors. Route: PO adjudication required.",
+        "F-LP12-LOW-001 — 20 cite-pins to BC-2.01.017 v1.3 or v1.2 in crates/prism-spec-engine/src/auth_provider.rs; BC currently v1.4; POL-29 step 8f v1.29 crates-cite-pin sweep not performed at D-866; MAY be intentional introduced-in anchors. Route: PO adjudication required. [Count corrected from 21→20 by D-877 state-manager burst per F-LP13-LOW-001 adversary finding; actual grep returns 20 matches.]",
         "F-LP12-PG-001 [process-gap] — Standing adversary probe set lacks POL-29 v1.29 crates cite-pin sweep probe; SAP-4 candidate. Route: orchestrator codification queue."
       ],
       "sap_1_result": "PASS — no new uncataloged event_type emission sites at 4f5b5404",
@@ -428,12 +428,55 @@
       "pass_12_story_writer_commit": "9fb28d50",
       "pass_12_po_commit": "23a17f6d",
       "pass_12_po_option_chosen": "Option A — introduced-in anchor convention; convention codified in BC-2.01.017 v1.5 §Notes; PO recommended POL-29 step 8f v1.29 amendment to exempt hygiene-only bumps"
+    },
+    {
+      "pass": 13,
+      "date": "2026-05-30",
+      "clean_strict": false,
+      "clean_pr_merge": true,
+      "findings_count": 1,
+      "findings_by_severity": {
+        "CRIT": 0,
+        "HIGH": 0,
+        "MED": 0,
+        "LOW": 1,
+        "OBS": 0,
+        "PROCESS-GAP": 0
+      },
+      "streak": 0,
+      "streak_note": "CLEAN(PR-merge) but NOT CLEAN(strict) — streak not advanced per BC-5.39.001 D-779 amendment",
+      "novelty": "LOW",
+      "feature_head_at_pass": "4f5b5404",
+      "lesson_58_preamble": true,
+      "sap_1_result": "PASS — no new uncataloged event_type emission sites at 4f5b5404",
+      "sap_2_result": "PASS — no TOML or DTU struct modifications since Pass 12",
+      "sid_1_result": "PASS — no new test functions; all tests remain non-#[ignore]'d unit tests",
+      "pol_32_result": "PASS — story v1.5 body H1 + §Version field consistent after D-874",
+      "cross_doc_consistency": "FAIL — F-LP13-LOW-001 (narrative count 21 vs actual 20 cite-pins)",
+      "key_findings": [
+        "F-LP13-LOW-001 [LOW] — Narrative count drift: PO adjudication verdict + STATE.md checkpoint + lessons.md + convergence-state claim '21 cite-pins' but actual grep of feature HEAD 4f5b5404 returns 20 matches. Root cause: PO enumeration table had 20 rows but verdict line said 21 (off-by-one). Non-runtime, non-behavioral. Fix: state-manager narrative correction across 4 artifacts (21→20)."
+      ],
+      "prior_closures_spot_check": {
+        "F-LP3-HIGH-001": "LOAD-BEARING confirmed",
+        "F-LP6-LOW-001": "LOAD-BEARING confirmed",
+        "F-LP8-MED-001": "LOAD-BEARING confirmed",
+        "F-LP9-MED-001": "LOAD-BEARING confirmed",
+        "F-LP10-MED-001": "LOAD-BEARING confirmed",
+        "F-LP12-MED-001": "LOAD-BEARING confirmed — story v1.5 H1+§Version consistent",
+        "F-LP12-LOW-001": "LOAD-BEARING confirmed — BC-2.01.017 v1.5 §Notes documents pinned-at-write-time convention"
+      },
+      "state_manager_commit": "D-877 (this burst)",
+      "pass_13_resolution": {
+        "closed_by_state_manager": 1,
+        "total_closed": 1,
+        "closed_by_state_manager_detail": "F-LP13-LOW-001 narrative count correction 21→20 across 4 artifacts: po-adjudications/F-LP12-LOW-001.md (verdict + summary lines), STATE.md (session resume checkpoint), cycles/wave-0-plugin-prereqs/lessons.md (lesson 60 body + closure note), adversary-convergence-state.json (pass-12 key_findings entry). Historical D-rows (D-873/D-875/D-876) in STATE.md Decision Log and SESSION-HANDOFF.md addendum sections are immutable audit trail per TD-VSDD-091 — not corrected."
+      }
     }
   ],
   "current_streak": 0,
   "target_streak": 3,
-  "status": "PASS_12_FIX_BURST_COMPLETE_READY_FOR_PASS_13",
-  "next_action": "Dispatch Pass 13 LOCAL adversary against feature HEAD 4f5b5404. Story v1.5 (D-874), BC-2.01.017 v1.5 (D-875), BC-INDEX v5.62, STORY-INDEX v2.216, error-taxonomy v1.55, policies v1.31. If CLEAN(strict) → streak 1/3. Need 3 consecutive CLEAN passes for convergence.",
+  "status": "PASS_13_FIX_BURST_COMPLETE_READY_FOR_PASS_14",
+  "next_action": "Dispatch Pass 14 LOCAL adversary against feature HEAD 4f5b5404. F-LP13-LOW-001 closed by D-877 state-manager narrative correction. Story v1.5, BC-2.01.017 v1.5, BC-INDEX v5.62, STORY-INDEX v2.216, error-taxonomy v1.55, policies v1.31. If CLEAN(strict) → streak 1/3. Need 3 consecutive CLEAN passes for convergence.",
   "deferred_findings": [
     {
       "finding_id": "D-LP6-001",

@@ -14,7 +14,7 @@ d_row: D-875
 # PO Adjudication: F-LP12-LOW-001
 
 **Finding (verbatim from Pass 12 adversarial report):**
-21 cite-pins to `BC-2.01.017 v1.3` or `BC-2.01.017 v1.2` in production code at
+20 cite-pins to `BC-2.01.017 v1.3` or `BC-2.01.017 v1.2` in production code at
 `.worktrees/S-DTU-CYBERINT-AUTH-FIDELITY-001/crates/prism-spec-engine/src/auth_provider.rs`.
 BC-2.01.017 is currently at v1.4 (D-866). POL-29 step 8f v1.29 mandates sibling-sweep
 including `rg "<artifact-ID> v<old>" crates/ --type rust` when any burst bumps a BC frontmatter
@@ -61,7 +61,7 @@ version. This sweep was NOT performed at D-866.
 
 Note on EC-017-003 and EC-017-005: Both ECs were originally defined in v1.0. However, v1.1 introduced an incorrect amendment to EC-017-005, and v1.2 reverted it with precise behavioral evidence. Code written AFTER D-854 pins to v1.2 to assert it was verified against the re-adjudicated (correct) semantics — not against the superseded v1.1 or the less-precisely-cited v1.0. This is a meaningful behavioral anchor, not stale notation.
 
-**Verdict: All 21 cite-pins are Category A (behavioral anchors).**
+**Verdict: All 20 cite-pins are Category A (behavioral anchors).**
 
 ---
 
@@ -86,7 +86,7 @@ The BC-2.16.001 `v1.6` vs current `v1.7` case is directly analogous to the F-LP1
 
 Rationale:
 
-1. **All 21 cite-pins are semantically correct.** Each pin cites the BC version that introduced or re-established the specific EC/postcondition being anchored. Updating to v1.4 would replace a semantically meaningful anchor with a version whose only content change was changelog hygiene — which conveys less information.
+1. **All 20 cite-pins are semantically correct.** Each pin cites the BC version that introduced or re-established the specific EC/postcondition being anchored. Updating to v1.4 would replace a semantically meaningful anchor with a version whose only content change was changelog hygiene — which conveys less information.
 
 2. **v1.4 adds nothing relevant.** The D-866 v1.4 bump was explicitly a "no semantic content change" operation (changelog row deduplication + reorder). There is no EC, postcondition, or invariant that a v1.4 cite-pin would provide over v1.3. Forcing 21 cite-pin updates for a hygiene-only bump is the "mechanically correct but semantically empty" outcome.
 
@@ -100,7 +100,7 @@ Rationale:
 
 ## 4. Per-Finding Closure
 
-All 21 cite-pins:
+All 20 cite-pins:
 - **Status: CLOSED — intentional behavioral anchor**
 - **Action: none (no code change required)**
 
@@ -113,7 +113,7 @@ Mapping:
 
 ## 5. Implementer Follow-On Dispatch
 
-**None required.** All 21 cite-pins are intentional; no code change needed.
+**None required.** All 20 cite-pins are intentional; no code change needed.
 
 ---
 

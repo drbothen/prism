@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.555"
+version: "7.556"
 producer: state-manager
 timestamp: 2026-05-30T03:00:00Z
 inputs: []
@@ -16,13 +16,18 @@ repos: [poller-cobra, poller-express, poller-bear, poller-coaster, serveMyAPI, t
 safe_to_compact: true
 pre_compact_snapshot: "SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-30-CYBERINT-CASCADE-PASS-1-MID-FIX"
 pre_compact_snapshot_at: "2026-05-30 (D-851 PRE-CLEAR durability snapshot; Cyberint cascade Step 4.5 Pass 1 blocked on architect harness audit; architect background agent a1161dc86ddae5c53; architect decision committed 12378e35)"
-current_step: "Cyberint cascade: Pass 12 fix-burst COMPLETE — story v1.4→v1.5 body-sync (D-874 9fb28d50) + BC-2.01.017 v1.4→v1.5 §Notes anchor convention (D-875 23a17f6d) + F-LP12-PG-001 codification pending (SAP-4 + POL-29 hygiene-exempt). Streak 0/3 awaiting Pass 13."
+current_step: "Cyberint cascade: Pass 13 found F-LP13-LOW-001 (narrative count 21 vs actual 20 cite-pins). Closed via narrative correction across 4 artifacts (D-877 this burst). Streak 0/3 awaiting Pass 14."
 pass_2_findings: {CRIT: 1, HIGH: 1, MED: 1, PROCESS_GAP: 1}
 cyberint_cascade_in_progress: true
-cyberint_cascade_step: "4.5 LOCAL adversary Pass 12 fix-burst COMPLETE — ready for Pass 13"
+cyberint_cascade_step: "4.5 LOCAL adversary Pass 13 fix-burst COMPLETE — ready for Pass 14"
 pass_12_findings_closed: 2
 pass_12_po_option_chosen: "Option A introduced-in anchor convention"
 pass_12_pg_codification_pending: "SAP-4 + POL-29 step 8f hygiene-only-exempt amendment"
+pass_13_clean_strict: false
+pass_13_clean_pr_merge: true
+pass_13_findings: {LOW: 1}
+pass_13_findings_closed: 1
+pass_13_streak_after: "0/3"
 pass_5_rejected: true
 pass_5_rejection_reason: "fabricated — orchestrator-verified counter-evidence shows cited symbols + lines exist at feature HEAD 89aa9bd1; adversary likely read wrong branch/cwd (develop@72baf413 has no implementation)"
 pass_5_redux_clean_strict: true
@@ -351,14 +356,12 @@ historical_cycles: [phase-1-convergence, wave-3-multi-tenant, wave-4-operations]
 
 | Step | Agent | Status | Output |
 |------|-------|--------|--------|
-_D-735 through D-847 archived to cycles/wave-0-plugin-prereqs/burst-log.md. D-835+D-836+D-837 removed from Phase Steps (archived in Decisions Log). D-849/851/852/853/855/856/857/858/859/860/861/862/863/864/865/866/867/868/869/870/871/872/873 archived to burst-log.md._
-| D-876 — **CYBERINT PASS 12 FIX-BURST COMPLETE — READY FOR PASS 13 (state-manager, 2026-05-30). F-LP12-MED-001 CLOSED: story v1.4→v1.5 H1+§Version body-sync (story-writer 9fb28d50). F-LP12-LOW-001 CLOSED: BC-2.01.017 v1.4→v1.5 §Notes introduced-in anchor convention (PO 23a17f6d). F-LP12-PG-001 codification pending (SAP-4 + POL-29 hygiene-exempt). BC-INDEX v5.62. STORY-INDEX v2.216. Lesson 60. STATE v7.554→v7.555.** | state-manager (D-876 closure burst) | PASS-12-FIX-BURST-COMPLETE-READY-FOR-PASS-13 | Pass 13 LOCAL adversary next (lesson 58 preamble; feature HEAD 4f5b5404 unchanged) |
-| D-875 — **CYBERINT PASS 12 PO ADJUDICATION — F-LP12-LOW-001 CLOSED Option A. BC-2.01.017 v1.4→v1.5 §Notes introduced-in anchor convention. BC-INDEX v5.61→v5.62. PO commit 23a17f6d. PO recommended POL-29 step 8f v1.29 hygiene-only-bump exemption.** | product-owner (D-875 F-LP12-LOW-001 adjudication) | F-LP12-LOW-001-CLOSED-OPTION-A | state-manager D-876 closure next |
-| D-874 — **CYBERINT PASS 12 STORY-WRITER FIX — F-LP12-MED-001 CLOSED. Story v1.4→v1.5 H1+§Version body-sync. STORY-INDEX v2.215→v2.216. Story-writer commit 9fb28d50.** | story-writer (D-874 body-sync) | F-LP12-MED-001-CLOSED | PO adjudication D-875 next |
-| D-873 — **CYBERINT PASS 12 NOT CLEAN — STREAK RESET 1/3 → 0/3 (state-manager, 2026-05-30). F-LP12-MED-001 story body H1+§Version drift (3 version values in same file), F-LP12-LOW-001 21 BC cite-pins pending PO intent adjudication, F-LP12-PG-001 SAP-4 codification. Story-writer body-sync + PO adjudication next. STATE v7.553→v7.554.** | state-manager (D-873 Pass 12 persistence burst) | PASS-12-NOT-CLEAN-FIX-BURST-PENDING | closed by D-874 (story-writer) + D-875 (PO) + D-876 (state-manager) |
-| D-869 — **CYBERINT PASS 9 FIX-BURST CLOSURE (state-manager, 2026-05-30). F-LP9-MED-001 CLOSED: story v1.4 changelog reorder (story-writer ac0843a4). STORY-INDEX v2.213→v2.214. No code change. Streak 0/3 awaiting Pass 10. STATE v7.550→v7.551.** | state-manager (D-869 closure burst) | PASS-9-FIX-BURST-COMPLETE-READY-FOR-PASS-10 | Pass 10 next (lesson 58 preamble required) |
-| D-868 — **CYBERINT PASS 9 — 1 MED FINDING (story-writer, 2026-05-30). F-LP9-MED-001 story changelog non-monotonic ordering (1.0, 1.1, 1.3, 1.2). Sibling-sweep of F-LP8-MED-001 class. Story-writer commit ac0843a4: v1.3→v1.4 reorder. STORY-INDEX v2.213→v2.214. CLEAN(strict)=NO.** | story-writer (D-868 ac0843a4) | PASS-9-MED-F-LP9-MED-001-CLOSED | state-manager closure D-869 |
-| D-867 — **CYBERINT PASS 8 FIX-BURST CLOSURE (state-manager, 2026-05-30). F-LP8-MED-001 CLOSED: BC-2.01.017 v1.4 changelog cleanup (PO 399ef378). BC-INDEX v5.59→v5.60. No code change. Streak 0/3 awaiting Pass 9. STATE v7.549→v7.550.** | state-manager (D-867 closure burst) | PASS-8-FIX-BURST-COMPLETE-READY-FOR-PASS-9 | Pass 9 next (lesson 58 preamble required) |
+_D-735 through D-847 archived to cycles/wave-0-plugin-prereqs/burst-log.md. D-835+D-836+D-837 removed from Phase Steps (archived in Decisions Log). D-849/851/852/853/855/856/857/858/859/860/861/862/863/864/865/866/867/868/869/870/871/872/873/874/875/876 archived to burst-log.md._
+| D-877 — **CYBERINT PASS 13 F-LP13-LOW-001 NARRATIVE CORRECTION COMPLETE — READY FOR PASS 14 (state-manager, 2026-05-30). F-LP13-LOW-001 CLOSED: narrative count 21→20 cite-pins corrected across 4 artifacts (po-adjudications/F-LP12-LOW-001.md + STATE.md checkpoint + lessons.md lesson 60 + adversary-convergence-state.json). CLEAN(strict)=NO; CLEAN(PR-merge)=YES. Streak 0/3 unchanged. STATE v7.555→v7.556.** | state-manager (D-877 narrative correction burst) | PASS-13-FIX-BURST-COMPLETE-READY-FOR-PASS-14 | Pass 14 LOCAL adversary next (lesson 58 preamble; feature HEAD 4f5b5404 unchanged) |
+| D-876 — **CYBERINT PASS 12 FIX-BURST COMPLETE — READY FOR PASS 13 (state-manager, 2026-05-30). F-LP12-MED-001 CLOSED: story v1.4→v1.5 H1+§Version body-sync (story-writer 9fb28d50). F-LP12-LOW-001 CLOSED: BC-2.01.017 v1.4→v1.5 §Notes introduced-in anchor convention (PO 23a17f6d). F-LP12-PG-001 codification pending (SAP-4 + POL-29 hygiene-exempt). BC-INDEX v5.62. STORY-INDEX v2.216. Lesson 60. STATE v7.554→v7.555.** | state-manager (D-876 closure burst) | PASS-12-FIX-BURST-COMPLETE-COMPLETE | closed by D-877 (Pass 13 fix-burst) |
+| D-875 — **CYBERINT PASS 12 PO ADJUDICATION — F-LP12-LOW-001 CLOSED Option A. BC-2.01.017 v1.4→v1.5 §Notes introduced-in anchor convention. BC-INDEX v5.61→v5.62. PO commit 23a17f6d.** | product-owner (D-875 F-LP12-LOW-001 adjudication) | F-LP12-LOW-001-CLOSED-OPTION-A | closed |
+| D-874 — **CYBERINT PASS 12 STORY-WRITER FIX — F-LP12-MED-001 CLOSED. Story v1.4→v1.5 H1+§Version body-sync. STORY-INDEX v2.215→v2.216. Story-writer commit 9fb28d50.** | story-writer (D-874 body-sync) | F-LP12-MED-001-CLOSED | closed |
+| D-873 — **CYBERINT PASS 12 NOT CLEAN — STREAK RESET 1/3 → 0/3 (state-manager, 2026-05-30). F-LP12-MED-001 story body H1+§Version drift, F-LP12-LOW-001 21 BC cite-pins pending PO intent adjudication, F-LP12-PG-001 SAP-4 codification.** | state-manager (D-873 Pass 12 persistence burst) | PASS-12-NOT-CLEAN-FIX-BURST-PENDING | closed by D-874/D-875/D-876/D-877 |
 
 
 ## Decisions Log
@@ -367,6 +370,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-877 | 2026-05-30 | state-manager | **CYBERINT PASS 13 F-LP13-LOW-001 NARRATIVE CORRECTION — 21→20 cite-pins across 4 artifacts. STATE v7.555→v7.556.** Pass 13 LOCAL adversary found F-LP13-LOW-001 [LOW]: narrative count drift — PO adjudication verdict + STATE.md checkpoint + lessons.md lesson 60 + adversary-convergence-state.json all claimed "21 cite-pins" but actual rg of feature HEAD 4f5b5404 returns 20 matches. Root cause: PO enumeration table had 20 rows; verdict line said 21 (off-by-one counting error; propagated to all downstream narrative). Non-runtime, non-behavioral — code and adjudication disposition are correct. CLEAN(strict)=NO; CLEAN(PR-merge)=YES. Streak 0/3 not advanced per BC-5.39.001 D-779 strict criterion. State-manager narrative corrections (all non-historical forward-looking narrative): (1) po-adjudications/F-LP12-LOW-001.md — verdict line "All 21 cite-pins" → "All 20 cite-pins" + 3 summary lines; (2) STATE.md Session Resume Checkpoint — "all 21 cite-pins" → "all 20 cite-pins"; (3) cycles/wave-0-plugin-prereqs/lessons.md — Lesson 60 body (2 occurrences) + closure note; (4) adversary-convergence-state.json — pass-12 key_findings F-LP12-LOW-001 entry. Historical D-rows in Decision Log (D-873/D-875/D-876) and SESSION-HANDOFF.md addendum sections per TD-VSDD-091 immutable audit trail — NOT corrected. local-pass-13.md persisted. adversary-convergence-state.json pass-13 entry added + status=PASS_13_FIX_BURST_COMPLETE_READY_FOR_PASS_14. Feature HEAD 4f5b5404 unchanged. 269th consecutive single-commit per TD-VSDD-053. Anti-volatile-pin per TD-VSDD-091. | plugin-migration | 2026-05-30 | Decided by: adversary (Pass 13 report, F-LP13-LOW-001 factual count drift) + state-manager (D-877 narrative correction burst). Status: APPROVED — Pass 14 next |
 | D-876 | 2026-05-30 | state-manager | **CYBERINT PASS 12 FIX-BURST COMPLETE — READY FOR PASS 13. 2 findings closed. BC-INDEX v5.62. STORY-INDEX v2.216. Lesson 60 (SAP-4 + POL-29 hygiene-exempt). STATE v7.555.** D-874 (story-writer 9fb28d50): F-LP12-MED-001 closed — story v1.4→v1.5 body H1 updated to `v1.5`, §Version updated to `v1.5`, v1.5 changelog row added; STORY-INDEX v2.215→v2.216. D-875 (PO 23a17f6d): F-LP12-LOW-001 closed — Option A introduced-in anchor convention; BC-2.01.017 v1.4→v1.5 §Notes section added documenting convention; BC-INDEX v5.61→v5.62; PO adjudication doc at `.factory/cycles/wave-0-plugin-prereqs/S-DTU-CYBERINT-AUTH-FIDELITY-001/po-adjudications/F-LP12-LOW-001.md`; 21 cite-pins in auth_provider.rs confirmed Category A (introduced-in anchors — keep); PO recommended POL-29 step 8f v1.29 amendment to exempt hygiene-only commits from sibling-sweep obligation. F-LP12-PG-001 (SAP-4 + POL-29 hygiene-only-bump exemption): orchestrator codification queue — CLAUDE.md amendment pending. Lesson 60 appended to cycles/wave-0-plugin-prereqs/lessons.md. SESSION-HANDOFF.md §ADDENDUM 2026-05-30-PASS-12-FIX-BURST-COMPLETE appended. STATE.md v7.554→v7.555. Streak 0/3 — Pass 13 LOCAL adversary next. Feature HEAD 4f5b5404 unchanged. 268th consecutive single-commit per TD-VSDD-053. Anti-volatile-pin per TD-VSDD-091. | plugin-migration | 2026-05-30 | Decided by: story-writer (9fb28d50 D-874) + product-owner (23a17f6d D-875) + state-manager (D-876 closure burst). Status: APPROVED — Pass 13 next |
 | D-875 | 2026-05-30 | product-owner | **CYBERINT PASS 12 F-LP12-LOW-001 PO ADJUDICATION — Option A: introduced-in anchor convention. BC-2.01.017 v1.4→v1.5. BC-INDEX v5.61→v5.62. PO commit 23a17f6d.** F-LP12-LOW-001 finding: 21 cite-pins to BC-2.01.017 v1.3 or v1.2 in `crates/prism-spec-engine/src/auth_provider.rs`; BC currently v1.4; POL-29 step 8f v1.29 crates cite-pin sweep not performed at D-866; ambiguity whether pins are intentional introduced-in anchors or stale sweep misses. PO investigation: all 21 pins are Category A "introduced-in" anchors (e.g., `BC-2.01.017 v1.3 EC-017-010` means EC-017-010 was introduced in v1.3 — the anchor points to when the contract was established, not the current version). This is TD-VSDD-091 introduced-in exemption — correct pattern, not a stale cite. No code change required; the 21 pins stay unchanged. BC-2.01.017 v1.4→v1.5: §Notes section added documenting the introduced-in anchor convention project-wide (future BC authors follow this pattern). BC-INDEX v5.61→v5.62 header bump. Adjudication doc authored at po-adjudications/F-LP12-LOW-001.md. PO recommended POL-29 step 8f v1.29 amendment: add explicit clause exempting hygiene-only commits (changelog reorder, schema normalization, formatting) where no EC, postcondition, invariant, or error code was changed — these commits should not trigger crates cite-pin sweep obligation. Orchestrator dispatches policy-owner + spec-steward for formal amendment in next session. Feature HEAD 4f5b5404 unchanged. | plugin-migration | 2026-05-30 | Decided by: product-owner (F-LP12-LOW-001 Option A adjudication). Status: APPROVED — state-manager D-876 closure next |
 | D-874 | 2026-05-30 | story-writer | **CYBERINT PASS 12 F-LP12-MED-001 STORY-WRITER FIX — Story v1.4→v1.5 body H1 + §Version sync. STORY-INDEX v2.215→v2.216. Story-writer commit 9fb28d50.** F-LP12-MED-001 finding: story spec frontmatter `version: 1.4` but body H1 still says `v1.1` and §Version field still says `v1.3`; POL-29 step 8b body-sync was missed across three sequential bumps (D-850 v1.1→v1.2, D-863 v1.2→v1.3, D-868 v1.3→v1.4). Story-writer fix (9fb28d50, factory-artifacts): body H1 updated from `v1.1` to `v1.5`; §Version field updated to `v1.5`; v1.5 changelog row added documenting H1+§Version body-sync fix (no semantic content change); STORY-INDEX v2.215→v2.216 frontmatter bump. Feature HEAD 4f5b5404 unchanged. PO adjudication D-875 follows for F-LP12-LOW-001. | plugin-migration | 2026-05-30 | Decided by: story-writer (F-LP12-MED-001 body-sync). Status: APPROVED — PO adjudication D-875 next |
@@ -567,31 +571,31 @@ Prior cycle history:
 
 ---
 
-## Session Resume Checkpoint (2026-05-30 — D-876 Pass 12 fix-burst COMPLETE; streak 0/3; feature@4f5b5404; develop@72baf413)
+## Session Resume Checkpoint (2026-05-30 — D-877 Pass 13 F-LP13-LOW-001 narrative fix COMPLETE; streak 0/3; feature@4f5b5404; develop@72baf413)
 
-_Previous checkpoint (D-873 Pass 12 NOT CLEAN; streak 0/3 reset) superseded by D-876 Pass 12 fix-burst COMPLETE — story v1.5 (9fb28d50) + BC-2.01.017 v1.5 introduced-in convention (23a17f6d) + lesson 60 codified._
+_Previous checkpoint (D-876 Pass 12 fix-burst COMPLETE; streak 0/3) superseded by D-877 Pass 13 F-LP13-LOW-001 narrative count correction (21→20 cite-pins across 4 artifacts)._
 
-**STATE v7.555. D-876 — PASS 12 FIX-BURST COMPLETE — STREAK 0/3. Feature HEAD 4f5b5404 unchanged. Pass 13 next. develop@72baf413.**
+**STATE v7.556. D-877 — PASS 13 FIX-BURST COMPLETE — STREAK 0/3. Feature HEAD 4f5b5404 unchanged. Pass 14 next. develop@72baf413.**
 
-**develop HEAD:** `72baf413` | **Workspace test count:** 3839 | **Feature branch HEAD:** `4f5b5404` | **Cyberint cascade streak:** 0/3 (ready for Pass 13)
+**develop HEAD:** `72baf413` | **Workspace test count:** 3839 | **Feature branch HEAD:** `4f5b5404` | **Cyberint cascade streak:** 0/3 (ready for Pass 14)
 
-**Pass 12 fix-burst COMPLETE.** 2 findings closed: F-LP12-MED-001 (story v1.4→v1.5 body H1+§Version sync via 9fb28d50; STORY-INDEX v2.216), F-LP12-LOW-001 (BC-2.01.017 v1.4→v1.5 §Notes introduced-in anchor convention via 23a17f6d; BC-INDEX v5.62; all 21 cite-pins confirmed Category A). F-LP12-PG-001 (SAP-4 + POL-29 hygiene-only-bump exemption) — orchestrator codification queue; non-blocking. Feature HEAD 4f5b5404 unchanged throughout. Streak 0/3 — Pass 13 begins new attempt.
+**Pass 13 result: NOT CLEAN(strict). CLEAN(PR-merge).** F-LP13-LOW-001 [LOW]: narrative count drift — "21 cite-pins" vs actual 20. Root cause: PO table had 20 rows, verdict said 21 (off-by-one). Non-runtime, non-behavioral. Fixed: state-manager narrative correction across 4 artifacts (po-adjudications/F-LP12-LOW-001.md verdict + STATE.md checkpoint + lessons.md lesson 60 + adversary-convergence-state.json pass-12 entry). Historical D-row narrative in Decision Log + SESSION-HANDOFF.md addendum sections per TD-VSDD-091 immutable audit trail — not corrected.
 
 **Critical path (next actions for new session):**
-1. **READ `SESSION-HANDOFF.md §ADDENDUM 2026-05-30-PASS-12-FIX-BURST-COMPLETE`** — closure summary
-2. **Dispatch Pass 13** LOCAL adversary with mandatory lesson 58 preamble — feature HEAD 4f5b5404, story v1.5, BC-2.01.017 v1.5, BC-INDEX v5.62, STORY-INDEX v2.216, error-taxonomy v1.55, policies v1.31. If CLEAN(strict) → streak 1/3
+1. **READ `SESSION-HANDOFF.md §ADDENDUM 2026-05-30-PASS-13-NARRATIVE-FIX-COMPLETE`** — closure summary
+2. **Dispatch Pass 14** LOCAL adversary with mandatory lesson 58 preamble — feature HEAD 4f5b5404, story v1.5, BC-2.01.017 v1.5, BC-INDEX v5.62, STORY-INDEX v2.216, error-taxonomy v1.55, policies v1.31. If CLEAN(strict) → streak 1/3
 3. **Queue SAP-4 + POL-29 hygiene-exempt codification** (F-LP12-PG-001) for CLAUDE.md amendment in next session
 
 **Active worktrees:**
-- `.worktrees/S-DTU-CYBERINT-AUTH-FIDELITY-001` — IN PROGRESS (streak 0/3 ready for Pass 13; feature HEAD 4f5b5404)
+- `.worktrees/S-DTU-CYBERINT-AUTH-FIDELITY-001` — IN PROGRESS (streak 0/3 ready for Pass 14; feature HEAD 4f5b5404)
 - `.worktrees/S-3.09` — FROZEN (BUG-S309-PLUGIN), stale since 2026-05-11; deferred per user direction
 - `.worktrees/W3-FIX-S307-001` — BLOCKED (superseded), stale since 2026-05-24; deferred per user direction
 
 **Open PRs:** None.
 
-**Resume protocol (3 steps — Pass 13):**
+**Resume protocol (3 steps — Pass 14):**
 1. Run `vsdd-factory:factory-worktree-health` (BLOCKING preflight)
-2. Read STATE.md frontmatter — confirm `version: "7.555"` and `develop_head: "72baf413"` (D-876 checkpoint)
-3. Dispatch Pass 13 LOCAL adversary (lesson 58 preamble, feature HEAD 4f5b5404) → if CLEAN(strict) streak 1/3 → Pass 14 → Pass 15 → LOCAL CONVERGED
+2. Read STATE.md frontmatter — confirm `version: "7.556"` and `develop_head: "72baf413"` (D-877 checkpoint)
+3. Dispatch Pass 14 LOCAL adversary (lesson 58 preamble, feature HEAD 4f5b5404) → if CLEAN(strict) streak 1/3 → Pass 15 → Pass 16 → LOCAL CONVERGED
 
 _Agent routing: see CLAUDE.md §Agent Routing Table._
