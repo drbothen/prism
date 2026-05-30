@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.4"
+version: "1.5"
 status: draft
 producer: product-owner
 timestamp: 2026-05-29T00:00:00Z
@@ -227,10 +227,28 @@ S-DTU-CYBERINT-AUTH-FIDELITY-001
 | ADR | ADR-031 (DTU = True DTU — Fidelity Principle), ADR-028 (TOML Spec Grounding vs DTU Routes) |
 | Story | S-DTU-CYBERINT-AUTH-FIDELITY-001 |
 
+## Notes for Implementers — Cite-pin convention
+
+Code doc-comments and `assert!` messages in `auth_provider.rs` cite `BC-2.01.017 v<N>` where
+`<N>` is the BC version that introduced or re-established the specific EC/postcondition being
+anchored (pinned-at-write-time convention). This is intentional:
+
+- `v1.2` pins (EC-017-003, EC-017-005): anchor to the D-854 re-adjudication that restored
+  correct semantics after the bad v1.1 amendment. The pin asserts the implementer verified
+  behavior against the re-adjudicated spec, not the superseded v1.1 text.
+- `v1.3` pins (EC-017-010, E-AUTH-007): anchor to D-857, which first introduced
+  EC-017-010 and the `CredentialResolutionError::BackendUnavailable→E-AUTH-007` mapping.
+
+The current BC version is tracked in BC-INDEX — code citations need not be updated when a
+version bump contains no semantic content change (e.g., the v1.3→v1.4 changelog hygiene bump,
+D-866). A hygiene-only bump does NOT invalidate existing cite-pins. See also: F-LP12-LOW-001
+adjudication in `cycles/wave-0-plugin-prereqs/S-DTU-CYBERINT-AUTH-FIDELITY-001/po-adjudications/`.
+
 ## Changelog
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.5 | D-875 F-LP12-LOW-001 | 2026-05-30 | product-owner | F-LP12-LOW-001 adjudication: all 21 cite-pins confirmed Category A (behavioral anchors); no code change required. Added §Notes for Implementers — Cite-pin convention section to document pinned-at-write-time convention. POL-29 step 8f amendment recommended (hygiene-only version bumps exempt from cite-pin sweep obligation). BC-INDEX v5.60→v5.61. |
 | 1.4 | D-866 F-LP8-MED-001 | 2026-05-30 | product-owner | F-LP8-MED-001 closure: changelog hygiene — deleted byte-identical duplicate of v1.2 row (was at line 237 alongside canonical v1.2 row at line 235); reordered changelog rows to monotonic descending by version (1.4 → 1.3 → 1.2 → 1.1 → 1.0). No semantic content change to BC. BC-INDEX v5.59→v5.60. |
 | 1.3 | D-857 F-LP3-HIGH-001 | 2026-05-30 | product-owner | F-LP3-HIGH-001 resolution: allocate E-AUTH-007 for `CredentialResolutionError::BackendUnavailable`. Add EC-017-010 (BackendUnavailable → E-AUTH-007, distinct from EC-017-003 NotFound → E-AUTH-005). Add TV-BC-2.01.017-009 (BackendUnavailable test vector). Update E-AUTH-005 Error Cases row to explicitly scope it to `CredentialResolutionError::NotFound`. Add E-AUTH-007 Error Cases row. `error_codes` frontmatter: add E-AUTH-007. error-taxonomy.md v1.53→v1.54. BC-INDEX v5.58→v5.59. Implementer follow-on: match-arm on CredentialResolutionError variants in `StaticCookieAuthProvider::acquire_token` — NotFound→E-AUTH-005, BackendUnavailable→E-AUTH-007. Add `BackendUnavailableCredentialResolver` test helper and unit test asserting E-AUTH-007. |
 | 1.2 | D-854 | 2026-05-30 | product-owner | F-LP1-MED-002 RE-ADJUDICATION — revert v1.1 EC-017-005 amendment per F-LP2-CRIT-001. v1.1 amendment was based on a fabricated BC-2.03.006 normalization claim that does not exist in BC-2.03.006 text or `crates/prism-credentials/src/resolve_secret.rs`. Orchestrator independently verified against source (lines 78-81): `std::env::var(direct_env)` returns `Ok(value)` for ANY set env var including empty string; there is NO `is_empty()` filter, no whitespace check, no normalization. `CYBERINT_API_KEY=""` resolves as `Ok(Some(SecretString("")))`, propagates through `acquire_token`'s `is_empty()` check, and returns E-AUTH-006 — exactly what BC v1.0 EC-017-005 originally specified. BC v1.0 original author was correct. Restored EC-017-005 to E-AUTH-006 semantics with precise resolver behavior cited verbatim from source (lines 78-81). Updated E-AUTH-006 Error Cases row to accurately describe "resolver returns empty value" as the trigger (not just non-empty-invalid). Restored TV-BC-2.01.017-005 to assert E-AUTH-006 for MockCredentialResolver returning `Ok(SecretString(""))`. BC-INDEX v5.57→v5.58. |

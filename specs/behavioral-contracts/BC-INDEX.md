@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "5.61"
+version: "5.62"
 status: draft
 producer: product-owner
 timestamp: 2026-05-30T00:00:00Z
@@ -45,7 +45,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.01.014 | Exponential Backoff and Retry for Transient Sensor API Errors | 01 - Sensor Adapters | CAP-001 | P0 | draft |
 | BC-2.01.015 | ~~MCP Tool Response Envelope Structure~~ | 01 - Sensor Adapters | CAP-001 | P0 | removed |
 | BC-2.01.016 | SensorAuth Open Trait — Plugin-Implementable Auth Contract (No Sealed Marker) | 01 - Sensor Adapters | CAP-001 | P0 | active (promoted draft→active D-726 per POL-14; anchor story S-PLUGIN-PREREQ-E merged PR #151 develop@80ebe794 2026-05-19) — v1.12 |
-| BC-2.01.017 | StaticCookieAuthProvider Contract — No-Login-Roundtrip Cookie Injection | 01 - Sensor Adapters | CAP-001 | P0 | draft — v1.4 |
+| BC-2.01.017 | StaticCookieAuthProvider Contract — No-Login-Roundtrip Cookie Injection | 01 - Sensor Adapters | CAP-001 | P0 | draft — v1.5 |
 | BC-2.02.001 | OCSF Schema Loading at Build Time via ocsf-proto-gen | 02 - OCSF Normalization | CAP-003 | P0 | draft |
 | BC-2.02.002 | DynamicMessage Creation from Sensor Records | 02 - OCSF Normalization | CAP-003 | P0 | active |
 | BC-2.02.003 | CrowdStrike Alert Field Mapping to OCSF | 02 - OCSF Normalization | CAP-003 | P0 | active (amended per ADR-023/PLUGIN-MIGRATION-001-G; v1.6) |
@@ -376,6 +376,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v5.62 (2026-05-30, D-875 F-LP12-LOW-001 adjudication):** product-owner | F-LP12-LOW-001 closure: 21 BC-2.01.017 cite-pins (`v1.2`, `v1.3`) in `auth_provider.rs` adjudicated as Category A behavioral anchors (pinned-at-write-time convention). No code change required. BC-2.01.017 v1.4→v1.5: added §Notes for Implementers — Cite-pin convention section documenting the convention. POL-29 step 8f amendment recommended (hygiene-only bumps exempt from cite-pin sweep). Adjudication: cycles/wave-0-plugin-prereqs/S-DTU-CYBERINT-AUTH-FIDELITY-001/po-adjudications/F-LP12-LOW-001.md. BC-INDEX v5.61→v5.62.
 
 **v5.61 (2026-05-30, D-870 F-LP10-MED-001 comprehensive sweep):** product-owner | F-LP10-MED-001 comprehensive sweep: (1) error-taxonomy.md v1.54→v1.55: moved v1.54 row to correct position, added tombstone v1.53 (E-AUTH-006 introduction D-849), added tombstone v1.23 (POL-30 cite-pin v1.22→v1.23 propagation), added v1.55 sweep row. (2) BC-2.16.013 v1.17→v1.18: changelog hygiene — moved v1.11 row from between v1.16 and v1.15 to correct position between v1.12 and v1.10 (pre-existing defect deferred at D-LP9-001, promoted to in-scope under comprehensive sweep). (3) STORY-INDEX v2.214→v2.215: reordered rows v2.185–v2.200 to monotonic descending (v2.200→v2.199→v2.198→v2.197→v2.196→v2.195→v2.194→v2.193→v2.192→v2.191→v2.190→v2.189→v2.188→v2.187→v2.186→v2.185). (4) BC-INDEX v5.60→v5.61: this row. (5) policies.yaml v1.30→v1.31: POL-32 changelog_monotonic_descending codified. (6) Adjudication doc: .factory/cycles/wave-0-plugin-prereqs/S-DTU-CYBERINT-AUTH-FIDELITY-001/po-adjudications/F-LP10-MED-001.md created. BC-2.01.013 and BC-2.01.016 changelogs verified monotonic descending — no changes needed. BC-INDEX v5 section verified monotonic descending — no changes needed. Sibling-sweep: no stale cites to error-taxonomy.md v1.53 or v1.54 in live-narrative outside §Changelog rows (TD-VSDD-091 exempt). BC-INDEX v5.60→v5.61.
 
