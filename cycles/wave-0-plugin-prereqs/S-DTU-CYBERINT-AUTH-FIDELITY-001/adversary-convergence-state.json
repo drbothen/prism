@@ -567,12 +567,46 @@
         "closed_by_state_manager_detail": "F-LP14-LOW-001 + comprehensive sweep: po-adjudications/F-LP12-LOW-001.md §3 Rationale point 2 (\"21 cite-pin updates\" → \"20 cite-pin updates\"). Sweep confirmed: adversarial-review/local-pass-12.md lines 83+95 (historical-immutable pass report, preserved), adversarial-review/local-pass-13.md (historical-immutable pass report, preserved), STATE.md D-873/D-875/D-876/D-877 Decision Log rows (historical-immutable audit trail, preserved per TD-VSDD-091), SESSION-HANDOFF.md addendum sections (historical-immutable narrative snapshots, preserved per TD-VSDD-091), BC-2.01.017 changelog row v1.5 (historical-immutable changelog row, preserved per TD-VSDD-091). Active narrative: 1 site fixed."
       },
       "pass_14_user_authorized_comprehensive_sweep": "2026-05-30 user chose Option A (comprehensive sweep + continue strict)"
+    },
+    {
+      "pass": 15,
+      "date": "2026-05-30",
+      "clean_strict": true,
+      "clean_pr_merge": true,
+      "findings_count": 0,
+      "findings_by_severity": {
+        "CRIT": 0,
+        "HIGH": 0,
+        "MED": 0,
+        "LOW": 0,
+        "OBS": 0,
+        "PROCESS-GAP": 0
+      },
+      "streak": 1,
+      "novelty": "ZERO",
+      "feature_head_at_pass": "4f5b5404",
+      "lesson_58_preamble": true,
+      "sap_1_result": "PASS — no new uncataloged event_type emission sites; no production code changes since Pass 14 comprehensive sweep",
+      "sap_2_result": "PASS — no TOML or DTU struct modifications since Pass 14",
+      "sid_1_result": "PASS — all tests remain non-#[ignore]'d unit tests",
+      "prior_closures_spot_check": {
+        "F-LP3-HIGH-001": "LOAD-BEARING confirmed",
+        "F-LP6-LOW-001": "LOAD-BEARING confirmed",
+        "F-LP8-MED-001": "LOAD-BEARING confirmed",
+        "F-LP9-MED-001": "LOAD-BEARING confirmed",
+        "F-LP10-MED-001": "LOAD-BEARING confirmed",
+        "F-LP12-MED-001": "LOAD-BEARING confirmed — story v1.5 H1+§Version consistent",
+        "F-LP12-LOW-001": "LOAD-BEARING confirmed — BC-2.01.017 v1.5 §Notes documents introduced-in anchor convention; 20 cite-pins intentional",
+        "F-LP13-LOW-001": "LOAD-BEARING confirmed — 20 cite-pins across all active-narrative sites; historical-immutable preserved",
+        "F-LP14-LOW-001": "LOAD-BEARING confirmed — po-adjudications/F-LP12-LOW-001.md §3 Rationale point 2 reads 20 cite-pin updates; zero residuals in non-historical-immutable scope"
+      },
+      "state_manager_commit": "D-879 (this burst)"
     }
   ],
-  "current_streak": 0,
+  "current_streak": 1,
   "target_streak": 3,
-  "status": "PASS_14_COMPREHENSIVE_SWEEP_COMPLETE_READY_FOR_PASS_15",
-  "next_action": "Dispatch Pass 15 LOCAL adversary against feature HEAD 4f5b5404. Comprehensive narrative-hygiene sweep completed (count corrected 21→20 across all active sites; historical-immutable preserved per TD-VSDD-091). If CLEAN(strict) → streak 1/3.",
+  "status": "PASS_15_CLEAN_STRICT_STREAK_1_OF_3",
+  "next_action": "Dispatch Pass 16 against feature HEAD 4f5b5404. If CLEAN(strict) → streak 2/3 → Pass 17 → 3/3 LOCAL CONVERGED.",
   "deferred_findings": [
     {
       "finding_id": "D-LP6-001",

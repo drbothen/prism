@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.557"
+version: "7.558"
 producer: state-manager
 timestamp: 2026-05-30T03:00:00Z
 inputs: []
@@ -16,10 +16,10 @@ repos: [poller-cobra, poller-express, poller-bear, poller-coaster, serveMyAPI, t
 safe_to_compact: true
 pre_compact_snapshot: "SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-30-CYBERINT-CASCADE-PASS-1-MID-FIX"
 pre_compact_snapshot_at: "2026-05-30 (D-851 PRE-CLEAR durability snapshot; Cyberint cascade Step 4.5 Pass 1 blocked on architect harness audit; architect background agent a1161dc86ddae5c53; architect decision committed 12378e35)"
-current_step: "Cyberint cascade: Pass 14 fix-burst COMPLETE — comprehensive narrative-hygiene sweep (user-authorized Option A) closed F-LP14-LOW-001 + sibling residuals. Streak 0/3 awaiting Pass 15."
+current_step: "Cyberint cascade: Pass 15 CLEAN(strict) — streak 1/3. Comprehensive sweep at D-878 + user Option A authorization. Pass 16 + 17 needed for 3-CLEAN convergence."
 pass_2_findings: {CRIT: 1, HIGH: 1, MED: 1, PROCESS_GAP: 1}
 cyberint_cascade_in_progress: true
-cyberint_cascade_step: "4.5 LOCAL adversary Pass 14 comprehensive sweep COMPLETE — ready for Pass 15"
+cyberint_cascade_step: "4.5 LOCAL adversary streak 1/3 — Pass 16 next"
 pass_12_findings_closed: 2
 pass_12_po_option_chosen: "Option A introduced-in anchor convention"
 pass_12_pg_codification_pending: "SAP-4 + POL-29 step 8f hygiene-only-exempt amendment"
@@ -34,6 +34,8 @@ pass_14_findings: {LOW: 1}
 pass_14_findings_closed: 1
 pass_14_streak_after: "0/3"
 pass_14_sweep_authorization: "user 2026-05-30 Option A"
+pass_15_clean_strict: true
+pass_15_streak: "1/3"
 pass_5_rejected: true
 pass_5_rejection_reason: "fabricated — orchestrator-verified counter-evidence shows cited symbols + lines exist at feature HEAD 89aa9bd1; adversary likely read wrong branch/cwd (develop@72baf413 has no implementation)"
 pass_5_redux_clean_strict: true
@@ -322,9 +324,9 @@ historical_cycles: [phase-1-convergence, wave-3-multi-tenant, wave-4-operations]
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-30 (D-878 state-manager Pass 14 comprehensive narrative-hygiene sweep COMPLETE — F-LP14-LOW-001 closed; 1 active site fixed (po-adjudications/F-LP12-LOW-001.md §3 Rationale point 2); feature HEAD 4f5b5404; STATE v7.557) |
-| **Current Phase** | Wave 3 Tier-3 complete — S-DTU-CYBERINT-AUTH-FIDELITY-001 per-story-delivery cascade at Step 4.5 (streak 0/3 reset; Pass 12 NOT CLEAN; F-LP12-MED-001+F-LP12-LOW-001 pending fix; feature HEAD 4f5b5404). develop@72baf413. |
-| **Current Step** | D-878 — Pass 14 comprehensive sweep COMPLETE. F-LP14-LOW-001 CLOSED (po-adjudications/F-LP12-LOW-001.md §3 Rationale point 2 corrected 21→20). Comprehensive sweep: 1 active site fixed, all other "21 cite-pin" occurrences confirmed historical-immutable per TD-VSDD-091. Streak 0/3. Pass 15 next. Feature HEAD 4f5b5404 unchanged. |
+| **Last Updated** | 2026-05-30 (D-879 state-manager Pass 15 CLEAN(strict) — streak 1/3; zero findings; feature HEAD 4f5b5404; STATE v7.558) |
+| **Current Phase** | Wave 3 Tier-3 complete — S-DTU-CYBERINT-AUTH-FIDELITY-001 per-story-delivery cascade at Step 4.5 (streak 1/3; Pass 15 CLEAN(strict); feature HEAD 4f5b5404). develop@72baf413. |
+| **Current Step** | D-879 — Pass 15 CLEAN(strict). Zero findings. Streak 1/3. Pass 16 next. Feature HEAD 4f5b5404 unchanged. |
 
 ## Phase Progress
 
@@ -362,12 +364,12 @@ historical_cycles: [phase-1-convergence, wave-3-multi-tenant, wave-4-operations]
 
 | Step | Agent | Status | Output |
 |------|-------|--------|--------|
-_D-735 through D-847 archived to cycles/wave-0-plugin-prereqs/burst-log.md. D-835+D-836+D-837 removed from Phase Steps (archived in Decisions Log). D-849/851/852/853/855/856/857/858/859/860/861/862/863/864/865/866/867/868/869/870/871/872/873/874/875/876/877 archived to burst-log.md._
-| D-878 — **CYBERINT PASS 14 COMPREHENSIVE NARRATIVE-HYGIENE SWEEP COMPLETE — READY FOR PASS 15 (state-manager, 2026-05-30). F-LP14-LOW-001 CLOSED: po-adjudications/F-LP12-LOW-001.md §3 Rationale point 2 corrected (21→20 cite-pin updates). Comprehensive sweep: 1 active site fixed; all other "21 cite-pin" occurrences confirmed historical-immutable per TD-VSDD-091. CLEAN(strict)=NO→Pass 14; fix-burst COMPLETE. Streak 0/3 unchanged. STATE v7.556→v7.557. User-authorized Option A.** | state-manager (D-878 comprehensive sweep burst) | PASS-14-COMPREHENSIVE-SWEEP-COMPLETE-READY-FOR-PASS-15 | Pass 15 LOCAL adversary next (lesson 58 preamble; feature HEAD 4f5b5404 unchanged) |
-| D-877 — **CYBERINT PASS 13 F-LP13-LOW-001 NARRATIVE CORRECTION COMPLETE — READY FOR PASS 14 (state-manager, 2026-05-30). F-LP13-LOW-001 CLOSED: narrative count 21→20 cite-pins corrected across 4 artifacts (po-adjudications/F-LP12-LOW-001.md + STATE.md checkpoint + lessons.md lesson 60 + adversary-convergence-state.json). CLEAN(strict)=NO; CLEAN(PR-merge)=YES. Streak 0/3 unchanged. STATE v7.555→v7.556.** | state-manager (D-877 narrative correction burst) | PASS-13-FIX-BURST-COMPLETE | closed by D-878 (Pass 14 comprehensive sweep) |
-| D-876 — **CYBERINT PASS 12 FIX-BURST COMPLETE — READY FOR PASS 13 (state-manager, 2026-05-30). F-LP12-MED-001 CLOSED: story v1.4→v1.5 H1+§Version body-sync (story-writer 9fb28d50). F-LP12-LOW-001 CLOSED: BC-2.01.017 v1.4→v1.5 §Notes introduced-in anchor convention (PO 23a17f6d). F-LP12-PG-001 codification pending (SAP-4 + POL-29 hygiene-exempt). BC-INDEX v5.62. STORY-INDEX v2.216. Lesson 60. STATE v7.554→v7.555.** | state-manager (D-876 closure burst) | PASS-12-FIX-BURST-COMPLETE | closed |
-| D-875 — **CYBERINT PASS 12 PO ADJUDICATION — F-LP12-LOW-001 CLOSED Option A. BC-2.01.017 v1.4→v1.5 §Notes introduced-in anchor convention. BC-INDEX v5.61→v5.62. PO commit 23a17f6d.** | product-owner (D-875 F-LP12-LOW-001 adjudication) | F-LP12-LOW-001-CLOSED-OPTION-A | closed |
-| D-874 — **CYBERINT PASS 12 STORY-WRITER FIX — F-LP12-MED-001 CLOSED. Story v1.4→v1.5 H1+§Version body-sync. STORY-INDEX v2.215→v2.216. Story-writer commit 9fb28d50.** | story-writer (D-874 body-sync) | F-LP12-MED-001-CLOSED | closed |
+_D-735 through D-847 archived to cycles/wave-0-plugin-prereqs/burst-log.md. D-835+D-836+D-837 removed from Phase Steps (archived in Decisions Log). D-849/851/852/853/855/856/857/858/859/860/861/862/863/864/865/866/867/868/869/870/871/872/873/874/875/876/877/878 archived to burst-log.md._
+| D-879 — **CYBERINT PASS 15 CLEAN(strict) — STREAK 1/3 (state-manager, 2026-05-30). Zero findings. All prior closures verified load-bearing. SAP-1/SAP-2/SID-1 PASS. Streak 0/3 → 1/3. STATE v7.557→v7.558.** | state-manager (D-879 Pass 15 persistence burst) | PASS-15-CLEAN-STRICT-STREAK-1-OF-3 | Pass 16 LOCAL adversary next (lesson 58 preamble; feature HEAD 4f5b5404 unchanged) |
+| D-878 — **CYBERINT PASS 14 COMPREHENSIVE NARRATIVE-HYGIENE SWEEP COMPLETE — READY FOR PASS 15 (state-manager, 2026-05-30). F-LP14-LOW-001 CLOSED. Streak 0/3 unchanged. STATE v7.556→v7.557.** | state-manager (D-878 comprehensive sweep burst) | PASS-14-COMPREHENSIVE-SWEEP-COMPLETE | closed by D-879 (Pass 15 CLEAN) |
+| D-877 — **CYBERINT PASS 13 F-LP13-LOW-001 NARRATIVE CORRECTION COMPLETE (state-manager, 2026-05-30). Streak 0/3 unchanged. STATE v7.555→v7.556.** | state-manager (D-877 narrative correction burst) | PASS-13-FIX-BURST-COMPLETE | closed |
+| D-876 — **CYBERINT PASS 12 FIX-BURST COMPLETE (state-manager, 2026-05-30). F-LP12-MED-001+F-LP12-LOW-001 CLOSED. BC-INDEX v5.62. STATE v7.554→v7.555.** | state-manager (D-876 closure burst) | PASS-12-FIX-BURST-COMPLETE | closed |
+| D-875 — **CYBERINT PASS 12 PO ADJUDICATION — F-LP12-LOW-001 CLOSED Option A. BC-2.01.017 v1.5. BC-INDEX v5.62.** | product-owner (D-875 adjudication) | F-LP12-LOW-001-CLOSED-OPTION-A | closed |
 
 
 ## Decisions Log
@@ -376,6 +378,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-879 | 2026-05-30 | state-manager | **CYBERINT PASS 15 CLEAN(strict) — STREAK 1/3. STATE v7.557→v7.558.** Pass 15 LOCAL adversary found zero findings of any severity. All prior closures verified load-bearing (F-LP3-HIGH-001 through F-LP14-LOW-001). SAP-1 PASS (no new uncataloged event_type emission sites). SAP-2 PASS (no TOML/DTU struct modifications). SID-1 PASS (all tests non-#[ignore]'d unit tests). Feature HEAD 4f5b5404 unchanged. Streak 0/3 → 1/3. adversary-convergence-state.json: pass-15 entry + current_streak=1 + status=PASS_15_CLEAN_STRICT_STREAK_1_OF_3. local-pass-15.md persisted. STATE v7.558. 271st consecutive single-commit per TD-VSDD-053. Anti-volatile-pin per TD-VSDD-091. | plugin-migration | 2026-05-30 | Decided by: adversary (Pass 15 CLEAN(strict) report) + state-manager (D-879 persistence burst). Status: APPROVED — Pass 16 next |
 | D-878 | 2026-05-30 | state-manager | **CYBERINT PASS 14 COMPREHENSIVE NARRATIVE-HYGIENE SWEEP — F-LP14-LOW-001 CLOSED + sibling residuals. STATE v7.556→v7.557.** Pass 14 LOCAL adversary found F-LP14-LOW-001 [LOW]: Pass 13 closure was incomplete — D-877 description said "verdict line + 3 summary lines" but §3 Rationale point 2 in `po-adjudications/F-LP12-LOW-001.md` still read "Forcing 21 cite-pin updates" (active forward-looking argumentation, not a historical-immutable row). Comprehensive sweep approach (user-authorized Option A 2026-05-30) executed. Sweep results: (1) Active narrative site FIXED — `po-adjudications/F-LP12-LOW-001.md` §3 Rationale point 2: "21 cite-pin updates" → "20 cite-pin updates"; (2) Historical-immutable sites PRESERVED per TD-VSDD-091 — adversarial-review/local-pass-12.md lines 83+95 (immutable pass report), adversarial-review/local-pass-13.md (immutable pass report documenting F-LP13-LOW-001), STATE.md D-873/D-875/D-876/D-877 Decision Log rows (immutable audit trail), SESSION-HANDOFF.md addendum sections (immutable narrative snapshots), BC-2.01.017 changelog row v1.5 (immutable changelog entry). Total active sites fixed: 1. Total historical-immutable preserved: multiple (6 locations, all per TD-VSDD-091). Verification grep after fix: zero "21 cite-pin" residuals in active narrative. Pass 14 report persisted: adversarial-review/local-pass-14.md. adversary-convergence-state.json: pass-14 entry added + comprehensive sweep resolution block + status=PASS_14_COMPREHENSIVE_SWEEP_COMPLETE_READY_FOR_PASS_15. Feature HEAD 4f5b5404 unchanged. 270th consecutive single-commit per TD-VSDD-053. Anti-volatile-pin per TD-VSDD-091. | plugin-migration | 2026-05-30 | Decided by: adversary (Pass 14 report, F-LP14-LOW-001 residual rationale prose) + user (Option A comprehensive sweep authorization 2026-05-30) + state-manager (D-878 comprehensive sweep burst). Status: APPROVED — Pass 15 next |
 | D-877 | 2026-05-30 | state-manager | **CYBERINT PASS 13 F-LP13-LOW-001 NARRATIVE CORRECTION — 21→20 cite-pins across 4 artifacts. STATE v7.555→v7.556.** Pass 13 LOCAL adversary found F-LP13-LOW-001 [LOW]: narrative count drift — PO adjudication verdict + STATE.md checkpoint + lessons.md lesson 60 + adversary-convergence-state.json all claimed "21 cite-pins" but actual rg of feature HEAD 4f5b5404 returns 20 matches. Root cause: PO enumeration table had 20 rows; verdict line said 21 (off-by-one counting error; propagated to all downstream narrative). Non-runtime, non-behavioral — code and adjudication disposition are correct. CLEAN(strict)=NO; CLEAN(PR-merge)=YES. Streak 0/3 not advanced per BC-5.39.001 D-779 strict criterion. State-manager narrative corrections (all non-historical forward-looking narrative): (1) po-adjudications/F-LP12-LOW-001.md — verdict line "All 21 cite-pins" → "All 20 cite-pins" + 3 summary lines; (2) STATE.md Session Resume Checkpoint — "all 21 cite-pins" → "all 20 cite-pins"; (3) cycles/wave-0-plugin-prereqs/lessons.md — Lesson 60 body (2 occurrences) + closure note; (4) adversary-convergence-state.json — pass-12 key_findings F-LP12-LOW-001 entry. Historical D-rows in Decision Log (D-873/D-875/D-876) and SESSION-HANDOFF.md addendum sections per TD-VSDD-091 immutable audit trail — NOT corrected. local-pass-13.md persisted. adversary-convergence-state.json pass-13 entry added + status=PASS_13_FIX_BURST_COMPLETE_READY_FOR_PASS_14. Feature HEAD 4f5b5404 unchanged. 269th consecutive single-commit per TD-VSDD-053. Anti-volatile-pin per TD-VSDD-091. | plugin-migration | 2026-05-30 | Decided by: adversary (Pass 13 report, F-LP13-LOW-001 factual count drift) + state-manager (D-877 narrative correction burst). Status: APPROVED — Pass 14 next |
 | D-876 | 2026-05-30 | state-manager | **CYBERINT PASS 12 FIX-BURST COMPLETE — READY FOR PASS 13. 2 findings closed. BC-INDEX v5.62. STORY-INDEX v2.216. Lesson 60 (SAP-4 + POL-29 hygiene-exempt). STATE v7.555.** D-874 (story-writer 9fb28d50): F-LP12-MED-001 closed — story v1.4→v1.5 body H1 updated to `v1.5`, §Version updated to `v1.5`, v1.5 changelog row added; STORY-INDEX v2.215→v2.216. D-875 (PO 23a17f6d): F-LP12-LOW-001 closed — Option A introduced-in anchor convention; BC-2.01.017 v1.4→v1.5 §Notes section added documenting convention; BC-INDEX v5.61→v5.62; PO adjudication doc at `.factory/cycles/wave-0-plugin-prereqs/S-DTU-CYBERINT-AUTH-FIDELITY-001/po-adjudications/F-LP12-LOW-001.md`; 21 cite-pins in auth_provider.rs confirmed Category A (introduced-in anchors — keep); PO recommended POL-29 step 8f v1.29 amendment to exempt hygiene-only commits from sibling-sweep obligation. F-LP12-PG-001 (SAP-4 + POL-29 hygiene-only-bump exemption): orchestrator codification queue — CLAUDE.md amendment pending. Lesson 60 appended to cycles/wave-0-plugin-prereqs/lessons.md. SESSION-HANDOFF.md §ADDENDUM 2026-05-30-PASS-12-FIX-BURST-COMPLETE appended. STATE.md v7.554→v7.555. Streak 0/3 — Pass 13 LOCAL adversary next. Feature HEAD 4f5b5404 unchanged. 268th consecutive single-commit per TD-VSDD-053. Anti-volatile-pin per TD-VSDD-091. | plugin-migration | 2026-05-30 | Decided by: story-writer (9fb28d50 D-874) + product-owner (23a17f6d D-875) + state-manager (D-876 closure burst). Status: APPROVED — Pass 13 next |
@@ -578,31 +581,32 @@ Prior cycle history:
 
 ---
 
-## Session Resume Checkpoint (2026-05-30 — D-878 Pass 14 comprehensive sweep COMPLETE; streak 0/3; feature@4f5b5404; develop@72baf413)
+## Session Resume Checkpoint (2026-05-30 — D-879 Pass 15 CLEAN(strict); streak 1/3; feature@4f5b5404; develop@72baf413)
 
-_Previous checkpoint (D-877 Pass 13 F-LP13-LOW-001 narrative fix COMPLETE; streak 0/3) superseded by D-878 Pass 14 comprehensive narrative-hygiene sweep (F-LP14-LOW-001 closed; user-authorized Option A)._
+_Previous checkpoint (D-878 Pass 14 comprehensive sweep COMPLETE; streak 0/3) superseded by D-879 Pass 15 CLEAN(strict) (streak 1/3)._
 
-**STATE v7.557. D-878 — PASS 14 COMPREHENSIVE SWEEP COMPLETE — STREAK 0/3. Feature HEAD 4f5b5404 unchanged. Pass 15 next. develop@72baf413.**
+**STATE v7.558. D-879 — PASS 15 CLEAN(strict) — STREAK 1/3. Feature HEAD 4f5b5404 unchanged. Pass 16 next. develop@72baf413.**
 
-**develop HEAD:** `72baf413` | **Workspace test count:** 3839 | **Feature branch HEAD:** `4f5b5404` | **Cyberint cascade streak:** 0/3 (ready for Pass 15)
+**develop HEAD:** `72baf413` | **Workspace test count:** 3839 | **Feature branch HEAD:** `4f5b5404` | **Cyberint cascade streak:** 1/3 (ready for Pass 16)
 
-**Pass 14 result: NOT CLEAN(strict). CLEAN(PR-merge).** F-LP14-LOW-001 [LOW]: Pass 13 closure incomplete — §3 Rationale point 2 in `po-adjudications/F-LP12-LOW-001.md` still read "Forcing 21 cite-pin updates" (active argumentation prose). Comprehensive sweep (user-authorized Option A) fixed 1 active site: "21 cite-pin updates" → "20 cite-pin updates". All other "21 cite-pin" occurrences verified as historical-immutable per TD-VSDD-091. Sweep confirmed zero active-narrative residuals after fix.
+**Pass 15 result: CLEAN(strict). CLEAN(PR-merge).** Zero findings of any severity. All prior closures verified load-bearing. SAP-1/SAP-2/SID-1 PASS. Streak 0/3 → 1/3.
 
 **Critical path (next actions for new session):**
-1. **READ `SESSION-HANDOFF.md §ADDENDUM 2026-05-30-PASS-14-COMPREHENSIVE-SWEEP-COMPLETE`** — closure summary
-2. **Dispatch Pass 15** LOCAL adversary with mandatory lesson 58 preamble — feature HEAD 4f5b5404, story v1.5, BC-2.01.017 v1.5, BC-INDEX v5.62, STORY-INDEX v2.216, error-taxonomy v1.55, policies v1.31. If CLEAN(strict) → streak 1/3
-3. **Queue SAP-4 + POL-29 hygiene-exempt codification** (F-LP12-PG-001) for CLAUDE.md amendment in next session
+1. **READ `SESSION-HANDOFF.md §ADDENDUM 2026-05-30-PASS-15-CLEAN-STREAK-1-OF-3`** — closure summary
+2. **Dispatch Pass 16** LOCAL adversary with mandatory lesson 58 preamble — feature HEAD 4f5b5404, story v1.5, BC-2.01.017 v1.5, BC-INDEX v5.62, STORY-INDEX v2.216, error-taxonomy v1.55, policies v1.31. If CLEAN(strict) → streak 2/3
+3. **Pass 17** — if CLEAN(strict) → streak 3/3 → LOCAL CONVERGED → demo-recorder → push → PR cycle
+4. **Queue SAP-4 + POL-29 hygiene-exempt codification** (F-LP12-PG-001) for CLAUDE.md amendment in next session
 
 **Active worktrees:**
-- `.worktrees/S-DTU-CYBERINT-AUTH-FIDELITY-001` — IN PROGRESS (streak 0/3 ready for Pass 15; feature HEAD 4f5b5404)
+- `.worktrees/S-DTU-CYBERINT-AUTH-FIDELITY-001` — IN PROGRESS (streak 1/3; Pass 16 next; feature HEAD 4f5b5404)
 - `.worktrees/S-3.09` — FROZEN (BUG-S309-PLUGIN), stale since 2026-05-11; deferred per user direction
 - `.worktrees/W3-FIX-S307-001` — BLOCKED (superseded), stale since 2026-05-24; deferred per user direction
 
 **Open PRs:** None.
 
-**Resume protocol (3 steps — Pass 15):**
+**Resume protocol (3 steps — Pass 16):**
 1. Run `vsdd-factory:factory-worktree-health` (BLOCKING preflight)
-2. Read STATE.md frontmatter — confirm `version: "7.557"` and `develop_head: "72baf413"` (D-878 checkpoint)
-3. Dispatch Pass 15 LOCAL adversary (lesson 58 preamble, feature HEAD 4f5b5404) → if CLEAN(strict) streak 1/3 → Pass 16 → Pass 17 → LOCAL CONVERGED
+2. Read STATE.md frontmatter — confirm `version: "7.558"` and `develop_head: "72baf413"` (D-879 checkpoint)
+3. Dispatch Pass 16 LOCAL adversary (lesson 58 preamble, feature HEAD 4f5b5404) → if CLEAN(strict) streak 2/3 → Pass 17 → 3/3 → LOCAL CONVERGED
 
 _Agent routing: see CLAUDE.md §Agent Routing Table._
