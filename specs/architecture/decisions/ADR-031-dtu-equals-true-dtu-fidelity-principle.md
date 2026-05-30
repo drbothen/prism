@@ -4,8 +4,8 @@ adr_id: "ADR-031"
 title: "DTU = True DTU — Fidelity Principle for All Clone Implementations"
 status: Proposed
 date: "2026-05-29"
-modified: "2026-05-29"
-version: "1.0"
+modified: "2026-05-30"
+version: "1.1"
 producer: architect
 subsystems_affected: [SS-01, SS-07, SS-16, SS-17]
 supersedes: ["ADR-028 §D12 (Cyberint cookie auth real-API vs DTU model divergence — DTU-shortcut acceptance SUPERSEDED)"]
@@ -284,6 +284,71 @@ A parity test that passes with `cyberint_session` does NOT constitute evidence o
 fidelity — it is evidence of internal consistency within a wrong model. The adversary MUST
 probe for this distinction per SAP-2.
 
+### D7 — Scope Expansion: Harness Clones are In-Scope for DTU=True-DTU (v1.1 Amendment)
+
+**Trigger:** F-LP1-OBS-001 [process-gap] from S-DTU-CYBERINT-AUTH-FIDELITY-001 Pass 1
+LOCAL adversary cascade (2026-05-30). The adversary found that
+`crates/prism-dtu-harness/src/clones/cyberint.rs` still uses `cyberint_session` cookie
++ `POST /login` auth model, violating ADR-031 §D1. This file was NOT in scope of the
+prior architect audit (POLLER-DTU-FIDELITY-AUDIT-2026-05-29 v1.1) because the audit
+enumerated `crates/prism-dtu-{sensor}/src/` paths but not the harness-clones path.
+
+**Amendment to D1 (scope extension):**
+
+The following sentence is added to §D1 to make the enumeration of in-scope paths explicit:
+
+> DTU clone implementations governed by this ADR include ALL behavioral clones of sensor
+> APIs in the workspace, regardless of crate path. Explicitly enumerated:
+>
+> - `crates/prism-dtu-{sensor}/src/clone.rs` and `crates/prism-dtu-{sensor}/src/routes/`
+>   (canonical standalone DTU clone crates)
+> - `crates/prism-dtu-harness/src/clones/{sensor}.rs` (harness-embedded behavioral clones)
+> - Any future harness, fixture, or integration-test clone added under any `crates/prism-dtu-*/`
+>   or `crates/*-harness/` path
+
+**Audit outcome (HARNESS-DTU-FIDELITY-AUDIT-2026-05-30):**
+
+Full audit results are in `.factory/proposals/HARNESS-DTU-FIDELITY-AUDIT-2026-05-30.md`.
+Summary per sensor:
+
+| Sensor | Harness clone ADR-031 D1 violations | Severity | Harness change required |
+|--------|-------------------------------------|----------|------------------------|
+| Cyberint | 4 CRITICAL (cookie name `cyberint_session` vs `access_token`; login step; auth validator; session store) + 1 HIGH (POST /login route) | CRITICAL | YES — simultaneous with canonical DTU fix in S-DTU-CYBERINT-AUTH-FIDELITY-001 |
+| CrowdStrike | None | — | NO |
+| Claroty | 1 HIGH — missing `/api/v1/audit_log/get` route (same as canonical Gap-CL-006) | HIGH | YES — simultaneous with canonical DTU fix in S-DEMO-CLAROTY-AUDIT-DTU-001 |
+| Armis | None | — | NO |
+
+**Remediation pattern (Pattern B — in-place rewrite, adopted):**
+
+Harness clones are rewritten in-place to implement the correct fidelity model. Harness
+clones do NOT delegate to canonical DTU crates at runtime (maintaining the existing
+architectural choice to avoid circular dev-dependency chains). Fixture data sharing via
+`include_str!` is preserved for Claroty and Armis. Cyberint harness clone rewrite is
+in-scope for S-DTU-CYBERINT-AUTH-FIDELITY-001 (expanded scope).
+
+**Scope decision: Scope-1 (in-current-story) for Cyberint:**
+
+The Cyberint harness clone fix is added to S-DTU-CYBERINT-AUTH-FIDELITY-001 scope.
+Both `prism-dtu-cyberint` (canonical DTU) and `prism-dtu-harness/src/clones/cyberint.rs`
+(harness clone) share the same wrong auth model and MUST be corrected in the same PR.
+The Claroty audit_log harness gap is co-scoped with S-DEMO-CLAROTY-AUDIT-DTU-001.
+
+**Process-gap codification (F-LP1-OBS-001):**
+
+Architect audits that scope DTU clone paths MUST explicitly enumerate ALL paths where
+behavioral clones live, not just the `crates/prism-dtu-{sensor}/src/` prefix. The correct
+audit enumeration for DTU fidelity is:
+
+```
+sources_read:
+  - crates/prism-dtu-{sensor}/src/clone.rs
+  - crates/prism-dtu-{sensor}/src/routes/{relevant_routes}.rs
+  - crates/prism-dtu-harness/src/clones/{sensor}.rs       # REQUIRED — do not omit
+  - crates/prism-dtu-{sensor}/src/state.rs
+```
+
+See lessons.md entry 54 for the process-gap codification.
+
 ### D6 — Cross-Sensor Applicability
 
 The DTU=True-DTU principle applies to ALL four sensor DTU clones. The cross-sensor
@@ -383,3 +448,4 @@ non-standard cookie names, but it does not resolve the DTU fidelity problem.
 | Version | Date | Author | Summary |
 |---------|------|--------|---------|
 | 1.0 | 2026-05-29 | architect | Initial version — establishes DTU=True-DTU as binding architectural principle per user directive 2026-05-29. Supersedes ADR-028 §D12. Defines D1 (six fidelity requirements), D2 (exhaustive list of permitted divergences), D3 (Cyberint DTU correction), D4 (§D12 supersession), D5 (validation discipline), D6 (cross-sensor applicability). Anchor story: S-DTU-CYBERINT-AUTH-FIDELITY-001 (reclassified from P2-post-demo to P0-pre-demo-BLOCKING). |
+| 1.1 | 2026-05-30 | architect | Scope expansion amendment — adds §D7 extending DTU=true-DTU binding to all harness-clone paths (`crates/prism-dtu-harness/src/clones/{sensor}.rs`) per F-LP1-OBS-001 [process-gap] from S-DTU-CYBERINT-AUTH-FIDELITY-001 Pass 1 LOCAL adversary cascade. Harness audit (`HARNESS-DTU-FIDELITY-AUDIT-2026-05-30.md`): Cyberint CRITICAL violations (4 CRIT + 1 HIGH; fixed in S-DTU-CYBERINT-AUTH-FIDELITY-001 expanded scope); Claroty HIGH gap (audit_log route, co-scoped with S-DEMO-CLAROTY-AUDIT-DTU-001); CrowdStrike and Armis CLEAN. Remediation pattern: Pattern B (in-place rewrite). Scope decision: Scope-1 for Cyberint. Process-gap lesson 54 codified. |

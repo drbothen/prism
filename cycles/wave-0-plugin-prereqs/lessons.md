@@ -411,3 +411,31 @@ traces_to: STATE.md
     **Reference patterns:** D-846 lesson 51 (architect direct-push, context and user acceptance). D-848 push-block event (state-manager attempt blocked by factory-artifacts local-only policy). Both events occurred within the same 2026-05-29 working session, separated by approximately 2 hours and several intervening decision rows — confirming this is not a one-time error but a pattern.
 
     _Codified: D-849 state-manager final reconciliation burst, 2026-05-29. Two violations in one session established recurring-pattern classification._
+
+## 2026-05-30 D-850 — Harness-Clone Audit Scope Gap (ADR-031 §D7)
+
+54. **[process-gap] [codified] Architect DTU fidelity audits MUST explicitly enumerate ALL crate paths where behavioral clones live. Enumerating `crates/prism-dtu-{sensor}/src/` alone is insufficient — the harness-embedded clones at `crates/prism-dtu-harness/src/clones/{sensor}.rs` are equally binding under ADR-031 §D1 and MUST appear in the audit `sources_read:` manifest.**
+
+    **Evidence:** POLLER-DTU-FIDELITY-AUDIT-2026-05-29 v1.1 audited four canonical DTU crates (`prism-dtu-{crowdstrike,claroty,armis,cyberint}/src/`) and produced the ADR-031 D6 cross-sensor applicability table. That table correctly identified that the Cyberint canonical DTU had CRITICAL violations and needed `access_token` correction. However, the audit's `sources_read:` did not list `crates/prism-dtu-harness/src/clones/{sensor}.rs` — a parallel set of behavioral clones that exist in the same workspace. The HARNESS-DTU-FIDELITY-AUDIT-2026-05-30 found that the Cyberint harness clone had the SAME 4 CRITICAL + 1 HIGH violations as the canonical DTU: `cyberint_session` cookie name, `POST /login` required, wrong auth validator, wrong session store model. Additionally, the Claroty harness clone was missing the `/api/v1/audit_log/get` route (same as canonical Gap-CL-006). CrowdStrike and Armis harness clones were clean.
+
+    **Root cause:** The prior audit instruction was "audit the canonical DTU clones" without explicitly naming the harness path. The architect scoped to the canonical path prefix (`crates/prism-dtu-{sensor}/`) and did not scan for ALL behavioral clones in the workspace. This is exactly the class of error that TD-VSDD-091 is designed to catch for spec content — but there was no equivalent discipline for audit scope declaration.
+
+    **Mandatory discipline (all future architect DTU fidelity audits):**
+
+    The canonical `sources_read:` manifest for a DTU fidelity audit MUST include:
+
+    ```yaml
+    sources_read:
+      - crates/prism-dtu-{sensor}/src/clone.rs
+      - crates/prism-dtu-{sensor}/src/routes/{relevant_routes}.rs
+      - crates/prism-dtu-harness/src/clones/{sensor}.rs      # MANDATORY — never omit
+      - crates/prism-dtu-{sensor}/src/state.rs
+      - crates/prism-sensors/specs/{sensor}.sensor.toml
+      - .factory/semport/poller-{codename}/poller-{codename}-broad-sweep.md
+    ```
+
+    Before completing any architect DTU audit, run: `ls crates/prism-dtu-harness/src/clones/` and verify every listed file is audited. If a new sensor is added, a corresponding harness clone entry MUST be created and audited on the same story.
+
+    **Remediation:** ADR-031 amended to v1.1 with §D7 explicitly enumerating harness-clone paths as in-scope. POLLER-DTU-FIDELITY-AUDIT-2026-05-29 updated to v1.2 with scope-incompleteness addendum. HARNESS-DTU-FIDELITY-AUDIT-2026-05-30 produced as the corrective audit. S-DTU-CYBERINT-AUTH-FIDELITY-001 scope expanded (Scope-1) to include `prism-dtu-harness/src/clones/cyberint.rs` rewrite in the same PR as the canonical DTU fix. Claroty harness audit_log gap co-scoped with S-DEMO-CLAROTY-AUDIT-DTU-001.
+
+    _Discovered: D-850 architect harness-clone audit burst, 2026-05-30. F-LP1-OBS-001 from S-DTU-CYBERINT-AUTH-FIDELITY-001 Pass 1 LOCAL adversary cascade. Triggered by F-LP1-CRIT-001 which surfaced the parallel Cyberint harness clone violation._

@@ -4,8 +4,21 @@ title: "Cross-Poller DTU Fidelity Audit — All 4 Sensors (2026-05-29)"
 author: architect
 date: "2026-05-29"
 status: FINAL
-version: "1.1"
+version: "1.2"
 revision_notes: |
+  v1.2 (2026-05-30): Scope-incompleteness addendum — harness clone paths NOT audited.
+  Key addition:
+  - This audit (v1.1) was INCOMPLETE in scope: it audited `crates/prism-dtu-{sensor}/src/`
+    paths only. It did NOT audit `crates/prism-dtu-harness/src/clones/{sensor}.rs`.
+  - Triggered by F-LP1-OBS-001 from S-DTU-CYBERINT-AUTH-FIDELITY-001 Pass 1 LOCAL adversary
+    cascade (2026-05-30).
+  - Full harness-clone audit: `.factory/proposals/HARNESS-DTU-FIDELITY-AUDIT-2026-05-30.md`
+  - ADR-031 amended: §D7 added (v1.1) to explicitly enumerate harness-clone paths as in-scope.
+  - Cyberint harness clone: CRITICAL violations identical to canonical DTU (4 CRIT + 1 HIGH);
+    fix scoped into S-DTU-CYBERINT-AUTH-FIDELITY-001 (Scope-1 expansion).
+  - Claroty harness clone: HIGH gap (audit_log route absent); co-scoped with
+    S-DEMO-CLAROTY-AUDIT-DTU-001.
+  - CrowdStrike and Armis harness clones: CLEAN — no ADR-031 violations.
   v1.1 (2026-05-29): Re-evaluated ALL gap rows under the DTU=true-DTU principle (ADR-031).
   Key changes from v1.0:
   - Gap-CY-001: FLIPPED from "DTU demo path consistent, document for live" to
