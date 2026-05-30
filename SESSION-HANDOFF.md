@@ -8318,3 +8318,28 @@ _Snapshot terminus: 2026-05-30. Cyberint cascade at Step 4.5 mid-fix. Pass 1 fix
 **Anti-volatile-pin note (TD-VSDD-091):** Citations in this addendum use story/BC/function-name anchors. The `resolve_secret.rs:78-81` citation is load-bearing verifiable code evidence (exception per TD-VSDD-091 carve-out) — this is the specific code excerpt that disproved the normalization claim.
 
 **Resume §7 update:** Step 6 (Pass 1 complete) and Step 7 (Pass 2 fix-burst dispatched) complete. Next: await implementer → D-855 → Pass 3.
+
+---
+
+## §ADDENDUM 2026-05-30-PASS-2-FIX-BURST-COMPLETE (D-855)
+
+**State update:** Pass 2 fix-burst COMPLETE. All 4 Pass 2 findings closed. Feature HEAD: `d697425b`. STATE: v7.541.
+
+**Pass 2 closure summary:**
+
+| Route | Findings | Key action |
+|-------|----------|------------|
+| Implementer (d697425b) | F-LP2-CRIT-001 (test split) + F-LP2-HIGH-001 (env-var refactor) | `test_static_cookie_auth_provider_missing_credential_returns_e_auth_005` + `test_static_cookie_auth_provider_empty_value_returns_e_auth_006`; `test_static_cookie_auth_provider_injects_resolved_token_from_credentials` via MockCredentialResolver |
+| PO (2707ee69) | F-LP2-CRIT-001 (BC revert) | BC-2.01.017 v1.1→v1.2 EC-017-005 = E-AUTH-006; BC-INDEX v5.58 |
+| State-manager (D-854) | F-LP2-MED-001 + F-LP2-PG-001 | TD-FOLLOWUP-ARRAY-COLUMNTYPE-001 (P2) filed; lesson 56 codified |
+| State-manager (D-855) | — | Closure recording; adversary-convergence-state.json + STATE.md v7.541 |
+
+**Verification at feature HEAD d697425b:** `just check` EXIT 0. `cargo nextest run -p prism-spec-engine -E 'test(test_static_cookie_auth_provider)'` = 5/5 PASS (was 4). `rg 'unsafe.*set_var' crates/prism-spec-engine/src/auth_provider.rs` = 0 hits. 46/46 non_exhaustive types enforced. Workspace test count: prism-spec-engine 490 (was 489).
+
+**Sibling-sweep advisory (out of scope):** Implementer's symbol search surfaced 4 sites of `unsafe { std::env::set_var }` in `crates/prism-bin/tests/plugin_boot_tests.rs` (~lines 167, 192, 210, 489). Each SAFETY comment cites only "single-threaded test; no other thread reads PRISM_DISABLE_PLUGIN_LOAD concurrently" — does NOT cite BC-2.03.009 or resolver-backend BC. This is plugin-boot infrastructure, NOT auth provider. Out of scope for S-DTU-CYBERINT-AUTH-FIDELITY-001. Not filed as TD (CLAUDE.md Canonical Principle Rule 3 — no human direction, no concrete future dependency). Advisory noted here for human visibility at next gate. Pass 3 adversary may re-surface if material.
+
+**D-855 cascade closure marker:** This commit (D-855 state-manager burst) is the cascade closure marker for the Pass 2 cycle. Next: Pass 3 LOCAL adversary dispatch.
+
+**Anti-volatile-pin note (TD-VSDD-091):** All citations in this addendum use story/BC/function-name/test-name anchors per TD-VSDD-091. The `plugin_boot_tests.rs` line-number citations (~167, ~192, ~210, ~489) are approximate advisory references, not load-bearing; they serve to orient future investigation and are explicitly qualified as approximate.
+
+**Resume §7 step update:** Step 6 (Pass 1 complete), Step 7 (Pass 2 fix-burst COMPLETE, all 4 findings closed). Next action = Pass 3 LOCAL adversary dispatch against feature HEAD `d697425b`.
