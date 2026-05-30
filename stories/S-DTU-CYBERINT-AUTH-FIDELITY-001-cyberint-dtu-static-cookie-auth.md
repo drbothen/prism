@@ -12,7 +12,7 @@ status: ready
 # skill strict prereq. No content/maturity change. BC-2.01.017 will auto-promote draft→active
 # at this story's merge per POL-14. Prism precedent is draft-at-dispatch + POL-14-promote-at-merge;
 # this flip is purely to satisfy the vsdd-factory deliver-story skill's strict prereq gate.
-version: "1.2"
+version: "1.3"
 level: "L4"
 producer: story-writer
 timestamp: "2026-05-29T00:00:00Z"
@@ -135,7 +135,7 @@ phase: 3
 
 **Story ID:** S-DTU-CYBERINT-AUTH-FIDELITY-001
 **Status:** ready
-**Version:** v1.2
+**Version:** v1.3
 **Wave:** 5
 **Priority:** P0 (pre-demo BLOCKING)
 **Points:** 8
@@ -244,7 +244,7 @@ present. It returns `None` (NOT the `cyberint_session` value) if only a `cyberin
 cookie is present.
 (traces to BC-2.01.013 precondition — auth validation must use the correct credential form
 per the adapter pattern contract)
-Red Gate test: `test_BC_2_01_013_dtu_extract_access_token_parses_cookie_header`
+Red Gate test: `test_BC_2_01_017_dtu_extract_access_token_parses_cookie_header`
 
 #### AC-003: DTU check_auth validates access_token cookie, not session UUID
 `check_auth` in `routes/alerts.rs` calls `extract_access_token` (not `extract_session_token`).
@@ -283,7 +283,7 @@ Constructor: `StaticCookieAuthProvider::new(sensor_id: SensorId, credential_reso
 - On credential resolution failure: returns `Err(SpecEngineError::AuthAcquisitionFailed { ... })`.
 (traces to BC-2.01.013 postcondition 4 — spec-driven adapter auth provider; ADR-031 §D3-b rule 2;
  traces to BC-2.01.017 §Postconditions — acquire_token returns api_key value without any HTTP call)
-Red Gate test: `test_BC_2_01_013_static_cookie_auth_provider_returns_api_key_without_http_call`
+Red Gate test: `test_BC_2_01_017_static_cookie_auth_provider_returns_api_key_without_http_call`
 
 #### AC-006: StaticCookieAuthProvider::acquire_token never issues an HTTP request
 When `StaticCookieAuthProvider::acquire_token()` is called in any test environment (including
@@ -295,7 +295,7 @@ the auth provider must not introduce one.
 sensor is a credential read, not an HTTP exchange;
  traces to BC-2.01.017 §Invariants — zero HTTP calls during acquire_token is a hard invariant
  of the StaticCookieAuthProvider contract; any HTTP call is a BC-2.01.017 violation)
-Red Gate test: `test_BC_2_01_016_static_cookie_auth_provider_acquire_token_no_http_call`
+Red Gate test: `test_BC_2_01_017_static_cookie_auth_provider_acquire_token_no_http_call`
 
 #### AC-007: build_request injects Cookie: access_token header for CookieRoundtrip
 `PipelineExecutor::build_request` dispatches the auth header based on `auth_type`:
@@ -304,7 +304,7 @@ Red Gate test: `test_BC_2_01_016_static_cookie_auth_provider_acquire_token_no_ht
   NOT `Authorization: Bearer {token}`.
 - All other `AuthType` variants: behavior unchanged (Authorization: Bearer).
 (traces to BC-2.01.013 postcondition — pipeline injects correct auth form per sensor's auth_type)
-Red Gate test: `test_BC_2_01_013_build_request_injects_access_token_cookie_for_cookie_roundtrip`
+Red Gate test: `test_BC_2_01_017_build_request_injects_access_token_cookie_for_cookie_roundtrip`
 
 #### AC-008: End-to-end parity: access_token cookie → DTU alerts endpoint returns data
 Integration test against a running `CyberintClone` (corrected DTU): a pipeline call for
@@ -350,12 +350,12 @@ recurrence policy. Zero uncatalogued `event_type` emissions are permitted.
 | Test Name | AC | Crate | Description |
 |-----------|----|-------|-------------|
 | `test_BC_2_16_013_dtu_post_login_route_removed_returns_404` | AC-001 | prism-dtu-cyberint | POST /login to running DTU returns 404 |
-| `test_BC_2_01_013_dtu_extract_access_token_parses_cookie_header` | AC-002 | prism-dtu-cyberint | extract_access_token extracts access_token; returns None for cyberint_session |
+| `test_BC_2_01_017_dtu_extract_access_token_parses_cookie_header` | AC-002 | prism-dtu-cyberint | extract_access_token extracts access_token; returns None for cyberint_session |
 | `test_BC_2_16_013_dtu_check_auth_requires_access_token_cookie_not_session` | AC-003 | prism-dtu-cyberint | check_auth: access_token cookie → 200; cyberint_session cookie → 401 |
 | `test_BC_2_16_013_dtu_state_access_token_allowlist_not_session_uuid` | AC-004 | prism-dtu-cyberint | CyberintState: no UUID issuance; allowlist-based validation |
-| `test_BC_2_01_013_static_cookie_auth_provider_returns_api_key_without_http_call` | AC-005 | prism-spec-engine | StaticCookieAuthProvider::acquire_token returns api_key; no HTTP call (BC-2.01.017 §Postconditions) |
-| `test_BC_2_01_016_static_cookie_auth_provider_acquire_token_no_http_call` | AC-006 | prism-spec-engine | Zero HTTP calls during acquire_token (BC-2.01.017 §Invariants — no-HTTP-call invariant) |
-| `test_BC_2_01_013_build_request_injects_access_token_cookie_for_cookie_roundtrip` | AC-007 | prism-spec-engine | build_request dispatches Cookie: access_token for CookieRoundtrip |
+| `test_BC_2_01_017_static_cookie_auth_provider_returns_api_key_without_http_call` | AC-005 | prism-spec-engine | StaticCookieAuthProvider::acquire_token returns api_key; no HTTP call (BC-2.01.017 §Postconditions) |
+| `test_BC_2_01_017_static_cookie_auth_provider_acquire_token_no_http_call` | AC-006 | prism-spec-engine | Zero HTTP calls during acquire_token (BC-2.01.017 §Invariants — no-HTTP-call invariant) |
+| `test_BC_2_01_017_build_request_injects_access_token_cookie_for_cookie_roundtrip` | AC-007 | prism-spec-engine | build_request dispatches Cookie: access_token for CookieRoundtrip |
 
 ---
 
@@ -376,7 +376,7 @@ recurrence policy. Zero uncatalogued `event_type` emissions are permitted.
    - `check_auth` updated to call `extract_access_token` (stubs can have `todo!()` bodies)
 6. **Write Red Gate tests** (must ALL FAIL before implementation):
    - `test_BC_2_16_013_dtu_post_login_route_removed_returns_404`
-   - `test_BC_2_01_013_dtu_extract_access_token_parses_cookie_header`
+   - `test_BC_2_01_017_dtu_extract_access_token_parses_cookie_header`
    - `test_BC_2_16_013_dtu_check_auth_requires_access_token_cookie_not_session`
    - `test_BC_2_16_013_dtu_state_access_token_allowlist_not_session_uuid`
    Verify they FAIL (RED gate confirmed) before proceeding to step 7.
@@ -436,9 +436,9 @@ recurrence policy. Zero uncatalogued `event_type` emissions are permitted.
     - `StaticCookieAuthProvider` struct + `AuthProvider` impl in `auth_provider.rs` (stub bodies)
     - Updated `build_request` dispatch arm for `CookieRoundtrip` (stub)
 19. **Write Red Gate tests** (must ALL FAIL before implementation):
-    - `test_BC_2_01_013_static_cookie_auth_provider_returns_api_key_without_http_call`
-    - `test_BC_2_01_016_static_cookie_auth_provider_acquire_token_no_http_call`
-    - `test_BC_2_01_013_build_request_injects_access_token_cookie_for_cookie_roundtrip`
+    - `test_BC_2_01_017_static_cookie_auth_provider_returns_api_key_without_http_call`
+    - `test_BC_2_01_017_static_cookie_auth_provider_acquire_token_no_http_call`
+    - `test_BC_2_01_017_build_request_injects_access_token_cookie_for_cookie_roundtrip`
     Verify they FAIL (RED gate confirmed) before proceeding to step 20.
 20. **Implement `StaticCookieAuthProvider`** in `prism-spec-engine/src/auth_provider.rs`:
     ```rust
@@ -592,6 +592,19 @@ N/A — first story in E-DTU-FIDELITY epic. Key lessons from adjacent stories:
 
 ## Notes for Implementer
 
+**Test naming convention — F-LP6-LOW-001 v1.3 amendment:** Test function names use the
+prefix of the BC they DIRECTLY PROVE (primary-BC prefix convention, project-wide). Each
+test in the Red Gate table has a `test_BC_X_XX_XXX_` prefix that matches the BC whose
+postcondition/invariant the test verifiably exercises. Tests for `StaticCookieAuthProvider`
+behavior (AC-002, AC-005, AC-006, AC-007) use `test_BC_2_01_017_*` because BC-2.01.017
+is the StaticCookieAuthProvider Contract — No-Login-Roundtrip Cookie Injection; tests
+proving DTU route/state behavior (AC-001, AC-003, AC-004) use `test_BC_2_16_013_*`
+because BC-2.16.013 is the DTU parity contract. BC-2.01.013 and BC-2.01.016 are in
+`behavioral_contracts:` (their invariants are covered by the full test suite), but no
+Red Gate test uses their prefix because no individual test independently proves their
+specific postconditions/invariants more directly than it proves BC-2.01.017 or
+BC-2.16.013. Implementer must use the exact test names listed in §Red Gate Tests.
+
 **BC-2.01.017 — canonical contract for StaticCookieAuthProvider:** BC-2.01.017 (authored
 by PO at commit b8cf19e1, 2026-05-29) is the primary behavioral contract for this story's
 key deliverable. Read it before implementing `StaticCookieAuthProvider`. Its §Postconditions
@@ -665,4 +678,5 @@ Well within the 20-30% budget.
 |---------|------|--------|-------|
 | 1.0 | 2026-05-29 | story-writer | Initial materialization from [planned] stub per ADR-031 §D3-c and user directive 2026-05-29. Structured as DTU-side ACs + prism-side ACs per user direction. 11 ACs, 6 Red Gate tests, 8 pts, wave 5, P0-pre-demo-BLOCKING. |
 | 1.1 | 2026-05-29 | story-writer | D-849-prep: BC-2.01.017 (Static Cookie AuthProvider Contract — No-Login-Roundtrip Cookie Injection; PO authored commit b8cf19e1) propagated into story per bc_array_changes_propagate_to_body_and_acs policy. Changes: (1) behavioral_contracts: BC-2.01.017 added (4 BCs total); (2) Body BC table: BC-2.01.017 row added; (3) AC-005 citation: BC-2.01.017 §Postconditions added; (4) AC-006 citation: BC-2.01.017 §Invariants added; (5) AC-010 expanded to cover E-AUTH-006 per error-taxonomy.md v1.53 + BC-2.01.017 §Edge Cases; (6) Red Gate tests table: test_BC_2_01_016_static_cookie_auth_provider_acquire_token_no_http_call added (was in AC-006 body but absent from summary table); red_gate_tests 6→7; (7) Token Budget: BC files 3→4, ~4,500→~6,000 tokens; (8) Notes for Implementer: BC-2.01.017 canonical-contract note added; (9) inputs: BC-2.01.017 file added; (10) BC status comment updated to reflect PO authorship complete. |
+| 1.3 | 2026-05-30 | story-writer D-863 | F-LP6-LOW-001 Option A (rename): corrected 4 Red Gate test names from wrong BC prefix to primary-BC prefix per project-wide prefix-by-primary-BC convention (S-CONFIG/S-PLUGIN-PREREQ-E evidence). (1) `test_BC_2_01_013_dtu_extract_access_token_parses_cookie_header` → `test_BC_2_01_017_*`: proves extract_access_token behavior which is BC-2.01.017 §Postconditions, not BC-2.01.013. (2) `test_BC_2_01_013_static_cookie_auth_provider_returns_api_key_without_http_call` → `test_BC_2_01_017_*`: proves StaticCookieAuthProvider::acquire_token which is BC-2.01.017 §Postconditions. (3) `test_BC_2_01_016_static_cookie_auth_provider_acquire_token_no_http_call` → `test_BC_2_01_017_*`: proves no-HTTP-call invariant which is BC-2.01.017 §Invariants, not BC-2.01.016. (4) `test_BC_2_01_013_build_request_injects_access_token_cookie_for_cookie_roundtrip` → `test_BC_2_01_017_*`: proves build_request Cookie: access_token dispatch which is BC-2.01.017 behavior. Red Gate table, AC body inline citations, and Tasks step-6/step-19 all updated. Test naming convention note added to §Notes for Implementer. Implementer follow-on: rename 4 test functions in `crates/prism-spec-engine/` and `crates/prism-dtu-cyberint/` test files to match. STORY-INDEX v2.212→v2.213. |
 | 1.2 | 2026-05-29 | state-manager D-850 | Administrative status flip `draft` → `ready` per user direction 2026-05-29 to satisfy vsdd-factory deliver-story skill strict prereq. No content or maturity change. Prism precedent is draft-at-dispatch with POL-14 auto-promotion at merge (PLUGIN-MIGRATION-001-A/B/C/D/E + S-CONFIG all entered cascade as draft); this flip is purely administrative to satisfy the skill gate. BCs BC-2.01.017 (new draft per PO b8cf19e1) and BC-2.16.013 will auto-promote draft→active at this story's merge per POL-14. Also: created `.factory/stories/sprint-state.yaml` (first creation on prism; derived view for deliver-story skill compatibility; STORY-INDEX is canonical source of truth). STORY-INDEX v2.211→v2.212. STATE v7.536→v7.537. 250th consecutive single-commit per TD-VSDD-053. |
