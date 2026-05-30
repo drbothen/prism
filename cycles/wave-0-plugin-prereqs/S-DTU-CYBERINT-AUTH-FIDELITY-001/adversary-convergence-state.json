@@ -113,12 +113,36 @@
       "pass_3_feature_head_at_resolution": "89aa9bd1",
       "pass_3_implementer_commit": "89aa9bd1",
       "pass_3_po_commit": "0fab3437",
-      "pass_3_state_manager_commits": ["dae10ab5 (D-856 Pass 3 persistence + lesson 57)", "TBD (D-858 closure — this burst)"]
+      "pass_3_state_manager_commits": ["dae10ab5 (D-856 Pass 3 persistence + lesson 57)", "dae10ab5 (D-858 closure burst)"]
+    },
+    {
+      "pass": 4,
+      "date": "2026-05-30",
+      "clean_strict": true,
+      "clean_pr_merge": true,
+      "findings_count": 0,
+      "findings_by_severity": {"CRIT": 0, "HIGH": 0, "MED": 0, "LOW": 0, "OBS": 0, "PROCESS-GAP": 0},
+      "streak": 1,
+      "novelty": "ZERO",
+      "feature_head_at_pass": "89aa9bd1",
+      "sap_1_result": "PASS — no new uncataloged event_type emission sites in Pass 3 fix-burst",
+      "sap_2_result": "PASS — no TOML or DTU struct modifications in Pass 3 fix-burst",
+      "sid_1_result": "PASS — both new tests (backend_unavailable + oversized_whitespace) are unit tests, not #[ignore]'d",
+      "sibling_sweep_result": "PASS — CredentialResolver trait sig change enforced at all impl sites by compiler; workspace just check 3839/3839",
+      "cross_doc_consistency": "PASS — BC-2.01.017 v1.3, error-taxonomy.md v1.54, BC-INDEX v5.59 all consistent with auth_provider.rs match arms",
+      "pass_3_closures_verified": {
+        "F-LP3-HIGH-001": "LOAD-BEARING — auth_provider.rs BackendUnavailable match arm + test_static_cookie_auth_provider_backend_unavailable_returns_e_auth_007",
+        "F-LP3-MED-001": "LOAD-BEARING — lib.rs module doc confirms access_token cookie model; no POST /login text",
+        "F-LP3-MED-002": "LOAD-BEARING — parity/cyberint.rs:144-148 comment references StaticCookieAuthProvider; no cyberint_session text",
+        "F-LP3-LOW-001": "LOAD-BEARING — validation order len()>4096 before is_empty; regression test asserts 'exceeds 4096' detail on 5000-byte whitespace key",
+        "F-LP3-LOW-002": "DEFERRED — scope boundary correct; routes to maintenance follow-up at wave-gate"
+      },
+      "state_manager_commit": "TBD (D-859 this burst)"
     }
   ],
-  "current_streak": 0,
+  "current_streak": 1,
   "target_streak": 3,
-  "status": "PASS_3_FIX_BURST_COMPLETE_READY_FOR_PASS_4",
-  "next_action": "Dispatch Pass 4 LOCAL adversary against feature HEAD 89aa9bd1. Verify F-LP3-HIGH-001 + F-LP3-MED-001 + F-LP3-MED-002 + F-LP3-LOW-001 closures load-bearing. Re-run SAP-1/SAP-2/SAP-3/SID-1. Spot-check production-grade Path β trait sig change (no string gymnastics regression).",
+  "status": "PASS_4_CLEAN_STRICT_STREAK_1_OF_3",
+  "next_action": "Dispatch Pass 5 LOCAL adversary against feature HEAD 89aa9bd1 (no code change required). If CLEAN(strict) → streak 2/3 → Pass 6 (final). If not CLEAN → fix-burst + reset.",
   "protocol": "BC-5.39.001 3-CLEAN (D-779 amendment: strict=zero all severities for streak; PR-merge=zero CRIT+HIGH+MED)"
 }

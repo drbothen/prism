@@ -8409,4 +8409,41 @@ _Snapshot terminus: 2026-05-30. Cyberint cascade at Step 4.5 mid-fix. Pass 1 fix
 
 **Anti-volatile-pin note (TD-VSDD-091):** All citations use story/BC/function-name/test-name anchors per TD-VSDD-091. The `plugin_boot_tests.rs` line-number citations (~167/192/210/489) remain approximate advisory references as noted in prior addenda.
 
+## §ADDENDUM 2026-05-30-PASS-4-CLEAN-STREAK-1-OF-3 (D-859)
+
+**Pass 4 result:** CLEAN(strict) = YES. CLEAN(PR-merge) = YES. Streak 0/3 → 1/3. Zero findings. Novelty: ZERO.
+
+**Feature HEAD:** `89aa9bd1` — unchanged from Pass 3 fix-burst close. No code changes between D-858 and Pass 4 dispatch.
+
+**Pass 3 closures verified load-bearing (adversary Pass 4 re-verification):**
+
+| Finding | Closure | Load-bearing evidence |
+|---------|---------|----------------------|
+| F-LP3-HIGH-001 | Path β BackendUnavailable match arm + test_static_cookie_auth_provider_backend_unavailable_returns_e_auth_007 | auth_provider.rs BackendUnavailable arm present; test cannot pass without it |
+| F-LP3-MED-001 | lib.rs module doc cleaned | No POST /login text in lib.rs:1-25 |
+| F-LP3-MED-002 | parity/cyberint.rs:144 comment updated | No cyberint_session; StaticCookieAuthProvider cited |
+| F-LP3-LOW-001 | Validation order reordered + regression test | len()>4096 before is_empty; regression test asserts 'exceeds 4096' detail on 5000-byte whitespace |
+| F-LP3-LOW-002 | DEFERRED — scope boundary confirmed | plugin-boot sites out-of-scope for cyberint auth fidelity story |
+
+**Standing probes:**
+- SAP-1 PASS — no new event_type emission sites introduced in Pass 3 fix-burst
+- SAP-2 PASS — no TOML or DTU struct modifications in Pass 3 fix-burst
+- SID-1 PASS — both new tests are in-process unit tests, not `#[ignore]`'d
+
+**Sibling-sweep:** PASS — CredentialResolver trait sig change enforced at all impl sites by compiler; workspace `just check` 3839/3839.
+
+**Cross-doc consistency:** BC-2.01.017 v1.3 + error-taxonomy.md v1.54 + BC-INDEX v5.59 all consistent with auth_provider.rs match arms.
+
+**Cascade state after Pass 4:**
+- Streak: 1/3 (requires 2 more consecutive CLEAN(strict) passes)
+- Status: PASS_4_CLEAN_STRICT_STREAK_1_OF_3
+- Feature HEAD: `89aa9bd1` (no change needed)
+- Next action: Pass 5 LOCAL adversary dispatch against same HEAD `89aa9bd1`. If CLEAN(strict) → streak 2/3 → Pass 6 (final). If not CLEAN → fix-burst + streak reset to 0/3.
+
+**F-LP3-LOW-002 status:** DEFERRED — unchanged across Passes 3 and 4. The 4 `unsafe { std::env::set_var }` sites in `prism-bin/tests/plugin_boot_tests.rs` (approximate lines ~167/192/210/489) remain with their existing SAFETY comments. Routes to maintenance follow-up at wave-gate. NOT filed as TD per CLAUDE.md Rule 3 (no human direction, no concrete future dependency).
+
+**D-859 burst marker:** This commit (D-859 state-manager burst) records Pass 4 CLEAN(strict). Artifacts written: local-pass-4.md (new), adversary-convergence-state.json pass-4 entry + current_streak=1 + status=PASS_4_CLEAN_STRICT_STREAK_1_OF_3 (updated), STATE.md v7.544.
+
+**Anti-volatile-pin note (TD-VSDD-091):** Load-bearing line citations in local-pass-4.md (auth_provider.rs:146-157, :463-487, :286, :1015-1044, :500-516; resolution.rs:18-34; lib.rs:1-25; parity/cyberint.rs:144-148; harness clones cyberint.rs:760-769) are accepted per the TD-VSDD-091 carve-out for small code citations used as load-bearing evidence in adversary pass reports. All other citations use story/BC/function-name/test-name anchors.
+
 **Resume §7 step update:** Step 6 (Pass 1 complete), Step 7 (Pass 2 fix-burst COMPLETE), Step 8 (Pass 3 fix-burst COMPLETE, 4/4 findings closed). Next action = Pass 4 LOCAL adversary dispatch against feature HEAD `89aa9bd1`.
