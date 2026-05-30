@@ -220,12 +220,17 @@ impl CyberintState {
     ///
     /// - Restores alert_store from fixture (all alerts back to "open", closed=false)
     ///   keyed under the fixture org (DEFAULT_ORG_ID in test; real OrgId in production).
-    /// - Clears session_store entirely.
+    /// - Clears access_token_allowlist entirely (ADR-031 §D3-a; org-agnostic static token store).
     /// - Resets auth_mode to Accept.
     /// - Resets rate_limit_after to None.
     /// - Resets auth_request_count to 0.
     ///
-    /// For per-org selective reset see `reset_for`.
+    /// For per-org selective alert reset see `reset_for`. Note: `reset_for` does NOT
+    /// clear the access_token_allowlist because tokens are org-agnostic (ADR-031 §D3-a rule 3).
+    ///
+    /// Callers of `reset_all` (i.e. `POST /dtu/reset` without `X-Prism-Org-Id`) are
+    /// responsible for re-registering the demo token after this call if the clone must
+    /// remain immediately usable (see `CyberintState::apply_config` and the DTU `post_reset` handler).
     pub fn reset_all(&self) {
         // Re-seed alert_store from fixtures under instance_org_id (BC-3.2.001 invariant 1).
         let fresh = Self::build_alert_store(
@@ -270,12 +275,13 @@ impl CyberintState {
     /// Reset all mutable state entries belonging to `org_id` only.
     ///
     /// - Removes every `(org_id, _)` entry from `alert_store`.
-    /// - Removes every `(org_id, _)` entry from `session_store`.
-    /// - Other orgs' entries are unaffected.
+    /// - Does NOT clear `access_token_allowlist` — tokens are org-agnostic (ADR-031 §D3-a rule 3).
+    ///   A per-org token selective clear would require extending the allowlist model with org keys.
+    /// - Other orgs' alert entries are unaffected.
     ///
-    /// # BC-3.2.001 edge case EC-004 / BC-3.2.003 edge case EC-004
+    /// # BC-3.2.001 edge case EC-004
     ///
-    /// Must clear both stores for the given OrgId in a single logical operation.
+    /// Clears alert state for the given OrgId in a single logical operation.
     pub fn reset_for(&self, org_id: OrgId) {
         // SAFETY: mutex poison only occurs if a previous holder panicked — not possible in normal operation.
         #[allow(clippy::expect_used)]

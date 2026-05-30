@@ -11,13 +11,12 @@
 //!
 //! # Cyberint routes
 //!
-//! - `POST /login`                               — cookie-based auth, issues `cyberint_session=<token>`
-//! - `GET  /api/v1/alerts`                       — paginated alert list (requires cookie)
+//! - `GET  /api/v1/alerts`                       — paginated alert list (requires access_token cookie)
 //! - `POST /api/v1/alerts`                       — alias for GET alerts
-//! - `GET  /api/v1/alerts/:alert_id`             — alert detail (requires cookie)
-//! - `PATCH /api/v1/alerts/:alert_id/status`     — status transition (requires cookie)
-//! - `POST  /api/v1/alerts/:alert_id/close`      — irreversible close (requires cookie)
-//! - `GET  /api/v1/threat-intel`                 — threat-intel feed (requires cookie)
+//! - `GET  /api/v1/alerts/:alert_id`             — alert detail (requires access_token cookie)
+//! - `PATCH /api/v1/alerts/:alert_id/status`     — status transition (requires access_token cookie)
+//! - `POST  /api/v1/alerts/:alert_id/close`      — irreversible close (requires access_token cookie)
+//! - `GET  /api/v1/threat-intel`                 — threat-intel feed (requires access_token cookie)
 //!
 //! # Shared DTU control routes
 //!
@@ -33,16 +32,18 @@
 //! `alert-{org_slug}-{seed}-{index}` (guarantees disjoint sets for multi-org
 //! isolation tests; BC-3.5.001 postcondition 2; TV-2).
 //!
-//! # Cookie auth
+//! # Static cookie auth
 //!
-//! Cyberint uses cookie-based auth (`cyberint_session=<token>`) rather than the
-//! bearer-token pattern used by other harness DTUs.  The per-clone `CyberintCloneState`
-//! holds a `session_store: HashSet<String>` (tokens only; no org-keying needed in
-//! single-instance harness clones).
+//! Cyberint uses static cookie-based auth (`access_token=<api_key>`) per ADR-031 §D3-a.
+//! There is no `POST /login` step — the real Cyberint API requires no login endpoint.
+//! The per-clone `CyberintCloneState` holds an `access_token_store: HashSet<String>`
+//! (static allowlist; no org-keying needed in single-instance harness clones).
+//! A demo token is registered at startup via `register_access_token()`.
 //!
 //! # Architecture Anchors
 //!
 //! - S-3.4.04 — Cyberint harness migration story
+//! - ADR-031 §D1-b / §D3-a — no login step; static access_token cookie auth
 //! - BC-3.5.001 — Harness Logical Isolation Invariants
 //! - BC-3.5.002 — Harness Network Isolation Invariants
 //! - BC-3.6.001 — Per-Org Failure Injection
@@ -54,7 +55,7 @@ use std::{
 
 use axum::{
     extract::{Path, Query, State},
-    http::{header, HeaderMap, StatusCode},
+    http::{HeaderMap, StatusCode},
     response::IntoResponse,
     routing::{get, patch, post},
     Json, Router,
@@ -81,6 +82,12 @@ const DEFAULT_SEED: u64 = 42;
 const FIXTURE_PAGE1_COUNT: usize = 20;
 /// Number of alerts on page 2 of the fixture set (when seed == DEFAULT_SEED).
 const FIXTURE_PAGE2_COUNT: usize = 5;
+
+/// Fixed demo `access_token` value pre-registered at clone startup.
+///
+/// Tests that need a valid token without going through `/dtu/configure` can use
+/// this constant directly. ADR-031 §D3-a: the token is static (no login step).
+pub const DEMO_ACCESS_TOKEN: &str = "harness-cyberint-demo-access-token";
 
 // ---------------------------------------------------------------------------
 // In-memory alert record
@@ -149,11 +156,15 @@ enum AuthMode {
 /// Mutable state for the Cyberint harness clone.
 ///
 /// Separate from the generic `CloneState` (which handles generic failure injection
-/// and admin token validation) — this holds Cyberint-specific state: session tokens,
+/// and admin token validation) — this holds Cyberint-specific state: access tokens,
 /// alert statuses, auth mode, and rate-limit config.
 pub struct CyberintCloneState {
-    /// Valid session tokens (opaque strings issued by `POST /login`).
-    pub session_store: Mutex<HashSet<String>>,
+    /// Static access-token allowlist (ADR-031 §D3-a rule 3).
+    ///
+    /// Replaces the legacy `session_store` model: tokens are registered at startup
+    /// (or via `POST /dtu/configure`) rather than issued per-login. A demo token
+    /// (`DEMO_ACCESS_TOKEN`) is pre-registered in `start_cyberint_clone`.
+    pub access_token_store: Mutex<HashSet<String>>,
 
     /// Per-alert status: `alert_id → AlertStatusRecord`.
     pub alert_store: Mutex<HashMap<String, AlertStatusRecord>>,
@@ -176,6 +187,13 @@ pub struct CyberintCloneState {
 
     /// Threat intel records (immutable after construction).
     pub threat_intel: Vec<Value>,
+
+    /// Demo token pre-registered at startup. Re-registered on `reset()`.
+    ///
+    /// Stored so `reset()` can restore the token without needing an HTTP call.
+    /// ADR-031 §D3-a: the clone is usable immediately after `reset()` without
+    /// a new login call.
+    demo_token: String,
 }
 
 impl CyberintCloneState {
@@ -185,6 +203,11 @@ impl CyberintCloneState {
     /// `CYB-2024-NNN` (backward compat with single-org AC tests).
     /// Otherwise, alert IDs use `alert-{org_slug}-{seed}-{index}`.
     pub fn new(org_slug: &str, seed: u64) -> Self {
+        Self::with_demo_token(org_slug, seed, DEMO_ACCESS_TOKEN.to_owned())
+    }
+
+    /// Construct state with a specific demo access token (for tests that need a known value).
+    pub fn with_demo_token(org_slug: &str, seed: u64, demo_token: String) -> Self {
         let (page1, page2) = generate_alerts(org_slug, seed);
         let threat_intel = generate_threat_intel(org_slug, seed);
 
@@ -194,8 +217,12 @@ impl CyberintCloneState {
             alert_store.insert(a.alert_id.clone(), AlertStatusRecord::open());
         }
 
+        // Pre-register the demo token so the clone is usable without a configure call.
+        let mut access_token_store = HashSet::new();
+        access_token_store.insert(demo_token.clone());
+
         Self {
-            session_store: Mutex::new(HashSet::new()),
+            access_token_store: Mutex::new(access_token_store),
             alert_store: Mutex::new(alert_store),
             auth_mode: Mutex::new(AuthMode::Accept),
             rate_limit_after: Mutex::new(None),
@@ -203,28 +230,37 @@ impl CyberintCloneState {
             alerts_page1: page1,
             alerts_page2: page2,
             threat_intel,
+            demo_token,
         }
     }
 
     /// Reset all mutable state to initial values.
     ///
-    /// - Clears session_store.
+    /// - Clears `access_token_store` and re-registers the configured demo token
+    ///   (so the clone is immediately usable again without a new configure call).
     /// - Resets all alert statuses to "open" / not closed.
     /// - Resets auth_mode to Accept.
     /// - Resets rate_limit_after to None.
     /// - Resets auth_request_count to 0.
+    ///
+    /// ADR-031 §D3-a: re-registering the demo token ensures no login step is needed
+    /// after reset.
     #[allow(clippy::expect_used)]
     pub fn reset(&self) {
-        self.session_store
+        // Clear access_token_store and re-register demo token.
+        let mut store = self
+            .access_token_store
             .lock()
-            .expect("session_store poisoned")
-            .clear();
+            .expect("access_token_store poisoned");
+        store.clear();
+        store.insert(self.demo_token.clone());
+        drop(store);
 
-        let mut store = self.alert_store.lock().expect("alert_store poisoned");
-        for val in store.values_mut() {
+        let mut alert_store = self.alert_store.lock().expect("alert_store poisoned");
+        for val in alert_store.values_mut() {
             *val = AlertStatusRecord::open();
         }
-        drop(store);
+        drop(alert_store);
 
         *self.auth_mode.lock().expect("auth_mode poisoned") = AuthMode::Accept;
         *self
@@ -237,19 +273,22 @@ impl CyberintCloneState {
             .expect("auth_request_count poisoned") = 0;
     }
 
+    /// Register an access token in the static allowlist.
+    ///
+    /// ADR-031 §D3-a rule 3: tokens are registered statically, not issued per-login.
     #[allow(clippy::expect_used)]
-    fn register_session(&self, token: String) {
-        self.session_store
+    pub fn register_access_token(&self, token: String) {
+        self.access_token_store
             .lock()
-            .expect("session_store poisoned")
+            .expect("access_token_store poisoned")
             .insert(token);
     }
 
     #[allow(clippy::expect_used)]
-    fn is_valid_session(&self, token: &str) -> bool {
-        self.session_store
+    fn is_valid_access_token(&self, token: &str) -> bool {
+        self.access_token_store
             .lock()
-            .expect("session_store poisoned")
+            .expect("access_token_store poisoned")
             .contains(token)
     }
 
@@ -263,6 +302,7 @@ impl CyberintCloneState {
     /// Supported fields (deny-unknown-fields):
     /// - `auth_mode`: `"reject"` | `"accept"`
     /// - `rate_limit_after`: u32
+    /// - `access_token`: String — register an additional allowed token
     /// - `clear`: bool — clears all failure modes
     ///
     /// Returns `Err(msg)` if the payload contains unknown fields (TD-WV0-04).
@@ -303,6 +343,10 @@ impl CyberintCloneState {
                 .expect("auth_request_count poisoned") = 0;
         }
 
+        if let Some(token) = cfg.access_token {
+            self.register_access_token(token);
+        }
+
         Ok(())
     }
 
@@ -337,6 +381,8 @@ impl CyberintCloneState {
 struct ConfigureBody {
     auth_mode: Option<String>,
     rate_limit_after: Option<u32>,
+    /// Register an additional access_token in the static allowlist.
+    access_token: Option<String>,
     // Fields below are present to support deny_unknown_fields validation (TD-WV0-04).
     // The values are consumed via the GenericConfigBody path in dtu_configure.
     #[allow(dead_code)]
@@ -697,7 +743,7 @@ fn generate_threat_intel(org_slug: &str, seed: u64) -> Vec<Value> {
 
 /// Combined state passed to all Cyberint route handlers.
 pub struct CyberintRouteState {
-    /// Cyberint-specific mutable state (sessions, alert statuses, auth mode).
+    /// Cyberint-specific mutable state (access tokens, alert statuses, auth mode).
     pub cyberint: Arc<CyberintCloneState>,
     /// Generic clone state (failure injection, admin token, request counter).
     pub clone_state: Arc<CloneState>,
@@ -707,12 +753,14 @@ pub struct CyberintRouteState {
 // Cookie auth helpers
 // ---------------------------------------------------------------------------
 
-/// Extract the `cyberint_session` token from the `Cookie` header.
-fn extract_session_token(headers: &HeaderMap) -> Option<String> {
+/// Extract the `access_token` cookie value from the `Cookie` header.
+///
+/// ADR-031 §D3-a: validates `access_token` cookie (NOT `cyberint_session`).
+fn extract_access_token(headers: &HeaderMap) -> Option<String> {
     let cookie_str = headers.get("cookie")?.to_str().ok()?;
     for part in cookie_str.split(';') {
         let part = part.trim();
-        if let Some(token) = part.strip_prefix("cyberint_session=") {
+        if let Some(token) = part.strip_prefix("access_token=") {
             return Some(token.to_owned());
         }
     }
@@ -729,6 +777,9 @@ fn unauthorized() -> axum::response::Response {
 }
 
 /// Check cookie auth and rate limit. Returns `Ok(())` to proceed or `Err(response)` to short-circuit.
+///
+/// Validates the `access_token` cookie against the static allowlist (ADR-031 §D3-a).
+/// The legacy `cyberint_session` cookie name is NOT accepted.
 #[allow(clippy::result_large_err)]
 fn check_auth(
     state: &CyberintCloneState,
@@ -739,8 +790,8 @@ fn check_auth(
         return Err(unauthorized());
     }
 
-    let token = extract_session_token(headers).ok_or_else(unauthorized)?;
-    if !state.is_valid_session(&token) {
+    let token = extract_access_token(headers).ok_or_else(unauthorized)?;
+    if !state.is_valid_access_token(&token) {
         return Err(unauthorized());
     }
 
@@ -759,28 +810,9 @@ fn check_auth(
 // Route handlers
 // ---------------------------------------------------------------------------
 
-/// `POST /login`
-///
-/// Issues a UUID session token as `Set-Cookie: cyberint_session=<token>`.
-/// No auth required.
-#[allow(clippy::expect_used)]
-async fn post_login(State(state): State<Arc<CyberintRouteState>>) -> impl IntoResponse {
-    let token = uuid::Uuid::new_v4().to_string();
-    state.cyberint.register_session(token.clone());
-
-    let cookie_value = format!("cyberint_session={token}; Path=/; HttpOnly");
-
-    (
-        StatusCode::OK,
-        [(header::SET_COOKIE, cookie_value)],
-        Json(json!({"message": "Login successful"})),
-    )
-        .into_response()
-}
-
 /// `GET /api/v1/alerts` (and `POST /api/v1/alerts`)
 ///
-/// Returns paginated alerts from the in-memory fixture. Requires cookie auth.
+/// Returns paginated alerts from the in-memory fixture. Requires access_token cookie auth.
 #[derive(Debug, Deserialize, Default)]
 struct AlertListParams {
     cursor: Option<String>,
@@ -878,7 +910,7 @@ async fn get_alerts(
 
 /// `GET /api/v1/alerts/:alert_id`
 ///
-/// Returns alert detail with current status. Requires cookie auth.
+/// Returns alert detail with current status. Requires access_token cookie auth.
 #[allow(clippy::expect_used)]
 async fn get_alert_by_id(
     State(state): State<Arc<CyberintRouteState>>,
@@ -1020,7 +1052,7 @@ async fn post_close_alert(
 
 /// `GET /api/v1/threat-intel`
 ///
-/// Threat intelligence feed. Requires cookie auth.
+/// Threat intelligence feed. Requires access_token cookie auth.
 #[derive(Debug, Deserialize, Default)]
 struct ThreatListParams {
     cursor: Option<String>,
@@ -1051,7 +1083,7 @@ async fn get_threat_intel(
 /// `POST /dtu/configure`
 ///
 /// Failure injection endpoint. Guarded by `X-Admin-Token` (generic clone admin token).
-/// Also accepts Cyberint-specific config fields like `auth_mode` and `rate_limit_after`.
+/// Also accepts Cyberint-specific config fields like `auth_mode`, `rate_limit_after`, and `access_token`.
 #[allow(clippy::expect_used)]
 async fn dtu_configure(
     State(state): State<Arc<CyberintRouteState>>,
@@ -1124,8 +1156,12 @@ struct GenericConfigBody {
 
 /// `POST /dtu/reset`
 ///
-/// Resets all Cyberint clone state (sessions, alert statuses, auth mode, counters).
+/// Resets all Cyberint clone state (access token store re-registers demo token,
+/// alert statuses restored, auth mode reset, counters zeroed).
 /// Also resets the generic CloneState request counter and failure mode.
+///
+/// ADR-031 §D3-a: `reset()` re-registers the demo token so the clone is
+/// immediately usable without a configure call after reset.
 async fn dtu_reset(State(state): State<Arc<CyberintRouteState>>) -> impl IntoResponse {
     state.cyberint.reset();
     state.clone_state.set_failure_mode(FailureMode::None);
@@ -1230,7 +1266,7 @@ async fn test_hook_non_string_panic(
 }
 
 // ---------------------------------------------------------------------------
-// Network-mode: cookie-aware auth check
+// Network-mode: bearer-aware auth check
 // ---------------------------------------------------------------------------
 
 /// Result of bearer-token validation for Network-mode routes.
@@ -1271,10 +1307,10 @@ fn classify_bearer(headers: &HeaderMap, admin_token: &str) -> BearerCheck {
 
 /// Build the Cyberint-specific axum Router for use in the harness.
 ///
-/// Routes handle cookie-based auth, alert lifecycle, threat-intel, and DTU
-/// control endpoints.  The `clone_state` provides the generic failure-injection
-/// machinery and admin token; the `cyberint_state` provides Cyberint-specific
-/// session/alert state.
+/// Routes handle static access_token cookie auth, alert lifecycle, threat-intel, and DTU
+/// control endpoints.  No `POST /login` route is registered (ADR-031 §D1-b).
+/// The `clone_state` provides the generic failure-injection machinery and admin token;
+/// the `cyberint_state` provides Cyberint-specific access_token/alert state.
 fn build_cyberint_router(
     clone_state: Arc<CloneState>,
     cyberint_state: Arc<CyberintCloneState>,
@@ -1285,9 +1321,7 @@ fn build_cyberint_router(
     });
 
     Router::new()
-        // Cookie auth
-        .route("/login", post(post_login))
-        // Alert routes
+        // Alert routes (no /login — ADR-031 §D1-b)
         .route("/api/v1/alerts", get(get_alerts))
         .route("/api/v1/alerts", post(get_alerts))
         .route("/api/v1/alerts/:alert_id", get(get_alert_by_id))
@@ -1397,7 +1431,7 @@ fn build_cyberint_network_router(
     };
 
     Router::new()
-        .route("/login", post(post_login))
+        // No /login route — ADR-031 §D1-b
         .route("/api/v1/alerts", get(alerts_with_bearer))
         .route("/api/v1/alerts/:alert_id", get(get_alert_by_id))
         .route("/api/v1/alerts/:alert_id/status", patch(patch_alert_status))
@@ -1425,8 +1459,9 @@ fn build_cyberint_network_router(
 
 /// Start a Cyberint-specific harness clone on the given pre-bound TCP listener.
 ///
-/// Creates a `CyberintCloneState` from `org_slug` and `seed`, wires it alongside
-/// the generic `CloneState`, builds the Cyberint router, and spawns the server.
+/// Creates a `CyberintCloneState` from `org_slug` and `seed`, pre-registers the
+/// `DEMO_ACCESS_TOKEN` (ADR-031 §D3-a: no login step required), wires the generic
+/// `CloneState`, builds the Cyberint router, and spawns the server.
 ///
 /// Returns a `StartedClone` compatible with the generic harness machinery.
 ///
@@ -1454,6 +1489,8 @@ pub async fn start_cyberint_clone(
         admin_token.clone(),
     ));
 
+    // Pre-register DEMO_ACCESS_TOKEN so tests can auth immediately without a configure call.
+    // ADR-031 §D3-a rule 3: tokens are static; no login step required.
     let cyberint_state = Arc::new(CyberintCloneState::new(&org_slug, seed));
 
     let router = if network_mode {

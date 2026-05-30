@@ -8,17 +8,17 @@
 //!
 //! All routes require cookie auth — validated via `extract_access_token` (ADR-031 §D3-a).
 //!
-//! # Auth model deviation (CR-015)
+//! # Auth model (ADR-031 §D3-a)
 //!
-//! Cyberint intentionally does NOT use the instance-identity `X-Org-Id` guard
-//! employed by Claroty, CrowdStrike, and Armis clones. Cyberint clones support
-//! multiple orgs concurrently via per-session routing: each session cookie maps
-//! to one org, and the `X-Prism-Org-Id` header selects the correct session
-//! namespace at the handler level. An absent `X-Prism-Org-Id` header falls
-//! through to the instance session (not a 401), which is intentional and required
-//! for backward compatibility with legacy single-org Cyberint callers.
-//! The upstream `validate_org_id` pattern is therefore incompatible with this
-//! topology and has been removed from this module (BC-3.2.003; W3-FIX-CODE-004 AC-006).
+//! Cyberint uses **account-level static cookie auth**: a pre-registered `access_token`
+//! cookie value is validated against an `access_token_allowlist` on every request.
+//! There is no `POST /login` step — the real Cyberint API requires no login endpoint.
+//! Tokens are org-agnostic (no per-session-per-org routing); the `X-Prism-Org-Id`
+//! header selects the alert namespace for multi-tenant isolation, but the token
+//! itself is not org-scoped.
+//!
+//! The legacy per-session-per-org routing model described in BC-3.2.003 was
+//! superseded by ADR-031 §D3-a. The `validate_org_id` pattern is not used here.
 
 use std::sync::Arc;
 
@@ -108,8 +108,11 @@ fn rate_limited() -> axum::response::Response {
 /// A missing cookie or unrecognised token returns HTTP 401. The `cyberint_session` cookie
 /// name is explicitly not accepted (ADR-031 §D3-a; AC-003).
 ///
+/// Shared across all authenticated route handlers (`alerts`, `threats`) to avoid
+/// duplicating the three-step auth check inline. (F-LP1-MED-001)
+///
 /// # AC-003 (S-DTU-CYBERINT-AUTH-FIDELITY-001)
-fn check_auth(
+pub(crate) fn check_auth(
     state: &CyberintState,
     headers: &HeaderMap,
 ) -> Result<(), Box<axum::response::Response>> {

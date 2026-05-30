@@ -62,9 +62,12 @@ pub async fn post_configure(
 /// `POST /dtu/reset`
 ///
 /// Resets mutable DTU state.  When the `X-Prism-Org-Id` header is present,
-/// only that org's `alert_store` and `session_store` entries are cleared
-/// (`reset_for`).  When the header is absent, all orgs are reset (`reset_all`)
-/// for backward-compatibility with integration tests that predate multi-tenancy.
+/// only that org's `alert_store` entries are cleared (`reset_for`); the
+/// `access_token_allowlist` is org-agnostic and is not cleared per-org.
+/// When the header is absent, all orgs' alert state and the full
+/// `access_token_allowlist` are cleared (`reset_all`), then the demo token
+/// is re-registered so the clone is immediately usable post-reset.
+/// Backward-compatible with integration tests that predate multi-tenancy.
 ///
 /// # ADR-003 Amendment #5 (TD-WV0-08)
 ///
