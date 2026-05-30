@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "5.59"
+version: "5.60"
 status: draft
 producer: product-owner
 timestamp: 2026-05-30T00:00:00Z
@@ -45,7 +45,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.01.014 | Exponential Backoff and Retry for Transient Sensor API Errors | 01 - Sensor Adapters | CAP-001 | P0 | draft |
 | BC-2.01.015 | ~~MCP Tool Response Envelope Structure~~ | 01 - Sensor Adapters | CAP-001 | P0 | removed |
 | BC-2.01.016 | SensorAuth Open Trait — Plugin-Implementable Auth Contract (No Sealed Marker) | 01 - Sensor Adapters | CAP-001 | P0 | active (promoted draft→active D-726 per POL-14; anchor story S-PLUGIN-PREREQ-E merged PR #151 develop@80ebe794 2026-05-19) — v1.12 |
-| BC-2.01.017 | StaticCookieAuthProvider Contract — No-Login-Roundtrip Cookie Injection | 01 - Sensor Adapters | CAP-001 | P0 | draft — v1.3 |
+| BC-2.01.017 | StaticCookieAuthProvider Contract — No-Login-Roundtrip Cookie Injection | 01 - Sensor Adapters | CAP-001 | P0 | draft — v1.4 |
 | BC-2.02.001 | OCSF Schema Loading at Build Time via ocsf-proto-gen | 02 - OCSF Normalization | CAP-003 | P0 | draft |
 | BC-2.02.002 | DynamicMessage Creation from Sensor Records | 02 - OCSF Normalization | CAP-003 | P0 | active |
 | BC-2.02.003 | CrowdStrike Alert Field Mapping to OCSF | 02 - OCSF Normalization | CAP-003 | P0 | active (amended per ADR-023/PLUGIN-MIGRATION-001-G; v1.6) |
@@ -376,6 +376,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v5.60 (2026-05-30, D-866 F-LP8-MED-001):** product-owner | BC-2.01.017 v1.3→v1.4: changelog hygiene only — deleted byte-identical duplicate v1.2 row (was at line 237, identical to canonical v1.2 row at line 235); reordered changelog rows to monotonic descending by version (1.4 → 1.3 → 1.2 → 1.1 → 1.0). No semantic content change to BC. Adjudication: cycles/wave-0-plugin-prereqs/S-DTU-CYBERINT-AUTH-FIDELITY-001/po-adjudications/F-LP8-MED-001.md.
 
 **v5.59 (2026-05-30, D-857 F-LP3-HIGH-001):** product-owner | BC-2.01.017 v1.2→v1.3: allocate E-AUTH-007 for `CredentialResolutionError::BackendUnavailable`. Add EC-017-010 + TV-BC-2.01.017-009. Update E-AUTH-005 Error Cases row to scope to NotFound variant. Amend `error_codes` frontmatter to include E-AUTH-007. error-taxonomy.md v1.53→v1.54 (E-AUTH-007 new row + v1.54 changelog). No contract count changes. Adjudication: cycles/wave-0-plugin-prereqs/S-DTU-CYBERINT-AUTH-FIDELITY-001/po-adjudications/F-LP3-HIGH-001.md.
 
