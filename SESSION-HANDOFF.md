@@ -8581,3 +8581,49 @@ Implementer faithfully copied these names from story spec per CLAUDE.md Source-o
 **Anti-volatile-pin note (TD-VSDD-091):** All citations use story/BC/function-name/test-name anchors per TD-VSDD-091. Load-bearing line citations in local-pass-6.md (lines ~350-360 story spec) accepted per TD-VSDD-091 carve-out for load-bearing evidence in adversary pass reports.
 
 **Resume §7 step update:** Step 6 (Pass 1 complete), Step 7 (Pass 2 fix-burst COMPLETE), Step 8 (Pass 3 fix-burst COMPLETE, 4/4 findings closed), Step 9 (Pass 4 CLEAN(strict) streak 1/3), Step 10 (Pass 5 REJECTED — lesson 58 codified), Step 11 (Pass 5 REDUX CLEAN(strict) streak 2/3), Step 12 (Pass 6 NOT CLEAN(strict) — 1 LOW F-LP6-LOW-001; streak reset 0/3; story-writer adjudication → Pass 7). Next action = story-writer dispatch to adjudicate F-LP6-LOW-001 convention.
+
+---
+
+## §ADDENDUM 2026-05-30-PASS-6-FIX-BURST-COMPLETE
+
+**D-864 burst marker.** Pass 6 fix-burst CLOSED. Feature HEAD advanced 89aa9bd1 → 4f5b5404.
+
+**F-LP6-LOW-001 closure (Option A — load-bearing):**
+
+Story-writer Convention Adjudication (ea80ed72, factory-artifacts):
+- Convention selected: "prefix by primary BC anchor" per S-CONFIG + PLUGIN-MIGRATION-001-E precedent + POL-4 semantic-anchoring
+- Story v1.2 → v1.3: 4 Red Gate test names renamed to `test_BC_2_01_017_*` prefix in §Red Gate Tests table
+- AC bodies updated (AC-002, AC-005, AC-006, AC-007 references aligned)
+- Tasks step 6 + step 19 updated
+- Notes for Implementer convention paragraph added (prevents recurrence)
+- STORY-INDEX v2.212 → v2.213
+- D-863 decision row recorded
+
+Implementer Code Rename (4f5b5404, feature/S-DTU-CYBERINT-AUTH-FIDELITY-001):
+- 4 test function renames: `test_BC_2_01_013_*` (3 functions) + `test_BC_2_01_016_*` (1 function) → `test_BC_2_01_017_*` prefix
+- Files: `crates/prism-dtu-cyberint/tests/bc_2_01_017_access_token_auth.rs` + `crates/prism-spec-engine/tests/bc_2_01_017_static_cookie_auth_provider.rs`
+- Module-level test table doc comments updated (3 rows)
+- Inline `expect("test_BC_2_01_013: ...")` → `expect("test_BC_2_01_017: ...")` (1 site)
+- Sibling-sweep CLEAN — zero old `test_BC_2_01_013_*` or `test_BC_2_01_016_*` names remain in story scope (other workspace uses are legitimate; verified by test-body reading)
+- `just check` EXIT 0 — 3839/3839 tests pass + 26 skipped. Test count delta 0 (pure rename, structurally idempotent)
+
+**Lesson 56 demonstrated (verbatim BC text quotes):** Story-writer convention adjudication cited specific POL-4 text and project precedent (S-CONFIG, PLUGIN-MIGRATION-001-E) rather than fabricated normalization claims. Consistent with lesson 56 discipline.
+
+**D-LP6-001 still deferred:** CredentialResolutionError enum at prism-credentials/src/resolution.rs:19 lacks `#[non_exhaustive]`. Pre-existing, project-wide concern. NOT introduced by S-DTU-CYBERINT-AUTH-FIDELITY-001. Routes to Phase 5 architectural pub-API audit. CLAUDE.md Rule 3 compliance: pre-existing + future phase dependency + not AI-default defer of in-scope work.
+
+**Cascade state after Pass 6 fix-burst:**
+- Streak: **0/3** (Pass 6 was NOT CLEAN(strict); fix-burst addresses F-LP6-LOW-001; Pass 7 begins new streak attempt)
+- Status: PASS_6_FIX_BURST_COMPLETE_READY_FOR_PASS_7
+- Feature HEAD: `4f5b5404`
+- Next: Pass 7 LOCAL adversary with mandatory lesson 58 grounding-truth preamble
+
+**Pass 7/8/9 path to convergence:**
+- Pass 7: adversary against feature HEAD `4f5b5404` with lesson 58 preamble; verify F-LP6-LOW-001 test names match story v1.3. If CLEAN(strict) → streak 1/3
+- Pass 8: adversary with lesson 58 preamble. If CLEAN(strict) → streak 2/3
+- Pass 9: adversary with lesson 58 preamble. If CLEAN(strict) → streak 3/3 → LOCAL CONVERGED → demo-recorder → push → PR cycle
+
+**Anti-volatile-pin note (TD-VSDD-091):** All citations use story/BC/function-name/test-name anchors. No file:line-number citations in this addendum. Historical line citations in pass reports are excepted per TD-VSDD-091 carve-out for load-bearing adversary pass evidence.
+
+**D-864 burst marker:** This burst (D-864 state-manager) records Pass 6 fix-burst closure. Artifacts written: adversary-convergence-state.json pass_6_resolution + status=PASS_6_FIX_BURST_COMPLETE_READY_FOR_PASS_7 (updated), STATE.md v7.548, SESSION-HANDOFF.md §ADDENDUM 2026-05-30-PASS-6-FIX-BURST-COMPLETE (this section). 261st consecutive single-commit per TD-VSDD-053.
+
+**Resume §7 step update (full chain):** Step 6 (Pass 1 complete), Step 7 (Pass 2 fix-burst COMPLETE), Step 8 (Pass 3 fix-burst COMPLETE, 4/4 findings closed), Step 9 (Pass 4 CLEAN(strict) streak 1/3), Step 10 (Pass 5 REJECTED — lesson 58 codified), Step 11 (Pass 5 REDUX CLEAN(strict) streak 2/3), Step 12 (Pass 6 NOT CLEAN(strict) — 1 LOW F-LP6-LOW-001; streak reset 0/3), Step 13 (Pass 6 fix-burst COMPLETE — F-LP6-LOW-001 CLOSED; feature HEAD 4f5b5404; streak 0/3). Next action = Pass 7 LOCAL adversary dispatch.
