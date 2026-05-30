@@ -1,7 +1,7 @@
 ---
 document_type: story-index
 level: "L4"
-version: "v2.210"
+version: "v2.211"
 status: draft
 producer: state-manager
 timestamp: 2026-05-29T23:59:00Z
@@ -424,8 +424,8 @@ pursuing maximum parallelism should schedule by topological layer, not wave numb
 | S-DEMO-002 | prism-bin: E2E Subprocess Smoke Test — All 4 Sensors + Multi-Org Isolation via DTU Clones + MCP Round-Trip [Wave 5; E-DEMO; P0; **draft v1.1** (architect 2026-05-29: multi-org ACs AC-011..013 added, BC-3.2.001 added, 13 ACs total); 6 BCs: BC-2.11.001+BC-2.11.005+BC-2.09.008+BC-2.10.001+BC-2.10.010+BC-3.2.001] | prism-bin | 6 (BC-2.11.001, BC-2.11.005, BC-2.09.008, BC-2.10.001, BC-2.10.010, BC-3.2.001) | VP-148 | 11 | S-DEMO-001,S-CONFIG-MULTI-TENANT-OVERRIDE-001 |
 | S-DEMO-003 | scripts: Demo Setup Scripts + prism-credential-set CLI Subcommand + Operator Runbook [Wave 5; E-DEMO; P1; draft v1.0; 4 BCs: BC-2.03.005+BC-2.03.007+BC-2.06.001+BC-2.22.001] | prism-bin | 4 (BC-2.03.005, BC-2.03.007, BC-2.06.001, BC-2.22.001) | -- | 5 | S-DEMO-001,S-DEMO-002 |
 | S-5.04-FIX-001 | .factory: Fix S-5.04 depends_on — replace superseded S-2.07 with S-DEMO-001 [Wave 5; E-DEMO housekeeping; P2; draft v1.0; factory-only] | .factory | 1 (BC-2.08.001) | -- | 0 | -- |
-| S-DEMO-CLAROTY-PAGINATION-001 | prism-spec-engine: OffsetLimit POST-body pagination for Claroty [Wave 5; E-DEMO follow-up; P1-pre-demo-BLOCKING; planned; DTU: NO — pipeline only; Demo >100 rows per user 2026-05-29] | prism-spec-engine | 0 (TBD) | -- | -- | S-DEMO-001,develop@72baf413 |
-| S-DEMO-CLAROTY-AUDIT-DTU-001 | prism-dtu-claroty: Add /api/v1/audit_log/get route to prism-dtu-claroty [Wave 5; E-DEMO follow-up; P1-pre-demo-BLOCKING; planned; DTU: YES — add /api/v1/audit_log/get route; Demo includes claroty_audit_logs per user 2026-05-29] | prism-dtu-claroty | 0 (TBD) | -- | -- | develop@72baf413 |
+| S-DEMO-CLAROTY-PAGINATION-001 | prism-spec-engine: OffsetLimit POST-body pagination for Claroty (closes Gap-CL-004) [Wave 5; E-DEMO; P1-pre-demo-BLOCKING; **draft v1.0** (story-writer 2026-05-29: 6 ACs; 4 Red Gate tests; 3 BCs: BC-2.16.002+BC-2.16.013+BC-2.01.013; BC gap for POST-body clause flagged for PO; DTU: NO — pipeline only); file: S-DEMO-CLAROTY-PAGINATION-001-offset-limit-post-body-pagination.md] | prism-spec-engine | 3 (BC-2.16.002, BC-2.16.013, BC-2.01.013) | VP-148 | 5 | PLUGIN-MIGRATION-001-A,develop@72baf413 |
+| S-DEMO-CLAROTY-AUDIT-DTU-001 | prism-dtu-claroty: Add /api/v1/audit_log/get route for Claroty Audit Log Fidelity (closes Gap-CL-006) [Wave 5; E-DTU-FIDELITY; P1-pre-demo-BLOCKING; **draft v1.0** (story-writer 2026-05-29: 6 ACs; 3 Red Gate tests; 2 BCs: BC-2.01.013+BC-2.16.013; DTU: YES — add /api/v1/audit_log/get route; ClarotyAuditLogEntry struct + fixture); file: S-DEMO-CLAROTY-AUDIT-DTU-001-claroty-dtu-audit-log-route.md] | prism-dtu-claroty | 2 (BC-2.01.013, BC-2.16.013) | VP-148 | 5 | PLUGIN-MIGRATION-001-A |
 | S-DEMO-MULTI-TENANT-DTU-001 | prism-dtu-demo-server: Per-DTU-instance multi-address binding for multi-tenant overlay testing [Wave 5; E-DEMO follow-up; P2; planned; DTU: YES — per-instance multi-address binding; Non-blocking for single-tenant demo] | prism-dtu-demo-server,prism-dtu-harness | 0 (TBD) | -- | -- | S-CONFIG-MULTI-TENANT-OVERRIDE-001 |
 | S-DEMO-CLAROTY-TRAILING-SLASH-001 | prism-spec-engine, prism-sensors: Trailing-slash on Claroty API paths [Wave 5; E-DEMO follow-up; P2; planned; DTU: YES — verify axum trailing-slash; Non-blocking] | prism-spec-engine,prism-sensors | 0 (TBD) | -- | -- | develop@72baf413 |
 | S-DEMO-ARMIS-AQL-001 | prism-spec-engine, prism-sensors: AQL search endpoint support for Armis [Wave 5; E-DEMO follow-up; P2; planned; DTU: YES — AQL route + TOML + pipeline; Non-blocking per ADR-031 §D2] | prism-spec-engine,prism-sensors | 0 (TBD) | -- | -- | S-DEMO-001 |
@@ -451,7 +451,7 @@ Every active BC maps to the story that implements it.
 | BC-2.01.007 | S-2.07, PLUGIN-MIGRATION-001-G |
 | BC-2.01.008 | S-2.07, PLUGIN-MIGRATION-001-G |
 | BC-2.01.010 | S-2.06 |
-| BC-2.01.013 | S-2.06, PLUGIN-MIGRATION-001-F, PLUGIN-MIGRATION-001-H, S-DEMO-001, S-DTU-CYBERINT-AUTH-FIDELITY-001 |
+| BC-2.01.013 | S-2.06, PLUGIN-MIGRATION-001-F, PLUGIN-MIGRATION-001-H, S-DEMO-001, S-DTU-CYBERINT-AUTH-FIDELITY-001, S-DEMO-CLAROTY-AUDIT-DTU-001, S-DEMO-CLAROTY-PAGINATION-001 |
 | BC-2.01.014 | S-2.06 |
 | BC-2.02.001 | S-1.04 |
 | BC-2.02.002 | S-1.04 |
@@ -616,7 +616,7 @@ Every active BC maps to the story that implements it.
 | BC-2.15.010 | S-2.03 |
 | BC-2.15.011 | S-2.03 |
 | BC-2.16.001 | S-1.11, S-1.13, S-3.12 (proxy), S-3.13 (proxy), S-SPEC-TYPE-UNIFICATION-001 |
-| BC-2.16.002 | S-1.11 |
+| BC-2.16.002 | S-1.11, S-DEMO-CLAROTY-PAGINATION-001 |
 | BC-2.16.003 | S-1.11 |
 | BC-2.16.004 | S-1.11 |
 | BC-2.16.005 | S-1.12 |
@@ -625,7 +625,7 @@ Every active BC maps to the story that implements it.
 | BC-2.16.008 | S-1.12 |
 | BC-2.16.009 | S-1.11, S-1.13, PLUGIN-MIGRATION-001-F |
 | BC-2.16.012 | S-PLUGIN-PREREQ-E, PLUGIN-MIGRATION-001-A, PLUGIN-MIGRATION-001-F |
-| BC-2.16.013 | PLUGIN-MIGRATION-001-D, S-DTU-CYBERINT-AUTH-FIDELITY-001 |
+| BC-2.16.013 | PLUGIN-MIGRATION-001-D, S-DTU-CYBERINT-AUTH-FIDELITY-001, S-DEMO-CLAROTY-AUDIT-DTU-001, S-DEMO-CLAROTY-PAGINATION-001 |
 | BC-2.01.016 | S-PLUGIN-PREREQ-E, PLUGIN-MIGRATION-001-A, PLUGIN-MIGRATION-001-D, PLUGIN-MIGRATION-001-E, S-DTU-CYBERINT-AUTH-FIDELITY-001 |
 | BC-2.01.017 | S-DTU-CYBERINT-AUTH-FIDELITY-001 |
 | BC-2.16.010 | S-1.12 |
@@ -970,6 +970,7 @@ All 13 new DTU clones: Wave 0, 0 BCs, priority P0, depends_on: [S-6.06].
 
 | Version | Date | Summary |
 |---------|------|---------|
+| v2.211 | 2026-05-29 | story-writer Claroty P1 materialization burst: S-DEMO-CLAROTY-AUDIT-DTU-001 [planned]→[draft v1.0] (5 pts; 6 ACs; 3 Red Gate tests; 2 BCs: BC-2.01.013+BC-2.16.013; VP-148; DTU-only addition of /api/v1/audit_log/get route + ClarotyAuditLogEntry struct + fixture; closes Gap-CL-006; file: S-DEMO-CLAROTY-AUDIT-DTU-001-claroty-dtu-audit-log-route.md). S-DEMO-CLAROTY-PAGINATION-001 [planned]→[draft v1.0] (5 pts; 6 ACs; 4 Red Gate tests; 3 BCs: BC-2.16.002+BC-2.16.013+BC-2.01.013; VP-148; pipeline-only POST-body offset+limit dispatch; closes Gap-CL-004; BC gap for POST-body clause flagged for PO review; file: S-DEMO-CLAROTY-PAGINATION-001-offset-limit-post-body-pagination.md). BC Traceability Matrix: BC-2.01.013 += S-DEMO-CLAROTY-AUDIT-DTU-001+S-DEMO-CLAROTY-PAGINATION-001; BC-2.16.002 += S-DEMO-CLAROTY-PAGINATION-001; BC-2.16.013 += S-DEMO-CLAROTY-AUDIT-DTU-001+S-DEMO-CLAROTY-PAGINATION-001. total_stories 166 (unchanged — stubs were pre-registered). |
 | v2.210 | 2026-05-29 | D-849 state-manager final reconciliation burst: (1) S-DEMO-CLAROTY-PAGINATION-001 priority annotation updated P1 soft-blocking → P1-pre-demo-BLOCKING per user decision 2026-05-29 (demo >100 rows confirmed YES). (2) S-DEMO-CLAROTY-AUDIT-DTU-001 priority annotation updated P2 conditional-blocking → P1-pre-demo-BLOCKING per user decision 2026-05-29 (claroty_audit_logs in demo confirmed YES). (3) S-DEMO-MULTI-TENANT-DTU-001 registered as new stub (P2; Wave 5; E-DEMO follow-up; prism-dtu-demo-server + prism-dtu-harness; DTU: YES — per-instance multi-address binding; Non-blocking for single-tenant demo; depends_on S-CONFIG-MULTI-TENANT-OVERRIDE-001; surfaced by S-CONFIG AC-009 DTU emulation gap in D-849-prep-a). total_stories 165→166. |
 | v2.209 | 2026-05-29 | story-writer D-849-prep reconciliation burst: (1) S-DTU-CYBERINT-AUTH-FIDELITY-001 v1.0→v1.1: BC-2.01.017 (Static Cookie AuthProvider Contract — No-Login-Roundtrip Cookie Injection; PO authored commit b8cf19e1) propagated per bc_array_changes_propagate_to_body_and_acs policy — behavioral_contracts 3→4 BCs; BC table row added; AC-005 BC-2.01.017 §Postconditions citation added; AC-006 BC-2.01.017 §Invariants citation added; AC-010 expanded with E-AUTH-006 per error-taxonomy.md v1.53 + BC-2.01.017 §Edge Cases; test_BC_2_01_016 added to Red Gate Tests table; red_gate_tests 6→7; token budget BC files 3→4; Notes for Implementer BC-2.01.017 note added; inputs BC-2.01.017 file added. (2) S-CONFIG-MULTI-TENANT-OVERRIDE-001 v1.1→v1.2: status flipped `draft→ready` per BC-2.06.012–016 confirmed active in BC-INDEX v5.52 (PO finding b8cf19e1 2026-05-29). BC Traceability Matrix: BC-2.01.017 row added (S-DTU-CYBERINT-AUTH-FIDELITY-001). Full Story List: S-DTU-CYBERINT row 3→4 BCs, v1.0→v1.1; S-CONFIG row draft→ready, v1.1→v1.2. total_stories 165 (unchanged). |
 | v2.208 | 2026-05-29 | story-writer burst: (1) S-DTU-CYBERINT-AUTH-FIDELITY-001 materialized from [planned] stub to full draft spec v1.0 (8 pts; 11 ACs: 4 DTU-side + 7 prism-side; 6 Red Gate tests; BCs: BC-2.01.013+BC-2.01.016+BC-2.16.013; VP-148; depends_on PLUGIN-MIGRATION-001-A; blocks S-DEMO-001; file: S-DTU-CYBERINT-AUTH-FIDELITY-001-cyberint-dtu-static-cookie-auth.md; per ADR-031 §D3-c and user directive 2026-05-29). (2) S-CONFIG-MULTI-TENANT-OVERRIDE-001 v0.2→v1.1 refinement: AC-008 paper-fix-resistance (D-823 / SAP-3-candidate; test_S_CONFIG_PROD_CONSUMER_READS_INJECTED_BASE_URL); AC-009 DTU emulation gap (ADR-031 DTU=true-DTU; test_S_CONFIG_DTU_BASE_URL_OVERLAY_ROUTES_TO_CORRECT_DTU_INSTANCE; full multi-instance DTU routing surfaced as S-DEMO-MULTI-TENANT-DTU-001 new stub); blocks S-DEMO-001 added; parallel dispatch order documented; acceptance_criteria_count 7→9; red_gate_tests 7→9. BC Traceability Matrix: BC-2.01.013 += S-DTU-CYBERINT-AUTH-FIDELITY-001; BC-2.01.016 row added (S-PLUGIN-PREREQ-E+PLUGIN-MIGRATION-001-A+D+E+S-DTU-CYBERINT-AUTH-FIDELITY-001); BC-2.16.013 row added (PLUGIN-MIGRATION-001-D+S-DTU-CYBERINT-AUTH-FIDELITY-001). Status S-CONFIG remains draft (Spec-First Gate S-7.01: BCs still draft; status=ready requires active BCs). S-DTU-CYBERINT story row: [planned]→[draft v1.0] with actual BCs/VPs/pts. total_stories 165 (unchanged — S-DTU-CYBERINT was a pre-registered stub). |
