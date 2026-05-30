@@ -53,9 +53,15 @@ pub struct AlertListParams {
 /// Cookie names are case-sensitive per RFC 6265. `Access-Token` is NOT `access_token`.
 ///
 /// ADR-031 §D3-a rule 2 / AC-002 (S-DTU-CYBERINT-AUTH-FIDELITY-001)
-#[allow(unused_variables)]
 pub fn extract_access_token(headers: &HeaderMap) -> Option<String> {
-    todo!("AC-002: parse cookie header; strip 'access_token=' prefix; return Some(value) or None")
+    let cookie_header = headers.get("cookie")?.to_str().ok()?;
+    for pair in cookie_header.split(';') {
+        let pair = pair.trim();
+        if let Some(val) = pair.strip_prefix("access_token=") {
+            return Some(val.to_owned());
+        }
+    }
+    None
 }
 
 /// Extract the `OrgId` for the current request from the `X-Prism-Org-Id` header.
@@ -115,10 +121,7 @@ fn check_auth(
     // Validate access_token cookie (ADR-031 §D3-a; AC-003).
     let token = extract_access_token(headers).ok_or_else(|| Box::new(unauthorized()))?;
     if !state.is_valid_access_token(&token) {
-        todo!(
-            "AC-003: return 401 when access_token cookie is present but not in allowlist; \
-             remove org_id mismatch logic (access_token is org-agnostic per ADR-031 §D3-a)"
-        )
+        return Err(Box::new(unauthorized()));
     }
 
     // Rate limit check.

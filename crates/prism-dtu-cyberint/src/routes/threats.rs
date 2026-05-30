@@ -15,8 +15,10 @@ use axum::{
 };
 use serde::Deserialize;
 
-use crate::routes::alerts::extract_access_token;
-use crate::state::{AuthMode, CyberintState};
+use crate::{
+    routes::alerts::extract_access_token,
+    state::{AuthMode, CyberintState},
+};
 
 /// Query parameters for the threat-intel endpoint.
 #[derive(Debug, Deserialize, Default)]

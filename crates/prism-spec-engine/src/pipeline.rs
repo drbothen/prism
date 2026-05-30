@@ -13,17 +13,18 @@
 //!
 //! The `fan_out_batches` pure function is unchanged.
 
-use std::collections::HashMap;
-use std::time::Duration;
+use std::{collections::HashMap, time::Duration};
 
 use chrono::{DateTime, TimeZone, Utc};
 use percent_encoding::{NON_ALPHANUMERIC, utf8_percent_encode};
 use prism_core::{ColumnType, OrgSlug};
 
-use crate::auth_provider::{AuthProvider, AuthToken};
-use crate::error::SpecEngineError;
-use crate::interpolation::{InterpolationContext, Interpolator};
-use crate::spec_parser::{ColumnSpec, FetchStep, PaginationConfig, SensorSpec, TableSpec};
+use crate::{
+    auth_provider::{AuthProvider, AuthToken},
+    error::SpecEngineError,
+    interpolation::{InterpolationContext, Interpolator},
+    spec_parser::{ColumnSpec, FetchStep, PaginationConfig, SensorSpec, TableSpec},
+};
 
 /// Maximum records materialised per pipeline execution (DI-019 / AC-8).
 const MAX_PIPELINE_RECORDS: usize = 10_000;
@@ -903,10 +904,11 @@ fn build_request(
     if !token.as_str().is_empty() {
         req = match auth_type {
             crate::spec_parser::AuthType::CookieRoundtrip => {
-                todo!(
-                    "AC-007: inject 'cookie' header with value 'access_token=<token>'; \
-                     cookie name MUST be 'access_token' NOT 'cyberint_session' (ADR-031 §D3-b)"
-                )
+                // ADR-031 §D3-b / AC-007: inject Cookie header with access_token.
+                // Cookie name MUST be 'access_token' — NOT 'cyberint_session' (permanently
+                // superseded per ADR-031 §D3 and §D4). INV-COOKIE-004: Authorization header
+                // MUST NOT be set for CookieRoundtrip sensors.
+                req.header("Cookie", format!("access_token={}", token.as_str()))
             }
             _ => req.header("Authorization", format!("Bearer {}", token.as_str())),
         };
@@ -1621,20 +1623,25 @@ pub(crate) fn normalize_timestamp_fields(
 
 #[cfg(test)]
 mod execute_step_tests {
-    use std::collections::HashMap;
-    use std::sync::{Arc, Mutex};
-
-    use prism_core::OrgSlug;
-    use tracing_subscriber::util::SubscriberInitExt;
-    use wiremock::matchers::{method as wm_method, path as wm_path};
-    use wiremock::{Mock as WmMock, MockServer, ResponseTemplate};
-
-    use crate::auth_provider::{
-        AuthOutcome, ChainAuthProvider, FailingAuthProvider, MockAuthProvider, NullAuthProvider,
+    use std::{
+        collections::HashMap,
+        sync::{Arc, Mutex},
     };
-    use crate::pipeline::{FetchContext, PipelineExecutor};
-    use crate::spec_parser::{AuthType, ColumnSpec, FetchStep, SensorSpec, TableSpec};
-    use prism_core::ColumnType;
+
+    use prism_core::{ColumnType, OrgSlug};
+    use tracing_subscriber::util::SubscriberInitExt;
+    use wiremock::{
+        Mock as WmMock, MockServer, ResponseTemplate,
+        matchers::{method as wm_method, path as wm_path},
+    };
+
+    use crate::{
+        auth_provider::{
+            AuthOutcome, ChainAuthProvider, FailingAuthProvider, MockAuthProvider, NullAuthProvider,
+        },
+        pipeline::{FetchContext, PipelineExecutor},
+        spec_parser::{AuthType, ColumnSpec, FetchStep, SensorSpec, TableSpec},
+    };
 
     // ---------------------------------------------------------------------------
     // Log-capture helper — returns the buffer + a DefaultGuard that installs
@@ -2392,8 +2399,9 @@ mod cursor_page_size_tests {
 
 #[cfg(test)]
 mod jsonpath_bracket_tests {
-    use super::extract_at_path;
     use serde_json::json;
+
+    use super::extract_at_path;
 
     /// AC-2(a): `$.devices[0].id` on an array-valued JSON object extracts the first element.
     ///
@@ -2570,10 +2578,10 @@ mod jsonpath_bracket_tests {
 
 #[cfg(test)]
 mod proptest_extract_at_path {
-    use super::extract_at_path;
-
     use proptest::prelude::*;
     use serde_json::Value;
+
+    use super::extract_at_path;
 
     /// Generate an arbitrary JSON leaf value.
     fn json_leaf() -> impl Strategy<Value = Value> {
@@ -2635,8 +2643,7 @@ mod timestamp_normalization_tests {
     use serde_json::json;
 
     use super::normalize_timestamp_fields;
-    use crate::error::SpecEngineError;
-    use crate::spec_parser::ColumnSpec;
+    use crate::{error::SpecEngineError, spec_parser::ColumnSpec};
 
     // -----------------------------------------------------------------------
     // Helper: build a single-column Datetime ColumnSpec.

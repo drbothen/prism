@@ -18,6 +18,11 @@ async fn fidelity_validator_passes() {
 
     // Fidelity checks limited to endpoints that do not require cookie auth,
     // plus the 401 shape check for unauthenticated access.
+    //
+    // NOTE (ADR-031 §D3-a): The POST /login endpoint has been removed from the
+    // DTU. Fidelity check for /login returns 404 (route not registered), which is
+    // correct per the story's AC-001. The old "POST /login → 200 + message field"
+    // check has been replaced by the 404 shape check below.
     let checks = vec![
         // DTU health endpoint (ADR-002 required, no auth).
         FidelityCheck {
@@ -28,13 +33,13 @@ async fn fidelity_validator_passes() {
             required_fields: vec!["status".to_string()],
             ..Default::default()
         },
-        // Login endpoint shape check.
+        // POST /login must return 404 (route removed per ADR-031 §D3-a; AC-001).
         FidelityCheck {
             endpoint: "/login".to_string(),
             method: http::Method::POST,
             body: Some(serde_json::json!({})),
-            expected_status: 200,
-            required_fields: vec!["message".to_string()],
+            expected_status: 404,
+            required_fields: vec![],
             ..Default::default()
         },
         // Unauthenticated access to alerts must return 401 with "error" field.

@@ -1,5 +1,5 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
-//! AC-5: Mixed timestamp format fixtures.
+//! AC-5: Mixed timestamp format fixtures (rewritten for ADR-031 §D3-a).
 //!
 //! Given `GET /api/v1/alerts` returns fixtures with mixed timestamp formats
 //! (ISO 8601 and Unix epoch), these formats must be present in `fixtures/alerts.json`
@@ -7,56 +7,40 @@
 //!
 //! The DTU must NOT normalize or convert timestamps; it must return them as-is
 //! from the fixture.
+//!
+//! Rewritten per S-DTU-CYBERINT-AUTH-FIDELITY-001 Task 11: uses
+//! `Cookie: access_token=demo-key` instead of login + cyberint_session.
 
 #[cfg(feature = "dtu")]
 mod ac_5 {
     use prism_dtu_common::BehavioralClone;
     use prism_dtu_cyberint::CyberintClone;
 
-    async fn login_and_start() -> (CyberintClone, String, String) {
+    const DEMO_TOKEN: &str = "demo-access-key";
+
+    async fn start_with_demo_token() -> (CyberintClone, String, reqwest::Client) {
         let mut clone = CyberintClone::new().expect("AC-5: new must succeed");
         clone.start().await.expect("AC-5: start must succeed");
         let base_url = clone.base_url();
-
+        clone
+            .configure(serde_json::json!({"access_token": DEMO_TOKEN}))
+            .await
+            .expect("AC-5: configure must succeed");
         let client = reqwest::Client::builder()
             .timeout(std::time::Duration::from_secs(5))
             .build()
             .expect("build client");
-        let login_resp = client
-            .post(format!("{base_url}/login"))
-            .json(&serde_json::json!({}))
-            .send()
-            .await
-            .expect("login must succeed");
-        let set_cookie = login_resp
-            .headers()
-            .get("set-cookie")
-            .expect("AC-5: Set-Cookie must be present on login")
-            .to_str()
-            .expect("AC-5: Set-Cookie must be ASCII")
-            .to_owned();
-        let token = set_cookie
-            .split(';')
-            .next()
-            .and_then(|s| s.strip_prefix("cyberint_session="))
-            .expect("AC-5: Set-Cookie must contain cyberint_session=")
-            .to_owned();
-
-        (clone, base_url, token)
+        (clone, base_url, client)
     }
 
     /// Alert list response includes both ISO 8601 and Unix epoch timestamps.
     #[tokio::test]
     async fn ac_5_alert_list_contains_iso8601_timestamps() {
-        let (_clone, base_url, token) = login_and_start().await;
-        let client = reqwest::Client::builder()
-            .timeout(std::time::Duration::from_secs(5))
-            .build()
-            .expect("build client");
+        let (_clone, base_url, client) = start_with_demo_token().await;
 
         let resp = client
             .get(format!("{base_url}/api/v1/alerts"))
-            .header("Cookie", format!("cyberint_session={token}"))
+            .header("Cookie", format!("access_token={DEMO_TOKEN}"))
             .send()
             .await
             .expect("AC-5: GET /api/v1/alerts must not error");
@@ -77,15 +61,11 @@ mod ac_5 {
 
     #[tokio::test]
     async fn ac_5_alert_list_contains_unix_epoch_timestamps() {
-        let (_clone, base_url, token) = login_and_start().await;
-        let client = reqwest::Client::builder()
-            .timeout(std::time::Duration::from_secs(5))
-            .build()
-            .expect("build client");
+        let (_clone, base_url, client) = start_with_demo_token().await;
 
         let resp = client
             .get(format!("{base_url}/api/v1/alerts"))
-            .header("Cookie", format!("cyberint_session={token}"))
+            .header("Cookie", format!("access_token={DEMO_TOKEN}"))
             .send()
             .await
             .expect("AC-5: GET must not error");
@@ -104,15 +84,11 @@ mod ac_5 {
     /// Verbatim check: CYB-2024-001 has ISO 8601 "2024-01-15T08:23:41Z".
     #[tokio::test]
     async fn ac_5_cyb_2024_001_has_verbatim_iso8601_timestamp() {
-        let (_clone, base_url, token) = login_and_start().await;
-        let client = reqwest::Client::builder()
-            .timeout(std::time::Duration::from_secs(5))
-            .build()
-            .expect("build client");
+        let (_clone, base_url, client) = start_with_demo_token().await;
 
         let resp = client
             .get(format!("{base_url}/api/v1/alerts/CYB-2024-001"))
-            .header("Cookie", format!("cyberint_session={token}"))
+            .header("Cookie", format!("access_token={DEMO_TOKEN}"))
             .send()
             .await
             .expect("AC-5: GET alert must not error");
@@ -129,15 +105,11 @@ mod ac_5 {
     /// Verbatim check: CYB-2024-002 has Unix epoch integer 1705312800.
     #[tokio::test]
     async fn ac_5_cyb_2024_002_has_verbatim_unix_epoch_timestamp() {
-        let (_clone, base_url, token) = login_and_start().await;
-        let client = reqwest::Client::builder()
-            .timeout(std::time::Duration::from_secs(5))
-            .build()
-            .expect("build client");
+        let (_clone, base_url, client) = start_with_demo_token().await;
 
         let resp = client
             .get(format!("{base_url}/api/v1/alerts/CYB-2024-002"))
-            .header("Cookie", format!("cyberint_session={token}"))
+            .header("Cookie", format!("access_token={DEMO_TOKEN}"))
             .send()
             .await
             .expect("AC-5: GET CYB-2024-002 must not error");
@@ -154,15 +126,11 @@ mod ac_5 {
     /// Both ISO 8601 and epoch variants coexist in the first page (10 of each).
     #[tokio::test]
     async fn ac_5_first_page_has_mixed_timestamps_roughly_half_each() {
-        let (_clone, base_url, token) = login_and_start().await;
-        let client = reqwest::Client::builder()
-            .timeout(std::time::Duration::from_secs(5))
-            .build()
-            .expect("build client");
+        let (_clone, base_url, client) = start_with_demo_token().await;
 
         let resp = client
             .get(format!("{base_url}/api/v1/alerts"))
-            .header("Cookie", format!("cyberint_session={token}"))
+            .header("Cookie", format!("access_token={DEMO_TOKEN}"))
             .send()
             .await
             .expect("AC-5: GET must not error");

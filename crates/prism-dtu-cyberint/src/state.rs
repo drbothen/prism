@@ -6,8 +6,10 @@
 //! - Immutable alert fixture registry (pre-loaded from `fixtures/alerts.json`)
 //! - Runtime configuration (auth_mode, rate_limit_after)
 
-use std::collections::{HashMap, HashSet};
-use std::sync::Mutex;
+use std::{
+    collections::{HashMap, HashSet},
+    sync::Mutex,
+};
 
 use prism_core::OrgId;
 
@@ -335,9 +337,13 @@ impl CyberintState {
     /// the real Cyberint API issues API keys at the account level, not per-org.
     ///
     /// # ADR-031 §D3-a rule 3 / AC-004 (S-DTU-CYBERINT-AUTH-FIDELITY-001)
-    #[allow(unused_variables)]
     pub fn is_valid_access_token(&self, token: &str) -> bool {
-        todo!("AC-004: check token against access_token_allowlist (set contains token)")
+        // SAFETY: mutex poison only occurs if a previous holder panicked — not possible in normal operation.
+        #[allow(clippy::expect_used)]
+        self.access_token_allowlist
+            .lock()
+            .expect("access_token_allowlist poisoned")
+            .contains(token)
     }
 
     /// Register an `access_token` value in the static allowlist.
@@ -346,9 +352,13 @@ impl CyberintState {
     /// No UUID issuance — the token is provided externally (API key or demo value).
     ///
     /// # ADR-031 §D3-a rule 3 / AC-004 (S-DTU-CYBERINT-AUTH-FIDELITY-001)
-    #[allow(unused_variables)]
     pub fn register_access_token(&self, token: String) {
-        todo!("AC-004: insert token into access_token_allowlist")
+        // SAFETY: mutex poison only occurs if a previous holder panicked — not possible in normal operation.
+        #[allow(clippy::expect_used)]
+        self.access_token_allowlist
+            .lock()
+            .expect("access_token_allowlist poisoned")
+            .insert(token);
     }
 
     /// Builder: register a demo access token and return `self`.
@@ -359,9 +369,14 @@ impl CyberintState {
     /// Consuming builder pattern: `CyberintState::with_org_id_and_admin_token(...).with_demo_token(token)`
     ///
     /// # ADR-031 §D3-a / AC-004 (S-DTU-CYBERINT-AUTH-FIDELITY-001)
-    #[allow(unused_variables)]
     pub fn with_demo_token(self, demo_token: String) -> Self {
-        todo!("AC-004: insert demo_token into self.access_token_allowlist; return self")
+        // SAFETY: mutex poison only occurs if a previous holder panicked — not possible in normal operation.
+        #[allow(clippy::expect_used)]
+        self.access_token_allowlist
+            .lock()
+            .expect("access_token_allowlist poisoned")
+            .insert(demo_token);
+        self
     }
 
     /// Check and increment the authenticated request counter for rate limiting.

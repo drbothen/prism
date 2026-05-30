@@ -1,57 +1,44 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
-//! AC-7: FailureMode::RateLimit via POST /dtu/configure.
+//! AC-7: FailureMode::RateLimit via POST /dtu/configure (rewritten for ADR-031 §D3-a).
 //!
 //! Given `FailureMode::RateLimit` configured via `POST /dtu/configure`, when the
 //! threshold is exceeded, the response is HTTP 429 — maps to E-SENSOR-003.
+//!
+//! Rewritten per S-DTU-CYBERINT-AUTH-FIDELITY-001 Task 11: uses
+//! `Cookie: access_token=demo-key` instead of login + cyberint_session.
 
 #[cfg(feature = "dtu")]
 mod ac_7 {
     use prism_dtu_common::BehavioralClone;
     use prism_dtu_cyberint::CyberintClone;
 
-    /// Returns (clone, base_url, session_token, admin_token).
-    async fn start_with_token() -> (CyberintClone, String, String, String) {
+    const DEMO_TOKEN: &str = "demo-access-key";
+
+    /// Returns (clone, base_url, admin_token, client) with demo token registered.
+    async fn start_with_demo_token() -> (CyberintClone, String, String, reqwest::Client) {
         let mut clone = CyberintClone::new().expect("AC-7: new must succeed");
         clone.start().await.expect("AC-7: start must succeed");
         let base_url = clone.base_url();
         let admin_token = clone.admin_token().to_string();
 
+        clone
+            .configure(serde_json::json!({"access_token": DEMO_TOKEN}))
+            .await
+            .expect("AC-7: configure access_token must succeed");
+
         let client = reqwest::Client::builder()
             .timeout(std::time::Duration::from_secs(5))
             .build()
             .expect("build client");
-        let login_resp = client
-            .post(format!("{base_url}/login"))
-            .json(&serde_json::json!({}))
-            .send()
-            .await
-            .expect("login must succeed");
-        let set_cookie = login_resp
-            .headers()
-            .get("set-cookie")
-            .expect("AC-7: Set-Cookie must be present on login")
-            .to_str()
-            .expect("AC-7: Set-Cookie must be ASCII")
-            .to_owned();
-        let token = set_cookie
-            .split(';')
-            .next()
-            .and_then(|s| s.strip_prefix("cyberint_session="))
-            .expect("AC-7: Set-Cookie must contain cyberint_session=")
-            .to_owned();
 
-        (clone, base_url, token, admin_token)
+        (clone, base_url, admin_token, client)
     }
 
     /// Configure rate_limit_after=1; second request returns 429.
     #[tokio::test]
     async fn ac_7_rate_limit_429_after_threshold_exceeded() {
-        let (_clone, base_url, token, admin_token) = start_with_token().await;
-        let client = reqwest::Client::builder()
-            .timeout(std::time::Duration::from_secs(5))
-            .build()
-            .expect("build client");
-        let cookie = format!("cyberint_session={token}");
+        let (_clone, base_url, admin_token, client) = start_with_demo_token().await;
+        let cookie = format!("access_token={DEMO_TOKEN}");
 
         // Configure rate limit: allow 1 request then 429.
         let configure_resp = client
@@ -106,12 +93,8 @@ mod ac_7 {
     /// Rate limit response body includes error field (maps to E-SENSOR-003).
     #[tokio::test]
     async fn ac_7_rate_limit_response_includes_error_field() {
-        let (_clone, base_url, token, admin_token) = start_with_token().await;
-        let client = reqwest::Client::builder()
-            .timeout(std::time::Duration::from_secs(5))
-            .build()
-            .expect("build client");
-        let cookie = format!("cyberint_session={token}");
+        let (_clone, base_url, admin_token, client) = start_with_demo_token().await;
+        let cookie = format!("access_token={DEMO_TOKEN}");
 
         // Set rate limit to 0: every request triggers 429.
         client
@@ -142,14 +125,10 @@ mod ac_7 {
         );
     }
 
-    /// After reset(), rate limit counter resets — requests succeed again.
+    /// After reset(), rate limit counter resets — re-configure and requests succeed again.
     #[tokio::test]
     async fn ac_7_rate_limit_resets_after_dtu_reset() {
-        let (_clone, base_url, token, admin_token) = start_with_token().await;
-        let client = reqwest::Client::builder()
-            .timeout(std::time::Duration::from_secs(5))
-            .build()
-            .expect("build client");
+        let (mut clone, base_url, admin_token, client) = start_with_demo_token().await;
 
         // Configure limit=0, exhausting all new requests.
         client
@@ -163,7 +142,7 @@ mod ac_7 {
         // Verify it's rate-limited.
         let limited = client
             .get(format!("{base_url}/api/v1/alerts"))
-            .header("Cookie", format!("cyberint_session={token}"))
+            .header("Cookie", format!("access_token={DEMO_TOKEN}"))
             .send()
             .await
             .expect("AC-7 reset: limited request must not error");
@@ -173,7 +152,7 @@ mod ac_7 {
             "AC-7 reset: must be 429 before reset"
         );
 
-        // Reset the DTU.
+        // Reset the DTU (clears allowlist + rate limit counter + rate_limit_after).
         let reset_resp = client
             .post(format!("{base_url}/dtu/reset"))
             .header("X-Admin-Token", &admin_token)
@@ -186,31 +165,16 @@ mod ac_7 {
             "AC-7 reset: /dtu/reset must return 200"
         );
 
-        // After reset, need to re-login (session store cleared by reset).
-        let new_login = client
-            .post(format!("{base_url}/login"))
-            .json(&serde_json::json!({}))
-            .send()
+        // After reset, the allowlist is cleared — re-configure the demo token.
+        clone
+            .configure(serde_json::json!({"access_token": DEMO_TOKEN}))
             .await
-            .expect("AC-7 reset: re-login must succeed");
-        let new_set_cookie = new_login
-            .headers()
-            .get("set-cookie")
-            .expect("AC-7 reset: Set-Cookie must be present after re-login")
-            .to_str()
-            .expect("AC-7 reset: Set-Cookie must be ASCII")
-            .to_owned();
-        let new_token = new_set_cookie
-            .split(';')
-            .next()
-            .and_then(|s| s.strip_prefix("cyberint_session="))
-            .expect("AC-7 reset: Set-Cookie must contain cyberint_session=")
-            .to_owned();
+            .expect("AC-7 reset: re-configure access_token after reset must succeed");
 
         // After reset, rate_limit_after is None → first request succeeds.
         let after_reset = client
             .get(format!("{base_url}/api/v1/alerts"))
-            .header("Cookie", format!("cyberint_session={new_token}"))
+            .header("Cookie", format!("access_token={DEMO_TOKEN}"))
             .send()
             .await
             .expect("AC-7 reset: post-reset request must not error");
@@ -221,15 +185,11 @@ mod ac_7 {
         );
     }
 
-    /// Rate limit also applies to PATCH, POST /close, and GET /threat-intel.
+    /// Rate limit also applies to GET /threat-intel.
     #[tokio::test]
     async fn ac_7_rate_limit_applies_to_threat_intel_endpoint() {
-        let (_clone, base_url, token, admin_token) = start_with_token().await;
-        let client = reqwest::Client::builder()
-            .timeout(std::time::Duration::from_secs(5))
-            .build()
-            .expect("build client");
-        let cookie = format!("cyberint_session={token}");
+        let (_clone, base_url, admin_token, client) = start_with_demo_token().await;
+        let cookie = format!("access_token={DEMO_TOKEN}");
 
         // rate_limit_after=0: first authenticated request returns 429.
         client

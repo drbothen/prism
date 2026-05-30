@@ -49,8 +49,7 @@
 mod harness_tests {
     #[allow(unused_imports)]
     use prism_dtu_common::{FailureMode, FidelityCheck, FidelityValidator};
-    use prism_dtu_harness::types::DtuType;
-    use prism_dtu_harness::{HarnessBuilder, IsolationMode};
+    use prism_dtu_harness::{types::DtuType, HarnessBuilder, IsolationMode};
 
     // ── Shared helper: login and return session token ────────────────────────
 

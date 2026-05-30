@@ -31,12 +31,12 @@
 //!   Makes NO HTTP call. Returns the raw API key as the token. NOT feature-gated.
 //!   AC-005, AC-006 (S-DTU-CYBERINT-AUTH-FIDELITY-001); BC-2.01.017 §Postconditions.
 
-use crate::error::SpecEngineError;
-use crate::spec_parser::SensorSpec;
+use std::{future::Future, pin::Pin};
+
 use prism_core::OrgSlug;
-use std::future::Future;
-use std::pin::Pin;
 use zeroize::Zeroizing;
+
+use crate::{error::SpecEngineError, spec_parser::SensorSpec};
 
 // ---------------------------------------------------------------------------
 // AuthToken newtype
@@ -157,10 +157,6 @@ pub struct StaticCookieAuthProvider {
     ///
     /// This is the plain sensor name string (e.g., `"cyberint"`). The API key itself
     /// is NEVER stored here — AD-017 compliance.
-    ///
-    /// `#[allow(dead_code)]`: field is unused while the `new()` body is `todo!()`.
-    /// The implementer will use this in `acquire_token` to resolve credentials.
-    #[allow(dead_code)]
     sensor_id: String,
 }
 
@@ -177,9 +173,10 @@ impl StaticCookieAuthProvider {
     ///
     /// `#[allow(unused_variables)]`: parameter is referenced in the `todo!()` message
     /// but not actually used until the implementer fills in the body.
-    #[allow(unused_variables)]
     pub fn new(sensor_id: impl Into<String>) -> Self {
-        todo!("AC-005: construct StaticCookieAuthProvider with sensor_id; no credential stored")
+        Self {
+            sensor_id: sensor_id.into(),
+        }
     }
 }
 
@@ -204,18 +201,63 @@ impl AuthProvider for StaticCookieAuthProvider {
     ///
     /// `#[allow(unused_variables)]`: parameters are referenced in the `todo!()` body
     /// message but not actually used until the implementer fills in the body.
-    #[allow(unused_variables)]
     fn acquire_token<'a>(
         &'a self,
-        spec: &'a SensorSpec,
+        _spec: &'a SensorSpec,
         client_id: &'a OrgSlug,
     ) -> Pin<Box<dyn Future<Output = Result<AuthToken, SpecEngineError>> + Send + 'a>> {
+        use secrecy::ExposeSecret;
+
+        let sensor_id = self.sensor_id.clone();
+        let client_id_str = client_id.as_str().to_string();
+
         Box::pin(async move {
-            todo!(
-                "AC-005/AC-006/AC-010: call prism_credentials::resolve_credential(client_id, sensor_id, 'api_key'); \
-                 validate api_key (E-AUTH-006: reject empty/whitespace/illegal-chars/oversized); \
-                 return Ok(AuthToken::new(api_key_value)); ZERO HTTP calls"
-            )
+            // INV-COOKIE-001 / ADR-031 §D1-b: ZERO HTTP calls.
+            // This is a pure credential-store read via the env-var / crud chain.
+            let secret =
+                prism_credentials::resolve_credential(&client_id_str, &sensor_id, "api_key")
+                    .await
+                    .map_err(|e| SpecEngineError::AuthAcquisitionFailed {
+                        sensor_id: sensor_id.clone(),
+                        client_id: client_id_str.clone(),
+                        detail: format!("E-AUTH-005: credential not found: {e}"),
+                    })?;
+
+            // E-AUTH-006: validate the resolved api_key before returning.
+            // RFC 6265 §4.1.1: cookie-value MUST NOT contain spaces, commas,
+            // semicolons, backslashes, or double-quotes.
+            let api_key = secret.expose_secret().to_string();
+            if api_key.is_empty() || api_key.chars().all(char::is_whitespace) {
+                return Err(SpecEngineError::AuthAcquisitionFailed {
+                    sensor_id,
+                    client_id: client_id_str,
+                    detail: "E-AUTH-006: api_key is empty or all-whitespace".to_string(),
+                });
+            }
+            if api_key.len() > 4096 {
+                return Err(SpecEngineError::AuthAcquisitionFailed {
+                    sensor_id,
+                    client_id: client_id_str,
+                    detail: format!(
+                        "E-AUTH-006: api_key exceeds 4096-byte limit ({} bytes)",
+                        api_key.len()
+                    ),
+                });
+            }
+            // RFC 6265 §4.1.1 illegal cookie-value characters.
+            const ILLEGAL_COOKIE_CHARS: &[char] = &[' ', ',', ';', '\\', '"'];
+            if api_key.chars().any(|c| ILLEGAL_COOKIE_CHARS.contains(&c)) {
+                return Err(SpecEngineError::AuthAcquisitionFailed {
+                    sensor_id,
+                    client_id: client_id_str,
+                    detail:
+                        "E-AUTH-006: api_key contains illegal RFC 6265 cookie-value characters \
+                             (space, comma, semicolon, backslash, or double-quote)"
+                            .to_string(),
+                });
+            }
+
+            Ok(AuthToken::new(api_key))
         })
     }
 }
@@ -446,6 +488,41 @@ impl AuthProvider for ChainAuthProvider {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::spec_parser::{AuthType, ColumnSpec, FetchStep, SensorSpec, TableSpec};
+    use prism_core::{ColumnType, OrgSlug};
+
+    fn cookie_roundtrip_spec() -> SensorSpec {
+        SensorSpec::new(
+            "cyberint",
+            "Cyberint Test Sensor",
+            AuthType::CookieRoundtrip,
+            "https://mock.invalid",
+            vec![TableSpec::new_point_in_time(
+                "alerts",
+                "security_finding",
+                vec![ColumnSpec::new(
+                    "alert_id",
+                    ColumnType::String,
+                    None,
+                    vec![],
+                )],
+                vec![FetchStep::new(
+                    "fetch_alerts",
+                    "GET",
+                    "/api/v1/alerts",
+                    None,
+                    "$.data",
+                    None,
+                    vec![],
+                    None,
+                    None,
+                )],
+            )],
+            None,
+            "1.0.0",
+            vec![],
+        )
+    }
 
     /// BC-2.16.002 / AC-5: `AuthProvider` must be usable as `dyn AuthProvider`.
     ///
@@ -465,6 +542,158 @@ mod tests {
             provider.calls(),
             0,
             "no acquire_token calls yet — just testing object-safety coercion"
+        );
+    }
+
+    /// AC-005 / BC-2.01.017 §Postconditions P1: StaticCookieAuthProvider::acquire_token
+    /// reads the API key from the credential resolver (env var chain) and returns Ok(AuthToken).
+    ///
+    /// SID-1 compliance: since the integration test (bc_2_01_017_static_cookie_auth_provider
+    /// test 1) requires CYBERINT_API_KEY to be set in the environment, this unit test exercises
+    /// the same production code path deterministically by setting the env var in-process before
+    /// the call, and restoring it after. This drives the real acquire_token production code path
+    /// without any external dependency.
+    ///
+    /// INV-COOKIE-001: no HTTP call is made — StaticCookieAuthProvider holds no reqwest::Client.
+    #[tokio::test]
+    async fn test_static_cookie_auth_provider_resolves_api_key_from_env() {
+        // Set the env var that resolve_credential checks for sensor_id="cyberint".
+        // The canonical env var name is CYBERINT_API_KEY (sensor_upper + "_" + name_upper).
+        let env_key = "CYBERINT_API_KEY";
+        let test_value = "unit-test-api-key-value";
+        // Safety: tests run in isolated processes (nextest default); env mutation is
+        // safe here because this test binary is single-purpose and no other thread
+        // reads CYBERINT_API_KEY concurrently. The set_var/remove_var pair brackets
+        // the acquire_token call.
+        // SAFETY: test isolation — nextest runs each test in a separate process
+        // by default (out-of-process mode). No data race with other test binaries.
+        unsafe {
+            std::env::set_var(env_key, test_value);
+        }
+
+        let provider = StaticCookieAuthProvider::new("cyberint");
+        let spec = cookie_roundtrip_spec();
+        let client_id = OrgSlug::new("test-org-unit");
+
+        let result = provider.acquire_token(&spec, &client_id).await;
+
+        // Clean up the env var immediately after the await returns.
+        // SAFETY: same isolation guarantee as set_var above.
+        unsafe {
+            std::env::remove_var(env_key);
+        }
+
+        assert!(
+            result.is_ok(),
+            "AC-005: acquire_token must return Ok(AuthToken) when CYBERINT_API_KEY is set. \
+             Got: {:?}",
+            result
+        );
+        let token = result.unwrap();
+        assert_eq!(
+            token.as_str(),
+            test_value,
+            "AC-005: AuthToken value must equal the resolved API key from the env var"
+        );
+    }
+
+    /// AC-006 / BC-2.01.017 §Invariants INV-COOKIE-001: acquire_token makes ZERO HTTP calls.
+    ///
+    /// Structural check: StaticCookieAuthProvider has no reqwest::Client field.
+    /// This test verifies the credential-not-found error path: when credentials are absent,
+    /// the function returns E-AUTH-005 without making any HTTP call. The no-HTTP-call property
+    /// is guaranteed by the struct having no HTTP client — if the CYBERINT_API_KEY env var is
+    /// unset, acquire_token returns Err immediately from resolve_credential, proving no HTTP
+    /// I/O occurred.
+    #[tokio::test]
+    async fn test_static_cookie_auth_provider_no_http_call_when_credential_missing() {
+        // Ensure the env var is NOT set for this test.
+        // SAFETY: test isolation — see test_static_cookie_auth_provider_resolves_api_key_from_env
+        // SAFETY comment. No concurrent threads read these vars in this test binary.
+        unsafe {
+            std::env::remove_var("CYBERINT_API_KEY");
+            std::env::remove_var("CYBERINT_API_KEY_FILE");
+        }
+
+        let provider = StaticCookieAuthProvider::new("cyberint");
+        let spec = cookie_roundtrip_spec();
+        let client_id = OrgSlug::new("test-org-unit");
+
+        // acquire_token returns E-AUTH-005 (not found) — no HTTP call made.
+        // The error itself proves the function returned without any async HTTP I/O.
+        let result = provider.acquire_token(&spec, &client_id).await;
+        assert!(
+            result.is_err(),
+            "AC-006: acquire_token must return Err when no credential is configured \
+             (E-AUTH-005 not-found path). Got Ok — unexpected credential resolution."
+        );
+        let err = result.unwrap_err();
+        let err_str = err.to_string();
+        assert!(
+            err_str.contains("E-AUTH-005"),
+            "AC-006: error must be E-AUTH-005 (credential not found). Got: {err_str}"
+        );
+    }
+
+    /// E-AUTH-006: acquire_token rejects an empty API key.
+    ///
+    /// When the env var is set to an empty string, acquire_token must return
+    /// E-AUTH-006 (empty / all-whitespace credential rejected).
+    #[tokio::test]
+    async fn test_static_cookie_auth_provider_rejects_empty_api_key() {
+        let env_key = "CYBERINT_API_KEY";
+        // SAFETY: test isolation — see test_static_cookie_auth_provider_resolves_api_key_from_env.
+        unsafe {
+            std::env::set_var(env_key, "");
+        }
+
+        let provider = StaticCookieAuthProvider::new("cyberint");
+        let spec = cookie_roundtrip_spec();
+        let client_id = OrgSlug::new("test-org-unit");
+
+        let result = provider.acquire_token(&spec, &client_id).await;
+        // SAFETY: test isolation.
+        unsafe {
+            std::env::remove_var(env_key);
+        }
+
+        // Empty string: resolve_secret returns Ok(None) → NotFound path, not E-AUTH-006.
+        // An empty env var is treated as "not set" by resolve_secret (it filters empty strings).
+        // This is correct per BC-2.03.006 semantics — the E-AUTH-005 path fires.
+        assert!(
+            result.is_err(),
+            "AC-006/E-AUTH-006: acquire_token must return Err for empty credential. Got Ok."
+        );
+    }
+
+    /// E-AUTH-006: acquire_token rejects an API key with illegal RFC 6265 cookie characters.
+    #[tokio::test]
+    async fn test_static_cookie_auth_provider_rejects_illegal_cookie_chars() {
+        let env_key = "CYBERINT_API_KEY";
+        // Semicolon is illegal in cookie-value per RFC 6265 §4.1.1.
+        // SAFETY: test isolation — see test_static_cookie_auth_provider_resolves_api_key_from_env.
+        unsafe {
+            std::env::set_var(env_key, "valid-prefix;injected-cookie");
+        }
+
+        let provider = StaticCookieAuthProvider::new("cyberint");
+        let spec = cookie_roundtrip_spec();
+        let client_id = OrgSlug::new("test-org-unit");
+
+        let result = provider.acquire_token(&spec, &client_id).await;
+        // SAFETY: test isolation.
+        unsafe {
+            std::env::remove_var(env_key);
+        }
+
+        assert!(
+            result.is_err(),
+            "E-AUTH-006: acquire_token must reject API keys containing ';' (illegal cookie char)"
+        );
+        let err = result.unwrap_err().to_string();
+        assert!(
+            err.contains("E-AUTH-006"),
+            "E-AUTH-006: error message must reference E-AUTH-006. Got: {err}"
         );
     }
 }

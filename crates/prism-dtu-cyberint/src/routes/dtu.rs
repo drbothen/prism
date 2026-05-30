@@ -14,11 +14,9 @@ use axum::{
     response::IntoResponse,
     Json,
 };
-
 use subtle::ConstantTimeEq;
 
-use crate::routes::alerts::extract_org_id;
-use crate::state::CyberintState;
+use crate::{routes::alerts::extract_org_id, state::CyberintState};
 
 /// `POST /dtu/configure`
 ///

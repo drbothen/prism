@@ -14,29 +14,28 @@
 //! `axum_server::bind_rustls` and serves HTTPS.  When `None`, plain axum HTTP
 //! is used (backward-compatible default).
 
-use std::net::SocketAddr;
-use std::sync::Arc;
+use std::{net::SocketAddr, sync::Arc};
 
 use async_trait::async_trait;
 use axum::{
     routing::{get, patch, post},
     Router,
 };
+use prism_core::OrgId;
 // NOTE: `post` is retained for `/api/v1/alerts` POST route (get_alerts also accepts POST)
 // and `/api/v1/alerts/:id/close` (post_close_alert). Do not remove.
 use prism_dtu_common::BehavioralClone;
-use tokio::sync::broadcast;
-use tokio::task::JoinHandle;
+use tokio::{sync::broadcast, task::JoinHandle};
 
-use prism_core::OrgId;
-
-use crate::routes::{
-    alerts::{get_alert_by_id, get_alerts, patch_alert_status, post_close_alert},
-    dtu::{get_health, post_configure, post_reset},
-    threats::get_threat_intel,
+use crate::{
+    routes::{
+        alerts::{get_alert_by_id, get_alerts, patch_alert_status, post_close_alert},
+        dtu::{get_health, post_configure, post_reset},
+        threats::get_threat_intel,
+    },
+    state::CyberintState,
+    types::Alert,
 };
-use crate::state::CyberintState;
-use crate::types::Alert;
 
 /// L2-fidelity behavioral clone of the Cyberint API.
 pub struct CyberintClone {
