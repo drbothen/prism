@@ -9030,3 +9030,52 @@ Verification grep after fix: `rg "21 cite-pin" .factory/` in active narrative sc
 **Anti-volatile-pin note (TD-VSDD-091):** All citations use story/BC/finding-ID/function-name anchors. No file:line-number citations in this addendum.
 
 **D-880 burst marker:** 272nd consecutive single-commit per TD-VSDD-053. Anti-volatile-pin per TD-VSDD-091.
+
+---
+
+## §ADDENDUM 2026-05-30-LOCAL-CONVERGED-PASS-17 (D-881)
+
+**D-881 burst marker.** Pass 17 CLEAN(strict). Streak **3/3**. **LOCAL CONVERGED.** Feature HEAD `4f5b5404` unchanged.
+
+**Pass 17 result: CLEAN(strict)=YES. CLEAN(PR-merge)=YES.** Zero findings of any severity. All prior closures verified load-bearing. SAP-1/SAP-2/SID-1 PASS. Streak 2/3 → 3/3.
+
+**LOCAL CONVERGED per BC-5.39.001 D-779.** Three consecutive strict-clean passes: Pass 15 (D-879) + Pass 16 (D-880) + Pass 17 (D-881).
+
+**Cascade totals (S-DTU-CYBERINT-AUTH-FIDELITY-001):**
+- Total passes: 17 (Pass 5 REJECTED not counted in streak; Pass 5 REDUX supersedes; all others counted)
+- Total fix-bursts: 11 (Passes 1, 2, 3, 6, 8, 9, 10, 12, 13, 14, plus PO/story-writer/implementer/state-manager dispatches)
+- Total findings closed: 25
+- Streak CLEAN passes: 15, 16, 17
+
+**Codifications during this cascade:**
+- Lesson 57: workspace-grep before N/A (verify symbol existence before claiming N/A in adversarial pass)
+- Lesson 58: adversary grounding-truth preamble (confirm worktree cwd + branch + HEAD + symbol existence before probes)
+- Lesson 59: three-recurrence comprehensive sweep (same finding class 3x → comprehensive sweep ALL sibling sites)
+- Lesson 60: SAP-4 cite-pin probe + POL-29 hygiene-exempt candidate (adversary must probe crates cite-pin freshness)
+- POL-32: changelog_monotonic_descending (all spec artifact changelogs must be in monotonic descending order)
+- BC-2.01.017 §Notes: introduced-in anchor convention ("pinned-at-write-time" — cite-pins record BC version at time of authorship, not required to update on every BC bump)
+
+**Artifacts written this burst:**
+- `adversarial-review/local-pass-17.md` (new — Pass 17 adversary report, zero findings, LOCAL CONVERGED verdict)
+- `adversary-convergence-state.json` (pass-17 entry added; current_streak=3; status=LOCAL_CONVERGED; local_converged_at=2026-05-30 D-881 pass-17; total_passes=17; total_fix_bursts=11; total_findings_closed=25; lessons_codified_in_cascade=[57,58,59,60]; policies_codified_in_cascade=["POL-32"]; next_action updated to demo-recorder)
+- `STATE.md` v7.559→v7.560 (frontmatter version + current_step + cyberint_cascade_step + pass_17 fields + cyberint convergence fields + D-881 decision row + Phase Progress LOCAL_CONVERGED row + Current Phase Steps D-881 added/D-880 archived + Session Resume Checkpoint updated)
+- `SESSION-HANDOFF.md §ADDENDUM 2026-05-30-LOCAL-CONVERGED-PASS-17` (this section)
+
+**Deferred findings (carry forward, unchanged):**
+- D-LP6-001: CredentialResolutionError enum lacks `#[non_exhaustive]` — pre-existing project-wide; Phase 5 architectural pub-API audit target; not introduced by this story; Rule 3 compliant
+- BC-INDEX v4 historical section: TD-VSDD-091 immutable historical narrative; not a monitoring target for future enforcement
+
+**Next actions for new session:**
+1. Dispatch demo-recorder per-AC for all 11 ACs into `docs/demo-evidence/S-DTU-CYBERINT-AUTH-FIDELITY-001/`
+2. Obtain USER AUTHORIZATION for push to remote
+3. pr-manager 9-step PR cycle (targeting develop)
+4. Queue SAP-4 + POL-29 hygiene-exempt codification (F-LP12-PG-001) for CLAUDE.md amendment
+
+**Final spec state at LOCAL CONVERGED:**
+- Story: v1.5 | BC-2.01.017: v1.5 | BC-INDEX: v5.62 | STORY-INDEX: v2.216 | error-taxonomy.md: v1.55 | policies.yaml: v1.31
+- Feature HEAD: `4f5b5404` (unchanged since Pass 6 fix-burst)
+- Workspace tests: 3839/3839 pass (just check exit 0)
+
+**Anti-volatile-pin note (TD-VSDD-091):** All citations use story/BC/finding-ID/function-name anchors. No file:line-number citations in this addendum.
+
+**D-881 burst marker:** 273rd consecutive single-commit per TD-VSDD-053. Anti-volatile-pin per TD-VSDD-091.
