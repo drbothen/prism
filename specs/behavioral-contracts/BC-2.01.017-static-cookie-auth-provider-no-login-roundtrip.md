@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-05-29T00:00:00Z
@@ -11,7 +11,7 @@ subsystem: "SS-01"
 capability: "CAP-001"
 lifecycle_status: active
 introduced: "2026-05-29"
-modified: "2026-05-29"
+modified: "2026-05-30"
 deprecated: ~
 deprecated_by: ~
 replacement: ~
@@ -146,7 +146,7 @@ DTU=True-DTU fidelity principle).
 | Error | Condition | Behavior |
 |-------|-----------|----------|
 | `E-AUTH-005` | Credential resolver finds no credential entry for `(client_id, sensor_id)` — API key not present in keyring or file backend | `acquire_token()` returns `Err(E-AUTH-005)`. Message: `"Credentials not found for ({client_id}, {sensor_id})"`. Pipeline propagates as a per-sensor partial failure (BC-2.01.010). No HTTP fetch attempted for this sensor. |
-| `E-AUTH-006` | Credential resolver returns an empty string value for the API key | `acquire_token()` returns `Err(E-AUTH-006)`. Message: `"Empty API key for cookie_roundtrip sensor '{sensor}' on client '{client_id}'"`. Empty-string API keys are meaningless for static-cookie auth and would produce requests that the real API will unconditionally reject. Fail fast at token acquisition, not at DTU 401. |
+| `E-AUTH-006` | Credential resolver returns a non-empty but invalid value for the API key: all-whitespace, exceeds 4096 bytes, or contains RFC 6265-illegal characters (e.g., semicolons, control characters) | `acquire_token()` returns `Err(E-AUTH-006)`. Message: `"Empty or invalid API key for cookie_roundtrip sensor '{sensor}' on client '{client_id}'"`. NOTE: `prism_credentials::resolve_credential` (per BC-2.03.006) normalizes empty-string and missing env-var values as "not found," so an empty string never reaches this validation branch — it is caught at the resolver layer as E-AUTH-005. E-AUTH-006 fires when the resolver SUCCEEDS with a non-empty value that fails cookie-value validation. |
 | `E-AUTH-004` | DTU (or real Cyberint API) returns HTTP 401 for a request carrying `Cookie: access_token={token}` | The HTTP 401 is propagated as a sensor fetch error. The pipeline does NOT retry with a refreshed token (there is no refresh mechanism — the API key is static). The error is surfaced in `sensor_errors` (BC-2.01.010). Root cause: API key is invalid, expired, or revoked. Operator must update the credential in the keyring. |
 | Cookie format characters invalid | API key contains characters that are illegal in an HTTP cookie value (e.g., control characters, spaces unescaped, or semicolons) | `acquire_token()` validates the API key against RFC 6265 cookie-value syntax at construction time (newtype validation per AD-017 credential discipline). Returns `E-AUTH-006` with message `"API key for cookie_roundtrip sensor '{sensor}' contains invalid cookie characters"`. |
 
@@ -158,7 +158,7 @@ DTU=True-DTU fidelity principle).
 | EC-017-002 | DTU returns 401 on request carrying `Cookie: access_token={token}` | Pipeline surfaces a `E-AUTH-004` error in `sensor_errors`. No retry, no token refresh. Operator must update credential. |
 | EC-017-003 | Operator provides credential but stores it with a typo (wrong key name) | `E-AUTH-005` — resolver finds no entry for the canonical `(client_id, sensor_id)` pair. |
 | EC-017-004 | API key string contains a semicolon (`;`) | Newtype validation rejects at token acquisition time with `E-AUTH-006` (invalid cookie characters). Semicolon is the cookie-attribute separator in RFC 6265 and must not appear unescaped in cookie values. |
-| EC-017-005 | API key string contains only whitespace | `E-AUTH-006` (empty/invalid API key). Whitespace-only credentials are semantically equivalent to empty. |
+| EC-017-005 | Credential backend returns no value for the api_key reference: empty env var, missing keyring entry, or env var set to empty string — all treated as "not found" by `prism_credentials::resolve_credential` (BC-2.03.006) | `E-AUTH-005`. The resolver returns `Err(not_found)` before the value-validation branch; the empty-string value never reaches whitespace/length/character validation. Contrast with EC-017-004 (non-empty value with illegal characters → E-AUTH-006). |
 | EC-017-006 | Concurrent fan-out to two Cyberint instances (multi-org via BC-2.06.014) | Each fan-out target independently calls `acquire_token()` with its own `(org_id, sensor_id)` credential lookup. No shared mutable state. Two independent tokens, two independent requests. |
 | EC-017-007 | Config hot-reload changes the credential_ref for `cookie_roundtrip` sensor | Next `acquire_token()` call resolves the new reference from the updated config snapshot (ArcSwap per AD-007 per BC-2.16.006). In-flight requests use their own snapshot; no race condition. |
 | EC-017-008 | `auth_type = "cookie_roundtrip"` sensor but `credential_ref` absent from TOML spec | This is a spec-load-time error (E-SPEC-013 per BC-2.01.016 §Error Cases — each auth method must declare exactly one `credential_ref`). Rejected at boot, not at query time. |
@@ -172,7 +172,7 @@ DTU=True-DTU fidelity principle).
 | TV-BC-2.01.017-002 | build_request injects Cookie header, no Authorization | `acquire_token()` called with valid key; `build_request` called | Outgoing request has header `Cookie: access_token=test-api-key-abc123`; `Authorization` header absent |
 | TV-BC-2.01.017-003 | build_request uses `access_token` cookie name, not `cyberint_session` | Same setup as TV-002 | Header value contains `access_token=`; must NOT contain `cyberint_session=` |
 | TV-BC-2.01.017-004 | Missing credential returns E-AUTH-005 | `CredentialResolver` returns `Err(CredNotFound)` for `(client_id, sensor_id)` | `acquire_token()` returns `Err` containing `E-AUTH-005`; no HTTP request made |
-| TV-BC-2.01.017-005 | Empty credential returns E-AUTH-006 | `CredentialResolver` returns `Ok("")` (empty string) | `acquire_token()` returns `Err` containing `E-AUTH-006`; message includes sensor name and client_id; no HTTP request made |
+| TV-BC-2.01.017-005 | Empty credential returns E-AUTH-005 (not E-AUTH-006) | `CredentialResolver` returns `Err(not_found)` for `(client_id, sensor_id)` due to empty/missing env var — per BC-2.03.006, `prism_credentials` normalizes empty values as not-found | `acquire_token()` returns `Err` containing `E-AUTH-005`; message includes sensor name and client_id; no HTTP request made. NOTE: if the MockCredentialResolver is configured to return `Ok("")`, this reaches E-AUTH-006 (value-validation branch). The production resolver (PrismCredentialResolver) never does this — it treats empty string as not-found. Tests against PrismCredentialResolver (env-var path) must assert E-AUTH-005. |
 | TV-BC-2.01.017-006 | DTU 401 response surfaces E-AUTH-004 | Valid token acquired; mock HTTP server returns 401 on data fetch | Fetch error surfaced in `sensor_errors` with `E-AUTH-004`; no retry attempt; call count == 1 |
 | TV-BC-2.01.017-007 | Cookie value with semicolon rejected | `CredentialResolver` returns `Ok("key;with;semicolons")` | `acquire_token()` returns `Err(E-AUTH-006)` with invalid-cookie-characters message; no HTTP request made |
 | TV-BC-2.01.017-008 | auth_type_name returns canonical string | Call `StaticCookieAuthProvider::auth_type_name()` | Returns `"cookie_roundtrip"` |
@@ -228,3 +228,4 @@ S-DTU-CYBERINT-AUTH-FIDELITY-001
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
 | 1.0 | D-849 | 2026-05-29 | product-owner | Initial draft. Authored to close BC gap surfaced by story-writer during S-DTU-CYBERINT-AUTH-FIDELITY-001 materialization. Specifies `StaticCookieAuthProvider` no-login-roundtrip contract per ADR-031 §D1-b/D3-b. Error codes: E-AUTH-004 (DTU 401), E-AUTH-005 (missing credential), E-AUTH-006 (new — empty/invalid API key value). VP-TBD (No-HTTP-Call) surfaced for architect VP catalog assignment. |
+| 1.1 | D-852 | 2026-05-30 | product-owner | F-LP1-MED-002 adjudication (Option A — impl wins). Corrected EC-017-005 and TV-BC-2.01.017-005: empty env-var path returns E-AUTH-005 (resolver-not-found), NOT E-AUTH-006 (value-validation). E-AUTH-006 fires only when resolver succeeds with a non-empty but invalid value. Root cause: BC-2.01.017 v1.0 was authored against a model where `prism_credentials` returns `Ok("")` for empty env vars; actual behavior per BC-2.03.006 is that empty strings are normalized as not-found (Err). Error Cases table row for E-AUTH-006 updated with BC-2.03.006 boundary clarification. Test TV-BC-2.01.017-005 updated to assert E-AUTH-005 for production-resolver path. Implementer follow-on required: strengthen `test_static_cookie_auth_provider_rejects_empty_api_key` to assert E-AUTH-005 (see po-adjudications/F-LP1-MED-002.md). |

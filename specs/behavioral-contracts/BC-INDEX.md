@@ -1,10 +1,10 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "5.56"
+version: "5.57"
 status: draft
 producer: product-owner
-timestamp: 2026-05-29T00:00:00Z
+timestamp: 2026-05-30T00:00:00Z
 phase: 3.A
 total_contracts: 246
 active_contracts: 236
@@ -376,6 +376,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v5.57 (2026-05-30, D-852 F-LP1-MED-002 adjudication):** product-owner | BC-2.01.017 v1.0→v1.1: corrected EC-017-005 and TV-BC-2.01.017-005 error code E-AUTH-006→E-AUTH-005 for empty/missing credential path. Root cause: BC-2.01.017 v1.0 assumed `prism_credentials::resolve_credential` returns `Ok("")` for empty env vars; actual behavior per BC-2.03.006 normalizes empty strings as not-found (`Err`), so empty-env-var path fires E-AUTH-005 (resolver not-found), not E-AUTH-006 (value-validation). Error Cases table row for E-AUTH-006 updated with BC-2.03.006 boundary note. TV-BC-2.01.017-005 updated to assert E-AUTH-005. Adjudication note at cycles/wave-0-plugin-prereqs/S-DTU-CYBERINT-AUTH-FIDELITY-001/po-adjudications/F-LP1-MED-002.md. Implementer follow-on required: add `assert!(err_str.contains("E-AUTH-005"))` to `test_static_cookie_auth_provider_rejects_empty_api_key` (TD-VSDD-059 closure). BC-INDEX v5.56→v5.57. no contract count changes.
 
 **v5.56 (2026-05-29, D-849 BC-2.01.017 authoring burst):** product-owner | New BC-2.01.017 (StaticCookieAuthProvider Contract — No-Login-Roundtrip Cookie Injection) authored to close BC gap surfaced by story-writer during S-DTU-CYBERINT-AUTH-FIDELITY-001 materialization. ADR-031 §D1-b/D3-b no-HTTP-call invariant now has a behavioral contract home. total_contracts 245→246, draft_contracts 2→3 (BC-2.01.017 status: draft; will auto-promote at S-DTU-CYBERINT-AUTH-FIDELITY-001 merge per POL-14). active_contracts 236 unchanged. New error code E-AUTH-006 (empty/invalid API key for cookie_roundtrip) appended to error-taxonomy.md v1.52→v1.53. BC-2.01.016 v1.11→v1.12 (§Related BCs cross-reference to BC-2.01.017 added). BC-2.16.013 v1.16→v1.17 (§Related BCs cross-reference to BC-2.01.017 added; DTU-parity test family for Cyberint must assert access_token shape per ADR-031 §D5). BC-INDEX v5.55→v5.56.
 
