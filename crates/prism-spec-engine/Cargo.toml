@@ -262,3 +262,13 @@ path = "tests/overlay_loading_tests.rs"
 name = "crowdstrike_oauth2_plugin_tests"
 path = "tests/crowdstrike_oauth2_plugin_tests.rs"
 required-features = ["test-helpers"]
+
+# S-DTU-CYBERINT-AUTH-FIDELITY-001: Red Gate tests for BC-2.01.017 + BC-2.16.013
+# AC-005 (StaticCookieAuthProvider returns api_key; no HTTP call — INV-COOKIE-001),
+# AC-006 (acquire_token ZERO HTTP calls — wiremock zero-request assertion),
+# AC-007 (build_request injects Cookie: access_token for CookieRoundtrip — TV-BC-2.01.017-002/003).
+# required-features: test-helpers (MockAuthProvider injection in AC-007).
+[[test]]
+name = "bc_2_01_017_static_cookie_auth_provider"
+path = "tests/bc_2_01_017_static_cookie_auth_provider.rs"
+required-features = ["test-helpers"]
