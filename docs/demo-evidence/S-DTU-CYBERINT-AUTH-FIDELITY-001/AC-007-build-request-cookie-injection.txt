@@ -1,0 +1,45 @@
+AC-007: build_request injects Cookie: access_token={token} for CookieRoundtrip
+Story: S-DTU-CYBERINT-AUTH-FIDELITY-001
+BC: BC-2.01.017; BC-2.01.013 postcondition; ADR-031 §D3-b
+Red Gate test: test_BC_2_01_017_build_request_injects_access_token_cookie_for_cookie_roundtrip
+
+Evidence type: Integration test output (HTTP-layer via wiremock)
+
+--- TEST RUN ---
+
+PASS [   0.030s] (3/3) prism-spec-engine::bc_2_01_017_static_cookie_auth_provider
+  test_BC_2_01_017_build_request_injects_access_token_cookie_for_cookie_roundtrip
+
+--- WHAT THE TEST ASSERTS ---
+
+1. Starts a wiremock HTTP server matching Cookie: access_token=test-api-key-abc123
+   (wiremock CookieMatcher: cookie name "access_token", value "test-api-key-abc123")
+2. Constructs StaticCookieAuthProvider with MockCredentialResolver("test-api-key-abc123")
+3. Calls PipelineExecutor::execute() against the wiremock server URL
+4. Asserts exactly 1 request was received by the wiremock server
+5. Asserts wiremock received the Cookie: access_token=test-api-key-abc123 header
+
+The test explicitly checks the cookie NAME is "access_token" (not "cyberint_session"
+or "Authorization: Bearer"). The wiremock matcher would reject any other header value.
+
+--- IMPLEMENTATION: build_request in pipeline.rs ---
+
+File: crates/prism-spec-engine/src/pipeline.rs (lines 880-911)
+
+    /// | `CookieRoundtrip` | `Cookie: access_token={token}` |
+    ///
+    /// Cookie name MUST be `access_token`. The former `cyberint_session` value is permanently
+    /// superseded by ADR-031 §D3-b.
+
+    AuthType::CookieRoundtrip => {
+        // ADR-031 §D3-b / AC-007: inject Cookie header with access_token.
+        // Cookie name MUST be 'access_token' — NOT 'cyberint_session' (permanently
+        // superseded). The Authorization: Bearer header MUST NOT be set for CookieRoundtrip.
+        req.header("Cookie", format!("access_token={}", token.as_str()))
+    }
+
+The cookie name "access_token" is hardcoded (lowercase). The former
+"cyberint_session" value is replaced per ADR-031 §D3-b.
+All other AuthType variants use Authorization: Bearer (unchanged).
+
+AC-007 SATISFIED.

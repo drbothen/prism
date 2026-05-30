@@ -1,0 +1,49 @@
+AC-004: CyberintState uses static access_token allowlist (no session UUID store)
+Story: S-DTU-CYBERINT-AUTH-FIDELITY-001
+BC: BC-2.16.013 invariant; ADR-031 §D3-a rule 3
+Red Gate test: test_BC_2_16_013_dtu_state_access_token_allowlist_not_session_uuid
+
+Evidence type: Unit test output (direct struct-level test, no HTTP)
+
+--- TEST RUN ---
+
+PASS [   0.284s] (1/1) prism-dtu-cyberint::bc_2_01_017_access_token_auth
+  bc_2_01_017_dtu::test_BC_2_16_013_dtu_state_access_token_allowlist_not_session_uuid
+
+Summary: 1 test run: 1 passed
+
+--- WHAT THE TEST ASSERTS (4 sub-tests) ---
+
+Sub-test 1: fresh CyberintState has empty access_token_allowlist
+  Directly reads state.access_token_allowlist.lock() and asserts it is empty.
+
+Sub-test 2: register_access_token("demo-key-abc123") then is_valid_access_token("demo-key-abc123") == true
+  Confirms allowlist-based validation works.
+
+Sub-test 3: is_valid_access_token("unknown-token-not-registered") == false
+  Confirms unregistered tokens are rejected.
+
+Sub-test 4: .with_demo_token("builder-demo-key") builder registers token
+  is_valid_access_token("builder-demo-key") == true after builder variant.
+
+--- IMPLEMENTATION: CyberintState in state.rs ---
+
+File: crates/prism-dtu-cyberint/src/state.rs
+
+struct CyberintState {
+    ...
+    /// Static access-token allowlist (ADR-031 §D3-a rule 3; AC-004).
+    pub access_token_allowlist: Mutex<HashSet<String>>,
+    ...
+}
+
+- No session_store HashMap with UUID keys
+- No Uuid::new_v4() in auth logic
+- register_access_token(token: String) inserts into HashSet
+- is_valid_access_token(token: &str) calls HashSet::contains
+- with_demo_token(demo_token: String) builder inserts token and returns self
+
+The allowlist is cleared on reset_all() (state.rs line 250) — org-agnostic per ADR-031 §D3-a.
+reset_for(org_id) does NOT clear the allowlist (tokens are org-agnostic).
+
+AC-004 SATISFIED.

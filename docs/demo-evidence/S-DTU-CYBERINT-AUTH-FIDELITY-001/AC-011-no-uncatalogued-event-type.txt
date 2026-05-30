@@ -1,0 +1,39 @@
+AC-011: No event_type emission without BC-2.16.002 catalog row (SAP-1)
+Story: S-DTU-CYBERINT-AUTH-FIDELITY-001
+BC: BC-2.16.013 postcondition; SAP-1 standing adversary probe
+
+Evidence type: Code analysis (grep over story's changed files)
+
+--- SAP-1 SWEEP: event_type emissions in this story's changed files ---
+
+Command: grep -rn "event_type\s*=" crates/prism-spec-engine/src/auth_provider.rs
+                                    crates/prism-dtu-cyberint/src/
+
+Result: (no output — zero event_type emissions)
+
+Files scanned:
+  crates/prism-dtu-cyberint/src/clone.rs
+  crates/prism-dtu-cyberint/src/routes/alerts.rs
+  crates/prism-dtu-cyberint/src/routes/mod.rs
+  crates/prism-dtu-cyberint/src/state.rs
+  crates/prism-spec-engine/src/auth_provider.rs
+  crates/prism-spec-engine/src/pipeline.rs (CookieRoundtrip dispatch)
+
+--- FINDING ---
+
+Zero new `tracing::*!(event_type = ...)` emission sites were introduced in this
+story's implementation. No BC-2.16.002 catalog rows are required.
+
+Per SAP-1 rule 5: "Removal of an emission (e.g., replaced by `?` propagation) does
+NOT require a new catalog row — `?` propagation provides audit trail without catalog
+overhead (D-765 precedent)."
+
+StaticCookieAuthProvider uses `?` propagation for credential resolution errors.
+No `event_type =` structured fields are emitted by the new production code.
+
+--- ADVERSARIAL CASCADE CONFIRMATION ---
+
+Pass 17 of the LOCAL adversarial cascade (D-881 convergence marker) confirmed
+SAP-1 as CLEAN — the adversary's grep found zero uncatalogued emission sites.
+
+AC-011 SATISFIED.

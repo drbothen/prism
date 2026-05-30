@@ -1,0 +1,48 @@
+AC-006: StaticCookieAuthProvider::acquire_token makes ZERO HTTP calls
+Story: S-DTU-CYBERINT-AUTH-FIDELITY-001
+BC: BC-2.01.017 §Invariants INV-COOKIE-001; ADR-031 §D1-b
+Red Gate test: test_BC_2_01_017_static_cookie_auth_provider_acquire_token_no_http_call
+
+Evidence type: Integration test output (prism-spec-engine; structural + behavioral proof)
+
+--- TEST RUN ---
+
+PASS [   0.022s] (2/3) prism-spec-engine::bc_2_01_017_static_cookie_auth_provider
+  test_BC_2_01_017_static_cookie_auth_provider_acquire_token_no_http_call
+
+--- WHAT THE TEST ASSERTS ---
+
+1. Constructs StaticCookieAuthProvider::new_with_resolver("cyberint",
+     Arc::new(NotFoundCredentialResolver))
+   (NotFoundCredentialResolver always returns CredentialResolutionError::NotFound)
+2. Calls acquire_token(&spec, &client_id).await
+3. Asserts result.is_err()
+4. Asserts error contains "E-AUTH-005"
+   (credential not found path — E-AUTH-005 returned without any HTTP call)
+
+No HTTP server is instantiated in this test — there is no possibility of an HTTP
+call being made. The test also exercises the error path to confirm E-AUTH-005
+is returned with the correct error code.
+
+--- STRUCTURAL PROOF: no HTTP client in StaticCookieAuthProvider ---
+
+File: crates/prism-spec-engine/src/auth_provider.rs
+
+pub struct StaticCookieAuthProvider {
+    sensor_id: String,
+    resolver: Arc<dyn CredentialResolver>,
+}
+
+The struct has NO reqwest::Client field and imports NO reqwest types. The
+INV-COOKIE-001 invariant is enforced structurally: there is no mechanism by
+which acquire_token() could issue an HTTP request.
+
+--- ADDITIONAL UNIT TESTS IN auth_provider.rs ---
+
+The following unit tests in auth_provider.rs::tests also prove this invariant:
+- test_static_cookie_auth_provider_no_http_call_when_credential_missing
+  (structurally verifies no reqwest::Client; returns E-AUTH-005)
+- test_static_cookie_auth_provider_missing_credential_returns_e_auth_005
+  (E-AUTH-005 when resolver returns Err(NotFound))
+
+AC-006 SATISFIED.

@@ -1,0 +1,62 @@
+AC-010: E-AUTH-004/E-AUTH-006 surfaced on auth failure (error taxonomy compliance)
+Story: S-DTU-CYBERINT-AUTH-FIDELITY-001
+BC: BC-2.01.013 error case; BC-2.01.017 §Edge Cases
+
+Evidence type: Unit tests in auth_provider.rs (in-module tests)
+
+--- TEST RUN ---
+
+492 tests run: 492 passed, 10 skipped (prism-spec-engine full suite)
+
+Specific tests covering AC-010 (from auth_provider.rs::tests):
+
+  test_static_cookie_auth_provider_missing_credential_returns_e_auth_005
+    - NotFoundCredentialResolver injected
+    - acquire_token() returns Err containing "E-AUTH-005"
+    - Assertion: "missing credential MUST yield E-AUTH-005"
+
+  test_static_cookie_auth_provider_empty_value_returns_e_auth_006
+    - MockCredentialResolver::new("") injected (empty string)
+    - acquire_token() returns Err containing "E-AUTH-006"
+    - Assertion: "empty resolved value MUST yield E-AUTH-006"
+
+  test_static_cookie_auth_provider_rejects_illegal_cookie_chars
+    - MockCredentialResolver::new("valid-prefix;injected-cookie") injected
+    - acquire_token() returns Err containing "E-AUTH-006"
+    - Assertion: "E-AUTH-006: error message must reference E-AUTH-006"
+
+  test_static_cookie_auth_provider_rejects_oversized_whitespace_with_length_detail
+    - MockCredentialResolver::new(" ".repeat(5000)) injected
+    - acquire_token() returns Err
+    - Assertion: error contains "exceeds" or "4096" (length check fires before whitespace)
+    - Assertion: error does NOT contain "empty or all-whitespace"
+    - (F-LP3-LOW-001 validation order regression test)
+
+  test_static_cookie_auth_provider_backend_unavailable_returns_e_auth_007
+    - BackendUnavailableCredentialResolver injected
+    - acquire_token() returns Err containing "E-AUTH-007"
+    - Assertion: "backend unavailable MUST yield E-AUTH-007"
+    - Assertion: error does NOT contain "E-AUTH-005"
+
+--- IMPLEMENTATION: AC-010 error validation in acquire_token ---
+
+File: crates/prism-spec-engine/src/auth_provider.rs (lines 460-530)
+
+E-AUTH-005: NotFound resolver => SpecEngineError::AuthAcquisitionFailed {
+    detail: "E-AUTH-005: credential not found — no api_key configured..."
+}
+
+E-AUTH-007: BackendUnavailable resolver => SpecEngineError::AuthAcquisitionFailed {
+    detail: "E-AUTH-007: credential backend unavailable — ..."
+}
+
+E-AUTH-006 validations (in order per F-LP3-LOW-001 fix):
+1. api_key.len() > 4096 => "E-AUTH-006: api_key exceeds 4096-byte limit"
+2. api_key.is_empty() || all_whitespace => "E-AUTH-006: api_key is empty or all-whitespace"
+3. ILLEGAL_COOKIE_CHARS = [' ', ',', ';', '\\', '"'] => "E-AUTH-006: api_key contains
+   illegal RFC 6265 cookie-value characters"
+
+None of these errors cause a panic. All propagate as SpecEngineError::AuthAcquisitionFailed
+with the correct error code in the detail string.
+
+AC-010 SATISFIED.
