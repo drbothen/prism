@@ -1,0 +1,132 @@
+# .factory/stories/sprint-state.yaml — Sprint state machine
+# Authored: 2026-05-29 D-850 — first creation; prism adopting vsdd-factory artifact
+# Source of truth: STORY-INDEX.md frontmatter + per-story file frontmatter
+# This file is the deliver-story skill's required state file; aligns with STORY-INDEX.
+# IMPORTANT: STORY-INDEX.md is the canonical source of truth for story status on prism.
+# This file is a derived view for vsdd-factory deliver-story skill compatibility only.
+
+cycle: wave-5-e-demo-fidelity
+wave: 5
+
+active_dispatch_set:
+  - story_id: S-DTU-CYBERINT-AUTH-FIDELITY-001
+    status: ready
+    priority: P0-pre-demo-BLOCKING
+    points: 8
+    spec_version: "v1.2"
+    depends_on:
+      - PLUGIN-MIGRATION-001-A  # merged PR #156 develop@948a709f
+    notes: "First dispatch target. DTU remove POST /login + StaticCookieAuthProvider + Cookie: access_token injection. Blocks S-DEMO-001 AC-003/AC-009."
+
+  - story_id: S-CONFIG-MULTI-TENANT-OVERRIDE-001
+    status: ready
+    priority: P0
+    points: 8
+    spec_version: "v1.2"
+    depends_on: []
+    notes: "Second dispatch target. Per-org overlay loading per ADR-029. Parallel to S-DTU-CYBERINT-AUTH-FIDELITY-001."
+
+  - story_id: S-DEMO-CLAROTY-AUDIT-DTU-001
+    status: draft
+    priority: P1-pre-demo-BLOCKING
+    points: 5
+    spec_version: "v1.0"
+    depends_on:
+      - PLUGIN-MIGRATION-001-A  # merged
+    notes: "Materialized 2026-05-29 D-849-prep (65cf835e). DTU-only: /api/v1/audit_log/get route + ClarotyAuditLogEntry. Blocks demo audit_log query."
+
+  - story_id: S-DEMO-CLAROTY-PAGINATION-001
+    status: draft
+    priority: P1-pre-demo-BLOCKING
+    points: 5
+    spec_version: "v1.0"
+    depends_on:
+      - PLUGIN-MIGRATION-001-A  # merged
+    notes: "Materialized 2026-05-29 D-849-prep (65cf835e). Pipeline-only: POST-body offset+limit dispatch. Required for >100 row Claroty demo queries."
+
+  - story_id: S-DEMO-001
+    status: draft
+    priority: P0-KEYSTONE
+    points: 11
+    spec_version: "v1.3"
+    depends_on:
+      - PLUGIN-MIGRATION-001-A   # merged
+      - PLUGIN-MIGRATION-001-E   # merged
+      - S-CONFIG-MULTI-TENANT-OVERRIDE-001
+      - S-DTU-CYBERINT-AUTH-FIDELITY-001
+    notes: "KEYSTONE. Closes GAP-002-A. SpecDrivenSensorAdapter + boot step 9A. Architect-revised 2026-05-29 D-847 (9d67fe8f). Cannot dispatch until all depends_on merge."
+
+  - story_id: S-DEMO-002
+    status: draft
+    priority: P0
+    points: 11
+    spec_version: "v1.2"
+    depends_on:
+      - S-DEMO-001
+      - S-CONFIG-MULTI-TENANT-OVERRIDE-001
+    notes: "3-org multi-sensor E2E smoke. BC-3.2.001 multi-org isolation."
+
+  - story_id: S-DEMO-003
+    status: draft
+    priority: P1
+    points: 5
+    spec_version: "v1.0"
+    depends_on:
+      - S-DEMO-001
+      - S-DEMO-002
+    notes: "Setup scripts + prism-credential-set CLI subcommand + operator runbook."
+
+  - story_id: S-5.04-FIX-001
+    status: draft
+    priority: P2
+    points: 1
+    spec_version: "v1.0"
+    depends_on: []
+    notes: "Factory-only depends_on fix (S-5.04 remove superseded S-2.07 ref, add S-DEMO-001)."
+
+  - story_id: S-DEMO-MULTI-TENANT-DTU-001
+    status: stub
+    priority: P2
+    points: null  # needs story-writer materialization
+    spec_version: stub
+    depends_on:
+      - S-CONFIG-MULTI-TENANT-OVERRIDE-001
+    notes: "Surfaced 2026-05-29 D-849 by S-CONFIG AC-009 DTU emulation gap. Needs story-writer materialization. Non-blocking for single-tenant demo."
+
+deferred_post_demo:
+  - story_id: S-DEMO-CLAROTY-TRAILING-SLASH-001
+    priority: P2
+    spec_version: stub
+    rationale: "Non-blocking per ADR-031 §D2 + audit §6.3. DTU trailing-slash verification."
+
+  - story_id: S-DEMO-ARMIS-AQL-001
+    priority: P2
+    spec_version: stub
+    rationale: "Permitted divergence per ADR-031 §D2; direct endpoints work for DTU demo."
+
+  - story_id: S-DEMO-CROWDSTRIKE-MULTIREGION-001
+    priority: P3
+    spec_version: stub
+    rationale: "Demo environment is us-1; multi-region is post-demo."
+
+prereq_artifacts:
+  story_index: .factory/stories/STORY-INDEX.md         # v2.212 after this burst
+  bc_index: .factory/specs/behavioral-contracts/BC-INDEX.md  # v5.56
+  state: .factory/STATE.md                              # v7.537 after this burst
+  governing_adr: .factory/specs/architecture/decisions/ADR-031-dtu-equals-true-dtu-fidelity-principle.md
+  governing_audit: .factory/proposals/POLLER-DTU-FIDELITY-AUDIT-2026-05-29.md  # v1.1
+
+provenance:
+  authored_at: "2026-05-29"
+  authored_by: "state-manager D-850"
+  rationale: >
+    First creation of sprint-state.yaml on prism to satisfy vsdd-factory deliver-story skill
+    prereq. Prism convention: STORY-INDEX.md is canonical source of truth for story status;
+    per-story file frontmatter is authoritative for version + spec content. This file is a
+    derived view for deliver-story skill compatibility. Codification candidate: lesson 54
+    [process-gap] for vsdd-factory skill prereq divergence from prism convention — opportunity
+    to either amend skill upstream or formalize prism override in CLAUDE.md §Conventions.
+    Two project-convention deviations resolved here: (a) prism precedent is draft-at-dispatch
+    with POL-14 auto-promotion at merge; skill enforces strict ready at dispatch; user
+    authorized administrative flip 2026-05-29. (b) prism uses STORY-INDEX + STATE as canonical
+    state; skill requires sprint-state.yaml; user authorized first-time creation.

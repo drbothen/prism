@@ -5,15 +5,18 @@ title: "prism-dtu-cyberint + prism-spec-engine: Cyberint Auth Fidelity — Remov
 wave: 5
 epic_id: E-DTU-FIDELITY
 priority: P0
-status: draft
+status: ready
 # BC status: BC-2.01.017 authored by PO at commit b8cf19e1 (2026-05-29). All 4 BCs are
 # either active (BC-2.01.013, BC-2.01.016, BC-2.16.013) or draft-pending-POL-14 (BC-2.01.017).
-# status=ready is blocked until BC-2.01.017 auto-promotes to active at this story's merge.
-version: "1.1"
+# status=ready: administrative flip 2026-05-29 D-850 per user direction to satisfy deliver-story
+# skill strict prereq. No content/maturity change. BC-2.01.017 will auto-promote draft→active
+# at this story's merge per POL-14. Prism precedent is draft-at-dispatch + POL-14-promote-at-merge;
+# this flip is purely to satisfy the vsdd-factory deliver-story skill's strict prereq gate.
+version: "1.2"
 level: "L4"
 producer: story-writer
 timestamp: "2026-05-29T00:00:00Z"
-modified: "2026-05-29"
+modified: "2026-05-29 D-850"
 tdd_mode: strict
 subsystems: [SS-01, SS-16, SS-17]
 # Subsystem anchor justifications:
@@ -131,8 +134,8 @@ phase: 3
 # S-DTU-CYBERINT-AUTH-FIDELITY-001 v1.1 — Cyberint DTU Auth Fidelity
 
 **Story ID:** S-DTU-CYBERINT-AUTH-FIDELITY-001
-**Status:** draft
-**Version:** v1.1
+**Status:** ready
+**Version:** v1.2
 **Wave:** 5
 **Priority:** P0 (pre-demo BLOCKING)
 **Points:** 8
@@ -662,3 +665,4 @@ Well within the 20-30% budget.
 |---------|------|--------|-------|
 | 1.0 | 2026-05-29 | story-writer | Initial materialization from [planned] stub per ADR-031 §D3-c and user directive 2026-05-29. Structured as DTU-side ACs + prism-side ACs per user direction. 11 ACs, 6 Red Gate tests, 8 pts, wave 5, P0-pre-demo-BLOCKING. |
 | 1.1 | 2026-05-29 | story-writer | D-849-prep: BC-2.01.017 (Static Cookie AuthProvider Contract — No-Login-Roundtrip Cookie Injection; PO authored commit b8cf19e1) propagated into story per bc_array_changes_propagate_to_body_and_acs policy. Changes: (1) behavioral_contracts: BC-2.01.017 added (4 BCs total); (2) Body BC table: BC-2.01.017 row added; (3) AC-005 citation: BC-2.01.017 §Postconditions added; (4) AC-006 citation: BC-2.01.017 §Invariants added; (5) AC-010 expanded to cover E-AUTH-006 per error-taxonomy.md v1.53 + BC-2.01.017 §Edge Cases; (6) Red Gate tests table: test_BC_2_01_016_static_cookie_auth_provider_acquire_token_no_http_call added (was in AC-006 body but absent from summary table); red_gate_tests 6→7; (7) Token Budget: BC files 3→4, ~4,500→~6,000 tokens; (8) Notes for Implementer: BC-2.01.017 canonical-contract note added; (9) inputs: BC-2.01.017 file added; (10) BC status comment updated to reflect PO authorship complete. |
+| 1.2 | 2026-05-29 | state-manager D-850 | Administrative status flip `draft` → `ready` per user direction 2026-05-29 to satisfy vsdd-factory deliver-story skill strict prereq. No content or maturity change. Prism precedent is draft-at-dispatch with POL-14 auto-promotion at merge (PLUGIN-MIGRATION-001-A/B/C/D/E + S-CONFIG all entered cascade as draft); this flip is purely administrative to satisfy the skill gate. BCs BC-2.01.017 (new draft per PO b8cf19e1) and BC-2.16.013 will auto-promote draft→active at this story's merge per POL-14. Also: created `.factory/stories/sprint-state.yaml` (first creation on prism; derived view for deliver-story skill compatibility; STORY-INDEX is canonical source of truth). STORY-INDEX v2.211→v2.212. STATE v7.536→v7.537. 250th consecutive single-commit per TD-VSDD-053. |
