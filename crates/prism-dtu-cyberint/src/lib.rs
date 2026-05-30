@@ -1,9 +1,18 @@
 //! `prism-dtu-cyberint` — L2-fidelity behavioral clone of the Cyberint API.
 //!
 //! Implements [`CyberintClone`] which satisfies the [`prism_dtu_common::BehavioralClone`] trait.
-//! The clone provides:
-//! - `POST /login` — cookie-based auth (CookieRoundtrip pattern)
-//! - `GET/POST /api/v1/alerts` — alert list with cursor pagination
+//!
+//! ## Auth model (ADR-031 §D1-b + §D3-a)
+//!
+//! Cyberint uses static `access_token` cookie injection — no login roundtrip route.
+//! Callers inject the API key as `Cookie: access_token=<value>` on every request.
+//! [`prism_spec_engine::StaticCookieAuthProvider`] provides the production auth implementation
+//! per BC-2.01.017 §Postconditions P2. The DTU validates the `access_token` cookie on
+//! protected routes and returns HTTP 401 if the cookie is absent or unrecognised.
+//!
+//! ## Routes
+//!
+//! - `GET /api/v1/alerts` — alert list with cursor pagination
 //! - `GET /api/v1/alerts/{alert_id}` — alert detail
 //! - `PATCH /api/v1/alerts/{alert_id}/status` — acknowledge alert (stateful)
 //! - `POST /api/v1/alerts/{alert_id}/close` — close alert (irreversible in session)

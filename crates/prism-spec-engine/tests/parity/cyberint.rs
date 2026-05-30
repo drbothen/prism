@@ -141,7 +141,11 @@ async fn test_BC_2_16_013_dtu_parity_cyberint() {
         .expect("cyberint spec must declare an 'alerts' table");
 
     // Step 4: FetchContext.
-    // NullAuthProvider is sufficient for DTU (cookie check validates non-empty cyberint_session cookie).
+    // NullAuthProvider is used here because this test is tagged #[ignore] and is not live.
+    // The production path uses StaticCookieAuthProvider injecting `access_token` cookie
+    // per BC-2.01.017 §Postconditions P2 / ADR-031 §D3-a. When this test is ungated
+    // (S-6.09), replace NullAuthProvider with StaticCookieAuthProvider wired to the DTU
+    // test credential to exercise the full auth path.
     let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new());
 
     // Step 5: HTTP client with 30-second timeout.

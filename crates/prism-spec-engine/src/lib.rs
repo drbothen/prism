@@ -70,8 +70,8 @@ pub mod plugin_auth_provider;
 // auth. Enable the `test-helpers` Cargo feature in [dev-dependencies] to access these.
 #[cfg(any(test, feature = "test-helpers"))]
 pub use auth_provider::{
-    AuthOutcome, ChainAuthProvider, FailingAuthProvider, MockAuthProvider, MockCredentialResolver,
-    NullAuthProvider,
+    AuthOutcome, BackendUnavailableCredentialResolver, ChainAuthProvider, FailingAuthProvider,
+    MockAuthProvider, MockCredentialResolver, NotFoundCredentialResolver, NullAuthProvider,
 };
 // S-PLUGIN-PREREQ-B — auth interface re-exports (BC-2.01.013 / ADR-023 §C2)
 pub use auth_provider::{AuthProvider, AuthToken};

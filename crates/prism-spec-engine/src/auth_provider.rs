@@ -34,6 +34,7 @@
 use std::{future::Future, pin::Pin, sync::Arc};
 
 use prism_core::OrgSlug;
+use prism_credentials::CredentialResolutionError;
 use zeroize::Zeroizing;
 
 use crate::{error::SpecEngineError, spec_parser::SensorSpec};
@@ -133,18 +134,27 @@ pub trait AuthProvider: Send + Sync {
 pub trait CredentialResolver: Send + Sync {
     /// Resolve the named credential for the given `(client_id, sensor_id, credential_name)` tuple.
     ///
-    /// Returns the raw credential value as a `SecretString`, or an error if not found.
+    /// Returns the raw credential value as a `SecretString`, or a typed `CredentialResolutionError`.
     ///
     /// # Errors
     ///
-    /// Returns `Err(String)` if the credential is not found or the backend is unavailable.
-    /// The error string is human-readable and suitable for wrapping in `SpecEngineError`.
+    /// - `CredentialResolutionError::NotFound` — credential name is not registered for this
+    ///   `(client_id, sensor_id)` tuple. Callers should map this to `E-AUTH-005`.
+    /// - `CredentialResolutionError::BackendUnavailable` — credential is configured but the
+    ///   backing store (file, env, keyring) is inaccessible at resolution time. Callers should
+    ///   map this to `E-AUTH-007` (BC-2.01.017 v1.3 EC-017-010).
     fn resolve<'a>(
         &'a self,
         client_id: &'a str,
         sensor_id: &'a str,
         credential_name: &'a str,
-    ) -> Pin<Box<dyn Future<Output = Result<secrecy::SecretString, String>> + Send + 'a>>;
+    ) -> Pin<
+        Box<
+            dyn Future<Output = Result<secrecy::SecretString, CredentialResolutionError>>
+                + Send
+                + 'a,
+        >,
+    >;
 }
 
 // ---------------------------------------------------------------------------
@@ -166,14 +176,21 @@ impl CredentialResolver for PrismCredentialResolver {
         client_id: &'a str,
         sensor_id: &'a str,
         credential_name: &'a str,
-    ) -> Pin<Box<dyn Future<Output = Result<secrecy::SecretString, String>> + Send + 'a>> {
+    ) -> Pin<
+        Box<
+            dyn Future<Output = Result<secrecy::SecretString, CredentialResolutionError>>
+                + Send
+                + 'a,
+        >,
+    > {
         let client_id = client_id.to_string();
         let sensor_id = sensor_id.to_string();
         let credential_name = credential_name.to_string();
         Box::pin(async move {
-            prism_credentials::resolve_credential(&client_id, &sensor_id, &credential_name)
-                .await
-                .map_err(|e| e.to_string())
+            // Propagate typed CredentialResolutionError directly — no string erasure.
+            // NotFound → caller maps to E-AUTH-005; BackendUnavailable → E-AUTH-007
+            // (BC-2.01.017 v1.3 EC-017-010 / error-taxonomy.md v1.54 §E-AUTH-007).
+            prism_credentials::resolve_credential(&client_id, &sensor_id, &credential_name).await
         })
     }
 }
@@ -209,13 +226,19 @@ impl CredentialResolver for MockCredentialResolver {
         _client_id: &'a str,
         _sensor_id: &'a str,
         _credential_name: &'a str,
-    ) -> Pin<Box<dyn Future<Output = Result<secrecy::SecretString, String>> + Send + 'a>> {
+    ) -> Pin<
+        Box<
+            dyn Future<Output = Result<secrecy::SecretString, CredentialResolutionError>>
+                + Send
+                + 'a,
+        >,
+    > {
         let value = self.value.clone();
         Box::pin(async move { Ok(secrecy::SecretString::new(value)) })
     }
 }
 
-/// Test helper [`CredentialResolver`] that always returns a credential-not-found error.
+/// Test helper [`CredentialResolver`] that always returns `CredentialResolutionError::NotFound`.
 ///
 /// Use this to test the E-AUTH-005 (credential not found) path without relying on env
 /// vars or the real credential store. This is the correct injection mechanism for
@@ -229,12 +252,62 @@ pub struct NotFoundCredentialResolver;
 impl CredentialResolver for NotFoundCredentialResolver {
     fn resolve<'a>(
         &'a self,
-        _client_id: &'a str,
+        client_id: &'a str,
         sensor_id: &'a str,
         credential_name: &'a str,
-    ) -> Pin<Box<dyn Future<Output = Result<secrecy::SecretString, String>> + Send + 'a>> {
-        let msg = format!("credential not found: {sensor_id}/{credential_name}");
-        Box::pin(async move { Err(msg) })
+    ) -> Pin<
+        Box<
+            dyn Future<Output = Result<secrecy::SecretString, CredentialResolutionError>>
+                + Send
+                + 'a,
+        >,
+    > {
+        let err = CredentialResolutionError::NotFound {
+            client_id: client_id.to_string(),
+            sensor_id: sensor_id.to_string(),
+            credential_name: credential_name.to_string(),
+            suggestion: "NotFoundCredentialResolver: no credential configured (test fixture)"
+                .to_string(),
+        };
+        Box::pin(async move { Err(err) })
+    }
+}
+
+/// Test helper [`CredentialResolver`] that always returns `CredentialResolutionError::BackendUnavailable`.
+///
+/// Use this to test the E-AUTH-007 (backend unavailable) path without relying on env
+/// vars or the real credential store. This is the correct injection mechanism for
+/// tests that need to verify "backend unreachable" behavior.
+///
+/// BC-2.01.017 v1.3 EC-017-010 / TV-BC-2.01.017-009 / error-taxonomy.md v1.54 §E-AUTH-007.
+///
+/// **Feature-gated:** only available under `cfg(test)` or the `test-helpers` Cargo feature.
+/// AD-017: no credential value is stored in this struct.
+#[cfg(any(test, feature = "test-helpers"))]
+pub struct BackendUnavailableCredentialResolver;
+
+#[cfg(any(test, feature = "test-helpers"))]
+impl CredentialResolver for BackendUnavailableCredentialResolver {
+    fn resolve<'a>(
+        &'a self,
+        client_id: &'a str,
+        sensor_id: &'a str,
+        credential_name: &'a str,
+    ) -> Pin<
+        Box<
+            dyn Future<Output = Result<secrecy::SecretString, CredentialResolutionError>>
+                + Send
+                + 'a,
+        >,
+    > {
+        let err = CredentialResolutionError::BackendUnavailable {
+            client_id: client_id.to_string(),
+            sensor_id: sensor_id.to_string(),
+            credential_name: credential_name.to_string(),
+            detail: "BackendUnavailableCredentialResolver: backend unreachable (test fixture)"
+                .to_string(),
+        };
+        Box::pin(async move { Err(err) })
     }
 }
 
@@ -265,9 +338,13 @@ impl CredentialResolver for NotFoundCredentialResolver {
 ///
 /// ## Errors
 ///
-/// - `E-AUTH-005`: credential not found in keyring/env for `(client_id, sensor_id)`.
+/// - `E-AUTH-005`: credential not found for `(client_id, sensor_id)`.
+///   Resolver returned `CredentialResolutionError::NotFound`.
 /// - `E-AUTH-006`: API key is empty, all-whitespace, contains illegal cookie characters,
-///   or exceeds 4096 bytes. Error-taxonomy.md v1.53 §E-AUTH-006.
+///   or exceeds 4096 bytes. Error-taxonomy.md v1.54 §E-AUTH-006.
+/// - `E-AUTH-007`: credential backend unavailable (backend configured but inaccessible).
+///   Resolver returned `CredentialResolutionError::BackendUnavailable`.
+///   BC-2.01.017 v1.3 EC-017-010 / error-taxonomy.md v1.54 §E-AUTH-007.
 ///
 /// ## AD-017 Credential Safety
 ///
@@ -349,9 +426,14 @@ impl AuthProvider for StaticCookieAuthProvider {
     /// # Errors
     ///
     /// - `E-AUTH-005`: credential not found → `SpecEngineError::AuthAcquisitionFailed`
-    ///   with message matching error-taxonomy.md v1.53 §E-AUTH-005 template.
+    ///   with message matching error-taxonomy.md v1.54 §E-AUTH-005 template.
+    ///   Resolver returned `CredentialResolutionError::NotFound`.
     /// - `E-AUTH-006`: empty/invalid api_key → `SpecEngineError::AuthAcquisitionFailed`
-    ///   with message matching error-taxonomy.md v1.53 §E-AUTH-006 template.
+    ///   with message matching error-taxonomy.md v1.54 §E-AUTH-006 template.
+    /// - `E-AUTH-007`: credential backend unavailable → `SpecEngineError::AuthAcquisitionFailed`
+    ///   with message matching error-taxonomy.md v1.54 §E-AUTH-007 template.
+    ///   Resolver returned `CredentialResolutionError::BackendUnavailable`.
+    ///   BC-2.01.017 v1.3 EC-017-010.
     ///
     /// BC-2.01.017 §Postconditions P1; INV-COOKIE-001; AC-005, AC-006, AC-010.
     ///
@@ -371,26 +453,50 @@ impl AuthProvider for StaticCookieAuthProvider {
             // Delegates to the injected CredentialResolver — production uses
             // PrismCredentialResolver (wraps prism_credentials::resolve_credential);
             // tests inject MockCredentialResolver without touching the real store.
-            let secret = resolver
+            //
+            // Variant dispatch (BC-2.01.017 v1.3 EC-017-010 / error-taxonomy.md v1.54):
+            //   NotFound           → E-AUTH-005 (credential not configured for this tuple)
+            //   BackendUnavailable → E-AUTH-007 (backend unreachable at resolution time)
+            let secret = match resolver
                 .resolve(&client_id_str, &sensor_id, "api_key")
                 .await
-                .map_err(|e| SpecEngineError::AuthAcquisitionFailed {
-                    sensor_id: sensor_id.clone(),
-                    client_id: client_id_str.clone(),
-                    detail: format!("E-AUTH-005: credential not found: {e}"),
-                })?;
+            {
+                Ok(s) => s,
+                Err(CredentialResolutionError::NotFound { .. }) => {
+                    return Err(SpecEngineError::AuthAcquisitionFailed {
+                        sensor_id: sensor_id.clone(),
+                        client_id: client_id_str.clone(),
+                        detail:
+                            "E-AUTH-005: credential not found — no api_key configured for this \
+                                 (client_id, sensor_id) tuple. Run `configure_credential_source` \
+                                 or set the appropriate env var."
+                                .to_string(),
+                    });
+                }
+                Err(CredentialResolutionError::BackendUnavailable { detail, .. }) => {
+                    return Err(SpecEngineError::AuthAcquisitionFailed {
+                        sensor_id: sensor_id.clone(),
+                        client_id: client_id_str.clone(),
+                        detail: format!(
+                            "E-AUTH-007: credential backend unavailable — {detail}. \
+                             Check that the configured backend (env file, keyring, vault) \
+                             is accessible in the current execution environment. \
+                             BC-2.01.017 v1.3 EC-017-010."
+                        ),
+                    });
+                }
+            };
 
             // E-AUTH-006: validate the resolved api_key before returning.
             // RFC 6265 §4.1.1: cookie-value MUST NOT contain spaces, commas,
             // semicolons, backslashes, or double-quotes.
+            //
+            // Validation order (F-LP3-LOW-001 fix — Option a: length check FIRST):
+            //   1. Length > 4096 — catches oversized keys (including all-whitespace ones)
+            //      with accurate "exceeds 4096-byte limit" detail.
+            //   2. Empty or all-whitespace — catches the short empty/whitespace case.
+            //   3. RFC 6265 illegal characters.
             let api_key = secret.expose_secret().to_string();
-            if api_key.is_empty() || api_key.chars().all(char::is_whitespace) {
-                return Err(SpecEngineError::AuthAcquisitionFailed {
-                    sensor_id,
-                    client_id: client_id_str,
-                    detail: "E-AUTH-006: api_key is empty or all-whitespace".to_string(),
-                });
-            }
             if api_key.len() > 4096 {
                 return Err(SpecEngineError::AuthAcquisitionFailed {
                     sensor_id,
@@ -399,6 +505,13 @@ impl AuthProvider for StaticCookieAuthProvider {
                         "E-AUTH-006: api_key exceeds 4096-byte limit ({} bytes)",
                         api_key.len()
                     ),
+                });
+            }
+            if api_key.is_empty() || api_key.chars().all(char::is_whitespace) {
+                return Err(SpecEngineError::AuthAcquisitionFailed {
+                    sensor_id,
+                    client_id: client_id_str,
+                    detail: "E-AUTH-006: api_key is empty or all-whitespace".to_string(),
                 });
             }
             // RFC 6265 §4.1.1 illegal cookie-value characters.
@@ -884,6 +997,96 @@ mod tests {
         assert!(
             err.contains("E-AUTH-006"),
             "E-AUTH-006: error message must reference E-AUTH-006. Got: {err}"
+        );
+    }
+
+    /// E-AUTH-007: acquire_token returns E-AUTH-007 when the credential resolver returns
+    /// `CredentialResolutionError::BackendUnavailable`.
+    ///
+    /// Verifies BC-2.01.017 v1.3 EC-017-010 (backend unavailable path) /
+    /// TV-BC-2.01.017-009: when the resolver returns `BackendUnavailable`, acquire_token
+    /// wraps the error as E-AUTH-007 (NOT E-AUTH-005). The distinction is critical:
+    /// E-AUTH-005 = credential not configured; E-AUTH-007 = configured but backend down.
+    ///
+    /// Uses MockDI injection (BackendUnavailableCredentialResolver via new_with_resolver) —
+    /// no env var mutation required. ADR-022 §C; BC-2.01.017 v1.3 EC-017-010.
+    ///
+    /// TD-VSDD-059 load-bearing assertion: checks E-AUTH-007 code AND absence of E-AUTH-005.
+    #[tokio::test]
+    async fn test_static_cookie_auth_provider_backend_unavailable_returns_e_auth_007() {
+        let provider = StaticCookieAuthProvider::new_with_resolver(
+            "cyberint",
+            Arc::new(BackendUnavailableCredentialResolver),
+        );
+        let spec = cookie_roundtrip_spec();
+        let client_id = OrgSlug::new("test-org-unit");
+
+        let result = provider.acquire_token(&spec, &client_id).await;
+
+        assert!(
+            result.is_err(),
+            "BC-2.01.017 v1.3 EC-017-010: acquire_token must return Err when credential \
+             resolver returns BackendUnavailable. Got Ok."
+        );
+        let err_str = result.unwrap_err().to_string();
+        assert!(
+            err_str.contains("E-AUTH-007"),
+            "backend unavailable MUST yield E-AUTH-007. \
+             Got: {err_str}. \
+             BC-2.01.017 v1.3 EC-017-010 / TV-BC-2.01.017-009."
+        );
+        assert!(
+            !err_str.contains("E-AUTH-005"),
+            "backend unavailable MUST NOT produce E-AUTH-005 (that code is for missing credential). \
+             Got: {err_str}. \
+             BC-2.01.017 v1.3 EC-017-010."
+        );
+    }
+
+    /// E-AUTH-006: acquire_token rejects an oversized whitespace-only API key with
+    /// "exceeds 4096-byte limit" detail, NOT "empty or all-whitespace".
+    ///
+    /// Regression test for F-LP3-LOW-001 (validation order fix — length check before
+    /// whitespace check). A 5000-byte whitespace string previously triggered the
+    /// whitespace branch first, producing misleading detail. After the reorder,
+    /// the length check fires first with accurate detail.
+    ///
+    /// Uses MockDI injection (MockCredentialResolver with 5000-space value).
+    /// ADR-022 §C; BC-2.01.017 §E-AUTH-006.
+    #[tokio::test]
+    async fn test_static_cookie_auth_provider_rejects_oversized_whitespace_with_length_detail() {
+        // 5000 spaces: longer than 4096-byte limit, all-whitespace.
+        // Before the fix: whitespace branch fires → "empty or all-whitespace" detail.
+        // After the fix: length branch fires first → "exceeds 4096-byte limit" detail.
+        let oversized_whitespace = " ".repeat(5000);
+        let provider = StaticCookieAuthProvider::new_with_resolver(
+            "cyberint",
+            Arc::new(MockCredentialResolver::new(oversized_whitespace)),
+        );
+        let spec = cookie_roundtrip_spec();
+        let client_id = OrgSlug::new("test-org-unit");
+
+        let result = provider.acquire_token(&spec, &client_id).await;
+
+        assert!(
+            result.is_err(),
+            "E-AUTH-006: acquire_token must reject a 5000-byte whitespace api_key. Got Ok."
+        );
+        let err_str = result.unwrap_err().to_string();
+        assert!(
+            err_str.contains("E-AUTH-006"),
+            "E-AUTH-006: error must reference E-AUTH-006. Got: {err_str}"
+        );
+        assert!(
+            err_str.contains("exceeds") || err_str.contains("4096"),
+            "F-LP3-LOW-001 regression: oversized whitespace key must fire the length check \
+             (detail contains 'exceeds' or '4096'), NOT the whitespace check. \
+             Got detail: {err_str}"
+        );
+        assert!(
+            !err_str.contains("empty or all-whitespace"),
+            "F-LP3-LOW-001 regression: detail must NOT say 'empty or all-whitespace' for a \
+             5000-byte whitespace key — the length check must fire first. Got: {err_str}"
         );
     }
 }
