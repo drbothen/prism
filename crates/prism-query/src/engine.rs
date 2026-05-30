@@ -38,11 +38,13 @@ use prism_storage::RocksStorageBackend;
 use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 
-use crate::alias_store::AliasStore;
-use crate::alias_types::AliasScope;
-use crate::cache::{CacheConfig, QueryCache};
-use crate::cursor::{spawn_cursor_cleanup_task, QueryCursorRegistry};
-use crate::scoping::ClientRegistry;
+use crate::{
+    alias_store::AliasStore,
+    alias_types::AliasScope,
+    cache::{CacheConfig, QueryCache},
+    cursor::{spawn_cursor_cleanup_task, QueryCursorRegistry},
+    scoping::ClientRegistry,
+};
 
 // ---------------------------------------------------------------------------
 // Capability
@@ -812,12 +814,16 @@ impl CredentialResolver for NullCredentialResolver {
 
 #[cfg(test)]
 mod alias_wiring_tests {
-    use std::path::Path;
-    use std::sync::{Arc, Mutex};
+    use std::{
+        path::Path,
+        sync::{Arc, Mutex},
+    };
 
     use super::*;
-    use crate::alias_store::AliasStore;
-    use crate::alias_types::{AliasEntry, AliasScope};
+    use crate::{
+        alias_store::AliasStore,
+        alias_types::{AliasEntry, AliasScope},
+    };
 
     /// Minimal no-op credential store for unit tests that don't exercise auth.
     struct NoopCs;

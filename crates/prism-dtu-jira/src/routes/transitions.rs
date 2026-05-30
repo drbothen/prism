@@ -23,9 +23,11 @@ use axum::{
     Json,
 };
 
-use crate::routes::issues::check_basic_auth;
-use crate::state::JiraState;
-use crate::types::{ExecuteTransitionRequest, JiraError, TransitionsResponse};
+use crate::{
+    routes::issues::check_basic_auth,
+    state::JiraState,
+    types::{ExecuteTransitionRequest, JiraError, TransitionsResponse},
+};
 
 /// `GET /rest/api/3/issue/{issueKey}/transitions` — list available transitions.
 pub async fn list_transitions(

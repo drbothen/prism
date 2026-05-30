@@ -34,12 +34,14 @@
 // and check for `Predicate::RecoveryError` without relying on a catch-all.
 #![allow(unreachable_patterns)]
 
-use crate::ast::{
-    Ast, EnrichStage, Expr, FieldPath, FieldsStage, FilterExpr, FuncCall, Join, JoinStage, Literal,
-    OrderExpr, PipeQuery, PipeStage, Predicate, SelectClause, SelectItem, SortExpr, SqlQuery,
-    SqlStatement, StatsStage, VirtualField,
+use crate::{
+    ast::{
+        Ast, EnrichStage, Expr, FieldPath, FieldsStage, FilterExpr, FuncCall, Join, JoinStage,
+        Literal, OrderExpr, PipeQuery, PipeStage, Predicate, SelectClause, SelectItem, SortExpr,
+        SqlQuery, SqlStatement, StatsStage, VirtualField,
+    },
+    write_ast::{DmlNode, WriteNode},
 };
-use crate::write_ast::{DmlNode, WriteNode};
 
 /// AST visitor trait.
 ///

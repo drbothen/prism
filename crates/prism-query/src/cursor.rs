@@ -17,13 +17,17 @@
 //!
 //! Story: S-3.05
 
-use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
-use std::time::{Duration, Instant};
+use std::{
+    collections::HashMap,
+    sync::{Arc, Mutex},
+    time::{Duration, Instant},
+};
 
-use prism_core::cursor::{CursorId, CursorRegistry};
-use prism_core::error::PrismError;
-use prism_core::OrgSlug;
+use prism_core::{
+    cursor::{CursorId, CursorRegistry},
+    error::PrismError,
+    OrgSlug,
+};
 use tokio_util::sync::CancellationToken;
 use tracing::{debug, error};
 use uuid::Uuid;

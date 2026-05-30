@@ -8,8 +8,7 @@
 
 use std::collections::BTreeMap;
 
-use prism_core::capability::ClientCapabilities;
-use prism_core::error::PrismError;
+use prism_core::{capability::ClientCapabilities, error::PrismError};
 
 use crate::feature_flag::CompileTimeGate;
 

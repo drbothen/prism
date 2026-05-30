@@ -15,13 +15,16 @@
 //! AC coverage: AC-010 (Armis DTU parity + AQL + timestamp fallback), PLUGIN-MIGRATION-001-F AC-001 (TOML fixture loading)
 //! HS coverage: HS-016
 
+use std::collections::HashMap;
+
 use prism_core::OrgSlug;
 use prism_dtu_armis::ArmisClone;
 use prism_dtu_common::BehavioralClone;
-use prism_spec_engine::NullAuthProvider;
-use prism_spec_engine::pipeline::{FetchContext, PipelineExecutor};
-use prism_spec_engine::spec_parser::SpecLoader;
-use std::collections::HashMap;
+use prism_spec_engine::{
+    NullAuthProvider,
+    pipeline::{FetchContext, PipelineExecutor},
+    spec_parser::SpecLoader,
+};
 
 fn canonicalize_ocsf(value: &serde_json::Value) -> String {
     serde_json::to_string(&normalize_for_parity(value))

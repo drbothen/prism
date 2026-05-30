@@ -148,8 +148,7 @@ fn test_BC_3_1_003_bijectivity_after_valid_boot() {
 
     assert!(result.is_ok(), "expected Ok, got: {result:?}");
 
-    use prism_core::ids::OrgId;
-    use prism_core::tenant::OrgSlug;
+    use prism_core::{ids::OrgId, tenant::OrgSlug};
 
     let slug = OrgSlug::new("acme-corp");
     let id = OrgId::from_uuid(uuid_a);
@@ -730,8 +729,7 @@ fn test_BC_3_1_003_forward_reverse_map_sizes_equal() {
 /// Traces to: BC-3.3.04 Task 6; S-3.3.02 EC-003; BC-3.1.004 postcond §5.
 #[test]
 fn test_BC_3_3_004_registration_failed_when_registry_already_has_conflict() {
-    use prism_core::ids::OrgId;
-    use prism_core::tenant::OrgSlug;
+    use prism_core::{ids::OrgId, tenant::OrgSlug};
 
     let dir = TempDir::new().unwrap();
 

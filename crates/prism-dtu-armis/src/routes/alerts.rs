@@ -22,9 +22,11 @@ use axum::{
 };
 use serde::Deserialize;
 
-use crate::routes::devices::validate_org_id;
-use crate::state::ArmisState;
-use crate::types::{AlertRecord, AlertsData, AlertsResponse, ArmisError};
+use crate::{
+    routes::devices::validate_org_id,
+    state::ArmisState,
+    types::{AlertRecord, AlertsData, AlertsResponse, ArmisError},
+};
 
 /// Query parameters for `GET /api/v1/alerts`.
 #[derive(Debug, Deserialize, Default)]

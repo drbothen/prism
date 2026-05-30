@@ -16,13 +16,16 @@
 //! AC coverage: AC-009 (Cyberint DTU parity + incidents SKIP), PLUGIN-MIGRATION-001-F AC-001 (TOML fixture loading)
 //! HS coverage: HS-015
 
+use std::collections::HashMap;
+
 use prism_core::OrgSlug;
 use prism_dtu_common::BehavioralClone;
 use prism_dtu_cyberint::CyberintClone;
-use prism_spec_engine::NullAuthProvider;
-use prism_spec_engine::pipeline::{FetchContext, PipelineExecutor};
-use prism_spec_engine::spec_parser::SpecLoader;
-use std::collections::HashMap;
+use prism_spec_engine::{
+    NullAuthProvider,
+    pipeline::{FetchContext, PipelineExecutor},
+    spec_parser::SpecLoader,
+};
 
 fn canonicalize_ocsf(value: &serde_json::Value) -> String {
     serde_json::to_string(&normalize_for_parity(value))

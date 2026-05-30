@@ -9,8 +9,9 @@
 //! - `CloneCrashed`            — BC-3.6.002 postconditions 1-5
 //! - `NetworkPortAllocation`   — BC-3.5.002 EC-004 (Network mode bind failure)
 
-use crate::types::DtuType;
 use prism_core::ids::OrgId;
+
+use crate::types::DtuType;
 
 /// Errors returned by `Harness` operations and `HarnessBuilder::build()`.
 ///

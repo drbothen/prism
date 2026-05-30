@@ -1,9 +1,6 @@
-use std::collections::HashMap;
-use std::path::Path;
+use std::{collections::HashMap, path::Path};
 
-use crate::credential_check::scan_for_credentials;
-use crate::error::ConfigError;
-use crate::schema::CustomerConfig;
+use crate::{credential_check::scan_for_credentials, error::ConfigError, schema::CustomerConfig};
 
 // ---------------------------------------------------------------------------
 // DTU type classification — inlined from prism-core::dtu to avoid crate dep.

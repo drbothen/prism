@@ -19,10 +19,11 @@
 use std::process;
 
 use clap::Parser;
-
-use prism_bin::boot::{self, PrismConfig};
-use prism_bin::cli::{CliArgs, LogFormat, PrismCommand};
-use prism_bin::exit_codes::{EXIT_CONFIG_INVALID, EXIT_INTERNAL_ERROR, EXIT_SUCCESS};
+use prism_bin::{
+    boot::{self, PrismConfig},
+    cli::{CliArgs, LogFormat, PrismCommand},
+    exit_codes::{EXIT_CONFIG_INVALID, EXIT_INTERNAL_ERROR, EXIT_SUCCESS},
+};
 
 /// Multi-thread tokio runtime per AD-013.
 #[tokio::main(flavor = "multi_thread")]

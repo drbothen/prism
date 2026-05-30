@@ -23,8 +23,7 @@
 use std::collections::HashMap;
 
 use prism_core::{OrgId, OrgRegistry, OrgSlug, PrismError, SensorId, SpecErrorCode};
-use prism_spec_engine::overlay::OverlayLoader;
-use prism_spec_engine::spec_parser::SensorSpec;
+use prism_spec_engine::{overlay::OverlayLoader, spec_parser::SensorSpec};
 
 // ---------------------------------------------------------------------------
 // Test helpers — shared TYPE spec TOML and builder helpers

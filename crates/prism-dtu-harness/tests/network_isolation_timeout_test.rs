@@ -52,8 +52,9 @@
 //! - ADR-011 §2.5 — timeout specification
 //! - AC-008 — timeout knob required
 
-use prism_dtu_harness::{DtuType, HarnessError, IsolationMode};
 use std::time::Duration;
+
+use prism_dtu_harness::{DtuType, HarnessError, IsolationMode};
 
 /// AC-008 (timeout-knob compile gate): `with_network_bind_timeout(Duration)` method.
 ///

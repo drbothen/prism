@@ -24,9 +24,7 @@
 //! | test_PLUGIN_MIGRATION_001_C_006_vp_plugin_006_fixture_catalog_six_cases | AC-006 | VP-PLUGIN-006 |
 //! | test_PLUGIN_MIGRATION_001_C_007_normalizer_wired_with_spec_driven_mapper | AC-007 | BC-2.02.002 |
 
-use std::collections::HashMap;
-use std::sync::Arc;
-use std::time::Duration;
+use std::{collections::HashMap, sync::Arc, time::Duration};
 
 use prism_core::{ColumnType, PrismError};
 use prism_ocsf::mappers::{SensorMapper, SpecDrivenMapper};
@@ -503,8 +501,7 @@ fn test_BC_2_02_007_spec_driven_extensions_preserved() {
 /// so it fails. The implementer flips the assertion back when deleting the mapper files.
 #[test]
 fn test_PLUGIN_MIGRATION_001_C_005_no_hardcoded_mapper_symbols_in_production_src() {
-    use std::fs;
-    use std::path::PathBuf;
+    use std::{fs, path::PathBuf};
 
     // Find the prism-ocsf src directory relative to this test binary's manifest.
     // In Cargo test runs, CARGO_MANIFEST_DIR resolves to the crate root.

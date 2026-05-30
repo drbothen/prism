@@ -39,9 +39,11 @@
     dead_code,
     unused_mut
 )]
-use std::path::Path;
-use std::sync::Arc;
-use std::time::{Duration, Instant};
+use std::{
+    path::Path,
+    sync::Arc,
+    time::{Duration, Instant},
+};
 
 use prism_core::PluginError;
 use prism_spec_engine::plugin::{PluginRuntime, PluginType};
@@ -278,8 +280,10 @@ fn test_BC_2_17_002_ac4_wasi_filesystem_not_accessible() {
 /// local `wiremock` or `httpmock` server can be spun up.
 #[test]
 fn test_BC_2_17_002_ac5_http_request_proxied_via_host() {
-    use prism_spec_engine::plugin::host_functions::host_http_request;
-    use prism_spec_engine::plugin::loader::{HostState, PluginConfigMap, PluginKvStore};
+    use prism_spec_engine::plugin::{
+        host_functions::host_http_request,
+        loader::{HostState, PluginConfigMap, PluginKvStore},
+    };
 
     // Invariant 1: PluginRuntime::new() must succeed and have an http_client.
     // (The field is Arc<reqwest::Client> on PluginRuntime; confirmed by build success.)
@@ -917,8 +921,7 @@ fn test_BC_2_17_006_ec17_027_empty_plugin_id_rejected() {
 /// Traces to: BC-2.17.002 / EC-17-007 / AC-7 / AC-17 / VP-PLUGIN-007
 #[test]
 fn test_BC_2_17_002_ec17_007_http_request_empty_allowlist_blocked() {
-    use prism_spec_engine::plugin::host_functions::host_http_request;
-    use prism_spec_engine::plugin::loader::HostState;
+    use prism_spec_engine::plugin::{host_functions::host_http_request, loader::HostState};
 
     // AC-17: use HostState::test_with_plugin_id() (allowed_urls: vec![] = default-deny).
     // Drop the allowed_urls override — the default empty list IS the post-AC-7 behavior.
@@ -946,9 +949,12 @@ fn test_BC_2_17_002_ec17_007_http_request_empty_allowlist_blocked() {
 /// Traces to: BC-2.17.002 / EC-17-006
 #[test]
 fn test_BC_2_17_002_ec17_006_http_request_allowlisted_url_succeeds() {
-    use prism_spec_engine::plugin::host_functions::host_http_request;
-    use prism_spec_engine::plugin::loader::{HostState, PluginConfigMap, PluginKvStore};
     use std::sync::Arc;
+
+    use prism_spec_engine::plugin::{
+        host_functions::host_http_request,
+        loader::{HostState, PluginConfigMap, PluginKvStore},
+    };
 
     // AC-17: use HostState::test_with_allowed_urls() with Vec<String> (not Option).
     let state = HostState::test_with_allowed_urls(
@@ -974,9 +980,12 @@ fn test_BC_2_17_002_ec17_006_http_request_allowlisted_url_succeeds() {
 /// Traces to: BC-2.17.002 / error row 2
 #[test]
 fn test_BC_2_17_002_ec17_url_not_in_allowlist_returns_403() {
-    use prism_spec_engine::plugin::host_functions::host_http_request;
-    use prism_spec_engine::plugin::loader::{HostState, PluginConfigMap, PluginKvStore};
     use std::sync::Arc;
+
+    use prism_spec_engine::plugin::{
+        host_functions::host_http_request,
+        loader::{HostState, PluginConfigMap, PluginKvStore},
+    };
 
     // AC-17: use HostState::test_with_allowed_urls() with Vec<String> (not Option).
     let state = HostState::test_with_allowed_urls(
@@ -1011,9 +1020,12 @@ fn test_BC_2_17_002_ec17_url_not_in_allowlist_returns_403() {
 /// Traces to: BC-2.17.004 / EC-17-015
 #[test]
 fn test_BC_2_17_004_ec17_015_per_plugin_timeout_override() {
-    use prism_spec_engine::plugin::loader::{HostState, PluginConfigMap, PluginKvStore};
-    use prism_spec_engine::plugin::sandbox::create_store;
     use std::sync::Arc;
+
+    use prism_spec_engine::plugin::{
+        loader::{HostState, PluginConfigMap, PluginKvStore},
+        sandbox::create_store,
+    };
 
     let engine = wasmtime::Engine::default();
     // AC-17: use HostState::test_with_plugin_id() (allowed_urls: vec![] = default-deny under AC-7).

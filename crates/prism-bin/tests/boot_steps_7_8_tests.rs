@@ -47,24 +47,27 @@
     non_snake_case
 )]
 
-use std::collections::HashMap;
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
 use async_trait::async_trait;
 use prism_core::{OrgRegistry, OrgSlug, PrismError, SensorId, StorageDomain};
 use prism_ocsf::OcsfNormalizer;
-use prism_query::engine::{QueryEngine, QueryEngineConfig, QueryOptions};
-use prism_query::internal_tables::register_internal_tables;
-use prism_query::scoping::ClientRegistry;
-use prism_query::write_dispatch::AuditWriter;
-use prism_query::{WriteExecutor, WritePlan, WriteResult};
-use prism_security::confirmation_token::ConfirmationTokenStore;
-use prism_security::feature_flag::{CapabilityCheckResult, FeatureFlagEvaluator};
+use prism_query::{
+    WriteExecutor, WritePlan, WriteResult,
+    engine::{QueryEngine, QueryEngineConfig, QueryOptions},
+    internal_tables::register_internal_tables,
+    scoping::ClientRegistry,
+    write_dispatch::AuditWriter,
+};
+use prism_security::{
+    confirmation_token::ConfirmationTokenStore,
+    feature_flag::{CapabilityCheckResult, FeatureFlagEvaluator},
+};
 use prism_sensors::AdapterRegistry;
 use prism_spec_engine::write_endpoint::WriteEndpointRegistry;
-use prism_storage::backend::RocksStorageBackend;
-use prism_storage::memory_backend::InMemoryBackend;
-use prism_storage::rocksdb_backend::RocksDbBackend;
+use prism_storage::{
+    backend::RocksStorageBackend, memory_backend::InMemoryBackend, rocksdb_backend::RocksDbBackend,
+};
 
 // ---------------------------------------------------------------------------
 // Shared test infrastructure
@@ -133,9 +136,7 @@ fn make_full_query_engine_with_registry(
     adapter_registry: Arc<AdapterRegistry>,
 ) -> QueryEngine {
     use prism_credentials::CredentialStore;
-    use prism_sensors::CredentialResolver;
-    use prism_sensors::adapter::SensorError;
-    use prism_sensors::auth::SensorAuth;
+    use prism_sensors::{CredentialResolver, adapter::SensorError, auth::SensorAuth};
     use secrecy::SecretString;
 
     // NullCredentialStore — no credentials needed for boot wiring test.
@@ -386,8 +387,10 @@ fn test_BC_2_22_001_step8_constructs_query_engine() {
 async fn test_BC_2_11_001_step8_adapter_registry_not_empty() {
     use datafusion::arrow::record_batch::RecordBatch;
     use prism_core::OrgId;
-    use prism_sensors::adapter::{QueryParams, SensorAdapter, SensorError, SensorSpec};
-    use prism_sensors::auth::SensorAuth;
+    use prism_sensors::{
+        adapter::{QueryParams, SensorAdapter, SensorError, SensorSpec},
+        auth::SensorAuth,
+    };
 
     // --- Structural invariant 1: new registry starts empty ---
     let mut adapter_registry = AdapterRegistry::new();
@@ -598,9 +601,10 @@ async fn test_BC_2_15_011_internal_tables_accessible_after_step7() {
 #[test]
 #[allow(non_snake_case)]
 fn test_BC_2_22_001_step8_constructs_write_executor() {
+    use std::collections::BTreeMap;
+
     use prism_core::RiskTier;
     use prism_spec_engine::write_endpoint::{BatchMode, WriteEndpointSpec, WriteStep};
-    use std::collections::BTreeMap;
 
     // --- Structural invariant 1: new registry starts empty ---
     let mut endpoint_registry = WriteEndpointRegistry::new();

@@ -26,8 +26,10 @@ use axum::{
 };
 use serde::Deserialize;
 
-use crate::state::{NvdState, RateLimitError};
-use crate::types::{CveResponse, NvdError, VulnerabilityWrapper};
+use crate::{
+    state::{NvdState, RateLimitError},
+    types::{CveResponse, NvdError, VulnerabilityWrapper},
+};
 
 /// Query parameters accepted by `GET /rest/json/cves/2.0`.
 #[derive(Debug, Deserialize)]

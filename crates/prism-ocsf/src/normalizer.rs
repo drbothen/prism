@@ -13,9 +13,7 @@ use prism_core::PrismError;
 use prost_reflect::{DynamicMessage, MessageDescriptor};
 use serde_json::Value;
 
-use crate::class_selector::EventClassSelector;
-use crate::mappers::SensorMapper;
-use crate::pool::OcsfDescriptors;
+use crate::{class_selector::EventClassSelector, mappers::SensorMapper, pool::OcsfDescriptors};
 
 /// OCSF normalizer — dispatches to per-sensor `SensorMapper` implementations.
 ///

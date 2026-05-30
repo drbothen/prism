@@ -5,8 +5,10 @@
 
 #[cfg(test)]
 mod tests {
-    use crate::credentials::{CredentialName, CREDENTIAL_NAME_MAX_LEN};
-    use crate::error::PrismError;
+    use crate::{
+        credentials::{CredentialName, CREDENTIAL_NAME_MAX_LEN},
+        error::PrismError,
+    };
 
     // ── AC-4: path traversal "../../passwd" rejected ──────────────────────────
 

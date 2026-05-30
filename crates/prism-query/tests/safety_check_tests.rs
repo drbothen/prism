@@ -31,18 +31,19 @@
     clippy::expect_used
 )]
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 
 use prism_core::{CapabilityEffect, CapabilityPath, ClientCapabilities, PrismError, RiskTier};
-use prism_query::safety_check::{
-    check_structural_batch_limit, check_unbounded_write, classify_risk_tier, phase2_safety_check,
-    resolve_batch_limit, CompileFeatureGate, ResolvedBatchLimit, WriteTargetDescriptor,
+use prism_query::{
+    safety_check::{
+        check_structural_batch_limit, check_unbounded_write, classify_risk_tier,
+        phase2_safety_check, resolve_batch_limit, CompileFeatureGate, ResolvedBatchLimit,
+        WriteTargetDescriptor,
+    },
+    write_pipeline::WritePlan,
 };
-use prism_query::write_pipeline::WritePlan;
 use prism_security::feature_flag::{CapabilityCheckResult, FeatureFlagEvaluator};
 use prism_spec_engine::write_endpoint::{BatchMode, WriteEndpointSpec};
-
-use std::collections::HashMap;
 
 // ---------------------------------------------------------------------------
 // Helpers

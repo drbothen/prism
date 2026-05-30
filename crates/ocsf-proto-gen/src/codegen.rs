@@ -10,15 +10,19 @@
 //! byte-identical output. Fields are sorted alphabetically and numbered
 //! sequentially.
 
-use std::collections::{BTreeMap, BTreeSet};
-use std::fmt::Write;
-use std::path::Path;
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    fmt::Write,
+    path::Path,
+};
 
-use crate::error::{Error, Result};
-use crate::schema::{OcsfAttribute, OcsfClass, OcsfObject, OcsfSchema};
-use crate::type_map::{
-    ocsf_to_proto_type, sanitize_object_name, to_enum_variant_name, to_pascal_case,
-    to_screaming_snake,
+use crate::{
+    error::{Error, Result},
+    schema::{OcsfAttribute, OcsfClass, OcsfObject, OcsfSchema},
+    type_map::{
+        ocsf_to_proto_type, sanitize_object_name, to_enum_variant_name, to_pascal_case,
+        to_screaming_snake,
+    },
 };
 
 /// Statistics collected during generation for reporting.

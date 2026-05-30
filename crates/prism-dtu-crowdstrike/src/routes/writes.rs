@@ -13,14 +13,18 @@
 
 use std::sync::Arc;
 
-use axum::extract::{Query, State};
-use axum::http::{HeaderMap, StatusCode};
-use axum::response::{IntoResponse, Json};
+use axum::{
+    extract::{Query, State},
+    http::{HeaderMap, StatusCode},
+    response::{IntoResponse, Json},
+};
 use prism_core::OrgId;
 use serde::Deserialize;
 
-use crate::routes::hosts::validate_org_id;
-use crate::state::{ContainmentStatus, CrowdstrikeState};
+use crate::{
+    routes::hosts::validate_org_id,
+    state::{ContainmentStatus, CrowdstrikeState},
+};
 
 /// Query params for device actions endpoint.
 #[derive(Debug, Deserialize, Default)]

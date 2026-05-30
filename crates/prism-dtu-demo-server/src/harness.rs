@@ -17,8 +17,7 @@
 //! Graceful drain via `shutdown_tx` broadcast; hard-abort via `JoinHandle::abort()`
 //! inside `clone.stop()` after a 5-second timeout.
 
-use std::collections::HashMap;
-use std::net::SocketAddr;
+use std::{collections::HashMap, net::SocketAddr};
 
 use anyhow::Context;
 use prism_dtu_common::BehavioralClone;

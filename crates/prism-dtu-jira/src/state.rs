@@ -8,14 +8,17 @@
 //! No HTTP-layer types (`axum::Json`, `axum::extract::*`) appear here.
 //! `JiraState` is pure Rust — no Axum dependency for its public methods.
 
-use std::collections::HashMap;
-use std::sync::atomic::{AtomicU32, Ordering};
-use std::sync::{Arc, Mutex};
+use std::{
+    collections::HashMap,
+    sync::{
+        atomic::{AtomicU32, Ordering},
+        Arc, Mutex,
+    },
+};
 
 #[cfg(feature = "dtu")]
 use prism_core::OrgId;
 use prism_dtu_common::FailureMode;
-
 use serde::{Deserialize, Serialize};
 
 /// Issue status state machine values.

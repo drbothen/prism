@@ -26,9 +26,7 @@
 // Skip the entire file on non-Unix targets to keep Windows CI green.
 #![cfg(unix)]
 
-use std::fs;
-use std::path::PathBuf;
-use std::process::Command;
+use std::{fs, path::PathBuf, process::Command};
 
 // ---------------------------------------------------------------------------
 // Helpers

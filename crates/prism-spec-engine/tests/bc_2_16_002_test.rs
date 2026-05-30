@@ -13,15 +13,17 @@
 //!
 //! AC-2 (S-1.11): two-step OAuth->API with ${step1.response.access_token} interpolation
 
+use std::collections::HashMap;
+
 use prism_core::{ColumnType, OrgSlug};
-use prism_spec_engine::NullAuthProvider;
-use prism_spec_engine::interpolation::{InterpolationContext, InterpolationError, Interpolator};
-use prism_spec_engine::pipeline::{FetchContext, PipelineExecutor};
-use prism_spec_engine::spec_parser::{AuthType, ColumnSpec, FetchStep, SensorSpec, TableSpec};
+use prism_spec_engine::{
+    NullAuthProvider,
+    interpolation::{InterpolationContext, InterpolationError, Interpolator},
+    pipeline::{FetchContext, PipelineExecutor},
+    spec_parser::{AuthType, ColumnSpec, FetchStep, SensorSpec, TableSpec},
+};
 // reqwest is a production dep of prism-spec-engine — accessible in integration tests.
 use reqwest::Client as ReqwestClient;
-
-use std::collections::HashMap;
 
 // ---------------------------------------------------------------------------
 // Interpolation tests (pure function — exercisable without HTTP)
@@ -193,8 +195,10 @@ fn test_BC_2_16_002_fan_out_empty_array_produces_zero_batches() {
 /// Red Gate +9 for AC-2 alternate-coverage (per F-LP1-CRIT-004 closure).
 #[tokio::test]
 async fn test_BC_2_16_002_two_step_pipeline_step2_uses_step1_token() {
-    use wiremock::matchers::{method as wm_method, path as wm_path};
-    use wiremock::{Mock as WmMock, MockServer, ResponseTemplate};
+    use wiremock::{
+        Mock as WmMock, MockServer, ResponseTemplate,
+        matchers::{method as wm_method, path as wm_path},
+    };
 
     let mock_server = MockServer::start().await;
 

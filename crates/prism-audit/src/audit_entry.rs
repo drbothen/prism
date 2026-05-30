@@ -10,8 +10,7 @@
 //! - `aql_hash: String` — SHA-256 hex digest of the AQL/PrismQL string (TD-ADR005-002)
 
 use chrono::{DateTime, Utc};
-use prism_core::tenant::OrgSlug;
-use prism_core::OrgId;
+use prism_core::{tenant::OrgSlug, OrgId};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use uuid::Uuid;

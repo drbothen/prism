@@ -1,8 +1,7 @@
 //! `FixtureSet`, `Provenance`, and `OrgId` types (BC-3.4.001 postcondition 1).
 
-use serde_json::Value;
-
 use prism_core::SensorId;
+use serde_json::Value;
 
 use super::archetype::Archetype;
 

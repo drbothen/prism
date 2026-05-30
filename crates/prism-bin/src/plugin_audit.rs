@@ -13,12 +13,13 @@
 //! so that the `audit_buffer` CF receives a persisted, fsync-confirmed entry for each
 //! unsigned plugin load.
 
-use std::collections::BTreeMap;
-use std::sync::Arc;
+use std::{collections::BTreeMap, sync::Arc};
 
 use prism_spec_engine::plugin_audit_sink::PluginLoadAuditSink;
-use prism_storage::audit_buffer::{AuditEntry, append_audit_entry_sync};
-use prism_storage::rocksdb_backend::RocksDbBackend;
+use prism_storage::{
+    audit_buffer::{AuditEntry, append_audit_entry_sync},
+    rocksdb_backend::RocksDbBackend,
+};
 use uuid::Uuid;
 
 /// Production `PluginLoadAuditSink` backed by RocksDB `audit_buffer` CF.

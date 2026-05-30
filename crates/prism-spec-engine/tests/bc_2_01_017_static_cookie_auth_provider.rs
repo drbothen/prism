@@ -37,9 +37,11 @@
 //! In the Red Gate state, both tests fail on the `StaticCookieAuthProvider::new()`
 //! `todo!()` panic before reaching any assertion.
 
+use std::sync::Arc;
+
 use prism_core::{ColumnType, OrgSlug};
 use prism_spec_engine::{
-    AuthProvider, StaticCookieAuthProvider,
+    AuthProvider, MockCredentialResolver, StaticCookieAuthProvider,
     spec_parser::{AuthType, ColumnSpec, FetchStep, SensorSpec, TableSpec},
 };
 
@@ -107,9 +109,12 @@ fn cookie_roundtrip_spec(base_url: &str) -> SensorSpec {
 /// | INV-COOKIE-001 | TV-BC-2.01.017-001 | ADR-031 §D1-b §D3-b rule 2
 #[tokio::test]
 async fn test_BC_2_01_013_static_cookie_auth_provider_returns_api_key_without_http_call() {
-    // Construct the provider. At the Red Gate stage this panics with todo!().
-    // After implementation: stores sensor_id="cyberint" only (no API key — AD-017).
-    let provider = StaticCookieAuthProvider::new("cyberint");
+    // Construct the provider with an injectable MockCredentialResolver (ADR-022 §C; AC-005).
+    // The mock returns "test-api-key-abc123" without touching the real credential store
+    // (env vars, keyring). This is the production-grade DI pattern — no env var setup
+    // required in tests (INV-COOKIE-001 / ADR-031 §D1-b; TV-BC-2.01.017-001).
+    let resolver = Arc::new(MockCredentialResolver::new("test-api-key-abc123"));
+    let provider = StaticCookieAuthProvider::new_with_resolver("cyberint", resolver);
 
     // Verify the provider is a `dyn AuthProvider` (object-safety check, AC-005 §trait contract).
     let _dyn_check: &dyn AuthProvider = &provider;
@@ -118,18 +123,9 @@ async fn test_BC_2_01_013_static_cookie_auth_provider_returns_api_key_without_ht
     let spec = cookie_roundtrip_spec("https://mock-cyberint.invalid");
     let client_id = OrgSlug::new("test-org-acme");
 
-    // Call acquire_token. At the Red Gate stage this panics with todo!().
-    // After implementation: calls prism_credentials::resolve_credential and returns
-    // Ok(AuthToken) without making any HTTP request.
-    //
-    // NOTE: In the Red Gate state the credential store has no entry for "cyberint" /
-    // "test-org-acme" — so the post-implementation behavior will be E-AUTH-005 (not found).
-    // That is ALSO a valid failing state: the test fails because the error path
-    // (E-AUTH-005) is returned rather than the expected Ok(token). The implementer must
-    // either arrange a credential store entry (integration test fixture) or use an
-    // injectable CredentialResolver (the correct production-grade approach per AC-005).
-    //
-    // For the Red Gate, the panic is sufficient — it proves the stub is not implemented.
+    // Call acquire_token. Delegates to MockCredentialResolver — returns Ok("test-api-key-abc123")
+    // without any HTTP call or env var dependency. INV-COOKIE-001 structural invariant holds:
+    // StaticCookieAuthProvider has no reqwest::Client field.
     let result = provider.acquire_token(&spec, &client_id).await;
 
     // Post-implementation: result must be Ok (valid credential in test fixture).

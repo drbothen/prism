@@ -27,8 +27,7 @@
 //! Test naming: `test_BC_3_1_002_<assertion_name>()` per factory naming convention.
 
 use chrono::Utc;
-use prism_core::tenant::OrgSlug;
-use prism_core::OrgId;
+use prism_core::{tenant::OrgSlug, OrgId};
 use serde_json::Value;
 use uuid::Uuid;
 

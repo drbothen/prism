@@ -86,13 +86,14 @@ mod bc_gap_fill {
     // =========================================================================
 
     mod vp031_extended {
-        use prism_core::ColumnOptions;
-        use prism_core::ColumnType;
+        use prism_core::{ColumnOptions, ColumnType};
         use prism_spec_engine::spec_parser::ColumnSpec;
         use proptest::prelude::*;
 
-        use crate::ast::{Expr, FieldPath, Literal, Span};
-        use crate::pushdown::classify_predicates;
+        use crate::{
+            ast::{Expr, FieldPath, Literal, Span},
+            pushdown::classify_predicates,
+        };
 
         fn make_col(name: &str, option: ColumnOptions) -> ColumnSpec {
             ColumnSpec::new(name, ColumnType::String, None, vec![option])
@@ -251,13 +252,14 @@ mod bc_gap_fill {
     // =========================================================================
 
     mod pushdown_classification {
-        use prism_core::ColumnOptions;
-        use prism_core::ColumnType;
+        use prism_core::{ColumnOptions, ColumnType};
         use prism_spec_engine::spec_parser::ColumnSpec;
 
-        use crate::ast::{CompareOp, Expr, FieldPath, Literal, Span};
-        use crate::pushdown::{
-            classify_predicates, column_push_down_option_from_spec, ColumnPushDownOption,
+        use crate::{
+            ast::{CompareOp, Expr, FieldPath, Literal, Span},
+            pushdown::{
+                classify_predicates, column_push_down_option_from_spec, ColumnPushDownOption,
+            },
         };
 
         fn make_col(name: &str, option: ColumnOptions) -> ColumnSpec {
@@ -572,9 +574,11 @@ mod bc_gap_fill {
     mod virtual_field_injection {
         use std::sync::Arc;
 
-        use arrow::array::StringArray;
-        use arrow::datatypes::{DataType, Field, Schema};
-        use arrow::record_batch::RecordBatch;
+        use arrow::{
+            array::StringArray,
+            datatypes::{DataType, Field, Schema},
+            record_batch::RecordBatch,
+        };
         use prism_core::{OrgSlug, SensorId};
 
         use crate::virtual_fields::{
@@ -893,9 +897,11 @@ mod bc_gap_fill {
         #[test]
         fn test_BC_2_11_006_ec004_panic_path_session_scope_drops_context(
         ) -> Result<(), Box<dyn std::error::Error>> {
-            use crate::session::SessionScope;
-            use datafusion::execution::context::SessionContext;
             use std::sync::{Arc, Mutex};
+
+            use datafusion::execution::context::SessionContext;
+
+            use crate::session::SessionScope;
 
             // Shared drop counter.
             let drop_count = Arc::new(Mutex::new(0u32));
@@ -977,8 +983,9 @@ mod bc_gap_fill {
         /// BC-2.11.005 AC-7: SessionScope drops context on normal return.
         #[test]
         fn test_BC_2_11_005_session_scope_drops_context_on_normal_return() {
-            use crate::session::SessionScope;
             use datafusion::execution::context::SessionContext;
+
+            use crate::session::SessionScope;
 
             let ctx = SessionContext::new();
             let scope = SessionScope::new(ctx);
@@ -994,9 +1001,10 @@ mod bc_gap_fill {
         /// Verifies MaterializationContext's in_query_cache initializes empty.
         #[tokio::test]
         async fn test_BC_2_11_005_in_query_cache_avoids_redundant_api_calls() {
+            use std::sync::Arc;
+
             use prism_ocsf::OcsfNormalizer;
             use prism_sensors::AdapterRegistry;
-            use std::sync::Arc;
 
             let registry = Arc::new(AdapterRegistry::new());
             let normalizer = Arc::new(OcsfNormalizer::new());
@@ -1121,12 +1129,13 @@ mod bc_gap_fill {
     // =========================================================================
 
     mod required_column_enforcement {
-        use prism_core::ColumnOptions;
-        use prism_core::ColumnType;
+        use prism_core::{ColumnOptions, ColumnType};
         use prism_spec_engine::spec_parser::ColumnSpec;
 
-        use crate::ast::{CompareOp, Expr, FieldPath, Literal, Span};
-        use crate::pushdown::classify_predicates;
+        use crate::{
+            ast::{CompareOp, Expr, FieldPath, Literal, Span},
+            pushdown::classify_predicates,
+        };
 
         fn make_required_col(name: &str) -> ColumnSpec {
             ColumnSpec::new(
@@ -1321,18 +1330,19 @@ mod bc_gap_fill {
     // =========================================================================
 
     mod pipeline_steps {
-        use crate::materialization::register_mem_table;
-        use crate::memory::build_session_context;
+        use crate::{materialization::register_mem_table, memory::build_session_context};
 
         /// BC-2.11.005 Step 2: resolve_source_refs maps query source names to SourceRef.
         ///
         /// Tests the MaterializationContext structure which drives resolve_source_refs.
         #[tokio::test]
         async fn test_BC_2_11_005_resolve_source_refs_maps_names_to_sourceref() {
-            use crate::materialization::MaterializationContext;
+            use std::sync::Arc;
+
             use prism_ocsf::OcsfNormalizer;
             use prism_sensors::AdapterRegistry;
-            use std::sync::Arc;
+
+            use crate::materialization::MaterializationContext;
 
             let registry = Arc::new(AdapterRegistry::new());
             let normalizer = Arc::new(OcsfNormalizer::new());
@@ -1345,10 +1355,13 @@ mod bc_gap_fill {
         #[test]
         fn test_BC_2_11_005_register_mem_table_creates_accessible_table(
         ) -> Result<(), Box<dyn std::error::Error>> {
-            use arrow::array::StringArray;
-            use arrow::datatypes::{DataType, Field, Schema};
-            use arrow::record_batch::RecordBatch;
             use std::sync::Arc;
+
+            use arrow::{
+                array::StringArray,
+                datatypes::{DataType, Field, Schema},
+                record_batch::RecordBatch,
+            };
 
             let ctx = build_session_context(10 * 1024 * 1024)?;
 
@@ -1372,11 +1385,15 @@ mod bc_gap_fill {
         #[tokio::test]
         async fn test_BC_2_11_005_collect_record_batch_stream_drains_fully(
         ) -> Result<(), Box<dyn std::error::Error>> {
-            use crate::materialization::{collect_record_batch_stream, register_mem_table};
-            use arrow::array::StringArray;
-            use arrow::datatypes::{DataType, Field, Schema};
-            use arrow::record_batch::RecordBatch;
             use std::sync::Arc;
+
+            use arrow::{
+                array::StringArray,
+                datatypes::{DataType, Field, Schema},
+                record_batch::RecordBatch,
+            };
+
+            use crate::materialization::{collect_record_batch_stream, register_mem_table};
 
             let ctx = build_session_context(10 * 1024 * 1024)?;
 
@@ -1410,10 +1427,13 @@ mod bc_gap_fill {
         #[test]
         fn test_SEC_003_register_mem_table_error_is_redacted(
         ) -> Result<(), Box<dyn std::error::Error>> {
-            use arrow::array::StringArray;
-            use arrow::datatypes::{DataType, Field, Schema};
-            use arrow::record_batch::RecordBatch;
             use std::sync::Arc;
+
+            use arrow::{
+                array::StringArray,
+                datatypes::{DataType, Field, Schema},
+                record_batch::RecordBatch,
+            };
 
             let ctx = build_session_context(10 * 1024 * 1024)?;
 
@@ -1495,9 +1515,10 @@ mod bc_gap_fill {
     // =========================================================================
 
     mod materialization_context_accessors {
+        use std::sync::Arc;
+
         use prism_ocsf::OcsfNormalizer;
         use prism_sensors::AdapterRegistry;
-        use std::sync::Arc;
 
         use crate::materialization::MaterializationContext;
 
@@ -1559,9 +1580,11 @@ mod bc_gap_fill {
         #[test]
         fn test_BC_2_11_005_cache_lookup_insert_round_trip(
         ) -> Result<(), Box<dyn std::error::Error>> {
-            use arrow::array::StringArray;
-            use arrow::datatypes::{DataType, Field, Schema};
-            use arrow::record_batch::RecordBatch;
+            use arrow::{
+                array::StringArray,
+                datatypes::{DataType, Field, Schema},
+                record_batch::RecordBatch,
+            };
 
             let mut ctx = make_ctx(10_000);
             assert!(

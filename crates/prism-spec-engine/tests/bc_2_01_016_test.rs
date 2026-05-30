@@ -14,11 +14,11 @@
 //!
 //! Story: S-PLUGIN-PREREQ-E | BC: BC-2.01.016 | ADR-026 §D3 | ADR-023 Rule 2
 
-use prism_spec_engine::spec_parser::SpecLoader;
 use prism_spec_engine::{
     add_sensor_spec::add_sensor_spec,
     config_manager::{ConfigManager, parse_spec_directory},
     hot_reload::{SpecChangeEvent, process_spec_changes},
+    spec_parser::SpecLoader,
     types::AddSensorSpecArgs,
 };
 
@@ -337,6 +337,7 @@ variables_produced = []
 #[test]
 fn test_BC_2_01_016_e_spec_012_rejected_via_add_sensor_spec_mcp_tool() {
     use std::sync::Arc;
+
     use tempfile::TempDir;
 
     let dir = TempDir::new().expect("tempdir must be created");
@@ -434,6 +435,7 @@ variables_produced = []
 #[test]
 fn test_BC_2_01_016_e_spec_014_rejected_via_hot_reload() {
     use std::sync::Arc;
+
     use tempfile::TempDir;
 
     let dir = TempDir::new().expect("tempdir must be created");

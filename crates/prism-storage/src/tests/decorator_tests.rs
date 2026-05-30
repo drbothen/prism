@@ -24,8 +24,7 @@ mod inner {
 
     use prism_core::{DecoratorContext, OrgSlug, PrismError, StorageDomain};
 
-    use crate::decorators::DecorationStore;
-    use crate::memory_backend::InMemoryBackend;
+    use crate::{decorators::DecorationStore, memory_backend::InMemoryBackend};
 
     // ─────────────────────────────────────────────────────────────────────────
     // Helpers

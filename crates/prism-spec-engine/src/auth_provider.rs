@@ -31,7 +31,7 @@
 //!   Makes NO HTTP call. Returns the raw API key as the token. NOT feature-gated.
 //!   AC-005, AC-006 (S-DTU-CYBERINT-AUTH-FIDELITY-001); BC-2.01.017 §Postconditions.
 
-use std::{future::Future, pin::Pin};
+use std::{future::Future, pin::Pin, sync::Arc};
 
 use prism_core::OrgSlug;
 use zeroize::Zeroizing;
@@ -113,6 +113,109 @@ pub trait AuthProvider: Send + Sync {
 }
 
 // ---------------------------------------------------------------------------
+// CredentialResolver trait — injectable credential resolution for DI / testability
+// ---------------------------------------------------------------------------
+
+/// Injectable credential resolver used by [`StaticCookieAuthProvider`].
+///
+/// Abstracts over `prism_credentials::resolve_credential` so that tests can inject
+/// a mock resolver without touching the real credential store (ADR-022 §C wiring; AC-005).
+///
+/// # Object Safety
+///
+/// The trait is object-safe: `resolve` returns a boxed future.
+/// Use `Arc<dyn CredentialResolver>` at construction sites.
+///
+/// # Production Implementor
+///
+/// [`PrismCredentialResolver`] wraps `prism_credentials::resolve_credential`.
+/// Constructed via `Arc::new(PrismCredentialResolver)` in `StaticCookieAuthProvider::new`.
+pub trait CredentialResolver: Send + Sync {
+    /// Resolve the named credential for the given `(client_id, sensor_id, credential_name)` tuple.
+    ///
+    /// Returns the raw credential value as a `SecretString`, or an error if not found.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Err(String)` if the credential is not found or the backend is unavailable.
+    /// The error string is human-readable and suitable for wrapping in `SpecEngineError`.
+    fn resolve<'a>(
+        &'a self,
+        client_id: &'a str,
+        sensor_id: &'a str,
+        credential_name: &'a str,
+    ) -> Pin<Box<dyn Future<Output = Result<secrecy::SecretString, String>> + Send + 'a>>;
+}
+
+// ---------------------------------------------------------------------------
+// PrismCredentialResolver — production impl wrapping prism_credentials
+// ---------------------------------------------------------------------------
+
+/// Production [`CredentialResolver`] that delegates to `prism_credentials::resolve_credential`.
+///
+/// This is the default resolver used by `StaticCookieAuthProvider::new(sensor_id)`.
+/// At `acquire_token()` time it reads the API key from the env-var / CRUD chain per
+/// `BC-2.03.006`.
+///
+/// AD-017: no credential value is stored in this struct — it only holds a unit type.
+pub struct PrismCredentialResolver;
+
+impl CredentialResolver for PrismCredentialResolver {
+    fn resolve<'a>(
+        &'a self,
+        client_id: &'a str,
+        sensor_id: &'a str,
+        credential_name: &'a str,
+    ) -> Pin<Box<dyn Future<Output = Result<secrecy::SecretString, String>> + Send + 'a>> {
+        let client_id = client_id.to_string();
+        let sensor_id = sensor_id.to_string();
+        let credential_name = credential_name.to_string();
+        Box::pin(async move {
+            prism_credentials::resolve_credential(&client_id, &sensor_id, &credential_name)
+                .await
+                .map_err(|e| e.to_string())
+        })
+    }
+}
+
+// ---------------------------------------------------------------------------
+// MockCredentialResolver — test helper (cfg(test) / test-helpers feature)
+// ---------------------------------------------------------------------------
+
+/// Test helper [`CredentialResolver`] that returns a fixed credential value.
+///
+/// Inject via `StaticCookieAuthProvider::new_with_resolver(sensor_id, Arc::new(MockCredentialResolver::new("key-value")))`.
+///
+/// **Feature-gated:** only available under `cfg(test)` or the `test-helpers` Cargo feature.
+#[cfg(any(test, feature = "test-helpers"))]
+pub struct MockCredentialResolver {
+    value: String,
+}
+
+#[cfg(any(test, feature = "test-helpers"))]
+impl MockCredentialResolver {
+    /// Create a `MockCredentialResolver` that always returns `value` as the resolved credential.
+    pub fn new(value: impl Into<String>) -> Self {
+        Self {
+            value: value.into(),
+        }
+    }
+}
+
+#[cfg(any(test, feature = "test-helpers"))]
+impl CredentialResolver for MockCredentialResolver {
+    fn resolve<'a>(
+        &'a self,
+        _client_id: &'a str,
+        _sensor_id: &'a str,
+        _credential_name: &'a str,
+    ) -> Pin<Box<dyn Future<Output = Result<secrecy::SecretString, String>> + Send + 'a>> {
+        let value = self.value.clone();
+        Box::pin(async move { Ok(secrecy::SecretString::new(value)) })
+    }
+}
+
+// ---------------------------------------------------------------------------
 // StaticCookieAuthProvider — production auth provider for cookie_roundtrip sensors
 // ---------------------------------------------------------------------------
 
@@ -158,24 +261,54 @@ pub struct StaticCookieAuthProvider {
     /// This is the plain sensor name string (e.g., `"cyberint"`). The API key itself
     /// is NEVER stored here — AD-017 compliance.
     sensor_id: String,
+    /// Injected credential resolver (ADR-022 §C wiring; AC-005 injectable design).
+    ///
+    /// Production code passes `Arc::new(PrismCredentialResolver)` (via `new()`).
+    /// Tests pass `Arc::new(MockCredentialResolver::new("key-value"))` (via `new_with_resolver()`).
+    resolver: Arc<dyn CredentialResolver>,
 }
 
 impl StaticCookieAuthProvider {
     /// Construct a new `StaticCookieAuthProvider` for the given sensor.
     ///
+    /// Uses the production [`PrismCredentialResolver`] (wraps `prism_credentials::resolve_credential`).
+    ///
     /// The `sensor_id` is the sensor name string from the TOML spec (used as the
-    /// credential namespace key in `prism_credentials::resolve_credential`).
+    /// credential namespace key in the credential resolver).
     ///
     /// Does NOT accept the API key as a constructor argument (AD-017: credentials
     /// must not be held at construction time; resolved at acquire_token() time only).
     ///
     /// AC-005 (S-DTU-CYBERINT-AUTH-FIDELITY-001)
-    ///
-    /// `#[allow(unused_variables)]`: parameter is referenced in the `todo!()` message
-    /// but not actually used until the implementer fills in the body.
     pub fn new(sensor_id: impl Into<String>) -> Self {
         Self {
             sensor_id: sensor_id.into(),
+            resolver: Arc::new(PrismCredentialResolver),
+        }
+    }
+
+    /// Construct a `StaticCookieAuthProvider` with an injectable credential resolver.
+    ///
+    /// Used by tests to inject a [`MockCredentialResolver`] without relying on the real
+    /// credential store (env vars, keyring). Follows ADR-022 §C wiring contract.
+    ///
+    /// # Example (test code)
+    ///
+    /// ```ignore
+    /// let provider = StaticCookieAuthProvider::new_with_resolver(
+    ///     "cyberint",
+    ///     Arc::new(MockCredentialResolver::new("test-api-key-abc123")),
+    /// );
+    /// ```
+    ///
+    /// AC-005 (S-DTU-CYBERINT-AUTH-FIDELITY-001); ADR-022 §C; INV-COOKIE-001.
+    pub fn new_with_resolver(
+        sensor_id: impl Into<String>,
+        resolver: Arc<dyn CredentialResolver>,
+    ) -> Self {
+        Self {
+            sensor_id: sensor_id.into(),
+            resolver,
         }
     }
 }
@@ -199,8 +332,6 @@ impl AuthProvider for StaticCookieAuthProvider {
     ///
     /// BC-2.01.017 §Postconditions P1; INV-COOKIE-001; AC-005, AC-006, AC-010.
     ///
-    /// `#[allow(unused_variables)]`: parameters are referenced in the `todo!()` body
-    /// message but not actually used until the implementer fills in the body.
     fn acquire_token<'a>(
         &'a self,
         _spec: &'a SensorSpec,
@@ -210,18 +341,21 @@ impl AuthProvider for StaticCookieAuthProvider {
 
         let sensor_id = self.sensor_id.clone();
         let client_id_str = client_id.as_str().to_string();
+        let resolver = Arc::clone(&self.resolver);
 
         Box::pin(async move {
             // INV-COOKIE-001 / ADR-031 §D1-b: ZERO HTTP calls.
-            // This is a pure credential-store read via the env-var / crud chain.
-            let secret =
-                prism_credentials::resolve_credential(&client_id_str, &sensor_id, "api_key")
-                    .await
-                    .map_err(|e| SpecEngineError::AuthAcquisitionFailed {
-                        sensor_id: sensor_id.clone(),
-                        client_id: client_id_str.clone(),
-                        detail: format!("E-AUTH-005: credential not found: {e}"),
-                    })?;
+            // Delegates to the injected CredentialResolver — production uses
+            // PrismCredentialResolver (wraps prism_credentials::resolve_credential);
+            // tests inject MockCredentialResolver without touching the real store.
+            let secret = resolver
+                .resolve(&client_id_str, &sensor_id, "api_key")
+                .await
+                .map_err(|e| SpecEngineError::AuthAcquisitionFailed {
+                    sensor_id: sensor_id.clone(),
+                    client_id: client_id_str.clone(),
+                    detail: format!("E-AUTH-005: credential not found: {e}"),
+                })?;
 
             // E-AUTH-006: validate the resolved api_key before returning.
             // RFC 6265 §4.1.1: cookie-value MUST NOT contain spaces, commas,
@@ -487,9 +621,10 @@ impl AuthProvider for ChainAuthProvider {
 
 #[cfg(test)]
 mod tests {
+    use prism_core::{ColumnType, OrgSlug};
+
     use super::*;
     use crate::spec_parser::{AuthType, ColumnSpec, FetchStep, SensorSpec, TableSpec};
-    use prism_core::{ColumnType, OrgSlug};
 
     fn cookie_roundtrip_spec() -> SensorSpec {
         SensorSpec::new(

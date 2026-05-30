@@ -7,16 +7,18 @@
 //! - `make_request()` — build a minimal `AuditedRequest` for tests.
 //! - `AlwaysSucceedService` / `AlwaysFailService` — minimal Tower services.
 
-use std::sync::Arc;
-use std::task::{Context, Poll};
+use std::{
+    sync::Arc,
+    task::{Context, Poll},
+};
 
-use prism_core::tenant::OrgSlug;
-use prism_core::{OrgId, PrismError, StorageDomain};
-use prism_storage::backend::RocksStorageBackend;
-use prism_storage::memory_backend::InMemoryBackend;
+use prism_core::{tenant::OrgSlug, OrgId, PrismError, StorageDomain};
+use prism_storage::{backend::RocksStorageBackend, memory_backend::InMemoryBackend};
 
-use crate::audit_emitter::{AuditedRequest, AuditedResponse};
-use crate::audit_entry::{AuditOutcome, DataClassification};
+use crate::{
+    audit_emitter::{AuditedRequest, AuditedResponse},
+    audit_entry::{AuditOutcome, DataClassification},
+};
 
 // ── MemBackend — Clone-able wrapper over InMemoryBackend ─────────────────────
 

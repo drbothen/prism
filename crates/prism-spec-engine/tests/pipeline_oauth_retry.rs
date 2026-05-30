@@ -9,14 +9,19 @@
 //! - AC-5a: 401 on first request → `acquire_token` called → retry succeeds → non-empty result
 //! - AC-5b: 401 on retry too → pipeline aborts with structured error (double-401)
 
-use prism_core::{ColumnType, OrgSlug};
-use prism_spec_engine::error::SpecEngineError;
-use prism_spec_engine::pipeline::{FetchContext, PipelineExecutor};
-use prism_spec_engine::spec_parser::{AuthType, ColumnSpec, FetchStep, SensorSpec, TableSpec};
-use prism_spec_engine::{FailingAuthProvider, MockAuthProvider};
 use std::collections::HashMap;
-use wiremock::matchers::{method, path};
-use wiremock::{Mock, MockServer, ResponseTemplate};
+
+use prism_core::{ColumnType, OrgSlug};
+use prism_spec_engine::{
+    FailingAuthProvider, MockAuthProvider,
+    error::SpecEngineError,
+    pipeline::{FetchContext, PipelineExecutor},
+    spec_parser::{AuthType, ColumnSpec, FetchStep, SensorSpec, TableSpec},
+};
+use wiremock::{
+    Mock, MockServer, ResponseTemplate,
+    matchers::{method, path},
+};
 
 fn default_context() -> FetchContext {
     FetchContext::new(OrgSlug::new("test-org"), HashMap::new())

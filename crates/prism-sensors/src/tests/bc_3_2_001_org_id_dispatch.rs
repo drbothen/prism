@@ -21,12 +21,13 @@
 
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
-use prism_core::OrgId;
+use prism_core::{OrgId, SensorId};
 use proptest::prelude::*;
 
-use crate::adapter::{QueryParams, SensorSpec};
-use crate::fanout::FanOutTarget;
-use prism_core::SensorId;
+use crate::{
+    adapter::{QueryParams, SensorSpec},
+    fanout::FanOutTarget,
+};
 
 // ---------------------------------------------------------------------------
 // Test helpers
@@ -467,10 +468,11 @@ fn test_BC_3_2_001_reset_for_org_a_does_not_affect_org_b() {
 /// the `client_id` parameter to accept `OrgId::to_string()` as the prefix segment.
 #[test]
 fn test_BC_3_2_001_event_buffer_key_prefix_must_be_uuid_format() {
-    use crate::event_buffer::{EventBufferStore, NormalizedRecord};
+    use std::{sync::Arc, time::SystemTime};
+
     use prism_storage::memory_backend::InMemoryBackend;
-    use std::sync::Arc;
-    use std::time::SystemTime;
+
+    use crate::event_buffer::{EventBufferStore, NormalizedRecord};
 
     let org_id = OrgId::new();
     // After migration: the client_id segment in the key must be org_id.to_string()

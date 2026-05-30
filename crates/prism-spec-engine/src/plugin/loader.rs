@@ -1,8 +1,10 @@
 //! Plugin loader — wasmtime Engine/Linker setup and `.prx` loading.
 
-use std::collections::HashMap;
-use std::path::{Path, PathBuf};
-use std::sync::Arc;
+use std::{
+    collections::HashMap,
+    path::{Path, PathBuf},
+    sync::Arc,
+};
 
 use prism_core::PluginError;
 use reqwest::Client;

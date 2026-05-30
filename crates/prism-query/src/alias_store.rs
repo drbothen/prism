@@ -14,14 +14,18 @@
 //! Story: S-3.04 — prism-query: Alias System (P1)
 //! BCs:   BC-2.11.008, BC-2.11.013, BC-2.11.014
 
-use std::io::Write as IoWrite;
-use std::path::{Path, PathBuf};
+use std::{
+    io::Write as IoWrite,
+    path::{Path, PathBuf},
+};
 
 use prism_core::error::PrismError;
 use serde::{Deserialize, Serialize};
 
-use crate::alias_resolver::AliasResolver;
-use crate::alias_types::{AliasEntry, AliasScope, CreateResult, DeleteResult};
+use crate::{
+    alias_resolver::AliasResolver,
+    alias_types::{AliasEntry, AliasScope, CreateResult, DeleteResult},
+};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TOML persistence format

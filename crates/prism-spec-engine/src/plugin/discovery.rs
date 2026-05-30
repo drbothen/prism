@@ -1,13 +1,14 @@
 //! Plugin discovery — scan `{config_dir}/plugins/*.prx`, WIT validation, startup loading.
 
-use std::path::Path;
-use std::sync::Arc;
+use std::{path::Path, sync::Arc};
 
 use prism_core::PluginError;
 use tracing::{error, info};
 
-use super::loader::{HostState, PluginMetadata, compile_component, pre_instantiate};
-use super::{LoadedPlugin, PluginType};
+use super::{
+    LoadedPlugin, PluginType,
+    loader::{HostState, PluginMetadata, compile_component, pre_instantiate},
+};
 
 /// Required WIT exports for a sensor plugin (`prism:sensor-plugin`).
 pub const SENSOR_REQUIRED_EXPORTS: &[&str] = &["name", "version", "fetch-page"];

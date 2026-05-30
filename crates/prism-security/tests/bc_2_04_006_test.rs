@@ -16,8 +16,10 @@
 use std::collections::BTreeMap;
 
 use prism_core::capability::{CapabilityEffect, CapabilityPath, ClientCapabilities};
-use prism_security::feature_flag::CompileTimeGate;
-use prism_security::list_capabilities::{ListCapabilitiesEngine, ListCapabilitiesQuery};
+use prism_security::{
+    feature_flag::CompileTimeGate,
+    list_capabilities::{ListCapabilitiesEngine, ListCapabilitiesQuery},
+};
 
 fn cap(s: &str) -> CapabilityPath {
     CapabilityPath::new(s).expect("test helper: valid capability path")

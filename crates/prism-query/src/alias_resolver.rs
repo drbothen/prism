@@ -19,15 +19,15 @@
 //! Story: S-3.04 — prism-query: Alias System (P1)
 //! BCs:   BC-2.11.009
 
-use std::collections::{HashMap, HashSet};
-use std::sync::OnceLock;
-
-use regex::Regex;
+use std::{
+    collections::{HashMap, HashSet},
+    sync::OnceLock,
+};
 
 use prism_core::error::PrismError;
+use regex::Regex;
 
-use crate::alias_store::AliasStore;
-use crate::alias_types::AliasScope;
+use crate::{alias_store::AliasStore, alias_types::AliasScope};
 
 /// Maximum alias composition depth (hard ceiling; DI-020 / VP-012).
 pub const MAX_ALIAS_DEPTH: u32 = 3;

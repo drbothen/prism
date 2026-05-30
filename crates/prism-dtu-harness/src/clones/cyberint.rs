@@ -47,8 +47,10 @@
 //! - BC-3.5.002 — Harness Network Isolation Invariants
 //! - BC-3.6.001 — Per-Org Failure Injection
 
-use std::collections::{HashMap, HashSet};
-use std::sync::{Arc, Mutex};
+use std::{
+    collections::{HashMap, HashSet},
+    sync::{Arc, Mutex},
+};
 
 use axum::{
     extract::{Path, Query, State},
@@ -57,13 +59,12 @@ use axum::{
     routing::{get, patch, post},
     Json, Router,
 };
+use prism_dtu_common::FailureMode;
 use serde::Deserialize;
 use serde_json::{json, Value};
-use tokio::sync::broadcast;
-use tokio::task::JoinHandle;
+use tokio::{sync::broadcast, task::JoinHandle};
 
 use crate::clone_server::{CloneState, StartedClone};
-use prism_dtu_common::FailureMode;
 
 // ---------------------------------------------------------------------------
 // Constants

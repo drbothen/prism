@@ -9,16 +9,17 @@
 //! BCs covered: BC-2.01.016, BC-2.16.013, BC-2.17.001, BC-2.17.006, BC-2.17.007, BC-2.22.001
 //! VPs covered: VP-148, VP-150
 
-use std::collections::HashMap;
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
-use prism_spec_engine::LoadedPlugin;
-use prism_spec_engine::plugin::PluginRuntime;
-use prism_spec_engine::plugin::host_functions::{
-    host_current_time_secs, host_http_request, host_kv_get, host_kv_set,
+use prism_spec_engine::{
+    LoadedPlugin,
+    plugin::{
+        PluginRuntime,
+        host_functions::{host_current_time_secs, host_http_request, host_kv_get, host_kv_set},
+        loader::HostState,
+    },
+    spec_parser::SpecLoader,
 };
-use prism_spec_engine::plugin::loader::HostState;
-use prism_spec_engine::spec_parser::SpecLoader;
 
 // ---------------------------------------------------------------------------
 // Test utilities
@@ -280,8 +281,10 @@ fn invoke_auth_type_name_export(
 /// which requires the multi-threaded tokio runtime.
 #[tokio::test(flavor = "multi_thread")]
 async fn test_PLUGIN_MIGRATION_001_E_003_acquire_token_calls_oauth2_token_endpoint() {
-    use wiremock::matchers::{method, path};
-    use wiremock::{Mock, MockServer, ResponseTemplate};
+    use wiremock::{
+        Mock, MockServer, ResponseTemplate,
+        matchers::{method, path},
+    };
 
     let mock_server = MockServer::start().await;
 
@@ -438,8 +441,10 @@ fn test_PLUGIN_MIGRATION_001_E_004_token_cached_within_ttl_no_second_request() {
 /// Multi-threaded runtime required: `host_http_request` calls `block_in_place`.
 #[tokio::test(flavor = "multi_thread")]
 async fn test_PLUGIN_MIGRATION_001_E_005_expired_token_triggers_reacquisition() {
-    use wiremock::matchers::{method, path};
-    use wiremock::{Mock, MockServer, ResponseTemplate};
+    use wiremock::{
+        Mock, MockServer, ResponseTemplate,
+        matchers::{method, path},
+    };
 
     let mock_server = MockServer::start().await;
 
@@ -589,11 +594,15 @@ async fn test_PLUGIN_MIGRATION_001_E_005_expired_token_triggers_reacquisition() 
 #[tokio::test]
 async fn test_PLUGIN_MIGRATION_001_E_006_401_triggers_plugin_token_refresh_and_retry() {
     use prism_core::{ColumnType, OrgSlug};
-    use prism_spec_engine::PluginAuthProvider;
-    use prism_spec_engine::pipeline::{FetchContext, PipelineExecutor};
-    use prism_spec_engine::spec_parser::{AuthType, ColumnSpec, FetchStep, SensorSpec, TableSpec};
-    use wiremock::matchers::{method, path};
-    use wiremock::{Mock, MockServer, ResponseTemplate};
+    use prism_spec_engine::{
+        PluginAuthProvider,
+        pipeline::{FetchContext, PipelineExecutor},
+        spec_parser::{AuthType, ColumnSpec, FetchStep, SensorSpec, TableSpec},
+    };
+    use wiremock::{
+        Mock, MockServer, ResponseTemplate,
+        matchers::{method, path},
+    };
 
     let mock_server = MockServer::start().await;
 
@@ -1436,11 +1445,15 @@ fn test_S_PLUGIN_CI_001_002_missing_prx_at_boot_continues_with_error_log() {
 #[tokio::test]
 async fn test_S_PLUGIN_CI_001_003_double_401_returns_auth_refresh_failed() {
     use prism_core::{ColumnType, OrgSlug};
-    use prism_spec_engine::PluginAuthProvider;
-    use prism_spec_engine::pipeline::{FetchContext, PipelineExecutor};
-    use prism_spec_engine::spec_parser::{AuthType, ColumnSpec, FetchStep, SensorSpec, TableSpec};
-    use wiremock::matchers::{method, path};
-    use wiremock::{Mock, MockServer, ResponseTemplate};
+    use prism_spec_engine::{
+        PluginAuthProvider,
+        pipeline::{FetchContext, PipelineExecutor},
+        spec_parser::{AuthType, ColumnSpec, FetchStep, SensorSpec, TableSpec},
+    };
+    use wiremock::{
+        Mock, MockServer, ResponseTemplate,
+        matchers::{method, path},
+    };
 
     let mock_server = MockServer::start().await;
 

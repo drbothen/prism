@@ -6,8 +6,9 @@
 // Test setup: a fixture file is written to a temp directory that acts as the
 // "crate_dir". The fixture path is {crate_dir}/fixtures/{name}.json.
 
-use prism_dtu_common::load_fixture;
 use std::fs;
+
+use prism_dtu_common::load_fixture;
 use tempfile::TempDir;
 
 fn write_fixture(dir: &TempDir, name: &str, content: &str) -> String {

@@ -17,14 +17,17 @@
 //! AC coverage: AC-007 (CrowdStrike DTU parity), PLUGIN-MIGRATION-001-F AC-001 (TOML fixture loading)
 //! HS coverage: HS-013
 
+use std::collections::HashMap;
+
 use prism_core::OrgSlug;
 use prism_dtu_common::BehavioralClone;
 use prism_dtu_crowdstrike::CrowdstrikeClone;
 #[cfg(feature = "test-helpers")]
 use prism_spec_engine::NullAuthProvider;
-use prism_spec_engine::pipeline::{FetchContext, PipelineExecutor};
-use prism_spec_engine::spec_parser::SpecLoader;
-use std::collections::HashMap;
+use prism_spec_engine::{
+    pipeline::{FetchContext, PipelineExecutor},
+    spec_parser::SpecLoader,
+};
 
 // ---------------------------------------------------------------------------
 // Parity canonicalization helpers (TS-PLUGIN-PARITY-001 Rules A-I)

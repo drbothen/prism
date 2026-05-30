@@ -33,9 +33,9 @@
 #![allow(non_snake_case, clippy::expect_used, clippy::unwrap_used)]
 
 use std::fs;
-use tempfile::TempDir;
 
 use prism_customer_config::{load_and_validate, ConfigError};
+use tempfile::TempDir;
 
 // ---------------------------------------------------------------------------
 // Helper: write a named TOML file into a TempDir.

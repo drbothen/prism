@@ -14,18 +14,19 @@
 
 use std::sync::Arc;
 
-use prism_core::tenant::OrgSlug;
-use prism_core::SensorId;
+use prism_core::{tenant::OrgSlug, SensorId};
 use serde_json::json;
 
-use crate::cache::{
-    CacheConfig, CacheEntry, QueryCache, SourceDataType, DEFAULT_MAX_CACHE_BYTES,
-    DEFAULT_MAX_ENTRIES_PER_SENSOR,
-};
-use crate::cache_key::{CacheKey, PushDownParams};
-use crate::invalidation::{
-    reset_dynamic_registry_global, reset_query_phase_global, CacheInvalidator,
-    WRITE_TOOL_INVALIDATION_MAP,
+use crate::{
+    cache::{
+        CacheConfig, CacheEntry, QueryCache, SourceDataType, DEFAULT_MAX_CACHE_BYTES,
+        DEFAULT_MAX_ENTRIES_PER_SENSOR,
+    },
+    cache_key::{CacheKey, PushDownParams},
+    invalidation::{
+        reset_dynamic_registry_global, reset_query_phase_global, CacheInvalidator,
+        WRITE_TOOL_INVALIDATION_MAP,
+    },
 };
 
 // ---------------------------------------------------------------------------
@@ -262,8 +263,7 @@ fn test_ec07052_max_entries_zero_disables_cache() {
 /// — both return correct results, no coalescing in v1.
 #[test]
 fn test_ec07030_concurrent_miss_both_return_results() {
-    use std::sync::Arc;
-    use std::thread;
+    use std::{sync::Arc, thread};
 
     let cache = Arc::new(QueryCache::with_defaults());
     let key = make_key("acme", "crowdstrike", "crowdstrike_detections");
@@ -1354,9 +1354,9 @@ fn test_p9_002_re_put_at_full_budget_succeeds() {
 /// is consistent (one of T1/T2's value, total_bytes accurate, entry_count == 1).
 #[test]
 fn test_p8_007_ec07030_concurrent_miss_final_state_consistent() {
+    use std::{sync::Arc, thread};
+
     use crate::cache::AVG_ROW_SIZE_BYTES;
-    use std::sync::Arc;
-    use std::thread;
 
     let cache = Arc::new(QueryCache::with_defaults());
     let key = make_key("acme", "crowdstrike", "crowdstrike_detections");

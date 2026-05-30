@@ -16,19 +16,22 @@
 //!
 //! All tests use wiremock as the HTTP backend so no real sensor API is required.
 
-use flate2::Compression;
-use flate2::write::GzEncoder;
+use std::{collections::HashMap, io::Write};
+
+use flate2::{Compression, write::GzEncoder};
 use prism_core::{ColumnType, OrgSlug};
-use prism_spec_engine::NullAuthProvider;
-use prism_spec_engine::error::SpecEngineError;
-use prism_spec_engine::pipeline::{FetchContext, PipelineExecutor};
-use prism_spec_engine::spec_parser::{
-    AuthType, ColumnSpec, FetchStep, PaginationConfig, RateLimitHints, SensorSpec, TableSpec,
+use prism_spec_engine::{
+    NullAuthProvider,
+    error::SpecEngineError,
+    pipeline::{FetchContext, PipelineExecutor},
+    spec_parser::{
+        AuthType, ColumnSpec, FetchStep, PaginationConfig, RateLimitHints, SensorSpec, TableSpec,
+    },
 };
-use std::collections::HashMap;
-use std::io::Write;
-use wiremock::matchers::{header, method, path, path_regex, query_param};
-use wiremock::{Mock, MockServer, ResponseTemplate};
+use wiremock::{
+    Mock, MockServer, ResponseTemplate,
+    matchers::{header, method, path, path_regex, query_param},
+};
 
 // ---------------------------------------------------------------------------
 // Shared fixture helpers
@@ -1759,6 +1762,7 @@ async fn test_BC_2_16_002_pipeline_cumulative_request_cap_exercised_via_wiremock
 #[tokio::test]
 async fn test_BC_2_16_002_emits_pipeline_truncated_event_on_10k_cap() {
     use std::sync::{Arc, Mutex};
+
     use tracing_subscriber::util::SubscriberInitExt;
 
     // Capture all tracing output into a string buffer.
@@ -1901,8 +1905,9 @@ async fn test_BC_2_16_002_emits_pipeline_truncated_event_on_10k_cap() {
 /// max_level must be DEBUG (or TRACE) to capture it.
 #[tokio::test]
 async fn test_BC_2_16_002_auth_initial_acquired_emits_distinct_events_per_token_state() {
-    use prism_spec_engine::MockAuthProvider;
     use std::sync::{Arc, Mutex};
+
+    use prism_spec_engine::MockAuthProvider;
     use tracing_subscriber::util::SubscriberInitExt;
 
     let mock_server = MockServer::start().await;
@@ -2194,6 +2199,7 @@ async fn test_BC_2_16_002_execute_discards_partial_records_on_mid_pipeline_500()
 #[tokio::test]
 async fn test_BC_2_16_002_cursor_unsupported_type_emits_structured_event() {
     use std::sync::{Arc, Mutex};
+
     use tracing_subscriber::util::SubscriberInitExt;
 
     let mock_server = MockServer::start().await;
@@ -2543,6 +2549,7 @@ async fn test_BC_2_16_002_cursor_preview_handles_multi_byte_utf8_without_panic()
 #[tokio::test]
 async fn test_BC_2_16_002_fanout_ambiguous_multi_array_emits_structured_event() {
     use std::sync::{Arc, Mutex};
+
     use tracing_subscriber::util::SubscriberInitExt;
 
     let log_buffer: Arc<Mutex<String>> = Arc::new(Mutex::new(String::new()));
@@ -2707,6 +2714,7 @@ async fn test_BC_2_16_002_fanout_ambiguous_multi_array_emits_structured_event() 
 #[tokio::test]
 async fn test_BC_2_16_002_fanout_invalid_source_type_emits_structured_event_for_object() {
     use std::sync::{Arc, Mutex};
+
     use tracing_subscriber::util::SubscriberInitExt;
 
     // Set up log capture harness.

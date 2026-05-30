@@ -20,8 +20,10 @@ use serde_json::{json, Value};
 use subtle::ConstantTimeEq;
 use uuid::Uuid;
 
-use crate::state::ClarotyState;
-use crate::types::{DtuConfigureBody, GetDevicesBody};
+use crate::{
+    state::ClarotyState,
+    types::{DtuConfigureBody, GetDevicesBody},
+};
 
 /// Load the devices fixture as a `Vec<serde_json::Value>`.
 fn load_devices_fixture() -> Vec<Value> {

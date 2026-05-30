@@ -64,8 +64,7 @@ use prism_dtu_harness::{CustomerSpec, DtuType, HarnessError, IsolationMode};
 /// This test locks the contract so the implementer cannot accidentally change defaults.
 #[test]
 fn test_BC_3_5_001_customer_spec_new_override_fields_default_to_none() {
-    use prism_core::ids::OrgId;
-    use prism_core::tenant::OrgSlug;
+    use prism_core::{ids::OrgId, tenant::OrgSlug};
 
     let org_id = OrgId::new();
     let org_slug = OrgSlug::new("acme-corp");

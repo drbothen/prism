@@ -13,12 +13,14 @@ mod inner {
 
     use tokio_util::sync::CancellationToken;
 
-    use crate::denylist::{
-        clear_denylist, is_denylisted, record_failure, DenylistStatus, FixedClock,
-        DENYLIST_THRESHOLD,
+    use crate::{
+        denylist::{
+            clear_denylist, is_denylisted, record_failure, DenylistStatus, FixedClock,
+            DENYLIST_THRESHOLD,
+        },
+        memory_backend::InMemoryBackend,
+        watchdog::{ResourceWatchdog, StaticProbe, WatchdogLevel},
     };
-    use crate::memory_backend::InMemoryBackend;
-    use crate::watchdog::{ResourceWatchdog, StaticProbe, WatchdogLevel};
 
     // ── Threshold constants from spec (asserted literally — NOT via constant) ──
 

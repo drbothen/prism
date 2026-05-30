@@ -27,23 +27,29 @@
     clippy::expect_used
 )]
 
-use std::collections::{BTreeMap, HashMap};
-use std::sync::Arc;
+use std::{
+    collections::{BTreeMap, HashMap},
+    sync::Arc,
+};
 
 use prism_core::{PrismError, RiskTier};
-use prism_query::write_pipeline::{QueryContext, WriteExecutor, WriteOutcome, WritePlan};
-use prism_query::write_result::{WritePreview, WriteResult};
-use prism_security::confirmation_token::ConfirmationTokenStore;
-use prism_security::feature_flag::FeatureFlagEvaluator;
+use prism_query::{
+    write_pipeline::{QueryContext, WriteExecutor, WriteOutcome, WritePlan},
+    write_result::{WritePreview, WriteResult},
+};
+use prism_security::{
+    confirmation_token::ConfirmationTokenStore, feature_flag::FeatureFlagEvaluator,
+};
 
 mod helpers {
-    use std::collections::HashMap;
-    use std::sync::Arc;
+    use std::{collections::HashMap, sync::Arc};
 
     use prism_core::PrismError;
-    use prism_query::write_dispatch::AuditWriter;
-    use prism_query::write_pipeline::{QueryContext, WriteExecutor, WritePlan};
-    use prism_query::write_result::WriteResult;
+    use prism_query::{
+        write_dispatch::AuditWriter,
+        write_pipeline::{QueryContext, WriteExecutor, WritePlan},
+        write_result::WriteResult,
+    };
     use ulid::Ulid;
 
     pub fn make_reversible_plan() -> WritePlan {
@@ -107,11 +113,12 @@ mod helpers {
     }
 
     pub fn make_executor() -> WriteExecutor {
+        use std::collections::BTreeMap;
+
         use prism_core::{CapabilityEffect, CapabilityPath, ClientCapabilities, RiskTier};
         use prism_spec_engine::write_endpoint::{
             BatchMode, WriteEndpointRegistry, WriteEndpointSpec,
         };
-        use std::collections::BTreeMap;
 
         let store = Arc::new(prism_security::confirmation_token::ConfirmationTokenStore::new());
 
@@ -521,8 +528,9 @@ async fn test_BC_2_04_008_token_action_hash_mismatch_returns_e_flag_005() {
 #[cfg(feature = "crowdstrike-write")]
 #[tokio::test]
 async fn test_BC_2_04_001_flag_disabled_between_calls_second_call_returns_e_flag_001() {
-    use prism_security::feature_flag::FeatureFlagEvaluator;
     use std::sync::Arc;
+
+    use prism_security::feature_flag::FeatureFlagEvaluator;
 
     // Build an evaluator with the capability DENIED for "restricted-client"
     let restricted_client_capabilities = {

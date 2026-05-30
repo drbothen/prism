@@ -24,12 +24,11 @@
 //! - Tombstone: `"dev-{org_slug}-{seed}-tomb-{n}"`
 //! - Token:     `"tok-{org_slug}-{seed}-{call_n}"`
 
-use serde_json::{json, Value};
-
 use prism_core::SensorId;
 use prism_dtu_common::generator::{
     default_page_size, Archetype, FixtureSet, GenOpts, OrgId, Provenance,
 };
+use serde_json::{json, Value};
 
 // ---------------------------------------------------------------------------
 // Public API

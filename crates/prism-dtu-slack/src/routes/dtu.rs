@@ -19,11 +19,9 @@ use axum::{
     response::IntoResponse,
     Json,
 };
-
 use subtle::ConstantTimeEq;
 
-use crate::state::SlackState;
-use crate::types::ReceivedPayloadsResponse;
+use crate::{state::SlackState, types::ReceivedPayloadsResponse};
 
 /// `POST /dtu/configure`
 ///

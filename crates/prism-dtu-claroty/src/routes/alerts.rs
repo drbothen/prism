@@ -12,9 +12,11 @@ use axum::{
 };
 use serde_json::{json, Value};
 
-use crate::routes::devices::check_bearer_auth;
-use crate::state::ClarotyState;
-use crate::types::{GetAlertedDevicesBody, GetAlertsBody};
+use crate::{
+    routes::devices::check_bearer_auth,
+    state::ClarotyState,
+    types::{GetAlertedDevicesBody, GetAlertsBody},
+};
 
 /// `POST /api/v1/alerts`
 ///

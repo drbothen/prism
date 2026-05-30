@@ -23,8 +23,10 @@
 //!
 //! IMPORTANT: These tests MUST fail (red gate) until the AC-1 implementation is complete.
 
-use prism_spec_engine::pipeline::build_paged_url_for_test;
-use prism_spec_engine::spec_parser::{FetchStep, PaginationConfig};
+use prism_spec_engine::{
+    pipeline::build_paged_url_for_test,
+    spec_parser::{FetchStep, PaginationConfig},
+};
 
 // ---------------------------------------------------------------------------
 // Helpers

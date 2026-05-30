@@ -54,10 +54,11 @@ pub async fn get_threat_intel(
         }
     };
     if !state.is_valid_access_token(&token) {
-        todo!(
-            "AC-003 (threats): return 401 when access_token cookie is present but not in allowlist; \
-             access_token validation is org-agnostic (ADR-031 §D3-a)"
+        return (
+            StatusCode::UNAUTHORIZED,
+            Json(serde_json::json!({"error": "unauthorized", "code": 401})),
         )
+            .into_response();
     }
     if state.check_and_increment_rate_limit() {
         return (

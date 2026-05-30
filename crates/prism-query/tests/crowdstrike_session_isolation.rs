@@ -314,8 +314,9 @@ fn test_BC_3_2_003_intra_org_uniqueness_1000_sessions() {
 /// Traces: VP-084, BC-3.2.003 postcondition 2, AC-002 (story), D-048
 #[test]
 fn test_BC_3_2_003_session_registry_lookup_org_b_misses_org_a_entry() {
-    use lru::LruCache;
     use std::num::NonZeroUsize;
+
+    use lru::LruCache;
 
     // NonZeroUsize::MIN is 1; saturating_add(127) is 128. No runtime failure possible.
     let capacity = NonZeroUsize::MIN.saturating_add(127);

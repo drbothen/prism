@@ -1,7 +1,9 @@
 //! [`SyslogReceiver`] — Generic RFC 5424 syslog capture server (UDP + TCP).
 
-use std::net::SocketAddr;
-use std::sync::{Arc, Mutex};
+use std::{
+    net::SocketAddr,
+    sync::{Arc, Mutex},
+};
 
 /// Captures inbound RFC 5424 syslog messages over UDP and TCP.
 pub struct SyslogReceiver {

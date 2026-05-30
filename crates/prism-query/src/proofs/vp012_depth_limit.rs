@@ -35,9 +35,11 @@
 mod concrete_tests {
     use std::collections::HashMap;
 
-    use crate::alias_resolver::{AliasResolver, MAX_ALIAS_DEPTH};
-    use crate::alias_store::AliasStore;
-    use crate::alias_types::AliasScope;
+    use crate::{
+        alias_resolver::{AliasResolver, MAX_ALIAS_DEPTH},
+        alias_store::AliasStore,
+        alias_types::AliasScope,
+    };
 
     /// Concrete boundary check: calling expand at depth == MAX_ALIAS_DEPTH must
     /// immediately return Err (depth limit pre-check fires before alias lookup).
@@ -98,10 +100,13 @@ mod concrete_tests {
 mod kani_proofs {
     use std::collections::HashMap;
 
-    use crate::alias_resolver::{AliasResolver, MAX_ALIAS_DEPTH};
-    use crate::alias_store::AliasStore;
-    use crate::alias_types::AliasScope;
     use prism_core::error::PrismError;
+
+    use crate::{
+        alias_resolver::{AliasResolver, MAX_ALIAS_DEPTH},
+        alias_store::AliasStore,
+        alias_types::AliasScope,
+    };
 
     /// Kani proof: for all `depth >= MAX_ALIAS_DEPTH`, `expand()` returns
     /// `Err(PrismError::AliasDepthExceeded { .. })` — never `Ok`.

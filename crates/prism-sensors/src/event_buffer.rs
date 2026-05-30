@@ -12,9 +12,11 @@
 //!
 //! Story: S-2.08 | AC-2, AC-4, AC-5
 
-use std::collections::{BTreeMap, HashSet};
-use std::sync::{Arc, Mutex};
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::{
+    collections::{BTreeMap, HashSet},
+    sync::{Arc, Mutex},
+    time::{Duration, SystemTime, UNIX_EPOCH},
+};
 
 use prism_core::{PrismError, StorageDomain};
 use prism_storage::backend::RocksStorageBackend;

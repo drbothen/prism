@@ -18,8 +18,10 @@
 use std::sync::Arc;
 
 use prism_core::{OrgId, OrgRegistry, OrgSlug};
-use prism_spec_engine::spec_parser::{AuthType, SensorSpec, TableSpec};
-use prism_spec_engine::{OrgScopedSpecStore, SpecEngineError};
+use prism_spec_engine::{
+    OrgScopedSpecStore, SpecEngineError,
+    spec_parser::{AuthType, SensorSpec, TableSpec},
+};
 
 // ---------------------------------------------------------------------------
 // Test helpers

@@ -9,14 +9,16 @@
 
 use std::collections::{HashMap, HashSet};
 
-use crate::alias_resolver::AliasResolver;
-use crate::alias_store::AliasStore;
-use crate::alias_tools::{
-    create_alias, create_alias_with_clients, delete_alias, explain_alias, list_aliases,
-    validate_alias_name, validate_no_keyword_collision, CreateAliasInput, DeleteAliasInput,
-    ExplainAliasInput, ListAliasesInput, PRISMQL_KEYWORDS,
+use crate::{
+    alias_resolver::AliasResolver,
+    alias_store::AliasStore,
+    alias_tools::{
+        create_alias, create_alias_with_clients, delete_alias, explain_alias, list_aliases,
+        validate_alias_name, validate_no_keyword_collision, CreateAliasInput, DeleteAliasInput,
+        ExplainAliasInput, ListAliasesInput, PRISMQL_KEYWORDS,
+    },
+    alias_types::{AliasEntry, AliasScope, ParamDefault},
 };
-use crate::alias_types::{AliasEntry, AliasScope, ParamDefault};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helper builders
@@ -36,8 +38,7 @@ fn global_scope() -> AliasScope {
 }
 
 fn client_scope(id: &str) -> AliasScope {
-    use prism_core::tenant::OrgSlug;
-    use prism_core::types::ClientId;
+    use prism_core::{tenant::OrgSlug, types::ClientId};
     AliasScope::Client(ClientId(OrgSlug::new(id)))
 }
 
@@ -419,10 +420,11 @@ fn test_ac11_explain_alias_response() {
 /// This test verifies that check_alias_write correctly denies when evaluator has no clients.
 #[test]
 fn test_ac12_write_capability_gate() {
-    use crate::alias_capability::check_alias_write;
-    use crate::alias_types::AliasScope;
-    use prism_security::feature_flag::{CompileTimeGate, FeatureFlagEvaluator};
     use std::collections::BTreeMap;
+
+    use prism_security::feature_flag::{CompileTimeGate, FeatureFlagEvaluator};
+
+    use crate::{alias_capability::check_alias_write, alias_types::AliasScope};
 
     // An evaluator with no configured clients — no one has alias.write capability.
     let evaluator = FeatureFlagEvaluator::new(BTreeMap::new());
@@ -1717,8 +1719,7 @@ fn test_BC_2_11_015_ec11_038_explicit_scope_bypasses_precedence() {
 fn test_BC_2_11_015_ec11_038_null_scope_with_client_context_uses_client_alias() {
     // RED: explain_alias is todo!()
     let store = AliasStore::empty(temp_path("test_aliases.toml"));
-    use prism_core::tenant::OrgSlug;
-    use prism_core::types::ClientId;
+    use prism_core::{tenant::OrgSlug, types::ClientId};
     let client_id = ClientId(OrgSlug::new("acme"));
     let input = ExplainAliasInput {
         name: "high_sev".to_string(),
@@ -1791,11 +1792,8 @@ mod vp037_proptest {
 
     use proptest::prelude::*;
 
-    use crate::alias_resolver::AliasResolver;
-    use crate::alias_store::AliasStore;
-    use crate::alias_types::AliasScope;
-
     use super::temp_path;
+    use crate::{alias_resolver::AliasResolver, alias_store::AliasStore, alias_types::AliasScope};
 
     // VP-037 proptest: expand() never panics on arbitrary &str query bodies.
     // The VP statement covers "every byte sequence interpreted as a query" — tested
@@ -2773,9 +2771,11 @@ fn test_alias_scope_toml_roundtrip() {
 /// SEC-005: capability gate disabled → create_alias_with_clients_gated returns E-FLAG-001.
 #[test]
 fn test_BC_2_11_008_capability_gate_disabled_rejects_create() {
-    use crate::alias_tools::create_alias_with_clients_gated;
-    use prism_security::feature_flag::{CompileTimeGate, FeatureFlagEvaluator};
     use std::collections::BTreeMap;
+
+    use prism_security::feature_flag::{CompileTimeGate, FeatureFlagEvaluator};
+
+    use crate::alias_tools::create_alias_with_clients_gated;
 
     let path = temp_path(&format!("test_cap_gate_{}.toml", std::process::id()));
     let mut store = AliasStore::empty(&path);
@@ -2822,11 +2822,12 @@ fn test_BC_2_11_008_capability_gate_disabled_rejects_create() {
 /// → Global scope op succeeds because client_a allows.
 #[test]
 fn test_BC_2_11_008_global_scope_alias_write_allowed_when_any_client_allows() {
-    use crate::alias_capability::check_alias_write;
-    use crate::alias_types::AliasScope;
+    use std::collections::BTreeMap;
+
     use prism_core::capability::{CapabilityEffect, CapabilityPath, ClientCapabilities};
     use prism_security::feature_flag::{CompileTimeGate, FeatureFlagEvaluator};
-    use std::collections::BTreeMap;
+
+    use crate::{alias_capability::check_alias_write, alias_types::AliasScope};
 
     #[allow(clippy::expect_used)]
     let alias_write_path =
@@ -2872,11 +2873,12 @@ fn test_BC_2_11_008_global_scope_alias_write_allowed_when_any_client_allows() {
 /// Regression for CR-P6-002: 3 clients all deny → global scope op must return E-FLAG-001.
 #[test]
 fn test_BC_2_11_008_global_scope_alias_write_denied_when_all_clients_deny() {
-    use crate::alias_capability::check_alias_write;
-    use crate::alias_types::AliasScope;
+    use std::collections::BTreeMap;
+
     use prism_core::capability::{CapabilityEffect, CapabilityPath, ClientCapabilities};
     use prism_security::feature_flag::{CompileTimeGate, FeatureFlagEvaluator};
-    use std::collections::BTreeMap;
+
+    use crate::{alias_capability::check_alias_write, alias_types::AliasScope};
 
     #[allow(clippy::expect_used)]
     let alias_write_path =

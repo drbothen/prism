@@ -14,12 +14,14 @@
 //! AC-5 (S-1.11): dangling ${nonexistent.field} -> error with line number.
 
 use prism_core::{ColumnType, SpecErrorCode};
-use prism_spec_engine::spec_parser::{
-    AuthType, ColumnSpec, FetchStep, PaginationConfig, RateLimitHints, SensorSpec, TableSpec,
-};
-use prism_spec_engine::validation::{
-    validate_ocsf_field_path, validate_sensor_id, validate_sensor_spec,
-    validate_variable_references,
+use prism_spec_engine::{
+    spec_parser::{
+        AuthType, ColumnSpec, FetchStep, PaginationConfig, RateLimitHints, SensorSpec, TableSpec,
+    },
+    validation::{
+        validate_ocsf_field_path, validate_sensor_id, validate_sensor_spec,
+        validate_variable_references,
+    },
 };
 
 fn minimal_valid_spec() -> SensorSpec {

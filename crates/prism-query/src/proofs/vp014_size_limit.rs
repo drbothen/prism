@@ -80,8 +80,7 @@
 
 #[cfg(kani)]
 mod kani_proofs {
-    use crate::filter_parser::PRISM_MAX_QUERY_SIZE;
-    use crate::security::check_query_size;
+    use crate::{filter_parser::PRISM_MAX_QUERY_SIZE, security::check_query_size};
 
     /// Scaled excess used to enumerate boundary cases above `PRISM_MAX_QUERY_SIZE`.
     /// Kani enumerates `extra ∈ [1, MAX_EXTRA]` symbolically.
@@ -164,8 +163,10 @@ mod kani_proofs {
 
 #[cfg(test)]
 mod dynamic_tests {
-    use crate::filter_parser::{PrismQlParser, PRISM_MAX_QUERY_SIZE};
-    use crate::security::check_query_size;
+    use crate::{
+        filter_parser::{PrismQlParser, PRISM_MAX_QUERY_SIZE},
+        security::check_query_size,
+    };
 
     /// Boundary cases for the size gate: every length in `[LIMIT+1, LIMIT+8]`
     /// must be rejected.

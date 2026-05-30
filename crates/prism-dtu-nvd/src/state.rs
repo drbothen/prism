@@ -6,8 +6,7 @@
 //! - Dual rate-limit buckets keyed by `apiKey` value (None = unauthenticated)
 //! - Runtime configuration (auth_mode, failure injection)
 
-use std::collections::HashMap;
-use std::sync::Mutex;
+use std::{collections::HashMap, sync::Mutex};
 
 use crate::types::{CveRecord, RateLimitBucket};
 

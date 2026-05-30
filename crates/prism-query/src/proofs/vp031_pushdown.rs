@@ -22,8 +22,7 @@
 
 #[cfg(test)]
 mod kani_proofs {
-    use prism_core::ColumnOptions;
-    use prism_core::ColumnType;
+    use prism_core::{ColumnOptions, ColumnType};
     use prism_spec_engine::spec_parser::ColumnSpec;
     use proptest::prelude::*;
 

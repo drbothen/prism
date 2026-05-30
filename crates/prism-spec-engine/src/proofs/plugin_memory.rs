@@ -33,8 +33,9 @@ mod tests {
     /// Err(PluginError::MemoryExceeded) returned"
     #[cfg(not(target_os = "windows"))]
     mod proptest_suite {
-        use super::*;
         use proptest::prelude::*;
+
+        use super::*;
 
         proptest! {
             #[test]

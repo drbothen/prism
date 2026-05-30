@@ -11,15 +11,16 @@
 //                                     alert hash; used for deduplication window (S-4.08)
 //   `{action_id}:retry:{alert_id}`  → retry state bytes (attempt count + next_retry_at)
 
-use std::path::{Path, PathBuf};
-use std::sync::Arc;
+use std::{
+    path::{Path, PathBuf},
+    sync::Arc,
+};
 
+use prism_core::{PrismError, StorageDomain};
 use rocksdb::{
     BlockBasedOptions, ColumnFamily, ColumnFamilyDescriptor, DBCompressionType, Direction,
     IteratorMode, Options, WriteBatch, WriteOptions, DB,
 };
-
-use prism_core::{PrismError, StorageDomain};
 
 use crate::backend::RocksStorageBackend;
 

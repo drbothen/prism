@@ -15,11 +15,9 @@ use axum::{
     response::IntoResponse,
     Json,
 };
-
 use subtle::ConstantTimeEq;
 
-use crate::state::NvdState;
-use crate::types::RequestCountResponse;
+use crate::{state::NvdState, types::RequestCountResponse};
 
 /// `GET /dtu/health`
 ///

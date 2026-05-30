@@ -3,19 +3,22 @@
 // E-SPEC-002: filesystem write failure with path and OS error.
 // SEC-001: CWE-22 path traversal defense — sensor_id format validation + path canonicalization.
 
-use std::io::{ErrorKind, Write};
-use std::path::Path;
-
-use std::sync::LazyLock;
+use std::{
+    io::{ErrorKind, Write},
+    path::Path,
+    sync::LazyLock,
+};
 
 use regex::Regex;
 
-use crate::config_manager::compute_file_hash;
-use crate::error::SpecEngineError;
-use crate::spec_parser::{SensorSpec, SpecLoader};
-use crate::types::{
-    AddSensorSpecArgs, AddSensorSpecResult, SensorTableDescriptor, ValidationError,
-    sensor_table_descriptor_from_table_spec,
+use crate::{
+    config_manager::compute_file_hash,
+    error::SpecEngineError,
+    spec_parser::{SensorSpec, SpecLoader},
+    types::{
+        AddSensorSpecArgs, AddSensorSpecResult, SensorTableDescriptor, ValidationError,
+        sensor_table_descriptor_from_table_spec,
+    },
 };
 
 /// SEC-001 (CWE-22): Regex enforcing the documented `sensor_id` format constraint.

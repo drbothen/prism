@@ -9,8 +9,7 @@
 //! # BC: BC-2.01.013 — DataSource Trait: Spec-Driven Adapter Pattern
 //! # VP: VP-PLUGIN-001 — SensorId open-newtype replaces SensorType closed enum
 
-use std::borrow::Borrow;
-use std::sync::Arc;
+use std::{borrow::Borrow, sync::Arc};
 
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
@@ -316,8 +315,9 @@ impl SensorId {
 // ---------------------------------------------------------------------------
 #[cfg(test)]
 mod tests {
-    use super::*;
     use std::collections::{HashMap, HashSet};
+
+    use super::*;
 
     /// BC-2.01.013 postcondition: sensor identity is a runtime string value.
     /// Verifies BC-2.01.013 postcondition: From<&str> and Display round-trip correctly.

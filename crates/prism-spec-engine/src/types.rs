@@ -3,12 +3,11 @@
 // Origin: S-1.11 established SensorSpec, SensorTableDescriptor, and validation
 // infrastructure — referenced here as local stubs per the story dependency model.
 
-use serde::{Deserialize, Serialize};
-
 // ADR-024: retire the shadow ColumnType stub; use the canonical enum from prism-core.
 // prism_core::column::ColumnType has variants String | Integer | Float | Boolean | Datetime | Json
 // with #[non_exhaustive] and serde rename_all = "snake_case".
 pub use prism_core::column::ColumnType;
+use serde::{Deserialize, Serialize};
 
 /// A single column definition within a sensor table.
 ///

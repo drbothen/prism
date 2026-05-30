@@ -22,9 +22,11 @@
 mod tests {
     use std::sync::Arc;
 
-    use arrow::array::StringArray;
-    use arrow::datatypes::{DataType, Field, Schema};
-    use arrow::record_batch::RecordBatch;
+    use arrow::{
+        array::StringArray,
+        datatypes::{DataType, Field, Schema},
+        record_batch::RecordBatch,
+    };
     use prism_core::{OrgSlug, SensorId};
 
     use crate::{
@@ -178,8 +180,10 @@ mod tests {
         use prism_core::{ColumnOptions, ColumnType};
         use prism_spec_engine::spec_parser::ColumnSpec;
 
-        use crate::ast::{CompareOp, Expr, FieldPath, Literal, Span};
-        use crate::pushdown::classify_predicates;
+        use crate::{
+            ast::{CompareOp, Expr, FieldPath, Literal, Span},
+            pushdown::classify_predicates,
+        };
 
         let columns = vec![ColumnSpec::new(
             "severity_id",
@@ -354,8 +358,7 @@ mod tests {
         use prism_core::TableType;
         use serde_json::json;
 
-        use crate::materialization::inject_source_type;
-        use crate::types::SensorQueryDescriptor;
+        use crate::{materialization::inject_source_type, types::SensorQueryDescriptor};
 
         // Cold-start: EventStream + rows_from_buffer=false.
         let descriptor = SensorQueryDescriptor {
@@ -380,8 +383,7 @@ mod tests {
         use prism_core::TableType;
         use serde_json::json;
 
-        use crate::materialization::inject_source_type;
-        use crate::types::SensorQueryDescriptor;
+        use crate::{materialization::inject_source_type, types::SensorQueryDescriptor};
 
         // After cold-start, subsequent query reads from buffer.
         let descriptor = SensorQueryDescriptor {
@@ -411,8 +413,9 @@ mod tests {
     /// the enforced limit.
     #[tokio::test]
     async fn test_ec003_materialization_record_cap_10k() {
-        use crate::memory::MAX_MATERIALIZED_RECORDS;
         use prism_core::PrismError;
+
+        use crate::memory::MAX_MATERIALIZED_RECORDS;
 
         assert_eq!(
             MAX_MATERIALIZED_RECORDS, 10_000,
@@ -449,8 +452,9 @@ mod tests {
     /// This test verifies the error variant and its E-QUERY-005 code.
     #[tokio::test]
     async fn test_ec002_query_timeout_30s() {
-        use crate::memory::QUERY_TIMEOUT_SECS;
         use prism_core::PrismError;
+
+        use crate::memory::QUERY_TIMEOUT_SECS;
 
         assert_eq!(QUERY_TIMEOUT_SECS, 30, "EC-002: timeout must be 30s");
 

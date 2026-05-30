@@ -42,10 +42,12 @@
 //! - BC-3.5.002 — Harness Network Isolation Invariants (cross-org 401)
 //! - BC-3.2.003 — Per-Org Session Token Isolation (D-048)
 
-use std::collections::HashMap;
-use std::sync::{
-    atomic::{AtomicU32, Ordering},
-    Arc, Mutex,
+use std::{
+    collections::HashMap,
+    sync::{
+        atomic::{AtomicU32, Ordering},
+        Arc, Mutex,
+    },
 };
 
 use axum::{
@@ -56,15 +58,14 @@ use axum::{
     Router,
 };
 use lru::LruCache;
-use rand::seq::SliceRandom;
-use rand::SeedableRng;
+use prism_dtu_common::FailureMode;
+use rand::{seq::SliceRandom, SeedableRng};
 use rand_chacha::ChaCha20Rng;
 use serde::Deserialize;
 use serde_json::{json, Value};
 use tokio::sync::broadcast;
 
 use crate::clone_server::StartedClone;
-use prism_dtu_common::FailureMode;
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -1314,7 +1315,7 @@ fn check_network_bearer(headers: &HeaderMap, admin_token: &str) -> Option<Respon
 ///
 /// (S-3.4.03; BC-3.5.002 postcondition 2; TV-3; VP-126)
 pub fn build_crowdstrike_network_router(state: Arc<CrowdStrikeHarnessState>) -> axum::Router {
-    use axum::{routing::get, routing::patch, routing::post};
+    use axum::routing::{get, patch, post};
 
     let admin_token_for_detect = state.admin_token.clone();
     let admin_token_for_hosts = state.admin_token.clone();

@@ -10,8 +10,10 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 mod common;
 
-use prism_dtu_demo_server::config::{CloneConfig, ClonesConfig, DemoConfig};
-use prism_dtu_demo_server::harness::{build_clone_pairs, DemoHarness};
+use prism_dtu_demo_server::{
+    config::{CloneConfig, ClonesConfig, DemoConfig},
+    harness::{build_clone_pairs, DemoHarness},
+};
 
 /// AC-7: Two consecutive identical GET requests to crowdstrike return byte-identical bodies.
 #[tokio::test]

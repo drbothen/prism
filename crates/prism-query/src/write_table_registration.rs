@@ -31,17 +31,14 @@
 
 // CRIT-2: todo!() panics replaced with structured NotImplemented errors.
 
-use std::any::Any;
-use std::sync::Arc;
+use std::{any::Any, sync::Arc};
 
 use arrow::datatypes::{DataType, Field, Schema, SchemaRef};
 use async_trait::async_trait;
-use datafusion::catalog::Session;
-use datafusion::datasource::TableProvider;
-use datafusion::error::DataFusionError;
-use datafusion::logical_expr::TableType;
-use datafusion::physical_plan::ExecutionPlan;
-use datafusion::prelude::Expr;
+use datafusion::{
+    catalog::Session, datasource::TableProvider, error::DataFusionError, logical_expr::TableType,
+    physical_plan::ExecutionPlan, prelude::Expr,
+};
 use prism_core::PrismError;
 use prism_spec_engine::write_endpoint::{WriteEndpointSpec, WriteTableDescriptor};
 

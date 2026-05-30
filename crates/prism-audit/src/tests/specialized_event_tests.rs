@@ -23,27 +23,27 @@
 //! site. This is documented and handled per the dispatch note.
 
 use chrono::Utc;
-use prism_core::tenant::OrgSlug;
-use prism_core::OrgId;
+use prism_core::{tenant::OrgSlug, OrgId};
+use prism_storage::backend::RocksStorageBackend;
 use serial_test::serial;
 
-use prism_storage::backend::RocksStorageBackend;
-
-use crate::audit_entry::{AuditEntry, AuditOutcome, DataClassification};
-use crate::credential_events::{
-    detail_to_json as cred_detail_to_json, CredentialAccessDetail, CredentialAccessResult,
-    CredentialAccessType, RequestingContext,
+use crate::{
+    audit_entry::{AuditEntry, AuditOutcome, DataClassification},
+    credential_events::{
+        detail_to_json as cred_detail_to_json, CredentialAccessDetail, CredentialAccessResult,
+        CredentialAccessType, RequestingContext,
+    },
+    flag_events::{
+        detail_to_json as flag_detail_to_json, emit_flag_eval, FlagEvalContext, FlagEvalDetail,
+        FlagResolutionStep,
+    },
+    tests::helpers::MemBackend,
+    token_events::{
+        detail_to_json as token_detail_to_json, emit_token_consumed, emit_token_expired,
+        emit_token_generated, TokenEvent, TokenEventContext, TokenLifecycleDetail,
+    },
+    vector_compat::{outcome_to_log_level, resolve_host, to_vector_json},
 };
-use crate::flag_events::{
-    detail_to_json as flag_detail_to_json, emit_flag_eval, FlagEvalContext, FlagEvalDetail,
-    FlagResolutionStep,
-};
-use crate::tests::helpers::MemBackend;
-use crate::token_events::{
-    detail_to_json as token_detail_to_json, emit_token_consumed, emit_token_expired,
-    emit_token_generated, TokenEvent, TokenEventContext, TokenLifecycleDetail,
-};
-use crate::vector_compat::{outcome_to_log_level, resolve_host, to_vector_json};
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // BC-2.05.005 — Credential Access Events

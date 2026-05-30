@@ -18,14 +18,15 @@
 
 use std::collections::HashMap;
 
-use serde::{Deserialize, Serialize};
-
 use prism_core::error::PrismError;
+use serde::{Deserialize, Serialize};
 use tracing;
 
-use crate::alias_resolver::AliasResolver;
-use crate::alias_store::AliasStore;
-use crate::alias_types::{AliasEntry, AliasScope, CreateResult, ParamDefault};
+use crate::{
+    alias_resolver::AliasResolver,
+    alias_store::AliasStore,
+    alias_types::{AliasEntry, AliasScope, CreateResult, ParamDefault},
+};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Input / Output types

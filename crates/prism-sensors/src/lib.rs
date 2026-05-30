@@ -59,6 +59,8 @@ pub mod tests;
 // ── Re-exports ─────────────────────────────────────────────────────────────
 pub use adapter::{is_transient_status, QueryParams, SensorAdapter, SensorError, SensorSpec};
 pub use auth::SensorAuth;
+// S-2.08 re-exports
+pub use event_buffer::{EventBufferStore, NormalizedRecord};
 pub use fanout::{
     error_to_retry_metadata, fan_out, fan_out_with_overlay_map, resolve_spec_for_fanout,
     CredentialResolver, FanOutError, FanOutResult, FanOutTarget, RetryMetadata,
@@ -69,19 +71,14 @@ pub use http::{
     HTTP_SEMAPHORE_TIMEOUT,
 };
 pub use pagination::{paginate_claroty, OffsetCursor};
-pub use registry::AdapterRegistry;
-pub use retry::{retry_with_backoff, RetryConfig, DEFAULT_TRANSIENT_CODES};
-pub use timestamp::parse_timestamp;
-pub use types::RequestParams;
-
-// S-2.08 re-exports
-pub use event_buffer::{EventBufferStore, NormalizedRecord};
 pub use poller::{start_pollers, EventPoller, PollerDiagnostics, PollerId, PollerStatus};
-pub use table_dispatch::{route_table_query, TableType, TableTypeRouteDecision};
-
 // S-3.1.06 re-exports: OrgId is the canonical org key for all sensor dispatch
 pub use prism_core::OrgId;
-
+pub use registry::AdapterRegistry;
+pub use retry::{retry_with_backoff, RetryConfig, DEFAULT_TRANSIENT_CODES};
+pub use table_dispatch::{route_table_query, TableType, TableTypeRouteDecision};
+pub use timestamp::parse_timestamp;
+pub use types::RequestParams;
 // S-3.07 re-exports: per-record write result types
 pub use write_result::{RecordWriteResult, WriteStatus};
 

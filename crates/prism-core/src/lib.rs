@@ -88,55 +88,33 @@ pub mod tests;
 
 // ── Re-exports ────────────────────────────────────────────────────────────────
 // S-1.01
-pub use cache::CacheBackend;
-pub use capability::{CapabilityEffect, CapabilityExplanation, CapabilityPath, ClientCapabilities};
-pub use column::{ColumnOptions, ColumnType};
-pub use config::ConfigSnapshot;
-pub use error::{InfusionError, PluginError, PrismError, SpecError, SpecErrorCode};
-pub use risk::RiskTier;
-pub use safety::{PatternCategory, SafetyFlag};
-pub use storage::StorageDomain;
-pub use telemetry::{init_tracing, TracingConfig};
-pub use tenant::OrgSlug;
-#[allow(deprecated)]
-pub use tenant::TenantId;
-pub use trust::TrustLevel;
-pub use types::{AnalystId, ClientId, SeverityId, Timestamp};
-
 // S-1.02
 pub use alert::AlertSeverity;
+// S-2.04
+pub use audit_risk::AuditRiskLevel;
+pub use cache::CacheBackend;
+pub use capability::{CapabilityEffect, CapabilityExplanation, CapabilityPath, ClientCapabilities};
 pub use case::{
     advance_case_state, CaseStatus, CaseTransitionError, DispositionCode, TimelineEntryType,
     VALID_TRANSITIONS,
 };
+pub use column::{ColumnOptions, ColumnType};
+pub use config::ConfigSnapshot;
 pub use credentials::CredentialName;
 pub use cursor::{CursorId, CursorRegistry, CURSOR_CAP};
-pub use ids::{AlertId, CaseId, OrgId, RuleId, ScheduleId};
-
 // S-2.03
 pub use decorator_context::DecoratorContext;
-pub use internal_table_descriptor::InternalTableDescriptor;
-// InternalColumnType is the ColumnType defined in types.rs (Text/Int64/UInt64/…).
-// Re-exported under this alias to avoid shadowing `column::ColumnType`
-// (String/Integer/Float/…) which prism-spec-engine already uses.
-pub use types::ColumnType as InternalColumnType;
-pub use virtual_fields::VirtualField;
-
-// S-2.04
-pub use audit_risk::AuditRiskLevel;
-
-// S-2.08
-pub use table_type::TableType;
-
 // S-3.0.02
 pub use dtu::{DtuMode, DtuRegistryEntry, DTU_DEFAULT_MODE};
-
+pub use error::{InfusionError, PluginError, PrismError, SpecError, SpecErrorCode};
+pub use ids::{AlertId, CaseId, OrgId, RuleId, ScheduleId};
+pub use internal_table_descriptor::InternalTableDescriptor;
 // S-3.1.03
 pub use org_registry::{OrgRegistry, RegistrationError};
-
+pub use risk::RiskTier;
+pub use safety::{PatternCategory, SafetyFlag};
 // S-PLUGIN-PREREQ-A
 pub use sensor_id::SensorId;
-
 // S-PLUGIN-PREREQ-C: AC-7 — SensorIdValidationError at crate root for ergonomic parity with SensorId.
 /// Re-export of [`sensor_id::SensorIdValidationError`] for ergonomic external use.
 ///
@@ -156,3 +134,17 @@ pub use sensor_id::SensorId;
 /// }
 /// ```
 pub use sensor_id::SensorIdValidationError;
+pub use storage::StorageDomain;
+// S-2.08
+pub use table_type::TableType;
+pub use telemetry::{init_tracing, TracingConfig};
+pub use tenant::OrgSlug;
+#[allow(deprecated)]
+pub use tenant::TenantId;
+pub use trust::TrustLevel;
+// InternalColumnType is the ColumnType defined in types.rs (Text/Int64/UInt64/…).
+// Re-exported under this alias to avoid shadowing `column::ColumnType`
+// (String/Integer/Float/…) which prism-spec-engine already uses.
+pub use types::ColumnType as InternalColumnType;
+pub use types::{AnalystId, ClientId, SeverityId, Timestamp};
+pub use virtual_fields::VirtualField;

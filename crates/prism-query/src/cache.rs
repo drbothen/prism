@@ -40,16 +40,20 @@
 //!
 //! Story: S-3.05
 
-use std::collections::HashMap;
-use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
-use std::sync::{Mutex, MutexGuard};
-use std::time::{Duration, Instant};
+use std::{
+    collections::HashMap,
+    sync::{
+        atomic::{AtomicU64, AtomicUsize, Ordering},
+        Mutex, MutexGuard,
+    },
+    time::{Duration, Instant},
+};
 
 use moka::sync::Cache as MokaCache;
-
-use crate::cache_key::CacheKey;
 use prism_core::error::PrismError;
 use tracing::debug;
+
+use crate::cache_key::CacheKey;
 
 // ---------------------------------------------------------------------------
 // TTL constants (BC-2.07.003)

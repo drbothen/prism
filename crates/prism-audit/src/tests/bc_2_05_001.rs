@@ -11,21 +11,24 @@
 //! EC-001: fail-closed — inner handler NOT called when audit fails for write tool.
 //! EC-002: read tool, audit failure → operation proceeds (result returned).
 
-use std::collections::HashMap;
-use std::future::Future;
-use std::pin::Pin;
-use std::sync::Arc;
-use std::task::{Context, Poll};
+use std::{
+    collections::HashMap,
+    future::Future,
+    pin::Pin,
+    sync::Arc,
+    task::{Context, Poll},
+};
 
-use prism_core::org_registry::OrgRegistry;
-use prism_core::PrismError;
+use prism_core::{org_registry::OrgRegistry, PrismError};
 use tower::{Layer, Service};
 
-use crate::audit_emitter::{
-    AuditEmitterLayer, AuditedRequest, AuditedResponse, ToolClass, ToolClassificationRegistry,
-};
-use crate::tests::helpers::{
-    count_audit_entries, make_request, AlwaysSucceedService, FailingBackend, MemBackend,
+use crate::{
+    audit_emitter::{
+        AuditEmitterLayer, AuditedRequest, AuditedResponse, ToolClass, ToolClassificationRegistry,
+    },
+    tests::helpers::{
+        count_audit_entries, make_request, AlwaysSucceedService, FailingBackend, MemBackend,
+    },
 };
 
 // ── Helper: invoke a service for tests (poll_ready + call) ───────────────────

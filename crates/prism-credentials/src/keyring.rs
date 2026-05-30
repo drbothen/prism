@@ -11,10 +11,11 @@
 //!
 //! Story: S-1.06 | BC: BC-2.03.002, BC-2.03.004
 
+use std::sync::Mutex;
+
 use async_trait::async_trait;
 use prism_core::{OrgId, OrgSlug, PrismError};
 use secrecy::{ExposeSecret, SecretString};
-use std::sync::Mutex;
 
 use crate::{
     index::CredentialIndex,

@@ -14,20 +14,21 @@
 //!
 //! Story: S-3.01 | BC-2.11.002
 
+use chumsky::prelude::*;
 use ordered_float::OrderedFloat;
 
-use chumsky::prelude::*;
-
-use crate::ast::{
-    field_path_to_expr, Ast, CidrLiteral, CompareOp, DurationLiteral, DurationUnit, FieldPath,
-    FilterExpr, Literal, LogicalOp, PipeQuery, Predicate, RegexLiteral, SourceRef, Span, StringOp,
-    TimestampLiteral,
+use crate::{
+    ast::{
+        field_path_to_expr, Ast, CidrLiteral, CompareOp, DurationLiteral, DurationUnit, FieldPath,
+        FilterExpr, Literal, LogicalOp, PipeQuery, Predicate, RegexLiteral, SourceRef, Span,
+        StringOp, TimestampLiteral,
+    },
+    error::ParseError,
+    error_recovery::rich_to_parse_error,
+    pipe_parser::build_pipe_parser,
+    security,
+    write_verb_registry::WriteVerbRegistry,
 };
-use crate::error::ParseError;
-use crate::error_recovery::rich_to_parse_error;
-use crate::pipe_parser::build_pipe_parser;
-use crate::security;
-use crate::write_verb_registry::WriteVerbRegistry;
 
 /// RAII guard that clears the thread-local `ParseLimits` snapshot when dropped.
 ///

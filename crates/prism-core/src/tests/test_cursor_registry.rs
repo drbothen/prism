@@ -5,8 +5,10 @@
 
 #[cfg(test)]
 mod tests {
-    use crate::cursor::{CursorRegistry, CURSOR_CAP};
-    use crate::error::PrismError;
+    use crate::{
+        cursor::{CursorRegistry, CURSOR_CAP},
+        error::PrismError,
+    };
 
     // ── AC-6: 201st allocation fails ─────────────────────────────────────────
 

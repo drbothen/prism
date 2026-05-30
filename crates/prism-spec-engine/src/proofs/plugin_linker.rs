@@ -20,8 +20,9 @@
 mod tests {
     // Import the target under test. These will fail to compile until S-1.15 is
     // implemented (Red Gate requirement).
-    use crate::plugin::PluginRuntime;
     use prism_core::PluginError;
+
+    use crate::plugin::PluginRuntime;
 
     /// VP-040 proptest fallback: any WASM Component binary that includes a WASI import
     /// must be rejected at `load_plugin` / `instantiate_pre` time.
