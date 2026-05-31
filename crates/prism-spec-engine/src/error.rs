@@ -114,7 +114,7 @@ pub enum SpecEngineError {
     /// the query fan-out layer can treat this as a per-sensor partial failure
     /// (BC-2.01.010 partial-failure fan-out semantics).
     ///
-    /// Error format matches error-taxonomy.md v1.55 E-AUTH-004:
+    /// Error format matches the E-AUTH-004 entry in error-taxonomy.md:
     /// `"Cookie authentication failed for {sensor} on client '{client_id}'"`
     #[error("E-AUTH-004: Cookie authentication failed for {sensor_id} on client '{client_id}'")]
     CookieAuthFailed {

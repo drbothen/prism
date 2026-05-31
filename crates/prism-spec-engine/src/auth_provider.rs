@@ -189,7 +189,7 @@ impl CredentialResolver for PrismCredentialResolver {
         Box::pin(async move {
             // Propagate typed CredentialResolutionError directly — no string erasure.
             // NotFound → caller maps to E-AUTH-005; BackendUnavailable → E-AUTH-007
-            // (BC-2.01.017 v1.3 EC-017-010 / error-taxonomy.md v1.54 §E-AUTH-007).
+            // (BC-2.01.017 v1.3 EC-017-010 / E-AUTH-007 in error-taxonomy.md).
             prism_credentials::resolve_credential(&client_id, &sensor_id, &credential_name).await
         })
     }
@@ -279,7 +279,7 @@ impl CredentialResolver for NotFoundCredentialResolver {
 /// vars or the real credential store. This is the correct injection mechanism for
 /// tests that need to verify "backend unreachable" behavior.
 ///
-/// BC-2.01.017 v1.3 EC-017-010 / TV-BC-2.01.017-009 / error-taxonomy.md v1.54 §E-AUTH-007.
+/// BC-2.01.017 v1.3 EC-017-010 / TV-BC-2.01.017-009 / E-AUTH-007 in error-taxonomy.md.
 ///
 /// **Feature-gated:** only available under `cfg(test)` or the `test-helpers` Cargo feature.
 /// AD-017: no credential value is stored in this struct.
@@ -341,10 +341,10 @@ impl CredentialResolver for BackendUnavailableCredentialResolver {
 /// - `E-AUTH-005`: credential not found for `(client_id, sensor_id)`.
 ///   Resolver returned `CredentialResolutionError::NotFound`.
 /// - `E-AUTH-006`: API key is empty, all-whitespace, contains illegal cookie characters,
-///   or exceeds 4096 bytes. Error-taxonomy.md v1.54 §E-AUTH-006.
+///   or exceeds 4096 bytes. See E-AUTH-006 in error-taxonomy.md.
 /// - `E-AUTH-007`: credential backend unavailable (backend configured but inaccessible).
 ///   Resolver returned `CredentialResolutionError::BackendUnavailable`.
-///   BC-2.01.017 v1.3 EC-017-010 / error-taxonomy.md v1.54 §E-AUTH-007.
+///   BC-2.01.017 v1.3 EC-017-010 / E-AUTH-007 in error-taxonomy.md.
 ///
 /// ## AD-017 Credential Safety
 ///
@@ -426,12 +426,12 @@ impl AuthProvider for StaticCookieAuthProvider {
     /// # Errors
     ///
     /// - `E-AUTH-005`: credential not found → `SpecEngineError::AuthAcquisitionFailed`
-    ///   with message matching error-taxonomy.md v1.54 §E-AUTH-005 template.
+    ///   with message matching the E-AUTH-005 template in error-taxonomy.md.
     ///   Resolver returned `CredentialResolutionError::NotFound`.
     /// - `E-AUTH-006`: empty/invalid api_key → `SpecEngineError::AuthAcquisitionFailed`
-    ///   with message matching error-taxonomy.md v1.54 §E-AUTH-006 template.
+    ///   with message matching the E-AUTH-006 template in error-taxonomy.md.
     /// - `E-AUTH-007`: credential backend unavailable → `SpecEngineError::AuthAcquisitionFailed`
-    ///   with message matching error-taxonomy.md v1.54 §E-AUTH-007 template.
+    ///   with message matching the E-AUTH-007 template in error-taxonomy.md.
     ///   Resolver returned `CredentialResolutionError::BackendUnavailable`.
     ///   BC-2.01.017 v1.3 EC-017-010.
     ///
@@ -454,7 +454,7 @@ impl AuthProvider for StaticCookieAuthProvider {
             // PrismCredentialResolver (wraps prism_credentials::resolve_credential);
             // tests inject MockCredentialResolver without touching the real store.
             //
-            // Variant dispatch (BC-2.01.017 v1.3 EC-017-010 / error-taxonomy.md v1.54):
+            // Variant dispatch (BC-2.01.017 v1.3 EC-017-010 / error-taxonomy.md):
             //   NotFound           → E-AUTH-005 (credential not configured for this tuple)
             //   BackendUnavailable → E-AUTH-007 (backend unreachable at resolution time)
             let secret = match resolver
