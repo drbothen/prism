@@ -12,7 +12,7 @@ status: ready
 # skill strict prereq. No content/maturity change. BC-2.01.017 will auto-promote draft→active
 # at this story's merge per POL-14. Prism precedent is draft-at-dispatch + POL-14-promote-at-merge;
 # this flip is purely to satisfy the vsdd-factory deliver-story skill's strict prereq gate.
-version: "1.6"
+version: "1.7"
 level: "L4"
 producer: story-writer
 timestamp: "2026-05-29T00:00:00Z"
@@ -131,11 +131,11 @@ cycle: "v1.0.0-brownfield"
 phase: 3
 ---
 
-# S-DTU-CYBERINT-AUTH-FIDELITY-001 v1.6 — Cyberint DTU Auth Fidelity
+# S-DTU-CYBERINT-AUTH-FIDELITY-001 v1.7 — Cyberint DTU Auth Fidelity
 
 **Story ID:** S-DTU-CYBERINT-AUTH-FIDELITY-001
 **Status:** ready
-**Version:** v1.6
+**Version:** v1.7
 **Wave:** 5
 **Priority:** P0 (pre-demo BLOCKING)
 **Points:** 8
@@ -334,10 +334,10 @@ error; the error code is **E-AUTH-005** as defined in
 AuthAcquisitionFailed carrying E-AUTH-005; TV-BC-2.01.017-004 is the canonical test vector)
 When the api_key credential is present but is empty, all-whitespace, contains illegal
 characters, or exceeds the maximum allowed length, the error code is `E-AUTH-006` per
-error-taxonomy.md v1.53 (NEW in v1.53 — introduced with BC-2.01.017).
+the E-AUTH-006 entry in error-taxonomy.md (introduced with BC-2.01.017).
 (traces to BC-2.01.013 error case — adapter error taxonomy compliance;
  traces to BC-2.01.017 §Edge Cases — E-AUTH-006 on empty/whitespace/illegal-char/oversized
- api_key credential per error-taxonomy.md v1.53 §E-AUTH-006)
+ api_key credential per the E-AUTH-006 entry in error-taxonomy.md)
 
 #### AC-011: No event_type emission without BC-2.16.002 catalog row (SAP-1)
 If any new `tracing::*!(event_type = ...)` site is introduced in this story's implementation
@@ -680,6 +680,7 @@ Well within the 20-30% budget.
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.7 | 2026-05-30 | story-writer FB-PR3 | OBS-PR3-002 closure (TD-VSDD-091 anti-volatile-pin): removed volatile `v1.53` version qualifiers from AC-010 body. (1) Line 337: `error-taxonomy.md v1.53 (NEW in v1.53 — introduced with BC-2.01.017)` → `the E-AUTH-006 entry in error-taxonomy.md (introduced with BC-2.01.017)`. (2) Line 340: `error-taxonomy.md v1.53 §E-AUTH-006` → `the E-AUTH-006 entry in error-taxonomy.md`. Sibling-sweep (TD-VSDD-060): changelog v1.1 row cites `error-taxonomy.md v1.53` as a historical record of what the v1.1 author referenced — exempt from TD-VSDD-091 (historical narrative, not live spec content). No error codes, behavioral claims, or BC traces changed. |
 | 1.6 | 2026-05-30 | story-writer FB-PR2 | F-PR2-MED-001 closure: PO adjudicated spec-vs-spec conflict — BC-2.01.017 v1.5 is authoritative; story EC-005/EC-006/AC-010 corrected to align. EC-005: credential-not-found error changed from E-AUTH-004 → E-AUTH-005 per BC-2.01.017 §Error Cases row 1 and TV-BC-2.01.017-004; message template updated to `"Credentials not found for ({client_id}, {sensor_id})"`. EC-006: retry/AuthRefreshFailed semantics replaced with no-retry E-AUTH-004 in sensor_errors per BC-2.01.010 partial failure, call count==1, per BC-2.01.017 §Edge Cases EC-017-002 and TV-BC-2.01.017-006. AC-010 first paragraph: credential-not-found error changed from E-AUTH-004 → E-AUTH-005; heading updated from E-AUTH-004/E-AUTH-006 → E-AUTH-005/E-AUTH-006; AC-010 second paragraph (E-AUTH-006 coverage) kept AS-IS — correct. Task 20 acquire_token error clause updated to E-AUTH-005 with correct NotFound path. Sibling-sweep (TD-VSDD-060): all remaining E-AUTH-004 references verified — only correct usages remain (HTTP-401-during-fetch path in EC-006 and the one pre-existing Task 20 context). |
 | 1.5 | 2026-05-30 | story-writer D-874 | F-LP12-MED-001 closure: body-sync H1 + §Version field to match frontmatter (was H1 v1.1 + §Version v1.3 vs frontmatter v1.4 — three distinct version values). POL-29 step 8b body-sync was missed at v1.1 → v1.2 (D-850) and v1.2 → v1.3 (D-863) and v1.3 → v1.4 (D-868); this burst retroactively synchronizes the body. No content change. STORY-INDEX v2.215 → v2.216. |
 | 1.4 | 2026-05-30 | story-writer D-868 | F-LP9-MED-001 closure: changelog row reorder to monotonic descending (was 1.0, 1.1, 1.3, 1.2 non-monotonic). Sibling-sweep on F-LP8-MED-001 (BC-2.01.017 v1.4 monotonic descending convention established by PO D-866 at 399ef378). Story changelog now matches BC convention: 1.4 → 1.3 → 1.2 → 1.1 → 1.0. No content change to story body or ACs. STORY-INDEX v2.213→v2.214. |
