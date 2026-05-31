@@ -1,0 +1,529 @@
+---
+document_type: story
+story_id: S-DEMO-ARMIS-AQL-001
+title: "prism-dtu-armis + armis.sensor.toml: AQL Search Endpoint Fidelity — Add GET /api/v1/search Route; Update TOML path_template to /api/v1/search; Parity Test AQL Push-Down (ADR-031 §D8-a)"
+wave: 5
+epic_id: E-DTU-FIDELITY
+priority: P1
+status: draft
+# BC status: pending PO authorship.
+# behavioral_contracts is empty — this story cannot be set to ready until the PO
+# authors BC(s) covering the AQL search endpoint pipeline behavior and AQL push-down
+# parity (R-DTU-002). ADR-031 §D8-a explicitly flags that no new BCs are REQUIRED for
+# the AQL endpoint itself (covered by existing pipeline contracts), but if AQL syntax
+# validation is added to the DTU, product-owner must evaluate BC-2.01.NNN additions.
+# Flag to product-owner: see §New-BC Flags below.
+version: "1.0"
+level: "L4"
+producer: story-writer
+timestamp: "2026-05-31T00:00:00Z"
+tdd_mode: strict
+subsystems: [SS-01, SS-16]
+# Subsystem anchor justifications:
+#   SS-01 (Sensor Adapters) owns prism-dtu-armis and all prism-dtu-* crates per ARCH-INDEX
+#     Subsystem Registry v2.105 row; the new /api/v1/search route, AQL filter logic,
+#     and AQL log integration are all SS-01 (DTU clone) scope.
+#   SS-16 (Spec Engine) owns prism-spec-engine including the pipeline's path_template
+#     resolution and AQL parameter forwarding; the TOML step changes flow through
+#     SS-16's SensorSpec loading and FetchContext at runtime.
+#   SS-17 (WASM Plugin Runtime) is NOT anchored — this story has no WASM plugin changes.
+crates_touched: [prism-dtu-armis, prism-sensors]
+target_module: prism-dtu-armis
+capabilities: [CAP-001, CAP-029]
+behavioral_contracts: []
+# BC status: pending PO authorship (see above comment and §New-BC Flags section).
+verification_properties:
+  - VP-148  # DTU parity — parity tests exercise the AQL search pipeline path; a passing
+            # parity test after this story proves real-API AQL query behavior.
+depends_on: []
+# depends_on is empty: Armis AQL gap (Gap-AR-001) has no cross-story dependencies.
+# DTU-EXT-003/004 fixes are self-contained within prism-dtu-armis and armis.sensor.toml.
+blocks: []
+points: 5
+# Points justification:
+#   DTU-side changes (prism-dtu-armis):
+#   - New GET /api/v1/search route handler (search.rs or inline): ~1.5 pts
+#     (AQL param extraction, in:type=Device vs alert filter logic, response envelope)
+#   - Register /api/v1/search in build_router() (clone.rs): ~0.25 pts
+#   - AQL log capture (existing state.capture_aql() plumbing already present): ~0.25 pts
+#   - Direct endpoints (GET /api/v1/devices, GET /api/v1/alerts) remain for back-compat: 0 pts
+#   TOML changes (armis.sensor.toml):
+#   - devices + alerts table steps: path_template → /api/v1/search + aql param: ~0.5 pts
+#   Parity tests:
+#   - AQL string captured in DTU aql-log matches AQL prism constructed: ~1 pt
+#   - Devices via in:type=Device AQL: ~0.5 pts
+#   - Alerts via AQL: ~0.5 pts
+#   Red Gate tests: ~0.5 pts
+#   Total: 5 points (~1.5-2 days)
+estimated_days: 2
+risk: MEDIUM
+# Risk justification:
+#   AQL filter logic (in:type=Device vs alerts) adds branching in the search handler.
+#   The AQL is treated as opaque (R-DTU-002 — not parsed), so filters are applied
+#   by inspecting the AQL string for known patterns rather than parsing AQL grammar.
+#   TOML step changes require pipeline to forward the AQL param as a query parameter;
+#   this depends on the spec engine's FetchContext/query_param forwarding already
+#   supporting the ${query.filter.aql} interpolation pattern.
+acceptance_criteria_count: 7
+red_gate_tests: 4
+estimated_passes: "2 LOCAL adversary passes"
+holdout_scenarios: []
+assumption_validations: []
+risk_mitigations:
+  - "AQL string treatment: the DTU must capture the AQL string verbatim (R-DTU-002
+    mitigation is already in place via state.capture_aql()). The search handler does NOT
+    parse or validate AQL grammar — it stores it as-is and uses pattern-matching to
+    route between devices and alerts fixture data."
+  - "Back-compat: GET /api/v1/devices and GET /api/v1/alerts remain registered in
+    build_router() after this story — they are not removed. The primary path is now
+    /api/v1/search, but existing tests using the direct endpoints must not break."
+  - "AQL param forwarding: verify the spec engine forwards the aql parameter as a URL
+    query param (?aql=...) on GET requests. The TOML step uses method = 'GET' and
+    path_template = '/api/v1/search'; the AQL value must appear as ?aql=<value>."
+  - "New BC flag: if AQL syntax validation is added to the DTU (e.g., rejecting
+    malformed AQL strings with 400), flag to product-owner for BC-2.01.NNN EC row.
+    Per ADR-031 §D8-a: 'If AQL syntax validation is added to the DTU, BC-2.01.NNN
+    may need a new EC row — flag to product-owner.'"
+inputs:
+  - "crates/prism-dtu-armis/src/clone.rs"
+  - "crates/prism-dtu-armis/src/routes/devices.rs"
+  - "crates/prism-dtu-armis/src/routes/alerts.rs"
+  - "crates/prism-dtu-armis/src/state.rs"
+  - "crates/prism-dtu-armis/src/types.rs"
+  - "crates/prism-sensors/specs/armis.sensor.toml"
+  - ".factory/specs/architecture/decisions/ADR-031-dtu-equals-true-dtu-fidelity-principle.md"
+  - ".factory/proposals/POLLER-DTU-FIDELITY-AUDIT-2026-05-29.md"
+  - ".factory/semport/poller-coaster/poller-coaster-broad-sweep.md"
+input-hash: null
+traces_to: []
+cycle: "v1.0.0-brownfield"
+phase: 3
+---
+
+# S-DEMO-ARMIS-AQL-001 v1.0 — Armis AQL Search Endpoint Fidelity
+
+**Story ID:** S-DEMO-ARMIS-AQL-001
+**Status:** draft
+**Version:** v1.0
+**Wave:** 5
+**Priority:** P1
+**Points:** 5
+
+---
+
+## Origin
+
+Established by ADR-031 §D8-a (v1.2 amendment, 2026-05-31). The real Armis Centrix
+production poller (poller-coaster) uses ONE endpoint for all data: `GET /api/v1/search?aql=<query>`.
+Prism's DTU clone (`prism-dtu-armis`) and its TOML spec (`armis.sensor.toml`) currently
+use direct REST endpoints (`GET /api/v1/devices`, `GET /api/v1/alerts`) which are a
+different call pattern.
+
+Per ADR-031 §D8-a, the AQL divergence was previously classified as a D2-permitted
+acceptable divergence (Gap-AR-001, DTU-EXT-003/004). It is reclassified as REQUIRED
+fidelity per user directive 2026-05-31 ("all sensors, best-in-class, no scope compromises").
+
+**Real Armis API behavior (canonical reference: poller-coaster):**
+The production poller uses `centrix.Search()` with an AQL query string for all 7 data sources.
+Devices are queried via `in:type=Device` AQL; alerts are queried via equivalent alert AQL.
+The endpoint is always `GET /api/v1/search?aql=<encoded-query>`.
+
+**Current DTU state (grounded from code):**
+- `GET /api/v1/devices` — registered in `clone.rs::build_router()` (routes/devices.rs
+  `get_or_post_devices`)
+- `POST /api/v1/devices` — registered (routes/devices.rs `post_devices`)
+- `GET /api/v1/alerts` — registered (routes/alerts.rs `get_alerts`)
+- `GET /dtu/aql-log` — registered (state::capture_aql + aql_log already implemented)
+- `GET /api/v1/search` — NOT registered (Gap-AR-001)
+
+The AQL infrastructure is already present (`state.capture_aql()`, `state.aql_log()`,
+`AqlLogResponse` in types.rs, `GET /dtu/aql-log` route). The missing piece is the
+`/api/v1/search` route that serves as the primary data query path.
+
+---
+
+## Narrative
+
+As the Prism platform team, I want `prism-dtu-armis` to expose a `GET /api/v1/search`
+endpoint that accepts an `aql=<query>` parameter and returns devices or alerts filtered
+by AQL-pattern matching, and want `armis.sensor.toml` table steps to use
+`path_template = "/api/v1/search"`, so that the live demo proves prism can query Armis
+the same way the production poller does — not just via a non-production direct-endpoint
+call pattern.
+
+---
+
+## Story-Level Goal
+
+After this story merges:
+
+1. `prism-dtu-armis::build_router()` registers `GET /api/v1/search` in addition to the
+   existing direct-endpoint routes (which remain for back-compat).
+2. The `/api/v1/search` handler accepts an `aql` query parameter, captures it via
+   `state.capture_aql()`, and routes the response based on the AQL content:
+   - AQL containing `in:type=Device` (or equivalent device selector) → returns
+     `{"data": {"results": <DeviceRecords>, "total": N}}` envelope.
+   - AQL for alerts → returns `{"data": {"results": <AlertRecords>, "total": N}}` envelope.
+   - AQL absent or unrecognized → returns devices by default (safe fallback).
+3. `armis.sensor.toml` `devices` and `alerts` table steps updated:
+   - `path_template = "/api/v1/search"` (replaces `/api/v1/devices` and `/api/v1/alerts`)
+   - The `aql` query parameter is included via the spec engine's query parameter mechanism.
+4. A parity test asserts that the AQL string received by the DTU via `GET /dtu/aql-log`
+   matches the AQL prism constructed for the query (validates R-DTU-002 AQL push-down).
+5. `GET /api/v1/devices` and `GET /api/v1/alerts` remain registered (back-compat); they
+   are NOT the primary path but must not return 404.
+
+---
+
+## Behavioral Contracts
+
+| BC ID | Title | Role in This Story |
+|-------|-------|-------------------|
+| (pending PO authorship) | AQL Search Endpoint Fidelity | No BC has been authored yet covering /api/v1/search endpoint behavior and AQL push-down parity. PO must evaluate whether existing pipeline BCs cover this or whether a new BC-2.01.NNN EC row is needed. See §New-BC Flags. |
+
+**Note:** Per ADR-031 §D8-a: "No new behavioral contracts required. The AQL endpoint is
+a pipeline implementation change. The query-filter AQL push-down is covered by existing
+R-DTU-002 and the armis_devices / armis_alerts DataFusion table contracts. If AQL syntax
+validation is added to the DTU, BC-2.01.NNN may need a new EC row — flag to product-owner."
+
+This story's `behavioral_contracts: []` is intentional per Spec-First Gate S-7.01 —
+status remains `draft` until PO authors and anchors the required BC(s).
+
+---
+
+## New-BC Flags for Product-Owner
+
+Flag 1 (EVALUATE): If the `/api/v1/search` handler validates AQL syntax (e.g., rejects
+malformed AQL strings with HTTP 400), this creates a new observable contract boundary that
+may need a BC-2.01.NNN error case row in the spec-loading behavioral contract. Flag to
+product-owner for evaluation. If AQL is treated as opaque (R-DTU-002 approach — stored
+verbatim, not validated), no new BC is needed.
+
+Flag 2 (EVALUATE): The AQL push-down parity assertion (AC-005 below) validates that
+prism constructs an AQL string and the DTU receives it verbatim. R-DTU-002 is the existing
+architectural requirement for AQL pass-through. Product-owner should confirm whether R-DTU-002
+is already covered by an existing BC or requires a new AC in BC-2.01.NNN.
+
+---
+
+## Acceptance Criteria
+
+### AC-001: GET /api/v1/search registered in DTU build_router
+`crates/prism-dtu-armis/src/clone.rs::build_router()` registers a handler for
+`GET /api/v1/search`. A request to `GET /api/v1/search?aql=in:type=Device` on a running
+DTU clone returns 200 (not 404). `Authorization: Bearer {non-empty}` header is required;
+missing/empty token returns 403 (matching existing Armis DTU auth pattern — AC-5 per
+routes/devices.rs `check_bearer_auth`: Armis returns 403 not 401).
+(traces to ADR-031 §D8-a postcondition — DTU must implement the real Armis search endpoint;
+pending formal BC authorship; traces to VP-148 DTU parity — search endpoint registered)
+
+Red Gate test: `test_armis_aql_search_route_registered_returns_200_for_device_aql`
+
+### AC-002: /api/v1/search with in:type=Device AQL returns device records
+`GET /api/v1/search?aql=in:type=Device` returns HTTP 200 with response envelope
+`{"data": {"results": [...DeviceRecords...], "total": N}}` where the `results` array
+contains `DeviceRecord` objects matching the DTU fixture data (same fields as
+`crates/prism-dtu-armis/src/types.rs::DeviceRecord`). The AQL string `in:type=Device`
+is captured via `state.capture_aql()` and is visible in the subsequent `GET /dtu/aql-log`
+response as `{"aql_strings": ["in:type=Device"]}`.
+(traces to ADR-031 §D8-a requirement 1 — DTU search route applies AQL string as filter
+against fixture data and logs the AQL string; pending formal BC authorship)
+
+Red Gate test: `test_armis_aql_search_devices_aql_returns_device_records`
+
+### AC-003: /api/v1/search with alert AQL returns alert records
+`GET /api/v1/search?aql=in:type=Alert` (or the AQL string prism constructs for the alerts
+table) returns HTTP 200 with response envelope `{"data": {"results": [...AlertRecords...],
+"total": N}}` where `results` contains `AlertRecord` objects matching the DTU fixture data.
+The AQL string is captured in `GET /dtu/aql-log`.
+(traces to ADR-031 §D8-a requirement 1 — DTU search route serves alerts via AQL; pending
+formal BC authorship)
+
+Red Gate test: `test_armis_aql_search_alerts_aql_returns_alert_records`
+
+### AC-004: armis.sensor.toml devices and alerts steps use /api/v1/search path
+`crates/prism-sensors/specs/armis.sensor.toml`:
+- `devices` table `fetch_devices` step: `path_template = "/api/v1/search"` (was `"/api/v1/devices"`)
+- `alerts` table `fetch_alerts` step: `path_template = "/api/v1/search"` (was `"/api/v1/alerts"`)
+The `method = "GET"` and existing pagination configuration are preserved. An AQL query
+parameter is included in the step configuration to forward the sensor's AQL filter string
+to the DTU. The `response_path` fields are updated if the envelope changes from
+`$.data.devices` / `$.data.alerts` to `$.data.results` (per the search route's response).
+DTU-EXT-003 and DTU-EXT-004 comments in the TOML are updated to reflect that the gap is
+now closed.
+(traces to ADR-031 §D8-a requirement 2 — TOML devices and alerts steps must use /api/v1/search)
+
+### AC-005: Parity test — AQL string prism sends matches DTU-received AQL string
+An integration test (using `ArmisClone` from prism-dtu-harness or prism-dtu-armis directly):
+1. Run the pipeline fetch for `armis_devices` (or `armis_alerts`) against the running DTU.
+2. Query `GET /dtu/aql-log` after the fetch completes.
+3. Assert the AQL string in `aql_strings[0]` matches the AQL prism constructed for the
+   query (validates R-DTU-002: AQL push-down is end-to-end; prism's constructed AQL is
+   what the real Armis API would receive).
+(traces to ADR-031 §D5 validation discipline — parity tests must assert endpoint paths
+and AQL push-down match; traces to ADR-031 §D8-a requirement 3)
+
+### AC-006: Direct endpoints remain accessible (back-compat)
+`GET /api/v1/devices` and `GET /api/v1/alerts` continue to return 200 with their existing
+response envelopes after this story's changes. No existing test that uses the direct
+endpoints is broken. The search route is the PRIMARY path; the direct routes are retained
+for backward compatibility with existing tests and tooling.
+(traces to ADR-031 §D8-a note: "existing direct endpoints may remain for back-compat but
+aren't the primary path")
+
+### AC-007: No uncatalogued tracing event_type emissions (SAP-1)
+If any new `tracing::*!(event_type = ...)` site is introduced in this story's implementation,
+it must have a corresponding row in BC-2.16.002 Structured Event Catalog with full field
+schema, audit role, and recurrence policy. Zero uncatalogued `event_type` emissions are
+permitted per SAP-1 + PG-LP11-001.
+(traces to BC-2.16.002 invariant — standing adversary probe SAP-1 enforced on every pass)
+
+---
+
+## Red Gate Tests
+
+| Test Name | AC | Crate | Description |
+|-----------|----|-------|-------------|
+| `test_armis_aql_search_route_registered_returns_200_for_device_aql` | AC-001 | prism-dtu-armis | GET /api/v1/search?aql=in:type=Device returns 200 with valid Bearer; 403 without |
+| `test_armis_aql_search_devices_aql_returns_device_records` | AC-002 | prism-dtu-armis | Device AQL returns DeviceRecords in data.results; AQL captured in aql-log |
+| `test_armis_aql_search_alerts_aql_returns_alert_records` | AC-003 | prism-dtu-armis | Alert AQL returns AlertRecords in data.results; AQL captured in aql-log |
+| `test_armis_aql_search_toml_path_template_updated` | AC-004 | prism-sensors (spec load test) | armis.sensor.toml devices + alerts steps load with path_template = /api/v1/search |
+
+---
+
+## Tasks
+
+### DTU-Side Tasks
+
+1. **Read** `crates/prism-dtu-armis/src/clone.rs` — understand `build_router()`; note
+   current route registrations (`/api/v1/devices`, `/api/v1/alerts`, `/dtu/aql-log`).
+2. **Read** `crates/prism-dtu-armis/src/routes/devices.rs` — understand `get_or_post_devices`;
+   note how `state.capture_aql()` is called; understand `paginate_devices()` return shape
+   (`DevicesResponse { data: DevicesData { devices, total, page } }`).
+3. **Read** `crates/prism-dtu-armis/src/types.rs` — understand `DeviceRecord`,
+   `DevicesResponse`, `AlertRecord`, `AlertsResponse`, `AqlLogResponse`.
+4. **Read** `crates/prism-dtu-armis/src/state.rs` — understand `capture_aql()`, `aql_log()`,
+   `devices_ordered`, the alert fixture loading pattern.
+5. **Create** `crates/prism-dtu-armis/src/routes/search.rs` (or add handler inline in
+   `routes/mod.rs`) with stub for `get_search`:
+   ```rust
+   pub async fn get_search(
+       State(state): State<Arc<ArmisState>>,
+       headers: HeaderMap,
+       Query(params): Query<SearchQueryParams>,
+   ) -> impl IntoResponse {
+       todo!()
+   }
+   ```
+   Where `SearchQueryParams` has `aql: Option<String>`, `page: Option<u32>`,
+   `size: Option<u32>`.
+6. **Write Red Gate tests** (must ALL FAIL before implementation):
+   - `test_armis_aql_search_route_registered_returns_200_for_device_aql`
+   - `test_armis_aql_search_devices_aql_returns_device_records`
+   - `test_armis_aql_search_alerts_aql_returns_alert_records`
+   - `test_armis_aql_search_toml_path_template_updated`
+   Verify they FAIL (RED gate confirmed) before proceeding.
+7. **Register** `GET /api/v1/search` in `build_router()` in `clone.rs`:
+   ```rust
+   .route("/api/v1/search", get(routes::search::get_search))
+   ```
+   Do NOT remove existing routes (`/api/v1/devices`, `/api/v1/alerts`) — they stay.
+8. **Implement** `get_search` handler:
+   - Call `check_bearer_auth(&headers)` — return 403 on failure (matches Armis auth model).
+   - Call `state.capture_aql(aql_str)` for the `aql` query param (R-DTU-002).
+   - Inspect `aql` string to determine response type:
+     - Contains `in:type=Device` → serve devices from `state.devices_ordered`
+     - Contains `in:type=Alert` or alert-related keyword → serve alerts from fixture
+     - Absent or unknown → default to devices (safe fallback per R-DTU-002 opaque model)
+   - Return response envelope: `{"data": {"results": [...], "total": N}}`
+     (note: real Armis `/api/v1/search` returns `data.results`, not `data.devices` —
+     update the response struct or use `serde_json::json!` to build the envelope)
+   - Pagination: apply same `page`/`size` logic as `paginate_devices`.
+9. **Run** `cargo nextest run -p prism-dtu-armis` — all tests GREEN.
+
+### TOML Tasks
+
+10. **Read** `crates/prism-sensors/specs/armis.sensor.toml` — understand current
+    `fetch_devices` and `fetch_alerts` steps; note `path_template`, `response_path`,
+    `pagination` fields.
+11. **Update** `devices` table `fetch_devices` step:
+    - `path_template = "/api/v1/search"` (was `"/api/v1/devices"`)
+    - `response_path = "$.data.results"` (was `"$.data.devices"` — search envelope uses `results`)
+    - Preserve `method = "GET"` and pagination config.
+    - Update the DTU-EXT-003 comment: mark gap as CLOSED by this story.
+12. **Update** `alerts` table `fetch_alerts` step:
+    - `path_template = "/api/v1/search"` (was `"/api/v1/alerts"`)
+    - `response_path = "$.data.results"` (was `"$.data.alerts"` — search envelope uses `results`)
+    - Preserve `method = "GET"` and pagination config.
+    - Update the DTU-EXT-004 comment: mark gap as CLOSED by this story.
+13. **Verify** spec loads cleanly: `cargo nextest run -p prism-sensors` (or the
+    appropriate spec-load test crate) — no parse errors on updated armis.sensor.toml.
+
+### Parity Test Task
+
+14. **Write** integration parity test (AC-005):
+    - Start `ArmisClone` with test fixture.
+    - Execute pipeline fetch for devices (or alerts) via the spec engine.
+    - Query `GET /dtu/aql-log`.
+    - Assert `aql_strings[0]` is the AQL string prism constructed.
+    - This test may be placed in `crates/prism-dtu-armis/tests/` or in the integration
+      test suite for `prism-spec-engine` if the full pipeline is needed.
+15. **Run** `just check` — final pre-push gate.
+
+---
+
+## File List
+
+| File | Action | Purpose |
+|------|--------|---------|
+| `crates/prism-dtu-armis/src/routes/search.rs` | CREATE | New `get_search` handler for `GET /api/v1/search` |
+| `crates/prism-dtu-armis/src/routes/mod.rs` | MODIFY | Add `pub mod search;` if search.rs is a new file |
+| `crates/prism-dtu-armis/src/clone.rs` | MODIFY | Register `GET /api/v1/search` in `build_router()` |
+| `crates/prism-sensors/specs/armis.sensor.toml` | MODIFY | Update devices + alerts step path_template and response_path; close DTU-EXT-003/004 comments |
+| `crates/prism-dtu-armis/tests/` | MODIFY or CREATE | Add Red Gate tests + parity test |
+
+---
+
+## Architecture Compliance Rules
+
+| Rule | Source | Enforcement |
+|------|--------|-------------|
+| DTU AQL capture: `state.capture_aql()` called for EVERY search request | ADR-005 AQL Injection Mitigation; R-DTU-002 | Adversary probes for capture_aql() call per SAP-2 extension |
+| AQL treated as opaque — stored verbatim, not parsed or validated | ADR-005 §D1; R-DTU-002 mitigation | No AQL grammar parser may be introduced in the DTU; pattern matching only |
+| Response envelope: `{"data": {"results": [...], "total": N}}` | Real Armis API shape per poller-coaster-broad-sweep | SAP-2 probe: response envelope field names must match real API |
+| Auth: 403 (not 401) on missing/invalid Bearer | Armis DTU auth model (AC-5, dtu-assessment.md §3.4) | Existing `check_bearer_auth` in devices.rs returns 403 |
+| Direct endpoints (/api/v1/devices, /api/v1/alerts) must NOT be removed | Back-compat requirement; AC-006 | build_router() retains both routes post-story |
+| No println! in production code | CLAUDE.md Conventions | Use tracing::*! with structured fields only |
+| New event_type emissions require BC-2.16.002 catalog row | SAP-1 + PG-LP11-001 | Adversary greps event_type = on every pass |
+
+### Forbidden Dependencies
+
+`prism-sensors` (where `armis.sensor.toml` lives) MUST NOT gain new crate dependencies from
+this story — it is a spec-only crate. `prism-dtu-armis` must not gain a dependency on
+`prism-spec-engine` (production engine must not import test fixtures).
+
+---
+
+## Library & Framework Requirements
+
+| Library | Version | Purpose |
+|---------|---------|---------|
+| `axum` | workspace version | DTU route handler for GET /api/v1/search |
+| `serde` + `serde_json` | workspace version | Query param deserialization; JSON response |
+| `prism-dtu-common` | workspace path | `load_fixture()` for alert fixture loading |
+| `tokio` | workspace version | async handler |
+
+Version source: workspace `Cargo.toml`. Do not pin independently.
+
+---
+
+## Previous Story Intelligence
+
+This is the first AQL fidelity story in E-DTU-FIDELITY. Adjacent stories:
+
+- **S-DTU-CYBERINT-AUTH-FIDELITY-001** (merged PR #164): Pattern for DTU route changes —
+  read clone.rs `build_router()` first, write Red Gate tests, implement handler, update
+  state as needed. The same procedure applies here.
+
+- **S-6.10-dtu-armis** (Wave 6, S-6.10): Delivered the original prism-dtu-armis implementation
+  including the AQL log infrastructure (`state.capture_aql()`, `GET /dtu/aql-log`). This
+  story builds on that infrastructure — the search route is the missing piece.
+
+- **PLUGIN-MIGRATION-001-D** (merged): Authored `armis.sensor.toml` with the DTU-EXT-003/004
+  comments documenting the AQL gap. The TOML changes in this story close those gaps.
+
+---
+
+## Edge Cases
+
+| ID | Description | Expected Behavior |
+|----|-------------|-------------------|
+| EC-001 | GET /api/v1/search with no `aql` query parameter | Handler returns devices (safe default); empty AQL not captured (or captured as empty string — consistent with existing `capture_aql` behavior) |
+| EC-002 | AQL string contains both `Device` and `Alert` keywords | Handler uses first matched type (devices first); or defaults to devices if ambiguous |
+| EC-003 | AQL string requests page beyond fixture size | Returns `{"data": {"results": [], "total": N}}` (N = full fixture count); consistent with paginate_devices EC-004 behavior |
+| EC-004 | Missing Authorization header | 403 with `{"error": "invalid or missing bearer token", "code": 403}` per existing check_bearer_auth |
+| EC-005 | aql param is very long (>4KB) | Accepted and captured verbatim (R-DTU-002: opaque pass-through); no length limit in DTU |
+| EC-006 | AQL string format for alerts differs from assumed pattern | Default fallback to devices; parity test must use the exact AQL string prism constructs (drives the correct alert routing pattern from actual behavior) |
+| EC-007 | Direct endpoint tests (/api/v1/devices, /api/v1/alerts) run after TOML update | Direct endpoints still return correct response; response_path in TOML now points to $.data.results which is the search route's envelope — tests using direct endpoints must validate against direct endpoint envelopes ($.data.devices / $.data.alerts) |
+
+---
+
+## Notes for Implementer
+
+**Response envelope shape:** The real Armis `/api/v1/search` API returns
+`{"data": {"results": [...], "total": N}}` — note `results`, not `devices` or `alerts`.
+This differs from the existing direct-endpoint responses:
+- `GET /api/v1/devices` → `{"data": {"devices": [...], "total": N, "page": N}}`
+- `GET /api/v1/alerts` → `{"data": {"alerts": [...], "total": N}}`
+
+The search route uses `results` as the array key in the `data` envelope. Update
+`response_path` in armis.sensor.toml accordingly: `$.data.results` (not `$.data.devices`
+or `$.data.alerts`). If a new `SearchResponse` struct is added to types.rs, it must use
+`results` as the field name (grounded against poller-coaster-broad-sweep §API response shape).
+
+**AQL routing in the handler:** Because the DTU does not parse AQL grammar (R-DTU-002 /
+ADR-005), the handler must use simple string pattern matching to determine whether to return
+devices or alerts. Example approach:
+```rust
+let return_alerts = aql.as_deref().map(|s| s.contains("Alert") || s.contains("alert")).unwrap_or(false);
+```
+This is a reasonable approximation — the adversary will verify it against the actual AQL
+string prism constructs in the parity test (AC-005).
+
+**TOML response_path update:** After changing `path_template` to `/api/v1/search`, the
+`response_path` fields must also be updated. The current TOML has:
+- `devices.fetch_devices.response_path = "$.data.devices"` — must change to `"$.data.results"`
+- `alerts.fetch_alerts.response_path = "$.data.alerts"` — must change to `"$.data.results"`
+
+Failure to update `response_path` while changing `path_template` will cause the pipeline to
+look for `$.data.devices` in a response that has `$.data.results` → empty RecordBatch.
+
+---
+
+## Risk Mitigations
+
+| Risk | Mitigation |
+|------|-----------|
+| response_path mismatch after TOML path_template change | Explicitly validate response_path update in Task 12; AC-005 parity test will catch non-empty results requirement |
+| AQL routing ambiguity causing wrong data type returned | Parity test (AC-005) drives the correct AQL string from actual pipeline behavior; update handler to match |
+| Direct endpoint tests broken by TOML change | AC-006: run existing tests against direct endpoints before committing TOML change; note that TOML change only affects pipeline fetch, not DTU routes |
+| New event_type emission uncatalogued | SAP-1 sweep after implementation: `rg 'event_type\s*=' crates/ --type rust`; zero new emissions without catalog rows |
+
+---
+
+## Token Budget Estimate
+
+| Context source | Estimated tokens |
+|----------------|-----------------|
+| This story spec | ~4,000 |
+| armis.sensor.toml | ~1,500 |
+| crates/prism-dtu-armis/src/clone.rs | ~2,000 |
+| crates/prism-dtu-armis/src/routes/devices.rs | ~2,500 |
+| crates/prism-dtu-armis/src/routes/alerts.rs | ~800 |
+| crates/prism-dtu-armis/src/state.rs | ~2,000 |
+| crates/prism-dtu-armis/src/types.rs | ~1,000 |
+| ADR-031 §D8-a (relevant section) | ~1,500 |
+| POLLER-DTU-FIDELITY-AUDIT-2026-05-29.md §3 (Armis section) | ~1,500 |
+| Test files (existing prism-dtu-armis/tests/) | ~2,000 |
+| Tool outputs (cargo nextest) | ~2,000 |
+| **Total estimate** | **~20,800 tokens (~8% of 256K context)** |
+
+Well within the 20-30% budget.
+
+---
+
+## References
+
+- ADR-031 v1.2 §D8-a — Armis AQL Endpoint Fidelity (Gap-AR-001/DTU-EXT-003/004)
+- POLLER-DTU-FIDELITY-AUDIT-2026-05-29.md §3 — Armis Centrix fidelity table
+- `crates/prism-dtu-armis/src/clone.rs` — build_router() current state
+- `crates/prism-dtu-armis/src/routes/devices.rs` — existing AQL capture pattern
+- `crates/prism-sensors/specs/armis.sensor.toml` — DTU-EXT-003/004 comments
+
+---
+
+## Changelog
+
+| Version | Date | Author | Notes |
+|---------|------|--------|-------|
+| 1.0 | 2026-05-31 | story-writer | Initial materialization from [stub] per ADR-031 §D8-a v1.2 reclassification. 7 ACs, 4 Red Gate tests, 5 pts, wave 5, P1. Grounded against crates/prism-dtu-armis/src/routes/devices.rs (AQL capture pattern), types.rs (DeviceRecord/AlertRecord/AqlLogResponse), state.rs (capture_aql/aql_log), clone.rs (build_router), armis.sensor.toml (DTU-EXT-003/004 comments). New-BC flags provided to product-owner for AQL syntax validation and R-DTU-002 BC coverage evaluation. |
