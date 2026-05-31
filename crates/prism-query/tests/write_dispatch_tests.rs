@@ -23,28 +23,33 @@
     clippy::expect_used
 )]
 
-use std::collections::BTreeMap;
-use std::sync::Arc;
+use std::{collections::BTreeMap, sync::Arc};
 
 use prism_core::RiskTier;
-use prism_query::write_dispatch::{AuditWriter, WriteDispatcher, WRITE_SEMAPHORE_CAPACITY};
-use prism_query::write_pipeline::{QueryContext, WritePlan};
-use prism_query::write_result::{SensorWriteError, WriteResult};
+use prism_query::{
+    write_dispatch::{AuditWriter, WriteDispatcher, WRITE_SEMAPHORE_CAPACITY},
+    write_pipeline::{QueryContext, WritePlan},
+    write_result::{SensorWriteError, WriteResult},
+};
 
 // Re-use the helpers from write_pipeline_tests via a local copy (integration
 // tests cannot share code via `pub mod` across files — each is its own crate).
 
 mod helpers {
-    use std::collections::HashMap;
-    use std::sync::{
-        atomic::{AtomicBool, AtomicUsize, Ordering},
-        Arc,
+    use std::{
+        collections::HashMap,
+        sync::{
+            atomic::{AtomicBool, AtomicUsize, Ordering},
+            Arc,
+        },
     };
 
     use prism_core::PrismError;
-    use prism_query::write_dispatch::AuditWriter;
-    use prism_query::write_pipeline::{QueryContext, WritePlan};
-    use prism_query::write_result::WriteResult;
+    use prism_query::{
+        write_dispatch::AuditWriter,
+        write_pipeline::{QueryContext, WritePlan},
+        write_result::WriteResult,
+    };
     use ulid::Ulid;
 
     pub fn make_plan_with_filter() -> WritePlan {

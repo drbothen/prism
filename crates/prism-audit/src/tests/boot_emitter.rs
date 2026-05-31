@@ -24,9 +24,10 @@
 use std::sync::Arc;
 
 use prism_core::StorageDomain;
-use prism_storage::audit_buffer::AUDIT_BUFFER_CF_NAME;
-use prism_storage::backend::RocksStorageBackend;
-use prism_storage::rocksdb_backend::RocksDbBackend;
+use prism_storage::{
+    audit_buffer::AUDIT_BUFFER_CF_NAME, backend::RocksStorageBackend,
+    rocksdb_backend::RocksDbBackend,
+};
 
 use crate::boot_emitter::{BootAuditEmitter, BootSentinelFields};
 

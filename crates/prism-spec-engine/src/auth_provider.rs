@@ -3,8 +3,10 @@
 //!
 //! Anchors:
 //! - BC-2.01.013 (DataSource Trait: Spec-Driven Adapter Pattern)
+//! - BC-2.01.017 (StaticCookieAuthProvider Contract — No-Login-Roundtrip Cookie Injection)
 //! - ADR-023 §C2 (Plugin-Only Sensor Architecture — Real PipelineExecutor)
-//! - Story: S-PLUGIN-PREREQ-B
+//! - ADR-031 §D3-b (Cyberint DTU correction — StaticCookieAuthProvider)
+//! - Story: S-PLUGIN-PREREQ-B, S-DTU-CYBERINT-AUTH-FIDELITY-001
 //!
 //! `AuthProvider` is the TOML-driven replacement for compile-time SensorAuth dispatch.
 //! It is injected into `PipelineExecutor::execute` at call sites and is not coupled to
@@ -21,13 +23,21 @@
 //!
 //! `AuthProvider` MUST live in `prism-spec-engine` only. It MUST NOT be imported by
 //! `prism-sensors` or `prism-query` (forbidden dependency per PREREQ-B scope boundary).
+//!
+//! # Production Implementors
+//!
+//! - [`StaticCookieAuthProvider`] — production type for `auth_type = "cookie_roundtrip"` sensors
+//!   (e.g., Cyberint). Reads the API key from the credential resolver at `acquire_token()` time.
+//!   Makes NO HTTP call. Returns the raw API key as the token. NOT feature-gated.
+//!   AC-005, AC-006 (S-DTU-CYBERINT-AUTH-FIDELITY-001); BC-2.01.017 §Postconditions.
 
-use crate::error::SpecEngineError;
-use crate::spec_parser::SensorSpec;
+use std::{future::Future, pin::Pin, sync::Arc};
+
 use prism_core::OrgSlug;
-use std::future::Future;
-use std::pin::Pin;
+use prism_credentials::CredentialResolutionError;
 use zeroize::Zeroizing;
+
+use crate::{error::SpecEngineError, spec_parser::SensorSpec};
 
 // ---------------------------------------------------------------------------
 // AuthToken newtype
@@ -101,6 +111,434 @@ pub trait AuthProvider: Send + Sync {
         spec: &'a SensorSpec,
         client_id: &'a OrgSlug,
     ) -> Pin<Box<dyn Future<Output = Result<AuthToken, SpecEngineError>> + Send + 'a>>;
+}
+
+// ---------------------------------------------------------------------------
+// CredentialResolver trait — injectable credential resolution for DI / testability
+// ---------------------------------------------------------------------------
+
+/// Injectable credential resolver used by [`StaticCookieAuthProvider`].
+///
+/// Abstracts over `prism_credentials::resolve_credential` so that tests can inject
+/// a mock resolver without touching the real credential store (ADR-022 §C wiring; AC-005).
+///
+/// # Object Safety
+///
+/// The trait is object-safe: `resolve` returns a boxed future.
+/// Use `Arc<dyn CredentialResolver>` at construction sites.
+///
+/// # Production Implementor
+///
+/// [`PrismCredentialResolver`] wraps `prism_credentials::resolve_credential`.
+/// Constructed via `Arc::new(PrismCredentialResolver)` in `StaticCookieAuthProvider::new`.
+pub trait CredentialResolver: Send + Sync {
+    /// Resolve the named credential for the given `(client_id, sensor_id, credential_name)` tuple.
+    ///
+    /// Returns the raw credential value as a `SecretString`, or a typed `CredentialResolutionError`.
+    ///
+    /// # Errors
+    ///
+    /// - `CredentialResolutionError::NotFound` — credential name is not registered for this
+    ///   `(client_id, sensor_id)` tuple. Callers should map this to `E-AUTH-005`.
+    /// - `CredentialResolutionError::BackendUnavailable` — credential is configured but the
+    ///   backing store (file, env, keyring) is inaccessible at resolution time. Callers should
+    ///   map this to `E-AUTH-007` (BC-2.01.017 v1.3 EC-017-010).
+    fn resolve<'a>(
+        &'a self,
+        client_id: &'a str,
+        sensor_id: &'a str,
+        credential_name: &'a str,
+    ) -> Pin<
+        Box<
+            dyn Future<Output = Result<secrecy::SecretString, CredentialResolutionError>>
+                + Send
+                + 'a,
+        >,
+    >;
+}
+
+// ---------------------------------------------------------------------------
+// PrismCredentialResolver — production impl wrapping prism_credentials
+// ---------------------------------------------------------------------------
+
+/// Production [`CredentialResolver`] that delegates to `prism_credentials::resolve_credential`.
+///
+/// This is the default resolver used by `StaticCookieAuthProvider::new(sensor_id)`.
+/// At `acquire_token()` time it reads the API key from the env-var / CRUD chain per
+/// `BC-2.03.006`.
+///
+/// AD-017: no credential value is stored in this struct — it only holds a unit type.
+pub struct PrismCredentialResolver;
+
+impl CredentialResolver for PrismCredentialResolver {
+    fn resolve<'a>(
+        &'a self,
+        client_id: &'a str,
+        sensor_id: &'a str,
+        credential_name: &'a str,
+    ) -> Pin<
+        Box<
+            dyn Future<Output = Result<secrecy::SecretString, CredentialResolutionError>>
+                + Send
+                + 'a,
+        >,
+    > {
+        let client_id = client_id.to_string();
+        let sensor_id = sensor_id.to_string();
+        let credential_name = credential_name.to_string();
+        Box::pin(async move {
+            // Propagate typed CredentialResolutionError directly — no string erasure.
+            // NotFound → caller maps to E-AUTH-005; BackendUnavailable → E-AUTH-007
+            // (BC-2.01.017 v1.3 EC-017-010 / E-AUTH-007 in error-taxonomy.md).
+            prism_credentials::resolve_credential(&client_id, &sensor_id, &credential_name).await
+        })
+    }
+}
+
+// ---------------------------------------------------------------------------
+// MockCredentialResolver — test helper (cfg(test) / test-helpers feature)
+// ---------------------------------------------------------------------------
+
+/// Test helper [`CredentialResolver`] that returns a fixed credential value.
+///
+/// Inject via `StaticCookieAuthProvider::new_with_resolver(sensor_id, Arc::new(MockCredentialResolver::new("key-value")))`.
+///
+/// **Feature-gated:** only available under `cfg(test)` or the `test-helpers` Cargo feature.
+#[cfg(any(test, feature = "test-helpers"))]
+pub struct MockCredentialResolver {
+    value: String,
+}
+
+#[cfg(any(test, feature = "test-helpers"))]
+impl MockCredentialResolver {
+    /// Create a `MockCredentialResolver` that always returns `value` as the resolved credential.
+    pub fn new(value: impl Into<String>) -> Self {
+        Self {
+            value: value.into(),
+        }
+    }
+}
+
+#[cfg(any(test, feature = "test-helpers"))]
+impl CredentialResolver for MockCredentialResolver {
+    fn resolve<'a>(
+        &'a self,
+        _client_id: &'a str,
+        _sensor_id: &'a str,
+        _credential_name: &'a str,
+    ) -> Pin<
+        Box<
+            dyn Future<Output = Result<secrecy::SecretString, CredentialResolutionError>>
+                + Send
+                + 'a,
+        >,
+    > {
+        let value = self.value.clone();
+        Box::pin(async move { Ok(secrecy::SecretString::new(value)) })
+    }
+}
+
+/// Test helper [`CredentialResolver`] that always returns `CredentialResolutionError::NotFound`.
+///
+/// Use this to test the E-AUTH-005 (credential not found) path without relying on env
+/// vars or the real credential store. This is the correct injection mechanism for
+/// tests that need to verify "no credential configured" behavior.
+///
+/// **Feature-gated:** only available under `cfg(test)` or the `test-helpers` Cargo feature.
+#[cfg(any(test, feature = "test-helpers"))]
+pub struct NotFoundCredentialResolver;
+
+#[cfg(any(test, feature = "test-helpers"))]
+impl CredentialResolver for NotFoundCredentialResolver {
+    fn resolve<'a>(
+        &'a self,
+        client_id: &'a str,
+        sensor_id: &'a str,
+        credential_name: &'a str,
+    ) -> Pin<
+        Box<
+            dyn Future<Output = Result<secrecy::SecretString, CredentialResolutionError>>
+                + Send
+                + 'a,
+        >,
+    > {
+        let err = CredentialResolutionError::NotFound {
+            client_id: client_id.to_string(),
+            sensor_id: sensor_id.to_string(),
+            credential_name: credential_name.to_string(),
+            suggestion: "NotFoundCredentialResolver: no credential configured (test fixture)"
+                .to_string(),
+        };
+        Box::pin(async move { Err(err) })
+    }
+}
+
+/// Test helper [`CredentialResolver`] that always returns `CredentialResolutionError::BackendUnavailable`.
+///
+/// Use this to test the E-AUTH-007 (backend unavailable) path without relying on env
+/// vars or the real credential store. This is the correct injection mechanism for
+/// tests that need to verify "backend unreachable" behavior.
+///
+/// BC-2.01.017 v1.3 EC-017-010 / TV-BC-2.01.017-009 / E-AUTH-007 in error-taxonomy.md.
+///
+/// **Feature-gated:** only available under `cfg(test)` or the `test-helpers` Cargo feature.
+/// AD-017: no credential value is stored in this struct.
+#[cfg(any(test, feature = "test-helpers"))]
+pub struct BackendUnavailableCredentialResolver;
+
+#[cfg(any(test, feature = "test-helpers"))]
+impl CredentialResolver for BackendUnavailableCredentialResolver {
+    fn resolve<'a>(
+        &'a self,
+        client_id: &'a str,
+        sensor_id: &'a str,
+        credential_name: &'a str,
+    ) -> Pin<
+        Box<
+            dyn Future<Output = Result<secrecy::SecretString, CredentialResolutionError>>
+                + Send
+                + 'a,
+        >,
+    > {
+        let err = CredentialResolutionError::BackendUnavailable {
+            client_id: client_id.to_string(),
+            sensor_id: sensor_id.to_string(),
+            credential_name: credential_name.to_string(),
+            detail: "BackendUnavailableCredentialResolver: backend unreachable (test fixture)"
+                .to_string(),
+        };
+        Box::pin(async move { Err(err) })
+    }
+}
+
+// ---------------------------------------------------------------------------
+// StaticCookieAuthProvider — production auth provider for cookie_roundtrip sensors
+// ---------------------------------------------------------------------------
+
+/// Production `AuthProvider` for sensors using `auth_type = "cookie_roundtrip"`.
+///
+/// Reads the API key from the credential resolver at `acquire_token()` time via
+/// `prism_credentials::resolve_credential`. Makes NO HTTP call. Returns the raw API key
+/// as the `AuthToken`.
+///
+/// The token is then injected by `PipelineExecutor::build_request` as
+/// `Cookie: access_token={token}` per ADR-031 §D3-b.
+///
+/// ## Preconditions (BC-2.01.017)
+///
+/// - `auth_type = "cookie_roundtrip"` declared in the sensor's TOML spec.
+/// - A `credential_ref` naming the API key is declared in the TOML spec.
+/// - `prism_credentials::resolve_credential(client_id, sensor_id, "api_key")` must
+///   succeed at `acquire_token()` time.
+///
+/// ## Postconditions (BC-2.01.017 §Postconditions P1)
+///
+/// - Returns `Ok(AuthToken)` wrapping the raw API key string.
+/// - Makes ZERO HTTP calls during `acquire_token` (INV-COOKIE-001, ADR-031 §D1-b).
+///
+/// ## Errors
+///
+/// - `E-AUTH-005`: credential not found for `(client_id, sensor_id)`.
+///   Resolver returned `CredentialResolutionError::NotFound`.
+/// - `E-AUTH-006`: API key is empty, all-whitespace, contains illegal cookie characters,
+///   or exceeds 4096 bytes. See E-AUTH-006 in error-taxonomy.md.
+/// - `E-AUTH-007`: credential backend unavailable (backend configured but inaccessible).
+///   Resolver returned `CredentialResolutionError::BackendUnavailable`.
+///   BC-2.01.017 v1.3 EC-017-010 / E-AUTH-007 in error-taxonomy.md.
+///
+/// ## AD-017 Credential Safety
+///
+/// The API key value MUST NOT appear in log output at any level. The struct holds ONLY
+/// the `sensor_id` string (used as the credential namespace key) — NOT the API key itself.
+/// The API key is resolved at `acquire_token()` time from the credential store and
+/// immediately wrapped in `AuthToken(Zeroizing<String>)` — never stored as a field.
+///
+/// AC-005, AC-006, AC-010 (S-DTU-CYBERINT-AUTH-FIDELITY-001).
+/// BC-2.01.017; ADR-031 §D3-b rule 2; AD-017.
+pub struct StaticCookieAuthProvider {
+    /// Sensor ID used as the credential namespace key.
+    ///
+    /// This is the plain sensor name string (e.g., `"cyberint"`). The API key itself
+    /// is NEVER stored here — AD-017 compliance.
+    sensor_id: String,
+    /// Injected credential resolver (ADR-022 §C wiring; AC-005 injectable design).
+    ///
+    /// Production code passes `Arc::new(PrismCredentialResolver)` (via `new()`).
+    /// Tests pass `Arc::new(MockCredentialResolver::new("key-value"))` (via `new_with_resolver()`).
+    resolver: Arc<dyn CredentialResolver>,
+}
+
+impl StaticCookieAuthProvider {
+    /// Construct a new `StaticCookieAuthProvider` for the given sensor.
+    ///
+    /// Uses the production [`PrismCredentialResolver`] (wraps `prism_credentials::resolve_credential`).
+    ///
+    /// The `sensor_id` is the sensor name string from the TOML spec (used as the
+    /// credential namespace key in the credential resolver).
+    ///
+    /// Does NOT accept the API key as a constructor argument (AD-017: credentials
+    /// must not be held at construction time; resolved at acquire_token() time only).
+    ///
+    /// AC-005 (S-DTU-CYBERINT-AUTH-FIDELITY-001)
+    pub fn new(sensor_id: impl Into<String>) -> Self {
+        Self {
+            sensor_id: sensor_id.into(),
+            resolver: Arc::new(PrismCredentialResolver),
+        }
+    }
+
+    /// Construct a `StaticCookieAuthProvider` with an injectable credential resolver.
+    ///
+    /// Used by tests to inject a [`MockCredentialResolver`] without relying on the real
+    /// credential store (env vars, keyring). Follows ADR-022 §C wiring contract.
+    ///
+    /// # Example (test code)
+    ///
+    /// ```ignore
+    /// let provider = StaticCookieAuthProvider::new_with_resolver(
+    ///     "cyberint",
+    ///     Arc::new(MockCredentialResolver::new("test-api-key-abc123")),
+    /// );
+    /// ```
+    ///
+    /// AC-005 (S-DTU-CYBERINT-AUTH-FIDELITY-001); ADR-022 §C; INV-COOKIE-001.
+    pub fn new_with_resolver(
+        sensor_id: impl Into<String>,
+        resolver: Arc<dyn CredentialResolver>,
+    ) -> Self {
+        Self {
+            sensor_id: sensor_id.into(),
+            resolver,
+        }
+    }
+}
+
+impl AuthProvider for StaticCookieAuthProvider {
+    /// Acquire the static cookie token for the sensor.
+    ///
+    /// Calls `prism_credentials::resolve_credential(client_id, sensor_id, "api_key")`.
+    /// Returns `Ok(AuthToken(api_key_value))` without making any HTTP call.
+    ///
+    /// Validates the resolved api_key per E-AUTH-006: rejects empty strings, all-whitespace,
+    /// strings with illegal RFC 6265 cookie-value characters (e.g., `;`), and strings
+    /// exceeding 4096 bytes.
+    ///
+    /// # Errors
+    ///
+    /// - `E-AUTH-005`: credential not found → `SpecEngineError::AuthAcquisitionFailed`
+    ///   with message matching the E-AUTH-005 template in error-taxonomy.md.
+    ///   Resolver returned `CredentialResolutionError::NotFound`.
+    /// - `E-AUTH-006`: empty/invalid api_key → `SpecEngineError::AuthAcquisitionFailed`
+    ///   with message matching the E-AUTH-006 template in error-taxonomy.md.
+    /// - `E-AUTH-007`: credential backend unavailable → `SpecEngineError::AuthAcquisitionFailed`
+    ///   with message matching the E-AUTH-007 template in error-taxonomy.md.
+    ///   Resolver returned `CredentialResolutionError::BackendUnavailable`.
+    ///   BC-2.01.017 v1.3 EC-017-010.
+    ///
+    /// BC-2.01.017 §Postconditions P1; INV-COOKIE-001; AC-005, AC-006, AC-010.
+    ///
+    fn acquire_token<'a>(
+        &'a self,
+        _spec: &'a SensorSpec,
+        client_id: &'a OrgSlug,
+    ) -> Pin<Box<dyn Future<Output = Result<AuthToken, SpecEngineError>> + Send + 'a>> {
+        use secrecy::ExposeSecret;
+
+        let sensor_id = self.sensor_id.clone();
+        let client_id_str = client_id.as_str().to_string();
+        let resolver = Arc::clone(&self.resolver);
+
+        Box::pin(async move {
+            // INV-COOKIE-001 / ADR-031 §D1-b: ZERO HTTP calls.
+            // Delegates to the injected CredentialResolver — production uses
+            // PrismCredentialResolver (wraps prism_credentials::resolve_credential);
+            // tests inject MockCredentialResolver without touching the real store.
+            //
+            // Variant dispatch (BC-2.01.017 v1.3 EC-017-010 / error-taxonomy.md):
+            //   NotFound           → E-AUTH-005 (credential not configured for this tuple)
+            //   BackendUnavailable → E-AUTH-007 (backend unreachable at resolution time)
+            let secret = match resolver
+                .resolve(&client_id_str, &sensor_id, "api_key")
+                .await
+            {
+                Ok(s) => s,
+                Err(CredentialResolutionError::NotFound { .. }) => {
+                    return Err(SpecEngineError::AuthAcquisitionFailed {
+                        sensor_id: sensor_id.clone(),
+                        client_id: client_id_str.clone(),
+                        detail:
+                            "E-AUTH-005: credential not found — no api_key configured for this \
+                                 (client_id, sensor_id) tuple. Run `configure_credential_source` \
+                                 or set the appropriate env var."
+                                .to_string(),
+                    });
+                }
+                Err(CredentialResolutionError::BackendUnavailable { detail, .. }) => {
+                    return Err(SpecEngineError::AuthAcquisitionFailed {
+                        sensor_id: sensor_id.clone(),
+                        client_id: client_id_str.clone(),
+                        detail: format!(
+                            "E-AUTH-007: credential backend unavailable — {detail}. \
+                             Check that the configured backend (env file, keyring, vault) \
+                             is accessible in the current execution environment. \
+                             BC-2.01.017 v1.3 EC-017-010."
+                        ),
+                    });
+                }
+            };
+
+            // E-AUTH-006: validate the resolved api_key before returning.
+            // RFC 6265 §4.1.1: cookie-value MUST NOT contain spaces, commas,
+            // semicolons, backslashes, or double-quotes.
+            //
+            // Validation order (F-LP3-LOW-001 fix — Option a: length check FIRST):
+            //   1. Length > 4096 — catches oversized keys (including all-whitespace ones)
+            //      with accurate "exceeds 4096-byte limit" detail.
+            //   2. Empty or all-whitespace — catches the short empty/whitespace case.
+            //   3. RFC 6265 illegal characters.
+            let api_key = secret.expose_secret().to_string();
+            if api_key.len() > 4096 {
+                return Err(SpecEngineError::AuthAcquisitionFailed {
+                    sensor_id,
+                    client_id: client_id_str,
+                    detail: format!(
+                        "E-AUTH-006: api_key exceeds 4096-byte limit ({} bytes)",
+                        api_key.len()
+                    ),
+                });
+            }
+            if api_key.is_empty() || api_key.chars().all(char::is_whitespace) {
+                return Err(SpecEngineError::AuthAcquisitionFailed {
+                    sensor_id,
+                    client_id: client_id_str,
+                    detail: "E-AUTH-006: api_key is empty or all-whitespace".to_string(),
+                });
+            }
+            // RFC 6265 §4.1.1 illegal cookie-value characters.
+            //
+            // cookie-octet grammar forbids:
+            //   - ASCII control characters (0x00-0x1F incl. CR 0x0D / LF 0x0A) and DEL (0x7F)
+            //   - Space (0x20), double-quote (0x22), comma (0x2C), semicolon (0x3B), backslash (0x5C)
+            //
+            // Defense-in-depth (SEC-001 / CWE-93 / CWE-113): CTL chars (especially CRLF)
+            // are rejected here rather than at reqwest send time, producing an actionable
+            // E-AUTH-006 instead of a cryptic InvalidHeaderValue / HttpRequestFailed.
+            const ILLEGAL_COOKIE_CHARS: &[char] = &[' ', ',', ';', '\\', '"'];
+            let has_ctl = api_key.bytes().any(|b| b < 0x21 || b == 0x7F);
+            if has_ctl || api_key.chars().any(|c| ILLEGAL_COOKIE_CHARS.contains(&c)) {
+                return Err(SpecEngineError::AuthAcquisitionFailed {
+                    sensor_id,
+                    client_id: client_id_str,
+                    detail:
+                        "E-AUTH-006: api_key contains illegal RFC 6265 cookie-value characters \
+                             (CTL chars, space, comma, semicolon, backslash, or double-quote)"
+                            .to_string(),
+                });
+            }
+
+            Ok(AuthToken::new(api_key))
+        })
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -328,7 +766,43 @@ impl AuthProvider for ChainAuthProvider {
 
 #[cfg(test)]
 mod tests {
+    use prism_core::{ColumnType, OrgSlug};
+
     use super::*;
+    use crate::spec_parser::{AuthType, ColumnSpec, FetchStep, SensorSpec, TableSpec};
+
+    fn cookie_roundtrip_spec() -> SensorSpec {
+        SensorSpec::new(
+            "cyberint",
+            "Cyberint Test Sensor",
+            AuthType::CookieRoundtrip,
+            "https://mock.invalid",
+            vec![TableSpec::new_point_in_time(
+                "alerts",
+                "security_finding",
+                vec![ColumnSpec::new(
+                    "alert_id",
+                    ColumnType::String,
+                    None,
+                    vec![],
+                )],
+                vec![FetchStep::new(
+                    "fetch_alerts",
+                    "GET",
+                    "/api/v1/alerts",
+                    None,
+                    "$.data",
+                    None,
+                    vec![],
+                    None,
+                    None,
+                )],
+            )],
+            None,
+            "1.0.0",
+            vec![],
+        )
+    }
 
     /// BC-2.16.002 / AC-5: `AuthProvider` must be usable as `dyn AuthProvider`.
     ///
@@ -348,6 +822,346 @@ mod tests {
             provider.calls(),
             0,
             "no acquire_token calls yet — just testing object-safety coercion"
+        );
+    }
+
+    /// AC-005 / BC-2.01.017 §Postconditions P1: StaticCookieAuthProvider::acquire_token
+    /// injects the resolved API key as the AuthToken value.
+    ///
+    /// Verifies the StaticCookieAuthProvider's contract: given a resolved credential value,
+    /// acquire_token returns Ok(AuthToken) containing that value, with ZERO HTTP calls
+    /// (INV-COOKIE-001). Uses MockDI injection (MockCredentialResolver via new_with_resolver)
+    /// to decouple StaticCookieAuthProvider's contract from the credential backend
+    /// (BC-2.03.006 env-var resolver chain is tested in prism-credentials, not here).
+    ///
+    /// ADR-022 §C wiring; INV-COOKIE-001; BC-2.01.017 §Postconditions P1.
+    #[tokio::test]
+    async fn test_static_cookie_auth_provider_injects_resolved_token_from_credentials() {
+        let test_value = "unit-test-api-key-value";
+        // Inject the resolved credential value via MockCredentialResolver — no env var
+        // mutation required. This tests that StaticCookieAuthProvider correctly wraps the
+        // resolved value in AuthToken and returns Ok. BC-2.03.006 env-var chain coverage
+        // lives in prism-credentials unit tests (where the resolver backend lives).
+        let provider = StaticCookieAuthProvider::new_with_resolver(
+            "cyberint",
+            Arc::new(MockCredentialResolver::new(test_value)),
+        );
+        let spec = cookie_roundtrip_spec();
+        let client_id = OrgSlug::new("test-org-unit");
+
+        let result = provider.acquire_token(&spec, &client_id).await;
+
+        assert!(
+            result.is_ok(),
+            "AC-005: acquire_token must return Ok(AuthToken) when credential is resolved. \
+             Got: {:?}",
+            result
+        );
+        let token = result.unwrap();
+        assert_eq!(
+            token.as_str(),
+            test_value,
+            "AC-005: AuthToken value must equal the injected resolved credential value. \
+             BC-2.01.017 §Postconditions P1."
+        );
+    }
+
+    /// AC-006 / BC-2.01.017 §Invariants INV-COOKIE-001: acquire_token makes ZERO HTTP calls.
+    ///
+    /// Structural check: StaticCookieAuthProvider has no reqwest::Client field.
+    /// This test verifies the credential-not-found error path: when credentials are absent,
+    /// the function returns E-AUTH-005 without making any HTTP call. The no-HTTP-call property
+    /// is guaranteed by the struct having no HTTP client — the injected NotFoundCredentialResolver
+    /// returns Err immediately, and acquire_token propagates it as E-AUTH-005 with no I/O.
+    ///
+    /// Uses MockDI injection (NotFoundCredentialResolver via new_with_resolver) — no env var
+    /// mutation required. ADR-022 §C; INV-COOKIE-001; BC-2.01.017.
+    #[tokio::test]
+    async fn test_static_cookie_auth_provider_no_http_call_when_credential_missing() {
+        let provider = StaticCookieAuthProvider::new_with_resolver(
+            "cyberint",
+            Arc::new(NotFoundCredentialResolver),
+        );
+        let spec = cookie_roundtrip_spec();
+        let client_id = OrgSlug::new("test-org-unit");
+
+        // acquire_token returns E-AUTH-005 (not found) — no HTTP call made.
+        // The error itself proves the function returned without any async HTTP I/O.
+        let result = provider.acquire_token(&spec, &client_id).await;
+        assert!(
+            result.is_err(),
+            "AC-006: acquire_token must return Err when no credential is configured \
+             (E-AUTH-005 not-found path). Got Ok — unexpected credential resolution."
+        );
+        let err = result.unwrap_err();
+        let err_str = err.to_string();
+        assert!(
+            err_str.contains("E-AUTH-005"),
+            "AC-006: error must be E-AUTH-005 (credential not found). Got: {err_str}"
+        );
+    }
+
+    /// E-AUTH-005: acquire_token returns E-AUTH-005 when the credential resolver returns Err.
+    ///
+    /// Verifies BC-2.01.017 v1.2 EC-017-003 (credential not found path):
+    /// when resolve_credential returns Err (not-found), acquire_token wraps the error
+    /// as E-AUTH-005 and returns immediately without any HTTP call.
+    ///
+    /// Uses MockDI injection (NotFoundCredentialResolver via new_with_resolver) — no env var
+    /// mutation required. TD-VSDD-059 load-bearing assertion: checks E-AUTH-005 error code.
+    ///
+    /// BC-2.01.017 v1.2 EC-017-003; ADR-022 §C.
+    #[tokio::test]
+    async fn test_static_cookie_auth_provider_missing_credential_returns_e_auth_005() {
+        let provider = StaticCookieAuthProvider::new_with_resolver(
+            "cyberint",
+            Arc::new(NotFoundCredentialResolver),
+        );
+        let spec = cookie_roundtrip_spec();
+        let client_id = OrgSlug::new("test-org-unit");
+
+        let result = provider.acquire_token(&spec, &client_id).await;
+
+        assert!(
+            result.is_err(),
+            "BC-2.01.017 v1.2 EC-017-003: acquire_token must return Err when credential \
+             resolver returns Err (not-found path). Got Ok."
+        );
+        let err_str = result.unwrap_err().to_string();
+        assert!(
+            err_str.contains("E-AUTH-005"),
+            "missing credential MUST yield E-AUTH-005. \
+             Got: {err_str}. \
+             BC-2.01.017 v1.2 EC-017-003 (resolver Err path)."
+        );
+    }
+
+    /// E-AUTH-006: acquire_token returns E-AUTH-006 when the resolved credential is empty.
+    ///
+    /// Verifies BC-2.01.017 v1.2 EC-017-005 (empty/whitespace value path):
+    /// when resolve_credential returns Ok(SecretString("")) — the case where the credential
+    /// name is known but the value is empty (e.g., direct-env branch with empty value per
+    /// resolve_secret.rs EC-017-005 semantics) — acquire_token's api_key.is_empty() guard
+    /// returns E-AUTH-006, not E-AUTH-005.
+    ///
+    /// Uses MockDI injection (MockCredentialResolver::new("") via new_with_resolver) to
+    /// inject an empty SecretString directly without env var mutation. MockCredentialResolver
+    /// accepts empty string because test-helpers deliberately allow injection of invalid values
+    /// to exercise validation gates in the production code under test.
+    ///
+    /// TD-VSDD-059 load-bearing assertion: checks E-AUTH-006 error code.
+    /// BC-2.01.017 v1.2 EC-017-005; ADR-022 §C.
+    #[tokio::test]
+    async fn test_static_cookie_auth_provider_empty_value_returns_e_auth_006() {
+        // Inject an empty resolved credential value via MockCredentialResolver.
+        // MockCredentialResolver::new("") returns Ok(SecretString("")) — simulating the case
+        // where the credential store resolves the name but the value is empty.
+        // This exercises the acquire_token api_key.is_empty() guard (E-AUTH-006 path).
+        let provider = StaticCookieAuthProvider::new_with_resolver(
+            "cyberint",
+            Arc::new(MockCredentialResolver::new("")),
+        );
+        let spec = cookie_roundtrip_spec();
+        let client_id = OrgSlug::new("test-org-unit");
+
+        let result = provider.acquire_token(&spec, &client_id).await;
+
+        assert!(
+            result.is_err(),
+            "BC-2.01.017 v1.2 EC-017-005: acquire_token must return Err when resolved \
+             credential value is empty. Got Ok."
+        );
+        let err_str = result.unwrap_err().to_string();
+        assert!(
+            err_str.contains("E-AUTH-006"),
+            "empty resolved value MUST yield E-AUTH-006. \
+             Got: {err_str}. \
+             BC-2.01.017 v1.2 EC-017-005 (resolver Ok(empty) path)."
+        );
+    }
+
+    /// E-AUTH-006: acquire_token rejects an API key with illegal RFC 6265 cookie characters.
+    ///
+    /// Uses MockDI injection (MockCredentialResolver via new_with_resolver) — no env var
+    /// mutation required. The injected resolver returns the tainted key value directly,
+    /// bypassing the real credential store. ADR-022 §C; BC-2.01.017 EC-017-006.
+    #[tokio::test]
+    async fn test_static_cookie_auth_provider_rejects_illegal_cookie_chars() {
+        // Semicolon is illegal in cookie-value per RFC 6265 §4.1.1.
+        // Inject the tainted value directly via MockCredentialResolver — no env var mutation.
+        let provider = StaticCookieAuthProvider::new_with_resolver(
+            "cyberint",
+            Arc::new(MockCredentialResolver::new("valid-prefix;injected-cookie")),
+        );
+        let spec = cookie_roundtrip_spec();
+        let client_id = OrgSlug::new("test-org-unit");
+
+        let result = provider.acquire_token(&spec, &client_id).await;
+
+        assert!(
+            result.is_err(),
+            "E-AUTH-006: acquire_token must reject API keys containing ';' (illegal cookie char)"
+        );
+        let err = result.unwrap_err().to_string();
+        assert!(
+            err.contains("E-AUTH-006"),
+            "E-AUTH-006: error message must reference E-AUTH-006. Got: {err}"
+        );
+    }
+
+    /// E-AUTH-007: acquire_token returns E-AUTH-007 when the credential resolver returns
+    /// `CredentialResolutionError::BackendUnavailable`.
+    ///
+    /// Verifies BC-2.01.017 v1.3 EC-017-010 (backend unavailable path) /
+    /// TV-BC-2.01.017-009: when the resolver returns `BackendUnavailable`, acquire_token
+    /// wraps the error as E-AUTH-007 (NOT E-AUTH-005). The distinction is critical:
+    /// E-AUTH-005 = credential not configured; E-AUTH-007 = configured but backend down.
+    ///
+    /// Uses MockDI injection (BackendUnavailableCredentialResolver via new_with_resolver) —
+    /// no env var mutation required. ADR-022 §C; BC-2.01.017 v1.3 EC-017-010.
+    ///
+    /// TD-VSDD-059 load-bearing assertion: checks E-AUTH-007 code AND absence of E-AUTH-005.
+    #[tokio::test]
+    async fn test_static_cookie_auth_provider_backend_unavailable_returns_e_auth_007() {
+        let provider = StaticCookieAuthProvider::new_with_resolver(
+            "cyberint",
+            Arc::new(BackendUnavailableCredentialResolver),
+        );
+        let spec = cookie_roundtrip_spec();
+        let client_id = OrgSlug::new("test-org-unit");
+
+        let result = provider.acquire_token(&spec, &client_id).await;
+
+        assert!(
+            result.is_err(),
+            "BC-2.01.017 v1.3 EC-017-010: acquire_token must return Err when credential \
+             resolver returns BackendUnavailable. Got Ok."
+        );
+        let err_str = result.unwrap_err().to_string();
+        assert!(
+            err_str.contains("E-AUTH-007"),
+            "backend unavailable MUST yield E-AUTH-007. \
+             Got: {err_str}. \
+             BC-2.01.017 v1.3 EC-017-010 / TV-BC-2.01.017-009."
+        );
+        assert!(
+            !err_str.contains("E-AUTH-005"),
+            "backend unavailable MUST NOT produce E-AUTH-005 (that code is for missing credential). \
+             Got: {err_str}. \
+             BC-2.01.017 v1.3 EC-017-010."
+        );
+    }
+
+    /// E-AUTH-006: acquire_token rejects an oversized whitespace-only API key with
+    /// "exceeds 4096-byte limit" detail, NOT "empty or all-whitespace".
+    ///
+    /// Regression test for F-LP3-LOW-001 (validation order fix — length check before
+    /// whitespace check). A 5000-byte whitespace string previously triggered the
+    /// whitespace branch first, producing misleading detail. After the reorder,
+    /// the length check fires first with accurate detail.
+    ///
+    /// Uses MockDI injection (MockCredentialResolver with 5000-space value).
+    /// ADR-022 §C; BC-2.01.017 §E-AUTH-006.
+    #[tokio::test]
+    async fn test_static_cookie_auth_provider_rejects_oversized_whitespace_with_length_detail() {
+        // 5000 spaces: longer than 4096-byte limit, all-whitespace.
+        // Before the fix: whitespace branch fires → "empty or all-whitespace" detail.
+        // After the fix: length branch fires first → "exceeds 4096-byte limit" detail.
+        let oversized_whitespace = " ".repeat(5000);
+        let provider = StaticCookieAuthProvider::new_with_resolver(
+            "cyberint",
+            Arc::new(MockCredentialResolver::new(oversized_whitespace)),
+        );
+        let spec = cookie_roundtrip_spec();
+        let client_id = OrgSlug::new("test-org-unit");
+
+        let result = provider.acquire_token(&spec, &client_id).await;
+
+        assert!(
+            result.is_err(),
+            "E-AUTH-006: acquire_token must reject a 5000-byte whitespace api_key. Got Ok."
+        );
+        let err_str = result.unwrap_err().to_string();
+        assert!(
+            err_str.contains("E-AUTH-006"),
+            "E-AUTH-006: error must reference E-AUTH-006. Got: {err_str}"
+        );
+        assert!(
+            err_str.contains("exceeds") || err_str.contains("4096"),
+            "F-LP3-LOW-001 regression: oversized whitespace key must fire the length check \
+             (detail contains 'exceeds' or '4096'), NOT the whitespace check. \
+             Got detail: {err_str}"
+        );
+        assert!(
+            !err_str.contains("empty or all-whitespace"),
+            "F-LP3-LOW-001 regression: detail must NOT say 'empty or all-whitespace' for a \
+             5000-byte whitespace key — the length check must fire first. Got: {err_str}"
+        );
+    }
+
+    /// SEC-001 / CWE-93 / CWE-113: acquire_token must reject API keys containing ASCII
+    /// control characters (CTL chars: 0x00-0x1F incl. CR 0x0D / LF 0x0A, and DEL 0x7F).
+    ///
+    /// RFC 6265 §4.1.1 cookie-octet grammar explicitly forbids CTL characters in cookie
+    /// values. A credential with an embedded CRLF (copy-paste artifact) would otherwise
+    /// slip past E-AUTH-006 and produce a cryptic `InvalidHeaderValue`/`HttpRequestFailed`
+    /// at request time instead of a clear, actionable E-AUTH-006 error.
+    ///
+    /// Tests two distinct CTL patterns:
+    /// 1. CRLF injection: `"valid-prefix\r\nInjected: header"` — HTTP header injection vector
+    /// 2. Bare CTL byte:  `"abc\x01def"` — non-printable control char
+    ///
+    /// Both must be rejected with E-AUTH-006, NOT HttpRequestFailed or any other code.
+    ///
+    /// Uses MockDI injection — no env var mutation required.
+    /// ADR-022 §C; RFC 6265 §4.1.1; SEC-001 (S-DTU-CYBERINT-AUTH-FIDELITY-001).
+    #[tokio::test]
+    async fn test_BC_2_01_017_acquire_token_rejects_crlf_in_api_key() {
+        // ---- Pattern 1: CRLF injection (HTTP header injection / CWE-113) ----
+        let crlf_key = "valid-prefix\r\nInjected: header";
+        let provider_crlf = StaticCookieAuthProvider::new_with_resolver(
+            "cyberint",
+            Arc::new(MockCredentialResolver::new(crlf_key)),
+        );
+        let spec = cookie_roundtrip_spec();
+        let client_id = OrgSlug::new("test-org-unit");
+
+        let result_crlf = provider_crlf.acquire_token(&spec, &client_id).await;
+
+        assert!(
+            result_crlf.is_err(),
+            "SEC-001 / CWE-113: acquire_token must reject API keys containing CRLF \
+             (RFC 6265 §4.1.1 CTL chars forbidden in cookie-value). Got Ok."
+        );
+        let err_crlf = result_crlf.unwrap_err().to_string();
+        assert!(
+            err_crlf.contains("E-AUTH-006"),
+            "SEC-001: CRLF rejection must produce E-AUTH-006, NOT HttpRequestFailed or other. \
+             Got: {err_crlf}"
+        );
+        assert!(
+            !err_crlf.contains("E-AUTH-007"),
+            "SEC-001: CRLF rejection must NOT produce E-AUTH-007. Got: {err_crlf}"
+        );
+
+        // ---- Pattern 2: Bare CTL byte (CWE-93) ----
+        let ctl_key = "abc\x01def";
+        let provider_ctl = StaticCookieAuthProvider::new_with_resolver(
+            "cyberint",
+            Arc::new(MockCredentialResolver::new(ctl_key)),
+        );
+
+        let result_ctl = provider_ctl.acquire_token(&spec, &client_id).await;
+
+        assert!(
+            result_ctl.is_err(),
+            "SEC-001 / CWE-93: acquire_token must reject API keys containing bare CTL bytes \
+             (RFC 6265 §4.1.1). Got Ok."
+        );
+        let err_ctl = result_ctl.unwrap_err().to_string();
+        assert!(
+            err_ctl.contains("E-AUTH-006"),
+            "SEC-001: CTL byte rejection must produce E-AUTH-006. Got: {err_ctl}"
         );
     }
 }

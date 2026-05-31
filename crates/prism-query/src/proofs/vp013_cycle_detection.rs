@@ -23,9 +23,11 @@
 
 #[cfg(test)]
 mod concrete_tests {
-    use crate::alias_resolver::AliasResolver;
-    use crate::alias_store::AliasStore;
-    use crate::alias_types::{AliasEntry, AliasScope};
+    use crate::{
+        alias_resolver::AliasResolver,
+        alias_store::AliasStore,
+        alias_types::{AliasEntry, AliasScope},
+    };
 
     /// Self-loop: A = "@A" must always be detected as a cycle.
     ///
@@ -156,8 +158,7 @@ mod concrete_tests {
 mod proptest_harnesses {
     use proptest::prelude::*;
 
-    use crate::alias_resolver::AliasResolver;
-    use crate::alias_store::AliasStore;
+    use crate::{alias_resolver::AliasResolver, alias_store::AliasStore};
 
     // ──────────────────────────────────────────────────────────────────────
     // Graph generation strategies

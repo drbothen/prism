@@ -16,12 +16,13 @@
 //! - WGC-W2-002-backend-only   — stale keys in backend only are evicted
 //! - WGC-W2-002-cache-and-backend — stale keys in both cache and backend are evicted
 
-use std::sync::Arc;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::{
+    sync::Arc,
+    time::{Duration, SystemTime, UNIX_EPOCH},
+};
 
 use prism_core::StorageDomain;
-use prism_storage::backend::RocksStorageBackend;
-use prism_storage::memory_backend::InMemoryBackend;
+use prism_storage::{backend::RocksStorageBackend, memory_backend::InMemoryBackend};
 use serde_json::json;
 
 use crate::event_buffer::{EventBufferStore, NormalizedRecord};

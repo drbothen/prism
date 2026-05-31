@@ -20,19 +20,21 @@
 
 use chumsky::prelude::*;
 
-use crate::ast::{
-    field_path_to_expr, AggFunc, Ast, CompareOp, Expr, FieldPath, FromClause, FuncCall, Join,
-    JoinKind, Literal, LogicalOp, OrderExpr, Predicate, ScalarFunc, SelectClause, SelectItem,
-    SortDirection, Span, SqlQuery, SqlStatement,
-};
-use crate::write_ast::{DmlNode, DmlOperation};
 // S-3.06: Assignment is used by build_update_parser (UPDATE SET col=val production)
 use crate::error::ParseError;
-use crate::error_recovery::{rich_to_parse_error, sql_paren_delimiters};
-use crate::filter_parser::{build_literal_parser, build_predicate_parser, build_source_ref_parser};
-use crate::security;
 #[allow(unused_imports)]
 use crate::write_ast::Assignment;
+use crate::{
+    ast::{
+        field_path_to_expr, AggFunc, Ast, CompareOp, Expr, FieldPath, FromClause, FuncCall, Join,
+        JoinKind, Literal, LogicalOp, OrderExpr, Predicate, ScalarFunc, SelectClause, SelectItem,
+        SortDirection, Span, SqlQuery, SqlStatement,
+    },
+    error_recovery::{rich_to_parse_error, sql_paren_delimiters},
+    filter_parser::{build_literal_parser, build_predicate_parser, build_source_ref_parser},
+    security,
+    write_ast::{DmlNode, DmlOperation},
+};
 
 /// SQL keywords that must not be consumed as aliases (canonical uppercase form).
 ///

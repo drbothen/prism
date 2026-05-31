@@ -14,13 +14,17 @@
 #![allow(clippy::unwrap_used)]
 #![allow(clippy::unwrap_in_result)]
 
-use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
+use std::{
+    collections::HashMap,
+    sync::{Arc, Mutex},
+};
 
 use prism_core::{OrgSlug, SensorId};
 
-use crate::explain::{explain, AuditEvent, ExplainOptions};
-use crate::scoping::ClientRegistry;
+use crate::{
+    explain::{explain, AuditEvent, ExplainOptions},
+    scoping::ClientRegistry,
+};
 
 // ---------------------------------------------------------------------------
 // Test helpers

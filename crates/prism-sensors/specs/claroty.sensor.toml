@@ -9,15 +9,26 @@
 # NOTE: legacy ClarotyAuth::auth_type_name() returned "cookie_roundtrip" — latent label bug
 #   deleted by PLUGIN-MIGRATION-001-A. Spec follows DTU per CLAUDE.md §Source-of-Truth #7.
 #
-# POST-for-read pattern: alerts and audit_logs use method = "POST" with body template.
+# POST-for-read pattern: alerts, audit_logs, and devices use method = "POST" with body template.
 # Pagination: OffsetLimit engine appends ?offset=N&limit=M to URL query params
 #   (pipeline.rs::build_paged_url_impl). Body template does NOT include pagination fields.
-# Polymorphic ID: id column uses column_type = "string" to handle int and UUID IDs
+#   Gap-CL-004: Claroty API (and DTU) expect offset/limit in the POST body, not URL params.
+#   The current pipeline sends URL params; this is a known divergence tracked in
+#   S-DEMO-CLAROTY-PAGINATION-001. Until that pipeline story lands, queries are limited to
+#   single-page results (body pagination params are ignored by the current pipeline).
+# Polymorphic ID: alerts.id column uses column_type = "string" to handle int and UUID IDs
 #   (EC-016-013-004): JSON int IDs normalized to string at parser boundary.
 # No /xdome prefix anywhere (ADR-028 §D1 footnote).
 #
-# DTU-EXT-002: assets table deferred. DTU has /api/v1/devices (POST), not /api/v1/assets.
-#   Orchestrator follow-up required to reconcile. Only alerts is DTU-grounded here.
+# Gap-CL-001: Poller-bear uses trailing slashes on API paths (e.g. /api/v1/alerts/).
+#   TOML and DTU use no trailing slash (DTU axum routes match both). Real Claroty API
+#   may be slash-sensitive. Trailing slash addition deferred to S-DEMO-CLAROTY-TRAILING-SLASH-001.
+#
+# Fidelity audit 2026-05-29 fixes applied:
+#   Gap-CS-001 (crowdstrike): n/a
+#   Gap-CL-003: added [[tables]] block for devices (DTU-grounded: POST /api/v1/devices)
+#   Gap-CL-005: renamed alert columns to match DTU ClarotyAlert struct field names
+#   Gap-CL-002: fixed audit_log path from /api/v1/audit_logs to /api/v1/audit_log/get
 
 sensor_id = "claroty"
 name = "Claroty xDome"
@@ -29,6 +40,15 @@ version = "1.0.0"
 # Table: alerts
 # POST-for-read pattern; offset pagination (page_size = 100)
 # DTU route: POST /api/v1/alerts (crates/prism-dtu-claroty/src/clone.rs build_router())
+#
+# Gap-CL-005 fix (2026-05-29): column names updated to match DTU ClarotyAlert struct
+#   (crates/prism-dtu-claroty/src/types.rs). Previous column names had 4 mismatches:
+#   - "type" → "alert_type_name" (DTU field is alert_type_name)
+#   - "severity" → removed (no severity field in Claroty alerts API or DTU struct)
+#   - "created_at" → "detected_time" (DTU field is detected_time)
+#   - "updated_at" → "updated_time" (DTU field is updated_time)
+#   - "device_id" → removed (no device_id field; device association is via devices_count)
+#   Added: "category" (DTU field), "devices_count" (DTU field integer)
 # ---------------------------------------------------------------------------
 [[tables]]
 table_name = "alerts"
@@ -36,41 +56,47 @@ ocsf_class = "security_finding"
 
   # Polymorphic ID: Claroty returns IDs as JSON integers or UUID strings.
   # Normalized to string at the spec parser boundary (EC-016-013-004).
+  # DTU ClarotyAlert.id: u32 — normalized to string by pipeline.
   [[tables.columns]]
   name = "id"
   column_type = "string"
   ocsf_field = "finding.uid"
   options = ["REQUIRED"]
 
+  # DTU ClarotyAlert.alert_type_name: String — the alert type label.
   [[tables.columns]]
-  name = "type"
+  name = "alert_type_name"
   column_type = "string"
   ocsf_field = "type_name"
 
+  # DTU ClarotyAlert.category: String — alert category.
   [[tables.columns]]
-  name = "severity"
+  name = "category"
   column_type = "string"
-  ocsf_field = "severity"
+  ocsf_field = "class_name"
 
   [[tables.columns]]
   name = "status"
   column_type = "string"
   ocsf_field = "status"
 
+  # DTU ClarotyAlert.detected_time: String — ISO 8601 detection timestamp.
   [[tables.columns]]
-  name = "created_at"
+  name = "detected_time"
   column_type = "datetime"
   ocsf_field = "time"
 
+  # DTU ClarotyAlert.updated_time: String — ISO 8601 last update timestamp.
   [[tables.columns]]
-  name = "updated_at"
+  name = "updated_time"
   column_type = "datetime"
   ocsf_field = "end_time"
 
+  # DTU ClarotyAlert.devices_count: u32 — count of affected devices.
   [[tables.columns]]
-  name = "device_id"
-  column_type = "string"
-  ocsf_field = "device.uid"
+  name = "devices_count"
+  column_type = "integer"
+  ocsf_field = "count"
 
   [[tables.columns]]
   name = "description"
@@ -85,6 +111,8 @@ ocsf_class = "security_finding"
   # F-LP3-HIGH-004: removed '{"size": 100}' from body_template. The OffsetLimit engine
   #   appends ?offset=N&limit=M to URL — embedding a hardcoded size in the body conflicts
   #   with URL-based page_size semantics. Using empty JSON object body instead.
+  # Gap-CL-004: offset/limit should be in POST body per Claroty API, not URL params.
+  #   Pipeline fix tracked in S-DEMO-CLAROTY-PAGINATION-001.
   [[tables.steps]]
   name = "fetch_alerts"
   method = "POST"
@@ -99,9 +127,12 @@ ocsf_class = "security_finding"
 # ---------------------------------------------------------------------------
 # Table: audit_logs
 # POST-for-read pattern; offset pagination
-# Note: no DTU route registered yet for audit_logs — included as documented gap.
-# DTU-audit-gap: Claroty DTU does not yet expose /api/v1/audit_logs.
-# Orchestrator follow-up required to add this route to prism-dtu-claroty.
+# DTU gap: no /api/v1/audit_log/get route in prism-dtu-claroty yet.
+#   Add route tracked in S-DEMO-CLAROTY-AUDIT-DTU-001.
+#   Queries against claroty_audit_logs will return 404 until DTU route lands.
+# Gap-CL-002 fix (2026-05-29): corrected path from /api/v1/audit_logs to
+#   /api/v1/audit_log/get per poller-bear reference (poller-express semport
+#   broad-sweep §4.3: POST /api/v1/audit_log/get).
 # ---------------------------------------------------------------------------
 [[tables]]
 table_name = "audit_logs"
@@ -134,19 +165,95 @@ ocsf_class = "audit_activity"
   ocsf_field = "dst_resource.name"
 
   # POST-for-read step with offset pagination
-  # DTU gap: no /api/v1/audit_logs route in prism-dtu-claroty yet.
+  # DTU gap: no /api/v1/audit_log/get route in prism-dtu-claroty yet
+  #   (S-DEMO-CLAROTY-AUDIT-DTU-001 tracks adding it).
   # response_path: forward-looking placeholder — real Claroty xDome API uses
-  #   {"audit_logs": [...]} response shape (consistent with per-resource wrapping convention).
+  #   {"audit_log": [...]} response shape per poller-bear reference.
   # body_template: OffsetLimit pagination handles offset via URL params (not body fields).
-  #   ${page_offset} is NOT a valid step variable; removed per CRIT-002 (ADR-028 §D1).
-  # F-LP3-HIGH-004: removed '{"size": 100}' from body_template (consistent with alerts fix).
-  #   OffsetLimit engine appends ?offset=N&limit=M to URL; body size would conflict.
+  #   Gap-CL-004 applies here too: real API expects body-based pagination.
   [[tables.steps]]
   name = "fetch_audit_logs"
   method = "POST"
-  path_template = "/api/v1/audit_logs"
+  path_template = "/api/v1/audit_log/get"
   body_template = '{}'
-  response_path = "$.audit_logs"
+  response_path = "$.audit_log"
+  variables_produced = []
+  [tables.steps.pagination]
+  type = "offset_limit"
+  page_size = 100
+
+# ---------------------------------------------------------------------------
+# Table: devices
+# POST-for-read pattern; offset pagination
+# DTU route: POST /api/v1/devices (crates/prism-dtu-claroty/src/clone.rs build_router())
+#
+# Gap-CL-003 fix (2026-05-29): added this table. Previously absent from TOML despite
+#   a fully working DTU route and production poller support. Columns grounded from
+#   DTU ClarotyDevice struct (crates/prism-dtu-claroty/src/types.rs):
+#   uid, asset_id, device_category, device_type, ip_list, mac_list, risk_score, retired.
+#   Not included (complex/collection types or not yet supported by column grammar):
+#     assignees (Vec<String>), labels (Vec<String>), network_list (Vec<String>),
+#     vlan_list (Vec<u32>), tags (Vec<String>), device_subcategory, device_type_family,
+#     model, os_category. Follow-up story to add array column type support.
+# Gap-CL-004 applies here too: offset/limit should be in POST body per Claroty API.
+#   Pipeline fix tracked in S-DEMO-CLAROTY-PAGINATION-001.
+# ---------------------------------------------------------------------------
+[[tables]]
+table_name = "devices"
+ocsf_class = "device"
+
+  # DTU ClarotyDevice.uid: String — Claroty's unique device identifier (UUID form).
+  [[tables.columns]]
+  name = "uid"
+  column_type = "string"
+  ocsf_field = "device.uid"
+  options = ["REQUIRED"]
+
+  # DTU ClarotyDevice.asset_id: String — asset tracking identifier.
+  [[tables.columns]]
+  name = "asset_id"
+  column_type = "string"
+  ocsf_field = "device.instance_uid"
+
+  # DTU ClarotyDevice.device_category: String — high-level device category
+  #   (e.g. "OT Device", "IT Device", "Medical Device").
+  [[tables.columns]]
+  name = "device_category"
+  column_type = "string"
+  ocsf_field = "device.type"
+
+  # DTU ClarotyDevice.device_type: String — device type within category.
+  [[tables.columns]]
+  name = "device_type"
+  column_type = "string"
+  ocsf_field = "device.type_name"
+
+  # DTU ClarotyDevice.risk_score: String — Claroty risk score (string-typed in DTU;
+  #   may be numeric string like "7.5" or label like "High"). String column to preserve
+  #   exact DTU value; consumer normalizes for display.
+  [[tables.columns]]
+  name = "risk_score"
+  column_type = "string"
+  ocsf_field = "risk_score"
+
+  # DTU ClarotyDevice.retired: bool — whether the device is marked as retired/decommissioned.
+  [[tables.columns]]
+  name = "retired"
+  column_type = "boolean"
+  ocsf_field = "status_code"
+
+  # POST-for-read step with offset pagination
+  # DTU route: POST /api/v1/devices (crates/prism-dtu-claroty/src/clone.rs build_router())
+  # response_path: DTU returns {"devices": [...], "total": N, "page": N} per GetDevicesResponse.
+  # body_template: empty JSON object; OffsetLimit engine appends ?offset=N&limit=M to URL.
+  # Gap-CL-004: offset/limit should be in POST body per Claroty API.
+  #   Pipeline fix tracked in S-DEMO-CLAROTY-PAGINATION-001.
+  [[tables.steps]]
+  name = "fetch_devices"
+  method = "POST"
+  path_template = "/api/v1/devices"
+  body_template = '{}'
+  response_path = "$.devices"
   variables_produced = []
   [tables.steps.pagination]
   type = "offset_limit"

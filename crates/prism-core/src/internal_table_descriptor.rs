@@ -10,8 +10,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::storage::StorageDomain;
-use crate::types::ColumnType as InternalColumnType;
+use crate::{storage::StorageDomain, types::ColumnType as InternalColumnType};
 
 /// Registration metadata for a single internal PrismQL table.
 ///

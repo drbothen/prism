@@ -19,12 +19,7 @@
     unused_mut,
     unused_doc_comments
 )]
-use std::collections::HashMap;
-use std::path::PathBuf;
-use std::sync::Arc;
-
-use proptest::prelude::*;
-use tempfile::TempDir;
+use std::{collections::HashMap, path::PathBuf, sync::Arc};
 
 use prism_spec_engine::{
     SpecEngineError,
@@ -42,6 +37,8 @@ use prism_spec_engine::{
         ValidationError,
     },
 };
+use proptest::prelude::*;
+use tempfile::TempDir;
 
 // ---------------------------------------------------------------------------
 // Test helpers

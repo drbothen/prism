@@ -1,11 +1,13 @@
 // S-1.12: list_sensor_specs MCP tool logic.
 // BC-2.16.010: List Loaded Sensor Specs with Table Schemas and Status.
 
-use crate::config_manager::ConfigManager;
-use crate::error::SpecEngineError;
-use crate::types::{
-    ClientStatus, ListSensorSpecsArgs, ListSensorSpecsResult, SensorSpecEntry, SpecStatus,
-    sensor_table_descriptor_from_table_spec,
+use crate::{
+    config_manager::ConfigManager,
+    error::SpecEngineError,
+    types::{
+        ClientStatus, ListSensorSpecsArgs, ListSensorSpecsResult, SensorSpecEntry, SpecStatus,
+        sensor_table_descriptor_from_table_spec,
+    },
 };
 
 /// Return all loaded sensor specs from the current ConfigSnapshot.

@@ -23,9 +23,11 @@ use axum::{
     Json,
 };
 
-use crate::routes::issues::check_basic_auth;
-use crate::state::JiraState;
-use crate::types::{AddCommentRequest, AddCommentResponse, JiraError};
+use crate::{
+    routes::issues::check_basic_auth,
+    state::JiraState,
+    types::{AddCommentRequest, AddCommentResponse, JiraError},
+};
 
 /// `POST /rest/api/3/issue/{issueKey}/comment` — add a comment to an issue.
 pub async fn add_comment(

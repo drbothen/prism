@@ -7,16 +7,13 @@
 //! `axum_server::bind_rustls` and serves HTTPS.  When `None`, plain axum HTTP
 //! is used (backward-compatible default).
 
-use std::net::SocketAddr;
-use std::sync::Arc;
+use std::{net::SocketAddr, sync::Arc};
 
 use async_trait::async_trait;
 use prism_dtu_common::{BehavioralClone, StubConfig};
-use tokio::sync::broadcast;
-use tokio::task::JoinHandle;
+use tokio::{sync::broadcast, task::JoinHandle};
 
-use crate::routes::build_router;
-use crate::state::CrowdstrikeState;
+use crate::{routes::build_router, state::CrowdstrikeState};
 
 /// L4-adversarial behavioral clone of the CrowdStrike Falcon API.
 ///

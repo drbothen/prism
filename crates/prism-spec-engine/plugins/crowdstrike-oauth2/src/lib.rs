@@ -131,8 +131,7 @@ pub struct HttpResponse {
 /// F-LP3-HIGH-001 closure: adds `impl Guest for Component` + `export!(Component)`.
 #[cfg(target_arch = "wasm32")]
 mod host_impl {
-    use super::AuthError;
-    use super::HttpResponse;
+    use super::{AuthError, HttpResponse};
 
     // wit-bindgen generates host function wrappers AND export trait from the WIT spec.
     // The generated code is placed at the current module scope.
@@ -633,8 +632,9 @@ pub fn plugin_version() -> &'static str {
 #[cfg(test)]
 #[allow(non_snake_case)] // EC-NNN naming convention required by story §Edge Cases table
 mod tests {
-    use super::*;
     use std::cell::RefCell;
+
+    use super::*;
 
     // -------------------------------------------------------------------------
     // MockHost — test double for HostInterface

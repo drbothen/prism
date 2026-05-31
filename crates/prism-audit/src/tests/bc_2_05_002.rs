@@ -13,8 +13,7 @@
 //! AC-3: serialised entry contains all required compliance fields.
 
 use chrono::Utc;
-use prism_core::tenant::OrgSlug;
-use prism_core::OrgId;
+use prism_core::{tenant::OrgSlug, OrgId};
 use serde_json::Value;
 use uuid::Uuid;
 

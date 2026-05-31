@@ -11,8 +11,9 @@
 //!
 //! Default behaviour (None) is backward-compatible plain HTTP.
 
-use async_trait::async_trait;
 use std::net::SocketAddr;
+
+use async_trait::async_trait;
 
 /// Trait implemented by every per-surface DTU behavioral clone.
 ///

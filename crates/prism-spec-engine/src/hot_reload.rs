@@ -2,12 +2,13 @@
 // BC-2.16.007: Sensor spec hot reload — add/remove/update sensor tables without restart.
 // AD-018: notify crate (cross-platform filesystem events) or poll on configurable interval.
 
-use std::path::PathBuf;
-use std::sync::Arc;
+use std::{path::PathBuf, sync::Arc};
 
-use crate::config_manager::{ConfigManager, compute_file_hash, extract_sensor_id_from_path};
-use crate::error::SpecEngineError;
-use crate::types::{ModifiedSpec, ReloadResult, ReloadStatus, ValidationError};
+use crate::{
+    config_manager::{ConfigManager, compute_file_hash, extract_sensor_id_from_path},
+    error::SpecEngineError,
+    types::{ModifiedSpec, ReloadResult, ReloadStatus, ValidationError},
+};
 
 /// Mechanism for filesystem change detection.
 #[derive(Debug, Clone, Default)]

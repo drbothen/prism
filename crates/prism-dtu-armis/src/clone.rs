@@ -14,8 +14,7 @@
 //! `axum_server::bind_rustls` and serves HTTPS.  When `None`, plain axum HTTP
 //! is used (backward-compatible default).
 
-use std::net::SocketAddr;
-use std::sync::Arc;
+use std::{net::SocketAddr, sync::Arc};
 
 use async_trait::async_trait;
 use axum::{
@@ -24,17 +23,18 @@ use axum::{
 };
 use prism_core::OrgId;
 use prism_dtu_common::{BehavioralClone, FailureLayer};
-use tokio::sync::broadcast;
-use tokio::task::JoinHandle;
+use tokio::{sync::broadcast, task::JoinHandle};
 
-use crate::routes::{
-    alerts::get_alerts,
-    devices::{get_device_activity, get_device_risk, get_or_post_devices, post_devices},
-    dtu::{get_aql_log, get_health, post_configure, post_reset},
-    tags::{delete_device_tag, post_device_tag},
+use crate::{
+    routes::{
+        alerts::get_alerts,
+        devices::{get_device_activity, get_device_risk, get_or_post_devices, post_devices},
+        dtu::{get_aql_log, get_health, post_configure, post_reset},
+        tags::{delete_device_tag, post_device_tag},
+    },
+    state::ArmisState,
+    types::{ActivityRecord, AlertRecord, DeviceRecord},
 };
-use crate::state::ArmisState;
-use crate::types::{ActivityRecord, AlertRecord, DeviceRecord};
 
 /// L2-fidelity behavioral clone of the Armis Centrix API.
 pub struct ArmisClone {

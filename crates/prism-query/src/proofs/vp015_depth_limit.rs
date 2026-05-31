@@ -29,13 +29,15 @@
 
 #[cfg(kani)]
 mod kani_proofs {
-    use crate::ast::{
-        CompareOp, Expr, FieldPath, FromClause, Literal, Predicate, SelectClause, SelectItem,
-        SourceRef, Span, SqlQuery,
-    };
-    use crate::security::{
-        check_expr_nesting_depth, check_nesting_depth, check_predicate_nesting_depth,
-        check_sql_query_nesting_depth, PRISM_MAX_NESTING_DEPTH,
+    use crate::{
+        ast::{
+            CompareOp, Expr, FieldPath, FromClause, Literal, Predicate, SelectClause, SelectItem,
+            SourceRef, Span, SqlQuery,
+        },
+        security::{
+            check_expr_nesting_depth, check_nesting_depth, check_predicate_nesting_depth,
+            check_sql_query_nesting_depth, PRISM_MAX_NESTING_DEPTH,
+        },
     };
 
     /// VP-015 — `check_nesting_depth(Expr)` at depth > 64 always returns Err.
@@ -186,13 +188,15 @@ mod kani_proofs {
 
 #[cfg(test)]
 mod dynamic_tests {
-    use crate::ast::{
-        CompareOp, Expr, FieldPath, FromClause, Literal, Predicate, SelectClause, SelectItem,
-        SourceRef, Span, SqlQuery,
-    };
-    use crate::security::{
-        check_expr_nesting_depth, check_predicate_nesting_depth, check_sql_query_nesting_depth,
-        PRISM_MAX_NESTING_DEPTH,
+    use crate::{
+        ast::{
+            CompareOp, Expr, FieldPath, FromClause, Literal, Predicate, SelectClause, SelectItem,
+            SourceRef, Span, SqlQuery,
+        },
+        security::{
+            check_expr_nesting_depth, check_predicate_nesting_depth, check_sql_query_nesting_depth,
+            PRISM_MAX_NESTING_DEPTH,
+        },
     };
 
     fn deep_predicate(depth: u32) -> Predicate {

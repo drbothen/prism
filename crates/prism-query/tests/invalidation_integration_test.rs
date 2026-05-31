@@ -19,11 +19,12 @@
 
 use std::sync::Arc;
 
-use prism_core::tenant::OrgSlug;
-use prism_core::SensorId;
-use prism_query::cache::QueryCache;
-use prism_query::cache_key::CacheKey;
-use prism_query::invalidation::{register_write_tool, CacheInvalidator, WriteToolInvalidationMap};
+use prism_core::{tenant::OrgSlug, SensorId};
+use prism_query::{
+    cache::QueryCache,
+    cache_key::CacheKey,
+    invalidation::{register_write_tool, CacheInvalidator, WriteToolInvalidationMap},
+};
 use prism_spec_engine::error::SpecEngineError;
 
 // ---------------------------------------------------------------------------

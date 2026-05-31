@@ -28,9 +28,11 @@ use prism_core::OrgId;
 use serde_json::{json, Value};
 use uuid::Uuid;
 
-use crate::routes::devices::{check_bearer_auth, validate_org_id};
-use crate::state::ClarotyState;
-use crate::types::AddTagBody;
+use crate::{
+    routes::devices::{check_bearer_auth, validate_org_id},
+    state::ClarotyState,
+    types::AddTagBody,
+};
 
 /// Extract `OrgId` from the `X-Org-Id` header (UUID string).
 ///

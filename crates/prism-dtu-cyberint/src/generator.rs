@@ -507,8 +507,9 @@ mod schema_validation {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use prism_dtu_common::{all_archetypes, GenOpts};
+
+    use super::*;
 
     /// AC-001: per-surface counts at scale=1.0 for all 8 archetypes.
     #[test]

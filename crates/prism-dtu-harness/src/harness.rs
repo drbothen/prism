@@ -34,18 +34,18 @@
 //! - BC-3.6.001 Invariants 1-4; postconditions 1-4
 //! - BC-3.6.002 Invariants 1-4; postconditions 1-5
 
-use std::collections::HashMap;
-use std::net::SocketAddr;
+use std::{collections::HashMap, net::SocketAddr};
 
-use tokio::sync::watch;
-use tokio::task::JoinHandle;
-
-use crate::builder::HarnessBuilder;
-use crate::crash_monitor::poll_crash;
-use crate::error::HarnessError;
-use crate::types::{DtuType, OrgKey};
 use prism_core::ids::OrgId;
 use prism_dtu_common::FailureMode;
+use tokio::{sync::watch, task::JoinHandle};
+
+use crate::{
+    builder::HarnessBuilder,
+    crash_monitor::poll_crash,
+    error::HarnessError,
+    types::{DtuType, OrgKey},
+};
 
 /// The running multi-tenant DTU test harness.
 ///

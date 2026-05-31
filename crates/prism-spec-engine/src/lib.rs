@@ -63,28 +63,56 @@ pub mod plugin_audit_sink;
 pub mod plugin_auth_provider;
 
 // S-1.11 re-exports
+// S-DTU-CYBERINT-AUTH-FIDELITY-001 — production auth provider for cookie_roundtrip sensors
+// (BC-2.01.017; ADR-031 §D3-b; NOT feature-gated — this is a production type)
+// NullAuthProvider + MockAuthProvider + FailingAuthProvider + MockCredentialResolver: test-only;
+// feature-gated to prevent accidental use in production callers that would silently bypass real
+// auth. Enable the `test-helpers` Cargo feature in [dev-dependencies] to access these.
+#[cfg(any(test, feature = "test-helpers"))]
+pub use auth_provider::{
+    AuthOutcome, BackendUnavailableCredentialResolver, ChainAuthProvider, FailingAuthProvider,
+    MockAuthProvider, MockCredentialResolver, NotFoundCredentialResolver, NullAuthProvider,
+};
+// S-PLUGIN-PREREQ-B — auth interface re-exports (BC-2.01.013 / ADR-023 §C2)
+pub use auth_provider::{AuthProvider, AuthToken};
+pub use auth_provider::{CredentialResolver, PrismCredentialResolver, StaticCookieAuthProvider};
 pub use column_mapping::{ColumnMapping, MappingResult};
+// S-1.12 hot-reload re-exports
+pub use config_manager::ConfigManager;
+pub use error::SpecEngineError;
 // S-1.14 infusion exports
 pub use infusion::cache::QueryScopedInfusionCache;
-pub use infusion::enrich_descriptor::EnrichStageDescriptor;
-pub use infusion::udf::InfusionUdfDescriptor;
 pub use infusion::{
     BuiltInSourceType, CredentialRef, InfusionField, InfusionRegistry, InfusionRegistryInner,
     InfusionSource, InfusionSourceConfig, InfusionSpec, InfusionType, PipeStageConfig,
-    PluginConfig,
+    PluginConfig, enrich_descriptor::EnrichStageDescriptor, udf::InfusionUdfDescriptor,
 };
 pub use interpolation::{InterpolationContext, InterpolationError};
+// S-3.1.05 re-exports
+pub use org_scoped_store::OrgScopedSpecStore;
+// S-CONFIG-MULTI-TENANT-OVERRIDE-001 re-exports (ADR-029)
+pub use overlay::{
+    OverlayLoadResult, OverlayLoader, OverlayProvenance, ResolvedSensorSpec, ResolvedSpecKey,
+    SensorInstanceOverlay,
+};
 pub use pipeline::{FetchContext, PipelineExecutor, PipelineResult};
 pub use plugin::{
     ActionResult, AlertContext, CaseContext, LoadedPlugin, ManifestWriteTool, PluginRuntime,
     PluginType, ReportContext,
 };
+// PLUGIN-MIGRATION-001-E — PluginAuthProvider re-export (HIGH-010)
+pub use plugin_auth_provider::PluginAuthProvider;
+// TableType is now re-exported from prism-core (S-2.08 Defect 2 fix)
+pub use prism_core::TableType;
 pub use spec_parser::{
     AuthType, ColumnSpec, FetchStep, PaginationConfig, RateLimitHints, SensorSpec,
     SensorTableDescriptor, SpecLoader, TableSpec,
 };
-// TableType is now re-exported from prism-core (S-2.08 Defect 2 fix)
-pub use prism_core::TableType;
+pub use types::{
+    AddSensorSpecArgs, AddSensorSpecResult, ClientStatus, ColumnDef, ColumnType, ConfigSnapshot,
+    DtuMode, ListSensorSpecsArgs, ListSensorSpecsResult, ModeChange, ModifiedSpec, PaginationType,
+    ReloadConfigArgs, ReloadResult, ReloadStatus, SensorSpecEntry, SpecStatus,
+};
 pub use validation::{
     ValidationError, ValidationWarning, ValidatorOutput, validate_auth_plugin_fields,
     validate_auth_plugin_registered, validate_sensor_spec,
@@ -92,36 +120,4 @@ pub use validation::{
 pub use write_endpoint::{
     BatchMode, WriteEndpointRegistry, WriteEndpointSpec, WriteStep, WriteTableDescriptor,
     check_reserved_keyword, validate_write_endpoints,
-};
-
-// S-1.12 hot-reload re-exports
-pub use config_manager::ConfigManager;
-pub use error::SpecEngineError;
-
-// S-PLUGIN-PREREQ-B — auth interface re-exports (BC-2.01.013 / ADR-023 §C2)
-pub use auth_provider::{AuthProvider, AuthToken};
-
-// NullAuthProvider + MockAuthProvider + FailingAuthProvider: test-only; feature-gated
-// to prevent accidental use in production callers that would silently bypass real auth.
-// Enable the `test-helpers` Cargo feature in [dev-dependencies] to access these.
-#[cfg(any(test, feature = "test-helpers"))]
-pub use auth_provider::{
-    AuthOutcome, ChainAuthProvider, FailingAuthProvider, MockAuthProvider, NullAuthProvider,
-};
-
-// PLUGIN-MIGRATION-001-E — PluginAuthProvider re-export (HIGH-010)
-pub use plugin_auth_provider::PluginAuthProvider;
-
-// S-3.1.05 re-exports
-pub use org_scoped_store::OrgScopedSpecStore;
-
-// S-CONFIG-MULTI-TENANT-OVERRIDE-001 re-exports (ADR-029)
-pub use overlay::{
-    OverlayLoadResult, OverlayLoader, OverlayProvenance, ResolvedSensorSpec, ResolvedSpecKey,
-    SensorInstanceOverlay,
-};
-pub use types::{
-    AddSensorSpecArgs, AddSensorSpecResult, ClientStatus, ColumnDef, ColumnType, ConfigSnapshot,
-    DtuMode, ListSensorSpecsArgs, ListSensorSpecsResult, ModeChange, ModifiedSpec, PaginationType,
-    ReloadConfigArgs, ReloadResult, ReloadStatus, SensorSpecEntry, SpecStatus,
 };

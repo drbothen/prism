@@ -5,8 +5,7 @@
 //! classes and objects with inheritance fully resolved, eliminating the need to
 //! implement OCSF's `extends` + `$include` + profile merging logic.
 
-use std::collections::BTreeMap;
-use std::path::Path;
+use std::{collections::BTreeMap, path::Path};
 
 use serde::Deserialize;
 

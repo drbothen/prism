@@ -8,8 +8,7 @@
 
 #[cfg(any(test, feature = "test-utils"))]
 pub mod memory_backend_inner {
-    use std::collections::BTreeMap;
-    use std::sync::RwLock;
+    use std::{collections::BTreeMap, sync::RwLock};
 
     use prism_core::{PrismError, StorageDomain};
 

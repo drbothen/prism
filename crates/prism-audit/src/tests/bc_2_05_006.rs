@@ -11,20 +11,19 @@
 //! EC-004: concurrent invocations produce unique keys.
 //! EC-005: no `remove(AuditBuffer, ...)` in prism-audit source.
 
-use std::collections::HashMap;
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
-use prism_core::org_registry::OrgRegistry;
-use prism_core::{PrismError, StorageDomain};
-use prism_storage::backend::RocksStorageBackend;
-use prism_storage::memory_backend::InMemoryBackend;
+use prism_core::{org_registry::OrgRegistry, PrismError, StorageDomain};
+use prism_storage::{backend::RocksStorageBackend, memory_backend::InMemoryBackend};
 use tower::{Layer, Service};
 use uuid::Uuid;
 
-use crate::audit_emitter::{
-    AuditEmitterLayer, AuditedRequest, AuditedResponse, ToolClass, ToolClassificationRegistry,
+use crate::{
+    audit_emitter::{
+        AuditEmitterLayer, AuditedRequest, AuditedResponse, ToolClass, ToolClassificationRegistry,
+    },
+    tests::helpers::{make_request, AlwaysSucceedService, MemBackend},
 };
-use crate::tests::helpers::{make_request, AlwaysSucceedService, MemBackend};
 
 // ── Helper: invoke for tests ──────────────────────────────────────────────────
 

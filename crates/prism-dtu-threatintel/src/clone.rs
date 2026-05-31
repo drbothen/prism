@@ -7,8 +7,7 @@
 //! `axum_server::bind_rustls` and serves HTTPS.  When `None`, plain axum HTTP
 //! is used (backward-compatible default).
 
-use std::net::SocketAddr;
-use std::sync::Arc;
+use std::{net::SocketAddr, sync::Arc};
 
 use async_trait::async_trait;
 use axum::{
@@ -16,13 +15,15 @@ use axum::{
     Router,
 };
 use prism_dtu_common::{BehavioralClone, StubConfig};
-use tokio::net::TcpListener;
-use tokio::sync::broadcast;
-use tokio::task::JoinHandle;
+use tokio::{net::TcpListener, sync::broadcast, task::JoinHandle};
 
-use crate::routes::dtu::{dtu_health, dtu_reset};
-use crate::routes::lookup::{configure, domain_lookup, hash_lookup, ip_lookup};
-use crate::state::ThreatIntelState;
+use crate::{
+    routes::{
+        dtu::{dtu_health, dtu_reset},
+        lookup::{configure, domain_lookup, hash_lookup, ip_lookup},
+    },
+    state::ThreatIntelState,
+};
 
 /// L2-stateful behavioral clone of the Threat Intel Aggregator infusion plugin API.
 ///

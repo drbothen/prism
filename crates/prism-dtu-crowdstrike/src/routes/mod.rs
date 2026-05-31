@@ -7,13 +7,14 @@ pub mod writes;
 
 use std::sync::Arc;
 
-use axum::extract::State as AxumState;
-use axum::extract::State;
-use axum::http::{HeaderMap, Request, StatusCode};
-use axum::middleware::{self, Next};
-use axum::response::{IntoResponse, Json, Response};
-use axum::routing::{get, patch, post};
-use axum::Router;
+use axum::{
+    extract::{State as AxumState, State},
+    http::{HeaderMap, Request, StatusCode},
+    middleware::{self, Next},
+    response::{IntoResponse, Json, Response},
+    routing::{get, patch, post},
+    Router,
+};
 use prism_dtu_common::{FailureMode, LatencyLayer};
 use subtle::ConstantTimeEq;
 

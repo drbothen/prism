@@ -25,14 +25,15 @@ use async_trait::async_trait;
 use chrono::Utc;
 use prism_core::{OrgId, OrgSlug, PrismError, RiskTier, SensorId};
 use prism_security::feature_flag::CapabilityCheckResult;
-use prism_sensors::AdapterRegistry;
-use prism_sensors::RecordWriteResult;
+use prism_sensors::{AdapterRegistry, RecordWriteResult};
 use prism_spec_engine::write_endpoint::WriteEndpointSpec;
 use tokio::sync::Semaphore;
 use ulid::Ulid;
 
-use crate::write_pipeline::{QueryContext, WritePlan};
-use crate::write_result::{SensorWriteError, WriteResult};
+use crate::{
+    write_pipeline::{QueryContext, WritePlan},
+    write_result::{SensorWriteError, WriteResult},
+};
 
 /// Write semaphore capacity — MUST be 4 (story §Architecture Compliance Rule 3).
 ///
@@ -405,11 +406,13 @@ impl WriteDispatcher {
 #[cfg(test)]
 #[allow(clippy::expect_used)]
 mod fan_out_empty_batch_tests {
-    use super::*;
-    use crate::write_pipeline::{QueryContext, WritePlan};
+    use std::collections::HashMap;
+
     use prism_core::OrgSlug;
     use prism_spec_engine::write_endpoint::{BatchMode, WriteEndpointSpec};
-    use std::collections::HashMap;
+
+    use super::*;
+    use crate::write_pipeline::{QueryContext, WritePlan};
 
     struct NoOpAudit;
 

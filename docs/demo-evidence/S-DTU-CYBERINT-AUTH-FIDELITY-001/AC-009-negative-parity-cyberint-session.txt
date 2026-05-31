@@ -1,0 +1,46 @@
+AC-009: Negative parity — cyberint_session cookie returns 401 from corrected DTU
+Story: S-DTU-CYBERINT-AUTH-FIDELITY-001
+BC: BC-2.16.013 invariant; ADR-031 §D1-a §D5
+
+Evidence type: Integration test output (HTTP-layer — AC-003 negative sub-case
+and dedicated multi_tenant negative test)
+
+--- TEST RUN (AC-003 negative sub-case, direct DTU HTTP test) ---
+
+PASS [  12.413s] prism-dtu-cyberint::bc_2_01_017_access_token_auth
+  bc_2_01_017_dtu::test_BC_2_16_013_dtu_check_auth_requires_access_token_cookie_not_session
+
+This test's sub-case 2 directly sends:
+  GET /api/v1/alerts with Cookie: cyberint_session=any-legacy-session-value
+  => HTTP 401
+
+Assertion: "AC-003 / BC-2.16.013: GET /api/v1/alerts with 'Cookie: cyberint_session=...'
+MUST return 401 — the old pre-fix cookie name is not accepted by the corrected DTU.
+Verify extract_access_token does NOT parse cyberint_session."
+
+--- MULTI_TENANT HTTP TEST ---
+
+PASS [   7.395s] prism-dtu-cyberint::multi_tenant
+  multi_tenant::test_BC_2_01_017_http_post_login_returns_404
+
+This test sends POST /login and asserts 404 — the entire login route is removed.
+Any attempt to authenticate via the old login+session pattern fails immediately.
+
+--- FURTHER NEGATIVE EVIDENCE: zero cyberint_session occurrences in production auth ---
+
+grep on crates/prism-dtu-cyberint/src/:
+  extract_access_token function: strips only "access_token=" prefix
+  check_auth: delegates to extract_access_token
+  state.is_valid_access_token: checks HashSet (no session UUID key lookup)
+  routes/auth.rs: no post_login handler (file does not contain post_login)
+
+Result: no code path in the corrected DTU accepts a cyberint_session cookie value
+as a valid authentication credential.
+
+--- WHY THIS SATISFIES AC-009 ---
+
+AC-009 requires a test that "directly sends the wrong cookie name" and asserts 401.
+The AC-003 negative sub-case is exactly that test — it runs against a live
+CyberintClone HTTP server and asserts 401 for cyberint_session cookies.
+
+AC-009 SATISFIED.

@@ -14,11 +14,14 @@
     clippy::expect_used
 )]
 
-use prism_query::ast::{Ast, SqlStatement};
-use prism_query::write_ast::DmlOperation;
-use prism_query::write_verb_registry::{WriteVerbRegistry, WriteVerbSource};
-use prism_query::PrismQlParser;
 use std::collections::HashSet;
+
+use prism_query::{
+    ast::{Ast, SqlStatement},
+    write_ast::DmlOperation,
+    write_verb_registry::{WriteVerbRegistry, WriteVerbSource},
+    PrismQlParser,
+};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helper: build a registry for tests that use pub(crate) parse functions.

@@ -12,9 +12,9 @@
 //!
 //! | Test function | Origin | BC / AC |
 //! |---|---|---|
-//! | `ac_multi_tenant_ac1_login_returns_200_with_set_cookie_header` | ac_1_cookie_auth_roundtrip.rs | BC-3.5.001 AC-001 |
+//! | `ac_multi_tenant_ac1_demo_token_is_accepted` | ac_1_cookie_auth_roundtrip.rs | BC-3.5.001 AC-001 |
 //! | `ac_multi_tenant_ac1_authenticated_request_returns_200` | ac_1_cookie_auth_roundtrip.rs | BC-3.5.001 AC-001 |
-//! | `ac_multi_tenant_ac1_ec003_two_logins_distinct_tokens` | ac_1_cookie_auth_roundtrip.rs | BC-3.5.001 AC-001 / EC-003 |
+//! | `ac_multi_tenant_ac1_ec003_static_token_valid_invalid_token_rejected` | ac_1_cookie_auth_roundtrip.rs | BC-3.5.001 AC-001 / EC-003 |
 //! | `ac_multi_tenant_ac2_alerts_no_cookie_returns_401` | ac_2_unauthenticated_returns_401.rs | BC-3.5.001 AC-002 |
 //! | `ac_multi_tenant_ac2_empty_cookie_returns_401` | ac_2_unauthenticated_returns_401.rs | BC-3.5.001 AC-002 |
 //! | `ac_multi_tenant_ac2_invalid_token_returns_401` | ac_2_unauthenticated_returns_401.rs | BC-3.5.001 AC-002 |
@@ -49,34 +49,17 @@
 mod harness_tests {
     #[allow(unused_imports)]
     use prism_dtu_common::{FailureMode, FidelityCheck, FidelityValidator};
-    use prism_dtu_harness::types::DtuType;
-    use prism_dtu_harness::{HarnessBuilder, IsolationMode};
+    use prism_dtu_harness::{types::DtuType, HarnessBuilder, IsolationMode};
 
-    // ── Shared helper: login and return session token ────────────────────────
+    // ── Shared helper: return pre-registered static access token ────────────
+    //
+    // ADR-031 §D3-a: Cyberint uses static cookie-based auth (`access_token=<api_key>`).
+    // There is no `POST /login` step — the real Cyberint API requires no login endpoint.
+    // The demo token `DEMO_ACCESS_TOKEN` is pre-registered at clone startup, so tests
+    // can authenticate immediately without a configure call.
 
-    #[allow(dead_code)]
-    async fn cyberint_login(base_url: &str, client: &reqwest::Client) -> String {
-        let resp = client
-            .post(format!("{base_url}/login"))
-            .json(&serde_json::json!({}))
-            .send()
-            .await
-            .expect("login must succeed");
-        assert_eq!(resp.status().as_u16(), 200, "login must return 200");
-
-        let set_cookie = resp
-            .headers()
-            .get("set-cookie")
-            .expect("Set-Cookie must be present on login")
-            .to_str()
-            .expect("Set-Cookie must be ASCII")
-            .to_owned();
-        set_cookie
-            .split(';')
-            .next()
-            .and_then(|s| s.strip_prefix("cyberint_session="))
-            .expect("Set-Cookie must contain cyberint_session=")
-            .to_owned()
+    fn cyberint_access_token() -> &'static str {
+        prism_dtu_harness::clones::cyberint::DEMO_ACCESS_TOKEN
     }
 
     // ── Helper: build a single-org Logical harness for "alpha" ───────────────
@@ -108,9 +91,10 @@ mod harness_tests {
     // AC-1: Cookie auth round-trip (migrated from ac_1_cookie_auth_roundtrip.rs)
     // =========================================================================
 
-    /// BC-3.5.001 AC-001 — POST /login returns 200 with Set-Cookie header.
+    /// BC-3.5.001 AC-001 — pre-registered demo `access_token` cookie is accepted by
+    /// `GET /api/v1/alerts` (ADR-031 §D3-a static cookie auth; no login step).
     #[tokio::test]
-    async fn ac_multi_tenant_ac1_login_returns_200_with_set_cookie_header() {
+    async fn ac_multi_tenant_ac1_demo_token_is_accepted() {
         let harness = HarnessBuilder::new()
             .isolation(IsolationMode::Logical)
             .with_customer("test-tenant")
@@ -124,46 +108,37 @@ mod harness_tests {
         let base_url = format!("http://{addr}");
 
         let client = reqwest::Client::builder()
-            .cookie_store(true)
             .timeout(std::time::Duration::from_secs(5))
             .build()
             .expect("build reqwest client");
 
+        let token = cyberint_access_token();
+
         let resp = client
-            .post(format!("{base_url}/login"))
-            .json(&serde_json::json!({}))
+            .get(format!("{base_url}/api/v1/alerts"))
+            .header("Cookie", format!("access_token={token}"))
             .send()
             .await
-            .expect("AC-1: POST /login must not error");
+            .expect("AC-1: GET /api/v1/alerts with demo access_token must not error");
 
         assert_eq!(
             resp.status().as_u16(),
             200,
-            "AC-1: POST /login must return HTTP 200"
-        );
-
-        let set_cookie = resp
-            .headers()
-            .get("set-cookie")
-            .expect("AC-1: Set-Cookie header must be present on login response");
-        let cookie_str = set_cookie.to_str().expect("AC-1: Set-Cookie must be ASCII");
-        assert!(
-            cookie_str.contains("cyberint_session="),
-            "AC-1: Set-Cookie must contain cyberint_session=, got: {cookie_str}"
+            "AC-1: pre-registered demo access_token must be accepted — got {}",
+            resp.status()
         );
 
         let body: serde_json::Value = resp
             .json()
             .await
-            .expect("AC-1: login response must be valid JSON");
-        assert_eq!(
-            body["message"].as_str().unwrap_or(""),
-            "Login successful",
-            "AC-1: login body must contain message: Login successful"
+            .expect("AC-1: alerts response must be valid JSON");
+        assert!(
+            body["data"].is_array(),
+            "AC-1: alerts response must include a data array"
         );
     }
 
-    /// BC-3.5.001 AC-001 — authenticated GET /api/v1/alerts with valid cookie returns 200.
+    /// BC-3.5.001 AC-001 — authenticated GET /api/v1/alerts with valid access_token cookie returns 200.
     #[tokio::test]
     async fn ac_multi_tenant_ac1_authenticated_request_returns_200() {
         let harness = HarnessBuilder::new()
@@ -178,60 +153,36 @@ mod harness_tests {
             .expect("test-tenant/Cyberint endpoint must exist");
         let base_url = format!("http://{addr}");
 
-        let login_client = reqwest::Client::builder()
-            .cookie_store(true)
+        // ADR-031 §D3-a: no login step — use pre-registered static access_token.
+        let token = cyberint_access_token();
+
+        let client = reqwest::Client::builder()
             .timeout(std::time::Duration::from_secs(5))
             .build()
-            .expect("build cookie-jar client");
+            .expect("build client");
 
-        let login_resp = login_client
-            .post(format!("{base_url}/login"))
-            .json(&serde_json::json!({}))
-            .send()
-            .await
-            .expect("AC-1: login request must succeed");
-        assert_eq!(
-            login_resp.status().as_u16(),
-            200,
-            "AC-1: login must return 200"
-        );
-
-        // Extract session token from Set-Cookie for manual header usage.
-        let set_cookie = login_resp
-            .headers()
-            .get("set-cookie")
-            .expect("AC-1: Set-Cookie must be present")
-            .to_str()
-            .expect("AC-1: Set-Cookie must be ASCII");
-        let token = set_cookie
-            .split(';')
-            .next()
-            .and_then(|s| s.strip_prefix("cyberint_session="))
-            .expect("AC-1: Set-Cookie must contain cyberint_session=");
-
-        // Use token in Cookie header directly with a bare client.
-        let bare_client = reqwest::Client::builder()
-            .timeout(std::time::Duration::from_secs(5))
-            .build()
-            .expect("build bare client");
-
-        let alerts_resp = bare_client
+        let alerts_resp = client
             .get(format!("{base_url}/api/v1/alerts"))
-            .header("Cookie", format!("cyberint_session={token}"))
+            .header("Cookie", format!("access_token={token}"))
             .send()
             .await
-            .expect("AC-1: GET /api/v1/alerts with valid cookie must not error");
+            .expect("AC-1: GET /api/v1/alerts with valid access_token must not error");
 
         assert_eq!(
             alerts_resp.status().as_u16(),
             200,
-            "AC-1: GET /api/v1/alerts with valid session cookie must return HTTP 200"
+            "AC-1: GET /api/v1/alerts with valid access_token cookie must return HTTP 200"
         );
     }
 
-    /// BC-3.5.001 AC-001 / EC-003 — two logins yield distinct tokens, both valid.
+    /// BC-3.5.001 AC-001 / EC-003 — static access_token is accepted; a non-registered token
+    /// is rejected (ADR-031 §D3-a: no login step; allowlist-based validation).
+    ///
+    /// EC-003 originally tested "two logins yield distinct tokens" — that concept is
+    /// superseded by ADR-031 §D3-a static auth. This test exercises equivalent coverage:
+    /// the pre-registered token works, and an unregistered token does not.
     #[tokio::test]
-    async fn ac_multi_tenant_ac1_ec003_two_logins_distinct_tokens() {
+    async fn ac_multi_tenant_ac1_ec003_static_token_valid_invalid_token_rejected() {
         let harness = HarnessBuilder::new()
             .isolation(IsolationMode::Logical)
             .with_customer("test-tenant")
@@ -244,72 +195,40 @@ mod harness_tests {
             .expect("test-tenant/Cyberint endpoint must exist");
         let base_url = format!("http://{addr}");
 
-        let bare = reqwest::Client::builder()
+        let client = reqwest::Client::builder()
             .timeout(std::time::Duration::from_secs(5))
             .build()
             .expect("build client");
 
-        let resp1 = bare
-            .post(format!("{base_url}/login"))
-            .json(&serde_json::json!({}))
+        // Pre-registered demo token must be accepted.
+        let valid_token = cyberint_access_token();
+        let valid_resp = client
+            .get(format!("{base_url}/api/v1/alerts"))
+            .header("Cookie", format!("access_token={valid_token}"))
             .send()
             .await
-            .expect("EC-003: first login must succeed");
-        let cookie1 = resp1
-            .headers()
-            .get("set-cookie")
-            .expect("EC-003: Set-Cookie on first login")
-            .to_str()
-            .expect("EC-003: Set-Cookie on first login must be ASCII")
-            .to_owned();
-
-        let resp2 = bare
-            .post(format!("{base_url}/login"))
-            .json(&serde_json::json!({}))
-            .send()
-            .await
-            .expect("EC-003: second login must succeed");
-        let cookie2 = resp2
-            .headers()
-            .get("set-cookie")
-            .expect("EC-003: Set-Cookie on second login")
-            .to_str()
-            .expect("EC-003: Set-Cookie on second login must be ASCII")
-            .to_owned();
-
-        assert_ne!(
-            cookie1, cookie2,
-            "EC-003: two logins must produce distinct session tokens"
+            .expect("EC-003: request with valid access_token must send");
+        assert_eq!(
+            valid_resp.status().as_u16(),
+            200,
+            "EC-003: pre-registered access_token must be accepted (got {} instead of 200)",
+            valid_resp.status()
         );
 
-        // Extract both tokens and verify both are accepted.
-        let token1 = cookie1
-            .split(';')
-            .next()
-            .and_then(|s| s.strip_prefix("cyberint_session="))
-            .expect("EC-003: parse token1")
-            .to_owned();
-        let token2 = cookie2
-            .split(';')
-            .next()
-            .and_then(|s| s.strip_prefix("cyberint_session="))
-            .expect("EC-003: parse token2")
-            .to_owned();
-
-        for (label, token) in [("token1", token1.as_str()), ("token2", token2.as_str())] {
-            let r = bare
-                .get(format!("{base_url}/api/v1/alerts"))
-                .header("Cookie", format!("cyberint_session={token}"))
-                .send()
-                .await
-                .unwrap_or_else(|_| panic!("EC-003: request with {label} must send"));
-            assert_eq!(
-                r.status().as_u16(),
-                200,
-                "EC-003: {label} must be a valid session token (got {} instead of 200)",
-                r.status()
-            );
-        }
+        // Unregistered token must be rejected.
+        let invalid_token = "not-a-registered-token-00000000";
+        let invalid_resp = client
+            .get(format!("{base_url}/api/v1/alerts"))
+            .header("Cookie", format!("access_token={invalid_token}"))
+            .send()
+            .await
+            .expect("EC-003: request with invalid access_token must send");
+        assert_eq!(
+            invalid_resp.status().as_u16(),
+            401,
+            "EC-003: unregistered access_token must be rejected with 401 (got {} instead of 401)",
+            invalid_resp.status()
+        );
     }
 
     // =========================================================================
@@ -364,7 +283,7 @@ mod harness_tests {
         );
     }
 
-    /// BC-3.5.001 AC-002 — Cookie header without cyberint_session returns 401.
+    /// BC-3.5.001 AC-002 — Cookie header without access_token returns 401.
     #[tokio::test]
     async fn ac_multi_tenant_ac2_empty_cookie_returns_401() {
         let harness = HarnessBuilder::new()
@@ -394,11 +313,11 @@ mod harness_tests {
         assert_eq!(
             resp.status().as_u16(),
             401,
-            "AC-2: Cookie header without cyberint_session must return HTTP 401"
+            "AC-2: Cookie header without access_token must return HTTP 401"
         );
     }
 
-    /// BC-3.5.001 AC-002 — invalid (non-registered) session token returns 401.
+    /// BC-3.5.001 AC-002 — invalid (non-registered) access_token returns 401.
     #[tokio::test]
     async fn ac_multi_tenant_ac2_invalid_token_returns_401() {
         let harness = HarnessBuilder::new()
@@ -422,16 +341,16 @@ mod harness_tests {
             .get(format!("{base_url}/api/v1/alerts"))
             .header(
                 "Cookie",
-                "cyberint_session=00000000-0000-0000-0000-000000000000",
+                "access_token=00000000-0000-0000-0000-000000000000",
             )
             .send()
             .await
-            .expect("AC-2: request with invalid token must not error");
+            .expect("AC-2: request with invalid access_token must not error");
 
         assert_eq!(
             resp.status().as_u16(),
             401,
-            "AC-2: invalid session token must return HTTP 401"
+            "AC-2: invalid access_token must return HTTP 401"
         );
     }
 
@@ -459,11 +378,11 @@ mod harness_tests {
             .build()
             .expect("build client");
 
-        let token = cyberint_login(&base_url, &client).await;
+        let token = cyberint_access_token();
 
         let resp = client
             .patch(format!("{base_url}/api/v1/alerts/CYB-2024-001/status"))
-            .header("Cookie", format!("cyberint_session={token}"))
+            .header("Cookie", format!("access_token={token}"))
             .json(&serde_json::json!({"status": "acknowledged"}))
             .send()
             .await
@@ -508,8 +427,8 @@ mod harness_tests {
             .build()
             .expect("build client");
 
-        let token = cyberint_login(&base_url, &client).await;
-        let cookie = format!("cyberint_session={token}");
+        let token = cyberint_access_token();
+        let cookie = format!("access_token={token}");
 
         // PATCH to acknowledge.
         let patch_resp = client
@@ -571,8 +490,8 @@ mod harness_tests {
             .build()
             .expect("build client");
 
-        let token = cyberint_login(&base_url, &client).await;
-        let cookie = format!("cyberint_session={token}");
+        let token = cyberint_access_token();
+        let cookie = format!("access_token={token}");
 
         let resp = client
             .post(format!("{base_url}/api/v1/alerts/CYB-2024-002/close"))
@@ -620,8 +539,8 @@ mod harness_tests {
             .build()
             .expect("build client");
 
-        let token = cyberint_login(&base_url, &client).await;
-        let cookie = format!("cyberint_session={token}");
+        let token = cyberint_access_token();
+        let cookie = format!("access_token={token}");
 
         // Close first.
         client
@@ -681,11 +600,11 @@ mod harness_tests {
             .build()
             .expect("build client");
 
-        let token = cyberint_login(&base_url, &client).await;
+        let token = cyberint_access_token();
 
         let resp = client
             .get(format!("{base_url}/api/v1/alerts"))
-            .header("Cookie", format!("cyberint_session={token}"))
+            .header("Cookie", format!("access_token={token}"))
             .send()
             .await
             .expect("AC-5: GET /api/v1/alerts must not error");
@@ -735,8 +654,8 @@ mod harness_tests {
             .build()
             .expect("build client");
 
-        let token = cyberint_login(&base_url, &client).await;
-        let cookie = format!("cyberint_session={token}");
+        let token = cyberint_access_token();
+        let cookie = format!("access_token={token}");
 
         // Fetch page 1 — must have data and non-null next_cursor.
         let resp = client
@@ -824,8 +743,8 @@ mod harness_tests {
             .build()
             .expect("build client");
 
-        let token = cyberint_login(&base_url, &client).await;
-        let cookie = format!("cyberint_session={token}");
+        let token = cyberint_access_token();
+        let cookie = format!("access_token={token}");
 
         // Configure rate limit: allow 1 request then 429.
         let configure_resp = client
@@ -881,7 +800,11 @@ mod harness_tests {
     // AC-8: Reset semantics (migrated from ac_8_reset_semantics.rs)
     // =========================================================================
 
-    /// BC-3.5.001 AC-008 — POST /dtu/reset clears alert_store and session_store state.
+    /// BC-3.5.001 AC-008 — POST /dtu/reset clears alert_store and access_token_store state,
+    /// then re-registers the demo token so authenticated requests continue to work.
+    ///
+    /// ADR-031 §D3-a: after reset the pre-registered DEMO_ACCESS_TOKEN is still valid
+    /// (the reset handler re-registers it). No re-login step is needed.
     #[tokio::test]
     async fn ac_multi_tenant_ac8_reset_clears_state() {
         let harness = HarnessBuilder::new()
@@ -901,8 +824,8 @@ mod harness_tests {
             .build()
             .expect("build client");
 
-        let token = cyberint_login(&base_url, &client).await;
-        let cookie = format!("cyberint_session={token}");
+        let token = cyberint_access_token();
+        let cookie = format!("access_token={token}");
 
         // Acknowledge an alert to change its status.
         client
@@ -950,14 +873,11 @@ mod harness_tests {
             "AC-8: /dtu/reset must return {{status: ok}}"
         );
 
-        // After reset, need a new login (old token is invalid).
-        let new_token = cyberint_login(&base_url, &client).await;
-        let new_cookie = format!("cyberint_session={new_token}");
-
+        // After reset, the demo access_token is re-registered — same token still works.
         // Alert status must be back to "open".
         let after_body: serde_json::Value = client
             .get(format!("{base_url}/api/v1/alerts/CYB-2024-010"))
-            .header("Cookie", &new_cookie)
+            .header("Cookie", &cookie)
             .send()
             .await
             .expect("AC-8: GET after reset must succeed")
@@ -995,11 +915,11 @@ mod harness_tests {
             .build()
             .expect("build client");
 
-        let token = cyberint_login(&base_url, &client).await;
+        let token = cyberint_access_token();
 
         let resp = client
             .get(format!("{base_url}/api/v1/alerts/NONEXISTENT-9999"))
-            .header("Cookie", format!("cyberint_session={token}"))
+            .header("Cookie", format!("access_token={token}"))
             .send()
             .await
             .expect("EC-002: GET for unknown alert must not error");
@@ -1076,8 +996,8 @@ mod harness_tests {
             .build()
             .expect("build client");
 
-        let token = cyberint_login(&base_url, &client).await;
-        let cookie = format!("cyberint_session={token}");
+        let token = cyberint_access_token();
+        let cookie = format!("access_token={token}");
 
         // Verify token works before auth_mode change.
         let before = client
@@ -1089,7 +1009,7 @@ mod harness_tests {
         assert_eq!(
             before.status().as_u16(),
             200,
-            "EC-006: valid cookie must work before auth_mode=reject"
+            "EC-006: valid access_token must work before auth_mode=reject"
         );
 
         // Set auth_mode=reject.
@@ -1116,7 +1036,7 @@ mod harness_tests {
         assert_eq!(
             after.status().as_u16(),
             401,
-            "EC-006: auth_mode=reject must return 401 even with a valid session cookie"
+            "EC-006: auth_mode=reject must return 401 even with a valid access_token cookie"
         );
 
         let body: serde_json::Value = after.json().await.expect("EC-006: 401 body must be JSON");
@@ -1155,6 +1075,7 @@ mod harness_tests {
 
         // Fidelity checks limited to endpoints that do not require cookie auth,
         // plus the 401 shape check for unauthenticated access.
+        // ADR-031 §D3-a: no POST /login endpoint — removed from fidelity checks.
         let checks = vec![
             // DTU health endpoint (ADR-002 required, no auth).
             FidelityCheck {
@@ -1163,15 +1084,6 @@ mod harness_tests {
                 body: None,
                 expected_status: 200,
                 required_fields: vec!["status".to_string()],
-                ..Default::default()
-            },
-            // Login endpoint shape check.
-            FidelityCheck {
-                endpoint: "/login".to_string(),
-                method: http::Method::POST,
-                body: Some(serde_json::json!({})),
-                expected_status: 200,
-                required_fields: vec!["message".to_string()],
                 ..Default::default()
             },
             // Unauthenticated access to alerts must return 401 with "error" field.
@@ -1427,14 +1339,14 @@ mod harness_tests {
             .build()
             .expect("build client");
 
-        // Login to both orgs separately — cookie-based auth is per-clone.
-        let alpha_token = cyberint_login(&alpha_url, &client).await;
-        let beta_token = cyberint_login(&beta_url, &client).await;
+        // ADR-031 §D3-a: no login step — use the pre-registered static access_token.
+        // Each clone has the same DEMO_ACCESS_TOKEN pre-registered at startup.
+        let access_token = cyberint_access_token();
 
         // Fetch alerts for each org.
         let alpha_resp = client
             .get(format!("{alpha_url}/api/v1/alerts"))
-            .header("Cookie", format!("cyberint_session={alpha_token}"))
+            .header("Cookie", format!("access_token={access_token}"))
             .send()
             .await
             .expect("AC-multi-org: GET alpha alerts must not error");
@@ -1446,7 +1358,7 @@ mod harness_tests {
 
         let beta_resp = client
             .get(format!("{beta_url}/api/v1/alerts"))
-            .header("Cookie", format!("cyberint_session={beta_token}"))
+            .header("Cookie", format!("access_token={access_token}"))
             .send()
             .await
             .expect("AC-multi-org: GET beta alerts must not error");
@@ -1503,13 +1415,13 @@ mod harness_tests {
         // Also verify threat-intel data is disjoint (BC-3.5.001 postcondition 2).
         let alpha_ti_resp = client
             .get(format!("{alpha_url}/api/v1/threat-intel"))
-            .header("Cookie", format!("cyberint_session={alpha_token}"))
+            .header("Cookie", format!("access_token={access_token}"))
             .send()
             .await
             .expect("AC-multi-org: GET alpha threat-intel must not error");
         let beta_ti_resp = client
             .get(format!("{beta_url}/api/v1/threat-intel"))
-            .header("Cookie", format!("cyberint_session={beta_token}"))
+            .header("Cookie", format!("access_token={access_token}"))
             .send()
             .await
             .expect("AC-multi-org: GET beta threat-intel must not error");

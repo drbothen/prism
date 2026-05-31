@@ -7,8 +7,7 @@
 //! 4. `reset()` — clears issue registry, resets next_issue_num to 1000.
 //! 5. `configure()` — applies JSON patch to runtime configuration (delegates to state).
 
-use std::net::SocketAddr;
-use std::sync::Arc;
+use std::{net::SocketAddr, sync::Arc};
 
 use async_trait::async_trait;
 use axum::{
@@ -16,16 +15,17 @@ use axum::{
     Router,
 };
 use prism_dtu_common::{BehavioralClone, DtuMode, FailureLayer};
-use tokio::sync::broadcast;
-use tokio::task::JoinHandle;
+use tokio::{sync::broadcast, task::JoinHandle};
 
-use crate::routes::{
-    comments::add_comment,
-    dtu::{get_dtu_issues, get_health, post_configure, post_reset},
-    issues::{create_issue, get_issue},
-    transitions::{execute_transition, list_transitions},
+use crate::{
+    routes::{
+        comments::add_comment,
+        dtu::{get_dtu_issues, get_health, post_configure, post_reset},
+        issues::{create_issue, get_issue},
+        transitions::{execute_transition, list_transitions},
+    },
+    state::JiraState,
 };
-use crate::state::JiraState;
 
 /// Deployment-time DTU operating mode for the Jira clone (BC-3.2.005 / ADR-007).
 ///

@@ -14,9 +14,7 @@
 //! `axum_server::bind_rustls` and serves HTTPS.  When `None`, plain axum HTTP
 //! is used (backward-compatible default).
 
-use std::collections::HashMap;
-use std::net::SocketAddr;
-use std::sync::Arc;
+use std::{collections::HashMap, net::SocketAddr, sync::Arc};
 
 use async_trait::async_trait;
 use axum::{
@@ -24,15 +22,16 @@ use axum::{
     Router,
 };
 use prism_dtu_common::BehavioralClone;
-use tokio::sync::broadcast;
-use tokio::task::JoinHandle;
+use tokio::{sync::broadcast, task::JoinHandle};
 
-use crate::routes::{
-    cves::get_cves,
-    dtu::{get_health, get_request_count, post_configure, post_reset},
+use crate::{
+    routes::{
+        cves::get_cves,
+        dtu::{get_health, get_request_count, post_configure, post_reset},
+    },
+    state::NvdState,
+    types::CveRecord,
 };
-use crate::state::NvdState;
-use crate::types::CveRecord;
 
 /// L2-fidelity behavioral clone of the NVD/NIST CVE API 2.0.
 pub struct NvdClone {

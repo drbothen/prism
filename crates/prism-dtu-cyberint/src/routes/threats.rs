@@ -3,7 +3,7 @@
 //! Routes:
 //! - `GET /api/v1/threat-intel` — threat intelligence feed with cursor pagination
 //!
-//! All routes require cookie auth.
+//! All routes require cookie auth — validated via `extract_access_token` (ADR-031 §D3-a).
 
 use std::sync::Arc;
 
@@ -15,8 +15,7 @@ use axum::{
 };
 use serde::Deserialize;
 
-use crate::routes::alerts::{extract_org_id, extract_session_token};
-use crate::state::{AuthMode, CyberintState};
+use crate::state::CyberintState;
 
 /// Query parameters for the threat-intel endpoint.
 #[derive(Debug, Deserialize, Default)]
@@ -27,44 +26,15 @@ pub struct ThreatListParams {
 /// `GET /api/v1/threat-intel`
 ///
 /// Returns paginated threat intelligence feed from `fixtures/threats.json`.
-/// Requires valid session cookie.
+/// Requires valid `access_token` cookie (ADR-031 §D3-a; AC-003).
 pub async fn get_threat_intel(
     State(state): State<Arc<CyberintState>>,
     headers: HeaderMap,
     Query(params): Query<ThreatListParams>,
 ) -> impl IntoResponse {
-    // Auth check.
-    if state.auth_mode() == AuthMode::Reject {
-        return (
-            StatusCode::UNAUTHORIZED,
-            Json(serde_json::json!({"error": "unauthorized", "code": 401})),
-        )
-            .into_response();
-    }
-    let token = match extract_session_token(&headers) {
-        Some(t) => t,
-        None => {
-            return (
-                StatusCode::UNAUTHORIZED,
-                Json(serde_json::json!({"error": "unauthorized", "code": 401})),
-            )
-                .into_response()
-        }
-    };
-    let org_id = extract_org_id(&headers, state.instance_org_id);
-    if !state.is_valid_session(org_id, &token) {
-        return (
-            StatusCode::UNAUTHORIZED,
-            Json(serde_json::json!({"error": "unauthorized", "code": 401})),
-        )
-            .into_response();
-    }
-    if state.check_and_increment_rate_limit() {
-        return (
-            StatusCode::TOO_MANY_REQUESTS,
-            Json(serde_json::json!({"error": "rate limit exceeded", "code": 429})),
-        )
-            .into_response();
+    // Auth check — shared helper (F-LP1-MED-001; ADR-031 §D3-a).
+    if let Err(resp) = crate::routes::alerts::check_auth(&state, &headers) {
+        return *resp;
     }
 
     // Simple pagination: cursor present means page 2 (empty for threats fixture).

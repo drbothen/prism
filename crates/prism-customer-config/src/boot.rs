@@ -94,8 +94,7 @@ impl std::error::Error for BootError {}
 /// Traces to: BC-3.3.004 postconditions, BC-3.1.003 postcondition 1,
 ///            BC-3.1.004 postconditions 2–4.
 pub fn boot_org_registry(customers_dir: &Path, registry: &OrgRegistry) -> Result<usize, BootError> {
-    use prism_core::ids::OrgId;
-    use prism_core::tenant::OrgSlug;
+    use prism_core::{ids::OrgId, tenant::OrgSlug};
 
     // Step 1 & 2: Validate ALL files before registering ANY (ADR-010 §2.5 / BC-3.3.004 Invariant 1).
     let configs = crate::load_and_validate(customers_dir).map_err(BootError::ValidationFailed)?;

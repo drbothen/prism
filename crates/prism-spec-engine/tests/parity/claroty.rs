@@ -14,13 +14,16 @@
 //! AC coverage: AC-008 (Claroty DTU parity + polymorphic ID), PLUGIN-MIGRATION-001-F AC-001 (TOML fixture loading)
 //! HS coverage: HS-014
 
+use std::collections::HashMap;
+
 use prism_core::OrgSlug;
 use prism_dtu_claroty::ClarotyClone;
 use prism_dtu_common::BehavioralClone;
-use prism_spec_engine::NullAuthProvider;
-use prism_spec_engine::pipeline::{FetchContext, PipelineExecutor};
-use prism_spec_engine::spec_parser::SpecLoader;
-use std::collections::HashMap;
+use prism_spec_engine::{
+    NullAuthProvider,
+    pipeline::{FetchContext, PipelineExecutor},
+    spec_parser::SpecLoader,
+};
 
 // Re-use canonicalization helpers from super (parity module).
 // Since parity/ is a flat test directory (not a module), we inline the helpers.

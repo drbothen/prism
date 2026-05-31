@@ -170,8 +170,7 @@ pub mod tests;
 pub use ast::Ast;
 pub use error::ParseError;
 pub use filter_parser::PrismQlParser;
-pub use write_verb_registry::WriteVerbRegistry;
-
 // ── S-3.07 re-exports ─────────────────────────────────────────────────────────
 pub use write_pipeline::{QueryContext, WriteExecutor, WriteOutcome, WritePlan};
 pub use write_result::{ConfirmationTokenPreview, SensorWriteError, WritePreview, WriteResult};
+pub use write_verb_registry::WriteVerbRegistry;

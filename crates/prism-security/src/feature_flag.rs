@@ -12,8 +12,10 @@
 
 use std::collections::BTreeMap;
 
-use prism_core::capability::{CapabilityPath, ClientCapabilities};
-use prism_core::error::PrismError;
+use prism_core::{
+    capability::{CapabilityPath, ClientCapabilities},
+    error::PrismError,
+};
 
 // ─────────────────────────────────────────────────────────────
 // Tier-1: Compile-time feature gate model

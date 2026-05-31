@@ -12,8 +12,7 @@
 //! - All serialized output is verified by a proptest to contain no `value`,
 //!   `secret`, `password`, or `token` field names (BC-2.05.005 EC-001).
 
-use prism_storage::audit_buffer;
-use prism_storage::backend::RocksStorageBackend;
+use prism_storage::{audit_buffer, backend::RocksStorageBackend};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 

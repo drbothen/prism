@@ -10,10 +10,11 @@
 // Expected failure mode: LatencyLayer::call panic causes the server to crash;
 // the /health GET returns a connection error instead of 200.
 
+use std::net::SocketAddr;
+
 use async_trait::async_trait;
 use axum::routing::get;
 use prism_dtu_common::{BehavioralClone, LatencyLayer};
-use std::net::SocketAddr;
 
 struct TestClone {
     addr: Option<SocketAddr>,

@@ -24,8 +24,7 @@
 
 #![allow(clippy::unwrap_used)]
 
-use std::path::PathBuf;
-use std::process::Command;
+use std::{path::PathBuf, process::Command};
 
 /// MED-5 (S-WAVE5-PREP-01 fix-pass-1): Create an isolated temp config dir per test.
 /// Returns (config_dir, state_dir, spec_dir) TempDirs — keep all alive for test duration.
@@ -243,9 +242,10 @@ fn test_BC_2_05_012_boot_error_audit_init_failed_exit_code_is_4() {
 #[test]
 fn test_BC_2_05_012_sentinel_schema_has_required_fields() {
     use prism_core::StorageDomain;
-    use prism_storage::audit_buffer::AuditEntry as StorageAuditEntry;
-    use prism_storage::backend::RocksStorageBackend;
-    use prism_storage::rocksdb_backend::RocksDbBackend;
+    use prism_storage::{
+        audit_buffer::AuditEntry as StorageAuditEntry, backend::RocksStorageBackend,
+        rocksdb_backend::RocksDbBackend,
+    };
 
     // MED-5: isolated per-test dirs to avoid parallel RocksDB LOCK collisions.
     let (config_dir, state_tmp, _spec_tmp) = make_valid_config_dir();

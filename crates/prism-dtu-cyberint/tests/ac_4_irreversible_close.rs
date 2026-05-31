@@ -1,21 +1,30 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
-//! AC-4: Irreversible close semantics.
+//! AC-4: Irreversible close semantics (rewritten for ADR-031 §D3-a).
 //!
 //! Given `POST /api/v1/alerts/{alert_id}/close`, the response is HTTP 200 with
 //! `status: "closed"` AND subsequent `PATCH` for acknowledge returns HTTP 400
 //! `{"error": "alert already closed"}`.
 //!
 //! Also covers EC-001: closing an already-closed alert returns 400 (idempotent check).
+//!
+//! Rewritten per S-DTU-CYBERINT-AUTH-FIDELITY-001 Task 11: uses
+//! `Cookie: access_token=demo-key` instead of login + cyberint_session.
 
 #[cfg(feature = "dtu")]
 mod ac_4 {
     use prism_dtu_common::BehavioralClone;
     use prism_dtu_cyberint::CyberintClone;
 
-    async fn start() -> (CyberintClone, String, reqwest::Client) {
+    const DEMO_TOKEN: &str = "demo-access-key";
+
+    async fn start_with_demo_token() -> (CyberintClone, String, reqwest::Client) {
         let mut clone = CyberintClone::new().expect("AC-4: new must succeed");
         clone.start().await.expect("AC-4: start must succeed");
         let base_url = clone.base_url();
+        clone
+            .configure(serde_json::json!({"access_token": DEMO_TOKEN}))
+            .await
+            .expect("AC-4: configure must succeed");
         let client = reqwest::Client::builder()
             .timeout(std::time::Duration::from_secs(5))
             .build()
@@ -23,34 +32,11 @@ mod ac_4 {
         (clone, base_url, client)
     }
 
-    async fn login(base_url: &str, client: &reqwest::Client) -> String {
-        let resp = client
-            .post(format!("{base_url}/login"))
-            .json(&serde_json::json!({}))
-            .send()
-            .await
-            .expect("login must succeed");
-        let set_cookie = resp
-            .headers()
-            .get("set-cookie")
-            .expect("Set-Cookie must be present")
-            .to_str()
-            .expect("Set-Cookie must be ASCII")
-            .to_owned();
-        set_cookie
-            .split(';')
-            .next()
-            .and_then(|s| s.strip_prefix("cyberint_session="))
-            .expect("parse token")
-            .to_owned()
-    }
-
     /// POST /close returns 200 with status: "closed".
     #[tokio::test]
     async fn ac_4_close_alert_returns_200_with_closed_status() {
-        let (_clone, base_url, client) = start().await;
-        let token = login(&base_url, &client).await;
-        let cookie = format!("cyberint_session={token}");
+        let (_clone, base_url, client) = start_with_demo_token().await;
+        let cookie = format!("access_token={DEMO_TOKEN}");
 
         let resp = client
             .post(format!("{base_url}/api/v1/alerts/CYB-2024-002/close"))
@@ -81,9 +67,8 @@ mod ac_4 {
     /// After close, GET returns status: "closed".
     #[tokio::test]
     async fn ac_4_get_after_close_returns_closed_status() {
-        let (_clone, base_url, client) = start().await;
-        let token = login(&base_url, &client).await;
-        let cookie = format!("cyberint_session={token}");
+        let (_clone, base_url, client) = start_with_demo_token().await;
+        let cookie = format!("access_token={DEMO_TOKEN}");
 
         client
             .post(format!("{base_url}/api/v1/alerts/CYB-2024-004/close"))
@@ -111,9 +96,8 @@ mod ac_4 {
     /// After close, PATCH acknowledge returns 400 {"error": "alert already closed"}.
     #[tokio::test]
     async fn ac_4_patch_after_close_returns_400_already_closed() {
-        let (_clone, base_url, client) = start().await;
-        let token = login(&base_url, &client).await;
-        let cookie = format!("cyberint_session={token}");
+        let (_clone, base_url, client) = start_with_demo_token().await;
+        let cookie = format!("access_token={DEMO_TOKEN}");
 
         // Close first.
         client
@@ -152,9 +136,8 @@ mod ac_4 {
     /// EC-001: closing an already-closed alert also returns 400.
     #[tokio::test]
     async fn ac_4_ec_001_close_already_closed_returns_400() {
-        let (_clone, base_url, client) = start().await;
-        let token = login(&base_url, &client).await;
-        let cookie = format!("cyberint_session={token}");
+        let (_clone, base_url, client) = start_with_demo_token().await;
+        let cookie = format!("access_token={DEMO_TOKEN}");
 
         // First close.
         let first_close = client

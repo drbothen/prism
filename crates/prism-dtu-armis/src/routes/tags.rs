@@ -35,9 +35,11 @@ use axum::{
     Json,
 };
 
-use crate::routes::devices::validate_org_id;
-use crate::state::{ArmisState, DTU_ROUTE_ORG_ID};
-use crate::types::ArmisError;
+use crate::{
+    routes::devices::validate_org_id,
+    state::{ArmisState, DTU_ROUTE_ORG_ID},
+    types::ArmisError,
+};
 
 /// `POST /api/v1/devices/{device_id}/tags/`
 ///

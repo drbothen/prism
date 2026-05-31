@@ -21,8 +21,10 @@ use axum::{
     Json,
 };
 
-use crate::state::{IncidentRecord, IncidentStatus, PagerDutyState};
-use crate::types::{ActionResponse, EnqueueRequest, PagerDutyError, TriggerResponse};
+use crate::{
+    state::{IncidentRecord, IncidentStatus, PagerDutyState},
+    types::{ActionResponse, EnqueueRequest, PagerDutyError, TriggerResponse},
+};
 
 /// Accepted severity values (case-sensitive per PagerDuty spec).
 const VALID_SEVERITIES: &[&str] = &["critical", "error", "warning", "info"];

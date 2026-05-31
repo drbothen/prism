@@ -162,8 +162,9 @@ async fn do_http_request(
     headers: &[(String, String)],
     body: Option<Vec<u8>>,
 ) -> HttpResponse {
-    use reqwest::Method;
     use std::str::FromStr;
+
+    use reqwest::Method;
 
     let method = match Method::from_str(method) {
         Ok(m) => m,
@@ -341,9 +342,10 @@ fn register_host_functions_for_namespace(
     namespace: &str,
 ) -> Result<(), prism_core::PrismError> {
     use prism_core::PrismError;
-    use wasmtime::StoreContextMut;
-    use wasmtime::component::Val;
-    use wasmtime::component::types::ComponentFunc;
+    use wasmtime::{
+        StoreContextMut,
+        component::{Val, types::ComponentFunc},
+    };
 
     let map_err = |e: wasmtime::Error| PrismError::Internal {
         detail: format!("failed to register host function in Linker (namespace={namespace}): {e}"),

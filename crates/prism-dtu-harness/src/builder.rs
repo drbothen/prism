@@ -44,20 +44,25 @@
 //! - BC-3.5.001 preconditions 2-3; postconditions 1, 5; EC-003, EC-005
 //! - BC-3.5.002 preconditions 1-4; postconditions 4, 5; Invariants 1-2; EC-004
 
-use std::collections::HashMap;
-use std::sync::atomic::AtomicUsize;
-use std::sync::Arc;
+use std::{
+    collections::HashMap,
+    sync::{atomic::AtomicUsize, Arc},
+};
 
-use crate::clone_server::{dtu_configure_pub, start_clone};
-use crate::clones::crowdstrike::{start_crowdstrike_clone, start_crowdstrike_clone_network};
-use crate::clones::cyberint::start_cyberint_clone;
-use crate::crash_monitor::crash_channel;
-use crate::error::HarnessError;
-use crate::harness::Harness;
-use crate::types::{CustomerSpec, DtuType, IsolationMode, OrgKey};
-use prism_core::ids::OrgId;
-use prism_core::tenant::OrgSlug;
+use prism_core::{ids::OrgId, tenant::OrgSlug};
 use prism_dtu_common::FailureMode;
+
+use crate::{
+    clone_server::{dtu_configure_pub, start_clone},
+    clones::{
+        crowdstrike::{start_crowdstrike_clone, start_crowdstrike_clone_network},
+        cyberint::start_cyberint_clone,
+    },
+    crash_monitor::crash_channel,
+    error::HarnessError,
+    harness::Harness,
+    types::{CustomerSpec, DtuType, IsolationMode, OrgKey},
+};
 
 /// Builder for constructing a [`Harness`].
 ///
@@ -840,8 +845,10 @@ async fn start_clone_network(
     crash_tx: tokio::sync::watch::Sender<Option<String>>,
     task_lifecycle_counter: Option<Arc<AtomicUsize>>,
 ) -> crate::clone_server::StartedClone {
-    use crate::clone_server::{CloneState, StartedClone};
-    use crate::types::DtuType;
+    use crate::{
+        clone_server::{CloneState, StartedClone},
+        types::DtuType,
+    };
 
     let addr = listener
         .local_addr()
@@ -1002,8 +1009,7 @@ fn check_bearer(
 /// (BC-3.5.002 postcondition 2; VP-126; AC-004)
 fn build_network_router(state: Arc<crate::clone_server::CloneState>) -> axum::Router {
     use axum::{
-        http::HeaderMap,
-        http::StatusCode,
+        http::{HeaderMap, StatusCode},
         response::IntoResponse,
         routing::{get, post},
         Json,
@@ -1083,8 +1089,10 @@ async fn start_armis_clone_network(
     crash_tx: tokio::sync::watch::Sender<Option<String>>,
     task_lifecycle_counter: Option<Arc<AtomicUsize>>,
 ) -> crate::clone_server::StartedClone {
-    use crate::clone_server::{CloneState, StartedClone};
-    use crate::clones::armis::{poll_armis_test_hook, ArmisHarnessState};
+    use crate::{
+        clone_server::{CloneState, StartedClone},
+        clones::armis::{poll_armis_test_hook, ArmisHarnessState},
+    };
 
     let addr = listener
         .local_addr()

@@ -6,8 +6,9 @@
 //
 // Expected failure mode: SyslogReceiver::start is todo!() — panics at runtime.
 
-use prism_dtu_common::SyslogReceiver;
 use std::net::SocketAddr;
+
+use prism_dtu_common::SyslogReceiver;
 use tokio::net::UdpSocket;
 
 /// Minimal valid RFC 5424 syslog message.

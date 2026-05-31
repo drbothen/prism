@@ -13,8 +13,7 @@
 //! The story AC ("High" for 4) aligns with OCSF v1.x. The implementation uses
 //! OCSF-correct values.
 
-use std::collections::HashMap;
-use std::sync::Mutex;
+use std::{collections::HashMap, sync::Mutex};
 
 /// Global cache for "Unknown (N)" display name strings.
 ///

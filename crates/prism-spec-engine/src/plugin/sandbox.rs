@@ -55,9 +55,11 @@ pub fn create_store(
 /// This is a test/proof helper; the HostState it constructs uses default-deny allowed_urls
 /// (empty Vec) which is appropriate for sandbox limit testing (no HTTP calls expected).
 pub fn create_store_with_limit(engine: &wasmtime::Engine, limit_mb: u64) -> Store<HostState> {
-    use super::loader::{PluginConfigMap, PluginKvStore};
-    use reqwest::Client;
     use std::sync::Arc;
+
+    use reqwest::Client;
+
+    use super::loader::{PluginConfigMap, PluginKvStore};
 
     // Construct directly (not via test_default) so this function is available outside
     // #[cfg(test)] contexts (e.g., Kani proofs under #[cfg(kani)]).

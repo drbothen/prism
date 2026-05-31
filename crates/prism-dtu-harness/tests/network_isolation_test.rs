@@ -27,11 +27,16 @@
 //!
 //! `test_BC_S_SS_NNN_xxx()` pattern throughout (Factory TDD spec).
 
+use std::{
+    collections::HashSet,
+    sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc,
+    },
+    time::Duration,
+};
+
 use prism_dtu_harness::{DtuType, HarnessError, IsolationMode};
-use std::collections::HashSet;
-use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::Arc;
-use std::time::Duration;
 
 // ============================================================================
 // AC-001 / TV-4: build(Network) populates customer_endpoints atomically

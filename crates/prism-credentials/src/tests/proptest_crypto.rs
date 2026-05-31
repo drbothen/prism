@@ -7,9 +7,10 @@
 //!
 //! Story: S-1.06 | BCs: BC-2.03.003 | VPs: VP-034, VP-035
 
+use std::path::PathBuf;
+
 use proptest::prelude::*;
 use secrecy::SecretString;
-use std::path::PathBuf;
 
 use crate::file::{derive_key, EncryptedFileBackend, SALT_LEN};
 

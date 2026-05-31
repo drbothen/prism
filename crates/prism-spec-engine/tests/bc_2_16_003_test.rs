@@ -13,8 +13,10 @@
 //! AC-3 (S-1.11): spec column "created_timestamp" -> ocsf_field "time" -> time populated
 
 use prism_core::ColumnType;
-use prism_spec_engine::column_mapping::ColumnMapper;
-use prism_spec_engine::spec_parser::{ColumnSpec, FetchStep, TableSpec};
+use prism_spec_engine::{
+    column_mapping::ColumnMapper,
+    spec_parser::{ColumnSpec, FetchStep, TableSpec},
+};
 
 fn make_table_with_mapping(
     col_name: &str,

@@ -5,14 +5,18 @@
 
 use std::sync::Arc;
 
-use axum::extract::{Query, State};
-use axum::http::{HeaderMap, StatusCode};
-use axum::response::{IntoResponse, Json};
+use axum::{
+    extract::{Query, State},
+    http::{HeaderMap, StatusCode},
+    response::{IntoResponse, Json},
+};
 use prism_core::OrgId;
 use serde::Deserialize;
 
-use crate::routes::hosts::validate_org_id;
-use crate::state::{CrowdstrikeState, SessionData};
+use crate::{
+    routes::hosts::validate_org_id,
+    state::{CrowdstrikeState, SessionData},
+};
 
 /// Query params for detection ID list.
 #[derive(Debug, Deserialize, Default)]

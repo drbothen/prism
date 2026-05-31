@@ -44,9 +44,7 @@ use prism_core::{OrgId, OrgSlug, PrismError, SensorId};
 use prism_ocsf::OcsfNormalizer;
 use prism_sensors::{AdapterRegistry, CredentialResolver, SensorSpec};
 
-use crate::engine::QueryOptions;
-use crate::pushdown::PushDownPlan;
-use crate::types::SensorQueryDescriptor;
+use crate::{engine::QueryOptions, pushdown::PushDownPlan, types::SensorQueryDescriptor};
 
 // ---------------------------------------------------------------------------
 // inject_source_type
@@ -1244,11 +1242,13 @@ mod walker_coverage_tests {
     //!
     //! Layer 1 is a pure function test — no I/O, no async.
 
-    use crate::ast::{
-        Ast, Expr, FieldPath, FromClause, Join, JoinKind, OrderExpr, SelectClause, SelectItem,
-        SortDirection, SourceRef, SourceRefKind, Span, SqlQuery, SqlStatement,
+    use crate::{
+        ast::{
+            Ast, Expr, FieldPath, FromClause, Join, JoinKind, OrderExpr, SelectClause, SelectItem,
+            SortDirection, SourceRef, SourceRefKind, Span, SqlQuery, SqlStatement,
+        },
+        materialization::extract_source_names_recursive,
     };
-    use crate::materialization::extract_source_names_recursive;
 
     // Helper: build a minimal SourceRef with raw table name.
     fn source_ref(name: &str) -> SourceRef {
@@ -1623,8 +1623,10 @@ mod walker_coverage_tests {
     #[test]
     #[allow(non_snake_case)]
     fn test_LP6_LOW_1_dml_filter_subquery_discovered_by_layer1() {
-        use crate::ast::{FieldPath, Predicate, Span};
-        use crate::write_ast::{DmlNode, DmlOperation};
+        use crate::{
+            ast::{FieldPath, Predicate, Span},
+            write_ast::{DmlNode, DmlOperation},
+        };
 
         // Build: DELETE FROM crowdstrike_contained_hosts
         //        WHERE host_id IN (SELECT trace_host FROM prism_audit)

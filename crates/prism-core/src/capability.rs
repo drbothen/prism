@@ -18,8 +18,7 @@
 //!    It is therefore impossible to store both `Allow` and `Deny` for the same
 //!    path simultaneously (VP-004).
 
-use std::collections::BTreeMap;
-use std::sync::Arc;
+use std::{collections::BTreeMap, sync::Arc};
 
 use serde::{Deserialize, Serialize};
 

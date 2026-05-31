@@ -7,6 +7,7 @@
 //! - Implements `Zeroize` on drop (memory zeroed when Secret goes out of scope)
 
 use std::fmt;
+
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
 /// A wrapper type that redacts its contents from all formatted output.

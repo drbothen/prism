@@ -9,9 +9,13 @@
 //! Per ADR-008 §2.1 Step 6a, `tag_store` is keyed by `(OrgId, device_id)` rather
 //! than bare `device_id`, eliminating cross-org tag bleed (BC-3.2.001).
 
-use std::collections::{HashMap, HashSet};
-use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
-use std::sync::Mutex;
+use std::{
+    collections::{HashMap, HashSet},
+    sync::{
+        atomic::{AtomicU32, AtomicU64, Ordering},
+        Mutex,
+    },
+};
 
 use prism_core::OrgId;
 use prism_dtu_common::FailureMode;

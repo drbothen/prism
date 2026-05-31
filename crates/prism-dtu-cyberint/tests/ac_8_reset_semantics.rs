@@ -1,21 +1,30 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
-//! AC-8: Reset semantics.
+//! AC-8: Reset semantics (rewritten for ADR-031 §D3-a).
 //!
 //! Given `reset()` is called (via POST /dtu/reset), then:
 //! - All alert statuses revert to "open"
-//! - Session store is cleared (old tokens become invalid)
-//! - A new login is required for subsequent authenticated requests
+//! - Access-token allowlist is cleared (old tokens become invalid)
+//! - Re-configuring a new access_token is required for subsequent authenticated requests
+//!
+//! Rewritten per S-DTU-CYBERINT-AUTH-FIDELITY-001 Task 11: uses
+//! `Cookie: access_token=demo-key` instead of login + cyberint_session.
 
 #[cfg(feature = "dtu")]
 mod ac_8 {
     use prism_dtu_common::BehavioralClone;
     use prism_dtu_cyberint::CyberintClone;
 
+    const DEMO_TOKEN: &str = "demo-access-key";
+
     async fn start() -> (CyberintClone, String, String, reqwest::Client) {
         let mut clone = CyberintClone::new().expect("AC-8: new must succeed");
         clone.start().await.expect("AC-8: start must succeed");
         let base_url = clone.base_url();
         let admin_token = clone.admin_token().to_string();
+        clone
+            .configure(serde_json::json!({"access_token": DEMO_TOKEN}))
+            .await
+            .expect("AC-8: configure access_token must succeed");
         let client = reqwest::Client::builder()
             .timeout(std::time::Duration::from_secs(5))
             .build()
@@ -23,31 +32,11 @@ mod ac_8 {
         (clone, base_url, admin_token, client)
     }
 
-    async fn login(base_url: &str, client: &reqwest::Client) -> String {
-        let resp = client
-            .post(format!("{base_url}/login"))
-            .json(&serde_json::json!({}))
-            .send()
-            .await
-            .expect("login must succeed");
-        resp.headers()
-            .get("set-cookie")
-            .expect("AC-8: Set-Cookie must be present on login")
-            .to_str()
-            .expect("AC-8: Set-Cookie must be ASCII")
-            .split(';')
-            .next()
-            .and_then(|s| s.strip_prefix("cyberint_session="))
-            .expect("AC-8: Set-Cookie must contain cyberint_session=")
-            .to_owned()
-    }
-
     /// After reset, alert statuses revert to "open".
     #[tokio::test]
     async fn ac_8_reset_reverts_alert_status_to_open() {
-        let (_clone, base_url, admin_token, client) = start().await;
-        let token = login(&base_url, &client).await;
-        let cookie = format!("cyberint_session={token}");
+        let (mut clone, base_url, admin_token, client) = start().await;
+        let cookie = format!("access_token={DEMO_TOKEN}");
 
         // Acknowledge an alert to change its status.
         client
@@ -97,14 +86,16 @@ mod ac_8 {
             "AC-8: /dtu/reset must return {{status: ok}}"
         );
 
-        // After reset, need a new login (old token is invalid).
-        let new_token = login(&base_url, &client).await;
-        let new_cookie = format!("cyberint_session={new_token}");
+        // After reset, the allowlist is cleared — re-configure a new access_token.
+        clone
+            .configure(serde_json::json!({"access_token": DEMO_TOKEN}))
+            .await
+            .expect("AC-8: re-configure access_token after reset must succeed");
 
         // Alert status must be back to "open".
         let after_reset = client
             .get(format!("{base_url}/api/v1/alerts/CYB-2024-010"))
-            .header("Cookie", &new_cookie)
+            .header("Cookie", format!("access_token={DEMO_TOKEN}"))
             .send()
             .await
             .expect("AC-8: GET after reset must succeed");
@@ -124,12 +115,13 @@ mod ac_8 {
         );
     }
 
-    /// After reset, the old session token is invalidated — returns 401.
+    /// After reset, the old access_token is invalidated — returns 401.
+    ///
+    /// ADR-031 §D3-a: reset_all() clears the access_token_allowlist.
     #[tokio::test]
     async fn ac_8_reset_clears_session_store_old_token_rejected() {
         let (_clone, base_url, admin_token, client) = start().await;
-        let old_token = login(&base_url, &client).await;
-        let old_cookie = format!("cyberint_session={old_token}");
+        let old_cookie = format!("access_token={DEMO_TOKEN}");
 
         // Verify old token works before reset.
         let before = client
@@ -152,7 +144,7 @@ mod ac_8 {
             .await
             .expect("AC-8: reset must succeed");
 
-        // Old token must now return 401.
+        // Old token must now return 401 (allowlist was cleared by reset).
         let after = client
             .get(format!("{base_url}/api/v1/alerts"))
             .header("Cookie", &old_cookie)
@@ -162,17 +154,19 @@ mod ac_8 {
         assert_eq!(
             after.status().as_u16(),
             401,
-            "AC-8: old session token must be rejected after reset (session store cleared)"
+            "AC-8: old access_token must be rejected after reset (allowlist cleared by reset_all)"
         );
     }
 
-    /// After reset, a new login is required and works.
+    /// After reset, re-configuring a new access_token grants access.
+    ///
+    /// Replaces the old "new login required after reset" test: under the access_token
+    /// model, reset clears the allowlist, and `configure({"access_token": ...})` re-provisions it.
     #[tokio::test]
     async fn ac_8_new_login_required_after_reset() {
-        let (_clone, base_url, admin_token, client) = start().await;
+        let (mut clone, base_url, admin_token, client) = start().await;
 
-        // Login and reset.
-        login(&base_url, &client).await;
+        // Reset.
         client
             .post(format!("{base_url}/dtu/reset"))
             .header("X-Admin-Token", &admin_token)
@@ -180,33 +174,32 @@ mod ac_8 {
             .await
             .expect("AC-8: reset must succeed");
 
-        // New login should succeed.
-        let new_token = login(&base_url, &client).await;
-        assert!(
-            !new_token.is_empty(),
-            "AC-8: new login after reset must return a valid token"
-        );
+        // Re-configure a new access_token after reset.
+        let new_token = "demo-access-key-after-reset";
+        clone
+            .configure(serde_json::json!({"access_token": new_token}))
+            .await
+            .expect("AC-8: configure after reset must succeed");
 
         // New token should grant access.
         let access = client
             .get(format!("{base_url}/api/v1/alerts"))
-            .header("Cookie", format!("cyberint_session={new_token}"))
+            .header("Cookie", format!("access_token={new_token}"))
             .send()
             .await
             .expect("AC-8: request with new token must not error");
         assert_eq!(
             access.status().as_u16(),
             200,
-            "AC-8: new token after reset must grant access (HTTP 200)"
+            "AC-8: new access_token after reset must grant access (HTTP 200)"
         );
     }
 
     /// Reset also reverts closed alerts back to "open".
     #[tokio::test]
     async fn ac_8_reset_reverts_closed_alert_to_open() {
-        let (_clone, base_url, admin_token, client) = start().await;
-        let token = login(&base_url, &client).await;
-        let cookie = format!("cyberint_session={token}");
+        let (mut clone, base_url, admin_token, client) = start().await;
+        let cookie = format!("access_token={DEMO_TOKEN}");
 
         // Close an alert.
         client
@@ -224,11 +217,16 @@ mod ac_8 {
             .await
             .expect("AC-8: reset must succeed");
 
-        // Re-login and check alert status.
-        let new_token = login(&base_url, &client).await;
+        // Re-configure token after reset.
+        clone
+            .configure(serde_json::json!({"access_token": DEMO_TOKEN}))
+            .await
+            .expect("AC-8: re-configure after reset must succeed");
+
+        // Check alert status is now "open".
         let get_resp = client
             .get(format!("{base_url}/api/v1/alerts/CYB-2024-012"))
-            .header("Cookie", format!("cyberint_session={new_token}"))
+            .header("Cookie", format!("access_token={DEMO_TOKEN}"))
             .send()
             .await
             .expect("AC-8: GET after reset must not error");
@@ -247,7 +245,7 @@ mod ac_8 {
         // PATCH should now succeed (alert is no longer closed).
         let patch_resp = client
             .patch(format!("{base_url}/api/v1/alerts/CYB-2024-012/status"))
-            .header("Cookie", format!("cyberint_session={new_token}"))
+            .header("Cookie", format!("access_token={DEMO_TOKEN}"))
             .json(&serde_json::json!({"status": "acknowledged"}))
             .send()
             .await

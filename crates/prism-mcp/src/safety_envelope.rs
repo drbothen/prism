@@ -374,8 +374,9 @@ pub struct ResponseEnvelopeSchema {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use serde_json::json;
+
+    use super::*;
 
     /// F-PR163-PASS2-IMP-1 — nested object injection is detected.
     ///

@@ -5,8 +5,9 @@
 //! serialization. All field names match the canonical TypeScript interface
 //! definitions exactly.
 
-use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+
+use serde::{Deserialize, Serialize};
 
 // ---------------------------------------------------------------------------
 // Shared filter / sort types

@@ -234,8 +234,10 @@ fn test_BC_2_11_004_internal_table_case_insensitive_integration_UPDATE_mixed() {
 /// DELETE with no filter (WHERE = None) → Some(E-QUERY-022 error).
 #[test]
 fn test_BC_2_11_004_check_unbounded_write_delete_no_where() {
-    use crate::sql_parser::check_unbounded_write;
-    use crate::write_ast::{DmlNode, DmlOperation};
+    use crate::{
+        sql_parser::check_unbounded_write,
+        write_ast::{DmlNode, DmlOperation},
+    };
     let node = DmlNode {
         operation: DmlOperation::Delete,
         target_table: "armis_device_tags".to_string(),
@@ -260,9 +262,11 @@ fn test_BC_2_11_004_check_unbounded_write_delete_no_where() {
 /// UPDATE with no filter (WHERE = None) → Some(E-QUERY-022 error).
 #[test]
 fn test_BC_2_11_004_check_unbounded_write_update_no_where() {
-    use crate::ast::Expr;
-    use crate::sql_parser::check_unbounded_write;
-    use crate::write_ast::{Assignment, DmlNode, DmlOperation};
+    use crate::{
+        ast::Expr,
+        sql_parser::check_unbounded_write,
+        write_ast::{Assignment, DmlNode, DmlOperation},
+    };
     let node = DmlNode {
         operation: DmlOperation::Update,
         target_table: "armis_devices".to_string(),
@@ -290,9 +294,11 @@ fn test_BC_2_11_004_check_unbounded_write_update_no_where() {
 /// DELETE WITH filter → None (safe; no error).
 #[test]
 fn test_BC_2_11_004_check_unbounded_write_delete_with_where_is_safe() {
-    use crate::ast::{CompareOp, Expr, FieldPath, Literal, Predicate};
-    use crate::sql_parser::check_unbounded_write;
-    use crate::write_ast::{DmlNode, DmlOperation};
+    use crate::{
+        ast::{CompareOp, Expr, FieldPath, Literal, Predicate},
+        sql_parser::check_unbounded_write,
+        write_ast::{DmlNode, DmlOperation},
+    };
     // filter is now Option<Predicate> (F-PR130-SEC-003 fix).
     let filter = Predicate::Compare {
         lhs: Box::new(Expr::Field(FieldPath::new(["device_id"]))),
@@ -317,9 +323,11 @@ fn test_BC_2_11_004_check_unbounded_write_delete_with_where_is_safe() {
 /// INSERT INTO without LIMIT or WHERE on the source SELECT → Some(E-QUERY-022).
 #[test]
 fn test_BC_2_11_004_check_unbounded_write_insert_no_limit_no_where() {
-    use crate::ast::{FromClause, SelectClause, SourceRef, SqlQuery};
-    use crate::sql_parser::check_unbounded_write;
-    use crate::write_ast::{DmlNode, DmlOperation};
+    use crate::{
+        ast::{FromClause, SelectClause, SourceRef, SqlQuery},
+        sql_parser::check_unbounded_write,
+        write_ast::{DmlNode, DmlOperation},
+    };
     let source_select = SqlQuery::new(
         SelectClause::new(vec![crate::ast::SelectItem::Star]),
         FromClause::new(SourceRef::from_raw("events")),
@@ -348,9 +356,11 @@ fn test_BC_2_11_004_check_unbounded_write_insert_no_limit_no_where() {
 /// INSERT INTO with LIMIT on the source SELECT → None (safe).
 #[test]
 fn test_BC_2_11_004_check_unbounded_write_insert_with_limit_is_safe() {
-    use crate::ast::{FromClause, SelectClause, SourceRef, SqlQuery};
-    use crate::sql_parser::check_unbounded_write;
-    use crate::write_ast::{DmlNode, DmlOperation};
+    use crate::{
+        ast::{FromClause, SelectClause, SourceRef, SqlQuery},
+        sql_parser::check_unbounded_write,
+        write_ast::{DmlNode, DmlOperation},
+    };
     let mut source_select = SqlQuery::new(
         SelectClause::new(vec![crate::ast::SelectItem::Star]),
         FromClause::new(SourceRef::from_raw("events")),
@@ -417,8 +427,7 @@ fn test_BC_2_11_004_reject_write_verbs_in_filter_empty_registry_always_ok() {
 /// returns PipeQuery with write = Some(WriteNode { verb: "contain", ... }).
 #[test]
 fn test_BC_2_11_004_parse_pipe_with_write_happy_path() {
-    use crate::pipe_parser::parse_pipe_with_write;
-    use crate::security::ParseLimits;
+    use crate::{pipe_parser::parse_pipe_with_write, security::ParseLimits};
     let registry = test_registry(&["contain", "tag"]);
     let limits = ParseLimits::snapshot();
     let result = parse_pipe_with_write(
@@ -437,8 +446,7 @@ fn test_BC_2_11_004_parse_pipe_with_write_happy_path() {
 /// returns Err with E-QUERY-023.
 #[test]
 fn test_BC_2_11_004_parse_pipe_with_write_unknown_verb() {
-    use crate::pipe_parser::parse_pipe_with_write;
-    use crate::security::ParseLimits;
+    use crate::{pipe_parser::parse_pipe_with_write, security::ParseLimits};
     let registry = test_registry(&["contain", "tag"]);
     let limits = ParseLimits::snapshot();
     let result = parse_pipe_with_write(
@@ -458,8 +466,7 @@ fn test_BC_2_11_004_parse_pipe_with_write_unknown_verb() {
 /// returns Err with E-QUERY-024.
 #[test]
 fn test_BC_2_11_004_parse_pipe_with_write_verb_not_terminal() {
-    use crate::pipe_parser::parse_pipe_with_write;
-    use crate::security::ParseLimits;
+    use crate::{pipe_parser::parse_pipe_with_write, security::ParseLimits};
     let registry = test_registry(&["contain"]);
     let limits = ParseLimits::snapshot();
     let result = parse_pipe_with_write(
@@ -482,8 +489,7 @@ fn test_BC_2_11_004_parse_pipe_with_write_verb_not_terminal() {
 /// returns Err with E-QUERY-023.
 #[test]
 fn test_BC_2_11_004_parse_pipe_with_write_empty_registry_any_verb_023() {
-    use crate::pipe_parser::parse_pipe_with_write;
-    use crate::security::ParseLimits;
+    use crate::{pipe_parser::parse_pipe_with_write, security::ParseLimits};
     let registry = WriteVerbRegistry::default();
     let limits = ParseLimits::snapshot();
     let result = parse_pipe_with_write(
@@ -510,9 +516,11 @@ fn test_BC_2_11_004_parse_pipe_with_write_empty_registry_any_verb_023() {
 /// `Ast::Sql(SqlStatement::Dml(DmlNode { operation: Delete, ... }))`.
 #[test]
 fn test_BC_2_11_004_parse_sql_dml_delete_with_where() {
-    use crate::ast::{Ast, SqlStatement};
-    use crate::sql_parser::parse_sql_dml;
-    use crate::write_ast::DmlOperation;
+    use crate::{
+        ast::{Ast, SqlStatement},
+        sql_parser::parse_sql_dml,
+        write_ast::DmlOperation,
+    };
     let result = parse_sql_dml("DELETE FROM armis_device_tags WHERE device_id = '123'");
     assert!(
         result.is_ok(),
@@ -575,8 +583,7 @@ fn test_BC_2_11_004_parse_sql_dml_not_dml_input_parse_error() {
 /// Write verb case sensitivity: CONTAIN (uppercase) matches registered 'contain'.
 #[test]
 fn test_BC_2_11_004_write_verb_case_insensitive_uppercase() {
-    use crate::pipe_parser::parse_pipe_with_write;
-    use crate::security::ParseLimits;
+    use crate::{pipe_parser::parse_pipe_with_write, security::ParseLimits};
     let registry = test_registry(&["contain"]);
     let limits = ParseLimits::snapshot();
     let result = parse_pipe_with_write("FROM crowdstrike_hosts | CONTAIN", &registry, &limits);
@@ -624,8 +631,7 @@ fn test_BC_2_11_004_filter_rejection_case_insensitive() {
 /// source_sensor is populated from FROM source with underscore notation.
 #[test]
 fn test_BC_2_11_004_source_sensor_populated_from_from_clause() {
-    use crate::pipe_parser::parse_pipe_with_write;
-    use crate::security::ParseLimits;
+    use crate::{pipe_parser::parse_pipe_with_write, security::ParseLimits};
     let registry = test_registry(&["contain"]);
     let limits = ParseLimits::snapshot();
     let result = parse_pipe_with_write("FROM armis_devices | contain", &registry, &limits);
@@ -642,9 +648,7 @@ fn test_BC_2_11_004_source_sensor_populated_from_from_clause() {
 /// parse_pipe_with_write: write stage with multiple args.
 #[test]
 fn test_BC_2_11_004_parse_pipe_with_write_multiple_args() {
-    use crate::ast::Literal;
-    use crate::pipe_parser::parse_pipe_with_write;
-    use crate::security::ParseLimits;
+    use crate::{ast::Literal, pipe_parser::parse_pipe_with_write, security::ParseLimits};
     let registry = test_registry(&["tag"]);
     let limits = ParseLimits::snapshot();
     let result = parse_pipe_with_write(
@@ -678,8 +682,7 @@ fn test_BC_2_11_004_parse_pipe_with_write_multiple_args() {
 /// returned `PipeQuery { write: None }` regardless of registry.
 #[test]
 fn test_BC_2_11_004_PrismQlParser_parse_with_registry_pipe_write_routes_to_WriteNode() {
-    use crate::ast::Ast;
-    use crate::filter_parser::PrismQlParser;
+    use crate::{ast::Ast, filter_parser::PrismQlParser};
     let registry = test_registry(&["contain"]);
     let result = PrismQlParser::parse_with_registry("FROM crowdstrike_hosts | contain", &registry);
     assert!(result.is_ok(), "must parse successfully, got: {:?}", result);
@@ -699,8 +702,7 @@ fn test_BC_2_11_004_PrismQlParser_parse_with_registry_pipe_write_routes_to_Write
 /// Ensures backward compatibility: S-3.01 callers are unaffected.
 #[test]
 fn test_BC_2_11_004_PrismQlParser_parse_no_registry_pipe_write_is_none() {
-    use crate::ast::Ast;
-    use crate::filter_parser::PrismQlParser;
+    use crate::{ast::Ast, filter_parser::PrismQlParser};
     // Without registry, the pipe query should parse but write stage is unknown → error
     // OR parse as plain pipe (implementation-dependent). Key: parse() never crashes.
     // The default parse() does NOT attempt write detection, so a bare verb at the end
@@ -738,8 +740,7 @@ fn test_BC_2_11_004_PrismQlParser_parse_filter_mode_rejects_write_verb_with_regi
 /// Filter-mode `parse_with_registry` with no write verb: parses normally.
 #[test]
 fn test_BC_2_11_004_PrismQlParser_parse_with_registry_filter_clean_ok() {
-    use crate::ast::Ast;
-    use crate::filter_parser::PrismQlParser;
+    use crate::{ast::Ast, filter_parser::PrismQlParser};
     let registry = test_registry(&["contain"]);
     let result = PrismQlParser::parse_with_registry("status = 'active'", &registry);
     assert!(result.is_ok(), "clean filter must parse: {:?}", result);
@@ -758,9 +759,11 @@ fn test_BC_2_11_004_PrismQlParser_parse_with_registry_filter_clean_ok() {
 /// Regression: previously the column list was silently dropped (`_cols`).
 #[test]
 fn test_BC_2_11_004_insert_column_list_preserved_in_DmlNode_columns() {
-    use crate::ast::{Ast, SqlStatement};
-    use crate::sql_parser::parse_sql_dml;
-    use crate::write_ast::DmlOperation;
+    use crate::{
+        ast::{Ast, SqlStatement},
+        sql_parser::parse_sql_dml,
+        write_ast::DmlOperation,
+    };
     let result = parse_sql_dml(
         "INSERT INTO armis_tags (device_id, tag_name) SELECT id, name FROM events WHERE id = '1' LIMIT 10",
     );
@@ -791,9 +794,11 @@ fn test_BC_2_11_004_insert_column_list_preserved_in_DmlNode_columns() {
 /// must produce `DmlNode.columns = None`.
 #[test]
 fn test_BC_2_11_004_insert_no_column_list_columns_is_none() {
-    use crate::ast::{Ast, SqlStatement};
-    use crate::sql_parser::parse_sql_dml;
-    use crate::write_ast::DmlOperation;
+    use crate::{
+        ast::{Ast, SqlStatement},
+        sql_parser::parse_sql_dml,
+        write_ast::DmlOperation,
+    };
     let result =
         parse_sql_dml("INSERT INTO armis_tags SELECT id FROM events WHERE id = '1' LIMIT 10");
     assert!(
@@ -816,9 +821,11 @@ fn test_BC_2_11_004_insert_no_column_list_columns_is_none() {
 /// DELETE and UPDATE always have `columns = None`.
 #[test]
 fn test_BC_2_11_004_delete_update_columns_always_none() {
-    use crate::ast::{Ast, SqlStatement};
-    use crate::sql_parser::parse_sql_dml;
-    use crate::write_ast::DmlOperation;
+    use crate::{
+        ast::{Ast, SqlStatement},
+        sql_parser::parse_sql_dml,
+        write_ast::DmlOperation,
+    };
 
     let del = parse_sql_dml("DELETE FROM armis_tags WHERE id = '1'").unwrap();
     match del {
@@ -856,8 +863,7 @@ fn test_BC_2_11_004_delete_update_columns_always_none() {
 /// with depth=1 rejects it.
 #[test]
 fn test_BC_2_11_004_parse_dml_with_limits_depth_check_fires_on_source_select() {
-    use crate::security::ParseLimits;
-    use crate::sql_parser::parse_sql_dml_with_limits;
+    use crate::{security::ParseLimits, sql_parser::parse_sql_dml_with_limits};
 
     // A query with a nested IN subquery: depth > 1 in source_select.
     // This parses fine with default limits (depth=64) but must fail with depth=1.
@@ -901,8 +907,7 @@ fn test_BC_2_11_004_parse_dml_with_limits_depth_check_fires_on_source_select() {
 /// env and passes them to `parse_dml_internal`). A safe INSERT is accepted.
 #[test]
 fn test_BC_2_11_004_PrismQlParser_parse_dml_limits_forwarded_safe_query_accepted() {
-    use crate::ast::Ast;
-    use crate::filter_parser::PrismQlParser;
+    use crate::{ast::Ast, filter_parser::PrismQlParser};
     // A safe DML: bounded INSERT with LIMIT.
     let result = PrismQlParser::parse(
         "INSERT INTO armis_tags SELECT id FROM events WHERE id = '1' LIMIT 10",
@@ -923,9 +928,11 @@ fn test_BC_2_11_004_PrismQlParser_parse_dml_limits_forwarded_safe_query_accepted
 /// Regression test for F-PR130-SEC-003.
 #[test]
 fn test_BC_2_11_004_delete_filter_preserves_actual_predicate() {
-    use crate::ast::{Ast, CompareOp, Expr, FieldPath, Literal, Predicate, SqlStatement};
-    use crate::sql_parser::parse_sql_dml;
-    use crate::write_ast::DmlOperation;
+    use crate::{
+        ast::{Ast, CompareOp, Expr, FieldPath, Literal, Predicate, SqlStatement},
+        sql_parser::parse_sql_dml,
+        write_ast::DmlOperation,
+    };
 
     let result = parse_sql_dml("DELETE FROM armis_device_tags WHERE device_id = '123'");
     assert!(result.is_ok(), "must parse: {:?}", result);
@@ -965,9 +972,11 @@ fn test_BC_2_11_004_delete_filter_preserves_actual_predicate() {
 /// Regression test for F-PR130-SEC-003.
 #[test]
 fn test_BC_2_11_004_update_filter_preserves_actual_predicate() {
-    use crate::ast::{Ast, Predicate, SqlStatement};
-    use crate::sql_parser::parse_sql_dml;
-    use crate::write_ast::DmlOperation;
+    use crate::{
+        ast::{Ast, Predicate, SqlStatement},
+        sql_parser::parse_sql_dml,
+        write_ast::DmlOperation,
+    };
 
     let result = parse_sql_dml("UPDATE armis_tags SET status = ok WHERE id = '1'");
     assert!(result.is_ok(), "must parse: {:?}", result);
@@ -1116,8 +1125,7 @@ fn test_BC_2_11_003_parse_with_registry_rejects_denied_keyword_EXPLAIN() {
 /// caller-provided limits it must use the original snapshot value.
 #[test]
 fn test_BC_2_11_006_parse_pipe_with_write_uses_caller_limits_no_re_snapshot() {
-    use crate::pipe_parser::parse_pipe_with_write;
-    use crate::security::ParseLimits;
+    use crate::{pipe_parser::parse_pipe_with_write, security::ParseLimits};
     let registry = test_registry(&["contain"]);
     // Snapshot with default env (no PRISM_MAX_QUERY_SIZE override).
     let outer_limits = ParseLimits::snapshot();
@@ -1151,9 +1159,11 @@ fn test_BC_2_11_006_parse_pipe_with_write_uses_caller_limits_no_re_snapshot() {
 /// `_ => {}` for all non-Select variants — DML sub-nodes were silently skipped.
 #[test]
 fn test_BC_2_11_004_visit_dml_node_visits_all_inner_nodes() {
-    use crate::ast::{Ast, SqlStatement};
-    use crate::sql_parser::parse_sql_dml;
-    use crate::visit::{walk_ast, Visitor};
+    use crate::{
+        ast::{Ast, SqlStatement},
+        sql_parser::parse_sql_dml,
+        visit::{walk_ast, Visitor},
+    };
 
     struct NodeCounter {
         expr_count: usize,
@@ -1223,9 +1233,11 @@ fn test_BC_2_11_004_visit_dml_node_visits_all_inner_nodes() {
 /// WriteNode (pipe path) must be fully traversed by the visitor.
 #[test]
 fn test_BC_2_11_004_walk_pipe_query_visits_write_node_args() {
-    use crate::ast::{Ast, Literal};
-    use crate::filter_parser::PrismQlParser;
-    use crate::visit::{walk_ast, Visitor};
+    use crate::{
+        ast::{Ast, Literal},
+        filter_parser::PrismQlParser,
+        visit::{walk_ast, Visitor},
+    };
 
     struct LiteralCollector {
         literals: Vec<Literal>,
@@ -1289,9 +1301,11 @@ fn test_BC_2_11_004_walk_pipe_query_visits_write_node_args() {
 /// DML route: `DELETE FROM x WHERE id='1'` → `Ast::Sql(Dml(Delete))`.
 #[test]
 fn test_BC_2_11_004_parse_with_registry_dml_delete_routes_correctly() {
-    use crate::ast::{Ast, SqlStatement};
-    use crate::filter_parser::PrismQlParser;
-    use crate::write_ast::DmlOperation;
+    use crate::{
+        ast::{Ast, SqlStatement},
+        filter_parser::PrismQlParser,
+        write_ast::DmlOperation,
+    };
     let registry = test_registry(&["contain"]);
     let result =
         PrismQlParser::parse_with_registry("DELETE FROM crowdstrike_hosts WHERE id='1'", &registry);
@@ -1315,8 +1329,10 @@ fn test_BC_2_11_004_parse_with_registry_dml_delete_routes_correctly() {
 /// SELECT route: `SELECT * FROM x` → `Ast::Sql(Select)`.
 #[test]
 fn test_BC_2_11_004_parse_with_registry_select_routes_correctly() {
-    use crate::ast::{Ast, SqlStatement};
-    use crate::filter_parser::PrismQlParser;
+    use crate::{
+        ast::{Ast, SqlStatement},
+        filter_parser::PrismQlParser,
+    };
     let registry = test_registry(&["contain"]);
     let result = PrismQlParser::parse_with_registry("SELECT * FROM crowdstrike_hosts", &registry);
     assert!(

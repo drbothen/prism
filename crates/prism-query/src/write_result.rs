@@ -23,12 +23,11 @@
 
 use chrono::{DateTime, Utc};
 use prism_core::RiskTier;
-use serde::{Deserialize, Serialize};
-use ulid::Ulid;
-
 // Re-export per-record types from prism-sensors (they live there because
 // SensorAdapter::write() returns them directly).
 pub use prism_sensors::write_result::{RecordWriteResult, WriteStatus};
+use serde::{Deserialize, Serialize};
+use ulid::Ulid;
 
 // ---------------------------------------------------------------------------
 // SensorWriteError — per-sensor error accumulation

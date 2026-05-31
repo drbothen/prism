@@ -5,9 +5,11 @@
 
 use std::sync::Arc;
 
-use axum::extract::{Query, RawQuery, State};
-use axum::http::{HeaderMap, StatusCode};
-use axum::response::{IntoResponse, Json};
+use axum::{
+    extract::{Query, RawQuery, State},
+    http::{HeaderMap, StatusCode},
+    response::{IntoResponse, Json},
+};
 use prism_core::OrgId;
 use serde::Deserialize;
 

@@ -16,13 +16,13 @@
 
 #![cfg(test)]
 
+use prism_core::ColumnType;
 use proptest::prelude::*;
 
-use crate::spec_parser::{
-    AuthType, ColumnSpec, FetchStep, PaginationConfig, SensorSpec, TableSpec,
+use crate::{
+    spec_parser::{AuthType, ColumnSpec, FetchStep, PaginationConfig, SensorSpec, TableSpec},
+    validation::validate_sensor_spec,
 };
-use crate::validation::validate_sensor_spec;
-use prism_core::ColumnType;
 
 // ---------------------------------------------------------------------------
 // Test vector builders: construct SensorSpec values with exactly N known errors.

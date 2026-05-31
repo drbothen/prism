@@ -23,11 +23,12 @@
 )]
 #[cfg(kani)]
 mod kani_proofs {
+    use prism_core::InfusionError;
+
     use crate::infusion::{
         BuiltInSourceType, CredentialRef, InfusionField, InfusionRegistry, InfusionSpec,
         InfusionType,
     };
-    use prism_core::InfusionError;
 
     /// Build an `InfusionSpec` with `n` distinct fields for Kani symbolic verification.
     ///

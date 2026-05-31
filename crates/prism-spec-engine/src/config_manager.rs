@@ -2,15 +2,16 @@
 // BC-2.16.006: Lock-free config reads on query hot path via ArcSwap.
 // AD-018: ArcSwap<ConfigSnapshot> is the mandated config access pattern.
 
+use std::{collections::HashMap, path::Path, sync::Arc};
+
 use arc_swap::ArcSwap;
 use sha2::{Digest, Sha256};
-use std::collections::HashMap;
-use std::path::Path;
-use std::sync::Arc;
 
-use crate::error::SpecEngineError;
-use crate::spec_parser::SensorSpec;
-use crate::types::{ConfigSnapshot, ValidationError};
+use crate::{
+    error::SpecEngineError,
+    spec_parser::SensorSpec,
+    types::{ConfigSnapshot, ValidationError},
+};
 
 /// ConfigManager wraps ArcSwap<ConfigSnapshot> providing lock-free reads on the
 /// query hot path and atomic swap for hot reload.

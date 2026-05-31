@@ -1,0 +1,41 @@
+AC-005: StaticCookieAuthProvider::acquire_token returns api_key without HTTP call
+Story: S-DTU-CYBERINT-AUTH-FIDELITY-001
+BC: BC-2.01.017 §Postconditions P1; ADR-031 §D3-b rule 2; AD-017
+Red Gate test: test_BC_2_01_017_static_cookie_auth_provider_returns_api_key_without_http_call
+
+Evidence type: Integration test output (prism-spec-engine; MockCredentialResolver DI)
+
+--- TEST RUN ---
+
+PASS [   0.021s] (1/3) prism-spec-engine::bc_2_01_017_static_cookie_auth_provider
+  test_BC_2_01_017_static_cookie_auth_provider_returns_api_key_without_http_call
+
+--- WHAT THE TEST ASSERTS ---
+
+1. Constructs StaticCookieAuthProvider::new_with_resolver("cyberint",
+     Arc::new(MockCredentialResolver::new("test-api-key-abc123")))
+2. Calls acquire_token(&spec, &client_id).await
+3. Asserts result.is_ok()
+4. Asserts token.as_str() == "test-api-key-abc123"
+   (TV-BC-2.01.017-001: token equals the resolved credential value)
+5. No HTTP server is running — no HTTP call can have occurred.
+
+--- IMPLEMENTATION: StaticCookieAuthProvider in auth_provider.rs ---
+
+File: crates/prism-spec-engine/src/auth_provider.rs (lines 358-533)
+
+pub struct StaticCookieAuthProvider {
+    sensor_id: String,
+    resolver: Arc<dyn CredentialResolver>,
+}
+
+The struct has NO reqwest::Client field — the type system enforces INV-COOKIE-001
+(zero HTTP calls). acquire_token() resolves credentials via the injected resolver
+and returns Ok(AuthToken::new(api_key)) immediately.
+
+The type is pub, NOT feature-gated (production type per ADR-031 §D3-b).
+
+AD-017 compliance: the API key is NOT stored as a struct field — it is resolved at
+acquire_token() time and wrapped in AuthToken(Zeroizing<String>).
+
+AC-005 SATISFIED.

@@ -1,16 +1,20 @@
 //! [`FailureLayer`] — Tower layer that injects configurable failure modes.
 
-use crate::config::FailureMode;
+use std::{
+    future::Future,
+    pin::Pin,
+    sync::{
+        atomic::{AtomicU32, Ordering},
+        Arc, Mutex,
+    },
+    task::{Context, Poll},
+};
+
 use axum::body::Body;
 use http::Response;
-use std::future::Future;
-use std::pin::Pin;
-use std::sync::{
-    atomic::{AtomicU32, Ordering},
-    Arc, Mutex,
-};
-use std::task::{Context, Poll};
 use tower::Service;
+
+use crate::config::FailureMode;
 
 /// Tower [`tower::Layer`] that wraps a service with configurable failure injection.
 ///

@@ -1,15 +1,15 @@
 //! Plugin hot reload — `notify` integration and atomic `arc-swap` registry updates.
 
-use std::collections::HashMap;
-use std::path::Path;
-use std::sync::Arc;
+use std::{collections::HashMap, path::Path, sync::Arc};
 
 use arc_swap::ArcSwap;
 use prism_core::PluginError;
 use tracing::{error, info};
 
-use super::discovery::load_plugin_from_bytes;
-use super::loader::{HostState, LoadedPlugin};
+use super::{
+    discovery::load_plugin_from_bytes,
+    loader::{HostState, LoadedPlugin},
+};
 
 /// Attempt to hot-reload a plugin by replacing its registry entry.
 ///

@@ -12,8 +12,7 @@ use std::sync::RwLock;
 
 use bimap::BiMap;
 
-use crate::ids::OrgId;
-use crate::tenant::OrgSlug;
+use crate::{ids::OrgId, tenant::OrgSlug};
 
 // ---------------------------------------------------------------------------
 // Error types

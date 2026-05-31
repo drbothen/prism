@@ -13,8 +13,10 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 mod common;
 
-use prism_dtu_demo_server::config::{CloneConfig, ClonesConfig, DemoConfig};
-use prism_dtu_demo_server::harness::{build_clone_pairs, DemoHarness};
+use prism_dtu_demo_server::{
+    config::{CloneConfig, ClonesConfig, DemoConfig},
+    harness::{build_clone_pairs, DemoHarness},
+};
 
 /// Pre-bind a port to force EADDRINUSE on cyberint.
 async fn pre_bind_port() -> (tokio::net::TcpListener, u16) {

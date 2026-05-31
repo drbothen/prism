@@ -19,11 +19,12 @@ use axum::{
     response::IntoResponse,
     Json,
 };
-
 use subtle::ConstantTimeEq;
 
-use crate::state::JiraState;
-use crate::types::{DtuIssueSummary, DtuIssuesResponse};
+use crate::{
+    state::JiraState,
+    types::{DtuIssueSummary, DtuIssuesResponse},
+};
 
 /// `POST /dtu/configure`
 ///

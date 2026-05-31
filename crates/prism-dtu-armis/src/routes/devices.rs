@@ -44,10 +44,12 @@ use axum::{
 use serde::Deserialize;
 use serde_json::Value as JsonValue;
 
-use crate::state::{ArmisState, DTU_ROUTE_ORG_ID};
-use crate::types::{
-    ActivityData, ActivityResponse, ArmisError, DeviceRecord, DevicesData, DevicesResponse,
-    RiskData, RiskResponse,
+use crate::{
+    state::{ArmisState, DTU_ROUTE_ORG_ID},
+    types::{
+        ActivityData, ActivityResponse, ArmisError, DeviceRecord, DevicesData, DevicesResponse,
+        RiskData, RiskResponse,
+    },
 };
 
 /// Query parameters accepted by `GET /api/v1/devices`.

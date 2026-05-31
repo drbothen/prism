@@ -33,16 +33,17 @@
 //!
 //! Story: S-3.1.04 | BC: BC-3.2.002
 
+use std::sync::{
+    atomic::{AtomicU64, Ordering},
+    LazyLock,
+};
+
 use prism_core::{CredentialName, OrgId};
 use prism_credentials::{
     file::EncryptedFileBackend, namespace::namespace_key_by_org_id, trait_::CredentialStoreOrgId,
 };
 use proptest::prelude::*;
 use secrecy::{ExposeSecret, SecretString};
-use std::sync::{
-    atomic::{AtomicU64, Ordering},
-    LazyLock,
-};
 use tempfile::TempDir;
 
 // ---------------------------------------------------------------------------

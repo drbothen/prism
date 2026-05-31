@@ -45,9 +45,12 @@
 //! - ADR-008 §2.1 D-048
 //! - VP-084
 
+use std::{
+    collections::{HashMap, VecDeque},
+    sync::{Mutex, OnceLock},
+};
+
 use prism_core::OrgId;
-use std::collections::{HashMap, VecDeque};
-use std::sync::{Mutex, OnceLock};
 use uuid::{Uuid, Version};
 
 /// Maximum number of session ID → OrgId mappings held in the in-process registry.

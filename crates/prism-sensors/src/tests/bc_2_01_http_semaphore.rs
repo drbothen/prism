@@ -132,8 +132,8 @@ async fn test_BC_2_01_http_semaphore_acquire_succeeds_when_permits_available() {
 #[tokio::test]
 async fn test_BC_2_01_http_semaphore_201st_task_blocks_not_rejected() {
     use std::sync::Arc;
-    use tokio::sync::Semaphore;
-    use tokio::time::timeout;
+
+    use tokio::{sync::Semaphore, time::timeout};
 
     let sem = Arc::new(Semaphore::new(2));
 

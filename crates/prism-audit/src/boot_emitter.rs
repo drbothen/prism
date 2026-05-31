@@ -25,8 +25,10 @@ use std::sync::Arc;
 
 use chrono::Utc;
 use prism_core::PrismError;
-use prism_storage::audit_buffer::{append_audit_entry_sync, AuditEntry as StorageAuditEntry};
-use prism_storage::rocksdb_backend::RocksDbBackend;
+use prism_storage::{
+    audit_buffer::{append_audit_entry_sync, AuditEntry as StorageAuditEntry},
+    rocksdb_backend::RocksDbBackend,
+};
 use uuid::Uuid;
 
 /// Boot-time audit emitter.

@@ -21,14 +21,15 @@ use axum::{
     response::IntoResponse,
     Json,
 };
-
 #[cfg(feature = "dtu")]
 use prism_core::OrgId;
 
-use crate::state::{IssueRecord, IssueStatus, JiraState};
-use crate::types::{
-    CommentField, CreateIssueRequest, CreateIssueResponse, IssueFields, IssueResponse,
-    IssueStatusField, IssueTypeField, JiraError, ProjectField, VALID_ISSUE_TYPES,
+use crate::{
+    state::{IssueRecord, IssueStatus, JiraState},
+    types::{
+        CommentField, CreateIssueRequest, CreateIssueResponse, IssueFields, IssueResponse,
+        IssueStatusField, IssueTypeField, JiraError, ProjectField, VALID_ISSUE_TYPES,
+    },
 };
 
 /// Check that the request carries a valid `Authorization: Basic {base64}` header.

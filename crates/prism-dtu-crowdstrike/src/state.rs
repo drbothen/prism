@@ -13,10 +13,12 @@
 //! This satisfies both AC-6 (same seed → same response) and the `different_seeds`
 //! sub-test (different seeds → different orderings → different responses).
 
-use std::collections::HashMap;
-use std::sync::{
-    atomic::{AtomicU32, Ordering},
-    Arc, Mutex,
+use std::{
+    collections::HashMap,
+    sync::{
+        atomic::{AtomicU32, Ordering},
+        Arc, Mutex,
+    },
 };
 
 use anyhow::Result;

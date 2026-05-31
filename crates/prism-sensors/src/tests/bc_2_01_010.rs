@@ -15,8 +15,9 @@
 //!
 //! Story: S-2.06 | BC: BC-2.01.010
 
-use crate::adapter::SensorError;
 use prism_core::SensorId;
+
+use crate::adapter::SensorError;
 
 // ---------------------------------------------------------------------------
 // Structural: FanOutError fields accessible
@@ -135,9 +136,10 @@ fn test_BC_2_01_010_all_targets_failed_contains_error_count() {
 ///
 #[tokio::test]
 async fn test_BC_2_01_010_fan_out_all_targets_fail_returns_all_targets_failed() {
+    use std::sync::Arc;
+
     use arrow::record_batch::RecordBatch;
     use async_trait::async_trait;
-    use std::sync::Arc;
 
     use crate::{
         adapter::{QueryParams, SensorAdapter, SensorError, SensorSpec},
@@ -249,13 +251,14 @@ async fn test_BC_2_01_010_fan_out_all_targets_fail_returns_all_targets_failed() 
 ///
 #[tokio::test]
 async fn test_BC_2_01_010_fan_out_five_succeed_one_503_returns_partial_result() {
+    use std::sync::{atomic::Ordering, Arc};
+
     use arrow::{
         array::Int32Array,
         datatypes::{DataType, Field, Schema},
         record_batch::RecordBatch,
     };
     use async_trait::async_trait;
-    use std::sync::{atomic::Ordering, Arc};
 
     use crate::{
         adapter::{QueryParams, SensorAdapter, SensorError, SensorSpec},

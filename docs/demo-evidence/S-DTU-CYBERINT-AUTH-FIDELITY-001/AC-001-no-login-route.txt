@@ -1,0 +1,49 @@
+AC-001: POST /login route removed from DTU build_router
+Story: S-DTU-CYBERINT-AUTH-FIDELITY-001
+BC: BC-2.16.013 (DTU parity — no login endpoint per ADR-031 §D1-b)
+Red Gate test: test_BC_2_16_013_dtu_post_login_route_removed_returns_404
+
+Evidence type: Integration test output (HTTP-layer, running CyberintClone)
+
+--- TEST RUN (cargo nextest run -p prism-dtu-cyberint --features dtu) ---
+
+PASS [   7.229s] (1/1) prism-dtu-cyberint::bc_2_01_017_access_token_auth
+  bc_2_01_017_dtu::test_BC_2_16_013_dtu_post_login_route_removed_returns_404
+
+Summary: 1 test run: 1 passed, 108 skipped
+
+--- WHAT THE TEST ASSERTS ---
+
+The test starts a CyberintClone (running axum HTTP server), sends POST /login,
+and asserts the response status code is 404. The assertion message is:
+
+  "AC-001 / BC-2.16.013: POST /login MUST return 404 — the route is removed per
+   ADR-031 §D1-b; the real Cyberint API requires no login step."
+
+--- SOURCE EVIDENCE: clone.rs build_router ---
+
+File: crates/prism-dtu-cyberint/src/clone.rs (lines 110-129)
+
+    fn build_router(&self) -> Router {
+        // NOTE: POST /login route is intentionally ABSENT.
+        // ADR-031 §D3-a rule 1: the real Cyberint API has no login step.
+        // Auth is validated via `access_token` cookie on every data request.
+        // AC-001 (S-DTU-CYBERINT-AUTH-FIDELITY-001): any request to POST /login returns 404.
+        Router::new()
+            // Alerts
+            .route("/api/v1/alerts", get(get_alerts))
+            ...
+            .route("/dtu/health", get(get_health))
+            .with_state(self.state.clone())
+    }
+
+No `.route("/login", ...)` registration is present. axum returns 404 for
+unregistered routes by default.
+
+--- NEGATIVE PATH COVERAGE ---
+
+The pre-fix `build_router` had `.route("/login", post(post_login))` which returned
+200 or 401. The Red Gate test was designed to fail on that state (it expected 404
+but got 200/401). After removing the route, 404 is returned and the test passes.
+
+AC-001 SATISFIED.

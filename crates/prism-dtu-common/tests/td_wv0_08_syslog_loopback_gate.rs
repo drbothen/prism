@@ -10,8 +10,9 @@
 //
 // See also: ac_6_syslog_receiver.rs (AC-6 acceptance test).
 
-use prism_dtu_common::SyslogReceiver;
 use std::net::SocketAddr;
+
+use prism_dtu_common::SyslogReceiver;
 use tokio::net::UdpSocket;
 
 const LOOPBACK_SYSLOG_MSG: &str =

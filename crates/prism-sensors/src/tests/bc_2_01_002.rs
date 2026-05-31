@@ -19,8 +19,10 @@
 
 use prism_core::SensorId;
 
-use crate::adapter::SensorError;
-use crate::fanout::{error_to_retry_metadata, MAX_FANOUT_CONCURRENCY};
+use crate::{
+    adapter::SensorError,
+    fanout::{error_to_retry_metadata, MAX_FANOUT_CONCURRENCY},
+};
 
 // ---------------------------------------------------------------------------
 // MAX_FANOUT_CONCURRENCY literal assertion (AC-1)
@@ -156,13 +158,14 @@ fn test_BC_2_01_002_error_to_retry_metadata_rate_limited_429_code() {
 
 #[tokio::test]
 async fn test_BC_2_01_002_fan_out_six_targets_all_succeed() {
+    use std::sync::Arc;
+
     use arrow::{
         array::Int32Array,
         datatypes::{DataType, Field, Schema},
         record_batch::RecordBatch,
     };
     use async_trait::async_trait;
-    use std::sync::Arc;
 
     use crate::{
         adapter::{QueryParams, SensorAdapter, SensorError, SensorSpec},
@@ -287,11 +290,12 @@ async fn test_BC_2_01_002_fan_out_six_targets_all_succeed() {
 
 #[tokio::test]
 async fn test_BC_2_01_002_fan_out_empty_targets_returns_empty_result() {
+    use std::sync::Arc;
+
     use crate::{
         fanout::{fan_out, CredentialResolver},
         registry::AdapterRegistry,
     };
-    use std::sync::Arc;
 
     struct StubCreds;
     impl CredentialResolver for StubCreds {

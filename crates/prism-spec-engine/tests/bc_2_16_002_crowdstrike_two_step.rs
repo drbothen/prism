@@ -15,12 +15,17 @@
 //!              PLUGIN-MIGRATION-001-F AC-002 (TOML-driven two-step test naming)
 //! HS coverage: HS-013 (partial — the wiremock path, not the DTU parity verdict)
 
-use prism_core::OrgSlug;
-use prism_spec_engine::NullAuthProvider;
-use prism_spec_engine::pipeline::{FetchContext, PipelineExecutor};
 use std::collections::HashMap;
-use wiremock::matchers::{method, path};
-use wiremock::{Mock, MockServer, ResponseTemplate};
+
+use prism_core::OrgSlug;
+use prism_spec_engine::{
+    NullAuthProvider,
+    pipeline::{FetchContext, PipelineExecutor},
+};
+use wiremock::{
+    Mock, MockServer, ResponseTemplate,
+    matchers::{method, path},
+};
 
 // ---------------------------------------------------------------------------
 // RG-03: CrowdStrike two-step pipeline via in-process HTTP mock

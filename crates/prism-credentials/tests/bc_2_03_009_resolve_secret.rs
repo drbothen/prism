@@ -4,9 +4,10 @@
 //! All tests pass (implementation complete).
 
 #![allow(clippy::unwrap_used, clippy::expect_used)]
+use std::io::Write;
+
 use prism_credentials::resolve_secret::resolve_secret;
 use secrecy::ExposeSecret;
-use std::io::Write;
 use tempfile::NamedTempFile;
 
 // ---------------------------------------------------------------------------

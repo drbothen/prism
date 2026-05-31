@@ -43,9 +43,7 @@ mod proptest_harnesses {
 
     use proptest::prelude::*;
 
-    use crate::alias_resolver::AliasResolver;
-    use crate::alias_store::AliasStore;
-    use crate::alias_types::AliasScope;
+    use crate::{alias_resolver::AliasResolver, alias_store::AliasStore, alias_types::AliasScope};
 
     // NOTE: catch_unwind is intentionally ABSENT (F-CRIT-003). proptest converts panics
     // to test failures by default. Using catch_unwind would mask VP-037 violations rather

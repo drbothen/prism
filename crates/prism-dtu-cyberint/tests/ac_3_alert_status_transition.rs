@@ -1,44 +1,28 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
-//! AC-3: Stateful alert status transition.
+//! AC-3: Stateful alert status transition (rewritten for ADR-031 §D3-a).
 //!
 //! Given `PATCH /api/v1/alerts/{alert_id}/status` with `{"status": "acknowledged"}`,
 //! the response is HTTP 200 AND subsequent `GET /api/v1/alerts/{alert_id}` returns
 //! the alert with `status: "acknowledged"` — stateful transition persists.
+//!
+//! Rewritten per S-DTU-CYBERINT-AUTH-FIDELITY-001 Task 11: uses
+//! `Cookie: access_token=demo-key` instead of login + cyberint_session.
 
 #[cfg(feature = "dtu")]
 mod ac_3 {
     use prism_dtu_common::BehavioralClone;
     use prism_dtu_cyberint::CyberintClone;
 
-    /// Perform login and return the session token string.
-    async fn login(base_url: &str, client: &reqwest::Client) -> String {
-        let resp = client
-            .post(format!("{base_url}/login"))
-            .json(&serde_json::json!({}))
-            .send()
-            .await
-            .expect("login must succeed");
-        assert_eq!(resp.status().as_u16(), 200, "login must return 200");
+    const DEMO_TOKEN: &str = "demo-access-key";
 
-        let set_cookie = resp
-            .headers()
-            .get("set-cookie")
-            .expect("Set-Cookie must be present on login")
-            .to_str()
-            .expect("Set-Cookie must be ASCII")
-            .to_owned();
-        set_cookie
-            .split(';')
-            .next()
-            .and_then(|s| s.strip_prefix("cyberint_session="))
-            .expect("Set-Cookie must contain cyberint_session=")
-            .to_owned()
-    }
-
-    async fn start() -> (CyberintClone, String, reqwest::Client) {
+    async fn start_with_demo_token() -> (CyberintClone, String, reqwest::Client) {
         let mut clone = CyberintClone::new().expect("AC-3: new must succeed");
         clone.start().await.expect("AC-3: start must succeed");
         let base_url = clone.base_url();
+        clone
+            .configure(serde_json::json!({"access_token": DEMO_TOKEN}))
+            .await
+            .expect("AC-3: configure must succeed");
         let client = reqwest::Client::builder()
             .timeout(std::time::Duration::from_secs(5))
             .build()
@@ -49,12 +33,11 @@ mod ac_3 {
     /// PATCH status returns 200 with updated alert_id + status.
     #[tokio::test]
     async fn ac_3_patch_status_returns_200_with_acknowledged() {
-        let (_clone, base_url, client) = start().await;
-        let token = login(&base_url, &client).await;
+        let (_clone, base_url, client) = start_with_demo_token().await;
 
         let resp = client
             .patch(format!("{base_url}/api/v1/alerts/CYB-2024-001/status"))
-            .header("Cookie", format!("cyberint_session={token}"))
+            .header("Cookie", format!("access_token={DEMO_TOKEN}"))
             .json(&serde_json::json!({"status": "acknowledged"}))
             .send()
             .await
@@ -82,9 +65,8 @@ mod ac_3 {
     /// After PATCH, subsequent GET returns the updated status (state persists).
     #[tokio::test]
     async fn ac_3_status_persists_after_patch() {
-        let (_clone, base_url, client) = start().await;
-        let token = login(&base_url, &client).await;
-        let cookie = format!("cyberint_session={token}");
+        let (_clone, base_url, client) = start_with_demo_token().await;
+        let cookie = format!("access_token={DEMO_TOKEN}");
 
         // PATCH to acknowledge
         let patch_resp = client
@@ -125,9 +107,8 @@ mod ac_3 {
     /// Alert list also reflects the updated status.
     #[tokio::test]
     async fn ac_3_alert_list_reflects_updated_status() {
-        let (_clone, base_url, client) = start().await;
-        let token = login(&base_url, &client).await;
-        let cookie = format!("cyberint_session={token}");
+        let (_clone, base_url, client) = start_with_demo_token().await;
+        let cookie = format!("access_token={DEMO_TOKEN}");
 
         // PATCH CYB-2024-005 to acknowledged
         client

@@ -27,8 +27,7 @@
 
 #![allow(clippy::unwrap_used)]
 
-use std::path::PathBuf;
-use std::process::Command;
+use std::{path::PathBuf, process::Command};
 
 /// MED-5 (S-WAVE5-PREP-01 fix-pass-1): Create an isolated temp config dir per test.
 /// Returns (config_dir, state_dir, spec_dir) TempDirs — keep all alive for test duration.
@@ -342,9 +341,10 @@ fn test_BC_2_03_013_credential_ref_invalid_exits_two_not_five() {
 #[test]
 #[allow(non_snake_case)]
 fn test_BC_2_03_013_OQ1_non_leak_invariant_approach_a_type_level() {
+    use std::path::PathBuf;
+
     use prism_bin::BootError;
     use prism_credentials::{CredentialIndex, KeyringBackend};
-    use std::path::PathBuf;
 
     // Approach A: construct KeyringBackend with reference metadata only.
     // The constructor signature is: new(app_name: &str, index: CredentialIndex) -> Self.

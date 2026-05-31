@@ -38,13 +38,12 @@ use axum::{
     routing::{get, post},
     Json, Router,
 };
+use prism_dtu_common::FailureMode;
 use serde::Deserialize;
 use serde_json::{json, Value};
-use tokio::sync::broadcast;
-use tokio::task::JoinHandle;
+use tokio::{sync::broadcast, task::JoinHandle};
 
 use crate::types::DtuType;
-use prism_dtu_common::FailureMode;
 
 // ---------------------------------------------------------------------------
 // Shared clone state

@@ -19,11 +19,12 @@ use axum::{
     response::IntoResponse,
     Json,
 };
-
 use subtle::ConstantTimeEq;
 
-use crate::state::PagerDutyState;
-use crate::types::{IncidentSummary, IncidentsResponse};
+use crate::{
+    state::PagerDutyState,
+    types::{IncidentSummary, IncidentsResponse},
+};
 
 /// `GET /dtu/incidents`
 ///

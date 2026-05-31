@@ -1,0 +1,53 @@
+AC-003: check_auth validates access_token cookie (not cyberint_session)
+Story: S-DTU-CYBERINT-AUTH-FIDELITY-001
+BC: BC-2.16.013 postcondition; ADR-031 §D1-a §D3-a
+Red Gate test: test_BC_2_16_013_dtu_check_auth_requires_access_token_cookie_not_session
+
+Evidence type: Integration test output (HTTP-layer, three sub-cases)
+
+--- TEST RUN ---
+
+PASS [  12.413s] (1/1) prism-dtu-cyberint::bc_2_01_017_access_token_auth
+  bc_2_01_017_dtu::test_BC_2_16_013_dtu_check_auth_requires_access_token_cookie_not_session
+
+Summary: 1 test run: 1 passed
+
+--- WHAT THE TEST ASSERTS (3 sub-cases) ---
+
+Setup: CyberintClone started; demo token "demo-access-key" registered via
+       POST /dtu/configure {"access_token": "demo-access-key"}
+
+Sub-case 1 (positive): GET /api/v1/alerts with Cookie: access_token=demo-access-key
+  => HTTP 200
+  Asserts: "AC-003 / BC-2.16.013: GET /api/v1/alerts with 'Cookie: access_token=demo-access-key'
+            MUST return 200 after the token is registered."
+
+Sub-case 2 (negative, wrong cookie name): GET /api/v1/alerts with Cookie: cyberint_session=any-legacy-session-value
+  => HTTP 401
+  Asserts: "AC-003 / BC-2.16.013: GET /api/v1/alerts with 'Cookie: cyberint_session=...'
+            MUST return 401 — the old pre-fix cookie name is not accepted by the corrected DTU."
+
+Sub-case 3 (negative, no cookie): GET /api/v1/alerts (no Cookie header)
+  => HTTP 401
+  Asserts: "AC-003: GET /api/v1/alerts with no cookie header MUST return 401."
+
+--- IMPLEMENTATION: check_auth in alerts.rs ---
+
+File: crates/prism-dtu-cyberint/src/routes/alerts.rs (lines 115-136)
+
+    pub(crate) fn check_auth(state: &CyberintState, headers: &HeaderMap) -> Result<(), ...> {
+        if state.auth_mode() == AuthMode::Reject {
+            return Err(Box::new(unauthorized()));
+        }
+        let token = extract_access_token(headers).ok_or_else(|| Box::new(unauthorized()))?;
+        if !state.is_valid_access_token(&token) {
+            return Err(Box::new(unauthorized()));
+        }
+        ...
+        Ok(())
+    }
+
+check_auth delegates to extract_access_token — which only matches "access_token" cookie.
+A "cyberint_session" cookie causes extract_access_token to return None => 401.
+
+AC-003 SATISFIED.

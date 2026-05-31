@@ -19,7 +19,6 @@ pub mod state;
 pub mod generator;
 
 pub use clone::CrowdstrikeClone;
-pub use state::{ContainmentStatus, CrowdstrikeState, SessionData};
-
 #[cfg(feature = "fixture-gen")]
 pub use generator::generate;
+pub use state::{ContainmentStatus, CrowdstrikeState, SessionData};
