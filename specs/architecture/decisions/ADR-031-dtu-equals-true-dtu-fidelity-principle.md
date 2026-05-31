@@ -4,8 +4,8 @@ adr_id: "ADR-031"
 title: "DTU = True DTU — Fidelity Principle for All Clone Implementations"
 status: Proposed
 date: "2026-05-29"
-modified: "2026-05-30"
-version: "1.1"
+modified: "2026-05-31"
+version: "1.2"
 producer: architect
 subsystems_affected: [SS-01, SS-07, SS-16, SS-17]
 supersedes: ["ADR-028 §D12 (Cyberint cookie auth real-API vs DTU model divergence — DTU-shortcut acceptance SUPERSEDED)"]
@@ -167,6 +167,17 @@ All other DTU behavior divergences require explicit architectural justification 
 - DTU behavior
 - Justification for why this specific divergence is acceptable
 - Follow-up story ID to close the divergence (if applicable)
+
+**v1.2 Amendment — Sensor-specific "acceptable divergences" removed.** Three sensor-specific
+divergences previously listed in §D6 as "acceptable per D2 exception" are NOT D2-permitted.
+They were incorrectly classified as acceptable in §D6 v1.0/v1.1 while awaiting Wave 5
+capacity. Per user directive 2026-05-31 ("all sensors, best-in-class, no scope compromises"),
+these are reclassified as REQUIRED fidelity tracked in Wave 5:
+- Armis AQL endpoint divergence (Gap-AR-001) — required via `S-DEMO-ARMIS-AQL-001`
+- Claroty trailing-slash route fidelity (Gap-CL-001) — required via `S-DEMO-CLAROTY-TRAILING-SLASH-001`
+- CrowdStrike multi-region `base_url` (Gap-CS-003) — required via `S-DEMO-CROWDSTRIKE-MULTIREGION-001`
+
+D2-a through D2-d remain permitted. No other changes to permitted divergences.
 
 ### D3 — Cyberint DTU Correction (Pre-Demo CRITICAL)
 
@@ -355,12 +366,154 @@ The DTU=True-DTU principle applies to ALL four sensor DTU clones. The cross-sens
 applicability assessment for each remaining sensor is in the POLLER-DTU-FIDELITY-AUDIT
 revision (v1.1, same burst). Summary per sensor:
 
-| Sensor | DTU conformance status | Correction required pre-demo |
-|--------|------------------------|------------------------------|
-| CrowdStrike | Auth (OAuth2 token endpoint): CORRECT. Response field names: `detection_id` fix applied (develop@72baf413). | No additional DTU code changes required (TOML-only fixes already applied). |
-| Claroty xDome | Auth (Bearer static): CORRECT. Devices route: CORRECT. Audit log route gap: DTU-EXT gap documented. | Audit log DTU route (`/api/v1/audit_log/get`) to be added via `S-DEMO-CLAROTY-AUDIT-DTU-001`. |
-| Armis Centrix | Auth (Bearer static): CORRECT. Direct REST endpoints (not AQL): documented gap DTU-EXT-003/004. | AQL endpoint divergence acceptable per D2 exception process; documented in `S-DEMO-ARMIS-AQL-001`. |
-| Cyberint Argos | Auth: WRONG — `cyberint_session` cookie must become `access_token` cookie. | BLOCKING: `S-DTU-CYBERINT-AUTH-FIDELITY-001` must ship pre-demo. |
+| Sensor | DTU conformance status | Correction required |
+|--------|------------------------|---------------------|
+| CrowdStrike | Auth (OAuth2 token endpoint): CORRECT. Response field names: `detection_id` fix applied (develop@72baf413). Base URL hardcoded to us-1 (Gap-CS-003). | Multi-region `base_url` routing REQUIRED — tracked in `S-DEMO-CROWDSTRIKE-MULTIREGION-001` (Wave 5). Previously incorrectly classified as D2-permitted; reclassified 2026-05-31 per user directive. |
+| Claroty xDome | Auth (Bearer static): CORRECT. Devices route: CORRECT. Audit log route gap: DTU-EXT gap tracked. Trailing slash on endpoint paths (Gap-CL-001). | Audit log DTU route (`/api/v1/audit_log/get`) required via `S-DEMO-CLAROTY-AUDIT-DTU-001`. Trailing-slash route fidelity REQUIRED — tracked in `S-DEMO-CLAROTY-TRAILING-SLASH-001` (Wave 5). Previously incorrectly classified as D2-permitted; reclassified 2026-05-31 per user directive. |
+| Armis Centrix | Auth (Bearer static): CORRECT. Current DTU exposes direct REST endpoints (`GET /api/v1/devices`, `GET /api/v1/alerts`); production uses AQL search endpoint (`GET /api/v1/search?aql=<query>`) for all data (Gap-AR-001, DTU-EXT-003/004). | Full AQL endpoint fidelity REQUIRED — tracked in `S-DEMO-ARMIS-AQL-001` (Wave 5). Previously incorrectly classified as D2-permitted; reclassified 2026-05-31 per user directive. |
+| Cyberint Argos | Auth: CORRECTED — `access_token` cookie static injection, no login step (`S-DTU-CYBERINT-AUTH-FIDELITY-001` merged). | No remaining REQUIRED fidelity gaps for DTU path. |
+
+### D8 — Wave 5 Fidelity Reclassification (v1.2 Amendment)
+
+**Trigger:** User directive 2026-05-31: "all sensors, best-in-class, no scope compromises."
+Three sensor-specific gaps previously recorded as post-demo acceptable divergences in §D6
+are reclassified from "permitted/deferred" to REQUIRED fidelity, each anchored to an existing
+Wave 5 story. D2-a through D2-d (generic local-DTU constraints) remain permitted and unchanged.
+
+#### D8-a — Armis AQL Endpoint Fidelity (S-DEMO-ARMIS-AQL-001)
+
+**Gap ID:** Gap-AR-001 (DTU-EXT-003/004)
+
+**Prior classification (WRONG):** "AQL endpoint divergence acceptable per D2 exception process;
+documented in `S-DEMO-ARMIS-AQL-001`." The v1.0/v1.1 §D2 exception was granted on the grounds
+that the real Armis API also exposes direct REST endpoints (`GET /api/v1/devices`,
+`GET /api/v1/alerts`) alongside the AQL endpoint — making it a "valid call pattern."
+
+**Reclassification (v1.2):** REQUIRED fidelity. The production poller-coaster uses AQL
+(`GET /api/v1/search?aql=<query>`) for ALL data sources. Prism's direct-endpoint DTU path
+proves only that prism can talk to a non-production Armis call pattern; it does NOT prove
+prism can query Armis the way the production poller does. Full AQL fidelity requires:
+1. `prism-dtu-armis`: add `GET /api/v1/search` route that accepts an `aql=` query parameter,
+   applies the AQL string as a filter against the fixture data, logs the AQL string to the
+   AQL log (existing `aql_log` mechanism), and returns the filtered device or alert records
+   in the same envelope as the current direct-endpoint routes.
+2. `armis.sensor.toml`: update `devices` and `alerts` table steps to use
+   `path_template = "/api/v1/search"` with `aql` query parameter forwarding (replacing or
+   supplementing the current `GET /api/v1/devices` / `GET /api/v1/alerts` paths).
+3. Parity tests: assert that the AQL string received by the DTU matches the AQL string prism
+   constructs from the sensor spec (validates AQL push-down per R-DTU-002).
+
+**Current DTU state (grounded):** `crates/prism-dtu-armis/src/routes/devices.rs` — handles
+`GET /api/v1/devices` and `POST /api/v1/devices` with `aql` parameter capture but no
+`/api/v1/search` route. `crates/prism-dtu-armis/src/routes/alerts.rs` — handles
+`GET /api/v1/alerts`. AQL log mechanism exists (`state.capture_aql()`, `GET /dtu/aql-log`).
+The infrastructure for AQL capture is in place; the missing piece is the search route itself.
+
+**TOML impact:** YES — `devices` and `alerts` table steps change from
+`path_template = "/api/v1/devices"` / `path_template = "/api/v1/alerts"` to
+`path_template = "/api/v1/search"` with AQL parameter forwarding. Existing columns are
+preserved (field names are already grounded against DTU fixture data; the search route will
+return the same fields).
+
+**Wave 5 story:** `S-DEMO-ARMIS-AQL-001` (existing stub, elevated from P2-post-demo to
+REQUIRED Wave 5 fidelity work).
+
+**New BCs needed:** No new behavioral contracts required. The AQL endpoint is a pipeline
+implementation change. The query-filter AQL push-down is covered by existing R-DTU-002
+and the `armis_devices` / `armis_alerts` DataFusion table contracts. If AQL syntax
+validation is added to the DTU, BC-2.01.NNN may need a new EC row — flag to product-owner
+if and when the story writer discovers AQL validation scope.
+
+#### D8-b — Claroty Trailing-Slash Route Fidelity (S-DEMO-CLAROTY-TRAILING-SLASH-001)
+
+**Gap ID:** Gap-CL-001
+
+**Prior classification (WRONG):** "MEDIUM — trailing slash matters for live Claroty, not for
+DTU. DTU axum routes match with/without trailing slash via Axum normalization. Follow-up
+S-DEMO-CLAROTY-TRAILING-SLASH-001 (P2)."
+
+**Reclassification (v1.2):** REQUIRED fidelity. The real Claroty xDome API uses trailing
+slashes on all POST-for-read endpoints (`/api/v1/alerts/`, `/api/v1/devices/`,
+`/api/v1/audit_log/get/`). Prism's TOML spec currently uses paths WITHOUT trailing slash.
+This means:
+- When prism talks to a real Claroty instance, the request paths will lack the required
+  trailing slash, which may cause 301 redirects or 404s depending on Claroty's server
+  configuration.
+- The DTU's Axum route normalization masks this gap at demo time.
+
+Full trailing-slash fidelity requires:
+1. `claroty.sensor.toml`: update all `path_template` values to include trailing slashes
+   matching the real Claroty API (`/api/v1/alerts/`, `/api/v1/devices/`,
+   `/api/v1/audit_log/get/`). Grounded from poller-bear semport §API table.
+2. `prism-dtu-claroty`: verify Axum normalizes trailing-slash vs non-trailing-slash
+   consistently, or explicitly register both route forms. Current Axum behavior handles
+   this but must be verified by a parity test that sends trailing-slash paths.
+3. Parity tests: assert that the DTU accepts the trailing-slash paths that prism will
+   send after the TOML update.
+
+**Current DTU state (grounded):** `crates/prism-dtu-claroty/src/routes/alerts.rs` —
+route registered as `POST /api/v1/alerts` (no trailing slash). Axum's default behavior
+does NOT automatically redirect or accept trailing-slash variants unless
+`axum::middleware::normalize_path()` is in the layer stack. Verify whether the Claroty DTU
+router includes `normalize_path` before assuming Axum handles it transparently.
+
+**TOML impact:** YES — all three `path_template` values change:
+- `alerts` table: `/api/v1/alerts` → `/api/v1/alerts/`
+- `devices` table: `/api/v1/devices` → `/api/v1/devices/`
+- `audit_logs` table: `/api/v1/audit_log/get` → `/api/v1/audit_log/get/`
+
+**Wave 5 story:** `S-DEMO-CLAROTY-TRAILING-SLASH-001` (existing stub, elevated from
+P2-post-demo to REQUIRED Wave 5 fidelity work).
+
+**New BCs needed:** No new behavioral contracts. The trailing-slash change is a request-path
+fidelity fix with no behavioral semantics change. The parity test addition (AC for the story)
+is sufficient.
+
+#### D8-c — CrowdStrike Multi-Region Base URL Fidelity (S-DEMO-CROWDSTRIKE-MULTIREGION-001)
+
+**Gap ID:** Gap-CS-003
+
+**Prior classification (WRONG):** "Multi-region routing not in TOML. Demo environment is
+us-1. Not a demo blocker. Follow-up S-DEMO-CROWDSTRIKE-MULTIREGION-001 (P3)."
+
+**Reclassification (v1.2):** REQUIRED fidelity. The real CrowdStrike Falcon API is
+region-routed: MSSP clients may have tenants on us-1 (`api.crowdstrike.com`), us-2
+(`api.us-2.crowdstrike.com`), eu-1 (`api.eu-1.crowdstrike.com`), and gov (`api.laggar.gcw.crowdstrike.com`).
+Prism's `crowdstrike.sensor.toml` currently hardcodes `base_url = "https://api.crowdstrike.com"`
+(us-1 only). An MSSP with eu-1 tenants cannot use prism as-is.
+
+Full multi-region fidelity requires:
+1. `crowdstrike.sensor.toml`: change `base_url` from the hardcoded `https://api.crowdstrike.com`
+   to a per-instance env variable reference: `base_url = "${env.CROWDSTRIKE_BASE_URL}"`.
+   The TOML environment-variable substitution mechanism (`${env.VAR}`) already exists for
+   Armis (`${env.ARMIS_INSTANCE_URL}`) and Claroty (`${env.CLAROTY_INSTANCE_URL}`).
+2. Documentation/runbook: document the base URLs for each supported CrowdStrike region so
+   MSSP operators can configure per-tenant `CROWDSTRIKE_BASE_URL`.
+3. `prism-dtu-crowdstrike`: the DTU itself is already region-agnostic — it binds to
+   `127.0.0.1:0` and accepts any valid OAuth2 + Bearer flow regardless of base URL.
+   No DTU code change required. Verify DTU config tests still pass when TOML `base_url`
+   is set from env var (the DTU test harness already overrides `base_url` via harness config).
+4. Parity tests: add a test that verifies the sensor spec loads correctly with a non-us-1
+   `CROWDSTRIKE_BASE_URL` env var (e.g., `api.eu-1.crowdstrike.com`).
+
+**Current DTU state (grounded):** `crates/prism-dtu-crowdstrike/src/state.rs` — no
+`base_url` field in `CrowdstrikeState`; DTU is URL-agnostic. `crates/prism-dtu-crowdstrike/src/routes/oauth.rs` —
+issues `access_token: "dtu-fake-cs-token"` regardless of URL. No DTU code changes needed.
+
+**TOML impact:** YES — `base_url` changes from `"https://api.crowdstrike.com"` to
+`"${env.CROWDSTRIKE_BASE_URL}"` (matching the env-var pattern used by Armis and Claroty).
+Existing `auth_type = "oauth2_client_credentials"` and `auth_plugin = "crowdstrike-oauth2"`
+are unchanged.
+
+**Wave 5 story:** `S-DEMO-CROWDSTRIKE-MULTIREGION-001` (existing stub, elevated from
+P3-post-demo to REQUIRED Wave 5 fidelity work).
+
+**New BCs needed:** Potentially. If the sensor config loading behavior for `${env.VAR}`
+substitution does not already have a BC covering multi-sensor env-var resolution, the
+product-owner should evaluate whether BC-2.01.NNN (spec loading) needs a new AC for
+`CROWDSTRIKE_BASE_URL` env-var substitution. Flag to product-owner. If the env-var
+substitution is already covered by existing BCs (Armis/Claroty use the same pattern),
+no new BC is needed.
 
 ---
 
@@ -449,3 +602,4 @@ non-standard cookie names, but it does not resolve the DTU fidelity problem.
 |---------|------|--------|---------|
 | 1.0 | 2026-05-29 | architect | Initial version — establishes DTU=True-DTU as binding architectural principle per user directive 2026-05-29. Supersedes ADR-028 §D12. Defines D1 (six fidelity requirements), D2 (exhaustive list of permitted divergences), D3 (Cyberint DTU correction), D4 (§D12 supersession), D5 (validation discipline), D6 (cross-sensor applicability). Anchor story: S-DTU-CYBERINT-AUTH-FIDELITY-001 (reclassified from P2-post-demo to P0-pre-demo-BLOCKING). |
 | 1.1 | 2026-05-30 | architect | Scope expansion amendment — adds §D7 extending DTU=true-DTU binding to all harness-clone paths (`crates/prism-dtu-harness/src/clones/{sensor}.rs`) per F-LP1-OBS-001 [process-gap] from S-DTU-CYBERINT-AUTH-FIDELITY-001 Pass 1 LOCAL adversary cascade. Harness audit (`HARNESS-DTU-FIDELITY-AUDIT-2026-05-30.md`): Cyberint CRITICAL violations (4 CRIT + 1 HIGH; fixed in S-DTU-CYBERINT-AUTH-FIDELITY-001 expanded scope); Claroty HIGH gap (audit_log route, co-scoped with S-DEMO-CLAROTY-AUDIT-DTU-001); CrowdStrike and Armis CLEAN. Remediation pattern: Pattern B (in-place rewrite). Scope decision: Scope-1 for Cyberint. Process-gap lesson 54 codified. |
+| 1.2 | 2026-05-31 | architect | Wave 5 fidelity reclassification — per user directive 2026-05-31 ("all sensors, best-in-class, no scope compromises"), three sensor-specific divergences incorrectly classified as D2-permitted in §D6 v1.0/v1.1 are reclassified as REQUIRED fidelity: (1) Armis AQL endpoint (Gap-AR-001/DTU-EXT-003/004) → `S-DEMO-ARMIS-AQL-001` Wave 5 required; (2) Claroty trailing-slash route paths (Gap-CL-001) → `S-DEMO-CLAROTY-TRAILING-SLASH-001` Wave 5 required; (3) CrowdStrike multi-region `base_url` (Gap-CS-003) → `S-DEMO-CROWDSTRIKE-MULTIREGION-001` Wave 5 required. §D2 amended to close the three sensor-specific loopholes (D2-a..d unchanged). §D6 Cross-Sensor Applicability table updated to reflect REQUIRED status. New §D8 Wave 5 Fidelity Reclassification section documents precise scope, current DTU gap, TOML impact, and per-story requirements for each of the three reclassified stories. |
