@@ -63,6 +63,18 @@ pub enum AuthMode {
 #[cfg(test)]
 pub const DEFAULT_ORG_ID: OrgId = OrgId(uuid::Uuid::from_bytes([0u8; 16]));
 
+/// Maximum number of entries permitted in the `access_token_allowlist`.
+///
+/// Bounds unbounded HashSet growth from repeated `/dtu/configure` calls
+/// (SEC-002 / CWE-400). Tokens beyond this cap are silently ignored by
+/// `register_access_token` — mirroring the production E-AUTH-006 contract
+/// that also enforces a 4096-byte length bound per token.
+///
+/// The cap of 100 is sufficient for all test harness scenarios (each test
+/// run registers at most a handful of demo tokens) while preventing runaway
+/// memory growth from adversarial or accidental bulk registration.
+pub const MAX_ALLOWLIST_SIZE: usize = 100;
+
 /// Shared mutable state for the Cyberint DTU clone.
 ///
 /// `Arc<CyberintState>` is passed to every axum route handler via `axum::extract::State`.
@@ -357,14 +369,43 @@ impl CyberintState {
     /// Called at startup (or via `/dtu/configure`) to provision the demo token.
     /// No UUID issuance — the token is provided externally (API key or demo value).
     ///
+    /// # Validation (SEC-002 / CWE-20 / CWE-400)
+    ///
+    /// Mirrors the production E-AUTH-006 contract (StaticCookieAuthProvider) to
+    /// maintain DTU↔production fidelity:
+    ///
+    /// - Tokens exceeding 4096 bytes are silently ignored.
+    /// - Tokens containing ASCII control characters (0x00-0x1F, DEL 0x7F) are
+    ///   silently ignored (defense against CWE-113 CRLF injection and CWE-93).
+    /// - Once the allowlist reaches `MAX_ALLOWLIST_SIZE`, further inserts are
+    ///   silently ignored (defense against CWE-400 unbounded growth).
+    ///
+    /// Silent-ignore is chosen over returning an error because the callers
+    /// (`apply_config` / `with_demo_token`) do not propagate errors to HTTP
+    /// responses for this path, and the DTU is not a production auth service.
+    ///
     /// # ADR-031 §D3-a rule 3 / AC-004 (S-DTU-CYBERINT-AUTH-FIDELITY-001)
     pub fn register_access_token(&self, token: String) {
+        // SEC-002 / CWE-20: reject oversized tokens (mirror E-AUTH-006 4096-byte limit).
+        if token.len() > 4096 {
+            return;
+        }
+        // SEC-002 / CWE-93 / CWE-113: reject tokens containing ASCII control chars
+        // (0x00-0x1F incl. CR/LF, and DEL 0x7F) — mirrors E-AUTH-006 CTL rejection.
+        if token.bytes().any(|b| b < 0x21 || b == 0x7F) {
+            return;
+        }
         // SAFETY: mutex poison only occurs if a previous holder panicked — not possible in normal operation.
         #[allow(clippy::expect_used)]
-        self.access_token_allowlist
+        let mut allowlist = self
+            .access_token_allowlist
             .lock()
-            .expect("access_token_allowlist poisoned")
-            .insert(token);
+            .expect("access_token_allowlist poisoned");
+        // SEC-002 / CWE-400: cap allowlist size to prevent unbounded memory growth.
+        if allowlist.len() >= MAX_ALLOWLIST_SIZE {
+            return;
+        }
+        allowlist.insert(token);
     }
 
     /// Builder: register a demo access token and return `self`.
@@ -376,12 +417,9 @@ impl CyberintState {
     ///
     /// # ADR-031 §D3-a / AC-004 (S-DTU-CYBERINT-AUTH-FIDELITY-001)
     pub fn with_demo_token(self, demo_token: String) -> Self {
-        // SAFETY: mutex poison only occurs if a previous holder panicked — not possible in normal operation.
-        #[allow(clippy::expect_used)]
-        self.access_token_allowlist
-            .lock()
-            .expect("access_token_allowlist poisoned")
-            .insert(demo_token);
+        // Route through register_access_token to apply SEC-002 validation
+        // (length, CTL chars, size cap) without duplicating the logic here.
+        self.register_access_token(demo_token);
         self
     }
 
@@ -413,5 +451,94 @@ impl CyberintState {
         // SAFETY: mutex poison only occurs if a previous holder panicked — not possible in normal operation.
         #[allow(clippy::expect_used)]
         self.auth_mode.lock().expect("auth_mode poisoned").clone()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn empty_state() -> CyberintState {
+        CyberintState::new(vec![], vec![], vec![])
+    }
+
+    /// SEC-002 / CWE-20: register_access_token must reject tokens containing ASCII
+    /// control characters (CTL: 0x00-0x1F, DEL 0x7F) or exceeding 4096 bytes.
+    ///
+    /// Mirrors the E-AUTH-006 validation contract in production StaticCookieAuthProvider
+    /// (SEC-001). A DTU allowlist that accepts CTL-containing or oversized tokens would
+    /// accept inputs that the production validator rejects, breaking DTU↔production fidelity.
+    ///
+    /// Verifies: register_access_token with invalid token does NOT grow the allowlist.
+    /// ADR-031 §D3-a; SEC-002 (S-DTU-CYBERINT-AUTH-FIDELITY-001).
+    #[test]
+    fn test_register_access_token_rejects_ctl_and_oversized_tokens() {
+        let state = empty_state();
+
+        // ---- Case 1: CTL byte (0x01) ----
+        let ctl_token = "abc\x01def".to_string();
+        state.register_access_token(ctl_token.clone());
+        assert!(
+            !state.is_valid_access_token(&ctl_token),
+            "SEC-002 / CWE-20: register_access_token must NOT accept tokens containing \
+             ASCII control bytes (0x01 CTL). DTU allowlist accepted a CTL token."
+        );
+
+        // ---- Case 2: CRLF injection ----
+        let crlf_token = "valid-prefix\r\nInjected: header".to_string();
+        state.register_access_token(crlf_token.clone());
+        assert!(
+            !state.is_valid_access_token(&crlf_token),
+            "SEC-002 / CWE-113: register_access_token must NOT accept tokens containing \
+             CRLF (HTTP header injection). DTU allowlist accepted a CRLF token."
+        );
+
+        // ---- Case 3: oversized token (> 4096 bytes) ----
+        let oversized_token = "a".repeat(4097);
+        state.register_access_token(oversized_token.clone());
+        assert!(
+            !state.is_valid_access_token(&oversized_token),
+            "SEC-002 / CWE-400: register_access_token must NOT accept tokens exceeding \
+             4096 bytes. DTU allowlist accepted an oversized token."
+        );
+
+        // ---- Sanity: valid token still works ----
+        let valid_token = "valid-demo-token-abc123".to_string();
+        state.register_access_token(valid_token.clone());
+        assert!(
+            state.is_valid_access_token(&valid_token),
+            "SEC-002 sanity: a valid token must still be accepted after implementing \
+             the CTL/oversized rejection."
+        );
+    }
+
+    /// SEC-002 / CWE-400: register_access_token must enforce MAX_ALLOWLIST_SIZE.
+    ///
+    /// Inserting more than MAX_ALLOWLIST_SIZE distinct valid tokens must not grow the
+    /// allowlist past the cap. This bounds unbounded HashSet growth via /dtu/configure.
+    ///
+    /// ADR-031 §D3-a; SEC-002 (S-DTU-CYBERINT-AUTH-FIDELITY-001).
+    #[test]
+    fn test_register_access_token_caps_at_max_allowlist_size() {
+        let state = empty_state();
+
+        // Insert MAX_ALLOWLIST_SIZE + 10 distinct valid tokens.
+        for i in 0..=(MAX_ALLOWLIST_SIZE + 10) {
+            state.register_access_token(format!("valid-token-{i:04}"));
+        }
+
+        // SAFETY: mutex poison only occurs if a previous holder panicked.
+        #[allow(clippy::expect_used)]
+        let count = state
+            .access_token_allowlist
+            .lock()
+            .expect("access_token_allowlist poisoned")
+            .len();
+
+        assert!(
+            count <= MAX_ALLOWLIST_SIZE,
+            "SEC-002 / CWE-400: allowlist must not exceed MAX_ALLOWLIST_SIZE ({MAX_ALLOWLIST_SIZE}). \
+             Got {count} entries."
+        );
     }
 }

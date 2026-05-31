@@ -515,14 +515,23 @@ impl AuthProvider for StaticCookieAuthProvider {
                 });
             }
             // RFC 6265 §4.1.1 illegal cookie-value characters.
+            //
+            // cookie-octet grammar forbids:
+            //   - ASCII control characters (0x00-0x1F incl. CR 0x0D / LF 0x0A) and DEL (0x7F)
+            //   - Space (0x20), double-quote (0x22), comma (0x2C), semicolon (0x3B), backslash (0x5C)
+            //
+            // Defense-in-depth (SEC-001 / CWE-93 / CWE-113): CTL chars (especially CRLF)
+            // are rejected here rather than at reqwest send time, producing an actionable
+            // E-AUTH-006 instead of a cryptic InvalidHeaderValue / HttpRequestFailed.
             const ILLEGAL_COOKIE_CHARS: &[char] = &[' ', ',', ';', '\\', '"'];
-            if api_key.chars().any(|c| ILLEGAL_COOKIE_CHARS.contains(&c)) {
+            let has_ctl = api_key.bytes().any(|b| b < 0x21 || b == 0x7F);
+            if has_ctl || api_key.chars().any(|c| ILLEGAL_COOKIE_CHARS.contains(&c)) {
                 return Err(SpecEngineError::AuthAcquisitionFailed {
                     sensor_id,
                     client_id: client_id_str,
                     detail:
                         "E-AUTH-006: api_key contains illegal RFC 6265 cookie-value characters \
-                             (space, comma, semicolon, backslash, or double-quote)"
+                             (CTL chars, space, comma, semicolon, backslash, or double-quote)"
                             .to_string(),
                 });
             }
@@ -1087,6 +1096,72 @@ mod tests {
             !err_str.contains("empty or all-whitespace"),
             "F-LP3-LOW-001 regression: detail must NOT say 'empty or all-whitespace' for a \
              5000-byte whitespace key — the length check must fire first. Got: {err_str}"
+        );
+    }
+
+    /// SEC-001 / CWE-93 / CWE-113: acquire_token must reject API keys containing ASCII
+    /// control characters (CTL chars: 0x00-0x1F incl. CR 0x0D / LF 0x0A, and DEL 0x7F).
+    ///
+    /// RFC 6265 §4.1.1 cookie-octet grammar explicitly forbids CTL characters in cookie
+    /// values. A credential with an embedded CRLF (copy-paste artifact) would otherwise
+    /// slip past E-AUTH-006 and produce a cryptic `InvalidHeaderValue`/`HttpRequestFailed`
+    /// at request time instead of a clear, actionable E-AUTH-006 error.
+    ///
+    /// Tests two distinct CTL patterns:
+    /// 1. CRLF injection: `"valid-prefix\r\nInjected: header"` — HTTP header injection vector
+    /// 2. Bare CTL byte:  `"abc\x01def"` — non-printable control char
+    ///
+    /// Both must be rejected with E-AUTH-006, NOT HttpRequestFailed or any other code.
+    ///
+    /// Uses MockDI injection — no env var mutation required.
+    /// ADR-022 §C; RFC 6265 §4.1.1; SEC-001 (S-DTU-CYBERINT-AUTH-FIDELITY-001).
+    #[tokio::test]
+    async fn test_BC_2_01_017_acquire_token_rejects_crlf_in_api_key() {
+        // ---- Pattern 1: CRLF injection (HTTP header injection / CWE-113) ----
+        let crlf_key = "valid-prefix\r\nInjected: header";
+        let provider_crlf = StaticCookieAuthProvider::new_with_resolver(
+            "cyberint",
+            Arc::new(MockCredentialResolver::new(crlf_key)),
+        );
+        let spec = cookie_roundtrip_spec();
+        let client_id = OrgSlug::new("test-org-unit");
+
+        let result_crlf = provider_crlf.acquire_token(&spec, &client_id).await;
+
+        assert!(
+            result_crlf.is_err(),
+            "SEC-001 / CWE-113: acquire_token must reject API keys containing CRLF \
+             (RFC 6265 §4.1.1 CTL chars forbidden in cookie-value). Got Ok."
+        );
+        let err_crlf = result_crlf.unwrap_err().to_string();
+        assert!(
+            err_crlf.contains("E-AUTH-006"),
+            "SEC-001: CRLF rejection must produce E-AUTH-006, NOT HttpRequestFailed or other. \
+             Got: {err_crlf}"
+        );
+        assert!(
+            !err_crlf.contains("E-AUTH-007"),
+            "SEC-001: CRLF rejection must NOT produce E-AUTH-007. Got: {err_crlf}"
+        );
+
+        // ---- Pattern 2: Bare CTL byte (CWE-93) ----
+        let ctl_key = "abc\x01def";
+        let provider_ctl = StaticCookieAuthProvider::new_with_resolver(
+            "cyberint",
+            Arc::new(MockCredentialResolver::new(ctl_key)),
+        );
+
+        let result_ctl = provider_ctl.acquire_token(&spec, &client_id).await;
+
+        assert!(
+            result_ctl.is_err(),
+            "SEC-001 / CWE-93: acquire_token must reject API keys containing bare CTL bytes \
+             (RFC 6265 §4.1.1). Got Ok."
+        );
+        let err_ctl = result_ctl.unwrap_err().to_string();
+        assert!(
+            err_ctl.contains("E-AUTH-006"),
+            "SEC-001: CTL byte rejection must produce E-AUTH-006. Got: {err_ctl}"
         );
     }
 }
