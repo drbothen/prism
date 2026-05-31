@@ -1,10 +1,10 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.5"
+version: "1.6"
 status: draft
 producer: product-owner
-timestamp: 2026-05-29T00:00:00Z
+timestamp: 2026-05-30T00:00:00Z
 phase: 1a
 origin: greenfield
 subsystem: "SS-01"
@@ -19,6 +19,7 @@ retired: ~
 removed: ~
 removal_reason: ~
 inputs:
+  - ".factory/specs/architecture/decisions/ADR-023-plugin-only-sensor-architecture.md"
   - ".factory/specs/architecture/decisions/ADR-031-dtu-equals-true-dtu-fidelity-principle.md"
   - ".factory/specs/architecture/decisions/ADR-028-toml-spec-grounding-vs-dtu-routes.md"
   - ".factory/specs/domain-spec/capabilities.md"
@@ -27,6 +28,7 @@ inputs:
 input-hash: null
 traces_to:
   - "CAP-001"
+  - "ADR-023"
   - "ADR-031"
   - "ADR-028"
   - "BC-2.01.016"
@@ -43,12 +45,15 @@ error_codes:
 
 ## Description
 
-`StaticCookieAuthProvider` implements the `SensorAuth` trait for sensors that authenticate via
-a static API key injected as a named HTTP `Cookie` header on every request, with NO prior login
-step. The provider's `acquire_token()` method reads the API key from the credential resolver and
-returns it directly as the token value — it makes zero HTTP calls. `PipelineExecutor::build_request`
-then injects `Cookie: {cookie_name}={token}` on every data-fetch request. This is the correct
-auth implementation for Cyberint (where the real API uses `Cookie: access_token={api_key}` per
+`StaticCookieAuthProvider` implements the `AuthProvider` trait (the TOML-driven replacement for
+compile-time SensorAuth dispatch per ADR-023) for sensors that authenticate via a static API key
+injected as a named HTTP `Cookie` header on every request, with NO prior login step.
+`StaticCookieAuthProvider` is defined in `crates/prism-spec-engine/src/auth_provider.rs` and
+selected by `PipelineExecutor` when `spec.auth_type == AuthType::CookieRoundtrip`. Its
+`acquire_token()` method reads the API key from the credential resolver and returns it directly
+as the token value — it makes zero HTTP calls. `PipelineExecutor::build_request` then injects
+`Cookie: {cookie_name}={token}` on every data-fetch request. This is the correct auth
+implementation for Cyberint (where the real API uses `Cookie: access_token={api_key}` per
 poller-express), and it supersedes the incorrect `CookieLoginAuthProvider` (which performed a
 `POST /login` round-trip to obtain a `cyberint_session` cookie, violating the ADR-031 §D1-b
 DTU=True-DTU fidelity principle).
@@ -66,8 +71,11 @@ DTU=True-DTU fidelity principle).
   §2.1). Future sensors may parameterize the cookie name via an `auth_cookie_name` TOML field
   per ADR-031 §D2 permitted-divergence process; the default for `cookie_roundtrip` is
   `access_token` unless overridden.
-- `SensorAuth` trait is open and implementable per BC-2.01.016. `StaticCookieAuthProvider`
-  implements `SensorAuth` and satisfies `auth_type_name()` returning `"cookie_roundtrip"`.
+- `StaticCookieAuthProvider` implements the `AuthProvider` trait (defined in
+  `crates/prism-spec-engine/src/auth_provider.rs`, per ADR-023 §PREREQ-B). `PipelineExecutor`
+  selects this provider at runtime when `spec.auth_type == AuthType::CookieRoundtrip` — no
+  `auth_type_name()` method call is required; dispatch is driven by the TOML `auth_type` field
+  directly. The `AuthProvider` trait surface is `acquire_token(&self, spec, client_id)` only.
 - The 5-value canonical auth_type set (BC-2.01.016 §Postconditions) includes
   `"cookie_roundtrip"` as a valid value. No spec-load rejection occurs for this sensor.
 
@@ -104,11 +112,14 @@ DTU=True-DTU fidelity principle).
 - No `cyberint_session` cookie is ever injected. The header name `cyberint_session` is
   permanently superseded by `access_token` per ADR-031 §D3 and §D4.
 
-### P3 — Auth Type Name
+### P3 — Auth Type Dispatch
 
-- `StaticCookieAuthProvider::auth_type_name()` returns `"cookie_roundtrip"` (preserves the
+- `PipelineExecutor` selects `StaticCookieAuthProvider` when and only when
+  `spec.auth_type == AuthType::CookieRoundtrip`. There is no `auth_type_name()` method on
+  `AuthProvider` — the dispatch check compares the TOML-parsed `AuthType` enum variant directly
+  (per `PipelineExecutor::execute` at the `CookieRoundtrip` branch). This preserves the
   `AuthType::CookieRoundtrip` enum variant and the 5-value canonical auth_type set per
-  BC-2.01.016 §Postconditions INV-AUTH-OPEN-002/003).
+  BC-2.01.016 §Postconditions INV-AUTH-OPEN-002/003.
 
 ### P4 — Zero Login-Shaped Requests
 
@@ -178,7 +189,7 @@ DTU=True-DTU fidelity principle).
 | TV-BC-2.01.017-005 | Empty credential value returns E-AUTH-006 | `MockCredentialResolver` configured to return `Ok(SecretString(""))` for `(client_id, sensor_id)` — simulating `CYBERINT_API_KEY=""` as returned by `prism_credentials::resolve_secret` (lines 78-81: no empty-string filter on direct-env path) | `acquire_token()` returns `Err` containing `E-AUTH-006`; message includes sensor name and client_id; no HTTP request made. Separate test vector for the not-set case: env var absent entirely causes `std::env::var` `Err` → resolver returns `Ok(None)` → `E-AUTH-005` (TV-BC-2.01.017-004 covers the not-found path). |
 | TV-BC-2.01.017-006 | DTU 401 response surfaces E-AUTH-004 | Valid token acquired; mock HTTP server returns 401 on data fetch | Fetch error surfaced in `sensor_errors` with `E-AUTH-004`; no retry attempt; call count == 1 |
 | TV-BC-2.01.017-007 | Cookie value with semicolon rejected | `CredentialResolver` returns `Ok("key;with;semicolons")` | `acquire_token()` returns `Err(E-AUTH-006)` with invalid-cookie-characters message; no HTTP request made |
-| TV-BC-2.01.017-008 | auth_type_name returns canonical string | Call `StaticCookieAuthProvider::auth_type_name()` | Returns `"cookie_roundtrip"` |
+| TV-BC-2.01.017-008 | TOML-driven dispatch selects StaticCookieAuthProvider for CookieRoundtrip | Construct a `SensorSpec` with `auth_type = "cookie_roundtrip"`; invoke `PipelineExecutor` auth dispatch path | `PipelineExecutor` reaches the `AuthType::CookieRoundtrip` branch and invokes `StaticCookieAuthProvider::acquire_token()` (not any other provider). `StaticCookieAuthProvider` has no `auth_type_name()` method — dispatch is TOML-driven via `spec.auth_type` enum comparison per ADR-023. |
 | TV-BC-2.01.017-009 | Backend unavailable returns E-AUTH-007 (not E-AUTH-005) | Inject a `BackendUnavailableCredentialResolver` (returns `CredentialResolutionError::BackendUnavailable{detail: "keyring daemon stopped"}` — or inject as `String` via `CredentialResolver` trait returning `Err("E-AUTH-007: backend unavailable: keyring daemon stopped")`) | `acquire_token()` returns `Err` containing `E-AUTH-007`; error string must NOT contain `E-AUTH-005`; no HTTP request made |
 
 ## Verification Properties
@@ -190,7 +201,7 @@ DTU=True-DTU fidelity principle).
 
 ## Related BCs
 
-- BC-2.01.016 (SensorAuth Open Trait — Plugin-Implementable Auth Contract): parent contract establishing the `SensorAuth` trait surface. This BC specifies the `StaticCookieAuthProvider` as one concrete impl that satisfies the trait. The 5-value canonical auth_type set (including `"cookie_roundtrip"`) and the `auth_type_name()` method contract are established there; this BC operationalizes them for the static-cookie behavior variant.
+- BC-2.01.016 (SensorAuth Open Trait — Plugin-Implementable Auth Contract): parent contract establishing the open `SensorAuth` trait surface (ADR-026) and the 5-value canonical auth_type set (including `"cookie_roundtrip"`). Note: `StaticCookieAuthProvider` is NOT a `SensorAuth` impl — it implements the `AuthProvider` trait (ADR-023 §PREREQ-B, `crates/prism-spec-engine/src/auth_provider.rs`). BC-2.01.016 governs the `auth_type` enumeration and plugin-callable auth surface; this BC governs the as-built TOML-driven `AuthProvider` implementation for `cookie_roundtrip` sensors.
 - BC-2.01.005 (CrowdStrike OAuth2 Authentication): sibling auth BC; contrasts by having a live HTTP token-acquisition step (OAuth2 `acquire_token` makes an HTTP request to the token endpoint). Illustrates the architectural contrast: CrowdStrike auth is stateful (acquired token), Cyberint static-cookie auth is stateless (API key IS the token).
 - BC-2.01.006 (Cyberint Cookie-Based Authentication and Multi-Format Timestamp Parsing): predecessor BC covering the old `CookieLoginAuthProvider` behavior (login step + `cyberint_session`). Superseded-in-behavior by this BC per ADR-031 §D3/D4. BC-2.01.006 remains active as it covers timestamp parsing and other Cyberint behaviors; only the auth flow description within it is superseded. Story-writer must update BC-2.01.006's Related BCs section to cross-reference this BC.
 - BC-2.16.013 (Bundled Sensor Spec Authoring and DTU-Parity Verification — 4 Initial Sensors): covers DTU parity validation for all four initial sensors including Cyberint. The DTU-parity test family for Cyberint MUST now assert the `Cookie: access_token=...` shape per this BC's TV-BC-2.01.017-002/003. This cross-reference enables test-writer to identify and update the Cyberint parity tests.
@@ -201,8 +212,8 @@ DTU=True-DTU fidelity principle).
 - ADR-031 §D3-b — Prism-side changes required: `StaticCookieAuthProvider` description; `build_request` dispatch table; `Cookie: access_token={token}` injection.
 - ADR-031 §D3-b — "does NOT perform any HTTP request during `acquire_token`"
 - ADR-028 §D-747 LOCKED — `auth_type_label = "cookie_roundtrip"` is preserved (label not changed); behavior changes.
-- ADR-026 §D1 — 2-method `SensorAuth` trait surface: `as_any()` + `auth_type_name()`. `StaticCookieAuthProvider` implements both methods.
-- `crates/prism-sensors/src/auth/mod.rs` — `SensorAuth` trait definition; `StaticCookieAuthProvider` implementation site.
+- ADR-023 §PREREQ-B — `AuthProvider` trait definition (TOML-driven replacement for compile-time SensorAuth dispatch). `StaticCookieAuthProvider` implements `AuthProvider` with a single required method: `acquire_token(&self, spec: &SensorSpec, client_id: &OrgSlug)`. There is no `auth_type_name()` on `AuthProvider`; dispatch is TOML-driven via `spec.auth_type` enum comparison.
+- `crates/prism-spec-engine/src/auth_provider.rs` — `AuthProvider` trait definition and `StaticCookieAuthProvider` implementation site (constructors: `StaticCookieAuthProvider::new(sensor_id)` for production, `StaticCookieAuthProvider::new_with_resolver(sensor_id, Arc<dyn CredentialResolver>)` for test injection).
 - `crates/prism-spec-engine/src/pipeline.rs` — `PipelineExecutor::build_request` Cookie header injection site for `CookieRoundtrip` auth type.
 - `.factory/semport/poller-express/poller-express-broad-sweep.md §2.1` — canonical reference for `access_token` cookie name from real Cyberint API.
 
@@ -248,6 +259,7 @@ adjudication in `cycles/wave-0-plugin-prereqs/S-DTU-CYBERINT-AUTH-FIDELITY-001/p
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.6 | FB-PR6 F-P10-MED-001 | 2026-05-30 | product-owner | F-P10-MED-001 closure: SensorAuth→AuthProvider prose correction throughout (mis-anchor finding). §Description: "implements `SensorAuth` trait" corrected to "implements `AuthProvider` trait (ADR-023)"; implementation site corrected from `crates/prism-sensors/src/auth/mod.rs` to `crates/prism-spec-engine/src/auth_provider.rs`. §Preconditions: stale `SensorAuth` + `auth_type_name()` bullet replaced with correct TOML-driven dispatch description (`spec.auth_type == AuthType::CookieRoundtrip`, `acquire_token()` as the sole AuthProvider method). §Postconditions P3: renamed from "Auth Type Name" to "Auth Type Dispatch"; corrected from `auth_type_name()` method (which does NOT exist on AuthProvider) to TOML-driven enum dispatch. TV-BC-2.01.017-008: rewritten from "auth_type_name returns canonical string" to TOML-driven dispatch test. §Related BCs: BC-2.01.016 description clarified — `StaticCookieAuthProvider` implements `AuthProvider`, NOT `SensorAuth`. §Architecture Anchors: ADR-026 §D1 `SensorAuth` anchor replaced by ADR-023 §PREREQ-B `AuthProvider` anchor; crate path corrected to `crates/prism-spec-engine/src/auth_provider.rs`. Contract semantics unchanged (error codes E-AUTH-004/005/006/007, no-retry, zero-HTTP, cookie injection all unmodified). BC-INDEX title column unchanged (not a title change). |
 | 1.5 | D-875 F-LP12-LOW-001 | 2026-05-30 | product-owner | F-LP12-LOW-001 adjudication: all 21 cite-pins confirmed Category A (behavioral anchors); no code change required. Added §Notes for Implementers — Cite-pin convention section to document pinned-at-write-time convention. POL-29 step 8f amendment recommended (hygiene-only version bumps exempt from cite-pin sweep obligation). BC-INDEX v5.60→v5.61. |
 | 1.4 | D-866 F-LP8-MED-001 | 2026-05-30 | product-owner | F-LP8-MED-001 closure: changelog hygiene — deleted byte-identical duplicate of v1.2 row (was at line 237 alongside canonical v1.2 row at line 235); reordered changelog rows to monotonic descending by version (1.4 → 1.3 → 1.2 → 1.1 → 1.0). No semantic content change to BC. BC-INDEX v5.59→v5.60. |
 | 1.3 | D-857 F-LP3-HIGH-001 | 2026-05-30 | product-owner | F-LP3-HIGH-001 resolution: allocate E-AUTH-007 for `CredentialResolutionError::BackendUnavailable`. Add EC-017-010 (BackendUnavailable → E-AUTH-007, distinct from EC-017-003 NotFound → E-AUTH-005). Add TV-BC-2.01.017-009 (BackendUnavailable test vector). Update E-AUTH-005 Error Cases row to explicitly scope it to `CredentialResolutionError::NotFound`. Add E-AUTH-007 Error Cases row. `error_codes` frontmatter: add E-AUTH-007. error-taxonomy.md v1.53→v1.54. BC-INDEX v5.58→v5.59. Implementer follow-on: match-arm on CredentialResolutionError variants in `StaticCookieAuthProvider::acquire_token` — NotFound→E-AUTH-005, BackendUnavailable→E-AUTH-007. Add `BackendUnavailableCredentialResolver` test helper and unit test asserting E-AUTH-007. |
