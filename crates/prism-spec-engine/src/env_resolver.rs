@@ -128,10 +128,22 @@ fn resolve_field(
 
 /// Post-TOML-parse env var token resolver (BC-2.16.009 §Validation Rules 6 / AC-6).
 ///
-/// Scans all `String` fields in `SensorSpec` for `${env.VAR_NAME}` tokens and resolves
-/// them via `std::env::var`. Fields scanned include — at minimum — `base_url` on the
-/// top-level `SensorSpec` and on any per-org overlay fields. Per the sibling-sweep note
-/// in S-SPEC-ENV-VAR-001, the scanner MUST cover ALL `String` fields, not just `base_url`.
+/// Scans all user-facing template `String` fields in `SensorSpec` for `${env.VAR_NAME}`
+/// tokens and resolves them via `std::env::var`.
+///
+/// ## Fields scanned
+/// Top-level: `name`, `base_url`, `version`, `auth_plugin`, `source_path`.
+/// Per-table: `table_name`, `ocsf_class`, column `name`/`ocsf_field`,
+/// step `name`/`method`/`path_template`/`response_path`/`body_template`/`pagination_cursor_path`.
+///
+/// ## Fields excluded (with rationale — Canonical Principle Rule 6)
+/// - `sensor_id`: format-constrained to `^[a-z][a-z0-9_-]*$` (lowercase ASCII + `0-9_-`).
+///   The regex structurally excludes `${` (which contains an uppercase or bracket character
+///   outside the allowed set), making env token injection impossible. Excluding it avoids
+///   a pointless regex scan on a provably token-free field.
+/// - `file_hash`: infrastructure-set SHA-256 hex string populated by the file-loading
+///   caller AFTER parse. It is never user-provided TOML content and cannot contain
+///   `${env.VAR}` tokens by construction.
 ///
 /// ## Resolution rules
 /// - `${env.VAR_NAME}` where `VAR_NAME` is set and non-empty → replaced with value.
@@ -165,12 +177,14 @@ pub fn resolve_env_var_tokens(spec: &mut SensorSpec, file_path: &str) -> Vec<Spe
     let mut all_errors = Vec::new();
 
     // -------------------------------------------------------------------------
-    // Scan all String fields of SensorSpec (sibling-sweep per TD-VSDD-060 and
-    // BC-2.16.009 §VR6 — "resolver MUST scan all String fields").
+    // Scan user-facing template String fields of SensorSpec (TD-VSDD-060 sibling-sweep).
     //
-    // Metadata fields (file_hash, source_path) are infrastructure-set at load time
-    // and are not user-provided template strings; they are scanned anyway to satisfy
-    // the "all String fields" invariant.
+    // Excluded fields (see pub-fn doc for rationale — Canonical Principle Rule 6):
+    //   - sensor_id: format-constrained ^[a-z][a-z0-9_-]*$ → structurally excludes "${".
+    //   - file_hash: infrastructure-set SHA-256 hex by file-loading caller post-parse.
+    //
+    // source_path IS scanned: it is an infrastructure field but may contain arbitrary
+    // paths from user-supplied --spec-dir flags; scanning is belt-and-suspenders.
     // -------------------------------------------------------------------------
 
     // sensor.name
