@@ -1,0 +1,63 @@
+# AC-007 Evidence — Resolution ordering: resolver runs post-TOML-parse, pre-URL-format-validation
+#
+# Story:  S-SPEC-ENV-VAR-001 v1.2
+# AC:     AC-007 — absent var → E-SPEC-024 (not E-SPEC-001); ordering enforced
+# Tests:  test_env_var_resolution_runs_before_url_format_validation (unit-boundary)
+#         test_env_var_ordering_production_path_absent_var_produces_e_spec_024_not_url_format_error
+#         test_env_var_ordering_production_path_set_var_load_succeeds
+# Source: crates/prism-spec-engine/tests/env_var_resolution_tests.rs
+# BC:     BC-2.16.009 §Validation Rules 6 — "Post-TOML-parse, before URL-format validation";
+#         EC-009-004
+# Demo mode: LIBRARY (test-harness nextest capture)
+#
+# ─── Ordering proof method ────────────────────────────────────────────────────
+# If the resolver ran AFTER URL-format validation:
+#   - The raw token "${env.PRISM_TEST_ENV_VAR_AC007_UNSET}" would be passed to
+#     starts_with("http://") / starts_with("https://") — it fails both, producing
+#     E-SPEC-001 ("base_url must start with http://").
+#   - The test would see E-SPEC-001, not E-SPEC-024.
+#
+# The test asserts E-SPEC-024 (EnvVarNotSet) is produced — proving the resolver
+# ran BEFORE the URL-format check saw the raw token.
+#
+# Scenario A (unit path, resolver + validate_sensor_spec):
+#   absent var → resolver returns E-SPEC-024 (EnvVarNotSet) — NOT E-SPEC-001
+#
+# Scenario B (unit path, resolver + validate_sensor_spec):
+#   var set to valid HTTPS URL → resolver replaces token → validate_sensor_spec passes
+#
+# Scenario A (production path, parse_and_validate_spec_toml):
+#   absent var → combined error message contains var NAME, does NOT contain "must start with http"
+#
+# Scenario B (production path, parse_and_validate_spec_toml):
+#   var set to valid HTTPS URL → spec.base_url == resolved URL after full load
+#
+# ─── nextest output (captured 2026-05-31) ────────────────────────────────────
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.12s
+────────────
+ Nextest run ID 20520ce5-e5b9-4767-a196-18576f80d3a0 with nextest profile: default
+    Starting 1 test across 36 binaries (517 tests skipped)
+        PASS [   0.016s] (1/1) prism-spec-engine::env_var_resolution_tests test_env_var_resolution_runs_before_url_format_validation
+────────────
+     Summary [   0.016s] 1 test run: 1 passed, 517 skipped
+
+Combined run covering all three AC-007 tests (unit + production path):
+────────────
+ Nextest run ID 92e79f33-5f57-4df2-8950-c2281d41a6a7 with nextest profile: default
+    Starting 10 tests across 36 binaries (508 tests skipped)
+        PASS [   0.013s] prism-spec-engine::env_var_resolution_tests test_env_var_ordering_production_path_absent_var_produces_e_spec_024_not_url_format_error
+        PASS [   0.014s] prism-spec-engine::env_var_resolution_tests test_env_var_ordering_production_path_set_var_load_succeeds
+        PASS [   0.016s] prism-spec-engine::env_var_resolution_tests test_env_var_resolution_runs_before_url_format_validation
+    ... (all 10 env_var tests pass) ...
+────────────
+
+# ─── Verdict ─────────────────────────────────────────────────────────────────
+# PASS — AC-007 satisfied. Absent var produces E-SPEC-024, NOT E-SPEC-001.
+# Resolver is wired before URL-format validation in both the unit path
+# (resolve_env_var_tokens + validate_sensor_spec) and the production load path
+# (parse_and_validate_spec_toml). EC-009-004 covered.
+#
+# Note: F-LOCAL-P1-HIGH-001 (production-path ordering tests) also passes —
+# those two additional tests were added during adversarial cascade pass-1
+# to cover the parse_and_validate_spec_toml path specifically.

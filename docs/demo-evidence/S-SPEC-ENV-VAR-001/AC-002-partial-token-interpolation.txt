@@ -1,0 +1,31 @@
+# AC-002 Evidence — Partial-token interpolation: token within URL prefix/suffix
+#
+# Story:  S-SPEC-ENV-VAR-001 v1.2
+# AC:     AC-002 — base_url = "https://${env.CYBERINT_ENVIRONMENT}.cyberint.io"
+#                  with CYBERINT_ENVIRONMENT=us1 → "https://us1.cyberint.io"
+# Test:   test_env_var_partial_token_resolves_preserving_surrounding_literals
+# Source: crates/prism-spec-engine/tests/env_var_resolution_tests.rs
+# BC:     BC-2.16.009 §Validation Rules 6 — partial interpolation; EC-009-003
+# Demo mode: LIBRARY (test-harness nextest capture)
+#
+# ─── What the test asserts ───────────────────────────────────────────────────
+#   Input:  base_url = "https://${env.PRISM_TEST_ENV_VAR_AC002_ENV}.cyberint.io"
+#           PRISM_TEST_ENV_VAR_AC002_ENV = "us1"
+#   Call:   resolve_env_var_tokens(&mut spec, "test/claroty.sensor.toml")
+#   Assert: errors.is_empty()
+#           spec.base_url == "https://us1.cyberint.io"   (prefix/suffix preserved)
+#
+# ─── nextest output (captured 2026-05-31) ────────────────────────────────────
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.31s
+────────────
+ Nextest run ID d30491ea-ec14-48ba-82ec-10c708edcf17 with nextest profile: default
+    Starting 1 test across 36 binaries (517 tests skipped)
+        PASS [   0.012s] (1/1) prism-spec-engine::env_var_resolution_tests test_env_var_partial_token_resolves_preserving_surrounding_literals
+────────────
+     Summary [   0.013s] 1 test run: 1 passed, 517 skipped
+
+# ─── Verdict ─────────────────────────────────────────────────────────────────
+# PASS — AC-002 satisfied. Partial interpolation replaces only the ${env.VAR} token;
+# "https://" prefix and ".cyberint.io" suffix preserved byte-for-byte.
+# This is the live pattern from cyberint.sensor.toml (EC-009-003).

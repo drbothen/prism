@@ -1,0 +1,43 @@
+# AC-004 Evidence — Missing var → E-SPEC-024, spec rejected
+#
+# Story:  S-SPEC-ENV-VAR-001 v1.2
+# AC:     AC-004 — ${env.ARMIS_INSTANCE_URL} with var NOT SET → E-SPEC-024
+#                  error.var_name = "ARMIS_INSTANCE_URL", toml_path contains "base_url"
+# Test:   test_env_var_missing_var_produces_e_spec_024
+# Source: crates/prism-spec-engine/tests/env_var_resolution_tests.rs
+# BC:     BC-2.16.009 §Validation Rules 6 error path — absent var → E-SPEC-024; EC-009-001
+# Demo mode: LIBRARY (test-harness nextest capture)
+#
+# ─── What the test asserts ───────────────────────────────────────────────────
+#   Input:  base_url = "${env.PRISM_TEST_ENV_VAR_AC004_MISSING}"
+#           PRISM_TEST_ENV_VAR_AC004_MISSING: NOT SET (remove_var called)
+#   Call:   resolve_env_var_tokens(&mut spec, "test/armis.sensor.toml")
+#   Assert: errors.len() == 1
+#           errors[0] is SpecEngineError::EnvVarNotSet
+#           errors[0].var_name == "PRISM_TEST_ENV_VAR_AC004_MISSING"
+#           errors[0].toml_path.contains("base_url")
+#
+# ─── nextest output (captured 2026-05-31) ────────────────────────────────────
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.30s
+────────────
+ Nextest run ID 6797d0b0-c899-4526-8bd7-f4b38d319cf3 with nextest profile: default
+    Starting 1 test across 36 binaries (517 tests skipped)
+        PASS [   0.009s] (1/1) prism-spec-engine::env_var_resolution_tests test_env_var_missing_var_produces_e_spec_024
+────────────
+     Summary [   0.010s] 1 test run: 1 passed, 517 skipped
+
+# ─── E-SPEC-024 error message format (from error.rs Display impl / error-taxonomy.md v1.56) ─────
+#
+# The EnvVarNotSet Display output (verified by test_E_SPEC_024_display_matches_error_taxonomy_template_byte_for_byte):
+#
+#   "Sensor spec 'specs/armis.sensor.toml' field 'sensor.base_url' references environment
+#    variable 'ARMIS_INSTANCE_URL' which is not set or is empty. Set 'ARMIS_INSTANCE_URL'
+#    before starting prism."
+#
+# Fields present:  file_path (spec file), toml_path (sensor.base_url), var_name (ARMIS_INSTANCE_URL)
+# Fields absent:   resolved VALUE — never present (AD-017 no-value-leak, see AC-008)
+#
+# ─── Verdict ─────────────────────────────────────────────────────────────────
+# PASS — AC-004 satisfied. Absent env var produces exactly 1 SpecEngineError::EnvVarNotSet
+# with the correct var_name and toml_path. Spec rejected via non-empty error vec (fail-closed).

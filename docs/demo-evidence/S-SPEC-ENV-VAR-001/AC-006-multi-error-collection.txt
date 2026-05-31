@@ -1,0 +1,40 @@
+# AC-006 Evidence — Multi-error collection: multiple unresolvable tokens → multiple E-SPEC-024
+#
+# Story:  S-SPEC-ENV-VAR-001 v1.2
+# AC:     AC-006 — two fields with unresolvable tokens → two E-SPEC-024 errors,
+#                  no fail-fast, both collected in same pass
+# Test:   test_env_var_multi_missing_tokens_collect_multiple_errors
+# Source: crates/prism-spec-engine/tests/env_var_resolution_tests.rs
+# BC:     BC-2.16.009 §Validation Rules 6 — "no fail-fast"; §Invariants — "single-pass,
+#         all-errors-collected"; EC-009-006
+# Demo mode: LIBRARY (test-harness nextest capture)
+#
+# ─── What the test asserts ───────────────────────────────────────────────────
+#   Input:  base_url = "${env.PRISM_TEST_ENV_VAR_AC006_MISSING_A}"   (absent)
+#           name     = "${env.PRISM_TEST_ENV_VAR_AC006_MISSING_B} Sensor"  (absent)
+#           both vars removed via remove_var before call
+#   Call:   resolve_env_var_tokens(&mut spec, "test/multi-error.sensor.toml")
+#   Assert: errors.len() == 2              (both tokens produce errors — no fail-fast)
+#           all errors are EnvVarNotSet
+#           reported var names include BOTH VAR_A and VAR_B
+#
+# Mechanism: resolve_env_var_tokens iterates fields sequentially, extending the error
+# vec for each field. The base_url field's missing token adds error[0]; the name
+# field's missing token adds error[1]. The function does NOT return early after
+# the first error — it completes all fields.
+#
+# ─── nextest output (captured 2026-05-31) ────────────────────────────────────
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.31s
+────────────
+ Nextest run ID 37ca8d96-5cb8-4916-8929-2076c8376bee with nextest profile: default
+    Starting 1 test across 36 binaries (517 tests skipped)
+        PASS [   0.011s] (1/1) prism-spec-engine::env_var_resolution_tests test_env_var_multi_missing_tokens_collect_multiple_errors
+────────────
+     Summary [   0.012s] 1 test run: 1 passed, 517 skipped
+
+# ─── Verdict ─────────────────────────────────────────────────────────────────
+# PASS — AC-006 satisfied. Two missing tokens in two different fields produce two
+# separate EnvVarNotSet errors in the same returned vec. The resolver does NOT
+# stop at the first error (no fail-fast). Both var names are represented.
+# Spec is rejected (non-empty error vec). EC-009-006 covered.
