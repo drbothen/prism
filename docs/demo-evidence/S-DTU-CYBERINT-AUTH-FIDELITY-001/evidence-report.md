@@ -1,9 +1,9 @@
 # Evidence Report: S-DTU-CYBERINT-AUTH-FIDELITY-001
 
 **Story:** S-DTU-CYBERINT-AUTH-FIDELITY-001 — Cyberint DTU Auth Fidelity
-**Version:** 1.5
+**Version:** 1.8
 **LOCAL Adversary Cascade:** Converged at Pass 17 (D-881)
-**Feature HEAD:** 4f5b5404
+**PR:** #164 (branch feature/S-DTU-CYBERINT-AUTH-FIDELITY-001)
 **Date:** 2026-05-30
 
 ---
@@ -22,7 +22,7 @@
 | AC-008 | End-to-end parity: access_token cookie → DTU alerts returns data | AC-008-end-to-end-parity.txt | Parity infrastructure tests + multi_tenant HTTP tests | PASS (full DTU parity gated on S-6.09) |
 | AC-009 | Negative parity: cyberint_session cookie returns 401 | AC-009-negative-parity-cyberint-session.txt | AC-003 negative sub-case + multi_tenant HTTP test | PASS |
 | AC-010 | E-AUTH-005/E-AUTH-006/E-AUTH-007 surfaced on auth failure | AC-010-error-taxonomy-compliance.txt | Unit tests in auth_provider.rs::tests (5 error path tests) | PASS |
-| AC-011 | No event_type emission without BC-2.16.002 catalog row (SAP-1) | AC-011-no-uncatalogued-event-type.txt | Code analysis (grep; zero results) | PASS |
+| AC-011 | No event_type emission without BC-2.16.002 catalog row (SAP-1) | AC-011-no-uncatalogued-event-type.txt | Code analysis (grep; one new emission cookie_auth_401 introduced, catalogued in BC-2.16.002 v1.60 — no uncatalogued event_type) | PASS |
 
 ---
 
@@ -65,4 +65,4 @@ All evidence files are in `docs/demo-evidence/S-DTU-CYBERINT-AUTH-FIDELITY-001/`
 | acquire_token makes ZERO HTTP calls | AC-006: struct has no reqwest::Client field; NotFoundCredentialResolver test |
 | StaticCookieAuthProvider is NOT feature-gated | pub struct, no #[cfg] annotation |
 | AD-017: credentials not held at construction | struct fields: sensor_id (String) + resolver (Arc<dyn CredentialResolver>); no api_key field |
-| No new event_type emissions uncatalogued | AC-011: zero grep results in story's changed files |
+| No uncatalogued event_type emissions | AC-011: one new emission (cookie_auth_401) introduced in F-PR2-MED-001 fix-burst, catalogued in BC-2.16.002 v1.60 (catalog count 68); no uncatalogued event_type |

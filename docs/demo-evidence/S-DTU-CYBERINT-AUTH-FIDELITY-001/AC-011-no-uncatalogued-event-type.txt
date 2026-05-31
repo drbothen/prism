@@ -3,14 +3,14 @@ Story: S-DTU-CYBERINT-AUTH-FIDELITY-001
 BC: BC-2.16.013 postcondition; SAP-1 standing adversary probe
 
 Evidence type: Code analysis (rg over story's changed files)
-Evidence HEAD: 8f6f4e91 (feature/S-DTU-CYBERINT-AUTH-FIDELITY-001, 2026-05-30)
+Evidence: PR #164 / story v1.8 (branch feature/S-DTU-CYBERINT-AUTH-FIDELITY-001, 2026-05-30)
 Refreshed: IMPORTANT-1 pr-reviewer finding — prior version incorrectly asserted
   zero new emissions; F-PR2-MED-001 fix-burst (commit dd244736) added one new
   emission site that must be documented here.
 
 --- SAP-1 SWEEP: event_type emissions in story's changed files ---
 
-Command run at HEAD 8f6f4e91:
+Command run at PR #164 / story v1.8:
   rg -n 'event_type\s*=' crates/prism-spec-engine/src/ --type rust
 
 Relevant results from this story's changed files:

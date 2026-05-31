@@ -1,4 +1,4 @@
-AC-010: E-AUTH-004/E-AUTH-006 surfaced on auth failure (error taxonomy compliance)
+AC-010: E-AUTH-005/E-AUTH-006/E-AUTH-007 surfaced on auth failure (error taxonomy compliance)
 Story: S-DTU-CYBERINT-AUTH-FIDELITY-001
 BC: BC-2.01.013 error case; BC-2.01.017 §Edge Cases
 

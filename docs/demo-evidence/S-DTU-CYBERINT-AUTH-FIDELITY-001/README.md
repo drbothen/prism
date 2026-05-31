@@ -3,7 +3,7 @@
 Story: Cyberint DTU Auth Fidelity — Remove POST /login DTU Route; Implement
 StaticCookieAuthProvider; Inject Cookie: access_token={api_key}; No Session UUID
 
-LOCAL adversary cascade converged at Pass 17 (D-881). Feature HEAD: 4f5b5404.
+LOCAL adversary cascade converged at Pass 17 (D-881). PR #164 / story v1.8 (branch feature/S-DTU-CYBERINT-AUTH-FIDELITY-001).
 
 ---
 
@@ -21,12 +21,12 @@ LOCAL adversary cascade converged at Pass 17 (D-881). Feature HEAD: 4f5b5404.
 | AC-008-end-to-end-parity.txt | AC-008 | access_token cookie → DTU alerts returns data (parity infrastructure) |
 | AC-009-negative-parity-cyberint-session.txt | AC-009 | cyberint_session cookie → 401 from corrected DTU |
 | AC-010-error-taxonomy-compliance.txt | AC-010 | E-AUTH-005/E-AUTH-006/E-AUTH-007 on auth failure paths |
-| AC-011-no-uncatalogued-event-type.txt | AC-011 | SAP-1: zero new event_type emissions; no BC-2.16.002 rows needed |
+| AC-011-no-uncatalogued-event-type.txt | AC-011 | SAP-1: one new emission (cookie_auth_401) introduced and catalogued in BC-2.16.002 v1.60; no uncatalogued event_type |
 | evidence-report.md | All | Full coverage table + Red Gate test summary + POL-10 compliance |
 
 ---
 
-## Test Totals at Feature HEAD
+## Test Totals at PR #164 / story v1.8
 
 - prism-dtu-cyberint (--features dtu): 109/109 passed
 - prism-spec-engine: 492/492 passed (10 skipped, pre-existing)
