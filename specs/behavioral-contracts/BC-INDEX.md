@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "5.62"
+version: "5.63"
 status: draft
 producer: product-owner
 timestamp: 2026-05-30T00:00:00Z
@@ -213,7 +213,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.15.010 | Decorator Three-Phase Model — Config-Time, Query-Time, Periodic | 15 - Storage Layer | CAP-026 | P0 | draft |
 | BC-2.15.011 | Internal Table Registration — RocksDB Domains as DataFusion Tables | 15 - Storage Layer | CAP-028 | P0 | draft |
 | BC-2.16.001 | Sensor Spec File Loading — Parse TOML, Validate Schema, Register Tables | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-776 per POL-14; anchor story PLUGIN-MIGRATION-001-D merged PR #153 develop@3f2de889 2026-05-22) — v1.7 |
-| BC-2.16.002 | Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-427 per POL-14; anchor story S-PLUGIN-PREREQ-B merged PR #143 develop@ae7e26c8 2026-05-12) — v1.59 |
+| BC-2.16.002 | Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-427 per POL-14; anchor story S-PLUGIN-PREREQ-B merged PR #143 develop@ae7e26c8 2026-05-12) — v1.60 |
 | BC-2.16.003 | Column-to-OCSF Mapping at Query Time — Map Sensor Columns to OCSF Fields Per Spec | 16 - Spec Engine | CAP-029 | P0 | draft |
 | BC-2.16.004 | ~~Rust Escape Hatch for Custom Adapters — Trait-Based Override When Config Is Insufficient~~ | 16 - Spec Engine | CAP-029 | P0 | removed (lifecycle_status: removed since PREREQ-E impl; status aligned at D-726 per POL-14 PR #151 merge) — v1.5 |
 | BC-2.16.005 | `reload_config` MCP Tool — Re-Read All Config Files, Validate, Atomic Swap, Notify | 16 - Spec Engine | CAP-030 | P1 | draft |
@@ -376,6 +376,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v5.63 (2026-05-30, D-883 FB-PR1/FB-PR2 closing burst):** state-manager | BC-2.16.002 frontmatter version sync: v1.59→v1.60 (stale frontmatter; implementer commit 216f8983 added `cookie_auth_401` catalog row and bumped changelog to v1.60 but did not advance frontmatter). BC-INDEX in-line row 216 updated to v1.60. BC-INDEX v5.62→v5.63.
 
 **v5.62 (2026-05-30, D-875 F-LP12-LOW-001 adjudication):** product-owner | F-LP12-LOW-001 closure: 21 BC-2.01.017 cite-pins (`v1.2`, `v1.3`) in `auth_provider.rs` adjudicated as Category A behavioral anchors (pinned-at-write-time convention). No code change required. BC-2.01.017 v1.4→v1.5: added §Notes for Implementers — Cite-pin convention section documenting the convention. POL-29 step 8f amendment recommended (hygiene-only bumps exempt from cite-pin sweep). Adjudication: cycles/wave-0-plugin-prereqs/S-DTU-CYBERINT-AUTH-FIDELITY-001/po-adjudications/F-LP12-LOW-001.md. BC-INDEX v5.61→v5.62.
 
