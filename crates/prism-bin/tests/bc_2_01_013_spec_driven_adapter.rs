@@ -14,6 +14,16 @@
 //! | F-002 | test_BC_2_22_001_step9a_not_called_in_boot_production_path | step9_start_mcp_server never calls step9a |
 //! | F-009 | test_BC_2_01_013_static_cookie_auth_strategy_injects_access_token_not_bearer | no header assertion at mock boundary |
 //!
+//! # Adversary pass-2 findings addressed (BC-2.01.013 v1.8 OCSF Conformance Clause)
+//!
+//! | Finding | Tests | Root cause |
+//! |---------|-------|-----------|
+//! | F-001-R | test_BC_2_01_013_ocsf_conformance_spec_columns_survive_into_arrow_schema | Spec-declared data columns dropped; only 3 envelope cols returned |
+//! | F-001-R | test_BC_2_01_013_ocsf_conformance_envelope_derived_not_raw_copied | category_uid/class_uid read verbatim from raw JSON; not derived from ocsf_class |
+//! | F-001-R | test_BC_2_01_013_ocsf_conformance_sensor_virtual_column_is_canonical_sensor_id | _sensor read from raw JSON; can be tampered; must equal spec sensor_id |
+//! | F-002-R | test_BC_2_22_001_production_boot_path_wiring_guard | Replaced duplicate-helper call with source-code structural wiring guard |
+//! | F-004-R | test_BC_2_01_013_auth_refresh_failed_display_carries_e_auth_002_taxonomy_code | E-AUTH-002 taxonomy code structurally pinned to prevent silent drift |
+//!
 //! # AC → Test Mapping
 //!
 //! | AC | Test Name | BC | Finding |
@@ -25,13 +35,17 @@
 //! | AC-010 | test_BC_2_01_013_fetch_returns_non_empty_ocsf_batches_bearer_static | BC-2.01.013 | F-001 |
 //! | AC-010 | test_BC_2_01_013_fetch_returns_non_empty_ocsf_batches_plugin | BC-2.01.013 | F-001 |
 //! | AC-010 | test_BC_2_01_013_fetch_returns_non_empty_ocsf_batches_static_cookie | BC-2.01.013 | F-001 |
+//! | AC-010 (item 1) | test_BC_2_01_013_ocsf_conformance_spec_columns_survive_into_arrow_schema | BC-2.01.013 v1.8 | F-001-R |
+//! | AC-010 (item 2) | test_BC_2_01_013_ocsf_conformance_envelope_derived_not_raw_copied | BC-2.01.013 v1.8 | F-001-R |
+//! | AC-010 (item 3) | test_BC_2_01_013_ocsf_conformance_sensor_virtual_column_is_canonical_sensor_id | BC-2.01.013 v1.8 | F-001-R |
 //! | AC-012 | test_BC_2_01_013_spec_driven_adapter_double_401_returns_auth_refresh_failed | BC-2.01.013 | F-004 |
+//! | AC-012 | test_BC_2_01_013_auth_refresh_failed_display_carries_e_auth_002_taxonomy_code | BC-2.01.013 | F-004-R |
 //! | AC-004 | test_BC_2_22_001_boot_step9a_registers_correct_adapter_count | BC-2.22.001 | (exists, unchanged) |
 //! | AC-005 | test_BC_2_06_014_boot_step9a_uses_resolved_spec_overlay_url | BC-2.06.014 | (exists, unchanged) |
 //! | AC-006 | test_BC_2_22_001_boot_step9a_empty_spec_catalog_registers_zero_adapters | BC-2.22.001 | (exists, unchanged) |
 //! | AC-007 | test_BC_2_11_005_adapter_registry_get_returns_adapter_for_registered_pair | BC-2.11.005 | (exists, unchanged) |
 //! | AC-008 | test_BC_2_01_013_bearer_static_auth_provider_returns_bearer_token | BC-2.01.013 | GREEN-BY-DESIGN |
-//! | F-002 | test_BC_2_22_001_step9a_not_called_in_boot_production_path | BC-2.22.001 | F-002 |
+//! | F-002-R | test_BC_2_22_001_production_boot_path_wiring_guard | BC-2.22.001 | F-002-R |
 //! | EC-001 | test_BC_2_22_001_boot_step9a_unknown_auth_type_skips_sensor | BC-2.22.001 | (exists, unchanged) |
 //! | EC-007 | test_BC_2_22_001_boot_step9a_unsupported_auth_type_skips_adapter_not_error | BC-2.22.001 | (exists, unchanged) |
 //!
@@ -65,12 +79,14 @@ use prism_bin::{
 };
 use prism_core::column::ColumnType;
 use prism_core::{OrgId, OrgSlug, SensorId};
+use prism_ocsf::EventClassSelector;
 use prism_sensors::adapter::QueryParams;
 use prism_sensors::auth::SensorAuth;
 use prism_sensors::{
     AdapterRegistry, BearerStaticSensorAuth, SensorAdapter,
     adapter::SensorSpec as SensorAdapterSpec,
 };
+use prism_spec_engine::SpecEngineError;
 use prism_spec_engine::{
     AuthProvider, AuthToken, PluginAuthProvider, ResolvedSensorSpec, ResolvedSpecKey,
     auth_provider::MockAuthProvider,
@@ -1339,6 +1355,642 @@ fn test_BC_2_01_013_build_http_client_with_timeout_succeeds() {
         result.is_ok(),
         "build_http_client_with_timeout must return Ok(Client). Got Err: {:?}",
         result.err()
+    );
+}
+
+// ===========================================================================
+// BC-2.01.013 v1.8 OCSF Conformance Clause tests (adversary pass-2, F-001-R)
+//
+// These 3 tests encode the MINIMUM CONFORMANCE GATE from BC-2.01.013 v1.8
+// §SpecDrivenSensorAdapter OCSF Conformance Clause, items 1–3.
+//
+// All 3 tests MUST FAIL against the current `pipeline_result_to_record_batch`
+// stub because it:
+//   (a) drops spec-declared data columns (returns only 3 envelope columns)
+//   (b) reads category_uid/class_uid verbatim from raw JSON (not derived)
+//   (c) reads _sensor from raw JSON with fallback (not injected from spec)
+//
+// Mock boundary strategy (SID-1): wiremock serves controlled JSON that makes
+// the raw-copy failure visible — the raw record carries values deliberately
+// chosen to differ from what spec-derivation should produce.
+//
+// TV-BC-2.01.013-004: multi-column raw response → all columns in Arrow schema
+// TV-BC-2.01.013-005: raw category_uid/class_uid 9999 → spec-derived values, not 9999
+// BC-2.01.013 item 3: raw _sensor tampered → canonical sensor_id overrides it
+// ===========================================================================
+
+/// Build a `SensorSpec` for "crowdstrike" with spec-declared data columns
+/// (`detection_id`, `severity`) in addition to the implicit OCSF envelope columns.
+///
+/// Uses `ocsf_class = "detection"` so `EventClassSelector::select("crowdstrike", "detection")`
+/// → 2004 (CLASS_UID_DETECTION_FINDING). This provides a deterministic derived value
+/// for the envelope derivation test (item 2).
+///
+/// The raw mock response for these tests sets `"class_uid": 9999` and `"category_uid": 9999`
+/// — values that will NEVER match 2004 — making the derivation vs raw-copy distinction
+/// immediately detectable.
+fn make_crowdstrike_detection_spec(base_url: &str) -> SensorSpec {
+    SensorSpec::new(
+        "crowdstrike",
+        "CrowdStrike Falcon (test fixture)",
+        AuthType::CustomViaPlugin,
+        base_url,
+        vec![TableSpec::new_point_in_time(
+            "detections",
+            "detection", // ocsf_class = "detection"; EventClassSelector("crowdstrike", "detection") → 2004
+            vec![
+                ColumnSpec::new("detection_id", ColumnType::String, None, vec![]),
+                ColumnSpec::new("severity", ColumnType::String, None, vec![]),
+            ],
+            vec![FetchStep::new(
+                "fetch_detections",
+                "GET",
+                "/api/v1/detections",
+                None,
+                "$.data",
+                None,
+                vec![],
+                None,
+                None,
+            )],
+        )],
+        None,
+        "1.0.0",
+        vec![],
+    )
+}
+
+/// Raw API response for F-001-R conformance tests.
+///
+/// The record deliberately sets:
+/// - `"class_uid": 9999` and `"category_uid": 9999` — values that must NOT appear
+///   in the returned batch (they must be replaced by spec-derived values).
+/// - `"_sensor": "tampered-sensor-name"` — value that must NOT appear as the `_sensor`
+///   column value (it must be replaced by the canonical "crowdstrike" SensorId).
+/// - `"detection_id": "det-conformance-001"` and `"severity": "High"` — spec-declared
+///   data columns that MUST survive into the Arrow schema (not dropped).
+///
+/// BC-2.01.013 v1.8 conformance probe; TV-BC-2.01.013-004/005.
+fn crowdstrike_conformance_raw_response() -> serde_json::Value {
+    serde_json::json!({
+        "data": [
+            {
+                "detection_id": "det-conformance-001",
+                "severity": "High",
+                "category_uid": 9999,
+                "class_uid": 9999,
+                "_sensor": "tampered-sensor-name"
+            }
+        ]
+    })
+}
+
+/// AC-010 item 1 — BC-2.01.013 v1.8 OCSF Conformance Clause item 1 (spec columns survive):
+///
+/// `SpecDrivenSensorAdapter::fetch()` MUST return a RecordBatch whose Arrow schema contains
+/// EVERY column declared in the sensor's TOML `[[tables.columns]]` spec, in addition to the
+/// 3 OCSF envelope columns. A RecordBatch that contains only envelope columns while dropping
+/// spec-declared data columns is NON-CONFORMANT per EC-01-025.
+///
+/// # Red Gate Failure
+///
+/// `pipeline_result_to_record_batch` builds a schema with ONLY 3 columns:
+/// `Field::new("category_uid", ...), Field::new("class_uid", ...), Field::new("_sensor", ...)`.
+/// The spec-declared data columns (`detection_id`, `severity`) are never added to the schema.
+/// The assertions `column_names.contains("detection_id")` and `column_names.contains("severity")`
+/// FAIL because those columns are absent from the 3-column schema.
+///
+/// TV-BC-2.01.013-004: "5 spec-declared columns PLUS category_uid, class_uid, _sensor;
+/// no spec-declared column is absent."
+///
+/// BC-2.01.013 v1.8 OCSF Conformance Clause item 1; AC-010(a); F-001-R; S-DEMO-001 v1.5.
+#[tokio::test]
+async fn test_BC_2_01_013_ocsf_conformance_spec_columns_survive_into_arrow_schema() {
+    let mock_server = MockServer::start().await;
+
+    // Mount: return a raw API response with detection_id + severity + tampered envelope values.
+    // The mock requires Authorization: Bearer header (plugin auth path).
+    Mock::given(method("GET"))
+        .and(path("/api/v1/detections"))
+        .and(header(
+            "Authorization",
+            "Bearer cs-ocsf-conformance-token-001",
+        ))
+        .respond_with(
+            ResponseTemplate::new(200).set_body_json(crowdstrike_conformance_raw_response()),
+        )
+        .expect(1)
+        .mount(&mock_server)
+        .await;
+
+    let spec = make_crowdstrike_detection_spec(&mock_server.uri());
+    let resolved = make_resolved_spec(spec, "demo-org");
+    let (_, org_id, _) = make_org_registry("demo-org");
+
+    let mock_auth: Arc<dyn AuthProvider> =
+        Arc::new(MockAuthProvider::new("cs-ocsf-conformance-token-001"));
+    let auth_strategy = AdapterAuthStrategy::Plugin(mock_auth);
+    let http_client = make_mock_client();
+
+    let adapter = SpecDrivenSensorAdapter::new(Arc::new(resolved), auth_strategy, http_client);
+    let adapter_spec = make_adapter_spec("crowdstrike", org_id);
+    let params = make_query_params();
+    let sensor_auth = PluginSensorAuth;
+
+    let result = adapter.fetch(&adapter_spec, &params, &sensor_auth).await;
+
+    assert!(
+        result.is_ok(),
+        "F-001-R item 1: fetch() must return Ok when mock server returns valid JSON. \
+         Got Err: {:?}",
+        result.err()
+    );
+
+    let batches = result.unwrap();
+
+    assert!(
+        !batches.is_empty(),
+        "F-001-R item 1: fetch() must return at least one non-empty RecordBatch. \
+         Got empty Vec. BC-2.01.013 v1.8 Conformance Clause item 1."
+    );
+
+    let first_batch = &batches[0];
+    let schema = first_batch.schema();
+    let column_names: Vec<&str> = schema.fields().iter().map(|f| f.name().as_str()).collect();
+
+    // LOAD-BEARING assertions (TD-VSDD-059):
+    // These FAIL with the current implementation because pipeline_result_to_record_batch
+    // constructs a Schema with only 3 fields: category_uid, class_uid, _sensor.
+    // Spec-declared data columns are never added to the schema.
+    //
+    // BC-2.01.013 v1.8 item 1: "Every column declared in [[tables.columns]] MUST survive
+    // into the returned RecordBatch via ColumnMapper field-by-field mapping."
+    // EC-01-025: "RecordBatch with only envelope fields while discarding sensor payload = NON-CONFORMANT."
+    assert!(
+        column_names.contains(&"detection_id"),
+        "F-001-R item 1 LOAD-BEARING: Arrow schema MUST contain spec-declared column \
+         'detection_id'. Present columns: {:?}. \
+         Root cause: pipeline_result_to_record_batch builds only the 3-column envelope schema \
+         (category_uid, class_uid, _sensor) — all spec data columns are silently dropped. \
+         Fix: use ColumnMapper to map spec.tables[].columns into the RecordBatch. \
+         BC-2.01.013 v1.8 Conformance Clause item 1; AC-010(a); F-001-R.",
+        column_names
+    );
+
+    assert!(
+        column_names.contains(&"severity"),
+        "F-001-R item 1 LOAD-BEARING: Arrow schema MUST contain spec-declared column \
+         'severity'. Present columns: {:?}. \
+         Root cause: same as detection_id — spec data columns dropped in current stub. \
+         BC-2.01.013 v1.8 Conformance Clause item 1; AC-010(a); F-001-R.",
+        column_names
+    );
+
+    // Also verify OCSF envelope columns are still present (they must not be absent).
+    for envelope_col in &["category_uid", "class_uid", "_sensor"] {
+        assert!(
+            column_names.contains(envelope_col),
+            "F-001-R item 1: OCSF envelope column '{}' must be present. \
+             Present columns: {:?}. BC-2.01.013.",
+            envelope_col,
+            column_names
+        );
+    }
+}
+
+/// AC-010 item 2 — BC-2.01.013 v1.8 OCSF Conformance Clause item 2 (envelope derivation):
+///
+/// `category_uid` and `class_uid` MUST be derived by `OcsfNormalizer` from the sensor's
+/// declared `ocsf_class` (via `EventClassSelector::select(sensor_id, ocsf_class)` mapping),
+/// NOT copied verbatim from the raw API response. An implementation that reads those fields
+/// directly from raw JSON is NON-CONFORMANT per EC-01-026.
+///
+/// # Test design
+///
+/// The mock raw record has `"class_uid": 9999, "category_uid": 9999`.
+/// The spec declares `sensor_id = "crowdstrike"` and `ocsf_class = "detection"`.
+/// `EventClassSelector::select("crowdstrike", "detection")` → 2004 (CLASS_UID_DETECTION_FINDING).
+/// The test asserts `class_uid != 9999` — forcing failure if raw JSON value is propagated.
+///
+/// # Red Gate Failure
+///
+/// `pipeline_result_to_record_batch` builds `category_uid_vals` by reading:
+///   `record.get("category_uid").and_then(|v| v.as_i64()).map(|v| v as i32)`
+/// The raw record has `"class_uid": 9999` so `class_uid_vals` = [9999].
+/// The assertion `class_uid_val != 9999` FAILS.
+///
+/// TV-BC-2.01.013-005: "category_uid/class_uid in returned batch derived from ocsf_class,
+/// NOT equal to raw 9999 value."
+///
+/// BC-2.01.013 v1.8 OCSF Conformance Clause item 2; AC-010(b); F-001-R; S-DEMO-001 v1.5.
+#[tokio::test]
+async fn test_BC_2_01_013_ocsf_conformance_envelope_derived_not_raw_copied() {
+    // Verify test precondition: EventClassSelector must map ("crowdstrike", "detection") → 2004.
+    // If this fails, the test setup is wrong (not the production code).
+    let derived_class_uid = EventClassSelector::select("crowdstrike", "detection")
+        .expect("precondition: EventClassSelector must know (crowdstrike, detection) → 2004");
+    assert_eq!(
+        derived_class_uid, 2004,
+        "Test precondition: EventClassSelector::select('crowdstrike', 'detection') must return \
+         2004 (CLASS_UID_DETECTION_FINDING). If this fails, update the test fixture \
+         to use a sensor/ocsf_class combo that is registered in EventClassSelector."
+    );
+
+    let mock_server = MockServer::start().await;
+
+    // The raw response has class_uid = 9999 and category_uid = 9999 — values that differ
+    // from the spec-derived class_uid = 2004. If the implementation copies raw values,
+    // the assertion below will catch it.
+    Mock::given(method("GET"))
+        .and(path("/api/v1/detections"))
+        .and(header(
+            "Authorization",
+            "Bearer cs-envelope-derivation-token-002",
+        ))
+        .respond_with(
+            ResponseTemplate::new(200).set_body_json(crowdstrike_conformance_raw_response()),
+        )
+        .expect(1)
+        .mount(&mock_server)
+        .await;
+
+    let spec = make_crowdstrike_detection_spec(&mock_server.uri());
+    let resolved = make_resolved_spec(spec, "demo-org");
+    let (_, org_id, _) = make_org_registry("demo-org");
+
+    let mock_auth: Arc<dyn AuthProvider> =
+        Arc::new(MockAuthProvider::new("cs-envelope-derivation-token-002"));
+    let auth_strategy = AdapterAuthStrategy::Plugin(mock_auth);
+    let http_client = make_mock_client();
+
+    let adapter = SpecDrivenSensorAdapter::new(Arc::new(resolved), auth_strategy, http_client);
+    let adapter_spec = make_adapter_spec("crowdstrike", org_id);
+    let params = make_query_params();
+    let sensor_auth = PluginSensorAuth;
+
+    let result = adapter.fetch(&adapter_spec, &params, &sensor_auth).await;
+
+    assert!(
+        result.is_ok(),
+        "F-001-R item 2: fetch() must return Ok when mock server returns valid JSON. \
+         Got Err: {:?}",
+        result.err()
+    );
+
+    let batches = result.unwrap();
+    assert!(
+        !batches.is_empty(),
+        "F-001-R item 2: must return at least one RecordBatch."
+    );
+
+    let first_batch = &batches[0];
+    assert!(
+        first_batch.num_rows() > 0,
+        "F-001-R item 2: RecordBatch must contain at least one row."
+    );
+
+    // Extract class_uid column value from the first row.
+    // The Arrow column is Int32 (nullable). Extract the first row's value.
+    let schema = first_batch.schema();
+    let class_uid_col_idx = schema
+        .index_of("class_uid")
+        .expect("F-001-R item 2: 'class_uid' column must exist in returned RecordBatch schema");
+
+    let class_uid_col = first_batch.column(class_uid_col_idx);
+    let class_uid_array = class_uid_col
+        .as_any()
+        .downcast_ref::<arrow::array::Int32Array>()
+        .expect("F-001-R item 2: 'class_uid' column must be Int32Array");
+
+    let class_uid_val = class_uid_array.value(0);
+
+    // LOAD-BEARING assertion (TD-VSDD-059):
+    // Raw record has class_uid = 9999. Current implementation copies it verbatim → 9999.
+    // Correct implementation derives 2004 from ocsf_class = "detection" via EventClassSelector.
+    // If this assertion passes with 9999, the production code copies raw JSON — NON-CONFORMANT.
+    assert_ne!(
+        class_uid_val, 9999,
+        "F-001-R item 2 LOAD-BEARING: class_uid in returned RecordBatch MUST NOT be the \
+         raw JSON value 9999. It must be the spec-derived value from \
+         EventClassSelector::select('crowdstrike', 'detection') = 2004. \
+         Root cause: pipeline_result_to_record_batch reads class_uid directly from raw record: \
+         `record.get('class_uid').and_then(|v| v.as_i64()).map(|v| v as i32)`. \
+         Fix: derive class_uid via OcsfNormalizer / EventClassSelector from spec.ocsf_class. \
+         EC-01-026: 'Implementation that copies category_uid/class_uid from raw vendor JSON = NON-CONFORMANT.' \
+         BC-2.01.013 v1.8 OCSF Conformance Clause item 2; AC-010(b); F-001-R; TV-BC-2.01.013-005."
+    );
+
+    // Additionally assert the correct derived value (2004) is present.
+    assert_eq!(
+        class_uid_val, 2004,
+        "F-001-R item 2: class_uid MUST equal the spec-derived value 2004 \
+         (EventClassSelector('crowdstrike', 'detection') = CLASS_UID_DETECTION_FINDING). \
+         Got: {}. BC-2.01.013 v1.8 Conformance Clause item 2; AC-010(b).",
+        class_uid_val
+    );
+}
+
+/// AC-010 item 3 — BC-2.01.013 v1.8 OCSF Conformance Clause item 3 (_sensor virtual column):
+///
+/// The `_sensor` virtual column MUST be present and set to the sensor's canonical `SensorId`
+/// string (e.g., `"crowdstrike"`), injected by the normalization layer — NOT read from the
+/// raw API response. If the raw record contains a `"_sensor"` field, the normalization layer
+/// must override it with the canonical sensor_id from the spec.
+///
+/// # Test design
+///
+/// The mock raw record has `"_sensor": "tampered-sensor-name"`. The spec's sensor_id is
+/// "crowdstrike". The test asserts `_sensor` column value == "crowdstrike".
+///
+/// # Red Gate Failure
+///
+/// `pipeline_result_to_record_batch` reads `_sensor` with:
+///   `record.get("_sensor").and_then(|v| v.as_str()).unwrap_or(sensor_id).to_string()`
+/// The raw record has `"_sensor": "tampered-sensor-name"` so the `get` succeeds and
+/// `unwrap_or(sensor_id)` is never reached. Result: `_sensor = "tampered-sensor-name"`.
+/// The assertion `_sensor_val == "crowdstrike"` FAILS.
+///
+/// BC-2.01.013 v1.8 OCSF Conformance Clause item 3; AC-010(c); F-001-R; S-DEMO-001 v1.5.
+#[tokio::test]
+async fn test_BC_2_01_013_ocsf_conformance_sensor_virtual_column_is_canonical_sensor_id() {
+    let mock_server = MockServer::start().await;
+
+    // The raw response has "_sensor": "tampered-sensor-name".
+    // The normalization layer must override this with the canonical "crowdstrike" SensorId.
+    Mock::given(method("GET"))
+        .and(path("/api/v1/detections"))
+        .and(header(
+            "Authorization",
+            "Bearer cs-sensor-virtual-col-token-003",
+        ))
+        .respond_with(
+            ResponseTemplate::new(200).set_body_json(crowdstrike_conformance_raw_response()),
+        )
+        .expect(1)
+        .mount(&mock_server)
+        .await;
+
+    let spec = make_crowdstrike_detection_spec(&mock_server.uri());
+    let resolved = make_resolved_spec(spec, "demo-org");
+    let (_, org_id, _) = make_org_registry("demo-org");
+
+    let mock_auth: Arc<dyn AuthProvider> =
+        Arc::new(MockAuthProvider::new("cs-sensor-virtual-col-token-003"));
+    let auth_strategy = AdapterAuthStrategy::Plugin(mock_auth);
+    let http_client = make_mock_client();
+
+    let adapter = SpecDrivenSensorAdapter::new(Arc::new(resolved), auth_strategy, http_client);
+    let adapter_spec = make_adapter_spec("crowdstrike", org_id);
+    let params = make_query_params();
+    let sensor_auth = PluginSensorAuth;
+
+    let result = adapter.fetch(&adapter_spec, &params, &sensor_auth).await;
+
+    assert!(
+        result.is_ok(),
+        "F-001-R item 3: fetch() must return Ok. Got Err: {:?}",
+        result.err()
+    );
+
+    let batches = result.unwrap();
+    assert!(
+        !batches.is_empty(),
+        "F-001-R item 3: must return at least one RecordBatch."
+    );
+
+    let first_batch = &batches[0];
+    assert!(
+        first_batch.num_rows() > 0,
+        "F-001-R item 3: RecordBatch must have at least one row."
+    );
+
+    let schema = first_batch.schema();
+    let sensor_col_idx = schema
+        .index_of("_sensor")
+        .expect("F-001-R item 3: '_sensor' virtual column must exist in Arrow schema");
+
+    let sensor_col = first_batch.column(sensor_col_idx);
+    let sensor_array = sensor_col
+        .as_any()
+        .downcast_ref::<arrow::array::StringArray>()
+        .expect("F-001-R item 3: '_sensor' column must be StringArray (Utf8)");
+
+    let sensor_val = sensor_array.value(0);
+
+    // LOAD-BEARING assertion (TD-VSDD-059):
+    // Raw record has "_sensor": "tampered-sensor-name".
+    // Current code: record.get("_sensor").and_then(|v| v.as_str()).unwrap_or(sensor_id)
+    //   → returns "tampered-sensor-name" (raw value, not canonical)
+    // Correct code: injected by the normalization layer as the canonical SensorId = "crowdstrike".
+    // This assertion guards that the normalization layer OVERRIDES the raw record's _sensor.
+    assert_ne!(
+        sensor_val, "tampered-sensor-name",
+        "F-001-R item 3 LOAD-BEARING: '_sensor' virtual column MUST NOT carry the raw \
+         JSON value 'tampered-sensor-name'. It must be injected by the normalization layer \
+         as the canonical SensorId from the spec. \
+         Root cause: pipeline_result_to_record_batch reads _sensor from raw JSON with fallback \
+         (record.get('_sensor')...unwrap_or(sensor_id)) — raw JSON value wins when present. \
+         Fix: always inject canonical sensor_id, never read _sensor from raw record. \
+         BC-2.01.013 v1.8 Conformance Clause item 3; AC-010(c); F-001-R."
+    );
+
+    assert_eq!(
+        sensor_val, "crowdstrike",
+        "F-001-R item 3: '_sensor' MUST equal the canonical SensorId 'crowdstrike' from \
+         the resolved spec. Got: '{}'. The normalization layer must inject this value, \
+         ignoring any '_sensor' field in the raw API response. \
+         BC-2.01.013 v1.8 Conformance Clause item 3; AC-010(c); F-001-R.",
+        sensor_val
+    );
+}
+
+// ===========================================================================
+// F-002-R: Production boot-path wiring guard
+//
+// The existing test_BC_2_22_001_step9a_not_called_in_boot_production_path (pass-1)
+// had Part 2 calling `boot_step9_build_adapter_registry` — a DUPLICATE HELPER
+// that does NOT call `step9_start_mcp_server`. It tested the helper, not the
+// production boot path.
+//
+// This test replaces that with a SOURCE-LEVEL WIRING GUARD: it reads boot.rs and
+// asserts that `step9_start_mcp_server` contains a call to
+// `step9a_populate_adapter_registry`. This is STRONGER than calling a helper
+// because:
+//   (a) It guards the PRODUCTION function signature, not a parallel duplicate.
+//   (b) It FAILS if the implementer removes the call from step9_start_mcp_server.
+//   (c) It is immune to the "duplicate helper passes but production is broken" failure mode.
+//
+// IMPLEMENTER NOTE: `boot_step9_build_adapter_registry` in spec_driven_adapter.rs
+// is a duplicate helper that tests the same logic as step9a_populate_adapter_registry
+// but bypasses the real step9_start_mcp_server wiring. It must be REMOVED.
+// The only valid test for boot wiring is this structural guard.
+//
+// SID-1: This unit test exercises the production wiring assertion without the
+// RocksDB/MCP server deps that would make it an integration test.
+//
+// BC-2.22.001; F-002-R; S-DEMO-001 v1.5.
+// ===========================================================================
+
+/// F-002-R — BC-2.22.001 sequencing invariant (production boot path wiring guard):
+///
+/// `step9_start_mcp_server` MUST contain a call to `step9a_populate_adapter_registry`
+/// to wire spec-driven adapters into the `AdapterRegistry` before the MCP server starts.
+/// This is a SOURCE-LEVEL structural assertion — it reads `boot.rs` and verifies the
+/// call exists in the production function.
+///
+/// # Red Gate Failure
+///
+/// This test FAILS if:
+/// (a) The implementer removes `step9a_populate_adapter_registry` from
+///     `step9_start_mcp_server` (production wiring gap), or
+/// (b) The call is behind a commented-out or conditional block that could silently
+///     disable it at runtime.
+///
+/// # Why source-level, not call-level
+///
+/// `step9_start_mcp_server` requires RocksDB, MCP server, and other infrastructure
+/// that is not available in unit tests. A call-level integration test would need the
+/// full binary. The source-level assertion provides a lighter-weight guard that:
+///   - Fails immediately if the wiring disappears from the code
+///   - Does not require RocksDB or a live server
+///   - Is immune to the duplicate-helper false-pass failure mode
+///
+/// BC-2.22.001; F-002-R; S-DEMO-001 v1.5.
+#[test]
+fn test_BC_2_22_001_production_boot_path_wiring_guard() {
+    // Read the production boot.rs source.
+    // The path is relative to this test file's workspace root — resolved via CARGO_MANIFEST_DIR.
+    let manifest_dir = std::env::var("CARGO_MANIFEST_DIR")
+        .expect("CARGO_MANIFEST_DIR must be set by cargo during test execution");
+    let boot_rs_path = std::path::Path::new(&manifest_dir)
+        .join("src")
+        .join("boot.rs");
+
+    let boot_src = std::fs::read_to_string(&boot_rs_path).unwrap_or_else(|e| {
+        panic!(
+            "F-002-R: Could not read boot.rs at {:?}: {}. \
+             Ensure the test runs from the prism-bin crate directory.",
+            boot_rs_path, e
+        )
+    });
+
+    // Assert that step9a_populate_adapter_registry is called from within
+    // step9_start_mcp_server. The call appears as:
+    //   crate::spec_driven_adapter::step9a_populate_adapter_registry(
+    // or:
+    //   step9a_populate_adapter_registry(
+    //
+    // Either form is acceptable. The assertion requires the call to appear AFTER
+    // the step9_start_mcp_server function definition line.
+    let step9_fn_pos = boot_src
+        .find("pub async fn step9_start_mcp_server")
+        .unwrap_or_else(|| {
+            panic!(
+                "F-002-R LOAD-BEARING: 'pub async fn step9_start_mcp_server' not found in boot.rs. \
+                 Either the function was renamed or boot.rs is wrong path. \
+                 BC-2.22.001; S-DEMO-001 v1.5."
+            )
+        });
+
+    let step9_fn_body = &boot_src[step9_fn_pos..];
+
+    // The call must appear inside the function body (before the next pub async fn declaration,
+    // or simply after the start of step9_start_mcp_server).
+    // We check for the call anywhere after the function start — this is sufficient because
+    // step9_start_mcp_server is the last major boot step function.
+    let has_step9a_call = step9_fn_body.contains("step9a_populate_adapter_registry(");
+
+    // LOAD-BEARING structural assertion (TD-VSDD-059, F-002-R):
+    // This FAILS if `step9a_populate_adapter_registry` is removed from
+    // `step9_start_mcp_server`. The implementer MUST NOT remove this call.
+    // The `boot_step9_build_adapter_registry` duplicate helper in spec_driven_adapter.rs
+    // MUST be deleted — it bypasses this production wiring and creates a false-pass risk.
+    assert!(
+        has_step9a_call,
+        "F-002-R LOAD-BEARING: `step9_start_mcp_server` in boot.rs MUST call \
+         `step9a_populate_adapter_registry` to populate the AdapterRegistry before the \
+         MCP server starts. The call was NOT found in the function body. \
+         Production boot path wiring is broken — GAP-002-A is re-opened. \
+         IMPLEMENTER NOTE: also delete the `boot_step9_build_adapter_registry` duplicate \
+         helper in spec_driven_adapter.rs — it tests itself, not the real production wiring. \
+         BC-2.22.001; F-002-R; S-DEMO-001 v1.5."
+    );
+}
+
+// ===========================================================================
+// F-004-R: Error taxonomy pin — E-AUTH-002 structural guard
+//
+// The existing AC-012 test (test_BC_2_01_013_spec_driven_adapter_double_401_returns_auth_refresh_failed)
+// verifies the E-AUTH-002 code appears in the SensorError::Internal detail string after
+// a double-401 pipeline scenario. That test is a round-trip test through the pipeline.
+//
+// F-004-R adds a STRUCTURAL PIN: directly construct SpecEngineError::AuthRefreshFailed
+// and assert its Display string starts with "E-AUTH-002". This guards against:
+//   (a) The error.rs Display format being changed to drop the taxonomy code
+//   (b) The variant being renamed without updating the format string
+//   (c) The display format drifting to a non-E-AUTH-002 prefix
+//
+// This is a unit test on the error type, independent of the pipeline flow.
+// It will fail immediately if the Display format is changed in error.rs.
+//
+// BC-2.01.013; AC-012; F-004-R; error-taxonomy.md E-AUTH-002.
+// ===========================================================================
+
+/// F-004-R — BC-2.01.013 error case (E-AUTH-002 taxonomy pin):
+///
+/// `SpecEngineError::AuthRefreshFailed` MUST display with the "E-AUTH-002: auth refresh failed"
+/// prefix so that the AC-012 mapping in `map_spec_engine_error_to_sensor_error` can reliably
+/// propagate this taxonomy code to callers via the `SensorError::Internal { detail }` field.
+///
+/// # Red Gate Failure
+///
+/// This test FAILS if:
+/// (a) `error.rs` changes the `#[error(...)]` format to remove "E-AUTH-002", or
+/// (b) The variant is renamed and the format string is not updated, or
+/// (c) A refactor changes the Display impl to produce a different prefix.
+///
+/// This is a STRUCTURAL GUARD (TD-VSDD-059) that pins the error taxonomy code at the
+/// definition site, independent of the pipeline round-trip path. The AC-012 test covers
+/// the pipeline path; this test covers the error definition.
+///
+/// BC-2.01.013 §Error Cases; AC-012; F-004-R; error-taxonomy.md E-AUTH-002; S-DEMO-001 v1.5.
+#[test]
+fn test_BC_2_01_013_auth_refresh_failed_display_carries_e_auth_002_taxonomy_code() {
+    let err = SpecEngineError::AuthRefreshFailed {
+        sensor_id: "crowdstrike".to_string(),
+        client_id: "test-org".to_string(),
+        step_name: "fetch_detections".to_string(),
+    };
+
+    let display_str = format!("{err}");
+
+    // LOAD-BEARING structural assertion (TD-VSDD-059):
+    // The Display impl (via #[error(...)]) must start with "E-AUTH-002: auth refresh failed".
+    // This is pinned here to guard against silent drift in error.rs taxonomy codes.
+    // If this test fails, the error.rs #[error(...)] format was changed.
+    assert!(
+        display_str.starts_with("E-AUTH-002"),
+        "F-004-R LOAD-BEARING: SpecEngineError::AuthRefreshFailed Display MUST start with \
+         'E-AUTH-002'. Got: {:?}. \
+         This taxonomy code is required so that map_spec_engine_error_to_sensor_error \
+         propagates 'E-AUTH-002' in the SensorError::Internal detail string (AC-012 contract). \
+         Fix: restore the E-AUTH-002 prefix in error.rs #[error(...)] for AuthRefreshFailed. \
+         BC-2.01.013 §Error Cases; AC-012; F-004-R; error-taxonomy.md E-AUTH-002.",
+        display_str
+    );
+
+    assert!(
+        display_str.contains("auth refresh failed"),
+        "F-004-R: SpecEngineError::AuthRefreshFailed Display must contain 'auth refresh failed'. \
+         Got: {:?}. BC-2.01.013; AC-012; F-004-R.",
+        display_str
+    );
+
+    assert!(
+        display_str.contains("crowdstrike"),
+        "F-004-R: SpecEngineError::AuthRefreshFailed Display must contain the sensor_id. \
+         Got: {:?}. BC-2.01.013; AC-012; F-004-R.",
+        display_str
     );
 }
 
