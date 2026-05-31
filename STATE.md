@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.571"
+version: "7.572"
 producer: state-manager
 timestamp: 2026-05-31T00:00:00Z
 inputs: []
@@ -16,7 +16,7 @@ repos: [poller-cobra, poller-express, poller-bear, poller-coaster, serveMyAPI, t
 safe_to_compact: true
 pre_compact_snapshot: "SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-31-CYBERINT-MERGED-WAVE-5-PARALLEL-PLANNED"
 pre_compact_snapshot_at: "2026-05-31 (D-912 durability burst; cyberint MERGED PR #164 e798e67c; Wave 5 parallelization plan persisted; PO flags dispositioned; ${env.VAR} prereq surfaced; zero-context resume snapshot written)"
-current_step: "D-916 — S-CONFIG status-correction burst CLOSED. S-CONFIG-MULTI-TENANT-OVERRIDE-001 status ready→merged (PR #155 develop@3e822522 2026-05-26; was stale-ready). STORY-INDEX v2.224. [process-gap] DRIFT-D916-001 recorded. STATE v7.570→v7.571. S-DEMO-001 keystone: all 4 depends_on MERGED (001-A #156, 001-E #154, S-CONFIG #155, S-DTU-CYBERINT #164). Next: dispatch S-DEMO-001."
+current_step: "D-918 — S-POL-14-STATUS-SYNC-001 registered (maintenance wave, 3pts, P2, draft). DRIFT-D916-001 [codified] — self-improvement follow-up story filed. STORY-INDEX v2.225 (171 stories). STATE v7.571→v7.572. Wave 5 fan-out STARTED: feature/S-DEMO-001 + feature/S-SPEC-ENV-VAR-001 worktrees created (off develop e798e67c); stub-architect dispatched for both. S-DEMO-ARMIS-AQL-001 + Claroty-AUDIT frontmatter finalization pending (BC-2.16.013 per D-911) before their worktrees. Next: dispatch S-DEMO-001 keystone."
 cyberint_pr_cycle_in_flight: false
 cyberint_pr_cycle_step: "CLOSED — PR #164 squash-merged develop@e798e67c 2026-05-31; POL-14 BC-2.01.017 draft→active (D-904); cascade CLOSED (D-905 process-gaps as justified deferrals); story merged v1.9"
 cyberint_demo_evidence_path: "docs/demo-evidence/S-DTU-CYBERINT-AUTH-FIDELITY-001/"
@@ -433,7 +433,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 current_cycle_history: "wave-0-plugin-prereqs (PREREQ-E merged PR #151 2026-05-19); prior: wave-4-operations (active); wave-3-multi-tenant (COMPLETE)"
 bc_index_version: "5.66"
 vp_index_version: "1.76"
-story_index_version: "v2.224"
+story_index_version: "v2.225"
 s_config_story_status_corrected: "D-916 2026-05-31 — status ready→merged; merged PR #155 develop@3e822522 2026-05-26T19:01:58Z; root cause: POL-14 promotes BCs but not story-status; [process-gap] DRIFT-D916-001"
 sprint_state_path: ".factory/stories/sprint-state.yaml"
 plugin_migration_001_d_local_adversary_passes: 25
@@ -451,7 +451,7 @@ architectural_decisions_locked:
   - "4 LOCKED Option-A: TOML auth_type declares REAL behavior (cyberint=cookie_roundtrip, claroty=bearer_static) per CLAUDE.md Source-of-Truth Precedence #7; legacy auth_type_name() strings are bugs in code 001-A deletes"
   - "5 LOCKED Path-A (D-747): ADR-028 §D2 explicitly supersedes ADR-026 §D3 (partial — auth_type_name() return values for Cyberint/Claroty/Armis); PLUGIN-MIGRATION-001-A scope EXPANDS to include rewriting these auth_type_name() returns + amending Red Gate test_BC_2_01_016_003. CrowdStrike unchanged."
 policies_version: "1.31"
-total_stories: 170
+total_stories: 171
 bc_count_corrected: 245
 subsystem_count: 22
 vp_count: 156
@@ -477,9 +477,9 @@ historical_cycles: [phase-1-convergence, wave-3-multi-tenant, wave-4-operations]
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-31 (D-916 S-CONFIG status-correction burst — S-CONFIG-MULTI-TENANT-OVERRIDE-001 status ready→merged PR #155 develop@3e822522 2026-05-26; STORY-INDEX v2.224; [process-gap] DRIFT-D916-001; STATE v7.571) |
-| **Current Phase** | Wave 5 (wave-5-e-demo-fidelity) in progress — S-DTU-CYBERINT-AUTH-FIDELITY-001 MERGED (PR #164 develop@e798e67c). S-CONFIG-MULTI-TENANT-OVERRIDE-001 MERGED (PR #155 develop@3e822522; status-correction D-916). S-DEMO-001 keystone: all 4 depends_on MERGED. Next: dispatch S-DEMO-001 (keystone) + S-SPEC-ENV-VAR-001 + Track B Armis-AQL + Track E S-5.04. |
-| **Current Step** | D-916 — S-CONFIG status-correction burst CLOSED. S-CONFIG status ready→merged (PR #155 develop@3e822522 2026-05-26). STORY-INDEX v2.224. [process-gap] DRIFT-D916-001 recorded. S-DEMO-001 UNBLOCKED (all 4 deps merged). Next: Wave 5 parallel dispatch. |
+| **Last Updated** | 2026-05-31 (D-918 story-registration burst — S-POL-14-STATUS-SYNC-001 registered; DRIFT-D916-001 [codified]; STORY-INDEX v2.225; total_stories 171; Wave 5 fan-out STARTED: feature/S-DEMO-001 + feature/S-SPEC-ENV-VAR-001 worktrees off e798e67c; STATE v7.572) |
+| **Current Phase** | Wave 5 (wave-5-e-demo-fidelity) in progress — S-DTU-CYBERINT-AUTH-FIDELITY-001 MERGED (PR #164 develop@e798e67c). S-CONFIG-MULTI-TENANT-OVERRIDE-001 MERGED (PR #155 develop@3e822522; status-correction D-916). S-DEMO-001 keystone: all 4 depends_on MERGED. Wave 5 fan-out STARTED: S-DEMO-001 + S-SPEC-ENV-VAR-001 worktrees created; stub-architect dispatched. Pending: Armis-AQL + Claroty-AUDIT BC-2.16.013 frontmatter finalization before their worktrees. |
+| **Current Step** | D-918 — S-POL-14-STATUS-SYNC-001 registered (maintenance wave, P2, 3pts, draft). DRIFT-D916-001 [codified]. STORY-INDEX v2.225 (171 stories). Wave 5 fan-out STARTED. STATE v7.572. Next: complete S-DEMO-001 + S-SPEC-ENV-VAR-001 delivery; finalize Armis-AQL + Claroty-AUDIT dispatch. |
 
 ## Phase Progress
 
@@ -519,12 +519,11 @@ historical_cycles: [phase-1-convergence, wave-3-multi-tenant, wave-4-operations]
 | Step | Agent | Status | Output |
 |------|-------|--------|--------|
 _D-735 through D-847 archived to cycles/wave-0-plugin-prereqs/burst-log.md. D-835+D-836+D-837 removed from Phase Steps (archived in Decisions Log). D-849/851/852/853/855/856/857/858/859/860/861/862/863/864/865/866/867/868/869/870/871/872/873/874/875/876/877/878/879/880/881/882/883/884/885/886/887/888/889/890/891/892/893/894/895/896/897/898/899/900/901/902/903/904/905/906/907/908/909/910/911/912/913 archived to burst-log.md._
+| D-918 — **S-POL-14-STATUS-SYNC-001 REGISTERED (maintenance wave; 3pts; P2; draft v1.0). DRIFT-D916-001 [codified] — self-improvement follow-up story filed (D-917/D-918). STORY-INDEX v2.224→v2.225 (total_stories 170→171). sprint-state.yaml maintenance_wave section added. Wave 5 fan-out STARTED: feature/S-DEMO-001 + feature/S-SPEC-ENV-VAR-001 worktrees created off develop e798e67c; stub-architect dispatched. Pending: S-DEMO-ARMIS-AQL-001 + Claroty-AUDIT frontmatter finalization (BC-2.16.013 per D-911) before their worktrees. STATE v7.571→v7.572.** | state-manager (D-918 story-registration burst) | COMPLETE | STORY-INDEX v2.225; sprint-state.yaml updated; DRIFT-D916-001 [codified] |
 | D-916 — **S-CONFIG STATUS-CORRECTION BURST CLOSED. S-CONFIG-MULTI-TENANT-OVERRIDE-001 status ready→merged (PR #155 develop@3e822522 2026-05-26T19:01:58Z). Story v1.2→v1.3. STORY-INDEX v2.223→v2.224 (total_stories 170 unchanged). sprint-state.yaml S-CONFIG ready→merged. [process-gap] DRIFT-D916-001 recorded. S-DEMO-001 keystone UNBLOCKED — all 4 depends_on merged (001-A #156, 001-E #154, S-CONFIG #155, S-DTU-CYBERINT #164). STATE v7.570→v7.571.** | state-manager (D-916 status-correction burst) | COMPLETE | STORY-INDEX v2.224; sprint-state.yaml updated; story v1.3 |
 | D-914 — **ENV-VAR PREREQ BURST CLOSED. S-SPEC-ENV-VAR-001 v1.0 registered (P0, 5pts, leaf prereq, wave-5-e-demo-fidelity). E-SPEC-024 registered (error-taxonomy v1.56). BC-2.16.009 v1.6 (AC-6 ${env.VAR} resolution). S-DEMO-CROWDSTRIKE-MULTIREGION-001 depends_on→[S-SPEC-ENV-VAR-001] (HARD). Parity-soft annotations for Armis-AQL + Claroty. STORY-INDEX v2.223 (170 stories). BC-INDEX v5.66. STATE v7.569→v7.570. develop synced to origin/develop e798e67c (D-915).** | state-manager (D-914–D-915 env-var prereq burst) | COMPLETE | STORY-INDEX v2.223; BC-INDEX v5.66; sprint-state.yaml updated |
 | D-910 — **WAVE 5 PARALLELIZATION PLAN PERSISTED. STATE v7.568→v7.569.** | state-manager (D-910–D-913 durability burst) | COMPLETE | archived |
 | D-907 — **3 SENSOR-FIDELITY STORIES UN-DEFERRED INTO WAVE 5 (ADR-031 v1.2). STORY-INDEX v2.222. STATE v7.567→v7.568.** | state-manager (D-907 burst) | COMPLETE | archived |
-| D-904 — **S-DTU-CYBERINT-AUTH-FIDELITY-001 MERGED (PR #164 squash e798e67c develop). STATE v7.566→v7.567. Cascade CLOSED.** | state-manager (D-904 post-merge burst) | COMPLETE | archived |
-| D-901 — **PR-LEVEL 3-CLEAN CONVERGENCE — archived** | state-manager (D-901 convergence burst) | COMPLETE | archived |
 
 
 ## Decisions Log
@@ -533,6 +532,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-918 | 2026-05-31 | state-manager | **S-POL-14-STATUS-SYNC-001 REGISTERED — DRIFT-D916-001 [codified]. STORY-INDEX v2.224→v2.225. STATE v7.571→v7.572.** Per Cycle-Closing Checklist S-7.02: [process-gap] DRIFT-D916-001 (D-917) required a self-improvement follow-up story before it could be marked [codified]. Self-improvement story S-POL-14-STATUS-SYNC-001 v1.0 filed by story-writer (pre-existing in .factory/stories/; now registered): maintenance wave; P2; 3pts; draft; depends_on []; behavioral_contracts [] (BC authorship pending S-7.01 gate); epic_id maintenance (same anchor as S-POL-29-CANONICAL-TEMPLATE-REGISTRY-001 / S-MAINT-POL29-HOOK-001). Registrations applied: (1) STORY-INDEX v2.224→v2.225: frontmatter total_stories 170→171; overview bullet + Full Story List row added; BC Traceability Matrix unchanged (0 BCs); changelog row v2.225 added. (2) sprint-state.yaml: maintenance_wave section added with S-MAINT-POL29-HOOK-001 + S-POL-29-CANONICAL-TEMPLATE-REGISTRY-001 + S-POL-14-STATUS-SYNC-001 entries (status unstarted per convention); prereq_artifacts version refs updated to v2.225/v7.572. (3) STATE.md: version 7.571→7.572; DRIFT-D916-001 Drift Items row updated to [codified] with reference to S-POL-14-STATUS-SYNC-001; D-918 Current Phase Steps row added; Session Resume Checkpoint updated. Also recorded: Wave 5 fan-out STARTED — worktrees feature/S-DEMO-001 + feature/S-SPEC-ENV-VAR-001 created off develop e798e67c; stub-architect dispatched for both. S-DEMO-ARMIS-AQL-001 + Claroty-AUDIT frontmatter finalization (BC-2.16.013 per D-911) pending before their worktrees. 288th consecutive single-commit per TD-VSDD-053. Anti-volatile-pin per TD-VSDD-091. | demo-e2e | 2026-05-31 | Decided by: state-manager (D-918 story-registration + codification burst). Status: COMPLETE |
 | D-917 | 2026-05-31 | state-manager | **[process-gap] POL-14 STORY-STATUS TRANSITION GAP RECORDED — DRIFT-D916-001.** Root cause of S-CONFIG stale-ready: POL-14 defines BC draft→active auto-promotion at merge but has NO paired rule for story-status→merged transition. The merge event (PR squash-merge) triggers BC promotions but does NOT enforce or trigger a story frontmatter `status: merged` write. As a result, any story whose POL-14 promotion is executed by state-manager at merge can silently retain `status: ready` in perpetuity. This gap caused D-912 §RESUME SNAPSHOT 2026-05-31-CYBERINT-MERGED-WAVE-5-PARALLEL-PLANNED to list S-CONFIG as "ready / DISPATCH FIRST — sole gate to keystone" when the story had in fact already merged. Evidence: git log develop shows S-CONFIG implementation (overlay.rs, SensorInstanceOverlay, ResolvedSensorSpec) present in develop@3e822522 (2026-05-26T19:01:58Z). Disposition: DRIFT-D916-001 tracked in Drift Items. Resolution options: (a) amend POL-14 to include story-status→merged trigger, (b) add post-merge-checklist step (state-manager manual), (c) file self-improvement story. Tracking in Drift Items pending human direction. State-manager commits this process-gap per Canonical Principle Rule 3: process gaps found by AI are recorded, not silently dropped. | demo-e2e | 2026-05-31 | Decided by: state-manager (D-917 process-gap recording). Status: OPEN — see DRIFT-D916-001 |
 | D-916 | 2026-05-31 | state-manager | **S-CONFIG-MULTI-TENANT-OVERRIDE-001 STATUS CORRECTION — STALE ready→merged. STORY-INDEX v2.223→v2.224. STATE v7.570→v7.571.** Verified against git history: S-CONFIG-MULTI-TENANT-OVERRIDE-001 was DELIVERED and MERGED via PR #155 squash-merged to develop@3e822522 at 2026-05-26T19:01:58Z. Title: "feat(S-CONFIG-MULTI-TENANT-OVERRIDE-001): per-org sensor endpoint overlay loading (ADR-029)". Implementation in develop: crates/prism-spec-engine/src/overlay.rs, SensorInstanceOverlay, ResolvedSensorSpec, boot.rs wiring, fanout.rs, tests/overlay_loading_tests.rs. All 7 ACs demo-evidenced (docs/demo-evidence/S-CONFIG-MULTI-TENANT-OVERRIDE-001/). Defect: story frontmatter `status: ready` was never flipped to `merged` at PR #155 merge. Cause: POL-14 auto-promoted BC-2.06.012..016 draft→active correctly, but has no paired story-status→merged trigger. Error persisted through D-849-prep (which left status at ready), through D-912 resume snapshot (which listed S-CONFIG as "ready — DISPATCH FIRST — sole gate to keystone"). Corrections applied in this burst: (1) Story file S-CONFIG-MULTI-TENANT-OVERRIDE-001: status ready→merged; version v1.2→v1.3; modified updated; merged_via_pr/sha/at fields added. (2) sprint-state.yaml: S-CONFIG status ready→merged; spec_version v1.2→v1.3; notes updated to reflect merge + correction. (3) STORY-INDEX v2.223→v2.224: Full Story List row updated ready v1.2 → merged PR #155 v1.3; frontmatter version bumped; changelog row v2.224 added; total_stories 170 unchanged. (4) STATE.md: version 7.570→7.571; current_step + Project Metadata table updated; Current Phase Steps D-916 row added; D-916+D-917 decisions recorded; DRIFT-D916-001 added to Drift Items; Session Resume Checkpoint updated. (5) SESSION-HANDOFF.md: CORRECTION block appended to §RESUME SNAPSHOT 2026-05-31-CYBERINT-MERGED-WAVE-5-PARALLEL-PLANNED stating: S-CONFIG was already merged (#155) before that snapshot was written; S-DEMO-001 keystone UNBLOCKED (all 4 deps merged: 001-A #156, 001-E #154, S-CONFIG #155, S-DTU-CYBERINT #164). Corrected Recommended Next Actions: dispatch S-DEMO-001 KEYSTONE (not S-CONFIG). 287th consecutive single-commit per TD-VSDD-053. Anti-volatile-pin per TD-VSDD-091. | demo-e2e | 2026-05-31 | Decided by: state-manager (D-916 state-correction burst). Status: COMPLETE |
 | D-915 | 2026-05-31 | state-manager | **DEVELOP BRANCH RECONCILIATION — LOCAL DEVELOP SYNCED TO ORIGIN/DEVELOP. local develop was at 72baf413 (diverged from origin); human-authorized sync; devops-engineer reset local develop → origin/develop e798e67c (0 commits ahead, 0 behind post-sync). 72baf413 sensor-spec content confirmed byte-identical in e798e67c and preserved on origin/feature/S-DTU-CYBERINT-AUTH-FIDELITY-001. No content lost. Wave 5 dispatch now unblocked from develop-HEAD perspective. STATE v7.569→v7.570.** | demo-e2e | 2026-05-31 | Decided by: human (authorized develop sync) + state-manager (D-915 recording). Status: COMPLETE |
@@ -751,7 +751,7 @@ Items that must be resolved BEFORE convergence (per S-7.02). Opened 2026-05-17.
 | DRIFT-D850-001 | BC-2.16.002 does not contain explicit postcondition clause for POST-body vs GET-URL OffsetLimit pagination dispatch (surfaced by Claroty story-writer 65cf835e) | Product-owner to amend BC-2.16.002 §Postconditions with explicit POST-vs-GET dispatch invariant; bump BC version | next product-owner dispatch before S-DEMO-CLAROTY-PAGINATION-001 LOCAL adversary cascade |
 | DRIFT-D849-001 | ADR-031 `related_bcs` field missing BC-2.01.017 (architect-owned) | Architect to amend ADR-031 frontmatter; bump ADR-031 v1.0 → v1.1 | next architect dispatch |
 | DRIFT-D849-002 | VP-TBD No-HTTP-Call invariant during StaticCookieAuthProvider::acquire_token (Kani-provable property) needs VP-NNN allocation (architect-owned) | Architect to assign VP-NNN, update VP-INDEX, author proof harness skeleton in `crates/prism-spec-engine/src/proofs/` or equivalent | next formal-verifier or architect dispatch |
-| DRIFT-D916-001 [process-gap] | POL-14 story-status transition gap: POL-14 auto-promotes BCs draft→active at PR merge but has no paired story-status→merged trigger. Allows any merged story to silently retain `status: ready` until a state-correction burst runs. Evidence: S-CONFIG-MULTI-TENANT-OVERRIDE-001 status=ready for 5 days after PR #155 merged 2026-05-26; D-912 resume snapshot inherited the stale status. Options: (a) amend POL-14 with story-status trigger, (b) post-merge checklist step, (c) self-improvement story. Human direction needed for resolution path. | state-manager (D-917 process-gap recording) | D-916 | OPEN — awaiting human direction on resolution path |
+| DRIFT-D916-001 [process-gap] [codified] | POL-14 story-status transition gap: POL-14 auto-promotes BCs draft→active at PR merge but has no paired story-status→merged trigger. Allows any merged story to silently retain `status: ready` until a state-correction burst runs. Evidence: S-CONFIG-MULTI-TENANT-OVERRIDE-001 status=ready for 5 days after PR #155 merged 2026-05-26; D-912 resume snapshot inherited the stale status. **Resolution: self-improvement story S-POL-14-STATUS-SYNC-001 filed (D-918 2026-05-31; maintenance wave; P2; 3pts; draft; file: S-POL-14-STATUS-SYNC-001-pol14-story-status-sync-on-merge.md). BC authorship pending (S-7.01 gate).** | state-manager (D-917 process-gap recording + D-918 codification) | D-916 | [codified] — S-POL-14-STATUS-SYNC-001 filed; BC authorship pending |
 | DRIFT-D904-001 (JUSTIFIED DEFERRAL) | OBS-PR1-001: adversary diff-tooling limitation — read-only adversary cannot byte-verify PR diff; workaround: orchestrator pre-supplies diff artifact at dispatch. Prism mitigation already applied in-session as standard operating procedure. | Track in drbothen/vsdd-factory upstream issue tracker. No prism story anchor needed — mitigation is already in-session SOPs. | drbothen/vsdd-factory upstream |
 | DRIFT-D904-002 (JUSTIFIED DEFERRAL) | OBS-PR2: worktree-path-resolution hazard — read-only tools in adversary dispatches can resolve against develop instead of feature worktree; workaround: mandate absolute worktree-prefixed paths + known-new-symbol verification gate. Prism mitigation already applied in-session as standard operating procedure. | Track in drbothen/vsdd-factory upstream issue tracker. No prism story anchor needed — mitigation is already in-session SOPs. | drbothen/vsdd-factory upstream |
 
@@ -777,28 +777,30 @@ Prior cycle history:
 
 ---
 
-## Session Resume Checkpoint (2026-05-31 — D-916 S-CONFIG STATUS-CORRECTION; S-DEMO-001 UNBLOCKED; develop@e798e67c; STATE v7.571)
+## Session Resume Checkpoint (2026-05-31 — D-918 STORY-REGISTRATION; DRIFT-D916-001 [codified]; WAVE 5 FAN-OUT STARTED; develop@e798e67c; STATE v7.572)
 
-_Previous checkpoint (D-914–D-915 env-var prereq burst; STATE v7.570) superseded by D-916 S-CONFIG status-correction burst (STATE v7.571). NOTE: SESSION-HANDOFF §RESUME SNAPSHOT 2026-05-31-CYBERINT-MERGED-WAVE-5-PARALLEL-PLANNED §3 listed S-CONFIG as "ready / DISPATCH FIRST"; that is INCORRECT — S-CONFIG was already MERGED (PR #155 develop@3e822522 2026-05-26) before that snapshot was written. CORRECTION block appended to the snapshot in SESSION-HANDOFF.md._
+_Previous checkpoint (D-916 S-CONFIG status-correction; STATE v7.571) superseded by D-918 story-registration burst (STATE v7.572)._
 
-**STATE v7.571. D-916 — S-CONFIG status-correction burst CLOSED. S-CONFIG-MULTI-TENANT-OVERRIDE-001 status ready→merged (PR #155 develop@3e822522 2026-05-26). STORY-INDEX v2.224. [process-gap] DRIFT-D916-001 recorded. S-DEMO-001 keystone UNBLOCKED — all 4 depends_on merged (001-A #156, 001-E #154, S-CONFIG #155, S-DTU-CYBERINT #164). develop HEAD: e798e67c. STORY-INDEX v2.224 (170 stories). BC-INDEX v5.66. Next: dispatch S-DEMO-001 KEYSTONE + S-SPEC-ENV-VAR-001 (P0 prereq) + Track B Armis-AQL + Track E S-5.04.**
+**STATE v7.572. D-918 — S-POL-14-STATUS-SYNC-001 registered (maintenance wave; 3pts; P2; draft v1.0). DRIFT-D916-001 [codified] — follow-up story filed. STORY-INDEX v2.225 (171 stories). Wave 5 fan-out STARTED: feature/S-DEMO-001 + feature/S-SPEC-ENV-VAR-001 worktrees created off develop e798e67c; stub-architect dispatched for both. develop HEAD: e798e67c. BC-INDEX v5.66. NEXT: S-DEMO-001 keystone + S-SPEC-ENV-VAR-001 delivery. Pending dispatch-prep: S-DEMO-ARMIS-AQL-001 + Claroty-AUDIT BC-2.16.013 frontmatter finalization (D-911) before their worktrees.**
 
 **develop HEAD:** `e798e67c` | **Workspace test count:** 3839+ (no code change in this burst) | **Open PRs:** none; check `gh pr list --state open`
 
 **Resume protocol (new session):**
 1. Run `vsdd-factory:factory-worktree-health` (BLOCKING preflight)
-2. Read STATE.md frontmatter — confirm `version: "7.571"` + `cyberint_pr_cycle_in_flight: false` + `develop_head: "e798e67c"`
-3. Read SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-31-CYBERINT-MERGED-WAVE-5-PARALLEL-PLANNED + CORRECTION block appended by D-916 burst
+2. Read STATE.md frontmatter — confirm `version: "7.572"` + `cyberint_pr_cycle_in_flight: false` + `develop_head: "e798e67c"`
+3. Read SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-31-CYBERINT-MERGED-WAVE-5-PARALLEL-PLANNED + CORRECTION block (D-916 burst)
 4. Read .factory/proposals/WAVE-5-PARALLELIZATION-PLAN.md for full parallel track detail
 5. Confirm `git log --oneline develop` shows e798e67c as HEAD
 6. Check open PRs: `gh pr list --state open` → expected: ZERO
-7. FIRST DISPATCH: **S-DEMO-001 KEYSTONE** (P0 — all 4 deps merged: 001-A #156, 001-E #154, S-CONFIG #155, S-DTU-CYBERINT #164) + S-SPEC-ENV-VAR-001 (P0 prereq, gates CrowdStrike) + Track B Armis-AQL (P1) + Track E S-5.04 (P2 anytime) — can start in parallel.
-8. CrowdStrike story NOT CLEAR until S-SPEC-ENV-VAR-001 merges (HARD gate per D-914).
+7. IN FLIGHT: **S-DEMO-001 KEYSTONE** (worktree feature/S-DEMO-001 off e798e67c; stub-architect dispatched) + **S-SPEC-ENV-VAR-001** (worktree feature/S-SPEC-ENV-VAR-001 off e798e67c; stub-architect dispatched).
+8. PENDING DISPATCH-PREP: S-DEMO-ARMIS-AQL-001 + S-DEMO-CLAROTY-AUDIT-DTU-001 frontmatter finalization (BC-2.16.013 frontmatter add per D-911 Flag dispositions) before worktrees created.
+9. CrowdStrike story NOT CLEAR until S-SPEC-ENV-VAR-001 merges (HARD gate per D-914).
 
 **CRITICAL:** factory-artifacts LOCAL-ONLY. No remote push. No AI attribution. PO flag dispositions RESOLVED per D-914: Flags 1/2 (Armis) SUFFICIENT; Flag 3 (Claroty) SUFFICIENT; Flags 4/5 (CrowdStrike) RESOLVED — E-SPEC-024 + BC-2.16.009 AC-6 in place; story gated on S-SPEC-ENV-VAR-001 merge.
 
 **Active worktrees:**
-- No active feature worktrees (S-CONFIG worktree torn down post-merge; next: .worktrees/S-DEMO-001/ to be created at dispatch)
+- `.worktrees/S-DEMO-001` — IN FLIGHT, off develop e798e67c, stub-architect dispatched
+- `.worktrees/S-SPEC-ENV-VAR-001` — IN FLIGHT, off develop e798e67c, stub-architect dispatched
 - `.worktrees/S-3.09` — FROZEN, leave alone
 - `.worktrees/W3-FIX-S307-001` — BLOCKED (superseded), leave alone
 

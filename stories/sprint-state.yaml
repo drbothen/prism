@@ -127,15 +127,41 @@ active_dispatch_set:
       - S-SPEC-ENV-VAR-001  # HARD gate per D-914: ${env.CROWDSTRIKE_BASE_URL} requires env-var resolver
     notes: "Reclassified 2026-05-31 D-907: permitted-divergence→required-fidelity per ADR-031 v1.2 (user directive no-scope-compromise; architect commit e57eb5b1). story-writer 2451d025. PO new-BC flags RESOLVED per D-914: E-SPEC-024 registered + BC-2.16.009 AC-6 added. Gated on S-SPEC-ENV-VAR-001 (HARD)."
 
+maintenance_wave:
+  - story_id: S-MAINT-POL29-HOOK-001
+    status: unstarted
+    priority: P2
+    points: null  # TBD — stub
+    spec_version: stub
+    depends_on:
+      - S-POL-29-CANONICAL-TEMPLATE-REGISTRY-001
+    notes: "Planned. D-780. Implement validate-cite-pin-completeness.sh POL-29 step-8 mechanization."
+
+  - story_id: S-POL-29-CANONICAL-TEMPLATE-REGISTRY-001
+    status: unstarted
+    priority: P2
+    points: 2
+    spec_version: "v0.2"
+    depends_on: []
+    notes: "Planned. Resolves [process-gap] F-LP4-MED-001/002/003/004. Architect commits 18746995 + 4ef6c650."
+
+  - story_id: S-POL-14-STATUS-SYNC-001
+    status: unstarted
+    priority: P2
+    points: 3
+    spec_version: "v1.0"
+    depends_on: []
+    notes: "Registered D-917 follow-up 2026-05-31. Resolves [process-gap] DRIFT-D916-001: POL-14 promotes BCs draft→active at merge but has no paired story-status→merged trigger. BC authorship pending (S-7.01 gate); story stays draft until BCs authored."
+
 deferred_post_demo:
   # EMPTY — all 3 originally-deferred stories (S-DEMO-ARMIS-AQL-001, S-DEMO-CLAROTY-TRAILING-SLASH-001,
   # S-DEMO-CROWDSTRIKE-MULTIREGION-001) moved to active_dispatch_set per D-907 (ADR-031 v1.2
   # reclassification from permitted-divergence → required-fidelity; user directive no-scope-compromise).
 
 prereq_artifacts:
-  story_index: .factory/stories/STORY-INDEX.md         # v2.223 after D-914 burst
+  story_index: .factory/stories/STORY-INDEX.md         # v2.225 after D-917 follow-up burst
   bc_index: .factory/specs/behavioral-contracts/BC-INDEX.md  # v5.66
-  state: .factory/STATE.md                              # v7.570 after D-914 burst
+  state: .factory/STATE.md                              # v7.572 after D-917 follow-up burst
   governing_adr: .factory/specs/architecture/decisions/ADR-031-dtu-equals-true-dtu-fidelity-principle.md  # v1.2 (ADR-031 architect e57eb5b1 reclassified 3 divergences)
   governing_audit: .factory/proposals/POLLER-DTU-FIDELITY-AUDIT-2026-05-29.md  # v1.1
 
