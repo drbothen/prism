@@ -3,7 +3,7 @@
 //!
 //! Anchors:
 //! - BC-2.01.013 (DataSource Trait: Spec-Driven Adapter Pattern)
-//! - BC-2.01.017 (Static Cookie AuthProvider Contract — No-Login-Roundtrip Cookie Injection)
+//! - BC-2.01.017 (StaticCookieAuthProvider Contract — No-Login-Roundtrip Cookie Injection)
 //! - ADR-023 §C2 (Plugin-Only Sensor Architecture — Real PipelineExecutor)
 //! - ADR-031 §D3-b (Cyberint DTU correction — StaticCookieAuthProvider)
 //! - Story: S-PLUGIN-PREREQ-B, S-DTU-CYBERINT-AUTH-FIDELITY-001

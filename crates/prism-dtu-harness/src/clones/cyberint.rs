@@ -306,8 +306,9 @@ impl CyberintCloneState {
     /// to maintain DTU↔harness fidelity:
     ///
     /// - Tokens exceeding 4096 bytes are silently ignored.
-    /// - Tokens containing ASCII control characters (0x00–0x1F, DEL 0x7F) are silently
-    ///   ignored (defense against CWE-113 CRLF injection and CWE-93).
+    /// - Tokens containing bytes below 0x21 (ASCII control characters 0x00–0x1F
+    ///   AND space 0x20) or DEL (0x7F) are silently ignored (defense against
+    ///   CWE-113 CRLF injection and CWE-93).
     /// - Once the store reaches `MAX_HARNESS_ALLOWLIST_SIZE`, further inserts are
     ///   silently ignored (defense against CWE-400 unbounded growth).
     ///
@@ -320,8 +321,8 @@ impl CyberintCloneState {
         if token.len() > 4096 {
             return;
         }
-        // SEC-002 / CWE-93 / CWE-113: reject tokens containing ASCII control chars
-        // (0x00–0x1F incl. CR/LF, and DEL 0x7F) — mirrors E-AUTH-006 CTL rejection.
+        // SEC-002 / CWE-93 / CWE-113: reject tokens with bytes < 0x21 (ASCII control
+        // chars 0x00–0x1F AND space 0x20) or DEL 0x7F — mirrors E-AUTH-006 CTL rejection.
         if token.bytes().any(|b| b < 0x21 || b == 0x7F) {
             return;
         }
@@ -1602,8 +1603,9 @@ mod tests {
         CyberintCloneState::new("test-org", DEFAULT_SEED)
     }
 
-    /// SEC-002 / CWE-20: register_access_token must reject tokens containing ASCII
-    /// control characters (CTL: 0x00–0x1F, DEL 0x7F) or exceeding 4096 bytes.
+    /// SEC-002 / CWE-20: register_access_token must reject tokens containing bytes
+    /// below 0x21 (ASCII control characters 0x00–0x1F AND space 0x20) or DEL (0x7F),
+    /// or tokens exceeding 4096 bytes.
     ///
     /// Mirrors the E-AUTH-006 validation contract and the SEC-002 guards applied to
     /// `prism-dtu-cyberint::state::CyberintState::register_access_token`.
