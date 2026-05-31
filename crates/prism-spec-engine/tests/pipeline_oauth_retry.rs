@@ -384,3 +384,121 @@ async fn test_BC_2_16_002_no_auth_refresh_triggered_on_legitimate_execution() {
         result.request_count
     );
 }
+
+// ---------------------------------------------------------------------------
+// F-PR2-MED-001 Red Gate test: CookieRoundtrip 401 → E-AUTH-004, no retry
+// ---------------------------------------------------------------------------
+
+/// BC-2.01.017 EC-017-002 / TV-BC-2.01.017-006 / F-PR2-MED-001:
+/// When `PipelineExecutor::execute` receives HTTP 401 on a request from a
+/// `CookieRoundtrip` auth sensor, it MUST:
+///
+/// (a) Surface `E-AUTH-004` in the error (`SpecEngineError::CookieAuthFailed`),
+///     NOT `AuthRefreshFailed` (which implies a refresh mechanism that doesn't
+///     exist for static API-key auth).
+/// (b) Issue exactly ONE HTTP request (no retry — `acquire_token()` on a static
+///     cookie provider just re-reads the same key, so retry is provably futile).
+/// (c) NOT emit `auth_refresh_triggered` / `auth_refresh_succeeded` /
+///     `auth_refresh_double_401` events (those are OAuth2-path only).
+///
+/// **Precondition:** `auth_type = CookieRoundtrip`, mock HTTP server returns 401.
+/// **Postcondition (BC-2.01.017 TV-BC-2.01.017-006):**
+///   - `execute` returns `Err(SpecEngineError::CookieAuthFailed { .. })`
+///   - `auth_provider.calls() == 1` (eagerly acquired once; NOT called again on 401)
+///   - `mock_server` received exactly 1 request
+///   - Error string contains "E-AUTH-004"
+///   - Error string contains sensor name "cookie-sensor"
+///   - Error string contains client ID "test-org"
+///
+/// Red Gate state: current `issue_request_with_retry` applies the OAuth2 retry
+/// path to ALL auth types, so it calls `acquire_token` again (calls == 2) and
+/// issues 2 requests, returning `AuthRefreshFailed` (double-401 path).
+/// This test FAILS against current code.
+#[tokio::test]
+async fn test_BC_2_01_017_dtu_401_surfaces_e_auth_004_no_retry() {
+    let mock_server = MockServer::start().await;
+
+    // All requests return 401 — simulating a DTU returning 401 on cookie auth.
+    // For CookieRoundtrip: the correct behavior is to NOT retry at all.
+    // The mock must receive exactly ONE request — wiremock .expect(1) enforces this.
+    Mock::given(method("GET"))
+        .and(path("/api/alerts"))
+        .respond_with(ResponseTemplate::new(401))
+        .expect(1) // CookieRoundtrip path: exactly 1 request, no retry
+        .mount(&mock_server)
+        .await;
+
+    let spec = SensorSpec::new(
+        "cookie-sensor",
+        "Cookie Sensor",
+        AuthType::CookieRoundtrip,
+        mock_server.uri(),
+        vec![TableSpec::new_point_in_time(
+            "alerts",
+            "security_finding",
+            vec![ColumnSpec::new("id", ColumnType::String, None, vec![])],
+            vec![FetchStep::new(
+                "fetch_alerts",
+                "GET",
+                "/api/alerts",
+                None,
+                "$.alerts",
+                None,
+                vec![],
+                None,
+                None,
+            )],
+        )],
+        None,
+        "1.0.0",
+        vec![],
+    );
+
+    let table = spec.tables[0].clone();
+    let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new());
+    let http_client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .expect("reqwest Client::build must succeed");
+    // MockAuthProvider records every acquire_token call.
+    // For CookieRoundtrip: acquire_token must be called ONCE (eager at pipeline start)
+    // and NOT called again on 401 (no refresh for static auth).
+    let auth_provider = MockAuthProvider::new("static-api-key-value");
+
+    let result =
+        PipelineExecutor::execute(&spec, &table, &context, &http_client, &auth_provider).await;
+
+    // (a) Must return Err — 401 with CookieRoundtrip is not recoverable
+    assert!(
+        result.is_err(),
+        "TV-BC-2.01.017-006: CookieRoundtrip 401 must produce Err; got Ok with {} records",
+        result.as_ref().map(|r| r.records.len()).unwrap_or(0)
+    );
+
+    let err = result.unwrap_err();
+    let err_str = err.to_string();
+
+    // (b) Error MUST contain "E-AUTH-004" (cookie auth failure code)
+    assert!(
+        err_str.contains("E-AUTH-004"),
+        "TV-BC-2.01.017-006: error must contain 'E-AUTH-004'; got: {err_str}"
+    );
+
+    // (c) Error MUST NOT be AuthRefreshFailed — that implies a refresh mechanism
+    assert!(
+        !matches!(err, SpecEngineError::AuthRefreshFailed { .. }),
+        "TV-BC-2.01.017-006: CookieRoundtrip 401 must NOT return AuthRefreshFailed; got: {err_str}"
+    );
+
+    // (d) acquire_token called ONCE (eager at start) — NOT called again on 401
+    assert_eq!(
+        auth_provider.calls(),
+        1,
+        "TV-BC-2.01.017-006: acquire_token must be called exactly once (eager only, no refresh); \
+         called {} times",
+        auth_provider.calls()
+    );
+
+    // (e) wiremock .expect(1) enforces exactly 1 HTTP request in drop —
+    // if the pipeline retried, wiremock would panic at drop with "expected 1, got 2"
+}

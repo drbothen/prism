@@ -746,6 +746,33 @@ async fn issue_request_with_retry(
     let status = response.status();
 
     if status == reqwest::StatusCode::UNAUTHORIZED {
+        // BC-2.01.017 EC-017-002 / TV-BC-2.01.017-006: discriminator guard for static auth.
+        //
+        // `CookieRoundtrip` uses a static API key — `acquire_token()` just re-reads
+        // the same key from the credential store, so retrying would send the same
+        // (already-rejected) token again. The retry is provably futile.
+        //
+        // For static auth types, skip the entire OAuth2-style refresh-retry block and
+        // immediately surface E-AUTH-004 as a per-sensor partial failure
+        // (BC-2.01.010 partial-failure fan-out semantics).
+        //
+        // The OAuth2 refresh-retry path below MUST remain UNCHANGED for
+        // `Oauth2ClientCredentials` (and other non-static auth types).
+        if spec.auth_type == crate::spec_parser::AuthType::CookieRoundtrip {
+            tracing::warn!(
+                event_type = "cookie_auth_401",
+                sensor_id = %spec.sensor_id,
+                client_id = %client_id,
+                step_name = %step.name,
+                "CookieRoundtrip sensor received 401 — static API key rejected; \
+                 no retry (BC-2.01.017 EC-017-002)"
+            );
+            return Err(SpecEngineError::CookieAuthFailed {
+                sensor_id: spec.sensor_id.clone(),
+                client_id: client_id.to_string(),
+            });
+        }
+
         // F-LP1-HIGH-003 (AC-5 audit): log auth refresh event. Token value is NEVER logged.
         tracing::warn!(
             event_type = "auth_refresh_triggered",

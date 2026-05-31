@@ -86,6 +86,11 @@ pub enum SpecEngineError {
     /// Returned by `PipelineExecutor::execute` when a step returns HTTP 401,
     /// `acquire_token` is called to get a fresh token, and the retry ALSO
     /// returns HTTP 401. Pipeline aborts; no further retries (AC-5 abort condition).
+    ///
+    /// This variant is ONLY returned for refreshable auth types (e.g.,
+    /// `Oauth2ClientCredentials`). Static auth types (e.g., `CookieRoundtrip`)
+    /// return `CookieAuthFailed` (E-AUTH-004) instead — they have no refresh
+    /// mechanism, so retrying is provably futile (BC-2.01.017 EC-017-002).
     #[error(
         "E-AUTH-002: auth refresh failed for sensor '{sensor_id}', client '{client_id}': \
          HTTP 401 persisted after token re-acquisition on step '{step_name}'"
@@ -94,6 +99,29 @@ pub enum SpecEngineError {
         sensor_id: String,
         client_id: String,
         step_name: String,
+    },
+
+    /// E-AUTH-004: Cookie authentication failed — HTTP 401 received on a
+    /// `CookieRoundtrip` auth sensor; no retry is attempted.
+    ///
+    /// Returned by `PipelineExecutor::execute` (via `issue_request_with_retry`)
+    /// when a step returns HTTP 401 and the sensor's `auth_type` is
+    /// `CookieRoundtrip`. Unlike the OAuth2 refresh path, `CookieRoundtrip`
+    /// uses a static API key — `acquire_token()` would just re-read the same
+    /// key, making retry provably futile (BC-2.01.017 EC-017-002 / TV-BC-2.01.017-006).
+    ///
+    /// The pipeline aborts with this variant (not `AuthRefreshFailed`) so that
+    /// the query fan-out layer can treat this as a per-sensor partial failure
+    /// (BC-2.01.010 partial-failure fan-out semantics).
+    ///
+    /// Error format matches error-taxonomy.md v1.55 E-AUTH-004:
+    /// `"Cookie authentication failed for {sensor} on client '{client_id}'"`
+    #[error("E-AUTH-004: Cookie authentication failed for {sensor_id} on client '{client_id}'")]
+    CookieAuthFailed {
+        /// Sensor identity for operator diagnostics.
+        sensor_id: String,
+        /// Client (org) for which the auth failed.
+        client_id: String,
     },
 
     /// E-HTTP-001: HTTP request failed (non-401 error, e.g., 500, network error).
