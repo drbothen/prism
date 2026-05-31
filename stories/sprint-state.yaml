@@ -19,12 +19,12 @@ active_dispatch_set:
     notes: "First dispatch target. DTU remove POST /login + StaticCookieAuthProvider + Cookie: access_token injection. Blocks S-DEMO-001 AC-003/AC-009."
 
   - story_id: S-CONFIG-MULTI-TENANT-OVERRIDE-001
-    status: ready
+    status: merged
     priority: P0
     points: 8
-    spec_version: "v1.2"
+    spec_version: "v1.3"
     depends_on: []
-    notes: "Second dispatch target. Per-org overlay loading per ADR-029. Parallel to S-DTU-CYBERINT-AUTH-FIDELITY-001."
+    notes: "MERGED PR #155 develop@3e822522 2026-05-26 (status-correction D-916). Was stale-ready; POL-14 promoted BCs correctly at merge but story-status transition was missed. [process-gap] recorded in Drift Items."
 
   - story_id: S-DEMO-CLAROTY-AUDIT-DTU-001
     status: draft

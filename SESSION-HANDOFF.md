@@ -9677,3 +9677,29 @@ No active feature worktrees. Next feature worktree: `.worktrees/S-CONFIG-MULTI-T
 ---
 
 **D-912 burst marker:** 285th consecutive single-commit per TD-VSDD-053. Anti-volatile-pin per TD-VSDD-091.
+
+---
+
+### §CORRECTION — D-916 (2026-05-31) — S-CONFIG STATUS ERROR IN THIS SNAPSHOT
+
+> **This historical snapshot is preserved as-is per change-log policy. This block records the post-hoc correction discovered by D-916 state-correction burst.**
+
+**Error in §3 above:** S-CONFIG-MULTI-TENANT-OVERRIDE-001 is listed as `status: ready / DISPATCH FIRST — sole gate to keystone`. THIS IS INCORRECT.
+
+**Corrected fact:** S-CONFIG-MULTI-TENANT-OVERRIDE-001 was **MERGED** via PR #155 squash-merged to develop@3e822522 at 2026-05-26T19:01:58Z — **5 days before this snapshot was written**. Implementation was present in develop: `crates/prism-spec-engine/src/overlay.rs`, `SensorInstanceOverlay`, `ResolvedSensorSpec`, `boot.rs` wiring, `fanout.rs`, `tests/overlay_loading_tests.rs`. All 7 ACs demo-evidenced.
+
+**Root cause (process-gap):** POL-14 auto-promoted BC-2.06.012..016 from draft→active at PR #155 merge (correctly), but POL-14 has no paired story-status→merged trigger. Story frontmatter `status: ready` was never written to `merged`. The stale status propagated through D-849-prep (which left it ready) and then into this D-912 snapshot. [process-gap] DRIFT-D916-001 recorded in STATE.md Drift Items.
+
+**Consequence of this snapshot error (now corrected):** Any session resuming from this snapshot would have dispatched S-CONFIG implementation unnecessarily, or been confused about the S-DEMO-001 gate status. The correction: S-DEMO-001 keystone is **UNBLOCKED** — all 4 depends_on are merged:
+- PLUGIN-MIGRATION-001-A: MERGED PR #156 develop@948a709f 2026-05-27
+- PLUGIN-MIGRATION-001-E: MERGED PR #154 develop@6bf3f659 2026-05-26
+- S-CONFIG-MULTI-TENANT-OVERRIDE-001: MERGED PR #155 develop@3e822522 2026-05-26
+- S-DTU-CYBERINT-AUTH-FIDELITY-001: MERGED PR #164 develop@e798e67c 2026-05-31
+
+**Corrected Recommended Next Actions** (replace §10 above):
+1. **FIRST DISPATCH: S-DEMO-001 KEYSTONE** (P0 — all 4 deps merged; SpecDrivenSensorAdapter + boot step 9A). Create worktree `.worktrees/S-DEMO-001/`.
+2. In parallel: S-SPEC-ENV-VAR-001 (P0 leaf prereq; gates CrowdStrike) + Track B Armis-AQL (P1) + Track E S-5.04 (P2).
+3. CrowdStrike story NOT CLEAR until S-SPEC-ENV-VAR-001 merges (HARD gate per D-914).
+4. After S-DEMO-001 merges: dispatch S-DEMO-002 → S-DEMO-003.
+
+**STATE version at correction:** 7.571. **Correction burst:** D-916 (2026-05-31). **STORY-INDEX at correction:** v2.224.

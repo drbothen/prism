@@ -5,18 +5,24 @@ title: "Per-Org Sensor Endpoint Overlay Loading — ADR-029 Hybrid Sensor Instan
 wave: 0
 epic_id: wave-0-plugin-prereqs
 priority: P0
-status: ready
-version: "v1.2"
+status: merged
+version: "v1.3"
 level: "L4"
 producer: story-writer
 timestamp: "2026-05-23T00:00:00Z"
 created: "2026-05-23"
-modified: "2026-05-29T22:00:00Z"
+modified: "2026-05-31 D-916 status-correction: stale ready→merged; merged PR #155 develop@3e822522 2026-05-26"
+merged_via_pr: 155
+merged_via_sha: "3e822522"
+merged_at: "2026-05-26T19:01:58Z"
 tdd_mode: strict
 # BC status: All 5 BCs (BC-2.06.012–016) are status: active + lifecycle_status: active
 # per BC-INDEX v5.52. Auto-promoted via POL-14 at S-CONFIG merge develop@3e822522
 # (2026-05-26). PO confirmed active status at commit b8cf19e1 (2026-05-29).
-# S-7.01 gate cleared: behavioral_contracts non-empty + all BCs active. status=ready.
+# status=merged: D-916 state-correction burst (2026-05-31). Story was shipped with
+# status=ready at merge; POL-14 promoted BCs correctly but story-status→done/merged
+# transition was not paired with the merge event. Root cause: POL-14 auto-promotion
+# covers BC draft→active but has no paired story-status→merged trigger. [process-gap]
 subsystems: [SS-06, SS-16]
 # Subsystem anchor justifications:
 #   SS-06 (Client Configuration, prism-spec-engine config subsystem) owns the entire
