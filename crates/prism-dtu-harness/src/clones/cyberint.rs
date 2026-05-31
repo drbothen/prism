@@ -90,6 +90,18 @@ const FIXTURE_PAGE2_COUNT: usize = 5;
 /// this constant directly. ADR-031 §D3-a: the token is static (no login step).
 pub const DEMO_ACCESS_TOKEN: &str = "harness-cyberint-demo-access-token";
 
+/// Maximum number of entries permitted in `CyberintCloneState::access_token_store`.
+///
+/// Bounds unbounded `HashSet` growth from repeated `POST /dtu/configure` calls
+/// (SEC-002 / CWE-400; F-P7-HIGH-001). Tokens beyond this cap are silently ignored
+/// by `register_access_token`, mirroring the `MAX_ALLOWLIST_SIZE` cap in
+/// `prism-dtu-cyberint::state::CyberintState` to maintain DTU↔harness fidelity.
+///
+/// 100 is sufficient for all harness test scenarios (each test registers at most a
+/// handful of demo tokens) while preventing runaway memory growth from adversarial
+/// or accidental bulk registration via the admin-guarded configure endpoint.
+pub const MAX_HARNESS_ALLOWLIST_SIZE: usize = 100;
+
 // ---------------------------------------------------------------------------
 // In-memory alert record
 // ---------------------------------------------------------------------------
@@ -208,6 +220,11 @@ impl CyberintCloneState {
     }
 
     /// Construct state with a specific demo access token (for tests that need a known value).
+    ///
+    /// The demo token is routed through `register_access_token` so SEC-002 validation
+    /// (length, CTL chars, size cap) is applied even at construction time — matching the
+    /// pattern used in `prism-dtu-cyberint::state::CyberintState::with_demo_token`
+    /// (F-P7-HIGH-001 sibling-sweep).
     pub fn with_demo_token(org_slug: &str, seed: u64, demo_token: String) -> Self {
         let (page1, page2) = generate_alerts(org_slug, seed);
         let threat_intel = generate_threat_intel(org_slug, seed);
@@ -218,12 +235,10 @@ impl CyberintCloneState {
             alert_store.insert(a.alert_id.clone(), AlertStatusRecord::open());
         }
 
-        // Pre-register the demo token so the clone is usable without a configure call.
-        let mut access_token_store = HashSet::new();
-        access_token_store.insert(demo_token.clone());
-
-        Self {
-            access_token_store: Mutex::new(access_token_store),
+        // Build with an empty store first, then route the demo token through
+        // register_access_token so SEC-002 validation applies (F-P7-HIGH-001).
+        let state = Self {
+            access_token_store: Mutex::new(HashSet::new()),
             alert_store: Mutex::new(alert_store),
             auth_mode: Mutex::new(AuthMode::Accept),
             rate_limit_after: Mutex::new(None),
@@ -231,8 +246,11 @@ impl CyberintCloneState {
             alerts_page1: page1,
             alerts_page2: page2,
             threat_intel,
-            demo_token,
-        }
+            demo_token: demo_token.clone(),
+        };
+        // Register through the validated path (length cap, CTL rejection, size cap).
+        state.register_access_token(demo_token);
+        state
     }
 
     /// Reset all mutable state to initial values.
@@ -248,14 +266,17 @@ impl CyberintCloneState {
     /// after reset.
     #[allow(clippy::expect_used)]
     pub fn reset(&self) {
-        // Clear access_token_store and re-register demo token.
-        let mut store = self
-            .access_token_store
-            .lock()
-            .expect("access_token_store poisoned");
-        store.clear();
-        store.insert(self.demo_token.clone());
-        drop(store);
+        // Clear access_token_store, then re-register the demo token via the validated
+        // path (SEC-002 guards) so reset() does not bypass length/CTL/cap checks
+        // (F-P7-HIGH-001 sibling-sweep; mirrors prism-dtu-cyberint::state::reset_all).
+        {
+            let mut store = self
+                .access_token_store
+                .lock()
+                .expect("access_token_store poisoned");
+            store.clear();
+        } // lock released before calling register_access_token (which re-acquires it)
+        self.register_access_token(self.demo_token.clone());
 
         let mut alert_store = self.alert_store.lock().expect("alert_store poisoned");
         for val in alert_store.values_mut() {
@@ -277,12 +298,42 @@ impl CyberintCloneState {
     /// Register an access token in the static allowlist.
     ///
     /// ADR-031 §D3-a rule 3: tokens are registered statically, not issued per-login.
+    ///
+    /// # Validation (SEC-002 / CWE-20 / CWE-400; F-P7-HIGH-001)
+    ///
+    /// Mirrors the production E-AUTH-006 contract (`StaticCookieAuthProvider`) and the
+    /// identical guards in `prism-dtu-cyberint::state::CyberintState::register_access_token`
+    /// to maintain DTU↔harness fidelity:
+    ///
+    /// - Tokens exceeding 4096 bytes are silently ignored.
+    /// - Tokens containing ASCII control characters (0x00–0x1F, DEL 0x7F) are silently
+    ///   ignored (defense against CWE-113 CRLF injection and CWE-93).
+    /// - Once the store reaches `MAX_HARNESS_ALLOWLIST_SIZE`, further inserts are
+    ///   silently ignored (defense against CWE-400 unbounded growth).
+    ///
+    /// Silent-ignore is chosen (over returning an error) because callers do not propagate
+    /// errors to HTTP responses for this path, and the harness is not a production auth
+    /// service.
     #[allow(clippy::expect_used)]
     pub fn register_access_token(&self, token: String) {
-        self.access_token_store
+        // SEC-002 / CWE-20: reject oversized tokens (mirror E-AUTH-006 4096-byte limit).
+        if token.len() > 4096 {
+            return;
+        }
+        // SEC-002 / CWE-93 / CWE-113: reject tokens containing ASCII control chars
+        // (0x00–0x1F incl. CR/LF, and DEL 0x7F) — mirrors E-AUTH-006 CTL rejection.
+        if token.bytes().any(|b| b < 0x21 || b == 0x7F) {
+            return;
+        }
+        let mut store = self
+            .access_token_store
             .lock()
-            .expect("access_token_store poisoned")
-            .insert(token);
+            .expect("access_token_store poisoned");
+        // SEC-002 / CWE-400: cap allowlist size to prevent unbounded memory growth.
+        if store.len() >= MAX_HARNESS_ALLOWLIST_SIZE {
+            return;
+        }
+        store.insert(token);
     }
 
     #[allow(clippy::expect_used)]
@@ -1537,4 +1588,128 @@ async fn run_cyberint_server(
         })
         .await
         .map_err(|e| anyhow::anyhow!("cyberint axum serve error: {e}"))
+}
+
+// ---------------------------------------------------------------------------
+// Unit tests
+// ---------------------------------------------------------------------------
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn make_state() -> CyberintCloneState {
+        CyberintCloneState::new("test-org", DEFAULT_SEED)
+    }
+
+    /// SEC-002 / CWE-20: register_access_token must reject tokens containing ASCII
+    /// control characters (CTL: 0x00–0x1F, DEL 0x7F) or exceeding 4096 bytes.
+    ///
+    /// Mirrors the E-AUTH-006 validation contract and the SEC-002 guards applied to
+    /// `prism-dtu-cyberint::state::CyberintState::register_access_token`.
+    /// A harness allowlist that accepts CTL-containing or oversized tokens would break
+    /// DTU↔production fidelity and introduce CWE-93/113/400 vectors via the admin-guarded
+    /// `POST /dtu/configure` endpoint (F-P7-HIGH-001).
+    ///
+    /// Verifies: register_access_token with invalid token does NOT grow the allowlist.
+    #[test]
+    fn test_harness_register_access_token_rejects_ctl_and_oversized_tokens() {
+        let state = make_state();
+
+        // ---- Case 1: CTL byte (0x01) ----
+        let ctl_token = "abc\x01def".to_string();
+        state.register_access_token(ctl_token.clone());
+        assert!(
+            !state.is_valid_access_token(&ctl_token),
+            "SEC-002 / CWE-20: register_access_token must NOT accept tokens containing \
+             ASCII control bytes (0x01 CTL). Harness allowlist accepted a CTL token."
+        );
+
+        // ---- Case 2: CRLF injection (CR = 0x0D, LF = 0x0A) ----
+        let crlf_token = "valid-prefix\r\nInjected: header".to_string();
+        state.register_access_token(crlf_token.clone());
+        assert!(
+            !state.is_valid_access_token(&crlf_token),
+            "SEC-002 / CWE-113: register_access_token must NOT accept tokens containing \
+             CRLF (HTTP header injection). Harness allowlist accepted a CRLF token."
+        );
+
+        // ---- Case 3: DEL (0x7F) ----
+        let del_token = "abc\x7fdef".to_string();
+        state.register_access_token(del_token.clone());
+        assert!(
+            !state.is_valid_access_token(&del_token),
+            "SEC-002 / CWE-20: register_access_token must NOT accept tokens containing \
+             DEL (0x7F). Harness allowlist accepted a DEL token."
+        );
+
+        // ---- Case 4: oversized token (> 4096 bytes) ----
+        let oversized_token = "a".repeat(4097);
+        state.register_access_token(oversized_token.clone());
+        assert!(
+            !state.is_valid_access_token(&oversized_token),
+            "SEC-002 / CWE-400: register_access_token must NOT accept tokens exceeding \
+             4096 bytes. Harness allowlist accepted an oversized token."
+        );
+
+        // ---- Sanity: valid token still accepted ----
+        let valid_token = "valid-api-key-abcdef123".to_string();
+        state.register_access_token(valid_token.clone());
+        assert!(
+            state.is_valid_access_token(&valid_token),
+            "SEC-002 sanity: a valid ASCII token must still be accepted after adding \
+             CTL/oversized rejection guards."
+        );
+    }
+
+    /// SEC-002 / CWE-400: register_access_token must enforce MAX_ALLOWLIST_SIZE.
+    ///
+    /// Inserting more than MAX_ALLOWLIST_SIZE distinct valid tokens must not grow the
+    /// access_token_store past the cap. This bounds unbounded HashSet growth via the
+    /// admin-guarded `POST /dtu/configure` endpoint (F-P7-HIGH-001; CWE-400).
+    ///
+    /// ADR-031 §D3-a; SEC-002 (S-DTU-CYBERINT-AUTH-FIDELITY-001; F-P7-HIGH-001).
+    #[test]
+    fn test_harness_register_access_token_caps_at_max_allowlist_size() {
+        // Start from a clean state (no pre-registered demo token, so cap starts at 0).
+        let state = CyberintCloneState::with_demo_token(
+            "test-org",
+            DEFAULT_SEED,
+            // Use the constant demo token so we start with exactly 1 entry.
+            DEMO_ACCESS_TOKEN.to_owned(),
+        );
+
+        // Insert MAX_ALLOWLIST_SIZE + 10 additional distinct valid tokens.
+        for i in 0..=(MAX_HARNESS_ALLOWLIST_SIZE + 10) {
+            state.register_access_token(format!("bulk-token-{i:04}"));
+        }
+
+        // SAFETY: mutex poison only occurs if a previous holder panicked.
+        #[allow(clippy::expect_used)]
+        let count = state
+            .access_token_store
+            .lock()
+            .expect("access_token_store poisoned")
+            .len();
+
+        assert!(
+            count <= MAX_HARNESS_ALLOWLIST_SIZE,
+            "SEC-002 / CWE-400: access_token_store must not exceed MAX_HARNESS_ALLOWLIST_SIZE \
+             ({MAX_HARNESS_ALLOWLIST_SIZE}). Got {count} entries (F-P7-HIGH-001)."
+        );
+    }
+
+    /// Verify the pre-registered DEMO_ACCESS_TOKEN passes the new validation guards.
+    ///
+    /// Regression guard: if the demo token were to contain CTL chars or exceed 4096 bytes,
+    /// all tests relying on it for cookie auth would silently break.
+    #[test]
+    fn test_harness_demo_token_is_valid_under_new_guards() {
+        let state = make_state();
+        assert!(
+            state.is_valid_access_token(DEMO_ACCESS_TOKEN),
+            "DEMO_ACCESS_TOKEN must pass the SEC-002 validation guards and be registered \
+             in the allowlist at startup."
+        );
+    }
 }
