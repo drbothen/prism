@@ -61,12 +61,23 @@ fn resolve_field(
 
     // Collect all matches first so we can iterate without borrow conflicts.
     // Each entry is (full_token_string, var_name).
+    //
+    // Deduplicate by var_name: when the same ${env.VAR} token appears multiple times in a
+    // field, String::replace already replaces ALL occurrences in one call, so processing the
+    // same token twice would produce duplicate resolved_pairs / error entries without adding
+    // any correctness benefit (PR#165 M-002). We preserve the first-seen ordering via a
+    // HashSet sentinel rather than sorting, so multi-error output order is deterministic.
+    let mut seen_var_names: std::collections::HashSet<String> = std::collections::HashSet::new();
     let matches: Vec<(String, String)> = ENV_TOKEN_REGEX
         .captures_iter(field_value)
-        .map(|cap| {
+        .filter_map(|cap| {
             let full_token = cap[0].to_string();
             let var_name = cap[1].to_string();
-            (full_token, var_name)
+            if seen_var_names.insert(var_name.clone()) {
+                Some((full_token, var_name))
+            } else {
+                None
+            }
         })
         .collect();
 
