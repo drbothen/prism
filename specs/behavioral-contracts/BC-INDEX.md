@@ -1,10 +1,10 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "5.68"
+version: "5.69"
 status: draft
 producer: state-manager
-timestamp: 2026-05-31T12:00:00Z
+timestamp: 2026-05-31T21:30:00Z
 phase: 3.A
 total_contracts: 246
 active_contracts: 237
@@ -41,7 +41,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.01.010 | Partial Failure Handling for Paginated and Cross-Client Queries | 01 - Sensor Adapters | CAP-001, CAP-002 | P0 | draft |
 | BC-2.01.011 | ~~Cross-Sensor Correlation via OCSF Field Alignment~~ | 01 - Sensor Adapters | CAP-012 | P1 | removed |
 | BC-2.01.012 | ~~Query Fingerprint Validation at Startup~~ | 01 - Sensor Adapters | CAP-001 | P0 | removed |
-| BC-2.01.013 | DataSource Trait Eliminates Per-Sensor Code Duplication | 01 - Sensor Adapters | CAP-001 | P0 | active (promoted draft→active D-398 per POL-14; anchor story S-PLUGIN-PREREQ-A merged PR #142 develop@90d7c80f) — v1.8 |
+| BC-2.01.013 | DataSource Trait Eliminates Per-Sensor Code Duplication | 01 - Sensor Adapters | CAP-001 | P0 | active (promoted draft→active D-398 per POL-14; anchor story S-PLUGIN-PREREQ-A merged PR #142 develop@90d7c80f) — v1.9 |
 | BC-2.01.014 | Exponential Backoff and Retry for Transient Sensor API Errors | 01 - Sensor Adapters | CAP-001 | P0 | draft |
 | BC-2.01.015 | ~~MCP Tool Response Envelope Structure~~ | 01 - Sensor Adapters | CAP-001 | P0 | removed |
 | BC-2.01.016 | SensorAuth Open Trait — Plugin-Implementable Auth Contract (No Sealed Marker) | 01 - Sensor Adapters | CAP-001 | P0 | active (promoted draft→active D-726 per POL-14; anchor story S-PLUGIN-PREREQ-E merged PR #151 develop@80ebe794 2026-05-19) — v1.12 |
@@ -376,6 +376,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v5.69 (2026-05-31, D-925 arch-adjudication burst):** state-manager | BC-2.01.013 v1.8→v1.9 (D-925 architecture adjudication — S-DEMO-001 F-001-R-RECUR + F-DOC-001 closure: resolved ocsf_class namespace collision between record-type tokens and OCSF class-name strings; named `EventClassSelector::select_by_class_name(class_name)->Result<u32>` as canonical class_uid derivation function; corrected imprecise ColumnMapper/OcsfNormalizer language in Conformance Clause item 2 to cite the actual function name; added EC-01-028 wrong-function anti-pattern — calling `select(sensor_id, class_name_string)` yields class_uid=0 for all real sensor tables; conformance test MUST use real ocsf_class "security_finding"→2001, NOT fake record-type token "detection"; added class-name→uid mapping table for all 6 production sensor TOML ocsf_class values; corrected TV-BC-2.01.013-005 fixture requirement. Architect commit D-925-arch-adjudication 2026-05-31). BC-INDEX in-line row updated to v1.9. No lifecycle_status changes. BC-INDEX v5.68→v5.69.
 
 **v5.68 (2026-05-31, D-924 pass-2 spec/story fix-burst):** state-manager | BC-2.01.013 v1.7→v1.8 (OCSF Conformance Clause + Pagination/Push-Down Scope Clause added by product-owner; D-924 decisions: F-003-R push-down scoped out of S-DEMO-001 keystone → follow-up S-DEMO-QUERY-PUSHDOWN-001; F-001-R OCSF conformance tightened — data-column survival + derived envelope; envelope-only/raw-copy NON-CONFORMANT). BC-2.11.005 v1.4→v1.5 (updated per D-924 in scope of pass-2 spec fix-burst). BC-INDEX in-line rows updated. No lifecycle_status changes. BC-INDEX v5.67→v5.68.
 
