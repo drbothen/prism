@@ -75,6 +75,10 @@ prism-security = { path = "../prism-security", version = "0.1.0" }
 # arrow is a direct dep of prism-sensors (SensorAdapter trait owner) but must be declared here
 # because spec_driven_adapter.rs names RecordBatch in the fetch() override return type.
 arrow = { version = "58", features = ["ipc"] }
+# S-DEMO-001: spec_driven_adapter.rs maps FilterMap (serde_json::Value) → FetchContext
+# (HashMap<String, String>). serde_json is a direct dep of prism-sensors (FilterMap owner)
+# but must be declared here for the conversion in spec_driven_adapter.rs.
+serde_json = "1"
 
 # ---------------------------------------------------------------------------
 # Integration test targets — explicit declarations required for required-features

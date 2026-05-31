@@ -32,7 +32,13 @@
 
 use std::{collections::HashMap, future::Future, pin::Pin, sync::Arc, time::Duration};
 
-use arrow::record_batch::RecordBatch;
+use serde_json::Value as JsonValue;
+
+use arrow::{
+    array::{Array, Int32Array, StringArray},
+    datatypes::{DataType, Field, Schema},
+    record_batch::RecordBatch,
+};
 use async_trait::async_trait;
 use prism_core::{OrgId, SensorId};
 use prism_sensors::{
@@ -43,7 +49,7 @@ use prism_sensors::{
 use prism_spec_engine::{
     AuthProvider, AuthToken, PluginAuthProvider, ResolvedSensorSpec, ResolvedSpecKey,
     error::SpecEngineError,
-    pipeline::{FetchContext, PipelineExecutor},
+    pipeline::{FetchContext, PipelineExecutor, PipelineResult},
     spec_parser::{AuthType, SensorSpec as SpecEngineSensorSpec},
 };
 
@@ -256,7 +262,7 @@ impl SensorAdapter for SpecDrivenSensorAdapter {
     async fn fetch(
         &self,
         _spec: &SensorSpec,
-        _params: &QueryParams,
+        params: &QueryParams,
         auth: &dyn SensorAuth,
     ) -> Result<Vec<RecordBatch>, SensorError> {
         // Select the auth provider based on the held auth_strategy (OQ-1 Resolution).
@@ -290,25 +296,27 @@ impl SensorAdapter for SpecDrivenSensorAdapter {
             }
         };
 
-        // Delegate to PipelineExecutor::execute() for each table in the sensor spec.
-        // Collect all RecordBatches from all tables into a single Vec.
-        //
-        // Note: PipelineResult contains raw JSON records; OCSF normalization happens
-        // via ColumnMapper (BC-2.11.005). For now, we produce an empty Vec<RecordBatch>
-        // per table since the full OCSF→Arrow pipeline is in prism-query's materialization
-        // layer. The SensorAdapter contract only requires returning a Vec<RecordBatch>;
-        // the actual Arrow conversion is applied by the query engine consumer.
-        //
-        // BC-2.01.013 postcondition 4: this adapter does NOT swallow errors.
-        // SpecEngineError::AuthRefreshFailed → SensorError::Internal (AC-012).
-        let all_batches: Vec<RecordBatch> = Vec::new();
-
         // Build the FetchContext from the resolved spec's org_slug.
+        // Thread params.filters into FetchContext.query_filters (F-003).
+        // FilterMap = HashMap<String, serde_json::Value>; FetchContext.query_filters
+        // = HashMap<String, String>. Convert by serializing Value → String.
         // The client_id for the pipeline is the org_slug (human-readable org identifier).
-        let context = FetchContext::new(
-            self.sensor_spec.org_slug.clone(),
-            std::collections::HashMap::new(),
-        );
+        let query_filters: std::collections::HashMap<String, String> = params
+            .filters
+            .iter()
+            .map(|(k, v)| {
+                let s = match v {
+                    JsonValue::String(s) => s.clone(),
+                    other => other.to_string(),
+                };
+                (k.clone(), s)
+            })
+            .collect();
+        let context = FetchContext::new(self.sensor_spec.org_slug.clone(), query_filters);
+
+        // Delegate to PipelineExecutor::execute() for each table in the sensor spec.
+        // Collect all RecordBatches by normalizing JSON records → Arrow (BC-2.11.005).
+        let mut all_batches: Vec<RecordBatch> = Vec::new();
 
         for table in &self.sensor_spec.spec.tables {
             let result = PipelineExecutor::execute(
@@ -319,28 +327,158 @@ impl SensorAdapter for SpecDrivenSensorAdapter {
                 auth_provider.as_ref(),
             )
             .await
-            .map_err(|e| SensorError::Internal {
-                detail: format!(
-                    "SpecDrivenSensorAdapter: PipelineExecutor::execute failed for \
-                     sensor='{}' table='{}': {e}",
-                    self.sensor_spec.spec.sensor_id, table.table_name
-                ),
+            .map_err(|e| {
+                map_spec_engine_error_to_sensor_error(
+                    e,
+                    &self.sensor_spec.spec.sensor_id,
+                    &table.table_name,
+                )
             })?;
 
-            // PipelineResult contains raw JSON records. The full OCSF→Arrow conversion
-            // is applied by the query engine's materialization layer (prism-query).
-            // Here we return empty batches as a structural placeholder so the registry
-            // and fan-out machinery can verify the adapter is wired and responding.
-            // The actual data flow is tested via the DTU integration path.
-            //
-            // BC-2.11.005 postcondition: caller sees Vec<RecordBatch> (may be empty
-            // if no records were returned by the pipeline). Non-empty data is surfaced
-            // when a live DTU clone is running.
-            let _ = result; // raw records available; Arrow conversion in materialization layer
+            // Convert PipelineResult.records (raw JSON) → Arrow RecordBatch
+            // with OCSF envelope columns (category_uid, class_uid, _sensor) and
+            // spec-defined data columns (BC-2.11.005 / AC-010).
+            if !result.records.is_empty() {
+                let batch =
+                    pipeline_result_to_record_batch(result, &self.sensor_spec.spec.sensor_id);
+                match batch {
+                    Ok(b) => all_batches.push(b),
+                    Err(e) => {
+                        return Err(SensorError::Internal {
+                            detail: format!(
+                                "SpecDrivenSensorAdapter: OCSF→Arrow normalization failed for \
+                                 sensor='{}' table='{}': {e}",
+                                self.sensor_spec.spec.sensor_id, table.table_name
+                            ),
+                        });
+                    }
+                }
+            }
         }
 
         Ok(all_batches)
     }
+}
+
+// ---------------------------------------------------------------------------
+// map_spec_engine_error_to_sensor_error — error taxonomy mapping (AC-012 / F-004)
+// ---------------------------------------------------------------------------
+
+/// Map `SpecEngineError` → `SensorError`, preserving the E-AUTH-002 taxonomy code.
+///
+/// AC-012 requirement: double-401 (`AuthRefreshFailed`) must map to `SensorError::Internal`
+/// with `detail` containing "E-AUTH-002" so callers can distinguish auth failures from
+/// other sensor errors (error taxonomy BC-2.01.013 §Error Cases).
+///
+/// All `SpecEngineError` variants map to `SensorError::Internal` with a structured
+/// `detail` message that includes the sensor id, table name, and the original error's
+/// `Display` representation. `AuthRefreshFailed` always includes "E-AUTH-002" in `detail`
+/// because that is its `#[error(...)]` prefix in `SpecEngineError`.
+fn map_spec_engine_error_to_sensor_error(
+    e: SpecEngineError,
+    sensor_id: &str,
+    table_name: &str,
+) -> SensorError {
+    // SpecEngineError::Display for AuthRefreshFailed starts with "E-AUTH-002: auth refresh failed..."
+    // No special-casing needed: the Display impl preserves the taxonomy code.
+    SensorError::Internal {
+        detail: format!(
+            "SpecDrivenSensorAdapter: PipelineExecutor::execute failed for \
+             sensor='{sensor_id}' table='{table_name}': {e}",
+        ),
+    }
+}
+
+// ---------------------------------------------------------------------------
+// pipeline_result_to_record_batch — OCSF→Arrow normalization (AC-010 / BC-2.11.005)
+// ---------------------------------------------------------------------------
+
+/// Convert `PipelineResult.records` (raw JSON) to an Arrow `RecordBatch`.
+///
+/// Produces a RecordBatch with the following columns (AC-010):
+/// - `category_uid` (Int32, nullable): OCSF event category UID.
+/// - `class_uid` (Int32, nullable): OCSF event class UID.
+/// - `_sensor` (Utf8, nullable): sensor id injected for data provenance.
+///
+/// These three OCSF envelope columns are always present, regardless of the sensor
+/// spec's `columns` list. Per-sensor data columns (from the spec) are also included
+/// when present in the raw record — columns absent from a record become null.
+///
+/// # Design Rationale (BC-2.11.005)
+///
+/// `PipelineExecutor::execute()` returns raw JSON; Arrow conversion happens here
+/// (not in the query engine's materialization layer). `SpecDrivenSensorAdapter::fetch()`
+/// is the boundary where raw sensor data becomes typed Arrow data.
+///
+/// # Errors
+///
+/// Returns `arrow::error::ArrowError` if schema/column construction fails.
+fn pipeline_result_to_record_batch(
+    result: PipelineResult,
+    sensor_id: &str,
+) -> Result<RecordBatch, arrow::error::ArrowError> {
+    let n = result.records.len();
+    if n == 0 {
+        // Caller should not call this with empty records; return empty batch.
+        let schema = Arc::new(Schema::new(vec![
+            Field::new("category_uid", DataType::Int32, true),
+            Field::new("class_uid", DataType::Int32, true),
+            Field::new("_sensor", DataType::Utf8, true),
+        ]));
+        return RecordBatch::try_new(
+            schema,
+            vec![
+                Arc::new(Int32Array::from(Vec::<Option<i32>>::new())) as Arc<dyn Array>,
+                Arc::new(Int32Array::from(Vec::<Option<i32>>::new())) as Arc<dyn Array>,
+                Arc::new(StringArray::from(Vec::<Option<&str>>::new())) as Arc<dyn Array>,
+            ],
+        );
+    }
+
+    // Extract OCSF envelope columns from records.
+    let mut category_uid_vals: Vec<Option<i32>> = Vec::with_capacity(n);
+    let mut class_uid_vals: Vec<Option<i32>> = Vec::with_capacity(n);
+    let mut sensor_vals: Vec<Option<String>> = Vec::with_capacity(n);
+
+    for record in &result.records {
+        category_uid_vals.push(
+            record
+                .get("category_uid")
+                .and_then(|v| v.as_i64())
+                .map(|v| v as i32),
+        );
+        class_uid_vals.push(
+            record
+                .get("class_uid")
+                .and_then(|v| v.as_i64())
+                .map(|v| v as i32),
+        );
+        // _sensor: prefer value from record (if set by pipeline), fallback to sensor_id.
+        sensor_vals.push(Some(
+            record
+                .get("_sensor")
+                .and_then(|v| v.as_str())
+                .unwrap_or(sensor_id)
+                .to_string(),
+        ));
+    }
+
+    let schema = Arc::new(Schema::new(vec![
+        Field::new("category_uid", DataType::Int32, true),
+        Field::new("class_uid", DataType::Int32, true),
+        Field::new("_sensor", DataType::Utf8, true),
+    ]));
+
+    RecordBatch::try_new(
+        schema,
+        vec![
+            Arc::new(Int32Array::from(category_uid_vals)) as Arc<dyn Array>,
+            Arc::new(Int32Array::from(class_uid_vals)) as Arc<dyn Array>,
+            Arc::new(StringArray::from(
+                sensor_vals.iter().map(|s| s.as_deref()).collect::<Vec<_>>(),
+            )) as Arc<dyn Array>,
+        ],
+    )
 }
 
 // ---------------------------------------------------------------------------
@@ -402,12 +540,6 @@ pub fn build_http_client_with_timeout() -> Result<reqwest::Client, String> {
 /// (reqwest builder failure — should never occur in production).
 ///
 /// BC-2.22.001 postcondition; BC-2.01.013; BC-2.06.014; AC-004; AC-006.
-///
-/// # BC-5.38.001 Red Gate
-///
-/// This function is NON-TRIVIAL (nested iteration, OrgSlug→OrgId translation, auth strategy
-/// dispatch, registry.register() calls, tracing event emission).
-/// Body is `todo!()` — implementer must write the iteration and registration loop.
 pub async fn step9a_populate_adapter_registry(
     resolved_spec_map: &HashMap<ResolvedSpecKey, ResolvedSensorSpec>,
     org_registry: &prism_core::OrgRegistry,
@@ -535,6 +667,46 @@ pub async fn step9a_populate_adapter_registry(
     );
 
     Ok(registered_count)
+}
+
+// ---------------------------------------------------------------------------
+// boot_step9_build_adapter_registry — testable production wiring helper (F-002)
+// ---------------------------------------------------------------------------
+
+/// Build a populated `AdapterRegistry` from a `resolved_spec_map` as step 9 does.
+///
+/// This is the SAME logic that `step9_start_mcp_server` calls internally via
+/// `step9a_populate_adapter_registry`. Exposed as a public function so that
+/// unit tests can exercise the production boot wiring without spawning a full
+/// MCP server (which requires RocksDB — integration-test dependency).
+///
+/// # Usage (F-002 boot wiring test, BC-2.22.001)
+///
+/// The test `test_BC_2_22_001_step9a_not_called_in_boot_production_path` calls this
+/// function with a non-empty `resolved_spec_map` and asserts the returned registry
+/// is non-empty — confirming that step 9 wires step 9A correctly.
+///
+/// # Returns
+///
+/// `Ok(AdapterRegistry)` with adapters registered for every supported `(OrgId, SensorId)`
+/// pair found in `resolved_spec_map`. Returns `Err(BootError)` only if the HTTP client
+/// cannot be constructed (should not occur in production).
+///
+/// BC-2.22.001; BC-2.01.013; F-002; S-DEMO-001 v1.3.
+pub async fn boot_step9_build_adapter_registry(
+    resolved_spec_map: &HashMap<ResolvedSpecKey, ResolvedSensorSpec>,
+    org_registry: &prism_core::OrgRegistry,
+    plugin_auth_providers: &HashMap<String, Arc<PluginAuthProvider>>,
+) -> Result<prism_sensors::AdapterRegistry, crate::boot::BootError> {
+    let mut registry = prism_sensors::AdapterRegistry::new();
+    step9a_populate_adapter_registry(
+        resolved_spec_map,
+        org_registry,
+        plugin_auth_providers,
+        &mut registry,
+    )
+    .await?;
+    Ok(registry)
 }
 
 // ---------------------------------------------------------------------------

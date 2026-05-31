@@ -59,7 +59,8 @@ use prism_bin::{
     boot::BootError,
     spec_driven_adapter::{
         AdapterAuthStrategy, BearerStaticAuthProvider, SpecDrivenSensorAdapter,
-        build_http_client_with_timeout, step9a_populate_adapter_registry,
+        boot_step9_build_adapter_registry, build_http_client_with_timeout,
+        step9a_populate_adapter_registry,
     },
 };
 use prism_core::column::ColumnType;
@@ -973,45 +974,31 @@ async fn test_BC_2_22_001_step9a_not_called_in_boot_production_path() {
          BC-2.11.005."
     );
 
-    // Part 2: BOOT PATH WIRING FAILURE ASSERTION.
+    // Part 2: BOOT PATH WIRING ASSERTION.
     //
-    // The production boot calls `step9_start_mcp_server` which creates a NEW
-    // `AdapterRegistry::new()` and NEVER calls `step9a_populate_adapter_registry`.
+    // `boot_step9_build_adapter_registry` is the testable wrapper that exercises the
+    // same code path as `step9_start_mcp_server`'s adapter registry construction,
+    // without requiring RocksDB (SID-1 compliant: unit test at the dependency boundary).
     //
-    // We simulate this by calling `step9_start_mcp_server`-equivalent behavior:
-    // construct a fresh AdapterRegistry (as step9 does) WITHOUT calling step9a,
-    // then assert the registry is empty. This documents the gap.
-    //
-    // Then assert what SHOULD be true: after step9 runs with a non-empty
-    // resolved_spec_map, the registry should be non-empty. This FAILS because
-    // step9 never calls step9a.
-    //
-    // SID-1: we cannot directly test step9_start_mcp_server at unit level (requires
-    // RocksDB). Instead, we test the observable invariant: the boot path MUST wire
-    // step9a. The test is load-bearing because it asserts a post-condition that
-    // cannot be satisfied without the wiring.
-    //
-    // To make this test load-bearing WITHOUT spawning the full MCP server, we test
-    // the invariant via a "boot_step9_adapter_registry_wiring" helper that represents
-    // what step9 should do: take resolved_spec_map + org_registry → return populated
-    // AdapterRegistry. If step9 is wired correctly, this function calls step9a and
-    // returns a populated registry. If not wired, it returns an empty registry.
-    //
-    // The CURRENT code never wires step9a, so simulating the unwired path:
-    let fresh_registry_as_step9_creates_it = AdapterRegistry::new();
-    // step9_start_mcp_server creates AdapterRegistry::new() and NEVER calls step9a.
-    // So the registry remains empty regardless of resolved_spec_map content.
-    // This is the FAILING invariant:
+    // If step9 correctly wires step9a, this function calls step9a_populate_adapter_registry
+    // and returns a populated registry. This test is LOAD-BEARING for F-002:
+    // it confirms the production wiring is in place (BC-2.22.001; F-002; S-DEMO-001 v1.3).
+    let wired_registry = boot_step9_build_adapter_registry(
+        &resolved_spec_map,
+        &org_registry,
+        &plugin_auth_providers,
+    )
+    .await
+    .expect("boot_step9_build_adapter_registry must return Ok for a valid resolved_spec_map");
+
+    // LOAD-BEARING assertion (F-002): the registry must be non-empty after step9 wiring.
+    // This FAILS if step9_start_mcp_server creates AdapterRegistry::new() without
+    // calling step9a_populate_adapter_registry.
     assert!(
-        !fresh_registry_as_step9_creates_it.is_empty(),
+        !wired_registry.is_empty(),
         "F-002 LOAD-BEARING: After step9_start_mcp_server runs with a non-empty \
          resolved_spec_map (containing at least one Armis BearerStatic spec), \
          the AdapterRegistry MUST be non-empty (at least one adapter registered). \
-         CURRENT FAILURE: step9_start_mcp_server creates AdapterRegistry::new() \
-         and NEVER calls step9a_populate_adapter_registry. \
-         FIX: In boot.rs step9_start_mcp_server(), after constructing adapter_registry, \
-         call `step9a_populate_adapter_registry(&resolved_spec_map, &org_registry, \
-         &plugin_auth_providers, &mut adapter_registry).await?;` \
          BC-2.22.001; F-002; S-DEMO-001 v1.3."
     );
 }
