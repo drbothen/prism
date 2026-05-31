@@ -167,13 +167,19 @@ impl AuthProvider for BearerStaticAuthProvider {
 /// Constructed via `reqwest::Client::builder().timeout(Duration::from_secs(30)).build()`
 /// per CLAUDE.md conventions (TD-S-PLUGIN-PREREQ-B-005).
 ///
-/// ## OCSF normalization
+/// ## OCSF normalization (BC-2.01.013 v1.9)
 ///
 /// The `PipelineExecutor` does NOT return Arrow `RecordBatch` — it returns `PipelineResult`
-/// (raw JSON records). `SpecDrivenSensorAdapter::fetch()` maps those records through
-/// `ColumnMapper` + `OcsfNormalizer` to produce `Vec<RecordBatch>` (BC-2.11.005 postcondition).
+/// (raw JSON records). `SpecDrivenSensorAdapter::fetch()` converts those records to
+/// `Vec<RecordBatch>` via `pipeline_result_to_record_batch`, which:
+/// 1. Maps spec-declared columns into the Arrow batch via `build_column_array` (typed per
+///    the TOML `[[tables.columns]]` spec; absent fields become null).
+/// 2. Derives `class_uid` via `EventClassSelector::select_by_class_name(ocsf_class)`;
+///    derives `category_uid = class_uid / 1000` (OCSF standard category encoding).
+/// 3. Injects `_sensor` as the canonical `SensorId` from the spec — the raw record's
+///    `_sensor` field (if any) is never used (untrusted vendor data).
 ///
-/// BCs: BC-2.01.013, BC-2.06.014, BC-2.11.005; Story: S-DEMO-001 v1.3.
+/// BCs: BC-2.01.013, BC-2.06.014, BC-2.11.005; Story: S-DEMO-001 v1.6.
 pub struct SpecDrivenSensorAdapter {
     /// The resolved sensor spec (with per-org overlay applied).
     ///
@@ -411,8 +417,8 @@ fn map_spec_engine_error_to_sensor_error(
 /// Columns absent from a record become null.
 ///
 /// **Derived OCSF envelope columns (item 2):**
-/// - `class_uid` (Int32): derived via `EventClassSelector::select(sensor_id, ocsf_class)`.
-///   Falls back to 0 (BASE_EVENT) if no mapping exists for this sensor/class combination.
+/// - `class_uid` (Int32): derived via `EventClassSelector::select_by_class_name(ocsf_class)`.
+///   Falls back to 0 (BASE_EVENT) if no class-name mapping exists (D-925 intentional fallback).
 /// - `category_uid` (Int32): `class_uid / 1000` per the OCSF standard category encoding.
 ///
 /// **Canonical _sensor virtual column (item 3):**
@@ -441,10 +447,12 @@ fn pipeline_result_to_record_batch(
 ) -> Result<RecordBatch, arrow::error::ArrowError> {
     let n = result.records.len();
 
-    // BC-2.01.013 v1.8 item 2: derive class_uid from spec ocsf_class via EventClassSelector.
-    // Falls back to 0 (BASE_EVENT) if no mapping — never reads class_uid from raw record.
+    // BC-2.01.013 v1.9 item 2: derive class_uid from spec ocsf_class via
+    // EventClassSelector::select_by_class_name — looks up by OCSF class-name string,
+    // not by (sensor_id, record_type) pair. Falls back to 0 (BASE_EVENT) for unmapped
+    // tables per D-925 (intentional unwrap_or fallback, not a production error path).
     let derived_class_uid: i32 =
-        EventClassSelector::select(sensor_id, &table.ocsf_class).unwrap_or(0) as i32;
+        EventClassSelector::select_by_class_name(&table.ocsf_class).unwrap_or(0) as i32;
     // OCSF standard encoding: category_uid = class_uid / 1000
     // e.g. class_uid=2004 → category_uid=2 (Findings), class_uid=3001 → category_uid=3 (IAM)
     let derived_category_uid: i32 = derived_class_uid / 1000;

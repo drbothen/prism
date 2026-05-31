@@ -58,6 +58,48 @@ pub const CLASS_UID_BASE_EVENT: u32 = 0;
 pub struct EventClassSelector;
 
 impl EventClassSelector {
+    /// Returns the OCSF `class_uid` for the given OCSF class-name string.
+    ///
+    /// This is the **spec-driven lookup path** used by `pipeline_result_to_record_batch`:
+    /// the sensor TOML `[[tables]]` block declares `ocsf_class = "<class-name>"`, and this
+    /// method maps that class-name directly to the canonical `class_uid` integer — with no
+    /// dependency on the sensor identifier.
+    ///
+    /// # Mappings (compile-time constants, BC-2.01.013 v1.9 / D-925)
+    ///
+    /// | Class name              | class_uid | OCSF category |
+    /// |-------------------------|-----------|---------------|
+    /// | `"security_finding"`    | 2001      | 2 (Findings)  |
+    /// | `"vulnerability_finding"` | 2002    | 2 (Findings)  |
+    /// | `"detection_finding"`   | 2004      | 2 (Findings)  |
+    /// | `"incident_finding"`    | 2005      | 2 (Findings)  |
+    /// | `"audit_activity"`      | 3001      | 3 (IAM)       |
+    /// | `"device"`              | 5001      | 5 (Discovery) |
+    ///
+    /// # Behaviour
+    ///
+    /// - Known class names return `Ok(class_uid)`.
+    /// - Unknown class names return `Err(PrismError::OcsfUnknownEventClass)`.
+    ///   Callers that want a safe fallback should use `.unwrap_or(0)`.
+    ///
+    /// # Error Codes
+    ///
+    /// - `E-OCSF-020` (`PrismError::OcsfUnknownEventClass`) — no mapping for this class name.
+    pub fn select_by_class_name(class_name: &str) -> Result<u32, PrismError> {
+        match class_name {
+            "security_finding" => Ok(2001),
+            "vulnerability_finding" => Ok(CLASS_UID_VULNERABILITY_FINDING),
+            "detection_finding" => Ok(CLASS_UID_DETECTION_FINDING),
+            "incident_finding" => Ok(CLASS_UID_INCIDENT_FINDING),
+            "audit_activity" => Ok(CLASS_UID_ACCOUNT_CHANGE),
+            "device" => Ok(CLASS_UID_DEVICE_INVENTORY_INFO),
+            _ => Err(PrismError::OcsfUnknownEventClass {
+                sensor: "".to_owned(),
+                record_type: class_name.to_owned(),
+            }),
+        }
+    }
+
     /// Returns the OCSF `class_uid` for the given `(sensor, record_type)` pair.
     ///
     /// # Behaviour
