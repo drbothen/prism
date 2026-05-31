@@ -2,38 +2,109 @@ AC-011: No event_type emission without BC-2.16.002 catalog row (SAP-1)
 Story: S-DTU-CYBERINT-AUTH-FIDELITY-001
 BC: BC-2.16.013 postcondition; SAP-1 standing adversary probe
 
-Evidence type: Code analysis (grep over story's changed files)
+Evidence type: Code analysis (rg over story's changed files)
+Evidence HEAD: 8f6f4e91 (feature/S-DTU-CYBERINT-AUTH-FIDELITY-001, 2026-05-30)
+Refreshed: IMPORTANT-1 pr-reviewer finding — prior version incorrectly asserted
+  zero new emissions; F-PR2-MED-001 fix-burst (commit dd244736) added one new
+  emission site that must be documented here.
 
---- SAP-1 SWEEP: event_type emissions in this story's changed files ---
+--- SAP-1 SWEEP: event_type emissions in story's changed files ---
 
-Command: grep -rn "event_type\s*=" crates/prism-spec-engine/src/auth_provider.rs
-                                    crates/prism-dtu-cyberint/src/
+Command run at HEAD 8f6f4e91:
+  rg -n 'event_type\s*=' crates/prism-spec-engine/src/ --type rust
 
-Result: (no output — zero event_type emissions)
+Relevant results from this story's changed files:
 
-Files scanned:
-  crates/prism-dtu-cyberint/src/clone.rs
-  crates/prism-dtu-cyberint/src/routes/alerts.rs
-  crates/prism-dtu-cyberint/src/routes/mod.rs
-  crates/prism-dtu-cyberint/src/state.rs
-  crates/prism-spec-engine/src/auth_provider.rs
-  crates/prism-spec-engine/src/pipeline.rs (CookieRoundtrip dispatch)
+  crates/prism-spec-engine/src/auth_provider.rs  — (no event_type emissions)
+
+  crates/prism-spec-engine/src/pipeline.rs:763:
+    event_type = "cookie_auth_401",
+
+Full emission context (pipeline.rs ~line 756-774):
+
+    if spec.auth_type == crate::spec_parser::AuthType::CookieRoundtrip {
+        tracing::warn!(
+            event_type = "cookie_auth_401",
+            sensor_id = %spec.sensor_id,
+            client_id = %client_id,
+            step_name = %step.name,
+            "CookieRoundtrip sensor received 401 — static API key rejected; \
+             no retry (BC-2.01.017 EC-017-002)"
+        );
+        return Err(SpecEngineError::CookieAuthFailed {
+            sensor_id: spec.sensor_id.clone(),
+            client_id: client_id.to_string(),
+        });
+    }
+
+Files scanned (story scope):
+  crates/prism-dtu-cyberint/src/clone.rs             — no event_type emissions
+  crates/prism-dtu-cyberint/src/routes/alerts.rs     — no event_type emissions
+  crates/prism-dtu-cyberint/src/routes/mod.rs        — no event_type emissions
+  crates/prism-dtu-cyberint/src/state.rs             — no event_type emissions
+  crates/prism-spec-engine/src/auth_provider.rs      — no event_type emissions
+  crates/prism-spec-engine/src/pipeline.rs           — 1 new emission: cookie_auth_401
+
+--- NEW EMISSION INTRODUCED BY THIS STORY ---
+
+  event_type:  "cookie_auth_401"
+  level:       WARN
+  call site:   crates/prism-spec-engine/src/pipeline.rs, CookieRoundtrip 401 path
+               inside issue_request_with_retry (called by execute and execute_step)
+  fields:      sensor_id, client_id, step_name
+  introduced:  commit dd244736 (F-PR2-MED-001 fix-burst,
+               "fix(S-DTU-CYBERINT-AUTH-FIDELITY-001): CookieRoundtrip 401 surfaces
+               E-AUTH-004 no-retry per BC-2.01.017 (F-PR2-MED-001)")
+
+--- BC-2.16.002 CATALOG ROW MATCH ---
+
+BC-2.16.002 v1.60 (catalog count 68) contains the following catalog row
+for cookie_auth_401 (verified in the Structured Event Catalog table):
+
+  | `cookie_auth_401` | warn | `issue_request_with_retry` (called by both
+    execute and execute_step) | `sensor_id`, `client_id`, `step_name` |
+    HTTP 401 received on a `CookieRoundtrip` auth sensor. No retry attempted —
+    the API key is static; calling `acquire_token()` again would re-read the same
+    key, making retry provably futile (BC-2.01.017 EC-017-002). Pipeline aborts
+    immediately with `SpecEngineError::CookieAuthFailed` (E-AUTH-004). Audit role:
+    operational incident — the static cookie/API key is invalid, expired, or
+    revoked; operator must update the credential in the keyring. Recurrence: one
+    emission per pipeline where a `CookieRoundtrip` step receives HTTP 401.
+    Retention: per organization audit policy. Registered: F-PR2-MED-001
+    (S-DTU-CYBERINT-AUTH-FIDELITY-001 PR-level fix-burst). |
+
+BC-2.16.002 changelog row (version 1.60) confirms same-commit registration:
+
+  | 1.60 | S-DTU-CYBERINT-AUTH-FIDELITY-001 PR-level fix-burst (F-PR2-MED-001) |
+    2026-05-30 | implementer | SAP-1 compliance (PG-LP11-001): added new catalog
+    row `cookie_auth_401` WARN emitted by `issue_request_with_retry` when a
+    `CookieRoundtrip` sensor receives HTTP 401. Fields: `sensor_id`, `client_id`,
+    `step_name`. No retry — static API key cannot be refreshed; pipeline aborts
+    with `SpecEngineError::CookieAuthFailed` (E-AUTH-004, BC-2.01.017
+    EC-017-002). Also amended `auth_refresh_double_401` row to note that
+    `CookieRoundtrip` sensors emit `cookie_auth_401` instead. Catalog count
+    67→68; catalog bullet label advanced `(v1.41)` → `(v1.42)` per POL-30 Fork B
+    canonical rule (new row = catalog-content structural change). PG-LP11-001
+    discipline: implementer-scope BC amendment in same commit as implementation. |
+
+Field-level parity check:
+  emission fields:    sensor_id, client_id, step_name
+  catalog row fields: sensor_id, client_id, step_name
+  MATCH: yes
 
 --- FINDING ---
 
-Zero new `tracing::*!(event_type = ...)` emission sites were introduced in this
-story's implementation. No BC-2.16.002 catalog rows are required.
+This story introduced ONE new `tracing::*!(event_type = ...)` emission site:
+  "cookie_auth_401" (WARN) in pipeline.rs, CookieRoundtrip 401 path.
 
-Per SAP-1 rule 5: "Removal of an emission (e.g., replaced by `?` propagation) does
-NOT require a new catalog row — `?` propagation provides audit trail without catalog
-overhead (D-765 precedent)."
+The matching catalog row was added to BC-2.16.002 in the SAME commit (dd244736,
+F-PR2-MED-001 fix-burst) per PG-LP11-001 same-commit discipline. Catalog count
+advanced 67→68. All fields match between emission site and catalog row.
 
-StaticCookieAuthProvider uses `?` propagation for credential resolution errors.
-No `event_type =` structured fields are emitted by the new production code.
+The AC-011 invariant ("no uncatalogued event_type") is SATISFIED.
 
---- ADVERSARIAL CASCADE CONFIRMATION ---
-
-Pass 17 of the LOCAL adversarial cascade (D-881 convergence marker) confirmed
-SAP-1 as CLEAN — the adversary's grep found zero uncatalogued emission sites.
+StaticCookieAuthProvider (auth_provider.rs) uses `?` propagation for credential
+resolution errors — no event_type structured fields are emitted there. Per SAP-1
+rule 5, `?` propagation does NOT require a catalog row (D-765 precedent).
 
 AC-011 SATISFIED.
