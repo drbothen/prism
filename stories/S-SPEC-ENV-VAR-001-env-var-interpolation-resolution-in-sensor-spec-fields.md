@@ -6,7 +6,7 @@ wave: wave-5-e-demo-fidelity
 epic_id: E-SPEC-ENGINE
 priority: P0
 status: draft
-version: "1.0"
+version: "1.1"
 level: "L4"
 producer: story-writer
 timestamp: "2026-05-31T00:00:00Z"
@@ -33,9 +33,9 @@ blocks: [S-DEMO-ARMIS-AQL-001, S-DEMO-CLAROTY-PAGINATION-001, S-DEMO-CROWDSTRIKE
 #     uses ${env.ARMIS_INSTANCE_URL} in base_url; the parity ACs of ARMIS-AQL-001
 #     require the spec engine to load that TOML cleanly, which requires the resolver.
 #   S-DEMO-CLAROTY-PAGINATION-001 depends on S-SPEC-ENV-VAR-001 because
-#     claroty.sensor.toml uses ${env.CYBERINT_ENVIRONMENT} (partial interpolation)
-#     and ${env.CLAROTY_BASE_URL} in base_url; the Claroty fidelity lane is gated on
-#     this story delivering the partial-token resolution path.
+#     claroty.sensor.toml uses ${env.CLAROTY_INSTANCE_URL} (full interpolation)
+#     in base_url; the Claroty fidelity lane is gated on
+#     this story delivering the full-token resolution path.
 #   S-DEMO-CROWDSTRIKE-MULTIREGION-001 is hard-gated: the multi-region base_url
 #     (${env.CROWDSTRIKE_BASE_URL}) cannot be exercised until the resolver is in place.
 points: 5
@@ -84,11 +84,11 @@ cycle: "v1.0.0-brownfield"
 phase: 3
 ---
 
-# S-SPEC-ENV-VAR-001 v1.0 — `${env.VAR}` Interpolation Resolution in Sensor-Spec String Fields
+# S-SPEC-ENV-VAR-001 v1.1 — `${env.VAR}` Interpolation Resolution in Sensor-Spec String Fields
 
 **Story ID:** S-SPEC-ENV-VAR-001
 **Status:** draft
-**Version:** v1.0
+**Version:** v1.1
 **Wave:** wave-5-e-demo-fidelity
 **Priority:** P0
 **Points:** 5
@@ -102,8 +102,8 @@ Resolution), which was added in the same spec burst that authored this story.
 
 Three canonical sensor specs use `${env.VAR_NAME}` tokens in their `base_url` field:
 - `armis.sensor.toml`: `base_url = "${env.ARMIS_INSTANCE_URL}"` (full-token)
-- `claroty.sensor.toml`: `base_url = "https://${env.CYBERINT_ENVIRONMENT}.cyberint.io"` (partial-token)
-- `cyberint.sensor.toml`: `base_url = "${env.CYBERINT_BASE_URL}"` (full-token)
+- `claroty.sensor.toml`: `base_url = "${env.CLAROTY_INSTANCE_URL}"` (full-token)
+- `cyberint.sensor.toml`: `base_url = "https://${env.CYBERINT_ENVIRONMENT}.cyberint.io"` (partial-token)
 
 Without this resolver, specs with env-var tokens fail URL-format validation with a
 misleading `E-SPEC-001` ("base_url must start with http://") instead of the actionable
@@ -293,10 +293,10 @@ Red Gate test: `test_env_var_error_contains_name_not_value`
    — resolver runs immediately before this check.
 3. **Read** `crates/prism-sensors/specs/armis.sensor.toml` — confirm `${env.ARMIS_INSTANCE_URL}`
    in `base_url`; note TOML path is `sensor.base_url`.
-4. **Read** `crates/prism-sensors/specs/claroty.sensor.toml` — confirm partial-token pattern
-   `"https://${env.CYBERINT_ENVIRONMENT}.cyberint.io"`.
-5. **Read** `crates/prism-sensors/specs/cyberint.sensor.toml` — confirm full-token `${env.VAR}`
-   in `base_url`.
+4. **Read** `crates/prism-sensors/specs/claroty.sensor.toml` — confirm full-token pattern
+   `"${env.CLAROTY_INSTANCE_URL}"` in `base_url`.
+5. **Read** `crates/prism-sensors/specs/cyberint.sensor.toml` — confirm partial-token
+   `"https://${env.CYBERINT_ENVIRONMENT}.cyberint.io"` in `base_url`.
 
 ### Step 2 — Stub the resolver (for Red Gate)
 
@@ -429,8 +429,8 @@ This is the first story in the env-var interpolation feature area. Adjacent stor
 |----|-------------|-------------------|
 | EC-009-001 | `base_url = "${env.ARMIS_INSTANCE_URL}"` with var not set | E-SPEC-024 with var_name=ARMIS_INSTANCE_URL, toml_path=sensor.base_url; spec rejected |
 | EC-009-002 | `base_url = "${env.ARMIS_INSTANCE_URL}"` with var empty (`""`) | E-SPEC-024 (empty treated as missing); spec rejected; not a URL-format error |
-| EC-009-003 | `base_url = "https://${env.CYBERINT_ENVIRONMENT}.cyberint.io"` with `CYBERINT_ENVIRONMENT=us1` | Resolves to `"https://us1.cyberint.io"`; spec loads cleanly; URL-format validation passes |
-| EC-009-004 | `base_url = "https://${env.CYBERINT_ENVIRONMENT}.cyberint.io"` with var not set | E-SPEC-024 (CYBERINT_ENVIRONMENT); partial URL not constructed; spec rejected |
+| EC-009-003 | `base_url = "https://${env.CYBERINT_ENVIRONMENT}.cyberint.io"` with `CYBERINT_ENVIRONMENT=us1` (cyberint.sensor.toml partial-token pattern) | Resolves to `"https://us1.cyberint.io"`; spec loads cleanly; URL-format validation passes |
+| EC-009-004 | `base_url = "https://${env.CYBERINT_ENVIRONMENT}.cyberint.io"` with var not set (cyberint.sensor.toml partial-token pattern) | E-SPEC-024 (CYBERINT_ENVIRONMENT); partial URL not constructed; spec rejected |
 | EC-009-005 | `base_url = "${env.MY_URL}"` with `MY_URL="ftp://example.com"` | Env var resolves; then E-SPEC-001 (base_url must be http/https) fires on resolved value; spec rejected (E-SPEC-001, not E-SPEC-024) |
 | EC-009-006 | Spec has two fields with two different unresolvable env tokens | Two E-SPEC-024 errors (one per token); both in multi-error response; spec rejected |
 | EC-009-007 | Per-org overlay has `base_url = "${env.ARMIS_INSTANCE_URL}"` and var not set | E-SPEC-024 with TOML path identifying the overlay field; overlay rejected; TYPE spec base_url NOT substituted as fallback — fail-closed |
@@ -474,3 +474,4 @@ Well within the 20-30% budget.
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
 | 1.0 | 2026-05-31 | story-writer | Initial materialization. 8 ACs (all TDD-ready Red Gate), 5 pts, wave-5-e-demo-fidelity, P0, depends_on: []. Grounded against BC-2.16.009 v1.6 §Validation Rules 6 (AC-6 postconditions, error path, EC-009-001..007) and error-taxonomy.md E-SPEC-024 (broken, configuration, message format, AD-017 no-value-leak). Unblocks S-DEMO-ARMIS-AQL-001, Claroty fidelity lane, and S-DEMO-CROWDSTRIKE-MULTIREGION-001 (hard-gated). NOT on S-CONFIG → S-DEMO-001 keystone spine. |
+| 1.1 | 2026-05-31 | story-writer | OBS-1 factual-accuracy fix (adversary pass-1): corrected sensor token-form attribution. claroty.sensor.toml uses `${env.CLAROTY_INSTANCE_URL}` (full token); cyberint.sensor.toml uses `https://${env.CYBERINT_ENVIRONMENT}.cyberint.io` (partial token). Updated Origin section, depends_on comment, Task steps 4-5, and EC-009-003/004 row descriptions. |

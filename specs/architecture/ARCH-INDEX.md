@@ -1,7 +1,7 @@
 ---
 document_type: architecture-index
 level: L3
-version: "2.107"
+version: "2.108"
 status: draft
 producer: state-manager
 timestamp: 2026-05-31T12:00:00
@@ -87,7 +87,7 @@ deployment_topology: single-service  # planned — no service binary exists yet 
 | ADR-019 | SIEM Output Formats | PROPOSED v0.4 | 2026-05-03 | decisions/ADR-019-siem-output-formats.md |
 | ADR-020 | Story Status Taxonomy Reform — Closed Enum, Partial-Merge Semantics, and Graduation Contract | ACCEPTED v1.1 | 2026-05-08 | decisions/ADR-020-story-status-taxonomy-reform.md |
 | ADR-021 | BC/VP Promotion Lifecycle — Draft → Active → Verified Transitions, Audit Cadence, and BC-INDEX Count Authority | ACCEPTED v1.1 | 2026-05-08 | decisions/ADR-021-bc-vp-promotion-lifecycle.md |
-| ADR-022 | Production Runtime Wiring — prism-bin Chassis, Boot Sequence, Wiring Contracts, Infusion Fate, Hot-Reload Watcher, MCP Topology | ACCEPTED v1.13 | 2026-05-28 | decisions/ADR-022-production-runtime-wiring.md |
+| ADR-022 | Production Runtime Wiring — prism-bin Chassis, Boot Sequence, Wiring Contracts, Infusion Fate, Hot-Reload Watcher, MCP Topology | ACCEPTED v1.14 | 2026-05-31 | decisions/ADR-022-production-runtime-wiring.md |
 | ADR-023 | Plugin-Only Sensor Architecture — TOML Specs as Declarative Baseline, .prx WASM for Non-Declarative Cases, Retired CustomAdapter Rust Trait | COMMITTED v1.19 | 2026-05-15 | decisions/ADR-023-plugin-only-sensor-architecture.md |
 | ADR-024 | ColumnType Canonical Naming — Domain-Level Variant Names for Sensor Schema API; prism-spec-engine Shadow Enum Retirement | ACCEPTED v1.0 | 2026-05-12 | decisions/ADR-024-column-type-canonical-naming.md |
 | ADR-025 | BC Lifecycle Field Canonical Scheme — Single status Field Governs; lifecycle Field Retired | ACCEPTED v1.0 | 2026-05-12 | decisions/ADR-025-bc-lifecycle-field-canonical-scheme.md |
@@ -157,6 +157,7 @@ deployment_topology: single-service  # planned — no service binary exists yet 
 
 | Version | Pass | Date | Author | Change |
 |---------|------|------|--------|--------|
+| 2.108 | D-923 | 2026-05-31 | state-manager | D-923 pass-1-fix-burst commit: ADR-022 row bumped ACCEPTED v1.13→v1.14 (architect step 9A wiring documented in §B boot sequence — step9_start_mcp_server now calls step9a_populate_adapter_registry as substep; GAP-002-A comments removed from prism-bin/src/boot.rs; params threaded through boot step chain). STORY-INDEX v2.226→v2.227. ARCH-INDEX v2.107→v2.108. |
 | 2.107 | D-907 | 2026-05-31 | state-manager | D-907 burst: ADR-031 row bumped v1.1→v1.2 (architect e57eb5b1 amended: 3 sensor divergences reclassified permitted-divergence→required-fidelity; ADR-031 §D8-a Armis AQL search endpoint, §D8-b Claroty trailing-slash, §D8-c CrowdStrike multi-region base_url). ARCH-INDEX v2.106→v2.107. |
 | 2.106 | D-843 | 2026-05-29 | architect | ADR-031 registered: DTU=True-DTU fidelity principle (DTU clones must mirror real API field names, auth flows, cookie names, endpoints, response shapes; supersedes ADR-028 §D12; 3 initial divergences classified as permitted-divergence per §D2). ARCH-INDEX v2.105→v2.106. |
 | 2.105 | F-PASS9-MED-1 | 2026-05-28 | implementer | F-PASS9-MED-1 closure: AD-005 row updated rmcp 1.4 → 1.7 (OQ-1: 1.4 unavailable on crates.io; 1.7 is actual published version). ADR-022 in-line row v1.12 → v1.13 (7 "rmcp 1.4" narrative sites updated). dependency-graph.md External Dependency table row updated 1.4 → 1.7. module-decomposition.md L3 mermaid diagram updated. system-overview.md MCP Layer mermaid updated. S-5.01-FOLLOWUP-MCP-BOOT-mcp-server.md story spec all 1.4 references updated to 1.7. ARCH-INDEX v2.104→v2.105. |

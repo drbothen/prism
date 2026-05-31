@@ -6,7 +6,7 @@ wave: 5
 epic_id: E-DEMO
 priority: P0
 status: draft
-version: "1.3"
+version: "1.4"
 level: "L4"
 producer: story-writer
 revised_by: architect
@@ -139,11 +139,11 @@ cycle: "v1.0.0-brownfield"
 phase: 3
 ---
 
-# S-DEMO-001 v1.2 — prism-bin: SpecDrivenSensorAdapter + Boot Step 9A (closes GAP-002-A)
+# S-DEMO-001 v1.4 — prism-bin: SpecDrivenSensorAdapter + Boot Step 9A (closes GAP-002-A)
 
 **Story ID:** S-DEMO-001
 **Status:** draft
-**Version:** v1.2
+**Version:** v1.4
 **Wave:** 5
 **Priority:** P0
 **Points:** 11
@@ -341,7 +341,7 @@ The `AdapterRegistry` is keyed by `OrgId`. Therefore, boot step 9A must translat
 
 ```rust
 for (org_slug, resolved_specs) in resolved_sensor_specs.iter() {
-    let org_id = org_registry.id_for_slug(org_slug)
+    let org_id = org_registry.resolve(org_slug)
         .ok_or_else(|| BootError::OrgNotFound { slug: org_slug.clone() })?;
     for (sensor_id, spec) in resolved_specs.iter() {
         let adapter = build_adapter(spec, &plugin_auth_providers, &http_client)?;
@@ -350,8 +350,9 @@ for (org_slug, resolved_specs) in resolved_sensor_specs.iter() {
 }
 ```
 
-The `OrgRegistry::id_for_slug(slug)` method must exist (from S-CONFIG-MULTI-TENANT-OVERRIDE-001).
-If it does not exist yet, add it to `OrgRegistry` in the same PR (production-grade principle).
+The canonical translation method is `OrgRegistry::resolve(slug) -> Option<OrgId>` (per D-922
+adjudication). `id_for_slug` is NOT the correct method name — do not add it. Use `resolve`
+directly; skip-and-continue on `None` matches EC-003.
 
 **Type verification required:** Before implementing, read the actual output type of
 S-CONFIG-MULTI-TENANT-OVERRIDE-001's overlay loader function to confirm the map key type.
@@ -637,3 +638,4 @@ if context pressure is felt during implementation.
 | 1.1 | 2026-05-29 | architect | Corrected Cyberint auth model (cookie_roundtrip ≠ bearer_static); resolved OQ-1, OQ-2, OQ-6; added CookieLoginAuthProvider design; amended build_request pipeline gap; added new AC-003/AC-009/AC-012; revised points 8→11; risk MEDIUM→HIGH |
 | 1.2 | 2026-05-29 | architect | AC-003/AC-009: tightened `cyberint_session` cookie name specification per fidelity audit (POLLER-DTU-FIDELITY-AUDIT-2026-05-29). Added Set-Cookie parse constraint to AC-009 (cookie name `cyberint_session` not `access_token` for DTU demo path). Cross-poller audit surfaced Gap-CS-001/CL-002/CL-003/CL-004/CL-005; TOML fixes applied to crowdstrike.sensor.toml and claroty.sensor.toml in same burst. |
 | 1.3 | 2026-05-29 | architect | **DTU=true-DTU REVERSAL (ADR-031 user directive 2026-05-29).** `cyberint_session` decision reversed. ALL Cyberint references updated: `CookieLoginAuthProvider` (login-step) → `StaticCookieAuthProvider` (no login step, credential-store read); cookie name `cyberint_session` → `access_token`; `build_request` dispatch `Cookie: cyberint_session` → `Cookie: access_token`. §Origin updated. §Cyberint Cookie Auth Design section rewritten. AC-003/AC-009 rewritten. OQ-1 enum variant `CookieLogin` → `StaticCookie`. EC-001/EC-002/EC-005/EC-008 updated. Library/framework table updated. ADR-028 §D12 → pre-authored in factory-artifacts burst (now annotated SUPERSEDED). ADR-031 cited throughout. New depends_on: S-DTU-CYBERINT-AUTH-FIDELITY-001 (P0-pre-demo-BLOCKING — DTU correction required before implementation). |
+| 1.4 | 2026-05-31 | story-writer | OQ-2 factual-accuracy fix (adversary pass-1, D-922 adjudication): `OrgRegistry::id_for_slug` → `OrgRegistry::resolve(slug) -> Option<OrgId>` as the canonical existing method. Removed instruction to add `id_for_slug`. Skip-and-continue on `None` matches EC-003. |

@@ -4,7 +4,7 @@ adr_id: "ADR-022"
 title: "Production Runtime Wiring — prism-bin Chassis, Boot Sequence, Wiring Contracts, Infusion Fate, Hot-Reload Watcher, MCP Topology"
 status: ACCEPTED
 date: "2026-05-17"
-version: "1.13"
+version: "1.14"
 producer: architect
 subsystems_affected: [SS-06, SS-10, SS-11, SS-16, SS-17, SS-19]
 supersedes: null
@@ -220,7 +220,9 @@ Step 7   [BLOCKING] Storage + internal-tables provider init
          Action: open RocksDB with all 17 column families (per AD-004; prism-storage)
          Action: call register_internal_tables (prism-query/src/internal_tables.rs)
                  — was todo!("S-3.02 — register_internal_tables") until S-3.02-FOLLOWUP-RUNTIME
-         Action: construct AdapterRegistry::init_registry_for_org per loaded sensor specs
+         Action: construct AdapterRegistry::new() — registry starts EMPTY; spec-driven adapter
+                 population happens at step 9A (inside step9_start_mcp_server, before QueryEngine
+                 construction) via step9a_populate_adapter_registry
          Failure: exit 4 (RocksDB open failure or internal-tables registration failure)
 
 Step 7.5 [BLOCKING] Plugin runtime load  ← see ADR-023 §C4 (authoritative placement spec)
@@ -238,6 +240,22 @@ Step 7.5 [BLOCKING] Plugin runtime load  ← see ADR-023 §C4 (authoritative pla
                §Pre-Traffic Gate Invariant condition 6, §Postconditions, §Exit-Code Map.
          Delivered by: PLUGIN-PREREQ-D (depends on PLUGIN-PREREQ-F for PluginRuntime infra)
 
+Step 7.5b [BLOCKING] PluginAuthProvider construction
+         Action: call validate_and_construct_auth_providers(snapshot, &plugin_result.runtime)
+                 — validates every sensor spec that declares auth_plugin; constructs one
+                 Arc<PluginAuthProvider> per matching plugin ID; stores in
+                 plugin_result.plugin_auth_providers
+         Action: plugin_auth_providers is threaded through run_boot_sequence into
+                 step9_start_mcp_server for use at step 9A
+         Failure: exit 4 (plugin auth provider construction failure)
+         Delivered by: PLUGIN-MIGRATION-001-E
+
+Step 7.5c [BLOCKING] Dynamic write-tool registration
+         Action: register built-in write tools into DYNAMIC_WRITE_TOOLS before step 8
+         Action: must execute AFTER step 7.5 plugin-load AND BEFORE step 8
+                 mark_query_phase_started()
+         Failure: exit 4
+
 Step 8   [BLOCKING → BACKGROUND] QueryEngine + WriteExecutor construction
          First statement: prism_query::invalidation::mark_query_phase_started() — closes the
                write-registration window before QueryEngine::new(). See ADR-026 §D7 v1.23.
@@ -249,6 +267,16 @@ Step 8   [BLOCKING → BACKGROUND] QueryEngine + WriteExecutor construction
          Failure: exit 4
 
 Step 9   [BACKGROUND] MCP server start
+         Step 9A [within step 9, before QueryEngine construction]:
+           Action: call step9a_populate_adapter_registry(&resolved_spec_map, &org_registry,
+                   &plugin_auth_providers, &mut adapter_registry) — populates AdapterRegistry
+                   with one SpecDrivenSensorAdapter per (OrgId, SensorId) pair from the
+                   resolved spec map (S-DEMO-001 / BC-2.22.001 §Step 9A)
+           Action: emit boot.step9a.adapter_registry_populated event with sensor_count +
+                   org_count fields (BC-2.16.002 catalog row)
+           Failure: exit 4
+         After step 9A: AdapterRegistry is fully populated; QueryEngine is constructed and
+           bound to the populated registry
          Action: call PrismServer::new(engine, write_executor, audit_emitter, security_config)
          Action: bind rmcp 1.7 stdio transport
          Action: register all tools via #[tool_router] macro (§F tool inventory)
@@ -315,7 +343,7 @@ site** (no binary calls them today).
 ### QueryEngine (SS-11 / prism-query)
 
 ```rust
-// Boot step 8 call site
+// Boot step 9A + step 8 call sites
 use prism_query::engine::QueryEngine;
 
 // File: crates/prism-query/src/engine.rs — constructor is REAL
@@ -328,7 +356,11 @@ impl QueryEngine {
 }
 ```
 
-Contract gap: `QueryEngine::execute` and `QueryEngine::execute_scheduled` in engine.rs were
+Contract note: AdapterRegistry is populated by step9a_populate_adapter_registry (called from
+within step9_start_mcp_server, before QueryEngine::new()) so that QueryEngine is bound to a
+fully-populated registry from construction (S-DEMO-001). The AdapterRegistry::new() constructed
+at step 7 starts empty; step 9A fills it with one SpecDrivenSensorAdapter per (OrgId, SensorId).
+Historical gaps: `QueryEngine::execute` and `QueryEngine::execute_scheduled` in engine.rs were
 `todo!()`. Also: `run_materialization_pipeline` and `resolve_source_refs` in materialization.rs,
 and `RocksDbTableProvider::{schema,scan}`, `register_internal_tables` in internal_tables.rs were
 `todo!()`. All resolved by `S-3.02-FOLLOWUP-RUNTIME` (PR #141 c6dd6602, 2026-05-10). HISTORICAL.
@@ -786,6 +818,7 @@ Bundle B Phase B-0 architecture output. Authored at D-302 from workspace audit D
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.14 | 2026-05-31 | architect | S-DEMO-001 boot step 9A wiring accuracy (GAP-002-A closure). §B step 7: replaced stale `AdapterRegistry::init_registry_for_org` action with `AdapterRegistry::new()` (empty) and note that population happens at step 9A. §B: added step 7.5b (PluginAuthProvider construction via validate_and_construct_auth_providers, plugin_auth_providers threaded to step 9) and step 7.5c (dynamic write-tool registration) sub-steps. §B step 9: added step 9A sub-step documenting step9a_populate_adapter_registry call (called from within step9_start_mcp_server before QueryEngine construction) per BC-2.22.001 §Step 9A. §C QueryEngine contract: added note that AdapterRegistry is populated by step9a_populate_adapter_registry before QueryEngine::new() (S-DEMO-001). No architectural redesign — wiring-only accuracy corrections per TD-VSDD-091. |
 | 1.13 | 2026-05-28 | implementer | F-PASS9-MED-1 closure: all 7 "rmcp 1.4" narrative references updated to "rmcp 1.7" (frontmatter runtime_deliverables, §Decision, §F transport note, §B Step 9, §F heading, §F inline dependency sentence, §G Story 6 scope). OQ-1 confirmed: rmcp 1.4 unavailable on crates.io; 1.7 is the actual published version used at TDD time. ARCH-INDEX AD-005 row updated in same burst (F-PASS9-MED-1). Version 1.12→1.13. |
 | 1.12 | 2026-05-17 | architect | FB73 F-LP85-HIGH-001 closure (architect scope): ADR-026 §D7 v1.22→v1.23 at line 243 §B Step 8 first-statement note (1 site). 7th 1-finding cascade-restart-#4 attempt — cross-value-class side-effect dimension. PO swept 7 spec files in same burst. POL-29 v1.25→v1.26 step 8g by SM. Sibling-sweep other ADRs: 0 additional sites found. |
 | 1.11 | 2026-05-17 | architect | FB69 F-LP81-HIGH-002 closure (architect scope): ADR-026 §D7 pin v1.21→v1.22 at line 243 §B Step 8 first-statement note (1 site). 22nd+ recurrence of POL-29 step 3a class (b) — META-META gap revealed: FB62 SM step 8b iteration bumped ADR-026 v1.21→v1.22 but didn't trigger own external-cite sweep. POL-29 v1.22→v1.23 step 8d META-META transitive closure by state-manager. PO swept 6 spec files in same burst. POL-29 step 8c grep evidence (architecture-domain): variant 1 pre=0 post=0, variant 2 pre=1 post=0, variant 3 pre=0 post=0, variant 4 pre=0 post=0. Sibling-sweep across other ADRs: 0 additional sites found. |
