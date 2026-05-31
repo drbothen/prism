@@ -24,6 +24,15 @@
 //! | F-002-R | test_BC_2_22_001_production_boot_path_wiring_guard | Replaced duplicate-helper call with source-code structural wiring guard |
 //! | F-004-R | test_BC_2_01_013_auth_refresh_failed_display_carries_e_auth_002_taxonomy_code | E-AUTH-002 taxonomy code structurally pinned to prevent silent drift |
 //!
+//! # D-925 fixture correction (BC-2.01.013 v1.9, adversary F-001-R-RECUR)
+//!
+//! `make_crowdstrike_detection_spec` was corrected from fake `ocsf_class = "detection"` to the
+//! real production value `ocsf_class = "security_finding"` (crowdstrike.sensor.toml detections
+//! table). Expected envelope: `class_uid = 2001`, `category_uid = 2`. The old fake token made
+//! the derivation test gameable — `select("crowdstrike","detection")` → 2004 via a non-production
+//! code path. With the real token, the current `select()` returns `Err` → `unwrap_or(0)` → 0,
+//! so the conformance test now fails for the RIGHT reason (0 ≠ 2001).
+//!
 //! # AC → Test Mapping
 //!
 //! | AC | Test Name | BC | Finding |
@@ -35,9 +44,9 @@
 //! | AC-010 | test_BC_2_01_013_fetch_returns_non_empty_ocsf_batches_bearer_static | BC-2.01.013 | F-001 |
 //! | AC-010 | test_BC_2_01_013_fetch_returns_non_empty_ocsf_batches_plugin | BC-2.01.013 | F-001 |
 //! | AC-010 | test_BC_2_01_013_fetch_returns_non_empty_ocsf_batches_static_cookie | BC-2.01.013 | F-001 |
-//! | AC-010 (item 1) | test_BC_2_01_013_ocsf_conformance_spec_columns_survive_into_arrow_schema | BC-2.01.013 v1.8 | F-001-R |
-//! | AC-010 (item 2) | test_BC_2_01_013_ocsf_conformance_envelope_derived_not_raw_copied | BC-2.01.013 v1.8 | F-001-R |
-//! | AC-010 (item 3) | test_BC_2_01_013_ocsf_conformance_sensor_virtual_column_is_canonical_sensor_id | BC-2.01.013 v1.8 | F-001-R |
+//! | AC-010 (item 1) | test_BC_2_01_013_ocsf_conformance_spec_columns_survive_into_arrow_schema | BC-2.01.013 v1.9 | F-001-R/D-925 |
+//! | AC-010 (item 2) | test_BC_2_01_013_ocsf_conformance_envelope_derived_not_raw_copied | BC-2.01.013 v1.9 | F-001-R/D-925 |
+//! | AC-010 (item 3) | test_BC_2_01_013_ocsf_conformance_sensor_virtual_column_is_canonical_sensor_id | BC-2.01.013 v1.9 | F-001-R/D-925 |
 //! | AC-012 | test_BC_2_01_013_spec_driven_adapter_double_401_returns_auth_refresh_failed | BC-2.01.013 | F-004 |
 //! | AC-012 | test_BC_2_01_013_auth_refresh_failed_display_carries_e_auth_002_taxonomy_code | BC-2.01.013 | F-004-R |
 //! | AC-004 | test_BC_2_22_001_boot_step9a_registers_correct_adapter_count | BC-2.22.001 | (exists, unchanged) |
@@ -1360,12 +1369,16 @@ fn test_BC_2_01_013_build_http_client_with_timeout_succeeds() {
 /// Build a `SensorSpec` for "crowdstrike" with spec-declared data columns
 /// (`detection_id`, `severity`) in addition to the implicit OCSF envelope columns.
 ///
-/// Uses `ocsf_class = "detection"` so `EventClassSelector::select("crowdstrike", "detection")`
-/// → 2004 (CLASS_UID_DETECTION_FINDING). This provides a deterministic derived value
-/// for the envelope derivation test (item 2).
+/// Uses the REAL production `ocsf_class = "security_finding"` from `crowdstrike.sensor.toml`
+/// (detections table, line 36). `EventClassSelector::select_by_class_name("security_finding")`
+/// → 2001 (OCSF Security Finding class), `category_uid` → 2 (2001/1000).
 ///
-/// The raw mock response for these tests sets `"class_uid": 9999` and `"category_uid": 9999`
-/// — values that will NEVER match 2004 — making the derivation vs raw-copy distinction
+/// D-925 / TV-BC-2.01.013-005: the real class-name makes the derivation test UNGAMEABLE —
+/// the implementer cannot pass by returning `EventClassSelector::select("crowdstrike","detection")`
+/// (old fake token, which returned 2004 via a different code path and a non-existent class-name).
+///
+/// The raw mock response sets `"class_uid": 9999` and `"category_uid": 9999`
+/// — values that will NEVER match 2001 — making the derivation vs raw-copy distinction
 /// immediately detectable.
 fn make_crowdstrike_detection_spec(base_url: &str) -> SensorSpec {
     SensorSpec::new(
@@ -1375,7 +1388,7 @@ fn make_crowdstrike_detection_spec(base_url: &str) -> SensorSpec {
         base_url,
         vec![TableSpec::new_point_in_time(
             "detections",
-            "detection", // ocsf_class = "detection"; EventClassSelector("crowdstrike", "detection") → 2004
+            "security_finding", // ocsf_class = "security_finding" (real crowdstrike.sensor.toml value); → class_uid 2001, category_uid 2
             vec![
                 ColumnSpec::new("detection_id", ColumnType::String, None, vec![]),
                 ColumnSpec::new("severity", ColumnType::String, None, vec![]),
@@ -1539,45 +1552,50 @@ async fn test_BC_2_01_013_ocsf_conformance_spec_columns_survive_into_arrow_schem
 /// AC-010 item 2 — BC-2.01.013 v1.8 OCSF Conformance Clause item 2 (envelope derivation):
 ///
 /// `category_uid` and `class_uid` MUST be derived by `OcsfNormalizer` from the sensor's
-/// declared `ocsf_class` (via `EventClassSelector::select(sensor_id, ocsf_class)` mapping),
+/// declared `ocsf_class` (via `EventClassSelector::select_by_class_name(ocsf_class)` mapping),
 /// NOT copied verbatim from the raw API response. An implementation that reads those fields
 /// directly from raw JSON is NON-CONFORMANT per EC-01-026.
 ///
-/// # Test design
+/// # Test design (D-925 / TV-BC-2.01.013-005 — UNGAMEABLE fixture)
 ///
 /// The mock raw record has `"class_uid": 9999, "category_uid": 9999`.
-/// The spec declares `sensor_id = "crowdstrike"` and `ocsf_class = "detection"`.
-/// `EventClassSelector::select("crowdstrike", "detection")` → 2004 (CLASS_UID_DETECTION_FINDING).
-/// The test asserts `class_uid != 9999` — forcing failure if raw JSON value is propagated.
+/// The spec declares `sensor_id = "crowdstrike"` and `ocsf_class = "security_finding"`
+/// (real value from crowdstrike.sensor.toml detections table).
+/// `EventClassSelector::select_by_class_name("security_finding")` → 2001 (OCSF Security Finding).
+/// `category_uid` → 2 (2001 / 1000).
+/// The test asserts `class_uid == 2001` — forcing failure if:
+///   (a) raw JSON value 9999 is propagated, or
+///   (b) implementer uses the old fake `select("crowdstrike","detection")` → 2004 path.
 ///
 /// # Red Gate Failure
 ///
 /// `pipeline_result_to_record_batch` builds `category_uid_vals` by reading:
 ///   `record.get("category_uid").and_then(|v| v.as_i64()).map(|v| v as i32)`
 /// The raw record has `"class_uid": 9999` so `class_uid_vals` = [9999].
-/// The assertion `class_uid_val != 9999` FAILS.
+/// Current code: `EventClassSelector::select(sensor_id, ocsf_class_name)` is called with
+/// `("crowdstrike", "security_finding")`. The old select() variant does NOT know
+/// "security_finding" as a record-type token — it returns `Err` → `unwrap_or(0)`.
+/// Result: `class_uid = 0`, which is neither 9999 (raw) nor 2001 (correct).
+/// The assertion `class_uid_val == 2001` FAILS with 0.
 ///
 /// TV-BC-2.01.013-005: "category_uid/class_uid in returned batch derived from ocsf_class,
-/// NOT equal to raw 9999 value."
+/// NOT equal to raw 9999 value; class_uid MUST equal 2001."
 ///
-/// BC-2.01.013 v1.8 OCSF Conformance Clause item 2; AC-010(b); F-001-R; S-DEMO-001 v1.5.
+/// BC-2.01.013 v1.9 OCSF Conformance Clause item 2; AC-010(b); F-001-R; D-925; S-DEMO-001 v1.6.
 #[tokio::test]
 async fn test_BC_2_01_013_ocsf_conformance_envelope_derived_not_raw_copied() {
-    // Verify test precondition: EventClassSelector must map ("crowdstrike", "detection") → 2004.
-    // If this fails, the test setup is wrong (not the production code).
-    let derived_class_uid = EventClassSelector::select("crowdstrike", "detection")
-        .expect("precondition: EventClassSelector must know (crowdstrike, detection) → 2004");
-    assert_eq!(
-        derived_class_uid, 2004,
-        "Test precondition: EventClassSelector::select('crowdstrike', 'detection') must return \
-         2004 (CLASS_UID_DETECTION_FINDING). If this fails, update the test fixture \
-         to use a sensor/ocsf_class combo that is registered in EventClassSelector."
-    );
+    // NOTE: The implementer will add EventClassSelector::select_by_class_name(class_name) -> Result<u32>.
+    // That function does NOT exist yet (D-925 prescribes it for the implementer).
+    // The precondition below is intentionally asserted on fetch() OUTPUT (not the not-yet-existing
+    // function), so the test compiles + fails now for the RIGHT reason (class_uid 0 ≠ 2001).
+    //
+    // When the implementer adds select_by_class_name("security_finding") → 2001, the full
+    // derivation chain will produce class_uid = 2001 in the Arrow output, satisfying this test.
 
     let mock_server = MockServer::start().await;
 
     // The raw response has class_uid = 9999 and category_uid = 9999 — values that differ
-    // from the spec-derived class_uid = 2004. If the implementation copies raw values,
+    // from the spec-derived class_uid = 2001. If the implementation copies raw values,
     // the assertion below will catch it.
     Mock::given(method("GET"))
         .and(path("/api/v1/detections"))
@@ -1642,28 +1660,35 @@ async fn test_BC_2_01_013_ocsf_conformance_envelope_derived_not_raw_copied() {
 
     let class_uid_val = class_uid_array.value(0);
 
-    // LOAD-BEARING assertion (TD-VSDD-059):
-    // Raw record has class_uid = 9999. Current implementation copies it verbatim → 9999.
-    // Correct implementation derives 2004 from ocsf_class = "detection" via EventClassSelector.
-    // If this assertion passes with 9999, the production code copies raw JSON — NON-CONFORMANT.
+    // LOAD-BEARING assertion (TD-VSDD-059, D-925):
+    // Raw record has class_uid = 9999. Current implementation:
+    //   select("crowdstrike","security_finding") → Err (not a record-type token) → unwrap_or(0) → 0.
+    // Correct implementation: select_by_class_name("security_finding") → 2001 (OCSF Security Finding).
+    // This assertion fails for BOTH the raw-copy (9999) and the old fake-class-name (0) paths,
+    // ensuring the implementer must use the real class-name derivation path.
     assert_ne!(
         class_uid_val, 9999,
         "F-001-R item 2 LOAD-BEARING: class_uid in returned RecordBatch MUST NOT be the \
          raw JSON value 9999. It must be the spec-derived value from \
-         EventClassSelector::select('crowdstrike', 'detection') = 2004. \
+         EventClassSelector::select_by_class_name('security_finding') = 2001. \
          Root cause: pipeline_result_to_record_batch reads class_uid directly from raw record: \
          `record.get('class_uid').and_then(|v| v.as_i64()).map(|v| v as i32)`. \
          Fix: derive class_uid via OcsfNormalizer / EventClassSelector from spec.ocsf_class. \
          EC-01-026: 'Implementation that copies category_uid/class_uid from raw vendor JSON = NON-CONFORMANT.' \
-         BC-2.01.013 v1.8 OCSF Conformance Clause item 2; AC-010(b); F-001-R; TV-BC-2.01.013-005."
+         BC-2.01.013 v1.9 OCSF Conformance Clause item 2; AC-010(b); F-001-R; D-925; TV-BC-2.01.013-005."
     );
 
-    // Additionally assert the correct derived value (2004) is present.
+    // Additionally assert the correct derived value (2001) is present.
+    // D-925 mapping: ocsf_class "security_finding" → class_uid 2001, category_uid 2 (2001/1000).
     assert_eq!(
-        class_uid_val, 2004,
-        "F-001-R item 2: class_uid MUST equal the spec-derived value 2004 \
-         (EventClassSelector('crowdstrike', 'detection') = CLASS_UID_DETECTION_FINDING). \
-         Got: {}. BC-2.01.013 v1.8 Conformance Clause item 2; AC-010(b).",
+        class_uid_val, 2001,
+        "F-001-R item 2 LOAD-BEARING: class_uid MUST equal the spec-derived value 2001 \
+         (EventClassSelector::select_by_class_name('security_finding') = OCSF Security Finding). \
+         Got: {}. \
+         Current code returns 0: select('crowdstrike','security_finding') → Err → unwrap_or(0). \
+         Fix: implement select_by_class_name(class_name) -> Result<u32> that maps \
+         'security_finding' → 2001. \
+         BC-2.01.013 v1.9 Conformance Clause item 2; AC-010(b); D-925; TV-BC-2.01.013-005.",
         class_uid_val
     );
 }
