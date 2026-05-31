@@ -12,20 +12,22 @@ status: ready
 # skill strict prereq. No content/maturity change. BC-2.01.017 will auto-promote draft→active
 # at this story's merge per POL-14. Prism precedent is draft-at-dispatch + POL-14-promote-at-merge;
 # this flip is purely to satisfy the vsdd-factory deliver-story skill's strict prereq gate.
-version: "1.8"
+version: "1.9"
 level: "L4"
 producer: story-writer
 timestamp: "2026-05-29T00:00:00Z"
 modified: "2026-05-29 D-850"
 tdd_mode: strict
-subsystems: [SS-01, SS-16, SS-17]
+subsystems: [SS-01, SS-16]
 # Subsystem anchor justifications:
-#   SS-01 (Sensor Adapters) owns the SensorAuth trait and auth_type_name() contract;
-#     StaticCookieAuthProvider implements AuthProvider (SS-01 territory).
-#   SS-16 (Spec Engine) owns PipelineExecutor and the build_request dispatch table;
-#     this story amends build_request to inject Cookie: access_token per ADR-031 §D3-b.
-#   SS-17 (DTU Clones) owns crates/prism-dtu-cyberint; the DTU route changes and
-#     extract_access_token rename are SS-17 work.
+#   SS-01 (Sensor Adapters) owns prism-dtu-cyberint and all prism-dtu-* crates per ARCH-INDEX
+#     Subsystem Registry; the DTU route removal, extract_access_token rewrite, CyberintState
+#     allowlist refactor, and StaticCookieAuthProvider (SS-01 auth territory) are all SS-01 work.
+#   SS-16 (Spec Engine) owns prism-spec-engine including PipelineExecutor and the build_request
+#     dispatch table; this story amends build_request to inject Cookie: access_token per ADR-031 §D3-b.
+#   SS-17 (WASM Plugin Runtime) is NOT anchored here — SS-17's canonical name per ARCH-INDEX is
+#     "WASM Plugin Runtime" (prism-spec-engine WASM tier, AD-019); it does not own DTU clones.
+#     DTU clone work (prism-dtu-cyberint) is owned by SS-01 per the ARCH-INDEX crate column.
 crates_touched: [prism-dtu-cyberint, prism-spec-engine, prism-bin]
 target_module: prism-dtu-cyberint
 capabilities: [CAP-001, CAP-029]
@@ -38,7 +40,8 @@ behavioral_contracts:
                  # ADR-031 §D1-b no-HTTP-call invariant; PO authored 2026-05-29 b8cf19e1.
                  # AC-005 traces to §Postconditions (no-HTTP acquire_token);
                  # AC-006 traces to §Invariants (zero HTTP calls during acquire_token);
-                 # AC-010 traces to §Edge Cases E-AUTH-006 (empty/invalid api_key).
+                 # AC-010 traces to §Error Cases (E-AUTH-005 NotFound, E-AUTH-006 empty/invalid
+                 #   api_key, E-AUTH-007 BackendUnavailable) + §Edge Cases EC-017-010.
   - BC-2.16.013  # Bundled Sensor Spec Authoring and DTU-Parity Verification — this story
                  # restores DTU parity: DTU enforces access_token (matching real Cyberint API).
                  # cookie shape assertion now in scope per BC-2.01.017 no-login invariant.
@@ -131,11 +134,11 @@ cycle: "v1.0.0-brownfield"
 phase: 3
 ---
 
-# S-DTU-CYBERINT-AUTH-FIDELITY-001 v1.8 — Cyberint DTU Auth Fidelity
+# S-DTU-CYBERINT-AUTH-FIDELITY-001 v1.9 — Cyberint DTU Auth Fidelity
 
 **Story ID:** S-DTU-CYBERINT-AUTH-FIDELITY-001
 **Status:** ready
-**Version:** v1.8
+**Version:** v1.9
 **Wave:** 5
 **Priority:** P0 (pre-demo BLOCKING)
 **Points:** 8
@@ -213,7 +216,7 @@ After this story merges:
 |-------|-------|-------------------|
 | BC-2.01.013 | DataSource Trait Eliminates Per-Sensor Code Duplication | StaticCookieAuthProvider is the spec-driven auth implementation for cookie_roundtrip sensors; AC-005/AC-006 cover it. |
 | BC-2.01.016 | SensorAuth Open Trait — Plugin-Implementable Auth Contract | auth_type_name() for Cyberint must return "cookie_roundtrip"; the BEHAVIOR of that type changes in this story. AC-006 covers the trait contract. |
-| BC-2.01.017 | StaticCookieAuthProvider Contract — No-Login-Roundtrip Cookie Injection | Canonical contract for StaticCookieAuthProvider. §Postconditions: acquire_token returns api_key without HTTP call. §Invariants: zero HTTP calls during acquire_token (ADR-031 §D1-b). §Edge Cases: E-AUTH-006 on empty/whitespace/illegal-char/oversized api_key. AC-005/AC-006/AC-010 implement it. PO authored 2026-05-29 b8cf19e1. |
+| BC-2.01.017 | StaticCookieAuthProvider Contract — No-Login-Roundtrip Cookie Injection | Canonical contract for StaticCookieAuthProvider. §Postconditions: acquire_token returns api_key without HTTP call. §Invariants: zero HTTP calls during acquire_token (ADR-031 §D1-b). §Error Cases: E-AUTH-005 (NotFound), E-AUTH-006 (empty/whitespace/illegal-char/oversized api_key), E-AUTH-007 (BackendUnavailable — credential backend unavailable). §Edge Cases EC-017-010: BackendUnavailable → E-AUTH-007. AC-005/AC-006/AC-010 implement it. PO authored 2026-05-29 b8cf19e1. |
 | BC-2.16.013 | Bundled Sensor Spec Authoring and DTU-Parity Verification | DTU parity: after this story, DTU access_token cookie enforcement matches real Cyberint API. AC-001/AC-004 cover DTU parity. Cookie shape assertion now in scope per BC-2.01.017 no-login invariant. |
 
 ---
@@ -323,7 +326,7 @@ explicitly rejected, not silently ignored.
 (traces to BC-2.16.013 invariant — ADR-031 §D1-a and §D5: parity tests must assert
 cookie names match and reject wrong names)
 
-#### AC-010: E-AUTH-005/E-AUTH-006 surfaced on auth failure (error taxonomy compliance)
+#### AC-010: E-AUTH-005/E-AUTH-006/E-AUTH-007 surfaced on auth failure (error taxonomy compliance)
 `StaticCookieAuthProvider::acquire_token` called when the credential resolver returns
 `CredentialResolutionError::NotFound` for `(client_id, sensor_id)` → error propagates as
 `SpecEngineError::AuthAcquisitionFailed` with detail matching the **E-AUTH-005** taxonomy
@@ -338,6 +341,13 @@ the E-AUTH-006 entry in error-taxonomy.md (introduced with BC-2.01.017).
 (traces to BC-2.01.013 error case — adapter error taxonomy compliance;
  traces to BC-2.01.017 §Edge Cases — E-AUTH-006 on empty/whitespace/illegal-char/oversized
  api_key credential per the E-AUTH-006 entry in error-taxonomy.md)
+When the credential resolver returns `CredentialResolutionError::BackendUnavailable` (the
+credential backend — e.g., keyring, vault, env store — is temporarily unavailable), the
+error propagates as `SpecEngineError::AuthAcquisitionFailed` with error code **E-AUTH-007**.
+No HTTP fetch is attempted. No retry is issued.
+(traces to BC-2.01.017 §Error Cases row 3 — credential resolver returns BackendUnavailable →
+AuthAcquisitionFailed carrying E-AUTH-007; BC-2.01.017 EC-017-010 is the canonical edge case;
+TV-BC-2.01.017-009 is the canonical test vector)
 
 #### AC-011: No event_type emission without BC-2.16.002 catalog row (SAP-1)
 If any new `tracing::*!(event_type = ...)` site is introduced in this story's implementation
@@ -591,6 +601,7 @@ N/A — first story in E-DTU-FIDELITY epic. Key lessons from adjacent stories:
 | EC-006 | Cyberint DTU returns 401 during data fetch after a valid access_token was injected (e.g., DTU reset mid-session or stale key) | Pipeline surfaces **E-AUTH-004** in `sensor_errors` per BC-2.01.010 partial-failure contract. No retry. No second `acquire_token` call. Call count == 1. `StaticCookieAuthProvider` has no refreshable token — no retry is correct per BC-2.01.017 §Edge Cases EC-017-002. Operator action: update the static API key in the keyring. (BC-2.01.017 §Edge Cases EC-017-002; TV-BC-2.01.017-006) |
 | EC-007 | test sends both `cyberint_session` AND `access_token` cookies in same header | `extract_access_token` finds `access_token` first (if ordered before `cyberint_session`) or whichever appears first; test should be deterministic — only include one or the other |
 | EC-008 | `uuid` crate removed from prism-dtu-cyberint Cargo.toml | Verify no other DTU code uses uuid (beyond auth.rs); if it does, retain the dep; if auth.rs was the sole consumer, remove cleanly |
+| EC-009 | `StaticCookieAuthProvider::acquire_token` called when credential backend is unavailable (`CredentialResolutionError::BackendUnavailable`) | Returns `Err(SpecEngineError::AuthAcquisitionFailed)` carrying **E-AUTH-007** (`"Credential backend unavailable for ({client_id}, {sensor_id})"`); no HTTP fetch attempted; no retry issued. (BC-2.01.017 §Error Cases row 3; BC-2.01.017 EC-017-010; TV-BC-2.01.017-009) |
 
 ---
 
@@ -680,6 +691,7 @@ Well within the 20-30% budget.
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.9 | 2026-05-30 | story-writer FB-PR6 | F-P11-HIGH-001 closure (SS-17 mis-anchor drop): `subsystems:` corrected from `[SS-01, SS-16, SS-17]` to `[SS-01, SS-16]`. SS-17's canonical name per ARCH-INDEX Subsystem Registry is "WASM Plugin Runtime" (prism-spec-engine WASM tier, AD-019) — it does NOT own DTU clones. DTU clone work (prism-dtu-cyberint) is owned by SS-01 (Sensor Adapters), which was already the story's first anchor. Removed incorrect "SS-17 (DTU Clones) owns crates/prism-dtu-cyberint" justification comment; replaced with clarifying note citing ARCH-INDEX. SS-01 justification updated to explicitly name the DTU route/state/extract_access_token work as SS-01 scope. SS-16 anchor and justification preserved (PipelineExecutor + build_request dispatch are prism-spec-engine / SS-16 scope — correct). F-PR12-MED-001 closure (E-AUTH-007 propagation): AC-010 heading updated from `E-AUTH-005/E-AUTH-006` to `E-AUTH-005/E-AUTH-006/E-AUTH-007`; AC-010 body extended with `CredentialResolutionError::BackendUnavailable → E-AUTH-007` paragraph (traces to BC-2.01.017 §Error Cases row 3, EC-017-010, TV-BC-2.01.017-009); Edge Cases table: EC-009 added (BackendUnavailable → E-AUTH-007, no HTTP fetch, no retry); BC table BC-2.01.017 row updated to enumerate E-AUTH-007 alongside E-AUTH-005/006; frontmatter BC-2.01.017 comment updated to cite EC-017-010 and all three error codes. Sibling-sweep (TD-VSDD-060): no remaining "Static Cookie AuthProvider" split-symbol; no stale SensorAuth references. E-AUTH-004/005/006 semantics from prior fix-bursts preserved AS-IS. STORY-INDEX not touched (state-manager updates last). |
 | 1.8 | 2026-05-30 | story-writer FB-PR5 | F-PR8-LOW-001 closure (POL-7 BC-H1-verbatim, BC-2.01.017 title-symbol whitespace correction): replaced 3 occurrences of erroneous split-symbol form "Static Cookie AuthProvider" with canonical "StaticCookieAuthProvider" (no space — one code symbol). Locations: (1) frontmatter comment line ~37 (BC-2.01.017 annotation); (2) body BC table row line ~216 (BC title column); (3) changelog row 1.1 historical reference line ~689. Sibling-sweep (TD-VSDD-060): confirmed canonical (no-space) form at line ~604 and all other occurrences unchanged. No other content altered — ACs, BCs, error codes (E-AUTH-004/005/006), and behavioral semantics from prior fix-bursts preserved AS-IS. |
 | 1.7 | 2026-05-30 | story-writer FB-PR3 | OBS-PR3-002 closure (TD-VSDD-091 anti-volatile-pin): removed volatile `v1.53` version qualifiers from AC-010 body. (1) Line 337: `error-taxonomy.md v1.53 (NEW in v1.53 — introduced with BC-2.01.017)` → `the E-AUTH-006 entry in error-taxonomy.md (introduced with BC-2.01.017)`. (2) Line 340: `error-taxonomy.md v1.53 §E-AUTH-006` → `the E-AUTH-006 entry in error-taxonomy.md`. Sibling-sweep (TD-VSDD-060): changelog v1.1 row cites `error-taxonomy.md v1.53` as a historical record of what the v1.1 author referenced — exempt from TD-VSDD-091 (historical narrative, not live spec content). No error codes, behavioral claims, or BC traces changed. |
 | 1.6 | 2026-05-30 | story-writer FB-PR2 | F-PR2-MED-001 closure: PO adjudicated spec-vs-spec conflict — BC-2.01.017 v1.5 is authoritative; story EC-005/EC-006/AC-010 corrected to align. EC-005: credential-not-found error changed from E-AUTH-004 → E-AUTH-005 per BC-2.01.017 §Error Cases row 1 and TV-BC-2.01.017-004; message template updated to `"Credentials not found for ({client_id}, {sensor_id})"`. EC-006: retry/AuthRefreshFailed semantics replaced with no-retry E-AUTH-004 in sensor_errors per BC-2.01.010 partial failure, call count==1, per BC-2.01.017 §Edge Cases EC-017-002 and TV-BC-2.01.017-006. AC-010 first paragraph: credential-not-found error changed from E-AUTH-004 → E-AUTH-005; heading updated from E-AUTH-004/E-AUTH-006 → E-AUTH-005/E-AUTH-006; AC-010 second paragraph (E-AUTH-006 coverage) kept AS-IS — correct. Task 20 acquire_token error clause updated to E-AUTH-005 with correct NotFound path. Sibling-sweep (TD-VSDD-060): all remaining E-AUTH-004 references verified — only correct usages remain (HTTP-401-during-fetch path in EC-006 and the one pre-existing Task 20 context). |
