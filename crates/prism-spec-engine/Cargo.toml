@@ -243,6 +243,13 @@ name = "parity_armis"
 path = "tests/parity/armis.rs"
 required-features = ["test-helpers"]
 
+# S-SPEC-ENV-VAR-001: Red Gate tests for AC-001..AC-008 (BC-2.16.009 §Validation Rules 6)
+# 8 tests: full-token resolve, partial-token, multi-token, missing var, empty var,
+# multi-error collection, ordering (pre-URL-format), AD-017 no-value-leak.
+[[test]]
+name = "env_var_resolution_tests"
+path = "tests/env_var_resolution_tests.rs"
+
 # S-CONFIG-MULTI-TENANT-OVERRIDE-001: Red Gate tests for AC-001..AC-007
 # BC-2.06.012 (overlay discovery + merge + backcompat)
 # BC-2.06.013 (scalar-only enforcement — E-SPEC-020/021/023)

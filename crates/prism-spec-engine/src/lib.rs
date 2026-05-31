@@ -25,6 +25,8 @@
 //! SS-19 — Infusion Enrichment Framework (Layer 2: Business Logic)
 
 pub mod column_mapping;
+// S-SPEC-ENV-VAR-001 — Post-TOML-parse env var token resolver (BC-2.16.009 §Validation Rules 6)
+pub mod env_resolver;
 // SS-19 — Infusion Enrichment Framework (S-1.14)
 pub mod infusion;
 pub mod interpolation;
@@ -103,6 +105,7 @@ pub use plugin::{
 // PLUGIN-MIGRATION-001-E — PluginAuthProvider re-export (HIGH-010)
 pub use plugin_auth_provider::PluginAuthProvider;
 // TableType is now re-exported from prism-core (S-2.08 Defect 2 fix)
+pub use env_resolver::resolve_env_var_tokens;
 pub use prism_core::TableType;
 pub use spec_parser::{
     AuthType, ColumnSpec, FetchStep, PaginationConfig, RateLimitHints, SensorSpec,

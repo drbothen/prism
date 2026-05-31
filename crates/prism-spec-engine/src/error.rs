@@ -342,6 +342,43 @@ pub enum SpecEngineError {
     // -------------------------------------------------------------------------
     // PLUGIN-MIGRATION-001-D — ADR-028 §D8-B/C timestamp normalization errors
     // -------------------------------------------------------------------------
+    // -------------------------------------------------------------------------
+    // S-SPEC-ENV-VAR-001 — env var token resolution error (BC-2.16.009 §Validation Rules 6)
+    // -------------------------------------------------------------------------
+    /// E-SPEC-024: A `${env.VAR_NAME}` token in a sensor spec field could not be resolved
+    /// because the named environment variable is absent or empty.
+    ///
+    /// Emitted by `resolve_env_var_tokens` (post-TOML-parse, pre-URL-format-validation).
+    /// Multiple instances are collected in a single multi-error pass (no fail-fast).
+    /// The spec is rejected entirely — no degraded-load state (fail-closed).
+    ///
+    /// ## AD-017 no-value-leak discipline
+    /// `var_name` carries the environment variable NAME only. The resolved VALUE is NEVER
+    /// stored in this variant — not in `var_name`, not in `toml_path`, not in any field.
+    /// `SpecEngineError::EnvVarNotSet` construction sites MUST NOT pass
+    /// `std::env::var(&var_name).unwrap_or_default()` or any resolved value into any field.
+    ///
+    /// BC-2.16.009 §Validation Rules 6 (AC-6); error-taxonomy.md v1.56 E-SPEC-024;
+    /// S-SPEC-ENV-VAR-001.
+    #[error(
+        "E-SPEC-024: Sensor spec '{file_path}' field '{toml_path}' references environment \
+         variable '{var_name}' which is not set or is empty. \
+         Set '{var_name}' before starting prism."
+    )]
+    EnvVarNotSet {
+        /// The environment variable NAME (e.g., "ARMIS_INSTANCE_URL").
+        ///
+        /// MUST be the variable name string — NEVER the resolved value.
+        /// AD-017: credential values must not transit AI context or appear in logs.
+        var_name: String,
+        /// TOML field path containing the unresolved token (e.g., "sensor.base_url").
+        toml_path: String,
+        /// Source spec file path for operator diagnostics (e.g., "specs/armis.sensor.toml").
+        ///
+        /// May be an empty string if the spec was constructed in-memory without a file source.
+        file_path: String,
+    },
+
     /// E-SPEC-018: `PipelineExecutor` failed to parse a `ColumnType::Datetime` column value
     /// against any of the declared `timestamp_formats`.
     ///
