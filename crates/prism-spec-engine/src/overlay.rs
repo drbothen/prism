@@ -34,6 +34,8 @@ use prism_core::{OrgRegistry, OrgSlug, PrismError, SensorId, SpecError, SpecErro
 use serde::{Deserialize, Serialize};
 use toml::Value as TomlValue;
 
+use crate::env_resolver::resolve_env_tokens_in_string_field;
+use crate::error::SpecEngineError;
 use crate::spec_parser::{RateLimitHints, SensorSpec};
 
 // ---------------------------------------------------------------------------
@@ -625,7 +627,8 @@ impl OverlayLoader {
 
         // Deserialize into SensorInstanceOverlay from the already-parsed raw TomlValue.
         // ADV-011: avoid double-parse by reusing `raw` instead of calling toml::from_str again.
-        let overlay: SensorInstanceOverlay = match raw.clone().try_into() {
+        // `mut` is required for the env resolver pass (EC-009-007) which mutates overlay.base_url.
+        let mut overlay: SensorInstanceOverlay = match raw.clone().try_into() {
             Ok(o) => o,
             Err(e) => {
                 return Err(vec![PrismError::Spec(SpecError {
@@ -641,10 +644,79 @@ impl OverlayLoader {
             }
         };
 
+        // BC-2.16.009 §VR6 EC-009-007: resolve ${env.VAR_NAME} tokens in overlay base_url
+        // BEFORE the SSRF scheme check (SEC-REDUX-006). Without this pass, a raw token
+        // like "${env.ARMIS_URL}" would either (a) fail starts_with("https://") → wrong
+        // E-SPEC-001 error, or (b) for partial tokens that start with "https://", survive
+        // into the merged spec's base_url and be routed as a live HTTP URL with the
+        // unresolved token embedded (CWE-918 / garbage-URL vector).
+        //
+        // The resolver runs in-place on overlay.base_url; SpecEngineError::EnvVarNotSet
+        // errors are converted to PrismError::Spec(ESpec024) for consistency with the
+        // overlay error type.
+        //
+        // AD-017: the conversion copies only var_name + toml_path — no resolved VALUE.
+        //
+        // `base_url_env_resolved` tracks whether the env resolution pass ran without errors.
+        // When false (env errors collected), the SSRF scheme check is SKIPPED for base_url:
+        // (a) the resolver has already reported E-SPEC-024; an additional E-SPEC-001 on the
+        //     unresolved raw token would be a misleading second error on the same field.
+        // (b) the raw token is guaranteed to be rejected anyway (spec fails on E-SPEC-024).
+        let mut base_url_env_resolved = true;
+        if let Some(ref mut base_url_field) = overlay.base_url {
+            let env_errors =
+                resolve_env_tokens_in_string_field(base_url_field, "base_url", overlay_file_path);
+            if !env_errors.is_empty() {
+                base_url_env_resolved = false;
+                for env_err in env_errors {
+                    // Convert SpecEngineError::EnvVarNotSet → PrismError::Spec(ESpec024).
+                    // Only EnvVarNotSet is emitted by the resolver (per env_resolver.rs contract).
+                    // Use a match to ensure we don't silently swallow future resolver error variants.
+                    match env_err {
+                        SpecEngineError::EnvVarNotSet {
+                            var_name,
+                            toml_path,
+                            file_path: err_file_path,
+                        } => {
+                            validation_errors.push(PrismError::Spec(SpecError {
+                                code: SpecErrorCode::ESpec024,
+                                // AD-017: message includes var NAME and field path — never the value.
+                                message: format!(
+                                    "Sensor spec '{err_file_path}' field '{toml_path}' references \
+                                     environment variable '{var_name}' which is not set or is empty. \
+                                     Set '{var_name}' before starting prism."
+                                ),
+                                toml_path: Some(toml_path),
+                                file_path: Some(err_file_path),
+                                line_number: None,
+                            }));
+                        }
+                        // This arm is unreachable: resolve_env_tokens_in_string_field only emits
+                        // EnvVarNotSet. If a future refactor adds a new variant, this arm will
+                        // catch it and surface a structured error rather than silently swallowing.
+                        other => {
+                            validation_errors.push(PrismError::Internal {
+                                detail: format!(
+                                    "unexpected error from env resolver on overlay base_url: {other}"
+                                ),
+                            });
+                        }
+                    }
+                }
+            }
+        }
+
         // SEC-REDUX-006: validate overlay base_url scheme (CWE-918 SSRF prevention).
         // The TYPE spec base_url is validated by validation.rs; the overlay must match.
         // Allows http:// and https:// only — rejects file://, ftp://, and other schemes.
-        if let Some(ref overlay_base_url) = overlay.base_url
+        // At this point, overlay.base_url has been through the env resolver above (EC-009-007),
+        // so the scheme check sees the RESOLVED URL, not any raw ${env.VAR} token.
+        //
+        // Guard: skip this check when env resolution for base_url produced errors — the
+        // resolver already reported E-SPEC-024 and the spec will be rejected; adding a
+        // second E-SPEC-001 on the raw unresolved token would be misleading noise.
+        if base_url_env_resolved
+            && let Some(ref overlay_base_url) = overlay.base_url
             && !overlay_base_url.starts_with("https://")
             && !overlay_base_url.starts_with("http://")
         {

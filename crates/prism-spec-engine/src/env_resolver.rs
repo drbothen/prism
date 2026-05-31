@@ -126,6 +126,28 @@ fn resolve_field(
     errors
 }
 
+/// Resolve `${env.VAR_NAME}` tokens in a single `String` field in-place.
+///
+/// Thin `pub(crate)` wrapper around `resolve_field` for callers (e.g., `overlay.rs`)
+/// that need to resolve env tokens in a standalone field rather than a full `SensorSpec`.
+///
+/// ## Ordering contract (EC-009-007)
+/// Must be called AFTER TOML deserialization and BEFORE any URL-format / scheme check
+/// on the field value. This matches the `resolve_env_var_tokens` ordering invariant for
+/// the type-spec path and extends it to the overlay path.
+///
+/// ## AD-017 no-value-leak
+/// Errors carry only the var NAME and `toml_path` — the resolved value is never stored.
+///
+/// BC-2.16.009 §VR6 EC-009-007; S-SPEC-ENV-VAR-001 F-LOCAL-P1-CRIT-001.
+pub(crate) fn resolve_env_tokens_in_string_field(
+    field_value: &mut String,
+    toml_path: &str,
+    file_path: &str,
+) -> Vec<SpecEngineError> {
+    resolve_field(field_value, toml_path, file_path)
+}
+
 /// Post-TOML-parse env var token resolver (BC-2.16.009 §Validation Rules 6 / AC-6).
 ///
 /// Scans all user-facing template `String` fields in `SensorSpec` for `${env.VAR_NAME}`

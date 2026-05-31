@@ -2012,3 +2012,220 @@ base_url = "https://armis.acme-corp.io"
         result
     );
 }
+
+// ---------------------------------------------------------------------------
+// EC-009-007: overlay base_url env var resolution (F-LOCAL-P1-CRIT-001)
+//
+// BC-2.16.009 VR6 + EC-009-007 require that per-org overlay base_url fields
+// containing `${env.VAR_NAME}` tokens are resolved BEFORE the SSRF scheme check
+// in validate_overlay_toml. Without this wiring:
+//   - A full-token overlay `base_url = "${env.ARMIS_URL}"` with the var ABSENT
+//     reaches the scheme check with the raw token, fails `starts_with("https://")`,
+//     and produces E-SPEC-001 (wrong error) instead of E-SPEC-024 (correct error).
+//   - A partial-token overlay `base_url = "https://${env.ARMIS_ENV}.armis.io"` with
+//     the var absent would also fail scheme check with E-SPEC-001, or if present but
+//     somehow bypassing would leave the raw token in the merged spec's base_url.
+//
+// These tests verify the resolver is wired into the overlay path.
+// ---------------------------------------------------------------------------
+
+/// EC-009-007 (F-LOCAL-P1-CRIT-001): full-token overlay base_url with absent var →
+/// must produce E-SPEC-024 (env var not set), NOT E-SPEC-001 (URL format error).
+///
+/// If the resolver is NOT wired: the raw token `"${env.ARMIS_URL}"` fails
+/// `starts_with("https://")` and produces an E-SPEC-001 SSRF error instead.
+#[test]
+fn test_EC_009_007_overlay_base_url_full_token_missing_var_produces_e_spec_024_not_e_spec_001() {
+    // EC-009-007: overlay resolver must run BEFORE SSRF scheme check.
+    const VAR: &str = "PRISM_TEST_OVL_EC007_FULL_MISSING";
+    unsafe {
+        std::env::remove_var(VAR);
+    }
+
+    let token = format!("${{env.{VAR}}}");
+    let toml_input =
+        format!("extends = \"armis\"\ninstance_id = \"armis@acme\"\nbase_url = \"{token}\"\n");
+
+    let type_specs = type_specs_with_armis();
+    let result = OverlayLoader::validate_overlay_toml(
+        &toml_input,
+        "customers/acme/armis.sensor.toml",
+        "armis",
+        "acme",
+        &type_specs,
+    );
+
+    unsafe {
+        std::env::remove_var(VAR);
+    }
+
+    // Must return an error (absent var → spec rejected).
+    let errors = result.expect_err(
+        "EC-009-007: validate_overlay_toml must return Err when overlay base_url contains \
+         an unresolved ${env.VAR} token",
+    );
+
+    assert!(
+        !errors.is_empty(),
+        "EC-009-007: error list must be non-empty for absent overlay base_url token"
+    );
+
+    // The error must be E-SPEC-024 (env var not set), NOT E-SPEC-001 (URL format).
+    // Check by inspecting the PrismError::Spec code on the first error.
+    let has_e_spec_024 = errors.iter().any(|e| {
+        if let prism_core::PrismError::Spec(se) = e {
+            se.code == SpecErrorCode::ESpec024
+        } else {
+            false
+        }
+    });
+
+    let has_e_spec_001_ssrf = errors.iter().any(|e| {
+        if let prism_core::PrismError::Spec(se) = e {
+            se.code == SpecErrorCode::ESpec001 && se.message.contains("must start with http")
+        } else {
+            false
+        }
+    });
+
+    assert!(
+        has_e_spec_024,
+        "EC-009-007: error must contain E-SPEC-024 (env var not set) when overlay base_url \
+         contains an absent ${{env.VAR}} token. Got errors: {errors:?}"
+    );
+    assert!(
+        !has_e_spec_001_ssrf,
+        "EC-009-007: error must NOT be E-SPEC-001 SSRF rejection — that would mean the \
+         resolver did NOT run before the scheme check. Got errors: {errors:?}"
+    );
+
+    // Additionally: the E-SPEC-024 error must carry the env var name in toml_path or message.
+    let e024 = errors.iter().find(|e| {
+        if let prism_core::PrismError::Spec(se) = e {
+            se.code == SpecErrorCode::ESpec024
+        } else {
+            false
+        }
+    });
+    if let Some(prism_core::PrismError::Spec(se)) = e024 {
+        assert!(
+            se.message.contains(VAR),
+            "EC-009-007: E-SPEC-024 message must contain the env var name '{}'. \
+             Got: '{}'",
+            VAR,
+            se.message
+        );
+        assert_eq!(
+            se.toml_path.as_deref(),
+            Some("base_url"),
+            "EC-009-007: E-SPEC-024 toml_path must be 'base_url'. Got: {:?}",
+            se.toml_path
+        );
+    }
+}
+
+/// EC-009-007 (F-LOCAL-P1-CRIT-001): full-token overlay base_url with var SET to valid URL →
+/// validate_overlay_toml must succeed and the resolved spec has the resolved URL.
+///
+/// This proves the resolver runs and mutates the overlay before the scheme check,
+/// so the scheme check sees the resolved URL (not the raw token).
+#[test]
+fn test_EC_009_007_overlay_base_url_full_token_set_var_resolves_and_overlay_validates() {
+    // EC-009-007: resolver runs → overlay passes scheme check with resolved URL.
+    const VAR: &str = "PRISM_TEST_OVL_EC007_FULL_SET";
+    const RESOLVED_URL: &str = "https://armis.acme-corp.resolved.io";
+
+    unsafe {
+        std::env::set_var(VAR, RESOLVED_URL);
+    }
+
+    let token = format!("${{env.{VAR}}}");
+    let toml_input =
+        format!("extends = \"armis\"\ninstance_id = \"armis@acme\"\nbase_url = \"{token}\"\n");
+
+    let type_specs = type_specs_with_armis();
+    let result = OverlayLoader::validate_overlay_toml(
+        &toml_input,
+        "customers/acme/armis.sensor.toml",
+        "armis",
+        "acme",
+        &type_specs,
+    );
+
+    unsafe {
+        std::env::remove_var(VAR);
+    }
+
+    let overlay = result.expect(
+        "EC-009-007: validate_overlay_toml must succeed when overlay base_url token resolves \
+         to a valid https:// URL",
+    );
+
+    assert_eq!(
+        overlay.base_url.as_deref(),
+        Some(RESOLVED_URL),
+        "EC-009-007: resolved overlay.base_url must equal the env var value. \
+         Expected Some({RESOLVED_URL:?}), got {:?}",
+        overlay.base_url
+    );
+}
+
+/// EC-009-007 (F-LOCAL-P1-CRIT-001): partial-token overlay base_url with absent var →
+/// E-SPEC-024, NOT E-SPEC-001 (the raw partial-resolved prefix must not survive into
+/// the scheme check as a valid URL fragment).
+#[test]
+fn test_EC_009_007_overlay_base_url_partial_token_missing_var_produces_e_spec_024() {
+    // EC-009-007: partial-token overlay base_url — absent var → E-SPEC-024.
+    const VAR: &str = "PRISM_TEST_OVL_EC007_PARTIAL_MISSING";
+    unsafe {
+        std::env::remove_var(VAR);
+    }
+
+    let token = format!("${{env.{VAR}}}");
+    // Partial token: the literal "https://" prefix IS there, but the token is absent.
+    // Without resolver wiring, the raw token remains → scheme check would see
+    // "https://${env.PRISM_TEST_OVL_EC007_PARTIAL_MISSING}.armis.io" which does start
+    // with "https://" → would PASS the scheme check and the raw token would survive
+    // into the merged spec's base_url → causes a live HTTP request to a garbage URL.
+    let partial_url = format!("https://{token}.armis.io");
+    let toml_input = format!(
+        "extends = \"armis\"\ninstance_id = \"armis@acme\"\nbase_url = \"{partial_url}\"\n"
+    );
+
+    let type_specs = type_specs_with_armis();
+    let result = OverlayLoader::validate_overlay_toml(
+        &toml_input,
+        "customers/acme/armis.sensor.toml",
+        "armis",
+        "acme",
+        &type_specs,
+    );
+
+    unsafe {
+        std::env::remove_var(VAR);
+    }
+
+    // Must return an error (absent var → spec rejected).
+    let errors = result.expect_err(
+        "EC-009-007 partial: validate_overlay_toml must return Err when overlay base_url \
+         contains an unresolved partial ${env.VAR} token",
+    );
+
+    // Must be E-SPEC-024, not a URL-format pass (which would let the raw token survive).
+    let has_e_spec_024 = errors.iter().any(|e| {
+        if let prism_core::PrismError::Spec(se) = e {
+            se.code == SpecErrorCode::ESpec024
+        } else {
+            false
+        }
+    });
+
+    assert!(
+        has_e_spec_024,
+        "EC-009-007 partial: error must contain E-SPEC-024 (env var not set) for absent \
+         partial-token overlay base_url. Got errors: {errors:?}"
+    );
+
+    // Belt-and-suspenders: if the result were Ok, that means the raw token survived
+    // into base_url — we check this doesn't happen by asserting is_err above.
+}
