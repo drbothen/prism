@@ -5,18 +5,25 @@ title: "prism-dtu-armis + armis.sensor.toml: AQL Search Endpoint Fidelity — Ad
 wave: 5
 epic_id: E-DTU-FIDELITY
 priority: P1
-status: draft
-# BC status: pending PO authorship.
-# behavioral_contracts is empty — this story cannot be set to ready until the PO
-# authors BC(s) covering the AQL search endpoint pipeline behavior and AQL push-down
-# parity (R-DTU-002). ADR-031 §D8-a explicitly flags that no new BCs are REQUIRED for
-# the AQL endpoint itself (covered by existing pipeline contracts), but if AQL syntax
-# validation is added to the DTU, product-owner must evaluate BC-2.01.NNN additions.
-# Flag to product-owner: see §New-BC Flags below.
-version: "1.0"
+status: ready
+# BC status: D-911 disposition 2026-05-31 — New-BC Flags 1 & 2 resolved as SUFFICIENT.
+# BC-2.16.013 (Bundled Sensor Spec Authoring and DTU-Parity Verification, v1.18) is ACTIVE
+# and covers both the AQL endpoint pipeline behavior (Flag 1: AQL treated as opaque per
+# R-DTU-002 / ADR-031 §D8-a — no syntax validation, no new BC needed) and the AQL push-down
+# parity assertion (Flag 2: R-DTU-002 pass-through is a DTU-parity concern under BC-2.16.013).
+# No new BC is required. S-7.01 Spec-First Gate satisfied: behavioral_contracts non-empty +
+# BC-2.16.013 is active.
+# Parity gate note (D-914): parity ACs (AC-005, AC-006 pipeline path) that exercise
+# ${env.ARMIS_INSTANCE_URL} resolution are soft-gated on S-SPEC-ENV-VAR-001 (env-var
+# resolution story) merging first. The story may be dispatched; Red Gate unit tests
+# (AC-001..AC-004) are unblocked. Parity tests requiring full pipeline env-var resolution
+# must be #[ignore]-annotated with a code comment citing S-SPEC-ENV-VAR-001 until that
+# prereq merges.
+version: "1.1"
 level: "L4"
 producer: story-writer
 timestamp: "2026-05-31T00:00:00Z"
+modified: "2026-05-31"
 tdd_mode: strict
 subsystems: [SS-01, SS-16]
 # Subsystem anchor justifications:
@@ -30,8 +37,11 @@ subsystems: [SS-01, SS-16]
 crates_touched: [prism-dtu-armis, prism-sensors]
 target_module: prism-dtu-armis
 capabilities: [CAP-001, CAP-029]
-behavioral_contracts: []
-# BC status: pending PO authorship (see above comment and §New-BC Flags section).
+behavioral_contracts:
+  - BC-2.16.013  # Bundled Sensor Spec Authoring and DTU-Parity Verification (v1.18, ACTIVE).
+                 # Covers the AQL search endpoint pipeline behavior (Flag 1: opaque AQL per
+                 # R-DTU-002/ADR-031 §D8-a) and AQL push-down parity (Flag 2: R-DTU-002
+                 # pass-through). D-911 disposition: both flags SUFFICIENT, no new BC needed.
 verification_properties:
   - VP-148  # DTU parity — parity tests exercise the AQL search pipeline path; a passing
             # parity test after this story proves real-API AQL query behavior.
@@ -103,8 +113,8 @@ phase: 3
 # S-DEMO-ARMIS-AQL-001 v1.0 — Armis AQL Search Endpoint Fidelity
 
 **Story ID:** S-DEMO-ARMIS-AQL-001
-**Status:** draft
-**Version:** v1.0
+**Status:** ready
+**Version:** v1.1
 **Wave:** 5
 **Priority:** P1
 **Points:** 5
@@ -177,32 +187,28 @@ After this story merges:
 
 ## Behavioral Contracts
 
-| BC ID | Title | Role in This Story |
-|-------|-------|-------------------|
-| (pending PO authorship) | AQL Search Endpoint Fidelity | No BC has been authored yet covering /api/v1/search endpoint behavior and AQL push-down parity. PO must evaluate whether existing pipeline BCs cover this or whether a new BC-2.01.NNN EC row is needed. See §New-BC Flags. |
+| BC ID | Title | Version | Role in This Story |
+|-------|-------|---------|-------------------|
+| BC-2.16.013 | Bundled Sensor Spec Authoring and DTU-Parity Verification | v1.18 (ACTIVE) | Covers the AQL search endpoint pipeline behavior (Flag 1: opaque AQL, R-DTU-002/ADR-031 §D8-a) and the AQL push-down parity assertion (Flag 2: R-DTU-002 pass-through is a DTU-parity concern). D-911 disposition 2026-05-31: both New-BC Flags SUFFICIENT — no new BC needed. |
 
-**Note:** Per ADR-031 §D8-a: "No new behavioral contracts required. The AQL endpoint is
-a pipeline implementation change. The query-filter AQL push-down is covered by existing
-R-DTU-002 and the armis_devices / armis_alerts DataFusion table contracts. If AQL syntax
-validation is added to the DTU, BC-2.01.NNN may need a new EC row — flag to product-owner."
-
-This story's `behavioral_contracts: []` is intentional per Spec-First Gate S-7.01 —
-status remains `draft` until PO authors and anchors the required BC(s).
+**Note:** Per D-911 disposition 2026-05-31, BC-2.16.013 (v1.18, ACTIVE) is sufficient
+coverage for both flagged surfaces. ADR-031 §D8-a holds: AQL is treated as opaque (R-DTU-002),
+no syntax validation is added to the DTU, and AQL push-down parity is a BC-2.16.013 concern.
+S-7.01 Spec-First Gate is satisfied.
 
 ---
 
-## New-BC Flags for Product-Owner
+## New-BC Flags — D-911 Disposition (2026-05-31)
 
-Flag 1 (EVALUATE): If the `/api/v1/search` handler validates AQL syntax (e.g., rejects
-malformed AQL strings with HTTP 400), this creates a new observable contract boundary that
-may need a BC-2.01.NNN error case row in the spec-loading behavioral contract. Flag to
-product-owner for evaluation. If AQL is treated as opaque (R-DTU-002 approach — stored
-verbatim, not validated), no new BC is needed.
+Flag 1 (CLOSED — SUFFICIENT): AQL is treated as opaque per R-DTU-002 / ADR-031 §D8-a.
+No syntax validation is added to the DTU. No new BC is needed. BC-2.16.013 (v1.18, ACTIVE)
+covers the DTU-parity surface. D-911 disposition: SUFFICIENT.
 
-Flag 2 (EVALUATE): The AQL push-down parity assertion (AC-005 below) validates that
-prism constructs an AQL string and the DTU receives it verbatim. R-DTU-002 is the existing
-architectural requirement for AQL pass-through. Product-owner should confirm whether R-DTU-002
-is already covered by an existing BC or requires a new AC in BC-2.01.NNN.
+Flag 2 (CLOSED — SUFFICIENT): AQL push-down parity (R-DTU-002 pass-through) is a
+DTU-parity concern already within BC-2.16.013's scope. No new BC-2.01.NNN AC is needed.
+D-911 disposition: SUFFICIENT.
+
+Both flags are fully dispositioned. No further PO authorship action required for this story.
 
 ---
 
@@ -214,8 +220,8 @@ is already covered by an existing BC or requires a new AC in BC-2.01.NNN.
 DTU clone returns 200 (not 404). `Authorization: Bearer {non-empty}` header is required;
 missing/empty token returns 403 (matching existing Armis DTU auth pattern — AC-5 per
 routes/devices.rs `check_bearer_auth`: Armis returns 403 not 401).
-(traces to ADR-031 §D8-a postcondition — DTU must implement the real Armis search endpoint;
-pending formal BC authorship; traces to VP-148 DTU parity — search endpoint registered)
+(traces to BC-2.16.013 postcondition §1 DTU-Parity — DTU must implement the endpoint declared
+in the TOML spec; ADR-031 §D8-a is the architectural mandate; VP-148 parity gate)
 
 Red Gate test: `test_armis_aql_search_route_registered_returns_200_for_device_aql`
 
@@ -226,8 +232,8 @@ contains `DeviceRecord` objects matching the DTU fixture data (same fields as
 `crates/prism-dtu-armis/src/types.rs::DeviceRecord`). The AQL string `in:type=Device`
 is captured via `state.capture_aql()` and is visible in the subsequent `GET /dtu/aql-log`
 response as `{"aql_strings": ["in:type=Device"]}`.
-(traces to ADR-031 §D8-a requirement 1 — DTU search route applies AQL string as filter
-against fixture data and logs the AQL string; pending formal BC authorship)
+(traces to BC-2.16.013 postcondition §2 fixture-parity — DTU search route applies AQL
+string as filter against fixture data and logs the AQL string; ADR-031 §D8-a requirement 1)
 
 Red Gate test: `test_armis_aql_search_devices_aql_returns_device_records`
 
@@ -236,8 +242,8 @@ Red Gate test: `test_armis_aql_search_devices_aql_returns_device_records`
 table) returns HTTP 200 with response envelope `{"data": {"results": [...AlertRecords...],
 "total": N}}` where `results` contains `AlertRecord` objects matching the DTU fixture data.
 The AQL string is captured in `GET /dtu/aql-log`.
-(traces to ADR-031 §D8-a requirement 1 — DTU search route serves alerts via AQL; pending
-formal BC authorship)
+(traces to BC-2.16.013 postcondition §2 fixture-parity — DTU search route serves alerts
+via AQL filter; ADR-031 §D8-a requirement 1)
 
 Red Gate test: `test_armis_aql_search_alerts_aql_returns_alert_records`
 
@@ -251,7 +257,8 @@ to the DTU. The `response_path` fields are updated if the envelope changes from
 `$.data.devices` / `$.data.alerts` to `$.data.results` (per the search route's response).
 DTU-EXT-003 and DTU-EXT-004 comments in the TOML are updated to reflect that the gap is
 now closed.
-(traces to ADR-031 §D8-a requirement 2 — TOML devices and alerts steps must use /api/v1/search)
+(traces to BC-2.16.013 postcondition §2 DTU-TOML-column-parity — TOML devices and alerts
+steps must use /api/v1/search; ADR-031 §D8-a requirement 2)
 
 ### AC-005: Parity test — AQL string prism sends matches DTU-received AQL string
 An integration test (using `ArmisClone` from prism-dtu-harness or prism-dtu-armis directly):
@@ -527,3 +534,4 @@ Well within the 20-30% budget.
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
 | 1.0 | 2026-05-31 | story-writer | Initial materialization from [stub] per ADR-031 §D8-a v1.2 reclassification. 7 ACs, 4 Red Gate tests, 5 pts, wave 5, P1. Grounded against crates/prism-dtu-armis/src/routes/devices.rs (AQL capture pattern), types.rs (DeviceRecord/AlertRecord/AqlLogResponse), state.rs (capture_aql/aql_log), clone.rs (build_router), armis.sensor.toml (DTU-EXT-003/004 comments). New-BC flags provided to product-owner for AQL syntax validation and R-DTU-002 BC coverage evaluation. |
+| 1.1 | 2026-05-31 | story-writer | D-911 disposition applied: New-BC Flags 1 & 2 SUFFICIENT — BC-2.16.013 (v1.18, ACTIVE) covers both surfaces. Set behavioral_contracts: [BC-2.16.013], status: draft→ready. AC-001..AC-004 BC traces updated from "pending PO authorship" to BC-2.16.013 postcondition clauses. D-914 parity-gate note added (AC-005/AC-006 parity tests soft-gated on S-SPEC-ENV-VAR-001 env-var prereq; must be #[ignore] until prereq merges). |

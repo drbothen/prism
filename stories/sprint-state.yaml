@@ -27,13 +27,13 @@ active_dispatch_set:
     notes: "MERGED PR #155 develop@3e822522 2026-05-26 (status-correction D-916). Was stale-ready; POL-14 promoted BCs correctly at merge but story-status transition was missed. [process-gap] recorded in Drift Items."
 
   - story_id: S-DEMO-CLAROTY-AUDIT-DTU-001
-    status: draft
+    status: ready
     priority: P1-pre-demo-BLOCKING
     points: 5
-    spec_version: "v1.0"
+    spec_version: "v1.1"
     depends_on:
       - PLUGIN-MIGRATION-001-A  # merged
-    notes: "Materialized 2026-05-29 D-849-prep (65cf835e). DTU-only: /api/v1/audit_log/get route + ClarotyAuditLogEntry. Blocks demo audit_log query."
+    notes: "D-920 2026-05-31: draft→ready. Route-design consistency confirmed by orchestrator — POST /api/v1/audit_log/get + ClarotyAuditLogEntry consistent with BC-2.01.013 + BC-2.16.013. No New-BC flags; no env-var dependency. Ready for worktree+delivery dispatch."
 
   - story_id: S-DEMO-CLAROTY-PAGINATION-001
     status: draft
@@ -94,12 +94,12 @@ active_dispatch_set:
     notes: "Surfaced 2026-05-29 D-849 by S-CONFIG AC-009 DTU emulation gap. Needs story-writer materialization. Non-blocking for single-tenant demo."
 
   - story_id: S-DEMO-ARMIS-AQL-001
-    status: draft
+    status: ready
     priority: P1
     points: 5
-    spec_version: "v1.0"
+    spec_version: "v1.1"
     depends_on: []
-    notes: "Reclassified 2026-05-31 D-907: permitted-divergence→required-fidelity per ADR-031 v1.2 (user directive no-scope-compromise; architect commit e57eb5b1). story-writer 2451d025. PO new-BC flags open: AQL-validation BC + AQL push-down parity EC (see §New-BC Flags in story file). Must be evaluated before story flips to ready."
+    notes: "D-919 2026-05-31: draft→ready v1.1. New-BC Flags 1&2 SUFFICIENT per D-911 — BC-2.16.013 covers AQL endpoint pipeline behavior (Flag 1: opaque per R-DTU-002/ADR-031 §D8-a) and AQL push-down parity (Flag 2: R-DTU-002 pass-through). No new BC required. Parity ACs AC-005/006 exercising ${env.ARMIS_INSTANCE_URL} soft-gated on S-SPEC-ENV-VAR-001 per D-914 — must be #[ignore]-annotated citing S-SPEC-ENV-VAR-001 until prereq merges. Story dispatchable now (Red Gate unit tests AC-001..AC-004 unblocked)."
 
   - story_id: S-DEMO-CLAROTY-TRAILING-SLASH-001
     status: draft
@@ -159,9 +159,9 @@ deferred_post_demo:
   # reclassification from permitted-divergence → required-fidelity; user directive no-scope-compromise).
 
 prereq_artifacts:
-  story_index: .factory/stories/STORY-INDEX.md         # v2.225 after D-917 follow-up burst
+  story_index: .factory/stories/STORY-INDEX.md         # v2.226 after D-919+D-920 burst
   bc_index: .factory/specs/behavioral-contracts/BC-INDEX.md  # v5.66
-  state: .factory/STATE.md                              # v7.572 after D-917 follow-up burst
+  state: .factory/STATE.md                              # v7.573 after D-919+D-920 burst
   governing_adr: .factory/specs/architecture/decisions/ADR-031-dtu-equals-true-dtu-fidelity-principle.md  # v1.2 (ADR-031 architect e57eb5b1 reclassified 3 divergences)
   governing_audit: .factory/proposals/POLLER-DTU-FIDELITY-AUDIT-2026-05-29.md  # v1.1
 

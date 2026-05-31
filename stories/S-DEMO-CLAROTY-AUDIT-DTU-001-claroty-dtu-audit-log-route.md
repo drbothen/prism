@@ -5,15 +5,18 @@ title: "prism-dtu-claroty: Add /api/v1/audit_log/get route for Claroty Audit Log
 wave: 5
 epic_id: E-DTU-FIDELITY
 priority: P1
-status: draft
-# BC status: BC-2.01.013 and BC-2.16.013 are both active (BC-INDEX v5.56).
-# S-7.01 gate: behavioral_contracts is non-empty; status may advance to ready once
-# implementer confirms DTU route design is consistent with BCs.
-version: "1.0"
+status: ready
+# BC status: BC-2.01.013 and BC-2.16.013 are both active (BC-INDEX v5.66).
+# S-7.01 gate: behavioral_contracts non-empty + both BCs active → satisfied.
+# Route-design consistency confirmed by orchestrator (D-920 2026-05-31): POST
+# /api/v1/audit_log/get with ClarotyAuditLogEntry shape is consistent with
+# BC-2.01.013 auth-enforcement contract + BC-2.16.013 DTU-TOML-parity contract.
+# No New-BC flags. No env-var dependency. Story dispatchable.
+version: "1.1"
 level: "L4"
 producer: story-writer
-timestamp: "2026-05-29T00:00:00Z"
-modified: "2026-05-29"
+timestamp: "2026-05-31T00:00:00Z"
+modified: "2026-05-31"
 tdd_mode: strict
 subsystems: [SS-17, SS-16]
 # Subsystem anchor justifications:
