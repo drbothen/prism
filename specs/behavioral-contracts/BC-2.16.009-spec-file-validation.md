@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.5"
+version: "1.6"
 status: active
 producer: product-owner
 timestamp: 2026-04-13T12:00:00
@@ -11,7 +11,7 @@ subsystem: "SS-16"
 capability: "CAP-029"
 lifecycle_status: active
 introduced: cycle-1
-modified: "2026-05-22"
+modified: "2026-05-31"
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -81,6 +81,28 @@ actionable correction. Warnings do not prevent loading; errors do.
 - `requests_per_second` must be > 0 if specified
 - `burst_size` must be >= 1 if specified
 
+### 6. Env Var Token Resolution (AC-6)
+Post-TOML-parse, before URL-format validation, the resolver scans all string fields for `${env.VAR_NAME}` tokens and resolves them against `std::env::var`.
+
+**Sibling-sweep (TD-VSDD-060):** All four canonical sensor specs (`crates/prism-sensors/specs/`) were audited. As of S-SPEC-ENV-VAR-001, the `${env.VAR}` pattern is used ONLY in `base_url` (TYPE specs: `armis.sensor.toml`, `claroty.sensor.toml`, `cyberint.sensor.toml`). No other string fields (`path_template`, `body_template`, `response_path`, `ocsf_class`, etc.) currently use env tokens. The resolver MUST scan `base_url` at minimum; the implementation SHOULD scan all `String` fields in `SensorSpec` to remain correct for future specs. Per-org overlay `base_url` is also in scope (overlays are merged before validation runs).
+
+**Partial interpolation** is supported within `base_url`: the pattern `"https://${env.CYBERINT_ENVIRONMENT}.cyberint.io"` replaces only the `${env.VAR_NAME}` token, preserving the surrounding literal string. After resolution, the full URL is subject to the `starts_with("http://")` / `starts_with("https://")` URL-format validation rule (Validation Rule 1).
+
+**Token format:** `${env.VAR_NAME}` where `VAR_NAME` matches `[A-Z0-9_]+` (uppercase letters, digits, underscores — standard POSIX env var names). Tokens with a different namespace (e.g., `${step.field}`) are NOT resolved by this pass; those belong to the runtime interpolation engine (BC-2.16.002).
+
+**Error path (E-SPEC-024):**
+- If `VAR_NAME` is absent from the environment (`std::env::var` returns `VarError::NotPresent`) → validation error `E-SPEC-024`
+- If `VAR_NAME` is present but the value is empty string (`""`), → validation error `E-SPEC-024` (empty value is treated as missing)
+- The error message MUST include the variable NAME (`VAR_NAME`) and the TOML path (`toml_path`) of the failing field
+- The error message MUST NOT include the variable VALUE — per AD-017 / AI-opaque-credentials discipline; credential or instance endpoint values must not appear in logs or MCP error responses
+- Multiple unresolvable tokens produce multiple E-SPEC-024 errors, one per token, collected in the same multi-error pass (no fail-fast)
+- Fail-closed: a spec with any unresolved env tokens is REJECTED ENTIRELY; it does not load in a degraded state
+
+**Success path:**
+- Every `${env.VAR_NAME}` token in every string field is replaced with the resolved value
+- The resulting string (with tokens replaced) is passed to subsequent validation rules (URL-format check, etc.)
+- If a field contained only the token (e.g., `base_url = "${env.ARMIS_INSTANCE_URL}"`), the resolved value must itself pass URL-format validation
+
 ## Postconditions
 - If any errors are found: the spec is rejected and the error list is returned
 - If only warnings are found: the spec loads successfully and warnings are logged at startup and included in reload results
@@ -106,6 +128,7 @@ actionable correction. Warnings do not prevent loading; errors do.
 | `E-SPEC-003` | Undefined variable reference `${step.field}` — step name does not exist, or forward reference to a step that has not yet executed | Spec rejected; error message names both the referencing step and the undefined step; forward-reference message distinguishes "not defined" from "not yet executed" |
 | `E-SPEC-009` | Duplicate `sensor_id` across spec files | Second file rejected; first wins |
 | `E-SPEC-004` | Duplicate table_name within a sensor | Spec file rejected entirely |
+| `E-SPEC-024` | `${env.VAR_NAME}` token in a string field (e.g., `base_url`) references an env var that is absent or empty at spec-load time | Spec rejected; error message includes var NAME and TOML path; var VALUE never included (AD-017); multiple tokens → multiple errors in same multi-error pass |
 
 ## Edge Cases
 | ID | Description | Expected Behavior |
@@ -114,6 +137,13 @@ actionable correction. Warnings do not prevent loading; errors do.
 | Warning-only | invalid ocsf_field paths (not in compiled schema) | Spec loads; warnings logged; runtime falls back to raw_extensions |
 | Multiple errors | 3 schema errors + 2 variable errors in one file | All 5 reported in single response; spec rejected |
 | Empty table | table with no columns | `E-SPEC-001`: "Table must have at least one column" |
+| EC-009-001 | `base_url = "${env.ARMIS_INSTANCE_URL}"` with `ARMIS_INSTANCE_URL` not set | `E-SPEC-024` with message citing `ARMIS_INSTANCE_URL` (name only, no value); TOML path `sensor.base_url`; spec rejected |
+| EC-009-002 | `base_url = "${env.ARMIS_INSTANCE_URL}"` with `ARMIS_INSTANCE_URL=""` (empty string) | `E-SPEC-024` (empty value treated as missing); spec rejected |
+| EC-009-003 | `base_url = "https://${env.CYBERINT_ENVIRONMENT}.cyberint.io"` with `CYBERINT_ENVIRONMENT=us1` | Resolves to `"https://us1.cyberint.io"`; URL-format validation passes; spec loads |
+| EC-009-004 | `base_url = "https://${env.CYBERINT_ENVIRONMENT}.cyberint.io"` with `CYBERINT_ENVIRONMENT` not set | `E-SPEC-024` with message citing `CYBERINT_ENVIRONMENT`; partial URL not constructed; spec rejected |
+| EC-009-005 | `base_url = "${env.ARMIS_INSTANCE_URL}"` with `ARMIS_INSTANCE_URL="not-a-url"` (no http/https prefix) | Env var resolves successfully; then URL-format validation (`E-SPEC-001`: "base_url must start with http:// or https://") fires on the resolved value |
+| EC-009-006 | Spec has two fields with unresolvable env tokens | Two `E-SPEC-024` errors emitted (one per token); both included in the multi-error response; spec rejected |
+| EC-009-007 | Per-org overlay has `base_url = "${env.ARMIS_INSTANCE_URL}"` and var is not set | `E-SPEC-024` emitted with TOML path `base_url` and file path identifying the overlay file; overlay rejected; TYPE spec's `base_url` is NOT substituted as fallback — fail-closed |
 
 ## Canonical Test Vectors
 
@@ -126,6 +156,10 @@ See `.factory/specs/prd-supplements/test-vectors.md` for full canonical vectors.
 | Forward variable reference | step 2 references step 3 | `E-SPEC-001` with message identifying forward reference |
 | Invalid OCSF field | `ocsf_field: "nonexistent.field"` | Warning logged; spec loads; field goes to raw_extensions at runtime |
 | Multiple errors | invalid sensor_id + forward reference | Both errors reported together; spec rejected |
+| Env var — missing var | `base_url = "${env.ARMIS_INSTANCE_URL}"`, `ARMIS_INSTANCE_URL` unset | `E-SPEC-024` message includes `ARMIS_INSTANCE_URL` (name); does NOT include any resolved value; TOML path is `sensor.base_url` |
+| Env var — empty var | `base_url = "${env.ARMIS_INSTANCE_URL}"`, `ARMIS_INSTANCE_URL=""` | `E-SPEC-024` (empty treated as missing) |
+| Env var — partial interpolation success | `base_url = "https://${env.CYBERINT_ENVIRONMENT}.cyberint.io"`, `CYBERINT_ENVIRONMENT=us1` | Resolved: `"https://us1.cyberint.io"`; spec loads (URL-format valid) |
+| Env var — value set but invalid URL | `base_url = "${env.MY_URL}"`, `MY_URL="ftp://example.com"` | Env var resolves; then `E-SPEC-001` (base_url not http/https); value `ftp://example.com` may appear in E-SPEC-001 message (not a credential; plain URL); spec rejected |
 
 ## Verification Properties
 
@@ -136,7 +170,9 @@ See `.factory/specs/prd-supplements/test-vectors.md` for full canonical vectors.
 ## Traceability
 | Field | Value |
 |-------|-------|
+| Stories | S-1.11, S-1.13, PLUGIN-MIGRATION-001-F, S-SPEC-ENV-VAR-001 |
 | L2 Capability | CAP-029 |
+| Capability Anchor Justification | CAP-029 ("Config-Driven Sensor Adapters") per capabilities.md §CAP-029. This BC specifies spec-file validation — exactly what CAP-029 mandates: "Every spec file is validated at load time and reload time (DI-030). Variable references in step templates are resolved against the step dependency graph — forward references and undefined variables are validation errors (DEC-038)." Env-var token resolution (AC-6) is a prerequisite of that load-time validation: a spec whose `base_url` contains an unresolved `${env.VAR}` token cannot pass URL-format validation, so resolution must occur in the same spec-load pass. |
 | L2 Invariants | DI-030 |
 | L2 Entities | SensorSpec, TableSpec, ColumnSpec |
 | Priority | P0 |
@@ -145,6 +181,7 @@ See `.factory/specs/prd-supplements/test-vectors.md` for full canonical vectors.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.6 | S-SPEC-ENV-VAR-001 spec burst | 2026-05-31 | product-owner | Added §Validation Rules 6: Env Var Token Resolution (AC-6). Covers `${env.VAR_NAME}` token resolution in sensor spec string fields at spec-load time (post-TOML-parse, pre-URL-format-validation). Sibling-sweep (TD-VSDD-060): `${env.VAR}` pattern confirmed in `base_url` of `armis.sensor.toml`, `claroty.sensor.toml`, `cyberint.sensor.toml`; no other string fields in the four canonical sensor specs currently use env tokens. Added E-SPEC-024 to §Error Conditions. Added 7 edge cases EC-009-001..EC-009-007 covering: missing var, empty var, partial interpolation (cyberint pattern), failed partial interpolation, invalid URL after resolution, multiple failing tokens, overlay file failing. Added 4 canonical test vectors for env-var scenarios. AD-017 no-value-leak constraint documented explicitly in the rule (var NAME acceptable, var VALUE forbidden). error-taxonomy.md bumped to v1.56 in same burst. |
 | 1.5 | D-776-post-merge | 2026-05-22 | state-manager | POL-14 auto-promotion at merge: PR #153 (PLUGIN-MIGRATION-001-D) squash-merged to develop@3f2de889 at 2026-05-22T09:05:47Z; status draft→active (lifecycle_status was already active). |
 | 1.4 | FB-IMPL-P2-PO fix-burst-2 | 2026-05-20 | product-owner | F-007 closure (pass-2 adversarial): Added E-SPEC-002 (invalid column type) and E-SPEC-003 (undefined variable reference) to §Error Conditions — both codes were present in error-taxonomy.md and exercised by HS-017 sub-scenarios but absent from this BC's error table (AI-built defect fixed in-scope per CLAUDE.md Canonical Principle Rule 4). F-008 closure: §Validation Rules 1 `auth_type` enumeration expanded from 4-value to 5-value set — added `custom_via_plugin` per `VALID_AUTH_TYPES` constant in `spec_parser.rs::validate_cross_composition` (CODE-GROUNDED: 5 values confirmed in source). |
 | 1.3 | pass-74-fix | 2026-04-20 | product-owner | Resolved (placeholder) row in ## Verification Properties per pass-74 VP-TBD decision matrix extension. |

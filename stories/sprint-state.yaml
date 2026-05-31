@@ -110,13 +110,22 @@ active_dispatch_set:
       - S-DEMO-CLAROTY-AUDIT-DTU-001  # SOFT: AC-003 requires audit_log route present; otherwise route returns 404 regardless of trailing-slash
     notes: "Reclassified 2026-05-31 D-907: permitted-divergence→required-fidelity per ADR-031 v1.2 (user directive no-scope-compromise; architect commit e57eb5b1). story-writer 2451d025. PO new-BC flag open: BC-2.16.013 trailing-slash-parity coverage (see §New-BC Flags in story file). Must be evaluated before story flips to ready."
 
+  - story_id: S-SPEC-ENV-VAR-001
+    status: unstarted
+    priority: P0
+    points: 5
+    spec_version: "v1.0"
+    depends_on: []
+    notes: "Registered D-914 (2026-05-31). Leaf prereq — no upstream story dependencies. ${env.VAR} token resolver in prism-spec-engine spec_parser, E-SPEC-024 error path, AD-017 no-value-leak. HARD-gates S-DEMO-CROWDSTRIKE-MULTIREGION-001. Parity-soft gates Armis-AQL and Claroty fidelity lane (annotation only; no hard depends_on in those stories). Human chose Option A (standalone story). BC-2.16.009 AC-6. Must deliver before CrowdStrike story dispatches."
+
   - story_id: S-DEMO-CROWDSTRIKE-MULTIREGION-001
     status: draft
     priority: P2
     points: 2
     spec_version: "v1.0"
-    depends_on: []
-    notes: "Reclassified 2026-05-31 D-907: permitted-divergence→required-fidelity per ADR-031 v1.2 (user directive no-scope-compromise; architect commit e57eb5b1). story-writer 2451d025. PO new-BC flags open: env-var-resolution BC coverage + missing-env E-SPEC-error BC (see §New-BC Flags in story file). Must be evaluated before story flips to ready."
+    depends_on:
+      - S-SPEC-ENV-VAR-001  # HARD gate per D-914: ${env.CROWDSTRIKE_BASE_URL} requires env-var resolver
+    notes: "Reclassified 2026-05-31 D-907: permitted-divergence→required-fidelity per ADR-031 v1.2 (user directive no-scope-compromise; architect commit e57eb5b1). story-writer 2451d025. PO new-BC flags RESOLVED per D-914: E-SPEC-024 registered + BC-2.16.009 AC-6 added. Gated on S-SPEC-ENV-VAR-001 (HARD)."
 
 deferred_post_demo:
   # EMPTY — all 3 originally-deferred stories (S-DEMO-ARMIS-AQL-001, S-DEMO-CLAROTY-TRAILING-SLASH-001,
@@ -124,9 +133,9 @@ deferred_post_demo:
   # reclassification from permitted-divergence → required-fidelity; user directive no-scope-compromise).
 
 prereq_artifacts:
-  story_index: .factory/stories/STORY-INDEX.md         # v2.222 after D-907 burst
-  bc_index: .factory/specs/behavioral-contracts/BC-INDEX.md  # v5.65
-  state: .factory/STATE.md                              # v7.568 after D-907 burst
+  story_index: .factory/stories/STORY-INDEX.md         # v2.223 after D-914 burst
+  bc_index: .factory/specs/behavioral-contracts/BC-INDEX.md  # v5.66
+  state: .factory/STATE.md                              # v7.570 after D-914 burst
   governing_adr: .factory/specs/architecture/decisions/ADR-031-dtu-equals-true-dtu-fidelity-principle.md  # v1.2 (ADR-031 architect e57eb5b1 reclassified 3 divergences)
   governing_audit: .factory/proposals/POLLER-DTU-FIDELITY-AUDIT-2026-05-29.md  # v1.1
 

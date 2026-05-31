@@ -37,7 +37,13 @@ capabilities: [CAP-001]
 behavioral_contracts: []
 # BC status: pending PO authorship confirmation (see §New-BC Flags).
 verification_properties: []
-depends_on: []
+depends_on: [S-SPEC-ENV-VAR-001]
+# depends_on justification: HARD gate per D-914.
+#   S-SPEC-ENV-VAR-001 must merge before CrowdStrike multi-region can be dispatched.
+#   The ${env.CROWDSTRIKE_BASE_URL} token in crowdstrike.sensor.toml requires the
+#   env-var resolver to be in place (BC-2.16.009 AC-6, E-SPEC-024 error path).
+#   Without the resolver, the literal "${env.CROWDSTRIKE_BASE_URL}" string is
+#   transmitted to the DTU instead of the resolved URL — runtime failure.
 blocks: []
 points: 2
 # Points justification:

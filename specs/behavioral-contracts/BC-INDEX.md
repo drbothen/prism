@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "5.65"
+version: "5.66"
 status: draft
 producer: product-owner
 timestamp: 2026-05-31T00:00:00Z
@@ -220,7 +220,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.16.006 | Arc-Swap Config Access on Hot Path — Lock-Free Reads for Query-Time Config Access | 16 - Spec Engine | CAP-030 | P1 | draft |
 | BC-2.16.007 | Sensor Spec Hot Reload — Add/Remove/Update Sensor Tables Without Restart | 16 - Spec Engine | CAP-030 | P1 | draft |
 | BC-2.16.008 | `add_sensor_spec` MCP Tool — Upload a New Sensor Spec at Runtime | 16 - Spec Engine | CAP-029, CAP-030 | P0 | draft |
-| BC-2.16.009 | Spec File Validation — Schema Validation, Variable Reference Resolution, OCSF Field Validation | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-776 per POL-14; anchor story PLUGIN-MIGRATION-001-D merged PR #153 develop@3f2de889 2026-05-22) — v1.5 |
+| BC-2.16.009 | Spec File Validation — Schema Validation, Variable Reference Resolution, OCSF Field Validation | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-776 per POL-14; anchor story PLUGIN-MIGRATION-001-D merged PR #153 develop@3f2de889 2026-05-22) — v1.6 |
 | BC-2.16.010 | `list_sensor_specs` MCP Tool — List Loaded Sensor Specs with Table Schemas and Status | 16 - Spec Engine | CAP-029 | P0 | draft |
 | BC-2.16.011 | CustomAdapter Rust Trait Retirement — Removal of Trait, Registry, and All Call Sites | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-726 per POL-14; anchor story S-PLUGIN-PREREQ-E merged PR #151 develop@80ebe794 2026-05-19) — v1.12 |
 | BC-2.16.012 | PluginRegistry Dispatch in spec_parser.rs — Hardcoded Sensor Names Replaced with Registry Lookup | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-726 per POL-14; anchor story S-PLUGIN-PREREQ-E merged PR #151 develop@80ebe794 2026-05-19) — v1.33 |
@@ -376,6 +376,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v5.66 (2026-05-31, D-914 env-var prereq burst):** state-manager | BC-2.16.009 v1.5→v1.6 (AC-6 ${env.VAR} token resolution added by product-owner D-914 burst: E-SPEC-024 error path, AD-017 no-value-leak, fail-closed, partial interpolation, sibling-sweep TD-VSDD-060). BC-INDEX in-line row updated to v1.6. No lifecycle_status change — BC-2.16.009 remains active. BC-INDEX v5.65→v5.66.
 
 **v5.65 (2026-05-31, D-904 post-merge POL-14 burst):** state-manager | BC-2.01.017 v1.6→v1.7 status draft→active (lifecycle_status was already active — idempotent confirm); active_contracts 236→237, draft_contracts 3→2. BC-2.01.013 v1.7, BC-2.01.016 v1.12, BC-2.16.013 v1.18 confirmed already active — no promotions required (idempotent confirms). PR #164 (S-DTU-CYBERINT-AUTH-FIDELITY-001) squash-merged to develop@e798e67c 2026-05-31. POL-14 auto-promotion complete.
 

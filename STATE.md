@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.569"
+version: "7.570"
 producer: state-manager
 timestamp: 2026-05-31T00:00:00Z
 inputs: []
@@ -16,7 +16,7 @@ repos: [poller-cobra, poller-express, poller-bear, poller-coaster, serveMyAPI, t
 safe_to_compact: true
 pre_compact_snapshot: "SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-31-CYBERINT-MERGED-WAVE-5-PARALLEL-PLANNED"
 pre_compact_snapshot_at: "2026-05-31 (D-912 durability burst; cyberint MERGED PR #164 e798e67c; Wave 5 parallelization plan persisted; PO flags dispositioned; ${env.VAR} prereq surfaced; zero-context resume snapshot written)"
-current_step: "D-910 — Wave 5 parallelization plan persisted (.factory/proposals/WAVE-5-PARALLELIZATION-PLAN.md). PO new-BC flags dispositioned (D-911): Armis/Claroty-trailing-slash SUFFICIENT; CrowdStrike gated on ${env.VAR} prereq. Human decision pending on ${env.VAR} prereq placement. Next: human decides prereq → dispatch S-CONFIG (P0, sole keystone gate) + Track B Armis-AQL + Track E S-5.04 in parallel."
+current_step: "D-914 — env-var prereq spec+story burst CLOSED. Human chose Option A (standalone story S-SPEC-ENV-VAR-001). E-SPEC-024 registered (error-taxonomy v1.56). BC-2.16.009 v1.6 (AC-6). Story S-SPEC-ENV-VAR-001 v1.0 authored (P0, 5pts, leaf prereq, 8 ACs). develop synced to origin (D-915). Next: Wave 5 parallel dispatch — S-CONFIG (P0 spine) + S-SPEC-ENV-VAR-001 (new P0 prereq) + Track B Armis-AQL + Track E S-5.04."
 cyberint_pr_cycle_in_flight: false
 cyberint_pr_cycle_step: "CLOSED — PR #164 squash-merged develop@e798e67c 2026-05-31; POL-14 BC-2.01.017 draft→active (D-904); cascade CLOSED (D-905 process-gaps as justified deferrals); story merged v1.9"
 cyberint_demo_evidence_path: "docs/demo-evidence/S-DTU-CYBERINT-AUTH-FIDELITY-001/"
@@ -431,9 +431,9 @@ s_spec_type_unification_001_demo_evidence_path: "docs/demo-evidence/S-SPEC-TYPE-
 s_spec_type_unification_001_demo_evidence_complete: true
 user_directive_persistent: "No pragmatic convergence. Fix all issues before build."
 current_cycle_history: "wave-0-plugin-prereqs (PREREQ-E merged PR #151 2026-05-19); prior: wave-4-operations (active); wave-3-multi-tenant (COMPLETE)"
-bc_index_version: "5.65"
+bc_index_version: "5.66"
 vp_index_version: "1.76"
-story_index_version: "v2.222"
+story_index_version: "v2.223"
 sprint_state_path: ".factory/stories/sprint-state.yaml"
 plugin_migration_001_d_local_adversary_passes: 25
 plugin_migration_001_d_local_fix_bursts: 19
@@ -450,12 +450,12 @@ architectural_decisions_locked:
   - "4 LOCKED Option-A: TOML auth_type declares REAL behavior (cyberint=cookie_roundtrip, claroty=bearer_static) per CLAUDE.md Source-of-Truth Precedence #7; legacy auth_type_name() strings are bugs in code 001-A deletes"
   - "5 LOCKED Path-A (D-747): ADR-028 §D2 explicitly supersedes ADR-026 §D3 (partial — auth_type_name() return values for Cyberint/Claroty/Armis); PLUGIN-MIGRATION-001-A scope EXPANDS to include rewriting these auth_type_name() returns + amending Red Gate test_BC_2_01_016_003. CrowdStrike unchanged."
 policies_version: "1.31"
-total_stories: 169
+total_stories: 170
 bc_count_corrected: 245
 subsystem_count: 22
 vp_count: 156
 prd_version: "1.10"
-error_taxonomy_version: "1.55"
+error_taxonomy_version: "1.56"
 arch_index_version: "2.107"
 path_c_locked_at: "2026-05-23"
 path_c_worktree_1: ".worktrees/PLUGIN-MIGRATION-001-E (CONVERGED; next: demo-recorder)"
@@ -476,9 +476,9 @@ historical_cycles: [phase-1-convergence, wave-3-multi-tenant, wave-4-operations]
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-31 (D-910–D-913 state-manager durability burst — Wave 5 parallelization plan persisted; PO flags dispositioned; ${env.VAR} prereq surfaced; zero-context resume snapshot written; STATE v7.569) |
-| **Current Phase** | Wave 5 (wave-5-e-demo-fidelity) in progress — S-DTU-CYBERINT-AUTH-FIDELITY-001 MERGED (PR #164 develop@e798e67c). Parallelization plan authored (WAVE-5-PARALLELIZATION-PLAN.md). Human decision pending on ${env.VAR} prereq placement. Next: dispatch S-CONFIG (P0 — sole gate to S-DEMO-001 keystone) + parallel Armis-AQL + S-5.04 tracks. |
-| **Current Step** | D-910 — Wave 5 parallelization plan persisted. PO flags dispositioned: Armis/Claroty SUFFICIENT; CrowdStrike gated on ${env.VAR} prereq. Human decision pending on prereq placement (Options A/B/C). Next: human decides → dispatch S-CONFIG (P0) + parallel tracks. |
+| **Last Updated** | 2026-05-31 (D-914–D-915 env-var prereq burst — S-SPEC-ENV-VAR-001 registered; E-SPEC-024 + BC-2.16.009 v1.6; develop synced to origin; STATE v7.570) |
+| **Current Phase** | Wave 5 (wave-5-e-demo-fidelity) in progress — S-DTU-CYBERINT-AUTH-FIDELITY-001 MERGED (PR #164 develop@e798e67c). env-var prereq CLOSED (D-914): S-SPEC-ENV-VAR-001 v1.0 (P0 leaf prereq; E-SPEC-024; BC-2.16.009 v1.6). Next: dispatch S-CONFIG (P0 spine) + S-SPEC-ENV-VAR-001 + Track B Armis-AQL + Track E S-5.04. |
+| **Current Step** | D-914 — env-var prereq burst CLOSED. S-SPEC-ENV-VAR-001 v1.0 registered. E-SPEC-024 + BC-2.16.009 v1.6. develop synced to origin/develop e798e67c (D-915). Next: Wave 5 parallel dispatch. |
 
 ## Phase Progress
 
@@ -517,12 +517,12 @@ historical_cycles: [phase-1-convergence, wave-3-multi-tenant, wave-4-operations]
 
 | Step | Agent | Status | Output |
 |------|-------|--------|--------|
-_D-735 through D-847 archived to cycles/wave-0-plugin-prereqs/burst-log.md. D-835+D-836+D-837 removed from Phase Steps (archived in Decisions Log). D-849/851/852/853/855/856/857/858/859/860/861/862/863/864/865/866/867/868/869/870/871/872/873/874/875/876/877/878/879/880/881/882/883/884/885/886/887/888/889/890/891/892/893/894/895/896/897/898/899/900/901/902/903/904/905/906/907/908/909 archived to burst-log.md._
-| D-910 — **WAVE 5 PARALLELIZATION PLAN PERSISTED (.factory/proposals/WAVE-5-PARALLELIZATION-PLAN.md v1.0). 5-track conflict-aware parallel schedule; ${env.VAR} CRITICAL prereq surfaced; spine S-CONFIG→S-DEMO-001→002→003 locked. PO FLAGS DISPOSITIONED (D-911): Armis/Claroty-trailing-slash SUFFICIENT; CrowdStrike gated on ${env.VAR} prereq. ZERO-CONTEXT RESUME SNAPSHOT written (D-912, SESSION-HANDOFF §RESUME SNAPSHOT 2026-05-31). STATE v7.568→v7.569. Human decision pending on ${env.VAR} prereq placement (Options A/B/C).** | state-manager (D-910–D-913 durability burst) | COMPLETE | WAVE-5-PARALLELIZATION-PLAN.md v1.0; resume snapshot written; PO flags recorded |
-| D-907 — **3 SENSOR-FIDELITY STORIES UN-DEFERRED INTO WAVE 5 (ADR-031 v1.2). STORY-INDEX v2.222. ARCH-INDEX v2.107. STATE v7.567→v7.568.** | state-manager (D-907 burst) | COMPLETE | archived |
+_D-735 through D-847 archived to cycles/wave-0-plugin-prereqs/burst-log.md. D-835+D-836+D-837 removed from Phase Steps (archived in Decisions Log). D-849/851/852/853/855/856/857/858/859/860/861/862/863/864/865/866/867/868/869/870/871/872/873/874/875/876/877/878/879/880/881/882/883/884/885/886/887/888/889/890/891/892/893/894/895/896/897/898/899/900/901/902/903/904/905/906/907/908/909/910/911/912/913 archived to burst-log.md._
+| D-914 — **ENV-VAR PREREQ BURST CLOSED. S-SPEC-ENV-VAR-001 v1.0 registered (P0, 5pts, leaf prereq, wave-5-e-demo-fidelity). E-SPEC-024 registered (error-taxonomy v1.56). BC-2.16.009 v1.6 (AC-6 ${env.VAR} resolution). S-DEMO-CROWDSTRIKE-MULTIREGION-001 depends_on→[S-SPEC-ENV-VAR-001] (HARD). Parity-soft annotations for Armis-AQL + Claroty. STORY-INDEX v2.223 (170 stories). BC-INDEX v5.66. STATE v7.569→v7.570. develop synced to origin/develop e798e67c (D-915).** | state-manager (D-914–D-915 env-var prereq burst) | COMPLETE | STORY-INDEX v2.223; BC-INDEX v5.66; sprint-state.yaml updated |
+| D-910 — **WAVE 5 PARALLELIZATION PLAN PERSISTED. STATE v7.568→v7.569.** | state-manager (D-910–D-913 durability burst) | COMPLETE | archived |
+| D-907 — **3 SENSOR-FIDELITY STORIES UN-DEFERRED INTO WAVE 5 (ADR-031 v1.2). STORY-INDEX v2.222. STATE v7.567→v7.568.** | state-manager (D-907 burst) | COMPLETE | archived |
 | D-904 — **S-DTU-CYBERINT-AUTH-FIDELITY-001 MERGED (PR #164 squash e798e67c develop). STATE v7.566→v7.567. Cascade CLOSED.** | state-manager (D-904 post-merge burst) | COMPLETE | archived |
 | D-901 — **PR-LEVEL 3-CLEAN CONVERGENCE — archived** | state-manager (D-901 convergence burst) | COMPLETE | archived |
-| D-896 — **FB-PR6 CLOSING BURST — F-P10-MED-001 + F-P11-HIGH-001 + F-PR12-MED-001 closed. STATE v7.564→v7.565.** | state-manager (D-896 FB-PR6 closing burst) | COMPLETE | archived |
 
 
 ## Decisions Log
@@ -531,6 +531,8 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-915 | 2026-05-31 | state-manager | **DEVELOP BRANCH RECONCILIATION — LOCAL DEVELOP SYNCED TO ORIGIN/DEVELOP. local develop was at 72baf413 (diverged from origin); human-authorized sync; devops-engineer reset local develop → origin/develop e798e67c (0 commits ahead, 0 behind post-sync). 72baf413 sensor-spec content confirmed byte-identical in e798e67c and preserved on origin/feature/S-DTU-CYBERINT-AUTH-FIDELITY-001. No content lost. Wave 5 dispatch now unblocked from develop-HEAD perspective. STATE v7.569→v7.570.** | demo-e2e | 2026-05-31 | Decided by: human (authorized develop sync) + state-manager (D-915 recording). Status: COMPLETE |
+| D-914 | 2026-05-31 | state-manager | **ENV-VAR PREREQ SPEC+STORY BURST CLOSED — HUMAN CHOSE OPTION A (STANDALONE STORY). E-SPEC-024 REGISTERED. BC-2.16.009 v1.6. STORY S-SPEC-ENV-VAR-001 v1.0 AUTHORED. STORY-INDEX v2.223 (170 stories). BC-INDEX v5.66. STATE v7.569→v7.570.** Single-commit burst (TD-VSDD-053) persisting all env-var prereq bookkeeping: (1) error-taxonomy.md v1.55→v1.56: E-SPEC-024 registered (structured error for absent/empty ${env.VAR_NAME} token at spec-load time; message MUST include var NAME + TOML path; value MUST NOT be included per AD-017; fail-closed; multi-error collection). (2) BC-2.16.009 v1.5→v1.6: §Validation Rules 6 added (Env Var Token Resolution AC-6); E-SPEC-024 error condition registered; 7 edge cases EC-009-001..007; 4 canonical test vectors; AD-017 no-value-leak constraint; sibling-sweep scope (TD-VSDD-060); partial interpolation (cyberint pattern); fail-closed contract. (3) Story S-SPEC-ENV-VAR-001 v1.0 authored: P0; 5pts; wave-5-e-demo-fidelity; leaf prereq (depends_on []); 8 ACs; Red Gate tests per AC; BC-2.16.009; VP-059; blocks S-DEMO-CROWDSTRIKE-MULTIREGION-001 HARD + Armis-AQL/Claroty parity-soft. (4) STORY-INDEX v2.222→v2.223: frontmatter total_stories 169→170; overview bullet D-914 added; Full Story List row added for S-SPEC-ENV-VAR-001 (P0, 5pts, draft v1.0, BC-2.16.009, VP-059); S-DEMO-CROWDSTRIKE-MULTIREGION-001 row depends_on updated to show S-SPEC-ENV-VAR-001; BC Traceability Matrix BC-2.16.009 row += S-SPEC-ENV-VAR-001; tabular changelog row v2.223 added. (5) BC-INDEX v5.65→v5.66: BC-2.16.009 row updated v1.5→v1.6; changelog v5.66 added. (6) BC-2.16.009 Traceability section: Stories row added (S-1.11, S-1.13, PLUGIN-MIGRATION-001-F, S-SPEC-ENV-VAR-001). (7) S-DEMO-CROWDSTRIKE-MULTIREGION-001 frontmatter depends_on []→[S-SPEC-ENV-VAR-001] (HARD gate with justification comment). (8) sprint-state.yaml: S-SPEC-ENV-VAR-001 added to active_dispatch_set (unstarted, P0, 5pts); S-DEMO-CROWDSTRIKE-MULTIREGION-001 depends_on updated; prereq_artifacts version refs updated to v2.223/v5.66/v7.570. (9) STATE.md: version 7.569→v7.570; current_step + frontmatter tracking fields updated; Project Metadata table updated; Current Phase Steps D-914 row added (D-910 archived); D-914/D-915 decisions recorded; Session Resume Checkpoint replaced. Dependency edge typing: HARD gate → S-DEMO-CROWDSTRIKE-MULTIREGION-001 depends_on frontmatter updated. PARITY-SOFT gates → Armis-AQL + Claroty fidelity lane: annotation only in graph/sprint-state notes; NO hard depends_on added to those stories (their depends_on unchanged per instruction). 286th consecutive single-commit per TD-VSDD-053. Anti-volatile-pin per TD-VSDD-091. | demo-e2e | 2026-05-31 | Decided by: human (Option A standalone story) + product-owner (E-SPEC-024 + BC-2.16.009 v1.6) + story-writer (S-SPEC-ENV-VAR-001 v1.0) + state-manager (D-914 burst). Status: COMPLETE |
 | D-913 | 2026-05-31 | state-manager | **ZERO-CONTEXT RESUME SNAPSHOT WRITTEN — SESSION-HANDOFF §RESUME SNAPSHOT 2026-05-31-CYBERINT-MERGED-WAVE-5-PARALLEL-PLANNED. STATE pre_compact_snapshot pointer updated. STATE v7.568→v7.569. 285th consecutive single-commit per TD-VSDD-053.** Durability burst (D-910 through D-913) persisted as one atomic commit per TD-VSDD-053 single-commit-per-burst protocol: (1) WAVE-5-PARALLELIZATION-PLAN.md v1.0 created (.factory/proposals/) with full 5-track conflict-aware parallel schedule, file-overlap conflict map, dependency tiers, ${env.VAR} CRITICAL prereq, PO flag dispositions, practical dispatch ceiling. (2) SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-31-CYBERINT-MERGED-WAVE-5-PARALLEL-PLANNED appended — self-contained zero-context resume snapshot covering: cascade closure, project goal restatement, Wave 5 full story set + status, parallelization plan summary, ${env.VAR} prereq, PO flag dispositions, harness task list mirror, recommended next actions, resume protocol, artifact versions, worktree status, do-NOT-do list. (3) STATE.md: version 7.568→7.569; pre_compact_snapshot pointer updated; current_step + pre_compact_snapshot_at updated; Project Metadata table updated; Current Phase Steps updated (D-910 row added; D-907 archived); D-910/D-911/D-912/D-913 decision rows added. Anti-volatile-pin per TD-VSDD-091. | demo-e2e | 2026-05-31 | Decided by: state-manager (D-913 durability burst atomic commit). Status: COMPLETE |
 | D-912 | 2026-05-31 | state-manager | **ZERO-CONTEXT RESUME SNAPSHOT AUTHORED — §RESUME SNAPSHOT 2026-05-31-CYBERINT-MERGED-WAVE-5-PARALLEL-PLANNED. Self-contained; zero prior context required. Covers: cyberint merge closure, project goal restatement, Wave 5 full story set + status, parallelization plan summary + 5-track table, ${env.VAR} prereq + human decision needed, PO flag dispositions, harness task list mirror (#1 env-var prereq [blocks #3/#4/#5]; #2 S-CONFIG [blocks #6]; #3 Armis-AQL; #4 Claroty lane serialized; #5 CrowdStrike; #6 S-DEMO-001 keystone [blocks #7]; #7 S-DEMO-002→003 tail), recommended next actions (in order), resume protocol (8 numbered steps), artifact versions, active worktrees, do-NOT-do list. STATE pre_compact_snapshot updated to this snapshot. | demo-e2e | 2026-05-31 | Decided by: state-manager (D-912 snapshot authorship). Status: COMPLETE |
 | D-911 | 2026-05-31 | state-manager | **PO NEW-BC FLAG DISPOSITIONS RECORDED — 5 FLAGS → CLEARED/GATED. Clears draft→ready gates for S-DEMO-ARMIS-AQL-001 + S-DEMO-CLAROTY-TRAILING-SLASH-001; gates S-DEMO-CROWDSTRIKE-MULTIREGION-001 on ${env.VAR} prereq.** Flag dispositions (per orchestrator evaluation): Flag 1 (S-DEMO-ARMIS-AQL-001 — AQL validation BC): SUFFICIENT — AQL opaque per ADR-031 §D8-a/R-DTU-002; no new BC; story-writer adds BC-2.16.013 to behavioral_contracts frontmatter at dispatch. Flag 2 (S-DEMO-ARMIS-AQL-001 — AQL push-down parity EC): SUFFICIENT — BC-2.16.013 covers (closes DTU-EXT-003/004); existing ACs sufficient; story-writer adds BC-2.16.013 frontmatter at dispatch. Flag 3 (S-DEMO-CLAROTY-TRAILING-SLASH-001 — trailing-slash parity coverage): SUFFICIENT — BC-2.16.013 covers; no new AC required; story-writer adds BC-2.16.013 frontmatter at dispatch. Flag 4 (S-DEMO-CROWDSTRIKE-MULTIREGION-001 — env-var-resolution BC coverage): NEW-AC-AT-DISPATCH — ${env.VAR} prereq required; needs E-SPEC-024 + BC-2.16.009 new AC + impl. GATES CrowdStrike story. Flag 5 (S-DEMO-CROWDSTRIKE-MULTIREGION-001 — missing-env E-SPEC-error BC): NEW-AC-AT-DISPATCH — E-SPEC-024 (next free code; E-SPEC-023 is current max, E-SPEC-015/016 retired). GATES CrowdStrike story. Readiness: S-DEMO-ARMIS-AQL-001 CLEAR to ready (BC-2.16.013 frontmatter add at dispatch). S-DEMO-CLAROTY-TRAILING-SLASH-001 CLEAR to ready (BC-2.16.013 frontmatter add at dispatch; parity tests gated on ${env.VAR} prereq but story can start). S-DEMO-CROWDSTRIKE-MULTIREGION-001 NOT CLEAR — gated on ${env.VAR} prereq resolution (D-910 §5). | demo-e2e | 2026-05-31 | Decided by: state-manager (D-911 flag disposition recording). Status: COMPLETE — Flags 1/2/3 SUFFICIENT; Flags 4/5 gated on ${env.VAR} prereq (human decision D-910 §5) |
@@ -770,25 +772,25 @@ Prior cycle history:
 
 ---
 
-## Session Resume Checkpoint (2026-05-31 — D-910 WAVE-5-PARALLELIZATION-PLAN PERSISTED; PO FLAGS DISPOSITIONED; ${env.VAR} PREREQ SURFACED; develop@e798e67c; STATE v7.569)
+## Session Resume Checkpoint (2026-05-31 — D-914 ENV-VAR PREREQ BURST CLOSED; S-SPEC-ENV-VAR-001 v1.0; develop@e798e67c; STATE v7.570)
 
-_Previous checkpoint (D-907 ADR-031 v1.2 reclassification; 3 sensor-fidelity stories un-deferred; STATE v7.568) superseded by D-910–D-913 durability burst (Wave 5 parallelization plan persisted; PO flags dispositioned; ${env.VAR} prereq surfaced; zero-context resume snapshot written; STATE v7.569)._
+_Previous checkpoint (D-910–D-913 Wave 5 parallelization plan; PO flags dispositioned; ${env.VAR} prereq surfaced; STATE v7.569) superseded by D-914–D-915 burst (env-var prereq spec+story closed; develop synced; STATE v7.570)._
 
-**STATE v7.569. D-910 — Wave 5 parallelization plan persisted (WAVE-5-PARALLELIZATION-PLAN.md v1.0). PO flags dispositioned (D-911): Armis/Claroty-trailing-slash SUFFICIENT; CrowdStrike gated on ${env.VAR} prereq. Human decision pending on ${env.VAR} prereq placement (Options A/B/C). STORY-INDEX v2.222 (169 stories). ARCH-INDEX v2.107. Next: human decides ${env.VAR} prereq → dispatch S-CONFIG (P0) + Track B Armis-AQL + Track E S-5.04 in parallel.**
+**STATE v7.570. D-914 — env-var prereq burst CLOSED. Human chose Option A: S-SPEC-ENV-VAR-001 v1.0 (P0, 5pts, leaf prereq). E-SPEC-024 registered (error-taxonomy v1.56). BC-2.16.009 v1.6 (AC-6). S-DEMO-CROWDSTRIKE-MULTIREGION-001 now hard-gated on S-SPEC-ENV-VAR-001. develop synced to origin/develop e798e67c (D-915). STORY-INDEX v2.223 (170 stories). BC-INDEX v5.66. Next: Wave 5 parallel dispatch — S-CONFIG (P0) + S-SPEC-ENV-VAR-001 (P0) + Track B Armis-AQL + Track E S-5.04.**
 
-**develop HEAD:** `e798e67c` | **Workspace test count:** 3839+ (no code change in this burst) | **Merged story:** S-DTU-CYBERINT-AUTH-FIDELITY-001 v1.9 | **Open PRs:** none; check `gh pr list --state open`
+**develop HEAD:** `e798e67c` | **Workspace test count:** 3839+ (no code change in this burst) | **Open PRs:** none; check `gh pr list --state open`
 
 **Resume protocol (new session):**
 1. Run `vsdd-factory:factory-worktree-health` (BLOCKING preflight)
-2. Read STATE.md frontmatter — confirm `version: "7.569"` + `cyberint_pr_cycle_in_flight: false` + `develop_head: "e798e67c"`
+2. Read STATE.md frontmatter — confirm `version: "7.570"` + `cyberint_pr_cycle_in_flight: false` + `develop_head: "e798e67c"`
 3. Read SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-31-CYBERINT-MERGED-WAVE-5-PARALLEL-PLANNED (zero-context self-contained resume snapshot)
 4. Read .factory/proposals/WAVE-5-PARALLELIZATION-PLAN.md for full parallel track detail
 5. Confirm `git log --oneline develop` shows e798e67c as HEAD
 6. Check open PRs: `gh pr list --state open` → expected: ZERO
-7. FIRST ACTION (HUMAN DECISION): ${env.VAR} prereq placement — Option A standalone story / Option B fold into S-CONFIG / Option C in first fidelity story. Blocks CrowdStrike dispatch + parity tests for all 3 fidelity stories.
-8. After human decides: dispatch S-CONFIG-MULTI-TENANT-OVERRIDE-001 (P0) + parallel Track B (Armis-AQL) + Track E (S-5.04)
+7. FIRST DISPATCH: S-CONFIG-MULTI-TENANT-OVERRIDE-001 (P0 spine, sole gate to S-DEMO-001) + S-SPEC-ENV-VAR-001 (P0 prereq, gates CrowdStrike) + Track B Armis-AQL (P1) + Track E S-5.04 (P2 anytime) — all can start in parallel.
+8. CrowdStrike story NOT CLEAR until S-SPEC-ENV-VAR-001 merges (HARD gate per D-914).
 
-**CRITICAL:** factory-artifacts LOCAL-ONLY. No remote push. No AI attribution. PO flag dispositions: Flags 1/2 (Armis) + Flag 3 (Claroty) SUFFICIENT — story-writer adds BC-2.16.013 to behavioral_contracts frontmatter at dispatch. Flags 4/5 (CrowdStrike) GATED on ${env.VAR} prereq. CrowdStrike story NOT CLEAR to dispatch.
+**CRITICAL:** factory-artifacts LOCAL-ONLY. No remote push. No AI attribution. PO flag dispositions RESOLVED per D-914: Flags 1/2 (Armis) SUFFICIENT; Flag 3 (Claroty) SUFFICIENT; Flags 4/5 (CrowdStrike) RESOLVED — E-SPEC-024 + BC-2.16.009 AC-6 in place; story gated on S-SPEC-ENV-VAR-001 merge.
 
 **Active worktrees:**
 - No active feature worktrees (cyberint worktree torn down post-merge; next: .worktrees/S-CONFIG-MULTI-TENANT-OVERRIDE-001/ to be created at dispatch)
