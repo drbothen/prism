@@ -158,6 +158,13 @@ path = "tests/vp153_rule_c_shaped_probe.rs"
 name = "pol_12_no_todo"
 path = "tests/pol_12_no_todo.rs"
 
+# S-DEMO-001: Red Gate failing tests for SpecDrivenSensorAdapter + boot step 9A.
+# Covers: AC-001..009, AC-012, EC-007, OQ-2 Resolution.
+# BCs: BC-2.01.013, BC-2.11.005, BC-2.06.014, BC-2.22.001
+[[test]]
+name = "bc_2_01_013_spec_driven_adapter"
+path = "tests/bc_2_01_013_spec_driven_adapter.rs"
+
 [dev-dependencies]
 rmcp = { workspace = true }
 tempfile = "3"
