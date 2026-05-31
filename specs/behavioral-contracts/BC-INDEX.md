@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "5.63"
+version: "5.64"
 status: draft
 producer: product-owner
 timestamp: 2026-05-30T00:00:00Z
@@ -45,7 +45,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.01.014 | Exponential Backoff and Retry for Transient Sensor API Errors | 01 - Sensor Adapters | CAP-001 | P0 | draft |
 | BC-2.01.015 | ~~MCP Tool Response Envelope Structure~~ | 01 - Sensor Adapters | CAP-001 | P0 | removed |
 | BC-2.01.016 | SensorAuth Open Trait — Plugin-Implementable Auth Contract (No Sealed Marker) | 01 - Sensor Adapters | CAP-001 | P0 | active (promoted draft→active D-726 per POL-14; anchor story S-PLUGIN-PREREQ-E merged PR #151 develop@80ebe794 2026-05-19) — v1.12 |
-| BC-2.01.017 | StaticCookieAuthProvider Contract — No-Login-Roundtrip Cookie Injection | 01 - Sensor Adapters | CAP-001 | P0 | draft — v1.5 |
+| BC-2.01.017 | StaticCookieAuthProvider Contract — No-Login-Roundtrip Cookie Injection | 01 - Sensor Adapters | CAP-001 | P0 | draft — v1.6 |
 | BC-2.02.001 | OCSF Schema Loading at Build Time via ocsf-proto-gen | 02 - OCSF Normalization | CAP-003 | P0 | draft |
 | BC-2.02.002 | DynamicMessage Creation from Sensor Records | 02 - OCSF Normalization | CAP-003 | P0 | active |
 | BC-2.02.003 | CrowdStrike Alert Field Mapping to OCSF | 02 - OCSF Normalization | CAP-003 | P0 | active (amended per ADR-023/PLUGIN-MIGRATION-001-G; v1.6) |
@@ -376,6 +376,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v5.64 (2026-05-30, D-896 FB-PR6 closing burst):** state-manager | BC-2.01.017 v1.5→v1.6 (F-P10-MED-001 closure: §Description/§Preconditions/§Anchors updated: retired SensorAuth trait → AuthProvider; crate path prism-sensors/src/auth/mod.rs → prism-spec-engine/src/auth_provider.rs; ADR-023 §PREREQ-B cited; PO commit 8d5c9b3e). BC-INDEX in-line row updated to v1.6. BC-INDEX v5.63→v5.64.
 
 **v5.63 (2026-05-30, D-883 FB-PR1/FB-PR2 closing burst):** state-manager | BC-2.16.002 frontmatter version sync: v1.59→v1.60 (stale frontmatter; implementer commit 216f8983 added `cookie_auth_401` catalog row and bumped changelog to v1.60 but did not advance frontmatter). BC-INDEX in-line row 216 updated to v1.60. BC-INDEX v5.62→v5.63.
 
