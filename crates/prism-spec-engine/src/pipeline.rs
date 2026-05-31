@@ -198,8 +198,8 @@ impl PipelineExecutor {
         let mut is_first_pipeline_request = true;
 
         // Eager token acquisition: acquire_token is called BEFORE the steps loop
-        // (F-LP5-LOW-003 closure). AuthType has no Null variant — all 4 variants
-        // (Oauth2ClientCredentials, BearerStatic, CookieRoundtrip, ApiKey) require auth.
+        // (F-LP5-LOW-003 closure). AuthType has no Null variant — all 5 variants
+        // (Oauth2ClientCredentials, BearerStatic, CookieRoundtrip, ApiKey, CustomViaPlugin) require auth.
         // NullAuthProvider (test-only) returns an empty token without I/O.
         //
         // TD-S-PLUGIN-PREREQ-B-010 CLOSED: lazy-token-on-401 design replaced by eager
