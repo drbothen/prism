@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.567"
+version: "7.568"
 producer: state-manager
 timestamp: 2026-05-31T00:00:00Z
 inputs: []
@@ -16,7 +16,7 @@ repos: [poller-cobra, poller-express, poller-bear, poller-coaster, serveMyAPI, t
 safe_to_compact: true
 pre_compact_snapshot: "SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-30-CYBERINT-LOCAL-CONVERGED-PR-CYCLE-IN-FLIGHT"
 pre_compact_snapshot_at: "2026-05-30 (D-882 PRE-CLEAR durability snapshot; cyberint LOCAL CONVERGED at Pass 17; pr-manager push in flight via background agent a0bf672578287c75f; push CONFIRMED at b3aa0970; PR not yet created at D-882 write)"
-current_step: "D-904 — S-DTU-CYBERINT-AUTH-FIDELITY-001 MERGED (PR #164 squash e798e67c). POL-14 BC-2.01.017 promoted draft→active. Cascade CLOSED. develop_head e898e67c→e798e67c. Next: S-CONFIG-MULTI-TENANT-OVERRIDE-001 (P0 ready) toward S-DEMO-001 keystone."
+current_step: "D-907 — 3 sensor-fidelity stories un-deferred into Wave 5 (Armis-AQL, Claroty-trailing-slash, CrowdStrike-multiregion) per ADR-031 v1.2; PO new-BC flags pending at dispatch; next: Wave 5 parallelization assessment + S-CONFIG-MULTI-TENANT-OVERRIDE-001 dispatch."
 cyberint_pr_cycle_in_flight: false
 cyberint_pr_cycle_step: "CLOSED — PR #164 squash-merged develop@e798e67c 2026-05-31; POL-14 BC-2.01.017 draft→active (D-904); cascade CLOSED (D-905 process-gaps as justified deferrals); story merged v1.9"
 cyberint_demo_evidence_path: "docs/demo-evidence/S-DTU-CYBERINT-AUTH-FIDELITY-001/"
@@ -433,7 +433,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 current_cycle_history: "wave-0-plugin-prereqs (PREREQ-E merged PR #151 2026-05-19); prior: wave-4-operations (active); wave-3-multi-tenant (COMPLETE)"
 bc_index_version: "5.65"
 vp_index_version: "1.76"
-story_index_version: "v2.221"
+story_index_version: "v2.222"
 sprint_state_path: ".factory/stories/sprint-state.yaml"
 plugin_migration_001_d_local_adversary_passes: 25
 plugin_migration_001_d_local_fix_bursts: 19
@@ -450,13 +450,13 @@ architectural_decisions_locked:
   - "4 LOCKED Option-A: TOML auth_type declares REAL behavior (cyberint=cookie_roundtrip, claroty=bearer_static) per CLAUDE.md Source-of-Truth Precedence #7; legacy auth_type_name() strings are bugs in code 001-A deletes"
   - "5 LOCKED Path-A (D-747): ADR-028 §D2 explicitly supersedes ADR-026 §D3 (partial — auth_type_name() return values for Cyberint/Claroty/Armis); PLUGIN-MIGRATION-001-A scope EXPANDS to include rewriting these auth_type_name() returns + amending Red Gate test_BC_2_01_016_003. CrowdStrike unchanged."
 policies_version: "1.31"
-total_stories: 166
+total_stories: 169
 bc_count_corrected: 245
 subsystem_count: 22
 vp_count: 156
 prd_version: "1.10"
 error_taxonomy_version: "1.55"
-arch_index_version: "2.104"
+arch_index_version: "2.107"
 path_c_locked_at: "2026-05-23"
 path_c_worktree_1: ".worktrees/PLUGIN-MIGRATION-001-E (CONVERGED; next: demo-recorder)"
 path_c_worktree_2: ".worktrees/S-CONFIG-MULTI-TENANT-OVERRIDE-001 (to be created; next: deliver-story workflow)"
@@ -476,9 +476,9 @@ historical_cycles: [phase-1-convergence, wave-3-multi-tenant, wave-4-operations]
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-31 (D-904 state-manager post-merge burst — S-DTU-CYBERINT-AUTH-FIDELITY-001 PR #164 squash-merged to develop@e798e67c; BC-2.01.017 v1.7 promoted active per POL-14; cascade CLOSED; STATE v7.567) |
-| **Current Phase** | Wave 3 Tier-3 complete — S-DTU-CYBERINT-AUTH-FIDELITY-001 MERGED (PR #164 develop@e798e67c 2026-05-31). Next: S-CONFIG-MULTI-TENANT-OVERRIDE-001 (P0 ready) toward S-DEMO-001 keystone. |
-| **Current Step** | D-904 — S-DTU-CYBERINT-AUTH-FIDELITY-001 MERGED (PR #164 squash e798e67c). POL-14 BC-2.01.017 promoted draft→active. Cascade CLOSED. develop@e798e67c. Next: S-CONFIG-MULTI-TENANT-OVERRIDE-001 dispatch. |
+| **Last Updated** | 2026-05-31 (D-907 state-manager burst — 3 sensor-fidelity stories un-deferred into Wave 5; ADR-031 v1.2 reclassification; STORY-INDEX v2.222; ARCH-INDEX v2.107; STATE v7.568) |
+| **Current Phase** | Wave 3 Tier-3 complete — S-DTU-CYBERINT-AUTH-FIDELITY-001 MERGED (PR #164 develop@e798e67c 2026-05-31). 3 sensor-fidelity stories un-deferred into Wave 5 per ADR-031 v1.2. Next: Wave 5 parallelization assessment + S-CONFIG-MULTI-TENANT-OVERRIDE-001 dispatch toward S-DEMO-001 keystone. |
+| **Current Step** | D-907 — 3 sensor-fidelity stories un-deferred into Wave 5 (Armis-AQL P1, Claroty-trailing-slash P1, CrowdStrike-multiregion P2) per ADR-031 v1.2. PO new-BC flags open (5 total). Next: Wave 5 parallelization assessment + S-CONFIG-MULTI-TENANT-OVERRIDE-001 dispatch. |
 
 ## Phase Progress
 
@@ -518,11 +518,11 @@ historical_cycles: [phase-1-convergence, wave-3-multi-tenant, wave-4-operations]
 | Step | Agent | Status | Output |
 |------|-------|--------|--------|
 _D-735 through D-847 archived to cycles/wave-0-plugin-prereqs/burst-log.md. D-835+D-836+D-837 removed from Phase Steps (archived in Decisions Log). D-849/851/852/853/855/856/857/858/859/860/861/862/863/864/865/866/867/868/869/870/871/872/873/874/875/876/877/878/879/880/881/882/883/884/885/886/887/888/889/890 archived to burst-log.md._
-| D-904 — **S-DTU-CYBERINT-AUTH-FIDELITY-001 MERGED (PR #164 squash e798e67c develop). POL-14: BC-2.01.017 v1.6→v1.7 draft→active (lifecycle_status already active, idempotent). BC-2.01.013/BC-2.01.016/BC-2.16.013 already active (confirmed). Story status→merged. STORY-INDEX v2.221. BC-INDEX v5.65. develop_head→e798e67c. D-903 process-gaps dispositioned as justified deferrals (D-905). Cascade CLOSED. STATE v7.566→v7.567. Next: S-CONFIG-MULTI-TENANT-OVERRIDE-001.** | state-manager (D-904 post-merge burst) | COMPLETE | POL-14 promotions done; cascade CLOSED; next story dispatch authorized |
+| D-907 — **3 SENSOR-FIDELITY STORIES UN-DEFERRED INTO WAVE 5 (ADR-031 v1.2). S-DEMO-ARMIS-AQL-001 (5pts, P1), S-DEMO-CLAROTY-TRAILING-SLASH-001 (3pts, P1), S-DEMO-CROWDSTRIKE-MULTIREGION-001 (2pts, P2): all reclassified permitted-divergence→required-fidelity. sprint-state.yaml deferred_post_demo EMPTIED. STORY-INDEX v2.222 (total_stories 166→169). ARCH-INDEX v2.107 (ADR-031 v1.2 row registered). STATE v7.567→v7.568. 5 PO new-BC flags open pending dispatch.** | state-manager (D-907 burst) | COMPLETE | Wave 5 active_dispatch_set updated; deferred_post_demo empty; PO flags open |
+| D-904 — **S-DTU-CYBERINT-AUTH-FIDELITY-001 MERGED (PR #164 squash e798e67c develop). STATE v7.566→v7.567. Cascade CLOSED.** | state-manager (D-904 post-merge burst) | COMPLETE | archived |
 | D-901 — **PR-LEVEL 3-CLEAN CONVERGENCE — archived** | state-manager (D-901 convergence burst) | COMPLETE | archived |
-| D-896 — **FB-PR6 CLOSING BURST — F-P10-MED-001 (BC-2.01.017 SensorAuth→AuthProvider, PO 8d5c9b3e, BC v1.6); F-P11-HIGH-001 (story subsystems SS-17→[SS-01,SS-16], story-writer c2daa820, story v1.9); F-PR12-MED-001/OBS-P11-001 (AC-010+EC-009 E-AUTH-007, story-writer c2daa820); OBS-P10-001+OBS-PR12-002 (doc-comment 7 sites, implementer c45f99ab); 3 NA adjudications. STATE v7.564→v7.565.** | state-manager (D-896 FB-PR6 closing burst) | COMPLETE | archived |
-| D-895 — **PERMANENT CLASS FIX — VOLATILE HEAD-SHA PIN STALENESS CLASS CLOSED.** | state-manager (D-895) | COMPLETE | archived |
-| D-894 — **FB-PR5 CLOSING BURST — F-P7-HIGH-001 + F-PR8-LOW-001 + F-PR9-MED-001/LOW-001/LOW-002 CLOSED. Story v1.8. HEAD 7d05cdb7.** | state-manager (D-894) | COMPLETE | archived |
+| D-896 — **FB-PR6 CLOSING BURST — F-P10-MED-001 + F-P11-HIGH-001 + F-PR12-MED-001 closed. STATE v7.564→v7.565.** | state-manager (D-896 FB-PR6 closing burst) | COMPLETE | archived |
+| D-894 — **FB-PR5 CLOSING BURST — F-P7-HIGH-001 + F-PR8-LOW-001 + F-PR9-MED-001/LOW-001/LOW-002 CLOSED. Story v1.8.** | state-manager (D-894) | COMPLETE | archived |
 
 
 ## Decisions Log
@@ -531,6 +531,9 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-909 | 2026-05-31 | state-manager | **ADR-031 v1.2 REGISTERED IN ARCH-INDEX. Architect commit e57eb5b1 amended ADR-031 v1.1→v1.2: 3 sensor divergences reclassified permitted-divergence→required-fidelity (§D8-a Armis AQL search endpoint, §D8-b Claroty trailing-slash route, §D8-c CrowdStrike multi-region base_url). ADR-031 row added to ARCH-INDEX ADR Registry (status: ACCEPTED v1.2, date 2026-05-31). Two ARCH-INDEX changelog rows added: v2.106 (D-843 ADR-031 initial registration by architect, 2026-05-29) + v2.107 (D-907 v1.2 amendment by state-manager, 2026-05-31). ARCH-INDEX frontmatter version v2.105→v2.107. arch_index_version in STATE.md frontmatter updated 2.104→2.107. Note: v2.105 was already the latest ARCH-INDEX version per prior state-manager bursts; v2.106 + v2.107 are the two new changelog rows added in this burst (D-843 ADR-031 registration was not previously reflected in ARCH-INDEX Changelog — gap closed here per D-907 burst scope). | demo-e2e | 2026-05-31 | Decided by: architect (e57eb5b1 ADR-031 v1.2 amendment) + state-manager (D-909 ARCH-INDEX registration). Status: COMPLETE |
+| D-908 | 2026-05-31 | state-manager | **PO NEW-BC FLAGS RECORDED AS OPEN ITEMS (5 TOTAL) — TIED TO STORY DISPATCH GATES. Per ADR-031 v1.2 (architect e57eb5b1) and story-writer materialization (2451d025), 5 PO new-BC evaluation flags are open and must be resolved before each story flips to ready:** (1) S-DEMO-ARMIS-AQL-001 Flag 1 — AQL syntax validation BC: PO to evaluate whether a new BC-2.01.NNN is needed for AQL query validation behavior at the DTU layer; per ADR-031 §D8-a no BC is REQUIRED for the endpoint itself (covered by existing pipeline contracts) but AQL syntax validation scope must be confirmed. (2) S-DEMO-ARMIS-AQL-001 Flag 2 — AQL push-down parity EC: PO to evaluate whether BC-2.01.013 (TOML pipeline parity) requires a new AC specifically for AQL parameter forwarding in the push-down path, or whether existing ACs are sufficient. (3) S-DEMO-CLAROTY-TRAILING-SLASH-001 Flag 1 — BC-2.16.013 trailing-slash parity coverage: PO to confirm whether BC-2.16.013 (DTU parity) is sufficient for the trailing-slash fidelity contract or whether a new AC for POST-path trailing-slash normalization is needed. (4) S-DEMO-CROWDSTRIKE-MULTIREGION-001 Flag 1 — env-var-resolution BC coverage: PO to confirm whether existing BCs cover ${env.CROWDSTRIKE_BASE_URL} multi-sensor env-var resolution (Armis/Claroty use the same interpolation pattern); if not covered, a new BC-2.01.NNN AC is required. (5) S-DEMO-CROWDSTRIKE-MULTIREGION-001 Flag 2 — missing-env E-SPEC-error BC: PO to evaluate whether a BC is needed for the structured error path (E-SPEC-NNN on missing CROWDSTRIKE_BASE_URL env var) or whether existing E-SPEC error taxonomy entries are sufficient. Open items: PO evaluation required at story dispatch for each of the 3 stories, before status flips to ready. These flags are NOT tech-debt-register entries — they are pre-dispatch PO evaluation gates per Canonical Principle Rule 3 (PO decision, not AI deferral). | demo-e2e | 2026-05-31 | Decided by: story-writer (2451d025 §New-BC Flags authorship) + architect (e57eb5b1 ADR-031 v1.2 PO flag annotations) + state-manager (D-908 recording). Status: OPEN — 5 PO flags pending evaluation before story dispatch |
+| D-907 | 2026-05-31 | state-manager | **3 SENSOR-FIDELITY STORIES UN-DEFERRED INTO WAVE 5 PER ADR-031 v1.2 (ARCHITECT e57eb5b1) + STORY-WRITER MATERIALIZATION (2451d025). DEFERRED_POST_DEMO SECTION NOW EMPTY. STATE v7.567→v7.568.** Single-commit burst (TD-VSDD-053) persisting all bookkeeping for the ADR-031 v1.2 reclassification: (1) sprint-state.yaml: 3 stories moved from deferred_post_demo→active_dispatch_set with full metadata (points/priority/spec_version v1.0/depends_on/status draft/notes with reclassification rationale); deferred_post_demo section now contains only a comment confirming it is empty; prereq_artifacts version refs updated to v2.222/v5.65/v7.568/ADR-031 v1.2. (2) STORY-INDEX v2.221→v2.222: frontmatter total_stories 166→169; timestamp updated; overview bullet for D-907 burst added (top of changelog); Full Story List rows for 3 stories updated from [planned; P2/P3; 0 BCs; stub] to [draft v1.0; P1/P1/P2; 0 BC pending PO; VP-148; actual points/crates/depends_on/file]; tabular changelog row v2.222 added. (3) ARCH-INDEX v2.105→v2.107: ADR-031 row added to ADR Registry (ACCEPTED v1.2, 2026-05-31); two changelog rows added (v2.106 D-843 ADR-031 registration, v2.107 D-907 v1.2 amendment); frontmatter version bumped. (4) STATE.md frontmatter: version 7.567→7.568; current_step updated; story_index_version v2.221→v2.222; arch_index_version 2.104→2.107; total_stories 166→169; Project Metadata table updated; Current Phase Steps D-907 row added (D-895 archived); D-907/D-908/D-909 decisions recorded; Session Resume Checkpoint replaced. 284th consecutive single-commit per TD-VSDD-053. Anti-volatile-pin per TD-VSDD-091. | demo-e2e | 2026-05-31 | Decided by: architect (e57eb5b1 ADR-031 v1.2) + story-writer (2451d025 materialization) + state-manager (D-907 burst). Status: COMPLETE |
 | D-906 | 2026-05-31 | state-manager | **STORY STATUS → MERGED. Story S-DTU-CYBERINT-AUTH-FIDELITY-001 v1.9 status updated ready→merged. STORY-INDEX v2.220→v2.221.** Story file frontmatter status → `merged` per ADR-020 taxonomy. STORY-INDEX Full Story List row updated: PR_CYCLE_IN_FLIGHT v1.9 → merged v1.9; changelog row v2.221 added; frontmatter version bumped v2.220→v2.221. Overview bullet added for merge. total_stories 166 (unchanged). | plugin-migration | 2026-05-31 | Decided by: state-manager (D-906 story-status post-merge). Status: COMPLETE |
 | D-905 | 2026-05-31 | state-manager | **D-903 PROCESS-GAP ITEMS DISPOSITIONED AS JUSTIFIED DEFERRALS — PR-LEVEL CASCADE CLOSED.** D-903 recorded two open process-gap observations requiring disposition before cascade CLOSE: (1) OBS-PR1-001 — adversary diff-tooling limitation (adversary read-only cannot byte-verify diff; mitigated in-session by orchestrator diff-artifact pre-supply); (2) OBS-PR2 — worktree-path-resolution hazard (read-only tools resolved against develop not worktree; mitigated in-session by mandating absolute worktree-prefixed paths + known-new-symbol verification gate in adversary dispatches). Disposition decision: JUSTIFIED DEFERRALS per Canonical Principle Rule 3. Both are upstream vsdd-factory tooling/process gaps (not prism content defects). The prism mitigations (diff-artifact pre-supply + worktree-path discipline) are already baked into the orchestrator's PR-LEVEL adversary dispatch template (in-session standard operating procedure). No prism-side story anchor is warranted — these gaps belong to the drbothen/vsdd-factory upstream issue tracker (per CLAUDE.md "upstream canonicalization tracked in drbothen/vsdd-factory"). Items recorded in Drift Items table as DRIFT-D904-001 + DRIFT-D904-002 with explicit upstream target. The evidence-report.md "Version: 1.8" label lag remains non-blocking and non-actionable (all three final adversary passes adjudicated NA per stable-ref design; future evidence-sync noted as cosmetic). CASCADE CLOSED per this disposition. | plugin-migration | 2026-05-31 | Decided by: state-manager (D-905 cascade-close disposition). Status: CLOSED |
 | D-904 | 2026-05-31 | state-manager | **POST-MERGE BURST — S-DTU-CYBERINT-AUTH-FIDELITY-001 PR #164 SQUASH-MERGED DEVELOP@e798e67c. POL-14 BC AUTO-PROMOTIONS COMPLETE. STATE v7.566→v7.567.** Single-commit burst (TD-VSDD-053) persisting all post-merge bookkeeping: (1) BC-2.01.017 v1.6→v1.7: status draft→active (lifecycle_status was already active — idempotent); modified 2026-05-30→2026-05-31; changelog row v1.7 added (POL-14 D-904 auto-promotion at PR #164 merge). (2) BC-INDEX v5.64→v5.65: active_contracts 236→237; draft_contracts 3→2; BC-2.01.017 row updated draft v1.6 → active v1.7; description Note updated (BC-2.01.017 will auto-promote → did promote); v5.65 changelog row added. (3) BC-2.01.013 v1.7, BC-2.01.016 v1.12, BC-2.16.013 v1.18: already active — confirmed, no promotions required (idempotent). (4) Story file S-DTU-CYBERINT-AUTH-FIDELITY-001: status ready→merged; modified updated; version unchanged 1.9. (5) STORY-INDEX v2.220→v2.221: Full Story List row PR_CYCLE_IN_FLIGHT v1.9 → merged v1.9; overview bullet + v2.221 changelog row added. (6) STATE.md frontmatter: version 7.566→7.567; develop_head e898c3c9→e798e67c; current_step updated; cyberint_pr_cycle_in_flight false; cyberint_pr_cycle_step CLOSED; bc_index_version 5.64→5.65; story_index_version v2.220→v2.221; s_dtu_cyberint_auth_fidelity_001_* tracking fields added; Project Metadata table updated; Phase Progress row MERGE_GATE→MERGED; Current Phase Steps updated; D-904/D-905/D-906 decisions recorded; Drift Items table updated; Session Resume Checkpoint replaced. (7) SESSION-HANDOFF.md §4 develop_head reference updated e898c3c9→e798e67c. 283rd consecutive single-commit per TD-VSDD-053. Anti-volatile-pin per TD-VSDD-091. | plugin-migration | 2026-05-31 | Decided by: state-manager (D-904 post-merge POL-14 atomic burst). Status: COMPLETE |
@@ -763,27 +766,28 @@ Prior cycle history:
 
 ---
 
-## Session Resume Checkpoint (2026-05-31 — D-904 POST-MERGE; S-DTU-CYBERINT-AUTH-FIDELITY-001 MERGED; develop@e798e67c; CASCADE CLOSED)
+## Session Resume Checkpoint (2026-05-31 — D-907 ADR-031 v1.2 RECLASSIFICATION; 3 SENSOR-FIDELITY STORIES UN-DEFERRED; develop@e798e67c; STATE v7.568)
 
-_Previous checkpoint (D-901 PR-LEVEL 3-CLEAN CONVERGED; PR #164 at MERGE GATE; feature HEAD c45f99ab; develop@e898c3c9; STATE v7.566) superseded by D-904 post-merge burst (PR #164 squash-merged develop@e798e67c; BC-2.01.017 promoted active; cascade CLOSED D-905; STATE v7.567)._
+_Previous checkpoint (D-904 POST-MERGE; S-DTU-CYBERINT-AUTH-FIDELITY-001 MERGED; develop@e798e67c; STATE v7.567) superseded by D-907 burst (3 sensor-fidelity stories un-deferred into Wave 5; ADR-031 v1.2 registered; STORY-INDEX v2.222; total_stories 169; STATE v7.568)._
 
-**STATE v7.567. D-904 — S-DTU-CYBERINT-AUTH-FIDELITY-001 MERGED (PR #164 squash e798e67c). BC-2.01.017 v1.7 promoted draft→active per POL-14. Cascade CLOSED (D-905 justified deferrals). Next: S-CONFIG-MULTI-TENANT-OVERRIDE-001 (P0 ready) toward S-DEMO-001 keystone.**
+**STATE v7.568. D-907 — 3 sensor-fidelity stories un-deferred into Wave 5 per ADR-031 v1.2 (architect e57eb5b1) + story-writer materialization (2451d025). sprint-state.yaml deferred_post_demo EMPTY. PO new-BC flags open (5 total — D-908). STORY-INDEX v2.222 (169 stories). ARCH-INDEX v2.107. Next: Wave 5 parallelization assessment + S-CONFIG-MULTI-TENANT-OVERRIDE-001 dispatch toward S-DEMO-001 keystone.**
 
-**develop HEAD:** `e798e67c` | **Workspace test count:** 3839+ (PR #164 adds no new tests beyond what was already green) | **Merged story:** S-DTU-CYBERINT-AUTH-FIDELITY-001 v1.9 | **Open PRs:** none for cyberint; check `gh pr list --state open`
+**develop HEAD:** `e798e67c` | **Workspace test count:** 3839+ (no code change in this burst) | **Merged story:** S-DTU-CYBERINT-AUTH-FIDELITY-001 v1.9 | **Open PRs:** none; check `gh pr list --state open`
 
 **Resume protocol (new session):**
 1. Run `vsdd-factory:factory-worktree-health` (BLOCKING preflight)
-2. Read STATE.md frontmatter — confirm `version: "7.567"` + `cyberint_pr_cycle_in_flight: false` + `develop_head: "e798e67c"`
+2. Read STATE.md frontmatter — confirm `version: "7.568"` + `cyberint_pr_cycle_in_flight: false` + `develop_head: "e798e67c"`
 3. Confirm `git log --oneline develop` shows e798e67c as HEAD (cyberint merge)
-4. Next dispatch: deliver S-CONFIG-MULTI-TENANT-OVERRIDE-001 (P0; depends_on PLUGIN-MIGRATION-001-A already merged; blocks S-DEMO-001)
+4. Confirm sprint-state.yaml `deferred_post_demo:` section is empty (3 stories moved to active_dispatch_set)
+5. Next dispatches: (a) PO evaluation of 5 new-BC flags (D-908 open items) for S-DEMO-ARMIS-AQL-001/S-DEMO-CLAROTY-TRAILING-SLASH-001/S-DEMO-CROWDSTRIKE-MULTIREGION-001 before each flips to ready; (b) Wave 5 parallelization assessment (S-CONFIG-MULTI-TENANT-OVERRIDE-001 P0 ready + sensor-fidelity stories drafted); (c) S-CONFIG-MULTI-TENANT-OVERRIDE-001 dispatch (P0; depends_on PLUGIN-MIGRATION-001-A merged; blocks S-DEMO-001)
 
-**CRITICAL:** factory-artifacts LOCAL-ONLY. No remote push. No AI attribution. BC-2.01.017 v1.7 active. Story S-DTU-CYBERINT-AUTH-FIDELITY-001 merged v1.9. Cascade CLOSED. Process-gap justified deferrals recorded as DRIFT-D904-001 + DRIFT-D904-002 (upstream vsdd-factory tracker). No open cyberint PR.
+**CRITICAL:** factory-artifacts LOCAL-ONLY. No remote push. No AI attribution. BC-2.01.017 v1.7 active. S-DTU-CYBERINT-AUTH-FIDELITY-001 merged v1.9. 3 sensor-fidelity stories now Wave 5 active (draft, not yet ready — PO BC flags must be resolved first). ADR-031 ACCEPTED v1.2.
 
 **Active worktrees:**
 - `.worktrees/S-DTU-CYBERINT-AUTH-FIDELITY-001` — STALE post-merge (feature branch squash-merged; may be cleaned up)
 - `.worktrees/S-3.09` — FROZEN (BUG-S309-PLUGIN), stale since 2026-05-11; deferred per user direction
 - `.worktrees/W3-FIX-S307-001` — BLOCKED (superseded), stale since 2026-05-24; deferred per user direction
 
-**Open PRs:** none (cyberint MERGED; no other PRs active at D-904 write).
+**Open PRs:** none (cyberint MERGED; no other PRs active at D-907 write).
 
 _Agent routing: see CLAUDE.md §Agent Routing Table._

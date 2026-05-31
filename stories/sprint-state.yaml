@@ -93,27 +93,41 @@ active_dispatch_set:
       - S-CONFIG-MULTI-TENANT-OVERRIDE-001
     notes: "Surfaced 2026-05-29 D-849 by S-CONFIG AC-009 DTU emulation gap. Needs story-writer materialization. Non-blocking for single-tenant demo."
 
-deferred_post_demo:
-  - story_id: S-DEMO-CLAROTY-TRAILING-SLASH-001
-    priority: P2
-    spec_version: stub
-    rationale: "Non-blocking per ADR-031 §D2 + audit §6.3. DTU trailing-slash verification."
-
   - story_id: S-DEMO-ARMIS-AQL-001
-    priority: P2
-    spec_version: stub
-    rationale: "Permitted divergence per ADR-031 §D2; direct endpoints work for DTU demo."
+    status: draft
+    priority: P1
+    points: 5
+    spec_version: "v1.0"
+    depends_on: []
+    notes: "Reclassified 2026-05-31 D-907: permitted-divergence→required-fidelity per ADR-031 v1.2 (user directive no-scope-compromise; architect commit e57eb5b1). story-writer 2451d025. PO new-BC flags open: AQL-validation BC + AQL push-down parity EC (see §New-BC Flags in story file). Must be evaluated before story flips to ready."
+
+  - story_id: S-DEMO-CLAROTY-TRAILING-SLASH-001
+    status: draft
+    priority: P1
+    points: 3
+    spec_version: "v1.0"
+    depends_on:
+      - S-DEMO-CLAROTY-AUDIT-DTU-001  # SOFT: AC-003 requires audit_log route present; otherwise route returns 404 regardless of trailing-slash
+    notes: "Reclassified 2026-05-31 D-907: permitted-divergence→required-fidelity per ADR-031 v1.2 (user directive no-scope-compromise; architect commit e57eb5b1). story-writer 2451d025. PO new-BC flag open: BC-2.16.013 trailing-slash-parity coverage (see §New-BC Flags in story file). Must be evaluated before story flips to ready."
 
   - story_id: S-DEMO-CROWDSTRIKE-MULTIREGION-001
-    priority: P3
-    spec_version: stub
-    rationale: "Demo environment is us-1; multi-region is post-demo."
+    status: draft
+    priority: P2
+    points: 2
+    spec_version: "v1.0"
+    depends_on: []
+    notes: "Reclassified 2026-05-31 D-907: permitted-divergence→required-fidelity per ADR-031 v1.2 (user directive no-scope-compromise; architect commit e57eb5b1). story-writer 2451d025. PO new-BC flags open: env-var-resolution BC coverage + missing-env E-SPEC-error BC (see §New-BC Flags in story file). Must be evaluated before story flips to ready."
+
+deferred_post_demo:
+  # EMPTY — all 3 originally-deferred stories (S-DEMO-ARMIS-AQL-001, S-DEMO-CLAROTY-TRAILING-SLASH-001,
+  # S-DEMO-CROWDSTRIKE-MULTIREGION-001) moved to active_dispatch_set per D-907 (ADR-031 v1.2
+  # reclassification from permitted-divergence → required-fidelity; user directive no-scope-compromise).
 
 prereq_artifacts:
-  story_index: .factory/stories/STORY-INDEX.md         # v2.212 after this burst
-  bc_index: .factory/specs/behavioral-contracts/BC-INDEX.md  # v5.56
-  state: .factory/STATE.md                              # v7.537 after this burst
-  governing_adr: .factory/specs/architecture/decisions/ADR-031-dtu-equals-true-dtu-fidelity-principle.md
+  story_index: .factory/stories/STORY-INDEX.md         # v2.222 after D-907 burst
+  bc_index: .factory/specs/behavioral-contracts/BC-INDEX.md  # v5.65
+  state: .factory/STATE.md                              # v7.568 after D-907 burst
+  governing_adr: .factory/specs/architecture/decisions/ADR-031-dtu-equals-true-dtu-fidelity-principle.md  # v1.2 (ADR-031 architect e57eb5b1 reclassified 3 divergences)
   governing_audit: .factory/proposals/POLLER-DTU-FIDELITY-AUDIT-2026-05-29.md  # v1.1
 
 provenance:

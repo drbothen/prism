@@ -1,10 +1,10 @@
 ---
 document_type: architecture-index
 level: L3
-version: "2.105"
+version: "2.107"
 status: draft
 producer: state-manager
-timestamp: 2026-05-20T00:00:00
+timestamp: 2026-05-31T12:00:00
 phase: 1b
 inputs: [domain-spec/L2-INDEX.md, prd.md, prd-supplements/interface-definitions.md, prd-supplements/nfr-catalog.md, prd-supplements/error-taxonomy.md]
 traces_to: prd.md
@@ -97,6 +97,7 @@ deployment_topology: single-service  # planned — no service binary exists yet 
 | ADR-028 | TOML Spec URLs and auth_type Ground Against DTU Clone Routes (Real-API Canonical), Not Production Rust Adapter URLs | PROPOSED v1.10 | 2026-05-21 | decisions/ADR-028-toml-spec-grounding-vs-dtu-routes.md |
 | ADR-029 | Multi-Tenant Sensor Endpoint Overrides — Hybrid Sensor Instance with Per-Org Composition Directory | ACCEPTED v1.2 | 2026-05-23 | decisions/ADR-029-multi-tenant-sensor-endpoint-overrides.md |
 | ADR-030 | SensorSpec Type Unification — Dep-Cycle Resolution Approach for types::SensorSpec Retirement | ACCEPTED v1.0 | 2026-05-27 | decisions/ADR-030-sensor-spec-type-unification.md |
+| ADR-031 | DTU=True-DTU Fidelity Principle — DTU Clones Must Mirror Real API Field Names, Auth Flows, Cookie Names, Endpoints, Response Shapes; Supersedes ADR-028 §D12 | ACCEPTED v1.2 | 2026-05-31 | decisions/ADR-031-dtu-equals-true-dtu-fidelity-principle.md |
 
 ## Architecture Decisions
 
@@ -156,6 +157,8 @@ deployment_topology: single-service  # planned — no service binary exists yet 
 
 | Version | Pass | Date | Author | Change |
 |---------|------|------|--------|--------|
+| 2.107 | D-907 | 2026-05-31 | state-manager | D-907 burst: ADR-031 row bumped v1.1→v1.2 (architect e57eb5b1 amended: 3 sensor divergences reclassified permitted-divergence→required-fidelity; ADR-031 §D8-a Armis AQL search endpoint, §D8-b Claroty trailing-slash, §D8-c CrowdStrike multi-region base_url). ARCH-INDEX v2.106→v2.107. |
+| 2.106 | D-843 | 2026-05-29 | architect | ADR-031 registered: DTU=True-DTU fidelity principle (DTU clones must mirror real API field names, auth flows, cookie names, endpoints, response shapes; supersedes ADR-028 §D12; 3 initial divergences classified as permitted-divergence per §D2). ARCH-INDEX v2.105→v2.106. |
 | 2.105 | F-PASS9-MED-1 | 2026-05-28 | implementer | F-PASS9-MED-1 closure: AD-005 row updated rmcp 1.4 → 1.7 (OQ-1: 1.4 unavailable on crates.io; 1.7 is actual published version). ADR-022 in-line row v1.12 → v1.13 (7 "rmcp 1.4" narrative sites updated). dependency-graph.md External Dependency table row updated 1.4 → 1.7. module-decomposition.md L3 mermaid diagram updated. system-overview.md MCP Layer mermaid updated. S-5.01-FOLLOWUP-MCP-BOOT-mcp-server.md story spec all 1.4 references updated to 1.7. ARCH-INDEX v2.104→v2.105. |
 | 2.104 | D-840 | 2026-05-27 | state-manager | ADR-030 status: PROPOSED v1.0 → ACCEPTED (S-SPEC-TYPE-UNIFICATION-001 merged PR #161 develop@af79f160; Approach D fully implemented: types::SensorSpec deleted, spec_parser::SensorSpec canonical, build_type_spec_map_for_overlay deleted, AuthType::CustomViaPlugin added). ARCH-INDEX v2.103→v2.104. |
 | 2.103 | D-ADR-030 | 2026-05-27 | architect | ADR-030 registered (SensorSpec type unification — Approach D selected: field-augment spec_parser::SensorSpec, delete types::SensorSpec; dep cycle confirmed non-existent for this migration; prism-core::ConfigSnapshot is a shell struct). ARCH-INDEX v2.102→v2.103. |
