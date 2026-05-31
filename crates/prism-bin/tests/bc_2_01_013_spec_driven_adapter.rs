@@ -73,8 +73,7 @@ use prism_bin::{
     boot::BootError,
     spec_driven_adapter::{
         AdapterAuthStrategy, BearerStaticAuthProvider, SpecDrivenSensorAdapter,
-        boot_step9_build_adapter_registry, build_http_client_with_timeout,
-        step9a_populate_adapter_registry,
+        build_http_client_with_timeout, step9a_populate_adapter_registry,
     },
 };
 use prism_core::column::ColumnType;
@@ -990,33 +989,12 @@ async fn test_BC_2_22_001_step9a_not_called_in_boot_production_path() {
          BC-2.11.005."
     );
 
-    // Part 2: BOOT PATH WIRING ASSERTION.
-    //
-    // `boot_step9_build_adapter_registry` is the testable wrapper that exercises the
-    // same code path as `step9_start_mcp_server`'s adapter registry construction,
-    // without requiring RocksDB (SID-1 compliant: unit test at the dependency boundary).
-    //
-    // If step9 correctly wires step9a, this function calls step9a_populate_adapter_registry
-    // and returns a populated registry. This test is LOAD-BEARING for F-002:
-    // it confirms the production wiring is in place (BC-2.22.001; F-002; S-DEMO-001 v1.3).
-    let wired_registry = boot_step9_build_adapter_registry(
-        &resolved_spec_map,
-        &org_registry,
-        &plugin_auth_providers,
-    )
-    .await
-    .expect("boot_step9_build_adapter_registry must return Ok for a valid resolved_spec_map");
-
-    // LOAD-BEARING assertion (F-002): the registry must be non-empty after step9 wiring.
-    // This FAILS if step9_start_mcp_server creates AdapterRegistry::new() without
-    // calling step9a_populate_adapter_registry.
-    assert!(
-        !wired_registry.is_empty(),
-        "F-002 LOAD-BEARING: After step9_start_mcp_server runs with a non-empty \
-         resolved_spec_map (containing at least one Armis BearerStatic spec), \
-         the AdapterRegistry MUST be non-empty (at least one adapter registered). \
-         BC-2.22.001; F-002; S-DEMO-001 v1.3."
-    );
+    // Part 2 (F-002-R replacement):
+    // The production boot wiring assertion has been moved to the structural guard test
+    // `test_BC_2_22_001_production_boot_path_wiring_guard` which reads boot.rs source
+    // directly to verify that step9_start_mcp_server calls step9a_populate_adapter_registry.
+    // The `boot_step9_build_adapter_registry` duplicate helper was DELETED (F-002-R).
+    // BC-2.22.001; F-002-R; S-DEMO-001 v1.5.
 }
 
 // ---------------------------------------------------------------------------

@@ -35,12 +35,13 @@ use std::{collections::HashMap, future::Future, pin::Pin, sync::Arc, time::Durat
 use serde_json::Value as JsonValue;
 
 use arrow::{
-    array::{Array, Int32Array, StringArray},
+    array::{Array, BooleanArray, Float64Array, Int32Array, Int64Array, StringArray},
     datatypes::{DataType, Field, Schema},
     record_batch::RecordBatch,
 };
 use async_trait::async_trait;
-use prism_core::{OrgId, SensorId};
+use prism_core::{ColumnType, OrgId, SensorId};
+use prism_ocsf::EventClassSelector;
 use prism_sensors::{
     BearerStaticSensorAuth, SensorAdapter,
     adapter::{QueryParams, SensorError, SensorSpec},
@@ -50,7 +51,7 @@ use prism_spec_engine::{
     AuthProvider, AuthToken, PluginAuthProvider, ResolvedSensorSpec, ResolvedSpecKey,
     error::SpecEngineError,
     pipeline::{FetchContext, PipelineExecutor, PipelineResult},
-    spec_parser::{AuthType, SensorSpec as SpecEngineSensorSpec},
+    spec_parser::{AuthType, SensorSpec as SpecEngineSensorSpec, TableSpec},
 };
 
 // ---------------------------------------------------------------------------
@@ -338,9 +339,16 @@ impl SensorAdapter for SpecDrivenSensorAdapter {
             // Convert PipelineResult.records (raw JSON) → Arrow RecordBatch
             // with OCSF envelope columns (category_uid, class_uid, _sensor) and
             // spec-defined data columns (BC-2.11.005 / AC-010).
+            // BC-2.01.013 v1.8 OCSF Conformance: pass `table` so that:
+            //   - spec-declared columns survive into the Arrow schema (item 1)
+            //   - class_uid/category_uid are derived from ocsf_class (item 2)
+            //   - _sensor is injected as canonical sensor_id (item 3)
             if !result.records.is_empty() {
-                let batch =
-                    pipeline_result_to_record_batch(result, &self.sensor_spec.spec.sensor_id);
+                let batch = pipeline_result_to_record_batch(
+                    result,
+                    table,
+                    &self.sensor_spec.spec.sensor_id,
+                );
                 match batch {
                     Ok(b) => all_batches.push(b),
                     Err(e) => {
@@ -395,90 +403,185 @@ fn map_spec_engine_error_to_sensor_error(
 
 /// Convert `PipelineResult.records` (raw JSON) to an Arrow `RecordBatch`.
 ///
-/// Produces a RecordBatch with the following columns (AC-010):
-/// - `category_uid` (Int32, nullable): OCSF event category UID.
-/// - `class_uid` (Int32, nullable): OCSF event class UID.
-/// - `_sensor` (Utf8, nullable): sensor id injected for data provenance.
+/// Produces a RecordBatch with (BC-2.01.013 v1.8 OCSF Conformance Clause):
 ///
-/// These three OCSF envelope columns are always present, regardless of the sensor
-/// spec's `columns` list. Per-sensor data columns (from the spec) are also included
-/// when present in the raw record — columns absent from a record become null.
+/// **Spec-declared data columns (item 1):**
+/// Every column declared in `table.columns` is included in the schema, extracted
+/// from the raw record by name, and typed per `ColumnSpec::column_type`.
+/// Columns absent from a record become null.
+///
+/// **Derived OCSF envelope columns (item 2):**
+/// - `class_uid` (Int32): derived via `EventClassSelector::select(sensor_id, ocsf_class)`.
+///   Falls back to 0 (BASE_EVENT) if no mapping exists for this sensor/class combination.
+/// - `category_uid` (Int32): `class_uid / 1000` per the OCSF standard category encoding.
+///
+/// **Canonical _sensor virtual column (item 3):**
+/// - `_sensor` (Utf8): always injected as the canonical `sensor_id` from the spec.
+///   The raw record's `_sensor` field (if any) is NEVER used — this field can be
+///   tampered by the sensor vendor. The spec `sensor_id` is the authoritative value.
+///
+/// # Column ordering in schema
+///
+/// Spec-declared data columns appear first (in spec order), followed by the three
+/// OCSF envelope columns: `category_uid`, `class_uid`, `_sensor`.
 ///
 /// # Design Rationale (BC-2.11.005)
 ///
 /// `PipelineExecutor::execute()` returns raw JSON; Arrow conversion happens here
-/// (not in the query engine's materialization layer). `SpecDrivenSensorAdapter::fetch()`
-/// is the boundary where raw sensor data becomes typed Arrow data.
+/// (not in the query engine's materialization layer). This is the boundary where
+/// raw sensor data becomes typed Arrow data with enforced OCSF provenance.
 ///
 /// # Errors
 ///
 /// Returns `arrow::error::ArrowError` if schema/column construction fails.
 fn pipeline_result_to_record_batch(
     result: PipelineResult,
+    table: &TableSpec,
     sensor_id: &str,
 ) -> Result<RecordBatch, arrow::error::ArrowError> {
     let n = result.records.len();
+
+    // BC-2.01.013 v1.8 item 2: derive class_uid from spec ocsf_class via EventClassSelector.
+    // Falls back to 0 (BASE_EVENT) if no mapping — never reads class_uid from raw record.
+    let derived_class_uid: i32 =
+        EventClassSelector::select(sensor_id, &table.ocsf_class).unwrap_or(0) as i32;
+    // OCSF standard encoding: category_uid = class_uid / 1000
+    // e.g. class_uid=2004 → category_uid=2 (Findings), class_uid=3001 → category_uid=3 (IAM)
+    let derived_category_uid: i32 = derived_class_uid / 1000;
+
+    // Build schema: spec-declared data columns first, then OCSF envelope.
+    let mut fields: Vec<Field> = table
+        .columns
+        .iter()
+        .map(|col| Field::new(&col.name, column_type_to_arrow(&col.column_type), true))
+        .collect();
+    fields.push(Field::new("category_uid", DataType::Int32, true));
+    fields.push(Field::new("class_uid", DataType::Int32, true));
+    fields.push(Field::new("_sensor", DataType::Utf8, true));
+    let schema = Arc::new(Schema::new(fields));
+
     if n == 0 {
         // Caller should not call this with empty records; return empty batch.
-        let schema = Arc::new(Schema::new(vec![
-            Field::new("category_uid", DataType::Int32, true),
-            Field::new("class_uid", DataType::Int32, true),
-            Field::new("_sensor", DataType::Utf8, true),
-        ]));
-        return RecordBatch::try_new(
-            schema,
-            vec![
-                Arc::new(Int32Array::from(Vec::<Option<i32>>::new())) as Arc<dyn Array>,
-                Arc::new(Int32Array::from(Vec::<Option<i32>>::new())) as Arc<dyn Array>,
-                Arc::new(StringArray::from(Vec::<Option<&str>>::new())) as Arc<dyn Array>,
-            ],
-        );
+        let mut arrays: Vec<Arc<dyn Array>> = table
+            .columns
+            .iter()
+            .map(|col| empty_arrow_array(&col.column_type))
+            .collect();
+        arrays.push(Arc::new(Int32Array::from(Vec::<Option<i32>>::new())) as Arc<dyn Array>);
+        arrays.push(Arc::new(Int32Array::from(Vec::<Option<i32>>::new())) as Arc<dyn Array>);
+        arrays.push(Arc::new(StringArray::from(Vec::<Option<&str>>::new())) as Arc<dyn Array>);
+        return RecordBatch::try_new(schema, arrays);
     }
 
-    // Extract OCSF envelope columns from records.
-    let mut category_uid_vals: Vec<Option<i32>> = Vec::with_capacity(n);
-    let mut class_uid_vals: Vec<Option<i32>> = Vec::with_capacity(n);
-    let mut sensor_vals: Vec<Option<String>> = Vec::with_capacity(n);
+    // Build per-column value vectors for spec-declared data columns.
+    // Each column is extracted from the raw record by name; absent values → None (null).
+    let mut col_arrays: Vec<Arc<dyn Array>> = Vec::with_capacity(table.columns.len() + 3);
 
-    for record in &result.records {
-        category_uid_vals.push(
-            record
-                .get("category_uid")
-                .and_then(|v| v.as_i64())
-                .map(|v| v as i32),
-        );
-        class_uid_vals.push(
-            record
-                .get("class_uid")
-                .and_then(|v| v.as_i64())
-                .map(|v| v as i32),
-        );
-        // _sensor: prefer value from record (if set by pipeline), fallback to sensor_id.
-        sensor_vals.push(Some(
-            record
-                .get("_sensor")
-                .and_then(|v| v.as_str())
-                .unwrap_or(sensor_id)
-                .to_string(),
-        ));
+    for col_spec in &table.columns {
+        let array = build_column_array(&result.records, &col_spec.name, &col_spec.column_type);
+        col_arrays.push(array);
     }
 
-    let schema = Arc::new(Schema::new(vec![
-        Field::new("category_uid", DataType::Int32, true),
-        Field::new("class_uid", DataType::Int32, true),
-        Field::new("_sensor", DataType::Utf8, true),
-    ]));
+    // BC-2.01.013 v1.8 item 2: OCSF envelope — class_uid/category_uid derived, not raw-copied.
+    // All rows in this batch share the same derived class_uid/category_uid (table-level, not row-level).
+    let category_uid_vals: Vec<Option<i32>> = vec![Some(derived_category_uid); n];
+    let class_uid_vals: Vec<Option<i32>> = vec![Some(derived_class_uid); n];
+    col_arrays.push(Arc::new(Int32Array::from(category_uid_vals)) as Arc<dyn Array>);
+    col_arrays.push(Arc::new(Int32Array::from(class_uid_vals)) as Arc<dyn Array>);
 
-    RecordBatch::try_new(
-        schema,
-        vec![
-            Arc::new(Int32Array::from(category_uid_vals)) as Arc<dyn Array>,
-            Arc::new(Int32Array::from(class_uid_vals)) as Arc<dyn Array>,
+    // BC-2.01.013 v1.8 item 3: _sensor is ALWAYS the canonical sensor_id from the spec.
+    // Never reads from raw record — the raw record's _sensor field is untrusted vendor data.
+    let sensor_vals: Vec<Option<&str>> = vec![Some(sensor_id); n];
+    col_arrays.push(Arc::new(StringArray::from(sensor_vals)) as Arc<dyn Array>);
+
+    RecordBatch::try_new(schema, col_arrays)
+}
+
+/// Map a `ColumnType` to the corresponding Arrow `DataType`.
+///
+/// Used to build the RecordBatch schema from the sensor spec's declared columns.
+/// `prism_core::column::ColumnType` canonical variants per ADR-024:
+///   String / Integer / Float / Boolean / Datetime / Json
+fn column_type_to_arrow(col_type: &ColumnType) -> DataType {
+    match col_type {
+        ColumnType::String => DataType::Utf8,
+        ColumnType::Integer => DataType::Int64,
+        ColumnType::Float => DataType::Float64,
+        ColumnType::Boolean => DataType::Boolean,
+        // Datetime → Utf8 for the spec-driven adapter layer.
+        // Full timestamp typing is done at the DataFusion materialization layer (S-3.02).
+        ColumnType::Datetime => DataType::Utf8,
+        // Json → Utf8 (serialized JSON string in Arrow column).
+        ColumnType::Json => DataType::Utf8,
+        // Non-exhaustive guard: future variants default to Utf8.
+        _ => DataType::Utf8,
+    }
+}
+
+/// Construct an empty Arrow array (zero rows) for the given `ColumnType`.
+fn empty_arrow_array(col_type: &ColumnType) -> Arc<dyn Array> {
+    match col_type {
+        ColumnType::Integer => Arc::new(Int64Array::from(Vec::<Option<i64>>::new())),
+        ColumnType::Float => Arc::new(Float64Array::from(Vec::<Option<f64>>::new())),
+        ColumnType::Boolean => Arc::new(BooleanArray::from(Vec::<Option<bool>>::new())),
+        // String / Datetime / Json / future variants → Utf8
+        _ => Arc::new(StringArray::from(Vec::<Option<&str>>::new())),
+    }
+}
+
+/// Build an Arrow array for a single named column across all records.
+///
+/// Extracts the value at `col_name` from each raw JSON record.
+/// Records where the field is absent or null produce a null entry in the array.
+fn build_column_array(
+    records: &[serde_json::Value],
+    col_name: &str,
+    col_type: &ColumnType,
+) -> Arc<dyn Array> {
+    match col_type {
+        ColumnType::Integer => {
+            let vals: Vec<Option<i64>> = records
+                .iter()
+                .map(|r| r.get(col_name).and_then(|v| v.as_i64()))
+                .collect();
+            Arc::new(Int64Array::from(vals))
+        }
+        ColumnType::Float => {
+            let vals: Vec<Option<f64>> = records
+                .iter()
+                .map(|r| r.get(col_name).and_then(|v| v.as_f64()))
+                .collect();
+            Arc::new(Float64Array::from(vals))
+        }
+        ColumnType::Boolean => {
+            let vals: Vec<Option<bool>> = records
+                .iter()
+                .map(|r| r.get(col_name).and_then(|v| v.as_bool()))
+                .collect();
+            Arc::new(BooleanArray::from(vals))
+        }
+        // String / Datetime / Json / future variants → Utf8
+        // Json values are serialized as their compact string representation.
+        _ => {
+            let vals: Vec<Option<String>> = records
+                .iter()
+                .map(|r| {
+                    r.get(col_name).and_then(|v| {
+                        if v.is_null() {
+                            None
+                        } else if let serde_json::Value::String(s) = v {
+                            Some(s.clone())
+                        } else {
+                            Some(v.to_string())
+                        }
+                    })
+                })
+                .collect();
             Arc::new(StringArray::from(
-                sensor_vals.iter().map(|s| s.as_deref()).collect::<Vec<_>>(),
-            )) as Arc<dyn Array>,
-        ],
-    )
+                vals.iter().map(|s| s.as_deref()).collect::<Vec<_>>(),
+            ))
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -669,45 +772,13 @@ pub async fn step9a_populate_adapter_registry(
     Ok(registered_count)
 }
 
-// ---------------------------------------------------------------------------
-// boot_step9_build_adapter_registry — testable production wiring helper (F-002)
-// ---------------------------------------------------------------------------
-
-/// Build a populated `AdapterRegistry` from a `resolved_spec_map` as step 9 does.
-///
-/// This is the SAME logic that `step9_start_mcp_server` calls internally via
-/// `step9a_populate_adapter_registry`. Exposed as a public function so that
-/// unit tests can exercise the production boot wiring without spawning a full
-/// MCP server (which requires RocksDB — integration-test dependency).
-///
-/// # Usage (F-002 boot wiring test, BC-2.22.001)
-///
-/// The test `test_BC_2_22_001_step9a_not_called_in_boot_production_path` calls this
-/// function with a non-empty `resolved_spec_map` and asserts the returned registry
-/// is non-empty — confirming that step 9 wires step 9A correctly.
-///
-/// # Returns
-///
-/// `Ok(AdapterRegistry)` with adapters registered for every supported `(OrgId, SensorId)`
-/// pair found in `resolved_spec_map`. Returns `Err(BootError)` only if the HTTP client
-/// cannot be constructed (should not occur in production).
-///
-/// BC-2.22.001; BC-2.01.013; F-002; S-DEMO-001 v1.3.
-pub async fn boot_step9_build_adapter_registry(
-    resolved_spec_map: &HashMap<ResolvedSpecKey, ResolvedSensorSpec>,
-    org_registry: &prism_core::OrgRegistry,
-    plugin_auth_providers: &HashMap<String, Arc<PluginAuthProvider>>,
-) -> Result<prism_sensors::AdapterRegistry, crate::boot::BootError> {
-    let mut registry = prism_sensors::AdapterRegistry::new();
-    step9a_populate_adapter_registry(
-        resolved_spec_map,
-        org_registry,
-        plugin_auth_providers,
-        &mut registry,
-    )
-    .await?;
-    Ok(registry)
-}
+// boot_step9_build_adapter_registry DELETED (F-002-R):
+// This duplicate helper was removed per adversary pass-2 finding F-002-R.
+// The production wiring is tested by test_BC_2_22_001_production_boot_path_wiring_guard
+// which reads boot.rs source directly to verify step9_start_mcp_server calls
+// step9a_populate_adapter_registry. That structural guard is stronger than testing
+// a parallel helper function that bypasses the real production wiring.
+// BC-2.22.001; F-002-R; S-DEMO-001 v1.5.
 
 // ---------------------------------------------------------------------------
 // Unit tests placeholder
