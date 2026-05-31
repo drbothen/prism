@@ -12,7 +12,7 @@ status: ready
 # skill strict prereq. No content/maturity change. BC-2.01.017 will auto-promote draft→active
 # at this story's merge per POL-14. Prism precedent is draft-at-dispatch + POL-14-promote-at-merge;
 # this flip is purely to satisfy the vsdd-factory deliver-story skill's strict prereq gate.
-version: "1.5"
+version: "1.6"
 level: "L4"
 producer: story-writer
 timestamp: "2026-05-29T00:00:00Z"
@@ -131,11 +131,11 @@ cycle: "v1.0.0-brownfield"
 phase: 3
 ---
 
-# S-DTU-CYBERINT-AUTH-FIDELITY-001 v1.5 — Cyberint DTU Auth Fidelity
+# S-DTU-CYBERINT-AUTH-FIDELITY-001 v1.6 — Cyberint DTU Auth Fidelity
 
 **Story ID:** S-DTU-CYBERINT-AUTH-FIDELITY-001
 **Status:** ready
-**Version:** v1.5
+**Version:** v1.6
 **Wave:** 5
 **Priority:** P0 (pre-demo BLOCKING)
 **Points:** 8
@@ -323,12 +323,15 @@ explicitly rejected, not silently ignored.
 (traces to BC-2.16.013 invariant — ADR-031 §D1-a and §D5: parity tests must assert
 cookie names match and reject wrong names)
 
-#### AC-010: E-AUTH-004/E-AUTH-006 surfaced on auth failure (error taxonomy compliance)
-When `StaticCookieAuthProvider::acquire_token` fails (credential not found in store), the
-error propagates as `SpecEngineError::AuthAcquisitionFailed` with detail matching the
-`E-AUTH-004` taxonomy entry: "Cookie authentication failed for {sensor} on client
-'{client_id}'". No panic; no generic error; the error code is `E-AUTH-004` as defined in
+#### AC-010: E-AUTH-005/E-AUTH-006 surfaced on auth failure (error taxonomy compliance)
+`StaticCookieAuthProvider::acquire_token` called when the credential resolver returns
+`CredentialResolutionError::NotFound` for `(client_id, sensor_id)` → error propagates as
+`SpecEngineError::AuthAcquisitionFailed` with detail matching the **E-AUTH-005** taxonomy
+entry (`"Credentials not found for ({client_id}, {sensor_id})"`). No panic; no generic
+error; the error code is **E-AUTH-005** as defined in
 `.factory/specs/prd-supplements/error-taxonomy.md`.
+(traces to BC-2.01.017 §Error Cases row 1 — credential resolver returns NotFound →
+AuthAcquisitionFailed carrying E-AUTH-005; TV-BC-2.01.017-004 is the canonical test vector)
 When the api_key credential is present but is empty, all-whitespace, contains illegal
 characters, or exceeds the maximum allowed length, the error code is `E-AUTH-006` per
 error-taxonomy.md v1.53 (NEW in v1.53 — introduced with BC-2.01.017).
@@ -455,8 +458,9 @@ recurrence policy. Zero uncatalogued `event_type` emissions are permitted.
     ```
     Constructor: `pub fn new(sensor_id: SensorId, credential_resolver: Arc<dyn CredentialResolver>) -> Self`
     `acquire_token` impl: call `credential_resolver.resolve(&sensor_id, "api_key")`; wrap
-    result in `AuthToken::new(...)`. On error: `SpecEngineError::AuthAcquisitionFailed` with
-    `E-AUTH-004` message template.
+    result in `AuthToken::new(...)`. On `CredentialResolutionError::NotFound`: return
+    `SpecEngineError::AuthAcquisitionFailed` with **E-AUTH-005** message template
+    (`"Credentials not found for ({client_id}, {sensor_id})"`). No HTTP fetch attempted.
     This is a `pub` type, NOT feature-gated (it is a production type per ADR-031 §D3-b).
 21. **Amend `PipelineExecutor::build_request`** in `pipeline.rs`:
     - Add `auth_type: &AuthType` parameter (or read from the `SensorSpec` already in scope).
@@ -583,8 +587,8 @@ N/A — first story in E-DTU-FIDELITY epic. Key lessons from adjacent stories:
 | EC-002 | access_token cookie value is empty string | `extract_access_token` returns `Some("")`; `is_valid_access_token("")` returns false → 401 |
 | EC-003 | Cookie header contains multiple cookies: `access_token=val1; session=val2` | `extract_access_token` returns `Some("val1")` — only the `access_token` cookie value |
 | EC-004 | Cookie header uses mixed case: `Cookie: Access-Token=val` | Real RFC 6265 cookies are case-sensitive in name; `Access-Token` is NOT `access_token`; returns None → 401 (real Cyberint likely sends lowercase) |
-| EC-005 | `StaticCookieAuthProvider::acquire_token` called when credential store has no `api_key` entry for this sensor_id | Returns `Err(SpecEngineError::AuthAcquisitionFailed)` with E-AUTH-004 message |
-| EC-006 | Cyberint DTU returns 401 after valid access_token (e.g., DTU reset mid-session) | PipelineExecutor `issue_request_with_retry` calls `acquire_token` again (re-reads credential store); same static key returned; 401 on retry → `AuthRefreshFailed` |
+| EC-005 | `StaticCookieAuthProvider::acquire_token` called when credential resolver returns `CredentialResolutionError::NotFound` for `(client_id, sensor_id)` | Returns `Err(SpecEngineError::AuthAcquisitionFailed)` carrying **E-AUTH-005** message (`"Credentials not found for ({client_id}, {sensor_id})"`); no HTTP fetch attempted. (BC-2.01.017 §Error Cases row 1; TV-BC-2.01.017-004) |
+| EC-006 | Cyberint DTU returns 401 during data fetch after a valid access_token was injected (e.g., DTU reset mid-session or stale key) | Pipeline surfaces **E-AUTH-004** in `sensor_errors` per BC-2.01.010 partial-failure contract. No retry. No second `acquire_token` call. Call count == 1. `StaticCookieAuthProvider` has no refreshable token — no retry is correct per BC-2.01.017 §Edge Cases EC-017-002. Operator action: update the static API key in the keyring. (BC-2.01.017 §Edge Cases EC-017-002; TV-BC-2.01.017-006) |
 | EC-007 | test sends both `cyberint_session` AND `access_token` cookies in same header | `extract_access_token` finds `access_token` first (if ordered before `cyberint_session`) or whichever appears first; test should be deterministic — only include one or the other |
 | EC-008 | `uuid` crate removed from prism-dtu-cyberint Cargo.toml | Verify no other DTU code uses uuid (beyond auth.rs); if it does, retain the dep; if auth.rs was the sole consumer, remove cleanly |
 
@@ -676,6 +680,7 @@ Well within the 20-30% budget.
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.6 | 2026-05-30 | story-writer FB-PR2 | F-PR2-MED-001 closure: PO adjudicated spec-vs-spec conflict — BC-2.01.017 v1.5 is authoritative; story EC-005/EC-006/AC-010 corrected to align. EC-005: credential-not-found error changed from E-AUTH-004 → E-AUTH-005 per BC-2.01.017 §Error Cases row 1 and TV-BC-2.01.017-004; message template updated to `"Credentials not found for ({client_id}, {sensor_id})"`. EC-006: retry/AuthRefreshFailed semantics replaced with no-retry E-AUTH-004 in sensor_errors per BC-2.01.010 partial failure, call count==1, per BC-2.01.017 §Edge Cases EC-017-002 and TV-BC-2.01.017-006. AC-010 first paragraph: credential-not-found error changed from E-AUTH-004 → E-AUTH-005; heading updated from E-AUTH-004/E-AUTH-006 → E-AUTH-005/E-AUTH-006; AC-010 second paragraph (E-AUTH-006 coverage) kept AS-IS — correct. Task 20 acquire_token error clause updated to E-AUTH-005 with correct NotFound path. Sibling-sweep (TD-VSDD-060): all remaining E-AUTH-004 references verified — only correct usages remain (HTTP-401-during-fetch path in EC-006 and the one pre-existing Task 20 context). |
 | 1.5 | 2026-05-30 | story-writer D-874 | F-LP12-MED-001 closure: body-sync H1 + §Version field to match frontmatter (was H1 v1.1 + §Version v1.3 vs frontmatter v1.4 — three distinct version values). POL-29 step 8b body-sync was missed at v1.1 → v1.2 (D-850) and v1.2 → v1.3 (D-863) and v1.3 → v1.4 (D-868); this burst retroactively synchronizes the body. No content change. STORY-INDEX v2.215 → v2.216. |
 | 1.4 | 2026-05-30 | story-writer D-868 | F-LP9-MED-001 closure: changelog row reorder to monotonic descending (was 1.0, 1.1, 1.3, 1.2 non-monotonic). Sibling-sweep on F-LP8-MED-001 (BC-2.01.017 v1.4 monotonic descending convention established by PO D-866 at 399ef378). Story changelog now matches BC convention: 1.4 → 1.3 → 1.2 → 1.1 → 1.0. No content change to story body or ACs. STORY-INDEX v2.213→v2.214. |
 | 1.3 | 2026-05-30 | story-writer D-863 | F-LP6-LOW-001 Option A (rename): corrected 4 Red Gate test names from wrong BC prefix to primary-BC prefix per project-wide prefix-by-primary-BC convention (S-CONFIG/S-PLUGIN-PREREQ-E evidence). (1) `test_BC_2_01_013_dtu_extract_access_token_parses_cookie_header` → `test_BC_2_01_017_*`: proves extract_access_token behavior which is BC-2.01.017 §Postconditions, not BC-2.01.013. (2) `test_BC_2_01_013_static_cookie_auth_provider_returns_api_key_without_http_call` → `test_BC_2_01_017_*`: proves StaticCookieAuthProvider::acquire_token which is BC-2.01.017 §Postconditions. (3) `test_BC_2_01_016_static_cookie_auth_provider_acquire_token_no_http_call` → `test_BC_2_01_017_*`: proves no-HTTP-call invariant which is BC-2.01.017 §Invariants, not BC-2.01.016. (4) `test_BC_2_01_013_build_request_injects_access_token_cookie_for_cookie_roundtrip` → `test_BC_2_01_017_*`: proves build_request Cookie: access_token dispatch which is BC-2.01.017 behavior. Red Gate table, AC body inline citations, and Tasks step-6/step-19 all updated. Test naming convention note added to §Notes for Implementer. Implementer follow-on: rename 4 test functions in `crates/prism-spec-engine/` and `crates/prism-dtu-cyberint/` test files to match. STORY-INDEX v2.212→v2.213. |
