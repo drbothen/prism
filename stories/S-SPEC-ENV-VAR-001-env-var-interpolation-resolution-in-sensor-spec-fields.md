@@ -6,7 +6,7 @@ wave: wave-5-e-demo-fidelity
 epic_id: E-SPEC-ENGINE
 priority: P0
 status: draft
-version: "1.1"
+version: "1.2"
 level: "L4"
 producer: story-writer
 timestamp: "2026-05-31T00:00:00Z"
@@ -84,11 +84,11 @@ cycle: "v1.0.0-brownfield"
 phase: 3
 ---
 
-# S-SPEC-ENV-VAR-001 v1.1 — `${env.VAR}` Interpolation Resolution in Sensor-Spec String Fields
+# S-SPEC-ENV-VAR-001 v1.2 — `${env.VAR}` Interpolation Resolution in Sensor-Spec String Fields
 
 **Story ID:** S-SPEC-ENV-VAR-001
 **Status:** draft
-**Version:** v1.1
+**Version:** v1.2
 **Wave:** wave-5-e-demo-fidelity
 **Priority:** P0
 **Points:** 5
@@ -371,7 +371,7 @@ Red Gate test: `test_env_var_error_contains_name_not_value`
 | Rule | Source | Enforcement |
 |------|--------|-------------|
 | Resolver runs AFTER TOML deserialization, BEFORE URL-format validation | BC-2.16.009 §Validation Rules 6 AC-6 | AC-007 Red Gate test asserts ordering; adversary probes call sequence on every pass |
-| Resolver scans ALL String fields in SensorSpec, not just base_url | BC-2.16.009 §Validation Rules 6 sibling-sweep note (TD-VSDD-060) | Adversary reads resolver implementation and confirms no hardcoded field list limited to base_url |
+| Resolver scans all user-facing template String fields (`base_url`, `name`, `version`, `auth_plugin`, `source_path`, and `TableSpec`/`FetchStep`/`ColumnSpec` strings), excluding format-constrained identity/metadata fields (`sensor_id`, `file_hash`, `credential_refs[].name`) which structurally cannot contain `${env.*}` tokens | BC-2.16.009 §Validation Rules 6 sibling-sweep note (TD-VSDD-060) | Adversary reads resolver implementation and confirms no hardcoded field list limited to `base_url` only; also confirms excluded fields are not scanned |
 | Only `${env.VAR_NAME}` namespace resolved; `${step.*}` and `${query.*}` left untouched | BC-2.16.009 §Validation Rules 6 — "Tokens with a different namespace ... are NOT resolved by this pass" | Adversary writes a test with `${step.field}` in a template and verifies it is not modified |
 | E-SPEC-024 message contains var NAME + TOML path; never var VALUE | BC-2.16.009 §Validation Rules 6 error path; E-SPEC-024 taxonomy; AD-017 | AC-008 Red Gate test; adversary probes for value leaks on every pass |
 | Fail-closed: spec with any unresolved token is REJECTED ENTIRELY | BC-2.16.009 §Validation Rules 6 — "Fail-closed: a spec with any unresolved env tokens is REJECTED ENTIRELY" | ACs 004 and 005; AC-006 multi-error test |
@@ -475,3 +475,4 @@ Well within the 20-30% budget.
 |---------|------|--------|-------|
 | 1.0 | 2026-05-31 | story-writer | Initial materialization. 8 ACs (all TDD-ready Red Gate), 5 pts, wave-5-e-demo-fidelity, P0, depends_on: []. Grounded against BC-2.16.009 v1.6 §Validation Rules 6 (AC-6 postconditions, error path, EC-009-001..007) and error-taxonomy.md E-SPEC-024 (broken, configuration, message format, AD-017 no-value-leak). Unblocks S-DEMO-ARMIS-AQL-001, Claroty fidelity lane, and S-DEMO-CROWDSTRIKE-MULTIREGION-001 (hard-gated). NOT on S-CONFIG → S-DEMO-001 keystone spine. |
 | 1.1 | 2026-05-31 | story-writer | OBS-1 factual-accuracy fix (adversary pass-1): corrected sensor token-form attribution. claroty.sensor.toml uses `${env.CLAROTY_INSTANCE_URL}` (full token); cyberint.sensor.toml uses `https://${env.CYBERINT_ENVIRONMENT}.cyberint.io` (partial token). Updated Origin section, depends_on comment, Task steps 4-5, and EC-009-003/004 row descriptions. |
+| 1.2 | 2026-05-31 | story-writer | F-P2-LOW-001b factual-accuracy fix (adversary pass-2): narrowed Architecture Compliance Rules "scans ALL String fields" row to match implemented scope. Resolver covers all user-facing template String fields (`base_url`, `name`, `version`, `auth_plugin`, `source_path`, `TableSpec`/`FetchStep`/`ColumnSpec` strings); explicitly excludes format-constrained identity/metadata fields (`sensor_id`, `file_hash`, `credential_refs[].name`) which structurally cannot contain `${env.*}` tokens. Verification intent (no base_url-only hardcoding) preserved. |

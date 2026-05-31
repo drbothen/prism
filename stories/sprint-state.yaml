@@ -48,13 +48,22 @@ active_dispatch_set:
     status: draft
     priority: P0-KEYSTONE
     points: 11
-    spec_version: "v1.3"
+    spec_version: "v1.5"
     depends_on:
       - PLUGIN-MIGRATION-001-A   # merged
       - PLUGIN-MIGRATION-001-E   # merged
       - S-CONFIG-MULTI-TENANT-OVERRIDE-001
       - S-DTU-CYBERINT-AUTH-FIDELITY-001
-    notes: "KEYSTONE. Closes GAP-002-A. SpecDrivenSensorAdapter + boot step 9A. Architect-revised 2026-05-29 D-847 (9d67fe8f). Cannot dispatch until all depends_on merge."
+    notes: "KEYSTONE. Closes GAP-002-A. SpecDrivenSensorAdapter + boot step 9A. Architect-revised 2026-05-29 D-847 (9d67fe8f). D-924 pass-2 spec fix-burst: AC-010 reworded (BC-2.01.013 v1.8 OCSF conformance bar); push-down F-003-R deferred to S-DEMO-QUERY-PUSHDOWN-001. CODE fix-burst PENDING (test-writer stronger tests → implementer real normalization). Cannot advance to pass 3 until code fix-burst complete."
+
+  - story_id: S-DEMO-QUERY-PUSHDOWN-001
+    status: draft
+    priority: P2
+    points: 5
+    spec_version: "v1.0"
+    depends_on:
+      - S-DEMO-001  # HARD gate: delivers SpecDrivenSensorAdapter + PipelineExecutor entry points
+    notes: "Registered D-924 (2026-05-31). Follow-up story for F-003-R push-down deferred from S-DEMO-001 keystone. BC-2.01.013 v1.8 Pagination/Push-Down Scope Clause documents the deferral. Blocked on S-DEMO-001 merge. Push-down is an optimization — correctness invariant: result identical with or without push-down (BC-2.11.007)."
 
   - story_id: S-DEMO-002
     status: draft
@@ -111,12 +120,12 @@ active_dispatch_set:
     notes: "Reclassified 2026-05-31 D-907: permitted-divergence→required-fidelity per ADR-031 v1.2 (user directive no-scope-compromise; architect commit e57eb5b1). story-writer 2451d025. PO new-BC flag open: BC-2.16.013 trailing-slash-parity coverage (see §New-BC Flags in story file). Must be evaluated before story flips to ready."
 
   - story_id: S-SPEC-ENV-VAR-001
-    status: unstarted
+    status: draft
     priority: P0
     points: 5
-    spec_version: "v1.0"
+    spec_version: "v1.2"
     depends_on: []
-    notes: "Registered D-914 (2026-05-31). Leaf prereq — no upstream story dependencies. ${env.VAR} token resolver in prism-spec-engine spec_parser, E-SPEC-024 error path, AD-017 no-value-leak. HARD-gates S-DEMO-CROWDSTRIKE-MULTIREGION-001. Parity-soft gates Armis-AQL and Claroty fidelity lane (annotation only; no hard depends_on in those stories). Human chose Option A (standalone story). BC-2.16.009 AC-6. Must deliver before CrowdStrike story dispatches."
+    notes: "Registered D-914 (2026-05-31). Leaf prereq — no upstream story dependencies. ${env.VAR} token resolver in prism-spec-engine spec_parser, E-SPEC-024 error path, AD-017 no-value-leak. HARD-gates S-DEMO-CROWDSTRIKE-MULTIREGION-001. D-924 pass-2 spec fix-burst: story body String-fields line reconciled (v1.2). LOCAL adversary pass 2 spec COMPLETE — READY for LOCAL adversary PASS 3. Streak 0/3."
 
   - story_id: S-DEMO-CROWDSTRIKE-MULTIREGION-001
     status: draft

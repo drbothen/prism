@@ -6,11 +6,11 @@ wave: 5
 epic_id: E-DEMO
 priority: P0
 status: draft
-version: "1.4"
+version: "1.5"
 level: "L4"
 producer: story-writer
 revised_by: architect
-timestamp: "2026-05-29T12:00:00Z"
+timestamp: "2026-05-31T12:00:00Z"
 tdd_mode: strict
 subsystems: [SS-01, SS-16, SS-22]
 # Subsystem anchor justifications:
@@ -139,11 +139,11 @@ cycle: "v1.0.0-brownfield"
 phase: 3
 ---
 
-# S-DEMO-001 v1.4 — prism-bin: SpecDrivenSensorAdapter + Boot Step 9A (closes GAP-002-A)
+# S-DEMO-001 v1.5 — prism-bin: SpecDrivenSensorAdapter + Boot Step 9A (closes GAP-002-A)
 
 **Story ID:** S-DEMO-001
 **Status:** draft
-**Version:** v1.4
+**Version:** v1.5
 **Wave:** 5
 **Priority:** P0
 **Points:** 11
@@ -449,13 +449,51 @@ Then:
 name per poller-express `cookieTransport`. Any implementation that uses `cyberint_session` as the
 cookie name is WRONG under ADR-031 D1-a. The adversary will probe for this specifically.
 
-### AC-010: Adapter fetch returns OCSF-normalized Arrow RecordBatches
-Given: A `SpecDrivenSensorAdapter::fetch()` call is made for any of the 4 sensors.
-When: The `PipelineExecutor` successfully fetches and normalizes data.
-Then: The returned `Vec<RecordBatch>` contains at least the OCSF hot fields: `category_uid`,
-`class_uid`; the `_sensor` virtual column identifies the sensor_id; no raw API response fields
-transit the return value without OCSF normalization.
-(traces to BC-2.11.005 postcondition)
+### AC-010: Adapter fetch returns OCSF-conformant Arrow RecordBatches (BC-2.01.013 v1.8 OCSF Conformance Clause items 1–3)
+Given: A `SpecDrivenSensorAdapter::fetch()` call is made for any of the 4 sensors and the
+`PipelineExecutor` successfully fetches and normalizes data.
+When: The returned `Vec<RecordBatch>` is inspected.
+Then ALL three conformance requirements MUST hold — any single failure is NON-CONFORMANT:
+
+(a) **Spec-declared data columns (item 1):** Every column declared in the sensor's TOML
+`[[tables.columns]]` spec MUST appear in the returned Arrow schema via `ColumnMapper`
+field-by-field mapping. A RecordBatch that contains only OCSF envelope fields (`category_uid`,
+`class_uid`, `_sensor`) while dropping the spec-declared sensor payload columns is
+NON-CONFORMANT. The conformance test MUST assert that every column name from the spec appears
+in the returned Arrow schema.
+
+(b) **OCSF envelope derivation (item 2):** `category_uid` and `class_uid` MUST be DERIVED by
+`OcsfNormalizer` from the sensor's declared `ocsf_class` and `ocsf_category` in the TOML spec
+— NOT copied verbatim from the raw API response record. An implementation that reads
+`category_uid`/`class_uid` directly from the raw vendor JSON and places them unchanged into the
+Arrow output is NON-CONFORMANT even if the values coincidentally match. The conformance test
+MUST assert that `category_uid` and `class_uid` equal the values computed from the spec's
+`ocsf_class`/`ocsf_category`, not from the raw record.
+
+(c) **`_sensor` virtual column (item 3):** The `_sensor` virtual column MUST be present and
+set to the sensor's canonical `SensorId` string (e.g., `"crowdstrike"`), injected by the
+normalization layer. The conformance test MUST assert `_sensor` is present with the correct
+sensor ID.
+
+**Conformance test requirement (minimum gate per BC-2.01.013 v1.8 Conformance Clause):**
+The test for this AC MUST construct a `SpecDrivenSensorAdapter`, drive it against a mock
+`PipelineExecutor` returning a representative raw API response, and assert all three of:
+(a) all spec-declared column names appear in the returned Arrow schema,
+(b) `category_uid` and `class_uid` equal the values derived from `ocsf_class`/`ocsf_category`
+in the spec (NOT from the raw record), and
+(c) `_sensor` is present with the correct sensor ID.
+
+(traces to BC-2.01.013 v1.8 OCSF Conformance Clause items 1–3; postcondition; traces to BC-2.11.005 postcondition — virtual fields injected by the normalization layer)
+
+**SCOPE NOTE — Query-Param Push-Down is OUT OF SCOPE for this story (D-924):**
+`SpecDrivenSensorAdapter::fetch()` does NOT translate `limit`, `cursor`, `start_time`, or
+`end_time` from the query caller's parameters into sensor-native API request parameters.
+DataFusion applies `LIMIT` predicates and time-window post-filters over the fully materialized
+Arrow RecordBatch after `fetch()` returns. This is correct behavior — push-down is an
+optimization (BC-2.11.007 invariant), not a correctness requirement. Query-param push-down is
+deferred as an explicit feature to follow-up story S-DEMO-QUERY-PUSHDOWN-001 per
+BC-2.01.013 v1.8 Pagination/Push-Down Scope Clause (D-924). Test-writers MUST NOT assert that
+`fetch()` passes `limit` or cursor values to the sensor API.
 
 ### AC-011: No `todo!()` or `unimplemented!()` in adapter, boot step 9A, or StaticCookieAuthProvider (POL-12)
 Given: The implementation is complete and all 4 sensor paths are exercised by tests.
@@ -638,4 +676,5 @@ if context pressure is felt during implementation.
 | 1.1 | 2026-05-29 | architect | Corrected Cyberint auth model (cookie_roundtrip ≠ bearer_static); resolved OQ-1, OQ-2, OQ-6; added CookieLoginAuthProvider design; amended build_request pipeline gap; added new AC-003/AC-009/AC-012; revised points 8→11; risk MEDIUM→HIGH |
 | 1.2 | 2026-05-29 | architect | AC-003/AC-009: tightened `cyberint_session` cookie name specification per fidelity audit (POLLER-DTU-FIDELITY-AUDIT-2026-05-29). Added Set-Cookie parse constraint to AC-009 (cookie name `cyberint_session` not `access_token` for DTU demo path). Cross-poller audit surfaced Gap-CS-001/CL-002/CL-003/CL-004/CL-005; TOML fixes applied to crowdstrike.sensor.toml and claroty.sensor.toml in same burst. |
 | 1.3 | 2026-05-29 | architect | **DTU=true-DTU REVERSAL (ADR-031 user directive 2026-05-29).** `cyberint_session` decision reversed. ALL Cyberint references updated: `CookieLoginAuthProvider` (login-step) → `StaticCookieAuthProvider` (no login step, credential-store read); cookie name `cyberint_session` → `access_token`; `build_request` dispatch `Cookie: cyberint_session` → `Cookie: access_token`. §Origin updated. §Cyberint Cookie Auth Design section rewritten. AC-003/AC-009 rewritten. OQ-1 enum variant `CookieLogin` → `StaticCookie`. EC-001/EC-002/EC-005/EC-008 updated. Library/framework table updated. ADR-028 §D12 → pre-authored in factory-artifacts burst (now annotated SUPERSEDED). ADR-031 cited throughout. New depends_on: S-DTU-CYBERINT-AUTH-FIDELITY-001 (P0-pre-demo-BLOCKING — DTU correction required before implementation). |
+| 1.5 | 2026-05-31 | story-writer | AC-010 rewritten (adversary pass-2, F-001-R + F-003-R closure): old envelope-only wording replaced with BC-2.01.013 v1.8 OCSF Conformance Clause items 1–3 verbatim-aligned requirements — (a) all spec-declared columns survive via ColumnMapper (envelope-only output is NON-CONFORMANT), (b) category_uid/class_uid derived by OcsfNormalizer not read from raw record (raw-copy is NON-CONFORMANT), (c) _sensor virtual column = canonical SensorId. Conformance test requirement added (minimum gate per BC-2.01.013 v1.8). Scope note added: query-param push-down (limit/cursor/time-window) OUT OF SCOPE per BC-2.01.013 v1.8 Pagination/Push-Down Scope Clause (D-924), deferred to S-DEMO-QUERY-PUSHDOWN-001; DataFusion applies LIMIT post-materialization. |
 | 1.4 | 2026-05-31 | story-writer | OQ-2 factual-accuracy fix (adversary pass-1, D-922 adjudication): `OrgRegistry::id_for_slug` → `OrgRegistry::resolve(slug) -> Option<OrgId>` as the canonical existing method. Removed instruction to add `id_for_slug`. Skip-and-continue on `None` matches EC-003. |
