@@ -163,6 +163,9 @@ pub(crate) fn resolve_env_tokens_in_string_field(
 ///   The regex structurally excludes `${` (which contains an uppercase or bracket character
 ///   outside the allowed set), making env token injection impossible. Excluding it avoids
 ///   a pointless regex scan on a provably token-free field.
+/// - `credential_refs[].name`: format-constrained to `[a-zA-Z0-9_-]+`. This character set
+///   structurally excludes `$` and `{`, making `${env.VAR_NAME}` injection impossible by
+///   construction (same rationale as `sensor_id`). Scanning it would be a no-op.
 /// - `file_hash`: infrastructure-set SHA-256 hex string populated by the file-loading
 ///   caller AFTER parse. It is never user-provided TOML content and cannot contain
 ///   `${env.VAR}` tokens by construction.
@@ -203,6 +206,8 @@ pub fn resolve_env_var_tokens(spec: &mut SensorSpec, file_path: &str) -> Vec<Spe
     //
     // Excluded fields (see pub-fn doc for rationale — Canonical Principle Rule 6):
     //   - sensor_id: format-constrained ^[a-z][a-z0-9_-]*$ → structurally excludes "${".
+    //   - credential_refs[].name: format-constrained [a-zA-Z0-9_-]+ → excludes "$" and "{"
+    //     making ${env.VAR} injection impossible by construction (same rationale as sensor_id).
     //   - file_hash: infrastructure-set SHA-256 hex by file-loading caller post-parse.
     //
     // source_path IS scanned: it is an infrastructure field but may contain arbitrary

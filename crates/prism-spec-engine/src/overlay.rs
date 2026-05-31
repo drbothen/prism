@@ -672,22 +672,26 @@ impl OverlayLoader {
                     // Convert SpecEngineError::EnvVarNotSet → PrismError::Spec(ESpec024).
                     // Only EnvVarNotSet is emitted by the resolver (per env_resolver.rs contract).
                     // Use a match to ensure we don't silently swallow future resolver error variants.
-                    match env_err {
+                    match &env_err {
                         SpecEngineError::EnvVarNotSet {
-                            var_name,
                             toml_path,
                             file_path: err_file_path,
+                            ..
                         } => {
                             validation_errors.push(PrismError::Spec(SpecError {
                                 code: SpecErrorCode::ESpec024,
-                                // AD-017: message includes var NAME and field path — never the value.
-                                message: format!(
-                                    "Sensor spec '{err_file_path}' field '{toml_path}' references \
-                                     environment variable '{var_name}' which is not set or is empty. \
-                                     Set '{var_name}' before starting prism."
-                                ),
-                                toml_path: Some(toml_path),
-                                file_path: Some(err_file_path),
+                                // Route through the pinned Display on SpecEngineError::EnvVarNotSet
+                                // (error.rs #[error(...)]) rather than a duplicate format!() literal.
+                                // This makes error.rs the single source of truth for the E-SPEC-024
+                                // message — test_E_SPEC_024_display_matches_error_taxonomy_template_
+                                // byte_for_byte in error.rs pins that Display byte-for-byte, so any
+                                // taxonomy change is caught by that single test and propagates here
+                                // automatically (F-P2-MED-001 / POL-24 / POL-25).
+                                //
+                                // AD-017: the Display emits var NAME and field path only — never value.
+                                message: env_err.to_string(),
+                                toml_path: Some(toml_path.clone()),
+                                file_path: Some(err_file_path.clone()),
                                 line_number: None,
                             }));
                         }
