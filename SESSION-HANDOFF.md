@@ -9200,10 +9200,11 @@ New session MUST follow these steps IN ORDER:
    Must pass before any action. Verifies .factory/ worktree on factory-artifacts.
 
 3. Read STATE.md frontmatter — confirm:
-   - version: "7.561" (or higher if additional state-manager bursts ran)
+   - version: "7.567" (D-904 post-merge burst; cyberint MERGED)
    - cyberint_local_converged_at_pass: 17
-   - cyberint_pr_cycle_in_flight: true
-   - develop_head: "72baf413"
+   - cyberint_pr_cycle_in_flight: false (MERGED; cascade CLOSED D-905)
+   - develop_head: "e798e67c" (PR #164 squash-merge 2026-05-31)
+   ~~- develop_head: "72baf413"~~ (stale — superseded by e898c3c9 at D-884, then e798e67c at D-904 merge)
 
 4. Read this section (§RESUME SNAPSHOT 2026-05-30-CYBERINT-LOCAL-CONVERGED-PR-CYCLE-IN-FLIGHT).
 

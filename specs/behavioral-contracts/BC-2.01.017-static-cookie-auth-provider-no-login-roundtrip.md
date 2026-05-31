@@ -1,17 +1,17 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.6"
-status: draft
+version: "1.7"
+status: active
 producer: product-owner
-timestamp: 2026-05-30T00:00:00Z
+timestamp: 2026-05-31T00:00:00Z
 phase: 1a
 origin: greenfield
 subsystem: "SS-01"
 capability: "CAP-001"
 lifecycle_status: active
 introduced: "2026-05-29"
-modified: "2026-05-30"
+modified: "2026-05-31"
 deprecated: ~
 deprecated_by: ~
 replacement: ~
@@ -259,6 +259,7 @@ adjudication in `cycles/wave-0-plugin-prereqs/S-DTU-CYBERINT-AUTH-FIDELITY-001/p
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.7 | D-904 POL-14 auto-promotion | 2026-05-31 | state-manager | POL-14 auto-promotion at merge: PR #164 (S-DTU-CYBERINT-AUTH-FIDELITY-001) squash-merged to develop@e798e67c; status draft→active; lifecycle_status was already active (idempotent). BC-INDEX v5.64→v5.65 (active_contracts 236→237, draft_contracts 3→2). |
 | 1.6 | FB-PR6 F-P10-MED-001 | 2026-05-30 | product-owner | F-P10-MED-001 closure: SensorAuth→AuthProvider prose correction throughout (mis-anchor finding). §Description: "implements `SensorAuth` trait" corrected to "implements `AuthProvider` trait (ADR-023)"; implementation site corrected from `crates/prism-sensors/src/auth/mod.rs` to `crates/prism-spec-engine/src/auth_provider.rs`. §Preconditions: stale `SensorAuth` + `auth_type_name()` bullet replaced with correct TOML-driven dispatch description (`spec.auth_type == AuthType::CookieRoundtrip`, `acquire_token()` as the sole AuthProvider method). §Postconditions P3: renamed from "Auth Type Name" to "Auth Type Dispatch"; corrected from `auth_type_name()` method (which does NOT exist on AuthProvider) to TOML-driven enum dispatch. TV-BC-2.01.017-008: rewritten from "auth_type_name returns canonical string" to TOML-driven dispatch test. §Related BCs: BC-2.01.016 description clarified — `StaticCookieAuthProvider` implements `AuthProvider`, NOT `SensorAuth`. §Architecture Anchors: ADR-026 §D1 `SensorAuth` anchor replaced by ADR-023 §PREREQ-B `AuthProvider` anchor; crate path corrected to `crates/prism-spec-engine/src/auth_provider.rs`. Contract semantics unchanged (error codes E-AUTH-004/005/006/007, no-retry, zero-HTTP, cookie injection all unmodified). BC-INDEX title column unchanged (not a title change). |
 | 1.5 | D-875 F-LP12-LOW-001 | 2026-05-30 | product-owner | F-LP12-LOW-001 adjudication: all 21 cite-pins confirmed Category A (behavioral anchors); no code change required. Added §Notes for Implementers — Cite-pin convention section to document pinned-at-write-time convention. POL-29 step 8f amendment recommended (hygiene-only version bumps exempt from cite-pin sweep obligation). BC-INDEX v5.60→v5.61. |
 | 1.4 | D-866 F-LP8-MED-001 | 2026-05-30 | product-owner | F-LP8-MED-001 closure: changelog hygiene — deleted byte-identical duplicate of v1.2 row (was at line 237 alongside canonical v1.2 row at line 235); reordered changelog rows to monotonic descending by version (1.4 → 1.3 → 1.2 → 1.1 → 1.0). No semantic content change to BC. BC-INDEX v5.59→v5.60. |

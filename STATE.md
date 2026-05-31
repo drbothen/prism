@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.566"
+version: "7.567"
 producer: state-manager
-timestamp: 2026-05-30T12:00:00Z
+timestamp: 2026-05-31T00:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -16,9 +16,9 @@ repos: [poller-cobra, poller-express, poller-bear, poller-coaster, serveMyAPI, t
 safe_to_compact: true
 pre_compact_snapshot: "SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-30-CYBERINT-LOCAL-CONVERGED-PR-CYCLE-IN-FLIGHT"
 pre_compact_snapshot_at: "2026-05-30 (D-882 PRE-CLEAR durability snapshot; cyberint LOCAL CONVERGED at Pass 17; pr-manager push in flight via background agent a0bf672578287c75f; push CONFIRMED at b3aa0970; PR not yet created at D-882 write)"
-current_step: "D-901 — PR-LEVEL 3-CLEAN CONVERGENCE ACHIEVED. Passes 13-15 parallel on HEAD c45f99ab all CLEAN(strict)=YES. Streak 3/3 per BC-5.39.001 D-779. Steps 4/5/6 satisfied. PR #164 at Step 8 MERGE GATE — awaiting human approval."
-cyberint_pr_cycle_in_flight: true
-cyberint_pr_cycle_step: "PR #164 OPEN; FB-PR1..FB-PR6 all complete; passes 13-15 parallel on HEAD c45f99ab all CLEAN(strict)=YES; PR-LEVEL 3-CLEAN CONVERGENCE ACHIEVED (passes 13/14/15; streak 3/3); Steps 4/5/6 satisfied; awaiting human merge approval (Step 8)"
+current_step: "D-904 — S-DTU-CYBERINT-AUTH-FIDELITY-001 MERGED (PR #164 squash e798e67c). POL-14 BC-2.01.017 promoted draft→active. Cascade CLOSED. develop_head e898e67c→e798e67c. Next: S-CONFIG-MULTI-TENANT-OVERRIDE-001 (P0 ready) toward S-DEMO-001 keystone."
+cyberint_pr_cycle_in_flight: false
+cyberint_pr_cycle_step: "CLOSED — PR #164 squash-merged develop@e798e67c 2026-05-31; POL-14 BC-2.01.017 draft→active (D-904); cascade CLOSED (D-905 process-gaps as justified deferrals); story merged v1.9"
 cyberint_demo_evidence_path: "docs/demo-evidence/S-DTU-CYBERINT-AUTH-FIDELITY-001/"
 cyberint_demo_evidence_complete: true
 cyberint_demo_recorder_feature_head: "b3aa0970"
@@ -237,6 +237,14 @@ e2e_demo_scope_decision: "user-authorized all-4-sensors 2026-05-29 (CrowdStrike 
 dtu_fidelity_principle: "DTU=true-DTU (ADR-031 2026-05-29) — DTU clones must mirror real API field names, auth flows, cookie names, endpoints, response shapes. Binding principle; no mock shortcuts."
 adr_031_status: "AUTHORED 2026-05-29 — DTU=true-DTU fidelity principle; supersedes ADR-028 §D12"
 s_dtu_cyberint_auth_fidelity_001_priority: "P0-pre-demo-BLOCKING (reclassified from P2-post-demo via D-847; was S-DEMO-CYBERINT-LIVE-AUTH-001)"
+s_dtu_cyberint_auth_fidelity_001_status: "MERGED via PR #164 develop@e798e67c 2026-05-31 (D-904 post-merge burst). LOCAL 17 passes 3-CLEAN. PR-LEVEL 15 passes 3-CLEAN. 6 fix-bursts. BC-2.01.017 v1.7 promoted active per POL-14. Cascade CLOSED."
+s_dtu_cyberint_auth_fidelity_001_merged_via_pr: 164
+s_dtu_cyberint_auth_fidelity_001_merged_via_sha: "e798e67c"
+s_dtu_cyberint_auth_fidelity_001_merged_at: "2026-05-31"
+s_dtu_cyberint_auth_fidelity_001_local_adversary_passes: 17
+s_dtu_cyberint_auth_fidelity_001_pr_level_passes: 15
+s_dtu_cyberint_auth_fidelity_001_pr_level_fix_bursts: 6
+s_dtu_cyberint_auth_fidelity_001_local_converged_at_pass: 17
 s_5_01_followup_mcp_boot_status: "MERGED via PR #163 develop@e898c3c9 2026-05-29T16:44:42Z"
 s_5_01_followup_mcp_boot_merged_via_pr: 163
 s_5_01_followup_mcp_boot_merged_via_sha: "e898c3c9"
@@ -405,7 +413,7 @@ dtu_clones_built: in_progress
 dtu_strategy: "Option 2 — DTU-first"
 dtu_strategy_decided: 2026-04-20
 policy_registry_source_of_truth: .factory/policies.yaml
-develop_head: "e898c3c9"
+develop_head: "e798e67c"
 workspace_test_count_at_001_f_pr: 3708
 workspace_test_count_at_001_f_merge: 3708
 vsdd_factory_version: "1.0.0-rc.18 (re-activated 2026-05-13T15:00:19Z; upgrade chain rc.11 → rc.16 2026-05-10 → rc.18 2026-05-13)"
@@ -423,9 +431,9 @@ s_spec_type_unification_001_demo_evidence_path: "docs/demo-evidence/S-SPEC-TYPE-
 s_spec_type_unification_001_demo_evidence_complete: true
 user_directive_persistent: "No pragmatic convergence. Fix all issues before build."
 current_cycle_history: "wave-0-plugin-prereqs (PREREQ-E merged PR #151 2026-05-19); prior: wave-4-operations (active); wave-3-multi-tenant (COMPLETE)"
-bc_index_version: "5.64"
+bc_index_version: "5.65"
 vp_index_version: "1.76"
-story_index_version: "v2.220"
+story_index_version: "v2.221"
 sprint_state_path: ".factory/stories/sprint-state.yaml"
 plugin_migration_001_d_local_adversary_passes: 25
 plugin_migration_001_d_local_fix_bursts: 19
@@ -468,9 +476,9 @@ historical_cycles: [phase-1-convergence, wave-3-multi-tenant, wave-4-operations]
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-30 (D-901 state-manager PR-LEVEL convergence burst — passes 13-15 parallel on HEAD c45f99ab all CLEAN(strict)=YES; PR-LEVEL 3-CLEAN CONVERGENCE per BC-5.39.001 D-779; Steps 4/5/6 satisfied; STATE v7.566) |
-| **Current Phase** | Wave 3 Tier-3 complete — S-DTU-CYBERINT-AUTH-FIDELITY-001 PR #164 at MERGE GATE. PR-LEVEL 3-CLEAN CONVERGED (passes 13/14/15 on HEAD c45f99ab). Steps 4/5/6 satisfied. Awaiting human merge approval (Step 8). develop@e898c3c9. |
-| **Current Step** | D-901 — PR-LEVEL 3-CLEAN CONVERGENCE ACHIEVED. Passes 13/14/15 parallel all CLEAN(strict)=YES on HEAD c45f99ab. Streak 3/3. Steps 4/5/6 satisfied. PR #164 at Step 8 MERGE GATE — human approval required. |
+| **Last Updated** | 2026-05-31 (D-904 state-manager post-merge burst — S-DTU-CYBERINT-AUTH-FIDELITY-001 PR #164 squash-merged to develop@e798e67c; BC-2.01.017 v1.7 promoted active per POL-14; cascade CLOSED; STATE v7.567) |
+| **Current Phase** | Wave 3 Tier-3 complete — S-DTU-CYBERINT-AUTH-FIDELITY-001 MERGED (PR #164 develop@e798e67c 2026-05-31). Next: S-CONFIG-MULTI-TENANT-OVERRIDE-001 (P0 ready) toward S-DEMO-001 keystone. |
+| **Current Step** | D-904 — S-DTU-CYBERINT-AUTH-FIDELITY-001 MERGED (PR #164 squash e798e67c). POL-14 BC-2.01.017 promoted draft→active. Cascade CLOSED. develop@e798e67c. Next: S-CONFIG-MULTI-TENANT-OVERRIDE-001 dispatch. |
 
 ## Phase Progress
 
@@ -501,7 +509,7 @@ historical_cycles: [phase-1-convergence, wave-3-multi-tenant, wave-4-operations]
 | **3: S-SPEC-TYPE-UNIFICATION-001** | **MERGED** | 2026-05-27 | 2026-05-27 | PR #161 develop@af79f160; 40/40 CI GREEN | LOCAL 4 passes 3-CLEAN CONVERGED (passes 2/3/4); 1 fix-burst; 4 findings closed; ADR-030 Approach D: types::SensorSpec deleted, spec_parser::SensorSpec canonical, 8→4 boot TOML parses, AuthType::CustomViaPlugin, SpecDrivenMapper table_name fix, EXPECTED 36→35; 3711 tests; 3 new AC tests; 7/7 ACs demo-evidenced |
 | **3: S-3.02-FOLLOWUP-RUNTIME** | **MERGED** | 2026-05-27 | 2026-05-28 | PR #162 develop@a55bd930; 20/20 CI GREEN | LOCAL 5 passes 3-CLEAN CONVERGED (passes 3/4/5); 2 fix-bursts; 10 findings closed; trajectory 7→3→0→0→0; boot steps 7+8 (step7_init_storage health_check + step8_init_query_engine mark_query_phase_started); BC-2.16.002 v1.31→v1.32 (rows 47-48); 3718 tests; 7 new tests; security 0 findings; 4 VHS demo recordings; S-3.02 graduated partial-merge→merged |
 | **3: S-5.01-FOLLOWUP-MCP-BOOT** | **MERGED** | 2026-05-28 | 2026-05-29 | PR #163 develop@e898c3c9; 40/40 CI GREEN | LOCAL 19 passes 3-CLEAN CONVERGED (passes 17/18/19); 16 fix-bursts; PR-LEVEL 16 passes per reviewer, 10 fix-bursts; security 3/3 CLEAN (pass 15); pr-reviewer 3/3 CLEAN (pass 16); SEC-001 CWE-22 path traversal caught (pass 12); shutdown race bug caught (CI pass 8); Windows /tmp/ hardcoding (pass 8) |
-| **3: S-DTU-CYBERINT-AUTH-FIDELITY-001** | **MERGE_GATE** | 2026-05-30 | 2026-05-30 (PR #164 OPEN; PR-LEVEL 3-CLEAN CONVERGED passes 13/14/15 on HEAD c45f99ab; Steps 4/5/6 satisfied; awaiting human merge approval Step 8) | PR-LEVEL 3-CLEAN CONVERGED (passes 13/14/15; streak 3/3; BC-5.39.001 D-779); 6 fix-bursts (FB-PR1..6); security CLEAN; pr-reviewer APPROVE; BC-2.01.017 v1.6; story v1.9 | LOCAL 17 passes 3-CLEAN CONVERGED; PR-LEVEL 15 passes 3-CLEAN CONVERGED; 6 fix-bursts; story v1.9 (c2daa820); BC-2.01.017 v1.6 (8d5c9b3e); Steps 4/5/6 satisfied; PR #164 at merge gate |
+| **3: S-DTU-CYBERINT-AUTH-FIDELITY-001** | **MERGED** | 2026-05-30 | 2026-05-31 (PR #164 squash-merged develop@e798e67c; BC-2.01.017 v1.7 active per POL-14; cascade CLOSED D-905) | PR-LEVEL 3-CLEAN CONVERGED (passes 13/14/15; streak 3/3; BC-5.39.001 D-779); MERGED squash e798e67c; BC-2.01.017 promoted active; story v1.9 | LOCAL 17 passes 3-CLEAN CONVERGED; PR-LEVEL 15 passes 3-CLEAN CONVERGED; 6 fix-bursts; story v1.9 merged; BC-2.01.017 v1.7 (promoted active D-904 per POL-14); cascade CLOSED D-905 |
 
 ## Current Phase Steps
 
@@ -510,7 +518,8 @@ historical_cycles: [phase-1-convergence, wave-3-multi-tenant, wave-4-operations]
 | Step | Agent | Status | Output |
 |------|-------|--------|--------|
 _D-735 through D-847 archived to cycles/wave-0-plugin-prereqs/burst-log.md. D-835+D-836+D-837 removed from Phase Steps (archived in Decisions Log). D-849/851/852/853/855/856/857/858/859/860/861/862/863/864/865/866/867/868/869/870/871/872/873/874/875/876/877/878/879/880/881/882/883/884/885/886/887/888/889/890 archived to burst-log.md._
-| D-901 — **PR-LEVEL 3-CLEAN CONVERGENCE — PASSES 13/14/15 PARALLEL ALL CLEAN(strict)=YES ON HEAD c45f99ab. Streak 3/3 per BC-5.39.001 D-779. pr-pass-13.md (contract+SEC) + pr-pass-14.md (catalog+index) + pr-pass-15.md (policy+scope+evidence) persisted. All FB-PR1..FB-PR6 closures verified durable. Steps 4/5/6 satisfied. D-901/D-902/D-903 decisions recorded. STATE v7.565→v7.566.** | state-manager (D-901 convergence burst) | MERGE_GATE — awaiting human approval | Step 8: human merge approval required; then Step 9: POL-14 BC auto-promotions + post-merge burst |
+| D-904 — **S-DTU-CYBERINT-AUTH-FIDELITY-001 MERGED (PR #164 squash e798e67c develop). POL-14: BC-2.01.017 v1.6→v1.7 draft→active (lifecycle_status already active, idempotent). BC-2.01.013/BC-2.01.016/BC-2.16.013 already active (confirmed). Story status→merged. STORY-INDEX v2.221. BC-INDEX v5.65. develop_head→e798e67c. D-903 process-gaps dispositioned as justified deferrals (D-905). Cascade CLOSED. STATE v7.566→v7.567. Next: S-CONFIG-MULTI-TENANT-OVERRIDE-001.** | state-manager (D-904 post-merge burst) | COMPLETE | POL-14 promotions done; cascade CLOSED; next story dispatch authorized |
+| D-901 — **PR-LEVEL 3-CLEAN CONVERGENCE — archived** | state-manager (D-901 convergence burst) | COMPLETE | archived |
 | D-896 — **FB-PR6 CLOSING BURST — F-P10-MED-001 (BC-2.01.017 SensorAuth→AuthProvider, PO 8d5c9b3e, BC v1.6); F-P11-HIGH-001 (story subsystems SS-17→[SS-01,SS-16], story-writer c2daa820, story v1.9); F-PR12-MED-001/OBS-P11-001 (AC-010+EC-009 E-AUTH-007, story-writer c2daa820); OBS-P10-001+OBS-PR12-002 (doc-comment 7 sites, implementer c45f99ab); 3 NA adjudications. STATE v7.564→v7.565.** | state-manager (D-896 FB-PR6 closing burst) | COMPLETE | archived |
 | D-895 — **PERMANENT CLASS FIX — VOLATILE HEAD-SHA PIN STALENESS CLASS CLOSED.** | state-manager (D-895) | COMPLETE | archived |
 | D-894 — **FB-PR5 CLOSING BURST — F-P7-HIGH-001 + F-PR8-LOW-001 + F-PR9-MED-001/LOW-001/LOW-002 CLOSED. Story v1.8. HEAD 7d05cdb7.** | state-manager (D-894) | COMPLETE | archived |
@@ -522,6 +531,9 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-906 | 2026-05-31 | state-manager | **STORY STATUS → MERGED. Story S-DTU-CYBERINT-AUTH-FIDELITY-001 v1.9 status updated ready→merged. STORY-INDEX v2.220→v2.221.** Story file frontmatter status → `merged` per ADR-020 taxonomy. STORY-INDEX Full Story List row updated: PR_CYCLE_IN_FLIGHT v1.9 → merged v1.9; changelog row v2.221 added; frontmatter version bumped v2.220→v2.221. Overview bullet added for merge. total_stories 166 (unchanged). | plugin-migration | 2026-05-31 | Decided by: state-manager (D-906 story-status post-merge). Status: COMPLETE |
+| D-905 | 2026-05-31 | state-manager | **D-903 PROCESS-GAP ITEMS DISPOSITIONED AS JUSTIFIED DEFERRALS — PR-LEVEL CASCADE CLOSED.** D-903 recorded two open process-gap observations requiring disposition before cascade CLOSE: (1) OBS-PR1-001 — adversary diff-tooling limitation (adversary read-only cannot byte-verify diff; mitigated in-session by orchestrator diff-artifact pre-supply); (2) OBS-PR2 — worktree-path-resolution hazard (read-only tools resolved against develop not worktree; mitigated in-session by mandating absolute worktree-prefixed paths + known-new-symbol verification gate in adversary dispatches). Disposition decision: JUSTIFIED DEFERRALS per Canonical Principle Rule 3. Both are upstream vsdd-factory tooling/process gaps (not prism content defects). The prism mitigations (diff-artifact pre-supply + worktree-path discipline) are already baked into the orchestrator's PR-LEVEL adversary dispatch template (in-session standard operating procedure). No prism-side story anchor is warranted — these gaps belong to the drbothen/vsdd-factory upstream issue tracker (per CLAUDE.md "upstream canonicalization tracked in drbothen/vsdd-factory"). Items recorded in Drift Items table as DRIFT-D904-001 + DRIFT-D904-002 with explicit upstream target. The evidence-report.md "Version: 1.8" label lag remains non-blocking and non-actionable (all three final adversary passes adjudicated NA per stable-ref design; future evidence-sync noted as cosmetic). CASCADE CLOSED per this disposition. | plugin-migration | 2026-05-31 | Decided by: state-manager (D-905 cascade-close disposition). Status: CLOSED |
+| D-904 | 2026-05-31 | state-manager | **POST-MERGE BURST — S-DTU-CYBERINT-AUTH-FIDELITY-001 PR #164 SQUASH-MERGED DEVELOP@e798e67c. POL-14 BC AUTO-PROMOTIONS COMPLETE. STATE v7.566→v7.567.** Single-commit burst (TD-VSDD-053) persisting all post-merge bookkeeping: (1) BC-2.01.017 v1.6→v1.7: status draft→active (lifecycle_status was already active — idempotent); modified 2026-05-30→2026-05-31; changelog row v1.7 added (POL-14 D-904 auto-promotion at PR #164 merge). (2) BC-INDEX v5.64→v5.65: active_contracts 236→237; draft_contracts 3→2; BC-2.01.017 row updated draft v1.6 → active v1.7; description Note updated (BC-2.01.017 will auto-promote → did promote); v5.65 changelog row added. (3) BC-2.01.013 v1.7, BC-2.01.016 v1.12, BC-2.16.013 v1.18: already active — confirmed, no promotions required (idempotent). (4) Story file S-DTU-CYBERINT-AUTH-FIDELITY-001: status ready→merged; modified updated; version unchanged 1.9. (5) STORY-INDEX v2.220→v2.221: Full Story List row PR_CYCLE_IN_FLIGHT v1.9 → merged v1.9; overview bullet + v2.221 changelog row added. (6) STATE.md frontmatter: version 7.566→7.567; develop_head e898c3c9→e798e67c; current_step updated; cyberint_pr_cycle_in_flight false; cyberint_pr_cycle_step CLOSED; bc_index_version 5.64→5.65; story_index_version v2.220→v2.221; s_dtu_cyberint_auth_fidelity_001_* tracking fields added; Project Metadata table updated; Phase Progress row MERGE_GATE→MERGED; Current Phase Steps updated; D-904/D-905/D-906 decisions recorded; Drift Items table updated; Session Resume Checkpoint replaced. (7) SESSION-HANDOFF.md §4 develop_head reference updated e898c3c9→e798e67c. 283rd consecutive single-commit per TD-VSDD-053. Anti-volatile-pin per TD-VSDD-091. | plugin-migration | 2026-05-31 | Decided by: state-manager (D-904 post-merge POL-14 atomic burst). Status: COMPLETE |
 | D-903 | 2026-05-30 | state-manager | **CONVERGENCE NOTE — PROCESS-GAP FOLLOW-UP ITEMS REMAIN OPEN. Cycle-Closing-Checklist items for OBS-PR1-001 + OBS-PR2 require follow-up story or justified deferral before cascade CLOSE.** Two process-gap observations recorded during the PR-LEVEL cascade remain open: (1) OBS-PR1-001 (pr-level-process_gap_obs_pr1_001 in frontmatter): adversary diff-tooling limitation — adversary read-only could not byte-verify diff; mitigated by orchestrator confirmation; Cycle-Closing-Checklist candidate. (2) OBS-PR2 (pr_level_process_gap_obs_pr2 in frontmatter): worktree-path-resolution — read-only tools resolved against develop not worktree; mitigated by known-new-symbol probe; Cycle-Closing-Checklist candidate. Additionally: evidence-report.md "Version: 1.8" label lags story v1.9 (content accurate; all three final adversary passes adjudicated NA — stable-ref design means label is a snapshot designator, not a live version reference; optionally sync label post-merge, non-blocking). These items do not block merge but must be dispositioned (follow-up story or justified deferral with story anchor per Canonical Principle Rule 3) before the cascade is marked CLOSED. | plugin-migration | 2026-05-30 | Decided by: state-manager (D-903 post-convergence process-gap recording). Status: OPEN — requires disposition before CASCADE CLOSE |
 | D-902 | 2026-05-30 | state-manager | **STEPS 4/5/6 SATISFACTION DECLARATION — PR #164 DELIVERY STEPS SATISFIED PER PER-STORY-DELIVERY WORKFLOW.** Step 4 (adversary PR-LEVEL 3-CLEAN): SATISFIED — passes 13/14/15 parallel on HEAD c45f99ab all CLEAN(strict)=YES; streak 3/3 per BC-5.39.001 D-779. Step 5 (security re-check): SATISFIED — security review 2 (pr-security-review-2.md) CLEAN at feature HEAD 3e0fe7f8 (SEC-001 CWE-93/113 CLOSED, SEC-002 CWE-400 CLOSED); FB-PR5 (44aa7fed) harness bound = security improvement; FB-PR5 story-writer (9e18624b) + FB-PR6 PO (8d5c9b3e) + story-writer (c2daa820) + implementer (c45f99ab) = doc/text/spec changes only; zero new security surface since security review 2; pass 15 policy+scope lens confirmed no new CWE exposure. Step 6 (pr-reviewer APPROVE): SATISFIED — pr-reviewer-1 (pr-reviewer-1.md) APPROVE at feature HEAD d09bdfa9; IMP-1 (AC-011 stale demo) CLOSED by FB-PR4 demo-recorder (3e0fe7f8); IMP-2 (boot.rs overstatement) CLOSED by FB-PR4 pr-manager (GitHub PR body update + .factory mirror); 3 NIT all non-blocking; FB-PR5/6 changes introduce no new pr-reviewer-blocking issues. Steps 7 (CI): CI status at FB-PR6 feature HEAD c45f99ab pending (CI gated on feature branch push; push in flight per D-896 write). Step 8 (merge gate): PR #164 open; human approval required per no-autonomy-config policy. | plugin-migration | 2026-05-30 | Decided by: state-manager (D-902 steps-4/5/6 satisfaction declaration). Status: APPROVED — Steps 4/5/6 satisfied; Step 7 CI pending; Step 8 awaiting human |
 | D-901 | 2026-05-30 | state-manager | **PR-LEVEL 3-CLEAN CONVERGENCE ACHIEVED — S-DTU-CYBERINT-AUTH-FIDELITY-001 PR #164. Passes 13/14/15 parallel on frozen HEAD c45f99ab all CLEAN(strict)=YES per BC-5.39.001 D-779. STATE v7.565→v7.566.** Single-commit burst (TD-VSDD-053) persisting convergence: (1) pr-pass-13.md created (contract+SEC lens; HEAD c45f99ab; CLEAN(strict)=YES, CLEAN(PR-merge)=YES; zero findings; all FB-PR1..FB-PR6 closures verified durable; SEC/BC-2.01.017/forbidden-pattern probes PASS; streak 1/3). (2) pr-pass-14.md created (catalog+index lens; HEAD c45f99ab; CLEAN(strict)=YES, CLEAN(PR-merge)=YES; zero findings; novelty LOW; BC-INDEX/STORY-INDEX/frontmatter-body/anchoring/POL-32/known-new-symbol probes PASS; streak 2/3). (3) pr-pass-15.md created (policy+scope+evidence lens; HEAD c45f99ab; CLEAN(strict)=YES, CLEAN(PR-merge)=YES; zero findings; novelty ZERO; POL rubric/forbidden-patterns/POL-10 security-mirror-parity/evidence-completeness/scope probes PASS; streak 3/3 CONVERGED; evidence-report v1.8 label adjudicated NA by all 3 lenses). (4) STATE.md frontmatter: version 7.565→7.566; current_step updated; cyberint_pr_cycle_step updated; pr_level_cascade_streak 0/3→3/3 CONVERGED; pr_level_cascade_passes 12→15; pr_level_converged true; pr_level_converged_at_passes 13/14/15; pr_level_converged_feature_head c45f99ab; pr_level_converged_authority BC-5.39.001 D-779; pass 13-15 tracking fields added; steps-satisfied summary; merge-gate note. (5) Project Metadata table: Last Updated/Current Phase/Current Step updated. (6) Phase Progress row S-DTU-CYBERINT-AUTH-FIDELITY-001: PR_CYCLE_IN_FLIGHT→MERGE_GATE. (7) Current Phase Steps: D-901 row added (D-896 demoted to COMPLETE/archived). (8) Session Resume Checkpoint replaced (D-896 checkpoint archived). D-901/D-902/D-903 decisions recorded. 282nd consecutive single-commit per TD-VSDD-053. Anti-volatile-pin per TD-VSDD-091. | plugin-migration | 2026-05-30 | Decided by: state-manager (D-901 convergence-declaration atomic burst). Status: COMPLETE |
@@ -726,6 +738,8 @@ Items that must be resolved BEFORE convergence (per S-7.02). Opened 2026-05-17.
 | DRIFT-D850-001 | BC-2.16.002 does not contain explicit postcondition clause for POST-body vs GET-URL OffsetLimit pagination dispatch (surfaced by Claroty story-writer 65cf835e) | Product-owner to amend BC-2.16.002 §Postconditions with explicit POST-vs-GET dispatch invariant; bump BC version | next product-owner dispatch before S-DEMO-CLAROTY-PAGINATION-001 LOCAL adversary cascade |
 | DRIFT-D849-001 | ADR-031 `related_bcs` field missing BC-2.01.017 (architect-owned) | Architect to amend ADR-031 frontmatter; bump ADR-031 v1.0 → v1.1 | next architect dispatch |
 | DRIFT-D849-002 | VP-TBD No-HTTP-Call invariant during StaticCookieAuthProvider::acquire_token (Kani-provable property) needs VP-NNN allocation (architect-owned) | Architect to assign VP-NNN, update VP-INDEX, author proof harness skeleton in `crates/prism-spec-engine/src/proofs/` or equivalent | next formal-verifier or architect dispatch |
+| DRIFT-D904-001 (JUSTIFIED DEFERRAL) | OBS-PR1-001: adversary diff-tooling limitation — read-only adversary cannot byte-verify PR diff; workaround: orchestrator pre-supplies diff artifact at dispatch. Prism mitigation already applied in-session as standard operating procedure. | Track in drbothen/vsdd-factory upstream issue tracker. No prism story anchor needed — mitigation is already in-session SOPs. | drbothen/vsdd-factory upstream |
+| DRIFT-D904-002 (JUSTIFIED DEFERRAL) | OBS-PR2: worktree-path-resolution hazard — read-only tools in adversary dispatches can resolve against develop instead of feature worktree; workaround: mandate absolute worktree-prefixed paths + known-new-symbol verification gate. Prism mitigation already applied in-session as standard operating procedure. | Track in drbothen/vsdd-factory upstream issue tracker. No prism story anchor needed — mitigation is already in-session SOPs. | drbothen/vsdd-factory upstream |
 
 ## Blocking Issues
 
@@ -749,29 +763,27 @@ Prior cycle history:
 
 ---
 
-## Session Resume Checkpoint (2026-05-30 — D-901 PR-LEVEL 3-CLEAN CONVERGED; PR #164 at MERGE GATE; feature HEAD = c45f99ab; develop@e898c3c9)
+## Session Resume Checkpoint (2026-05-31 — D-904 POST-MERGE; S-DTU-CYBERINT-AUTH-FIDELITY-001 MERGED; develop@e798e67c; CASCADE CLOSED)
 
-_Previous checkpoint (D-896 FB-PR6 closing burst; feature@c45f99ab; story v1.9; streak 0/3; passes 13-15 next) superseded by D-901 convergence burst (passes 13/14/15 parallel on c45f99ab all CLEAN(strict)=YES; PR-LEVEL 3-CLEAN CONVERGENCE per BC-5.39.001 D-779; Steps 4/5/6 satisfied; STATE v7.566)._
+_Previous checkpoint (D-901 PR-LEVEL 3-CLEAN CONVERGED; PR #164 at MERGE GATE; feature HEAD c45f99ab; develop@e898c3c9; STATE v7.566) superseded by D-904 post-merge burst (PR #164 squash-merged develop@e798e67c; BC-2.01.017 promoted active; cascade CLOSED D-905; STATE v7.567)._
 
-**STATE v7.566. D-901 — PR-LEVEL 3-CLEAN CONVERGENCE. PR #164 OPEN AT MERGE GATE. Passes 13/14/15 all CLEAN(strict)=YES on HEAD c45f99ab. Streak 3/3. Steps 4/5/6 satisfied. Awaiting human merge approval (Step 8). POL-14 BC auto-promotions + post-merge burst (Step 9) to follow.**
+**STATE v7.567. D-904 — S-DTU-CYBERINT-AUTH-FIDELITY-001 MERGED (PR #164 squash e798e67c). BC-2.01.017 v1.7 promoted draft→active per POL-14. Cascade CLOSED (D-905 justified deferrals). Next: S-CONFIG-MULTI-TENANT-OVERRIDE-001 (P0 ready) toward S-DEMO-001 keystone.**
 
-**develop HEAD:** `e898c3c9` | **Workspace test count:** 3839+ | **Feature branch HEAD:** `c45f99ab` | **Remote feature branch:** EXISTS (push of FB-PR6 commits required; see D-896; remote was at 7d05cdb7 at D-896 write) | **Open PRs:** PR #164
+**develop HEAD:** `e798e67c` | **Workspace test count:** 3839+ (PR #164 adds no new tests beyond what was already green) | **Merged story:** S-DTU-CYBERINT-AUTH-FIDELITY-001 v1.9 | **Open PRs:** none for cyberint; check `gh pr list --state open`
 
 **Resume protocol (new session):**
 1. Run `vsdd-factory:factory-worktree-health` (BLOCKING preflight)
-2. Read STATE.md frontmatter — confirm `version: "7.566"` + `pr_level_converged: true`
-3. Read `SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-30-CYBERINT-LOCAL-CONVERGED-PR-CYCLE-IN-FLIGHT (D-882)` for cascade context
-4. Confirm CI status on PR #164 (feature HEAD c45f99ab); request human to approve and merge if CI GREEN
-5. After merge: run POL-14 BC auto-promotions on BC-2.01.017 (draft→active) + post-merge state-manager burst (Step 9)
-6. Disposition D-903 process-gap items (OBS-PR1-001 + OBS-PR2) before CASCADE CLOSE
+2. Read STATE.md frontmatter — confirm `version: "7.567"` + `cyberint_pr_cycle_in_flight: false` + `develop_head: "e798e67c"`
+3. Confirm `git log --oneline develop` shows e798e67c as HEAD (cyberint merge)
+4. Next dispatch: deliver S-CONFIG-MULTI-TENANT-OVERRIDE-001 (P0; depends_on PLUGIN-MIGRATION-001-A already merged; blocks S-DEMO-001)
 
-**CRITICAL:** factory-artifacts LOCAL-ONLY. No remote push. No develop push (D-829). No AI attribution. BC-2.01.017 v1.6 (AuthProvider, prism-spec-engine path). Story v1.9. Evidence-report.md "Version: 1.8" label lag is non-blocking (all 3 final passes adjudicated NA). Process-gap follow-up items (OBS-PR1-001 + OBS-PR2) require disposition before CASCADE CLOSE (D-903).
+**CRITICAL:** factory-artifacts LOCAL-ONLY. No remote push. No AI attribution. BC-2.01.017 v1.7 active. Story S-DTU-CYBERINT-AUTH-FIDELITY-001 merged v1.9. Cascade CLOSED. Process-gap justified deferrals recorded as DRIFT-D904-001 + DRIFT-D904-002 (upstream vsdd-factory tracker). No open cyberint PR.
 
 **Active worktrees:**
-- `.worktrees/S-DTU-CYBERINT-AUTH-FIDELITY-001` — MERGE_GATE (feature HEAD c45f99ab; PR-LEVEL 3-CLEAN CONVERGED; awaiting human merge approval)
+- `.worktrees/S-DTU-CYBERINT-AUTH-FIDELITY-001` — STALE post-merge (feature branch squash-merged; may be cleaned up)
 - `.worktrees/S-3.09` — FROZEN (BUG-S309-PLUGIN), stale since 2026-05-11; deferred per user direction
 - `.worktrees/W3-FIX-S307-001` — BLOCKED (superseded), stale since 2026-05-24; deferred per user direction
 
-**Open PRs:** PR #164 (feature/S-DTU-CYBERINT-AUTH-FIDELITY-001 → develop; base develop@e898c3c9; PR-LEVEL 3-CLEAN CONVERGED; MERGE GATE).
+**Open PRs:** none (cyberint MERGED; no other PRs active at D-904 write).
 
 _Agent routing: see CLAUDE.md §Agent Routing Table._

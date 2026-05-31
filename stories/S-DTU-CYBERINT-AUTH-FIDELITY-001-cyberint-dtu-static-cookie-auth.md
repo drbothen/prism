@@ -5,7 +5,7 @@ title: "prism-dtu-cyberint + prism-spec-engine: Cyberint Auth Fidelity — Remov
 wave: 5
 epic_id: E-DTU-FIDELITY
 priority: P0
-status: ready
+status: merged
 # BC status: BC-2.01.017 authored by PO at commit b8cf19e1 (2026-05-29). All 4 BCs are
 # either active (BC-2.01.013, BC-2.01.016, BC-2.16.013) or draft-pending-POL-14 (BC-2.01.017).
 # status=ready: administrative flip 2026-05-29 D-850 per user direction to satisfy deliver-story
@@ -16,7 +16,7 @@ version: "1.9"
 level: "L4"
 producer: story-writer
 timestamp: "2026-05-29T00:00:00Z"
-modified: "2026-05-29 D-850"
+modified: "2026-05-31 D-904 post-merge status→merged; PR #164 squash-merged develop@e798e67c"
 tdd_mode: strict
 subsystems: [SS-01, SS-16]
 # Subsystem anchor justifications:
