@@ -37,6 +37,7 @@
 //! Tests for AC-007 (ordering) call `validate_sensor_spec` to verify that the combined
 //! load pipeline produces the right error kind (E-SPEC-024, not E-SPEC-001) when the var is absent.
 
+use prism_spec_engine::add_sensor_spec::parse_and_validate_spec_toml;
 use prism_spec_engine::env_resolver::resolve_env_var_tokens;
 use prism_spec_engine::error::SpecEngineError;
 use prism_spec_engine::spec_parser::{SensorSpec, SpecLoader};
@@ -728,4 +729,141 @@ fn test_env_var_error_contains_name_not_value() {
             }
         }
     }
+}
+
+// ---------------------------------------------------------------------------
+// F-LOCAL-P1-HIGH-001: Production-representative ordering test for AC-007.
+//
+// The existing AC-007 test calls `resolve_env_var_tokens` + `validate_sensor_spec`
+// directly, which is NOT the production load path. The production path is
+// `parse_and_validate_spec_toml` (used by config_manager, hot_reload, add_sensor_spec).
+//
+// Note: `validate_sensor_spec` being absent from the `parse_and_validate_spec_toml`
+// load path is a genuine pre-existing architectural gap — `parse_and_validate_spec_toml`
+// performs its own field-level checks (empty fields, sensor_id format, URL presence)
+// but does NOT call `validate_sensor_spec`. This is surfaced here for separate disposition.
+// The pre-existing gap is NOT fixed in this story (would require routing to architect +
+// product-owner for scope decision on overlapping validation coverage).
+//
+// This test exercises the `parse_and_validate_spec_toml` path directly to verify:
+//   - Scenario A: absent var → the full load produces an error containing "E-SPEC-024"
+//     in the error message (not an E-SPEC-001 URL-format error), proving resolution
+//     ran before URL-format validation.
+//   - Scenario B: var set to valid HTTPS URL → full load succeeds.
+//
+// Traces to: F-LOCAL-P1-HIGH-001 (adversary pass-1); BC-2.16.009 §Validation Rules 6
+//            EC-009-004 (resolver before URL-format validation); S-SPEC-ENV-VAR-001 AC-007.
+// ---------------------------------------------------------------------------
+
+/// Minimal sensor TOML template with a configurable base_url slot.
+///
+/// `base_url` is injected as a TOML-quoted string. `sensor_id` is a
+/// valid lowercase identifier (SEC-001 format constraint satisfied).
+fn minimal_toml_with_base_url(base_url: &str) -> String {
+    format!(
+        r#"
+sensor_id = "test-prod"
+name = "Test Production Sensor"
+auth_type = "api_key"
+base_url = {base_url_quoted}
+version = "1.0.0"
+"#,
+        base_url_quoted = toml_quote(base_url),
+    )
+}
+
+/// F-LOCAL-P1-HIGH-001 Scenario A: absent var through production load path →
+/// error message references E-SPEC-024 (resolver ran before URL-format check).
+///
+/// If the resolver did NOT run (or ran after url-format validation), the raw token
+/// `"${env.PRISM_TEST_PROD_PATH_UNSET}"` would fail `starts_with("http://")` and
+/// produce an error referencing E-SPEC-001 (URL format), not E-SPEC-024.
+/// The presence of E-SPEC-024 in the error message proves the correct ordering.
+#[test]
+fn test_env_var_ordering_production_path_absent_var_produces_e_spec_024_not_url_format_error() {
+    // F-LOCAL-P1-HIGH-001: BC-2.16.009 §VR6 EC-009-004 — ordering via production path.
+    const VAR: &str = "PRISM_TEST_PROD_PATH_UNSET";
+    unsafe {
+        std::env::remove_var(VAR);
+    }
+
+    let token = format!("${{env.{VAR}}}");
+    let toml = minimal_toml_with_base_url(&token);
+
+    let result = parse_and_validate_spec_toml(&toml, "test/prod-path-scenario-a.sensor.toml");
+
+    unsafe {
+        std::env::remove_var(VAR);
+    }
+
+    // Must produce an error (absent var → spec rejected).
+    let errors = result.expect_err(
+        "F-LOCAL-P1-HIGH-001 Scenario A: parse_and_validate_spec_toml must return Err \
+         for a spec with an unresolved ${env.VAR} token",
+    );
+
+    assert!(
+        !errors.is_empty(),
+        "F-LOCAL-P1-HIGH-001 Scenario A: error list must be non-empty"
+    );
+
+    // The combined error message must contain the E-SPEC-024 code or var name
+    // (not an E-SPEC-001 URL-format error). The Display output of EnvVarNotSet
+    // includes the var name and the file_path — either confirms resolver ran first.
+    let all_error_text: String = errors
+        .iter()
+        .flat_map(|ve| ve.errors.iter().map(|s| s.as_str()))
+        .collect::<Vec<_>>()
+        .join("; ");
+
+    assert!(
+        all_error_text.contains(VAR),
+        "F-LOCAL-P1-HIGH-001 Scenario A: combined error message must contain the env var NAME \
+         '{}' (proving E-SPEC-024 was produced by the resolver, not E-SPEC-001 by url-format). \
+         Got: '{all_error_text}'",
+        VAR
+    );
+
+    // Belt-and-suspenders: must NOT mention "must start with http" (E-SPEC-001 marker).
+    // If this fires, the resolver did NOT run before url-format validation.
+    assert!(
+        !all_error_text.contains("must start with http"),
+        "F-LOCAL-P1-HIGH-001 Scenario A: error MUST NOT be a URL-format error (E-SPEC-001). \
+         Got: '{all_error_text}'"
+    );
+}
+
+/// F-LOCAL-P1-HIGH-001 Scenario B: var set to valid HTTPS URL through production load path →
+/// full load succeeds (resolver ran before URL-format check which sees the resolved URL).
+#[test]
+fn test_env_var_ordering_production_path_set_var_load_succeeds() {
+    // F-LOCAL-P1-HIGH-001: BC-2.16.009 §VR6 EC-009-004 — ordering via production path.
+    const VAR: &str = "PRISM_TEST_PROD_PATH_SET";
+    const RESOLVED_URL: &str = "https://resolved-production.example.io";
+
+    unsafe {
+        std::env::set_var(VAR, RESOLVED_URL);
+    }
+
+    let token = format!("${{env.{VAR}}}");
+    let toml = minimal_toml_with_base_url(&token);
+
+    let result = parse_and_validate_spec_toml(&toml, "test/prod-path-scenario-b.sensor.toml");
+
+    unsafe {
+        std::env::remove_var(VAR);
+    }
+
+    let spec = result.expect(
+        "F-LOCAL-P1-HIGH-001 Scenario B: parse_and_validate_spec_toml must succeed \
+         when var is set to a valid HTTPS URL",
+    );
+
+    // The base_url in the loaded spec must be the resolved value.
+    assert_eq!(
+        spec.base_url, RESOLVED_URL,
+        "F-LOCAL-P1-HIGH-001 Scenario B: spec.base_url must equal the resolved env var value \
+         after production-path load. Got: {:?}",
+        spec.base_url
+    );
 }
