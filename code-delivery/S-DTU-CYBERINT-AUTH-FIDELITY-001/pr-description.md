@@ -16,16 +16,19 @@ This PR delivers the Cyberint DTU auth fidelity correction: removes the incorrec
 
 ```mermaid
 graph TD
-    A["prism-bin/src/boot.rs<br/>boot step 9A"] -->|"constructs"| B["StaticCookieAuthProvider<br/>(NEW - prism-spec-engine)"]
-    B -->|"implements"| C["AuthProvider trait<br/>(prism-spec-engine)"]
-    D["PipelineExecutor::build_request<br/>(prism-spec-engine)"] -->|"CookieRoundtrip path"| E["Cookie: access_token={token}<br/>header injection"]
+    A["StaticCookieAuthProvider<br/>(NEW - prism-spec-engine)"] -->|"implements"| B["AuthProvider trait<br/>(prism-spec-engine)"]
+    C["PipelineExecutor::execute()<br/>(prism-spec-engine)"] -->|"selects per auth_type=CookieRoundtrip"| A
+    C -->|"calls"| D["PipelineExecutor::build_request<br/>(prism-spec-engine)"]
+    D -->|"CookieRoundtrip path"| E["Cookie: access_token={token}<br/>header injection"]
     F["prism-dtu-cyberint<br/>CyberintState"] -->|"was: session UUID store"| G["NOW: access_token allowlist<br/>(static token validation)"]
     H["prism-dtu-cyberint<br/>routes/alerts.rs"] -->|"was: extract_session_token"| I["NOW: extract_access_token<br/>(RFC 6265 cookie parse)"]
-    style B fill:#90EE90
+    style A fill:#90EE90
     style E fill:#90EE90
     style G fill:#90EE90
     style I fill:#90EE90
 ```
+
+> **Scope note — prism-bin/src/boot.rs:** The diff for `boot.rs` contains only cargo-fmt import-regrouping (no functional change). `StaticCookieAuthProvider::new()` is never called outside tests; the production boot path constructs only `PluginAuthProvider`. Cookie-roundtrip auth provider selection is delivered at the **pipeline layer** — `PipelineExecutor::execute()` selects the provider per the sensor spec's `auth_type`, and `build_request` injects the `Cookie` header — validated end-to-end by AC-007 (wiremock). Boot-time (binary `prism start`) routing of `cookie_roundtrip` sensors is out of this story's scope and deferred to S-DEMO-001 (GAP-002-A-gated); no AC claims boot-level wiring.
 
 <details>
 <summary><strong>Architecture Decision Record — ADR-031: DTU=true-DTU Fidelity Principle</strong></summary>
@@ -177,7 +180,7 @@ To be executed during this PR cycle via `vsdd-factory:security-reviewer`.
 
 | Category | Assessment |
 |----------|-----------|
-| Blast radius | prism-dtu-cyberint (DTU clone, test-only in CI) + prism-spec-engine (auth path) + prism-bin (boot wiring) |
+| Blast radius | prism-dtu-cyberint (DTU clone, test-only in CI) + prism-spec-engine (auth path + pipeline executor) |
 | Performance impact | None — StaticCookieAuthProvider eliminates HTTP call; net improvement vs former POST /login roundtrip |
 | Breaking changes | DTU API surface change: `POST /login` removed. External callers of DTU clone that used POST /login must migrate to `Cookie: access_token=` model. All existing DTU tests updated. |
 | Rollback risk | Low — DTU is a test infrastructure component; main branch is not affected until squash-merge |
@@ -190,10 +193,10 @@ To be executed during this PR cycle via `vsdd-factory:security-reviewer`.
 | Field | Value |
 |-------|-------|
 | Pipeline mode | brownfield |
-| Story version | v1.5 |
+| Story version | v1.8 |
 | TDD mode | strict |
 | LOCAL adversary passes | 17 |
-| PR-LEVEL cascade | pending |
+| PR-LEVEL cascade | in flight (passes 4-9 complete; FB-PR4+FB-PR5 closed; streak 0/3; passes 10-12 next on HEAD 7d05cdb7) |
 | Wave | 5 |
 | Push authorization | USER AUTHORIZED 2026-05-30 |
 
