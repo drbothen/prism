@@ -1,703 +1,712 @@
 {
-  "cycle": "wave-0-plugin-prereqs",
-  "story_id": "S-DTU-CYBERINT-AUTH-FIDELITY-001",
-  "passes": [
-    {
-      "pass": 1,
-      "date": "2026-05-30",
-      "clean_strict": false,
-      "clean_pr_merge": false,
-      "findings_count": 13,
-      "findings_by_severity": {
-        "CRIT": 2,
-        "HIGH": 4,
-        "MED": 4,
-        "LOW": 2,
-        "OBS": 1
-      },
-      "streak": 0,
-      "novelty": "HIGH",
-      "feature_head_at_pass": "dba6eb95",
-      "blocked_on": "F-LP1-CRIT-001 — architect harness-clone audit required before fix-burst dispatch",
-      "architect_dispatch_agent_id": "a1161dc86ddae5c53",
-      "architect_decision_committed": "12378e35",
-      "architect_pattern_decision": "Pattern B (in-place rewrite) for Cyberint harness; Scope-1 (in-current-story) expansion",
-      "architect_scope_expansion_deliverables": [
-        "crates/prism-dtu-harness/src/clones/cyberint.rs: rewrite auth model (access_token cookie, no POST /login, access_token_store)",
-        "rg 'cyberint_session|/login' crates/prism-dtu-harness/ must return zero hits after fix",
-        "ALL harness tests that reference cyberint_session or POST /login must be updated"
-      ],
-      "pass_1_resolution": {
-        "closed_by_architect": 2,
-        "closed_by_implementer": 8,
-        "closed_by_po": 1,
-        "na_with_evidence": 2,
-        "total_closed": 13
-      },
-      "pass_1_feature_head_at_resolution": "79e3b545",
-      "pass_1_po_commit": "4baa0e91",
-      "pass_1_implementer_commits": [
-        "2f4cd3a8",
-        "c25bc598",
-        "79e3b545"
-      ],
-      "pass_1_na_detail": {
-        "F-LP1-MED-003": "file prism-dtu-cyberint/tests/parity/cyberint.rs:144 does not exist; only fixtures/parity/ JSON files present",
-        "F-LP1-MED-004": "workspace secrecy = 0.8.0; SecretString::new deprecation does not apply until >= 0.10"
-      },
-      "pass_1_po_adjudication": "F-LP1-MED-002 Option A: BC amendment wins; BC-2.01.017 v1.0→v1.1 EC-017-005 corrected to mandate E-AUTH-005 (resolver Ok(None)→NotFound→E-AUTH-005 per BC-2.03.006 normalization); BC-INDEX v5.56→v5.57"
-    },
-    {
-      "pass": 2,
-      "date": "2026-05-30",
-      "clean_strict": false,
-      "clean_pr_merge": false,
-      "findings_count": 4,
-      "findings_by_severity": {
-        "CRIT": 1,
-        "HIGH": 1,
-        "MED": 1,
-        "LOW": 0,
-        "OBS": 0,
-        "PROCESS-GAP": 1
-      },
-      "streak": 0,
-      "novelty": "HIGH",
-      "feature_head_at_pass": "79e3b545",
-      "key_finding": "F-LP2-CRIT-001 — PO Option A adjudication built on fabricated BC-2.03.006 normalization claim; BC-2.01.017 v1.1 EC-017-005 was wrong; orchestrator independently verified against resolve_secret.rs:78-81",
-      "po_re_adjudication": {
-        "commit": "2707ee69",
-        "result": "REVERT — BC-2.01.017 v1.1 → v1.2 (restored v1.0 EC-017-005 semantics: empty value → E-AUTH-006)",
-        "bc_index_version": "5.58"
-      },
-      "implementer_dispatched_for": [
-        "test split (NotFound vs empty value)",
-        "F-LP2-HIGH-001 unsafe env_var resolves_api_key_from_env"
-      ],
-      "state_manager_dispatched_for": [
-        "Pass 2 persistence (this burst)",
-        "SAP-2 TD entry F-LP2-MED-001",
-        "F-LP2-PG-001 lesson 56 codification"
-      ],
-      "pass_2_resolution": {
-        "closed_by_implementer": 2,
-        "closed_by_po": 1,
-        "closed_by_state_manager": 2,
-        "total_closed": 4,
-        "implementer_detail": "F-LP2-CRIT-001 test split (test_static_cookie_auth_provider_missing_credential_returns_e_auth_005 + test_static_cookie_auth_provider_empty_value_returns_e_auth_006) + F-LP2-HIGH-001 env-var refactor (test_static_cookie_auth_provider_injects_resolved_token_from_credentials using MockCredentialResolver)",
-        "po_detail": "F-LP2-CRIT-001 BC revert BC-2.01.017 v1.1→v1.2 via 2707ee69",
-        "state_manager_detail": "F-LP2-MED-001 TD-FOLLOWUP-ARRAY-COLUMNTYPE-001 (P2) via D-854 + F-LP2-PG-001 lesson 56 via D-854"
-      },
-      "pass_2_feature_head_at_resolution": "d697425b",
-      "pass_2_implementer_commit": "d697425b",
-      "pass_2_po_commit": "2707ee69",
-      "pass_2_state_manager_commits": [
-        "76ec8643 (D-854 persistence + TD + lesson)",
-        "TBD (D-855 closure)"
-      ],
-      "pass_2_sibling_sweep_advisory": "Sibling-sweep surfaced 4 unsafe env_var SAFETY-comment-quality sites in prism-bin/tests/plugin_boot_tests.rs (lines ~167, ~192, ~210, ~489). Each cites only single-threaded-test justification; does NOT cite BC-2.03.009 or resolver-backend BC. Plugin-boot test infrastructure — out of scope for S-DTU-CYBERINT-AUTH-FIDELITY-001. Advisory only; not filed as TD (Rule 3 prevents AI-default deferrals). Pass 3 may re-surface if material."
-    },
-    {
-      "pass": 3,
-      "date": "2026-05-30",
-      "clean_strict": false,
-      "clean_pr_merge": false,
-      "findings_count": 5,
-      "findings_by_severity": {
-        "CRIT": 0,
-        "HIGH": 1,
-        "MED": 2,
-        "LOW": 2,
-        "OBS": 0,
-        "PROCESS-GAP": 0
-      },
-      "streak": 0,
-      "novelty": "HIGH",
-      "feature_head_at_pass": "d697425b",
-      "key_finding": "F-LP3-HIGH-001 — acquire_token blanket-wraps every resolver Err as E-AUTH-005, mis-labeling BackendUnavailable (file-backend) as not-found",
-      "blocked_on": "Fix-burst required before Pass 4 dispatch",
-      "in_scope_findings": [
-        "F-LP3-HIGH-001",
-        "F-LP3-MED-001",
-        "F-LP3-MED-002",
-        "F-LP3-LOW-001"
-      ],
-      "deferred_findings": [
+    "cycle": "wave-0-plugin-prereqs",
+    "story_id": "S-DTU-CYBERINT-AUTH-FIDELITY-001",
+    "passes": [
         {
-          "finding_id": "F-LP3-LOW-002",
-          "category": "cross-story",
-          "target": "wave-gate",
-          "note": "plugin-boot test unsafe SAFETY-comment quality; sibling-class to closed F-LP1-LOW-002 but out-of-scope for cyberint auth fidelity story"
-        }
-      ],
-      "pass_3_resolution": {
-        "closed_by_implementer": 4,
-        "closed_by_po": 1,
-        "deferred_maintenance": 1,
-        "total_closed_in_scope": 4,
-        "implementer_detail": "F-LP3-HIGH-001 (Path β: CredentialResolver trait sig changed to Result<SecretString, CredentialResolutionError>; acquire_token match-arms NotFound→E-AUTH-005 + BackendUnavailable→E-AUTH-007; new BackendUnavailableCredentialResolver test helper AD-017 cfg-gated; new test_static_cookie_auth_provider_backend_unavailable_returns_e_auth_007) + F-LP3-MED-001 (prism-dtu-cyberint/src/lib.rs module doc: removed stale POST /login + 9-line route list; replaced with access_token cookie injection + StaticCookieAuthProvider ADR-031 §D1-b + §D3-a) + F-LP3-MED-002 (prism-spec-engine/tests/parity/cyberint.rs:144 comment updated to current narrative BC-2.01.017 §P2 + ADR-031 §D3-a; lesson 57 compliance demonstrated — workspace-wide search before N/A) + F-LP3-LOW-001 (validation order in acquire_token: len()>4096 moved BEFORE is_empty/all-whitespace; 5000-byte whitespace key now reports 'exceeds 4096' detail; new regression test test_static_cookie_auth_provider_rejects_oversized_whitespace_with_length_detail)",
-        "po_detail": "F-LP3-HIGH-001 BC amendment: E-AUTH-007 allocated in error-taxonomy.md v1.53→v1.54; BC-2.01.017 v1.2→v1.3 (EC-017-010 + TV-BC-2.01.017-009); BC-INDEX v5.58→v5.59; PO adjudication doc F-LP3-HIGH-001.md; committed 0fab3437",
-        "deferred_detail": "F-LP3-LOW-002 — prism-bin/tests/plugin_boot_tests.rs 4 unsafe SAFETY-comment-quality sites; cross-story; maintenance follow-up; not filed as TD per CLAUDE.md Rule 3"
-      },
-      "pass_3_path_decision": "Path β chosen — CredentialResolver trait signature changed to return Result<SecretString, CredentialResolutionError> preserving error fidelity; rejected Path α (sentinel-prefix string gymnastics per CLAUDE.md Rule 5 preferred-path principle)",
-      "pass_3_feature_head_at_resolution": "89aa9bd1",
-      "pass_3_implementer_commit": "89aa9bd1",
-      "pass_3_po_commit": "0fab3437",
-      "pass_3_state_manager_commits": [
-        "dae10ab5 (D-856 Pass 3 persistence + lesson 57)",
-        "dae10ab5 (D-858 closure burst)"
-      ]
-    },
-    {
-      "pass": 4,
-      "date": "2026-05-30",
-      "clean_strict": true,
-      "clean_pr_merge": true,
-      "findings_count": 0,
-      "findings_by_severity": {
-        "CRIT": 0,
-        "HIGH": 0,
-        "MED": 0,
-        "LOW": 0,
-        "OBS": 0,
-        "PROCESS-GAP": 0
-      },
-      "streak": 1,
-      "novelty": "ZERO",
-      "feature_head_at_pass": "89aa9bd1",
-      "sap_1_result": "PASS — no new uncataloged event_type emission sites in Pass 3 fix-burst",
-      "sap_2_result": "PASS — no TOML or DTU struct modifications in Pass 3 fix-burst",
-      "sid_1_result": "PASS — both new tests (backend_unavailable + oversized_whitespace) are unit tests, not #[ignore]'d",
-      "sibling_sweep_result": "PASS — CredentialResolver trait sig change enforced at all impl sites by compiler; workspace just check 3839/3839",
-      "cross_doc_consistency": "PASS — BC-2.01.017 v1.3, error-taxonomy.md v1.54, BC-INDEX v5.59 all consistent with auth_provider.rs match arms",
-      "pass_3_closures_verified": {
-        "F-LP3-HIGH-001": "LOAD-BEARING — auth_provider.rs BackendUnavailable match arm + test_static_cookie_auth_provider_backend_unavailable_returns_e_auth_007",
-        "F-LP3-MED-001": "LOAD-BEARING — lib.rs module doc confirms access_token cookie model; no POST /login text",
-        "F-LP3-MED-002": "LOAD-BEARING — parity/cyberint.rs:144-148 comment references StaticCookieAuthProvider; no cyberint_session text",
-        "F-LP3-LOW-001": "LOAD-BEARING — validation order len()>4096 before is_empty; regression test asserts 'exceeds 4096' detail on 5000-byte whitespace key",
-        "F-LP3-LOW-002": "DEFERRED — scope boundary correct; routes to maintenance follow-up at wave-gate"
-      },
-      "state_manager_commit": "TBD (D-859 this burst)"
-    },
-    {
-      "pass": "5-REJECTED",
-      "date": "2026-05-30",
-      "status": "FABRICATED",
-      "findings_count_claimed": 9,
-      "findings_count_verified": 0,
-      "rejection_basis": "Orchestrator independently verified all 9 findings cite symbols/files that DO exist. auth_provider.rs is 1092 lines (claimed 354); StaticCookieAuthProvider exists at line 358; CredentialResolver trait at lines 146-157; BackendUnavailableCredentialResolver at line 287; clone.rs line 111 has NOTE comment documenting intentional ABSENCE of POST /login (no route registered); extract_access_token exists at alerts.rs:56 + harness clones/cyberint.rs:760; access_token_store exists in harness clone at line 168.",
-      "hypothesis_root_cause": "Adversary may have read files from develop branch (72baf413, no implementation) instead of feature worktree (89aa9bd1). OR hallucination from stale context. OR tooling issue with file resolution at adversary's cwd.",
-      "feature_head_at_pass": "89aa9bd1",
-      "streak_unchanged": 1,
-      "disposition": "REJECTED — re-dispatch Pass 5 with strict grounding-truth requirements (cwd confirmation, file-size confirmation, rg-output-capture per existence claim)"
-    },
-    {
-      "pass": "5-REDUX",
-      "date": "2026-05-30",
-      "clean_strict": true,
-      "clean_pr_merge": true,
-      "findings_count": 0,
-      "findings_by_severity": {
-        "CRIT": 0,
-        "HIGH": 0,
-        "MED": 0,
-        "LOW": 0,
-        "OBS": 0,
-        "PROCESS-GAP": 0
-      },
-      "streak": 2,
-      "novelty": "ZERO",
-      "feature_head_at_pass": "89aa9bd1",
-      "supersedes": "local-pass-5-REJECTED.md",
-      "lesson_58_demonstrated": true,
-      "grounding_truth_preamble": "Adversary confirmed worktree cwd + branch + HEAD + symbol existence via Read+Grep before probes. All orchestrator-asserted symbols verified at expected locations. First application of lesson 58.",
-      "sap_1_result": "PASS — no new uncataloged event_type emission sites at 89aa9bd1",
-      "sap_2_result": "PASS — no TOML or DTU struct modifications in Pass 3 fix-burst",
-      "sid_1_result": "PASS — both new tests are in-process unit tests, not #[ignore]'d",
-      "cross_doc_consistency": "PASS — BC-2.01.017 v1.3, error-taxonomy.md v1.54, BC-INDEX v5.59, auth_provider.rs all consistent",
-      "sibling_sweep_result": "PASS — compiler-enforced trait contract; workspace just check 3839/3839",
-      "state_manager_commit": "TBD (D-861 this burst)"
-    },
-    {
-      "pass": 6,
-      "date": "2026-05-30",
-      "clean_strict": false,
-      "clean_pr_merge": true,
-      "findings_count": 1,
-      "findings_by_severity": {
-        "CRIT": 0,
-        "HIGH": 0,
-        "MED": 0,
-        "LOW": 1,
-        "OBS": 0,
-        "PROCESS-GAP": 0
-      },
-      "streak": 0,
-      "novelty": "LOW",
-      "feature_head_at_pass": "89aa9bd1",
-      "key_finding": "F-LP6-LOW-001 — Red Gate test name BC prefix mis-anchor in story spec §Red Gate Tests table (4 test names use BC-2.01.013/BC-2.01.016 prefix; descriptions cite BC-2.01.017). POL-4 semantic anchoring concern. Convention adjudication required from story-writer.",
-      "deferred_findings": [
+            "pass": 1,
+            "date": "2026-05-30",
+            "clean_strict": false,
+            "clean_pr_merge": false,
+            "findings_count": 13,
+            "findings_by_severity": {
+                "CRIT": 2,
+                "HIGH": 4,
+                "MED": 4,
+                "LOW": 2,
+                "OBS": 1
+            },
+            "streak": 0,
+            "novelty": "HIGH",
+            "feature_head_at_pass": "dba6eb95",
+            "blocked_on": "F-LP1-CRIT-001 — architect harness-clone audit required before fix-burst dispatch",
+            "architect_dispatch_agent_id": "a1161dc86ddae5c53",
+            "architect_decision_committed": "12378e35",
+            "architect_pattern_decision": "Pattern B (in-place rewrite) for Cyberint harness; Scope-1 (in-current-story) expansion",
+            "architect_scope_expansion_deliverables": [
+                "crates/prism-dtu-harness/src/clones/cyberint.rs: rewrite auth model (access_token cookie, no POST /login, access_token_store)",
+                "rg 'cyberint_session|/login' crates/prism-dtu-harness/ must return zero hits after fix",
+                "ALL harness tests that reference cyberint_session or POST /login must be updated"
+            ],
+            "pass_1_resolution": {
+                "closed_by_architect": 2,
+                "closed_by_implementer": 8,
+                "closed_by_po": 1,
+                "na_with_evidence": 2,
+                "total_closed": 13
+            },
+            "pass_1_feature_head_at_resolution": "79e3b545",
+            "pass_1_po_commit": "4baa0e91",
+            "pass_1_implementer_commits": [
+                "2f4cd3a8",
+                "c25bc598",
+                "79e3b545"
+            ],
+            "pass_1_na_detail": {
+                "F-LP1-MED-003": "file prism-dtu-cyberint/tests/parity/cyberint.rs:144 does not exist; only fixtures/parity/ JSON files present",
+                "F-LP1-MED-004": "workspace secrecy = 0.8.0; SecretString::new deprecation does not apply until >= 0.10"
+            },
+            "pass_1_po_adjudication": "F-LP1-MED-002 Option A: BC amendment wins; BC-2.01.017 v1.0→v1.1 EC-017-005 corrected to mandate E-AUTH-005 (resolver Ok(None)→NotFound→E-AUTH-005 per BC-2.03.006 normalization); BC-INDEX v5.56→v5.57"
+        },
         {
-          "finding_id": "D-LP6-001",
-          "category": "pre-existing-project-wide",
-          "description": "CredentialResolutionError enum at prism-credentials/src/resolution.rs:19 lacks #[non_exhaustive]",
-          "deferral_target": "Phase 5 architectural pub-API audit",
-          "not_introduced_by": "S-DTU-CYBERINT-AUTH-FIDELITY-001",
-          "rule_3_compliance": "pre-existing + future phase dependency (Phase 5 pub-API audit) + not AI-default defer of in-scope work"
+            "pass": 2,
+            "date": "2026-05-30",
+            "clean_strict": false,
+            "clean_pr_merge": false,
+            "findings_count": 4,
+            "findings_by_severity": {
+                "CRIT": 1,
+                "HIGH": 1,
+                "MED": 1,
+                "LOW": 0,
+                "OBS": 0,
+                "PROCESS-GAP": 1
+            },
+            "streak": 0,
+            "novelty": "HIGH",
+            "feature_head_at_pass": "79e3b545",
+            "key_finding": "F-LP2-CRIT-001 — PO Option A adjudication built on fabricated BC-2.03.006 normalization claim; BC-2.01.017 v1.1 EC-017-005 was wrong; orchestrator independently verified against resolve_secret.rs:78-81",
+            "po_re_adjudication": {
+                "commit": "2707ee69",
+                "result": "REVERT — BC-2.01.017 v1.1 → v1.2 (restored v1.0 EC-017-005 semantics: empty value → E-AUTH-006)",
+                "bc_index_version": "5.58"
+            },
+            "implementer_dispatched_for": [
+                "test split (NotFound vs empty value)",
+                "F-LP2-HIGH-001 unsafe env_var resolves_api_key_from_env"
+            ],
+            "state_manager_dispatched_for": [
+                "Pass 2 persistence (this burst)",
+                "SAP-2 TD entry F-LP2-MED-001",
+                "F-LP2-PG-001 lesson 56 codification"
+            ],
+            "pass_2_resolution": {
+                "closed_by_implementer": 2,
+                "closed_by_po": 1,
+                "closed_by_state_manager": 2,
+                "total_closed": 4,
+                "implementer_detail": "F-LP2-CRIT-001 test split (test_static_cookie_auth_provider_missing_credential_returns_e_auth_005 + test_static_cookie_auth_provider_empty_value_returns_e_auth_006) + F-LP2-HIGH-001 env-var refactor (test_static_cookie_auth_provider_injects_resolved_token_from_credentials using MockCredentialResolver)",
+                "po_detail": "F-LP2-CRIT-001 BC revert BC-2.01.017 v1.1→v1.2 via 2707ee69",
+                "state_manager_detail": "F-LP2-MED-001 TD-FOLLOWUP-ARRAY-COLUMNTYPE-001 (P2) via D-854 + F-LP2-PG-001 lesson 56 via D-854"
+            },
+            "pass_2_feature_head_at_resolution": "d697425b",
+            "pass_2_implementer_commit": "d697425b",
+            "pass_2_po_commit": "2707ee69",
+            "pass_2_state_manager_commits": [
+                "76ec8643 (D-854 persistence + TD + lesson)",
+                "TBD (D-855 closure)"
+            ],
+            "pass_2_sibling_sweep_advisory": "Sibling-sweep surfaced 4 unsafe env_var SAFETY-comment-quality sites in prism-bin/tests/plugin_boot_tests.rs (lines ~167, ~192, ~210, ~489). Each cites only single-threaded-test justification; does NOT cite BC-2.03.009 or resolver-backend BC. Plugin-boot test infrastructure — out of scope for S-DTU-CYBERINT-AUTH-FIDELITY-001. Advisory only; not filed as TD (Rule 3 prevents AI-default deferrals). Pass 3 may re-surface if material."
+        },
+        {
+            "pass": 3,
+            "date": "2026-05-30",
+            "clean_strict": false,
+            "clean_pr_merge": false,
+            "findings_count": 5,
+            "findings_by_severity": {
+                "CRIT": 0,
+                "HIGH": 1,
+                "MED": 2,
+                "LOW": 2,
+                "OBS": 0,
+                "PROCESS-GAP": 0
+            },
+            "streak": 0,
+            "novelty": "HIGH",
+            "feature_head_at_pass": "d697425b",
+            "key_finding": "F-LP3-HIGH-001 — acquire_token blanket-wraps every resolver Err as E-AUTH-005, mis-labeling BackendUnavailable (file-backend) as not-found",
+            "blocked_on": "Fix-burst required before Pass 4 dispatch",
+            "in_scope_findings": [
+                "F-LP3-HIGH-001",
+                "F-LP3-MED-001",
+                "F-LP3-MED-002",
+                "F-LP3-LOW-001"
+            ],
+            "deferred_findings": [
+                {
+                    "finding_id": "F-LP3-LOW-002",
+                    "category": "cross-story",
+                    "target": "wave-gate",
+                    "note": "plugin-boot test unsafe SAFETY-comment quality; sibling-class to closed F-LP1-LOW-002 but out-of-scope for cyberint auth fidelity story"
+                }
+            ],
+            "pass_3_resolution": {
+                "closed_by_implementer": 4,
+                "closed_by_po": 1,
+                "deferred_maintenance": 1,
+                "total_closed_in_scope": 4,
+                "implementer_detail": "F-LP3-HIGH-001 (Path β: CredentialResolver trait sig changed to Result<SecretString, CredentialResolutionError>; acquire_token match-arms NotFound→E-AUTH-005 + BackendUnavailable→E-AUTH-007; new BackendUnavailableCredentialResolver test helper AD-017 cfg-gated; new test_static_cookie_auth_provider_backend_unavailable_returns_e_auth_007) + F-LP3-MED-001 (prism-dtu-cyberint/src/lib.rs module doc: removed stale POST /login + 9-line route list; replaced with access_token cookie injection + StaticCookieAuthProvider ADR-031 §D1-b + §D3-a) + F-LP3-MED-002 (prism-spec-engine/tests/parity/cyberint.rs:144 comment updated to current narrative BC-2.01.017 §P2 + ADR-031 §D3-a; lesson 57 compliance demonstrated — workspace-wide search before N/A) + F-LP3-LOW-001 (validation order in acquire_token: len()>4096 moved BEFORE is_empty/all-whitespace; 5000-byte whitespace key now reports 'exceeds 4096' detail; new regression test test_static_cookie_auth_provider_rejects_oversized_whitespace_with_length_detail)",
+                "po_detail": "F-LP3-HIGH-001 BC amendment: E-AUTH-007 allocated in error-taxonomy.md v1.53→v1.54; BC-2.01.017 v1.2→v1.3 (EC-017-010 + TV-BC-2.01.017-009); BC-INDEX v5.58→v5.59; PO adjudication doc F-LP3-HIGH-001.md; committed 0fab3437",
+                "deferred_detail": "F-LP3-LOW-002 — prism-bin/tests/plugin_boot_tests.rs 4 unsafe SAFETY-comment-quality sites; cross-story; maintenance follow-up; not filed as TD per CLAUDE.md Rule 3"
+            },
+            "pass_3_path_decision": "Path β chosen — CredentialResolver trait signature changed to return Result<SecretString, CredentialResolutionError> preserving error fidelity; rejected Path α (sentinel-prefix string gymnastics per CLAUDE.md Rule 5 preferred-path principle)",
+            "pass_3_feature_head_at_resolution": "89aa9bd1",
+            "pass_3_implementer_commit": "89aa9bd1",
+            "pass_3_po_commit": "0fab3437",
+            "pass_3_state_manager_commits": [
+                "dae10ab5 (D-856 Pass 3 persistence + lesson 57)",
+                "dae10ab5 (D-858 closure burst)"
+            ]
+        },
+        {
+            "pass": 4,
+            "date": "2026-05-30",
+            "clean_strict": true,
+            "clean_pr_merge": true,
+            "findings_count": 0,
+            "findings_by_severity": {
+                "CRIT": 0,
+                "HIGH": 0,
+                "MED": 0,
+                "LOW": 0,
+                "OBS": 0,
+                "PROCESS-GAP": 0
+            },
+            "streak": 1,
+            "novelty": "ZERO",
+            "feature_head_at_pass": "89aa9bd1",
+            "sap_1_result": "PASS — no new uncataloged event_type emission sites in Pass 3 fix-burst",
+            "sap_2_result": "PASS — no TOML or DTU struct modifications in Pass 3 fix-burst",
+            "sid_1_result": "PASS — both new tests (backend_unavailable + oversized_whitespace) are unit tests, not #[ignore]'d",
+            "sibling_sweep_result": "PASS — CredentialResolver trait sig change enforced at all impl sites by compiler; workspace just check 3839/3839",
+            "cross_doc_consistency": "PASS — BC-2.01.017 v1.3, error-taxonomy.md v1.54, BC-INDEX v5.59 all consistent with auth_provider.rs match arms",
+            "pass_3_closures_verified": {
+                "F-LP3-HIGH-001": "LOAD-BEARING — auth_provider.rs BackendUnavailable match arm + test_static_cookie_auth_provider_backend_unavailable_returns_e_auth_007",
+                "F-LP3-MED-001": "LOAD-BEARING — lib.rs module doc confirms access_token cookie model; no POST /login text",
+                "F-LP3-MED-002": "LOAD-BEARING — parity/cyberint.rs:144-148 comment references StaticCookieAuthProvider; no cyberint_session text",
+                "F-LP3-LOW-001": "LOAD-BEARING — validation order len()>4096 before is_empty; regression test asserts 'exceeds 4096' detail on 5000-byte whitespace key",
+                "F-LP3-LOW-002": "DEFERRED — scope boundary correct; routes to maintenance follow-up at wave-gate"
+            },
+            "state_manager_commit": "TBD (D-859 this burst)"
+        },
+        {
+            "pass": "5-REJECTED",
+            "date": "2026-05-30",
+            "status": "FABRICATED",
+            "findings_count_claimed": 9,
+            "findings_count_verified": 0,
+            "rejection_basis": "Orchestrator independently verified all 9 findings cite symbols/files that DO exist. auth_provider.rs is 1092 lines (claimed 354); StaticCookieAuthProvider exists at line 358; CredentialResolver trait at lines 146-157; BackendUnavailableCredentialResolver at line 287; clone.rs line 111 has NOTE comment documenting intentional ABSENCE of POST /login (no route registered); extract_access_token exists at alerts.rs:56 + harness clones/cyberint.rs:760; access_token_store exists in harness clone at line 168.",
+            "hypothesis_root_cause": "Adversary may have read files from develop branch (72baf413, no implementation) instead of feature worktree (89aa9bd1). OR hallucination from stale context. OR tooling issue with file resolution at adversary's cwd.",
+            "feature_head_at_pass": "89aa9bd1",
+            "streak_unchanged": 1,
+            "disposition": "REJECTED — re-dispatch Pass 5 with strict grounding-truth requirements (cwd confirmation, file-size confirmation, rg-output-capture per existence claim)"
+        },
+        {
+            "pass": "5-REDUX",
+            "date": "2026-05-30",
+            "clean_strict": true,
+            "clean_pr_merge": true,
+            "findings_count": 0,
+            "findings_by_severity": {
+                "CRIT": 0,
+                "HIGH": 0,
+                "MED": 0,
+                "LOW": 0,
+                "OBS": 0,
+                "PROCESS-GAP": 0
+            },
+            "streak": 2,
+            "novelty": "ZERO",
+            "feature_head_at_pass": "89aa9bd1",
+            "supersedes": "local-pass-5-REJECTED.md",
+            "lesson_58_demonstrated": true,
+            "grounding_truth_preamble": "Adversary confirmed worktree cwd + branch + HEAD + symbol existence via Read+Grep before probes. All orchestrator-asserted symbols verified at expected locations. First application of lesson 58.",
+            "sap_1_result": "PASS — no new uncataloged event_type emission sites at 89aa9bd1",
+            "sap_2_result": "PASS — no TOML or DTU struct modifications in Pass 3 fix-burst",
+            "sid_1_result": "PASS — both new tests are in-process unit tests, not #[ignore]'d",
+            "cross_doc_consistency": "PASS — BC-2.01.017 v1.3, error-taxonomy.md v1.54, BC-INDEX v5.59, auth_provider.rs all consistent",
+            "sibling_sweep_result": "PASS — compiler-enforced trait contract; workspace just check 3839/3839",
+            "state_manager_commit": "TBD (D-861 this burst)"
+        },
+        {
+            "pass": 6,
+            "date": "2026-05-30",
+            "clean_strict": false,
+            "clean_pr_merge": true,
+            "findings_count": 1,
+            "findings_by_severity": {
+                "CRIT": 0,
+                "HIGH": 0,
+                "MED": 0,
+                "LOW": 1,
+                "OBS": 0,
+                "PROCESS-GAP": 0
+            },
+            "streak": 0,
+            "novelty": "LOW",
+            "feature_head_at_pass": "89aa9bd1",
+            "key_finding": "F-LP6-LOW-001 — Red Gate test name BC prefix mis-anchor in story spec §Red Gate Tests table (4 test names use BC-2.01.013/BC-2.01.016 prefix; descriptions cite BC-2.01.017). POL-4 semantic anchoring concern. Convention adjudication required from story-writer.",
+            "deferred_findings": [
+                {
+                    "finding_id": "D-LP6-001",
+                    "category": "pre-existing-project-wide",
+                    "description": "CredentialResolutionError enum at prism-credentials/src/resolution.rs:19 lacks #[non_exhaustive]",
+                    "deferral_target": "Phase 5 architectural pub-API audit",
+                    "not_introduced_by": "S-DTU-CYBERINT-AUTH-FIDELITY-001",
+                    "rule_3_compliance": "pre-existing + future phase dependency (Phase 5 pub-API audit) + not AI-default defer of in-scope work"
+                }
+            ],
+            "pass_6_resolution": {
+                "closed_by_story_writer": 1,
+                "closed_by_implementer": 1,
+                "total_closed_in_scope": 1,
+                "story_writer_detail": "F-LP6-LOW-001 Option A — convention adjudication: prefix by primary BC anchor (S-CONFIG + PLUGIN-MIGRATION-001-E precedent + POL-4 semantic-anchoring); 4 test names in story spec §Red Gate Tests table updated to BC-2.01.017 prefix in v1.2→v1.3 via ea80ed72. AC bodies + Tasks step 6 + step 19 + Notes for Implementer convention paragraph updated.",
+                "implementer_detail": "4 test function renames in code via 4f5b5404: test_BC_2_01_013_* (3 functions) and test_BC_2_01_016_* (1 function) renamed to test_BC_2_01_017_* prefix. Files: crates/prism-dtu-cyberint/tests/bc_2_01_017_access_token_auth.rs + crates/prism-spec-engine/tests/bc_2_01_017_static_cookie_auth_provider.rs. Module-level test table doc comments updated (3 rows). Inline expect() string updated (1 site). Sibling-sweep CLEAN. just check EXIT 0 — 3839/3839 tests pass. Test count delta 0 (pure rename, structurally idempotent)."
+            },
+            "pass_6_feature_head_at_resolution": "4f5b5404",
+            "pass_6_story_writer_commit": "ea80ed72",
+            "pass_6_implementer_commit": "4f5b5404",
+            "pass_6_state_manager_commits": [
+                "2ed44cb5 (D-862 Pass 6 persistence)",
+                "D-864 closure (this burst)"
+            ],
+            "pass_6_option_chosen": "Option A — rename per prefix-by-primary-BC convention (S-CONFIG + PLUGIN-MIGRATION-001-E precedent + POL-4 semantic-anchoring)",
+            "state_manager_commit": "2ed44cb5 (D-862) + D-864 closure (this burst)"
+        },
+        {
+            "pass": 7,
+            "date": "2026-05-30",
+            "clean_strict": true,
+            "clean_pr_merge": true,
+            "findings_count": 0,
+            "findings_by_severity": {
+                "CRIT": 0,
+                "HIGH": 0,
+                "MED": 0,
+                "LOW": 0,
+                "OBS": 0,
+                "PROCESS-GAP": 0
+            },
+            "streak": 1,
+            "novelty": "ZERO",
+            "feature_head_at_pass": "4f5b5404",
+            "lesson_58_preamble": true,
+            "sap_1_result": "PASS — no new event_type emission sites in Pass 6 fix-burst (pure test rename, zero production code changes)",
+            "sap_2_result": "PASS — no TOML or DTU struct modifications in Pass 6 fix-burst",
+            "sid_1_result": "PASS — no new test functions; renamed tests are existing non-#[ignore]'d unit tests",
+            "cross_doc_consistency": "PASS — BC-2.01.017 v1.3 + error-taxonomy.md v1.54 + BC-INDEX v5.59 + auth_provider.rs all consistent; no changes in fix-burst",
+            "sibling_sweep_result": "PASS — pure test rename; no workspace residuals of old test_BC_2_01_013/test_BC_2_01_016 expect() strings",
+            "f_lp6_low_001_closure_verified": {
+                "status": "LOAD-BEARING",
+                "test_file_1": "crates/prism-dtu-cyberint/tests/bc_2_01_017_access_token_auth.rs — 3 renamed functions + module doc + expect() string all updated; bodies + mock assertions intact",
+                "test_file_2": "crates/prism-spec-engine/tests/bc_2_01_017_static_cookie_auth_provider.rs — 1 renamed function; body + mock assertions intact",
+                "story_spec_v1_3": "§Red Gate Tests table: 4 test name cells all confirm test_BC_2_01_017_* prefix; AC bodies + Tasks + Notes for Implementer consistent"
+            },
+            "state_manager_commit": "D-865 (this burst)"
+        },
+        {
+            "pass": 8,
+            "date": "2026-05-30",
+            "clean_strict": false,
+            "clean_pr_merge": true,
+            "findings_count": 1,
+            "findings_by_severity": {
+                "CRIT": 0,
+                "HIGH": 0,
+                "MED": 1,
+                "LOW": 0,
+                "OBS": 0,
+                "PROCESS-GAP": 0
+            },
+            "streak": 0,
+            "novelty": "LOW",
+            "feature_head_at_pass": "4f5b5404",
+            "lesson_58_preamble": true,
+            "key_finding": "F-LP8-MED-001 — BC-2.01.017 changelog hygiene: byte-identical duplicate v1.2 row at line 237 + non-monotonic chronological ordering",
+            "sap_1_result": "PASS — no new event_type emission sites; no production code changes since Pass 7",
+            "sap_2_result": "PASS — no TOML or DTU struct modifications since Pass 7",
+            "sid_1_result": "PASS — no new test functions; all tests remain non-#[ignore]'d unit tests",
+            "cross_doc_consistency": "FAIL — BC-2.01.017 changelog non-monotonic (F-LP8-MED-001); semantic contract content unaffected",
+            "sibling_sweep_result": "PASS (N/A — no code change since Pass 7)",
+            "pass_8_resolution": {
+                "closed_by_po": 1,
+                "total_closed": 1
+            },
+            "pass_8_po_commit": "399ef378",
+            "pass_8_feature_head_at_resolution": "4f5b5404",
+            "pass_8_po_adjudication": "F-LP8-MED-001: BC-2.01.017 v1.3→v1.4 — deleted byte-identical duplicate v1.2 row; reordered changelog to monotonic descending (1.4→1.3→1.2→1.1→1.0); BC-INDEX v5.59→v5.60 header bump; no semantic content change",
+            "state_manager_commit": "D-867 (this burst)"
+        },
+        {
+            "pass": 9,
+            "date": "2026-05-30",
+            "clean_strict": false,
+            "clean_pr_merge": true,
+            "findings_count": 1,
+            "findings_by_severity": {
+                "CRIT": 0,
+                "HIGH": 0,
+                "MED": 1,
+                "LOW": 0,
+                "OBS": 0,
+                "PROCESS-GAP": 0
+            },
+            "streak": 0,
+            "novelty": "LOW",
+            "feature_head_at_pass": "4f5b5404",
+            "lesson_58_preamble": true,
+            "key_finding": "F-LP9-MED-001 — story spec changelog non-monotonic version ordering: rows appeared 1.0, 1.1, 1.3, 1.2 (v1.3 placed before v1.2). Same class as F-LP8-MED-001 (BC-2.01.017 changelog non-monotonic). Sibling-sweep result of TD-VSDD-060 discipline applied after Pass 8 PO fix.",
+            "sap_1_result": "PASS — no new event_type emission sites at 4f5b5404; no production code changes since Pass 8",
+            "sap_2_result": "PASS — no TOML or DTU struct modifications since Pass 8",
+            "sid_1_result": "PASS — no new test functions; all tests remain non-#[ignore]'d unit tests",
+            "cross_doc_consistency": "FAIL — story spec changelog non-monotonic (F-LP9-MED-001); BC-2.01.017 v1.4 + error-taxonomy.md v1.54 + BC-INDEX v5.60 + auth_provider.rs all consistent",
+            "sibling_sweep_result": "FINDING SURFACED → F-LP9-MED-001 (sibling-sweep of F-LP8-MED-001 class applied to story spec changelog)",
+            "pass_9_resolution": {
+                "closed_by_story_writer": 1,
+                "total_closed": 1
+            },
+            "pass_9_story_writer_commit": "ac0843a4",
+            "pass_9_feature_head_at_resolution": "4f5b5404",
+            "pass_9_story_writer_adjudication": "F-LP9-MED-001: story spec v1.3→v1.4 — reordered changelog to monotonic descending (1.4→1.3→1.2→1.1→1.0); added v1.4 row documenting reorder; STORY-INDEX v2.213→v2.214; no semantic content change",
+            "state_manager_commit": "D-869 (this burst)"
+        },
+        {
+            "pass": 10,
+            "date": "2026-05-30",
+            "clean_strict": false,
+            "clean_pr_merge": true,
+            "findings_count": 1,
+            "findings_by_severity": {
+                "CRIT": 0,
+                "HIGH": 0,
+                "MED": 1,
+                "LOW": 0,
+                "OBS": 0,
+                "PROCESS-GAP": 0
+            },
+            "streak": 0,
+            "novelty": "LOW",
+            "feature_head_at_pass": "4f5b5404",
+            "lesson_58_preamble": true,
+            "key_finding": "F-LP10-MED-001 — error-taxonomy.md changelog non-monotonic (third recurrence of changelog ordering class; F-LP8=BC + F-LP9=story + F-LP10=error-taxonomy). Third recurrence triggers comprehensive sweep + POL-32 policy codification response.",
+            "sap_1_result": "PASS — no new event_type emission sites at 4f5b5404; no production code changes since Pass 9",
+            "sap_2_result": "PASS — no TOML or DTU struct modifications since Pass 9",
+            "sid_1_result": "PASS — no new test functions; all tests remain non-#[ignore]'d unit tests",
+            "cross_doc_consistency": "FAIL — error-taxonomy.md changelog non-monotonic (F-LP10-MED-001); BC-2.01.017 v1.4 + story v1.4 + auth_provider.rs all consistent",
+            "sibling_sweep_result": "FINDING SURFACED (third recurrence) — comprehensive sweep triggered per lesson 59 three-recurrence rule",
+            "pass_10_resolution": {
+                "closed_by_po_comprehensive_sweep": 2,
+                "in_scope_note": "F-LP10-MED-001 (reported site) + D-LP9-001 promoted to in-scope via comprehensive sweep rationale",
+                "policy_codified": "POL-32 changelog_monotonic_descending",
+                "total_closed_in_scope": 2,
+                "po_detail": "error-taxonomy.md v1.54→v1.55 reorder; STORY-INDEX v2.214→v2.215 16-row block reorder; BC-INDEX v5.60→v5.61 (BC-2.16.013 in-line catalog row v1.16→v1.18); BC-2.16.013 v1.17→v1.18 (D-LP9-001 promoted); POL-32 codified in policies.yaml v1.30→v1.31; adjudication doc F-LP10-MED-001.md authored",
+                "deferred_in_burst": "BC-INDEX v4 historical section — TD-VSDD-091 immutable historical narrative; not a monitoring target for future enforcement"
+            },
+            "pass_10_po_commit": "559ab76d",
+            "pass_10_feature_head_at_resolution": "4f5b5404",
+            "state_manager_commit": "D-871 (this burst)"
+        },
+        {
+            "pass": 11,
+            "date": "2026-05-30",
+            "clean_strict": true,
+            "clean_pr_merge": true,
+            "findings_count": 0,
+            "findings_by_severity": {
+                "CRIT": 0,
+                "HIGH": 0,
+                "MED": 0,
+                "LOW": 0,
+                "OBS": 0,
+                "PROCESS-GAP": 0
+            },
+            "streak": 1,
+            "novelty": "ZERO",
+            "feature_head_at_pass": "4f5b5404",
+            "lesson_58_preamble": true,
+            "sap_1_result": "PASS — no new uncataloged event_type emission sites; no production code changes since Pass 10",
+            "sap_2_result": "PASS — no TOML or DTU struct modifications since Pass 10",
+            "sid_1_result": "PASS — no new test functions; all tests remain non-#[ignore]'d unit tests",
+            "pol_32_workspace_sample": "PASS — BC-2.01.017 v1.4 + error-taxonomy.md v1.55 + STORY-INDEX v2.215 + BC-INDEX v5.61 + BC-2.16.013 v1.18 all confirmed monotonic descending; zero violations",
+            "cross_doc_consistency": "PASS — BC-2.01.017 v1.4, error-taxonomy.md v1.55, BC-INDEX v5.61, STORY-INDEX v2.215, auth_provider.rs all consistent",
+            "sibling_sweep_result": "PASS (N/A — no code change since Pass 10)",
+            "prior_closures_spot_check": {
+                "F-LP3-HIGH-001": "LOAD-BEARING — BackendUnavailable match arm + test confirmed",
+                "F-LP6-LOW-001": "LOAD-BEARING — 4 test_BC_2_01_017_* prefix confirmed at both test files",
+                "F-LP8-MED-001": "LOAD-BEARING — BC changelog 1.4→1.3→1.2→1.1→1.0 no duplicates",
+                "F-LP9-MED-001": "LOAD-BEARING — story changelog 1.4→1.3→1.2→1.1→1.0 confirmed",
+                "F-LP10-MED-001": "LOAD-BEARING — error-taxonomy v1.55 changelog monotonic descending"
+            },
+            "state_manager_commit": "D-872 (this burst)"
+        },
+        {
+            "pass": 12,
+            "date": "2026-05-30",
+            "clean_strict": false,
+            "clean_pr_merge": false,
+            "findings_count": 3,
+            "findings_by_severity": {
+                "CRIT": 0,
+                "HIGH": 0,
+                "MED": 1,
+                "LOW": 1,
+                "OBS": 0,
+                "PROCESS-GAP": 1
+            },
+            "streak": 0,
+            "streak_reset": "1/3 → 0/3",
+            "novelty": "LOW",
+            "feature_head_at_pass": "4f5b5404",
+            "lesson_58_preamble": true,
+            "preamble_anomaly": "Adversary prompt cited crates/prism-dtu-cyberint/src/auth_provider.rs but actual file is crates/prism-spec-engine/src/auth_provider.rs — transcription error in prompt; content verified at correct path; non-blocking",
+            "key_findings": [
+                "F-LP12-MED-001 — Story body H1 (v1.1) + §Version field (v1.3) stale vs frontmatter (v1.4); POL-29 step 8b body-sync missed across v1.1→v1.2 (D-850), v1.2→v1.3 (D-863), v1.3→v1.4 (D-868); three distinct version values in same file. Route: story-writer.",
+                "F-LP12-LOW-001 — 20 cite-pins to BC-2.01.017 v1.3 or v1.2 in crates/prism-spec-engine/src/auth_provider.rs; BC currently v1.4; POL-29 step 8f v1.29 crates-cite-pin sweep not performed at D-866; MAY be intentional introduced-in anchors. Route: PO adjudication required. [Count corrected from 21→20 by D-877 state-manager burst per F-LP13-LOW-001 adversary finding; actual grep returns 20 matches.]",
+                "F-LP12-PG-001 [process-gap] — Standing adversary probe set lacks POL-29 v1.29 crates cite-pin sweep probe; SAP-4 candidate. Route: orchestrator codification queue."
+            ],
+            "sap_1_result": "PASS — no new uncataloged event_type emission sites at 4f5b5404",
+            "sap_2_result": "PASS — no TOML or DTU struct modifications since Pass 11",
+            "sid_1_result": "PASS — no new test functions; all tests remain non-#[ignore]'d unit tests",
+            "cross_doc_consistency": "FAIL — story body H1 + §Version field version drift (F-LP12-MED-001)",
+            "prior_closures_spot_check": {
+                "F-LP3-HIGH-001": "LOAD-BEARING confirmed",
+                "F-LP6-LOW-001": "LOAD-BEARING confirmed",
+                "F-LP8-MED-001": "LOAD-BEARING confirmed",
+                "F-LP9-MED-001": "LOAD-BEARING confirmed",
+                "F-LP10-MED-001": "LOAD-BEARING confirmed"
+            },
+            "state_manager_commit": "D-873 (this burst)",
+            "pass_12_resolution": {
+                "closed_by_story_writer": 1,
+                "closed_by_po": 1,
+                "process_gap_codification_pending": 1,
+                "total_closed": 2,
+                "closed_by_story_writer_detail": "F-LP12-MED-001 story body H1 + §Version field synced; story v1.4→v1.5 via 9fb28d50",
+                "closed_by_po_detail": "F-LP12-LOW-001 Option A — introduced-in anchor convention; BC-2.01.017 v1.4→v1.5 §Notes amendment; BC-INDEX v5.61→v5.62 via 23a17f6d",
+                "process_gap_codification_pending_detail": "F-LP12-PG-001 SAP-4 codification + POL-29 step 8f v1.29 hygiene-only-bump exemption — orchestrator codification queue"
+            },
+            "pass_12_story_writer_commit": "9fb28d50",
+            "pass_12_po_commit": "23a17f6d",
+            "pass_12_po_option_chosen": "Option A — introduced-in anchor convention; convention codified in BC-2.01.017 v1.5 §Notes; PO recommended POL-29 step 8f v1.29 amendment to exempt hygiene-only bumps"
+        },
+        {
+            "pass": 13,
+            "date": "2026-05-30",
+            "clean_strict": false,
+            "clean_pr_merge": true,
+            "findings_count": 1,
+            "findings_by_severity": {
+                "CRIT": 0,
+                "HIGH": 0,
+                "MED": 0,
+                "LOW": 1,
+                "OBS": 0,
+                "PROCESS-GAP": 0
+            },
+            "streak": 0,
+            "streak_note": "CLEAN(PR-merge) but NOT CLEAN(strict) — streak not advanced per BC-5.39.001 D-779 amendment",
+            "novelty": "LOW",
+            "feature_head_at_pass": "4f5b5404",
+            "lesson_58_preamble": true,
+            "sap_1_result": "PASS — no new uncataloged event_type emission sites at 4f5b5404",
+            "sap_2_result": "PASS — no TOML or DTU struct modifications since Pass 12",
+            "sid_1_result": "PASS — no new test functions; all tests remain non-#[ignore]'d unit tests",
+            "pol_32_result": "PASS — story v1.5 body H1 + §Version field consistent after D-874",
+            "cross_doc_consistency": "FAIL — F-LP13-LOW-001 (narrative count 21 vs actual 20 cite-pins)",
+            "key_findings": [
+                "F-LP13-LOW-001 [LOW] — Narrative count drift: PO adjudication verdict + STATE.md checkpoint + lessons.md + convergence-state claim '21 cite-pins' but actual grep of feature HEAD 4f5b5404 returns 20 matches. Root cause: PO enumeration table had 20 rows but verdict line said 21 (off-by-one). Non-runtime, non-behavioral. Fix: state-manager narrative correction across 4 artifacts (21→20)."
+            ],
+            "prior_closures_spot_check": {
+                "F-LP3-HIGH-001": "LOAD-BEARING confirmed",
+                "F-LP6-LOW-001": "LOAD-BEARING confirmed",
+                "F-LP8-MED-001": "LOAD-BEARING confirmed",
+                "F-LP9-MED-001": "LOAD-BEARING confirmed",
+                "F-LP10-MED-001": "LOAD-BEARING confirmed",
+                "F-LP12-MED-001": "LOAD-BEARING confirmed — story v1.5 H1+§Version consistent",
+                "F-LP12-LOW-001": "LOAD-BEARING confirmed — BC-2.01.017 v1.5 §Notes documents pinned-at-write-time convention"
+            },
+            "state_manager_commit": "D-877 (this burst)",
+            "pass_13_resolution": {
+                "closed_by_state_manager": 1,
+                "total_closed": 1,
+                "closed_by_state_manager_detail": "F-LP13-LOW-001 narrative count correction 21→20 across 4 artifacts: po-adjudications/F-LP12-LOW-001.md (verdict + summary lines), STATE.md (session resume checkpoint), cycles/wave-0-plugin-prereqs/lessons.md (lesson 60 body + closure note), adversary-convergence-state.json (pass-12 key_findings entry). Historical D-rows (D-873/D-875/D-876) in STATE.md Decision Log and SESSION-HANDOFF.md addendum sections are immutable audit trail per TD-VSDD-091 — not corrected."
+            }
+        },
+        {
+            "pass": 14,
+            "date": "2026-05-30",
+            "clean_strict": false,
+            "clean_pr_merge": true,
+            "findings_count": 1,
+            "findings_by_severity": {
+                "CRIT": 0,
+                "HIGH": 0,
+                "MED": 0,
+                "LOW": 1,
+                "OBS": 0,
+                "PROCESS-GAP": 0
+            },
+            "streak": 0,
+            "streak_note": "CLEAN(PR-merge) but NOT CLEAN(strict) — streak not advanced per BC-5.39.001 D-779 amendment",
+            "novelty": "LOW",
+            "feature_head_at_pass": "4f5b5404",
+            "lesson_58_preamble": true,
+            "sap_1_result": "PASS — no new uncataloged event_type emission sites at 4f5b5404",
+            "sap_2_result": "PASS — no TOML or DTU struct modifications since Pass 13",
+            "sid_1_result": "PASS — no new test functions; all tests remain non-#[ignore]'d unit tests",
+            "pol_32_result": "PASS — story v1.5 body H1 + §Version field consistent",
+            "cross_doc_consistency": "FAIL — F-LP14-LOW-001 (Pass 13 closure incomplete: residual \"21 cite-pin updates\" in po-adjudications/F-LP12-LOW-001.md §3 Rationale point 2)",
+            "key_findings": [
+                "F-LP14-LOW-001 [LOW] — Pass 13 closure incomplete: po-adjudications/F-LP12-LOW-001.md §3 Rationale point 2 reads \"Forcing 21 cite-pin updates\" — active forward-looking rationale prose, not a historical-immutable row. D-877 state-manager description (\"verdict line + 3 summary lines\") missed this location. Fix: state-manager comprehensive sweep correcting 21→20 in this one active-narrative site. Non-runtime, non-behavioral."
+            ],
+            "prior_closures_spot_check": {
+                "F-LP3-HIGH-001": "LOAD-BEARING confirmed",
+                "F-LP6-LOW-001": "LOAD-BEARING confirmed",
+                "F-LP8-MED-001": "LOAD-BEARING confirmed",
+                "F-LP9-MED-001": "LOAD-BEARING confirmed",
+                "F-LP10-MED-001": "LOAD-BEARING confirmed",
+                "F-LP12-MED-001": "LOAD-BEARING confirmed — story v1.5 H1+§Version consistent",
+                "F-LP12-LOW-001": "LOAD-BEARING confirmed — BC-2.01.017 v1.5 §Notes documents pinned-at-write-time convention",
+                "F-LP13-LOW-001": "PARTIALLY CLOSED — residual found (F-LP14-LOW-001); D-877 corrected verdict+summary+checkpoint+lessons+convergence-state but missed §3 Rationale point 2 in PO adjudication doc"
+            },
+            "state_manager_commit": "D-878 (this burst)",
+            "pass_14_resolution": {
+                "closed_by_state_manager_comprehensive_sweep": 1,
+                "total_closed": 1,
+                "comprehensive_sweep_sites_fixed": 1,
+                "closed_by_state_manager_detail": "F-LP14-LOW-001 + comprehensive sweep: po-adjudications/F-LP12-LOW-001.md §3 Rationale point 2 (\"21 cite-pin updates\" → \"20 cite-pin updates\"). Sweep confirmed: adversarial-review/local-pass-12.md lines 83+95 (historical-immutable pass report, preserved), adversarial-review/local-pass-13.md (historical-immutable pass report, preserved), STATE.md D-873/D-875/D-876/D-877 Decision Log rows (historical-immutable audit trail, preserved per TD-VSDD-091), SESSION-HANDOFF.md addendum sections (historical-immutable narrative snapshots, preserved per TD-VSDD-091), BC-2.01.017 changelog row v1.5 (historical-immutable changelog row, preserved per TD-VSDD-091). Active narrative: 1 site fixed."
+            },
+            "pass_14_user_authorized_comprehensive_sweep": "2026-05-30 user chose Option A (comprehensive sweep + continue strict)"
+        },
+        {
+            "pass": 15,
+            "date": "2026-05-30",
+            "clean_strict": true,
+            "clean_pr_merge": true,
+            "findings_count": 0,
+            "findings_by_severity": {
+                "CRIT": 0,
+                "HIGH": 0,
+                "MED": 0,
+                "LOW": 0,
+                "OBS": 0,
+                "PROCESS-GAP": 0
+            },
+            "streak": 1,
+            "novelty": "ZERO",
+            "feature_head_at_pass": "4f5b5404",
+            "lesson_58_preamble": true,
+            "sap_1_result": "PASS — no new uncataloged event_type emission sites; no production code changes since Pass 14 comprehensive sweep",
+            "sap_2_result": "PASS — no TOML or DTU struct modifications since Pass 14",
+            "sid_1_result": "PASS — all tests remain non-#[ignore]'d unit tests",
+            "prior_closures_spot_check": {
+                "F-LP3-HIGH-001": "LOAD-BEARING confirmed",
+                "F-LP6-LOW-001": "LOAD-BEARING confirmed",
+                "F-LP8-MED-001": "LOAD-BEARING confirmed",
+                "F-LP9-MED-001": "LOAD-BEARING confirmed",
+                "F-LP10-MED-001": "LOAD-BEARING confirmed",
+                "F-LP12-MED-001": "LOAD-BEARING confirmed — story v1.5 H1+§Version consistent",
+                "F-LP12-LOW-001": "LOAD-BEARING confirmed — BC-2.01.017 v1.5 §Notes documents introduced-in anchor convention; 20 cite-pins intentional",
+                "F-LP13-LOW-001": "LOAD-BEARING confirmed — 20 cite-pins across all active-narrative sites; historical-immutable preserved",
+                "F-LP14-LOW-001": "LOAD-BEARING confirmed — po-adjudications/F-LP12-LOW-001.md §3 Rationale point 2 reads 20 cite-pin updates; zero residuals in non-historical-immutable scope"
+            },
+            "state_manager_commit": "D-879 (this burst)"
+        },
+        {
+            "pass": 16,
+            "date": "2026-05-30",
+            "clean_strict": true,
+            "clean_pr_merge": true,
+            "findings_count": 0,
+            "findings_by_severity": {
+                "CRIT": 0,
+                "HIGH": 0,
+                "MED": 0,
+                "LOW": 0,
+                "OBS": 0,
+                "PROCESS-GAP": 0
+            },
+            "streak": 2,
+            "novelty": "ZERO",
+            "feature_head_at_pass": "4f5b5404",
+            "lesson_58_preamble": true,
+            "sap_1_result": "PASS — no new uncataloged event_type emission sites; no production code changes since Pass 15",
+            "sap_2_result": "PASS — no TOML or DTU struct modifications since Pass 15",
+            "sid_1_result": "PASS — all tests remain non-#[ignore]'d unit tests",
+            "prior_closures_spot_check": {
+                "F-LP3-HIGH-001": "LOAD-BEARING confirmed",
+                "F-LP6-LOW-001": "LOAD-BEARING confirmed",
+                "F-LP8-MED-001": "LOAD-BEARING confirmed",
+                "F-LP9-MED-001": "LOAD-BEARING confirmed",
+                "F-LP10-MED-001": "LOAD-BEARING confirmed",
+                "F-LP12-MED-001": "LOAD-BEARING confirmed — story v1.5 H1+§Version consistent",
+                "F-LP12-LOW-001": "LOAD-BEARING confirmed — BC-2.01.017 v1.5 §Notes documents introduced-in anchor convention; 20 cite-pins intentional",
+                "F-LP13-LOW-001": "LOAD-BEARING confirmed — 20 cite-pins across all active-narrative sites; historical-immutable preserved",
+                "F-LP14-LOW-001": "LOAD-BEARING confirmed — po-adjudications/F-LP12-LOW-001.md §3 Rationale point 2 reads 20 cite-pin updates; zero residuals in non-historical-immutable scope"
+            },
+            "state_manager_commit": "D-880 (this burst)"
+        },
+        {
+            "pass": 17,
+            "date": "2026-05-30",
+            "clean_strict": true,
+            "clean_pr_merge": true,
+            "findings_count": 0,
+            "findings_by_severity": {
+                "CRIT": 0,
+                "HIGH": 0,
+                "MED": 0,
+                "LOW": 0,
+                "OBS": 0,
+                "PROCESS-GAP": 0
+            },
+            "streak": 3,
+            "novelty": "ZERO",
+            "feature_head_at_pass": "4f5b5404",
+            "lesson_58_preamble": true,
+            "sap_1_result": "PASS — no new uncataloged event_type emission sites; no production code changes since Pass 16",
+            "sap_2_result": "PASS — no TOML or DTU struct modifications since Pass 16",
+            "sid_1_result": "PASS — all tests remain non-#[ignore]'d unit tests",
+            "prior_closures_spot_check": {
+                "F-LP3-HIGH-001": "LOAD-BEARING confirmed",
+                "F-LP6-LOW-001": "LOAD-BEARING confirmed",
+                "F-LP8-MED-001": "LOAD-BEARING confirmed",
+                "F-LP9-MED-001": "LOAD-BEARING confirmed",
+                "F-LP10-MED-001": "LOAD-BEARING confirmed",
+                "F-LP12-MED-001": "LOAD-BEARING confirmed — story v1.5 H1+§Version consistent",
+                "F-LP12-LOW-001": "LOAD-BEARING confirmed — BC-2.01.017 v1.5 §Notes documents introduced-in anchor convention; 20 cite-pins intentional",
+                "F-LP13-LOW-001": "LOAD-BEARING confirmed — 20 cite-pins across all active-narrative sites; historical-immutable preserved",
+                "F-LP14-LOW-001": "LOAD-BEARING confirmed — po-adjudications/F-LP12-LOW-001.md §3 Rationale point 2 reads 20 cite-pin updates; zero residuals in non-historical-immutable scope"
+            },
+            "state_manager_commit": "D-881 (this burst)"
         }
-      ],
-      "pass_6_resolution": {
-        "closed_by_story_writer": 1,
-        "closed_by_implementer": 1,
-        "total_closed_in_scope": 1,
-        "story_writer_detail": "F-LP6-LOW-001 Option A — convention adjudication: prefix by primary BC anchor (S-CONFIG + PLUGIN-MIGRATION-001-E precedent + POL-4 semantic-anchoring); 4 test names in story spec §Red Gate Tests table updated to BC-2.01.017 prefix in v1.2→v1.3 via ea80ed72. AC bodies + Tasks step 6 + step 19 + Notes for Implementer convention paragraph updated.",
-        "implementer_detail": "4 test function renames in code via 4f5b5404: test_BC_2_01_013_* (3 functions) and test_BC_2_01_016_* (1 function) renamed to test_BC_2_01_017_* prefix. Files: crates/prism-dtu-cyberint/tests/bc_2_01_017_access_token_auth.rs + crates/prism-spec-engine/tests/bc_2_01_017_static_cookie_auth_provider.rs. Module-level test table doc comments updated (3 rows). Inline expect() string updated (1 site). Sibling-sweep CLEAN. just check EXIT 0 — 3839/3839 tests pass. Test count delta 0 (pure rename, structurally idempotent)."
-      },
-      "pass_6_feature_head_at_resolution": "4f5b5404",
-      "pass_6_story_writer_commit": "ea80ed72",
-      "pass_6_implementer_commit": "4f5b5404",
-      "pass_6_state_manager_commits": [
-        "2ed44cb5 (D-862 Pass 6 persistence)",
-        "D-864 closure (this burst)"
-      ],
-      "pass_6_option_chosen": "Option A — rename per prefix-by-primary-BC convention (S-CONFIG + PLUGIN-MIGRATION-001-E precedent + POL-4 semantic-anchoring)",
-      "state_manager_commit": "2ed44cb5 (D-862) + D-864 closure (this burst)"
-    },
-    {
-      "pass": 7,
-      "date": "2026-05-30",
-      "clean_strict": true,
-      "clean_pr_merge": true,
-      "findings_count": 0,
-      "findings_by_severity": {
-        "CRIT": 0,
-        "HIGH": 0,
-        "MED": 0,
-        "LOW": 0,
-        "OBS": 0,
-        "PROCESS-GAP": 0
-      },
-      "streak": 1,
-      "novelty": "ZERO",
-      "feature_head_at_pass": "4f5b5404",
-      "lesson_58_preamble": true,
-      "sap_1_result": "PASS — no new event_type emission sites in Pass 6 fix-burst (pure test rename, zero production code changes)",
-      "sap_2_result": "PASS — no TOML or DTU struct modifications in Pass 6 fix-burst",
-      "sid_1_result": "PASS — no new test functions; renamed tests are existing non-#[ignore]'d unit tests",
-      "cross_doc_consistency": "PASS — BC-2.01.017 v1.3 + error-taxonomy.md v1.54 + BC-INDEX v5.59 + auth_provider.rs all consistent; no changes in fix-burst",
-      "sibling_sweep_result": "PASS — pure test rename; no workspace residuals of old test_BC_2_01_013/test_BC_2_01_016 expect() strings",
-      "f_lp6_low_001_closure_verified": {
-        "status": "LOAD-BEARING",
-        "test_file_1": "crates/prism-dtu-cyberint/tests/bc_2_01_017_access_token_auth.rs — 3 renamed functions + module doc + expect() string all updated; bodies + mock assertions intact",
-        "test_file_2": "crates/prism-spec-engine/tests/bc_2_01_017_static_cookie_auth_provider.rs — 1 renamed function; body + mock assertions intact",
-        "story_spec_v1_3": "§Red Gate Tests table: 4 test name cells all confirm test_BC_2_01_017_* prefix; AC bodies + Tasks + Notes for Implementer consistent"
-      },
-      "state_manager_commit": "D-865 (this burst)"
-    },
-    {
-      "pass": 8,
-      "date": "2026-05-30",
-      "clean_strict": false,
-      "clean_pr_merge": true,
-      "findings_count": 1,
-      "findings_by_severity": {
-        "CRIT": 0,
-        "HIGH": 0,
-        "MED": 1,
-        "LOW": 0,
-        "OBS": 0,
-        "PROCESS-GAP": 0
-      },
-      "streak": 0,
-      "novelty": "LOW",
-      "feature_head_at_pass": "4f5b5404",
-      "lesson_58_preamble": true,
-      "key_finding": "F-LP8-MED-001 — BC-2.01.017 changelog hygiene: byte-identical duplicate v1.2 row at line 237 + non-monotonic chronological ordering",
-      "sap_1_result": "PASS — no new event_type emission sites; no production code changes since Pass 7",
-      "sap_2_result": "PASS — no TOML or DTU struct modifications since Pass 7",
-      "sid_1_result": "PASS — no new test functions; all tests remain non-#[ignore]'d unit tests",
-      "cross_doc_consistency": "FAIL — BC-2.01.017 changelog non-monotonic (F-LP8-MED-001); semantic contract content unaffected",
-      "sibling_sweep_result": "PASS (N/A — no code change since Pass 7)",
-      "pass_8_resolution": {
-        "closed_by_po": 1,
-        "total_closed": 1
-      },
-      "pass_8_po_commit": "399ef378",
-      "pass_8_feature_head_at_resolution": "4f5b5404",
-      "pass_8_po_adjudication": "F-LP8-MED-001: BC-2.01.017 v1.3→v1.4 — deleted byte-identical duplicate v1.2 row; reordered changelog to monotonic descending (1.4→1.3→1.2→1.1→1.0); BC-INDEX v5.59→v5.60 header bump; no semantic content change",
-      "state_manager_commit": "D-867 (this burst)"
-    },
-    {
-      "pass": 9,
-      "date": "2026-05-30",
-      "clean_strict": false,
-      "clean_pr_merge": true,
-      "findings_count": 1,
-      "findings_by_severity": {
-        "CRIT": 0,
-        "HIGH": 0,
-        "MED": 1,
-        "LOW": 0,
-        "OBS": 0,
-        "PROCESS-GAP": 0
-      },
-      "streak": 0,
-      "novelty": "LOW",
-      "feature_head_at_pass": "4f5b5404",
-      "lesson_58_preamble": true,
-      "key_finding": "F-LP9-MED-001 — story spec changelog non-monotonic version ordering: rows appeared 1.0, 1.1, 1.3, 1.2 (v1.3 placed before v1.2). Same class as F-LP8-MED-001 (BC-2.01.017 changelog non-monotonic). Sibling-sweep result of TD-VSDD-060 discipline applied after Pass 8 PO fix.",
-      "sap_1_result": "PASS — no new event_type emission sites at 4f5b5404; no production code changes since Pass 8",
-      "sap_2_result": "PASS — no TOML or DTU struct modifications since Pass 8",
-      "sid_1_result": "PASS — no new test functions; all tests remain non-#[ignore]'d unit tests",
-      "cross_doc_consistency": "FAIL — story spec changelog non-monotonic (F-LP9-MED-001); BC-2.01.017 v1.4 + error-taxonomy.md v1.54 + BC-INDEX v5.60 + auth_provider.rs all consistent",
-      "sibling_sweep_result": "FINDING SURFACED → F-LP9-MED-001 (sibling-sweep of F-LP8-MED-001 class applied to story spec changelog)",
-      "pass_9_resolution": {
-        "closed_by_story_writer": 1,
-        "total_closed": 1
-      },
-      "pass_9_story_writer_commit": "ac0843a4",
-      "pass_9_feature_head_at_resolution": "4f5b5404",
-      "pass_9_story_writer_adjudication": "F-LP9-MED-001: story spec v1.3→v1.4 — reordered changelog to monotonic descending (1.4→1.3→1.2→1.1→1.0); added v1.4 row documenting reorder; STORY-INDEX v2.213→v2.214; no semantic content change",
-      "state_manager_commit": "D-869 (this burst)"
-    },
-    {
-      "pass": 10,
-      "date": "2026-05-30",
-      "clean_strict": false,
-      "clean_pr_merge": true,
-      "findings_count": 1,
-      "findings_by_severity": {
-        "CRIT": 0,
-        "HIGH": 0,
-        "MED": 1,
-        "LOW": 0,
-        "OBS": 0,
-        "PROCESS-GAP": 0
-      },
-      "streak": 0,
-      "novelty": "LOW",
-      "feature_head_at_pass": "4f5b5404",
-      "lesson_58_preamble": true,
-      "key_finding": "F-LP10-MED-001 — error-taxonomy.md changelog non-monotonic (third recurrence of changelog ordering class; F-LP8=BC + F-LP9=story + F-LP10=error-taxonomy). Third recurrence triggers comprehensive sweep + POL-32 policy codification response.",
-      "sap_1_result": "PASS — no new event_type emission sites at 4f5b5404; no production code changes since Pass 9",
-      "sap_2_result": "PASS — no TOML or DTU struct modifications since Pass 9",
-      "sid_1_result": "PASS — no new test functions; all tests remain non-#[ignore]'d unit tests",
-      "cross_doc_consistency": "FAIL — error-taxonomy.md changelog non-monotonic (F-LP10-MED-001); BC-2.01.017 v1.4 + story v1.4 + auth_provider.rs all consistent",
-      "sibling_sweep_result": "FINDING SURFACED (third recurrence) — comprehensive sweep triggered per lesson 59 three-recurrence rule",
-      "pass_10_resolution": {
-        "closed_by_po_comprehensive_sweep": 2,
-        "in_scope_note": "F-LP10-MED-001 (reported site) + D-LP9-001 promoted to in-scope via comprehensive sweep rationale",
-        "policy_codified": "POL-32 changelog_monotonic_descending",
-        "total_closed_in_scope": 2,
-        "po_detail": "error-taxonomy.md v1.54→v1.55 reorder; STORY-INDEX v2.214→v2.215 16-row block reorder; BC-INDEX v5.60→v5.61 (BC-2.16.013 in-line catalog row v1.16→v1.18); BC-2.16.013 v1.17→v1.18 (D-LP9-001 promoted); POL-32 codified in policies.yaml v1.30→v1.31; adjudication doc F-LP10-MED-001.md authored",
-        "deferred_in_burst": "BC-INDEX v4 historical section — TD-VSDD-091 immutable historical narrative; not a monitoring target for future enforcement"
-      },
-      "pass_10_po_commit": "559ab76d",
-      "pass_10_feature_head_at_resolution": "4f5b5404",
-      "state_manager_commit": "D-871 (this burst)"
-    },
-    {
-      "pass": 11,
-      "date": "2026-05-30",
-      "clean_strict": true,
-      "clean_pr_merge": true,
-      "findings_count": 0,
-      "findings_by_severity": {
-        "CRIT": 0,
-        "HIGH": 0,
-        "MED": 0,
-        "LOW": 0,
-        "OBS": 0,
-        "PROCESS-GAP": 0
-      },
-      "streak": 1,
-      "novelty": "ZERO",
-      "feature_head_at_pass": "4f5b5404",
-      "lesson_58_preamble": true,
-      "sap_1_result": "PASS — no new uncataloged event_type emission sites; no production code changes since Pass 10",
-      "sap_2_result": "PASS — no TOML or DTU struct modifications since Pass 10",
-      "sid_1_result": "PASS — no new test functions; all tests remain non-#[ignore]'d unit tests",
-      "pol_32_workspace_sample": "PASS — BC-2.01.017 v1.4 + error-taxonomy.md v1.55 + STORY-INDEX v2.215 + BC-INDEX v5.61 + BC-2.16.013 v1.18 all confirmed monotonic descending; zero violations",
-      "cross_doc_consistency": "PASS — BC-2.01.017 v1.4, error-taxonomy.md v1.55, BC-INDEX v5.61, STORY-INDEX v2.215, auth_provider.rs all consistent",
-      "sibling_sweep_result": "PASS (N/A — no code change since Pass 10)",
-      "prior_closures_spot_check": {
-        "F-LP3-HIGH-001": "LOAD-BEARING — BackendUnavailable match arm + test confirmed",
-        "F-LP6-LOW-001": "LOAD-BEARING — 4 test_BC_2_01_017_* prefix confirmed at both test files",
-        "F-LP8-MED-001": "LOAD-BEARING — BC changelog 1.4→1.3→1.2→1.1→1.0 no duplicates",
-        "F-LP9-MED-001": "LOAD-BEARING — story changelog 1.4→1.3→1.2→1.1→1.0 confirmed",
-        "F-LP10-MED-001": "LOAD-BEARING — error-taxonomy v1.55 changelog monotonic descending"
-      },
-      "state_manager_commit": "D-872 (this burst)"
-    },
-    {
-      "pass": 12,
-      "date": "2026-05-30",
-      "clean_strict": false,
-      "clean_pr_merge": false,
-      "findings_count": 3,
-      "findings_by_severity": {
-        "CRIT": 0,
-        "HIGH": 0,
-        "MED": 1,
-        "LOW": 1,
-        "OBS": 0,
-        "PROCESS-GAP": 1
-      },
-      "streak": 0,
-      "streak_reset": "1/3 → 0/3",
-      "novelty": "LOW",
-      "feature_head_at_pass": "4f5b5404",
-      "lesson_58_preamble": true,
-      "preamble_anomaly": "Adversary prompt cited crates/prism-dtu-cyberint/src/auth_provider.rs but actual file is crates/prism-spec-engine/src/auth_provider.rs — transcription error in prompt; content verified at correct path; non-blocking",
-      "key_findings": [
-        "F-LP12-MED-001 — Story body H1 (v1.1) + §Version field (v1.3) stale vs frontmatter (v1.4); POL-29 step 8b body-sync missed across v1.1→v1.2 (D-850), v1.2→v1.3 (D-863), v1.3→v1.4 (D-868); three distinct version values in same file. Route: story-writer.",
-        "F-LP12-LOW-001 — 20 cite-pins to BC-2.01.017 v1.3 or v1.2 in crates/prism-spec-engine/src/auth_provider.rs; BC currently v1.4; POL-29 step 8f v1.29 crates-cite-pin sweep not performed at D-866; MAY be intentional introduced-in anchors. Route: PO adjudication required. [Count corrected from 21→20 by D-877 state-manager burst per F-LP13-LOW-001 adversary finding; actual grep returns 20 matches.]",
-        "F-LP12-PG-001 [process-gap] — Standing adversary probe set lacks POL-29 v1.29 crates cite-pin sweep probe; SAP-4 candidate. Route: orchestrator codification queue."
-      ],
-      "sap_1_result": "PASS — no new uncataloged event_type emission sites at 4f5b5404",
-      "sap_2_result": "PASS — no TOML or DTU struct modifications since Pass 11",
-      "sid_1_result": "PASS — no new test functions; all tests remain non-#[ignore]'d unit tests",
-      "cross_doc_consistency": "FAIL — story body H1 + §Version field version drift (F-LP12-MED-001)",
-      "prior_closures_spot_check": {
-        "F-LP3-HIGH-001": "LOAD-BEARING confirmed",
-        "F-LP6-LOW-001": "LOAD-BEARING confirmed",
-        "F-LP8-MED-001": "LOAD-BEARING confirmed",
-        "F-LP9-MED-001": "LOAD-BEARING confirmed",
-        "F-LP10-MED-001": "LOAD-BEARING confirmed"
-      },
-      "state_manager_commit": "D-873 (this burst)",
-      "pass_12_resolution": {
-        "closed_by_story_writer": 1,
-        "closed_by_po": 1,
-        "process_gap_codification_pending": 1,
-        "total_closed": 2,
-        "closed_by_story_writer_detail": "F-LP12-MED-001 story body H1 + §Version field synced; story v1.4→v1.5 via 9fb28d50",
-        "closed_by_po_detail": "F-LP12-LOW-001 Option A — introduced-in anchor convention; BC-2.01.017 v1.4→v1.5 §Notes amendment; BC-INDEX v5.61→v5.62 via 23a17f6d",
-        "process_gap_codification_pending_detail": "F-LP12-PG-001 SAP-4 codification + POL-29 step 8f v1.29 hygiene-only-bump exemption — orchestrator codification queue"
-      },
-      "pass_12_story_writer_commit": "9fb28d50",
-      "pass_12_po_commit": "23a17f6d",
-      "pass_12_po_option_chosen": "Option A — introduced-in anchor convention; convention codified in BC-2.01.017 v1.5 §Notes; PO recommended POL-29 step 8f v1.29 amendment to exempt hygiene-only bumps"
-    },
-    {
-      "pass": 13,
-      "date": "2026-05-30",
-      "clean_strict": false,
-      "clean_pr_merge": true,
-      "findings_count": 1,
-      "findings_by_severity": {
-        "CRIT": 0,
-        "HIGH": 0,
-        "MED": 0,
-        "LOW": 1,
-        "OBS": 0,
-        "PROCESS-GAP": 0
-      },
-      "streak": 0,
-      "streak_note": "CLEAN(PR-merge) but NOT CLEAN(strict) — streak not advanced per BC-5.39.001 D-779 amendment",
-      "novelty": "LOW",
-      "feature_head_at_pass": "4f5b5404",
-      "lesson_58_preamble": true,
-      "sap_1_result": "PASS — no new uncataloged event_type emission sites at 4f5b5404",
-      "sap_2_result": "PASS — no TOML or DTU struct modifications since Pass 12",
-      "sid_1_result": "PASS — no new test functions; all tests remain non-#[ignore]'d unit tests",
-      "pol_32_result": "PASS — story v1.5 body H1 + §Version field consistent after D-874",
-      "cross_doc_consistency": "FAIL — F-LP13-LOW-001 (narrative count 21 vs actual 20 cite-pins)",
-      "key_findings": [
-        "F-LP13-LOW-001 [LOW] — Narrative count drift: PO adjudication verdict + STATE.md checkpoint + lessons.md + convergence-state claim '21 cite-pins' but actual grep of feature HEAD 4f5b5404 returns 20 matches. Root cause: PO enumeration table had 20 rows but verdict line said 21 (off-by-one). Non-runtime, non-behavioral. Fix: state-manager narrative correction across 4 artifacts (21→20)."
-      ],
-      "prior_closures_spot_check": {
-        "F-LP3-HIGH-001": "LOAD-BEARING confirmed",
-        "F-LP6-LOW-001": "LOAD-BEARING confirmed",
-        "F-LP8-MED-001": "LOAD-BEARING confirmed",
-        "F-LP9-MED-001": "LOAD-BEARING confirmed",
-        "F-LP10-MED-001": "LOAD-BEARING confirmed",
-        "F-LP12-MED-001": "LOAD-BEARING confirmed — story v1.5 H1+§Version consistent",
-        "F-LP12-LOW-001": "LOAD-BEARING confirmed — BC-2.01.017 v1.5 §Notes documents pinned-at-write-time convention"
-      },
-      "state_manager_commit": "D-877 (this burst)",
-      "pass_13_resolution": {
-        "closed_by_state_manager": 1,
-        "total_closed": 1,
-        "closed_by_state_manager_detail": "F-LP13-LOW-001 narrative count correction 21→20 across 4 artifacts: po-adjudications/F-LP12-LOW-001.md (verdict + summary lines), STATE.md (session resume checkpoint), cycles/wave-0-plugin-prereqs/lessons.md (lesson 60 body + closure note), adversary-convergence-state.json (pass-12 key_findings entry). Historical D-rows (D-873/D-875/D-876) in STATE.md Decision Log and SESSION-HANDOFF.md addendum sections are immutable audit trail per TD-VSDD-091 — not corrected."
-      }
-    },
-    {
-      "pass": 14,
-      "date": "2026-05-30",
-      "clean_strict": false,
-      "clean_pr_merge": true,
-      "findings_count": 1,
-      "findings_by_severity": {
-        "CRIT": 0,
-        "HIGH": 0,
-        "MED": 0,
-        "LOW": 1,
-        "OBS": 0,
-        "PROCESS-GAP": 0
-      },
-      "streak": 0,
-      "streak_note": "CLEAN(PR-merge) but NOT CLEAN(strict) — streak not advanced per BC-5.39.001 D-779 amendment",
-      "novelty": "LOW",
-      "feature_head_at_pass": "4f5b5404",
-      "lesson_58_preamble": true,
-      "sap_1_result": "PASS — no new uncataloged event_type emission sites at 4f5b5404",
-      "sap_2_result": "PASS — no TOML or DTU struct modifications since Pass 13",
-      "sid_1_result": "PASS — no new test functions; all tests remain non-#[ignore]'d unit tests",
-      "pol_32_result": "PASS — story v1.5 body H1 + §Version field consistent",
-      "cross_doc_consistency": "FAIL — F-LP14-LOW-001 (Pass 13 closure incomplete: residual \"21 cite-pin updates\" in po-adjudications/F-LP12-LOW-001.md §3 Rationale point 2)",
-      "key_findings": [
-        "F-LP14-LOW-001 [LOW] — Pass 13 closure incomplete: po-adjudications/F-LP12-LOW-001.md §3 Rationale point 2 reads \"Forcing 21 cite-pin updates\" — active forward-looking rationale prose, not a historical-immutable row. D-877 state-manager description (\"verdict line + 3 summary lines\") missed this location. Fix: state-manager comprehensive sweep correcting 21→20 in this one active-narrative site. Non-runtime, non-behavioral."
-      ],
-      "prior_closures_spot_check": {
-        "F-LP3-HIGH-001": "LOAD-BEARING confirmed",
-        "F-LP6-LOW-001": "LOAD-BEARING confirmed",
-        "F-LP8-MED-001": "LOAD-BEARING confirmed",
-        "F-LP9-MED-001": "LOAD-BEARING confirmed",
-        "F-LP10-MED-001": "LOAD-BEARING confirmed",
-        "F-LP12-MED-001": "LOAD-BEARING confirmed — story v1.5 H1+§Version consistent",
-        "F-LP12-LOW-001": "LOAD-BEARING confirmed — BC-2.01.017 v1.5 §Notes documents pinned-at-write-time convention",
-        "F-LP13-LOW-001": "PARTIALLY CLOSED — residual found (F-LP14-LOW-001); D-877 corrected verdict+summary+checkpoint+lessons+convergence-state but missed §3 Rationale point 2 in PO adjudication doc"
-      },
-      "state_manager_commit": "D-878 (this burst)",
-      "pass_14_resolution": {
-        "closed_by_state_manager_comprehensive_sweep": 1,
-        "total_closed": 1,
-        "comprehensive_sweep_sites_fixed": 1,
-        "closed_by_state_manager_detail": "F-LP14-LOW-001 + comprehensive sweep: po-adjudications/F-LP12-LOW-001.md §3 Rationale point 2 (\"21 cite-pin updates\" → \"20 cite-pin updates\"). Sweep confirmed: adversarial-review/local-pass-12.md lines 83+95 (historical-immutable pass report, preserved), adversarial-review/local-pass-13.md (historical-immutable pass report, preserved), STATE.md D-873/D-875/D-876/D-877 Decision Log rows (historical-immutable audit trail, preserved per TD-VSDD-091), SESSION-HANDOFF.md addendum sections (historical-immutable narrative snapshots, preserved per TD-VSDD-091), BC-2.01.017 changelog row v1.5 (historical-immutable changelog row, preserved per TD-VSDD-091). Active narrative: 1 site fixed."
-      },
-      "pass_14_user_authorized_comprehensive_sweep": "2026-05-30 user chose Option A (comprehensive sweep + continue strict)"
-    },
-    {
-      "pass": 15,
-      "date": "2026-05-30",
-      "clean_strict": true,
-      "clean_pr_merge": true,
-      "findings_count": 0,
-      "findings_by_severity": {
-        "CRIT": 0,
-        "HIGH": 0,
-        "MED": 0,
-        "LOW": 0,
-        "OBS": 0,
-        "PROCESS-GAP": 0
-      },
-      "streak": 1,
-      "novelty": "ZERO",
-      "feature_head_at_pass": "4f5b5404",
-      "lesson_58_preamble": true,
-      "sap_1_result": "PASS — no new uncataloged event_type emission sites; no production code changes since Pass 14 comprehensive sweep",
-      "sap_2_result": "PASS — no TOML or DTU struct modifications since Pass 14",
-      "sid_1_result": "PASS — all tests remain non-#[ignore]'d unit tests",
-      "prior_closures_spot_check": {
-        "F-LP3-HIGH-001": "LOAD-BEARING confirmed",
-        "F-LP6-LOW-001": "LOAD-BEARING confirmed",
-        "F-LP8-MED-001": "LOAD-BEARING confirmed",
-        "F-LP9-MED-001": "LOAD-BEARING confirmed",
-        "F-LP10-MED-001": "LOAD-BEARING confirmed",
-        "F-LP12-MED-001": "LOAD-BEARING confirmed — story v1.5 H1+§Version consistent",
-        "F-LP12-LOW-001": "LOAD-BEARING confirmed — BC-2.01.017 v1.5 §Notes documents introduced-in anchor convention; 20 cite-pins intentional",
-        "F-LP13-LOW-001": "LOAD-BEARING confirmed — 20 cite-pins across all active-narrative sites; historical-immutable preserved",
-        "F-LP14-LOW-001": "LOAD-BEARING confirmed — po-adjudications/F-LP12-LOW-001.md §3 Rationale point 2 reads 20 cite-pin updates; zero residuals in non-historical-immutable scope"
-      },
-      "state_manager_commit": "D-879 (this burst)"
-    },
-    {
-      "pass": 16,
-      "date": "2026-05-30",
-      "clean_strict": true,
-      "clean_pr_merge": true,
-      "findings_count": 0,
-      "findings_by_severity": {
-        "CRIT": 0,
-        "HIGH": 0,
-        "MED": 0,
-        "LOW": 0,
-        "OBS": 0,
-        "PROCESS-GAP": 0
-      },
-      "streak": 2,
-      "novelty": "ZERO",
-      "feature_head_at_pass": "4f5b5404",
-      "lesson_58_preamble": true,
-      "sap_1_result": "PASS — no new uncataloged event_type emission sites; no production code changes since Pass 15",
-      "sap_2_result": "PASS — no TOML or DTU struct modifications since Pass 15",
-      "sid_1_result": "PASS — all tests remain non-#[ignore]'d unit tests",
-      "prior_closures_spot_check": {
-        "F-LP3-HIGH-001": "LOAD-BEARING confirmed",
-        "F-LP6-LOW-001": "LOAD-BEARING confirmed",
-        "F-LP8-MED-001": "LOAD-BEARING confirmed",
-        "F-LP9-MED-001": "LOAD-BEARING confirmed",
-        "F-LP10-MED-001": "LOAD-BEARING confirmed",
-        "F-LP12-MED-001": "LOAD-BEARING confirmed — story v1.5 H1+§Version consistent",
-        "F-LP12-LOW-001": "LOAD-BEARING confirmed — BC-2.01.017 v1.5 §Notes documents introduced-in anchor convention; 20 cite-pins intentional",
-        "F-LP13-LOW-001": "LOAD-BEARING confirmed — 20 cite-pins across all active-narrative sites; historical-immutable preserved",
-        "F-LP14-LOW-001": "LOAD-BEARING confirmed — po-adjudications/F-LP12-LOW-001.md §3 Rationale point 2 reads 20 cite-pin updates; zero residuals in non-historical-immutable scope"
-      },
-      "state_manager_commit": "D-880 (this burst)"
-    },
-    {
-      "pass": 17,
-      "date": "2026-05-30",
-      "clean_strict": true,
-      "clean_pr_merge": true,
-      "findings_count": 0,
-      "findings_by_severity": {
-        "CRIT": 0,
-        "HIGH": 0,
-        "MED": 0,
-        "LOW": 0,
-        "OBS": 0,
-        "PROCESS-GAP": 0
-      },
-      "streak": 3,
-      "novelty": "ZERO",
-      "feature_head_at_pass": "4f5b5404",
-      "lesson_58_preamble": true,
-      "sap_1_result": "PASS — no new uncataloged event_type emission sites; no production code changes since Pass 16",
-      "sap_2_result": "PASS — no TOML or DTU struct modifications since Pass 16",
-      "sid_1_result": "PASS — all tests remain non-#[ignore]'d unit tests",
-      "prior_closures_spot_check": {
-        "F-LP3-HIGH-001": "LOAD-BEARING confirmed",
-        "F-LP6-LOW-001": "LOAD-BEARING confirmed",
-        "F-LP8-MED-001": "LOAD-BEARING confirmed",
-        "F-LP9-MED-001": "LOAD-BEARING confirmed",
-        "F-LP10-MED-001": "LOAD-BEARING confirmed",
-        "F-LP12-MED-001": "LOAD-BEARING confirmed — story v1.5 H1+§Version consistent",
-        "F-LP12-LOW-001": "LOAD-BEARING confirmed — BC-2.01.017 v1.5 §Notes documents introduced-in anchor convention; 20 cite-pins intentional",
-        "F-LP13-LOW-001": "LOAD-BEARING confirmed — 20 cite-pins across all active-narrative sites; historical-immutable preserved",
-        "F-LP14-LOW-001": "LOAD-BEARING confirmed — po-adjudications/F-LP12-LOW-001.md §3 Rationale point 2 reads 20 cite-pin updates; zero residuals in non-historical-immutable scope"
-      },
-      "state_manager_commit": "D-881 (this burst)"
-    }
-  ],
-  "current_streak": 3,
-  "target_streak": 3,
-  "status": "LOCAL_CONVERGED",
-  "local_converged_at": "2026-05-30 D-881 pass-17",
-  "local_converged_at_pass": 17,
-  "total_passes": 17,
-  "total_fix_bursts": 11,
-  "total_findings_closed": 25,
-  "lessons_codified_in_cascade": [57, 58, 59, 60],
-  "policies_codified_in_cascade": ["POL-32"],
-  "conventions_codified_in_cascade": ["BC-2.01.017 §Notes pinned-at-write-time"],
-  "next_action": "Step (e) demo-recorder per-AC records evidence for 11 ACs into docs/demo-evidence/S-DTU-CYBERINT-AUTH-FIDELITY-001/. Then USER AUTHORIZATION required for push. Then pr-manager 9-step PR cycle.",
-  "deferred_findings": [
-    {
-      "finding_id": "D-LP6-001",
-      "category": "pre-existing-project-wide",
-      "description": "CredentialResolutionError enum at prism-credentials/src/resolution.rs:19 lacks #[non_exhaustive]",
-      "deferral_target": "Phase 5 architectural pub-API audit",
-      "not_introduced_by": "S-DTU-CYBERINT-AUTH-FIDELITY-001"
-    },
-    {
-      "finding_id": "BC-INDEX-v4-historical",
-      "category": "immutable-historical-narrative",
-      "description": "BC-INDEX v4 historical section changelog rows — monotonic ordering not enforced retroactively per TD-VSDD-091",
-      "deferral_target": "n/a (immutable historical; TD-VSDD-091 carve-out)",
-      "deferred_in": "D-870 PO comprehensive sweep (559ab76d)"
-    }
-  ],
-  "protocol": "BC-5.39.001 3-CLEAN (D-779 amendment: strict=zero all severities for streak; PR-merge=zero CRIT+HIGH+MED)"
+    ],
+    "current_streak": 3,
+    "target_streak": 3,
+    "status": "LOCAL_CONVERGED",
+    "local_converged_at": "2026-05-30 D-881 pass-17",
+    "local_converged_at_pass": 17,
+    "total_passes": 17,
+    "total_fix_bursts": 11,
+    "total_findings_closed": 25,
+    "lessons_codified_in_cascade": [
+        57,
+        58,
+        59,
+        60
+    ],
+    "policies_codified_in_cascade": [
+        "POL-32"
+    ],
+    "conventions_codified_in_cascade": [
+        "BC-2.01.017 §Notes pinned-at-write-time"
+    ],
+    "next_action": "POST LOCAL CONVERGED. Feature branch pushed to remote at b3aa0970 (confirmed at D-882). PR not yet created at D-882 write. Per-story-delivery steps 1-2 in flight via pr-manager agent a0bf672578287c75f (push DONE; PR pending). New session: read SESSION-HANDOFF §RESUME SNAPSHOT 2026-05-30-CYBERINT-LOCAL-CONVERGED-PR-CYCLE-IN-FLIGHT (D-882) for full resume protocol. Step: gh pr list --state open → create PR if missing → CI gate → PR-LEVEL adversary cascade (3x CLEAN PR-merge per BC-5.39.001 D-779).",
+    "deferred_findings": [
+        {
+            "finding_id": "D-LP6-001",
+            "category": "pre-existing-project-wide",
+            "description": "CredentialResolutionError enum at prism-credentials/src/resolution.rs:19 lacks #[non_exhaustive]",
+            "deferral_target": "Phase 5 architectural pub-API audit",
+            "not_introduced_by": "S-DTU-CYBERINT-AUTH-FIDELITY-001"
+        },
+        {
+            "finding_id": "BC-INDEX-v4-historical",
+            "category": "immutable-historical-narrative",
+            "description": "BC-INDEX v4 historical section changelog rows — monotonic ordering not enforced retroactively per TD-VSDD-091",
+            "deferral_target": "n/a (immutable historical; TD-VSDD-091 carve-out)",
+            "deferred_in": "D-870 PO comprehensive sweep (559ab76d)"
+        }
+    ],
+    "protocol": "BC-5.39.001 3-CLEAN (D-779 amendment: strict=zero all severities for streak; PR-merge=zero CRIT+HIGH+MED)"
 }

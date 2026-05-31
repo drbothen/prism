@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.560"
+version: "7.561"
 producer: state-manager
 timestamp: 2026-05-30T03:00:00Z
 inputs: []
@@ -14,9 +14,21 @@ status: in_progress
 started: 2026-04-13
 repos: [poller-cobra, poller-express, poller-bear, poller-coaster, serveMyAPI, tally, axiathon, ocsf-proto-gen, mcp-claroty-xdome]
 safe_to_compact: true
-pre_compact_snapshot: "SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-30-CYBERINT-CASCADE-PASS-1-MID-FIX"
-pre_compact_snapshot_at: "2026-05-30 (D-851 PRE-CLEAR durability snapshot; Cyberint cascade Step 4.5 Pass 1 blocked on architect harness audit; architect background agent a1161dc86ddae5c53; architect decision committed 12378e35)"
-current_step: "Cyberint cascade: LOCAL CONVERGED at Pass 17 (streak 3/3, passes 15+16+17 CLEAN(strict)). Feature HEAD 4f5b5404. Next: demo-recorder per-AC → USER AUTH for push → pr-manager 9-step PR cycle."
+pre_compact_snapshot: "SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-30-CYBERINT-LOCAL-CONVERGED-PR-CYCLE-IN-FLIGHT"
+pre_compact_snapshot_at: "2026-05-30 (D-882 PRE-CLEAR durability snapshot; cyberint LOCAL CONVERGED at Pass 17; pr-manager push in flight via background agent a0bf672578287c75f; push CONFIRMED at b3aa0970; PR not yet created at D-882 write)"
+current_step: "D-882 — pre-clear durability snapshot. Cyberint LOCAL CONVERGED (Pass 17 streak 3/3). Demo-recorder complete at feature/b3aa0970. Feature branch pushed to remote (b3aa0970 confirmed). PR not yet created at D-882 write. Next session: check gh pr list, create PR if needed, dispatch PR-LEVEL adversary cascade."
+cyberint_pr_cycle_in_flight: true
+cyberint_pr_cycle_step: "1-2: push confirmed (b3aa0970 on remote); PR creation pending — pr-manager agent a0bf672578287c75f in flight"
+cyberint_demo_evidence_path: "docs/demo-evidence/S-DTU-CYBERINT-AUTH-FIDELITY-001/"
+cyberint_demo_evidence_complete: true
+cyberint_demo_recorder_feature_head: "b3aa0970"
+cyberint_user_push_authorization: "2026-05-30 explicit user choice (Option Authorize push + continue to PR cycle)"
+cyberint_bundling_decision: "develop@72baf413 flows through PR diff; NO separate push to develop"
+cyberint_pr_manager_in_flight_agent_id: "a0bf672578287c75f"
+cyberint_pr_manager_in_flight_purpose: "push feature branch (DONE — b3aa0970 confirmed on remote) + create PR (pending)"
+cyberint_pr_body_draft_path: "/tmp/cyberint-pr-body.md (volatile; backup in SESSION-HANDOFF §RESUME SNAPSHOT 2026-05-30-CYBERINT-LOCAL-CONVERGED-PR-CYCLE-IN-FLIGHT §5)"
+cyberint_feature_branch_remote_status: "PUSHED — b3aa0970ce92b4c410d5458a7adbdfd507bf77c3 confirmed at D-882 via git ls-remote"
+cyberint_pr_status_at_d882: "NOT YET CREATED — gh pr list --state open returned empty at D-882 write"
 pass_2_findings: {CRIT: 1, HIGH: 1, MED: 1, PROCESS_GAP: 1}
 cyberint_cascade_in_progress: true
 cyberint_cascade_step: "4.5 LOCAL CONVERGED — proceed to step (e) demo-recorder"
@@ -335,9 +347,9 @@ historical_cycles: [phase-1-convergence, wave-3-multi-tenant, wave-4-operations]
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-30 (D-881 state-manager Pass 17 CLEAN(strict) — LOCAL CONVERGED streak 3/3; zero findings; feature HEAD 4f5b5404; STATE v7.560) |
-| **Current Phase** | Wave 3 Tier-3 complete — S-DTU-CYBERINT-AUTH-FIDELITY-001 LOCAL CONVERGED at Pass 17 (streak 3/3; passes 15+16+17 CLEAN(strict); feature HEAD 4f5b5404). develop@72baf413. |
-| **Current Step** | D-881 — LOCAL CONVERGED. Pass 17 CLEAN(strict). Streak 3/3. 17 passes + 11 fix-bursts. Lessons 57-60 + POL-32 codified. Next: demo-recorder per-AC. |
+| **Last Updated** | 2026-05-30 (D-882 state-manager PRE-CLEAR durability snapshot — Cyberint LOCAL CONVERGED + demo-recorder complete + feature pushed; PR not yet created; STATE v7.561) |
+| **Current Phase** | Wave 3 Tier-3 complete — S-DTU-CYBERINT-AUTH-FIDELITY-001 LOCAL CONVERGED at Pass 17 (streak 3/3; passes 15+16+17 CLEAN(strict); demo-recorder complete; feature pushed to remote at b3aa0970). develop@72baf413. |
+| **Current Step** | D-882 — PRE-CLEAR durability snapshot. Cyberint LOCAL CONVERGED (Pass 17 streak 3/3). Demo-recorder complete at feature/b3aa0970. Feature pushed to remote (confirmed). PR not yet created. Next session: gh pr list → create PR if needed → PR-LEVEL adversary cascade. |
 
 ## Phase Progress
 
@@ -368,7 +380,7 @@ historical_cycles: [phase-1-convergence, wave-3-multi-tenant, wave-4-operations]
 | **3: S-SPEC-TYPE-UNIFICATION-001** | **MERGED** | 2026-05-27 | 2026-05-27 | PR #161 develop@af79f160; 40/40 CI GREEN | LOCAL 4 passes 3-CLEAN CONVERGED (passes 2/3/4); 1 fix-burst; 4 findings closed; ADR-030 Approach D: types::SensorSpec deleted, spec_parser::SensorSpec canonical, 8→4 boot TOML parses, AuthType::CustomViaPlugin, SpecDrivenMapper table_name fix, EXPECTED 36→35; 3711 tests; 3 new AC tests; 7/7 ACs demo-evidenced |
 | **3: S-3.02-FOLLOWUP-RUNTIME** | **MERGED** | 2026-05-27 | 2026-05-28 | PR #162 develop@a55bd930; 20/20 CI GREEN | LOCAL 5 passes 3-CLEAN CONVERGED (passes 3/4/5); 2 fix-bursts; 10 findings closed; trajectory 7→3→0→0→0; boot steps 7+8 (step7_init_storage health_check + step8_init_query_engine mark_query_phase_started); BC-2.16.002 v1.31→v1.32 (rows 47-48); 3718 tests; 7 new tests; security 0 findings; 4 VHS demo recordings; S-3.02 graduated partial-merge→merged |
 | **3: S-5.01-FOLLOWUP-MCP-BOOT** | **MERGED** | 2026-05-28 | 2026-05-29 | PR #163 develop@e898c3c9; 40/40 CI GREEN | LOCAL 19 passes 3-CLEAN CONVERGED (passes 17/18/19); 16 fix-bursts; PR-LEVEL 16 passes per reviewer, 10 fix-bursts; security 3/3 CLEAN (pass 15); pr-reviewer 3/3 CLEAN (pass 16); SEC-001 CWE-22 path traversal caught (pass 12); shutdown race bug caught (CI pass 8); Windows /tmp/ hardcoding (pass 8) |
-| **3: S-DTU-CYBERINT-AUTH-FIDELITY-001** | **LOCAL_CONVERGED** | 2026-05-30 | 2026-05-30 (LOCAL; demo+PR pending) | LOCAL CONVERGED Pass 17 streak 3/3 | LOCAL 17 passes (5-REJECTED + 5-REDUX counted; 11 fix-bursts); 25 findings closed; lessons 57-60 + POL-32 codified; feature HEAD 4f5b5404; next: demo-recorder → push auth → pr-manager |
+| **3: S-DTU-CYBERINT-AUTH-FIDELITY-001** | **PR_CYCLE_IN_FLIGHT** | 2026-05-30 | 2026-05-30 (LOCAL CONVERGED; demo complete; pushed b3aa0970; PR pending) | LOCAL CONVERGED Pass 17 streak 3/3 | LOCAL 17 passes (5-REJECTED + 5-REDUX counted; 11 fix-bursts); 25 findings closed; lessons 57-60 + POL-32 codified; feature HEAD b3aa0970 (demo-recorder); pushed to remote; PR not yet created at D-882 |
 
 ## Current Phase Steps
 
@@ -377,7 +389,8 @@ historical_cycles: [phase-1-convergence, wave-3-multi-tenant, wave-4-operations]
 | Step | Agent | Status | Output |
 |------|-------|--------|--------|
 _D-735 through D-847 archived to cycles/wave-0-plugin-prereqs/burst-log.md. D-835+D-836+D-837 removed from Phase Steps (archived in Decisions Log). D-849/851/852/853/855/856/857/858/859/860/861/862/863/864/865/866/867/868/869/870/871/872/873/874/875/876/877/878/879/880 archived to burst-log.md._
-| D-881 — **CYBERINT PASS 17 CLEAN(strict) — LOCAL CONVERGED STREAK 3/3 (state-manager, 2026-05-30). Zero findings. All prior closures verified load-bearing. SAP-1/SAP-2/SID-1 PASS. Streak 2/3 → 3/3. LOCAL CONVERGED. STATE v7.559→v7.560.** | state-manager (D-881 Pass 17 LOCAL CONVERGED burst) | LOCAL_CONVERGED | demo-recorder per-AC for 11 ACs → USER AUTH for push → pr-manager 9-step PR cycle |
+| D-882 — **PRE-CLEAR DURABILITY SNAPSHOT — CYBERINT LOCAL CONVERGED + DEMO COMPLETE + PUSHED (state-manager, 2026-05-30). Feature branch pushed to remote (b3aa0970 confirmed). PR not yet created at D-882 write. §RESUME SNAPSHOT 2026-05-30-CYBERINT-LOCAL-CONVERGED-PR-CYCLE-IN-FLIGHT written. STATE v7.560→v7.561.** | state-manager (D-882 pre-clear durability burst) | PR_CYCLE_IN_FLIGHT | New session: gh pr list → create PR if missing → PR-LEVEL adversary cascade → squash-merge |
+| D-881 — **CYBERINT PASS 17 CLEAN(strict) — LOCAL CONVERGED STREAK 3/3 (state-manager, 2026-05-30). Zero findings. All prior closures verified load-bearing. SAP-1/SAP-2/SID-1 PASS. Streak 2/3 → 3/3. LOCAL CONVERGED. STATE v7.559→v7.560.** | state-manager (D-881 Pass 17 LOCAL CONVERGED burst) | LOCAL_CONVERGED | closed by D-882 (demo-recorder complete + pushed) |
 | D-880 — **CYBERINT PASS 16 CLEAN(strict) — STREAK 2/3 (state-manager, 2026-05-30). Zero findings. All prior closures verified load-bearing. SAP-1/SAP-2/SID-1 PASS. Streak 1/3 → 2/3. STATE v7.558→v7.559.** | state-manager (D-880 Pass 16 persistence burst) | PASS-16-CLEAN-STRICT-STREAK-2-OF-3 | closed by D-881 (Pass 17 CLEAN LOCAL CONVERGED) |
 | D-879 — **CYBERINT PASS 15 CLEAN(strict) — STREAK 1/3 (state-manager, 2026-05-30). Zero findings. All prior closures verified load-bearing. SAP-1/SAP-2/SID-1 PASS. Streak 0/3 → 1/3. STATE v7.557→v7.558.** | state-manager (D-879 Pass 15 persistence burst) | PASS-15-CLEAN-STRICT-STREAK-1-OF-3 | closed by D-880 (Pass 16 CLEAN) |
 | D-878 — **CYBERINT PASS 14 COMPREHENSIVE NARRATIVE-HYGIENE SWEEP COMPLETE — READY FOR PASS 15 (state-manager, 2026-05-30). F-LP14-LOW-001 CLOSED. Streak 0/3 unchanged. STATE v7.556→v7.557.** | state-manager (D-878 comprehensive sweep burst) | PASS-14-COMPREHENSIVE-SWEEP-COMPLETE | closed |
@@ -390,6 +403,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-882 | 2026-05-30 | state-manager | **PRE-CLEAR DURABILITY SNAPSHOT — Cyberint LOCAL CONVERGED + demo complete + feature branch pushed. STATE v7.560→v7.561.** Feature branch pushed to remote (`b3aa0970` confirmed via git ls-remote at D-882 write time). Zero open PRs at D-882 write (`gh pr list --state open` empty). §RESUME SNAPSHOT 2026-05-30-CYBERINT-LOCAL-CONVERGED-PR-CYCLE-IN-FLIGHT written in SESSION-HANDOFF.md (self-contained; covers all 17 passes + 11 fix-bursts + demo evidence + PR body backup + resume protocol + do-NOT-do list). STATE v7.561. adversary-convergence-state.json `next_action` updated. Phase Progress row updated to PR_CYCLE_IN_FLIGHT. safe_to_compact: true. pre_compact_snapshot updated to D-882 section. 274th consecutive single-commit per TD-VSDD-053. Anti-volatile-pin per TD-VSDD-091. | plugin-migration | 2026-05-30 | Decided by: state-manager (D-882 pre-clear durability burst). Status: COMPLETE — /clear authorized |
 | D-881 | 2026-05-30 | state-manager | **CYBERINT PASS 17 CLEAN(strict) — LOCAL CONVERGED. STATE v7.559→v7.560.** Pass 17 LOCAL adversary found zero findings of any severity. All prior closures verified load-bearing (F-LP3-HIGH-001 through F-LP14-LOW-001). SAP-1 PASS (no new uncataloged event_type emission sites). SAP-2 PASS (no TOML/DTU struct modifications). SID-1 PASS (all tests non-#[ignore]'d unit tests). Feature HEAD 4f5b5404 unchanged. Streak 2/3 → 3/3 = LOCAL CONVERGED per BC-5.39.001 D-779. Cascade totals: 17 passes (5-REJECTED + 5-REDUX counted; 11 fix-bursts); 25 findings closed; lessons 57-60 + POL-32 + BC-2.01.017 §Notes introduced-in anchor convention codified. adversary-convergence-state.json: pass-17 entry + current_streak=3 + status=LOCAL_CONVERGED + local_converged_at + total_passes=17 + total_fix_bursts=11. local-pass-17.md persisted. STATE v7.560. 273rd consecutive single-commit per TD-VSDD-053. Anti-volatile-pin per TD-VSDD-091. | plugin-migration | 2026-05-30 | Decided by: adversary (Pass 17 CLEAN(strict) report) + state-manager (D-881 LOCAL CONVERGED burst). Status: APPROVED — demo-recorder per-AC next |
 | D-880 | 2026-05-30 | state-manager | **CYBERINT PASS 16 CLEAN(strict) — STREAK 2/3. STATE v7.558→v7.559.** Pass 16 LOCAL adversary found zero findings of any severity. All prior closures verified load-bearing (F-LP3-HIGH-001 through F-LP14-LOW-001). SAP-1 PASS (no new uncataloged event_type emission sites). SAP-2 PASS (no TOML/DTU struct modifications). SID-1 PASS (all tests non-#[ignore]'d unit tests). Feature HEAD 4f5b5404 unchanged. Streak 1/3 → 2/3. adversary-convergence-state.json: pass-16 entry + current_streak=2 + status=PASS_16_CLEAN_STRICT_STREAK_2_OF_3. local-pass-16.md persisted. STATE v7.559. 272nd consecutive single-commit per TD-VSDD-053. Anti-volatile-pin per TD-VSDD-091. | plugin-migration | 2026-05-30 | Decided by: adversary (Pass 16 CLEAN(strict) report) + state-manager (D-880 persistence burst). Status: APPROVED — Pass 17 (FINAL) next |
 | D-879 | 2026-05-30 | state-manager | **CYBERINT PASS 15 CLEAN(strict) — STREAK 1/3. STATE v7.557→v7.558.** Pass 15 LOCAL adversary found zero findings of any severity. All prior closures verified load-bearing (F-LP3-HIGH-001 through F-LP14-LOW-001). SAP-1 PASS (no new uncataloged event_type emission sites). SAP-2 PASS (no TOML/DTU struct modifications). SID-1 PASS (all tests non-#[ignore]'d unit tests). Feature HEAD 4f5b5404 unchanged. Streak 0/3 → 1/3. adversary-convergence-state.json: pass-15 entry + current_streak=1 + status=PASS_15_CLEAN_STRICT_STREAK_1_OF_3. local-pass-15.md persisted. STATE v7.558. 271st consecutive single-commit per TD-VSDD-053. Anti-volatile-pin per TD-VSDD-091. | plugin-migration | 2026-05-30 | Decided by: adversary (Pass 15 CLEAN(strict) report) + state-manager (D-879 persistence burst). Status: APPROVED — Pass 16 next |
@@ -595,23 +609,23 @@ Prior cycle history:
 
 ---
 
-## Session Resume Checkpoint (2026-05-30 — D-881 LOCAL CONVERGED Pass 17 CLEAN(strict); streak 3/3; feature@4f5b5404; develop@72baf413)
+## Session Resume Checkpoint (2026-05-30 — D-882 PRE-CLEAR; Cyberint LOCAL CONVERGED + demo complete + pushed; PR pending; feature@b3aa0970; develop@72baf413)
 
-_Previous checkpoint (D-880 Pass 16 CLEAN(strict); streak 2/3) superseded by D-881 Pass 17 CLEAN(strict) LOCAL CONVERGED (streak 3/3)._
+_Previous checkpoint (D-881 LOCAL CONVERGED Pass 17 streak 3/3; feature@4f5b5404) superseded by D-882 pre-clear snapshot (demo-recorder complete; feature pushed to remote at b3aa0970; PR not yet created)._
 
-**STATE v7.560. D-881 — LOCAL CONVERGED. Pass 17 CLEAN(strict). Streak 3/3. 17 passes + 11 fix-bursts. Feature HEAD 4f5b5404. develop@72baf413.**
+**STATE v7.561. D-882 — PRE-CLEAR DURABILITY SNAPSHOT. Cyberint LOCAL CONVERGED (Pass 17 streak 3/3). Demo-recorder complete. Feature pushed to remote (b3aa0970 confirmed). PR not yet created at D-882 write.**
 
-**develop HEAD:** `72baf413` | **Workspace test count:** 3839 | **Feature branch HEAD:** `4f5b5404` | **Cyberint cascade:** LOCAL CONVERGED (passes 15+16+17 CLEAN(strict))
+**develop HEAD:** `72baf413` | **Workspace test count:** 3839 | **Feature branch HEAD:** `b3aa0970` (demo-recorder commit) | **Remote feature branch:** EXISTS at b3aa0970 | **Open PRs:** ZERO at D-882 write
 
-**Pass 17 result: CLEAN(strict). CLEAN(PR-merge).** Zero findings of any severity. All prior closures verified load-bearing. SAP-1/SAP-2/SID-1 PASS. Streak 2/3 → 3/3. LOCAL CONVERGED per BC-5.39.001 D-779.
+**Resume protocol (new session — read §RESUME SNAPSHOT in SESSION-HANDOFF.md for full detail):**
+1. Run `vsdd-factory:factory-worktree-health` (BLOCKING preflight)
+2. Read STATE.md frontmatter — confirm `version: "7.561"` + `cyberint_pr_cycle_in_flight: true`
+3. Read `SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-30-CYBERINT-LOCAL-CONVERGED-PR-CYCLE-IN-FLIGHT (D-882)`
+4. Check actual state: `gh pr list --state open` — does PR exist?
+5. If NO PR: dispatch pr-manager to create PR (9-step cycle steps 2-9). If PR exists: check CI, then PR-LEVEL cascade.
+6. PR-LEVEL adversary cascade (3× CLEAN(PR-merge) per BC-5.39.001 D-779) + security review + pr-reviewer → squash-merge
 
-**Cascade totals:** 17 passes (including 5-REJECTED + 5-REDUX) | 11 fix-bursts | 25 findings closed | Lessons 57-60 codified | POL-32 codified | BC-2.01.017 §Notes introduced-in anchor convention codified
-
-**Critical path (next actions for new session):**
-1. **READ `SESSION-HANDOFF.md §ADDENDUM 2026-05-30-LOCAL-CONVERGED-PASS-17`** — full convergence summary
-2. **Dispatch demo-recorder** per-AC for all 11 ACs into `docs/demo-evidence/S-DTU-CYBERINT-AUTH-FIDELITY-001/`
-3. **Obtain USER AUTHORIZATION for push** — push feature branch to remote + pr-manager 9-step PR cycle
-4. **Queue SAP-4 + POL-29 hygiene-exempt codification** (F-LP12-PG-001) for CLAUDE.md amendment
+**CRITICAL:** factory-artifacts LOCAL-ONLY. No remote push. No develop push (D-829). No AI attribution.
 
 **Active worktrees:**
 - `.worktrees/S-DTU-CYBERINT-AUTH-FIDELITY-001` — LOCAL CONVERGED (demo-recorder next; feature HEAD 4f5b5404)

@@ -9079,3 +9079,352 @@ Verification grep after fix: `rg "21 cite-pin" .factory/` in active narrative sc
 **Anti-volatile-pin note (TD-VSDD-091):** All citations use story/BC/finding-ID/function-name anchors. No file:line-number citations in this addendum.
 
 **D-881 burst marker:** 273rd consecutive single-commit per TD-VSDD-053. Anti-volatile-pin per TD-VSDD-091.
+
+---
+
+## §RESUME SNAPSHOT 2026-05-30-CYBERINT-LOCAL-CONVERGED-PR-CYCLE-IN-FLIGHT (D-882)
+
+**Snapshot created:** 2026-05-30 | **Reason:** PRE-/clear durability — Cyberint LOCAL adversary cascade CONVERGED (Pass 17 streak 3/3); demo-recorder complete; feature branch pushed to remote; PR creation pending | **STATE version:** 7.561
+
+**This is the AUTHORITATIVE resume document for any new session. It is self-contained — zero prior context required.**
+
+---
+
+### §1. Cascade Completion Summary (D-852 through D-881)
+
+All work completed since the prior /clear at D-851.
+
+#### Pass Progression Table (Pass 1–17)
+
+| Pass | Result | Fix-burst? | Key Finding(s) | Closure Note |
+|------|--------|------------|----------------|--------------|
+| Pass 1 | NOT CLEAN (13 findings) | YES (FB-1) | F-LP1-CRIT-001 harness clone Cyberint session cookie; F-LP1-CRIT-002 DTU arc_swap race; F-LP1-HIGH-001..004 Arc-DI / error-code / test-coverage / catalog gaps | Implementer fix-burst (2f4cd3a8+c25bc598+79e3b545); PO F-LP1-MED-002 Option A (BC-2.01.017 v1.1 EC-017-005→E-AUTH-005, 4baa0e91) |
+| Pass 2 | NOT CLEAN (4 findings) | YES (FB-2) | CRIT-001 StaticCookieAuthProvider no error on empty resolved key; HIGH-001 test_BC_2_01_017_003 non-exhaustive; MED-001 cookie-name mismatch; PG-001 tracing catalog | Implementer fix-burst; PO BC-2.01.017 v1.1→v1.2; BC-INDEX v5.58 |
+| Pass 3 | NOT CLEAN (6 active findings) | YES (FB-3) | HIGH-001 CredentialResolver trait sig leaks String (Path β); MED-001 E-AUTH-007 missing; MED-002 doc inconsistency; LOW-001 return path; LOW-002 SAFETY-comment quality (deferred) | Implementer fix-burst (89aa9bd1) Path β; F-LP3-LOW-002 deferred maintenance |
+| Pass 4 | CLEAN(strict) | NO | Zero findings | Streak 1/3 |
+| Pass 5 | REJECTED | N/A | Adversary read wrong branch (develop not feature) | Orchestrator-verified counter-evidence; Pass 5 REDUX dispatched |
+| Pass 5 REDUX | CLEAN(strict) | NO | Zero findings (after cwd+branch+HEAD+rg verification triad applied) | Streak 2/3; Lesson 58 first application |
+| Pass 6 | NOT CLEAN (1 LOW + 1 deferred) | YES (FB-6) | LOW-001 test function names use prism_dtu_cyberint prefix not BC-2.01.017 prefix (D-LP6-001 CredentialResolutionError deferred) | Implementer fix-burst (4f5b5404) — feature HEAD frozen here |
+| Pass 7 | CLEAN(strict) | NO | Zero findings | Streak 1/3 |
+| Pass 8 | NOT CLEAN (1 MED) | YES (FB-8) | MED-001 BC-2.16.013 v1.16 missing auth-decision event_type row | PO BC-2.16.013 v1.16→v1.17 (399ef378); Lesson 57 (workspace-grep before N/A) |
+| Pass 9 | NOT CLEAN (1 HIGH) | YES (FB-9) | HIGH-001 BC-2.01.017 §Postconditions row formatting / count mismatch | Story-writer story v1.1→v1.2→v1.3 (ac0843a4); BC-2.16.013 v1.17→v1.18 |
+| Pass 10 | NOT CLEAN (2 findings) | YES (FB-10) | HIGH-001 BC-INDEX monotonic changelog; MED-001 error-taxonomy E-AUTH-006 alignment | PO BC-INDEX v5.60→v5.61 (559ab76d); error-taxonomy v1.53→v1.54→v1.55; POL-32 codified |
+| Pass 11 | CLEAN(strict) | NO | Zero findings | Streak 1/3 |
+| Pass 12 | NOT CLEAN (1 MED + 1 LOW + 1 PG) | YES (FB-12) | MED-001 story body H1/§Version sync drift; LOW-001 21 cite-pins to older BC version; PG-001 SAP-4 cite-pin probe gap | Story-writer v1.3→v1.4→v1.5 (9fb28d50); PO Option A introduced-in anchor convention BC-2.01.017 v1.4→v1.5 (23a17f6d); BC-INDEX v5.61→v5.62; Lesson 60 |
+| Pass 13 | NOT CLEAN (1 LOW) | YES (FB-13) | LOW-001 narrative count drift "21→20 cite-pins" | State-manager narrative correction across 4 artifacts |
+| Pass 14 | NOT CLEAN (1 LOW) | YES (FB-14) | LOW-001 Pass 13 correction incomplete — po-adjudications active prose still said "21" | Comprehensive sweep (user Option A); 1 active site fixed; historical-immutable preserved per TD-VSDD-091 |
+| Pass 15 | CLEAN(strict) | NO | Zero findings | Streak 0/3 → 1/3 |
+| Pass 16 | CLEAN(strict) | NO | Zero findings | Streak 1/3 → 2/3 |
+| Pass 17 | CLEAN(strict) | NO | Zero findings — LOCAL CONVERGED | Streak 2/3 → 3/3; BC-5.39.001 D-779 satisfied |
+
+**Cascade totals:** 17 passes | 11 fix-bursts | 25 findings closed (13+4+6+0+0+1+0+1+1+2+0+2+1+1+0+0+0) | Pass 5 REJECTED (not counted in streak)
+
+#### Closure Trail (by Specialist)
+
+| Specialist | Commits / Artifacts | Closures |
+|-----------|---------------------|----------|
+| Implementer | 2f4cd3a8 c25bc598 79e3b545 89aa9bd1 (4f5b5404 is feature HEAD) | F-LP1-CRIT/HIGH/MED/LOW; F-LP2 CRIT/HIGH/MED; F-LP3 HIGH/MED/LOW |
+| Product-owner | 4baa0e91 BC-2.01.017 v1.1; PO pass-2 fix (v1.2); 399ef378 BC-2.16.013 v1.17; 559ab76d BC-INDEX+error-taxonomy; 23a17f6d BC-2.01.017 v1.5 | BC contract corrections, error-code alignment, introduced-in anchor convention |
+| Story-writer | ac0843a4 story v1.2→v1.3; 9fb28d50 story v1.4→v1.5 | Story body/version sync; STORY-INDEX bumps |
+| State-manager | D-852..D-881 factory-artifacts commits | Narrative corrections, policy codification, SESSION-HANDOFF addenda |
+
+#### Codifications
+
+| Type | Content | D# |
+|------|---------|-----|
+| Lesson 57 | workspace-grep before N/A — verify symbol existence before claiming N/A in adversarial pass | D-860 |
+| Lesson 58 | adversary grounding-truth preamble — confirm worktree cwd + branch + HEAD + rg evidence triad before probes | D-862 (first application Pass 5 REDUX) |
+| Lesson 59 | three-recurrence comprehensive sweep — same finding class 3x triggers comprehensive ALL-sibling-sites sweep | D-870 |
+| Lesson 60 | SAP-4 cite-pin probe + POL-29 hygiene-exempt amendment candidate | D-876 |
+| POL-32 | changelog_monotonic_descending — all spec artifact changelogs must be in monotonic descending order | D-870 (PO 559ab76d) |
+| BC-2.01.017 §Notes convention | "pinned-at-write-time" introduced-in anchor — cite-pins record BC version at time of authorship, not required to update on every BC bump | D-875 (PO 23a17f6d) |
+
+#### Final Artifact Versions
+
+| Artifact | Version |
+|----------|---------|
+| Story spec (S-DTU-CYBERINT-AUTH-FIDELITY-001) | v1.5 |
+| BC-2.01.017 (StaticCookieAuthProvider) | v1.5 |
+| BC-2.16.013 (auth-decision event) | v1.18 |
+| BC-INDEX | v5.62 |
+| STORY-INDEX | v2.216 |
+| error-taxonomy.md | v1.55 |
+| policies.yaml | v1.31 |
+| Feature HEAD | b3aa0970 (demo-recorder commit) |
+| Workspace tests | 3839/3839 pass (just check exit 0) |
+
+---
+
+### §2. Current State (as of D-882)
+
+| Field | Value |
+|-------|-------|
+| Feature branch | `feature/S-DTU-CYBERINT-AUTH-FIDELITY-001` |
+| Feature HEAD | `b3aa0970` (demo-recorder commit: "evidence(S-DTU-CYBERINT-AUTH-FIDELITY-001): per-AC demo recordings for 11 ACs (LOCAL converged at pass-17)") |
+| Worktree | `/Users/jmagady/Dev/prism/.worktrees/S-DTU-CYBERINT-AUTH-FIDELITY-001/` |
+| Feature branch remote | **EXISTS** — `git ls-remote origin feature/S-DTU-CYBERINT-AUTH-FIDELITY-001` returns `b3aa0970ce92b4c410d5458a7adbdfd507bf77c3` — push COMPLETE |
+| Feature branch upstream tracking | Push completed by pr-manager agent `a0bf672578287c75f` (or already pushed before this burst — verified by ls-remote above) |
+| Open PRs at D-882 | ZERO — `gh pr list --state open` returned empty. PR not yet created. |
+| factory-artifacts HEAD | `d811ece0` (D-881 LOCAL CONVERGED) → this burst adds D-882 commit |
+| develop local HEAD | `72baf413` (fix(sensor-specs): fidelity audit fixes — CrowdStrike detection_id + Claroty devices/column/path) |
+| develop remote HEAD | `72baf413` — confirmed same as local (72baf413 is a direct-push from 2026-05-29, accepted at D-846) |
+| Demo evidence | `docs/demo-evidence/S-DTU-CYBERINT-AUTH-FIDELITY-001/` — 13 files written, 11/11 ACs evidenced, POL-10 compliant |
+| Demo-recorder commit | `b3aa0970` (on feature branch — NOT on factory-artifacts) |
+| Demo-recorder status | COMPLETE — all 11 ACs evidenced |
+
+---
+
+### §3. In-Flight pr-manager Dispatch
+
+| Field | Value |
+|-------|-------|
+| Agent ID | `a0bf672578287c75f` (background agent; may have completed before /clear) |
+| Task | Step 1: `git push -u origin feature/S-DTU-CYBERINT-AUTH-FIDELITY-001` + lefthook pre-push hook (`just check`); Step 2: create PR |
+| Push status | **CONFIRMED COMPLETE** — `git ls-remote origin feature/S-DTU-CYBERINT-AUTH-FIDELITY-001` shows `b3aa0970` (verified at D-882 pre-write) |
+| PR status | **NOT YET CREATED** — `gh pr list --state open` returned empty at D-882 pre-write |
+| Volatile state | `/tmp/cyberint-pr-body.md` — PR body draft written by this agent. MAY BE LOST after /clear. Backup: §5 of this document. |
+| Agent may complete after /clear | YES — if agent completes, PR may exist when new session starts. New session MUST check actual state. |
+
+**New session: do NOT assume agent completed. Check actual git state per §4 resume protocol.**
+
+---
+
+### §4. Resume Protocol (Zero Prior Context Required)
+
+New session MUST follow these steps IN ORDER:
+
+```
+1. cd /Users/jmagady/Dev/prism (working directory)
+
+2. Run vsdd-factory:factory-worktree-health — BLOCKING preflight.
+   Must pass before any action. Verifies .factory/ worktree on factory-artifacts.
+
+3. Read STATE.md frontmatter — confirm:
+   - version: "7.561" (or higher if additional state-manager bursts ran)
+   - cyberint_local_converged_at_pass: 17
+   - cyberint_pr_cycle_in_flight: true
+   - develop_head: "72baf413"
+
+4. Read this section (§RESUME SNAPSHOT 2026-05-30-CYBERINT-LOCAL-CONVERGED-PR-CYCLE-IN-FLIGHT).
+
+5. Determine PR cycle stage — check ACTUAL git state:
+
+   a. Does remote feature branch exist?
+      git ls-remote origin feature/S-DTU-CYBERINT-AUTH-FIDELITY-001
+      → Expected: b3aa0970... (push already confirmed at D-882)
+      → If MISSING: dispatch pr-manager to push first (unlikely — push confirmed above)
+
+   b. Does PR exist?
+      gh pr list --state open --search 'S-DTU-CYBERINT-AUTH-FIDELITY-001'
+      OR: gh pr list --state open
+      → At D-882: ZERO PRs. Agent a0bf672578287c75f may have created one after /clear.
+      → If PR EXISTS: note PR number, proceed to step 5c.
+      → If NO PR: dispatch pr-manager to create PR (9-step cycle steps 2-9).
+
+   c. If PR exists — check CI status:
+      gh pr checks <PR#>
+      → If CI still running: wait for CI to complete (5-8 min).
+      → If CI GREEN: dispatch PR-LEVEL adversary cascade.
+      → If CI RED: dispatch implementer to diagnose and fix.
+
+   d. If PR-LEVEL cascade already in progress: read
+      .factory/cycles/wave-0-plugin-prereqs/S-DTU-CYBERINT-AUTH-FIDELITY-001/adversarial-review/
+      for pr-pass-N.md files. Determine streak. Continue.
+
+6. Continue per-story-delivery steps 4-9:
+   Step 4: PR-LEVEL adversary cascade (BC-5.39.001 D-779 PR-merge criterion: 3× CLEAN(PR-merge))
+   Step 5: Security review (vsdd-factory:security-reviewer)
+   Step 6: pr-reviewer final fresh-eyes diff review
+   Step 7: Consolidate findings, dispatch fix-burst if needed
+   Step 8: CI GREEN + 3× CLEAN(PR-merge) + squash-merge
+   Step 9: POL-14 BC auto-promotion (draft→active for BC-2.01.017 + BC-2.16.013)
+           State-manager post-merge burst
+```
+
+**CRITICAL — apply Lesson 58 grounding-truth preamble to every PR-LEVEL adversary dispatch:**
+Adversary must confirm worktree cwd + branch + HEAD + rg evidence triad before any probe.
+Adversary reads `crates/` from feature branch HEAD `b3aa0970`, NOT from develop.
+
+---
+
+### §5. PR Body Content (Preserved Against /tmp Loss)
+
+If `/tmp/cyberint-pr-body.md` is missing, reconstruct using this section.
+
+**PR Title:**
+`feat(S-DTU-CYBERINT-AUTH-FIDELITY-001): Cyberint DTU access_token auth + StaticCookieAuthProvider + sensor-spec fidelity bundle`
+
+**PR Body:**
+
+---
+
+## Summary
+
+- Implements `StaticCookieAuthProvider` (BC-2.01.017) for Cyberint DTU: injects `access_token` header directly from resolved credential without HTTP login roundtrip — per ADR-031 DTU=true-DTU fidelity principle
+- Corrects `prism-dtu-cyberint` and `prism-dtu-harness` Cyberint clone to use `access_token` cookie (matching real Cyberint API) instead of legacy `cyberint_session` cookie that does not exist in production
+- Bundles develop@72baf413 sensor-spec fidelity fixes (CrowdStrike `detection_id` field + Claroty `devices` table column/path/audit_log corrections) — accepted retroactively at D-846; flows naturally through this PR diff
+- Adds E-AUTH-006 (credential resolution failure) + E-AUTH-007 (cookie injection header missing) to error taxonomy; BC-2.16.013 auth-decision structured event catalog row
+- 3839/3839 tests pass (`just check` exit 0); 11/11 ACs demo-evidenced under `docs/demo-evidence/S-DTU-CYBERINT-AUTH-FIDELITY-001/`
+
+## Story + Spec Anchors
+
+- Story: S-DTU-CYBERINT-AUTH-FIDELITY-001 v1.5 (`.factory/stories/S-DTU-CYBERINT-AUTH-FIDELITY-001.md`)
+- BC-2.01.017 StaticCookieAuthProvider v1.5 (`.factory/specs/behavioral-contracts/BC-2.01-sensor-data-retrieval/BC-2.01.017-static-cookie-auth-provider.md`)
+- BC-2.16.013 auth-decision structured event v1.18
+- ADR-031 DTU=true-DTU Fidelity Principle (`.factory/specs/architecture/decisions/ADR-031-dtu-equals-true-dtu-fidelity-principle.md`)
+- ADR-028 §D12 SUPERSEDED by ADR-031
+
+## LOCAL Adversary Cascade
+
+- 17 passes (Pass 5 REJECTED — adversary read wrong branch; Pass 5 REDUX supersedes)
+- 11 fix-bursts; 25 findings closed
+- Streak: Pass 15 + Pass 16 + Pass 17 CLEAN(strict) = 3/3 LOCAL CONVERGED per BC-5.39.001 D-779
+- Codifications: Lesson 57 (workspace-grep before N/A), Lesson 58 (adversary grounding-truth preamble), Lesson 59 (three-recurrence comprehensive sweep), Lesson 60 (SAP-4 cite-pin probe), POL-32 (changelog monotonic descending), BC-2.01.017 §Notes introduced-in anchor convention
+
+## Bundled Changes (develop@72baf413)
+
+The sensor-spec fidelity fixes at develop@72baf413 flow through this PR diff. They fix:
+- CrowdStrike: `detection_id` field added to `DetectionDetail` table
+- Claroty: `devices` table — corrected column/path mismatches; `audit_log` table added
+
+These were a direct-push to develop on 2026-05-29 (accepted retroactively D-846). Per D-829 bundling decision: NO separate push to develop needed; these flow through the feature branch merge.
+
+## Test Plan
+
+- `just check` exit 0 (workspace: fmt + clippy + nextest + doctests + crate-layout)
+- 3839/3839 tests pass
+- 11 ACs evidenced: `docs/demo-evidence/S-DTU-CYBERINT-AUTH-FIDELITY-001/`
+- AC-01 through AC-11 each have dedicated evidence file per POL-10
+
+## Acceptance Criteria (11 ACs)
+
+| AC | Description |
+|----|-------------|
+| AC-01 | StaticCookieAuthProvider::acquire_token injects access_token header without HTTP call |
+| AC-02 | acquire_token returns E-AUTH-005 when CredentialResolver returns Err |
+| AC-03 | acquire_token returns E-AUTH-005 when resolved credential is empty string |
+| AC-04 | Cookie name is `access_token` (matching real Cyberint API per ADR-031) |
+| AC-05 | Cookie value is the resolved credential value (no transformation) |
+| AC-06 | prism-dtu-cyberint uses StaticCookieAuthProvider (not CybersprintSessionAuth) |
+| AC-07 | prism-dtu-harness Cyberint clone uses access_token cookie (not cyberint_session) |
+| AC-08 | BC-2.16.013 auth-decision event emitted with correct structured fields |
+| AC-09 | E-AUTH-006 allocated in error taxonomy for CredentialResolutionError |
+| AC-10 | E-AUTH-007 allocated for cookie injection failure |
+| AC-11 | 3839/3839 tests pass at feature HEAD |
+
+## Deferred Findings (Out of Story Scope)
+
+- D-LP6-001: `CredentialResolutionError` enum at `prism-credentials/src/resolution.rs` lacks `#[non_exhaustive]` — pre-existing project-wide; deferred to Phase 5 architectural pub-API audit per Rule 3 (explicit scope boundary: not introduced by this story)
+- BC-INDEX v4 historical changelog ordering: TD-VSDD-091 immutable historical narrative; not retroactively enforceable
+
+---
+
+### §6. PR-LEVEL Cascade Prep
+
+Once PR exists and CI is GREEN, orchestrator dispatches PR-LEVEL adversary cascade per BC-5.39.001 D-779.
+
+**Criterion:** PR-merge = 3 consecutive CLEAN(PR-merge) passes (ZERO CRIT+HIGH+MED). LOW/OBS/PROCESS-GAP present but non-blocking for PR-merge criterion. Does NOT advance 3-CLEAN(strict) streak.
+
+**Lesson 58 preamble (MANDATORY for every PR-LEVEL adversary dispatch):**
+Adversary must confirm before any probe:
+1. Worktree cwd = `/Users/jmagady/Dev/prism/.worktrees/S-DTU-CYBERINT-AUTH-FIDELITY-001/` (or fresh context reading feature branch)
+2. Branch = `feature/S-DTU-CYBERINT-AUTH-FIDELITY-001`
+3. HEAD = `b3aa0970` (demo-recorder commit)
+4. `rg` / `grep` searches run against feature crates, NOT develop
+
+**Standing probes (all mandatory per CLAUDE.md):**
+- SAP-1: tracing emission catalog completeness — `rg 'event_type\s*=' crates/ --type rust` across workspace
+- SAP-2: DTU↔TOML schema parity — read `crates/prism-dtu-cyberint/src/types.rs` + route files
+- SAP-3 (if applicable): authentication flow correctness
+- SAP-4: cite-pin freshness — verify BC cite-pins in modified files (Lesson 60)
+- SID-1: no-ignored-test rationalization
+
+**Specialists to dispatch (per-story-delivery steps 4-6):**
+- PR-LEVEL adversary: `vsdd-factory:adversary` (PR-LEVEL mode, fresh context)
+- Security review: `vsdd-factory:security-reviewer`
+- PR-reviewer: `vsdd-factory:pr-reviewer`
+
+**Per Standing Rule 2 (orchestrator-drives-cascade):** orchestrator dispatches sub-agents on pr-manager's behalf when pr-manager lacks Agent tool access. Pr-manager owns lifecycle, orchestrator drives dispatch.
+
+**Pass report location:** `.factory/cycles/wave-0-plugin-prereqs/S-DTU-CYBERINT-AUTH-FIDELITY-001/adversarial-review/pr-pass-N.md`
+
+---
+
+### §7. Open Follow-on Items + Deferred Findings
+
+| Item | Category | Target |
+|------|----------|--------|
+| D-LP6-001: `CredentialResolutionError` lacks `#[non_exhaustive]` | Pre-existing project-wide | Phase 5 architectural pub-API audit |
+| BC-INDEX v4 historical changelog ordering | Immutable-historical (TD-VSDD-091 carve-out) | n/a |
+| F-LP12-PG-001: SAP-4 + POL-29 hygiene-only-bump exemption amendment | Recommendation in Lesson 60 | CLAUDE.md + policies.yaml amendment; awaiting policy-owner + spec-steward dispatch (next available session) |
+
+---
+
+### §8. Worktrees Status
+
+| Worktree | Status | Notes |
+|----------|--------|-------|
+| `.worktrees/S-DTU-CYBERINT-AUTH-FIDELITY-001/` | ACTIVE — feature HEAD b3aa0970 | Cyberint PR cycle in flight |
+| `.worktrees/S-3.09/` | FROZEN | Hold |
+| `.worktrees/W3-FIX-S307-001/` | BLOCKED (superseded) | Do not activate |
+
+---
+
+### §9. Critical Do-NOT-Do List
+
+- **DO NOT** push factory-artifacts to remote (LOCAL-ONLY per CLAUDE.md + Lesson 53 + D-829)
+- **DO NOT** separately push develop (D-829 bundling decision: develop@72baf413 flows through PR merge)
+- **DO NOT** skip hooks (`--no-verify`, `--no-gpg-sign`) — TD-FACTORY-HOOK-BYPASS-001 P0
+- **DO NOT** add AI attribution to commits (prism convention — no `Co-Authored-By: Claude`)
+- **DO NOT** merge PR until: 3× CLEAN(PR-merge) + CI GREEN + security review CLEAN + pr-reviewer APPROVE
+- **DO NOT** touch feature branch HEAD (`b3aa0970`) without dispatching implementer with explicit scope
+- **DO NOT** trust agent `a0bf672578287c75f` state — verify actual git/PR state per §4 resume protocol
+- **DO NOT** run `just check` between every PR-LEVEL fix (TD-VSDD inner loop discipline — per-crate for iteration, full check at end of burst)
+- **DO NOT** modify story/BC/lessons/policies/error-taxonomy — all finalized at LOCAL convergence
+
+---
+
+### §10. Standing Rules + Lessons + Policies Reference
+
+All applicable standing rules for S-DTU-CYBERINT-AUTH-FIDELITY-001 PR-LEVEL work:
+
+**CLAUDE.md rules (all apply):**
+- Source-of-Truth Precedence (spec wins over code; later-more-specific wins)
+- Canonical Principle 6 rules (no MVP deferrals; production-grade default; tech-debt-register human-directed only; AI-built defects AI's responsibility to fix)
+- Companion Principle correct-agent routing (routing table)
+
+**Factory operational TDs:**
+- TD-VSDD-053: single-commit-per-burst (ONE commit per logical burst on factory-artifacts)
+- TD-VSDD-059: paper-fix detection (claimed closures must have load-bearing test/assertion)
+- TD-VSDD-060: sibling-site sweep on value changes (grep ALL callsites before committing)
+- TD-VSDD-091: anti-volatile-pin (cite function names + behavioral anchors, NOT file:line numbers)
+- TD-FACTORY-HOOK-BYPASS-001 P0: never skip hooks
+
+**Protocol:**
+- BC-5.39.001 3-CLEAN protocol with D-779 amendment:
+  - CLEAN(strict) = zero findings of ANY severity → streak advancement
+  - CLEAN(PR-merge) = zero CRIT+HIGH+MED → PR-merge gate (does NOT advance 3-CLEAN streak)
+  - LOCAL phase requires 3× CLEAN(strict)
+  - PR-LEVEL phase requires 3× CLEAN(PR-merge)
+  - Adversary MUST report both `CLEAN (strict): yes/no` and `CLEAN (PR-merge): yes/no` on every pass
+
+**Standing adversary probes (all mandatory per CLAUDE.md):**
+- SAP-1: tracing emission catalog completeness
+- SAP-2: DTU↔TOML schema parity
+- SAP-4: cite-pin freshness (Lesson 60)
+- SID-1: no-ignored-test rationalization
+
+**Policies (key):**
+- POL-10: demo evidence required (11/11 ACs per story)
+- POL-13: factory-artifacts LOCAL-ONLY (no remote push without explicit human authorization)
+- POL-14: BC auto-promotion draft→active at PR merge (BC-2.01.017 + BC-2.16.013)
+- POL-29: sibling-sweep discipline (step 8f — hygiene-only-bump exemption recommended in Lesson 60; formal amendment pending)
+- POL-32: changelog_monotonic_descending (all spec artifact changelogs in descending order)
+
+**Credential safety:** AD-017 — credentials never transit AI context. `OrgSlug::new_unchecked` is test-helpers-feature-gated. Sensitive types use newtypes with redacted Debug.
+
+**Architecture:** ADR-022 Arc-DI plumbing (no placeholder-construct anti-pattern); ADR-031 DTU=true-DTU (binding for all DTU clones including harness).
+
+**Anti-volatile-pin (TD-VSDD-091):** All citations in this document use story/BC/finding-ID/function-name anchors. No file:line-number citations.
+
+**D-882 burst marker:** 274th consecutive single-commit per TD-VSDD-053. Anti-volatile-pin per TD-VSDD-091.
