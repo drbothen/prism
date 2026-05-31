@@ -9429,3 +9429,251 @@ All applicable standing rules for S-DTU-CYBERINT-AUTH-FIDELITY-001 PR-LEVEL work
 **Anti-volatile-pin (TD-VSDD-091):** All citations in this document use story/BC/finding-ID/function-name anchors. No file:line-number citations.
 
 **D-882 burst marker:** 274th consecutive single-commit per TD-VSDD-053. Anti-volatile-pin per TD-VSDD-091.
+
+---
+
+## §RESUME SNAPSHOT 2026-05-31-CYBERINT-MERGED-WAVE-5-PARALLEL-PLANNED (D-912)
+
+**Snapshot created:** 2026-05-31 | **Reason:** PRE-/clear durability — S-DTU-CYBERINT-AUTH-FIDELITY-001 MERGED (PR #164 squash e798e67c); Wave 5 parallelization plan authored; PO new-BC flags dispositioned; ${env.VAR} prereq surfaced | **STATE version:** 7.569
+
+**This is the AUTHORITATIVE resume document for any new session. It is self-contained — zero prior context required.**
+
+---
+
+### §1. Where We Are
+
+#### Milestone: S-DTU-CYBERINT-AUTH-FIDELITY-001 MERGED
+
+| Field | Value |
+|-------|-------|
+| Story | S-DTU-CYBERINT-AUTH-FIDELITY-001 |
+| Status | **MERGED** |
+| PR | #164 squash-merged |
+| develop HEAD after merge | `e798e67c` |
+| develop HEAD before merge | `e898e67c` (S-5.01-FOLLOWUP-MCP-BOOT PR #163) |
+| Cascade | CLOSED (D-905) |
+| BCs promoted | BC-2.01.017 v1.7 active per POL-14 (D-904) |
+| LOCAL adversary passes | 17 (3-CLEAN converged at pass 15/16/17) |
+| PR-LEVEL adversary passes | 15 (3-CLEAN converged at pass 13/14/15) |
+| Fix-bursts | 11 LOCAL + 6 PR-LEVEL = 17 total |
+| Story version | v1.9 merged |
+
+#### Current Wave: wave-5-e-demo-fidelity (in progress)
+
+**Immediate milestone:** Working multi-org live-sensor demo via Claude MCP — keystone S-DEMO-001.
+
+**Critical path (spine):**
+```
+S-CONFIG-MULTI-TENANT-OVERRIDE-001 → S-DEMO-001 (keystone) → S-DEMO-002 → S-DEMO-003
+```
+
+**Sole remaining hard gate to S-DEMO-001 keystone:** S-CONFIG-MULTI-TENANT-OVERRIDE-001.
+
+---
+
+### §2. Project Goal Restatement (Zero-Context Summary)
+
+**Prism** is an ephemeral federated MCP query engine over MSSP sensors:
+- **Sensors:** CrowdStrike, Cyberint, Claroty, Armis
+- **Stack:** Rust, DataFusion, PrismQL (custom query language via Chumsky), protobuf, OCSF normalization
+- **Deployment:** Per-analyst stdio MCP server in Claude Code; multi-client aware
+- **Auth model:** AI-opaque credentials (AD-017); sensor API auth per ADR-031 DTU=true-DTU fidelity principle
+- **Query model:** Ephemeral OCSF data lake — sensors queried per-request, results normalized at adapter boundary, no persistence of raw API responses
+- **Plugin system:** WASM component model (PLUGIN-MIGRATION-001-A/B/C/D/E/F/G) — sensors delivered as TOML specs eating our own dog food
+
+---
+
+### §3. Wave 5 Full Story Set + Status
+
+| Story | Points | Priority | Status | Depends On | Notes |
+|-------|--------|----------|--------|------------|-------|
+| S-DTU-CYBERINT-AUTH-FIDELITY-001 | 8 | P0-pre-demo-BLOCKING | **MERGED** (PR #164 e798e67c) | — | Cyberint StaticCookieAuthProvider. CLOSED. |
+| S-CONFIG-MULTI-TENANT-OVERRIDE-001 | 8 | P0 | **ready** | — | Per-org overlay loading ADR-029. **DISPATCH FIRST — sole gate to keystone.** |
+| S-DEMO-CLAROTY-AUDIT-DTU-001 | 5 | P1 | draft | PLUGIN-MIGRATION-001-A ✅ | Claroty lane story 1/3. /api/v1/audit_log/get route. |
+| S-DEMO-CLAROTY-PAGINATION-001 | 5 | P1 | draft | PLUGIN-MIGRATION-001-A ✅ | Claroty lane story 3/3. POST-body offset+limit. |
+| S-DEMO-001 (KEYSTONE) | 11 | P0-KEYSTONE | draft | PLUGIN-MIGRATION-001-A/E ✅, S-CONFIG, S-DTU-CYBERINT ✅ | GAP-002-A. SpecDrivenSensorAdapter + boot step 9A. |
+| S-DEMO-002 | 11 | P0 | draft | S-DEMO-001, S-CONFIG | 3-org multi-sensor E2E smoke. BC-3.2.001 multi-org isolation. |
+| S-DEMO-003 | 5 | P1 | draft | S-DEMO-001, S-DEMO-002 | Setup scripts + prism-credential-set CLI + operator runbook. |
+| S-5.04-FIX-001 | 1 | P2 | draft | — | Factory-only depends_on fix. Anytime. |
+| S-DEMO-MULTI-TENANT-DTU-001 | TBD | P2 | stub | S-CONFIG | Needs story-writer materialization. Non-blocking for single-tenant demo. |
+| S-DEMO-ARMIS-AQL-001 | 5 | P1 | draft | — | Armis AQL search endpoint fidelity. PO flags SUFFICIENT. |
+| S-DEMO-CLAROTY-TRAILING-SLASH-001 | 3 | P1 | draft | S-DEMO-CLAROTY-AUDIT-DTU-001 (soft) | Claroty lane story 2/3. normalize_path. PO flag SUFFICIENT. |
+| S-DEMO-CROWDSTRIKE-MULTIREGION-001 | 2 | P2 | draft | — | CrowdStrike multi-region base_url. **GATED on ${env.VAR} prereq.** |
+
+---
+
+### §4. Wave 5 Parallelization Plan (Summary)
+
+Full plan: `.factory/proposals/WAVE-5-PARALLELIZATION-PLAN.md`
+
+#### Parallel tracks (Tier 0 — dispatchable now)
+
+| Track | Story | Notes |
+|-------|-------|-------|
+| Track A | S-CONFIG-MULTI-TENANT-OVERRIDE-001 | P0 — **run first; unblocks keystone** |
+| Track B | S-DEMO-ARMIS-AQL-001 | P1 — solo prism-dtu-armis crate; parallel safe |
+| Track C | S-DEMO-CROWDSTRIKE-MULTIREGION-001 | P2 — **BLOCKED: ${env.VAR} prereq must close first** |
+| Track D | Claroty SERIALIZED: AUDIT → TRAILING-SLASH → PAGINATION | HIGH file conflict — serialize within lane |
+| Track E | S-5.04-FIX-001 | P2 — factory-only; anytime |
+
+**~4–5 concurrent stories max** (Claroty collapsed to one serial lane; CrowdStrike gated).
+
+#### Critical path vs parallel fidelity
+
+- **Spine:** S-CONFIG → S-DEMO-001 (keystone) → S-DEMO-002 → S-DEMO-003
+- **Fidelity stories** (Armis-AQL, Claroty ×3, CrowdStrike) are NOT depends_on for S-DEMO-001 — they run in parallel
+- **RECOMMEND:** add fidelity stories as soft-deps of S-DEMO-002 (3-org multi-sensor E2E) for faithful demo
+
+---
+
+### §5. CRITICAL SHARED PREREQUISITE — ${env.VAR} Interpolation
+
+**`${env.VAR}` interpolation in sensor TOML `base_url` fields is a DEAD LETTER.**
+
+`prism-spec-engine` does NOT resolve `${env.ARMIS_INSTANCE_URL}` etc. — the value stays as the literal string. Affects Armis, Claroty, CrowdStrike (all use this pattern). Blocks parity tests for ALL 3 fidelity stories.
+
+**Required fix (3 parts):**
+1. Implement `${env.VAR}` resolution in `spec_parser` (post-parse pass; sibling-sweep all sensors per TD-VSDD-060)
+2. Register `E-SPEC-024` in error-taxonomy.md (missing/empty env var → structured error, no panic, no value leaked)
+3. Add AC to BC-2.16.009 (or new BC) covering resolution + error path
+
+**Human decision pending — where does this prereq land?**
+
+| Option | Tradeoff |
+|--------|----------|
+| A — Standalone story (S-SPEC-ENV-VAR-001) | Cleanest; explicit gate; adds story to Wave 5 backlog |
+| B — Fold into S-CONFIG | Fits scope; broadens S-CONFIG |
+| C — In first fidelity story | Minimal scope expansion; couples stories |
+
+**Impact:** CrowdStrike-multiregion story NOT CLEAR to dispatch until resolved. Armis-AQL and Claroty-AUDIT can START but parity ACs block.
+
+---
+
+### §6. PO New-BC Flag Dispositions
+
+Dispositioned by orchestrator 2026-05-31 (D-911).
+
+| Story | Flags | Disposition | Action |
+|-------|-------|-------------|--------|
+| S-DEMO-ARMIS-AQL-001 | Flag 1 (AQL validation BC) | **SUFFICIENT** — AQL opaque per ADR-031 §D8-a/R-DTU-002; no new BC | story-writer adds BC-2.16.013 to frontmatter at dispatch |
+| S-DEMO-ARMIS-AQL-001 | Flag 2 (AQL push-down parity EC) | **SUFFICIENT** — BC-2.16.013 covers (closes DTU-EXT-003/004) | story-writer adds BC-2.16.013 to frontmatter at dispatch |
+| S-DEMO-CLAROTY-TRAILING-SLASH-001 | Flag 3 (trailing-slash parity coverage) | **SUFFICIENT** — BC-2.16.013 covers | story-writer adds BC-2.16.013 to frontmatter at dispatch |
+| S-DEMO-CROWDSTRIKE-MULTIREGION-001 | Flag 4 (env-var-resolution BC coverage) | **NEW-AC-AT-DISPATCH** — ${env.VAR} prereq; needs E-SPEC-024 + BC-2.16.009 AC | GATES story — resolve ${env.VAR} prereq first |
+| S-DEMO-CROWDSTRIKE-MULTIREGION-001 | Flag 5 (missing-env E-SPEC-error BC) | **NEW-AC-AT-DISPATCH** — E-SPEC-024 (next free; E-SPEC-023 is current max, 015/016 retired) | GATES story — resolve ${env.VAR} prereq first |
+
+**Readiness:** S-DEMO-ARMIS-AQL-001 + S-DEMO-CLAROTY-TRAILING-SLASH-001 = **CLEAR** (modulo BC-2.16.013 frontmatter add + ${env.VAR} prereq for parity). S-DEMO-CROWDSTRIKE-MULTIREGION-001 = **NOT CLEAR** (gated on ${env.VAR} prereq).
+
+---
+
+### §7. Harness Task List (Wave 5)
+
+> Harness tasks are session-scoped. This snapshot is the durable source of truth.
+
+| # | Task | Gate |
+|---|------|------|
+| 1 | **HUMAN DECISION: ${env.VAR} prereq placement** (standalone story / fold into S-CONFIG / in fidelity story) | Blocks #3 parity, #4, #5 |
+| 2 | Dispatch S-CONFIG-MULTI-TENANT-OVERRIDE-001 (P0) | Unblocks #6 |
+| 3 | Dispatch S-DEMO-ARMIS-AQL-001 (Track B, parallel to #2) | After ${env.VAR} prereq resolved for parity |
+| 4 | Dispatch Claroty lane SERIALIZED: AUDIT-DTU-001 → TRAILING-SLASH-001 → PAGINATION-001 (Track D) | Parallel to #2/#3 |
+| 5 | Dispatch S-DEMO-CROWDSTRIKE-MULTIREGION-001 (Track C) | After ${env.VAR} prereq resolved |
+| 6 | Dispatch S-DEMO-001 KEYSTONE (Tier 1) | After #2 (S-CONFIG) merges + S-DTU-CYBERINT ✅ |
+| 7 | Dispatch S-DEMO-002 → S-DEMO-003 (Tier 2 → Tier 3) | After #6 merges |
+
+Dispatch S-5.04-FIX-001 anytime (factory-only, zero conflict).
+
+---
+
+### §8. Artifact Versions (as of D-912)
+
+| Artifact | Version |
+|----------|---------|
+| STATE.md | 7.569 (this burst) |
+| develop HEAD | `e798e67c` (PR #164 squash-merge 2026-05-31) |
+| STORY-INDEX | v2.222 (total_stories: 169) |
+| BC-INDEX | v5.65 (active: 237, draft: 2) |
+| ARCH-INDEX | v2.107 (ADR-031 v1.2 registered) |
+| ADR-031 | v1.2 (DTU=true-DTU; §D8-a/b/c reclassified required-fidelity) |
+| BC-2.01.017 | v1.7 active (StaticCookieAuthProvider; promoted per POL-14) |
+| error-taxonomy | v1.55 (E-AUTH-006 + E-AUTH-007) |
+| policies.yaml | v1.31 |
+| S-CONFIG story | `.factory/stories/S-CONFIG-MULTI-TENANT-OVERRIDE-001-per-org-sensor-endpoint-overlay-loading.md` v1.2 |
+| S-DEMO-001 story | `.factory/stories/S-DEMO-001-spec-driven-sensor-adapter-and-boot-step-9a.md` v1.3 |
+| S-DEMO-ARMIS-AQL-001 story | `.factory/stories/S-DEMO-ARMIS-AQL-001-armis-aql-search-endpoint-fidelity.md` v1.0 |
+| S-DEMO-CLAROTY-TRAILING-SLASH-001 story | `.factory/stories/S-DEMO-CLAROTY-TRAILING-SLASH-001-claroty-trailing-slash-route-fidelity.md` v1.0 |
+| S-DEMO-CROWDSTRIKE-MULTIREGION-001 story | `.factory/stories/S-DEMO-CROWDSTRIKE-MULTIREGION-001-crowdstrike-multiregion-base-url.md` v1.0 |
+| WAVE-5-PARALLELIZATION-PLAN | `.factory/proposals/WAVE-5-PARALLELIZATION-PLAN.md` v1.0 (D-910) |
+
+---
+
+### §9. Active Worktrees
+
+| Worktree | Status | Notes |
+|----------|--------|-------|
+| `.factory/` | ACTIVE — factory-artifacts branch | State manager worktree |
+| `.worktrees/S-3.09/` | FROZEN | Leave alone |
+| `.worktrees/W3-FIX-S307-001/` | BLOCKED (superseded) | Do not activate |
+| S-DTU-CYBERINT worktree | TORN DOWN | Story merged; worktree removed after PR #164 merge |
+
+No active feature worktrees. Next feature worktree: `.worktrees/S-CONFIG-MULTI-TENANT-OVERRIDE-001/` (to be created at dispatch).
+
+---
+
+### §10. Recommended Next Actions (In Order)
+
+1. **(HUMAN DECISION — BLOCKING):** Decide ${env.VAR} prereq placement: Option A (standalone story), Option B (fold into S-CONFIG), or Option C (in first fidelity story). See §5.
+2. **Dispatch S-CONFIG-MULTI-TENANT-OVERRIDE-001 (P0).** This is the sole hard gate to S-DEMO-001 keystone. Run in parallel with Track B + Track E once env-var prereq is sequenced.
+3. **In parallel with S-CONFIG:** Dispatch S-DEMO-ARMIS-AQL-001 (Track B) and S-5.04-FIX-001 (Track E). Both are clear per §6.
+4. **Serialize Claroty lane (Track D):** AUDIT-DTU-001 → TRAILING-SLASH-001 → PAGINATION-001. Can start alongside S-CONFIG.
+5. **After ${env.VAR} prereq resolved:** Dispatch S-DEMO-CROWDSTRIKE-MULTIREGION-001 (Track C).
+6. **After S-CONFIG merges:** Dispatch S-DEMO-001 KEYSTONE (both deps now merged: S-CONFIG + S-DTU-CYBERINT ✅).
+7. **After S-DEMO-001 merges:** Dispatch S-DEMO-002 → S-DEMO-003.
+
+---
+
+### §11. Resume Protocol
+
+```
+1. cd /Users/jmagady/Dev/prism
+
+2. Run vsdd-factory:factory-worktree-health — BLOCKING preflight.
+   Verifies .factory/ worktree on factory-artifacts branch.
+
+3. Read STATE.md frontmatter — confirm:
+   - version: "7.569" (this burst)
+   - develop_head: "e798e67c" (PR #164 squash-merge 2026-05-31)
+   - current_step: D-910 Wave 5 parallelization plan persisted
+   - cyberint_pr_cycle_in_flight: false (CLOSED)
+
+4. Read this §RESUME SNAPSHOT 2026-05-31-CYBERINT-MERGED-WAVE-5-PARALLEL-PLANNED
+   (you are reading it now)
+
+5. Read .factory/proposals/WAVE-5-PARALLELIZATION-PLAN.md for full track detail.
+
+6. Check develop HEAD:
+   git log -1 --format="%H %s" develop
+   → Expected: e798e67c feat(S-DTU-CYBERINT-AUTH-FIDELITY-001): ...
+
+7. Check open PRs:
+   gh pr list --state open
+   → Expected: ZERO (no PRs in flight)
+
+8. Proceed per RECOMMENDED NEXT ACTIONS (§10).
+   First action requires HUMAN DECISION on ${env.VAR} prereq placement.
+```
+
+---
+
+### §12. Do-NOT-Do List
+
+- **DO NOT** push factory-artifacts to remote (LOCAL-ONLY per POL-13 + CLAUDE.md)
+- **DO NOT** skip hooks (`--no-verify`, `--no-gpg-sign`) — TD-FACTORY-HOOK-BYPASS-001 P0
+- **DO NOT** add AI attribution to commits (prism convention)
+- **DO NOT** dispatch S-DEMO-CROWDSTRIKE-MULTIREGION-001 until ${env.VAR} prereq resolved
+- **DO NOT** flip S-DEMO-ARMIS-AQL-001 or S-DEMO-CLAROTY-TRAILING-SLASH-001 to ready without adding BC-2.16.013 to `behavioral_contracts` frontmatter at dispatch
+- **DO NOT** run Claroty stories in parallel — serialize AUDIT → TRAILING-SLASH → PAGINATION (shared claroty.toml + dtu-claroty crate)
+- **DO NOT** touch `.worktrees/S-3.09/` or `.worktrees/W3-FIX-S307-001/` (FROZEN/BLOCKED)
+- **DO NOT** add tech-debt-register entries without explicit human direction + concrete future dependency + story anchor (Canonical Principle Rule 3)
+
+---
+
+**D-912 burst marker:** 285th consecutive single-commit per TD-VSDD-053. Anti-volatile-pin per TD-VSDD-091.
