@@ -190,6 +190,11 @@ bincode = "2"
 wat = "1"
 # VP-153 Rule C proptest (ShapedProbe injection via step5_init_credential_store_with_probe)
 proptest = "1"
+# S-DEMO-001 adversary pass-1 fix: wiremock for load-bearing HTTP boundary assertions.
+# F-001/F-004/F-009: tests must mock real HTTP responses (200 with JSON, double-401,
+# Cookie header inspection) to assert fetch() behavior. wiremock 0.6 matches
+# prism-spec-engine's existing mock server pattern (SID-1 compliance).
+wiremock = "0.6"
 
 [lints.clippy]
 # Inherited from workspace: workspace lint inheritance is not yet available
