@@ -1,10 +1,10 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "5.66"
+version: "5.67"
 status: draft
-producer: product-owner
-timestamp: 2026-05-31T00:00:00Z
+producer: state-manager
+timestamp: 2026-05-31T12:00:00Z
 phase: 3.A
 total_contracts: 246
 active_contracts: 237
@@ -213,7 +213,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.15.010 | Decorator Three-Phase Model — Config-Time, Query-Time, Periodic | 15 - Storage Layer | CAP-026 | P0 | draft |
 | BC-2.15.011 | Internal Table Registration — RocksDB Domains as DataFusion Tables | 15 - Storage Layer | CAP-028 | P0 | draft |
 | BC-2.16.001 | Sensor Spec File Loading — Parse TOML, Validate Schema, Register Tables | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-776 per POL-14; anchor story PLUGIN-MIGRATION-001-D merged PR #153 develop@3f2de889 2026-05-22) — v1.7 |
-| BC-2.16.002 | Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-427 per POL-14; anchor story S-PLUGIN-PREREQ-B merged PR #143 develop@ae7e26c8 2026-05-12) — v1.60 |
+| BC-2.16.002 | Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-427 per POL-14; anchor story S-PLUGIN-PREREQ-B merged PR #143 develop@ae7e26c8 2026-05-12) — v1.61 |
 | BC-2.16.003 | Column-to-OCSF Mapping at Query Time — Map Sensor Columns to OCSF Fields Per Spec | 16 - Spec Engine | CAP-029 | P0 | draft |
 | BC-2.16.004 | ~~Rust Escape Hatch for Custom Adapters — Trait-Based Override When Config Is Insufficient~~ | 16 - Spec Engine | CAP-029 | P0 | removed (lifecycle_status: removed since PREREQ-E impl; status aligned at D-726 per POL-14 PR #151 merge) — v1.5 |
 | BC-2.16.005 | `reload_config` MCP Tool — Re-Read All Config Files, Validate, Atomic Swap, Notify | 16 - Spec Engine | CAP-030 | P1 | draft |
@@ -376,6 +376,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v5.67 (2026-05-31, D-921 SAP-1 catalog-row burst):** state-manager | BC-2.16.002 v1.60→v1.61 (SAP-1/PG-LP11-001 catalog row 69 added by product-owner for `boot.step9a.adapter_registry_populated` INFO event; S-DEMO-001 keystone implementation; SAP-1 obligation CLOSED). BC-INDEX in-line row 216 updated to v1.61. No lifecycle_status change — BC-2.16.002 remains active. BC-INDEX v5.66→v5.67.
 
 **v5.66 (2026-05-31, D-914 env-var prereq burst):** state-manager | BC-2.16.009 v1.5→v1.6 (AC-6 ${env.VAR} token resolution added by product-owner D-914 burst: E-SPEC-024 error path, AD-017 no-value-leak, fail-closed, partial interpolation, sibling-sweep TD-VSDD-060). BC-INDEX in-line row updated to v1.6. No lifecycle_status change — BC-2.16.009 remains active. BC-INDEX v5.65→v5.66.
 
