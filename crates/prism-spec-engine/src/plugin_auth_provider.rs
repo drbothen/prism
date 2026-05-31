@@ -33,15 +33,16 @@
 //! `acquire_token` method returns `Pin<Box<dyn Future<...>>>` — the canonical Rust pattern
 //! for object-safe async traits (established in S-PLUGIN-PREREQ-B).
 
-use std::future::Future;
-use std::pin::Pin;
-use std::sync::Arc;
+use std::{future::Future, pin::Pin, sync::Arc};
 
-use crate::auth_provider::{AuthProvider, AuthToken};
-use crate::error::SpecEngineError;
-use crate::plugin::{PluginConfigMap, PluginRuntime};
-use crate::spec_parser::SensorSpec;
 use prism_core::OrgSlug;
+
+use crate::{
+    auth_provider::{AuthProvider, AuthToken},
+    error::SpecEngineError,
+    plugin::{PluginConfigMap, PluginRuntime},
+    spec_parser::SensorSpec,
+};
 
 /// `AuthProvider` backed by a loaded WASM sensor-auth plugin.
 ///

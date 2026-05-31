@@ -17,10 +17,9 @@
 
 use std::time::Duration;
 
-use serde_json::json;
-
 use prism_core::error::PrismError;
 use prism_security::confirmation_token::ConfirmationTokenStore;
+use serde_json::json;
 
 fn make_store() -> ConfirmationTokenStore {
     ConfirmationTokenStore::new()

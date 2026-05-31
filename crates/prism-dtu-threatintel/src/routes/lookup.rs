@@ -3,6 +3,8 @@
 //! All handlers increment the request counter and enforce rate-limit and auth checks.
 //! Fixture dispatch is keyed by the lookup value string.
 
+use std::sync::Arc;
+
 use axum::{
     extract::{Path, Query, State},
     http::{HeaderMap, StatusCode},
@@ -11,11 +13,9 @@ use axum::{
 };
 use serde::Deserialize;
 use serde_json::{json, Value};
-use std::sync::Arc;
 use subtle::ConstantTimeEq;
 
-use crate::state::ThreatIntelState;
-use crate::types::FixtureKey;
+use crate::{state::ThreatIntelState, types::FixtureKey};
 
 /// Query parameters for lookup endpoints (API key via `?key=`).
 #[derive(Debug, Deserialize)]

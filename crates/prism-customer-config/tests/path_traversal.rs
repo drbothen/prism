@@ -15,10 +15,9 @@
 //! BC-3.3.004 = BC-3.3.004 → S=3, SS=3 (using section 3.3), NNN=004.
 //! AC-NNN prefix indicates the acceptance criterion being exercised.
 
-use prism_customer_config::error::ConfigError;
-use prism_customer_config::load_and_validate;
-use prism_customer_config::validator::validate_spec_path;
 use std::fs;
+
+use prism_customer_config::{error::ConfigError, load_and_validate, validator::validate_spec_path};
 use tempfile::TempDir;
 
 // ---------------------------------------------------------------------------

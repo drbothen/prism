@@ -13,17 +13,18 @@
 //!
 //! The `fan_out_batches` pure function is unchanged.
 
-use std::collections::HashMap;
-use std::time::Duration;
+use std::{collections::HashMap, time::Duration};
 
 use chrono::{DateTime, TimeZone, Utc};
 use percent_encoding::{NON_ALPHANUMERIC, utf8_percent_encode};
 use prism_core::{ColumnType, OrgSlug};
 
-use crate::auth_provider::{AuthProvider, AuthToken};
-use crate::error::SpecEngineError;
-use crate::interpolation::{InterpolationContext, Interpolator};
-use crate::spec_parser::{ColumnSpec, FetchStep, PaginationConfig, SensorSpec, TableSpec};
+use crate::{
+    auth_provider::{AuthProvider, AuthToken},
+    error::SpecEngineError,
+    interpolation::{InterpolationContext, Interpolator},
+    spec_parser::{ColumnSpec, FetchStep, PaginationConfig, SensorSpec, TableSpec},
+};
 
 /// Maximum records materialised per pipeline execution (DI-019 / AC-8).
 const MAX_PIPELINE_RECORDS: usize = 10_000;
@@ -197,8 +198,8 @@ impl PipelineExecutor {
         let mut is_first_pipeline_request = true;
 
         // Eager token acquisition: acquire_token is called BEFORE the steps loop
-        // (F-LP5-LOW-003 closure). AuthType has no Null variant — all 4 variants
-        // (Oauth2ClientCredentials, BearerStatic, CookieRoundtrip, ApiKey) require auth.
+        // (F-LP5-LOW-003 closure). AuthType has no Null variant — all 5 variants
+        // (Oauth2ClientCredentials, BearerStatic, CookieRoundtrip, ApiKey, CustomViaPlugin) require auth.
         // NullAuthProvider (test-only) returns an empty token without I/O.
         //
         // TD-S-PLUGIN-PREREQ-B-010 CLOSED: lazy-token-on-401 design replaced by eager
@@ -718,26 +719,60 @@ async fn issue_request_with_retry(
     step_vars: &HashMap<String, serde_json::Value>,
 ) -> Result<(serde_json::Value, AuthToken), SpecEngineError> {
     // Issue the first request.
-    let response = build_request(http_client, step, url, &current_token, step_vars)
-        .map_err(|e| SpecEngineError::HttpRequestFailed {
-            sensor_id: spec.sensor_id.clone(),
-            step_name: step.name.clone(),
-            status_code: 0,
-            detail: format!("body interpolation failed: {e}"),
-        })?
-        .send()
-        .await
-        .map_err(|e| SpecEngineError::HttpRequestFailed {
-            sensor_id: spec.sensor_id.clone(),
-            step_name: step.name.clone(),
-            status_code: 0,
-            detail: e.to_string(),
-        })?;
+    let response = build_request(
+        http_client,
+        step,
+        url,
+        &current_token,
+        &spec.auth_type,
+        step_vars,
+    )
+    .map_err(|e| SpecEngineError::HttpRequestFailed {
+        sensor_id: spec.sensor_id.clone(),
+        step_name: step.name.clone(),
+        status_code: 0,
+        detail: format!("body interpolation failed: {e}"),
+    })?
+    .send()
+    .await
+    .map_err(|e| SpecEngineError::HttpRequestFailed {
+        sensor_id: spec.sensor_id.clone(),
+        step_name: step.name.clone(),
+        status_code: 0,
+        detail: e.to_string(),
+    })?;
     *request_count += 1;
 
     let status = response.status();
 
     if status == reqwest::StatusCode::UNAUTHORIZED {
+        // BC-2.01.017 EC-017-002 / TV-BC-2.01.017-006: discriminator guard for static auth.
+        //
+        // `CookieRoundtrip` uses a static API key — `acquire_token()` just re-reads
+        // the same key from the credential store, so retrying would send the same
+        // (already-rejected) token again. The retry is provably futile.
+        //
+        // For static auth types, skip the entire OAuth2-style refresh-retry block and
+        // immediately surface E-AUTH-004 as a per-sensor partial failure
+        // (BC-2.01.010 partial-failure fan-out semantics).
+        //
+        // The OAuth2 refresh-retry path below MUST remain UNCHANGED for
+        // `Oauth2ClientCredentials` (and other non-static auth types).
+        if spec.auth_type == crate::spec_parser::AuthType::CookieRoundtrip {
+            tracing::warn!(
+                event_type = "cookie_auth_401",
+                sensor_id = %spec.sensor_id,
+                client_id = %client_id,
+                step_name = %step.name,
+                "CookieRoundtrip sensor received 401 — static API key rejected; \
+                 no retry (BC-2.01.017 EC-017-002)"
+            );
+            return Err(SpecEngineError::CookieAuthFailed {
+                sensor_id: spec.sensor_id.clone(),
+                client_id: client_id.to_string(),
+            });
+        }
+
         // F-LP1-HIGH-003 (AC-5 audit): log auth refresh event. Token value is NEVER logged.
         tracing::warn!(
             event_type = "auth_refresh_triggered",
@@ -772,21 +807,28 @@ async fn issue_request_with_retry(
             }
         };
 
-        let retry_response = build_request(http_client, step, url, &fresh_token, step_vars)
-            .map_err(|e| SpecEngineError::HttpRequestFailed {
-                sensor_id: spec.sensor_id.clone(),
-                step_name: step.name.clone(),
-                status_code: 0,
-                detail: format!("body interpolation failed on retry: {e}"),
-            })?
-            .send()
-            .await
-            .map_err(|e| SpecEngineError::HttpRequestFailed {
-                sensor_id: spec.sensor_id.clone(),
-                step_name: step.name.clone(),
-                status_code: 0,
-                detail: e.to_string(),
-            })?;
+        let retry_response = build_request(
+            http_client,
+            step,
+            url,
+            &fresh_token,
+            &spec.auth_type,
+            step_vars,
+        )
+        .map_err(|e| SpecEngineError::HttpRequestFailed {
+            sensor_id: spec.sensor_id.clone(),
+            step_name: step.name.clone(),
+            status_code: 0,
+            detail: format!("body interpolation failed on retry: {e}"),
+        })?
+        .send()
+        .await
+        .map_err(|e| SpecEngineError::HttpRequestFailed {
+            sensor_id: spec.sensor_id.clone(),
+            step_name: step.name.clone(),
+            status_code: 0,
+            detail: e.to_string(),
+        })?;
         *request_count += 1;
 
         let retry_status = retry_response.status();
@@ -857,11 +899,22 @@ async fn issue_request_with_retry(
 /// Content-Type is derived from body shape:
 ///   - JSON object (`{...}`) → `application/json`
 ///   - Otherwise → `application/x-www-form-urlencoded`
+///
+/// ## Auth Header Dispatch (ADR-031 §D3-b / AC-007 S-DTU-CYBERINT-AUTH-FIDELITY-001)
+///
+/// | AuthType | Header injected |
+/// |----------|----------------|
+/// | `CookieRoundtrip` | `Cookie: access_token={token}` |
+/// | All other variants | `Authorization: Bearer {token}` |
+///
+/// Cookie name MUST be `access_token`. The former `cyberint_session` value is permanently
+/// superseded per ADR-031 §D3 and §D4.
 fn build_request(
     http_client: &reqwest::Client,
     step: &FetchStep,
     url: &str,
     token: &AuthToken,
+    auth_type: &crate::spec_parser::AuthType,
     step_vars: &HashMap<String, serde_json::Value>,
 ) -> Result<reqwest::RequestBuilder, String> {
     let method = match step.method.to_ascii_uppercase().as_str() {
@@ -874,9 +927,18 @@ fn build_request(
 
     let mut req = http_client.request(method, url);
 
-    // Add bearer token if non-empty.
+    // Auth header dispatch per auth_type (ADR-031 §D3-b; AC-007).
     if !token.as_str().is_empty() {
-        req = req.header("Authorization", format!("Bearer {}", token.as_str()));
+        req = match auth_type {
+            crate::spec_parser::AuthType::CookieRoundtrip => {
+                // ADR-031 §D3-b / AC-007: inject Cookie header with access_token.
+                // Cookie name MUST be 'access_token' — NOT 'cyberint_session' (permanently
+                // superseded per ADR-031 §D3 and §D4). INV-COOKIE-004: Authorization header
+                // MUST NOT be set for CookieRoundtrip sensors.
+                req.header("Cookie", format!("access_token={}", token.as_str()))
+            }
+            _ => req.header("Authorization", format!("Bearer {}", token.as_str())),
+        };
     }
 
     // F-LP1-CRIT-001: Add request body for POST/PUT/PATCH.
@@ -1588,20 +1650,25 @@ pub(crate) fn normalize_timestamp_fields(
 
 #[cfg(test)]
 mod execute_step_tests {
-    use std::collections::HashMap;
-    use std::sync::{Arc, Mutex};
-
-    use prism_core::OrgSlug;
-    use tracing_subscriber::util::SubscriberInitExt;
-    use wiremock::matchers::{method as wm_method, path as wm_path};
-    use wiremock::{Mock as WmMock, MockServer, ResponseTemplate};
-
-    use crate::auth_provider::{
-        AuthOutcome, ChainAuthProvider, FailingAuthProvider, MockAuthProvider, NullAuthProvider,
+    use std::{
+        collections::HashMap,
+        sync::{Arc, Mutex},
     };
-    use crate::pipeline::{FetchContext, PipelineExecutor};
-    use crate::spec_parser::{AuthType, ColumnSpec, FetchStep, SensorSpec, TableSpec};
-    use prism_core::ColumnType;
+
+    use prism_core::{ColumnType, OrgSlug};
+    use tracing_subscriber::util::SubscriberInitExt;
+    use wiremock::{
+        Mock as WmMock, MockServer, ResponseTemplate,
+        matchers::{method as wm_method, path as wm_path},
+    };
+
+    use crate::{
+        auth_provider::{
+            AuthOutcome, ChainAuthProvider, FailingAuthProvider, MockAuthProvider, NullAuthProvider,
+        },
+        pipeline::{FetchContext, PipelineExecutor},
+        spec_parser::{AuthType, ColumnSpec, FetchStep, SensorSpec, TableSpec},
+    };
 
     // ---------------------------------------------------------------------------
     // Log-capture helper — returns the buffer + a DefaultGuard that installs
@@ -2359,8 +2426,9 @@ mod cursor_page_size_tests {
 
 #[cfg(test)]
 mod jsonpath_bracket_tests {
-    use super::extract_at_path;
     use serde_json::json;
+
+    use super::extract_at_path;
 
     /// AC-2(a): `$.devices[0].id` on an array-valued JSON object extracts the first element.
     ///
@@ -2537,10 +2605,10 @@ mod jsonpath_bracket_tests {
 
 #[cfg(test)]
 mod proptest_extract_at_path {
-    use super::extract_at_path;
-
     use proptest::prelude::*;
     use serde_json::Value;
+
+    use super::extract_at_path;
 
     /// Generate an arbitrary JSON leaf value.
     fn json_leaf() -> impl Strategy<Value = Value> {
@@ -2602,8 +2670,7 @@ mod timestamp_normalization_tests {
     use serde_json::json;
 
     use super::normalize_timestamp_fields;
-    use crate::error::SpecEngineError;
-    use crate::spec_parser::ColumnSpec;
+    use crate::{error::SpecEngineError, spec_parser::ColumnSpec};
 
     // -----------------------------------------------------------------------
     // Helper: build a single-column Datetime ColumnSpec.

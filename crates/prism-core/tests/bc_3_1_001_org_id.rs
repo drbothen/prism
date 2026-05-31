@@ -23,8 +23,9 @@
 //! | test_bc_3_1_001_ec_002_two_new_both_valid_v7       | EC-002| passes |
 //! | test_bc_3_1_001_ec_003_hashmap_key_stores_values   | EC-003| passes |
 
-use prism_core::OrgId;
 use std::collections::HashMap;
+
+use prism_core::OrgId;
 use uuid::Uuid;
 
 // ── AC-1: OrgId::new() generates a v7 UUID ─────────────────────────────────

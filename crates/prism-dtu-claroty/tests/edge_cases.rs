@@ -10,10 +10,11 @@
 //! | EC-005 | 422 simulation via FailureLayer → maps to E-SENSOR-004 |
 //! | EC-006 | Latency simulation via LatencyLayer → elapsed time ≥ configured delay |
 
+use std::time::Instant;
+
 use prism_dtu_claroty::ClarotyClone;
 use prism_dtu_common::BehavioralClone;
 use serde_json::json;
-use std::time::Instant;
 
 async fn start_clone() -> (ClarotyClone, String, String) {
     let mut clone = ClarotyClone::new();

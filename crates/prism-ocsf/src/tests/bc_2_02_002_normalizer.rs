@@ -22,11 +22,11 @@
 //! test (`test_BC_2_02_002_normalized_message_has_class_uid_2004`) remains ignored
 //! pending S-1.05 sensor-specific field mappers.
 
+use prism_core::PrismError;
 use prost_reflect::ReflectMessage;
 use serde_json::json;
 
 use crate::normalizer::OcsfNormalizer;
-use prism_core::PrismError;
 
 /// BC-2.02.002 / AC-3 / TV-BC-2.02.002-001:
 /// Raw CrowdStrike detection JSON produces a DynamicMessage.

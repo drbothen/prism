@@ -14,10 +14,10 @@
 //! Tests cover AC-9 (buffered) and AC-10 (live) for `inject_source_type`.
 //! RED-by-design state was resolved at the S-2.08 impl commit.
 
-use crate::materialization::inject_source_type;
-use crate::types::SensorQueryDescriptor;
 use prism_core::TableType;
 use serde_json::json;
+
+use crate::{materialization::inject_source_type, types::SensorQueryDescriptor};
 
 // ---------------------------------------------------------------------------
 // Fixtures

@@ -14,8 +14,10 @@
 
 use prism_core::{SpecError, SpecErrorCode};
 
-use crate::interpolation::Interpolator;
-use crate::spec_parser::{FetchStep, PaginationConfig, SensorSpec};
+use crate::{
+    interpolation::Interpolator,
+    spec_parser::{FetchStep, PaginationConfig, SensorSpec},
+};
 
 /// Return a byte-index-safe prefix of `s` containing at most `max_chars` Unicode codepoints.
 ///

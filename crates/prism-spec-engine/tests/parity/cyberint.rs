@@ -16,13 +16,16 @@
 //! AC coverage: AC-009 (Cyberint DTU parity + incidents SKIP), PLUGIN-MIGRATION-001-F AC-001 (TOML fixture loading)
 //! HS coverage: HS-015
 
+use std::collections::HashMap;
+
 use prism_core::OrgSlug;
 use prism_dtu_common::BehavioralClone;
 use prism_dtu_cyberint::CyberintClone;
-use prism_spec_engine::NullAuthProvider;
-use prism_spec_engine::pipeline::{FetchContext, PipelineExecutor};
-use prism_spec_engine::spec_parser::SpecLoader;
-use std::collections::HashMap;
+use prism_spec_engine::{
+    NullAuthProvider,
+    pipeline::{FetchContext, PipelineExecutor},
+    spec_parser::SpecLoader,
+};
 
 fn canonicalize_ocsf(value: &serde_json::Value) -> String {
     serde_json::to_string(&normalize_for_parity(value))
@@ -138,7 +141,11 @@ async fn test_BC_2_16_013_dtu_parity_cyberint() {
         .expect("cyberint spec must declare an 'alerts' table");
 
     // Step 4: FetchContext.
-    // NullAuthProvider is sufficient for DTU (cookie check validates non-empty cyberint_session cookie).
+    // NullAuthProvider is used here because this test is tagged #[ignore] and is not live.
+    // The production path uses StaticCookieAuthProvider injecting `access_token` cookie
+    // per BC-2.01.017 §Postconditions P2 / ADR-031 §D3-a. When this test is ungated
+    // (S-6.09), replace NullAuthProvider with StaticCookieAuthProvider wired to the DTU
+    // test credential to exercise the full auth path.
     let context = FetchContext::new(OrgSlug::new("test-org"), HashMap::new());
 
     // Step 5: HTTP client with 30-second timeout.

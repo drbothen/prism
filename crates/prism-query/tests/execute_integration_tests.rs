@@ -17,19 +17,22 @@
 
 use std::sync::{Arc, Mutex};
 
-use arrow::array::{Array, StringArray};
-use arrow::datatypes::{DataType, Field, Schema};
-use arrow::record_batch::RecordBatch;
+use arrow::{
+    array::{Array, StringArray},
+    datatypes::{DataType, Field, Schema},
+    record_batch::RecordBatch,
+};
 use async_trait::async_trait;
 use datafusion::execution::context::SessionContext;
 use prism_core::{OrgSlug, PrismError, StorageDomain};
 use prism_ocsf::OcsfNormalizer;
-use prism_query::engine::QueryOptions;
-use prism_query::internal_tables::register_internal_tables;
-use prism_query::materialization::{run_materialization_pipeline, MaterializationContext};
+use prism_query::{
+    engine::QueryOptions,
+    internal_tables::register_internal_tables,
+    materialization::{run_materialization_pipeline, MaterializationContext},
+};
 use prism_sensors::AdapterRegistry;
-use prism_storage::backend::RocksStorageBackend;
-use prism_storage::memory_backend::InMemoryBackend;
+use prism_storage::{backend::RocksStorageBackend, memory_backend::InMemoryBackend};
 
 // ---------------------------------------------------------------------------
 // Test Helpers
@@ -38,21 +41,23 @@ use prism_storage::memory_backend::InMemoryBackend;
 mod helpers {
     use std::sync::Arc;
 
-    use arrow::array::StringArray;
-    use arrow::datatypes::{DataType, Field, Schema};
-    use arrow::record_batch::RecordBatch;
+    use arrow::{
+        array::StringArray,
+        datatypes::{DataType, Field, Schema},
+        record_batch::RecordBatch,
+    };
     use async_trait::async_trait;
     use datafusion::execution::context::SessionContext;
     use prism_core::{OrgSlug, PrismError, StorageDomain};
-    use prism_credentials::namespace::CredentialName;
-    use prism_credentials::CredentialStore;
+    use prism_credentials::{namespace::CredentialName, CredentialStore};
     use prism_ocsf::OcsfNormalizer;
-    use prism_query::engine::{QueryEngine, QueryEngineConfig};
-    use prism_query::materialization::MaterializationContext;
-    use prism_query::scoping::ClientRegistry;
+    use prism_query::{
+        engine::{QueryEngine, QueryEngineConfig},
+        materialization::MaterializationContext,
+        scoping::ClientRegistry,
+    };
     use prism_sensors::{AdapterRegistry, CredentialResolver};
-    use prism_storage::backend::RocksStorageBackend;
-    use prism_storage::memory_backend::InMemoryBackend;
+    use prism_storage::{backend::RocksStorageBackend, memory_backend::InMemoryBackend};
     use secrecy::SecretString;
 
     // -----------------------------------------------------------------------
@@ -225,8 +230,10 @@ mod helpers {
     // -----------------------------------------------------------------------
 
     use prism_core::{OrgId, SensorId};
-    use prism_sensors::adapter::{QueryParams, SensorAdapter, SensorError, SensorSpec};
-    use prism_sensors::auth::SensorAuth;
+    use prism_sensors::{
+        adapter::{QueryParams, SensorAdapter, SensorError, SensorSpec},
+        auth::SensorAuth,
+    };
 
     /// Minimal sensor adapter that returns a configurable number of rows with a
     /// `detection_id` column.  Used in tests that need real row data to exercise
@@ -485,9 +492,11 @@ async fn test_AC_3_size_limit_returns_e_query_003() {
 async fn test_AC_4_filter_pushdown_passed_to_adapter() {
     use prism_core::{OrgId, SensorId};
     use prism_query::engine::QueryOptions;
-    use prism_sensors::adapter::{QueryParams, SensorAdapter, SensorError, SensorSpec};
-    use prism_sensors::auth::SensorAuth;
-    use prism_sensors::types::FilterMap;
+    use prism_sensors::{
+        adapter::{QueryParams, SensorAdapter, SensorError, SensorSpec},
+        auth::SensorAuth,
+        types::FilterMap,
+    };
     use serde_json::json;
 
     /// Spy that records `QueryParams.filters` from every `fetch()` invocation.
@@ -592,8 +601,9 @@ async fn test_AC_4_filter_pushdown_passed_to_adapter() {
 /// would return E-QUERY-011 (tested separately in `test_LP2_CRIT_1_scan_time_gate_rejects_*`).
 #[tokio::test]
 async fn test_AC_5_register_internal_tables_then_query_prism_audit() {
-    use prism_query::engine::Capability;
-    use prism_query::internal_tables::register_internal_tables_with_capabilities;
+    use prism_query::{
+        engine::Capability, internal_tables::register_internal_tables_with_capabilities,
+    };
 
     let storage = helpers::make_storage();
 
@@ -644,8 +654,7 @@ async fn test_AC_5_register_internal_tables_then_query_prism_audit() {
 /// Red-Gate: panics at `todo!("S-3.02 — QueryEngine::execute")`.
 #[tokio::test]
 async fn test_AC_6_cross_client_query_all_scope_fans_out() {
-    use prism_core::SensorId;
-    use prism_core::{OrgId, OrgRegistry};
+    use prism_core::{OrgId, OrgRegistry, SensorId};
     use prism_query::engine::{QueryEngine, QueryEngineConfig, QueryOptions};
 
     let org_acme = helpers::org("acme");
@@ -1276,10 +1285,11 @@ async fn test_CRIT_1_internal_table_queryable_through_execute() {
 /// properly-encoded entry, then queries through `QueryEngine::execute`.
 #[tokio::test]
 async fn test_HIGH_2_audit_entry_bincode_deserialization() {
+    use std::collections::BTreeMap;
+
     use arrow::array::UInt64Array;
     use prism_query::engine::{Capability, QueryEngine, QueryEngineConfig, QueryOptions};
     use prism_storage::audit_buffer::{append_audit_entry, AuditEntry};
-    use std::collections::BTreeMap;
 
     let org_slug = helpers::org("acme");
     let storage = helpers::make_storage();
@@ -1645,8 +1655,10 @@ async fn test_LP2_CRIT_1_having_subquery_blocked_without_audit_read() {
 #[tokio::test]
 async fn test_LP2_CRIT_1_scan_time_gate_rejects_without_audit_read() {
     use datafusion::datasource::TableProvider;
-    use prism_query::engine::Capability;
-    use prism_query::internal_tables::{InternalTableDescriptor, RocksDbTableProvider};
+    use prism_query::{
+        engine::Capability,
+        internal_tables::{InternalTableDescriptor, RocksDbTableProvider},
+    };
     use prism_storage::memory_backend::InMemoryBackend;
 
     let storage = Arc::new(InMemoryBackend::new());
@@ -1694,8 +1706,10 @@ async fn test_LP2_CRIT_1_scan_time_gate_rejects_without_audit_read() {
 #[tokio::test]
 async fn test_LP2_CRIT_1_descriptor_driven_non_audit_table_also_gated() {
     use datafusion::datasource::TableProvider;
-    use prism_query::engine::Capability;
-    use prism_query::internal_tables::{InternalTableDescriptor, RocksDbTableProvider};
+    use prism_query::{
+        engine::Capability,
+        internal_tables::{InternalTableDescriptor, RocksDbTableProvider},
+    };
     use prism_storage::memory_backend::InMemoryBackend;
 
     let storage = Arc::new(InMemoryBackend::new());
@@ -1737,8 +1751,10 @@ async fn test_LP2_CRIT_1_descriptor_driven_non_audit_table_also_gated() {
 #[tokio::test]
 async fn test_LP2_CRIT_1_scan_time_gate_allows_with_audit_read() {
     use datafusion::datasource::TableProvider;
-    use prism_query::engine::Capability;
-    use prism_query::internal_tables::{InternalTableDescriptor, RocksDbTableProvider};
+    use prism_query::{
+        engine::Capability,
+        internal_tables::{InternalTableDescriptor, RocksDbTableProvider},
+    };
     use prism_storage::memory_backend::InMemoryBackend;
 
     let storage = Arc::new(InMemoryBackend::new());
@@ -1843,8 +1859,10 @@ async fn test_AC_2_materialization_pipeline_non_vacuous_assertion() {
 async fn test_LP2_MED_2_cache_key_includes_filters() {
     use prism_core::OrgId;
     use prism_query::engine::QueryOptions;
-    use prism_sensors::adapter::{QueryParams, SensorAdapter, SensorError, SensorSpec};
-    use prism_sensors::auth::SensorAuth;
+    use prism_sensors::{
+        adapter::{QueryParams, SensorAdapter, SensorError, SensorSpec},
+        auth::SensorAuth,
+    };
 
     struct CountingAdapter {
         call_count: Arc<std::sync::atomic::AtomicUsize>,
@@ -2077,11 +2095,12 @@ async fn test_HIGH_7_limit_exactly_1000_pipeline_success_with_stub() {
 /// The test verifies the correct variant, not a string code, to avoid brittle assertions.
 #[tokio::test]
 async fn test_AC_timeout_returns_query_timeout_error() {
-    use prism_core::OrgId;
-    use prism_core::SensorId;
+    use prism_core::{OrgId, SensorId};
     use prism_query::engine::{QueryEngine, QueryEngineConfig, QueryOptions};
-    use prism_sensors::adapter::{QueryParams, SensorAdapter, SensorError, SensorSpec};
-    use prism_sensors::auth::SensorAuth;
+    use prism_sensors::{
+        adapter::{QueryParams, SensorAdapter, SensorError, SensorSpec},
+        auth::SensorAuth,
+    };
 
     /// Adapter that sleeps for 2 seconds, causing a 1s timeout to fire.
     struct SlowAdapter;

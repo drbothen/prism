@@ -17,10 +17,11 @@
 //! All tests are regression guards verifying implemented behavior. No stubs remain.
 
 use prism_core::error::PrismError;
-use prism_mcp::error_mapping::codes;
-use prism_mcp::error_mapping::map_prism_error;
-use prism_mcp::safety_envelope::{DataSource, SafetyEnvelopeBuilder};
-use prism_mcp::tool_registry::{ToolDescriptionRegistrar, ToolRegistration};
+use prism_mcp::{
+    error_mapping::{codes, map_prism_error},
+    safety_envelope::{DataSource, SafetyEnvelopeBuilder},
+    tool_registry::{ToolDescriptionRegistrar, ToolRegistration},
+};
 use prism_security::injection_scanner::{InjectionScanner, ScanInput};
 use serde_json::json;
 
@@ -360,8 +361,9 @@ fn test_BC_2_09_006_tool_descriptions_contain_security_warnings() {
 /// accidentally dropped when editing tool attributes.
 #[test]
 fn test_BC_2_09_006_all_inline_sensor_tool_descriptions_have_9_sections() {
-    use prism_security::ToolDescriptionTemplate;
     use std::path::Path;
+
+    use prism_security::ToolDescriptionTemplate;
 
     let src = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("src")
@@ -677,8 +679,9 @@ fn test_BC_2_10_007_parse_error_message_contains_prismql() {
 /// a full WriteExecutor or rmcp runtime.
 #[test]
 fn test_confirm_action_peek_reads_stored_token_without_consuming() {
-    use prism_security::confirmation_token::ConfirmationTokenStore;
     use std::sync::Arc;
+
+    use prism_security::confirmation_token::ConfirmationTokenStore;
 
     let store = Arc::new(ConfirmationTokenStore::new());
     let client_id = "acme-corp";
@@ -827,12 +830,10 @@ fn test_confirm_action_peek_reads_stored_token_without_consuming() {
 #[test]
 #[allow(non_snake_case)]
 fn test_BC_2_04_009_bounding_metadata_round_trip_passes_phase2_check() {
-    use prism_query::safety_check::check_unbounded_write;
-    use prism_query::write_pipeline::WritePlan;
-    use prism_security::confirmation_token::ConfirmationTokenStore;
-    use prism_security::BoundingMetadata;
-    use std::collections::HashMap;
-    use std::sync::Arc;
+    use std::{collections::HashMap, sync::Arc};
+
+    use prism_query::{safety_check::check_unbounded_write, write_pipeline::WritePlan};
+    use prism_security::{confirmation_token::ConfirmationTokenStore, BoundingMetadata};
 
     let store = Arc::new(ConfirmationTokenStore::new());
     let client_id = "acme";
@@ -924,12 +925,10 @@ fn test_BC_2_04_009_bounding_metadata_round_trip_passes_phase2_check() {
 #[test]
 #[allow(non_snake_case)]
 fn test_BC_2_04_009_unbounded_token_still_fails_safety_check() {
-    use prism_query::safety_check::check_unbounded_write;
-    use prism_query::write_pipeline::WritePlan;
-    use prism_security::confirmation_token::ConfirmationTokenStore;
-    use prism_security::BoundingMetadata;
-    use std::collections::HashMap;
-    use std::sync::Arc;
+    use std::{collections::HashMap, sync::Arc};
+
+    use prism_query::{safety_check::check_unbounded_write, write_pipeline::WritePlan};
+    use prism_security::{confirmation_token::ConfirmationTokenStore, BoundingMetadata};
 
     let store = Arc::new(ConfirmationTokenStore::new());
     let client_id = "acme";
@@ -1001,14 +1000,14 @@ fn test_BC_2_04_009_unbounded_token_still_fails_safety_check() {
 #[test]
 #[allow(non_snake_case)]
 fn test_BC_2_04_009_dml_operation_round_trip_preserves_delete_irreversible() {
-    use prism_core::RiskTier;
-    use prism_query::safety_check::classify_risk_tier;
-    use prism_query::write_ast::DmlOperation;
-    use prism_query::write_pipeline::WritePlan;
-    use prism_security::confirmation_token::ConfirmationTokenStore;
-    use prism_security::BoundingMetadata;
-    use prism_spec_engine::write_endpoint::{BatchMode, WriteEndpointSpec, WriteStep};
     use std::collections::HashMap;
+
+    use prism_core::RiskTier;
+    use prism_query::{
+        safety_check::classify_risk_tier, write_ast::DmlOperation, write_pipeline::WritePlan,
+    };
+    use prism_security::{confirmation_token::ConfirmationTokenStore, BoundingMetadata};
+    use prism_spec_engine::write_endpoint::{BatchMode, WriteEndpointSpec, WriteStep};
 
     let store = ConfirmationTokenStore::new();
     let client_id = "acme";

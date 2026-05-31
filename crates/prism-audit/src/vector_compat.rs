@@ -18,8 +18,9 @@
 //! - The entire audit entry is emitted as single-line JSON — no multi-line
 //!   pretty-printing (BC-2.05.007).
 
-use crate::audit_entry::AuditEntry;
 use serde_json::Value;
+
+use crate::audit_entry::AuditEntry;
 
 // ── Newtype wrapper ───────────────────────────────────────────────────────────
 

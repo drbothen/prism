@@ -35,8 +35,11 @@ requests_per_second = 10.0
 table_name = "detections"
 ocsf_class = "security_finding"
 
+  # detection_id is CrowdStrike's native detection primary key.
+  # DTU fixture keys records by detection_id (routes/detections.rs: record.get("detection_id")).
+  # Gap-CS-001 fix: renamed from "id" to "detection_id" to match DTU fixture and real API field.
   [[tables.columns]]
-  name = "id"
+  name = "detection_id"
   column_type = "string"
   ocsf_field = "finding.uid"
   options = ["REQUIRED"]

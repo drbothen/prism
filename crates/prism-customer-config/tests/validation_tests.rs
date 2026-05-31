@@ -17,11 +17,10 @@
 //! layout violations (BC-3.7.001 / ADR-012). Static fixture files live in
 //! `crates/prism-customer-config/fixtures/` per the post-S-3.5.01 convention.
 
-use std::fs;
-use std::path::PathBuf;
-use tempfile::TempDir;
+use std::{fs, path::PathBuf};
 
 use prism_customer_config::{load_and_validate, ConfigError};
+use tempfile::TempDir;
 
 // ---------------------------------------------------------------------------
 // Helper: write a named TOML file into a TempDir and return the dir + path.

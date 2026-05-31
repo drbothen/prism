@@ -19,12 +19,15 @@
 //! # Status
 //! All tests pass (S-2.08 implementation complete).
 
-use std::sync::Arc;
-use std::time::{Duration, SystemTime};
+use std::{
+    sync::Arc,
+    time::{Duration, SystemTime},
+};
 
-use crate::event_buffer::{EventBufferStore, NormalizedRecord};
 use prism_storage::backend::RocksStorageBackend;
 use serde_json::json;
+
+use crate::event_buffer::{EventBufferStore, NormalizedRecord};
 
 // ---------------------------------------------------------------------------
 // Test helper: minimal no-op mock backend

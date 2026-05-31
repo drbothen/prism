@@ -54,8 +54,10 @@
 //! - BC-3.5.002 — Harness Network Isolation Invariants
 //! - ADR-011 §2.2 — in-process org-keyed routing
 
-use std::collections::{HashMap, HashSet};
-use std::sync::{Arc, Mutex};
+use std::{
+    collections::{HashMap, HashSet},
+    sync::{Arc, Mutex},
+};
 
 use axum::{
     extract::{Path, Query, State},

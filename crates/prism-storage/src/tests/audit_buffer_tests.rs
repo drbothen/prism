@@ -10,11 +10,13 @@
 mod inner {
     use std::collections::BTreeMap;
 
-    use crate::audit_buffer::{
-        append_audit_entry, check_and_purge_overflow, AuditEntry, AUDIT_BUFFER_MAX_ENTRIES,
-        AUDIT_BUFFER_PURGE_TARGET,
+    use crate::{
+        audit_buffer::{
+            append_audit_entry, check_and_purge_overflow, AuditEntry, AUDIT_BUFFER_MAX_ENTRIES,
+            AUDIT_BUFFER_PURGE_TARGET,
+        },
+        memory_backend::InMemoryBackend,
     };
-    use crate::memory_backend::InMemoryBackend;
 
     // ── Helper ────────────────────────────────────────────────────────────────
 
@@ -74,8 +76,9 @@ mod inner {
         append_audit_entry(&backend, &make_entry(300, "trace-late")).expect("write late entry");
 
         // Scan the audit_buffer CF and verify lex order equals timestamp order.
-        use crate::backend::RocksStorageBackend;
         use prism_core::StorageDomain;
+
+        use crate::backend::RocksStorageBackend;
         let all = backend
             .scan(StorageDomain::AuditBuffer, b"audit:")
             .expect("scan must succeed");
@@ -112,8 +115,9 @@ mod inner {
 
         // "Restart" is simulated by re-reading from the same backend (no re-open
         // required for InMemoryBackend; the invariant is that the data persists).
-        use crate::backend::RocksStorageBackend;
         use prism_core::StorageDomain;
+
+        use crate::backend::RocksStorageBackend;
         let all = backend
             .scan(StorageDomain::AuditBuffer, b"audit:")
             .expect("scan after simulated restart");
@@ -141,8 +145,9 @@ mod inner {
         insert_n_entries(&backend, overflow_count);
 
         // Count before purge.
-        use crate::backend::RocksStorageBackend;
         use prism_core::StorageDomain;
+
+        use crate::backend::RocksStorageBackend;
         let before = backend
             .scan(StorageDomain::AuditBuffer, b"audit:")
             .expect("scan before purge")
@@ -191,8 +196,9 @@ mod inner {
             "BC-2.15.004: must return 0 purged entries when buffer is below overflow threshold"
         );
 
-        use crate::backend::RocksStorageBackend;
         use prism_core::StorageDomain;
+
+        use crate::backend::RocksStorageBackend;
         let after = backend
             .scan(StorageDomain::AuditBuffer, b"audit:")
             .expect("scan")
@@ -213,8 +219,9 @@ mod inner {
 
         check_and_purge_overflow(&backend).expect("purge must succeed");
 
-        use crate::backend::RocksStorageBackend;
         use prism_core::StorageDomain;
+
+        use crate::backend::RocksStorageBackend;
         let remaining: Vec<Vec<u8>> = backend
             .scan(StorageDomain::AuditBuffer, b"audit:")
             .expect("scan after purge")
@@ -255,10 +262,13 @@ mod inner {
 mod sync_tests {
     use std::collections::BTreeMap;
 
-    use crate::audit_buffer::{append_audit_entry_sync, AuditEntry, AUDIT_BUFFER_CF_NAME};
-    use crate::backend::RocksStorageBackend;
-    use crate::rocksdb_backend::RocksDbBackend;
     use prism_core::StorageDomain;
+
+    use crate::{
+        audit_buffer::{append_audit_entry_sync, AuditEntry, AUDIT_BUFFER_CF_NAME},
+        backend::RocksStorageBackend,
+        rocksdb_backend::RocksDbBackend,
+    };
 
     /// Open a RocksDbBackend in a TempDir for sync tests.
     /// Returns (backend, _dir) — keep _dir alive.

@@ -19,16 +19,14 @@
 //!
 //! Story: S-1.06 | BC: BC-2.03.003, BC-2.03.004
 
-use std::path::PathBuf;
+use std::{fs, path::PathBuf};
 
-use aes_gcm::aead::Aead;
-use aes_gcm::{Aes256Gcm, KeyInit, Nonce};
+use aes_gcm::{aead::Aead, Aes256Gcm, KeyInit, Nonce};
 use argon2::{Algorithm, Argon2, Params, Version};
 use async_trait::async_trait;
 use prism_core::{OrgId, OrgSlug, PrismError};
 use rand::RngCore;
 use secrecy::{ExposeSecret, SecretString};
-use std::fs;
 
 use crate::{
     namespace::{validate_sensor, CredentialName},

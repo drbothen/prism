@@ -1,9 +1,14 @@
 //! Shared server state: fixture registry and rate-limit counter.
 
+use std::{
+    collections::HashMap,
+    sync::{
+        atomic::{AtomicU32, Ordering},
+        Mutex,
+    },
+};
+
 use crate::types::FixtureKey;
-use std::collections::HashMap;
-use std::sync::atomic::{AtomicU32, Ordering};
-use std::sync::Mutex;
 
 /// Default fixture registry entries required by story spec.
 fn default_registry() -> HashMap<String, FixtureKey> {

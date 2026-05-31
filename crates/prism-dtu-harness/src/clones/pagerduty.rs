@@ -21,8 +21,10 @@
 //! - BC-3.2.004 — shared-mode org-id tagging
 //! - BC-3.5.001 — harness logical isolation
 
-use std::collections::HashMap;
-use std::sync::{atomic::Ordering, Arc, Mutex};
+use std::{
+    collections::HashMap,
+    sync::{atomic::Ordering, Arc, Mutex},
+};
 
 use axum::{
     extract::State,

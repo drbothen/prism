@@ -13,8 +13,7 @@
 
 #![allow(clippy::unwrap_used)]
 
-use std::path::PathBuf;
-use std::process::Command;
+use std::{path::PathBuf, process::Command};
 
 fn prism_bin() -> PathBuf {
     if let Ok(path) = std::env::var("CARGO_BIN_EXE_prism") {

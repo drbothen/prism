@@ -44,8 +44,10 @@
 
 use std::collections::HashMap;
 
-use prism_spec_engine::interpolation::{InterpolationContext, Interpolator};
-use prism_spec_engine::pipeline::PipelineExecutor;
+use prism_spec_engine::{
+    interpolation::{InterpolationContext, Interpolator},
+    pipeline::PipelineExecutor,
+};
 use proptest::prelude::*;
 
 // ---------------------------------------------------------------------------

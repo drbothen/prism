@@ -15,17 +15,19 @@
 //!
 //! Story: S-3.07 | BCs: BC-2.04.007, BC-2.04.008
 
+use std::sync::Arc;
+
 use arrow::record_batch::RecordBatch;
 use prism_core::{PrismError, RiskTier};
-use prism_security::confirmation_token::ConfirmationTokenStore;
-use prism_security::BoundingDmlOperation;
+use prism_security::{confirmation_token::ConfirmationTokenStore, BoundingDmlOperation};
 use serde_json::Value;
-use std::sync::Arc;
 use ulid::Ulid;
 
-use crate::write_ast::DmlOperation;
-use crate::write_pipeline::{QueryContext, WriteOutcome, WritePlan};
-use crate::write_result::{ConfirmationTokenPreview, WritePreview};
+use crate::{
+    write_ast::DmlOperation,
+    write_pipeline::{QueryContext, WriteOutcome, WritePlan},
+    write_result::{ConfirmationTokenPreview, WritePreview},
+};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // DmlOperation → BoundingDmlOperation conversion (OBS-1 fix)
@@ -76,8 +78,9 @@ impl From<BoundingDmlOperation> for DmlOperation {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use prism_security::BoundingDmlOperation;
+
+    use super::*;
 
     /// F-PR163-PASS2-IMP-3: all known BoundingDmlOperation variants map to the
     /// correct DmlOperation, and the wildcard is Delete (fail-closed), not InsertInto.

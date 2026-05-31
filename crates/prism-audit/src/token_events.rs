@@ -16,8 +16,7 @@
 //!   time (EC-003, Dev Notes).
 
 use chrono::{DateTime, Utc};
-use prism_storage::audit_buffer;
-use prism_storage::backend::RocksStorageBackend;
+use prism_storage::{audit_buffer, backend::RocksStorageBackend};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 

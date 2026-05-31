@@ -1,5 +1,5 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
-//! AC-6: Cursor pagination.
+//! AC-6: Cursor pagination (rewritten for ADR-031 §D3-a).
 //!
 //! Given `GET /api/v1/alerts` without cursor returns first page with `next_cursor`
 //! set, then `GET /api/v1/alerts?cursor={next_cursor}` returns the second page
@@ -7,56 +7,40 @@
 //!
 //! Also covers EC-004: invalid cursor → DTU returns first page (cursor not found
 //! → start from beginning).
+//!
+//! Rewritten per S-DTU-CYBERINT-AUTH-FIDELITY-001 Task 11: uses
+//! `Cookie: access_token=demo-key` instead of login + cyberint_session.
 
 #[cfg(feature = "dtu")]
 mod ac_6 {
     use prism_dtu_common::BehavioralClone;
     use prism_dtu_cyberint::CyberintClone;
 
-    async fn start_with_token() -> (CyberintClone, String, String) {
+    const DEMO_TOKEN: &str = "demo-access-key";
+
+    async fn start_with_demo_token() -> (CyberintClone, String, reqwest::Client) {
         let mut clone = CyberintClone::new().expect("AC-6: new must succeed");
         clone.start().await.expect("AC-6: start must succeed");
         let base_url = clone.base_url();
-
+        clone
+            .configure(serde_json::json!({"access_token": DEMO_TOKEN}))
+            .await
+            .expect("AC-6: configure must succeed");
         let client = reqwest::Client::builder()
             .timeout(std::time::Duration::from_secs(5))
             .build()
             .expect("build client");
-        let login_resp = client
-            .post(format!("{base_url}/login"))
-            .json(&serde_json::json!({}))
-            .send()
-            .await
-            .expect("login must succeed");
-        let set_cookie = login_resp
-            .headers()
-            .get("set-cookie")
-            .expect("AC-6: Set-Cookie must be present on login")
-            .to_str()
-            .expect("AC-6: Set-Cookie must be ASCII")
-            .to_owned();
-        let token = set_cookie
-            .split(';')
-            .next()
-            .and_then(|s| s.strip_prefix("cyberint_session="))
-            .expect("AC-6: Set-Cookie must contain cyberint_session=")
-            .to_owned();
-
-        (clone, base_url, token)
+        (clone, base_url, client)
     }
 
     /// Page 1 has data and next_cursor set (non-null).
     #[tokio::test]
     async fn ac_6_page_1_has_data_and_next_cursor() {
-        let (_clone, base_url, token) = start_with_token().await;
-        let client = reqwest::Client::builder()
-            .timeout(std::time::Duration::from_secs(5))
-            .build()
-            .expect("build client");
+        let (_clone, base_url, client) = start_with_demo_token().await;
 
         let resp = client
             .get(format!("{base_url}/api/v1/alerts"))
-            .header("Cookie", format!("cyberint_session={token}"))
+            .header("Cookie", format!("access_token={DEMO_TOKEN}"))
             .send()
             .await
             .expect("AC-6: GET page 1 must not error");
@@ -79,12 +63,8 @@ mod ac_6 {
     /// Page 2 (cursor = value from page 1) has data and next_cursor is null.
     #[tokio::test]
     async fn ac_6_page_2_has_data_and_null_next_cursor() {
-        let (_clone, base_url, token) = start_with_token().await;
-        let client = reqwest::Client::builder()
-            .timeout(std::time::Duration::from_secs(5))
-            .build()
-            .expect("build client");
-        let cookie = format!("cyberint_session={token}");
+        let (_clone, base_url, client) = start_with_demo_token().await;
+        let cookie = format!("access_token={DEMO_TOKEN}");
 
         // Fetch page 1 to get cursor.
         let page1_resp = client
@@ -133,12 +113,8 @@ mod ac_6 {
     /// Pages 1 and 2 together cover all 25 fixture alerts (20 + 5).
     #[tokio::test]
     async fn ac_6_both_pages_cover_all_fixture_alerts() {
-        let (_clone, base_url, token) = start_with_token().await;
-        let client = reqwest::Client::builder()
-            .timeout(std::time::Duration::from_secs(5))
-            .build()
-            .expect("build client");
-        let cookie = format!("cyberint_session={token}");
+        let (_clone, base_url, client) = start_with_demo_token().await;
+        let cookie = format!("access_token={DEMO_TOKEN}");
 
         let page1_resp = client
             .get(format!("{base_url}/api/v1/alerts"))
@@ -185,12 +161,8 @@ mod ac_6 {
     /// EC-004: Invalid cursor → DTU returns first page.
     #[tokio::test]
     async fn ac_6_ec_004_invalid_cursor_returns_first_page() {
-        let (_clone, base_url, token) = start_with_token().await;
-        let client = reqwest::Client::builder()
-            .timeout(std::time::Duration::from_secs(5))
-            .build()
-            .expect("build client");
-        let cookie = format!("cyberint_session={token}");
+        let (_clone, base_url, client) = start_with_demo_token().await;
+        let cookie = format!("access_token={DEMO_TOKEN}");
 
         // Fetch page 1 for comparison.
         let page1_resp = client

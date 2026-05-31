@@ -22,8 +22,7 @@ use prism_core::{PrismError, RiskTier};
 use prism_security::feature_flag::{CapabilityCheckResult, CompileTimeGate, FeatureFlagEvaluator};
 use prism_spec_engine::write_endpoint::WriteEndpointSpec;
 
-use crate::write_ast::DmlOperation;
-use crate::write_pipeline::WritePlan;
+use crate::{write_ast::DmlOperation, write_pipeline::WritePlan};
 
 // ---------------------------------------------------------------------------
 // SafetyPreCheck input context

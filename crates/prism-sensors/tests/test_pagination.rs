@@ -12,10 +12,11 @@
 #![allow(clippy::expect_used, clippy::unwrap_used)]
 
 use futures::StreamExt;
-use wiremock::matchers::{method, path, query_param};
-use wiremock::{Mock, MockServer, ResponseTemplate};
-
 use prism_sensors::pagination::{paginate_claroty, OffsetCursor};
+use wiremock::{
+    matchers::{method, path, query_param},
+    Mock, MockServer, ResponseTemplate,
+};
 
 // ---------------------------------------------------------------------------
 // OffsetCursor construction — GREEN-BY-DESIGN

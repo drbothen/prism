@@ -128,6 +128,14 @@ name = "x_org_id_auth"
 path = "tests/x_org_id_auth.rs"
 required-features = ["dtu"]
 
+# S-DTU-CYBERINT-AUTH-FIDELITY-001: Red Gate tests for BC-2.01.017 + BC-2.16.013
+# AC-001 (POST /login removed), AC-002 (extract_access_token), AC-003 (check_auth),
+# AC-004 (access_token_allowlist replaces session_store UUID model).
+[[test]]
+name = "bc_2_01_017_access_token_auth"
+path = "tests/bc_2_01_017_access_token_auth.rs"
+required-features = ["dtu"]
+
 [[bin]]
 name = "demo_server"
 path = "src/bin/demo_server.rs"

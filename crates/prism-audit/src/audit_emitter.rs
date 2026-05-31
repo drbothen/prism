@@ -25,20 +25,21 @@
 //! `AuditEmitterLayer<B>` wraps `Arc<B>` so cloning is cheap (Tower requires
 //! `Clone` on service factories).
 
-use std::sync::Arc;
-use std::task::{Context, Poll};
+use std::{
+    sync::Arc,
+    task::{Context, Poll},
+};
 
 use chrono::Utc;
-use prism_core::org_registry::OrgRegistry;
-use prism_core::tenant::OrgSlug;
-use prism_core::{OrgId, PrismError};
-use prism_storage::audit_buffer;
-use prism_storage::backend::RocksStorageBackend;
+use prism_core::{org_registry::OrgRegistry, tenant::OrgSlug, OrgId, PrismError};
+use prism_storage::{audit_buffer, backend::RocksStorageBackend};
 use tower::{Layer, Service};
 use uuid::Uuid;
 
-use crate::audit_entry::{AuditEntry, AuditOutcome, CapabilityCheckRecord, DataClassification};
-use crate::redaction::redact;
+use crate::{
+    audit_entry::{AuditEntry, AuditOutcome, CapabilityCheckRecord, DataClassification},
+    redaction::redact,
+};
 
 /// Classification of an MCP tool as read-only or write/mutation.
 ///

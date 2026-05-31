@@ -19,11 +19,9 @@ use axum::{
     response::IntoResponse,
     Json,
 };
-
 use subtle::ConstantTimeEq;
 
-use crate::state::ArmisState;
-use crate::types::AqlLogResponse;
+use crate::{state::ArmisState, types::AqlLogResponse};
 
 /// `POST /dtu/configure`
 ///

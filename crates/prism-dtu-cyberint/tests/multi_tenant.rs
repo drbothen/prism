@@ -6,25 +6,21 @@
 //!
 //! Covers:
 //! - BC-3.2.001: Per-Org Sensor Data Isolation via Composite HashMap Key
-//! - BC-3.2.003: Per-Org Session Token Isolation via (OrgId, token) Composite Key
+//!
+//! NOTE (ADR-031 §D3-a): BC-3.2.003 (per-org session token isolation) has been
+//! superseded by the static access-token allowlist model.  The access_token is an
+//! account-level API key — it is org-agnostic.  Per-org token isolation no longer
+//! applies.  Tests below cover the new allowlist semantics.
 //!
 //! Acceptance criteria tested:
 //! - AC-001: Alert store cross-org isolation
-//! - AC-002: Session cross-org isolation
-//! - AC-003: Same token string, independent contexts
-//! - AC-004: Token refresh preserves OrgId binding
+//! - AC-004: access_token_allowlist is org-agnostic (global)
 //! - AC-005: build_alert_store accepts OrgId parameter
-//! - AC-006: reset_for clears both stores for one org only
+//! - AC-006: reset_for clears alert_store for one org; access_token_allowlist is unaffected
 //! - AC-007: OrgId-flipping proptest kills mutation (VP-3.2.001-03)
 //!
-//! HTTP-layer tests also verify that OrgId is correctly threaded from the
-//! request context through all route handlers (extract_org_id stub).
-//!
-//! # Test Status
-//!
-//! All acceptance criteria (AC-001 through AC-007) and HTTP-layer isolation
-//! tests are implemented and expected to pass. `reset_for` and `extract_org_id`
-//! are both fully implemented (see `state.rs:257` and `routes/alerts.rs:66`).
+//! HTTP-layer tests verify that the `access_token` cookie is used for authentication
+//! (no POST /login; AC-001 + ADR-031 §D3-a).
 
 #[cfg(feature = "dtu")]
 mod multi_tenant {
@@ -99,7 +95,7 @@ mod multi_tenant {
 
     // ── HTTP helper ──────────────────────────────────────────────────────────
 
-    /// Start a clone and return `(clone, base_url, client)`.
+    /// Start a clone and return `(clone, base_url, admin_token, client)`.
     async fn start_clone() -> (CyberintClone, String, String, reqwest::Client) {
         let mut clone = CyberintClone::new().expect("multi_tenant: new must succeed");
         clone
@@ -184,42 +180,20 @@ mod multi_tenant {
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
-    // AC-002 — Session cross-org isolation (BC-3.2.003 postcondition 2)
-    // TV-3.2.003-02: register for org_A; is_valid_session(org_B, token) = false.
+    // AC-004 — access_token_allowlist is org-agnostic (ADR-031 §D3-a rule 3)
+    //
+    // The real Cyberint API issues API keys at account level (not per-org).
+    // register_access_token / is_valid_access_token have no OrgId parameter.
+    // A token registered once is valid for all orgs on this clone instance.
     // ═══════════════════════════════════════════════════════════════════════════
 
-    /// BC-3.2.003 postcondition 2: token registered under org_A is invalid in org_B context.
+    /// AC-004: register_access_token registers a token in the global allowlist;
+    /// is_valid_access_token confirms validity for any org context.
     ///
-    /// TV-3.2.003-02: register_session(org_id_A, "tok-abc");
-    /// is_valid_session(org_id_B, "tok-abc") must return false.
+    /// ADR-031 §D3-a rule 3: session-store becomes static-auth registry.
     #[test]
-    fn test_BC_3_2_003_session_cross_org_isolation_register_a_validate_b_returns_false() {
-        let (org_a, org_b) = org_pair();
-        let state =
-            CyberintState::with_org_id_and_admin_token(org_a, vec![], vec![], vec![], "tok".into());
-
-        state.register_session(org_a, "tok-abc".to_owned());
-
-        assert!(
-            state.is_valid_session(org_a, "tok-abc"),
-            "AC-002: is_valid_session(org_A, tok-abc) must return true"
-        );
-        assert!(
-            !state.is_valid_session(org_b, "tok-abc"),
-            "AC-002: is_valid_session(org_B, tok-abc) must return false — cross-org session leak"
-        );
-    }
-
-    // ═══════════════════════════════════════════════════════════════════════════
-    // AC-003 — Same token string, independent contexts (BC-3.2.003 EC-001)
-    // TV-3.2.003-04: both orgs register same string; each valid only in its own context.
-    // ═══════════════════════════════════════════════════════════════════════════
-
-    /// BC-3.2.003 edge case EC-001 / TV-3.2.003-04: identical token string registered
-    /// independently for both orgs; each is valid only in its own context.
-    #[test]
-    fn test_BC_3_2_003_identical_token_string_independent_per_org_contexts() {
-        let (org_a, org_b) = org_pair();
+    fn test_BC_2_01_017_access_token_registered_is_valid_globally() {
+        let (org_a, _org_b) = org_pair();
         let state = CyberintState::with_org_id_and_admin_token(
             org_a,
             vec![],
@@ -228,31 +202,18 @@ mod multi_tenant {
             "admin".into(),
         );
 
-        let shared_token = "tok-shared-uuid-aaaabbbb";
-        state.register_session(org_a, shared_token.to_owned());
-        state.register_session(org_b, shared_token.to_owned());
+        state.register_access_token("test-api-key-abc123".to_owned());
 
         assert!(
-            state.is_valid_session(org_a, shared_token),
-            "AC-003: org_A must validate its own registration of the shared token"
-        );
-        assert!(
-            state.is_valid_session(org_b, shared_token),
-            "AC-003: org_B must validate its own registration of the shared token"
+            state.is_valid_access_token("test-api-key-abc123"),
+            "AC-004: registered access_token must be valid"
         );
     }
 
-    // ═══════════════════════════════════════════════════════════════════════════
-    // AC-004 — Token refresh preserves OrgId binding (BC-3.2.003 postcondition 3)
-    // ═══════════════════════════════════════════════════════════════════════════
-
-    /// BC-3.2.003 postcondition 3: refresh stores new token under same OrgId;
-    /// org_B's token is unaffected.
-    ///
-    /// TV-3.2.003-03: orgA refreshes old→new; orgB original token unaffected.
+    /// AC-004: token NOT registered must not validate.
     #[test]
-    fn test_BC_3_2_003_token_refresh_preserves_org_binding() {
-        let (org_a, org_b) = org_pair();
+    fn test_BC_2_01_017_unregistered_access_token_is_invalid() {
+        let (org_a, _org_b) = org_pair();
         let state = CyberintState::with_org_id_and_admin_token(
             org_a,
             vec![],
@@ -261,31 +222,38 @@ mod multi_tenant {
             "admin".into(),
         );
 
-        state.register_session(org_a, "old-tok".to_owned());
-        state.register_session(org_b, "tok-b".to_owned());
+        assert!(
+            !state.is_valid_access_token("not-registered-token"),
+            "AC-004: unregistered token must not validate"
+        );
+    }
 
-        // Simulate refresh: remove old token, insert new token under same org_id.
-        {
-            let mut store = state.session_store.lock().expect("session_store poisoned");
-            store.remove(&(org_a, "old-tok".to_owned()));
-            store.insert((org_a, "new-tok".to_owned()));
-        }
+    /// AC-004: multiple tokens can be registered; each validates independently.
+    #[test]
+    fn test_BC_2_01_017_multiple_tokens_each_validate_independently() {
+        let (org_a, _org_b) = org_pair();
+        let state = CyberintState::with_org_id_and_admin_token(
+            org_a,
+            vec![],
+            vec![],
+            vec![],
+            "admin".into(),
+        );
+
+        state.register_access_token("token-one".to_owned());
+        state.register_access_token("token-two".to_owned());
 
         assert!(
-            state.is_valid_session(org_a, "new-tok"),
-            "AC-004: org_A new token must be valid after refresh"
+            state.is_valid_access_token("token-one"),
+            "AC-004: first registered token must be valid"
         );
         assert!(
-            !state.is_valid_session(org_a, "old-tok"),
-            "AC-004: org_A old token must be invalid after refresh"
+            state.is_valid_access_token("token-two"),
+            "AC-004: second registered token must be valid"
         );
         assert!(
-            state.is_valid_session(org_b, "tok-b"),
-            "AC-004: org_B token must be unaffected by org_A refresh"
-        );
-        assert!(
-            !state.is_valid_session(org_b, "old-tok"),
-            "AC-004: is_valid_session(org_B, old-tok) must be false — old-tok was never org_B's"
+            !state.is_valid_access_token("token-three"),
+            "AC-004: unregistered third token must be invalid"
         );
     }
 
@@ -340,8 +308,11 @@ mod multi_tenant {
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
-    // AC-006 — reset_for clears both stores for one org (BC-3.2.001 EC-004)
+    // AC-006 — reset_for clears alert_store for one org; allowlist is unaffected
     //
+    // NOTE (ADR-031 §D3-a rule 3): access_token_allowlist is org-agnostic.
+    // reset_for(org_A) clears alert_store entries for org_A but does NOT remove
+    // access tokens from the allowlist (tokens are account-level, not per-org).
     // ═══════════════════════════════════════════════════════════════════════════
 
     /// BC-3.2.001 edge case EC-004: reset_for(org_A) removes all (org_A, *) alert entries;
@@ -381,13 +352,14 @@ mod multi_tenant {
         );
     }
 
-    /// BC-3.2.003 edge case EC-004: reset_for(org_A) removes org_A session tokens;
-    /// org_B tokens remain valid.
+    /// AC-006 + ADR-031 §D3-a rule 3: reset_for(org_A) does NOT remove tokens from
+    /// the access_token_allowlist (the allowlist is org-agnostic).
     ///
-    /// TV-3.2.003-03 (reset_for variant).
+    /// This verifies the architectural invariant that tokens persist across per-org
+    /// resets — matching the real Cyberint API where API keys are account-level.
     #[test]
-    fn test_BC_3_2_003_reset_for_removes_org_a_session_tokens_preserves_org_b() {
-        let (org_a, org_b) = org_pair();
+    fn test_BC_3_2_001_reset_for_does_not_clear_access_token_allowlist() {
+        let (org_a, _org_b) = org_pair();
         let state = CyberintState::with_org_id_and_admin_token(
             org_a,
             vec![],
@@ -396,41 +368,25 @@ mod multi_tenant {
             "admin".into(),
         );
 
-        state.register_session(org_a, "tok-a".to_owned());
-        state.register_session(org_b, "tok-b".to_owned());
+        state.register_access_token("persistent-api-key".to_owned());
 
-        // Verify both tokens valid before reset.
-        assert!(
-            state.is_valid_session(org_a, "tok-a"),
-            "AC-006 pre-cond: org_A token must be valid before reset_for"
-        );
-        assert!(
-            state.is_valid_session(org_b, "tok-b"),
-            "AC-006 pre-cond: org_B token must be valid before reset_for"
-        );
-
-        // Reset only org_A.
+        // reset_for(org_A) must NOT clear the allowlist.
         state.reset_for(org_a);
 
         assert!(
-            !state.is_valid_session(org_a, "tok-a"),
-            "AC-006: org_A session token must be invalid after reset_for(org_A)"
-        );
-        assert!(
-            state.is_valid_session(org_b, "tok-b"),
-            "AC-006: org_B session token must survive reset_for(org_A)"
+            state.is_valid_access_token("persistent-api-key"),
+            "AC-006/ADR-031 §D3-a: access_token must persist across reset_for — allowlist is org-agnostic"
         );
     }
 
-    /// BC-3.2.001 EC-004 + BC-3.2.003 EC-004: reset_for clears BOTH stores atomically;
-    /// neither alert_store nor session_store retains org_A entries after reset.
+    /// BC-3.2.001 EC-004: reset_for clears alert_store for org_A;
+    /// org_B alert entries survive; allowlist is unaffected.
     #[test]
-    fn test_BC_3_2_001_reset_for_clears_both_stores_atomically_for_org_a() {
+    fn test_BC_3_2_001_reset_for_clears_alert_store_for_org_a_allowlist_unaffected() {
         let (org_a, org_b) = org_pair();
         let state = state_with_two_orgs(org_a, org_b, "alert-atomic");
 
-        state.register_session(org_a, "session-a".to_owned());
-        state.register_session(org_b, "session-b".to_owned());
+        state.register_access_token("shared-api-key".to_owned());
 
         state.reset_for(org_a);
 
@@ -447,19 +403,15 @@ mod multi_tenant {
             );
         }
 
-        // session_store: org_A gone, org_B intact.
+        // access_token_allowlist: org-agnostic — not cleared by reset_for.
         assert!(
-            !state.is_valid_session(org_a, "session-a"),
-            "AC-006: session_store org_A token must be absent after reset_for"
-        );
-        assert!(
-            state.is_valid_session(org_b, "session-b"),
-            "AC-006: session_store org_B token must survive reset_for"
+            state.is_valid_access_token("shared-api-key"),
+            "ADR-031 §D3-a: access_token_allowlist must survive reset_for — account-level token"
         );
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
-    // AC-007 — OrgId-flipping proptest (BC-3.2.001 VP-3.2.001-03 / VP-3.2.003-01)
+    // AC-007 — OrgId-flipping proptest (BC-3.2.001 VP-3.2.001-03)
     //
     // Covers VP-077 through VP-086.
     // ═══════════════════════════════════════════════════════════════════════════
@@ -481,31 +433,6 @@ mod multi_tenant {
     /// Arbitrary token string (non-empty, up to 64 chars).
     fn arb_token() -> impl Strategy<Value = String> {
         "[a-z0-9-]{1,64}".prop_map(|s| s)
-    }
-
-    /// VP-3.2.003-01: Cross-org token validation always returns false.
-    ///
-    /// Given any two distinct orgs and any token string:
-    /// - Register the token under org_A.
-    /// - is_valid_session(org_B, token) must return false.
-    ///
-    /// At least 1000 cases (proptest default).
-    proptest! {
-        #[test]
-        fn test_BC_3_2_003_invariant_cross_org_session_validation_always_false(
-            (org_a, org_b) in arb_distinct_org_pair(),
-            token in arb_token(),
-        ) {
-            let state = CyberintState::with_org_id_and_admin_token(
-                org_a, vec![], vec![], vec![], "admin".into(),
-            );
-            state.register_session(org_a, token.clone());
-
-            prop_assert!(
-                !state.is_valid_session(org_b, &token),
-                "VP-3.2.003-01: token registered under org_A must never validate for org_B"
-            );
-        }
     }
 
     /// VP-3.2.001-01: Cross-org alert lookup always returns None.
@@ -581,12 +508,13 @@ mod multi_tenant {
         }
     }
 
-    /// VP-3.2.001-04 + VP-3.2.003-03: reset_for(org_A) selectivity.
+    /// VP-3.2.001-04: reset_for(org_A) selectivity for alert_store.
     ///
     /// For any two distinct orgs and any alert_id + token pair:
     /// - Write entries for both orgs.
     /// - Call reset_for(org_A).
-    /// - org_A entries must be absent; org_B entries must be intact.
+    /// - org_A alert entries must be absent; org_B alert entries must be intact.
+    /// - access_token registered before reset_for must still be valid (org-agnostic).
     proptest! {
         #[test]
         fn test_BC_3_2_001_invariant_reset_for_selectivity(
@@ -620,8 +548,9 @@ mod multi_tenant {
                     },
                 );
             }
-            state.register_session(org_a, token.clone());
-            state.register_session(org_b, token.clone());
+
+            // Register token (org-agnostic).
+            state.register_access_token(token.clone());
 
             state.reset_for(org_a);
 
@@ -636,162 +565,181 @@ mod multi_tenant {
                     "VP-3.2.001-04: alert_store org_B entries must survive reset_for"
                 );
             }
+            // access_token_allowlist is org-agnostic — must survive reset_for.
             prop_assert!(
-                !state.is_valid_session(org_a, &token),
-                "VP-3.2.003-03: session_store org_A token must be absent after reset_for"
-            );
-            prop_assert!(
-                state.is_valid_session(org_b, &token),
-                "VP-3.2.003-03: session_store org_B token must survive reset_for"
+                state.is_valid_access_token(&token),
+                "ADR-031 §D3-a: access_token must survive reset_for(org_A) — account-level key"
             );
         }
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
-    // HTTP-layer multi-tenant isolation tests
+    // HTTP-layer multi-tenant tests
     //
     // These exercise the full route stack via reqwest against a running clone
-    // instance. `extract_org_id` is implemented and threads the correct OrgId
-    // from the X-Prism-Org-Id header through all route handlers.
+    // instance.  The new auth model (ADR-031 §D3-a) uses `access_token` cookie;
+    // there is no POST /login endpoint (AC-001).
     //
     // ═══════════════════════════════════════════════════════════════════════════
 
-    /// HTTP AC-002: Session token registered for org_A must not authenticate requests
-    /// in org_B's context.
+    /// HTTP AC-001: POST /login must not exist — the DTU has no login endpoint.
     ///
-    /// This test exercises the full route stack where `extract_org_id` threads the
-    /// correct OrgId from the X-Prism-Org-Id header through to `is_valid_session`.
+    /// This test exercises ADR-031 §D3-a rule 1: the DTU clone must NOT implement
+    /// a fake login step; the real Cyberint API has no such endpoint.
     #[tokio::test]
-    async fn test_BC_3_2_003_http_session_token_registered_for_org_a_rejected_by_org_b() {
+    async fn test_BC_2_01_017_http_post_login_returns_404() {
         let (_clone, base_url, _admin_token, client) = start_clone().await;
 
-        let org_a_id = Uuid::parse_str("00000000-0000-7000-8000-000000000001")
-            .expect("valid uuid")
-            .to_string();
-        let org_b_id = Uuid::parse_str("00000000-0000-7000-8000-000000000002")
-            .expect("valid uuid")
-            .to_string();
-
-        let login_resp = client
+        let resp = client
             .post(format!("{base_url}/login"))
-            .header("X-Prism-Org-Id", &org_a_id)
             .json(&serde_json::json!({}))
             .send()
             .await
-            .expect("HTTP login as org_A must not produce a network error");
+            .expect("HTTP request must not produce a network error");
 
         assert_eq!(
-            login_resp.status().as_u16(),
-            200,
-            "HTTP AC-002: POST /login as org_A must return 200"
-        );
-
-        let set_cookie = login_resp
-            .headers()
-            .get("set-cookie")
-            .expect("Set-Cookie must be present")
-            .to_str()
-            .expect("Set-Cookie must be ASCII")
-            .to_owned();
-        let token = set_cookie
-            .split(';')
-            .next()
-            .and_then(|s| s.strip_prefix("cyberint_session="))
-            .expect("cyberint_session must be in Set-Cookie")
-            .to_owned();
-
-        // Use org_A's token but identify as org_B — must receive 401.
-        let alert_resp = client
-            .get(format!("{base_url}/api/v1/alerts"))
-            .header("Cookie", format!("cyberint_session={token}"))
-            .header("X-Prism-Org-Id", &org_b_id)
-            .send()
-            .await
-            .expect(
-                "GET /api/v1/alerts as org_B with org_A token must not produce a network error",
-            );
-
-        assert_eq!(
-            alert_resp.status().as_u16(),
-            401,
-            "HTTP AC-002: org_A's session token must be rejected in org_B's context"
+            resp.status().as_u16(),
+            404,
+            "AC-001/ADR-031 §D3-a: POST /login must return 404 — endpoint removed"
         );
     }
 
-    /// HTTP AC-006: Per-org reset via HTTP — org_A's token invalidated; org_B's intact.
+    /// HTTP AC-003: GET /api/v1/alerts requires valid access_token cookie (AC-002 + AC-003).
+    ///
+    /// - No cookie → 401
+    /// - Valid access_token cookie → 200
     #[tokio::test]
-    async fn test_BC_3_2_001_http_reset_for_invalidates_org_a_preserves_org_b() {
+    async fn test_BC_2_01_017_http_access_token_cookie_auth_required_for_alerts() {
         let (_clone, base_url, admin_token, client) = start_clone().await;
 
-        let org_a_id = Uuid::parse_str("00000000-0000-7000-8000-000000000001")
-            .expect("valid uuid")
-            .to_string();
-        let org_b_id = Uuid::parse_str("00000000-0000-7000-8000-000000000002")
-            .expect("valid uuid")
-            .to_string();
-
-        // Login as org_A.
-        let login_a = client
-            .post(format!("{base_url}/login"))
-            .header("X-Prism-Org-Id", &org_a_id)
-            .json(&serde_json::json!({}))
+        // Provision a demo access_token via /dtu/configure.
+        let demo_token = "integration-test-api-key-12345";
+        let configure_resp = client
+            .post(format!("{base_url}/dtu/configure"))
+            .header("X-Admin-Token", &admin_token)
+            .json(&serde_json::json!({ "access_token": demo_token }))
             .send()
             .await
-            .expect("login org_A must not produce a network error");
+            .expect("configure must not produce a network error");
 
         assert_eq!(
-            login_a.status().as_u16(),
+            configure_resp.status().as_u16(),
             200,
-            "HTTP AC-006: org_A login must return 200"
+            "HTTP test setup: POST /dtu/configure must return 200"
         );
 
-        let cookie_a = login_a
-            .headers()
-            .get("set-cookie")
-            .expect("Set-Cookie must be present for org_A")
-            .to_str()
-            .expect("ASCII")
-            .split(';')
-            .next()
-            .and_then(|s| s.strip_prefix("cyberint_session="))
-            .expect("cyberint_session must be in Set-Cookie for org_A")
-            .to_owned();
-
-        // Login as org_B.
-        let login_b = client
-            .post(format!("{base_url}/login"))
-            .header("X-Prism-Org-Id", &org_b_id)
-            .json(&serde_json::json!({}))
+        // Without cookie → 401.
+        let no_cookie_resp = client
+            .get(format!("{base_url}/api/v1/alerts"))
             .send()
             .await
-            .expect("login org_B must not produce a network error");
+            .expect("GET alerts without cookie must not produce a network error");
 
         assert_eq!(
-            login_b.status().as_u16(),
-            200,
-            "HTTP AC-006: org_B login must return 200"
+            no_cookie_resp.status().as_u16(),
+            401,
+            "AC-002: GET /api/v1/alerts without cookie must return 401"
         );
 
-        let cookie_b = login_b
-            .headers()
-            .get("set-cookie")
-            .expect("Set-Cookie must be present for org_B")
-            .to_str()
-            .expect("ASCII")
-            .split(';')
-            .next()
-            .and_then(|s| s.strip_prefix("cyberint_session="))
-            .expect("cyberint_session must be in Set-Cookie for org_B")
-            .to_owned();
+        // With valid access_token cookie → 200.
+        let with_cookie_resp = client
+            .get(format!("{base_url}/api/v1/alerts"))
+            .header("Cookie", format!("access_token={demo_token}"))
+            .send()
+            .await
+            .expect("GET alerts with valid cookie must not produce a network error");
 
-        // Reset for org_A only via POST /dtu/reset (per-org variant).
-        // NOTE: the current /dtu/reset resets ALL orgs. A per-org endpoint
-        // is the desired post-implementation behavior; until then this test
-        // verifies the route stack can thread org_id to reset_for.
+        assert_eq!(
+            with_cookie_resp.status().as_u16(),
+            200,
+            "AC-003: GET /api/v1/alerts with valid access_token cookie must return 200"
+        );
+    }
+
+    /// HTTP AC-003: GET /api/v1/threat-intel requires valid access_token cookie.
+    #[tokio::test]
+    async fn test_BC_2_01_017_http_access_token_cookie_auth_required_for_threats() {
+        let (_clone, base_url, admin_token, client) = start_clone().await;
+
+        let demo_token = "integration-test-api-key-threats-67890";
+        let configure_resp = client
+            .post(format!("{base_url}/dtu/configure"))
+            .header("X-Admin-Token", &admin_token)
+            .json(&serde_json::json!({ "access_token": demo_token }))
+            .send()
+            .await
+            .expect("configure must not produce a network error");
+
+        assert_eq!(
+            configure_resp.status().as_u16(),
+            200,
+            "HTTP test setup: POST /dtu/configure must return 200"
+        );
+
+        // Without cookie → 401.
+        let no_cookie_resp = client
+            .get(format!("{base_url}/api/v1/threat-intel"))
+            .send()
+            .await
+            .expect("GET threat-intel without cookie must not produce a network error");
+
+        assert_eq!(
+            no_cookie_resp.status().as_u16(),
+            401,
+            "AC-003 (threats): GET /api/v1/threat-intel without cookie must return 401"
+        );
+
+        // With valid access_token cookie → 200.
+        let with_cookie_resp = client
+            .get(format!("{base_url}/api/v1/threat-intel"))
+            .header("Cookie", format!("access_token={demo_token}"))
+            .send()
+            .await
+            .expect("GET threat-intel with valid cookie must not produce a network error");
+
+        assert_eq!(
+            with_cookie_resp.status().as_u16(),
+            200,
+            "AC-003 (threats): GET /api/v1/threat-intel with valid access_token cookie must return 200"
+        );
+    }
+
+    /// HTTP AC-006: reset_all via POST /dtu/reset invalidates registered tokens.
+    ///
+    /// After /dtu/reset, previously valid access_token must be rejected.
+    #[tokio::test]
+    async fn test_BC_2_01_017_http_reset_all_clears_access_token_allowlist() {
+        let (_clone, base_url, admin_token, client) = start_clone().await;
+
+        let demo_token = "reset-test-token-abc";
+
+        // Provision token.
+        client
+            .post(format!("{base_url}/dtu/configure"))
+            .header("X-Admin-Token", &admin_token)
+            .json(&serde_json::json!({ "access_token": demo_token }))
+            .send()
+            .await
+            .expect("configure must succeed");
+
+        // Verify token is valid.
+        let before_reset = client
+            .get(format!("{base_url}/api/v1/alerts"))
+            .header("Cookie", format!("access_token={demo_token}"))
+            .send()
+            .await
+            .expect("GET before reset must succeed");
+
+        assert_eq!(
+            before_reset.status().as_u16(),
+            200,
+            "HTTP setup: token must be valid before reset"
+        );
+
+        // Reset all state.
         let reset_resp = client
             .post(format!("{base_url}/dtu/reset"))
             .header("X-Admin-Token", &admin_token)
-            .header("X-Prism-Org-Id", &org_a_id)
             .send()
             .await
             .expect("reset must not produce a network error");
@@ -802,34 +750,18 @@ mod multi_tenant {
             "HTTP AC-006: /dtu/reset must return 200"
         );
 
-        // org_A token must now be invalid — org_A's session was reset.
-        let after_a = client
+        // Token must now be invalid — reset cleared the allowlist.
+        let after_reset = client
             .get(format!("{base_url}/api/v1/alerts"))
-            .header("Cookie", format!("cyberint_session={cookie_a}"))
-            .header("X-Prism-Org-Id", &org_a_id)
+            .header("Cookie", format!("access_token={demo_token}"))
             .send()
             .await
-            .expect("GET alerts as org_A after reset must not produce a network error");
+            .expect("GET after reset must not produce a network error");
 
         assert_eq!(
-            after_a.status().as_u16(),
+            after_reset.status().as_u16(),
             401,
-            "HTTP AC-006: org_A token must be invalid after per-org reset"
-        );
-
-        // org_B token must still be valid — org_B was not reset.
-        let after_b = client
-            .get(format!("{base_url}/api/v1/alerts"))
-            .header("Cookie", format!("cyberint_session={cookie_b}"))
-            .header("X-Prism-Org-Id", &org_b_id)
-            .send()
-            .await
-            .expect("GET alerts as org_B after org_A reset must not produce a network error");
-
-        assert_eq!(
-            after_b.status().as_u16(),
-            200,
-            "HTTP AC-006: org_B token must remain valid after org_A-only reset"
+            "AC-006: access_token must be invalid after reset_all"
         );
     }
 }

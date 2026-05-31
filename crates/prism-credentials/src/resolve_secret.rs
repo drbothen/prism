@@ -6,8 +6,9 @@
 //!   2. `{direct_env}` — env var holding the value directly
 //!   3. Neither set → return `None`
 
-use secrecy::SecretString;
 use std::path::Path;
+
+use secrecy::SecretString;
 
 /// Resolve a secret using the _FILE env var pattern.
 ///

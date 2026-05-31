@@ -22,8 +22,7 @@
 
 #![allow(dead_code, unused_imports)]
 
-use std::path::Path;
-use std::sync::Arc;
+use std::{path::Path, sync::Arc};
 
 use prism_bin::boot::plugin_load_step;
 
@@ -527,9 +526,10 @@ async fn test_F_PASS2_CRIT_001_prism_command_start_routes_through_run_boot_seque
 async fn test_AC_4_VP_PLUGIN_004_unsigned_plugin_durable_audit_entry() {
     use prism_bin::plugin_audit::RocksDbPluginAuditSink;
     use prism_core::StorageDomain;
-    use prism_storage::audit_buffer::AuditEntry as StorageAuditEntry;
-    use prism_storage::backend::RocksStorageBackend;
-    use prism_storage::rocksdb_backend::RocksDbBackend;
+    use prism_storage::{
+        audit_buffer::AuditEntry as StorageAuditEntry, backend::RocksStorageBackend,
+        rocksdb_backend::RocksDbBackend,
+    };
 
     // Open a temp RocksDB for the audit_buffer CF.
     let state_dir = tempfile::tempdir().expect("create temp state dir");

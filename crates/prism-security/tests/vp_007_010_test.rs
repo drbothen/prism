@@ -15,13 +15,12 @@
 
 use std::time::{Duration, SystemTime};
 
-use serde_json::json;
-
 use prism_core::error::PrismError;
-use prism_security::confirmation_token::{
-    ConfirmationToken, ConfirmationTokenStore, TOKEN_CAP, TOKEN_TTL,
+use prism_security::{
+    confirmation_token::{ConfirmationToken, ConfirmationTokenStore, TOKEN_CAP, TOKEN_TTL},
+    content_hash::compute_action_hash,
 };
-use prism_security::content_hash::compute_action_hash;
+use serde_json::json;
 
 fn make_store() -> ConfirmationTokenStore {
     ConfirmationTokenStore::new()

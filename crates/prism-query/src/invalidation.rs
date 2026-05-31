@@ -18,11 +18,12 @@
 //!
 //! Story: S-3.05
 
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, LazyLock, RwLock};
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc, LazyLock, RwLock,
+};
 
-use prism_core::error::PrismError;
-use prism_core::{OrgSlug, SensorId};
+use prism_core::{error::PrismError, OrgSlug, SensorId};
 use prism_spec_engine::error::SpecEngineError;
 
 use crate::cache::QueryCache;

@@ -12,9 +12,11 @@ use axum::{
 };
 use serde_json::{json, Value};
 
-use crate::routes::devices::check_bearer_auth;
-use crate::state::ClarotyState;
-use crate::types::{GetVulnerabilitiesBody, GetVulnerabilityDevicesBody};
+use crate::{
+    routes::devices::check_bearer_auth,
+    state::ClarotyState,
+    types::{GetVulnerabilitiesBody, GetVulnerabilityDevicesBody},
+};
 
 /// `POST /api/v1/vulnerabilities`
 ///

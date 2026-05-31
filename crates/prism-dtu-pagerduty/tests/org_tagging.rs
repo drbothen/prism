@@ -23,8 +23,7 @@
 
 use prism_core::OrgId;
 use prism_dtu_common::{BehavioralClone, DtuMode};
-use prism_dtu_pagerduty::clone::PAGERDUTY_DTU_MODE;
-use prism_dtu_pagerduty::{PagerDutyClone, PagerDutyState};
+use prism_dtu_pagerduty::{clone::PAGERDUTY_DTU_MODE, PagerDutyClone, PagerDutyState};
 
 // ---------------------------------------------------------------------------
 // Test helpers

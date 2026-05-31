@@ -22,8 +22,10 @@
 use prost_reflect::DynamicMessage;
 use serde_json::json;
 
-use crate::alias::{AliasResolver, AliasResult};
-use crate::event::OcsfEvent;
+use crate::{
+    alias::{AliasResolver, AliasResult},
+    event::OcsfEvent,
+};
 
 // ---------------------------------------------------------------------------
 // Helper: construct an OcsfEvent for testing.

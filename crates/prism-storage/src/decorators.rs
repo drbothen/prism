@@ -24,12 +24,10 @@
 //! - bincode v2 API only (`encode_to_vec` / `decode_from_slice`).
 //! - No DataFusion, Arrow, or arrow-schema imports (architecture hard boundary).
 
-use std::collections::HashMap;
-use std::sync::Arc;
-
-use tokio::sync::RwLock;
+use std::{collections::HashMap, sync::Arc};
 
 use prism_core::{DecoratorContext, OrgSlug, PrismError};
+use tokio::sync::RwLock;
 
 use crate::backend::RocksStorageBackend;
 

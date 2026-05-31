@@ -18,14 +18,15 @@
 //! # Status
 //! All tests pass (S-2.08 implementation complete).
 
-use std::sync::Arc;
-use std::time::Duration;
+use std::{sync::Arc, time::Duration};
 
+use prism_storage::backend::RocksStorageBackend;
 use tokio_util::sync::CancellationToken;
 
-use crate::event_buffer::EventBufferStore;
-use crate::poller::{start_pollers, EventPoller, PollerDiagnostics, PollerId, PollerStatus};
-use prism_storage::backend::RocksStorageBackend;
+use crate::{
+    event_buffer::EventBufferStore,
+    poller::{start_pollers, EventPoller, PollerDiagnostics, PollerId, PollerStatus},
+};
 
 // ---------------------------------------------------------------------------
 // Minimal no-op backend (same as event_buffer_tests)

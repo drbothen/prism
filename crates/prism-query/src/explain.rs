@@ -24,18 +24,19 @@
 //!
 //! Story: S-3.03
 
-use std::collections::HashMap;
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
 use prism_core::{OrgSlug, PrismError, SensorId};
 use serde::Serialize;
 
-use crate::ast::{Ast, SourceRef, SourceRefKind, SqlStatement, VirtualField};
-use crate::filter_parser::PrismQlParser;
-use crate::pushdown::classify_predicates;
-use crate::scoping::{resolve_clients, ClientRegistry};
-use crate::security::PRISM_MAX_QUERY_SIZE;
-use crate::visit::{walk_ast, Visitor};
+use crate::{
+    ast::{Ast, SourceRef, SourceRefKind, SqlStatement, VirtualField},
+    filter_parser::PrismQlParser,
+    pushdown::classify_predicates,
+    scoping::{resolve_clients, ClientRegistry},
+    security::PRISM_MAX_QUERY_SIZE,
+    visit::{walk_ast, Visitor},
+};
 
 // ---------------------------------------------------------------------------
 // AuditEvent (DI-004)

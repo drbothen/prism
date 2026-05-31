@@ -6,8 +6,9 @@
 //! Red Gate discipline: AC-4 through AC-8 MUST fail until the implementer
 //! populates DTU_DEFAULT_MODE with the 10 canonical entries.
 
-use prism_core::{DtuMode, DtuRegistryEntry, DTU_DEFAULT_MODE};
 use std::process::Command;
+
+use prism_core::{DtuMode, DtuRegistryEntry, DTU_DEFAULT_MODE};
 
 // ---------------------------------------------------------------------------
 // AC-1 / BC-3.2.005 precondition 3

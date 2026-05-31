@@ -6,15 +6,13 @@
 
 #![allow(dead_code, unused_imports)]
 
-use std::collections::HashMap;
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
 use prism_core::PluginError;
-use prism_spec_engine::plugin::host_functions::host_http_request;
-use prism_spec_engine::plugin::loader::HostState;
-use prism_spec_engine::plugin::loader::PluginConfigMap;
 use prism_spec_engine::plugin::{
     CURRENT_SUPPORTED_VERSION, PLUGIN_HTTP_CLIENT_TIMEOUT_SECS, PluginRuntime,
+    host_functions::host_http_request,
+    loader::{HostState, PluginConfigMap},
 };
 
 // ---------------------------------------------------------------------------
@@ -624,9 +622,11 @@ fn test_BC_2_17_002_linker_imports_match_host_functions() {
 #[tokio::test]
 async fn test_TD_S_PLUGIN_PREREQ_B_011_execute_step_eager_token_calls_auth_once() {
     use prism_core::OrgSlug;
-    use prism_spec_engine::auth_provider::MockAuthProvider;
-    use prism_spec_engine::pipeline::{FetchContext, PipelineExecutor};
-    use prism_spec_engine::spec_parser::{AuthType, FetchStep, SensorSpec};
+    use prism_spec_engine::{
+        auth_provider::MockAuthProvider,
+        pipeline::{FetchContext, PipelineExecutor},
+        spec_parser::{AuthType, FetchStep, SensorSpec},
+    };
 
     let org_slug = OrgSlug::new("test-org").expect("valid slug");
 
@@ -687,8 +687,7 @@ async fn test_TD_S_PLUGIN_PREREQ_B_011_execute_step_eager_token_calls_auth_once(
 /// AC-16 — MAX_REQUESTS_PER_PIPELINE = 10_000; TooManyRequests error variant exists (BC-2.16.002).
 #[test]
 fn test_BC_2_16_002_pipeline_max_requests_exceeded() {
-    use prism_spec_engine::error::SpecEngineError;
-    use prism_spec_engine::pipeline::MAX_REQUESTS_PER_PIPELINE;
+    use prism_spec_engine::{error::SpecEngineError, pipeline::MAX_REQUESTS_PER_PIPELINE};
 
     assert_eq!(
         MAX_REQUESTS_PER_PIPELINE, 10_000,
@@ -1537,9 +1536,10 @@ fn test_F_PASS3_CRIT_003_component_model_dispatch_allowlist_gate() {
 #[test]
 fn test_F_PASS4_HIGH_001_component_model_dispatch_invokes_host_http_request_through_registered_callback()
  {
-    use wasmtime::component::Linker;
-    use wasmtime::component::Val;
-    use wasmtime::{Config, Engine, Store};
+    use wasmtime::{
+        Config, Engine, Store,
+        component::{Linker, Val},
+    };
 
     // Build a wasmtime Engine with Component Model enabled (same config as PluginRuntime::new).
     let mut config = Config::new();
@@ -1962,8 +1962,7 @@ async fn test_BC_2_17_007_empty_allowed_url_entry_is_rejected() {
 /// `Linker::new(&engine)` — this test uses `PluginRuntime::build_linker(&engine)` instead.
 #[test]
 fn test_F_PASS5_HIGH_001_production_linker_dispatch_via_build_linker_route_a() {
-    use wasmtime::component::Val;
-    use wasmtime::{Config, Engine, Store};
+    use wasmtime::{Config, Engine, Store, component::Val};
 
     // Build a wasmtime Engine with the same config as PluginRuntime::new_with_audit_sink:
     // Component Model enabled + epoch interruption enabled.

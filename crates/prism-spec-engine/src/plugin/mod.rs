@@ -8,23 +8,19 @@ pub mod hot_reload;
 pub mod loader;
 pub mod sandbox;
 
-use std::collections::HashMap;
-use std::path::Path;
-use std::sync::Arc;
-use std::time::Instant;
+use std::{collections::HashMap, path::Path, sync::Arc, time::Instant};
 
 use arc_swap::ArcSwap;
-use prism_core::PluginError;
-use serde_json::Value;
-use sha2::{Digest, Sha256};
-use tracing::{error, info, warn};
-
 // Re-export public types used by callers (S-1.14, S-4.08).
 pub use loader::{HostState, LoadedPlugin, PluginConfigMap, PluginKvStore};
+use prism_core::PluginError;
 use sandbox::{
     DEFAULT_MEMORY_LIMIT_MB, DEFAULT_TIMEOUT_SECONDS, EpochTickerHandle, classify_wasm_error,
     create_store,
 };
+use serde_json::Value;
+use sha2::{Digest, Sha256};
+use tracing::{error, info, warn};
 
 use crate::plugin_audit_sink::{NoOpPluginAuditSink, PluginLoadAuditSink};
 
@@ -705,17 +701,28 @@ impl PluginRuntime {
             // Integration test binaries compile library code with the test-helpers feature enabled
             // (self-referential dev-dependency in Cargo.toml), so the panic is absent there too.
             #[cfg(not(any(test, feature = "test-helpers")))]
-            panic!(
-                "core_module path is test-only; production plugins MUST be Component Model. \
-                 Reaching this branch in a production binary (without test-helpers feature) \
-                 indicates either: \
-                 (a) a corrupted or tampered .prx artifact with WAT core-module magic bytes, or \
-                 (b) a programming error constructing a core_module = Some(_) plugin outside \
-                 test infrastructure. F-LP8-LOW-001 + F-LP9-HIGH-001 closure."
-            );
+            {
+                // Suppress clippy::unused_variables: core_mod is used in the test-helpers path
+                // below. In non-test builds this block panics, making the subsequent call_core_export
+                // unreachable — but the binding is structurally necessary for symmetry.
+                let _ = core_mod;
+                panic!(
+                    "core_module path is test-only; production plugins MUST be Component Model. \
+                     Reaching this branch in a production binary (without test-helpers feature) \
+                     indicates either: \
+                     (a) a corrupted or tampered .prx artifact with WAT core-module magic bytes, or \
+                     (b) a programming error constructing a core_module = Some(_) plugin outside \
+                     test infrastructure. F-LP8-LOW-001 + F-LP9-HIGH-001 closure."
+                );
+            }
             // Core module WAT fixture: call "acquire-token" export.
             // The WAT fixture returns a hardcoded string (e.g., "crowdstrike-oauth2").
             // For real WASM Components, the Component Model dispatch path below runs.
+            // Only reached in test/test-helpers builds — the non-test block above panics.
+            // SAFETY: The panic!() above is only compiled in non-test builds. In test/test-helpers
+            // builds the panic!() is absent, making this code reachable. In non-test builds
+            // this code is unreachable by design — the panic fires before here.
+            #[allow(unreachable_code)]
             self.call_core_export(
                 plugin_id,
                 core_mod,
@@ -1365,8 +1372,9 @@ fn parse_manifest(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use std::sync::Arc;
+
+    use super::*;
 
     /// F-LP7-MED-001 CORRECTION (unit test): `emit_acquire_token_parse_error_and_fail`
     /// emits `plugin_auth_token_parse_error` from the HOST and returns `Err`.

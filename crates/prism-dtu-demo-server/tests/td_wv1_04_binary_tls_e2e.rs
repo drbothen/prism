@@ -27,10 +27,7 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 #[cfg(all(feature = "dtu", feature = "tls"))]
 mod binary_tls_tests {
-    use std::collections::HashMap;
-    use std::io::Read;
-    use std::path::PathBuf;
-    use std::time::Duration;
+    use std::{collections::HashMap, io::Read, path::PathBuf, time::Duration};
 
     // ---------------------------------------------------------------------------
     // Helpers

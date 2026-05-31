@@ -8,9 +8,10 @@
 // request (server task crashes). The client sees a connection error before any
 // Was Red Gate at implementation start; timing assertion now passes.
 
+use std::time::Instant;
+
 use axum::routing::get;
 use prism_dtu_common::LatencyLayer;
-use std::time::Instant;
 
 async fn start_server_with_latency(latency_ms: u64) -> String {
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0")

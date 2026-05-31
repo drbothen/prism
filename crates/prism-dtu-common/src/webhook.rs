@@ -1,14 +1,19 @@
 //! [`WebhookReceiver`] — Generic HTTP POST capture server.
 
-use axum::body::Body;
-use axum::extract::{Request, State};
-use axum::http::StatusCode;
-use axum::routing::any;
-use axum::Router;
+use std::{
+    net::SocketAddr,
+    sync::{Arc, Mutex},
+};
+
+use axum::{
+    body::Body,
+    extract::{Request, State},
+    http::StatusCode,
+    routing::any,
+    Router,
+};
 use bytes::Bytes;
 use http::HeaderMap;
-use std::net::SocketAddr;
-use std::sync::{Arc, Mutex};
 
 /// A captured HTTP POST request recorded by [`WebhookReceiver`].
 #[derive(Debug, Clone)]

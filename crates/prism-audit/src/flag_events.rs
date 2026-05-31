@@ -14,8 +14,7 @@
 //! - `emit_flag_eval()` may be called with an empty `resolution_trace`
 //!   (EC-004: no panic, entry still emitted with `resolution_trace: []`).
 
-use prism_storage::audit_buffer;
-use prism_storage::backend::RocksStorageBackend;
+use prism_storage::{audit_buffer, backend::RocksStorageBackend};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 

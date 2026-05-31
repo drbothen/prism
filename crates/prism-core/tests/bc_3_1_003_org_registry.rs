@@ -52,13 +52,9 @@
 
 // ── Imports ─────────────────────────────────────────────────────────────────
 
-use std::sync::Arc;
-use std::thread;
+use std::{sync::Arc, thread};
 
-use prism_core::ids::OrgId;
-use prism_core::org_registry::RegistrationError;
-use prism_core::tenant::OrgSlug;
-use prism_core::OrgRegistry;
+use prism_core::{ids::OrgId, org_registry::RegistrationError, tenant::OrgSlug, OrgRegistry};
 use proptest::prelude::*;
 use uuid::Uuid;
 

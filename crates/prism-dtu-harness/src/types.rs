@@ -11,8 +11,7 @@
 
 use std::collections::HashMap;
 
-use prism_core::ids::OrgId;
-use prism_core::tenant::OrgSlug;
+use prism_core::{ids::OrgId, tenant::OrgSlug};
 use prism_dtu_common::{Archetype, FailureMode};
 use serde::{Deserialize, Serialize};
 

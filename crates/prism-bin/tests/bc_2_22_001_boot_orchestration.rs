@@ -38,8 +38,7 @@
 
 #![allow(clippy::unwrap_used)]
 
-use std::path::PathBuf;
-use std::process::Command;
+use std::{path::PathBuf, process::Command};
 
 /// MED-5 (S-WAVE5-PREP-01 fix-pass-1): Create an isolated temp config dir per test.
 /// Returns (config_dir, state_dir, spec_dir) TempDirs — keep all alive for test duration.

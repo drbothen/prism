@@ -14,8 +14,7 @@
 //! `axum_server::bind_rustls` and serves HTTPS. When `None`, plain axum HTTP
 //! is used (backward-compatible default).
 
-use std::net::SocketAddr;
-use std::sync::Arc;
+use std::{net::SocketAddr, sync::Arc};
 
 use async_trait::async_trait;
 use axum::{
@@ -23,14 +22,15 @@ use axum::{
     Router,
 };
 use prism_dtu_common::{BehavioralClone, DtuMode, FailureLayer};
-use tokio::sync::broadcast;
-use tokio::task::JoinHandle;
+use tokio::{sync::broadcast, task::JoinHandle};
 
-use crate::routes::{
-    dtu::{get_health, get_received_payloads, post_configure, post_reset},
-    webhook::post_webhook,
+use crate::{
+    routes::{
+        dtu::{get_health, get_received_payloads, post_configure, post_reset},
+        webhook::post_webhook,
+    },
+    state::SlackState,
 };
-use crate::state::SlackState;
 
 /// Deployment-time DTU operating mode for the Slack clone (BC-3.2.005 / ADR-007).
 ///

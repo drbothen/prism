@@ -12,9 +12,10 @@
 //! - All operations accept source-type references ONLY — never raw values.
 //! - All operations are audit-logged.
 
+use std::collections::HashMap;
+
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 
 /// The kind of credential source reference (AI-opaque model per AD-017).
 /// Raw credential values are NEVER accepted.

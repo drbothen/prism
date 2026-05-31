@@ -11,9 +11,10 @@
 //!   `$OUT_DIR/ocsf_version.txt` for `include_str!()` in `src/version.rs`.
 //! - `cargo:rerun-if-changed=ocsf-schema/` triggers rebuild on schema updates.
 
-use std::env;
-use std::fs;
-use std::path::{Path, PathBuf};
+use std::{
+    env, fs,
+    path::{Path, PathBuf},
+};
 
 /// Pinned OCSF schema version. Must match the schema directory name under
 /// `ocsf-schema/`. BC-2.02.009: upgrading requires a new Prism release.

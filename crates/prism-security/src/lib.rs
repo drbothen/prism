@@ -49,32 +49,28 @@ pub mod trust_level;
 // Public re-exports — S-1.08
 // ─────────────────────────────────────────────────────────────
 
+// ─────────────────────────────────────────────────────────────
+// Public re-exports — S-1.09
+// ─────────────────────────────────────────────────────────────
+pub use confirmation_token::{
+    BoundingDmlOperation, BoundingMetadata, ConfirmationToken, ConfirmationTokenStore, TOKEN_CAP,
+    TOKEN_TTL,
+};
+pub use content_hash::compute_action_hash;
 pub use feature_flag::{
     armis_write_gate, claroty_write_gate, crowdstrike_write_gate, cyberint_write_gate,
     CapabilityCheckResult, CompileTimeGate, FeatureFlagEvaluator,
 };
 pub use flag_audit::{CapabilityCheckEvent, FlagAuditEmitter};
 pub use hidden_tools::{HiddenToolsRegistry, RegisteredTool, ToolKind};
-pub use list_capabilities::{
-    CapabilityMatrixEntry, CapabilityStatus, ListCapabilitiesEngine, ListCapabilitiesQuery,
-};
-
-// ─────────────────────────────────────────────────────────────
-// Public re-exports — S-1.09
-// ─────────────────────────────────────────────────────────────
-
-pub use confirmation_token::{
-    BoundingDmlOperation, BoundingMetadata, ConfirmationToken, ConfirmationTokenStore, TOKEN_CAP,
-    TOKEN_TTL,
-};
-pub use content_hash::compute_action_hash;
-pub use risk_tier::{DryRunResponse, GateDecision, RiskTier};
-
 // ─────────────────────────────────────────────────────────────
 // Public re-exports — S-1.10
 // ─────────────────────────────────────────────────────────────
-
 pub use injection_scanner::{InjectionScanner, ScanInput, ScanResult};
+pub use list_capabilities::{
+    CapabilityMatrixEntry, CapabilityStatus, ListCapabilitiesEngine, ListCapabilitiesQuery,
+};
 pub use output_schema::{MetaEnvelopeSchema, OutputSchema, ResultsItemSchema};
 pub use provenance::{ProvenanceFraming, SecurityWarning, ToolDescriptionTemplate};
+pub use risk_tier::{DryRunResponse, GateDecision, RiskTier};
 pub use trust_level::TrustLevelExt;

@@ -1,8 +1,11 @@
 //! [`LatencyLayer`] — Tower layer that injects artificial latency into responses.
 
-use std::future::Future;
-use std::pin::Pin;
-use std::task::{Context, Poll};
+use std::{
+    future::Future,
+    pin::Pin,
+    task::{Context, Poll},
+};
+
 use tower::Service;
 
 /// Tower [`tower::Layer`] that wraps a service with configurable artificial latency.

@@ -9,8 +9,10 @@
 //! No HTTP-layer types (`axum::Json`, `axum::extract::*`) appear here.
 //! `PagerDutyState` is pure Rust — no Axum dependency for its public methods.
 
-use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
+use std::{
+    collections::HashMap,
+    sync::{Arc, Mutex},
+};
 
 #[cfg(feature = "dtu")]
 use prism_core::OrgId;

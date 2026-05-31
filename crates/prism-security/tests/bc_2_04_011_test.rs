@@ -20,10 +20,9 @@
 
 use std::time::{Duration, SystemTime};
 
-use serde_json::json;
-
 use prism_core::error::PrismError;
 use prism_security::confirmation_token::{ConfirmationToken, ConfirmationTokenStore, TOKEN_TTL};
+use serde_json::json;
 
 // ─────────────────────────────────────────────────────────────
 // Helpers

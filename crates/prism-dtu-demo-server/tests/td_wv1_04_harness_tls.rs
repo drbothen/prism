@@ -26,9 +26,11 @@ mod harness_tls_tests {
     use std::sync::Arc;
 
     use axum_server::tls_rustls::RustlsConfig;
-    use prism_dtu_demo_server::config::{CloneConfig, ClonesConfig, DemoConfig};
-    use prism_dtu_demo_server::harness::{build_clone_pairs, DemoHarness};
-    use prism_dtu_demo_server::tls::inner;
+    use prism_dtu_demo_server::{
+        config::{CloneConfig, ClonesConfig, DemoConfig},
+        harness::{build_clone_pairs, DemoHarness},
+        tls::inner,
+    };
 
     /// Build a minimal `DemoConfig` with only crowdstrike + threatintel enabled,
     /// both on ephemeral ports.  Using only 2 clones keeps test startup time low.

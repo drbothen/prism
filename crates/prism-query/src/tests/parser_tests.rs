@@ -39,7 +39,8 @@
     dead_code
 )]
 
-use crate::tests::util::run_with_deep_stack;
+use ordered_float::OrderedFloat;
+
 use crate::{
     ast::{
         AggFunc, Ast, CompareOp, EnrichStage, Expr, FieldPath, FieldsStage, FilterExpr, FromClause,
@@ -54,9 +55,9 @@ use crate::{
         effective_nesting_depth_limit, effective_query_size_limit, PRISM_MAX_REGEX_PATTERN_LEN,
     },
     sql_parser::parse_sql,
+    tests::util::run_with_deep_stack,
     ParseError,
 };
-use ordered_float::OrderedFloat;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helper constructors (no implementation logic — purely test fixtures)
@@ -2588,8 +2589,10 @@ fn test_source_ref_internal_alerts_classified() {
 /// Traces: P1-001 (visitor pattern), visit.rs
 #[test]
 fn test_visitor_walks_all_field_paths_in_filter() {
-    use crate::ast::FieldPath;
-    use crate::visit::{self, Visitor};
+    use crate::{
+        ast::FieldPath,
+        visit::{self, Visitor},
+    };
 
     struct FieldCollector {
         fields: Vec<String>,
@@ -2624,8 +2627,10 @@ fn test_visitor_walks_all_field_paths_in_filter() {
 /// Traces: P1-001 (visitor pattern), visit.rs
 #[test]
 fn test_visitor_walks_pipe_where_predicate() {
-    use crate::ast::FieldPath;
-    use crate::visit::{self, Visitor};
+    use crate::{
+        ast::FieldPath,
+        visit::{self, Visitor},
+    };
 
     struct FieldCollector {
         fields: Vec<String>,
@@ -2664,8 +2669,10 @@ fn test_visitor_walks_pipe_where_predicate() {
 /// Traces: security.rs check_predicate_nesting_depth, BC-2.11.006 EC-002
 #[test]
 fn test_check_nesting_depth_recurses_into_subquery() {
-    use crate::ast::{FromClause, Predicate, SelectClause, SelectItem, SqlQuery};
-    use crate::security::check_predicate_nesting_depth;
+    use crate::{
+        ast::{FromClause, Predicate, SelectClause, SelectItem, SqlQuery},
+        security::check_predicate_nesting_depth,
+    };
 
     // Build a deeply-nested Predicate::InSubquery with a subquery
     // that itself has a deep predicate.
@@ -2747,8 +2754,10 @@ fn test_check_nesting_depth_recurses_into_having() {
 /// Traces: P1-003 (Eq+Hash uniformity), ast.rs doc comment
 #[test]
 fn test_ast_hash_stable_across_clone() {
-    use std::collections::hash_map::DefaultHasher;
-    use std::hash::{Hash, Hasher};
+    use std::{
+        collections::hash_map::DefaultHasher,
+        hash::{Hash, Hasher},
+    };
 
     fn hash_of<T: Hash>(t: &T) -> u64 {
         let mut h = DefaultHasher::new();
@@ -3523,8 +3532,7 @@ fn test_check_paren_depth_balanced_pairs_stay_at_depth_one() {
 /// Traces: Adv F-HIGH-003
 #[test]
 fn test_regex_pattern_length_uses_security_constant() {
-    use crate::ast::RegexLiteral;
-    use crate::security::PRISM_MAX_REGEX_PATTERN_LEN;
+    use crate::{ast::RegexLiteral, security::PRISM_MAX_REGEX_PATTERN_LEN};
 
     // Pattern exactly at the limit must succeed
     let at_limit = "a".repeat(PRISM_MAX_REGEX_PATTERN_LEN);

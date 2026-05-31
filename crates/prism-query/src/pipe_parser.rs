@@ -15,23 +15,23 @@
 //!
 //! Story: S-3.01 | BC-2.11.004
 
-use ordered_float::OrderedFloat;
-
 use chumsky::prelude::*;
-
-use crate::ast::{
-    AggFunc, EnrichStage, FieldPath, FieldsStage, JoinCondition, JoinKind, JoinStage, PipeQuery,
-    PipeStage, SortDirection, SortExpr, SourceRef, Span, StatFunction, StatsStage,
-};
-use crate::error::ParseError;
-use crate::error_recovery::{pipe_boundary_chars, rich_to_parse_error};
-use crate::filter_parser::{build_predicate_parser, build_source_ref_parser};
-use crate::security;
-use crate::write_ast::{WriteArg, WriteNode};
-use crate::write_verb_registry::WriteVerbRegistry;
-
+use ordered_float::OrderedFloat;
 // ── Security re-export for convenient use in tests ────────────────────────────
 pub use security::PRISM_MAX_PIPE_STAGES;
+
+use crate::{
+    ast::{
+        AggFunc, EnrichStage, FieldPath, FieldsStage, JoinCondition, JoinKind, JoinStage,
+        PipeQuery, PipeStage, SortDirection, SortExpr, SourceRef, Span, StatFunction, StatsStage,
+    },
+    error::ParseError,
+    error_recovery::{pipe_boundary_chars, rich_to_parse_error},
+    filter_parser::{build_predicate_parser, build_source_ref_parser},
+    security,
+    write_ast::{WriteArg, WriteNode},
+    write_verb_registry::WriteVerbRegistry,
+};
 
 /// Parse a pipe-mode query: `[FROM source | source] (| stage)*`.
 ///

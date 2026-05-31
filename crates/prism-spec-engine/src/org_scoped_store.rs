@@ -23,13 +23,11 @@
 //!   store-layer helpers (BC-3.1.001 invariant 4 / O(1) constraint).
 //! - This module MUST NOT import DataFusion or Arrow (AD-015).
 
-use std::collections::HashMap;
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
 use prism_core::{OrgId, OrgRegistry, OrgSlug};
 
-use crate::error::SpecEngineError;
-use crate::spec_parser::SensorSpec;
+use crate::{error::SpecEngineError, spec_parser::SensorSpec};
 
 // ---------------------------------------------------------------------------
 // OrgScopedSpecStore

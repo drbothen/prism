@@ -27,8 +27,10 @@
 //! No step may begin concurrently with or before its predecessor completes
 //! successfully (ADR-022 §B — strict sequential dependency, not a DAG).
 
-use std::path::{Path, PathBuf};
-use std::sync::Arc;
+use std::{
+    path::{Path, PathBuf},
+    sync::Arc,
+};
 
 use anyhow::Result;
 
@@ -422,9 +424,9 @@ pub fn validate_and_construct_auth_providers(
     runtime: &Arc<prism_spec_engine::plugin::PluginRuntime>,
 ) -> Result<std::collections::HashMap<String, Arc<prism_spec_engine::PluginAuthProvider>>, BootError>
 {
-    use prism_spec_engine::PluginAuthProvider;
-    use prism_spec_engine::validate_auth_plugin_fields;
     use std::collections::{HashMap, HashSet};
+
+    use prism_spec_engine::{PluginAuthProvider, validate_auth_plugin_fields};
 
     let registered_ids: HashSet<String> = runtime.list_plugins().into_iter().collect();
     let mut providers: HashMap<String, Arc<PluginAuthProvider>> = HashMap::new();
@@ -1445,8 +1447,10 @@ fn step6_init_audit(
     // Redact config_dir: use SHA-256 hash of the path, not the raw path.
     // BC-2.05.012: "config_dir field MUST be redacted (only a hash or basename)".
     let config_dir_hash = {
-        use std::collections::hash_map::DefaultHasher;
-        use std::hash::{Hash, Hasher};
+        use std::{
+            collections::hash_map::DefaultHasher,
+            hash::{Hash, Hasher},
+        };
         let mut h = DefaultHasher::new();
         config.state_dir.hash(&mut h);
         format!("{:016x}", h.finish())
@@ -1558,8 +1562,9 @@ pub async fn plugin_load_step_with_audit(
     plugin_dir: &Path,
     audit_sink: Arc<dyn prism_spec_engine::plugin_audit_sink::PluginLoadAuditSink>,
 ) -> Result<PluginLoadResult, BootError> {
-    use prism_spec_engine::plugin::{PLUGIN_HTTP_CLIENT_TIMEOUT_SECS, PluginRuntime};
     use std::time::Duration;
+
+    use prism_spec_engine::plugin::{PLUGIN_HTTP_CLIENT_TIMEOUT_SECS, PluginRuntime};
 
     // AC-18: PRISM_DISABLE_PLUGIN_LOAD takes absolute precedence over plugin_dir config.
     // Only the exact string "1" disables loading (EC-D-011). Values like "true", "yes", "0"
@@ -1857,13 +1862,17 @@ pub async fn step9_start_mcp_server(
 
     use prism_mcp::server::PrismServer;
     use prism_ocsf::OcsfNormalizer;
-    use prism_query::engine::{QueryEngine, QueryEngineConfig};
-    use prism_query::scoping::ClientRegistry;
-    use prism_query::write_dispatch::AuditWriter;
-    use prism_query::{WriteExecutor, WritePlan, WriteResult};
-    use prism_security::confirmation_token::ConfirmationTokenStore;
-    use prism_security::feature_flag::{CapabilityCheckResult, FeatureFlagEvaluator};
-    use prism_security::injection_scanner::InjectionScanner;
+    use prism_query::{
+        WriteExecutor, WritePlan, WriteResult,
+        engine::{QueryEngine, QueryEngineConfig},
+        scoping::ClientRegistry,
+        write_dispatch::AuditWriter,
+    };
+    use prism_security::{
+        confirmation_token::ConfirmationTokenStore,
+        feature_flag::{CapabilityCheckResult, FeatureFlagEvaluator},
+        injection_scanner::InjectionScanner,
+    };
     use prism_sensors::AdapterRegistry;
     use prism_spec_engine::write_endpoint::WriteEndpointRegistry;
 
@@ -2144,8 +2153,9 @@ pub async fn step11_install_signal_handlers(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use std::path::PathBuf;
+
+    use super::*;
 
     /// Story: S-WAVE5-PREP-01 + S-PLUGIN-PREREQ-E F-LP-IMPL-P4-001
     /// BC: BC-2.22.001 — BootError::exit_code() maps all variants correctly

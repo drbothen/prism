@@ -24,15 +24,19 @@
     clippy::expect_used
 )]
 
-use std::collections::BTreeMap;
-use std::collections::HashMap;
-use std::sync::Arc;
+use std::{
+    collections::{BTreeMap, HashMap},
+    sync::Arc,
+};
 
 use prism_core::RiskTier;
-use prism_query::write_pipeline::{QueryContext, WriteExecutor, WriteOutcome, WritePlan};
-use prism_query::write_result::{WritePreview, WriteResult};
-use prism_security::confirmation_token::ConfirmationTokenStore;
-use prism_security::feature_flag::FeatureFlagEvaluator;
+use prism_query::{
+    write_pipeline::{QueryContext, WriteExecutor, WriteOutcome, WritePlan},
+    write_result::{WritePreview, WriteResult},
+};
+use prism_security::{
+    confirmation_token::ConfirmationTokenStore, feature_flag::FeatureFlagEvaluator,
+};
 
 // ---------------------------------------------------------------------------
 // Helpers: construct a WritePlan for tests (WritePlan itself is exhaustive).
@@ -103,9 +107,11 @@ mod test_helpers {
     };
 
     use prism_core::PrismError;
-    use prism_query::write_dispatch::AuditWriter;
-    use prism_query::write_pipeline::{QueryContext, WritePlan};
-    use prism_query::write_result::WriteResult;
+    use prism_query::{
+        write_dispatch::AuditWriter,
+        write_pipeline::{QueryContext, WritePlan},
+        write_result::WriteResult,
+    };
     use ulid::Ulid;
 
     pub struct MockAuditWriter {
@@ -411,9 +417,10 @@ async fn test_ac6_sql_mode_runs_same_safety_pipeline_as_pipe_mode() {
 #[cfg(feature = "armis-write")]
 #[tokio::test]
 async fn test_ac7_feature_flag_deny_returns_e_flag_001() {
+    use std::sync::Arc;
+
     use prism_core::{CapabilityEffect, CapabilityPath, ClientCapabilities};
     use prism_spec_engine::write_endpoint::WriteEndpointRegistry;
-    use std::sync::Arc;
 
     // Build evaluator where acme has sensor Allow but sensor.armis.device_write is Deny
     // (child deny overrides parent allow — BC-2.05.009 hierarchical evaluation)
@@ -556,9 +563,10 @@ fn test_crit3_crowdstrike_write_feature_is_queryable() {
 #[tokio::test]
 #[cfg(not(feature = "crowdstrike-write"))]
 async fn test_crit3_crowdstrike_write_denied_in_default_build() {
+    use std::collections::BTreeMap;
+
     use prism_core::{CapabilityEffect, CapabilityPath, ClientCapabilities};
     use prism_spec_engine::write_endpoint::WriteEndpointRegistry;
-    use std::collections::BTreeMap;
 
     // Build executor with "acme" allowed for sensor.crowdstrike.contain
     let mut caps = BTreeMap::new();
@@ -940,8 +948,7 @@ fn test_crit2_write_capable_table_provider_new_does_not_panic() {
 /// Full SQL DML routing to WriteExecutor is deferred to W3-FIX-S307-003.
 #[tokio::test]
 async fn test_crit2_insert_into_returns_not_implemented_not_panic() {
-    use datafusion::datasource::TableProvider;
-    use datafusion::logical_expr::dml::InsertOp;
+    use datafusion::{datasource::TableProvider, logical_expr::dml::InsertOp};
     use prism_core::RiskTier;
     use prism_query::write_table_registration::WriteCapableTableProvider;
     use prism_spec_engine::write_endpoint::{BatchMode, WriteEndpointSpec, WriteTableDescriptor};

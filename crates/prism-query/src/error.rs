@@ -79,8 +79,9 @@ impl ParseError {
     /// The `source` argument is the original query string, used by ariadne
     /// to produce source-annotated snippets.
     pub fn format_report(errors: &[ParseError], source: &str) -> String {
-        use ariadne::{Config, Label, Report, ReportKind, Source};
         use std::fmt::Write as _;
+
+        use ariadne::{Config, Label, Report, ReportKind, Source};
 
         if errors.is_empty() {
             return String::new();

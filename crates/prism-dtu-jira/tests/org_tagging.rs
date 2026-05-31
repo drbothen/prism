@@ -22,8 +22,7 @@
 #![cfg(feature = "dtu")]
 
 use prism_dtu_common::{BehavioralClone, DtuMode};
-use prism_dtu_jira::clone::JIRA_DTU_MODE;
-use prism_dtu_jira::JiraClone;
+use prism_dtu_jira::{clone::JIRA_DTU_MODE, JiraClone};
 
 // ---------------------------------------------------------------------------
 // Test helpers

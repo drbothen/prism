@@ -8,9 +8,8 @@
 
 use std::collections::HashMap;
 
-use serde::{Deserialize, Serialize};
-
 use prism_core::types::ClientId;
+use serde::{Deserialize, Serialize};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // AliasScope

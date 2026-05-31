@@ -146,7 +146,7 @@ mod ac_2 {
         );
     }
 
-    /// Empty Cookie header (not containing cyberint_session) returns 401.
+    /// Empty Cookie header (not containing access_token) returns 401.
     #[tokio::test]
     async fn ac_2_alerts_empty_cookie_returns_401() {
         let (_clone, base_url, client) = start().await;
@@ -161,15 +161,17 @@ mod ac_2 {
         assert_eq!(
             resp.status().as_u16(),
             401,
-            "AC-2: Cookie header without cyberint_session must return HTTP 401"
+            "AC-2: Cookie header without access_token must return HTTP 401"
         );
     }
 
-    /// Invalid (non-registered) session token returns 401.
+    /// Legacy `cyberint_session` cookie name is rejected — only `access_token` is accepted
+    /// (ADR-031 §D3-a; AC-003: the old cookie name must NOT be parsed).
     #[tokio::test]
     async fn ac_2_invalid_session_token_returns_401() {
         let (_clone, base_url, client) = start().await;
 
+        // Send the old `cyberint_session` cookie — must be rejected (ADR-031 §D3-a).
         let resp = client
             .get(format!("{base_url}/api/v1/alerts"))
             .header(
@@ -178,12 +180,13 @@ mod ac_2 {
             )
             .send()
             .await
-            .expect("AC-2: request with invalid token must not error");
+            .expect("AC-2: request with legacy cyberint_session cookie must not error");
 
         assert_eq!(
             resp.status().as_u16(),
             401,
-            "AC-2: invalid session token must return HTTP 401"
+            "AC-2: legacy cyberint_session cookie name must return HTTP 401 \
+             (only access_token is accepted per ADR-031 §D3-a)"
         );
     }
 }

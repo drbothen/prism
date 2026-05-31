@@ -17,22 +17,24 @@
 //!
 //! Story: S-3.07 | BCs: BC-2.04.001, BC-2.04.007, BC-2.04.008, BC-2.05.009
 
-use std::collections::HashMap;
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
 use prism_core::{OrgSlug, PrismError, RiskTier};
-use prism_security::confirmation_token::ConfirmationTokenStore;
-use prism_security::feature_flag::FeatureFlagEvaluator;
+use prism_security::{
+    confirmation_token::ConfirmationTokenStore, feature_flag::FeatureFlagEvaluator,
+};
 use prism_sensors::AdapterRegistry;
 use prism_spec_engine::write_endpoint::WriteEndpointRegistry;
 
-use crate::dry_run::{DryRunGate, GateInputs};
-use crate::safety_check::{
-    phase2_safety_check, resolve_batch_limit, CompileFeatureGate, WriteTargetDescriptor,
+use crate::{
+    dry_run::{DryRunGate, GateInputs},
+    safety_check::{
+        phase2_safety_check, resolve_batch_limit, CompileFeatureGate, WriteTargetDescriptor,
+    },
+    write_ast::{DmlNode, DmlOperation, WriteNode},
+    write_dispatch::{AuditWriter, DispatchInputs, WriteDispatcher},
+    write_result::{WritePreview, WriteResult},
 };
-use crate::write_ast::{DmlNode, DmlOperation, WriteNode};
-use crate::write_dispatch::{AuditWriter, DispatchInputs, WriteDispatcher};
-use crate::write_result::{WritePreview, WriteResult};
 
 // System-wide ceiling for batch limits (used when no endpoint-specific limit exists).
 const SYSTEM_BATCH_CEILING: u32 = 10_000;
@@ -445,9 +447,10 @@ impl WriteExecutor {
 #[cfg(test)]
 #[allow(clippy::expect_used)]
 mod write_plan_from_dml_node_tests {
+    use prism_spec_engine::write_endpoint::{BatchMode, WriteEndpointRegistry, WriteEndpointSpec};
+
     use super::*;
     use crate::write_ast::{DmlNode, DmlOperation};
-    use prism_spec_engine::write_endpoint::{BatchMode, WriteEndpointRegistry, WriteEndpointSpec};
 
     fn make_registry_with(sensor: &str, table: &str) -> WriteEndpointRegistry {
         let mut r = WriteEndpointRegistry::new();

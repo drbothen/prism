@@ -11,12 +11,10 @@
 
 #[cfg(test)]
 mod tests {
+    use prism_core::StorageDomain;
     use proptest::prelude::*;
 
-    use prism_core::StorageDomain;
-
-    use crate::backend::StorageBackend;
-    use crate::mock::MockStorageEngine;
+    use crate::{backend::StorageBackend, mock::MockStorageEngine};
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 

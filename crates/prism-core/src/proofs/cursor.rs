@@ -8,8 +8,10 @@
 
 #[cfg(kani)]
 mod kani_proofs {
-    use crate::cursor::{CursorRegistry, CURSOR_CAP};
-    use crate::error::PrismError;
+    use crate::{
+        cursor::{CursorRegistry, CURSOR_CAP},
+        error::PrismError,
+    };
 
     /// VP-029 — cap of 200 is enforced; release+allocate works.
     #[kani::proof]

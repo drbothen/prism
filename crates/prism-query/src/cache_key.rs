@@ -28,14 +28,13 @@
 
 use std::collections::BTreeMap;
 
-use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
-
 // Re-export the validated newtype so callers that import from this module can
 // use `cache_key::SensorId` without a separate `prism_core` import.  The alias
 // is removed — `SensorId` is now the full validated newtype and the cache layer
 // enforces `validate_sensor_id_string` through every construction path.
 pub use prism_core::SensorId;
+use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 
 /// Data source identifier within a sensor (e.g., `"crowdstrike_detections"`).
 ///

@@ -9,8 +9,7 @@
 //!
 //! Story: S-1.06 | Referenced by: BC-2.03.002 (KeyringBackend list support)
 
-use std::fs;
-use std::path::PathBuf;
+use std::{fs, path::PathBuf};
 
 use prism_core::PrismError;
 use tracing::debug;

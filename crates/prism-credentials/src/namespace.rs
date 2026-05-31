@@ -65,8 +65,9 @@ pub fn validate_sensor(sensor: &str) -> Result<(), PrismError> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use prism_core::{CredentialName, OrgId};
+
+    use super::*;
 
     /// BC-2.03.004 / BC-3.2.002: namespace_key_by_org_id produces
     /// "{org_id_uuid}/{sensor}/{name}" format (OrgId-keyed, AC-5 compliant).

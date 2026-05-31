@@ -36,11 +36,6 @@
 
 use chrono::Utc;
 use prism_audit::audit_entry::{AuditEntry, AuditOutcome, DataClassification};
-use prism_core::org_registry::OrgRegistry;
-use prism_core::tenant::OrgSlug;
-use prism_core::OrgId;
-use uuid::Uuid;
-
 // ---------------------------------------------------------------------------
 // Production gap: this import fails to compile until the implementer adds
 // `validate_org_slug_cross_check` to the `prism_audit` crate.
@@ -49,6 +44,8 @@ use uuid::Uuid;
 // the production API surface that the AC-006 implementation must provide.
 // ---------------------------------------------------------------------------
 use prism_audit::org_slug_guard::{validate_org_slug_cross_check, SlugCheckResult};
+use prism_core::{org_registry::OrgRegistry, tenant::OrgSlug, OrgId};
+use uuid::Uuid;
 
 // ---------------------------------------------------------------------------
 // Helper: build a minimal AuditEntry.

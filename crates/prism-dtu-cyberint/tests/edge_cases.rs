@@ -1,6 +1,9 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 //! Edge cases per story S-6.09 edge case catalog (EC-001 through EC-006).
 //!
+//! Rewritten per S-DTU-CYBERINT-AUTH-FIDELITY-001 Task 11: uses
+//! `Cookie: access_token=demo-key` instead of login + cyberint_session.
+//!
 //! EC-001 and EC-004 are co-located in ac_4 and ac_6 respectively because they
 //! are tightly bound to those AC flows. The remaining edge cases live here.
 
@@ -9,11 +12,17 @@ mod edge_cases {
     use prism_dtu_common::BehavioralClone;
     use prism_dtu_cyberint::CyberintClone;
 
+    const DEMO_TOKEN: &str = "demo-access-key";
+
     async fn start() -> (CyberintClone, String, reqwest::Client, String) {
         let mut clone = CyberintClone::new().expect("edge_cases: new must succeed");
         clone.start().await.expect("edge_cases: start must succeed");
         let base_url = clone.base_url();
         let admin_token = clone.admin_token().to_string();
+        clone
+            .configure(serde_json::json!({"access_token": DEMO_TOKEN}))
+            .await
+            .expect("edge_cases: configure access_token must succeed");
         let client = reqwest::Client::builder()
             .timeout(std::time::Duration::from_secs(5))
             .build()
@@ -21,35 +30,15 @@ mod edge_cases {
         (clone, base_url, client, admin_token)
     }
 
-    async fn login(base_url: &str, client: &reqwest::Client) -> String {
-        let resp = client
-            .post(format!("{base_url}/login"))
-            .json(&serde_json::json!({}))
-            .send()
-            .await
-            .expect("login must succeed");
-        resp.headers()
-            .get("set-cookie")
-            .expect("edge_cases: Set-Cookie must be present on login")
-            .to_str()
-            .expect("edge_cases: Set-Cookie must be ASCII")
-            .split(';')
-            .next()
-            .and_then(|s| s.strip_prefix("cyberint_session="))
-            .expect("edge_cases: Set-Cookie must contain cyberint_session=")
-            .to_owned()
-    }
-
     /// EC-002: GET /api/v1/alerts/{alert_id} for unknown alert_id returns HTTP 404
     /// with {"error": "alert not found"}.
     #[tokio::test]
     async fn ec_002_unknown_alert_id_returns_404() {
         let (_clone, base_url, client, _admin_token) = start().await;
-        let token = login(&base_url, &client).await;
 
         let resp = client
             .get(format!("{base_url}/api/v1/alerts/NONEXISTENT-9999"))
-            .header("Cookie", format!("cyberint_session={token}"))
+            .header("Cookie", format!("access_token={DEMO_TOKEN}"))
             .send()
             .await
             .expect("EC-002: GET for unknown alert must not error");
@@ -72,11 +61,10 @@ mod edge_cases {
     #[tokio::test]
     async fn ec_002_patch_unknown_alert_returns_404() {
         let (_clone, base_url, client, _admin_token) = start().await;
-        let token = login(&base_url, &client).await;
 
         let resp = client
             .patch(format!("{base_url}/api/v1/alerts/NONEXISTENT-0000/status"))
-            .header("Cookie", format!("cyberint_session={token}"))
+            .header("Cookie", format!("access_token={DEMO_TOKEN}"))
             .json(&serde_json::json!({"status": "acknowledged"}))
             .send()
             .await
@@ -93,11 +81,10 @@ mod edge_cases {
     #[tokio::test]
     async fn ec_002_close_unknown_alert_returns_404() {
         let (_clone, base_url, client, _admin_token) = start().await;
-        let token = login(&base_url, &client).await;
 
         let resp = client
             .post(format!("{base_url}/api/v1/alerts/NONEXISTENT-1234/close"))
-            .header("Cookie", format!("cyberint_session={token}"))
+            .header("Cookie", format!("access_token={DEMO_TOKEN}"))
             .send()
             .await
             .expect("EC-002: close for unknown alert must not error");
@@ -150,8 +137,7 @@ mod edge_cases {
     #[tokio::test]
     async fn ec_006_auth_mode_reject_returns_401_for_valid_cookie() {
         let (_clone, base_url, client, admin_token) = start().await;
-        let token = login(&base_url, &client).await;
-        let cookie = format!("cyberint_session={token}");
+        let cookie = format!("access_token={DEMO_TOKEN}");
 
         // Verify token works before auth_mode change.
         let before = client
@@ -163,7 +149,7 @@ mod edge_cases {
         assert_eq!(
             before.status().as_u16(),
             200,
-            "EC-006: valid cookie must work before auth_mode=reject"
+            "EC-006: valid access_token cookie must work before auth_mode=reject"
         );
 
         // Set auth_mode=reject.
@@ -190,7 +176,7 @@ mod edge_cases {
         assert_eq!(
             after.status().as_u16(),
             401,
-            "EC-006: auth_mode=reject must return 401 even with a valid session cookie"
+            "EC-006: auth_mode=reject must return 401 even with a valid access_token cookie"
         );
 
         let body: serde_json::Value = after.json().await.expect("EC-006: 401 body must be JSON");
@@ -205,8 +191,7 @@ mod edge_cases {
     #[tokio::test]
     async fn ec_006_auth_mode_reject_applies_to_threat_intel() {
         let (_clone, base_url, client, admin_token) = start().await;
-        let token = login(&base_url, &client).await;
-        let cookie = format!("cyberint_session={token}");
+        let cookie = format!("access_token={DEMO_TOKEN}");
 
         client
             .post(format!("{base_url}/dtu/configure"))
@@ -233,8 +218,7 @@ mod edge_cases {
     #[tokio::test]
     async fn ec_006_auth_mode_accept_restores_normal_operation() {
         let (_clone, base_url, client, admin_token) = start().await;
-        let token = login(&base_url, &client).await;
-        let cookie = format!("cyberint_session={token}");
+        let cookie = format!("access_token={DEMO_TOKEN}");
 
         // Set reject, then restore accept.
         client
@@ -322,11 +306,10 @@ mod edge_cases {
     #[tokio::test]
     async fn threat_intel_returns_data_and_next_cursor_fields() {
         let (_clone, base_url, client, _admin_token) = start().await;
-        let token = login(&base_url, &client).await;
 
         let resp = client
             .get(format!("{base_url}/api/v1/threat-intel"))
-            .header("Cookie", format!("cyberint_session={token}"))
+            .header("Cookie", format!("access_token={DEMO_TOKEN}"))
             .send()
             .await
             .expect("GET /api/v1/threat-intel must not error");

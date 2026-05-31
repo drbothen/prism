@@ -23,9 +23,11 @@
 
 use std::sync::Arc;
 
-use arrow::array::StringArray;
-use arrow::datatypes::{DataType, Field, Schema};
-use arrow::record_batch::RecordBatch;
+use arrow::{
+    array::StringArray,
+    datatypes::{DataType, Field, Schema},
+    record_batch::RecordBatch,
+};
 use prism_core::{OrgSlug, SensorId};
 
 // ---------------------------------------------------------------------------

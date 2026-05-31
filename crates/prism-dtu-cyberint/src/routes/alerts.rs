@@ -6,19 +6,19 @@
 //! - `PATCH /api/v1/alerts/{alert_id}/status` — acknowledge alert
 //! - `POST /api/v1/alerts/{alert_id}/close` — close alert (irreversible in session)
 //!
-//! All routes require cookie auth — validated via `extract_session_token`.
+//! All routes require cookie auth — validated via `extract_access_token` (ADR-031 §D3-a).
 //!
-//! # Auth model deviation (CR-015)
+//! # Auth model (ADR-031 §D3-a)
 //!
-//! Cyberint intentionally does NOT use the instance-identity `X-Org-Id` guard
-//! employed by Claroty, CrowdStrike, and Armis clones. Cyberint clones support
-//! multiple orgs concurrently via per-session routing: each session cookie maps
-//! to one org, and the `X-Prism-Org-Id` header selects the correct session
-//! namespace at the handler level. An absent `X-Prism-Org-Id` header falls
-//! through to the instance session (not a 401), which is intentional and required
-//! for backward compatibility with legacy single-org Cyberint callers.
-//! The upstream `validate_org_id` pattern is therefore incompatible with this
-//! topology and has been removed from this module (BC-3.2.003; W3-FIX-CODE-004 AC-006).
+//! Cyberint uses **account-level static cookie auth**: a pre-registered `access_token`
+//! cookie value is validated against an `access_token_allowlist` on every request.
+//! There is no `POST /login` step — the real Cyberint API requires no login endpoint.
+//! Tokens are org-agnostic (no per-session-per-org routing); the `X-Prism-Org-Id`
+//! header selects the alert namespace for multi-tenant isolation, but the token
+//! itself is not org-scoped.
+//!
+//! The legacy per-session-per-org routing model described in BC-3.2.003 was
+//! superseded by ADR-031 §D3-a. The `validate_org_id` pattern is not used here.
 
 use std::sync::Arc;
 
@@ -39,13 +39,25 @@ pub struct AlertListParams {
     pub cursor: Option<String>,
 }
 
-/// Extract the session token from the `Cookie` header.
-/// Returns `None` if the header is absent, empty, or no matching cookie is found.
-pub fn extract_session_token(headers: &HeaderMap) -> Option<String> {
+/// Extract the `access_token` cookie value from the `Cookie` header.
+///
+/// Parses the raw `cookie` header (case-insensitive header lookup per HTTP/1.1
+/// normalization; axum normalises headers to lowercase). Returns the value of the
+/// cookie named exactly `access_token`.
+///
+/// Returns `None` if:
+/// - the `cookie` header is absent
+/// - the header value is not valid UTF-8
+/// - no `access_token` cookie is present (e.g., only a `cyberint_session` cookie)
+///
+/// Cookie names are case-sensitive per RFC 6265. `Access-Token` is NOT `access_token`.
+///
+/// ADR-031 §D3-a rule 2 / AC-002 (S-DTU-CYBERINT-AUTH-FIDELITY-001)
+pub fn extract_access_token(headers: &HeaderMap) -> Option<String> {
     let cookie_header = headers.get("cookie")?.to_str().ok()?;
     for pair in cookie_header.split(';') {
         let pair = pair.trim();
-        if let Some(val) = pair.strip_prefix("cyberint_session=") {
+        if let Some(val) = pair.strip_prefix("access_token=") {
             return Some(val.to_owned());
         }
     }
@@ -91,7 +103,16 @@ fn rate_limited() -> axum::response::Response {
 }
 
 /// Check auth and rate limits. Returns `Ok(())` if the request may proceed.
-fn check_auth(
+///
+/// Validates the `access_token` cookie against the static allowlist in `CyberintState`.
+/// A missing cookie or unrecognised token returns HTTP 401. The `cyberint_session` cookie
+/// name is explicitly not accepted (ADR-031 §D3-a; AC-003).
+///
+/// Shared across all authenticated route handlers (`alerts`, `threats`) to avoid
+/// duplicating the three-step auth check inline. (F-LP1-MED-001)
+///
+/// # AC-003 (S-DTU-CYBERINT-AUTH-FIDELITY-001)
+pub(crate) fn check_auth(
     state: &CyberintState,
     headers: &HeaderMap,
 ) -> Result<(), Box<axum::response::Response>> {
@@ -100,25 +121,9 @@ fn check_auth(
         return Err(Box::new(unauthorized()));
     }
 
-    // Validate cookie.
-    let token = extract_session_token(headers).ok_or_else(|| Box::new(unauthorized()))?;
-    let org_id = extract_org_id(headers, state.instance_org_id);
-    if !state.is_valid_session(org_id, &token) {
-        // W3-FIX-SEC-001 (AC-002_body): when X-Prism-Org-Id header is present, the session
-        // lookup failed because the caller supplied an org UUID that doesn't match any
-        // registered session. Return "org_id mismatch" to distinguish this from a plain
-        // missing-cookie 401 (which returns "unauthorized").
-        if headers.get("x-prism-org-id").is_some() {
-            return Err(Box::new(
-                (
-                    StatusCode::UNAUTHORIZED,
-                    Json(serde_json::json!({
-                        "error": "org_id mismatch: request does not match this clone instance"
-                    })),
-                )
-                    .into_response(),
-            ));
-        }
+    // Validate access_token cookie (ADR-031 §D3-a; AC-003).
+    let token = extract_access_token(headers).ok_or_else(|| Box::new(unauthorized()))?;
+    if !state.is_valid_access_token(&token) {
         return Err(Box::new(unauthorized()));
     }
 

@@ -1,0 +1,54 @@
+AC-002: extract_access_token parses access_token cookie; returns None for cyberint_session
+Story: S-DTU-CYBERINT-AUTH-FIDELITY-001
+BC: BC-2.01.017 §Postconditions
+Red Gate test: test_BC_2_01_017_dtu_extract_access_token_parses_cookie_header
+
+Evidence type: Unit test output (no network I/O; tests the function directly)
+
+--- TEST RUN ---
+
+PASS [   0.010s] (1/1) prism-dtu-cyberint::bc_2_01_017_access_token_auth
+  bc_2_01_017_dtu::test_BC_2_01_017_dtu_extract_access_token_parses_cookie_header
+
+Summary: 1 test run: 1 passed, 108 skipped
+
+--- WHAT THE TEST ASSERTS (5 cases) ---
+
+Case 1: Cookie: access_token=test-api-key-abc123
+  => extract_access_token(&headers) == Some("test-api-key-abc123")
+  (TV-BC-2.01.017-001: happy path)
+
+Case 2: Cookie: cyberint_session=legacy-session-uuid
+  => extract_access_token(&headers) == None
+  (ADR-031 §D3-a: old cookie name returns None, not the legacy value)
+
+Case 3: No Cookie header
+  => extract_access_token(&headers) == None
+
+Case 4: Cookie: access_token=val1; session=val2
+  => extract_access_token(&headers) == Some("val1")
+  (EC-003: multiple cookies; only access_token value extracted)
+
+Case 5: Cookie: Access-Token=case-test-value
+  => extract_access_token(&headers) == None
+  (EC-004: RFC 6265 cookie names are case-sensitive; Access-Token != access_token)
+
+--- IMPLEMENTATION: alerts.rs ---
+
+File: crates/prism-dtu-cyberint/src/routes/alerts.rs (lines 56-65)
+
+    pub fn extract_access_token(headers: &HeaderMap) -> Option<String> {
+        let cookie_header = headers.get("cookie")?.to_str().ok()?;
+        for pair in cookie_header.split(';') {
+            let pair = pair.trim();
+            if let Some(val) = pair.strip_prefix("access_token=") {
+                return Some(val.to_owned());
+            }
+        }
+        None
+    }
+
+The cookie name is literally "access_token" (lowercase). The function does not
+match "cyberint_session" or "Access-Token" — case-sensitive per RFC 6265.
+
+AC-002 SATISFIED.

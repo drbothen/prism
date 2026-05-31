@@ -36,9 +36,9 @@
 //! - `test_BC_3_1_002_SEC007_audit_entry_emitted_even_on_slug_mismatch` →
 //!   same.
 
+use prism_core::{org_registry::OrgRegistry, tenant::OrgSlug};
+
 use crate::audit_entry::AuditEntry;
-use prism_core::org_registry::OrgRegistry;
-use prism_core::tenant::OrgSlug;
 
 /// Result of cross-checking an `AuditEntry`'s `org_slug` against `OrgRegistry`.
 ///

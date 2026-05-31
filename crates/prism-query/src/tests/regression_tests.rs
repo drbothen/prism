@@ -26,7 +26,6 @@
     unused_imports
 )]
 
-use crate::tests::util::run_with_deep_stack;
 use crate::{
     ast::Ast,
     filter_parser::{parse_filter, PrismQlParser},
@@ -40,6 +39,7 @@ use crate::{
         PRISM_MAX_LIST_ITEMS, PRISM_MAX_NESTING_DEPTH, PRISM_MAX_QUERY_SIZE,
     },
     sql_parser::parse_sql,
+    tests::util::run_with_deep_stack,
     ParseError,
 };
 
@@ -224,8 +224,10 @@ fn test_BC_2_11_006_pipe_where_subquery_depth_65_rejected() {
 /// Traces: B-4
 #[test]
 fn test_walk_sql_statement_select_variant_traversed() {
-    use crate::ast::{FieldPath, Literal};
-    use crate::visit::{walk_ast, Visitor};
+    use crate::{
+        ast::{FieldPath, Literal},
+        visit::{walk_ast, Visitor},
+    };
 
     struct FieldCounter(usize);
     impl Visitor for FieldCounter {
@@ -484,8 +486,10 @@ fn test_error_message_truncates_long_user_input() {
 /// Traces: F-LOW-001, S-3.01
 #[test]
 fn test_walk_predicate_visits_recovery_error_as_leaf() {
-    use crate::ast::{FilterExpr, Predicate, SourceRef};
-    use crate::visit::{walk_filter_expr, Visitor};
+    use crate::{
+        ast::{FilterExpr, Predicate, SourceRef},
+        visit::{walk_filter_expr, Visitor},
+    };
 
     /// Visitor that counts how many times `visit_predicate` is called.
     struct PredicateCounter(usize);
@@ -519,8 +523,10 @@ fn test_walk_predicate_visits_recovery_error_as_leaf() {
 /// Traces: F-LOW-001, S-3.01
 #[test]
 fn test_walk_predicate_recovery_error_inside_logical_visited_once() {
-    use crate::ast::{FieldPath, LogicalOp, Predicate, Span};
-    use crate::visit::{walk_predicate, Visitor};
+    use crate::{
+        ast::{FieldPath, LogicalOp, Predicate, Span},
+        visit::{walk_predicate, Visitor},
+    };
 
     struct PredicateCounter(usize);
     impl Visitor for PredicateCounter {
@@ -691,8 +697,10 @@ static ENV_MUTEX: Mutex<()> = Mutex::new(());
 /// Traces: F-HIGH-001, BC-2.11.006
 #[test]
 fn test_parse_limits_snapshot_propagates_to_predicate_depth_guard() {
-    use crate::ast::{FieldPath, Literal, Predicate, Span};
-    use crate::security::ParseLimits;
+    use crate::{
+        ast::{FieldPath, Literal, Predicate, Span},
+        security::ParseLimits,
+    };
 
     let _guard = ENV_MUTEX.lock().unwrap();
 
@@ -743,8 +751,10 @@ fn test_parse_limits_snapshot_propagates_to_predicate_depth_guard() {
 /// Traces: F-HIGH-001, BC-2.11.006
 #[test]
 fn test_parse_limits_snapshot_propagates_to_pipe_stage_guard() {
-    use crate::ast::{FieldPath, PipeQuery, PipeStage, SourceRef};
-    use crate::security::ParseLimits;
+    use crate::{
+        ast::{FieldPath, PipeQuery, PipeStage, SourceRef},
+        security::ParseLimits,
+    };
 
     let _guard = ENV_MUTEX.lock().unwrap();
 
@@ -861,8 +871,7 @@ fn test_parse_limits_thread_local_regex_limit_uses_snapshot() {
 /// Traces: F-HIGH-001, BC-2.11.006
 #[test]
 fn test_parse_limits_snapshot_propagates_to_regex_pattern_guard() {
-    use crate::ast::RegexLiteral;
-    use crate::security::ParseLimits;
+    use crate::{ast::RegexLiteral, security::ParseLimits};
 
     let _guard = ENV_MUTEX.lock().unwrap();
 
@@ -912,8 +921,10 @@ fn test_parse_limits_snapshot_propagates_to_regex_pattern_guard() {
 /// Traces: F-MEDIUM-002, BC-2.11.006
 #[test]
 fn test_thread_local_cleared_on_panic() {
-    use crate::filter_parser::ThreadLocalGuard;
-    use crate::security::{ParseLimits, PRISM_MAX_REGEX_PATTERN_LEN};
+    use crate::{
+        filter_parser::ThreadLocalGuard,
+        security::{ParseLimits, PRISM_MAX_REGEX_PATTERN_LEN},
+    };
 
     let _guard = ENV_MUTEX.lock().unwrap();
 
@@ -980,8 +991,10 @@ fn test_thread_local_cleared_on_panic() {
 /// Traces: F-MEDIUM-001, F-MEDIUM-002, BC-2.11.006
 #[test]
 fn test_production_thread_local_guard_clears_on_drop() {
-    use crate::filter_parser::ThreadLocalGuard;
-    use crate::security::{ParseLimits, PRISM_MAX_REGEX_PATTERN_LEN};
+    use crate::{
+        filter_parser::ThreadLocalGuard,
+        security::{ParseLimits, PRISM_MAX_REGEX_PATTERN_LEN},
+    };
 
     let _env_guard = ENV_MUTEX.lock().unwrap();
 

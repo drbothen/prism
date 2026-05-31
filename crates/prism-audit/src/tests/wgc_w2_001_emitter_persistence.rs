@@ -18,13 +18,15 @@
 
 use chrono::Utc;
 
-use crate::credential_events::{
-    emit_credential_event, CredentialAccessResult, CredentialAccessType, RequestingContext,
-};
-use crate::flag_events::{emit_flag_eval, FlagEvalContext, FlagEvalDetail, FlagResolutionStep};
-use crate::tests::helpers::{count_audit_entries, MemBackend};
-use crate::token_events::{
-    emit_token_consumed, emit_token_expired, emit_token_generated, TokenEventContext,
+use crate::{
+    credential_events::{
+        emit_credential_event, CredentialAccessResult, CredentialAccessType, RequestingContext,
+    },
+    flag_events::{emit_flag_eval, FlagEvalContext, FlagEvalDetail, FlagResolutionStep},
+    tests::helpers::{count_audit_entries, MemBackend},
+    token_events::{
+        emit_token_consumed, emit_token_expired, emit_token_generated, TokenEventContext,
+    },
 };
 
 // ── WGC-W2-001-cred ───────────────────────────────────────────────────────────

@@ -22,9 +22,9 @@
 // S-3.02 stub functions: dead_code suppressed pending implementation (stub-phase convention).
 #![allow(dead_code)]
 
-use datafusion::execution::context::SessionContext;
-use datafusion::execution::memory_pool::GreedyMemoryPool;
-use datafusion::execution::runtime_env::RuntimeEnvBuilder;
+use datafusion::execution::{
+    context::SessionContext, memory_pool::GreedyMemoryPool, runtime_env::RuntimeEnvBuilder,
+};
 use prism_core::PrismError;
 
 /// Default per-query memory pool size: 200 MB. (BC-2.11.006)

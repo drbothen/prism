@@ -19,8 +19,10 @@ use prism_core::{OrgId, SensorId};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use crate::auth::SensorAuth;
-use crate::types::{FilterMap, RequestParams};
+use crate::{
+    auth::SensorAuth,
+    types::{FilterMap, RequestParams},
+};
 
 // ---------------------------------------------------------------------------
 // SensorSpec

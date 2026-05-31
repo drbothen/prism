@@ -23,12 +23,21 @@
 //! Tests use `new()` to verify injection scanning and schema behaviour; production
 //! uses `with_deps()` to fully wire the query + write + audit stack.
 
-use std::path::PathBuf;
-use std::sync::{Arc, Mutex};
+use std::{
+    path::PathBuf,
+    sync::{Arc, Mutex},
+};
 
+// CRIT-1: arrow-json for RecordBatch → JSON rows serialization.
+use arrow_json;
+use prism_core::error::PrismError;
+use prism_query::{
+    alias_store::AliasStore, engine::QueryEngine, write_dispatch::AuditWriter,
+    write_pipeline::WriteExecutor,
+};
+use prism_security::injection_scanner::InjectionScanner;
 use rmcp::{
-    handler::server::tool::schema_for_type,
-    handler::server::wrapper::Parameters,
+    handler::server::{tool::schema_for_type, wrapper::Parameters},
     model::{Implementation, ServerCapabilities, ServerInfo},
     schemars::JsonSchema,
     tool, tool_handler, tool_router,
@@ -38,19 +47,12 @@ use rmcp::{
 use serde::Deserialize;
 use tokio::signal;
 
-use crate::error_mapping::{codes, to_error_data};
-use crate::safety_envelope::{
-    DataSource, ResponseEnvelope, ResponseEnvelopeSchema, SafetyEnvelopeBuilder,
+use crate::{
+    error_mapping::{codes, to_error_data},
+    safety_envelope::{
+        DataSource, ResponseEnvelope, ResponseEnvelopeSchema, SafetyEnvelopeBuilder,
+    },
 };
-use prism_core::error::PrismError;
-use prism_query::{
-    alias_store::AliasStore, engine::QueryEngine, write_dispatch::AuditWriter,
-    write_pipeline::WriteExecutor,
-};
-use prism_security::injection_scanner::InjectionScanner;
-
-// CRIT-1: arrow-json for RecordBatch → JSON rows serialization.
-use arrow_json;
 
 // ─── PrismServer struct ────────────────────────────────────────────────────────
 
@@ -4480,16 +4482,18 @@ mod tests {
     ///     → map_err(to_error_data) → ErrorData.code == FORBIDDEN (-32002)
     #[tokio::test]
     async fn test_F_PASS14_HIGH_1_confirm_action_capability_denied_maps_to_32002() {
+        use std::{collections::BTreeMap, sync::Arc};
+
         use prism_core::RiskTier;
         use prism_query::write_pipeline::WriteExecutor;
-        use prism_security::confirmation_token::{BoundingMetadata, ConfirmationTokenStore};
-        use prism_security::FeatureFlagEvaluator;
+        use prism_security::{
+            confirmation_token::{BoundingMetadata, ConfirmationTokenStore},
+            FeatureFlagEvaluator,
+        };
         use prism_sensors::registry::AdapterRegistry;
         use prism_spec_engine::write_endpoint::{
             BatchMode, WriteEndpointRegistry, WriteEndpointSpec, WriteStep,
         };
-        use std::collections::BTreeMap;
-        use std::sync::Arc;
 
         // Build WriteEndpointRegistry with test_sensor/test_verb so compile_gate = Present.
         let mut endpoint_registry = WriteEndpointRegistry::new();
@@ -4856,17 +4860,21 @@ mod tests {
     /// different error (AliasNotFound or similar) — the code.0 assertion fails.
     #[tokio::test]
     async fn test_F_PASS15_MED_1_confirm_action_alias_missing_name_returns_internal() {
+        use std::{
+            collections::BTreeMap,
+            sync::{Arc, Mutex},
+        };
+
         use prism_core::RiskTier;
-        use prism_query::alias_store::AliasStore;
-        use prism_query::write_pipeline::WriteExecutor;
-        use prism_security::confirmation_token::{BoundingMetadata, ConfirmationTokenStore};
-        use prism_security::FeatureFlagEvaluator;
+        use prism_query::{alias_store::AliasStore, write_pipeline::WriteExecutor};
+        use prism_security::{
+            confirmation_token::{BoundingMetadata, ConfirmationTokenStore},
+            FeatureFlagEvaluator,
+        };
         use prism_sensors::registry::AdapterRegistry;
         use prism_spec_engine::write_endpoint::{
             BatchMode, WriteEndpointRegistry, WriteEndpointSpec, WriteStep,
         };
-        use std::collections::BTreeMap;
-        use std::sync::{Arc, Mutex};
 
         // Build a minimal WriteExecutor — confirm_action requires it even for alias tokens.
         let mut endpoint_registry = WriteEndpointRegistry::new();
@@ -5234,11 +5242,16 @@ mod tests {
     /// `std::panic::catch_unwind`).
     #[tokio::test]
     async fn test_shutdown_join_error_maps_to_runtime_variant() {
-        use std::io;
-        use std::pin::Pin;
-        use std::sync::atomic::{AtomicBool, Ordering};
-        use std::sync::Arc;
-        use std::task::{Context, Poll};
+        use std::{
+            io,
+            pin::Pin,
+            sync::{
+                atomic::{AtomicBool, Ordering},
+                Arc,
+            },
+            task::{Context, Poll},
+        };
+
         use tokio::io::{AsyncRead, AsyncWrite, BufReader, ReadBuf};
 
         /// A transport wrapper that delegates to its inner stream until `panic_flag`
@@ -5426,6 +5439,7 @@ mod tests {
     #[tokio::test]
     async fn test_shutdown_complete_path_field_emitted_by_production_code() {
         use std::sync::{Arc, Mutex};
+
         use tokio::io::{AsyncWriteExt, BufReader};
 
         // ── natural-close path ───────────────────────────────────────────────────
@@ -5568,10 +5582,13 @@ mod tests {
     /// we test the alias_registry snapshot logic and explain directly.
     #[test]
     fn test_F_PASS10_HIGH3_alias_registry_snapshot_from_alias_store() {
-        use prism_query::alias_store::AliasStore;
-        use prism_query::alias_tools::{create_alias_with_clients_gated, CreateAliasInput};
-        use prism_security::confirmation_token::ConfirmationTokenStore;
         use std::collections::{HashMap, HashSet};
+
+        use prism_query::{
+            alias_store::AliasStore,
+            alias_tools::{create_alias_with_clients_gated, CreateAliasInput},
+        };
+        use prism_security::confirmation_token::ConfirmationTokenStore;
 
         // Build an AliasStore and add alias: devices = "SELECT * FROM crowdstrike.devices".
         let _tmpdir = tempfile::tempdir().expect("create tempdir for test alias store");
@@ -5749,16 +5766,18 @@ mod tests {
         Arc<prism_security::confirmation_token::ConfirmationTokenStore>,
         tempfile::TempDir,
     ) {
+        use std::{
+            collections::BTreeMap,
+            sync::{Arc, Mutex},
+        };
+
         use prism_core::RiskTier;
-        use prism_query::alias_store::AliasStore;
-        use prism_query::write_pipeline::WriteExecutor;
+        use prism_query::{alias_store::AliasStore, write_pipeline::WriteExecutor};
         use prism_security::FeatureFlagEvaluator;
         use prism_sensors::registry::AdapterRegistry;
         use prism_spec_engine::write_endpoint::{
             BatchMode, WriteEndpointRegistry, WriteEndpointSpec, WriteStep,
         };
-        use std::collections::BTreeMap;
-        use std::sync::{Arc, Mutex};
 
         let mut endpoint_registry = WriteEndpointRegistry::new();
         let endpoint_spec = WriteEndpointSpec::new(

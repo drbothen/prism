@@ -8,8 +8,7 @@
 //! Story: S-2.07 | BC: BC-2.01.006, BC-2.01.008
 #![allow(clippy::expect_used, clippy::unwrap_used)]
 
-use prism_sensors::adapter::SensorError;
-use prism_sensors::timestamp::parse_timestamp;
+use prism_sensors::{adapter::SensorError, timestamp::parse_timestamp};
 
 // ---------------------------------------------------------------------------
 // RFC 3339 format — TV-BC-2.01.006-001

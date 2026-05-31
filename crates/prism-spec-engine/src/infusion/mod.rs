@@ -19,13 +19,11 @@ pub mod plugin_bridge;
 pub mod sources;
 pub mod udf;
 
-use std::collections::HashMap;
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
 use arc_swap::ArcSwap;
-use serde::{Deserialize, Serialize};
-
 use prism_core::InfusionError;
+use serde::{Deserialize, Serialize};
 
 // ---------------------------------------------------------------------------
 // Infusion type

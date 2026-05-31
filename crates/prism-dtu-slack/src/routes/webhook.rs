@@ -29,14 +29,12 @@ use axum::{
     response::IntoResponse,
     Json,
 };
-use serde_json::Value;
-
 #[cfg(feature = "dtu")]
 use prism_core::OrgId;
 use prism_dtu_common::FailureMode;
+use serde_json::Value;
 
-use crate::state::SlackState;
-use crate::types::WebhookOkResponse;
+use crate::{state::SlackState, types::WebhookOkResponse};
 
 /// Allowed top-level keys in a Block Kit payload per `fixtures/block-kit-schema.json`.
 ///

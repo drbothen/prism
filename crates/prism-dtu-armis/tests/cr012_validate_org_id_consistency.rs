@@ -24,8 +24,7 @@
 #![cfg(feature = "dtu")]
 
 use prism_core::OrgId;
-use prism_dtu_armis::state::DTU_DEFAULT_INSTANCE_ORG_ID;
-use prism_dtu_armis::ArmisClone;
+use prism_dtu_armis::{state::DTU_DEFAULT_INSTANCE_ORG_ID, ArmisClone};
 use prism_dtu_common::BehavioralClone;
 
 fn http_client() -> reqwest::Client {

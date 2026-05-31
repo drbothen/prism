@@ -11,8 +11,10 @@
 //! No HTTP-layer types (`axum::Json`, `axum::extract::*`) appear here.
 //! `ArmisState` is pure Rust — no Axum dependency for its public methods.
 
-use std::collections::{HashMap, HashSet};
-use std::sync::{Arc, Mutex};
+use std::{
+    collections::{HashMap, HashSet},
+    sync::{Arc, Mutex},
+};
 
 use prism_core::OrgId;
 use prism_dtu_common::FailureMode;

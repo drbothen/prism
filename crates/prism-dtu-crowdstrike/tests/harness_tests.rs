@@ -35,8 +35,7 @@
 #![allow(non_snake_case)]
 
 use prism_dtu_common::{FailureMode, FidelityCheck, FidelityValidator};
-use prism_dtu_harness::types::DtuType;
-use prism_dtu_harness::{HarnessBuilder, IsolationMode};
+use prism_dtu_harness::{types::DtuType, HarnessBuilder, IsolationMode};
 
 // ============================================================================
 // Helpers

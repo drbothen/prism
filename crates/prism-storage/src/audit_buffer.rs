@@ -12,8 +12,7 @@
 
 use prism_core::{PrismError, StorageDomain};
 
-use crate::backend::RocksStorageBackend;
-use crate::rocksdb_backend::RocksDbBackend;
+use crate::{backend::RocksStorageBackend, rocksdb_backend::RocksDbBackend};
 
 /// Canonical column family name for the audit buffer.
 ///

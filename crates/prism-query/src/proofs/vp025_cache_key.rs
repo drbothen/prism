@@ -161,8 +161,9 @@ pub mod kani_proofs {
 
 #[cfg(test)]
 mod dynamic_tests {
-    use crate::cache_key::{CacheKey, PushDownParams};
     use serde_json::json;
+
+    use crate::cache_key::{CacheKey, PushDownParams};
 
     /// VP-025 concrete determinism: `derive(params) == derive(params)`.
     #[test]
