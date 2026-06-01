@@ -13,7 +13,7 @@ use axum::{
     http::{HeaderMap, StatusCode},
     Json,
 };
-use serde_json::Value;
+use serde_json::{json, Value};
 
 use crate::{routes::devices::check_bearer_auth, state::ClarotyState, types::GetAuditLogBody};
 
@@ -29,8 +29,26 @@ pub async fn list_audit_logs(
     headers: HeaderMap,
     _body: Option<Json<GetAuditLogBody>>,
 ) -> (StatusCode, Json<Value>) {
-    let _ = check_bearer_auth(&headers);
-    todo!("S-DEMO-CLAROTY-AUDIT-DTU-001: implement list_audit_logs — load fixture, check bearer, return JSON envelope")
+    if let Err(err) = check_bearer_auth(&headers) {
+        return err;
+    }
+
+    // SAFETY: fixture files are bundled at build time; missing fixture is a build error, not runtime condition.
+    #[allow(clippy::expect_used)]
+    let raw = prism_dtu_common::load_fixture(env!("CARGO_MANIFEST_DIR"), "audit-log")
+        .expect("fixtures/audit-log.json must exist");
+    // SAFETY: fixture content is a well-formed JSON array validated at CI time.
+    #[allow(clippy::expect_used)]
+    let entries = raw
+        .as_array()
+        .expect("audit-log fixture must be a JSON array")
+        .clone();
+    let total = entries.len() as u32;
+
+    (
+        StatusCode::OK,
+        Json(json!({"audit_log": entries, "total": total})),
+    )
 }
 
 // ---------------------------------------------------------------------------
