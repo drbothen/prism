@@ -1,0 +1,25 @@
+AC-011: No todo!() or unimplemented!() in adapter, boot step 9A, or StaticCookieAuthProvider (POL-12)
+Story: S-DEMO-001 v1.10
+Traces to: BC-2.22.001 invariant
+
+Test: test_pol_12_no_untraced_todo_in_prism_bin_production_code
+Crate: prism-bin
+Module: pol_12_no_todo
+
+Command:
+  cargo nextest run -p prism-bin \
+    -E 'test(pol_12_no_untraced_todo_in_prism_bin_production_code)'
+
+Output:
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 42.58s
+────────────
+ Nextest run ID b81e55b7-0d74-4519-8fce-a02d56f19a2e with nextest profile: default
+    Starting 1 test across 11 binaries (106 tests skipped)
+        PASS [   0.012s] (1/1) prism-bin::pol_12_no_todo test_pol_12_no_untraced_todo_in_prism_bin_production_code
+────────────
+     Summary [   0.012s] 1 test run: 1 passed, 106 skipped
+
+Result: PASS
+Notes: POL-12 scan confirms zero occurrences of todo!() or unimplemented!() in prism-bin
+       production code (spec_driven_adapter.rs, boot.rs). All 4 sensor paths are fully implemented.
+Branch: feature/S-DEMO-001 HEAD c50e72f7
