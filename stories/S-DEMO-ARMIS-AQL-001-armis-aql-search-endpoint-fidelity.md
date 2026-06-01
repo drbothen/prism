@@ -19,7 +19,7 @@ status: ready
 # (AC-001..AC-004) are unblocked. Parity tests requiring full pipeline env-var resolution
 # must be #[ignore]-annotated with a code comment citing S-SPEC-ENV-VAR-001 until that
 # prereq merges.
-version: "1.1"
+version: "1.2"
 level: "L4"
 producer: story-writer
 timestamp: "2026-05-31T00:00:00Z"
@@ -114,7 +114,7 @@ phase: 3
 
 **Story ID:** S-DEMO-ARMIS-AQL-001
 **Status:** ready
-**Version:** v1.1
+**Version:** v1.2
 **Wave:** 5
 **Priority:** P1
 **Points:** 5
@@ -534,4 +534,5 @@ Well within the 20-30% budget.
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
 | 1.0 | 2026-05-31 | story-writer | Initial materialization from [stub] per ADR-031 §D8-a v1.2 reclassification. 7 ACs, 4 Red Gate tests, 5 pts, wave 5, P1. Grounded against crates/prism-dtu-armis/src/routes/devices.rs (AQL capture pattern), types.rs (DeviceRecord/AlertRecord/AqlLogResponse), state.rs (capture_aql/aql_log), clone.rs (build_router), armis.sensor.toml (DTU-EXT-003/004 comments). New-BC flags provided to product-owner for AQL syntax validation and R-DTU-002 BC coverage evaluation. |
+| 1.2 | 2026-05-31 | story-writer | Wave 5 dispatch burst: BC-2.16.013 anchor justification confirmed per POL-4/POL-5 (BC-2.16.013 §Postconditions §1 DTU-Parity + §2 fixture-parity + §Known Gaps DTU-EXT-003/004 directly cover the AQL search endpoint fidelity surface; D-911 SUFFICIENT disposition). Story confirmed ready for TDD dispatch. No semantic content change. |
 | 1.1 | 2026-05-31 | story-writer | D-911 disposition applied: New-BC Flags 1 & 2 SUFFICIENT — BC-2.16.013 (v1.18, ACTIVE) covers both surfaces. Set behavioral_contracts: [BC-2.16.013], status: draft→ready. AC-001..AC-004 BC traces updated from "pending PO authorship" to BC-2.16.013 postcondition clauses. D-914 parity-gate note added (AC-005/AC-006 parity tests soft-gated on S-SPEC-ENV-VAR-001 env-var prereq; must be #[ignore] until prereq merges). |

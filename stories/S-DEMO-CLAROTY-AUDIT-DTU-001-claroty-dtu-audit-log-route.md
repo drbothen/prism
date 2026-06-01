@@ -12,7 +12,7 @@ status: ready
 # /api/v1/audit_log/get with ClarotyAuditLogEntry shape is consistent with
 # BC-2.01.013 auth-enforcement contract + BC-2.16.013 DTU-TOML-parity contract.
 # No New-BC flags. No env-var dependency. Story dispatchable.
-version: "1.1"
+version: "1.2"
 level: "L4"
 producer: story-writer
 timestamp: "2026-05-31T00:00:00Z"
@@ -105,7 +105,7 @@ POLLER-DTU-FIDELITY-AUDIT-2026-05-29 v1.1 §3 Claroty section).
 | BC | Title | Version | Role |
 |----|-------|---------|------|
 | BC-2.01.013 | DataSource Trait Eliminates Per-Sensor Code Duplication | v1.7 | Audit log table is a sensor table; the spec-driven adapter (BC-2.01.013 postcondition) must dispatch to it via the shared pipeline |
-| BC-2.16.013 | Bundled Sensor Spec Authoring and DTU-Parity Verification — 4 Initial Sensors | v1.17 | Gap-CL-006 is an open DTU-parity gap under BC-2.16.013; this story closes it by making the DTU serve the endpoint the TOML spec declares |
+| BC-2.16.013 | Bundled Sensor Spec Authoring and DTU-Parity Verification — 4 Initial Sensors | v1.18 | Gap-CL-006 is an open DTU-parity gap under BC-2.16.013; this story closes it by making the DTU serve the endpoint the TOML spec declares |
 
 ## Acceptance Criteria
 
@@ -344,3 +344,27 @@ new gate is warranted.
 5. **Fixture timestamp format.** Use ISO 8601 with `Z` suffix (e.g. `"2026-01-15T10:23:45Z"`).
    The TOML column declares `column_type = "datetime"` — the pipeline's timestamp normalization
    (ADR-028 §D8) will parse this format.
+
+---
+
+## References
+
+- BC-2.16.013 v1.18 (ACTIVE) — Bundled Sensor Spec Authoring and DTU-Parity Verification; §Known Gaps DTU-EXT-002 (Claroty assets); §Postconditions §1 claroty.sensor.toml entry (alerts + audit_logs)
+- BC-2.01.013 — DataSource Trait; auth enforcement postcondition §2
+- ADR-031 §D1 — DTU clone isolation (prism-dtu-claroty must not depend on prism-spec-engine/prism-sensors/prism-query)
+- ADR-031 §D2 — permitted-divergence #1: synthetic fixture data (no real customer data)
+- ADR-028 v1.10 §D8 — timestamp normalization; ISO 8601 parse path for claroty audit_logs `timestamp` column
+- POLLER-DTU-FIDELITY-AUDIT-2026-05-29 v1.1 §3 — Claroty fidelity table; Gap-CL-006 registration
+- `crates/prism-dtu-claroty/src/clone.rs` — ClarotyClone build_router() existing route registrations
+- `crates/prism-dtu-claroty/src/routes/alerts.rs` — handler pattern (check_bearer_auth + load_fixture)
+- `crates/prism-sensors/specs/claroty.sensor.toml` — audit_logs table block (path_template, response_path, columns)
+
+---
+
+## Changelog
+
+| Version | Date | Author | Notes |
+|---------|------|--------|-------|
+| 1.2 | 2026-05-31 | story-writer | Wave 5 dispatch burst: BC-2.16.013 anchor justification confirmed per POL-4/POL-5 (BC-2.16.013 §Postconditions §1 claroty.sensor.toml + §Known Gaps cover the audit_log DTU parity surface; D-920 orchestrator confirmation). Stale v1.17 BC table cite corrected to v1.18. Added §References and §Changelog sections (previously missing). Story confirmed ready for TDD dispatch. |
+| 1.1 | 2026-05-31 | story-writer | D-920 orchestrator confirmation: BC-2.01.013 + BC-2.16.013 cover the audit_log route; status draft→ready. Route design (POST /api/v1/audit_log/get + ClarotyAuditLogEntry shape) confirmed consistent with both BCs. No New-BC flags. |
+| 1.0 | 2026-05-31 | story-writer | Initial materialization from [stub] per POLLER-DTU-FIDELITY-AUDIT-2026-05-29 Gap-CL-006. 6 ACs, 3 Red Gate tests, 5 pts, wave 5, P1. Grounded against crates/prism-dtu-claroty/src/clone.rs (build_router), routes/alerts.rs (handler pattern), types.rs, claroty.sensor.toml (audit_logs table block). |
