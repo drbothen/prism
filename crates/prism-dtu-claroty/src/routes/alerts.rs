@@ -131,11 +131,23 @@ pub async fn list_alerted_devices(
 // O-PR3-001: list_alerts and list_alerted_devices enforce the same
 // X-Org-Id org-isolation guard as list_devices and list_audit_logs.
 //
-// AC traces:
-//   test_W3_FIX_SEC_001_claroty_alerts_org_mismatch_returns_401          → org-mismatch 401, non-nil clone
-//   test_W3_FIX_SEC_001_claroty_alerts_nil_org_no_header_returns_200      → nil-org backward-compat
-//   test_W3_FIX_SEC_001_claroty_alerted_devices_org_mismatch_returns_401  → org-mismatch 401, non-nil clone
-//   test_W3_FIX_SEC_001_claroty_alerted_devices_nil_org_no_header_returns_200 → nil-org backward-compat
+// Complete 3-cell matrix per endpoint (F-PR3R2-MED-002 closure):
+//
+// AC traces (list_alerts):
+//   test_W3_FIX_SEC_001_claroty_alerts_org_mismatch_returns_401
+//     → Cell A: non-nil clone + MISMATCHED X-Org-Id → 401
+//   test_W3_FIX_SEC_001_claroty_alerts_missing_org_header_on_real_org_returns_401
+//     → Cell B: non-nil clone + ABSENT X-Org-Id → 401
+//   test_W3_FIX_SEC_001_claroty_alerts_nil_org_no_header_returns_200
+//     → Cell C: nil-org clone + ABSENT header → 200
+//
+// AC traces (list_alerted_devices):
+//   test_W3_FIX_SEC_001_claroty_alerted_devices_org_mismatch_returns_401
+//     → Cell A: non-nil clone + MISMATCHED X-Org-Id → 401
+//   test_W3_FIX_SEC_001_claroty_alerted_devices_missing_org_header_on_real_org_returns_401
+//     → Cell B: non-nil clone + ABSENT X-Org-Id → 401
+//   test_W3_FIX_SEC_001_claroty_alerted_devices_nil_org_no_header_returns_200
+//     → Cell C: nil-org clone + ABSENT header → 200
 // ---------------------------------------------------------------------------
 #[cfg(test)]
 #[allow(non_snake_case, clippy::expect_used, clippy::unwrap_used)]
@@ -222,7 +234,54 @@ mod tests {
         );
     }
 
-    /// W3-FIX-SEC-001 backward-compat: nil-org clone without X-Org-Id header must return 200.
+    /// W3-FIX-SEC-001 — Cell B: non-nil clone + absent X-Org-Id header → 401 for list_alerts.
+    ///
+    /// When the clone has a real (non-nil) `instance_org_id`, a request that omits
+    /// the `X-Org-Id` header entirely must return HTTP 401. `validate_org_id` treats
+    /// an absent header as a mismatch (AC-003: missing header → 401).
+    ///
+    /// This closes the org-isolation test matrix for `list_alerts`:
+    ///   test_W3_FIX_SEC_001_claroty_alerts_org_mismatch_returns_401              → Cell A: non-nil + MISMATCH → 401
+    ///   test_W3_FIX_SEC_001_claroty_alerts_missing_org_header_on_real_org_returns_401 → Cell B: non-nil + ABSENT → 401 (this test)
+    ///   test_W3_FIX_SEC_001_claroty_alerts_nil_org_no_header_returns_200         → Cell C: nil + ABSENT → 200
+    #[tokio::test]
+    async fn test_W3_FIX_SEC_001_claroty_alerts_missing_org_header_on_real_org_returns_401() {
+        let instance_org = OrgId::from_uuid(
+            Uuid::parse_str("11111111-1111-7000-8000-000000000001").expect("valid test UUID"),
+        );
+
+        let (_clone, base_url) = start_clone_with_org(instance_org).await;
+        let client = test_client();
+
+        let resp = client
+            .post(format!("{base_url}/api/v1/alerts"))
+            .header("Authorization", "Bearer test-token")
+            // Intentionally NO X-Org-Id header.
+            .json(&json!({}))
+            .send()
+            .await
+            .expect("transport must not fail for missing-header test");
+
+        assert_eq!(
+            resp.status().as_u16(),
+            401,
+            "non-nil-org clone + absent X-Org-Id header must return HTTP 401 (W3-FIX-SEC-001 AC-003)"
+        );
+
+        let body: serde_json::Value = resp
+            .json()
+            .await
+            .expect("401 response must have JSON body (W3-FIX-SEC-001)");
+        assert!(
+            body.get("error")
+                .and_then(|v| v.as_str())
+                .map(|s| s.contains("org_id mismatch"))
+                .unwrap_or(false),
+            "W3-FIX-SEC-001: 401 body must contain 'org_id mismatch'; got: {body}"
+        );
+    }
+
+    /// W3-FIX-SEC-001 — Cell C: nil-org clone + absent header → 200 (backward-compat) for list_alerts.
     ///
     /// `ClarotyClone::new()` sets `instance_org_id` to the nil UUID — the sentinel meaning
     /// "no org constraint". Callers that do not supply `X-Org-Id` must not be rejected.
@@ -293,7 +352,55 @@ mod tests {
         );
     }
 
-    /// W3-FIX-SEC-001 backward-compat: nil-org clone without X-Org-Id header must return 200.
+    /// W3-FIX-SEC-001 — Cell B: non-nil clone + absent X-Org-Id header → 401 for list_alerted_devices.
+    ///
+    /// When the clone has a real (non-nil) `instance_org_id`, a request that omits
+    /// the `X-Org-Id` header entirely must return HTTP 401. `validate_org_id` treats
+    /// an absent header as a mismatch (AC-003: missing header → 401).
+    ///
+    /// This closes the org-isolation test matrix for `list_alerted_devices`:
+    ///   test_W3_FIX_SEC_001_claroty_alerted_devices_org_mismatch_returns_401              → Cell A: non-nil + MISMATCH → 401
+    ///   test_W3_FIX_SEC_001_claroty_alerted_devices_missing_org_header_on_real_org_returns_401 → Cell B: non-nil + ABSENT → 401 (this test)
+    ///   test_W3_FIX_SEC_001_claroty_alerted_devices_nil_org_no_header_returns_200         → Cell C: nil + ABSENT → 200
+    #[tokio::test]
+    async fn test_W3_FIX_SEC_001_claroty_alerted_devices_missing_org_header_on_real_org_returns_401(
+    ) {
+        let instance_org = OrgId::from_uuid(
+            Uuid::parse_str("11111111-1111-7000-8000-000000000001").expect("valid test UUID"),
+        );
+
+        let (_clone, base_url) = start_clone_with_org(instance_org).await;
+        let client = test_client();
+
+        let resp = client
+            .post(format!("{base_url}/api/v1/alerts/alert-123/devices"))
+            .header("Authorization", "Bearer test-token")
+            // Intentionally NO X-Org-Id header.
+            .json(&json!({}))
+            .send()
+            .await
+            .expect("transport must not fail for missing-header test");
+
+        assert_eq!(
+            resp.status().as_u16(),
+            401,
+            "non-nil-org clone + absent X-Org-Id header must return HTTP 401 (W3-FIX-SEC-001 AC-003)"
+        );
+
+        let body: serde_json::Value = resp
+            .json()
+            .await
+            .expect("401 response must have JSON body (W3-FIX-SEC-001)");
+        assert!(
+            body.get("error")
+                .and_then(|v| v.as_str())
+                .map(|s| s.contains("org_id mismatch"))
+                .unwrap_or(false),
+            "W3-FIX-SEC-001: 401 body must contain 'org_id mismatch'; got: {body}"
+        );
+    }
+
+    /// W3-FIX-SEC-001 — Cell C: nil-org clone + absent header → 200 (backward-compat) for list_alerted_devices.
     ///
     /// `ClarotyClone::new()` sets `instance_org_id` to the nil UUID — the sentinel meaning
     /// "no org constraint". Callers that do not supply `X-Org-Id` must not be rejected.
