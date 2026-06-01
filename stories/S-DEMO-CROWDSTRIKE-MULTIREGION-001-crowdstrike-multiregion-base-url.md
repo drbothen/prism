@@ -34,8 +34,17 @@ subsystems: [SS-01, SS-16]
 crates_touched: [prism-sensors, prism-spec-engine]
 target_module: prism-sensors
 capabilities: [CAP-001]
-behavioral_contracts: []
-# BC status: pending PO authorship confirmation (see §New-BC Flags).
+behavioral_contracts: [BC-2.16.009, BC-2.16.013]
+# BC adjudication (2026-05-31 product-owner burst):
+# BC-2.16.009 (Spec File Validation — §Validation Rules 6 env-var resolver): ATTACHED.
+#   Sensor-agnostic ${env.VAR_NAME} resolver covers ${env.CROWDSTRIKE_BASE_URL} in base_url.
+#   E-SPEC-024 error path (missing/empty var → fail-closed) is fully specified. Edge cases
+#   EC-009-008 (eu-1 URL happy path) and EC-009-009 (CROWDSTRIKE_BASE_URL unset → E-SPEC-024)
+#   added to BC-2.16.009 v1.7 in the same burst. No new BC needed — contract is sensor-agnostic.
+# BC-2.16.013 (Bundled Sensor Spec Authoring and DTU-Parity): ATTACHED.
+#   §Postconditions §1 CrowdStrike description updated v1.18→v1.19 to reflect
+#   base_url = "${env.CROWDSTRIKE_BASE_URL}" (replacing stale hardcoded us-1 pattern).
+#   Story-writer must update body BC table and AC traces per bc_array_changes_propagate_to_body_and_acs.
 verification_properties: []
 depends_on: [S-SPEC-ENV-VAR-001]
 # depends_on justification: HARD gate per D-914.

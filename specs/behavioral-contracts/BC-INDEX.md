@@ -1,10 +1,10 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "5.69"
+version: "5.70"
 status: draft
 producer: state-manager
-timestamp: 2026-05-31T21:30:00Z
+timestamp: 2026-05-31T22:00:00Z
 phase: 3.A
 total_contracts: 246
 active_contracts: 237
@@ -220,11 +220,11 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.16.006 | Arc-Swap Config Access on Hot Path — Lock-Free Reads for Query-Time Config Access | 16 - Spec Engine | CAP-030 | P1 | draft |
 | BC-2.16.007 | Sensor Spec Hot Reload — Add/Remove/Update Sensor Tables Without Restart | 16 - Spec Engine | CAP-030 | P1 | draft |
 | BC-2.16.008 | `add_sensor_spec` MCP Tool — Upload a New Sensor Spec at Runtime | 16 - Spec Engine | CAP-029, CAP-030 | P0 | draft |
-| BC-2.16.009 | Spec File Validation — Schema Validation, Variable Reference Resolution, OCSF Field Validation | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-776 per POL-14; anchor story PLUGIN-MIGRATION-001-D merged PR #153 develop@3f2de889 2026-05-22) — v1.6 |
+| BC-2.16.009 | Spec File Validation — Schema Validation, Variable Reference Resolution, OCSF Field Validation | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-776 per POL-14; anchor story PLUGIN-MIGRATION-001-D merged PR #153 develop@3f2de889 2026-05-22) — v1.7 |
 | BC-2.16.010 | `list_sensor_specs` MCP Tool — List Loaded Sensor Specs with Table Schemas and Status | 16 - Spec Engine | CAP-029 | P0 | draft |
 | BC-2.16.011 | CustomAdapter Rust Trait Retirement — Removal of Trait, Registry, and All Call Sites | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-726 per POL-14; anchor story S-PLUGIN-PREREQ-E merged PR #151 develop@80ebe794 2026-05-19) — v1.12 |
 | BC-2.16.012 | PluginRegistry Dispatch in spec_parser.rs — Hardcoded Sensor Names Replaced with Registry Lookup | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-726 per POL-14; anchor story S-PLUGIN-PREREQ-E merged PR #151 develop@80ebe794 2026-05-19) — v1.33 |
-| BC-2.16.013 | Bundled Sensor Spec Authoring and DTU-Parity Verification — 4 Initial Sensors | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-776 per POL-14; anchor story PLUGIN-MIGRATION-001-D merged PR #153 develop@3f2de889 2026-05-22) — v1.18 |
+| BC-2.16.013 | Bundled Sensor Spec Authoring and DTU-Parity Verification — 4 Initial Sensors | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-776 per POL-14; anchor story PLUGIN-MIGRATION-001-D merged PR #153 develop@3f2de889 2026-05-22) — v1.19 |
 | BC-2.17.001 | Plugin Panic Isolation — Crashed Plugin Does Not Terminate Host Process | 17 - WASM Plugin Runtime | CAP-032 | P0 | active (POL-14 auto-promotion D-568 S-PLUGIN-PREREQ-D merge PR #149 ec90fe8f 2026-05-15) |
 | BC-2.17.002 | Plugin Sandbox — No Direct Filesystem or Network Access | 17 - WASM Plugin Runtime | CAP-032 | P0 | active (POL-14 auto-promotion D-568 S-PLUGIN-PREREQ-D merge PR #149 ec90fe8f 2026-05-15) |
 | BC-2.17.003 | Plugin Sandbox — Memory Limit Enforced Per Plugin Instance (default 64MB) | 17 - WASM Plugin Runtime | CAP-032 | P0 | active (POL-14 auto-promotion D-568 S-PLUGIN-PREREQ-D merge PR #149 ec90fe8f 2026-05-15) |
@@ -376,6 +376,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v5.70 (2026-05-31, S-DEMO-CROWDSTRIKE-MULTIREGION-001 BC attachment burst):** product-owner | BC-2.16.009 v1.6→v1.7 (sibling-sweep updated: crowdstrike.sensor.toml now joins armis/claroty/cyberint in using ${env.VAR} for base_url; EC-009-008 and EC-009-009 added for CrowdStrike multi-region happy path and missing-CROWDSTRIKE_BASE_URL → E-SPEC-024; Stories traceability updated to include S-DEMO-CROWDSTRIKE-MULTIREGION-001). BC-2.16.013 v1.18→v1.19 (§Postconditions §1 CrowdStrike base_url description updated from stale hardcoded `https://api.{cloud_region}.crowdstrike.com` to `${env.CROWDSTRIKE_BASE_URL}` with 4-region runbook and E-SPEC-024 cross-reference per ADR-031 §D8-c). S-DEMO-CROWDSTRIKE-MULTIREGION-001 story frontmatter `behavioral_contracts` set to [BC-2.16.009, BC-2.16.013]. BC-INDEX in-line rows 223 and 227 updated. No lifecycle_status changes. No new BCs — coverage is sensor-agnostic in existing BC-2.16.009 §Validation Rules 6. BC-INDEX v5.69→v5.70.
 
 **v5.69 (2026-05-31, D-925 arch-adjudication burst):** state-manager | BC-2.01.013 v1.8→v1.9 (D-925 architecture adjudication — S-DEMO-001 F-001-R-RECUR + F-DOC-001 closure: resolved ocsf_class namespace collision between record-type tokens and OCSF class-name strings; named `EventClassSelector::select_by_class_name(class_name)->Result<u32>` as canonical class_uid derivation function; corrected imprecise ColumnMapper/OcsfNormalizer language in Conformance Clause item 2 to cite the actual function name; added EC-01-028 wrong-function anti-pattern — calling `select(sensor_id, class_name_string)` yields class_uid=0 for all real sensor tables; conformance test MUST use real ocsf_class "security_finding"→2001, NOT fake record-type token "detection"; added class-name→uid mapping table for all 6 production sensor TOML ocsf_class values; corrected TV-BC-2.01.013-005 fixture requirement. Architect commit D-925-arch-adjudication 2026-05-31). BC-INDEX in-line row updated to v1.9. No lifecycle_status changes. BC-INDEX v5.68→v5.69.
 

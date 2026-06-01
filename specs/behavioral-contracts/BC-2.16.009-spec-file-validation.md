@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.6"
+version: "1.7"
 status: active
 producer: product-owner
 timestamp: 2026-04-13T12:00:00
@@ -11,7 +11,7 @@ subsystem: "SS-16"
 capability: "CAP-029"
 lifecycle_status: active
 introduced: cycle-1
-modified: "2026-05-31"
+modified: "2026-05-31"  # v1.7 S-DEMO-CROWDSTRIKE-MULTIREGION-001 BC attachment burst
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -84,7 +84,7 @@ actionable correction. Warnings do not prevent loading; errors do.
 ### 6. Env Var Token Resolution (AC-6)
 Post-TOML-parse, before URL-format validation, the resolver scans all string fields for `${env.VAR_NAME}` tokens and resolves them against `std::env::var`.
 
-**Sibling-sweep (TD-VSDD-060):** All four canonical sensor specs (`crates/prism-sensors/specs/`) were audited. As of S-SPEC-ENV-VAR-001, the `${env.VAR}` pattern is used ONLY in `base_url` (TYPE specs: `armis.sensor.toml`, `claroty.sensor.toml`, `cyberint.sensor.toml`). No other string fields (`path_template`, `body_template`, `response_path`, `ocsf_class`, etc.) currently use env tokens. The resolver MUST scan `base_url` at minimum; the implementation SHOULD scan all `String` fields in `SensorSpec` to remain correct for future specs. Per-org overlay `base_url` is also in scope (overlays are merged before validation runs).
+**Sibling-sweep (TD-VSDD-060):** All four canonical sensor specs (`crates/prism-sensors/specs/`) were audited. As of S-SPEC-ENV-VAR-001, the `${env.VAR}` pattern was used in `base_url` of `armis.sensor.toml`, `claroty.sensor.toml`, `cyberint.sensor.toml`. As of S-DEMO-CROWDSTRIKE-MULTIREGION-001, `crowdstrike.sensor.toml` also uses `${env.CROWDSTRIKE_BASE_URL}` for `base_url` — all four canonical sensor specs now use the env-var pattern for `base_url`. No other string fields (`path_template`, `body_template`, `response_path`, `ocsf_class`, etc.) in the four canonical sensor specs currently use env tokens. The resolver MUST scan `base_url` at minimum; the implementation SHOULD scan all `String` fields in `SensorSpec` to remain correct for future specs. Per-org overlay `base_url` is also in scope (overlays are merged before validation runs).
 
 **Partial interpolation** is supported within `base_url`: the pattern `"https://${env.CYBERINT_ENVIRONMENT}.cyberint.io"` replaces only the `${env.VAR_NAME}` token, preserving the surrounding literal string. After resolution, the full URL is subject to the `starts_with("http://")` / `starts_with("https://")` URL-format validation rule (Validation Rule 1).
 
@@ -144,6 +144,8 @@ Post-TOML-parse, before URL-format validation, the resolver scans all string fie
 | EC-009-005 | `base_url = "${env.ARMIS_INSTANCE_URL}"` with `ARMIS_INSTANCE_URL="not-a-url"` (no http/https prefix) | Env var resolves successfully; then URL-format validation (`E-SPEC-001`: "base_url must start with http:// or https://") fires on the resolved value |
 | EC-009-006 | Spec has two fields with unresolvable env tokens | Two `E-SPEC-024` errors emitted (one per token); both included in the multi-error response; spec rejected |
 | EC-009-007 | Per-org overlay has `base_url = "${env.ARMIS_INSTANCE_URL}"` and var is not set | `E-SPEC-024` emitted with TOML path `base_url` and file path identifying the overlay file; overlay rejected; TYPE spec's `base_url` is NOT substituted as fallback — fail-closed |
+| EC-009-008 | `crowdstrike.sensor.toml` `base_url = "${env.CROWDSTRIKE_BASE_URL}"` with `CROWDSTRIKE_BASE_URL` set to eu-1 URL (`https://api.eu-1.crowdstrike.com`) | Env var resolves; `base_url` = `"https://api.eu-1.crowdstrike.com"`; URL-format validation passes; spec loads. Demonstrates sensor-agnosticism: same resolver handles any CrowdStrike region URL (us-1, us-2, eu-1, gov) — S-DEMO-CROWDSTRIKE-MULTIREGION-001 |
+| EC-009-009 | `crowdstrike.sensor.toml` `base_url = "${env.CROWDSTRIKE_BASE_URL}"` with `CROWDSTRIKE_BASE_URL` not set | `E-SPEC-024` with message citing `CROWDSTRIKE_BASE_URL` (name only, no value); TOML path `sensor.base_url`; spec rejected; fail-closed — S-DEMO-CROWDSTRIKE-MULTIREGION-001 |
 
 ## Canonical Test Vectors
 
@@ -170,7 +172,7 @@ See `.factory/specs/prd-supplements/test-vectors.md` for full canonical vectors.
 ## Traceability
 | Field | Value |
 |-------|-------|
-| Stories | S-1.11, S-1.13, PLUGIN-MIGRATION-001-F, S-SPEC-ENV-VAR-001 |
+| Stories | S-1.11, S-1.13, PLUGIN-MIGRATION-001-F, S-SPEC-ENV-VAR-001, S-DEMO-CROWDSTRIKE-MULTIREGION-001 |
 | L2 Capability | CAP-029 |
 | Capability Anchor Justification | CAP-029 ("Config-Driven Sensor Adapters") per capabilities.md §CAP-029. This BC specifies spec-file validation — exactly what CAP-029 mandates: "Every spec file is validated at load time and reload time (DI-030). Variable references in step templates are resolved against the step dependency graph — forward references and undefined variables are validation errors (DEC-038)." Env-var token resolution (AC-6) is a prerequisite of that load-time validation: a spec whose `base_url` contains an unresolved `${env.VAR}` token cannot pass URL-format validation, so resolution must occur in the same spec-load pass. |
 | L2 Invariants | DI-030 |
@@ -181,6 +183,7 @@ See `.factory/specs/prd-supplements/test-vectors.md` for full canonical vectors.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.7 | S-DEMO-CROWDSTRIKE-MULTIREGION-001 BC attachment burst | 2026-05-31 | product-owner | Updated §Validation Rules 6 sibling-sweep note: `crowdstrike.sensor.toml` now also uses `${env.CROWDSTRIKE_BASE_URL}` for `base_url` (S-DEMO-CROWDSTRIKE-MULTIREGION-001), making all four canonical sensor specs env-var-based for `base_url`. Added EC-009-008 (CrowdStrike eu-1 URL resolution — happy path) and EC-009-009 (CrowdStrike missing CROWDSTRIKE_BASE_URL → E-SPEC-024) for explicit CrowdStrike multi-region coverage. Added S-DEMO-CROWDSTRIKE-MULTIREGION-001 to Stories traceability. No semantic behavior change — the resolver was already sensor-agnostic; this adds CrowdStrike-specific test vectors to the existing contract. |
 | 1.6 | S-SPEC-ENV-VAR-001 spec burst | 2026-05-31 | product-owner | Added §Validation Rules 6: Env Var Token Resolution (AC-6). Covers `${env.VAR_NAME}` token resolution in sensor spec string fields at spec-load time (post-TOML-parse, pre-URL-format-validation). Sibling-sweep (TD-VSDD-060): `${env.VAR}` pattern confirmed in `base_url` of `armis.sensor.toml`, `claroty.sensor.toml`, `cyberint.sensor.toml`; no other string fields in the four canonical sensor specs currently use env tokens. Added E-SPEC-024 to §Error Conditions. Added 7 edge cases EC-009-001..EC-009-007 covering: missing var, empty var, partial interpolation (cyberint pattern), failed partial interpolation, invalid URL after resolution, multiple failing tokens, overlay file failing. Added 4 canonical test vectors for env-var scenarios. AD-017 no-value-leak constraint documented explicitly in the rule (var NAME acceptable, var VALUE forbidden). error-taxonomy.md bumped to v1.56 in same burst. |
 | 1.5 | D-776-post-merge | 2026-05-22 | state-manager | POL-14 auto-promotion at merge: PR #153 (PLUGIN-MIGRATION-001-D) squash-merged to develop@3f2de889 at 2026-05-22T09:05:47Z; status draft→active (lifecycle_status was already active). |
 | 1.4 | FB-IMPL-P2-PO fix-burst-2 | 2026-05-20 | product-owner | F-007 closure (pass-2 adversarial): Added E-SPEC-002 (invalid column type) and E-SPEC-003 (undefined variable reference) to §Error Conditions — both codes were present in error-taxonomy.md and exercised by HS-017 sub-scenarios but absent from this BC's error table (AI-built defect fixed in-scope per CLAUDE.md Canonical Principle Rule 4). F-008 closure: §Validation Rules 1 `auth_type` enumeration expanded from 4-value to 5-value set — added `custom_via_plugin` per `VALID_AUTH_TYPES` constant in `spec_parser.rs::validate_cross_composition` (CODE-GROUNDED: 5 values confirmed in source). |

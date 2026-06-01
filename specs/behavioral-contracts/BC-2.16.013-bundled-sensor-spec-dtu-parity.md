@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.18"
+version: "1.19"
 status: active
 producer: product-owner
 timestamp: 2026-05-20T00:00:00Z
@@ -11,7 +11,7 @@ subsystem: "SS-16"
 capability: "CAP-029"
 lifecycle_status: active
 introduced: "2026-05-20"
-modified: "2026-05-30"  # v1.18 D-870 F-LP10-MED-001 changelog hygiene
+modified: "2026-05-31"  # v1.19 S-DEMO-CROWDSTRIKE-MULTIREGION-001 base_url update
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -141,7 +141,7 @@ paths that do not match the real third-party APIs; they are deleted by PLUGIN-MI
 authentication enforcement behavior, which reflects the real third-party API's auth contract.
 
 - `crowdstrike.sensor.toml` — `sensor_id: "crowdstrike"`, `auth_type: "oauth2_client_credentials"`,
-  base URL pattern `https://api.{cloud_region}.crowdstrike.com`, tables:
+  `base_url = "${env.CROWDSTRIKE_BASE_URL}"` (S-DEMO-CROWDSTRIKE-MULTIREGION-001; replaces hardcoded `https://api.crowdstrike.com` us-1 URL; operator sets `CROWDSTRIKE_BASE_URL` to the tenant's region URL — us-1: `https://api.crowdstrike.com`, us-2: `https://api.us-2.crowdstrike.com`, eu-1: `https://api.eu-1.crowdstrike.com`, gov: `https://api.laggar.gcw.crowdstrike.com`). Missing/empty `CROWDSTRIKE_BASE_URL` → E-SPEC-024 at spec-load time (BC-2.16.009 §Validation Rules 6). Tables:
   - `detections` — QueryV2 step (GET `/detects/queries/detects/v1`) → PostEntities step
     (POST `/detects/entities/summaries/GET/v1`) with batch size ≤ 100 (CROWDSTRIKE_BATCH_SIZE).
     URL grounded: `crates/prism-dtu-crowdstrike/src/routes/mod.rs` route registrations
@@ -438,6 +438,7 @@ PLUGIN-MIGRATION-001-D (implementing story; planned → draft after PO authoring
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.19 | S-DEMO-CROWDSTRIKE-MULTIREGION-001 BC attachment burst | 2026-05-31 | product-owner | §Postconditions §1 CrowdStrike row: replaced stale `base URL pattern https://api.{cloud_region}.crowdstrike.com` with `base_url = "${env.CROWDSTRIKE_BASE_URL}"` per ADR-031 §D8-c. Added region runbook (us-1/us-2/eu-1/gov canonical URLs). Added E-SPEC-024 cross-reference (BC-2.16.009 §Validation Rules 6) for missing/empty env var behavior at spec-load time. No other postconditions changed — DTU parity tests pass `base_url` as a DTU SocketAddr override regardless of the spec's base_url value. |
 | 1.18 | D-870 F-LP10-MED-001 comprehensive sweep | 2026-05-30 | product-owner | F-LP10-MED-001 changelog hygiene: v1.11 row was out of order (appeared between v1.16 and v1.15). Moved v1.11 to correct position between v1.12 and v1.10. Pre-existing defect deferred at D-LP9-001 (pass 9) as pre-existing/out-of-scope; promoted to in-scope under comprehensive sweep per POL-32 codification. No semantic content change. BC-INDEX v5.60→v5.61. |
 | 1.17 | D-849 | 2026-05-29 | product-owner | §Related BCs: added BC-2.01.017 (StaticCookieAuthProvider — No-Login-Roundtrip Cookie Injection) cross-reference. DTU-parity tests for Cyberint (VP-148) must assert `Cookie: access_token=...` per ADR-031 §D5 and BC-2.01.017 TV-002/003. `cyberint_session` parity evidence is no longer sufficient per ADR-031 §D3. |
 | 1.16 | D-776-post-merge | 2026-05-22 | state-manager | POL-14 auto-promotion at merge: PR #153 (PLUGIN-MIGRATION-001-D) squash-merged to develop@3f2de889 at 2026-05-22T09:05:47Z; status draft→active, lifecycle_status draft→active. |
