@@ -120,12 +120,12 @@ active_dispatch_set:
     notes: "Reclassified 2026-05-31 D-907: permitted-divergence→required-fidelity per ADR-031 v1.2 (user directive no-scope-compromise; architect commit e57eb5b1). story-writer 2451d025. PO new-BC flag open: BC-2.16.013 trailing-slash-parity coverage (see §New-BC Flags in story file). Must be evaluated before story flips to ready."
 
   - story_id: S-SPEC-ENV-VAR-001
-    status: draft
+    status: merged
     priority: P0
     points: 5
-    spec_version: "v1.2"
+    spec_version: "v1.3"
     depends_on: []
-    notes: "Registered D-914 (2026-05-31). Leaf prereq — no upstream story dependencies. ${env.VAR} token resolver in prism-spec-engine spec_parser, E-SPEC-024 error path, AD-017 no-value-leak. HARD-gates S-DEMO-CROWDSTRIKE-MULTIREGION-001. D-924 pass-2 spec fix-burst: story body String-fields line reconciled (v1.2). LOCAL adversary pass 2 spec COMPLETE — READY for LOCAL adversary PASS 3. Streak 0/3."
+    notes: "MERGED PR #165 develop@4feec93a 2026-06-01T04:03:53Z (D-931 post-merge burst). FIRST Wave 5 fidelity-prereq merged. LOCAL 5 passes 3-CLEAN CONVERGED. PR-LEVEL 5 passes 3-CLEAN CONVERGED. POL-14 BC-2.16.009 already active — idempotent. Unblocks S-DEMO-CROWDSTRIKE-MULTIREGION-001 (HARD) + Armis-AQL/Claroty parity-soft."
 
   - story_id: S-DEMO-CROWDSTRIKE-MULTIREGION-001
     status: draft
@@ -176,9 +176,9 @@ deferred_post_demo:
   # reclassification from permitted-divergence → required-fidelity; user directive no-scope-compromise).
 
 prereq_artifacts:
-  story_index: .factory/stories/STORY-INDEX.md         # v2.229 after D-927 burst
+  story_index: .factory/stories/STORY-INDEX.md         # v2.232 after D-931 burst
   bc_index: .factory/specs/behavioral-contracts/BC-INDEX.md  # v5.69
-  state: .factory/STATE.md                              # v7.580 after D-927 burst
+  state: .factory/STATE.md                              # v7.584 after D-931 burst
   governing_adr: .factory/specs/architecture/decisions/ADR-031-dtu-equals-true-dtu-fidelity-principle.md  # v1.2 (ADR-031 architect e57eb5b1 reclassified 3 divergences)
   governing_audit: .factory/proposals/POLLER-DTU-FIDELITY-AUDIT-2026-05-29.md  # v1.1
 

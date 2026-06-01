@@ -5,11 +5,14 @@ title: "${env.VAR} interpolation resolution in sensor-spec string fields"
 wave: wave-5-e-demo-fidelity
 epic_id: E-SPEC-ENGINE
 priority: P0
-status: draft
-version: "1.2"
+status: merged
+version: "1.3"
 level: "L4"
 producer: story-writer
-timestamp: "2026-05-31T00:00:00Z"
+timestamp: "2026-06-01T04:03:53Z"
+merged_via_pr: 165
+merged_via_sha: "4feec93a"
+merged_at: "2026-06-01T04:03:53Z"
 tdd_mode: strict
 subsystems: [SS-16]
 # Subsystem anchor justification:
