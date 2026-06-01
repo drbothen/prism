@@ -1,0 +1,34 @@
+AC-009: StaticCookieAuthProvider injects Cookie: access_token header, not Authorization Bearer
+Story: S-DEMO-001 v1.10
+Traces to: BC-2.01.013; ADR-031 §D3-b
+
+Tests (3 covering AC-009 sub-requirements):
+  (a) test_BC_2_01_013_static_cookie_auth_strategy_injects_access_token_not_bearer (prism-bin)
+  (b) test_BC_2_01_017_build_request_injects_access_token_cookie_for_cookie_roundtrip (prism-spec-engine)
+  (c) test_BC_2_01_017_static_cookie_auth_provider_acquire_token_no_http_call (prism-spec-engine)
+
+Command:
+  cargo nextest run -p prism-bin -p prism-spec-engine \
+    -E 'test(BC_2_01_013_static_cookie_auth_strategy_injects_access_token_not_bearer) \
+      + test(BC_2_01_017_build_request_injects_access_token_cookie_for_cookie_roundtrip) \
+      + test(BC_2_01_017_static_cookie_auth_provider_acquire_token_no_http_call)'
+
+Output:
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1m 50s
+────────────
+ Nextest run ID e26a6be0-9fe8-4bb7-af3a-5334e44170f3 with nextest profile: default
+    Starting 3 tests across 47 binaries (627 tests skipped)
+        PASS [   0.028s] (1/3) prism-spec-engine::bc_2_01_017_static_cookie_auth_provider test_BC_2_01_017_static_cookie_auth_provider_acquire_token_no_http_call
+        PASS [   0.038s] (2/3) prism-spec-engine::bc_2_01_017_static_cookie_auth_provider test_BC_2_01_017_build_request_injects_access_token_cookie_for_cookie_roundtrip
+        PASS [   0.039s] (3/3) prism-bin::bc_2_01_013_spec_driven_adapter test_BC_2_01_013_static_cookie_auth_strategy_injects_access_token_not_bearer
+────────────
+     Summary [   0.039s] 3 tests run: 3 passed, 627 skipped
+
+Result: PASS (all 3 sub-tests)
+Notes:
+  (a) Confirms AdapterAuthStrategy::StaticCookie path injects Cookie: access_token (not Bearer).
+  (b) Confirms build_request dispatches Cookie: access_token={token} for CookieRoundtrip auth type.
+  (c) Confirms StaticCookieAuthProvider::acquire_token makes ZERO HTTP calls (INV-COOKIE-001).
+  Cookie name is access_token (canonical per ADR-031 D1-a / poller-express cookieTransport).
+  cyberint_session cookie name does NOT appear in any production code path.
+Branch: feature/S-DEMO-001 HEAD c50e72f7

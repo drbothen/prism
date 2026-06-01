@@ -77,6 +77,21 @@ pub async fn resolve_credential(
             // FILE env var was set but resolution failed (file not found, permission error, etc.)
             // BC-2.03.006 postcondition: "If resolution fails, returns a clear error before any API call"
             // Do NOT silently fall through — surface the misconfiguration immediately.
+            //
+            // SEC-002 (S-DEMO-001 PR review, AD-017 / CWE-209 determination):
+            // The `{e}` interpolated into `detail` below CAN include a filesystem error message
+            // (e.g., "No such file or directory: /some/path"). That `detail` propagates to
+            // CredentialResolutionError::BackendUnavailable → SpecEngineError::AuthAcquisitionFailed
+            // → SensorError::Internal { detail }.
+            //
+            // DOES NOT REACH MCP OUTPUT: In prism-query/src/materialization.rs,
+            // SensorError::Internal surfaces as `fan_err.error.error_code()` → "E-SENSOR-099"
+            // ONLY. The `detail` is emitted to internal `tracing::warn!` (audit log) but
+            // NEVER to the MCP error response. prism-mcp/src/error_mapping.rs E-SENSOR-*
+            // arm returns "Internal error; see audit log" with no detail field.
+            // Full path verified: resolution.rs → auth_provider.rs → spec_driven_adapter.rs
+            // → materialization.rs → error_mapping.rs (E-SENSOR-099, no detail leakage).
+            // No sanitization needed per this determination.
             crate::audit::emit_audit(
                 crate::audit::AuditOperation::Get,
                 client_id,

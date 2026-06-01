@@ -600,6 +600,7 @@ pub async fn run_boot_sequence(config_dir: &Path) -> Result<RunningServer, BootE
         Arc::clone(&ctx.credential_store),
         config.spec_dir.clone(),
         config_dir.to_path_buf(),
+        plugin_result.plugin_auth_providers,
     )
     .await?;
     step10_start_hot_reload().await?;
@@ -1832,8 +1833,7 @@ pub async fn step8_init_query_engine() -> Result<(), BootError> {
 ///
 /// Uses RocksDbBackend from step 6 (via BootContext) as the query storage backend.
 /// Uses OrgRegistry from step 3 and CredentialStore from step 5 (CRIT-5 fix).
-/// Adapter registry is initially empty — full adapter population from sensor TOML specs
-/// is deferred to spec-catalog dispatch (GAP-002-A, S-5.04-SENSOR-HEALTH-ADAPTER-DISPATCH).
+/// Step 9A (S-DEMO-001): calls `step9a_populate_adapter_registry` to wire spec-driven adapters.
 /// The AuditWriter is a tracing stub until the full audit-writer integration story (S-2.04) ships.
 ///
 /// # Background task semantics
@@ -1857,6 +1857,10 @@ pub async fn step9_start_mcp_server(
     credential_store: Arc<dyn prism_credentials::CredentialStore>,
     spec_dir: std::path::PathBuf,
     config_dir: std::path::PathBuf,
+    plugin_auth_providers: std::collections::HashMap<
+        String,
+        Arc<prism_spec_engine::PluginAuthProvider>,
+    >,
 ) -> Result<tokio::task::JoinHandle<Result<(), rmcp::RmcpError>>, BootError> {
     use std::collections::BTreeMap;
 
@@ -1878,11 +1882,18 @@ pub async fn step9_start_mcp_server(
 
     // ── Build QueryEngine ─────────────────────────────────────────────────────
     //
-    // Adapter registry is initially empty — adapters are dispatched via WASM plugins
-    // (PluginAuthProvider, ADR-028 §D10). Direct spec-catalog adapter wiring (GAP-002-A)
-    // targets S-5.04-SENSOR-HEALTH-ADAPTER-DISPATCH; prism-sensors MUST NOT gain new
-    // prism-spec-engine imports (ADR-028 §D3).
-    let adapter_registry = Arc::new(AdapterRegistry::new());
+    // Step 9A (S-DEMO-001): Populate AdapterRegistry from resolved spec map.
+    // Calls step9a_populate_adapter_registry to wire one SpecDrivenSensorAdapter
+    // per (OrgId, SensorId) pair from resolved_spec_map (BC-2.22.001 §Step 9A).
+    let mut adapter_registry_inner = AdapterRegistry::new();
+    crate::spec_driven_adapter::step9a_populate_adapter_registry(
+        &resolved_spec_map,
+        &org_registry,
+        &plugin_auth_providers,
+        &mut adapter_registry_inner,
+    )
+    .await?;
+    let adapter_registry = Arc::new(adapter_registry_inner);
     let ocsf_normalizer = Arc::new(OcsfNormalizer::new());
 
     // ClientRegistry: populated from OrgRegistry slug list (F-PR163-IMP-8).
@@ -1898,19 +1909,18 @@ pub async fn step9_start_mcp_server(
 
     // ProductionCredentialResolver: wraps the real CredentialStore from step 5.
     //
-    // All sensor auth is now via WASM plugins (PluginAuthProvider, ADR-028 §D10).
-    // The CredentialResolver trait is used by the fan_out path in prism-sensors when
-    // direct sensor adapters are dispatched. Since AdapterRegistry is currently empty
-    // (GAP-002-A — spec-catalog dispatch deferred), the resolver is not invoked in
-    // production until adapters are populated. When it is invoked, it returns a
-    // ConfigValidation error directing the caller to the spec-catalog dispatch path
-    // rather than silently returning empty (which would cause auth-silent-failure).
+    // All sensor auth is now via WASM plugins (PluginAuthProvider, ADR-028 §D10) or via
+    // SpecDrivenSensorAdapter (step 9A, S-DEMO-001). The CredentialResolver trait is used
+    // by the fan_out path in prism-sensors when direct sensor adapters are dispatched.
+    // SpecDrivenSensorAdapter handles its own auth dispatch via AdapterAuthStrategy — it
+    // does NOT call the CredentialResolver. This resolver is retained for architectural
+    // completeness and will be wired in S-2.07 (per-sensor auth resolution story).
     //
     // This is NOT a BootNull* — it correctly reports the architectural state:
-    // the credential_store IS wired, but the WASM plugin auth path bypasses this
-    // resolver (plugins acquire tokens via PluginAuthProvider::acquire_token, not via
-    // CredentialResolver::resolve). Resolving per-sensor SensorAuth subtypes from the
-    // credential_store requires S-2.07 (per-sensor auth resolution story).
+    // the credential_store IS wired, but SpecDrivenSensorAdapter and WASM plugin auth
+    // both bypass this resolver (plugins: via PluginAuthProvider::acquire_token;
+    // spec-driven: via AdapterAuthStrategy). Resolving per-sensor SensorAuth subtypes
+    // from the credential_store at fan_out time requires S-2.07.
     struct ProductionCredentialResolver {
         #[allow(dead_code)]
         credential_store: Arc<dyn prism_credentials::CredentialStore>,
@@ -1922,19 +1932,17 @@ pub async fn step9_start_mcp_server(
             sensor_id: prism_core::SensorId,
         ) -> Result<Box<dyn prism_sensors::auth::SensorAuth>, prism_sensors::adapter::SensorError>
         {
-            // Sensor adapters are currently dispatched via WASM plugins (PluginAuthProvider),
-            // not via this resolver. The fan_out CredentialResolver path is invoked only for
-            // direct adapter fan-out — which requires populated AdapterRegistry (GAP-002-A).
-            // When GAP-002-A is closed (target: S-5.04-SENSOR-HEALTH-ADAPTER-DISPATCH), this
-            // resolver will look up credentials from self.credential_store and return the
-            // appropriate SensorAuth subtype based on the sensor spec's auth_type.
-            // Per-sensor auth resolution is S-2.07.
+            // SpecDrivenSensorAdapter handles auth via AdapterAuthStrategy (S-DEMO-001).
+            // WASM plugins handle auth via PluginAuthProvider (ADR-028 §D10).
+            // Neither path uses the CredentialResolver — they acquire tokens at the
+            // adapter level before fan_out dispatches. Per-query credential resolution
+            // via this resolver is S-2.07.
             Err(prism_sensors::adapter::SensorError::ConfigValidation {
                 sensor: sensor_id.to_string(),
                 detail: format!(
-                    "Direct sensor auth for client '{client_id}' sensor '{sensor_id}' requires \
-                     spec-catalog adapter dispatch (GAP-002-A; target: S-5.04-SENSOR-HEALTH-ADAPTER-DISPATCH). \
-                     WASM plugin auth uses PluginAuthProvider, not this resolver (ADR-028 §D10)."
+                    "Direct sensor auth for client '{client_id}' sensor '{sensor_id}': \
+                     use SpecDrivenSensorAdapter (S-DEMO-001) or WASM plugin (ADR-028 §D10). \
+                     Per-query credential resolution via CredentialResolver is S-2.07."
                 ),
             })
         }

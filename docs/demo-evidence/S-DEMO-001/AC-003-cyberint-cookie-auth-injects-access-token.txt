@@ -1,0 +1,25 @@
+AC-003: SpecDrivenSensorAdapter delegates for cookie_roundtrip sensor (Cyberint)
+Story: S-DEMO-001 v1.10
+Traces to: BC-2.01.013 postcondition 4; closes cookie_roundtrip gap per ADR-031
+
+Red Gate test: test_BC_2_01_013_spec_driven_adapter_cyberint_cookie_auth_injects_access_token_cookie
+Crate: prism-bin
+Module: bc_2_01_013_spec_driven_adapter
+
+Command:
+  cargo nextest run -p prism-bin \
+    -E 'test(BC_2_01_013_spec_driven_adapter_cyberint_cookie_auth_injects_access_token_cookie)'
+
+Output:
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.43s
+────────────
+ Nextest run ID df864300-8e1b-437f-9c04-a3cc53949919 with nextest profile: default
+    Starting 1 test across 11 binaries (106 tests skipped)
+        PASS [   0.032s] (1/1) prism-bin::bc_2_01_013_spec_driven_adapter test_BC_2_01_013_spec_driven_adapter_cyberint_cookie_auth_injects_access_token_cookie
+────────────
+     Summary [   0.033s] 1 test run: 1 passed, 106 skipped
+
+Result: PASS
+Notes: Confirms StaticCookieAuthProvider injects Cookie: access_token (NOT cyberint_session, NOT Authorization: Bearer).
+       DTU-layer parity gated on DTU clone running (S-DTU-CYBERINT-AUTH-FIDELITY-001 merged).
+Branch: feature/S-DEMO-001 HEAD c50e72f7

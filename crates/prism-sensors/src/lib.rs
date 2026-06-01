@@ -58,7 +58,7 @@ pub mod tests;
 
 // ── Re-exports ─────────────────────────────────────────────────────────────
 pub use adapter::{is_transient_status, QueryParams, SensorAdapter, SensorError, SensorSpec};
-pub use auth::SensorAuth;
+pub use auth::{BearerStaticSensorAuth, SensorAuth};
 // S-2.08 re-exports
 pub use event_buffer::{EventBufferStore, NormalizedRecord};
 pub use fanout::{

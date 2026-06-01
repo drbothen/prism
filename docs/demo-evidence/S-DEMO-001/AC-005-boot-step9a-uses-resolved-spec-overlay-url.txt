@@ -1,0 +1,25 @@
+AC-005: Adapter registration is per-org with correct overlay applied
+Story: S-DEMO-001 v1.10
+Traces to: BC-2.06.014 precondition 1
+
+Red Gate test: test_BC_2_06_014_boot_step9a_uses_resolved_spec_overlay_url
+Crate: prism-bin
+Module: bc_2_01_013_spec_driven_adapter
+
+Command:
+  cargo nextest run -p prism-bin \
+    -E 'test(BC_2_06_014_boot_step9a_uses_resolved_spec_overlay_url)'
+
+Output:
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.44s
+────────────
+ Nextest run ID e7c94430-ac48-47e5-8abf-55c2f2140577 with nextest profile: default
+    Starting 1 test across 11 binaries (106 tests skipped)
+        PASS [   0.035s] (1/1) prism-bin::bc_2_01_013_spec_driven_adapter test_BC_2_06_014_boot_step9a_uses_resolved_spec_overlay_url
+────────────
+     Summary [   0.039s] 1 test run: 1 passed, 106 skipped
+
+Result: PASS
+Notes: Confirms per-org customers/demo-org/crowdstrike.sensor.toml overlay base_url is used
+       by the adapter's PipelineExecutor, not the production base URL from the type spec.
+Branch: feature/S-DEMO-001 HEAD c50e72f7

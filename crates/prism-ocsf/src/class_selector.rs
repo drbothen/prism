@@ -9,6 +9,16 @@
 //! (BC-2.02.009) and verify that each `class_uid` below exists in the compiled
 //! descriptors. If a class_uid is absent, update the mapping before merging.
 //!
+//! ## Legacy `select(sensor, record_type)` path mappings
+//!
+//! The table below documents the `select()` method's (sensor, record_type) routing
+//! table. The "Security Finding (DEPRECATED)" row means that `select()` intentionally
+//! does NOT route any (sensor, record_type) pair to class_uid 2001 — that class was
+//! retired from the legacy lookup table in OCSF v1.1.0. It does NOT mean 2001 is
+//! unusable globally: `select_by_class_name("security_finding")` returns 2001 for
+//! real sensor TOML specs per BC-2.01.013 v1.9, because `security_finding` remains
+//! the correct ocsf_class value for sensors not yet migrated to `detection_finding`.
+//!
 //! | Class Name                | class_uid | Notes                              |
 //! |---------------------------|-----------|------------------------------------|
 //! | Detection Finding         | 2004      | CrowdStrike detections, Claroty/Armis alerts |
@@ -17,7 +27,7 @@
 //! | Device Inventory Info     | 5001      | Claroty/Armis devices              |
 //! | Account Change            | 3001      | Claroty/Armis audit logs (closest OCSF v1.7.0 IAM class) |
 //! | Base Event                | 0         | Fallback for unmapped record types |
-//! | Security Finding (DEPRECATED) | 2001  | DO NOT USE — deprecated OCSF v1.1.0 |
+//! | Security Finding (DEPRECATED) | 2001  | Not used in `select()` — deprecated OCSF v1.1.0 sensor path; use `select_by_class_name("security_finding")` for TOML-spec sensors |
 //!
 //! # Stub Status
 //!
@@ -51,6 +61,17 @@ pub const CLASS_UID_ACCOUNT_CHANGE: u32 = 3001;
 /// OCSF `class_uid` for Base Event — used for unmapped record types. (BC-2.02.012)
 pub const CLASS_UID_BASE_EVENT: u32 = 0;
 
+/// OCSF `class_uid` for Security Finding.
+///
+/// Value: 2001. Used by `select_by_class_name("security_finding")` for sensors that
+/// declare `ocsf_class = "security_finding"` in their TOML spec (BC-2.01.013 v1.9).
+///
+/// NOTE: Whether 2001 vs 2004 is the semantically correct UID for Cyberint alerts is
+/// under architect adjudication (OBS-2). This constant names the CURRENT value used in
+/// `select_by_class_name` — it is a pure naming refactor of that value. Do NOT change
+/// the value here without resolving OBS-2 first.
+pub const CLASS_UID_SECURITY_FINDING: u32 = 2001;
+
 /// Maps (sensor, record_type) pairs to OCSF event class UIDs.
 ///
 /// This is a zero-size unit struct. All methods are pure functions operating on
@@ -58,6 +79,52 @@ pub const CLASS_UID_BASE_EVENT: u32 = 0;
 pub struct EventClassSelector;
 
 impl EventClassSelector {
+    /// Returns the OCSF `class_uid` for the given OCSF class-name string.
+    ///
+    /// This is the **spec-driven lookup path** used by `pipeline_result_to_record_batch`:
+    /// the sensor TOML `[[tables]]` block declares `ocsf_class = "<class-name>"`, and this
+    /// method maps that class-name directly to the canonical `class_uid` integer — with no
+    /// dependency on the sensor identifier.
+    ///
+    /// # Mappings (compile-time constants, BC-2.01.013 v1.9 / D-925)
+    ///
+    /// | Class name              | class_uid | OCSF category |
+    /// |-------------------------|-----------|---------------|
+    /// | `"security_finding"`    | 2001      | 2 (Findings)  |
+    /// | `"vulnerability_finding"` | 2002    | 2 (Findings)  |
+    /// | `"detection_finding"`   | 2004      | 2 (Findings)  |
+    /// | `"incident_finding"`    | 2005      | 2 (Findings)  |
+    /// | `"audit_activity"`      | 3001      | 3 (IAM)       |
+    /// | `"device"`              | 5001      | 5 (Discovery) |
+    ///
+    /// # Behaviour
+    ///
+    /// - Known class names return `Ok(class_uid)`.
+    /// - Unknown class names return `Err(PrismError::OcsfUnknownEventClass)`.
+    ///   Callers that want a safe fallback should use `.unwrap_or(0)`.
+    ///
+    /// # Error Codes
+    ///
+    /// - `E-OCSF-020` (`PrismError::OcsfUnknownEventClass`) — no mapping for this class name.
+    pub fn select_by_class_name(class_name: &str) -> Result<u32, PrismError> {
+        match class_name {
+            "security_finding" => Ok(CLASS_UID_SECURITY_FINDING),
+            "vulnerability_finding" => Ok(CLASS_UID_VULNERABILITY_FINDING),
+            "detection_finding" => Ok(CLASS_UID_DETECTION_FINDING),
+            "incident_finding" => Ok(CLASS_UID_INCIDENT_FINDING),
+            "audit_activity" => Ok(CLASS_UID_ACCOUNT_CHANGE),
+            "device" => Ok(CLASS_UID_DEVICE_INVENTORY_INFO),
+            _ => Err(PrismError::OcsfUnknownEventClass {
+                // "<class-name-lookup>" sentinel: this path is reached via select_by_class_name,
+                // which takes only a class_name — there is no sensor context. Using an empty
+                // string would be misleading in diagnostics; the sentinel makes the lookup
+                // origin unambiguous.
+                sensor: "<class-name-lookup>".to_owned(),
+                record_type: class_name.to_owned(),
+            }),
+        }
+    }
+
     /// Returns the OCSF `class_uid` for the given `(sensor, record_type)` pair.
     ///
     /// # Behaviour
