@@ -34,6 +34,7 @@ and reporting PASS.
 | AC-006 | Multi-error collection — no fail-fast; two missing vars → two errors | `AC-006-multi-error-collection.txt` | `test_env_var_multi_missing_tokens_collect_multiple_errors` | PASS |
 | AC-007 | Resolution ordering — resolver runs pre-URL-format-validation | `AC-007-resolution-ordering.txt` | `test_env_var_resolution_runs_before_url_format_validation` + 2 production-path tests | PASS |
 | AC-008 | AD-017 no-value-leak — error contains NAME, never VALUE | `AC-008-ad017-no-value-leak.txt` | `test_env_var_error_contains_name_not_value` | PASS |
+| EC-009-007 | Overlay base_url env-var resolution — full-token absent, full-token set, partial-token absent | `EC-009-007-overlay-base-url-resolution.txt` | `test_EC_009_007_overlay_base_url_full_token_missing_var_produces_e_spec_024_not_e_spec_001` + `test_EC_009_007_overlay_base_url_full_token_set_var_resolves_and_overlay_validates` + `test_EC_009_007_overlay_base_url_partial_token_missing_var_produces_e_spec_024` | PASS |
 | (regression) | Full prism-spec-engine suite: 508 tests, 0 failures | `no-regression-full-suite.txt` | All tests | PASS |
 
 ---
@@ -73,6 +74,7 @@ format!("{:?}", err) does NOT contain  "secret.internal.sentinel" // VALUE absen
 | 8 | Story Red Gate tests (one per AC, in `env_var_resolution_tests.rs`) |
 | 2 | Adversary-added production-path ordering tests (F-LOCAL-P1-HIGH-001, AC-007 coverage) |
 | 10 | Total env-var-resolution tests, all PASS |
+| 3 | EC-009-007 overlay base_url env-resolution tests (in `overlay_loading_tests.rs`): full-token absent, full-token set, partial-token absent — all PASS |
 | 508 | Total prism-spec-engine tests in full suite run, 0 failures |
 | 10 | Tests skipped (#[ignore] DTU integration tests — external-service gate per SID-1) |
 
@@ -92,6 +94,7 @@ Each AC with a failure mode has both paths recorded:
 | AC-006 | n/a | two absent vars → two EnvVarNotSet, no fail-fast |
 | AC-007 | var set → resolved URL passes url-format check | absent var → EnvVarNotSet NOT E-SPEC-001 |
 | AC-008 | var set → sentinel in spec.base_url (not in errors) | absent var → Display has NAME not VALUE |
+| EC-009-007 | overlay base_url var set → token resolved, overlay validates | absent var → E-SPEC-024 NOT E-SPEC-001 (ordering verified); partial-token absent → E-SPEC-024 |
 
 ---
 
@@ -103,3 +106,5 @@ Each AC with a failure mode has both paths recorded:
 | `crates/prism-spec-engine/src/error.rs` | `SpecEngineError::EnvVarNotSet` variant definition (E-SPEC-024) |
 | `crates/prism-spec-engine/src/add_sensor_spec.rs` | `parse_and_validate_spec_toml()` — production load path that calls resolver |
 | `crates/prism-spec-engine/tests/env_var_resolution_tests.rs` | All 10 env-var Red Gate tests |
+| `crates/prism-spec-engine/src/overlay.rs` | `validate_overlay_toml()` — overlay load path that calls resolver for `base_url` (EC-009-007) |
+| `crates/prism-spec-engine/tests/overlay_loading_tests.rs` | 3 EC-009-007 overlay env-resolution tests |
