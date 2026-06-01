@@ -10,9 +10,11 @@
 # NOTE: legacy ArmisAuth::auth_type_name() returned "api_key" — latent label bug
 #   deleted by PLUGIN-MIGRATION-001-A. Spec follows DTU per CLAUDE.md §Source-of-Truth #7.
 #
-# DTU-EXT-003: devices table — DTU registers GET /api/v1/devices (not AQL /api/v1/search).
-# DTU-EXT-004: alerts table — DTU registers GET /api/v1/alerts (not AQL /api/v1/search).
-# Both tables are authored using DTU-registered endpoints per ADR-028 §D5.
+# DTU-EXT-003: CLOSED by S-DEMO-ARMIS-AQL-001. devices table now uses GET /api/v1/search
+#   (the real Armis Centrix AQL endpoint per ADR-031 §D8-a). Back-compat: GET /api/v1/devices
+#   remains registered in build_router() but is no longer the primary path.
+# DTU-EXT-004: CLOSED by S-DEMO-ARMIS-AQL-001. alerts table now uses GET /api/v1/search.
+#   Back-compat: GET /api/v1/alerts remains registered in build_router().
 # AQL forwarding via ${query.filter.aql} is documented per O-001 grammar support.
 # Timestamp fallback chain (last_seen → first_seen → now()) is expressed via
 # ColumnSpec::timestamp_fallback_chain = ["first_seen"] on the primary timestamp column per ADR-028 §D8-B.
@@ -112,21 +114,20 @@ ocsf_class = "device"
   column_type = "integer"
   ocsf_field = "risk_score"
 
-  # DTU-EXT-003: DTU has GET /api/v1/devices (crates/prism-dtu-armis/src/clone.rs build_router()).
-  # AQL forwarding via ${query.filter.aql} is supported when the caller populates
-  # FetchContext.query_filters["aql"]. The DTU endpoint accepts an optional ?aql=
-  # query parameter for filtering. Production AQL forwarding via /api/v1/search
-  # is tracked under DTU-EXT-003.
-  # response_path: DTU types.rs DevicesResponse { data: DevicesData { devices: [...] } }
-  #   → must extract at $.data.devices (not $.data which returns the DevicesData object).
-  # pagination: DTU routes::devices::paginate_devices uses page/size offset params
-  #   (size.unwrap_or(25) default). No cursor/next field in response. Using OffsetLimit
-  #   per CRIT-004 fix (ADR-028 §D1 DTU-grounded pagination type).
+  # DTU-EXT-003: CLOSED by S-DEMO-ARMIS-AQL-001.
+  # Primary path is now GET /api/v1/search?aql=in:type=Device (real Armis Centrix AQL endpoint,
+  # ADR-031 §D8-a). GET /api/v1/devices remains registered in build_router() for back-compat
+  # but is not the primary path.
+  # response_path: routes/search.rs SearchResponse { data: SearchData { results: [...], total } }
+  #   → must extract at $.data.results (not $.data.devices — search envelope uses "results").
+  # AQL forwarding via ${query.filter.aql}: the ?aql= query param carries the AQL filter string.
+  # pagination: DTU search handler applies same page/size offset logic as paginate_devices.
+  #   (size.unwrap_or(25) default). No cursor/next field in response. OffsetLimit maintained.
   [[tables.steps]]
   name = "fetch_devices"
   method = "GET"
-  path_template = "/api/v1/devices"
-  response_path = "$.data.devices"
+  path_template = "/api/v1/search"
+  response_path = "$.data.results"
   variables_produced = []
   [tables.steps.pagination]
   type = "offset_limit"
@@ -184,16 +185,20 @@ ocsf_class = "security_finding"
   column_type = "datetime"
   ocsf_field = "end_time"
 
-  # DTU-EXT-004: DTU has GET /api/v1/alerts (crates/prism-dtu-armis/src/clone.rs build_router()).
-  # response_path: DTU types.rs AlertsResponse { data: AlertsData { alerts: [...] } }
-  #   → must extract at $.data.alerts (not $.data which returns the AlertsData object).
-  # pagination: DTU uses offset-based pagination (consistent with devices endpoint).
-  #   No cursor/next field in AlertsResponse. Using OffsetLimit per CRIT-003/004 fix.
+  # DTU-EXT-004: CLOSED by S-DEMO-ARMIS-AQL-001.
+  # Primary path is now GET /api/v1/search?aql=in:type=Alert (real Armis Centrix AQL endpoint,
+  # ADR-031 §D8-a). GET /api/v1/alerts remains registered in build_router() for back-compat
+  # but is not the primary path.
+  # response_path: routes/search.rs SearchResponse { data: SearchData { results: [...], total } }
+  #   → must extract at $.data.results (not $.data.alerts — search envelope uses "results").
+  # AQL forwarding via ${query.filter.aql}: the ?aql= query param carries the AQL filter string.
+  # pagination: DTU search handler applies same page/size offset logic as alerts endpoint.
+  #   No cursor/next field in response. OffsetLimit maintained per CRIT-003/004 fix.
   [[tables.steps]]
   name = "fetch_alerts"
   method = "GET"
-  path_template = "/api/v1/alerts"
-  response_path = "$.data.alerts"
+  path_template = "/api/v1/search"
+  response_path = "$.data.results"
   variables_produced = []
   [tables.steps.pagination]
   type = "offset_limit"
