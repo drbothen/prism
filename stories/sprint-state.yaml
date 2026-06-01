@@ -30,10 +30,10 @@ active_dispatch_set:
     status: in_progress
     priority: P1-pre-demo-BLOCKING
     points: 5
-    spec_version: "v1.3"
+    spec_version: "v1.4"
     depends_on:
       - PLUGIN-MIGRATION-001-A  # merged
-    notes: "D-934 2026-06-01: LOCAL adversary pass 1 PARTIAL FIX-BURST. 1 MED + 2 OBS + 1 PROCESS-GAP (streak 0/3). F-P1-MED-001 CLOSED PO c180523c (AC-002/EC-001 401 literal corrected to canonical 'missing or invalid Authorization header'; story v1.2→v1.3) + implementer 1a7c9cbc (auth test strengthened to assert exact 401 string; stale todo!() comments swept — F-P1-OBS-001 CLOSED); F-P1-OBS-002 NA (intentional sibling convention); 4/4 prism-dtu-claroty GREEN. NEXT: LOCAL adversary pass 2 (target 1/3). D-933 2026-06-01: IMPLEMENTED GREEN (stubs c78fd0d6 → Red Gate 56cbc02a 3 tests → implementer d7bac776 4/4 pass; routes/audit_log.rs + ClarotyAuditLogEntry + fixtures/audit-log.json; SAP-2 column parity verified)."
+    notes: "D-936 2026-06-01: LOCAL adversary pass 4 CLEAN(strict)=yes (LOW-001 closure re-verified load-bearing; streak 0/3→1/3). Pass 5 (2 LOWs): F-P6-LOW-001 fidelity_validator omitted audit_log route CLOSED implementer e7815cbc; F-P6-LOW-002 AC-002 mis-cited alerts.rs CLOSED PO 8a863a68 (story v1.3→v1.4); streak 1/3→0/3. Feature HEAD e7815cbc. NEXT: LOCAL adversary pass 6. F-P2-DEFER-001 BC-2.16.013 line~169 stale path/method → PO post-merge. D-935 2026-06-01: pass 3 LOW-001 stale doc-count CLOSED implementer e7815cbc (TD-VSDD-060; clone.rs+lib.rs count corrected); pass 2 CLEAN(strict)=yes streak 0/3→1/3. D-934 2026-06-01: pass 1 ALL CLOSED (c180523c+1a7c9cbc; story v1.2→v1.3). D-933: IMPLEMENTED GREEN (stubs c78fd0d6 → Red Gate 56cbc02a → implementer d7bac776 4/4 pass)."
 
   - story_id: S-DEMO-CLAROTY-PAGINATION-001
     status: draft
@@ -54,7 +54,7 @@ active_dispatch_set:
       - PLUGIN-MIGRATION-001-E   # merged
       - S-CONFIG-MULTI-TENANT-OVERRIDE-001
       - S-DTU-CYBERINT-AUTH-FIDELITY-001
-    notes: "KEYSTONE. Closes GAP-002-A. SpecDrivenSensorAdapter + boot step 9A. Story v1.10. LOCAL CONVERGED 3/3 per BC-5.39.001 D-779 (passes 5/6/7 all CLEAN(strict)=yes). Post-rebase trajectory: pass1(4)→pass2(CLEAN 1/3)→pass3(OBS 0/3)→pass4(2 MED 0/3)→pass5(CLEAN 1/3)→pass6(CLEAN 2/3)→pass7(CLEAN 3/3). Feature HEAD c50e72f7. LOCAL cascade CLOSED. NEXT: demo-recorder per-AC → push → pr-manager 9-step PR cycle (already rebased onto develop@4feec93a)."
+    notes: "KEYSTONE. Closes GAP-002-A. SpecDrivenSensorAdapter + boot step 9A. Story v1.10. LOCAL CONVERGED 3/3 per BC-5.39.001 D-779 (passes 5/6/7 all CLEAN(strict)=yes). PR #166 OPEN (https://github.com/drbothen/prism/pull/166; base 4feec93a; remote SHA at open 331ac690). LOCAL feature HEAD: 3fc37c7c (fix-burst commits NOT yet pushed — pr-manager must re-push 3fc37c7c before continuing PR-LEVEL cascade). PR-LEVEL: pass 1 OBS-only (OBS-1 FALSE POSITIVE; OBS-2 NON-BLOCKING architect D-925); fix-burst 3fc37c7c ALL CR-001..006 + SEC-001..003 CLOSED (EXPECTED 46→49; 3888 pass); pass 2 CLEAN(strict)=yes; PR-LEVEL streak 1/3. NEXT: adversary passes 3+4 (→2/3, 3/3) → re-push 3fc37c7c → merge."
 
   - story_id: S-DEMO-QUERY-PUSHDOWN-001
     status: draft
@@ -64,6 +64,15 @@ active_dispatch_set:
     depends_on:
       - S-DEMO-001  # HARD gate: delivers SpecDrivenSensorAdapter + PipelineExecutor entry points
     notes: "Registered D-924 (2026-05-31). Follow-up story for F-003-R push-down deferred from S-DEMO-001 keystone. BC-2.01.013 v1.8 Pagination/Push-Down Scope Clause documents the deferral. Blocked on S-DEMO-001 merge. Push-down is an optimization — correctness invariant: result identical with or without push-down (BC-2.11.007)."
+
+  - story_id: OCSF-CLASS-MIGRATION-001
+    status: draft
+    priority: P2
+    points: 3
+    spec_version: "v1.0"
+    depends_on:
+      - S-DEMO-001  # HARD gate — must merge first (establishes conformance test fixture this story updates)
+    notes: "Indexed D-936 2026-06-01. OBS-2 deferral per architect adjudication D-925 + Canonical Principle Rule 3 (intentional transitional: security_finding→class_uid 2001 is correct short-term; OCSF v1.1 deprecates 2001 in favour of detection_finding 2004; migration required but via dedicated story). Scope: migrate 4 production sensor TOMLs ocsf_class 'security_finding'→'detection_finding' + amend BC-2.02.012 (scope no-deprecated-2001 invariant to select() path) + update select_by_class_name mapping + update S-DEMO-001 conformance fixture. BCs pending PO confirmation (BC-2.02.012 + BC-2.01.013 provisional). Blocked on S-DEMO-001 merge. File: OCSF-CLASS-MIGRATION-001-migrate-security-finding-to-detection-finding.md"
 
   - story_id: S-DEMO-002
     status: draft
@@ -106,9 +115,9 @@ active_dispatch_set:
     status: in_progress
     priority: P1
     points: 5
-    spec_version: "v1.3"
+    spec_version: "v1.4"
     depends_on: []
-    notes: "D-935 2026-06-01: LOCAL adversary pass 1 ALL FINDINGS CLOSED. F-P1-CRIT-001 CLOSED bb66929f (TOML path_template AQL); F-P1-HIGH-001 CLOSED bb66929f (X-Org-Id guard); F-P1-CRIT-002 CLOSED fc9adca1 (AC-005 parity test load-bearing); F-P1-HIGH-002 CLOSED fc9adca1 (AC-003 relabel); F-P1-HIGH-003 CLOSED 86da054c (frontmatter count; red_gate_tests=11); F-P1-OBS-001 CLOSED 86da054c (H1 v1.3); F-P1-OBS-002 CLOSED 86da054c (changelog descending POL-32); story v1.2→v1.3 (story-writer 86da054c). F-P1-OBS-003 [process-gap] SAP-2-extension codification: follow-up for session-reviewer (out of perimeter). Streak 0/3. NEXT: LOCAL adversary pass 2. SCOPE BOUNDARY: production AQL seeding is S-DEMO-002 scope (not defer-pattern; architect+implementer confirmed). D-933 2026-06-01: IMPLEMENTED GREEN (stubs f17e2079 → Red Gate 8257d38f 9 tests → implementer f3375681 164/164 pass)."
+    notes: "D-936 2026-06-01: LOCAL adversary pass 2 (2 LOWs): F-P6-LOW-001 fidelity_validator omitted audit_log route CLOSED implementer e7815cbc (fidelity check added, route count corrected to 11); F-P6-LOW-002 AC-002 mis-cited alerts.rs CLOSED PO 8a863a68 (AC-002→devices.rs, story v1.3→v1.4); streak 0/3; NEXT LOCAL adversary pass 3. D-935 2026-06-01: LOCAL adversary pass 1 ALL FINDINGS CLOSED (bb66929f+fc9adca1+86da054c); story v1.2→v1.3 (story-writer 86da054c). F-P1-OBS-003 [process-gap] SAP-2-extension codification: follow-up for session-reviewer (out of perimeter). SCOPE BOUNDARY: production AQL seeding is S-DEMO-002 scope (not defer-pattern; architect+implementer confirmed). D-933 2026-06-01: IMPLEMENTED GREEN (stubs f17e2079 → Red Gate 8257d38f 9 tests → implementer f3375681 164/164 pass)."
 
   - story_id: S-DEMO-CLAROTY-TRAILING-SLASH-001
     status: draft
@@ -176,9 +185,9 @@ deferred_post_demo:
   # reclassification from permitted-divergence → required-fidelity; user directive no-scope-compromise).
 
 prereq_artifacts:
-  story_index: .factory/stories/STORY-INDEX.md         # v2.236 after D-935 burst
+  story_index: .factory/stories/STORY-INDEX.md         # v2.237 after D-936 burst
   bc_index: .factory/specs/behavioral-contracts/BC-INDEX.md  # v5.70
-  state: .factory/STATE.md                              # v7.588 after D-935 burst
+  state: .factory/STATE.md                              # v7.589 after D-936 burst
   governing_adr: .factory/specs/architecture/decisions/ADR-031-dtu-equals-true-dtu-fidelity-principle.md  # v1.2 (ADR-031 architect e57eb5b1 reclassified 3 divergences)
   governing_audit: .factory/proposals/POLLER-DTU-FIDELITY-AUDIT-2026-05-29.md  # v1.1
 
