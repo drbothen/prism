@@ -1,11 +1,12 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 //! Fidelity validation test for `prism-dtu-claroty`.
 //!
-//! Starts `ClarotyClone`, runs `FidelityValidator` against all 11 routes
-//! (8 API + 2 DTU control + 1 health), and asserts `checks_failed == 0`.
+//! Starts `ClarotyClone`, runs `FidelityValidator` against all 12 routes
+//! (8 API + 3 DTU control + 1 health), and asserts `checks_failed == 0`.
 //! API routes: devices, alerts, alerts/:id/devices, vulnerabilities,
 //! vulnerabilities/:id/devices, devices/:id/tags (write), devices/:id/tags/:key (write),
 //! and audit_log/get.
+//! DTU control routes: /dtu/configure, /dtu/reset, /dtu/reset_for/:org_id.
 //! Run as part of `just dtu-validate`.
 
 use prism_dtu_claroty::ClarotyClone;
@@ -119,6 +120,17 @@ async fn claroty_dtu_fidelity() {
             body: Some(json!({})),
             expected_status: 401,
             required_fields: vec!["error".to_string()],
+            ..Default::default()
+        },
+        // Route 12: POST /dtu/reset_for/:org_id (control endpoint — no admin-token required).
+        // Selectively evicts tag-store entries for the given org.  Uses a well-formed UUID
+        // as org_id; nil-org clone skips instance-match validation and returns 200.
+        FidelityCheck {
+            endpoint: "/dtu/reset_for/00000000-0000-0000-0000-000000000001".to_string(),
+            method: http::Method::POST,
+            body: None,
+            expected_status: 200,
+            required_fields: vec!["status".to_string()],
             ..Default::default()
         },
     ];
