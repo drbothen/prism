@@ -68,7 +68,12 @@ use prism_spec_engine::{
 ///   The old `CookieLogin` variant made HTTP calls to `POST /login` — WRONG under ADR-031 DTU=true-DTU.
 ///
 /// BC-2.01.013 postcondition 4; OQ-1 Resolution (S-DEMO-001 §OQ-1).
+///
+/// `#[non_exhaustive]`: new auth strategies (e.g., `ApiKey`, `Oauth2`) may be added in
+/// future waves without breaking external match arms. External callers MUST include a
+/// wildcard `_ => {}` arm per CLAUDE.md §Conventions non-exhaustive discipline (CR-001).
 #[derive(Clone)]
+#[non_exhaustive]
 pub enum AdapterAuthStrategy {
     /// CrowdStrike: WASM plugin auth via held `Arc<dyn AuthProvider>` (`PluginAuthProvider`).
     /// The `SensorAuth` argument to `fetch()` is ignored for plugin-authed sensors (ADR-028 §D10).
@@ -102,13 +107,39 @@ pub enum AdapterAuthStrategy {
 /// The token is not held at construction time of `SpecDrivenSensorAdapter` — it arrives
 /// at query time via the `SensorAuth` argument (ADR-022 §C wiring; AD-017 credential safety).
 ///
-/// BC-2.01.013 postcondition 4; ADR-023 §Permitted Patterns; OQ-1.
+/// ## Debug impl
+///
+/// Explicit redacted `Debug` impl per AD-017 (CWE-209): the `token` field is replaced with
+/// `"<redacted>"` in debug output so the bearer token never appears in logs or traces.
+/// Symmetric with `BearerStaticSensorAuth` in prism-sensors/src/auth/mod.rs (SEC-001).
+///
+/// ## Non-exhaustive
+///
+/// `#[non_exhaustive]`: future fields (e.g., optional expiry, client hint) may be added
+/// without requiring external callers to update struct literals. External callers MUST use
+/// `BearerStaticAuthProvider::new(token)` per CLAUDE.md non-exhaustive discipline (CR-006).
+///
+/// BC-2.01.013 postcondition 4; ADR-023 §Permitted Patterns; OQ-1; AD-017; SEC-001.
+#[non_exhaustive]
 pub struct BearerStaticAuthProvider {
     /// Bearer token string.
     ///
     /// AD-017: this field holds the bearer token for the duration of a single fetch() call.
     /// The token is NOT stored at SpecDrivenSensorAdapter construction time.
     token: String,
+}
+
+/// AD-017 (CWE-209): redacted Debug impl for `BearerStaticAuthProvider`.
+///
+/// The bearer token is replaced with `"<redacted>"` in all debug output so it never
+/// appears in logs, traces, or error messages. Symmetric with `BearerStaticSensorAuth`
+/// in prism-sensors/src/auth/mod.rs (SEC-001 fix, S-DEMO-001 PR review).
+impl std::fmt::Debug for BearerStaticAuthProvider {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("BearerStaticAuthProvider")
+            .field("token", &"<redacted>")
+            .finish()
+    }
 }
 
 impl BearerStaticAuthProvider {
@@ -179,7 +210,15 @@ impl AuthProvider for BearerStaticAuthProvider {
 /// 3. Injects `_sensor` as the canonical `SensorId` from the spec — the raw record's
 ///    `_sensor` field (if any) is never used (untrusted vendor data).
 ///
+/// ## Non-exhaustive
+///
+/// `#[non_exhaustive]`: future fields (e.g., per-adapter rate-limiter handle, telemetry
+/// sink) may be added as the adapter evolves without requiring external callers to update
+/// struct literals. External callers MUST use `SpecDrivenSensorAdapter::new(...)` per
+/// CLAUDE.md non-exhaustive discipline (CR-006).
+///
 /// BCs: BC-2.01.013, BC-2.06.014, BC-2.11.005; Story: S-DEMO-001 v1.6.
+#[non_exhaustive]
 pub struct SpecDrivenSensorAdapter {
     /// The resolved sensor spec (with per-org overlay applied).
     ///
@@ -283,18 +322,32 @@ impl SensorAdapter for SpecDrivenSensorAdapter {
             AdapterAuthStrategy::BearerStatic => {
                 // Armis/Claroty: extract bearer token from SensorAuth arg via downcast (OQ-1).
                 // The production path expects &BearerStaticSensorAuth from prism-sensors.
-                // If downcast fails (e.g., test-local stub type), return Internal error.
-                let bearer_auth = auth
-                    .as_any()
-                    .downcast_ref::<BearerStaticSensorAuth>()
-                    .ok_or_else(|| SensorError::Internal {
-                        detail: format!(
-                            "E-SPEC-012: BearerStatic auth strategy requires BearerStaticSensorAuth; \
-                             got auth_type_name='{}'. Ensure the caller passes a BearerStaticSensorAuth \
-                             instance for bearer_static sensors. S-DEMO-001 OQ-1.",
-                            auth.auth_type_name()
-                        ),
-                    })?;
+                // If downcast fails (e.g., test-local stub type), log a diagnostic warn
+                // (SEC-003: plain warn without event_type= so no BC-2.16.002 catalog row
+                // is required — this is an internal diagnostic, not an auditable event;
+                // SAP-1 exemption applies to non-event_type= skip-path warns) and return
+                // Internal error so the query engine can propagate it cleanly.
+                let bearer_auth = match auth.as_any().downcast_ref::<BearerStaticSensorAuth>() {
+                    Some(ba) => ba,
+                    None => {
+                        // No event_type= field: plain diagnostic, SAP-1 exempt.
+                        tracing::warn!(
+                            sensor_id = %self.sensor_spec.spec.sensor_id,
+                            auth_type_name = %auth.auth_type_name(),
+                            "bearer static auth downcast failed: expected BearerStaticSensorAuth; \
+                             adapter NOT fetching. Ensure caller passes BearerStaticSensorAuth \
+                             for bearer_static sensors. S-DEMO-001 OQ-1.",
+                        );
+                        return Err(SensorError::Internal {
+                            detail: format!(
+                                "E-SPEC-012: BearerStatic auth strategy requires BearerStaticSensorAuth; \
+                                 got auth_type_name='{}'. Ensure the caller passes a BearerStaticSensorAuth \
+                                 instance for bearer_static sensors. S-DEMO-001 OQ-1.",
+                                auth.auth_type_name()
+                            ),
+                        });
+                    }
+                };
                 Arc::new(BearerStaticAuthProvider::new(bearer_auth.token.clone()))
             }
             AdapterAuthStrategy::StaticCookie(provider) => {
@@ -445,6 +498,15 @@ fn pipeline_result_to_record_batch(
     table: &TableSpec,
     sensor_id: &str,
 ) -> Result<RecordBatch, arrow::error::ArrowError> {
+    // CR-004: caller guards `if !result.records.is_empty()` before calling here (see fetch()).
+    // The n==0 early-return was a dead branch — replaced with a debug_assert to catch
+    // misuse in test builds without dead-code overhead in production.
+    debug_assert!(
+        !result.records.is_empty(),
+        "pipeline_result_to_record_batch: caller must not pass empty records \
+         (guard `if !result.records.is_empty()` in fetch() ensures this invariant)"
+    );
+
     let n = result.records.len();
 
     // BC-2.01.013 v1.9 item 2: derive class_uid from spec ocsf_class via
@@ -467,19 +529,6 @@ fn pipeline_result_to_record_batch(
     fields.push(Field::new("class_uid", DataType::Int32, true));
     fields.push(Field::new("_sensor", DataType::Utf8, true));
     let schema = Arc::new(Schema::new(fields));
-
-    if n == 0 {
-        // Caller should not call this with empty records; return empty batch.
-        let mut arrays: Vec<Arc<dyn Array>> = table
-            .columns
-            .iter()
-            .map(|col| empty_arrow_array(&col.column_type))
-            .collect();
-        arrays.push(Arc::new(Int32Array::from(Vec::<Option<i32>>::new())) as Arc<dyn Array>);
-        arrays.push(Arc::new(Int32Array::from(Vec::<Option<i32>>::new())) as Arc<dyn Array>);
-        arrays.push(Arc::new(StringArray::from(Vec::<Option<&str>>::new())) as Arc<dyn Array>);
-        return RecordBatch::try_new(schema, arrays);
-    }
 
     // Build per-column value vectors for spec-declared data columns.
     // Each column is extracted from the raw record by name; absent values → None (null).
@@ -523,17 +572,6 @@ fn column_type_to_arrow(col_type: &ColumnType) -> DataType {
         ColumnType::Json => DataType::Utf8,
         // Non-exhaustive guard: future variants default to Utf8.
         _ => DataType::Utf8,
-    }
-}
-
-/// Construct an empty Arrow array (zero rows) for the given `ColumnType`.
-fn empty_arrow_array(col_type: &ColumnType) -> Arc<dyn Array> {
-    match col_type {
-        ColumnType::Integer => Arc::new(Int64Array::from(Vec::<Option<i64>>::new())),
-        ColumnType::Float => Arc::new(Float64Array::from(Vec::<Option<f64>>::new())),
-        ColumnType::Boolean => Arc::new(BooleanArray::from(Vec::<Option<bool>>::new())),
-        // String / Datetime / Json / future variants → Utf8
-        _ => Arc::new(StringArray::from(Vec::<Option<&str>>::new())),
     }
 }
 
@@ -660,6 +698,7 @@ pub async fn step9a_populate_adapter_registry(
     // AC-006: empty spec_catalog → 0 registrations, no error.
     if resolved_spec_map.is_empty() {
         tracing::info!(
+            target: "boot",
             event_type = "boot.step9a.adapter_registry_populated",
             sensor_count = 0u64,
             org_count = 0u64,
@@ -690,6 +729,7 @@ pub async fn step9a_populate_adapter_registry(
                 // No event_type= field: this is an internal diagnostic, not an auditable event.
                 // SAP-1: event_type= requires a BC-2.16.002 catalog row.
                 tracing::warn!(
+                    target: "boot",
                     org_slug = %org_slug.as_str(),
                     sensor_id = %resolved_spec.spec.sensor_id,
                     "boot step 9A: OrgSlug has no matching OrgId in OrgRegistry — \
@@ -714,6 +754,7 @@ pub async fn step9a_populate_adapter_registry(
                         // No event_type= field: internal diagnostic, not an auditable event.
                         // SAP-1: event_type= requires a BC-2.16.002 catalog row.
                         tracing::warn!(
+                            target: "boot",
                             sensor_id = %sensor_id_str,
                             org_slug = %org_slug.as_str(),
                             "boot step 9A: CustomViaPlugin sensor has no PluginAuthProvider \
@@ -741,6 +782,7 @@ pub async fn step9a_populate_adapter_registry(
                 // No event_type= field: internal diagnostic, not an auditable event.
                 // SAP-1: event_type= requires a BC-2.16.002 catalog row.
                 tracing::warn!(
+                    target: "boot",
                     sensor_id = %resolved_spec.spec.sensor_id,
                     org_slug = %org_slug.as_str(),
                     auth_type = ?other,
@@ -770,6 +812,7 @@ pub async fn step9a_populate_adapter_registry(
     // BC-2.16.002 catalog row: boot.step9a.adapter_registry_populated.
     let org_count = orgs_with_adapters.len();
     tracing::info!(
+        target: "boot",
         event_type = "boot.step9a.adapter_registry_populated",
         sensor_count = registered_count as u64,
         org_count = org_count as u64,

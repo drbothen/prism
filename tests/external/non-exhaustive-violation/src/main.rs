@@ -15,9 +15,9 @@
 //! AC-5 is implemented, but the expected behaviour is exit non-zero.
 //!
 //! GREEN: After AC-5 + fix-burst-2 + fix-burst-4 + F-LP22 + post-PREREQ-E +
-//!   PLUGIN-MIGRATION-001-E + S-CONFIG-MULTI-TENANT-OVERRIDE-001 + S-5.01-FOLLOWUP-MCP-BOOT,
-//!   `#[non_exhaustive]` is applied to all 44 types.
-//! `cargo check -p non-exhaustive-violation` exits non-zero with >=44 E0639/E0004 errors.
+//!   PLUGIN-MIGRATION-001-E + S-CONFIG-MULTI-TENANT-OVERRIDE-001 + S-5.01-FOLLOWUP-MCP-BOOT +
+//!   S-DEMO-001, `#[non_exhaustive]` is applied to all 49 types.
+//! `cargo check -p non-exhaustive-violation` exits non-zero with >=49 E0639/E0004 errors.
 //!
 //! Target types (all 36 — AC-5 original 14 + fix-burst-2 sibling sweep 15 + fix-burst-4
 //!   types::SensorSpec + F-LP22 PluginError + post-PREREQ-E WriteToolInvalidationMap +
@@ -83,6 +83,11 @@
 //!   43. prism_mcp::safety_envelope::ResponseEnvelopeSchema — struct, safety_envelope.rs
 //!   44. prism_mcp::safety_envelope::DataSource            — enum, safety_envelope.rs (match without wildcard)
 //!   45. prism_mcp::tool_registry::ToolRegistration        — struct, tool_registry.rs
+//!
+//! S-DEMO-001 (prism-bin pub API types — CR-001, CR-006):
+//!   48. prism_bin::spec_driven_adapter::AdapterAuthStrategy      — enum (match without wildcard)
+//!   49. prism_bin::spec_driven_adapter::BearerStaticAuthProvider — struct
+//!   50. prism_bin::spec_driven_adapter::SpecDrivenSensorAdapter  — struct
 //!
 //! Structure: violations are split across submodules (separate compile units) so that
 //! rustc's per-function error budget does not suppress later violations. The CI script

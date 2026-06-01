@@ -61,6 +61,17 @@ pub const CLASS_UID_ACCOUNT_CHANGE: u32 = 3001;
 /// OCSF `class_uid` for Base Event — used for unmapped record types. (BC-2.02.012)
 pub const CLASS_UID_BASE_EVENT: u32 = 0;
 
+/// OCSF `class_uid` for Security Finding.
+///
+/// Value: 2001. Used by `select_by_class_name("security_finding")` for sensors that
+/// declare `ocsf_class = "security_finding"` in their TOML spec (BC-2.01.013 v1.9).
+///
+/// NOTE: Whether 2001 vs 2004 is the semantically correct UID for Cyberint alerts is
+/// under architect adjudication (OBS-2). This constant names the CURRENT value used in
+/// `select_by_class_name` — it is a pure naming refactor of that value. Do NOT change
+/// the value here without resolving OBS-2 first.
+pub const CLASS_UID_SECURITY_FINDING: u32 = 2001;
+
 /// Maps (sensor, record_type) pairs to OCSF event class UIDs.
 ///
 /// This is a zero-size unit struct. All methods are pure functions operating on
@@ -97,14 +108,18 @@ impl EventClassSelector {
     /// - `E-OCSF-020` (`PrismError::OcsfUnknownEventClass`) — no mapping for this class name.
     pub fn select_by_class_name(class_name: &str) -> Result<u32, PrismError> {
         match class_name {
-            "security_finding" => Ok(2001),
+            "security_finding" => Ok(CLASS_UID_SECURITY_FINDING),
             "vulnerability_finding" => Ok(CLASS_UID_VULNERABILITY_FINDING),
             "detection_finding" => Ok(CLASS_UID_DETECTION_FINDING),
             "incident_finding" => Ok(CLASS_UID_INCIDENT_FINDING),
             "audit_activity" => Ok(CLASS_UID_ACCOUNT_CHANGE),
             "device" => Ok(CLASS_UID_DEVICE_INVENTORY_INFO),
             _ => Err(PrismError::OcsfUnknownEventClass {
-                sensor: "".to_owned(),
+                // "<class-name-lookup>" sentinel: this path is reached via select_by_class_name,
+                // which takes only a class_name — there is no sensor context. Using an empty
+                // string would be misleading in diagnostics; the sentinel makes the lookup
+                // origin unambiguous.
+                sensor: "<class-name-lookup>".to_owned(),
                 record_type: class_name.to_owned(),
             }),
         }
