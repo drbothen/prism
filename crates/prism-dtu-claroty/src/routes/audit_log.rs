@@ -52,10 +52,12 @@ pub async fn list_audit_logs(
 }
 
 // ---------------------------------------------------------------------------
-// Red Gate tests — BC-2.16.013 / S-DEMO-CLAROTY-AUDIT-DTU-001
+// Tests — BC-2.16.013 / S-DEMO-CLAROTY-AUDIT-DTU-001
 //
-// All three tests MUST FAIL until the todo!() in list_audit_logs is implemented.
-// Failure reason: tokio's test runner propagates the todo!() panic as a test failure.
+// All three tests exercise the fully-implemented list_audit_logs handler.
+// list_audit_logs performs auth-first ordering: check_bearer_auth is called
+// before fixture loading, so auth failures return 401 immediately without
+// touching the fixture.
 //
 // AC traces:
 //   test_BC_2_16_013_claroty_audit_logs_dtu_route_returns_synthetic_entries → AC-001, AC-003, AC-004
@@ -92,7 +94,8 @@ mod tests {
     /// AC-003: Response envelope contains `audit_log` key (matches response_path = "$.audit_log").
     /// AC-004: `audit_log` array is non-empty (≥ 5 synthetic entries; no real PII).
     ///
-    /// Red Gate: MUST FAIL (todo!() panic) until list_audit_logs is implemented.
+    /// GREEN: list_audit_logs is fully implemented — auth check passes, fixture loads,
+    /// JSON envelope {"audit_log": [...], "total": N} is returned with HTTP 200.
     #[tokio::test]
     async fn test_BC_2_16_013_claroty_audit_logs_dtu_route_returns_synthetic_entries() {
         let (_clone, base_url) = start_clone().await;
@@ -158,15 +161,16 @@ mod tests {
         }
     }
 
-    /// BC-2.01.013 postcondition §2 (auth enforcement).
+    /// BC-2.16.013 postcondition §2 (auth enforcement).
     ///
     /// AC-002: POST /api/v1/audit_log/get without bearer → HTTP 401 with exact JSON body.
     /// EC-001: Missing Authorization header entirely → 401.
     /// EC-002: Authorization: Bearer  (empty token after space) → 401.
     ///
-    /// Red Gate: MUST FAIL (todo!() panic) until list_audit_logs is implemented.
-    /// Note: the todo!() fires even before the auth check because check_bearer_auth
-    /// result is currently ignored (stub drops the value).
+    /// GREEN: list_audit_logs checks auth first via check_bearer_auth before fixture loading.
+    /// The canonical 401 body is `{"error": "missing or invalid Authorization header", "code": 401}`
+    /// (POL-24), produced by check_bearer_auth in routes/devices.rs.
+    /// Auth is verified before any other processing — fixture load only occurs after auth passes.
     #[tokio::test]
     async fn test_BC_2_16_013_claroty_audit_logs_dtu_auth_enforced() {
         let (_clone, base_url) = start_clone().await;
@@ -186,19 +190,23 @@ mod tests {
             "missing Authorization header must return HTTP 401 (AC-002, EC-001)"
         );
 
-        // AC-002: 401 body must match the canonical pattern from check_bearer_auth.
+        // AC-002: 401 body must match the canonical literal from check_bearer_auth (POL-24):
+        //   {"error": "missing or invalid Authorization header", "code": 401}
         let body_no_auth: serde_json::Value = resp_no_auth
             .json()
             .await
             .expect("401 response must have JSON body (AC-002)");
-        assert!(
-            body_no_auth.get("error").is_some(),
-            "401 body must contain `error` field; got: {body_no_auth} (AC-002)"
+        assert_eq!(
+            body_no_auth.get("error").and_then(|v| v.as_str()),
+            Some("missing or invalid Authorization header"),
+            "EC-001: 401 body `error` must be exactly \
+             \"missing or invalid Authorization header\" (AC-002, POL-24); \
+             got: {body_no_auth}"
         );
         assert_eq!(
             body_no_auth.get("code").and_then(|v| v.as_u64()),
             Some(401),
-            "401 body must contain `code: 401`; got: {body_no_auth} (AC-002)"
+            "EC-001: 401 body must contain `code: 401`; got: {body_no_auth} (AC-002)"
         );
 
         // EC-002: Bearer header with empty token value → 401.
@@ -214,6 +222,25 @@ mod tests {
             resp_empty_bearer.status().as_u16(),
             401,
             "Authorization: Bearer  (empty token) must return HTTP 401 (EC-002)"
+        );
+
+        // EC-002: 401 body must match the canonical literal from check_bearer_auth (POL-24):
+        //   {"error": "missing or invalid Authorization header", "code": 401}
+        let body_empty_bearer: serde_json::Value = resp_empty_bearer
+            .json()
+            .await
+            .expect("EC-002: 401 response must have JSON body (AC-002)");
+        assert_eq!(
+            body_empty_bearer.get("error").and_then(|v| v.as_str()),
+            Some("missing or invalid Authorization header"),
+            "EC-002: 401 body `error` must be exactly \
+             \"missing or invalid Authorization header\" (AC-002, POL-24); \
+             got: {body_empty_bearer}"
+        );
+        assert_eq!(
+            body_empty_bearer.get("code").and_then(|v| v.as_u64()),
+            Some(401),
+            "EC-002: 401 body must contain `code: 401`; got: {body_empty_bearer} (AC-002)"
         );
 
         // EC-003: malformed (non-JSON) request body with valid bearer → 200 (body ignored).
@@ -250,17 +277,13 @@ mod tests {
     /// all 5 field paths simultaneously. A missing or mis-typed field causes a serde
     /// deserialization error → test fails with an informative message.
     ///
-    /// Red Gate: MUST FAIL (todo!() panic from list_audit_logs called indirectly)
-    /// — the fixture deserialization itself does NOT call list_audit_logs, so the
-    /// panic path is NOT through list_audit_logs.
+    /// GREEN (Part 1): Direct fixture deserialization verifies struct-field parity against
+    /// the TOML column declarations. This is a compile-time + runtime structural check —
+    /// if ClarotyAuditLogEntry has a missing or wrongly-typed field, serde fails here.
     ///
-    /// IMPORTANT: This test's Red Gate failure is by COMPILATION FAILURE or serde
-    /// assertion, not by todo!(). If the struct fields are mis-named or wrong type,
-    /// this test will fail with a serde error. If the struct is missing a field, the
-    /// struct definition itself would not compile. The Red Gate here is structural.
-    ///
-    /// Additional HTTP-level enforcement: we also boot the DTU and verify the
-    /// deserialized fixture round-trips cleanly through the HTTP response path.
+    /// GREEN (Part 2): HTTP round-trip boots the DTU and verifies the response
+    /// `audit_log` array deserializes cleanly into Vec<ClarotyAuditLogEntry>. This
+    /// exercises the full path: check_bearer_auth → fixture load → JSON envelope → client parse.
     #[tokio::test]
     async fn test_BC_2_16_013_claroty_audit_logs_dtu_column_parity() {
         // Part 1: Direct fixture deserialization (SAP-2 compile-time parity check).
@@ -329,8 +352,7 @@ mod tests {
 
         // Part 2: HTTP round-trip — boot the DTU and verify the response
         // `audit_log` array deserializes cleanly into Vec<ClarotyAuditLogEntry>.
-        // This exercises the full path: handler → fixture load → JSON envelope → client parse.
-        // Red Gate: this section panics via todo!() until list_audit_logs is implemented.
+        // Exercises the full path: check_bearer_auth → fixture load → JSON envelope → client parse.
         let (_clone, base_url) = start_clone().await;
         let client = reqwest::Client::new();
 
