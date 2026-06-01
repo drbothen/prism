@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.20"
+version: "1.21"
 status: active
 producer: product-owner
 timestamp: 2026-05-20T00:00:00Z
@@ -11,7 +11,7 @@ subsystem: "SS-16"
 capability: "CAP-029"
 lifecycle_status: active
 introduced: "2026-05-20"
-modified: "2026-06-01"  # v1.20 F-LP11-MED-001: DTU-EXT-003/004 CLOSED by S-DEMO-ARMIS-AQL-001
+modified: "2026-06-01"  # v1.21 orchestration-correction: DTU-EXT-003/004 dual-state wording (implementation COMPLETE on feature branch, gap CLOSES on merge)
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -200,16 +200,18 @@ authentication enforcement behavior, which reflects the real third-party API's a
 
 - `armis.sensor.toml` — `sensor_id: "armis"`, `auth_type: "bearer_static"`,
   base URL from instance_url, tables:
-  - `devices` — **DTU-EXT-003 CLOSED by S-DEMO-ARMIS-AQL-001.** `GET /api/v1/search`
-    with AQL is now registered in `crates/prism-dtu-armis/src/clone.rs` `build_router()`
-    (ADR-031 §D8-a reclassified gap as REQUIRED; S-DEMO-ARMIS-AQL-001 implements the
-    AQL-search route and devices AQL routing). The devices table uses `GET /api/v1/search`
-    with AQL discriminator `in:devices` forwarded via `${query.filter.aql}`.
-  - `alerts` — **DTU-EXT-004 CLOSED by S-DEMO-ARMIS-AQL-001.** `GET /api/v1/search`
-    with AQL is now registered in `crates/prism-dtu-armis/src/clone.rs` `build_router()`
-    (ADR-031 §D8-a reclassified gap as REQUIRED; S-DEMO-ARMIS-AQL-001 implements the
-    AQL-search route and alerts AQL routing). The alerts table uses `GET /api/v1/search`
-    with AQL discriminator `in:alerts` forwarded via `${query.filter.aql}`.
+  - `devices` — **DTU-EXT-003: implementation COMPLETE on `feature/S-DEMO-ARMIS-AQL-001`
+    (`crates/prism-dtu-armis/src/clone.rs` `build_router()` registers `GET /api/v1/search`
+    per ADR-031 §D8-a); gap CLOSES on merge of S-DEMO-ARMIS-AQL-001 (status: in-progress)
+    to develop. Until then the gap remains OPEN on develop.** The devices table uses
+    `GET /api/v1/search` with AQL discriminator `in:devices` forwarded via
+    `${query.filter.aql}`.
+  - `alerts` — **DTU-EXT-004: implementation COMPLETE on `feature/S-DEMO-ARMIS-AQL-001`
+    (`crates/prism-dtu-armis/src/clone.rs` `build_router()` registers `GET /api/v1/search`
+    per ADR-031 §D8-a); gap CLOSES on merge of S-DEMO-ARMIS-AQL-001 (status: in-progress)
+    to develop. Until then the gap remains OPEN on develop.** The alerts table uses
+    `GET /api/v1/search` with AQL discriminator `in:alerts` forwarded via
+    `${query.filter.aql}`.
   Timestamp fallback chain: `last_seen` → `first_seen` → `DateTime::now()` (UTC) expressed via
   `timestamp_fallback_chain = ["first_seen"]` on the primary `last_seen` timestamp column
   (O-001 LOCKED Option A per ADR-028 v1.10 §D8-B amended; `ColumnSpec::timestamp_fallback_chain`
@@ -234,8 +236,8 @@ PLUGIN-MIGRATION-001-D cascade convergence (pass-5 will independently verify sta
 |--------|--------|-------|----------|------------|----------------------|
 | DTU-EXT-001 | CrowdStrike | `incidents` | No DTU route registered | No incidents route in `prism-dtu-crowdstrike/src/routes/mod.rs` | Extend `prism-dtu-crowdstrike` with incidents routes in a follow-up story (Falcon Detects/Incidents API exists in real API) OR remove incidents table from 001-D BC scope |
 | DTU-EXT-002 | Claroty | `assets` | DTU has `/api/v1/devices`; BC had `/api/v1/assets` | `prism-dtu-claroty/src/clone.rs` line 85: `/api/v1/devices` registered | Extend `prism-dtu-claroty` with `/api/v1/assets` route OR reconcile that Claroty "assets" table maps to `/api/v1/devices` (table name vs endpoint may differ per xDome API) |
-| DTU-EXT-003 | Armis | `devices` | ~~DTU had `/api/v1/devices` (GET); BC had `/api/v1/search` w/ AQL~~ **CLOSED by S-DEMO-ARMIS-AQL-001** | `prism-dtu-armis/src/clone.rs` `build_router()` now registers `GET /api/v1/search` (AQL-search endpoint) per ADR-031 §D8-a. Gap reclassified REQUIRED → implemented. | Resolved: S-DEMO-ARMIS-AQL-001 extends `prism-dtu-armis` with `GET /api/v1/search`; Armis `devices` table routes AQL queries via `in:devices` discriminator. |
-| DTU-EXT-004 | Armis | `alerts` | ~~DTU had `/api/v1/alerts` (GET); BC had `/api/v1/search` w/ AQL~~ **CLOSED by S-DEMO-ARMIS-AQL-001** | `prism-dtu-armis/src/clone.rs` `build_router()` now registers `GET /api/v1/search` (AQL-search endpoint) per ADR-031 §D8-a. Gap reclassified REQUIRED → implemented. | Resolved: S-DEMO-ARMIS-AQL-001 extends `prism-dtu-armis` with `GET /api/v1/search`; Armis `alerts` table routes AQL queries via `in:alerts` discriminator. |
+| DTU-EXT-003 | Armis | `devices` | ~~DTU had `/api/v1/devices` (GET); BC had `/api/v1/search` w/ AQL~~ **Implementation COMPLETE on `feature/S-DEMO-ARMIS-AQL-001`; OPEN on develop until story merges** | `prism-dtu-armis/src/clone.rs` `build_router()` registers `GET /api/v1/search` (AQL-search endpoint) per ADR-031 §D8-a on feature branch. Not yet on develop (S-DEMO-ARMIS-AQL-001 status: in-progress). | Gap closes automatically when S-DEMO-ARMIS-AQL-001 merges to develop. No separate DTU extension story needed. |
+| DTU-EXT-004 | Armis | `alerts` | ~~DTU had `/api/v1/alerts` (GET); BC had `/api/v1/search` w/ AQL~~ **Implementation COMPLETE on `feature/S-DEMO-ARMIS-AQL-001`; OPEN on develop until story merges** | `prism-dtu-armis/src/clone.rs` `build_router()` registers `GET /api/v1/search` (AQL-search endpoint) per ADR-031 §D8-a on feature branch. Not yet on develop (S-DEMO-ARMIS-AQL-001 status: in-progress). | Gap closes automatically when S-DEMO-ARMIS-AQL-001 merges to develop. No separate DTU extension story needed. |
 | DTU-EXT-005 | Cyberint | `alerts` pagination `page_size` | `AlertListParams` struct (`crates/prism-dtu-cyberint/src/routes/alerts.rs:38-40`) has no `page_size` field; `page_size = 100` in cyberint.sensor.toml is unvalidated by DTU | Confirmed: struct has only `cursor: Option<String>` field. `page_size` REMOVED from TOML per ADR-028 §D9 scope clarification (FB-IMPL-2). Future story must extend `AlertListParams` + DTU handler to accept `page_size`, then restore the TOML field. |
 
 All four specs pass BC-2.16.009 validation (no schema errors, no variable reference errors)
@@ -442,6 +444,7 @@ PLUGIN-MIGRATION-001-D (implementing story; planned → draft after PO authoring
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.21 | orchestration-correction burst | 2026-06-01 | product-owner | Orchestration correction of premature v1.20 gap-closure. §Postconditions §1 Armis `devices` and `alerts` bullets changed from flat "CLOSED by S-DEMO-ARMIS-AQL-001" to dual-state wording: implementation COMPLETE on `feature/S-DEMO-ARMIS-AQL-001` (`build_router()` anchor per TD-VSDD-091), gap CLOSES on story merge, gap remains OPEN on develop until then. §Known Gaps DTU-EXT-003 and DTU-EXT-004 rows updated to match dual-state form. No other sensor rows (CrowdStrike/Cyberint/Claroty) touched. AQL discriminator strings (`in:devices`/`in:alerts`) preserved as-specified in BC; story-vs-BC discriminator convention divergence (`in:type=Device`/`in:type=Alert` in implementation) reported for separate reconciliation — not fixed here. |
 | 1.20 | F-LP11-MED-001 closure burst | 2026-06-01 | product-owner | F-LP11-MED-001 closure: §Postconditions §1 Armis `devices` and `alerts` bullets updated from deferred/OPEN to CLOSED by S-DEMO-ARMIS-AQL-001. §Known Gaps DTU-EXT-003 and DTU-EXT-004 rows marked CLOSED with resolution summary — `GET /api/v1/search` (AQL-search) registered in `prism-dtu-armis/src/clone.rs` `build_router()` per ADR-031 §D8-a. Volatile line-number citations (`line 143`, `line 150`) replaced with function-name anchor `build_router()` per TD-VSDD-091. No other sensor rows (CrowdStrike/Cyberint/Claroty) touched. |
 | 1.19 | S-DEMO-CROWDSTRIKE-MULTIREGION-001 BC attachment burst | 2026-05-31 | product-owner | §Postconditions §1 CrowdStrike row: replaced stale `base URL pattern https://api.{cloud_region}.crowdstrike.com` with `base_url = "${env.CROWDSTRIKE_BASE_URL}"` per ADR-031 §D8-c. Added region runbook (us-1/us-2/eu-1/gov canonical URLs). Added E-SPEC-024 cross-reference (BC-2.16.009 §Validation Rules 6) for missing/empty env var behavior at spec-load time. No other postconditions changed — DTU parity tests pass `base_url` as a DTU SocketAddr override regardless of the spec's base_url value. |
 | 1.18 | D-870 F-LP10-MED-001 comprehensive sweep | 2026-05-30 | product-owner | F-LP10-MED-001 changelog hygiene: v1.11 row was out of order (appeared between v1.16 and v1.15). Moved v1.11 to correct position between v1.12 and v1.10. Pre-existing defect deferred at D-LP9-001 (pass 9) as pre-existing/out-of-scope; promoted to in-scope under comprehensive sweep per POL-32 codification. No semantic content change. BC-INDEX v5.60→v5.61. |
