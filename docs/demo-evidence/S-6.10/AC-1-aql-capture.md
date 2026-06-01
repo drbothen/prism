@@ -2,9 +2,9 @@
 
 ## Acceptance Criterion
 
-Given `GET /api/v1/devices?aql=in:type%3Dswitch` with a valid Bearer token,
+Given `GET /api/v1/devices?aql=in:devices+type:(switch)` with a valid Bearer token,
 Then the response is HTTP 200 with a `data.devices` array AND the received AQL string
-`"in:type=switch"` is logged in `GET /dtu/aql-log` (AQL capture works).
+`"in:devices type:(switch)"` is logged in `GET /dtu/aql-log` (AQL capture works).
 
 ## Tests
 
@@ -44,14 +44,14 @@ test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fini
 ## Sequence (success path)
 
 ```
-Client → GET /api/v1/devices?aql=in:type=switch
+Client → GET /api/v1/devices?aql=in:devices+type:(switch)
          Authorization: Bearer test-token
 
-DTU    → captures "in:type=switch" in aql_log
+DTU    → captures "in:devices type:(switch)" in aql_log
        → returns HTTP 200 {"data": {"devices": [...], "total": 25, "page": 0}}
 
 Client → GET /dtu/aql-log
-DTU    → returns HTTP 200 {"aql_strings": ["in:type=switch"]}
+DTU    → returns HTTP 200 {"aql_strings": ["in:devices type:(switch)"]}
 ```
 
 ## Sequence (error path — EC-001 special chars)

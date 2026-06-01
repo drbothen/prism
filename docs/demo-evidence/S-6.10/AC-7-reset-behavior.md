@@ -50,9 +50,9 @@ Client → POST /api/v1/devices/d-001/tags/
          Body: {"tag_key": "pre-reset-tag"}
 DTU    → HTTP 201
 
-Client → GET /api/v1/devices?aql=in:type=switch
+Client → GET /api/v1/devices?aql=in:devices+type:(switch)
          Authorization: Bearer test-token
-DTU    → HTTP 200, aql_log = ["in:type=switch"]
+DTU    → HTTP 200, aql_log = ["in:devices type:(switch)"]
 
 Client → POST /dtu/reset
 DTU    → HTTP 200 {"status": "ok"}
