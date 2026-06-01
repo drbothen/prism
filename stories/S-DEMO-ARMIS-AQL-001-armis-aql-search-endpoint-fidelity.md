@@ -19,7 +19,7 @@ status: in-progress
 # (AC-001..AC-004) are unblocked. Parity tests requiring full pipeline env-var resolution
 # must be #[ignore]-annotated with a code comment citing S-SPEC-ENV-VAR-001 until that
 # prereq merges.
-version: "1.5"
+version: "1.6"
 level: "L4"
 producer: story-writer
 timestamp: "2026-05-31T00:00:00Z"
@@ -34,7 +34,7 @@ subsystems: [SS-01, SS-16]
 #     resolution and AQL parameter forwarding; the TOML step changes flow through
 #     SS-16's SensorSpec loading and FetchContext at runtime.
 #   SS-17 (WASM Plugin Runtime) is NOT anchored — this story has no WASM plugin changes.
-crates_touched: [prism-dtu-armis, prism-sensors]
+crates_touched: [prism-dtu-armis, prism-sensors, prism-spec-engine]
 target_module: prism-dtu-armis
 capabilities: [CAP-001, CAP-029]
 behavioral_contracts:
@@ -110,11 +110,11 @@ cycle: "v1.0.0-brownfield"
 phase: 3
 ---
 
-# S-DEMO-ARMIS-AQL-001 v1.5 — Armis AQL Search Endpoint Fidelity
+# S-DEMO-ARMIS-AQL-001 v1.6 — Armis AQL Search Endpoint Fidelity
 
 **Story ID:** S-DEMO-ARMIS-AQL-001
 **Status:** in-progress
-**Version:** v1.5
+**Version:** v1.6
 **Wave:** 5
 **Priority:** P1
 **Points:** 5
@@ -402,6 +402,8 @@ grounded against the delivered source files on feature/S-DEMO-ARMIS-AQL-001.)
 | `crates/prism-dtu-armis/src/clone.rs` | MODIFY | Register `GET /api/v1/search` in `build_router()` |
 | `crates/prism-sensors/specs/armis.sensor.toml` | MODIFY | Update devices + alerts step path_template and response_path; close DTU-EXT-003/004 comments |
 | `crates/prism-dtu-armis/tests/` | MODIFY or CREATE | Add Red Gate tests + parity test |
+| `crates/prism-spec-engine/tests/parity/armis.rs` | MODIFY or CREATE | AC-005 round-trip parity tests (`test_BC_2_16_013_AC_005_aql_roundtrip_devices_pipeline` + `..._alerts_pipeline`) |
+| `crates/prism-dtu-armis/src/lib.rs` | MODIFY | Module-doc route inventory update (documents `/api/v1/search` alongside existing routes) |
 
 ---
 
@@ -526,8 +528,9 @@ look for `$.data.devices` in a response that has `$.data.results` → empty Reco
 | ADR-031 §D8-a (relevant section) | ~1,500 |
 | POLLER-DTU-FIDELITY-AUDIT-2026-05-29.md §3 (Armis section) | ~1,500 |
 | Test files (existing prism-dtu-armis/tests/) | ~2,000 |
+| crates/prism-spec-engine/tests/parity/armis.rs (AC-005 parity tests) | ~800 |
 | Tool outputs (cargo nextest) | ~2,000 |
-| **Total estimate** | **~20,800 tokens (~8% of 256K context)** |
+| **Total estimate** | **~21,600 tokens (~8% of 256K context)** |
 
 Well within the 20-30% budget.
 
@@ -547,6 +550,7 @@ Well within the 20-30% budget.
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.6 | 2026-06-01 | story-writer | F-P7-MED-001 structural-table-completeness sweep (POL-29 step 3d): added `prism-spec-engine` to `crates_touched:` frontmatter; added §File List rows for `crates/prism-spec-engine/tests/parity/armis.rs` (AC-005 round-trip parity tests) and `crates/prism-dtu-armis/src/lib.rs` (module-doc route inventory); added §Token Budget Estimate row for `prism-spec-engine` parity tests (~800 tokens); updated total estimate to ~21,600 tokens. No semantic content change. |
 | 1.5 | 2026-06-01 | story-writer | POL-23 sibling-sweep: BC-2.16.013 version pins swept v1.18→v1.19 in frontmatter comment (line 10), behavioral_contracts comment (line 41), body §Behavioral Contracts table, §Behavioral Contracts note, and §New-BC Flags section. POL-7 title fix: restored full verbatim H1 "Bundled Sensor Spec Authoring and DTU-Parity Verification — 4 Initial Sensors" (the "— 4 Initial Sensors" suffix was dropped in prior versions). POL-13 status fix: frontmatter and H1 block status flipped ready→in-progress (implementation in flight, cascade pending). |
 | 1.4 | 2026-06-02 | story-writer | Close F-P2-HIGH-001. Red Gate Tests table names reconciled verbatim against delivered source (feature/S-DEMO-ARMIS-AQL-001). Five phantom names removed/corrected: `test_armis_aql_search_missing_auth_returns_403` → `test_armis_aql_search_returns_403_without_bearer`; two split TOML-path rows collapsed to single `test_armis_aql_search_toml_path_template_updated` (covers both tables); two split SAP-2 rows collapsed to single `test_armis_aql_search_dtu_toml_column_parity` (covers both tables); omitted `test_armis_aql_search_aql_captured_in_aql_log` and `test_armis_aql_search_toml_response_path_updated` added. Count remains 11 (unchanged — v1.3 count reconciliation was correct; v1.4 closes the name-correctness gap that made v1.3 a paper-fix per TD-VSDD-059). |
 | 1.3 | 2026-06-01 | story-writer | Close adversary findings F-P1-HIGH-003/F-P1-OBS-001/F-P1-OBS-002. Red Gate Tests table reconciled to 11 named tests (9 in s_demo_armis_aql_001_red_gate.rs + 2 AC-005 parity tests in prism-spec-engine/tests/parity/armis.rs); red_gate_tests frontmatter updated from 4→11. H1 version corrected v1.0→v1.3 (F-P1-OBS-001). Changelog reordered to descending per POL-32 (F-P1-OBS-002). |
