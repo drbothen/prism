@@ -1,44 +1,52 @@
 Full prism-dtu-claroty test suite run (unit tests + fidelity validator)
 Command: cargo nextest run -p prism-dtu-claroty
-Story: S-DEMO-CLAROTY-AUDIT-DTU-001 v1.6
+Story: S-DEMO-CLAROTY-AUDIT-DTU-001 v1.7
 PR: #167 (S-DEMO-CLAROTY-AUDIT-DTU-001)
 
-Unit test run (all tests including W3-FIX-SEC-001 org-isolation tests):
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.26s
+Unit test run (all 22 tests including W3-FIX-SEC-001 org-isolation tests):
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.34s
 ────────────
- Nextest run ID befac3e5-499d-492f-be47-fc38204fc16a with nextest profile: default
-    Starting 14 tests across 1 binary (1 test skipped)
-        PASS [   0.017s] ( 1/14) prism-dtu-claroty state::tests::test_bc_3_2_001_default_org_id_is_test_gated_and_non_zero
-        PASS [   1.279s] ( 2/14) prism-dtu-claroty routes::audit_log::tests::test_W3_FIX_SEC_001_claroty_audit_logs_org_mismatch_returns_401
-        PASS [   1.292s] ( 3/14) prism-dtu-claroty routes::alerts::tests::test_W3_FIX_SEC_001_claroty_alerts_nil_org_no_header_returns_200
-        PASS [   1.292s] ( 4/14) prism-dtu-claroty routes::audit_log::tests::test_BC_2_16_013_claroty_audit_logs_dtu_column_parity
-        PASS [   1.310s] ( 5/14) prism-dtu-claroty routes::alerts::tests::test_W3_FIX_SEC_001_claroty_alerted_devices_nil_org_no_header_returns_200
-        PASS [   1.310s] ( 6/14) prism-dtu-claroty routes::audit_log::tests::test_W3_FIX_SEC_001_claroty_audit_logs_nil_org_no_header_returns_200
-        PASS [   1.313s] ( 7/14) prism-dtu-claroty routes::audit_log::tests::test_W3_FIX_SEC_001_claroty_audit_logs_missing_org_header_on_real_org_returns_401
-        PASS [   1.317s] ( 8/14) prism-dtu-claroty routes::devices::tests::test_W3_FIX_SEC_001_claroty_devices_org_mismatch_returns_401
-        PASS [   1.319s] ( 9/14) prism-dtu-claroty routes::alerts::tests::test_W3_FIX_SEC_001_claroty_alerts_org_mismatch_returns_401
-        PASS [   1.319s] (10/14) prism-dtu-claroty routes::audit_log::tests::test_BC_2_16_013_claroty_audit_logs_dtu_route_returns_synthetic_entries
-        PASS [   1.319s] (11/14) prism-dtu-claroty routes::audit_log::tests::test_BC_2_16_013_claroty_audit_logs_dtu_auth_enforced
-        PASS [   1.319s] (12/14) prism-dtu-claroty routes::devices::tests::test_W3_FIX_SEC_001_claroty_devices_nil_org_no_header_returns_200
-        PASS [   1.320s] (13/14) prism-dtu-claroty routes::devices::tests::test_W3_FIX_SEC_001_claroty_devices_missing_org_header_on_real_org_returns_401
-        PASS [   1.322s] (14/14) prism-dtu-claroty routes::alerts::tests::test_W3_FIX_SEC_001_claroty_alerted_devices_org_mismatch_returns_401
+ Nextest run ID f80972e5-c9d6-4d3d-92d8-7adf846cdd8f with nextest profile: default
+    Starting 22 tests across 1 binary (1 test skipped)
+        PASS [   1.908s] ( 1/22) prism-dtu-claroty routes::alerts::tests::test_W3_FIX_SEC_001_claroty_alerted_devices_missing_org_header_on_real_org_returns_401
+        PASS [   1.910s] ( 2/22) prism-dtu-claroty routes::audit_log::tests::test_W3_FIX_SEC_001_claroty_audit_logs_missing_org_header_on_real_org_returns_401
+        PASS [   1.918s] ( 3/22) prism-dtu-claroty routes::audit_log::tests::test_BC_2_16_013_claroty_audit_logs_dtu_route_returns_synthetic_entries
+        PASS [   1.918s] ( 4/22) prism-dtu-claroty routes::audit_log::tests::test_BC_2_16_013_claroty_audit_logs_dtu_column_parity
+        PASS [   1.931s] ( 5/22) prism-dtu-claroty routes::devices::tests::test_W3_FIX_SEC_001_claroty_devices_nil_org_no_header_returns_200
+        PASS [   1.931s] ( 6/22) prism-dtu-claroty routes::alerts::tests::test_W3_FIX_SEC_001_claroty_alerted_devices_nil_org_no_header_returns_200
+        PASS [   1.945s] ( 7/22) prism-dtu-claroty routes::devices::tests::test_W3_FIX_SEC_001_claroty_devices_missing_org_header_on_real_org_returns_401
+        PASS [   1.945s] ( 8/22) prism-dtu-claroty routes::audit_log::tests::test_W3_FIX_SEC_001_claroty_audit_logs_nil_org_no_header_returns_200
+        PASS [   1.949s] ( 9/22) prism-dtu-claroty routes::devices::tests::test_W3_FIX_SEC_001_claroty_devices_org_mismatch_returns_401
+        PASS [   1.949s] (10/22) prism-dtu-claroty routes::vulnerabilities::tests::test_W3_FIX_SEC_001_claroty_vulnerabilities_missing_org_header_on_real_org_returns_401
+        PASS [   0.018s] (11/22) prism-dtu-claroty state::tests::test_bc_3_2_001_default_org_id_is_test_gated_and_non_zero
+        PASS [   1.955s] (12/22) prism-dtu-claroty routes::audit_log::tests::test_W3_FIX_SEC_001_claroty_audit_logs_org_mismatch_returns_401
+        PASS [   1.955s] (13/22) prism-dtu-claroty routes::alerts::tests::test_W3_FIX_SEC_001_claroty_alerts_missing_org_header_on_real_org_returns_401
+        PASS [   1.956s] (14/22) prism-dtu-claroty routes::audit_log::tests::test_BC_2_16_013_claroty_audit_logs_dtu_auth_enforced
+        PASS [   1.956s] (15/22) prism-dtu-claroty routes::alerts::tests::test_W3_FIX_SEC_001_claroty_alerted_devices_org_mismatch_returns_401
+        PASS [   1.960s] (16/22) prism-dtu-claroty routes::alerts::tests::test_W3_FIX_SEC_001_claroty_alerts_nil_org_no_header_returns_200
+        PASS [   1.968s] (17/22) prism-dtu-claroty routes::alerts::tests::test_W3_FIX_SEC_001_claroty_alerts_org_mismatch_returns_401
+        PASS [   0.554s] (18/22) prism-dtu-claroty routes::vulnerabilities::tests::test_W3_FIX_SEC_001_claroty_vulnerabilities_org_mismatch_returns_401
+        PASS [   0.557s] (19/22) prism-dtu-claroty routes::vulnerabilities::tests::test_W3_FIX_SEC_001_claroty_vulnerabilities_nil_org_no_header_returns_200
+        PASS [   0.550s] (20/22) prism-dtu-claroty routes::vulnerabilities::tests::test_W3_FIX_SEC_001_claroty_vulnerability_devices_missing_org_header_on_real_org_returns_401
+        PASS [   0.551s] (21/22) prism-dtu-claroty routes::vulnerabilities::tests::test_W3_FIX_SEC_001_claroty_vulnerability_devices_nil_org_no_header_returns_200
+        PASS [   0.538s] (22/22) prism-dtu-claroty routes::vulnerabilities::tests::test_W3_FIX_SEC_001_claroty_vulnerability_devices_org_mismatch_returns_401
 ────────────
-     Summary [   1.322s] 14 tests run: 14 passed, 1 skipped
+     Summary [   2.470s] 22 tests run: 22 passed, 1 skipped
 
 Skipped (expected): test_BC_2_16_013_claroty_audit_logs_pipeline_integration_ac_006
   Reason: #[ignore = "AC-006: requires prism-bin full-boot wiring; ungated after S-DEMO-002 merges"]
   SID-1 compliance: blocking story S-DEMO-002 explicitly cited in the ignore annotation.
 
 Fidelity validator run (--features dtu):
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.78s
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.98s
 ────────────
- Nextest run ID 082f30ba-5b4c-42bb-a875-78e8ff972eae with nextest profile: default
+ Nextest run ID dc042ec6-0595-4e61-b2f7-a6f5fc795578 with nextest profile: default
     Starting 1 test across 1 binary
-        PASS [   0.263s] (1/1) prism-dtu-claroty::fidelity_validator claroty_dtu_fidelity
+        PASS [   0.305s] (1/1) prism-dtu-claroty::fidelity_validator claroty_dtu_fidelity
 ────────────
-     Summary [   0.264s] 1 test run: 1 passed, 0 skipped
+     Summary [   0.306s] 1 test run: 1 passed, 0 skipped
 
-PASS — 14/14 unit tests passed, 1 skipped (#[ignore]'d AC-006 stub awaiting S-DEMO-002)
+PASS — 22/22 unit tests passed, 1 skipped (#[ignore]'d AC-006 stub awaiting S-DEMO-002)
 PASS — 1/1 fidelity validator test passed (12/12 route checks)
 
 Test breakdown:
@@ -47,19 +55,27 @@ Test breakdown:
     test_BC_2_16_013_claroty_audit_logs_dtu_auth_enforced                    PASS
     test_BC_2_16_013_claroty_audit_logs_dtu_column_parity                    PASS
     claroty_dtu_fidelity (fidelity_validator, --features dtu)                PASS
-  AC-007 org-isolation (W3-FIX-SEC-001, all endpoints — 3-cell matrix):
+  AC-007 org-isolation (W3-FIX-SEC-001, all 6 endpoints — 3-cell matrix × 6 = 18 tests):
     test_W3_FIX_SEC_001_claroty_audit_logs_org_mismatch_returns_401          PASS  [Cell A]
-    test_W3_FIX_SEC_001_claroty_audit_logs_nil_org_no_header_returns_200     PASS  [Cell C]
     test_W3_FIX_SEC_001_claroty_audit_logs_missing_org_header_on_real_org_returns_401  PASS  [Cell B]
+    test_W3_FIX_SEC_001_claroty_audit_logs_nil_org_no_header_returns_200     PASS  [Cell C]
     test_W3_FIX_SEC_001_claroty_alerts_org_mismatch_returns_401              PASS  [Cell A]
+    test_W3_FIX_SEC_001_claroty_alerts_missing_org_header_on_real_org_returns_401  PASS  [Cell B]
     test_W3_FIX_SEC_001_claroty_alerts_nil_org_no_header_returns_200         PASS  [Cell C]
     test_W3_FIX_SEC_001_claroty_alerted_devices_org_mismatch_returns_401     PASS  [Cell A]
+    test_W3_FIX_SEC_001_claroty_alerted_devices_missing_org_header_on_real_org_returns_401  PASS  [Cell B]
     test_W3_FIX_SEC_001_claroty_alerted_devices_nil_org_no_header_returns_200  PASS  [Cell C]
     test_W3_FIX_SEC_001_claroty_devices_org_mismatch_returns_401             PASS  [Cell A]
-    test_W3_FIX_SEC_001_claroty_devices_nil_org_no_header_returns_200        PASS  [Cell C]
     test_W3_FIX_SEC_001_claroty_devices_missing_org_header_on_real_org_returns_401  PASS  [Cell B]
+    test_W3_FIX_SEC_001_claroty_devices_nil_org_no_header_returns_200        PASS  [Cell C]
+    test_W3_FIX_SEC_001_claroty_vulnerabilities_org_mismatch_returns_401     PASS  [Cell A]
+    test_W3_FIX_SEC_001_claroty_vulnerabilities_missing_org_header_on_real_org_returns_401  PASS  [Cell B]
+    test_W3_FIX_SEC_001_claroty_vulnerabilities_nil_org_no_header_returns_200  PASS  [Cell C]
+    test_W3_FIX_SEC_001_claroty_vulnerability_devices_org_mismatch_returns_401  PASS  [Cell A]
+    test_W3_FIX_SEC_001_claroty_vulnerability_devices_missing_org_header_on_real_org_returns_401  PASS  [Cell B]
+    test_W3_FIX_SEC_001_claroty_vulnerability_devices_nil_org_no_header_returns_200  PASS  [Cell C]
   State test:
     test_bc_3_2_001_default_org_id_is_test_gated_and_non_zero                PASS
 
-All 14 Red Gate tests for S-DEMO-CLAROTY-AUDIT-DTU-001 pass (4 AC-001..006 + 10 AC-007).
+All 22 Red Gate tests for S-DEMO-CLAROTY-AUDIT-DTU-001 pass (4 AC-001..006 + 18 AC-007).
 No regressions to existing tests.
