@@ -9703,3 +9703,158 @@ No active feature worktrees. Next feature worktree: `.worktrees/S-CONFIG-MULTI-T
 4. After S-DEMO-001 merges: dispatch S-DEMO-002 → S-DEMO-003.
 
 **STATE version at correction:** 7.571. **Correction burst:** D-916 (2026-05-31). **STORY-INDEX at correction:** v2.224.
+
+---
+
+## §RESUME SNAPSHOT 2026-06-01-S-DEMO-001-MERGED-WAVE-5-LANES-ACTIVE (D-937)
+
+**Snapshot created:** 2026-06-01 | **Reason:** PRE-/clear durability — S-DEMO-001 KEYSTONE MERGED (PR #166 squash 5dd3df02); POL-14 BC-2.11.005 promoted active; Armis+Claroty lane index sync v1.4→v1.5 | **STATE version:** 7.590
+
+**This is the AUTHORITATIVE resume document for any new session. It is self-contained — zero prior context required.**
+
+---
+
+### §1. Where We Are
+
+#### Milestone: S-DEMO-001 KEYSTONE MERGED
+
+| Field | Value |
+|-------|-------|
+| Story | S-DEMO-001 |
+| Status | **MERGED** |
+| PR | #166 squash-merged |
+| develop HEAD after merge | `5dd3df02` |
+| develop HEAD before merge | `4feec93a` (S-SPEC-ENV-VAR-001 PR #165) |
+| Cascade | CLOSED |
+| BCs promoted | BC-2.11.005 v1.5 active per POL-14 (D-937); BC-2.01.013/BC-2.06.014/BC-2.22.001 already active (idempotent) |
+| LOCAL adversary passes | 15 (3-CLEAN converged at passes 5/6/7) |
+| PR-LEVEL adversary passes | 4 (3-CLEAN converged at passes 2/3/4) |
+| Fix-bursts | 2 (LOCAL pre-rebase bursts + 3fc37c7c PR fix-burst) |
+| Story version | v1.10 merged |
+
+#### Current Wave: wave-5-e-demo-fidelity (in progress)
+
+**Immediate next milestone:** S-DEMO-002 E2E subprocess smoke test.
+
+**Critical path (spine):**
+```
+[S-DEMO-001 MERGED] → S-DEMO-002 → S-DEMO-003
+```
+
+---
+
+### §2. Project Goal Restatement (Zero-Context Summary)
+
+**Prism** is an ephemeral federated MCP query engine over MSSP sensors:
+- **Sensors:** CrowdStrike, Cyberint, Claroty, Armis
+- **Stack:** Rust, DataFusion, PrismQL (custom query language via Chumsky), protobuf, OCSF normalization
+- **Deployment:** Per-analyst stdio MCP server in Claude Code; multi-client aware
+- **Auth model:** AI-opaque credentials (AD-017); sensor API auth per ADR-031 DTU=true-DTU fidelity principle
+- **Query model:** Ephemeral OCSF data lake — sensors queried per-request, results normalized at adapter boundary, no persistence of raw API responses
+- **Plugin system:** WASM component model (PLUGIN-MIGRATION-001-A/B/C/D/E/F/G) — sensors delivered as TOML specs eating our own dog food
+
+---
+
+### §3. Wave 5 Full Story Set + Status
+
+| Story | Points | Priority | Status | Depends On | Notes |
+|-------|--------|----------|--------|------------|-------|
+| S-DTU-CYBERINT-AUTH-FIDELITY-001 | 8 | P0-pre-demo-BLOCKING | **MERGED** (PR #164 e798e67c) | — | Cyberint StaticCookieAuthProvider. CLOSED. |
+| S-CONFIG-MULTI-TENANT-OVERRIDE-001 | 8 | P0 | **MERGED** (PR #155 3e822522) | — | Per-org overlay loading ADR-029. CLOSED. |
+| S-SPEC-ENV-VAR-001 | 5 | P0 | **MERGED** (PR #165 4feec93a) | — | ${env.VAR} resolution. CLOSED. |
+| S-DEMO-001 (KEYSTONE) | 11 | P0-KEYSTONE | **MERGED** (PR #166 5dd3df02) | all merged | GAP-002-A. SpecDrivenSensorAdapter + boot step 9A. CLOSED. |
+| S-DEMO-002 | 11 | P0 | draft | S-DEMO-001 ✅, S-CONFIG ✅ | **NEXT DISPATCH — 3-org multi-sensor E2E smoke. AQL seeding required.** |
+| S-DEMO-003 | 5 | P1 | draft | S-DEMO-001 ✅, S-DEMO-002 | Setup scripts + prism-credential-set CLI + operator runbook. |
+| S-DEMO-ARMIS-AQL-001 | 5 | P1 | in-progress v1.5 | — | Pass 3 (2 MED CLOSED 312c5ca1); streak 0/3; NEXT pass 4. |
+| S-DEMO-CLAROTY-AUDIT-DTU-001 | 5 | P1 | in-progress v1.5 | PLUGIN-MIGRATION-001-A ✅ | Pass 7 (HIGH+MED CLOSED 312c5ca1+7f3584b6); streak 0/3; NEXT pass 8. Feature HEAD 7f3584b6. |
+| S-DEMO-CLAROTY-PAGINATION-001 | 5 | P1 | draft | PLUGIN-MIGRATION-001-A ✅ | POST-body offset+limit. Not yet started. |
+| S-DEMO-CLAROTY-TRAILING-SLASH-001 | 3 | P1 | draft | S-DEMO-CLAROTY-AUDIT-DTU-001 (soft) | normalize_path middleware. Not yet started. |
+| S-DEMO-CROWDSTRIKE-MULTIREGION-001 | 2 | P2 | ready v1.1 | S-SPEC-ENV-VAR-001 ✅ | CrowdStrike multi-region base_url. Dispatchable. |
+| OCSF-CLASS-MIGRATION-001 | 3 | P2 | draft | S-DEMO-001 ✅ | ocsf_class security_finding→detection_finding. Unblocked. |
+| S-DEMO-QUERY-PUSHDOWN-001 | 5 | P2 | draft | S-DEMO-001 ✅ | F-003-R push-down deferred from keystone. Unblocked. |
+
+---
+
+### §4. Recommended Next Actions (In Order)
+
+1. **DISPATCH S-DEMO-002** (P0 — all deps merged). Create worktree `.worktrees/S-DEMO-002/`. MUST seed query_filters["aql"] in PipelineExecutor FetchContext for Armis AQL push-down (D-934 tracked dependency).
+2. **Continue Armis-AQL LOCAL cascade** (Track B): NEXT adversary pass 4 (streak 0/3).
+3. **Continue Claroty-AUDIT LOCAL cascade** (Track D-lead): NEXT adversary pass 8 (streak 0/3). Feature HEAD 7f3584b6.
+4. **Dispatch S-DEMO-CROWDSTRIKE-MULTIREGION-001** (ready v1.1) — can dispatch in parallel with S-DEMO-002.
+5. **After S-DEMO-002 merges:** dispatch S-DEMO-003.
+6. **Claroty lane serialization:** after S-DEMO-CLAROTY-AUDIT-DTU-001 merges → dispatch TRAILING-SLASH-001 → then PAGINATION-001.
+
+---
+
+### §5. Artifact Versions (as of D-937)
+
+| Artifact | Version |
+|----------|---------|
+| STATE.md | 7.590 (this burst) |
+| develop HEAD | `5dd3df02` (PR #166 squash-merge 2026-06-01) |
+| STORY-INDEX | v2.238 (total_stories: 174) |
+| BC-INDEX | v5.71 (active: 238, draft: 1) |
+| BC-2.11.005 | v1.5 active (EphemeralMaterialization; promoted per POL-14 D-937) |
+| ARCH-INDEX | v2.108 |
+| error-taxonomy | v1.57 |
+| policies.yaml | v1.31 |
+| S-DEMO-001 story | merged v1.10 |
+| S-DEMO-ARMIS-AQL-001 story | in-progress v1.5 |
+| S-DEMO-CLAROTY-AUDIT-DTU-001 story | in-progress v1.5 |
+
+---
+
+### §6. Active Worktrees
+
+| Worktree | Status | Notes |
+|----------|--------|-------|
+| `.factory/` | ACTIVE — factory-artifacts branch | State manager worktree |
+| `.worktrees/S-DEMO-ARMIS-AQL-001/` | ACTIVE — in-progress v1.5 | LOCAL pass 4 NEXT |
+| `.worktrees/S-DEMO-CLAROTY-AUDIT-DTU-001/` | ACTIVE — in-progress v1.5 | LOCAL pass 8 NEXT; Feature HEAD 7f3584b6 |
+| `.worktrees/S-3.09/` | FROZEN | Leave alone |
+| `.worktrees/W3-FIX-S307-001/` | BLOCKED (superseded) | Do not activate |
+
+---
+
+### §7. Do-NOT-Do List
+
+- **DO NOT** push factory-artifacts to remote (LOCAL-ONLY per POL-13 + CLAUDE.md)
+- **DO NOT** skip hooks (`--no-verify`, `--no-gpg-sign`) — TD-FACTORY-HOOK-BYPASS-001 P0
+- **DO NOT** add AI attribution to commits (prism convention)
+- **DO NOT** run Claroty stories in parallel — serialize AUDIT → TRAILING-SLASH → PAGINATION (shared claroty.toml + dtu-claroty crate)
+- **DO NOT** touch `.worktrees/S-3.09/` or `.worktrees/W3-FIX-S307-001/` (FROZEN/BLOCKED)
+- **DO NOT** add tech-debt-register entries without explicit human direction + concrete future dependency + story anchor (Canonical Principle Rule 3)
+
+---
+
+### §8. Resume Protocol
+
+```
+1. cd /Users/jmagady/Dev/prism
+
+2. Run vsdd-factory:factory-worktree-health — BLOCKING preflight.
+   Verifies .factory/ worktree on factory-artifacts branch.
+
+3. Read STATE.md frontmatter — confirm:
+   - version: "7.590" (this burst)
+   - develop_head: "5dd3df02" (PR #166 squash-merge 2026-06-01)
+   - cyberint_pr_cycle_in_flight: false (CLOSED)
+
+4. Read this §RESUME SNAPSHOT 2026-06-01-S-DEMO-001-MERGED-WAVE-5-LANES-ACTIVE
+   (you are reading it now)
+
+5. Check develop HEAD:
+   git log -1 --format="%H %s" develop
+   → Expected: 5dd3df02 feat(S-DEMO-001): ...
+
+6. Check open PRs:
+   gh pr list --state open
+   → Expected: ZERO (no PRs in flight; PR #166 merged)
+
+7. Proceed per RECOMMENDED NEXT ACTIONS (§4).
+   First action: dispatch S-DEMO-002.
+```
+
+---
+
+**D-937 burst marker:** Single-commit burst per TD-VSDD-053. Anti-volatile-pin per TD-VSDD-091.
