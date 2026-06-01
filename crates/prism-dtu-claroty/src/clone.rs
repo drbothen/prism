@@ -87,7 +87,7 @@ impl ClarotyClone {
     /// Create a new clone bound to a specific `instance_org_id`.
     ///
     /// Used by tests that need strict per-org X-Org-Id header validation
-    /// (SEC-001 / BC-3.5.002 precondition 3). The clone's state enforces the
+    /// (W3-FIX-SEC-001 / SEC-001). The clone's state enforces the
     /// org guard on all routes that support it.
     pub fn with_org(instance_org_id: prism_core::OrgId) -> Self {
         let admin_token = uuid::Uuid::new_v4().to_string();

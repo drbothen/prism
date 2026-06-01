@@ -140,7 +140,7 @@ fn extract_org_id(headers: &HeaderMap) -> OrgId {
 
 /// Validate the `X-Org-Id` header against `instance_org_id`.
 ///
-/// # W3-FIX-SEC-001 (AC-001..AC-003, BC-3.5.002 precondition 3)
+/// # W3-FIX-SEC-001 (AC-001..AC-003)
 ///
 /// Returns `Ok(OrgId)` when the header is present, parseable as UUID, and matches
 /// `instance_org_id` byte-for-byte.
@@ -575,6 +575,53 @@ mod tests {
             resp.status().as_u16(),
             401,
             "non-nil-org clone + mismatched X-Org-Id must return HTTP 401 (W3-FIX-SEC-001)"
+        );
+
+        let body: serde_json::Value = resp
+            .json()
+            .await
+            .expect("401 response must have JSON body (W3-FIX-SEC-001)");
+        assert!(
+            body.get("error")
+                .and_then(|v| v.as_str())
+                .map(|s| s.contains("org_id mismatch"))
+                .unwrap_or(false),
+            "W3-FIX-SEC-001: 401 body must contain 'org_id mismatch'; got: {body}"
+        );
+    }
+
+    /// W3-FIX-SEC-001 — org-isolation guard: non-nil clone + absent X-Org-Id header → 401.
+    ///
+    /// When the clone has a real (non-nil) `instance_org_id`, a request that omits the
+    /// `X-Org-Id` header entirely must return HTTP 401. `validate_org_id` treats an
+    /// absent header as a mismatch (AC-003: missing header → 401).
+    ///
+    /// This closes the org-isolation test matrix:
+    ///   test_W3_FIX_SEC_001_claroty_devices_org_mismatch_returns_401      → non-nil + MISMATCH → 401
+    ///   test_W3_FIX_SEC_001_claroty_devices_missing_org_header_on_real_org_returns_401 → non-nil + ABSENT → 401 (this test)
+    ///   test_W3_FIX_SEC_001_claroty_devices_nil_org_no_header_returns_200 → nil + ABSENT → 200
+    #[tokio::test]
+    async fn test_W3_FIX_SEC_001_claroty_devices_missing_org_header_on_real_org_returns_401() {
+        let instance_org = OrgId::from_uuid(
+            Uuid::parse_str("11111111-1111-7000-8000-000000000001").expect("valid test UUID"),
+        );
+
+        let (_clone, base_url) = start_clone_with_org(instance_org).await;
+        let client = test_client();
+
+        let resp = client
+            .post(format!("{base_url}/api/v1/devices"))
+            .header("Authorization", "Bearer test-token")
+            // Intentionally NO X-Org-Id header.
+            .json(&serde_json::json!({}))
+            .send()
+            .await
+            .expect("transport must not fail for missing-header test");
+
+        assert_eq!(
+            resp.status().as_u16(),
+            401,
+            "non-nil-org clone + absent X-Org-Id header must return HTTP 401 (W3-FIX-SEC-001 AC-003)"
         );
 
         let body: serde_json::Value = resp
