@@ -10418,3 +10418,133 @@ git -C .worktrees/S-DEMO-ARMIS-AQL-001 log -1 --format="%h %s"
 ---
 
 **D-944 burst marker:** Single-commit burst per TD-VSDD-053. Anti-volatile-pin per TD-VSDD-091.
+
+---
+
+## §RESUME SNAPSHOT 2026-06-02-DOC-SWEEP-BOTH-LANES-CLEAN (D-946)
+
+**Snapshot created:** 2026-06-02 | **Reason:** D-946 doc-sweep burst: Armis F-LP12R-MED-001/002 CLOSED + Claroty F-PR3R3-MED-001/002 + O-PR3R3-001 CLOSED; BC-2.16.013 v1.22; BC-INDEX v5.74; cross-lane POL-25 pin propagation complete; both lanes 0/3 all-known-findings-closed | **STATE version:** 7.599 | **safe_to_compact:** true
+
+---
+
+### §1 PIPELINE STATUS
+
+| Field | Value |
+|-------|-------|
+| Phase | 3 (Wave 5 wave-5-e-demo-fidelity) |
+| STATE version | 7.599 |
+| develop HEAD | `5dd3df02` (S-DEMO-001 merged 2026-06-01T17:38:35Z) |
+| STORY-INDEX | v2.245 (total_stories: 177) |
+| BC-INDEX | v5.74 (active: 238, draft: 1) |
+| BC-2.16.013 | v1.22 (§Changelog v1.22 records F-LP12R-MED-001 closure; normative content unchanged) |
+| Open PRs | PR #167 (S-DEMO-CLAROTY-AUDIT-DTU-001; PR-LEVEL streak 0/3; re-pass needed against HEAD 07636b86) |
+
+---
+
+### §2 TWO-LANE STATE (EXACT)
+
+#### Track B — S-DEMO-ARMIS-AQL-001
+
+| Item | Value |
+|------|-------|
+| Status | in-progress v1.7 |
+| Feature HEAD (code+story) | `ae7ebcf7` (demo-recorder; stale AQL syntax in demo evidence swept) |
+| LOCAL cascade streak | 0/3 |
+| All known findings | CLOSED (F-LP12-HIGH-001 CLOSED D-945; F-LP12R-MED-001/002 CLOSED D-946) |
+| BC-2.16.013 pin in story | v1.22 (all 5 active-prose sites updated D-946 POL-25 propagation) |
+| CONVERGENCE TAIL | Substance converged; doc-residue findings shrinking (HIGH→MED→MED→doc); ready for clean re-pass |
+
+**Next action (Armis):**
+- LOCAL adversary re-pass against `.worktrees/S-DEMO-ARMIS-AQL-001` HEAD ae7ebcf7 (REVIEW WORKTREE, NOT develop) → open new streak toward 3/3 → demo-recorder → push → PR → PR-LEVEL cascade → merge
+
+---
+
+#### Track D-lead — S-DEMO-CLAROTY-AUDIT-DTU-001
+
+| Item | Value |
+|------|-------|
+| PR | #167 (https://github.com/drbothen/prism/pull/167) |
+| Base | develop@5dd3df02 |
+| Feature HEAD | `07636b86` (demo-recorder; SEC-001-org-isolation.txt removed + Red Gate counts reconciled + version stamps swept) |
+| Story version | v1.7 |
+| PR-LEVEL cascade streak | 0/3 |
+| All known findings | CLOSED (F-PR3R2-MED-001/002/003+O-PR3R2-001 CLOSED D-945; F-PR3R3-MED-001/002+O-PR3R3-001 CLOSED D-946) |
+| BC-2.16.013 pin in story | v1.22 (3 active-prose sites updated D-946 POL-25 propagation) |
+| BC-INDEX pin in story | v5.74 (1 frontmatter-comment site updated D-946) |
+| CONVERGENCE TAIL | Substance converged; doc-residue findings closed; ready for clean re-pass |
+
+**Next action (Claroty):**
+- PR-LEVEL adversary re-pass against `.worktrees/S-DEMO-CLAROTY-AUDIT-DTU-001` HEAD 07636b86 (REVIEW WORKTREE, NOT develop) → open new streak toward 3/3 → merge
+
+---
+
+### §3 OPEN ITEMS (all lanes)
+
+| Item | ID | Routing | Status |
+|------|----|---------|--------|
+| BC-3.5.002 precondition 3 mis-cite in merged crates | DRIFT-D943-001 | S-MAINT-W3SEC-CITE-SWEEP-001 (maintenance_wave) | Anchored — pending human dispatch |
+| Pre-merge BC gap-closure process rule | Process-gap | session-reviewer (POL codification candidate) | Codified in D-944; POL not yet written |
+| harness clone parity (Armis search + Claroty audit_log) | F-P6-DEFER-001 + F-P10-LOW-001 | S-DEMO-HARNESS-CLONE-PARITY-001 | Anchored DEMO-GOAL-REQUIRED |
+| Claroty TOML + BC-2.16.013 prose (F-P2-DEFER-001) | — | S-DEMO-CLAROTY-SPEC-PROSE-FIX-001 | Anchored DEMO-GOAL-REQUIRED |
+| SAP-2-probe runtime-shape-assertion extension | F-P1-OBS-003 | session-reviewer codification | factory/can-wait |
+
+---
+
+### §4 ARTIFACT VERSIONS (post D-946)
+
+| Artifact | Version |
+|----------|---------|
+| STATE.md | v7.599 |
+| STORY-INDEX | v2.245 (177 stories) |
+| BC-INDEX | v5.74 (active: 238, draft: 1) |
+| BC-2.16.013 | v1.22 (§Changelog v1.22 F-LP12R-MED-001 closure; normative content unchanged) |
+| Armis story | v1.7 (BC-2.16.013 pin v1.22; no version bump — pin-only POL-25 propagation) |
+| Claroty story | v1.7 (BC-2.16.013 pin v1.22, BC-INDEX pin v5.74; no version bump — pin-only POL-25 propagation) |
+| sprint-state.yaml | unchanged (D-946 is factory-only pin-sync; no story-content change) |
+
+---
+
+### §5 RECOMMENDED NEXT ACTIONS (ordered)
+
+1. **Claroty PR-LEVEL re-pass** against `.worktrees/S-DEMO-CLAROTY-AUDIT-DTU-001` HEAD 07636b86 (NOT develop) — expect CLEAN(strict) given substance-converged state; opens streak toward 3/3
+2. **Armis LOCAL re-pass** against `.worktrees/S-DEMO-ARMIS-AQL-001` HEAD ae7ebcf7 (NOT develop) — expect CLEAN(strict); opens streak toward 3/3
+3. **S-DEMO-002 DISPATCH** (P0 — S-DEMO-001 SATISFIED): 3-org E2E smoke; MUST seed query_filters["aql"] for Armis AQL push-down
+4. **S-DEMO-CROWDSTRIKE-MULTIREGION-001** — ready v1.1; dispatchable (parallel to lanes)
+5. **DRIFT-D943-001** — S-MAINT-W3SEC-CITE-SWEEP-001 pending human dispatch authorization
+
+---
+
+### §6 RESUME CHECKLIST
+
+```bash
+# 1. Factory worktree health
+vsdd-factory:factory-worktree-health
+
+# 2. Verify STATE.md version
+grep '^version:' .factory/STATE.md
+# Expected: version: "7.599"
+
+# 3. Confirm develop HEAD
+git log -1 --format="%H %s" develop
+# Expected: 5dd3df02 feat(S-DEMO-001): ...
+
+# 4. Check open PRs
+gh pr list --state open
+# Expected: PR #167 (S-DEMO-CLAROTY-AUDIT-DTU-001) — streak 0/3
+
+# 5. Verify worktree feature HEADs
+git -C .worktrees/S-DEMO-CLAROTY-AUDIT-DTU-001 log -1 --format="%h %s"
+# Expected: 07636b86
+git -C .worktrees/S-DEMO-ARMIS-AQL-001 log -1 --format="%h %s"
+# Expected: ae7ebcf7
+```
+
+Read this §RESUME SNAPSHOT 2026-06-02-DOC-SWEEP-BOTH-LANES-CLEAN (you are reading it now).
+
+Proceed per RECOMMENDED NEXT ACTIONS (§5).
+Priority 1: Claroty PR-LEVEL re-pass (HEAD 07636b86).
+Priority 2: Armis LOCAL re-pass (HEAD ae7ebcf7).
+
+---
+
+**D-946 burst marker:** Single-commit burst per TD-VSDD-053. Anti-volatile-pin per TD-VSDD-091. POL-25 cross-lane pin propagation complete. POL-29 sibling-sweep confirmed zero stale v1.19/v1.20/v1.21 in active prose. POL-32 monotonicity: no story version bump on pin-only propagation. safe_to_compact: true.

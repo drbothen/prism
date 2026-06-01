@@ -7,7 +7,7 @@ epic_id: E-DTU-FIDELITY
 priority: P1
 status: in-progress
 # BC status: D-911 disposition 2026-05-31 — New-BC Flags 1 & 2 resolved as SUFFICIENT.
-# BC-2.16.013 (Bundled Sensor Spec Authoring and DTU-Parity Verification, v1.19) is ACTIVE
+# BC-2.16.013 (Bundled Sensor Spec Authoring and DTU-Parity Verification, v1.22) is ACTIVE
 # and covers both the AQL endpoint pipeline behavior (Flag 1: AQL treated as opaque per
 # R-DTU-002 / ADR-031 §D8-a — no syntax validation, no new BC needed) and the AQL push-down
 # parity assertion (Flag 2: R-DTU-002 pass-through is a DTU-parity concern under BC-2.16.013).
@@ -38,7 +38,7 @@ crates_touched: [prism-dtu-armis, prism-sensors, prism-spec-engine]
 target_module: prism-dtu-armis
 capabilities: [CAP-001, CAP-029]
 behavioral_contracts:
-  - BC-2.16.013  # Bundled Sensor Spec Authoring and DTU-Parity Verification — 4 Initial Sensors (v1.19, ACTIVE).
+  - BC-2.16.013  # Bundled Sensor Spec Authoring and DTU-Parity Verification — 4 Initial Sensors (v1.22, ACTIVE).
                  # Covers the AQL search endpoint pipeline behavior (Flag 1: opaque AQL per
                  # R-DTU-002/ADR-031 §D8-a) and AQL push-down parity (Flag 2: R-DTU-002
                  # pass-through). D-911 disposition: both flags SUFFICIENT, no new BC needed.
@@ -189,9 +189,9 @@ After this story merges:
 
 | BC ID | Title | Version | Role in This Story |
 |-------|-------|---------|-------------------|
-| BC-2.16.013 | Bundled Sensor Spec Authoring and DTU-Parity Verification — 4 Initial Sensors | v1.19 (ACTIVE) | Covers the AQL search endpoint pipeline behavior (Flag 1: opaque AQL, R-DTU-002/ADR-031 §D8-a) and the AQL push-down parity assertion (Flag 2: R-DTU-002 pass-through is a DTU-parity concern). D-911 disposition 2026-05-31: both New-BC Flags SUFFICIENT — no new BC needed. |
+| BC-2.16.013 | Bundled Sensor Spec Authoring and DTU-Parity Verification — 4 Initial Sensors | v1.22 (ACTIVE) | Covers the AQL search endpoint pipeline behavior (Flag 1: opaque AQL, R-DTU-002/ADR-031 §D8-a) and the AQL push-down parity assertion (Flag 2: R-DTU-002 pass-through is a DTU-parity concern). D-911 disposition 2026-05-31: both New-BC Flags SUFFICIENT — no new BC needed. |
 
-**Note:** Per D-911 disposition 2026-05-31, BC-2.16.013 (v1.19, ACTIVE) is sufficient
+**Note:** Per D-911 disposition 2026-05-31, BC-2.16.013 (v1.22, ACTIVE) is sufficient
 coverage for both flagged surfaces. ADR-031 §D8-a holds: AQL is treated as opaque (R-DTU-002),
 no syntax validation is added to the DTU, and AQL push-down parity is a BC-2.16.013 concern.
 S-7.01 Spec-First Gate is satisfied.
@@ -201,7 +201,7 @@ S-7.01 Spec-First Gate is satisfied.
 ## New-BC Flags — D-911 Disposition (2026-05-31)
 
 Flag 1 (CLOSED — SUFFICIENT): AQL is treated as opaque per R-DTU-002 / ADR-031 §D8-a.
-No syntax validation is added to the DTU. No new BC is needed. BC-2.16.013 (v1.19, ACTIVE)
+No syntax validation is added to the DTU. No new BC is needed. BC-2.16.013 (v1.22, ACTIVE)
 covers the DTU-parity surface. D-911 disposition: SUFFICIENT.
 
 Flag 2 (CLOSED — SUFFICIENT): AQL push-down parity (R-DTU-002 pass-through) is a

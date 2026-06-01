@@ -6,7 +6,7 @@ wave: 5
 epic_id: E-DTU-FIDELITY
 priority: P1
 status: in-progress
-# BC status: BC-2.01.013 and BC-2.16.013 are both active (BC-INDEX v5.73).
+# BC status: BC-2.01.013 and BC-2.16.013 are both active (BC-INDEX v5.74).
 # S-7.01 gate: behavioral_contracts non-empty + both BCs active → satisfied.
 # Route-design consistency confirmed by orchestrator (D-920 2026-05-31): POST
 # /api/v1/audit_log/get with ClarotyAuditLogEntry shape is consistent with
@@ -106,7 +106,7 @@ POLLER-DTU-FIDELITY-AUDIT-2026-05-29 v1.1 §3 Claroty section).
 | BC | Title | Version | Role |
 |----|-------|---------|------|
 | BC-2.01.013 | DataSource Trait Eliminates Per-Sensor Code Duplication | v1.9 | Audit log table is a sensor table; the spec-driven adapter (BC-2.01.013 postcondition) must dispatch to it via the shared pipeline |
-| BC-2.16.013 | Bundled Sensor Spec Authoring and DTU-Parity Verification — 4 Initial Sensors | v1.21 | Gap-CL-006 is an open DTU-parity gap under BC-2.16.013; this story closes it by making the DTU serve the endpoint the TOML spec declares |
+| BC-2.16.013 | Bundled Sensor Spec Authoring and DTU-Parity Verification — 4 Initial Sensors | v1.22 | Gap-CL-006 is an open DTU-parity gap under BC-2.16.013; this story closes it by making the DTU serve the endpoint the TOML spec declares |
 
 ## Acceptance Criteria
 
@@ -401,7 +401,7 @@ new gate is warranted.
 
 ## References
 
-- BC-2.16.013 v1.21 (ACTIVE) — Bundled Sensor Spec Authoring and DTU-Parity Verification — 4 Initial Sensors; §Known Gaps DTU-EXT-002 (Claroty assets); §Postconditions §1 claroty.sensor.toml entry (alerts + audit_logs)
+- BC-2.16.013 v1.22 (ACTIVE) — Bundled Sensor Spec Authoring and DTU-Parity Verification — 4 Initial Sensors; §Known Gaps DTU-EXT-002 (Claroty assets); §Postconditions §1 claroty.sensor.toml entry (alerts + audit_logs)
 - BC-2.01.013 — DataSource Trait; auth enforcement postcondition §2
 - ADR-031 §D1 — DTU clone isolation (prism-dtu-claroty must not depend on prism-spec-engine/prism-sensors/prism-query)
 - ADR-031 §D2 — permitted-divergence #1: synthetic fixture data (no real customer data)
