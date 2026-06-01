@@ -6,7 +6,7 @@ wave: 5
 epic_id: E-DEMO
 priority: P0
 status: draft
-version: "1.6"
+version: "1.7"
 level: "L4"
 producer: story-writer
 revised_by: architect
@@ -101,11 +101,11 @@ risk_mitigations:
     (AuthStrategy::BearerStatic { token_from_sensor_auth: bool }) and constructs BearerStaticAuthProvider
     at fetch() call time from the SensorAuth argument. Token is not held at construction time."
   - "CookieRoundtrip auth: PipelineExecutor::build_request must be amended to check spec.auth_type.
-    When AuthType::CookieRoundtrip, inject Cookie header (cyberint_session={token}) instead of
-    Authorization: Bearer {token}. The AuthProvider for Cyberint performs the POST /login step
-    and returns the api_key value. StaticCookieAuthProvider
-    is the production implementation; it reads the api_key from the credential store
-    and returns the api_key string. No HTTP call is made (per ADR-031 D1-b)."
+    When AuthType::CookieRoundtrip, inject Cookie header (access_token={token}) instead of
+    Authorization: Bearer {token}. StaticCookieAuthProvider is the production implementation;
+    it reads the api_key from the credential store and returns the api_key string.
+    StaticCookieAuthProvider makes NO HTTP call during acquire_token (no POST /login step — per
+    ADR-031 D1-b). Cookie name is access_token (real Cyberint API; NOT cyberint_session)."
   - "reqwest::Client timeout: SpecDrivenSensorAdapter::new() constructs reqwest::Client with
     .timeout(Duration::from_secs(30)) per CLAUDE.md conventions. Missing this is a P2 finding."
   - "ADR-028 amendment: The §D10 note on cookie_roundtrip auth must be expanded to document
@@ -139,11 +139,11 @@ cycle: "v1.0.0-brownfield"
 phase: 3
 ---
 
-# S-DEMO-001 v1.6 — prism-bin: SpecDrivenSensorAdapter + Boot Step 9A (closes GAP-002-A)
+# S-DEMO-001 v1.7 — prism-bin: SpecDrivenSensorAdapter + Boot Step 9A (closes GAP-002-A)
 
 **Story ID:** S-DEMO-001
 **Status:** draft
-**Version:** v1.6
+**Version:** v1.7
 **Wave:** 5
 **Priority:** P0
 **Points:** 11
@@ -343,9 +343,11 @@ The `AdapterRegistry` is keyed by `OrgId`. Therefore, boot step 9A must translat
 for (org_slug, resolved_specs) in resolved_sensor_specs.iter() {
     let org_id = org_registry.resolve(org_slug)
         .ok_or_else(|| BootError::OrgNotFound { slug: org_slug.clone() })?;
-    for (sensor_id, spec) in resolved_specs.iter() {
+    for (_sensor_id, spec) in resolved_specs.iter() {
         let adapter = build_adapter(spec, &plugin_auth_providers, &http_client)?;
-        adapter_registry.register(org_id, sensor_id.clone(), Arc::new(adapter));
+        // AdapterRegistry::register is 2-arg: register(org_id, adapter).
+        // sensor_id is derived from adapter.sensor_type() internally — do not pass it explicitly.
+        adapter_registry.register(org_id, Arc::new(adapter));
     }
 }
 ```
@@ -576,7 +578,7 @@ Version source: `Cargo.toml` workspace `[dependencies]` table. Do not pin versio
 6. **Read** `crates/prism-bin/src/boot.rs` — locate step 7.5b and the GAP-002-A comment. Understand `ResolvedSensorSpec` map structure.
 7. **Read** `S-CONFIG-MULTI-TENANT-OVERRIDE-001` story — confirm the exact output type of the overlay loader (map key type: `OrgSlug` vs `OrgId`).
 8. **Amend** `crates/prism-spec-engine/src/pipeline.rs` — refactor `build_request` to accept `auth_type: &AuthType` and dispatch:
-   - `CookieRoundtrip` → `Cookie: {sensor's cookie name}={token}` (cookie name: `cyberint_session`)
+   - `CookieRoundtrip` → `Cookie: access_token={token}` (real Cyberint API cookie name per ADR-031 D1-a; NOT `cyberint_session`)
    - All other variants → `Authorization: Bearer {token}` (existing behavior unchanged)
    - Update all callers of `build_request` to pass `spec.auth_type` (two call sites: `issue_request_with_retry`).
 9. **Implement** `StaticCookieAuthProvider` in `prism-spec-engine/src/auth_provider.rs`:
@@ -590,8 +592,11 @@ Version source: `Cargo.toml` workspace `[dependencies]` table. Do not pin versio
 10. **Write stub** `crates/prism-bin/src/spec_driven_adapter.rs` with `todo!()` bodies (Red Gate setup).
 11. **Write Red Gate tests** (see AC-001, AC-003, AC-004, AC-005 test names) — all must fail (RED) before implementation.
 12. **Implement** `SpecDrivenSensorAdapter`:
-    - Fields: `sensor_spec: Arc<ResolvedSensorSpec>`, `auth_strategy: AdapterAuthStrategy`, `executor: Arc<PipelineExecutor>`, `http_client: reqwest::Client`.
-    - `AdapterAuthStrategy` enum: `Plugin(Arc<dyn AuthProvider>)`, `BearerStatic`, `CookieLogin(Arc<dyn AuthProvider>)`.
+    - Fields: `sensor_spec: Arc<ResolvedSensorSpec>`, `auth_strategy: AdapterAuthStrategy`, `http_client: reqwest::Client`.
+      (No `executor: Arc<PipelineExecutor>` field — `PipelineExecutor::execute` is called as a
+      static/associated method; the executor is not held on the struct.)
+    - `AdapterAuthStrategy` enum: `Plugin(Arc<dyn AuthProvider>)`, `BearerStatic`, `StaticCookie(Arc<dyn AuthProvider>)`.
+      (Variant is `StaticCookie`, NOT `CookieLogin` — renamed per ADR-031; see OQ-1 Resolution.)
     - `SensorAdapter::fetch()` — dispatch by `auth_strategy`; for BearerStatic, extract token from `&dyn SensorAuth` arg and construct `BearerStaticAuthProvider` per-call.
     - `SensorAdapter::sensor_type()` — return `SensorId::from(self.sensor_spec.sensor_id.as_str())`.
 13. **Implement** `BearerStaticAuthProvider` in `crates/prism-bin/src/spec_driven_adapter.rs`:
@@ -683,6 +688,7 @@ if context pressure is felt during implementation.
 | 1.1 | 2026-05-29 | architect | Corrected Cyberint auth model (cookie_roundtrip ≠ bearer_static); resolved OQ-1, OQ-2, OQ-6; added CookieLoginAuthProvider design; amended build_request pipeline gap; added new AC-003/AC-009/AC-012; revised points 8→11; risk MEDIUM→HIGH |
 | 1.2 | 2026-05-29 | architect | AC-003/AC-009: tightened `cyberint_session` cookie name specification per fidelity audit (POLLER-DTU-FIDELITY-AUDIT-2026-05-29). Added Set-Cookie parse constraint to AC-009 (cookie name `cyberint_session` not `access_token` for DTU demo path). Cross-poller audit surfaced Gap-CS-001/CL-002/CL-003/CL-004/CL-005; TOML fixes applied to crowdstrike.sensor.toml and claroty.sensor.toml in same burst. |
 | 1.3 | 2026-05-29 | architect | **DTU=true-DTU REVERSAL (ADR-031 user directive 2026-05-29).** `cyberint_session` decision reversed. ALL Cyberint references updated: `CookieLoginAuthProvider` (login-step) → `StaticCookieAuthProvider` (no login step, credential-store read); cookie name `cyberint_session` → `access_token`; `build_request` dispatch `Cookie: cyberint_session` → `Cookie: access_token`. §Origin updated. §Cyberint Cookie Auth Design section rewritten. AC-003/AC-009 rewritten. OQ-1 enum variant `CookieLogin` → `StaticCookie`. EC-001/EC-002/EC-005/EC-008 updated. Library/framework table updated. ADR-028 §D12 → pre-authored in factory-artifacts burst (now annotated SUPERSEDED). ADR-031 cited throughout. New depends_on: S-DTU-CYBERINT-AUTH-FIDELITY-001 (P0-pre-demo-BLOCKING — DTU correction required before implementation). |
-| 1.6 | 2026-05-31 | story-writer | AC-010(b) story↔BC drift fix (OBS-PASS4-002): dropped non-existent `ocsf_category` TOML field reference; aligned derivation to BC-2.01.013 v1.9 semantics — `class_uid` from `EventClassSelector::select_by_class_name(ocsf_class)`, `category_uid = class_uid / 1000`; named the wrong-overload anti-pattern (`select(sensor_id, class_name_string)` yields 0) per D-925. Conformance test assertion (b) tightened to match corrected derivation path. |
-| 1.5 | 2026-05-31 | story-writer | AC-010 rewritten (adversary pass-2, F-001-R + F-003-R closure): old envelope-only wording replaced with BC-2.01.013 v1.8 OCSF Conformance Clause items 1–3 verbatim-aligned requirements — (a) all spec-declared columns survive via ColumnMapper (envelope-only output is NON-CONFORMANT), (b) category_uid/class_uid derived by OcsfNormalizer not read from raw record (raw-copy is NON-CONFORMANT), (c) _sensor virtual column = canonical SensorId. Conformance test requirement added (minimum gate per BC-2.01.013 v1.8). Scope note added: query-param push-down (limit/cursor/time-window) OUT OF SCOPE per BC-2.01.013 v1.8 Pagination/Push-Down Scope Clause (D-924), deferred to S-DEMO-QUERY-PUSHDOWN-001; DataFusion applies LIMIT post-materialization. |
 | 1.4 | 2026-05-31 | story-writer | OQ-2 factual-accuracy fix (adversary pass-1, D-922 adjudication): `OrgRegistry::id_for_slug` → `OrgRegistry::resolve(slug) -> Option<OrgId>` as the canonical existing method. Removed instruction to add `id_for_slug`. Skip-and-continue on `None` matches EC-003. |
+| 1.5 | 2026-05-31 | story-writer | AC-010 rewritten (adversary pass-2, F-001-R + F-003-R closure): old envelope-only wording replaced with BC-2.01.013 v1.8 OCSF Conformance Clause items 1–3 verbatim-aligned requirements — (a) all spec-declared columns survive via ColumnMapper (envelope-only output is NON-CONFORMANT), (b) category_uid/class_uid derived by OcsfNormalizer not read from raw record (raw-copy is NON-CONFORMANT), (c) _sensor virtual column = canonical SensorId. Conformance test requirement added (minimum gate per BC-2.01.013 v1.8). Scope note added: query-param push-down (limit/cursor/time-window) OUT OF SCOPE per BC-2.01.013 v1.8 Pagination/Push-Down Scope Clause (D-924), deferred to S-DEMO-QUERY-PUSHDOWN-001; DataFusion applies LIMIT post-materialization. |
+| 1.6 | 2026-05-31 | story-writer | AC-010(b) story↔BC drift fix (OBS-PASS4-002): dropped non-existent `ocsf_category` TOML field reference; aligned derivation to BC-2.01.013 v1.9 semantics — `class_uid` from `EventClassSelector::select_by_class_name(ocsf_class)`, `category_uid = class_uid / 1000`; named the wrong-overload anti-pattern (`select(sensor_id, class_name_string)` yields 0) per D-925. Conformance test assertion (b) tightened to match corrected derivation path. |
+| 1.7 | 2026-05-31 | story-writer | ADV-P05 drift sweep: fixed 4 stale-design locations missed by v1.3 sweep. HIGH-001: risk_mitigations CookieRoundtrip entry corrected — cookie name `access_token` (not `cyberint_session`), no `POST /login` step, no self-contradiction. HIGH-002: Task 8 cookie name `access_token` (not `cyberint_session`); Task 12 `AdapterAuthStrategy::StaticCookie` (not `CookieLogin`); removed stale `executor: Arc<PipelineExecutor>` field description. LOW-002: OQ-2 pseudo-code `register(org_id, sensor_id.clone(), Arc::new(adapter))` → 2-arg `register(org_id, Arc::new(adapter))`. LOW-001: changelog rows reordered to monotonic ascending (1.0→1.7). |
