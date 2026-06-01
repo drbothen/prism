@@ -10041,3 +10041,218 @@ develop HEAD: `5dd3df02` (PR #166 S-DEMO-001 squash-merge 2026-06-01T17:38:35Z).
 ---
 
 **D-940 burst marker:** Single-commit burst per TD-VSDD-053. Anti-volatile-pin per TD-VSDD-091.
+
+---
+
+## §RESUME SNAPSHOT 2026-06-02-STUB-INDEX-DEFERRAL-RECLASSIFY (D-941)
+
+**Snapshot created:** 2026-06-02 | **Reason:** PRE-/clear durability — 2 Wave 5 stub stories indexed + deferrals reclassified per user direction D-941 | **STATE version:** 7.594
+
+**This is the AUTHORITATIVE resume document for any new session. It is self-contained — zero prior context required.**
+
+---
+
+### §1. Where We Are
+
+#### Milestone: S-DEMO-001 KEYSTONE MERGED (background milestone)
+
+develop HEAD: `5dd3df02` (PR #166 S-DEMO-001 squash-merge 2026-06-01T17:38:35Z). All Wave 5 prereqs merged.
+
+#### D-941 User Direction (new)
+
+**User directed 2026-06-02:** All deferred findings about prism itself or its DTUs are part of the Wave 5 demo goal task list (must get done before the demo is declared complete). Deferrals about the factory (VSDD pipeline/agent process) can wait.
+
+- **DEMO-GOAL tasks (prism/DTU — must get done):** OCSF-CLASS-MIGRATION-001 (re-tagged), S-DEMO-HARNESS-CLONE-PARITY-001 (new), S-DEMO-CLAROTY-SPEC-PROSE-FIX-001 (new)
+- **FACTORY/CAN-WAIT (NOT demo-goal):** F-P1-OBS-003 SAP-2 runtime-shape-assertion extension → session-reviewer codification queue
+
+#### Active Lanes (unchanged from D-940)
+
+**Lane D (Claroty): S-DEMO-CLAROTY-AUDIT-DTU-001 — PR #167, streak 1/3**
+
+| Field | Value |
+|-------|-------|
+| Story | S-DEMO-CLAROTY-AUDIT-DTU-001 |
+| Status | in-progress v1.5 |
+| PR | #167 (https://github.com/drbothen/prism/pull/167) |
+| PR base | develop@5dd3df02 |
+| PR HEAD | d262576f (demo regen commit) |
+| LOCAL cascade | CONVERGED 3/3 (passes 8/9/10) — CLOSED |
+| PR-LEVEL cascade | streak 1/3 (pass 2 CLEAN; NEXT passes 3+4 → merge) |
+| Deferred | F-P2-DEFER-001 [DEMO-GOAL-REQUIRED per D-941]: BC-2.16.013 stale + claroty.sensor.toml → PO (before/at merge); anchored to S-DEMO-CLAROTY-SPEC-PROSE-FIX-001 |
+| Deferred | F-P10-LOW-001 [DEMO-GOAL-REQUIRED per D-941]: harness clone → S-DEMO-HARNESS-CLONE-PARITY-001 |
+| NEXT | PR-LEVEL adversary passes 3+4 (→2/3, 3/3) → merge → post-merge (BC promotion + F-P2-DEFER-001 PO fix via S-DEMO-CLAROTY-SPEC-PROSE-FIX-001 + worktree cleanup) |
+
+**Lane B (Armis): S-DEMO-ARMIS-AQL-001 — LOCAL streak 2/3**
+
+| Field | Value |
+|-------|-------|
+| Story | S-DEMO-ARMIS-AQL-001 |
+| Status | in-progress v1.6 |
+| Feature branch | feature/S-DEMO-ARMIS-AQL-001 |
+| Feature HEAD (code) | add39a1e |
+| Feature HEAD (story) | 523996cb (story v1.6) |
+| LOCAL cascade | streak 2/3 (passes 8+9 CLEAN; NEXT pass 10 → CONVERGED) |
+| Deferred | F-P6-DEFER-001 [DEMO-GOAL-REQUIRED per D-941]: Armis harness clone lacks GET /api/v1/search → anchored to S-DEMO-HARNESS-CLONE-PARITY-001 |
+| Deferred | F-P1-OBS-003 [FACTORY/CAN-WAIT per D-941]: SAP-2 runtime-shape-assertion extension → session-reviewer (NOT demo-goal) |
+| Scope boundary | AQL seeding (PipelineExecutor FetchContext.query_filters["aql"]) is S-DEMO-002 scope — NOT a defer-pattern violation |
+| NEXT | LOCAL pass 10 (→3/3 CONVERGED) → demo-recorder per-AC → rebase onto develop@5dd3df02 → push → pr-manager 9-step PR cycle → merge |
+
+---
+
+### §2. Project Goal Restatement (Zero-Context Summary)
+
+**Prism** is an ephemeral federated MCP query engine over MSSP sensors:
+- **Sensors:** CrowdStrike, Cyberint, Claroty, Armis
+- **Stack:** Rust, DataFusion, PrismQL (custom query language via Chumsky), protobuf, OCSF normalization
+- **Deployment:** Per-analyst stdio MCP server in Claude Code; multi-client aware
+- **Auth model:** AI-opaque credentials (AD-017); sensor API auth per ADR-031 DTU=true-DTU fidelity principle
+- **Query model:** Ephemeral OCSF data lake — sensors queried per-request, results normalized at adapter boundary, no persistence of raw API responses
+- **Plugin system:** WASM component model (PLUGIN-MIGRATION-001-A/B/C/D/E/F/G) — sensors delivered as TOML specs eating our own dog food
+
+---
+
+### §3. Wave 5 Full Goal Task List + Status
+
+This is the canonical Wave 5 demo-goal task list as of D-941. Items marked **[DEMO-GOAL]** must be complete before the demo is declared done. Items marked **[FACTORY/CAN-WAIT]** are factory/process improvements and do NOT block the demo.
+
+#### Spine (critical path)
+
+| Story | Points | Priority | Status | Notes |
+|-------|--------|----------|--------|-------|
+| S-CONFIG-MULTI-TENANT-OVERRIDE-001 | 8 | P0 | **MERGED** (PR #155 3e822522) | Prereq. CLOSED. |
+| S-DEMO-001 (KEYSTONE) | 11 | P0-KEYSTONE | **MERGED** (PR #166 5dd3df02) | GAP-002-A. SpecDrivenSensorAdapter + boot step 9A. CLOSED. |
+| S-DEMO-002 | 11 | P0 | draft | **NEXT DISPATCH** — 3-org multi-sensor E2E smoke. AQL seeding required. |
+| S-DEMO-003 | 5 | P1 | draft | Setup scripts + prism-credential-set CLI + operator runbook. |
+
+#### Fidelity (in-flight + queued)
+
+| Story | Points | Priority | Status | Notes |
+|-------|--------|----------|--------|-------|
+| S-DTU-CYBERINT-AUTH-FIDELITY-001 | 8 | P0 | **MERGED** (PR #164 e798e67c) | CLOSED. |
+| S-SPEC-ENV-VAR-001 | 5 | P0 | **MERGED** (PR #165 4feec93a) | CLOSED. |
+| S-DEMO-ARMIS-AQL-001 | 5 | P1 | in-progress v1.6 | **LOCAL streak 2/3** — pass 10 → CONVERGED → demo → PR. Feature HEAD add39a1e. |
+| S-DEMO-CLAROTY-AUDIT-DTU-001 | 5 | P1 | in-progress v1.5 | **PR #167 streak 1/3** — passes 3+4 → merge. Feature HEAD d262576f. |
+| S-DEMO-CLAROTY-PAGINATION-001 | 5 | P1 | draft | POST-body offset+limit. Not yet started. |
+| S-DEMO-CLAROTY-TRAILING-SLASH-001 | 3 | P1 | draft | normalize_path middleware. Not yet started. |
+| S-DEMO-CROWDSTRIKE-MULTIREGION-001 | 2 | P2 | ready v1.1 | CrowdStrike multi-region base_url. Dispatchable now. |
+
+#### Goal-required follow-ups (newly folded in per D-941)
+
+| Story | Points | Priority | Status | Closes | Notes |
+|-------|--------|----------|--------|--------|-------|
+| OCSF-CLASS-MIGRATION-001 | 3 | P2 | draft | OBS-2 / OCSF-2001 deprecation | Re-tagged **[DEMO-GOAL-REQUIRED]** per D-941. depends_on S-DEMO-001 (SATISFIED). |
+| S-DEMO-HARNESS-CLONE-PARITY-001 | 3 | P2 | draft | F-P6-DEFER-001 + F-P10-LOW-001 | **[DEMO-GOAL-REQUIRED]** per D-941. depends_on S-DEMO-ARMIS-AQL-001 + S-DEMO-CLAROTY-AUDIT-DTU-001 (HARD — must merge first). BCs pending PO per S-7.01. |
+| S-DEMO-CLAROTY-SPEC-PROSE-FIX-001 | 1 | P2 | draft | F-P2-DEFER-001 (BC-2.16.013 + claroty.sensor.toml) | **[DEMO-GOAL-REQUIRED]** per D-941. depends_on S-DEMO-CLAROTY-AUDIT-DTU-001 (HARD). BCs pending PO per S-7.01. |
+
+#### Factory / can-wait (NOT demo-goal tasks)
+
+| Item | Description | Owner | Notes |
+|------|-------------|-------|-------|
+| F-P1-OBS-003 | SAP-2 runtime-shape-assertion extension: AQL-routed multi-table endpoints need runtime pipeline-shape assertion beyond static column-parity | session-reviewer | **[FACTORY/CAN-WAIT]** per D-941. VSDD pipeline adversary-process improvement. NOT blocking demo. |
+
+---
+
+### §4. Recommended Next Actions (In Order)
+
+1. **Continue Claroty PR #167 PR-LEVEL cascade** (Lane D): dispatch adversary for passes 3+4 (→2/3, 3/3). Feature HEAD d262576f.
+2. **Continue Armis LOCAL cascade** (Lane B): dispatch adversary for pass 10 (→3/3 CONVERGED). Feature HEAD add39a1e, story 523996cb.
+3. **After Armis LOCAL 3/3 CONVERGED:** demo-recorder per-AC → rebase onto develop@5dd3df02 → push → pr-manager 9-step PR cycle.
+4. **After Claroty PR #167 3/3 CONVERGED:** merge → post-merge (BC promotion + dispatch S-DEMO-CLAROTY-SPEC-PROSE-FIX-001 to close F-P2-DEFER-001 + worktree cleanup).
+5. **Dispatch S-DEMO-002** (P0 — all deps merged). MUST seed query_filters["aql"] in PipelineExecutor FetchContext for Armis AQL push-down (D-934 tracked dependency).
+6. **Dispatch S-DEMO-CROWDSTRIKE-MULTIREGION-001** (ready v1.1) — can run in parallel with S-DEMO-002.
+7. **After Armis + Claroty both merged:** dispatch S-DEMO-HARNESS-CLONE-PARITY-001 (closes F-P6-DEFER-001 + F-P10-LOW-001 — harness clone parity; depends_on both stories MERGED).
+8. **After S-DEMO-001 fixture stable:** dispatch OCSF-CLASS-MIGRATION-001 (unblocked).
+
+---
+
+### §5. Artifact Versions (as of D-941)
+
+| Artifact | Version |
+|----------|---------|
+| STATE.md | 7.594 (this burst) |
+| develop HEAD | `5dd3df02` (PR #166 squash-merge 2026-06-01) |
+| STORY-INDEX | v2.242 (total_stories: 176) |
+| BC-INDEX | v5.71 (active: 238, draft: 1) |
+| ARCH-INDEX | v2.108 |
+| error-taxonomy | v1.57 |
+| policies.yaml | v1.31 |
+| S-DEMO-001 story | merged v1.10 |
+| S-DEMO-ARMIS-AQL-001 story | in-progress v1.6 (523996cb) |
+| S-DEMO-CLAROTY-AUDIT-DTU-001 story | in-progress v1.5 — Feature HEAD d262576f |
+| S-DEMO-HARNESS-CLONE-PARITY-001 story | draft v1.0 (story-writer 3124c327) |
+| S-DEMO-CLAROTY-SPEC-PROSE-FIX-001 story | draft v1.0 (story-writer 3124c327) |
+| OCSF-CLASS-MIGRATION-001 story | draft v1.0 (story-writer aa8c44fe) |
+
+---
+
+### §6. Active Worktrees
+
+| Worktree | Status | Notes |
+|----------|--------|-------|
+| `.factory/` | ACTIVE — factory-artifacts branch | State manager worktree |
+| `.worktrees/S-DEMO-ARMIS-AQL-001/` | ACTIVE — in-progress v1.6 | LOCAL pass 10 NEXT; Feature HEAD add39a1e |
+| `.worktrees/S-DEMO-CLAROTY-AUDIT-DTU-001/` | ACTIVE — in-progress v1.5 | PR-LEVEL pass 3 NEXT; Feature HEAD d262576f |
+| `.worktrees/S-3.09/` | FROZEN | Leave alone |
+| `.worktrees/W3-FIX-S307-001/` | BLOCKED (superseded) | Do not activate |
+
+---
+
+### §7. Do-NOT-Do List
+
+- **DO NOT** push factory-artifacts to remote (LOCAL-ONLY per POL-13 + CLAUDE.md)
+- **DO NOT** skip hooks (`--no-verify`, `--no-gpg-sign`) — TD-FACTORY-HOOK-BYPASS-001 P0
+- **DO NOT** add AI attribution to commits (prism convention)
+- **DO NOT** run Claroty stories in parallel — serialize AUDIT → TRAILING-SLASH → PAGINATION (shared claroty.toml + dtu-claroty crate)
+- **DO NOT** touch `.worktrees/S-3.09/` or `.worktrees/W3-FIX-S307-001/` (FROZEN/BLOCKED)
+- **DO NOT** add tech-debt-register entries without explicit human direction + concrete future dependency + story anchor (Canonical Principle Rule 3)
+- **DO NOT** dispatch S-DEMO-HARNESS-CLONE-PARITY-001 until BOTH S-DEMO-ARMIS-AQL-001 AND S-DEMO-CLAROTY-AUDIT-DTU-001 are merged (HARD depends_on)
+- **DO NOT** dispatch S-DEMO-CLAROTY-SPEC-PROSE-FIX-001 until S-DEMO-CLAROTY-AUDIT-DTU-001 merges (prose correction is only accurate post-merge)
+- **DO NOT** treat F-P1-OBS-003 as a demo-gate — it is factory/can-wait per user direction D-941
+
+---
+
+### §8. Deferred Items Tracking
+
+| ID | Description | Owner | Resolution Gate | Demo-Goal? |
+|----|-------------|-------|-----------------|-----------|
+| F-P2-DEFER-001 | BC-2.16.013 line~169 stale prose + claroty.sensor.toml stale audit_log comments | S-DEMO-CLAROTY-SPEC-PROSE-FIX-001 (PO-owned BC edit) | Before/at S-DEMO-CLAROTY-AUDIT-DTU-001 merge or immediate post-merge dispatch | **YES — DEMO-GOAL-REQUIRED** |
+| F-P6-DEFER-001 | prism-dtu-harness in-process Armis clone lacks GET /api/v1/search route | S-DEMO-HARNESS-CLONE-PARITY-001 | After S-DEMO-ARMIS-AQL-001 merges | **YES — DEMO-GOAL-REQUIRED** |
+| F-P10-LOW-001 | prism-dtu-harness in-process Claroty clone lacks /api/v1/audit_log/get route | S-DEMO-HARNESS-CLONE-PARITY-001 | After S-DEMO-CLAROTY-AUDIT-DTU-001 merges | **YES — DEMO-GOAL-REQUIRED** |
+| F-P1-OBS-003 | SAP-2 runtime-shape-assertion extension — AQL-routed multi-table endpoints need runtime pipeline-shape assertion | session-reviewer | codification queue | **NO — FACTORY/CAN-WAIT** |
+
+---
+
+### §9. Resume Protocol
+
+```
+1. cd /Users/jmagady/Dev/prism
+
+2. Run vsdd-factory:factory-worktree-health — BLOCKING preflight.
+   Verifies .factory/ worktree on factory-artifacts branch.
+
+3. Read STATE.md frontmatter — confirm:
+   - version: "7.594" (this burst)
+   - develop_head: "5dd3df02" (PR #166 squash-merge 2026-06-01)
+   - s_demo_claroty_audit_dtu_001_pr_level_cascade_streak: "1/3"
+   - s_demo_armis_aql_001_local_cascade_streak: "2/3"
+   - total_stories: 176
+
+4. Read this §RESUME SNAPSHOT 2026-06-02-STUB-INDEX-DEFERRAL-RECLASSIFY
+   (you are reading it now)
+
+5. Check develop HEAD:
+   git log -1 --format="%H %s" develop
+   → Expected: 5dd3df02 feat(S-DEMO-001): ...
+
+6. Check open PRs:
+   gh pr list --state open
+   → Expected: PR #167 (S-DEMO-CLAROTY-AUDIT-DTU-001) open
+
+7. Proceed per RECOMMENDED NEXT ACTIONS (§4).
+   Priority 1: Claroty PR-LEVEL passes 3+4.
+   Priority 2: Armis LOCAL pass 10 → CONVERGED.
+```
+
+---
+
+**D-941 burst marker:** Single-commit burst per TD-VSDD-053. Anti-volatile-pin per TD-VSDD-091.

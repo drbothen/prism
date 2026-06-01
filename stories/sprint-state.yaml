@@ -72,7 +72,7 @@ active_dispatch_set:
     spec_version: "v1.0"
     depends_on:
       - S-DEMO-001  # HARD gate — must merge first (establishes conformance test fixture this story updates)
-    notes: "Indexed D-936 2026-06-01. OBS-2 deferral per architect adjudication D-925 + Canonical Principle Rule 3 (intentional transitional: security_finding→class_uid 2001 is correct short-term; OCSF v1.1 deprecates 2001 in favour of detection_finding 2004; migration required but via dedicated story). Scope: migrate 4 production sensor TOMLs ocsf_class 'security_finding'→'detection_finding' + amend BC-2.02.012 (scope no-deprecated-2001 invariant to select() path) + update select_by_class_name mapping + update S-DEMO-001 conformance fixture. BCs pending PO confirmation (BC-2.02.012 + BC-2.01.013 provisional). Blocked on S-DEMO-001 merge. File: OCSF-CLASS-MIGRATION-001-migrate-security-finding-to-detection-finding.md"
+    notes: "Indexed D-936 2026-06-01. OBS-2 deferral per architect adjudication D-925 + Canonical Principle Rule 3 (intentional transitional: security_finding→class_uid 2001 is correct short-term; OCSF v1.1 deprecates 2001 in favour of detection_finding 2004; migration required but via dedicated story). Scope: migrate 4 production sensor TOMLs ocsf_class 'security_finding'→'detection_finding' + amend BC-2.02.012 (scope no-deprecated-2001 invariant to select() path) + update select_by_class_name mapping + update S-DEMO-001 conformance fixture. BCs pending PO confirmation (BC-2.02.012 + BC-2.01.013 provisional). Blocked on S-DEMO-001 merge. File: OCSF-CLASS-MIGRATION-001-migrate-security-finding-to-detection-finding.md. DEMO-GOAL-REQUIRED per user direction D-941 2026-06-02: prism/DTU deferrals are Wave 5 demo goal tasks (must get done before demo is declared complete)."
 
   - story_id: S-DEMO-002
     status: draft
@@ -153,6 +153,25 @@ active_dispatch_set:
     depends_on: []
     notes: "Registered D-927 (2026-05-31). DRIFT-D926-001 anchor per Canonical Principle Rule 3 — HTTP-method whitelist validation in prism-spec-engine/src/validation.rs returning structured E-SPEC error on invalid step.method value. S-7.01 PO-gate OPEN: BC-2.16.009 amendment + E-SPEC code to be assigned by PO before story transitions to ready. Non-blocking for PR #165 merge (story being registered satisfies the anchor requirement; PO gate clears separately)."
 
+  - story_id: S-DEMO-HARNESS-CLONE-PARITY-001
+    status: draft
+    priority: P2
+    points: 3
+    spec_version: "v1.0"
+    depends_on:
+      - S-DEMO-ARMIS-AQL-001   # HARD — adds GET /api/v1/search to standalone Armis DTU; harness must mirror
+      - S-DEMO-CLAROTY-AUDIT-DTU-001  # HARD — adds POST /api/v1/audit_log/get to standalone Claroty DTU; harness must mirror
+    notes: "INDEXED D-941 2026-06-02 (story-writer commit 3124c327). Closes F-P6-DEFER-001 (harness Armis clone lacks GET /api/v1/search) + F-P10-LOW-001 (harness Claroty clone lacks POST /api/v1/audit_log/get). DEMO-GOAL-REQUIRED per user direction D-941: all prism/DTU deferrals are Wave 5 demo goal tasks (must get done). S-7.01 gate OPEN: BCs pending PO authorship; candidate BCs: BC-2.16.013 + BC-3.5.001 + BC-3.5.002. Must not dispatch until both depends_on stories merge."
+
+  - story_id: S-DEMO-CLAROTY-SPEC-PROSE-FIX-001
+    status: draft
+    priority: P2
+    points: 1
+    spec_version: "v1.0"
+    depends_on:
+      - S-DEMO-CLAROTY-AUDIT-DTU-001  # HARD — prose corrections are only accurate AFTER Gap-CL-006 is closed
+    notes: "INDEXED D-941 2026-06-02 (story-writer commit 3124c327). Closes F-P2-DEFER-001 (stale BC-2.16.013 §Postconditions §1 audit_logs prose + claroty.sensor.toml stale DTU-gap comments; deferred from Claroty PR-LEVEL code-review CR-001 as PO-scope out-of-perimeter). DEMO-GOAL-REQUIRED per user direction D-941. BC-2.16.013 amendment is PO-owned (Agent Routing Table — behavioral contracts → product-owner). S-7.01 gate OPEN: BCs pending PO authorship. Must not dispatch until S-DEMO-CLAROTY-AUDIT-DTU-001 merges."
+
 maintenance_wave:
   - story_id: S-MAINT-POL29-HOOK-001
     status: unstarted
@@ -185,9 +204,9 @@ deferred_post_demo:
   # reclassification from permitted-divergence → required-fidelity; user directive no-scope-compromise).
 
 prereq_artifacts:
-  story_index: .factory/stories/STORY-INDEX.md         # v2.241 after D-940 burst
+  story_index: .factory/stories/STORY-INDEX.md         # v2.242 after D-941 burst
   bc_index: .factory/specs/behavioral-contracts/BC-INDEX.md  # v5.71
-  state: .factory/STATE.md                              # v7.593 after D-940 burst
+  state: .factory/STATE.md                              # v7.594 after D-941 burst
   governing_adr: .factory/specs/architecture/decisions/ADR-031-dtu-equals-true-dtu-fidelity-principle.md  # v1.2 (ADR-031 architect e57eb5b1 reclassified 3 divergences)
   governing_audit: .factory/proposals/POLLER-DTU-FIDELITY-AUDIT-2026-05-29.md  # v1.1
 
