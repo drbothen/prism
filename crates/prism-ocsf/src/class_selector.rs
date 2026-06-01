@@ -9,6 +9,16 @@
 //! (BC-2.02.009) and verify that each `class_uid` below exists in the compiled
 //! descriptors. If a class_uid is absent, update the mapping before merging.
 //!
+//! ## Legacy `select(sensor, record_type)` path mappings
+//!
+//! The table below documents the `select()` method's (sensor, record_type) routing
+//! table. The "Security Finding (DEPRECATED)" row means that `select()` intentionally
+//! does NOT route any (sensor, record_type) pair to class_uid 2001 — that class was
+//! retired from the legacy lookup table in OCSF v1.1.0. It does NOT mean 2001 is
+//! unusable globally: `select_by_class_name("security_finding")` returns 2001 for
+//! real sensor TOML specs per BC-2.01.013 v1.9, because `security_finding` remains
+//! the correct ocsf_class value for sensors not yet migrated to `detection_finding`.
+//!
 //! | Class Name                | class_uid | Notes                              |
 //! |---------------------------|-----------|------------------------------------|
 //! | Detection Finding         | 2004      | CrowdStrike detections, Claroty/Armis alerts |
@@ -17,7 +27,7 @@
 //! | Device Inventory Info     | 5001      | Claroty/Armis devices              |
 //! | Account Change            | 3001      | Claroty/Armis audit logs (closest OCSF v1.7.0 IAM class) |
 //! | Base Event                | 0         | Fallback for unmapped record types |
-//! | Security Finding (DEPRECATED) | 2001  | DO NOT USE — deprecated OCSF v1.1.0 |
+//! | Security Finding (DEPRECATED) | 2001  | Not used in `select()` — deprecated OCSF v1.1.0 sensor path; use `select_by_class_name("security_finding")` for TOML-spec sensors |
 //!
 //! # Stub Status
 //!
