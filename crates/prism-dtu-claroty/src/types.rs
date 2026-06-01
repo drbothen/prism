@@ -292,6 +292,14 @@ pub struct GetAuditLogBody {
 ///
 /// Envelope key `audit_log` matches `response_path = "$.audit_log"` in
 /// `claroty.sensor.toml` (AC-003).
+///
+/// # No `page` field — by design (CR-002)
+///
+/// Unlike sibling response types `GetDevicesResponse`, `GetAlertsResponse`, and
+/// `GetVulnerabilitiesResponse` which include a `page: u32` field, this struct
+/// intentionally omits `page`. The Claroty xDome audit_log API returns no page
+/// cursor in its response envelope — pagination state is not reflected back to
+/// the caller. Future authors: do NOT copy-paste a `page` field here.
 #[derive(Debug, Clone, Serialize)]
 pub struct GetAuditLogResponse {
     pub audit_log: Vec<ClarotyAuditLogEntry>,

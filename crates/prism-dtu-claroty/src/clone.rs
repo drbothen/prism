@@ -84,6 +84,28 @@ impl ClarotyClone {
         }
     }
 
+    /// Create a new clone bound to a specific `instance_org_id`.
+    ///
+    /// Used by tests that need strict per-org X-Org-Id header validation
+    /// (SEC-001 / BC-3.5.002 precondition 3). The clone's state enforces the
+    /// org guard on all routes that support it.
+    pub fn with_org(instance_org_id: prism_core::OrgId) -> Self {
+        let admin_token = uuid::Uuid::new_v4().to_string();
+        Self {
+            config: StubConfig::default(),
+            state: Arc::new(ClarotyState::with_admin_token_and_org(
+                admin_token.clone(),
+                instance_org_id,
+            )),
+            bound_addr: None,
+            server_handle: None,
+            tls_active: false,
+            #[cfg(feature = "tls")]
+            tls_handle: None,
+            admin_token,
+        }
+    }
+
     fn build_router(&self) -> Router {
         Router::new()
             // Read endpoints (POST-body filtering)

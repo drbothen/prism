@@ -468,6 +468,16 @@ pub async fn dtu_reset_for(
 /// Validate that the `Authorization: Bearer {token}` header is present and non-empty.
 ///
 /// Returns `Ok(())` if valid, `Err((401, JSON body))` otherwise.
+///
+/// # SEC-002 — Presence-only check (intentional DTU design)
+///
+/// This function checks auth-scheme presence only: it accepts any non-empty bearer
+/// token, not a specific shared secret. This is intentional for the DTU behavioral
+/// clone — the clone mirrors a service that validates the _presence_ of a valid
+/// auth scheme (proving the caller knows to send a bearer token), not a specific
+/// secret value. This is NOT a timing-attack vulnerability: there is no shared
+/// secret to leak. The non-constant-time string check is acceptable here because
+/// both operands are attacker-visible by design (any non-empty value is accepted).
 pub(crate) fn check_bearer_auth(headers: &HeaderMap) -> Result<(), (StatusCode, Json<Value>)> {
     let has_bearer = headers
         .get("authorization")
