@@ -30,12 +30,16 @@ use std::sync::Arc;
 
 use axum::{
     extract::{Query, State},
-    http::HeaderMap,
-    response::Response,
+    http::{HeaderMap, StatusCode},
+    response::IntoResponse,
+    Json,
 };
 use serde::{Deserialize, Serialize};
 
-use crate::state::ArmisState;
+use crate::{
+    state::{ArmisState, DTU_ROUTE_ORG_ID},
+    types::ArmisError,
+};
 
 /// Query parameters accepted by `GET /api/v1/search`.
 ///
@@ -82,9 +86,114 @@ pub struct SearchData {
 /// AC-003: alert AQL → returns AlertRecord results.
 /// EC-001: absent AQL → defaults to devices.
 pub async fn get_search(
-    State(_state): State<Arc<ArmisState>>,
-    _headers: HeaderMap,
-    Query(_params): Query<SearchQueryParams>,
-) -> Response {
-    todo!("S-DEMO-ARMIS-AQL-001: implement AQL search handler — capture AQL via state.capture_aql(), route by AQL pattern (in:type=Device vs alert), return SearchResponse envelope")
+    State(state): State<Arc<ArmisState>>,
+    headers: HeaderMap,
+    Query(params): Query<SearchQueryParams>,
+) -> impl IntoResponse {
+    // AC-001 EC-004: 403 (not 401) for missing/empty Bearer — matches Armis auth model.
+    if let Some(err) = check_bearer_auth(&headers) {
+        return err;
+    }
+
+    // R-DTU-002 / ADR-005 §D1: capture AQL verbatim, no parsing or validation.
+    if let Some(ref aql) = params.aql {
+        state.capture_aql(aql);
+    }
+
+    let page = params.page.unwrap_or(1).max(1);
+    let size = params.size.unwrap_or(25).max(1) as usize;
+
+    // Determine whether to return alerts or devices based on AQL pattern matching.
+    // R-DTU-002: AQL is opaque — only simple string pattern matching is permitted.
+    // EC-002: if both Device and Alert appear, devices take precedence.
+    // EC-001: absent AQL → default to devices (safe fallback).
+    let return_alerts = params
+        .aql
+        .as_deref()
+        .map(|s| {
+            (s.contains("Alert") || s.contains("alert"))
+                && !s.contains("Device")
+                && !s.contains("device")
+        })
+        .unwrap_or(false);
+
+    if return_alerts {
+        // AC-003: alert AQL → paginated AlertRecord results.
+        let all_alerts = &state.alert_fixture;
+        let total = all_alerts.len() as u32;
+        let offset = ((page - 1) as usize) * size;
+
+        let page_alerts: Vec<serde_json::Value> = if offset >= all_alerts.len() {
+            vec![]
+        } else {
+            all_alerts
+                .iter()
+                .skip(offset)
+                .take(size)
+                .filter_map(|a| serde_json::to_value(a).ok())
+                .collect()
+        };
+
+        let body = SearchResponse {
+            data: SearchData {
+                results: page_alerts,
+                total,
+            },
+        };
+        (StatusCode::OK, Json(body)).into_response()
+    } else {
+        // AC-002: device AQL (or absent AQL per EC-001) → paginated DeviceRecord results.
+        let all_devices = &state.devices_ordered;
+        let total = all_devices.len() as u32;
+        let offset = ((page - 1) as usize) * size;
+
+        let page_devices: Vec<serde_json::Value> = if offset >= all_devices.len() {
+            vec![]
+        } else {
+            all_devices
+                .iter()
+                .skip(offset)
+                .take(size)
+                .filter_map(|d| {
+                    // BC-3.2.001: merge per-org tag_store entries with fixture tags.
+                    let merged_tags = state.tags_for(DTU_ROUTE_ORG_ID, &d.device_id, &d.tags);
+                    let merged = crate::types::DeviceRecord {
+                        tags: merged_tags,
+                        ..d.clone()
+                    };
+                    serde_json::to_value(&merged).ok()
+                })
+                .collect()
+        };
+
+        let body = SearchResponse {
+            data: SearchData {
+                results: page_devices,
+                total,
+            },
+        };
+        (StatusCode::OK, Json(body)).into_response()
+    }
+}
+
+/// Validate `Authorization: Bearer {non-empty}` header.
+///
+/// Returns `Some(response)` on auth failure (HTTP 403) or `None` when valid.
+/// Per AC-001 EC-004 / AC-5 (`dtu-assessment.md §3.4`): Armis returns 403, NOT 401.
+fn check_bearer_auth(headers: &HeaderMap) -> Option<axum::response::Response> {
+    let valid = headers
+        .get("authorization")
+        .and_then(|v| v.to_str().ok())
+        .map(|v| v.starts_with("Bearer ") && v.len() > "Bearer ".len())
+        .unwrap_or(false);
+
+    if valid {
+        None
+    } else {
+        let body = ArmisError {
+            error: "invalid or missing bearer token".to_owned(),
+            code: 403,
+        };
+        Some((StatusCode::FORBIDDEN, Json(body)).into_response())
+    }
 }
