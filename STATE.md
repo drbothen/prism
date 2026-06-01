@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.584"
+version: "7.585"
 producer: state-manager
-timestamp: 2026-06-01T04:03:53Z
+timestamp: 2026-05-31T12:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -16,7 +16,7 @@ repos: [poller-cobra, poller-express, poller-bear, poller-coaster, serveMyAPI, t
 safe_to_compact: true
 pre_compact_snapshot: "SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-31-CYBERINT-MERGED-WAVE-5-PARALLEL-PLANNED"
 pre_compact_snapshot_at: "2026-05-31 (D-912 durability burst; cyberint MERGED PR #164 e798e67c; Wave 5 parallelization plan persisted; PO flags dispositioned; ${env.VAR} prereq surfaced; zero-context resume snapshot written)"
-current_step: "D-931 — ENV-VAR POST-MERGE BURST + KEYSTONE PASS 8 RECORDED. S-SPEC-ENV-VAR-001: PR #165 squash-merged develop@4feec93a 2026-06-01T04:03:53Z; story merged v1.3; POL-14 BC-2.16.009 already active (idempotent); FIRST Wave 5 fidelity-prereq merged; develop_head e798e67c→4feec93a. S-DEMO-001 LOCAL adversary pass 8: CLEAN(strict)=yes, CLEAN(PR-merge)=yes, novelty ZERO; streak 0/3→1/3. Trajectory 8→2→2→2→4→2→1→0. NEXT: passes 9+10 (→3/3) → demo-recorder → PR (rebase onto 4feec93a first). STORY-INDEX v2.231→v2.232. STATE v7.583→v7.584."
+current_step: "D-932 — S-DEMO-001 LOCAL PASS 1 (post-rebase onto 4feec93a) + FIX-BURST + WAVE 5 LANE PREP. Rebase: feature/S-DEMO-001 onto develop@4feec93a (fbbb6b90); zero conflicts; build green; 3-CLEAN streak RESET 0/3 (authorized). LOCAL adversary pass 1 (post-rebase fresh streak): NOT CLEAN — {HIGH:1, MED:1, LOW:1, OBS:1}. CLEAN(strict)=no, CLEAN(PR-merge)=no. F-PASS1-MED-001 (HIGH): AC-005 Red Gate test non-load-bearing → CLOSED test-writer commit 316473d8 (rewritten: BearerStatic sensor + type-spec dead-host / overlay wiremock divergence + expect(1); load-bearing). F-PASS1-MED-002 (MED): changelog ascending violated POL-32 → CLOSED story-writer commit 1f31d4a5 (story v1.8→v1.9; changelog reordered descending; POL-32 hygiene row). F-PASS1-OBS-002 (OBS): AC-004 wording omitted EC-004/EC-007 skips → CLOSED 1f31d4a5 (AC-004 clarified: N = per-org×per-sensor minus skipped). F-PASS1-OBS-001 (LOW): step9a rustdoc cited non-existent id_for_slug → CLOSED implementer commit 7b507b72 (rustdoc + inline comment → resolve(); TD-VSDD-091 behavioral anchor). Feature HEAD after fix-burst: 7b507b72. Story v1.9. Streak after pass 1: 0/3. Wave 5 lanes: S-DEMO-ARMIS-AQL-001 v1.1→v1.2 (BC-2.16.013 frontmatter + propagated; status ready; story-writer 3ac29481). S-DEMO-CLAROTY-AUDIT-DTU-001 v1.1→v1.2 (BC-2.16.013 frontmatter + propagated; status ready; stale body cite corrected; §References/§Changelog added; same commit 3ac29481). Both code lanes dispatched (stub-architect Red Gate skeletons in flight). STORY-INDEX v2.232→v2.233. STATE v7.584→v7.585."
 cyberint_pr_cycle_in_flight: false
 cyberint_pr_cycle_step: "CLOSED — PR #164 squash-merged develop@e798e67c 2026-05-31; POL-14 BC-2.01.017 draft→active (D-904); cascade CLOSED (D-905 process-gaps as justified deferrals); story merged v1.9"
 cyberint_demo_evidence_path: "docs/demo-evidence/S-DTU-CYBERINT-AUTH-FIDELITY-001/"
@@ -413,8 +413,25 @@ dtu_clones_built: in_progress
 dtu_strategy: "Option 2 — DTU-first"
 dtu_strategy_decided: 2026-04-20
 policy_registry_source_of_truth: .factory/policies.yaml
-s_demo_001_local_adversary_pass_count: 8
-s_demo_001_local_adversary_streak: "1/3"
+s_demo_001_local_adversary_pass_count: 9
+s_demo_001_local_adversary_streak: "0/3"
+s_demo_001_post_rebase_base: "fbbb6b90"
+s_demo_001_post_rebase_develop_base: "4feec93a"
+s_demo_001_post_rebase_streak_reset_authorized: true
+s_demo_001_post_rebase_pass1_clean_strict: false
+s_demo_001_post_rebase_pass1_clean_pr_merge: false
+s_demo_001_post_rebase_pass1_findings: {HIGH: 1, MED: 1, LOW: 1, OBS: 1}
+s_demo_001_post_rebase_pass1_streak_after: "0/3"
+s_demo_001_post_rebase_pass1_f_pass1_med_001: "F-PASS1-MED-001 (HIGH) — AC-005 Red Gate test non-load-bearing; asserted skip path not overlay-URL precedence. CLOSED test-writer commit 316473d8: rewritten with BearerStatic sensor + type-spec(dead host)/overlay(wiremock) divergence + expect(1); PASSES against current code (production code was already correct; test now load-bearing)."
+s_demo_001_post_rebase_pass1_f_pass1_med_002: "F-PASS1-MED-002 (MED) — story §Changelog ascending, violated POL-32. CLOSED story-writer commit 1f31d4a5: story v1.8→v1.9; changelog reordered descending; POL-32 hygiene row added."
+s_demo_001_post_rebase_pass1_f_pass1_obs_002: "F-PASS1-OBS-002 (OBS) — AC-004 wording omitted EC-004/EC-007 skips. CLOSED same story-writer commit 1f31d4a5: AC-004 clarified (N = per-org×per-sensor minus skipped)."
+s_demo_001_post_rebase_pass1_f_pass1_obs_001: "F-PASS1-OBS-001 (LOW) — step9a rustdoc cited non-existent id_for_slug. CLOSED implementer commit 7b507b72: rustdoc + inline comment → resolve(); behavioral anchor per TD-VSDD-091."
+s_demo_001_post_rebase_pass1_test_writer_commit: "316473d8"
+s_demo_001_post_rebase_pass1_story_writer_commit: "1f31d4a5"
+s_demo_001_post_rebase_pass1_implementer_commit: "7b507b72"
+s_demo_001_post_rebase_pass1_feature_head_after: "7b507b72"
+s_demo_001_story_version: "v1.9"
+s_demo_001_keystone_next: "LOCAL adversary pass 2 (post-rebase fresh streak; expect first CLEAN pass toward 1/3). Streak 0/3."
 s_demo_001_local_adversary_pass1_clean_strict: false
 s_demo_001_local_adversary_pass1_clean_pr_merge: false
 s_demo_001_local_adversary_pass1_findings: {CRIT: 2, HIGH: 4, OBS: 2}
@@ -438,7 +455,7 @@ s_demo_001_local_adversary_pass7_findings: {LOW: 1}
 s_demo_001_local_adversary_pass7_streak_after: "0/3"
 s_demo_001_local_adversary_pass7_key_findings: "F-P07-LOW-001 (LOW — body **Version:** field at line-146 read v1.7 vs frontmatter/H1/changelog all v1.8; body-field propagation sync gap from story-writer v1.8 exhaustive sweep; CLOSED story-writer line-146 sync). Root cause: story-writer ADV-P06 exhaustive sweep corrected frontmatter/H1/changelog but missed body **Version:** marker at line-146. Code correct throughout; story-spec drift only. CLEAN(PR-merge)=yes; CLEAN(strict)=no (1 LOW). Streak 0/3. Finding trajectory collapsing: passes 1-3 CRIT data-path (D-925 fixed), pass 4 data-path REAL confirmed, passes 5-7 progressively smaller doc drift (4→2→1 findings), now zero-prescriptive-stale + version-synced."
 s_demo_001_local_adversary_pass7_story_version_after: "v1.8 (body-field sync only — NOT a version bump)"
-s_demo_001_keystone_next: "adversary pass-9 (fresh context; full rubric + SAP-1/SAP-2/SID-1). Streak 1/3. After passes 9+10 CLEAN(strict): demo-recorder → push → pr-manager 9-step PR cycle (rebase onto develop@4feec93a first; disjoint crates — no conflict expected)."
+s_demo_001_keystone_next_superseded: "D-931 adversary pass-9 plan — superseded by D-932 rebase + fresh-streak protocol. New NEXT recorded in s_demo_001_keystone_next."
 s_demo_001_local_adversary_pass8_clean_strict: true
 s_demo_001_local_adversary_pass8_clean_pr_merge: true
 s_demo_001_local_adversary_pass8_findings: {}
@@ -579,7 +596,7 @@ user_directive_persistent: "No pragmatic convergence. Fix all issues before buil
 current_cycle_history: "wave-0-plugin-prereqs (PREREQ-E merged PR #151 2026-05-19); prior: wave-4-operations (active); wave-3-multi-tenant (COMPLETE)"
 bc_index_version: "5.69"
 vp_index_version: "1.76"
-story_index_version: "v2.232"
+story_index_version: "v2.233"
 s_config_story_status_corrected: "D-916 2026-05-31 — status ready→merged; merged PR #155 develop@3e822522 2026-05-26T19:01:58Z; root cause: POL-14 promotes BCs but not story-status; [process-gap] DRIFT-D916-001"
 sprint_state_path: ".factory/stories/sprint-state.yaml"
 plugin_migration_001_d_local_adversary_passes: 25
@@ -623,9 +640,9 @@ historical_cycles: [phase-1-convergence, wave-3-multi-tenant, wave-4-operations]
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-06-01 (D-931 burst — S-SPEC-ENV-VAR-001 MERGED PR #165 develop@4feec93a; POL-14 BC-2.16.009 idempotent; FIRST Wave 5 prereq merged. S-DEMO-001 LOCAL pass 8: CLEAN(strict)=yes, novelty ZERO; streak 1/3. STATE v7.584) |
-| **Current Phase** | Wave 5 (wave-5-e-demo-fidelity) in progress — S-SPEC-ENV-VAR-001: MERGED PR #165 develop@4feec93a 2026-06-01; unblocks CrowdStrike/Armis/Claroty parity-soft lanes. S-DEMO-001: LOCAL pass 8 CLEAN(strict); streak 1/3; NEXT: passes 9+10 (→3/3) → demo-recorder → PR (rebase onto 4feec93a first). S-SPEC-HTTP-METHOD-VALIDATION-001 REGISTERED v1.0 (DRIFT-D926-001 anchor; S-7.01 PO-gate). |
-| **Current Step** | D-931 — ENV-VAR MERGED (PR #165 develop@4feec93a; POL-14 idempotent; develop_head 4feec93a). KEYSTONE pass 8 CLEAN(strict)=yes; streak 1/3; NEXT passes 9+10 → demo-recorder → PR (rebase onto 4feec93a). STORY-INDEX v2.232. STATE v7.584. |
+| **Last Updated** | 2026-05-31 (D-932 burst — S-DEMO-001 rebased onto 4feec93a; pass 1 post-rebase NOT CLEAN {H:1,M:1,L:1,O:1}; fix-burst done (316473d8+1f31d4a5+7b507b72); story v1.9; streak 0/3. Wave 5 lanes dispatched: S-DEMO-ARMIS-AQL-001 v1.2 + S-DEMO-CLAROTY-AUDIT-DTU-001 v1.2 ready. STATE v7.585) |
+| **Current Phase** | Wave 5 (wave-5-e-demo-fidelity) in progress — S-SPEC-ENV-VAR-001: MERGED PR #165 develop@4feec93a; unblocks CrowdStrike/Armis/Claroty parity-soft. S-DEMO-001: rebased onto 4feec93a; post-rebase LOCAL pass 1 fix-burst DONE; streak 0/3; story v1.9; NEXT: LOCAL pass 2. Armis + Claroty lanes dispatched (stub-architect Red Gate in flight). |
+| **Current Step** | D-932 — KEYSTONE rebase + post-rebase LOCAL pass 1 fix-burst COMPLETE. Feature HEAD 7b507b72. Story v1.9. Streak 0/3. Wave 5 Armis+Claroty lanes dispatched. STORY-INDEX v2.233. STATE v7.585. |
 
 ## Phase Progress
 
@@ -669,7 +686,8 @@ historical_cycles: [phase-1-convergence, wave-3-multi-tenant, wave-4-operations]
 | Step | Agent | Status | Output |
 |------|-------|--------|--------|
 _D-735 through D-847 archived to cycles/wave-0-plugin-prereqs/burst-log.md. D-835+D-836+D-837 removed from Phase Steps (archived in Decisions Log). D-849/851/852/853/855/856/857/858/859/860/861/862/863/864/865/866/867/868/869/870/871/872/873/874/875/876/877/878/879/880/881/882/883/884/885/886/887/888/889/890/891/892/893/894/895/896/897/898/899/900/901/902/903/904/905/906/907/908/909/910/911/912/913/914/915/916/917/918/919/920/921/922/923/924/925/926/927/928/929/930 archived to burst-log.md._
-| D-931 — **ENV-VAR POST-MERGE BURST + KEYSTONE PASS 8 RECORDED. S-SPEC-ENV-VAR-001: PR #165 squash-merged develop@4feec93a 2026-06-01T04:03:53Z; story merged v1.3; POL-14 BC-2.16.009 already active (idempotent — SATISFIED); develop_head e798e67c→4feec93a; FIRST Wave 5 fidelity-prereq merged. S-DEMO-001 LOCAL adversary pass 8: CLEAN(strict)=yes, CLEAN(PR-merge)=yes, novelty ZERO; streak 0/3→1/3; trajectory 8→2→2→2→4→2→1→0. Feature/S-DEMO-001 rebase-needed flag: based on develop@e798e67c; must rebase onto 4feec93a before PR stage (env-var touched prism-spec-engine; keystone touches prism-bin/prism-ocsf/prism-sensors — disjoint; no conflict expected). NEXT: adversary pass 9 (expect 2/3). STORY-INDEX v2.231→v2.232. STATE v7.583→v7.584.** | state-manager (D-931 env-var-merge + keystone-pass8 burst) | COMPLETE | S-DEMO-001 pass 9 NEXT; ENV-VAR MERGED; develop@4feec93a |
+| D-931 — **ENV-VAR POST-MERGE BURST + KEYSTONE PASS 8 RECORDED** (archived) | state-manager | COMPLETE | ENV-VAR MERGED PR #165 develop@4feec93a; streak 1/3 |
+| D-932 — **S-DEMO-001 LOCAL PASS 1 (post-rebase onto 4feec93a/fbbb6b90) + FIX-BURST + WAVE 5 LANE PREP. Rebase: zero conflicts; build green; 3-CLEAN streak RESET 0/3 (authorized). Pass 1 NOT CLEAN — {HIGH:1, MED:1, LOW:1, OBS:1}. CLEAN(strict)=no, CLEAN(PR-merge)=no. F-PASS1-MED-001 (HIGH) CLOSED test-writer 316473d8 (AC-005 load-bearing rewrite). F-PASS1-MED-002 (MED) CLOSED story-writer 1f31d4a5 (v1.8→v1.9; changelog descending; POL-32). F-PASS1-OBS-002 (OBS) CLOSED 1f31d4a5 (AC-004 EC-004/EC-007 skip accounting). F-PASS1-OBS-001 (LOW) CLOSED implementer 7b507b72 (rustdoc → resolve(); TD-VSDD-091). Feature HEAD after fix-burst: 7b507b72. Story v1.9. Streak 0/3. Wave 5 lanes: S-DEMO-ARMIS-AQL-001 v1.2 ready + S-DEMO-CLAROTY-AUDIT-DTU-001 v1.2 ready (story-writer 3ac29481). Both code lanes dispatched. STORY-INDEX v2.232→v2.233. STATE v7.584→v7.585.** | state-manager | COMPLETE | S-DEMO-001 LOCAL pass 2 NEXT (streak 0/3); Wave 5 Armis+Claroty lanes dispatched |
 | D-928 — **KEYSTONE PASS 5 STATE + ENV-VAR PR-LEVEL PASS 1 RECORDED. S-DEMO-001 pass 5: 2 HIGH + 2 LOW (all story-spec drift; code correct; CLOSED story v1.7 sweep). Streak 0/3. NEXT: pass 6. ENV-VAR PR-LEVEL pass 1: ALL 4 CLOSED (641f4087+5e8f54f0). Re-push 5e8f54f0 in progress. NEXT: pass 2. error-taxonomy v1.57. STORY-INDEX v2.229→v2.230. STATE v7.580→v7.581.** | state-manager (D-928 pass5-pass1-commit burst) | COMPLETE | S-DEMO-001 pass 6 NEXT; ENV-VAR PR-LEVEL pass 2 NEXT after re-push confirmed |
 | D-927 — **S-DEMO-001 KEYSTONE PASS 4 STATE RECORDED. CLEAN(strict)=no (2 LOW fixed: OBS-PASS4-001 implementer 51fd2ca0 class_selector docstring; OBS-PASS4-002 story-writer v1.6 AC-010(b) ocsf_category→class_uid/1000 per BC-2.01.013 v1.9). CLEAN(PR-merge)=yes. Streak 0/3. Data path verified GENUINELY REAL (all 10 real sensor tables → correct class_uid via select_by_class_name; zero fall-through to 0). NEXT: adversary pass 5 (should be 1/3). S-SPEC-HTTP-METHOD-VALIDATION-001 registered v1.0 (3pts; P2; S-7.01 PO-gate). DRIFT-D926-001 ANCHORED. STORY-INDEX v2.228→v2.229 (173 stories). STATE v7.579→v7.580.** | state-manager (D-927 keystone-pass4 burst) | COMPLETE | S-DEMO-001 pass 5 NEXT; S-SPEC-HTTP-METHOD-VALIDATION-001 registered; DRIFT-D926-001 anchored |
 | D-926 — **TWO FIX-BURST COMPLETIONS + PR #165 STATUS RECORDED. S-DEMO-001 D-925 fix COMPLETE (9c2019cd; 3869 tests). S-SPEC-ENV-VAR-001 PR #165 OPEN; M-002 fix aeaea369 LOCAL-ONLY; DRIFT-D926-001 opened (HTTP-method whitelist story anchor required before merge). STATE v7.578→v7.579.** | state-manager (D-926 fix-burst-completions burst) | COMPLETE | S-DEMO-001 pass 4 dispatched; S-SPEC-ENV-VAR-001 re-push + PR-LEVEL cascade NEXT |
@@ -942,30 +960,29 @@ Prior cycle history:
 
 ---
 
-## Session Resume Checkpoint (2026-06-01 — D-931 ENV-VAR MERGED + KEYSTONE PASS 8 COMPLETE; PASS 9 NEXT; develop@4feec93a; STATE v7.584)
+## Session Resume Checkpoint (2026-05-31 — D-932 KEYSTONE PASS 1 POST-REBASE + FIX-BURST + WAVE 5 LANES DISPATCHED; PASS 2 NEXT; develop@4feec93a; STATE v7.585)
 
-_Previous checkpoint (D-930 pass7-pass4-burst; STATE v7.583) superseded by D-931 env-var-merge + keystone-pass8 burst (STATE v7.584)._
+_Previous checkpoint (D-931 env-var-merge + keystone-pass8 burst; STATE v7.584) superseded by D-932 burst (STATE v7.585)._
 
-**STATE v7.584. D-931 — S-SPEC-ENV-VAR-001 MERGED PR #165 develop@4feec93a 2026-06-01T04:03:53Z. POL-14 BC-2.16.009 already active (idempotent — SATISFIED). FIRST Wave 5 fidelity-prereq merged. S-DEMO-001 LOCAL adversary pass 8: CLEAN(strict)=yes, novelty ZERO; streak 1/3. Trajectory 8→2→2→2→4→2→1→0. NEXT: adversary passes 9+10 (→3/3) → demo-recorder → PR (rebase onto develop@4feec93a first). STORY-INDEX v2.232 (173 stories). develop HEAD: 4feec93a.**
+**STATE v7.585. D-932 — S-DEMO-001 rebased onto develop@4feec93a (fbbb6b90); 3-CLEAN streak RESET 0/3 (authorized). LOCAL adversary pass 1 (post-rebase fresh streak): NOT CLEAN — {HIGH:1, MED:1, LOW:1, OBS:1}. Fix-burst COMPLETE (commits 316473d8 + 1f31d4a5 + 7b507b72). Story v1.9. Feature HEAD 7b507b72. Streak 0/3. S-DEMO-ARMIS-AQL-001 v1.2 ready; S-DEMO-CLAROTY-AUDIT-DTU-001 v1.2 ready; both lanes dispatched. STORY-INDEX v2.233 (173 stories). develop HEAD: 4feec93a.**
 
-**develop HEAD:** `4feec93a` | **BC-INDEX:** v5.69 | **STORY-INDEX:** v2.232 (173 stories) | **Open PRs:** none (PR #165 MERGED)
+**develop HEAD:** `4feec93a` | **BC-INDEX:** v5.69 | **STORY-INDEX:** v2.233 (173 stories) | **Open PRs:** none
 
 **Resume protocol (new session):**
 1. Run `vsdd-factory:factory-worktree-health` (BLOCKING preflight)
-2. Read STATE.md frontmatter — confirm `version: "7.584"` + `cyberint_pr_cycle_in_flight: false` + `develop_head: "4feec93a"`
+2. Read STATE.md frontmatter — confirm `version: "7.585"` + `cyberint_pr_cycle_in_flight: false` + `develop_head: "4feec93a"`
 3. Read SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-31-CYBERINT-MERGED-WAVE-5-PARALLEL-PLANNED + CORRECTION block (D-916 burst)
 4. Read `.factory/proposals/WAVE-5-PARALLELIZATION-PLAN.md` for full parallel track detail
 5. Confirm `git log --oneline develop` shows 4feec93a as HEAD
-6. Check open PRs: `gh pr list --state open` → expected: none (PR #165 merged)
+6. Check open PRs: `gh pr list --state open` → expected: none
 
-7. **NEXT ACTIONS — S-DEMO-001 KEYSTONE (PASS 9 TRACK):**
-   - Feature branch: `feature/S-DEMO-001`; story v1.8; streak 1/3 (pass 8 CLEAN(strict))
-   - Trajectory 8→2→2→2→4→2→1→0 — data path + all prose converged
-   - Dispatch: LOCAL adversary PASS 9 (fresh context, full rubric, SAP-1 + SAP-2 + SID-1; expect 2/3)
-   - After PASS 9+10 CLEAN(strict) → streak 3/3 → demo-recorder → push → pr-manager 9-step PR cycle
-   - **REBASE REQUIRED before PR:** feature/S-DEMO-001 based on develop@e798e67c; must rebase onto develop@4feec93a before pushing for PR (env-var touched prism-spec-engine; keystone touches prism-bin/prism-ocsf/prism-sensors — disjoint crates; no conflict expected). LOCAL streak does NOT reset — rebase is PR-prep only.
+7. **NEXT ACTIONS — S-DEMO-001 KEYSTONE (PASS 2 TRACK):**
+   - Feature branch: `feature/S-DEMO-001`; story v1.9; streak 0/3 (pass 1 post-rebase NOT CLEAN; fix-burst done)
+   - Feature HEAD: 7b507b72 (post fix-burst)
+   - Dispatch: LOCAL adversary PASS 2 (fresh context, full rubric, SAP-1 + SAP-2 + SID-1; expect 1/3)
+   - After 3-CLEAN (streak 3/3): demo-recorder → push → pr-manager 9-step PR cycle (already rebased onto 4feec93a)
 
-8. **S-SPEC-ENV-VAR-001 — MERGED.** Cascade CLOSED. Unblocks:
+8. **S-SPEC-ENV-VAR-001 — MERGED** PR #165 develop@4feec93a. Cascade CLOSED. Unblocks:
    - S-DEMO-CROWDSTRIKE-MULTIREGION-001 (HARD gate per D-914) — now clear
    - S-DEMO-ARMIS-AQL-001 parity-soft + Claroty parity-soft — now clear
 
@@ -973,30 +990,30 @@ _Previous checkpoint (D-930 pass7-pass4-burst; STATE v7.583) superseded by D-931
 
 10. **S-SPEC-HTTP-METHOD-VALIDATION-001** — draft v1.0; P2; S-7.01 PO-gate OPEN (BC-2.16.009 amendment + E-SPEC code pending PO). Non-blocking for any current work.
 
-11. **WORKTREES CREATED, STUBS NOT YET STARTED:**
-    - **S-DEMO-ARMIS-AQL-001** (Track B; feature/S-DEMO-ARMIS-AQL-001 off e798e67c) — parity-soft unblocked by ENV-VAR merge; can dispatch
-    - **S-DEMO-CLAROTY-AUDIT-DTU-001** (Track D-lead; feature/S-DEMO-CLAROTY-AUDIT-DTU-001 off e798e67c)
+11. **WAVE 5 PARALLEL LANES — DISPATCHED:**
+    - **S-DEMO-ARMIS-AQL-001** (Track B; feature/S-DEMO-ARMIS-AQL-001 off e798e67c) — story v1.2 ready; stub-architect Red Gate skeletons dispatched
+    - **S-DEMO-CLAROTY-AUDIT-DTU-001** (Track D-lead; feature/S-DEMO-CLAROTY-AUDIT-DTU-001 off e798e67c) — story v1.2 ready; stub-architect Red Gate skeletons dispatched
 
-12. CrowdStrike story NOW CLEAR (S-SPEC-ENV-VAR-001 merged; HARD gate satisfied per D-914).
+12. **CrowdStrike story** — S-SPEC-ENV-VAR-001 merged; HARD gate satisfied per D-914; PO BC-coverage adjudication for BC-2.16.009 §VR6 + E-SPEC-024 queued next before dispatch.
 
 **CRITICAL:** factory-artifacts LOCAL-ONLY. No remote push. No AI attribution.
 
-**[process-gap] PG-DEMO001-TDD-GREEN-001:** TDD-green gate passed with paper-tests that asserted nothing. Adversary caught this at pass 1 (F-005 HIGH). Flagged; disposition deferred to cycle-close.
+**[process-gap] PG-DEMO001-TDD-GREEN-001:** TDD-green gate passed with paper-tests that asserted nothing. Adversary caught this at original pass 1 (F-005 HIGH). Flagged; disposition deferred to cycle-close.
 
 **[process-gap] PG-DEMO001-STUB-RECUR-001:** Keystone OCSF normalization was stubbed/gamed THREE times. D-925 arch adjudication removes namespace ambiguity. Defer disposition to cycle-close.
 
-**Open drift items (D-923/D-926/D-927):**
+**Open drift items (D-923/D-927):**
 - DRIFT-D923-001 [architect-scope]: ADR-022 §B step 8 accuracy gap (separate architect fix)
 - DRIFT-D923-002 [architect/PO-scope]: validate_sensor_spec not in production spec-load path (separate adjudication)
-- DRIFT-D926-001 [implementer-scope] **[ANCHORED D-927]** **CLOSED by S-SPEC-ENV-VAR-001 merge**: S-SPEC-HTTP-METHOD-VALIDATION-001 registered (anchor satisfied); PR #165 merged
+- DRIFT-D926-001 **CLOSED** (S-SPEC-ENV-VAR-001 merged; S-SPEC-HTTP-METHOD-VALIDATION-001 anchored D-927)
 
 **Active worktrees:**
-- `.worktrees/S-DEMO-001` — story v1.8; streak 1/3 (pass 8 CLEAN); NEXT: adversary pass 9; REBASE-NEEDED: onto develop@4feec93a before PR
-- `.worktrees/S-DEMO-ARMIS-AQL-001` (Track B) — CREATED; stubs not started; parity-soft unblocked
-- `.worktrees/S-DEMO-CLAROTY-AUDIT-DTU-001` (Track D-lead) — CREATED; stubs not started
+- `.worktrees/S-DEMO-001` — story v1.9; streak 0/3 (pass 1 post-rebase NOT CLEAN; fix-burst done 7b507b72); NEXT: adversary pass 2
+- `.worktrees/S-DEMO-ARMIS-AQL-001` (Track B) — DISPATCHED; stub-architect Red Gate in flight
+- `.worktrees/S-DEMO-CLAROTY-AUDIT-DTU-001` (Track D-lead) — DISPATCHED; stub-architect Red Gate in flight
 - `.worktrees/S-3.09` — FROZEN, leave alone
 - `.worktrees/W3-FIX-S307-001` — BLOCKED (superseded), leave alone
 
-**Open PRs:** PR #165 (S-SPEC-ENV-VAR-001; https://github.com/drbothen/prism/pull/165; head 54d1bd3e; PR-LEVEL pass 4 CLEAN(strict); streak 2/3).
+**Open PRs:** none
 
 _Agent routing: see CLAUDE.md §Agent Routing Table._
