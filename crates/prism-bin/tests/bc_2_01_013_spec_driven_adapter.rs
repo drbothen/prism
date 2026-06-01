@@ -14,6 +14,8 @@
 //! | F-002 | test_BC_2_22_001_step9a_not_called_in_boot_production_path | step9_start_mcp_server never calls step9a |
 //! | F-009 | test_BC_2_01_013_static_cookie_auth_strategy_injects_access_token_not_bearer | no header assertion at mock boundary |
 //!
+//! | F-PASS1-MED-001 | test_BC_2_06_014_boot_step9a_uses_resolved_spec_overlay_url | test exercised EC-004 skip path, never constructed adapter or called fetch() |
+//!
 //! # Adversary pass-2 findings addressed (BC-2.01.013 v1.8 OCSF Conformance Clause)
 //!
 //! | Finding | Tests | Root cause |
@@ -50,7 +52,7 @@
 //! | AC-012 | test_BC_2_01_013_spec_driven_adapter_double_401_returns_auth_refresh_failed | BC-2.01.013 | F-004 |
 //! | AC-012 | test_BC_2_01_013_auth_refresh_failed_display_carries_e_auth_002_taxonomy_code | BC-2.01.013 | F-004-R |
 //! | AC-004 | test_BC_2_22_001_boot_step9a_registers_correct_adapter_count | BC-2.22.001 | (exists, unchanged) |
-//! | AC-005 | test_BC_2_06_014_boot_step9a_uses_resolved_spec_overlay_url | BC-2.06.014 | (exists, unchanged) |
+//! | AC-005 | test_BC_2_06_014_boot_step9a_uses_resolved_spec_overlay_url | BC-2.06.014 | F-PASS1-MED-001 (load-bearing rewrite) |
 //! | AC-006 | test_BC_2_22_001_boot_step9a_empty_spec_catalog_registers_zero_adapters | BC-2.22.001 | (exists, unchanged) |
 //! | AC-007 | test_BC_2_11_005_adapter_registry_get_returns_adapter_for_registered_pair | BC-2.11.005 | (exists, unchanged) |
 //! | AC-008 | test_BC_2_01_013_bearer_static_auth_provider_returns_bearer_token | BC-2.01.013 | GREEN-BY-DESIGN |
@@ -1098,38 +1100,129 @@ async fn test_BC_2_22_001_boot_step9a_registers_correct_adapter_count() {
     );
 }
 
-/// AC-005 — BC-2.06.014 precondition 1:
-/// When boot step 9A constructs a `SpecDrivenSensorAdapter` for a sensor with
-/// a per-org overlay, the adapter uses the overlay `base_url`.
+/// AC-005 — BC-2.06.014 precondition 1 (LOAD-BEARING rewrite, F-PASS1-MED-001):
 ///
-/// BC-2.06.014; AC-005; S-DEMO-001 v1.3.
+/// When boot step 9A constructs a `SpecDrivenSensorAdapter` for a sensor with a
+/// per-org overlay `base_url`, the adapter directs HTTP traffic to the OVERLAY URL,
+/// NOT to the TYPE-SPEC URL.
+///
+/// # Why the previous test was non-load-bearing
+///
+/// The previous AC-005 test used a `CustomViaPlugin` (CrowdStrike) sensor with an
+/// empty `plugin_auth_providers` map, so the sensor was SKIPPED (EC-004 skip path).
+/// `step9a_populate_adapter_registry` returned `count==0` — no adapter was ever
+/// constructed. The assertion `count == 0` exercised the skip path, NOT overlay-URL
+/// selection. The test would pass even if the implementation ignored the overlay
+/// `base_url` entirely. F-PASS1-MED-001.
+///
+/// # Fix strategy
+///
+/// Use an Armis-style sensor (`auth_type = BearerStatic`) which is NOT skipped —
+/// BearerStatic adapters are always registered (no PluginAuthProvider dependency).
+///
+/// Fixture:
+/// - TYPE-SPEC `base_url`: a non-listening loopback address (`http://127.0.0.1:19999`).
+///   Any HTTP request to this address would fail with a connection error.
+/// - OVERLAY `base_url`: the wiremock server URI (the CORRECT URL).
+///   Any HTTP request to this address succeeds with the mock response.
+///
+/// After `step9a_populate_adapter_registry` runs, the registered adapter holds a
+/// `ResolvedSensorSpec` whose `spec.base_url` equals the overlay URL (not the type-spec
+/// URL) — because `OverlayLoader::merge_overlay_onto_type_spec` merges the overlay
+/// `base_url` into `resolved.spec.base_url` before step9a iterates the map.
+///
+/// The test calls `fetch()` on the retrieved adapter. The mock server is mounted with
+/// `expect(1)` — exactly one request. If the adapter uses the OVERLAY URL, the mock
+/// receives a request and returns 200. If the adapter mistakenly uses the TYPE-SPEC
+/// URL, the request hits the non-listening port and `fetch()` returns a connection
+/// error. The `result.is_ok()` assertion then FAILS.
+///
+/// # Why the test SHOULD pass against the current implementation
+///
+/// The adversary (F-PASS1-MED-001) notes that overlay resolution happens UPSTREAM in
+/// `OverlayLoader::merge_overlay_onto_type_spec` before the resolved-spec map that
+/// step9a iterates is constructed. By the time step9a runs, `resolved.spec.base_url`
+/// already contains the overlay URL. step9a passes the resolved spec to
+/// `SpecDrivenSensorAdapter::new(Arc::new(resolved_spec.clone()), ...)`, and
+/// `PipelineExecutor::execute` reads `spec.base_url` directly from that resolved spec
+/// to build the URL via `format!("{}{}", spec.base_url, interpolated_path)`. The
+/// production code path is already correct; this test makes that correctness
+/// LOAD-BEARING.
+///
+/// BC-2.06.014; AC-005; S-DEMO-001 v1.3; F-PASS1-MED-001.
 #[tokio::test]
 async fn test_BC_2_06_014_boot_step9a_uses_resolved_spec_overlay_url() {
-    let (org_registry, _, org_slug) = make_org_registry("demo-org");
-    let sensor_id = SensorId::from("crowdstrike");
+    // Start the mock server — this controls the OVERLAY URL (the correct endpoint).
+    let overlay_mock_server = MockServer::start().await;
 
-    let type_spec = make_spec(
-        "crowdstrike",
-        AuthType::CustomViaPlugin,
-        "https://prod.crowdstrike.com",
-    );
+    // Mount: expect exactly 1 GET to /api/v1/events.
+    // If the adapter uses the OVERLAY URL, this mock is hit and returns 200.
+    // If the adapter uses the TYPE-SPEC URL (127.0.0.1:19999, non-listening), the
+    // mock receives 0 requests and the `expect(1)` fires at MockServer drop → test FAILS.
+    Mock::given(method("GET"))
+        .and(path("/api/v1/events"))
+        .and(header(
+            "Authorization",
+            "Bearer overlay-url-precedence-token-ac005",
+        ))
+        .respond_with(ResponseTemplate::new(200).set_body_json(minimal_sensor_response()))
+        .expect(1)
+        .mount(&overlay_mock_server)
+        .await;
 
+    // TYPE-SPEC base_url: a non-listening loopback address.
+    // Any HTTP request to this address produces a connection error (ECONNREFUSED).
+    // This is the "wrong" URL — if the adapter uses it, fetch() returns Err.
+    let type_spec_base_url = "http://127.0.0.1:19999";
+
+    // Build an Armis (BearerStatic) TYPE spec directed at the wrong URL.
+    // BearerStatic sensors are NOT skipped by step9a — they always get registered.
+    let type_spec = make_spec("armis", AuthType::BearerStatic, type_spec_base_url);
+
+    // Build the per-org overlay with base_url overriding the type spec's wrong URL.
+    // OverlayLoader::merge_overlay_onto_type_spec sets resolved.spec.base_url to
+    // this value before the resolved-spec map is passed to step9a.
+    let (org_registry, org_id, org_slug) = make_org_registry("overlay-test-org");
+    let sensor_id = SensorId::from("armis");
+    let overlay_base_url = overlay_mock_server.uri();
     let overlay_toml = format!(
-        "extends = \"crowdstrike\"\ninstance_id = \"crowdstrike@{}\"\nbase_url = \"http://127.0.0.1:18080\"",
-        org_slug.as_str()
+        "extends = \"armis\"\ninstance_id = \"armis@{}\"\nbase_url = \"{}\"",
+        org_slug.as_str(),
+        overlay_base_url,
     );
     let overlay: SensorInstanceOverlay = toml::from_str(&overlay_toml)
         .expect("test fixture: SensorInstanceOverlay TOML parse failed");
+
+    // merge_overlay_onto_type_spec: resolved.spec.base_url == overlay_base_url
+    // (NOT type_spec_base_url). This is the behavior under test — upstream merge
+    // happens before step9a iterates.
     let resolved =
         OverlayLoader::merge_overlay_onto_type_spec(&type_spec, &overlay, org_slug.clone());
 
+    // Verify the upstream merge already produced the correct base_url.
+    // This assertion is a precondition guard: if OverlayLoader is broken,
+    // this tells us the root cause is upstream of step9a.
+    assert_eq!(
+        resolved.spec.base_url, overlay_base_url,
+        "AC-005 precondition: OverlayLoader::merge_overlay_onto_type_spec must embed the \
+         overlay base_url into resolved.spec.base_url. Got: {:?}. \
+         If this fails, the root cause is in OverlayLoader, not step9a. \
+         BC-2.06.014 precondition 1.",
+        resolved.spec.base_url
+    );
+    assert!(
+        resolved.provenance.base_url_from_overlay,
+        "AC-005 precondition: OverlayProvenance::base_url_from_overlay must be true when \
+         overlay specifies a base_url. BC-2.06.014.",
+    );
+
     let mut resolved_spec_map: HashMap<ResolvedSpecKey, ResolvedSensorSpec> = HashMap::new();
-    resolved_spec_map.insert((org_slug, sensor_id), resolved);
+    resolved_spec_map.insert((org_slug, sensor_id.clone()), resolved);
 
     let plugin_auth_providers: HashMap<String, Arc<PluginAuthProvider>> = HashMap::new();
     let mut adapter_registry = AdapterRegistry::new();
 
-    // With no PluginAuthProvider, CrowdStrike is skipped (EC-004). count = 0.
+    // Run step9a — must register exactly 1 adapter (Armis is BearerStatic, always registered).
     let count = step9a_populate_adapter_registry(
         &resolved_spec_map,
         &org_registry,
@@ -1137,18 +1230,50 @@ async fn test_BC_2_06_014_boot_step9a_uses_resolved_spec_overlay_url() {
         &mut adapter_registry,
     )
     .await
-    .expect("step9a should return Ok");
+    .expect("step9a must return Ok(1) for a BearerStatic Armis spec with overlay");
 
-    // CrowdStrike was skipped (no PluginAuthProvider → EC-004 skip behavior).
-    // We verify the call succeeds (no panic, no error) — overlay URL handling
-    // is exercised by the iteration logic even when sensor is skipped.
     assert_eq!(
-        count, 0,
-        "AC-005: CrowdStrike with no PluginAuthProvider must be skipped (count=0). \
-         The overlay URL is used when constructing the adapter — \
-         when that happens (with a real provider), the overlay base_url must be used. \
-         BC-2.06.014."
+        count, 1,
+        "AC-005: step9a must register exactly 1 adapter for a BearerStatic sensor. \
+         BearerStatic adapters are never skipped by step9a. \
+         BC-2.22.001 postcondition; BC-2.06.014.",
     );
+
+    // Retrieve the registered adapter by (OrgId, SensorId).
+    let adapter = adapter_registry.get(org_id, &sensor_id).expect(
+        "AC-005: adapter must be retrievable by (OrgId, SensorId) after step9a. \
+                 BC-2.11.005.",
+    );
+
+    // Call fetch() on the registered adapter.
+    // If the adapter holds the OVERLAY base_url (correct), the request goes to
+    // overlay_mock_server → returns 200 → fetch() returns Ok(batches).
+    // If the adapter holds the TYPE-SPEC base_url (wrong: 127.0.0.1:19999),
+    // the request fails with connection refused → fetch() returns Err.
+    let adapter_spec = make_adapter_spec("armis", org_id);
+    let params = make_query_params();
+    let sensor_auth = BearerStaticSensorAuth::new("overlay-url-precedence-token-ac005");
+
+    let result = adapter.fetch(&adapter_spec, &params, &sensor_auth).await;
+
+    // LOAD-BEARING assertion (F-PASS1-MED-001):
+    // This FAILS if the adapter used the TYPE-SPEC URL (connection refused → Err).
+    // This PASSES only if the adapter used the OVERLAY URL (mock server → 200 → Ok).
+    assert!(
+        result.is_ok(),
+        "AC-005 LOAD-BEARING: fetch() must succeed when adapter was constructed with \
+         the OVERLAY base_url ({overlay_base_url}). \
+         If this fails with a connection error, step9a used the TYPE-SPEC base_url \
+         ({type_spec_base_url}) instead of the overlay URL — overlay precedence is broken. \
+         If this fails with an HTTP error, check auth header injection. \
+         Got Err: {:?}",
+        result.err()
+    );
+
+    // MockServer drop: overlay_mock_server verifies expect(1).
+    // If the adapter never hit the mock server (used wrong URL or never called pipeline),
+    // wiremock FAILS with "expected 1 request, received 0" → test FAILS.
+    // This is the definitive proof that the OVERLAY URL was used.
 }
 
 /// AC-006 — BC-2.22.001 postcondition:
