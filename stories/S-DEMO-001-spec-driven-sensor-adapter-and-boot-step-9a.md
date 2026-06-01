@@ -6,7 +6,7 @@ wave: 5
 epic_id: E-DEMO
 priority: P0
 status: draft
-version: "1.7"
+version: "1.8"
 level: "L4"
 producer: story-writer
 revised_by: architect
@@ -139,7 +139,7 @@ cycle: "v1.0.0-brownfield"
 phase: 3
 ---
 
-# S-DEMO-001 v1.7 — prism-bin: SpecDrivenSensorAdapter + Boot Step 9A (closes GAP-002-A)
+# S-DEMO-001 v1.8 — prism-bin: SpecDrivenSensorAdapter + Boot Step 9A (closes GAP-002-A)
 
 **Story ID:** S-DEMO-001
 **Status:** draft
@@ -275,9 +275,13 @@ token must be injected as `Cookie: access_token={token}`.
 
 - `build_request` signature gains `auth_type: &AuthType`.
 - `issue_request_with_retry` passes `spec` down to `build_request`.
-- `StaticCookieAuthProvider::acquire_token()` reads API key from credential store; returns it.
-- On 401: existing 401-retry logic re-calls `acquire_token` (which re-reads credential store);
-  no session to refresh. 401 from real Cyberint would indicate an invalid/expired API key.
+- `StaticCookieAuthProvider::acquire_token()` reads API key from credential store via the
+  internal `PrismCredentialResolver`; returns it.
+- On 401 (`AuthType::CookieRoundtrip`): NO retry. `issue_request_with_retry` returns
+  `Err(SpecEngineError::CookieAuthFailed)` immediately — retry is provably futile for a static
+  key (re-reading the same credential store will return the same invalid value).
+  Cross-ref: BC-2.01.017 EC-017-002. (This is distinct from the CrowdStrike OAuth2 path, which
+  DOES retry on 401 via token refresh — see AC-012 / EC-006.)
 
 **Updated dispatch table:**
 
@@ -574,7 +578,11 @@ Version source: `Cargo.toml` workspace `[dependencies]` table. Do not pin versio
 2. **Read** `crates/prism-spec-engine/src/pipeline.rs` — understand `PipelineExecutor::execute()` + `build_request` function.
 3. **Read** `crates/prism-spec-engine/src/auth_provider.rs` — understand `AuthProvider` trait and existing implementations.
 4. **Read** `crates/prism-spec-engine/src/spec_parser.rs` — understand `AuthType` enum variants; confirm `CookieRoundtrip` variant exists.
-5. **Read** `crates/prism-dtu-cyberint/src/routes/auth.rs` and `alerts.rs` — understand the DTU's `POST /login` → `Set-Cookie: cyberint_session` pattern and the `extract_session_token()` function.
+5. **Read** `crates/prism-dtu-cyberint/src/routes/alerts.rs` — understand the DTU's (corrected)
+   request handling: the DTU post-S-DTU-CYBERINT-AUTH-FIDELITY-001 accepts `Cookie: access_token={api_key}`
+   and has NO `/login` endpoint. Do NOT look for `POST /login`, `Set-Cookie: cyberint_session`, or
+   `extract_session_token()` — those were the pre-fix DTU patterns; they do not exist in the corrected DTU
+   that this story targets. If you see them, stop and verify S-DTU-CYBERINT-AUTH-FIDELITY-001 has merged.
 6. **Read** `crates/prism-bin/src/boot.rs` — locate step 7.5b and the GAP-002-A comment. Understand `ResolvedSensorSpec` map structure.
 7. **Read** `S-CONFIG-MULTI-TENANT-OVERRIDE-001` story — confirm the exact output type of the overlay loader (map key type: `OrgSlug` vs `OrgId`).
 8. **Amend** `crates/prism-spec-engine/src/pipeline.rs` — refactor `build_request` to accept `auth_type: &AuthType` and dispatch:
@@ -582,9 +590,17 @@ Version source: `Cargo.toml` workspace `[dependencies]` table. Do not pin versio
    - All other variants → `Authorization: Bearer {token}` (existing behavior unchanged)
    - Update all callers of `build_request` to pass `spec.auth_type` (two call sites: `issue_request_with_retry`).
 9. **Implement** `StaticCookieAuthProvider` in `prism-spec-engine/src/auth_provider.rs`:
-   - Fields: `sensor_id: SensorId` (for credential store lookup), `credential_resolver: Arc<dyn CredentialResolver>`.
-   - Constructor `new(sensor_id: SensorId, credential_resolver: Arc<dyn CredentialResolver>) -> Self`.
-   - `AuthProvider::acquire_token()` — resolves the `api_key` credential via `credential_resolver.resolve(sensor_id, "api_key")`; returns `AuthToken::new(api_key)`. Makes NO HTTP call.
+   - Fields: `sensor_id: SensorId` (for credential store lookup). The credential resolver is
+     constructed INTERNALLY via `PrismCredentialResolver::new()` — it is NOT injected through
+     the production constructor.
+   - Production constructor: `new(sensor_id: SensorId) -> Self` (1-arg). This is the constructor
+     boot step 9A calls — no `credential_resolver` parameter.
+   - Test-only constructor: `new_with_resolver(sensor_id: SensorId, resolver: Arc<dyn CredentialResolver>) -> Self`
+     — available only under `#[cfg(any(test, feature = "test-helpers"))]`. Do NOT call this from
+     production boot code.
+   - `AuthProvider::acquire_token()` — uses the internal resolver to look up `api_key` for
+     `sensor_id`; returns `AuthToken::new(api_key)`. Makes NO HTTP call. No `credential_resolver`
+     is threaded in from the boot callsite — it is entirely internal.
    - Error path: credential resolve failure → `SpecEngineError::AuthAcquisitionFailed`.
    - This replaces the v1.1/v1.2 `CookieLoginAuthProvider` (which made HTTP calls to `POST /login`).
    - INVARIANT: `acquire_token` must never make an HTTP call. If this invariant is violated, the
@@ -606,7 +622,8 @@ Version source: `Cargo.toml` workspace `[dependencies]` table. Do not pin versio
     - For each `(org_id, sensor_id, resolved_spec)`: inspect `resolved_spec.auth_type`:
       - `CustomViaPlugin`: look up `plugin_auth_providers.get(&sensor_id)` → `AdapterAuthStrategy::Plugin`.
       - `BearerStatic`: → `AdapterAuthStrategy::BearerStatic`.
-      - `CookieRoundtrip`: construct `StaticCookieAuthProvider::new(sensor_id, Arc::clone(&credential_resolver))` → `AdapterAuthStrategy::StaticCookie`.
+      - `CookieRoundtrip`: construct `StaticCookieAuthProvider::new(sensor_id)` (1-arg — resolver
+        is internal; do NOT thread `credential_resolver` from the boot callsite) → `AdapterAuthStrategy::StaticCookie`.
       - Others: log E-SPEC-012 (auth type mismatch); skip.
     - Register adapters; emit `boot.step9a.adapter_registry_populated` event.
 15. **Amend BC-2.16.002** — add catalog row for `boot.step9a.adapter_registry_populated` per SAP-1.
@@ -634,13 +651,13 @@ Version source: `Cargo.toml` workspace `[dependencies]` table. Do not pin versio
 | ID | Description | Expected Behavior |
 |----|-------------|-------------------|
 | EC-001 | Sensor spec has `auth_type = "cookie_roundtrip"` but credential store has no `api_key` entry for the sensor | `StaticCookieAuthProvider::acquire_token` returns `SpecEngineError::AuthAcquisitionFailed` with detail "api_key not found in credential store"; adapter not registered |
-| EC-002 | Cyberint DTU returns 401 (invalid `access_token` cookie value) | `PipelineExecutor::issue_request_with_retry` triggers 401-retry; `acquire_token` is called again (credential re-read); if second attempt also returns 401, `AuthRefreshFailed` is returned. N.B.: `StaticCookieAuthProvider` cannot "refresh" a static key — 401 after retry means the demo credential store has the wrong value. |
+| EC-002 | Cyberint DTU returns 401 (invalid `access_token` cookie value) | `PipelineExecutor::issue_request_with_retry` returns `Err(SpecEngineError::CookieAuthFailed)` IMMEDIATELY — NO retry, NO second `acquire_token` call. Retry is provably futile: `StaticCookieAuthProvider` holds a static key and would return the identical value on a second call. Per BC-2.01.017 EC-017-002: on 401 for `AuthType::CookieRoundtrip`, the pipeline short-circuits with `CookieAuthFailed` rather than looping. (Contrast with EC-006: the CrowdStrike OAuth2 path DOES retry on 401 via token refresh.) |
 | EC-003 | org_registry has orgs but spec_catalog is empty | Boot step 9A produces 0 registrations; no error; boot continues to step 9 |
 | EC-004 | PluginAuthProvider fails at step 7.5b | Step 7.5b handles; step 9A skips sensors with missing auth providers |
 | EC-005 | ResolvedSensorSpec has per-org base_url overlay — StaticCookieAuthProvider does not use base_url | StaticCookieAuthProvider does NOT need base_url (no HTTP calls at acquire_token). The overlay is used by PipelineExecutor for the actual fetch requests. This EC is not a risk for StaticCookieAuthProvider. |
 | EC-006 | Double-401 from sensor API during SpecDrivenSensorAdapter::fetch() | PipelineExecutor handles the refresh; on second 401, returns SpecEngineError::AuthRefreshFailed. Adapter propagates this. |
 | EC-007 | Sensor spec has unsupported `auth_type` (e.g., `api_key`) — not yet implemented in SpecDrivenSensorAdapter | Boot logs E-SPEC-012 (auth type mismatch); adapter NOT registered for that sensor; boot continues |
-| EC-008 | StaticCookieAuthProvider 401-retry: 401 from Cyberint DTU mid-pipeline | `issue_request_with_retry` calls `acquire_token` again (re-reads credential store); same `access_token` returned (static credential). 401 on second attempt → `AuthRefreshFailed`. There is no "session expiry" for static cookie auth. |
+| EC-008 | StaticCookieAuthProvider 401: 401 from Cyberint DTU mid-pipeline | `issue_request_with_retry` returns `Err(SpecEngineError::CookieAuthFailed)` IMMEDIATELY — NO retry. For `AuthType::CookieRoundtrip`, any 401 response is terminal: retry is futile because `StaticCookieAuthProvider::acquire_token` always returns the same static credential from the store. There is no "session expiry" concept and no refresh path. Cross-ref: BC-2.01.017 EC-017-002. Note: `AuthRefreshFailed` applies only to OAuth2 token-refresh paths (e.g., CrowdStrike plugin — see EC-006). |
 
 ---
 
@@ -692,3 +709,4 @@ if context pressure is felt during implementation.
 | 1.5 | 2026-05-31 | story-writer | AC-010 rewritten (adversary pass-2, F-001-R + F-003-R closure): old envelope-only wording replaced with BC-2.01.013 v1.8 OCSF Conformance Clause items 1–3 verbatim-aligned requirements — (a) all spec-declared columns survive via ColumnMapper (envelope-only output is NON-CONFORMANT), (b) category_uid/class_uid derived by OcsfNormalizer not read from raw record (raw-copy is NON-CONFORMANT), (c) _sensor virtual column = canonical SensorId. Conformance test requirement added (minimum gate per BC-2.01.013 v1.8). Scope note added: query-param push-down (limit/cursor/time-window) OUT OF SCOPE per BC-2.01.013 v1.8 Pagination/Push-Down Scope Clause (D-924), deferred to S-DEMO-QUERY-PUSHDOWN-001; DataFusion applies LIMIT post-materialization. |
 | 1.6 | 2026-05-31 | story-writer | AC-010(b) story↔BC drift fix (OBS-PASS4-002): dropped non-existent `ocsf_category` TOML field reference; aligned derivation to BC-2.01.013 v1.9 semantics — `class_uid` from `EventClassSelector::select_by_class_name(ocsf_class)`, `category_uid = class_uid / 1000`; named the wrong-overload anti-pattern (`select(sensor_id, class_name_string)` yields 0) per D-925. Conformance test assertion (b) tightened to match corrected derivation path. |
 | 1.7 | 2026-05-31 | story-writer | ADV-P05 drift sweep: fixed 4 stale-design locations missed by v1.3 sweep. HIGH-001: risk_mitigations CookieRoundtrip entry corrected — cookie name `access_token` (not `cyberint_session`), no `POST /login` step, no self-contradiction. HIGH-002: Task 8 cookie name `access_token` (not `cyberint_session`); Task 12 `AdapterAuthStrategy::StaticCookie` (not `CookieLogin`); removed stale `executor: Arc<PipelineExecutor>` field description. LOW-002: OQ-2 pseudo-code `register(org_id, sensor_id.clone(), Arc::new(adapter))` → 2-arg `register(org_id, Arc::new(adapter))`. LOW-001: changelog rows reordered to monotonic ascending (1.0→1.7). |
+| 1.8 | 2026-05-31 | story-writer | ADV-P06 exhaustive closure sweep (ADV-P06-MED-001 + ADV-P06-MED-002). MED-001: EC-002 and EC-008 corrected from "retry → AuthRefreshFailed" to NO-RETRY → CookieAuthFailed per BC-2.01.017 EC-017-002; §Cyberint Cookie Auth Design "On 401" bullet corrected to match no-retry semantics. MED-002: Task 9 corrected — StaticCookieAuthProvider production constructor is 1-arg `new(sensor_id)` (resolver internal via PrismCredentialResolver); test-only `new_with_resolver(sensor_id, resolver)` named and feature-gated; no `credential_resolver` injected from boot callsite. Task 14 corrected — `StaticCookieAuthProvider::new(sensor_id)` (1-arg; no `Arc::clone(&credential_resolver)`). Task 5 rewritten — stale instruction to read OLD DTU `POST /login` / `cyberint_session` pattern replaced with corrected-DTU reading guidance. No prescriptive stale references remain after this sweep. |
