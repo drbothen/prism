@@ -32,9 +32,10 @@ version = "1.0.0"
 
 # ---------------------------------------------------------------------------
 # Table: devices
-# DTU-EXT-003: DTU registers GET /api/v1/devices (not AQL /api/v1/search).
-# Using DTU-registered endpoint. AQL forwarding via query.filter.aql supported
-# when DTU-EXT-003 is resolved and /api/v1/search route is added.
+# DTU-EXT-003: CLOSED by S-DEMO-ARMIS-AQL-001. Primary path is GET /api/v1/search
+#   with ?aql=${query.filter.aql} (real Armis Centrix AQL endpoint, ADR-031 §D8-a).
+#   response_path: $.data.results (SearchResponse { data: SearchData { results: [...] } }).
+#   GET /api/v1/devices remains registered in build_router() for back-compat only.
 # Timestamp fallback: lastSeen (primary) → firstSeen (fallback) → now() (WARN).
 # Per ADR-028 v1.10 §D8-B: canonical chain is last_seen → first_seen → now().
 # Expressed via timestamp_fallback_chain on the primary timestamp column.
@@ -135,8 +136,10 @@ ocsf_class = "device"
 
 # ---------------------------------------------------------------------------
 # Table: alerts
-# DTU-EXT-004: DTU registers GET /api/v1/alerts (crates/prism-dtu-armis/src/clone.rs build_router()).
-# Using DTU-registered endpoint per ADR-028 §D5.
+# DTU-EXT-004: CLOSED by S-DEMO-ARMIS-AQL-001. Primary path is GET /api/v1/search
+#   with ?aql=${query.filter.aql} (real Armis Centrix AQL endpoint, ADR-031 §D8-a).
+#   response_path: $.data.results (SearchResponse { data: SearchData { results: [...] } }).
+#   GET /api/v1/alerts remains registered in build_router() for back-compat only.
 # ---------------------------------------------------------------------------
 [[tables]]
 table_name = "alerts"
