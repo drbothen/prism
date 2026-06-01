@@ -10,7 +10,7 @@ version: "1.10"
 level: "L4"
 producer: story-writer
 revised_by: architect
-timestamp: "2026-05-31T18:00:00Z"
+timestamp: "2026-06-01T00:00:00Z"
 tdd_mode: strict
 subsystems: [SS-01, SS-16, SS-22]
 # Subsystem anchor justifications:
