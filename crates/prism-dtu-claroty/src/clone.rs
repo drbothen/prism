@@ -1,8 +1,14 @@
 //! `ClarotyClone` — implements `BehavioralClone` for the Claroty xDome DTU.
 //!
 //! Binds to `127.0.0.1:0` (ephemeral port) on `start()`, spawns an axum
-//! server with `LatencyLayer` + `FailureLayer`, and serves all 7 in-scope
-//! Claroty xDome endpoints plus the DTU control endpoints.
+//! server with `LatencyLayer` + `FailureLayer`, and serves 8 application
+//! endpoints (6 read via POST-body filtering, 2 write via stateful tag store)
+//! plus the DTU control endpoints.  The 6 read endpoints are: `list_devices`,
+//! `list_alerts`, `list_alerted_devices`, `list_vulnerabilities`,
+//! `list_vulnerability_devices`, and `list_audit_logs` (added by
+//! S-DEMO-CLAROTY-AUDIT-DTU-001).  See `dtu-assessment.md §3.2` for the
+//! original 7-endpoint scope matrix; `audit_log` is a Wave-5 fidelity
+//! addition beyond that baseline.
 //!
 //! # ADR-002 Amendment #2 (TD-WV1-04)
 //!
