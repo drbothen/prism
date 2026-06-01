@@ -1,37 +1,61 @@
 Full prism-dtu-claroty test suite run (unit tests + fidelity validator)
 Command: cargo nextest run -p prism-dtu-claroty
-Story: S-DEMO-CLAROTY-AUDIT-DTU-001 v1.5
-PR: #167 (S-DEMO-CLAROTY-AUDIT-DTU-001 v1.5)
+Story: S-DEMO-CLAROTY-AUDIT-DTU-001 v1.6
+PR: #167 (S-DEMO-CLAROTY-AUDIT-DTU-001)
 
-Unit test run (including SEC-001 org-isolation tests):
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.34s
+Unit test run (all tests including W3-FIX-SEC-001 org-isolation tests):
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.35s
 ────────────
- Nextest run ID 29fb61c4-2d14-406e-b869-ec79227855f7 with nextest profile: default
-    Starting 6 tests across 1 binary (1 test skipped)
-        PASS [   0.013s] (1/6) prism-dtu-claroty state::tests::test_bc_3_2_001_default_org_id_is_test_gated_and_non_zero
-        PASS [   0.287s] (2/6) prism-dtu-claroty routes::audit_log::tests::test_BC_2_16_013_claroty_audit_logs_dtu_auth_enforced
-        PASS [   0.317s] (3/6) prism-dtu-claroty routes::audit_log::tests::test_BC_2_16_013_claroty_audit_logs_dtu_column_parity
-        PASS [   0.317s] (4/6) prism-dtu-claroty routes::audit_log::tests::test_BC_2_16_013_claroty_audit_logs_dtu_route_returns_synthetic_entries
-        PASS [   0.317s] (5/6) prism-dtu-claroty routes::audit_log::tests::test_BC_2_16_013_claroty_audit_logs_org_mismatch_returns_401
-        PASS [   0.320s] (6/6) prism-dtu-claroty routes::audit_log::tests::test_BC_2_16_013_claroty_audit_logs_nil_org_no_header_returns_200
+ Nextest run ID 6bf79463-f28c-4b38-a66c-2af121c5dad9 with nextest profile: default
+    Starting 12 tests across 1 binary (1 test skipped)
+        PASS [   0.016s] ( 1/12) prism-dtu-claroty state::tests::test_bc_3_2_001_default_org_id_is_test_gated_and_non_zero
+        PASS [   0.894s] ( 2/12) prism-dtu-claroty routes::alerts::tests::test_W3_FIX_SEC_001_claroty_alerted_devices_org_mismatch_returns_401
+        PASS [   0.895s] ( 3/12) prism-dtu-claroty routes::alerts::tests::test_W3_FIX_SEC_001_claroty_alerts_org_mismatch_returns_401
+        PASS [   0.894s] ( 4/12) prism-dtu-claroty routes::audit_log::tests::test_W3_FIX_SEC_001_claroty_audit_logs_org_mismatch_returns_401
+        PASS [   0.895s] ( 5/12) prism-dtu-claroty routes::alerts::tests::test_W3_FIX_SEC_001_claroty_alerted_devices_nil_org_no_header_returns_200
+        PASS [   0.896s] ( 6/12) prism-dtu-claroty routes::audit_log::tests::test_BC_2_16_013_claroty_audit_logs_dtu_auth_enforced
+        PASS [   0.896s] ( 7/12) prism-dtu-claroty routes::audit_log::tests::test_BC_2_16_013_claroty_audit_logs_dtu_column_parity
+        PASS [   0.900s] ( 8/12) prism-dtu-claroty routes::audit_log::tests::test_W3_FIX_SEC_001_claroty_audit_logs_nil_org_no_header_returns_200
+        PASS [   0.901s] ( 9/12) prism-dtu-claroty routes::alerts::tests::test_W3_FIX_SEC_001_claroty_alerts_nil_org_no_header_returns_200
+        PASS [   0.902s] (10/12) prism-dtu-claroty routes::devices::tests::test_W3_FIX_SEC_001_claroty_devices_nil_org_no_header_returns_200
+        PASS [   0.903s] (11/12) prism-dtu-claroty routes::devices::tests::test_W3_FIX_SEC_001_claroty_devices_org_mismatch_returns_401
+        PASS [   0.904s] (12/12) prism-dtu-claroty routes::audit_log::tests::test_BC_2_16_013_claroty_audit_logs_dtu_route_returns_synthetic_entries
 ────────────
-     Summary [   0.324s] 6 tests run: 6 passed, 1 skipped
+     Summary [   0.904s] 12 tests run: 12 passed, 1 skipped
 
 Skipped (expected): test_BC_2_16_013_claroty_audit_logs_pipeline_integration_ac_006
   Reason: #[ignore = "AC-006: requires prism-bin full-boot wiring; ungated after S-DEMO-002 merges"]
   SID-1 compliance: blocking story S-DEMO-002 explicitly cited in the ignore annotation.
 
 Fidelity validator run (--features dtu):
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.51s
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.78s
 ────────────
- Nextest run ID da35b11c-cb5f-488f-ac96-384eb9a229d2 with nextest profile: default
+ Nextest run ID 082f30ba-5b4c-42bb-a875-78e8ff972eae with nextest profile: default
     Starting 1 test across 1 binary
-        PASS [   0.096s] (1/1) prism-dtu-claroty::fidelity_validator claroty_dtu_fidelity
+        PASS [   0.263s] (1/1) prism-dtu-claroty::fidelity_validator claroty_dtu_fidelity
 ────────────
-     Summary [   0.097s] 1 test run: 1 passed, 0 skipped
+     Summary [   0.264s] 1 test run: 1 passed, 0 skipped
 
-PASS — 6/6 unit tests passed, 1 skipped (#[ignore]'d AC-006 stub awaiting S-DEMO-002)
+PASS — 12/12 unit tests passed, 1 skipped (#[ignore]'d AC-006 stub awaiting S-DEMO-002)
 PASS — 1/1 fidelity validator test passed (12/12 route checks)
 
-All 5 Red Gate tests + 2 SEC-001 org-isolation tests for S-DEMO-CLAROTY-AUDIT-DTU-001 pass.
+Test breakdown:
+  AC-001..006 gates (audit_log module):
+    test_BC_2_16_013_claroty_audit_logs_dtu_route_returns_synthetic_entries  PASS
+    test_BC_2_16_013_claroty_audit_logs_dtu_auth_enforced                    PASS
+    test_BC_2_16_013_claroty_audit_logs_dtu_column_parity                    PASS
+    claroty_dtu_fidelity (fidelity_validator, --features dtu)                PASS
+  AC-007 org-isolation (W3-FIX-SEC-001, all endpoints):
+    test_W3_FIX_SEC_001_claroty_audit_logs_org_mismatch_returns_401          PASS
+    test_W3_FIX_SEC_001_claroty_audit_logs_nil_org_no_header_returns_200     PASS
+    test_W3_FIX_SEC_001_claroty_alerts_org_mismatch_returns_401              PASS
+    test_W3_FIX_SEC_001_claroty_alerts_nil_org_no_header_returns_200         PASS
+    test_W3_FIX_SEC_001_claroty_alerted_devices_org_mismatch_returns_401     PASS
+    test_W3_FIX_SEC_001_claroty_alerted_devices_nil_org_no_header_returns_200  PASS
+    test_W3_FIX_SEC_001_claroty_devices_org_mismatch_returns_401             PASS
+    test_W3_FIX_SEC_001_claroty_devices_nil_org_no_header_returns_200        PASS
+  State test:
+    test_bc_3_2_001_default_org_id_is_test_gated_and_non_zero                PASS
+
+All 12 Red Gate tests for S-DEMO-CLAROTY-AUDIT-DTU-001 pass (4 AC-001..006 + 8 AC-007).
 No regressions to existing tests.
