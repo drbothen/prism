@@ -2,7 +2,9 @@
 //!
 //! Implements [`ArmisClone`] which satisfies the [`prism_dtu_common::BehavioralClone`] trait.
 //! The clone provides:
-//! - `GET /api/v1/devices` / `POST /api/v1/devices` — AQL-forwarded device inventory
+//! - `GET /api/v1/search` — AQL-forwarded unified search (devices or alerts, routed by AQL;
+//!   primary data-query path per ADR-031 §D8-a)
+//! - `GET /api/v1/devices` / `POST /api/v1/devices` — direct device inventory (backward compat)
 //! - `GET /api/v1/devices/{device_id}/activity` — device activity log
 //! - `GET /api/v1/devices/{device_id}/risk` — device risk score
 //! - `GET /api/v1/alerts` — alert / policy violation list
