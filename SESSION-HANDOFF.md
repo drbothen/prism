@@ -9858,3 +9858,186 @@ No active feature worktrees. Next feature worktree: `.worktrees/S-CONFIG-MULTI-T
 ---
 
 **D-937 burst marker:** Single-commit burst per TD-VSDD-053. Anti-volatile-pin per TD-VSDD-091.
+
+---
+
+## §RESUME SNAPSHOT 2026-06-02-CLAROTY-PASS2-ARMIS-STREAK-2 (D-940)
+
+**Snapshot created:** 2026-06-02 | **Reason:** PRE-/clear durability — Claroty PR #167 fix-burst COMPLETE + PR-LEVEL pass 2 streak 1/3; Armis LOCAL passes 8+9 CLEAN streak 2/3 | **STATE version:** 7.593
+
+**This is the AUTHORITATIVE resume document for any new session. It is self-contained — zero prior context required.**
+
+---
+
+### §1. Where We Are
+
+#### Milestone: S-DEMO-001 KEYSTONE MERGED (prior milestone, now background)
+
+develop HEAD: `5dd3df02` (PR #166 S-DEMO-001 squash-merge 2026-06-01T17:38:35Z). All Wave 5 prereqs merged.
+
+#### Active Lanes
+
+**Lane D (Claroty): S-DEMO-CLAROTY-AUDIT-DTU-001 — PR #167, streak 1/3**
+
+| Field | Value |
+|-------|-------|
+| Story | S-DEMO-CLAROTY-AUDIT-DTU-001 |
+| Status | in-progress v1.5 |
+| PR | #167 (https://github.com/drbothen/prism/pull/167) |
+| PR base | develop@5dd3df02 |
+| PR HEAD | d262576f (demo regen commit) |
+| LOCAL cascade | CONVERGED 3/3 (passes 8/9/10) — CLOSED |
+| PR-LEVEL cascade | streak 1/3 (pass 2 CLEAN; NEXT passes 3+4 → merge) |
+| Fix-burst | 1c916a55 — ALL CLOSED: SEC-001 CWE-284 X-Org-Id guard list_audit_logs + 2 tests; CR-002 doc; CR-003 10s timeout; CR-004 #[ignore] SID-1; SEC-002 doc |
+| Demo regen | d262576f — OBS-1 CLOSED stable PR #167/v1.5 refs |
+| Tests | 150 pass + 1 #[ignore] |
+| Deferred | F-P2-DEFER-001 [open]: BC-2.16.013 stale + claroty.sensor.toml → PO (before/at merge) |
+| Deferred | F-P10-LOW-001 [out-of-perimeter]: harness clone → wave-gate/PO |
+| NEXT | PR-LEVEL adversary passes 3+4 (→2/3, 3/3) → merge → post-merge (BC promotion + F-P2-DEFER-001 PO fix + worktree cleanup) |
+
+**Lane B (Armis): S-DEMO-ARMIS-AQL-001 — LOCAL streak 2/3**
+
+| Field | Value |
+|-------|-------|
+| Story | S-DEMO-ARMIS-AQL-001 |
+| Status | in-progress v1.6 |
+| Feature branch | feature/S-DEMO-ARMIS-AQL-001 |
+| Feature HEAD (code) | add39a1e |
+| Feature HEAD (story) | 523996cb (story v1.6) |
+| LOCAL cascade | streak 2/3 (passes 8+9 CLEAN; NEXT pass 10 → CONVERGED) |
+| Deferred | F-P6-DEFER-001 [out-of-perimeter]: Armis harness clone lacks GET /api/v1/search → wave-gate/PO |
+| Deferred | F-P1-OBS-003 [process-gap]: SAP-2 runtime-shape-assertion extension → session-reviewer |
+| Scope boundary | AQL seeding (PipelineExecutor FetchContext.query_filters["aql"]) is S-DEMO-002 scope — NOT a defer-pattern violation |
+| NEXT | LOCAL pass 10 (→3/3 CONVERGED) → demo-recorder per-AC → rebase onto develop@5dd3df02 → push → pr-manager 9-step PR cycle → merge |
+
+---
+
+### §2. Project Goal Restatement (Zero-Context Summary)
+
+**Prism** is an ephemeral federated MCP query engine over MSSP sensors:
+- **Sensors:** CrowdStrike, Cyberint, Claroty, Armis
+- **Stack:** Rust, DataFusion, PrismQL (custom query language via Chumsky), protobuf, OCSF normalization
+- **Deployment:** Per-analyst stdio MCP server in Claude Code; multi-client aware
+- **Auth model:** AI-opaque credentials (AD-017); sensor API auth per ADR-031 DTU=true-DTU fidelity principle
+- **Query model:** Ephemeral OCSF data lake — sensors queried per-request, results normalized at adapter boundary, no persistence of raw API responses
+- **Plugin system:** WASM component model (PLUGIN-MIGRATION-001-A/B/C/D/E/F/G) — sensors delivered as TOML specs eating our own dog food
+
+---
+
+### §3. Wave 5 Full Story Set + Status
+
+| Story | Points | Priority | Status | Depends On | Notes |
+|-------|--------|----------|--------|------------|-------|
+| S-DTU-CYBERINT-AUTH-FIDELITY-001 | 8 | P0 | **MERGED** (PR #164 e798e67c) | — | Cyberint StaticCookieAuthProvider. CLOSED. |
+| S-CONFIG-MULTI-TENANT-OVERRIDE-001 | 8 | P0 | **MERGED** (PR #155 3e822522) | — | Per-org overlay loading ADR-029. CLOSED. |
+| S-SPEC-ENV-VAR-001 | 5 | P0 | **MERGED** (PR #165 4feec93a) | — | ${env.VAR} resolution. CLOSED. |
+| S-DEMO-001 (KEYSTONE) | 11 | P0-KEYSTONE | **MERGED** (PR #166 5dd3df02) | all merged | GAP-002-A. SpecDrivenSensorAdapter + boot step 9A. CLOSED. |
+| S-DEMO-002 | 11 | P0 | draft | S-DEMO-001 ✅, S-CONFIG ✅ | **NEXT DISPATCH — 3-org multi-sensor E2E smoke. AQL seeding required.** |
+| S-DEMO-003 | 5 | P1 | draft | S-DEMO-001 ✅, S-DEMO-002 | Setup scripts + prism-credential-set CLI + operator runbook. |
+| S-DEMO-ARMIS-AQL-001 | 5 | P1 | in-progress v1.6 | — | **LOCAL streak 2/3 — pass 10 → CONVERGED → demo → PR.** Feature HEAD add39a1e. |
+| S-DEMO-CLAROTY-AUDIT-DTU-001 | 5 | P1 | in-progress v1.5 | PLUGIN-MIGRATION-001-A ✅ | **PR #167 streak 1/3 — passes 3+4 → merge.** Feature HEAD d262576f. |
+| S-DEMO-CLAROTY-PAGINATION-001 | 5 | P1 | draft | PLUGIN-MIGRATION-001-A ✅ | POST-body offset+limit. Not yet started. |
+| S-DEMO-CLAROTY-TRAILING-SLASH-001 | 3 | P1 | draft | S-DEMO-CLAROTY-AUDIT-DTU-001 (soft) | normalize_path middleware. Not yet started. |
+| S-DEMO-CROWDSTRIKE-MULTIREGION-001 | 2 | P2 | ready v1.1 | S-SPEC-ENV-VAR-001 ✅ | CrowdStrike multi-region base_url. Dispatchable. |
+| OCSF-CLASS-MIGRATION-001 | 3 | P2 | draft | S-DEMO-001 ✅ | ocsf_class security_finding→detection_finding. Unblocked. |
+| S-DEMO-QUERY-PUSHDOWN-001 | 5 | P2 | draft | S-DEMO-001 ✅ | F-003-R push-down deferred from keystone. Unblocked. |
+
+---
+
+### §4. Recommended Next Actions (In Order)
+
+1. **Continue Claroty PR #167 PR-LEVEL cascade** (Lane D): dispatch adversary for passes 3+4 (→2/3, 3/3). Feature HEAD d262576f.
+2. **Continue Armis LOCAL cascade** (Lane B): dispatch adversary for pass 10 (→3/3 CONVERGED). Feature HEAD add39a1e, story 523996cb.
+3. **After Armis LOCAL 3/3 CONVERGED:** demo-recorder per-AC → rebase onto develop@5dd3df02 → push → pr-manager 9-step PR cycle.
+4. **After Claroty PR #167 3/3 CONVERGED:** merge → post-merge (BC promotion + F-P2-DEFER-001 PO fix + worktree cleanup).
+5. **Dispatch S-DEMO-002** (P0 — all deps merged). MUST seed query_filters["aql"] in PipelineExecutor FetchContext for Armis AQL push-down (D-934 tracked dependency).
+6. **Dispatch S-DEMO-CROWDSTRIKE-MULTIREGION-001** (ready v1.1) — can run in parallel with S-DEMO-002.
+7. **Resolve F-P2-DEFER-001** via product-owner before/at Claroty merge: BC-2.16.013 line~169 stale prose + claroty.sensor.toml stale audit_log comments.
+
+---
+
+### §5. Artifact Versions (as of D-940)
+
+| Artifact | Version |
+|----------|---------|
+| STATE.md | 7.593 (this burst) |
+| develop HEAD | `5dd3df02` (PR #166 squash-merge 2026-06-01) |
+| STORY-INDEX | v2.241 (total_stories: 174) |
+| BC-INDEX | v5.71 (active: 238, draft: 1) |
+| ARCH-INDEX | v2.108 |
+| error-taxonomy | v1.57 |
+| policies.yaml | v1.31 |
+| S-DEMO-001 story | merged v1.10 |
+| S-DEMO-ARMIS-AQL-001 story | in-progress v1.6 (523996cb) |
+| S-DEMO-CLAROTY-AUDIT-DTU-001 story | in-progress v1.5 — Feature HEAD d262576f |
+
+---
+
+### §6. Active Worktrees
+
+| Worktree | Status | Notes |
+|----------|--------|-------|
+| `.factory/` | ACTIVE — factory-artifacts branch | State manager worktree |
+| `.worktrees/S-DEMO-ARMIS-AQL-001/` | ACTIVE — in-progress v1.6 | LOCAL pass 10 NEXT; Feature HEAD add39a1e |
+| `.worktrees/S-DEMO-CLAROTY-AUDIT-DTU-001/` | ACTIVE — in-progress v1.5 | PR-LEVEL pass 3 NEXT; Feature HEAD d262576f |
+| `.worktrees/S-3.09/` | FROZEN | Leave alone |
+| `.worktrees/W3-FIX-S307-001/` | BLOCKED (superseded) | Do not activate |
+
+---
+
+### §7. Do-NOT-Do List
+
+- **DO NOT** push factory-artifacts to remote (LOCAL-ONLY per POL-13 + CLAUDE.md)
+- **DO NOT** skip hooks (`--no-verify`, `--no-gpg-sign`) — TD-FACTORY-HOOK-BYPASS-001 P0
+- **DO NOT** add AI attribution to commits (prism convention)
+- **DO NOT** run Claroty stories in parallel — serialize AUDIT → TRAILING-SLASH → PAGINATION (shared claroty.toml + dtu-claroty crate)
+- **DO NOT** touch `.worktrees/S-3.09/` or `.worktrees/W3-FIX-S307-001/` (FROZEN/BLOCKED)
+- **DO NOT** add tech-debt-register entries without explicit human direction + concrete future dependency + story anchor (Canonical Principle Rule 3)
+- **DO NOT** fix F-P2-DEFER-001 in Claroty PR scope — claroty.sensor.toml is prism-sensors scope-creep; route to product-owner for BC-2.16.013 amendment
+
+---
+
+### §8. Deferred Items Tracking
+
+| ID | Description | Owner | Resolution Gate |
+|----|-------------|-------|-----------------|
+| F-P2-DEFER-001 | BC-2.16.013 line~169 stale prose ("GET /api/v1/audit_logs ... No DTU route registered") + claroty.sensor.toml stale audit_log comments | product-owner | Before/at S-DEMO-CLAROTY-AUDIT-DTU-001 merge or immediate post-merge hygiene burst |
+| F-P6-DEFER-001 | prism-dtu-harness in-process Armis clone lacks GET /api/v1/search route | wave-gate/PO+architect | harness-fidelity follow-up; does NOT block Armis merge |
+| F-P10-LOW-001 | prism-dtu-harness in-process Claroty clone lacks /api/v1/audit_log/get route | wave-gate/PO+architect | harness-fidelity follow-up; does NOT block Claroty merge |
+| F-P1-OBS-003 | SAP-2 runtime-shape-assertion extension — AQL-routed multi-table endpoints need runtime pipeline-shape assertion (beyond static column-parity) | session-reviewer | codification queue |
+
+---
+
+### §9. Resume Protocol
+
+```
+1. cd /Users/jmagady/Dev/prism
+
+2. Run vsdd-factory:factory-worktree-health — BLOCKING preflight.
+   Verifies .factory/ worktree on factory-artifacts branch.
+
+3. Read STATE.md frontmatter — confirm:
+   - version: "7.593" (this burst)
+   - develop_head: "5dd3df02" (PR #166 squash-merge 2026-06-01)
+   - s_demo_claroty_audit_dtu_001_pr_level_cascade_streak: "1/3"
+   - s_demo_armis_aql_001_local_cascade_streak: "2/3"
+
+4. Read this §RESUME SNAPSHOT 2026-06-02-CLAROTY-PASS2-ARMIS-STREAK-2
+   (you are reading it now)
+
+5. Check develop HEAD:
+   git log -1 --format="%H %s" develop
+   → Expected: 5dd3df02 feat(S-DEMO-001): ...
+
+6. Check open PRs:
+   gh pr list --state open
+   → Expected: PR #167 (S-DEMO-CLAROTY-AUDIT-DTU-001) open
+
+7. Proceed per RECOMMENDED NEXT ACTIONS (§4).
+   Priority 1: Claroty PR-LEVEL passes 3+4.
+   Priority 2: Armis LOCAL pass 10 → CONVERGED.
+```
+
+---
+
+**D-940 burst marker:** Single-commit burst per TD-VSDD-053. Anti-volatile-pin per TD-VSDD-091.
