@@ -19,11 +19,11 @@ status: ready
 # (AC-001..AC-004) are unblocked. Parity tests requiring full pipeline env-var resolution
 # must be #[ignore]-annotated with a code comment citing S-SPEC-ENV-VAR-001 until that
 # prereq merges.
-version: "1.3"
+version: "1.4"
 level: "L4"
 producer: story-writer
 timestamp: "2026-05-31T00:00:00Z"
-modified: "2026-06-01"
+modified: "2026-06-02"
 tdd_mode: strict
 subsystems: [SS-01, SS-16]
 # Subsystem anchor justifications:
@@ -110,11 +110,11 @@ cycle: "v1.0.0-brownfield"
 phase: 3
 ---
 
-# S-DEMO-ARMIS-AQL-001 v1.3 — Armis AQL Search Endpoint Fidelity
+# S-DEMO-ARMIS-AQL-001 v1.4 — Armis AQL Search Endpoint Fidelity
 
 **Story ID:** S-DEMO-ARMIS-AQL-001
 **Status:** ready
-**Version:** v1.3
+**Version:** v1.4
 **Wave:** 5
 **Priority:** P1
 **Points:** 5
@@ -293,17 +293,20 @@ The following 11 named tests constitute the canonical Red Gate set for this stor
 Count: 9 tests in `crates/prism-dtu-armis/tests/s_demo_armis_aql_001_red_gate.rs` +
 2 AC-005 round-trip parity tests in `crates/prism-spec-engine/tests/parity/armis.rs`.
 
+(TD-VSDD-091 justified-citation exception: test names are verbatim load-bearing identifiers
+grounded against the delivered source files on feature/S-DEMO-ARMIS-AQL-001.)
+
 | Test Name | AC | File | Description |
 |-----------|----|------|-------------|
 | `test_armis_aql_search_route_registered_returns_200_for_device_aql` | AC-001 | prism-dtu-armis/tests/s_demo_armis_aql_001_red_gate.rs | GET /api/v1/search?aql=in:type=Device returns 200 with valid Bearer |
-| `test_armis_aql_search_missing_auth_returns_403` | AC-001 | prism-dtu-armis/tests/s_demo_armis_aql_001_red_gate.rs | Missing/empty Bearer on /api/v1/search returns 403 (Armis auth model) |
-| `test_armis_aql_search_devices_aql_returns_device_records` | AC-002 | prism-dtu-armis/tests/s_demo_armis_aql_001_red_gate.rs | in:type=Device AQL returns DeviceRecords in data.results; AQL captured in aql-log |
-| `test_armis_aql_search_alerts_aql_returns_alert_records` | AC-003 | prism-dtu-armis/tests/s_demo_armis_aql_001_red_gate.rs | in:type=Alert AQL returns AlertRecords in data.results; AQL captured in aql-log |
+| `test_armis_aql_search_returns_403_without_bearer` | AC-001 / EC-004 | prism-dtu-armis/tests/s_demo_armis_aql_001_red_gate.rs | No Authorization header on /api/v1/search returns 403 (Armis auth model) |
+| `test_armis_aql_search_devices_aql_returns_device_records` | AC-002 | prism-dtu-armis/tests/s_demo_armis_aql_001_red_gate.rs | in:type=Device AQL returns DeviceRecord objects in data.results; total > 0 |
+| `test_armis_aql_search_aql_captured_in_aql_log` | AC-002 | prism-dtu-armis/tests/s_demo_armis_aql_001_red_gate.rs | After search, GET /dtu/aql-log aql_strings contains the verbatim AQL sent (R-DTU-002) |
+| `test_armis_aql_search_alerts_aql_returns_alert_records` | AC-003 | prism-dtu-armis/tests/s_demo_armis_aql_001_red_gate.rs | in:type=Alert AQL returns AlertRecord objects in data.results; total > 0 |
 | `test_armis_aql_search_no_aql_defaults_to_devices` | AC-001 / EC-001 | prism-dtu-armis/tests/s_demo_armis_aql_001_red_gate.rs | Absent aql param returns devices (safe default per R-DTU-002) |
-| `test_armis_aql_search_toml_devices_path_template_updated` | AC-004 | prism-dtu-armis/tests/s_demo_armis_aql_001_red_gate.rs | armis.sensor.toml devices step loads with path_template = /api/v1/search |
-| `test_armis_aql_search_toml_alerts_path_template_updated` | AC-004 | prism-dtu-armis/tests/s_demo_armis_aql_001_red_gate.rs | armis.sensor.toml alerts step loads with path_template = /api/v1/search |
-| `test_armis_aql_search_sap2_device_columns_match_dtu_fields` | AC-007 / SAP-2 | prism-dtu-armis/tests/s_demo_armis_aql_001_red_gate.rs | SAP-2 parity: TOML device columns match DeviceRecord fields in types.rs |
-| `test_armis_aql_search_sap2_alert_columns_match_dtu_fields` | AC-007 / SAP-2 | prism-dtu-armis/tests/s_demo_armis_aql_001_red_gate.rs | SAP-2 parity: TOML alert columns match AlertRecord fields in types.rs |
+| `test_armis_aql_search_toml_path_template_updated` | AC-004 | prism-dtu-armis/tests/s_demo_armis_aql_001_red_gate.rs | armis.sensor.toml devices and alerts fetch steps both have path_template starting with /api/v1/search?aql= |
+| `test_armis_aql_search_toml_response_path_updated` | AC-004 | prism-dtu-armis/tests/s_demo_armis_aql_001_red_gate.rs | armis.sensor.toml devices and alerts fetch steps both have response_path = $.data.results |
+| `test_armis_aql_search_dtu_toml_column_parity` | AC-004 / SAP-2 | prism-dtu-armis/tests/s_demo_armis_aql_001_red_gate.rs | SAP-2: every TOML column in devices and alerts tables maps to a field in DeviceRecord/AlertRecord in types.rs |
 | `test_BC_2_16_013_AC_005_aql_roundtrip_devices_pipeline` | AC-005 | prism-spec-engine/tests/parity/armis.rs | Full pipeline: devices fetch via /api/v1/search; aql-log AQL matches constructed AQL |
 | `test_BC_2_16_013_AC_005_aql_roundtrip_alerts_pipeline` | AC-005 | prism-spec-engine/tests/parity/armis.rs | Full pipeline: alerts fetch via /api/v1/search; aql-log AQL matches constructed AQL |
 
@@ -544,6 +547,7 @@ Well within the 20-30% budget.
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.4 | 2026-06-02 | story-writer | Close F-P2-HIGH-001. Red Gate Tests table names reconciled verbatim against delivered source (feature/S-DEMO-ARMIS-AQL-001). Five phantom names removed/corrected: `test_armis_aql_search_missing_auth_returns_403` → `test_armis_aql_search_returns_403_without_bearer`; two split TOML-path rows collapsed to single `test_armis_aql_search_toml_path_template_updated` (covers both tables); two split SAP-2 rows collapsed to single `test_armis_aql_search_dtu_toml_column_parity` (covers both tables); omitted `test_armis_aql_search_aql_captured_in_aql_log` and `test_armis_aql_search_toml_response_path_updated` added. Count remains 11 (unchanged — v1.3 count reconciliation was correct; v1.4 closes the name-correctness gap that made v1.3 a paper-fix per TD-VSDD-059). |
 | 1.3 | 2026-06-01 | story-writer | Close adversary findings F-P1-HIGH-003/F-P1-OBS-001/F-P1-OBS-002. Red Gate Tests table reconciled to 11 named tests (9 in s_demo_armis_aql_001_red_gate.rs + 2 AC-005 parity tests in prism-spec-engine/tests/parity/armis.rs); red_gate_tests frontmatter updated from 4→11. H1 version corrected v1.0→v1.3 (F-P1-OBS-001). Changelog reordered to descending per POL-32 (F-P1-OBS-002). |
 | 1.2 | 2026-05-31 | story-writer | Wave 5 dispatch burst: BC-2.16.013 anchor justification confirmed per POL-4/POL-5 (BC-2.16.013 §Postconditions §1 DTU-Parity + §2 fixture-parity + §Known Gaps DTU-EXT-003/004 directly cover the AQL search endpoint fidelity surface; D-911 SUFFICIENT disposition). Story confirmed ready for TDD dispatch. No semantic content change. |
 | 1.1 | 2026-05-31 | story-writer | D-911 disposition applied: New-BC Flags 1 & 2 SUFFICIENT — BC-2.16.013 (v1.18, ACTIVE) covers both surfaces. Set behavioral_contracts: [BC-2.16.013], status: draft→ready. AC-001..AC-004 BC traces updated from "pending PO authorship" to BC-2.16.013 postcondition clauses. D-914 parity-gate note added (AC-005/AC-006 parity tests soft-gated on S-SPEC-ENV-VAR-001 env-var prereq; must be #[ignore] until prereq merges). |
