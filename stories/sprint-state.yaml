@@ -54,7 +54,7 @@ active_dispatch_set:
       - PLUGIN-MIGRATION-001-E   # merged
       - S-CONFIG-MULTI-TENANT-OVERRIDE-001
       - S-DTU-CYBERINT-AUTH-FIDELITY-001
-    notes: "KEYSTONE. Closes GAP-002-A. SpecDrivenSensorAdapter + boot step 9A. Story v1.10. Post-rebase LOCAL cascade (6 passes): pass 1 NOT CLEAN {H:1,M:1,L:1,O:1} CLOSED fix-burst 316473d8+1f31d4a5+7b507b72 (streak 0/3); pass 2 CLEAN(strict)=yes (streak 0/3→1/3); pass 3 OBS-P3-001 CLOSED eddc827b+c50e72f7 (streak 1/3→0/3); pass 4 {MED:2} F-PASS4-MED-001+F-PASS4-MED-002 CLOSED (streak 0/3); pass 5 CLEAN(strict)=yes holistic final-skeptic (streak 0/3→1/3); pass 6 CLEAN(strict)=yes full independent re-derivation (streak 1/3→2/3). Trajectory: pass1(4)→pass2(CLEAN 1/3)→pass3(1 OBS 0/3)→pass4(2 MED 0/3)→pass5(CLEAN 1/3)→pass6(CLEAN 2/3). Feature HEAD c50e72f7. NEXT: LOCAL adversary pass 7 (target 3/3 CONVERGED). After 3-CLEAN: demo-recorder → push → pr-manager 9-step PR cycle."
+    notes: "KEYSTONE. Closes GAP-002-A. SpecDrivenSensorAdapter + boot step 9A. Story v1.10. LOCAL CONVERGED 3/3 per BC-5.39.001 D-779 (passes 5/6/7 all CLEAN(strict)=yes). Post-rebase trajectory: pass1(4)→pass2(CLEAN 1/3)→pass3(OBS 0/3)→pass4(2 MED 0/3)→pass5(CLEAN 1/3)→pass6(CLEAN 2/3)→pass7(CLEAN 3/3). Feature HEAD c50e72f7. LOCAL cascade CLOSED. NEXT: demo-recorder per-AC → push → pr-manager 9-step PR cycle (already rebased onto develop@4feec93a)."
 
   - story_id: S-DEMO-QUERY-PUSHDOWN-001
     status: draft
@@ -106,9 +106,9 @@ active_dispatch_set:
     status: in_progress
     priority: P1
     points: 5
-    spec_version: "v1.2"
+    spec_version: "v1.3"
     depends_on: []
-    notes: "D-934 2026-06-01: LOCAL adversary pass 1 PARTIAL FIX-BURST. 2 CRIT + 3 HIGH + 3 OBS + 1 PROCESS-GAP (streak 0/3). Architect adjudicated F-P1-CRIT-001 Option A (TOML path_template ${query.filter.aql} interpolation). Implementer fix bb66929f: F-P1-CRIT-001 CLOSED (armis.sensor.toml fetch_devices/alerts path_template /api/v1/search?aql=${query.filter.aql}, response_path $.data.results; build_paged_url handles ?) + F-P1-HIGH-001 CLOSED (X-Org-Id dual-mode guard in get_search, sibling-swept); 127/127 prism-dtu-armis + 494/494 prism-spec-engine GREEN. STILL OPEN: F-P1-CRIT-002 (AC-005 parity test), F-P1-HIGH-002 (AC-003 test labeling), F-P1-HIGH-003 (frontmatter count drift), F-P1-OBS-001/002/003; test-writer + story-writer in flight. SCOPE BOUNDARY: production AQL seeding is S-DEMO-002 scope (not defer-pattern; architect+implementer confirmed). F-P1-OBS-003 SAP-2 extension process-gap: log as codification follow-up item for session-reviewer. D-933 2026-06-01: IMPLEMENTED GREEN (stubs f17e2079 → Red Gate 8257d38f 9 tests → implementer f3375681 164/164 pass)."
+    notes: "D-935 2026-06-01: LOCAL adversary pass 1 ALL FINDINGS CLOSED. F-P1-CRIT-001 CLOSED bb66929f (TOML path_template AQL); F-P1-HIGH-001 CLOSED bb66929f (X-Org-Id guard); F-P1-CRIT-002 CLOSED fc9adca1 (AC-005 parity test load-bearing); F-P1-HIGH-002 CLOSED fc9adca1 (AC-003 relabel); F-P1-HIGH-003 CLOSED 86da054c (frontmatter count; red_gate_tests=11); F-P1-OBS-001 CLOSED 86da054c (H1 v1.3); F-P1-OBS-002 CLOSED 86da054c (changelog descending POL-32); story v1.2→v1.3 (story-writer 86da054c). F-P1-OBS-003 [process-gap] SAP-2-extension codification: follow-up for session-reviewer (out of perimeter). Streak 0/3. NEXT: LOCAL adversary pass 2. SCOPE BOUNDARY: production AQL seeding is S-DEMO-002 scope (not defer-pattern; architect+implementer confirmed). D-933 2026-06-01: IMPLEMENTED GREEN (stubs f17e2079 → Red Gate 8257d38f 9 tests → implementer f3375681 164/164 pass)."
 
   - story_id: S-DEMO-CLAROTY-TRAILING-SLASH-001
     status: draft
@@ -176,9 +176,9 @@ deferred_post_demo:
   # reclassification from permitted-divergence → required-fidelity; user directive no-scope-compromise).
 
 prereq_artifacts:
-  story_index: .factory/stories/STORY-INDEX.md         # v2.235 after D-934 burst
+  story_index: .factory/stories/STORY-INDEX.md         # v2.236 after D-935 burst
   bc_index: .factory/specs/behavioral-contracts/BC-INDEX.md  # v5.70
-  state: .factory/STATE.md                              # v7.587 after D-934 burst
+  state: .factory/STATE.md                              # v7.588 after D-935 burst
   governing_adr: .factory/specs/architecture/decisions/ADR-031-dtu-equals-true-dtu-fidelity-principle.md  # v1.2 (ADR-031 architect e57eb5b1 reclassified 3 divergences)
   governing_audit: .factory/proposals/POLLER-DTU-FIDELITY-AUDIT-2026-05-29.md  # v1.1
 
