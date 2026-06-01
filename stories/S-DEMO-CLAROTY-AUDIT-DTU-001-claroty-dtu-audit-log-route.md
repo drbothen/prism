@@ -177,8 +177,8 @@ drifted ahead of spec on org-isolation) is resolved by this AC.
 | `test_BC_2_16_013_claroty_audit_logs_dtu_route_returns_synthetic_entries` | Unit (against DTU HTTP) | AC-003 + AC-004: route serves fixture; envelope shape correct |
 | `test_BC_2_16_013_claroty_audit_logs_dtu_auth_enforced` | Unit (against DTU HTTP) | AC-002: 401 on missing bearer |
 | `test_BC_2_16_013_claroty_audit_logs_dtu_column_parity` | Unit (Rust struct validation) | AC-005: all 5 TOML columns present in ClarotyAuditLogEntry |
-| `test_W3_FIX_SEC_001_claroty_audit_log_org_mismatch_returns_401` | Unit (against DTU HTTP) | AC-007: org-mismatch → 401 for audit_log endpoint |
-| `test_W3_FIX_SEC_001_claroty_audit_log_nil_org_no_header_returns_200` | Unit (against DTU HTTP) | AC-007: nil-org path → 200 for audit_log endpoint |
+| `test_W3_FIX_SEC_001_claroty_audit_logs_org_mismatch_returns_401` | Unit (against DTU HTTP) | AC-007: org-mismatch → 401 for audit_logs endpoint |
+| `test_W3_FIX_SEC_001_claroty_audit_logs_nil_org_no_header_returns_200` | Unit (against DTU HTTP) | AC-007: nil-org path → 200 for audit_logs endpoint |
 | `test_W3_FIX_SEC_001_claroty_alerts_org_mismatch_returns_401` | Unit (against DTU HTTP) | AC-007: org-mismatch → 401 for alerts endpoint |
 | `test_W3_FIX_SEC_001_claroty_alerts_nil_org_no_header_returns_200` | Unit (against DTU HTTP) | AC-007: nil-org path → 200 for alerts endpoint |
 | `test_W3_FIX_SEC_001_claroty_alerted_devices_org_mismatch_returns_401` | Unit (against DTU HTTP) | AC-007: org-mismatch → 401 for alerted_devices endpoint |
