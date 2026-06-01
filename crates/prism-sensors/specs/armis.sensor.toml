@@ -126,7 +126,7 @@ ocsf_class = "device"
   [[tables.steps]]
   name = "fetch_devices"
   method = "GET"
-  path_template = "/api/v1/search"
+  path_template = "/api/v1/search?aql=${query.filter.aql}"
   response_path = "$.data.results"
   variables_produced = []
   [tables.steps.pagination]
@@ -197,7 +197,7 @@ ocsf_class = "security_finding"
   [[tables.steps]]
   name = "fetch_alerts"
   method = "GET"
-  path_template = "/api/v1/search"
+  path_template = "/api/v1/search?aql=${query.filter.aql}"
   response_path = "$.data.results"
   variables_produced = []
   [tables.steps.pagination]

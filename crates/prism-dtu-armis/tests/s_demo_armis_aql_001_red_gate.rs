@@ -420,10 +420,12 @@ fn test_armis_aql_search_toml_path_template_updated() {
         .as_str()
         .expect("S-DEMO-ARMIS-AQL-001 AC-004: fetch_devices step must have path_template");
 
-    assert_eq!(
-        path_template,
-        "/api/v1/search",
-        "S-DEMO-ARMIS-AQL-001 AC-004: armis.sensor.toml devices.fetch_devices.path_template must be '/api/v1/search' (not '/api/v1/devices' — DTU-EXT-003 closed by S-DEMO-ARMIS-AQL-001; BC-2.16.013 §Postconditions §2)"
+    // AC-004 intent: path_template must use the AQL search endpoint (not legacy /api/v1/devices).
+    // The template includes the AQL push-down param: /api/v1/search?aql=${query.filter.aql}.
+    // We assert starts_with("/api/v1/search") to cover both the base path and the parameterized form.
+    assert!(
+        path_template.starts_with("/api/v1/search"),
+        "S-DEMO-ARMIS-AQL-001 AC-004: armis.sensor.toml devices.fetch_devices.path_template must start with '/api/v1/search' (not '/api/v1/devices' — DTU-EXT-003 closed by S-DEMO-ARMIS-AQL-001; BC-2.16.013 §Postconditions §2); got: {path_template}"
     );
 
     // Also assert alerts table path_template for completeness (AC-004 covers both).
@@ -443,10 +445,9 @@ fn test_armis_aql_search_toml_path_template_updated() {
         .as_str()
         .expect("S-DEMO-ARMIS-AQL-001 AC-004: fetch_alerts step must have path_template");
 
-    assert_eq!(
-        alerts_path_template,
-        "/api/v1/search",
-        "S-DEMO-ARMIS-AQL-001 AC-004: armis.sensor.toml alerts.fetch_alerts.path_template must be '/api/v1/search' (not '/api/v1/alerts' — DTU-EXT-004 closed by S-DEMO-ARMIS-AQL-001; BC-2.16.013 §Postconditions §2)"
+    assert!(
+        alerts_path_template.starts_with("/api/v1/search"),
+        "S-DEMO-ARMIS-AQL-001 AC-004: armis.sensor.toml alerts.fetch_alerts.path_template must start with '/api/v1/search' (not '/api/v1/alerts' — DTU-EXT-004 closed by S-DEMO-ARMIS-AQL-001; BC-2.16.013 §Postconditions §2); got: {alerts_path_template}"
     );
 }
 

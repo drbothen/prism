@@ -12,6 +12,13 @@
 //! Requires `Authorization: Bearer {non-empty}` header.
 //! Missing/empty token → HTTP 403 `{"error": "...", "code": 403}` (AC-001 EC-004).
 //!
+//! `X-Org-Id` uses the same **dual-mode** policy as `devices.rs` (CR-012/SEC-P2-001):
+//!
+//! - Real-org clones (`instance_org_id != DTU_DEFAULT_INSTANCE_ORG_ID`): absent header → 401.
+//! - Default-instance clones: absent header → 200 (backward compat).
+//!
+//! (BC-3.5.002 precondition 3; TD-VSDD-060 sibling-sweep of devices.rs + alerts.rs guard)
+//!
 //! # AQL treatment
 //!
 //! The `aql` query parameter is accepted verbatim, captured via `state.capture_aql()`,
@@ -37,6 +44,7 @@ use axum::{
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    routes::devices::validate_org_id,
     state::{ArmisState, DTU_ROUTE_ORG_ID},
     types::ArmisError,
 };
@@ -93,6 +101,18 @@ pub async fn get_search(
     // AC-001 EC-004: 403 (not 401) for missing/empty Bearer — matches Armis auth model.
     if let Some(err) = check_bearer_auth(&headers) {
         return err;
+    }
+
+    // CR-012/SEC-P2-001: dual-mode X-Org-Id policy (sibling-sweep TD-VSDD-060).
+    // Real-org clones (instance_org_id != DTU_DEFAULT_INSTANCE_ORG_ID):
+    //   auth model A — absent header → 401, mismatch → 401.
+    // Default-instance clones (instance_org_id == DTU_DEFAULT_INSTANCE_ORG_ID):
+    //   validate-on-presence — absent header → skip (backward compat with existing tests).
+    let is_real_org = state.instance_org_id != crate::state::DTU_DEFAULT_INSTANCE_ORG_ID;
+    if is_real_org || headers.get("x-org-id").is_some() {
+        if let Err((status, body)) = validate_org_id(&headers, state.instance_org_id) {
+            return (status, body).into_response();
+        }
     }
 
     // R-DTU-002 / ADR-005 §D1: capture AQL verbatim, no parsing or validation.
