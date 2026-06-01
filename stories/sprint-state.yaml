@@ -33,7 +33,7 @@ active_dispatch_set:
     spec_version: "v1.5"
     depends_on:
       - PLUGIN-MIGRATION-001-A  # merged
-    notes: "D-937 2026-06-01: story-writer 312c5ca1 BC-2.01.013 v1.7→v1.9 + BC-2.16.013 v1.18→v1.19 pin sweep; story v1.4→v1.5; status in-progress. LOCAL pass 7 F-P7-HIGH-001 CLOSED by 312c5ca1; F-P7-MED-001 CLOSED implementer 7f3584b6 (fidelity route count 11→12 + reset_for check). Feature HEAD 7f3584b6. LOCAL pass 7 streak 0/3. NEXT: LOCAL adversary pass 8 (streak 0/3). F-P2-DEFER-001 BC-2.16.013 line~169 stale path/method → PO post-merge. (Prior: passes 1-6 all closed; D-936 passes 4+5 both closed; D-935 pass 3 + pass 2 CLEAN; D-933 IMPLEMENTED GREEN stubs+Red Gate+impl.)"
+    notes: "D-938 2026-06-01: LOCAL CONVERGED 3/3 — passes 8/9/10 all CLEAN(strict) per BC-5.39.001 D-779; Feature HEAD 7f3584b6; story v1.5. F-P10-LOW-001 [out-of-perimeter]: prism-dtu-harness claroty.rs lacks /api/v1/audit_log/get route — different crate, NOT in story's crates_touched; does NOT reset streak; deferred product-owner/architect adjudication (wave-gate or harness-fidelity follow-up). NEXT: demo-recorder per-AC → rebase onto develop@5dd3df02 → push → pr-manager 9-step PR cycle. F-P2-DEFER-001 BC-2.16.013 line~169 stale path/method → PO post-merge. (Prior: D-937 passes 7 HIGH+MED CLOSED 312c5ca1+7f3584b6; D-936 passes 4+5 both closed; D-935 pass 3 + pass 2 CLEAN; D-933 IMPLEMENTED GREEN.)"
 
   - story_id: S-DEMO-CLAROTY-PAGINATION-001
     status: draft
@@ -117,7 +117,7 @@ active_dispatch_set:
     points: 5
     spec_version: "v1.5"
     depends_on: []
-    notes: "D-937 2026-06-01: story-writer 312c5ca1 BC-2.16.013 v1.18→v1.19 pin sweep + title restore; story v1.4→v1.5; status in-progress. LOCAL pass 3 found 2 MED (F-P3-MED-001/002 CLOSED by 312c5ca1) + 2 OBS (F-P3-OBS-001 status closed; F-P3-OBS-002 SAP-1 guard-AC convention non-blocking). Streak 0/3. NEXT: Armis LOCAL pass 4 (streak 0/3). SCOPE BOUNDARY: production AQL seeding is S-DEMO-002 scope (not defer-pattern; architect+implementer confirmed). (Prior: passes 1+2 all closed; pass 2 D-936 v1.3→v1.4; pass 1 D-935 ALL CLOSED; D-933 IMPLEMENTED GREEN stubs+Red Gate+impl.)"
+    notes: "D-938 2026-06-01: LOCAL pass 4: 1 MED (F-P4-MED-001 — armis.sensor.toml table-header DTU-EXT-003/004 comments stale; unmet AC-004 comment-update clause) CLOSED implementer 2ea48d78 (all 5 DTU-EXT comment sites swept to CLOSED + /api/v1/search primary path; grep-confirmed zero stale). LOCAL pass 5: CLEAN(strict)=yes; streak 0/3→1/3. Feature HEAD 2ea48d78. Story v1.5 (unchanged — TOML comment fix is code, no story bump). NEXT: LOCAL adversary passes 6/7 (toward 3/3). F-P1-OBS-003 [process-gap] SAP-2-extension codification confirmed tracked (session-reviewer follow-up). SCOPE BOUNDARY: production AQL seeding is S-DEMO-002 scope (not defer-pattern; architect+implementer confirmed). (Prior: pass 3 D-937 2 MED CLOSED; passes 1+2 all closed; D-933 IMPLEMENTED GREEN.)"
 
   - story_id: S-DEMO-CLAROTY-TRAILING-SLASH-001
     status: draft
@@ -185,9 +185,9 @@ deferred_post_demo:
   # reclassification from permitted-divergence → required-fidelity; user directive no-scope-compromise).
 
 prereq_artifacts:
-  story_index: .factory/stories/STORY-INDEX.md         # v2.238 after D-937 burst
+  story_index: .factory/stories/STORY-INDEX.md         # v2.239 after D-938 burst
   bc_index: .factory/specs/behavioral-contracts/BC-INDEX.md  # v5.71
-  state: .factory/STATE.md                              # v7.590 after D-937 burst
+  state: .factory/STATE.md                              # v7.591 after D-938 burst
   governing_adr: .factory/specs/architecture/decisions/ADR-031-dtu-equals-true-dtu-fidelity-principle.md  # v1.2 (ADR-031 architect e57eb5b1 reclassified 3 divergences)
   governing_audit: .factory/proposals/POLLER-DTU-FIDELITY-AUDIT-2026-05-29.md  # v1.1
 
