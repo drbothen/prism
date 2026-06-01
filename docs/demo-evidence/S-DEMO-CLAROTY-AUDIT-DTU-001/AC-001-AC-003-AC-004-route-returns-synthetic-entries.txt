@@ -3,6 +3,7 @@ Crate: prism-dtu-claroty
 Location: crates/prism-dtu-claroty/src/routes/audit_log.rs (mod tests)
 Command: cargo nextest run -p prism-dtu-claroty -E 'test(test_BC_2_16_013_claroty_audit_logs_dtu_route_returns_synthetic_entries)'
 Story: S-DEMO-CLAROTY-AUDIT-DTU-001 v1.5
+PR: #167 (S-DEMO-CLAROTY-AUDIT-DTU-001 v1.5)
 BCs: BC-2.16.013 (postconditions §1 DTU-Parity, §2 fixture-parity, §3 synthetic-fixture-data)
 
 AC Coverage:
@@ -11,13 +12,13 @@ AC Coverage:
   AC-004 — audit_log array contains >= 5 synthetic entries; actors use @example.com domain (no real PII)
 
 Result:
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.03s
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.25s
 ────────────
- Nextest run ID 4b203162-2294-44ca-94a1-b04df2cd30a0 with nextest profile: default
-    Starting 1 test across 1 binary (3 tests skipped)
-        PASS [   0.063s] (1/1) prism-dtu-claroty routes::audit_log::tests::test_BC_2_16_013_claroty_audit_logs_dtu_route_returns_synthetic_entries
+ Nextest run ID bebae011-ed9f-4e95-ba6e-57d23aa076bb with nextest profile: default
+    Starting 1 test across 1 binary (6 tests skipped)
+        PASS [   0.105s] (1/1) prism-dtu-claroty routes::audit_log::tests::test_BC_2_16_013_claroty_audit_logs_dtu_route_returns_synthetic_entries
 ────────────
-     Summary [   0.069s] 1 test run: 1 passed, 3 skipped
+     Summary [   0.105s] 1 test run: 1 passed, 6 skipped
 
 PASS — 1/1 tests passed
 

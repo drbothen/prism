@@ -3,6 +3,7 @@ Crate: prism-dtu-claroty
 Location: crates/prism-dtu-claroty/src/routes/audit_log.rs (mod tests)
 Command: cargo nextest run -p prism-dtu-claroty -E 'test(test_BC_2_16_013_claroty_audit_logs_dtu_auth_enforced)'
 Story: S-DEMO-CLAROTY-AUDIT-DTU-001 v1.5
+PR: #167 (S-DEMO-CLAROTY-AUDIT-DTU-001 v1.5)
 BCs: BC-2.01.013 (postcondition §2 auth enforcement), BC-2.16.013 (postcondition §2 auth enforcement)
 
 AC Coverage:
@@ -13,13 +14,13 @@ AC Coverage:
   EC-003 — Malformed (non-JSON) request body with valid bearer → HTTP 200 (permissive body; Option<Json<...>> yields None)
 
 Result:
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.08s
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.25s
 ────────────
- Nextest run ID 12498592-774c-47a2-bd40-24d2a4aeaa4e with nextest profile: default
-    Starting 1 test across 1 binary (3 tests skipped)
-        PASS [   0.047s] (1/1) prism-dtu-claroty routes::audit_log::tests::test_BC_2_16_013_claroty_audit_logs_dtu_auth_enforced
+ Nextest run ID 7e668a86-ef75-41bb-9f9d-55c78ed22b60 with nextest profile: default
+    Starting 1 test across 1 binary (6 tests skipped)
+        PASS [   0.102s] (1/1) prism-dtu-claroty routes::audit_log::tests::test_BC_2_16_013_claroty_audit_logs_dtu_auth_enforced
 ────────────
-     Summary [   0.047s] 1 test run: 1 passed, 3 skipped
+     Summary [   0.102s] 1 test run: 1 passed, 6 skipped
 
 PASS — 1/1 tests passed
 

@@ -3,6 +3,7 @@ Crate: prism-dtu-claroty
 Location: crates/prism-dtu-claroty/tests/fidelity_validator.rs
 Command: cargo nextest run -p prism-dtu-claroty --test fidelity_validator --features dtu
 Story: S-DEMO-CLAROTY-AUDIT-DTU-001 v1.5
+PR: #167 (S-DEMO-CLAROTY-AUDIT-DTU-001 v1.5)
 BCs: BC-2.16.013 (postcondition §1 DTU-Parity), BC-2.01.013 (postcondition §1 spec-driven pipeline reachability)
 
 AC Coverage:
@@ -27,13 +28,13 @@ AC Coverage:
   Route 12: POST /dtu/reset_for/:org_id                    → 200 (no auth)
 
 Result:
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.41s
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.51s
 ────────────
- Nextest run ID 2420a5e0-782b-48a7-a7db-adc05731c00d with nextest profile: default
+ Nextest run ID da35b11c-cb5f-488f-ac96-384eb9a229d2 with nextest profile: default
     Starting 1 test across 1 binary
-        PASS [   0.048s] (1/1) prism-dtu-claroty::fidelity_validator claroty_dtu_fidelity
+        PASS [   0.096s] (1/1) prism-dtu-claroty::fidelity_validator claroty_dtu_fidelity
 ────────────
-     Summary [   0.049s] 1 test run: 1 passed, 0 skipped
+     Summary [   0.097s] 1 test run: 1 passed, 0 skipped
 
 PASS — 1/1 tests passed
 FidelityValidator: 12/12 checks passed, 0 failed

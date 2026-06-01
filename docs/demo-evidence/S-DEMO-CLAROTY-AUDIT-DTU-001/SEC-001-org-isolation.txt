@@ -1,0 +1,52 @@
+Tests: test_BC_2_16_013_claroty_audit_logs_org_mismatch_returns_401
+       test_BC_2_16_013_claroty_audit_logs_nil_org_no_header_returns_200
+Crate: prism-dtu-claroty
+Location: crates/prism-dtu-claroty/src/routes/audit_log.rs (mod tests)
+Commands:
+  cargo nextest run -p prism-dtu-claroty -E 'test(test_BC_2_16_013_claroty_audit_logs_org_mismatch_returns_401)'
+  cargo nextest run -p prism-dtu-claroty -E 'test(test_BC_2_16_013_claroty_audit_logs_nil_org_no_header_returns_200)'
+Story: S-DEMO-CLAROTY-AUDIT-DTU-001 v1.5
+PR: #167 (S-DEMO-CLAROTY-AUDIT-DTU-001 v1.5)
+BCs: BC-3.5.002 (precondition §3 org-isolation guard), BC-2.16.013 (security properties)
+References: SEC-001 (org-isolation guard), CR-012 (security review finding)
+
+SEC-001 Coverage:
+  Org-mismatch path (non-nil clone): POST /api/v1/audit_log/get with X-Org-Id header that
+    differs from the clone's configured org returns HTTP 401 with body containing "org_id mismatch".
+    Confirms multi-tenant isolation: a non-nil-org clone rejects requests from other tenants.
+  Nil-org backward-compat: POST /api/v1/audit_log/get to a nil-org clone (no org configured)
+    without X-Org-Id header returns HTTP 200 (fixture served).
+    Confirms backward-compat path: nil-org clones do not require X-Org-Id validation.
+
+Result (org-mismatch test):
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.27s
+────────────
+ Nextest run ID f0145b0f-1f2f-4cb1-904e-a4648e23dbe6 with nextest profile: default
+    Starting 1 test across 1 binary (6 tests skipped)
+        PASS [   0.080s] (1/1) prism-dtu-claroty routes::audit_log::tests::test_BC_2_16_013_claroty_audit_logs_org_mismatch_returns_401
+────────────
+     Summary [   0.080s] 1 test run: 1 passed, 6 skipped
+
+Result (nil-org backward-compat test):
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.23s
+────────────
+ Nextest run ID 36b97c12-10d3-4fbc-ae8d-67026dc619be with nextest profile: default
+    Starting 1 test across 1 binary (6 tests skipped)
+        PASS [   0.076s] (1/1) prism-dtu-claroty routes::audit_log::tests::test_BC_2_16_013_claroty_audit_logs_nil_org_no_header_returns_200
+────────────
+     Summary [   0.077s] 1 test run: 1 passed, 6 skipped
+
+PASS — 2/2 SEC-001 org-isolation tests passed
+
+Assertions exercised by org-mismatch test:
+  - Clone constructed with non-nil org_id (OrgSlug::new_unchecked, test-helpers gated)
+  - Request sent with X-Org-Id header set to a DIFFERENT org slug ("wrong-org-id-xyz")
+  - Response status == 401 (SEC-001 / BC-3.5.002 precondition §3 org-isolation guard)
+  - Response body deserializes to JSON with a field containing "org_id mismatch"
+  - Sibling guard in list_audit_logs mirrors the guard in list_devices (W3-FIX-SEC-001)
+
+Assertions exercised by nil-org backward-compat test:
+  - Clone constructed with nil org_id (None)
+  - Request sent WITHOUT X-Org-Id header
+  - Response status == 200 (nil-org clone: no tenant isolation requirement → serve fixture)
+  - Backward-compatibility: existing single-tenant deployments with no org_id config unaffected
