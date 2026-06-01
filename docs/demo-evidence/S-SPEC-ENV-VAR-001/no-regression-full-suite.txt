@@ -1,0 +1,45 @@
+# No-Regression Evidence — prism-spec-engine full test suite
+#
+# Story:  S-SPEC-ENV-VAR-001 v1.2
+# Purpose: Demonstrate that the 8 AC-specific Red Gate tests, 2 adversary-added
+#          production-path ordering tests (F-LOCAL-P1-HIGH-001), 2 PR#165 dedup
+#          tests (F-PR1-MED-001), and 3 PR#165 namespace-boundary tests
+#          (F-PR1-MED-002) all pass together with the existing prism-spec-engine
+#          suite — no regressions introduced.
+# Command: cargo nextest run -p prism-spec-engine --no-fail-fast
+# Captured: 2026-05-31 (regenerated for PR#165 F-PR2-MED-001 — 5 tests added)
+#
+# ─── Full suite summary ───────────────────────────────────────────────────────
+
+    Summary [   6.460s] 513 tests run: 513 passed, 10 skipped
+
+# 513 passed / 0 failed / 0 errored
+#
+# The 15 env_var_resolution_tests.rs tests in the run:
+#   — Story Red Gate (8) —
+#   PASS prism-spec-engine::env_var_resolution_tests test_env_var_full_token_resolves_to_value
+#   PASS prism-spec-engine::env_var_resolution_tests test_env_var_partial_token_resolves_preserving_surrounding_literals
+#   PASS prism-spec-engine::env_var_resolution_tests test_env_var_multi_token_single_field_both_resolve
+#   PASS prism-spec-engine::env_var_resolution_tests test_env_var_missing_var_produces_e_spec_024
+#   PASS prism-spec-engine::env_var_resolution_tests test_env_var_empty_var_produces_e_spec_024
+#   PASS prism-spec-engine::env_var_resolution_tests test_env_var_multi_missing_tokens_collect_multiple_errors
+#   PASS prism-spec-engine::env_var_resolution_tests test_env_var_resolution_runs_before_url_format_validation
+#   PASS prism-spec-engine::env_var_resolution_tests test_env_var_error_contains_name_not_value
+#   — Adversary-added ordering tests / F-LOCAL-P1-HIGH-001 (2) —
+#   PASS prism-spec-engine::env_var_resolution_tests test_env_var_ordering_production_path_absent_var_produces_e_spec_024_not_url_format_error
+#   PASS prism-spec-engine::env_var_resolution_tests test_env_var_ordering_production_path_set_var_load_succeeds
+#   — PR#165 dedup fix / F-PR1-MED-001 (2) —
+#   PASS prism-spec-engine::env_var_resolution_tests test_env_var_dedup_repeated_missing_token_produces_exactly_one_error
+#   PASS prism-spec-engine::env_var_resolution_tests test_env_var_dedup_repeated_set_token_all_occurrences_replaced
+#   — PR#165 namespace-boundary / F-PR1-MED-002 (3) —
+#   PASS prism-spec-engine::env_var_resolution_tests test_env_var_step_namespace_token_survives_verbatim
+#   PASS prism-spec-engine::env_var_resolution_tests test_env_var_query_namespace_token_survives_verbatim
+#   PASS prism-spec-engine::env_var_resolution_tests test_env_var_mixed_env_and_step_tokens_only_env_resolved
+#
+# 10 skipped: tests marked #[ignore] (DTU/external-service integration tests
+#             gated on live DTU instances per SID-1 discipline)
+#
+# ─── Verdict ─────────────────────────────────────────────────────────────────
+# No regressions. All 513 executable tests pass. The 8 story Red Gate tests +
+# 2 F-LOCAL adversary tests + 5 PR#165 tests all pass. Existing 498 pre-story
+# tests unaffected.

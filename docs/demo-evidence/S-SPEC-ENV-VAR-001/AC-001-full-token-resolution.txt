@@ -1,0 +1,30 @@
+# AC-001 Evidence — Full-token resolution: single token, var set
+#
+# Story:  S-SPEC-ENV-VAR-001 v1.2
+# AC:     AC-001 — base_url = "${env.ARMIS_INSTANCE_URL}" with var set → resolves to value
+# Test:   test_env_var_full_token_resolves_to_value
+# Source: crates/prism-spec-engine/tests/env_var_resolution_tests.rs
+# BC:     BC-2.16.009 §Validation Rules 6 postcondition
+# Demo mode: LIBRARY (test-harness nextest capture) — spec-engine is a library with
+#            no CLI surface; test harness is the production-representative demo vehicle.
+#
+# ─── What the test asserts ───────────────────────────────────────────────────
+#   Input:  base_url = "${env.PRISM_TEST_ENV_VAR_AC001_URL}"
+#           PRISM_TEST_ENV_VAR_AC001_URL = "https://example.armis.io"
+#   Call:   resolve_env_var_tokens(&mut spec, "test/armis.sensor.toml")
+#   Assert: errors.is_empty()                         → no E-SPEC-024 emitted
+#           spec.base_url == "https://example.armis.io" → token replaced with value
+#
+# ─── nextest output (captured 2026-05-31) ────────────────────────────────────
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.31s
+────────────
+ Nextest run ID bd218140-f93d-415d-bc96-7c225ad920c8 with nextest profile: default
+    Starting 1 test across 36 binaries (517 tests skipped)
+        PASS [   0.010s] (1/1) prism-spec-engine::env_var_resolution_tests test_env_var_full_token_resolves_to_value
+────────────
+     Summary [   0.011s] 1 test run: 1 passed, 517 skipped
+
+# ─── Verdict ─────────────────────────────────────────────────────────────────
+# PASS — AC-001 satisfied. Full ${env.VAR} token replaced with the resolved value;
+# no E-SPEC-024 emitted; resolved URL populates spec.base_url intact.

@@ -1,0 +1,32 @@
+# AC-003 Evidence — Multi-token field: two ${env.VAR} tokens in one field, both set
+#
+# Story:  S-SPEC-ENV-VAR-001 v1.2
+# AC:     AC-003 — base_url = "https://${env.REGION}.${env.SENSOR_HOST}.io"
+#                  with REGION=us1, SENSOR_HOST=example → "https://us1.example.io"
+# Test:   test_env_var_multi_token_single_field_both_resolve
+# Source: crates/prism-spec-engine/tests/env_var_resolution_tests.rs
+# BC:     BC-2.16.009 §Validation Rules 6 — "resolver scans ALL ${env.VAR_NAME} tokens"
+# Demo mode: LIBRARY (test-harness nextest capture)
+#
+# ─── What the test asserts ───────────────────────────────────────────────────
+#   Input:  base_url = "https://${env.PRISM_TEST_ENV_VAR_AC003_REGION}.${env.PRISM_TEST_ENV_VAR_AC003_HOST}.io"
+#           PRISM_TEST_ENV_VAR_AC003_REGION = "us1"
+#           PRISM_TEST_ENV_VAR_AC003_HOST   = "example"
+#   Call:   resolve_env_var_tokens(&mut spec, "test/multi-token.sensor.toml")
+#   Assert: errors.is_empty()
+#           spec.base_url == "https://us1.example.io"   (both tokens replaced)
+#
+# ─── nextest output (captured 2026-05-31) ────────────────────────────────────
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.31s
+────────────
+ Nextest run ID 51c5349e-c686-4100-b443-7d25867af508 with nextest profile: default
+    Starting 1 test across 36 binaries (517 tests skipped)
+        PASS [   0.011s] (1/1) prism-spec-engine::env_var_resolution_tests test_env_var_multi_token_single_field_both_resolve
+────────────
+     Summary [   0.011s] 1 test run: 1 passed, 517 skipped
+
+# ─── Verdict ─────────────────────────────────────────────────────────────────
+# PASS — AC-003 satisfied. Both tokens in a single field are replaced; surrounding
+# "https://" prefix and ".io" suffix preserved. Confirms the resolver iterates ALL
+# ${env.VAR} tokens per field (no stop-at-first behaviour).

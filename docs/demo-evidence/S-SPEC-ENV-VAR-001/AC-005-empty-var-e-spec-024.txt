@@ -1,0 +1,38 @@
+# AC-005 Evidence — Empty var → E-SPEC-024, empty value treated as missing
+#
+# Story:  S-SPEC-ENV-VAR-001 v1.2
+# AC:     AC-005 — ${env.ARMIS_INSTANCE_URL} with var set to "" → E-SPEC-024
+#                  empty string is treated the same as absent (EC-009-002)
+# Test:   test_env_var_empty_var_produces_e_spec_024
+# Source: crates/prism-spec-engine/tests/env_var_resolution_tests.rs
+# BC:     BC-2.16.009 §Validation Rules 6 — "empty string is treated as missing"; EC-009-002
+# Demo mode: LIBRARY (test-harness nextest capture)
+#
+# ─── What the test asserts ───────────────────────────────────────────────────
+#   Input:  base_url = "${env.PRISM_TEST_ENV_VAR_AC005_EMPTY}"
+#           PRISM_TEST_ENV_VAR_AC005_EMPTY = ""  (set_var called with empty string)
+#   Call:   resolve_env_var_tokens(&mut spec, "test/armis.sensor.toml")
+#   Assert: errors.len() == 1
+#           errors[0] is SpecEngineError::EnvVarNotSet
+#           errors[0].var_name == "PRISM_TEST_ENV_VAR_AC005_EMPTY"
+#           (NOT a URL-format error — resolver intercepts before url::Url::parse)
+#
+# Implementation note: resolve_field() distinguishes:
+#   Ok(value) if !value.is_empty() → replace (AC-001 happy path)
+#   Ok(_empty)                     → EnvVarNotSet (this test: empty == missing)
+#   Err(VarError::NotPresent)      → EnvVarNotSet (AC-004 absent path)
+#
+# ─── nextest output (captured 2026-05-31) ────────────────────────────────────
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.32s
+────────────
+ Nextest run ID 6072ee56-7254-409a-90b5-5b435f68ba19 with nextest profile: default
+    Starting 1 test across 36 binaries (517 tests skipped)
+        PASS [   0.011s] (1/1) prism-spec-engine::env_var_resolution_tests test_env_var_empty_var_produces_e_spec_024
+────────────
+     Summary [   0.011s] 1 test run: 1 passed, 517 skipped
+
+# ─── Verdict ─────────────────────────────────────────────────────────────────
+# PASS — AC-005 satisfied. Empty-string var produces SpecEngineError::EnvVarNotSet
+# (E-SPEC-024), not a URL-format error. Empty value is treated identically to absent.
+# No degraded-load state.

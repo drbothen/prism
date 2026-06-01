@@ -953,6 +953,20 @@ pub enum SpecErrorCode {
     /// unrecognized field 'auth_type'. Only scalar tunables are permitted in overlay files
     /// (ADR-029)."
     ESpec023,
+    /// E-SPEC-024: A `${env.VAR_NAME}` token in a sensor spec string field could not be
+    /// resolved because the named environment variable is absent or empty.
+    ///
+    /// Emitted during spec loading (post-TOML-parse, pre-URL-format-validation pass) when
+    /// `resolve_env_var_tokens` encounters an unset or empty env var. Multiple E-SPEC-024
+    /// errors are collected in a single multi-error pass (no fail-fast). The spec is rejected
+    /// entirely — no degraded-load state (fail-closed). Boot exits with code 2.
+    ///
+    /// The env var VALUE is NEVER included in the error message (AD-017 / AI-opaque-credentials).
+    /// Only the var NAME and TOML field path are reported.
+    ///
+    /// BC-2.16.009 §Validation Rules 6 (AC-6); S-SPEC-ENV-VAR-001.
+    /// error-taxonomy.md v1.56 E-SPEC-024.
+    ESpec024,
 }
 
 /// A structured spec validation or runtime error carrying an E-SPEC-* code,
