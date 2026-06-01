@@ -636,7 +636,7 @@ pub fn build_http_client_with_timeout() -> Result<reqwest::Client, String> {
 /// # OrgSlug → OrgId translation
 ///
 /// `resolved_spec_map` is keyed by `(OrgSlug, SensorId)`. `AdapterRegistry` is keyed by
-/// `(OrgId, SensorId)`. This function calls `org_registry.id_for_slug(slug)` to translate.
+/// `(OrgId, SensorId)`. This function calls `org_registry.resolve(slug)` to translate.
 /// If a slug has no matching OrgId (should not happen after step 3 cross-validation), the
 /// sensor is skipped with a warning log.
 ///
@@ -682,8 +682,7 @@ pub async fn step9a_populate_adapter_registry(
 
     for ((org_slug, _sensor_id_key), resolved_spec) in resolved_spec_map {
         // OQ-2 Resolution: translate OrgSlug → OrgId via OrgRegistry::resolve().
-        // Note: story spec uses id_for_slug(), but the existing method is resolve().
-        // These are functionally equivalent; use resolve() per KNOWN IN-SCOPE WORK note.
+        // resolve() is the canonical method per story v1.4 (D-922).
         let org_id = match org_registry.resolve(org_slug) {
             Some(id) => id,
             None => {
