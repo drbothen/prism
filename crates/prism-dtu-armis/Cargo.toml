@@ -46,6 +46,7 @@ chrono = "0.4"
 proptest = "1.11.0"
 uuid = { version = "1", features = ["v4", "v7"] }
 prism-dtu-harness = { path = "../prism-dtu-harness", features = ["dtu"] }
+toml = "0.8"
 
 [[test]]
 name = "ac_1_aql_capture_and_device_list"
@@ -135,6 +136,11 @@ required-features = ["dtu"]
 [[test]]
 name = "cr023_activity_risk_org_id_guard"
 path = "tests/cr023_activity_risk_org_id_guard.rs"
+required-features = ["dtu"]
+
+[[test]]
+name = "s_demo_armis_aql_001_red_gate"
+path = "tests/s_demo_armis_aql_001_red_gate.rs"
 required-features = ["dtu"]
 
 [lints]
