@@ -30,7 +30,7 @@ use crate::{
 ///
 /// Gap-CL-006: DTU-side closure. `claroty.sensor.toml` `response_path = "$.audit_log"`.
 ///
-/// # SEC-001 / CR-012 / BC-3.5.002 precondition 3
+/// # W3-FIX-SEC-001 (AC-001..AC-003)
 ///
 /// When the clone was created with a real (non-nil) `instance_org_id`, the
 /// `X-Org-Id` header is validated against `state.instance_org_id` after bearer
@@ -46,7 +46,7 @@ pub async fn list_audit_logs(
         return err;
     }
 
-    // SEC-001 / BC-3.5.002 precondition 3: org-isolation guard.
+    // W3-FIX-SEC-001: org-isolation guard.
     //
     // When instance_org_id is non-nil (real org clone), validate the X-Org-Id
     // header matches. Nil-org clones (ClarotyClone::new()) skip this check for
@@ -88,8 +88,8 @@ pub async fn list_audit_logs(
 //   test_BC_2_16_013_claroty_audit_logs_dtu_route_returns_synthetic_entries → AC-001, AC-003, AC-004
 //   test_BC_2_16_013_claroty_audit_logs_dtu_auth_enforced                   → AC-002, EC-001, EC-002
 //   test_BC_2_16_013_claroty_audit_logs_dtu_column_parity                   → AC-005 (SAP-2)
-//   test_BC_2_16_013_claroty_audit_logs_org_mismatch_returns_401            → SEC-001 (org-isolation guard, non-nil clone)
-//   test_BC_2_16_013_claroty_audit_logs_nil_org_no_header_returns_200       → SEC-001 (nil-org clone backward-compat)
+//   test_W3_FIX_SEC_001_claroty_audit_logs_org_mismatch_returns_401         → SEC-001 (org-isolation guard, non-nil clone)
+//   test_W3_FIX_SEC_001_claroty_audit_logs_nil_org_no_header_returns_200    → SEC-001 (nil-org clone backward-compat)
 //   test_BC_2_16_013_claroty_audit_logs_pipeline_integration_ac_006         → AC-006 (deferred, #[ignore])
 // ---------------------------------------------------------------------------
 #[cfg(test)]
@@ -447,17 +447,17 @@ mod tests {
         );
     }
 
-    /// SEC-001 / BC-3.5.002 precondition 3 — org-isolation guard.
+    /// W3-FIX-SEC-001 — org-isolation guard (non-nil clone, mismatched org).
     ///
     /// When the clone has a real (non-nil) `instance_org_id`, a request whose
     /// `X-Org-Id` header does not match `instance_org_id` must return HTTP 401.
     ///
-    /// This mirrors the sibling guard in `list_devices` (W3-FIX-SEC-001).
+    /// Mirrors the sibling guard in `list_devices` (W3-FIX-SEC-001).
     ///
     /// Verifies:
     /// - Valid bearer + mismatched X-Org-Id → 401 `{"error": "org_id mismatch: ..."}`
     #[tokio::test]
-    async fn test_BC_2_16_013_claroty_audit_logs_org_mismatch_returns_401() {
+    async fn test_W3_FIX_SEC_001_claroty_audit_logs_org_mismatch_returns_401() {
         // Instance org: a real, non-nil UUID.
         let instance_org = OrgId::from_uuid(
             Uuid::parse_str("11111111-1111-7000-8000-000000000001").expect("valid test UUID"),
@@ -481,7 +481,7 @@ mod tests {
         assert_eq!(
             resp.status().as_u16(),
             401,
-            "non-nil-org clone + mismatched X-Org-Id must return HTTP 401 (SEC-001, BC-3.5.002)"
+            "non-nil-org clone + mismatched X-Org-Id must return HTTP 401 (W3-FIX-SEC-001)"
         );
 
         let body: serde_json::Value = resp
@@ -497,7 +497,7 @@ mod tests {
         );
     }
 
-    /// SEC-001 backward-compat: nil-org clone without X-Org-Id header must still return 200.
+    /// W3-FIX-SEC-001 backward-compat: nil-org clone without X-Org-Id header must return 200.
     ///
     /// `ClarotyClone::new()` sets `instance_org_id` to the nil UUID — the sentinel meaning
     /// "no org constraint". Callers that do not supply `X-Org-Id` must not be rejected.
@@ -505,7 +505,7 @@ mod tests {
     /// This test verifies the guard does NOT fire for nil-org clones, preserving
     /// the fidelity_validator route-11 (401-without-auth, nil-org, no X-Org-Id) behavior.
     #[tokio::test]
-    async fn test_BC_2_16_013_claroty_audit_logs_nil_org_no_header_returns_200() {
+    async fn test_W3_FIX_SEC_001_claroty_audit_logs_nil_org_no_header_returns_200() {
         // Nil-org clone — no org enforcement.
         let (_clone, base_url) = start_clone().await;
         let client = test_client();
