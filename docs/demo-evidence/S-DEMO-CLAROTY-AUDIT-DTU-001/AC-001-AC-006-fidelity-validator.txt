@@ -1,0 +1,43 @@
+Test: claroty_dtu_fidelity (FidelityValidator — 12-route coverage matrix)
+Crate: prism-dtu-claroty
+Location: crates/prism-dtu-claroty/tests/fidelity_validator.rs
+Command: cargo nextest run -p prism-dtu-claroty --test fidelity_validator --features dtu
+Story: S-DEMO-CLAROTY-AUDIT-DTU-001 v1.5
+BCs: BC-2.16.013 (postcondition §1 DTU-Parity), BC-2.01.013 (postcondition §1 spec-driven pipeline reachability)
+
+AC Coverage:
+  AC-001 — POST /api/v1/audit_log/get registered in ClarotyClone::build_router() and passes
+           fidelity check (Route 11 in the 12-route matrix; returns 401 without auth,
+           confirming the route is registered and dispatches to list_audit_logs)
+  AC-006 — Route is reachable via the spec-driven pipeline path; FidelityValidator confirms
+           ClarotyClone serves all 12 routes with 0 failures (checks_failed == 0)
+
+12-route coverage matrix:
+  Route  1: POST /api/v1/devices                              → 401 (auth enforced)
+  Route  2: POST /api/v1/alerts                              → 401 (auth enforced)
+  Route  3: POST /api/v1/alerts/:id/devices                 → 401 (auth enforced)
+  Route  4: POST /api/v1/vulnerabilities                    → 401 (auth enforced)
+  Route  5: POST /api/v1/vulnerabilities/:id/devices        → 401 (auth enforced)
+  Route  6: POST /api/v1/devices/:id/tags/                  → 401 (auth enforced)
+  Route  7: DELETE /api/v1/devices/:id/tags/:key            → 401 (auth enforced)
+  Route  8: POST /dtu/configure                             → 200 (admin token)
+  Route  9: POST /dtu/reset                                 → 200 (admin token)
+  Route 10: GET  /dtu/health                                → 200 (no auth)
+  Route 11: POST /api/v1/audit_log/get  [GAP-CL-006 CLOSE] → 401 (auth enforced)
+  Route 12: POST /dtu/reset_for/:org_id                    → 200 (no auth)
+
+Result:
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.41s
+────────────
+ Nextest run ID 2420a5e0-782b-48a7-a7db-adc05731c00d with nextest profile: default
+    Starting 1 test across 1 binary
+        PASS [   0.048s] (1/1) prism-dtu-claroty::fidelity_validator claroty_dtu_fidelity
+────────────
+     Summary [   0.049s] 1 test run: 1 passed, 0 skipped
+
+PASS — 1/1 tests passed
+FidelityValidator: 12/12 checks passed, 0 failed
+
+Gap-CL-006 closure confirmed: Route 11 (POST /api/v1/audit_log/get) is now in the fidelity matrix.
+Previous state (pre-story): build_router() had no handler for this path → HTTP 404.
+Post-story state: list_audit_logs registered → HTTP 401 (auth enforced) → HTTP 200 with fixture.

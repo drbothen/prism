@@ -1,0 +1,22 @@
+Full prism-dtu-claroty test suite run (unit tests)
+Command: cargo nextest run -p prism-dtu-claroty
+Story: S-DEMO-CLAROTY-AUDIT-DTU-001 v1.5
+Branch: feature/S-DEMO-CLAROTY-AUDIT-DTU-001
+HEAD: 7f3584b6
+
+Result:
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.38s
+────────────
+ Nextest run ID 5be45e14-3711-4b8d-a263-65de2e9ceda1 with nextest profile: default
+    Starting 4 tests across 1 binary
+        PASS [   0.013s] (1/4) prism-dtu-claroty state::tests::test_bc_3_2_001_default_org_id_is_test_gated_and_non_zero
+        PASS [   0.087s] (2/4) prism-dtu-claroty routes::audit_log::tests::test_BC_2_16_013_claroty_audit_logs_dtu_route_returns_synthetic_entries
+        PASS [   0.087s] (3/4) prism-dtu-claroty routes::audit_log::tests::test_BC_2_16_013_claroty_audit_logs_dtu_column_parity
+        PASS [   0.088s] (4/4) prism-dtu-claroty routes::audit_log::tests::test_BC_2_16_013_claroty_audit_logs_dtu_auth_enforced
+────────────
+     Summary [   0.088s] 4 tests run: 4 passed, 0 skipped
+
+PASS — 4/4 tests passed, 0 skipped, 0 failed
+
+All 3 Red Gate tests for S-DEMO-CLAROTY-AUDIT-DTU-001 pass.
+No regressions to existing tests.
