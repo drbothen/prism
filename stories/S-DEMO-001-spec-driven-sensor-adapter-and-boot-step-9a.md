@@ -6,7 +6,7 @@ wave: 5
 epic_id: E-DEMO
 priority: P0
 status: draft
-version: "1.9"
+version: "1.10"
 level: "L4"
 producer: story-writer
 revised_by: architect
@@ -139,11 +139,11 @@ cycle: "v1.0.0-brownfield"
 phase: 3
 ---
 
-# S-DEMO-001 v1.9 — prism-bin: SpecDrivenSensorAdapter + Boot Step 9A (closes GAP-002-A)
+# S-DEMO-001 v1.10 — prism-bin: SpecDrivenSensorAdapter + Boot Step 9A (closes GAP-002-A)
 
 **Story ID:** S-DEMO-001
 **Status:** draft
-**Version:** v1.9
+**Version:** v1.10
 **Wave:** 5
 **Priority:** P0
 **Points:** 11
@@ -457,7 +457,7 @@ Then:
 name per poller-express `cookieTransport`. Any implementation that uses `cyberint_session` as the
 cookie name is WRONG under ADR-031 D1-a. The adversary will probe for this specifically.
 
-### AC-010: Adapter fetch returns OCSF-conformant Arrow RecordBatches (BC-2.01.013 v1.8 OCSF Conformance Clause items 1–3)
+### AC-010: Adapter fetch returns OCSF-conformant Arrow RecordBatches (BC-2.01.013 v1.9 OCSF Conformance Clause items 1–3)
 Given: A `SpecDrivenSensorAdapter::fetch()` call is made for any of the 4 sensors and the
 `PipelineExecutor` successfully fetches and normalizes data.
 When: The returned `Vec<RecordBatch>` is inspected.
@@ -489,7 +489,7 @@ set to the sensor's canonical `SensorId` string (e.g., `"crowdstrike"`), injecte
 normalization layer. The conformance test MUST assert `_sensor` is present with the correct
 sensor ID.
 
-**Conformance test requirement (minimum gate per BC-2.01.013 v1.8 Conformance Clause):**
+**Conformance test requirement (minimum gate per BC-2.01.013 v1.9 Conformance Clause):**
 The test for this AC MUST construct a `SpecDrivenSensorAdapter`, drive it against a mock
 `PipelineExecutor` returning a representative raw API response, and assert all three of:
 (a) all spec-declared column names appear in the returned Arrow schema,
@@ -498,7 +498,7 @@ The test for this AC MUST construct a `SpecDrivenSensorAdapter`, drive it agains
 the raw record, and
 (c) `_sensor` is present with the correct sensor ID.
 
-(traces to BC-2.01.013 v1.8 OCSF Conformance Clause items 1–3; postcondition; traces to BC-2.11.005 postcondition — virtual fields injected by the normalization layer)
+(traces to BC-2.01.013 v1.9 OCSF Conformance Clause items 1–3; postcondition; traces to BC-2.11.005 postcondition — virtual fields injected by the normalization layer)
 
 **SCOPE NOTE — Query-Param Push-Down is OUT OF SCOPE for this story (D-924):**
 `SpecDrivenSensorAdapter::fetch()` does NOT translate `limit`, `cursor`, `start_time`, or
@@ -507,7 +507,7 @@ DataFusion applies `LIMIT` predicates and time-window post-filters over the full
 Arrow RecordBatch after `fetch()` returns. This is correct behavior — push-down is an
 optimization (BC-2.11.007 invariant), not a correctness requirement. Query-param push-down is
 deferred as an explicit feature to follow-up story S-DEMO-QUERY-PUSHDOWN-001 per
-BC-2.01.013 v1.8 Pagination/Push-Down Scope Clause (D-924). Test-writers MUST NOT assert that
+BC-2.01.013 v1.9 Pagination/Push-Down Scope Clause (D-924). Test-writers MUST NOT assert that
 `fetch()` passes `limit` or cursor values to the sensor API.
 
 ### AC-011: No `todo!()` or `unimplemented!()` in adapter, boot step 9A, or StaticCookieAuthProvider (POL-12)
@@ -703,6 +703,7 @@ if context pressure is felt during implementation.
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.10 | 2026-06-01 | story-writer | OBS-P3-001 version-pin sweep: AC-010 heading, conformance test requirement label, traces-to line, and Pagination/Push-Down Scope Clause reference all updated from BC-2.01.013 v1.8 → v1.9. Historical changelog entries (1.5 and 1.6 rows) are untouched — they record what was written when the BC was at v1.8. |
 | 1.9 | 2026-05-31 | story-writer | POL-32 hygiene (F-PASS1-MED-002): changelog reordered to monotonic DESCENDING per POL-32 (newest first). AC-004 clarification (F-PASS1-OBS-002): N defined as (per-org × per-sensor specs) minus sensors skipped per EC-004 (missing PluginAuthProvider) or EC-007 (unsupported auth_type); aligns with Red Gate test expectation of 2 (armis×2; crowdstrike skipped). |
 | 1.8 | 2026-05-31 | story-writer | ADV-P06 exhaustive closure sweep (ADV-P06-MED-001 + ADV-P06-MED-002). MED-001: EC-002 and EC-008 corrected from "retry → AuthRefreshFailed" to NO-RETRY → CookieAuthFailed per BC-2.01.017 EC-017-002; §Cyberint Cookie Auth Design "On 401" bullet corrected to match no-retry semantics. MED-002: Task 9 corrected — StaticCookieAuthProvider production constructor is 1-arg `new(sensor_id)` (resolver internal via PrismCredentialResolver); test-only `new_with_resolver(sensor_id, resolver)` named and feature-gated; no `credential_resolver` injected from boot callsite. Task 14 corrected — `StaticCookieAuthProvider::new(sensor_id)` (1-arg; no `Arc::clone(&credential_resolver)`). Task 5 rewritten — stale instruction to read OLD DTU `POST /login` / `cyberint_session` pattern replaced with corrected-DTU reading guidance. No prescriptive stale references remain after this sweep. |
 | 1.7 | 2026-05-31 | story-writer | ADV-P05 drift sweep: fixed 4 stale-design locations missed by v1.3 sweep. HIGH-001: risk_mitigations CookieRoundtrip entry corrected — cookie name `access_token` (not `cyberint_session`), no `POST /login` step, no self-contradiction. HIGH-002: Task 8 cookie name `access_token` (not `cyberint_session`); Task 12 `AdapterAuthStrategy::StaticCookie` (not `CookieLogin`); removed stale `executor: Arc<PipelineExecutor>` field description. LOW-002: OQ-2 pseudo-code `register(org_id, sensor_id.clone(), Arc::new(adapter))` → 2-arg `register(org_id, Arc::new(adapter))`. LOW-001: changelog rows reordered to monotonic ascending (1.0→1.7). |
