@@ -116,9 +116,11 @@ ocsf_class = "device"
   ocsf_field = "risk_score"
 
   # DTU-EXT-003: CLOSED by S-DEMO-ARMIS-AQL-001.
-  # Primary path is now GET /api/v1/search?aql=in:type=Device (real Armis Centrix AQL endpoint,
-  # ADR-031 §D8-a). GET /api/v1/devices remains registered in build_router() for back-compat
-  # but is not the primary path.
+  # Primary path is now GET /api/v1/search?aql=in:devices (real Armis Centrix AQL endpoint,
+  # ADR-031 §D8-a). `in:devices` is the real Armis entity discriminator (research artifact
+  # 2026-06-01; grounded from 1898 production poller + 3 independent external connectors).
+  # GET /api/v1/devices remains registered in build_router() for back-compat but is not the
+  # primary path.
   # response_path: routes/search.rs SearchResponse { data: SearchData { results: [...], total } }
   #   → must extract at $.data.results (not $.data.devices — search envelope uses "results").
   # AQL forwarding via ${query.filter.aql}: the ?aql= query param carries the AQL filter string.
@@ -189,9 +191,11 @@ ocsf_class = "security_finding"
   ocsf_field = "end_time"
 
   # DTU-EXT-004: CLOSED by S-DEMO-ARMIS-AQL-001.
-  # Primary path is now GET /api/v1/search?aql=in:type=Alert (real Armis Centrix AQL endpoint,
-  # ADR-031 §D8-a). GET /api/v1/alerts remains registered in build_router() for back-compat
-  # but is not the primary path.
+  # Primary path is now GET /api/v1/search?aql=in:alerts (real Armis Centrix AQL endpoint,
+  # ADR-031 §D8-a). `in:alerts` is the real Armis entity discriminator (research artifact
+  # 2026-06-01; grounded from 1898 production poller default `in:alerts status:Open`).
+  # GET /api/v1/alerts remains registered in build_router() for back-compat but is not
+  # the primary path.
   # response_path: routes/search.rs SearchResponse { data: SearchData { results: [...], total } }
   #   → must extract at $.data.results (not $.data.alerts — search envelope uses "results").
   # AQL forwarding via ${query.filter.aql}: the ?aql= query param carries the AQL filter string.

@@ -499,8 +499,9 @@ async fn test_BC_2_16_013_AC_005_aql_roundtrip_alerts_pipeline() {
         .clone();
 
     // Step 4: Seed FetchContext with alert AQL.
-    // The AQL contains "Alert" so the DTU routes to the alerts fixture.
-    let aql_value = "in:type=Alert status:Open";
+    // Real Armis `in:alerts` discriminator routes to the alerts fixture (F-LP12-HIGH-001 fix).
+    // The production poller uses `in:alerts status:Open` as the default alert AQL.
+    let aql_value = "in:alerts status:Open";
     let mut filters = HashMap::new();
     filters.insert("aql".to_string(), aql_value.to_string());
     let context = FetchContext::new(OrgSlug::new("test-org"), filters);
@@ -538,7 +539,7 @@ async fn test_BC_2_16_013_AC_005_aql_roundtrip_alerts_pipeline() {
         "AC-005 alerts: first record must contain alert_id string (AlertRecord shape \
          from $.data.results for Alert AQL); got: {first}. \
          REGRESSION INDICATOR: DTU routing by AQL pattern is broken — \
-         'in:type=Alert' must route to alerts fixture."
+         'in:alerts' must route to alerts fixture (F-LP12-HIGH-001 fix)."
     );
 
     // Assertion (a): DTU received the verbatim AQL.

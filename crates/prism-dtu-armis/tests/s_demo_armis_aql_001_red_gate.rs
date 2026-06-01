@@ -41,7 +41,9 @@ use prism_dtu_common::BehavioralClone;
 // ---------------------------------------------------------------------------
 
 /// AC-001 / BC-2.16.013 §Postconditions §1:
-/// GET /api/v1/search?aql=in:type=Device with a valid Bearer token returns HTTP 200.
+/// GET /api/v1/search?aql=in:devices with a valid Bearer token returns HTTP 200.
+///
+/// Real Armis `in:devices` discriminator (research artifact 2026-06-01; F-LP12-HIGH-001 fix).
 ///
 /// Red Gate failure: `get_search` stub is `todo!()` — the handler panics and axum
 /// returns a 500 (or the connection is reset). The test asserts 200 → fails RED.
@@ -58,7 +60,7 @@ async fn test_armis_aql_search_route_registered_returns_200_for_device_aql() {
 
     let resp = client
         .get(format!("{base_url}/api/v1/search"))
-        .query(&[("aql", "in:type=Device")])
+        .query(&[("aql", "in:devices")])
         .header("Authorization", "Bearer test-token")
         .send()
         .await
@@ -67,7 +69,7 @@ async fn test_armis_aql_search_route_registered_returns_200_for_device_aql() {
     assert_eq!(
         resp.status().as_u16(),
         200,
-        "S-DEMO-ARMIS-AQL-001 AC-001: GET /api/v1/search?aql=in:type=Device with valid Bearer must return HTTP 200 (BC-2.16.013 §Postconditions §1 DTU-Parity)"
+        "S-DEMO-ARMIS-AQL-001 AC-001: GET /api/v1/search?aql=in:devices with valid Bearer must return HTTP 200 (BC-2.16.013 §Postconditions §1 DTU-Parity)"
     );
 }
 
@@ -91,7 +93,7 @@ async fn test_armis_aql_search_returns_403_without_bearer() {
     // No Authorization header.
     let resp = client
         .get(format!("{base_url}/api/v1/search"))
-        .query(&[("aql", "in:type=Device")])
+        .query(&[("aql", "in:devices")])
         .send()
         .await
         .expect("S-DEMO-ARMIS-AQL-001 AC-001/EC-004: GET /api/v1/search without Bearer must not fail at transport layer");
@@ -104,14 +106,16 @@ async fn test_armis_aql_search_returns_403_without_bearer() {
 }
 
 // ---------------------------------------------------------------------------
-// AC-002: /api/v1/search with in:type=Device AQL returns device records
+// AC-002: /api/v1/search with in:devices AQL returns device records
 // (BC-2.16.013 §Postconditions §2 fixture-parity; ADR-031 §D8-a requirement 1)
 // ---------------------------------------------------------------------------
 
 /// AC-002 / BC-2.16.013 §Postconditions §2 fixture-parity:
-/// GET /api/v1/search?aql=in:type=Device returns a JSON body with the shape
+/// GET /api/v1/search?aql=in:devices returns a JSON body with the shape
 /// `{"data": {"results": [...], "total": N}}` where `results` is a non-empty array
 /// of DeviceRecord-shaped objects.
+///
+/// Real Armis `in:devices` discriminator (research artifact 2026-06-01; F-LP12-HIGH-001 fix).
 ///
 /// Red Gate failure: `get_search` is `todo!()` — panics, axum returns 500.
 /// The test asserts 200 + correct envelope → fails RED.
@@ -128,16 +132,16 @@ async fn test_armis_aql_search_devices_aql_returns_device_records() {
 
     let resp = client
         .get(format!("{base_url}/api/v1/search"))
-        .query(&[("aql", "in:type=Device")])
+        .query(&[("aql", "in:devices")])
         .header("Authorization", "Bearer test-token")
         .send()
         .await
-        .expect("S-DEMO-ARMIS-AQL-001 AC-002: GET /api/v1/search?aql=in:type=Device must not fail at transport layer");
+        .expect("S-DEMO-ARMIS-AQL-001 AC-002: GET /api/v1/search?aql=in:devices must not fail at transport layer");
 
     assert_eq!(
         resp.status().as_u16(),
         200,
-        "S-DEMO-ARMIS-AQL-001 AC-002: search with Device AQL must return HTTP 200"
+        "S-DEMO-ARMIS-AQL-001 AC-002: search with device AQL must return HTTP 200"
     );
 
     let body: serde_json::Value = resp
@@ -159,7 +163,7 @@ async fn test_armis_aql_search_devices_aql_returns_device_records() {
 
     assert!(
         !results.is_empty(),
-        "S-DEMO-ARMIS-AQL-001 AC-002: data.results must be non-empty for in:type=Device AQL against fixture data"
+        "S-DEMO-ARMIS-AQL-001 AC-002: data.results must be non-empty for in:devices AQL against fixture data"
     );
 
     // Assert total field is present and > 0.
@@ -181,8 +185,10 @@ async fn test_armis_aql_search_devices_aql_returns_device_records() {
 }
 
 /// AC-002 / BC-2.16.013 R-DTU-002 AQL capture:
-/// After GET /api/v1/search?aql=in:type=Device, the AQL string "in:type=Device"
+/// After GET /api/v1/search?aql=in:devices, the AQL string "in:devices"
 /// is visible in GET /dtu/aql-log as aql_strings[0].
+///
+/// Real Armis `in:devices` discriminator (research artifact 2026-06-01; F-LP12-HIGH-001 fix).
 ///
 /// Red Gate failure: `get_search` is `todo!()` — panics without calling
 /// `state.capture_aql()`. AQL log remains empty → assertion fails RED.
@@ -200,7 +206,7 @@ async fn test_armis_aql_search_aql_captured_in_aql_log() {
     // Issue search request with a specific AQL string.
     let _resp = client
         .get(format!("{base_url}/api/v1/search"))
-        .query(&[("aql", "in:type=Device")])
+        .query(&[("aql", "in:devices")])
         .header("Authorization", "Bearer test-token")
         .send()
         .await
@@ -231,8 +237,8 @@ async fn test_armis_aql_search_aql_captured_in_aql_log() {
     assert!(
         aql_strings
             .iter()
-            .any(|s| s.as_str() == Some("in:type=Device")),
-        "S-DEMO-ARMIS-AQL-001 AC-002 AQL-capture: aql_strings must contain 'in:type=Device' after search request (R-DTU-002: state.capture_aql() called by handler); got: {aql_strings:?}"
+            .any(|s| s.as_str() == Some("in:devices")),
+        "S-DEMO-ARMIS-AQL-001 AC-002 AQL-capture: aql_strings must contain 'in:devices' after search request (R-DTU-002: state.capture_aql() called by handler); got: {aql_strings:?}"
     );
 }
 
@@ -242,8 +248,11 @@ async fn test_armis_aql_search_aql_captured_in_aql_log() {
 // ---------------------------------------------------------------------------
 
 /// AC-003 (handler-unit) / BC-2.16.013 §Postconditions §2 fixture-parity:
-/// GET /api/v1/search?aql=in:type=Alert returns HTTP 200 with envelope
+/// GET /api/v1/search?aql=in:alerts returns HTTP 200 with envelope
 /// `{"data": {"results": [...AlertRecord objects...], "total": N}}`.
+///
+/// Real Armis `in:alerts` discriminator (research artifact 2026-06-01; F-LP12-HIGH-001 fix).
+/// The production poller uses `in:alerts status:Open` as the default alert AQL.
 ///
 /// Scope: this test exercises the DTU handler directly (AQL sent as a raw query
 /// param to the DTU, no PipelineExecutor involved). It proves the handler itself
@@ -267,11 +276,11 @@ async fn test_armis_aql_search_alerts_aql_returns_alert_records() {
 
     let resp = client
         .get(format!("{base_url}/api/v1/search"))
-        .query(&[("aql", "in:type=Alert")])
+        .query(&[("aql", "in:alerts")])
         .header("Authorization", "Bearer test-token")
         .send()
         .await
-        .expect("S-DEMO-ARMIS-AQL-001 AC-003: GET /api/v1/search?aql=in:type=Alert must not fail at transport layer");
+        .expect("S-DEMO-ARMIS-AQL-001 AC-003: GET /api/v1/search?aql=in:alerts must not fail at transport layer");
 
     assert_eq!(
         resp.status().as_u16(),
@@ -296,7 +305,7 @@ async fn test_armis_aql_search_alerts_aql_returns_alert_records() {
 
     assert!(
         !results.is_empty(),
-        "S-DEMO-ARMIS-AQL-001 AC-003: data.results must be non-empty for in:type=Alert AQL against fixture data"
+        "S-DEMO-ARMIS-AQL-001 AC-003: data.results must be non-empty for in:alerts AQL against fixture data"
     );
 
     // Assert total is present.

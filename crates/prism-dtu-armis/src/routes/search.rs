@@ -23,10 +23,16 @@
 //!
 //! The `aql` query parameter is accepted verbatim, captured via `state.capture_aql()`,
 //! and NOT parsed or validated (R-DTU-002 / ADR-005 §D1 opaque AQL model).
-//! Simple string pattern matching determines whether to return devices or alerts:
-//! - Contains `in:type=Device` (or device selector) → DeviceRecord results
-//! - Contains `in:type=Alert` or alert keyword → AlertRecord results
-//! - Absent or unrecognized → devices (safe fallback, EC-001)
+//! Simple string pattern matching determines whether to return devices or alerts using the
+//! real Armis Centrix `in:<entity>` discriminator syntax (research artifact 2026-06-01):
+//! - Contains `in:alerts` → AlertRecord results
+//! - Contains `in:devices` (or absent AQL per EC-001) → DeviceRecord results
+//! - Both present → devices take precedence (EC-002)
+//!
+//! Real Armis AQL examples (from 1898 production poller + Armis community):
+//! - `in:devices` — all devices
+//! - `in:devices type:(switch)` — devices filtered to switch type
+//! - `in:alerts status:Open` — open alerts
 //!
 //! # Response envelope
 //!
@@ -90,9 +96,11 @@ pub struct SearchData {
 /// and returns the appropriate paginated result in the search envelope format.
 ///
 /// AC-001: registered in `build_router()` → returns 200 with valid Bearer, 403 without.
-/// AC-002: `in:type=Device` AQL → returns DeviceRecord results.
-/// AC-003: alert AQL → returns AlertRecord results.
+/// AC-002: `in:devices` AQL → returns DeviceRecord results.
+/// AC-003: `in:alerts` AQL → returns AlertRecord results.
 /// EC-001: absent AQL → defaults to devices.
+/// EC-002: `in:alerts` takes precedence; if both `in:devices` and `in:alerts` are present,
+///   devices win (same EC-002 rule as before, now using real discriminator tokens).
 pub async fn get_search(
     State(state): State<Arc<ArmisState>>,
     headers: HeaderMap,
@@ -125,16 +133,16 @@ pub async fn get_search(
 
     // Determine whether to return alerts or devices based on AQL pattern matching.
     // R-DTU-002: AQL is opaque — only simple string pattern matching is permitted.
-    // EC-002: if both Device and Alert appear, devices take precedence.
+    // Real Armis `in:<entity>` discriminator syntax (research-artifact 2026-06-01,
+    // grounded from 1898 production poller + 3 independent external connectors):
+    //   - `in:alerts` → alert entity selection
+    //   - `in:devices` → device entity selection
+    // EC-002: if both `in:devices` and `in:alerts` are present, devices take precedence.
     // EC-001: absent AQL → default to devices (safe fallback).
     let return_alerts = params
         .aql
         .as_deref()
-        .map(|s| {
-            (s.contains("Alert") || s.contains("alert"))
-                && !s.contains("Device")
-                && !s.contains("device")
-        })
+        .map(|s| s.contains("in:alerts") && !s.contains("in:devices"))
         .unwrap_or(false);
 
     if return_alerts {

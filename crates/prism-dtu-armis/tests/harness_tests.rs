@@ -83,7 +83,11 @@ async fn build_single_armis_harness(slug: &str) -> (prism_dtu_harness::Harness, 
 // (source: ac_1_aql_capture_and_device_list.rs)
 // ============================================================================
 
-/// AC-1: GET /api/v1/devices?aql=in:type=switch with Bearer → HTTP 200, AQL captured.
+/// AC-1: GET /api/v1/devices?aql=in:devices+type:(switch) with Bearer → HTTP 200, AQL captured.
+///
+/// Real Armis AQL: `in:devices type:(switch)` — entity selector `in:devices` + predicate
+/// `type:(switch)` per real Armis Centrix syntax (research artifact 2026-06-01;
+/// F-LP12-HIGH-001 fix).
 ///
 /// (BC-3.5.001 postcondition 1; AC-001; S-3.4.02 Task 2)
 #[tokio::test]
@@ -91,10 +95,10 @@ async fn test_BC_3_5_001_ac1_get_devices_with_aql_returns_200_and_logs_aql() {
     let (_harness, base_url, admin_token) = build_single_armis_harness("test-tenant").await;
     let client = reqwest::Client::new();
 
-    // GET /api/v1/devices?aql=in:type=switch with valid Bearer token.
+    // GET /api/v1/devices?aql=in:devices type:(switch) with valid Bearer token.
     let resp = client
         .get(format!("{base_url}/api/v1/devices"))
-        .query(&[("aql", "in:type=switch")])
+        .query(&[("aql", "in:devices type:(switch)")])
         .bearer_auth(&admin_token)
         .send()
         .await
@@ -141,12 +145,15 @@ async fn test_BC_3_5_001_ac1_get_devices_with_aql_returns_200_and_logs_aql() {
     assert!(
         aql_strings
             .iter()
-            .any(|s| s.as_str() == Some("in:type=switch")),
-        "AC-1: AQL log must contain 'in:type=switch', got: {aql_strings:?}"
+            .any(|s| s.as_str() == Some("in:devices type:(switch)")),
+        "AC-1: AQL log must contain 'in:devices type:(switch)', got: {aql_strings:?}"
     );
 }
 
 /// AC-1 / EC-005: POST /api/v1/devices with AQL body → HTTP 200, AQL captured.
+///
+/// Real Armis AQL: `in:devices type:(plc)` — entity selector `in:devices` + predicate
+/// `type:(plc)` (research artifact 2026-06-01; F-LP12-HIGH-001 fix).
 ///
 /// (BC-3.5.001 postcondition 1; S-3.4.02 Task 2)
 #[tokio::test]
@@ -157,7 +164,7 @@ async fn test_BC_3_5_001_ac1_post_devices_with_aql_body_returns_200_and_logs_aql
     let resp = client
         .post(format!("{base_url}/api/v1/devices"))
         .bearer_auth(&admin_token)
-        .json(&serde_json::json!({ "aql": "in:type=plc" }))
+        .json(&serde_json::json!({ "aql": "in:devices type:(plc)" }))
         .send()
         .await
         .expect("AC-1/EC-005: POST /api/v1/devices must succeed");
@@ -197,7 +204,7 @@ async fn test_BC_3_5_001_ac1_post_devices_with_aql_body_returns_200_and_logs_aql
     assert!(
         aql_strings
             .iter()
-            .any(|s| s.as_str() == Some("in:type=plc")),
+            .any(|s| s.as_str() == Some("in:devices type:(plc)")),
         "AC-1/EC-005: AQL from POST body must be in log, got: {aql_strings:?}"
     );
 }
@@ -1305,9 +1312,10 @@ async fn test_BC_3_5_001_ac005_reset_clears_tag_store_and_aql_log() {
     );
 
     // Step 2: Send a device query with AQL to populate the AQL log.
+    // Real Armis AQL: `in:devices type:(switch)` (F-LP12-HIGH-001 fix).
     client
         .get(format!("{base_url}/api/v1/devices"))
-        .query(&[("aql", "in:type=switch")])
+        .query(&[("aql", "in:devices type:(switch)")])
         .bearer_auth(&admin_token)
         .send()
         .await
