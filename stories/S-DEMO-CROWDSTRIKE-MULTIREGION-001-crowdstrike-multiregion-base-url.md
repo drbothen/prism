@@ -5,16 +5,8 @@ title: "crowdstrike.sensor.toml: Multi-Region base_url Fidelity — Replace Hard
 wave: 5
 epic_id: E-DTU-FIDELITY
 priority: P2
-status: draft
-# BC status: pending PO authorship.
-# behavioral_contracts is empty — this story cannot be set to ready until the PO
-# authors or confirms existing BC coverage for env-var base_url substitution.
-# ADR-031 §D8-c: "If the sensor config loading behavior for ${env.VAR} substitution does
-# not already have a BC covering multi-sensor env-var resolution, the product-owner should
-# evaluate whether BC-2.01.NNN needs a new AC for CROWDSTRIKE_BASE_URL env-var substitution.
-# Flag to product-owner. If the env-var substitution is already covered by existing BCs
-# (Armis/Claroty use the same pattern), no new BC is needed."
-version: "1.0"
+status: ready
+version: "1.1"
 level: "L4"
 producer: story-writer
 timestamp: "2026-05-31T00:00:00Z"
@@ -106,8 +98,8 @@ phase: 3
 # S-DEMO-CROWDSTRIKE-MULTIREGION-001 v1.0 — CrowdStrike Multi-Region base_url Fidelity
 
 **Story ID:** S-DEMO-CROWDSTRIKE-MULTIREGION-001
-**Status:** draft
-**Version:** v1.0
+**Status:** ready
+**Version:** v1.1
 **Wave:** 5
 **Priority:** P2
 **Points:** 2
@@ -195,26 +187,15 @@ After this story merges:
 
 | BC ID | Title | Role in This Story |
 |-------|-------|-------------------|
-| (pending PO authorship/confirmation) | Sensor Spec Env-Var base_url Resolution | Per ADR-031 §D8-c: if ${env.VAR} substitution is already covered by existing BCs for Armis/Claroty (same pattern), no new BC needed. PO confirms. If not covered, a new AC in the spec-loading BC is needed. |
-
-This story's `behavioral_contracts: []` is intentional per Spec-First Gate S-7.01 —
-status remains `draft` until PO authors or confirms coverage.
+| BC-2.16.009 | Spec File Validation — Schema Validation, Variable Reference Resolution, OCSF Field Validation | §Validation Rules 6 env-var resolver governs `${env.CROWDSTRIKE_BASE_URL}` resolution; E-SPEC-024 on missing/empty var (AC-003); EC-009-008/EC-009-009 are the CrowdStrike test vectors |
+| BC-2.16.013 | Bundled Sensor Spec Authoring and DTU-Parity Verification — 4 Initial Sensors | §Postconditions §1 CrowdStrike row governs `base_url = "${env.CROWDSTRIKE_BASE_URL}"` spec authoring fidelity; parity test uses DTU SocketAddr override (DTU region-agnostic per ADR-031 §D8-c) |
 
 ---
 
-## New-BC Flags for Product-Owner
+## New-BC Flags — Resolved
 
-Flag 1 (CONFIRM): Does the existing spec-loading behavioral contract (BC for SensorSpec
-loading, likely BC-2.01.NNN or equivalent) already cover `${env.VAR}` substitution for
-`base_url`? The Armis and Claroty sensors already use this pattern — if those BCs are
-active and cover base_url resolution, adding CrowdStrike to the same pattern requires no
-new BC.
-
-Flag 2 (EVALUATE): If `CROWDSTRIKE_BASE_URL` is absent at spec-load time, the spec engine
-must emit a structured E-SPEC error, not panic. Which E-SPEC error code applies? The error
-taxonomy should have an existing code for "required env var missing at spec load" — confirm
-the code (e.g., E-SPEC-012 or similar) and verify it matches the Armis/Claroty precedent.
-If no E-SPEC code exists for this case, flag to PO for taxonomy addition.
+PO adjudication 2026-06-01: BC-2.16.009 (v1.7) and BC-2.16.013 (v1.19) confirmed;
+E-SPEC-024 is the missing/empty env-var error code at spec-load time.
 
 ---
 
@@ -232,14 +213,14 @@ below or above the `base_url` line documents the 4 region values:
 #   gov:             https://api.laggar.gcw.crowdstrike.com
 base_url = "${env.CROWDSTRIKE_BASE_URL}"
 ```
-(traces to ADR-031 §D8-c requirement 1 — base_url from env var; pending formal BC authorship)
+(traces to BC-2.16.013 §Postconditions §1 (CrowdStrike spec authoring fidelity))
 
 ### AC-002: Spec-load test resolves eu-1 URL when env var is set to eu-1
 A test sets `CROWDSTRIKE_BASE_URL=https://api.eu-1.crowdstrike.com` and loads
 `crowdstrike.sensor.toml`. The resolved `SensorSpec.base_url` equals
 `"https://api.eu-1.crowdstrike.com"`. No error is emitted. The spec is otherwise valid
 (auth_type, auth_plugin, tables, columns all parse correctly).
-(traces to ADR-031 §D8-c requirement 4 — parity test: spec loads correctly with non-us-1 URL)
+(traces to BC-2.16.013 §Postconditions §1 (CrowdStrike spec authoring fidelity))
 
 Red Gate test: `test_crowdstrike_eu1_base_url_env_var_resolves_correctly`
 
@@ -254,8 +235,7 @@ load `armis.sensor.toml` with `ARMIS_INSTANCE_URL` unset and observe the result.
 spec engine already returns a structured error (not panic), this AC is confirmed by the
 same existing behavior and only requires a test against the CrowdStrike spec. If the spec
 engine panics, implement the E-SPEC error in-scope (production-grade default — do not defer).
-(traces to ADR-031 §D8-c requirement — "structured E-SPEC error (not panic) if env unset
-at spec-load"; error taxonomy compliance per CLAUDE.md Conventions)
+(traces to BC-2.16.009 §Validation Rules 6 (env-var resolver) + E-SPEC-024; EC-009-009)
 
 Red Gate test: `test_crowdstrike_base_url_env_unset_returns_spec_error_not_panic`
 
@@ -264,8 +244,7 @@ A test sets `CROWDSTRIKE_BASE_URL=http://127.0.0.1:<dtu_port>` and loads
 `crowdstrike.sensor.toml`. The spec loads successfully. The pipeline can connect to the
 DTU at that address (OAuth2 token exchange and detection fetch complete without error).
 This proves the env-var pattern does not break the DTU demo path.
-(traces to ADR-031 §D8-c requirement — "DTU demo path still works when env points to
-local DTU"; R-DTU-002 mitigation: DTU is region-agnostic)
+(traces to BC-2.16.013 §Postconditions §2 (DTU parity; DTU region-agnostic per ADR-031 §D8-c))
 
 Red Gate test: `test_crowdstrike_base_url_env_points_to_local_dtu_demo_works`
 
@@ -275,13 +254,13 @@ Red Gate test: `test_crowdstrike_base_url_env_points_to_local_dtu_demo_works`
 - `auth_plugin = "crowdstrike-oauth2"` (D-747 LOCKED)
 These values are NOT changed by this story. A spec-load test confirms the parsed
 `SensorSpec.auth_type` and `SensorSpec.auth_plugin` remain correct.
-(traces to ADR-028 §D2 auth_type grounding rule — D-747 LOCKED values preserved)
+(traces to BC-2.16.013 §Postconditions §1 (CrowdStrike spec authoring fidelity))
 
 ### AC-006: No uncatalogued tracing event_type emissions (SAP-1)
 If any new `tracing::*!(event_type = ...)` site is introduced in this story's implementation
 (e.g., in the env-var resolution error path of spec_parser.rs), it must have a corresponding
 row in BC-2.16.002 Structured Event Catalog. Zero uncatalogued `event_type` emissions permitted.
-(traces to BC-2.16.002 invariant — SAP-1 standing adversary probe enforced on every pass)
+(traces to BC-2.16.002 §Structured Event Catalog (SAP-1 standing probe))
 
 ---
 
@@ -458,8 +437,9 @@ the field it documents.
 | ADR-031 §D8-c (relevant section) | ~1,000 |
 | POLLER-DTU-FIDELITY-AUDIT-2026-05-29.md §1 (CrowdStrike Gap-CS-003) | ~800 |
 | error-taxonomy.md (E-SPEC-NNN section) | ~500 |
+| BC files (2 BCs): BC-2.16.009 §Validation Rules 6 + BC-2.16.013 §Postconditions §1 CrowdStrike row | ~700 |
 | Tool outputs (cargo nextest) | ~1,500 |
-| **Total estimate** | **~13,800 tokens (~5% of 256K context)** |
+| **Total estimate** | **~14,500 tokens (~6% of 256K context)** |
 
 Well within the 20-30% budget.
 
@@ -480,4 +460,5 @@ Well within the 20-30% budget.
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.1 | 2026-06-01 | story-writer | PO BC-coverage propagation burst. Attached BC-2.16.009 (v1.7) and BC-2.16.013 (v1.19) per PO commit 30111e52. Updated §Behavioral Contracts table (verbatim titles from BC H1s per POL-7). Updated AC-001/AC-002/AC-005 traces → BC-2.16.013 §Postconditions §1; AC-003 → BC-2.16.009 §Validation Rules 6 + E-SPEC-024; AC-004 → BC-2.16.013 §Postconditions §2; AC-006 → BC-2.16.002 §Structured Event Catalog. Resolved New-BC Flags section with PO adjudication (E-SPEC-024 confirmed). Token Budget updated: BC files row added (~700 tokens), total ~14,500. Status: draft → ready (S-7.01 gate cleared). |
 | 1.0 | 2026-05-31 | story-writer | Initial materialization from [stub] per ADR-031 §D8-c v1.2 reclassification. 6 ACs, 3 Red Gate tests, 2 pts, wave 5, P2. Grounded against crowdstrike.sensor.toml (hardcoded us-1 base_url), armis.sensor.toml + claroty.sensor.toml (env-var pattern precedent), spec_parser.rs (env-var interpolation path — pre-check required). D-747 LOCKED constraint explicitly enforced. Mandatory pre-check for E-SPEC structured error behavior documented in Tasks step 4 with in-scope fix requirement per production-grade default. New-BC flags provided to PO for env-var resolution BC coverage confirmation. |
