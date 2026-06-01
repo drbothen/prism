@@ -5,9 +5,9 @@ title: "prism-dtu-armis + armis.sensor.toml: AQL Search Endpoint Fidelity — Ad
 wave: 5
 epic_id: E-DTU-FIDELITY
 priority: P1
-status: ready
+status: in-progress
 # BC status: D-911 disposition 2026-05-31 — New-BC Flags 1 & 2 resolved as SUFFICIENT.
-# BC-2.16.013 (Bundled Sensor Spec Authoring and DTU-Parity Verification, v1.18) is ACTIVE
+# BC-2.16.013 (Bundled Sensor Spec Authoring and DTU-Parity Verification, v1.19) is ACTIVE
 # and covers both the AQL endpoint pipeline behavior (Flag 1: AQL treated as opaque per
 # R-DTU-002 / ADR-031 §D8-a — no syntax validation, no new BC needed) and the AQL push-down
 # parity assertion (Flag 2: R-DTU-002 pass-through is a DTU-parity concern under BC-2.16.013).
@@ -19,11 +19,11 @@ status: ready
 # (AC-001..AC-004) are unblocked. Parity tests requiring full pipeline env-var resolution
 # must be #[ignore]-annotated with a code comment citing S-SPEC-ENV-VAR-001 until that
 # prereq merges.
-version: "1.4"
+version: "1.5"
 level: "L4"
 producer: story-writer
 timestamp: "2026-05-31T00:00:00Z"
-modified: "2026-06-02"
+modified: "2026-06-01"
 tdd_mode: strict
 subsystems: [SS-01, SS-16]
 # Subsystem anchor justifications:
@@ -38,7 +38,7 @@ crates_touched: [prism-dtu-armis, prism-sensors]
 target_module: prism-dtu-armis
 capabilities: [CAP-001, CAP-029]
 behavioral_contracts:
-  - BC-2.16.013  # Bundled Sensor Spec Authoring and DTU-Parity Verification (v1.18, ACTIVE).
+  - BC-2.16.013  # Bundled Sensor Spec Authoring and DTU-Parity Verification — 4 Initial Sensors (v1.19, ACTIVE).
                  # Covers the AQL search endpoint pipeline behavior (Flag 1: opaque AQL per
                  # R-DTU-002/ADR-031 §D8-a) and AQL push-down parity (Flag 2: R-DTU-002
                  # pass-through). D-911 disposition: both flags SUFFICIENT, no new BC needed.
@@ -110,11 +110,11 @@ cycle: "v1.0.0-brownfield"
 phase: 3
 ---
 
-# S-DEMO-ARMIS-AQL-001 v1.4 — Armis AQL Search Endpoint Fidelity
+# S-DEMO-ARMIS-AQL-001 v1.5 — Armis AQL Search Endpoint Fidelity
 
 **Story ID:** S-DEMO-ARMIS-AQL-001
-**Status:** ready
-**Version:** v1.4
+**Status:** in-progress
+**Version:** v1.5
 **Wave:** 5
 **Priority:** P1
 **Points:** 5
@@ -189,9 +189,9 @@ After this story merges:
 
 | BC ID | Title | Version | Role in This Story |
 |-------|-------|---------|-------------------|
-| BC-2.16.013 | Bundled Sensor Spec Authoring and DTU-Parity Verification | v1.18 (ACTIVE) | Covers the AQL search endpoint pipeline behavior (Flag 1: opaque AQL, R-DTU-002/ADR-031 §D8-a) and the AQL push-down parity assertion (Flag 2: R-DTU-002 pass-through is a DTU-parity concern). D-911 disposition 2026-05-31: both New-BC Flags SUFFICIENT — no new BC needed. |
+| BC-2.16.013 | Bundled Sensor Spec Authoring and DTU-Parity Verification — 4 Initial Sensors | v1.19 (ACTIVE) | Covers the AQL search endpoint pipeline behavior (Flag 1: opaque AQL, R-DTU-002/ADR-031 §D8-a) and the AQL push-down parity assertion (Flag 2: R-DTU-002 pass-through is a DTU-parity concern). D-911 disposition 2026-05-31: both New-BC Flags SUFFICIENT — no new BC needed. |
 
-**Note:** Per D-911 disposition 2026-05-31, BC-2.16.013 (v1.18, ACTIVE) is sufficient
+**Note:** Per D-911 disposition 2026-05-31, BC-2.16.013 (v1.19, ACTIVE) is sufficient
 coverage for both flagged surfaces. ADR-031 §D8-a holds: AQL is treated as opaque (R-DTU-002),
 no syntax validation is added to the DTU, and AQL push-down parity is a BC-2.16.013 concern.
 S-7.01 Spec-First Gate is satisfied.
@@ -201,7 +201,7 @@ S-7.01 Spec-First Gate is satisfied.
 ## New-BC Flags — D-911 Disposition (2026-05-31)
 
 Flag 1 (CLOSED — SUFFICIENT): AQL is treated as opaque per R-DTU-002 / ADR-031 §D8-a.
-No syntax validation is added to the DTU. No new BC is needed. BC-2.16.013 (v1.18, ACTIVE)
+No syntax validation is added to the DTU. No new BC is needed. BC-2.16.013 (v1.19, ACTIVE)
 covers the DTU-parity surface. D-911 disposition: SUFFICIENT.
 
 Flag 2 (CLOSED — SUFFICIENT): AQL push-down parity (R-DTU-002 pass-through) is a
@@ -547,6 +547,7 @@ Well within the 20-30% budget.
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.5 | 2026-06-01 | story-writer | POL-23 sibling-sweep: BC-2.16.013 version pins swept v1.18→v1.19 in frontmatter comment (line 10), behavioral_contracts comment (line 41), body §Behavioral Contracts table, §Behavioral Contracts note, and §New-BC Flags section. POL-7 title fix: restored full verbatim H1 "Bundled Sensor Spec Authoring and DTU-Parity Verification — 4 Initial Sensors" (the "— 4 Initial Sensors" suffix was dropped in prior versions). POL-13 status fix: frontmatter and H1 block status flipped ready→in-progress (implementation in flight, cascade pending). |
 | 1.4 | 2026-06-02 | story-writer | Close F-P2-HIGH-001. Red Gate Tests table names reconciled verbatim against delivered source (feature/S-DEMO-ARMIS-AQL-001). Five phantom names removed/corrected: `test_armis_aql_search_missing_auth_returns_403` → `test_armis_aql_search_returns_403_without_bearer`; two split TOML-path rows collapsed to single `test_armis_aql_search_toml_path_template_updated` (covers both tables); two split SAP-2 rows collapsed to single `test_armis_aql_search_dtu_toml_column_parity` (covers both tables); omitted `test_armis_aql_search_aql_captured_in_aql_log` and `test_armis_aql_search_toml_response_path_updated` added. Count remains 11 (unchanged — v1.3 count reconciliation was correct; v1.4 closes the name-correctness gap that made v1.3 a paper-fix per TD-VSDD-059). |
 | 1.3 | 2026-06-01 | story-writer | Close adversary findings F-P1-HIGH-003/F-P1-OBS-001/F-P1-OBS-002. Red Gate Tests table reconciled to 11 named tests (9 in s_demo_armis_aql_001_red_gate.rs + 2 AC-005 parity tests in prism-spec-engine/tests/parity/armis.rs); red_gate_tests frontmatter updated from 4→11. H1 version corrected v1.0→v1.3 (F-P1-OBS-001). Changelog reordered to descending per POL-32 (F-P1-OBS-002). |
 | 1.2 | 2026-05-31 | story-writer | Wave 5 dispatch burst: BC-2.16.013 anchor justification confirmed per POL-4/POL-5 (BC-2.16.013 §Postconditions §1 DTU-Parity + §2 fixture-parity + §Known Gaps DTU-EXT-003/004 directly cover the AQL search endpoint fidelity surface; D-911 SUFFICIENT disposition). Story confirmed ready for TDD dispatch. No semantic content change. |

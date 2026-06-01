@@ -5,18 +5,18 @@ title: "prism-dtu-claroty: Add /api/v1/audit_log/get route for Claroty Audit Log
 wave: 5
 epic_id: E-DTU-FIDELITY
 priority: P1
-status: ready
+status: in-progress
 # BC status: BC-2.01.013 and BC-2.16.013 are both active (BC-INDEX v5.66).
 # S-7.01 gate: behavioral_contracts non-empty + both BCs active → satisfied.
 # Route-design consistency confirmed by orchestrator (D-920 2026-05-31): POST
 # /api/v1/audit_log/get with ClarotyAuditLogEntry shape is consistent with
 # BC-2.01.013 auth-enforcement contract + BC-2.16.013 DTU-TOML-parity contract.
 # No New-BC flags. No env-var dependency. Story dispatchable.
-version: "1.4"
+version: "1.5"
 level: "L4"
 producer: story-writer
 timestamp: "2026-05-31T00:00:00Z"
-modified: "2026-05-31"
+modified: "2026-06-01"
 tdd_mode: strict
 subsystems: [SS-17, SS-16]
 # Subsystem anchor justifications:
@@ -104,8 +104,8 @@ POLLER-DTU-FIDELITY-AUDIT-2026-05-29 v1.1 §3 Claroty section).
 
 | BC | Title | Version | Role |
 |----|-------|---------|------|
-| BC-2.01.013 | DataSource Trait Eliminates Per-Sensor Code Duplication | v1.7 | Audit log table is a sensor table; the spec-driven adapter (BC-2.01.013 postcondition) must dispatch to it via the shared pipeline |
-| BC-2.16.013 | Bundled Sensor Spec Authoring and DTU-Parity Verification — 4 Initial Sensors | v1.18 | Gap-CL-006 is an open DTU-parity gap under BC-2.16.013; this story closes it by making the DTU serve the endpoint the TOML spec declares |
+| BC-2.01.013 | DataSource Trait Eliminates Per-Sensor Code Duplication | v1.9 | Audit log table is a sensor table; the spec-driven adapter (BC-2.01.013 postcondition) must dispatch to it via the shared pipeline |
+| BC-2.16.013 | Bundled Sensor Spec Authoring and DTU-Parity Verification — 4 Initial Sensors | v1.19 | Gap-CL-006 is an open DTU-parity gap under BC-2.16.013; this story closes it by making the DTU serve the endpoint the TOML spec declares |
 
 ## Acceptance Criteria
 
@@ -353,7 +353,7 @@ new gate is warranted.
 
 ## References
 
-- BC-2.16.013 v1.18 (ACTIVE) — Bundled Sensor Spec Authoring and DTU-Parity Verification; §Known Gaps DTU-EXT-002 (Claroty assets); §Postconditions §1 claroty.sensor.toml entry (alerts + audit_logs)
+- BC-2.16.013 v1.19 (ACTIVE) — Bundled Sensor Spec Authoring and DTU-Parity Verification — 4 Initial Sensors; §Known Gaps DTU-EXT-002 (Claroty assets); §Postconditions §1 claroty.sensor.toml entry (alerts + audit_logs)
 - BC-2.01.013 — DataSource Trait; auth enforcement postcondition §2
 - ADR-031 §D1 — DTU clone isolation (prism-dtu-claroty must not depend on prism-spec-engine/prism-sensors/prism-query)
 - ADR-031 §D2 — permitted-divergence #1: synthetic fixture data (no real customer data)
@@ -369,6 +369,7 @@ new gate is warranted.
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.5 | 2026-06-01 | story-writer | POL-23 sibling-sweep: BC-2.01.013 version pin swept v1.7→v1.9 and BC-2.16.013 pin swept v1.18→v1.19 in body §Behavioral Contracts table; BC-2.16.013 pin swept v1.18→v1.19 in §References. POL-7: BC-2.16.013 title in §References restored with full "— 4 Initial Sensors" suffix. POL-13 status fix: frontmatter status flipped ready→in-progress (implementation in flight, cascade pending). |
 | 1.4 | 2026-06-01 | product-owner | F-P6-LOW-002 citation correction: AC-002 now cites `routes/devices.rs::check_bearer_auth` as the canonical definition and emission site (with `routes/alerts.rs` as a named callsite), matching EC-001 and the actual code. No behavioral change — the 401 literal and auth semantics are unchanged. |
 | 1.3 | 2026-06-01 | product-owner | F-P1-MED-001 spec-defect fix: corrected AC-002 and EC-001 error body literal from `"missing or invalid bearer token"` to `"missing or invalid Authorization header"` (verbatim `check_bearer_auth` output, POL-24 error_message_template_verbatim). Removed self-contradiction — AC-002 "identical to alerts.rs pattern" clause now consistent with corrected literal. Added load-bearing Red Gate assertion note to AC-002. |
 | 1.2 | 2026-05-31 | story-writer | Wave 5 dispatch burst: BC-2.16.013 anchor justification confirmed per POL-4/POL-5 (BC-2.16.013 §Postconditions §1 claroty.sensor.toml + §Known Gaps cover the audit_log DTU parity surface; D-920 orchestrator confirmation). Stale v1.17 BC table cite corrected to v1.18. Added §References and §Changelog sections (previously missing). Story confirmed ready for TDD dispatch. |
