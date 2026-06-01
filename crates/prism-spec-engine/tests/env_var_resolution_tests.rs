@@ -833,6 +833,267 @@ fn test_env_var_ordering_production_path_absent_var_produces_e_spec_024_not_url_
     );
 }
 
+// ---------------------------------------------------------------------------
+// F-PR1-MED-001 (dedup): Repeated ${env.VAR} token in one field — missing var.
+//
+// If the same ${env.X} token appears N times in one field (e.g., "prefix-${env.X}-${env.X}"),
+// the dedup guard (seen_var_names HashSet in resolve_field) must produce EXACTLY ONE
+// E-SPEC-024 error, not N. Without the dedup, the regex captures N matches and
+// resolve_field would emit N duplicate EnvVarNotSet entries.
+//
+// Load-bearing test: removing the `seen_var_names` HashSet guard from resolve_field
+// would cause this test to fail with errors.len() == 2 instead of 1.
+//
+// Traces to: BC-2.16.009 §Validation Rules 6 (one error per unique unresolvable token);
+//            TD-VSDD-059 (load-bearing test for the M-002 dedup fix in PR#165);
+//            S-SPEC-ENV-VAR-001 Architecture Compliance Rules.
+// ---------------------------------------------------------------------------
+#[test]
+fn test_env_var_dedup_repeated_missing_token_produces_exactly_one_error() {
+    // F-PR1-MED-001: dedup — repeated missing token → EXACTLY ONE E-SPEC-024, not N.
+    // Uses a unique var name to avoid ambient env collision.
+    const VAR: &str = "PRISM_TEST_ENV_VAR_DEDUP_MISSING";
+
+    // Ensure absent.
+    unsafe {
+        std::env::remove_var(VAR);
+    }
+
+    // field = "${env.PRISM_TEST_ENV_VAR_DEDUP_MISSING}-${env.PRISM_TEST_ENV_VAR_DEDUP_MISSING}"
+    // The same token appears TWICE in the field value.
+    let token = format!("${{env.{VAR}}}");
+    let mut spec = minimal_spec(format!("{token}-{token}"));
+
+    let errors = resolve_env_var_tokens(&mut spec, "test/dedup-missing.sensor.toml");
+
+    // Cleanup.
+    unsafe {
+        std::env::remove_var(VAR);
+    }
+
+    // MUST be exactly 1 error (dedup collapses the two regex matches into one lookup).
+    // If the dedup guard is removed, this asserts 2 errors and the test fails.
+    assert_eq!(
+        errors.len(),
+        1,
+        "F-PR1-MED-001: repeated ${{env.VAR}} token (same var) in one field must produce \
+         EXACTLY ONE E-SPEC-024 error (dedup guard). \
+         Got {} error(s): {:?}",
+        errors.len(),
+        errors
+    );
+
+    // Must be the correct variant naming the right var.
+    match &errors[0] {
+        SpecEngineError::EnvVarNotSet { var_name, .. } => {
+            assert_eq!(
+                var_name, VAR,
+                "F-PR1-MED-001: error.var_name must be the deduplicated var name. \
+                 Expected '{}', got '{}'",
+                VAR, var_name
+            );
+        }
+        other => {
+            panic!(
+                "F-PR1-MED-001: expected SpecEngineError::EnvVarNotSet, got: {:?}",
+                other
+            );
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// F-PR1-MED-001 (dedup): Repeated ${env.VAR} token in one field — var set.
+//
+// When the same ${env.X} token appears N times in a field and the var IS set,
+// `String::replace` replaces ALL occurrences in a single call. The dedup guard
+// must NOT suppress the replacement: every occurrence in the field must be
+// replaced with the resolved value.
+//
+// Load-bearing test: if `String::replace` is accidentally changed to
+// `replacen(token, value, 1)`, the second occurrence survives unreplaced and
+// the field value assertion fails.
+//
+// Traces to: BC-2.16.009 §Validation Rules 6 (every token replaced);
+//            TD-VSDD-059 (load-bearing test for the M-002 dedup fix in PR#165);
+//            S-SPEC-ENV-VAR-001 Architecture Compliance Rules.
+// ---------------------------------------------------------------------------
+#[test]
+fn test_env_var_dedup_repeated_set_token_all_occurrences_replaced() {
+    // F-PR1-MED-001: dedup — repeated set token → all occurrences replaced, no duplication.
+    const VAR: &str = "PRISM_TEST_ENV_VAR_DEDUP_SET";
+    const VAL: &str = "myhost";
+    // Expected: "myhost-myhost" (both occurrences replaced).
+    const EXPECTED: &str = "myhost-myhost";
+
+    unsafe {
+        std::env::set_var(VAR, VAL);
+    }
+
+    // field = "${env.PRISM_TEST_ENV_VAR_DEDUP_SET}-${env.PRISM_TEST_ENV_VAR_DEDUP_SET}"
+    let token = format!("${{env.{VAR}}}");
+    let mut spec = minimal_spec(format!("{token}-{token}"));
+
+    let errors = resolve_env_var_tokens(&mut spec, "test/dedup-set.sensor.toml");
+
+    unsafe {
+        std::env::remove_var(VAR);
+    }
+
+    // No errors (var set and non-empty).
+    assert!(
+        errors.is_empty(),
+        "F-PR1-MED-001 (set): repeated set token must produce no errors. \
+         Got {} error(s): {:?}",
+        errors.len(),
+        errors
+    );
+
+    // Both occurrences must be replaced (String::replace replaces ALL).
+    // If replacen(1) were used instead, this would fail with "myhost-${env.VAR}".
+    assert_eq!(
+        spec.base_url, EXPECTED,
+        "F-PR1-MED-001 (set): ALL occurrences of the repeated token must be replaced. \
+         Expected '{}', got '{}'",
+        EXPECTED, spec.base_url
+    );
+}
+
+// ---------------------------------------------------------------------------
+// F-PR1-MED-002 (namespace boundary): ${step.*} token survives verbatim.
+//
+// The resolver's regex `\$\{env\.([A-Z0-9_]+)\}` is namespace-scoped to `env.`.
+// Tokens in other namespaces — ${step.field}, ${query.x} — must pass through
+// UNTOUCHED and produce NO errors. These tokens belong to the runtime
+// interpolation engine (BC-2.16.002) and must be preserved for it.
+//
+// Load-bearing test: if the regex is broadened to match any `${...}` token,
+// these tests will fail with E-SPEC-024 errors on the step/query tokens.
+// If the regex accidentally strips non-env tokens, the verbatim assertions fail.
+//
+// Traces to: BC-2.16.009 §Validation Rules 6 ("Non-env namespace tokens …
+//            left untouched"); BC-2.16.002 runtime interpolation coexistence;
+//            S-SPEC-ENV-VAR-001 Architecture Compliance Rules (namespace boundary).
+// ---------------------------------------------------------------------------
+#[test]
+fn test_env_var_step_namespace_token_survives_verbatim() {
+    // F-PR1-MED-002: namespace boundary — ${step.*} token left untouched, no error.
+    // The literal token string in the field value.
+    const STEP_TOKEN: &str = "${step.auth.token}";
+
+    // Build a spec with ${step.auth.token} in base_url.
+    // This is semantically invalid as a real URL, but the resolver must not touch it.
+    let mut spec = minimal_spec(STEP_TOKEN);
+
+    let errors = resolve_env_var_tokens(&mut spec, "test/step-namespace.sensor.toml");
+
+    // No errors: the resolver does NOT process non-env tokens.
+    // If the regex matched ${step.*}, it would produce an E-SPEC-024 error here.
+    assert!(
+        errors.is_empty(),
+        "F-PR1-MED-002: ${{step.*}} token must produce NO errors from the env resolver. \
+         Got {} error(s): {:?}",
+        errors.len(),
+        errors
+    );
+
+    // The token must survive verbatim in the field (not emptied or partially consumed).
+    // If the regex partially matched and stripped the token, this assertion fails.
+    assert_eq!(
+        spec.base_url, STEP_TOKEN,
+        "F-PR1-MED-002: ${{step.*}} token must survive VERBATIM in the field after env resolution. \
+         Expected '{}', got '{}'",
+        STEP_TOKEN, spec.base_url
+    );
+}
+
+#[test]
+fn test_env_var_query_namespace_token_survives_verbatim() {
+    // F-PR1-MED-002: namespace boundary — ${query.*} token left untouched, no error.
+    const QUERY_TOKEN: &str = "${query.x}";
+
+    let mut spec = minimal_spec(QUERY_TOKEN);
+
+    let errors = resolve_env_var_tokens(&mut spec, "test/query-namespace.sensor.toml");
+
+    assert!(
+        errors.is_empty(),
+        "F-PR1-MED-002: ${{query.*}} token must produce NO errors from the env resolver. \
+         Got {} error(s): {:?}",
+        errors.len(),
+        errors
+    );
+
+    assert_eq!(
+        spec.base_url, QUERY_TOKEN,
+        "F-PR1-MED-002: ${{query.*}} token must survive VERBATIM after env resolution. \
+         Expected '{}', got '{}'",
+        QUERY_TOKEN, spec.base_url
+    );
+}
+
+// ---------------------------------------------------------------------------
+// F-PR1-MED-002 (namespace boundary): Mixed field — ${env.*} resolved,
+// ${step.*} survives verbatim in same string.
+//
+// This is the key coexistence test: a single field containing BOTH an env token
+// (which must be resolved) and a step token (which must survive verbatim).
+//
+// Input:  base_url = "${env.PRISM_TEST_ENV_VAR_NS_HOST}.example.io/${step.auth.token}"
+//         env PRISM_TEST_ENV_VAR_NS_HOST = "myhost"
+// Output: no errors
+//         base_url == "myhost.example.io/${step.auth.token}"
+//
+// Load-bearing test: if the regex is broadened (breaking namespace isolation),
+// the test fails with an error on ${step.auth.token}. If env token replacement
+// is broken, the test fails on the resolved URL assertion.
+//
+// Traces to: BC-2.16.009 §Validation Rules 6 (namespace boundary + env resolution);
+//            BC-2.16.002 runtime interpolation coexistence;
+//            S-SPEC-ENV-VAR-001 Architecture Compliance Rules.
+// ---------------------------------------------------------------------------
+#[test]
+fn test_env_var_mixed_env_and_step_tokens_only_env_resolved() {
+    // F-PR1-MED-002: mixed namespace — env token resolved, step token survives verbatim.
+    const VAR: &str = "PRISM_TEST_ENV_VAR_NS_HOST";
+    const VAL: &str = "myhost";
+    const STEP_TOKEN: &str = "${step.auth.token}";
+    // Expected: env token replaced, step token preserved exactly.
+    let expected = format!("{VAL}.example.io/{STEP_TOKEN}");
+
+    unsafe {
+        std::env::set_var(VAR, VAL);
+    }
+
+    let env_token = format!("${{env.{VAR}}}");
+    // field = "${env.PRISM_TEST_ENV_VAR_NS_HOST}.example.io/${step.auth.token}"
+    let field_value = format!("{env_token}.example.io/{STEP_TOKEN}");
+    let mut spec = minimal_spec(field_value);
+
+    let errors = resolve_env_var_tokens(&mut spec, "test/mixed-ns.sensor.toml");
+
+    unsafe {
+        std::env::remove_var(VAR);
+    }
+
+    // No errors: env token resolved, step token not processed (no error for it).
+    assert!(
+        errors.is_empty(),
+        "F-PR1-MED-002 (mixed): env resolved + step verbatim must produce NO errors. \
+         Got {} error(s): {:?}",
+        errors.len(),
+        errors
+    );
+
+    // Only the env token is replaced; the step token survives verbatim.
+    assert_eq!(
+        spec.base_url, expected,
+        "F-PR1-MED-002 (mixed): ${{env.*}} must be resolved AND ${{step.*}} must survive verbatim. \
+         Expected '{}', got '{}'",
+        expected, spec.base_url
+    );
+}
+
 /// F-LOCAL-P1-HIGH-001 Scenario B: var set to valid HTTPS URL through production load path →
 /// full load succeeds (resolver ran before URL-format check which sees the resolved URL).
 #[test]
