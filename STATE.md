@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.582"
+version: "7.583"
 producer: state-manager
-timestamp: 2026-05-31T23:59:00Z
+timestamp: 2026-06-01T00:30:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -16,7 +16,7 @@ repos: [poller-cobra, poller-express, poller-bear, poller-coaster, serveMyAPI, t
 safe_to_compact: true
 pre_compact_snapshot: "SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-31-CYBERINT-MERGED-WAVE-5-PARALLEL-PLANNED"
 pre_compact_snapshot_at: "2026-05-31 (D-912 durability burst; cyberint MERGED PR #164 e798e67c; Wave 5 parallelization plan persisted; PO flags dispositioned; ${env.VAR} prereq surfaced; zero-context resume snapshot written)"
-current_step: "D-929 — KEYSTONE PASS 6 + ENV-VAR PR-LEVEL PASS 2 RECORDED. S-DEMO-001 LOCAL pass 6: 2 MED story-spec drift siblings (ADV-P06-MED-001 EC-002/008 stale AuthRefreshFailed→CookieAuthFailed no-retry; ADV-P06-MED-002 Tasks 9/14 2-arg→1-arg StaticCookieAuthProvider::new). ALL CLOSED via story v1.8 EXHAUSTIVE sweep (grep-verified zero prescriptive stale hits). Code correct throughout. CLEAN(strict)=no. Streak 0/3 → NEXT: adversary pass 7. S-SPEC-ENV-VAR-001 PR-LEVEL pass 2: 1 MED + 1 LOW. F-PR2-MED-001 (stale demo-evidence test counts) CLOSED via demo-recorder regen commit 54d1bd3e (real counts: 513 suite, 18 env-var-related). OBS-PR2-001 (v1.56 E-SPEC-024 citations) DISPOSITIONED legitimate introduced-at-version — no change needed. PR #165 head re-push to 54d1bd3e in progress. Streak 0/3 → NEXT: PR-LEVEL adversary pass 3. STORY-INDEX v2.230→v2.231. STATE v7.581→v7.582."
+current_step: "D-930 — KEYSTONE PASS 7 + ENV-VAR PR-LEVEL PASS 4 RECORDED. S-DEMO-001 LOCAL pass 7: 1 LOW (F-P07-LOW-001 — body **Version:** field stale v1.7 vs v1.8 frontmatter/H1/changelog). CLOSED via story-writer line-146 body-field sync (NOT a version bump; frontmatter/H1/changelog already v1.8). CLEAN(PR-merge)=yes; CLEAN(strict)=no (1 LOW). Streak 0/3. Trajectory collapsing: passes 1-3 CRIT data-path (D-925 fixed), pass 4 data-path REAL confirmed, passes 5-7 progressively smaller doc drift (4→2→1), now zero-prescriptive-stale + version-synced. NEXT: adversary pass 8 (expect first CLEAN-strict → 1/3). S-SPEC-ENV-VAR-001 PR-LEVEL pass 4: CLEAN(strict)=yes, novelty ZERO → PR-LEVEL streak 1/3 → 2/3. PR #165 head 54d1bd3e. NEXT: PR-LEVEL pass 5 (convergence pass → 3/3); after 3-CLEAN: merge + POL-14 + post-merge burst. STATE v7.582→v7.583."
 cyberint_pr_cycle_in_flight: false
 cyberint_pr_cycle_step: "CLOSED — PR #164 squash-merged develop@e798e67c 2026-05-31; POL-14 BC-2.01.017 draft→active (D-904); cascade CLOSED (D-905 process-gaps as justified deferrals); story merged v1.9"
 cyberint_demo_evidence_path: "docs/demo-evidence/S-DTU-CYBERINT-AUTH-FIDELITY-001/"
@@ -413,7 +413,7 @@ dtu_clones_built: in_progress
 dtu_strategy: "Option 2 — DTU-first"
 dtu_strategy_decided: 2026-04-20
 policy_registry_source_of_truth: .factory/policies.yaml
-s_demo_001_local_adversary_pass_count: 6
+s_demo_001_local_adversary_pass_count: 7
 s_demo_001_local_adversary_streak: "0/3"
 s_demo_001_local_adversary_pass1_clean_strict: false
 s_demo_001_local_adversary_pass1_clean_pr_merge: false
@@ -432,7 +432,13 @@ s_demo_001_local_adversary_pass3_findings: {CRIT: 2}
 s_demo_001_local_adversary_pass3_streak_after: "0/3"
 s_demo_001_local_adversary_pass3_key_findings: "F-001-R-RECUR (CRIT — recurring: fixture uses ocsf_class='detection' fake record-type token not real class-name; class_uid returned from select(sensor, 'detection') not from select_by_class_name('security_finding'); conformance test fixture-shaped, not ungameable); F-DOC-001 (CRIT — SpecDrivenSensorAdapter struct rustdoc still claims ColumnMapper/OcsfNormalizer path which does not exist; misleads implementer into wrong function chain)"
 s_demo_001_local_adversary_pass3_arch_adjudication: "D-925 — root cause: ocsf_class namespace collision between TOML class-name strings ('security_finding') and EventClassSelector::select() record-type tokens ('detection'); resolved by architect: add select_by_class_name() to class_selector.rs; 3 implementation changes specified; BC-2.01.013 v1.9 documents all"
-s_demo_001_keystone_next: "adversary pass-7 (fresh context; full rubric + SAP-1/SAP-2/SID-1). Streak 0/3; 3 consecutive CLEAN required."
+s_demo_001_local_adversary_pass7_clean_strict: false
+s_demo_001_local_adversary_pass7_clean_pr_merge: true
+s_demo_001_local_adversary_pass7_findings: {LOW: 1}
+s_demo_001_local_adversary_pass7_streak_after: "0/3"
+s_demo_001_local_adversary_pass7_key_findings: "F-P07-LOW-001 (LOW — body **Version:** field at line-146 read v1.7 vs frontmatter/H1/changelog all v1.8; body-field propagation sync gap from story-writer v1.8 exhaustive sweep; CLOSED story-writer line-146 sync). Root cause: story-writer ADV-P06 exhaustive sweep corrected frontmatter/H1/changelog but missed body **Version:** marker at line-146. Code correct throughout; story-spec drift only. CLEAN(PR-merge)=yes; CLEAN(strict)=no (1 LOW). Streak 0/3. Finding trajectory collapsing: passes 1-3 CRIT data-path (D-925 fixed), pass 4 data-path REAL confirmed, passes 5-7 progressively smaller doc drift (4→2→1 findings), now zero-prescriptive-stale + version-synced."
+s_demo_001_local_adversary_pass7_story_version_after: "v1.8 (body-field sync only — NOT a version bump)"
+s_demo_001_keystone_next: "adversary pass-8 (fresh context; full rubric + SAP-1/SAP-2/SID-1). Streak 0/3; expect first CLEAN-strict → 1/3. Data path + all prose now verified."
 s_demo_001_local_adversary_pass6_clean_strict: false
 s_demo_001_local_adversary_pass6_clean_pr_merge: true
 s_demo_001_local_adversary_pass6_findings: {MED: 2}
@@ -440,7 +446,7 @@ s_demo_001_local_adversary_pass6_streak_after: "0/3"
 s_demo_001_local_adversary_pass6_key_findings: "ADV-P06-MED-001 (MED — EC-002/008 still cited stale AuthRefreshFailed error code in cookie-auth no-retry context; should be CookieAuthFailed; sibling of ADV-P05 sweep; CLOSED story v1.8 EXHAUSTIVE sweep); ADV-P06-MED-002 (MED — Tasks 9/14 StaticCookieAuthProvider::new called with 2 args vs 1-arg constructor; CLOSED story v1.8 EXHAUSTIVE sweep). Root cause: v1.7 sweep corrected top-level occurrences but missed EC-002/008 and Tasks 9/14 as sibling drift sites. All story-spec drift only — code correct throughout."
 s_demo_001_local_adversary_pass6_story_version_after: "v1.8"
 s_demo_001_local_adversary_pass6_grep_verified: true
-s_demo_001_local_adversary_pass_count: 6
+s_demo_001_local_adversary_pass_count: 7
 s_demo_001_local_adversary_pass4_clean_strict: false
 s_demo_001_local_adversary_pass4_clean_pr_merge: true
 s_demo_001_local_adversary_pass4_findings: {LOW: 2}
@@ -488,7 +494,7 @@ s_spec_env_var_001_local_fix_burst_workspace_tests: 3860
 s_spec_env_var_001_demo_evidence_path: "docs/demo-evidence/S-SPEC-ENV-VAR-001/"
 s_spec_env_var_001_demo_evidence_complete: true
 s_spec_env_var_001_demo_evidence_feature_head: "916ccf11"
-s_spec_env_var_001_status: "PR #165 OPEN (https://github.com/drbothen/prism/pull/165); PR-LEVEL pass 2 COMPLETE: F-PR2-MED-001 CLOSED (54d1bd3e demo-recorder regen); OBS-PR2-001 DISPOSITIONED (legitimate introduced-at-version citation — no change). Head re-push to 54d1bd3e IN PROGRESS. Streak 0/3. NEXT: PR-LEVEL adversary pass 3 after head=54d1bd3e confirmed."
+s_spec_env_var_001_status: "PR #165 OPEN (https://github.com/drbothen/prism/pull/165); PR-LEVEL pass 4: CLEAN(strict)=yes, CLEAN(PR-merge)=yes, novelty ZERO. Streak 2/3. PR #165 head 54d1bd3e. NEXT: PR-LEVEL adversary pass 5 (convergence pass → 3/3); after 3-CLEAN: merge + POL-14 BC auto-promotions + post-merge burst."
 s_spec_env_var_001_pr_level_pass1_clean_strict: false
 s_spec_env_var_001_pr_level_pass1_clean_pr_merge: false
 s_spec_env_var_001_pr_level_pass1_findings: {MED: 2, OBS: 2}
@@ -516,7 +522,17 @@ s_spec_env_var_001_pr_level_pass2_f_pr2_med_001: "F-PR2-MED-001 — stale demo-e
 s_spec_env_var_001_pr_level_pass2_obs_pr2_001: "OBS-PR2-001 — v1.56 E-SPEC-024 citations after v1.57 bump; DISPOSITIONED: legitimate introduced-at-version citations (E-SPEC-024 was introduced at v1.56; v1.57 changed only description prose not the template; same convention as v1.45 E-SPEC-017/018 cites); no change needed; future PR-LEVEL adversary informed of disposition"
 s_spec_env_var_001_pr_level_pass2_fix_commits: "54d1bd3e"
 s_spec_env_var_001_pr_165_head_after_pass2_fixes: "54d1bd3e"
-s_spec_env_var_001_pr_level_cascade_status: "PASS 2 COMPLETE (F-PR2-MED-001 CLOSED 54d1bd3e; OBS-PR2-001 DISPOSITIONED — no change); re-push 54d1bd3e IN PROGRESS by pr-manager; NEXT: PR-LEVEL adversary pass 3 after head=54d1bd3e confirmed"
+s_spec_env_var_001_pr_level_pass3_clean_strict: true
+s_spec_env_var_001_pr_level_pass3_clean_pr_merge: true
+s_spec_env_var_001_pr_level_pass3_findings: {}
+s_spec_env_var_001_pr_level_pass3_streak_after: "1/3"
+s_spec_env_var_001_pr_level_pass4_clean_strict: true
+s_spec_env_var_001_pr_level_pass4_clean_pr_merge: true
+s_spec_env_var_001_pr_level_pass4_findings: {}
+s_spec_env_var_001_pr_level_pass4_novelty: "ZERO"
+s_spec_env_var_001_pr_level_pass4_streak_after: "2/3"
+s_spec_env_var_001_pr_level_pass4_head: "54d1bd3e"
+s_spec_env_var_001_pr_level_cascade_status: "PASS 4 COMPLETE (CLEAN(strict)=yes; novelty ZERO; streak 2/3); NEXT: PR-LEVEL adversary pass 5 (convergence pass → 3/3); after 3-CLEAN: merge + POL-14 BC auto-promotions + post-merge burst"
 track_b_worktree_created: true
 track_b_worktree_branch: "feature/S-DEMO-ARMIS-AQL-001"
 track_b_worktree_base: "e798e67c"
@@ -589,9 +605,9 @@ historical_cycles: [phase-1-convergence, wave-3-multi-tenant, wave-4-operations]
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-05-31 (D-929 burst — S-DEMO-001 LOCAL pass 6: 2 MED (story-spec drift siblings); ALL CLOSED story v1.8 exhaustive sweep; streak 0/3; NEXT: pass 7. S-SPEC-ENV-VAR-001 PR-LEVEL pass 2: F-PR2-MED-001 CLOSED 54d1bd3e; OBS-PR2-001 DISPOSITIONED; re-push 54d1bd3e in progress; NEXT: pass 3. STORY-INDEX v2.231. STATE v7.582) |
-| **Current Phase** | Wave 5 (wave-5-e-demo-fidelity) in progress — S-DEMO-001: LOCAL pass 6 done (story v1.8; 2 MED closed); streak 0/3; NEXT: adversary pass 7. S-SPEC-ENV-VAR-001: PR #165 OPEN; PR-LEVEL pass 2 COMPLETE (F-PR2-MED-001 CLOSED 54d1bd3e; OBS-PR2-001 DISPOSITIONED); re-push 54d1bd3e in progress; NEXT: PR-LEVEL pass 3. S-SPEC-HTTP-METHOD-VALIDATION-001 REGISTERED v1.0 (DRIFT-D926-001 anchor; S-7.01 PO-gate). |
-| **Current Step** | D-929 — KEYSTONE pass 6 COMPLETE (2 MED story-spec drift; story v1.8 exhaustive sweep; grep-verified; streak 0/3; NEXT pass 7). ENV-VAR PR-LEVEL pass 2 COMPLETE (F-PR2-MED-001 CLOSED 54d1bd3e; OBS-PR2-001 DISPOSITIONED; re-push in progress; NEXT pass 3). STORY-INDEX v2.231. STATE v7.582. |
+| **Last Updated** | 2026-06-01 (D-930 burst — S-DEMO-001 LOCAL pass 7: 1 LOW (F-P07-LOW-001 body **Version:** field sync); CLOSED story-writer line-146 body-field sync; streak 0/3; NEXT: pass 8 (expect 1/3). S-SPEC-ENV-VAR-001 PR-LEVEL pass 4: CLEAN(strict)=yes, novelty ZERO; streak 2/3; NEXT: pass 5 → 3/3 → merge. STATE v7.583) |
+| **Current Phase** | Wave 5 (wave-5-e-demo-fidelity) in progress — S-DEMO-001: LOCAL pass 7 done (body-field sync; 1 LOW closed); streak 0/3; NEXT: adversary pass 8. S-SPEC-ENV-VAR-001: PR #165 OPEN; PR-LEVEL pass 4 CLEAN(strict) (novelty ZERO); streak 2/3; NEXT: PR-LEVEL pass 5 (convergence → 3/3 → merge). S-SPEC-HTTP-METHOD-VALIDATION-001 REGISTERED v1.0 (DRIFT-D926-001 anchor; S-7.01 PO-gate). |
+| **Current Step** | D-930 — KEYSTONE pass 7 COMPLETE (1 LOW body-field sync; story-writer fix; streak 0/3; NEXT pass 8). ENV-VAR PR-LEVEL pass 4 COMPLETE (CLEAN(strict)=yes; novelty ZERO; streak 2/3; NEXT pass 5 convergence → 3/3 → merge). STATE v7.583. |
 
 ## Phase Progress
 
@@ -634,8 +650,8 @@ historical_cycles: [phase-1-convergence, wave-3-multi-tenant, wave-4-operations]
 
 | Step | Agent | Status | Output |
 |------|-------|--------|--------|
-_D-735 through D-847 archived to cycles/wave-0-plugin-prereqs/burst-log.md. D-835+D-836+D-837 removed from Phase Steps (archived in Decisions Log). D-849/851/852/853/855/856/857/858/859/860/861/862/863/864/865/866/867/868/869/870/871/872/873/874/875/876/877/878/879/880/881/882/883/884/885/886/887/888/889/890/891/892/893/894/895/896/897/898/899/900/901/902/903/904/905/906/907/908/909/910/911/912/913/914/915/916/917/918/919/920/921/922/923/924/925/926/927/928 archived to burst-log.md._
-| D-929 — **KEYSTONE PASS 6 + ENV-VAR PR-LEVEL PASS 2 RECORDED. S-DEMO-001 pass 6: 2 MED (ADV-P06-MED-001 EC-002/008 AuthRefreshFailed→CookieAuthFailed no-retry; ADV-P06-MED-002 Tasks 9/14 2-arg→1-arg StaticCookieAuthProvider::new). ALL CLOSED story v1.8 EXHAUSTIVE sweep (grep-verified). Code correct. Streak 0/3. NEXT: pass 7. ENV-VAR PR-LEVEL pass 2: F-PR2-MED-001 CLOSED (54d1bd3e); OBS-PR2-001 DISPOSITIONED (legitimate introduced-at-version). Re-push 54d1bd3e in progress. NEXT: pass 3. STORY-INDEX v2.230→v2.231. STATE v7.581→v7.582.** | state-manager (D-929 pass6-pass2-keystone burst) | COMPLETE | S-DEMO-001 pass 7 NEXT; ENV-VAR PR-LEVEL pass 3 NEXT after re-push confirmed |
+_D-735 through D-847 archived to cycles/wave-0-plugin-prereqs/burst-log.md. D-835+D-836+D-837 removed from Phase Steps (archived in Decisions Log). D-849/851/852/853/855/856/857/858/859/860/861/862/863/864/865/866/867/868/869/870/871/872/873/874/875/876/877/878/879/880/881/882/883/884/885/886/887/888/889/890/891/892/893/894/895/896/897/898/899/900/901/902/903/904/905/906/907/908/909/910/911/912/913/914/915/916/917/918/919/920/921/922/923/924/925/926/927/928/929 archived to burst-log.md._
+| D-930 — **KEYSTONE PASS 7 + ENV-VAR PR-LEVEL PASS 4 RECORDED. S-DEMO-001 pass 7: 1 LOW (F-P07-LOW-001 body **Version:** field stale v1.7 vs v1.8 frontmatter/H1/changelog). CLOSED story-writer line-146 body-field sync. CLEAN(PR-merge)=yes; CLEAN(strict)=no. Streak 0/3. Finding trajectory collapsing: passes 1-3 CRIT data-path, pass 4 REAL confirmed, passes 5-7 (4→2→1), now zero-prescriptive-stale + version-synced. NEXT: pass 8 (expect 1/3). ENV-VAR PR-LEVEL pass 4: CLEAN(strict)=yes, novelty ZERO → streak 2/3. PR #165 head 54d1bd3e. NEXT: pass 5 (convergence → 3/3 → merge). STATE v7.582→v7.583.** | state-manager (D-930 pass7-pass4-burst) | COMPLETE | S-DEMO-001 pass 8 NEXT; ENV-VAR PR-LEVEL pass 5 NEXT (convergence → 3/3) |
 | D-928 — **KEYSTONE PASS 5 STATE + ENV-VAR PR-LEVEL PASS 1 RECORDED. S-DEMO-001 pass 5: 2 HIGH + 2 LOW (all story-spec drift; code correct; CLOSED story v1.7 sweep). Streak 0/3. NEXT: pass 6. ENV-VAR PR-LEVEL pass 1: ALL 4 CLOSED (641f4087+5e8f54f0). Re-push 5e8f54f0 in progress. NEXT: pass 2. error-taxonomy v1.57. STORY-INDEX v2.229→v2.230. STATE v7.580→v7.581.** | state-manager (D-928 pass5-pass1-commit burst) | COMPLETE | S-DEMO-001 pass 6 NEXT; ENV-VAR PR-LEVEL pass 2 NEXT after re-push confirmed |
 | D-927 — **S-DEMO-001 KEYSTONE PASS 4 STATE RECORDED. CLEAN(strict)=no (2 LOW fixed: OBS-PASS4-001 implementer 51fd2ca0 class_selector docstring; OBS-PASS4-002 story-writer v1.6 AC-010(b) ocsf_category→class_uid/1000 per BC-2.01.013 v1.9). CLEAN(PR-merge)=yes. Streak 0/3. Data path verified GENUINELY REAL (all 10 real sensor tables → correct class_uid via select_by_class_name; zero fall-through to 0). NEXT: adversary pass 5 (should be 1/3). S-SPEC-HTTP-METHOD-VALIDATION-001 registered v1.0 (3pts; P2; S-7.01 PO-gate). DRIFT-D926-001 ANCHORED. STORY-INDEX v2.228→v2.229 (173 stories). STATE v7.579→v7.580.** | state-manager (D-927 keystone-pass4 burst) | COMPLETE | S-DEMO-001 pass 5 NEXT; S-SPEC-HTTP-METHOD-VALIDATION-001 registered; DRIFT-D926-001 anchored |
 | D-926 — **TWO FIX-BURST COMPLETIONS + PR #165 STATUS RECORDED. S-DEMO-001 D-925 fix COMPLETE (9c2019cd; 3869 tests). S-SPEC-ENV-VAR-001 PR #165 OPEN; M-002 fix aeaea369 LOCAL-ONLY; DRIFT-D926-001 opened (HTTP-method whitelist story anchor required before merge). STATE v7.578→v7.579.** | state-manager (D-926 fix-burst-completions burst) | COMPLETE | S-DEMO-001 pass 4 dispatched; S-SPEC-ENV-VAR-001 re-push + PR-LEVEL cascade NEXT |
@@ -648,6 +664,7 @@ _D-001..D-046 archived: [cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-930 | 2026-06-01 | state-manager | **KEYSTONE PASS 7 + ENV-VAR PR-LEVEL PASS 4 RECORDED. S-DEMO-001 body-field sync. STATE v7.582→v7.583.** Single-commit burst (TD-VSDD-053) recording two cascade states plus body-field propagation fix. (1) KEYSTONE S-DEMO-001 LOCAL adversary PASS 7: CLEAN(strict)=no, CLEAN(PR-merge)=yes; 1 LOW; story-spec body-field drift only (code correct throughout). F-P07-LOW-001 (LOW — body **Version:** field at line-146 read `v1.7` vs frontmatter/H1/changelog all `v1.8`; body-field propagation sync gap from story-writer ADV-P06 sweep which corrected frontmatter/H1/changelog but missed body marker at line-146; CLOSED story-writer line-146 body-field sync — NOT a version bump). CLEAN(strict)=no (1 LOW). CLEAN(PR-merge)=yes. Streak 0/3. Finding trajectory collapsing: passes 1-3 CRIT data-path (D-925 fixed), pass 4 data-path REAL confirmed, passes 5-7 progressively smaller doc drift (4→2→1 findings), now zero-prescriptive-stale + version-synced. NEXT: adversary pass 8 (fresh context; full rubric + SAP-1/SAP-2/SID-1; expect first CLEAN-strict → 1/3). (2) ENV-VAR S-SPEC-ENV-VAR-001 PR-LEVEL adversary PASS 4: CLEAN(strict)=yes, CLEAN(PR-merge)=yes; zero findings; novelty ZERO. PR #165 head 54d1bd3e. Streak 1/3 → 2/3 per BC-5.39.001 D-779. NEXT: PR-LEVEL adversary pass 5 (convergence pass → 3/3). After 3-CLEAN: merge (orchestrator-authorized) + POL-14 BC auto-promotions + post-merge burst. Pre-merge gate reminder: M-001 follow-up story S-SPEC-HTTP-METHOD-VALIDATION-001 already filed (DRIFT-D926-001 anchored; PO S-7.01 gate remaining). (3) Uncommitted story-writer fix: S-DEMO-001-spec-driven-sensor-adapter-and-boot-step-9a.md line-146 `**Version:** v1.7` → `**Version:** v1.8` (body-field propagation sync). STORY-INDEX S-DEMO-001 row already shows v1.8 — no STORY-INDEX version change needed. (4) Defensive S-7.02 sweep: no BC/VP/story count changes (no BCs/VPs/stories added/removed; total_stories 173 unchanged; story_index_version v2.231 unchanged). Anti-volatile-pin per TD-VSDD-091. | wave-5-e-demo-fidelity | 2026-06-01 | Decided by: state-manager (D-930 pass7-pass4-burst). Status: COMPLETE |
 | D-929 | 2026-05-31 | state-manager | **KEYSTONE PASS 6 + ENV-VAR PR-LEVEL PASS 2 RECORDED. S-DEMO-001 story v1.7→v1.8. STORY-INDEX v2.230→v2.231. STATE v7.581→v7.582.** Single-commit burst (TD-VSDD-053) recording two cascade states plus STORY-INDEX register. (1) KEYSTONE S-DEMO-001 LOCAL adversary PASS 6: CLEAN(strict)=no, CLEAN(PR-merge)=yes; 2 MED; all story-spec drift only (code correct throughout). ADV-P06-MED-001 (MED — EC-002/008 still cited stale error code `AuthRefreshFailed` in cookie-auth no-retry context; should be `CookieAuthFailed`; sibling drift site missed by v1.7 ADV-P05 sweep; CLOSED story v1.8 EXHAUSTIVE sweep). ADV-P06-MED-002 (MED — Tasks 9/14 StaticCookieAuthProvider::new called with 2 args vs actual 1-arg constructor; CLOSED story v1.8 EXHAUSTIVE sweep). Root cause: v1.7 sweep corrected top-level occurrences of stale Cyberint auth terminology but missed EC-002/008 and Tasks 9/14 as sibling drift sites. Story-writer ADV-P06 exhaustive drift sweep: story v1.7→v1.8 (EC-002/008 no-retry CookieAuthFailed updated; Tasks 9/14 1-arg StaticCookieAuthProvider::new; Task 5 corrected-DTU; design section; grep-verified zero prescriptive stale hits across all formerly-stale patterns). CLEAN(strict)=no (2 findings). Streak 0/3 → NEXT: adversary pass 7 (fresh context). (2) ENV-VAR S-SPEC-ENV-VAR-001 PR-LEVEL adversary PASS 2: CLEAN(strict)=no, CLEAN(PR-merge)=yes; 1 MED + 1 LOW. F-PR2-MED-001 (MED — stale demo-evidence test counts; 5 load-bearing tests added in pass-1 not reflected in evidence report; CLOSED: demo-recorder regen commit 54d1bd3e; real counts: 513 suite, 18 env-var-related). OBS-PR2-001 (LOW/OBS — EC-002/008 cite `v1.56` for E-SPEC-024 after error-taxonomy v1.57 bump; DISPOSITIONED: legitimate introduced-at-version citations — E-SPEC-024 was introduced at v1.56; v1.57 changed only description prose not the template; same convention as v1.45 E-SPEC-017/018 cites; no change needed; future adversary passes informed). PR #165 head after fixes: 54d1bd3e. Re-push to origin/feature/S-SPEC-ENV-VAR-001 IN PROGRESS by pr-manager (triggers CI re-check). Streak 0/3 → NEXT: PR-LEVEL adversary pass 3 after head=54d1bd3e confirmed on remote. (3) STORY-INDEX v2.230→v2.231: S-DEMO-001 row updated draft v1.7→v1.8 (ADV-P06 exhaustive drift sweep; LOCAL pass 6 complete; streak 0/3; NEXT pass 7); changelog row v2.231 added. (4) Defensive S-7.02 sweep: story_index_version updated (v2.230→v2.231); no BC/VP/story count changes (no BCs/VPs/stories added/removed; total_stories 173 unchanged). | wave-5-e-demo-fidelity | 2026-05-31 | Decided by: state-manager (D-929 pass6-pass2-keystone burst). Status: COMPLETE |
 | D-928 | 2026-05-31 | state-manager | **KEYSTONE PASS 5 STATE + ENV-VAR PR-LEVEL PASS 1 RECORDED. S-DEMO-001 story v1.6→v1.7. STORY-INDEX v2.229→v2.230. error-taxonomy v1.56→v1.57. STATE v7.580→v7.581.** Single-commit burst (TD-VSDD-053) recording two cascade states plus STORY-INDEX register + code-delivery dir. (1) KEYSTONE S-DEMO-001 LOCAL adversary PASS 5: CLEAN(strict)=no, CLEAN(PR-merge)=yes; 2 HIGH + 2 LOW; all story-spec drift only (code correct). ADV-P05-HIGH-001 (risk_mitigations frontmatter: cyberint_session/CookieLogin stale per v1.3 Cyberint design reversal — should be access_token/StaticCookie/StaticCookieAuthProvider); ADV-P05-HIGH-002 (Tasks section: cyberint_session/CookieLogin/executor stale + old POST/login task + stale 2-arg register pseudo-code); ADV-P05-LOW-001 (changelog entries out of ascending order); ADV-P05-LOW-002 (OQ-2 2-arg register pseudo-code stale). Root cause: v1.3 design reversal (cyberint_session→access_token, CookieLogin→StaticCookie, removed POST/login) was committed to implementation but changelog over-claimed closure — Tasks/frontmatter/risk_mitigations sections not swept at v1.3 write time. Story-writer ADV-P05 drift sweep closes ALL 4: story v1.6→v1.7 (cyberint_session→access_token, CookieLogin→StaticCookie, CookieLoginAuthProvider→StaticCookieAuthProvider, removed POST/login task, removed stale executor field, 2-arg register→3-arg pseudo-code, changelog reordered ascending). Grep-confirmed zero prescriptive stale hits post-sweep. CLEAN(strict)=no (4 findings). Streak 0/3 → NEXT: adversary pass 6 (fresh context). (2) ENV-VAR S-SPEC-ENV-VAR-001 PR-LEVEL adversary PASS 1: CLEAN(strict)=no, CLEAN(PR-merge)=no; 2 MED + 2 OBS; ALL 4 CLOSED. F-PR1-MED-001 (MED — test coverage gap for EC-009-007 env-resolution overlay path; CLOSED: 5 load-bearing tests added commit 641f4087 on feature/S-SPEC-ENV-VAR-001). F-PR1-MED-002 (MED — second coverage gap finding; CLOSED: commit 641f4087). OBS-PR1-001 (OBS — EC-009-007 overlay coverage evidence-report; CLOSED: commit 5e8f54f0). OBS-PR1-002 (OBS — error-taxonomy.md v1.56 line-pin validation.rs:135 (TD-VSDD-091 violation); CLOSED: error-taxonomy.md v1.56→v1.57 volatile line-pin → function anchor validate_sensor_spec). PR #165 head after fixes: 5e8f54f0. Re-push to origin/feature/S-SPEC-ENV-VAR-001 IN PROGRESS by pr-manager (triggers CI re-check). Streak 0/3 → NEXT: PR-LEVEL adversary pass 2 after head=5e8f54f0 confirmed on remote. (3) STORY-INDEX v2.229→v2.230: S-DEMO-001 row updated draft v1.6→v1.7 (ADV-P05 drift sweep closed; LOCAL pass 5 complete; streak 0/3; NEXT pass 6); changelog row v2.230 added. (4) code-delivery/S-SPEC-ENV-VAR-001/ INCLUDED: pr-manager PR bookkeeping artifacts from PR #165 creation (pr-description.md + review-findings.md) — legitimate .factory code-delivery artifacts. (5) Defensive S-7.02 sweep: error_taxonomy_version updated frontmatter (v1.56→v1.57); story_index_version updated (v2.229→v2.230); no BC/VP/story count changes (no BCs/VPs/stories added/removed; total_stories 173 unchanged). | wave-5-e-demo-fidelity | 2026-05-31 | Decided by: state-manager (D-928 pass5-pass1-commit burst). Status: COMPLETE |
 | D-926 | 2026-05-31 | state-manager | **TWO FIX-BURST COMPLETIONS + PR #165 STATUS RECORDED. STATE v7.578→v7.579.** Single-commit burst (TD-VSDD-053). (1) KEYSTONE S-DEMO-001: D-925 implementer fix COMPLETE on feature/S-DEMO-001 @ commit 9c2019cd. 3 changes exactly as specified by D-925 arch adjudication: (a) `EventClassSelector::select_by_class_name(class_name: &str) -> Result<u32, PrismError>` added to `crates/prism-ocsf/src/class_selector.rs` with compile-time 6-class mapping table (security_finding→2001, detection_finding→2004, incident_finding→2005, vulnerability_finding→2002, device→5001, audit_activity→3001); (b) `pipeline_result_to_record_batch` now calls `select_by_class_name(&table.ocsf_class)` — ocsf_class='security_finding'→class_uid 2001/category_uid 2; raw 9999 ignored; (c) F-DOC-001 resolved — SpecDrivenSensorAdapter struct rustdoc false ColumnMapper/OcsfNormalizer claim removed; spec_driven_adapter doc v1.6. Conformance test passes for the RIGHT reason (real ocsf_class fixture, not record-type token). just check GREEN 3869/3869. LOCAL adversary streak: 0/3. NEXT: adversary pass 4 (fresh context, full rubric + SAP/SID, scrutinize ALL 6 real sensor ocsf_class values: security_finding/detection_finding/incident_finding/vulnerability_finding/device/audit_activity). (2) ENV-VAR S-SPEC-ENV-VAR-001: PR #165 OPEN (https://github.com/drbothen/prism/pull/165; base develop; head df80d47b at open; 15 checks PASS; test matrix + fuzz pending; 0 failures). PR review findings: M-002 (dedup resolved_pairs): FIXED — commit aeaea369 on feature/S-SPEC-ENV-VAR-001 (dedup via HashSet; behavior unchanged; 508/508 + just check green; LOCAL-ONLY — NOT yet pushed; pr-manager must re-push aeaea369 to re-trigger CI). L-001 (test fn name): WAIVED — clippy passes; established test fn naming convention. M-001/SEC-001 (no HTTP-method whitelist for env-resolved step.method): DISPOSITIONED — not a vulnerability introduced by env-var resolution (pre-existing validation gap; pipeline `_ => GET` safe fallback; trusted-spec AD-017 model); deferral requires explicit story anchor per Canonical Principle Rule 3 — DRIFT-D926-001 opened; follow-up story must be filed and registered before PR #165 merges. ENV-VAR NEXT: pr-manager re-push aeaea369 → orchestrator dispatches PR-LEVEL adversary 3-CLEAN cascade (BC-5.39.001) on PR diff → resolve any findings → merge (orchestrator-authorized, contingent on DRIFT-D926-001 story anchor filed) → POL-14 BC promotion + post-merge state burst. S-DEMO-QUERY-PUSHDOWN-001 remains draft/blocked-on-S-DEMO-001-merge. Tracks B+D-lead worktrees idle. Recurring-stub [process-gap] PG-DEMO001-STUB-RECUR-001 remains flagged for cycle-close. Defensive S-7.02 sweep: no BC/VP/story counts changed in this burst (no BCs/VPs/stories added/removed). | wave-5-e-demo-fidelity | 2026-05-31 | Decided by: state-manager (D-926 fix-burst-completions burst). Status: COMPLETE |
@@ -906,35 +923,32 @@ Prior cycle history:
 
 ---
 
-## Session Resume Checkpoint (2026-05-31 — D-929 KEYSTONE PASS 6 COMPLETE; ENV-VAR PR-LEVEL PASS 2 COMPLETE; PASS 7 + PASS 3 NEXT; develop@e798e67c; STATE v7.582)
+## Session Resume Checkpoint (2026-06-01 — D-930 KEYSTONE PASS 7 COMPLETE; ENV-VAR PR-LEVEL PASS 4 COMPLETE; PASS 8 + PASS 5 NEXT; develop@e798e67c; STATE v7.583)
 
-_Previous checkpoint (D-928 pass5-pass1-commit burst; STATE v7.581) superseded by D-929 pass6-pass2-keystone burst (STATE v7.582)._
+_Previous checkpoint (D-929 pass6-pass2-keystone burst; STATE v7.582) superseded by D-930 pass7-pass4-burst (STATE v7.583)._
 
-**STATE v7.582. D-929 — S-DEMO-001 LOCAL pass 6 COMPLETE: 2 MED story-spec drift siblings (ADV-P06-MED-001/002; ALL CLOSED story v1.8 exhaustive sweep; grep-verified zero stale). CLEAN(strict)=no. Streak 0/3. NEXT: adversary pass 7 (fresh context). S-SPEC-ENV-VAR-001 PR-LEVEL pass 2 COMPLETE: F-PR2-MED-001 CLOSED (54d1bd3e); OBS-PR2-001 DISPOSITIONED (legitimate introduced-at-version citations); re-push 54d1bd3e in progress. NEXT: PR-LEVEL adversary pass 3. STORY-INDEX v2.231 (173 stories). develop HEAD: e798e67c.**
+**STATE v7.583. D-930 — S-DEMO-001 LOCAL pass 7 COMPLETE: 1 LOW body-field sync (F-P07-LOW-001; CLOSED story-writer line-146 body-field sync). CLEAN(strict)=no. Streak 0/3. Finding trajectory collapsing (passes 5-7: 4→2→1); now zero-prescriptive-stale + version-synced. NEXT: adversary pass 8 (expect 1/3). S-SPEC-ENV-VAR-001 PR-LEVEL pass 4 COMPLETE: CLEAN(strict)=yes, novelty ZERO. Streak 2/3. PR #165 head 54d1bd3e. NEXT: PR-LEVEL pass 5 (convergence → 3/3 → merge). STORY-INDEX v2.231 (173 stories). develop HEAD: e798e67c.**
 
 **develop HEAD:** `e798e67c` | **BC-INDEX:** v5.69 | **STORY-INDEX:** v2.231 (173 stories) | **Open PRs:** PR #165 (S-SPEC-ENV-VAR-001; https://github.com/drbothen/prism/pull/165)
 
 **Resume protocol (new session):**
 1. Run `vsdd-factory:factory-worktree-health` (BLOCKING preflight)
-2. Read STATE.md frontmatter — confirm `version: "7.582"` + `cyberint_pr_cycle_in_flight: false` + `develop_head: "e798e67c"`
+2. Read STATE.md frontmatter — confirm `version: "7.583"` + `cyberint_pr_cycle_in_flight: false` + `develop_head: "e798e67c"`
 3. Read SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-05-31-CYBERINT-MERGED-WAVE-5-PARALLEL-PLANNED + CORRECTION block (D-916 burst)
 4. Read `.factory/proposals/WAVE-5-PARALLELIZATION-PLAN.md` for full parallel track detail
 5. Confirm `git log --oneline develop` shows e798e67c as HEAD
 6. Check open PRs: `gh pr list --state open` → expected: PR #165 (S-SPEC-ENV-VAR-001)
 
-7. **NEXT ACTIONS — S-DEMO-001 KEYSTONE (PASS 7 TRACK):**
-   - Feature branch: `feature/S-DEMO-001`; story v1.8 (ADV-P06 exhaustive drift sweep closed; grep-verified zero stale); streak 0/3
-   - Dispatch: LOCAL adversary PASS 7 (fresh context, full rubric, SAP-1 + SAP-2 + SID-1)
-   - Pass 6 was story-spec drift only (code correct). Pass 7 expected CLEAN(strict) → streak 1/3. After 3 consecutive CLEAN(strict): demo-recorder → push → pr-manager 9-step PR cycle.
-   - **OBS-PR2-001 disposition for adversary:** EC-002/008 cite `v1.56` for E-SPEC-024 — this is a legitimate introduced-at-version citation (E-SPEC-024 was introduced at v1.56; v1.57 bumped only description prose, not the template). Same convention as v1.45 E-SPEC-017/018 cites. Future passes informed: do NOT raise this as a finding.
+7. **NEXT ACTIONS — S-DEMO-001 KEYSTONE (PASS 8 TRACK):**
+   - Feature branch: `feature/S-DEMO-001`; story v1.8 (body-field sync complete; grep-verified zero stale; all prose now verified); streak 0/3
+   - Dispatch: LOCAL adversary PASS 8 (fresh context, full rubric, SAP-1 + SAP-2 + SID-1)
+   - Pass 7 was body-field sync only (code correct). Finding trajectory collapsing (passes 5-7: 4→2→1). Pass 8 expected CLEAN(strict) → streak 1/3. After 3 consecutive CLEAN(strict): demo-recorder → push → pr-manager 9-step PR cycle.
 
 8. **NEXT ACTIONS — S-SPEC-ENV-VAR-001 (ENV-VAR track):**
-   - Feature branch: `feature/S-SPEC-ENV-VAR-001`; story v1.2; PR #165 OPEN
-   - PR-LEVEL pass 2 COMPLETE (F-PR2-MED-001 CLOSED 54d1bd3e; OBS-PR2-001 DISPOSITIONED)
-   - **Step A (pr-manager — IN PROGRESS):** Confirm push of `54d1bd3e` to `origin/feature/S-SPEC-ENV-VAR-001` (re-triggers CI on PR #165).
-   - **Step B (orchestrator after push confirmed):** Dispatch PR-LEVEL adversary PASS 3 (fresh context, BC-5.39.001 streak now 0/3). Inform adversary of OBS-PR2-001 disposition.
-   - **Step C (merge gate):** DRIFT-D926-001 anchor SATISFIED (S-SPEC-HTTP-METHOD-VALIDATION-001 registered D-927). PO must clear S-7.01 gate (BC-2.16.009 amendment + E-SPEC code) before merge authorized.
-   - **Step D (post-3-CLEAN):** After 3-CLEAN → orchestrator confirms DRIFT-D926-001 anchor status → merge → POL-14 BC promotion + post-merge state burst.
+   - Feature branch: `feature/S-SPEC-ENV-VAR-001`; story v1.2; PR #165 OPEN; head 54d1bd3e
+   - PR-LEVEL pass 4 COMPLETE (CLEAN(strict)=yes; novelty ZERO; streak 2/3)
+   - **Step A (orchestrator):** Dispatch PR-LEVEL adversary PASS 5 (fresh context, BC-5.39.001 convergence pass → 3/3). Inform adversary of OBS-PR2-001 disposition (EC-002/008 v1.56 E-SPEC-024 cites are legitimate introduced-at-version; do NOT raise as finding).
+   - **Step B (merge gate after 3-CLEAN):** DRIFT-D926-001 anchor SATISFIED (S-SPEC-HTTP-METHOD-VALIDATION-001 registered D-927). After 3-CLEAN → orchestrator confirms DRIFT-D926-001 anchor status → merge → POL-14 BC promotion + post-merge state burst.
 
 9. **S-DEMO-QUERY-PUSHDOWN-001** — draft v1.0; P2; depends_on S-DEMO-001 HARD. Do NOT dispatch until S-DEMO-001 merges.
 
@@ -960,13 +974,13 @@ _Previous checkpoint (D-928 pass5-pass1-commit burst; STATE v7.581) superseded b
 **OBS-PR2-001 disposition (ENV-VAR PR-LEVEL pass 2):** EC-002/008 cite `v1.56` for E-SPEC-024 introductions — DISPOSITIONED as legitimate introduced-at-version citations. E-SPEC-024 was introduced at v1.56; v1.57 only bumped description prose, not the template. Same convention as v1.45 E-SPEC-017/018 cites in the same document. No change needed. Future PR-LEVEL adversary passes informed of this disposition.
 
 **Active worktrees:**
-- `.worktrees/S-DEMO-001` — story v1.8; streak 0/3; NEXT: adversary pass 7
-- `.worktrees/S-SPEC-ENV-VAR-001` — PR #165 OPEN; PR-LEVEL pass 2 COMPLETE; head 54d1bd3e; re-push in progress → PR-LEVEL pass 3
+- `.worktrees/S-DEMO-001` — story v1.8 (body-field sync complete); streak 0/3; NEXT: adversary pass 8 (expect 1/3)
+- `.worktrees/S-SPEC-ENV-VAR-001` — PR #165 OPEN; PR-LEVEL pass 4 COMPLETE (streak 2/3); head 54d1bd3e → PR-LEVEL pass 5 (convergence)
 - `.worktrees/S-DEMO-ARMIS-AQL-001` (Track B) — CREATED; stubs not started
 - `.worktrees/S-DEMO-CLAROTY-AUDIT-DTU-001` (Track D-lead) — CREATED; stubs not started
 - `.worktrees/S-3.09` — FROZEN, leave alone
 - `.worktrees/W3-FIX-S307-001` — BLOCKED (superseded), leave alone
 
-**Open PRs:** PR #165 (S-SPEC-ENV-VAR-001; https://github.com/drbothen/prism/pull/165; head 54d1bd3e after PR-LEVEL pass 2 fixes; re-push in progress).
+**Open PRs:** PR #165 (S-SPEC-ENV-VAR-001; https://github.com/drbothen/prism/pull/165; head 54d1bd3e; PR-LEVEL pass 4 CLEAN(strict); streak 2/3).
 
 _Agent routing: see CLAUDE.md §Agent Routing Table._

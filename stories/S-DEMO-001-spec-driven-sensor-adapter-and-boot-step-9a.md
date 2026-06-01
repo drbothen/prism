@@ -143,7 +143,7 @@ phase: 3
 
 **Story ID:** S-DEMO-001
 **Status:** draft
-**Version:** v1.7
+**Version:** v1.8
 **Wave:** 5
 **Priority:** P0
 **Points:** 11
