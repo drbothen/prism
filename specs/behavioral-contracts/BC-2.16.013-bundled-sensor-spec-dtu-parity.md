@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.21"
+version: "1.22"
 status: active
 producer: product-owner
 timestamp: 2026-05-20T00:00:00Z
@@ -11,7 +11,7 @@ subsystem: "SS-16"
 capability: "CAP-029"
 lifecycle_status: active
 introduced: "2026-05-20"
-modified: "2026-06-01"  # v1.21 orchestration-correction: DTU-EXT-003/004 dual-state wording (implementation COMPLETE on feature branch, gap CLOSES on merge)
+modified: "2026-06-01"  # v1.22: AQL discriminator divergence flagged in v1.21 CLOSED — implementation conformed to in:devices/in:alerts per research artifact + impl commit 26267916
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -444,6 +444,7 @@ PLUGIN-MIGRATION-001-D (implementing story; planned → draft after PO authoring
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.22 | F-LP12R-MED-001 closure burst | 2026-06-01 | product-owner | F-LP12R-MED-001 closure: AQL discriminator divergence flagged in v1.21 as "reported for separate reconciliation — not fixed here" is now CLOSED. The implementation on `feature/S-DEMO-ARMIS-AQL-001` was conformed to `in:devices`/`in:alerts` (the discriminator strings specified in this BC's §Postconditions §1) per impl commit 26267916. Research artifact `.factory/research/armis-aql-discriminator-syntax-2026-06.md` records the disposition: "BC stands; implementation conforms." BC §Postconditions §1 Armis `devices` and `alerts` bullets and §Canonical Test Vectors were already correct and unchanged — no normative content edited. This row closes the open item in v1.21 that would otherwise read as an unresolved finding. |
 | 1.21 | orchestration-correction burst | 2026-06-01 | product-owner | Orchestration correction of premature v1.20 gap-closure. §Postconditions §1 Armis `devices` and `alerts` bullets changed from flat "CLOSED by S-DEMO-ARMIS-AQL-001" to dual-state wording: implementation COMPLETE on `feature/S-DEMO-ARMIS-AQL-001` (`build_router()` anchor per TD-VSDD-091), gap CLOSES on story merge, gap remains OPEN on develop until then. §Known Gaps DTU-EXT-003 and DTU-EXT-004 rows updated to match dual-state form. No other sensor rows (CrowdStrike/Cyberint/Claroty) touched. AQL discriminator strings (`in:devices`/`in:alerts`) preserved as-specified in BC; story-vs-BC discriminator convention divergence (`in:type=Device`/`in:type=Alert` in implementation) reported for separate reconciliation — not fixed here. |
 | 1.20 | F-LP11-MED-001 closure burst | 2026-06-01 | product-owner | F-LP11-MED-001 closure: §Postconditions §1 Armis `devices` and `alerts` bullets updated from deferred/OPEN to CLOSED by S-DEMO-ARMIS-AQL-001. §Known Gaps DTU-EXT-003 and DTU-EXT-004 rows marked CLOSED with resolution summary — `GET /api/v1/search` (AQL-search) registered in `prism-dtu-armis/src/clone.rs` `build_router()` per ADR-031 §D8-a. Volatile line-number citations (`line 143`, `line 150`) replaced with function-name anchor `build_router()` per TD-VSDD-091. No other sensor rows (CrowdStrike/Cyberint/Claroty) touched. |
 | 1.19 | S-DEMO-CROWDSTRIKE-MULTIREGION-001 BC attachment burst | 2026-05-31 | product-owner | §Postconditions §1 CrowdStrike row: replaced stale `base URL pattern https://api.{cloud_region}.crowdstrike.com` with `base_url = "${env.CROWDSTRIKE_BASE_URL}"` per ADR-031 §D8-c. Added region runbook (us-1/us-2/eu-1/gov canonical URLs). Added E-SPEC-024 cross-reference (BC-2.16.009 §Validation Rules 6) for missing/empty env var behavior at spec-load time. No other postconditions changed — DTU parity tests pass `base_url` as a DTU SocketAddr override regardless of the spec's base_url value. |
