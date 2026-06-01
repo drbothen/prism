@@ -1,8 +1,11 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 //! Fidelity validation test for `prism-dtu-claroty`.
 //!
-//! Starts `ClarotyClone`, runs `FidelityValidator` against all 9 routes
-//! (7 API + 2 DTU control), and asserts `checks_failed == 0`.
+//! Starts `ClarotyClone`, runs `FidelityValidator` against all 11 routes
+//! (8 API + 2 DTU control + 1 health), and asserts `checks_failed == 0`.
+//! API routes: devices, alerts, alerts/:id/devices, vulnerabilities,
+//! vulnerabilities/:id/devices, devices/:id/tags (write), devices/:id/tags/:key (write),
+//! and audit_log/get.
 //! Run as part of `just dtu-validate`.
 
 use prism_dtu_claroty::ClarotyClone;
@@ -105,6 +108,17 @@ async fn claroty_dtu_fidelity() {
             body: None,
             expected_status: 200,
             required_fields: vec!["status".to_string()],
+            ..Default::default()
+        },
+        // Route 11: POST /api/v1/audit_log/get — 401 without auth (Gap-CL-006 / AC-002).
+        // Bearer auth enforced before fixture loading; response envelope key is "audit_log"
+        // (response_path = "$.audit_log" in claroty.sensor.toml).
+        FidelityCheck {
+            endpoint: "/api/v1/audit_log/get".to_string(),
+            method: http::Method::POST,
+            body: Some(json!({})),
+            expected_status: 401,
+            required_fields: vec!["error".to_string()],
             ..Default::default()
         },
     ];
