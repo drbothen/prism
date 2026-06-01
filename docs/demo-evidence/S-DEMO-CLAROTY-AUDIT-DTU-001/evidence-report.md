@@ -4,7 +4,7 @@
 **Title:** prism-dtu-claroty: Add /api/v1/audit_log/get route for Claroty Audit Log Fidelity (closes Gap-CL-006 / DTU=true-DTU)
 **Branch:** feature/S-DEMO-CLAROTY-AUDIT-DTU-001
 **PR:** #167 (S-DEMO-CLAROTY-AUDIT-DTU-001)
-**BCs:** BC-2.01.013 v1.9, BC-2.16.013 v1.21 (BC-INDEX v5.73)
+**BCs:** BC-2.01.013 v1.9, BC-2.16.013 v1.22 (BC-INDEX v5.74)
 **Product type:** Backend DTU route (CLI/Rust — VHS not applicable; test execution output captured)
 **Evidence directory:** docs/demo-evidence/S-DEMO-CLAROTY-AUDIT-DTU-001/
 
@@ -98,8 +98,10 @@ Behavioral contract — 3-cell matrix × 6 endpoints = 18 tests:
 | `test_W3_FIX_SEC_001_claroty_vulnerability_devices_missing_org_header_on_real_org_returns_401` | Unit (W3-FIX-SEC-001 Cell B) | AC-007 | PASS |
 | `test_W3_FIX_SEC_001_claroty_vulnerability_devices_nil_org_no_header_returns_200` | Unit (W3-FIX-SEC-001 Cell C) | AC-007 | PASS |
 
-**22 Red Gate tests (4 AC-001..006 gates + 18 AC-007 org-isolation gates) — all PASS.**
-Red Gate table: 3 core BC-2.16.013 tests + 18 org-isolation tests (3 cells × 6 endpoints) + 1 fidelity validator = 22 total.
+**21 Red Gate tests (3 core BC-2.16.013 gates + 18 AC-007 org-isolation gates) — all PASS.**
+**+ 1 fidelity-validator integration gate (claroty_dtu_fidelity) — PASS.**
+Red Gate table: 3 core BC-2.16.013 unit tests + 18 W3-FIX-SEC-001 org-isolation unit tests = 21 Red Gate tests.
+The fidelity validator (claroty_dtu_fidelity) is an integration gate confirming AC-001 + AC-006; it is NOT counted as a Red Gate unit test per the story §Red Gate table (21 rows: 3 core + 18 org-isolation).
 
 ---
 
@@ -123,7 +125,7 @@ cargo nextest run -p prism-dtu-claroty --test fidelity_validator --features dtu
 1 test run: 1 passed, 0 skipped, 0 failed
 ```
 
-See `full-suite-run.txt` for verbatim output (22-test run) and `AC-007-org-isolation-w3-fix-sec-001.txt` for the 18-test AC-007 run.
+See `full-suite-run.txt` for verbatim output (22 unit tests in `cargo nextest run -p prism-dtu-claroty`: 3 BC-2.16.013 + 18 W3-FIX-SEC-001 + 1 state test) and `AC-007-org-isolation-w3-fix-sec-001.txt` for the 18-test AC-007 run. Note: the "22 tests" in full-suite-run.txt counts all unit tests run in the crate (21 Red Gate + 1 state test); it does NOT include the fidelity validator integration gate, which runs in a separate `--test fidelity_validator` invocation.
 
 ---
 
@@ -151,7 +153,6 @@ FidelityValidator Route 11 (`POST /api/v1/audit_log/get`) now in the 12-route co
 | `AC-002-EC-001-EC-002-EC-003-auth-enforced.txt` | test_BC_2_16_013_claroty_audit_logs_dtu_auth_enforced output (AC-002, EC-001, EC-002, EC-003) |
 | `AC-005-column-parity-sap2.txt` | test_BC_2_16_013_claroty_audit_logs_dtu_column_parity output (AC-005, SAP-2) |
 | `AC-001-AC-006-fidelity-validator.txt` | claroty_dtu_fidelity FidelityValidator output (AC-001, AC-006, 12-route matrix) |
-| `SEC-001-org-isolation.txt` | audit_log org-mismatch + nil-org backward-compat test output (W3-FIX-SEC-001, audit_log endpoint) |
 | `AC-007-org-isolation-w3-fix-sec-001.txt` | All 18 W3-FIX-SEC-001 org-isolation tests across all 6 endpoints (AC-007, 3-cell matrix × 6 = 18 tests) |
 | `full-suite-run.txt` | Full `cargo nextest run -p prism-dtu-claroty` run output (22 tests pass, 1 skipped) + fidelity validator |
 | `evidence-report.md` | This file |

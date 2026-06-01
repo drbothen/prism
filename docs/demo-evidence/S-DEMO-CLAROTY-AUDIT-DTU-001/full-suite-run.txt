@@ -50,11 +50,12 @@ PASS — 22/22 unit tests passed, 1 skipped (#[ignore]'d AC-006 stub awaiting S-
 PASS — 1/1 fidelity validator test passed (12/12 route checks)
 
 Test breakdown:
-  AC-001..006 gates (audit_log module):
-    test_BC_2_16_013_claroty_audit_logs_dtu_route_returns_synthetic_entries  PASS
-    test_BC_2_16_013_claroty_audit_logs_dtu_auth_enforced                    PASS
-    test_BC_2_16_013_claroty_audit_logs_dtu_column_parity                    PASS
-    claroty_dtu_fidelity (fidelity_validator, --features dtu)                PASS
+  AC-001..006 gates — 3 core Red Gate unit tests (audit_log module):
+    test_BC_2_16_013_claroty_audit_logs_dtu_route_returns_synthetic_entries  PASS  [Red Gate]
+    test_BC_2_16_013_claroty_audit_logs_dtu_auth_enforced                    PASS  [Red Gate]
+    test_BC_2_16_013_claroty_audit_logs_dtu_column_parity                    PASS  [Red Gate]
+  AC-001 + AC-006 fidelity integration gate (separate --test invocation, NOT counted in 22 above):
+    claroty_dtu_fidelity (fidelity_validator, --features dtu)                PASS  [Integration gate]
   AC-007 org-isolation (W3-FIX-SEC-001, all 6 endpoints — 3-cell matrix × 6 = 18 tests):
     test_W3_FIX_SEC_001_claroty_audit_logs_org_mismatch_returns_401          PASS  [Cell A]
     test_W3_FIX_SEC_001_claroty_audit_logs_missing_org_header_on_real_org_returns_401  PASS  [Cell B]
@@ -74,8 +75,13 @@ Test breakdown:
     test_W3_FIX_SEC_001_claroty_vulnerability_devices_org_mismatch_returns_401  PASS  [Cell A]
     test_W3_FIX_SEC_001_claroty_vulnerability_devices_missing_org_header_on_real_org_returns_401  PASS  [Cell B]
     test_W3_FIX_SEC_001_claroty_vulnerability_devices_nil_org_no_header_returns_200  PASS  [Cell C]
-  State test:
+  State test (not a Red Gate — validates test-helpers feature gate):
     test_bc_3_2_001_default_org_id_is_test_gated_and_non_zero                PASS
 
-All 22 Red Gate tests for S-DEMO-CLAROTY-AUDIT-DTU-001 pass (4 AC-001..006 + 18 AC-007).
+Unit test run breakdown:
+  21 Red Gate unit tests: 3 core BC-2.16.013 (AC-001..006) + 18 W3-FIX-SEC-001 org-isolation (AC-007).
+  1 state test (test_bc_3_2_001_default_org_id_is_test_gated_and_non_zero) — not a Red Gate.
+  Total = 22 unit tests passing in this run.
+  + 1 fidelity-validator integration gate (claroty_dtu_fidelity) in separate --test invocation.
+All 21 Red Gate unit tests + 1 fidelity integration gate pass for S-DEMO-CLAROTY-AUDIT-DTU-001.
 No regressions to existing tests.

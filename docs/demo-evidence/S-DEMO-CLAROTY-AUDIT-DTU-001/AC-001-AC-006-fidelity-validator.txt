@@ -2,9 +2,9 @@ Test: claroty_dtu_fidelity (FidelityValidator — 12-route coverage matrix)
 Crate: prism-dtu-claroty
 Location: crates/prism-dtu-claroty/tests/fidelity_validator.rs
 Command: cargo nextest run -p prism-dtu-claroty --test fidelity_validator --features dtu
-Story: S-DEMO-CLAROTY-AUDIT-DTU-001 v1.5
-PR: #167 (S-DEMO-CLAROTY-AUDIT-DTU-001 v1.5)
-BCs: BC-2.16.013 (postcondition §1 DTU-Parity), BC-2.01.013 (postcondition §1 spec-driven pipeline reachability)
+Story: S-DEMO-CLAROTY-AUDIT-DTU-001 v1.7
+PR: #167 (S-DEMO-CLAROTY-AUDIT-DTU-001)
+BCs: BC-2.16.013 v1.22 (postcondition §1 DTU-Parity), BC-2.01.013 v1.9 (postcondition §1 spec-driven pipeline reachability)
 
 AC Coverage:
   AC-001 — POST /api/v1/audit_log/get registered in ClarotyClone::build_router() and passes
