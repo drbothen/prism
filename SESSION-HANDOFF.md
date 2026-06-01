@@ -10256,3 +10256,165 @@ This is the canonical Wave 5 demo-goal task list as of D-941. Items marked **[DE
 ---
 
 **D-941 burst marker:** Single-commit burst per TD-VSDD-053. Anti-volatile-pin per TD-VSDD-091.
+
+---
+
+## §RESUME SNAPSHOT 2026-06-02-TWO-LANE-FINDINGS-OPEN (D-944)
+
+**Snapshot created:** 2026-06-02 | **Reason:** PRE-/clear durability — D-944 durable checkpoint: S-MAINT-W3SEC-CITE-SWEEP-001 indexed; BC-2.16.013 v1.21 DUAL-STATE; Armis pass 12 DISMISSED + F-LP12-HIGH-001 VALID OPEN; Claroty PR3R2 3 MED + 1 OBS OPEN; both lanes 0/3 | **STATE version:** 7.597 | **safe_to_compact:** true
+
+---
+
+### §1 PIPELINE STATUS
+
+| Field | Value |
+|-------|-------|
+| Phase | 3 (Wave 5 wave-5-e-demo-fidelity) |
+| STATE version | 7.597 |
+| develop HEAD | `5dd3df02` (S-DEMO-001 merged 2026-06-01T17:38:35Z) |
+| STORY-INDEX | v2.244 (total_stories: 177) |
+| BC-INDEX | v5.73 (active: 238, draft: 1) |
+| Open PRs | PR #167 (S-DEMO-CLAROTY-AUDIT-DTU-001; PR-LEVEL streak 0/3; fix-burst needed) |
+
+---
+
+### §2 TWO-LANE STATE (EXACT)
+
+#### Track B — S-DEMO-ARMIS-AQL-001
+
+| Item | Value |
+|------|-------|
+| Status | in-progress v1.6 |
+| Feature HEAD (code) | `add39a1e` |
+| Feature HEAD (story) | `a947af99` (story v1.6 with BC-2.16.013 pin updated to v1.21) |
+| LOCAL cascade streak | 0/3 |
+| BC-2.16.013 pin in story | v1.21 (DUAL-STATE: implementation COMPLETE on feature; closes on merge; OPEN on develop) |
+
+**Pass 12 status — DISMISSED-WRONG-TREE:**
+- F-LP12-CRIT-001, F-LP12-HIGH-002, F-LP12-HIGH-003: **INVALID** — adversary reviewed develop checkout, not `.worktrees/S-DEMO-ARMIS-AQL-001`; search route EXISTS on feature/add39a1e (verified by passes 10/10-rerun/11 + implementer just-check)
+- F-LP12-HIGH-001: **VALID OPEN** — AQL discriminator inconsistency:
+  - BC §Canonical Test Vectors use `in:devices` / `in:alerts` syntax
+  - Implementation (routes/search.rs, red-gate tests, armis.sensor.toml comments) uses `in:type=Device` / `in:type=Alert`
+  - Devices parity test uses `in:devices`
+  - **Inconsistency across BC / story / implementation — needs reconciliation against real Armis Centrix AQL syntax**
+  - Routing: research-agent (validate real Armis AQL syntax) → architect adjudication → PO/story/impl sync
+  - **Blocks Armis convergence**
+
+**Next actions (Armis):**
+1. research-agent: validate real Armis Centrix AQL syntax (is it `in:devices` or `in:type=Device`?)
+2. architect: adjudicate which form is canonical; update BC if needed
+3. PO: sync §Canonical Test Vectors to canonical form
+4. story-writer: sync story body
+5. implementer: sync code comments / search.rs / test assertions
+6. LOCAL adversary re-pass 12 against `.worktrees/S-DEMO-ARMIS-AQL-001` (NOT develop)
+
+---
+
+#### Track D-lead — S-DEMO-CLAROTY-AUDIT-DTU-001
+
+| Item | Value |
+|------|-------|
+| PR | #167 (https://github.com/drbothen/prism/pull/167) |
+| Base | develop@5dd3df02 |
+| Feature HEAD | `1ca5fd4a` |
+| Story version | v1.6 (NO bump in D-944) |
+| PR-LEVEL cascade streak | 0/3 |
+| Org-isolation tests | 14 pass + 1 #[ignore] (prism-dtu-claroty) |
+
+**Pass PR3R2 findings (all OPEN on HEAD 1ca5fd4a):**
+
+| ID | Severity | Description | Routing | Status |
+|----|----------|-------------|---------|--------|
+| F-PR3R2-MED-001 | MED | Stale BC-2.16.013 pin `v1.19` at 4 sites in story body + evidence-report; canonical is now v1.21 (BC bumped twice since). POL-23 sibling sweep required. | product-owner (story body) + demo-recorder (evidence-report) | OPEN |
+| F-PR3R2-MED-002 | MED | AC-007 evidence over-claims "3 cells × 4 endpoints" (=12) but only 10 tests exist (alerts + alerted_devices lack Cell-B missing-header test). | demo-recorder correct claim OR implementer add 2 tests (production-grade symmetry preferred) | OPEN |
+| F-PR3R2-MED-003 | MED | Story §Red Gate table omits the 2 Cell-B tests O-PR3R-001 added (table 8 org rows, code 10). | product-owner | OPEN |
+| O-PR3R2-001 | OBS [scope-intent] | `vulnerabilities.rs` endpoints (list_vulnerabilities, list_vulnerability_devices) lack org-isolation guard, unlike the 4 AC-007 endpoints. AC-007 prose says "DTU-wide". Same asymmetry class the human already directed hardening for (alerts). | Pending human scope-confirm; if confirmed → implementer harden vulnerabilities.rs | OPEN (scope-confirm pending) |
+
+**Next actions (Claroty):**
+1. Human: confirm O-PR3R2-001 scope — should vulnerabilities.rs get the guard? (production-grade default = yes)
+2. product-owner: fix F-PR3R2-MED-001 (story BC pin v1.19→v1.21) + F-PR3R2-MED-003 (§Red Gate table +2 rows)
+3. demo-recorder: fix F-PR3R2-MED-001 (evidence BC pin) + F-PR3R2-MED-002 (evidence count claim)
+4. implementer (if human approves O-PR3R2-001): add org guard to vulnerabilities.rs (list_vulnerabilities + list_vulnerability_devices) + 2 missing-header Cell-B tests for alerts + alerted_devices (closes F-PR3R2-MED-002)
+5. PR-LEVEL adversary re-pass (pass 5) against `.worktrees/S-DEMO-CLAROTY-AUDIT-DTU-001` HEAD (NOT develop)
+
+---
+
+### §3 OPEN ITEMS (all lanes)
+
+| Item | ID | Routing | Status |
+|------|----|---------|--------|
+| AQL discriminator inconsistency (Armis) | F-LP12-HIGH-001 | research-agent → architect → PO/story/impl | OPEN — blocks convergence |
+| Claroty stale BC pin (story + evidence) | F-PR3R2-MED-001 | PO + demo-recorder | OPEN |
+| Claroty AC-007 evidence over-claim | F-PR3R2-MED-002 | demo-recorder / implementer | OPEN |
+| Claroty §Red Gate table gap | F-PR3R2-MED-003 | PO | OPEN |
+| Claroty vulnerabilities.rs org-isolation gap | O-PR3R2-001 | Human scope-confirm + implementer | OPEN (scope-confirm pending) |
+| BC-3.5.002 precondition 3 mis-cite in merged crates | DRIFT-D943-001 | S-MAINT-W3SEC-CITE-SWEEP-001 (maintenance_wave) | Anchored — pending human dispatch |
+| Pre-merge BC gap-closure process rule | Process-gap | session-reviewer (POL codification candidate) | Codified in D-944; POL not yet written |
+
+---
+
+### §4 ARTIFACT VERSIONS (post D-944)
+
+| Artifact | Version |
+|----------|---------|
+| STATE.md | v7.597 |
+| STORY-INDEX | v2.244 (177 stories) |
+| BC-INDEX | v5.73 (active: 238, draft: 1) |
+| BC-2.16.013 | v1.21 (DUAL-STATE Armis DTU-EXT-003/004) |
+| sprint-state.yaml | updated (S-MAINT-W3SEC-CITE-SWEEP-001 added; prereq_artifacts v2.244/v5.73/v7.597) |
+
+---
+
+### §5 RECOMMENDED NEXT ACTIONS (ordered)
+
+1. **Human decision (blocking):** Confirm O-PR3R2-001 scope — should `vulnerabilities.rs` get the org-isolation guard? (production-grade default: YES per Canonical Principle)
+2. **Claroty fix-burst (after human decision):**
+   - PO: fix F-PR3R2-MED-001 story body (BC pin v1.19→v1.21) + F-PR3R2-MED-003 (§Red Gate table +2 rows)
+   - demo-recorder: fix F-PR3R2-MED-001 evidence-report (BC pin) + F-PR3R2-MED-002 (count claim)
+   - implementer (if O-PR3R2-001 confirmed): guard vulnerabilities.rs + 2 Cell-B tests
+3. **PR-LEVEL adversary re-pass 5** against `.worktrees/S-DEMO-CLAROTY-AUDIT-DTU-001` HEAD (NOT develop)
+4. **Armis AQL research:** research-agent validates real Armis Centrix AQL discriminator syntax
+5. **Armis adjudication:** architect + PO + story-writer + implementer sync after research result
+6. **Armis LOCAL re-pass 12** against `.worktrees/S-DEMO-ARMIS-AQL-001` (NOT develop checkout)
+7. **S-DEMO-002:** (P0, unblocked) 3-org E2E smoke — seed query_filters["aql"] for Armis AQL push-down
+8. **S-DEMO-CROWDSTRIKE-MULTIREGION-001:** ready v1.1; dispatchable
+9. **S-MAINT-W3SEC-CITE-SWEEP-001:** pending human dispatch authorization (maintenance_wave; low urgency)
+
+---
+
+### §6 RESUME CHECKLIST
+
+```bash
+# 1. Factory worktree health
+vsdd-factory:factory-worktree-health
+
+# 2. Verify STATE.md version
+grep '^version:' .factory/STATE.md
+# Expected: version: "7.597"
+
+# 3. Confirm develop HEAD
+git log -1 --format="%H %s" develop
+# Expected: 5dd3df02 feat(S-DEMO-001): ...
+
+# 4. Check open PRs
+gh pr list --state open
+# Expected: PR #167 (S-DEMO-CLAROTY-AUDIT-DTU-001) — streak 0/3
+
+# 5. Verify worktree feature HEADs
+git -C .worktrees/S-DEMO-CLAROTY-AUDIT-DTU-001 log -1 --format="%h %s"
+# Expected: 1ca5fd4a
+git -C .worktrees/S-DEMO-ARMIS-AQL-001 log -1 --format="%h %s"
+# Expected: add39a1e (code HEAD)
+```
+
+4. Read this §RESUME SNAPSHOT 2026-06-02-TWO-LANE-FINDINGS-OPEN
+   (you are reading it now)
+
+5. Proceed per RECOMMENDED NEXT ACTIONS (§5).
+   Priority 1: Human O-PR3R2-001 scope decision.
+   Priority 2: Claroty fix-burst + re-pass.
+   Priority 3: Armis AQL research + adjudication.
+
+---
+
+**D-944 burst marker:** Single-commit burst per TD-VSDD-053. Anti-volatile-pin per TD-VSDD-091.

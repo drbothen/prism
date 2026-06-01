@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "5.72"
+version: "5.73"
 status: draft
 producer: state-manager
 timestamp: 2026-06-02T00:00:00Z
@@ -224,7 +224,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.16.010 | `list_sensor_specs` MCP Tool — List Loaded Sensor Specs with Table Schemas and Status | 16 - Spec Engine | CAP-029 | P0 | draft |
 | BC-2.16.011 | CustomAdapter Rust Trait Retirement — Removal of Trait, Registry, and All Call Sites | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-726 per POL-14; anchor story S-PLUGIN-PREREQ-E merged PR #151 develop@80ebe794 2026-05-19) — v1.12 |
 | BC-2.16.012 | PluginRegistry Dispatch in spec_parser.rs — Hardcoded Sensor Names Replaced with Registry Lookup | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-726 per POL-14; anchor story S-PLUGIN-PREREQ-E merged PR #151 develop@80ebe794 2026-05-19) — v1.33 |
-| BC-2.16.013 | Bundled Sensor Spec Authoring and DTU-Parity Verification — 4 Initial Sensors | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-776 per POL-14; anchor story PLUGIN-MIGRATION-001-D merged PR #153 develop@3f2de889 2026-05-22) — v1.20 |
+| BC-2.16.013 | Bundled Sensor Spec Authoring and DTU-Parity Verification — 4 Initial Sensors | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-776 per POL-14; anchor story PLUGIN-MIGRATION-001-D merged PR #153 develop@3f2de889 2026-05-22) — v1.21 |
 | BC-2.17.001 | Plugin Panic Isolation — Crashed Plugin Does Not Terminate Host Process | 17 - WASM Plugin Runtime | CAP-032 | P0 | active (POL-14 auto-promotion D-568 S-PLUGIN-PREREQ-D merge PR #149 ec90fe8f 2026-05-15) |
 | BC-2.17.002 | Plugin Sandbox — No Direct Filesystem or Network Access | 17 - WASM Plugin Runtime | CAP-032 | P0 | active (POL-14 auto-promotion D-568 S-PLUGIN-PREREQ-D merge PR #149 ec90fe8f 2026-05-15) |
 | BC-2.17.003 | Plugin Sandbox — Memory Limit Enforced Per Plugin Instance (default 64MB) | 17 - WASM Plugin Runtime | CAP-032 | P0 | active (POL-14 auto-promotion D-568 S-PLUGIN-PREREQ-D merge PR #149 ec90fe8f 2026-05-15) |
@@ -376,6 +376,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v5.73 (2026-06-02, D-944 durable checkpoint — BC-2.16.013 DUAL-STATE reword + process-gap rule codification):** state-manager | BC-2.16.013 v1.20→v1.21 (Armis DTU-EXT-003/004 §Known Gaps rows reworded to DUAL-STATE: "implementation COMPLETE on feature/S-DEMO-ARMIS-AQL-001; gap CLOSES on merge; OPEN on develop until then"; process-gap rule codified: §Known-Gaps row may only flip to flat CLOSED in the SAME post-merge burst; product-owner commit 7c42efc7). No lifecycle_status change — BC-2.16.013 remains active. No count changes (no new BCs, no promotions). BC-INDEX in-line row 227 updated to v1.21. BC-INDEX v5.72→v5.73.
 
 **v5.72 (2026-06-02, D-943 two-lane fix-burst close-out — Armis LOCAL pass 11 BC-2.16.013 TOML-vs-BC sibling asymmetry fix + Claroty PR-LEVEL pass 3R BC-3.5.002 anchor sweep):** state-manager | BC-2.16.013 v1.19→v1.20 (F-LP11-MED-001 closure — TOML-vs-BC sibling asymmetry: Armis devices/alerts §Postconditions §1 bullets updated; §Known Gaps DTU-EXT-003/DTU-EXT-004 rows marked CLOSED by S-DEMO-ARMIS-AQL-001; volatile line-number cites → `build_router()` per TD-VSDD-091; §Changelog row v1.20 added; product-owner commit 1c88f297). No lifecycle_status change — BC-2.16.013 remains active. BC-INDEX in-line row 227 updated to v1.20. No count changes (no new BCs, no promotions — S-DEMO-ARMIS-AQL-001 and S-DEMO-CLAROTY-AUDIT-DTU-001 not yet merged). BC-INDEX v5.71→v5.72.
 

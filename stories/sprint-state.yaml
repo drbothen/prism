@@ -198,15 +198,23 @@ maintenance_wave:
     depends_on: []
     notes: "Registered D-917 follow-up 2026-05-31. Resolves [process-gap] DRIFT-D916-001: POL-14 promotes BCs draft→active at merge but has no paired story-status→merged trigger. BC authorship pending (S-7.01 gate); story stays draft until BCs authored."
 
+  - story_id: S-MAINT-W3SEC-CITE-SWEEP-001
+    status: unstarted
+    priority: P2
+    points: 2
+    spec_version: "v1.0"
+    depends_on: []
+    notes: "Registered D-944 2026-06-02. BC-3.5.002 precondition 3 org-guard mis-cite sweep in merged crates prism-dtu-crowdstrike + prism-dtu-cyberint + W3-FIX-SEC-001 story body. Anchors DRIFT-D943-001. Story-writer commit 6fef00b3. Pending human disposition before dispatch."
+
 deferred_post_demo:
   # EMPTY — all 3 originally-deferred stories (S-DEMO-ARMIS-AQL-001, S-DEMO-CLAROTY-TRAILING-SLASH-001,
   # S-DEMO-CROWDSTRIKE-MULTIREGION-001) moved to active_dispatch_set per D-907 (ADR-031 v1.2
   # reclassification from permitted-divergence → required-fidelity; user directive no-scope-compromise).
 
 prereq_artifacts:
-  story_index: .factory/stories/STORY-INDEX.md         # v2.242 after D-941 burst
-  bc_index: .factory/specs/behavioral-contracts/BC-INDEX.md  # v5.71
-  state: .factory/STATE.md                              # v7.594 after D-941 burst
+  story_index: .factory/stories/STORY-INDEX.md         # v2.244 after D-944 burst
+  bc_index: .factory/specs/behavioral-contracts/BC-INDEX.md  # v5.73
+  state: .factory/STATE.md                              # v7.597 after D-944 burst
   governing_adr: .factory/specs/architecture/decisions/ADR-031-dtu-equals-true-dtu-fidelity-principle.md  # v1.2 (ADR-031 architect e57eb5b1 reclassified 3 divergences)
   governing_audit: .factory/proposals/POLLER-DTU-FIDELITY-AUDIT-2026-05-29.md  # v1.1
 
