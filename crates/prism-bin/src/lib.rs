@@ -28,6 +28,9 @@ pub mod cli;
 pub mod exit_codes;
 pub mod plugin_audit;
 pub mod signals;
+// S-DEMO-001: SpecDrivenSensorAdapter + BearerStaticAuthProvider + step9a_populate_adapter_registry
+// Closes GAP-002-A — bridges PipelineExecutor to AdapterRegistry (BC-2.01.013, BC-2.22.001).
+pub mod spec_driven_adapter;
 
 // Top-level re-exports for ergonomic import in integration tests.
 pub use boot::{BootContext, BootError, PrismConfig, RunningServer};

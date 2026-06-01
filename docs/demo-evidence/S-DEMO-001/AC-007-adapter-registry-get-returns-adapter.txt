@@ -1,0 +1,25 @@
+AC-007: AdapterRegistry::get(org_id, sensor_id) returns adapter for registered pairs
+Story: S-DEMO-001 v1.10
+Traces to: BC-2.11.005 precondition
+
+Test: test_BC_2_11_001_step8_adapter_registry_not_empty
+Crate: prism-bin
+Module: boot_steps_7_8_tests
+
+Command:
+  cargo nextest run -p prism-bin \
+    -E 'test(BC_2_11_001_step8_adapter_registry_not_empty)'
+
+Output:
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.42s
+────────────
+ Nextest run ID 3098c5d5-7500-4794-95d9-dd969c2d7421 with nextest profile: default
+    Starting 1 test across 11 binaries (106 tests skipped)
+        PASS [   0.068s] (1/1) prism-bin::boot_steps_7_8_tests test_BC_2_11_001_step8_adapter_registry_not_empty
+────────────
+     Summary [   0.069s] 1 test run: 1 passed, 106 skipped
+
+Result: PASS
+Notes: Confirms AdapterRegistry is not empty after boot step 9A; get() returns Some(Arc<dyn SensorAdapter>)
+       for registered (OrgId, SensorId) pairs.
+Branch: feature/S-DEMO-001 HEAD c50e72f7

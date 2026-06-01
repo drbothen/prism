@@ -4,7 +4,7 @@
 //! struct-literal construction. After `#[non_exhaustive]` is applied, each
 //! literal MUST fail with E0639 (cannot create non-exhaustive struct expression).
 //!
-//! Violations 1-6, 9-12, 16-17, 20-24, 26, 32-36, 37-43, 45 (31 total E0639 expected).
+//! Violations 1-6, 9-12, 16-17, 20-24, 26, 32-36, 37-43, 45, 49-50 (33 total E0639 expected).
 //!
 //! S-SPEC-TYPE-UNIFICATION-001: Violation 30 (types::SensorSpec) removed.
 //! `types::SensorSpec` was deleted (ADR-030 Approach D — unified on spec_parser::SensorSpec).
@@ -26,6 +26,10 @@
 //!   34. overlay::SensorInstanceOverlay  — struct, overlay.rs
 //!   35. overlay::OverlayProvenance      — struct, overlay.rs
 //!   36. overlay::ResolvedSensorSpec     — struct, overlay.rs
+//!
+//! S-DEMO-001 additions (prism-bin pub struct types):
+//!   49. prism_bin::spec_driven_adapter::BearerStaticAuthProvider — struct, spec_driven_adapter.rs
+//!   50. prism_bin::spec_driven_adapter::SpecDrivenSensorAdapter  — struct, spec_driven_adapter.rs
 
 use prism_core::{ColumnType, RiskTier, SensorId, TableType};
 use prism_spec_engine::overlay::{OverlayProvenance, ResolvedSensorSpec, SensorInstanceOverlay};
@@ -550,4 +554,50 @@ pub fn v45_tool_registration() {
         output_schema: None,
     };
     let _ = _reg;
+}
+
+// ─── S-DEMO-001: prism-bin pub struct types ───────────────────────────────────
+//
+// `BearerStaticAuthProvider` and `SpecDrivenSensorAdapter` are public struct types
+// in prism-bin. `#[non_exhaustive]` ensures future fields (e.g., per-adapter telemetry,
+// token expiry hint) can be added without requiring external struct-literal updates.
+// External callers MUST use the provided constructors (CR-006, S-DEMO-001 PR review).
+
+/// Violation 49: prism_bin::spec_driven_adapter::BearerStaticAuthProvider struct literal (E0639).
+///
+/// `BearerStaticAuthProvider` is the per-fetch `AuthProvider` wrapper for `bearer_static`
+/// sensors (Armis, Claroty). `#[non_exhaustive]` ensures future fields can be added without
+/// breaking external callers. External callers MUST use `BearerStaticAuthProvider::new(token)`.
+/// AD-017: the `token` field holds a bearer token and must never be constructed externally.
+///
+/// Added: S-DEMO-001 (CR-006).
+#[allow(dead_code)]
+pub fn v49_bearer_static_auth_provider() {
+    let _provider = prism_bin::spec_driven_adapter::BearerStaticAuthProvider {
+        token: "test-token".to_string(),
+    };
+    let _ = _provider;
+}
+
+/// Violation 50: prism_bin::spec_driven_adapter::SpecDrivenSensorAdapter struct literal (E0639).
+///
+/// `SpecDrivenSensorAdapter` is the spec-driven `SensorAdapter` that bridges TOML specs to
+/// live Arrow data from DTU clones (GAP-002-A closure, S-DEMO-001). `#[non_exhaustive]`
+/// ensures future fields (e.g., per-adapter rate-limiter handle, telemetry sink) can be
+/// added without requiring external callers to update struct literals.
+/// External callers MUST use `SpecDrivenSensorAdapter::new(spec, auth, client)`.
+///
+/// Note: uses `todo!()` for all fields because `ResolvedSensorSpec`, `AdapterAuthStrategy`,
+/// and `reqwest::Client` cannot be constructed externally — E0639 fires at the
+/// struct-expression level (before field type-checking) once `#[non_exhaustive]` is applied.
+///
+/// Added: S-DEMO-001 (CR-006).
+#[allow(dead_code)]
+pub fn v50_spec_driven_sensor_adapter() {
+    let _adapter = prism_bin::spec_driven_adapter::SpecDrivenSensorAdapter {
+        sensor_spec: todo!(),
+        auth_strategy: todo!(),
+        http_client: todo!(),
+    };
+    let _ = _adapter;
 }

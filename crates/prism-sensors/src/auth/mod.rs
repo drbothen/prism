@@ -53,6 +53,62 @@ pub trait SensorAuth: Send + Sync + 'static {
 }
 
 // ---------------------------------------------------------------------------
+// BearerStaticSensorAuth — concrete SensorAuth for bearer_static sensors
+// ---------------------------------------------------------------------------
+
+/// Concrete `SensorAuth` implementation for `bearer_static` sensors (Armis, Claroty).
+///
+/// Carries the bearer token string for extraction via `as_any().downcast_ref::<BearerStaticSensorAuth>()`
+/// in `SpecDrivenSensorAdapter::fetch()` (BearerStatic auth strategy path — S-DEMO-001 §OQ-1).
+///
+/// The token is NOT held at `SpecDrivenSensorAdapter` construction time — it arrives at
+/// fetch call time via this struct passed as `&dyn SensorAuth` (AD-017 credential safety).
+///
+/// AD-017: `Debug` deliberately omits the token value. Never log `token` at any level.
+///
+/// Story: S-DEMO-001 | BC-2.01.013 postcondition 4 | OQ-1 Resolution
+#[non_exhaustive]
+pub struct BearerStaticSensorAuth {
+    /// The bearer token string for this fetch call.
+    ///
+    /// AD-017: value MUST NOT appear in log output at any level.
+    pub token: String,
+}
+
+impl BearerStaticSensorAuth {
+    /// Construct a `BearerStaticSensorAuth` carrying the given bearer token.
+    ///
+    /// `#[non_exhaustive]` requires callers to use this constructor (not struct literal).
+    /// AD-017: token value MUST NOT be logged.
+    ///
+    /// Story: S-DEMO-001 | OQ-1 Resolution
+    pub fn new(token: impl Into<String>) -> Self {
+        Self {
+            token: token.into(),
+        }
+    }
+}
+
+impl SensorAuth for BearerStaticSensorAuth {
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+
+    fn auth_type_name(&self) -> &'static str {
+        "bearer_static"
+    }
+}
+
+impl std::fmt::Debug for BearerStaticSensorAuth {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // AD-017: never emit the token value.
+        f.debug_struct("BearerStaticSensorAuth")
+            .field("token", &"<redacted>")
+            .finish()
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Tests -- BC-2.01.016 (post-deletion state: all 4 built-in impls deleted)
 // ---------------------------------------------------------------------------
 #[cfg(test)]

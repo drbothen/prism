@@ -71,6 +71,14 @@ async-trait = "0.1"
 prism-ocsf = { path = "../prism-ocsf", version = "0.1.0" }
 prism-sensors = { path = "../prism-sensors", version = "0.2.0" }
 prism-security = { path = "../prism-security", version = "0.1.0" }
+# S-DEMO-001: SpecDrivenSensorAdapter::fetch returns Vec<RecordBatch> per SensorAdapter trait.
+# arrow is a direct dep of prism-sensors (SensorAdapter trait owner) but must be declared here
+# because spec_driven_adapter.rs names RecordBatch in the fetch() override return type.
+arrow = { version = "58", features = ["ipc"] }
+# S-DEMO-001: spec_driven_adapter.rs maps FilterMap (serde_json::Value) → FetchContext
+# (HashMap<String, String>). serde_json is a direct dep of prism-sensors (FilterMap owner)
+# but must be declared here for the conversion in spec_driven_adapter.rs.
+serde_json = "1"
 
 # ---------------------------------------------------------------------------
 # Integration test targets — explicit declarations required for required-features
@@ -154,6 +162,13 @@ path = "tests/vp153_rule_c_shaped_probe.rs"
 name = "pol_12_no_todo"
 path = "tests/pol_12_no_todo.rs"
 
+# S-DEMO-001: Red Gate failing tests for SpecDrivenSensorAdapter + boot step 9A.
+# Covers: AC-001..009, AC-012, EC-007, OQ-2 Resolution.
+# BCs: BC-2.01.013, BC-2.11.005, BC-2.06.014, BC-2.22.001
+[[test]]
+name = "bc_2_01_013_spec_driven_adapter"
+path = "tests/bc_2_01_013_spec_driven_adapter.rs"
+
 [dev-dependencies]
 rmcp = { workspace = true }
 tempfile = "3"
@@ -179,6 +194,11 @@ bincode = "2"
 wat = "1"
 # VP-153 Rule C proptest (ShapedProbe injection via step5_init_credential_store_with_probe)
 proptest = "1"
+# S-DEMO-001 adversary pass-1 fix: wiremock for load-bearing HTTP boundary assertions.
+# F-001/F-004/F-009: tests must mock real HTTP responses (200 with JSON, double-401,
+# Cookie header inspection) to assert fetch() behavior. wiremock 0.6 matches
+# prism-spec-engine's existing mock server pattern (SID-1 compliance).
+wiremock = "0.6"
 
 [lints.clippy]
 # Inherited from workspace: workspace lint inheritance is not yet available

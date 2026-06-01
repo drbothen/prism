@@ -4404,6 +4404,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "arc-swap",
+ "arrow",
  "async-trait",
  "bincode",
  "chrono",
@@ -4437,6 +4438,7 @@ dependencies = [
  "ulid",
  "uuid",
  "wat",
+ "wiremock",
 ]
 
 [[package]]

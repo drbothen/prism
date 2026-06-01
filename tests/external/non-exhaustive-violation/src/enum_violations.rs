@@ -4,10 +4,13 @@
 //! without a wildcard arm. After `#[non_exhaustive]` is applied, each match MUST fail
 //! with E0004 (non-exhaustive patterns).
 //!
-//! Violations 7-8, 13-15, 18-19, 25, 27-29, 31, 44 (13 total E0004 expected).
+//! Violations 7-8, 13-15, 18-19, 25, 27-29, 31, 44, 48 (14 total E0004 expected).
 //!
 //! S-5.01-FOLLOWUP-MCP-BOOT additions (prism-mcp pub enum types):
 //!   44. prism_mcp::safety_envelope::DataSource — enum, safety_envelope.rs
+//!
+//! S-DEMO-001 additions (prism-bin pub enum types):
+//!   48. prism_bin::spec_driven_adapter::AdapterAuthStrategy — enum, spec_driven_adapter.rs
 
 use prism_core::{ColumnOptions, ColumnType, PluginError};
 use prism_spec_engine::infusion::{BuiltInSourceType, InfusionType};
@@ -203,5 +206,28 @@ pub fn v44_data_source_match() {
         DataSource::Single(_) => {}
         DataSource::Multiple(_) => {}
         // After S-5.01-FOLLOWUP-MCP-BOOT: E0004 — `_` arm required for #[non_exhaustive] enum
+    }
+}
+
+/// Violation 48: prism_bin::spec_driven_adapter::AdapterAuthStrategy exhaustive match (E0004).
+///
+/// `AdapterAuthStrategy` is the auth dispatch enum held by `SpecDrivenSensorAdapter`
+/// (OQ-1 Resolution, S-DEMO-001). `#[non_exhaustive]` ensures new strategies
+/// (e.g., `ApiKey`, `Oauth2`) can be added without requiring all external match arms
+/// to include a wildcard immediately (CR-001, S-DEMO-001 PR review).
+/// External callers MUST include `_ => {}`.
+///
+/// Added: S-DEMO-001.
+#[allow(dead_code)]
+pub fn v48_adapter_auth_strategy_match() {
+    use prism_bin::spec_driven_adapter::AdapterAuthStrategy;
+    // Construct a representative value without triggering E0639 on an inner type.
+    // BearerStatic is a unit variant — safe to construct without any Arc.
+    let strategy: AdapterAuthStrategy = AdapterAuthStrategy::BearerStatic;
+    match strategy {
+        AdapterAuthStrategy::Plugin(_) => {}
+        AdapterAuthStrategy::BearerStatic => {}
+        AdapterAuthStrategy::StaticCookie(_) => {}
+        // After S-DEMO-001 CR-001: E0004 — `_` arm required for #[non_exhaustive] enum
     }
 }
