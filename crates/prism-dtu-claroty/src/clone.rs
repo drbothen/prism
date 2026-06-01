@@ -22,7 +22,7 @@ use prism_dtu_common::{BehavioralClone, StubConfig};
 use tokio::{net::TcpListener, sync::broadcast, task::JoinHandle};
 
 use crate::{
-    routes::{alerts, devices, tags, vulnerabilities},
+    routes::{alerts, audit_log, devices, tags, vulnerabilities},
     state::ClarotyState,
 };
 
@@ -83,6 +83,7 @@ impl ClarotyClone {
             // Read endpoints (POST-body filtering)
             .route("/api/v1/devices", post(devices::list_devices))
             .route("/api/v1/alerts", post(alerts::list_alerts))
+            .route("/api/v1/audit_log/get", post(audit_log::list_audit_logs))
             .route(
                 "/api/v1/alerts/:alert_id/devices",
                 post(alerts::list_alerted_devices),
