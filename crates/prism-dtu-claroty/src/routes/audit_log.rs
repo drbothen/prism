@@ -88,8 +88,9 @@ pub async fn list_audit_logs(
 //   test_BC_2_16_013_claroty_audit_logs_dtu_route_returns_synthetic_entries → AC-001, AC-003, AC-004
 //   test_BC_2_16_013_claroty_audit_logs_dtu_auth_enforced                   → AC-002, EC-001, EC-002
 //   test_BC_2_16_013_claroty_audit_logs_dtu_column_parity                   → AC-005 (SAP-2)
-//   test_W3_FIX_SEC_001_claroty_audit_logs_org_mismatch_returns_401         → SEC-001 (org-isolation guard, non-nil clone)
-//   test_W3_FIX_SEC_001_claroty_audit_logs_nil_org_no_header_returns_200    → SEC-001 (nil-org clone backward-compat)
+//   test_W3_FIX_SEC_001_claroty_audit_logs_org_mismatch_returns_401                       → SEC-001 (org-isolation guard, non-nil clone, mismatched org)
+//   test_W3_FIX_SEC_001_claroty_audit_logs_missing_org_header_on_real_org_returns_401    → SEC-001 (org-isolation guard, non-nil clone, absent header)
+//   test_W3_FIX_SEC_001_claroty_audit_logs_nil_org_no_header_returns_200                 → SEC-001 (nil-org clone backward-compat)
 //   test_BC_2_16_013_claroty_audit_logs_pipeline_integration_ac_006         → AC-006 (deferred, #[ignore])
 // ---------------------------------------------------------------------------
 #[cfg(test)]
