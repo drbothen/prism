@@ -6,11 +6,11 @@ wave: 5
 epic_id: E-DEMO
 priority: P0
 status: draft
-version: "1.5"
+version: "1.6"
 level: "L4"
 producer: story-writer
 revised_by: architect
-timestamp: "2026-05-31T12:00:00Z"
+timestamp: "2026-05-31T18:00:00Z"
 tdd_mode: strict
 subsystems: [SS-01, SS-16, SS-22]
 # Subsystem anchor justifications:
@@ -139,11 +139,11 @@ cycle: "v1.0.0-brownfield"
 phase: 3
 ---
 
-# S-DEMO-001 v1.5 — prism-bin: SpecDrivenSensorAdapter + Boot Step 9A (closes GAP-002-A)
+# S-DEMO-001 v1.6 — prism-bin: SpecDrivenSensorAdapter + Boot Step 9A (closes GAP-002-A)
 
 **Story ID:** S-DEMO-001
 **Status:** draft
-**Version:** v1.5
+**Version:** v1.6
 **Wave:** 5
 **Priority:** P0
 **Points:** 11
@@ -462,13 +462,19 @@ field-by-field mapping. A RecordBatch that contains only OCSF envelope fields (`
 NON-CONFORMANT. The conformance test MUST assert that every column name from the spec appears
 in the returned Arrow schema.
 
-(b) **OCSF envelope derivation (item 2):** `category_uid` and `class_uid` MUST be DERIVED by
-`OcsfNormalizer` from the sensor's declared `ocsf_class` and `ocsf_category` in the TOML spec
-— NOT copied verbatim from the raw API response record. An implementation that reads
-`category_uid`/`class_uid` directly from the raw vendor JSON and places them unchanged into the
-Arrow output is NON-CONFORMANT even if the values coincidentally match. The conformance test
-MUST assert that `category_uid` and `class_uid` equal the values computed from the spec's
-`ocsf_class`/`ocsf_category`, not from the raw record.
+(b) **OCSF envelope derivation (item 2):** `class_uid` MUST be derived from the sensor's
+declared `ocsf_class` TOML field via `EventClassSelector::select_by_class_name(ocsf_class)`
+(the class-name→uid compile-time constant table in `crates/prism-ocsf/src/class_selector.rs`).
+`category_uid` is then derived as `class_uid / 1000`. No TOML field named `ocsf_category`
+exists — category is never read from the spec directly. An implementation that reads
+`category_uid`/`class_uid` verbatim from the raw vendor JSON, or calls
+`EventClassSelector::select(sensor_id, &table.ocsf_class)` (the record-type-token overload,
+which yields `class_uid = 0` for real class-name strings), is NON-CONFORMANT per
+BC-2.01.013 v1.9 (D-925 arch-adjudication). The conformance test MUST assert that
+`category_uid` and `class_uid` equal the values produced by
+`EventClassSelector::select_by_class_name(ocsf_class)` and `class_uid / 1000` respectively,
+not values copied from the raw record. Example: spec declares `ocsf_class = "security_finding"`;
+correct `class_uid = 2001`, correct `category_uid = 2` (NOT values from the raw vendor JSON).
 
 (c) **`_sensor` virtual column (item 3):** The `_sensor` virtual column MUST be present and
 set to the sensor's canonical `SensorId` string (e.g., `"crowdstrike"`), injected by the
@@ -479,8 +485,9 @@ sensor ID.
 The test for this AC MUST construct a `SpecDrivenSensorAdapter`, drive it against a mock
 `PipelineExecutor` returning a representative raw API response, and assert all three of:
 (a) all spec-declared column names appear in the returned Arrow schema,
-(b) `category_uid` and `class_uid` equal the values derived from `ocsf_class`/`ocsf_category`
-in the spec (NOT from the raw record), and
+(b) `class_uid` equals `EventClassSelector::select_by_class_name(ocsf_class)` and
+`category_uid` equals `class_uid / 1000` (per BC-2.01.013 v1.9); neither is copied from
+the raw record, and
 (c) `_sensor` is present with the correct sensor ID.
 
 (traces to BC-2.01.013 v1.8 OCSF Conformance Clause items 1–3; postcondition; traces to BC-2.11.005 postcondition — virtual fields injected by the normalization layer)
@@ -676,5 +683,6 @@ if context pressure is felt during implementation.
 | 1.1 | 2026-05-29 | architect | Corrected Cyberint auth model (cookie_roundtrip ≠ bearer_static); resolved OQ-1, OQ-2, OQ-6; added CookieLoginAuthProvider design; amended build_request pipeline gap; added new AC-003/AC-009/AC-012; revised points 8→11; risk MEDIUM→HIGH |
 | 1.2 | 2026-05-29 | architect | AC-003/AC-009: tightened `cyberint_session` cookie name specification per fidelity audit (POLLER-DTU-FIDELITY-AUDIT-2026-05-29). Added Set-Cookie parse constraint to AC-009 (cookie name `cyberint_session` not `access_token` for DTU demo path). Cross-poller audit surfaced Gap-CS-001/CL-002/CL-003/CL-004/CL-005; TOML fixes applied to crowdstrike.sensor.toml and claroty.sensor.toml in same burst. |
 | 1.3 | 2026-05-29 | architect | **DTU=true-DTU REVERSAL (ADR-031 user directive 2026-05-29).** `cyberint_session` decision reversed. ALL Cyberint references updated: `CookieLoginAuthProvider` (login-step) → `StaticCookieAuthProvider` (no login step, credential-store read); cookie name `cyberint_session` → `access_token`; `build_request` dispatch `Cookie: cyberint_session` → `Cookie: access_token`. §Origin updated. §Cyberint Cookie Auth Design section rewritten. AC-003/AC-009 rewritten. OQ-1 enum variant `CookieLogin` → `StaticCookie`. EC-001/EC-002/EC-005/EC-008 updated. Library/framework table updated. ADR-028 §D12 → pre-authored in factory-artifacts burst (now annotated SUPERSEDED). ADR-031 cited throughout. New depends_on: S-DTU-CYBERINT-AUTH-FIDELITY-001 (P0-pre-demo-BLOCKING — DTU correction required before implementation). |
+| 1.6 | 2026-05-31 | story-writer | AC-010(b) story↔BC drift fix (OBS-PASS4-002): dropped non-existent `ocsf_category` TOML field reference; aligned derivation to BC-2.01.013 v1.9 semantics — `class_uid` from `EventClassSelector::select_by_class_name(ocsf_class)`, `category_uid = class_uid / 1000`; named the wrong-overload anti-pattern (`select(sensor_id, class_name_string)` yields 0) per D-925. Conformance test assertion (b) tightened to match corrected derivation path. |
 | 1.5 | 2026-05-31 | story-writer | AC-010 rewritten (adversary pass-2, F-001-R + F-003-R closure): old envelope-only wording replaced with BC-2.01.013 v1.8 OCSF Conformance Clause items 1–3 verbatim-aligned requirements — (a) all spec-declared columns survive via ColumnMapper (envelope-only output is NON-CONFORMANT), (b) category_uid/class_uid derived by OcsfNormalizer not read from raw record (raw-copy is NON-CONFORMANT), (c) _sensor virtual column = canonical SensorId. Conformance test requirement added (minimum gate per BC-2.01.013 v1.8). Scope note added: query-param push-down (limit/cursor/time-window) OUT OF SCOPE per BC-2.01.013 v1.8 Pagination/Push-Down Scope Clause (D-924), deferred to S-DEMO-QUERY-PUSHDOWN-001; DataFusion applies LIMIT post-materialization. |
 | 1.4 | 2026-05-31 | story-writer | OQ-2 factual-accuracy fix (adversary pass-1, D-922 adjudication): `OrgRegistry::id_for_slug` → `OrgRegistry::resolve(slug) -> Option<OrgId>` as the canonical existing method. Removed instruction to add `id_for_slug`. Skip-and-continue on `None` matches EC-003. |

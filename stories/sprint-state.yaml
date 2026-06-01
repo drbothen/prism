@@ -48,13 +48,13 @@ active_dispatch_set:
     status: draft
     priority: P0-KEYSTONE
     points: 11
-    spec_version: "v1.5"
+    spec_version: "v1.6"
     depends_on:
       - PLUGIN-MIGRATION-001-A   # merged
       - PLUGIN-MIGRATION-001-E   # merged
       - S-CONFIG-MULTI-TENANT-OVERRIDE-001
       - S-DTU-CYBERINT-AUTH-FIDELITY-001
-    notes: "KEYSTONE. Closes GAP-002-A. SpecDrivenSensorAdapter + boot step 9A. Architect-revised 2026-05-29 D-847 (9d67fe8f). D-924 pass-2 spec fix-burst: AC-010 reworded (BC-2.01.013 v1.8 OCSF conformance bar); push-down F-003-R deferred to S-DEMO-QUERY-PUSHDOWN-001. CODE fix-burst PENDING (test-writer stronger tests → implementer real normalization). Cannot advance to pass 3 until code fix-burst complete."
+    notes: "KEYSTONE. Closes GAP-002-A. SpecDrivenSensorAdapter + boot step 9A. D-927 pass-4: story v1.6 (OBS-PASS4-002: AC-010(b) ocsf_category→class_uid/1000 per BC-2.01.013 v1.9). CLEAN(strict)=no; CLEAN(PR-merge)=yes; streak 0/3. NEXT: adversary pass 5 (expect 1/3). Data path GENUINELY REAL verified (all 10 real sensor tables → correct class_uid via select_by_class_name; zero fall-through to 0). After 3-CLEAN: demo-recorder → push → pr-manager 9-step PR cycle."
 
   - story_id: S-DEMO-QUERY-PUSHDOWN-001
     status: draft
@@ -136,6 +136,14 @@ active_dispatch_set:
       - S-SPEC-ENV-VAR-001  # HARD gate per D-914: ${env.CROWDSTRIKE_BASE_URL} requires env-var resolver
     notes: "Reclassified 2026-05-31 D-907: permitted-divergence→required-fidelity per ADR-031 v1.2 (user directive no-scope-compromise; architect commit e57eb5b1). story-writer 2451d025. PO new-BC flags RESOLVED per D-914: E-SPEC-024 registered + BC-2.16.009 AC-6 added. Gated on S-SPEC-ENV-VAR-001 (HARD)."
 
+  - story_id: S-SPEC-HTTP-METHOD-VALIDATION-001
+    status: draft
+    priority: P2
+    points: 3
+    spec_version: "v1.0"
+    depends_on: []
+    notes: "Registered D-927 (2026-05-31). DRIFT-D926-001 anchor per Canonical Principle Rule 3 — HTTP-method whitelist validation in prism-spec-engine/src/validation.rs returning structured E-SPEC error on invalid step.method value. S-7.01 PO-gate OPEN: BC-2.16.009 amendment + E-SPEC code to be assigned by PO before story transitions to ready. Non-blocking for PR #165 merge (story being registered satisfies the anchor requirement; PO gate clears separately)."
+
 maintenance_wave:
   - story_id: S-MAINT-POL29-HOOK-001
     status: unstarted
@@ -168,9 +176,9 @@ deferred_post_demo:
   # reclassification from permitted-divergence → required-fidelity; user directive no-scope-compromise).
 
 prereq_artifacts:
-  story_index: .factory/stories/STORY-INDEX.md         # v2.226 after D-919+D-920 burst
-  bc_index: .factory/specs/behavioral-contracts/BC-INDEX.md  # v5.66
-  state: .factory/STATE.md                              # v7.573 after D-919+D-920 burst
+  story_index: .factory/stories/STORY-INDEX.md         # v2.229 after D-927 burst
+  bc_index: .factory/specs/behavioral-contracts/BC-INDEX.md  # v5.69
+  state: .factory/STATE.md                              # v7.580 after D-927 burst
   governing_adr: .factory/specs/architecture/decisions/ADR-031-dtu-equals-true-dtu-fidelity-principle.md  # v1.2 (ADR-031 architect e57eb5b1 reclassified 3 divergences)
   governing_audit: .factory/proposals/POLLER-DTU-FIDELITY-AUDIT-2026-05-29.md  # v1.1
 
