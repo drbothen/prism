@@ -6,13 +6,13 @@ wave: 5
 epic_id: E-DTU-FIDELITY
 priority: P1
 status: in-progress
-# BC status: BC-2.01.013 and BC-2.16.013 are both active (BC-INDEX v5.66).
+# BC status: BC-2.01.013 and BC-2.16.013 are both active (BC-INDEX v5.73).
 # S-7.01 gate: behavioral_contracts non-empty + both BCs active → satisfied.
 # Route-design consistency confirmed by orchestrator (D-920 2026-05-31): POST
 # /api/v1/audit_log/get with ClarotyAuditLogEntry shape is consistent with
 # BC-2.01.013 auth-enforcement contract + BC-2.16.013 DTU-TOML-parity contract.
 # No New-BC flags. No env-var dependency. Story dispatchable.
-version: "1.6"
+version: "1.7"
 acceptance_criteria_count: 7
 level: "L4"
 producer: story-writer
@@ -106,7 +106,7 @@ POLLER-DTU-FIDELITY-AUDIT-2026-05-29 v1.1 §3 Claroty section).
 | BC | Title | Version | Role |
 |----|-------|---------|------|
 | BC-2.01.013 | DataSource Trait Eliminates Per-Sensor Code Duplication | v1.9 | Audit log table is a sensor table; the spec-driven adapter (BC-2.01.013 postcondition) must dispatch to it via the shared pipeline |
-| BC-2.16.013 | Bundled Sensor Spec Authoring and DTU-Parity Verification — 4 Initial Sensors | v1.19 | Gap-CL-006 is an open DTU-parity gap under BC-2.16.013; this story closes it by making the DTU serve the endpoint the TOML spec declares |
+| BC-2.16.013 | Bundled Sensor Spec Authoring and DTU-Parity Verification — 4 Initial Sensors | v1.21 | Gap-CL-006 is an open DTU-parity gap under BC-2.16.013; this story closes it by making the DTU serve the endpoint the TOML spec declares |
 
 ## Acceptance Criteria
 
@@ -150,25 +150,34 @@ issues `POST /api/v1/audit_log/get` and receives a non-empty `audit_log` array. 
 can be passed to `extract_at_path("$.audit_log")` and returns a non-empty `Value::Array`.
 This test is the Red Gate for S-DEMO-002 AC-004.
 
-### AC-007: DTU-wide org-isolation on all fixture-list endpoints (traces to W3-FIX-SEC-001)
-The Claroty DTU clone enforces per-request X-Org-Id org-isolation across all fixture-list
-endpoints (`list_devices`, `list_audit_logs`, `list_alerts`, `list_alerted_devices`):
+### AC-007: DTU-wide org-isolation on all org-scoped fixture-list endpoints (traces to W3-FIX-SEC-001)
+The Claroty DTU clone enforces per-request X-Org-Id org-isolation across all 6 org-scoped
+fixture-list endpoints: `list_devices`, `list_audit_logs`, `list_alerts`,
+`list_alerted_devices`, `list_vulnerabilities`, and `list_vulnerability_devices`.
 
-- A request whose `X-Org-Id` header does not match the org bound to the running DTU instance
-  returns HTTP 401.
-- A request with no `X-Org-Id` header (or a nil/empty value) is served via the nil-org
-  fixture path and returns HTTP 200.
+Each endpoint enforces the full 3-cell org-isolation matrix:
+
+- **Cell A (org-mismatch → 401):** A request whose `X-Org-Id` header is non-nil but does not
+  match the org bound to the running DTU instance returns HTTP 401.
+- **Cell B (missing-on-real-org → 401):** A request with no `X-Org-Id` header when the DTU
+  is configured with a real (non-nil) org returns HTTP 401.
+- **Cell C (nil-org → 200):** A request with no `X-Org-Id` header when the DTU is configured
+  with a nil org (i.e., org-agnostic fixture path) returns HTTP 200.
 
 This invariant was enforced in delivered code (implemented concurrent with this story's TDD
 cycle, anchored to W3-FIX-SEC-001) but was absent from the spec. Per the SPEC-wins /
 production-grade default (CLAUDE.md §Source-of-Truth Precedence), the spec is brought up
 to the delivered code — the implementation is NOT removed. W3-FIX-SEC-001 is the security-fix
-story providing the org-mismatch → 401 and nil-org → 200 behavior; there is no phantom BC
-for this security invariant.
+story providing the full 3-cell org-isolation behavior for all 6 org-scoped endpoints.
 
-**The Red Gate tests for this AC** are the org-isolation unit tests added under W3-FIX-SEC-001
-for each list endpoint. O-PR3-002 closure: adversary observation O-PR3-002 (implementation
-drifted ahead of spec on org-isolation) is resolved by this AC.
+Note: the tags write-endpoints are also org-guarded, and the DTU control-plane uses
+admin-token auth — AC-007's enumeration covers the 6 read (fixture-list) endpoints above.
+
+**The Red Gate tests for this AC** are the 18 org-isolation unit tests added under
+W3-FIX-SEC-001 — 3 cells × 6 endpoints — enumerated in the Red Gate table below.
+O-PR3-002 closure: adversary observation O-PR3-002 (implementation drifted ahead of spec
+on org-isolation) is resolved by this AC. F-PR3R2-MED-003 closure: AC-007 now fully
+enumerates all 6 endpoints with the 3-cell matrix (2026-06-01).
 
 ## Red Gate Tests
 
@@ -177,14 +186,24 @@ drifted ahead of spec on org-isolation) is resolved by this AC.
 | `test_BC_2_16_013_claroty_audit_logs_dtu_route_returns_synthetic_entries` | Unit (against DTU HTTP) | AC-003 + AC-004: route serves fixture; envelope shape correct |
 | `test_BC_2_16_013_claroty_audit_logs_dtu_auth_enforced` | Unit (against DTU HTTP) | AC-002: 401 on missing bearer |
 | `test_BC_2_16_013_claroty_audit_logs_dtu_column_parity` | Unit (Rust struct validation) | AC-005: all 5 TOML columns present in ClarotyAuditLogEntry |
-| `test_W3_FIX_SEC_001_claroty_audit_logs_org_mismatch_returns_401` | Unit (against DTU HTTP) | AC-007: org-mismatch → 401 for audit_logs endpoint |
-| `test_W3_FIX_SEC_001_claroty_audit_logs_nil_org_no_header_returns_200` | Unit (against DTU HTTP) | AC-007: nil-org path → 200 for audit_logs endpoint |
-| `test_W3_FIX_SEC_001_claroty_alerts_org_mismatch_returns_401` | Unit (against DTU HTTP) | AC-007: org-mismatch → 401 for alerts endpoint |
-| `test_W3_FIX_SEC_001_claroty_alerts_nil_org_no_header_returns_200` | Unit (against DTU HTTP) | AC-007: nil-org path → 200 for alerts endpoint |
-| `test_W3_FIX_SEC_001_claroty_alerted_devices_org_mismatch_returns_401` | Unit (against DTU HTTP) | AC-007: org-mismatch → 401 for alerted_devices endpoint |
-| `test_W3_FIX_SEC_001_claroty_alerted_devices_nil_org_no_header_returns_200` | Unit (against DTU HTTP) | AC-007: nil-org path → 200 for alerted_devices endpoint |
-| `test_W3_FIX_SEC_001_claroty_devices_org_mismatch_returns_401` | Unit (against DTU HTTP) | AC-007: org-mismatch → 401 for devices endpoint |
-| `test_W3_FIX_SEC_001_claroty_devices_nil_org_no_header_returns_200` | Unit (against DTU HTTP) | AC-007: nil-org path → 200 for devices endpoint |
+| `test_W3_FIX_SEC_001_claroty_devices_org_mismatch_returns_401` | Unit (against DTU HTTP) | AC-007 Cell A: org-mismatch → 401 for devices endpoint |
+| `test_W3_FIX_SEC_001_claroty_devices_missing_org_header_on_real_org_returns_401` | Unit (against DTU HTTP) | AC-007 Cell B: missing header on real-org → 401 for devices endpoint |
+| `test_W3_FIX_SEC_001_claroty_devices_nil_org_no_header_returns_200` | Unit (against DTU HTTP) | AC-007 Cell C: nil-org → 200 for devices endpoint |
+| `test_W3_FIX_SEC_001_claroty_audit_logs_org_mismatch_returns_401` | Unit (against DTU HTTP) | AC-007 Cell A: org-mismatch → 401 for audit_logs endpoint |
+| `test_W3_FIX_SEC_001_claroty_audit_logs_missing_org_header_on_real_org_returns_401` | Unit (against DTU HTTP) | AC-007 Cell B: missing header on real-org → 401 for audit_logs endpoint |
+| `test_W3_FIX_SEC_001_claroty_audit_logs_nil_org_no_header_returns_200` | Unit (against DTU HTTP) | AC-007 Cell C: nil-org → 200 for audit_logs endpoint |
+| `test_W3_FIX_SEC_001_claroty_alerts_org_mismatch_returns_401` | Unit (against DTU HTTP) | AC-007 Cell A: org-mismatch → 401 for alerts endpoint |
+| `test_W3_FIX_SEC_001_claroty_alerts_missing_org_header_on_real_org_returns_401` | Unit (against DTU HTTP) | AC-007 Cell B: missing header on real-org → 401 for alerts endpoint |
+| `test_W3_FIX_SEC_001_claroty_alerts_nil_org_no_header_returns_200` | Unit (against DTU HTTP) | AC-007 Cell C: nil-org → 200 for alerts endpoint |
+| `test_W3_FIX_SEC_001_claroty_alerted_devices_org_mismatch_returns_401` | Unit (against DTU HTTP) | AC-007 Cell A: org-mismatch → 401 for alerted_devices endpoint |
+| `test_W3_FIX_SEC_001_claroty_alerted_devices_missing_org_header_on_real_org_returns_401` | Unit (against DTU HTTP) | AC-007 Cell B: missing header on real-org → 401 for alerted_devices endpoint |
+| `test_W3_FIX_SEC_001_claroty_alerted_devices_nil_org_no_header_returns_200` | Unit (against DTU HTTP) | AC-007 Cell C: nil-org → 200 for alerted_devices endpoint |
+| `test_W3_FIX_SEC_001_claroty_vulnerabilities_org_mismatch_returns_401` | Unit (against DTU HTTP) | AC-007 Cell A: org-mismatch → 401 for vulnerabilities endpoint |
+| `test_W3_FIX_SEC_001_claroty_vulnerabilities_missing_org_header_on_real_org_returns_401` | Unit (against DTU HTTP) | AC-007 Cell B: missing header on real-org → 401 for vulnerabilities endpoint |
+| `test_W3_FIX_SEC_001_claroty_vulnerabilities_nil_org_no_header_returns_200` | Unit (against DTU HTTP) | AC-007 Cell C: nil-org → 200 for vulnerabilities endpoint |
+| `test_W3_FIX_SEC_001_claroty_vulnerability_devices_org_mismatch_returns_401` | Unit (against DTU HTTP) | AC-007 Cell A: org-mismatch → 401 for vulnerability_devices endpoint |
+| `test_W3_FIX_SEC_001_claroty_vulnerability_devices_missing_org_header_on_real_org_returns_401` | Unit (against DTU HTTP) | AC-007 Cell B: missing header on real-org → 401 for vulnerability_devices endpoint |
+| `test_W3_FIX_SEC_001_claroty_vulnerability_devices_nil_org_no_header_returns_200` | Unit (against DTU HTTP) | AC-007 Cell C: nil-org → 200 for vulnerability_devices endpoint |
 
 The integration test `FROM claroty_audit_logs LIMIT 10` (S-DEMO-002 AC-004) exercises AC-006
 and is categorized `#[ignore]` pending full boot wiring (S-DEMO-001 + S-DEMO-002 are blocking
@@ -382,7 +401,7 @@ new gate is warranted.
 
 ## References
 
-- BC-2.16.013 v1.19 (ACTIVE) — Bundled Sensor Spec Authoring and DTU-Parity Verification — 4 Initial Sensors; §Known Gaps DTU-EXT-002 (Claroty assets); §Postconditions §1 claroty.sensor.toml entry (alerts + audit_logs)
+- BC-2.16.013 v1.21 (ACTIVE) — Bundled Sensor Spec Authoring and DTU-Parity Verification — 4 Initial Sensors; §Known Gaps DTU-EXT-002 (Claroty assets); §Postconditions §1 claroty.sensor.toml entry (alerts + audit_logs)
 - BC-2.01.013 — DataSource Trait; auth enforcement postcondition §2
 - ADR-031 §D1 — DTU clone isolation (prism-dtu-claroty must not depend on prism-spec-engine/prism-sensors/prism-query)
 - ADR-031 §D2 — permitted-divergence #1: synthetic fixture data (no real customer data)
@@ -398,6 +417,7 @@ new gate is warranted.
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.7 | 2026-06-01 | product-owner | F-PR3R2-MED-001 + F-PR3R2-MED-003 closure: swept BC-2.16.013 pin v1.19→v1.21 and BC-INDEX pin v5.66→v5.73 at all 3 story-body sites (frontmatter comment, §Behavioral Contracts table, §References). AC-007 expanded from 4 to 6 org-scoped endpoints (devices, audit_logs, alerts, alerted_devices, vulnerabilities, vulnerability_devices) with full 3-cell matrix (Cell A: non-nil+mismatch→401; Cell B: non-nil+absent→401; Cell C: nil+absent→200). Red Gate table expanded from 11 to 21 rows (3 core AC-001–006 tests + 18 org-isolation tests = 6 endpoints × 3 cells each, all tracing to AC-007). acceptance_criteria_count: 7 confirmed coherent (AC-007 covers all 6 endpoints; no split). |
 | 1.6 | 2026-06-01 | product-owner | O-PR3-002 closure: added AC-007 documenting DTU-wide org-isolation on all fixture-list endpoints (devices, audit_log, alerts, alerted_devices) anchored to W3-FIX-SEC-001 (org-mismatch → 401; nil-org → 200). Added 8 Red Gate test rows for org-isolation unit tests across all 4 list endpoints. Added acceptance_criteria_count: 7 to frontmatter (field was absent; body now has 7 ACs). SPEC-wins: spec brought up to delivered implementation per production-grade default. |
 | 1.5 | 2026-06-01 | story-writer | POL-23 sibling-sweep: BC-2.01.013 version pin swept v1.7→v1.9 and BC-2.16.013 pin swept v1.18→v1.19 in body §Behavioral Contracts table; BC-2.16.013 pin swept v1.18→v1.19 in §References. POL-7: BC-2.16.013 title in §References restored with full "— 4 Initial Sensors" suffix. POL-13 status fix: frontmatter status flipped ready→in-progress (implementation in flight, cascade pending). |
 | 1.4 | 2026-06-01 | product-owner | F-P6-LOW-002 citation correction: AC-002 now cites `routes/devices.rs::check_bearer_auth` as the canonical definition and emission site (with `routes/alerts.rs` as a named callsite), matching EC-001 and the actual code. No behavioral change — the 401 literal and auth semantics are unchanged. |
