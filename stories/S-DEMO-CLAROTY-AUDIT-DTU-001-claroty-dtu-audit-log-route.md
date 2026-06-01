@@ -12,7 +12,7 @@ status: ready
 # /api/v1/audit_log/get with ClarotyAuditLogEntry shape is consistent with
 # BC-2.01.013 auth-enforcement contract + BC-2.16.013 DTU-TOML-parity contract.
 # No New-BC flags. No env-var dependency. Story dispatchable.
-version: "1.2"
+version: "1.3"
 level: "L4"
 producer: story-writer
 timestamp: "2026-05-31T00:00:00Z"
@@ -115,8 +115,12 @@ to this path returns HTTP 200 (not 404) when a valid `Authorization: Bearer` hea
 
 ### AC-002: Bearer auth enforcement (traces to BC-2.01.013 postcondition §2 auth enforcement)
 A request to `POST /api/v1/audit_log/get` without a valid `Authorization: Bearer` header
-returns HTTP 401 with `{"error": "missing or invalid bearer token", "code": 401}`, identical
-to the pattern established in `routes/alerts.rs::check_bearer_auth`.
+returns HTTP 401 with `{"error": "missing or invalid Authorization header", "code": 401}`,
+identical to the pattern established in `routes/alerts.rs::check_bearer_auth` (which emits
+this exact string). **The Red Gate test `test_BC_2_16_013_claroty_audit_logs_dtu_auth_enforced`
+MUST assert the response body contains the exact string `"missing or invalid Authorization header"`
+— a substring or regex match is insufficient; this clause is load-bearing per POL-24
+error_message_template_verbatim.**
 
 ### AC-003: Response envelope shape matches TOML `response_path` (traces to BC-2.16.013 postcondition §2 fixture-parity)
 The response body is `{"audit_log": [...], "total": N}` where `audit_log` is a JSON array
@@ -178,7 +182,7 @@ Architecture section references:
 
 | ID | Description | Expected Behavior |
 |----|-------------|-------------------|
-| EC-001 | Missing `Authorization` header | HTTP 401 `{"error": "missing or invalid bearer token", "code": 401}` — matches `check_bearer_auth` pattern from `routes/devices.rs` |
+| EC-001 | Missing `Authorization` header | HTTP 401 `{"error": "missing or invalid Authorization header", "code": 401}` — verbatim `check_bearer_auth` output from `routes/devices.rs` (canonical literal, POL-24) |
 | EC-002 | Empty `Authorization: Bearer ` (no token value) | HTTP 401 — same as EC-001; `check_bearer_auth` treats empty token as missing |
 | EC-003 | Malformed request body (non-JSON) | HTTP 200 with full fixture (body is `Option<Json<GetAuditLogBody>>` — unrecognized body ignored, fixture returned regardless) |
 | EC-004 | Body with unknown fields | HTTP 200 with full fixture — permissive deserialization per Claroty API EC-001 in `types.rs` doc comment |
@@ -365,6 +369,7 @@ new gate is warranted.
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.3 | 2026-06-01 | product-owner | F-P1-MED-001 spec-defect fix: corrected AC-002 and EC-001 error body literal from `"missing or invalid bearer token"` to `"missing or invalid Authorization header"` (verbatim `check_bearer_auth` output, POL-24 error_message_template_verbatim). Removed self-contradiction — AC-002 "identical to alerts.rs pattern" clause now consistent with corrected literal. Added load-bearing Red Gate assertion note to AC-002. |
 | 1.2 | 2026-05-31 | story-writer | Wave 5 dispatch burst: BC-2.16.013 anchor justification confirmed per POL-4/POL-5 (BC-2.16.013 §Postconditions §1 claroty.sensor.toml + §Known Gaps cover the audit_log DTU parity surface; D-920 orchestrator confirmation). Stale v1.17 BC table cite corrected to v1.18. Added §References and §Changelog sections (previously missing). Story confirmed ready for TDD dispatch. |
 | 1.1 | 2026-05-31 | story-writer | D-920 orchestrator confirmation: BC-2.01.013 + BC-2.16.013 cover the audit_log route; status draft→ready. Route design (POST /api/v1/audit_log/get + ClarotyAuditLogEntry shape) confirmed consistent with both BCs. No New-BC flags. |
 | 1.0 | 2026-05-31 | story-writer | Initial materialization from [stub] per POLLER-DTU-FIDELITY-AUDIT-2026-05-29 Gap-CL-006. 6 ACs, 3 Red Gate tests, 5 pts, wave 5, P1. Grounded against crates/prism-dtu-claroty/src/clone.rs (build_router), routes/alerts.rs (handler pattern), types.rs, claroty.sensor.toml (audit_logs table block). |
