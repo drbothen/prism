@@ -13,6 +13,7 @@ use regex::Regex;
 
 use crate::{
     config_manager::compute_file_hash,
+    env_resolver::resolve_env_var_tokens,
     error::SpecEngineError,
     spec_parser::{SensorSpec, SpecLoader},
     types::{
@@ -56,13 +57,31 @@ pub fn parse_and_validate_spec_toml(
     // Route through SpecLoader::parse — this is the canonical TOML → SensorSpec path.
     // It handles: serde deserialization, AuthType enum mapping, cross-composition Rule A+B,
     // timestamp_formats validation, and timestamp_fallback_chain field-name resolution.
-    let spec = SpecLoader::parse(toml_content).map_err(|e| {
+    let mut spec = SpecLoader::parse(toml_content).map_err(|e| {
         vec![ValidationError {
             sensor_id: None,
             source_path: source_path.to_string(),
             errors: vec![format!("{e}")],
         }]
     })?;
+
+    // BC-2.16.009 §Validation Rules 6 (AC-6) — env var token resolution.
+    //
+    // Runs AFTER TOML deserialization, BEFORE URL-format validation.
+    // Scans all String fields for `${env.VAR_NAME}` tokens and resolves them via
+    // std::env::var. Missing or empty vars produce E-SPEC-024 errors (fail-closed).
+    // Non-env-namespace tokens (${step.*}, ${query.*}) are left untouched.
+    // AD-017: resolved VALUES are NEVER included in error messages — only var NAME + TOML path.
+    {
+        let env_errors = resolve_env_var_tokens(&mut spec, source_path);
+        if !env_errors.is_empty() {
+            return Err(vec![ValidationError {
+                sensor_id: Some(spec.sensor_id.clone()),
+                source_path: source_path.to_string(),
+                errors: env_errors.into_iter().map(|e| format!("{e}")).collect(),
+            }]);
+        }
+    }
 
     // Additional validation: required fields must be non-empty.
     // SpecLoader::parse performs serde deserialization which requires these fields to

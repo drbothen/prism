@@ -1,0 +1,53 @@
+EC-009-007: overlay base_url env-var resolution — evidence capture
+Story: S-SPEC-ENV-VAR-001 v1.2  PR: #165  BC: BC-2.16.009 §VR6 EC-009-007
+Implementation: crates/prism-spec-engine/src/overlay.rs::validate_overlay_toml
+Test file: crates/prism-spec-engine/tests/overlay_loading_tests.rs
+
+Captured: 2026-05-31
+
+--- cargo nextest run -p prism-spec-engine -E 'test(EC_009_007)' ---
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.49s
+────────────
+ Nextest run ID ddb8f5cd-33c9-4808-b561-68f8eed34d9c with nextest profile: default
+    Starting 3 tests across 36 binaries (520 tests skipped)
+        PASS [   0.022s] (1/3) prism-spec-engine::overlay_loading_tests test_EC_009_007_overlay_base_url_partial_token_missing_var_produces_e_spec_024
+        PASS [   0.022s] (2/3) prism-spec-engine::overlay_loading_tests test_EC_009_007_overlay_base_url_full_token_missing_var_produces_e_spec_024_not_e_spec_001
+        PASS [   0.022s] (3/3) prism-spec-engine::overlay_loading_tests test_EC_009_007_overlay_base_url_full_token_set_var_resolves_and_overlay_validates
+────────────
+     Summary [   0.024s] 3 tests run: 3 passed, 520 skipped
+
+--- TEST COVERAGE SUMMARY ---
+
+test_EC_009_007_overlay_base_url_full_token_missing_var_produces_e_spec_024_not_e_spec_001
+  PATH:    overlay base_url = "${env.PRISM_TEST_EC009_007_ABSENT_FULL_TOKEN}" — env var NOT set
+  ASSERTS: validate_overlay_toml returns Err; error list non-empty; error is
+           SpecEngineError::EnvVarNotSet (E-SPEC-024) NOT SpecEngineError::SsrfSchemeNotAllowed
+           (E-SPEC-001); EnvVarNotSet.toml_path == "base_url"; error message contains var name
+  VERDICT: PASS — resolver runs BEFORE SSRF scheme check (correct ordering per BC-2.16.009 VR6)
+
+test_EC_009_007_overlay_base_url_full_token_set_var_resolves_and_overlay_validates
+  PATH:    overlay base_url = "${env.PRISM_TEST_EC009_007_FULL_TOKEN_URL}" — env var SET to valid URL
+  ASSERTS: validate_overlay_toml returns Ok; resolved overlay.base_url equals env var value
+  VERDICT: PASS — full-token resolution in overlay succeeds when var is set
+
+test_EC_009_007_overlay_base_url_partial_token_missing_var_produces_e_spec_024
+  PATH:    overlay base_url = "https://partial-${env.PRISM_TEST_EC009_007_ABSENT_PARTIAL}.example.com"
+           — env var NOT set
+  ASSERTS: validate_overlay_toml returns Err; error is E-SPEC-024 containing var name
+  VERDICT: PASS — partial-token in overlay base_url correctly rejected when var absent
+
+--- IMPLEMENTATION REFERENCE ---
+
+overlay.rs::validate_overlay_toml performs env resolution at lines ~647-712:
+  // BC-2.16.009 §VR6 EC-009-007: resolve ${env.VAR_NAME} tokens in overlay base_url
+  // before SSRF scheme check (SEC-REDUX-006). A raw token like "${env.ARMIS_URL}"
+  // would fail starts_with("https://") with wrong error code (E-SPEC-001 instead of
+  // E-SPEC-024) OR pass the check and be routed as a live HTTP URL with the literal
+  // token string — both are critical bugs.
+  //
+  // The resolver runs in-place on overlay.base_url; SpecEngineError::EnvVarNotSet
+  // errors are collected and the SSRF check is skipped when env errors exist.
+
+Calls: crates/prism-spec-engine/src/env_resolver.rs::resolve_env_tokens_in_string_field
+       (the same resolver used by the primary sensor-spec load path)

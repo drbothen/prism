@@ -1,0 +1,83 @@
+# AC-008 Evidence — AD-017 no-value-leak: E-SPEC-024 message contains NAME, never VALUE
+#
+# Story:  S-SPEC-ENV-VAR-001 v1.2
+# AC:     AC-008 — E-SPEC-024 Display/Debug contains var NAME "SECRET_ENDPOINT";
+#                  does NOT contain the sentinel VALUE "https://secret.internal.sentinel-value-do-not-log"
+# Test:   test_env_var_error_contains_name_not_value
+# Source: crates/prism-spec-engine/tests/env_var_resolution_tests.rs
+# BC:     BC-2.16.009 §Validation Rules 6 — "error message MUST NOT include the variable VALUE"
+#         error-taxonomy.md E-SPEC-024 — "The env var VALUE is NEVER included"
+#         AD-017 — AI-opaque-credentials discipline
+# Demo mode: LIBRARY (test-harness nextest capture)
+#
+# ─── What the test asserts ───────────────────────────────────────────────────
+# Setup:
+#   1. Set PRISM_TEST_ENV_VAR_AC008_SECRET = "https://secret.internal.sentinel-value-do-not-log"
+#      (a grep-able sentinel that would be visible if leaked)
+#   2. Immediately unset the var (simulates prior-session exposure scenario)
+#   3. Call resolve_env_var_tokens with the now-absent var
+#
+# Error path assertions:
+#   errors.len() == 1
+#   errors[0] is EnvVarNotSet with var_name == "PRISM_TEST_ENV_VAR_AC008_SECRET"
+#   errors[0].toml_path.contains("base_url")
+#   format!("{}", errors[0]) contains "PRISM_TEST_ENV_VAR_AC008_SECRET"    ← NAME present
+#   format!("{}", errors[0]) does NOT contain "secret.internal.sentinel"   ← VALUE absent
+#   format!("{:?}", errors[0]) does NOT contain "secret.internal.sentinel" ← VALUE absent in Debug
+#   format!("{}", errors[0]) contains "PRISM_TEST_ENV_VAR_AC008_SECRET"    ← NAME in Display
+#
+# Happy path assertions (var set to sentinel):
+#   resolve_errors is empty (var set → no error)
+#   spec2.base_url == sentinel (value injected into field — correct and expected)
+#   validate_sensor_spec(&spec2) warnings and errors do NOT contain sentinel value
+#
+# ─── E-SPEC-024 Display format (no-value-leak demonstrated) ──────────────────
+#
+# Actual E-SPEC-024 Display output for var_name="ARMIS_INSTANCE_URL" (pinned by
+# test_E_SPEC_024_display_matches_error_taxonomy_template_byte_for_byte):
+#
+#   "Sensor spec 'specs/armis.sensor.toml' field 'sensor.base_url' references environment
+#    variable 'ARMIS_INSTANCE_URL' which is not set or is empty. Set 'ARMIS_INSTANCE_URL'
+#    before starting prism."
+#
+# Fields present in output:  file_path, toml_path, var_name (the NAME "ARMIS_INSTANCE_URL")
+# Fields ABSENT from output: the resolved VALUE (e.g., "https://example.armis.io")
+#
+# The EnvVarNotSet variant definition (error.rs) carries only:
+#   var_name: String    ← NAME only; doc says "MUST be the variable name string — NEVER the resolved value"
+#   toml_path: String
+#   file_path: String
+# No field stores or can expose the resolved value.
+#
+# ─── nextest output (captured 2026-05-31) ────────────────────────────────────
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.31s
+────────────
+ Nextest run ID 86a39453-a86e-4e49-844f-7d8f837d4635 with nextest profile: default
+    Starting 1 test across 36 binaries (517 tests skipped)
+        PASS [   0.011s] (1/1) prism-spec-engine::env_var_resolution_tests test_env_var_error_contains_name_not_value
+────────────
+     Summary [   0.011s] 1 test run: 1 passed, 517 skipped
+
+# ─── AD-017 structural enforcement (from error.rs) ───────────────────────────
+#
+# The EnvVarNotSet variant doc carries an explicit AD-017 enforcement note:
+#
+#   /// AD-017 no-value-leak discipline
+#   /// `var_name` carries the environment variable NAME only. The resolved VALUE is NEVER
+#   /// stored in this variant — not in `var_name`, not in `toml_path`, not in any field.
+#   /// `SpecEngineError::EnvVarNotSet` construction sites MUST NOT pass
+#   /// `std::env::var(&var_name).unwrap_or_default()` or any resolved value into any field.
+#
+# Implementation (env_resolver.rs): construction sites pass `var_name` (from the regex
+# capture group — the NAME string) directly. `std::env::var()` is called only to decide
+# Ok-vs-Err, never to populate the error variant.
+#
+# ─── Verdict ─────────────────────────────────────────────────────────────────
+# PASS — AC-008 satisfied. E-SPEC-024 Display output contains the env var NAME
+# ("PRISM_TEST_ENV_VAR_AC008_SECRET") and does NOT contain the sentinel VALUE
+# ("https://secret.internal.sentinel-value-do-not-log"). AD-017 enforced:
+#   - Structurally: EnvVarNotSet variant has no field capable of holding the value
+#   - Behaviourally: test asserts both Display and Debug representations are value-free
+#   - Taxonomy-pinned: test_E_SPEC_024_display_matches_error_taxonomy_template_byte_for_byte
+#     pins the exact Display format to error-taxonomy.md v1.56 (no value in template)
