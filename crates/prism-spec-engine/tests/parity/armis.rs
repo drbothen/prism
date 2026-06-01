@@ -21,7 +21,7 @@ use prism_core::OrgSlug;
 use prism_dtu_armis::ArmisClone;
 use prism_dtu_common::BehavioralClone;
 use prism_spec_engine::{
-    NullAuthProvider,
+    MockAuthProvider, NullAuthProvider,
     pipeline::{FetchContext, PipelineExecutor},
     spec_parser::SpecLoader,
 };
@@ -300,6 +300,283 @@ fn test_BC_2_16_013_compute_parity_verdict_empty_fixture_returns_error() {
              must return Error"
         ),
     }
+}
+
+// ---------------------------------------------------------------------------
+// PLUGIN-MIGRATION-001-F AC-001: TOML fixture loading gate (non-#[ignore] part)
+// ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// AC-005: AQL push-down round-trip — pipeline boundary test (S-DEMO-ARMIS-AQL-001)
+//
+// These tests are the load-bearing AC-005 assertions required by F-P1-CRIT-002.
+// They drive PipelineExecutor::execute against the real Armis DTU clone using
+// armis.sensor.toml (path_template = "/api/v1/search?aql=${query.filter.aql}").
+//
+// The pipeline percent-encodes the AQL value before embedding it in the URL.
+// Axum's Query<SearchQueryParams> extractor on the DTU side percent-decodes it
+// before capture_aql() is called. So the AQL-log entry equals the original
+// unencoded value.
+//
+// These tests PASS now (the implementer's TOML fix made the AQL flow through).
+// They FAIL if AQL forwarding regresses — e.g., if path_template loses the ?aql=
+// parameter, ${query.filter.aql} is removed, or the DTU capture_aql() call is dropped.
+// ---------------------------------------------------------------------------
+
+/// AC-005 / BC-2.16.013 / S-DEMO-ARMIS-AQL-001:
+/// test_BC_2_16_013_AC_005_aql_roundtrip_devices_pipeline
+///
+/// End-to-end AQL push-down round-trip for the devices table:
+/// 1. Start the Armis DTU clone on an ephemeral port.
+/// 2. Seed FetchContext with query_filters["aql"] = a device AQL expression.
+/// 3. Load armis.sensor.toml and override base_url to the DTU's address.
+/// 4. Execute PipelineExecutor::execute for the devices table.
+/// 5. Assert (a): GET /dtu/aql-log contains the verbatim AQL (percent-decoded).
+/// 6. Assert (b): result records are non-empty and device-shaped (device_id present).
+///
+/// This test is the LOAD-BEARING AC-005 assertion (F-P1-CRIT-002 closure).
+/// Regression sentinel: if path_template loses "?aql=${query.filter.aql}", the DTU
+/// receives no aql param, falls back to devices (safe fallback), but aql-log will
+/// be empty → assertion (a) fails LOAD-BEARINGLY.
+#[tokio::test]
+async fn test_BC_2_16_013_AC_005_aql_roundtrip_devices_pipeline() {
+    // Step 1: Start the Armis DTU clone.
+    let mut clone = ArmisClone::new().expect("AC-005 devices: ArmisClone::new() must succeed");
+    let bound_addr = clone
+        .start_on("127.0.0.1:0".parse().unwrap(), None, None)
+        .await
+        .expect("AC-005 devices: Armis DTU clone failed to start");
+    let dtu_base_url = format!("http://{bound_addr}");
+
+    // Step 2: Load armis.sensor.toml and override base_url to the DTU address.
+    let spec_content = std::fs::read_to_string(
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../prism-sensors/specs/armis.sensor.toml"),
+    )
+    .expect("AC-005 devices: armis.sensor.toml must be readable");
+    let mut spec =
+        SpecLoader::parse(&spec_content).expect("AC-005 devices: armis.sensor.toml must parse");
+    spec.base_url = dtu_base_url.clone();
+
+    // Step 3: Resolve the devices table.
+    let table = spec
+        .tables
+        .iter()
+        .find(|t| t.table_name == "devices")
+        .expect("AC-005 devices: armis spec must declare a 'devices' table")
+        .clone();
+
+    // Step 4: Seed FetchContext with the device AQL filter.
+    // This is the pipeline-boundary injection: no query engine needed.
+    // Per SID-1: drive production code path directly via FetchContext seed.
+    let aql_value = "in:devices timeFrame:\"Last 3 Hours\"";
+    let mut filters = HashMap::new();
+    filters.insert("aql".to_string(), aql_value.to_string());
+    let context = FetchContext::new(OrgSlug::new("test-org"), filters);
+
+    // Step 5: HTTP client with 30-second timeout per CLAUDE.md conventions.
+    let http_client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .expect("AC-005 devices: reqwest Client::build must succeed");
+
+    // Step 6: Execute the pipeline via PipelineExecutor::execute.
+    // The path_template "/api/v1/search?aql=${query.filter.aql}" will be
+    // interpolated with the AQL value (percent-encoded), sending the full
+    // query to the DTU's GET /api/v1/search endpoint.
+    //
+    // MockAuthProvider with a non-empty token is required: the Armis DTU's
+    // check_bearer_auth requires "Bearer {non-empty}" (HTTP 403 otherwise).
+    // NullAuthProvider returns an empty string which the DTU rejects (AC-001 EC-004).
+    let auth_provider = MockAuthProvider::new("test-bearer-token");
+    let result = PipelineExecutor::execute(&spec, &table, &context, &http_client, &auth_provider)
+        .await
+        .expect(
+            "AC-005 devices: PipelineExecutor::execute must succeed against Armis DTU \
+             (path_template uses /api/v1/search?aql=${query.filter.aql})",
+        );
+
+    // Assertion (b): result records are non-empty and device-shaped.
+    // The DTU serves devices fixture at $.data.results for device AQL.
+    assert!(
+        !result.records.is_empty(),
+        "AC-005 devices: PipelineExecutor must return non-empty records from \
+         $.data.results (devices fixture loaded by DTU); got 0 records. \
+         REGRESSION INDICATOR: path_template may have lost the ?aql= parameter or \
+         response_path may have changed from $.data.results."
+    );
+
+    // Spot-check first record for device_id (DeviceRecord shape).
+    let first = &result.records[0];
+    assert!(
+        first["device_id"].is_string(),
+        "AC-005 devices: first record must contain device_id string (DeviceRecord shape \
+         from $.data.results); got: {first}. \
+         REGRESSION INDICATOR: response_path or DTU routing is wrong."
+    );
+
+    // Assertion (a): DTU received the verbatim AQL in /dtu/aql-log.
+    // The pipeline percent-encodes the AQL in the URL; axum's Query extractor
+    // percent-decodes it before capture_aql() is called — so the log entry
+    // equals the original unencoded AQL value.
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .expect("AC-005 devices: aql-log reqwest client build");
+    let aql_log_resp = client
+        .get(format!("{dtu_base_url}/dtu/aql-log"))
+        .send()
+        .await
+        .expect("AC-005 devices: GET /dtu/aql-log must succeed");
+
+    assert_eq!(
+        aql_log_resp.status().as_u16(),
+        200,
+        "AC-005 devices: GET /dtu/aql-log must return HTTP 200"
+    );
+
+    let aql_log_body: serde_json::Value = aql_log_resp
+        .json()
+        .await
+        .expect("AC-005 devices: aql-log response must be valid JSON");
+
+    let aql_strings = aql_log_body["aql_strings"]
+        .as_array()
+        .expect("AC-005 devices: aql_strings must be an array");
+
+    assert!(
+        aql_strings.iter().any(|s| s.as_str() == Some(aql_value)),
+        "AC-005 devices: /dtu/aql-log must contain the verbatim device AQL \
+         '{}' after pipeline execution. \
+         REGRESSION INDICATOR: path_template lost ?aql= (AQL never sent), \
+         or capture_aql() was removed from get_search handler. \
+         aql_strings: {:?}",
+        aql_value,
+        aql_strings
+    );
+}
+
+/// AC-005 / BC-2.16.013 / S-DEMO-ARMIS-AQL-001:
+/// test_BC_2_16_013_AC_005_aql_roundtrip_alerts_pipeline
+///
+/// End-to-end AQL push-down round-trip for the alerts table:
+/// 1. Start the Armis DTU clone on an ephemeral port.
+/// 2. Seed FetchContext with query_filters["aql"] = an alert AQL expression.
+/// 3. Load armis.sensor.toml and override base_url to the DTU's address.
+/// 4. Execute PipelineExecutor::execute for the alerts table.
+/// 5. Assert (a): GET /dtu/aql-log contains the verbatim AQL (percent-decoded).
+/// 6. Assert (b): result records are non-empty and alert-shaped (alert_id present).
+///
+/// This test is the LOAD-BEARING AC-005 assertion for the alerts table (F-P1-CRIT-002 closure).
+/// Regression sentinel: if path_template loses "?aql=${query.filter.aql}" for the alerts
+/// step, the aql-log assertion (a) will fail.
+#[tokio::test]
+async fn test_BC_2_16_013_AC_005_aql_roundtrip_alerts_pipeline() {
+    // Step 1: Start the Armis DTU clone.
+    let mut clone = ArmisClone::new().expect("AC-005 alerts: ArmisClone::new() must succeed");
+    let bound_addr = clone
+        .start_on("127.0.0.1:0".parse().unwrap(), None, None)
+        .await
+        .expect("AC-005 alerts: Armis DTU clone failed to start");
+    let dtu_base_url = format!("http://{bound_addr}");
+
+    // Step 2: Load armis.sensor.toml and override base_url.
+    let spec_content = std::fs::read_to_string(
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../prism-sensors/specs/armis.sensor.toml"),
+    )
+    .expect("AC-005 alerts: armis.sensor.toml must be readable");
+    let mut spec =
+        SpecLoader::parse(&spec_content).expect("AC-005 alerts: armis.sensor.toml must parse");
+    spec.base_url = dtu_base_url.clone();
+
+    // Step 3: Resolve the alerts table.
+    let table = spec
+        .tables
+        .iter()
+        .find(|t| t.table_name == "alerts")
+        .expect("AC-005 alerts: armis spec must declare an 'alerts' table")
+        .clone();
+
+    // Step 4: Seed FetchContext with alert AQL.
+    // The AQL contains "Alert" so the DTU routes to the alerts fixture.
+    let aql_value = "in:type=Alert status:Open";
+    let mut filters = HashMap::new();
+    filters.insert("aql".to_string(), aql_value.to_string());
+    let context = FetchContext::new(OrgSlug::new("test-org"), filters);
+
+    // Step 5: HTTP client.
+    let http_client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .expect("AC-005 alerts: reqwest Client::build must succeed");
+
+    // Step 6: Execute the pipeline.
+    // MockAuthProvider with a non-empty token is required: the DTU's check_bearer_auth
+    // requires "Bearer {non-empty}" (HTTP 403 otherwise — AC-001 EC-004).
+    let auth_provider = MockAuthProvider::new("test-bearer-token");
+    let result = PipelineExecutor::execute(&spec, &table, &context, &http_client, &auth_provider)
+        .await
+        .expect(
+            "AC-005 alerts: PipelineExecutor::execute must succeed against Armis DTU \
+             (alerts table path_template uses /api/v1/search?aql=${query.filter.aql})",
+        );
+
+    // Assertion (b): result records are non-empty and alert-shaped.
+    assert!(
+        !result.records.is_empty(),
+        "AC-005 alerts: PipelineExecutor must return non-empty records from \
+         $.data.results (alerts fixture); got 0 records. \
+         REGRESSION INDICATOR: path_template may have lost ?aql= for alerts step, \
+         or response_path changed from $.data.results."
+    );
+
+    // Spot-check first record for alert_id (AlertRecord shape).
+    let first = &result.records[0];
+    assert!(
+        first["alert_id"].is_string(),
+        "AC-005 alerts: first record must contain alert_id string (AlertRecord shape \
+         from $.data.results for Alert AQL); got: {first}. \
+         REGRESSION INDICATOR: DTU routing by AQL pattern is broken — \
+         'in:type=Alert' must route to alerts fixture."
+    );
+
+    // Assertion (a): DTU received the verbatim AQL.
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .expect("AC-005 alerts: aql-log reqwest client build");
+    let aql_log_resp = client
+        .get(format!("{dtu_base_url}/dtu/aql-log"))
+        .send()
+        .await
+        .expect("AC-005 alerts: GET /dtu/aql-log must succeed");
+
+    assert_eq!(
+        aql_log_resp.status().as_u16(),
+        200,
+        "AC-005 alerts: GET /dtu/aql-log must return HTTP 200"
+    );
+
+    let aql_log_body: serde_json::Value = aql_log_resp
+        .json()
+        .await
+        .expect("AC-005 alerts: aql-log response must be valid JSON");
+
+    let aql_strings = aql_log_body["aql_strings"]
+        .as_array()
+        .expect("AC-005 alerts: aql_strings must be an array");
+
+    assert!(
+        aql_strings.iter().any(|s| s.as_str() == Some(aql_value)),
+        "AC-005 alerts: /dtu/aql-log must contain the verbatim alert AQL \
+         '{}' after pipeline execution. \
+         REGRESSION INDICATOR: alerts table path_template lost ?aql=, or \
+         capture_aql() was removed from get_search handler. \
+         aql_strings: {:?}",
+        aql_value,
+        aql_strings
+    );
 }
 
 // ---------------------------------------------------------------------------

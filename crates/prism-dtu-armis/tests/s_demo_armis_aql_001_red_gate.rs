@@ -15,7 +15,7 @@
 //! | test_armis_aql_search_route_registered_returns_200_for_device_aql | AC-001 | BC-2.16.013 §Postconditions §1 DTU-Parity |
 //! | test_armis_aql_search_returns_403_without_bearer | AC-001 EC-004 | BC-2.16.013 §Postconditions §1 DTU-Parity |
 //! | test_armis_aql_search_devices_aql_returns_device_records | AC-002 | BC-2.16.013 §Postconditions §2 fixture-parity |
-//! | test_armis_aql_search_alerts_aql_returns_alert_records | AC-003 | BC-2.16.013 §Postconditions §2 fixture-parity |
+//! | test_armis_aql_search_alerts_aql_returns_alert_records | AC-003 (handler-unit) | BC-2.16.013 §Postconditions §2 handler routing only — pipeline-boundary AC-003 end-to-end claim carried by parity/armis.rs::test_BC_2_16_013_AC_005_aql_roundtrip_alerts_pipeline (F-P1-CRIT-002) |
 //! | test_armis_aql_search_aql_captured_in_aql_log | AC-002 | BC-2.16.013 R-DTU-002 AQL capture |
 //! | test_armis_aql_search_no_aql_defaults_to_devices | AC-001 EC-001 | BC-2.16.013 §Postconditions §1 safe fallback |
 //! | test_armis_aql_search_toml_path_template_updated | AC-004 | BC-2.16.013 §Postconditions §2 DTU-TOML-column-parity |
@@ -241,9 +241,16 @@ async fn test_armis_aql_search_aql_captured_in_aql_log() {
 // (BC-2.16.013 §Postconditions §2 fixture-parity; ADR-031 §D8-a requirement 1)
 // ---------------------------------------------------------------------------
 
-/// AC-003 / BC-2.16.013 §Postconditions §2 fixture-parity:
+/// AC-003 (handler-unit) / BC-2.16.013 §Postconditions §2 fixture-parity:
 /// GET /api/v1/search?aql=in:type=Alert returns HTTP 200 with envelope
 /// `{"data": {"results": [...AlertRecord objects...], "total": N}}`.
+///
+/// Scope: this test exercises the DTU handler directly (AQL sent as a raw query
+/// param to the DTU, no PipelineExecutor involved). It proves the handler itself
+/// routes Alert AQL to alert records. The end-to-end pipeline-boundary claim
+/// (AQL forwarding through PipelineExecutor + armis.sensor.toml) is carried by
+/// test_BC_2_16_013_AC_005_aql_roundtrip_alerts_pipeline in parity/armis.rs
+/// (F-P1-CRIT-002 / AC-005).
 ///
 /// Red Gate failure: `get_search` is `todo!()` — panics, axum returns 500.
 /// The test asserts 200 + AlertRecord-shaped results → fails RED.
@@ -420,12 +427,16 @@ fn test_armis_aql_search_toml_path_template_updated() {
         .as_str()
         .expect("S-DEMO-ARMIS-AQL-001 AC-004: fetch_devices step must have path_template");
 
-    // AC-004 intent: path_template must use the AQL search endpoint (not legacy /api/v1/devices).
-    // The template includes the AQL push-down param: /api/v1/search?aql=${query.filter.aql}.
-    // We assert starts_with("/api/v1/search") to cover both the base path and the parameterized form.
+    // AC-004 intent: path_template must use the AQL search endpoint with the ?aql= push-down
+    // parameter (not the legacy /api/v1/devices). The full expected value is
+    // "/api/v1/search?aql=${query.filter.aql}". We assert starts_with("/api/v1/search?aql=")
+    // to confirm both the correct path AND the presence of the AQL query parameter — a weaker
+    // assertion (starts_with("/api/v1/search") only) would accept regressions where ?aql= is dropped.
     assert!(
-        path_template.starts_with("/api/v1/search"),
-        "S-DEMO-ARMIS-AQL-001 AC-004: armis.sensor.toml devices.fetch_devices.path_template must start with '/api/v1/search' (not '/api/v1/devices' — DTU-EXT-003 closed by S-DEMO-ARMIS-AQL-001; BC-2.16.013 §Postconditions §2); got: {path_template}"
+        path_template.starts_with("/api/v1/search?aql="),
+        "S-DEMO-ARMIS-AQL-001 AC-004: armis.sensor.toml devices.fetch_devices.path_template must \
+         start with '/api/v1/search?aql=' (AQL push-down required; DTU-EXT-003 closed by \
+         S-DEMO-ARMIS-AQL-001; BC-2.16.013 §Postconditions §2); got: {path_template}"
     );
 
     // Also assert alerts table path_template for completeness (AC-004 covers both).
@@ -446,8 +457,10 @@ fn test_armis_aql_search_toml_path_template_updated() {
         .expect("S-DEMO-ARMIS-AQL-001 AC-004: fetch_alerts step must have path_template");
 
     assert!(
-        alerts_path_template.starts_with("/api/v1/search"),
-        "S-DEMO-ARMIS-AQL-001 AC-004: armis.sensor.toml alerts.fetch_alerts.path_template must start with '/api/v1/search' (not '/api/v1/alerts' — DTU-EXT-004 closed by S-DEMO-ARMIS-AQL-001; BC-2.16.013 §Postconditions §2); got: {alerts_path_template}"
+        alerts_path_template.starts_with("/api/v1/search?aql="),
+        "S-DEMO-ARMIS-AQL-001 AC-004: armis.sensor.toml alerts.fetch_alerts.path_template must \
+         start with '/api/v1/search?aql=' (AQL push-down required; DTU-EXT-004 closed by \
+         S-DEMO-ARMIS-AQL-001; BC-2.16.013 §Postconditions §2); got: {alerts_path_template}"
     );
 }
 
