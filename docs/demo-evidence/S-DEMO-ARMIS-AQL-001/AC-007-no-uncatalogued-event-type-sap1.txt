@@ -1,0 +1,33 @@
+AC-007: No uncatalogued tracing event_type emissions (SAP-1)
+Story: S-DEMO-ARMIS-AQL-001 v1.8
+BC: BC-2.16.002 Structured Event Catalog invariant — SAP-1 + PG-LP11-001
+Probe: grep event_type = across prism-dtu-armis production source (src/)
+
+Command:
+  grep -rn 'event_type' crates/prism-dtu-armis/src/
+
+Output:
+  (no output — zero event_type emissions in prism-dtu-armis/src/)
+
+What is demonstrated:
+  - Zero new tracing::*!(event_type = ...) sites introduced by this story's implementation
+    in prism-dtu-armis/src/ (routes/search.rs, routes/mod.rs, clone.rs)
+  - SAP-1 gate: PASS — no uncatalogued event_type emissions
+  - The get_search handler does not emit any structured event_type tracing; it uses the
+    same auth check (check_bearer_auth) and state capture (state.capture_aql()) patterns
+    as existing handlers which already have no event_type emissions
+  - No BC-2.16.002 catalog row additions required for this story
+
+SAP-1 sweep scope:
+  Command searched: crates/prism-dtu-armis/src/ (production source, not tests)
+  Files in search scope:
+    - crates/prism-dtu-armis/src/clone.rs         (build_router — no new event_type)
+    - crates/prism-dtu-armis/src/routes/search.rs (new get_search handler — no event_type)
+    - crates/prism-dtu-armis/src/routes/mod.rs    (search mod declaration — no event_type)
+    - crates/prism-dtu-armis/src/types.rs         (SearchResponse struct — no event_type)
+    - crates/prism-dtu-armis/src/state.rs         (existing capture_aql — pre-story, no change)
+  Result: ZERO event_type sites across all production source files
+
+Broader workspace check (SAP-1 canonical scope — all of crates/):
+  No new event_type emissions were introduced anywhere in crates/ by this story.
+  The search handler is the only net-new production code; it has no tracing event_type emissions.

@@ -1,7 +1,10 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
-// AC-1: Given `GET /api/v1/devices?aql=in:type%3Dswitch` with a valid Bearer token,
+// AC-1: Given `GET /api/v1/devices?aql=in:devices+type:(switch)` with a valid Bearer token,
 // Then the response is HTTP 200 with a `data.devices` array AND the received AQL string
-// `"in:type=switch"` is logged in `GET /dtu/aql-log` (AQL capture works).
+// `"in:devices type:(switch)"` is logged in `GET /dtu/aql-log` (AQL capture works).
+//
+// AQL discriminator corrected to use real Armis Centrix `in:<entity>` syntax per
+// research artifact 2026-06-01 and F-LP12-HIGH-001 fix.
 //
 // Also covers:
 //   EC-001 — AQL string with special characters stored verbatim (no parsing/escaping).
@@ -24,10 +27,11 @@ async fn ac_1_get_devices_with_aql_returns_200_and_logs_aql() {
     let base_url = clone.base_url();
     let client = reqwest::Client::new();
 
-    // GET /api/v1/devices?aql=in:type=switch with valid Bearer token.
+    // GET /api/v1/devices?aql=in:devices type:(switch) with valid Bearer token.
+    // Real Armis AQL: entity selector `in:devices` + predicate `type:(switch)`.
     let resp = client
         .get(format!("{base_url}/api/v1/devices"))
-        .query(&[("aql", "in:type=switch")])
+        .query(&[("aql", "in:devices type:(switch)")])
         .header("Authorization", "Bearer test-token")
         .send()
         .await
@@ -74,8 +78,8 @@ async fn ac_1_get_devices_with_aql_returns_200_and_logs_aql() {
     assert!(
         aql_strings
             .iter()
-            .any(|s| s.as_str() == Some("in:type=switch")),
-        "AC-1: AQL log must contain 'in:type=switch', got: {aql_strings:?}"
+            .any(|s| s.as_str() == Some("in:devices type:(switch)")),
+        "AC-1: AQL log must contain 'in:devices type:(switch)', got: {aql_strings:?}"
     );
 }
 
@@ -83,6 +87,7 @@ async fn ac_1_get_devices_with_aql_returns_200_and_logs_aql() {
 async fn ac_1_post_devices_with_aql_body_returns_200_and_logs_aql() {
     // EC-005: POST /api/v1/devices is also supported by Armis.
     // AQL in JSON body must be captured, not just query-param AQL.
+    // Real Armis AQL: `in:devices type:(plc)` — entity selector + predicate (F-LP12-HIGH-001 fix).
     let mut clone = ArmisClone::new().expect("AC-1/EC-005: ArmisClone::new() must succeed");
     clone
         .start()
@@ -94,7 +99,7 @@ async fn ac_1_post_devices_with_aql_body_returns_200_and_logs_aql() {
     let resp = client
         .post(format!("{base_url}/api/v1/devices"))
         .header("Authorization", "Bearer test-token")
-        .json(&serde_json::json!({ "aql": "in:type=plc" }))
+        .json(&serde_json::json!({ "aql": "in:devices type:(plc)" }))
         .send()
         .await
         .expect("AC-1/EC-005: POST /api/v1/devices must succeed");
@@ -134,7 +139,7 @@ async fn ac_1_post_devices_with_aql_body_returns_200_and_logs_aql() {
     assert!(
         aql_strings
             .iter()
-            .any(|s| s.as_str() == Some("in:type=plc")),
+            .any(|s| s.as_str() == Some("in:devices type:(plc)")),
         "AC-1/EC-005: AQL from POST body must be in log, got: {aql_strings:?}"
     );
 }

@@ -1,0 +1,35 @@
+AC-001: GET /api/v1/search registered in DTU build_router
+AC-001 / EC-004: Missing Authorization header returns 403 (Armis auth model)
+Story: S-DEMO-ARMIS-AQL-001 v1.8
+BC: BC-2.16.013 v1.22 (ACTIVE)
+Source file: crates/prism-dtu-armis/tests/s_demo_armis_aql_001_red_gate.rs
+Red Gate tests:
+  test_armis_aql_search_route_registered_returns_200_for_device_aql  (AC-001)
+  test_armis_aql_search_returns_403_without_bearer                    (AC-001 / EC-004)
+
+Command:
+  cargo nextest run -p prism-dtu-armis --features dtu \
+    -E 'test(test_armis_aql_search_route_registered_returns_200_for_device_aql) \
+      + test(test_armis_aql_search_returns_403_without_bearer)' \
+    --no-fail-fast
+
+Output:
+────────────
+ Nextest run ID 265b9ba8-e5a9-4bd6-93e2-1e2a60fa978c with nextest profile: default
+    Starting 2 tests across 20 binaries (128 tests skipped)
+        PASS [   0.269s] (1/2) prism-dtu-armis::s_demo_armis_aql_001_red_gate test_armis_aql_search_returns_403_without_bearer
+        PASS [   0.269s] (2/2) prism-dtu-armis::s_demo_armis_aql_001_red_gate test_armis_aql_search_route_registered_returns_200_for_device_aql
+────────────
+     Summary [   0.272s] 2 tests run: 2 passed, 128 skipped
+
+What is demonstrated:
+  - GET /api/v1/search?aql=in:devices with valid Bearer token returns HTTP 200 (route is
+    registered in build_router; Gap-AR-001 / DTU-EXT-003 closed)
+  - GET /api/v1/search without Authorization header returns HTTP 403 with body
+    {"error": "invalid or missing bearer token", "code": 403} (Armis auth model;
+    403 not 401, matching the existing check_bearer_auth pattern in devices.rs)
+
+Architecture compliance:
+  - ADR-031 §D8-a mandate satisfied: /api/v1/search endpoint exists
+  - Auth gate: 403 (matches Armis DTU auth model, not the 401 pattern used by Claroty)
+  - Route registered via: .route("/api/v1/search", get(routes::search::get_search))

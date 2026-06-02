@@ -30,6 +30,7 @@ use crate::{
         alerts::get_alerts,
         devices::{get_device_activity, get_device_risk, get_or_post_devices, post_devices},
         dtu::{get_aql_log, get_health, post_configure, post_reset},
+        search::get_search,
         tags::{delete_device_tag, post_device_tag},
     },
     state::ArmisState,
@@ -140,6 +141,10 @@ impl ArmisClone {
         // applies only to the real API surface. DTU-internal routes MUST remain
         // reachable even when a failure mode is active (configure/reset must always work).
         let vendor_router = Router::new()
+            // Primary AQL search endpoint (ADR-031 §D8-a — Gap-AR-001 closed by S-DEMO-ARMIS-AQL-001).
+            // Real Armis Centrix API path: GET /api/v1/search?aql=<query>
+            .route("/api/v1/search", get(get_search))
+            // Direct endpoints retained for backward compatibility (AC-006).
             .route("/api/v1/devices", get(get_or_post_devices))
             .route("/api/v1/devices", post(post_devices))
             .route(

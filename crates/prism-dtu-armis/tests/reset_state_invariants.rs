@@ -35,9 +35,10 @@ async fn ac_story_7_reset_clears_tag_store_and_aql_log() {
     );
 
     // Step 2: Send a device query with AQL to populate the AQL log.
+    // Real Armis AQL: `in:devices type:(switch)` (F-LP12-HIGH-001 fix).
     client
         .get(format!("{base_url}/api/v1/devices"))
-        .query(&[("aql", "in:type=switch")])
+        .query(&[("aql", "in:devices type:(switch)")])
         .header("Authorization", "Bearer test-token")
         .send()
         .await
