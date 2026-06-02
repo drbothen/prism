@@ -11520,4 +11520,178 @@ Priority 1+2+3 (parallel): All 3 LOCAL adversary re-passes with Lesson 62 worktr
 
 ---
 
+## §RESUME SNAPSHOT 2026-06-02-D956-LANES-PO-FIX-LANE3-PR169 (D-956)
+
+> **This is the durable zero-context checkpoint. A fresh session can resume all 3 lanes cold from this snapshot alone.**
+
+### §1 PIPELINE STATUS
+
+- **develop HEAD:** `eb3416d1` (feat(S-DEMO-ARMIS-AQL-001): Armis AQL search endpoint fidelity — MERGED 2026-06-02 D-950; unchanged from D-955)
+- **STATE.md:** v7.609
+- **BC-INDEX:** v5.75 (active: 238, draft: 1; total: 246; unchanged from D-955)
+- **STORY-INDEX:** v2.254 (178 stories)
+- **VP-INDEX:** v1.76 (unchanged)
+- **Open PRs:** PR #169 (S-MAINT-W3SEC-CITE-SWEEP-001; maintenance/w3sec-cite-sweep@9d4c48fd; base develop@eb3416d1; MERGEABLE; awaiting PR-LEVEL cascade)
+- **D-956 burst:** PO spec fixes (lanes 1&2) + lane-3 LOCAL 3/3 CONVERGED + PR #169 open
+
+### §2 THREE LANES — EXACT RESUME STATE
+
+---
+
+#### LANE 1 — S-DEMO-002 (P0; ready v1.5; 11pts)
+
+- **Story file:** `.factory/stories/S-DEMO-002-e2e-subprocess-smoke-test-all-sensors.md`
+- **Story version:** v1.5 (D-956 PO reconciliation: 9 items — (1) tool_query→`query` MCP tool name throughout; (2) org_slug→`clients` field name; (3) AC-014 seeding-accuracy generic predicate path + INDEX decorative shorthand; (4) AC-013/EC-004/EC-005 require load-bearing tests — Tasks 22-24 added; (5) AC-009 de-scoped to 5-run evidence; (6) FSR path → crates/prism-bin/fixtures/e2e-demo/demo.toml; (7) red_gate_tests 5→9; (8) acceptance_criteria_count preserved at 14; (9) spec pins bumped)
+- **Code branch:** `feature/S-DEMO-002`
+- **Worktree path:** `.worktrees/S-DEMO-002`
+- **Code HEAD:** `e72984a8` (docs: corrected phantom seeding-fn cite — F-DEMO-002-P2-MED-001 CLOSED; unchanged from D-955)
+- **LOCAL streak:** 0/3
+- **NEXT ACTION (EXACT):** Implementer fix-burst (9 PO items above reflected in code + tests; worktree .worktrees/S-DEMO-002; branch feature/S-DEMO-002). After fix-burst: LOCAL adversary re-pass with Lesson 62 worktree-identity preflight (`git -C .worktrees/S-DEMO-002 rev-parse HEAD` must == post-fix-burst SHA). After 3-CLEAN CONVERGED: demo-recorder per-AC evidence → push feature branch → pr-manager 9-step PR cycle → PR-LEVEL 3-CLEAN → merge.
+- **Implementer fix-burst items (9):**
+  1. `tool_query` → `query` throughout all ACs, tasks, and test names
+  2. `org_slug` → `clients` in config context throughout
+  3. AC-014 seeding-accuracy: reword to generic predicate path; INDEX decoration is shorthand only
+  4. Tasks 22-24 added: load-bearing tests for AC-013 (3-org boot verification), EC-004 (AdapterNotFound cross-org), EC-005 (3-org isolation matrix)
+  5. AC-009 de-scoped: 5-run evidence (not 10)
+  6. FSR path: `crates/prism-bin/fixtures/e2e-demo/demo.toml` (not prior path)
+  7. red_gate_tests: update to 9 in all code test-name tables and test harness
+  8. acceptance_criteria_count: 14 (preserved; verify no drift)
+  9. Spec pins: bump story version references as appropriate per §Changelog
+- **BCs:** BC-2.11.001, BC-2.11.005, BC-2.09.008, BC-2.10.001, BC-2.10.010, BC-3.2.001, BC-2.22.001, BC-2.11.007
+- **TRACKED DEPENDENCY (HARD):** MUST seed `query_filters["aql"]` in `PipelineExecutor::FetchContext` from PrismQL WHERE predicate for Armis AQL push-down. Canonical seeding site: `predicate_tree_to_filter_map` (BC-2.11.007 v1.5 Mechanism B). Do NOT add parallel extract fn (Task 19 prohibits it).
+- **After merge:** POL-14 BC auto-promotions for BCs with `draft` lifecycle_status; state-manager post-merge burst (Step 9).
+
+---
+
+#### LANE 2 — S-DEMO-CROWDSTRIKE-MULTIREGION-001 (P2; ready v1.4; 2pts)
+
+- **Story file:** `.factory/stories/S-DEMO-CROWDSTRIKE-MULTIREGION-001-crowdstrike-multiregion-base-url.md`
+- **Story version:** v1.4 (D-956 PO fixes: (1) §References entries for BC-2.16.009 + BC-2.16.013 added per POL-7; (2) AC-006 BC-2.16.002 catalog-completeness reworded to SAP-1-probe form per POL-8; Red Gate test-name citations synced to BC_2_16_013_ infix)
+- **Code branch:** `feature/S-DEMO-CROWDSTRIKE-MULTIREGION-001`
+- **Worktree path:** `.worktrees/S-DEMO-CROWDSTRIKE-MULTIREGION-001`
+- **Code HEAD:** `f0621e65` (feat: crowdstrike.sensor.toml — replace hardcoded us-1 base_url with ${env.CROWDSTRIKE_BASE_URL}; unchanged from D-955)
+- **LOCAL streak:** 0/3
+- **NEXT ACTION (EXACT):** Implementer fix-burst (2 worktree items; worktree .worktrees/S-DEMO-CROWDSTRIKE-MULTIREGION-001; branch feature/S-DEMO-CROWDSTRIKE-MULTIREGION-001). After fix-burst: LOCAL adversary re-pass with Lesson 62 worktree-identity preflight. After 3-CLEAN CONVERGED: demo-recorder per-AC evidence → push → pr-manager 9-step PR cycle → PR-LEVEL 3-CLEAN → merge.
+- **Implementer fix-burst items (2):**
+  1. Test doc-table infix: update Red Gate test-name citations in test-result tables to use `BC_2_16_013_` infix (not prior stale infix)
+  2. Header pin: bump story spec-version pin in test file header from v1.1 to v1.4
+- **BCs:** BC-2.16.009, BC-2.16.013
+- **DTU note:** NO code change to prism-dtu-crowdstrike (DTU region-agnostic per ADR-031 §D8-c). Scope is crowdstrike.sensor.toml + prism-spec-engine ${env.CROWDSTRIKE_BASE_URL} interpolation only.
+- **After merge:** POL-14 BC auto-promotions; state-manager post-merge burst (Step 9).
+
+---
+
+#### LANE 3 — S-MAINT-W3SEC-CITE-SWEEP-001 (P2; in-progress; 2pts; maintenance_wave)
+
+- **Story file:** `.factory/stories/S-MAINT-W3SEC-CITE-SWEEP-001-org-guard-citation-sweep.md` (v1.2 in-progress)
+- **Companion story corrected:** `W3-FIX-SEC-001-x-org-id-auth-enforcement.md` v1.2 (ADV-P02-LOW-001 CLOSED D-955)
+- **Code branch:** `maintenance/w3sec-cite-sweep`
+- **Worktree path:** `.worktrees/S-MAINT-W3SEC-CITE-SWEEP-001`
+- **Code HEAD:** `9d4c48fd` (fix: correct BC-3.5.002 precond-3 org-guard mis-cite → W3-FIX-SEC-001 in dtu-crowdstrike + dtu-cyberint; 21 sites corrected)
+- **LOCAL streak:** 3/3 CONVERGED (3 independent CLEAN-strict passes per BC-5.39.001 D-779)
+- **PR #169:** OPEN — `https://github.com/drbothen/prism/pull/169` (base develop@eb3416d1; head maintenance/w3sec-cite-sweep@9d4c48fd; MERGEABLE; `just check` PASSED)
+- **NEXT ACTION (EXACT):** PR-LEVEL adversary cascade via fix-pr-delivery flow (no demo-recorder needed for maintenance story). After PR-LEVEL 3-CLEAN: merge → state-manager post-merge burst (DRIFT-D943-001 CLOSED on merge).
+- **After merge:** DRIFT-D943-001 CLOSED; state-manager post-merge burst records merge metadata (merged_sha, merged_pr, merged_at); S-MAINT-W3SEC-CITE-SWEEP-001 status → merged.
+
+---
+
+### §3 OPEN FOLLOW-UPS
+
+| Item | Status | Anchor |
+|------|--------|--------|
+| DRIFT-D943-001 | ANCHORED — S-MAINT-W3SEC-CITE-SWEEP-001 LOCAL 3/3 CONVERGED; PR #169 OPEN; CLOSES on merge | D-953 |
+| DRIFT-D954-001 | ANCHORED — S-MAINT-W3SEC-CITE-SWEEP-002 registered (draft; P2; depends_on []) | D-954 |
+| S-MAINT-W3SEC-CITE-SWEEP-002 | Draft stub — story-writer materialization pending; scope: prism-dtu-armis (~40+ sites) + prism-dtu-slack (1 site); file: S-MAINT-W3SEC-CITE-SWEEP-002-armis-slack-org-guard-citation-sweep.md | D-954 |
+| GH #176 | Filed at drbothen/vsdd-factory — Lesson 62 adversary worktree-identity preflight gap | D-952 |
+| S-DEMO-003 | Draft (P1; 5pts) — setup scripts + prism-credential-set CLI + operator runbook; depends_on [S-DEMO-001 SATISFIED, S-DEMO-002 HARD] | Wave-5 backlog |
+| OCSF-CLASS-MIGRATION-001 | Draft [DEMO-GOAL-REQUIRED] (P2; 3pts) — migrate 4 sensor TOMLs ocsf_class 'security_finding'→'detection_finding'; depends_on [S-DEMO-001 SATISFIED] | D-936/D-941 |
+| S-DEMO-HARNESS-CLONE-PARITY-001 | Draft [DEMO-GOAL-REQUIRED] (P2; 3pts) — prism-dtu-harness in-process clones add Armis search + Claroty audit_log routes; depends_on [BOTH SATISFIED] | D-941 |
+| S-DEMO-CLAROTY-SPEC-PROSE-FIX-001 | Draft [DEMO-GOAL-REQUIRED] (P2; 1pt) — BC-2.16.013 prose + claroty.sensor.toml stale DTU-gap comments; depends_on [S-DEMO-CLAROTY-AUDIT-DTU-001 SATISFIED] | D-941 |
+| F-P1-OBS-003 | Deferred (factory/can-wait) — SAP-2 runtime-shape-assertion extension; NOT demo-goal | D-941 |
+
+### §4 RESUME CHECKLIST (run in order on every new session)
+
+```bash
+# Step 1 — Factory worktree health (BLOCKING preflight)
+# Run: vsdd-factory:factory-worktree-health
+
+# Step 2 — Verify STATE.md version
+grep '^version:' .factory/STATE.md
+# Expected: version: "7.609"
+
+# Step 3 — Verify develop HEAD
+git log --oneline -3 develop
+# Expected: eb3416d1 at top (feat(S-DEMO-ARMIS-AQL-001): Armis AQL...)
+
+# Step 4 — Verify STORY-INDEX version and story count
+grep '^version:\|^total_stories:' .factory/stories/STORY-INDEX.md
+# Expected: version: "v2.254" / total_stories: 178
+
+# Step 5 — Verify BC-INDEX version
+grep '^version:' .factory/specs/behavioral-contracts/BC-INDEX.md
+# Expected: version: "5.75"
+
+# Step 6 — Verify open PRs
+gh pr list --state open
+# Expected: PR #169 (maintenance/w3sec-cite-sweep; base eb3416d1; MERGEABLE)
+
+# Step 7 — Verify all 3 worktree HEADs (Lesson 62 preflight discipline)
+git -C .worktrees/S-DEMO-002 rev-parse HEAD
+# Expected: e72984a8 (unchanged — implementer fix-burst not yet run)
+
+git -C .worktrees/S-DEMO-CROWDSTRIKE-MULTIREGION-001 rev-parse HEAD
+# Expected: f0621e65 (unchanged — implementer fix-burst not yet run)
+
+git -C .worktrees/S-MAINT-W3SEC-CITE-SWEEP-001 rev-parse HEAD
+# Expected: 9d4c48fd (LOCAL 3/3 CONVERGED; PR #169 OPEN)
+
+# Step 8 — Verify factory-artifacts HEAD
+git -C .factory log -1 --format='%h %s'
+# Expected: D-956 commit SHA
+
+# Step 9 — Verify sprint-state.yaml lane statuses
+grep 'story_id\|spec_version\|code_head\|dispatch_status' .factory/stories/sprint-state.yaml | head -20
+# Expected: S-DEMO-002 v1.5 e72984a8 implementer fix-burst; S-DEMO-CROWDSTRIKE v1.4 f0621e65; S-MAINT-SWEEP-001 v1.2 9d4c48fd LOCAL 3/3 PR #169
+```
+
+### §5 ARTIFACT VERSIONS (post D-956)
+
+| Artifact | Version | Notes |
+|----------|---------|-------|
+| STATE.md | v7.609 | D-956 burst |
+| STORY-INDEX.md | v2.254 | 178 stories; D-956 burst |
+| BC-INDEX.md | v5.75 | unchanged from D-954 |
+| VP-INDEX.md | v1.76 | unchanged |
+| develop HEAD | eb3416d1 | unchanged (no merges this burst) |
+| sprint-state.yaml | — | S-DEMO-002 v1.5; S-DEMO-CROWDSTRIKE v1.4; S-MAINT-SWEEP-001 v1.2 LOCAL 3/3 + PR #169 |
+| S-DEMO-002 | v1.5 | D-956 PO reconciliation (9 items); red_gate_tests 5→9 |
+| S-DEMO-CROWDSTRIKE-MULTIREGION-001 | v1.4 | D-956 PO fixes (§References per POL-7; AC-006 SAP-1-probe per POL-8) |
+| S-MAINT-W3SEC-CITE-SWEEP-001 | v1.2 (spec); 3/3 LOCAL CONVERGED | D-955 W3-FIX-SEC-001 gloss fix; D-956 LOCAL 3/3 + PR #169 |
+| PR #169 | OPEN; MERGEABLE | base eb3416d1; head 9d4c48fd; awaiting PR-LEVEL cascade |
+
+### §6 RECOMMENDED NEXT ACTIONS (ordered by priority)
+
+1. **LANE 3 (P2; HIGHEST URGENCY — LOCAL CONVERGED):** PR-LEVEL adversary cascade on PR #169 (S-MAINT-W3SEC-CITE-SWEEP-001). Use fix-pr-delivery flow. No demo-recorder needed. After PR-LEVEL 3-CLEAN: merge → state-manager post-merge burst (DRIFT-D943-001 CLOSED).
+2. **LANE 1 (P0; PARALLEL):** Dispatch implementer fix-burst on S-DEMO-002 (9 items: tool_query→query, clients, AC-014, Tasks 22-24, AC-009, FSR path, red_gate_tests 5→9, pins). Worktree: `.worktrees/S-DEMO-002`. After fix-burst: LOCAL adversary re-pass with Lesson 62 preflight.
+3. **LANE 2 (P2; PARALLEL):** Dispatch implementer fix-burst on S-DEMO-CROWDSTRIKE-MULTIREGION-001 (2 items: test doc-table infix BC_2_16_013_ + header pin v1.1→v1.4). Worktree: `.worktrees/S-DEMO-CROWDSTRIKE-MULTIREGION-001`. After fix-burst: LOCAL adversary re-pass with Lesson 62 preflight.
+4. **S-MAINT-W3SEC-CITE-SWEEP-002 (P2; background):** Dispatch story-writer to materialize file `S-MAINT-W3SEC-CITE-SWEEP-002-armis-slack-org-guard-citation-sweep.md`. Scope: prism-dtu-armis (~40+ sites) + prism-dtu-slack (1 site). Anchors DRIFT-D954-001.
+
+### §7 KEY ARCHITECTURAL CONSTRAINTS (carry into every adversary dispatch)
+
+- **BC-5.39.001 3-CLEAN protocol (D-779):** CLEAN(strict) = ZERO findings ALL severities. CLEAN(PR-merge) = ZERO CRIT+HIGH+MED. Streak advances only on CLEAN(strict). Both criteria must be explicitly stated in each adversary pass report.
+- **SAP-1 (tracing emission catalog completeness):** Grep `event_type =` across all modified Rust files; every value must have a BC-2.16.002 catalog row.
+- **SAP-2 (DTU↔TOML schema parity):** For any sensor TOML touched, verify column names + types against DTU types.rs structs.
+- **TD-VSDD-091 (anti-volatile-pin):** Cite function names + behavioral anchors, NOT file.rs:NNN line numbers.
+- **TD-VSDD-059 (paper-fix detection):** Every claimed closure must have a load-bearing test or assertion.
+- **TD-VSDD-060 (sibling-site sweep):** When changing a function sig, constant, or canonical identifier — grep ALL callsites before committing.
+- **Lesson 62 / GH #176 (worktree-identity preflight):** Every adversary dispatch MUST assert `git -C <worktree> rev-parse HEAD` == dispatched feature HEAD AND worktree basename == story ID. Prevents DISMISSED-WRONG-TREE errors.
+
+Read this §RESUME SNAPSHOT 2026-06-02-D956-LANES-PO-FIX-LANE3-PR169 (you are reading it now).
+
+Proceed per RECOMMENDED NEXT ACTIONS (§6).
+Priority 1 (lane-3 PR-LEVEL): PR #169 fix-pr-delivery cascade → merge.
+Priority 2+3 (parallel): Lanes 1&2 implementer fix-bursts → LOCAL adversary re-passes with Lesson 62 preflight.
+
+---
+
 **D-955 burst marker:** Single-commit burst per TD-VSDD-053. Anti-volatile-pin per TD-VSDD-091. Defensive sweep (S-7.02): develop_head eb3416d1 UNCHANGED; total_stories 178 UNCHANGED; story_index_version v2.252→v2.253 propagated to STATE.md frontmatter + STORY-INDEX.md frontmatter + sprint-state.yaml prereq_artifacts; bc_index_version v5.75 UNCHANGED; VP-INDEX v1.76 UNCHANGED. safe_to_compact: true.

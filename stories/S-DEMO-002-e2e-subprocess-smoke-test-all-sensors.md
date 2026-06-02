@@ -6,7 +6,7 @@ wave: 5
 epic_id: E-DEMO
 priority: P0
 status: ready
-version: "1.4"
+version: "1.5"
 level: "L4"
 producer: story-writer
 timestamp: "2026-06-02T00:00:00Z"
@@ -18,7 +18,7 @@ subsystems: [SS-01, SS-10, SS-11, SS-22]
 #     to each of the 4 DTU clone endpoints; the test verifies real data flows through.
 #   SS-10 (MCP Interface) — test drives MCP stdio transport (initialize handshake, tools/call),
 #     exercising the rmcp ServerHandler delivered by S-5.01-FOLLOWUP-MCP-BOOT.
-#   SS-11 (Query Execution) — tool_query invocation exercises QueryEngine fan_out()
+#   SS-11 (Query Execution) — `query` MCP tool invocation exercises QueryEngine fan_out()
 #     materialization pipeline, OCSF normalization, and ResponseEnvelope wrapping.
 #   SS-22 (Binary Entrypoint) — test launches prism-bin start as a subprocess and validates
 #     clean SIGTERM shutdown per BC-2.10.010.
@@ -69,7 +69,7 @@ points: 11
 #   - Subprocess launch + port-ready polling for DTU demo server: ~1 pt
 #   - Subprocess launch for prism-bin with temp config: ~1 pt
 #   - MCP handshake over stdio (initialize → tools/list): ~1.5 pts
-#   - 4 × tool_query assertions (one per sensor): ~2 pts
+#   - 4 × `query` tool assertions (one per sensor): ~2 pts
 #   - ResponseEnvelope _meta field assertions: ~1 pt
 #   - SIGTERM + clean exit assertions: ~0.5 pts
 #   - CI profile setup (e2e nextest profile): ~1 pt
@@ -85,7 +85,7 @@ risk: MEDIUM
 # use a generous timeout (30s) with backoff polling. Subprocess test teardown (SIGTERM) must
 # handle both clean exits and timeouts gracefully to avoid zombie processes in CI.
 acceptance_criteria_count: 14
-red_gate_tests: 5
+red_gate_tests: 9
 estimated_passes: "2-3 LOCAL adversary passes"
 holdout_scenarios: []
 assumption_validations: []
@@ -125,11 +125,11 @@ cycle: "v1.0.0-brownfield"
 phase: 3
 ---
 
-# S-DEMO-002 v1.4 — prism-bin: E2E Subprocess Smoke Test (All 4 Sensors + Multi-Org Isolation)
+# S-DEMO-002 v1.5 — prism-bin: E2E Subprocess Smoke Test (All 4 Sensors + Multi-Org Isolation)
 
 **Story ID:** S-DEMO-002
 **Status:** ready
-**Version:** v1.4
+**Version:** v1.5
 **Wave:** 5
 **Priority:** P0
 **Points:** 11
@@ -160,7 +160,7 @@ Cyberint. `cyberint.sensor.toml` declares `auth_type = "cookie_roundtrip"` (D-73
 
 As a Prism platform engineer, I want an end-to-end integration test that (1) launches the
 DTU demo server and prism-bin as real subprocesses with multiple registered orgs, (2) drives
-the complete MCP stdio round-trip (initialize → tools/call → tool_query) for all 4 sensor
+the complete MCP stdio round-trip (initialize → tools/call → `query`) for all 4 sensor
 DTU clones, (3) verifies that each org's query reaches the correct sensor, and (4) verifies
 that querying a sensor NOT registered for an org returns an isolation error rather than data,
 so that regressions in both GAP-002-A closure and BC-3.2.001 org isolation are caught
@@ -194,15 +194,15 @@ within 10 seconds; prism-bin completes boot sequence and accepts MCP connections
 (traces to BC-2.22.001 postcondition: "The MCP server binds to stdio ONLY AFTER step 8 is complete")
 Red Gate test: `test_BC_2_22_001_e2e_smoke_test_launches_dtu_and_prism_bin_without_error`
 
-### AC-002: tools/list returns at least 1 tool (tool_query present)
+### AC-002: tools/list returns at least 1 tool (`query` present)
 Given: Both subprocesses are running and the MCP initialize handshake completes.
 When: The test sends `tools/list` JSON-RPC over stdio.
-Then: The response contains `tool_query` in the tools array.
+Then: The response contains `query` in the tools array (the canonical name registered by `PrismServer` via `#[tool_router]`; NOT `tool_query`).
 (traces to BC-2.10.001 postcondition: "rmcp ServerHandler registers all tools via #[tool_router]")
 
 ### AC-003: CrowdStrike query returns non-empty Arrow batches with OCSF fields
 Given: Demo-org's CrowdStrike sensor spec has `base_url` overlaid to point at the DTU clone.
-When: The test sends `tools/call` with `tool_query` and input `"FROM crowdstrike_detections LIMIT 5"`.
+When: The test sends `tools/call` with tool name `query` and input `"FROM crowdstrike_detections LIMIT 5"` (i.e., `{"name": "query", "arguments": {"query": "FROM crowdstrike_detections LIMIT 5"}}`).
 Then: The ResponseEnvelope contains at least 1 row of data; the `category_uid` and `class_uid`
 fields are present and non-null; the `detection_id` column (the primary key per Gap-CS-001 fix —
 NOT `id`) is present and non-null for each row; no error code in the response.
@@ -211,15 +211,15 @@ Red Gate test: `test_BC_2_11_005_e2e_crowdstrike_query_returns_ocsf_data`
 
 ### AC-004: Armis query returns non-empty Arrow batches
 Given: Demo-org's Armis sensor spec has `base_url` overlaid to point at the DTU clone.
-When: The test sends `tools/call` with `tool_query` and input `"FROM armis_devices LIMIT 5"`
-(or the canonical table name for Armis per the TOML spec).
+When: The test sends `tools/call` with tool name `query` and input `"FROM armis_devices LIMIT 5"`
+(or the canonical table name for Armis per the TOML spec; call shape: `{"name": "query", "arguments": {"query": "..."}}`).
 Then: The ResponseEnvelope contains at least 1 row; no error code.
 (traces to BC-2.11.005 postcondition: same as AC-003 for Armis sensor)
 Red Gate test: `test_BC_2_11_005_e2e_armis_query_returns_data`
 
 ### AC-005: Claroty query returns non-empty Arrow batches
 Given: Demo-org's Claroty sensor spec has `base_url` overlaid to point at the DTU clone.
-When: The test sends `tools/call` with `tool_query` and input `"FROM claroty_alerts LIMIT 5"`.
+When: The test sends `tools/call` with tool name `query` and input `"FROM claroty_alerts LIMIT 5"` (call shape: `{"name": "query", "arguments": {"query": "..."}}`).
 Then: The ResponseEnvelope contains at least 1 row; the `alert_type_name` column (not `type`)
 and `detected_time` column (not `created_at`) are present per Gap-CL-005 TOML fix; no error code.
 Also test `"FROM claroty_devices LIMIT 5"` — expects at least 1 row with `uid` column present
@@ -230,13 +230,13 @@ POST body) — assert only for page-1 result rows (≤ page_size=100).
 
 ### AC-006: Cyberint query returns non-empty Arrow batches
 Given: Demo-org's Cyberint sensor spec has `base_url` overlaid to point at the DTU clone.
-When: The test sends `tools/call` with `tool_query` and input `"FROM cyberint_alerts LIMIT 5"`
-(or the canonical table name for Cyberint per the TOML spec).
+When: The test sends `tools/call` with tool name `query` and input `"FROM cyberint_alerts LIMIT 5"`
+(or the canonical table name for Cyberint per the TOML spec; call shape: `{"name": "query", "arguments": {"query": "..."}}`).
 Then: The ResponseEnvelope contains at least 1 row; no error code.
 (traces to BC-2.11.005 postcondition: same as AC-003 for Cyberint sensor)
 
 ### AC-007: ResponseEnvelope _meta fields are correct
-Given: A successful tool_query response for any of the 4 sensors.
+Given: A successful `query` tool response for any of the 4 sensors.
 When: The test inspects the ResponseEnvelope JSON.
 Then: `_meta.trust_level == "untrusted_external"` and `_meta.safety_flags` is an empty array
 (no injection flags on synthetic DTU data); `_meta.data_source` contains the sensor name
@@ -257,6 +257,12 @@ Then: All 5 runs pass; no race conditions between subprocess startup and MCP con
 ready-signal polling (`.prism-dtu-demo-server.urls.json` appearance) is the synchronization point.
 (traces to BC-2.11.005 invariant: "The SessionContext and all materialized data are dropped
 when the tool call returns — no cross-call state")
+**Coverage decision (F-PC-002 — in scope, implementer must verify):** AC-009 is validated by
+running the full smoke test suite 5 consecutive times in the CI e2e profile job and confirming
+zero failures. This is a CI-gate behavior, not a separate Rust `#[test]` function. The implementer
+MUST document this in the PR description and confirm 5 consecutive local green runs before declaring
+AC-009 satisfied. No additional `#[test]` function is required beyond the primary smoke test
+functions — determinism is a *property* of the existing tests, verified by repetition.
 
 ### AC-010: Test is gated behind `#[ignore]` with explicit CI profile un-ignoring
 Given: CI matrix runs standard nextest profile (no DTU server available).
@@ -282,7 +288,11 @@ Red Gate test: `test_BC_3_2_001_e2e_multi_org_boot_registers_correct_adapter_cou
 
 ### AC-012: Cross-org isolation — querying a sensor not registered for an org returns AdapterNotFound
 Given: `demo-org-a` has CrowdStrike + Armis but NOT Claroty or Cyberint.
-When: The test sends `tool_query "FROM claroty_alerts LIMIT 5"` with org context `demo-org-a`.
+When: The test sends a `query` MCP tool call with `{"name": "query", "arguments": {"query": "FROM claroty_alerts LIMIT 5", "clients": ["demo-org-a"]}}`.
+Note: The scoping param is **`clients`** (array of org slug strings), NOT `org_slug` — `QueryToolParams`
+uses `clients: Option<Vec<String>>` per BC-2.11.001 Preconditions and the as-built `QueryToolParams`
+in `prism-mcp/server.rs` (which has `#[serde(deny_unknown_fields)]`; passing `org_slug` would be
+rejected at deserialization before isolation logic runs).
 Then: The ResponseEnvelope contains an error indicating `AdapterNotFound` or equivalent isolation
 error (sensor not registered for this org); zero data rows are returned; no Claroty data from
 `demo-org-b` is leaked into the response.
@@ -293,7 +303,7 @@ Red Gate test: `test_BC_3_2_001_e2e_cross_org_sensor_query_returns_adapter_not_f
 ### AC-013: DTU multi-tenant emulation — each org's queries reach the correct DTU clone port
 Given: The demo DTU server runs with all 4 sensor clones, each on an ephemeral port; each org's
 `customers/{slug}/{sensor}.sensor.toml` overlay points to the correct port for that sensor clone.
-When: The test issues `tool_query "FROM crowdstrike_detections LIMIT 5"` for each of the 3 orgs.
+When: The test issues `query` tool calls (`{"name": "query", "arguments": {"query": "FROM crowdstrike_detections LIMIT 5", "clients": ["<org_slug>"]}}`) for each of the 3 orgs.
 Then: All 3 queries succeed (each org's CrowdStrike adapter points to the same DTU clone port
 for CrowdStrike — different orgs can share the same DTU clone port in the demo context because
 the DTU clone operates in single-tenant mode without org-level data segregation at the HTTP layer;
@@ -311,9 +321,17 @@ layer is a Wave 3 S-3.2.xx story scope (BC-3.2.003/BC-3.2.004); it is NOT requir
 This scoping decision MUST be documented in a code comment in the test helper: `// DTU-MULTI-001:
 demo DTU operates in single-tenant mode; org isolation is at AdapterRegistry layer only.`
 (traces to BC-3.2.001 postcondition 3; ADR-006 §3.1 cross-tenant threat model)
+**Coverage decision (F-PC-002 — explicit test required, in scope):** AC-013 requires a dedicated
+test function. The implementer MUST write:
+`test_BC_3_2_001_e2e_dtu_multi_tenant_each_org_reaches_correct_clone_port` — issues a `query`
+tool call `{"name": "query", "arguments": {"query": "FROM crowdstrike_detections LIMIT 5", "clients": ["demo-org-a"]}}` and `{"clients": ["demo-org-c"]}` variants; asserts both succeed and
+return data rows (verifying both orgs' CrowdStrike adapters are wired to the same DTU clone port);
+includes `// DTU-MULTI-001:` comment per scope clarification above. This test is separate from
+AC-011's adapter-count test (which verifies registration) — AC-013's test verifies query execution
+reaches the correct port at runtime.
 
 ### AC-014: AQL filter seeded into FetchContext for Armis end-to-end push-down (Mechanism B passthrough)
-Given: A tool_query call targets an Armis table using the verbatim-AQL pseudo-column convention
+Given: A `query` MCP tool call targets an Armis table using the verbatim-AQL pseudo-column convention
 (e.g., `"FROM armis_devices WHERE aql = 'in:devices' LIMIT 5"` — the user writes `aql = '<string>'`
 as a literal pseudo-column in the PrismQL WHERE clause; `aql` is declared as an INDEX column in
 `armis.sensor.toml`).
@@ -325,6 +343,16 @@ per BC-2.11.007 §Predicate Classification Mechanism B and R-DTU-002 / ADR-031 �
 response contains rows from the AQL-matched entity type. This verifies end-to-end push-down from
 PrismQL → QueryEngine (seeding) → PipelineExecutor (interpolation via `${query.filter.aql}`) → DTU.
 
+**Seeding mechanism accuracy (F-*-MED):** The `aql` INDEX column declaration in `armis.sensor.toml`
+is **not** what triggers the seeding path. The INDEX option is currently decorative — it documents
+push-down intent but does not gate a special code path at runtime. The actual seeding is performed
+by the **generic equality-extraction path** (`predicate_tree_to_filter_map` /
+`extract_push_down_filters_as_map`), which extracts ALL `field = 'string'` equality predicates from
+the PrismQL WHERE clause regardless of whether the column is declared INDEX. The implementer MUST
+use this generic path — do NOT add a special `if column_is_index` branch. The INDEX declaration in
+the TOML documents the semantic intent (push-down candidate) and will gate a future optimization
+path (per ADR-031 §D8-a); it is NOT a runtime gate today.
+
 Scope note (D-934): The Armis DTU/TOML/interpolation layer was confirmed correctly wired in
 S-DEMO-ARMIS-AQL-001 (PR #168; `${query.filter.aql}` path_template variable + `armis.sensor.toml`
 fetch_devices path = `/api/v1/search`). The production query-layer seeding — prism-query
@@ -334,7 +362,7 @@ violation: the seeding is the final piece of the Armis AQL push-down pipeline an
 E2E integration story.
 
 (traces to BC-2.11.007 §Predicate Classification Mechanism B — Verbatim-AQL Passthrough: `aql = '<string>'`
-pseudo-column convention; BC-2.11.001 precondition: `tool_query` accepts and forwards WHERE predicates
+pseudo-column convention; BC-2.11.001 precondition: `query` MCP tool accepts and forwards WHERE predicates
 through to the query engine)
 
 ---
@@ -369,10 +397,9 @@ Version source: workspace `Cargo.toml`. `rmcp` version confirmed from S-5.01-FOL
 
 | File | Action | Purpose |
 |------|--------|---------|
-| `crates/prism-bin/tests/e2e_smoke.rs` | CREATE | Integration test file with all 10 ACs |
+| `crates/prism-bin/tests/e2e_smoke.rs` | CREATE | Integration test file with all ACs |
 | `crates/prism-bin/tests/helpers/mod.rs` | CREATE | `SubprocessGuard` (drop → SIGTERM), `wait_for_file()`, `write_demo_config()`, `bootstrap_credentials()` |
-| `crates/prism-bin/tests/fixtures/demo-prism.toml.template` | CREATE | Template prism.toml with `{{DTU_CROWDSTRIKE_PORT}}` etc. placeholders filled by test setup |
-| `crates/prism-bin/tests/fixtures/demo.toml` | CREATE | DTU demo server config for test (same 4 sensors) |
+| `crates/prism-bin/fixtures/e2e-demo/demo.toml` | CREATE | DTU demo server config for test (same 4 sensors). Path is `fixtures/e2e-demo/` (NOT `tests/fixtures/`) — accessed via `CARGO_MANIFEST_DIR/fixtures/e2e-demo/demo.toml` in the test harness (F-PB-MED-002 corrected; phantom `demo-prism.toml.template` removed — `prism.toml` is generated programmatically by `write_demo_config()` helper into a `TempDir`, not from a template file). |
 | `.cargo/nextest.toml` (or `Cargo.toml` nextest section) | MODIFY | Add `[profile.e2e]` that un-ignores E2E-tagged tests |
 
 ---
@@ -386,9 +413,9 @@ Version source: workspace `Cargo.toml`. `rmcp` version confirmed from S-5.01-FOL
 5. **Write Red Gate tests** in `crates/prism-bin/tests/e2e_smoke.rs` — all 4 Red Gate tests (AC-001, AC-003, AC-004, AC-009 shape) fail RED before S-DEMO-001 is merged.
 6. **Implement** `bootstrap_credentials()` helper — uses `prism-credentials` test-helpers feature or OS keyring CLI to write dummy credentials for all 4 sensors.
 7. **Implement** `write_demo_config()` — generates `prism.toml` with `demo-org` org entry, correct `spec_dir`, `plugin_dir`, `state_dir`, and per-sensor `customers/demo-org/*.sensor.toml` overlay files pointing at DTU ports read from `urls.json`.
-8. **Implement** `launch_dtu_server()` — spawns `prism-dtu-demo-server start --config tests/fixtures/demo.toml` with temp state dir; polls for `urls.json` with 30s timeout; returns `SubprocessGuard` + parsed ports.
+8. **Implement** `launch_dtu_server()` — spawns `prism-dtu-demo-server start --config <CARGO_MANIFEST_DIR>/fixtures/e2e-demo/demo.toml` with temp state dir; polls for `urls.json` with 30s timeout; returns `SubprocessGuard` + parsed ports. (Config path is `fixtures/e2e-demo/demo.toml` per FSR corrected by F-PB-MED-002.)
 9. **Implement** `launch_prism_bin()` — spawns `prism-bin start --config <temp_dir>` with stdin/stdout pipes; wraps stdio in a `rmcp` client or raw JSON-RPC writer; returns `SubprocessGuard` + IO handles.
-10. **Implement** MCP handshake in test — send `initialize`, receive `initialized`, send `tools/list`, assert `tool_query` present.
+10. **Implement** MCP handshake in test — send `initialize`, receive `initialized`, send `tools/list`, assert `query` present in the tools array (the canonical name registered by `PrismServer`; NOT `tool_query`).
 11. **Implement** 4 × query assertions (AC-003..006) — each sends `tools/call` with appropriate query string; asserts non-empty data and OCSF fields.
 12. **Implement** `_meta` assertions (AC-007) — parse `ResponseEnvelope` JSON; assert `trust_level` and `safety_flags`.
 13. **Implement** SIGTERM teardown (AC-008) in `SubprocessGuard::drop()`.
@@ -399,8 +426,9 @@ Version source: workspace `Cargo.toml`. `rmcp` version confirmed from S-5.01-FOL
 16. **Write Red Gate test** `test_BC_3_2_001_e2e_multi_org_boot_registers_correct_adapter_count`
     (AC-011): asserts `AdapterRegistry` contains exactly 8 entries after boot with 3-org config.
 17. **Write Red Gate test** `test_BC_3_2_001_e2e_cross_org_sensor_query_returns_adapter_not_found`
-    (AC-012): asserts that `tool_query "FROM claroty_alerts LIMIT 5"` for `demo-org-a` returns
+    (AC-012): asserts that a `query` tool call `{"name": "query", "arguments": {"query": "FROM claroty_alerts LIMIT 5", "clients": ["demo-org-a"]}}` returns
     an error envelope (not data) because Claroty is not registered for that org.
+    Note: pass `clients: ["demo-org-a"]` (NOT `org_slug`) — see AC-012 for rationale.
 18. **Implement** AC-013 assertion and document DTU-MULTI-001 comment per scope clarification.
 19. **Implement** AQL push-down seeding (AC-014, D-934 scope, Mechanism B passthrough): in
     `prism-query` QueryEngine or the adapter dispatch layer, handle the `aql = '<string>'`
@@ -417,6 +445,19 @@ Version source: workspace `Cargo.toml`. `rmcp` version confirmed from S-5.01-FOL
     `crates/prism-spec-engine/src/pipeline_executor.rs` to confirm the seeding site.
 20. **Run** `cargo nextest run -p prism-bin --profile e2e` after S-DEMO-001 merges; all assertions must pass GREEN.
 21. **Run** `just check` — final pre-push gate.
+22. **Write Red Gate test** `test_BC_3_2_001_e2e_dtu_multi_tenant_each_org_reaches_correct_clone_port`
+    (AC-013): issues `query` tool calls for `demo-org-a` and `demo-org-c` (both have CrowdStrike);
+    asserts both succeed and return data rows; includes `// DTU-MULTI-001:` comment per AC-013
+    scope clarification. This is a SEPARATE test from Task 16 (adapter-count) — it tests runtime
+    query execution, not boot-time registration. (F-PC-002 gap closed.)
+23. **Write test** `test_EC_004_e2e_limit_zero_returns_empty_not_error` (EC-004): sends
+    `FROM crowdstrike_detections LIMIT 0` via `query` tool; asserts no error envelope and
+    zero rows. (F-PC-002 gap closed.)
+24. **Write test** `test_EC_005_e2e_limit_200_returns_paginated_rows` (EC-005): sends
+    `FROM crowdstrike_detections LIMIT 200` via `query` tool; asserts no error envelope and
+    ≤200 rows (see EC-005 coverage decision for assertion caveat on fixture row count).
+    Read `crates/prism-dtu-demo-server/` fixture data to confirm row count before asserting.
+    (F-PC-002 gap closed.)
 
 ---
 
@@ -448,8 +489,8 @@ Version source: workspace `Cargo.toml`. `rmcp` version confirmed from S-5.01-FOL
 | EC-001 | DTU server fails to start (port conflict) | Test fails with clear message: "DTU server did not write urls.json within 30s" |
 | EC-002 | prism-bin exits before MCP handshake completes | Test fails with clear message: "prism-bin exited unexpectedly with code N"; SubprocessGuard teardown logs stderr for diagnosis |
 | EC-003 | A sensor query returns zero rows (DTU returned empty) | Test fails with AC assertion: "expected at least 1 row"; this is a data fidelity issue in the DTU clone, not a framework issue |
-| EC-004 | `LIMIT 0` query variant | An additional edge-case test verifies that `LIMIT 0` returns empty-but-not-error response (E2E-DEMO-WIRING-PLAN §6 Risk 3 mitigation) |
-| EC-005 | `LIMIT 200` query variant | An additional edge-case test verifies that `LIMIT 200` triggers pagination in the DTU clone and returns 200 rows (exercises pagination at least one extra page per E2E-DEMO-WIRING-PLAN §6 Risk 3 mitigation) |
+| EC-004 | `LIMIT 0` query variant | An additional edge-case test verifies that `LIMIT 0` returns empty-but-not-error response (E2E-DEMO-WIRING-PLAN §6 Risk 3 mitigation). **Coverage decision (F-PC-002 — in scope):** Implementer MUST write `test_EC_004_e2e_limit_zero_returns_empty_not_error` — sends `{"name": "query", "arguments": {"query": "FROM crowdstrike_detections LIMIT 0"}}` and asserts: response is not an error envelope; `events` array is empty (0 rows); `is_truncated: false` or `total_available: 0`. |
+| EC-005 | `LIMIT 200` query variant | An additional edge-case test verifies that `LIMIT 200` triggers pagination in the DTU clone and returns 200 rows (exercises pagination at least one extra page per E2E-DEMO-WIRING-PLAN §6 Risk 3 mitigation). **Coverage decision (F-PC-002 — in scope):** Implementer MUST write `test_EC_005_e2e_limit_200_returns_paginated_rows` — sends `{"name": "query", "arguments": {"query": "FROM crowdstrike_detections LIMIT 200"}}` and asserts: response is not an error envelope; `events` array contains 200 rows (assuming the CrowdStrike DTU clone fixture has ≥200 rows — if it has fewer, assert `len(events) == fixture_row_count` and document this in a comment; do NOT assert exactly 200 if fixture data is smaller). Implementer must verify DTU fixture row count before writing the assertion. |
 | EC-006 | Org registered with zero sensors (all overlays missing) | Boot step 9A produces 0 adapters for that org; the org entry itself remains in `OrgRegistry`; no error; org-specific query returns `AdapterNotFound` |
 | EC-007 | Two orgs both have CrowdStrike; same DTU clone port in both overlays | Both orgs' CrowdStrike queries succeed and return identical fixture data (DTU single-tenant mode — DTU-MULTI-001 scope); no cross-org data is modified |
 | EC-008 | Org A queries sensor registered for Org C but not Org A | Returns `AdapterNotFound` error envelope; Org C's adapter is not accessible from Org A's call context per BC-3.2.001 |
@@ -490,6 +531,7 @@ Well within budget; second-cheapest story in the E-DEMO epic.
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.5 | 2026-06-02 | product-owner | Adversarial reconciliation (POL-27, POL-32). (1) F-*-CRIT-001 — all `tool_query` references replaced with canonical tool name `query` (BC-2.11.001 H1 source-of-truth): AC-002, AC-003, AC-004, AC-005, AC-006, AC-007, AC-012, AC-013, AC-014, Task 10, Task 17, Narrative, frontmatter comments. (2) F-*-CRIT-002 — AC-012 and Task 17 replace `org_slug="demo-org-a"` tool arg with canonical `clients: ["demo-org-a"]` per BC-2.11.001 Preconditions and `QueryToolParams` `#[serde(deny_unknown_fields)]` constraint; rationale note added inline. (3) F-*-MED — AC-014 seeding mechanism accuracy: added "Seeding mechanism accuracy" paragraph clarifying that INDEX column option is decorative (not a runtime gate today); generic `predicate_tree_to_filter_map` path extracts all `field='string'` equality predicates regardless of INDEX; implementer must NOT add `if column_is_index` branch. (4) F-PC-002 — coverage decisions for AC-009 (CI repetition, no new #[test]), AC-013 (new test Task 22: `test_BC_3_2_001_e2e_dtu_multi_tenant_each_org_reaches_correct_clone_port`), EC-004 (new test Task 23: `test_EC_004_e2e_limit_zero_returns_empty_not_error`), EC-005 (new test Task 24: `test_EC_005_e2e_limit_200_returns_paginated_rows`); red_gate_tests 5→9. (5) F-PB-MED-002 — FSR corrected: `crates/prism-bin/fixtures/e2e-demo/demo.toml` (not `tests/fixtures/demo.toml`); phantom `demo-prism.toml.template` removed (programmatic generation via `write_demo_config()`); Task 8 path updated. |
 | 1.4 | 2026-06-02 | product-owner | F-DEMO002-P1-MED-002 adjudication (POL-4 semantic drift). AC-014 rewritten to reflect BC-2.11.007 v1.5 Mechanism B (Verbatim-AQL Passthrough): user writes `aql = '<string>'` pseudo-column in PrismQL WHERE (not raw AQL syntax); query planner seeds verbatim string into FetchContext.query_filters["aql"]; forwarded opaque to DTU per R-DTU-002 / ADR-031 §D8-a. Task 19 updated: canonical seeding site is predicate_tree_to_filter_map / extract_push_down_filters_as_map path; explicitly prohibits parallel extract_aql_filter_value_from_ast function (one code path only per implementer recommendation). Story H1 version block updated v1.3→v1.4. |
 | 1.3 | 2026-06-02 | product-owner | Readiness flip draft→ready. (1) BC-2.22.001 (Boot Orchestration — Sequencing, Exit-Code Map, and Pre-Traffic Gate) added to behavioral_contracts frontmatter + BC body table — AC-001/AC-010/AC-011 already traced to it; gap closed per POL-8. (2) BC-2.11.007 (Sensor Filter Push-Down) added to behavioral_contracts frontmatter — required by AC-014 AQL push-down seeding. (3) AC-014 added: end-to-end AQL push-down seeding — prism-query QueryEngine populates FetchContext.query_filters["aql"] from PrismQL WHERE predicate for Armis; D-934 confirmed scope boundary (architect+implementer). Task 19 added (AQL seeding implementation + Red Gate test). acceptance_criteria_count 13→14. Token budget updated: 8 BCs / +3,500 tokens for prism-query seeding site / total ~43,800. |
 | 1.2 | 2026-05-29 | architect | AC-003: assert `detection_id` column (not `id`) per Gap-CS-001 TOML fix. AC-005: corrected query from `claroty_assets` (table does not exist) to `claroty_alerts`; added `claroty_devices` query per Gap-CL-003 fix; asserted `alert_type_name`/`detected_time` column names per Gap-CL-005 fix; noted Gap-CL-004 single-page limitation. Story bumped to v1.2 from v1.1. |

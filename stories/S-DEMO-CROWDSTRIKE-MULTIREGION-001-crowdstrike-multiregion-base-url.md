@@ -6,7 +6,7 @@ wave: 5
 epic_id: E-DTU-FIDELITY
 priority: P2
 status: ready
-version: "1.3"
+version: "1.4"
 level: "L4"
 producer: story-writer
 timestamp: "2026-05-31T00:00:00Z"
@@ -96,11 +96,11 @@ cycle: "v1.0.0-brownfield"
 phase: 3
 ---
 
-# S-DEMO-CROWDSTRIKE-MULTIREGION-001 v1.3 — CrowdStrike Multi-Region base_url Fidelity
+# S-DEMO-CROWDSTRIKE-MULTIREGION-001 v1.4 — CrowdStrike Multi-Region base_url Fidelity
 
 **Story ID:** S-DEMO-CROWDSTRIKE-MULTIREGION-001
 **Status:** ready
-**Version:** v1.3
+**Version:** v1.4
 **Wave:** 5
 **Priority:** P2
 **Points:** 2
@@ -223,7 +223,7 @@ A test sets `CROWDSTRIKE_BASE_URL=https://api.eu-1.crowdstrike.com` and loads
 (auth_type, auth_plugin, tables, columns all parse correctly).
 (traces to BC-2.16.013 §Postconditions §1 (CrowdStrike spec authoring fidelity))
 
-Red Gate test: `test_crowdstrike_eu1_base_url_env_var_resolves_correctly`
+Red Gate test: `test_BC_2_16_013_crowdstrike_eu1_base_url_env_var_resolves_correctly`
 
 ### AC-003: Structured E-SPEC error (not panic) when CROWDSTRIKE_BASE_URL is unset
 When `CROWDSTRIKE_BASE_URL` is not set in the environment at spec-load time, loading
@@ -238,7 +238,7 @@ same existing behavior and only requires a test against the CrowdStrike spec. If
 engine panics, implement the E-SPEC error in-scope (production-grade default — do not defer).
 (traces to BC-2.16.009 §Validation Rules 6 (env-var resolver) + E-SPEC-024; EC-009-009)
 
-Red Gate test: `test_crowdstrike_base_url_env_unset_returns_spec_error_not_panic`
+Red Gate test: `test_BC_2_16_013_crowdstrike_base_url_env_unset_returns_spec_error_not_panic`
 
 ### AC-004: DTU demo path works when env var points to local DTU address
 A test sets `CROWDSTRIKE_BASE_URL=http://127.0.0.1:<dtu_port>` and loads
@@ -247,7 +247,7 @@ DTU at that address (OAuth2 token exchange and detection fetch complete without 
 This proves the env-var pattern does not break the DTU demo path.
 (traces to BC-2.16.013 §Postconditions §2 (DTU parity; DTU region-agnostic per ADR-031 §D8-c))
 
-Red Gate test: `test_crowdstrike_base_url_env_points_to_local_dtu_demo_works`
+Red Gate test: `test_BC_2_16_013_crowdstrike_base_url_env_points_to_local_dtu_demo_works`
 
 ### AC-005: auth_type and auth_plugin are unchanged
 `crowdstrike.sensor.toml` after this story still has:
@@ -261,7 +261,7 @@ These values are NOT changed by this story. A spec-load test confirms the parsed
 If any new `tracing::*!(event_type = ...)` site is introduced in this story's implementation
 (e.g., in the env-var resolution error path of spec_parser.rs), it must have a corresponding
 row in BC-2.16.002 Structured Event Catalog. Zero uncatalogued `event_type` emissions permitted.
-(traces to BC-2.16.002 §Structured Event Catalog (SAP-1 standing probe))
+(SAP-1 standing probe: no uncatalogued event_type emissions; ref BC-2.16.002 Structured Event Catalog)
 
 ---
 
@@ -269,9 +269,9 @@ row in BC-2.16.002 Structured Event Catalog. Zero uncatalogued `event_type` emis
 
 | Test Name | AC | Crate | Description |
 |-----------|----|-------|-------------|
-| `test_crowdstrike_eu1_base_url_env_var_resolves_correctly` | AC-002 | prism-sensors (or prism-spec-engine) | Set CROWDSTRIKE_BASE_URL=eu-1 URL; load spec; assert base_url resolved to eu-1 |
-| `test_crowdstrike_base_url_env_unset_returns_spec_error_not_panic` | AC-003 | prism-sensors (or prism-spec-engine) | Unset CROWDSTRIKE_BASE_URL; load spec; assert Err(SpecEngineError) not panic |
-| `test_crowdstrike_base_url_env_points_to_local_dtu_demo_works` | AC-004 | prism-spec-engine (integration) | Set CROWDSTRIKE_BASE_URL to DTU addr; spec loads; pipeline connects |
+| `test_BC_2_16_013_crowdstrike_eu1_base_url_env_var_resolves_correctly` | AC-002 | prism-spec-engine | Set CROWDSTRIKE_BASE_URL=eu-1 URL; load spec; assert base_url resolved to eu-1 |
+| `test_BC_2_16_013_crowdstrike_base_url_env_unset_returns_spec_error_not_panic` | AC-003 | prism-spec-engine | Unset CROWDSTRIKE_BASE_URL; load spec; assert Err(SpecEngineError) not panic |
+| `test_BC_2_16_013_crowdstrike_base_url_env_points_to_local_dtu_demo_works` | AC-004 | prism-spec-engine | Set CROWDSTRIKE_BASE_URL to DTU addr; spec loads with DTU address as base_url |
 
 ---
 
@@ -292,9 +292,9 @@ row in BC-2.16.002 Structured Event Catalog. Zero uncatalogued `event_type` emis
    - Does it panic? → Implement E-SPEC structured error in `spec_parser.rs` first
      (in-scope per production-grade default). Do NOT defer this fix.
 5. **Write Red Gate tests** (must ALL FAIL before implementation):
-   - `test_crowdstrike_eu1_base_url_env_var_resolves_correctly`
-   - `test_crowdstrike_base_url_env_unset_returns_spec_error_not_panic`
-   - `test_crowdstrike_base_url_env_points_to_local_dtu_demo_works`
+   - `test_BC_2_16_013_crowdstrike_eu1_base_url_env_var_resolves_correctly`
+   - `test_BC_2_16_013_crowdstrike_base_url_env_unset_returns_spec_error_not_panic`
+   - `test_BC_2_16_013_crowdstrike_base_url_env_points_to_local_dtu_demo_works`
 6. **Update** `crates/prism-sensors/specs/crowdstrike.sensor.toml`:
    ```toml
    # CrowdStrike Falcon API region base URLs (set CROWDSTRIKE_BASE_URL to the tenant's region):
@@ -454,6 +454,8 @@ Well within the 20-30% budget.
 - `crates/prism-sensors/specs/armis.sensor.toml` — env-var pattern template
 - `crates/prism-sensors/specs/claroty.sensor.toml` — env-var pattern template
 - `.factory/specs/prd-supplements/error-taxonomy.md` — E-SPEC error codes
+- BC-2.16.009 v1.7 "Spec File Validation — Schema Validation, Variable Reference Resolution, OCSF Field Validation" — §Validation Rules 6 env-var resolver; E-SPEC-024 on missing/empty var; EC-009-008/EC-009-009 CrowdStrike test vectors
+- BC-2.16.013 v1.22 "Bundled Sensor Spec Authoring and DTU-Parity Verification — 4 Initial Sensors" — §Postconditions §1 CrowdStrike spec authoring fidelity (base_url env-var pattern); §Postconditions §2 DTU parity (region-agnostic per ADR-031 §D8-c)
 
 ---
 
@@ -461,6 +463,7 @@ Well within the 20-30% budget.
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.4 | 2026-06-02 | product-owner | Adversary fix-burst closing F-PB-HIGH-001 + F-PB-MED-001 + F-PC-LOW-001 (story-side). F-PB-HIGH-001: added §References entries for BC-2.16.009 v1.7 and BC-2.16.013 v1.22 with verbatim H1 titles (POL-7 D-571 verification step). F-PB-MED-001: rewrote AC-006 trace from "(traces to BC-2.16.002...)" to SAP-1 standing-probe guard form, eliminating POL-8 trace-without-frontmatter asymmetry; BC-2.16.002 correctly absent from behavioral_contracts frontmatter. F-PC-LOW-001 (story-side): synced all Red Gate test name citations in §Red Gate Tests table, AC-002/003/004 blocks, and Tasks §5 to verbatim fn names with BC_2_16_013_ infix per bc_2_16_013_crowdstrike_multiregion.rs (test-file doc-table + header version pin v1.1→v1.3 routed to implementer; see worktree fix note). |
 | 1.3 | 2026-06-02 | story-writer | Bump-stable cite fix closing F-P2-OBS-001. Frontmatter historical comment re-phrased from volatile "see BC-INDEX v5.74" head-version pointer to burst-stable cite "established D-946" per TD-VSDD-091 spirit and adversary recommendation. No substantive content change. |
 | 1.2 | 2026-06-02 | story-writer | Cite-currency fix closing F-P1-OBS-001. §New-BC Flags live confirmation pin BC-2.16.013 (v1.19) → (v1.22) (current active version per BC-INDEX v5.74). Frontmatter historical comment annotated "(BC now at v1.22)" per TD-VSDD-091 (historical record preserved; current state clarified). No substantive content change. |
 | 1.1 | 2026-06-01 | story-writer | PO BC-coverage propagation burst. Attached BC-2.16.009 (v1.7) and BC-2.16.013 (v1.19) per PO commit 30111e52. Updated §Behavioral Contracts table (verbatim titles from BC H1s per POL-7). Updated AC-001/AC-002/AC-005 traces → BC-2.16.013 §Postconditions §1; AC-003 → BC-2.16.009 §Validation Rules 6 + E-SPEC-024; AC-004 → BC-2.16.013 §Postconditions §2; AC-006 → BC-2.16.002 §Structured Event Catalog. Resolved New-BC Flags section with PO adjudication (E-SPEC-024 confirmed). Token Budget updated: BC files row added (~700 tokens), total ~14,500. Status: draft → ready (S-7.01 gate cleared). |
