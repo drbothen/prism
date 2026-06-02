@@ -86,7 +86,7 @@ async fn test_AC_002_dtu_reset_with_admin_token_returns_200() {
 // AC-003: cross-clone (wrong) token → HTTP 401
 // ---------------------------------------------------------------------------
 
-/// BC-3.5.002 precondition 3: admin token is per-clone; another clone's token
+/// W3-FIX-SEC-001: admin token is per-clone; another clone's token
 /// must be rejected.
 ///
 /// Spin up two independent `ClarotyClone` instances.  Token from clone B

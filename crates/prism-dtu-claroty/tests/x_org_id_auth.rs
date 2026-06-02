@@ -18,10 +18,10 @@
 //! | AC | Description |
 //! |----|-------------|
 //! | AC-001 | Same-org request succeeds (BC-3.2.001 postcondition 1) |
-//! | AC-002 | Cross-org spoofing returns HTTP 401 (BC-3.5.002 precondition 3) |
+//! | AC-002 | Cross-org spoofing returns HTTP 401 (W3-FIX-SEC-001) |
 //! | AC-003 | Missing header returns HTTP 401 (BC-3.5.001 postcondition 1) |
 //! | AC-004 | All four DTU clones covered (BC-3.2.001 invariant 1) |
-//! | AC-005 | Regression: `test_cross_org_header_rejected` (BC-3.5.002 precondition 3) |
+//! | AC-005 | Regression: `test_cross_org_header_rejected` (W3-FIX-SEC-001) |
 //! | AC-006 | Positive paths in existing tests still pass (BC-3.5.001 postcondition 1) |
 //!
 //! # Edge cases covered
@@ -122,15 +122,15 @@ async fn test_AC_001_x_org_id_validated_against_bearer_token() {
 }
 
 // ===========================================================================
-// AC-002 — Cross-org spoofing returns 401 (BC-3.5.002 precondition 3)
+// AC-002 — Cross-org spoofing returns 401 (W3-FIX-SEC-001)
 // ===========================================================================
 
-/// AC-002 / BC-3.5.002 precondition 3:
+/// AC-002 / W3-FIX-SEC-001:
 /// A request supplying a different org's UUID in `X-Org-Id` receives HTTP 401
 /// with JSON body `{"error": "org_id mismatch: request does not match this clone instance"}`.
 /// Clone internal state is NOT accessed or modified.
 ///
-/// Traces to: BC-3.5.002 precondition 3, W3-FIX-SEC-001 AC-002.
+/// Traces to: W3-FIX-SEC-001 AC-002.
 #[tokio::test]
 async fn test_AC_002_cross_org_credential_returns_401() {
     // Clone is bound to org_a; caller supplies org_b UUID.
@@ -224,15 +224,15 @@ async fn test_AC_003_missing_x_org_id_header_returns_401() {
 }
 
 // ===========================================================================
-// AC-005 — Regression: test_cross_org_header_rejected (BC-3.5.002 precondition 3)
+// AC-005 — Regression: test_cross_org_header_rejected (W3-FIX-SEC-001)
 // ===========================================================================
 
-/// AC-005 / BC-3.5.002 precondition 3:
+/// AC-005 / W3-FIX-SEC-001:
 /// Integration test demonstrating credential-mismatch returns HTTP 401.
 /// Verifies it is NOT HTTP 200 and NOT a silent empty response.
 ///
 /// This is the canonical regression guard for HS-003-02 invariant.
-/// Traces to: BC-3.5.002 precondition 3, W3-FIX-SEC-001 AC-005.
+/// Traces to: W3-FIX-SEC-001 AC-005.
 #[tokio::test]
 async fn test_cross_org_header_rejected() {
     let (_clone, base_url) = start_clone_with_org(org_a()).await;

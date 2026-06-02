@@ -245,6 +245,68 @@ pub struct GetVulnerabilityDevicesResponse {
 }
 
 // ---------------------------------------------------------------------------
+// Audit log types (Gap-CL-006 / S-DEMO-CLAROTY-AUDIT-DTU-001)
+// ---------------------------------------------------------------------------
+
+/// A single Claroty xDome audit log entry.
+///
+/// Field names match the `audit_logs` table columns declared in
+/// `claroty.sensor.toml` — SAP-2 parity enforced at stub time:
+/// id, action, actor, timestamp, resource (5 columns, 1:1 mapping).
+///
+/// Per EC-001 (permissive deserialization): unknown fields are allowed
+/// in request bodies but the response struct is exact.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct ClarotyAuditLogEntry {
+    /// String ID (column_type = "string" in claroty.sensor.toml).
+    pub id: String,
+    /// Action performed (column_type = "string").
+    pub action: String,
+    /// Actor who performed the action (column_type = "string").
+    pub actor: String,
+    /// ISO 8601 timestamp with Z suffix (column_type = "datetime", ADR-028 §D8).
+    pub timestamp: String,
+    /// Resource affected (column_type = "string").
+    pub resource: String,
+}
+
+/// POST body for `POST /api/v1/audit_log/get`.
+///
+/// No `#[serde(deny_unknown_fields)]` — Claroty API is permissive (EC-001,
+/// matches `GetAlertsBody` and `GetDevicesBody` conventions).
+/// Includes `offset`/`limit` for S-DEMO-CLAROTY-PAGINATION-001 forward-compat.
+#[derive(Debug, Clone, Deserialize, Serialize, Default)]
+pub struct GetAuditLogBody {
+    #[serde(default)]
+    pub fields: Vec<String>,
+    pub filter_by: Option<ApiQueryFilter>,
+    pub sort_by: Option<Vec<ApiSortClause>>,
+    pub offset: Option<u32>,
+    pub limit: Option<u32>,
+    pub include_count: Option<bool>,
+    pub page: Option<u32>,
+    pub page_size: Option<u32>,
+}
+
+/// Response for `POST /api/v1/audit_log/get`.
+///
+/// Envelope key `audit_log` matches `response_path = "$.audit_log"` in
+/// `claroty.sensor.toml` (AC-003).
+///
+/// # No `page` field — by design (CR-002)
+///
+/// Unlike sibling response types `GetDevicesResponse`, `GetAlertsResponse`, and
+/// `GetVulnerabilitiesResponse` which include a `page: u32` field, this struct
+/// intentionally omits `page`. The Claroty xDome audit_log API returns no page
+/// cursor in its response envelope — pagination state is not reflected back to
+/// the caller. Future authors: do NOT copy-paste a `page` field here.
+#[derive(Debug, Clone, Serialize)]
+pub struct GetAuditLogResponse {
+    pub audit_log: Vec<ClarotyAuditLogEntry>,
+    pub total: u32,
+}
+
+// ---------------------------------------------------------------------------
 // Tag write types
 // ---------------------------------------------------------------------------
 

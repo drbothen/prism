@@ -1,8 +1,14 @@
 //! `ClarotyClone` — implements `BehavioralClone` for the Claroty xDome DTU.
 //!
 //! Binds to `127.0.0.1:0` (ephemeral port) on `start()`, spawns an axum
-//! server with `LatencyLayer` + `FailureLayer`, and serves all 7 in-scope
-//! Claroty xDome endpoints plus the DTU control endpoints.
+//! server with `LatencyLayer` + `FailureLayer`, and serves 8 application
+//! endpoints (6 read via POST-body filtering, 2 write via stateful tag store)
+//! plus the DTU control endpoints.  The 6 read endpoints are: `list_devices`,
+//! `list_alerts`, `list_alerted_devices`, `list_vulnerabilities`,
+//! `list_vulnerability_devices`, and `list_audit_logs` (added by
+//! S-DEMO-CLAROTY-AUDIT-DTU-001).  See `dtu-assessment.md §3.2` for the
+//! original 7-endpoint scope matrix; `audit_log` is a Wave-5 fidelity
+//! addition beyond that baseline.
 //!
 //! # ADR-002 Amendment #2 (TD-WV1-04)
 //!
@@ -22,7 +28,7 @@ use prism_dtu_common::{BehavioralClone, StubConfig};
 use tokio::{net::TcpListener, sync::broadcast, task::JoinHandle};
 
 use crate::{
-    routes::{alerts, devices, tags, vulnerabilities},
+    routes::{alerts, audit_log, devices, tags, vulnerabilities},
     state::ClarotyState,
 };
 
@@ -78,11 +84,34 @@ impl ClarotyClone {
         }
     }
 
+    /// Create a new clone bound to a specific `instance_org_id`.
+    ///
+    /// Used by tests that need strict per-org X-Org-Id header validation
+    /// (W3-FIX-SEC-001 / SEC-001). The clone's state enforces the
+    /// org guard on all routes that support it.
+    pub fn with_org(instance_org_id: prism_core::OrgId) -> Self {
+        let admin_token = uuid::Uuid::new_v4().to_string();
+        Self {
+            config: StubConfig::default(),
+            state: Arc::new(ClarotyState::with_admin_token_and_org(
+                admin_token.clone(),
+                instance_org_id,
+            )),
+            bound_addr: None,
+            server_handle: None,
+            tls_active: false,
+            #[cfg(feature = "tls")]
+            tls_handle: None,
+            admin_token,
+        }
+    }
+
     fn build_router(&self) -> Router {
         Router::new()
             // Read endpoints (POST-body filtering)
             .route("/api/v1/devices", post(devices::list_devices))
             .route("/api/v1/alerts", post(alerts::list_alerts))
+            .route("/api/v1/audit_log/get", post(audit_log::list_audit_logs))
             .route(
                 "/api/v1/alerts/:alert_id/devices",
                 post(alerts::list_alerted_devices),

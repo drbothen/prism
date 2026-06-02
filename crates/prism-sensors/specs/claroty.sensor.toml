@@ -127,9 +127,8 @@ ocsf_class = "security_finding"
 # ---------------------------------------------------------------------------
 # Table: audit_logs
 # POST-for-read pattern; offset pagination
-# DTU gap: no /api/v1/audit_log/get route in prism-dtu-claroty yet.
-#   Add route tracked in S-DEMO-CLAROTY-AUDIT-DTU-001.
-#   Queries against claroty_audit_logs will return 404 until DTU route lands.
+# DTU route: POST /api/v1/audit_log/get — implemented and parity-validated
+#   by S-DEMO-CLAROTY-AUDIT-DTU-001 / PR #167 (crates/prism-dtu-claroty/src/routes/audit_log.rs).
 # Gap-CL-002 fix (2026-05-29): corrected path from /api/v1/audit_logs to
 #   /api/v1/audit_log/get per poller-bear reference (poller-express semport
 #   broad-sweep §4.3: POST /api/v1/audit_log/get).
@@ -165,10 +164,9 @@ ocsf_class = "audit_activity"
   ocsf_field = "dst_resource.name"
 
   # POST-for-read step with offset pagination
-  # DTU gap: no /api/v1/audit_log/get route in prism-dtu-claroty yet
-  #   (S-DEMO-CLAROTY-AUDIT-DTU-001 tracks adding it).
-  # response_path: forward-looking placeholder — real Claroty xDome API uses
-  #   {"audit_log": [...]} response shape per poller-bear reference.
+  # DTU route: POST /api/v1/audit_log/get — implemented by S-DEMO-CLAROTY-AUDIT-DTU-001.
+  # response_path: DTU returns {"audit_log": [...]} per GetAuditLogResponse
+  #   (crates/prism-dtu-claroty/src/routes/audit_log.rs), matching poller-bear reference.
   # body_template: OffsetLimit pagination handles offset via URL params (not body fields).
   #   Gap-CL-004 applies here too: real API expects body-based pagination.
   [[tables.steps]]

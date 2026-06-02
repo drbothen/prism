@@ -1,0 +1,158 @@
+# Evidence Report — S-DEMO-CLAROTY-AUDIT-DTU-001
+
+**Story:** S-DEMO-CLAROTY-AUDIT-DTU-001 v1.8
+**Title:** prism-dtu-claroty: Add /api/v1/audit_log/get route for Claroty Audit Log Fidelity (closes Gap-CL-006 / DTU=true-DTU)
+**Branch:** feature/S-DEMO-CLAROTY-AUDIT-DTU-001
+**PR:** #167 (S-DEMO-CLAROTY-AUDIT-DTU-001)
+**BCs:** BC-2.01.013 v1.9, BC-2.16.013 v1.22 (BC-INDEX v5.74)
+**Product type:** Backend DTU route (CLI/Rust — VHS not applicable; test execution output captured)
+**Evidence directory:** docs/demo-evidence/S-DEMO-CLAROTY-AUDIT-DTU-001/
+
+---
+
+## AC Coverage Summary
+
+| AC | Description | Status | Evidence Artifact | Red Gate Test |
+|----|-------------|--------|-------------------|---------------|
+| AC-001 | POST /api/v1/audit_log/get registered; returns 200 with valid bearer | PASS | AC-001-AC-003-AC-004-route-returns-synthetic-entries.txt, AC-001-AC-006-fidelity-validator.txt | test_BC_2_16_013_claroty_audit_logs_dtu_route_returns_synthetic_entries |
+| AC-002 | 401 with exact body `{"error": "missing or invalid Authorization header", "code": 401}` (POL-24) | PASS | AC-002-EC-001-EC-002-EC-003-auth-enforced.txt | test_BC_2_16_013_claroty_audit_logs_dtu_auth_enforced |
+| AC-003 | Response envelope `{"audit_log": [...], "total": N}`; key matches `response_path = "$.audit_log"` | PASS | AC-001-AC-003-AC-004-route-returns-synthetic-entries.txt | test_BC_2_16_013_claroty_audit_logs_dtu_route_returns_synthetic_entries |
+| AC-004 | fixtures/audit-log.json has >= 5 synthetic entries; actors use @example.com (no real PII) | PASS | AC-001-AC-003-AC-004-route-returns-synthetic-entries.txt, AC-005-column-parity-sap2.txt | test_BC_2_16_013_claroty_audit_logs_dtu_route_returns_synthetic_entries |
+| AC-005 | All 5 TOML columns present in ClarotyAuditLogEntry (id/action/actor/timestamp/resource); SAP-2 parity gate | PASS | AC-005-column-parity-sap2.txt | test_BC_2_16_013_claroty_audit_logs_dtu_column_parity |
+| AC-006 | FidelityValidator 12-route matrix: 12/12 checks pass, 0 failures; Gap-CL-006 closed | PASS | AC-001-AC-006-fidelity-validator.txt | claroty_dtu_fidelity (fidelity_validator.rs) |
+| AC-007 | Org-isolation guard (W3-FIX-SEC-001) active on all 6 fixture-list endpoints; 18 tests pass (3-cell matrix × 6 endpoints) | PASS | AC-007-org-isolation-w3-fix-sec-001.txt | 18 W3-FIX-SEC-001 tests (see Org-Isolation table) |
+
+**AC coverage: 7/7 — COMPLETE**
+
+---
+
+## Edge Case Coverage
+
+| EC | Description | Status | Evidence Artifact |
+|----|-------------|--------|-------------------|
+| EC-001 | Missing Authorization header → HTTP 401 + canonical body | PASS | AC-002-EC-001-EC-002-EC-003-auth-enforced.txt |
+| EC-002 | Authorization: Bearer  (empty token) → HTTP 401 + canonical body | PASS | AC-002-EC-001-EC-002-EC-003-auth-enforced.txt |
+| EC-003 | Malformed (non-JSON) body + valid bearer → HTTP 200 (permissive body) | PASS | AC-002-EC-001-EC-002-EC-003-auth-enforced.txt |
+| EC-004 | Body with unknown fields → HTTP 200 (permissive deserialization) | COVERED by EC-003 fixture body | AC-002-EC-001-EC-002-EC-003-auth-enforced.txt |
+| EC-005 | GET /api/v1/audit_log/get → HTTP 405 Method Not Allowed (axum default) | Not directly tested; axum router enforces method matching by construction | — |
+
+---
+
+## AC-007 Org-Isolation Coverage (W3-FIX-SEC-001 — all 6 fixture-list endpoints)
+
+Guard authority: **W3-FIX-SEC-001** (closes O-PR3R2-001 + F-PR3R2-MED-002 — org-isolation guard applied DTU-wide across all 6 org-scoped fixture-list endpoints).
+Behavioral contract — 3-cell matrix × 6 endpoints = 18 tests:
+- Cell A: non-nil-org clone + mismatched X-Org-Id header → 401 "org_id mismatch"
+- Cell B: non-nil-org clone + ABSENT X-Org-Id header → 401 "org_id mismatch"
+- Cell C: nil-org clone + no X-Org-Id header → 200 (backward-compat)
+
+| Test | Endpoint | Cell | Description | Status | Evidence Artifact |
+|------|----------|------|-------------|--------|-------------------|
+| `test_W3_FIX_SEC_001_claroty_audit_logs_org_mismatch_returns_401` | audit_log | A | Non-nil-org clone + mismatched X-Org-Id header → HTTP 401 "org_id mismatch" | PASS | AC-007-org-isolation-w3-fix-sec-001.txt |
+| `test_W3_FIX_SEC_001_claroty_audit_logs_missing_org_header_on_real_org_returns_401` | audit_log | B | Non-nil-org clone + ABSENT X-Org-Id header → HTTP 401 | PASS | AC-007-org-isolation-w3-fix-sec-001.txt |
+| `test_W3_FIX_SEC_001_claroty_audit_logs_nil_org_no_header_returns_200` | audit_log | C | Nil-org clone without X-Org-Id header → HTTP 200 (backward-compat) | PASS | AC-007-org-isolation-w3-fix-sec-001.txt |
+| `test_W3_FIX_SEC_001_claroty_alerts_org_mismatch_returns_401` | alerts | A | Non-nil-org clone + mismatched X-Org-Id header → HTTP 401 | PASS | AC-007-org-isolation-w3-fix-sec-001.txt |
+| `test_W3_FIX_SEC_001_claroty_alerts_missing_org_header_on_real_org_returns_401` | alerts | B | Non-nil-org clone + ABSENT X-Org-Id header → HTTP 401 | PASS | AC-007-org-isolation-w3-fix-sec-001.txt |
+| `test_W3_FIX_SEC_001_claroty_alerts_nil_org_no_header_returns_200` | alerts | C | Nil-org clone without X-Org-Id header → HTTP 200 | PASS | AC-007-org-isolation-w3-fix-sec-001.txt |
+| `test_W3_FIX_SEC_001_claroty_alerted_devices_org_mismatch_returns_401` | alerted_devices | A | Non-nil-org clone + mismatched X-Org-Id header → HTTP 401 | PASS | AC-007-org-isolation-w3-fix-sec-001.txt |
+| `test_W3_FIX_SEC_001_claroty_alerted_devices_missing_org_header_on_real_org_returns_401` | alerted_devices | B | Non-nil-org clone + ABSENT X-Org-Id header → HTTP 401 | PASS | AC-007-org-isolation-w3-fix-sec-001.txt |
+| `test_W3_FIX_SEC_001_claroty_alerted_devices_nil_org_no_header_returns_200` | alerted_devices | C | Nil-org clone without X-Org-Id header → HTTP 200 | PASS | AC-007-org-isolation-w3-fix-sec-001.txt |
+| `test_W3_FIX_SEC_001_claroty_devices_org_mismatch_returns_401` | devices | A | Non-nil-org clone + mismatched X-Org-Id header → HTTP 401 | PASS | AC-007-org-isolation-w3-fix-sec-001.txt |
+| `test_W3_FIX_SEC_001_claroty_devices_missing_org_header_on_real_org_returns_401` | devices | B | Non-nil-org clone + ABSENT X-Org-Id header → HTTP 401 | PASS | AC-007-org-isolation-w3-fix-sec-001.txt |
+| `test_W3_FIX_SEC_001_claroty_devices_nil_org_no_header_returns_200` | devices | C | Nil-org clone without X-Org-Id header → HTTP 200 | PASS | AC-007-org-isolation-w3-fix-sec-001.txt |
+| `test_W3_FIX_SEC_001_claroty_vulnerabilities_org_mismatch_returns_401` | vulnerabilities | A | Non-nil-org clone + mismatched X-Org-Id header → HTTP 401 | PASS | AC-007-org-isolation-w3-fix-sec-001.txt |
+| `test_W3_FIX_SEC_001_claroty_vulnerabilities_missing_org_header_on_real_org_returns_401` | vulnerabilities | B | Non-nil-org clone + ABSENT X-Org-Id header → HTTP 401 | PASS | AC-007-org-isolation-w3-fix-sec-001.txt |
+| `test_W3_FIX_SEC_001_claroty_vulnerabilities_nil_org_no_header_returns_200` | vulnerabilities | C | Nil-org clone without X-Org-Id header → HTTP 200 | PASS | AC-007-org-isolation-w3-fix-sec-001.txt |
+| `test_W3_FIX_SEC_001_claroty_vulnerability_devices_org_mismatch_returns_401` | vulnerability_devices | A | Non-nil-org clone + mismatched X-Org-Id header → HTTP 401 | PASS | AC-007-org-isolation-w3-fix-sec-001.txt |
+| `test_W3_FIX_SEC_001_claroty_vulnerability_devices_missing_org_header_on_real_org_returns_401` | vulnerability_devices | B | Non-nil-org clone + ABSENT X-Org-Id header → HTTP 401 | PASS | AC-007-org-isolation-w3-fix-sec-001.txt |
+| `test_W3_FIX_SEC_001_claroty_vulnerability_devices_nil_org_no_header_returns_200` | vulnerability_devices | C | Nil-org clone without X-Org-Id header → HTTP 200 | PASS | AC-007-org-isolation-w3-fix-sec-001.txt |
+
+**18/18 org-isolation tests pass — W3-FIX-SEC-001 guard active across all 6 fixture-list endpoints (full 3-cell matrix × 6 endpoints).**
+
+---
+
+## Red Gate Test Table
+
+| Test Name | Type | ACs Gated | Result |
+|-----------|------|-----------|--------|
+| `test_BC_2_16_013_claroty_audit_logs_dtu_route_returns_synthetic_entries` | Unit (HTTP) | AC-001, AC-003, AC-004 | PASS |
+| `test_BC_2_16_013_claroty_audit_logs_dtu_auth_enforced` | Unit (HTTP) | AC-002, EC-001, EC-002, EC-003 | PASS |
+| `test_BC_2_16_013_claroty_audit_logs_dtu_column_parity` | Unit (SAP-2 struct + HTTP) | AC-005 | PASS |
+| `claroty_dtu_fidelity` (fidelity_validator.rs) | Integration (FidelityValidator) | AC-001, AC-006 | PASS |
+| `test_W3_FIX_SEC_001_claroty_audit_logs_org_mismatch_returns_401` | Unit (W3-FIX-SEC-001 Cell A) | AC-007 | PASS |
+| `test_W3_FIX_SEC_001_claroty_audit_logs_missing_org_header_on_real_org_returns_401` | Unit (W3-FIX-SEC-001 Cell B) | AC-007 | PASS |
+| `test_W3_FIX_SEC_001_claroty_audit_logs_nil_org_no_header_returns_200` | Unit (W3-FIX-SEC-001 Cell C) | AC-007 | PASS |
+| `test_W3_FIX_SEC_001_claroty_alerts_org_mismatch_returns_401` | Unit (W3-FIX-SEC-001 Cell A) | AC-007 | PASS |
+| `test_W3_FIX_SEC_001_claroty_alerts_missing_org_header_on_real_org_returns_401` | Unit (W3-FIX-SEC-001 Cell B) | AC-007 | PASS |
+| `test_W3_FIX_SEC_001_claroty_alerts_nil_org_no_header_returns_200` | Unit (W3-FIX-SEC-001 Cell C) | AC-007 | PASS |
+| `test_W3_FIX_SEC_001_claroty_alerted_devices_org_mismatch_returns_401` | Unit (W3-FIX-SEC-001 Cell A) | AC-007 | PASS |
+| `test_W3_FIX_SEC_001_claroty_alerted_devices_missing_org_header_on_real_org_returns_401` | Unit (W3-FIX-SEC-001 Cell B) | AC-007 | PASS |
+| `test_W3_FIX_SEC_001_claroty_alerted_devices_nil_org_no_header_returns_200` | Unit (W3-FIX-SEC-001 Cell C) | AC-007 | PASS |
+| `test_W3_FIX_SEC_001_claroty_devices_org_mismatch_returns_401` | Unit (W3-FIX-SEC-001 Cell A) | AC-007 | PASS |
+| `test_W3_FIX_SEC_001_claroty_devices_missing_org_header_on_real_org_returns_401` | Unit (W3-FIX-SEC-001 Cell B) | AC-007 | PASS |
+| `test_W3_FIX_SEC_001_claroty_devices_nil_org_no_header_returns_200` | Unit (W3-FIX-SEC-001 Cell C) | AC-007 | PASS |
+| `test_W3_FIX_SEC_001_claroty_vulnerabilities_org_mismatch_returns_401` | Unit (W3-FIX-SEC-001 Cell A) | AC-007 | PASS |
+| `test_W3_FIX_SEC_001_claroty_vulnerabilities_missing_org_header_on_real_org_returns_401` | Unit (W3-FIX-SEC-001 Cell B) | AC-007 | PASS |
+| `test_W3_FIX_SEC_001_claroty_vulnerabilities_nil_org_no_header_returns_200` | Unit (W3-FIX-SEC-001 Cell C) | AC-007 | PASS |
+| `test_W3_FIX_SEC_001_claroty_vulnerability_devices_org_mismatch_returns_401` | Unit (W3-FIX-SEC-001 Cell A) | AC-007 | PASS |
+| `test_W3_FIX_SEC_001_claroty_vulnerability_devices_missing_org_header_on_real_org_returns_401` | Unit (W3-FIX-SEC-001 Cell B) | AC-007 | PASS |
+| `test_W3_FIX_SEC_001_claroty_vulnerability_devices_nil_org_no_header_returns_200` | Unit (W3-FIX-SEC-001 Cell C) | AC-007 | PASS |
+
+**21 Red Gate tests (3 core BC-2.16.013 gates + 18 AC-007 org-isolation gates) — all PASS.**
+**+ 1 fidelity-validator integration gate (claroty_dtu_fidelity) — PASS.**
+Red Gate table: 3 core BC-2.16.013 unit tests + 18 W3-FIX-SEC-001 org-isolation unit tests = 21 Red Gate tests.
+The fidelity validator (claroty_dtu_fidelity) is an integration gate confirming AC-001 + AC-006; it is NOT counted as a Red Gate unit test per the story §Red Gate table (21 rows: 3 core + 18 org-isolation).
+
+---
+
+## Deferred Test (SID-1 compliant stub)
+
+| Test Name | Status | Blocking Dependency |
+|-----------|--------|---------------------|
+| `test_BC_2_16_013_claroty_audit_logs_pipeline_integration_ac_006` | `#[ignore]` — stub with `todo!()` | Requires prism-bin full-boot wiring; ungated after **S-DEMO-002** merges |
+
+SID-1 compliance: the ignore annotation cites the blocking story ID (S-DEMO-002) verbatim. The AC-006 pipeline integration behavior is covered at the unit level by `claroty_dtu_fidelity` (FidelityValidator confirms route reachability).
+
+---
+
+## Full Suite Result
+
+```
+cargo nextest run -p prism-dtu-claroty
+22 tests run: 22 passed, 1 skipped (#[ignore]'d AC-006 pipeline stub)
+
+cargo nextest run -p prism-dtu-claroty --test fidelity_validator --features dtu
+1 test run: 1 passed, 0 skipped, 0 failed
+```
+
+See `full-suite-run.txt` for verbatim output (22 unit tests in `cargo nextest run -p prism-dtu-claroty`: 3 BC-2.16.013 + 18 W3-FIX-SEC-001 + 1 state test) and `AC-007-org-isolation-w3-fix-sec-001.txt` for the 18-test AC-007 run. Note: the "22 tests" in full-suite-run.txt counts all unit tests run in the crate (21 Red Gate + 1 state test); it does NOT include the fidelity validator integration gate, which runs in a separate `--test fidelity_validator` invocation.
+
+---
+
+## Gap-CL-006 Closure Confirmation
+
+Pre-story state: `ClarotyClone::build_router()` had no handler for `POST /api/v1/audit_log/get`
+→ pipeline received HTTP 404 for the `fetch_audit_logs` step declared in `claroty.sensor.toml`.
+
+Post-story state: `list_audit_logs` handler registered at `/api/v1/audit_log/get`;
+fixture `fixtures/audit-log.json` (5 synthetic entries) served under `{"audit_log": [...], "total": N}`;
+auth enforced via `check_bearer_auth` before fixture load;
+org-isolation guard (W3-FIX-SEC-001) enforced before fixture load for non-nil-org clones;
+guard active on all 6 fixture-list endpoints (audit_log, alerts, alerted_devices, devices, vulnerabilities, vulnerability_devices).
+
+FidelityValidator Route 11 (`POST /api/v1/audit_log/get`) now in the 12-route coverage matrix:
+12/12 checks passed, 0 failed (was not present pre-story).
+
+---
+
+## Artifact Index
+
+| File | Contents |
+|------|----------|
+| `AC-001-AC-003-AC-004-route-returns-synthetic-entries.txt` | test_BC_2_16_013_claroty_audit_logs_dtu_route_returns_synthetic_entries output (AC-001, AC-003, AC-004) |
+| `AC-002-EC-001-EC-002-EC-003-auth-enforced.txt` | test_BC_2_16_013_claroty_audit_logs_dtu_auth_enforced output (AC-002, EC-001, EC-002, EC-003) |
+| `AC-005-column-parity-sap2.txt` | test_BC_2_16_013_claroty_audit_logs_dtu_column_parity output (AC-005, SAP-2) |
+| `AC-001-AC-006-fidelity-validator.txt` | claroty_dtu_fidelity FidelityValidator output (AC-001, AC-006, 12-route matrix) |
+| `AC-007-org-isolation-w3-fix-sec-001.txt` | All 18 W3-FIX-SEC-001 org-isolation tests across all 6 endpoints (AC-007, 3-cell matrix × 6 = 18 tests) |
+| `full-suite-run.txt` | Full `cargo nextest run -p prism-dtu-claroty` run output (22 tests pass, 1 skipped) + fidelity validator |
+| `evidence-report.md` | This file |
