@@ -99,8 +99,8 @@ pub struct SearchData {
 /// AC-002: `in:devices` AQL → returns DeviceRecord results.
 /// AC-003: `in:alerts` AQL → returns AlertRecord results.
 /// EC-001: absent AQL → defaults to devices.
-/// EC-002: `in:alerts` takes precedence; if both `in:devices` and `in:alerts` are present,
-///   devices win (same EC-002 rule as before, now using real discriminator tokens).
+/// EC-002: if both `in:devices` and `in:alerts` are present, devices take precedence;
+///   route to alerts only when `in:alerts` is present and `in:devices` is absent.
 pub async fn get_search(
     State(state): State<Arc<ArmisState>>,
     headers: HeaderMap,

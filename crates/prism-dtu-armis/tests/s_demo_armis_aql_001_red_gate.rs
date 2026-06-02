@@ -12,15 +12,15 @@
 //!
 //! | Test | AC | BC clause |
 //! |------|----|-----------|
-//! | test_armis_aql_search_route_registered_returns_200_for_device_aql | AC-001 | BC-2.16.013 §Postconditions §1 DTU-Parity |
-//! | test_armis_aql_search_returns_403_without_bearer | AC-001 EC-004 | BC-2.16.013 §Postconditions §1 DTU-Parity |
-//! | test_armis_aql_search_devices_aql_returns_device_records | AC-002 | BC-2.16.013 §Postconditions §2 fixture-parity |
-//! | test_armis_aql_search_alerts_aql_returns_alert_records | AC-003 (handler-unit) | BC-2.16.013 §Postconditions §2 handler routing only — pipeline-boundary AC-003 end-to-end claim carried by parity/armis.rs::test_BC_2_16_013_AC_005_aql_roundtrip_alerts_pipeline (F-P1-CRIT-002) |
-//! | test_armis_aql_search_aql_captured_in_aql_log | AC-002 | BC-2.16.013 R-DTU-002 AQL capture |
-//! | test_armis_aql_search_no_aql_defaults_to_devices | AC-001 EC-001 | BC-2.16.013 §Postconditions §1 safe fallback |
-//! | test_armis_aql_search_toml_path_template_updated | AC-004 | BC-2.16.013 §Postconditions §2 DTU-TOML-column-parity |
-//! | test_armis_aql_search_toml_response_path_updated | AC-004 | BC-2.16.013 §Postconditions §2 DTU-TOML-column-parity |
-//! | test_armis_aql_search_dtu_toml_column_parity | AC-004 SAP-2 | BC-2.16.013 DTU↔TOML parity |
+//! | test_armis_aql_search_route_registered_returns_200_for_device_aql | AC-001 | BC-2.16.013 §Postconditions §2 (DTU-Parity Tests Pass) |
+//! | test_armis_aql_search_returns_403_without_bearer | AC-001 EC-004 | BC-2.16.013 §Postconditions §2 (DTU-Parity Tests Pass) |
+//! | test_armis_aql_search_devices_aql_returns_device_records | AC-002 | BC-2.16.013 §Postconditions §2 (DTU-Parity Tests Pass) |
+//! | test_armis_aql_search_alerts_aql_returns_alert_records | AC-003 (handler-unit) | BC-2.16.013 §Postconditions §2 (DTU-Parity Tests Pass); pipeline-boundary AC-003 end-to-end claim carried by parity/armis.rs::test_BC_2_16_013_AC_005_aql_roundtrip_alerts_pipeline (F-P1-CRIT-002) |
+//! | test_armis_aql_search_aql_captured_in_aql_log | AC-002 | BC-2.16.013 §Postconditions §2 (DTU-Parity Tests Pass); AQL-capture requirement per ADR-031 §D8-a / R-DTU-002 |
+//! | test_armis_aql_search_no_aql_defaults_to_devices | AC-001 EC-001 | BC-2.16.013 §Postconditions §2 (DTU-Parity Tests Pass) |
+//! | test_armis_aql_search_toml_path_template_updated | AC-004 | BC-2.16.013 §Postconditions §1 (Spec Files Authored and Validated) |
+//! | test_armis_aql_search_toml_response_path_updated | AC-004 | BC-2.16.013 §Postconditions §1 (Spec Files Authored and Validated) |
+//! | test_armis_aql_search_dtu_toml_column_parity | AC-004 SAP-2 | BC-2.16.013 §Postconditions §1 (Spec Files Authored and Validated) |
 //!
 //! # SAP-2 awareness
 //!
