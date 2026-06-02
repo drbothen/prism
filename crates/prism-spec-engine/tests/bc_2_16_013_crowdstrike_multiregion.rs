@@ -2,7 +2,7 @@
 //! CrowdStrike multi-region base_url fidelity via `${env.CROWDSTRIKE_BASE_URL}`.
 //!
 //! # Story
-//! S-DEMO-CROWDSTRIKE-MULTIREGION-001 v1.1 — wave 5, P2.
+//! S-DEMO-CROWDSTRIKE-MULTIREGION-001 v1.4 — wave 5, P2.
 //!
 //! # Red Gate status
 //! ALL tests in this file MUST FAIL before the implementer:
@@ -34,9 +34,9 @@
 //!
 //! | Test | AC | BC | Description |
 //! |------|----|----|-------------|
-//! | `test_crowdstrike_eu1_base_url_env_var_resolves_correctly` | AC-002 | BC-2.16.013 §Postconditions §1 | Set CROWDSTRIKE_BASE_URL=eu-1 URL; spec.base_url resolves to eu-1 |
-//! | `test_crowdstrike_base_url_env_unset_returns_spec_error_not_panic` | AC-003 | BC-2.16.009 §VR6 E-SPEC-024 | Unset CROWDSTRIKE_BASE_URL; load returns Err(EnvVarNotSet), NOT panic |
-//! | `test_crowdstrike_base_url_env_points_to_local_dtu_demo_works` | AC-004 | BC-2.16.013 §Postconditions §2 | Set CROWDSTRIKE_BASE_URL to local DTU addr; spec.base_url resolves to DTU addr |
+//! | `test_BC_2_16_013_crowdstrike_eu1_base_url_env_var_resolves_correctly` | AC-002 | BC-2.16.013 §Postconditions §1 | Set CROWDSTRIKE_BASE_URL=eu-1 URL; spec.base_url resolves to eu-1 |
+//! | `test_BC_2_16_013_crowdstrike_base_url_env_unset_returns_spec_error_not_panic` | AC-003 | BC-2.16.009 §VR6 E-SPEC-024 | Unset CROWDSTRIKE_BASE_URL; load returns Err(EnvVarNotSet), NOT panic |
+//! | `test_BC_2_16_013_crowdstrike_base_url_env_points_to_local_dtu_demo_works` | AC-004 | BC-2.16.013 §Postconditions §2 | Set CROWDSTRIKE_BASE_URL to local DTU addr; spec.base_url resolves to DTU addr |
 //!
 //! # Env var isolation
 //! - Each test uses `CROWDSTRIKE_BASE_URL` (the production env var per story AC-001).
