@@ -653,3 +653,51 @@ PO recommended amending POL-29 step 8f to read: "including no-semantic-change bu
 **BC-2.01.017 v1.5 §Notes documentation:** BC now contains a project-wide introduced-in anchor convention description. Future BC authors should follow this pattern when citing specific contract elements in code documentation: use `<BC-ID> v<version> <element-ID>` form where `<version>` is the version when `<element-ID>` was introduced (not the current BC version).
 
 _Discovered: D-876 state-manager closure burst, 2026-05-30. F-LP12-LOW-001 from S-DTU-CYBERINT-AUTH-FIDELITY-001 Pass 12 LOCAL adversary cascade. PO adjudication D-875 (commit 23a17f6d): all 20 cite-pins Category A. BC-2.01.017 v1.5 §Notes documents convention. Orchestrator codification queue: SAP-4 CLAUDE.md amendment + POL-29 step 8f hygiene-only-bump exemption. Count correction: Pass 13 adversary (F-LP13-LOW-001) identified PO table had 20 rows but verdict said 21 — corrected to 20 by D-877 state-manager burst._
+
+## 2026-06-02 D-950 — Demo-Evidence Story-Version Self-Cite Drift
+
+**Tags:** [process-gap] [codification-candidate] [occurrence-count-1]
+
+**Lesson 61:** During the S-DEMO-CLAROTY-AUDIT-DTU-001 PR-LEVEL cascade (pass 8 / F-PR3v2-MED-001), the adversary found that 7 demo-evidence header files carried stale story-version self-cites `v1.7` after the story had been bumped to `v1.8`. The drift arose because the demo-recorder sweep that regenerated evidence files updated content but did not update the story-version self-cite embedded in each file's header. The demo-recorder's version-bump workflow for evidence files did not include a sibling-grep for story-version self-cite strings in evidence headers.
+
+**Root cause:** The story-version self-cite in demo-evidence headers is a distinct artifact from (a) the story frontmatter version field and (b) demo-evidence content sections. Existing POL-10 (evidence completeness) and POL-23 (sibling-grep discipline) do not explicitly enumerate demo-evidence header story-version self-cites as a required sweep target after a story version bump.
+
+**Occurrence record:** 1 confirmed occurrence this session (Claroty, D-948 pass 8). Occurrence count below the 3-recurrence codification threshold.
+
+**Codification candidate:** At 3+ recurrences, extend POL-23 sibling-grep discipline or POL-10 evidence-completeness checklist to include: "After bumping story version, grep demo-evidence header lines for story-version self-cites and sweep them to the new version." The sweep regex would be: `grep -r "Story v<old-version>" docs/demo-evidence/<story-id>/`.
+
+**Forward guidance:** Adversary should probe demo-evidence headers for stale story-version self-cites on every pass that follows a story version bump. Classified as MED finding (story-version citation drift in evidence headers contradicts the evidence's own story provenance claim).
+
+_Discovered: D-948 state-manager burst, 2026-06-02. F-PR3v2-MED-001 from S-DEMO-CLAROTY-AUDIT-DTU-001 PR-LEVEL adversary cascade pass 8. Closed by demo-recorder 954bca00 (7 files swept v1.7→v1.8). Codification pending 3-recurrence threshold. Logged at D-950 sub-cycle close per S-7.02._
+
+## 2026-06-02 D-950 — Adversary cwd/Worktree-Identity Preflight Gap
+
+**Tags:** [process-gap] [codification-candidate] [occurrence-count-2] [priority-high]
+
+**Lesson 62:** During this session, the adversary was dispatched twice into the wrong worktree — reading the `develop` branch checkout instead of the feature worktree — and produced false-positive "absent" findings that consumed cascade budget:
+
+1. S-DEMO-CLAROTY-AUDIT-DTU-001 PR-LEVEL pass 1 (D-939): OBS-1 flagged demo evidence as "missing" — ADJUDICATED FALSE POSITIVE by orchestrator (evidence present at HEAD 65058040 in `.worktrees/S-DEMO-CLAROTY-AUDIT-DTU-001`). Root cause: adversary inherited orchestrator bash cwd (project root / develop checkout) instead of being dispatched into the feature worktree.
+
+2. S-DEMO-ARMIS-AQL-001 LOCAL pass 12 (D-944): F-LP12-CRIT-001/HIGH-002/HIGH-003 flagged the search route as "absent" — DISMISSED-WRONG-TREE by orchestrator (search route exists on feature worktree add39a1e). Same root cause.
+
+**Root cause:** The adversarial-review dispatch skill does not include a mandatory worktree-identity preflight assertion. The adversary's first bash call should verify: (1) `git -C <worktree> rev-parse HEAD` equals the dispatched feature HEAD SHA; (2) the worktree basename equals the story ID. Without this preflight, adversary findings from wrong-tree reads are indistinguishable from real findings until the orchestrator manually cross-checks.
+
+**Occurrence record:** 2 confirmed occurrences this session. Occurrence count at the "near threshold" level for codification. The correctness impact is high — wrong-tree reads produce false CRIT/HIGH findings that reset cascades and delay convergence.
+
+**Codification candidate (SAP-5):** Add a mandatory worktree-identity preflight assertion to the adversarial-review dispatch skill. Before reading any feature-branch files, the adversary MUST run:
+
+```bash
+# Verify worktree identity
+git -C <dispatched-worktree-path> rev-parse HEAD
+# Expected: <dispatched-feature-HEAD-SHA>
+
+# Verify worktree basename matches story ID
+basename <dispatched-worktree-path>
+# Expected: <story-id>
+```
+
+If either assertion fails, the adversary MUST stop and report "WRONG-TREE PREFLIGHT FAILED" to the orchestrator rather than proceeding with findings. This is classified as a skill-level fix (adversarial-review dispatch — `vsdd-factory:adversarial-review`).
+
+**Forward guidance:** Recommend this as a high-priority codification (2 occurrences, direct correctness impact, cascades blocked by false findings). Orchestrator should file a codification request to the adversarial-review skill maintainer. Until codification, orchestrator must verbally instruct adversary to confirm tree identity in the dispatch prompt.
+
+_Discovered: D-944 + D-939 adversary cascades, 2026-06-02. Confirmed class: adversary-reads-develop-instead-of-worktree. Two occurrences: Claroty PR-LEVEL pass 1 OBS-1 (F-PRL1-OBS-001) + Armis LOCAL pass 12 DISMISSED-WRONG-TREE (F-PR4-MED-001 class). Codification candidate SAP-5 worktree-identity preflight assertion. Logged at D-950 sub-cycle close per S-7.02._

@@ -5,7 +5,10 @@ title: "prism-dtu-armis + armis.sensor.toml: AQL Search Endpoint Fidelity — Ad
 wave: 5
 epic_id: E-DTU-FIDELITY
 priority: P1
-status: in-progress
+status: merged
+merged_sha: eb3416d1
+merged_pr: 168
+merged_at: "2026-06-02"
 # BC status: D-911 disposition 2026-05-31 — New-BC Flags 1 & 2 resolved as SUFFICIENT.
 # BC-2.16.013 (Bundled Sensor Spec Authoring and DTU-Parity Verification, v1.22) is ACTIVE
 # and covers both the AQL endpoint pipeline behavior (Flag 1: AQL treated as opaque per
@@ -19,7 +22,7 @@ status: in-progress
 # (AC-001..AC-004) are unblocked. Parity tests requiring full pipeline env-var resolution
 # must be #[ignore]-annotated with a code comment citing S-SPEC-ENV-VAR-001 until that
 # prereq merges.
-version: "1.8"
+version: "1.9"
 level: "L4"
 producer: story-writer
 timestamp: "2026-05-31T00:00:00Z"
@@ -554,6 +557,7 @@ Well within the 20-30% budget.
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.9 | 2026-06-02 | state-manager | D-950 post-merge burst: status in-progress→merged; merge metadata added (merged_sha: eb3416d1, merged_pr: 168, merged_at: 2026-06-02). LOCAL 3/3 CONVERGED + PR-LEVEL 3/3 CONVERGED (BC-5.39.001 D-779). POL-14 BC-2.16.013 already active — idempotent confirm. |
 | 1.8 | 2026-06-02 | story-writer | Correct AC-001..AC-004 BC-2.16.013 §Postconditions trace anchors (phantom/inverted §-labels removed; R-DTU-002 re-attributed to ADR-031 §D8-a). Closes ADV-P02-MED-001 (POL-4/POL-21/POL-22). No code/behavior change. |
 | 1.7 | 2026-06-01 | product-owner | F-LP12-HIGH-001 closure (spec-side): conformed all AQL discriminator examples from `in:type=Device`/`in:type=Alert` to real Armis syntax `in:devices`/`in:alerts` per research artifact `.factory/research/armis-aql-discriminator-syntax-2026-06.md` (HIGH confidence, 6 convergent sources including real 1898 & Co production poller). Updated: §Origin narrative, §Story-Level Goal routing bullets, AC-001 example URL, AC-002 H2 title + example URLs + aql-log capture value, AC-003 H2 title + example AQL string, Red Gate table descriptions (rows 1/3/5), Task 8 handler routing bullets, Notes for Implementer AQL routing example and discriminator guidance, §References (added research artifact citation). Handler routing now checks `in:alerts` first (unambiguous) then defaults to `in:devices`. BC-2.16.013 was already correct; story now matches it. |
 | 1.6 | 2026-06-01 | story-writer | F-P7-MED-001 structural-table-completeness sweep (POL-29 step 3d): added `prism-spec-engine` to `crates_touched:` frontmatter; added §File List rows for `crates/prism-spec-engine/tests/parity/armis.rs` (AC-005 round-trip parity tests) and `crates/prism-dtu-armis/src/lib.rs` (module-doc route inventory); added §Token Budget Estimate row for `prism-spec-engine` parity tests (~800 tokens); updated total estimate to ~21,600 tokens. No semantic content change. |

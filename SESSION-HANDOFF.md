@@ -168,7 +168,7 @@ ARTIFACT STATE AFTER D-540 (UNCHANGED FROM D-539 — no spec edits):
 DURABLE PIN BLOCK (CURRENT STATE — D-580 — DURABLE PRE-/CLEAR RESUME SNAPSHOT — 86th consecutive single-commit — STRATEGIC DECISION PENDING)
 ═══════════════════════════════════════════════════════════════════════
 
-- develop HEAD: e1c632dc (feat(S-DEMO-CLAROTY-AUDIT-DTU-001): prism-dtu-claroty audit_log DTU route — Gap-CL-006 (#167) — MERGED 2026-06-02; D-949 post-merge burst)
+- develop HEAD: eb3416d1 (feat(S-DEMO-ARMIS-AQL-001): Armis AQL search endpoint fidelity — DTU /api/v1/search push-down (#168) — MERGED 2026-06-02; D-950 post-merge burst)
 - factory-artifacts: run `git -C .factory log -1 --format=’%H’` (per TD-VSDD-053; D-579 is this commit)
 - feature_branch_head: no active feature branch (spec-authoring-only burst; develop unchanged at a5ab742c)
 - feature_branch_remote_status: no feature branch (spec-only burst; develop@a5ab742c unchanged)
@@ -10927,3 +10927,116 @@ Priority 2: S-DEMO-002 dispatch (P0).
 ---
 
 **D-949 burst marker:** Single-commit burst per TD-VSDD-053. Anti-volatile-pin per TD-VSDD-091. Defensive sweep (S-7.02): story_index_version v2.248 updated in STATE.md + STORY-INDEX.md; develop_head e1c632dc updated in STATE.md frontmatter + SESSION-HANDOFF.md DURABLE PIN BLOCK; total_stories 177 unchanged; BC-INDEX v5.74 unchanged (no lifecycle_status changes — both BCs already active); VP-INDEX v1.76 unchanged. safe_to_compact: true.
+
+## §RESUME SNAPSHOT 2026-06-02-ARMIS-MERGED (D-950)
+
+**Snapshot created:** 2026-06-02 | **Reason:** D-950 S-DEMO-ARMIS-AQL-001 MERGED PR #168 → develop@eb3416d1; BOTH Wave-5 demo-fidelity lanes (Claroty PR #167 + Armis PR #168) COMPLETE; process-gap candidates logged | **STATE version:** 7.603 | **safe_to_compact:** true
+
+---
+
+### §1 PIPELINE STATUS
+
+| Item | Value |
+|------|-------|
+| Phase | 3 (TDD Implementation) |
+| STATE version | v7.603 |
+| develop HEAD | `eb3416d1` (feat(S-DEMO-ARMIS-AQL-001): Armis AQL search endpoint fidelity — DTU /api/v1/search push-down (#168) — MERGED 2026-06-02) |
+| STORY-INDEX | v2.249 (177 stories) |
+| BC-INDEX | v5.74 (active: 238, draft: 1) |
+| Open PRs | none (PR #167 + PR #168 merged) |
+
+---
+
+### §2 BOTH WAVE-5 DEMO-FIDELITY LANES — COMPLETE
+
+| Story | Status | PR | develop HEAD |
+|-------|--------|----|--------------|
+| S-DEMO-CLAROTY-AUDIT-DTU-001 | merged v1.9 | #167 | e1c632dc (D-949) |
+| S-DEMO-ARMIS-AQL-001 | merged v1.9 | #168 | eb3416d1 (D-950) |
+
+**POL-14 BC auto-promotion (D-950):** BC-2.16.013 lifecycle_status already active (promoted D-776, anchor PLUGIN-MIGRATION-001-D PR #153) — idempotent confirm; no status change. BC-INDEX v5.74 unchanged.
+
+---
+
+### §3 PROCESS-GAP CANDIDATES (S-7.02 Sub-Cycle Close)
+
+| # | Class | Occurrences | Codification Candidate | Threshold |
+|---|-------|-------------|----------------------|-----------|
+| PG-1 | Demo-evidence story-version self-cite drift (F-PR3v2-MED-001 class) | 1 (Claroty D-948 pass 8) | Extend POL-23 sibling-grep or POL-10 to include demo-evidence header story-version self-cites | 3 recurrences — NOT YET CODIFIED |
+| PG-2 | Adversary cwd/worktree-identity preflight gap (F-PRL1-OBS-001 / F-PR4-MED-001 class) | 2 (Claroty PR-LEVEL pass 1; Armis LOCAL pass 12) | SAP-5: mandatory worktree-identity preflight assertion in adversarial-review dispatch (git rev-parse HEAD must equal dispatched feature HEAD; basename must equal story ID) | Near threshold — RECOMMEND PRIORITIZING |
+
+Both candidates logged to `cycles/wave-0-plugin-prereqs/lessons.md` as Lesson 61 (PG-1) and Lesson 62 (PG-2). No new stories filed (PG-1 below threshold; PG-2 is a skill/process fix not a prism story). Factory/process codification only.
+
+---
+
+### §4 OPEN ITEMS
+
+| Item | Type | Owner | Status |
+|------|------|-------|--------|
+| S-DEMO-CLAROTY-SPEC-PROSE-FIX-001 | BC-2.16.013-prose correction | product-owner (PO-owned BC amendment) | draft stub; depends_on S-DEMO-CLAROTY-AUDIT-DTU-001 SATISFIED |
+| S-DEMO-HARNESS-CLONE-PARITY-001 | harness clone parity (Armis /api/v1/search + Claroty /api/v1/audit_log/get) | implementer | draft stub; depends_on BOTH SATISFIED; DEMO-GOAL-REQUIRED |
+| OCSF-CLASS-MIGRATION-001 | 4 sensor TOMLs security_finding→detection_finding | product-owner + implementer | draft stub P2; DEMO-GOAL-REQUIRED |
+| DRIFT-D943-001 | cross-crate BC-3.5.002 precondition 3 mis-cite | S-MAINT-W3SEC-CITE-SWEEP-001 | pending human dispatch |
+| F-P1-OBS-003 | SAP-2-probe codification | factory/can-wait | |
+| SAP-5 codification | adversary worktree-identity preflight | vsdd-factory:adversarial-review skill maintainer | near-threshold — prioritized per Lesson 62 |
+
+---
+
+### §5 ARTIFACT VERSIONS (post D-950)
+
+| Artifact | Version |
+|----------|---------|
+| STATE.md | v7.603 |
+| STORY-INDEX | v2.249 (177 stories) |
+| BC-INDEX | v5.74 (active: 238, draft: 1) |
+| BC-2.16.013 | v1.22 (active; idempotent confirm at D-950) |
+| Claroty story | v1.9 (merged; PR #167 → develop@e1c632dc) |
+| Armis story | v1.9 (merged; PR #168 → develop@eb3416d1) |
+| lessons.md | Lesson 62 appended (PG-2 adversary preflight gap) |
+| sprint-state.yaml | unchanged (D-950 is post-merge status update) |
+
+---
+
+### §6 RECOMMENDED NEXT ACTIONS (ordered)
+
+1. **S-DEMO-002 DISPATCH** (P0 — both lane prereqs SATISFIED): 3-org E2E smoke; MUST seed query_filters["aql"] for Armis AQL push-down
+2. **S-DEMO-CROWDSTRIKE-MULTIREGION-001** — ready v1.1; dispatchable (parallel with S-DEMO-002)
+3. **S-DEMO-HARNESS-CLONE-PARITY-001** — depends_on BOTH SATISFIED; PO S-7.01 BC authorship gate remaining before dispatch
+4. **S-DEMO-CLAROTY-SPEC-PROSE-FIX-001** — depends_on SATISFIED; ready for PO dispatch
+5. **Worktree cleanup:** `.worktrees/S-DEMO-CLAROTY-AUDIT-DTU-001` + `.worktrees/S-DEMO-ARMIS-AQL-001` — both merged, eligible for removal
+6. **DRIFT-D943-001** — S-MAINT-W3SEC-CITE-SWEEP-001 pending human dispatch authorization
+
+---
+
+### §7 RESUME CHECKLIST
+
+```bash
+# 1. Factory worktree health
+vsdd-factory:factory-worktree-health
+
+# 2. Verify STATE.md version
+grep '^version:' .factory/STATE.md
+# Expected: version: "7.603"
+
+# 3. Confirm develop HEAD
+git log -1 --format="%H %s" develop
+# Expected: eb3416d1 feat(S-DEMO-ARMIS-AQL-001): ...
+
+# 4. Check open PRs
+gh pr list --state open
+# Expected: none (PR #167 + PR #168 merged)
+
+# 5. Verify no active feature worktrees blocking next dispatch
+ls .worktrees/
+# Expected: S-DEMO-CLAROTY-AUDIT-DTU-001 (eligible cleanup) + S-DEMO-ARMIS-AQL-001 (eligible cleanup) + S-3.09 (frozen) + W3-FIX-S307-001 (blocked)
+```
+
+Read this §RESUME SNAPSHOT 2026-06-02-ARMIS-MERGED (you are reading it now).
+
+Proceed per RECOMMENDED NEXT ACTIONS (§6).
+Priority 1: S-DEMO-002 dispatch (P0).
+Priority 2: S-DEMO-CROWDSTRIKE-MULTIREGION-001 dispatch (parallel).
+
+---
+
+**D-950 burst marker:** Single-commit burst per TD-VSDD-053. Anti-volatile-pin per TD-VSDD-091. Defensive sweep (S-7.02): story_index_version v2.249 updated in STATE.md + STORY-INDEX.md; develop_head eb3416d1 updated in STATE.md frontmatter + SESSION-HANDOFF.md DURABLE PIN BLOCK; total_stories 177 unchanged; BC-INDEX v5.74 unchanged (no lifecycle_status changes — BC-2.16.013 already active); VP-INDEX v1.76 unchanged. Process-gap candidates: Lesson 61 (demo-evidence version self-cite drift) + Lesson 62 (adversary preflight gap) appended to lessons.md. safe_to_compact: true.
