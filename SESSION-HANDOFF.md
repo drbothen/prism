@@ -11040,3 +11040,210 @@ Priority 2: S-DEMO-CROWDSTRIKE-MULTIREGION-001 dispatch (parallel).
 ---
 
 **D-950 burst marker:** Single-commit burst per TD-VSDD-053. Anti-volatile-pin per TD-VSDD-091. Defensive sweep (S-7.02): story_index_version v2.249 updated in STATE.md + STORY-INDEX.md; develop_head eb3416d1 updated in STATE.md frontmatter + SESSION-HANDOFF.md DURABLE PIN BLOCK; total_stories 177 unchanged; BC-INDEX v5.74 unchanged (no lifecycle_status changes — BC-2.16.013 already active); VP-INDEX v1.76 unchanged. Process-gap candidates: Lesson 61 (demo-evidence version self-cite drift) + Lesson 62 (adversary preflight gap) appended to lessons.md. safe_to_compact: true.
+
+---
+
+## §RESUME SNAPSHOT 2026-06-02-THREE-LANE-PARALLEL-DISPATCH (D-951)
+
+**Snapshot created:** 2026-06-02 | **Reason:** D-951 durability checkpoint — 3 lanes queued for parallel dispatch; sprint-state.yaml active_dispatch_set written; GH issue pending at drbothen/vsdd-factory for Lesson 62 adversary preflight gap | **STATE version:** 7.604 | **safe_to_compact:** true
+
+---
+
+### §1 PIPELINE STATUS
+
+| Item | Value |
+|------|-------|
+| Phase | 3 (TDD Implementation) |
+| STATE version | v7.604 |
+| develop HEAD | `eb3416d1` (feat(S-DEMO-ARMIS-AQL-001): Armis AQL search endpoint fidelity — #168 MERGED 2026-06-02) |
+| STORY-INDEX | v2.249 (177 stories) |
+| BC-INDEX | v5.74 (active: 238, draft: 1) |
+| Open PRs | none (PR #167 + PR #168 merged) |
+| factory-artifacts HEAD | run `git -C .factory log -1 --format='%h %s'` |
+
+---
+
+### §2 CONVERGED BASELINE (D-950)
+
+| Story | Status | PR | develop HEAD | Merged |
+|-------|--------|----|--------------|--------|
+| S-DEMO-CLAROTY-AUDIT-DTU-001 | merged v1.9 | #167 | e1c632dc | 2026-06-02 (D-949) |
+| S-DEMO-ARMIS-AQL-001 | merged v1.9 | #168 | eb3416d1 | 2026-06-02 (D-950) |
+
+Both Wave-5 demo-fidelity lanes COMPLETE. POL-14 BC auto-promotions: both BCs already active — idempotent confirms. Worktrees (.worktrees/S-DEMO-CLAROTY-AUDIT-DTU-001 + .worktrees/S-DEMO-ARMIS-AQL-001) eligible for cleanup.
+
+Process-gap candidates logged this session:
+- **Lesson 61** (demo-evidence story-version self-cite drift): 1 occurrence (Claroty pass 8; 7 header files swept). Codify at 3+ recurrences. No story filed yet.
+- **Lesson 62** (adversary worktree-identity preflight gap): 2 occurrences (Claroty PR-LEVEL pass 1 + Armis LOCAL pass 12). GH issue being filed at drbothen/vsdd-factory (SAP-5 codification candidate).
+
+---
+
+### §3 THREE LANES QUEUED FOR PARALLEL DISPATCH (D-951)
+
+#### Lane 1 — S-DEMO-002 (P0)
+
+| Attribute | Value |
+|-----------|-------|
+| Story file | `.factory/stories/S-DEMO-002-e2e-subprocess-smoke-test-all-sensors.md` |
+| Status | draft v1.2 |
+| Priority | P0 |
+| Points | 11 |
+| BCs | BC-2.11.001, BC-2.11.005, BC-2.09.008, BC-2.10.001, BC-2.10.010, BC-3.2.001 |
+| VPs | VP-148 |
+| depends_on | S-DEMO-001 (SATISFIED — PR #166 develop@5dd3df02) + S-CONFIG-MULTI-TENANT-OVERRIDE-001 (SATISFIED — PR #155 develop@3e822522) |
+| Worktree to create | `.worktrees/S-DEMO-002` |
+
+**Entry point (step-by-step):**
+1. Dispatch product-owner: readiness evaluation — resolve any new-BC flags, flip `status: draft → ready`
+2. Worktree: `git worktree add .worktrees/S-DEMO-002 -b feature/S-DEMO-002 develop`
+3. Full TDD delivery: stub → red gate → green → LOCAL adversary 3-CLEAN → demo-recorder per-AC → push → pr-manager 9-step PR cycle → PR-LEVEL adversary 3-CLEAN → merge
+
+**TRACKED DEPENDENCY:** MUST seed `query_filters["aql"]` in PipelineExecutor FetchContext for Armis end-to-end AQL push-down. Scope boundary confirmed (D-934 + S-DEMO-ARMIS-AQL-001 cascade): S-DEMO-ARMIS-AQL-001 wires the DTU/TOML `${query.filter.aql}` path; the production query-layer seeding (prism-query → PipelineExecutor FetchContext) is S-DEMO-002 scope — not a defer-pattern violation.
+
+---
+
+#### Lane 2 — S-DEMO-CROWDSTRIKE-MULTIREGION-001 (P2)
+
+| Attribute | Value |
+|-----------|-------|
+| Story file | `.factory/stories/S-DEMO-CROWDSTRIKE-MULTIREGION-001-crowdstrike-multiregion-base-url.md` |
+| Status | ready v1.1 |
+| Priority | P2 |
+| Points | 2 |
+| BCs | BC-2.16.009, BC-2.16.013 |
+| depends_on | S-SPEC-ENV-VAR-001 (SATISFIED — PR #165 develop@4feec93a 2026-06-01) |
+| Worktree to create | `.worktrees/S-DEMO-CROWDSTRIKE-MULTIREGION-001` |
+
+**Entry point (step-by-step):**
+1. Worktree: `git worktree add .worktrees/S-DEMO-CROWDSTRIKE-MULTIREGION-001 -b feature/S-DEMO-CROWDSTRIKE-MULTIREGION-001 develop`
+2. Full TDD delivery: stub → red gate → green → LOCAL adversary 3-CLEAN → demo-recorder per-AC → push → pr-manager 9-step PR cycle → PR-LEVEL adversary 3-CLEAN → merge
+
+**Key scope notes:** DTU — NO code change to prism-dtu-crowdstrike (region-agnostic per ADR-031 §D8-c). Scope: crowdstrike.sensor.toml (`base_url: "${env.CROWDSTRIKE_BASE_URL}"`) + prism-spec-engine `${env.VAR}` interpolation (already wired by S-SPEC-ENV-VAR-001). No new BCs (PO adjudication D-933: BC-2.16.009 v1.7 + BC-2.16.013 v1.19 attached per POL-8). No PO readiness gate needed (status already ready v1.1).
+
+---
+
+#### Lane 3 — S-MAINT-W3SEC-CITE-SWEEP-001 (P2, maintenance)
+
+| Attribute | Value |
+|-----------|-------|
+| Story file | `.factory/stories/S-MAINT-W3SEC-CITE-SWEEP-001-org-guard-citation-sweep.md` |
+| Status | draft v1.0 |
+| Priority | P2 |
+| Points | 2 |
+| Delivery flow | maintenance/fix-pr-delivery (NOT full TDD — no new behavior) |
+| depends_on | none |
+| Worktree to create | `.worktrees/S-MAINT-W3SEC-CITE-SWEEP-001` |
+
+**Entry point (step-by-step):**
+1. Worktree: `git worktree add .worktrees/S-MAINT-W3SEC-CITE-SWEEP-001 -b maintenance/S-MAINT-W3SEC-CITE-SWEEP-001 develop`
+2. Citation sweep: grep for stale `BC-3.5.002 precondition 3` (or equivalent mis-cite) in:
+   - `crates/prism-dtu-crowdstrike/` (detections.rs, hosts.rs, state.rs)
+   - `crates/prism-dtu-cyberint/`
+   - `.factory/stories/W3-FIX-SEC-001*.md` (story body)
+3. Fix: replace stale BC-3.5.002 precondition 3 cite → correct anchor `W3-FIX-SEC-001` (the story that established the org-guard pattern)
+4. Commit + push + PR (fix-pr-delivery flow — skip stub/red-gate/full adversary cascade)
+5. Anchors DRIFT-D943-001 (D-943 2026-06-02)
+
+**Scope clarification:** This is a citation correctness fix in MERGED crates. The BC-3.5.002 precondition 3 clause was disavowed during S-DEMO-CLAROTY-AUDIT-DTU-001 PR-LEVEL cascade (implementer 8309de48 stripped it from the Claroty crate); the same disavowed cite persists in the sibling merged crates and the W3-FIX-SEC-001 story body. No behavioral change — pure citation correction.
+
+---
+
+### §4 PENDING GH ISSUE — LESSON 62 CODIFICATION
+
+File at: `https://github.com/drbothen/vsdd-factory` (issues)
+
+**Title:** `adversarial-review dispatch: mandatory worktree-identity preflight assertion`
+
+**Body:** The adversary repeatedly reads from `develop` instead of the dispatched feature worktree, producing false-positive findings (Claroty PR-LEVEL pass 1 OBS-1, Armis LOCAL pass 12 DISMISSED-WRONG-TREE). Proposed fix: in the `vsdd-factory:adversarial-review` dispatch skill, add a preflight assertion step:
+
+```bash
+# Verify adversary is reading the correct worktree
+git -C <worktree_path> rev-parse HEAD   # must equal <dispatched_feature_sha>
+basename <worktree_path>                 # must equal <story_id>
+```
+
+This is SAP-5 codification candidate (Lesson 62 in `cycles/wave-0-plugin-prereqs/lessons.md`).
+
+Status: Being filed this session. Prism-side: no story needed (factory/can-wait per D-941 categorization).
+
+---
+
+### §5 OPEN ITEMS
+
+| Item | Type | Anchor | Status |
+|------|------|--------|--------|
+| S-DEMO-HARNESS-CLONE-PARITY-001 | harness clone parity (Armis /api/v1/search + Claroty /api/v1/audit_log/get) | F-P6-DEFER-001 + F-P10-LOW-001 | draft stub; depends_on BOTH SATISFIED; PO S-7.01 BC-authorship gate open; DEMO-GOAL-REQUIRED |
+| S-DEMO-CLAROTY-SPEC-PROSE-FIX-001 | BC-2.16.013-prose correction (audit_log) | F-P2-DEFER-001 | draft stub; depends_on Claroty SATISFIED; PO S-7.01 gate open; DEMO-GOAL-REQUIRED |
+| OCSF-CLASS-MIGRATION-001 | 4 sensor TOMLs security_finding→detection_finding | OBS-2 / D-925 | draft stub P2; depends_on S-DEMO-001 SATISFIED; DEMO-GOAL-REQUIRED |
+| DRIFT-D923-001 | ADR-022 §B step 8 description accuracy | architect | open; non-blocking |
+| DRIFT-D923-002 | validate_sensor_spec production wiring | architect/PO | open; non-blocking |
+| F-P1-OBS-003 | SAP-2-probe codification (factory) | vsdd-factory upstream | factory/can-wait per D-941 |
+| GH issue Lesson 62 | adversary worktree-identity preflight | drbothen/vsdd-factory | PENDING FILING this session |
+
+---
+
+### §6 ARTIFACT VERSIONS (post D-951)
+
+| Artifact | Version |
+|----------|---------|
+| STATE.md | v7.604 |
+| STORY-INDEX | v2.249 (177 stories) |
+| BC-INDEX | v5.74 (active: 238, draft: 1) |
+| sprint-state.yaml | updated D-951 — active_dispatch_set rewritten (3 queued lanes; Claroty/Armis marked merged) |
+| SESSION-HANDOFF.md | §RESUME SNAPSHOT 2026-06-02-THREE-LANE-PARALLEL-DISPATCH appended |
+| lessons.md | Lesson 61 + Lesson 62 appended (D-950) |
+
+---
+
+### §7 RECOMMENDED NEXT ACTIONS (ordered)
+
+1. **File GH issue at drbothen/vsdd-factory** — Lesson 62 adversary worktree-identity preflight gap (SAP-5 codification). Being filed this session.
+2. **S-DEMO-002 dispatch** (P0) — product-owner readiness evaluation → worktree → TDD delivery
+3. **S-DEMO-CROWDSTRIKE-MULTIREGION-001 dispatch** (P2; parallel with S-DEMO-002) — worktree → TDD delivery immediately (status ready)
+4. **S-MAINT-W3SEC-CITE-SWEEP-001 dispatch** (P2; parallel) — worktree → citation sweep → fix-pr-delivery
+5. **Worktree cleanup** — `.worktrees/S-DEMO-CLAROTY-AUDIT-DTU-001` + `.worktrees/S-DEMO-ARMIS-AQL-001` both merged; eligible for removal
+6. **Demo-goal stubs (non-blocking for dispatch, but REQUIRED before demo declared complete):** PO S-7.01 BC-authorship gates for S-DEMO-HARNESS-CLONE-PARITY-001 + S-DEMO-CLAROTY-SPEC-PROSE-FIX-001 + OCSF-CLASS-MIGRATION-001
+
+---
+
+### §8 RESUME CHECKLIST
+
+```bash
+# 1. Factory worktree health (BLOCKING preflight)
+vsdd-factory:factory-worktree-health
+
+# 2. Verify STATE.md version
+grep '^version:' .factory/STATE.md
+# Expected: version: "7.604"
+
+# 3. Verify develop HEAD
+git log -1 --format="%H %s" develop
+# Expected: eb3416d1 feat(S-DEMO-ARMIS-AQL-001): ...
+
+# 4. Check open PRs
+gh pr list --state open
+# Expected: none
+
+# 5. Verify worktrees
+ls .worktrees/
+# Expected: S-DEMO-CLAROTY-AUDIT-DTU-001 (eligible cleanup) + S-DEMO-ARMIS-AQL-001 (eligible cleanup) + S-3.09 (frozen) + W3-FIX-S307-001 (blocked)
+
+# 6. Verify factory-artifacts HEAD
+git -C .factory log -1 --format='%h %s'
+# Expected: commit from D-951 burst (after commit)
+
+# 7. Verify sprint-state.yaml active dispatch set
+grep 'dispatch_status\|story_id\|lane:' .factory/stories/sprint-state.yaml | head -20
+# Expected: 3 queued lanes (S-DEMO-002 lane 1-of-3, S-DEMO-CROWDSTRIKE-MULTIREGION-001 lane 2-of-3, S-MAINT-W3SEC-CITE-SWEEP-001 lane 3-of-3)
+```
+
+Read this §RESUME SNAPSHOT 2026-06-02-THREE-LANE-PARALLEL-DISPATCH (you are reading it now).
+
+Proceed per RECOMMENDED NEXT ACTIONS (§7).
+Priority 1: File GH issue for Lesson 62 at drbothen/vsdd-factory.
+Priority 2: S-DEMO-002 dispatch (P0) + S-DEMO-CROWDSTRIKE-MULTIREGION-001 dispatch (parallel).
+Priority 3: S-MAINT-W3SEC-CITE-SWEEP-001 citation sweep (parallel).
+
+---
+
+**D-951 burst marker:** Single-commit burst per TD-VSDD-053. Anti-volatile-pin per TD-VSDD-091. Defensive sweep (S-7.02): develop_head eb3416d1 UNCHANGED (no merges this burst); story_index_version v2.249 UNCHANGED; bc_index_version v5.74 UNCHANGED; total_stories 177 UNCHANGED; VP-INDEX v1.76 UNCHANGED. No count mutations — all indexes current. sprint-state.yaml active_dispatch_set rewritten with 3 queued lanes (Wave-5 Claroty/Armis marked merged). STATE.md version bumped v7.603→v7.604. safe_to_compact: true.
