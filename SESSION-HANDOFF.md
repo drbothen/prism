@@ -11354,3 +11354,170 @@ Priority 3: S-MAINT-W3SEC-CITE-SWEEP-002 story-writer materialization.
 ---
 
 **D-954 burst marker:** Single-commit burst per TD-VSDD-053. Anti-volatile-pin per TD-VSDD-091. Defensive sweep (S-7.02): develop_head eb3416d1 UNCHANGED (no merges this burst); total_stories 177→178 (S-MAINT-W3SEC-CITE-SWEEP-002 registered); story_index_version v2.251→v2.252 propagated to STATE.md frontmatter + STORY-INDEX.md frontmatter + sprint-state.yaml prereq_artifacts; bc_index_version v5.74→v5.75 propagated to STATE.md frontmatter + BC-INDEX.md frontmatter; VP-INDEX v1.76 UNCHANGED. safe_to_compact: true.
+
+---
+
+## §RESUME SNAPSHOT 2026-06-02-THREE-LANE-CONVERGENCE-TAIL (D-955)
+
+> **This is the durable zero-context checkpoint. A fresh session can resume all 3 lanes cold from this snapshot alone.**
+
+### §1 PIPELINE STATUS
+
+- **develop HEAD:** `eb3416d1` (feat(S-DEMO-ARMIS-AQL-001): Armis AQL search endpoint fidelity — MERGED 2026-06-02 D-950)
+- **STATE.md:** v7.608
+- **BC-INDEX:** v5.75 (active: 238, draft: 1; total: 246)
+- **STORY-INDEX:** v2.253 (178 stories)
+- **VP-INDEX:** v1.76 (unchanged)
+- **Open PRs:** none
+- **D-955 burst:** wave-8 residual cite fixes (lanes 2&3) + 3-lane convergence-tail durable checkpoint
+
+### §2 THREE LANES — EXACT RESUME STATE (ALL at LOCAL streak 0/3; all residual fixes applied)
+
+---
+
+#### LANE 1 — S-DEMO-002 (P0; ready v1.4; 11pts)
+
+- **Story file:** `.factory/stories/S-DEMO-002-e2e-subprocess-smoke-test-all-sensors.md`
+- **Story version:** v1.4 (AC-014 AQL-seeding aligned to Mechanism B; Task 19 names `predicate_tree_to_filter_map` as canonical seeding site; F-DEMO002-P1-MED-002 CLOSED)
+- **Code branch:** `feature/S-DEMO-002`
+- **Worktree path:** `.worktrees/S-DEMO-002`
+- **Code HEAD:** `e72984a8` (docs: corrected phantom seeding-fn cite in prism-query tests/mod.rs — F-DEMO-002-P2-MED-001 CLOSED)
+- **Workspace tests at e72984a8:** 915 prism-query tests GREEN; `just check` GREEN (prior bd6bc2cf)
+- **LOCAL streak:** 0/3
+- **Residual fix applied:** F-DEMO-002-P2-MED-001 CLOSED at e72984a8 (phantom symbol comment in prism-query/tests/mod.rs corrected per adversary pass 2 finding)
+- **BCs:** BC-2.11.001, BC-2.11.005, BC-2.09.008, BC-2.10.001, BC-2.10.010, BC-3.2.001, BC-2.22.001, BC-2.11.007
+- **TRACKED DEPENDENCY (HARD):** MUST seed `query_filters["aql"]` in `PipelineExecutor::FetchContext` from PrismQL WHERE predicate for Armis end-to-end AQL push-down. Canonical seeding site: `predicate_tree_to_filter_map` (BC-2.11.007 v1.5 Mechanism B). Do NOT add parallel extract fn (Task 19 prohibits it).
+- **NEXT ACTION (EXACT):** LOCAL adversary re-pass using worktree-identity preflight per Lesson 62 (GH #176). Verify: `git -C .worktrees/S-DEMO-002 rev-parse HEAD` == `e72984a8`. After 3-CLEAN CONVERGED: demo-recorder per-AC evidence → push feature branch → pr-manager 9-step PR cycle → PR-LEVEL 3-CLEAN → merge.
+- **After merge:** POL-14 BC auto-promotions for BCs with `draft` lifecycle_status; state-manager post-merge burst (Step 9).
+
+---
+
+#### LANE 2 — S-DEMO-CROWDSTRIKE-MULTIREGION-001 (P2; ready v1.3; 2pts)
+
+- **Story file:** `.factory/stories/S-DEMO-CROWDSTRIKE-MULTIREGION-001-crowdstrike-multiregion-base-url.md`
+- **Story version:** v1.3 (F-P2-OBS-001 CLOSED — frontmatter historical comment re-phrased from volatile "see BC-INDEX v5.74" to bump-stable "BC-2.16.013 now at v1.22, established D-946" per TD-VSDD-091 spirit; H1 + body **Version:** + §Changelog v1.3 row updated)
+- **Code branch:** `feature/S-DEMO-CROWDSTRIKE-MULTIREGION-001`
+- **Worktree path:** `.worktrees/S-DEMO-CROWDSTRIKE-MULTIREGION-001`
+- **Code HEAD:** `f0621e65` (feat: crowdstrike.sensor.toml — replace hardcoded us-1 base_url with ${env.CROWDSTRIKE_BASE_URL})
+- **LOCAL streak:** 0/3
+- **Residual fixes applied:** F-P1-OBS-001 CLOSED (D-954 BC-2.16.013 cite v1.19→v1.22 at ~line 197). F-P2-OBS-001 CLOSED (D-955 bump-stable cite per TD-VSDD-091).
+- **BCs:** BC-2.16.009, BC-2.16.013
+- **DTU note:** NO code change to prism-dtu-crowdstrike (DTU region-agnostic per ADR-031 §D8-c). Scope is crowdstrike.sensor.toml + prism-spec-engine ${env.CROWDSTRIKE_BASE_URL} interpolation only.
+- **NEXT ACTION (EXACT):** LOCAL adversary re-pass using worktree-identity preflight per Lesson 62 (GH #176). Verify: `git -C .worktrees/S-DEMO-CROWDSTRIKE-MULTIREGION-001 rev-parse HEAD` == `f0621e65`. After 3-CLEAN CONVERGED: demo-recorder per-AC evidence → push feature branch → pr-manager 9-step PR cycle → PR-LEVEL 3-CLEAN → merge.
+- **After merge:** POL-14 BC auto-promotions; state-manager post-merge burst (Step 9).
+
+---
+
+#### LANE 3 — S-MAINT-W3SEC-CITE-SWEEP-001 (P2; in-progress; 2pts; maintenance_wave)
+
+- **Story file:** `.factory/stories/S-MAINT-W3SEC-CITE-SWEEP-001-org-guard-citation-sweep.md` (v1.1 in-progress)
+- **Companion story corrected:** `W3-FIX-SEC-001-x-org-id-auth-enforcement.md` v1.1→v1.2 (ADV-P02-LOW-001 CLOSED — BC table §Behavioral Contracts row for BC-3.5.002 "Relevant Clause" corrected: old stale parenthetical used "wrong port" / build-topology framing; new: "per-handler X-Org-Id → HTTP 401 when a wrong-org request reaches a clone's endpoint" — postcondition-2 handler/endpoint semantics verbatim)
+- **Code branch:** `maintenance/w3sec-cite-sweep`
+- **Worktree path:** `.worktrees/S-MAINT-W3SEC-CITE-SWEEP-001`
+- **Code HEAD:** `9d4c48fd` (fix: correct BC-3.5.002 precond-3 org-guard mis-cite → W3-FIX-SEC-001 in dtu-crowdstrike + dtu-cyberint; 21 sites corrected)
+- **LOCAL streak:** 0/3
+- **LOCAL adversary pass 1 result (D-954):** CLEAN(PR-merge)=yes; in-scope diff MERGE-READY. OBS-001 (armis+slack sites out-of-scope per EC-004 correct routing) → DRIFT-D954-001 + S-MAINT-W3SEC-CITE-SWEEP-002; OBS-002/003 non-defect. Residual fix applied this burst: ADV-P02-LOW-001 BC table gloss correction (W3-FIX-SEC-001 v1.2).
+- **BCs:** none (maintenance sweep — cite corrections only, no new behavior)
+- **Scope boundary:** prism-dtu-crowdstrike + prism-dtu-cyberint (21 sites @ 9d4c48fd). Out-of-scope: prism-dtu-armis (~40+ sites) + prism-dtu-slack (1 site) → anchored to DRIFT-D954-001 + S-MAINT-W3SEC-CITE-SWEEP-002.
+- **NEXT ACTION (EXACT):** LOCAL adversary re-pass with worktree-identity preflight per Lesson 62 (GH #176). Verify: `git -C .worktrees/S-MAINT-W3SEC-CITE-SWEEP-001 rev-parse HEAD` == `9d4c48fd`. Confirm CLEAN(strict) after OBS disposition + W3-FIX-SEC-001 v1.2 gloss fix. After 3-CLEAN: push maintenance branch → pr-manager **fix-pr-delivery flow** (NOT full 9-step; maintenance story skips stub/red-gate/adversary-cascade) → PR → merge. **No demo-recorder needed** (maintenance sweep, no new behavior).
+- **After merge:** state-manager post-merge burst; DRIFT-D943-001 closed (ANCHORED story merged).
+
+---
+
+### §3 OPEN FOLLOW-UPS
+
+| Item | Status | Anchor |
+|------|--------|--------|
+| DRIFT-D943-001 | ANCHORED — S-MAINT-W3SEC-CITE-SWEEP-001 IN DELIVERY (merge-ready @ 9d4c48fd) | D-953 |
+| DRIFT-D954-001 | ANCHORED — S-MAINT-W3SEC-CITE-SWEEP-002 registered (draft; P2; depends_on []) | D-954 |
+| S-MAINT-W3SEC-CITE-SWEEP-002 | Draft stub — story-writer materialization pending; scope: prism-dtu-armis (~40+ sites) + prism-dtu-slack (1 site); file: S-MAINT-W3SEC-CITE-SWEEP-002-armis-slack-org-guard-citation-sweep.md | D-954 |
+| GH #176 | Filed at drbothen/vsdd-factory — Lesson 62 adversary worktree-identity preflight gap (SAP-5: `git -C <worktree> rev-parse HEAD` must == dispatched feature HEAD; worktree basename must == story ID) | D-952 |
+| S-DEMO-003 | Draft (P1; 5pts) — setup scripts + prism-credential-set CLI + operator runbook; depends_on [S-DEMO-001 SATISFIED, S-DEMO-002 HARD] | Wave-5 backlog |
+| OCSF-CLASS-MIGRATION-001 | Draft [DEMO-GOAL-REQUIRED] (P2; 3pts) — migrate 4 sensor TOMLs ocsf_class 'security_finding'→'detection_finding'; depends_on [S-DEMO-001 SATISFIED] | D-936/D-941 |
+| S-DEMO-HARNESS-CLONE-PARITY-001 | Draft [DEMO-GOAL-REQUIRED] (P2; 3pts) — prism-dtu-harness in-process clones add Armis search + Claroty audit_log routes; depends_on [S-DEMO-ARMIS-AQL-001 SATISFIED, S-DEMO-CLAROTY-AUDIT-DTU-001 SATISFIED] | D-941 |
+| S-DEMO-CLAROTY-SPEC-PROSE-FIX-001 | Draft [DEMO-GOAL-REQUIRED] (P2; 1pt) — BC-2.16.013 prose + claroty.sensor.toml stale DTU-gap comments; depends_on [S-DEMO-CLAROTY-AUDIT-DTU-001 SATISFIED] | D-941 |
+| F-P1-OBS-003 | Deferred (factory/can-wait) — SAP-2 runtime-shape-assertion extension; VSDD pipeline improvement; NOT demo-goal | D-941 |
+
+### §4 RESUME CHECKLIST (run in order on every new session)
+
+```bash
+# Step 1 — Factory worktree health (BLOCKING preflight)
+# Run: vsdd-factory:factory-worktree-health
+
+# Step 2 — Verify STATE.md version
+grep '^version:' .factory/STATE.md
+# Expected: version: "7.608"
+
+# Step 3 — Verify develop HEAD
+git log --oneline -3 develop
+# Expected: eb3416d1 at top (feat(S-DEMO-ARMIS-AQL-001): Armis AQL...)
+
+# Step 4 — Verify STORY-INDEX version and story count
+grep '^version:\|^total_stories:' .factory/stories/STORY-INDEX.md
+# Expected: version: "v2.253" / total_stories: 178
+
+# Step 5 — Verify BC-INDEX version
+grep '^version:' .factory/specs/behavioral-contracts/BC-INDEX.md
+# Expected: version: "5.75"
+
+# Step 6 — Verify no open PRs
+gh pr list --state open
+# Expected: empty
+
+# Step 7 — Verify all 3 worktree HEADs (Lesson 62 preflight discipline)
+git -C .worktrees/S-DEMO-002 rev-parse HEAD
+# Expected: e72984a8
+
+git -C .worktrees/S-DEMO-CROWDSTRIKE-MULTIREGION-001 rev-parse HEAD
+# Expected: f0621e65
+
+git -C .worktrees/S-MAINT-W3SEC-CITE-SWEEP-001 rev-parse HEAD
+# Expected: 9d4c48fd
+
+# Step 8 — Verify factory-artifacts HEAD
+git -C .factory log -1 --format='%h %s'
+# Expected: D-955 commit
+
+# Step 9 — Verify sprint-state.yaml lane statuses
+grep 'story_id\|spec_version\|code_head\|dispatch_status' .factory/stories/sprint-state.yaml | head -20
+# Expected: S-DEMO-002 v1.4 e72984a8 streak 0/3; S-DEMO-CROWDSTRIKE v1.3 f0621e65; S-MAINT-SWEEP-001 9d4c48fd
+```
+
+### §5 ARTIFACT VERSIONS (post D-955)
+
+| Artifact | Version | Notes |
+|----------|---------|-------|
+| STATE.md | v7.608 | D-955 burst |
+| STORY-INDEX.md | v2.253 | 178 stories; D-955 burst |
+| BC-INDEX.md | v5.75 | unchanged from D-954 |
+| VP-INDEX.md | v1.76 | unchanged |
+| develop HEAD | eb3416d1 | unchanged (no merges this burst) |
+| sprint-state.yaml | — | lanes updated: S-DEMO-002 code_head e72984a8; S-DEMO-CROWDSTRIKE v1.3 f0621e65; S-MAINT 9d4c48fd; all 0/3 |
+| S-DEMO-CROWDSTRIKE-MULTIREGION-001 | v1.3 | F-P2-OBS-001 CLOSED; bump-stable cite |
+| W3-FIX-SEC-001 | v1.2 | ADV-P02-LOW-001 CLOSED; BC table gloss postcondition-2 semantics |
+
+### §6 RECOMMENDED NEXT ACTIONS (ordered by priority)
+
+1. **LANE 1 (P0; PARALLEL):** Dispatch LOCAL adversary re-pass on S-DEMO-002. Worktree: `.worktrees/S-DEMO-002`. Preflight: `git -C .worktrees/S-DEMO-002 rev-parse HEAD` must == `e72984a8` (Lesson 62). Story v1.4 is the authoritative spec (BC-2.11.007 v1.5 Mechanism B; `predicate_tree_to_filter_map` is the canonical AQL seeding site).
+2. **LANE 2 (P2; PARALLEL):** Dispatch LOCAL adversary re-pass on S-DEMO-CROWDSTRIKE-MULTIREGION-001. Worktree: `.worktrees/S-DEMO-CROWDSTRIKE-MULTIREGION-001`. Preflight: `git -C .worktrees/S-DEMO-CROWDSTRIKE-MULTIREGION-001 rev-parse HEAD` must == `f0621e65` (Lesson 62). Story v1.3 is the authoritative spec.
+3. **LANE 3 (P2; PARALLEL):** Dispatch LOCAL adversary re-pass on S-MAINT-W3SEC-CITE-SWEEP-001. Worktree: `.worktrees/S-MAINT-W3SEC-CITE-SWEEP-001`. Preflight: `git -C .worktrees/S-MAINT-W3SEC-CITE-SWEEP-001 rev-parse HEAD` must == `9d4c48fd` (Lesson 62). Maintenance story — after LOCAL 3-CLEAN: push → fix-pr-delivery flow → PR → merge (no demo-recorder).
+4. **S-MAINT-W3SEC-CITE-SWEEP-002 (P2; background):** Dispatch story-writer to materialize file `S-MAINT-W3SEC-CITE-SWEEP-002-armis-slack-org-guard-citation-sweep.md`. Scope: prism-dtu-armis (~40+ sites) + prism-dtu-slack (1 site). Anchors DRIFT-D954-001.
+
+### §7 KEY ARCHITECTURAL CONSTRAINTS (carry into every adversary dispatch)
+
+- **BC-5.39.001 3-CLEAN protocol (D-779):** CLEAN(strict) = ZERO findings ALL severities. CLEAN(PR-merge) = ZERO CRIT+HIGH+MED. Streak advances only on CLEAN(strict). Both criteria must be explicitly stated in each adversary pass report.
+- **SAP-1 (tracing emission catalog completeness):** Grep `event_type =` across all modified Rust files; every value must have a BC-2.16.002 catalog row.
+- **SAP-2 (DTU↔TOML schema parity):** For any sensor TOML touched, verify column names + types against DTU types.rs structs.
+- **TD-VSDD-091 (anti-volatile-pin):** Cite function names + behavioral anchors, NOT file.rs:NNN line numbers.
+- **TD-VSDD-059 (paper-fix detection):** Every claimed closure must have a load-bearing test or assertion.
+- **TD-VSDD-060 (sibling-site sweep):** When changing a function sig, constant, or canonical identifier — grep ALL callsites before committing.
+- **Lesson 62 / GH #176 (worktree-identity preflight):** Every adversary dispatch MUST assert `git -C <worktree> rev-parse HEAD` == dispatched feature HEAD AND worktree basename == story ID. Prevents DISMISSED-WRONG-TREE errors.
+
+Read this §RESUME SNAPSHOT 2026-06-02-THREE-LANE-CONVERGENCE-TAIL (you are reading it now).
+
+Proceed per RECOMMENDED NEXT ACTIONS (§6).
+Priority 1+2+3 (parallel): All 3 LOCAL adversary re-passes with Lesson 62 worktree-identity preflight.
+
+---
+
+**D-955 burst marker:** Single-commit burst per TD-VSDD-053. Anti-volatile-pin per TD-VSDD-091. Defensive sweep (S-7.02): develop_head eb3416d1 UNCHANGED; total_stories 178 UNCHANGED; story_index_version v2.252→v2.253 propagated to STATE.md frontmatter + STORY-INDEX.md frontmatter + sprint-state.yaml prereq_artifacts; bc_index_version v5.75 UNCHANGED; VP-INDEX v1.76 UNCHANGED. safe_to_compact: true.

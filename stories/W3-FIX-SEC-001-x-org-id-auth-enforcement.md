@@ -12,7 +12,7 @@ estimated_days: 2
 points: 5
 status: merged
 document_type: story
-version: "1.1"
+version: "1.2"
 producer: story-writer
 timestamp: "2026-05-01T00:00:00Z"
 input-hash: ""
@@ -73,7 +73,7 @@ until auth middleware wires validated OrgId into request extensions." This story
 | BC ID | Title | Relevant Clause |
 |-------|-------|-----------------|
 | BC-3.5.001 | Harness Logical Isolation Invariants | Postcondition 1 (query OrgA returns only OrgA data), Invariant 2 (concurrent operations do not observe each other) |
-| BC-3.5.002 | Harness Network Isolation Invariants | Postcondition 2 (routing error observable via 401 when wrong-org request reaches wrong port) |
+| BC-3.5.002 | Harness Network Isolation Invariants | Postcondition 2 (per-handler X-Org-Id → HTTP 401 when a wrong-org request reaches a clone's endpoint) |
 | BC-3.2.001 | Per-Org Sensor Data Isolation via Composite HashMap Key | Invariant 1 (composite key is the exclusive keying scheme), Invariant 2 (isolation is structural) |
 
 ## Acceptance Criteria
@@ -280,5 +280,6 @@ The fix MUST NOT introduce:
 
 | Version | Burst | Date | Author | Changes |
 |---------|-------|------|--------|---------|
+| 1.2 | ADV-P02-LOW-001 closure | 2026-06-02 | story-writer | ADV-P02-LOW-001: Corrected parenthetical gloss in BC table §Behavioral Contracts row for BC-3.5.002 — stale "wrong port" / build-topology framing replaced with handler/endpoint semantics matching postcondition 2 verbatim: "per-handler X-Org-Id → HTTP 401 when a wrong-org request reaches a clone's endpoint". No AC or substantive content change. |
 | 1.1 | S-MAINT-W3SEC-CITE-SWEEP-001 | 2026-06-02 | story-writer | DRIFT-D943-001: Corrected 3 stale `BC-3.5.002 precondition 3` mis-cites to `BC-3.5.002 postcondition 2`. AC-002 and AC-005 headings updated to include story self-anchor (`traces to W3-FIX-SEC-001; BC-3.5.002 postcondition 2`). BC table Relevant Clause updated to match (Precondition 3 → Postcondition 2). |
 | 1.0 | wave-3-sec-fix | 2026-05-01 | story-writer | Initial story creation. |
