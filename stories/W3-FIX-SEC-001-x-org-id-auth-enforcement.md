@@ -12,7 +12,7 @@ estimated_days: 2
 points: 5
 status: merged
 document_type: story
-version: "1.0"
+version: "1.1"
 producer: story-writer
 timestamp: "2026-05-01T00:00:00Z"
 input-hash: ""
@@ -73,7 +73,7 @@ until auth middleware wires validated OrgId into request extensions." This story
 | BC ID | Title | Relevant Clause |
 |-------|-------|-----------------|
 | BC-3.5.001 | Harness Logical Isolation Invariants | Postcondition 1 (query OrgA returns only OrgA data), Invariant 2 (concurrent operations do not observe each other) |
-| BC-3.5.002 | Harness Network Isolation Invariants | Precondition 3 (routing error observable via 401 when wrong-org request reaches wrong port) |
+| BC-3.5.002 | Harness Network Isolation Invariants | Postcondition 2 (routing error observable via 401 when wrong-org request reaches wrong port) |
 | BC-3.2.001 | Per-Org Sensor Data Isolation via Composite HashMap Key | Invariant 1 (composite key is the exclusive keying scheme), Invariant 2 (isolation is structural) |
 
 ## Acceptance Criteria
@@ -83,7 +83,7 @@ A request to Claroty clone for OrgA that supplies `X-Org-Id: <OrgA UUID>` receiv
 with OrgA's device data. The handler derives `OrgId` from the clone state AND verifies the
 header matches; correct callers are unaffected.
 
-### AC-002: Cross-org spoofing returns 401 (traces to BC-3.5.002 precondition 3)
+### AC-002: Cross-org spoofing returns 401 (traces to W3-FIX-SEC-001; BC-3.5.002 postcondition 2)
 A request to OrgA's Claroty clone that supplies `X-Org-Id: <OrgB UUID>` receives HTTP 401
 with JSON body `{"error": "org_id mismatch: request does not match this clone instance"}`.
 The clone's internal state is not accessed or modified.
@@ -103,7 +103,7 @@ The same instance-keyed validation is applied to `prism-dtu-claroty`, `prism-dtu
 `prism-dtu-cyberint`, and `prism-dtu-armis`. Each crate's `extract_org_id` (or equivalent)
 function is replaced with an instance-binding check using `state.instance_org_id`.
 
-### AC-005: Regression test for HS-003-02 invariant (traces to BC-3.5.002 precondition 3)
+### AC-005: Regression test for HS-003-02 invariant (traces to W3-FIX-SEC-001; BC-3.5.002 postcondition 2)
 A new integration test `test_cross_org_header_rejected` in each affected crate's
 `tests/multi_tenant.rs` (or equivalent) demonstrates that credential-mismatch returns
 HTTP 401 — not HTTP 200 and not a silent empty response.
@@ -275,3 +275,10 @@ The fix MUST NOT introduce:
 - Any import of production sensor adapter code (prism-claroty, prism-crowdstrike, etc.)
   into the DTU clone crates — DTU clones are test infrastructure and must remain
   self-contained (established in Wave 3 S-3.4.* migration).
+
+## Changelog
+
+| Version | Burst | Date | Author | Changes |
+|---------|-------|------|--------|---------|
+| 1.1 | S-MAINT-W3SEC-CITE-SWEEP-001 | 2026-06-02 | story-writer | DRIFT-D943-001: Corrected 3 stale `BC-3.5.002 precondition 3` mis-cites to `BC-3.5.002 postcondition 2`. AC-002 and AC-005 headings updated to include story self-anchor (`traces to W3-FIX-SEC-001; BC-3.5.002 postcondition 2`). BC table Relevant Clause updated to match (Precondition 3 → Postcondition 2). |
+| 1.0 | wave-3-sec-fix | 2026-05-01 | story-writer | Initial story creation. |

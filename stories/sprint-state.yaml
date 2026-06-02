@@ -46,10 +46,10 @@ active_dispatch_set:
     notes: "D-952 2026-06-02: worktree .worktrees/S-DEMO-CROWDSTRIKE-MULTIREGION-001 @ eb3416d1 confirmed created. IN DELIVERY. (Prior D-951: queued; ready v1.1; all depends_on SATISFIED.)"
 
   - story_id: S-MAINT-W3SEC-CITE-SWEEP-001
-    status: draft
+    status: in-progress
     priority: P2
     points: 2
-    spec_version: "v1.0"
+    spec_version: "v1.1"
     lane: "3-of-3"
     dispatch_status: "IN DELIVERY — worktree .worktrees/S-MAINT-W3SEC-CITE-SWEEP-001 @ eb3416d1 (maintenance/w3sec-cite-sweep) created; citation sweep / fix-pr-delivery flow in progress"
     entry_point: "citation sweep (maintenance/fix-pr-delivery flow — grep BC-3.5.002 precondition-3 stale cite in prism-dtu-crowdstrike + prism-dtu-cyberint + W3-FIX-SEC-001 story body; fix in-scope; PR; merge) → skip stub/red-gate/adversary-cascade (maintenance sweep, no new behavior)"
@@ -57,7 +57,7 @@ active_dispatch_set:
     tracked_dependency: "Anchors DRIFT-D943-001. Scope: sweep BC-3.5.002 precondition-3 mis-cite from merged crates prism-dtu-crowdstrike + prism-dtu-cyberint + the W3-FIX-SEC-001 story body (superseded precondition wording; correct anchor is W3-FIX-SEC-001). No new BCs."
     depends_on: []
     bcs: []
-    notes: "D-952 2026-06-02: worktree .worktrees/S-MAINT-W3SEC-CITE-SWEEP-001 @ eb3416d1 confirmed created. IN DELIVERY. GH issue #176 filed at drbothen/vsdd-factory for Lesson 62 adversary worktree-identity preflight gap (SAP-5). (Prior D-951: queued; story v1.0 draft; maintenance_wave; no blocking deps.)"
+    notes: "D-953 2026-06-02: code sweep DONE @ 9d4c48fd on maintenance/w3sec-cite-sweep (21 org-guard cite sites in prism-dtu-crowdstrike + prism-dtu-cyberint corrected; AC-001 SATISFIED). Story-body cites DONE: W3-FIX-SEC-001 v1.0→v1.1 (D-953 factory burst; 3 stale precondition-3 cites corrected; AC-002 SATISFIED). Next: LOCAL adversary pass → push → PR → merge (AC-003+AC-004 remaining). (Prior D-952: worktree @ eb3416d1 confirmed IN DELIVERY. D-951: queued; story v1.0 draft; maintenance_wave; no blocking deps.)"
 
   # --- Previously completed stories (maintained for history) ---
 
