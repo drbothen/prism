@@ -253,11 +253,28 @@ fn extract_column_name(expr: &Expr) -> String {
 /// will FAIL (None ≠ Some("in:devices")) until the implementation is complete.
 ///
 /// Story: S-DEMO-002 v1.3 Task 19 — AC-014 / BC-2.11.007
-pub fn extract_aql_filter_value_from_ast(_ast: &crate::ast::Ast) -> Option<String> {
-    // RED GATE STUB: always returns None.
-    // Implementer: walk the WHERE AST Predicate tree, find `aql = 'value'` equality,
-    // return Some(value.clone()). Use the same pattern as collect_equality_exprs() above.
-    None
+pub fn extract_aql_filter_value_from_ast(ast: &crate::ast::Ast) -> Option<String> {
+    use crate::ast::{Ast, SqlStatement};
+
+    // Extract the WHERE predicate from a SQL SELECT query.
+    let where_pred = match ast {
+        Ast::Sql(SqlStatement::Select(sql)) => sql.where_.as_ref()?,
+        // Filter and Pipe modes have a root predicate, not a WHERE clause;
+        // AQL push-down is SQL-only (FROM armis.devices WHERE aql = '…').
+        _ => return None,
+    };
+
+    // Build a flat FilterMap from equality predicates in the WHERE clause.
+    // `predicate_tree_to_filter_map` already handles AND-decomposition and
+    // `field = 'string'` extraction — reuse it to avoid duplicating logic.
+    let filter_map = predicate_tree_to_filter_map(where_pred);
+
+    // Extract the "aql" key value as a plain String for path-template interpolation.
+    // The FilterMap stores string literals as `serde_json::Value::String(v)`.
+    filter_map
+        .get("aql")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string())
 }
 
 /// Map a `VirtualField` enum to its string name.
