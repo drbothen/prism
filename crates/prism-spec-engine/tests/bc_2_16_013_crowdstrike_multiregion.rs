@@ -52,7 +52,6 @@
 //! S-DEMO-CROWDSTRIKE-MULTIREGION-001; ADR-031 §D8-c.
 
 use prism_spec_engine::add_sensor_spec::parse_and_validate_spec_toml;
-use prism_spec_engine::error::SpecEngineError;
 
 // ---------------------------------------------------------------------------
 // Test helpers
@@ -405,7 +404,6 @@ async fn test_BC_2_16_013_crowdstrike_base_url_dtu_pipeline_connection_succeeds(
     use prism_dtu_crowdstrike::CrowdstrikeClone;
     use prism_spec_engine::NullAuthProvider;
     use prism_spec_engine::pipeline::{FetchContext, PipelineExecutor};
-    use prism_spec_engine::spec_parser::SpecLoader;
 
     // AC-004 (DTU path): BC-2.16.013 §Postconditions §2 — pipeline connects to DTU
     // when CROWDSTRIKE_BASE_URL points to the local DTU clone address.
