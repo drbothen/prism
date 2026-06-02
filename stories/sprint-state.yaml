@@ -10,25 +10,25 @@ wave: 5
 
 active_dispatch_set:
   # ============================================================
-  # D-951 PARALLEL DISPATCH SET (2026-06-02) — 3 lanes queued
+  # D-951/D-952 PARALLEL DISPATCH SET (2026-06-02) — 3 lanes IN DELIVERY
   # ============================================================
 
   - story_id: S-DEMO-002
-    status: draft
+    status: ready
     priority: P0
     points: 11
-    spec_version: "v1.2"
+    spec_version: "v1.3"
     lane: "1-of-3"
-    dispatch_status: "QUEUED — awaiting product-owner readiness evaluation (draft→ready PO gate), then full TDD delivery"
-    entry_point: "product-owner readiness evaluation (resolve any new-BC flags, flip status draft→ready) → worktree create (.worktrees/S-DEMO-002) → stub→red→green→LOCAL 3-CLEAN→demo-recorder→push→pr-manager 9-step PR cycle→PR-LEVEL 3-CLEAN→merge"
+    dispatch_status: "IN DELIVERY — status ready v1.3; worktree .worktrees/S-DEMO-002 @ eb3416d1 (feature/S-DEMO-002) created; full TDD delivery in progress"
+    entry_point: "stub→red→green→LOCAL 3-CLEAN→demo-recorder→push→pr-manager 9-step PR cycle→PR-LEVEL 3-CLEAN→merge"
     worktree_path: ".worktrees/S-DEMO-002"
-    tracked_dependency: "MUST seed query_filters[\"aql\"] in PipelineExecutor FetchContext for Armis end-to-end AQL push-down — architect+implementer confirmed scope boundary (S-DEMO-ARMIS-AQL-001 wires DTU/TOML/${query.filter.aql}; production query-layer seeding is S-DEMO-002 scope; not a defer-pattern violation)"
+    tracked_dependency: "MUST seed query_filters[\"aql\"] in PipelineExecutor FetchContext for Armis end-to-end AQL push-down (AC-014 D-934/D-952 scope) — architect+implementer confirmed scope boundary (S-DEMO-ARMIS-AQL-001 wires DTU/TOML/${query.filter.aql}; production query-layer seeding is S-DEMO-002 scope; not a defer-pattern violation)"
     depends_on:
       - S-DEMO-001             # HARD — SATISFIED (merged PR #166 develop@5dd3df02)
       - S-CONFIG-MULTI-TENANT-OVERRIDE-001  # HARD — SATISFIED (merged PR #155 develop@3e822522)
-    bcs: [BC-2.11.001, BC-2.11.005, BC-2.09.008, BC-2.10.001, BC-2.10.010, BC-3.2.001]
+    bcs: [BC-2.11.001, BC-2.11.005, BC-2.09.008, BC-2.10.001, BC-2.10.010, BC-3.2.001, BC-2.22.001, BC-2.11.007]
     vps: [VP-148]
-    notes: "D-951 2026-06-02: queued for parallel dispatch. PO-readiness evaluation is first gate. All depends_on SATISFIED. S-DEMO-001 keystone merged develop@5dd3df02. 3-org E2E subprocess smoke test — all 4 sensors + multi-org isolation."
+    notes: "D-952 2026-06-02: PO readiness flip draft→ready v1.3. AC-014 AQL-seeding added (D-934 scope: prism-query QueryEngine → FetchContext.query_filters[\"aql\"] for Armis; Task 19 + Red Gate test_BC_2_11_007_e2e_armis_aql_pushdown_seeded_in_fetch_context). BC-2.22.001 + BC-2.11.007 added. acceptance_criteria_count 13→14. crates_touched += prism-query + prism-spec-engine. Worktree @ eb3416d1 confirmed. (Prior D-951: queued; all depends_on SATISFIED.)"
 
   - story_id: S-DEMO-CROWDSTRIKE-MULTIREGION-001
     status: ready
@@ -36,14 +36,14 @@ active_dispatch_set:
     points: 2
     spec_version: "v1.1"
     lane: "2-of-3"
-    dispatch_status: "QUEUED — status ready v1.1; dispatchable immediately (worktree → TDD delivery)"
-    entry_point: "worktree create (.worktrees/S-DEMO-CROWDSTRIKE-MULTIREGION-001) → full TDD delivery (stub→red→green→LOCAL 3-CLEAN→demo-recorder→push→pr-manager 9-step PR cycle→PR-LEVEL 3-CLEAN→merge)"
+    dispatch_status: "IN DELIVERY — worktree .worktrees/S-DEMO-CROWDSTRIKE-MULTIREGION-001 @ eb3416d1 (feature/S-DEMO-CROWDSTRIKE-MULTIREGION-001) created; full TDD delivery in progress"
+    entry_point: "stub→red→green→LOCAL 3-CLEAN→demo-recorder→push→pr-manager 9-step PR cycle→PR-LEVEL 3-CLEAN→merge"
     worktree_path: ".worktrees/S-DEMO-CROWDSTRIKE-MULTIREGION-001"
     tracked_dependency: "DTU: NO code change to prism-dtu-crowdstrike (region-agnostic per ADR-031 §D8-c); scope: crowdstrike.sensor.toml + prism-spec-engine ${env.CROWDSTRIKE_BASE_URL} interpolation"
     depends_on:
       - S-SPEC-ENV-VAR-001     # HARD — SATISFIED (merged PR #165 develop@4feec93a 2026-06-01)
     bcs: [BC-2.16.009, BC-2.16.013]
-    notes: "D-951 2026-06-02: queued for parallel dispatch. Ready v1.1 (PO adjudication D-933: BC-2.16.009 v1.6→v1.7 + BC-2.16.013 v1.18→v1.19 attached). All depends_on SATISFIED. No new-BC flags open."
+    notes: "D-952 2026-06-02: worktree .worktrees/S-DEMO-CROWDSTRIKE-MULTIREGION-001 @ eb3416d1 confirmed created. IN DELIVERY. (Prior D-951: queued; ready v1.1; all depends_on SATISFIED.)"
 
   - story_id: S-MAINT-W3SEC-CITE-SWEEP-001
     status: draft
@@ -51,13 +51,13 @@ active_dispatch_set:
     points: 2
     spec_version: "v1.0"
     lane: "3-of-3"
-    dispatch_status: "QUEUED — maintenance/fix-pr-delivery flow (no PO gate needed; citation sweep is implementer scope)"
-    entry_point: "worktree create (.worktrees/S-MAINT-W3SEC-CITE-SWEEP-001) → citation sweep (maintenance/fix-pr-delivery flow — grep BC-3.5.002 precondition-3 stale cite in prism-dtu-crowdstrike + prism-dtu-cyberint + W3-FIX-SEC-001 story body; fix in-scope; PR; merge) → skip stub/red-gate/adversary-cascade (maintenance sweep, no new behavior)"
+    dispatch_status: "IN DELIVERY — worktree .worktrees/S-MAINT-W3SEC-CITE-SWEEP-001 @ eb3416d1 (maintenance/w3sec-cite-sweep) created; citation sweep / fix-pr-delivery flow in progress"
+    entry_point: "citation sweep (maintenance/fix-pr-delivery flow — grep BC-3.5.002 precondition-3 stale cite in prism-dtu-crowdstrike + prism-dtu-cyberint + W3-FIX-SEC-001 story body; fix in-scope; PR; merge) → skip stub/red-gate/adversary-cascade (maintenance sweep, no new behavior)"
     worktree_path: ".worktrees/S-MAINT-W3SEC-CITE-SWEEP-001"
     tracked_dependency: "Anchors DRIFT-D943-001. Scope: sweep BC-3.5.002 precondition-3 mis-cite from merged crates prism-dtu-crowdstrike + prism-dtu-cyberint + the W3-FIX-SEC-001 story body (superseded precondition wording; correct anchor is W3-FIX-SEC-001). No new BCs."
     depends_on: []
     bcs: []
-    notes: "D-951 2026-06-02: queued for parallel dispatch. Story v1.0 draft; maintenance_wave entry (fix-pr-delivery flow). Anchors DRIFT-D943-001 (D-943 2026-06-02). No blocking deps."
+    notes: "D-952 2026-06-02: worktree .worktrees/S-MAINT-W3SEC-CITE-SWEEP-001 @ eb3416d1 confirmed created. IN DELIVERY. GH issue #176 filed at drbothen/vsdd-factory for Lesson 62 adversary worktree-identity preflight gap (SAP-5). (Prior D-951: queued; story v1.0 draft; maintenance_wave; no blocking deps.)"
 
   # --- Previously completed stories (maintained for history) ---
 
@@ -272,9 +272,9 @@ deferred_post_demo:
   # reclassification from permitted-divergence → required-fidelity; user directive no-scope-compromise).
 
 prereq_artifacts:
-  story_index: .factory/stories/STORY-INDEX.md         # v2.249 after D-950 burst
+  story_index: .factory/stories/STORY-INDEX.md         # v2.250 after D-952 burst
   bc_index: .factory/specs/behavioral-contracts/BC-INDEX.md  # v5.74
-  state: .factory/STATE.md                              # v7.604 after D-951 burst
+  state: .factory/STATE.md                              # v7.605 after D-952 burst
   governing_adr: .factory/specs/architecture/decisions/ADR-031-dtu-equals-true-dtu-fidelity-principle.md  # v1.2 (ADR-031 architect e57eb5b1 reclassified 3 divergences)
   governing_audit: .factory/proposals/POLLER-DTU-FIDELITY-AUDIT-2026-05-29.md  # v1.1
 
