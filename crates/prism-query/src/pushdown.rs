@@ -223,6 +223,43 @@ fn extract_column_name(expr: &Expr) -> String {
     }
 }
 
+// ---------------------------------------------------------------------------
+// extract_aql_filter_value_from_ast (S-DEMO-002 stub — Red Gate)
+// ---------------------------------------------------------------------------
+
+/// Extract the AQL filter string from a PrismQL AST WHERE clause.
+///
+/// Looks for an equality predicate of the form `aql = 'value'` in the WHERE clause
+/// and returns the string value if found.
+///
+/// Returns `Some(aql_string)` when the WHERE clause contains `aql = 'value'`.
+/// Returns `None` when there is no WHERE clause or no `aql = '...'` predicate.
+///
+/// # Production seeding
+///
+/// Called from `materialization.rs::run_materialization()` before fan-out for
+/// Armis targets to populate `QueryParams.filters["aql"]`. The `SpecDrivenSensorAdapter`
+/// converts `FilterMap["aql"] = Value::String(v)` → `FetchContext.query_filters["aql"] = v`.
+/// `PipelineExecutor` interpolates `${query.filter.aql}` in the armis.sensor.toml path
+/// template `/api/v1/search?aql=${query.filter.aql}`.
+///
+/// # Red Gate stub
+///
+/// This stub always returns `None`. The implementer replaces the body with real
+/// predicate extraction logic (walk the WHERE AST, find `Predicate::Compare { lhs = Field("aql"),
+/// op = Eq, rhs = Literal::String(v) }`, return `Some(v)`).
+///
+/// Test `test_BC_2_11_007_e2e_armis_aql_pushdown_seeded_in_fetch_context`
+/// will FAIL (None ≠ Some("in:devices")) until the implementation is complete.
+///
+/// Story: S-DEMO-002 v1.3 Task 19 — AC-014 / BC-2.11.007
+pub fn extract_aql_filter_value_from_ast(_ast: &crate::ast::Ast) -> Option<String> {
+    // RED GATE STUB: always returns None.
+    // Implementer: walk the WHERE AST Predicate tree, find `aql = 'value'` equality,
+    // return Some(value.clone()). Use the same pattern as collect_equality_exprs() above.
+    None
+}
+
 /// Map a `VirtualField` enum to its string name.
 #[allow(unreachable_patterns)] // VirtualField is #[non_exhaustive]; wildcard needed for future variants.
 fn virtual_field_name(vf: &crate::ast::VirtualField) -> &'static str {

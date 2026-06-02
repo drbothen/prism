@@ -1,0 +1,24 @@
+# demo.toml — DTU demo server config for S-DEMO-002 E2E smoke tests.
+#
+# This config enables all 4 sensor DTU clones on ephemeral ports (:0).
+# Ports are read by the test harness from .prism-dtu-demo-server.urls.json
+# after the server starts.
+#
+# Used by: tests/e2e_smoke.rs via helpers::launch_dtu_server()
+# Story: S-DEMO-002 v1.3
+# Risk mitigation[2]: use ephemeral ports (bind :0) for DTU server.
+
+[harness]
+bind = "127.0.0.1"
+
+[clones.crowdstrike]
+enabled = true
+
+[clones.armis]
+enabled = true
+
+[clones.claroty]
+enabled = true
+
+[clones.cyberint]
+enabled = true
