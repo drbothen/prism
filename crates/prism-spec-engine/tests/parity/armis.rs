@@ -8,9 +8,14 @@
 //! Includes AQL forwarding sub-case (${query.filter.aql} in path template) and
 //! timestamp fallback sub-case (firstSeen → lastSeen → DateTime::now()) per AC-010.
 //!
-//! DTU-EXT-003 gap: Armis DTU has GET /api/v1/devices (not /api/v1/search with AQL).
-//! DTU-EXT-004 gap: Armis DTU has GET /api/v1/alerts (not /api/v1/search with AQL).
-//! Parity tests tagged #[ignore] per EC-016-013-006 until DTU extension merges.
+//! DTU-EXT-003: CLOSED by S-DEMO-ARMIS-AQL-001. devices table now uses GET /api/v1/search
+//!   with ?aql=${query.filter.aql} (real Armis Centrix AQL endpoint, ADR-031 §D8-a).
+//! DTU-EXT-004: CLOSED by S-DEMO-ARMIS-AQL-001. alerts table now uses GET /api/v1/search.
+//! AC-005 pipeline round-trip tests (test_BC_2_16_013_AC_005_aql_roundtrip_devices_pipeline
+//!   and test_BC_2_16_013_AC_005_aql_roundtrip_alerts_pipeline) now run live — no #[ignore].
+//! ${env} resolution enabled by S-SPEC-ENV-VAR-001 (@4feec93a); tests override base_url directly.
+//! Legacy parity comparison tests remain #[ignore]'d: reference OCSF fixtures are empty ([]);
+//!   record per TS-PLUGIN-PARITY-001 before removing those #[ignore] tags.
 //!
 //! AC coverage: AC-010 (Armis DTU parity + AQL + timestamp fallback), PLUGIN-MIGRATION-001-F AC-001 (TOML fixture loading)
 //! HS coverage: HS-016
@@ -112,7 +117,10 @@ fn compute_parity_verdict(
 /// Timestamp fallback sub-case: re-execute without firstSeen/lastSeen → WARN per Rule C.
 ///
 /// Tagged #[ignore] until S-6.10 merges per EC-016-013-006 / EC-016-013-001.
-#[ignore = "requires prism-dtu-armis DTU clone (S-6.10 not yet merged; DTU-EXT-001..004 routes not yet implemented; tracking under PLUGIN-MIGRATION-Wave-2)"]
+#[ignore = "reference OCSF fixtures are empty ([]); record per TS-PLUGIN-PARITY-001 \
+(start DTU, run legacy adapter, commit OCSF output to prism-dtu-armis/fixtures/parity/reference-ocsf/devices.json) \
+before removing this tag. DTU-EXT-003/004 are CLOSED by S-DEMO-ARMIS-AQL-001; the remaining \
+blocker is unrecorded fixtures, not missing routes."]
 #[tokio::test]
 async fn test_BC_2_16_013_dtu_parity_armis() {
     // Step 1: Start the DTU clone.
@@ -193,7 +201,10 @@ async fn test_BC_2_16_013_dtu_parity_armis() {
 /// parity PASS by convention (TS-PLUGIN-PARITY-001 Rule C: "both sides took same fallback path").
 ///
 /// Tagged #[ignore] per DTU dependency.
-#[ignore = "requires prism-dtu-armis DTU clone (S-6.10 not yet merged; DTU-EXT-001..004 routes not yet implemented; tracking under PLUGIN-MIGRATION-Wave-2)"]
+#[ignore = "reference OCSF fixtures are empty ([]); timestamp-fallback parity requires a recorded \
+devices fixture (prism-dtu-armis/fixtures/parity/reference-ocsf/devices.json). Record per \
+TS-PLUGIN-PARITY-001 before removing this tag. DTU-EXT-003/004 are CLOSED by S-DEMO-ARMIS-AQL-001; \
+the remaining blocker is unrecorded fixtures, not missing routes."]
 #[tokio::test]
 async fn test_BC_2_16_013_dtu_parity_armis_timestamp_fallback_pass_by_convention() {
     // Start DTU clone and configure to return device records without firstSeen/lastSeen.
