@@ -10678,3 +10678,134 @@ Priority 2: Armis LOCAL re-passes (HEAD 4e733a08 + story v1.8).
 ---
 
 **D-947 burst marker:** Single-commit burst per TD-VSDD-053. Anti-volatile-pin per TD-VSDD-091. SHA drift 72baf413→5dd3df02 corrected in DURABLE PIN BLOCK. Defensive sweep (S-7.02): story_index_version v2.246 updated in STATE.md + STORY-INDEX.md; total_stories 177 unchanged; BC-INDEX v5.74 unchanged; VP-INDEX v1.76 unchanged. safe_to_compact: true.
+
+---
+
+## §RESUME SNAPSHOT 2026-06-02-BOTH-LANES-CONVERGED (D-948)
+
+**Snapshot created:** 2026-06-02 | **Reason:** D-948 both lanes 3/3 CONVERGED: Claroty PR-LEVEL CONVERGED (PR #167; HEAD 954bca00; ready-to-merge); Armis LOCAL CONVERGED (HEAD 9243a0d3; ready for demo-recorder) | **STATE version:** 7.601 | **safe_to_compact:** true
+
+---
+
+### §1 PIPELINE STATUS
+
+| Field | Value |
+|-------|-------|
+| Phase | 3 (Wave 5 wave-5-e-demo-fidelity) |
+| STATE version | 7.601 |
+| develop HEAD | `5dd3df02` (S-DEMO-001 merged 2026-06-01T17:38:35Z) |
+| STORY-INDEX | v2.247 (total_stories: 177) |
+| BC-INDEX | v5.74 (active: 238, draft: 1) |
+| BC-2.16.013 | v1.22 (normative content correct) |
+| Open PRs | PR #167 (S-DEMO-CLAROTY-AUDIT-DTU-001; PR-LEVEL 3/3 CONVERGED; ready-to-merge HEAD 954bca00) |
+
+---
+
+### §2 TWO-LANE STATE (EXACT)
+
+#### Track D-lead — S-DEMO-CLAROTY-AUDIT-DTU-001
+
+| Item | Value |
+|------|-------|
+| PR | #167 (https://github.com/drbothen/prism/pull/167) |
+| Base | develop@5dd3df02 |
+| Feature HEAD | `954bca00` (demo-recorder; 7 demo-evidence files story-version self-cites v1.7→v1.8) |
+| Story version | v1.8 (unchanged from D-947) |
+| PR-LEVEL cascade streak | 3/3 CONVERGED per BC-5.39.001 D-779 |
+| Converged at passes | new-streak pass 1/2/3 all CLEAN(strict)=yes; novelty ZERO |
+| Last finding | F-PR3v2-MED-001 (demo-evidence story-version self-cite drift; 7 files swept; CLOSED 954bca00) |
+| Process-gap candidate | demo-evidence story-version self-cite drift class — FIRST OCCURRENCE; codify if recurs 3+ times; NOT active policy yet |
+
+**Next action (Claroty):**
+- pr-manager merge PR #167 → POL-14 BC auto-promotions (verify BC-2.01.013 + BC-2.16.013 lifecycle_status active) → post-merge burst (Step 9: state-manager update + worktree cleanup)
+
+---
+
+#### Track B — S-DEMO-ARMIS-AQL-001
+
+| Item | Value |
+|------|-------|
+| Status | in-progress v1.8 |
+| Feature HEAD | `9243a0d3` (implementer; docstring + ignore-reason wording fixes) |
+| LOCAL cascade streak | 3/3 CONVERGED per BC-5.39.001 D-779 |
+| Converged at passes | new-streak pass 1/2/3 all CLEAN(strict)=yes; novelty ZERO |
+| Last findings | ADV-P03-MED-001 (inline comment anchor sweep; CLOSED 07e64128); F-P2-MED-001 (docstring; CLOSED 9243a0d3); F-P2-LOW-001 (ignore-reason wording; CLOSED 9243a0d3) |
+| Story version | v1.8 (unchanged from D-947) |
+| Feature HEAD progression | 4e733a08→07e64128→9243a0d3 |
+
+**Next action (Armis):**
+- demo-recorder per-AC evidence against `.worktrees/S-DEMO-ARMIS-AQL-001` HEAD 9243a0d3 → rebase onto develop@5dd3df02 (if not already) → push → PR → PR-LEVEL cascade → merge
+
+---
+
+### §3 OPEN ITEMS (all lanes)
+
+| Item | ID | Routing | Status |
+|------|----|---------|--------|
+| BC-3.5.002 precondition 3 mis-cite in merged crates | DRIFT-D943-001 | S-MAINT-W3SEC-CITE-SWEEP-001 (maintenance_wave) | Anchored — pending human dispatch |
+| Pre-merge BC gap-closure process rule | Process-gap | session-reviewer (POL codification candidate) | Codified in D-944; POL not yet written |
+| harness clone parity (Armis search + Claroty audit_log) | F-P6-DEFER-001 + F-P10-LOW-001 | S-DEMO-HARNESS-CLONE-PARITY-001 | Anchored DEMO-GOAL-REQUIRED |
+| Claroty BC-2.16.013 prose (F-P2-DEFER-001) — TOML-comment scope closed D-947 | — | S-DEMO-CLAROTY-SPEC-PROSE-FIX-001 | BC-2.16.013-prose scope stays open; TOML-comment closed by F-PR7-LOW-001 in-PR fix |
+| SAP-2-probe runtime-shape-assertion extension | F-P1-OBS-003 | session-reviewer codification | factory/can-wait |
+| Demo-evidence story-version self-cite drift | F-PR3v2-MED-001 class | session-reviewer / POL candidate (if recurs 3+) | FIRST OCCURRENCE — tracked candidate, not active policy |
+
+---
+
+### §4 ARTIFACT VERSIONS (post D-948)
+
+| Artifact | Version |
+|----------|---------|
+| STATE.md | v7.601 |
+| STORY-INDEX | v2.247 (177 stories) |
+| BC-INDEX | v5.74 (active: 238, draft: 1) |
+| BC-2.16.013 | v1.22 (normative content unchanged) |
+| Armis story | v1.8 (unchanged; LOCAL 3/3 CONVERGED HEAD 9243a0d3) |
+| Claroty story | v1.8 (unchanged; PR-LEVEL 3/3 CONVERGED HEAD 954bca00) |
+| sprint-state.yaml | unchanged (D-948 is convergence-status update only) |
+
+---
+
+### §5 RECOMMENDED NEXT ACTIONS (ordered)
+
+1. **pr-manager merge PR #167** (Claroty; PR-LEVEL 3/3 CONVERGED; HEAD 954bca00; base develop@5dd3df02) → POL-14 BC auto-promotions → post-merge burst (Step 9)
+2. **Armis demo-recorder** per-AC evidence against `.worktrees/S-DEMO-ARMIS-AQL-001` HEAD 9243a0d3 → push → PR → PR-LEVEL cascade
+3. **S-DEMO-002 DISPATCH** (P0 — S-DEMO-001 SATISFIED): 3-org E2E smoke; MUST seed query_filters["aql"] for Armis AQL push-down
+4. **S-DEMO-CROWDSTRIKE-MULTIREGION-001** — ready v1.1; dispatchable (parallel)
+5. **DRIFT-D943-001** — S-MAINT-W3SEC-CITE-SWEEP-001 pending human dispatch authorization
+
+---
+
+### §6 RESUME CHECKLIST
+
+```bash
+# 1. Factory worktree health
+vsdd-factory:factory-worktree-health
+
+# 2. Verify STATE.md version
+grep '^version:' .factory/STATE.md
+# Expected: version: "7.601"
+
+# 3. Confirm develop HEAD
+git log -1 --format="%H %s" develop
+# Expected: 5dd3df02 feat(S-DEMO-001): ...
+
+# 4. Check open PRs
+gh pr list --state open
+# Expected: PR #167 (S-DEMO-CLAROTY-AUDIT-DTU-001) — PR-LEVEL 3/3 CONVERGED ready-to-merge
+
+# 5. Verify worktree feature HEADs
+git -C .worktrees/S-DEMO-CLAROTY-AUDIT-DTU-001 log -1 --format="%h %s"
+# Expected: 954bca00
+git -C .worktrees/S-DEMO-ARMIS-AQL-001 log -1 --format="%h %s"
+# Expected: 9243a0d3
+```
+
+Read this §RESUME SNAPSHOT 2026-06-02-BOTH-LANES-CONVERGED (you are reading it now).
+
+Proceed per RECOMMENDED NEXT ACTIONS (§5).
+Priority 1: pr-manager merge PR #167 (Claroty PR-LEVEL 3/3 CONVERGED).
+Priority 2: Armis demo-recorder per-AC evidence → push → PR cycle.
+
+---
+
+**D-948 burst marker:** Single-commit burst per TD-VSDD-053. Anti-volatile-pin per TD-VSDD-091. Defensive sweep (S-7.02): story_index_version v2.247 updated in STATE.md + STORY-INDEX.md; total_stories 177 unchanged; BC-INDEX v5.74 unchanged; VP-INDEX v1.76 unchanged. safe_to_compact: true.
