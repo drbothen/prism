@@ -5,14 +5,17 @@ title: "prism-dtu-claroty: Add /api/v1/audit_log/get route for Claroty Audit Log
 wave: 5
 epic_id: E-DTU-FIDELITY
 priority: P1
-status: in-progress
+status: merged
+merged_sha: "e1c632dc"
+merged_pr: 167
+merged_at: "2026-06-02"
 # BC status: BC-2.01.013 and BC-2.16.013 are both active (BC-INDEX v5.74).
-# S-7.01 gate: behavioral_contracts non-empty + both BCs active → satisfied.
+# POL-14 check at D-949 post-merge burst: both BCs already active — idempotent confirms.
 # Route-design consistency confirmed by orchestrator (D-920 2026-05-31): POST
 # /api/v1/audit_log/get with ClarotyAuditLogEntry shape is consistent with
 # BC-2.01.013 auth-enforcement contract + BC-2.16.013 DTU-TOML-parity contract.
 # No New-BC flags. No env-var dependency. Story dispatchable.
-version: "1.8"
+version: "1.9"
 acceptance_criteria_count: 7
 level: "L4"
 producer: story-writer
@@ -417,6 +420,7 @@ new gate is warranted.
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.9 | 2026-06-02 | state-manager | D-949 post-merge burst: status in-progress→merged; merge metadata added (SHA e1c632dc, PR #167, date 2026-06-02). POL-14 BC auto-promotion check: BC-2.01.013 and BC-2.16.013 both already active — idempotent confirms, no status change. Claroty lane COMPLETE. |
 | 1.8 | 2026-06-02 | story-writer | BC-2.16.013 pin v1.21→v1.22 + BC-INDEX pin v5.73→v5.74 propagated to all 3 story-body sites (frontmatter comment, §Behavioral Contracts table, §References) via D-945/D-946 cross-lane POL-25 sweep; this row records the previously-undocumented advancement (changelog-completeness + version sync; no body-content change). Closes F-PR7-MED-001 (POL-23/POL-26/POL-32). |
 | 1.7 | 2026-06-01 | product-owner | F-PR3R2-MED-001 + F-PR3R2-MED-003 closure: swept BC-2.16.013 pin v1.19→v1.21 and BC-INDEX pin v5.66→v5.73 at all 3 story-body sites (frontmatter comment, §Behavioral Contracts table, §References). AC-007 expanded from 4 to 6 org-scoped endpoints (devices, audit_logs, alerts, alerted_devices, vulnerabilities, vulnerability_devices) with full 3-cell matrix (Cell A: non-nil+mismatch→401; Cell B: non-nil+absent→401; Cell C: nil+absent→200). Red Gate table expanded from 11 to 21 rows (3 core AC-001–006 tests + 18 org-isolation tests = 6 endpoints × 3 cells each, all tracing to AC-007). acceptance_criteria_count: 7 confirmed coherent (AC-007 covers all 6 endpoints; no split). |
 | 1.6 | 2026-06-01 | product-owner | O-PR3-002 closure: added AC-007 documenting DTU-wide org-isolation on all fixture-list endpoints (devices, audit_log, alerts, alerted_devices) anchored to W3-FIX-SEC-001 (org-mismatch → 401; nil-org → 200). Added 8 Red Gate test rows for org-isolation unit tests across all 4 list endpoints. Added acceptance_criteria_count: 7 to frontmatter (field was absent; body now has 7 ACs). SPEC-wins: spec brought up to delivered implementation per production-grade default. |

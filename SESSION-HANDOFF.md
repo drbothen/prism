@@ -168,7 +168,7 @@ ARTIFACT STATE AFTER D-540 (UNCHANGED FROM D-539 — no spec edits):
 DURABLE PIN BLOCK (CURRENT STATE — D-580 — DURABLE PRE-/CLEAR RESUME SNAPSHOT — 86th consecutive single-commit — STRATEGIC DECISION PENDING)
 ═══════════════════════════════════════════════════════════════════════
 
-- develop HEAD: 5dd3df02 (feat(S-DEMO-001): SpecDrivenSensorAdapter + boot step 9A — bridge PipelineExecutor to AdapterRegistry (closes GAP-002-A) (#166) — MERGED 2026-06-01T17:38:35Z; D-947 SHA-drift correction 2026-06-02)
+- develop HEAD: e1c632dc (feat(S-DEMO-CLAROTY-AUDIT-DTU-001): prism-dtu-claroty audit_log DTU route — Gap-CL-006 (#167) — MERGED 2026-06-02; D-949 post-merge burst)
 - factory-artifacts: run `git -C .factory log -1 --format=’%H’` (per TD-VSDD-053; D-579 is this commit)
 - feature_branch_head: no active feature branch (spec-authoring-only burst; develop unchanged at a5ab742c)
 - feature_branch_remote_status: no feature branch (spec-only burst; develop@a5ab742c unchanged)
@@ -10809,3 +10809,121 @@ Priority 2: Armis demo-recorder per-AC evidence → push → PR cycle.
 ---
 
 **D-948 burst marker:** Single-commit burst per TD-VSDD-053. Anti-volatile-pin per TD-VSDD-091. Defensive sweep (S-7.02): story_index_version v2.247 updated in STATE.md + STORY-INDEX.md; total_stories 177 unchanged; BC-INDEX v5.74 unchanged; VP-INDEX v1.76 unchanged. safe_to_compact: true.
+
+---
+
+## §RESUME SNAPSHOT 2026-06-02-CLAROTY-MERGED (D-949)
+
+**Snapshot created:** 2026-06-02 | **Reason:** D-949 S-DEMO-CLAROTY-AUDIT-DTU-001 MERGED PR #167 → develop@e1c632dc; Claroty lane COMPLETE; POL-14 idempotent confirms | **STATE version:** 7.602 | **safe_to_compact:** true
+
+---
+
+### §1 PIPELINE STATUS
+
+| Item | Value |
+|------|-------|
+| Phase | 3 (TDD Implementation) |
+| STATE version | v7.602 |
+| develop HEAD | `e1c632dc` (feat(S-DEMO-CLAROTY-AUDIT-DTU-001): prism-dtu-claroty audit_log DTU route — Gap-CL-006 (#167) — MERGED 2026-06-02) |
+| STORY-INDEX | v2.248 (177 stories) |
+| BC-INDEX | v5.74 (active: 238, draft: 1) |
+| Open PRs | none (PR #167 merged; Armis PR not yet created) |
+
+---
+
+### §2 CLAROTY LANE — COMPLETE
+
+| Item | Value |
+|------|-------|
+| Story | S-DEMO-CLAROTY-AUDIT-DTU-001 |
+| Status | merged v1.9 |
+| PR | #167 squash-merged → develop@e1c632dc 2026-06-02 |
+| CI | 40/40 GREEN |
+| POL-14 BC-2.01.013 | already active (D-398) — idempotent confirm |
+| POL-14 BC-2.16.013 | already active (D-776) — idempotent confirm |
+| Open follow-up | S-DEMO-CLAROTY-SPEC-PROSE-FIX-001 — BC-2.16.013-prose scope open; TOML-comment scope closed by F-PR7-LOW-001 in-PR fix |
+
+---
+
+### §3 ARMIS LANE — NEXT: DEMO-RECORDER
+
+| Item | Value |
+|------|-------|
+| Story | S-DEMO-ARMIS-AQL-001 |
+| Status | in-progress v1.8 |
+| LOCAL cascade streak | 3/3 CONVERGED per BC-5.39.001 D-779 |
+| Feature HEAD | 9243a0d3 |
+| Base | develop@5dd3df02 (rebase onto e1c632dc needed before PR push) |
+| NEXT | demo-recorder per-AC evidence against `.worktrees/S-DEMO-ARMIS-AQL-001` HEAD 9243a0d3 → rebase onto develop@e1c632dc → push → pr-manager 9-step PR cycle → merge |
+
+---
+
+### §4 OPEN ITEMS
+
+| Item | Type | Owner | Status |
+|------|------|-------|--------|
+| S-DEMO-CLAROTY-SPEC-PROSE-FIX-001 | BC-2.16.013-prose correction | product-owner (PO-owned BC amendment) | draft stub; depends_on S-DEMO-CLAROTY-AUDIT-DTU-001 now SATISFIED |
+| DRIFT-D943-001 | cross-crate BC-3.5.002 mis-cite | S-MAINT-W3SEC-CITE-SWEEP-001 | pending human dispatch |
+| F-P6-DEFER-001 + F-P10-LOW-001 | harness clone parity | S-DEMO-HARNESS-CLONE-PARITY-001 | draft stub |
+| F-P1-OBS-003 | SAP-2-probe codification | factory/can-wait | |
+| Demo-evidence story-version self-cite drift | F-PR3v2-MED-001 class | session-reviewer / POL candidate (if recurs 3+) | FIRST OCCURRENCE — tracked candidate, not active policy |
+
+---
+
+### §4 ARTIFACT VERSIONS (post D-949)
+
+| Artifact | Version |
+|----------|---------|
+| STATE.md | v7.602 |
+| STORY-INDEX | v2.248 (177 stories) |
+| BC-INDEX | v5.74 (active: 238, draft: 1) |
+| BC-2.01.013 | v1.9 (active; idempotent confirm at D-949) |
+| BC-2.16.013 | v1.22 (active; idempotent confirm at D-949) |
+| Claroty story | v1.9 (merged; PR #167 → develop@e1c632dc) |
+| Armis story | v1.8 (in-progress; LOCAL 3/3 CONVERGED HEAD 9243a0d3) |
+| sprint-state.yaml | unchanged (D-949 is post-merge status update) |
+
+---
+
+### §5 RECOMMENDED NEXT ACTIONS (ordered)
+
+1. **Armis demo-recorder** per-AC evidence against `.worktrees/S-DEMO-ARMIS-AQL-001` HEAD 9243a0d3 → rebase onto develop@e1c632dc → push → PR → PR-LEVEL cascade → merge
+2. **S-DEMO-002 DISPATCH** (P0 — S-DEMO-001 SATISFIED): 3-org E2E smoke; MUST seed query_filters["aql"] for Armis AQL push-down
+3. **S-DEMO-CROWDSTRIKE-MULTIREGION-001** — ready v1.1; dispatchable (parallel)
+4. **S-DEMO-CLAROTY-SPEC-PROSE-FIX-001** — depends_on S-DEMO-CLAROTY-AUDIT-DTU-001 now SATISFIED; ready for PO dispatch
+5. **DRIFT-D943-001** — S-MAINT-W3SEC-CITE-SWEEP-001 pending human dispatch authorization
+
+---
+
+### §6 RESUME CHECKLIST
+
+```bash
+# 1. Factory worktree health
+vsdd-factory:factory-worktree-health
+
+# 2. Verify STATE.md version
+grep '^version:' .factory/STATE.md
+# Expected: version: "7.602"
+
+# 3. Confirm develop HEAD
+git log -1 --format="%H %s" develop
+# Expected: e1c632dc feat(S-DEMO-CLAROTY-AUDIT-DTU-001): ...
+
+# 4. Check open PRs
+gh pr list --state open
+# Expected: none (PR #167 merged; Armis PR not yet created)
+
+# 5. Verify Armis worktree HEAD
+git -C .worktrees/S-DEMO-ARMIS-AQL-001 log -1 --format="%h %s"
+# Expected: 9243a0d3
+```
+
+Read this §RESUME SNAPSHOT 2026-06-02-CLAROTY-MERGED (you are reading it now).
+
+Proceed per RECOMMENDED NEXT ACTIONS (§5).
+Priority 1: Armis demo-recorder per-AC evidence → rebase onto develop@e1c632dc → push → PR cycle.
+Priority 2: S-DEMO-002 dispatch (P0).
+
+---
+
+**D-949 burst marker:** Single-commit burst per TD-VSDD-053. Anti-volatile-pin per TD-VSDD-091. Defensive sweep (S-7.02): story_index_version v2.248 updated in STATE.md + STORY-INDEX.md; develop_head e1c632dc updated in STATE.md frontmatter + SESSION-HANDOFF.md DURABLE PIN BLOCK; total_stories 177 unchanged; BC-INDEX v5.74 unchanged (no lifecycle_status changes — both BCs already active); VP-INDEX v1.76 unchanged. safe_to_compact: true.
