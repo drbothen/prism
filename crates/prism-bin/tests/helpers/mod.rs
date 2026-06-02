@@ -27,7 +27,7 @@
 //! locate the `prism` binary. DTU server uses `CARGO_BIN_EXE_prism-dtu-demo-server`
 //! when available, falling back to a workspace-relative path.
 //!
-//! Story: S-DEMO-002 v1.3
+//! Story: S-DEMO-002 v1.5
 //! BCs: BC-2.22.001, BC-2.10.010, BC-3.2.001
 
 use std::collections::HashMap;
@@ -590,18 +590,22 @@ impl McpStdioHandle {
             .ok_or_else(|| format!("tools/list response missing 'tools' array; got: {result:?}"))
     }
 
-    /// Send `tools/call` for `tool_query` with the given PrismQL string.
+    /// Send `tools/call` for the `query` MCP tool with the given PrismQL string.
     ///
     /// Returns the raw ResponseEnvelope JSON parsed from the MCP tool response.
+    ///
+    /// The canonical tool name is `"query"` (registered via `pub async fn query` under
+    /// `#[tool_router]` in `prism-mcp/src/server.rs`; BC-2.11.001 H1 source-of-truth).
     pub fn tool_query(&mut self, pql: &str) -> Result<serde_json::Value, String> {
         self.tool_query_with_params(pql, None)
     }
 
-    /// Send `tools/call` for `tool_query` with an explicit org_slug scope.
+    /// Send `tools/call` for the `query` MCP tool scoped to a specific org.
     ///
-    /// Used by AC-012 to query from a specific org context (BC-2.11.001 scoping).
-    /// The `org_slug` is passed in the tool input parameters so the query engine
-    /// routes via AdapterRegistry.get(org_id, sensor_id) for that specific org.
+    /// Used by AC-012/AC-013 to query from a specific org context (BC-2.11.001 scoping).
+    /// The org scope is passed via `clients: [org_slug]` (array of strings) — NOT `org_slug`.
+    /// `QueryToolParams` uses `clients: Option<Vec<String>>` and has `#[serde(deny_unknown_fields)]`;
+    /// passing `org_slug` would be rejected at deserialization before isolation logic runs.
     pub fn tool_query_scoped(
         &mut self,
         pql: &str,
@@ -610,7 +614,7 @@ impl McpStdioHandle {
         self.tool_query_with_params(pql, Some(org_slug))
     }
 
-    /// Internal: send `tools/call` for `tool_query` with optional org_slug.
+    /// Internal: send `tools/call` for the `query` tool with optional org scoping.
     fn tool_query_with_params(
         &mut self,
         pql: &str,
@@ -618,13 +622,15 @@ impl McpStdioHandle {
     ) -> Result<serde_json::Value, String> {
         let mut input = serde_json::json!({ "query": pql });
         if let Some(slug) = org_slug {
-            input["org_slug"] = serde_json::json!(slug);
+            // BC-2.11.001: scoping param is `clients` (array of org slug strings).
+            // QueryToolParams.clients: Option<Vec<String>>; deny_unknown_fields rejects `org_slug`.
+            input["clients"] = serde_json::json!([slug]);
         }
 
         let result = self.send_request(
             "tools/call",
             serde_json::json!({
-                "name": "tool_query",
+                "name": "query",
                 "arguments": input
             }),
         )?;

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-//! Red Gate tests for S-DEMO-002: E2E Subprocess Smoke Test — All 4 Sensors + Multi-Org Isolation.
+//! E2E subprocess smoke tests for S-DEMO-002: All 4 Sensors + Multi-Org Isolation.
 //!
 //! All tests in this file are marked `#[ignore]` per AC-010:
 //!   "Standard `cargo nextest run -p prism-bin` skips them; the CI e2e profile un-ignores them."
@@ -7,12 +7,10 @@
 //! # E2E-001 gate
 //! Every test carries `// E2E-001: requires DTU server running; un-gated in CI via 'e2e' nextest profile.`
 //!
-//! # Red Gate state
-//! ALL tests FAIL at Red Gate because:
-//! - `helpers::launch_dtu_server()` / `helpers::launch_prism_bin()` are stubs (`todo!()`).
-//! - S-DEMO-001 AdapterRegistry wiring is not yet confirmed merged.
-//! - `helpers::write_demo_config()` / `write_multi_org_demo_config()` are stubs.
-//! - AC-014 AQL seeding (`query_filters["aql"]`) is not yet implemented in prism-query.
+//! # Red Gate mechanism
+//! All tests are marked `#[ignore]` and require a live DTU demo server + prism-bin binary.
+//! They are un-gated in CI via the 'e2e' nextest profile (`[profile.e2e]` in `.cargo/nextest.toml`).
+//! Per AC-010: standard `cargo nextest run -p prism-bin` skips them (correct Red Gate behavior).
 //!
 //! # Test → AC → BC Mapping
 //!
@@ -23,8 +21,11 @@
 //! | `test_BC_2_11_005_e2e_armis_query_returns_data` | AC-004 | BC-2.11.005 |
 //! | `test_BC_3_2_001_e2e_multi_org_boot_registers_correct_adapter_count` | AC-011 | BC-3.2.001, BC-2.22.001 |
 //! | `test_BC_3_2_001_e2e_cross_org_sensor_query_returns_adapter_not_found` | AC-012 | BC-3.2.001 |
+//! | `test_BC_3_2_001_e2e_dtu_multi_tenant_each_org_reaches_correct_clone_port` | AC-013 | BC-3.2.001 |
+//! | `test_EC_004_e2e_limit_zero_returns_empty_not_error` | EC-004 | BC-2.11.001 |
+//! | `test_EC_005_e2e_limit_200_returns_paginated_rows` | EC-005 | BC-2.11.001 |
 //!
-//! Story: S-DEMO-002 v1.3
+//! Story: S-DEMO-002 v1.5
 //! BCs: BC-2.11.001, BC-2.11.005, BC-2.09.008, BC-2.10.001, BC-2.10.010, BC-3.2.001,
 //!      BC-2.22.001, BC-2.11.007
 
@@ -69,11 +70,13 @@ async fn test_BC_2_22_001_e2e_smoke_test_launches_dtu_and_prism_bin_without_erro
     // Step 4: MCP initialize handshake.
     let _capabilities = mcp.initialize().expect("MCP initialize handshake failed");
 
-    // Step 5: Assert tools/list contains tool_query (AC-002).
+    // Step 5: Assert tools/list contains `query` (AC-002).
+    // The canonical tool name is "query" (registered via `pub async fn query` under
+    // `#[tool_router]` in prism-mcp/src/server.rs; BC-2.11.001 H1 source-of-truth).
     let tools = mcp.tools_list().expect("tools/list failed");
     assert!(
-        tools.iter().any(|t| t["name"] == "tool_query"),
-        "AC-002: tools/list must contain 'tool_query'; got: {tools:?}"
+        tools.iter().any(|t| t["name"] == "query"),
+        "AC-002: tools/list must contain 'query' (the canonical tool name per BC-2.11.001); got: {tools:?}"
     );
 
     // Both subprocesses are running and MCP is responsive.
@@ -562,11 +565,12 @@ async fn test_BC_3_2_001_e2e_cross_org_sensor_query_returns_adapter_not_found() 
     mcp.initialize().expect("MCP handshake failed");
 
     // AC-012: query claroty.alerts from demo-org-a (Claroty NOT registered for demo-org-a).
-    // The MCP tool_query must scope to org demo-org-a; the query engine routes via
+    // The MCP `query` tool must scope to org demo-org-a; the query engine routes via
     // AdapterRegistry.get(demo-org-a-org-id, SensorId::from("claroty")) → None → error envelope.
     //
-    // Implementation note for the implementer: tool_query params must include
-    // `org_slug = "demo-org-a"` in the scoping parameters (BC-2.11.001).
+    // Scoping param: `clients: ["demo-org-a"]` (array of org slug strings).
+    // QueryToolParams.clients: Option<Vec<String>>; #[serde(deny_unknown_fields)] rejects `org_slug`.
+    // See BC-2.11.001 Preconditions + AC-012 rationale note.
     let response = mcp
         .tool_query_scoped("FROM claroty.alerts LIMIT 5", "demo-org-a")
         .expect("tool_query_scoped call failed (unexpected network error)");
@@ -585,6 +589,192 @@ async fn test_BC_3_2_001_e2e_cross_org_sensor_query_returns_adapter_not_found() 
         rows.is_empty(),
         "AC-012 BC-3.2.001: zero data rows must be returned when AdapterNotFound; \
          actual row count: {}; rows: {rows:?}",
+        rows.len()
+    );
+}
+
+// ---------------------------------------------------------------------------
+// AC-013 / BC-3.2.001: DTU multi-tenant — each org reaches the correct clone port
+// ---------------------------------------------------------------------------
+
+/// Test for AC-013 (Task 22).
+///
+/// Verifies BC-3.2.001 postcondition 3: both `demo-org-a` and `demo-org-c` have
+/// CrowdStrike registered and both query executions succeed (reaching the same
+/// DTU CrowdStrike clone port).
+///
+/// DTU-MULTI-001: demo DTU operates in single-tenant mode; org isolation is at
+/// AdapterRegistry layer only. Two orgs that both have CrowdStrike point to the
+/// same DTU clone port and receive identical fixture data. The isolation guarantee
+/// is structural at the AdapterRegistry keying layer — org A cannot accidentally get
+/// org B's adapter. True per-org HTTP segregation is Wave 3 scope (BC-3.2.003/004).
+///
+/// This test is SEPARATE from `test_BC_3_2_001_e2e_multi_org_boot_registers_correct_adapter_count`
+/// (which verifies boot-time registration count) — this test verifies runtime query
+/// execution reaches the correct port for each org.
+///
+/// // E2E-001: requires DTU server running; un-gated in CI via 'e2e' nextest profile.
+#[tokio::test]
+#[ignore = "E2E-001: requires DTU server running; un-gated in CI via 'e2e' nextest profile."]
+async fn test_BC_3_2_001_e2e_dtu_multi_tenant_each_org_reaches_correct_clone_port() {
+    let config_dir = TempDir::new().expect("failed to create temp config dir");
+
+    let fixture_config =
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("fixtures/e2e-demo/demo.toml");
+    let (_dtu_guard, dtu_ports) = helpers::launch_dtu_server(&fixture_config, &config_dir)
+        .await
+        .expect("DTU server did not start within 30s");
+
+    // Write 3-org config (demo-org-a: CS+Armis; demo-org-b: Claroty+Cyberint; demo-org-c: all 4).
+    helpers::write_multi_org_demo_config(config_dir.path(), &dtu_ports)
+        .expect("write_multi_org_demo_config failed");
+
+    let (_prism_guard, mut mcp) = helpers::launch_prism_bin(config_dir.path())
+        .await
+        .expect("prism-bin failed to start");
+
+    mcp.initialize().expect("MCP handshake failed");
+
+    // AC-013: query CrowdStrike from demo-org-a (CrowdStrike IS registered for demo-org-a).
+    // DTU-MULTI-001: demo DTU operates in single-tenant mode; org isolation is at
+    // AdapterRegistry layer only (AC-013 scope clarification per S-DEMO-002 v1.5).
+    let response_a = mcp
+        .tool_query_scoped("FROM crowdstrike.detections LIMIT 5", "demo-org-a")
+        .expect("query for demo-org-a failed (unexpected network/transport error)");
+
+    let rows_a = extract_rows_from_envelope(&response_a);
+    assert!(
+        !rows_a.is_empty(),
+        "AC-013 BC-3.2.001: demo-org-a CrowdStrike query must return data rows \
+         (CrowdStrike adapter registered for demo-org-a, pointing to DTU clone port); \
+         response: {response_a:?}"
+    );
+    assert_response_has_no_error(&response_a);
+
+    // AC-013: query CrowdStrike from demo-org-c (CrowdStrike IS registered for demo-org-c).
+    // Both orgs point to the same DTU clone port — both receive identical fixture data.
+    let response_c = mcp
+        .tool_query_scoped("FROM crowdstrike.detections LIMIT 5", "demo-org-c")
+        .expect("query for demo-org-c failed (unexpected network/transport error)");
+
+    let rows_c = extract_rows_from_envelope(&response_c);
+    assert!(
+        !rows_c.is_empty(),
+        "AC-013 BC-3.2.001: demo-org-c CrowdStrike query must return data rows \
+         (CrowdStrike adapter registered for demo-org-c, pointing to DTU clone port); \
+         response: {response_c:?}"
+    );
+    assert_response_has_no_error(&response_c);
+}
+
+// ---------------------------------------------------------------------------
+// EC-004: LIMIT 0 returns empty-not-error
+// ---------------------------------------------------------------------------
+
+/// Test for EC-004 (Task 23).
+///
+/// Verifies that `FROM crowdstrike_detections LIMIT 0` returns no error envelope
+/// and zero rows (empty-but-not-error per E2E-DEMO-WIRING-PLAN §6 Risk 3).
+///
+/// Coverage decision (F-PC-002): explicitly required per S-DEMO-002 v1.5 EC-004.
+///
+/// // E2E-001: requires DTU server running; un-gated in CI via 'e2e' nextest profile.
+#[tokio::test]
+#[ignore = "E2E-001: requires DTU server running; un-gated in CI via 'e2e' nextest profile."]
+async fn test_EC_004_e2e_limit_zero_returns_empty_not_error() {
+    let config_dir = TempDir::new().expect("failed to create temp config dir");
+
+    let fixture_config =
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("fixtures/e2e-demo/demo.toml");
+    let (_dtu_guard, dtu_ports) = helpers::launch_dtu_server(&fixture_config, &config_dir)
+        .await
+        .expect("DTU server did not start within 30s");
+
+    helpers::write_demo_config(config_dir.path(), &dtu_ports).expect("write_demo_config failed");
+
+    let (_prism_guard, mut mcp) = helpers::launch_prism_bin(config_dir.path())
+        .await
+        .expect("prism-bin failed to start");
+
+    mcp.initialize().expect("MCP handshake failed");
+
+    // EC-004: LIMIT 0 must return an empty result, not an error.
+    let response = mcp
+        .tool_query("FROM crowdstrike.detections LIMIT 0")
+        .expect("tool query (LIMIT 0) failed at transport level");
+
+    // Assert no error envelope.
+    assert_response_has_no_error(&response);
+
+    // Assert zero rows returned.
+    let rows = extract_rows_from_envelope(&response);
+    assert!(
+        rows.is_empty(),
+        "EC-004: LIMIT 0 must return zero rows (empty-not-error); \
+         actual row count: {}; response: {response:?}",
+        rows.len()
+    );
+}
+
+// ---------------------------------------------------------------------------
+// EC-005: LIMIT 200 returns paginated rows without error
+// ---------------------------------------------------------------------------
+
+/// Test for EC-005 (Task 24).
+///
+/// Verifies that `FROM crowdstrike_detections LIMIT 200` returns no error envelope
+/// and ≤200 rows. Asserts `rows.len() <= 200` (not exactly 200, because the DTU
+/// fixture may have fewer than 200 rows).
+///
+/// CrowdStrike DTU fixture row count: read from `crates/prism-dtu-crowdstrike/` fixture
+/// data. The DTU demo server serves all available fixture rows up to the requested LIMIT.
+/// If the fixture has fewer than 200 rows, `len(rows) == fixture_count < 200` is correct.
+/// We assert `!rows.is_empty() && rows.len() <= 200` to cover both cases without
+/// hardcoding the fixture row count.
+///
+/// Coverage decision (F-PC-002): explicitly required per S-DEMO-002 v1.5 EC-005.
+///
+/// // E2E-001: requires DTU server running; un-gated in CI via 'e2e' nextest profile.
+#[tokio::test]
+#[ignore = "E2E-001: requires DTU server running; un-gated in CI via 'e2e' nextest profile."]
+async fn test_EC_005_e2e_limit_200_returns_paginated_rows() {
+    let config_dir = TempDir::new().expect("failed to create temp config dir");
+
+    let fixture_config =
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("fixtures/e2e-demo/demo.toml");
+    let (_dtu_guard, dtu_ports) = helpers::launch_dtu_server(&fixture_config, &config_dir)
+        .await
+        .expect("DTU server did not start within 30s");
+
+    helpers::write_demo_config(config_dir.path(), &dtu_ports).expect("write_demo_config failed");
+
+    let (_prism_guard, mut mcp) = helpers::launch_prism_bin(config_dir.path())
+        .await
+        .expect("prism-bin failed to start");
+
+    mcp.initialize().expect("MCP handshake failed");
+
+    // EC-005: LIMIT 200 must return rows without error.
+    // The DTU fixture may have fewer than 200 CrowdStrike detections; if so,
+    // len(rows) == fixture_count (still <= 200 and != 0).
+    let response = mcp
+        .tool_query("FROM crowdstrike.detections LIMIT 200")
+        .expect("tool query (LIMIT 200) failed at transport level");
+
+    // Assert no error envelope.
+    assert_response_has_no_error(&response);
+
+    // Assert at least 1 row (DTU fixture is non-empty) and at most 200 rows (LIMIT respected).
+    let rows = extract_rows_from_envelope(&response);
+    assert!(
+        !rows.is_empty(),
+        "EC-005: LIMIT 200 query must return at least 1 row (DTU fixture is non-empty); \
+         response: {response:?}"
+    );
+    assert!(
+        rows.len() <= 200,
+        "EC-005: LIMIT 200 must not return more than 200 rows; \
+         actual row count: {}",
         rows.len()
     );
 }
