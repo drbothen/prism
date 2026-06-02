@@ -234,11 +234,11 @@ async fn test_AC_003_cyberint_mismatched_header_returns_401_session_not_found() 
 // AC-005 — Regression: cross-org header with missing access_token → 401
 // ===========================================================================
 
-/// AC-005 / BC-3.5.002:
+/// AC-005 / W3-FIX-SEC-001 (BC-3.5.002 postcondition 2):
 /// A request with no Cookie header returns 401 regardless of X-Prism-Org-Id.
 /// Auth is still required; the token model changed but the auth gate did not.
 ///
-/// Traces to: BC-3.5.002 precondition 3, W3-FIX-SEC-001 AC-005.
+/// Traces to: W3-FIX-SEC-001 AC-005; BC-3.5.002 postcondition 2.
 #[tokio::test]
 async fn test_cross_org_header_rejected() {
     let (_clone, base_url) = start_clone().await;
