@@ -1,6 +1,6 @@
 # Evidence Report — S-DEMO-CLAROTY-AUDIT-DTU-001
 
-**Story:** S-DEMO-CLAROTY-AUDIT-DTU-001 v1.7
+**Story:** S-DEMO-CLAROTY-AUDIT-DTU-001 v1.8
 **Title:** prism-dtu-claroty: Add /api/v1/audit_log/get route for Claroty Audit Log Fidelity (closes Gap-CL-006 / DTU=true-DTU)
 **Branch:** feature/S-DEMO-CLAROTY-AUDIT-DTU-001
 **PR:** #167 (S-DEMO-CLAROTY-AUDIT-DTU-001)
