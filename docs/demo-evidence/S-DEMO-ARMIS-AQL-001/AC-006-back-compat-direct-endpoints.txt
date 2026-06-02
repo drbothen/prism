@@ -1,0 +1,40 @@
+AC-006: Direct endpoints remain accessible (back-compat) — GET /api/v1/devices + GET /api/v1/alerts
+Story: S-DEMO-ARMIS-AQL-001 v1.8
+BC: BC-2.16.013 v1.22 (ACTIVE)
+ADR-031 §D8-a: "existing direct endpoints may remain for back-compat but aren't the primary path"
+Source file: crates/prism-dtu-armis/tests/ (pre-existing tests; all pass in full suite)
+
+Command:
+  cargo nextest run -p prism-dtu-armis --features dtu --no-fail-fast
+
+Output (full suite — 130 tests, all PASS; direct endpoint tests highlighted):
+────────────
+ Nextest run ID 30ae80c8-741a-4f25-9539-d12b617db078 with nextest profile: default
+    Starting 130 tests across 20 binaries
+        PASS [   1.660s] (  2/130) prism-dtu-armis::ac_1_aql_capture_and_device_list ac_1_post_devices_with_aql_body_returns_200_and_logs_aql
+        PASS [   1.696s] (  9/130) prism-dtu-armis::ac_1_aql_capture_and_device_list ac_1_get_devices_with_aql_returns_200_and_logs_aql
+        PASS [   1.660s] ( 17/130) prism-dtu-armis::ac_5_missing_bearer_403 ac_5_get_alerts_without_auth_returns_403
+        PASS [   1.617s] ( 21/130) prism-dtu-armis::ac_5_missing_bearer_403 ac_5_get_device_activity_without_auth_returns_403
+        PASS [   1.697s] ( 75/130) prism-dtu-armis::harness_tests test_BC_3_5_001_ac5_empty_bearer_value_returns_403
+        PASS [   1.707s] ( 76/130) prism-dtu-armis::harness_tests test_BC_3_5_001_ac5_get_device_activity_without_auth_returns_403
+        PASS [   1.715s] ( 77/130) prism-dtu-armis::harness_tests test_BC_3_5_001_ac5_wrong_scheme_returns_403
+        PASS [   1.779s] ( 80/130) prism-dtu-armis::harness_tests test_BC_3_5_001_alerts_endpoint_returns_200_with_alerts_array
+        PASS [   1.709s] ( 79/130) prism-dtu-armis::harness_tests test_BC_3_5_001_activity_endpoint_returns_200_with_activities_array
+        PASS [   1.784s] (108/130) prism-dtu-armis::reset_state_invariants alerts_endpoint_returns_200_with_alerts_array
+        PASS [   1.784s] (109/130) prism-dtu-armis::reset_state_invariants activity_endpoint_returns_200_with_activities_array
+────────────
+     Summary [  12.805s] 130 tests run: 130 passed, 0 skipped
+
+What is demonstrated:
+  - GET /api/v1/devices — still registered in build_router() after this story's changes;
+    existing tests that exercise the direct device endpoint pass (back-compat preserved)
+  - GET /api/v1/alerts — still registered in build_router(); existing alert-endpoint tests pass
+  - No existing tests broken by TOML path_template change: TOML change affects the pipeline's
+    fetch path, NOT the DTU route registrations; direct endpoint routes are independent
+  - Total: 130/130 tests PASS, 0 skipped — no regressions
+
+Note on response envelope separation:
+  - Direct endpoint /api/v1/devices uses envelope: {"data": {"devices": [...], "total": N, "page": N}}
+  - Direct endpoint /api/v1/alerts uses envelope: {"data": {"alerts": [...], "total": N}}
+  - Search endpoint /api/v1/search uses unified envelope: {"data": {"results": [...], "total": N}}
+  These are distinct and independently correct per their respective contracts.

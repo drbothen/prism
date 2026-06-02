@@ -1,0 +1,37 @@
+AC-003: /api/v1/search with in:alerts AQL returns alert records
+EC-001: Absent aql param returns devices (safe default)
+Story: S-DEMO-ARMIS-AQL-001 v1.8
+BC: BC-2.16.013 v1.22 (ACTIVE) — §Postconditions §2 (DTU-Parity Tests Pass)
+Source file: crates/prism-dtu-armis/tests/s_demo_armis_aql_001_red_gate.rs
+Red Gate tests:
+  test_armis_aql_search_alerts_aql_returns_alert_records  (AC-003)
+  test_armis_aql_search_no_aql_defaults_to_devices         (AC-001 / EC-001)
+
+Command:
+  cargo nextest run -p prism-dtu-armis --features dtu \
+    --test s_demo_armis_aql_001_red_gate --no-fail-fast
+
+Output (excerpt for AC-003 and EC-001 tests):
+────────────
+ Nextest run ID de5bf673-6ce7-438c-9962-894e99d90296 with nextest profile: default
+    Starting 9 tests across 1 binary
+        PASS [   0.580s] (4/9) prism-dtu-armis::s_demo_armis_aql_001_red_gate test_armis_aql_search_alerts_aql_returns_alert_records
+        PASS [   0.580s] (8/9) prism-dtu-armis::s_demo_armis_aql_001_red_gate test_armis_aql_search_no_aql_defaults_to_devices
+────────────
+     Summary [   0.580s] 9 tests run: 9 passed, 0 skipped
+
+What is demonstrated:
+  - GET /api/v1/search?aql=in:alerts returns HTTP 200 with response envelope:
+      {"data": {"results": [...AlertRecord...], "total": N}}
+    where results contains AlertRecord objects from fixture data
+    (fields: id, title, description, severity, status, device_ids, time)
+  - AQL discrimination: "in:alerts" checked FIRST (unambiguous), before "in:devices"
+    per ADR-031 §D8-a / R-DTU-002 opaque model
+  - EC-001: GET /api/v1/search with NO aql query parameter returns device records
+    (safe default per R-DTU-002 — absent AQL → devices, not empty/error response)
+
+AQL routing logic (opaque pattern matching per ADR-005 §D1 / R-DTU-002):
+  let return_alerts = aql.as_deref().map(|s| s.contains("in:alerts")).unwrap_or(false);
+  No AQL grammar parsing — string pattern matching only.
+  Real Armis AQL discriminators: in:devices / in:alerts (per research artifact
+  .factory/research/armis-aql-discriminator-syntax-2026-06.md — HIGH confidence, 6 sources)

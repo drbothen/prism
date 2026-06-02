@@ -1,0 +1,44 @@
+AC-004: armis.sensor.toml devices and alerts steps use /api/v1/search path + SAP-2 column parity
+Story: S-DEMO-ARMIS-AQL-001 v1.8
+BC: BC-2.16.013 v1.22 (ACTIVE) — §Postconditions §1 (Spec Files Authored and Validated)
+SAP-2: DTU↔TOML schema parity gate — every TOML column maps to a field in DeviceRecord/AlertRecord
+Source file: crates/prism-dtu-armis/tests/s_demo_armis_aql_001_red_gate.rs
+Red Gate tests:
+  test_armis_aql_search_toml_path_template_updated   (AC-004)
+  test_armis_aql_search_toml_response_path_updated   (AC-004)
+  test_armis_aql_search_dtu_toml_column_parity       (AC-004 / SAP-2)
+
+Command:
+  cargo nextest run -p prism-dtu-armis --features dtu \
+    --test s_demo_armis_aql_001_red_gate --no-fail-fast
+
+Output (excerpt for AC-004 tests):
+────────────
+ Nextest run ID de5bf673-6ce7-438c-9962-894e99d90296 with nextest profile: default
+    Starting 9 tests across 1 binary
+        PASS [   0.021s] (1/9) prism-dtu-armis::s_demo_armis_aql_001_red_gate test_armis_aql_search_toml_response_path_updated
+        PASS [   0.021s] (2/9) prism-dtu-armis::s_demo_armis_aql_001_red_gate test_armis_aql_search_dtu_toml_column_parity
+        PASS [   0.022s] (3/9) prism-dtu-armis::s_demo_armis_aql_001_red_gate test_armis_aql_search_toml_path_template_updated
+────────────
+     Summary [   0.580s] 9 tests run: 9 passed, 0 skipped
+
+What is demonstrated:
+  TOML path_template update (DTU-EXT-003/004 gaps CLOSED):
+  - devices table fetch_devices step: path_template starts with "/api/v1/search?aql="
+    (was "/api/v1/devices" — DTU-EXT-003 closed)
+  - alerts table fetch_alerts step: path_template starts with "/api/v1/search?aql="
+    (was "/api/v1/alerts" — DTU-EXT-004 closed)
+
+  TOML response_path update:
+  - devices.fetch_devices.response_path = "$.data.results"
+    (was "$.data.devices" — updated to match search route's unified envelope)
+  - alerts.fetch_alerts.response_path = "$.data.results"
+    (was "$.data.alerts" — updated to match search route's unified envelope)
+
+  SAP-2 column parity (every TOML column has DTU struct field):
+  - devices table columns → DeviceRecord fields in types.rs: all present
+  - alerts table columns → AlertRecord fields in types.rs: all present
+  - No TOML column without DTU equivalent (CRITICAL P1 check per SAP-2)
+
+TOML file: crates/prism-sensors/specs/armis.sensor.toml
+DTU types: crates/prism-dtu-armis/src/types.rs (DeviceRecord, AlertRecord)
