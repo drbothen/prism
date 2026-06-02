@@ -11247,3 +11247,110 @@ Priority 3: S-MAINT-W3SEC-CITE-SWEEP-001 citation sweep (parallel).
 ---
 
 **D-951 burst marker:** Single-commit burst per TD-VSDD-053. Anti-volatile-pin per TD-VSDD-091. Defensive sweep (S-7.02): develop_head eb3416d1 UNCHANGED (no merges this burst); story_index_version v2.249 UNCHANGED; bc_index_version v5.74 UNCHANGED; total_stories 177 UNCHANGED; VP-INDEX v1.76 UNCHANGED. No count mutations — all indexes current. sprint-state.yaml active_dispatch_set rewritten with 3 queued lanes (Wave-5 Claroty/Armis marked merged). STATE.md version bumped v7.603→v7.604. safe_to_compact: true.
+
+---
+
+## §RESUME SNAPSHOT 2026-06-02-WAVE-6-SPEC-CONSOLIDATION (D-954)
+
+### §1 PIPELINE STATUS
+
+- **develop HEAD:** `eb3416d1` (feat(S-DEMO-ARMIS-AQL-001): Armis AQL search endpoint fidelity — MERGED 2026-06-02 D-950)
+- **STATE.md:** v7.607
+- **BC-INDEX:** v5.75 (active: 238, draft: 1; total: 246)
+- **STORY-INDEX:** v2.252 (178 stories)
+- **VP-INDEX:** v1.76 (unchanged)
+- **Open PRs:** none
+- **D-954 burst:** wave-6 spec consolidation — BC-2.11.007 v1.5 Mechanism A/B; S-DEMO-002 v1.4 AC-014+Task19; S-DEMO-CROWDSTRIKE v1.2 BC-2.16.013 cite refresh; lane-3 OBS-001→DRIFT-D954-001+S-MAINT-W3SEC-CITE-SWEEP-002
+
+### §2 THREE LANES — POST-D-954 STATUS (EXACT)
+
+**Lane 1 — S-DEMO-002** (P0; ready **v1.4**; 11pts):
+- Worktree: `.worktrees/S-DEMO-002` (feature/S-DEMO-002 @ eb3416d1)
+- Status: PO spec fix DONE; LOCAL streak 0/3 (reset by spec change)
+- BC-2.11.007 v1.5: §Predicate Classification now has Mechanism A (CrowdStrike/Cyberint/Claroty predicate translation) + Mechanism B (Armis verbatim-AQL passthrough). Task 19 prohibits parallel extract fn; canonical seeding site = `predicate_tree_to_filter_map` / `extract_push_down_filters_as_map`. F-DEMO002-P1-MED-002 CLOSED.
+- **Next action:** implementer fix-burst (wire predicate_tree_to_filter_map canonical path + e2e assertion test_BC_2_11_007_e2e_armis_aql_pushdown_seeded_in_fetch_context) → LOCAL adversary → 3-CLEAN → demo-recorder → push → PR-LEVEL
+
+**Lane 2 — S-DEMO-CROWDSTRIKE-MULTIREGION-001** (P2; ready **v1.2**; 2pts):
+- Worktree: `.worktrees/S-DEMO-CROWDSTRIKE-MULTIREGION-001` (feature/S-DEMO-CROWDSTRIKE-MULTIREGION-001 @ eb3416d1)
+- Status: cite fix DONE; F-P1-OBS-001 CLOSED (BC-2.16.013 historical comment ~line 197 refreshed v1.19→v1.22)
+- **Next action:** LOCAL adversary re-pass (confirm CLEAN after cite fix) → 3-CLEAN → demo-recorder → push → PR-LEVEL → merge
+
+**Lane 3 — S-MAINT-W3SEC-CITE-SWEEP-001** (P2; in-progress **v1.1**; 2pts; maintenance):
+- Worktree: `.worktrees/S-MAINT-W3SEC-CITE-SWEEP-001` (maintenance/w3sec-cite-sweep @ eb3416d1; code @ 9d4c48fd)
+- Status: LOCAL adversary pass 1 CLEAN(PR-merge)=yes; in-scope code MERGE-READY
+- OBS-001 (armis+slack sites out-of-scope per EC-004) → DRIFT-D954-001 + S-MAINT-W3SEC-CITE-SWEEP-002 (correct-agent routing; NOT defer-pattern)
+- OBS-002/003: non-defect clarifications
+- **Next action:** LOCAL adversary re-pass (confirm CLEAN after OBS disposition) → push → fix-pr-delivery flow → PR → merge
+
+### §3 NEW REGISTRATIONS (D-954)
+
+- **DRIFT-D954-001:** BC-3.5.002 precondition-3 org-guard mis-cite in prism-dtu-armis (~40+ sites) + prism-dtu-slack (1 site). Anchored to S-MAINT-W3SEC-CITE-SWEEP-002. Pending story dispatch.
+- **S-MAINT-W3SEC-CITE-SWEEP-002:** draft; P2; 2pts; maintenance_wave; depends_on []; file: S-MAINT-W3SEC-CITE-SWEEP-002-armis-slack-org-guard-citation-sweep.md. NEEDS story-writer materialization.
+
+### §4 GH ISSUE #176 STATUS
+
+Filed D-952 at drbothen/vsdd-factory: Lesson 62 adversary worktree-identity preflight gap (SAP-5: assert `git -C <worktree> rev-parse HEAD` == dispatched feature HEAD + worktree basename == story ID in adversarial-review dispatch skill).
+
+### §5 ARTIFACT VERSIONS (post D-954)
+
+| Artifact | Version | Notes |
+|----------|---------|-------|
+| STATE.md | v7.607 | D-954 burst |
+| STORY-INDEX.md | v2.252 | 178 stories; D-954 burst |
+| BC-INDEX.md | v5.75 | BC-2.11.007 v1.5; D-954 burst |
+| VP-INDEX.md | v1.76 | unchanged |
+| develop HEAD | eb3416d1 | unchanged (no merges this burst) |
+| sprint-state.yaml | — | lanes updated: S-DEMO-002 v1.4 streak 0/3; S-DEMO-CROWDSTRIKE v1.2 LOCAL re-pass; S-MAINT SWEEP-001 merge-ready |
+| BC-2.11.007 | v1.5 | Mechanism A/B disambiguation; D-954 |
+| S-DEMO-002 | v1.4 | AC-014+Task19 aligned; F-DEMO002-P1-MED-002 CLOSED |
+| S-DEMO-CROWDSTRIKE-MULTIREGION-001 | v1.2 | cite refresh; F-P1-OBS-001 CLOSED |
+
+### §6 RECOMMENDED NEXT ACTIONS (ordered)
+
+1. **LANE 1 (P0):** Dispatch implementer to wire predicate_tree_to_filter_map canonical AQL seeding path + failing Red Gate test. Story v1.4 is the authoritative spec. Worktree: `.worktrees/S-DEMO-002`.
+2. **LANE 2 (P2, parallel):** Dispatch adversary LOCAL re-pass on S-DEMO-CROWDSTRIKE-MULTIREGION-001 after v1.2 cite fix. Worktree: `.worktrees/S-DEMO-CROWDSTRIKE-MULTIREGION-001`.
+3. **LANE 3 (P2, parallel):** Dispatch adversary LOCAL re-pass on S-MAINT-W3SEC-CITE-SWEEP-001 (confirm CLEAN after OBS disposition). Then push + fix-pr-delivery → PR → merge. Worktree: `.worktrees/S-MAINT-W3SEC-CITE-SWEEP-001`.
+4. **S-MAINT-W3SEC-CITE-SWEEP-002:** Dispatch story-writer to materialize file `S-MAINT-W3SEC-CITE-SWEEP-002-armis-slack-org-guard-citation-sweep.md`. Then dispatch when ready.
+
+### §7 RESUME CHECKLIST
+
+```bash
+# 1. Verify develop HEAD
+git log --oneline -3 develop
+# Expected: eb3416d1 at top (feat(S-DEMO-ARMIS-AQL-001): Armis AQL...)
+
+# 2. Verify STATE.md version
+grep '^version:' .factory/STATE.md
+# Expected: version: "7.607"
+
+# 3. Verify STORY-INDEX version and story count
+grep '^version:\|^total_stories:' .factory/stories/STORY-INDEX.md
+# Expected: version: "v2.252" / total_stories: 178
+
+# 4. Verify BC-INDEX version
+grep '^version:' .factory/specs/behavioral-contracts/BC-INDEX.md
+# Expected: version: "5.75"
+
+# 5. Verify no open PRs
+gh pr list --state open
+# Expected: empty
+
+# 6. Verify factory-artifacts HEAD
+git -C .factory log -1 --format='%h %s'
+# Expected: D-954 commit
+
+# 7. Verify sprint-state.yaml lane statuses
+grep 'dispatch_status\|story_id\|spec_version' .factory/stories/sprint-state.yaml | head -15
+# Expected: S-DEMO-002 v1.4 streak 0/3; S-DEMO-CROWDSTRIKE v1.2 re-pass; S-MAINT SWEEP-001 merge-ready
+```
+
+Read this §RESUME SNAPSHOT 2026-06-02-WAVE-6-SPEC-CONSOLIDATION (you are reading it now).
+
+Proceed per RECOMMENDED NEXT ACTIONS (§6).
+Priority 1: Lane 1 implementer fix-burst (predicate_tree_to_filter_map AQL seeding).
+Priority 2 (parallel): Lane 2 + Lane 3 LOCAL re-passes.
+Priority 3: S-MAINT-W3SEC-CITE-SWEEP-002 story-writer materialization.
+
+---
+
+**D-954 burst marker:** Single-commit burst per TD-VSDD-053. Anti-volatile-pin per TD-VSDD-091. Defensive sweep (S-7.02): develop_head eb3416d1 UNCHANGED (no merges this burst); total_stories 177→178 (S-MAINT-W3SEC-CITE-SWEEP-002 registered); story_index_version v2.251→v2.252 propagated to STATE.md frontmatter + STORY-INDEX.md frontmatter + sprint-state.yaml prereq_artifacts; bc_index_version v5.74→v5.75 propagated to STATE.md frontmatter + BC-INDEX.md frontmatter; VP-INDEX v1.76 UNCHANGED. safe_to_compact: true.

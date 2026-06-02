@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.4"
+version: "1.5"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T07:00:00
@@ -11,7 +11,7 @@ subsystem: "SS-11"
 capability: "CAP-015"
 lifecycle_status: active
 introduced: cycle-1
-modified: null
+modified: "2026-06-02"
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -55,11 +55,27 @@ Column options are declared per-column, per-sensor-adapter in the adapter's sche
 - Each WHERE predicate is classified as either push-down-capable or post-filter for each target sensor:
   - **Push-down capable**: The predicate references a field with a known sensor-native mapping AND the sensor API supports the comparison operator AND the column is declared as REQUIRED, INDEX, or ADDITIONAL
   - **Post-filter**: The predicate references an OCSF-only field (exists only after normalization), or the sensor API does not support the operator, or the column is DEFAULT or OPTIMIZED
-- Push-down filters are translated to sensor-native query syntax:
-  - CrowdStrike: FQL filter syntax (e.g., `severity:>3+created_date:>'2026-04-01'`)
+- Push-down filters are applied to sensor-native query syntax via one of two distinct mechanisms:
+
+  #### Mechanism A — Predicate Translation (CrowdStrike, Cyberint, Claroty)
+  The query planner translates each OCSF/PrismQL WHERE predicate into the sensor's native filter syntax. The user writes standard PrismQL; the planner converts it:
+  - CrowdStrike: FQL filter syntax (e.g., `severity = 'critical'` → `severity:5`)
   - Cyberint: JSON body parameters on POST
   - Claroty xDome: POST body filter arrays
-  - Armis: AQL WHERE clauses (most capable for push-down)
+
+  #### Mechanism B — Verbatim-AQL Passthrough (Armis)
+  Armis's native query language IS AQL; there is no OCSF-to-AQL translation layer. Instead, the user supplies the AQL string directly as a pseudo-column literal in the PrismQL WHERE clause:
+
+  ```sql
+  FROM armis_devices WHERE aql = 'in:devices' LIMIT 100
+  ```
+
+  The query planner recognizes `aql` as an INDEX pseudo-column on Armis tables (declared with `options = ["INDEX"]` in `armis.sensor.toml`). It extracts the literal string value and seeds it verbatim into `FetchContext.query_filters["aql"]`. The spec engine interpolates this value into the TOML `path_template` via `${query.filter.aql}`, forwarding it as a URL query parameter to the DTU endpoint `GET /api/v1/search?aql=<value>`. No translation of the AQL content occurs — the string is treated as opaque (R-DTU-002 / ADR-031 §D8-a).
+
+  This passthrough convention was established by the merged S-DEMO-ARMIS-AQL-001 (PR #168, 2026-06-02) and is grounded in BC-2.16.013 §Postconditions §1 (`armis.sensor.toml` devices and alerts tables use `GET /api/v1/search` with AQL forwarded via `${query.filter.aql}`).
+
+  Discrimination between entity types (`in:devices` vs `in:alerts`) is performed by the DTU clone via string pattern-matching on the received AQL value; the query planner does not inspect or validate AQL syntax.
+
 - Remaining post-filter predicates are applied by DataFusion over the materialized OCSF table
 - The push-down classification is visible in `explain_query` output (see BC-2.11.010)
 - Push-down reduces the volume of data fetched from sensor APIs, improving performance and reducing materialization size
@@ -146,7 +162,7 @@ BC-2.11.011 (cross-client scoping) depends on REQUIRED column enforcement define
 | ID | Description | Expected Behavior |
 |----|-------------|-------------------|
 | EC-11-018 | Query predicate uses OCSF field `device.ip` which maps to different native fields per sensor | Cannot push down uniformly; applied as post-filter. Each sensor may partially push down the corresponding native field if the mapping is known. |
-| EC-11-019 | Armis AQL supports the full predicate natively | Push down the entire predicate to Armis; no post-filter needed for Armis. Other sensors may still need post-filtering. |
+| EC-11-019 | Armis query uses verbatim-AQL passthrough (`aql = 'in:devices status:Online'`) | The AQL string is forwarded verbatim to `/api/v1/search?aql=in:devices+status:Online`; no translation occurs; remaining non-`aql` predicates (e.g., OPTIMIZED columns) are applied as post-filters by DataFusion. Other sensors executing fan-out alongside Armis use Mechanism A translation independently. |
 | EC-11-020 | `severity >= "high"` pushed down to CrowdStrike (severity 1-5 scale) | Translate OCSF severity to CrowdStrike native scale before push-down: `"high"` -> CrowdStrike severity >= 4 |
 
 ## Canonical Test Vectors
@@ -158,6 +174,8 @@ BC-2.11.011 (cross-client scoping) depends on REQUIRED column enforcement define
 | Query with `severity = 'critical'` against CrowdStrike (INDEX column) | Push-down generated: `severity:5`; no post-filter for severity | happy-path |
 | Query missing REQUIRED column `customer_id` for Cyberint | `Err(E-QUERY-009)` before any API calls | error |
 | Query with `device.hostname = 'srv01'` (OPTIMIZED on all sensors) | Post-filter only; DataFusion filters after materialization | edge-case |
+| `FROM armis_devices WHERE aql = 'in:devices' LIMIT 100` | `FetchContext.query_filters["aql"] = "in:devices"`; DTU receives `GET /api/v1/search?aql=in:devices`; Mechanism B passthrough; no AQL translation | happy-path (Armis passthrough) |
+| `FROM armis_alerts WHERE aql = 'in:alerts status:Open' LIMIT 50` | `FetchContext.query_filters["aql"] = "in:alerts status:Open"`; DTU receives `GET /api/v1/search?aql=in:alerts+status:Open`; AQL content is opaque — no validation | happy-path (Armis passthrough with compound AQL) |
 
 ## Verification Properties
 
@@ -177,6 +195,7 @@ BC-2.11.011 (cross-client scoping) depends on REQUIRED column enforcement define
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.5 | F-DEMO002-P1-MED-002-adjudication | 2026-06-02 | product-owner | AMENDMENT 4 — adjudicates finding F-DEMO002-P1-MED-002 (POL-4 semantic drift). Rewrote §Predicate Classification to document two distinct push-down mechanisms: Mechanism A (Predicate Translation, used by CrowdStrike/Cyberint/Claroty) and Mechanism B (Verbatim-AQL Passthrough, Armis only). Armis convention: user writes `aql = '<string>'` pseudo-column literal in PrismQL WHERE; query planner seeds verbatim string into `FetchContext.query_filters["aql"]`; spec engine interpolates via `${query.filter.aql}` into TOML path_template; DTU receives `GET /api/v1/search?aql=<value>` opaque per R-DTU-002 / ADR-031 §D8-a. Precedent: merged S-DEMO-ARMIS-AQL-001 PR #168 / BC-2.16.013 §Postconditions §1. Updated EC-11-019 to reflect passthrough semantics. Added two Armis Mechanism B canonical test vectors. CrowdStrike translation example (EC-11-020, test vectors) preserved intact. |
 | 1.4 | pre-impl-amendments | 2026-05-06 | product-owner | AMENDMENT 3 — added REQUIRED Column Runtime Mechanism section: SoT is ColumnOptions::Required in prism-core/column.rs; lookup interface via ColumnSpec.options in spec-parser; no hardcoded column names; illustrative per-sensor examples; INV-REQUIRED-SPECDRIVEN invariant; relationship to BC-2.11.011 cross-client scoping. Resolves S-3.02 implementer blocker on REQUIRED column lookup. |
 | 1.3 | pass-73-fix | 2026-04-20 | state-manager | Deterministic changelog reorder: sorted all rows to descending version order (pass-73 bash script). |
 | 1.2 | pass-69-housekeeping | 2026-04-20 | product-owner | Normalized changelog schema to canonical 5-col schema. |

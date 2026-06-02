@@ -6,10 +6,11 @@ wave: 5
 epic_id: E-DEMO
 priority: P0
 status: ready
-version: "1.3"
+version: "1.4"
 level: "L4"
 producer: story-writer
 timestamp: "2026-06-02T00:00:00Z"
+modified: "2026-06-02"
 tdd_mode: strict
 subsystems: [SS-01, SS-10, SS-11, SS-22]
 # Subsystem anchor justifications:
@@ -49,10 +50,12 @@ behavioral_contracts:
                  # ("The MCP server binds to stdio ONLY AFTER step 8 is complete"; "boot
                  # orchestration makes startup deterministic and testable"). AC-011 also traces
                  # to BC-2.22.001 postcondition for deterministic 3-org boot.
-  - BC-2.11.007  # Sensor Filter Push-Down — AC-014 verifies end-to-end AQL push-down from
-                 # PrismQL WHERE predicate → FetchContext.query_filters["aql"] → DTU
-                 # /api/v1/search?aql=<value>. The query-layer seeding (prism-query →
-                 # PipelineExecutor) is S-DEMO-002 scope per D-934 confirmed architect+implementer.
+  - BC-2.11.007  # Sensor Filter Push-Down — AC-014 verifies end-to-end AQL push-down via
+                 # Mechanism B (Verbatim-AQL Passthrough): user writes `aql = '<string>'`
+                 # pseudo-column in PrismQL WHERE; prism-query seeds verbatim string into
+                 # FetchContext.query_filters["aql"]; forwarded opaque to DTU
+                 # /api/v1/search?aql=<value> per R-DTU-002 / ADR-031 §D8-a. The query-layer
+                 # seeding (prism-query → PipelineExecutor) is S-DEMO-002 scope per D-934.
 verification_properties:
   - VP-148  # VP-PLUGIN-003 DTU parity — this test is the end-to-end validator that VP-148
             # was intended to enable; it exercises all 4 sensor DTU clones in a single test run.
@@ -122,11 +125,11 @@ cycle: "v1.0.0-brownfield"
 phase: 3
 ---
 
-# S-DEMO-002 v1.3 — prism-bin: E2E Subprocess Smoke Test (All 4 Sensors + Multi-Org Isolation)
+# S-DEMO-002 v1.4 — prism-bin: E2E Subprocess Smoke Test (All 4 Sensors + Multi-Org Isolation)
 
 **Story ID:** S-DEMO-002
 **Status:** ready
-**Version:** v1.3
+**Version:** v1.4
 **Wave:** 5
 **Priority:** P0
 **Points:** 11
@@ -309,24 +312,30 @@ This scoping decision MUST be documented in a code comment in the test helper: `
 demo DTU operates in single-tenant mode; org isolation is at AdapterRegistry layer only.`
 (traces to BC-3.2.001 postcondition 3; ADR-006 §3.1 cross-tenant threat model)
 
-### AC-014: AQL filter seeded into FetchContext for Armis end-to-end push-down
-Given: A tool_query call targets an Armis table (e.g., `"FROM armis_devices WHERE in:devices LIMIT 5"`
-or any query that includes an AQL-compatible WHERE predicate for an Armis sensor).
+### AC-014: AQL filter seeded into FetchContext for Armis end-to-end push-down (Mechanism B passthrough)
+Given: A tool_query call targets an Armis table using the verbatim-AQL pseudo-column convention
+(e.g., `"FROM armis_devices WHERE aql = 'in:devices' LIMIT 5"` — the user writes `aql = '<string>'`
+as a literal pseudo-column in the PrismQL WHERE clause; `aql` is declared as an INDEX column in
+`armis.sensor.toml`).
 When: prism-query constructs the FetchContext passed to PipelineExecutor for the Armis adapter.
-Then: `FetchContext.query_filters["aql"]` is populated with the AQL string derived from the
-WHERE predicate(s) (e.g., `"in:devices"`); the DTU clone `/api/v1/search?aql=<value>` endpoint
-receives the correct AQL query parameter; the response contains rows from the AQL-matched entity
-type. This verifies end-to-end push-down from PrismQL → QueryEngine → PipelineExecutor → DTU.
+Then: `FetchContext.query_filters["aql"]` is populated with the verbatim AQL string value extracted
+from the `aql = '<string>'` predicate (e.g., `"in:devices"`); the DTU clone receives
+`GET /api/v1/search?aql=in:devices` (the string is forwarded opaque — no translation occurs;
+per BC-2.11.007 §Predicate Classification Mechanism B and R-DTU-002 / ADR-031 §D8-a); the
+response contains rows from the AQL-matched entity type. This verifies end-to-end push-down from
+PrismQL → QueryEngine (seeding) → PipelineExecutor (interpolation via `${query.filter.aql}`) → DTU.
 
 Scope note (D-934): The Armis DTU/TOML/interpolation layer was confirmed correctly wired in
-S-DEMO-ARMIS-AQL-001 (`${query.filter.aql}` path_template variable + armis.sensor.toml fetch_devices
-path = `/api/v1/search?aql=${query.filter.aql}`). The production query-layer seeding — prism-query
-QueryEngine populating `FetchContext.query_filters["aql"]` from the parsed PrismQL WHERE predicate —
-is this story's scope. This is not a defer-pattern violation: the seeding is the final piece of
-the Armis AQL push-down pipeline and belongs to this E2E integration story.
+S-DEMO-ARMIS-AQL-001 (PR #168; `${query.filter.aql}` path_template variable + `armis.sensor.toml`
+fetch_devices path = `/api/v1/search`). The production query-layer seeding — prism-query
+QueryEngine extracting the literal `aql` pseudo-column value from the parsed PrismQL WHERE predicate
+and populating `FetchContext.query_filters["aql"]` — is this story's scope. This is not a defer-pattern
+violation: the seeding is the final piece of the Armis AQL push-down pipeline and belongs to this
+E2E integration story.
 
-(traces to BC-2.11.007 postcondition: "Armis: AQL WHERE clauses" push-down syntax; BC-2.11.001
-precondition: `tool_query` accepts and forwards WHERE predicates through to the query engine)
+(traces to BC-2.11.007 §Predicate Classification Mechanism B — Verbatim-AQL Passthrough: `aql = '<string>'`
+pseudo-column convention; BC-2.11.001 precondition: `tool_query` accepts and forwards WHERE predicates
+through to the query engine)
 
 ---
 
@@ -393,13 +402,19 @@ Version source: workspace `Cargo.toml`. `rmcp` version confirmed from S-5.01-FOL
     (AC-012): asserts that `tool_query "FROM claroty_alerts LIMIT 5"` for `demo-org-a` returns
     an error envelope (not data) because Claroty is not registered for that org.
 18. **Implement** AC-013 assertion and document DTU-MULTI-001 comment per scope clarification.
-19. **Implement** AQL push-down seeding (AC-014, D-934 scope): in `prism-query` QueryEngine or
-    the adapter dispatch layer, extract AQL WHERE predicates from the PrismQL AST and populate
-    `FetchContext.query_filters["aql"]` before dispatching to PipelineExecutor. Verify that the
-    Armis DTU clone receives the correct `?aql=<value>` query parameter. Write a failing Red Gate
-    test first: `test_BC_2_11_007_e2e_armis_aql_pushdown_seeded_in_fetch_context` that asserts
-    the DTU receives the AQL string. Read `crates/prism-query/src/` and
-    `crates/prism-spec-engine/src/pipeline_executor.rs` to locate the correct seeding site.
+19. **Implement** AQL push-down seeding (AC-014, D-934 scope, Mechanism B passthrough): in
+    `prism-query` QueryEngine or the adapter dispatch layer, handle the `aql = '<string>'`
+    pseudo-column pattern from the PrismQL AST. The canonical seeding site is the
+    `predicate_tree_to_filter_map` / `extract_push_down_filters_as_map` path (which already
+    extracts the `aql` key from the filter map per adversary finding F-DEMO002-P1-MED-002).
+    Wire this path to populate `FetchContext.query_filters["aql"]` with the literal string value
+    before dispatching to PipelineExecutor. Do NOT add a parallel `extract_aql_filter_value_from_ast`
+    function — one seeding code path only (see Implementer Recommendation in adjudication report).
+    Write a failing Red Gate test first: `test_BC_2_11_007_e2e_armis_aql_pushdown_seeded_in_fetch_context`
+    that drives `FROM armis_devices WHERE aql = 'in:devices' LIMIT 5` through the engine and asserts
+    `FetchContext.query_filters["aql"] == "in:devices"` and that the DTU receives the correct
+    `GET /api/v1/search?aql=in:devices` call. Read `crates/prism-query/src/` and
+    `crates/prism-spec-engine/src/pipeline_executor.rs` to confirm the seeding site.
 20. **Run** `cargo nextest run -p prism-bin --profile e2e` after S-DEMO-001 merges; all assertions must pass GREEN.
 21. **Run** `just check` — final pre-push gate.
 
@@ -475,6 +490,7 @@ Well within budget; second-cheapest story in the E-DEMO epic.
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.4 | 2026-06-02 | product-owner | F-DEMO002-P1-MED-002 adjudication (POL-4 semantic drift). AC-014 rewritten to reflect BC-2.11.007 v1.5 Mechanism B (Verbatim-AQL Passthrough): user writes `aql = '<string>'` pseudo-column in PrismQL WHERE (not raw AQL syntax); query planner seeds verbatim string into FetchContext.query_filters["aql"]; forwarded opaque to DTU per R-DTU-002 / ADR-031 §D8-a. Task 19 updated: canonical seeding site is predicate_tree_to_filter_map / extract_push_down_filters_as_map path; explicitly prohibits parallel extract_aql_filter_value_from_ast function (one code path only per implementer recommendation). Story H1 version block updated v1.3→v1.4. |
 | 1.3 | 2026-06-02 | product-owner | Readiness flip draft→ready. (1) BC-2.22.001 (Boot Orchestration — Sequencing, Exit-Code Map, and Pre-Traffic Gate) added to behavioral_contracts frontmatter + BC body table — AC-001/AC-010/AC-011 already traced to it; gap closed per POL-8. (2) BC-2.11.007 (Sensor Filter Push-Down) added to behavioral_contracts frontmatter — required by AC-014 AQL push-down seeding. (3) AC-014 added: end-to-end AQL push-down seeding — prism-query QueryEngine populates FetchContext.query_filters["aql"] from PrismQL WHERE predicate for Armis; D-934 confirmed scope boundary (architect+implementer). Task 19 added (AQL seeding implementation + Red Gate test). acceptance_criteria_count 13→14. Token budget updated: 8 BCs / +3,500 tokens for prism-query seeding site / total ~43,800. |
 | 1.2 | 2026-05-29 | architect | AC-003: assert `detection_id` column (not `id`) per Gap-CS-001 TOML fix. AC-005: corrected query from `claroty_assets` (table does not exist) to `claroty_alerts`; added `claroty_devices` query per Gap-CL-003 fix; asserted `alert_type_name`/`detected_time` column names per Gap-CL-005 fix; noted Gap-CL-004 single-page limitation. Story bumped to v1.2 from v1.1. |
 | 1.1 | 2026-05-29 | architect | Multi-org isolation scope added: AC-011 (3-org registration + 8-adapter count), AC-012 (cross-org AdapterNotFound isolation probe), AC-013 (DTU multi-tenant scope clarification + DTU-MULTI-001 comment requirement). BC-3.2.001 added to behavioral_contracts. Points 8→11 (+3 pts for multi-org ACs). acceptance_criteria_count 10→13. red_gate_tests 4→5. EC-006..008 added. Title updated to reflect multi-org scope. |

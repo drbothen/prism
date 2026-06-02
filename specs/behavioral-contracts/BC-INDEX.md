@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "5.74"
+version: "5.75"
 status: draft
 producer: state-manager
 timestamp: 2026-06-02T00:00:00Z
@@ -154,7 +154,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.11.004 | PrismQL Pipe Mode Parsing | 11 - Query Execution | CAP-015 | P0 | active |
 | BC-2.11.005 | Ephemeral Materialization — Fan-Out, Normalize, Arrow RecordBatch, DataFusion MemTable | 11 - Query Execution | CAP-015 | P0 | active (promoted draft→active D-937 per POL-14; anchor story S-DEMO-001 merged PR #166 develop@5dd3df02 2026-06-01) — v1.5 |
 | BC-2.11.006 | Query Security Limits Enforcement | 11 - Query Execution | CAP-015 | P0 | draft |
-| BC-2.11.007 | Sensor Filter Push-Down | 11 - Query Execution | CAP-015 | P0 | draft |
+| BC-2.11.007 | Sensor Filter Push-Down | 11 - Query Execution | CAP-015 | P0 | draft — v1.5 (D-954: Mechanism A/B disambiguation; §Predicate Classification rewritten; EC-11-019 updated; 2 Armis Mechanism B test vectors added) |
 | BC-2.11.008 | `create_alias` MCP Tool | 11 - Query Execution | CAP-016 | P1 | draft |
 | BC-2.11.009 | Alias Resolution — Pre-Parse Expansion, Composition, Cycle Detection | 11 - Query Execution | CAP-016 | P1 | draft |
 | BC-2.11.010 | `explain_query` MCP Tool | 11 - Query Execution | CAP-015 | P0 | draft |
@@ -376,6 +376,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v5.75 (2026-06-02, D-954 wave-6 spec consolidation burst):** state-manager | BC-2.11.007 v1.4→v1.5 (§Predicate Classification rewritten to document two distinct push-down mechanisms: Mechanism A — Predicate Translation (CrowdStrike/Cyberint/Claroty) and Mechanism B — Verbatim-AQL Passthrough (Armis); EC-11-019 updated to reflect passthrough semantics; two canonical Armis Mechanism B test vectors added; changelog row v1.5 added; F-DEMO002-P1-MED-002 POL-4 semantic drift adjudication closed). No lifecycle_status change — BC-2.11.007 remains draft (not promoted by any merged story this burst). No count changes (no new BCs, no promotions). BC-INDEX in-line row 157 updated to v1.5. BC-INDEX v5.74→v5.75.
 
 **v5.74 (2026-06-02, D-946 doc-sweep burst — BC-2.16.013 §Changelog v1.22 row recorded + cross-lane pin propagation to v1.22):** state-manager | BC-2.16.013 v1.21→v1.22 (§Changelog v1.22 row recorded F-LP12R-MED-001 closure — AQL discriminator divergence closed by implementer 26267916; BC normative content unchanged/already-correct; product-owner commit 6fb4ba3b). Cross-lane POL-25 pin propagation: BC-2.16.013 v1.22 pin updated in Armis story (frontmatter comment + behavioral_contracts comment + §Behavioral Contracts table + §New-BC Flags section + §References) and Claroty story (frontmatter comment + §References — already at v1.22 in §Behavioral Contracts table from D-945). BC-INDEX in-line row 227 updated to v1.22. BC-INDEX v5.73→v5.74. No lifecycle_status change — BC-2.16.013 remains active. No count changes (no new BCs, no promotions — neither story merged).
 

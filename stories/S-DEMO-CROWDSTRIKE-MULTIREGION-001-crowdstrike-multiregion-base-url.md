@@ -6,7 +6,7 @@ wave: 5
 epic_id: E-DTU-FIDELITY
 priority: P2
 status: ready
-version: "1.1"
+version: "1.2"
 level: "L4"
 producer: story-writer
 timestamp: "2026-05-31T00:00:00Z"
@@ -36,6 +36,7 @@ behavioral_contracts: [BC-2.16.009, BC-2.16.013]
 # BC-2.16.013 (Bundled Sensor Spec Authoring and DTU-Parity): ATTACHED.
 #   §Postconditions §1 CrowdStrike description updated v1.18→v1.19 to reflect
 #   base_url = "${env.CROWDSTRIKE_BASE_URL}" (replacing stale hardcoded us-1 pattern).
+#   (Historical authoring record; BC now at v1.22 — see BC-INDEX v5.74.)
 #   Story-writer must update body BC table and AC traces per bc_array_changes_propagate_to_body_and_acs.
 verification_properties: []
 depends_on: [S-SPEC-ENV-VAR-001]
@@ -95,11 +96,11 @@ cycle: "v1.0.0-brownfield"
 phase: 3
 ---
 
-# S-DEMO-CROWDSTRIKE-MULTIREGION-001 v1.0 — CrowdStrike Multi-Region base_url Fidelity
+# S-DEMO-CROWDSTRIKE-MULTIREGION-001 v1.2 — CrowdStrike Multi-Region base_url Fidelity
 
 **Story ID:** S-DEMO-CROWDSTRIKE-MULTIREGION-001
 **Status:** ready
-**Version:** v1.1
+**Version:** v1.2
 **Wave:** 5
 **Priority:** P2
 **Points:** 2
@@ -194,7 +195,7 @@ After this story merges:
 
 ## New-BC Flags — Resolved
 
-PO adjudication 2026-06-01: BC-2.16.009 (v1.7) and BC-2.16.013 (v1.19) confirmed;
+PO adjudication 2026-06-01: BC-2.16.009 (v1.7) and BC-2.16.013 (v1.22) confirmed;
 E-SPEC-024 is the missing/empty env-var error code at spec-load time.
 
 ---
@@ -460,5 +461,6 @@ Well within the 20-30% budget.
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.2 | 2026-06-02 | story-writer | Cite-currency fix closing F-P1-OBS-001. §New-BC Flags live confirmation pin BC-2.16.013 (v1.19) → (v1.22) (current active version per BC-INDEX v5.74). Frontmatter historical comment annotated "(BC now at v1.22)" per TD-VSDD-091 (historical record preserved; current state clarified). No substantive content change. |
 | 1.1 | 2026-06-01 | story-writer | PO BC-coverage propagation burst. Attached BC-2.16.009 (v1.7) and BC-2.16.013 (v1.19) per PO commit 30111e52. Updated §Behavioral Contracts table (verbatim titles from BC H1s per POL-7). Updated AC-001/AC-002/AC-005 traces → BC-2.16.013 §Postconditions §1; AC-003 → BC-2.16.009 §Validation Rules 6 + E-SPEC-024; AC-004 → BC-2.16.013 §Postconditions §2; AC-006 → BC-2.16.002 §Structured Event Catalog. Resolved New-BC Flags section with PO adjudication (E-SPEC-024 confirmed). Token Budget updated: BC files row added (~700 tokens), total ~14,500. Status: draft → ready (S-7.01 gate cleared). |
 | 1.0 | 2026-05-31 | story-writer | Initial materialization from [stub] per ADR-031 §D8-c v1.2 reclassification. 6 ACs, 3 Red Gate tests, 2 pts, wave 5, P2. Grounded against crowdstrike.sensor.toml (hardcoded us-1 base_url), armis.sensor.toml + claroty.sensor.toml (env-var pattern precedent), spec_parser.rs (env-var interpolation path — pre-check required). D-747 LOCKED constraint explicitly enforced. Mandatory pre-check for E-SPEC structured error behavior documented in Tasks step 4 with in-scope fix requirement per production-grade default. New-BC flags provided to PO for env-var resolution BC coverage confirmation. |
