@@ -1,0 +1,174 @@
+Full test suite run — S-DEMO-ARMIS-AQL-001
+Story: S-DEMO-ARMIS-AQL-001 v1.8
+Date: 2026-06-01
+HEAD: 9243a0d3
+
+=== Run 1: prism-dtu-armis full suite (--features dtu) ===
+
+Command:
+  cargo nextest run -p prism-dtu-armis --features dtu --no-fail-fast
+
+Output:
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.35s
+────────────
+ Nextest run ID 30ae80c8-741a-4f25-9539-d12b617db078 with nextest profile: default
+    Starting 130 tests across 20 binaries
+        PASS [   1.660s] (  1/130) prism-dtu-armis::ac_2_timestamp_fallback_fixture ac_2_device_d002_has_both_timestamps_populated
+        PASS [   1.660s] (  2/130) prism-dtu-armis::ac_1_aql_capture_and_device_list ac_1_post_devices_with_aql_body_returns_200_and_logs_aql
+        PASS [   1.677s] (  3/130) prism-dtu-armis::ac_2_timestamp_fallback_fixture ec_002_risk_endpoint_returns_404_for_unknown_device
+        PASS [   1.680s] (  4/130) prism-dtu-armis::ac_4_tag_delete ac_4_delete_tag_endpoint_requires_bearer_auth
+        PASS [   1.680s] (  5/130) prism-dtu-armis::ac_4_tag_delete ec_003_delete_nonexistent_tag_returns_404
+        PASS [   1.689s] (  6/130) prism-dtu-armis::ac_4_tag_delete ac_4_device_does_not_have_tag_after_delete
+        PASS [   1.694s] (  7/130) prism-dtu-armis::ac_2_timestamp_fallback_fixture ac_2_device_risk_endpoint_returns_risk_score
+        PASS [   1.696s] (  8/130) prism-dtu-armis::ac_1_aql_capture_and_device_list ec_004_pagination_beyond_last_page_returns_empty_array
+        PASS [   1.696s] (  9/130) prism-dtu-armis::ac_1_aql_capture_and_device_list ac_1_get_devices_with_aql_returns_200_and_logs_aql
+        PASS [   1.698s] ( 10/130) prism-dtu-armis::ac_2_timestamp_fallback_fixture ac_2_device_d001_has_null_last_seen_and_non_null_first_seen
+        PASS [   1.698s] ( 11/130) prism-dtu-armis::ac_1_aql_capture_and_device_list ac_1_devices_response_contains_pagination_fields
+        PASS [   1.700s] ( 12/130) prism-dtu-armis::ac_1_aql_capture_and_device_list ec_001_aql_special_characters_stored_verbatim
+        PASS [   1.705s] ( 13/130) prism-dtu-armis::ac_3_stateful_tag_add ac_3_post_tag_returns_201_with_device_id_and_tag_key
+        PASS [   1.706s] ( 14/130) prism-dtu-armis::ac_4_tag_delete ac_4_delete_tag_returns_200_removed
+        PASS [   1.707s] ( 15/130) prism-dtu-armis::ac_3_stateful_tag_add ac_3_tag_endpoint_requires_bearer_auth_returns_403
+        PASS [   1.708s] ( 16/130) prism-dtu-armis::ac_3_stateful_tag_add ac_3_added_tag_appears_in_subsequent_device_query
+        PASS [   1.641s] ( 17/130) prism-dtu-armis::ac_5_missing_bearer_403 ac_5_get_alerts_without_auth_returns_403
+        PASS [   1.659s] ( 18/130) prism-dtu-armis::ac_5_missing_bearer_403 ac_5_empty_bearer_value_returns_403
+        PASS [   1.647s] ( 19/130) prism-dtu-armis::ac_5_missing_bearer_403 ac_5_get_device_risk_without_auth_returns_403
+        PASS [   1.650s] ( 20/130) prism-dtu-armis::ac_5_missing_bearer_403 ac_5_get_devices_without_auth_returns_403
+        PASS [   1.663s] ( 21/130) prism-dtu-armis::ac_5_missing_bearer_403 ac_5_get_device_activity_without_auth_returns_403
+        PASS [   1.692s] ( 22/130) prism-dtu-armis::ac_5_missing_bearer_403 ac_5_dtu_internal_endpoints_do_not_require_auth
+        PASS [   1.733s] ( 23/130) prism-dtu-armis::cr012_validate_org_id_consistency test_BC_3_5_002_precon3_legacy_clone_allows_missing_org_header
+        PASS [   1.741s] ( 24/130) prism-dtu-armis::ac_5_missing_bearer_403 ac_5_wrong_scheme_returns_403
+        PASS [   1.744s] ( 25/130) prism-dtu-armis::ac_6_rate_limit_429 ec_006_malformed_response_mode_returns_non_parseable_body
+        PASS [   1.746s] ( 26/130) prism-dtu-armis::ac_6_rate_limit_429 ac_6_rate_limit_429_after_threshold_exceeded_via_configure
+        PASS [   1.751s] ( 27/130) prism-dtu-armis::ac_6_rate_limit_429 ac_6_rate_limit_allows_requests_before_threshold
+        PASS [   1.749s] ( 28/130) prism-dtu-armis::cr012_validate_org_id_consistency test_BC_3_5_002_precon3_real_org_clone_accepts_matching_org_header
+        PASS [   1.747s] ( 29/130) prism-dtu-armis::cr012_validate_org_id_consistency test_BC_3_5_002_precon3_real_org_clone_rejects_missing_org_header
+        PASS [   1.752s] ( 30/130) prism-dtu-armis::cr012_validate_org_id_consistency test_BC_3_5_002_precon3_sentinel_org_matches_legacy_clone
+        PASS [   1.759s] ( 31/130) prism-dtu-armis::cr012_validate_org_id_consistency test_BC_3_5_002_precon3_real_org_clone_rejects_mismatched_org_header
+        PASS [   1.765s] ( 32/130) prism-dtu-armis::cr017_tag_alert_org_id_guard test_delete_device_tag_default_instance_absent_header_allows_request
+        PASS [   1.825s] ( 33/130) prism-dtu-armis::cr017_tag_alert_org_id_guard test_get_alerts_default_instance_absent_header_returns_200
+        PASS [   1.840s] ( 34/130) prism-dtu-armis::cr017_tag_alert_org_id_guard test_delete_device_tag_real_org_absent_header_returns_401
+        PASS [   1.843s] ( 35/130) prism-dtu-armis::cr017_tag_alert_org_id_guard test_get_alerts_real_org_absent_header_returns_401
+        PASS [   1.841s] ( 36/130) prism-dtu-armis::cr017_tag_alert_org_id_guard test_post_device_tag_default_instance_absent_header_returns_201
+        PASS [   1.866s] ( 37/130) prism-dtu-armis::cr017_tag_alert_org_id_guard test_get_alerts_real_org_correct_header_returns_200
+        PASS [   1.853s] ( 38/130) prism-dtu-armis::cr017_tag_alert_org_id_guard test_post_device_tag_real_org_absent_header_returns_401
+        PASS [   1.872s] ( 39/130) prism-dtu-armis::cr017_tag_alert_org_id_guard test_post_device_tag_real_org_correct_header_returns_201
+        PASS [   1.895s] ( 40/130) prism-dtu-armis::cr023_activity_risk_org_id_guard test_get_device_activity_real_org_absent_header_returns_401
+        PASS [   1.895s] ( 41/130) prism-dtu-armis::cr023_activity_risk_org_id_guard test_get_device_activity_real_org_correct_header_returns_200
+        PASS [   1.884s] ( 42/130) prism-dtu-armis::cr023_activity_risk_org_id_guard test_get_device_risk_real_org_correct_header_returns_200
+        PASS [   1.890s] ( 43/130) prism-dtu-armis::cr023_activity_risk_org_id_guard test_get_device_risk_default_instance_absent_header_returns_200
+        PASS [   1.918s] ( 44/130) prism-dtu-armis::cr023_activity_risk_org_id_guard test_get_device_activity_default_instance_absent_header_returns_200
+        PASS [   1.907s] ( 45/130) prism-dtu-armis::cr023_activity_risk_org_id_guard test_get_device_risk_real_org_absent_header_returns_401
+        PASS [   1.984s] ( 46/130) prism-dtu-armis::dtu_reset_auth test_AC_001_dtu_reset_without_admin_token_returns_401
+        PASS [   1.972s] ( 47/130) prism-dtu-armis::dtu_reset_auth test_AC_003_cross_clone_admin_token_returns_401
+        PASS [   1.980s] ( 48/130) prism-dtu-armis::dtu_reset_auth test_AC_002_dtu_reset_with_admin_token_returns_200
+        PASS [   1.032s] ( 49/130) prism-dtu-armis::f_p2_med_001_search_org_id_guard test_W3_FIX_SEC_001_search_real_org_mismatched_header_returns_401
+        PASS [   1.058s] ( 50/130) prism-dtu-armis::f_p2_med_001_search_org_id_guard test_W3_FIX_SEC_001_search_real_org_absent_header_returns_401
+        PASS [   1.059s] ( 51/130) prism-dtu-armis::f_p2_med_001_search_org_id_guard test_W3_FIX_SEC_001_search_real_org_matching_header_returns_200
+        PASS [   1.236s] ( 52/130) prism-dtu-armis::fidelity_validator fidelity_validator_passes
+        PASS [   1.841s] ( 53/130) prism-dtu-armis::harness_tests test_BC_3_5_001_ac2_device_d002_has_both_timestamps_populated
+        PASS [   1.761s] ( 54/130) prism-dtu-armis::harness_tests test_BC_3_5_001_ac2_device_risk_endpoint_returns_risk_score
+        PASS [   1.860s] ( 55/130) prism-dtu-armis::harness_tests test_BC_3_5_001_ac2_device_d001_has_null_last_seen_and_non_null_first_seen
+        PASS [   2.016s] ( 56/130) prism-dtu-armis::harness_tests test_BC_3_5_001_ac005_reset_clears_failure_mode_to_none
+        PASS [   2.019s] ( 57/130) prism-dtu-armis::harness_tests test_BC_3_5_001_ac002_fidelity_validator_passes_under_harness
+        PASS [   1.889s] ( 58/130) prism-dtu-armis::harness_tests test_BC_3_5_001_ac1_get_devices_with_aql_returns_200_and_logs_aql
+        PASS [   1.889s] ( 59/130) prism-dtu-armis::harness_tests test_BC_3_5_001_ac1_post_devices_with_aql_body_returns_200_and_logs_aql
+        PASS [   1.894s] ( 60/130) prism-dtu-armis::harness_tests test_BC_3_5_001_ac005_reset_does_not_remove_fixture_data
+        PASS [   1.934s] ( 61/130) prism-dtu-armis::harness_tests test_BC_3_5_001_ac005_reset_clears_tag_store_and_aql_log
+        PASS [   1.796s] ( 62/130) prism-dtu-armis::harness_tests test_BC_3_5_001_ac3_post_tag_returns_201_with_device_id_and_tag_key
+        PASS [   1.909s] ( 63/130) prism-dtu-armis::harness_tests test_BC_3_5_001_ac1_devices_response_contains_pagination_fields
+        PASS [   1.810s] ( 64/130) prism-dtu-armis::harness_tests test_BC_3_5_001_ac3_added_tag_appears_in_subsequent_device_query
+        PASS [   1.592s] ( 65/130) prism-dtu-armis::harness_tests test_BC_3_5_001_ac4_delete_tag_endpoint_requires_bearer_auth
+        PASS [   1.592s] ( 66/130) prism-dtu-armis::harness_tests test_BC_3_5_001_ac3_tag_endpoint_requires_bearer_auth_returns_403
+        PASS [   1.686s] ( 67/130) prism-dtu-armis::harness_tests test_BC_3_5_001_ac4_delete_tag_returns_200_removed
+        PASS [   1.697s] ( 68/130) prism-dtu-armis::harness_tests test_BC_3_5_001_ac4_device_does_not_have_tag_after_delete
+        PASS [   1.670s] ( 69/130) prism-dtu-armis::harness_tests test_BC_3_5_001_ac5_get_device_risk_without_auth_returns_403
+        PASS [   1.663s] ( 70/130) prism-dtu-armis::harness_tests test_BC_3_5_001_ac6_rate_limit_429_after_threshold_exceeded_via_configure
+        PASS [   1.674s] ( 71/130) prism-dtu-armis::harness_tests test_BC_3_5_001_ac5_get_devices_without_auth_returns_403
+        PASS [   1.686s] ( 72/130) prism-dtu-armis::harness_tests test_BC_3_5_001_ac5_get_alerts_without_auth_returns_403
+        PASS [   1.703s] ( 73/130) prism-dtu-armis::harness_tests test_BC_3_5_001_ac5_dtu_internal_endpoints_do_not_require_auth
+        PASS [   1.672s] ( 74/130) prism-dtu-armis::harness_tests test_BC_3_5_001_ac_multi_org_logical_isolation
+        PASS [   1.723s] ( 75/130) prism-dtu-armis::harness_tests test_BC_3_5_001_ac5_empty_bearer_value_returns_403
+        PASS [   1.707s] ( 76/130) prism-dtu-armis::harness_tests test_BC_3_5_001_ac5_get_device_activity_without_auth_returns_403
+        PASS [   1.717s] ( 77/130) prism-dtu-armis::harness_tests test_BC_3_5_001_ac5_wrong_scheme_returns_403
+        PASS [   1.715s] ( 78/130) prism-dtu-armis::harness_tests test_BC_3_5_001_ac6_rate_limit_allows_requests_before_threshold
+        PASS [   1.708s] ( 79/130) prism-dtu-armis::harness_tests test_BC_3_5_001_activity_endpoint_returns_200_with_activities_array
+        PASS [   1.735s] ( 80/130) prism-dtu-armis::harness_tests test_BC_3_5_001_alerts_endpoint_returns_200_with_alerts_array
+        PASS [   0.017s] ( 81/130) prism-dtu-armis::multi_tenant test_BC_3_2_001_cross_org_lookup_returns_empty
+        PASS [   0.017s] ( 82/130) prism-dtu-armis::multi_tenant test_BC_3_2_001_fixture_registries_bare_string_keyed
+        PASS [   0.017s] ( 83/130) prism-dtu-armis::multi_tenant test_BC_3_2_001_independent_state_per_org_same_device_id
+        PASS [   0.018s] ( 84/130) prism-dtu-armis::multi_tenant test_BC_3_2_001_lookup_unknown_org_returns_empty
+        PASS [   0.016s] ( 85/130) prism-dtu-armis::multi_tenant test_BC_3_2_001_remove_tag_is_org_scoped
+        PASS [   0.016s] ( 86/130) prism-dtu-armis::multi_tenant test_BC_3_2_001_reset_for_is_selective
+        PASS [   0.017s] ( 87/130) prism-dtu-armis::multi_tenant test_BC_3_2_001_same_org_lookup_returns_stored_tags
+        PASS [   0.015s] ( 88/130) prism-dtu-armis::multi_tenant test_BC_3_2_001_write_isolation_org_a_does_not_affect_org_b
+        PASS [   0.205s] ( 89/130) prism-dtu-armis::multi_tenant prop_cross_org_tag_isolation
+        PASS [   0.246s] ( 90/130) prism-dtu-armis::multi_tenant prop_write_does_not_affect_other_org
+        PASS [   0.248s] ( 91/130) prism-dtu-armis::multi_tenant prop_reset_for_selectivity
+        PASS [   1.553s] ( 92/130) prism-dtu-armis::harness_tests test_BC_3_5_001_alerts_pagination_beyond_last_returns_empty_array
+        PASS [   1.578s] ( 93/130) prism-dtu-armis::harness_tests test_BC_3_5_001_ec001_aql_special_characters_stored_verbatim
+        PASS [   1.552s] ( 94/130) prism-dtu-armis::harness_tests test_BC_3_5_001_ec002_risk_endpoint_returns_404_for_unknown_device
+        PASS [   1.554s] ( 95/130) prism-dtu-armis::harness_tests test_BC_3_5_001_ec003_delete_nonexistent_tag_returns_404
+        PASS [   1.619s] ( 96/130) prism-dtu-armis::harness_tests test_BC_3_5_001_td_configure_with_wrong_token_returns_401
+        PASS [   1.630s] ( 97/130) prism-dtu-armis::harness_tests test_BC_3_5_001_td_configure_with_correct_token_returns_200
+        PASS [   1.636s] ( 98/130) prism-dtu-armis::harness_tests test_BC_3_5_001_td_configure_unknown_field_returns_400
+        PASS [   1.644s] ( 99/130) prism-dtu-armis::harness_tests test_BC_3_5_001_ec004_pagination_beyond_last_page_returns_empty_array
+        PASS [   1.642s] (100/130) prism-dtu-armis::harness_tests test_BC_3_5_001_td_configure_known_field_returns_200
+        PASS [   0.022s] (101/130) prism-dtu-armis::s_demo_armis_aql_001_red_gate test_armis_aql_search_dtu_toml_column_parity
+        PASS [   1.631s] (102/130) prism-dtu-armis::harness_tests test_BC_3_5_002_ac_network_cross_creds_401
+        PASS [   1.666s] (103/130) prism-dtu-armis::harness_tests test_BC_3_5_001_ec006_malformed_response_mode_returns_non_parseable_body
+        PASS [   0.018s] (104/130) prism-dtu-armis::s_demo_armis_aql_001_red_gate test_armis_aql_search_toml_path_template_updated
+        PASS [   0.020s] (105/130) prism-dtu-armis::s_demo_armis_aql_001_red_gate test_armis_aql_search_toml_response_path_updated
+        PASS [   1.657s] (106/130) prism-dtu-armis::harness_tests test_BC_3_5_001_td_configure_without_token_returns_401
+        PASS [   1.798s] (107/130) prism-dtu-armis::reset_state_invariants ac_story_7_reset_clears_tag_store_and_aql_log
+        PASS [   1.784s] (108/130) prism-dtu-armis::reset_state_invariants alerts_endpoint_returns_200_with_alerts_array
+        PASS [   1.785s] (109/130) prism-dtu-armis::reset_state_invariants activity_endpoint_returns_200_with_activities_array
+        PASS [   1.837s] (110/130) prism-dtu-armis::reset_state_invariants ac_story_7_reset_does_not_remove_fixture_data
+        PASS [   1.853s] (111/130) prism-dtu-armis::reset_state_invariants alerts_pagination_beyond_last_returns_empty_array
+        PASS [   1.844s] (112/130) prism-dtu-armis::reset_state_invariants reset_clears_failure_mode_to_none
+        PASS [   1.885s] (113/130) prism-dtu-armis::s_demo_armis_aql_001_red_gate test_armis_aql_search_alerts_aql_returns_alert_records
+        PASS [   1.933s] (114/130) prism-dtu-armis::s_demo_armis_aql_001_red_gate test_armis_aql_search_aql_captured_in_aql_log
+        PASS [   1.943s] (115/130) prism-dtu-armis::s_demo_armis_aql_001_red_gate test_armis_aql_search_no_aql_defaults_to_devices
+        PASS [   1.969s] (116/130) prism-dtu-armis::s_demo_armis_aql_001_red_gate test_armis_aql_search_devices_aql_returns_device_records
+        PASS [   1.971s] (117/130) prism-dtu-armis::td_wv0_04_configure_deny_unknown configure_known_field_returns_200
+        PASS [   2.000s] (118/130) prism-dtu-armis::s_demo_armis_aql_001_red_gate test_armis_aql_search_returns_403_without_bearer
+        PASS [   1.980s] (119/130) prism-dtu-armis::td_wv0_07_configure_requires_admin_token configure_with_wrong_token_returns_401
+        PASS [   1.987s] (120/130) prism-dtu-armis::td_wv0_07_configure_requires_admin_token configure_with_correct_token_returns_200
+        PASS [   2.029s] (121/130) prism-dtu-armis::s_demo_armis_aql_001_red_gate test_armis_aql_search_route_registered_returns_200_for_device_aql
+        PASS [   2.014s] (122/130) prism-dtu-armis::td_wv0_04_configure_deny_unknown configure_unknown_field_returns_400
+        PASS [   1.765s] (123/130) prism-dtu-armis::td_wv0_07_configure_requires_admin_token configure_without_token_returns_401
+        PASS [   1.740s] (124/130) prism-dtu-armis::x_org_id_auth test_AC_002_cross_org_401_body_is_json_error_object
+        PASS [   1.741s] (125/130) prism-dtu-armis::x_org_id_auth test_AC_001_x_org_id_validated_against_bearer_token
+        PASS [   1.748s] (126/130) prism-dtu-armis::x_org_id_auth test_AC_002_cross_org_credential_returns_401
+        PASS [   1.548s] (127/130) prism-dtu-armis::x_org_id_auth test_EC_001_non_uuid_x_org_id_returns_401
+        PASS [   1.562s] (128/130) prism-dtu-armis::x_org_id_auth test_AC_003_armis_validate_on_presence_missing_header_allowed_for_backcompat
+        PASS [   1.449s] (129/130) prism-dtu-armis::x_org_id_auth test_EC_003_sentinel_uuid_as_x_org_id_returns_401
+        PASS [   1.198s] (130/130) prism-dtu-armis::x_org_id_auth test_cross_org_header_rejected
+────────────
+     Summary [  12.805s] 130 tests run: 130 passed, 0 skipped
+
+=== Run 2: prism-spec-engine parity_armis (AC-005 round-trip parity tests) ===
+
+Command:
+  cargo nextest run -p prism-spec-engine --test parity_armis --no-fail-fast
+
+Output:
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.49s
+────────────
+ Nextest run ID d1e6abbe-f14e-40f6-80de-900ecc2b8e34 with nextest profile: default
+    Starting 5 tests across 1 binary (2 tests skipped)
+        PASS [   0.021s] (1/5) prism-spec-engine::parity_armis test_PLUGIN_MIGRATION_001_F_parity_armis_toml_fixture_loading
+        PASS [   0.021s] (2/5) prism-spec-engine::parity_armis test_HS_016_BC_2_16_013_armis_spec_declares_bearer_static_auth
+        PASS [   0.047s] (3/5) prism-spec-engine::parity_armis test_BC_2_16_013_AC_005_aql_roundtrip_alerts_pipeline
+        LEAK [   0.217s] (4/5) prism-spec-engine::parity_armis test_BC_2_16_013_compute_parity_verdict_empty_fixture_returns_error
+        PASS [   0.593s] (5/5) prism-spec-engine::parity_armis test_BC_2_16_013_AC_005_aql_roundtrip_devices_pipeline
+────────────
+     Summary [   0.595s] 5 tests run: 5 passed (1 leaky), 2 skipped
+
+2 skipped tests are #[ignore]'d — blocked on S-SPEC-ENV-VAR-001 (${env.ARMIS_INSTANCE_URL}
+env-var resolution prereq, story frontmatter D-914 gate note).
+
+=== Summary ===
+prism-dtu-armis:       130 tests run: 130 passed, 0 skipped
+prism-spec-engine:       5 tests run: 5 passed (1 leaky), 2 skipped (#[ignore] — D-914 gate)
+
+Total non-ignored tests: 135 passed, 0 failed

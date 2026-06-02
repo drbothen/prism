@@ -1,0 +1,42 @@
+AC-005: Parity test — AQL string prism sends matches DTU-received AQL string (R-DTU-002 round-trip)
+Story: S-DEMO-ARMIS-AQL-001 v1.8
+BC: BC-2.16.013 v1.22 (ACTIVE) — ADR-031 §D5 validation discipline + §D8-a requirement 3
+Source file: crates/prism-spec-engine/tests/parity/armis.rs
+Red Gate tests:
+  test_BC_2_16_013_AC_005_aql_roundtrip_devices_pipeline  (AC-005)
+  test_BC_2_16_013_AC_005_aql_roundtrip_alerts_pipeline   (AC-005)
+
+Command:
+  cargo nextest run -p prism-spec-engine --test parity_armis --no-fail-fast
+
+Output:
+────────────
+ Nextest run ID d1e6abbe-f14e-40f6-80de-900ecc2b8e34 with nextest profile: default
+    Starting 5 tests across 1 binary (2 tests skipped)
+        PASS [   0.021s] (1/5) prism-spec-engine::parity_armis test_PLUGIN_MIGRATION_001_F_parity_armis_toml_fixture_loading
+        PASS [   0.021s] (2/5) prism-spec-engine::parity_armis test_HS_016_BC_2_16_013_armis_spec_declares_bearer_static_auth
+        PASS [   0.047s] (3/5) prism-spec-engine::parity_armis test_BC_2_16_013_AC_005_aql_roundtrip_alerts_pipeline
+        LEAK [   0.217s] (4/5) prism-spec-engine::parity_armis test_BC_2_16_013_compute_parity_verdict_empty_fixture_returns_error
+        PASS [   0.593s] (5/5) prism-spec-engine::parity_armis test_BC_2_16_013_AC_005_aql_roundtrip_devices_pipeline
+────────────
+     Summary [   0.595s] 5 tests run: 5 passed (1 leaky), 2 skipped
+
+What is demonstrated:
+  - Full pipeline round-trip (devices): ArmisClone starts with fixture, pipeline executes
+    fetch for armis_devices via /api/v1/search, GET /dtu/aql-log after fetch completes,
+    asserts aql_strings[0] matches the AQL prism constructed for the query.
+  - Full pipeline round-trip (alerts): same flow for armis_alerts; alerts AQL confirmed
+    in aql-log (validates R-DTU-002 end-to-end).
+  - 2 skipped tests (SID-1 compliant): test_BC_2_16_013_dtu_parity_armis and
+    test_BC_2_16_013_dtu_parity_armis_timestamp_fallback_pass_by_convention are
+    #[ignore]'d — blocked on S-SPEC-ENV-VAR-001 (${env.ARMIS_INSTANCE_URL} resolution)
+    per story frontmatter gate note D-914.
+
+LEAK note: test_BC_2_16_013_compute_parity_verdict_empty_fixture_returns_error reports
+a memory leak via nextest's leak detector; this is a pre-existing test infrastructure
+artifact (non-critical; test PASSES). Not related to this story's changes.
+
+SID-1 compliance for ignored tests:
+  test_BC_2_16_013_dtu_parity_armis — #[ignore] cites S-SPEC-ENV-VAR-001 (env-var prereq)
+  test_BC_2_16_013_dtu_parity_armis_timestamp_fallback_pass_by_convention — same gate
+  AC-005 behavior is fully covered by the two un-ignored roundtrip tests above.

@@ -106,7 +106,7 @@ pub async fn get_health() -> impl IntoResponse {
 ///
 /// Returns all AQL strings received since the last reset, in order.
 ///
-/// Response: `{"aql_strings": ["in:type=switch", ...]}`
+/// Response: `{"aql_strings": ["in:devices type:(switch)", ...]}`
 ///
 /// Integration tests assert correct AQL push-down by checking this log
 /// (R-DTU-002 mitigation: the real Armis API passes AQL verbatim to its

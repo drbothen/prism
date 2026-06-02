@@ -1,0 +1,34 @@
+AC-002: /api/v1/search with in:devices AQL returns device records + AQL captured in aql-log
+Story: S-DEMO-ARMIS-AQL-001 v1.8
+BC: BC-2.16.013 v1.22 (ACTIVE) — §Postconditions §2 (DTU-Parity Tests Pass)
+ADR compliance: ADR-031 §D8-a requirement 3 / R-DTU-002 (AQL capture round-trip)
+Source file: crates/prism-dtu-armis/tests/s_demo_armis_aql_001_red_gate.rs
+Red Gate tests:
+  test_armis_aql_search_devices_aql_returns_device_records  (AC-002)
+  test_armis_aql_search_aql_captured_in_aql_log              (AC-002 / R-DTU-002)
+
+Command:
+  cargo nextest run -p prism-dtu-armis --features dtu \
+    --test s_demo_armis_aql_001_red_gate --no-fail-fast
+
+Output (excerpt for AC-002 tests):
+────────────
+ Nextest run ID de5bf673-6ce7-438c-9962-894e99d90296 with nextest profile: default
+    Starting 9 tests across 1 binary
+        PASS [   0.580s] (7/9) prism-dtu-armis::s_demo_armis_aql_001_red_gate test_armis_aql_search_devices_aql_returns_device_records
+        PASS [   0.580s] (9/9) prism-dtu-armis::s_demo_armis_aql_001_red_gate test_armis_aql_search_aql_captured_in_aql_log
+────────────
+     Summary [   0.580s] 9 tests run: 9 passed, 0 skipped
+
+What is demonstrated:
+  - GET /api/v1/search?aql=in:devices returns HTTP 200 with response envelope:
+      {"data": {"results": [...DeviceRecord...], "total": N}}
+    where results contains DeviceRecord objects matching fixture data in types.rs
+    (fields: id, name, ip_address, mac_address, type_, manufacturer, first_seen, last_seen, risk_level)
+  - AQL string discrimination: "in:devices" → routes to device fixture data
+  - After search request, GET /dtu/aql-log returns {"aql_strings": ["in:devices"]}
+    confirming R-DTU-002 AQL capture round-trip (verbatim capture via state.capture_aql())
+
+Response envelope shape (real Armis /api/v1/search API shape per poller-coaster):
+  {"data": {"results": [...], "total": N}}
+  Note: "results" key (not "devices") — search route uses unified results key
