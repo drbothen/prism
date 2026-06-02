@@ -37,10 +37,10 @@ use prism_dtu_common::BehavioralClone;
 
 // ---------------------------------------------------------------------------
 // AC-001: GET /api/v1/search registered, returns 200 with valid Bearer
-// (BC-2.16.013 §Postconditions §1 DTU-Parity; ADR-031 §D8-a)
+// (BC-2.16.013 §Postconditions §2 (DTU-Parity Tests Pass); ADR-031 §D8-a)
 // ---------------------------------------------------------------------------
 
-/// AC-001 / BC-2.16.013 §Postconditions §1:
+/// AC-001 / BC-2.16.013 §Postconditions §2 (DTU-Parity Tests Pass):
 /// GET /api/v1/search?aql=in:devices with a valid Bearer token returns HTTP 200.
 ///
 /// Real Armis `in:devices` discriminator (research artifact 2026-06-01; F-LP12-HIGH-001 fix).
@@ -69,11 +69,11 @@ async fn test_armis_aql_search_route_registered_returns_200_for_device_aql() {
     assert_eq!(
         resp.status().as_u16(),
         200,
-        "S-DEMO-ARMIS-AQL-001 AC-001: GET /api/v1/search?aql=in:devices with valid Bearer must return HTTP 200 (BC-2.16.013 §Postconditions §1 DTU-Parity)"
+        "S-DEMO-ARMIS-AQL-001 AC-001: GET /api/v1/search?aql=in:devices with valid Bearer must return HTTP 200 (BC-2.16.013 §Postconditions §2 (DTU-Parity Tests Pass))"
     );
 }
 
-/// AC-001 EC-004 / BC-2.16.013 §Postconditions §1:
+/// AC-001 EC-004 / BC-2.16.013 §Postconditions §2 (DTU-Parity Tests Pass):
 /// GET /api/v1/search without Authorization header returns HTTP 403.
 ///
 /// This asserts the same auth model as existing Armis endpoints (403 not 401).
@@ -107,10 +107,10 @@ async fn test_armis_aql_search_returns_403_without_bearer() {
 
 // ---------------------------------------------------------------------------
 // AC-002: /api/v1/search with in:devices AQL returns device records
-// (BC-2.16.013 §Postconditions §2 fixture-parity; ADR-031 §D8-a requirement 1)
+// (BC-2.16.013 §Postconditions §2 (DTU-Parity Tests Pass); ADR-031 §D8-a requirement 1)
 // ---------------------------------------------------------------------------
 
-/// AC-002 / BC-2.16.013 §Postconditions §2 fixture-parity:
+/// AC-002 / BC-2.16.013 §Postconditions §2 (DTU-Parity Tests Pass):
 /// GET /api/v1/search?aql=in:devices returns a JSON body with the shape
 /// `{"data": {"results": [...], "total": N}}` where `results` is a non-empty array
 /// of DeviceRecord-shaped objects.
@@ -184,7 +184,7 @@ async fn test_armis_aql_search_devices_aql_returns_device_records() {
     );
 }
 
-/// AC-002 / BC-2.16.013 R-DTU-002 AQL capture:
+/// AC-002 / BC-2.16.013 §Postconditions §2 (DTU-Parity Tests Pass); AQL-capture per ADR-031 §D8-a / R-DTU-002:
 /// After GET /api/v1/search?aql=in:devices, the AQL string "in:devices"
 /// is visible in GET /dtu/aql-log as aql_strings[0].
 ///
@@ -238,16 +238,16 @@ async fn test_armis_aql_search_aql_captured_in_aql_log() {
         aql_strings
             .iter()
             .any(|s| s.as_str() == Some("in:devices")),
-        "S-DEMO-ARMIS-AQL-001 AC-002 AQL-capture: aql_strings must contain 'in:devices' after search request (R-DTU-002: state.capture_aql() called by handler); got: {aql_strings:?}"
+        "S-DEMO-ARMIS-AQL-001 AC-002 AQL-capture: aql_strings must contain 'in:devices' after search request (ADR-031 §D8-a / R-DTU-002: state.capture_aql() called by handler); got: {aql_strings:?}"
     );
 }
 
 // ---------------------------------------------------------------------------
 // AC-003: /api/v1/search with alert AQL returns alert records
-// (BC-2.16.013 §Postconditions §2 fixture-parity; ADR-031 §D8-a requirement 1)
+// (BC-2.16.013 §Postconditions §2 (DTU-Parity Tests Pass); ADR-031 §D8-a requirement 1)
 // ---------------------------------------------------------------------------
 
-/// AC-003 (handler-unit) / BC-2.16.013 §Postconditions §2 fixture-parity:
+/// AC-003 (handler-unit) / BC-2.16.013 §Postconditions §2 (DTU-Parity Tests Pass):
 /// GET /api/v1/search?aql=in:alerts returns HTTP 200 with envelope
 /// `{"data": {"results": [...AlertRecord objects...], "total": N}}`.
 ///
@@ -328,10 +328,10 @@ async fn test_armis_aql_search_alerts_aql_returns_alert_records() {
 
 // ---------------------------------------------------------------------------
 // EC-001: absent aql param defaults to devices
-// (AC-001 safe fallback; BC-2.16.013 §Postconditions §1)
+// (AC-001 safe fallback; BC-2.16.013 §Postconditions §2 (DTU-Parity Tests Pass))
 // ---------------------------------------------------------------------------
 
-/// AC-001 EC-001 / BC-2.16.013 §Postconditions §1 safe fallback:
+/// AC-001 EC-001 / BC-2.16.013 §Postconditions §2 (DTU-Parity Tests Pass):
 /// GET /api/v1/search without `aql` parameter returns HTTP 200 with device results
 /// (safe default — EC-001 from story spec).
 ///
@@ -399,7 +399,7 @@ async fn test_armis_aql_search_no_aql_defaults_to_devices() {
 // for AC traceability completeness.
 // ---------------------------------------------------------------------------
 
-/// AC-004 / BC-2.16.013 §Postconditions §2 DTU-TOML-column-parity:
+/// AC-004 / BC-2.16.013 §Postconditions §1 (Spec Files Authored and Validated):
 /// armis.sensor.toml `devices` table `fetch_devices` step has
 /// `path_template = "/api/v1/search"` (not the legacy `/api/v1/devices`).
 #[test]
@@ -445,7 +445,7 @@ fn test_armis_aql_search_toml_path_template_updated() {
         path_template.starts_with("/api/v1/search?aql="),
         "S-DEMO-ARMIS-AQL-001 AC-004: armis.sensor.toml devices.fetch_devices.path_template must \
          start with '/api/v1/search?aql=' (AQL push-down required; DTU-EXT-003 closed by \
-         S-DEMO-ARMIS-AQL-001; BC-2.16.013 §Postconditions §2); got: {path_template}"
+         S-DEMO-ARMIS-AQL-001; BC-2.16.013 §Postconditions §1 (Spec Files Authored and Validated)); got: {path_template}"
     );
 
     // Also assert alerts table path_template for completeness (AC-004 covers both).
@@ -469,11 +469,11 @@ fn test_armis_aql_search_toml_path_template_updated() {
         alerts_path_template.starts_with("/api/v1/search?aql="),
         "S-DEMO-ARMIS-AQL-001 AC-004: armis.sensor.toml alerts.fetch_alerts.path_template must \
          start with '/api/v1/search?aql=' (AQL push-down required; DTU-EXT-004 closed by \
-         S-DEMO-ARMIS-AQL-001; BC-2.16.013 §Postconditions §2); got: {alerts_path_template}"
+         S-DEMO-ARMIS-AQL-001; BC-2.16.013 §Postconditions §1 (Spec Files Authored and Validated)); got: {alerts_path_template}"
     );
 }
 
-/// AC-004 / BC-2.16.013 §Postconditions §2 DTU-TOML-column-parity:
+/// AC-004 / BC-2.16.013 §Postconditions §1 (Spec Files Authored and Validated):
 /// armis.sensor.toml `devices` and `alerts` table steps have
 /// `response_path = "$.data.results"` (not legacy `$.data.devices` or `$.data.alerts`).
 ///
@@ -514,7 +514,7 @@ fn test_armis_aql_search_toml_response_path_updated() {
     assert_eq!(
         devices_response_path,
         "$.data.results",
-        "S-DEMO-ARMIS-AQL-001 AC-004: armis.sensor.toml devices.fetch_devices.response_path must be '$.data.results' (search envelope uses 'results' not 'devices'; ADR-031 §D8-a + BC-2.16.013 §Postconditions §2)"
+        "S-DEMO-ARMIS-AQL-001 AC-004: armis.sensor.toml devices.fetch_devices.response_path must be '$.data.results' (search envelope uses 'results' not 'devices'; ADR-031 §D8-a + BC-2.16.013 §Postconditions §1 (Spec Files Authored and Validated))"
     );
 
     // Alerts response_path.
@@ -537,16 +537,16 @@ fn test_armis_aql_search_toml_response_path_updated() {
     assert_eq!(
         alerts_response_path,
         "$.data.results",
-        "S-DEMO-ARMIS-AQL-001 AC-004: armis.sensor.toml alerts.fetch_alerts.response_path must be '$.data.results' (search envelope uses 'results' not 'alerts'; ADR-031 §D8-a + BC-2.16.013 §Postconditions §2)"
+        "S-DEMO-ARMIS-AQL-001 AC-004: armis.sensor.toml alerts.fetch_alerts.response_path must be '$.data.results' (search envelope uses 'results' not 'alerts'; ADR-031 §D8-a + BC-2.16.013 §Postconditions §1 (Spec Files Authored and Validated))"
     );
 }
 
 // ---------------------------------------------------------------------------
 // SAP-2 parity test: TOML columns map to DTU types.rs fields
-// AC-004 / BC-2.16.013 DTU↔TOML parity
+// AC-004 / BC-2.16.013 §Postconditions §1 (Spec Files Authored and Validated)
 // ---------------------------------------------------------------------------
 
-/// AC-004 / SAP-2 / BC-2.16.013 DTU↔TOML parity:
+/// AC-004 / SAP-2 / BC-2.16.013 §Postconditions §1 (Spec Files Authored and Validated):
 /// Every column declared in `armis.sensor.toml` under the `devices` table must
 /// map to a field in `types.rs::DeviceRecord`. Every column declared under `alerts`
 /// must map to a field in `types.rs::AlertRecord`.
