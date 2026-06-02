@@ -10,7 +10,7 @@ wave: 5
 
 active_dispatch_set:
   # ============================================================
-  # D-951/D-952/D-954/D-955 PARALLEL DISPATCH SET (2026-06-02) — 3 lanes IN DELIVERY (post-wave-8 residual cite fixes)
+  # D-951/D-952/D-954/D-955/D-956/D-957 PARALLEL DISPATCH SET (2026-06-02) — 3 lanes IN DELIVERY; PAUSED for location move
   # ============================================================
 
   - story_id: S-DEMO-002
@@ -19,10 +19,10 @@ active_dispatch_set:
     points: 11
     spec_version: "v1.5"
     lane: "1-of-3"
-    dispatch_status: "IN DELIVERY — story v1.5 PO reconciliation DONE (D-956: tool_query→query; clients; AC-014 generic path; Tasks 22-24; AC-009 5-run; FSR path; red_gate_tests 5→9; pins); code @ e72984a8 (unchanged); LOCAL streak 0/3; next action: implementer fix-burst (9 PO items reflected in code + tests) → LOCAL adversary re-pass with Lesson 62 preflight toward 1/3"
-    entry_point: "implementer fix-burst (9 items per story v1.5 PO recon) → LOCAL adversary re-pass (worktree-identity preflight: git -C .worktrees/S-DEMO-002 rev-parse HEAD must == post-fix-burst SHA) → 3-CLEAN → demo-recorder → push → pr-manager 9-step PR cycle → PR-LEVEL 3-CLEAN → merge"
+    dispatch_status: "IN DELIVERY (PAUSED D-957) — code @ 01afb7ef; LOCAL streak 0/3; LOCAL re-pass found 5 OPEN findings (fix-burst PENDING): (1) CRIT: extract_rows_from_envelope reads wrong key — must read envelope[\"results\"][\"rows\"]; EC-005/AC-013 FALSE-FAIL + EC-004/AC-013 FALSE-GREEN. (2) HIGH: AC-012 response_has_adapter_not_found_error doesn't match real E-SENSOR-010 text; query handler returns JSON-RPC error (.expect() panics); restructure to capture JSON-RPC error + assert AdapterNotFound. (3) MED: false todo!() stub claims in per-test doc bodies (~L47,99,170,484,544). (4) MED: stale story pin aql_pushdown_tests.rs:35 says v1.4 → v1.5. (5) LOW: e2e_smoke.rs header table (~L17-26) missing 4 tests (claroty AC-005, cyberint AC-006, envelope AC-007, sigterm AC-008 + Tasks 22/23/24). NEXT: implementer fix-burst (5 findings) → LOCAL adversary re-pass (Lesson 62 preflight: git -C .worktrees/S-DEMO-002 rev-parse HEAD must == post-fix-burst SHA) → 3-CLEAN → demo-recorder → push → PR → PR-LEVEL 3-CLEAN → merge"
+    entry_point: "implementer fix-burst (5 findings per LOCAL re-pass @01afb7ef: CRIT extract_rows_from_envelope key fix + HIGH AC-012 matcher restructure + 2 MED doc stubs + 1 LOW header table) → LOCAL adversary re-pass (Lesson 62 preflight) → 3-CLEAN → demo-recorder → push → pr-manager 9-step PR cycle → PR-LEVEL 3-CLEAN → merge"
     worktree_path: ".worktrees/S-DEMO-002"
-    code_head: "e72984a8"
+    code_head: "01afb7ef"
     branch: "feature/S-DEMO-002"
     tracked_dependency: "MUST seed query_filters[\"aql\"] in PipelineExecutor FetchContext for Armis end-to-end AQL push-down (AC-014 D-934/D-952 scope) — canonical seeding site: predicate_tree_to_filter_map (BC-2.11.007 v1.5 Mechanism B). Do NOT add parallel extract fn. Tool name is `query` (not tool_query). Org field is `clients` (not org_slug). red_gate_tests=9."
     depends_on:
@@ -30,7 +30,7 @@ active_dispatch_set:
       - S-CONFIG-MULTI-TENANT-OVERRIDE-001  # HARD — SATISFIED (merged PR #155 develop@3e822522)
     bcs: [BC-2.11.001, BC-2.11.005, BC-2.09.008, BC-2.10.001, BC-2.10.010, BC-3.2.001, BC-2.22.001, BC-2.11.007]
     vps: [VP-148]
-    notes: "D-956 2026-06-02: Story v1.4→v1.5 — PO reconciliation 9 items: (1) tool_query→`query` MCP tool name; (2) org_slug→`clients`; (3) AC-014 generic predicate path seeding-accuracy + INDEX decorative; (4) AC-013/EC-004/EC-005 require tests Tasks 22-24; (5) AC-009 de-scoped to 5-run evidence; (6) FSR path → crates/prism-bin/fixtures/e2e-demo/demo.toml; (7) red_gate_tests 5→9; (8) acceptance_criteria_count preserved at 14; (9) spec pins bumped. Code HEAD e72984a8 unchanged; implementer fix-burst in flight. LOCAL streak 0/3. (Prior D-955: residual fix code @ e72984a8 F-DEMO-002-P2-MED-001 CLOSED. D-954: PO spec fix v1.3→v1.4 BC-2.11.007 Mechanism B; F-DEMO002-P1-MED-002 CLOSED.)"
+    notes: "D-957 2026-06-02 PAUSE CHECKPOINT: code HEAD advanced e72984a8→01afb7ef (intermediate implementer work). LOCAL adversary re-pass found 5 OPEN findings @ 01afb7ef — fix-burst PENDING (see dispatch_status for full finding list). LOCAL streak 0/3. CONFIRMED-CLOSED prior CRITs (do not re-fix): tool_query→query (grep zero), org_slug→clients (grep zero), AC-014 generic seeding path, 3 new tests present, header stub-doc swept, FSR path. (Prior D-956 2026-06-02: Story v1.4→v1.5 PO reconciliation 9 items. D-955: residual fix code @ e72984a8 F-DEMO-002-P2-MED-001 CLOSED. D-954: PO spec fix v1.3→v1.4 BC-2.11.007 Mechanism B; F-DEMO002-P1-MED-002 CLOSED.)"
 
   - story_id: S-DEMO-CROWDSTRIKE-MULTIREGION-001
     status: ready
@@ -38,16 +38,16 @@ active_dispatch_set:
     points: 2
     spec_version: "v1.4"
     lane: "2-of-3"
-    dispatch_status: "IN DELIVERY — story v1.4 PO fixes DONE (D-956: §References BC-2.16.009+BC-2.16.013 per POL-7; AC-006 SAP-1-probe form per POL-8; Red Gate test-infix BC_2_16_013_); code @ f0621e65 (unchanged); LOCAL streak 0/3; next action: implementer fix-burst (2 worktree items: test doc-table infix + header pin v1.1→v1.4) → LOCAL adversary re-pass with Lesson 62 preflight toward 1/3"
-    entry_point: "implementer fix-burst (2 items per story v1.4 PO fixes) → LOCAL adversary re-pass (worktree-identity preflight: git -C .worktrees/S-DEMO-CROWDSTRIKE-MULTIREGION-001 rev-parse HEAD must == post-fix-burst SHA) → 3-CLEAN → demo-recorder → push → pr-manager 9-step PR cycle → PR-LEVEL 3-CLEAN → merge"
+    dispatch_status: "IN DELIVERY (PAUSED D-957) — code @ 291d7c64 (implementer removed 2 unused imports: SpecEngineError + SpecLoader from crates/prism-spec-engine/tests/bc_2_16_013_crowdstrike_multiregion.rs; F-PB-B-MED-001 CLOSED; 518 tests pass); LOCAL streak 0/3; LOCAL pass A CLEAN, pass B 1 MED (now fixed @ 291d7c64), pass C CLEAN; NEXT: LOCAL re-pass vs 291d7c64 (Lesson 62 preflight: git -C .worktrees/S-DEMO-CROWDSTRIKE-MULTIREGION-001 rev-parse HEAD must == 291d7c64; expect CLEAN → advance 1/3) → 3-CLEAN → demo-recorder → push → PR → PR-LEVEL 3-CLEAN → merge"
+    entry_point: "LOCAL adversary re-pass vs 291d7c64 (Lesson 62 worktree-identity preflight) → 3-CLEAN → demo-recorder → push → pr-manager 9-step PR cycle → PR-LEVEL 3-CLEAN → merge"
     worktree_path: ".worktrees/S-DEMO-CROWDSTRIKE-MULTIREGION-001"
-    code_head: "f0621e65"
+    code_head: "291d7c64"
     branch: "feature/S-DEMO-CROWDSTRIKE-MULTIREGION-001"
-    tracked_dependency: "DTU: NO code change to prism-dtu-crowdstrike (region-agnostic per ADR-031 §D8-c); scope: crowdstrike.sensor.toml + prism-spec-engine ${env.CROWDSTRIKE_BASE_URL} interpolation. §References must list BC-2.16.009 + BC-2.16.013 per POL-7. AC-006 uses SAP-1-probe wording per POL-8. Red Gate test names use BC_2_16_013_ infix."
+    tracked_dependency: "DTU: NO code change to prism-dtu-crowdstrike (region-agnostic per ADR-031 §D8-c); scope: crowdstrike.sensor.toml + prism-spec-engine ${env.CROWDSTRIKE_BASE_URL} interpolation. §References must list BC-2.16.009 + BC-2.16.013 per POL-7. AC-006 uses SAP-1-probe wording per POL-8. Red Gate test names use BC_2_16_013_ infix. Story spec is solid: §References complete, BC-2.16.002 SAP-1-probe form, test-name infix synced, D-946 bump-stable cite."
     depends_on:
       - S-SPEC-ENV-VAR-001     # HARD — SATISFIED (merged PR #165 develop@4feec93a 2026-06-01)
     bcs: [BC-2.16.009, BC-2.16.013]
-    notes: "D-956 2026-06-02: Story v1.3→v1.4 — PO fixes 2 items: (1) §References BC-2.16.009+BC-2.16.013 added per POL-7; (2) AC-006 reworded to SAP-1-probe form per POL-8 + Red Gate test-name citations synced to BC_2_16_013_ infix. Code HEAD f0621e65 unchanged; implementer fix-burst in flight (2 worktree items). LOCAL streak 0/3. (Prior D-955: F-P2-OBS-001 CLOSED v1.2→v1.3. D-954: F-P1-OBS-001 CLOSED v1.1→v1.2.)"
+    notes: "D-957 2026-06-02 PAUSE CHECKPOINT: implementer advanced code f0621e65→291d7c64 (removed 2 unused imports SpecEngineError + SpecLoader from bc_2_16_013_crowdstrike_multiregion.rs; F-PB-B-MED-001 CLOSED; 518 tests pass). LOCAL pass A CLEAN, pass B 1 MED (fixed @ 291d7c64), pass C CLEAN. LOCAL streak 0/3 — next: LOCAL re-pass vs 291d7c64 (expect CLEAN → 1/3). Story spec solid at v1.4. (Prior D-956 2026-06-02: Story v1.3→v1.4 PO fixes: §References BC-2.16.009+BC-2.16.013 per POL-7; AC-006 SAP-1-probe form per POL-8; BC_2_16_013_ infix synced. D-955: F-P2-OBS-001 CLOSED v1.2→v1.3. D-954: F-P1-OBS-001 CLOSED v1.1→v1.2.)"
 
   - story_id: S-MAINT-W3SEC-CITE-SWEEP-001
     status: in-progress
@@ -55,15 +55,15 @@ active_dispatch_set:
     points: 2
     spec_version: "v1.2"
     lane: "3-of-3"
-    dispatch_status: "IN DELIVERY — LOCAL 3/3 CONVERGED (D-956: 3 independent CLEAN-strict passes @ 9d4c48fd per BC-5.39.001 D-779); PR #169 OPEN (base develop@eb3416d1; head maintenance/w3sec-cite-sweep@9d4c48fd; MERGEABLE; just check passed); next action: PR-LEVEL adversary cascade (fix-pr-delivery flow; no demo-recorder) → merge"
-    entry_point: "PR-LEVEL adversary cascade (fix-pr-delivery flow; no demo-recorder needed for maintenance story) → merge → state-manager post-merge burst (DRIFT-D943-001 CLOSED)"
+    dispatch_status: "IN DELIVERY (PAUSED D-957) — LOCAL 3/3 CONVERGED + PR-LEVEL 3/3 CONVERGED (all 6 passes CLEAN); PR #169 OPEN (base develop@eb3416d1; head maintenance/w3sec-cite-sweep@9d4c48fd; MERGEABLE; just check passed); BLOCKER: CI 1 FAILURE = Test (x86_64-unknown-linux-gnu) run 26837198846 (31 SUCCESS, 8 pending; STRONGLY SUSPECTED FLAKY — same job failed spuriously on PR #167 earlier this session); NEXT: gh run view 26837198846 --log-failed; if flaky gh run rerun <id> --failed → once green squash-merge → post-merge state burst (DRIFT-D943-001 CLOSED; no POL-14 BC promotion needed; develop HEAD advances)"
+    entry_point: "Investigate CI run 26837198846 (gh run view 26837198846 --log-failed); if flaky re-run (gh run rerun <id> --failed) → once all CI green squash-merge PR #169 → state-manager post-merge burst (story→merged; DRIFT-D943-001 CLOSED)"
     worktree_path: ".worktrees/S-MAINT-W3SEC-CITE-SWEEP-001"
     code_head: "9d4c48fd"
     branch: "maintenance/w3sec-cite-sweep"
-    tracked_dependency: "Anchors DRIFT-D943-001. Scope: sweep BC-3.5.002 precondition-3 mis-cite from merged crates prism-dtu-crowdstrike + prism-dtu-cyberint (21 sites). Out-of-scope: armis+slack (→ DRIFT-D954-001+S-MAINT-W3SEC-CITE-SWEEP-002). No new BCs. W3-FIX-SEC-001 story corrected v1.2 (ADV-P02-LOW-001 BC table gloss postcondition-2 handler/endpoint semantics)."
+    tracked_dependency: "Anchors DRIFT-D943-001. Scope: sweep BC-3.5.002 precondition-3 mis-cite from merged crates prism-dtu-crowdstrike + prism-dtu-cyberint (21 sites). Out-of-scope: armis+slack (→ DRIFT-D954-001+S-MAINT-W3SEC-CITE-SWEEP-002). No new BCs. W3-FIX-SEC-001 story corrected v1.2 (ADV-P02-LOW-001 BC table gloss postcondition-2 handler/endpoint semantics). pr-reviewer not separately needed (maintenance; PR-LEVEL cascade covers)."
     depends_on: []
     bcs: []
-    notes: "D-956 2026-06-02: LOCAL cascade 3/3 CONVERGED — 3 independent CLEAN(strict) passes @ 9d4c48fd per BC-5.39.001 D-779. PR #169 OPEN: base develop@eb3416d1; head maintenance/w3sec-cite-sweep@9d4c48fd; MERGEABLE; just check passed. W3-FIX-SEC-001 companion story at v1.2 (ADV-P02-LOW-001 BC table gloss fix D-955). Next: PR-LEVEL adversary cascade via fix-pr-delivery flow → merge → DRIFT-D943-001 CLOSED. (Prior D-955: ADV-P02-LOW-001 CLOSED W3-FIX-SEC-001 v1.1→v1.2; LOCAL streak was 0/3. D-954: LOCAL pass 1 CLEAN(PR-merge)=yes; OBS-001→DRIFT-D954-001.)"
+    notes: "D-957 2026-06-02 PAUSE CHECKPOINT: CI on PR #169 shows 1 FAILURE = Test (x86_64-unknown-linux-gnu) run 26837198846; 31 SUCCESS, 8 pending — on a COMMENT-ONLY change that passed just check locally. STRONGLY SUSPECTED FLAKY (same job failed spuriously on PR #167 earlier this session). LOCAL 3/3 CONVERGED + PR-LEVEL 3/3 CONVERGED (all 6 passes CLEAN). NEXT: investigate run 26837198846; if flaky re-run failed job → once green squash-merge. (Prior D-956 2026-06-02: LOCAL cascade 3/3 CONVERGED; PR #169 OPEN. D-955: ADV-P02-LOW-001 CLOSED W3-FIX-SEC-001 v1.1→v1.2. D-954: LOCAL pass 1 OBS-001→DRIFT-D954-001.)"
 
   # --- Previously completed stories (maintained for history) ---
 
@@ -278,9 +278,9 @@ deferred_post_demo:
   # reclassification from permitted-divergence → required-fidelity; user directive no-scope-compromise).
 
 prereq_artifacts:
-  story_index: .factory/stories/STORY-INDEX.md         # v2.254 after D-956 burst (178 stories)
-  bc_index: .factory/specs/behavioral-contracts/BC-INDEX.md  # v5.75 after D-956 burst (unchanged)
-  state: .factory/STATE.md                              # v7.609 after D-956 burst
+  story_index: .factory/stories/STORY-INDEX.md         # v2.255 after D-957 burst (178 stories)
+  bc_index: .factory/specs/behavioral-contracts/BC-INDEX.md  # v5.75 after D-957 burst (unchanged)
+  state: .factory/STATE.md                              # v7.610 after D-957 burst
   governing_adr: .factory/specs/architecture/decisions/ADR-031-dtu-equals-true-dtu-fidelity-principle.md  # v1.2 (ADR-031 architect e57eb5b1 reclassified 3 divergences)
   governing_audit: .factory/proposals/POLLER-DTU-FIDELITY-AUDIT-2026-05-29.md  # v1.1
 
