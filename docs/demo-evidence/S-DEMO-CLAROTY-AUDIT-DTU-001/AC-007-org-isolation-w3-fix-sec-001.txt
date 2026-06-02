@@ -1,0 +1,107 @@
+AC: AC-007 — DTU-wide org-isolation guard (W3-FIX-SEC-001) across all fixture-list endpoints
+Crate: prism-dtu-claroty
+Story: S-DEMO-CLAROTY-AUDIT-DTU-001 v1.8
+PR: #167 (S-DEMO-CLAROTY-AUDIT-DTU-001)
+Authority: W3-FIX-SEC-001 (org-isolation guard; closes O-PR3R2-001 + F-PR3R2-MED-002)
+Locations:
+  crates/prism-dtu-claroty/src/routes/audit_log.rs (mod tests)
+  crates/prism-dtu-claroty/src/routes/alerts.rs (mod tests — covers alerts + alerted_devices)
+  crates/prism-dtu-claroty/src/routes/devices.rs (mod tests)
+  crates/prism-dtu-claroty/src/routes/vulnerabilities.rs (mod tests — covers vulnerabilities + vulnerability_devices)
+
+Command:
+  cargo nextest run -p prism-dtu-claroty -E 'test(test_W3_FIX_SEC_001)' --no-fail-fast
+
+Result:
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.42s
+────────────
+ Nextest run ID d9d92474-2bca-4fd6-a39b-838b7b41da61 with nextest profile: default
+    Starting 18 tests across 1 binary (5 tests skipped)
+        PASS [   2.532s] ( 1/18) prism-dtu-claroty routes::alerts::tests::test_W3_FIX_SEC_001_claroty_alerted_devices_missing_org_header_on_real_org_returns_401
+        PASS [   2.559s] ( 2/18) prism-dtu-claroty routes::vulnerabilities::tests::test_W3_FIX_SEC_001_claroty_vulnerabilities_org_mismatch_returns_401
+        PASS [   2.572s] ( 3/18) prism-dtu-claroty routes::alerts::tests::test_W3_FIX_SEC_001_claroty_alerts_org_mismatch_returns_401
+        PASS [   2.572s] ( 4/18) prism-dtu-claroty routes::alerts::tests::test_W3_FIX_SEC_001_claroty_alerted_devices_org_mismatch_returns_401
+        PASS [   2.578s] ( 5/18) prism-dtu-claroty routes::devices::tests::test_W3_FIX_SEC_001_claroty_devices_org_mismatch_returns_401
+        PASS [   2.580s] ( 6/18) prism-dtu-claroty routes::audit_log::tests::test_W3_FIX_SEC_001_claroty_audit_logs_org_mismatch_returns_401
+        PASS [   2.584s] ( 7/18) prism-dtu-claroty routes::devices::tests::test_W3_FIX_SEC_001_claroty_devices_missing_org_header_on_real_org_returns_401
+        PASS [   2.590s] ( 8/18) prism-dtu-claroty routes::vulnerabilities::tests::test_W3_FIX_SEC_001_claroty_vulnerabilities_missing_org_header_on_real_org_returns_401
+        PASS [   2.592s] ( 9/18) prism-dtu-claroty routes::alerts::tests::test_W3_FIX_SEC_001_claroty_alerts_missing_org_header_on_real_org_returns_401
+        PASS [   2.592s] (10/18) prism-dtu-claroty routes::vulnerabilities::tests::test_W3_FIX_SEC_001_claroty_vulnerability_devices_missing_org_header_on_real_org_returns_401
+        PASS [   2.593s] (11/18) prism-dtu-claroty routes::vulnerabilities::tests::test_W3_FIX_SEC_001_claroty_vulnerabilities_nil_org_no_header_returns_200
+        PASS [   2.593s] (12/18) prism-dtu-claroty routes::audit_log::tests::test_W3_FIX_SEC_001_claroty_audit_logs_nil_org_no_header_returns_200
+        PASS [   2.593s] (13/18) prism-dtu-claroty routes::devices::tests::test_W3_FIX_SEC_001_claroty_devices_nil_org_no_header_returns_200
+        PASS [   2.600s] (14/18) prism-dtu-claroty routes::alerts::tests::test_W3_FIX_SEC_001_claroty_alerted_devices_nil_org_no_header_returns_200
+        PASS [   2.604s] (15/18) prism-dtu-claroty routes::audit_log::tests::test_W3_FIX_SEC_001_claroty_audit_logs_missing_org_header_on_real_org_returns_401
+        PASS [   2.608s] (16/18) prism-dtu-claroty routes::alerts::tests::test_W3_FIX_SEC_001_claroty_alerts_nil_org_no_header_returns_200
+        PASS [   0.273s] (17/18) prism-dtu-claroty routes::vulnerabilities::tests::test_W3_FIX_SEC_001_claroty_vulnerability_devices_org_mismatch_returns_401
+        PASS [   0.301s] (18/18) prism-dtu-claroty routes::vulnerabilities::tests::test_W3_FIX_SEC_001_claroty_vulnerability_devices_nil_org_no_header_returns_200
+────────────
+     Summary [   2.836s] 18 tests run: 18 passed, 5 skipped
+
+PASS — 18/18 W3-FIX-SEC-001 org-isolation tests passed across all 6 fixture-list endpoints
+
+Matrix coverage (3 cells x 6 endpoints = 18 tests):
+  Cell A — non-nil-org clone + mismatched X-Org-Id header → HTTP 401 "org_id mismatch"
+  Cell B — non-nil-org clone + ABSENT X-Org-Id header → HTTP 401 "org_id mismatch"
+  Cell C — nil-org clone + no X-Org-Id header → HTTP 200 (backward-compat)
+
+Test inventory (AC-007 org-isolation gate — all 6 endpoints):
+
+  audit_log endpoint (src/routes/audit_log.rs):
+    test_W3_FIX_SEC_001_claroty_audit_logs_org_mismatch_returns_401           [Cell A]
+      - Clone with non-nil org_id + X-Org-Id header for a DIFFERENT org → HTTP 401
+      - Body contains "org_id mismatch"
+      - Confirms multi-tenant isolation: non-nil-org clone rejects cross-tenant requests
+    test_W3_FIX_SEC_001_claroty_audit_logs_missing_org_header_on_real_org_returns_401  [Cell B]
+      - Clone with non-nil org_id + ABSENT X-Org-Id header → HTTP 401
+      - Non-nil-org clone must reject requests that omit X-Org-Id entirely
+    test_W3_FIX_SEC_001_claroty_audit_logs_nil_org_no_header_returns_200      [Cell C]
+      - Clone with nil org_id (None) + no X-Org-Id header → HTTP 200 (fixture served)
+      - Confirms backward-compat: nil-org (single-tenant) clones skip org validation
+
+  alerts endpoint (src/routes/alerts.rs):
+    test_W3_FIX_SEC_001_claroty_alerts_org_mismatch_returns_401               [Cell A]
+      - Clone with non-nil org_id + mismatched X-Org-Id → HTTP 401
+    test_W3_FIX_SEC_001_claroty_alerts_missing_org_header_on_real_org_returns_401  [Cell B]
+      - Clone with non-nil org_id + ABSENT X-Org-Id header → HTTP 401
+    test_W3_FIX_SEC_001_claroty_alerts_nil_org_no_header_returns_200          [Cell C]
+      - Nil-org clone + no header → HTTP 200
+
+  alerted_devices endpoint (src/routes/alerts.rs):
+    test_W3_FIX_SEC_001_claroty_alerted_devices_org_mismatch_returns_401      [Cell A]
+      - Clone with non-nil org_id + mismatched X-Org-Id → HTTP 401
+    test_W3_FIX_SEC_001_claroty_alerted_devices_missing_org_header_on_real_org_returns_401  [Cell B]
+      - Clone with non-nil org_id + ABSENT X-Org-Id header → HTTP 401
+    test_W3_FIX_SEC_001_claroty_alerted_devices_nil_org_no_header_returns_200 [Cell C]
+      - Nil-org clone + no header → HTTP 200
+
+  devices endpoint (src/routes/devices.rs):
+    test_W3_FIX_SEC_001_claroty_devices_org_mismatch_returns_401              [Cell A]
+      - Clone with non-nil org_id + mismatched X-Org-Id → HTTP 401
+    test_W3_FIX_SEC_001_claroty_devices_missing_org_header_on_real_org_returns_401 [Cell B]
+      - Clone with non-nil org_id + ABSENT X-Org-Id header → HTTP 401
+    test_W3_FIX_SEC_001_claroty_devices_nil_org_no_header_returns_200         [Cell C]
+      - Nil-org clone + no header → HTTP 200
+
+  vulnerabilities endpoint (src/routes/vulnerabilities.rs):
+    test_W3_FIX_SEC_001_claroty_vulnerabilities_org_mismatch_returns_401      [Cell A]
+      - Clone with non-nil org_id + mismatched X-Org-Id → HTTP 401
+    test_W3_FIX_SEC_001_claroty_vulnerabilities_missing_org_header_on_real_org_returns_401  [Cell B]
+      - Clone with non-nil org_id + ABSENT X-Org-Id header → HTTP 401
+    test_W3_FIX_SEC_001_claroty_vulnerabilities_nil_org_no_header_returns_200 [Cell C]
+      - Nil-org clone + no header → HTTP 200
+
+  vulnerability_devices endpoint (src/routes/vulnerabilities.rs):
+    test_W3_FIX_SEC_001_claroty_vulnerability_devices_org_mismatch_returns_401  [Cell A]
+      - Clone with non-nil org_id + mismatched X-Org-Id → HTTP 401
+    test_W3_FIX_SEC_001_claroty_vulnerability_devices_missing_org_header_on_real_org_returns_401  [Cell B]
+      - Clone with non-nil org_id + ABSENT X-Org-Id header → HTTP 401
+    test_W3_FIX_SEC_001_claroty_vulnerability_devices_nil_org_no_header_returns_200  [Cell C]
+      - Nil-org clone + no header → HTTP 200
+
+W3-FIX-SEC-001 behavioral contract (all 6 endpoints):
+  - Org-mismatch path (non-nil clone): X-Org-Id header differs from clone's configured org → HTTP 401 "org_id mismatch"
+  - Missing-header path (non-nil clone): X-Org-Id header entirely absent → HTTP 401 "org_id mismatch" (Cell B)
+  - Nil-org backward-compat: nil-org clone without X-Org-Id header → HTTP 200 (fixture served, single-tenant unaffected)
+  - Authority: W3-FIX-SEC-001 (closes O-PR3R2-001 + F-PR3R2-MED-002)
+  - Note: this is NOT BC-3.5.002 precondition 3 — the guard authority is W3-FIX-SEC-001

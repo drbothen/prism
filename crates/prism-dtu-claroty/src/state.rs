@@ -57,7 +57,7 @@ pub struct ClarotyState {
     /// Authoritative `OrgId` for this clone instance (W3-FIX-SEC-001).
     ///
     /// Set at startup; route handlers compare the `X-Org-Id` header against this value
-    /// and return HTTP 401 on mismatch (BC-3.5.002 precondition 3).
+    /// and return HTTP 401 on mismatch (W3-FIX-SEC-001).
     pub instance_org_id: OrgId,
 }
 
