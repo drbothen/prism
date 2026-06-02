@@ -14,7 +14,7 @@
 //!
 //! # Behavioral contracts exercised
 //!
-//!   BC-3.5.002 precondition 3 — `instance_org_id` guard on all org-keyed endpoints.
+//!   W3-FIX-SEC-001 (BC-3.5.002 postcondition 2) — `instance_org_id` guard on all org-keyed endpoints.
 //!   BC-3.2.001 precondition 4 — HTTP layer enforces OrgId boundary before state access.
 //!
 //! # Architecture compliance note
@@ -70,7 +70,7 @@ async fn start_clone_with_org(org_id: OrgId) -> (CrowdstrikeClone, String) {
 }
 
 // ===========================================================================
-// list_detection_ids — BC-3.5.002 precondition 3; CR-018 AC-003
+// list_detection_ids — W3-FIX-SEC-001 (BC-3.5.002 postcondition 2); CR-018 AC-003
 // ===========================================================================
 
 /// CR-018 AC-003: `GET /detects/queries/detects/v1` on a real-org CrowdStrike clone must
@@ -80,7 +80,7 @@ async fn start_clone_with_org(org_id: OrgId) -> (CrowdstrikeClone, String) {
 /// This test FAILS before the nil-instance guard is added to
 /// `detections.rs::list_detection_ids`.
 ///
-/// (BC-3.5.002 precondition 3; BC-3.2.001 precondition 4; CR-018 AC-003 EC-005)
+/// (W3-FIX-SEC-001; BC-3.5.002 postcondition 2; BC-3.2.001 precondition 4; CR-018 AC-003 EC-005)
 #[tokio::test]
 async fn test_list_detection_ids_real_org_absent_header_returns_401() {
     let (_clone, base_url) = start_clone_with_org(real_org_id()).await;
@@ -98,7 +98,7 @@ async fn test_list_detection_ids_real_org_absent_header_returns_401() {
         401,
         "CR-018 AC-003: real-org clone must reject GET /detects/queries/detects/v1 \
          with absent X-Org-Id → HTTP 401; \
-         expected 401 got {} (BC-3.5.002 precondition 3; CR-018 AC-003 EC-005)",
+         expected 401 got {} (W3-FIX-SEC-001; BC-3.5.002 postcondition 2; CR-018 AC-003 EC-005)",
         resp.status().as_u16()
     );
 }
@@ -136,7 +136,7 @@ async fn test_list_detection_ids_real_org_correct_header_returns_200() {
 /// The guard condition `instance_org_id != Uuid::nil()` is false for nil-instance
 /// clones, so the guard is skipped entirely.
 ///
-/// (CR-018 EC-007; BC-3.5.002 precondition 3)
+/// (CR-018 EC-007; W3-FIX-SEC-001; BC-3.5.002 postcondition 2)
 #[tokio::test]
 async fn test_list_detection_ids_nil_instance_absent_header_returns_200() {
     // CrowdstrikeClone::new() has a nil instance_org_id — guard must be a no-op.
@@ -157,13 +157,13 @@ async fn test_list_detection_ids_nil_instance_absent_header_returns_200() {
         200,
         "CR-018 EC-007: nil-instance clone must allow GET /detects/queries/detects/v1 \
          with absent X-Org-Id → HTTP 200 (backward compat); \
-         expected 200 got {} (BC-3.5.002 precondition 3; CR-018 EC-007)",
+         expected 200 got {} (W3-FIX-SEC-001; BC-3.5.002 postcondition 2; CR-018 EC-007)",
         resp.status().as_u16()
     );
 }
 
 // ===========================================================================
-// get_detection_summaries — BC-3.5.002 precondition 3; CR-018 AC-003
+// get_detection_summaries — W3-FIX-SEC-001 (BC-3.5.002 postcondition 2); CR-018 AC-003
 // ===========================================================================
 
 /// CR-018 AC-003: `POST /detects/entities/summaries/GET/v1` on a real-org CrowdStrike
@@ -173,7 +173,7 @@ async fn test_list_detection_ids_nil_instance_absent_header_returns_200() {
 /// This test FAILS before the nil-instance guard is added to
 /// `detections.rs::get_detection_summaries`.
 ///
-/// (BC-3.5.002 precondition 3; BC-3.2.001 precondition 4; CR-018 AC-003 EC-006)
+/// (W3-FIX-SEC-001; BC-3.5.002 postcondition 2; BC-3.2.001 precondition 4; CR-018 AC-003 EC-006)
 #[tokio::test]
 async fn test_get_detection_summaries_real_org_absent_header_returns_401() {
     let (_clone, base_url) = start_clone_with_org(real_org_id()).await;
@@ -193,7 +193,7 @@ async fn test_get_detection_summaries_real_org_absent_header_returns_401() {
         "CR-018 AC-003: real-org clone must reject \
          POST /detects/entities/summaries/GET/v1 \
          with absent X-Org-Id → HTTP 401; \
-         expected 401 got {} (BC-3.5.002 precondition 3; CR-018 AC-003 EC-006)",
+         expected 401 got {} (W3-FIX-SEC-001; BC-3.5.002 postcondition 2; CR-018 AC-003 EC-006)",
         resp.status().as_u16()
     );
 }
@@ -230,7 +230,7 @@ async fn test_get_detection_summaries_real_org_correct_header_returns_200() {
 /// CR-018 EC-007 backward compat: `POST /detects/entities/summaries/GET/v1` on a
 /// nil-instance clone must allow absent `X-Org-Id` → HTTP 200.
 ///
-/// (CR-018 EC-007; BC-3.5.002 precondition 3)
+/// (CR-018 EC-007; W3-FIX-SEC-001; BC-3.5.002 postcondition 2)
 #[tokio::test]
 async fn test_get_detection_summaries_nil_instance_absent_header_returns_200() {
     // CrowdstrikeClone::new() has a nil instance_org_id — guard must be a no-op.
@@ -253,7 +253,7 @@ async fn test_get_detection_summaries_nil_instance_absent_header_returns_200() {
         "CR-018 EC-007: nil-instance clone must allow \
          POST /detects/entities/summaries/GET/v1 \
          with absent X-Org-Id → HTTP 200 (backward compat); \
-         expected 200 got {} (BC-3.5.002 precondition 3; CR-018 EC-007)",
+         expected 200 got {} (W3-FIX-SEC-001; BC-3.5.002 postcondition 2; CR-018 EC-007)",
         resp.status().as_u16()
     );
 }

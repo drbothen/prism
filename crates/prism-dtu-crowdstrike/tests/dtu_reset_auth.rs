@@ -3,7 +3,7 @@
 //! Acceptance criteria:
 //!   AC-001 (BC-3.2.001 inv-1): reset without token → 401
 //!   AC-002 (BC-3.5.001 post-3): reset with correct token → 200
-//!   AC-003 (BC-3.5.002 pre-3): cross-clone token → 401
+//!   AC-003 (W3-FIX-SEC-001; BC-3.5.002 postcondition 2): cross-clone token → 401
 //!
 //! RED GATE: all three tests must panic with `todo!` until the handler
 //! is implemented.
@@ -86,7 +86,7 @@ async fn test_AC_002_dtu_reset_with_admin_token_returns_200() {
 // AC-003: cross-clone (wrong) token → HTTP 401
 // ---------------------------------------------------------------------------
 
-/// BC-3.5.002 precondition 3: admin token is per-clone; another clone's token
+/// W3-FIX-SEC-001 (BC-3.5.002 postcondition 2): admin token is per-clone; another clone's token
 /// must be rejected.
 ///
 /// Spin up two independent `CrowdstrikeClone` instances.  Token from clone B

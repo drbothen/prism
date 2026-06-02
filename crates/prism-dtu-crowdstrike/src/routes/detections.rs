@@ -117,7 +117,7 @@ pub async fn list_detection_ids(
         return *e;
     }
 
-    // CR-018: validate X-Org-Id against instance_org_id (BC-3.5.002 precondition 3).
+    // CR-018: validate X-Org-Id against instance_org_id (W3-FIX-SEC-001).
     // Guard is active only for real-org clones (instance_org_id != nil).
     // Nil-instance clones (CrowdstrikeClone::new()) skip the guard for backward compat (EC-007).
     // CrowdStrike sentinel: OrgId::from_uuid(Uuid::nil()) — NOT DTU_DEFAULT_INSTANCE_ORG_ID.
@@ -205,7 +205,7 @@ pub async fn get_detection_summaries(
         return *e;
     }
 
-    // CR-018: validate X-Org-Id against instance_org_id (BC-3.5.002 precondition 3).
+    // CR-018: validate X-Org-Id against instance_org_id (W3-FIX-SEC-001).
     // Guard is active only for real-org clones (instance_org_id != nil).
     // Nil-instance clones skip the guard for backward compat (EC-007).
     // CrowdStrike sentinel: OrgId::from_uuid(Uuid::nil()) — NOT DTU_DEFAULT_INSTANCE_ORG_ID.

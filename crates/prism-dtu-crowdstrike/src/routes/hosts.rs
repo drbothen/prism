@@ -229,7 +229,7 @@ fn extract_org_id(headers: &HeaderMap) -> OrgId {
 
 /// Validate the `X-Org-Id` header against `instance_org_id`.
 ///
-/// # W3-FIX-SEC-001 (AC-001..AC-003, BC-3.5.002 precondition 3)
+/// # W3-FIX-SEC-001 (AC-001..AC-003, BC-3.5.002 postcondition 2)
 ///
 /// Returns `Ok(OrgId)` when the header is present, parseable as UUID, and matches
 /// `instance_org_id` byte-for-byte.
