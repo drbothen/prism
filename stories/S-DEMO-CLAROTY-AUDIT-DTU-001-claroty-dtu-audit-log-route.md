@@ -12,12 +12,12 @@ status: in-progress
 # /api/v1/audit_log/get with ClarotyAuditLogEntry shape is consistent with
 # BC-2.01.013 auth-enforcement contract + BC-2.16.013 DTU-TOML-parity contract.
 # No New-BC flags. No env-var dependency. Story dispatchable.
-version: "1.7"
+version: "1.8"
 acceptance_criteria_count: 7
 level: "L4"
 producer: story-writer
 timestamp: "2026-05-31T00:00:00Z"
-modified: "2026-06-01"
+modified: "2026-06-02"
 tdd_mode: strict
 subsystems: [SS-17, SS-16]
 # Subsystem anchor justifications:
@@ -417,6 +417,7 @@ new gate is warranted.
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.8 | 2026-06-02 | story-writer | BC-2.16.013 pin v1.21→v1.22 + BC-INDEX pin v5.73→v5.74 propagated to all 3 story-body sites (frontmatter comment, §Behavioral Contracts table, §References) via D-945/D-946 cross-lane POL-25 sweep; this row records the previously-undocumented advancement (changelog-completeness + version sync; no body-content change). Closes F-PR7-MED-001 (POL-23/POL-26/POL-32). |
 | 1.7 | 2026-06-01 | product-owner | F-PR3R2-MED-001 + F-PR3R2-MED-003 closure: swept BC-2.16.013 pin v1.19→v1.21 and BC-INDEX pin v5.66→v5.73 at all 3 story-body sites (frontmatter comment, §Behavioral Contracts table, §References). AC-007 expanded from 4 to 6 org-scoped endpoints (devices, audit_logs, alerts, alerted_devices, vulnerabilities, vulnerability_devices) with full 3-cell matrix (Cell A: non-nil+mismatch→401; Cell B: non-nil+absent→401; Cell C: nil+absent→200). Red Gate table expanded from 11 to 21 rows (3 core AC-001–006 tests + 18 org-isolation tests = 6 endpoints × 3 cells each, all tracing to AC-007). acceptance_criteria_count: 7 confirmed coherent (AC-007 covers all 6 endpoints; no split). |
 | 1.6 | 2026-06-01 | product-owner | O-PR3-002 closure: added AC-007 documenting DTU-wide org-isolation on all fixture-list endpoints (devices, audit_log, alerts, alerted_devices) anchored to W3-FIX-SEC-001 (org-mismatch → 401; nil-org → 200). Added 8 Red Gate test rows for org-isolation unit tests across all 4 list endpoints. Added acceptance_criteria_count: 7 to frontmatter (field was absent; body now has 7 ACs). SPEC-wins: spec brought up to delivered implementation per production-grade default. |
 | 1.5 | 2026-06-01 | story-writer | POL-23 sibling-sweep: BC-2.01.013 version pin swept v1.7→v1.9 and BC-2.16.013 pin swept v1.18→v1.19 in body §Behavioral Contracts table; BC-2.16.013 pin swept v1.18→v1.19 in §References. POL-7: BC-2.16.013 title in §References restored with full "— 4 Initial Sensors" suffix. POL-13 status fix: frontmatter status flipped ready→in-progress (implementation in flight, cascade pending). |

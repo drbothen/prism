@@ -19,11 +19,11 @@ status: in-progress
 # (AC-001..AC-004) are unblocked. Parity tests requiring full pipeline env-var resolution
 # must be #[ignore]-annotated with a code comment citing S-SPEC-ENV-VAR-001 until that
 # prereq merges.
-version: "1.7"
+version: "1.8"
 level: "L4"
 producer: story-writer
 timestamp: "2026-05-31T00:00:00Z"
-modified: "2026-06-01"
+modified: "2026-06-02"
 tdd_mode: strict
 subsystems: [SS-01, SS-16]
 # Subsystem anchor justifications:
@@ -110,11 +110,11 @@ cycle: "v1.0.0-brownfield"
 phase: 3
 ---
 
-# S-DEMO-ARMIS-AQL-001 v1.7 — Armis AQL Search Endpoint Fidelity
+# S-DEMO-ARMIS-AQL-001 v1.8 — Armis AQL Search Endpoint Fidelity
 
 **Story ID:** S-DEMO-ARMIS-AQL-001
 **Status:** in-progress
-**Version:** v1.7
+**Version:** v1.8
 **Wave:** 5
 **Priority:** P1
 **Points:** 5
@@ -220,7 +220,7 @@ Both flags are fully dispositioned. No further PO authorship action required for
 DTU clone returns 200 (not 404). `Authorization: Bearer {non-empty}` header is required;
 missing/empty token returns 403 (matching existing Armis DTU auth pattern — AC-5 per
 routes/devices.rs `check_bearer_auth`: Armis returns 403 not 401).
-(traces to BC-2.16.013 postcondition §1 DTU-Parity — DTU must implement the endpoint declared
+(traces to BC-2.16.013 §Postconditions §2 (DTU-Parity Tests Pass) — DTU must implement the endpoint declared
 in the TOML spec; ADR-031 §D8-a is the architectural mandate; VP-148 parity gate)
 
 Red Gate test: `test_armis_aql_search_route_registered_returns_200_for_device_aql`
@@ -232,8 +232,7 @@ contains `DeviceRecord` objects matching the DTU fixture data (same fields as
 `crates/prism-dtu-armis/src/types.rs::DeviceRecord`). The AQL string `in:devices`
 is captured via `state.capture_aql()` and is visible in the subsequent `GET /dtu/aql-log`
 response as `{"aql_strings": ["in:devices"]}`.
-(traces to BC-2.16.013 postcondition §2 fixture-parity — DTU search route applies AQL
-string as filter against fixture data and logs the AQL string; ADR-031 §D8-a requirement 1)
+(traces to BC-2.16.013 §Postconditions §2 (DTU-Parity Tests Pass); AQL-capture requirement per ADR-031 §D8-a / R-DTU-002)
 
 Red Gate test: `test_armis_aql_search_devices_aql_returns_device_records`
 
@@ -243,8 +242,7 @@ table, e.g. `in:alerts status:Open`) returns HTTP 200 with response envelope
 `{"data": {"results": [...AlertRecords...], "total": N}}` where `results` contains
 `AlertRecord` objects matching the DTU fixture data. The AQL string is captured in
 `GET /dtu/aql-log`.
-(traces to BC-2.16.013 postcondition §2 fixture-parity — DTU search route serves alerts
-via AQL filter; ADR-031 §D8-a requirement 1)
+(traces to BC-2.16.013 §Postconditions §2 (DTU-Parity Tests Pass))
 
 Red Gate test: `test_armis_aql_search_alerts_aql_returns_alert_records`
 
@@ -258,8 +256,7 @@ to the DTU. The `response_path` fields are updated if the envelope changes from
 `$.data.devices` / `$.data.alerts` to `$.data.results` (per the search route's response).
 DTU-EXT-003 and DTU-EXT-004 comments in the TOML are updated to reflect that the gap is
 now closed.
-(traces to BC-2.16.013 postcondition §2 DTU-TOML-column-parity — TOML devices and alerts
-steps must use /api/v1/search; ADR-031 §D8-a requirement 2)
+(traces to BC-2.16.013 §Postconditions §1 (Spec Files Authored and Validated))
 
 ### AC-005: Parity test — AQL string prism sends matches DTU-received AQL string
 An integration test (using `ArmisClone` from prism-dtu-harness or prism-dtu-armis directly):
@@ -557,6 +554,7 @@ Well within the 20-30% budget.
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.8 | 2026-06-02 | story-writer | Correct AC-001..AC-004 BC-2.16.013 §Postconditions trace anchors (phantom/inverted §-labels removed; R-DTU-002 re-attributed to ADR-031 §D8-a). Closes ADV-P02-MED-001 (POL-4/POL-21/POL-22). No code/behavior change. |
 | 1.7 | 2026-06-01 | product-owner | F-LP12-HIGH-001 closure (spec-side): conformed all AQL discriminator examples from `in:type=Device`/`in:type=Alert` to real Armis syntax `in:devices`/`in:alerts` per research artifact `.factory/research/armis-aql-discriminator-syntax-2026-06.md` (HIGH confidence, 6 convergent sources including real 1898 & Co production poller). Updated: §Origin narrative, §Story-Level Goal routing bullets, AC-001 example URL, AC-002 H2 title + example URLs + aql-log capture value, AC-003 H2 title + example AQL string, Red Gate table descriptions (rows 1/3/5), Task 8 handler routing bullets, Notes for Implementer AQL routing example and discriminator guidance, §References (added research artifact citation). Handler routing now checks `in:alerts` first (unambiguous) then defaults to `in:devices`. BC-2.16.013 was already correct; story now matches it. |
 | 1.6 | 2026-06-01 | story-writer | F-P7-MED-001 structural-table-completeness sweep (POL-29 step 3d): added `prism-spec-engine` to `crates_touched:` frontmatter; added §File List rows for `crates/prism-spec-engine/tests/parity/armis.rs` (AC-005 round-trip parity tests) and `crates/prism-dtu-armis/src/lib.rs` (module-doc route inventory); added §Token Budget Estimate row for `prism-spec-engine` parity tests (~800 tokens); updated total estimate to ~21,600 tokens. No semantic content change. |
 | 1.5 | 2026-06-01 | story-writer | POL-23 sibling-sweep: BC-2.16.013 version pins swept v1.18→v1.19 in frontmatter comment (line 10), behavioral_contracts comment (line 41), body §Behavioral Contracts table, §Behavioral Contracts note, and §New-BC Flags section. POL-7 title fix: restored full verbatim H1 "Bundled Sensor Spec Authoring and DTU-Parity Verification — 4 Initial Sensors" (the "— 4 Initial Sensors" suffix was dropped in prior versions). POL-13 status fix: frontmatter and H1 block status flipped ready→in-progress (implementation in flight, cascade pending). |

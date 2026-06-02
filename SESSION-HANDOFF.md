@@ -168,7 +168,7 @@ ARTIFACT STATE AFTER D-540 (UNCHANGED FROM D-539 — no spec edits):
 DURABLE PIN BLOCK (CURRENT STATE — D-580 — DURABLE PRE-/CLEAR RESUME SNAPSHOT — 86th consecutive single-commit — STRATEGIC DECISION PENDING)
 ═══════════════════════════════════════════════════════════════════════
 
-- develop HEAD: 72baf413 (current develop — fix(sensor-specs) fidelity audit fixes ACCEPTED D-846 2026-05-29; §RESUME SNAPSHOT 2026-05-29-E2E-DEMO-WIRING-PLAN-LOCKED is last full checkpoint; D-846 bookkeeping sweep is current state)
+- develop HEAD: 5dd3df02 (feat(S-DEMO-001): SpecDrivenSensorAdapter + boot step 9A — bridge PipelineExecutor to AdapterRegistry (closes GAP-002-A) (#166) — MERGED 2026-06-01T17:38:35Z; D-947 SHA-drift correction 2026-06-02)
 - factory-artifacts: run `git -C .factory log -1 --format=’%H’` (per TD-VSDD-053; D-579 is this commit)
 - feature_branch_head: no active feature branch (spec-authoring-only burst; develop unchanged at a5ab742c)
 - feature_branch_remote_status: no feature branch (spec-only burst; develop@a5ab742c unchanged)
@@ -10548,3 +10548,133 @@ Priority 2: Armis LOCAL re-pass (HEAD ae7ebcf7).
 ---
 
 **D-946 burst marker:** Single-commit burst per TD-VSDD-053. Anti-volatile-pin per TD-VSDD-091. POL-25 cross-lane pin propagation complete. POL-29 sibling-sweep confirmed zero stale v1.19/v1.20/v1.21 in active prose. POL-32 monotonicity: no story version bump on pin-only propagation. safe_to_compact: true.
+
+---
+
+## §RESUME SNAPSHOT 2026-06-02-TWO-LANE-CASCADE-BURST (D-947)
+
+**Snapshot created:** 2026-06-02 | **Reason:** D-947 two-lane cascade burst: Claroty F-PR7-MED-001+F-PR7-LOW-001 CLOSED (story v1.8; HEAD 9e4e17bf); Armis F-P2-MED-001+ADV-P02-MED-001+ADV-P02-MED-002 CLOSED (story v1.8; HEAD 4e733a08); SHA drift 72baf413→5dd3df02 fixed in DURABLE PIN BLOCK | **STATE version:** 7.600 | **safe_to_compact:** true
+
+---
+
+### §1 PIPELINE STATUS
+
+| Field | Value |
+|-------|-------|
+| Phase | 3 (Wave 5 wave-5-e-demo-fidelity) |
+| STATE version | 7.600 |
+| develop HEAD | `5dd3df02` (S-DEMO-001 merged 2026-06-01T17:38:35Z) |
+| STORY-INDEX | v2.246 (total_stories: 177) |
+| BC-INDEX | v5.74 (active: 238, draft: 1) |
+| BC-2.16.013 | v1.22 (normative content correct; §Changelog v1.22 records F-LP12R-MED-001 closure) |
+| Open PRs | PR #167 (S-DEMO-CLAROTY-AUDIT-DTU-001; PR-LEVEL streak 0/3; re-passes needed against HEAD 9e4e17bf + story v1.8) |
+| SHA drift fixed | SESSION-HANDOFF.md DURABLE PIN BLOCK line 171 corrected 72baf413→5dd3df02 (D-947) |
+
+---
+
+### §2 TWO-LANE STATE (EXACT)
+
+#### Track B — S-DEMO-ARMIS-AQL-001
+
+| Item | Value |
+|------|-------|
+| Status | in-progress v1.8 |
+| Feature HEAD | `4e733a08` (implementer; search.rs EC-002 doc corrected to E-AUTH-006) |
+| LOCAL cascade streak | 0/3 |
+| All known findings | CLOSED (F-P2-MED-001 CLOSED test-writer 179cf9a9; ADV-P02-MED-001 CLOSED story-writer v1.8; ADV-P02-MED-002 CLOSED implementer 4e733a08) |
+| Story version | v1.8 (AC-001..004 trace anchors corrected; phantom §-labels removed; R-DTU-002 re-attributed to ADR-031 §D8-a) |
+| CONVERGENCE TAIL | Substance converged; D-947 findings: untested security branch (fixed) + doc phantom labels (fixed) + phantom error variant (fixed) |
+
+**Next action (Armis):**
+- LOCAL adversary re-passes against `.worktrees/S-DEMO-ARMIS-AQL-001` HEAD 4e733a08 (REVIEW WORKTREE, NOT develop) → open new streak toward 3/3 → demo-recorder → push → PR → PR-LEVEL cascade → merge
+
+---
+
+#### Track D-lead — S-DEMO-CLAROTY-AUDIT-DTU-001
+
+| Item | Value |
+|------|-------|
+| PR | #167 (https://github.com/drbothen/prism/pull/167) |
+| Base | develop@5dd3df02 |
+| Feature HEAD | `9e4e17bf` (implementer; claroty.sensor.toml stale doc-comment corrected; human-authorized in-PR TOML override) |
+| Story version | v1.8 (§Changelog v1.8 entry added documenting D-946 BC-2.16.013+BC-INDEX pin sweep) |
+| PR-LEVEL cascade streak | 0/3 |
+| All known findings | CLOSED (F-PR4-MED-001 FALSE POSITIVE dismissed; F-PR4-LOW-001 CLOSED ab632c82; passes 5+6 CLEAN; F-PR7-MED-001+F-PR7-LOW-001 CLOSED D-947) |
+| NOTE | F-PR7-LOW-001 in-PR TOML fix supersedes TOML-comment scope of S-DEMO-CLAROTY-SPEC-PROSE-FIX-001 (BC-2.16.013-prose scope stays open in that follow-up story) |
+| CONVERGENCE TAIL | Substance converged; D-947 findings: changelog completeness gap (fixed) + stale TOML doc-comment (fixed) |
+
+**Next action (Claroty):**
+- PR-LEVEL adversary re-passes against `.worktrees/S-DEMO-CLAROTY-AUDIT-DTU-001` HEAD 9e4e17bf (REVIEW WORKTREE, NOT develop) → open new streak toward 3/3 → merge
+
+---
+
+### §3 OPEN ITEMS (all lanes)
+
+| Item | ID | Routing | Status |
+|------|----|---------|--------|
+| BC-3.5.002 precondition 3 mis-cite in merged crates | DRIFT-D943-001 | S-MAINT-W3SEC-CITE-SWEEP-001 (maintenance_wave) | Anchored — pending human dispatch |
+| Pre-merge BC gap-closure process rule | Process-gap | session-reviewer (POL codification candidate) | Codified in D-944; POL not yet written |
+| harness clone parity (Armis search + Claroty audit_log) | F-P6-DEFER-001 + F-P10-LOW-001 | S-DEMO-HARNESS-CLONE-PARITY-001 | Anchored DEMO-GOAL-REQUIRED |
+| Claroty BC-2.16.013 prose (F-P2-DEFER-001) — TOML-comment scope closed D-947 | — | S-DEMO-CLAROTY-SPEC-PROSE-FIX-001 | BC-2.16.013-prose scope stays open; TOML-comment closed by F-PR7-LOW-001 in-PR fix |
+| SAP-2-probe runtime-shape-assertion extension | F-P1-OBS-003 | session-reviewer codification | factory/can-wait |
+
+---
+
+### §4 ARTIFACT VERSIONS (post D-947)
+
+| Artifact | Version |
+|----------|---------|
+| STATE.md | v7.600 |
+| STORY-INDEX | v2.246 (177 stories) |
+| BC-INDEX | v5.74 (active: 238, draft: 1) |
+| BC-2.16.013 | v1.22 (normative content unchanged; §Changelog v1.22 records F-LP12R-MED-001) |
+| Armis story | v1.8 (AC trace anchors corrected; R-DTU-002 re-attributed; phantom §-labels removed) |
+| Claroty story | v1.8 (§Changelog v1.8 added documenting D-946 pin sweep) |
+| sprint-state.yaml | unchanged (D-947 is story-spec + code fix; sprint-state notes updated only if state-manager has access) |
+
+---
+
+### §5 RECOMMENDED NEXT ACTIONS (ordered)
+
+1. **Claroty PR-LEVEL re-passes** against `.worktrees/S-DEMO-CLAROTY-AUDIT-DTU-001` HEAD 9e4e17bf (NOT develop) — both lanes substance-converged; expect CLEAN(strict) given all D-947 findings closed
+2. **Armis LOCAL re-passes** against `.worktrees/S-DEMO-ARMIS-AQL-001` HEAD 4e733a08 (NOT develop) — expect CLEAN(strict)
+3. **S-DEMO-002 DISPATCH** (P0 — S-DEMO-001 SATISFIED): 3-org E2E smoke; MUST seed query_filters["aql"] for Armis AQL push-down
+4. **S-DEMO-CROWDSTRIKE-MULTIREGION-001** — ready v1.1; dispatchable (parallel to lanes)
+5. **DRIFT-D943-001** — S-MAINT-W3SEC-CITE-SWEEP-001 pending human dispatch authorization
+
+---
+
+### §6 RESUME CHECKLIST
+
+```bash
+# 1. Factory worktree health
+vsdd-factory:factory-worktree-health
+
+# 2. Verify STATE.md version
+grep '^version:' .factory/STATE.md
+# Expected: version: "7.600"
+
+# 3. Confirm develop HEAD
+git log -1 --format="%H %s" develop
+# Expected: 5dd3df02 feat(S-DEMO-001): ...
+
+# 4. Check open PRs
+gh pr list --state open
+# Expected: PR #167 (S-DEMO-CLAROTY-AUDIT-DTU-001) — streak 0/3
+
+# 5. Verify worktree feature HEADs
+git -C .worktrees/S-DEMO-CLAROTY-AUDIT-DTU-001 log -1 --format="%h %s"
+# Expected: 9e4e17bf
+git -C .worktrees/S-DEMO-ARMIS-AQL-001 log -1 --format="%h %s"
+# Expected: 4e733a08
+```
+
+Read this §RESUME SNAPSHOT 2026-06-02-TWO-LANE-CASCADE-BURST (you are reading it now).
+
+Proceed per RECOMMENDED NEXT ACTIONS (§5).
+Priority 1: Claroty PR-LEVEL re-passes (HEAD 9e4e17bf + story v1.8).
+Priority 2: Armis LOCAL re-passes (HEAD 4e733a08 + story v1.8).
+
+---
+
+**D-947 burst marker:** Single-commit burst per TD-VSDD-053. Anti-volatile-pin per TD-VSDD-091. SHA drift 72baf413→5dd3df02 corrected in DURABLE PIN BLOCK. Defensive sweep (S-7.02): story_index_version v2.246 updated in STATE.md + STORY-INDEX.md; total_stories 177 unchanged; BC-INDEX v5.74 unchanged; VP-INDEX v1.76 unchanged. safe_to_compact: true.
