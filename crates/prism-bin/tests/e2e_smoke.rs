@@ -140,15 +140,23 @@ async fn test_BC_2_11_005_e2e_crowdstrike_query_returns_ocsf_data() {
         "AC-003: expected at least 1 row from crowdstrike_detections; response: {response:?}"
     );
 
-    // Assert OCSF fields present (BC-2.11.005 postcondition).
+    // Assert OCSF fields present and non-null (BC-2.11.005 postcondition; spec AC-003 Then-clause).
     let first_row = &rows[0];
     assert!(
         first_row.get("category_uid").is_some(),
         "AC-003: category_uid must be present in OCSF output; row: {first_row:?}"
     );
     assert!(
+        first_row.get("category_uid") != Some(&serde_json::Value::Null),
+        "AC-003: category_uid must be non-null in OCSF output; row: {first_row:?}"
+    );
+    assert!(
         first_row.get("class_uid").is_some(),
         "AC-003: class_uid must be present in OCSF output; row: {first_row:?}"
+    );
+    assert!(
+        first_row.get("class_uid") != Some(&serde_json::Value::Null),
+        "AC-003: class_uid must be non-null in OCSF output; row: {first_row:?}"
     );
 
     // Assert detection_id present (Gap-CS-001 fix — NOT 'id').
