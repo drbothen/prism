@@ -903,9 +903,10 @@ impl McpStdioHandle {
 /// # Env vars set for TYPE-spec parse
 ///
 /// The canonical sensor TYPE specs use `${env.VAR}` interpolation for `base_url`:
-///   - `claroty.sensor.toml`:  `base_url = "${env.CLAROTY_INSTANCE_URL}"`
-///   - `armis.sensor.toml`:    `base_url = "${env.ARMIS_INSTANCE_URL}"`
-///   - `cyberint.sensor.toml`: `base_url = "https://${env.CYBERINT_ENVIRONMENT}.cyberint.io"`
+///   - `claroty.sensor.toml`:      `base_url = "${env.CLAROTY_INSTANCE_URL}"`
+///   - `armis.sensor.toml`:        `base_url = "${env.ARMIS_INSTANCE_URL}"`
+///   - `cyberint.sensor.toml`:     `base_url = "https://${env.CYBERINT_ENVIRONMENT}.cyberint.io"`
+///   - `crowdstrike.sensor.toml`:  `base_url = "${env.CROWDSTRIKE_BASE_URL}"` (S-DEMO-CROWDSTRIKE-MULTIREGION-001)
 ///
 /// `env_resolver.rs` resolves these at spec-load time (before per-org overlays override
 /// `base_url` to the DTU URL). If the env var is absent or empty, the spec-engine emits
@@ -916,6 +917,9 @@ impl McpStdioHandle {
 /// `CYBERINT_ENVIRONMENT` is embedded inside the URL string:
 /// `"https://demo.cyberint.io"` (demo is a valid hostname component).
 /// The overlay replaces the full `base_url` with the DTU URL anyway.
+///
+/// `CROWDSTRIKE_BASE_URL` is a full URL placeholder: `"http://placeholder.crowdstrike.invalid"`.
+/// The overlay replaces it with the actual DTU clone URL for each org.
 ///
 /// # Plugin loading
 ///
@@ -937,9 +941,12 @@ pub async fn launch_prism_bin(
     //
     // Env vars required for TYPE-spec ${env.VAR} interpolation (resolved at spec-load time,
     // before per-org overlays override base_url to the DTU URL):
-    //   CLAROTY_INSTANCE_URL — placeholder; overlay overrides base_url to DTU clone URL.
-    //   ARMIS_INSTANCE_URL   — placeholder; overlay overrides base_url to DTU clone URL.
-    //   CYBERINT_ENVIRONMENT — "demo" produces "https://demo.cyberint.io"; override to DTU URL.
+    //   CLAROTY_INSTANCE_URL    — placeholder; overlay overrides base_url to DTU clone URL.
+    //   ARMIS_INSTANCE_URL      — placeholder; overlay overrides base_url to DTU clone URL.
+    //   CYBERINT_ENVIRONMENT    — "demo" produces "https://demo.cyberint.io"; override to DTU URL.
+    //   CROWDSTRIKE_BASE_URL    — placeholder; overlay overrides base_url to DTU clone URL.
+    //     (S-DEMO-CROWDSTRIKE-MULTIREGION-001 changed base_url to ${env.CROWDSTRIKE_BASE_URL};
+    //      E-SPEC-024 fires if absent. Value is irrelevant — overlay replaces it.)
     //
     // PRISM_DISABLE_PLUGIN_LOAD is intentionally NOT set: the crowdstrike-oauth2 plugin is
     // staged by write_org_config/stage_crowdstrike_plugin into the temp plugins dir, and
@@ -978,6 +985,15 @@ pub async fn launch_prism_bin(
         .env("CLAROTY_INSTANCE_URL", "http://placeholder.claroty.invalid")
         .env("ARMIS_INSTANCE_URL", "http://placeholder.armis.invalid")
         .env("CYBERINT_ENVIRONMENT", "demo")
+        // CROWDSTRIKE_BASE_URL: required by crowdstrike.sensor.toml TYPE spec since
+        // S-DEMO-CROWDSTRIKE-MULTIREGION-001 changed base_url to "${env.CROWDSTRIKE_BASE_URL}".
+        // E-SPEC-024 fires at spec-load time if absent. The per-org overlay always overrides
+        // base_url to the DTU clone URL before any HTTP request is made — the placeholder
+        // value here is never contacted.
+        .env(
+            "CROWDSTRIKE_BASE_URL",
+            "http://placeholder.crowdstrike.invalid",
+        )
         // ---------- Armis bearer_token (orgs: demo-org, demo-org-a, demo-org-c) ----------
         // Resolved by BearerStaticCredentialAuthProvider via
         // resolve_credential(org_slug, "armis", "bearer_token") (BC-2.06.003 v1.3 Tier 2).

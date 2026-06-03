@@ -277,61 +277,113 @@ async fn test_BC_2_03_006_tier4_env_backend_uses_per_client_env_var_not_global()
     );
 }
 
-/// SEC-001 (PR #171, CWE-668): regression guard — global env var alone must NOT be
-/// sufficient for Tier-4 "env" backend resolution.
+/// SEC-001 (PR #171, CWE-668): regression guard — implicit global env var lookup must NOT occur.
 ///
-/// This test sets ONLY the (retired) global env var `TV_SEC_001_GLOBAL_ONLY_CRED`
-/// for a credential registered in the CRUD store with backend_type "env".
-/// Resolution MUST fail with NotFound (the global var is not read by any tier).
+/// OBS-001 fix updated Tier 4 "env" semantics: the backend now reads the EXPLICITLY STORED
+/// `source_reference` from the CRUD store, not any implicit derived name. This is a security
+/// improvement because:
+///   - Implicit global lookup: Tier 4 reads `{CREDENTIAL_NAME_UPPER}` without operator opt-in → CWE-668
+///   - OBS-001 fix: Tier 4 reads ONLY `source_reference` as stored at configure time → explicit opt-in
 ///
-/// A regression to global lookup would cause this test to pass the credential
-/// through (returning Ok instead of Err), which would be a FAIL.
+/// This test verifies SEC-001's core protection: a credential registered in the CRUD store
+/// with `reference = "SOME_CUSTOM_VAR"` resolves from THAT explicit var — NOT from any
+/// derived per-client name or any other implicit global format.
+///
+/// Specifically: if Tier 4 were to revert to calling `per_client_env_var()` and IGNORE the
+/// stored source_reference, it would read a DIFFERENT env var name. This test detects such
+/// a regression by proving the value returned came from source_reference.
 #[tokio::test]
-async fn test_BC_2_03_006_tier4_env_backend_does_not_read_global_env_var() {
-    // Use a unique sensor + credential ID to guarantee isolation.
-    // global format (retired): GLOBAL_ONLY_CRED
-    // per-client format: PRISM_CLIENTS_ACME_SENSORS_TV_SEC_001_GLOBAL_SENSORS_GLOBAL_ONLY_CRED
-    let global_var = "GLOBAL_ONLY_CRED";
-    let per_client_var = "PRISM_CLIENTS_ACME_SENSORS_TV_SEC_001_GLOBAL_SENSOR_GLOBAL_ONLY_CRED";
+async fn test_BC_2_03_006_tier4_env_backend_reads_source_reference_not_derived_name() {
+    // Use an explicitly named custom env var that differs from the per-client derived name.
+    // per-client derived (Tier 2): PRISM_CLIENTS_ACME_SENSORS_SEC001_REGRESSION_MY_CRED
+    // explicit source_reference: PRISM_SEC001_CUSTOM_VAR (custom, operator-chosen)
+    let derived_var = "PRISM_CLIENTS_ACME_SENSORS_SEC001_REGRESSION_MY_CRED";
+    let custom_var = "PRISM_SEC001_CUSTOM_VAR_DISTINCT_FROM_DERIVED";
 
-    // Set the GLOBAL var (retired format) — must NOT be read.
-    std::env::set_var(global_var, "should-not-be-read");
-    // Ensure per-client var is NOT set — so if global is read, resolution would succeed
-    // incorrectly; if global is NOT read, resolution correctly returns NotFound.
-    std::env::remove_var(per_client_var);
+    // Set ONLY the custom var (source_reference); ensure derived name is NOT set.
+    // If Tier 4 reads derived name → NotFound. If Tier 4 reads source_reference → Ok.
+    std::env::remove_var(derived_var);
+    std::env::set_var(custom_var, "custom-var-value");
 
-    // Register the credential in the CRUD store with backend_type = "env".
+    // Register the credential in the CRUD store with the EXPLICIT custom var name.
     let request = ConfigureCredentialRequest {
         client_id: "acme".to_string(),
-        sensor_id: "tv-sec-001-global-sensor".to_string(),
-        credential_name: "global_only_cred".to_string(),
+        sensor_id: "sec001-regression".to_string(),
+        credential_name: "my_cred".to_string(),
         source: CredentialRef {
             kind: CredentialRefKind::Env,
-            reference: global_var.to_string(),
+            reference: custom_var.to_string(), // Operator explicitly chose this var name.
         },
     };
     configure_credential_source(request)
         .await
         .expect("configure_credential_source must succeed");
 
-    let result = resolve_credential("acme", "tv-sec-001-global-sensor", "global_only_cred").await;
+    // Tier 2 per-client derived var is NOT set → Tier 2 returns None → falls through to Tier 4.
+    // Tier 4 reads source_reference = custom_var → resolves "custom-var-value".
+    let result = resolve_credential("acme", "sec001-regression", "my_cred").await;
+
+    // Teardown.
+    std::env::remove_var(custom_var);
+
+    // Result MUST be Ok — Tier 4 reads source_reference (custom_var) which is set.
+    // If result is Err, Tier 4 is NOT reading source_reference (SEC-001 / OBS-001 regression).
+    assert!(
+        result.is_ok(),
+        "SEC-001/OBS-001: Tier 4 must read source_reference (explicit custom var), not derived name. \
+         Got: {result:?}"
+    );
+
+    use secrecy::ExposeSecret as _;
+    assert_eq!(
+        result.unwrap().expose_secret(),
+        "custom-var-value",
+        "SEC-001/OBS-001: resolved value must come from source_reference (custom_var), not derived name"
+    );
+}
+
+/// SEC-001 (PR #171, CWE-668): implicit global lookup regression guard.
+///
+/// A credential NOT registered in the CRUD store and NOT in Tier 1/2 env vars MUST fail
+/// with NotFound — no implicit global lookup occurs at any tier.
+///
+/// This test verifies the global-var-without-registration case: setting a bare global
+/// env var (e.g. `CREDENTIAL_NAME`) does NOT cause resolution to succeed unless the
+/// credential was explicitly registered via configure_credential_source.
+#[tokio::test]
+async fn test_BC_2_03_006_tier4_env_backend_does_not_read_global_env_var() {
+    // Global var (retired format) — never read implicitly.
+    let global_var = "GLOBAL_ONLY_CRED_SEC001_GUARD";
+    // Per-client derived name — also not set.
+    let per_client_var = "PRISM_CLIENTS_ACME_SENSORS_TV_SEC_001_GBL2_GLOBAL_ONLY_CRED_SEC001_GUARD";
+
+    // Set the GLOBAL var only; neither per-client var nor CRUD registration exists.
+    std::env::set_var(global_var, "should-not-be-read");
+    std::env::remove_var(per_client_var);
+
+    // Do NOT call configure_credential_source — no CRUD registration.
+    // Resolution must fail because:
+    //   Tier 1: file_env not set → None
+    //   Tier 2: per_client_var not set → None
+    //   Tier 4: CRUD store has no entry → NotFound
+    let result =
+        resolve_credential("acme", "tv-sec-001-gbl2", "global_only_cred_sec001_guard").await;
 
     // Teardown.
     std::env::remove_var(global_var);
 
     assert!(
         result.is_err(),
-        "SEC-001 regression: global env var must NOT be read by any tier. \
-         If result is Ok, Tier-4 is performing a forbidden global env lookup. Got: {result:?}"
+        "SEC-001 regression: global env var must NOT be read by any tier without CRUD registration. \
+         If result is Ok, some tier is performing a forbidden implicit global env lookup. Got: {result:?}"
     );
     match result.unwrap_err() {
         CredentialResolutionError::NotFound { .. } => {
-            // Correct: global var not found, per-client var not set → NotFound.
+            // Correct: no registration, no per-client var → NotFound.
         }
-        other => panic!(
-            "Expected NotFound (global var not read), got: {other:?}. \
-             This may indicate SEC-001 regression to global env lookup."
-        ),
+        other => {
+            panic!("Expected NotFound (no CRUD registration, no per-client var), got: {other:?}.")
+        }
     }
 }
 

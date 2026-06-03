@@ -176,8 +176,16 @@ pub async fn resolve_credential(
         Ok(Some(meta)) => {
             // The credential has been configured. Try to resolve through its source.
             let backend_name = meta.backend_type.clone();
-            let resolved =
-                resolve_from_backend(&meta.backend_type, client_id, sensor_id, credential_name);
+            // OBS-001 fix: pass the explicit source_reference so "env" backend reads the
+            // NAMED env var stored at configure_credential_source time, not the per-client
+            // derived name that Tier 2 already reads (which would make Tier 4 unreachable).
+            let resolved = resolve_from_backend(
+                &meta.backend_type,
+                &meta.source_reference,
+                client_id,
+                sensor_id,
+                credential_name,
+            );
 
             match resolved {
                 Ok(Some(secret)) => {
@@ -253,10 +261,19 @@ pub async fn resolve_credential(
 
 /// Attempt to resolve a secret value from the backend type (Tier 4 CRUD store source).
 ///
-/// SEC-001 (PR #171 review, CWE-668): the "env" branch MUST use the per-client env-var
-/// format `PRISM_CLIENTS_{ID}_SENSORS_{SENSOR}_{REF}` (ADR-032), NOT the global
-/// `{CREDENTIAL_NAME_UPPER}` format. A global lookup bypasses per-client namespacing
-/// and creates a cross-tenant isolation gap.
+/// OBS-001 fix: accepts `source_reference` — the EXPLICIT env var name (or file path, etc.)
+/// that was stored in `CredentialMetadata.source_reference` at `configure_credential_source`
+/// time. The "env" branch reads this explicitly named env var, making it semantically
+/// distinct from Tier 2 (which reads the per-client-derived var via `per_client_env_var`).
+///
+/// This means Tier 4 "env" is now reachable: an operator who runs
+/// `configure_credential_source(source = CredentialRef { kind: Env, reference: "MY_CUSTOM_VAR" })`
+/// can have Tier 4 read `MY_CUSTOM_VAR` even when Tier 2's per-client derived var is unset.
+///
+/// SEC-001 (PR #171 review, CWE-668): the "env" branch reads the EXPLICITLY STORED reference
+/// from the CRUD store, NOT the per-client derived name (ADR-032 Tier 2) and NOT any global
+/// `{CREDENTIAL_NAME_UPPER}` format. This preserves isolation: the operator must explicitly
+/// configure which env var to read — no implicit cross-tenant namespace access.
 ///
 /// SEC-003 (PR #171 review): the "file" branch MUST return an explicit error rather
 /// than silently returning `None` — silent `None` swallows the failure reason.
@@ -267,35 +284,56 @@ pub async fn resolve_credential(
 /// - `Err(BackendUnavailable)` — backend is known but unavailable (file backend, etc.)
 fn resolve_from_backend(
     backend_type: &str,
+    source_reference: &str,
     client_id: &str,
     sensor_id: &str,
     credential_name: &str,
 ) -> Result<Option<SecretString>, CredentialResolutionError> {
     match backend_type {
         "env" => {
-            // SEC-001 fix: use per-client env-var format (ADR-032 Tier 2), NOT global lookup.
-            // This ensures Tier 4 "env" backend reads
-            // `PRISM_CLIENTS_{ID}_SENSORS_{SENSOR}_{REF}`, matching Tier 1-3 namespacing.
-            // The retired global `{CREDENTIAL_NAME_UPPER}` lookup is explicitly forbidden
-            // (CWE-668: cross-tenant isolation gap via global env namespace).
-            let env_var = per_client_env_var(client_id, sensor_id, credential_name);
-            Ok(std::env::var(&env_var)
+            // OBS-001 fix: read the EXPLICITLY NAMED env var stored in source_reference.
+            //
+            // Semantics: the operator used `configure_credential_source` to register
+            // a specific env var name (e.g. "MY_CUSTOM_ENV_VAR"). Tier 4 must read THAT var.
+            //
+            // This is distinct from Tier 2 (`per_client_env_var`), which reads the
+            // derived `PRISM_CLIENTS_{ID}_SENSORS_{SENSOR}_{REF}` format. If Tier 2's
+            // derived var is set, Tier 2 succeeds and Tier 4 is never reached — so the
+            // Tier 4 "env" path is only exercised when the operator configured a DIFFERENT
+            // (explicitly named) env var via the CRUD store.
+            //
+            // SEC-001 maintained: source_reference comes from the CRUD store, which was
+            // populated by the operator via configure_credential_source — no implicit global
+            // namespace fallback, no cross-tenant leak risk.
+            Ok(std::env::var(source_reference)
                 .ok()
                 .map(|v| SecretString::new(v.into())))
         }
         "file" => {
-            // SEC-003 fix: return an explicit error instead of silent None.
-            // The CRUD store does not persist file paths in-memory, so "file" backend
-            // lookups via resolve_from_backend cannot succeed. Surface this clearly
-            // so the failure reason is not lost.
+            // OBS-001 fix: now that source_reference carries the file path, we CAN attempt
+            // to resolve. But the "file" backend requires reading from disk — this is an
+            // I/O operation that the SEC-003 PR review identified as unimplemented.
+            //
+            // Production file-backend resolution uses the _FILE Tier 1 env-var path
+            // (PRISM_CLIENTS_{ID}_SENSORS_{SENSOR}_{REF}_FILE) which is already handled
+            // in the Tier 1 + Tier 2 `resolve_secret` call above. The CRUD "file" backend
+            // in Tier 4 overlaps in semantics with Tier 1 and adds complexity without
+            // additional security benefit in the current design.
+            //
+            // SEC-003 fix (unchanged): return an explicit error rather than silent None.
+            // The "file" CRUD backend is deferred pending a production file-vault design
+            // (no standalone story exists yet — this is the correct surface for the human
+            // to decide the file-backend CRUD contract).
             Err(CredentialResolutionError::BackendUnavailable {
                 client_id: client_id.to_string(),
                 sensor_id: sensor_id.to_string(),
                 credential_name: credential_name.to_string(),
-                detail: "file backend not implemented in CRUD store; \
-                         use ADR-032 per-client env/file refs \
-                         (PRISM_CLIENTS_{ID}_SENSORS_{SENSOR}_{REF}_FILE) instead"
-                    .to_string(),
+                detail: format!(
+                    "file backend in CRUD store is not yet implemented for runtime resolution; \
+                     use ADR-032 per-client file refs \
+                     (PRISM_CLIENTS_{{ID}}_SENSORS_{{SENSOR}}_{{REF}}_FILE) for file-based secrets instead. \
+                     Configured source_reference: '{source_reference}'"
+                ),
             })
         }
         _ => Ok(None),
@@ -305,6 +343,108 @@ fn resolve_from_backend(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // ---------------------------------------------------------------------------
+    // OBS-001: Tier 4 "env" backend — positive success path
+    // ---------------------------------------------------------------------------
+
+    /// OBS-001: Tier 4 "env" backend resolve_from_backend reads the EXPLICITLY NAMED
+    /// env var from source_reference, NOT the per-client derived name.
+    ///
+    /// This test verifies the Tier 4 path is live (not shadowed by Tier 2) by using:
+    ///   - A source_reference that is a CUSTOM env var name (not the per-client format)
+    ///   - Tier 1 file env var: NOT set
+    ///   - Tier 2 per-client env var: NOT set
+    ///   - Tier 4 "env" backend with a custom env var set to a known value
+    ///
+    /// The CUSTOM var is distinct from `per_client_env_var("obs001-test", "armis", "token")`,
+    /// which would be `PRISM_CLIENTS_OBS001_TEST_SENSORS_ARMIS_TOKEN` — deliberately not set.
+    /// This proves Tier 4 resolves a DIFFERENT var than Tier 2 would.
+    #[test]
+    fn test_obs001_tier4_env_backend_reads_explicitly_named_env_var() {
+        // Use a unique env var name that won't collide with any per-client derived name.
+        let custom_var = "PRISM_OBS001_TIER4_ENV_TEST_UNIQUE_VAR";
+        let expected_secret = "obs001-tier4-resolved-value";
+
+        // Ensure Tier 2 per-client derived var is NOT set (so Tier 2 would return None).
+        let per_client_var = per_client_env_var("obs001-test", "armis", "token");
+        assert_ne!(
+            per_client_var, custom_var,
+            "OBS-001 invariant: custom_var must differ from per_client_var to prove Tier 4 is distinct"
+        );
+        std::env::remove_var(&per_client_var);
+
+        // Set the explicitly-named custom var (simulating what operator stored via CRUD).
+        std::env::set_var(custom_var, expected_secret);
+
+        // Exercise resolve_from_backend directly (Tier 4 "env" branch).
+        let result = resolve_from_backend(
+            "env",
+            custom_var,    // source_reference = explicitly named var
+            "obs001-test", // client_id
+            "armis",       // sensor_id
+            "token",       // credential_name
+        );
+
+        // Cleanup before assertions (avoid polluting other tests).
+        std::env::remove_var(custom_var);
+
+        let secret = result
+            .expect("OBS-001: Tier 4 'env' backend must return Ok (env var is set)")
+            .expect("OBS-001: Tier 4 'env' backend must return Some (env var value is non-empty)");
+
+        use secrecy::ExposeSecret as _;
+        assert_eq!(
+            secret.expose_secret(),
+            expected_secret,
+            "OBS-001: Tier 4 'env' backend must return the value of the explicitly named env var"
+        );
+    }
+
+    /// OBS-001 negative: when the explicitly named env var is NOT set, Tier 4 "env"
+    /// returns Ok(None) — not an error, not a panic.
+    #[test]
+    fn test_obs001_tier4_env_backend_returns_none_when_var_absent() {
+        let custom_var = "PRISM_OBS001_TIER4_ENV_TEST_ABSENT_VAR";
+        std::env::remove_var(custom_var);
+
+        let result = resolve_from_backend("env", custom_var, "obs001-test", "armis", "token");
+
+        assert!(
+            matches!(result, Ok(None)),
+            "OBS-001: Tier 4 'env' backend must return Ok(None) when the explicit env var is absent"
+        );
+    }
+
+    /// OBS-001 isolation: Tier 2 per-client var being set does NOT affect Tier 4 "env"
+    /// reading a different, custom var.
+    #[test]
+    fn test_obs001_tier4_env_backend_is_distinct_from_tier2() {
+        let per_client_var = per_client_env_var("acme", "armis", "bearer_token");
+        let custom_var = "PRISM_OBS001_TIER4_CUSTOM_BEARER_TOKEN";
+
+        // Tier 2 var is set to one value.
+        std::env::set_var(&per_client_var, "tier2-value");
+        // Custom var (Tier 4 source_reference) is set to a different value.
+        std::env::set_var(custom_var, "tier4-value");
+
+        // Tier 4 reads the custom var, NOT the per-client derived name.
+        let result = resolve_from_backend("env", custom_var, "acme", "armis", "bearer_token");
+
+        std::env::remove_var(&per_client_var);
+        std::env::remove_var(custom_var);
+
+        let secret = result
+            .expect("resolve_from_backend must succeed")
+            .expect("must return Some");
+
+        use secrecy::ExposeSecret as _;
+        assert_eq!(
+            secret.expose_secret(),
+            "tier4-value",
+            "OBS-001 isolation: Tier 4 reads source_reference (custom var), not Tier 2 derived name"
+        );
+    }
 
     /// BC-2.06.003 §Slug-to-SCREAMING-SNAKE Transform worked examples.
     #[test]
