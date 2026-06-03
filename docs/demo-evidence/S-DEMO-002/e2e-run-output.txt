@@ -1,0 +1,484 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.82s
+────────────
+ Nextest run ID 7eb6f006-b477-47e5-8f32-00c35b4e3e87 with nextest profile: e2e
+    Starting 121 tests across 12 binaries
+        PASS [   0.033s] (  1/121) prism-bin boot::tests::test_BC_2_21_001_org_entry_with_valid_uuid_and_kebab_slug
+        PASS [   0.032s] (  2/121) prism-bin boot::tests::test_BC_2_21_001_malformed_slug_fails_kebab_check
+        PASS [   0.036s] (  3/121) prism-bin exit_codes::tests::test_BC_2_03_013_permission_denied_exit_code_is_5
+        PASS [   0.037s] (  4/121) prism-bin boot::tests::test_BC_2_22_001_boot_error_exit_code_complete_mapping
+        PASS [   0.039s] (  5/121) prism-bin boot::shutdown_exit_code_tests::test_wait_for_shutdown_clean_returns_exit_0
+        PASS [   0.039s] (  6/121) prism-bin boot::tests::test_BC_2_06_011_prism_config_has_required_fields
+        PASS [   0.039s] (  7/121) prism-bin boot::shutdown_exit_code_tests::test_wait_for_shutdown_task_error_returns_exit_1
+        PASS [   0.040s] (  8/121) prism-bin boot::tests::test_BC_2_03_013_credential_exit_code_distinction
+        PASS [   0.040s] (  9/121) prism-bin boot::shutdown_exit_code_tests::test_wait_for_shutdown_transport_error_returns_exit_0
+        PASS [   0.041s] ( 10/121) prism-bin boot::shutdown_exit_code_tests::test_wait_for_shutdown_join_error_returns_exit_4
+        PASS [   0.042s] ( 11/121) prism-bin boot::shutdown_exit_code_tests::test_wait_for_shutdown_runtime_error_returns_exit_4
+        PASS [   0.044s] ( 12/121) prism-bin exit_codes::tests::test_BC_2_05_012_internal_error_exit_code_is_4
+        PASS [   0.052s] ( 13/121) prism-bin boot::step4_overlay_tests::test_F_P2_MED_001_corrupt_type_spec_file_aborts_boot_with_config_invalid
+        PASS [   0.057s] ( 14/121) prism-bin boot::step4_overlay_tests::test_BC_2_06_012_no_customers_dir_boots_with_empty_overlay_map
+        PASS [   0.063s] ( 15/121) prism-bin boot::step4_overlay_tests::test_BC_2_06_012_overlay_present_in_customers_dir_resolves_to_map
+        PASS [   0.064s] ( 16/121) prism-bin boot::step4_overlay_tests::test_BC_2_06_015_unknown_org_slug_in_customers_dir_aborts_boot
+        PASS [   0.031s] ( 17/121) prism-bin exit_codes::tests::test_BC_2_22_001_exit_code_constants_are_distinct
+        PASS [   0.036s] ( 18/121) prism-bin exit_codes::tests::test_BC_2_22_001_exit_code_constants_match_adr_022
+        PASS [   0.035s] ( 19/121) prism-bin::bc_2_01_013_spec_driven_adapter test_BC_2_01_013_auth_refresh_failed_display_carries_e_auth_002_taxonomy_code
+        PASS [   0.040s] ( 20/121) prism-bin exit_codes::tests::test_BC_2_06_011_config_invalid_exit_code_is_2
+        PASS [   0.049s] ( 21/121) prism-bin::bc_2_01_013_spec_driven_adapter test_BC_2_01_013_build_http_client_with_timeout_succeeds
+        PASS [   0.050s] ( 22/121) prism-bin::bc_2_01_013_spec_driven_adapter test_BC_2_01_013_bearer_static_auth_provider_returns_bearer_token
+        PASS [   0.058s] ( 23/121) prism-bin::bc_2_01_013_spec_driven_adapter test_BC_2_01_013_fetch_returns_non_empty_ocsf_batches_bearer_static
+        PASS [   0.056s] ( 24/121) prism-bin::bc_2_01_013_spec_driven_adapter test_BC_2_01_013_ocsf_conformance_sensor_virtual_column_is_canonical_sensor_id
+        PASS [   0.057s] ( 25/121) prism-bin::bc_2_01_013_spec_driven_adapter test_BC_2_01_013_fetch_returns_non_empty_ocsf_batches_static_cookie
+        PASS [   0.058s] ( 26/121) prism-bin::bc_2_01_013_spec_driven_adapter test_BC_2_01_013_fetch_returns_non_empty_ocsf_batches_plugin
+        PASS [   0.055s] ( 27/121) prism-bin::bc_2_01_013_spec_driven_adapter test_BC_2_01_013_ocsf_conformance_spec_columns_survive_into_arrow_schema
+        PASS [   0.041s] ( 28/121) prism-bin::bc_2_01_013_spec_driven_adapter test_BC_2_01_013_spec_driven_adapter_crowdstrike_delegates_to_pipeline_executor
+        PASS [   0.058s] ( 29/121) prism-bin::bc_2_01_013_spec_driven_adapter test_BC_2_01_013_ocsf_conformance_envelope_derived_not_raw_copied
+        PASS [   0.030s] ( 30/121) prism-bin::bc_2_01_013_spec_driven_adapter test_BC_2_22_001_boot_step9a_empty_spec_catalog_registers_zero_adapters
+        PASS [   0.067s] ( 31/121) prism-bin::bc_2_01_013_spec_driven_adapter test_BC_2_01_013_spec_driven_adapter_bearer_static_extracts_token_from_sensor_auth
+        PASS [   0.057s] ( 32/121) prism-bin::bc_2_01_013_spec_driven_adapter test_BC_2_01_013_spec_driven_adapter_sensor_type_returns_sensor_id_from_spec
+        PASS [   0.049s] ( 33/121) prism-bin::bc_2_01_013_spec_driven_adapter test_BC_2_06_014_boot_step9a_uses_resolved_spec_overlay_url
+        PASS [   0.059s] ( 34/121) prism-bin::bc_2_01_013_spec_driven_adapter test_BC_2_01_013_spec_driven_adapter_double_401_returns_auth_refresh_failed
+        PASS [   0.060s] ( 35/121) prism-bin::bc_2_01_013_spec_driven_adapter test_BC_2_01_013_spec_driven_adapter_cyberint_cookie_auth_injects_access_token_cookie
+        PASS [   0.054s] ( 36/121) prism-bin::bc_2_01_013_spec_driven_adapter test_BC_2_01_013_static_cookie_auth_strategy_injects_access_token_not_bearer
+        PASS [   0.057s] ( 37/121) prism-bin::bc_2_01_013_spec_driven_adapter test_BC_2_06_014_boot_step9a_translates_org_slug_to_org_id
+        PASS [   0.036s] ( 38/121) prism-bin::bc_2_01_013_spec_driven_adapter test_BC_2_22_001_boot_step9a_registers_correct_adapter_count
+        PASS [   0.037s] ( 39/121) prism-bin::bc_2_01_013_spec_driven_adapter test_BC_2_22_001_boot_step9a_unsupported_auth_type_skips_adapter_not_error
+        PASS [   0.038s] ( 40/121) prism-bin::bc_2_01_013_spec_driven_adapter test_BC_2_22_001_production_boot_path_wiring_guard
+        PASS [   0.038s] ( 41/121) prism-bin::bc_2_01_013_spec_driven_adapter test_BC_3_2_001_step9a_multi_org_registers_eight_adapters
+        PASS [   0.042s] ( 42/121) prism-bin::bc_2_01_013_spec_driven_adapter test_BC_2_22_001_step9a_not_called_in_boot_production_path
+        PASS [   0.058s] ( 43/121) prism-bin::bc_2_01_013_spec_driven_adapter test_BC_2_11_005_adapter_registry_get_returns_adapter_for_registered_pair
+        PASS [   0.194s] ( 44/121) prism-bin::bc_2_06_011_config_load test_BC_2_06_011_invariant_no_fallback_when_config_dir_env_set
+        PASS [   0.190s] ( 45/121) prism-bin::bc_2_06_011_config_load test_BC_2_06_011_missing_config_dir_exits_two
+        PASS [   0.206s] ( 46/121) prism-bin::bc_2_06_011_config_load test_BC_2_06_011_invariant_exit_code_is_exactly_2_not_other
+        PASS [   0.190s] ( 47/121) prism-bin::bc_2_21_001_org_registry_init test_BC_2_21_001_invariant_exit_code_is_exactly_2_for_empty_orgs
+        PASS [   0.192s] ( 48/121) prism-bin::bc_2_21_001_org_registry_init test_BC_2_21_001_empty_orgs_exits_two_with_at_least_one_org_message
+        PASS [   0.202s] ( 49/121) prism-bin::bc_2_06_011_config_load test_BC_2_06_011_toml_syntax_error_exits_two
+        PASS [   0.226s] ( 50/121) prism-bin::bc_2_06_011_config_load test_BC_2_06_011_empty_config_file_exits_two
+        PASS [   0.189s] ( 51/121) prism-bin::bc_2_21_001_org_registry_init test_BC_2_21_001_non_v7_uuid_exits_two_with_must_be_uuid_v7_message
+        PASS [   0.190s] ( 52/121) prism-bin::bc_2_21_001_org_registry_init test_BC_2_21_001_malformed_slug_uppercase_exits_two
+        PASS [   0.207s] ( 53/121) prism-bin::bc_2_06_011_config_load test_BC_2_06_011_missing_required_field_exits_two
+        PASS [   0.217s] ( 54/121) prism-bin::bc_2_21_001_org_registry_init test_BC_2_21_001_duplicate_org_slug_exits_two
+        PASS [   0.220s] ( 55/121) prism-bin::bc_2_21_001_org_registry_init test_BC_2_21_001_duplicate_org_id_exits_two
+        PASS [   0.064s] ( 56/121) prism-bin::boot_steps_7_8_tests test_BC_2_11_001_step8_adapter_registry_not_empty
+        PASS [   0.076s] ( 57/121) prism-bin::boot_steps_7_8_tests test_BC_2_15_011_internal_tables_accessible_after_step7
+        PASS [   0.063s] ( 58/121) prism-bin::boot_steps_7_8_tests test_BC_2_22_001_step8_constructs_write_executor
+        PASS [   0.076s] ( 59/121) prism-bin::cli_subcommands test_cli_query_subcommand_exists_and_dispatches
+        PASS [   0.076s] ( 60/121) prism-bin::cli_subcommands test_cli_help_exits_zero_and_lists_subcommands
+        PASS [   0.077s] ( 61/121) prism-bin::boot_steps_7_8_tests test_BC_2_22_001_step8_constructs_query_engine
+        PASS [   0.077s] ( 62/121) prism-bin::cli_subcommands test_cli_help_documents_exit_codes
+        PASS [   0.062s] ( 63/121) prism-bin::cli_subcommands test_cli_unknown_subcommand_exits_two
+        PASS [   0.063s] ( 64/121) prism-bin::cli_subcommands test_cli_version_output_contains_semver
+        PASS [   0.286s] ( 65/121) prism-bin::bc_2_06_011_config_load test_BC_2_06_011_valid_config_exits_zero
+        PASS [   0.311s] ( 66/121) prism-bin::bc_2_06_011_config_load test_AC_5_first_log_line_is_prism_version
+        PASS [   0.269s] ( 67/121) prism-bin::bc_2_21_001_org_registry_init test_BC_2_21_001_single_org_exits_zero
+        PASS [   0.102s] ( 68/121) prism-bin::boot_steps_7_8_tests test_BC_2_22_001_step7_validates_storage_backend
+        PASS [   0.103s] ( 69/121) prism-bin::boot_steps_7_8_tests test_BC_2_22_001_step7_step8_sequential_integration
+        PASS [   0.084s] ( 70/121) prism-bin::cli_subcommands test_cli_version_subcommand_exits_zero
+        PASS [   0.342s] ( 71/121) prism-bin::boot_steps_7_8_tests test_BC_2_11_001_query_engine_execute_after_boot
+        PASS [   0.029s] ( 72/121) prism-bin::exit_code_contract test_boot_error_audit_init_failed_maps_to_exit_4
+        PASS [   0.179s] ( 73/121) prism-bin::cli_subcommands test_cli_start_subcommand_reaches_boot_sequence
+        PASS [   0.025s] ( 74/121) prism-bin::exit_code_contract test_boot_error_credential_permission_denied_maps_to_exit_5
+        PASS [   0.027s] ( 75/121) prism-bin::exit_code_contract test_boot_error_config_invalid_maps_to_exit_2
+        PASS [   0.029s] ( 76/121) prism-bin::exit_code_contract test_boot_error_credential_ref_invalid_maps_to_exit_2
+        PASS [   0.030s] ( 77/121) prism-bin::exit_code_contract test_boot_error_display_includes_variant_prefix
+        PASS [   0.031s] ( 78/121) prism-bin::exit_code_contract test_boot_error_internal_error_maps_to_exit_4
+        PASS [   0.033s] ( 79/121) prism-bin::exit_code_contract test_boot_error_org_registry_failed_maps_to_exit_2
+        PASS [   0.035s] ( 80/121) prism-bin::exit_code_contract test_exit_code_constants_are_within_zero_to_five_range
+        PASS [   0.036s] ( 81/121) prism-bin::exit_code_contract test_boot_error_sensor_fail_maps_to_exit_3
+        PASS [   0.037s] ( 82/121) prism-bin::exit_code_contract test_exit_code_constants_match_adr_022_canonical_table
+        PASS [   0.135s] ( 83/121) prism-bin::plugin_boot_tests test_BC_2_16_012_write_tool_reg_failure_rolls_back_all_remaining_tools_for_plugin
+        PASS [   0.162s] ( 84/121) prism-bin::plugin_boot_tests test_BC_2_16_012_plugin_runtime_registers_write_tools_pre_query_phase
+        PASS [   0.164s] ( 85/121) prism-bin::plugin_boot_tests test_AC_4_VP_PLUGIN_004_unsigned_plugin_durable_audit_entry
+        PASS [   0.049s] ( 86/121) prism-bin::plugin_boot_tests test_BC_2_22_001_boot_step_plugin_load_placement
+        PASS [   0.048s] ( 87/121) prism-bin::plugin_boot_tests test_BC_2_22_001_disable_env_takes_precedence_over_plugin_dir_config
+        PASS [   0.065s] ( 88/121) prism-bin::plugin_boot_tests test_BC_2_16_012_write_tool_reg_failure_rolls_back_plugin
+        PASS [   0.047s] ( 89/121) prism-bin::plugin_boot_tests test_BC_2_22_001_plugin_load_failure_exits_code_4
+        PASS [   0.048s] ( 90/121) prism-bin::plugin_boot_tests test_BC_2_22_001_plugin_load_disabled_env
+        PASS [   0.058s] ( 91/121) prism-bin::plugin_boot_tests test_BC_2_22_001_plugin_load_step_is_registered_between_step7_and_step8
+        PASS [   0.047s] ( 92/121) prism-bin::plugin_boot_tests test_BC_2_22_001_prism_config_plugin_dir_default_and_explicit
+        PASS [   0.057s] ( 93/121) prism-bin::plugin_boot_tests test_F_PASS2_CRIT_001_prism_command_start_routes_through_run_boot_sequence
+        PASS [   0.072s] ( 94/121) prism-bin::plugin_boot_tests test_F_PASS3_CRIT_001_plugin_load_runs_before_step7
+        PASS [   0.061s] ( 95/121) prism-bin::plugin_boot_tests test_VP_PLUGIN_004_unsigned_plugin_boot_warn_audit
+        PASS [   0.060s] ( 96/121) prism-bin::plugin_boot_tests test_VP_PLUGIN_007_plugin_load_rejected_format_version_exceeded
+        PASS [   0.050s] ( 97/121) prism-bin::plugin_boot_tests test_boot_error_unknown_auth_plugin_exits_code_2
+        PASS [   0.061s] ( 98/121) prism-bin::plugin_boot_tests test_VP_PLUGIN_007_plugin_load_rejected_no_allowlist
+        PASS [   0.050s] ( 99/121) prism-bin::plugin_boot_tests test_plugin_auth_provider_construction_production_api
+        PASS [   0.060s] (100/121) prism-bin::plugin_boot_tests test_validate_and_construct_auth_providers_empty_returns_empty_map
+        PASS [   0.060s] (101/121) prism-bin::plugin_boot_tests test_validate_and_construct_auth_providers_happy_path
+        PASS [   0.059s] (102/121) prism-bin::plugin_boot_tests test_validate_and_construct_auth_providers_mixed_sensors_one_with_auth_plugin
+        PASS [   0.047s] (103/121) prism-bin::plugin_boot_tests test_validate_auth_plugin_fields_passes_when_no_auth_plugin
+        PASS [   0.048s] (104/121) prism-bin::plugin_boot_tests test_validate_auth_plugin_fields_rejects_unregistered_plugin
+        PASS [   0.057s] (105/121) prism-bin::plugin_boot_tests test_validate_and_construct_auth_providers_typo_returns_error
+        PASS [   0.015s] (106/121) prism-bin::pol_12_no_todo test_pol_12_no_untraced_todo_in_prism_bin_production_code
+        PASS [   0.243s] (107/121) prism-bin::vp153_rule_c_shaped_probe prop_rule_c_shape_mismatch_rejected_via_shaped_probe
+        PASS [   0.251s] (108/121) prism-bin::vp153_rule_c_shaped_probe prop_rule_c_shape_match_accepted_via_shaped_probe
+        FAIL [  30.233s] (109/121) prism-bin::e2e_smoke test_BC_2_11_005_e2e_cyberint_query_returns_data
+  stdout ───
+
+    running 1 test
+    test test_BC_2_11_005_e2e_cyberint_query_returns_data ... FAILED
+
+    failures:
+
+    failures:
+        test_BC_2_11_005_e2e_cyberint_query_returns_data
+
+    test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 12 filtered out; finished in 30.22s
+
+  stderr ───
+
+    thread 'test_BC_2_11_005_e2e_cyberint_query_returns_data' (132197621) panicked at crates/prism-bin/tests/e2e_smoke.rs:440:10:
+    prism-bin failed to start: "prism-bin MCP server did not become ready within 30s (EC-002): Failed to write to prism-bin stdin: Broken pipe (os error 32)"
+    note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+  Cancelling due to test failure: 12 tests still running
+        FAIL [  30.247s] (110/121) prism-bin::e2e_smoke test_BC_2_10_010_e2e_sigterm_cleanly_shuts_down_both_subprocesses
+  stdout ───
+
+    running 1 test
+    test test_BC_2_10_010_e2e_sigterm_cleanly_shuts_down_both_subprocesses ... FAILED
+
+    failures:
+
+    failures:
+        test_BC_2_10_010_e2e_sigterm_cleanly_shuts_down_both_subprocesses
+
+    test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 12 filtered out; finished in 30.23s
+
+  stderr ───
+
+    thread 'test_BC_2_10_010_e2e_sigterm_cleanly_shuts_down_both_subprocesses' (132197539) panicked at crates/prism-bin/tests/e2e_smoke.rs:562:10:
+    prism-bin failed to start: "prism-bin MCP server did not become ready within 30s (EC-002): Failed to write to prism-bin stdin: Broken pipe (os error 32)"
+    note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+        FAIL [  30.234s] (111/121) prism-bin::e2e_smoke test_BC_2_11_005_e2e_claroty_query_returns_data
+  stdout ───
+
+    running 1 test
+    test test_BC_2_11_005_e2e_claroty_query_returns_data ... FAILED
+
+    failures:
+
+    failures:
+        test_BC_2_11_005_e2e_claroty_query_returns_data
+
+    test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 12 filtered out; finished in 30.22s
+
+  stderr ───
+
+    thread 'test_BC_2_11_005_e2e_claroty_query_returns_data' (132197658) panicked at crates/prism-bin/tests/e2e_smoke.rs:378:10:
+    prism-bin failed to start: "prism-bin MCP server did not become ready within 30s (EC-002): Failed to write to prism-bin stdin: Broken pipe (os error 32)"
+    note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+        FAIL [  30.226s] (112/121) prism-bin::e2e_smoke test_BC_3_2_001_e2e_dtu_multi_tenant_each_org_reaches_correct_clone_port
+  stdout ───
+
+    running 1 test
+    test test_BC_3_2_001_e2e_dtu_multi_tenant_each_org_reaches_correct_clone_port ... FAILED
+
+    failures:
+
+    failures:
+        test_BC_3_2_001_e2e_dtu_multi_tenant_each_org_reaches_correct_clone_port
+
+    test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 12 filtered out; finished in 30.21s
+
+  stderr ───
+
+    thread 'test_BC_3_2_001_e2e_dtu_multi_tenant_each_org_reaches_correct_clone_port' (132197675) panicked at crates/prism-bin/tests/e2e_smoke.rs:847:10:
+    prism-bin failed to start: "prism-bin MCP server did not become ready within 30s (EC-002): Failed to write to prism-bin stdin: Broken pipe (os error 32)"
+    note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+        FAIL [  30.227s] (113/121) prism-bin::e2e_smoke test_BC_2_22_001_e2e_smoke_test_launches_dtu_and_prism_bin_without_error
+  stdout ───
+
+    running 1 test
+    test test_BC_2_22_001_e2e_smoke_test_launches_dtu_and_prism_bin_without_error ... FAILED
+
+    failures:
+
+    failures:
+        test_BC_2_22_001_e2e_smoke_test_launches_dtu_and_prism_bin_without_error
+
+    test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 12 filtered out; finished in 30.22s
+
+  stderr ───
+
+    thread 'test_BC_2_22_001_e2e_smoke_test_launches_dtu_and_prism_bin_without_error' (132197670) panicked at crates/prism-bin/tests/e2e_smoke.rs:73:10:
+    prism-bin exited unexpectedly before MCP handshake (EC-002): "prism-bin MCP server did not become ready within 30s (EC-002): Failed to write to prism-bin stdin: Broken pipe (os error 32)"
+    note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+        FAIL [  30.234s] (114/121) prism-bin::e2e_smoke test_BC_2_11_005_e2e_crowdstrike_query_returns_ocsf_data
+  stdout ───
+
+    running 1 test
+    test test_BC_2_11_005_e2e_crowdstrike_query_returns_ocsf_data ... FAILED
+
+    failures:
+
+    failures:
+        test_BC_2_11_005_e2e_crowdstrike_query_returns_ocsf_data
+
+    test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 12 filtered out; finished in 30.22s
+
+  stderr ───
+
+    thread 'test_BC_2_11_005_e2e_crowdstrike_query_returns_ocsf_data' (132197657) panicked at crates/prism-bin/tests/e2e_smoke.rs:123:10:
+    prism-bin failed to start: "prism-bin MCP server did not become ready within 30s (EC-002): Failed to write to prism-bin stdin: Broken pipe (os error 32)"
+    note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+        FAIL [  30.227s] (115/121) prism-bin::e2e_smoke test_BC_3_2_001_e2e_multi_org_boot_registers_correct_adapter_count
+  stdout ───
+
+    running 1 test
+    test test_BC_3_2_001_e2e_multi_org_boot_registers_correct_adapter_count ... FAILED
+
+    failures:
+
+    failures:
+        test_BC_3_2_001_e2e_multi_org_boot_registers_correct_adapter_count
+
+    test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 12 filtered out; finished in 30.21s
+
+  stderr ───
+
+    thread 'test_BC_3_2_001_e2e_multi_org_boot_registers_correct_adapter_count' (132197674) panicked at crates/prism-bin/tests/e2e_smoke.rs:655:10:
+    prism-bin failed to start: "prism-bin MCP server did not become ready within 30s (EC-002): Failed to write to prism-bin stdin: Broken pipe (os error 32)"
+    note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+        FAIL [  30.227s] (116/121) prism-bin::e2e_smoke test_BC_3_2_001_e2e_cross_org_sensor_query_returns_e_query_032
+  stdout ───
+
+    running 1 test
+    test test_BC_3_2_001_e2e_cross_org_sensor_query_returns_e_query_032 ... FAILED
+
+    failures:
+
+    failures:
+        test_BC_3_2_001_e2e_cross_org_sensor_query_returns_e_query_032
+
+    test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 12 filtered out; finished in 30.22s
+
+  stderr ───
+
+    thread 'test_BC_3_2_001_e2e_cross_org_sensor_query_returns_e_query_032' (132197667) panicked at crates/prism-bin/tests/e2e_smoke.rs:736:10:
+    prism-bin failed to start: "prism-bin MCP server did not become ready within 30s (EC-002): Failed to write to prism-bin stdin: Broken pipe (os error 32)"
+    note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+        FAIL [  30.243s] (117/121) prism-bin::e2e_smoke test_BC_2_11_005_e2e_armis_query_returns_data
+  stdout ───
+
+    running 1 test
+    test test_BC_2_11_005_e2e_armis_query_returns_data ... FAILED
+
+    failures:
+
+    failures:
+        test_BC_2_11_005_e2e_armis_query_returns_data
+
+    test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 12 filtered out; finished in 30.23s
+
+  stderr ───
+
+    thread 'test_BC_2_11_005_e2e_armis_query_returns_data' (132197624) panicked at crates/prism-bin/tests/e2e_smoke.rs:195:10:
+    prism-bin failed to start: "prism-bin MCP server did not become ready within 30s (EC-002): Failed to write to prism-bin stdin: Broken pipe (os error 32)"
+    note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+        FAIL [  30.220s] (118/121) prism-bin::e2e_smoke test_EC_005_e2e_limit_200_returns_paginated_rows
+  stdout ───
+
+    running 1 test
+    test test_EC_005_e2e_limit_200_returns_paginated_rows ... FAILED
+
+    failures:
+
+    failures:
+        test_EC_005_e2e_limit_200_returns_paginated_rows
+
+    test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 12 filtered out; finished in 30.21s
+
+  stderr ───
+
+    thread 'test_EC_005_e2e_limit_200_returns_paginated_rows' (132197829) panicked at crates/prism-bin/tests/e2e_smoke.rs:966:10:
+    prism-bin failed to start: "prism-bin MCP server did not become ready within 30s (EC-002): Failed to write to prism-bin stdin: Broken pipe (os error 32)"
+    note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+        FAIL [  30.240s] (119/121) prism-bin::e2e_smoke test_BC_2_11_007_e2e_armis_aql_pushdown_devices_dtu_roundtrip
+  stdout ───
+
+    running 1 test
+    test test_BC_2_11_007_e2e_armis_aql_pushdown_devices_dtu_roundtrip ... FAILED
+
+    failures:
+
+    failures:
+        test_BC_2_11_007_e2e_armis_aql_pushdown_devices_dtu_roundtrip
+
+    test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 12 filtered out; finished in 30.23s
+
+  stderr ───
+
+    thread 'test_BC_2_11_007_e2e_armis_aql_pushdown_devices_dtu_roundtrip' (132197666) panicked at crates/prism-bin/tests/e2e_smoke.rs:273:10:
+    prism-bin exited unexpectedly before MCP handshake (EC-002): "prism-bin MCP server did not become ready within 30s (EC-002): Failed to write to prism-bin stdin: Broken pipe (os error 32)"
+    note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+        FAIL [  30.261s] (120/121) prism-bin::e2e_smoke test_BC_2_09_008_e2e_response_envelope_meta_fields_correct
+  stdout ───
+
+    running 1 test
+    test test_BC_2_09_008_e2e_response_envelope_meta_fields_correct ... FAILED
+
+    failures:
+
+    failures:
+        test_BC_2_09_008_e2e_response_envelope_meta_fields_correct
+
+    test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 12 filtered out; finished in 30.25s
+
+  stderr ───
+
+    thread 'test_BC_2_09_008_e2e_response_envelope_meta_fields_correct' (132197560) panicked at crates/prism-bin/tests/e2e_smoke.rs:483:10:
+    prism-bin failed to start: "prism-bin MCP server did not become ready within 30s (EC-002): Failed to write to prism-bin stdin: Broken pipe (os error 32)"
+    note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+        FAIL [  30.225s] (121/121) prism-bin::e2e_smoke test_EC_004_e2e_limit_zero_returns_empty_not_error
+  stdout ───
+
+    running 1 test
+    test test_EC_004_e2e_limit_zero_returns_empty_not_error ... FAILED
+
+    failures:
+
+    failures:
+        test_EC_004_e2e_limit_zero_returns_empty_not_error
+
+    test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 12 filtered out; finished in 30.21s
+
+  stderr ───
+
+    thread 'test_EC_004_e2e_limit_zero_returns_empty_not_error' (132197827) panicked at crates/prism-bin/tests/e2e_smoke.rs:910:10:
+    prism-bin failed to start: "prism-bin MCP server did not become ready within 30s (EC-002): Failed to write to prism-bin stdin: Broken pipe (os error 32)"
+    note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+────────────
+     Summary [  30.653s] 121 tests run: 108 passed, 13 failed, 0 skipped
+        PASS [   0.033s] (  1/121) prism-bin boot::tests::test_BC_2_21_001_org_entry_with_valid_uuid_and_kebab_slug
+        PASS [   0.032s] (  2/121) prism-bin boot::tests::test_BC_2_21_001_malformed_slug_fails_kebab_check
+        PASS [   0.036s] (  3/121) prism-bin exit_codes::tests::test_BC_2_03_013_permission_denied_exit_code_is_5
+        PASS [   0.037s] (  4/121) prism-bin boot::tests::test_BC_2_22_001_boot_error_exit_code_complete_mapping
+        PASS [   0.039s] (  5/121) prism-bin boot::shutdown_exit_code_tests::test_wait_for_shutdown_clean_returns_exit_0
+        PASS [   0.039s] (  6/121) prism-bin boot::tests::test_BC_2_06_011_prism_config_has_required_fields
+        PASS [   0.039s] (  7/121) prism-bin boot::shutdown_exit_code_tests::test_wait_for_shutdown_task_error_returns_exit_1
+        PASS [   0.040s] (  8/121) prism-bin boot::tests::test_BC_2_03_013_credential_exit_code_distinction
+        PASS [   0.040s] (  9/121) prism-bin boot::shutdown_exit_code_tests::test_wait_for_shutdown_transport_error_returns_exit_0
+        PASS [   0.041s] ( 10/121) prism-bin boot::shutdown_exit_code_tests::test_wait_for_shutdown_join_error_returns_exit_4
+        PASS [   0.042s] ( 11/121) prism-bin boot::shutdown_exit_code_tests::test_wait_for_shutdown_runtime_error_returns_exit_4
+        PASS [   0.044s] ( 12/121) prism-bin exit_codes::tests::test_BC_2_05_012_internal_error_exit_code_is_4
+        PASS [   0.052s] ( 13/121) prism-bin boot::step4_overlay_tests::test_F_P2_MED_001_corrupt_type_spec_file_aborts_boot_with_config_invalid
+        PASS [   0.057s] ( 14/121) prism-bin boot::step4_overlay_tests::test_BC_2_06_012_no_customers_dir_boots_with_empty_overlay_map
+        PASS [   0.063s] ( 15/121) prism-bin boot::step4_overlay_tests::test_BC_2_06_012_overlay_present_in_customers_dir_resolves_to_map
+        PASS [   0.064s] ( 16/121) prism-bin boot::step4_overlay_tests::test_BC_2_06_015_unknown_org_slug_in_customers_dir_aborts_boot
+        PASS [   0.031s] ( 17/121) prism-bin exit_codes::tests::test_BC_2_22_001_exit_code_constants_are_distinct
+        PASS [   0.036s] ( 18/121) prism-bin exit_codes::tests::test_BC_2_22_001_exit_code_constants_match_adr_022
+        PASS [   0.035s] ( 19/121) prism-bin::bc_2_01_013_spec_driven_adapter test_BC_2_01_013_auth_refresh_failed_display_carries_e_auth_002_taxonomy_code
+        PASS [   0.040s] ( 20/121) prism-bin exit_codes::tests::test_BC_2_06_011_config_invalid_exit_code_is_2
+        PASS [   0.049s] ( 21/121) prism-bin::bc_2_01_013_spec_driven_adapter test_BC_2_01_013_build_http_client_with_timeout_succeeds
+        PASS [   0.050s] ( 22/121) prism-bin::bc_2_01_013_spec_driven_adapter test_BC_2_01_013_bearer_static_auth_provider_returns_bearer_token
+        PASS [   0.058s] ( 23/121) prism-bin::bc_2_01_013_spec_driven_adapter test_BC_2_01_013_fetch_returns_non_empty_ocsf_batches_bearer_static
+        PASS [   0.056s] ( 24/121) prism-bin::bc_2_01_013_spec_driven_adapter test_BC_2_01_013_ocsf_conformance_sensor_virtual_column_is_canonical_sensor_id
+        PASS [   0.057s] ( 25/121) prism-bin::bc_2_01_013_spec_driven_adapter test_BC_2_01_013_fetch_returns_non_empty_ocsf_batches_static_cookie
+        PASS [   0.058s] ( 26/121) prism-bin::bc_2_01_013_spec_driven_adapter test_BC_2_01_013_fetch_returns_non_empty_ocsf_batches_plugin
+        PASS [   0.055s] ( 27/121) prism-bin::bc_2_01_013_spec_driven_adapter test_BC_2_01_013_ocsf_conformance_spec_columns_survive_into_arrow_schema
+        PASS [   0.041s] ( 28/121) prism-bin::bc_2_01_013_spec_driven_adapter test_BC_2_01_013_spec_driven_adapter_crowdstrike_delegates_to_pipeline_executor
+        PASS [   0.058s] ( 29/121) prism-bin::bc_2_01_013_spec_driven_adapter test_BC_2_01_013_ocsf_conformance_envelope_derived_not_raw_copied
+        PASS [   0.030s] ( 30/121) prism-bin::bc_2_01_013_spec_driven_adapter test_BC_2_22_001_boot_step9a_empty_spec_catalog_registers_zero_adapters
+        PASS [   0.067s] ( 31/121) prism-bin::bc_2_01_013_spec_driven_adapter test_BC_2_01_013_spec_driven_adapter_bearer_static_extracts_token_from_sensor_auth
+        PASS [   0.057s] ( 32/121) prism-bin::bc_2_01_013_spec_driven_adapter test_BC_2_01_013_spec_driven_adapter_sensor_type_returns_sensor_id_from_spec
+        PASS [   0.049s] ( 33/121) prism-bin::bc_2_01_013_spec_driven_adapter test_BC_2_06_014_boot_step9a_uses_resolved_spec_overlay_url
+        PASS [   0.059s] ( 34/121) prism-bin::bc_2_01_013_spec_driven_adapter test_BC_2_01_013_spec_driven_adapter_double_401_returns_auth_refresh_failed
+        PASS [   0.060s] ( 35/121) prism-bin::bc_2_01_013_spec_driven_adapter test_BC_2_01_013_spec_driven_adapter_cyberint_cookie_auth_injects_access_token_cookie
+        PASS [   0.054s] ( 36/121) prism-bin::bc_2_01_013_spec_driven_adapter test_BC_2_01_013_static_cookie_auth_strategy_injects_access_token_not_bearer
+        PASS [   0.057s] ( 37/121) prism-bin::bc_2_01_013_spec_driven_adapter test_BC_2_06_014_boot_step9a_translates_org_slug_to_org_id
+        PASS [   0.036s] ( 38/121) prism-bin::bc_2_01_013_spec_driven_adapter test_BC_2_22_001_boot_step9a_registers_correct_adapter_count
+        PASS [   0.037s] ( 39/121) prism-bin::bc_2_01_013_spec_driven_adapter test_BC_2_22_001_boot_step9a_unsupported_auth_type_skips_adapter_not_error
+        PASS [   0.038s] ( 40/121) prism-bin::bc_2_01_013_spec_driven_adapter test_BC_2_22_001_production_boot_path_wiring_guard
+        PASS [   0.038s] ( 41/121) prism-bin::bc_2_01_013_spec_driven_adapter test_BC_3_2_001_step9a_multi_org_registers_eight_adapters
+        PASS [   0.042s] ( 42/121) prism-bin::bc_2_01_013_spec_driven_adapter test_BC_2_22_001_step9a_not_called_in_boot_production_path
+        PASS [   0.058s] ( 43/121) prism-bin::bc_2_01_013_spec_driven_adapter test_BC_2_11_005_adapter_registry_get_returns_adapter_for_registered_pair
+        PASS [   0.194s] ( 44/121) prism-bin::bc_2_06_011_config_load test_BC_2_06_011_invariant_no_fallback_when_config_dir_env_set
+        PASS [   0.190s] ( 45/121) prism-bin::bc_2_06_011_config_load test_BC_2_06_011_missing_config_dir_exits_two
+        PASS [   0.206s] ( 46/121) prism-bin::bc_2_06_011_config_load test_BC_2_06_011_invariant_exit_code_is_exactly_2_not_other
+        PASS [   0.190s] ( 47/121) prism-bin::bc_2_21_001_org_registry_init test_BC_2_21_001_invariant_exit_code_is_exactly_2_for_empty_orgs
+        PASS [   0.192s] ( 48/121) prism-bin::bc_2_21_001_org_registry_init test_BC_2_21_001_empty_orgs_exits_two_with_at_least_one_org_message
+        PASS [   0.202s] ( 49/121) prism-bin::bc_2_06_011_config_load test_BC_2_06_011_toml_syntax_error_exits_two
+        PASS [   0.226s] ( 50/121) prism-bin::bc_2_06_011_config_load test_BC_2_06_011_empty_config_file_exits_two
+        PASS [   0.189s] ( 51/121) prism-bin::bc_2_21_001_org_registry_init test_BC_2_21_001_non_v7_uuid_exits_two_with_must_be_uuid_v7_message
+        PASS [   0.190s] ( 52/121) prism-bin::bc_2_21_001_org_registry_init test_BC_2_21_001_malformed_slug_uppercase_exits_two
+        PASS [   0.207s] ( 53/121) prism-bin::bc_2_06_011_config_load test_BC_2_06_011_missing_required_field_exits_two
+        PASS [   0.217s] ( 54/121) prism-bin::bc_2_21_001_org_registry_init test_BC_2_21_001_duplicate_org_slug_exits_two
+        PASS [   0.220s] ( 55/121) prism-bin::bc_2_21_001_org_registry_init test_BC_2_21_001_duplicate_org_id_exits_two
+        PASS [   0.064s] ( 56/121) prism-bin::boot_steps_7_8_tests test_BC_2_11_001_step8_adapter_registry_not_empty
+        PASS [   0.076s] ( 57/121) prism-bin::boot_steps_7_8_tests test_BC_2_15_011_internal_tables_accessible_after_step7
+        PASS [   0.063s] ( 58/121) prism-bin::boot_steps_7_8_tests test_BC_2_22_001_step8_constructs_write_executor
+        PASS [   0.076s] ( 59/121) prism-bin::cli_subcommands test_cli_query_subcommand_exists_and_dispatches
+        PASS [   0.076s] ( 60/121) prism-bin::cli_subcommands test_cli_help_exits_zero_and_lists_subcommands
+        PASS [   0.077s] ( 61/121) prism-bin::boot_steps_7_8_tests test_BC_2_22_001_step8_constructs_query_engine
+        PASS [   0.077s] ( 62/121) prism-bin::cli_subcommands test_cli_help_documents_exit_codes
+        PASS [   0.062s] ( 63/121) prism-bin::cli_subcommands test_cli_unknown_subcommand_exits_two
+        PASS [   0.063s] ( 64/121) prism-bin::cli_subcommands test_cli_version_output_contains_semver
+        PASS [   0.286s] ( 65/121) prism-bin::bc_2_06_011_config_load test_BC_2_06_011_valid_config_exits_zero
+        PASS [   0.311s] ( 66/121) prism-bin::bc_2_06_011_config_load test_AC_5_first_log_line_is_prism_version
+        PASS [   0.269s] ( 67/121) prism-bin::bc_2_21_001_org_registry_init test_BC_2_21_001_single_org_exits_zero
+        PASS [   0.102s] ( 68/121) prism-bin::boot_steps_7_8_tests test_BC_2_22_001_step7_validates_storage_backend
+        PASS [   0.103s] ( 69/121) prism-bin::boot_steps_7_8_tests test_BC_2_22_001_step7_step8_sequential_integration
+        PASS [   0.084s] ( 70/121) prism-bin::cli_subcommands test_cli_version_subcommand_exits_zero
+        PASS [   0.342s] ( 71/121) prism-bin::boot_steps_7_8_tests test_BC_2_11_001_query_engine_execute_after_boot
+        PASS [   0.029s] ( 72/121) prism-bin::exit_code_contract test_boot_error_audit_init_failed_maps_to_exit_4
+        PASS [   0.179s] ( 73/121) prism-bin::cli_subcommands test_cli_start_subcommand_reaches_boot_sequence
+        PASS [   0.025s] ( 74/121) prism-bin::exit_code_contract test_boot_error_credential_permission_denied_maps_to_exit_5
+        PASS [   0.027s] ( 75/121) prism-bin::exit_code_contract test_boot_error_config_invalid_maps_to_exit_2
+        PASS [   0.029s] ( 76/121) prism-bin::exit_code_contract test_boot_error_credential_ref_invalid_maps_to_exit_2
+        PASS [   0.030s] ( 77/121) prism-bin::exit_code_contract test_boot_error_display_includes_variant_prefix
+        PASS [   0.031s] ( 78/121) prism-bin::exit_code_contract test_boot_error_internal_error_maps_to_exit_4
+        PASS [   0.033s] ( 79/121) prism-bin::exit_code_contract test_boot_error_org_registry_failed_maps_to_exit_2
+        PASS [   0.035s] ( 80/121) prism-bin::exit_code_contract test_exit_code_constants_are_within_zero_to_five_range
+        PASS [   0.036s] ( 81/121) prism-bin::exit_code_contract test_boot_error_sensor_fail_maps_to_exit_3
+        PASS [   0.037s] ( 82/121) prism-bin::exit_code_contract test_exit_code_constants_match_adr_022_canonical_table
+        PASS [   0.135s] ( 83/121) prism-bin::plugin_boot_tests test_BC_2_16_012_write_tool_reg_failure_rolls_back_all_remaining_tools_for_plugin
+        PASS [   0.162s] ( 84/121) prism-bin::plugin_boot_tests test_BC_2_16_012_plugin_runtime_registers_write_tools_pre_query_phase
+        PASS [   0.164s] ( 85/121) prism-bin::plugin_boot_tests test_AC_4_VP_PLUGIN_004_unsigned_plugin_durable_audit_entry
+        PASS [   0.049s] ( 86/121) prism-bin::plugin_boot_tests test_BC_2_22_001_boot_step_plugin_load_placement
+        PASS [   0.048s] ( 87/121) prism-bin::plugin_boot_tests test_BC_2_22_001_disable_env_takes_precedence_over_plugin_dir_config
+        PASS [   0.065s] ( 88/121) prism-bin::plugin_boot_tests test_BC_2_16_012_write_tool_reg_failure_rolls_back_plugin
+        PASS [   0.047s] ( 89/121) prism-bin::plugin_boot_tests test_BC_2_22_001_plugin_load_failure_exits_code_4
+        PASS [   0.048s] ( 90/121) prism-bin::plugin_boot_tests test_BC_2_22_001_plugin_load_disabled_env
+        PASS [   0.058s] ( 91/121) prism-bin::plugin_boot_tests test_BC_2_22_001_plugin_load_step_is_registered_between_step7_and_step8
+        PASS [   0.047s] ( 92/121) prism-bin::plugin_boot_tests test_BC_2_22_001_prism_config_plugin_dir_default_and_explicit
+        PASS [   0.057s] ( 93/121) prism-bin::plugin_boot_tests test_F_PASS2_CRIT_001_prism_command_start_routes_through_run_boot_sequence
+        PASS [   0.072s] ( 94/121) prism-bin::plugin_boot_tests test_F_PASS3_CRIT_001_plugin_load_runs_before_step7
+        PASS [   0.061s] ( 95/121) prism-bin::plugin_boot_tests test_VP_PLUGIN_004_unsigned_plugin_boot_warn_audit
+        PASS [   0.060s] ( 96/121) prism-bin::plugin_boot_tests test_VP_PLUGIN_007_plugin_load_rejected_format_version_exceeded
+        PASS [   0.050s] ( 97/121) prism-bin::plugin_boot_tests test_boot_error_unknown_auth_plugin_exits_code_2
+        PASS [   0.061s] ( 98/121) prism-bin::plugin_boot_tests test_VP_PLUGIN_007_plugin_load_rejected_no_allowlist
+        PASS [   0.050s] ( 99/121) prism-bin::plugin_boot_tests test_plugin_auth_provider_construction_production_api
+        PASS [   0.060s] (100/121) prism-bin::plugin_boot_tests test_validate_and_construct_auth_providers_empty_returns_empty_map
+        PASS [   0.060s] (101/121) prism-bin::plugin_boot_tests test_validate_and_construct_auth_providers_happy_path
+        PASS [   0.059s] (102/121) prism-bin::plugin_boot_tests test_validate_and_construct_auth_providers_mixed_sensors_one_with_auth_plugin
+        PASS [   0.047s] (103/121) prism-bin::plugin_boot_tests test_validate_auth_plugin_fields_passes_when_no_auth_plugin
+        PASS [   0.048s] (104/121) prism-bin::plugin_boot_tests test_validate_auth_plugin_fields_rejects_unregistered_plugin
+        PASS [   0.057s] (105/121) prism-bin::plugin_boot_tests test_validate_and_construct_auth_providers_typo_returns_error
+        PASS [   0.015s] (106/121) prism-bin::pol_12_no_todo test_pol_12_no_untraced_todo_in_prism_bin_production_code
+        PASS [   0.243s] (107/121) prism-bin::vp153_rule_c_shaped_probe prop_rule_c_shape_mismatch_rejected_via_shaped_probe
+        PASS [   0.251s] (108/121) prism-bin::vp153_rule_c_shaped_probe prop_rule_c_shape_match_accepted_via_shaped_probe
+        FAIL [  30.233s] (109/121) prism-bin::e2e_smoke test_BC_2_11_005_e2e_cyberint_query_returns_data
+        FAIL [  30.247s] (110/121) prism-bin::e2e_smoke test_BC_2_10_010_e2e_sigterm_cleanly_shuts_down_both_subprocesses
+        FAIL [  30.234s] (111/121) prism-bin::e2e_smoke test_BC_2_11_005_e2e_claroty_query_returns_data
+        FAIL [  30.226s] (112/121) prism-bin::e2e_smoke test_BC_3_2_001_e2e_dtu_multi_tenant_each_org_reaches_correct_clone_port
+        FAIL [  30.227s] (113/121) prism-bin::e2e_smoke test_BC_2_22_001_e2e_smoke_test_launches_dtu_and_prism_bin_without_error
+        FAIL [  30.234s] (114/121) prism-bin::e2e_smoke test_BC_2_11_005_e2e_crowdstrike_query_returns_ocsf_data
+        FAIL [  30.227s] (115/121) prism-bin::e2e_smoke test_BC_3_2_001_e2e_multi_org_boot_registers_correct_adapter_count
+        FAIL [  30.227s] (116/121) prism-bin::e2e_smoke test_BC_3_2_001_e2e_cross_org_sensor_query_returns_e_query_032
+        FAIL [  30.243s] (117/121) prism-bin::e2e_smoke test_BC_2_11_005_e2e_armis_query_returns_data
+        FAIL [  30.220s] (118/121) prism-bin::e2e_smoke test_EC_005_e2e_limit_200_returns_paginated_rows
+        FAIL [  30.240s] (119/121) prism-bin::e2e_smoke test_BC_2_11_007_e2e_armis_aql_pushdown_devices_dtu_roundtrip
+        FAIL [  30.261s] (120/121) prism-bin::e2e_smoke test_BC_2_09_008_e2e_response_envelope_meta_fields_correct
+        FAIL [  30.225s] (121/121) prism-bin::e2e_smoke test_EC_004_e2e_limit_zero_returns_empty_not_error
+error: test run failed
