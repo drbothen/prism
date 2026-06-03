@@ -249,17 +249,29 @@ fn test_BC_2_16_013_crowdstrike_base_url_env_unset_returns_spec_error_not_panic(
         combined_error_text,
     );
 
-    // Postcondition 3: the error text must NOT contain "must start with http"
-    // (which would indicate E-SPEC-001 URL-format error, proving the resolver ran
-    // AFTER url-format validation in the wrong order).
-    assert!(
-        !combined_error_text.contains("must start with http"),
-        "AC-003: error must be E-SPEC-024 (env var not set), NOT E-SPEC-001 (url format). \
-         Presence of 'must start with http' means the resolver ran after url-format \
-         validation — ordering violation (BC-2.16.009 §VR6 ordering invariant). \
-         Got: '{}'",
-        combined_error_text,
-    );
+    // NOTE — why there is no Postcondition 3 ordering assertion here:
+    //
+    // The `parse_and_validate_spec_toml` SUT (add_sensor_spec.rs) does NOT call
+    // `validate_sensor_spec`. The "must start with http" / E-SPEC-001 URL-format
+    // error is produced exclusively by `validate_sensor_spec`. Therefore, for a
+    // fully-tokenized `base_url = "${env.CROWDSTRIKE_BASE_URL}"` with the var unset,
+    // `parse_and_validate_spec_toml` can only ever yield E-SPEC-024 (EnvVarNotSet)
+    // on this code path — "must start with http" is structurally unreachable here,
+    // making any `!contains("must start with http")` assertion inert (it cannot
+    // distinguish correct from incorrect ordering because the wrong branch is
+    // unreachable regardless of ordering).
+    //
+    // The BC-2.16.009 §VR6 env-resolver-before-URL-validation ORDERING invariant IS
+    // load-bearing tested, but in the correct SUT scope (S-SPEC-ENV-VAR-001):
+    //   - `test_env_var_resolution_runs_before_url_format_validation` in
+    //     tests/env_var_resolution_tests.rs — calls `validate_sensor_spec` directly
+    //     and confirms the error is E-SPEC-024, not E-SPEC-001.
+    //   - `test_env_var_ordering_production_path_absent_var_produces_e_spec_024_not_url_format_error`
+    //     in tests/env_var_resolution_tests.rs — exercises the production path and
+    //     verifies the same ordering guarantee.
+    //
+    // Postconditions 1 (is_err) and 2 (error references CROWDSTRIKE_BASE_URL) above
+    // ARE load-bearing for this test's scope and must not be removed.
 }
 
 // ---------------------------------------------------------------------------
