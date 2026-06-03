@@ -1,4 +1,4 @@
-# E2E run output — S-DEMO-002 @ 6a8becfb
+# E2E run output — S-DEMO-002 @ 0dbe72a0
 # Branch: feature/S-DEMO-002
 # Date: 2026-06-03
 # Result: 13 PASS, 0 FAIL, 110 SKIPPED (GREEN)
@@ -7,7 +7,7 @@
 # Command: cargo build --release -p prism-bin -p prism-dtu-demo-server
 # ─────────────────────────────────────────────────────────────────────────────
 
-    Finished `release` profile [optimized] target(s) in 1.29s
+    Finished `release` profile [optimized] target(s) in 53.77s
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Step 2: E2E suite run against release binaries
@@ -23,35 +23,35 @@
 # the subprocess binaries are release-optimized.
 # ─────────────────────────────────────────────────────────────────────────────
 
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.74s
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 20.18s
 ────────────
- Nextest run ID 75777f8a-8c19-4a02-a343-9f4d501ff1c3 with nextest profile: e2e
+ Nextest run ID 4cd96a95-c23c-410d-ae68-9d70beb6198b with nextest profile: e2e
     Starting 13 tests across 12 binaries (110 tests skipped)
-        PASS [   0.752s] ( 1/13) prism-bin::e2e_smoke test_BC_3_2_001_e2e_cross_org_sensor_query_returns_e_query_032
-        PASS [   0.814s] ( 2/13) prism-bin::e2e_smoke test_BC_2_11_005_e2e_cyberint_query_returns_data
-        PASS [   0.817s] ( 3/13) prism-bin::e2e_smoke test_BC_2_11_005_e2e_armis_query_returns_data
-        PASS [   0.818s] ( 4/13) prism-bin::e2e_smoke test_BC_2_11_005_e2e_claroty_query_returns_data
-        PASS [   0.859s] ( 5/13) prism-bin::e2e_smoke test_BC_2_11_005_e2e_crowdstrike_query_returns_ocsf_data
-        PASS [   0.860s] ( 6/13) prism-bin::e2e_smoke test_BC_2_09_008_e2e_response_envelope_meta_fields_correct
-        PASS [   0.863s] ( 7/13) prism-bin::e2e_smoke test_BC_2_22_001_e2e_smoke_test_launches_dtu_and_prism_bin_without_error
-        PASS [   0.864s] ( 8/13) prism-bin::e2e_smoke test_EC_005_e2e_limit_200_returns_paginated_rows
-        PASS [   0.867s] ( 9/13) prism-bin::e2e_smoke test_EC_004_e2e_limit_zero_returns_empty_not_error
-        PASS [   0.960s] (10/13) prism-bin::e2e_smoke test_BC_2_11_007_e2e_armis_aql_pushdown_devices_dtu_roundtrip
-        PASS [   0.960s] (11/13) prism-bin::e2e_smoke test_BC_2_10_010_e2e_sigterm_cleanly_shuts_down_both_subprocesses
-        PASS [   0.967s] (12/13) prism-bin::e2e_smoke test_BC_3_2_001_e2e_dtu_multi_tenant_each_org_reaches_correct_clone_port
-        PASS [   0.971s] (13/13) prism-bin::e2e_smoke test_BC_3_2_001_e2e_multi_org_boot_registers_correct_adapter_count
+        PASS [   0.554s] ( 1/13) prism-bin::e2e_smoke test_BC_2_22_001_e2e_smoke_test_launches_dtu_and_prism_bin_without_error
+        PASS [   0.611s] ( 2/13) prism-bin::e2e_smoke test_BC_2_11_005_e2e_claroty_query_returns_data
+        PASS [   0.614s] ( 3/13) prism-bin::e2e_smoke test_BC_2_11_005_e2e_armis_query_returns_data
+        PASS [   0.614s] ( 4/13) prism-bin::e2e_smoke test_BC_2_11_007_e2e_armis_aql_pushdown_devices_dtu_roundtrip
+        PASS [   0.678s] ( 5/13) prism-bin::e2e_smoke test_BC_2_11_005_e2e_cyberint_query_returns_data
+        PASS [   0.678s] ( 6/13) prism-bin::e2e_smoke test_BC_3_2_001_e2e_cross_org_sensor_query_returns_e_query_032
+        PASS [   0.678s] ( 7/13) prism-bin::e2e_smoke test_BC_2_09_008_e2e_response_envelope_meta_fields_correct
+        PASS [   0.681s] ( 8/13) prism-bin::e2e_smoke test_BC_2_11_005_e2e_crowdstrike_query_returns_ocsf_data
+        PASS [   0.681s] ( 9/13) prism-bin::e2e_smoke test_EC_005_e2e_limit_200_returns_paginated_rows
+        PASS [   0.777s] (10/13) prism-bin::e2e_smoke test_BC_2_10_010_e2e_sigterm_cleanly_shuts_down_both_subprocesses
+        PASS [   0.787s] (11/13) prism-bin::e2e_smoke test_EC_004_e2e_limit_zero_returns_empty_not_error
+        PASS [   0.787s] (12/13) prism-bin::e2e_smoke test_BC_3_2_001_e2e_dtu_multi_tenant_each_org_reaches_correct_clone_port
+        PASS [   0.794s] (13/13) prism-bin::e2e_smoke test_BC_3_2_001_e2e_multi_org_boot_registers_correct_adapter_count
 ────────────
-     Summary [   0.971s] 13 tests run: 13 passed, 110 skipped
-        PASS [   0.752s] ( 1/13) prism-bin::e2e_smoke test_BC_3_2_001_e2e_cross_org_sensor_query_returns_e_query_032
-        PASS [   0.814s] ( 2/13) prism-bin::e2e_smoke test_BC_2_11_005_e2e_cyberint_query_returns_data
-        PASS [   0.817s] ( 3/13) prism-bin::e2e_smoke test_BC_2_11_005_e2e_armis_query_returns_data
-        PASS [   0.818s] ( 4/13) prism-bin::e2e_smoke test_BC_2_11_005_e2e_claroty_query_returns_data
-        PASS [   0.859s] ( 5/13) prism-bin::e2e_smoke test_BC_2_11_005_e2e_crowdstrike_query_returns_ocsf_data
-        PASS [   0.860s] ( 6/13) prism-bin::e2e_smoke test_BC_2_09_008_e2e_response_envelope_meta_fields_correct
-        PASS [   0.863s] ( 7/13) prism-bin::e2e_smoke test_BC_2_22_001_e2e_smoke_test_launches_dtu_and_prism_bin_without_error
-        PASS [   0.864s] ( 8/13) prism-bin::e2e_smoke test_EC_005_e2e_limit_200_returns_paginated_rows
-        PASS [   0.867s] ( 9/13) prism-bin::e2e_smoke test_EC_004_e2e_limit_zero_returns_empty_not_error
-        PASS [   0.960s] (10/13) prism-bin::e2e_smoke test_BC_2_11_007_e2e_armis_aql_pushdown_devices_dtu_roundtrip
-        PASS [   0.960s] (11/13) prism-bin::e2e_smoke test_BC_2_10_010_e2e_sigterm_cleanly_shuts_down_both_subprocesses
-        PASS [   0.967s] (12/13) prism-bin::e2e_smoke test_BC_3_2_001_e2e_dtu_multi_tenant_each_org_reaches_correct_clone_port
-        PASS [   0.971s] (13/13) prism-bin::e2e_smoke test_BC_3_2_001_e2e_multi_org_boot_registers_correct_adapter_count
+     Summary [   0.795s] 13 tests run: 13 passed, 110 skipped
+        PASS [   0.554s] ( 1/13) prism-bin::e2e_smoke test_BC_2_22_001_e2e_smoke_test_launches_dtu_and_prism_bin_without_error
+        PASS [   0.611s] ( 2/13) prism-bin::e2e_smoke test_BC_2_11_005_e2e_claroty_query_returns_data
+        PASS [   0.614s] ( 3/13) prism-bin::e2e_smoke test_BC_2_11_005_e2e_armis_query_returns_data
+        PASS [   0.614s] ( 4/13) prism-bin::e2e_smoke test_BC_2_11_007_e2e_armis_aql_pushdown_devices_dtu_roundtrip
+        PASS [   0.678s] ( 5/13) prism-bin::e2e_smoke test_BC_2_11_005_e2e_cyberint_query_returns_data
+        PASS [   0.678s] ( 6/13) prism-bin::e2e_smoke test_BC_3_2_001_e2e_cross_org_sensor_query_returns_e_query_032
+        PASS [   0.678s] ( 7/13) prism-bin::e2e_smoke test_BC_2_09_008_e2e_response_envelope_meta_fields_correct
+        PASS [   0.681s] ( 8/13) prism-bin::e2e_smoke test_BC_2_11_005_e2e_crowdstrike_query_returns_ocsf_data
+        PASS [   0.681s] ( 9/13) prism-bin::e2e_smoke test_EC_005_e2e_limit_200_returns_paginated_rows
+        PASS [   0.777s] (10/13) prism-bin::e2e_smoke test_BC_2_10_010_e2e_sigterm_cleanly_shuts_down_both_subprocesses
+        PASS [   0.787s] (11/13) prism-bin::e2e_smoke test_EC_004_e2e_limit_zero_returns_empty_not_error
+        PASS [   0.787s] (12/13) prism-bin::e2e_smoke test_BC_3_2_001_e2e_dtu_multi_tenant_each_org_reaches_correct_clone_port
+        PASS [   0.794s] (13/13) prism-bin::e2e_smoke test_BC_3_2_001_e2e_multi_org_boot_registers_correct_adapter_count
