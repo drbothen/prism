@@ -21,7 +21,12 @@ auth_type = "oauth2_client_credentials"
 # ADR-028 §D10 co-merge: PLUGIN-MIGRATION-001-A deletion of crowdstrike.rs is
 # GATED on this story shipping the plugin replacement.
 auth_plugin = "crowdstrike-oauth2"
-base_url = "https://api.crowdstrike.com"
+# CrowdStrike Falcon API region base URLs (set CROWDSTRIKE_BASE_URL to the tenant's region):
+#   us-1 (default):  https://api.crowdstrike.com
+#   us-2:            https://api.us-2.crowdstrike.com
+#   eu-1:            https://api.eu-1.crowdstrike.com
+#   gov:             https://api.laggar.gcw.crowdstrike.com
+base_url = "${env.CROWDSTRIKE_BASE_URL}"
 version = "1.0.0"
 
 # ---------------------------------------------------------------------------
