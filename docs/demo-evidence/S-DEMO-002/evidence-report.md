@@ -5,7 +5,7 @@
 **PR:** Story S-DEMO-002 (see STORY-INDEX.md)
 **Recorder:** demo-recorder agent
 **Date:** 2026-06-03
-**Worktree HEAD at recording:** `6081d42a` (3-CLEAN LOCAL cascade convergence commit)
+**Worktree HEAD at recording:** `0af51150` (PR #171 implementer fix commit — SEC-001 SEC-003 SEC-004 ADV-OBS-002 SUGGESTION-1)
 
 ---
 
@@ -20,12 +20,15 @@ Release binaries present and used by E2E tests:
 
 ## E2E Test Suite Run — All Tests GREEN
 
-**Command:** `cargo nextest run -p prism-bin --profile e2e --run-ignored all`
+**Command:** `cargo nextest run -p prism-bin --profile e2e --run-ignored ignored-only`
 
-**Result: 123 tests run — 123 PASS, 0 FAIL, 0 SKIP**
+**Result: 13 e2e smoke tests run — 13 PASS, 0 FAIL, 110 SKIPPED (GREEN)**
 
-All 13 E2E subprocess smoke tests (previously blocked in the pre-convergence run) now pass GREEN
-after the cascade fix burst (ADV-SDEMO002-P01-CRIT-001 and subsequent findings resolved).
+The `--run-ignored ignored-only` flag runs ONLY the 13 `#[ignore]`'d e2e subprocess smoke tests
+(the 110 standard tests are skipped in this invocation).
+
+All 13 E2E subprocess smoke tests pass GREEN at commit `0af51150`
+(implementer SEC-001/SEC-003/SEC-004/AC-007/AC-008 fixes applied).
 
 ### E2E smoke tests (13/13 PASS)
 
@@ -49,7 +52,7 @@ after the cascade fix burst (ADV-SDEMO002-P01-CRIT-001 and subsequent findings r
 
 **Command:** `cargo nextest run -p prism-bin`
 
-**Result: 110 tests run — 110 PASS, 13 SKIPPED**
+**Result: 110 tests run — 110 PASS, 0 FAIL, 13 SKIPPED**
 
 The 13 E2E smoke tests are correctly skipped in the standard profile (`#[ignore]` gate in effect).
 
@@ -83,8 +86,8 @@ Demonstrates:
 **File:** `AC-007-008-envelope-meta-sigterm.gif` / `.webm` / `.tape`
 
 Demonstrates:
-- **AC-007:** `test_BC_2_09_008_e2e_response_envelope_meta_fields_correct` PASS — `_meta.trust_level == "untrusted_external"`, `_meta.safety_flags == []` (non-vacuous: ≥1 row returned), `_meta.data_source` contains `"crowdstrike"`
-- **AC-008:** `test_BC_2_10_010_e2e_sigterm_cleanly_shuts_down_both_subprocesses` PASS — both prism-bin and DTU server exit within 5s with status 0 after SIGTERM
+- **AC-007:** `test_BC_2_09_008_e2e_response_envelope_meta_fields_correct` PASS — `_meta.trust_level == "untrusted_external"`, `_meta.safety_flags == []` (non-vacuous: ≥1 row returned), `_meta.data_source` contains `"crowdstrike"` (accepts both string and array serialization per ADV-SDEMO002-PR-P01-OBS-002)
+- **AC-008:** `test_BC_2_10_010_e2e_sigterm_cleanly_shuts_down_both_subprocesses` PASS — both prism-bin and DTU server exit within 5s with status 0 after SIGTERM (subprocess-only test; SID-1 §2 deferral documented in test body: signals.rs `std::process::exit(0)` is not unit-testable without architectural refactor scoped to S-1.12-FOLLOWUP)
 
 ### Recording 4: AC-011, AC-012, AC-013
 
@@ -100,8 +103,8 @@ Demonstrates:
 **File:** `AC-014-aql-pushdown-dtu-roundtrip.gif` / `.webm` / `.tape`
 
 Demonstrates:
-- **AC-014 (unit):** `test_BC_2_11_007_armis_aql_pushdown_seeded_in_filter_map` + related AQL push-down unit tests PASS — `predicate_tree_to_filter_map` extracts `aql='in:devices'` equality predicate into `FetchContext.query_filters["aql"]`
-- **AC-014 (E2E):** `test_BC_2_11_007_e2e_armis_aql_pushdown_devices_dtu_roundtrip` PASS — full pipeline: PQL parse → FilterMap → FetchContext → DTU `GET /api/v1/search?aql=in:devices` → non-empty rows returned; `GET /dtu/aql-log` confirms `"in:devices"` received verbatim (BC-2.11.007 Mechanism B)
+- **AC-014 (unit):** `test_BC_2_11_007_armis_aql_pushdown_seeded_in_filter_map` + related AQL push-down unit tests PASS — `predicate_tree_to_filter_map` extracts `aql='in:devices'` equality predicate and seeds it into the query-layer `FilterMap` (`query_filters["aql"] == "in:devices"`). This unit test proves FilterMap seeding at the query-planning boundary; it does NOT assert FetchContext population or DTU receipt (those are subprocess-level behaviors requiring a live DTU).
+- **AC-014 (E2E):** `test_BC_2_11_007_e2e_armis_aql_pushdown_devices_dtu_roundtrip` PASS — proves the full pipeline: PQL parse → FilterMap → FetchContext population → DTU `GET /api/v1/search?aql=in:devices` → non-empty rows returned; `GET /dtu/aql-log` confirms `"in:devices"` received verbatim (BC-2.11.007 Mechanism B). The E2E round-trip test is the load-bearing evidence for FetchContext → DTU propagation.
 
 ---
 
@@ -115,14 +118,14 @@ Demonstrates:
 | AC-004 | BC-2.11.005 | DEMONSTRATED | `AC-003-006-four-sensor-data-return.gif` | E2E subprocess: Armis `WHERE aql='in:devices'` returns data rows |
 | AC-005 | BC-2.11.005 | DEMONSTRATED | `AC-003-006-four-sensor-data-return.gif` | E2E subprocess: Claroty alerts (`alert_type_name`, `detected_time`) + devices (`uid`) |
 | AC-006 | BC-2.11.005 | DEMONSTRATED | `AC-003-006-four-sensor-data-return.gif` | E2E subprocess: Cyberint alerts return data rows |
-| AC-007 | BC-2.09.008 | DEMONSTRATED | `AC-007-008-envelope-meta-sigterm.gif` | E2E subprocess: `_meta.trust_level="untrusted_external"`, `safety_flags=[]` (non-vacuous), `data_source=["crowdstrike"]` |
+| AC-007 | BC-2.09.008 | DEMONSTRATED | `AC-007-008-envelope-meta-sigterm.gif` | E2E subprocess: `_meta.trust_level="untrusted_external"`, `safety_flags=[]` (non-vacuous), `data_source` contains `"crowdstrike"` (accepts both string and array serialization per ADV-SDEMO002-PR-P01-OBS-002) |
 | AC-008 | BC-2.10.010 | DEMONSTRATED | `AC-007-008-envelope-meta-sigterm.gif` | E2E subprocess: SIGTERM → both processes exit 0 within 5s |
 | AC-009 | BC-2.11.005 | CI-PROPERTY | — | AC-009 is a CI repetition property (5 consecutive runs), not a Rust `#[test]` function. Verified by consistent GREEN result across multiple local run invocations. |
 | AC-010 | BC-2.22.001 | DEMONSTRATED | `AC-001-010-e2e-launch-ignore-gate.gif` | Standard nextest profile: 13 skipped (`#[ignore]` gate); e2e profile: 13 PASS |
 | AC-011 | BC-3.2.001 / BC-2.22.001 | DEMONSTRATED | `AC-011-012-013-multi-org-isolation.gif` | Unit: 8-adapter count; E2E subprocess: 3-org boot, all 4 sensors for demo-org-c resolve |
 | AC-012 | BC-3.2.001 | DEMONSTRATED | `AC-011-012-013-multi-org-isolation.gif` | Unit + E2E: demo-org-a query for Claroty returns E-QUERY-032 (code -32602), message contains sensor + org |
 | AC-013 | BC-3.2.001 | DEMONSTRATED | `AC-011-012-013-multi-org-isolation.gif` | E2E subprocess: demo-org-a + demo-org-c CrowdStrike queries both succeed (DTU-MULTI-001 documented) |
-| AC-014 | BC-2.11.007 | DEMONSTRATED | `AC-014-aql-pushdown-dtu-roundtrip.gif` | Unit (FilterMap seeding) + E2E (DTU /dtu/aql-log confirms "in:devices" verbatim) |
+| AC-014 | BC-2.11.007 | DEMONSTRATED | `AC-014-aql-pushdown-dtu-roundtrip.gif` | Unit: FilterMap seeding at query-planning boundary (`query_filters["aql"] == "in:devices"`); E2E round-trip: FetchContext → DTU `/dtu/aql-log` confirms `"in:devices"` received verbatim |
 | EC-004 | BC-2.11.001 | DEMONSTRATED | E2E suite run (all tests PASS) | `LIMIT 0` returns empty-not-error; verified by `test_EC_004_e2e_limit_zero_returns_empty_not_error` |
 | EC-005 | BC-2.11.001 | DEMONSTRATED | E2E suite run (all tests PASS) | `LIMIT 200` returns ≤200 rows without error; verified by `test_EC_005_e2e_limit_200_returns_paginated_rows` |
 
@@ -169,6 +172,6 @@ All SID-1 unit substitutes pass in the standard `cargo nextest run -p prism-bin`
 | `AC-014-aql-pushdown-dtu-roundtrip.gif` | VHS recording | AC-014 |
 | `AC-014-aql-pushdown-dtu-roundtrip.webm` | VHS recording | AC-014 |
 | `AC-014-aql-pushdown-dtu-roundtrip.tape` | VHS source | AC-014 |
-| `e2e-run-output.txt` | Text log | ALL (pre-convergence run; superseded by current GREEN state) |
+| `e2e-run-output.txt` | Text log | ALL (GREEN capture @ 0af51150: 13/13 e2e PASS, `--run-ignored ignored-only`) |
 
 Legacy artifacts from the pre-convergence recording session (`AC-001-dtu-server-launch.*`, `AC-010-e2e-ignored-gate.*`, `AC-011-e2e-test-suite-run.*`) document the environmental blocker that was resolved during the cascade. They are retained for traceability but superseded by the current GREEN recordings.
