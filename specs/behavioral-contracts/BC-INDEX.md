@@ -1,10 +1,10 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "5.76"
+version: "5.77"
 status: draft
 producer: state-manager
-timestamp: 2026-06-02T00:00:00Z
+timestamp: 2026-06-03T00:00:00Z
 phase: 3.A
 total_contracts: 246
 active_contracts: 238
@@ -100,7 +100,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.05.012 | AuditEmitter Initialization — audit_buffer CF Open and boot.audit.initialized Emitted at Process Start | 05 - Audit Trail | CAP-007 | P0 | active |
 | BC-2.06.001 | TOML Configuration Loads and Deserializes at Startup | 06 - Client Configuration | CAP-009 | P0 | draft |
 | BC-2.06.002 | Per-Client Sensor Mapping from TOML Configuration | 06 - Client Configuration | CAP-009 | P0 | draft |
-| BC-2.06.003 | Credential References in Config Resolve to Credential Store Entries | 06 - Client Configuration | CAP-009 | P0 | draft |
+| BC-2.06.003 | Credential References in Config Resolve to Credential Store Entries | 06 - Client Configuration | CAP-009 | P0 | draft — v1.2 (S-DEMO-002 implementing-story link added; D-968) |
 | BC-2.06.004 | Capability Overrides Merge with Defaults Using More-Specific-Wins | 06 - Client Configuration | CAP-009 | P0 | draft |
 | BC-2.06.005 | Configuration Validation Reports All Errors in One Pass | 06 - Client Configuration | CAP-009 | P0 | draft |
 | BC-2.06.006 | --dry-run Flag Validates Config and Prints Redacted Summary | 06 - Client Configuration | CAP-009 | P0 | draft |
@@ -213,7 +213,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.15.010 | Decorator Three-Phase Model — Config-Time, Query-Time, Periodic | 15 - Storage Layer | CAP-026 | P0 | draft |
 | BC-2.15.011 | Internal Table Registration — RocksDB Domains as DataFusion Tables | 15 - Storage Layer | CAP-028 | P0 | draft |
 | BC-2.16.001 | Sensor Spec File Loading — Parse TOML, Validate Schema, Register Tables | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-776 per POL-14; anchor story PLUGIN-MIGRATION-001-D merged PR #153 develop@3f2de889 2026-05-22) — v1.7 |
-| BC-2.16.002 | Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-427 per POL-14; anchor story S-PLUGIN-PREREQ-B merged PR #143 develop@ae7e26c8 2026-05-12) — v1.61 |
+| BC-2.16.002 | Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-427 per POL-14; anchor story S-PLUGIN-PREREQ-B merged PR #143 develop@ae7e26c8 2026-05-12) — v1.64 |
 | BC-2.16.003 | Column-to-OCSF Mapping at Query Time — Map Sensor Columns to OCSF Fields Per Spec | 16 - Spec Engine | CAP-029 | P0 | draft |
 | BC-2.16.004 | ~~Rust Escape Hatch for Custom Adapters — Trait-Based Override When Config Is Insufficient~~ | 16 - Spec Engine | CAP-029 | P0 | removed (lifecycle_status: removed since PREREQ-E impl; status aligned at D-726 per POL-14 PR #151 merge) — v1.5 |
 | BC-2.16.005 | `reload_config` MCP Tool — Re-Read All Config Files, Validate, Atomic Swap, Notify | 16 - Spec Engine | CAP-030 | P1 | draft |
@@ -376,6 +376,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v5.77 (2026-06-03, D-968 S-DEMO-002 CRIT-001+boot-probe closure burst — BearerStaticCredentialAuthProvider + BC-2.16.002 v1.64 + ADR-028 v1.14 + BC-2.06.003 v1.2 + e2e 123/123 orchestrator-verified):** state-manager | BC-2.16.002 v1.61→v1.64 (ADV-SDEMO002-P01-MED-001 CLOSED: body_template Array/Object values inserted VERBATIM as valid JSON literals via `value.to_string()`; only String scalars are json_escaped; matches `Interpolator::interpolate` JsonBody arm; PO/architect-authored v1.62 mischaracterized, v1.63 mischaracterized, v1.64 correct — orchestrator-verified against code). BC-INDEX in-line row 216 updated to v1.64. No lifecycle_status change — BC-2.16.002 remains active. BC-2.06.003 v1.1→v1.2 (S-DEMO-002 implementing-story link added; BC-2.03.006/BC-2.06.003 resolution chain alignment — env_FILE > env > keyring; AD-017-safe existence-only boot probe). BC-INDEX in-line row 103 updated (draft — v1.2). No lifecycle_status change — BC-2.06.003 remains draft. ADR-028 v1.14: §D13 BearerStaticCredentialAuthProvider pattern added (fail-closed; mirrors StaticCookieAuthProvider; ADV-SDEMO002-P01-CRIT-001 closure; architect-authored). ARCH-INDEX v2.109 row confirms ADR-028 v1.14 (unchanged — architect already wrote it). BC-INDEX v5.76→v5.77.
 
 **v5.76 (2026-06-02, D-959 S-DEMO-002 CRIT-001 spec-evolution closure burst):** state-manager | BC-3.2.001 v0.6→v0.8 (PO D-959: postcondition 5 added — cross-org MCP query scoped to org-A for sensor not registered under org-A must return E-QUERY-032 error envelope, not silent empty-success; EC-006/007 and TV-3.2.001-06 added; architect v0.8: §Verification §Intentional no-VP: Postcondition 5 rationale block added — no VP-3.2.001-05 authored; async fn resolve_source_refs not Kani/proptest verifiable; coverage via AC-012 Red Gate + SID-1 unit test). Index row BC-3.2.001 updated to "draft (v0.8)". No count changes (no new BCs, no promotions). error-taxonomy.md v1.57→v1.58 (E-QUERY-032 new: broken/authorization, MCP -32602, "Sensor '{sensor_id}' is not registered for org '{org_slug}'"; BC anchor BC-3.2.001 postcondition 5). BC-INDEX v5.75→v5.76.
 

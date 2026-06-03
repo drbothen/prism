@@ -4,14 +4,14 @@ adr_id: "ADR-028"
 title: "TOML Spec URLs and auth_type Ground Against DTU Clone Routes (Real-API Canonical), Not Production Rust Adapter URLs"
 status: Proposed
 date: "2026-05-20"
-modified: "2026-05-29"  # v1.13 §D12 superseded annotation (ADR-031 D4 — DTU=true-DTU reversal)
-version: "1.13"
+modified: "2026-06-03"  # v1.14 §D13 clarifying note — bearer_static AuthProvider pattern, BearerStaticCredentialAuthProvider, bearer_token canonical credential_ref
+version: "1.14"
 producer: architect
 subsystems_affected: [SS-01, SS-07, SS-16, SS-17]
 supersedes: ["ADR-026 §D3 (partial — auth_type_name() return values for Cyberint/Claroty/Armis non-CrowdStrike sensors)"]
 superseded_by: "ADR-031 §D4 (partial — §D12 only: Cyberint cookie auth DTU-shortcut acceptance reversed by DTU=true-DTU principle 2026-05-29)"
 amends: null
-anchor_stories: [PLUGIN-MIGRATION-001-D, PLUGIN-MIGRATION-001-A, PLUGIN-MIGRATION-001-B, PLUGIN-MIGRATION-001-C, PLUGIN-MIGRATION-001-E, S-DEMO-001]
+anchor_stories: [PLUGIN-MIGRATION-001-D, PLUGIN-MIGRATION-001-A, PLUGIN-MIGRATION-001-B, PLUGIN-MIGRATION-001-C, PLUGIN-MIGRATION-001-E, S-DEMO-001, S-DEMO-002]
 related_adrs: [ADR-003, ADR-023, ADR-027]
 related_bcs: [BC-2.16.013, BC-2.16.001, BC-2.16.009, BC-2.01.016]
 locked_decisions: ["D-737 Decision 1", "D-737 Decision 4"]
@@ -508,6 +508,44 @@ The cookie name `cyberint_session` is hardcoded for the `CookieRoundtrip` varian
 
 **Invariant:** `build_request` must dispatch by auth_type, not assume all tokens are bearer tokens. The pre-S-DEMO-001 behavior (always `Authorization: Bearer`) was an implementation gap, not an architectural decision.
 
+### D13 — BearerStaticCredentialAuthProvider Pattern: Retirement of Bare AdapterAuthStrategy::BearerStatic (S-DEMO-002)
+
+**Adjudicated 2026-06-03 (architect, S-DEMO-002 ADV-SDEMO002-P01-CRIT-001 disposition). Clarifying note — no new ADR warranted.**
+
+#### Background
+
+S-DEMO-002 introduced `BearerStaticCredentialAuthProvider`, which implements the `AuthProvider` trait and resolves bearer token credentials asynchronously via `resolve_credential` at `acquire_token` time. This mirrors the existing `StaticCookieAuthProvider` pattern established in S-DEMO-001 (see §D12 and ADR-031 §D3).
+
+ADV-SDEMO002-P01-CRIT-001 identified that the prior path — a bare `AdapterAuthStrategy::BearerStatic` variant consuming a synchronous `ProductionCredentialResolver::resolve` return — was a defect: `ProductionCredentialResolver` was a placeholder that performed no real async resolution, resulting in fail-open behavior on missing credentials. This violated the fail-closed credential invariant (DI-002, BC-2.03.002).
+
+#### Decision
+
+**`bearer_static` sensors resolve credentials via `BearerStaticCredentialAuthProvider`, held as `AdapterAuthStrategy::Plugin`.**
+
+The implementation contract:
+
+1. `BearerStaticCredentialAuthProvider` implements `AuthProvider`. Its `acquire_token` method calls `resolve_credential(org_slug, sensor_id, "bearer_token")` asynchronously. On credential absence, it returns `SpecEngineError::CredentialNotFound` (fail-closed). On success, it returns `AuthToken::new(resolved_value)`.
+
+2. The sensor adapter holds the provider as `AdapterAuthStrategy::Plugin(Arc<dyn AuthProvider>)` — the same variant used by `StaticCookieAuthProvider`. No new `AdapterAuthStrategy` variant is introduced.
+
+3. `PipelineExecutor::issue_request_with_retry` dispatches `AdapterAuthStrategy::Plugin` uniformly for both bearer-static and cookie-based auth. The `build_request` auth-type-aware dispatch (established in S-DEMO-001, §D12 invariant) remains correct — `AuthType::BearerStatic` sensors still inject `Authorization: Bearer {token}`; the change is in HOW the token is obtained (via `BearerStaticCredentialAuthProvider::acquire_token`), not in how it is injected.
+
+4. **Retired path:** The bare `AdapterAuthStrategy::BearerStatic(token_string)` constructor pattern — where a credential resolver return was synchronously unpacked and stored as a plain string in the strategy — is RETIRED. This path was a defect: it performed resolution at construction time (wrong: resolution must happen at request time, per BC-2.03.002 §Postconditions) and relied on a `ProductionCredentialResolver` placeholder that was not wired to the actual prism-credentials chain.
+
+#### Canonical Credential Reference Name
+
+The canonical `credential_ref` name for `bearer_static` sensors is `bearer_token`. Operator environment variable convention: `<SENSOR_ID_UPPER>_BEARER_TOKEN` (e.g., `ARMIS_BEARER_TOKEN`, `CLAROTY_BEARER_TOKEN`). This follows the three-tier resolution chain defined in BC-2.06.003.
+
+#### Consistency with Existing AuthProvider Patterns
+
+| Sensor auth_type | AuthProvider | credential_ref | resolve_credential key |
+|------------------|--------------|----------------|------------------------|
+| `oauth2_client_credentials` | `PluginAuthProvider` (WASM) | n/a (resolved in plugin dispatch per §D11) | `client_id`, `client_secret` |
+| `cookie_roundtrip` (Cyberint) | `StaticCookieAuthProvider` | `access_token` (per ADR-031 §D3) | `access_token` |
+| `bearer_static` (Armis, Claroty) | `BearerStaticCredentialAuthProvider` | `bearer_token` | `bearer_token` |
+
+All `AuthProvider` implementations are fail-closed: a missing credential at `acquire_token` time returns an error that propagates to `PipelineExecutor` and surfaces as `E-SENSOR-NNN` to the caller. No partial or default token values are returned.
+
 ---
 
 ## Consequences
@@ -562,6 +600,7 @@ The cookie name `cyberint_session` is hardcoded for the `CookieRoundtrip` varian
 
 | Version | Date | Author | Summary |
 |---|---|---|---|
+| 1.14 | 2026-06-03 | architect | §D13 ADDED — BearerStaticCredentialAuthProvider pattern clarifying note (ADV-SDEMO002-P01-CRIT-001 disposition). Documents that `bearer_static` sensors now resolve credentials via `BearerStaticCredentialAuthProvider` (AuthProvider pattern, async `acquire_token` → `resolve_credential("bearer_token")`, fail-closed on missing credential), held as `AdapterAuthStrategy::Plugin`. Retires bare `AdapterAuthStrategy::BearerStatic` constructor path (defect: sync placeholder resolver, resolution at construction time rather than request time). Canonical `credential_ref` name `bearer_token`, operator env var `<SENSOR>_BEARER_TOKEN`. Consistency table added. anchor_stories += S-DEMO-002. |
 | 1.13 | 2026-05-29 | architect | §D12 SUPERSEDED — ADR-031 §D4 reverses the DTU-shortcut acceptance. §D12 body annotated `[SUPERSEDED by ADR-031 §D4 2026-05-29 — DTU=true-DTU principle adoption]`. Correct contract is now ADR-031 §D3: `access_token` cookie (not `cyberint_session`), `StaticCookieAuthProvider` (no login step), `build_request` dispatches `CookieRoundtrip → Cookie: access_token={token}`. frontmatter `superseded_by:` updated. frontmatter `version:` bumped v1.12→v1.13. |
 | 1.12 | 2026-05-29 | architect | §D12 ADDED — Cyberint cookie auth real-API vs DTU model divergence (S-DEMO-001). Documents `access_token` (real API, static injection per poller-express) vs `cyberint_session` (DTU, POST /login session token) divergence. Locks DTU model for S-DEMO-001 (`CookieLoginAuthProvider` + `build_request` amendment to `Cookie: cyberint_session={token}`). Documents production path via future `StaticCookieAuthProvider` or `auth_cookie_name` TOML field. Documents `build_request` auth-type-aware dispatch invariant. anchor_stories += S-DEMO-001. |
 | 1.11 | 2026-05-24 | architect | §D11 ADDED — OAuth2 Credential Substitution Model for Plugin Dispatch (PLUGIN-MIGRATION-001-E PR-LEVEL CRIT #2, user-authorized fix-in-scope). Locks Option C (host resolves credential_handle → client_id + client_secret via prism_credentials::resolve_credential; PluginConfigMap injection before dispatch). Options A (host_http_request sentinel) and B (WIT param expansion) rejected with rationale. Full AD-017 compliance analysis, data flow diagram, affected file list, implementer contract (dispatch signature change, guest acquire_token change, test transition strategy), and EC-006b/EC-006c error code extensions. BC-2.01.016 added to related_bcs. Closes F-LP12-PR-CRIT-2. |

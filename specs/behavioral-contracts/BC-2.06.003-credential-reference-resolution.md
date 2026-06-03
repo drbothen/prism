@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.1"
+version: "1.2"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -11,7 +11,7 @@ subsystem: "SS-06"
 capability: "CAP-009"
 lifecycle_status: active
 introduced: cycle-1
-modified: null
+modified: 2026-06-03
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -89,9 +89,11 @@ No VPs in VP-INDEX v1.5 directly verify credential reference resolution. Placeho
 | L2 Capability | CAP-009 |
 | L2 Invariants | DI-002, DI-014 |
 | Priority | P0 |
+| Implementing Stories | S-DEMO-002 (`BearerStaticCredentialAuthProvider::resolve_credential` + boot-time `KeyringCredentialProbe` env→keyring resolution chain) |
 
 ## Changelog
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
 | 1.1 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; added ## Changelog. |
+| 1.2 | S-DEMO-002-traceability | 2026-06-03 | product-owner | Traceability: added S-DEMO-002 as implementing story — BearerStaticCredentialAuthProvider::resolve_credential and boot-time KeyringCredentialProbe now mirror the env→keyring resolution chain specified by this BC. No content changes. |

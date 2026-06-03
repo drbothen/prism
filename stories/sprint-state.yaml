@@ -19,10 +19,10 @@ active_dispatch_set:
     points: 11
     spec_version: "v1.8"
     lane: "1-of-3"
-    dispatch_status: "D-966 LOCAL CONVERGENCE VOIDED (D-967 2026-06-03) — e2e 121/121 GREEN @ 7c9db1cc; 9 production defects closed (see D-967 for full inventory: oauth2 routing, per-org base_url, CredentialResolver, crowdstrike field-path, JSON interpolation, Component-Model WIT, Armis pagination, unscoped clients=None, table-suffix filtering) + harness fixes; just check GREEN; LOCAL streak RESET 0/3; re-cascade pending. Spec-drift review REQUIRED before fresh convergence: PROD-5 JSON-literal interpolation + PROD-8 unscoped-query behavior may need BC/spec updates (BC-2.16.009/BC-2.16.013 + BC-3.2.001). NEXT: re-demo (Lesson 62 preflight: git -C .worktrees/S-DEMO-002 rev-parse HEAD must == 7c9db1cc) → fresh LOCAL adversarial cascade → spec-drift check → 3-CLEAN → push → pr-manager 9-step PR cycle."
-    entry_point: "re-demo (fresh evidence @ 7c9db1cc; Lesson 62 preflight) → fresh LOCAL adversarial cascade (BC-5.39.001) → spec-drift check → push → pr-manager 9-step PR cycle → PR-LEVEL 3-CLEAN → merge"
+    dispatch_status: "D-968 (2026-06-03) — CRIT-001 (ProductionCredentialResolver BearerStaticCredentialAuthProvider) + boot-probe resolution-chain alignment CLOSED; e2e 123/123 orchestrator-verified GREEN @ dbd65820; BC-2.16.002 v1.64 (MED-001 CLOSED — Array/Object JSON literal interpolation documented); ADR-028 v1.14 (§D13 BearerStaticCredentialAuthProvider pattern); BC-2.06.003 v1.2 (implementing-story link); LOCAL streak RESET 0/3 (shared code changed: boot.rs KeyringCredentialProbe resolution-chain); fresh LOCAL adversarial cascade NEXT. Spec-drift PROD-5 (JSON-literal) and PROD-8 (clients=None) addressed in BC-2.16.002 v1.64 and BC-3.2.001 v0.8 (D-959) respectively — adversary must confirm closure in fresh cascade."
+    entry_point: "fresh LOCAL adversarial cascade (BC-5.39.001; 3-CLEAN required) → if CLEAN(strict) 3/3 → demo-recorder → push → pr-manager 9-step PR cycle → PR-LEVEL 3-CLEAN → merge"
     worktree_path: ".worktrees/S-DEMO-002"
-    code_head: "7c9db1cc"
+    code_head: "dbd65820"
     branch: "feature/S-DEMO-002"
     tracked_dependency: "MUST seed query_filters[\"aql\"] in PipelineExecutor FetchContext for Armis end-to-end AQL push-down (AC-014 D-934/D-952 scope) — canonical seeding site: predicate_tree_to_filter_map (BC-2.11.007 v1.5 Mechanism B). Do NOT add parallel extract fn. Tool name is `query` (not tool_query). Org field is `clients` (not org_slug). red_gate_tests=9. AC-004 now requires WHERE aql = 'in:devices' LIMIT 5 (Option-A per human D-963)."
     depends_on:
@@ -30,7 +30,7 @@ active_dispatch_set:
       - S-CONFIG-MULTI-TENANT-OVERRIDE-001  # HARD — SATISFIED (merged PR #155 develop@3e822522)
     bcs: [BC-2.11.001, BC-2.11.005, BC-2.09.008, BC-2.10.001, BC-2.10.010, BC-3.2.001, BC-2.22.001, BC-2.11.007]
     vps: [VP-148]
-    notes: "D-967 2026-06-03: D-966 LOCAL CONVERGENCE VOIDED — demo-recorder ran actual e2e suite and found 13 failures; human authorized fix-harness + re-converge. Implementer 7c9db1cc closed 9 production defects: (1) oauth2_client_credentials auth routing; (2) per-org DTU base_url from overlay; (3) ProductionCredentialResolver non-empty placeholder; (4) crowdstrike body_template field-path fix; (5) JSON array/object interpolation as literals; (6) Component-Model WIT navigation; (7) Armis offset/limit pagination; (8) unscoped query clients=None guard (no false E-QUERY-032); (9) table-suffix filtering in SpecDrivenSensorAdapter. Harness: 3 ${env.VAR} env vars + crowdstrike .prx/manifest staging + RUST_LOG=off + PrismQL syntax + cyberint access-token seeding. RESULT: 121 passed / 0 failed; just check GREEN. LOCAL streak RESET 0/3. Spec-drift check REQUIRED before fresh convergence (PROD-5 interpolation behavior + PROD-8 unscoped-query semantics). (Prior D-966 2026-06-03: LOCAL 3-CLEAN CONVERGENCE @ 5a2f22f6 — VOIDED by D-967. D-965: residual-pin MED CLOSED @ 5a2f22f6. D-964: prose-audit v1.8 + version-agnostic labels @ e286b932. D-963: CRIT F-DEMO002-P2-CRIT-001 CLOSED @ 820353c9. D-962: MED-001+MED-002 CLOSED @ fd5147b1.)"
+    notes: "D-968 2026-06-03: CRIT-001 ADV-SDEMO002-P01-CRIT-001 (ProductionCredentialResolver 'dtu-e2e-bearer-placeholder') CLOSED via real BearerStaticCredentialAuthProvider (fail-closed; mirrors StaticCookieAuthProvider). Boot regression (boot step-5 KeyringCredentialProbe checked keyring directly; out-of-sync with query-time env→keyring chain) fixed by aligning probe to BC-2.03.006/BC-2.06.003 resolution chain (env_FILE > env > keyring; AD-017-safe). Sub-cycle: 7c9db1cc GREEN → 3860b970 regressed 13 e2e fails → dbd65820 GREEN. Orchestrator-verified: cargo nextest run -p prism-bin --profile e2e --run-ignored all = 123/123 @ dbd65820. MED-001 ADV-SDEMO002-P01-MED-001 CLOSED: BC-2.16.002 corrected to v1.64 (Array/Object body_template values VERBATIM JSON literals). ADR-028 v1.14 §D13 BearerStaticCredentialAuthProvider pattern. LOCAL streak RESET 0/3 (boot.rs KeyringCredentialProbe alignment = shared code change; fresh LOCAL cascade REQUIRED). (Prior D-967 2026-06-03: e2e 121/121 GREEN @ 7c9db1cc; 9 prod fixes; D-966 VOID. D-966: LOCAL 3-CLEAN CONVERGENCE @ 5a2f22f6 — VOIDED. D-965: residual-pin MED @ 5a2f22f6. D-964: prose-audit v1.8 + version-agnostic labels @ e286b932. D-963: CRIT F-DEMO002-P2-CRIT-001 @ 820353c9.)"
 
   - story_id: S-DEMO-CROWDSTRIKE-MULTIREGION-001
     status: ready
@@ -294,8 +294,8 @@ deferred_post_demo:
 
 prereq_artifacts:
   story_index: .factory/stories/STORY-INDEX.md         # v2.260 after D-964 burst (179 stories)
-  bc_index: .factory/specs/behavioral-contracts/BC-INDEX.md  # v5.76 after D-959 burst (BC-3.2.001 v0.8; unchanged D-963)
-  state: .factory/STATE.md                              # v7.620 after D-967 burst
+  bc_index: .factory/specs/behavioral-contracts/BC-INDEX.md  # v5.77 after D-968 burst (BC-2.16.002 v1.64; BC-2.06.003 v1.2; ADR-028 v1.14)
+  state: .factory/STATE.md                              # v7.621 after D-968 burst
   governing_adr: .factory/specs/architecture/decisions/ADR-031-dtu-equals-true-dtu-fidelity-principle.md  # v1.2 (ADR-031 architect e57eb5b1 reclassified 3 divergences)
   governing_audit: .factory/proposals/POLLER-DTU-FIDELITY-AUDIT-2026-05-29.md  # v1.1
 

@@ -1,7 +1,7 @@
 ---
 document_type: architecture-index
 level: L3
-version: "2.108"
+version: "2.109"
 status: draft
 producer: state-manager
 timestamp: 2026-05-31T12:00:00
@@ -94,7 +94,7 @@ deployment_topology: single-service  # planned — no service binary exists yet 
 | ADR-026 | SensorAuth Trait Un-Sealing — Remove private::Sealed, Enable Plugin Auth Implementations | PROPOSED v1.34 | 2026-05-21 | decisions/ADR-026-sensorauth-unsealing.md |
 | ADR-026-AMENDMENT | ADR-026 Amendment: Rule C (E-SPEC-014) — Keyring Backend Scope Qualification (D-706) | APPROVED v1.0 | 2026-05-18 | decisions/ADR-026-AMENDMENT-rule-c-keyring-scope.md |
 | ADR-027 | CustomAdapter Rust Trait Same-Burst Removal — Perimeter Enforcement in Wave 1/A | PROPOSED v1.9 | 2026-05-17 | decisions/ADR-027-custom-adapter-deprecation-removal.md |
-| ADR-028 | TOML Spec URLs and auth_type Ground Against DTU Clone Routes (Real-API Canonical), Not Production Rust Adapter URLs | PROPOSED v1.10 | 2026-05-21 | decisions/ADR-028-toml-spec-grounding-vs-dtu-routes.md |
+| ADR-028 | TOML Spec URLs and auth_type Ground Against DTU Clone Routes (Real-API Canonical), Not Production Rust Adapter URLs | PROPOSED v1.14 | 2026-06-03 | decisions/ADR-028-toml-spec-grounding-vs-dtu-routes.md |
 | ADR-029 | Multi-Tenant Sensor Endpoint Overrides — Hybrid Sensor Instance with Per-Org Composition Directory | ACCEPTED v1.2 | 2026-05-23 | decisions/ADR-029-multi-tenant-sensor-endpoint-overrides.md |
 | ADR-030 | SensorSpec Type Unification — Dep-Cycle Resolution Approach for types::SensorSpec Retirement | ACCEPTED v1.0 | 2026-05-27 | decisions/ADR-030-sensor-spec-type-unification.md |
 | ADR-031 | DTU=True-DTU Fidelity Principle — DTU Clones Must Mirror Real API Field Names, Auth Flows, Cookie Names, Endpoints, Response Shapes; Supersedes ADR-028 §D12 | ACCEPTED v1.2 | 2026-05-31 | decisions/ADR-031-dtu-equals-true-dtu-fidelity-principle.md |
@@ -157,6 +157,7 @@ deployment_topology: single-service  # planned — no service binary exists yet 
 
 | Version | Pass | Date | Author | Change |
 |---------|------|------|--------|--------|
+| 2.109 | ADV-SDEMO002-P01-CRIT-001 | 2026-06-03 | architect | ADR-028 in-line row v1.10→v1.14: §D13 clarifying note added — `bearer_static` sensors resolve via `BearerStaticCredentialAuthProvider` (AuthProvider pattern, async `acquire_token` → `resolve_credential("bearer_token")`, fail-closed), held as `AdapterAuthStrategy::Plugin`; bare `AdapterAuthStrategy::BearerStatic` constructor path retired (defect: sync placeholder resolver); canonical credential_ref `bearer_token`, env var `<SENSOR>_BEARER_TOKEN`; consistency table with StaticCookieAuthProvider and PluginAuthProvider. anchor_stories += S-DEMO-002. ARCH-INDEX v2.108→v2.109. |
 | 2.108 | D-923 | 2026-05-31 | state-manager | D-923 pass-1-fix-burst commit: ADR-022 row bumped ACCEPTED v1.13→v1.14 (architect step 9A wiring documented in §B boot sequence — step9_start_mcp_server now calls step9a_populate_adapter_registry as substep; GAP-002-A comments removed from prism-bin/src/boot.rs; params threaded through boot step chain). STORY-INDEX v2.226→v2.227. ARCH-INDEX v2.107→v2.108. |
 | 2.107 | D-907 | 2026-05-31 | state-manager | D-907 burst: ADR-031 row bumped v1.1→v1.2 (architect e57eb5b1 amended: 3 sensor divergences reclassified permitted-divergence→required-fidelity; ADR-031 §D8-a Armis AQL search endpoint, §D8-b Claroty trailing-slash, §D8-c CrowdStrike multi-region base_url). ARCH-INDEX v2.106→v2.107. |
 | 2.106 | D-843 | 2026-05-29 | architect | ADR-031 registered: DTU=True-DTU fidelity principle (DTU clones must mirror real API field names, auth flows, cookie names, endpoints, response shapes; supersedes ADR-028 §D12; 3 initial divergences classified as permitted-divergence per §D2). ARCH-INDEX v2.105→v2.106. |
