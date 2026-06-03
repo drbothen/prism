@@ -17,12 +17,12 @@ active_dispatch_set:
     status: ready
     priority: P0
     points: 11
-    spec_version: "v1.9"
+    spec_version: "v2.0"
     lane: "1-of-3"
-    dispatch_status: "D-975 (2026-06-03) — LOCAL 3/3 CONVERGED @ 6081d42a (BC-5.39.001 D-779 strict criterion). Converging passes 5/6/7 all CLEAN(strict)=yes AND CLEAN(PR-merge)=yes. All findings closed: ADV-SDEMO002-P01-MED-001 (query-syntax SQL SELECT) + P01-MED-002 (--config-dir) + P02-MED-001 (POL-11 index bump) + P03-MED-001 CLOSED implementer 3919a06c (uid assertion load-bearing) + P04-MED-001 CLOSED implementer 6081d42a (category_uid/class_uid non-null assertion). Story v1.9 stable. [D-972 (2026-06-03): spec-amend v1.8→v1.9 LANDED @ 4bb8f5b4. D-970 (2026-06-03): Option-A per-client credential convention CODE LANDED @ 29ea62df; e2e 123/123 orchestrator-verified GREEN]. NEXT: demo-recorder per-AC evidence → push → pr-manager 9-step PR cycle → PR-LEVEL 3-CLEAN → merge."
-    entry_point: "demo-recorder per-AC evidence → push feature/S-DEMO-002 → pr-manager 9-step PR cycle → PR-LEVEL adversary 3-CLEAN (BC-5.39.001) → merge"
+    dispatch_status: "D-979 (2026-06-03) — e2e-CI-job build-out COMPLETE @6a8becfb. ADV-SDEMO002-PR-P02-HIGH-001 CLOSED (human chose add in-scope). Implementer 72bf87f0 (CROWDSTRIKE_BASE_URL; OBS-001 Tier-4 env CRUD source_reference CLOSED; 3 tests; RELEASE e2e 13/13 GREEN; just check 3948 GREEN). Devops 6a8becfb (.github/workflows/e2e.yml; OBS-002 nextest.toml CLOSED). PO efae9fb4 (v1.9→v2.0; AC-010+AC-009 CI-gated; S-DEMO-CI-E2E-001 SUPERSEDED). OBS-003 CLOSED. OBS-004 OPEN. S-DEMO-CI-E2E-001 SUPERSEDED. NEXT: demo-recorder re-capture OBS-004 evidence → push → PR-LEVEL re-cascade. [Prior D-975 (2026-06-03): LOCAL 3/3 CONVERGED @6081d42a. D-972: spec-amend v1.8→v1.9 @4bb8f5b4. D-970: Option-A per-client creds CODE @29ea62df; e2e 123/123 GREEN]."
+    entry_point: "demo-recorder OBS-004 evidence regen → push feature/S-DEMO-002 → pr-manager 9-step PR cycle → PR-LEVEL adversary 3-CLEAN (BC-5.39.001) → merge"
     worktree_path: ".worktrees/S-DEMO-002"
-    code_head: "6081d42a"
+    code_head: "6a8becfb"
     branch: "feature/S-DEMO-002"
     tracked_dependency: "MUST seed query_filters[\"aql\"] in PipelineExecutor FetchContext for Armis end-to-end AQL push-down (AC-014 D-934/D-952 scope) — canonical seeding site: predicate_tree_to_filter_map (BC-2.11.007 v1.5 Mechanism B). Do NOT add parallel extract fn. Tool name is `query` (not tool_query). Org field is `clients` (not org_slug). red_gate_tests=9. AC-004 now requires WHERE aql = 'in:devices' LIMIT 5 (Option-A per human D-963)."
     depends_on:
@@ -245,16 +245,12 @@ active_dispatch_set:
     notes: "INDEXED D-941 2026-06-02 (story-writer commit 3124c327). Closes F-P2-DEFER-001 (stale BC-2.16.013 §Postconditions §1 audit_logs prose + claroty.sensor.toml stale DTU-gap comments; deferred from Claroty PR-LEVEL code-review CR-001 as PO-scope out-of-perimeter). DEMO-GOAL-REQUIRED per user direction D-941. BC-2.16.013 amendment is PO-owned (Agent Routing Table — behavioral contracts → product-owner). S-7.01 gate OPEN: BCs pending PO authorship. Must not dispatch until S-DEMO-CLAROTY-AUDIT-DTU-001 merges."
 
   - story_id: S-DEMO-CI-E2E-001
-    status: draft
+    status: superseded
     priority: P1
     points: 5
-    spec_version: "v1.0"
-    depends_on:
-      - S-DEMO-002  # HARD — e2e_smoke.rs (crates/prism-bin/tests/e2e_smoke.rs) must merge before CI workflow can run it
-      - S-6.20      # HARD — prism-dtu-demo-server binary (merged) must be buildable; S-6.20 delivered it
-    blocks:
-      - S-DEMO-003  # Demo runbook should not declare Green path verified until CI E2E confirms suite passes
-    notes: "REGISTERED D-960 2026-06-02 — OBS-2 closure from S-DEMO-002 LOCAL re-pass-1 cascade (process-gap: no CI runs the ignored e2e Red Gate suite). Story-writer authored .factory/stories/S-DEMO-CI-E2E-001-e2e-red-gate-ci-workflow.md. tdd_mode: facade (deliverable is .github/ CI YAML workflow + nextest profile; no application logic). S-7.01 gate OPEN: BCs pending PO authorship (behavioral_contracts: [] in story frontmatter; advisory traces to BC-2.22.001 + BC-2.10.010 + BC-3.2.001 noted in story). Must not dispatch until S-DEMO-002 merges."
+    spec_version: "v1.1"
+    depends_on: []  # SUPERSEDED — all blocks cleared
+    notes: "SUPERSEDED D-979 2026-06-03 — replaced_by S-DEMO-002 v2.0. e2e CI job delivered in-scope via devops commit 6a8becfb (.github/workflows/e2e.yml) as closure of ADV-SDEMO002-PR-P02-HIGH-001 per human direction. PO efae9fb4 updated story status draft→SUPERSEDED. S-DEMO-003 block cleared (S-DEMO-002 merge will satisfy CI confirmation gate directly). Original: REGISTERED D-960 2026-06-02 as OBS-2 follow-up from S-DEMO-002 LOCAL re-pass-1 cascade."
 
 maintenance_wave:
   - story_id: S-MAINT-POL29-HOOK-001
@@ -296,9 +292,9 @@ deferred_post_demo:
   # reclassification from permitted-divergence → required-fidelity; user directive no-scope-compromise).
 
 prereq_artifacts:
-  story_index: .factory/stories/STORY-INDEX.md         # v2.262 after D-975/D-976/D-977 burst (179 stories)
-  bc_index: .factory/specs/behavioral-contracts/BC-INDEX.md  # v5.77 after D-968 burst (BC-2.16.002 v1.64; BC-2.06.003 v1.2; ADR-028 v1.14)
-  state: .factory/STATE.md                              # v7.623 after D-970 burst
+  story_index: .factory/stories/STORY-INDEX.md         # v2.264 after D-979 burst (179 stories; S-DEMO-002 v2.0; S-DEMO-CI-E2E-001 superseded)
+  bc_index: .factory/specs/behavioral-contracts/BC-INDEX.md  # v5.78 (BC-2.16.009 v1.7 + BC-2.16.013 v1.22 both active)
+  state: .factory/STATE.md                              # v7.629 after D-979 burst
   governing_adr: .factory/specs/architecture/decisions/ADR-031-dtu-equals-true-dtu-fidelity-principle.md  # v1.2 (ADR-031 architect e57eb5b1 reclassified 3 divergences)
   governing_audit: .factory/proposals/POLLER-DTU-FIDELITY-AUDIT-2026-05-29.md  # v1.1
 
