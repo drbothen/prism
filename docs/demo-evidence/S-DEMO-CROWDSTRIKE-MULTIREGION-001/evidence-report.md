@@ -1,7 +1,7 @@
 # Evidence Report — S-DEMO-CROWDSTRIKE-MULTIREGION-001
 
 **Story:** S-DEMO-CROWDSTRIKE-MULTIREGION-001 v1.4 — CrowdStrike Multi-Region base_url Fidelity  
-**Worktree HEAD:** `291d7c64633c9b6fb66a739094f4b7ebc06ed670`  
+**Worktree HEAD:** PR #170 / story v1.4 (AC-001 re-recorded during PR-LEVEL pass-1 evidence correction)  
 **Branch:** `feature/S-DEMO-CROWDSTRIKE-MULTIREGION-001`  
 **Story version:** v1.4 (S-DEMO-CROWDSTRIKE-MULTIREGION-001)  
 **Convergence:** LOCAL cascade 3/3 CLEAN  
@@ -212,5 +212,5 @@ No new catalog rows required.
 | AC-006 | Full | SAP-1 grep: zero new event_type emissions in story-touched files |
 
 All 3 Red Gate tests: **PASS** (3/3 in 0.025s)  
-Story worktree HEAD: `291d7c64` (confirmed before recording)  
+Story worktree HEAD: PR #170 / story v1.4 (AC-001 GIFs re-recorded during PR-LEVEL pass-1 evidence correction; volatile HEAD SHA pin dropped per TD-VSDD-091)  
 Story version: v1.4 (S-DEMO-CROWDSTRIKE-MULTIREGION-001, established D-946)
