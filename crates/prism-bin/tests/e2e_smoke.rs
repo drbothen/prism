@@ -417,6 +417,18 @@ async fn test_BC_2_11_005_e2e_claroty_query_returns_data() {
         !device_rows.is_empty(),
         "AC-005: expected at least 1 row from claroty_devices (Gap-CL-003 fix — table was missing); response: {devices_response:?}"
     );
+
+    // Assert uid present and non-null (Gap-CL-003 regression sentinel).
+    let first_device = &device_rows[0];
+    assert!(
+        first_device.get("uid").is_some(),
+        "AC-005: uid must be present in claroty_devices result (Gap-CL-003 regression sentinel); row: {first_device:?}"
+    );
+    assert!(
+        first_device.get("uid") != Some(&serde_json::Value::Null),
+        "AC-005: uid must be non-null in claroty_devices result (Gap-CL-003 regression sentinel); row: {first_device:?}"
+    );
+
     assert_response_has_no_error(&devices_response);
 }
 
