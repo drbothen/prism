@@ -176,10 +176,11 @@ pub async fn resolve_credential(
         Ok(Some(meta)) => {
             // The credential has been configured. Try to resolve through its source.
             let backend_name = meta.backend_type.clone();
-            let resolved = resolve_from_backend(&meta.backend_type, credential_name);
+            let resolved =
+                resolve_from_backend(&meta.backend_type, client_id, sensor_id, credential_name);
 
             match resolved {
-                Some(secret) => {
+                Ok(Some(secret)) => {
                     crate::audit::emit_audit(
                         crate::audit::AuditOperation::Get,
                         client_id,
@@ -190,7 +191,7 @@ pub async fn resolve_credential(
                     );
                     Ok(secret)
                 }
-                None => {
+                Ok(None) => {
                     // Backend configured but value not accessible.
                     crate::audit::emit_audit(
                         crate::audit::AuditOperation::Get,
@@ -210,6 +211,18 @@ pub async fn resolve_credential(
                              Ensure the env var or file is set in the execution environment."
                         ),
                     })
+                }
+                Err(backend_err) => {
+                    // Backend returned a hard error (e.g., file backend not implemented).
+                    crate::audit::emit_audit(
+                        crate::audit::AuditOperation::Get,
+                        client_id,
+                        sensor_id,
+                        credential_name,
+                        &backend_name,
+                        crate::audit::AuditOutcome::Error,
+                    );
+                    Err(backend_err)
                 }
             }
         }
@@ -238,24 +251,54 @@ pub async fn resolve_credential(
     }
 }
 
-/// Attempt to resolve a secret value from the backend type.
+/// Attempt to resolve a secret value from the backend type (Tier 4 CRUD store source).
 ///
-/// For env-type backends, re-tries the env var resolution.
-/// Returns None if the backend source is unavailable.
-fn resolve_from_backend(backend_type: &str, credential_name: &str) -> Option<SecretString> {
+/// SEC-001 (PR #171 review, CWE-668): the "env" branch MUST use the per-client env-var
+/// format `PRISM_CLIENTS_{ID}_SENSORS_{SENSOR}_{REF}` (ADR-032), NOT the global
+/// `{CREDENTIAL_NAME_UPPER}` format. A global lookup bypasses per-client namespacing
+/// and creates a cross-tenant isolation gap.
+///
+/// SEC-003 (PR #171 review): the "file" branch MUST return an explicit error rather
+/// than silently returning `None` — silent `None` swallows the failure reason.
+///
+/// Returns:
+/// - `Ok(Some(secret))` — credential resolved from backend
+/// - `Ok(None)` — backend type unknown (no resolution attempted)
+/// - `Err(BackendUnavailable)` — backend is known but unavailable (file backend, etc.)
+fn resolve_from_backend(
+    backend_type: &str,
+    client_id: &str,
+    sensor_id: &str,
+    credential_name: &str,
+) -> Result<Option<SecretString>, CredentialResolutionError> {
     match backend_type {
         "env" => {
-            // Try the direct env var matching the credential name.
-            let name_upper = credential_name.to_uppercase().replace('-', "_");
-            std::env::var(&name_upper)
+            // SEC-001 fix: use per-client env-var format (ADR-032 Tier 2), NOT global lookup.
+            // This ensures Tier 4 "env" backend reads
+            // `PRISM_CLIENTS_{ID}_SENSORS_{SENSOR}_{REF}`, matching Tier 1-3 namespacing.
+            // The retired global `{CREDENTIAL_NAME_UPPER}` lookup is explicitly forbidden
+            // (CWE-668: cross-tenant isolation gap via global env namespace).
+            let env_var = per_client_env_var(client_id, sensor_id, credential_name);
+            Ok(std::env::var(&env_var)
                 .ok()
-                .map(|v| SecretString::new(v.into()))
+                .map(|v| SecretString::new(v.into())))
         }
         "file" => {
-            // File path resolution (try credential_name as path).
-            None // In-memory store does not persist file paths in this implementation.
+            // SEC-003 fix: return an explicit error instead of silent None.
+            // The CRUD store does not persist file paths in-memory, so "file" backend
+            // lookups via resolve_from_backend cannot succeed. Surface this clearly
+            // so the failure reason is not lost.
+            Err(CredentialResolutionError::BackendUnavailable {
+                client_id: client_id.to_string(),
+                sensor_id: sensor_id.to_string(),
+                credential_name: credential_name.to_string(),
+                detail: "file backend not implemented in CRUD store; \
+                         use ADR-032 per-client env/file refs \
+                         (PRISM_CLIENTS_{ID}_SENSORS_{SENSOR}_{REF}_FILE) instead"
+                    .to_string(),
+            })
         }
-        _ => None,
+        _ => Ok(None),
     }
 }
 

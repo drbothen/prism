@@ -2084,6 +2084,17 @@ pub async fn step9_start_mcp_server(
             // Return empty SensorAuth; no sensor type reads it (ADV-SDEMO002-P01-CRIT-001).
             // S-2.07 will wire async credential resolution through this path when the per-sensor
             // SensorAuth subtype dispatch is implemented; for now all paths bypass it.
+            //
+            // SEC-004: document the intentional empty-token bypass.
+            // This is NOT a credential leak — SpecDrivenSensorAdapter routes all auth
+            // through AdapterAuthStrategy (Plugin/StaticCookie/BearerStaticCredential),
+            // each of which calls its own AuthProvider::acquire_token() and ignores the
+            // SensorAuth arg returned here. The empty string never reaches a sensor API call.
+            tracing::trace!(
+                "ProductionCredentialResolver: returning empty SensorAuth — \
+                 all AdapterAuthStrategy variants ignore this value and resolve auth \
+                 independently via AuthProvider::acquire_token() (SEC-004, ADV-SDEMO002-P01-CRIT-001)"
+            );
             Ok(Box::new(prism_sensors::BearerStaticSensorAuth::new(
                 String::new(),
             )))

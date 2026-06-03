@@ -546,14 +546,22 @@ async fn test_BC_2_09_008_e2e_response_envelope_meta_fields_correct() {
     );
 
     // AC-007: assert _meta.data_source contains the sensor name.
+    //
+    // ADV-SDEMO002-PR-P01-OBS-002: data_source serializes polymorphically:
+    //   - single-sensor query → bare string (e.g. "crowdstrike")
+    //   - cross-client query  → array (e.g. ["crowdstrike"])
+    // (documented in safety_envelope.rs). Accept both forms so the assertion
+    // does not panic if a future refactor changes single-sensor serialization.
     let data_source = meta
         .get("data_source")
         .expect("AC-007: _meta.data_source must be present; meta: {meta:?}");
-    let source_arr = data_source
-        .as_array()
-        .expect("AC-007: _meta.data_source must be an array; meta: {meta:?}");
+    let source_contains_crowdstrike = match data_source {
+        serde_json::Value::Array(arr) => arr.iter().any(|v| v.as_str() == Some("crowdstrike")),
+        serde_json::Value::String(s) => s == "crowdstrike",
+        other => panic!("AC-007: _meta.data_source must be a string or array; got: {other:?}"),
+    };
     assert!(
-        source_arr.iter().any(|v| v.as_str() == Some("crowdstrike")),
+        source_contains_crowdstrike,
         "AC-007: _meta.data_source must contain 'crowdstrike' for a crowdstrike query; data_source: {data_source:?}"
     );
 }
@@ -568,6 +576,30 @@ async fn test_BC_2_09_008_e2e_response_envelope_meta_fields_correct() {
 /// Both prism-bin and DTU server must exit within 5 seconds with status 0.
 ///
 /// // E2E-001: requires DTU server running; un-gated in CI via 'e2e' nextest profile.
+///
+/// # SID-1 §2 deferral (SUGGESTION-1 from PR #171 review)
+///
+/// The SIGTERM handler in `crates/prism-bin/src/signals.rs` calls
+/// `std::process::exit(0)` directly after receiving the signal. There is no
+/// in-process hook, channel drain, or `Drop`-based callback that can be driven
+/// by a unit test without spawning a real subprocess.
+///
+/// A unit-test substitute would require either:
+/// a) Mocking `std::process::exit` — not possible in stable Rust without unsafe trickery.
+/// b) Refactoring signals.rs to inject a "shutdown executor" trait — that is a
+///    non-trivial architectural change (separate story scope).
+///
+/// The BC-2.10.010 exit-code CONTRACT (the part that IS unit-testable) is already
+/// covered by `boot.rs::shutdown_exit_code_tests` — see
+/// `test_wait_for_shutdown_clean_returns_exit_0` and siblings, which drive
+/// `RunningServer::wait_for_shutdown()` with pre-resolved JoinHandles.
+///
+/// The subprocess-level SIGTERM → exit(0) behaviour (the part that REQUIRES a
+/// subprocess) is covered by this `#[ignore]`'d test, ungated in CI via the
+/// 'e2e' nextest profile.
+///
+/// Blocking dependency: signals.rs `std::process::exit(0)` is not mockable
+/// without a refactor scoped to S-1.12-FOLLOWUP (signal handler redesign).
 #[cfg(unix)]
 #[tokio::test]
 #[ignore = "E2E-001: requires DTU server running; un-gated in CI via 'e2e' nextest profile."]
