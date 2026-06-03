@@ -6,11 +6,11 @@ wave: 5
 epic_id: E-DEMO
 priority: P0
 status: ready
-version: "2.0"
+version: "2.1"
 level: "L4"
 producer: story-writer
 timestamp: "2026-06-02T00:00:00Z"
-modified: "2026-06-03T12:00:00Z"
+modified: "2026-06-03T14:00:00Z"
 tdd_mode: strict
 subsystems: [SS-01, SS-10, SS-11, SS-22]
 # Subsystem anchor justifications:
@@ -22,13 +22,14 @@ subsystems: [SS-01, SS-10, SS-11, SS-22]
 #     materialization pipeline, OCSF normalization, and ResponseEnvelope wrapping.
 #   SS-22 (Binary Entrypoint) — test launches prism-bin start as a subprocess and validates
 #     clean SIGTERM shutdown per BC-2.10.010.
-crates_touched: [prism-bin, prism-query, prism-spec-engine]
+crates_touched: [prism-bin, prism-query, prism-spec-engine, prism-credentials]
 # crates_touched notes:
 #   prism-bin: integration test file (tests/e2e_smoke.rs + helpers) + binary entrypoint
 #   prism-query: AC-014 AQL push-down seeding — QueryEngine must populate
 #                FetchContext.query_filters["aql"] from PrismQL WHERE predicates (D-934 scope)
 #   prism-spec-engine: PipelineExecutor receives FetchContext; may need seeding if the
 #                      query_filters plumbing runs through this crate rather than prism-query
+#   prism-credentials: OBS-001 fix modified src + tests in this crate (MED-001 POL-29 step 3d)
 target_module: prism-bin
 capabilities: [CAP-001, CAP-015, CAP-034]
 behavioral_contracts:
@@ -128,11 +129,11 @@ cycle: "v1.0.0-brownfield"
 phase: 3
 ---
 
-# S-DEMO-002 v2.0 — prism-bin: E2E Subprocess Smoke Test (All 4 Sensors + Multi-Org Isolation)
+# S-DEMO-002 v2.1 — prism-bin: E2E Subprocess Smoke Test (All 4 Sensors + Multi-Org Isolation)
 
 **Story ID:** S-DEMO-002
 **Status:** ready
-**Version:** v2.0
+**Version:** v2.1
 **Wave:** 5
 **Priority:** P0
 **Points:** 11
@@ -317,22 +318,28 @@ Then: The E2E smoke test functions in `crates/prism-bin/tests/e2e_smoke.rs` are 
 `// E2E-001: requires DTU server running; un-gated in CI via 'e2e' nextest profile.`
 
 A dedicated GitHub Actions workflow (`.github/workflows/e2e.yml`, delivered in this PR) runs the
-suite automatically. The workflow:
-- triggers on `pull_request` and `push` to `develop` (every PR and every merge to develop
-  is gated; regressions are caught before merge)
-- builds release binaries: `cargo build --release -p prism-bin -p prism-dtu-demo-server`
+suite automatically. The canonical workflow attributes are:
+- **job name:** "E2E smoke"
+- **runs-on:** `ubuntu-latest`
+- **triggers:** `pull_request` and `push` to `[develop, main]`, plus `workflow_dispatch`
+  (no schedule/cron — PR+push gating is the contract; a scheduled drift-detection run is a
+  future maintenance PR if desired)
+- **timeout-minutes:** 45
+- **release build:** `cargo build --release -p prism-bin -p prism-dtu-demo-server`
+- **canonical command:** `cargo nextest run -p prism-bin --profile e2e --run-ignored ignored-only`
+  (un-ignoring is via the CLI flag `--run-ignored ignored-only`, NOT a profile config key)
 - launches the DTU demo server and polls for `.prism-dtu-demo-server.urls.json` (30s timeout)
-- executes the ignored suite via:
-  `cargo nextest run -p prism-bin --profile e2e --run-ignored ignored-only`
 - runs DTU teardown unconditionally (`if: always()`) to prevent zombie processes
 - uploads JUnit XML artifacts on failure for post-mortem diagnosis
 
-The `[profile.e2e]` section in `.config/nextest.toml` sets `run-ignored = "all"`,
-`slow-timeout = { period = "120s" }`, and `retries = 1`.
+The `[profile.e2e]` section in `.config/nextest.toml` sets `slow-timeout = { period = "120s" }`
+and `retries = 1`. The `retries = 1` setting absorbs single transient flakes; a double failure is
+a real regression. Note: nextest does NOT support a `run-ignored` key in the profile — un-ignoring
+is always specified via the CLI flag `--run-ignored ignored-only`, not in `.config/nextest.toml`.
 
 The net effect: E2E tests are invisible to developers running standard `just check` locally
-(no DTU server required), but run automatically on every PR and push so regressions are caught
-before merge, not discovered during adversarial review.
+(no DTU server required), but run automatically on every PR and push to develop and main so
+regressions are caught before merge, not discovered during adversarial review.
 
 (traces to BC-2.22.001 invariant: "boot orchestration makes startup deterministic and testable")
 
@@ -483,8 +490,9 @@ Version source: workspace `Cargo.toml`. `rmcp` version confirmed from S-5.01-FOL
 | `crates/prism-bin/tests/e2e_smoke.rs` | CREATE | Integration test file with all ACs |
 | `crates/prism-bin/tests/helpers/mod.rs` | CREATE | `SubprocessGuard` (drop → SIGTERM), `wait_for_file()`, `write_demo_config()`, `bootstrap_credentials()` |
 | `crates/prism-bin/fixtures/e2e-demo/demo.toml` | CREATE | DTU demo server config for test (same 4 sensors). Path is `fixtures/e2e-demo/` (NOT `tests/fixtures/`) — accessed via `CARGO_MANIFEST_DIR/fixtures/e2e-demo/demo.toml` in the test harness (F-PB-MED-002 corrected; phantom `demo-prism.toml.template` removed — `prism.toml` is generated programmatically by `write_demo_config()` helper into a `TempDir`, not from a template file). |
-| `.config/nextest.toml` | MODIFY | Add `[profile.e2e]` that un-ignores E2E-tagged tests (`run-ignored = "all"`, `slow-timeout = { period = "120s" }`, `retries = 1`) |
-| `.github/workflows/e2e.yml` | CREATE | Dedicated e2e CI workflow — triggers on `pull_request` + `push` to `develop`; builds release binaries, launches DTU, runs `cargo nextest run -p prism-bin --profile e2e --run-ignored ignored-only`; closes ADV-SDEMO002-PR-P02-HIGH-001 and OBS-2 |
+| `.config/nextest.toml` | MODIFY | Add `[profile.e2e]` with `slow-timeout = { period = "120s" }` and `retries = 1`. Note: nextest does NOT support a `run-ignored` profile key — un-ignoring is specified via the CLI flag `--run-ignored ignored-only`, not here. |
+| `.github/workflows/e2e.yml` | CREATE | Dedicated e2e CI workflow — job name "E2E smoke", runs-on `ubuntu-latest`, timeout-minutes 45; triggers on `pull_request` + `push` to `[develop, main]` + `workflow_dispatch` (no cron); builds release binaries, launches DTU, runs `cargo nextest run -p prism-bin --profile e2e --run-ignored ignored-only`; closes ADV-SDEMO002-PR-P02-HIGH-001 and OBS-2 |
+| `crates/prism-credentials/src/` | MODIFY | OBS-001 fix: credential bootstrap helper modifications (src + tests) |
 
 ---
 
@@ -503,7 +511,7 @@ Version source: workspace `Cargo.toml`. `rmcp` version confirmed from S-5.01-FOL
 11. **Implement** 4 × query assertions (AC-003..006) — each sends `tools/call` with appropriate query string; asserts non-empty data and OCSF fields. For Armis (AC-004), the query MUST supply the AQL predicate: `"SELECT * FROM armis_devices WHERE aql = 'in:devices' LIMIT 5"` — bare `SELECT * FROM armis_devices LIMIT 5` (no AQL WHERE) is not a supported query for Armis per AC-004.
 12. **Implement** `_meta` assertions (AC-007) — parse `ResponseEnvelope` JSON; assert `trust_level` and `safety_flags`.
 13. **Implement** SIGTERM teardown (AC-008) in `SubprocessGuard::drop()`.
-14. **Add** `[profile.e2e]` to `.config/nextest.toml` — un-ignores tests tagged `// E2E-001:`. (Path is `.config/nextest.toml`, NOT `.cargo/nextest.toml` — LOW-001 corrected.)
+14. **Add** `[profile.e2e]` to `.config/nextest.toml` — set `slow-timeout = { period = "120s" }` and `retries = 1`. Do NOT add `run-ignored = "all"` — nextest does not support this key in profiles; un-ignoring is done via the CLI flag `--run-ignored ignored-only`. (Path is `.config/nextest.toml`, NOT `.cargo/nextest.toml` — LOW-001 corrected.)
 15. **Implement** `write_multi_org_demo_config()` helper — generates 3-org config with overlapping
     and non-overlapping sensor sets (demo-org-a: CrowdStrike+Armis; demo-org-b: Claroty+Cyberint;
     demo-org-c: all 4). Writes per-org `customers/{slug}/` overlay directories for each sensor.
@@ -549,15 +557,17 @@ Version source: workspace `Cargo.toml`. `rmcp` version confirmed from S-5.01-FOL
     (F-PC-002 gap closed.)
 25. **Create** `.github/workflows/e2e.yml` (devops-engineer scope, in-scope for this PR per human
     decision 2026-06-03 absorbing S-DEMO-CI-E2E-001): the dedicated e2e CI workflow. Read
-    `.github/workflows/ci.yml` in full to extract all action SHA pins verbatim. Structure:
-    - triggers: `pull_request` + `push` to `develop` (no schedule — daily cron is a future
-      enhancement if desired; PR+push gate closes the OBS-2 structural gap)
-    - `runs-on: macos-latest` only (SIGTERM is Unix-only; no Windows runner)
-    - `timeout-minutes: 30`
+    `.github/workflows/ci.yml` in full to extract all action SHA pins verbatim. Canonical structure:
+    - **job name:** `E2E smoke`
+    - **runs-on:** `ubuntu-latest` (Linux runner; SIGTERM works on Linux; no macOS runner needed)
+    - **timeout-minutes:** `45`
+    - **triggers:** `pull_request` and `push` to `[develop, main]`, plus `workflow_dispatch`
+      (no schedule/cron — PR+push gating is the contract; a scheduled drift-detection run can be
+      a future maintenance PR; OBS-2 gap is closed by PR+push gating alone)
     - steps: checkout → rust-toolchain → setup-protoc → rust-cache (shared-key: `e2e-release`) →
       install nextest → `cargo build --release -p prism-bin -p prism-dtu-demo-server` →
       credential bootstrap (env-var shim via `prism-credentials` test-helpers feature, or
-      `security add-generic-password` macOS CLI) → launch DTU + poll `urls.json` (30s timeout) →
+      Linux `secret-tool store` / env-var injection) → launch DTU + poll `urls.json` (30s timeout) →
       `cargo nextest run -p prism-bin --profile e2e --run-ignored ignored-only` →
       upload JUnit XML on failure → DTU teardown (`if: always()`)
     - header comment: `# E2E Red Gate workflow — closes ADV-SDEMO002-PR-P02-HIGH-001 +
@@ -616,7 +626,8 @@ Version source: workspace `Cargo.toml`. `rmcp` version confirmed from S-5.01-FOL
 | S-5.01-FOLLOWUP-MCP-BOOT story (rmcp version context) | ~3,000 |
 | Test output during iteration | ~3,000 |
 | `prism-query/src/` + `prism-spec-engine/src/pipeline_executor.rs` (AQL seeding site) | ~3,500 |
-| **Total estimate** | **~43,800 tokens (~17% of 256K context)** |
+| `crates/prism-credentials/src/lib.rs` (credential bootstrap helper surface) | ~1,200 |
+| **Total estimate** | **~45,000 tokens (~18% of 256K context)** |
 
 Well within budget; second-cheapest story in the E-DEMO epic.
 
@@ -637,6 +648,7 @@ Well within budget; second-cheapest story in the E-DEMO epic.
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 2.1 | 2026-06-03 | product-owner | Fix-burst closing ADV-SDEMO002-PR-P03-HIGH-001/MED-001/MED-002 + OBS-001 + AC-009/retries reconcile. (1) HIGH-001/OBS-001: AC-010 Then-clause rewritten to match canonical e2e.yml spec exactly — job name "E2E smoke", runs-on `ubuntu-latest`, timeout-minutes 45, triggers `pull_request`+`push`[develop,main]+`workflow_dispatch` (no cron), release build, canonical command `cargo nextest run -p prism-bin --profile e2e --run-ignored ignored-only`. Task 25 updated: `macos-latest`→`ubuntu-latest`, `timeout-minutes: 30`→`45`, trigger set corrected (add `main` + `workflow_dispatch`, drop schedule); job name set to "E2E smoke". Changelog v2.0 narrative corrected. (2) MED-002: `run-ignored = "all"` profile key struck from AC-010 profile description and FSR `.config/nextest.toml` row — nextest does NOT support this key; un-ignoring is via CLI flag `--run-ignored ignored-only` only; both locations now state this explicitly. (3) MED-001 (POL-29 step 3d): `prism-credentials` added to frontmatter `crates_touched` array; FSR row added for `crates/prism-credentials/src/`; Token Budget row added (~1,200 tokens); frontmatter comment updated. |
 | 2.0 | 2026-06-03 | product-owner | Reconcile AC-010 to delivered e2e CI job; disposition S-DEMO-CI-E2E-001 (ADV-SDEMO002-PR-P02-HIGH-001). AC-010 rewritten: the `#[ignore]` gate is now paired with a described dedicated GitHub Actions workflow (`.github/workflows/e2e.yml`) that triggers on `pull_request` + `push` to `develop`, builds release binaries, launches DTU, and runs `cargo nextest run -p prism-bin --profile e2e --run-ignored ignored-only` automatically. AC-009 updated: CI job replaces the prior vague "CI e2e profile job" reference with a concrete citation to `e2e.yml`. File Structure Requirements table updated: `.config/nextest.toml` clarified with `run-ignored / slow-timeout / retries` settings; `.github/workflows/e2e.yml` added as a CREATE deliverable of this PR. Task 25 added: devops-engineer scope for creating `e2e.yml`, absorbed from S-DEMO-CI-E2E-001 per human decision 2026-06-03. S-DEMO-CI-E2E-001 superseded (see that story's v1.1 changelog). |
 | 1.9 | 2026-06-03 | story-writer | SPEC fix — human-authorized spec amendment per Source-of-Truth §7 (code canonical for query syntax). Closes ADV-SDEMO002-P01-MED-001: all bare `FROM <source> LIMIT N` query strings in ACs/Tasks/Open-Questions replaced with SQL form `SELECT * FROM <source> LIMIT N` to match the working code in `crates/prism-bin/tests/e2e_smoke.rs` (bare-FROM is invalid PrismQL pipe syntax; parser requires `\|` before `LIMIT` in pipe mode). Affected locations: AC-003, AC-005 (claroty_alerts + claroty_devices), AC-006, AC-012, AC-013 (two instances), Task 11, Task 17, Open Question 3. AC-004 EXCEPTION: `WHERE aql = 'in:devices' LIMIT 5` form retained verbatim (D-963 Option-A locked decision); SQL form already in place from v1.7. Closes ADV-SDEMO002-P01-MED-002: Task 9 `prism-bin start --config <temp_dir>` corrected to `prism-bin start --config-dir <temp_dir>` (clap CLI declares `--config-dir`; confirmed in `helpers/mod.rs` line 976 `.arg("--config-dir")`). Task 8 (`prism-dtu-demo-server start --config`) LEFT UNCHANGED — DTU binary genuinely uses `--config` (confirmed in `prism-dtu-demo-server/src/main.rs` line 37: `#[arg(long, short = 'c'` named `config`). |
 | 1.8 | 2026-06-02 | product-owner | SPEC fix — comprehensive prose audit + F-DEMO002-P3-MED-001 closure. (1) EC-004: `events` field corrected to `rows` (non-existent `events` field; actual ResponseEnvelope payload field is `rows` per `server.rs:1322` `"rows": rows`; envelope keys are `rows / returned_results / total_available / is_truncated`). (2) EC-005: both `events` occurrences corrected to `rows`; assertion description aligned to `≤200 rows` (consistent with as-built test `rows.len() <= 200`). (3) AC-007 "What `wrap()` scans" block corrected: prose previously claimed `results` is a "JSON Array (not Object)" for the query tool — as-built `safety_envelope.rs` shows `results` is an Object `{"rows": [...], "returned_results": N, "total_available": N, "is_truncated": bool}`; `wrap()` extracts the inner `rows` array via `results.get("rows")` for scanning. Prose rewritten to match actual code path. (4) Task 19 test name corrected: `test_BC_2_11_007_e2e_armis_aql_pushdown_seeded_in_fetch_context` → `test_BC_2_11_007_e2e_armis_aql_pushdown_devices_dtu_roundtrip` (as-built name in `e2e_smoke.rs`); description updated to match the as-built dual-assertion pattern (rows non-empty + DTU aql-log verification). COORDINATION NOTE: implementer separately directed to make `e2e_smoke.rs` doc-comment story reference version-agnostic (`Story: S-DEMO-002` with no version) per TD-VSDD-091 anti-volatile-pin — no code change required from this burst. |
