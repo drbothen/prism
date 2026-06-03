@@ -564,8 +564,9 @@ impl McpStdioHandle {
     /// the `"error"` field.  Only I/O and parse failures are returned as `Err`.
     ///
     /// Used by AC-012 (cross-org isolation): the `query` handler returns a
-    /// JSON-RPC error when AdapterNotFound; the test must capture that error
-    /// object and verify it carries the E-SENSOR-010 signal — it must NOT panic.
+    /// JSON-RPC error (code -32602) when `resolve_source_refs` raises E-QUERY-032
+    /// (sensor not registered for the requesting org); the test must capture that
+    /// error object and verify it carries the E-QUERY-032 signal — it must NOT panic.
     fn send_request_allow_rpc_error(
         &mut self,
         method: &str,
@@ -675,14 +676,15 @@ impl McpStdioHandle {
 
     /// Send `tools/call` for the `query` tool scoped to an org, expecting a JSON-RPC error.
     ///
-    /// Used exclusively by AC-012 (cross-org isolation). When the `query` handler returns
-    /// AdapterNotFound (E-SENSOR-010), the MCP server emits a JSON-RPC error response.
+    /// Used exclusively by AC-012 (cross-org isolation). When `resolve_source_refs`
+    /// raises E-QUERY-032 (sensor not registered for the requesting org), the MCP server
+    /// emits a JSON-RPC error response with code -32602.
     /// `tool_query_scoped` (which calls `send_request`) would propagate this as `Err` and
     /// `.expect()` would panic — hiding the error content the test needs to inspect.
     ///
     /// This method uses `send_request_allow_rpc_error` so the full JSON-RPC response
     /// (including the `"error"` object) is returned as `Ok(json)`. The test then asserts
-    /// the error contains the E-SENSOR-010 / "no adapter registered for sensor id" signal.
+    /// the error contains the E-QUERY-032 / "is not registered for org" signal.
     ///
     /// For success-path tests use `tool_query_scoped` instead.
     pub fn tool_query_scoped_expect_rpc_error(
