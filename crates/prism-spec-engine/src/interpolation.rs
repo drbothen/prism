@@ -155,11 +155,30 @@ impl Interpolator {
                 }
             };
 
-            // Coerce to string and apply context-appropriate escaping
-            let raw_str = value_to_string(value);
+            // Coerce to string and apply context-appropriate escaping.
+            //
+            // For JsonBody context: JSON arrays and objects are inserted verbatim
+            // (their to_string() is already valid JSON). String scalars are json_escaped
+            // (wrap in "" and escape special chars for safe JSON string context).
+            // Number/bool/null scalars are inserted verbatim (valid JSON literals).
+            //
+            // Without this distinction, an array `["a","b"]` would be json_escaped to
+            // `[\"a\",\"b\"]` — an invalid JSON value that causes HTTP 400 from the DTU.
             let escaped = match context {
-                InterpolationContext::UrlPath => Self::percent_encode(&raw_str),
-                InterpolationContext::JsonBody => Self::json_escape(&raw_str),
+                InterpolationContext::UrlPath => {
+                    let raw_str = value_to_string(value);
+                    Self::percent_encode(&raw_str)
+                }
+                InterpolationContext::JsonBody => match value {
+                    // Arrays and objects: insert verbatim JSON (valid JSON literals).
+                    serde_json::Value::Array(_) | serde_json::Value::Object(_) => value.to_string(),
+                    // String scalars: json_escape for safe JSON string context
+                    // (the value will be placed inside a JSON string by the template, e.g.
+                    // `"key": ${step.field}` where the value is a string).
+                    serde_json::Value::String(s) => Self::json_escape(s),
+                    // Number, bool, null: valid JSON literals, insert verbatim.
+                    _ => value_to_string(value),
+                },
             };
 
             result.push_str(&escaped);

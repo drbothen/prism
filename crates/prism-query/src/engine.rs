@@ -532,8 +532,23 @@ impl QueryEngine {
         );
 
         // Step 4: Resolve effective options (merge client scope into options).
+        //
+        // Preserve the original `clients` scope semantics for `resolve_source_refs`:
+        // - `None` (no explicit scope) → keep `None` so resolve_source_refs uses the
+        //   ALL scope path (iterate all registered adapters, not all clients in registry).
+        //   This prevents false E-QUERY-032 errors for orgs that don't have a sensor.
+        // - `Some([...])` (explicit scope) → keep the resolved/validated client list.
+        //
+        // The `clients` variable (from resolve_clients above) is used for client-side
+        // validation and metrics only, NOT for fan-out scope gating.
+        let effective_clients = if options.clients.is_none() {
+            // No explicit scope: let resolve_source_refs use ALL-scope fan-out.
+            None
+        } else {
+            Some(clients.clone())
+        };
         let effective_options = QueryOptions {
-            clients: Some(clients.clone()),
+            clients: effective_clients,
             capabilities: options.capabilities.clone(),
             ..options.clone()
         };

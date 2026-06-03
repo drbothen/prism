@@ -126,10 +126,11 @@ async fn test_BC_2_11_005_e2e_crowdstrike_query_returns_ocsf_data() {
 
     // AC-003: query CrowdStrike detections.
     // Table name: "detections" (crowdstrike.sensor.toml [[tables]] table_name = "detections").
-    // Full qualified source: "crowdstrike_detections" — underscore notation per PrismQL
-    // FROM syntax. The resolver (sensor_id_from_table_name) rejects dot notation (E-QUERY-006).
+    // Full qualified source: "crowdstrike_detections" — underscore notation per PrismQL SQL mode.
+    // SQL form required: "FROM source LIMIT N" is invalid pipe syntax; use "SELECT * FROM ... LIMIT N".
+    // The resolver (sensor_id_from_table_name) rejects dot notation (E-QUERY-006).
     let response = mcp
-        .tool_query("FROM crowdstrike_detections LIMIT 5")
+        .tool_query("SELECT * FROM crowdstrike_detections LIMIT 5")
         .expect("tool_query failed for crowdstrike");
 
     // Assert non-empty data.
@@ -201,8 +202,9 @@ async fn test_BC_2_11_005_e2e_armis_query_returns_data() {
     // DTU fetch path: GET /api/v1/search?aql=in:devices (S-DEMO-ARMIS-AQL-001 fix).
     // The Armis /api/v1/search path_template uses ${query.filter.aql} — there is NO
     // default AQL value. A WHERE aql = '...' predicate is mandatory for all armis queries.
+    // SQL form required: "FROM ... LIMIT N" is invalid; use "SELECT * FROM ... LIMIT N".
     let response = mcp
-        .tool_query("FROM armis_devices WHERE aql = 'in:devices' LIMIT 5")
+        .tool_query("SELECT * FROM armis_devices WHERE aql = 'in:devices' LIMIT 5")
         .expect("tool_query failed for armis");
 
     let rows = extract_rows_from_envelope(&response);
@@ -279,8 +281,9 @@ async fn test_BC_2_11_007_e2e_armis_aql_pushdown_devices_dtu_roundtrip() {
     // BC-2.11.007 Mechanism B: `WHERE aql = 'in:devices'` seeds FetchContext.query_filters["aql"]
     // which PipelineExecutor interpolates into the path_template
     // `/api/v1/search?aql=${query.filter.aql}`, forwarding the AQL opaquely to the DTU.
+    // SQL form required: "FROM ... LIMIT N" is invalid pipe syntax; use "SELECT * FROM ... LIMIT N".
     let response = mcp
-        .tool_query("FROM armis_devices WHERE aql = 'in:devices' LIMIT 5")
+        .tool_query("SELECT * FROM armis_devices WHERE aql = 'in:devices' LIMIT 5")
         .expect("AC-014: tool_query failed for armis_devices with aql WHERE predicate");
 
     // Assertion A: prism returns non-empty data rows (pipeline succeeded end-to-end).
@@ -380,8 +383,9 @@ async fn test_BC_2_11_005_e2e_claroty_query_returns_data() {
     mcp.initialize().expect("MCP handshake failed");
 
     // AC-005a: query Claroty alerts.
+    // SQL form: "FROM ... LIMIT N" is invalid; use "SELECT * FROM ... LIMIT N".
     let alerts_response = mcp
-        .tool_query("FROM claroty_alerts LIMIT 5")
+        .tool_query("SELECT * FROM claroty_alerts LIMIT 5")
         .expect("tool_query failed for claroty_alerts");
 
     let alert_rows = extract_rows_from_envelope(&alerts_response);
@@ -403,8 +407,9 @@ async fn test_BC_2_11_005_e2e_claroty_query_returns_data() {
     assert_response_has_no_error(&alerts_response);
 
     // AC-005b: query Claroty devices (Gap-CL-003 fix — devices table added).
+    // SQL form: "FROM ... LIMIT N" is invalid; use "SELECT * FROM ... LIMIT N".
     let devices_response = mcp
-        .tool_query("FROM claroty_devices LIMIT 5")
+        .tool_query("SELECT * FROM claroty_devices LIMIT 5")
         .expect("tool_query failed for claroty_devices");
 
     let device_rows = extract_rows_from_envelope(&devices_response);
@@ -443,8 +448,9 @@ async fn test_BC_2_11_005_e2e_cyberint_query_returns_data() {
 
     // AC-006: query Cyberint alerts.
     // Table name: "alerts" (cyberint.sensor.toml [[tables]] table_name = "alerts").
+    // SQL form: "FROM ... LIMIT N" is invalid; use "SELECT * FROM ... LIMIT N".
     let response = mcp
-        .tool_query("FROM cyberint_alerts LIMIT 5")
+        .tool_query("SELECT * FROM cyberint_alerts LIMIT 5")
         .expect("tool_query failed for cyberint");
 
     let rows = extract_rows_from_envelope(&response);
@@ -484,8 +490,9 @@ async fn test_BC_2_09_008_e2e_response_envelope_meta_fields_correct() {
 
     mcp.initialize().expect("MCP handshake failed");
 
+    // SQL form: "FROM ... LIMIT N" is invalid; use "SELECT * FROM ... LIMIT N".
     let response = mcp
-        .tool_query("FROM crowdstrike_detections LIMIT 5")
+        .tool_query("SELECT * FROM crowdstrike_detections LIMIT 5")
         .expect("tool_query failed for crowdstrike");
 
     // AC-007: assert ≥1 row before proceeding — safety_flags assertion is only meaningful
@@ -564,7 +571,8 @@ async fn test_BC_2_10_010_e2e_sigterm_cleanly_shuts_down_both_subprocesses() {
     mcp.initialize().expect("MCP handshake failed");
 
     // Issue a query to confirm working state before teardown.
-    let _ = mcp.tool_query("FROM crowdstrike_detections LIMIT 5");
+    // SQL form: "FROM ... LIMIT N" is invalid; use "SELECT * FROM ... LIMIT N".
+    let _ = mcp.tool_query("SELECT * FROM crowdstrike_detections LIMIT 5");
 
     // Send SIGTERM to prism-bin (AC-008).
     let prism_pid = prism_guard.child.id() as libc::pid_t;
@@ -665,13 +673,14 @@ async fn test_BC_3_2_001_e2e_multi_org_boot_registers_correct_adapter_count() {
     // Table names use underscore notation ({sensor}_{table}) per PrismQL FROM syntax.
     // armis_devices requires WHERE aql = '...' — /api/v1/search uses ${query.filter.aql}
     // with no default; omitting the predicate causes interpolation failure before any HTTP call.
+    // SQL form: "FROM ... LIMIT N" is invalid; use "SELECT * FROM ... LIMIT N".
     for (org, sensor_table, where_clause) in [
         ("demo-org-c", "crowdstrike_detections", ""),
         ("demo-org-c", "armis_devices", " WHERE aql = 'in:devices'"),
         ("demo-org-c", "claroty_alerts", ""),
         ("demo-org-c", "cyberint_alerts", ""),
     ] {
-        let query = format!("FROM {sensor_table}{where_clause} LIMIT 1");
+        let query = format!("SELECT * FROM {sensor_table}{where_clause} LIMIT 1");
         let response = mcp.tool_query(&query).unwrap_or_else(|e| {
             panic!("AC-011: query failed for org={org} table={sensor_table}: {e}")
         });
@@ -747,8 +756,9 @@ async fn test_BC_3_2_001_e2e_cross_org_sensor_query_returns_e_query_032() {
     // QueryToolParams.clients: Option<Vec<String>>; #[serde(deny_unknown_fields)] rejects `org_slug`.
     // Claroty is registered for demo-org-b and demo-org-c (NOT demo-org-a) — the org-scoped
     // guard fires and returns E-QUERY-032 (sensor registered for other orgs but not this one).
+    // SQL form: "FROM ... LIMIT N" is invalid; use "SELECT * FROM ... LIMIT N".
     let response = mcp
-        .tool_query_scoped_expect_rpc_error("FROM claroty_alerts LIMIT 5", "demo-org-a")
+        .tool_query_scoped_expect_rpc_error("SELECT * FROM claroty_alerts LIMIT 5", "demo-org-a")
         .expect("tool_query_scoped_expect_rpc_error failed at transport/I/O level (not an expected RPC error)");
 
     // AC-012 assertion 1: response has a JSON-RPC `error` field, not a `result`.
@@ -851,8 +861,9 @@ async fn test_BC_3_2_001_e2e_dtu_multi_tenant_each_org_reaches_correct_clone_por
     // AC-013: query CrowdStrike from demo-org-a (CrowdStrike IS registered for demo-org-a).
     // DTU-MULTI-001: demo DTU operates in single-tenant mode; org isolation is at
     // AdapterRegistry layer only (AC-013 scope clarification per S-DEMO-002).
+    // SQL form: "FROM ... LIMIT N" is invalid; use "SELECT * FROM ... LIMIT N".
     let response_a = mcp
-        .tool_query_scoped("FROM crowdstrike_detections LIMIT 5", "demo-org-a")
+        .tool_query_scoped("SELECT * FROM crowdstrike_detections LIMIT 5", "demo-org-a")
         .expect("query for demo-org-a failed (unexpected network/transport error)");
 
     let rows_a = extract_rows_from_envelope(&response_a);
@@ -866,8 +877,9 @@ async fn test_BC_3_2_001_e2e_dtu_multi_tenant_each_org_reaches_correct_clone_por
 
     // AC-013: query CrowdStrike from demo-org-c (CrowdStrike IS registered for demo-org-c).
     // Both orgs point to the same DTU clone port — both receive identical fixture data.
+    // SQL form: "FROM ... LIMIT N" is invalid; use "SELECT * FROM ... LIMIT N".
     let response_c = mcp
-        .tool_query_scoped("FROM crowdstrike_detections LIMIT 5", "demo-org-c")
+        .tool_query_scoped("SELECT * FROM crowdstrike_detections LIMIT 5", "demo-org-c")
         .expect("query for demo-org-c failed (unexpected network/transport error)");
 
     let rows_c = extract_rows_from_envelope(&response_c);
@@ -912,8 +924,9 @@ async fn test_EC_004_e2e_limit_zero_returns_empty_not_error() {
     mcp.initialize().expect("MCP handshake failed");
 
     // EC-004: LIMIT 0 must return an empty result, not an error.
+    // SQL form: "FROM ... LIMIT N" is invalid; use "SELECT * FROM ... LIMIT N".
     let response = mcp
-        .tool_query("FROM crowdstrike_detections LIMIT 0")
+        .tool_query("SELECT * FROM crowdstrike_detections LIMIT 0")
         .expect("tool query (LIMIT 0) failed at transport level");
 
     // Assert no error envelope.
@@ -970,8 +983,9 @@ async fn test_EC_005_e2e_limit_200_returns_paginated_rows() {
     // EC-005: LIMIT 200 must return rows without error.
     // The DTU fixture may have fewer than 200 CrowdStrike detections; if so,
     // len(rows) == fixture_count (still <= 200 and != 0).
+    // SQL form: "FROM ... LIMIT N" is invalid; use "SELECT * FROM ... LIMIT N".
     let response = mcp
-        .tool_query("FROM crowdstrike_detections LIMIT 200")
+        .tool_query("SELECT * FROM crowdstrike_detections LIMIT 200")
         .expect("tool query (LIMIT 200) failed at transport level");
 
     // Assert no error envelope.

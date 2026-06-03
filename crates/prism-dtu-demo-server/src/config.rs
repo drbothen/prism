@@ -90,6 +90,17 @@ pub struct CloneConfig {
     /// When `false` (default): a bind failure aborts startup (AC-11 cleanup path).
     #[serde(default)]
     pub continue_on_error: bool,
+    /// Initial access token to register in the static allowlist (Cyberint only).
+    ///
+    /// When set, `build_clone_pairs` calls `BehavioralClone::configure()` with
+    /// `{"access_token": "<value>"}` on the Cyberint clone immediately after construction.
+    /// This seeds the allowlist so the clone accepts `Cookie: access_token=<value>`
+    /// on data requests without requiring a separate `/dtu/configure` POST.
+    ///
+    /// ADR-031 §D3-a: Cyberint uses static cookie auth; this is the test-harness
+    /// mechanism for seeding the allowlist at startup time.
+    #[serde(default)]
+    pub initial_access_token: Option<String>,
 }
 
 impl Default for CloneConfig {
@@ -103,6 +114,7 @@ impl Default for CloneConfig {
             seed: default_seed(),
             tls: false,
             continue_on_error: false,
+            initial_access_token: None,
         }
     }
 }

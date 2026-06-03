@@ -48,6 +48,25 @@ use std::time::{Duration, Instant};
 use tempfile::TempDir;
 
 // ---------------------------------------------------------------------------
+// E2E test constants
+// ---------------------------------------------------------------------------
+
+/// Shared access token registered in the Cyberint DTU's allowlist and passed
+/// as `CYBERINT_API_KEY` env var to prism-bin.
+///
+/// The Cyberint DTU validates the `access_token` cookie against an in-memory
+/// allowlist (ADR-031 §D3-a). This constant is used on both sides:
+///   1. `configure_cyberint_dtu_access_token()` POSTs it to the DTU's `/dtu/configure`.
+///   2. `launch_prism_bin()` sets `CYBERINT_API_KEY` to this value so
+///      `StaticCookieAuthProvider` (via `PrismCredentialResolver`) injects it
+///      as `Cookie: access_token=dtu-e2e-cyberint-access-token`.
+///
+/// Not a real credential — never reaches any external service.
+/// Per AD-017: credential values must not transit AI context; this is a
+/// test-harness-only placeholder, visible only in test-scope code.
+const DTU_E2E_CYBERINT_ACCESS_TOKEN: &str = "dtu-e2e-cyberint-access-token";
+
+// ---------------------------------------------------------------------------
 // DtuPorts
 // ---------------------------------------------------------------------------
 
@@ -373,6 +392,25 @@ fn write_org_config(
             .map_err(|e| format!("Failed to create directory '{}': {e}", dir.display()))?;
     }
 
+    // Stage the crowdstrike-oauth2 plugin for E2E tests.
+    //
+    // The crowdstrike.sensor.toml TYPE spec requires auth_type = "oauth2_client_credentials"
+    // with auth_plugin = "crowdstrike-oauth2" (D-747 LOCKED). Without the plugin, boot step
+    // 7.5b fails with BootError::UnknownAuthPlugin — the prism process exits before the MCP
+    // server binds, producing a "Broken pipe" EC-002 failure.
+    //
+    // The production plugin manifest (plugin.toml) has allowed_urls = ["api.crowdstrike.com"].
+    // SEC-003 validates the token endpoint host (127.0.0.1 for the DTU clone) against this
+    // allowlist at boot time. To pass SEC-003 in the E2E test harness, we write a DTU-safe
+    // manifest that extends the allowlist with "127.0.0.1" (the DTU bind address per demo.toml).
+    //
+    // The production .prx binary is used unchanged — only the manifest's allowed_urls changes.
+    // The production manifest (plugin.toml) is NOT modified; only the test-staging copy differs.
+    //
+    // Precedent: plugin_boot_tests.rs SENSOR_AUTH_MANIFEST constant uses the same pattern
+    // (adds "localhost" to allowed_urls for in-process unit tests; see plugin_boot_tests.rs L1357).
+    stage_crowdstrike_plugin(&plugins_dir)?;
+
     // Copy canonical TYPE specs from workspace into temp specs_dir.
     let workspace_specs = workspace_sensor_specs_dir();
     for sensor_id in ["crowdstrike", "armis", "claroty", "cyberint"] {
@@ -420,6 +458,87 @@ fn write_org_config(
     let prism_toml_path = config_dir.join("prism.toml");
     std::fs::write(&prism_toml_path, &prism_toml)
         .map_err(|e| format!("Failed to write prism.toml: {e}"))?;
+
+    Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// stage_crowdstrike_plugin (E2E test helper)
+// ---------------------------------------------------------------------------
+
+/// Stage the `crowdstrike-oauth2` plugin into the given plugins directory.
+///
+/// The crowdstrike.sensor.toml TYPE spec requires `auth_plugin = "crowdstrike-oauth2"` (D-747).
+/// Boot step 7.5b calls `validate_and_construct_auth_providers`, which fails with
+/// `BootError::UnknownAuthPlugin` if the plugin is not loaded. The process then exits before
+/// the MCP server binds, producing a "Broken pipe" EC-002 error in the test harness.
+///
+/// The production plugin binary (`.prx`) is copied unchanged from
+/// `crates/prism-spec-engine/plugins/crowdstrike-oauth2/crowdstrike-oauth2.prx`.
+///
+/// The production `plugin.toml` manifest has `allowed_urls = ["api.crowdstrike.com"]`.
+/// SEC-003 validates the token endpoint host (`127.0.0.1` for the DTU clone, per demo.toml
+/// `bind = "127.0.0.1"`) against this allowlist at boot time. To pass SEC-003 in the
+/// E2E harness, a DTU-safe companion manifest is written instead, extending the allowlist
+/// with `"127.0.0.1"`.
+///
+/// The production `plugin.toml` is **NOT modified**. Only the test-staging copy in the
+/// temp plugins directory uses the extended allowlist. This mirrors the pattern in
+/// `plugin_boot_tests.rs::SENSOR_AUTH_MANIFEST` (L1357 adds `"localhost"` for unit tests).
+///
+/// # Manifest companion naming
+/// The companion file is `{prx_stem}.manifest.toml` per `load_all_plugins` convention
+/// (`path.with_extension("manifest.toml")`).
+fn stage_crowdstrike_plugin(plugins_dir: &Path) -> Result<(), String> {
+    // Locate the production .prx file relative to CARGO_MANIFEST_DIR.
+    // CARGO_MANIFEST_DIR for prism-bin tests is `crates/prism-bin`.
+    let manifest_dir = std::env::var("CARGO_MANIFEST_DIR")
+        .expect("CARGO_MANIFEST_DIR must be set by cargo during integration tests");
+    let workspace_root = PathBuf::from(&manifest_dir)
+        .parent() // prism-bin
+        .expect("manifest dir must have a parent")
+        .parent() // crates/
+        .expect("crates dir must have a parent")
+        .to_path_buf();
+
+    let prx_src = workspace_root
+        .join("crates/prism-spec-engine/plugins/crowdstrike-oauth2/crowdstrike-oauth2.prx");
+    let prx_dst = plugins_dir.join("crowdstrike-oauth2.prx");
+
+    std::fs::copy(&prx_src, &prx_dst).map_err(|e| {
+        format!(
+            "Failed to copy crowdstrike-oauth2.prx from '{}' → '{}': {e}\n\
+             Hint: verify the plugin was compiled (it ships pre-built in the repo).",
+            prx_src.display(),
+            prx_dst.display()
+        )
+    })?;
+
+    // Write a DTU-safe companion manifest that adds "127.0.0.1" to allowed_urls.
+    // The DTU demo server always binds to 127.0.0.1 (demo.toml: bind = "127.0.0.1").
+    // SEC-003 validates the token endpoint host (base_url + "/oauth2/token") against
+    // allowed_urls at boot time; the DTU overlay sets base_url = "http://127.0.0.1:<port>".
+    //
+    // plugin_type = "sensor_auth" matches the production plugin.toml (required by
+    // PluginRuntime::load_all_plugins for correct type dispatch).
+    let manifest_content = r#"# DTU-safe companion manifest for crowdstrike-oauth2 E2E tests.
+# Extends production allowed_urls with "127.0.0.1" so SEC-003 passes when the
+# CrowdStrike DTU clone is the token endpoint (demo.toml: bind = "127.0.0.1").
+# The production plugin.toml is NOT modified — only this test-staging copy differs.
+name = "crowdstrike-oauth2"
+version = "0.1.0"
+format_version = 1
+plugin_type = "sensor_auth"
+allowed_urls = ["api.crowdstrike.com", "127.0.0.1"]
+"#;
+
+    let manifest_dst = plugins_dir.join("crowdstrike-oauth2.manifest.toml");
+    std::fs::write(&manifest_dst, manifest_content).map_err(|e| {
+        format!(
+            "Failed to write crowdstrike-oauth2 DTU manifest to '{}': {e}",
+            manifest_dst.display()
+        )
+    })?;
 
     Ok(())
 }
@@ -757,6 +876,31 @@ impl McpStdioHandle {
 ///
 /// Returns `(SubprocessGuard, McpStdioHandle)`.
 ///
+/// # Env vars set for TYPE-spec parse
+///
+/// The canonical sensor TYPE specs use `${env.VAR}` interpolation for `base_url`:
+///   - `claroty.sensor.toml`:  `base_url = "${env.CLAROTY_INSTANCE_URL}"`
+///   - `armis.sensor.toml`:    `base_url = "${env.ARMIS_INSTANCE_URL}"`
+///   - `cyberint.sensor.toml`: `base_url = "https://${env.CYBERINT_ENVIRONMENT}.cyberint.io"`
+///
+/// `env_resolver.rs` resolves these at spec-load time (before per-org overlays override
+/// `base_url` to the DTU URL). If the env var is absent or empty, the spec-engine emits
+/// E-SPEC-024 and boot fails. The placeholder values below are deliberately set to valid
+/// non-empty strings — the per-org overlay (`specs/customers/{org}/sensor.toml`) always
+/// overrides `base_url` to the DTU clone URL before any HTTP request is made.
+///
+/// `CYBERINT_ENVIRONMENT` is embedded inside the URL string:
+/// `"https://demo.cyberint.io"` (demo is a valid hostname component).
+/// The overlay replaces the full `base_url` with the DTU URL anyway.
+///
+/// # Plugin loading
+///
+/// PRISM_DISABLE_PLUGIN_LOAD is NOT set. The crowdstrike-oauth2 plugin is staged into
+/// the temp plugins dir by `stage_crowdstrike_plugin` (called from `write_org_config`).
+/// crowdstrike.sensor.toml requires auth_plugin = "crowdstrike-oauth2" (D-747 LOCKED).
+/// Without the plugin, step 7.5b fails with BootError::UnknownAuthPlugin before the MCP
+/// server binds, producing the EC-002 "Broken pipe" error.
+///
 /// # DTU-EXT-001 (SID-1 compliance)
 /// This function requires a live boot sequence. It is called only from
 /// `#[ignore]`'d E2E tests that are un-gated via the 'e2e' nextest profile.
@@ -766,15 +910,55 @@ pub async fn launch_prism_bin(
     let prism_bin = locate_binary("prism")?;
 
     // Spawn prism-bin with stdin/stdout pipes for MCP JSON-RPC communication.
-    // PRISM_DISABLE_PLUGIN_LOAD=1: skip plugin loading in E2E tests (no .prx files present).
+    //
+    // Env vars required for TYPE-spec ${env.VAR} interpolation (resolved at spec-load time,
+    // before per-org overlays override base_url to the DTU URL):
+    //   CLAROTY_INSTANCE_URL — placeholder; overlay overrides base_url to DTU clone URL.
+    //   ARMIS_INSTANCE_URL   — placeholder; overlay overrides base_url to DTU clone URL.
+    //   CYBERINT_ENVIRONMENT — "demo" produces "https://demo.cyberint.io"; override to DTU URL.
+    //
+    // PRISM_DISABLE_PLUGIN_LOAD is intentionally NOT set: the crowdstrike-oauth2 plugin is
+    // staged by write_org_config/stage_crowdstrike_plugin into the temp plugins dir, and
+    // boot step 7.5b requires it to resolve auth_plugin = "crowdstrike-oauth2" (D-747).
+    //
+    // RUST_LOG=off: The tracing subscriber (step1_init_tracing) writes to stdout by default
+    // (tracing_subscriber::fmt::layer() → stdout). The MCP stdio transport also uses stdout
+    // for JSON-RPC messages. Without log suppression, boot log lines go to stdout and are
+    // interleaved with JSON-RPC responses, making McpStdioHandle.send_request() fail with
+    // "Failed to parse JSON-RPC response" on every line that contains a log entry.
+    // Setting RUST_LOG=off eliminates all tracing output in the subprocess so the stdout
+    // stream carries only clean JSON-RPC protocol messages.
+    //
+    // This is correct for E2E tests: we test protocol behavior, not log output. Log output
+    // correctness is covered by unit tests (step1_init_tracing, BC-2.06.011 AC-5 first-log-line).
     let mut child = std::process::Command::new(&prism_bin)
         .arg("start")
         .arg("--config-dir")
         .arg(config_dir)
-        .env("PRISM_DISABLE_PLUGIN_LOAD", "1")
+        .env("CLAROTY_INSTANCE_URL", "http://placeholder.claroty.invalid")
+        .env("ARMIS_INSTANCE_URL", "http://placeholder.armis.invalid")
+        .env("CYBERINT_ENVIRONMENT", "demo")
+        // CYBERINT_API_KEY: used by StaticCookieAuthProvider via PrismCredentialResolver
+        // (resolve_credential("cyberint", "api_key") → env var CYBERINT_API_KEY).
+        // Must match the access_token registered in the Cyberint DTU's allowlist via
+        // initial_access_token in demo.toml. The DTU validates the `access_token` cookie
+        // against its allowlist; this value must be identical on both sides.
+        // ADR-031 §D3-a: static cookie auth; no login roundtrip.
+        .env("CYBERINT_API_KEY", DTU_E2E_CYBERINT_ACCESS_TOKEN)
+        // CROWDSTRIKE_CLIENT_ID / CROWDSTRIKE_CLIENT_SECRET: used by the crowdstrike-oauth2
+        // WASM plugin to POST client credentials to the DTU's /oauth2/token endpoint.
+        // The CrowdStrike DTU accepts any non-empty client_id/secret pair.
+        // resolve_credential("crowdstrike", "client_id") → env var CROWDSTRIKE_CLIENT_ID.
+        // resolve_credential("crowdstrike", "client_secret") → env var CROWDSTRIKE_CLIENT_SECRET.
+        .env("CROWDSTRIKE_CLIENT_ID", "dtu-e2e-crowdstrike-client-id")
+        .env(
+            "CROWDSTRIKE_CLIENT_SECRET",
+            "dtu-e2e-crowdstrike-client-secret",
+        )
+        .env("RUST_LOG", "off")
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
-        .stderr(Stdio::null()) // Suppress boot log noise; check exit code instead.
+        .stderr(Stdio::null()) // Boot log noise already suppressed by RUST_LOG=off.
         .spawn()
         .map_err(|e| format!("Failed to spawn prism-bin '{}': {e}", prism_bin.display()))?;
 

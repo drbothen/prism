@@ -58,15 +58,26 @@ use crate::{
 /// Query parameters accepted by `GET /api/v1/search`.
 ///
 /// Per AC-001 / AC-002 / AC-003: `aql` carries the AQL filter string.
-/// `page` and `size` mirror the pagination params used by devices/alerts endpoints.
+/// `page` and `size` mirror the real Armis pagination params.
+/// `offset` and `limit` are the prism-spec-engine OffsetLimit pagination params
+/// (sent by PipelineExecutor via `build_paged_url` — see pipeline.rs `OffsetLimit` arm).
+/// Both styles are accepted; when `offset`/`limit` are present they take precedence
+/// over `page`/`size`. This allows the DTU to respond correctly to the pipeline's
+/// OffsetLimit pagination without requiring the real Armis API's param names.
 #[derive(Debug, Deserialize, Default)]
 pub struct SearchQueryParams {
     /// AQL filter string — accepted verbatim, stored in AQL log (R-DTU-002).
     pub aql: Option<String>,
-    /// Page number (1-based). Defaults to 1.
+    /// Page number (1-based). Defaults to 1. Ignored when `offset` is present.
     pub page: Option<u32>,
-    /// Page size. Defaults to 25.
+    /// Page size. Defaults to 25. Ignored when `limit` is present.
     pub size: Option<u32>,
+    /// Zero-based record offset (prism OffsetLimit pagination convention).
+    /// When present, `page` is derived as `offset / effective_size + 1`.
+    pub offset: Option<u32>,
+    /// Maximum records to return (prism OffsetLimit pagination convention).
+    /// When present, overrides `size`.
+    pub limit: Option<u32>,
 }
 
 /// Top-level search response wrapper.
@@ -128,8 +139,22 @@ pub async fn get_search(
         state.capture_aql(aql);
     }
 
-    let page = params.page.unwrap_or(1).max(1);
-    let size = params.size.unwrap_or(25).max(1) as usize;
+    // Resolve pagination parameters.
+    // Prefer `offset`/`limit` (prism OffsetLimit convention) over `page`/`size` (real Armis API).
+    // The prism PipelineExecutor sends `?offset=N&limit=M` via build_paged_url for OffsetLimit steps.
+    // The real Armis API uses `?page=N&size=M`. Both conventions are accepted for DTU fidelity.
+    let (size, start_offset): (usize, usize) = if let Some(lim) = params.limit {
+        // prism OffsetLimit path: `?offset=N&limit=M`
+        let effective_size = (lim as usize).max(1);
+        let effective_offset = params.offset.unwrap_or(0) as usize;
+        (effective_size, effective_offset)
+    } else {
+        // Real Armis API path: `?page=N&size=M`
+        let effective_size = params.size.unwrap_or(25).max(1) as usize;
+        let page = params.page.unwrap_or(1).max(1) as usize;
+        let effective_offset = (page - 1) * effective_size;
+        (effective_size, effective_offset)
+    };
 
     // Determine whether to return alerts or devices based on AQL pattern matching.
     // R-DTU-002: AQL is opaque — only simple string pattern matching is permitted.
@@ -149,14 +174,13 @@ pub async fn get_search(
         // AC-003: alert AQL → paginated AlertRecord results.
         let all_alerts = &state.alert_fixture;
         let total = all_alerts.len() as u32;
-        let offset = ((page - 1) as usize) * size;
 
-        let page_alerts: Vec<serde_json::Value> = if offset >= all_alerts.len() {
+        let page_alerts: Vec<serde_json::Value> = if start_offset >= all_alerts.len() {
             vec![]
         } else {
             all_alerts
                 .iter()
-                .skip(offset)
+                .skip(start_offset)
                 .take(size)
                 .filter_map(|a| serde_json::to_value(a).ok())
                 .collect()
@@ -173,14 +197,13 @@ pub async fn get_search(
         // AC-002: device AQL (or absent AQL per EC-001) → paginated DeviceRecord results.
         let all_devices = &state.devices_ordered;
         let total = all_devices.len() as u32;
-        let offset = ((page - 1) as usize) * size;
 
-        let page_devices: Vec<serde_json::Value> = if offset >= all_devices.len() {
+        let page_devices: Vec<serde_json::Value> = if start_offset >= all_devices.len() {
             vec![]
         } else {
             all_devices
                 .iter()
-                .skip(offset)
+                .skip(start_offset)
                 .take(size)
                 .filter_map(|d| {
                     // BC-3.2.001: merge per-org tag_store entries with fixture tags.

@@ -22,3 +22,8 @@ enabled = true
 
 [clones.cyberint]
 enabled = true
+# initial_access_token: seeded into the Cyberint DTU's access_token allowlist at startup
+# (ADR-031 §D3-a). Must match the CYBERINT_API_KEY env var set in launch_prism_bin()
+# so StaticCookieAuthProvider injects the correct cookie value.
+# Value is DTU_E2E_CYBERINT_ACCESS_TOKEN from helpers/mod.rs.
+initial_access_token = "dtu-e2e-cyberint-access-token"

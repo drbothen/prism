@@ -307,7 +307,7 @@ impl SensorAdapter for SpecDrivenSensorAdapter {
     /// BC-2.01.013 postcondition 4; OQ-1 Resolution; ADR-028 §D10; ADR-031 §D3-b.
     async fn fetch(
         &self,
-        _spec: &SensorSpec,
+        spec: &SensorSpec,
         params: &QueryParams,
         auth: &dyn SensorAuth,
     ) -> Result<Vec<RecordBatch>, SensorError> {
@@ -374,11 +374,33 @@ impl SensorAdapter for SpecDrivenSensorAdapter {
             .collect();
         let context = FetchContext::new(self.sensor_spec.org_slug.clone(), query_filters);
 
+        // Resolve which sensor table to execute.
+        //
+        // `_spec.source_table` is e.g. `"armis_devices"` — the fully-qualified table name
+        // used by PrismQL `FROM armis_devices`. The sensor spec's `tables` collection may
+        // contain multiple entries (`devices`, `alerts`, etc.). We must only run the table
+        // that matches the queried source_table to avoid:
+        //   1. Executing unnecessary HTTP requests for non-queried tables.
+        //   2. Schema mismatches when DataFusion tries to register multi-schema batches.
+        //
+        // Extraction: strip the sensor_id prefix and underscore to get the raw table name.
+        // E.g., "armis_devices" - "armis_" = "devices". Falls back to running all tables if
+        // the prefix is not found (defensive; should not occur in normal operation).
+        let sensor_id_str = self.sensor_spec.spec.sensor_id.as_str();
+        let queried_table_name: Option<&str> =
+            spec.source_table.strip_prefix(&format!("{sensor_id_str}_"));
+
         // Delegate to PipelineExecutor::execute() for each table in the sensor spec.
         // Collect all RecordBatches by normalizing JSON records → Arrow (BC-2.11.005).
         let mut all_batches: Vec<RecordBatch> = Vec::new();
 
         for table in &self.sensor_spec.spec.tables {
+            // Skip tables that don't match the queried source_table.
+            // When `queried_table_name` is Some (normal case), only execute the matching table.
+            // When None (strip_prefix failed — defensive fallback), run all tables.
+            if queried_table_name.is_some_and(|qtn| table.table_name != qtn) {
+                continue;
+            }
             let result = PipelineExecutor::execute(
                 &self.sensor_spec.spec,
                 table,
@@ -407,6 +429,7 @@ impl SensorAdapter for SpecDrivenSensorAdapter {
                     result,
                     table,
                     &self.sensor_spec.spec.sensor_id,
+                    &params.filters,
                 );
                 match batch {
                     Ok(b) => all_batches.push(b),
@@ -493,10 +516,20 @@ fn map_spec_engine_error_to_sensor_error(
 /// # Errors
 ///
 /// Returns `arrow::error::ArrowError` if schema/column construction fails.
+/// `push_down_filters`: the query push-down filters (from `QueryParams.filters`).
+/// Used to populate INDEX-only columns (push-down pseudo-columns) with the actual
+/// filter value so DataFusion's WHERE clause evaluates correctly.
+///
+/// Example: `aql` column with `options = ["INDEX"]` for Armis sensors.
+/// `WHERE aql = 'in:devices'` in the SQL is push-downed to the pipeline.
+/// Without injection, the `aql` column would be NULL in every row → DataFusion
+/// would filter out all rows (NULL != 'in:devices'). With injection, every row
+/// has `aql = 'in:devices'` → DataFusion's WHERE clause correctly matches.
 fn pipeline_result_to_record_batch(
     result: PipelineResult,
     table: &TableSpec,
     sensor_id: &str,
+    push_down_filters: &prism_sensors::types::FilterMap,
 ) -> Result<RecordBatch, arrow::error::ArrowError> {
     // CR-004: caller guards `if !result.records.is_empty()` before calling here (see fetch()).
     // The n==0 early-return was a dead branch — replaced with a debug_assert to catch
@@ -535,7 +568,31 @@ fn pipeline_result_to_record_batch(
     let mut col_arrays: Vec<Arc<dyn Array>> = Vec::with_capacity(table.columns.len() + 3);
 
     for col_spec in &table.columns {
-        let array = build_column_array(&result.records, &col_spec.name, &col_spec.column_type);
+        // For INDEX-only (push-down pseudo) columns: inject the push-down filter value
+        // into every row so DataFusion's WHERE clause evaluates correctly.
+        //
+        // Example: `aql` column with options = ["INDEX"] on Armis sensors.
+        // `WHERE aql = 'in:devices'` is push-downed to the pipeline; without injection,
+        // `aql` would be NULL in every row → DataFusion filters out all rows.
+        // Injecting the filter value makes the WHERE clause evaluate to TRUE for each row.
+        let array = if col_spec.options.contains(&prism_core::ColumnOptions::Index) {
+            // Look up the filter value from push_down_filters by column name.
+            // If the column name maps to a filter value, inject it as a string constant
+            // across all rows. If no filter found, fall through to normal extraction
+            // (which will yield NULLs — the row may still be filtered by DataFusion).
+            if let Some(filter_val) = push_down_filters.get(&col_spec.name) {
+                let s = match filter_val {
+                    serde_json::Value::String(sv) => Some(sv.clone()),
+                    other => Some(other.to_string()),
+                };
+                let vals: Vec<Option<String>> = vec![s; n];
+                Arc::new(arrow::array::StringArray::from(vals)) as Arc<dyn Array>
+            } else {
+                build_column_array(&result.records, &col_spec.name, &col_spec.column_type)
+            }
+        } else {
+            build_column_array(&result.records, &col_spec.name, &col_spec.column_type)
+        };
         col_arrays.push(array);
     }
 
@@ -743,7 +800,7 @@ pub async fn step9a_populate_adapter_registry(
         // Select auth strategy based on sensor spec's auth_type.
         let auth_strategy = match &resolved_spec.spec.auth_type {
             AuthType::CustomViaPlugin => {
-                // CrowdStrike: look up the PluginAuthProvider constructed at step 7.5b.
+                // custom_via_plugin auth_type: look up the PluginAuthProvider constructed at step 7.5b.
                 // If not found (auth_plugin declared but provider not constructed), skip with warning (EC-004).
                 let sensor_id_str = resolved_spec.spec.sensor_id.as_str();
                 match plugin_auth_providers.get(sensor_id_str) {
@@ -764,6 +821,54 @@ pub async fn step9a_populate_adapter_registry(
                         continue;
                     }
                 }
+            }
+            AuthType::Oauth2ClientCredentials => {
+                // CrowdStrike: auth_type = "oauth2_client_credentials" + auth_plugin = "crowdstrike-oauth2"
+                // (D-747 LOCKED). The plugin implements the OAuth2 client-credentials token fetch.
+                //
+                // CRITICAL: the global `plugin_auth_providers` map (from step 7.5b) contains a
+                // `PluginAuthProvider` constructed with the TYPE spec's `base_url` (e.g.,
+                // "https://api.crowdstrike.com"), not the per-org overlay URL (e.g., the DTU URL
+                // "http://127.0.0.1:<port>"). At query time, `PluginAuthProvider::acquire_token`
+                // posts `token_endpoint = base_url + "/oauth2/token"` — if we used the TYPE spec URL,
+                // the WASM plugin would POST to the real CrowdStrike API instead of the DTU.
+                //
+                // Fix: construct a PER-ORG `PluginAuthProvider` at step 9A using the RESOLVED
+                // base_url from `resolved_spec.spec.base_url` (which has the per-org overlay applied).
+                // This ensures the OAuth2 token request goes to the correct per-org endpoint
+                // (DTU clone in E2E tests; real CrowdStrike API in production).
+                //
+                // The global `plugin_auth_providers` entry is used to: (a) verify the plugin is
+                // registered, and (b) borrow the Arc<PluginRuntime> for the new per-org provider.
+                let sensor_id_str = resolved_spec.spec.sensor_id.as_str();
+                let global_provider = match plugin_auth_providers.get(sensor_id_str) {
+                    Some(p) => p,
+                    None => {
+                        // auth_plugin was declared but provider not constructed at step 7.5b.
+                        tracing::warn!(
+                            target: "boot",
+                            sensor_id = %sensor_id_str,
+                            org_slug = %org_slug.as_str(),
+                            "boot step 9A: Oauth2ClientCredentials sensor has no PluginAuthProvider \
+                             (not constructed at step 7.5b — check plugin was staged and auth_plugin \
+                             is set in the sensor spec). Adapter NOT registered; boot continues.",
+                        );
+                        continue;
+                    }
+                };
+                // Build the per-org token endpoint from the RESOLVED (overlay) base_url.
+                // This is the key correction: the TYPE spec has base_url = "https://api.crowdstrike.com"
+                // but the overlay sets base_url = "http://127.0.0.1:<port>" (or the real per-org URL).
+                let per_org_token_endpoint =
+                    format!("{}/oauth2/token", resolved_spec.spec.base_url);
+                // Construct a per-org PluginAuthProvider with the correct token endpoint.
+                let per_org_provider = prism_spec_engine::PluginAuthProvider::new(
+                    global_provider.runtime_arc(),
+                    global_provider.plugin_id().to_string(),
+                    sensor_id_str.to_string(),
+                    per_org_token_endpoint,
+                );
+                AdapterAuthStrategy::Plugin(Arc::new(per_org_provider) as Arc<dyn AuthProvider>)
             }
             AuthType::BearerStatic => {
                 // Armis/Claroty: token extracted from SensorAuth arg at fetch() call time.
@@ -786,9 +891,10 @@ pub async fn step9a_populate_adapter_registry(
                     sensor_id = %resolved_spec.spec.sensor_id,
                     org_slug = %org_slug.as_str(),
                     auth_type = ?other,
-                    "boot step 9A: E-SPEC-012 — unsupported auth_type for S-DEMO-001 scope. \
+                    "boot step 9A: E-SPEC-012 — unsupported auth_type. \
                      Adapter NOT registered; boot continues. \
-                     Supported types: CustomViaPlugin, BearerStatic, CookieRoundtrip. \
+                     Supported types: Oauth2ClientCredentials (with auth_plugin), \
+                     CustomViaPlugin, BearerStatic, CookieRoundtrip. \
                      EC-007: S-DEMO-001 scope boundary.",
                 );
                 continue;
