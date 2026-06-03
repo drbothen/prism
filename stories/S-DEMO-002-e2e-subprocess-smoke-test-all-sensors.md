@@ -6,11 +6,11 @@ wave: 5
 epic_id: E-DEMO
 priority: P0
 status: ready
-version: "1.5"
+version: "1.6"
 level: "L4"
 producer: story-writer
 timestamp: "2026-06-02T00:00:00Z"
-modified: "2026-06-02"
+modified: "2026-06-02T00:00:00Z"
 tdd_mode: strict
 subsystems: [SS-01, SS-10, SS-11, SS-22]
 # Subsystem anchor justifications:
@@ -125,7 +125,7 @@ cycle: "v1.0.0-brownfield"
 phase: 3
 ---
 
-# S-DEMO-002 v1.5 — prism-bin: E2E Subprocess Smoke Test (All 4 Sensors + Multi-Org Isolation)
+# S-DEMO-002 v1.6 — prism-bin: E2E Subprocess Smoke Test (All 4 Sensors + Multi-Org Isolation)
 
 **Story ID:** S-DEMO-002
 **Status:** ready
@@ -238,10 +238,30 @@ Then: The ResponseEnvelope contains at least 1 row; no error code.
 ### AC-007: ResponseEnvelope _meta fields are correct
 Given: A successful `query` tool response for any of the 4 sensors.
 When: The test inspects the ResponseEnvelope JSON.
-Then: `_meta.trust_level == "untrusted_external"` and `_meta.safety_flags` is an empty array
-(no injection flags on synthetic DTU data); `_meta.data_source` contains the sensor name
+Then: `_meta.trust_level == "untrusted_external"` and `_meta.data_source` contains the sensor name
 (e.g., `["crowdstrike"]` for a CrowdStrike query).
-(traces to BC-2.09.008 postcondition: "ResponseEnvelope carries trust_level and data_source fields")
+
+**Injection-scan assertion (MED-002 resolution):** `_meta.safety_flags` is an empty array on
+synthetic DTU data. The assertion MUST be meaningful — the test must send a query that returns at
+least 1 row (so `results` is a non-empty array) and then assert `safety_flags == []`. This
+verifies that `SafetyEnvelopeBuilder::wrap()` ran the injection scanner over the row data
+(`results` array items) and found no patterns in the synthetic DTU fixture data.
+
+**What `wrap()` scans:** `SafetyEnvelopeBuilder::wrap()` calls `collect_string_fields` only when
+`results` is a JSON Array (not Object). For the `query` tool, `results` is the Arrow-serialized
+rows array — each element is an object with sensor field values. The scanner recurses into each
+row object via `collect_string_fields` (IMP-6 fix, MAX_SCAN_DEPTH=64). The assertion
+`safety_flags == []` is meaningful only when `results` contains at least 1 row; with 0 rows the
+array is empty and the scan trivially produces no flags regardless of implementation correctness.
+
+**Implementation note for BC-2.09.008 v1.x follow-up:** when `results` is a JSON Object (not
+Array) — e.g., for `explain_query`, `create_alias` tool responses — `wrap()` does NOT invoke
+`collect_string_fields` and `safety_flags` is always empty (pre-existing scope-limitation
+documented in the `wrap()` doc comment as "SS-09 hardening follow-up"). That case is NOT what
+AC-007 exercises; AC-007 explicitly targets the `query` tool's array-shaped `results`.
+
+(traces to BC-2.09.008 postcondition: "ResponseEnvelope carries trust_level and data_source fields"
+and "`_meta.safety_flags` is always present (empty array when no flags triggered)")
 
 ### AC-008: SIGTERM cleanly shuts down both subprocesses
 Given: All 4 sensor queries have completed successfully.
@@ -286,19 +306,39 @@ to the correct `SpecDrivenSensorAdapter`; no cross-org aliasing exists in the re
 (traces to BC-2.22.001 postcondition + ADR-029 per-org overlay resolution)
 Red Gate test: `test_BC_3_2_001_e2e_multi_org_boot_registers_correct_adapter_count`
 
-### AC-012: Cross-org isolation — querying a sensor not registered for an org returns AdapterNotFound
+### AC-012: Cross-org isolation — querying a sensor not registered for an org returns E-QUERY-032
 Given: `demo-org-a` has CrowdStrike + Armis but NOT Claroty or Cyberint.
 When: The test sends a `query` MCP tool call with `{"name": "query", "arguments": {"query": "FROM claroty_alerts LIMIT 5", "clients": ["demo-org-a"]}}`.
 Note: The scoping param is **`clients`** (array of org slug strings), NOT `org_slug` — `QueryToolParams`
 uses `clients: Option<Vec<String>>` per BC-2.11.001 Preconditions and the as-built `QueryToolParams`
 in `prism-mcp/server.rs` (which has `#[serde(deny_unknown_fields)]`; passing `org_slug` would be
 rejected at deserialization before isolation logic runs).
-Then: The ResponseEnvelope contains an error indicating `AdapterNotFound` or equivalent isolation
-error (sensor not registered for this org); zero data rows are returned; no Claroty data from
-`demo-org-b` is leaked into the response.
-(traces to BC-3.2.001 postcondition 1: "state.lookup(org_id_A, resource_id) returns None when
-entry was stored under org_id_B"; ADR-007 §2.2 adapter dispatch OrgId verification)
-Red Gate test: `test_BC_3_2_001_e2e_cross_org_sensor_query_returns_adapter_not_found`
+Then: The MCP response is an **error** (not a success envelope with zero rows). The error response
+MUST satisfy ALL of the following matcher assertions:
+1. The MCP response contains `"error"` at the top level (JSON-RPC error object, NOT a success
+   `result` containing an empty `results` array).
+2. The error `code` is `-32602` (INVALID_PARAMS — the org+sensor combination is an invalid query
+   scope parameter, per E-QUERY-032 `map_prism_error` routing).
+3. The error `message` contains the substring `"E-QUERY-032"`.
+4. The error `message` contains the substring `"claroty"` (the sensor_id that is not registered
+   for demo-org-a).
+5. The error `message` contains the substring `"demo-org-a"` (the org_slug for which the sensor
+   is not registered).
+6. Zero data rows are returned (error response has no `results` array with row data).
+7. No Claroty data from `demo-org-b` is present anywhere in the response.
+
+**Why E-QUERY-032 (not E-SENSOR-010):** `map_prism_error` deliberately redacts all E-SENSOR-*
+errors to "Internal error; see audit log" (AD-017 credential opacity). E-SENSOR-010 (AdapterNotFound)
+also goes through the partial-failure path as a `sensor_errors` string, never surfaced as an MCP
+error response at all. E-QUERY-032 is a new credential-safe error raised by `resolve_source_refs`
+in `prism-query` when a clients-scoped query targets a sensor not registered for the specified org —
+it carries only the public sensor type name and org slug (no credentials, tokens, or auth chain
+details) and surfaces as MCP -32602. See error-taxonomy.md §E-QUERY-032 and BC-3.2.001
+postcondition 5 for full rationale.
+
+(traces to BC-3.2.001 postcondition 5: "cross-org query to unregistered sensor returns E-QUERY-032
+error envelope, not an empty success envelope"; ADR-007 §2.2 adapter dispatch OrgId verification)
+Red Gate test: `test_BC_3_2_001_e2e_cross_org_sensor_query_returns_e_query_032`
 
 ### AC-013: DTU multi-tenant emulation — each org's queries reach the correct DTU clone port
 Given: The demo DTU server runs with all 4 sensor clones, each on an ephemeral port; each org's
@@ -400,7 +440,7 @@ Version source: workspace `Cargo.toml`. `rmcp` version confirmed from S-5.01-FOL
 | `crates/prism-bin/tests/e2e_smoke.rs` | CREATE | Integration test file with all ACs |
 | `crates/prism-bin/tests/helpers/mod.rs` | CREATE | `SubprocessGuard` (drop → SIGTERM), `wait_for_file()`, `write_demo_config()`, `bootstrap_credentials()` |
 | `crates/prism-bin/fixtures/e2e-demo/demo.toml` | CREATE | DTU demo server config for test (same 4 sensors). Path is `fixtures/e2e-demo/` (NOT `tests/fixtures/`) — accessed via `CARGO_MANIFEST_DIR/fixtures/e2e-demo/demo.toml` in the test harness (F-PB-MED-002 corrected; phantom `demo-prism.toml.template` removed — `prism.toml` is generated programmatically by `write_demo_config()` helper into a `TempDir`, not from a template file). |
-| `.cargo/nextest.toml` (or `Cargo.toml` nextest section) | MODIFY | Add `[profile.e2e]` that un-ignores E2E-tagged tests |
+| `.config/nextest.toml` | MODIFY | Add `[profile.e2e]` that un-ignores E2E-tagged tests |
 
 ---
 
@@ -419,15 +459,18 @@ Version source: workspace `Cargo.toml`. `rmcp` version confirmed from S-5.01-FOL
 11. **Implement** 4 × query assertions (AC-003..006) — each sends `tools/call` with appropriate query string; asserts non-empty data and OCSF fields.
 12. **Implement** `_meta` assertions (AC-007) — parse `ResponseEnvelope` JSON; assert `trust_level` and `safety_flags`.
 13. **Implement** SIGTERM teardown (AC-008) in `SubprocessGuard::drop()`.
-14. **Add** `[profile.e2e]` to nextest config — un-ignores tests tagged `// E2E-001:`.
+14. **Add** `[profile.e2e]` to `.config/nextest.toml` — un-ignores tests tagged `// E2E-001:`. (Path is `.config/nextest.toml`, NOT `.cargo/nextest.toml` — LOW-001 corrected.)
 15. **Implement** `write_multi_org_demo_config()` helper — generates 3-org config with overlapping
     and non-overlapping sensor sets (demo-org-a: CrowdStrike+Armis; demo-org-b: Claroty+Cyberint;
     demo-org-c: all 4). Writes per-org `customers/{slug}/` overlay directories for each sensor.
 16. **Write Red Gate test** `test_BC_3_2_001_e2e_multi_org_boot_registers_correct_adapter_count`
     (AC-011): asserts `AdapterRegistry` contains exactly 8 entries after boot with 3-org config.
-17. **Write Red Gate test** `test_BC_3_2_001_e2e_cross_org_sensor_query_returns_adapter_not_found`
+17. **Write Red Gate test** `test_BC_3_2_001_e2e_cross_org_sensor_query_returns_e_query_032`
     (AC-012): asserts that a `query` tool call `{"name": "query", "arguments": {"query": "FROM claroty_alerts LIMIT 5", "clients": ["demo-org-a"]}}` returns
-    an error envelope (not data) because Claroty is not registered for that org.
+    an MCP error response (not a data envelope) because Claroty is not registered for demo-org-a.
+    The matcher MUST assert: (1) response has `"error"` field (not `"result"`); (2) error `code == -32602`;
+    (3) error `message` contains `"E-QUERY-032"`; (4) message contains `"claroty"`; (5) message contains
+    `"demo-org-a"`. See AC-012 for full matcher contract and rationale.
     Note: pass `clients: ["demo-org-a"]` (NOT `org_slug`) — see AC-012 for rationale.
 18. **Implement** AC-013 assertion and document DTU-MULTI-001 comment per scope clarification.
 19. **Implement** AQL push-down seeding (AC-014, D-934 scope, Mechanism B passthrough): in
@@ -531,6 +574,7 @@ Well within budget; second-cheapest story in the E-DEMO epic.
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.6 | 2026-06-02 | product-owner | SPEC-EVOLUTION burst — LOCAL adversarial CRIT-001 / MED-002 / LOW-001 closures. (1) CRIT-001: AC-012 matcher contract replaced — `response_has_adapter_not_found_error` pattern retired; new matcher asserts MCP error code `-32602` + message containing `"E-QUERY-032"`, `"claroty"`, `"demo-org-a"`. Red Gate test renamed: `test_BC_3_2_001_e2e_cross_org_sensor_query_returns_e_query_032`. Rationale: `map_prism_error` redacts all E-SENSOR-* to "Internal error" (AD-017); AC-012 could never pass with the old E-SENSOR-010 substring match. New E-QUERY-032 is credential-safe (org slug + sensor type only) and surfaces as -32602. Companion changes: error-taxonomy.md v1.58 (E-QUERY-032 definition), BC-3.2.001 v0.7 (postcondition 5, EC-006/007, TV-3.2.001-06). (2) MED-002: AC-007 injection-scan assertion adjudicated — assertion `safety_flags == []` is meaningful ONLY when `results` is a non-empty array; test must verify at least 1 row returned. Added "What `wrap()` scans" narrative clarifying `collect_string_fields` is invoked for Array results (query tool rows), NOT for Object results (explain/alias responses). Implementation note added for BC-2.09.008 v1.x follow-up (object-shape scanning is pre-existing out-of-scope per `wrap()` doc comment SS-09 hardening section). Code change to `wrap()` is implementer scope. (3) LOW-001: FSR `.cargo/nextest.toml` corrected to `.config/nextest.toml` (actual on-disk path). Task 14 updated to match. |
 | 1.5 | 2026-06-02 | product-owner | Adversarial reconciliation (POL-27, POL-32). (1) F-*-CRIT-001 — all `tool_query` references replaced with canonical tool name `query` (BC-2.11.001 H1 source-of-truth): AC-002, AC-003, AC-004, AC-005, AC-006, AC-007, AC-012, AC-013, AC-014, Task 10, Task 17, Narrative, frontmatter comments. (2) F-*-CRIT-002 — AC-012 and Task 17 replace `org_slug="demo-org-a"` tool arg with canonical `clients: ["demo-org-a"]` per BC-2.11.001 Preconditions and `QueryToolParams` `#[serde(deny_unknown_fields)]` constraint; rationale note added inline. (3) F-*-MED — AC-014 seeding mechanism accuracy: added "Seeding mechanism accuracy" paragraph clarifying that INDEX column option is decorative (not a runtime gate today); generic `predicate_tree_to_filter_map` path extracts all `field='string'` equality predicates regardless of INDEX; implementer must NOT add `if column_is_index` branch. (4) F-PC-002 — coverage decisions for AC-009 (CI repetition, no new #[test]), AC-013 (new test Task 22: `test_BC_3_2_001_e2e_dtu_multi_tenant_each_org_reaches_correct_clone_port`), EC-004 (new test Task 23: `test_EC_004_e2e_limit_zero_returns_empty_not_error`), EC-005 (new test Task 24: `test_EC_005_e2e_limit_200_returns_paginated_rows`); red_gate_tests 5→9. (5) F-PB-MED-002 — FSR corrected: `crates/prism-bin/fixtures/e2e-demo/demo.toml` (not `tests/fixtures/demo.toml`); phantom `demo-prism.toml.template` removed (programmatic generation via `write_demo_config()`); Task 8 path updated. |
 | 1.4 | 2026-06-02 | product-owner | F-DEMO002-P1-MED-002 adjudication (POL-4 semantic drift). AC-014 rewritten to reflect BC-2.11.007 v1.5 Mechanism B (Verbatim-AQL Passthrough): user writes `aql = '<string>'` pseudo-column in PrismQL WHERE (not raw AQL syntax); query planner seeds verbatim string into FetchContext.query_filters["aql"]; forwarded opaque to DTU per R-DTU-002 / ADR-031 §D8-a. Task 19 updated: canonical seeding site is predicate_tree_to_filter_map / extract_push_down_filters_as_map path; explicitly prohibits parallel extract_aql_filter_value_from_ast function (one code path only per implementer recommendation). Story H1 version block updated v1.3→v1.4. |
 | 1.3 | 2026-06-02 | product-owner | Readiness flip draft→ready. (1) BC-2.22.001 (Boot Orchestration — Sequencing, Exit-Code Map, and Pre-Traffic Gate) added to behavioral_contracts frontmatter + BC body table — AC-001/AC-010/AC-011 already traced to it; gap closed per POL-8. (2) BC-2.11.007 (Sensor Filter Push-Down) added to behavioral_contracts frontmatter — required by AC-014 AQL push-down seeding. (3) AC-014 added: end-to-end AQL push-down seeding — prism-query QueryEngine populates FetchContext.query_filters["aql"] from PrismQL WHERE predicate for Armis; D-934 confirmed scope boundary (architect+implementer). Task 19 added (AQL seeding implementation + Red Gate test). acceptance_criteria_count 13→14. Token budget updated: 8 BCs / +3,500 tokens for prism-query seeding site / total ~43,800. |

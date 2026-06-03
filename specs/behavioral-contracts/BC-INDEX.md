@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "5.75"
+version: "5.76"
 status: draft
 producer: state-manager
 timestamp: 2026-06-02T00:00:00Z
@@ -271,7 +271,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 
 | BC ID | Title | Subsystem | CAP | Priority | Status |
 |-------|-------|-----------|-----|----------|--------|
-| BC-3.2.001 | Per-Org Sensor Data Isolation via Composite HashMap Key | SS-01 (Sensor Adapters) | CAP-001 | P0 | draft |
+| BC-3.2.001 | Per-Org Sensor Data Isolation via Composite HashMap Key | SS-01 (Sensor Adapters) | CAP-001 | P0 | draft (v0.8) |
 | BC-3.2.002 | Per-Org Credential Isolation via OrgId-Keyed Namespace | SS-03 (Credential Management) | CAP-004 | P0 | draft |
 | BC-3.2.003 | Per-Org Session Token Isolation via (OrgId, token) Composite Key | SS-03 (Credential Management) | CAP-004 | P0 | draft |
 | BC-3.2.004 | Shared-Mode DTU Tags OrgId in Payload Body Not in Routing Headers | SS-01 (Sensor Adapters) | CAP-040 | P0 | draft |
@@ -376,6 +376,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v5.76 (2026-06-02, D-959 S-DEMO-002 CRIT-001 spec-evolution closure burst):** state-manager | BC-3.2.001 v0.6→v0.8 (PO D-959: postcondition 5 added — cross-org MCP query scoped to org-A for sensor not registered under org-A must return E-QUERY-032 error envelope, not silent empty-success; EC-006/007 and TV-3.2.001-06 added; architect v0.8: §Verification §Intentional no-VP: Postcondition 5 rationale block added — no VP-3.2.001-05 authored; async fn resolve_source_refs not Kani/proptest verifiable; coverage via AC-012 Red Gate + SID-1 unit test). Index row BC-3.2.001 updated to "draft (v0.8)". No count changes (no new BCs, no promotions). error-taxonomy.md v1.57→v1.58 (E-QUERY-032 new: broken/authorization, MCP -32602, "Sensor '{sensor_id}' is not registered for org '{org_slug}'"; BC anchor BC-3.2.001 postcondition 5). BC-INDEX v5.75→v5.76.
 
 **v5.75 (2026-06-02, D-954 wave-6 spec consolidation burst):** state-manager | BC-2.11.007 v1.4→v1.5 (§Predicate Classification rewritten to document two distinct push-down mechanisms: Mechanism A — Predicate Translation (CrowdStrike/Cyberint/Claroty) and Mechanism B — Verbatim-AQL Passthrough (Armis); EC-11-019 updated to reflect passthrough semantics; two canonical Armis Mechanism B test vectors added; changelog row v1.5 added; F-DEMO002-P1-MED-002 POL-4 semantic drift adjudication closed). No lifecycle_status change — BC-2.11.007 remains draft (not promoted by any merged story this burst). No count changes (no new BCs, no promotions). BC-INDEX in-line row 157 updated to v1.5. BC-INDEX v5.74→v5.75.
 

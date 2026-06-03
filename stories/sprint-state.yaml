@@ -17,12 +17,12 @@ active_dispatch_set:
     status: ready
     priority: P0
     points: 11
-    spec_version: "v1.5"
+    spec_version: "v1.6"
     lane: "1-of-3"
-    dispatch_status: "IN DELIVERY (PAUSED D-957) — code @ 01afb7ef; LOCAL streak 0/3; LOCAL re-pass found 5 OPEN findings (fix-burst PENDING): (1) CRIT: extract_rows_from_envelope reads wrong key — must read envelope[\"results\"][\"rows\"]; EC-005/AC-013 FALSE-FAIL + EC-004/AC-013 FALSE-GREEN. (2) HIGH: AC-012 response_has_adapter_not_found_error doesn't match real E-SENSOR-010 text; query handler returns JSON-RPC error (.expect() panics); restructure to capture JSON-RPC error + assert AdapterNotFound. (3) MED: false todo!() stub claims in per-test doc bodies (~L47,99,170,484,544). (4) MED: stale story pin aql_pushdown_tests.rs:35 says v1.4 → v1.5. (5) LOW: e2e_smoke.rs header table (~L17-26) missing 4 tests (claroty AC-005, cyberint AC-006, envelope AC-007, sigterm AC-008 + Tasks 22/23/24). NEXT: implementer fix-burst (5 findings) → LOCAL adversary re-pass (Lesson 62 preflight: git -C .worktrees/S-DEMO-002 rev-parse HEAD must == post-fix-burst SHA) → 3-CLEAN → demo-recorder → push → PR → PR-LEVEL 3-CLEAN → merge"
-    entry_point: "implementer fix-burst (5 findings per LOCAL re-pass @01afb7ef: CRIT extract_rows_from_envelope key fix + HIGH AC-012 matcher restructure + 2 MED doc stubs + 1 LOW header table) → LOCAL adversary re-pass (Lesson 62 preflight) → 3-CLEAN → demo-recorder → push → pr-manager 9-step PR cycle → PR-LEVEL 3-CLEAN → merge"
+    dispatch_status: "IN DELIVERY (D-959 spec-evolution burst 2026-06-02) — code @ bb168f8c; LOCAL streak 0/3; CRIT-001 closed (PO BC-3.2.001 v0.7→v0.8; E-QUERY-032 error-taxonomy v1.58; story v1.6 AC-012 matcher + test renamed; implementer bb168f8c PrismError::SensorNotRegisteredForOrg + resolve_source_refs guard + map_prism_error -32602 + SID-1/AC-007 unit tests; just check GREEN 3931 tests). NEXT: LOCAL adversary re-pass (Lesson 62 preflight: git -C .worktrees/S-DEMO-002 rev-parse HEAD must == bb168f8c) → 3-CLEAN → demo-recorder → push → pr-manager 9-step PR cycle → PR-LEVEL 3-CLEAN → merge"
+    entry_point: "LOCAL adversary re-pass @ bb168f8c (Lesson 62 preflight) → 3-CLEAN → demo-recorder → push → pr-manager 9-step PR cycle → PR-LEVEL 3-CLEAN → merge"
     worktree_path: ".worktrees/S-DEMO-002"
-    code_head: "01afb7ef"
+    code_head: "bb168f8c"
     branch: "feature/S-DEMO-002"
     tracked_dependency: "MUST seed query_filters[\"aql\"] in PipelineExecutor FetchContext for Armis end-to-end AQL push-down (AC-014 D-934/D-952 scope) — canonical seeding site: predicate_tree_to_filter_map (BC-2.11.007 v1.5 Mechanism B). Do NOT add parallel extract fn. Tool name is `query` (not tool_query). Org field is `clients` (not org_slug). red_gate_tests=9."
     depends_on:
@@ -281,9 +281,9 @@ deferred_post_demo:
   # reclassification from permitted-divergence → required-fidelity; user directive no-scope-compromise).
 
 prereq_artifacts:
-  story_index: .factory/stories/STORY-INDEX.md         # v2.256 after D-958 burst (178 stories)
-  bc_index: .factory/specs/behavioral-contracts/BC-INDEX.md  # v5.75 after D-958 burst (unchanged)
-  state: .factory/STATE.md                              # v7.611 after D-958 burst
+  story_index: .factory/stories/STORY-INDEX.md         # v2.257 after D-959 burst (178 stories)
+  bc_index: .factory/specs/behavioral-contracts/BC-INDEX.md  # v5.76 after D-959 burst (BC-3.2.001 v0.8)
+  state: .factory/STATE.md                              # v7.612 after D-959 burst
   governing_adr: .factory/specs/architecture/decisions/ADR-031-dtu-equals-true-dtu-fidelity-principle.md  # v1.2 (ADR-031 architect e57eb5b1 reclassified 3 divergences)
   governing_audit: .factory/proposals/POLLER-DTU-FIDELITY-AUDIT-2026-05-29.md  # v1.1
 
