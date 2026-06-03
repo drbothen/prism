@@ -6,7 +6,7 @@ wave: 5
 epic_id: E-DEMO
 priority: P0
 status: ready
-version: "1.7"
+version: "1.8"
 level: "L4"
 producer: story-writer
 timestamp: "2026-06-02T00:00:00Z"
@@ -125,11 +125,11 @@ cycle: "v1.0.0-brownfield"
 phase: 3
 ---
 
-# S-DEMO-002 v1.7 — prism-bin: E2E Subprocess Smoke Test (All 4 Sensors + Multi-Org Isolation)
+# S-DEMO-002 v1.8 — prism-bin: E2E Subprocess Smoke Test (All 4 Sensors + Multi-Org Isolation)
 
 **Story ID:** S-DEMO-002
 **Status:** ready
-**Version:** v1.7
+**Version:** v1.8
 **Wave:** 5
 **Priority:** P0
 **Points:** 11
@@ -260,22 +260,23 @@ Then: `_meta.trust_level == "untrusted_external"` and `_meta.data_source` contai
 
 **Injection-scan assertion (MED-002 resolution):** `_meta.safety_flags` is an empty array on
 synthetic DTU data. The assertion MUST be meaningful — the test must send a query that returns at
-least 1 row (so `results` is a non-empty array) and then assert `safety_flags == []`. This
+least 1 row (so `results.rows` is a non-empty array) and then assert `safety_flags == []`. This
 verifies that `SafetyEnvelopeBuilder::wrap()` ran the injection scanner over the row data
-(`results` array items) and found no patterns in the synthetic DTU fixture data.
+and found no patterns in the synthetic DTU fixture data.
 
-**What `wrap()` scans:** `SafetyEnvelopeBuilder::wrap()` calls `collect_string_fields` only when
-`results` is a JSON Array (not Object). For the `query` tool, `results` is the Arrow-serialized
-rows array — each element is an object with sensor field values. The scanner recurses into each
-row object via `collect_string_fields` (IMP-6 fix, MAX_SCAN_DEPTH=64). The assertion
-`safety_flags == []` is meaningful only when `results` contains at least 1 row; with 0 rows the
-array is empty and the scan trivially produces no flags regardless of implementation correctness.
+**What `wrap()` scans:** For the `query` tool, `results` in the `ResponseEnvelope` is a JSON
+Object with shape `{"rows": [...], "returned_results": N, "total_available": N, "is_truncated": bool}`.
+`SafetyEnvelopeBuilder::wrap()` detects this object shape via `results.get("rows")` and scans
+the `rows` array. Each row element is passed through `collect_string_fields` (IMP-6 fix,
+MAX_SCAN_DEPTH=64). The assertion `safety_flags == []` is meaningful only when `results.rows`
+contains at least 1 element; with 0 rows the scan trivially produces no flags regardless of
+implementation correctness.
 
-**Implementation note for BC-2.09.008 v1.x follow-up:** when `results` is a JSON Object (not
-Array) — e.g., for `explain_query`, `create_alias` tool responses — `wrap()` does NOT invoke
-`collect_string_fields` and `safety_flags` is always empty (pre-existing scope-limitation
-documented in the `wrap()` doc comment as "SS-09 hardening follow-up"). That case is NOT what
-AC-007 exercises; AC-007 explicitly targets the `query` tool's array-shaped `results`.
+**Implementation note:** when `results` is a metadata-only JSON Object with no `"rows"` key
+— e.g., for `explain_query`, `create_alias` tool responses — `wrap()` does NOT invoke
+`collect_string_fields` and `safety_flags` is always empty (no attacker-controllable sensor
+field values present; documented in `wrap()` doc comment). That case is NOT what AC-007
+exercises; AC-007 explicitly targets the `query` tool's object-shaped `results` (with `rows`).
 
 (traces to BC-2.09.008 postcondition: "ResponseEnvelope carries trust_level and data_source fields"
 and "`_meta.safety_flags` is always present (empty array when no flags triggered)")
@@ -498,10 +499,12 @@ Version source: workspace `Cargo.toml`. `rmcp` version confirmed from S-5.01-FOL
     Wire this path to populate `FetchContext.query_filters["aql"]` with the literal string value
     before dispatching to PipelineExecutor. Do NOT add a parallel `extract_aql_filter_value_from_ast`
     function — one seeding code path only (see Implementer Recommendation in adjudication report).
-    Write a failing Red Gate test first: `test_BC_2_11_007_e2e_armis_aql_pushdown_seeded_in_fetch_context`
+    Write a failing Red Gate test first: `test_BC_2_11_007_e2e_armis_aql_pushdown_devices_dtu_roundtrip`
     that drives `FROM armis_devices WHERE aql = 'in:devices' LIMIT 5` through the engine and asserts
-    `FetchContext.query_filters["aql"] == "in:devices"` and that the DTU receives the correct
-    `GET /api/v1/search?aql=in:devices` call. Read `crates/prism-query/src/` and
+    both (A) non-empty rows are returned (full pipeline: PQL parse → FilterMap → FetchContext →
+    DTU `/api/v1/search?aql=in:devices`) and (B) the Armis DTU's `GET /dtu/aql-log` endpoint
+    confirms the verbatim AQL "in:devices" was received (BC-2.11.007 Mechanism B; R-DTU-002;
+    ADR-031 §D8-a). Read `crates/prism-query/src/` and
     `crates/prism-spec-engine/src/pipeline_executor.rs` to confirm the seeding site.
 20. **Run** `cargo nextest run -p prism-bin --profile e2e` after S-DEMO-001 merges; all assertions must pass GREEN.
 21. **Run** `just check` — final pre-push gate.
@@ -549,8 +552,8 @@ Version source: workspace `Cargo.toml`. `rmcp` version confirmed from S-5.01-FOL
 | EC-001 | DTU server fails to start (port conflict) | Test fails with clear message: "DTU server did not write urls.json within 30s" |
 | EC-002 | prism-bin exits before MCP handshake completes | Test fails with clear message: "prism-bin exited unexpectedly with code N"; SubprocessGuard teardown logs stderr for diagnosis |
 | EC-003 | A sensor query returns zero rows (DTU returned empty) | Test fails with AC assertion: "expected at least 1 row"; this is a data fidelity issue in the DTU clone, not a framework issue |
-| EC-004 | `LIMIT 0` query variant | An additional edge-case test verifies that `LIMIT 0` returns empty-but-not-error response (E2E-DEMO-WIRING-PLAN §6 Risk 3 mitigation). **Coverage decision (F-PC-002 — in scope):** Implementer MUST write `test_EC_004_e2e_limit_zero_returns_empty_not_error` — sends `{"name": "query", "arguments": {"query": "FROM crowdstrike_detections LIMIT 0"}}` and asserts: response is not an error envelope; `events` array is empty (0 rows); `is_truncated: false` or `total_available: 0`. |
-| EC-005 | `LIMIT 200` query variant | An additional edge-case test verifies that `LIMIT 200` triggers pagination in the DTU clone and returns 200 rows (exercises pagination at least one extra page per E2E-DEMO-WIRING-PLAN §6 Risk 3 mitigation). **Coverage decision (F-PC-002 — in scope):** Implementer MUST write `test_EC_005_e2e_limit_200_returns_paginated_rows` — sends `{"name": "query", "arguments": {"query": "FROM crowdstrike_detections LIMIT 200"}}` and asserts: response is not an error envelope; `events` array contains 200 rows (assuming the CrowdStrike DTU clone fixture has ≥200 rows — if it has fewer, assert `len(events) == fixture_row_count` and document this in a comment; do NOT assert exactly 200 if fixture data is smaller). Implementer must verify DTU fixture row count before writing the assertion. |
+| EC-004 | `LIMIT 0` query variant | An additional edge-case test verifies that `LIMIT 0` returns empty-but-not-error response (E2E-DEMO-WIRING-PLAN §6 Risk 3 mitigation). **Coverage decision (F-PC-002 — in scope):** Implementer MUST write `test_EC_004_e2e_limit_zero_returns_empty_not_error` — sends `{"name": "query", "arguments": {"query": "FROM crowdstrike_detections LIMIT 0"}}` and asserts: response is not an error envelope; `rows` array is empty (0 rows); `is_truncated: false` or `total_available: 0`. |
+| EC-005 | `LIMIT 200` query variant | An additional edge-case test verifies that `LIMIT 200` triggers pagination in the DTU clone and returns 200 rows (exercises pagination at least one extra page per E2E-DEMO-WIRING-PLAN §6 Risk 3 mitigation). **Coverage decision (F-PC-002 — in scope):** Implementer MUST write `test_EC_005_e2e_limit_200_returns_paginated_rows` — sends `{"name": "query", "arguments": {"query": "FROM crowdstrike_detections LIMIT 200"}}` and asserts: response is not an error envelope; `rows` array contains ≤200 rows (assuming the CrowdStrike DTU clone fixture has ≥1 row — if it has fewer than 200, assert `len(rows) == fixture_row_count` and document this in a comment; do NOT assert exactly 200 if fixture data is smaller). Implementer must verify DTU fixture row count before writing the assertion. |
 | EC-006 | Org registered with zero sensors (all overlays missing) | Boot step 9A produces 0 adapters for that org; the org entry itself remains in `OrgRegistry`; no error; org-specific query returns `AdapterNotFound` |
 | EC-007 | Two orgs both have CrowdStrike; same DTU clone port in both overlays | Both orgs' CrowdStrike queries succeed and return identical fixture data (DTU single-tenant mode — DTU-MULTI-001 scope); no cross-org data is modified |
 | EC-008 | Org A queries sensor registered for Org C but not Org A | Returns `AdapterNotFound` error envelope; Org C's adapter is not accessible from Org A's call context per BC-3.2.001 |
@@ -591,6 +594,7 @@ Well within budget; second-cheapest story in the E-DEMO epic.
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.8 | 2026-06-02 | product-owner | SPEC fix — comprehensive prose audit + F-DEMO002-P3-MED-001 closure. (1) EC-004: `events` field corrected to `rows` (non-existent `events` field; actual ResponseEnvelope payload field is `rows` per `server.rs:1322` `"rows": rows`; envelope keys are `rows / returned_results / total_available / is_truncated`). (2) EC-005: both `events` occurrences corrected to `rows`; assertion description aligned to `≤200 rows` (consistent with as-built test `rows.len() <= 200`). (3) AC-007 "What `wrap()` scans" block corrected: prose previously claimed `results` is a "JSON Array (not Object)" for the query tool — as-built `safety_envelope.rs` shows `results` is an Object `{"rows": [...], "returned_results": N, "total_available": N, "is_truncated": bool}`; `wrap()` extracts the inner `rows` array via `results.get("rows")` for scanning. Prose rewritten to match actual code path. (4) Task 19 test name corrected: `test_BC_2_11_007_e2e_armis_aql_pushdown_seeded_in_fetch_context` → `test_BC_2_11_007_e2e_armis_aql_pushdown_devices_dtu_roundtrip` (as-built name in `e2e_smoke.rs`); description updated to match the as-built dual-assertion pattern (rows non-empty + DTU aql-log verification). COORDINATION NOTE: implementer separately directed to make `e2e_smoke.rs` doc-comment story reference version-agnostic (`Story: S-DEMO-002` with no version) per TD-VSDD-091 anti-volatile-pin — no code change required from this burst. |
 | 1.7 | 2026-06-02 | product-owner | SPEC fix — LOCAL adversarial CRIT F-DEMO002-P2-CRIT-001 closure. Human decision: Option A — faithful to real Armis API; require AQL predicate. (1) AC-004 rewritten: query changed from bare `FROM armis_devices LIMIT 5` to `FROM armis_devices WHERE aql = 'in:devices' LIMIT 5`; added mandatory-AQL rationale block citing `armis.sensor.toml` path_template `"/api/v1/search?aql=${query.filter.aql}"` (no default), real Armis `/api/v1/search` API contract, and AC-014 Mechanism B convention; noted same requirement applies to `armis_alerts` table. (2) Task 11 updated: Armis query must include AQL predicate. (3) Open Question 3 resolved: Armis table names confirmed (`armis_devices`, `armis_alerts`); AQL-mandatory calling convention documented. AC-011 unchanged — its Armis verification is boot-time adapter registration (adapter count = 8), not query execution; no AQL predicate required. Rationale note: this aligns S-DEMO-002 to the merged Armis spec (armis.sensor.toml v1.0.0) per Source-of-Truth precedence (story spec defers to BC/TOML spec on contract semantics); the demo demonstrates the seeded-AQL path, faithful to the real Armis Centrix API. |
 | 1.6 | 2026-06-02 | product-owner | SPEC-EVOLUTION burst — LOCAL adversarial CRIT-001 / MED-002 / LOW-001 closures. (1) CRIT-001: AC-012 matcher contract replaced — `response_has_adapter_not_found_error` pattern retired; new matcher asserts MCP error code `-32602` + message containing `"E-QUERY-032"`, `"claroty"`, `"demo-org-a"`. Red Gate test renamed: `test_BC_3_2_001_e2e_cross_org_sensor_query_returns_e_query_032`. Rationale: `map_prism_error` redacts all E-SENSOR-* to "Internal error" (AD-017); AC-012 could never pass with the old E-SENSOR-010 substring match. New E-QUERY-032 is credential-safe (org slug + sensor type only) and surfaces as -32602. Companion changes: error-taxonomy.md v1.58 (E-QUERY-032 definition), BC-3.2.001 v0.7 (postcondition 5, EC-006/007, TV-3.2.001-06). (2) MED-002: AC-007 injection-scan assertion adjudicated — assertion `safety_flags == []` is meaningful ONLY when `results` is a non-empty array; test must verify at least 1 row returned. Added "What `wrap()` scans" narrative clarifying `collect_string_fields` is invoked for Array results (query tool rows), NOT for Object results (explain/alias responses). Implementation note added for BC-2.09.008 v1.x follow-up (object-shape scanning is pre-existing out-of-scope per `wrap()` doc comment SS-09 hardening section). Code change to `wrap()` is implementer scope. (3) LOW-001: FSR `.cargo/nextest.toml` corrected to `.config/nextest.toml` (actual on-disk path). Task 14 updated to match. |
 | 1.5 | 2026-06-02 | product-owner | Adversarial reconciliation (POL-27, POL-32). (1) F-*-CRIT-001 — all `tool_query` references replaced with canonical tool name `query` (BC-2.11.001 H1 source-of-truth): AC-002, AC-003, AC-004, AC-005, AC-006, AC-007, AC-012, AC-013, AC-014, Task 10, Task 17, Narrative, frontmatter comments. (2) F-*-CRIT-002 — AC-012 and Task 17 replace `org_slug="demo-org-a"` tool arg with canonical `clients: ["demo-org-a"]` per BC-2.11.001 Preconditions and `QueryToolParams` `#[serde(deny_unknown_fields)]` constraint; rationale note added inline. (3) F-*-MED — AC-014 seeding mechanism accuracy: added "Seeding mechanism accuracy" paragraph clarifying that INDEX column option is decorative (not a runtime gate today); generic `predicate_tree_to_filter_map` path extracts all `field='string'` equality predicates regardless of INDEX; implementer must NOT add `if column_is_index` branch. (4) F-PC-002 — coverage decisions for AC-009 (CI repetition, no new #[test]), AC-013 (new test Task 22: `test_BC_3_2_001_e2e_dtu_multi_tenant_each_org_reaches_correct_clone_port`), EC-004 (new test Task 23: `test_EC_004_e2e_limit_zero_returns_empty_not_error`), EC-005 (new test Task 24: `test_EC_005_e2e_limit_200_returns_paginated_rows`); red_gate_tests 5→9. (5) F-PB-MED-002 — FSR corrected: `crates/prism-bin/fixtures/e2e-demo/demo.toml` (not `tests/fixtures/demo.toml`); phantom `demo-prism.toml.template` removed (programmatic generation via `write_demo_config()`); Task 8 path updated. |

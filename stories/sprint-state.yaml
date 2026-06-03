@@ -17,12 +17,12 @@ active_dispatch_set:
     status: ready
     priority: P0
     points: 11
-    spec_version: "v1.7"
+    spec_version: "v1.8"
     lane: "1-of-3"
-    dispatch_status: "IN DELIVERY (D-963 CRIT F-DEMO002-P2-CRIT-001 closure 2026-06-02) — code @ 820353c9; LOCAL streak 0/3 (RESET from 1/3: pass-2 vs fd5147b1 found CRIT F-DEMO002-P2-CRIT-001 — AC-004 armis leg FROM armis_devices with no WHERE clause; path_template ${query.filter.aql} has no default → interpolation error before HTTP call; AC-004 cannot pass; human Option-A decision: require WHERE aql; PO updated AC-004 + Open Question 3 resolved; story v1.6→v1.7; implementer @ 820353c9 just check GREEN; rg 'S-DEMO-002 v1.6' sweeps crates/ ZERO). NEXT: LOCAL adversary re-pass @ 820353c9 (Lesson 62 preflight: git -C .worktrees/S-DEMO-002 rev-parse HEAD must == 820353c9) → 3-CLEAN → demo-recorder → push → pr-manager 9-step PR cycle → PR-LEVEL 3-CLEAN → merge"
-    entry_point: "LOCAL adversary re-pass @ 820353c9 (Lesson 62 preflight) → 3-CLEAN → demo-recorder → push → pr-manager 9-step PR cycle → PR-LEVEL 3-CLEAN → merge"
+    dispatch_status: "IN DELIVERY (D-964 prose-audit v1.8 + version-agnostic labels 2026-06-02) — code @ e286b932; LOCAL streak 0/3 (pass-3 MED F-DEMO002-P3-MED-001 CLOSED: PO prose-audit 4 fixes (EC-004/EC-005 events→rows; AC-007 result type; Task-19 test name); story v1.7→v1.8; implementer version-agnostic labels @ e286b932 TD-VSDD-091 — permanent class fix; rg 'S-DEMO-002 v' ZERO; just check GREEN). NEXT: LOCAL adversary re-pass @ e286b932 (Lesson 62 preflight: git -C .worktrees/S-DEMO-002 rev-parse HEAD must == e286b932) → 3-CLEAN → demo-recorder → push → pr-manager 9-step PR cycle → PR-LEVEL 3-CLEAN → merge"
+    entry_point: "LOCAL adversary re-pass @ e286b932 (Lesson 62 preflight) → 3-CLEAN → demo-recorder → push → pr-manager 9-step PR cycle → PR-LEVEL 3-CLEAN → merge"
     worktree_path: ".worktrees/S-DEMO-002"
-    code_head: "820353c9"
+    code_head: "e286b932"
     branch: "feature/S-DEMO-002"
     tracked_dependency: "MUST seed query_filters[\"aql\"] in PipelineExecutor FetchContext for Armis end-to-end AQL push-down (AC-014 D-934/D-952 scope) — canonical seeding site: predicate_tree_to_filter_map (BC-2.11.007 v1.5 Mechanism B). Do NOT add parallel extract fn. Tool name is `query` (not tool_query). Org field is `clients` (not org_slug). red_gate_tests=9. AC-004 now requires WHERE aql = 'in:devices' LIMIT 5 (Option-A per human D-963)."
     depends_on:
@@ -30,7 +30,7 @@ active_dispatch_set:
       - S-CONFIG-MULTI-TENANT-OVERRIDE-001  # HARD — SATISFIED (merged PR #155 develop@3e822522)
     bcs: [BC-2.11.001, BC-2.11.005, BC-2.09.008, BC-2.10.001, BC-2.10.010, BC-3.2.001, BC-2.22.001, BC-2.11.007]
     vps: [VP-148]
-    notes: "D-963 2026-06-02: LOCAL adversary pass-2 (vs fd5147b1 streak 1/3) found CRIT F-DEMO002-P2-CRIT-001 — AC-004 armis leg queried FROM armis_devices with no WHERE clause; path_template ${query.filter.aql} has no default → interpolation error before any HTTP call → AC-004 cannot pass; false 'default AQL' comment present. Streak RESET 1/3→0/3. Human decision: Option-A (faithful to real Armis API — require WHERE aql). PO updated story v1.6→v1.7: AC-004 now mandates FROM armis_devices WHERE aql = 'in:devices' LIMIT 5; Open Question 3 resolved. Implementer closed CRIT @ 820353c9: added WHERE aql='in:devices' to AC-004 + AC-011 armis queries; corrected false comment; swept ALL 'S-DEMO-002 v1.6'→v1.7 labels in crates/ (rg now ZERO); just check GREEN. code_head fd5147b1→820353c9. LOCAL streak 0/3; adversary re-pass NEXT @ 820353c9. (Prior D-962 2026-06-02: F-DEMO002-LP-MED-001+MED-002 CLOSED @ fd5147b1. D-961: pass-3 MED story-body Version: label RESET 2/3→0/3. D-960: re-pass-1 HIGH-1+MED-1+OBS-1 CLOSED @ 3a4ae38a. D-959: CRIT-001 CLOSED; story v1.6; implementer @ bb168f8c.)"
+    notes: "D-964 2026-06-02: LOCAL adversary pass-3 (would-be 3/3) found MED F-DEMO002-P3-MED-001 — EC-004/EC-005 story prose asserted non-existent 'events' envelope field (real field 'rows'); streak RESET 2/3→0/3. PO comprehensive prose-audit fixed 4 discrepancies: EC-004/EC-005 events→rows; AC-007 result type corrected to Object {rows:[...]}; Task-19 test name → test_BC_2_11_007_e2e_armis_aql_pushdown_devices_dtu_roundtrip; confirmed no other prose↔as-built mismatches. Story v1.7→v1.8 (file on disk). Implementer version-agnostic label structural fix @ e286b932: 'Story: S-DEMO-002 v1.7'→'Story: S-DEMO-002' at 4 sites (demo.toml + helpers/mod.rs + e2e_smoke.rs + aql_pushdown_tests.rs); TD-VSDD-091 anti-volatile-pin — permanently ends version-label sweep cycle; rg 'S-DEMO-002 v' ZERO in crates/; just check GREEN. code_head 820353c9→e286b932. LOCAL streak 0/3; adversary re-pass NEXT @ e286b932. (Prior D-963 2026-06-02: CRIT F-DEMO002-P2-CRIT-001 CLOSED @ 820353c9; story v1.6→v1.7. D-962: MED-001+MED-002 CLOSED @ fd5147b1. D-961: pass-3 MED body Version: label RESET 2/3→0/3. D-960: re-pass-1 HIGH-1+MED-1+OBS-1 CLOSED @ 3a4ae38a.)"
 
   - story_id: S-DEMO-CROWDSTRIKE-MULTIREGION-001
     status: ready
@@ -293,9 +293,9 @@ deferred_post_demo:
   # reclassification from permitted-divergence → required-fidelity; user directive no-scope-compromise).
 
 prereq_artifacts:
-  story_index: .factory/stories/STORY-INDEX.md         # v2.259 after D-963 burst (179 stories)
+  story_index: .factory/stories/STORY-INDEX.md         # v2.260 after D-964 burst (179 stories)
   bc_index: .factory/specs/behavioral-contracts/BC-INDEX.md  # v5.76 after D-959 burst (BC-3.2.001 v0.8; unchanged D-963)
-  state: .factory/STATE.md                              # v7.616 after D-963 burst
+  state: .factory/STATE.md                              # v7.617 after D-964 burst
   governing_adr: .factory/specs/architecture/decisions/ADR-031-dtu-equals-true-dtu-fidelity-principle.md  # v1.2 (ADR-031 architect e57eb5b1 reclassified 3 divergences)
   governing_audit: .factory/proposals/POLLER-DTU-FIDELITY-AUDIT-2026-05-29.md  # v1.1
 
