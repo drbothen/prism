@@ -17,6 +17,7 @@
 # to prevent CI queue starvation.
 [profile.e2e]
 fail-fast = true
+retries = 1
 slow-timeout = { period = "120s", terminate-after = 1 }
 final-status-level = "all"
 failure-output = "immediate"

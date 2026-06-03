@@ -172,6 +172,37 @@ pub async fn resolve_credential(
     // and then resolve through its source reference.
     let crud_result = crate::crud::credential_status(client_id, sensor_id, credential_name).await;
 
+    dispatch_crud_tier4(
+        crud_result,
+        client_id,
+        sensor_id,
+        credential_name,
+        &direct_env,
+        &file_env,
+    )
+}
+
+/// Dispatch the result of a Tier-4 CRUD store lookup.
+///
+/// Extracted as a pure(ish) function so unit tests can inject specific `crud_result` values —
+/// including `Err(PrismError)` — without needing to mock the CRUD store itself.
+///
+/// # MED-003 (ADV-PR-P03-MED-003)
+/// The prior `_ =>` arm in the inline match collapsed both `Ok(None)` (credential not
+/// configured) and `Err(PrismError)` (CRUD store failure) into `NotFound`. This hid
+/// genuine backend errors (lock poisoning, deserialization, etc.) behind a misleading
+/// "not found / ensure env var is set" message — a SOUL.md #4 violation.
+///
+/// This function implements the correct split: `Ok(None)` → `NotFound` (genuinely not
+/// configured), `Err(e)` → `BackendUnavailable` with the propagated error detail.
+fn dispatch_crud_tier4(
+    crud_result: Result<Option<crate::crud::CredentialMetadata>, prism_core::PrismError>,
+    client_id: &str,
+    sensor_id: &str,
+    credential_name: &str,
+    direct_env: &str,
+    file_env: &str,
+) -> Result<SecretString, CredentialResolutionError> {
     match crud_result {
         Ok(Some(meta)) => {
             // The credential has been configured. Try to resolve through its source.
@@ -234,8 +265,8 @@ pub async fn resolve_credential(
                 }
             }
         }
-        _ => {
-            // Not in crud store and not in env — NotFound.
+        Ok(None) => {
+            // Not in crud store and not in env — genuinely not configured.
             crate::audit::emit_audit(
                 crate::audit::AuditOperation::Get,
                 client_id,
@@ -253,6 +284,34 @@ pub async fn resolve_credential(
                      credential '{credential_name}' (BC-2.06.003 Tier 2). \
                      Or set '{file_env}' to a file path containing the secret (Tier 1). \
                      Or run `configure_credential_source` to register a source in the CRUD store (Tier 4).",
+                ),
+            })
+        }
+        Err(crud_err) => {
+            // CRUD store returned a hard error (lock poisoning, deserialization failure,
+            // backend I/O error, etc.). This is NOT a "not found" condition — propagate
+            // the underlying failure so the caller can distinguish a misconfigured backend
+            // from a credential that was never configured. SOUL.md #4: do not swallow errors.
+            //
+            // MED-003 fix (ADV-PR-P03-MED-003): the prior `_ =>` arm collapsed both
+            // Ok(None) and Err(PrismError) into NotFound, discarding genuine CRUD failures
+            // behind a misleading "ensure the env var is set" message.
+            crate::audit::emit_audit(
+                crate::audit::AuditOperation::Get,
+                client_id,
+                sensor_id,
+                credential_name,
+                "crud_store",
+                crate::audit::AuditOutcome::Error,
+            );
+            Err(CredentialResolutionError::BackendUnavailable {
+                client_id: client_id.to_string(),
+                sensor_id: sensor_id.to_string(),
+                credential_name: credential_name.to_string(),
+                detail: format!(
+                    "CRUD store returned an error while looking up credential \
+                     '{credential_name}' for org '{client_id}', sensor '{sensor_id}': {crud_err}. \
+                     Check the credential store backend for lock contention or data corruption."
                 ),
             })
         }
@@ -486,6 +545,99 @@ mod tests {
         assert_eq!(
             per_client_file_env_var("acme", "armis", "bearer_token"),
             "PRISM_CLIENTS_ACME_SENSORS_ARMIS_BEARER_TOKEN_FILE"
+        );
+    }
+
+    // ---------------------------------------------------------------------------
+    // MED-003: Tier-4 CRUD store error must NOT be collapsed to NotFound
+    // (ADV-PR-P03-MED-003 — SOUL.md #4 violation fix)
+    // ---------------------------------------------------------------------------
+
+    /// MED-003: When the CRUD store returns an `Err(PrismError)` (e.g., lock poisoning,
+    /// deserialization failure, backend I/O error), `dispatch_crud_tier4` must return
+    /// `CredentialResolutionError::BackendUnavailable` — NOT `NotFound`.
+    ///
+    /// The prior `_ =>` catch-all mapped BOTH `Ok(None)` and `Err(PrismError)` to `NotFound`,
+    /// hiding genuine backend failures behind a misleading "ensure env var is set" message.
+    ///
+    /// This test injects a `Err(PrismError::CredentialStoreError)` directly into
+    /// `dispatch_crud_tier4` (the extracted helper) and asserts the error is surfaced
+    /// as `BackendUnavailable`, not `NotFound`.
+    #[test]
+    fn test_med003_crud_store_error_is_not_reported_as_not_found() {
+        // Construct a realistic CRUD store error (e.g., RocksDB lock poisoning).
+        let crud_error = prism_core::PrismError::CredentialStoreError {
+            backend: "in_memory".to_string(),
+            reason: "borrow_mut: already borrowed — lock poisoning in RefCell".to_string(),
+        };
+
+        let result = dispatch_crud_tier4(
+            Err(crud_error),
+            "acme",                                               // client_id
+            "armis",                                              // sensor_id
+            "bearer_token",                                       // credential_name
+            "PRISM_CLIENTS_ACME_SENSORS_ARMIS_BEARER_TOKEN",      // direct_env
+            "PRISM_CLIENTS_ACME_SENSORS_ARMIS_BEARER_TOKEN_FILE", // file_env
+        );
+
+        // Must be an Err — CRUD store errors are not recoverable at this tier.
+        let err = result.expect_err(
+            "MED-003: CRUD store Err must produce CredentialResolutionError, not Ok(secret)",
+        );
+
+        // Must be BackendUnavailable — NOT NotFound.
+        // A genuine CRUD error is NOT the same as "credential not configured."
+        assert!(
+            matches!(err, CredentialResolutionError::BackendUnavailable { .. }),
+            "MED-003: Err(PrismError) from CRUD store must map to BackendUnavailable, not NotFound. \
+             Got: {err:?}"
+        );
+
+        // The error detail must contain the original PrismError message (not silently dropped).
+        let CredentialResolutionError::BackendUnavailable { detail, .. } = err else {
+            unreachable!("pattern already matched above")
+        };
+        assert!(
+            detail.contains("borrow_mut") || detail.contains("lock poisoning"),
+            "MED-003: BackendUnavailable detail must propagate the original CRUD error reason. \
+             Got: {detail:?}"
+        );
+    }
+
+    /// MED-003 complementary: `Ok(None)` from the CRUD store (credential genuinely not
+    /// configured) still maps to `NotFound` — the fix must not change the happy-absent path.
+    #[test]
+    fn test_med003_crud_store_ok_none_is_still_not_found() {
+        let direct_env = "PRISM_CLIENTS_ACME_SENSORS_ARMIS_BEARER_TOKEN";
+        let file_env = "PRISM_CLIENTS_ACME_SENSORS_ARMIS_BEARER_TOKEN_FILE";
+
+        let result = dispatch_crud_tier4(
+            Ok(None), // genuinely not in CRUD store
+            "acme",
+            "armis",
+            "bearer_token",
+            direct_env,
+            file_env,
+        );
+
+        let err = result.expect_err(
+            "MED-003: Ok(None) from CRUD store must produce CredentialResolutionError::NotFound",
+        );
+
+        assert!(
+            matches!(err, CredentialResolutionError::NotFound { .. }),
+            "MED-003: Ok(None) from CRUD store must map to NotFound (credential genuinely absent). \
+             Got: {err:?}"
+        );
+
+        // The suggestion must guide the operator — not claim a backend error.
+        let CredentialResolutionError::NotFound { suggestion, .. } = err else {
+            unreachable!("pattern already matched above")
+        };
+        assert!(
+            suggestion.contains(direct_env),
+            "MED-003: NotFound suggestion must cite the direct env var name for operator guidance. \
+             Got: {suggestion:?}"
         );
     }
 }
