@@ -19,10 +19,10 @@ active_dispatch_set:
     points: 11
     spec_version: "v1.8"
     lane: "1-of-3"
-    dispatch_status: "LOCAL CONVERGED 3/3 (D-966 2026-06-03) — code @ 5a2f22f6; BC-5.39.001 D-779 LOCAL cascade satisfied. Cascade closures: CRIT cross-org isolation E-QUERY-032; HIGH dot→underscore table names; AC-007 vacuous scan; AC-014 DTU round-trip coverage; AC-011 count==8 coverage; E-QUERY-032 -32602 transport-mapping; armis no-WHERE-aql CRIT (Option-A D-963); prose↔as-built + version-label-volatility root-fixed (TD-VSDD-091). LOCAL streak 3/3. NEXT: demo-recorder (per-AC evidence per story §ACs; Lesson 62 preflight: git -C .worktrees/S-DEMO-002 rev-parse HEAD must == 5a2f22f6) → push feature/S-DEMO-002 → pr-manager 9-step PR cycle → PR-LEVEL 3-CLEAN → merge. Story is merge-eligible pending demo-recorder + PR cycle."
-    entry_point: "demo-recorder (per-AC evidence; Lesson 62 preflight worktree-identity @ 5a2f22f6) → push → pr-manager 9-step PR cycle → PR-LEVEL 3-CLEAN → merge"
+    dispatch_status: "D-966 LOCAL CONVERGENCE VOIDED (D-967 2026-06-03) — e2e 121/121 GREEN @ 7c9db1cc; 9 production defects closed (see D-967 for full inventory: oauth2 routing, per-org base_url, CredentialResolver, crowdstrike field-path, JSON interpolation, Component-Model WIT, Armis pagination, unscoped clients=None, table-suffix filtering) + harness fixes; just check GREEN; LOCAL streak RESET 0/3; re-cascade pending. Spec-drift review REQUIRED before fresh convergence: PROD-5 JSON-literal interpolation + PROD-8 unscoped-query behavior may need BC/spec updates (BC-2.16.009/BC-2.16.013 + BC-3.2.001). NEXT: re-demo (Lesson 62 preflight: git -C .worktrees/S-DEMO-002 rev-parse HEAD must == 7c9db1cc) → fresh LOCAL adversarial cascade → spec-drift check → 3-CLEAN → push → pr-manager 9-step PR cycle."
+    entry_point: "re-demo (fresh evidence @ 7c9db1cc; Lesson 62 preflight) → fresh LOCAL adversarial cascade (BC-5.39.001) → spec-drift check → push → pr-manager 9-step PR cycle → PR-LEVEL 3-CLEAN → merge"
     worktree_path: ".worktrees/S-DEMO-002"
-    code_head: "5a2f22f6"
+    code_head: "7c9db1cc"
     branch: "feature/S-DEMO-002"
     tracked_dependency: "MUST seed query_filters[\"aql\"] in PipelineExecutor FetchContext for Armis end-to-end AQL push-down (AC-014 D-934/D-952 scope) — canonical seeding site: predicate_tree_to_filter_map (BC-2.11.007 v1.5 Mechanism B). Do NOT add parallel extract fn. Tool name is `query` (not tool_query). Org field is `clients` (not org_slug). red_gate_tests=9. AC-004 now requires WHERE aql = 'in:devices' LIMIT 5 (Option-A per human D-963)."
     depends_on:
@@ -30,7 +30,7 @@ active_dispatch_set:
       - S-CONFIG-MULTI-TENANT-OVERRIDE-001  # HARD — SATISFIED (merged PR #155 develop@3e822522)
     bcs: [BC-2.11.001, BC-2.11.005, BC-2.09.008, BC-2.10.001, BC-2.10.010, BC-3.2.001, BC-2.22.001, BC-2.11.007]
     vps: [VP-148]
-    notes: "D-966 2026-06-03: LOCAL 3-CLEAN CONVERGENCE @ 5a2f22f6 (story v1.8). BC-5.39.001 D-779 LOCAL cascade satisfied. Three consecutive CLEAN(strict) passes on unchanged 5a2f22f6. Cascade closures across all passes: CRIT cross-org isolation E-QUERY-032; HIGH dot→underscore table names; AC-007 vacuous scan; AC-014 DTU round-trip coverage; AC-011 count==8 coverage; E-QUERY-032 -32602 transport-mapping; armis no-WHERE-aql CRIT (Option-A D-963); prose↔as-built + version-label-volatility root-fixed (TD-VSDD-091 permanent class fix). LOCAL streak 3/3 CONVERGED. NEXT: demo-recorder → push → PR cycle. (Prior D-965 2026-06-02: residual-pin MED F-DEMO002-PASS-MED-001 CLOSED @ 5a2f22f6; D-964 narrow-grep false-green corrected; streak 0/3. D-964: prose-audit v1.8 + version-agnostic labels @ e286b932. D-963: CRIT F-DEMO002-P2-CRIT-001 CLOSED @ 820353c9. D-962: MED-001+MED-002 CLOSED @ fd5147b1. D-961: pass-3 reset. D-960: re-pass-1 HIGH-1+MED-1+OBS-1 CLOSED @ 3a4ae38a.)"
+    notes: "D-967 2026-06-03: D-966 LOCAL CONVERGENCE VOIDED — demo-recorder ran actual e2e suite and found 13 failures; human authorized fix-harness + re-converge. Implementer 7c9db1cc closed 9 production defects: (1) oauth2_client_credentials auth routing; (2) per-org DTU base_url from overlay; (3) ProductionCredentialResolver non-empty placeholder; (4) crowdstrike body_template field-path fix; (5) JSON array/object interpolation as literals; (6) Component-Model WIT navigation; (7) Armis offset/limit pagination; (8) unscoped query clients=None guard (no false E-QUERY-032); (9) table-suffix filtering in SpecDrivenSensorAdapter. Harness: 3 ${env.VAR} env vars + crowdstrike .prx/manifest staging + RUST_LOG=off + PrismQL syntax + cyberint access-token seeding. RESULT: 121 passed / 0 failed; just check GREEN. LOCAL streak RESET 0/3. Spec-drift check REQUIRED before fresh convergence (PROD-5 interpolation behavior + PROD-8 unscoped-query semantics). (Prior D-966 2026-06-03: LOCAL 3-CLEAN CONVERGENCE @ 5a2f22f6 — VOIDED by D-967. D-965: residual-pin MED CLOSED @ 5a2f22f6. D-964: prose-audit v1.8 + version-agnostic labels @ e286b932. D-963: CRIT F-DEMO002-P2-CRIT-001 CLOSED @ 820353c9. D-962: MED-001+MED-002 CLOSED @ fd5147b1.)"
 
   - story_id: S-DEMO-CROWDSTRIKE-MULTIREGION-001
     status: ready
@@ -295,7 +295,7 @@ deferred_post_demo:
 prereq_artifacts:
   story_index: .factory/stories/STORY-INDEX.md         # v2.260 after D-964 burst (179 stories)
   bc_index: .factory/specs/behavioral-contracts/BC-INDEX.md  # v5.76 after D-959 burst (BC-3.2.001 v0.8; unchanged D-963)
-  state: .factory/STATE.md                              # v7.619 after D-966 burst
+  state: .factory/STATE.md                              # v7.620 after D-967 burst
   governing_adr: .factory/specs/architecture/decisions/ADR-031-dtu-equals-true-dtu-fidelity-principle.md  # v1.2 (ADR-031 architect e57eb5b1 reclassified 3 divergences)
   governing_audit: .factory/proposals/POLLER-DTU-FIDELITY-AUDIT-2026-05-29.md  # v1.1
 
