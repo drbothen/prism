@@ -918,8 +918,10 @@ impl McpStdioHandle {
 /// `"https://demo.cyberint.io"` (demo is a valid hostname component).
 /// The overlay replaces the full `base_url` with the DTU URL anyway.
 ///
-/// `CROWDSTRIKE_BASE_URL` is a full URL placeholder: `"http://placeholder.crowdstrike.invalid"`.
-/// The overlay replaces it with the actual DTU clone URL for each org.
+/// `CROWDSTRIKE_BASE_URL` must be a URL whose host is in the crowdstrike-oauth2 plugin's
+/// `allowed_urls` to pass SEC-003 at step 7.5b. The DTU-safe manifest has
+/// `allowed_urls = ["api.crowdstrike.com", "127.0.0.1"]`. We use `"http://127.0.0.1"` —
+/// the overlay replaces it with the actual DTU clone port URL before any HTTP contact.
 ///
 /// # Plugin loading
 ///
@@ -987,13 +989,18 @@ pub async fn launch_prism_bin(
         .env("CYBERINT_ENVIRONMENT", "demo")
         // CROWDSTRIKE_BASE_URL: required by crowdstrike.sensor.toml TYPE spec since
         // S-DEMO-CROWDSTRIKE-MULTIREGION-001 changed base_url to "${env.CROWDSTRIKE_BASE_URL}".
-        // E-SPEC-024 fires at spec-load time if absent. The per-org overlay always overrides
-        // base_url to the DTU clone URL before any HTTP request is made — the placeholder
-        // value here is never contacted.
-        .env(
-            "CROWDSTRIKE_BASE_URL",
-            "http://placeholder.crowdstrike.invalid",
-        )
+        // E-SPEC-024 fires at spec-load time if absent.
+        //
+        // IMPORTANT: SEC-003 validates the token_endpoint host (base_url + "/oauth2/token")
+        // against the plugin manifest's allowed_urls at step 7.5b. The TYPE spec base_url
+        // is validated BEFORE per-org overlays are applied, so the value must be a host
+        // present in the crowdstrike-oauth2 DTU-safe manifest's allowed_urls:
+        // ["api.crowdstrike.com", "127.0.0.1"] (see stage_crowdstrike_plugin).
+        //
+        // Using "http://127.0.0.1" satisfies SEC-003 (host "127.0.0.1" is in the allowlist).
+        // The per-org overlay then replaces base_url with the actual DTU clone port URL
+        // (http://127.0.0.1:<ephemeral_port>) before any HTTP request is made.
+        .env("CROWDSTRIKE_BASE_URL", "http://127.0.0.1")
         // ---------- Armis bearer_token (orgs: demo-org, demo-org-a, demo-org-c) ----------
         // Resolved by BearerStaticCredentialAuthProvider via
         // resolve_credential(org_slug, "armis", "bearer_token") (BC-2.06.003 v1.3 Tier 2).
