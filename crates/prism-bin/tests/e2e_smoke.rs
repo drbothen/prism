@@ -125,17 +125,17 @@ async fn test_BC_2_11_005_e2e_crowdstrike_query_returns_ocsf_data() {
 
     // AC-003: query CrowdStrike detections.
     // Table name: "detections" (crowdstrike.sensor.toml [[tables]] table_name = "detections").
-    // Full qualified source: "crowdstrike.detections" or "crowdstrike_detections"
-    // per PrismQL FROM syntax. Use canonical table reference.
+    // Full qualified source: "crowdstrike_detections" — underscore notation per PrismQL
+    // FROM syntax. The resolver (sensor_id_from_table_name) rejects dot notation (E-QUERY-006).
     let response = mcp
-        .tool_query("FROM crowdstrike.detections LIMIT 5")
+        .tool_query("FROM crowdstrike_detections LIMIT 5")
         .expect("tool_query failed for crowdstrike");
 
     // Assert non-empty data.
     let rows = extract_rows_from_envelope(&response);
     assert!(
         !rows.is_empty(),
-        "AC-003: expected at least 1 row from crowdstrike.detections; response: {response:?}"
+        "AC-003: expected at least 1 row from crowdstrike_detections; response: {response:?}"
     );
 
     // Assert OCSF fields present (BC-2.11.005 postcondition).
@@ -200,13 +200,13 @@ async fn test_BC_2_11_005_e2e_armis_query_returns_data() {
     // DTU fetch path: GET /api/v1/search?aql=in:devices (S-DEMO-ARMIS-AQL-001 fix).
     // The default AQL query_filter for the devices table is "in:devices".
     let response = mcp
-        .tool_query("FROM armis.devices LIMIT 5")
+        .tool_query("FROM armis_devices LIMIT 5")
         .expect("tool_query failed for armis");
 
     let rows = extract_rows_from_envelope(&response);
     assert!(
         !rows.is_empty(),
-        "AC-004: expected at least 1 row from armis.devices (DTU path: /api/v1/search?aql=in:devices); response: {response:?}"
+        "AC-004: expected at least 1 row from armis_devices (DTU path: /api/v1/search?aql=in:devices); response: {response:?}"
     );
 
     // Assert no error code in response.
@@ -245,13 +245,13 @@ async fn test_BC_2_11_005_e2e_claroty_query_returns_data() {
 
     // AC-005a: query Claroty alerts.
     let alerts_response = mcp
-        .tool_query("FROM claroty.alerts LIMIT 5")
-        .expect("tool_query failed for claroty.alerts");
+        .tool_query("FROM claroty_alerts LIMIT 5")
+        .expect("tool_query failed for claroty_alerts");
 
     let alert_rows = extract_rows_from_envelope(&alerts_response);
     assert!(
         !alert_rows.is_empty(),
-        "AC-005: expected at least 1 row from claroty.alerts; response: {alerts_response:?}"
+        "AC-005: expected at least 1 row from claroty_alerts; response: {alerts_response:?}"
     );
 
     // Assert Gap-CL-005 column names (alert_type_name, detected_time — NOT type/created_at).
@@ -268,13 +268,13 @@ async fn test_BC_2_11_005_e2e_claroty_query_returns_data() {
 
     // AC-005b: query Claroty devices (Gap-CL-003 fix — devices table added).
     let devices_response = mcp
-        .tool_query("FROM claroty.devices LIMIT 5")
-        .expect("tool_query failed for claroty.devices");
+        .tool_query("FROM claroty_devices LIMIT 5")
+        .expect("tool_query failed for claroty_devices");
 
     let device_rows = extract_rows_from_envelope(&devices_response);
     assert!(
         !device_rows.is_empty(),
-        "AC-005: expected at least 1 row from claroty.devices (Gap-CL-003 fix — table was missing); response: {devices_response:?}"
+        "AC-005: expected at least 1 row from claroty_devices (Gap-CL-003 fix — table was missing); response: {devices_response:?}"
     );
     assert_response_has_no_error(&devices_response);
 }
@@ -308,13 +308,13 @@ async fn test_BC_2_11_005_e2e_cyberint_query_returns_data() {
     // AC-006: query Cyberint alerts.
     // Table name: "alerts" (cyberint.sensor.toml [[tables]] table_name = "alerts").
     let response = mcp
-        .tool_query("FROM cyberint.alerts LIMIT 5")
+        .tool_query("FROM cyberint_alerts LIMIT 5")
         .expect("tool_query failed for cyberint");
 
     let rows = extract_rows_from_envelope(&response);
     assert!(
         !rows.is_empty(),
-        "AC-006: expected at least 1 row from cyberint.alerts; response: {response:?}"
+        "AC-006: expected at least 1 row from cyberint_alerts; response: {response:?}"
     );
     assert_response_has_no_error(&response);
 }
@@ -349,8 +349,17 @@ async fn test_BC_2_09_008_e2e_response_envelope_meta_fields_correct() {
     mcp.initialize().expect("MCP handshake failed");
 
     let response = mcp
-        .tool_query("FROM crowdstrike.detections LIMIT 5")
+        .tool_query("FROM crowdstrike_detections LIMIT 5")
         .expect("tool_query failed for crowdstrike");
+
+    // AC-007: assert ≥1 row before proceeding — safety_flags assertion is only meaningful
+    // when data was actually returned (MED-002 resolution: non-vacuous assertion guard).
+    let rows = extract_rows_from_envelope(&response);
+    assert!(
+        !rows.is_empty(),
+        "AC-007: safety_flags assertion requires ≥1 row to be non-vacuous; \
+         got zero rows from crowdstrike_detections; response: {response:?}"
+    );
 
     // AC-007: assert _meta.trust_level == "untrusted_external".
     let meta = response
@@ -418,8 +427,8 @@ async fn test_BC_2_10_010_e2e_sigterm_cleanly_shuts_down_both_subprocesses() {
 
     mcp.initialize().expect("MCP handshake failed");
 
-    // Issue 4 queries to confirm working state before teardown.
-    let _ = mcp.tool_query("FROM crowdstrike.detections LIMIT 5");
+    // Issue a query to confirm working state before teardown.
+    let _ = mcp.tool_query("FROM crowdstrike_detections LIMIT 5");
 
     // Send SIGTERM to prism-bin (AC-008).
     let prism_pid = prism_guard.child.id() as libc::pid_t;
@@ -515,11 +524,12 @@ async fn test_BC_3_2_001_e2e_multi_org_boot_registers_correct_adapter_count() {
     // AC-011: verify all 4 sensors resolve for demo-org-c (has all 4 sensors).
     // This indirectly proves 8 adapters were registered (2+2+4).
     // For demo-org-c, all 4 queries should return data.
+    // Table names use underscore notation ({sensor}_{table}) per PrismQL FROM syntax.
     for (org, sensor_table) in [
-        ("demo-org-c", "crowdstrike.detections"),
-        ("demo-org-c", "armis.devices"),
-        ("demo-org-c", "claroty.alerts"),
-        ("demo-org-c", "cyberint.alerts"),
+        ("demo-org-c", "crowdstrike_detections"),
+        ("demo-org-c", "armis_devices"),
+        ("demo-org-c", "claroty_alerts"),
+        ("demo-org-c", "cyberint_alerts"),
     ] {
         let response = mcp
             .tool_query(&format!("FROM {sensor_table} LIMIT 1"))
@@ -545,7 +555,7 @@ async fn test_BC_3_2_001_e2e_multi_org_boot_registers_correct_adapter_count() {
 /// for OTHER orgs), the system MUST return a SURFACED operational error E-QUERY-032.
 ///
 /// demo-org-a has CrowdStrike + Armis but NOT Claroty or Cyberint.
-/// Querying claroty.alerts from demo-org-a context must return a JSON-RPC error
+/// Querying claroty_alerts from demo-org-a context must return a JSON-RPC error
 /// carrying E-QUERY-032 (sensor not registered for org), code -32602 (INVALID_PARAMS).
 /// No Claroty data from demo-org-b is leaked.
 ///
@@ -588,7 +598,7 @@ async fn test_BC_3_2_001_e2e_cross_org_sensor_query_returns_e_query_032() {
 
     mcp.initialize().expect("MCP handshake failed");
 
-    // AC-012: query claroty.alerts from demo-org-a (Claroty NOT registered for demo-org-a).
+    // AC-012: query claroty_alerts from demo-org-a (Claroty NOT registered for demo-org-a).
     // The MCP `query` tool scopes to demo-org-a; resolve_source_refs raises E-QUERY-032
     // at the query-planning boundary (BC-3.2.001 postcondition 5).
     // The query handler returns a JSON-RPC error (map_err(to_error_data)?) carrying E-QUERY-032.
@@ -596,15 +606,17 @@ async fn test_BC_3_2_001_e2e_cross_org_sensor_query_returns_e_query_032() {
     // Use `tool_query_scoped_expect_rpc_error` to capture the error JSON without panicking.
     // Scoping param: `clients: ["demo-org-a"]` (array of org slug strings).
     // QueryToolParams.clients: Option<Vec<String>>; #[serde(deny_unknown_fields)] rejects `org_slug`.
+    // Claroty is registered for demo-org-b and demo-org-c (NOT demo-org-a) — the org-scoped
+    // guard fires and returns E-QUERY-032 (sensor registered for other orgs but not this one).
     let response = mcp
-        .tool_query_scoped_expect_rpc_error("FROM claroty.alerts LIMIT 5", "demo-org-a")
+        .tool_query_scoped_expect_rpc_error("FROM claroty_alerts LIMIT 5", "demo-org-a")
         .expect("tool_query_scoped_expect_rpc_error failed at transport/I/O level (not an expected RPC error)");
 
     // AC-012 assertion 1: response has a JSON-RPC `error` field, not a `result`.
     // The response is the raw JSON-RPC object: { "jsonrpc": "2.0", "id": N, "error": {...} }.
     assert!(
         response.get("error").is_some(),
-        "AC-012 BC-3.2.001: querying claroty.alerts from demo-org-a must return a \
+        "AC-012 BC-3.2.001: querying claroty_alerts from demo-org-a must return a \
          JSON-RPC error object (not a result envelope); got: {response:?}"
     );
     assert!(
@@ -701,7 +713,7 @@ async fn test_BC_3_2_001_e2e_dtu_multi_tenant_each_org_reaches_correct_clone_por
     // DTU-MULTI-001: demo DTU operates in single-tenant mode; org isolation is at
     // AdapterRegistry layer only (AC-013 scope clarification per S-DEMO-002 v1.5).
     let response_a = mcp
-        .tool_query_scoped("FROM crowdstrike.detections LIMIT 5", "demo-org-a")
+        .tool_query_scoped("FROM crowdstrike_detections LIMIT 5", "demo-org-a")
         .expect("query for demo-org-a failed (unexpected network/transport error)");
 
     let rows_a = extract_rows_from_envelope(&response_a);
@@ -716,7 +728,7 @@ async fn test_BC_3_2_001_e2e_dtu_multi_tenant_each_org_reaches_correct_clone_por
     // AC-013: query CrowdStrike from demo-org-c (CrowdStrike IS registered for demo-org-c).
     // Both orgs point to the same DTU clone port — both receive identical fixture data.
     let response_c = mcp
-        .tool_query_scoped("FROM crowdstrike.detections LIMIT 5", "demo-org-c")
+        .tool_query_scoped("FROM crowdstrike_detections LIMIT 5", "demo-org-c")
         .expect("query for demo-org-c failed (unexpected network/transport error)");
 
     let rows_c = extract_rows_from_envelope(&response_c);
@@ -762,7 +774,7 @@ async fn test_EC_004_e2e_limit_zero_returns_empty_not_error() {
 
     // EC-004: LIMIT 0 must return an empty result, not an error.
     let response = mcp
-        .tool_query("FROM crowdstrike.detections LIMIT 0")
+        .tool_query("FROM crowdstrike_detections LIMIT 0")
         .expect("tool query (LIMIT 0) failed at transport level");
 
     // Assert no error envelope.
@@ -820,7 +832,7 @@ async fn test_EC_005_e2e_limit_200_returns_paginated_rows() {
     // The DTU fixture may have fewer than 200 CrowdStrike detections; if so,
     // len(rows) == fixture_count (still <= 200 and != 0).
     let response = mcp
-        .tool_query("FROM crowdstrike.detections LIMIT 200")
+        .tool_query("FROM crowdstrike_detections LIMIT 200")
         .expect("tool query (LIMIT 200) failed at transport level");
 
     // Assert no error envelope.
@@ -913,26 +925,4 @@ fn assert_response_has_no_error(envelope: &serde_json::Value) {
             panic!("Response has error status '{status}'; envelope: {envelope:?}");
         }
     }
-}
-
-/// Return true if the response indicates cross-org isolation error (E-QUERY-032 or equivalent).
-///
-/// The canonical error after CRIT-001 fix is `PrismError::SensorNotRegisteredForOrg`
-/// (E-QUERY-032): raised at the query-planning boundary by `resolve_source_refs`
-/// when an explicit org scope is given and the sensor is not registered for that org.
-///
-/// The `query` MCP handler returns engine errors as JSON-RPC errors via
-/// `map_err(to_error_data)?`. The full JSON-RPC response has shape:
-///   `{ "jsonrpc": "2.0", "id": N, "error": { "code": -32602, "message": "E-QUERY-032: ..." } }`
-///
-/// BC-3.2.001 postcondition 5: sensor registered for OTHER orgs but not this org
-/// must raise E-QUERY-032 (surfaced operational error), not a silent empty result.
-fn response_has_adapter_not_found_error(envelope: &serde_json::Value) -> bool {
-    let envelope_str = envelope.to_string();
-    // Primary: E-QUERY-032 (CRIT-001 fix — org-scoped isolation surfaced error).
-    envelope_str.contains("E-QUERY-032")
-        // Secondary: legacy E-SENSOR-010 signal (pre-CRIT-001 build compatibility).
-        || envelope_str.contains("E-SENSOR-010")
-        || envelope_str.contains("no adapter registered for sensor id")
-        || envelope_str.contains("AdapterNotFound")
 }

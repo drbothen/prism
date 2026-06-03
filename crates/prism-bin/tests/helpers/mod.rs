@@ -26,7 +26,13 @@
 //! Tests locate the `prism` and `prism-dtu-demo-server` binaries via `locate_binary`:
 //! 1. `CARGO_BIN_EXE_*` env var (populated by cargo for same-package bins only).
 //! 2. Workspace `target/release/<name>` — preferred (Architecture Compliance Rule 5).
-//! 3. Workspace `target/debug/<name>` — developer fallback (may cause timeouts).
+//! 3. Workspace `target/debug/<name>` — fallback with VISIBLE diagnostic (not silent);
+//!    emits eprintln! warning. Debug binaries may cause 30s E2E timeout failures.
+//! 4. Neither found — `Err(...)` with actionable `cargo build --release` instruction.
+//!
+//! OBS-1: The debug fallback is NOT silent — a clear diagnostic is always emitted
+//! when the debug path is taken, so developers know they are not using the preferred
+//! release binary.
 //!
 //! Run `cargo build --release -p prism -p prism-dtu-demo-server` before E2E tests.
 //!
@@ -823,9 +829,14 @@ pub async fn launch_prism_bin(
 /// 2. Workspace `target/release/<name>` — the release binary is required by
 ///    Architecture Compliance Rule 5 (30-second subprocess timeout assumes release
 ///    performance). This is the documented precondition for running E2E tests.
-/// 3. Workspace `target/debug/<name>` — fallback for developer convenience when
-///    only a debug build is available. Debug binaries may cause timeout failures
-///    on slow machines.
+/// 3. Workspace `target/debug/<name>` — fallback ONLY when release is absent.
+///    NOT silent: emits a visible `eprintln!` diagnostic before returning the path.
+///    Debug binaries may cause E2E timeout failures (30s limit assumes release speed).
+/// 4. Returns `Err(...)` with an actionable `cargo build --release` message if
+///    neither release nor debug binary exists.
+///
+/// OBS-1: There is NO silent fallback path. Every binary selection path either
+/// returns `Ok` with a log/diagnostic or returns `Err` with a clear message.
 ///
 /// # Precondition
 /// Run `cargo build --release -p prism -p prism-dtu-demo-server` before running E2E tests.
@@ -860,16 +871,29 @@ fn locate_binary(name: &str) -> Result<PathBuf, String> {
         return Ok(release_bin);
     }
 
-    // Fall back to debug build for developer convenience only.
-    // WARNING: debug binaries may be significantly slower and cause E2E timeout failures.
+    // Debug fallback: permitted ONLY when no release binary exists. NOT silent — emit a
+    // clear diagnostic so developers know they are running a potentially slower binary.
+    // If the debug binary is stale, the E2E timeout (30s) will surface the issue.
+    // OBS-1 resolution: no silent fallback path; every binary selection is accounted for.
     let debug_bin = workspace_root.join("target/debug").join(name);
     if debug_bin.exists() {
+        // PRECONDITION VIOLATION — emit a visible diagnostic, not a silent fallback.
+        // eprintln! is permitted in test helpers (not production code paths).
+        eprintln!(
+            "[E2E PRECONDITION WARNING] locate_binary: release binary not found for '{name}'. \
+             Falling back to debug binary at {debug_bin:?}. Debug binaries may cause E2E \
+             timeout failures (30s limit assumes release performance). \
+             Run `cargo build --release -p {name}` before running E2E tests \
+             (Architecture Compliance Rule 5)."
+        );
         return Ok(debug_bin);
     }
 
+    // Neither release nor debug binary found — fail with a clear actionable error.
     Err(format!(
-        "Binary '{name}' not found. Build with `cargo build --release -p {name}` first \
-         (release build required for E2E timing; Architecture Compliance Rule 5). \
+        "Binary '{name}' not found in release or debug target directories. \
+         Run `cargo build --release -p {name}` before running E2E tests \
+         (release build required for 30s E2E timing; Architecture Compliance Rule 5). \
          Searched: {release_bin:?}, {debug_bin:?}"
     ))
 }
