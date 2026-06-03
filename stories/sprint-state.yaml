@@ -10,7 +10,7 @@ wave: 5
 
 active_dispatch_set:
   # ============================================================
-  # D-951/D-952/D-954/D-955/D-956/D-957 PARALLEL DISPATCH SET (2026-06-02) — 3 lanes IN DELIVERY; PAUSED for location move
+  # D-951/D-952/D-954/D-955/D-956/D-957/D-959/D-960 DISPATCH SET (2026-06-02)
   # ============================================================
 
   - story_id: S-DEMO-002
@@ -19,10 +19,10 @@ active_dispatch_set:
     points: 11
     spec_version: "v1.6"
     lane: "1-of-3"
-    dispatch_status: "IN DELIVERY (D-959 spec-evolution burst 2026-06-02) — code @ bb168f8c; LOCAL streak 0/3; CRIT-001 closed (PO BC-3.2.001 v0.7→v0.8; E-QUERY-032 error-taxonomy v1.58; story v1.6 AC-012 matcher + test renamed; implementer bb168f8c PrismError::SensorNotRegisteredForOrg + resolve_source_refs guard + map_prism_error -32602 + SID-1/AC-007 unit tests; just check GREEN 3931 tests). NEXT: LOCAL adversary re-pass (Lesson 62 preflight: git -C .worktrees/S-DEMO-002 rev-parse HEAD must == bb168f8c) → 3-CLEAN → demo-recorder → push → pr-manager 9-step PR cycle → PR-LEVEL 3-CLEAN → merge"
-    entry_point: "LOCAL adversary re-pass @ bb168f8c (Lesson 62 preflight) → 3-CLEAN → demo-recorder → push → pr-manager 9-step PR cycle → PR-LEVEL 3-CLEAN → merge"
+    dispatch_status: "IN DELIVERY (D-960 re-pass-1 fix-burst closure 2026-06-02) — code @ 3a4ae38a; LOCAL streak 0/3; HIGH-1+MED-1+OBS-1 CLOSED (e2e dot→underscore table names + AC-007 vacuous guard + locate_binary silent fallback + dead helper removed); just check GREEN 3931/3931 tests. OBS-2 → S-DEMO-CI-E2E-001 (process-gap follow-up). NEXT: LOCAL adversary re-pass (Lesson 62 preflight: git -C .worktrees/S-DEMO-002 rev-parse HEAD must == 3a4ae38a) → 3-CLEAN → demo-recorder → push → pr-manager 9-step PR cycle → PR-LEVEL 3-CLEAN → merge"
+    entry_point: "LOCAL adversary re-pass @ 3a4ae38a (Lesson 62 preflight) → 3-CLEAN → demo-recorder → push → pr-manager 9-step PR cycle → PR-LEVEL 3-CLEAN → merge"
     worktree_path: ".worktrees/S-DEMO-002"
-    code_head: "bb168f8c"
+    code_head: "3a4ae38a"
     branch: "feature/S-DEMO-002"
     tracked_dependency: "MUST seed query_filters[\"aql\"] in PipelineExecutor FetchContext for Armis end-to-end AQL push-down (AC-014 D-934/D-952 scope) — canonical seeding site: predicate_tree_to_filter_map (BC-2.11.007 v1.5 Mechanism B). Do NOT add parallel extract fn. Tool name is `query` (not tool_query). Org field is `clients` (not org_slug). red_gate_tests=9."
     depends_on:
@@ -30,7 +30,7 @@ active_dispatch_set:
       - S-CONFIG-MULTI-TENANT-OVERRIDE-001  # HARD — SATISFIED (merged PR #155 develop@3e822522)
     bcs: [BC-2.11.001, BC-2.11.005, BC-2.09.008, BC-2.10.001, BC-2.10.010, BC-3.2.001, BC-2.22.001, BC-2.11.007]
     vps: [VP-148]
-    notes: "D-957 2026-06-02 PAUSE CHECKPOINT: code HEAD advanced e72984a8→01afb7ef (intermediate implementer work). LOCAL adversary re-pass found 5 OPEN findings @ 01afb7ef — fix-burst PENDING (see dispatch_status for full finding list). LOCAL streak 0/3. CONFIRMED-CLOSED prior CRITs (do not re-fix): tool_query→query (grep zero), org_slug→clients (grep zero), AC-014 generic seeding path, 3 new tests present, header stub-doc swept, FSR path. (Prior D-956 2026-06-02: Story v1.4→v1.5 PO reconciliation 9 items. D-955: residual fix code @ e72984a8 F-DEMO-002-P2-MED-001 CLOSED. D-954: PO spec fix v1.3→v1.4 BC-2.11.007 Mechanism B; F-DEMO002-P1-MED-002 CLOSED.)"
+    notes: "D-960 2026-06-02: LOCAL re-pass-1 @ bb168f8c found HIGH-1 (e2e table names dot→underscore) + MED-1 (AC-007 vacuous ≥1-row guard) + OBS-1 (locate_binary silent fallback) + OBS-2 (process-gap: no CI runs ignored e2e Red Gates). Implementer closed HIGH-1+MED-1+OBS-1 @ 3a4ae38a; dead `response_has_adapter_not_found_error` helper removed; just check GREEN 3931/3931 tests. OBS-2 codified as S-DEMO-CI-E2E-001. LOCAL streak 0/3. (Prior D-959 2026-06-02: CRIT-001 CLOSED; BC-3.2.001 v0.8; E-QUERY-032; story v1.6; implementer @ bb168f8c.)"
 
   - story_id: S-DEMO-CROWDSTRIKE-MULTIREGION-001
     status: ready
@@ -241,6 +241,18 @@ active_dispatch_set:
       - S-DEMO-CLAROTY-AUDIT-DTU-001  # HARD — prose corrections are only accurate AFTER Gap-CL-006 is closed
     notes: "INDEXED D-941 2026-06-02 (story-writer commit 3124c327). Closes F-P2-DEFER-001 (stale BC-2.16.013 §Postconditions §1 audit_logs prose + claroty.sensor.toml stale DTU-gap comments; deferred from Claroty PR-LEVEL code-review CR-001 as PO-scope out-of-perimeter). DEMO-GOAL-REQUIRED per user direction D-941. BC-2.16.013 amendment is PO-owned (Agent Routing Table — behavioral contracts → product-owner). S-7.01 gate OPEN: BCs pending PO authorship. Must not dispatch until S-DEMO-CLAROTY-AUDIT-DTU-001 merges."
 
+  - story_id: S-DEMO-CI-E2E-001
+    status: draft
+    priority: P1
+    points: 5
+    spec_version: "v1.0"
+    depends_on:
+      - S-DEMO-002  # HARD — e2e_smoke.rs (crates/prism-bin/tests/e2e_smoke.rs) must merge before CI workflow can run it
+      - S-6.20      # HARD — prism-dtu-demo-server binary (merged) must be buildable; S-6.20 delivered it
+    blocks:
+      - S-DEMO-003  # Demo runbook should not declare Green path verified until CI E2E confirms suite passes
+    notes: "REGISTERED D-960 2026-06-02 — OBS-2 closure from S-DEMO-002 LOCAL re-pass-1 cascade (process-gap: no CI runs the ignored e2e Red Gate suite). Story-writer authored .factory/stories/S-DEMO-CI-E2E-001-e2e-red-gate-ci-workflow.md. tdd_mode: facade (deliverable is .github/ CI YAML workflow + nextest profile; no application logic). S-7.01 gate OPEN: BCs pending PO authorship (behavioral_contracts: [] in story frontmatter; advisory traces to BC-2.22.001 + BC-2.10.010 + BC-3.2.001 noted in story). Must not dispatch until S-DEMO-002 merges."
+
 maintenance_wave:
   - story_id: S-MAINT-POL29-HOOK-001
     status: unstarted
@@ -281,9 +293,9 @@ deferred_post_demo:
   # reclassification from permitted-divergence → required-fidelity; user directive no-scope-compromise).
 
 prereq_artifacts:
-  story_index: .factory/stories/STORY-INDEX.md         # v2.257 after D-959 burst (178 stories)
-  bc_index: .factory/specs/behavioral-contracts/BC-INDEX.md  # v5.76 after D-959 burst (BC-3.2.001 v0.8)
-  state: .factory/STATE.md                              # v7.612 after D-959 burst
+  story_index: .factory/stories/STORY-INDEX.md         # v2.258 after D-960 burst (179 stories)
+  bc_index: .factory/specs/behavioral-contracts/BC-INDEX.md  # v5.76 after D-959 burst (BC-3.2.001 v0.8; unchanged D-960)
+  state: .factory/STATE.md                              # v7.613 after D-960 burst
   governing_adr: .factory/specs/architecture/decisions/ADR-031-dtu-equals-true-dtu-fidelity-principle.md  # v1.2 (ADR-031 architect e57eb5b1 reclassified 3 divergences)
   governing_audit: .factory/proposals/POLLER-DTU-FIDELITY-AUDIT-2026-05-29.md  # v1.1
 
