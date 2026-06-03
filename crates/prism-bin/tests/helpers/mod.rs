@@ -36,7 +36,7 @@
 //!
 //! Run `cargo build --release -p prism -p prism-dtu-demo-server` before E2E tests.
 //!
-//! Story: S-DEMO-002 v1.7
+//! Story: S-DEMO-002
 //! BCs: BC-2.22.001, BC-2.10.010, BC-3.2.001
 
 use std::collections::HashMap;

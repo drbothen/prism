@@ -30,7 +30,7 @@
 //! | `test_EC_004_e2e_limit_zero_returns_empty_not_error` | EC-004 | BC-2.11.001 |
 //! | `test_EC_005_e2e_limit_200_returns_paginated_rows` | EC-005 | BC-2.11.001 |
 //!
-//! Story: S-DEMO-002 v1.7
+//! Story: S-DEMO-002
 //! BCs: BC-2.11.001, BC-2.11.005, BC-2.09.008, BC-2.10.001, BC-2.10.010, BC-3.2.001,
 //!      BC-2.22.001, BC-2.11.007
 
