@@ -9,15 +9,19 @@
 //!
 //! - MUST live in `prism-bin` (NOT `prism-sensors`) per ADR-023 §D3 Forbidden Dependencies.
 //!   `prism-sensors` MUST NOT import `prism-spec-engine`; only `prism-bin` imports both.
-//! - `BearerStaticAuthProvider` lives here (NOT in `prism-spec-engine`) because it bridges
-//!   `SensorAuth` (prism-sensors) ↔ `AuthProvider` (prism-spec-engine). Only prism-bin imports both.
+//! - `BearerStaticAuthProvider` and `BearerStaticCredentialAuthProvider` live here (NOT in
+//!   `prism-spec-engine`) because they bridge `SensorAuth` (prism-sensors) ↔ `AuthProvider`
+//!   (prism-spec-engine). Only prism-bin imports both crates (ADR-023 §Permitted Patterns).
 //! - `StaticCookieAuthProvider` lives in `prism-spec-engine/src/auth_provider.rs`.
 //!
-//! # Auth strategies (OQ-1 Resolution)
+//! # Auth strategies (OQ-1 Resolution / ADV-SDEMO002-P01-CRIT-001 fix)
 //!
 //! `AdapterAuthStrategy` is held at construction time:
 //! - `Plugin(Arc<dyn AuthProvider>)` — CrowdStrike: held PluginAuthProvider, ignores SensorAuth arg.
-//! - `BearerStatic` — Armis/Claroty: token extracted from SensorAuth arg at fetch() call time.
+//!   Also used for Armis/Claroty: `BearerStaticCredentialAuthProvider` resolves bearer token
+//!   from credential store at acquire_token() time — FAIL-CLOSED (no fabricated token).
+//! - `BearerStatic` — DEPRECATED production path. Was: token extracted from SensorAuth arg.
+//!   Retained for backward compat only; no longer constructed at step 9A (ADV-SDEMO002-P01-CRIT-001).
 //! - `StaticCookie(Arc<dyn AuthProvider>)` — Cyberint: held StaticCookieAuthProvider (NO HTTP calls
 //!   at acquire_token; reads api_key from credential store). Renamed from CookieLogin (v1.1/v1.2)
 //!   per ADR-031 §D3 / DEMO-001 v1.3. NOT `CookieLogin` — that required a login step.
@@ -28,7 +32,7 @@
 //! per CLAUDE.md conventions (TD-S-PLUGIN-PREREQ-B-005 closure requirement).
 //!
 //! BCs: BC-2.01.013, BC-2.11.005, BC-2.06.014, BC-2.22.001
-//! Story: S-DEMO-001 v1.3
+//! Story: S-DEMO-001 v1.3; ADV-SDEMO002-P01-CRIT-001 fix
 
 use std::{collections::HashMap, future::Future, pin::Pin, sync::Arc, time::Duration};
 
@@ -171,6 +175,183 @@ impl AuthProvider for BearerStaticAuthProvider {
     ) -> Pin<Box<dyn Future<Output = Result<AuthToken, SpecEngineError>> + Send + 'a>> {
         let token = self.token.clone();
         Box::pin(async move { Ok(AuthToken::new(token)) })
+    }
+}
+
+// ---------------------------------------------------------------------------
+// BearerStaticCredentialAuthProvider — production AuthProvider for bearer_static sensors
+// ---------------------------------------------------------------------------
+
+/// Production `AuthProvider` for sensors using `auth_type = "bearer_static"` (Armis, Claroty).
+///
+/// Lives in `prism-bin` (NOT `prism-spec-engine`) because it bridges `prism-credentials`
+/// (credential resolution) ↔ `prism-spec-engine` (AuthProvider trait). Only `prism-bin`
+/// imports both crates (ADR-023 §Permitted Patterns).
+///
+/// ## Behaviour (ADV-SDEMO002-P01-CRIT-001 fix)
+///
+/// Resolves the bearer token from `prism_credentials::resolve_credential` at
+/// `acquire_token()` time using the injected `credential_ref_name` (e.g. `"bearer_token"`).
+/// Env-var convention: `{SENSOR_UPPER}_{CREDENTIAL_UPPER}` (BC-2.06.003), e.g.
+/// `ARMIS_BEARER_TOKEN` / `CLAROTY_BEARER_TOKEN`.
+///
+/// On resolution failure it returns `Err(SpecEngineError::AuthAcquisitionFailed)` —
+/// FAIL-CLOSED. It NEVER fabricates or falls back to a placeholder token.
+///
+/// ## AD-017 Credential Safety
+///
+/// The resolved bearer token is NEVER stored as a field. It is resolved at
+/// `acquire_token()` time and immediately wrapped in `AuthToken(Zeroizing<String>)`.
+/// The struct holds ONLY `sensor_id` (credential namespace key) and
+/// `credential_ref_name` (name of the credential to resolve) — NOT the token itself.
+///
+/// ## Object Safety
+///
+/// `acquire_token` returns `Pin<Box<dyn Future + Send>>` for `dyn AuthProvider`
+/// compatibility (BC-2.01.017 / auth_provider.rs object-safety pattern).
+///
+/// ## Non-exhaustive
+///
+/// `#[non_exhaustive]`: future fields (e.g., token cache TTL) may be added
+/// without breaking external callers. Construct via `BearerStaticCredentialAuthProvider::new`.
+///
+/// ADV-SDEMO002-P01-CRIT-001; BC-2.06.003; BC-2.01.013; AD-017.
+#[non_exhaustive]
+pub struct BearerStaticCredentialAuthProvider {
+    /// Sensor ID used as the credential namespace key (e.g. `"armis"`, `"claroty"`).
+    ///
+    /// AD-017: credential value is NEVER stored here — only the namespace key.
+    sensor_id: String,
+
+    /// Name of the credential to resolve from the credential store (e.g. `"bearer_token"`).
+    ///
+    /// Resolved at `acquire_token()` time via `prism_credentials::resolve_credential`.
+    credential_ref_name: String,
+
+    /// Injected credential resolver (ADR-022 §C wiring / testability).
+    ///
+    /// Production code passes `Arc::new(prism_spec_engine::PrismCredentialResolver)`.
+    /// Tests inject `Arc::new(MockCredentialResolver::new("value"))` or
+    /// `Arc::new(NotFoundCredentialResolver)` to drive fail-closed paths without
+    /// relying on env vars or the real credential store (SID-1 discipline).
+    resolver: std::sync::Arc<dyn prism_spec_engine::CredentialResolver>,
+}
+
+impl BearerStaticCredentialAuthProvider {
+    /// Construct a `BearerStaticCredentialAuthProvider` for the given sensor and credential ref.
+    ///
+    /// Uses the production [`PrismCredentialResolver`] (wraps `prism_credentials::resolve_credential`).
+    ///
+    /// - `sensor_id`: sensor name string from TOML spec (credential namespace key).
+    /// - `credential_ref_name`: name of the credential ref declared in the TOML spec (e.g. `"bearer_token"`).
+    ///
+    /// ADV-SDEMO002-P01-CRIT-001; AD-017; BC-2.06.003.
+    pub fn new(sensor_id: impl Into<String>, credential_ref_name: impl Into<String>) -> Self {
+        Self {
+            sensor_id: sensor_id.into(),
+            credential_ref_name: credential_ref_name.into(),
+            resolver: std::sync::Arc::new(prism_spec_engine::PrismCredentialResolver),
+        }
+    }
+
+    /// Construct a `BearerStaticCredentialAuthProvider` with an injectable credential resolver.
+    ///
+    /// Used by tests to inject a [`MockCredentialResolver`] or [`NotFoundCredentialResolver`]
+    /// without relying on env vars or the real credential store (SID-1 discipline).
+    ///
+    /// ADV-SDEMO002-P01-CRIT-001; ADR-022 §C; SID-1.
+    #[cfg(test)]
+    pub fn new_with_resolver(
+        sensor_id: impl Into<String>,
+        credential_ref_name: impl Into<String>,
+        resolver: std::sync::Arc<dyn prism_spec_engine::CredentialResolver>,
+    ) -> Self {
+        Self {
+            sensor_id: sensor_id.into(),
+            credential_ref_name: credential_ref_name.into(),
+            resolver,
+        }
+    }
+}
+
+impl prism_spec_engine::AuthProvider for BearerStaticCredentialAuthProvider {
+    /// Acquire the bearer token for the sensor by resolving from the credential store.
+    ///
+    /// Calls `prism_credentials::resolve_credential(client_id, sensor_id, credential_ref_name)`.
+    /// Returns `Ok(AuthToken)` wrapping the resolved token on success.
+    ///
+    /// FAIL-CLOSED: on any resolution failure returns `Err(AuthAcquisitionFailed)` with an
+    /// E-AUTH-005 detail — NEVER falls back to a placeholder token.
+    ///
+    /// ADV-SDEMO002-P01-CRIT-001; BC-2.06.003; AD-017; BC-2.01.013.
+    fn acquire_token<'a>(
+        &'a self,
+        _spec: &'a prism_spec_engine::spec_parser::SensorSpec,
+        client_id: &'a prism_core::OrgSlug,
+    ) -> std::pin::Pin<
+        Box<
+            dyn std::future::Future<
+                    Output = Result<
+                        prism_spec_engine::AuthToken,
+                        prism_spec_engine::error::SpecEngineError,
+                    >,
+                > + Send
+                + 'a,
+        >,
+    > {
+        use prism_credentials::CredentialResolutionError;
+        use secrecy::ExposeSecret;
+
+        let sensor_id = self.sensor_id.clone();
+        let credential_ref_name = self.credential_ref_name.clone();
+        let client_id_str = client_id.as_str().to_string();
+        let resolver = std::sync::Arc::clone(&self.resolver);
+
+        Box::pin(async move {
+            // Resolve the bearer token from the credential store (BC-2.06.003 env-var chain).
+            // FAIL-CLOSED: on NotFound or BackendUnavailable, return E-AUTH-005 and abort.
+            // NEVER return a placeholder or fallback token (ADV-SDEMO002-P01-CRIT-001).
+            let secret = match resolver
+                .resolve(&client_id_str, &sensor_id, &credential_ref_name)
+                .await
+            {
+                Ok(s) => s,
+                Err(CredentialResolutionError::NotFound { .. }) => {
+                    return Err(
+                        prism_spec_engine::error::SpecEngineError::AuthAcquisitionFailed {
+                            sensor_id: sensor_id.clone(),
+                            client_id: client_id_str.clone(),
+                            detail: format!(
+                                "E-AUTH-005: bearer token not found — no '{credential_ref_name}' \
+                                 credential configured for sensor '{sensor_id}'. \
+                                 Set env var {}_{}.",
+                                sensor_id.to_uppercase().replace('-', "_"),
+                                credential_ref_name.to_uppercase().replace('-', "_")
+                            ),
+                        },
+                    );
+                }
+                Err(CredentialResolutionError::BackendUnavailable { detail, .. }) => {
+                    return Err(
+                        prism_spec_engine::error::SpecEngineError::AuthAcquisitionFailed {
+                            sensor_id: sensor_id.clone(),
+                            client_id: client_id_str.clone(),
+                            detail: format!(
+                                "E-AUTH-007: credential backend unavailable for sensor \
+                                 '{sensor_id}' credential '{credential_ref_name}': {detail}. \
+                                 Check the configured backend (env file, keyring). \
+                                 BC-2.06.003 / ADV-SDEMO002-P01-CRIT-001."
+                            ),
+                        },
+                    );
+                }
+            };
+
+            // Return the resolved token wrapped in AuthToken(Zeroizing<String>).
+            // The Zeroizing wrapper ensures the token bytes are overwritten on drop (AD-017).
+            let token = secret.expose_secret().to_string();
+            Ok(prism_spec_engine::AuthToken::new(token))
+        })
     }
 }
 
@@ -871,8 +1052,26 @@ pub async fn step9a_populate_adapter_registry(
                 AdapterAuthStrategy::Plugin(Arc::new(per_org_provider) as Arc<dyn AuthProvider>)
             }
             AuthType::BearerStatic => {
-                // Armis/Claroty: token extracted from SensorAuth arg at fetch() call time.
-                AdapterAuthStrategy::BearerStatic
+                // Armis/Claroty: resolve bearer token from credential store at acquire_token() time.
+                //
+                // ADV-SDEMO002-P01-CRIT-001 fix: replaced bare `AdapterAuthStrategy::BearerStatic`
+                // (which extracted token from SensorAuth arg — requiring ProductionCredentialResolver
+                // to fabricate a "dtu-e2e-bearer-placeholder" token) with
+                // `BearerStaticCredentialAuthProvider` which resolves the real token from the
+                // credential store (env var `{SENSOR_UPPER}_BEARER_TOKEN`, e.g. ARMIS_BEARER_TOKEN).
+                //
+                // FAIL-CLOSED: if no credential is configured, acquire_token() returns
+                // Err(AuthAcquisitionFailed) with E-AUTH-005. No fabricated token ever reaches
+                // a real API. BC-2.06.003 resolution chain; AD-017 credential safety.
+                //
+                // credential_ref_name = "bearer_token" (canonical per architect decision, D-939):
+                // env var: {SENSOR_UPPER}_BEARER_TOKEN (e.g. ARMIS_BEARER_TOKEN, CLAROTY_BEARER_TOKEN).
+                let provider = BearerStaticCredentialAuthProvider::new(
+                    resolved_spec.spec.sensor_id.as_str(),
+                    "bearer_token",
+                );
+                AdapterAuthStrategy::Plugin(std::sync::Arc::new(provider)
+                    as std::sync::Arc<dyn prism_spec_engine::AuthProvider>)
             }
             AuthType::CookieRoundtrip => {
                 // Cyberint: StaticCookieAuthProvider reads API key from credential store
@@ -937,7 +1136,122 @@ pub async fn step9a_populate_adapter_registry(
 // BC-2.22.001; F-002-R; S-DEMO-001 v1.5.
 
 // ---------------------------------------------------------------------------
-// Unit tests placeholder
+// Unit tests — BearerStaticCredentialAuthProvider fail-closed contract
 // ---------------------------------------------------------------------------
-// Tests are added by the test-writer (next pipeline step). This module
-// contains only the stubs. No test code here.
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Arc;
+
+    use prism_core::ColumnType;
+    use prism_core::OrgSlug;
+    use prism_spec_engine::AuthProvider;
+    use prism_spec_engine::spec_parser::{AuthType, ColumnSpec, FetchStep, SensorSpec, TableSpec};
+
+    use super::BearerStaticCredentialAuthProvider;
+
+    /// Build a minimal SensorSpec for bearer_static sensors (Armis fixture).
+    fn bearer_static_spec() -> SensorSpec {
+        SensorSpec::new(
+            "armis",
+            "Armis Test Sensor",
+            AuthType::BearerStatic,
+            "https://mock.invalid",
+            vec![TableSpec::new_point_in_time(
+                "devices",
+                "device",
+                vec![ColumnSpec::new(
+                    "device_id",
+                    ColumnType::String,
+                    None,
+                    vec![],
+                )],
+                vec![FetchStep::new(
+                    "fetch_devices",
+                    "GET",
+                    "/api/v1/devices",
+                    None,
+                    "$.data",
+                    None,
+                    vec![],
+                    None,
+                    None,
+                )],
+            )],
+            None,
+            "1.0.0",
+            vec![],
+        )
+    }
+
+    /// ADV-SDEMO002-P01-CRIT-001 — fail-closed contract:
+    /// `BearerStaticCredentialAuthProvider::acquire_token` with a missing credential
+    /// (injected via `NotFoundCredentialResolver`) MUST return `Err(AuthAcquisitionFailed)`
+    /// with an E-AUTH-005 detail and MUST NOT return Ok (no fallback token).
+    ///
+    /// This test is the load-bearing assertion for the fix — if this test passes,
+    /// the provider is fail-closed. If it were to return `Ok(AuthToken)`, it would
+    /// be fabricating a token (the defect this fix closes).
+    ///
+    /// SID-1 compliance: uses `NotFoundCredentialResolver` (from `prism_spec_engine`)
+    /// injected via `new_with_resolver` — no env var mutation, no real credential store.
+    ///
+    /// ADV-SDEMO002-P01-CRIT-001; BC-2.06.003; AD-017.
+    #[tokio::test]
+    async fn test_bearer_static_credential_auth_provider_missing_credential_fails_closed() {
+        let provider = BearerStaticCredentialAuthProvider::new_with_resolver(
+            "armis",
+            "bearer_token",
+            Arc::new(prism_spec_engine::auth_provider::NotFoundCredentialResolver),
+        );
+        let spec = bearer_static_spec();
+        let client_id = OrgSlug::new("test-org");
+
+        let result = provider.acquire_token(&spec, &client_id).await;
+
+        assert!(
+            result.is_err(),
+            "ADV-SDEMO002-P01-CRIT-001: acquire_token MUST return Err when no bearer_token \
+             credential is configured — fail-closed, no fabricated token. Got Ok."
+        );
+        let err_str = result.unwrap_err().to_string();
+        assert!(
+            err_str.contains("E-AUTH-005"),
+            "ADV-SDEMO002-P01-CRIT-001: missing bearer_token MUST produce E-AUTH-005. \
+             Got: {err_str}"
+        );
+    }
+
+    /// `BearerStaticCredentialAuthProvider::acquire_token` MUST return `Ok(AuthToken)`
+    /// when the credential is present (injected via `MockCredentialResolver`).
+    ///
+    /// Verifies the happy path: the resolved token is returned wrapped in `AuthToken`.
+    ///
+    /// SID-1 compliance: uses `MockCredentialResolver` injected via `new_with_resolver` —
+    /// no env var mutation, no real credential store. ADR-022 §C; ADV-SDEMO002-P01-CRIT-001.
+    #[tokio::test]
+    async fn test_bearer_static_credential_auth_provider_resolves_token_from_credentials() {
+        let expected_token = "test-bearer-token-abc123";
+        let provider = BearerStaticCredentialAuthProvider::new_with_resolver(
+            "armis",
+            "bearer_token",
+            Arc::new(prism_spec_engine::auth_provider::MockCredentialResolver::new(expected_token)),
+        );
+        let spec = bearer_static_spec();
+        let client_id = OrgSlug::new("test-org");
+
+        let result = provider.acquire_token(&spec, &client_id).await;
+
+        assert!(
+            result.is_ok(),
+            "acquire_token MUST return Ok(AuthToken) when credential is present. \
+             Got: {:?}",
+            result
+        );
+        assert_eq!(
+            result.unwrap().as_str(),
+            expected_token,
+            "AuthToken value must equal the injected resolved credential value"
+        );
+    }
+}

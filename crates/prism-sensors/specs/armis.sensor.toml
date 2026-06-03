@@ -31,6 +31,14 @@ base_url = "${env.ARMIS_INSTANCE_URL}"
 version = "1.0.0"
 
 # ---------------------------------------------------------------------------
+# Credential references (ADV-SDEMO002-P01-CRIT-001 fix)
+# ---------------------------------------------------------------------------
+# BC-2.06.003 resolution chain: ARMIS_BEARER_TOKEN_FILE > ARMIS_BEARER_TOKEN > keyring.
+# BearerStaticCredentialAuthProvider resolves "bearer_token" at acquire_token() time.
+[[credential_refs]]
+name = "bearer_token"
+
+# ---------------------------------------------------------------------------
 # Table: devices
 # DTU-EXT-003: CLOSED by S-DEMO-ARMIS-AQL-001. Primary path is GET /api/v1/search
 #   with ?aql=${query.filter.aql} (real Armis Centrix AQL endpoint, ADR-031 §D8-a).

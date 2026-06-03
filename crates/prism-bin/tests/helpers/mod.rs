@@ -66,6 +66,28 @@ use tempfile::TempDir;
 /// test-harness-only placeholder, visible only in test-scope code.
 const DTU_E2E_CYBERINT_ACCESS_TOKEN: &str = "dtu-e2e-cyberint-access-token";
 
+/// Bearer token set as `ARMIS_BEARER_TOKEN` env var for E2E tests.
+///
+/// Resolved by `BearerStaticCredentialAuthProvider` via `resolve_credential("armis", "bearer_token")`
+/// at acquire_token() time (ADV-SDEMO002-P01-CRIT-001 fix; BC-2.06.003 env-var chain).
+/// The Armis DTU clone validates `Authorization: Bearer {non-empty}` — any non-empty value passes.
+///
+/// Not a real credential — never reaches any external service.
+/// Per AD-017: credential values must not transit AI context; this is a
+/// test-harness-only placeholder, visible only in test-scope code.
+const DTU_E2E_ARMIS_BEARER_TOKEN: &str = "dtu-e2e-armis-bearer-token";
+
+/// Bearer token set as `CLAROTY_BEARER_TOKEN` env var for E2E tests.
+///
+/// Resolved by `BearerStaticCredentialAuthProvider` via `resolve_credential("claroty", "bearer_token")`
+/// at acquire_token() time (ADV-SDEMO002-P01-CRIT-001 fix; BC-2.06.003 env-var chain).
+/// The Claroty DTU clone validates `Authorization: Bearer {non-empty}` — any non-empty value passes.
+///
+/// Not a real credential — never reaches any external service.
+/// Per AD-017: credential values must not transit AI context; this is a
+/// test-harness-only placeholder, visible only in test-scope code.
+const DTU_E2E_CLAROTY_BEARER_TOKEN: &str = "dtu-e2e-claroty-bearer-token";
+
 // ---------------------------------------------------------------------------
 // DtuPorts
 // ---------------------------------------------------------------------------
@@ -945,6 +967,18 @@ pub async fn launch_prism_bin(
         // against its allowlist; this value must be identical on both sides.
         // ADR-031 §D3-a: static cookie auth; no login roundtrip.
         .env("CYBERINT_API_KEY", DTU_E2E_CYBERINT_ACCESS_TOKEN)
+        // ARMIS_BEARER_TOKEN: resolved by BearerStaticCredentialAuthProvider via
+        // resolve_credential("armis", "bearer_token") → env var ARMIS_BEARER_TOKEN.
+        // The Armis DTU clone validates Authorization: Bearer {non-empty}; any non-empty token passes.
+        // ADV-SDEMO002-P01-CRIT-001 fix: replaces "dtu-e2e-bearer-placeholder" fabrication.
+        // BC-2.06.003 env-var resolution chain: ARMIS_BEARER_TOKEN_FILE > ARMIS_BEARER_TOKEN.
+        .env("ARMIS_BEARER_TOKEN", DTU_E2E_ARMIS_BEARER_TOKEN)
+        // CLAROTY_BEARER_TOKEN: resolved by BearerStaticCredentialAuthProvider via
+        // resolve_credential("claroty", "bearer_token") → env var CLAROTY_BEARER_TOKEN.
+        // The Claroty DTU clone validates Authorization: Bearer {non-empty}; any non-empty token passes.
+        // ADV-SDEMO002-P01-CRIT-001 fix: replaces "dtu-e2e-bearer-placeholder" fabrication.
+        // BC-2.06.003 env-var resolution chain: CLAROTY_BEARER_TOKEN_FILE > CLAROTY_BEARER_TOKEN.
+        .env("CLAROTY_BEARER_TOKEN", DTU_E2E_CLAROTY_BEARER_TOKEN)
         // CROWDSTRIKE_CLIENT_ID / CROWDSTRIKE_CLIENT_SECRET: used by the crowdstrike-oauth2
         // WASM plugin to POST client credentials to the DTU's /oauth2/token endpoint.
         // The CrowdStrike DTU accepts any non-empty client_id/secret pair.

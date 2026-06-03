@@ -1919,8 +1919,15 @@ pub async fn step9_start_mcp_server(
     // This is NOT a BootNull* — it correctly reports the architectural state:
     // the credential_store IS wired, but SpecDrivenSensorAdapter and WASM plugin auth
     // both bypass this resolver (plugins: via PluginAuthProvider::acquire_token;
-    // spec-driven: via AdapterAuthStrategy). Resolving per-sensor SensorAuth subtypes
-    // from the credential_store at fan_out time requires S-2.07.
+    // spec-driven: via AdapterAuthStrategy at step 9A). All active sensor auth types
+    // (Plugin, StaticCookie, BearerStaticCredential) resolve credentials via their
+    // respective AuthProvider impls — they ignore the SensorAuth arg from fan_out().
+    //
+    // ADV-SDEMO002-P01-CRIT-001 fix: the former "dtu-e2e-bearer-placeholder" return value
+    // has been removed. BearerStatic sensors now use BearerStaticCredentialAuthProvider
+    // (constructed at step 9A) which resolves the real bearer token from the credential store
+    // at acquire_token() time — FAIL-CLOSED, no fabricated token. The resolver returns an
+    // empty SensorAuth here; all SpecDrivenSensorAdapter variants ignore this value entirely.
     struct ProductionCredentialResolver {
         #[allow(dead_code)]
         credential_store: Arc<dyn prism_credentials::CredentialStore>,
@@ -1933,31 +1940,19 @@ pub async fn step9_start_mcp_server(
         ) -> Result<Box<dyn prism_sensors::auth::SensorAuth>, prism_sensors::adapter::SensorError>
         {
             // SpecDrivenSensorAdapter handles all auth internally via AdapterAuthStrategy (S-DEMO-001):
-            //   - Plugin (CrowdStrike): PluginAuthProvider acquires the OAuth2 token — ignores this arg.
+            //   - Plugin (CrowdStrike, and Armis/Claroty via BearerStaticCredentialAuthProvider):
+            //     AuthProvider::acquire_token resolves credentials — ignores this SensorAuth arg.
             //   - StaticCookie (Cyberint): StaticCookieAuthProvider injects cookie — ignores this arg.
-            //   - BearerStatic (Armis/Claroty): extracts bearer token from SensorAuth arg.
             //
             // fan_out() calls credentials.resolve() BEFORE dispatching to adapter.fetch().
-            // Plugin and StaticCookie adapters ignore the result; BearerStatic adapters use the token.
+            // All AdapterAuthStrategy variants ignore this return value — auth is resolved
+            // at the AuthProvider::acquire_token layer, not the fan_out credential-arg layer.
             //
-            // Production gap (deferred to S-2.07): the CredentialStore is async and cannot be called
-            // from this sync resolver. The real credential lookup (keyring → bearer token) for
-            // BearerStatic sensors needs an async pre-fetch pass before fan_out. Until S-2.07 lands,
-            // we return a no-op BearerStaticSensorAuth with an empty token string:
-            //   - Plugin/StaticCookie adapters: ignore this return value completely.
-            //   - BearerStatic adapters: send `Authorization: Bearer ` header; real APIs reject this
-            //     (correct fail-closed behavior when no credential is configured). DTU clones
-            //     accept any bearer token including empty — E2E tests work.
-            //
-            // This is NOT the same as the previous `Err(ConfigValidation)` which caused fan_out to
-            // fail for ALL sensors (including Plugin and StaticCookie where the credential arg is
-            // irrelevant). Returning a no-op credential allows the fan-out to proceed and
-            // SpecDrivenSensorAdapter to handle auth at the adapter layer as designed (S-DEMO-001).
-            // Non-empty placeholder token — the Armis/Claroty DTU clones check
-            // `len() > "Bearer ".len()` (non-empty bearer value) per their auth guards.
-            // Plugin/StaticCookie adapters ignore this value entirely.
+            // Return empty SensorAuth; no sensor type reads it (ADV-SDEMO002-P01-CRIT-001).
+            // S-2.07 will wire async credential resolution through this path when the per-sensor
+            // SensorAuth subtype dispatch is implemented; for now all paths bypass it.
             Ok(Box::new(prism_sensors::BearerStaticSensorAuth::new(
-                "dtu-e2e-bearer-placeholder".to_string(),
+                String::new(),
             )))
         }
     }
