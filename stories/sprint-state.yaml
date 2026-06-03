@@ -33,16 +33,19 @@ active_dispatch_set:
     notes: "D-968 2026-06-03: CRIT-001 ADV-SDEMO002-P01-CRIT-001 (ProductionCredentialResolver 'dtu-e2e-bearer-placeholder') CLOSED via real BearerStaticCredentialAuthProvider (fail-closed; mirrors StaticCookieAuthProvider). Boot regression (boot step-5 KeyringCredentialProbe checked keyring directly; out-of-sync with query-time env→keyring chain) fixed by aligning probe to BC-2.03.006/BC-2.06.003 resolution chain (env_FILE > env > keyring; AD-017-safe). Sub-cycle: 7c9db1cc GREEN → 3860b970 regressed 13 e2e fails → dbd65820 GREEN. Orchestrator-verified: cargo nextest run -p prism-bin --profile e2e --run-ignored all = 123/123 @ dbd65820. MED-001 ADV-SDEMO002-P01-MED-001 CLOSED: BC-2.16.002 corrected to v1.64 (Array/Object body_template values VERBATIM JSON literals). ADR-028 v1.14 §D13 BearerStaticCredentialAuthProvider pattern. LOCAL streak RESET 0/3 (boot.rs KeyringCredentialProbe alignment = shared code change; fresh LOCAL cascade REQUIRED). (Prior D-967 2026-06-03: e2e 121/121 GREEN @ 7c9db1cc; 9 prod fixes; D-966 VOID. D-966: LOCAL 3-CLEAN CONVERGENCE @ 5a2f22f6 — VOIDED. D-965: residual-pin MED @ 5a2f22f6. D-964: prose-audit v1.8 + version-agnostic labels @ e286b932. D-963: CRIT F-DEMO002-P2-CRIT-001 @ 820353c9.)"
 
   - story_id: S-DEMO-CROWDSTRIKE-MULTIREGION-001
-    status: ready
+    status: merged
     priority: P2
     points: 2
     spec_version: "v1.4"
-    lane: "2-of-3"
-    dispatch_status: "D-976 (2026-06-03) — PR #170 OPEN @ 92932069 (base develop@b38c1abc). PR-LEVEL cascade in progress 1/3 (auto-merge authorized by user on 3/3+CI-green). pass-1 found ADV-CSMR-PR-P01-MED-001 (demo evidence) CLOSED fix-burst. pass-2 found 2 OBS: ADV-CSMR-PR-P02-OBS-001 CLOSED fix-burst; ADV-CSMR-PR-P02-OBS-002 [process-gap] orphaned sensors/ dir out-of-perimeter → DEFER-ORPHAN-SENSORS-DIR-001 (D-977). pass-3 CLEAN(strict) streak 1/3. security-reviewer: MAY PROCEED. pr-reviewer: APPROVE-after-fix (now satisfied). Passes 4-5 in flight. Converged code_head 291d7c64; demo+evidence commits f283b8a7/ecb38d37/92932069 on top. [D-973 (2026-06-03): LOCAL 3-CLEAN CONVERGED @ 291d7c64 (BC-5.39.001 D-779); story v1.4 stable]."
-    entry_point: "adversary PR-LEVEL passes 4-5 (→2/3, 3/3 per BC-5.39.001) → auto-merge on 3/3+CI-green (user-authorized) → post-merge state burst"
-    worktree_path: ".worktrees/S-DEMO-CROWDSTRIKE-MULTIREGION-001"
+    lane: "2-of-3 (CLOSED)"
+    merged_sha: "cd4a2211"
+    merged_pr: 170
+    merged_at: "2026-06-03"
+    dispatch_status: "MERGED — PR #170 squash-merged develop@cd4a2211 2026-06-03 (D-978). LOCAL 3/3 CLEAN CONVERGED @291d7c64 + PR-LEVEL 3/3 CLEAN CONVERGED (passes 7/8/9 strict) @efbcf59b (BC-5.39.001 D-779). POL-14: BC-2.16.009 + BC-2.16.013 both already active — idempotent no-op. Cascade CLOSED. Worktree+branch cleaned."
+    entry_point: "CLOSED — story merged"
+    worktree_path: ".worktrees/S-DEMO-CROWDSTRIKE-MULTIREGION-001 (REMOVED — cleaned post-merge)"
     code_head: "291d7c64"
-    branch: "feature/S-DEMO-CROWDSTRIKE-MULTIREGION-001"
+    branch: "feature/S-DEMO-CROWDSTRIKE-MULTIREGION-001 (DELETED — cleaned post-merge)"
     tracked_dependency: "DTU: NO code change to prism-dtu-crowdstrike (region-agnostic per ADR-031 §D8-c); scope: crowdstrike.sensor.toml + prism-spec-engine ${env.CROWDSTRIKE_BASE_URL} interpolation. §References must list BC-2.16.009 + BC-2.16.013 per POL-7. AC-006 uses SAP-1-probe wording per POL-8. Red Gate test names use BC_2_16_013_ infix. Story spec is solid: §References complete, BC-2.16.002 SAP-1-probe form, test-name infix synced, D-946 bump-stable cite."
     depends_on:
       - S-SPEC-ENV-VAR-001     # HARD — SATISFIED (merged PR #165 develop@4feec93a 2026-06-01)
