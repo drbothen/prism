@@ -1,7 +1,7 @@
 ---
 document_type: architecture-index
 level: L3
-version: "2.109"
+version: "2.110"
 status: draft
 producer: state-manager
 timestamp: 2026-05-31T12:00:00
@@ -98,6 +98,7 @@ deployment_topology: single-service  # planned — no service binary exists yet 
 | ADR-029 | Multi-Tenant Sensor Endpoint Overrides — Hybrid Sensor Instance with Per-Org Composition Directory | ACCEPTED v1.2 | 2026-05-23 | decisions/ADR-029-multi-tenant-sensor-endpoint-overrides.md |
 | ADR-030 | SensorSpec Type Unification — Dep-Cycle Resolution Approach for types::SensorSpec Retirement | ACCEPTED v1.0 | 2026-05-27 | decisions/ADR-030-sensor-spec-type-unification.md |
 | ADR-031 | DTU=True-DTU Fidelity Principle — DTU Clones Must Mirror Real API Field Names, Auth Flows, Cookie Names, Endpoints, Response Shapes; Supersedes ADR-028 §D12 | ACCEPTED v1.2 | 2026-05-31 | decisions/ADR-031-dtu-equals-true-dtu-fidelity-principle.md |
+| ADR-032 | Per-Client Credential Env-Var Convention (Multi-Tenant Correct) — PRISM_CLIENTS_{ID}_SENSORS_{SENSOR}_{REF}+_FILE; 4-tier resolution chain; org-aware boot probe; per-sensor credential_refs | ACCEPTED v1.0 | 2026-06-03 | decisions/ADR-032-per-client-credential-env-var-convention.md |
 
 ## Architecture Decisions
 
@@ -157,6 +158,7 @@ deployment_topology: single-service  # planned — no service binary exists yet 
 
 | Version | Pass | Date | Author | Change |
 |---------|------|------|--------|--------|
+| 2.110 | D-969 | 2026-06-03 | state-manager | D-969 per-client credential convention adoption: ADR-032 registered (Per-Client Credential Env-Var Convention — PRISM_CLIENTS_{ID}_SENSORS_{SENSOR}_{REF}+_FILE; ACCEPTED v1.0; human Option-A selection; normalizes multi-tenant credential isolation; closes F-SDEMO002-P-MED-001). BC-2.06.003 v1.2→v1.3 (per-client convention + 4-tier resolution chain + org-aware boot probe + per-sensor credential_refs; architect-authored). BC-2.03.006 v1.3→v1.4 (cross-ref BC-2.06.003 v1.3; ADR-032 anchor; architect-authored). ARCH-INDEX v2.109→v2.110. BC-INDEX v5.77→v5.78. |
 | 2.109 | ADV-SDEMO002-P01-CRIT-001 | 2026-06-03 | architect | ADR-028 in-line row v1.10→v1.14: §D13 clarifying note added — `bearer_static` sensors resolve via `BearerStaticCredentialAuthProvider` (AuthProvider pattern, async `acquire_token` → `resolve_credential("bearer_token")`, fail-closed), held as `AdapterAuthStrategy::Plugin`; bare `AdapterAuthStrategy::BearerStatic` constructor path retired (defect: sync placeholder resolver); canonical credential_ref `bearer_token`, env var `<SENSOR>_BEARER_TOKEN`; consistency table with StaticCookieAuthProvider and PluginAuthProvider. anchor_stories += S-DEMO-002. ARCH-INDEX v2.108→v2.109. |
 | 2.108 | D-923 | 2026-05-31 | state-manager | D-923 pass-1-fix-burst commit: ADR-022 row bumped ACCEPTED v1.13→v1.14 (architect step 9A wiring documented in §B boot sequence — step9_start_mcp_server now calls step9a_populate_adapter_registry as substep; GAP-002-A comments removed from prism-bin/src/boot.rs; params threaded through boot step chain). STORY-INDEX v2.226→v2.227. ARCH-INDEX v2.107→v2.108. |
 | 2.107 | D-907 | 2026-05-31 | state-manager | D-907 burst: ADR-031 row bumped v1.1→v1.2 (architect e57eb5b1 amended: 3 sensor divergences reclassified permitted-divergence→required-fidelity; ADR-031 §D8-a Armis AQL search endpoint, §D8-b Claroty trailing-slash, §D8-c CrowdStrike multi-region base_url). ARCH-INDEX v2.106→v2.107. |

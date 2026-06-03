@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.3"
+version: "1.4"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -80,11 +80,13 @@ When a sensor query is initiated, the credential for the `(client_id, sensor_id,
 | L2 Capability | CAP-004 |
 | L2 Invariants | DI-002 |
 | Priority | P0 |
+| Related BC | BC-2.06.003 v1.3 — defines the full four-tier per-client env-var resolution chain that `resolve_credential` implements. BC-2.03.006 is the query-time WHEN (resolve at sensor query initiation); BC-2.06.003 is the HOW (exact env-var naming and tier order). Both must be read together. |
 
 ## Changelog
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.4 | S-DEMO-002-option-A | 2026-06-03 | architect | Cross-reference update: added BC-2.06.003 v1.3 citation in Traceability. BC-2.03.006 resolution chain semantics are unchanged; BC-2.06.003 now defines the canonical per-client env-var format that this BC's `resolve_credential` must implement. No postcondition changes. |
 | 1.3 | pass-73-fix | 2026-04-20 | state-manager | Deterministic changelog reorder: sorted all rows to descending version order (pass-73 bash script). |
 | 1.2 | pass-69-housekeeping | 2026-04-20 | product-owner | Normalized changelog schema to canonical 5-col schema. |
 | 1.1 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added inputs/input-hash/traces_to/extracted_from frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors; added ## Verification Properties; added ## Changelog. |

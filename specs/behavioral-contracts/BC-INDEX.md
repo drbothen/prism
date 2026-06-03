@@ -1,10 +1,10 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "5.77"
+version: "5.78"
 status: draft
 producer: state-manager
-timestamp: 2026-06-03T00:00:00Z
+timestamp: 2026-06-03T12:00:00Z
 phase: 3.A
 total_contracts: 246
 active_contracts: 238
@@ -63,7 +63,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.03.003 | AES-256-GCM Encrypted File Backend Fallback | 03 - Credential Management | CAP-004 | P0 | draft |
 | BC-2.03.004 | Credential Namespace Isolation by (client_id, sensor_id, credential_name) | 03 - Credential Management | CAP-004 | P0 | draft |
 | BC-2.03.005 | Credential CRUD Operations via MCP Tools (Mutations Require Confirmation Token) | 03 - Credential Management | CAP-004 | P0 | draft |
-| BC-2.03.006 | Credential Resolution at Sensor Query Time | 03 - Credential Management | CAP-004 | P0 | draft |
+| BC-2.03.006 | Credential Resolution at Sensor Query Time | 03 - Credential Management | CAP-004 | P0 | draft — v1.4 (D-969: cross-ref to BC-2.06.003 v1.3; 4-tier resolution chain; per-client env-var convention anchor) |
 | BC-2.03.007 | Secret Redaction in Logs, Errors, and MCP Responses | 03 - Credential Management | CAP-004 | P0 | draft |
 | BC-2.03.008 | Credential Name Sanitization Against Path Traversal | 03 - Credential Management | CAP-004 | P0 | draft |
 | BC-2.03.009 | resolve_secret() for _FILE Env Var and K8s Secret Mount Compatibility | 03 - Credential Management | CAP-004 | P0 | draft |
@@ -100,7 +100,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.05.012 | AuditEmitter Initialization — audit_buffer CF Open and boot.audit.initialized Emitted at Process Start | 05 - Audit Trail | CAP-007 | P0 | active |
 | BC-2.06.001 | TOML Configuration Loads and Deserializes at Startup | 06 - Client Configuration | CAP-009 | P0 | draft |
 | BC-2.06.002 | Per-Client Sensor Mapping from TOML Configuration | 06 - Client Configuration | CAP-009 | P0 | draft |
-| BC-2.06.003 | Credential References in Config Resolve to Credential Store Entries | 06 - Client Configuration | CAP-009 | P0 | draft — v1.2 (S-DEMO-002 implementing-story link added; D-968) |
+| BC-2.06.003 | Credential References in Config Resolve to Credential Store Entries | 06 - Client Configuration | CAP-009 | P0 | draft — v1.3 (D-969: per-client env-var convention PRISM_CLIENTS_{ID}_SENSORS_{SENSOR}_{REF}+_FILE; 4-tier resolution chain; org-aware boot probe design; per-sensor credential_refs; Option-A adoption per human directive; ADR-032 normative anchor) |
 | BC-2.06.004 | Capability Overrides Merge with Defaults Using More-Specific-Wins | 06 - Client Configuration | CAP-009 | P0 | draft |
 | BC-2.06.005 | Configuration Validation Reports All Errors in One Pass | 06 - Client Configuration | CAP-009 | P0 | draft |
 | BC-2.06.006 | --dry-run Flag Validates Config and Prints Redacted Summary | 06 - Client Configuration | CAP-009 | P0 | draft |
@@ -376,6 +376,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v5.78 (2026-06-03, D-969 per-client credential convention adoption — Option-A human decision + ADR-032 + BC-2.06.003 v1.3 + BC-2.03.006 v1.4):** state-manager | BC-2.06.003 v1.2→v1.3 (architect-authored: per-client env-var convention `PRISM_CLIENTS_{ID}_SENSORS_{SENSOR}_{REF}` + `_FILE` suffix; `{ID}` = org-slug uppercased hyphens→underscores e.g. `demo-org-a`→`DEMO_ORG_A`; 4-tier resolution chain `_FILE > per-client env > global env > keyring`; org-aware boot probe design; per-sensor `credential_refs` field normalization; corrects false v1.2 changelog). BC-INDEX in-line row 103 updated to v1.3. BC-2.03.006 v1.3→v1.4 (architect-authored: cross-ref to BC-2.06.003 v1.3 per-client convention; 4-tier resolution chain normative anchor; ADR-032 cited). BC-INDEX in-line row 66 updated to v1.4. ADR-032 registered in ARCH-INDEX: Per-Client Credential Env-Var Convention, ACCEPTED v1.0, 2026-06-03. No lifecycle_status changes (both BCs remain draft). No new BC count changes. BC-INDEX v5.77→v5.78. ARCH-INDEX v2.109→v2.110.
 
 **v5.77 (2026-06-03, D-968 S-DEMO-002 CRIT-001+boot-probe closure burst — BearerStaticCredentialAuthProvider + BC-2.16.002 v1.64 + ADR-028 v1.14 + BC-2.06.003 v1.2 + e2e 123/123 orchestrator-verified):** state-manager | BC-2.16.002 v1.61→v1.64 (ADV-SDEMO002-P01-MED-001 CLOSED: body_template Array/Object values inserted VERBATIM as valid JSON literals via `value.to_string()`; only String scalars are json_escaped; matches `Interpolator::interpolate` JsonBody arm; PO/architect-authored v1.62 mischaracterized, v1.63 mischaracterized, v1.64 correct — orchestrator-verified against code). BC-INDEX in-line row 216 updated to v1.64. No lifecycle_status change — BC-2.16.002 remains active. BC-2.06.003 v1.1→v1.2 (S-DEMO-002 implementing-story link added; BC-2.03.006/BC-2.06.003 resolution chain alignment — env_FILE > env > keyring; AD-017-safe existence-only boot probe). BC-INDEX in-line row 103 updated (draft — v1.2). No lifecycle_status change — BC-2.06.003 remains draft. ADR-028 v1.14: §D13 BearerStaticCredentialAuthProvider pattern added (fail-closed; mirrors StaticCookieAuthProvider; ADV-SDEMO002-P01-CRIT-001 closure; architect-authored). ARCH-INDEX v2.109 row confirms ADR-028 v1.14 (unchanged — architect already wrote it). BC-INDEX v5.76→v5.77.
 
