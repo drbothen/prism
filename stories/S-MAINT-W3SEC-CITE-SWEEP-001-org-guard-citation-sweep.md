@@ -5,9 +5,12 @@ title: "Cross-crate org-guard citation sweep — strip disavowed BC-3.5.002 prec
 wave: maintenance
 epic_id: maintenance
 priority: P2
-status: in-progress
-version: "1.1"
-spec_version: "v1.1"
+status: merged
+version: "1.2"
+spec_version: "v1.2"
+merged_sha: "b38c1abc"
+merged_pr: 169
+merged_at: "2026-06-02"
 level: ops
 producer: story-writer
 timestamp: "2026-06-01"
@@ -302,13 +305,14 @@ Well within the 20-30% context window limit. No splitting required.
 |------|--------|------|-------|
 | Code sweep — prism-dtu-crowdstrike + prism-dtu-cyberint | **DONE** | 2026-06-02 | 21 org-guard cite sites corrected on maintenance/w3sec-cite-sweep @ 9d4c48fd; `rg 'BC-3\.5\.002 precondition 3' crates/prism-dtu-crowdstrike crates/prism-dtu-cyberint` → zero hits post-sweep |
 | Story-body cites — W3-FIX-SEC-001 | **DONE** | 2026-06-02 | W3-FIX-SEC-001 v1.0→v1.1 (D-953 factory burst): 3 stale `BC-3.5.002 precondition 3` mis-cites → `BC-3.5.002 postcondition 2` |
-| LOCAL adversary pass | pending | -- | Runs against maintenance/w3sec-cite-sweep HEAD after D-953 burst commit |
-| Push maintenance/w3sec-cite-sweep to origin | pending | -- | After LOCAL adversary CLEAN |
-| PR creation + PR-LEVEL adversary + merge | pending | -- | fix-pr-delivery flow |
+| LOCAL adversary pass | **DONE** | 2026-06-02 | LOCAL 3/3 CLEAN CONVERGED (BC-5.39.001 D-779; D-956/D-957) |
+| Push maintenance/w3sec-cite-sweep to origin | **DONE** | 2026-06-02 | HEAD 9d4c48fd pushed; PR #169 opened base develop@eb3416d1 |
+| PR creation + PR-LEVEL adversary + merge | **DONE** | 2026-06-02 | PR-LEVEL 3/3 CLEAN CONVERGED; PR #169 squash-merged develop@b38c1abc (D-958) |
 
 ## §Changelog
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| v1.2 | 2026-06-02 | state-manager | D-958 post-merge burst: status in-progress→merged; merge metadata added (merged_sha: b38c1abc, merged_pr: 169, merged_at: 2026-06-02); §Progress all steps DONE; DRIFT-D943-001 CLOSED; POL-14 NO-OP (BC-3.5.002 status=draft; cite-only sweep). |
 | v1.1 | 2026-06-02 | state-manager | D-953 factory burst: status draft→in-progress; §Progress table added; code sweep DONE @ 9d4c48fd (21 sites); story-body cites DONE (W3-FIX-SEC-001 v1.1). |
 | v1.0 | 2026-06-01 | story-writer | Initial draft; anchors DRIFT-D943-001 |
