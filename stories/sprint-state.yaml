@@ -19,10 +19,10 @@ active_dispatch_set:
     points: 11
     spec_version: "v1.9"
     lane: "1-of-3"
-    dispatch_status: "D-972 (2026-06-03) — spec-amend v1.8→v1.9 LANDED @ 4bb8f5b4 (ADV-SDEMO002-P01-MED-001 CLOSED: bare-FROM→SQL SELECT * FROM … LIMIT N in all ACs/Tasks/OQ3; AC-004 keeps WHERE aql='in:devices' LIMIT 5 per human D-963; ADV-SDEMO002-P01-MED-002 CLOSED: Task 9 --config→--config-dir; Task 8 DTU --config confirmed unchanged). Code UNCHANGED @29ea62df (orchestrator-confirmed). LOCAL streak 0/3. [D-970 (2026-06-03): Option-A per-client credential convention CODE LANDED @ 29ea62df; e2e 123/123 orchestrator-verified GREEN; blast radius COMPLETE (resolve_credential per-client env-key derivation, KeyringCredentialProbe org-aware, CredentialRefProbe+step5 gained org_registry, spec_parser Rule B 2-cred-refs for oauth2_client_credentials, all 4 sensor TOML specs declare credential_refs, 15 per-client env vars across 3 orgs)]. NEXT: fresh LOCAL adversary re-pass to verify MED-001/002 closed → if CLEAN advance 0/3→1/3 → continue 3-CLEAN → demo-recorder → push → pr-manager 9-step PR cycle."
-    entry_point: "fresh LOCAL adversary re-pass (verify ADV-SDEMO002-P01-MED-001/002 closed in v1.9; if CLEAN(strict) → 1/3 → continue to 3-CLEAN per BC-5.39.001) → demo-recorder → push → pr-manager 9-step PR cycle → PR-LEVEL 3-CLEAN → merge"
+    dispatch_status: "D-975 (2026-06-03) — LOCAL 3/3 CONVERGED @ 6081d42a (BC-5.39.001 D-779 strict criterion). Converging passes 5/6/7 all CLEAN(strict)=yes AND CLEAN(PR-merge)=yes. All findings closed: ADV-SDEMO002-P01-MED-001 (query-syntax SQL SELECT) + P01-MED-002 (--config-dir) + P02-MED-001 (POL-11 index bump) + P03-MED-001 CLOSED implementer 3919a06c (uid assertion load-bearing) + P04-MED-001 CLOSED implementer 6081d42a (category_uid/class_uid non-null assertion). Story v1.9 stable. [D-972 (2026-06-03): spec-amend v1.8→v1.9 LANDED @ 4bb8f5b4. D-970 (2026-06-03): Option-A per-client credential convention CODE LANDED @ 29ea62df; e2e 123/123 orchestrator-verified GREEN]. NEXT: demo-recorder per-AC evidence → push → pr-manager 9-step PR cycle → PR-LEVEL 3-CLEAN → merge."
+    entry_point: "demo-recorder per-AC evidence → push feature/S-DEMO-002 → pr-manager 9-step PR cycle → PR-LEVEL adversary 3-CLEAN (BC-5.39.001) → merge"
     worktree_path: ".worktrees/S-DEMO-002"
-    code_head: "29ea62df"
+    code_head: "6081d42a"
     branch: "feature/S-DEMO-002"
     tracked_dependency: "MUST seed query_filters[\"aql\"] in PipelineExecutor FetchContext for Armis end-to-end AQL push-down (AC-014 D-934/D-952 scope) — canonical seeding site: predicate_tree_to_filter_map (BC-2.11.007 v1.5 Mechanism B). Do NOT add parallel extract fn. Tool name is `query` (not tool_query). Org field is `clients` (not org_slug). red_gate_tests=9. AC-004 now requires WHERE aql = 'in:devices' LIMIT 5 (Option-A per human D-963)."
     depends_on:
@@ -38,8 +38,8 @@ active_dispatch_set:
     points: 2
     spec_version: "v1.4"
     lane: "2-of-3"
-    dispatch_status: "D-973 (2026-06-03) — LOCAL 3-CLEAN CONVERGED @ 291d7c64 (BC-5.39.001 D-779 strict criterion). Three converging passes: re-pass CLEAN(strict)=yes streak 1/3; pass-2 CLEAN(strict)=yes novelty ZERO streak 2/3; pass-3 CLEAN(strict)=yes novelty LOW streak 3/3 (third distinct lens: full-policy sweep + production-grade audit + demo-readiness end-to-end + volatile-pin). All three CLEAN(strict)=yes AND CLEAN(PR-merge)=yes. Zero findings any severity across converging streak. Story spec stable at v1.4. F-PB-B-MED-001 (dead imports SpecEngineError+SpecLoader) confirmed CLOSED @ 291d7c64. [D-957 PAUSED prior: code @ 291d7c64; LOCAL pass A CLEAN, pass B 1 MED (fixed @ 291d7c64), pass C CLEAN; streak 0/3]. NEXT: demo-recorder per-AC → push feature/S-DEMO-CROWDSTRIKE-MULTIREGION-001 → pr-manager 9-step PR cycle → PR-LEVEL 3-CLEAN → merge."
-    entry_point: "demo-recorder per-AC evidence → push feature/S-DEMO-CROWDSTRIKE-MULTIREGION-001 → pr-manager 9-step PR cycle → PR-LEVEL adversary 3-CLEAN (BC-5.39.001) → merge"
+    dispatch_status: "D-976 (2026-06-03) — PR #170 OPEN @ 92932069 (base develop@b38c1abc). PR-LEVEL cascade in progress 1/3 (auto-merge authorized by user on 3/3+CI-green). pass-1 found ADV-CSMR-PR-P01-MED-001 (demo evidence) CLOSED fix-burst. pass-2 found 2 OBS: ADV-CSMR-PR-P02-OBS-001 CLOSED fix-burst; ADV-CSMR-PR-P02-OBS-002 [process-gap] orphaned sensors/ dir out-of-perimeter → DEFER-ORPHAN-SENSORS-DIR-001 (D-977). pass-3 CLEAN(strict) streak 1/3. security-reviewer: MAY PROCEED. pr-reviewer: APPROVE-after-fix (now satisfied). Passes 4-5 in flight. Converged code_head 291d7c64; demo+evidence commits f283b8a7/ecb38d37/92932069 on top. [D-973 (2026-06-03): LOCAL 3-CLEAN CONVERGED @ 291d7c64 (BC-5.39.001 D-779); story v1.4 stable]."
+    entry_point: "adversary PR-LEVEL passes 4-5 (→2/3, 3/3 per BC-5.39.001) → auto-merge on 3/3+CI-green (user-authorized) → post-merge state burst"
     worktree_path: ".worktrees/S-DEMO-CROWDSTRIKE-MULTIREGION-001"
     code_head: "291d7c64"
     branch: "feature/S-DEMO-CROWDSTRIKE-MULTIREGION-001"
@@ -293,7 +293,7 @@ deferred_post_demo:
   # reclassification from permitted-divergence → required-fidelity; user directive no-scope-compromise).
 
 prereq_artifacts:
-  story_index: .factory/stories/STORY-INDEX.md         # v2.260 after D-964 burst (179 stories)
+  story_index: .factory/stories/STORY-INDEX.md         # v2.262 after D-975/D-976/D-977 burst (179 stories)
   bc_index: .factory/specs/behavioral-contracts/BC-INDEX.md  # v5.77 after D-968 burst (BC-2.16.002 v1.64; BC-2.06.003 v1.2; ADR-028 v1.14)
   state: .factory/STATE.md                              # v7.623 after D-970 burst
   governing_adr: .factory/specs/architecture/decisions/ADR-031-dtu-equals-true-dtu-fidelity-principle.md  # v1.2 (ADR-031 architect e57eb5b1 reclassified 3 divergences)
