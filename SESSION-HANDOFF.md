@@ -12028,3 +12028,200 @@ Priority 2+3 (parallel): Lane 1 implementer fix-burst (5 findings) + Lane 2 LOCA
 ---
 
 **D-957 burst marker:** Single-commit burst per TD-VSDD-053. Anti-volatile-pin per TD-VSDD-091. Defensive sweep (S-7.02): develop_head eb3416d1 UNCHANGED; total_stories 178 UNCHANGED; story_index_version v2.254→v2.255 propagated to STATE.md frontmatter + STORY-INDEX.md frontmatter + sprint-state.yaml prereq_artifacts; bc_index_version v5.75 UNCHANGED; VP-INDEX v1.76 UNCHANGED. safe_to_compact: true.
+
+---
+
+## §RESUME SNAPSHOT 2026-06-03-S-DEMO-002-OPTION-A-LANDED-E2E-GREEN-LOCAL-CASCADE-NEXT (D-971)
+
+> **This is the durable zero-context checkpoint. A fresh session can resume all remaining lanes cold from this snapshot alone. Lane 3 CLOSED (D-958). Option-A per-client credential convention CODE LANDED @ 29ea62df (D-970). e2e 123/123 ORCHESTRATOR-VERIFIED GREEN. just check 3938 GREEN. LOCAL adversarial cascade streak 0/3 — FRESH CASCADE is the immediate next action.**
+
+### §1 PIPELINE STATUS
+
+- **develop HEAD:** `b38c1abc` (fix(S-MAINT-W3SEC-CITE-SWEEP-001): correct BC-3.5.002 precond-3 org-guard mis-cite → W3-FIX-SEC-001, DRIFT-D943-001 (#169) — MERGED 2026-06-02 D-958)
+- **STATE.md:** v7.624
+- **BC-INDEX:** v5.78 (active: 238, draft: 1; total: 246)
+- **STORY-INDEX:** v2.260 (179 stories)
+- **VP-INDEX:** v1.76 (unchanged)
+- **ARCH-INDEX:** v2.110
+- **error-taxonomy:** v1.58
+- **policies.yaml:** v1.31
+- **Open PRs:** NONE
+- **D-970 burst:** Option-A per-client credential convention CODE LANDED @ 29ea62df; e2e 123/123 ORCHESTRATOR-VERIFIED GREEN; just check 3938 GREEN; blast radius COMPLETE; LOCAL streak 0/3
+
+### §2 THREE-LANE STATUS
+
+---
+
+#### LANE 1 — S-DEMO-002 (P0; ready v1.8; 11pts) — IN PROGRESS, NOT MERGED
+
+- **Story file:** `.factory/stories/S-DEMO-002-e2e-subprocess-smoke-test-all-sensors.md`
+- **Story version:** v1.8
+- **Code branch:** `feature/S-DEMO-002`
+- **Worktree path:** `.worktrees/S-DEMO-002`
+- **Code HEAD:** `29ea62df` (ORCHESTRATOR-VERIFIED)
+- **e2e green:** 123/123 PASS — `cargo nextest run -p prism-bin --profile e2e --run-ignored all`
+- **just check:** 3938/3938 GREEN
+- **LOCAL adversarial streak:** 0/3 (VOID after Option-A credential overhaul; convergence must restart fresh)
+- **NEXT ACTION:** Fresh LOCAL adversarial 3-CLEAN cascade (BC-5.39.001). The adversary MUST review the Option-A shared-code changes (see §3 below). After 3-CLEAN: demo-recorder per-AC → push → pr-manager 9-step PR cycle.
+- **BCs:** BC-3.2.001 v0.8, BC-2.16.002 v1.64, BC-2.06.003 v1.3, BC-2.03.006 v1.4; ADR-028 v1.14, ADR-032 v1.0
+- **HARD DEPENDENCY (do not lose):** MUST seed `query_filters["aql"]` in `PipelineExecutor::FetchContext` from PrismQL WHERE predicate for Armis AQL push-down. Canonical seeding site: `predicate_tree_to_filter_map` (BC-2.11.007 v1.5 Mechanism B).
+
+---
+
+#### LANE 2 — S-DEMO-CROWDSTRIKE-MULTIREGION-001 (P2; ready v1.4; 2pts) — NOT STARTED THIS SESSION
+
+- **Story file:** `.factory/stories/S-DEMO-CROWDSTRIKE-MULTIREGION-001-crowdstrike-multiregion-base-url.md`
+- **Story version:** v1.4
+- **Code branch:** `feature/S-DEMO-CROWDSTRIKE-MULTIREGION-001`
+- **Worktree path:** `.worktrees/S-DEMO-CROWDSTRIKE-MULTIREGION-001`
+- **Code HEAD:** `291d7c64` (unused imports removed)
+- **LOCAL streak:** 0/3
+- **LOCAL cascade progress (PRIOR PASSES):** pass A CLEAN, pass B 1 MED (F-PB-B-MED-001 CLOSED @ 291d7c64), pass C CLEAN.
+- **REBASE REQUIRED:** Lane 1 (S-DEMO-002) modified `crowdstrike.sensor.toml` and credential infra. Lane 2 MUST rebase onto develop AFTER Lane 1 merges to avoid conflicts.
+- **NEXT ACTION (after Lane 1 merges):** Rebase `feature/S-DEMO-CROWDSTRIKE-MULTIREGION-001` onto new develop HEAD → LOCAL adversary re-pass with Lesson 62 preflight → toward 3-CLEAN → demo-recorder → push → PR → PR-LEVEL 3-CLEAN → merge.
+- **BCs:** BC-2.16.009, BC-2.16.013
+
+---
+
+#### LANE 3 — S-MAINT-W3SEC-CITE-SWEEP-001 — CLOSED (D-958)
+
+- **Status:** MERGED PR #169 develop@b38c1abc 2026-06-02 (D-958)
+- **DRIFT-D943-001:** CLOSED
+- **POL-14:** NO-OP — BC-3.5.002 status=draft; cite-only sweep
+- **Cleanup:** worktree removed; branch deleted
+
+---
+
+### §3 OPTION-A CREDENTIAL OVERHAUL — WHAT CODE @ 29ea62df CONTAINS
+
+A long cascade this session closed numerous findings. The final major change was the **Option-A per-client credential convention** implemented in D-970 (blast radius across the credential stack):
+
+**The 9 shared-code changes at 29ea62df (adversary must review all):**
+
+1. **`resolve_credential` (prism-credentials):** Derives per-client env keys `PRISM_CLIENTS_{ID}_SENSORS_{SENSOR}_{REF}` (+ `_FILE` suffix), where `{ID}` = org-slug SCREAMING_SNAKE (e.g. `demo-org-a` → `DEMO_ORG_A`). Retired global `{SENSOR}_{REF}` form.
+2. **`KeyringCredentialProbe::probe` org-aware:** Uses per-client key derivation. Issue B keyring-key mismatch CLOSED. Boot probe now in sync with query-time resolution chain per BC-2.06.003 v1.3.
+3. **`CredentialRefProbe::probe` + `step5_init_credential_store` + `step5_init_credential_store_with_probe`:** Signatures gained `org_registry: &OrgRegistry` parameter. Wiring not redesign per ADR-022 §C.
+4. **`spec_parser.rs` Rule B amended:** `oauth2_client_credentials` allows exactly 2 `credential_refs` (crowdstrike: client_id + client_secret); all other auth types exactly 1. Previously Rule B allowed only 1 for all types.
+5. **All 4 sensor TOML specs** declare `credential_refs` in BOTH `sensors/` and `crates/prism-sensors/specs/` paths: armis=`bearer_token`, claroty=`bearer_token`, cyberint=`api_key`, crowdstrike=`client_id`+`client_secret`.
+6. **S-DEMO-002 e2e harness (helpers/mod.rs):** 15 per-client env vars across 3 orgs renamed to per-client convention (`PRISM_CLIENTS_DEMO_ORG_A_SENSORS_CROWDSTRIKE_CLIENT_ID` etc.).
+7. **Tests updated:** `bc_2_03_006`, `crowdstrike_oauth2_plugin_tests`, `bc_2_01_013` updated with per-client env-var naming.
+8. **All `CredentialRefProbe` mock impls** updated to accept `org_registry` parameter.
+9. **Rule-B-affected tests updated:** `bc_2_01_016`, `bc_2_16_012`, `bc_2_16_001`, `vp153_sensorauth_cross_composition`.
+
+**Earlier cascade fixes also in this build (already in prior pass scope but confirm not regressed):**
+- CRIT cross-org isolation (E-QUERY-032/-32602 surfaced credential-safe error)
+- HIGH dot→underscore table names
+- AC-007 injection scan, AC-014 DTU AQL round-trip, AC-011 count==8
+- Armis WHERE-aql-required CRIT
+- Code labels are version-AGNOSTIC (`Story: S-DEMO-002` per TD-VSDD-091 — do NOT re-pin)
+- 9 production bugs fixed: oauth2 auth-strategy routing, per-org token endpoint, credential resolver, JSON-body interpolation (arrays verbatim), Component-Model plugin dispatch WIT navigation, Armis DTU offset/limit pagination, unscoped-query clients=None, table filtering, crowdstrike body_template field-path
+- CRIT-001 (fabricated credential placeholder) fixed → `BearerStaticCredentialAuthProvider` (fail-closed)
+- Boot regression from CRIT-001 fix: closed
+
+### §4 EXACT NEXT STEPS FOR FRESH ORCHESTRATOR
+
+Execute in order:
+
+1. **Fresh LOCAL adversarial 3-CLEAN cascade on `29ea62df`** (BC-5.39.001; streak 0/3).
+   - Adversary dispatched to `.worktrees/S-DEMO-002` (Lesson 62 preflight: `git -C .worktrees/S-DEMO-002 rev-parse HEAD` must == `29ea62df`).
+   - **Must review** Option-A shared-code changes (§3): `resolve_credential` per-client env derivation, org-aware `KeyringCredentialProbe`, `spec_parser` Rule B (2 credential_refs for oauth2_client_credentials), 15 per-client demo env vars in helpers/mod.rs, all renamed landed-story tests.
+   - Verify multi-tenancy correctness (per-org credential isolation) + no regression on prior-converged axes (E-QUERY-032 isolation, AQL seeding AC-014, AC-007/011/012, harness).
+   - Apply policies.yaml v1.31, SAP-1/SAP-2/SID-1, production-grade default.
+   - **DISPOSITIONED (do NOT re-flag):** OBS-2 → drafted follow-up S-DEMO-CI-E2E-001.
+   - Report both `CLEAN(strict)` and `CLEAN(PR-merge)` per BC-5.39.001 D-779 disambiguation.
+
+2. **Re-record demo evidence** — current evidence at feature commit `b01511d0` is STALE (captured the FAILING run). e2e is now green @ `29ea62df`. Demo-recorder → `docs/demo-evidence/S-DEMO-002/` (POL-10).
+
+3. **Push feature branch + pr-manager 9-step PR cycle** → PR-LEVEL 3-CLEAN cascade + pr-reviewer + security-reviewer + CI + squash-merge to develop → post-merge state-manager burst + worktree cleanup.
+
+4. **Lane 2 — S-DEMO-CROWDSTRIKE-MULTIREGION-001:** After Lane 1 merges, rebase `feature/S-DEMO-CROWDSTRIKE-MULTIREGION-001` onto new develop HEAD, then run full per-story delivery (LOCAL re-pass → 3-CLEAN → demo-recorder → push → PR → PR-LEVEL 3-CLEAN → merge).
+
+### §5 RESUME CHECKLIST (run in order on every new session)
+
+```bash
+# Step 1 — Factory worktree health (BLOCKING preflight)
+# Run: vsdd-factory:factory-worktree-health
+
+# Step 2 — Verify STATE.md version
+grep '^version:' .factory/STATE.md
+# Expected: version: "7.624"
+
+# Step 3 — Verify develop HEAD
+git log --oneline -3 develop
+# Expected: b38c1abc at top
+
+# Step 4 — Verify STORY-INDEX version and story count
+grep '^version:\|^total_stories:' .factory/stories/STORY-INDEX.md
+# Expected: version: "v2.260" / total_stories: 179
+
+# Step 5 — Verify BC-INDEX version
+grep '^version:' .factory/specs/behavioral-contracts/BC-INDEX.md
+# Expected: version: "5.78"
+
+# Step 6 — Verify open PRs
+gh pr list --state open
+# Expected: NONE
+
+# Step 7 — Verify worktree HEADs (Lesson 62 preflight)
+git -C .worktrees/S-DEMO-002 rev-parse HEAD
+# Expected: 29ea62df...
+
+git -C .worktrees/S-DEMO-CROWDSTRIKE-MULTIREGION-001 rev-parse HEAD
+# Expected: 291d7c64...
+
+# Step 8 — Verify factory-artifacts HEAD
+git -C .factory log -1 --format='%h %s'
+# Expected: D-971 state-manager burst commit
+```
+
+### §6 ARTIFACT VERSIONS (post D-971)
+
+| Artifact | Version | Notes |
+|----------|---------|-------|
+| STATE.md | v7.624 | D-971 burst |
+| STORY-INDEX.md | v2.260 | 179 stories |
+| BC-INDEX.md | v5.78 | active: 238, draft: 1 |
+| VP-INDEX.md | v1.76 | unchanged |
+| ARCH-INDEX.md | v2.110 | unchanged |
+| error-taxonomy.md | v1.58 | unchanged |
+| ADR-028 | v1.14 | unchanged |
+| ADR-032 | v1.0 | Option-A per-client credential convention |
+| BC-3.2.001 | v0.8 | unchanged |
+| BC-2.16.002 | v1.64 | unchanged |
+| BC-2.06.003 | v1.3 | KeyringCredentialProbe org-aware |
+| BC-2.03.006 | v1.4 | per-client credential_refs |
+| develop HEAD | b38c1abc | PR #169 S-MAINT-W3SEC-CITE-SWEEP-001 merged D-958 |
+| S-DEMO-002 | v1.8 | code @ 29ea62df; e2e 123/123 GREEN; LOCAL streak 0/3 |
+| S-DEMO-CROWDSTRIKE-MULTIREGION-001 | v1.4 | code @ 291d7c64; rebase on develop after Lane 1 merges |
+
+### §7 KEY ARCHITECTURAL CONSTRAINTS (carry into every adversary dispatch)
+
+- **BC-5.39.001 3-CLEAN protocol (D-779):** CLEAN(strict) = ZERO findings ALL severities. CLEAN(PR-merge) = ZERO CRIT+HIGH+MED. Streak advances only on CLEAN(strict). Both criteria must be explicitly stated in each adversary pass report.
+- **SAP-1 (tracing emission catalog completeness):** Grep `event_type =` across all modified Rust files; every value must have a BC-2.16.002 catalog row.
+- **SAP-2 (DTU↔TOML schema parity):** For any sensor TOML touched, verify column names + types against DTU types.rs structs.
+- **TD-VSDD-091 (anti-volatile-pin):** Cite function names + behavioral anchors, NOT file.rs:NNN line numbers. Code story-version labels are version-AGNOSTIC (`Story: S-DEMO-002`, no version) by design — do NOT re-pin.
+- **TD-VSDD-059 (paper-fix detection):** Every claimed closure must have a load-bearing test or assertion.
+- **TD-VSDD-060 (sibling-site sweep):** When changing a function sig, constant, or canonical identifier — grep ALL callsites before committing.
+- **Lesson 62 / GH #176 (worktree-identity preflight):** Every adversary dispatch MUST assert `git -C <worktree> rev-parse HEAD` == dispatched feature HEAD AND worktree basename == story ID.
+- **ORCHESTRATOR MUST INDEPENDENTLY VERIFY e2e** via `cargo nextest run -p prism-bin --profile e2e --run-ignored all`. Do NOT trust implementer self-reports. Real e2e_smoke tests take ~0.6-0.9s EACH (DTU+prism subprocess); a sub-2s total = WRONG profile.
+- **factory-artifacts LOCAL-ONLY:** No remote push. Never use `--no-verify`. No AI attribution in commits.
+- **Per-client env key convention (ADR-032):** `PRISM_CLIENTS_{ID}_SENSORS_{SENSOR}_{REF}` where `{ID}` = org-slug SCREAMING_SNAKE. Global `{SENSOR}_{REF}` form is retired.
+
+### §8 OPEN FOLLOW-UPS
+
+| Item | Status | Priority | Anchor |
+|------|--------|----------|--------|
+| S-DEMO-002 LOCAL 3-CLEAN cascade | NEXT ACTION | P0 | D-970 |
+| S-DEMO-CROWDSTRIKE-MULTIREGION-001 | After Lane 1 merges; rebase first | P2 | D-958 |
+| S-DEMO-CI-E2E-001 | Draft (OBS-2 closure; depends_on S-DEMO-002 HARD; S-7.01 PO-gate open) | P2 | D-960 |
+| DRIFT-D954-001 | ANCHORED — S-MAINT-W3SEC-CITE-SWEEP-002 registered (draft; P2) | P2 | D-954 |
+| OCSF-CLASS-MIGRATION-001 | Draft [DEMO-GOAL-REQUIRED] (P2; 3pts) | P2 | D-936/D-941 |
+| S-DEMO-HARNESS-CLONE-PARITY-001 | Draft [DEMO-GOAL-REQUIRED] (P2; 3pts) | P2 | D-941 |
+| S-DEMO-CLAROTY-SPEC-PROSE-FIX-001 | Draft [DEMO-GOAL-REQUIRED] (P2; 1pt) | P2 | D-941 |
+| S-DEMO-003 | Draft (P1; 5pts; depends_on S-DEMO-002 HARD) | P1 | Wave-5 backlog |
+| GH #176 | Filed at drbothen/vsdd-factory — Lesson 62 worktree-identity preflight gap | background | D-952 |
+| F-P1-OBS-003 | Factory/can-wait (SAP-2 runtime-shape-assertion extension) | background | D-941 |
+
+---
+
+**D-971 burst marker:** Single-commit burst per TD-VSDD-053. Anti-volatile-pin per TD-VSDD-091. Defensive sweep (S-7.02): develop_head b38c1abc CONFIRMED; total_stories 179 CONFIRMED (STORY-INDEX v2.260); bc_index_version v5.78 CONFIRMED; VP-INDEX v1.76 UNCHANGED; ARCH-INDEX v2.110 UNCHANGED; STATE.md v7.623→v7.624; pre_compact_snapshot updated to this snapshot; current_step updated; safe_to_compact: true.
