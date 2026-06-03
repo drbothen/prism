@@ -29,9 +29,12 @@
 
 **Demonstrated by:** `AC-001-crowdstrike-toml-base-url-env-var.{gif,webm}`
 
-The recording runs two commands:
+The recording runs three commands:
 1. `grep -A10 region crates/prism-sensors/specs/crowdstrike.sensor.toml | head -14` — shows the 4-region runbook comment and `base_url = "${env.CROWDSTRIKE_BASE_URL}"` in the production TOML.
-2. `grep -c api.crowdstrike.com ...` — returns `0` (absent), confirming the hardcoded us-1 URL was removed.
+2. `grep -E '^base_url\s*=' ...` — returns `base_url = "${env.CROWDSTRIKE_BASE_URL}"`, confirming the field is env-var driven.
+3. `grep -E '^base_url\s*=.*api\.crowdstrike\.com' ... || echo 'field-not-hardcoded'` — returns `field-not-hardcoded`, confirming the `base_url` FIELD contains no hardcoded URL.
+
+Note: the region runbook comment block (`# us-1 (default): https://api.crowdstrike.com` etc.) intentionally retains all four region URLs for operator reference — `grep -c api.crowdstrike.com` returns `1` because the comment contains that string. The field-discriminating guards above (commands 2 and 3) correctly target the `base_url` FIELD only, not comment lines.
 
 **TOML state confirmed:**
 ```toml
@@ -201,7 +204,7 @@ No new catalog rows required.
 
 | AC | Demonstrated | Method |
 |----|-------------|--------|
-| AC-001 | Full | VHS recording: TOML grep shows env-var base_url + 4-region comment; hardcoded URL absent |
+| AC-001 | Full | VHS recording: TOML grep shows env-var base_url + 4-region comment; field-discriminating guards confirm `base_url` field is env-var driven (not hardcoded); region runbook comment intentionally retains all 4 region URLs for operator reference |
 | AC-002 | Full | VHS recording: Red Gate test PASS — eu-1 URL resolves |
 | AC-003 | Full | VHS recording: Red Gate test PASS — unset env → E-SPEC-024, no panic |
 | AC-004 | Partial (SID-1 compliant) | VHS recording: Red Gate PASS (spec-load unit path); full DTU connection deferred to DTU-EXT-001 (after S-6.07) |

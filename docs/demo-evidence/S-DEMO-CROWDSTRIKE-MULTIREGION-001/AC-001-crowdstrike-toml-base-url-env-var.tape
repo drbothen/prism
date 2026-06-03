@@ -31,8 +31,13 @@ Type "grep -A10 region crates/prism-sensors/specs/crowdstrike.sensor.toml | head
 Enter
 Sleep 2s
 
-# Confirm hardcoded us-1 URL is absent (error path guard)
-Type "grep -c api.crowdstrike.com crates/prism-sensors/specs/crowdstrike.sensor.toml || echo absent"
+# Confirm base_url FIELD is env-var driven, not hardcoded (field-discriminating guard)
+Type "grep -E '^base_url\\s*=' crates/prism-sensors/specs/crowdstrike.sensor.toml"
+Enter
+Sleep 1.5s
+
+# Confirm base_url FIELD does not contain a hardcoded api.crowdstrike.com value (error path guard)
+Type "grep -E '^base_url\\s*=.*api\\.crowdstrike\\.com' crates/prism-sensors/specs/crowdstrike.sensor.toml || echo 'field-not-hardcoded'"
 Enter
 Sleep 1.5s
 
