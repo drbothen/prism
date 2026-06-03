@@ -657,7 +657,9 @@ async fn test_BC_3_2_001_e2e_multi_org_boot_registers_correct_adapter_count() {
     mcp.initialize().expect("MCP handshake failed");
 
     // AC-011: verify all 4 sensors resolve for demo-org-c (has all 4 sensors).
-    // This indirectly proves 8 adapters were registered (2+2+4).
+    // This subprocess test proves demo-org-c 4-sensor resolvability over MCP only.
+    // The authoritative len()==8 + no-aliasing assertion lives in the non-ignored unit test
+    // `test_BC_3_2_001_step9a_multi_org_registers_eight_adapters` in bc_2_01_013_spec_driven_adapter.rs.
     // For demo-org-c, all 4 queries should return data.
     // Table names use underscore notation ({sensor}_{table}) per PrismQL FROM syntax.
     for (org, sensor_table) in [

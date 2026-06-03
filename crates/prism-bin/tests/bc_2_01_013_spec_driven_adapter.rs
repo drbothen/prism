@@ -2122,6 +2122,237 @@ fn test_BC_2_01_013_auth_refresh_failed_display_carries_e_auth_002_taxonomy_code
     );
 }
 
+/// AC-011 — BC-3.2.001 postcondition (SID-1 authoritative unit test):
+///
+/// After multi-org boot (3 orgs, 8 specs), `step9a_populate_adapter_registry`
+/// MUST register exactly **8** `(OrgId, SensorId)` entries:
+///
+/// | Org | Sensors | Entries |
+/// |-----|---------|---------|
+/// | demo-org-a | crowdstrike + armis | 2 |
+/// | demo-org-b | claroty + cyberint | 2 |
+/// | demo-org-c | crowdstrike + armis + claroty + cyberint | 4 |
+///
+/// **Positive resolution**: every `(org_id, sensor_id)` pair resolves to `Some(adapter)`.
+///
+/// **Negative aliasing**: an org CANNOT see sensors it was NOT configured for —
+/// demo-org-a cannot see claroty or cyberint; demo-org-b cannot see crowdstrike or armis.
+///
+/// # Why this test is the authoritative count assertion
+///
+/// The e2e subprocess test (`test_BC_3_2_001_e2e_multi_org_boot_registers_correct_adapter_count`
+/// in e2e_smoke.rs) only exercises demo-org-c's 4-sensor resolvability over MCP. It does NOT
+/// assert `adapter_registry.len() == 8`. This unit test is the SID-1 load-bearing authority
+/// for the count and no-aliasing property (F-DEMO002-P1-MED-001).
+///
+/// # Fixture note on auth types
+///
+/// CrowdStrike specs in this fixture use `BearerStatic` (not `CustomViaPlugin`) so that
+/// no `PluginAuthProvider` is required and all 8 entries are registered without gating.
+/// The `CustomViaPlugin` skip path is covered separately by `EC-004`-tagged tests.
+///
+/// BC-3.2.001 postcondition 1; AC-011; S-DEMO-002; F-DEMO002-P1-MED-001.
+#[tokio::test]
+async fn test_BC_3_2_001_step9a_multi_org_registers_eight_adapters() {
+    // -------------------------------------------------------------------------
+    // Fixture: 3 orgs, each registered in the same OrgRegistry.
+    // -------------------------------------------------------------------------
+    let (org_registry, org_id_a, org_slug_a) = make_org_registry("demo-org-a");
+
+    let uuid_b = uuid::Uuid::now_v7();
+    let org_id_b = OrgId::from_uuid(uuid_b);
+    let org_slug_b = OrgSlug::new("demo-org-b");
+    org_registry
+        .register(org_slug_b.clone(), org_id_b)
+        .expect("test fixture: register demo-org-b failed");
+
+    let uuid_c = uuid::Uuid::now_v7();
+    let org_id_c = OrgId::from_uuid(uuid_c);
+    let org_slug_c = OrgSlug::new("demo-org-c");
+    org_registry
+        .register(org_slug_c.clone(), org_id_c)
+        .expect("test fixture: register demo-org-c failed");
+
+    // -------------------------------------------------------------------------
+    // Fixture: resolved spec map — 8 entries total.
+    //
+    // CrowdStrike uses BearerStatic here (not CustomViaPlugin) so the plugin-auth
+    // gating path (EC-004) is bypassed — all 8 are registered unconditionally.
+    // -------------------------------------------------------------------------
+    let mut resolved_spec_map: HashMap<ResolvedSpecKey, ResolvedSensorSpec> = HashMap::new();
+
+    // demo-org-a: crowdstrike (bearer) + armis (bearer)
+    let cs_spec_a = make_spec(
+        "crowdstrike",
+        AuthType::BearerStatic,
+        "http://127.0.0.1:19100",
+    );
+    resolved_spec_map.insert(
+        (org_slug_a.clone(), SensorId::from("crowdstrike")),
+        make_resolved_spec(cs_spec_a, "demo-org-a"),
+    );
+    let armis_spec_a = make_spec("armis", AuthType::BearerStatic, "http://127.0.0.1:19101");
+    resolved_spec_map.insert(
+        (org_slug_a.clone(), SensorId::from("armis")),
+        make_resolved_spec(armis_spec_a, "demo-org-a"),
+    );
+
+    // demo-org-b: claroty (bearer) + cyberint (cookie_roundtrip)
+    let claroty_spec_b = make_spec("claroty", AuthType::BearerStatic, "http://127.0.0.1:19102");
+    resolved_spec_map.insert(
+        (org_slug_b.clone(), SensorId::from("claroty")),
+        make_resolved_spec(claroty_spec_b, "demo-org-b"),
+    );
+    let cyberint_spec_b = make_spec(
+        "cyberint",
+        AuthType::CookieRoundtrip,
+        "http://127.0.0.1:19103",
+    );
+    resolved_spec_map.insert(
+        (org_slug_b.clone(), SensorId::from("cyberint")),
+        make_resolved_spec(cyberint_spec_b, "demo-org-b"),
+    );
+
+    // demo-org-c: all 4 sensors
+    let cs_spec_c = make_spec(
+        "crowdstrike",
+        AuthType::BearerStatic,
+        "http://127.0.0.1:19104",
+    );
+    resolved_spec_map.insert(
+        (org_slug_c.clone(), SensorId::from("crowdstrike")),
+        make_resolved_spec(cs_spec_c, "demo-org-c"),
+    );
+    let armis_spec_c = make_spec("armis", AuthType::BearerStatic, "http://127.0.0.1:19105");
+    resolved_spec_map.insert(
+        (org_slug_c.clone(), SensorId::from("armis")),
+        make_resolved_spec(armis_spec_c, "demo-org-c"),
+    );
+    let claroty_spec_c = make_spec("claroty", AuthType::BearerStatic, "http://127.0.0.1:19106");
+    resolved_spec_map.insert(
+        (org_slug_c.clone(), SensorId::from("claroty")),
+        make_resolved_spec(claroty_spec_c, "demo-org-c"),
+    );
+    let cyberint_spec_c = make_spec(
+        "cyberint",
+        AuthType::CookieRoundtrip,
+        "http://127.0.0.1:19107",
+    );
+    resolved_spec_map.insert(
+        (org_slug_c.clone(), SensorId::from("cyberint")),
+        make_resolved_spec(cyberint_spec_c, "demo-org-c"),
+    );
+
+    assert_eq!(
+        resolved_spec_map.len(),
+        8,
+        "test fixture sanity: resolved_spec_map must contain exactly 8 entries before step9a runs"
+    );
+
+    let plugin_auth_providers: HashMap<String, Arc<PluginAuthProvider>> = HashMap::new();
+    let mut adapter_registry = AdapterRegistry::new();
+
+    // -------------------------------------------------------------------------
+    // Exercise: run boot step 9A on the 3-org / 8-spec map.
+    // -------------------------------------------------------------------------
+    let count = step9a_populate_adapter_registry(
+        &resolved_spec_map,
+        &org_registry,
+        &plugin_auth_providers,
+        &mut adapter_registry,
+    )
+    .await
+    .expect("step9a must return Ok(count) for a valid 3-org / 8-spec map. BC-3.2.001.");
+
+    // -------------------------------------------------------------------------
+    // Count assertion (AC-011 primary postcondition).
+    // -------------------------------------------------------------------------
+    assert_eq!(
+        adapter_registry.len(),
+        8,
+        "AC-011: AdapterRegistry must contain exactly 8 entries after 3-org boot \
+         (demo-org-a: 2, demo-org-b: 2, demo-org-c: 4). \
+         BC-3.2.001 postcondition 1; F-DEMO002-P1-MED-001."
+    );
+    assert_eq!(
+        count, 8,
+        "AC-011: returned count must equal adapter_registry.len() == 8. \
+         BC-3.2.001 postcondition 1."
+    );
+
+    // -------------------------------------------------------------------------
+    // Positive resolution: every (org_id, sensor_id) pair must resolve to Some.
+    // -------------------------------------------------------------------------
+    for (org_id, sensor_id, label) in [
+        (
+            org_id_a,
+            SensorId::from("crowdstrike"),
+            "demo-org-a / crowdstrike",
+        ),
+        (org_id_a, SensorId::from("armis"), "demo-org-a / armis"),
+        (org_id_b, SensorId::from("claroty"), "demo-org-b / claroty"),
+        (
+            org_id_b,
+            SensorId::from("cyberint"),
+            "demo-org-b / cyberint",
+        ),
+        (
+            org_id_c,
+            SensorId::from("crowdstrike"),
+            "demo-org-c / crowdstrike",
+        ),
+        (org_id_c, SensorId::from("armis"), "demo-org-c / armis"),
+        (org_id_c, SensorId::from("claroty"), "demo-org-c / claroty"),
+        (
+            org_id_c,
+            SensorId::from("cyberint"),
+            "demo-org-c / cyberint",
+        ),
+    ] {
+        assert!(
+            adapter_registry.get(org_id, &sensor_id).is_some(),
+            "AC-011 positive resolution: adapter_registry.get({label}) must return Some(adapter). \
+             BC-3.2.001 postcondition 1; F-DEMO002-P1-MED-001."
+        );
+    }
+
+    // -------------------------------------------------------------------------
+    // Negative aliasing: an org MUST NOT see sensors it was not configured for.
+    //
+    // demo-org-a (crowdstrike + armis) cannot see claroty or cyberint.
+    // demo-org-b (claroty + cyberint) cannot see crowdstrike or armis.
+    // BC-3.2.001 invariant 1 (no cross-org aliasing).
+    // -------------------------------------------------------------------------
+    for (org_id, sensor_id, label) in [
+        (
+            org_id_a,
+            SensorId::from("claroty"),
+            "demo-org-a must NOT see claroty",
+        ),
+        (
+            org_id_a,
+            SensorId::from("cyberint"),
+            "demo-org-a must NOT see cyberint",
+        ),
+        (
+            org_id_b,
+            SensorId::from("crowdstrike"),
+            "demo-org-b must NOT see crowdstrike",
+        ),
+        (
+            org_id_b,
+            SensorId::from("armis"),
+            "demo-org-b must NOT see armis",
+        ),
+    ] {
+        assert!(
+            adapter_registry.get(org_id, &sensor_id).is_none(),
+            "AC-011 negative aliasing: adapter_registry.get({label}) must return None. \
+             BC-3.2.001 invariant 1 — no cross-org aliasing; F-DEMO002-P1-MED-001."
+        );
+    }
+}
+
 /// `SpecDrivenSensorAdapter::sensor_type()` returns the sensor ID from the spec.
 ///
 /// GREEN-BY-DESIGN: zero branching, no I/O, 1-line body.
