@@ -711,7 +711,7 @@ async fn test_BC_3_2_001_e2e_dtu_multi_tenant_each_org_reaches_correct_clone_por
 
     // AC-013: query CrowdStrike from demo-org-a (CrowdStrike IS registered for demo-org-a).
     // DTU-MULTI-001: demo DTU operates in single-tenant mode; org isolation is at
-    // AdapterRegistry layer only (AC-013 scope clarification per S-DEMO-002 v1.5).
+    // AdapterRegistry layer only (AC-013 scope clarification per S-DEMO-002 v1.6).
     let response_a = mcp
         .tool_query_scoped("FROM crowdstrike_detections LIMIT 5", "demo-org-a")
         .expect("query for demo-org-a failed (unexpected network/transport error)");
@@ -750,7 +750,7 @@ async fn test_BC_3_2_001_e2e_dtu_multi_tenant_each_org_reaches_correct_clone_por
 /// Verifies that `FROM crowdstrike_detections LIMIT 0` returns no error envelope
 /// and zero rows (empty-but-not-error per E2E-DEMO-WIRING-PLAN §6 Risk 3).
 ///
-/// Coverage decision (F-PC-002): explicitly required per S-DEMO-002 v1.5 EC-004.
+/// Coverage decision (F-PC-002): explicitly required per S-DEMO-002 v1.6 EC-004.
 ///
 /// // E2E-001: requires DTU server running; un-gated in CI via 'e2e' nextest profile.
 #[tokio::test]
@@ -806,7 +806,7 @@ async fn test_EC_004_e2e_limit_zero_returns_empty_not_error() {
 /// We assert `!rows.is_empty() && rows.len() <= 200` to cover both cases without
 /// hardcoding the fixture row count.
 ///
-/// Coverage decision (F-PC-002): explicitly required per S-DEMO-002 v1.5 EC-005.
+/// Coverage decision (F-PC-002): explicitly required per S-DEMO-002 v1.6 EC-005.
 ///
 /// // E2E-001: requires DTU server running; un-gated in CI via 'e2e' nextest profile.
 #[tokio::test]
