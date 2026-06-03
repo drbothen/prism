@@ -11,16 +11,20 @@ use prism_credentials::resolution::{resolve_credential, CredentialResolutionErro
 
 /// BC-2.03.006 postcondition: when credential exists, it is resolved as SecretString.
 ///
-/// Fixture: sets CROWDSTRIKE_API_KEY env var to supply a resolvable value.
-/// Resolution chain checks env vars first (BC-2.03.006 implementation contract).
+/// Fixture: sets per-client env var (ADR-032 / BC-2.06.003 v1.3) to supply a resolvable value.
+/// Format: PRISM_CLIENTS_{ID}_SENSORS_{SENSOR}_{REF} where {ID}=ACME for org_slug="acme".
 /// Env var is unset after the test to avoid leaking into sibling tests on the same thread.
 #[tokio::test]
 async fn test_BC_2_03_006_resolves_existing_credential_as_secret_string() {
-    // Fixture: supply the credential value via the env var resolution chain.
-    std::env::set_var("CROWDSTRIKE_API_KEY", "test-api-key-value");
+    // Fixture: supply the credential value via the per-client env var (BC-2.06.003 v1.3 Tier 2).
+    // resolve_credential("acme", "crowdstrike", "api_key") → PRISM_CLIENTS_ACME_SENSORS_CROWDSTRIKE_API_KEY
+    std::env::set_var(
+        "PRISM_CLIENTS_ACME_SENSORS_CROWDSTRIKE_API_KEY",
+        "test-api-key-value",
+    );
     let result = resolve_credential("acme", "crowdstrike", "api_key").await;
     // Teardown: remove env var regardless of outcome.
-    std::env::remove_var("CROWDSTRIKE_API_KEY");
+    std::env::remove_var("PRISM_CLIENTS_ACME_SENSORS_CROWDSTRIKE_API_KEY");
 
     assert!(
         result.is_ok(),
@@ -63,22 +67,31 @@ async fn test_BC_2_03_006_rejects_missing_credential_with_setup_suggestion() {
 /// BC-2.03.006 EC-03-014: CrowdStrike requires two credentials.
 /// Both must be resolved independently; both must succeed.
 ///
-/// Fixture: sets both CROWDSTRIKE_CLIENT_ID and CROWDSTRIKE_CLIENT_SECRET env vars.
+/// Fixture: sets both per-client env vars (ADR-032 / BC-2.06.003 v1.3 Tier 2).
+/// Format: PRISM_CLIENTS_ACME_SENSORS_CROWDSTRIKE_{REF} for org_slug="acme".
 /// This is the "both present" scenario — contrast with test 004 which tests the
 /// "client_secret absent" failure scenario. These are distinct fixture states.
 /// Env vars are removed after the test regardless of outcome.
 #[tokio::test]
 async fn test_BC_2_03_006_crowdstrike_both_credentials_resolve() {
-    // Fixture: both credentials present in env var resolution chain.
-    std::env::set_var("CROWDSTRIKE_CLIENT_ID", "test-client-id-value");
-    std::env::set_var("CROWDSTRIKE_CLIENT_SECRET", "test-client-secret-value");
+    // Fixture: both credentials present in per-client env var (BC-2.06.003 v1.3 Tier 2).
+    // resolve_credential("acme", "crowdstrike", "client_id") → PRISM_CLIENTS_ACME_SENSORS_CROWDSTRIKE_CLIENT_ID
+    // resolve_credential("acme", "crowdstrike", "client_secret") → PRISM_CLIENTS_ACME_SENSORS_CROWDSTRIKE_CLIENT_SECRET
+    std::env::set_var(
+        "PRISM_CLIENTS_ACME_SENSORS_CROWDSTRIKE_CLIENT_ID",
+        "test-client-id-value",
+    );
+    std::env::set_var(
+        "PRISM_CLIENTS_ACME_SENSORS_CROWDSTRIKE_CLIENT_SECRET",
+        "test-client-secret-value",
+    );
 
     let client_id_result = resolve_credential("acme", "crowdstrike", "client_id").await;
     let client_secret_result = resolve_credential("acme", "crowdstrike", "client_secret").await;
 
     // Teardown: remove env vars regardless of outcome.
-    std::env::remove_var("CROWDSTRIKE_CLIENT_ID");
-    std::env::remove_var("CROWDSTRIKE_CLIENT_SECRET");
+    std::env::remove_var("PRISM_CLIENTS_ACME_SENSORS_CROWDSTRIKE_CLIENT_ID");
+    std::env::remove_var("PRISM_CLIENTS_ACME_SENSORS_CROWDSTRIKE_CLIENT_SECRET");
 
     assert!(
         client_id_result.is_ok(),
@@ -97,14 +110,16 @@ async fn test_BC_2_03_006_crowdstrike_both_credentials_resolve() {
 /// BC-2.03.006 EC-03-014: if either CrowdStrike credential is missing, query fails.
 ///
 /// Fixture: NO env vars set for client_secret. Uses a unique sensor ID "crowdstrike-tv004"
-/// to guarantee isolation from test 003 which sets CROWDSTRIKE_CLIENT_SECRET in a
-/// concurrent test run. CROWDSTRIKE_TV004_CLIENT_SECRET is never set, so resolution
-/// returns NotFound.
+/// to guarantee isolation from test 003 which sets
+/// PRISM_CLIENTS_ACME_SENSORS_CROWDSTRIKE_CLIENT_SECRET (per-client format) in a
+/// concurrent test run. The per-client env var for sensor "crowdstrike-tv004" is never set,
+/// so resolution returns NotFound.
 #[tokio::test]
 async fn test_BC_2_03_006_rejects_crowdstrike_with_missing_client_secret() {
-    // Use a unique sensor ID ("crowdstrike-tv004") so the env var this test checks
-    // (CROWDSTRIKE_TV004_CLIENT_SECRET) is guaranteed to be absent — test 003 only
-    // sets CROWDSTRIKE_CLIENT_SECRET, which maps to a different env var prefix.
+    // Use a unique sensor ID ("crowdstrike-tv004") so the per-client env var this test checks
+    // (PRISM_CLIENTS_ACME_SENSORS_CROWDSTRIKE_TV004_CLIENT_SECRET) is guaranteed to be absent —
+    // test 003 only sets PRISM_CLIENTS_ACME_SENSORS_CROWDSTRIKE_CLIENT_SECRET, which maps to
+    // the "crowdstrike" sensor, not "crowdstrike-tv004".
     let result = resolve_credential("acme", "crowdstrike-tv004", "client_secret").await;
     assert!(
         result.is_err(),
@@ -154,25 +169,31 @@ async fn test_BC_2_03_006_resolution_emits_audit_log_without_value() {
 // R27-I-01 fix: FILE env var error surfaces as BackendUnavailable, not silent fallthrough
 // ---------------------------------------------------------------------------
 
-/// BC-2.03.006 postcondition: if _FILE env var is set but file does not exist,
-/// resolution fails with BackendUnavailable — never silently falls through.
+/// BC-2.03.006 postcondition: if Tier 1 `_FILE` env var is set but file does not exist,
+/// resolution fails with BackendUnavailable — never silently falls through to Tier 2.
+///
+/// BC-2.06.003 §Error Cases: "Tier 1 `_FILE` env var set but file non-existent or
+/// unreadable → Error; do NOT fall through to Tier 2 — the explicit `_FILE` reference
+/// is a misconfiguration."
 ///
 /// Regression test for R27-I-01: `Err(_)` in env chain was previously swallowed,
 /// masking FILE misconfiguration behind a confusing `NotFound` error.
 #[tokio::test]
 async fn test_BC_2_03_006_file_env_error_surfaces_as_hard_error() {
-    // Set the FILE env var to a path that does not exist.
-    let unique_env = "PRISM_TV006_007_API_KEY_FILE";
-    std::env::set_var(unique_env, "/nonexistent/path/r27-i-01-test.txt");
+    // Set the per-client Tier 1 FILE env var to a path that does not exist.
+    // resolve_credential("acme", "prism-tv006-007", "api_key") →
+    //   file_env = PRISM_CLIENTS_ACME_SENSORS_PRISM_TV006_007_API_KEY_FILE
+    //   direct_env = PRISM_CLIENTS_ACME_SENSORS_PRISM_TV006_007_API_KEY
+    let unique_file_env = "PRISM_CLIENTS_ACME_SENSORS_PRISM_TV006_007_API_KEY_FILE";
+    let unique_direct_env = "PRISM_CLIENTS_ACME_SENSORS_PRISM_TV006_007_API_KEY";
+    std::env::set_var(unique_file_env, "/nonexistent/path/r27-i-01-test.txt");
     // Remove any direct env var so the only signal is the broken FILE path.
-    std::env::remove_var("PRISM_TV006_007_API_KEY");
+    std::env::remove_var(unique_direct_env);
 
-    // resolve_credential constructs env var names from sensor_id + credential_name:
-    // sensor="prism-tv006-007", name="api_key" → "PRISM_TV006_007_API_KEY_FILE"
     let result = resolve_credential("acme", "prism-tv006-007", "api_key").await;
 
     // Teardown before assertions to avoid env leaks.
-    std::env::remove_var(unique_env);
+    std::env::remove_var(unique_file_env);
 
     assert!(
         result.is_err(),

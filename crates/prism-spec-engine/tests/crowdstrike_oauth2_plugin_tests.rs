@@ -660,8 +660,12 @@ async fn test_PLUGIN_MIGRATION_001_E_006_401_triggers_plugin_token_refresh_and_r
     // ADR-028 §D11 Option C: sensor_id (not credential_handle) is the 3rd arg.
     // PluginAuthProvider resolves client_id/client_secret from prism_credentials at dispatch time.
     //
-    // Test setup: inject credentials via env vars (the resolution chain checks
-    // CROWDSTRIKE_CLIENT_ID + CROWDSTRIKE_CLIENT_SECRET per BC-2.03.006 chain step 2).
+    // Test setup: inject credentials via per-client env vars (ADR-032 / BC-2.06.003 v1.3).
+    // PluginAuthProvider::acquire_token calls resolve_credential(org_slug, "crowdstrike", "client_id")
+    // where org_slug comes from the FetchContext. This test uses OrgSlug::new("test-org") (line ~731),
+    // so the env vars are keyed to {ID}=TEST_ORG.
+    // Format: PRISM_CLIENTS_TEST_ORG_SENSORS_CROWDSTRIKE_{REF}
+    //
     // These test values are harmless sentinels; the WAT fixture ignores PluginConfigMap entirely
     // (WAT core modules don't call host::get-config — only real WASM component guests do).
     //
@@ -673,8 +677,14 @@ async fn test_PLUGIN_MIGRATION_001_E_006_401_triggers_plugin_token_refresh_and_r
     // No other threads are spawned that read these env vars concurrently.
     #[allow(unused_unsafe)]
     unsafe {
-        std::env::set_var("CROWDSTRIKE_CLIENT_ID", "test-client-id");
-        std::env::set_var("CROWDSTRIKE_CLIENT_SECRET", "test-client-secret");
+        std::env::set_var(
+            "PRISM_CLIENTS_TEST_ORG_SENSORS_CROWDSTRIKE_CLIENT_ID",
+            "test-client-id",
+        );
+        std::env::set_var(
+            "PRISM_CLIENTS_TEST_ORG_SENSORS_CROWDSTRIKE_CLIENT_SECRET",
+            "test-client-secret",
+        );
     }
     let runtime_arc = Arc::new(runtime);
     let auth_provider = PluginAuthProvider::new(
@@ -772,8 +782,8 @@ async fn test_PLUGIN_MIGRATION_001_E_006_401_triggers_plugin_token_refresh_and_r
     // SAFETY: same single-threaded context as set_var above.
     #[allow(unused_unsafe)]
     unsafe {
-        std::env::remove_var("CROWDSTRIKE_CLIENT_ID");
-        std::env::remove_var("CROWDSTRIKE_CLIENT_SECRET");
+        std::env::remove_var("PRISM_CLIENTS_TEST_ORG_SENSORS_CROWDSTRIKE_CLIENT_ID");
+        std::env::remove_var("PRISM_CLIENTS_TEST_ORG_SENSORS_CROWDSTRIKE_CLIENT_SECRET");
     }
 }
 
@@ -1476,10 +1486,18 @@ async fn test_S_PLUGIN_CI_001_003_double_401_returns_auth_refresh_failed() {
 
     // SAFETY: This test runs in a single-threaded tokio runtime (#[tokio::test]).
     // No other threads are spawned that read these env vars concurrently.
+    // Per-client env vars (ADR-032 / BC-2.06.003 v1.3): test uses OrgSlug::new("test-org"),
+    // so {ID}=TEST_ORG.
     #[allow(unused_unsafe)]
     unsafe {
-        std::env::set_var("CROWDSTRIKE_CLIENT_ID", "test-client-id-ac003");
-        std::env::set_var("CROWDSTRIKE_CLIENT_SECRET", "test-client-secret-ac003");
+        std::env::set_var(
+            "PRISM_CLIENTS_TEST_ORG_SENSORS_CROWDSTRIKE_CLIENT_ID",
+            "test-client-id-ac003",
+        );
+        std::env::set_var(
+            "PRISM_CLIENTS_TEST_ORG_SENSORS_CROWDSTRIKE_CLIENT_SECRET",
+            "test-client-secret-ac003",
+        );
     }
 
     let runtime_arc = Arc::new(runtime);
@@ -1553,8 +1571,8 @@ async fn test_S_PLUGIN_CI_001_003_double_401_returns_auth_refresh_failed() {
     // SAFETY: same single-threaded context as set_var above.
     #[allow(unused_unsafe)]
     unsafe {
-        std::env::remove_var("CROWDSTRIKE_CLIENT_ID");
-        std::env::remove_var("CROWDSTRIKE_CLIENT_SECRET");
+        std::env::remove_var("PRISM_CLIENTS_TEST_ORG_SENSORS_CROWDSTRIKE_CLIENT_ID");
+        std::env::remove_var("PRISM_CLIENTS_TEST_ORG_SENSORS_CROWDSTRIKE_CLIENT_SECRET");
     }
 }
 

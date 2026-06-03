@@ -1223,14 +1223,21 @@ async fn test_BC_2_06_014_boot_step9a_uses_resolved_spec_overlay_url() {
     let mut adapter_registry = AdapterRegistry::new();
 
     // ADV-SDEMO002-P01-CRIT-001: BearerStatic sensors now resolve the bearer token from
-    // `resolve_credential("armis", "bearer_token")` → env var `ARMIS_BEARER_TOKEN`.
-    // Set the env var to the expected token value so the mock header assertion passes.
+    // `resolve_credential(org_slug, "armis", "bearer_token")` via the per-client env var
+    // (ADR-032 / BC-2.06.003 v1.3 Tier 2). This test uses make_org_registry("overlay-test-org")
+    // so org_slug="overlay-test-org" → {ID}=OVERLAY_TEST_ORG.
+    // Set the per-client env var to the expected token value so the mock header assertion passes.
     // The mock expects `Authorization: Bearer overlay-url-precedence-token-ac005`.
     // SAFETY: This test runs single-threaded (tokio::test default single-thread executor).
-    // No concurrent thread reads ARMIS_BEARER_TOKEN during this test. Cleaned up below.
+    // No concurrent thread reads this env var during this test. Cleaned up below.
     // Rust edition 2024 requires unsafe for set_var / remove_var (RFC-3540).
     // SAFETY: single-threaded test; no concurrent env var access.
-    unsafe { std::env::set_var("ARMIS_BEARER_TOKEN", "overlay-url-precedence-token-ac005") };
+    unsafe {
+        std::env::set_var(
+            "PRISM_CLIENTS_OVERLAY_TEST_ORG_SENSORS_ARMIS_BEARER_TOKEN",
+            "overlay-url-precedence-token-ac005",
+        )
+    };
 
     // Run step9a — must register exactly 1 adapter (Armis is BearerStatic, always registered).
     let count = step9a_populate_adapter_registry(
@@ -1262,8 +1269,9 @@ async fn test_BC_2_06_014_boot_step9a_uses_resolved_spec_overlay_url() {
     // the request fails with connection refused → fetch() returns Err.
     //
     // ADV-SDEMO002-P01-CRIT-001: BearerStatic sensors now use BearerStaticCredentialAuthProvider
-    // (Plugin strategy). The SensorAuth arg is ignored; auth comes from ARMIS_BEARER_TOKEN env var
-    // set above. A no-op BearerStaticSensorAuth is passed to satisfy the fetch() interface.
+    // (Plugin strategy). The SensorAuth arg is ignored; auth comes from the per-client env var
+    // PRISM_CLIENTS_OVERLAY_TEST_ORG_SENSORS_ARMIS_BEARER_TOKEN set above (ADR-032 / BC-2.06.003 v1.3).
+    // A no-op BearerStaticSensorAuth is passed to satisfy the fetch() interface.
     let adapter_spec = make_adapter_spec("armis", org_id);
     let params = make_query_params();
     let sensor_auth = BearerStaticSensorAuth::new("ignored-bearer-static-sensor-auth-arg");
@@ -1272,7 +1280,7 @@ async fn test_BC_2_06_014_boot_step9a_uses_resolved_spec_overlay_url() {
 
     // Clean up env var after the test to avoid cross-test contamination.
     // SAFETY: single-threaded test; no concurrent env var access (RFC-3540).
-    unsafe { std::env::remove_var("ARMIS_BEARER_TOKEN") };
+    unsafe { std::env::remove_var("PRISM_CLIENTS_OVERLAY_TEST_ORG_SENSORS_ARMIS_BEARER_TOKEN") };
 
     // LOAD-BEARING assertion (F-PASS1-MED-001):
     // This FAILS if the adapter used the TYPE-SPEC URL (connection refused → Err).

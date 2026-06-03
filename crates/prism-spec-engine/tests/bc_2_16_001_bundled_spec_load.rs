@@ -308,23 +308,31 @@ ocsf_class = "security_finding"
 /// produce an error from SpecLoader::load_all(). The spec loads successfully;
 /// tables are registered; credential resolution failure is a runtime concern.
 ///
-/// RED GATE: This test checks behavior that is already correct in SpecLoader::load_all(),
-/// but it becomes a regression test once the implementer fills in the 4 bundled specs.
-/// It fails today because the bundled specs are skeleton stubs that may not parse fully.
+/// DEC-036 update (S-DEMO-002 / ADR-032): The bundled crowdstrike.sensor.toml now
+/// declares 2 `[[credential_refs]]` blocks (client_id + client_secret) per
+/// BC-2.06.003 v1.3. This test now uses an inline TOML fixture with zero credential_refs
+/// to directly verify DEC-036 empty-credential scenario behavior (BC-2.01.016 Rule B
+/// only fires when credential_refs.len() > 1 OR exceeds the auth-type's allowed count).
 #[test]
 fn test_BC_2_16_001_empty_credential_scenario_not_an_error() {
-    // Point at a spec with no credential_refs declared — this is the empty-credential case.
-    // Use the bundled crowdstrike spec (which has oauth2 auth but no credential_refs in skeleton).
-    let cs_content = std::fs::read_to_string(bundled_spec_path("crowdstrike.sensor.toml"))
-        .expect("crowdstrike.sensor.toml must exist");
+    // DEC-036: A sensor with 0 credential_refs must parse without error.
+    // credential_refs defaults to empty Vec; this is valid at parse time.
+    // Boot step 5 is responsible for existence validation at runtime.
+    let empty_cred_toml = r#"
+sensor_id = "test-empty-cred"
+name = "Empty Credential Test Sensor (DEC-036)"
+auth_type = "oauth2_client_credentials"
+base_url = "https://api.example.com"
+version = "1.0.0"
+"#;
 
-    // SpecLoader::parse() succeeds even with no credential_refs (they default to empty).
-    let spec = SpecLoader::parse(&cs_content)
-        .expect("crowdstrike.sensor.toml must parse — empty credential_refs is not an error");
+    let spec = SpecLoader::parse(empty_cred_toml).expect(
+        "Sensor TOML with 0 credential_refs must parse — DEC-036 empty-credential scenario",
+    );
 
     // DEC-036: empty credential_refs is not an error at parse time.
     assert!(
         spec.credential_refs.is_empty(),
-        "Skeleton crowdstrike spec must have empty credential_refs (DEC-036 empty-credential scenario)"
+        "Sensor with no [[credential_refs]] must have empty credential_refs Vec (DEC-036)"
     );
 }

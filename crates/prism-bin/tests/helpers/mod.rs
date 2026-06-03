@@ -52,24 +52,25 @@ use tempfile::TempDir;
 // ---------------------------------------------------------------------------
 
 /// Shared access token registered in the Cyberint DTU's allowlist and passed
-/// as `CYBERINT_API_KEY` env var to prism-bin.
+/// via per-client env vars for E2E tests (ADR-032 / BC-2.06.003 v1.3).
 ///
 /// The Cyberint DTU validates the `access_token` cookie against an in-memory
 /// allowlist (ADR-031 §D3-a). This constant is used on both sides:
 ///   1. `configure_cyberint_dtu_access_token()` POSTs it to the DTU's `/dtu/configure`.
-///   2. `launch_prism_bin()` sets `CYBERINT_API_KEY` to this value so
-///      `StaticCookieAuthProvider` (via `PrismCredentialResolver`) injects it
-///      as `Cookie: access_token=dtu-e2e-cyberint-access-token`.
+///   2. `launch_prism_bin()` sets `PRISM_CLIENTS_{ID}_SENSORS_CYBERINT_API_KEY` for each
+///      org that uses Cyberint, so `StaticCookieAuthProvider` (via `PrismCredentialResolver`)
+///      injects it as `Cookie: access_token=dtu-e2e-cyberint-access-token`.
 ///
 /// Not a real credential — never reaches any external service.
 /// Per AD-017: credential values must not transit AI context; this is a
 /// test-harness-only placeholder, visible only in test-scope code.
 const DTU_E2E_CYBERINT_ACCESS_TOKEN: &str = "dtu-e2e-cyberint-access-token";
 
-/// Bearer token set as `ARMIS_BEARER_TOKEN` env var for E2E tests.
+/// Bearer token for Armis — set via per-client env vars for E2E tests (ADR-032).
 ///
-/// Resolved by `BearerStaticCredentialAuthProvider` via `resolve_credential("armis", "bearer_token")`
-/// at acquire_token() time (ADV-SDEMO002-P01-CRIT-001 fix; BC-2.06.003 env-var chain).
+/// Resolved by `BearerStaticCredentialAuthProvider` via
+/// `resolve_credential(org_slug, "armis", "bearer_token")` → env var
+/// `PRISM_CLIENTS_{ID}_SENSORS_ARMIS_BEARER_TOKEN` (BC-2.06.003 v1.3 Tier 2).
 /// The Armis DTU clone validates `Authorization: Bearer {non-empty}` — any non-empty value passes.
 ///
 /// Not a real credential — never reaches any external service.
@@ -77,10 +78,11 @@ const DTU_E2E_CYBERINT_ACCESS_TOKEN: &str = "dtu-e2e-cyberint-access-token";
 /// test-harness-only placeholder, visible only in test-scope code.
 const DTU_E2E_ARMIS_BEARER_TOKEN: &str = "dtu-e2e-armis-bearer-token";
 
-/// Bearer token set as `CLAROTY_BEARER_TOKEN` env var for E2E tests.
+/// Bearer token for Claroty — set via per-client env vars for E2E tests (ADR-032).
 ///
-/// Resolved by `BearerStaticCredentialAuthProvider` via `resolve_credential("claroty", "bearer_token")`
-/// at acquire_token() time (ADV-SDEMO002-P01-CRIT-001 fix; BC-2.06.003 env-var chain).
+/// Resolved by `BearerStaticCredentialAuthProvider` via
+/// `resolve_credential(org_slug, "claroty", "bearer_token")` → env var
+/// `PRISM_CLIENTS_{ID}_SENSORS_CLAROTY_BEARER_TOKEN` (BC-2.06.003 v1.3 Tier 2).
 /// The Claroty DTU clone validates `Authorization: Bearer {non-empty}` — any non-empty value passes.
 ///
 /// Not a real credential — never reaches any external service.
@@ -953,6 +955,22 @@ pub async fn launch_prism_bin(
     //
     // This is correct for E2E tests: we test protocol behavior, not log output. Log output
     // correctness is covered by unit tests (step1_init_tracing, BC-2.06.011 AC-5 first-log-line).
+    // Per-client env-var convention (ADR-032 / BC-2.06.003 v1.3):
+    // Format: PRISM_CLIENTS_{ID}_SENSORS_{SENSOR}_{REF}
+    // where {ID} = org_slug uppercased with hyphens → underscores.
+    //
+    // Set per-client env vars for ALL orgs used by the E2E tests:
+    //   - write_demo_config:       1 org  — demo-org  → DEMO_ORG
+    //   - write_multi_org_demo_config: 3 orgs — demo-org-a → DEMO_ORG_A,
+    //                                           demo-org-b → DEMO_ORG_B,
+    //                                           demo-org-c → DEMO_ORG_C
+    //
+    // Multi-org sensor assignment (write_multi_org_demo_config):
+    //   demo-org-a: CrowdStrike + Armis
+    //   demo-org-b: Claroty + Cyberint
+    //   demo-org-c: all 4 sensors
+    //
+    // Extra vars set for unused orgs are harmless (probe wildcard scan: any org succeeds).
     let mut child = std::process::Command::new(&prism_bin)
         .arg("start")
         .arg("--config-dir")
@@ -960,33 +978,85 @@ pub async fn launch_prism_bin(
         .env("CLAROTY_INSTANCE_URL", "http://placeholder.claroty.invalid")
         .env("ARMIS_INSTANCE_URL", "http://placeholder.armis.invalid")
         .env("CYBERINT_ENVIRONMENT", "demo")
-        // CYBERINT_API_KEY: used by StaticCookieAuthProvider via PrismCredentialResolver
-        // (resolve_credential("cyberint", "api_key") → env var CYBERINT_API_KEY).
+        // ---------- Armis bearer_token (orgs: demo-org, demo-org-a, demo-org-c) ----------
+        // Resolved by BearerStaticCredentialAuthProvider via
+        // resolve_credential(org_slug, "armis", "bearer_token") (BC-2.06.003 v1.3 Tier 2).
+        // The Armis DTU clone validates Authorization: Bearer {non-empty}.
+        // ADR-031 §D3-b / ADR-032 per-client convention.
+        .env(
+            "PRISM_CLIENTS_DEMO_ORG_SENSORS_ARMIS_BEARER_TOKEN",
+            DTU_E2E_ARMIS_BEARER_TOKEN,
+        )
+        .env(
+            "PRISM_CLIENTS_DEMO_ORG_A_SENSORS_ARMIS_BEARER_TOKEN",
+            DTU_E2E_ARMIS_BEARER_TOKEN,
+        )
+        .env(
+            "PRISM_CLIENTS_DEMO_ORG_C_SENSORS_ARMIS_BEARER_TOKEN",
+            DTU_E2E_ARMIS_BEARER_TOKEN,
+        )
+        // ---------- Claroty bearer_token (orgs: demo-org, demo-org-b, demo-org-c) ----------
+        // Resolved by BearerStaticCredentialAuthProvider via
+        // resolve_credential(org_slug, "claroty", "bearer_token") (BC-2.06.003 v1.3 Tier 2).
+        // The Claroty DTU clone validates Authorization: Bearer {non-empty}.
+        .env(
+            "PRISM_CLIENTS_DEMO_ORG_SENSORS_CLAROTY_BEARER_TOKEN",
+            DTU_E2E_CLAROTY_BEARER_TOKEN,
+        )
+        .env(
+            "PRISM_CLIENTS_DEMO_ORG_B_SENSORS_CLAROTY_BEARER_TOKEN",
+            DTU_E2E_CLAROTY_BEARER_TOKEN,
+        )
+        .env(
+            "PRISM_CLIENTS_DEMO_ORG_C_SENSORS_CLAROTY_BEARER_TOKEN",
+            DTU_E2E_CLAROTY_BEARER_TOKEN,
+        )
+        // ---------- Cyberint api_key (orgs: demo-org, demo-org-b, demo-org-c) ----------
         // Must match the access_token registered in the Cyberint DTU's allowlist via
         // initial_access_token in demo.toml. The DTU validates the `access_token` cookie
         // against its allowlist; this value must be identical on both sides.
         // ADR-031 §D3-a: static cookie auth; no login roundtrip.
-        .env("CYBERINT_API_KEY", DTU_E2E_CYBERINT_ACCESS_TOKEN)
-        // ARMIS_BEARER_TOKEN: resolved by BearerStaticCredentialAuthProvider via
-        // resolve_credential("armis", "bearer_token") → env var ARMIS_BEARER_TOKEN.
-        // The Armis DTU clone validates Authorization: Bearer {non-empty}; any non-empty token passes.
-        // ADV-SDEMO002-P01-CRIT-001 fix: replaces "dtu-e2e-bearer-placeholder" fabrication.
-        // BC-2.06.003 env-var resolution chain: ARMIS_BEARER_TOKEN_FILE > ARMIS_BEARER_TOKEN.
-        .env("ARMIS_BEARER_TOKEN", DTU_E2E_ARMIS_BEARER_TOKEN)
-        // CLAROTY_BEARER_TOKEN: resolved by BearerStaticCredentialAuthProvider via
-        // resolve_credential("claroty", "bearer_token") → env var CLAROTY_BEARER_TOKEN.
-        // The Claroty DTU clone validates Authorization: Bearer {non-empty}; any non-empty token passes.
-        // ADV-SDEMO002-P01-CRIT-001 fix: replaces "dtu-e2e-bearer-placeholder" fabrication.
-        // BC-2.06.003 env-var resolution chain: CLAROTY_BEARER_TOKEN_FILE > CLAROTY_BEARER_TOKEN.
-        .env("CLAROTY_BEARER_TOKEN", DTU_E2E_CLAROTY_BEARER_TOKEN)
-        // CROWDSTRIKE_CLIENT_ID / CROWDSTRIKE_CLIENT_SECRET: used by the crowdstrike-oauth2
-        // WASM plugin to POST client credentials to the DTU's /oauth2/token endpoint.
-        // The CrowdStrike DTU accepts any non-empty client_id/secret pair.
-        // resolve_credential("crowdstrike", "client_id") → env var CROWDSTRIKE_CLIENT_ID.
-        // resolve_credential("crowdstrike", "client_secret") → env var CROWDSTRIKE_CLIENT_SECRET.
-        .env("CROWDSTRIKE_CLIENT_ID", "dtu-e2e-crowdstrike-client-id")
+        // Resolved via resolve_credential(org_slug, "cyberint", "api_key") (BC-2.06.003 v1.3 Tier 2).
         .env(
-            "CROWDSTRIKE_CLIENT_SECRET",
+            "PRISM_CLIENTS_DEMO_ORG_SENSORS_CYBERINT_API_KEY",
+            DTU_E2E_CYBERINT_ACCESS_TOKEN,
+        )
+        .env(
+            "PRISM_CLIENTS_DEMO_ORG_B_SENSORS_CYBERINT_API_KEY",
+            DTU_E2E_CYBERINT_ACCESS_TOKEN,
+        )
+        .env(
+            "PRISM_CLIENTS_DEMO_ORG_C_SENSORS_CYBERINT_API_KEY",
+            DTU_E2E_CYBERINT_ACCESS_TOKEN,
+        )
+        // ---------- CrowdStrike client_id (orgs: demo-org, demo-org-a, demo-org-c) ----------
+        // Used by the crowdstrike-oauth2 WASM plugin to POST client credentials to the DTU's
+        // /oauth2/token endpoint. The CrowdStrike DTU accepts any non-empty client_id/secret pair.
+        // Resolved via resolve_credential(org_slug, "crowdstrike", "client_id") (BC-2.06.003 v1.3).
+        .env(
+            "PRISM_CLIENTS_DEMO_ORG_SENSORS_CROWDSTRIKE_CLIENT_ID",
+            "dtu-e2e-crowdstrike-client-id",
+        )
+        .env(
+            "PRISM_CLIENTS_DEMO_ORG_A_SENSORS_CROWDSTRIKE_CLIENT_ID",
+            "dtu-e2e-crowdstrike-client-id",
+        )
+        .env(
+            "PRISM_CLIENTS_DEMO_ORG_C_SENSORS_CROWDSTRIKE_CLIENT_ID",
+            "dtu-e2e-crowdstrike-client-id",
+        )
+        // ---------- CrowdStrike client_secret (orgs: demo-org, demo-org-a, demo-org-c) ----------
+        // Resolved via resolve_credential(org_slug, "crowdstrike", "client_secret") (BC-2.06.003 v1.3).
+        .env(
+            "PRISM_CLIENTS_DEMO_ORG_SENSORS_CROWDSTRIKE_CLIENT_SECRET",
+            "dtu-e2e-crowdstrike-client-secret",
+        )
+        .env(
+            "PRISM_CLIENTS_DEMO_ORG_A_SENSORS_CROWDSTRIKE_CLIENT_SECRET",
+            "dtu-e2e-crowdstrike-client-secret",
+        )
+        .env(
+            "PRISM_CLIENTS_DEMO_ORG_C_SENSORS_CROWDSTRIKE_CLIENT_SECRET",
             "dtu-e2e-crowdstrike-client-secret",
         )
         .env("RUST_LOG", "off")

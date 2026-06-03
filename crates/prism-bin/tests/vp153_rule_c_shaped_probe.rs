@@ -83,7 +83,12 @@ struct ShapedProbe {
 }
 
 impl CredentialRefProbe for ShapedProbe {
-    fn probe(&self, _sensor_id: &str, _ref_name: &str) -> Result<Option<String>, BootError> {
+    fn probe(
+        &self,
+        _sensor_id: &str,
+        _ref_name: &str,
+        _org_registry: &prism_core::OrgRegistry,
+    ) -> Result<Option<String>, BootError> {
         // Returns Some(shape) — activates the Rule C comparison gate in step5.
         Ok(Some(self.reported_shape.clone()))
     }
@@ -244,10 +249,13 @@ proptest! {
             let probe = ShapedProbe {
                 reported_shape: probe_shape.to_string(),
             };
+            // ShapedProbe ignores org_registry; pass an empty registry for the probe's signature.
+            let empty_registry = std::sync::Arc::new(prism_core::OrgRegistry::new());
 
             let result = prism_bin::boot::step5_init_credential_store_with_probe(
                 &config,
                 &config_manager,
+                &empty_registry,
                 &probe,
             )
             .await;
@@ -350,10 +358,13 @@ proptest! {
             let probe = ShapedProbe {
                 reported_shape: auth_type.to_string(),
             };
+            // ShapedProbe ignores org_registry; pass an empty registry for the probe's signature.
+            let empty_registry = std::sync::Arc::new(prism_core::OrgRegistry::new());
 
             let result = prism_bin::boot::step5_init_credential_store_with_probe(
                 &config,
                 &config_manager,
+                &empty_registry,
                 &probe,
             )
             .await;

@@ -16,6 +16,16 @@ base_url = "https://api.armis.com"
 version = "1.0.0"
 
 # ---------------------------------------------------------------------------
+# Credential references (BC-2.06.003 v1.3 / ADR-032)
+# ---------------------------------------------------------------------------
+# BearerStaticCredentialAuthProvider resolves "bearer_token" at acquire_token() time.
+# BC-2.06.003 resolution chain: PRISM_CLIENTS_{ID}_SENSORS_ARMIS_BEARER_TOKEN_FILE >
+#   PRISM_CLIENTS_{ID}_SENSORS_ARMIS_BEARER_TOKEN > keyring.
+[[credential_refs]]
+name = "bearer_token"
+description = "Armis API bearer token"
+
+# ---------------------------------------------------------------------------
 # Write endpoints (S-1.13)
 # ---------------------------------------------------------------------------
 

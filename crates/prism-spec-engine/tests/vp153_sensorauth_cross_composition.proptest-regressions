@@ -5,3 +5,6 @@
 # It is recommended to check this file in to source control so that
 # everyone who runs the test benefits from these saved cases.
 cc 165251ce59f176e5eb178d948011d8f06b46cd3d5400a28e93b8c8374b649e64 # shrinks to valid_type = "oauth2_client_credentials", count = 0
+cc e2918f1c96bc1f38da65c1f53eae5572227d9003b50bdebae60bb55001e28523 # shrinks to valid_type = "oauth2_client_credentials"
+cc cd9228511738fd8ea378be284ef60fbb5643cb1e5eb3c5fbef1748d95d70c92e # shrinks to valid_type = "oauth2_client_credentials", count = 2
+cc 23f6c513b6cb8e92a1ee0699faaaa27062fedbd74e4a230c328a35961bd125ac # shrinks to valid_type = "oauth2_client_credentials", count = 2

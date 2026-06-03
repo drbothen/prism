@@ -192,8 +192,8 @@ impl AuthProvider for BearerStaticAuthProvider {
 ///
 /// Resolves the bearer token from `prism_credentials::resolve_credential` at
 /// `acquire_token()` time using the injected `credential_ref_name` (e.g. `"bearer_token"`).
-/// Env-var convention: `{SENSOR_UPPER}_{CREDENTIAL_UPPER}` (BC-2.06.003), e.g.
-/// `ARMIS_BEARER_TOKEN` / `CLAROTY_BEARER_TOKEN`.
+/// Env-var convention: `PRISM_CLIENTS_{ID}_SENSORS_{SENSOR}_{REF}` (ADR-032 / BC-2.06.003 v1.3),
+/// e.g. `PRISM_CLIENTS_DEMO_ORG_A_SENSORS_ARMIS_BEARER_TOKEN` for org_slug `demo-org-a`.
 ///
 /// On resolution failure it returns `Err(SpecEngineError::AuthAcquisitionFailed)` —
 /// FAIL-CLOSED. It NEVER fabricates or falls back to a placeholder token.
@@ -317,16 +317,23 @@ impl prism_spec_engine::AuthProvider for BearerStaticCredentialAuthProvider {
             {
                 Ok(s) => s,
                 Err(CredentialResolutionError::NotFound { .. }) => {
+                    // BC-2.06.003 v1.3 / ADR-032: per-client env var format.
+                    // {ID} = org_slug uppercased with hyphens → underscores.
+                    let id_upper =
+                        prism_credentials::resolution::slug_to_screaming_snake(&client_id_str);
+                    let sensor_upper = sensor_id.to_uppercase().replace('-', "_");
+                    let ref_upper = credential_ref_name.to_uppercase().replace('-', "_");
+                    let per_client_env =
+                        format!("PRISM_CLIENTS_{id_upper}_SENSORS_{sensor_upper}_{ref_upper}");
                     return Err(
                         prism_spec_engine::error::SpecEngineError::AuthAcquisitionFailed {
                             sensor_id: sensor_id.clone(),
                             client_id: client_id_str.clone(),
                             detail: format!(
                                 "E-AUTH-005: bearer token not found — no '{credential_ref_name}' \
-                                 credential configured for sensor '{sensor_id}'. \
-                                 Set env var {}_{}.",
-                                sensor_id.to_uppercase().replace('-', "_"),
-                                credential_ref_name.to_uppercase().replace('-', "_")
+                                 credential configured for sensor '{sensor_id}', \
+                                 client '{client_id_str}'. \
+                                 Set env var {per_client_env} (ADR-032 / BC-2.06.003 v1.3).",
                             ),
                         },
                     );
@@ -1058,14 +1065,15 @@ pub async fn step9a_populate_adapter_registry(
                 // (which extracted token from SensorAuth arg — requiring ProductionCredentialResolver
                 // to fabricate a "dtu-e2e-bearer-placeholder" token) with
                 // `BearerStaticCredentialAuthProvider` which resolves the real token from the
-                // credential store (env var `{SENSOR_UPPER}_BEARER_TOKEN`, e.g. ARMIS_BEARER_TOKEN).
+                // credential store (per-client env var `PRISM_CLIENTS_{ID}_SENSORS_{SENSOR}_BEARER_TOKEN`,
+                // e.g. PRISM_CLIENTS_DEMO_ORG_A_SENSORS_ARMIS_BEARER_TOKEN for org_slug demo-org-a).
                 //
                 // FAIL-CLOSED: if no credential is configured, acquire_token() returns
                 // Err(AuthAcquisitionFailed) with E-AUTH-005. No fabricated token ever reaches
                 // a real API. BC-2.06.003 resolution chain; AD-017 credential safety.
                 //
                 // credential_ref_name = "bearer_token" (canonical per architect decision, D-939):
-                // env var: {SENSOR_UPPER}_BEARER_TOKEN (e.g. ARMIS_BEARER_TOKEN, CLAROTY_BEARER_TOKEN).
+                // env var: PRISM_CLIENTS_{ID}_SENSORS_{SENSOR}_BEARER_TOKEN (ADR-032 / BC-2.06.003 v1.3).
                 let provider = BearerStaticCredentialAuthProvider::new(
                     resolved_spec.spec.sensor_id.as_str(),
                     "bearer_token",
