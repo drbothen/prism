@@ -5,19 +5,19 @@ title: "ci: Scheduled E2E Red Gate CI Workflow — DTU Demo Server + Release Bin
 wave: 5
 epic_id: E-DEMO
 priority: P1
-status: draft
-# BC status: pending PO authorship
-# The ACs below are process/infra-scoped. BCs BC-2.22.001 and BC-2.10.010 are referenced
-# for advisory tracing only; the story's primary obligations are operational (CI workflow).
-# A product-owner must confirm whether any BC clause directly governs the "ignored e2e suite
-# must not rot" invariant, or whether this story remains infra-scoped with no canonical BC.
-# This story MUST NOT be transitioned to status: ready until behavioral_contracts is non-empty
-# per Spec-First Gate S-7.01.
-version: "1.0"
+status: superseded
+# Superseded by S-DEMO-002 PR #171 (human decision 2026-06-03).
+# The core scope — a dedicated GitHub Actions e2e job that builds release binaries
+# (prism-bin + prism-dtu-demo-server), launches the DTU demo server, and runs
+# `cargo nextest run -p prism-bin --profile e2e --run-ignored ignored-only` on
+# pull_request + push — was absorbed into S-DEMO-002 as Task 25.
+# This story is CLOSED. Do not dispatch. See S-DEMO-002 v2.0 for the delivered spec.
+replaced_by: S-DEMO-002
+version: "1.1"
 level: "L4"
 producer: story-writer
 timestamp: "2026-06-02T00:00:00Z"
-modified: "2026-06-02T00:00:00Z"
+modified: "2026-06-03T12:00:00Z"
 tdd_mode: facade
 # tdd_mode: facade — this story produces GitHub Actions YAML workflow files and a nextest
 # profile entry, not application logic. There is no application code with `todo!()` stubs;
@@ -54,9 +54,9 @@ depends_on:
   - S-6.20      # prism-dtu-demo-server (merged): the demo server binary that the E2E
                 # CI workflow launches must be buildable via `cargo build --release
                 # -p prism-dtu-demo-server`. S-6.20 is the story that delivered it.
-blocks:
-  - S-DEMO-003  # Demo runbook should not declare the Green path verified until the
-                # CI E2E workflow confirms the suite passes on every develop commit.
+blocks: []
+# blocks was: [S-DEMO-003] — S-DEMO-003 dependency is now carried by S-DEMO-002
+# (which delivers the e2e CI job). S-DEMO-003 should not depend on this superseded story.
 points: 5
 # Points justification:
 #   - GitHub Actions workflow file (.github/workflows/e2e.yml) with release build, DTU
@@ -121,14 +121,49 @@ originating_finding: "S-DEMO-002 LOCAL adversarial cascade OBS-2 (process-gap)"
 # before human review, not discovered during it.
 ---
 
-# S-DEMO-CI-E2E-001 v1.0 — ci: Scheduled E2E Red Gate CI Workflow
+# S-DEMO-CI-E2E-001 v1.1 — ci: Scheduled E2E Red Gate CI Workflow [SUPERSEDED]
 
 **Story ID:** S-DEMO-CI-E2E-001
-**Status:** draft (BC authorship pending — S-7.01 gate)
-**Version:** v1.0
+**Status:** SUPERSEDED — absorbed into S-DEMO-002 PR #171
+**Version:** v1.1
 **Wave:** 5
 **Priority:** P1
-**Points:** 5
+**Points:** 5 (absorbed; see S-DEMO-002 v2.0 +2 pts)
+
+---
+
+## SUPERSESSION NOTICE
+
+**Decision date:** 2026-06-03
+**Decision authority:** Human (Joshua Magady)
+**Absorbed into:** S-DEMO-002 PR #171 (Task 25)
+**Replaced by:** S-DEMO-002 v2.0
+
+The e2e CI job (build release binaries, launch DTU, run
+`cargo nextest run -p prism-bin --profile e2e --run-ignored ignored-only` on
+`pull_request` + `push` to `develop`) was added directly into S-DEMO-002's scope.
+This story is fully superseded. Do not dispatch.
+
+**Rationale for supersession (not narrowing):**
+- The primary structural gap (OBS-2: ignored suite never runs in CI) is fully closed by
+  S-DEMO-002's PR+push job. The PR+push trigger is the regression-before-merge gate, which
+  was the entire motivation for this story.
+- The residual scope (daily `schedule:` cron trigger) was itself unresolved at story creation
+  (Open Question 2: "confirm schedule frequency" — not yet answered). A daily drift-detection
+  cron is a 0.5-point enhancement to `e2e.yml` that devops-engineer can add at any time;
+  it does not constitute a standalone 5-point story.
+- This story was `status: draft` and `behavioral_contracts: []`, never having cleared the
+  S-7.01 Spec-First Gate. There is no downstream dependency that counted on its delivery
+  in isolation (the `blocks: S-DEMO-003` relationship is now satisfied by S-DEMO-002 itself).
+- Absorbing into S-DEMO-002 keeps the CI workflow and the e2e test spec in a single atomic
+  PR, ensuring both land together and the job is immediately testable on the branch that
+  introduces the test suite.
+
+**If a daily scheduled run is desired in future:**
+Add a `schedule: - cron: '0 4 * * *'` trigger to `.github/workflows/e2e.yml` in a
+maintenance PR — no new story required. Reference this supersession notice as context.
+
+---
 
 ---
 
@@ -451,4 +486,5 @@ Well within budget. This is the smallest story in the E-DEMO arc.
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.1 | 2026-06-03 | product-owner | SUPERSEDED — absorbed into S-DEMO-002 PR #171 per human decision 2026-06-03. Status set to `superseded`; `replaced_by: S-DEMO-002`; `blocks: []` (S-DEMO-003 dependency transferred to S-DEMO-002). Supersession rationale documented inline (PR+push gate covers the OBS-2 gap; daily schedule residual is a 0.5-pt enhancement, not a standalone story; story was draft/BC-pending, never ready). |
 | 1.0 | 2026-06-02 | story-writer | Initial draft — OBS-2 process-gap closure from S-DEMO-002 LOCAL cascade. Process/infra story; tdd_mode: facade; status: draft pending BC authorship (S-7.01 gate). |
