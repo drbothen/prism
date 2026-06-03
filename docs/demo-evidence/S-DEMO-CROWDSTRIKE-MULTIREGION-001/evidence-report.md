@@ -87,12 +87,15 @@ This test also asserts AC-005: `spec.auth_type == AuthType::Oauth2ClientCredenti
 
 **Demonstrated by:** `AC-003-unset-env-e-spec-024.{gif,webm}` — recording shows the nextest run completing with PASS.
 
-The test:
+The test has two load-bearing assertions:
 1. Calls `std::env::remove_var("CROWDSTRIKE_BASE_URL")` (ensures absent).
 2. Calls `parse_and_validate_spec_toml` — must not panic.
-3. Asserts `result.is_err()` (load is rejected with structured error, not success).
-4. Asserts combined error text contains `"CROWDSTRIKE_BASE_URL"` (E-SPEC-024 — operator knows what env var is missing).
-5. Asserts error text does NOT contain `"must start with http"` (confirms error is E-SPEC-024, not E-SPEC-001 URL format — ordering invariant).
+3. Asserts `result.is_err()` — the load is rejected with a structured error, not success. (Postcondition 1)
+4. Asserts combined error text contains `"CROWDSTRIKE_BASE_URL"` — the operator knows which env var to configure. (Postcondition 2, E-SPEC-024)
+
+There is no step-5 ordering assertion in this test. The `!contains("must start with http")` assertion was deliberately removed during the pass-4 fix-burst because `parse_and_validate_spec_toml` does NOT call `validate_sensor_spec`; the "must start with http" / E-SPEC-001 error is structurally unreachable on this code path, making any such assertion inert. The BC-2.16.009 §VR6 env-resolver-before-URL-validation ordering invariant IS load-bearing tested, but in the correct SUT scope (`tests/env_var_resolution_tests.rs`, which calls `validate_sensor_spec` directly):
+- `test_env_var_resolution_runs_before_url_format_validation`
+- `test_env_var_ordering_production_path_absent_var_produces_e_spec_024_not_url_format_error`
 
 **BC trace:** BC-2.16.009 §Validation Rules 6 (env-var resolver) + E-SPEC-024; EC-009-009
 
