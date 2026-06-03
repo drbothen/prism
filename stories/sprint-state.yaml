@@ -19,8 +19,8 @@ active_dispatch_set:
     points: 11
     spec_version: "v1.8"
     lane: "1-of-3"
-    dispatch_status: "IN DELIVERY (D-965 residual-pin closure 2026-06-02) — code @ 5a2f22f6; LOCAL streak 0/3 (F-DEMO002-PASS-MED-001: 3 residual 'per S-DEMO-002 v1.7' inline pins in e2e_smoke.rs lines 853/892/948 closed @ 5a2f22f6; D-964 narrow-grep false-green corrected; orchestrator broad-pattern rg 'S-DEMO-002 v[0-9]' ZERO @ 5a2f22f6; just check GREEN). NEXT: LOCAL adversary re-pass @ 5a2f22f6 (Lesson 62 preflight: git -C .worktrees/S-DEMO-002 rev-parse HEAD must == 5a2f22f6) → 3-CLEAN → demo-recorder → push → pr-manager 9-step PR cycle → PR-LEVEL 3-CLEAN → merge"
-    entry_point: "LOCAL adversary re-pass @ 5a2f22f6 (Lesson 62 preflight) → 3-CLEAN → demo-recorder → push → pr-manager 9-step PR cycle → PR-LEVEL 3-CLEAN → merge"
+    dispatch_status: "LOCAL CONVERGED 3/3 (D-966 2026-06-03) — code @ 5a2f22f6; BC-5.39.001 D-779 LOCAL cascade satisfied. Cascade closures: CRIT cross-org isolation E-QUERY-032; HIGH dot→underscore table names; AC-007 vacuous scan; AC-014 DTU round-trip coverage; AC-011 count==8 coverage; E-QUERY-032 -32602 transport-mapping; armis no-WHERE-aql CRIT (Option-A D-963); prose↔as-built + version-label-volatility root-fixed (TD-VSDD-091). LOCAL streak 3/3. NEXT: demo-recorder (per-AC evidence per story §ACs; Lesson 62 preflight: git -C .worktrees/S-DEMO-002 rev-parse HEAD must == 5a2f22f6) → push feature/S-DEMO-002 → pr-manager 9-step PR cycle → PR-LEVEL 3-CLEAN → merge. Story is merge-eligible pending demo-recorder + PR cycle."
+    entry_point: "demo-recorder (per-AC evidence; Lesson 62 preflight worktree-identity @ 5a2f22f6) → push → pr-manager 9-step PR cycle → PR-LEVEL 3-CLEAN → merge"
     worktree_path: ".worktrees/S-DEMO-002"
     code_head: "5a2f22f6"
     branch: "feature/S-DEMO-002"
@@ -30,7 +30,7 @@ active_dispatch_set:
       - S-CONFIG-MULTI-TENANT-OVERRIDE-001  # HARD — SATISFIED (merged PR #155 develop@3e822522)
     bcs: [BC-2.11.001, BC-2.11.005, BC-2.09.008, BC-2.10.001, BC-2.10.010, BC-3.2.001, BC-2.22.001, BC-2.11.007]
     vps: [VP-148]
-    notes: "D-965 2026-06-02: LOCAL adversary pass found MED F-DEMO002-PASS-MED-001 — 3 residual 'per S-DEMO-002 v1.7' inline pins in crates/prism-bin/tests/e2e_smoke.rs (lines 853/892/948). D-964 'rg S-DEMO-002 v ZERO' claim was a FALSE GREEN — prior implementer grep used narrow 'Story: S-DEMO-002 v' prefix pattern and missed the 'per S-DEMO-002 v1.7' inline form in e2e_smoke.rs. Streak RESET 1/3→0/3. Implementer stripped all 3 residual pins @ 5a2f22f6; just check GREEN. Orchestrator independently verified broad-pattern rg 'S-DEMO-002 v[0-9]' crates/ = ZERO at 5a2f22f6 (TD-VSDD-059 false-green discipline). code_head e286b932→5a2f22f6. LOCAL streak 0/3; adversary re-pass NEXT @ 5a2f22f6. (Prior D-964 2026-06-02: prose-audit v1.8 + version-agnostic labels @ e286b932 — narrow-grep false-green. D-963: CRIT F-DEMO002-P2-CRIT-001 CLOSED @ 820353c9. D-962: MED-001+MED-002 CLOSED @ fd5147b1. D-961: pass-3 reset. D-960: re-pass-1 HIGH-1+MED-1+OBS-1 CLOSED @ 3a4ae38a.)"
+    notes: "D-966 2026-06-03: LOCAL 3-CLEAN CONVERGENCE @ 5a2f22f6 (story v1.8). BC-5.39.001 D-779 LOCAL cascade satisfied. Three consecutive CLEAN(strict) passes on unchanged 5a2f22f6. Cascade closures across all passes: CRIT cross-org isolation E-QUERY-032; HIGH dot→underscore table names; AC-007 vacuous scan; AC-014 DTU round-trip coverage; AC-011 count==8 coverage; E-QUERY-032 -32602 transport-mapping; armis no-WHERE-aql CRIT (Option-A D-963); prose↔as-built + version-label-volatility root-fixed (TD-VSDD-091 permanent class fix). LOCAL streak 3/3 CONVERGED. NEXT: demo-recorder → push → PR cycle. (Prior D-965 2026-06-02: residual-pin MED F-DEMO002-PASS-MED-001 CLOSED @ 5a2f22f6; D-964 narrow-grep false-green corrected; streak 0/3. D-964: prose-audit v1.8 + version-agnostic labels @ e286b932. D-963: CRIT F-DEMO002-P2-CRIT-001 CLOSED @ 820353c9. D-962: MED-001+MED-002 CLOSED @ fd5147b1. D-961: pass-3 reset. D-960: re-pass-1 HIGH-1+MED-1+OBS-1 CLOSED @ 3a4ae38a.)"
 
   - story_id: S-DEMO-CROWDSTRIKE-MULTIREGION-001
     status: ready
@@ -295,7 +295,7 @@ deferred_post_demo:
 prereq_artifacts:
   story_index: .factory/stories/STORY-INDEX.md         # v2.260 after D-964 burst (179 stories)
   bc_index: .factory/specs/behavioral-contracts/BC-INDEX.md  # v5.76 after D-959 burst (BC-3.2.001 v0.8; unchanged D-963)
-  state: .factory/STATE.md                              # v7.618 after D-965 burst
+  state: .factory/STATE.md                              # v7.619 after D-966 burst
   governing_adr: .factory/specs/architecture/decisions/ADR-031-dtu-equals-true-dtu-fidelity-principle.md  # v1.2 (ADR-031 architect e57eb5b1 reclassified 3 divergences)
   governing_audit: .factory/proposals/POLLER-DTU-FIDELITY-AUDIT-2026-05-29.md  # v1.1
 
