@@ -1,11 +1,15 @@
 # S-DEMO-002: E2E subprocess smoke test profile.
 # Un-ignores tests tagged "E2E-001" (all tests in e2e_smoke.rs are #[ignore] by default).
 #
-# Usage: cargo nextest run -p prism-bin --profile e2e --run-ignored all
+# Canonical CI command (source of truth: .github/workflows/e2e.yml — OBS-002):
+#   cargo nextest run -p prism-bin --profile e2e --run-ignored ignored-only
+#
+# Use `--run-ignored ignored-only` (not `all`) to run ONLY the #[ignore]'d E2E tests
+# without also running the non-ignored prism-bin test suite (which requires no DTU).
+# Use `--run-ignored all` only when you want both ignored and non-ignored tests together.
 #
 # Note: nextest does not support a `run-ignored` toml config key; the flag must be
-# passed at the CLI. The `e2e` profile provides the timeout + failure output settings;
-# `--run-ignored all` is the CLI flag that activates the #[ignore] tests.
+# passed at the CLI. The `e2e` profile provides the timeout + failure output settings.
 #
 # Timeout: 120s per test — subprocess launch + ready polling + 4 sensor queries
 # can take up to 60s on cold CI runners; 120s provides 2x headroom.
@@ -16,6 +20,11 @@ fail-fast = true
 slow-timeout = { period = "120s", terminate-after = 1 }
 final-status-level = "all"
 failure-output = "immediate"
+
+[profile.e2e.junit]
+path = "junit.xml"
+store-success-output = false
+store-failure-output = true
 
 [profile.ci]
 fail-fast = false
