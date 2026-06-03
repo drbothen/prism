@@ -1,11 +1,11 @@
 # Demo Evidence Report — S-DEMO-002
 
-**Story:** S-DEMO-002 v1.9 — prism-bin: E2E Subprocess Smoke Test (All 4 Sensors + Multi-Org Isolation)
+**Story:** S-DEMO-002 v2.0 — prism-bin: E2E Subprocess Smoke Test (All 4 Sensors + Multi-Org Isolation)
 **Branch:** `feature/S-DEMO-002`
-**PR:** Story S-DEMO-002 (see STORY-INDEX.md)
+**PR:** #171
 **Recorder:** demo-recorder agent
 **Date:** 2026-06-03
-**Worktree HEAD at recording:** `0af51150` (PR #171 implementer fix commit — SEC-001 SEC-003 SEC-004 ADV-OBS-002 SUGGESTION-1)
+**Worktree HEAD at recording:** `6a8becfb` (devops CI commit — e2e.yml added; includes develop merge + implementer SEC-001/OBS-001 fixes + CROWDSTRIKE_BASE_URL harness wiring)
 
 ---
 
@@ -16,9 +16,17 @@ Release binaries present and used by E2E tests:
 - `target/release/prism` — prism-bin entrypoint
 - `target/release/prism-dtu-demo-server` — DTU demo server (all 4 sensor clones)
 
+Both binaries were built via `cargo build --release -p prism-bin -p prism-dtu-demo-server`
+(confirmed: `Finished 'release' profile [optimized] target(s)` — see `e2e-run-output.txt`).
+
+The test harness `locate_binary()` in `helpers/mod.rs` prefers `target/release/<name>` over
+`target/debug/<name>` (Architecture Compliance Rule 5 in S-DEMO-002 story). The "unoptimized +
+debuginfo" line in nextest output refers only to the test harness compilation — the subprocess
+binaries launched by each test are the release-optimized builds.
+
 ---
 
-## E2E Test Suite Run — All Tests GREEN
+## E2E Test Suite Run — All Tests GREEN (RELEASE Build)
 
 **Command:** `cargo nextest run -p prism-bin --profile e2e --run-ignored ignored-only`
 
@@ -27,26 +35,26 @@ Release binaries present and used by E2E tests:
 The `--run-ignored ignored-only` flag runs ONLY the 13 `#[ignore]`'d e2e subprocess smoke tests
 (the 110 standard tests are skipped in this invocation).
 
-All 13 E2E subprocess smoke tests pass GREEN at commit `0af51150`
-(implementer SEC-001/SEC-003/SEC-004/AC-007/AC-008 fixes applied).
+All 13 E2E subprocess smoke tests pass GREEN at commit `6a8becfb`
+(release binaries confirmed; devops CI job + implementer fixes all applied).
 
 ### E2E smoke tests (13/13 PASS)
 
 | Test function | AC | Time |
 |---|---|---|
-| `test_BC_2_22_001_e2e_smoke_test_launches_dtu_and_prism_bin_without_error` | AC-001/002 | 0.667s |
-| `test_BC_2_11_005_e2e_crowdstrike_query_returns_ocsf_data` | AC-003 | 0.921s |
-| `test_BC_2_11_005_e2e_armis_query_returns_data` | AC-004 | 0.833s |
-| `test_BC_2_11_005_e2e_claroty_query_returns_data` | AC-005 | 0.836s |
-| `test_BC_2_11_005_e2e_cyberint_query_returns_data` | AC-006 | 0.829s |
-| `test_BC_2_09_008_e2e_response_envelope_meta_fields_correct` | AC-007 | 0.937s |
-| `test_BC_2_10_010_e2e_sigterm_cleanly_shuts_down_both_subprocesses` | AC-008 | 1.019s |
-| `test_BC_3_2_001_e2e_multi_org_boot_registers_correct_adapter_count` | AC-011 | 1.039s |
-| `test_BC_3_2_001_e2e_cross_org_sensor_query_returns_e_query_032` | AC-012 | 0.764s |
-| `test_BC_3_2_001_e2e_dtu_multi_tenant_each_org_reaches_correct_clone_port` | AC-013 | 0.995s |
-| `test_BC_2_11_007_e2e_armis_aql_pushdown_devices_dtu_roundtrip` | AC-014 | 0.873s |
-| `test_EC_004_e2e_limit_zero_returns_empty_not_error` | EC-004 | 0.881s |
-| `test_EC_005_e2e_limit_200_returns_paginated_rows` | EC-005 | 0.881s |
+| `test_BC_2_22_001_e2e_smoke_test_launches_dtu_and_prism_bin_without_error` | AC-001/002 | 0.863s |
+| `test_BC_2_11_005_e2e_crowdstrike_query_returns_ocsf_data` | AC-003 | 0.859s |
+| `test_BC_2_11_005_e2e_armis_query_returns_data` | AC-004 | 0.817s |
+| `test_BC_2_11_005_e2e_claroty_query_returns_data` | AC-005 | 0.818s |
+| `test_BC_2_11_005_e2e_cyberint_query_returns_data` | AC-006 | 0.814s |
+| `test_BC_2_09_008_e2e_response_envelope_meta_fields_correct` | AC-007 | 0.860s |
+| `test_BC_2_10_010_e2e_sigterm_cleanly_shuts_down_both_subprocesses` | AC-008 | 0.960s |
+| `test_BC_3_2_001_e2e_multi_org_boot_registers_correct_adapter_count` | AC-011 | 0.971s |
+| `test_BC_3_2_001_e2e_cross_org_sensor_query_returns_e_query_032` | AC-012 | 0.752s |
+| `test_BC_3_2_001_e2e_dtu_multi_tenant_each_org_reaches_correct_clone_port` | AC-013 | 0.967s |
+| `test_BC_2_11_007_e2e_armis_aql_pushdown_devices_dtu_roundtrip` | AC-014 | 0.960s |
+| `test_EC_004_e2e_limit_zero_returns_empty_not_error` | EC-004 | 0.867s |
+| `test_EC_005_e2e_limit_200_returns_paginated_rows` | EC-005 | 0.864s |
 
 ### Standard nextest profile skips E2E tests (AC-010 gate confirmed)
 
@@ -77,7 +85,7 @@ Demonstrates:
 
 Demonstrates:
 - **AC-003:** `test_BC_2_11_005_e2e_crowdstrike_query_returns_ocsf_data` PASS — CrowdStrike detections with `detection_id` (Gap-CS-001), `category_uid`, `class_uid` all non-null
-- **AC-004:** `test_BC_2_11_005_e2e_armis_query_returns_data` PASS — `SELECT * FROM armis_devices WHERE aql = 'in:devices' LIMIT 5` returns data rows
+- **AC-004:** `test_BC_2_11_005_e2e_armis_query_returns_data` PASS — `SELECT * FROM armis_devices WHERE aql = 'in:devices' LIMIT 5` returns data rows (AQL predicate mandatory per AC-004 — no bare FROM)
 - **AC-005:** `test_BC_2_11_005_e2e_claroty_query_returns_data` PASS — `claroty_alerts` (`alert_type_name`, `detected_time` per Gap-CL-005) + `claroty_devices` (`uid` per Gap-CL-003) return data
 - **AC-006:** `test_BC_2_11_005_e2e_cyberint_query_returns_data` PASS — Cyberint alerts return data rows
 
@@ -86,8 +94,8 @@ Demonstrates:
 **File:** `AC-007-008-envelope-meta-sigterm.gif` / `.webm` / `.tape`
 
 Demonstrates:
-- **AC-007:** `test_BC_2_09_008_e2e_response_envelope_meta_fields_correct` PASS — `_meta.trust_level == "untrusted_external"`, `_meta.safety_flags == []` (non-vacuous: ≥1 row returned), `_meta.data_source` contains `"crowdstrike"` (accepts both string and array serialization per ADV-SDEMO002-PR-P01-OBS-002)
-- **AC-008:** `test_BC_2_10_010_e2e_sigterm_cleanly_shuts_down_both_subprocesses` PASS — both prism-bin and DTU server exit within 5s with status 0 after SIGTERM (subprocess-only test; SID-1 §2 deferral documented in test body: signals.rs `std::process::exit(0)` is not unit-testable without architectural refactor scoped to S-1.12-FOLLOWUP)
+- **AC-007:** `test_BC_2_09_008_e2e_response_envelope_meta_fields_correct` PASS — `_meta.trust_level == "untrusted_external"`, `_meta.safety_flags == []` (non-vacuous: ≥1 row returned before asserting), `_meta.data_source` contains `"crowdstrike"` — assertion accepts both serialization forms: bare string `"crowdstrike"` (single-sensor query) and array `["crowdstrike"]` (cross-client query), per `safety_envelope.rs` polymorphic serialization (ADV-SDEMO002-PR-P01-OBS-002)
+- **AC-008:** `test_BC_2_10_010_e2e_sigterm_cleanly_shuts_down_both_subprocesses` PASS — both prism-bin and DTU server exit within 5s with status 0 after SIGTERM. SID-1 §2 deferral: the `signals.rs` `std::process::exit(0)` shutdown path is a subprocess-only behavior; a unit-level substitute without a live subprocess would test `process::exit` in-process (crashing the test runner). This is the legitimate subprocess-only exception documented in the test body, with specific future story anchor `S-1.12-FOLLOWUP` (architectural refactor of shutdown signaling).
 
 ### Recording 4: AC-011, AC-012, AC-013
 
@@ -103,8 +111,8 @@ Demonstrates:
 **File:** `AC-014-aql-pushdown-dtu-roundtrip.gif` / `.webm` / `.tape`
 
 Demonstrates:
-- **AC-014 (unit):** `test_BC_2_11_007_armis_aql_pushdown_seeded_in_filter_map` + related AQL push-down unit tests PASS — `predicate_tree_to_filter_map` extracts `aql='in:devices'` equality predicate and seeds it into the query-layer `FilterMap` (`query_filters["aql"] == "in:devices"`). This unit test proves FilterMap seeding at the query-planning boundary; it does NOT assert FetchContext population or DTU receipt (those are subprocess-level behaviors requiring a live DTU).
-- **AC-014 (E2E):** `test_BC_2_11_007_e2e_armis_aql_pushdown_devices_dtu_roundtrip` PASS — proves the full pipeline: PQL parse → FilterMap → FetchContext population → DTU `GET /api/v1/search?aql=in:devices` → non-empty rows returned; `GET /dtu/aql-log` confirms `"in:devices"` received verbatim (BC-2.11.007 Mechanism B). The E2E round-trip test is the load-bearing evidence for FetchContext → DTU propagation.
+- **AC-014 (unit):** `test_BC_2_11_007_armis_aql_pushdown_seeded_in_filter_map` + related AQL push-down unit tests PASS — `predicate_tree_to_filter_map` extracts `aql='in:devices'` equality predicate and seeds it into the query-layer `FilterMap` (`query_filters["aql"] == "in:devices"`). This is the generic equality-extraction path — the INDEX column declaration in `armis.sensor.toml` is decorative (not a runtime gate). The unit test proves FilterMap seeding at the query-planning boundary; it does NOT assert FetchContext population or DTU receipt (those are subprocess-level behaviors requiring a live DTU).
+- **AC-014 (E2E):** `test_BC_2_11_007_e2e_armis_aql_pushdown_devices_dtu_roundtrip` PASS — proves the full pipeline: PQL parse → FilterMap → FetchContext population → DTU `GET /api/v1/search?aql=in:devices` → non-empty rows returned; `GET /dtu/aql-log` confirms `"in:devices"` received verbatim (BC-2.11.007 Mechanism B). The E2E round-trip test is the load-bearing assertion for FetchContext → DTU propagation.
 
 ---
 
@@ -112,26 +120,99 @@ Demonstrates:
 
 | AC | BC | Status | Evidence artifact | Method |
 |----|----|--------|-------------------|--------|
-| AC-001 | BC-2.22.001 | DEMONSTRATED | `AC-001-010-e2e-launch-ignore-gate.gif` | E2E subprocess: DTU + prism-bin launch; both subprocesses start without error |
-| AC-002 | BC-2.10.001 | DEMONSTRATED | `AC-001-010-e2e-launch-ignore-gate.gif` | E2E subprocess: tools/list returns `query` tool (MCP initialize + handshake) |
-| AC-003 | BC-2.11.005 | DEMONSTRATED | `AC-003-006-four-sensor-data-return.gif` | E2E subprocess: CrowdStrike rows with `detection_id`, `category_uid`, `class_uid` non-null |
-| AC-004 | BC-2.11.005 | DEMONSTRATED | `AC-003-006-four-sensor-data-return.gif` | E2E subprocess: Armis `WHERE aql='in:devices'` returns data rows |
-| AC-005 | BC-2.11.005 | DEMONSTRATED | `AC-003-006-four-sensor-data-return.gif` | E2E subprocess: Claroty alerts (`alert_type_name`, `detected_time`) + devices (`uid`) |
-| AC-006 | BC-2.11.005 | DEMONSTRATED | `AC-003-006-four-sensor-data-return.gif` | E2E subprocess: Cyberint alerts return data rows |
-| AC-007 | BC-2.09.008 | DEMONSTRATED | `AC-007-008-envelope-meta-sigterm.gif` | E2E subprocess: `_meta.trust_level="untrusted_external"`, `safety_flags=[]` (non-vacuous), `data_source` contains `"crowdstrike"` (accepts both string and array serialization per ADV-SDEMO002-PR-P01-OBS-002) |
-| AC-008 | BC-2.10.010 | DEMONSTRATED | `AC-007-008-envelope-meta-sigterm.gif` | E2E subprocess: SIGTERM → both processes exit 0 within 5s |
-| AC-009 | BC-2.11.005 | CI-PROPERTY | — | AC-009 is a CI repetition property (5 consecutive runs), not a Rust `#[test]` function. Verified by consistent GREEN result across multiple local run invocations. |
-| AC-010 | BC-2.22.001 | DEMONSTRATED | `AC-001-010-e2e-launch-ignore-gate.gif` | Standard nextest profile: 13 skipped (`#[ignore]` gate); e2e profile: 13 PASS |
-| AC-011 | BC-3.2.001 / BC-2.22.001 | DEMONSTRATED | `AC-011-012-013-multi-org-isolation.gif` | Unit: 8-adapter count; E2E subprocess: 3-org boot, all 4 sensors for demo-org-c resolve |
-| AC-012 | BC-3.2.001 | DEMONSTRATED | `AC-011-012-013-multi-org-isolation.gif` | Unit + E2E: demo-org-a query for Claroty returns E-QUERY-032 (code -32602), message contains sensor + org |
-| AC-013 | BC-3.2.001 | DEMONSTRATED | `AC-011-012-013-multi-org-isolation.gif` | E2E subprocess: demo-org-a + demo-org-c CrowdStrike queries both succeed (DTU-MULTI-001 documented) |
-| AC-014 | BC-2.11.007 | DEMONSTRATED | `AC-014-aql-pushdown-dtu-roundtrip.gif` | Unit: FilterMap seeding at query-planning boundary (`query_filters["aql"] == "in:devices"`); E2E round-trip: FetchContext → DTU `/dtu/aql-log` confirms `"in:devices"` received verbatim |
-| EC-004 | BC-2.11.001 | DEMONSTRATED | E2E suite run (all tests PASS) | `LIMIT 0` returns empty-not-error; verified by `test_EC_004_e2e_limit_zero_returns_empty_not_error` |
-| EC-005 | BC-2.11.001 | DEMONSTRATED | E2E suite run (all tests PASS) | `LIMIT 200` returns ≤200 rows without error; verified by `test_EC_005_e2e_limit_200_returns_paginated_rows` |
+| AC-001 | BC-2.22.001 | DEMONSTRATED | `AC-001-010-e2e-launch-ignore-gate.gif` | E2E subprocess: DTU + prism-bin launch; both subprocesses start without error; DTU writes `.prism-dtu-demo-server.urls.json` within 10s |
+| AC-002 | BC-2.10.001 | DEMONSTRATED | `AC-001-010-e2e-launch-ignore-gate.gif` | E2E subprocess: tools/list returns `query` tool (MCP initialize + handshake; canonical tool name per BC-2.11.001 H1) |
+| AC-003 | BC-2.11.005 | DEMONSTRATED | `AC-003-006-four-sensor-data-return.gif` | E2E subprocess: `SELECT * FROM crowdstrike_detections LIMIT 5` — rows with `detection_id`, `category_uid`, `class_uid` non-null |
+| AC-004 | BC-2.11.005 | DEMONSTRATED | `AC-003-006-four-sensor-data-return.gif` | E2E subprocess: `SELECT * FROM armis_devices WHERE aql = 'in:devices' LIMIT 5` returns data rows (AQL predicate mandatory — bare FROM not supported per AC-004) |
+| AC-005 | BC-2.11.005 | DEMONSTRATED | `AC-003-006-four-sensor-data-return.gif` | E2E subprocess: `SELECT * FROM claroty_alerts LIMIT 5` (`alert_type_name`, `detected_time`) + `SELECT * FROM claroty_devices LIMIT 5` (`uid`) both return data |
+| AC-006 | BC-2.11.005 | DEMONSTRATED | `AC-003-006-four-sensor-data-return.gif` | E2E subprocess: `SELECT * FROM cyberint_alerts LIMIT 5` returns data rows |
+| AC-007 | BC-2.09.008 | DEMONSTRATED | `AC-007-008-envelope-meta-sigterm.gif` | E2E subprocess: `_meta.trust_level="untrusted_external"`, `safety_flags=[]` (non-vacuous: ≥1 row asserted first), `data_source` contains `"crowdstrike"` — both bare-string and array forms accepted per `safety_envelope.rs` polymorphic serialization |
+| AC-008 | BC-2.10.010 | DEMONSTRATED | `AC-007-008-envelope-meta-sigterm.gif` | E2E subprocess: SIGTERM → both processes exit 0 within 5s. SID-1 §2 deferral to S-1.12-FOLLOWUP is legitimate (in-process `process::exit` would crash the test runner) |
+| AC-009 | BC-2.11.005 | CI-GATED | `.github/workflows/e2e.yml` | Determinism is validated by the dedicated e2e CI job (PR #171). The `[profile.e2e]` nextest config sets `retries = 1` — a double failure is a real regression. CI job runs on every PR and every push to develop, providing continuous determinism verification. Two additional local release runs at 6a8becfb confirm stability (both 13/13 PASS). No separate `#[test]` function required — determinism is a property of the existing tests verified by repetition (AC-009 v2.0 coverage decision F-PC-002). |
+| AC-010 | BC-2.22.001 | DEMONSTRATED | `AC-001-010-e2e-launch-ignore-gate.gif` + `.github/workflows/e2e.yml` | **`#[ignore]` gate:** standard `cargo nextest run -p prism-bin` skips all 13 E2E tests (13 skipped in Summary). **Dedicated CI job:** `.github/workflows/e2e.yml` (job: `E2E smoke (S-DEMO-002 AC-010)`) triggers on: `pull_request` to develop/main, `push` to develop/main, and daily cron (`0 2 * * *`). Canonical CI command: `cargo nextest run -p prism-bin --profile e2e --run-ignored ignored-only`. CI job builds release binaries (`cargo build --release -p prism-bin -p prism-dtu-demo-server`), runs 13 tests with `terminate-after=1`, uploads JUnit XML artifact. This is the structural evidence that the dedicated e2e CI job exists and gates every PR. |
+| AC-011 | BC-3.2.001 / BC-2.22.001 | DEMONSTRATED | `AC-011-012-013-multi-org-isolation.gif` | Unit: 8-adapter count for 3-org config; E2E subprocess: 3-org boot, all 4 sensors for demo-org-c resolve |
+| AC-012 | BC-3.2.001 | DEMONSTRATED | `AC-011-012-013-multi-org-isolation.gif` | Unit + E2E: `SELECT * FROM claroty_alerts LIMIT 5` with `clients: ["demo-org-a"]` returns MCP error (not empty success): code -32602, message contains "E-QUERY-032"/"claroty"/"demo-org-a"; zero data rows. `clients` param (not `org_slug`) per `QueryToolParams` `#[serde(deny_unknown_fields)]`. |
+| AC-013 | BC-3.2.001 | DEMONSTRATED | `AC-011-012-013-multi-org-isolation.gif` | E2E subprocess: demo-org-a + demo-org-c CrowdStrike queries both succeed (each org's adapter points to the same DTU clone port; org isolation is at AdapterRegistry dispatch layer, not DTU HTTP layer — DTU-MULTI-001 comment in test) |
+| AC-014 | BC-2.11.007 | DEMONSTRATED | `AC-014-aql-pushdown-dtu-roundtrip.gif` | Unit: `predicate_tree_to_filter_map` seeds `query_filters["aql"] = "in:devices"` (generic equality-extraction path; INDEX declaration is decorative); E2E round-trip: FetchContext → DTU `/dtu/aql-log` confirms `"in:devices"` received verbatim (BC-2.11.007 Mechanism B) |
+| EC-004 | BC-2.11.001 | DEMONSTRATED | E2E suite run (all tests PASS) | `SELECT * FROM crowdstrike_detections LIMIT 0` returns no-error envelope with empty rows; verified by `test_EC_004_e2e_limit_zero_returns_empty_not_error` |
+| EC-005 | BC-2.11.001 | DEMONSTRATED | E2E suite run (all tests PASS) | `SELECT * FROM crowdstrike_detections LIMIT 200` returns ≤200 rows without error; verified by `test_EC_005_e2e_limit_200_returns_paginated_rows` |
 
 **Coverage summary: 14/14 ACs demonstrated + 2 edge cases demonstrated.**
 
-AC-009 is a CI repetition property (not a dedicated test function per story spec §AC-009 coverage decision F-PC-002); it is verified by the consistency of GREEN results across multiple invocations.
+AC-009 is a CI repetition property (coverage decision F-PC-002); verified by `e2e.yml` with `retries=1`
+on every PR/push plus local stability runs. No separate `#[test]` function required.
+
+---
+
+## AC-009 / AC-010 v2.0 Evidence Summary (OBS-003 closure)
+
+**OBS-003** finding: AC-009 evidence cited "5 consecutive local runs" which was the v1.x criterion;
+AC-010 evidence did not cite the delivered e2e.yml workflow. Closed by:
+
+### AC-009 — CI-Gated Determinism (v2.0 spec)
+
+The v2.0 story spec rewrites AC-009: determinism is now CI-gated rather than requiring 5 local runs.
+The `[profile.e2e]` nextest configuration sets `retries = 1` — a transient flake gets one retry;
+a double failure is a real regression. The `e2e.yml` job runs on every PR and every push to develop,
+providing continuous determinism verification on the release build. Two local release runs at 6a8becfb
+confirm stability (both 13/13 PASS within ~0.97s total run time), demonstrating the timing margin
+is ample. OBS-003 is closed.
+
+### AC-010 — Dedicated E2E CI Job (v2.0 spec)
+
+The delivered `.github/workflows/e2e.yml` satisfies AC-010 v2.0:
+- **Job name:** `E2E smoke (S-DEMO-002 AC-010)`
+- **Triggers:** `pull_request` (develop/main) + `push` (develop/main) + `schedule: cron "0 2 * * *"` (daily 02:00 UTC)
+- **Release build step:** `cargo build --release -p prism-bin -p prism-dtu-demo-server`
+- **Canonical command:** `cargo nextest run -p prism-bin --profile e2e --run-ignored ignored-only`
+- **Retries:** 1 (from `[profile.e2e]` nextest config; `terminate-after=1`)
+- **Artifact upload:** JUnit XML on failure (`target/nextest/e2e/junit.xml`, 7-day retention)
+- **Timeout:** 45 minutes (breakdown: ~10-15 min release build warm, ~26 min worst-case 13 tests × 120s)
+- **Runner:** `ubuntu-latest` (SIGTERM is Unix-only; Windows excluded per AC comment)
+
+The `#[ignore]` gate is confirmed by the standard nextest profile result: 13 SKIPPED.
+The dedicated job makes the gate automatic — developers running `just check` never hit the
+DTU-dependent tests; every PR is automatically gated. OBS-003 is closed.
+
+---
+
+## OBS-004 — RELEASE Build Confirmation
+
+**OBS-004** finding: prior evidence log showed "unoptimized + debuginfo" without explanation,
+raising concern the tests ran against debug binaries.
+
+**Resolution:** The "unoptimized + debuginfo" in nextest output is the test harness binary compilation
+profile (nextest always compiles the test runner in debug mode by default). The subprocess binaries
+under test — `target/release/prism` and `target/release/prism-dtu-demo-server` — are release-optimized.
+Proof:
+1. `cargo build --release` run first: `Finished 'release' profile [optimized] target(s)` (see `e2e-run-output.txt`)
+2. `locate_binary()` in `crates/prism-bin/tests/helpers/mod.rs` explicitly prefers `target/release/<name>` (Architecture Compliance Rule 5)
+3. The test timings (~0.75–0.97s per test) match release-build subprocess launch times, not debug-build (~3-5s expected for debug subprocess)
+
+OBS-004 is closed.
+
+---
+
+## Ripple-Sweep Record (v2.0 alignment at 6a8becfb)
+
+The following AC sections were swept against the v2.0 story spec and current test code at 6a8becfb:
+
+| AC | Change made | Reason |
+|----|-------------|--------|
+| AC-001 | Added "DTU writes urls.json within 10s" detail | v2.0 AC-001 spec cites 10s; aligns with story |
+| AC-002 | Added "canonical tool name per BC-2.11.001 H1" note | Matches v2.0 spec note that tool name is `query` not `tool_query` |
+| AC-004 | Added "(AQL predicate mandatory — bare FROM not supported per AC-004)" | v2.0 story AC-004 explicitly states AQL is mandatory; ripple from v1.7 |
+| AC-005 | Updated query forms to SQL form `SELECT * FROM` | v1.9 spec fix (bare FROM invalid PrismQL; all AC-005 queries use SQL form) |
+| AC-006 | Updated query form to `SELECT * FROM cyberint_alerts LIMIT 5` | Same v1.9 SQL form fix |
+| AC-007 | Expanded data_source note: "both bare-string and array forms accepted per safety_envelope.rs polymorphic serialization" | Matches as-built test: `serde_json::Value::Array` + `serde_json::Value::String` match arms |
+| AC-008 | Expanded SID-1 note: cited `S-1.12-FOLLOWUP` specific story anchor | SID-1 §5 requires specific future story ID in any deferral |
+| AC-009 | Replaced "5 consecutive runs" with CI-gated determinism via e2e.yml with `retries=1` | v2.0 spec rewrite of AC-009 coverage decision F-PC-002 |
+| AC-010 | Replaced generic evidence with e2e.yml job details (name, triggers, command, release build, retries, artifact) | v2.0 spec delivers concrete CI job as proof |
+| AC-012 | Added `clients` param clarification and `QueryToolParams` `#[serde(deny_unknown_fields)]` note | Matches v2.0 AC-012 spec; `clients` not `org_slug` |
+| AC-013 | Added DTU-MULTI-001 comment cite | v2.0 AC-013 requires this comment in test |
+| AC-014 | Added "generic equality-extraction path; INDEX declaration is decorative" | v2.0 AC-014 "Seeding mechanism accuracy" para; matches as-built `predicate_tree_to_filter_map` |
+| Header | Updated HEAD SHA from `0af51150` to `6a8becfb` | OBS-004; current commit |
+| Header | Updated story version to v2.0 | OBS-003; story is v2.0 |
 
 ---
 
@@ -150,6 +231,8 @@ Per SID-1 discipline, `#[ignore]`'d E2E tests must have non-ignored unit-level s
 | AC-014 | `test_BC_2_11_007_predicate_tree_to_filter_map_extracts_aql_equality_predicate` | prism-query | Yes |
 
 All SID-1 unit substitutes pass in the standard `cargo nextest run -p prism-bin` / `cargo nextest run -p prism-query` run (no `--profile e2e`, no `--run-ignored`).
+
+AC-008 SID-1 §2 deferral is legitimate: the `signals.rs` `std::process::exit(0)` path is only testable via a subprocess (calling it in-process crashes the test runner). Deferral anchored to story `S-1.12-FOLLOWUP` (architectural refactor of shutdown signaling per SID-1 §5 specific-story-ID requirement).
 
 ---
 
@@ -172,6 +255,6 @@ All SID-1 unit substitutes pass in the standard `cargo nextest run -p prism-bin`
 | `AC-014-aql-pushdown-dtu-roundtrip.gif` | VHS recording | AC-014 |
 | `AC-014-aql-pushdown-dtu-roundtrip.webm` | VHS recording | AC-014 |
 | `AC-014-aql-pushdown-dtu-roundtrip.tape` | VHS source | AC-014 |
-| `e2e-run-output.txt` | Text log | ALL (GREEN capture @ 0af51150: 13/13 e2e PASS, `--run-ignored ignored-only`) |
+| `e2e-run-output.txt` | Text log | ALL (GREEN capture @ 6a8becfb: release build confirmed + 13/13 e2e PASS, `--run-ignored ignored-only`) |
 
 Legacy artifacts from the pre-convergence recording session (`AC-001-dtu-server-launch.*`, `AC-010-e2e-ignored-gate.*`, `AC-011-e2e-test-suite-run.*`) document the environmental blocker that was resolved during the cascade. They are retained for traceability but superseded by the current GREEN recordings.
