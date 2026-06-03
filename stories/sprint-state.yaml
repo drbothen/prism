@@ -19,10 +19,10 @@ active_dispatch_set:
     points: 11
     spec_version: "v1.6"
     lane: "1-of-3"
-    dispatch_status: "IN DELIVERY (D-960 re-pass-1 fix-burst closure 2026-06-02) — code @ 3a4ae38a; LOCAL streak 0/3; HIGH-1+MED-1+OBS-1 CLOSED (e2e dot→underscore table names + AC-007 vacuous guard + locate_binary silent fallback + dead helper removed); just check GREEN 3931/3931 tests. OBS-2 → S-DEMO-CI-E2E-001 (process-gap follow-up). NEXT: LOCAL adversary re-pass (Lesson 62 preflight: git -C .worktrees/S-DEMO-002 rev-parse HEAD must == 3a4ae38a) → 3-CLEAN → demo-recorder → push → pr-manager 9-step PR cycle → PR-LEVEL 3-CLEAN → merge"
-    entry_point: "LOCAL adversary re-pass @ 3a4ae38a (Lesson 62 preflight) → 3-CLEAN → demo-recorder → push → pr-manager 9-step PR cycle → PR-LEVEL 3-CLEAN → merge"
+    dispatch_status: "IN DELIVERY (D-961 pass-3-reset fix-burst closure 2026-06-02) — code @ c96feb17; LOCAL streak 0/3 (pass-3 found F-DEMO002-P3-MED-001: story body **Version:** stale v1.5 + 4 sibling doc-comment sites in crates/prism-bin/tests/ v1.5; streak RESET 2/3→0/3); FIXED this burst: story body **Version:** v1.5→v1.6 (state-manager); code doc-comments helpers/mod.rs:39 + e2e_smoke.rs:714/753/809 v1.5→v1.6 (implementer @ c96feb17; just check GREEN). NEXT: LOCAL adversary re-pass @ c96feb17 (Lesson 62 preflight: git -C .worktrees/S-DEMO-002 rev-parse HEAD must == c96feb17) → 3-CLEAN → demo-recorder → push → pr-manager 9-step PR cycle → PR-LEVEL 3-CLEAN → merge"
+    entry_point: "LOCAL adversary re-pass @ c96feb17 (Lesson 62 preflight) → 3-CLEAN → demo-recorder → push → pr-manager 9-step PR cycle → PR-LEVEL 3-CLEAN → merge"
     worktree_path: ".worktrees/S-DEMO-002"
-    code_head: "3a4ae38a"
+    code_head: "c96feb17"
     branch: "feature/S-DEMO-002"
     tracked_dependency: "MUST seed query_filters[\"aql\"] in PipelineExecutor FetchContext for Armis end-to-end AQL push-down (AC-014 D-934/D-952 scope) — canonical seeding site: predicate_tree_to_filter_map (BC-2.11.007 v1.5 Mechanism B). Do NOT add parallel extract fn. Tool name is `query` (not tool_query). Org field is `clients` (not org_slug). red_gate_tests=9."
     depends_on:
@@ -30,7 +30,7 @@ active_dispatch_set:
       - S-CONFIG-MULTI-TENANT-OVERRIDE-001  # HARD — SATISFIED (merged PR #155 develop@3e822522)
     bcs: [BC-2.11.001, BC-2.11.005, BC-2.09.008, BC-2.10.001, BC-2.10.010, BC-3.2.001, BC-2.22.001, BC-2.11.007]
     vps: [VP-148]
-    notes: "D-960 2026-06-02: LOCAL re-pass-1 @ bb168f8c found HIGH-1 (e2e table names dot→underscore) + MED-1 (AC-007 vacuous ≥1-row guard) + OBS-1 (locate_binary silent fallback) + OBS-2 (process-gap: no CI runs ignored e2e Red Gates). Implementer closed HIGH-1+MED-1+OBS-1 @ 3a4ae38a; dead `response_has_adapter_not_found_error` helper removed; just check GREEN 3931/3931 tests. OBS-2 codified as S-DEMO-CI-E2E-001. LOCAL streak 0/3. (Prior D-959 2026-06-02: CRIT-001 CLOSED; BC-3.2.001 v0.8; E-QUERY-032; story v1.6; implementer @ bb168f8c.)"
+    notes: "D-961 2026-06-02: LOCAL adversary pass-3 (vs d4ca7736 streak 0/3→2/3 per passes 1+2) found F-DEMO002-P3-MED-001 — story body **Version:** stale v1.5 (frontmatter/H1/changelog all v1.6; body metadata field missed); also 4 sibling doc-comment sites in crates/prism-bin/tests/ (helpers/mod.rs:39 + e2e_smoke.rs:714/753/809) still cited v1.5. Streak RESET 2/3→0/3. FIX this burst: (a) state-manager: story body **Version:** v1.5→v1.6; (b) implementer swept 4 code sites v1.5→v1.6 @ c96feb17 (just check GREEN). code_head 3a4ae38a→d4ca7736→c96feb17. LOCAL streak 0/3; adversary re-pass NEXT. (Prior D-960 2026-06-02: LOCAL re-pass-1 HIGH-1+MED-1+OBS-1 CLOSED @ 3a4ae38a. D-959 2026-06-02: CRIT-001 CLOSED; BC-3.2.001 v0.8; E-QUERY-032; story v1.6; implementer @ bb168f8c.)"
 
   - story_id: S-DEMO-CROWDSTRIKE-MULTIREGION-001
     status: ready
@@ -295,7 +295,7 @@ deferred_post_demo:
 prereq_artifacts:
   story_index: .factory/stories/STORY-INDEX.md         # v2.258 after D-960 burst (179 stories)
   bc_index: .factory/specs/behavioral-contracts/BC-INDEX.md  # v5.76 after D-959 burst (BC-3.2.001 v0.8; unchanged D-960)
-  state: .factory/STATE.md                              # v7.613 after D-960 burst
+  state: .factory/STATE.md                              # v7.614 after D-961 burst
   governing_adr: .factory/specs/architecture/decisions/ADR-031-dtu-equals-true-dtu-fidelity-principle.md  # v1.2 (ADR-031 architect e57eb5b1 reclassified 3 divergences)
   governing_audit: .factory/proposals/POLLER-DTU-FIDELITY-AUDIT-2026-05-29.md  # v1.1
 
