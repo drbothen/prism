@@ -30,7 +30,7 @@
 //! | `test_EC_004_e2e_limit_zero_returns_empty_not_error` | EC-004 | BC-2.11.001 |
 //! | `test_EC_005_e2e_limit_200_returns_paginated_rows` | EC-005 | BC-2.11.001 |
 //!
-//! Story: S-DEMO-002 v1.6
+//! Story: S-DEMO-002 v1.7
 //! BCs: BC-2.11.001, BC-2.11.005, BC-2.09.008, BC-2.10.001, BC-2.10.010, BC-3.2.001,
 //!      BC-2.22.001, BC-2.11.007
 
@@ -199,9 +199,10 @@ async fn test_BC_2_11_005_e2e_armis_query_returns_data() {
     // AC-004: query Armis devices.
     // Table name: "devices" (armis.sensor.toml [[tables]] table_name = "devices").
     // DTU fetch path: GET /api/v1/search?aql=in:devices (S-DEMO-ARMIS-AQL-001 fix).
-    // The default AQL query_filter for the devices table is "in:devices".
+    // The Armis /api/v1/search path_template uses ${query.filter.aql} — there is NO
+    // default AQL value. A WHERE aql = '...' predicate is mandatory for all armis queries.
     let response = mcp
-        .tool_query("FROM armis_devices LIMIT 5")
+        .tool_query("FROM armis_devices WHERE aql = 'in:devices' LIMIT 5")
         .expect("tool_query failed for armis");
 
     let rows = extract_rows_from_envelope(&response);
@@ -662,17 +663,18 @@ async fn test_BC_3_2_001_e2e_multi_org_boot_registers_correct_adapter_count() {
     // `test_BC_3_2_001_step9a_multi_org_registers_eight_adapters` in bc_2_01_013_spec_driven_adapter.rs.
     // For demo-org-c, all 4 queries should return data.
     // Table names use underscore notation ({sensor}_{table}) per PrismQL FROM syntax.
-    for (org, sensor_table) in [
-        ("demo-org-c", "crowdstrike_detections"),
-        ("demo-org-c", "armis_devices"),
-        ("demo-org-c", "claroty_alerts"),
-        ("demo-org-c", "cyberint_alerts"),
+    // armis_devices requires WHERE aql = '...' — /api/v1/search uses ${query.filter.aql}
+    // with no default; omitting the predicate causes interpolation failure before any HTTP call.
+    for (org, sensor_table, where_clause) in [
+        ("demo-org-c", "crowdstrike_detections", ""),
+        ("demo-org-c", "armis_devices", " WHERE aql = 'in:devices'"),
+        ("demo-org-c", "claroty_alerts", ""),
+        ("demo-org-c", "cyberint_alerts", ""),
     ] {
-        let response = mcp
-            .tool_query(&format!("FROM {sensor_table} LIMIT 1"))
-            .unwrap_or_else(|e| {
-                panic!("AC-011: query failed for org={org} table={sensor_table}: {e}")
-            });
+        let query = format!("FROM {sensor_table}{where_clause} LIMIT 1");
+        let response = mcp.tool_query(&query).unwrap_or_else(|e| {
+            panic!("AC-011: query failed for org={org} table={sensor_table}: {e}")
+        });
         // If AdapterRegistry has all 4 entries for demo-org-c, no adapter-not-found error.
         assert_response_has_no_error(&response);
     }
@@ -848,7 +850,7 @@ async fn test_BC_3_2_001_e2e_dtu_multi_tenant_each_org_reaches_correct_clone_por
 
     // AC-013: query CrowdStrike from demo-org-a (CrowdStrike IS registered for demo-org-a).
     // DTU-MULTI-001: demo DTU operates in single-tenant mode; org isolation is at
-    // AdapterRegistry layer only (AC-013 scope clarification per S-DEMO-002 v1.6).
+    // AdapterRegistry layer only (AC-013 scope clarification per S-DEMO-002 v1.7).
     let response_a = mcp
         .tool_query_scoped("FROM crowdstrike_detections LIMIT 5", "demo-org-a")
         .expect("query for demo-org-a failed (unexpected network/transport error)");
@@ -887,7 +889,7 @@ async fn test_BC_3_2_001_e2e_dtu_multi_tenant_each_org_reaches_correct_clone_por
 /// Verifies that `FROM crowdstrike_detections LIMIT 0` returns no error envelope
 /// and zero rows (empty-but-not-error per E2E-DEMO-WIRING-PLAN §6 Risk 3).
 ///
-/// Coverage decision (F-PC-002): explicitly required per S-DEMO-002 v1.6 EC-004.
+/// Coverage decision (F-PC-002): explicitly required per S-DEMO-002 v1.7 EC-004.
 ///
 /// // E2E-001: requires DTU server running; un-gated in CI via 'e2e' nextest profile.
 #[tokio::test]
@@ -943,7 +945,7 @@ async fn test_EC_004_e2e_limit_zero_returns_empty_not_error() {
 /// We assert `!rows.is_empty() && rows.len() <= 200` to cover both cases without
 /// hardcoding the fixture row count.
 ///
-/// Coverage decision (F-PC-002): explicitly required per S-DEMO-002 v1.6 EC-005.
+/// Coverage decision (F-PC-002): explicitly required per S-DEMO-002 v1.7 EC-005.
 ///
 /// // E2E-001: requires DTU server running; un-gated in CI via 'e2e' nextest profile.
 #[tokio::test]

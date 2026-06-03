@@ -37,7 +37,7 @@
 //! `crates/prism-bin/tests/e2e_smoke.rs` (marked `#[ignore]` per SID-1 §4;
 //! requires DTU server + prism binary; un-gated in CI via 'e2e' nextest profile).
 //!
-//! Story: S-DEMO-002 v1.6 Task 19 (AC-014 / D-934 scope)
+//! Story: S-DEMO-002 v1.7 Task 19 (AC-014 / D-934 scope)
 //! BCs: BC-2.11.007 §Mechanism B, BC-2.11.001
 //! DTU path: armis.sensor.toml path_template = `/api/v1/search?aql=${query.filter.aql}`
 
