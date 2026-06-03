@@ -14,7 +14,11 @@
 # Trigger set:
 #   - pull_request targeting develop or main (gates merges via required status check)
 #   - push to develop or main (post-merge verification)
-#   - schedule: daily at 02:00 UTC (scheduled intent per S-DEMO-CI-E2E-001)
+#   - workflow_dispatch: manual trigger for ad-hoc runs (CI I-1)
+#
+# Note: No schedule/cron — cron targets default branch (main) only, making it a near-no-op
+# for develop-targeted PRs (CI I-2 / S-1: collides with fuzz-nightly at 02:00 UTC).
+# Scheduled runs on develop can be added as a future maintenance PR if needed.
 #
 # Runner: ubuntu-latest only — the SIGTERM test is #[cfg(unix)]; Windows is excluded.
 # All other tests (13 total) are unix-compatible.
@@ -36,9 +40,7 @@ on:
     branches:
       - develop
       - main
-  schedule:
-    # Daily at 02:00 UTC — low-traffic window; S-DEMO-CI-E2E-001 scheduled intent.
-    - cron: "0 2 * * *"
+  workflow_dispatch:
 
 # Cancel superseded PR runs only — do not cancel push-to-develop (post-merge gate).
 concurrency:
@@ -47,16 +49,24 @@ concurrency:
 
 jobs:
   e2e:
-    name: E2E smoke (S-DEMO-002 AC-010)
+    name: E2E smoke
     runs-on: ubuntu-latest
     timeout-minutes: 45
 
     permissions:
       contents: read
 
+    # Hoisted job-level RUSTFLAGS so the build step and nextest step use identical
+    # compiler flags — avoids fingerprint churn / double rebuild (CI S-4).
+    env:
+      RUSTFLAGS: "-C link-arg=-fuse-ld=mold"
+
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+          fetch-depth: 1
 
       - name: Install Rust stable toolchain
         uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
@@ -88,8 +98,6 @@ jobs:
       # locate_binary() in helpers/mod.rs checks target/release/<name> first
       # (Architecture Compliance Rule 5: 30s per-test timeout assumes release speed).
       - name: Build release binaries (prism + prism-dtu-demo-server)
-        env:
-          RUSTFLAGS: -C link-arg=-fuse-ld=mold
         run: |
           set -euo pipefail
           cargo build --release -p prism-bin -p prism-dtu-demo-server
@@ -151,8 +159,6 @@ jobs:
           PRISM_CLIENTS_DEMO_ORG_C_SENSORS_CROWDSTRIKE_CLIENT_SECRET: "dtu-e2e-crowdstrike-client-secret"
           # Suppress tracing subscriber stdout noise in prism subprocess (handled in helpers too).
           RUST_LOG: "off"
-          # mold linker for faster compilation (not used at test-run time, but belt-and-suspenders)
-          RUSTFLAGS: "-C link-arg=-fuse-ld=mold"
         run: |
           set -euo pipefail
           # Canonical E2E command — source of truth per OBS-002 reconciliation (S-DEMO-002 AC-010).
