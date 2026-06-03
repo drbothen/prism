@@ -814,10 +814,7 @@ impl CredentialResolver for NullCredentialResolver {
 
 #[cfg(test)]
 mod alias_wiring_tests {
-    use std::{
-        path::Path,
-        sync::{Arc, Mutex},
-    };
+    use std::sync::{Arc, Mutex};
 
     use super::*;
     use crate::{

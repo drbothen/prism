@@ -32,7 +32,7 @@
 //! the live DTU; these unit tests prove the filter extraction logic at the
 //! query-layer boundary.
 //!
-//! Story: S-DEMO-002 v1.4 Task 19 (AC-014 / D-934 scope)
+//! Story: S-DEMO-002 v1.5 Task 19 (AC-014 / D-934 scope)
 //! BCs: BC-2.11.007 §Mechanism B, BC-2.11.001
 //! DTU path: armis.sensor.toml path_template = `/api/v1/search?aql=${query.filter.aql}`
 

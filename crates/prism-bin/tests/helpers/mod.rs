@@ -23,9 +23,12 @@
 //! Credential values MUST NOT appear in source files visible to AI context.
 //!
 //! ## Subprocess binary location
-//! Tests use `CARGO_BIN_EXE_prism` (set by cargo for integration tests) to
-//! locate the `prism` binary. DTU server uses `CARGO_BIN_EXE_prism-dtu-demo-server`
-//! when available, falling back to a workspace-relative path.
+//! Tests locate the `prism` and `prism-dtu-demo-server` binaries via `locate_binary`:
+//! 1. `CARGO_BIN_EXE_*` env var (populated by cargo for same-package bins only).
+//! 2. Workspace `target/release/<name>` — preferred (Architecture Compliance Rule 5).
+//! 3. Workspace `target/debug/<name>` — developer fallback (may cause timeouts).
+//!
+//! Run `cargo build --release -p prism -p prism-dtu-demo-server` before E2E tests.
 //!
 //! Story: S-DEMO-002 v1.5
 //! BCs: BC-2.22.001, BC-2.10.010, BC-3.2.001
@@ -547,6 +550,56 @@ impl McpStdioHandle {
             .unwrap_or(serde_json::Value::Null))
     }
 
+    /// Send a JSON-RPC `method` with `params` and return the full parsed response,
+    /// including the `"error"` object when a JSON-RPC error is returned.
+    ///
+    /// Unlike `send_request`, this method does NOT treat a JSON-RPC error response
+    /// as `Err`. Instead it returns `Ok(full_response_json)` so callers can inspect
+    /// the `"error"` field.  Only I/O and parse failures are returned as `Err`.
+    ///
+    /// Used by AC-012 (cross-org isolation): the `query` handler returns a
+    /// JSON-RPC error when AdapterNotFound; the test must capture that error
+    /// object and verify it carries the E-SENSOR-010 signal — it must NOT panic.
+    fn send_request_allow_rpc_error(
+        &mut self,
+        method: &str,
+        params: serde_json::Value,
+    ) -> Result<serde_json::Value, String> {
+        let id = self.next_id;
+        self.next_id += 1;
+
+        let request = serde_json::json!({
+            "jsonrpc": "2.0",
+            "id": id,
+            "method": method,
+            "params": params,
+        });
+
+        let line = serde_json::to_string(&request)
+            .map_err(|e| format!("Failed to serialize JSON-RPC request: {e}"))?;
+
+        writeln!(self.stdin, "{line}")
+            .map_err(|e| format!("Failed to write to prism-bin stdin: {e}"))?;
+
+        self.stdin
+            .flush()
+            .map_err(|e| format!("Failed to flush prism-bin stdin: {e}"))?;
+
+        let mut response_line = String::new();
+        self.stdout
+            .read_line(&mut response_line)
+            .map_err(|e| format!("Failed to read from prism-bin stdout: {e}"))?;
+
+        if response_line.is_empty() {
+            return Err(
+                "prism-bin closed stdout unexpectedly (process may have exited)".to_string(),
+            );
+        }
+
+        serde_json::from_str(response_line.trim())
+            .map_err(|e| format!("Failed to parse JSON-RPC response '{response_line}': {e}"))
+    }
+
     /// Send MCP `initialize` → send `notifications/initialized` → return server capabilities.
     ///
     /// Protocol per MCP 2024-11-05 spec (rmcp 1.7):
@@ -612,6 +665,36 @@ impl McpStdioHandle {
         org_slug: &str,
     ) -> Result<serde_json::Value, String> {
         self.tool_query_with_params(pql, Some(org_slug))
+    }
+
+    /// Send `tools/call` for the `query` tool scoped to an org, expecting a JSON-RPC error.
+    ///
+    /// Used exclusively by AC-012 (cross-org isolation). When the `query` handler returns
+    /// AdapterNotFound (E-SENSOR-010), the MCP server emits a JSON-RPC error response.
+    /// `tool_query_scoped` (which calls `send_request`) would propagate this as `Err` and
+    /// `.expect()` would panic — hiding the error content the test needs to inspect.
+    ///
+    /// This method uses `send_request_allow_rpc_error` so the full JSON-RPC response
+    /// (including the `"error"` object) is returned as `Ok(json)`. The test then asserts
+    /// the error contains the E-SENSOR-010 / "no adapter registered for sensor id" signal.
+    ///
+    /// For success-path tests use `tool_query_scoped` instead.
+    pub fn tool_query_scoped_expect_rpc_error(
+        &mut self,
+        pql: &str,
+        org_slug: &str,
+    ) -> Result<serde_json::Value, String> {
+        let input = serde_json::json!({
+            "query": pql,
+            "clients": [org_slug],
+        });
+        self.send_request_allow_rpc_error(
+            "tools/call",
+            serde_json::json!({
+                "name": "query",
+                "arguments": input
+            }),
+        )
     }
 
     /// Internal: send `tools/call` for the `query` tool with optional org scoping.
@@ -733,10 +816,24 @@ pub async fn launch_prism_bin(
 ///
 /// Search order:
 /// 1. `CARGO_BIN_EXE_<name>` env var (set by cargo for binaries in the same package).
-/// 2. Workspace `target/debug/<name>` (derived from CARGO_MANIFEST_DIR).
-/// 3. Workspace `target/release/<name>` (release build preferred for E2E timing).
+///    NOTE: `CARGO_BIN_EXE_*` is only populated for binaries declared in the SAME
+///    package as the integration test binary. Cross-package binaries (`prism`,
+///    `prism-dtu-demo-server`) are NOT set by cargo from within `prism-bin`'s test
+///    harness. The env-var path is kept as a forward-compatibility hook.
+/// 2. Workspace `target/release/<name>` — the release binary is required by
+///    Architecture Compliance Rule 5 (30-second subprocess timeout assumes release
+///    performance). This is the documented precondition for running E2E tests.
+/// 3. Workspace `target/debug/<name>` — fallback for developer convenience when
+///    only a debug build is available. Debug binaries may cause timeout failures
+///    on slow machines.
+///
+/// # Precondition
+/// Run `cargo build --release -p prism -p prism-dtu-demo-server` before running E2E tests.
+/// The CI e2e profile ensures this; local runs require the manual build step.
 fn locate_binary(name: &str) -> Result<PathBuf, String> {
     // Env var name: replace hyphens with underscores per cargo convention.
+    // NOTE: CARGO_BIN_EXE_* is only set for cross-package bins if declared as
+    // [[bin]] dev-dep or build-dep — not currently the case for `prism` / DTU.
     let env_name = format!("CARGO_BIN_EXE_{}", name.replace('-', "_"));
     if let Ok(path) = std::env::var(&env_name) {
         let pb = PathBuf::from(&path);
@@ -755,20 +852,24 @@ fn locate_binary(name: &str) -> Result<PathBuf, String> {
         .ok_or("crates dir has no parent")?
         .to_path_buf();
 
-    // Try debug build first (faster to build in CI).
-    let debug_bin = workspace_root.join("target/debug").join(name);
-    if debug_bin.exists() {
-        return Ok(debug_bin);
-    }
-
-    // Try release build.
+    // Prefer release build (Architecture Compliance Rule 5: 30-second E2E timeout
+    // assumes release-build performance). Stale debug binaries next to a fresh release
+    // binary would produce non-deterministic test timing — release-first eliminates this.
     let release_bin = workspace_root.join("target/release").join(name);
     if release_bin.exists() {
         return Ok(release_bin);
     }
 
+    // Fall back to debug build for developer convenience only.
+    // WARNING: debug binaries may be significantly slower and cause E2E timeout failures.
+    let debug_bin = workspace_root.join("target/debug").join(name);
+    if debug_bin.exists() {
+        return Ok(debug_bin);
+    }
+
     Err(format!(
-        "Binary '{name}' not found. Build with `cargo build -p {name}` first. \
-         Searched: {debug_bin:?}, {release_bin:?}"
+        "Binary '{name}' not found. Build with `cargo build --release -p {name}` first \
+         (release build required for E2E timing; Architecture Compliance Rule 5). \
+         Searched: {release_bin:?}, {debug_bin:?}"
     ))
 }

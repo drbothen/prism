@@ -9,7 +9,7 @@
 //!
 //! # Red Gate mechanism
 //! All tests are marked `#[ignore]` and require a live DTU demo server + prism-bin binary.
-//! They are un-gated in CI via the 'e2e' nextest profile (`[profile.e2e]` in `.cargo/nextest.toml`).
+//! They are un-gated in CI via the 'e2e' nextest profile (`[profile.e2e]` in `.config/nextest.toml`).
 //! Per AC-010: standard `cargo nextest run -p prism-bin` skips them (correct Red Gate behavior).
 //!
 //! # Test → AC → BC Mapping
@@ -19,13 +19,17 @@
 //! | `test_BC_2_22_001_e2e_smoke_test_launches_dtu_and_prism_bin_without_error` | AC-001 | BC-2.22.001 |
 //! | `test_BC_2_11_005_e2e_crowdstrike_query_returns_ocsf_data` | AC-003 | BC-2.11.005 |
 //! | `test_BC_2_11_005_e2e_armis_query_returns_data` | AC-004 | BC-2.11.005 |
+//! | `test_BC_2_11_005_e2e_claroty_query_returns_data` | AC-005 | BC-2.11.005 |
+//! | `test_BC_2_11_005_e2e_cyberint_query_returns_data` | AC-006 | BC-2.11.005 |
+//! | `test_BC_2_09_008_e2e_response_envelope_meta_fields_correct` | AC-007 | BC-2.09.008 |
+//! | `test_BC_2_10_010_e2e_sigterm_cleanly_shuts_down_both_subprocesses` | AC-008 | BC-2.10.010 |
 //! | `test_BC_3_2_001_e2e_multi_org_boot_registers_correct_adapter_count` | AC-011 | BC-3.2.001, BC-2.22.001 |
-//! | `test_BC_3_2_001_e2e_cross_org_sensor_query_returns_adapter_not_found` | AC-012 | BC-3.2.001 |
+//! | `test_BC_3_2_001_e2e_cross_org_sensor_query_returns_e_query_032` | AC-012 | BC-3.2.001 |
 //! | `test_BC_3_2_001_e2e_dtu_multi_tenant_each_org_reaches_correct_clone_port` | AC-013 | BC-3.2.001 |
 //! | `test_EC_004_e2e_limit_zero_returns_empty_not_error` | EC-004 | BC-2.11.001 |
 //! | `test_EC_005_e2e_limit_200_returns_paginated_rows` | EC-005 | BC-2.11.001 |
 //!
-//! Story: S-DEMO-002 v1.5
+//! Story: S-DEMO-002 v1.6
 //! BCs: BC-2.11.001, BC-2.11.005, BC-2.09.008, BC-2.10.001, BC-2.10.010, BC-3.2.001,
 //!      BC-2.22.001, BC-2.11.007
 
@@ -37,14 +41,14 @@ use tempfile::TempDir;
 // AC-001 / BC-2.22.001: DTU + prism-bin launch without error
 // ---------------------------------------------------------------------------
 
-/// Red Gate test for AC-001.
+/// AC-001 / BC-2.22.001: prism-bin + DTU launch without error.
 ///
 /// Verifies BC-2.22.001 postcondition: "The MCP server binds to stdio ONLY AFTER
 /// step 8 is complete". The test launches both subprocesses from scratch and
 /// asserts that neither exits unexpectedly before the MCP handshake can begin.
 ///
-/// FAIL at Red Gate: `helpers::launch_dtu_server()` and `helpers::launch_prism_bin()`
-/// are stubs (`todo!()`), so this test panics immediately.
+/// Skipped in standard `cargo nextest run -p prism-bin` (requires live DTU binary).
+/// Un-gated in CI via the `[profile.e2e]` nextest profile (E2E-001 gate).
 ///
 /// // E2E-001: requires DTU server running; un-gated in CI via 'e2e' nextest profile.
 #[tokio::test]
@@ -90,13 +94,14 @@ async fn test_BC_2_22_001_e2e_smoke_test_launches_dtu_and_prism_bin_without_erro
 // AC-003 / BC-2.11.005: CrowdStrike query returns non-empty OCSF data
 // ---------------------------------------------------------------------------
 
-/// Red Gate test for AC-003.
+/// AC-003 / BC-2.11.005: CrowdStrike query returns non-empty OCSF data.
 ///
 /// Verifies BC-2.11.005 postcondition: "Sensor responses are normalized to OCSF
 /// via the OCSF normalizer". Asserts that `detection_id` (Gap-CS-001 fix) and
 /// `category_uid`/`class_uid` are present and non-null.
 ///
-/// FAIL at Red Gate: stub helpers prevent subprocess launch.
+/// Skipped in standard `cargo nextest run -p prism-bin` (requires live DTU binary).
+/// Un-gated in CI via the `[profile.e2e]` nextest profile (E2E-001 gate).
 ///
 /// // E2E-001: requires DTU server running; un-gated in CI via 'e2e' nextest profile.
 #[tokio::test]
@@ -162,12 +167,13 @@ async fn test_BC_2_11_005_e2e_crowdstrike_query_returns_ocsf_data() {
 // AC-004 / BC-2.11.005: Armis query returns non-empty data
 // ---------------------------------------------------------------------------
 
-/// Red Gate test for AC-004.
+/// AC-004 / BC-2.11.005: Armis query returns non-empty data.
 ///
 /// Verifies BC-2.11.005 materialization pipeline for Armis sensor.
 /// Table: "devices" (armis.sensor.toml [[tables]] table_name = "devices").
 ///
-/// FAIL at Red Gate: stub helpers prevent subprocess launch.
+/// Skipped in standard `cargo nextest run -p prism-bin` (requires live DTU binary).
+/// Un-gated in CI via the `[profile.e2e]` nextest profile (E2E-001 gate).
 ///
 /// // E2E-001: requires DTU server running; un-gated in CI via 'e2e' nextest profile.
 #[tokio::test]
@@ -480,8 +486,8 @@ async fn test_BC_2_10_010_e2e_sigterm_cleanly_shuts_down_both_subprocesses() {
 /// This is a subprocess test (requires live boot sequence). The unit-level test
 /// for step9a registration is in `tests/bc_2_01_013_spec_driven_adapter.rs`.
 ///
-/// FAIL at Red Gate: `helpers::write_multi_org_demo_config()` and
-/// `helpers::launch_prism_bin()` are stubs.
+/// Skipped in standard `cargo nextest run -p prism-bin` (requires live DTU binary).
+/// Un-gated in CI via the `[profile.e2e]` nextest profile (E2E-001 gate).
 ///
 /// // E2E-001: requires DTU server running; un-gated in CI via 'e2e' nextest profile.
 #[tokio::test]
@@ -525,28 +531,46 @@ async fn test_BC_3_2_001_e2e_multi_org_boot_registers_correct_adapter_count() {
     }
 
     // AC-011: also verify that demo-org-a's 2 sensors resolve but NOT demo-org-b's sensors.
-    // This is tested more explicitly in test_BC_3_2_001_e2e_cross_org_sensor_query_returns_adapter_not_found.
+    // This is tested more explicitly in test_BC_3_2_001_e2e_cross_org_sensor_query_returns_e_query_032.
 }
 
 // ---------------------------------------------------------------------------
-// AC-012 / BC-3.2.001: Cross-org isolation — AdapterNotFound for wrong-org sensor
+// AC-012 / BC-3.2.001: Cross-org isolation — E-QUERY-032 for wrong-org sensor
 // ---------------------------------------------------------------------------
 
-/// Red Gate test for AC-012.
+/// AC-012 / BC-3.2.001: Cross-org isolation — E-QUERY-032 for sensor not registered for org.
 ///
-/// Verifies BC-3.2.001 postcondition 1: "state.lookup(org_id_A, resource_id)
-/// returns None when entry was stored under org_id_B".
+/// Verifies BC-3.2.001 postcondition 5: when an explicit `clients` scope is given and
+/// the queried sensor is NOT registered for the requesting org (but may be registered
+/// for OTHER orgs), the system MUST return a SURFACED operational error E-QUERY-032.
 ///
 /// demo-org-a has CrowdStrike + Armis but NOT Claroty or Cyberint.
-/// Querying claroty.alerts from demo-org-a context must return an error envelope,
-/// not data. No Claroty data from demo-org-b is leaked.
+/// Querying claroty.alerts from demo-org-a context must return a JSON-RPC error
+/// carrying E-QUERY-032 (sensor not registered for org), code -32602 (INVALID_PARAMS).
+/// No Claroty data from demo-org-b is leaked.
 ///
-/// FAIL at Red Gate: stub helpers prevent subprocess launch.
+/// Transport note: the `query` handler calls `map_err(to_error_data)?` for
+/// engine errors (including E-QUERY-032). This produces a JSON-RPC error
+/// response object rather than a successful ResponseEnvelope. The test uses
+/// `tool_query_scoped_expect_rpc_error` (not `tool_query_scoped`) so the error
+/// JSON is returned as `Ok(...)` rather than propagated as `Err` and panicked on.
+///
+/// The JSON-RPC response assertions verify ALL of:
+/// - response has a JSON-RPC `error` field (not a `result` with empty rows)
+/// - `error.code == -32602` (INVALID_PARAMS)
+/// - `error.message` contains `"E-QUERY-032"`, `"claroty"`, and `"demo-org-a"`
+/// - zero data rows (no ResponseEnvelope `rows` field present)
+/// - no Claroty data from demo-org-b is present
+///
+/// Skipped in standard `cargo nextest run -p prism-bin` (requires live DTU binary).
+/// Un-gated in CI via the `[profile.e2e]` nextest profile (E2E-001 gate).
+/// The non-ignored SID-1 unit test in prism-query covers the same E-QUERY-032 path
+/// without external subprocess dependency (BC-5.39.001 postcondition 5 coverage).
 ///
 /// // E2E-001: requires DTU server running; un-gated in CI via 'e2e' nextest profile.
 #[tokio::test]
 #[ignore = "E2E-001: requires DTU server running; un-gated in CI via 'e2e' nextest profile."]
-async fn test_BC_3_2_001_e2e_cross_org_sensor_query_returns_adapter_not_found() {
+async fn test_BC_3_2_001_e2e_cross_org_sensor_query_returns_e_query_032() {
     let config_dir = TempDir::new().expect("failed to create temp config dir");
 
     let fixture_config =
@@ -565,29 +589,67 @@ async fn test_BC_3_2_001_e2e_cross_org_sensor_query_returns_adapter_not_found() 
     mcp.initialize().expect("MCP handshake failed");
 
     // AC-012: query claroty.alerts from demo-org-a (Claroty NOT registered for demo-org-a).
-    // The MCP `query` tool must scope to org demo-org-a; the query engine routes via
-    // AdapterRegistry.get(demo-org-a-org-id, SensorId::from("claroty")) → None → error envelope.
+    // The MCP `query` tool scopes to demo-org-a; resolve_source_refs raises E-QUERY-032
+    // at the query-planning boundary (BC-3.2.001 postcondition 5).
+    // The query handler returns a JSON-RPC error (map_err(to_error_data)?) carrying E-QUERY-032.
     //
+    // Use `tool_query_scoped_expect_rpc_error` to capture the error JSON without panicking.
     // Scoping param: `clients: ["demo-org-a"]` (array of org slug strings).
     // QueryToolParams.clients: Option<Vec<String>>; #[serde(deny_unknown_fields)] rejects `org_slug`.
-    // See BC-2.11.001 Preconditions + AC-012 rationale note.
     let response = mcp
-        .tool_query_scoped("FROM claroty.alerts LIMIT 5", "demo-org-a")
-        .expect("tool_query_scoped call failed (unexpected network error)");
+        .tool_query_scoped_expect_rpc_error("FROM claroty.alerts LIMIT 5", "demo-org-a")
+        .expect("tool_query_scoped_expect_rpc_error failed at transport/I/O level (not an expected RPC error)");
 
-    // AC-012: response must contain an error indicating AdapterNotFound or isolation error.
+    // AC-012 assertion 1: response has a JSON-RPC `error` field, not a `result`.
+    // The response is the raw JSON-RPC object: { "jsonrpc": "2.0", "id": N, "error": {...} }.
     assert!(
-        response_has_adapter_not_found_error(&response),
-        "AC-012 BC-3.2.001: querying claroty.alerts from demo-org-a \
-         must return AdapterNotFound error (Claroty not registered for demo-org-a); \
-         actual response: {response:?}"
+        response.get("error").is_some(),
+        "AC-012 BC-3.2.001: querying claroty.alerts from demo-org-a must return a \
+         JSON-RPC error object (not a result envelope); got: {response:?}"
+    );
+    assert!(
+        response.get("result").is_none(),
+        "AC-012 BC-3.2.001: response must NOT contain a 'result' field when E-QUERY-032 is raised; \
+         got: {response:?}"
     );
 
-    // AC-012: zero data rows returned (no data leakage from demo-org-b).
+    // AC-012 assertion 2: error.code == -32602 (INVALID_PARAMS).
+    let error_code = response
+        .get("error")
+        .and_then(|e| e.get("code"))
+        .and_then(|c| c.as_i64());
+    assert_eq!(
+        error_code,
+        Some(-32602),
+        "AC-012 BC-3.2.001: E-QUERY-032 must map to MCP code -32602 (INVALID_PARAMS); \
+         got code: {error_code:?}; response: {response:?}"
+    );
+
+    // AC-012 assertion 3: error.message contains "E-QUERY-032", "claroty", and "demo-org-a".
+    let error_message = response
+        .get("error")
+        .and_then(|e| e.get("message"))
+        .and_then(|m| m.as_str())
+        .unwrap_or("");
+    assert!(
+        error_message.contains("E-QUERY-032"),
+        "AC-012 BC-3.2.001: error.message must contain 'E-QUERY-032'; got: {error_message:?}"
+    );
+    assert!(
+        error_message.contains("claroty"),
+        "AC-012 BC-3.2.001: error.message must mention sensor 'claroty'; got: {error_message:?}"
+    );
+    assert!(
+        error_message.contains("demo-org-a"),
+        "AC-012 BC-3.2.001: error.message must mention org 'demo-org-a'; got: {error_message:?}"
+    );
+
+    // AC-012 assertion 4: zero data rows (no leakage from demo-org-b).
+    // When a JSON-RPC error is returned there is no ResponseEnvelope, so rows is empty.
     let rows = extract_rows_from_envelope(&response);
     assert!(
         rows.is_empty(),
-        "AC-012 BC-3.2.001: zero data rows must be returned when AdapterNotFound; \
+        "AC-012 BC-3.2.001: zero data rows must be returned when E-QUERY-032 is raised; \
          actual row count: {}; rows: {rows:?}",
         rows.len()
     );
@@ -785,33 +847,57 @@ async fn test_EC_005_e2e_limit_200_returns_paginated_rows() {
 
 /// Extract the data rows from a ResponseEnvelope JSON.
 ///
-/// ResponseEnvelope shape (BC-2.09.008): `{ "rows": [...], "_meta": {...} }` or
-/// similar structure. Implementer aligns with the actual ResponseEnvelope JSON shape
-/// produced by prism-mcp's tool_query handler.
+/// ResponseEnvelope shape (prism-mcp/src/safety_envelope.rs + server.rs):
+///
+/// The `tool_query_with_params` helper in `helpers/mod.rs` extracts the
+/// `content[0].text` field from the MCP tools/call result and parses it as JSON,
+/// yielding the top-level `ResponseEnvelope` struct.  The `query` handler builds:
+///
+/// ```json
+/// {
+///   "_meta": { ... },
+///   "results": {
+///     "rows": [...],
+///     "returned_results": N,
+///     "total_available": N,
+///     "is_truncated": false
+///   },
+///   "content": [{ "type": "text", "text": "N results found" }],
+///   "structuredContent": { "results": { "rows": [...], ... } }
+/// }
+/// ```
+///
+/// The `results` field is the payload JSON object; rows live at `results.rows`.
+/// `structuredContent.results` mirrors `results` (same data, different field path).
+///
+/// This function is load-bearing for EC-004 (LIMIT 0 → rows present-and-empty,
+/// distinguishable from "rows key missing") and EC-005 / AC-003/004/005/006/013
+/// (non-empty rows from DTU data).  An incorrect path (e.g., top-level `["rows"]`)
+/// always returns `Vec::new()` — making EC-004 vacuously true (non-load-bearing)
+/// and EC-005/AC-003+ false-fail.
 fn extract_rows_from_envelope(envelope: &serde_json::Value) -> Vec<serde_json::Value> {
-    // Try common ResponseEnvelope shapes.
-    // Implementer: align with the actual JSON shape of the ResponseEnvelope.
-    if let Some(rows) = envelope.get("rows").and_then(|r| r.as_array()) {
+    // Primary path: ResponseEnvelope.results.rows
+    // (payload built in server.rs query handler, wrapped by SafetyEnvelopeBuilder).
+    if let Some(rows) = envelope
+        .get("results")
+        .and_then(|r| r.get("rows"))
+        .and_then(|r| r.as_array())
+    {
         return rows.clone();
     }
-    if let Some(data) = envelope.get("data").and_then(|d| d.as_array()) {
-        return data.clone();
+
+    // Mirror path: ResponseEnvelope.structuredContent.results.rows
+    // (structuredContent mirrors results per BC-2.09.001).
+    if let Some(rows) = envelope
+        .get("structuredContent")
+        .and_then(|sc| sc.get("results"))
+        .and_then(|r| r.get("rows"))
+        .and_then(|r| r.as_array())
+    {
+        return rows.clone();
     }
-    // If the envelope contains a "result" wrapper from MCP tools/call:
-    if let Some(content) = envelope.get("result").and_then(|r| r.get("content")) {
-        if let Some(text) = content
-            .as_array()
-            .and_then(|a| a.first())
-            .and_then(|c| c.get("text"))
-            .and_then(|t| t.as_str())
-        {
-            if let Ok(inner) = serde_json::from_str::<serde_json::Value>(text) {
-                if let Some(rows) = inner.get("rows").and_then(|r| r.as_array()) {
-                    return rows.clone();
-                }
-            }
-        }
-    }
+
+    // For error responses (JSON-RPC error object or AdapterNotFound) there are no rows.
     Vec::new()
 }
 
@@ -829,18 +915,24 @@ fn assert_response_has_no_error(envelope: &serde_json::Value) {
     }
 }
 
-/// Return true if the response indicates AdapterNotFound or equivalent isolation error.
+/// Return true if the response indicates cross-org isolation error (E-QUERY-032 or equivalent).
 ///
-/// Implementer: align with the exact error variant string emitted by the query engine
-/// for AdapterNotFound. BC-3.2.001 postcondition: "state.lookup(org_id_A, resource_id)
-/// returns None when entry was stored under org_id_B".
+/// The canonical error after CRIT-001 fix is `PrismError::SensorNotRegisteredForOrg`
+/// (E-QUERY-032): raised at the query-planning boundary by `resolve_source_refs`
+/// when an explicit org scope is given and the sensor is not registered for that org.
+///
+/// The `query` MCP handler returns engine errors as JSON-RPC errors via
+/// `map_err(to_error_data)?`. The full JSON-RPC response has shape:
+///   `{ "jsonrpc": "2.0", "id": N, "error": { "code": -32602, "message": "E-QUERY-032: ..." } }`
+///
+/// BC-3.2.001 postcondition 5: sensor registered for OTHER orgs but not this org
+/// must raise E-QUERY-032 (surfaced operational error), not a silent empty result.
 fn response_has_adapter_not_found_error(envelope: &serde_json::Value) -> bool {
     let envelope_str = envelope.to_string();
-    // Accept any of: "AdapterNotFound", "adapter_not_found", "sensor not registered",
-    // "E-SENSOR-001", or equivalent isolation error text.
-    envelope_str.contains("AdapterNotFound")
-        || envelope_str.contains("adapter_not_found")
-        || envelope_str.contains("sensor not registered")
-        || envelope_str.contains("E-SENSOR-001")
-        || envelope_str.contains("not registered for org")
+    // Primary: E-QUERY-032 (CRIT-001 fix — org-scoped isolation surfaced error).
+    envelope_str.contains("E-QUERY-032")
+        // Secondary: legacy E-SENSOR-010 signal (pre-CRIT-001 build compatibility).
+        || envelope_str.contains("E-SENSOR-010")
+        || envelope_str.contains("no adapter registered for sensor id")
+        || envelope_str.contains("AdapterNotFound")
 }
