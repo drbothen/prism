@@ -1196,30 +1196,91 @@ pub trait CredentialRefProbe: Send + Sync {
     fn probe(&self, sensor_id: &str, ref_name: &str) -> Result<Option<String>, BootError>;
 }
 
-/// Production credential ref probe — uses the `keyring` crate.
+/// Production credential ref probe — checks env-var chain first, then the `keyring` crate.
 ///
-/// Constructs a namespaced `keyring::Entry("prism", "{sensor_id}/{ref_name}")` and
-/// calls `get_password()` to check existence. The value is immediately discarded
-/// (AD-017 AI-opaque model: credential values MUST NOT be retained).
+/// ## Resolution order (BC-2.03.006 / BC-2.03.009 consistency)
 ///
-/// Returns `Ok(None)` on the success path — the keyring backend (ADR-007 / AD-017)
-/// stores credential names only; no `auth_type` shape metadata is stored alongside
-/// the credential value in the keyring entry. Per [ADR-026 §D3 Rule C Backend Scope
-/// (D-706 amendment)]: Rule C (E-SPEC-014 credential structural shape mismatch)
-/// enforcement is conditional on the credential backend exposing shape metadata.
-/// Shape introspection requires a separate metadata sidecar or plugin-manifest
-/// declaration; that capability is deferred to PLUGIN-MIGRATION-001-A.
+/// The probe mirrors the `resolve_credential` resolution chain so that boot-step-5
+/// validation and query-time credential resolution use the same priority order:
 ///
-/// The `if let Some(actual_shape)` gate in step5 is structurally correct for when a
-/// future backend (e.g., a keyring metadata sidecar or plugin-manifest probe) returns
-/// the activating variant. It is intentionally a no-op with the current keyring backend.
+/// 1. **`{SENSOR_UPPER}_{REF_UPPER}_FILE` env var** — if set and file is readable, credential
+///    exists. The file contents are NOT read by the probe (AD-017 reference-only model).
+/// 2. **`{SENSOR_UPPER}_{REF_UPPER}` env var** — if set to a non-empty value, credential exists.
+/// 3. **Keyring** — `keyring::Entry("prism", "{sensor_id}/{ref_name}")`. If found, credential
+///    exists. If `NoEntry`, the credential is absent from ALL sources → `CredentialRefInvalid`.
 ///
-/// Rules A and B (E-SPEC-012, E-SPEC-013) DO fire in production via
-/// `validate_cross_composition` at spec-load time. Only Rule C is backend-conditional.
+/// This ordering ensures that sensors whose credentials are configured via env vars (the
+/// canonical approach for DTU E2E tests and container deployments) pass step-5 validation
+/// even when the keyring has no entry for those sensors.
+///
+/// ## Return value
+///
+/// Returns `Ok(None)` on the success path — neither env-var nor keyring backends carry
+/// `auth_type` shape metadata, so Rule C (E-SPEC-014) is not enforced for this probe.
+/// Per ADR-026 §D3 Rule C Backend Scope (D-706 amendment): Rule C enforcement is
+/// conditional on the credential backend exposing shape metadata. Shape introspection
+/// is deferred to PLUGIN-MIGRATION-001-A.
+///
+/// ## AD-017 compliance
+///
+/// The env-var VALUE is checked for non-emptiness but is NOT stored or logged.
+/// The file path (from the `_FILE` env var) is checked for existence only; file
+/// contents are NOT read. Keyring secret values are discarded immediately after the
+/// existence check. No credential value transits AI context.
+///
+/// Rules A and B (E-SPEC-012, E-SPEC-013) fire via `validate_cross_composition` at
+/// spec-load time. Only Rule C is backend-conditional.
 pub struct KeyringCredentialProbe;
 
 impl CredentialRefProbe for KeyringCredentialProbe {
     fn probe(&self, sensor_id: &str, ref_name: &str) -> Result<Option<String>, BootError> {
+        // BC-2.03.006 / BC-2.03.009: check env-var chain FIRST (consistent with
+        // resolve_credential priority ordering). Env-var resolution is the primary
+        // credential source for container/CI deployments and DTU E2E tests.
+        //
+        // Priority 1: {SENSOR_UPPER}_{REF_UPPER}_FILE env var
+        let sensor_upper = sensor_id.to_uppercase().replace('-', "_");
+        let ref_upper = ref_name.to_uppercase().replace('-', "_");
+        let file_env = format!("{sensor_upper}_{ref_upper}_FILE");
+        let direct_env = format!("{sensor_upper}_{ref_upper}");
+
+        if let Ok(file_path) = std::env::var(&file_env) {
+            // _FILE env var is set — credential is configured via file reference.
+            // AD-017: only check existence, do NOT read the file contents.
+            if std::path::Path::new(&file_path).exists() {
+                tracing::trace!(
+                    sensor_id = %sensor_id,
+                    ref_name = %ref_name,
+                    env_var = %file_env,
+                    "Credential ref validated via _FILE env var (BC-2.03.009 priority 1)"
+                );
+                return Ok(None);
+            }
+            // File path set but does not exist — treat as backend unavailable
+            // (consistent with resolve_credential's BackendUnavailable on file-not-found).
+            return Err(BootError::ConfigInvalid(format!(
+                "Credential ref '{ref_name}' for sensor '{sensor_id}' is configured via \
+                 env var '{file_env}' pointing to '{file_path}' which does not exist. \
+                 Ensure the file exists and is readable (BC-2.03.013 / BC-2.03.009)."
+            )));
+        }
+
+        // Priority 2: {SENSOR_UPPER}_{REF_UPPER} direct env var
+        if let Ok(val) = std::env::var(&direct_env)
+            && !val.is_empty()
+        {
+            // AD-017: value present but not stored/logged.
+            tracing::trace!(
+                sensor_id = %sensor_id,
+                ref_name = %ref_name,
+                env_var = %direct_env,
+                "Credential ref validated via env var (BC-2.03.009 priority 2)"
+            );
+            return Ok(None);
+        }
+        // Env var absent or empty — fall through to keyring.
+
+        // Priority 3: keyring
         let account = format!("{sensor_id}/{ref_name}");
         let entry = keyring::Entry::new("prism", &account).map_err(|e| {
             BootError::CredentialPermissionDenied(format!(
@@ -1235,14 +1296,15 @@ impl CredentialRefProbe for KeyringCredentialProbe {
                 tracing::trace!(
                     sensor_id = %sensor_id,
                     ref_name = %ref_name,
-                    "Credential ref validated (exists in backend; no auth_type metadata available)"
+                    "Credential ref validated via keyring (BC-2.03.013)"
                 );
                 Ok(None)
             }
             Err(keyring::Error::NoEntry) => Err(BootError::CredentialRefInvalid(format!(
                 "Unresolvable credential ref: '{ref_name}' for sensor '{sensor_id}' not found in \
-                 keyring backend (BC-2.03.013 TV-03-013-003). \
-                 Register the credential with: prism credential set {sensor_id} {ref_name}"
+                 any credential source (env var '{direct_env}', file var '{file_env}', keyring). \
+                 Set env var '{direct_env}' or register the credential with: \
+                 prism credential set {sensor_id} {ref_name} (BC-2.03.013 TV-03-013-003)."
             ))),
             Err(e) => Err(BootError::CredentialPermissionDenied(format!(
                 "Credential store access denied: keyring backend returned error \
