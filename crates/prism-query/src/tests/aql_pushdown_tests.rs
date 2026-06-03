@@ -25,14 +25,19 @@
 //! function) directly with parsed AST predicates, proving end-to-end that the
 //! query-layer seeding is correct from parse to FilterMap output.
 //!
-//! # SID-1 compliance
-//! These tests drive the production seeding path (query layer → FilterMap)
-//! WITHOUT an external DTU dependency. The E2E subprocess test in
-//! `crates/prism-bin/tests/e2e_smoke.rs` exercises the full pipeline including
-//! the live DTU; these unit tests prove the filter extraction logic at the
-//! query-layer boundary.
+//! # SID-1 compliance (AC-014 coverage split)
+//! These unit tests drive the production seeding path (query layer → FilterMap)
+//! WITHOUT an external DTU dependency. They prove that `predicate_tree_to_filter_map`
+//! extracts `FilterMap["aql"] = Value::String("in:devices")` from the parsed AST,
+//! which is the query-layer boundary assertion for BC-2.11.007 Mechanism B.
 //!
-//! Story: S-DEMO-002 v1.5 Task 19 (AC-014 / D-934 scope)
+//! The full WHERE-clause→DTU round-trip assertion — verifying that the Armis DTU
+//! actually receives `GET /api/v1/search?aql=in:devices` — is covered by
+//! `test_BC_2_11_007_e2e_armis_aql_pushdown_devices_dtu_roundtrip` in
+//! `crates/prism-bin/tests/e2e_smoke.rs` (marked `#[ignore]` per SID-1 §4;
+//! requires DTU server + prism binary; un-gated in CI via 'e2e' nextest profile).
+//!
+//! Story: S-DEMO-002 v1.6 Task 19 (AC-014 / D-934 scope)
 //! BCs: BC-2.11.007 §Mechanism B, BC-2.11.001
 //! DTU path: armis.sensor.toml path_template = `/api/v1/search?aql=${query.filter.aql}`
 
@@ -46,30 +51,29 @@ mod tests {
     // AC-014 / BC-2.11.007 §Mechanism B: canonical seeding path assertions
     // ---------------------------------------------------------------------------
 
-    /// AC-014 / Task 19: end-to-end AQL push-down seeding via the canonical path.
+    /// AC-014 / Task 19: AQL push-down seeding — parse to FilterMap (query-layer boundary).
     ///
     /// Verifies that parsing `FROM armis.devices WHERE aql = 'in:devices' LIMIT 5`
     /// and passing the WHERE predicate to `predicate_tree_to_filter_map` (which is
     /// the production seeding function called by `extract_push_down_filters_as_map`
     /// in `materialization.rs`) produces `FilterMap["aql"] = Value::String("in:devices")`.
     ///
-    /// This is the REAL production seeding path (BC-2.11.007 Mechanism B).
-    /// The FilterMap is then passed as `QueryParams.filters` to the fan-out pipeline,
-    /// which the `SpecDrivenSensorAdapter` converts to `FetchContext.query_filters["aql"]`,
-    /// which `PipelineExecutor` interpolates into `${query.filter.aql}` in the
-    /// `armis.sensor.toml` path template (`/api/v1/search?aql=${query.filter.aql}`).
+    /// # What this test asserts (query-layer boundary only)
     ///
-    /// BC-2.11.007 test vector: `FROM armis_devices WHERE aql = 'in:devices' LIMIT 100`
-    /// → `FetchContext.query_filters["aql"] = "in:devices"`;
-    /// DTU receives `GET /api/v1/search?aql=in:devices` (Mechanism B passthrough).
+    /// This test asserts the AST→FilterMap step of BC-2.11.007 Mechanism B:
+    /// `WHERE aql = 'in:devices'` → `predicate_tree_to_filter_map` → `FilterMap["aql"] = "in:devices"`.
+    /// It does NOT assert FetchContext population or DTU receipt — those are downstream layers.
     ///
-    /// This test MUST remain non-ignored and run in standard CI. The E2E DTU
-    /// round-trip assertion (`?aql=in:devices` actually reaching the DTU server)
-    /// is in `crates/prism-bin/tests/e2e_smoke.rs` under `#[ignore]` per SID-1.
-    /// // E2E-001: requires DTU server running; un-gated in CI via 'e2e' nextest profile.
+    /// # Full WHERE-clause→DTU round-trip coverage
+    ///
+    /// The complete AC-014 end-to-end assertion (including that the Armis DTU actually
+    /// receives `GET /api/v1/search?aql=in:devices`) is in:
+    /// `test_BC_2_11_007_e2e_armis_aql_pushdown_devices_dtu_roundtrip` in
+    /// `crates/prism-bin/tests/e2e_smoke.rs` (marked `#[ignore]` per SID-1 §4;
+    /// requires DTU server + prism binary; un-gated in CI via 'e2e' nextest profile).
     #[allow(non_snake_case)]
     #[test]
-    fn test_BC_2_11_007_e2e_armis_aql_pushdown_seeded_in_fetch_context() {
+    fn test_BC_2_11_007_armis_aql_pushdown_seeded_in_filter_map() {
         // Parse the Armis query with an AQL WHERE predicate.
         // PrismQL Mechanism B form: WHERE aql = 'in:devices'
         // 'in:devices' is the Armis entity discriminator (research artifact 2026-06-01;
@@ -188,7 +192,7 @@ mod tests {
     /// Armis query form using a synthetic predicate.
     ///
     /// This tests the core seeding logic with a synthetic predicate (no parse step).
-    /// The companion test `test_BC_2_11_007_e2e_armis_aql_pushdown_seeded_in_fetch_context`
+    /// The companion test `test_BC_2_11_007_armis_aql_pushdown_seeded_in_filter_map`
     /// tests the full parse → predicate → FilterMap pipeline.
     #[allow(non_snake_case)]
     #[test]

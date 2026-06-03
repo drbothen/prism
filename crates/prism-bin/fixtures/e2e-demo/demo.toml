@@ -5,7 +5,7 @@
 # after the server starts.
 #
 # Used by: tests/e2e_smoke.rs via helpers::launch_dtu_server()
-# Story: S-DEMO-002 v1.5
+# Story: S-DEMO-002 v1.6
 # Risk mitigation[2]: use ephemeral ports (bind :0) for DTU server.
 
 [harness]

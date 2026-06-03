@@ -26,6 +26,7 @@
 //! | `test_BC_3_2_001_e2e_multi_org_boot_registers_correct_adapter_count` | AC-011 | BC-3.2.001, BC-2.22.001 |
 //! | `test_BC_3_2_001_e2e_cross_org_sensor_query_returns_e_query_032` | AC-012 | BC-3.2.001 |
 //! | `test_BC_3_2_001_e2e_dtu_multi_tenant_each_org_reaches_correct_clone_port` | AC-013 | BC-3.2.001 |
+//! | `test_BC_2_11_007_e2e_armis_aql_pushdown_devices_dtu_roundtrip` | AC-014 | BC-2.11.007 |
 //! | `test_EC_004_e2e_limit_zero_returns_empty_not_error` | EC-004 | BC-2.11.001 |
 //! | `test_EC_005_e2e_limit_200_returns_paginated_rows` | EC-005 | BC-2.11.001 |
 //!
@@ -211,6 +212,140 @@ async fn test_BC_2_11_005_e2e_armis_query_returns_data() {
 
     // Assert no error code in response.
     assert_response_has_no_error(&response);
+}
+
+// ---------------------------------------------------------------------------
+// AC-014 / BC-2.11.007: AQL push-down WHERE-clause→DTU round-trip
+// ---------------------------------------------------------------------------
+
+/// AC-014 / BC-2.11.007 §Mechanism B: full WHERE aql='in:devices' → DTU round-trip.
+///
+/// This is the E2E subprocess test that closes the AC-014 coverage gap identified in
+/// F-DEMO002-LP-MED-002. It asserts BOTH halves of the full pipeline:
+///
+/// 1. The prism query `FROM armis_devices WHERE aql = 'in:devices' LIMIT 5` returns
+///    non-empty rows from the Armis DTU (data round-trip succeeds end-to-end).
+/// 2. The Armis DTU actually received `GET /api/v1/search?aql=in:devices` — verified
+///    by querying `GET /dtu/aql-log` on the Armis DTU and asserting the verbatim
+///    AQL string "in:devices" appears in `aql_strings` (BC-2.11.007 Mechanism B;
+///    R-DTU-002 AQL capture; ADR-031 §D8-a).
+///
+/// # DTU capture mechanism
+///
+/// The Armis DTU's `GET /api/v1/search` handler calls `state.capture_aql(aql)` for
+/// every received `aql` query parameter (routes/search.rs). The AQL log is exposed
+/// at `GET /dtu/aql-log` as `{"aql_strings": [...]}`. The test queries this endpoint
+/// directly on the Armis DTU's bound port (obtained from `dtu_ports.base_url("armis")`).
+///
+/// # Relationship to unit tests in aql_pushdown_tests.rs
+///
+/// The unit tests in `prism-query/src/tests/aql_pushdown_tests.rs` assert only the
+/// query-layer (AST→FilterMap) step. THIS test is the load-bearing assertion for
+/// the full pipeline: PQL parse → FilterMap → FetchContext → PipelineExecutor →
+/// DTU HTTP call → aql-log capture.
+///
+/// # SID-1 compliance
+///
+/// This test is `#[ignore]`'d because it requires the DTU demo server binary and
+/// the prism binary to be available (E2E-001 gate). It is un-gated in CI via the
+/// `[profile.e2e]` nextest profile.
+///
+/// // E2E-001: requires DTU server running + prism binary; un-gated in CI via 'e2e' nextest profile.
+#[tokio::test]
+#[ignore = "E2E-001: requires DTU server running + prism binary; un-gated in CI via 'e2e' nextest profile."]
+async fn test_BC_2_11_007_e2e_armis_aql_pushdown_devices_dtu_roundtrip() {
+    let config_dir = TempDir::new().expect("failed to create temp config dir");
+
+    // Step 1: Launch the DTU demo server (all 4 clones including Armis).
+    let fixture_config =
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("fixtures/e2e-demo/demo.toml");
+    let (_dtu_guard, dtu_ports) = helpers::launch_dtu_server(&fixture_config, &config_dir)
+        .await
+        .expect("DTU server did not write urls.json within 30s (EC-001)");
+
+    // Step 2: Write prism config pointing at DTU ports.
+    helpers::write_demo_config(config_dir.path(), &dtu_ports).expect("write_demo_config failed");
+
+    // Step 3: Launch prism-bin.
+    let (_prism_guard, mut mcp) = helpers::launch_prism_bin(config_dir.path())
+        .await
+        .expect("prism-bin exited unexpectedly before MCP handshake (EC-002)");
+
+    // Step 4: MCP initialize handshake.
+    mcp.initialize().expect("MCP initialize handshake failed");
+
+    // Step 5: Issue the AC-014 query with an explicit AQL WHERE predicate.
+    // BC-2.11.007 Mechanism B: `WHERE aql = 'in:devices'` seeds FetchContext.query_filters["aql"]
+    // which PipelineExecutor interpolates into the path_template
+    // `/api/v1/search?aql=${query.filter.aql}`, forwarding the AQL opaquely to the DTU.
+    let response = mcp
+        .tool_query("FROM armis_devices WHERE aql = 'in:devices' LIMIT 5")
+        .expect("AC-014: tool_query failed for armis_devices with aql WHERE predicate");
+
+    // Assertion A: prism returns non-empty data rows (pipeline succeeded end-to-end).
+    let rows = extract_rows_from_envelope(&response);
+    assert!(
+        !rows.is_empty(),
+        "AC-014 BC-2.11.007: FROM armis_devices WHERE aql = 'in:devices' LIMIT 5 \
+         must return at least 1 row (full pipeline: PQL parse → FilterMap → FetchContext → \
+         DTU /api/v1/search?aql=in:devices → $.data.results); \
+         got 0 rows. response: {response:?}"
+    );
+
+    // Assert no error envelope.
+    assert_response_has_no_error(&response);
+
+    // Assertion B: the Armis DTU received the verbatim AQL "in:devices".
+    // Query GET /dtu/aql-log on the Armis DTU's bound port.
+    // dtu_ports.base_url("armis") returns the Armis clone's HTTP base URL
+    // (e.g., "http://127.0.0.1:<port>"). The aql-log endpoint is at /dtu/aql-log.
+    let armis_base_url = dtu_ports
+        .base_url("armis")
+        .expect("AC-014: Armis DTU base_url not found in urls.json — verify demo.toml has [clones.armis] enabled");
+
+    let http_client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .expect("AC-014: reqwest client build must succeed");
+
+    let aql_log_resp = http_client
+        .get(format!("{armis_base_url}/dtu/aql-log"))
+        .send()
+        .await
+        .expect("AC-014: GET /dtu/aql-log on Armis DTU must not fail at transport layer");
+
+    assert_eq!(
+        aql_log_resp.status().as_u16(),
+        200,
+        "AC-014 BC-2.11.007: GET /dtu/aql-log on Armis DTU must return HTTP 200; \
+         got {}",
+        aql_log_resp.status()
+    );
+
+    let aql_log_body: serde_json::Value = aql_log_resp
+        .json()
+        .await
+        .expect("AC-014: GET /dtu/aql-log response must be valid JSON");
+
+    let aql_strings = aql_log_body["aql_strings"]
+        .as_array()
+        .expect("AC-014 BC-2.11.007: aql_log response must have 'aql_strings' array field");
+
+    // BC-2.11.007 Mechanism B postcondition: the verbatim AQL "in:devices" must appear
+    // in the DTU's aql-log. The PipelineExecutor percent-encodes the AQL in the URL;
+    // axum's Query<SearchQueryParams> extractor percent-decodes it before capture_aql()
+    // is called — so the log entry equals the original unencoded string.
+    assert!(
+        aql_strings.iter().any(|s| s.as_str() == Some("in:devices")),
+        "AC-014 BC-2.11.007 §Mechanism B: Armis DTU /dtu/aql-log must contain \
+         the verbatim AQL 'in:devices' after executing \
+         'FROM armis_devices WHERE aql = ''in:devices'' LIMIT 5'. \
+         REGRESSION INDICATOR: path_template in armis.sensor.toml may have lost \
+         '?aql=${{query.filter.aql}}', or FetchContext.query_filters[\"aql\"] seeding \
+         is broken, or DTU capture_aql() was removed from get_search handler. \
+         aql_strings received: {:?}",
+        aql_strings
+    );
 }
 
 // ---------------------------------------------------------------------------
