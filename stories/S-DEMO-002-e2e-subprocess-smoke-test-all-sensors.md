@@ -6,7 +6,7 @@ wave: 5
 epic_id: E-DEMO
 priority: P0
 status: ready
-version: "1.6"
+version: "1.7"
 level: "L4"
 producer: story-writer
 timestamp: "2026-06-02T00:00:00Z"
@@ -125,11 +125,11 @@ cycle: "v1.0.0-brownfield"
 phase: 3
 ---
 
-# S-DEMO-002 v1.6 — prism-bin: E2E Subprocess Smoke Test (All 4 Sensors + Multi-Org Isolation)
+# S-DEMO-002 v1.7 — prism-bin: E2E Subprocess Smoke Test (All 4 Sensors + Multi-Org Isolation)
 
 **Story ID:** S-DEMO-002
 **Status:** ready
-**Version:** v1.6
+**Version:** v1.7
 **Wave:** 5
 **Priority:** P0
 **Points:** 11
@@ -209,12 +209,29 @@ NOT `id`) is present and non-null for each row; no error code in the response.
 (traces to BC-2.11.005 postcondition: "Sensor responses are normalized to OCSF via the OCSF normalizer")
 Red Gate test: `test_BC_2_11_005_e2e_crowdstrike_query_returns_ocsf_data`
 
-### AC-004: Armis query returns non-empty Arrow batches
+### AC-004: Armis query with AQL predicate returns non-empty Arrow batches
 Given: Demo-org's Armis sensor spec has `base_url` overlaid to point at the DTU clone.
-When: The test sends `tools/call` with tool name `query` and input `"FROM armis_devices LIMIT 5"`
-(or the canonical table name for Armis per the TOML spec; call shape: `{"name": "query", "arguments": {"query": "..."}}`).
-Then: The ResponseEnvelope contains at least 1 row; no error code.
-(traces to BC-2.11.005 postcondition: same as AC-003 for Armis sensor)
+When: The test sends `tools/call` with tool name `query` and input
+`"FROM armis_devices WHERE aql = 'in:devices' LIMIT 5"`
+(call shape: `{"name": "query", "arguments": {"query": "FROM armis_devices WHERE aql = 'in:devices' LIMIT 5"}}`).
+Then: The ResponseEnvelope contains at least 1 row; no error code; the DTU clone receives
+`GET /api/v1/search?aql=in:devices` (AQL value forwarded opaque via `${query.filter.aql}`
+interpolation in `armis.sensor.toml` `fetch_devices` path_template).
+
+**AQL predicate is mandatory for Armis queries.** The `armis.sensor.toml` `fetch_devices` step
+declares `path_template = "/api/v1/search?aql=${query.filter.aql}"` with NO default for
+`${query.filter.aql}`. A bare `FROM armis_devices LIMIT 5` (no WHERE aql = ...) is NOT a
+supported query for the Armis sensor — the `${query.filter.aql}` interpolation variable is absent
+and the fetch errors before any HTTP call. This mirrors the real Armis Centrix `/api/v1/search`
+API contract, which requires an `aql` query parameter. `WHERE aql = 'in:devices'` is the correct
+pattern (AC-014 AQL push-down convention; `in:devices` is the real Armis entity discriminator
+per research artifact 2026-06-01 and `armis.sensor.toml` DTU-EXT-003 comment).
+
+Note: the same AQL requirement applies to the `armis_alerts` table — any test querying
+`FROM armis_alerts` must supply `WHERE aql = 'in:alerts'` (or a valid Armis AQL filter string).
+
+(traces to BC-2.11.005 postcondition: same as AC-003 for Armis sensor; BC-2.11.007 §Mechanism B
+Verbatim-AQL Passthrough — AQL predicate is the mandatory calling convention for Armis tables)
 Red Gate test: `test_BC_2_11_005_e2e_armis_query_returns_data`
 
 ### AC-005: Claroty query returns non-empty Arrow batches
@@ -456,7 +473,7 @@ Version source: workspace `Cargo.toml`. `rmcp` version confirmed from S-5.01-FOL
 8. **Implement** `launch_dtu_server()` — spawns `prism-dtu-demo-server start --config <CARGO_MANIFEST_DIR>/fixtures/e2e-demo/demo.toml` with temp state dir; polls for `urls.json` with 30s timeout; returns `SubprocessGuard` + parsed ports. (Config path is `fixtures/e2e-demo/demo.toml` per FSR corrected by F-PB-MED-002.)
 9. **Implement** `launch_prism_bin()` — spawns `prism-bin start --config <temp_dir>` with stdin/stdout pipes; wraps stdio in a `rmcp` client or raw JSON-RPC writer; returns `SubprocessGuard` + IO handles.
 10. **Implement** MCP handshake in test — send `initialize`, receive `initialized`, send `tools/list`, assert `query` present in the tools array (the canonical name registered by `PrismServer`; NOT `tool_query`).
-11. **Implement** 4 × query assertions (AC-003..006) — each sends `tools/call` with appropriate query string; asserts non-empty data and OCSF fields.
+11. **Implement** 4 × query assertions (AC-003..006) — each sends `tools/call` with appropriate query string; asserts non-empty data and OCSF fields. For Armis (AC-004), the query MUST supply the AQL predicate: `"FROM armis_devices WHERE aql = 'in:devices' LIMIT 5"` — bare `FROM armis_devices LIMIT 5` is invalid per AC-004.
 12. **Implement** `_meta` assertions (AC-007) — parse `ResponseEnvelope` JSON; assert `trust_level` and `safety_flags`.
 13. **Implement** SIGTERM teardown (AC-008) in `SubprocessGuard::drop()`.
 14. **Add** `[profile.e2e]` to `.config/nextest.toml` — un-ignores tests tagged `// E2E-001:`. (Path is `.config/nextest.toml`, NOT `.cargo/nextest.toml` — LOW-001 corrected.)
@@ -519,7 +536,7 @@ Version source: workspace `Cargo.toml`. `rmcp` version confirmed from S-5.01-FOL
 
 2. **MCP client in test**: Should the test use `rmcp` as an MCP client (requires adding `rmcp` as a dev-dependency) or should it write raw JSON-RPC messages to stdin and parse stdout? The rmcp approach is higher-fidelity but adds a dev dep. The raw JSON-RPC approach is simpler and more portable. Architect to confirm.
 
-3. **Canonical Armis/Claroty/Cyberint table names**: The query strings in AC-004..006 need the exact table names as declared in the TOML specs (e.g., is it `armis_devices` or `armis_asset_vulnerabilities`?). Story-writer deferred to implementer to read `crates/prism-sensors/specs/` for the canonical names. Story-writer notes that using the wrong table name produces an `AdapterNotFound` error that masks the AC-002-A closure test; implementer must verify before writing the query strings.
+3. **Canonical Armis/Claroty/Cyberint table names (RESOLVED v1.7)**: Canonical Armis table names are `armis_devices` and `armis_alerts` (per `armis.sensor.toml` `table_name = "devices"` and `table_name = "alerts"` + `sensor_id = "armis"` prefix). **Critical: both Armis tables require an AQL predicate** — `FROM armis_devices WHERE aql = 'in:devices'` and `FROM armis_alerts WHERE aql = 'in:alerts'`. A bare `FROM armis_devices LIMIT 5` (no AQL WHERE) will error because `path_template = "/api/v1/search?aql=${query.filter.aql}"` has no default (AC-004 rationale). Claroty: `claroty_alerts` + `claroty_devices`. Cyberint: `cyberint_alerts`. CrowdStrike: `crowdstrike_detections`. Implementer must confirm Cyberint/CrowdStrike names from their TOML specs; Armis and Claroty are confirmed.
 
 4. **Credential bootstrap mechanism**: `prism-credentials` has a `test-helpers` feature that may expose a direct keyring write function. If that feature exists, use it. If not, the test should spawn a `security add-generic-password` (macOS) or `secret-tool store` (Linux) subprocess. Confirm the correct mechanism by reading `crates/prism-credentials/src/lib.rs`.
 
@@ -574,6 +591,7 @@ Well within budget; second-cheapest story in the E-DEMO epic.
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.7 | 2026-06-02 | product-owner | SPEC fix — LOCAL adversarial CRIT F-DEMO002-P2-CRIT-001 closure. Human decision: Option A — faithful to real Armis API; require AQL predicate. (1) AC-004 rewritten: query changed from bare `FROM armis_devices LIMIT 5` to `FROM armis_devices WHERE aql = 'in:devices' LIMIT 5`; added mandatory-AQL rationale block citing `armis.sensor.toml` path_template `"/api/v1/search?aql=${query.filter.aql}"` (no default), real Armis `/api/v1/search` API contract, and AC-014 Mechanism B convention; noted same requirement applies to `armis_alerts` table. (2) Task 11 updated: Armis query must include AQL predicate. (3) Open Question 3 resolved: Armis table names confirmed (`armis_devices`, `armis_alerts`); AQL-mandatory calling convention documented. AC-011 unchanged — its Armis verification is boot-time adapter registration (adapter count = 8), not query execution; no AQL predicate required. Rationale note: this aligns S-DEMO-002 to the merged Armis spec (armis.sensor.toml v1.0.0) per Source-of-Truth precedence (story spec defers to BC/TOML spec on contract semantics); the demo demonstrates the seeded-AQL path, faithful to the real Armis Centrix API. |
 | 1.6 | 2026-06-02 | product-owner | SPEC-EVOLUTION burst — LOCAL adversarial CRIT-001 / MED-002 / LOW-001 closures. (1) CRIT-001: AC-012 matcher contract replaced — `response_has_adapter_not_found_error` pattern retired; new matcher asserts MCP error code `-32602` + message containing `"E-QUERY-032"`, `"claroty"`, `"demo-org-a"`. Red Gate test renamed: `test_BC_3_2_001_e2e_cross_org_sensor_query_returns_e_query_032`. Rationale: `map_prism_error` redacts all E-SENSOR-* to "Internal error" (AD-017); AC-012 could never pass with the old E-SENSOR-010 substring match. New E-QUERY-032 is credential-safe (org slug + sensor type only) and surfaces as -32602. Companion changes: error-taxonomy.md v1.58 (E-QUERY-032 definition), BC-3.2.001 v0.7 (postcondition 5, EC-006/007, TV-3.2.001-06). (2) MED-002: AC-007 injection-scan assertion adjudicated — assertion `safety_flags == []` is meaningful ONLY when `results` is a non-empty array; test must verify at least 1 row returned. Added "What `wrap()` scans" narrative clarifying `collect_string_fields` is invoked for Array results (query tool rows), NOT for Object results (explain/alias responses). Implementation note added for BC-2.09.008 v1.x follow-up (object-shape scanning is pre-existing out-of-scope per `wrap()` doc comment SS-09 hardening section). Code change to `wrap()` is implementer scope. (3) LOW-001: FSR `.cargo/nextest.toml` corrected to `.config/nextest.toml` (actual on-disk path). Task 14 updated to match. |
 | 1.5 | 2026-06-02 | product-owner | Adversarial reconciliation (POL-27, POL-32). (1) F-*-CRIT-001 — all `tool_query` references replaced with canonical tool name `query` (BC-2.11.001 H1 source-of-truth): AC-002, AC-003, AC-004, AC-005, AC-006, AC-007, AC-012, AC-013, AC-014, Task 10, Task 17, Narrative, frontmatter comments. (2) F-*-CRIT-002 — AC-012 and Task 17 replace `org_slug="demo-org-a"` tool arg with canonical `clients: ["demo-org-a"]` per BC-2.11.001 Preconditions and `QueryToolParams` `#[serde(deny_unknown_fields)]` constraint; rationale note added inline. (3) F-*-MED — AC-014 seeding mechanism accuracy: added "Seeding mechanism accuracy" paragraph clarifying that INDEX column option is decorative (not a runtime gate today); generic `predicate_tree_to_filter_map` path extracts all `field='string'` equality predicates regardless of INDEX; implementer must NOT add `if column_is_index` branch. (4) F-PC-002 — coverage decisions for AC-009 (CI repetition, no new #[test]), AC-013 (new test Task 22: `test_BC_3_2_001_e2e_dtu_multi_tenant_each_org_reaches_correct_clone_port`), EC-004 (new test Task 23: `test_EC_004_e2e_limit_zero_returns_empty_not_error`), EC-005 (new test Task 24: `test_EC_005_e2e_limit_200_returns_paginated_rows`); red_gate_tests 5→9. (5) F-PB-MED-002 — FSR corrected: `crates/prism-bin/fixtures/e2e-demo/demo.toml` (not `tests/fixtures/demo.toml`); phantom `demo-prism.toml.template` removed (programmatic generation via `write_demo_config()`); Task 8 path updated. |
 | 1.4 | 2026-06-02 | product-owner | F-DEMO002-P1-MED-002 adjudication (POL-4 semantic drift). AC-014 rewritten to reflect BC-2.11.007 v1.5 Mechanism B (Verbatim-AQL Passthrough): user writes `aql = '<string>'` pseudo-column in PrismQL WHERE (not raw AQL syntax); query planner seeds verbatim string into FetchContext.query_filters["aql"]; forwarded opaque to DTU per R-DTU-002 / ADR-031 §D8-a. Task 19 updated: canonical seeding site is predicate_tree_to_filter_map / extract_push_down_filters_as_map path; explicitly prohibits parallel extract_aql_filter_value_from_ast function (one code path only per implementer recommendation). Story H1 version block updated v1.3→v1.4. |
