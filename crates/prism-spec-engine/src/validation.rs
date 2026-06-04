@@ -491,10 +491,23 @@ pub fn validate_step_methods(spec: &SensorSpec) -> Vec<crate::error::SpecEngineE
 
     for table in &spec.tables {
         for step in &table.steps {
-            // BC-2.16.009 §VR7 ordering: skip steps whose method still contains an
-            // unresolved ${env.VAR} token — Rule 6 already fired E-SPEC-024 for those;
-            // double-reporting the same field is noise, not signal (EC-009-020).
-            if step.method.contains("${env.") {
+            // BC-2.16.009 §VR7 ordering: skip steps whose method still contains a
+            // WELL-FORMED `${env.VAR_NAME}` token (where VAR_NAME matches `[A-Z0-9_]+`).
+            //
+            // Rule 6 (env_resolver) already fired E-SPEC-024 for those; double-reporting
+            // the same field is noise, not signal (EC-009-020).
+            //
+            // IMPORTANT: we test for a WELL-FORMED token using the SAME regex that Rule 6
+            // uses (ENV_TOKEN_REGEX from env_resolver.rs — TD-VSDD-060 single source of
+            // truth). A malformed pseudo-token like `${env.lower}`, `${env.foo-bar}`, or
+            // `${env.}` does NOT match the regex → is NOT skipped → falls through to the
+            // whitelist check below → produces E-SPEC-025 (F-LOCAL-P3-MED-002 fix).
+            //
+            // The old `contains("${env.")` substring check was too broad: it skipped ANY
+            // string containing the prefix, including malformed pseudo-tokens that Rule 6
+            // never processes. The DRIFT-D926-001 gap was those literals silently reaching
+            // the `_ => GET` pipeline fallback instead of being rejected here.
+            if crate::env_resolver::ENV_TOKEN_REGEX.is_match(&step.method) {
                 continue;
             }
 
@@ -1407,6 +1420,126 @@ mod http_method_whitelist_tests {
             "empty spec (no tables/steps) must produce zero errors, not panic; got {:?}",
             errors
         );
+    }
+
+    // -----------------------------------------------------------------------
+    // F-LOCAL-P3-MED-002 — malformed env pseudo-tokens must NOT be skipped by Rule 7
+    //
+    // The skip-guard must use the SAME well-formed token grammar as Rule 6
+    // (ENV_TOKEN_REGEX: `\$\{env\.[A-Z0-9_]+\}`).  Malformed pseudo-tokens like
+    // `${env.lower}`, `${env.foo-bar}`, and `${env.}` do NOT match that regex →
+    // Rule 6 never processes them → they reach Rule 7 as literal strings → they are
+    // NOT in ALLOWED_HTTP_METHODS → must produce E-SPEC-025.
+    //
+    // CONFIRM: the existing well-formed-unresolved-token tests above (EC-009-020 and
+    // test_BC_2_16_009_any_env_token_in_method_skipped_by_rule_7) are unaffected —
+    // `${env.SENSOR_STEP_METHOD}` and friends DO match ENV_TOKEN_REGEX and ARE skipped.
+    // -----------------------------------------------------------------------
+
+    /// F-LOCAL-P3-MED-002: `${env.lower}` (lowercase VAR_NAME) is a malformed
+    /// pseudo-token — Rule 6 only handles `[A-Z0-9_]+`, so this was NEVER resolved.
+    /// Rule 7 must NOT skip it (old broad `contains("${env.")` check skipped it).
+    /// It must produce E-SPEC-025 because it is not in ALLOWED_HTTP_METHODS.
+    #[test]
+    fn test_BC_2_16_009_malformed_env_lowercase_var_name_produces_e_spec_025() {
+        let method = "${env.lower}";
+        let spec = make_spec_with_method(method);
+        let errors = validate_step_methods(&spec);
+        assert!(
+            !errors.is_empty(),
+            "F-LOCAL-P3-MED-002: '{method}' has a lowercase VAR_NAME — Rule 6 grammar \
+             requires [A-Z0-9_]+ so this token is NEVER resolved; Rule 7 must NOT skip it; \
+             expected E-SPEC-025, got zero errors"
+        );
+        assert!(
+            errors.iter().any(|e| matches!(
+                e,
+                SpecEngineError::InvalidHttpMethod { method_value, .. }
+                    if method_value == method
+            )),
+            "F-LOCAL-P3-MED-002: error must be InvalidHttpMethod with method_value \
+             '{method}'; got {errors:?}",
+        );
+    }
+
+    /// F-LOCAL-P3-MED-002: `${env.foo-bar}` (hyphen in VAR_NAME) is a malformed
+    /// pseudo-token — Rule 6 grammar forbids hyphens (`[A-Z0-9_]+` only).
+    /// Rule 7 must NOT skip it; it must produce E-SPEC-025.
+    #[test]
+    fn test_BC_2_16_009_malformed_env_hyphen_in_var_name_produces_e_spec_025() {
+        let method = "${env.foo-bar}";
+        let spec = make_spec_with_method(method);
+        let errors = validate_step_methods(&spec);
+        assert!(
+            !errors.is_empty(),
+            "F-LOCAL-P3-MED-002: '{method}' has a hyphen in VAR_NAME — not matched by \
+             ENV_TOKEN_REGEX ([A-Z0-9_]+); Rule 7 must NOT skip it; expected E-SPEC-025, \
+             got zero errors"
+        );
+        assert!(
+            errors.iter().any(|e| matches!(
+                e,
+                SpecEngineError::InvalidHttpMethod { method_value, .. }
+                    if method_value == method
+            )),
+            "F-LOCAL-P3-MED-002: error must be InvalidHttpMethod with method_value \
+             '{method}'; got {errors:?}",
+        );
+    }
+
+    /// F-LOCAL-P3-MED-002: `${env.}` (empty VAR_NAME) is a malformed pseudo-token —
+    /// Rule 6 grammar requires at least one `[A-Z0-9_]` character after `env.`.
+    /// Rule 7 must NOT skip it; it must produce E-SPEC-025.
+    #[test]
+    fn test_BC_2_16_009_malformed_env_empty_var_name_produces_e_spec_025() {
+        let method = "${env.}";
+        let spec = make_spec_with_method(method);
+        let errors = validate_step_methods(&spec);
+        assert!(
+            !errors.is_empty(),
+            "F-LOCAL-P3-MED-002: '{method}' has an empty VAR_NAME — not matched by \
+             ENV_TOKEN_REGEX ([A-Z0-9_]+); Rule 7 must NOT skip it; expected E-SPEC-025, \
+             got zero errors"
+        );
+        assert!(
+            errors.iter().any(|e| matches!(
+                e,
+                SpecEngineError::InvalidHttpMethod { method_value, .. }
+                    if method_value == method
+            )),
+            "F-LOCAL-P3-MED-002: error must be InvalidHttpMethod with method_value \
+             '{method}'; got {errors:?}",
+        );
+    }
+
+    /// F-LOCAL-P3-MED-002: Confirm that a well-formed unresolved token IS still correctly
+    /// skipped after the fix — the skip-guard change must not regress EC-009-020.
+    ///
+    /// `${env.VALID_NAME}` (uppercase, underscore only) matches ENV_TOKEN_REGEX exactly.
+    /// After a failed Rule 6 pass (var unset), the method field still holds this raw token.
+    /// Rule 7 must skip it to prevent double-reporting E-SPEC-024 + E-SPEC-025.
+    #[test]
+    fn test_BC_2_16_009_well_formed_unresolved_token_still_skipped_after_f_med_002_fix() {
+        // These are all WELL-FORMED per ENV_TOKEN_REGEX `[A-Z0-9_]+`.
+        // Rule 7 must continue to skip them (no regression from the F-MED-002 fix).
+        for raw_token in &[
+            "${env.VALID_NAME}",
+            "${env.HTTP_METHOD}",
+            "${env.SENSOR_STEP_METHOD}",
+            "${env.A}",
+            "${env.A1_B2}",
+        ] {
+            let spec = make_spec_with_method(raw_token);
+            let errors = validate_step_methods(&spec);
+            assert!(
+                errors.is_empty(),
+                "F-LOCAL-P3-MED-002 non-regression: '{}' is a WELL-FORMED env token \
+                 (VAR_NAME matches [A-Z0-9_]+); Rule 7 must still SKIP it after the \
+                 malformed-token fix; got {:?}",
+                raw_token,
+                errors
+            );
+        }
     }
 }
 
