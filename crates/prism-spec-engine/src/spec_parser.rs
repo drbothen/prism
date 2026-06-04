@@ -1027,13 +1027,31 @@ impl SpecLoader {
                                     table_name,
                                     ..
                                 } => {
+                                    // F-LOCAL-P2-MED-001: toml_path must use NUMERIC indices
+                                    // (e.g., `sensor.tables[0].steps[1].method`), not string names.
+                                    // String names in `[{}]` slots produce unaddressable paths;
+                                    // canonical format matches validation.rs `format!("sensor.tables[{ti}].steps[{si}].method")`.
+                                    // Look up the indices by matching table_name and step name.
+                                    let toml_path = spec
+                                        .tables
+                                        .iter()
+                                        .enumerate()
+                                        .find(|(_, t)| &t.table_name == table_name)
+                                        .and_then(|(ti, t)| {
+                                            t.steps
+                                                .iter()
+                                                .enumerate()
+                                                .find(|(_, s)| &s.name == step_name)
+                                                .map(|(si, _)| {
+                                                    format!(
+                                                        "sensor.tables[{ti}].steps[{si}].method"
+                                                    )
+                                                })
+                                        });
                                     errors.push(PrismError::Spec(SpecError {
                                         code: SpecErrorCode::ESpec025,
                                         message: method_err.to_string(),
-                                        toml_path: Some(format!(
-                                            "sensor.tables[{}].steps[{}].method",
-                                            table_name, step_name
-                                        )),
+                                        toml_path,
                                         file_path: Some(file_name.clone()),
                                         line_number: None,
                                     }));

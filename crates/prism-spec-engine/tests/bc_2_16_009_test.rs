@@ -815,3 +815,164 @@ ocsf_class = "security_finding"
          'not a supported HTTP method'; got: {combined:?}"
     );
 }
+
+// ---------------------------------------------------------------------------
+// F-LOCAL-P2-MED-001 / F-LOCAL-P2-MED-002 — load_all E-SPEC-025 numeric-index
+// toml_path and load-bearing test coverage
+//
+// These tests exercise `SpecLoader::load_all` (the boot spec-load directory path)
+// rather than `parse_and_validate_spec_toml` (the MCP single-file path).
+//
+// Both tests are LOAD-BEARING:
+//   1. F-LOCAL-P2-MED-002-A: removing the `validate_step_methods` call from
+//      `load_all` causes this test to return zero errors, triggering the
+//      "must have at least one error" assertion.
+//   2. F-LOCAL-P2-MED-001: the toml_path assertion fails if `load_all` emits
+//      string names in the numeric-index slots (e.g., `tables[events]`).
+//
+// Test naming: test_BC_2_16_009_load_all_*
+// Traces to: BC-2.16.009 v1.8 §VR7; S-SPEC-HTTP-METHOD-VALIDATION-001;
+//            F-LOCAL-P2-MED-001; F-LOCAL-P2-MED-002.
+// ---------------------------------------------------------------------------
+
+/// BC-2.16.009 v1.8 §VR7 — F-LOCAL-P2-MED-002 / F-LOCAL-P2-MED-001.
+///
+/// `SpecLoader::load_all` pointed at a temp dir containing a single
+/// `*.sensor.toml` with `method = "CONNECT"` must:
+///   (a) Return at least one error in the errors vec (F-LOCAL-P2-MED-002 — load-bearing).
+///   (b) The error must carry `code == ESpec025` (F-LOCAL-P2-MED-002).
+///   (c) The error must carry `toml_path` using NUMERIC indices —
+///       `sensor.tables[0].steps[0].method` — not string names like
+///       `sensor.tables[events].steps[fetch].method` (F-LOCAL-P2-MED-001).
+///   (d) The error message must contain the canonical E-SPEC-025 phrase
+///       "not a supported HTTP method" (F-LOCAL-P2-MED-002).
+///
+/// Load-bearing guarantees:
+///   - Removing the `validate_step_methods` call from `load_all` causes (a) to
+///     fail (zero errors returned → assertion panics).
+///   - Reverting the numeric-index fix in `load_all` causes (c) to fail (string
+///     name `events` appears in the bracket, not a digit).
+///
+/// Traces to: BC-2.16.009 §VR7 AC-7; F-LOCAL-P2-MED-001; F-LOCAL-P2-MED-002.
+#[test]
+fn test_BC_2_16_009_load_all_invalid_method_produces_e_spec_025_with_numeric_toml_path() {
+    // Write the spec TOML into a temp directory.
+    // Filename must be `<sensor_id>.sensor.toml` (BC-2.16.001 §E-SPEC-017).
+    let dir = tempfile::tempdir().expect("tempdir must succeed");
+
+    let toml_content = r#"
+sensor_id = "test-sensor"
+name = "Test Sensor"
+auth_type = "bearer_static"
+base_url = "https://api.example.com"
+version = "1.0.0"
+
+[[tables]]
+table_name = "events"
+ocsf_class = "security_finding"
+
+  [[tables.columns]]
+  name = "id"
+  column_type = "string"
+
+  [[tables.steps]]
+  name = "fetch"
+  method = "CONNECT"
+  path_template = "/api/v1/events"
+  response_path = "$.data"
+  variables_produced = []
+"#;
+
+    let spec_file = dir.path().join("test-sensor.sensor.toml");
+    std::fs::write(&spec_file, toml_content).expect("write spec file must succeed");
+
+    // Run the production directory-scan load path.
+    let loader =
+        prism_spec_engine::spec_parser::SpecLoader::new(dir.path().to_string_lossy().to_string());
+    let (_descriptors, errors) = loader.load_all();
+
+    // (a) + (d) F-LOCAL-P2-MED-002 — load-bearing: errors must be non-empty.
+    assert!(
+        !errors.is_empty(),
+        "F-LOCAL-P2-MED-002: SpecLoader::load_all with method='CONNECT' must produce at \
+         least one error; got zero errors — validate_step_methods call may be missing from load_all"
+    );
+
+    // Find the E-SPEC-025 error.
+    let e_spec_025 = errors.iter().find(|e| {
+        matches!(
+            e,
+            prism_core::PrismError::Spec(prism_core::SpecError {
+                code: prism_core::SpecErrorCode::ESpec025,
+                ..
+            })
+        )
+    });
+
+    assert!(
+        e_spec_025.is_some(),
+        "F-LOCAL-P2-MED-002: errors must include PrismError::Spec with code ESpec025; \
+         got: {errors:?}"
+    );
+
+    let e_spec_025 = e_spec_025.unwrap();
+
+    // (b) Message must contain the canonical E-SPEC-025 phrase.
+    if let prism_core::PrismError::Spec(se) = e_spec_025 {
+        assert!(
+            se.message.contains("not a supported HTTP method"),
+            "F-LOCAL-P2-MED-002: E-SPEC-025 message must contain canonical phrase \
+             'not a supported HTTP method'; got: {}",
+            se.message
+        );
+
+        // (c) F-LOCAL-P2-MED-001 — toml_path must use NUMERIC indices.
+        // The spec has exactly one table (index 0) and one step (index 0).
+        // The correct path is `sensor.tables[0].steps[0].method`.
+        // The pre-fix bug produced `sensor.tables[events].steps[fetch].method`.
+        let toml_path = se.toml_path.as_deref().unwrap_or("");
+
+        assert!(
+            !toml_path.is_empty(),
+            "F-LOCAL-P2-MED-001: E-SPEC-025 toml_path must be Some(path); got None"
+        );
+
+        // Must contain `tables[0]` — numeric index, not string name.
+        assert!(
+            toml_path.contains("tables[0]"),
+            "F-LOCAL-P2-MED-001: toml_path must use numeric index 'tables[0]', not a \
+             string name like 'tables[events]'; got: '{toml_path}'"
+        );
+
+        // Must contain `steps[` followed immediately by a digit.
+        // Use a simple approach: verify `steps[0]` is present (single step at index 0).
+        assert!(
+            toml_path.contains("steps[0]"),
+            "F-LOCAL-P2-MED-001: toml_path must use numeric index 'steps[0]', not a \
+             string name like 'steps[fetch]'; got: '{toml_path}'"
+        );
+
+        // Final sanity: must not contain the string table name in bracket form.
+        assert!(
+            !toml_path.contains("tables[events]"),
+            "F-LOCAL-P2-MED-001: toml_path must NOT contain string name 'tables[events]'; \
+             got: '{toml_path}' — numeric-index fix may not have landed"
+        );
+
+        // Must not contain the string step name in bracket form.
+        assert!(
+            !toml_path.contains("steps[fetch]"),
+            "F-LOCAL-P2-MED-001: toml_path must NOT contain string name 'steps[fetch]'; \
+             got: '{toml_path}' — numeric-index fix may not have landed"
+        );
+
+        // Full path assertion (the definitive form).
+        assert_eq!(
+            toml_path, "sensor.tables[0].steps[0].method",
+            "F-LOCAL-P2-MED-001: toml_path must be exactly 'sensor.tables[0].steps[0].method'; \
+             got: '{toml_path}'"
+        );
+    } else {
+        panic!("expected PrismError::Spec but got: {e_spec_025:?}");
+    }
+}
