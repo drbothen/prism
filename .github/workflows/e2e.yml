@@ -167,7 +167,9 @@ jobs:
           # --no-tests=fail:         fail with exit code 4 if zero tests are selected — prevents
           #                          false-green if #[ignore] attrs are removed or e2e_smoke.rs is
           #                          renamed without updating this workflow (ADV-PR-P05-OBS-001).
-          #                          Requires nextest ≥0.9.85; project pins 0.9.129 (2026-02-22).
+          #                          Requires nextest ≥0.9.85. install-action installs the latest
+          #                          stable nextest (no version pin, matching ci.yml convention);
+          #                          latest stable is always ≥0.9.85, so the flag is reliably available.
           cargo nextest run \
             -p prism-bin \
             --profile e2e \
