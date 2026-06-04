@@ -92,7 +92,12 @@ pub fn parse_and_validate_spec_toml(
     // Invalid method → E-SPEC-025; multiple invalid steps → multiple errors (INV-ERR-003).
     // S-SPEC-HTTP-METHOD-VALIDATION-001; BC-2.16.009 v1.8 §VR7.
     {
-        let method_errors = validate_step_methods(&spec);
+        // validate_step_methods returns (table_idx, step_idx, error) tuples.
+        // add_sensor_spec only needs the error Display strings; discard the indices.
+        let method_errors: Vec<_> = validate_step_methods(&spec)
+            .into_iter()
+            .map(|(_, _, e)| e)
+            .collect();
         if !method_errors.is_empty() {
             return Err(vec![ValidationError {
                 sensor_id: Some(spec.sensor_id.clone()),
