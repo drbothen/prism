@@ -6,11 +6,11 @@ wave: 5
 epic_id: E-DEMO
 priority: P0
 status: ready
-version: "2.4"
+version: "2.5"
 level: "L4"
 producer: story-writer
 timestamp: "2026-06-02T00:00:00Z"
-modified: "2026-06-03T20:00:00Z"
+modified: "2026-06-03T21:00:00Z"
 tdd_mode: strict
 subsystems: [SS-01, SS-10, SS-11, SS-22]
 # Subsystem anchor justifications:
@@ -148,7 +148,7 @@ cycle: "v1.0.0-brownfield"
 phase: 3
 ---
 
-# S-DEMO-002 v2.4 — prism-bin: E2E Subprocess Smoke Test (All 4 Sensors + Multi-Org Isolation)
+# S-DEMO-002 v2.5 — prism-bin: E2E Subprocess Smoke Test (All 4 Sensors + Multi-Org Isolation)
 
 **Story ID:** S-DEMO-002
 **Status:** ready
@@ -517,6 +517,7 @@ Version source: workspace `Cargo.toml`. `rmcp` version confirmed from S-5.01-FOL
 | `crates/prism-core/src/error.rs` | MODIFY | `PrismError::SensorNotRegisteredForOrg` variant (E-QUERY-032) required for AC-012 isolation error [SRC] |
 | `crates/prism-mcp/src/error_mapping.rs` | MODIFY | E-QUERY-032 → JSON-RPC `-32602` mapping arm; AC-012 error surface [SRC] |
 | `crates/prism-mcp/src/safety_envelope.rs` | MODIFY | Object-shaped `rows` injection-scan path; AC-007 `safety_flags == []` assertion [SRC] |
+| `crates/prism-query/src/engine.rs, src/materialization.rs` | MODIFY | E-QUERY-032 cross-org isolation raise (`resolve_source_refs`, BC-3.2.001 postcondition 5) + AQL push-down seeding (`extract_push_down_filters_as_map`, AC-014 / BC-2.11.007 Mechanism B) [SRC] |
 | `crates/prism-spec-engine/src/plugin/mod.rs` | MODIFY | WASM acquire-token nested-interface dispatch [SRC] (LOW-002 resolved) |
 | `crates/prism-spec-engine/src/plugin/discovery.rs` | MODIFY | Plugin discovery for nested WASM interface [SRC] |
 | `crates/prism-spec-engine/src/plugin_auth_provider.rs` | MODIFY | Auth provider wiring for WASM token acquisition [SRC] |
@@ -690,6 +691,7 @@ Within budget; additional crate context (+8,300 tokens) from HIGH-001 reconcilia
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 2.5 | 2026-06-03 | product-owner | Fix-burst closing ADV-SDEMO002-PR-P10-MED-001 (prism-query had no FSR row despite being in crates_touched with load-bearing SRC changes). Added FSR row: `crates/prism-query/src/engine.rs, src/materialization.rs` MODIFY — E-QUERY-032 cross-org isolation raise + AQL push-down seeding (BC-3.2.001 postcondition 5, AC-014 / BC-2.11.007 Mechanism B). Full FSR/Token-Budget/crates_touched bidirectional cross-check performed against all 10 crates; zero additional asymmetries found (see 10-row checklist in commit message). Token Budget total unchanged at ~53,300 tokens (prism-query was already covered by the "prism-query/src/ + prism-spec-engine/src/pipeline.rs" ~3,500 row). |
 | 2.4 | 2026-06-03 | product-owner | Fix-burst closing ADV-SDEMO002-PR-P08-HIGH-001 (crates_touched was incomplete — reconciled to actual 10-crate diff set: prism-bin, prism-core, prism-credentials, prism-dtu-armis, prism-dtu-cyberint, prism-dtu-demo-server, prism-mcp, prism-query, prism-sensors, prism-spec-engine; verified via `git diff cd4a2211...81cf3678 --stat -- crates/<name>/`; FSR rows and Token Budget rows added for 6 newly documented crates; per-crate SRC/TEST/CONFIG tags added to crates_touched comments). Closes ADV-SDEMO002-PR-P08-LOW-001 (phantom path `prism-spec-engine/src/pipeline_executor.rs` → `prism-spec-engine/src/pipeline.rs` corrected in frontmatter inputs, Task 19, and Token Budget). Closes ADV-SDEMO002-PR-P08-LOW-002 (prism-spec-engine confirmed genuinely touched via WASM acquire-token nested-interface dispatch in `src/plugin/{mod,discovery}.rs`, `src/plugin_auth_provider.rs`, `src/spec_parser.rs`; kept in crates_touched with SRC tag). Token Budget total revised ~45,000 → ~53,300 tokens (~21% of 256K). |
 | 2.3 | 2026-06-03 | product-owner | Closes ADV-SDEMO002-PR-P05-OBS-001 (e2e CI positive-coverage guard). AC-010 canonical command updated: `--no-tests=fail` appended to the CI job command (`cargo nextest run -p prism-bin --profile e2e --run-ignored ignored-only --no-tests=fail`); purpose documented inline — job fails on zero selected tests, preventing a false-green if `#[ignore]` attrs are removed or the test file is renamed. Task 25 FSR and step list updated to match. Task 20 clarifies local invocation omits the guard (CI-only flag). |
 | 2.2 | 2026-06-03 | product-owner | Fix-burst closing ADV-SDEMO002-PR-P04-MED-001 (body H1 `**Points:** 11` → `**Points:** 13`; frontmatter `points: 13` was correct since v2.0 but body H1 pin was not updated). Comprehensive body-pin sibling sweep (TD-VSDD-060): body H1 Version updated v2.1→v2.2; all other body pins (Status, Wave, Priority, Story ID, acceptance_criteria_count 14, red_gate_tests 9, behavioral_contracts 8, crates_touched 4) verified correct against frontmatter — no additional corrections required. |
