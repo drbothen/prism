@@ -973,7 +973,7 @@ impl SpecLoader {
             };
 
             match Self::parse(&content) {
-                Ok(spec) => {
+                Ok(mut spec) => {
                     // BC-2.16.001 v1.6 §Error Conditions E-SPEC-017:
                     // The filename stem must case-sensitively match the spec's sensor_id.
                     // E.g., `crowdstrike.sensor.toml` → stem = "crowdstrike" → must match
@@ -1002,16 +1002,56 @@ impl SpecLoader {
                         // DI-030: reject this spec, continue loading others
                         continue;
                     }
+
+                    // BC-2.16.009 §Validation Rules 6 (AC-6) — env-var token resolution.
+                    //
+                    // F-PR1-MED-001 FIX: Rule 6 must run BEFORE Rule 7 in ALL spec-load paths,
+                    // including load_all. The previous code skipped Rule 6 here, causing an env-
+                    // resolved invalid method (e.g., method="${env.M}" with M=CONNECT) to be
+                    // silently skipped by Rule 7's skip-guard instead of rejected with E-SPEC-025
+                    // (EC-009-019 divergence from the parse_and_validate_spec_toml path).
+                    //
+                    // Rule 6 resolves `${env.VAR_NAME}` tokens in all String fields in-place.
+                    // Unresolvable tokens (var absent or empty) → E-SPEC-024 (fail-closed per
+                    // AD-017 no-value-leak; var NAME only in error, never the resolved VALUE).
+                    // DI-030: env errors → reject this spec, continue loading others.
+                    //
+                    // AD-017: `resolve_env_var_tokens` emits only var NAME + toml_path, never
+                    // the resolved value — no credential leak through this error path.
+                    //
+                    // BC-2.16.009 v1.8 §VR6→VR7 ordering; S-SPEC-HTTP-METHOD-VALIDATION-001;
+                    // error-taxonomy.md v1.59 E-SPEC-024.
+                    {
+                        let env_errors =
+                            crate::env_resolver::resolve_env_var_tokens(&mut spec, &file_name);
+                        if !env_errors.is_empty() {
+                            for env_err in env_errors {
+                                // Route through pinned Display — env_resolver.rs #[error(...)]
+                                // is the single source of truth for E-SPEC-024 messages.
+                                errors.push(PrismError::Spec(SpecError {
+                                    code: SpecErrorCode::ESpec024,
+                                    message: env_err.to_string(),
+                                    toml_path: None,
+                                    file_path: Some(file_name.clone()),
+                                    line_number: None,
+                                }));
+                            }
+                            // DI-030: reject this spec, continue loading others.
+                            continue;
+                        }
+                    }
+
                     // BC-2.16.009 §Validation Rules 7 (AC-7) — HTTP method whitelist validation.
                     //
-                    // Runs after TOML parse (same as in `parse_and_validate_spec_toml`).
-                    // Note: in `load_all`, env-var tokens are NOT pre-resolved (no env resolver
-                    // pass in this path); `validate_step_methods` skips steps whose method still
-                    // contains `${env.VAR}` tokens (double-report guard in validation.rs).
-                    // Invalid method values → E-SPEC-025 via structured PrismError::Spec channel,
-                    // matching the E-SPEC-024 pattern in overlay.rs §resolve_env_tokens.
+                    // Runs AFTER Rule 6 env-var resolution (F-PR1-MED-001 fix). Now that all
+                    // `${env.VAR}` tokens are resolved, the skip-guard in validate_step_methods
+                    // fires only for the residual case: a step whose method token was not
+                    // resolved because Rule 6 produced an E-SPEC-024 error. Since Rule 6 errors
+                    // cause a `continue` above, this code path only sees specs with all tokens
+                    // successfully resolved. The skip-guard is therefore moot for load_all after
+                    // this fix, but is retained as belt-and-suspenders for future callers.
                     //
-                    // F-LOCAL-P1-OBS-001: sibling parity with E-SPEC-024 structured channel.
+                    // Invalid method values → E-SPEC-025 via structured PrismError::Spec channel.
                     // S-SPEC-HTTP-METHOD-VALIDATION-001; BC-2.16.009 v1.8 §VR7; error-taxonomy.md v1.59.
                     let method_errors = crate::validation::validate_step_methods(&spec);
                     if !method_errors.is_empty() {

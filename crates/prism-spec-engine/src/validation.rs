@@ -502,7 +502,7 @@ pub fn validate_step_methods(
 
     for (ti, table) in spec.tables.iter().enumerate() {
         for (si, step) in table.steps.iter().enumerate() {
-            // BC-2.16.009 §VR7 ordering: skip steps whose method still contains a
+            // BC-2.16.009 §VR7 ordering: skip steps whose method IS EXACTLY one
             // WELL-FORMED `${env.VAR_NAME}` token (where VAR_NAME matches `[A-Z0-9_]+`).
             //
             // Rule 6 (env_resolver) already fired E-SPEC-024 for those; double-reporting
@@ -514,17 +514,32 @@ pub fn validate_step_methods(
             // `${env.}` does NOT match the regex → is NOT skipped → falls through to the
             // whitelist check below → produces E-SPEC-025 (F-LOCAL-P3-MED-002 fix).
             //
-            // The old `contains("${env.")` substring check was too broad: it skipped ANY
-            // string containing the prefix, including malformed pseudo-tokens that Rule 6
-            // never processes. The DRIFT-D926-001 gap was those literals silently reaching
-            // the `_ => GET` pipeline fallback instead of being rejected here.
-            if crate::env_resolver::ENV_TOKEN_REGEX.is_match(&step.method) {
+            // F-PR1-OBS-001 FIX: use a FULL-MATCH check (the matched span must equal the
+            // entire string length). A substring `is_match` was too broad: it skipped any
+            // string that CONTAINED a token (e.g., "GET${env.X}", "${env.A}${env.B}") even
+            // though those values are NOT purely unresolved tokens and Rule 6 cannot
+            // fully replace them. The fix: only skip when the regex match covers bytes
+            // 0..len (i.e., the full method string is exactly one unresolved token).
+            let is_exactly_one_token = crate::env_resolver::ENV_TOKEN_REGEX
+                .find(&step.method)
+                .is_some_and(|m| m.start() == 0 && m.end() == step.method.len());
+            if is_exactly_one_token {
                 continue;
             }
 
             // Case-sensitive whitelist check (BC-2.16.009 §VR7 case-sensitivity clause).
             // "get" is NOT equivalent to "GET"; empty string is not in the whitelist.
             if !ALLOWED_HTTP_METHODS.contains(&step.method.as_str()) {
+                // SEC-001 fix: truncate method_value to ≤32 codepoints before embedding in
+                // the error message. A 256 KiB TOML allows a method field up to that size;
+                // echoing it verbatim would produce a 256 KiB error string returned to the
+                // MCP caller (CWE-400 unbounded echo). HTTP methods are ≤7 chars; 32 is a
+                // generous cap that preserves full legibility for any reasonable value.
+                // For method values ≤32 codepoints the truncated slice == the original
+                // string, preserving byte-exact Display for normal inputs (POL-24).
+                //
+                // Precedent: base_url is truncated at 200 codepoints (F-LP10-MED-001).
+                let method_value = truncate_at_char_boundary(&step.method, 32).to_string();
                 errors.push((
                     ti,
                     si,
@@ -532,7 +547,7 @@ pub fn validate_step_methods(
                         step_name: step.name.clone(),
                         sensor_id: spec.sensor_id.clone(),
                         table_name: table.table_name.clone(),
-                        method_value: step.method.clone(),
+                        method_value,
                     },
                 ));
             }
@@ -1564,6 +1579,172 @@ mod http_method_whitelist_tests {
                 raw_token,
                 results
             );
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // F-PR1-OBS-001 — skip-guard must be a FULL-MATCH, not a substring match
+    //
+    // A method like "GET${env.X}" CONTAINS a well-formed env token but is NOT
+    // EXACTLY a single env token. The old `ENV_TOKEN_REGEX.is_match(...)` is a
+    // substring check — it fires even for partial embeddings, skipping values
+    // that Rule 6 cannot fully replace (partial interpolation residue). The
+    // correct guard fires ONLY when the entire method string equals one token.
+    // -----------------------------------------------------------------------
+
+    /// F-PR1-OBS-001: `"GET${env.X}"` contains a valid env token as a suffix, but the
+    /// overall string is NOT a valid HTTP method and is NOT exactly a single unresolved
+    /// token. Rule 7 must NOT skip it — the skip-guard must require a full-match.
+    ///
+    /// This test FAILS before the anchor fix (substring `is_match` skips it) and PASSES
+    /// after (full-match guard does not skip it; falls through to whitelist → E-SPEC-025).
+    #[test]
+    fn test_BC_2_16_009_f_pr1_obs_001_partial_token_embedding_not_skipped() {
+        let method = "GET${env.X}";
+        let spec = make_spec_with_method(method);
+        let errors = errors_only(validate_step_methods(&spec));
+        assert!(
+            !errors.is_empty(),
+            "F-PR1-OBS-001: '{method}' CONTAINS a valid env token but is NOT exactly one \
+             token — Rule 7 skip-guard must be a FULL-MATCH; a substring `is_match` \
+             incorrectly skips this; expected E-SPEC-025, got zero errors"
+        );
+        assert!(
+            errors
+                .iter()
+                .any(|e| matches!(e, SpecEngineError::InvalidHttpMethod { .. })),
+            "F-PR1-OBS-001: error must be InvalidHttpMethod; got {errors:?}"
+        );
+    }
+
+    /// F-PR1-OBS-001: `"${env.X}GET"` (token prefix, literal suffix) — same class as above.
+    /// Token is embedded at the start; overall string is not a single token.
+    #[test]
+    fn test_BC_2_16_009_f_pr1_obs_001_token_prefix_not_skipped() {
+        let method = "${env.X}GET";
+        let spec = make_spec_with_method(method);
+        let errors = errors_only(validate_step_methods(&spec));
+        assert!(
+            !errors.is_empty(),
+            "F-PR1-OBS-001: '{method}' has a valid env token as prefix, not as the entire \
+             value — Rule 7 skip-guard must require full-match; substring check incorrectly \
+             skips it; expected E-SPEC-025, got zero errors"
+        );
+    }
+
+    /// F-PR1-OBS-001: `"${env.A}${env.B}"` (two tokens concatenated) — neither a single
+    /// token nor a valid method. Must not be skipped; must produce E-SPEC-025.
+    #[test]
+    fn test_BC_2_16_009_f_pr1_obs_001_two_tokens_concatenated_not_skipped() {
+        let method = "${env.A}${env.B}";
+        let spec = make_spec_with_method(method);
+        let errors = errors_only(validate_step_methods(&spec));
+        assert!(
+            !errors.is_empty(),
+            "F-PR1-OBS-001: '{method}' is two concatenated env tokens, not a single token \
+             and not a valid method — Rule 7 skip-guard must require full-match of one token; \
+             expected E-SPEC-025, got zero errors"
+        );
+    }
+
+    /// F-PR1-OBS-001: non-regression — a value that IS exactly one well-formed token
+    /// must still be skipped (no regression from the anchor fix).
+    #[test]
+    fn test_BC_2_16_009_f_pr1_obs_001_exact_single_token_still_skipped() {
+        for method in &["${env.X}", "${env.VALID_NAME}", "${env.A1_B2}"] {
+            let spec = make_spec_with_method(method);
+            let results = validate_step_methods(&spec);
+            assert!(
+                results.is_empty(),
+                "F-PR1-OBS-001 non-regression: '{method}' IS exactly one well-formed token; \
+                 Rule 7 must still skip it; got {results:?}"
+            );
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // SEC-001 — method_value in InvalidHttpMethod must be truncated at 32 codepoints
+    //
+    // An overlong method string (e.g., 33 chars) echoed verbatim in E-SPEC-025
+    // produces an unbounded error message. `truncate_at_char_boundary` at 32 chars
+    // caps the echo (HTTP methods are ≤7 chars; 32 is generous). Normal-length methods
+    // (≤32 chars) must pass through unchanged (POL-24 Display byte-match).
+    // -----------------------------------------------------------------------
+
+    /// SEC-001: A 33-char method value must be truncated to ≤32 chars in
+    /// `InvalidHttpMethod.method_value`.
+    ///
+    /// This test FAILS before the truncation fix (method_value carries full 33-char string)
+    /// and PASSES after (`truncate_at_char_boundary(&step.method, 32)` is applied).
+    #[test]
+    fn test_BC_2_16_009_sec_001_overlong_method_truncated_in_error() {
+        // 33 ASCII chars — exceeds the 32-char cap
+        let method = "A".repeat(33);
+        let spec = make_spec_with_method(&method);
+        let results = validate_step_methods(&spec);
+        assert!(
+            !results.is_empty(),
+            "SEC-001: a 33-char method value must produce E-SPEC-025 (not in whitelist); \
+             got zero errors"
+        );
+        let (_, _, ref err) = results[0];
+        if let SpecEngineError::InvalidHttpMethod { method_value, .. } = err {
+            assert!(
+                method_value.len() <= 32,
+                "SEC-001: method_value in E-SPEC-025 must be truncated to ≤32 codepoints; \
+                 got {} codepoints: '{method_value}'",
+                method_value.len()
+            );
+        } else {
+            panic!("SEC-001: expected InvalidHttpMethod, got {err:?}");
+        }
+    }
+
+    /// SEC-001: A 7-char method value ("CONNECT", a valid-length but disallowed method)
+    /// must NOT be truncated — 7 ≤ 32, so it passes through unchanged (POL-24 non-regression).
+    #[test]
+    fn test_BC_2_16_009_sec_001_normal_length_method_not_truncated() {
+        let method = "CONNECT"; // 7 chars — under the 32-char cap; must not be truncated
+        let spec = make_spec_with_method(method);
+        let results = validate_step_methods(&spec);
+        assert!(
+            !results.is_empty(),
+            "SEC-001 non-regression: 'CONNECT' is not in ALLOWED_HTTP_METHODS; \
+             must produce E-SPEC-025"
+        );
+        let (_, _, ref err) = results[0];
+        if let SpecEngineError::InvalidHttpMethod { method_value, .. } = err {
+            assert_eq!(
+                method_value, "CONNECT",
+                "SEC-001 non-regression: 7-char method 'CONNECT' must NOT be truncated; \
+                 Display must cite the exact value (POL-24); got '{method_value}'"
+            );
+        } else {
+            panic!("SEC-001 non-regression: expected InvalidHttpMethod, got {err:?}");
+        }
+    }
+
+    /// SEC-001: A 32-char method value is exactly at the cap — must not be truncated.
+    #[test]
+    fn test_BC_2_16_009_sec_001_exactly_32_chars_not_truncated() {
+        let method = "B".repeat(32);
+        let spec = make_spec_with_method(&method);
+        let results = validate_step_methods(&spec);
+        assert!(
+            !results.is_empty(),
+            "32-char method must produce E-SPEC-025"
+        );
+        let (_, _, ref err) = results[0];
+        if let SpecEngineError::InvalidHttpMethod { method_value, .. } = err {
+            assert_eq!(
+                method_value.len(),
+                32,
+                "SEC-001: 32-char method is exactly at cap, must be preserved as-is; \
+                 got len={}, value='{method_value}'",
+                method_value.len()
+            );
+        } else {
+            panic!("SEC-001: expected InvalidHttpMethod, got {err:?}");
         }
     }
 
