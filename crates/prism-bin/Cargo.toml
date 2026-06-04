@@ -169,6 +169,14 @@ path = "tests/pol_12_no_todo.rs"
 name = "bc_2_01_013_spec_driven_adapter"
 path = "tests/bc_2_01_013_spec_driven_adapter.rs"
 
+# S-DEMO-002: E2E subprocess smoke test — all 4 sensors + multi-org isolation.
+# AC-001..014, BCs: BC-2.11.001, BC-2.11.005, BC-2.09.008, BC-2.10.001, BC-2.10.010,
+#              BC-3.2.001, BC-2.22.001, BC-2.11.007
+# All tests are #[ignore] by default; un-gated via 'e2e' nextest profile.
+[[test]]
+name = "e2e_smoke"
+path = "tests/e2e_smoke.rs"
+
 [dev-dependencies]
 rmcp = { workspace = true }
 tempfile = "3"

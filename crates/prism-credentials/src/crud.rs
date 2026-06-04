@@ -85,6 +85,19 @@ pub struct CredentialMetadata {
     pub client_id: String,
     pub sensor_id: String,
     pub backend_type: String,
+    /// The explicit source reference (env var name, file path, vault path, or keyring entry).
+    ///
+    /// Persisted from `CredentialRef.reference` at `configure_credential_source` time.
+    /// Required by `resolve_from_backend` Tier 4 "env" branch — the "env" backend resolves
+    /// the EXPLICITLY NAMED env var stored here, NOT the per-client derived name (which Tier 2
+    /// already reads). Without this field, Tier 4 "env" is dead code (shadowed by Tier 2).
+    ///
+    /// Populated for all backends; semantics per backend type:
+    ///   "env"    → env var name (e.g. `"MY_CUSTOM_ENV_VAR"`)
+    ///   "file"   → file path (e.g. `"/run/secrets/api_key"`)
+    ///   "vault"  → vault path (e.g. `"secret/prism/acme/armis/bearer_token"`)
+    ///   "keyring"→ keyring entry name
+    pub source_reference: String,
     pub last_modified: Option<DateTime<Utc>>,
 }
 
@@ -188,6 +201,10 @@ pub async fn configure_credential_source(
             client_id: request.client_id.clone(),
             sensor_id: request.sensor_id.clone(),
             backend_type: request.source.kind.to_string(),
+            // OBS-001 fix: persist the explicit reference string so Tier 4 "env" backend
+            // can read the EXPLICITLY NAMED env var rather than re-deriving the per-client
+            // name (which Tier 2 already reads, making Tier 4 unreachable otherwise).
+            source_reference: request.source.reference.clone(),
             last_modified: Some(Utc::now()),
         };
         with_store(|map| {

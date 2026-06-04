@@ -685,7 +685,10 @@ pub async fn boot_to_step_6(config_dir: &Path) -> Result<BootContext, BootError>
     }
     // CRIT-5: Store the real credential_store in BootContext so step9 can wire it into
     // QueryEngine instead of the BootNullCredentialStore that silently returns Ok(None).
-    let credential_store = step5_init_credential_store(&config, &config_manager).await?;
+    // ADR-032 / BC-2.06.003 v1.3: pass org_registry so KeyringCredentialProbe can iterate
+    // org slugs for the per-client Tier 1/2 env-var wildcard scan at boot step 5.
+    let credential_store =
+        step5_init_credential_store(&config, &config_manager, &org_registry).await?;
 
     // Step 6: Init audit subsystem.
     //
@@ -1183,8 +1186,18 @@ pub async fn step4_load_sensor_specs_with_overlays(
 ///
 /// Probes that cannot determine the auth_type (e.g., keyring-only backends with
 /// no metadata store) return `Ok(None)` — Rule C is skipped for that ref.
+///
+/// # `org_registry` parameter (BC-2.06.003 v1.3 / ADR-032)
+///
+/// The `org_registry` is required by `KeyringCredentialProbe` to iterate registered
+/// org slugs for the Tier 1/2 per-client env-var wildcard scan (BC-2.06.003 v1.3
+/// §Boot-Step-5 Probe Alignment). Test doubles may ignore it.
 pub trait CredentialRefProbe: Send + Sync {
     /// Check whether `ref_name` for `sensor_id` is registered in the backend.
+    ///
+    /// `org_registry` is used to iterate registered org slugs for Tier 1/2 per-client
+    /// env-var checks (BC-2.06.003 v1.3 §Boot-Step-5 Probe Alignment). Test doubles
+    /// that do not exercise env-var resolution may ignore the parameter.
     ///
     /// Returns:
     /// - `Ok(Some(auth_type))` — ref exists AND auth_type metadata is available;
@@ -1193,33 +1206,125 @@ pub trait CredentialRefProbe: Send + Sync {
     ///   Rule C check is skipped for this ref
     /// - `Err(BootError::CredentialRefInvalid)` — ref not found (exit 2)
     /// - `Err(BootError::CredentialPermissionDenied)` — backend unavailable (exit 5)
-    fn probe(&self, sensor_id: &str, ref_name: &str) -> Result<Option<String>, BootError>;
+    fn probe(
+        &self,
+        sensor_id: &str,
+        ref_name: &str,
+        org_registry: &prism_core::OrgRegistry,
+    ) -> Result<Option<String>, BootError>;
 }
 
-/// Production credential ref probe — uses the `keyring` crate.
+/// Production credential ref probe — checks per-client env-var chain first, then the
+/// `keyring` crate.
 ///
-/// Constructs a namespaced `keyring::Entry("prism", "{sensor_id}/{ref_name}")` and
-/// calls `get_password()` to check existence. The value is immediately discarded
-/// (AD-017 AI-opaque model: credential values MUST NOT be retained).
+/// ## Resolution order (BC-2.06.003 v1.3 / ADR-032 — per-client convention)
 ///
-/// Returns `Ok(None)` on the success path — the keyring backend (ADR-007 / AD-017)
-/// stores credential names only; no `auth_type` shape metadata is stored alongside
-/// the credential value in the keyring entry. Per [ADR-026 §D3 Rule C Backend Scope
-/// (D-706 amendment)]: Rule C (E-SPEC-014 credential structural shape mismatch)
-/// enforcement is conditional on the credential backend exposing shape metadata.
-/// Shape introspection requires a separate metadata sidecar or plugin-manifest
-/// declaration; that capability is deferred to PLUGIN-MIGRATION-001-A.
+/// The probe mirrors the `resolve_credential` per-client resolution chain so that
+/// boot-step-5 validation and query-time credential resolution use the same priority order.
 ///
-/// The `if let Some(actual_shape)` gate in step5 is structurally correct for when a
-/// future backend (e.g., a keyring metadata sidecar or plugin-manifest probe) returns
-/// the activating variant. It is intentionally a no-op with the current keyring backend.
+/// Per BC-2.06.003 v1.3 §Boot-Step-5 Probe Alignment (org-aware wildcard scan):
 ///
-/// Rules A and B (E-SPEC-012, E-SPEC-013) DO fire in production via
-/// `validate_cross_composition` at spec-load time. Only Rule C is backend-conditional.
+/// 1. **Tier 1/2 wildcard:** iterate all registered orgs from `OrgRegistry`. For each
+///    org slug, compute the per-client Tier 2 env var
+///    `PRISM_CLIENTS_{ID}_SENSORS_{SENSOR}_{REF}` (and the `_FILE` variant). If **any**
+///    org has the env var set (non-empty for Tier 2; file exists for Tier 1), the probe
+///    succeeds for this ref. Rationale: at boot time the TYPE spec is shared; if at least
+///    one org can resolve the ref, the sensor is functional for that org.
+///
+/// 2. **Tier 3 (keyring):** if no org resolved the ref via Tier 1/2, fall through to keyring
+///    using the **legacy OrgSlug-keyed format** `{org_slug}/{sensor_id}/{ref_name}` via
+///    `namespace_key` for backwards-compatibility with credentials stored before BC-3.2.002.
+///    Specifically, `keyring::Entry::new("prism", "{sensor_id}/{ref_name}")` is attempted
+///    as the legacy probe key.
+///    If found in keyring, probe succeeds.
+///
+/// 3. **Not found in any tier:** return `Err(BootError::CredentialRefInvalid)` with a
+///    message citing BOTH the per-client Tier 2 env var format AND the keyring key format.
+///
+/// ## Return value
+///
+/// Returns `Ok(None)` on the success path — neither env-var nor keyring backends carry
+/// `auth_type` shape metadata, so Rule C (E-SPEC-014) is not enforced for this probe.
+/// Per ADR-026 §D3 Rule C Backend Scope (D-706 amendment): Rule C enforcement is
+/// conditional on the credential backend exposing shape metadata. Shape introspection
+/// is deferred to PLUGIN-MIGRATION-001-A.
+///
+/// ## AD-017 compliance
+///
+/// Env-var VALUES are checked for non-emptiness but NOT stored or logged.
+/// File paths (from `_FILE` env vars) are checked for existence only; file contents
+/// are NOT read. Keyring secret values are discarded immediately after the existence
+/// check. No credential value transits AI context.
+///
+/// Rules A and B (E-SPEC-012, E-SPEC-013) fire via `validate_cross_composition` at
+/// spec-load time. Only Rule C is backend-conditional.
 pub struct KeyringCredentialProbe;
 
 impl CredentialRefProbe for KeyringCredentialProbe {
-    fn probe(&self, sensor_id: &str, ref_name: &str) -> Result<Option<String>, BootError> {
+    fn probe(
+        &self,
+        sensor_id: &str,
+        ref_name: &str,
+        org_registry: &prism_core::OrgRegistry,
+    ) -> Result<Option<String>, BootError> {
+        use prism_credentials::resolution::{per_client_env_var, per_client_file_env_var};
+
+        // BC-2.06.003 v1.3 §Boot-Step-5 Probe Alignment — Tier 1/2 wildcard scan:
+        // Iterate all registered org slugs and check per-client env vars for each.
+        // If at least ONE org has the credential configured, the probe passes.
+        //
+        // AD-017: env-var values checked for non-emptiness/existence but NOT stored or logged.
+        let org_slugs = org_registry.list_slugs();
+        for org_slug in &org_slugs {
+            let file_env = per_client_file_env_var(org_slug, sensor_id, ref_name);
+            let direct_env = per_client_env_var(org_slug, sensor_id, ref_name);
+
+            if let Ok(file_path) = std::env::var(&file_env) {
+                // Tier 1: _FILE env var is set for this org.
+                // AD-017: only check existence, do NOT read the file contents.
+                if std::path::Path::new(&file_path).exists() {
+                    tracing::trace!(
+                        sensor_id = %sensor_id,
+                        ref_name = %ref_name,
+                        org_slug = %org_slug,
+                        env_var = %file_env,
+                        "Credential ref validated via per-client _FILE env var (BC-2.06.003 Tier 1)"
+                    );
+                    return Ok(None);
+                }
+                // _FILE env var set but file does not exist — this org has a misconfigured ref.
+                // Continue checking other orgs (one valid org is enough to succeed).
+                tracing::trace!(
+                    sensor_id = %sensor_id,
+                    ref_name = %ref_name,
+                    org_slug = %org_slug,
+                    file_path = %file_path,
+                    "Per-client _FILE env var set but file missing for org; trying next org"
+                );
+                continue;
+            }
+
+            // Tier 2: per-client direct env var.
+            if let Ok(val) = std::env::var(&direct_env)
+                && !val.is_empty()
+            {
+                // AD-017: value present but not stored/logged.
+                tracing::trace!(
+                    sensor_id = %sensor_id,
+                    ref_name = %ref_name,
+                    org_slug = %org_slug,
+                    env_var = %direct_env,
+                    "Credential ref validated via per-client env var (BC-2.06.003 Tier 2)"
+                );
+                return Ok(None);
+            }
+        }
+
+        // No org resolved via Tier 1/2 — fall through to Tier 3 (keyring).
+        //
+        // BC-2.06.003 v1.3 §Boot-Step-5 Probe Alignment: use legacy OrgSlug-keyed format
+        // `{sensor_id}/{ref_name}` for backwards-compatibility with credentials stored before
+        // BC-3.2.002 OrgId migration (i.e. `namespace_key` form, not `namespace_key_by_org_id`).
         let account = format!("{sensor_id}/{ref_name}");
         let entry = keyring::Entry::new("prism", &account).map_err(|e| {
             BootError::CredentialPermissionDenied(format!(
@@ -1228,6 +1333,13 @@ impl CredentialRefProbe for KeyringCredentialProbe {
             ))
         })?;
 
+        // Build one representative per-client env var name for the error message.
+        // Use the first org slug if any orgs are registered; otherwise show the generic format.
+        let example_direct_env = org_slugs
+            .first()
+            .map(|slug| per_client_env_var(slug, sensor_id, ref_name))
+            .unwrap_or_else(|| per_client_env_var("ORG_SLUG", sensor_id, ref_name));
+
         match entry.get_password() {
             Ok(_secret) => {
                 // Secret value discarded immediately — AD-017 AI-opaque model.
@@ -1235,14 +1347,19 @@ impl CredentialRefProbe for KeyringCredentialProbe {
                 tracing::trace!(
                     sensor_id = %sensor_id,
                     ref_name = %ref_name,
-                    "Credential ref validated (exists in backend; no auth_type metadata available)"
+                    "Credential ref validated via keyring legacy format (BC-2.06.003 Tier 3)"
                 );
                 Ok(None)
             }
             Err(keyring::Error::NoEntry) => Err(BootError::CredentialRefInvalid(format!(
-                "Unresolvable credential ref: '{ref_name}' for sensor '{sensor_id}' not found in \
-                 keyring backend (BC-2.03.013 TV-03-013-003). \
-                 Register the credential with: prism credential set {sensor_id} {ref_name}"
+                "Credential ref '{ref_name}' for sensor '{sensor_id}' not found in any \
+                 client-scoped env var (PRISM_CLIENTS_<ORG_SLUG_UPPER>_SENSORS_{}_{}  for any \
+                 registered org), nor in the OS keyring ({account}). \
+                 To configure: set {example_direct_env}=<value> for each org that uses this \
+                 sensor, OR register in keyring: prism credential set {sensor_id} {ref_name} \
+                 (BC-2.06.003, BC-2.03.013 TV-03-013-003).",
+                sensor_id.to_uppercase().replace('-', "_"),
+                ref_name.to_uppercase().replace('-', "_"),
             ))),
             Err(e) => Err(BootError::CredentialPermissionDenied(format!(
                 "Credential store access denied: keyring backend returned error \
@@ -1262,13 +1379,24 @@ impl CredentialRefProbe for KeyringCredentialProbe {
 /// Per AD-017: NO credential values are loaded into memory — reference-based model.
 /// Permission-denied → exit(5). Config-invalid ref → exit(2).
 ///
+/// `org_registry` is passed to `KeyringCredentialProbe` so the probe can iterate
+/// registered org slugs for the per-client Tier 1/2 env-var wildcard scan
+/// (BC-2.06.003 v1.3 / ADR-032 §Boot-step-5 org-aware probe).
+///
 /// Uses the [`KeyringCredentialProbe`] production probe. For testing with a
 /// custom probe, call [`step5_init_credential_store_with_probe`] directly.
 pub async fn step5_init_credential_store(
     config: &PrismConfig,
     config_manager: &Arc<arc_swap::ArcSwap<prism_spec_engine::config_manager::ConfigManager>>,
+    org_registry: &Arc<prism_core::OrgRegistry>,
 ) -> Result<Arc<dyn prism_credentials::CredentialStore>, BootError> {
-    step5_init_credential_store_with_probe(config, config_manager, &KeyringCredentialProbe).await
+    step5_init_credential_store_with_probe(
+        config,
+        config_manager,
+        org_registry,
+        &KeyringCredentialProbe,
+    )
+    .await
 }
 
 /// Step 5 implementation with injectable credential probe.
@@ -1278,6 +1406,10 @@ pub async fn step5_init_credential_store(
 /// (BC-2.03.013 §Test Strategy Approach B). The production boot path
 /// calls `step5_init_credential_store` which passes `&KeyringCredentialProbe`.
 ///
+/// `org_registry` is threaded from `BootContext` (produced at step 3) and passed to
+/// the probe for per-client Tier 1/2 env-var wildcard scan
+/// (BC-2.06.003 v1.3 §OrgRegistry Threading / ADR-032).
+///
 /// # Behavioral coverage (F-PASS3-HIGH-1 closure)
 ///
 /// This function is the correct test entry point for unit tests that need
@@ -1286,6 +1418,7 @@ pub async fn step5_init_credential_store(
 pub async fn step5_init_credential_store_with_probe(
     config: &PrismConfig,
     config_manager: &Arc<arc_swap::ArcSwap<prism_spec_engine::config_manager::ConfigManager>>,
+    org_registry: &Arc<prism_core::OrgRegistry>,
     probe: &dyn CredentialRefProbe,
 ) -> Result<Arc<dyn prism_credentials::CredentialStore>, BootError> {
     use prism_credentials::{CredentialIndex, KeyringBackend};
@@ -1362,7 +1495,7 @@ pub async fn step5_init_credential_store_with_probe(
         // .as_str() returns the canonical snake_case form (e.g. "api_key", "bearer_static")
         // which matches the TOML auth_type field — no behavioral change (AC-003/EC-003).
         for cred_ref in &sensor_spec.credential_refs {
-            let actual_shape_opt = probe.probe(sensor_id, &cred_ref.name)?;
+            let actual_shape_opt = probe.probe(sensor_id, &cred_ref.name, org_registry)?;
             if let Some(actual_shape) = actual_shape_opt {
                 let expected_shape = sensor_spec.auth_type.as_str();
                 if actual_shape != expected_shape {
@@ -1919,8 +2052,15 @@ pub async fn step9_start_mcp_server(
     // This is NOT a BootNull* — it correctly reports the architectural state:
     // the credential_store IS wired, but SpecDrivenSensorAdapter and WASM plugin auth
     // both bypass this resolver (plugins: via PluginAuthProvider::acquire_token;
-    // spec-driven: via AdapterAuthStrategy). Resolving per-sensor SensorAuth subtypes
-    // from the credential_store at fan_out time requires S-2.07.
+    // spec-driven: via AdapterAuthStrategy at step 9A). All active sensor auth types
+    // (Plugin, StaticCookie, BearerStaticCredential) resolve credentials via their
+    // respective AuthProvider impls — they ignore the SensorAuth arg from fan_out().
+    //
+    // ADV-SDEMO002-P01-CRIT-001 fix: the former "dtu-e2e-bearer-placeholder" return value
+    // has been removed. BearerStatic sensors now use BearerStaticCredentialAuthProvider
+    // (constructed at step 9A) which resolves the real bearer token from the credential store
+    // at acquire_token() time — FAIL-CLOSED, no fabricated token. The resolver returns an
+    // empty SensorAuth here; all SpecDrivenSensorAdapter variants ignore this value entirely.
     struct ProductionCredentialResolver {
         #[allow(dead_code)]
         credential_store: Arc<dyn prism_credentials::CredentialStore>,
@@ -1928,23 +2068,36 @@ pub async fn step9_start_mcp_server(
     impl prism_sensors::CredentialResolver for ProductionCredentialResolver {
         fn resolve(
             &self,
-            client_id: &str,
-            sensor_id: prism_core::SensorId,
+            _client_id: &str,
+            _sensor_id: prism_core::SensorId,
         ) -> Result<Box<dyn prism_sensors::auth::SensorAuth>, prism_sensors::adapter::SensorError>
         {
-            // SpecDrivenSensorAdapter handles auth via AdapterAuthStrategy (S-DEMO-001).
-            // WASM plugins handle auth via PluginAuthProvider (ADR-028 §D10).
-            // Neither path uses the CredentialResolver — they acquire tokens at the
-            // adapter level before fan_out dispatches. Per-query credential resolution
-            // via this resolver is S-2.07.
-            Err(prism_sensors::adapter::SensorError::ConfigValidation {
-                sensor: sensor_id.to_string(),
-                detail: format!(
-                    "Direct sensor auth for client '{client_id}' sensor '{sensor_id}': \
-                     use SpecDrivenSensorAdapter (S-DEMO-001) or WASM plugin (ADR-028 §D10). \
-                     Per-query credential resolution via CredentialResolver is S-2.07."
-                ),
-            })
+            // SpecDrivenSensorAdapter handles all auth internally via AdapterAuthStrategy (S-DEMO-001):
+            //   - Plugin (CrowdStrike, and Armis/Claroty via BearerStaticCredentialAuthProvider):
+            //     AuthProvider::acquire_token resolves credentials — ignores this SensorAuth arg.
+            //   - StaticCookie (Cyberint): StaticCookieAuthProvider injects cookie — ignores this arg.
+            //
+            // fan_out() calls credentials.resolve() BEFORE dispatching to adapter.fetch().
+            // All AdapterAuthStrategy variants ignore this return value — auth is resolved
+            // at the AuthProvider::acquire_token layer, not the fan_out credential-arg layer.
+            //
+            // Return empty SensorAuth; no sensor type reads it (ADV-SDEMO002-P01-CRIT-001).
+            // S-2.07 will wire async credential resolution through this path when the per-sensor
+            // SensorAuth subtype dispatch is implemented; for now all paths bypass it.
+            //
+            // SEC-004: document the intentional empty-token bypass.
+            // This is NOT a credential leak — SpecDrivenSensorAdapter routes all auth
+            // through AdapterAuthStrategy (Plugin/StaticCookie/BearerStaticCredential),
+            // each of which calls its own AuthProvider::acquire_token() and ignores the
+            // SensorAuth arg returned here. The empty string never reaches a sensor API call.
+            tracing::trace!(
+                "ProductionCredentialResolver: returning empty SensorAuth — \
+                 all AdapterAuthStrategy variants ignore this value and resolve auth \
+                 independently via AuthProvider::acquire_token() (SEC-004, ADV-SDEMO002-P01-CRIT-001)"
+            );
+            Ok(Box::new(prism_sensors::BearerStaticSensorAuth::new(
+                String::new(),
+            )))
         }
     }
     let credential_resolver: Arc<dyn prism_sensors::CredentialResolver> =

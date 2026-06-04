@@ -759,12 +759,77 @@ impl PluginRuntime {
             )
         })?;
 
-        let func = instance
-            .get_func(&mut store, "acquire-token")
-            .ok_or_else(|| PluginError::InvalidInterface {
-                path: plugin_id.to_string(),
-                missing_export: "acquire-token".to_string(),
-            })?;
+        // Resolve the `acquire-token` export function.
+        //
+        // Core module WAT fixtures (test builds): exported as bare "acquire-token" at
+        // the component's top level — `get_func(store, "acquire-token")` works.
+        //
+        // Real wasm-tools Component Model binaries (production .prx built with wit_bindgen):
+        //   The component exports `sensor-auth` as an INSTANCE (WIT interface), not directly
+        //   as individual functions. The interface is named "prism:{plugin_id}/sensor-auth@0.1.0"
+        //   and contains the functions "acquire-token", "auth-type-name", "get-token".
+        //
+        //   Correct navigation per wasmtime Component Model API:
+        //     1. Get the interface's export index (top-level instance export).
+        //     2. Get the function's export index within that interface.
+        //     3. Use that function index with get_func.
+        //
+        //   This pattern comes from the wasmtime docs example for nested instance exports:
+        //     let instance_index = component.get_export_index(None, "interface-name")?;
+        //     let func_index = component.get_export_index(Some(&instance_index), "fn-name")?;
+        //     let func = instance.get_func(&mut store, &func_index)?;
+        let func = {
+            // Try 1: bare name (WAT core module test fixtures).
+            let mut f = instance.get_func(&mut store, "acquire-token");
+
+            // Try 2: Component Model nested export lookup.
+            // Sensor-auth plugins export functions within a named interface instance.
+            // Interface name format: "prism:{plugin_id}/sensor-auth@{version}".
+            // Try the known production version first, then scan for other versions.
+            if f.is_none() {
+                let component = plugin.pre_instance.component();
+
+                // Candidate interface names (most common first).
+                // Version-agnostic: scan all component top-level exports for an interface
+                // whose functions include "acquire-token".
+                let interface_candidates: Vec<String> = {
+                    let known = format!("prism:{plugin_id}/sensor-auth@0.1.0");
+                    let mut candidates = vec![known];
+                    // Also scan component exports for other sensor-auth interface names.
+                    for (name, _) in component.component_type().exports(&self.engine) {
+                        if name.contains("/sensor-auth@") && !candidates.contains(&name.to_string())
+                        {
+                            candidates.push(name.to_string());
+                        }
+                    }
+                    candidates
+                };
+
+                'outer: for interface_name in &interface_candidates {
+                    if let Some(iface_idx) =
+                        component.get_export_index(None, interface_name.as_str())
+                        && let Some(fn_idx) =
+                            component.get_export_index(Some(&iface_idx), "acquire-token")
+                        && let Some(found) = instance.get_func(&mut store, fn_idx)
+                    {
+                        tracing::debug!(
+                            plugin_id = %plugin_id,
+                            interface_name = %interface_name,
+                            "dispatch_plugin_acquire_token: resolved via nested interface export"
+                        );
+                        f = Some(found);
+                        break 'outer;
+                    }
+                }
+            }
+
+            f
+        };
+
+        let func = func.ok_or_else(|| PluginError::InvalidInterface {
+            path: plugin_id.to_string(),
+            missing_export: "acquire-token".to_string(),
+        })?;
 
         // Component Model ABI (ADR-028 §D11 Option C, Path 4a — F-PR154-CRIT-1 closure):
         // acquire-token takes ZERO WIT params. Credentials are passed via PluginConfigMap

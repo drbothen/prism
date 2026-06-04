@@ -477,6 +477,7 @@ impl prism_bin::boot::CredentialRefProbe for AlwaysOkProbe {
         &self,
         _sensor_id: &str,
         _ref_name: &str,
+        _org_registry: &prism_core::OrgRegistry,
     ) -> Result<Option<String>, prism_bin::BootError> {
         // No auth_type metadata — Rule C not enforced by this probe.
         Ok(None)
@@ -493,6 +494,7 @@ impl prism_bin::boot::CredentialRefProbe for MissingOneProbe {
         &self,
         sensor_id: &str,
         ref_name: &str,
+        _org_registry: &prism_core::OrgRegistry,
     ) -> Result<Option<String>, prism_bin::BootError> {
         if ref_name == self.missing_ref {
             Err(prism_bin::BootError::CredentialRefInvalid(format!(
@@ -545,9 +547,12 @@ async fn test_BC_2_03_013_credential_ref_iteration_happy_path_all_refs_resolvabl
     let (config, _state_tmp) = make_config_with_spec_dir(spec_tmp.path());
 
     // Inject AlwaysOkProbe — both refs resolve to Ok(()) without keyring.
+    // AlwaysOkProbe ignores org_registry; pass an empty registry for the probe's signature.
+    let empty_registry = std::sync::Arc::new(prism_core::OrgRegistry::new());
     let result = prism_bin::boot::step5_init_credential_store_with_probe(
         &config,
         &config_manager,
+        &empty_registry,
         &AlwaysOkProbe,
     )
     .await;
@@ -583,9 +588,15 @@ async fn test_BC_2_03_013_credential_ref_iteration_unhappy_path_missing_ref_exit
     let probe = MissingOneProbe {
         missing_ref: "api_key",
     };
-    let result =
-        prism_bin::boot::step5_init_credential_store_with_probe(&config, &config_manager, &probe)
-            .await;
+    // MissingOneProbe ignores org_registry; pass an empty registry for the probe's signature.
+    let empty_registry = std::sync::Arc::new(prism_core::OrgRegistry::new());
+    let result = prism_bin::boot::step5_init_credential_store_with_probe(
+        &config,
+        &config_manager,
+        &empty_registry,
+        &probe,
+    )
+    .await;
 
     assert!(
         result.is_err(),
@@ -640,6 +651,7 @@ impl prism_bin::boot::CredentialRefProbe for ShapedProbe {
         &self,
         _sensor_id: &str,
         _ref_name: &str,
+        _org_registry: &prism_core::OrgRegistry,
     ) -> Result<Option<String>, prism_bin::BootError> {
         Ok(Some(self.reported_auth_type.to_string()))
     }
@@ -712,9 +724,15 @@ name = "client_secret"
     let probe = ShapedProbe {
         reported_auth_type: "api_key",
     };
-    let result =
-        prism_bin::boot::step5_init_credential_store_with_probe(&config, &config_manager, &probe)
-            .await;
+    // ShapedProbe ignores org_registry; pass an empty registry for the probe's signature.
+    let empty_registry = std::sync::Arc::new(prism_core::OrgRegistry::new());
+    let result = prism_bin::boot::step5_init_credential_store_with_probe(
+        &config,
+        &config_manager,
+        &empty_registry,
+        &probe,
+    )
+    .await;
 
     assert!(
         result.is_err(),
@@ -799,9 +817,15 @@ name = "api_key"
     let probe = ShapedProbe {
         reported_auth_type: "api_key",
     };
-    let result =
-        prism_bin::boot::step5_init_credential_store_with_probe(&config, &config_manager, &probe)
-            .await;
+    // ShapedProbe ignores org_registry; pass an empty registry for the probe's signature.
+    let empty_registry = std::sync::Arc::new(prism_core::OrgRegistry::new());
+    let result = prism_bin::boot::step5_init_credential_store_with_probe(
+        &config,
+        &config_manager,
+        &empty_registry,
+        &probe,
+    )
+    .await;
 
     assert!(
         result.is_ok(),

@@ -171,8 +171,11 @@ proptest! {
     ///
     /// Regression guard: none of the 5 valid auth_type values should trigger Rule A.
     ///
-    /// Preconditions: credential_refs_count = 1; expected_shape == actual_shape.
-    /// Postcondition: validate_cross_composition returns Ok(()).
+    /// Preconditions: credential_refs_count = allowed count for auth_type; expected_shape
+    ///   == actual_shape. Postcondition: validate_cross_composition returns Ok(()).
+    ///
+    /// Per BC-2.06.003 v1.3 / ADR-032: `oauth2_client_credentials` requires 2 refs;
+    /// all other auth types require 1.
     ///
     /// Story: S-PLUGIN-PREREQ-E AC-3 | BC-2.01.016 postcondition | ADR-026 §D3 Rule 1
     /// VP-153 prop 2/6: F-LP-IMPL-P8-IMP-001
@@ -180,17 +183,20 @@ proptest! {
     fn prop_rule_a_valid_auth_type_accepted(
         valid_type in arb_valid_auth_type(),
     ) {
+        // BC-2.06.003 v1.3 / ADR-032: use the correct credential count for each auth type.
+        let allowed_count = if valid_type == "oauth2_client_credentials" { 2 } else { 1 };
         let result = SpecLoader::validate_cross_composition(
             "vp153-test-sensor",
             valid_type,
-            1,               // single credential_ref — Rule B passes
+            allowed_count,   // correct count for this auth_type — Rule B passes
             valid_type,      // expected_shape matches auth_type — Rule C passes
             valid_type,      // actual_shape matches — Rule C passes
         );
         prop_assert!(
             result.is_ok(),
-            "Rule A regression guard: valid auth_type {:?} was rejected; expected Ok(())",
-            valid_type
+            "Rule A regression guard: valid auth_type {:?} (count={}) was rejected; expected Ok(())",
+            valid_type,
+            allowed_count
         );
     }
 }
@@ -210,6 +216,9 @@ proptest! {
     ///
     /// Postcondition: validate_cross_composition returns Err containing "E-SPEC-013".
     ///
+    /// Per BC-2.06.003 v1.3 / ADR-032: `oauth2_client_credentials` now allows exactly 2
+    /// credential_refs. We filter the (auth_type=oauth2, count=2) valid combination.
+    ///
     /// Story: S-PLUGIN-PREREQ-E AC-3b | BC-2.01.016 Rule B | ADR-026 §D3 Rule 2
     /// VP-153 prop 3/6: F-LP-IMPL-P8-IMP-001
     #[test]
@@ -217,17 +226,23 @@ proptest! {
         valid_type in arb_valid_auth_type(),
         count in arb_multi_credential_count(),
     ) {
+        // BC-2.06.003 v1.3 / ADR-032: oauth2_client_credentials allows exactly 2 refs.
+        // Skip the valid (oauth2_client_credentials, 2) combination — it passes Rule B.
+        let allowed_count = if valid_type == "oauth2_client_credentials" { 2 } else { 1 };
+        prop_assume!(count != allowed_count);
+
         let result = SpecLoader::validate_cross_composition(
             "vp153-test-sensor",
             valid_type,
-            count,           // >1 credential_refs — Rule B fires (E-SPEC-013)
+            count,           // count != allowed_count for this auth_type — Rule B fires (E-SPEC-013)
             valid_type,      // expected_shape — Rule C passes (same as actual)
             valid_type,      // actual_shape — Rule C passes
         );
         prop_assert!(
             result.is_err(),
-            "Rule B (E-SPEC-013): credential_refs_count={} was accepted; expected Err",
-            count
+            "Rule B (E-SPEC-013): credential_refs_count={} was accepted; expected Err for auth_type={}",
+            count,
+            valid_type
         );
         let err = result.unwrap_err();
         let err_str = format!("{err}");
@@ -252,8 +267,12 @@ proptest! {
     /// function were called with 0 — but it never is in production. This test
     /// exercises count=1 (the only non-violating count).
     ///
-    /// Preconditions: auth_type is valid (Rule A passes); count = 1.
+    /// Preconditions: auth_type is valid (Rule A passes); count = 1 for non-oauth2 types,
+    /// count = 2 for oauth2_client_credentials.
     /// Postcondition: validate_cross_composition returns Ok(()).
+    ///
+    /// Per BC-2.06.003 v1.3 / ADR-032: `oauth2_client_credentials` requires exactly 2
+    /// credential_refs (client_id + client_secret). All other auth types require exactly 1.
     ///
     /// Story: S-PLUGIN-PREREQ-E AC-3b | BC-2.01.016 postcondition | ADR-026 §D3 Rule 2
     /// VP-153 prop 4/6: F-LP-IMPL-P8-IMP-001
@@ -261,17 +280,20 @@ proptest! {
     fn prop_rule_b_single_credential_ref_accepted(
         valid_type in arb_valid_auth_type(),
     ) {
+        // BC-2.06.003 v1.3 / ADR-032: oauth2_client_credentials requires 2; others require 1.
+        let allowed_count = if valid_type == "oauth2_client_credentials" { 2 } else { 1 };
         let result = SpecLoader::validate_cross_composition(
             "vp153-test-sensor",
             valid_type,
-            1usize,          // exactly 1 credential_ref — Rule B must NOT fire
+            allowed_count,   // correct count for this auth_type — Rule B must NOT fire
             valid_type,      // expected_shape matches auth_type — Rule C passes
             valid_type,      // actual_shape matches — Rule C passes
         );
         prop_assert!(
             result.is_ok(),
-            "Rule B regression guard: credential_refs_count=1 was rejected; \
+            "Rule B regression guard: credential_refs_count={} was rejected; \
              valid auth_type={:?}; expected Ok(())",
+            allowed_count,
             valid_type
         );
     }
@@ -332,10 +354,10 @@ proptest! {
     /// VP-153 prop 6 of 6: Rule B — credential count boundary: all counts ≥ 2 rejected.
     ///
     /// Exercises BC-2.01.016 §Error Cases E-SPEC-013 across a wider count range [2..=32].
-    /// The Rule B check is `credential_refs_count != 1`, meaning any count except 1
-    /// (including 0 per the production path note above) fires the error. Here we sweep
-    /// the range 2..=32 to verify the error message includes the actual count and cites
-    /// E-SPEC-013.
+    /// Counts that exceed the auth_type's allowed cardinality fire E-SPEC-013.
+    ///
+    /// Per BC-2.06.003 v1.3 / ADR-032: `oauth2_client_credentials` allows exactly 2;
+    /// other auth types allow exactly 1. Counts above the allowed value trigger E-SPEC-013.
     ///
     /// Story: S-PLUGIN-PREREQ-E AC-3b | BC-2.01.016 E-SPEC-013 boundary | ADR-026 §D3
     /// VP-153 prop 6/6: F-LP-IMPL-P8-IMP-001
@@ -344,6 +366,10 @@ proptest! {
         valid_type in arb_valid_auth_type(),
         count in 2usize..=32,
     ) {
+        // BC-2.06.003 v1.3 / ADR-032: skip the exactly-valid (oauth2, 2) combination.
+        let allowed_count = if valid_type == "oauth2_client_credentials" { 2 } else { 1 };
+        prop_assume!(count != allowed_count);
+
         let result = SpecLoader::validate_cross_composition(
             "vp153-count-boundary-sensor",
             valid_type,
@@ -353,8 +379,10 @@ proptest! {
         );
         prop_assert!(
             result.is_err(),
-            "Rule B boundary: count={} was accepted; expected Err(E-SPEC-013)",
-            count
+            "Rule B boundary: count={} (allowed={}) was accepted; expected Err(E-SPEC-013) for auth_type={}",
+            count,
+            allowed_count,
+            valid_type
         );
         let err = result.unwrap_err();
         let err_str = format!("{err}");

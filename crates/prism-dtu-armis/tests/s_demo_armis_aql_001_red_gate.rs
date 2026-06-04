@@ -638,9 +638,21 @@ fn test_armis_aql_search_dtu_toml_column_parity() {
                 .as_str()
                 .expect("S-DEMO-ARMIS-AQL-001 SAP-2: each column must have a name");
 
+            // Skip push-down pseudo-columns: these have no ocsf_field (or empty ocsf_field)
+            // because they are query-planner filter parameters, not DTU response data fields.
+            // BC-2.11.007 §Mechanism B: the `aql` column is an INDEX pseudo-column; the query
+            // planner seeds FetchContext.query_filters["aql"] from it, but the DTU response
+            // does NOT include an "aql" field in DeviceRecord/AlertRecord.
+            // SAP-2 applies only to data columns (those with a non-empty ocsf_field).
+            let ocsf_field = col.get("ocsf_field").and_then(|v| v.as_str()).unwrap_or("");
+            if ocsf_field.is_empty() {
+                // Push-down pseudo-column: no DTU data field expected. Skip SAP-2 parity check.
+                continue;
+            }
+
             assert!(
                 dtu_fields.contains(col_name),
-                "S-DEMO-ARMIS-AQL-001 SAP-2 CRITICAL: TOML column '{col_name}' in table '{table_name}' has no equivalent field in the DTU types.rs struct — runtime normalization will silently produce empty/wrong data (SAP-2 P1 CRITICAL finding pattern)"
+                "S-DEMO-ARMIS-AQL-001 SAP-2 CRITICAL: TOML data column '{col_name}' in table '{table_name}' has no equivalent field in the DTU types.rs struct — runtime normalization will silently produce empty/wrong data (SAP-2 P1 CRITICAL finding pattern)"
             );
         }
     }

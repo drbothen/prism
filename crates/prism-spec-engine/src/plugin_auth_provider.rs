@@ -98,6 +98,15 @@ impl PluginAuthProvider {
     pub fn plugin_id(&self) -> &str {
         &self.plugin_id
     }
+
+    /// Return a clone of the `Arc<PluginRuntime>` this provider holds.
+    ///
+    /// Used by boot step 9A to construct per-org `PluginAuthProvider` instances with
+    /// the correct per-org token endpoint (overlay base_url) while reusing the same
+    /// `PluginRuntime` — avoiding redundant plugin loads.
+    pub fn runtime_arc(&self) -> Arc<PluginRuntime> {
+        Arc::clone(&self.runtime)
+    }
 }
 
 impl std::fmt::Debug for PluginAuthProvider {

@@ -421,7 +421,9 @@ fn extract_component_exports(engine: &wasmtime::Engine, bytes: &[u8]) -> Vec<Str
 
     let mut names: Vec<String> = Vec::new();
     for (name, item) in component.component_type().exports(engine) {
-        names.push(name.to_string());
+        let name_str = name.to_string();
+        names.push(name_str.clone());
+
         // Flatten one level: if the export is a ComponentInstance (WIT interface),
         // also collect the bare function names from within the interface.
         // This allows validate_wit_interface to match bare names like "acquire-token"
@@ -430,6 +432,20 @@ fn extract_component_exports(engine: &wasmtime::Engine, bytes: &[u8]) -> Vec<Str
             for (fn_name, _fn_ty) in inst.exports(engine) {
                 names.push(fn_name.to_string());
             }
+        }
+
+        // Handle Component Model exports with `#` separator (e.g.
+        // "prism:crowdstrike-oauth2/sensor-auth@0.1.0#acquire-token").
+        // Some wasm-tools / wit-bindgen versions emit direct function exports at
+        // the component level using `interface#function` naming rather than nesting
+        // the function inside a ComponentInstance. Extract the bare function name
+        // after the `#` so that validate_wit_interface can match it.
+        if let Some(bare_name) = name_str
+            .rsplit_once('#')
+            .map(|(_, fn_name)| fn_name)
+            .filter(|s| !s.is_empty())
+        {
+            names.push(bare_name.to_string());
         }
     }
     names

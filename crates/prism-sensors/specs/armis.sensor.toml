@@ -31,6 +31,14 @@ base_url = "${env.ARMIS_INSTANCE_URL}"
 version = "1.0.0"
 
 # ---------------------------------------------------------------------------
+# Credential references (ADV-SDEMO002-P01-CRIT-001 fix)
+# ---------------------------------------------------------------------------
+# BC-2.06.003 resolution chain: ARMIS_BEARER_TOKEN_FILE > ARMIS_BEARER_TOKEN > keyring.
+# BearerStaticCredentialAuthProvider resolves "bearer_token" at acquire_token() time.
+[[credential_refs]]
+name = "bearer_token"
+
+# ---------------------------------------------------------------------------
 # Table: devices
 # DTU-EXT-003: CLOSED by S-DEMO-ARMIS-AQL-001. Primary path is GET /api/v1/search
 #   with ?aql=${query.filter.aql} (real Armis Centrix AQL endpoint, ADR-031 §D8-a).
@@ -115,6 +123,20 @@ ocsf_class = "device"
   column_type = "integer"
   ocsf_field = "risk_score"
 
+  # BC-2.11.007 §Mechanism B — Verbatim-AQL Passthrough (Armis only).
+  # The user supplies the AQL string as a pseudo-column literal: WHERE aql = 'in:devices'.
+  # The query planner seeds the verbatim string into FetchContext.query_filters["aql"] via
+  # predicate_tree_to_filter_map → QueryParams.filters["aql"] (extract_push_down_filters_as_map).
+  # PipelineExecutor interpolates ${query.filter.aql} into the path_template below.
+  # options = ["INDEX"]: pushdown-eligible; triggers canonical seeding path in prism-query.
+  # column_type = "string": the AQL string is passed verbatim as a query parameter.
+  # No ocsf_field: aql is a push-down pseudo-column, not a data column in the OCSF output.
+  # S-DEMO-002 AC-014 / D-934 scope.
+  [[tables.columns]]
+  name = "aql"
+  column_type = "string"
+  options = ["INDEX"]
+
   # DTU-EXT-003: CLOSED by S-DEMO-ARMIS-AQL-001.
   # Primary path is now GET /api/v1/search?aql=in:devices (real Armis Centrix AQL endpoint,
   # ADR-031 §D8-a). `in:devices` is the real Armis entity discriminator (research artifact
@@ -189,6 +211,17 @@ ocsf_class = "security_finding"
   name = "updated_at"
   column_type = "datetime"
   ocsf_field = "end_time"
+
+  # BC-2.11.007 §Mechanism B — Verbatim-AQL Passthrough (Armis alerts table).
+  # Same push-down convention as devices table: WHERE aql = 'in:alerts status:Open'.
+  # The query planner seeds the verbatim AQL string into FetchContext.query_filters["aql"]
+  # via predicate_tree_to_filter_map → QueryParams.filters["aql"].
+  # options = ["INDEX"]: pushdown-eligible; canonical seeding path in prism-query.
+  # No ocsf_field: aql is a push-down pseudo-column, not a data column in the OCSF output.
+  [[tables.columns]]
+  name = "aql"
+  column_type = "string"
+  options = ["INDEX"]
 
   # DTU-EXT-004: CLOSED by S-DEMO-ARMIS-AQL-001.
   # Primary path is now GET /api/v1/search?aql=in:alerts (real Armis Centrix AQL endpoint,

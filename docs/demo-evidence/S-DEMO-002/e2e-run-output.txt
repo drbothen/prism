@@ -1,0 +1,57 @@
+# E2E run output — S-DEMO-002 @ 0dbe72a0
+# Branch: feature/S-DEMO-002
+# Date: 2026-06-03
+# Result: 13 PASS, 0 FAIL, 110 SKIPPED (GREEN)
+#
+# Step 1: Release binaries built (OBS-004 — must run against release build)
+# Command: cargo build --release -p prism-bin -p prism-dtu-demo-server
+# ─────────────────────────────────────────────────────────────────────────────
+
+    Finished `release` profile [optimized] target(s) in 53.77s
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Step 2: E2E suite run against release binaries
+# Command: cargo nextest run -p prism-bin --profile e2e --run-ignored ignored-only
+#
+# NOTE on "unoptimized + debuginfo": This refers to the test harness binary
+# (cargo nextest compiles the test binary in debug profile by default). The
+# subprocess binaries under test — `target/release/prism` and
+# `target/release/prism-dtu-demo-server` — are the RELEASE builds, located via
+# locate_binary() in helpers/mod.rs which prefers `target/release/<name>` over
+# `target/debug/<name>` (Architecture Compliance Rule 5 in S-DEMO-002 story).
+# The "optimized" confirmation from Step 1 above is the authoritative proof that
+# the subprocess binaries are release-optimized.
+# ─────────────────────────────────────────────────────────────────────────────
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 20.18s
+────────────
+ Nextest run ID 4cd96a95-c23c-410d-ae68-9d70beb6198b with nextest profile: e2e
+    Starting 13 tests across 12 binaries (110 tests skipped)
+        PASS [   0.554s] ( 1/13) prism-bin::e2e_smoke test_BC_2_22_001_e2e_smoke_test_launches_dtu_and_prism_bin_without_error
+        PASS [   0.611s] ( 2/13) prism-bin::e2e_smoke test_BC_2_11_005_e2e_claroty_query_returns_data
+        PASS [   0.614s] ( 3/13) prism-bin::e2e_smoke test_BC_2_11_005_e2e_armis_query_returns_data
+        PASS [   0.614s] ( 4/13) prism-bin::e2e_smoke test_BC_2_11_007_e2e_armis_aql_pushdown_devices_dtu_roundtrip
+        PASS [   0.678s] ( 5/13) prism-bin::e2e_smoke test_BC_2_11_005_e2e_cyberint_query_returns_data
+        PASS [   0.678s] ( 6/13) prism-bin::e2e_smoke test_BC_3_2_001_e2e_cross_org_sensor_query_returns_e_query_032
+        PASS [   0.678s] ( 7/13) prism-bin::e2e_smoke test_BC_2_09_008_e2e_response_envelope_meta_fields_correct
+        PASS [   0.681s] ( 8/13) prism-bin::e2e_smoke test_BC_2_11_005_e2e_crowdstrike_query_returns_ocsf_data
+        PASS [   0.681s] ( 9/13) prism-bin::e2e_smoke test_EC_005_e2e_limit_200_returns_paginated_rows
+        PASS [   0.777s] (10/13) prism-bin::e2e_smoke test_BC_2_10_010_e2e_sigterm_cleanly_shuts_down_both_subprocesses
+        PASS [   0.787s] (11/13) prism-bin::e2e_smoke test_EC_004_e2e_limit_zero_returns_empty_not_error
+        PASS [   0.787s] (12/13) prism-bin::e2e_smoke test_BC_3_2_001_e2e_dtu_multi_tenant_each_org_reaches_correct_clone_port
+        PASS [   0.794s] (13/13) prism-bin::e2e_smoke test_BC_3_2_001_e2e_multi_org_boot_registers_correct_adapter_count
+────────────
+     Summary [   0.795s] 13 tests run: 13 passed, 110 skipped
+        PASS [   0.554s] ( 1/13) prism-bin::e2e_smoke test_BC_2_22_001_e2e_smoke_test_launches_dtu_and_prism_bin_without_error
+        PASS [   0.611s] ( 2/13) prism-bin::e2e_smoke test_BC_2_11_005_e2e_claroty_query_returns_data
+        PASS [   0.614s] ( 3/13) prism-bin::e2e_smoke test_BC_2_11_005_e2e_armis_query_returns_data
+        PASS [   0.614s] ( 4/13) prism-bin::e2e_smoke test_BC_2_11_007_e2e_armis_aql_pushdown_devices_dtu_roundtrip
+        PASS [   0.678s] ( 5/13) prism-bin::e2e_smoke test_BC_2_11_005_e2e_cyberint_query_returns_data
+        PASS [   0.678s] ( 6/13) prism-bin::e2e_smoke test_BC_3_2_001_e2e_cross_org_sensor_query_returns_e_query_032
+        PASS [   0.678s] ( 7/13) prism-bin::e2e_smoke test_BC_2_09_008_e2e_response_envelope_meta_fields_correct
+        PASS [   0.681s] ( 8/13) prism-bin::e2e_smoke test_BC_2_11_005_e2e_crowdstrike_query_returns_ocsf_data
+        PASS [   0.681s] ( 9/13) prism-bin::e2e_smoke test_EC_005_e2e_limit_200_returns_paginated_rows
+        PASS [   0.777s] (10/13) prism-bin::e2e_smoke test_BC_2_10_010_e2e_sigterm_cleanly_shuts_down_both_subprocesses
+        PASS [   0.787s] (11/13) prism-bin::e2e_smoke test_EC_004_e2e_limit_zero_returns_empty_not_error
+        PASS [   0.787s] (12/13) prism-bin::e2e_smoke test_BC_3_2_001_e2e_dtu_multi_tenant_each_org_reaches_correct_clone_port
+        PASS [   0.794s] (13/13) prism-bin::e2e_smoke test_BC_3_2_001_e2e_multi_org_boot_registers_correct_adapter_count
