@@ -1020,7 +1020,7 @@ impl SpecLoader {
                     // the resolved value — no credential leak through this error path.
                     //
                     // BC-2.16.009 v1.8 §VR6→VR7 ordering; S-SPEC-HTTP-METHOD-VALIDATION-001;
-                    // error-taxonomy.md v1.59 E-SPEC-024.
+                    // error-taxonomy.md E-SPEC-024.
                     {
                         let env_errors =
                             crate::env_resolver::resolve_env_var_tokens(&mut spec, &file_name);
@@ -1052,7 +1052,7 @@ impl SpecLoader {
                     // this fix, but is retained as belt-and-suspenders for future callers.
                     //
                     // Invalid method values → E-SPEC-025 via structured PrismError::Spec channel.
-                    // S-SPEC-HTTP-METHOD-VALIDATION-001; BC-2.16.009 v1.8 §VR7; error-taxonomy.md v1.59.
+                    // S-SPEC-HTTP-METHOD-VALIDATION-001; BC-2.16.009 v1.8 §VR7; error-taxonomy.md E-SPEC-025.
                     let method_errors = crate::validation::validate_step_methods(&spec);
                     if !method_errors.is_empty() {
                         for (ti, si, method_err) in method_errors {

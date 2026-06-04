@@ -1007,7 +1007,7 @@ pub enum SpecErrorCode {
     /// per AD-017.
     ///
     /// BC-2.16.009 §Validation Rules 7 (AC-7); S-SPEC-HTTP-METHOD-VALIDATION-001.
-    /// error-taxonomy.md v1.59 E-SPEC-025.
+    /// error-taxonomy.md E-SPEC-025.
     ESpec025,
 }
 

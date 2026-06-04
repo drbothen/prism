@@ -493,7 +493,7 @@ pub(crate) const ALLOWED_HTTP_METHODS: &[&str] =
 /// This eliminates the fragility noted in F-LOCAL-P4-MED-001: a name reverse-lookup breaks
 /// when two steps in one table share the same name (step-name uniqueness is NOT enforced).
 ///
-/// BC-2.16.009 §Validation Rules 7 (AC-7); error-taxonomy.md v1.59 E-SPEC-025;
+/// BC-2.16.009 §Validation Rules 7 (AC-7); error-taxonomy.md E-SPEC-025;
 /// S-SPEC-HTTP-METHOD-VALIDATION-001; F-LOCAL-P4-MED-001.
 pub fn validate_step_methods(
     spec: &SensorSpec,
@@ -784,7 +784,7 @@ pub fn validate_auth_plugin_fields(
 // S-SPEC-HTTP-METHOD-VALIDATION-001 — Red Gate test suite
 //
 // Test naming convention: test_BC_2_16_009_<description>
-// Traces to: BC-2.16.009 v1.8 §Validation Rules 7; error-taxonomy.md v1.59 E-SPEC-025.
+// Traces to: BC-2.16.009 v1.8 §Validation Rules 7; error-taxonomy.md E-SPEC-025.
 //
 // All tests in this module are RED GATE tests — they MUST FAIL before
 // validate_step_methods() is implemented (todo!() panics). After implementation,
@@ -1159,10 +1159,10 @@ mod http_method_whitelist_tests {
     // AC-002 continued: E-SPEC-025 message format is byte-verbatim (POL-24)
     // -----------------------------------------------------------------------
 
-    /// BC-2.16.009 v1.8 §VR7 §Error message format; error-taxonomy.md v1.59 E-SPEC-025; POL-24.
+    /// BC-2.16.009 v1.8 §VR7 §Error message format; error-taxonomy.md E-SPEC-025; POL-24.
     ///
     /// The Display output of SpecEngineError::InvalidHttpMethod must be byte-verbatim with the
-    /// canonical error-taxonomy.md v1.59 E-SPEC-025 message template:
+    /// canonical error-taxonomy.md E-SPEC-025 message template:
     ///
     /// "Step '<step_name>' in '<sensor_id>.<table_name>' declares method '<method_value>'
     ///  which is not a supported HTTP method. Supported: GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS"
@@ -1172,7 +1172,7 @@ mod http_method_whitelist_tests {
     ///
     /// Red Gate: fails with todo!() panic before implementation (via validate_step_methods).
     #[test]
-    fn test_BC_2_16_009_e_spec_025_display_matches_error_taxonomy_v1_59_template_byte_for_byte() {
+    fn test_BC_2_16_009_e_spec_025_display_matches_error_taxonomy_template_byte_for_byte() {
         let spec = make_spec_with_method("CONNECT");
         let errors = errors_only(validate_step_methods(&spec));
         assert!(
@@ -1180,13 +1180,13 @@ mod http_method_whitelist_tests {
             "expected at least one E-SPEC-025 error for method 'CONNECT'"
         );
         let display = errors[0].to_string();
-        // Byte-verbatim template from error-taxonomy.md v1.59 E-SPEC-025:
+        // Byte-verbatim template from error-taxonomy.md E-SPEC-025:
         let expected = "Step 'fetch' in 'test-sensor.events' declares method 'CONNECT' \
                         which is not a supported HTTP method. \
                         Supported: GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS";
         assert_eq!(
             display, expected,
-            "E-SPEC-025 Display must match error-taxonomy.md v1.59 template byte-for-byte \
+            "E-SPEC-025 Display must match error-taxonomy.md E-SPEC-025 template byte-for-byte \
              (POL-24). Got:\n  {display:?}\nExpected:\n  {expected:?}"
         );
     }

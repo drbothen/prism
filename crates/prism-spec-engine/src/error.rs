@@ -352,11 +352,11 @@ pub enum SpecEngineError {
     ///
     /// The method value IS safe to echo (config text, not a credential per AD-017).
     ///
-    /// Error message template (error-taxonomy.md v1.59, byte-verbatim):
+    /// Error message template (error-taxonomy.md E-SPEC-025, byte-verbatim):
     /// `"Step '<step_name>' in '<sensor_id>.<table_name>' declares method '<method_value>'
     ///   which is not a supported HTTP method. Supported: GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS"`
     ///
-    /// BC-2.16.009 §Validation Rules 7; error-taxonomy.md v1.59 E-SPEC-025;
+    /// BC-2.16.009 §Validation Rules 7; error-taxonomy.md E-SPEC-025;
     /// S-SPEC-HTTP-METHOD-VALIDATION-001.
     #[error(
         "Step '{step_name}' in '{sensor_id}.{table_name}' declares method '{method_value}' which is not a supported HTTP method. Supported: GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS"
