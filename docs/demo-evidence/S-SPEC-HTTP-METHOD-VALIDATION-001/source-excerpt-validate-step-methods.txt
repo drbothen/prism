@@ -1,0 +1,101 @@
+# Source Excerpt — validate_step_methods() production code path
+#
+# Story:   S-SPEC-HTTP-METHOD-VALIDATION-001 v1.2
+# File:    crates/prism-spec-engine/src/validation.rs
+# BC:      BC-2.16.009 v1.8 §Validation Rules 7; error-taxonomy.md v1.59 E-SPEC-025
+#
+# Purpose: Annotated source showing the production code path for all 3 ACs.
+#
+# ─── 1. ALLOWED_HTTP_METHODS compile-time constant (AC-001 anchor) ────────────
+#
+#   pub(crate) const ALLOWED_HTTP_METHODS: &[&str] =
+#       &["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"];
+#
+#   Production characteristics:
+#   - 7 values per BC-2.16.009 §VR7 "Whitelist constant" clause
+#   - Case-sensitive (uppercase only); "get" is NOT "GET"
+#   - `const` — never runtime-configurable; no serde, no env var, no prism.toml
+#   - `pub(crate)` — exported to test modules within the crate; not pub API
+#
+# ─── 2. validate_step_methods() function signature and Rule 7 wiring ──────────
+#
+#   pub fn validate_step_methods(
+#       spec: &SensorSpec,
+#   ) -> Vec<(usize, usize, crate::error::SpecEngineError)>
+#
+#   Return value carries (table_index, step_index, error) — indices from
+#   enumerate(), never from name-reverse-lookup (F-LOCAL-P4-MED-001 fix).
+#   Callers use .map(|(_, _, e)| e) when only the error is needed.
+#
+#   Called in the spec-load pipeline AFTER resolve_env_var_tokens() (Rule 6),
+#   BEFORE the spec is accepted — ensuring the validated method is the resolved
+#   value, not the raw "${env.VAR}" token (AC-003 Rule 6→Rule 7 ordering).
+#
+# ─── 3. Skip-guard for unresolved env tokens (AC-003 double-reporting prevention) ──
+#
+#   // Inside the per-step loop:
+#   if crate::env_resolver::ENV_TOKEN_REGEX.is_match(&step.method) {
+#       continue;
+#   }
+#
+#   ENV_TOKEN_REGEX pattern: `\$\{env\.[A-Z0-9_]+\}`  (well-formed token only)
+#   - Matches: ${env.SENSOR_STEP_METHOD}, ${env.A}, ${env.HTTP_METHOD_42}
+#     → These are skipped (Rule 6 already emitted E-SPEC-024 for them)
+#   - Does NOT match: ${env.lower}, ${env.foo-bar}, ${env.}
+#     → These fall through to the whitelist check → produce E-SPEC-025
+#     → (F-LOCAL-P3-MED-002: old broad `contains("${env.")` check was too wide)
+#
+# ─── 4. Case-sensitive whitelist check (AC-001 pass / AC-002 reject) ──────────
+#
+#   if !ALLOWED_HTTP_METHODS.contains(&step.method.as_str()) {
+#       errors.push((
+#           ti,
+#           si,
+#           crate::error::SpecEngineError::InvalidHttpMethod {
+#               step_name: step.name.clone(),
+#               sensor_id: spec.sensor_id.clone(),
+#               table_name: table.table_name.clone(),
+#               method_value: step.method.clone(),
+#           },
+#       ));
+#   }
+#
+#   - Multi-error collection: no `return` or `?` early-exit (INV-ERR-003)
+#   - All 4 error fields populated for actionable diagnostics
+#   - method_value echoed verbatim (safe per AD-017: HTTP method is config text)
+#
+# ─── 5. E-SPEC-025 error variant in error.rs (AC-002 byte-verbatim message) ───
+#
+#   // crates/prism-spec-engine/src/error.rs
+#   #[error(
+#       "Step '{step_name}' in '{sensor_id}.{table_name}' declares method '{method_value}' \
+#        which is not a supported HTTP method. \
+#        Supported: GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS"
+#   )]
+#   InvalidHttpMethod {
+#       step_name: String,
+#       sensor_id: String,
+#       table_name: String,
+#       method_value: String,
+#   },
+#
+#   This is the byte-verbatim template from error-taxonomy.md v1.59 E-SPEC-025 (POL-24).
+#   The test test_BC_2_16_009_e_spec_025_display_matches_error_taxonomy_v1_59_template_byte_for_byte
+#   asserts error.to_string() == exact expected string.
+#
+# ─── 6. Rule 7 call site wiring in the spec-load pipeline ─────────────────────
+#
+#   // load_path() in crates/prism-spec-engine/src/add_sensor_spec.rs (or equivalent):
+#   // 1. Parse TOML → SensorSpec
+#   // 2. resolve_env_var_tokens(&mut spec, ...) [Rule 6]
+#   // 3. validate_sensor_spec(&spec) [Rules 1–5]
+#   // 4. validate_step_methods(&spec) → map errors to ValidationError using
+#   //    sensor.tables[{ti}].steps[{si}].method as canonical toml_path
+#   //
+#   // Both load_path() and load_all() wire step 4.
+#   // Integration tests test_BC_2_16_009_load_path_* and test_BC_2_16_009_load_all_*
+#   // verify this end-to-end.
+#
+# Note on citations:
+#   This excerpt uses function names and behavioral anchors per TD-VSDD-091
+#   (anti-volatile-pin rule). No file:line-number citations — those decay on diffs.
