@@ -12349,3 +12349,186 @@ git -C .factory log -1 --format='%h %s'
 ---
 
 **D-971 burst marker:** Single-commit burst per TD-VSDD-053. Anti-volatile-pin per TD-VSDD-091. Defensive sweep (S-7.02): develop_head b38c1abc CONFIRMED; total_stories 179 CONFIRMED (STORY-INDEX v2.260); bc_index_version v5.78 CONFIRMED; VP-INDEX v1.76 UNCHANGED; ARCH-INDEX v2.110 UNCHANGED; STATE.md v7.623→v7.624; pre_compact_snapshot updated to this snapshot; current_step updated; safe_to_compact: true.
+
+Read this §RESUME SNAPSHOT 2026-06-03-S-DEMO-002-OPTION-A-LANDED-E2E-GREEN-LOCAL-CASCADE-NEXT (you are reading it now).
+
+## §RESUME SNAPSHOT 2026-06-04-PHASE-B-LANE1-PR-OPEN (D-991)
+
+> **This is the durable zero-context checkpoint. A fresh session can resume Phase B Lane 1 cold from this snapshot alone. Phase A COMPLETE (D-990). S-SPEC-HTTP-METHOD-VALIDATION-001 LOCAL 3/3 CONVERGED; PR #172 OPEN (base develop@fdd12251, head 4a2a7bb7); CI running. IMMEDIATE NEXT ACTION: PR-LEVEL adversarial 3-CLEAN cascade on PR #172 (Standing Rule 2).**
+
+### §1 PIPELINE STATUS
+
+- **develop HEAD:** `fdd12251` (S-DEMO-002 PR #171 squash-merged 2026-06-04 D-987)
+- **STATE.md:** v7.641
+- **BC-INDEX:** v5.80 (active: 234, draft: 3; total: 246)
+- **STORY-INDEX:** v2.274 (179 stories)
+- **VP-INDEX:** v1.76 (unchanged)
+- **ARCH-INDEX:** v2.110 (unchanged)
+- **error-taxonomy:** v1.59
+- **policies.yaml:** v1.31
+- **Open PRs:** PR #172 (S-SPEC-HTTP-METHOD-VALIDATION-001; head 4a2a7bb7; CI running)
+
+### §2 PHASE-B LANE-1 STATUS
+
+---
+
+#### LANE 1 — S-SPEC-HTTP-METHOD-VALIDATION-001 (P2; ready v1.2; 3pts) — PR #172 OPEN, CI running
+
+- **Story file:** `.factory/stories/S-SPEC-HTTP-METHOD-VALIDATION-001-http-method-validation.md`
+- **Story version:** v1.2
+- **Code branch:** `feature/S-SPEC-HTTP-METHOD-VALIDATION-001`
+- **Worktree path:** `.worktrees/S-SPEC-HTTP-METHOD-VALIDATION-001`
+- **Feature HEAD (remote):** `4a2a7bb7`
+- **Red Gate:** `154f5f7d` (23 tests, 21 failing)
+- **TDD green:** `b5dc5bf2`
+- **LOCAL adversarial cascade:** CONVERGED 3/3 (7 passes, passes 5/6/7 CLEAN strict novelty ZERO; BC-5.39.001 D-779)
+- **Fix-bursts:** 4 total — `0f290682`, `3659227f`, `aff77f28`+`bb08d3ec`, `b1b81cd0`
+- **4 genuine bugs fixed:**
+  - (1) F-P1-MED-001: dual load-path wiring untested
+  - (2) F-P1-OBS-001: E-SPEC-025 structured-channel parity
+  - (3) F-P2-MED-001/002: malformed `load_all` `toml_path` + untested path
+  - (4) F-P3-MED-002: skip-guard over-skip of malformed pseudo-tokens (shared `ENV_TOKEN_REGEX`); F-P3-MED-001: non-load-bearing index test; F-P4-MED-001: duplicate-step-name index mis-attribution (structural index-carry fix)
+- **Demo evidence:** `4a2a7bb7` (`docs/demo-evidence/S-SPEC-HTTP-METHOD-VALIDATION-001/`, 3 ACs, POL-10, stable refs)
+- **pre-push just check:** 3982/3982 PASS (218s, 49/49 #[non_exhaustive])
+- **PR #172:** OPEN (base `develop@fdd12251`, head `4a2a7bb7`); CI running
+- **PR description:** `.factory/code-delivery/S-SPEC-HTTP-METHOD-VALIDATION-001/pr-description.md`
+- **BCs:** BC-2.16.009 v1.8 (active)
+
+---
+
+#### LANE 2 — S-DEMO-QUERY-PUSHDOWN-001 (P2; ready v1.1; 5pts) — NOT STARTED
+
+- **Status:** Ready; depends_on S-DEMO-001 SATISFIED
+- **BCs:** BC-2.01.013, BC-2.11.005, BC-2.11.007
+- **NEXT ACTION (after Lane 1 merges):** Fresh per-story delivery workflow
+
+---
+
+#### LANE 3 — OCSF-CLASS-MIGRATION-001 (P2; ready v1.2; 3pts) — NOT STARTED
+
+- **Status:** Ready; depends_on S-DEMO-001 SATISFIED; schedule before Phase C
+- **Scope:** 4 sensor TOMLs `security_finding`→`detection_finding`; BC-2.02.012 amendment; `select_by_class_name` update; S-DEMO-001 fixture update
+
+---
+
+#### LANE 4 — S-DEMO-003 (P1; ready v1.1; 5pts) — NOT STARTED
+
+- **Status:** Ready; depends_on S-DEMO-001+S-DEMO-002 SATISFIED
+
+---
+
+### §3 PHASE-C LANES (Claroty cluster — serialized)
+
+All three lanes share `BC-2.16.013` + `claroty.sensor.toml`. Must be serialized to avoid contention.
+
+1. **S-DEMO-CLAROTY-TRAILING-SLASH-001** (v1.2; ready)
+2. **S-DEMO-CLAROTY-SPEC-PROSE-FIX-001** (v1.2; ready)
+3. **S-DEMO-HARNESS-CLONE-PARITY-001** (v1.2; ready)
+
+---
+
+### §4 EXACT NEXT STEPS FOR FRESH ORCHESTRATOR
+
+Execute in order:
+
+1. **PR-LEVEL adversarial 3-CLEAN cascade on PR #172** (BC-5.39.001; streak 0/3; Standing Rule 2).
+   - Adversary dispatched to `.worktrees/S-SPEC-HTTP-METHOD-VALIDATION-001` (Lesson 62 preflight: `git -C .worktrees/S-SPEC-HTTP-METHOD-VALIDATION-001 rev-parse HEAD` must == `4a2a7bb7`).
+   - Review all 4 fix-burst closures (F-P1-MED-001/OBS-001, F-P2-MED-001/002, F-P3/P4) for load-bearing evidence.
+   - Apply SAP-1/SAP-2/SID-1, TD-VSDD-059/060/091, production-grade default.
+   - Report both `CLEAN(strict)` and `CLEAN(PR-merge)` per BC-5.39.001 D-779.
+
+2. **Security-reviewer** — after adversary 3-CLEAN.
+
+3. **pr-reviewer** — after security-reviewer CLEAN.
+
+4. **CI-green confirmation** — `gh pr checks 172`.
+
+5. **Squash-merge PR #172** → develop → **post-merge POL-14 burst**: BC-2.16.009 already active (idempotent check); story status→merged; worktree cleanup; state-manager burst.
+
+6. **Remaining Phase B lanes** (S-DEMO-QUERY-PUSHDOWN-001 ∥ OCSF-CLASS-MIGRATION-001 ∥ S-DEMO-003) after Lane 1 merges.
+
+7. **Phase C** (Claroty cluster, serialized) after Phase B lanes complete.
+
+### §5 RESUME CHECKLIST (run in order on every new session)
+
+```bash
+# Step 1 — Factory worktree health (BLOCKING preflight)
+# Run: vsdd-factory:factory-worktree-health
+
+# Step 2 — Verify STATE.md version
+grep '^version:' .factory/STATE.md
+# Expected: version: "7.641"
+
+# Step 3 — Verify develop HEAD
+git log --oneline -3 develop
+# Expected: fdd12251 at top
+
+# Step 4 — Verify STORY-INDEX version and story count
+grep '^version:\|^total_stories:' .factory/stories/STORY-INDEX.md
+# Expected: version: "v2.274" / total_stories: 179
+
+# Step 5 — Verify BC-INDEX version
+grep '^version:' .factory/specs/behavioral-contracts/BC-INDEX.md
+# Expected: version: "5.80"
+
+# Step 6 — Verify open PRs
+gh pr list --state open
+# Expected: PR #172 (S-SPEC-HTTP-METHOD-VALIDATION-001)
+
+# Step 7 — Verify lane 1 worktree HEAD (Lesson 62 preflight)
+git -C .worktrees/S-SPEC-HTTP-METHOD-VALIDATION-001 rev-parse HEAD
+# Expected: 4a2a7bb7...
+
+# Step 8 — Verify factory-artifacts HEAD
+git -C .factory log -1 --format='%h %s'
+# Expected: D-991 state-manager burst commit
+```
+
+### §6 ARTIFACT VERSIONS (post D-991)
+
+| Artifact | Version | Notes |
+|----------|---------|-------|
+| STATE.md | v7.641 | D-991 burst |
+| STORY-INDEX.md | v2.274 | 179 stories (unchanged) |
+| BC-INDEX.md | v5.80 | active: 234, draft: 3 (unchanged) |
+| VP-INDEX.md | v1.76 | unchanged |
+| ARCH-INDEX.md | v2.110 | unchanged |
+| error-taxonomy.md | v1.59 | unchanged |
+| develop HEAD | fdd12251 | PR #171 S-DEMO-002 merged D-987 (unchanged) |
+| S-SPEC-HTTP-METHOD-VALIDATION-001 | v1.2 | code @ 4a2a7bb7; LOCAL 3/3 CONVERGED; PR #172 OPEN |
+
+### §7 KEY ARCHITECTURAL CONSTRAINTS (carry into every adversary dispatch)
+
+- **BC-5.39.001 3-CLEAN protocol (D-779):** CLEAN(strict) = ZERO findings ALL severities. CLEAN(PR-merge) = ZERO CRIT+HIGH+MED. Streak advances only on CLEAN(strict). Both criteria must be explicitly stated in each adversary pass report.
+- **SAP-1 (tracing emission catalog completeness):** Grep `event_type =` across all modified Rust files; every value must have a BC-2.16.002 catalog row.
+- **SAP-2 (DTU↔TOML schema parity):** For any sensor TOML touched, verify column names + types against DTU types.rs structs.
+- **TD-VSDD-091 (anti-volatile-pin):** Cite function names + behavioral anchors, NOT file.rs:NNN line numbers.
+- **TD-VSDD-059 (paper-fix detection):** Every claimed closure must have a load-bearing test or assertion.
+- **TD-VSDD-060 (sibling-site sweep):** When changing a function sig, constant, or canonical identifier — grep ALL callsites before committing.
+- **Lesson 62 / GH #176 (worktree-identity preflight):** Every adversary dispatch MUST assert `git -C <worktree> rev-parse HEAD` == dispatched feature HEAD AND worktree basename == story ID.
+- **factory-artifacts LOCAL-ONLY:** No remote push. Never use `--no-verify`. No AI attribution in commits.
+
+### §8 CARRY-FORWARD DEFERRALS
+
+| Item | Status | Priority | Anchor |
+|------|--------|----------|--------|
+| DEFER-VR7-NONE-PROSE-001 | BC-2.16.009 §VR7 "None" descriptive imprecision; behavior correct; route PO at cycle-close | non-blocking | D-991 |
+| DEFER-STORYINDEX-BC216009-ROW-001 | STORY-INDEX BC-2.16.009 row omits S-DEMO-CROWDSTRIKE-MULTIREGION-001; reconcile at cycle-close | non-blocking | D-991 |
+| S-DEMO-MULTI-TENANT-DTU-001 OQs | 3 open decisions (OQ-1 multi-address-binding BC ID + crate ownership; OQ-2 harness API; new BC ID); P2 unscheduled | non-blocking | D-989 |
+| BC-2.06.001 draft | Promotes when S-5.05 merges | non-blocking | D-990 |
+| S-DEMO-QUERY-PUSHDOWN-001 | Phase B Lane 2; ready v1.1 | P2 | D-924 |
+| OCSF-CLASS-MIGRATION-001 | Phase B Lane 3; ready v1.2; schedule before Phase C | P2 | D-936 |
+| S-DEMO-003 | Phase B Lane 4; ready v1.1; depends_on S-DEMO-002 SATISFIED | P1 | Wave-5 backlog |
+| S-DEMO-CI-E2E-001 | Draft; depends_on S-DEMO-002 HARD; S-7.01 PO-gate open | P2 | D-960 |
+| DRIFT-D954-001 | ANCHORED — S-MAINT-W3SEC-CITE-SWEEP-002 registered (draft; P2) | P2 | D-954 |
+| S-DEMO-HARNESS-CLONE-PARITY-001 | Phase C; ready v1.2 | P2 | D-941 |
+| S-DEMO-CLAROTY-SPEC-PROSE-FIX-001 | Phase C; ready v1.2 | P2 | D-941 |
+| S-DEMO-CLAROTY-TRAILING-SLASH-001 | Phase C; ready v1.2 | P2 | D-941 |
+| DEFER-ORPHAN-SENSORS-DIR-001 | Orphaned top-level sensors/ dir; S-MAINT-ORPHAN-SENSORS-DIR-001 registered | background | D-977 |
+| GH #176 | Filed at drbothen/vsdd-factory — Lesson 62 worktree-identity preflight gap | background | D-952 |
+| F-P1-OBS-003 | Factory/can-wait (SAP-2 runtime-shape-assertion extension) | background | D-941 |
+| DEFER-CLAUDEMD-BC216002-MISLABEL-001 | CLAUDE.md SAP-1 cites wrong BC anchor for event catalog; human direct edit required | non-blocking | D-971 |
+
+---
+
+**D-991 burst marker:** Single-commit burst per TD-VSDD-053. Anti-volatile-pin per TD-VSDD-091. Defensive sweep (S-7.02): develop_head fdd12251 CONFIRMED UNCHANGED; total_stories 179 CONFIRMED (STORY-INDEX v2.274 unchanged); bc_index_version v5.80 CONFIRMED UNCHANGED; VP-INDEX v1.76 UNCHANGED; ARCH-INDEX v2.110 UNCHANGED; error_taxonomy v1.59 UNCHANGED; STATE.md v7.640→v7.641; pre_compact_snapshot updated to this snapshot; current_step updated; safe_to_compact: true.
