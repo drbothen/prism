@@ -2,14 +2,10 @@
 #
 # Story:   S-SPEC-HTTP-METHOD-VALIDATION-001 v1.4
 # Filter:  -E 'test(BC_2_16_009)' — all tests tracing to BC-2.16.009
-# Scope:   Includes http_method_whitelist_tests (AC-001..AC-005):
-#            - AC-001 valid whitelist methods (9 tests)
-#            - AC-002 invalid method → E-SPEC-025 (13 tests)
-#            - AC-003 env-resolved post-Rule-6 (11 tests)
-#            - AC-004 SEC-001 truncation at 32 codepoints (3 tests)
-#            - AC-005 F-PR1-OBS-001 full-match skip-guard (4 tests)
-#          Plus preexisting bc_2_16_009_test, bc_2_16_009_bundled_spec_validation,
-#          write_endpoint_tests, and proofs::spec_validator tests
+# Scope:   Includes http_method_whitelist_tests (src/validation.rs, AC-001..AC-005):
+#            35 tests total; 5 are Red Gate (one per AC).
+#          Plus bc_2_16_009_test (26), bc_2_16_009_bundled_spec_validation (5),
+#          proofs::spec_validator (10), and write_endpoint_tests (17).
 # BC:      BC-2.16.009 v1.10 §Validation Rules 7
 # Error:   E-SPEC-025 (error-taxonomy.md v1.60)
 #
@@ -117,13 +113,21 @@
 
 # ─── Verdict ──────────────────────────────────────────────────────────────────
 # PASS — 93/93 BC-2.16.009 tests pass. Zero regressions.
+# Authoritative total: "93 tests run: 93 passed" (nextest summary line above).
 #
-# Breakdown:
-#   http_method_whitelist_tests (AC-001..AC-005):   45 new tests
-#   bc_2_16_009_test (load-path integration):       23 tests
-#   bc_2_16_009_bundled_spec_validation:             4 tests
-#   proofs::spec_validator:                          5 tests
-#   write_endpoint_tests:                           16 tests
+# Breakdown — derived by counting PASS lines per module in the capture above:
+#   validation::http_method_whitelist_tests (src/validation.rs, AC-001..AC-005):
+#                                                   35 tests (of which 5 are Red Gate)
+#   bc_2_16_009_test (crates/prism-spec-engine/tests/bc_2_16_009_test.rs):
+#                                                   26 tests
+#   bc_2_16_009_bundled_spec_validation:             5 tests
+#   proofs::spec_validator:                         10 tests
+#   write_endpoint_tests:                           17 tests
+#                                        Total:     93 tests  (35+26+5+10+17=93) ✓
+#
+# Note: http_method_whitelist_tests lives in `crates/prism-spec-engine/src/validation.rs`
+# as `#[cfg(test)] mod http_method_whitelist_tests` — NOT in crates/.../tests/.
+# The 5 Red Gate tests (one per AC-001..AC-005) are a subset of those 35, not additive.
 #
 # Story v1.4 AC coverage:
 #   AC-001 (valid methods pass):         PASS (test_BC_2_16_009_valid_http_method_passes_validation)

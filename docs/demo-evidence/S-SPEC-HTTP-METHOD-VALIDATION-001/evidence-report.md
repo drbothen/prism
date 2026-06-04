@@ -185,7 +185,18 @@ Key production code paths:
 ## Full Test Suite
 
 **Evidence file:** full-suite-BC-2-16-009.txt  
-**Result:** 93/93 BC-2.16.009 tests pass — 45 http_method_whitelist_tests (AC-001..AC-005) + 48 preexisting (zero regressions)
+**Result:** 93/93 BC-2.16.009 tests pass (authoritative: "93 tests run: 93 passed" nextest summary)
+
+Breakdown (PASS-line counts derived from the captured nextest output):
+
+| Module | Location | Tests |
+|--------|----------|-------|
+| `validation::http_method_whitelist_tests` | `crates/prism-spec-engine/src/validation.rs` (`#[cfg(test)] mod`) | 35 (of which 5 are Red Gate tests, one per AC) |
+| `bc_2_16_009_test` | `crates/prism-spec-engine/tests/bc_2_16_009_test.rs` | 26 |
+| `bc_2_16_009_bundled_spec_validation` | `crates/prism-spec-engine/tests/` | 5 |
+| `proofs::spec_validator` | `crates/prism-spec-engine/src/proofs/` | 10 |
+| `write_endpoint_tests` | `crates/prism-spec-engine/tests/` | 17 |
+| **Total** | | **93** (35+26+5+10+17) |
 
 ---
 
