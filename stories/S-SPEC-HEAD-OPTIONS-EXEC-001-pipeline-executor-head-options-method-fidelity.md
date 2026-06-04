@@ -21,7 +21,7 @@ target_module: prism-spec-engine
 capabilities: []
 behavioral_contracts: []
 # BC status: pending PO authorship.
-# BC-2.16.009 v1.9 (active) defines the 7-method whitelist including HEAD and OPTIONS.
+# BC-2.16.009 v1.10 (active) defines the 7-method whitelist including HEAD and OPTIONS.
 # BC-2.16.002 (active) covers PipelineExecutor method dispatch (postcondition: "method:
 # GET or POST as declared" — this must be expanded to reflect all 7 whitelisted methods).
 # PO must amend BC-2.16.002 to enumerate all 7 methods and add the bodyless-response
@@ -177,7 +177,7 @@ The implementing engineer must NOT start coding until the following BC amendment
 | BC ID | Version | Required Amendment | Role in This Story |
 |-------|---------|-------------------|--------------------|
 | BC-2.16.002 | current | Expand "method: GET or POST as declared" postcondition to all 7 whitelisted methods; add bodyless-response invariant for HEAD + OPTIONS (design decision by PO: 0-record result vs. error) | build_request arms + execute_step bodyless handling |
-| BC-2.16.009 | v1.9 | No amendment needed — §VR7 already whitelists HEAD + OPTIONS | Context for why these methods must be executable |
+| BC-2.16.009 | v1.10 | No amendment needed — §VR7 already whitelists HEAD + OPTIONS | Context for why these methods must be executable |
 
 **Note:** `behavioral_contracts: []` in frontmatter until PO authors the BC-2.16.002
 amendment and the BC IDs are propagated here. Status remains `draft` (S-7.01 gate).
@@ -248,7 +248,7 @@ Given: Any future method value that passes validation but has no explicit arm in
 (theoretically impossible post-Rule-7, but retained as belt-and-suspenders).
 When: `build_request` is called with an unrecognized method string.
 Then: The wildcard arm maps to reqwest::Method::GET — no panic, no removal of the fallback.
-(traces to BC-2.16.002 — belt-and-suspenders invariant per BC-2.16.009 v1.9 §VR7)
+(traces to BC-2.16.002 — belt-and-suspenders invariant per BC-2.16.009 v1.10 §VR7)
 
 Red Gate test: `test_BC_2_16_002_wildcard_fallback_retained`
 
@@ -258,9 +258,9 @@ Red Gate test: `test_BC_2_16_002_wildcard_fallback_retained`
 
 | Rule | Source | Enforcement |
 |------|--------|-------------|
-| `build_request` match arms must cover all 7 BC-2.16.009 §VR7 whitelist members | BC-2.16.009 v1.9 §VR7 + SEC-002 closure | After this story: GET/POST/PUT/PATCH/DELETE/HEAD/OPTIONS each have explicit arms |
+| `build_request` match arms must cover all 7 BC-2.16.009 §VR7 whitelist members | BC-2.16.009 v1.10 §VR7 + SEC-002 closure | After this story: GET/POST/PUT/PATCH/DELETE/HEAD/OPTIONS each have explicit arms |
 | Bodyless-response handling must NOT use `unwrap()`/`expect()` on body parse for HEAD/OPTIONS | CLAUDE.md §Forbidden patterns — no unwrap in critical code paths | Use `Option<Bytes>` or conditional body parsing; gate on response method |
-| `_ => reqwest::Method::GET` wildcard MUST remain | BC-2.16.009 v1.9 §VR7 "belt-and-suspenders" clause | Do NOT remove the wildcard — only ADD HEAD and OPTIONS arms before it |
+| `_ => reqwest::Method::GET` wildcard MUST remain | BC-2.16.009 v1.10 §VR7 "belt-and-suspenders" clause | Do NOT remove the wildcard — only ADD HEAD and OPTIONS arms before it |
 | No `println!` in production code paths | CLAUDE.md §Conventions | Use `tracing::*!` for any diagnostic output |
 | reqwest::Method::HEAD and reqwest::Method::OPTIONS MUST be used | Rust reqwest API | No string-based method construction; use the typed constants |
 | BC-2.16.002 bodyless-response design decision MUST be resolved before coding | OQ-001/OQ-002 above | S-7.01 gate: story stays `draft` until BC-2.16.002 amended by PO |
@@ -287,7 +287,7 @@ Version source: `Cargo.toml` workspace. No independent version pins required.
 | `crates/prism-spec-engine/src/pipeline.rs` | MODIFY | Add HEAD + OPTIONS arms to `build_request` match; add bodyless-response gate in `execute_step` |
 | `crates/prism-spec-engine/tests/bc_2_16_002_pipeline_method_fidelity.rs` | CREATE | 5 Red Gate tests + bodyless-response coverage; wiremock-based |
 | `.factory/specs/behavioral-contracts/BC-2.16.002-multi-step-fetch-pipeline.md` | READ ONLY (PO amends pre-dispatch) | PO adds bodyless-response invariant + expands 7-method postcondition before implementer writes code |
-| `.factory/specs/behavioral-contracts/BC-2.16.009-spec-file-validation.md` | READ ONLY | §VR7 whitelist context — already at v1.9; no amendment needed |
+| `.factory/specs/behavioral-contracts/BC-2.16.009-spec-file-validation.md` | READ ONLY | §VR7 whitelist context — already at v1.10; no amendment needed |
 
 ---
 

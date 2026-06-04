@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "5.81"
+version: "5.82"
 status: draft
 producer: state-manager
 timestamp: 2026-06-03T18:00:00Z
@@ -220,7 +220,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.16.006 | Arc-Swap Config Access on Hot Path — Lock-Free Reads for Query-Time Config Access | 16 - Spec Engine | CAP-030 | P1 | draft |
 | BC-2.16.007 | Sensor Spec Hot Reload — Add/Remove/Update Sensor Tables Without Restart | 16 - Spec Engine | CAP-030 | P1 | draft |
 | BC-2.16.008 | `add_sensor_spec` MCP Tool — Upload a New Sensor Spec at Runtime | 16 - Spec Engine | CAP-029, CAP-030 | P0 | draft |
-| BC-2.16.009 | Spec File Validation — Schema Validation, Variable Reference Resolution, OCSF Field Validation | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-776 per POL-14; anchor story PLUGIN-MIGRATION-001-D merged PR #153 develop@3f2de889 2026-05-22) — v1.9 |
+| BC-2.16.009 | Spec File Validation — Schema Validation, Variable Reference Resolution, OCSF Field Validation | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-776 per POL-14; anchor story PLUGIN-MIGRATION-001-D merged PR #153 develop@3f2de889 2026-05-22) — v1.10 |
 | BC-2.16.010 | `list_sensor_specs` MCP Tool — List Loaded Sensor Specs with Table Schemas and Status | 16 - Spec Engine | CAP-029 | P0 | draft |
 | BC-2.16.011 | CustomAdapter Rust Trait Retirement — Removal of Trait, Registry, and All Call Sites | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-726 per POL-14; anchor story S-PLUGIN-PREREQ-E merged PR #151 develop@80ebe794 2026-05-19) — v1.12 |
 | BC-2.16.012 | PluginRegistry Dispatch in spec_parser.rs — Hardcoded Sensor Names Replaced with Registry Lookup | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-726 per POL-14; anchor story S-PLUGIN-PREREQ-E merged PR #151 develop@80ebe794 2026-05-19) — v1.33 |
@@ -376,6 +376,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v5.82 (2026-06-04, FB-PR4 spec fix-burst — BC-2.16.009 v1.9→v1.10):** state-manager | BC-2.16.009 inline row 223 updated to v1.10. No lifecycle_status changes (BC-2.16.009 remains active). No count changes (active: 234, draft: 3 unchanged). Changes: §VR7 §Ordering Point 3 full-match skip-guard clause added (F-PR1-OBS-001 / F-PR6-HIGH-001); EC-009-022..025 added to §Edge Cases; 4 canonical test vectors added; test name `..._v1_59_template_byte_for_byte` → `..._template_byte_for_byte` (OBS-PR6-001 / TD-VSDD-091). BC-INDEX v5.81→v5.82.
 
 **v5.81 (2026-06-04, FB-PR2 spec fix-burst — BC-2.16.009 v1.8→v1.9):** state-manager | BC-2.16.009 inline row 223 updated to v1.9. No lifecycle_status changes (BC-2.16.009 remains active). No count changes (active: 234, draft: 3 unchanged). Changes: §VR7 signature corrected to `Vec<(usize, usize, SpecEngineError)>`; 32-codepoint truncation invariant documented; §Description five→seven; malformed-pseudo-token fallback + EC-009-021 + overlong test vector added; §VR6 content restored (rule order ascending 6 before 7). error-taxonomy.md v1.59→v1.60 (E-SPEC-025 echo-cap documented) in same burst. BC-INDEX v5.80→v5.81.
 

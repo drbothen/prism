@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.9"
+version: "1.10"
 status: active
 producer: product-owner
 timestamp: 2026-04-13T12:00:00
@@ -11,7 +11,7 @@ subsystem: "SS-16"
 capability: "CAP-029"
 lifecycle_status: active
 introduced: cycle-1
-modified: "2026-06-04"  # v1.9 FB-PR2 spec fix-burst (F-PR4-MED-001/002 + OBS-PR4-001/002/003)
+modified: "2026-06-04"  # v1.10 FB-PR4 spec fix-burst (F-PR6-HIGH-001 full-match skip-guard clause + EC-009-022..025 + OBS-PR6-001 test rename)
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -173,6 +173,43 @@ only need the error values (not the path indices) unwrap with `.map(|(_, _, e)| 
    the literal string (e.g., `"${env.lower}"`) is not in `ALLOWED_HTTP_METHODS`. This
    behavior is tested via F-LOCAL-P3-MED-002.
 
+3. **Full-match skip-guard clause (F-PR1-OBS-001):** Rule 7's env-token skip fires ONLY
+   when the ENTIRE `step.method` value — after TOML parse, before env resolution — is
+   exactly one well-formed `${env.VAR_NAME}` token with `VAR_NAME` matching
+   `ENV_TOKEN_REGEX` (`[A-Z0-9_]+`), anchored at both start and end of the string
+   (full-string match, not a substring search). A `step.method` value that merely CONTAINS
+   a well-formed token but is not exclusively that token does NOT satisfy the skip condition:
+
+   - **Literal prefix + token** (`"GET${env.X}"`) — the method string is not a single token;
+     it does not match the full-string `ENV_TOKEN_REGEX` anchor. Rule 6 does not resolve it
+     (the leading literal `"GET"` breaks the whole-string token shape). Rule 7 receives the
+     raw string `"GET${env.X}"` as its input value; that string is not in
+     `ALLOWED_HTTP_METHODS`; `E-SPEC-025` is emitted.
+   - **Token + literal suffix** (`"${env.X}GET"`) — same reasoning; partial-token shape
+     is not resolved by Rule 6 and not skipped by Rule 7; `E-SPEC-025` is emitted.
+   - **Two concatenated tokens** (`"${env.A}${env.B}"`) — the value contains two token
+     patterns; neither the combined string nor any sub-string equals a single full-match
+     `ENV_TOKEN_REGEX` token. Rule 6 does not resolve it; Rule 7 produces `E-SPEC-025`.
+
+   **Rationale:** When a `step.method` is exactly one well-formed env token AND that token
+   is unresolvable, Rule 6 already emitted `E-SPEC-024` for that field — the field's
+   effective method value is undefined. Rule 7 skipping it avoids double-reporting the same
+   unresolvable field (noise, not signal). For any other `step.method` shape — including
+   partial embeddings, concatenated tokens, and malformed pseudo-tokens — the string IS the
+   literal method value (Rule 6 never transformed it), and it must be validated against the
+   whitelist exactly as written. There is no ambiguity: if the string is not in
+   `ALLOWED_HTTP_METHODS`, `E-SPEC-025` is the correct outcome regardless of whether the
+   string happens to contain token-like substrings.
+
+   **Tested by:** `test_BC_2_16_009_f_pr1_obs_001_partial_token_embedding_not_skipped`
+   (literal prefix `"GET${env.X}"`), `test_BC_2_16_009_f_pr1_obs_001_token_prefix_not_skipped`
+   (token + literal suffix `"${env.X}GET"`),
+   `test_BC_2_16_009_f_pr1_obs_001_two_tokens_concatenated_not_skipped`
+   (`"${env.A}${env.B}"`), and the non-regression
+   `test_BC_2_16_009_f_pr1_obs_001_exact_single_token_still_skipped`
+   (exact single-token `"${env.SENSOR_METHOD}"` with unset var → Rule 6 fires E-SPEC-024;
+   Rule 7 skips — confirming the skip path is not inadvertently broken).
+
 ## Postconditions
 - If any errors are found: the spec is rejected and the error list is returned
 - If only warnings are found: the spec loads successfully and warnings are logged at startup and included in reload results
@@ -229,6 +266,10 @@ only need the error values (not the path indices) unwrap with `.map(|(_, _, e)| 
 | EC-009-019 | `step.method = "${env.SENSOR_METHOD}"` with `SENSOR_METHOD="CONNECT"` | Rule 6 resolves to `"CONNECT"`; Rule 7 fires `E-SPEC-025` on resolved value `"CONNECT"` |
 | EC-009-020 | `step.method = "${env.SENSOR_METHOD}"` with `SENSOR_METHOD` unset | Rule 6 fires `E-SPEC-024` for the unresolved token; Rule 7 SKIPS this step (method value undefined after Rule 6 failure; double-reporting is noise) |
 | EC-009-021 | `step.method` set to a string longer than 32 codepoints (e.g., a 256-char garbage value in a malformed TOML) | `E-SPEC-025` is emitted; the `method_value` field in the error message is truncated at 32 codepoints via `truncate_at_char_boundary` (CWE-400 unbounded-echo mitigation, SEC-001). For inputs ≤32 codepoints the echoed value is byte-identical to the original. Tested by `test_BC_2_16_009_sec_001_overlong_method_truncated_in_error`. |
+| EC-009-022 | `step.method = "GET${env.X}"` — literal prefix concatenated with a well-formed env token (partial embedding, F-PR1-OBS-001) | The full-match skip-guard clause does NOT apply: `"GET${env.X}"` is not exclusively one well-formed token (anchored full-string match fails). Rule 6 does not resolve it. Rule 7 receives `"GET${env.X}"` as the raw method value; it is not in `ALLOWED_HTTP_METHODS`; `E-SPEC-025` is emitted. Spec rejected. Tested by `test_BC_2_16_009_f_pr1_obs_001_partial_token_embedding_not_skipped`. |
+| EC-009-023 | `step.method = "${env.X}GET"` — well-formed env token concatenated with a literal suffix (partial embedding, F-PR1-OBS-001) | Same reasoning as EC-009-022: full-string anchor fails; Rule 6 does not resolve; Rule 7 produces `E-SPEC-025` on the raw string `"${env.X}GET"`. Spec rejected. Tested by `test_BC_2_16_009_f_pr1_obs_001_token_prefix_not_skipped`. |
+| EC-009-024 | `step.method = "${env.A}${env.B}"` — two concatenated well-formed env tokens (F-PR1-OBS-001) | The combined string is not a single full-string `ENV_TOKEN_REGEX` match. Rule 6 does not resolve the concatenated form. Rule 7 produces `E-SPEC-025` on `"${env.A}${env.B}"`. Spec rejected. Tested by `test_BC_2_16_009_f_pr1_obs_001_two_tokens_concatenated_not_skipped`. |
+| EC-009-025 | `step.method = "${env.SENSOR_METHOD}"` (exact single well-formed token) with `SENSOR_METHOD` unset — non-regression for skip path (F-PR1-OBS-001) | Full-string match succeeds; the value IS exactly one well-formed token. Rule 6 fires `E-SPEC-024` (var unset). Rule 7 SKIPS this step (double-reporting avoidance). Only one error emitted: `E-SPEC-024`. Spec rejected. Tested by `test_BC_2_16_009_f_pr1_obs_001_exact_single_token_still_skipped`. |
 
 ## Canonical Test Vectors
 
@@ -252,6 +293,10 @@ See `.factory/specs/prd-supplements/test-vectors.md` for full canonical vectors.
 | HTTP method — env-resolved invalid | `step.method = "${env.M}"`, `M="TRACE"` | Rule 6 resolves to `"TRACE"`; Rule 7 fires `E-SPEC-025` on resolved value; spec rejected |
 | HTTP method — absent (no step.method) | step has no `method` field | No E-SPEC-025; spec loads; pipeline defaults to GET |
 | HTTP method — overlong (>32 codepoints) | `step.method` = 33-character garbage string | `E-SPEC-025` emitted; `method_value` in error message is truncated to first 32 codepoints (SEC-001 / CWE-400 mitigation); spec rejected |
+| HTTP method — partial embedding, literal prefix (F-PR1-OBS-001, EC-009-022) | `step.method = "GET${env.X}"` | Full-match skip-guard does NOT apply; Rule 6 does not resolve partial embedding; Rule 7 receives raw string `"GET${env.X}"`; `E-SPEC-025` emitted; spec rejected |
+| HTTP method — partial embedding, literal suffix (F-PR1-OBS-001, EC-009-023) | `step.method = "${env.X}GET"` | Full-match skip-guard does NOT apply; Rule 7 receives raw string `"${env.X}GET"`; `E-SPEC-025` emitted; spec rejected |
+| HTTP method — two concatenated tokens (F-PR1-OBS-001, EC-009-024) | `step.method = "${env.A}${env.B}"` | Full-match skip-guard does NOT apply; Rule 7 receives raw string `"${env.A}${env.B}"`; `E-SPEC-025` emitted; spec rejected |
+| HTTP method — exact single token, var unset, skip path non-regression (F-PR1-OBS-001, EC-009-025) | `step.method = "${env.SENSOR_METHOD}"`, `SENSOR_METHOD` unset | Full-match skip-guard applies (exclusive single token); Rule 6 fires `E-SPEC-024`; Rule 7 SKIPS; only `E-SPEC-024` emitted; spec rejected |
 
 ## Verification Properties
 
@@ -273,6 +318,7 @@ See `.factory/specs/prd-supplements/test-vectors.md` for full canonical vectors.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.10 | FB-PR4 | 2026-06-04 | state-manager | v1.9→v1.10 2026-06-04 — §VR7 §Ordering Point 3 full-match skip-guard clause added (F-PR1-OBS-001 / F-PR6-HIGH-001): Rule 7 env-token skip fires only on exact full-string single-token match; partial embeddings fall through to whitelist → E-SPEC-025; added EC-009-022..025 + canonical test vectors. Test rename: `test_BC_2_16_009_e_spec_025_display_matches_error_taxonomy_v1_59_template_byte_for_byte` → `..._template_byte_for_byte` (OBS-PR6-001 / TD-VSDD-091). |
 | 1.9 | FB-PR2 | 2026-06-04 | product-owner | §VR7 implementation-function signature corrected to `Vec<(usize, usize, SpecEngineError)>` (F-PR1-MED-002 closure); 32-codepoint `method_value` truncation invariant documented (F-PR4-MED-002 / SEC-001 / CWE-400), with load-bearing test `test_BC_2_16_009_sec_001_overlong_method_truncated_in_error`; §Description category count five→seven correcting stale description; malformed-pseudo-token behavior (e.g., `${env.lower}`) documented in §VR7 §Ordering with E-SPEC-025 fallback + F-LOCAL-P3-MED-002 test cite; EC-009-021 (overlong method echo cap) added to §Edge Cases; overlong-method canonical test vector added to §Canonical Test Vectors; §Validation Rules 6 env-var content restored (was reordered in v1.8 edit — corrected to Rules 6 then 7 ascending order). §VR6 full text re-added to maintain ascending rule order (6 before 7). OBS-PR4-001/002/003 folded. |
 | 1.8 | Wave-5-Phase-A-PO-burst | 2026-06-03 | product-owner | S-SPEC-HTTP-METHOD-VALIDATION-001 (DRIFT-D926-001 anchor): Added §Validation Rules 7 — HTTP Method Whitelist Validation (AC-7). Whitelist: `GET`, `POST`, `PUT`, `PATCH`, `DELETE`, `HEAD`, `OPTIONS` (7 values; compile-time `ALLOWED_HTTP_METHODS: &[&str]` constant). Validation runs POST Rule 6 env-var resolution; absent `step.method` (None) is NOT an error; wrong-case methods (e.g., `"get"`) are invalid; unsupported methods (`CONNECT`, `TRACE`) are invalid; empty string is invalid. Multi-error collection per INV-ERR-003. Rule 7 skips step.method fields that already failed Rule 6 (E-SPEC-024) to prevent double-reporting. Added E-SPEC-025 to §Error Conditions with full message template. Added edge cases EC-009-010..EC-009-020 and 6 canonical test vectors. Added S-SPEC-HTTP-METHOD-VALIDATION-001 to Stories traceability. No semantic change to existing rules. BC v1.7 → v1.8. |
 | 1.7 | S-DEMO-CROWDSTRIKE-MULTIREGION-001 BC attachment burst | 2026-05-31 | product-owner | Updated §Validation Rules 6 sibling-sweep note: `crowdstrike.sensor.toml` now also uses `${env.CROWDSTRIKE_BASE_URL}` for `base_url` (S-DEMO-CROWDSTRIKE-MULTIREGION-001), making all four canonical sensor specs env-var-based for `base_url`. Added EC-009-008 (CrowdStrike eu-1 URL resolution — happy path) and EC-009-009 (CrowdStrike missing CROWDSTRIKE_BASE_URL → E-SPEC-024) for explicit CrowdStrike multi-region coverage. Added S-DEMO-CROWDSTRIKE-MULTIREGION-001 to Stories traceability. No semantic behavior change — the resolver was already sensor-agnostic; this adds CrowdStrike-specific test vectors to the existing contract. |

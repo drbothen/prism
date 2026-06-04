@@ -224,9 +224,9 @@ active_dispatch_set:
     status: ready
     priority: P2
     points: 3
-    spec_version: "v1.3"
+    spec_version: "v1.4"
     depends_on: []
-    notes: "D-993 2026-06-04: story v1.3 (BC-2.16.009 v1.8→v1.9 pin sweep; AC-004/005 added; EC-011..017 added; AC count 3→5; RG 3→10). BC-2.16.009 v1.9 active. No depends_on. S-7.01 gate CLEARED. DRIFT-D926-001 anchor resolved."
+    notes: "D-994 2026-06-04: story v1.4 (BC-2.16.009 v1.9→v1.10 re-pin; AC-005 trace re-anchored §VR7 §Ordering Point 3; test rename OBS-PR6-001; F-PR6-HIGH-001 closed). BC-2.16.009 v1.10 active. No depends_on. S-7.01 gate CLEARED. DRIFT-D926-001 anchor resolved."
 
   - story_id: S-DEMO-HARNESS-CLONE-PARITY-001
     status: ready
