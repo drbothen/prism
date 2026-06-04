@@ -6,11 +6,11 @@ wave: 5
 epic_id: E-DEMO
 priority: P0
 status: ready
-version: "2.3"
+version: "2.4"
 level: "L4"
 producer: story-writer
 timestamp: "2026-06-02T00:00:00Z"
-modified: "2026-06-03T18:00:00Z"
+modified: "2026-06-03T20:00:00Z"
 tdd_mode: strict
 subsystems: [SS-01, SS-10, SS-11, SS-22]
 # Subsystem anchor justifications:
@@ -22,14 +22,33 @@ subsystems: [SS-01, SS-10, SS-11, SS-22]
 #     materialization pipeline, OCSF normalization, and ResponseEnvelope wrapping.
 #   SS-22 (Binary Entrypoint) — test launches prism-bin start as a subprocess and validates
 #     clean SIGTERM shutdown per BC-2.10.010.
-crates_touched: [prism-bin, prism-query, prism-spec-engine, prism-credentials]
-# crates_touched notes:
-#   prism-bin: integration test file (tests/e2e_smoke.rs + helpers) + binary entrypoint
-#   prism-query: AC-014 AQL push-down seeding — QueryEngine must populate
-#                FetchContext.query_filters["aql"] from PrismQL WHERE predicates (D-934 scope)
-#   prism-spec-engine: PipelineExecutor receives FetchContext; may need seeding if the
-#                      query_filters plumbing runs through this crate rather than prism-query
-#   prism-credentials: OBS-001 fix modified src + tests in this crate (MED-001 POL-29 step 3d)
+crates_touched: [prism-bin, prism-core, prism-credentials, prism-dtu-armis, prism-dtu-cyberint, prism-dtu-demo-server, prism-mcp, prism-query, prism-sensors, prism-spec-engine]
+# crates_touched notes (verified against git diff cd4a2211...81cf3678 per ADV-SDEMO002-PR-P08-HIGH-001):
+#   prism-bin: SRC (src/boot.rs, src/spec_driven_adapter.rs) + TEST (tests/e2e_smoke.rs,
+#              tests/helpers/mod.rs, tests/bc_2_01_013_spec_driven_adapter.rs,
+#              tests/bc_2_03_013_credential_init.rs, tests/vp153_rule_c_shaped_probe.rs)
+#              + CONFIG (Cargo.toml, fixtures/e2e-demo/demo.toml)
+#   prism-core: SRC (src/error.rs — PrismError::SensorNotRegisteredForOrg / E-QUERY-032 variant)
+#   prism-credentials: SRC (src/crud.rs, src/resolution.rs — OBS-001 fix; bootstrap helper)
+#                      + TEST (tests/bc_2_03_005_credential_crud.rs,
+#                              tests/bc_2_03_006_credential_resolution.rs)
+#   prism-dtu-armis: SRC (src/routes/search.rs — AQL fidelity for AC-004 roundtrip)
+#                    + TEST (tests/s_demo_armis_aql_001_red_gate.rs)
+#   prism-dtu-cyberint: SRC (src/clone.rs — cookie-roundtrip auth support for DTU)
+#   prism-dtu-demo-server: SRC (src/config.rs, src/harness.rs — multi-clone harness extensions)
+#   prism-mcp: SRC (src/error_mapping.rs — E-QUERY-032 → -32602 mapping arm per AC-012;
+#                   src/safety_envelope.rs — object-shaped rows injection-scan per AC-007)
+#              + TEST (tests/tool_dispatch_tests.rs)
+#   prism-query: SRC (src/engine.rs, src/materialization.rs — AQL push-down seeding D-934)
+#                + TEST (src/tests/aql_pushdown_tests.rs, src/tests/mod.rs)
+#   prism-sensors: CONFIG (specs/armis.sensor.toml, claroty.sensor.toml,
+#                          crowdstrike.sensor.toml, cyberint.sensor.toml — TOML spec updates only)
+#   prism-spec-engine: SRC (src/interpolation.rs, src/plugin/discovery.rs, src/plugin/mod.rs,
+#                           src/plugin_auth_provider.rs, src/spec_parser.rs — WASM acquire-token
+#                           nested-interface dispatch per LOW-002 resolution)
+#                      + TEST (tests/bc_2_01_016_test.rs, tests/bc_2_16_001_bundled_spec_load.rs,
+#                              tests/bc_2_16_012_test.rs, tests/crowdstrike_oauth2_plugin_tests.rs,
+#                              tests/vp153_sensorauth_cross_composition.rs)
 target_module: prism-bin
 capabilities: [CAP-001, CAP-015, CAP-034]
 behavioral_contracts:
@@ -112,7 +131,7 @@ inputs:
   - "crates/prism-dtu-demo-server/src/main.rs"
   - "crates/prism-dtu-demo-server/src/harness.rs"
   - "crates/prism-query/src/lib.rs"
-  - "crates/prism-spec-engine/src/pipeline_executor.rs"
+  - "crates/prism-spec-engine/src/pipeline.rs"
   - ".factory/specs/behavioral-contracts/BC-2.11.001-query-mcp-tool.md"
   - ".factory/specs/behavioral-contracts/BC-2.11.005-ephemeral-materialization.md"
   - ".factory/specs/behavioral-contracts/BC-2.09.008-response-envelope-trust-annotations.md"
@@ -129,11 +148,11 @@ cycle: "v1.0.0-brownfield"
 phase: 3
 ---
 
-# S-DEMO-002 v2.3 — prism-bin: E2E Subprocess Smoke Test (All 4 Sensors + Multi-Org Isolation)
+# S-DEMO-002 v2.4 — prism-bin: E2E Subprocess Smoke Test (All 4 Sensors + Multi-Org Isolation)
 
 **Story ID:** S-DEMO-002
 **Status:** ready
-**Version:** v2.3
+**Version:** v2.4
 **Wave:** 5
 **Priority:** P0
 **Points:** 13
@@ -494,7 +513,23 @@ Version source: workspace `Cargo.toml`. `rmcp` version confirmed from S-5.01-FOL
 | `crates/prism-bin/fixtures/e2e-demo/demo.toml` | CREATE | DTU demo server config for test (same 4 sensors). Path is `fixtures/e2e-demo/` (NOT `tests/fixtures/`) — accessed via `CARGO_MANIFEST_DIR/fixtures/e2e-demo/demo.toml` in the test harness (F-PB-MED-002 corrected; phantom `demo-prism.toml.template` removed — `prism.toml` is generated programmatically by `write_demo_config()` helper into a `TempDir`, not from a template file). |
 | `.config/nextest.toml` | MODIFY | Add `[profile.e2e]` with `slow-timeout = { period = "120s" }` and `retries = 1`. Note: nextest does NOT support a `run-ignored` profile key — un-ignoring is specified via the CLI flag `--run-ignored ignored-only`, not here. |
 | `.github/workflows/e2e.yml` | CREATE | Dedicated e2e CI workflow — job name "E2E smoke", runs-on `ubuntu-latest`, timeout-minutes 45; triggers on `pull_request` + `push` to `[develop, main]` + `workflow_dispatch` (no cron); builds release binaries, launches DTU, runs `cargo nextest run -p prism-bin --profile e2e --run-ignored ignored-only --no-tests=fail`; closes ADV-SDEMO002-PR-P02-HIGH-001, OBS-2, and ADV-SDEMO002-PR-P05-OBS-001 |
-| `crates/prism-credentials/src/` | MODIFY | OBS-001 fix: credential bootstrap helper modifications (src + tests) |
+| `crates/prism-credentials/src/` | MODIFY | OBS-001 fix: credential bootstrap helper modifications (src + tests) [SRC+TEST] |
+| `crates/prism-core/src/error.rs` | MODIFY | `PrismError::SensorNotRegisteredForOrg` variant (E-QUERY-032) required for AC-012 isolation error [SRC] |
+| `crates/prism-mcp/src/error_mapping.rs` | MODIFY | E-QUERY-032 → JSON-RPC `-32602` mapping arm; AC-012 error surface [SRC] |
+| `crates/prism-mcp/src/safety_envelope.rs` | MODIFY | Object-shaped `rows` injection-scan path; AC-007 `safety_flags == []` assertion [SRC] |
+| `crates/prism-spec-engine/src/plugin/mod.rs` | MODIFY | WASM acquire-token nested-interface dispatch [SRC] (LOW-002 resolved) |
+| `crates/prism-spec-engine/src/plugin/discovery.rs` | MODIFY | Plugin discovery for nested WASM interface [SRC] |
+| `crates/prism-spec-engine/src/plugin_auth_provider.rs` | MODIFY | Auth provider wiring for WASM token acquisition [SRC] |
+| `crates/prism-spec-engine/src/spec_parser.rs` | MODIFY | Spec parser updates for multi-tenant WASM auth [SRC] |
+| `crates/prism-spec-engine/src/interpolation.rs` | MODIFY | Interpolation path update [SRC] |
+| `crates/prism-dtu-armis/src/routes/search.rs` | MODIFY | AQL fidelity fix for AC-004 DTU roundtrip verification [SRC] |
+| `crates/prism-dtu-cyberint/src/clone.rs` | MODIFY | Cookie-roundtrip auth support for Cyberint DTU clone [SRC] |
+| `crates/prism-dtu-demo-server/src/config.rs` | MODIFY | Multi-clone config extensions for 3-org demo setup [SRC] |
+| `crates/prism-dtu-demo-server/src/harness.rs` | MODIFY | Harness extensions for multi-sensor demo server [SRC] |
+| `crates/prism-sensors/specs/armis.sensor.toml` | MODIFY | Sensor TOML spec updates for AQL path + column parity [CONFIG] |
+| `crates/prism-sensors/specs/claroty.sensor.toml` | MODIFY | Sensor TOML spec updates [CONFIG] |
+| `crates/prism-sensors/specs/crowdstrike.sensor.toml` | MODIFY | Sensor TOML spec updates [CONFIG] |
+| `crates/prism-sensors/specs/cyberint.sensor.toml` | MODIFY | Sensor TOML spec updates [CONFIG] |
 
 ---
 
@@ -541,7 +576,7 @@ Version source: workspace `Cargo.toml`. `rmcp` version confirmed from S-5.01-FOL
     DTU `/api/v1/search?aql=in:devices`) and (B) the Armis DTU's `GET /dtu/aql-log` endpoint
     confirms the verbatim AQL "in:devices" was received (BC-2.11.007 Mechanism B; R-DTU-002;
     ADR-031 §D8-a). Read `crates/prism-query/src/` and
-    `crates/prism-spec-engine/src/pipeline_executor.rs` to confirm the seeding site.
+    `crates/prism-spec-engine/src/pipeline.rs` to confirm the seeding site.
 20. **Run** `cargo nextest run -p prism-bin --profile e2e --run-ignored ignored-only` after S-DEMO-001 merges; all assertions must pass GREEN locally. (Local invocation omits `--no-tests=fail` — the flag is only required in the CI job where a zero-test result indicates a test-selection regression. The CI job runs `cargo nextest run -p prism-bin --profile e2e --run-ignored ignored-only --no-tests=fail` automatically via `.github/workflows/e2e.yml` on every PR and push to develop.)
 21. **Run** `just check` — final pre-push gate.
 22. **Write Red Gate test** `test_BC_3_2_001_e2e_dtu_multi_tenant_each_org_reaches_correct_clone_port`
@@ -627,11 +662,16 @@ Version source: workspace `Cargo.toml`. `rmcp` version confirmed from S-5.01-FOL
 | S-DEMO-001 story (dependency context) | ~4,000 |
 | S-5.01-FOLLOWUP-MCP-BOOT story (rmcp version context) | ~3,000 |
 | Test output during iteration | ~3,000 |
-| `prism-query/src/` + `prism-spec-engine/src/pipeline_executor.rs` (AQL seeding site) | ~3,500 |
-| `crates/prism-credentials/src/lib.rs` (credential bootstrap helper surface) | ~1,200 |
-| **Total estimate** | **~45,000 tokens (~18% of 256K context)** |
+| `prism-query/src/` + `prism-spec-engine/src/pipeline.rs` (AQL seeding site) | ~3,500 |
+| `crates/prism-credentials/src/` (credential bootstrap helper surface) | ~1,200 |
+| `crates/prism-core/src/error.rs` (E-QUERY-032 variant) | ~500 |
+| `crates/prism-mcp/src/error_mapping.rs` + `safety_envelope.rs` (AC-012 error surface + AC-007 injection scan) | ~1,800 |
+| `crates/prism-spec-engine/src/plugin/` + `plugin_auth_provider.rs` + `interpolation.rs` (WASM nested-interface dispatch) | ~2,500 |
+| `crates/prism-dtu-armis/src/routes/search.rs` + `crates/prism-dtu-cyberint/src/clone.rs` (DTU SRC changes) | ~1,500 |
+| `crates/prism-dtu-demo-server/src/config.rs` + `harness.rs` (multi-clone extensions) | ~1,000 |
+| **Total estimate** | **~53,300 tokens (~21% of 256K context)** |
 
-Well within budget; second-cheapest story in the E-DEMO epic.
+Within budget; additional crate context (+8,300 tokens) from HIGH-001 reconciliation remains comfortably below 25% threshold.
 
 ---
 
@@ -650,6 +690,7 @@ Well within budget; second-cheapest story in the E-DEMO epic.
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 2.4 | 2026-06-03 | product-owner | Fix-burst closing ADV-SDEMO002-PR-P08-HIGH-001 (crates_touched was incomplete — reconciled to actual 10-crate diff set: prism-bin, prism-core, prism-credentials, prism-dtu-armis, prism-dtu-cyberint, prism-dtu-demo-server, prism-mcp, prism-query, prism-sensors, prism-spec-engine; verified via `git diff cd4a2211...81cf3678 --stat -- crates/<name>/`; FSR rows and Token Budget rows added for 6 newly documented crates; per-crate SRC/TEST/CONFIG tags added to crates_touched comments). Closes ADV-SDEMO002-PR-P08-LOW-001 (phantom path `prism-spec-engine/src/pipeline_executor.rs` → `prism-spec-engine/src/pipeline.rs` corrected in frontmatter inputs, Task 19, and Token Budget). Closes ADV-SDEMO002-PR-P08-LOW-002 (prism-spec-engine confirmed genuinely touched via WASM acquire-token nested-interface dispatch in `src/plugin/{mod,discovery}.rs`, `src/plugin_auth_provider.rs`, `src/spec_parser.rs`; kept in crates_touched with SRC tag). Token Budget total revised ~45,000 → ~53,300 tokens (~21% of 256K). |
 | 2.3 | 2026-06-03 | product-owner | Closes ADV-SDEMO002-PR-P05-OBS-001 (e2e CI positive-coverage guard). AC-010 canonical command updated: `--no-tests=fail` appended to the CI job command (`cargo nextest run -p prism-bin --profile e2e --run-ignored ignored-only --no-tests=fail`); purpose documented inline — job fails on zero selected tests, preventing a false-green if `#[ignore]` attrs are removed or the test file is renamed. Task 25 FSR and step list updated to match. Task 20 clarifies local invocation omits the guard (CI-only flag). |
 | 2.2 | 2026-06-03 | product-owner | Fix-burst closing ADV-SDEMO002-PR-P04-MED-001 (body H1 `**Points:** 11` → `**Points:** 13`; frontmatter `points: 13` was correct since v2.0 but body H1 pin was not updated). Comprehensive body-pin sibling sweep (TD-VSDD-060): body H1 Version updated v2.1→v2.2; all other body pins (Status, Wave, Priority, Story ID, acceptance_criteria_count 14, red_gate_tests 9, behavioral_contracts 8, crates_touched 4) verified correct against frontmatter — no additional corrections required. |
 | 2.1 | 2026-06-03 | product-owner | Fix-burst closing ADV-SDEMO002-PR-P03-HIGH-001/MED-001/MED-002 + OBS-001 + AC-009/retries reconcile. (1) HIGH-001/OBS-001: AC-010 Then-clause rewritten to match canonical e2e.yml spec exactly — job name "E2E smoke", runs-on `ubuntu-latest`, timeout-minutes 45, triggers `pull_request`+`push`[develop,main]+`workflow_dispatch` (no cron), release build, canonical command `cargo nextest run -p prism-bin --profile e2e --run-ignored ignored-only`. Task 25 updated: `macos-latest`→`ubuntu-latest`, `timeout-minutes: 30`→`45`, trigger set corrected (add `main` + `workflow_dispatch`, drop schedule); job name set to "E2E smoke". Changelog v2.0 narrative corrected. (2) MED-002: `run-ignored = "all"` profile key struck from AC-010 profile description and FSR `.config/nextest.toml` row — nextest does NOT support this key; un-ignoring is via CLI flag `--run-ignored ignored-only` only; both locations now state this explicitly. (3) MED-001 (POL-29 step 3d): `prism-credentials` added to frontmatter `crates_touched` array; FSR row added for `crates/prism-credentials/src/`; Token Budget row added (~1,200 tokens); frontmatter comment updated. |
