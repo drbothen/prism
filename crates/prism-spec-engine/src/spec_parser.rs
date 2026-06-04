@@ -1002,6 +1002,57 @@ impl SpecLoader {
                         // DI-030: reject this spec, continue loading others
                         continue;
                     }
+                    // BC-2.16.009 §Validation Rules 7 (AC-7) — HTTP method whitelist validation.
+                    //
+                    // Runs after TOML parse (same as in `parse_and_validate_spec_toml`).
+                    // Note: in `load_all`, env-var tokens are NOT pre-resolved (no env resolver
+                    // pass in this path); `validate_step_methods` skips steps whose method still
+                    // contains `${env.VAR}` tokens (double-report guard in validation.rs).
+                    // Invalid method values → E-SPEC-025 via structured PrismError::Spec channel,
+                    // matching the E-SPEC-024 pattern in overlay.rs §resolve_env_tokens.
+                    //
+                    // F-LOCAL-P1-OBS-001: sibling parity with E-SPEC-024 structured channel.
+                    // S-SPEC-HTTP-METHOD-VALIDATION-001; BC-2.16.009 v1.8 §VR7; error-taxonomy.md v1.59.
+                    let method_errors = crate::validation::validate_step_methods(&spec);
+                    if !method_errors.is_empty() {
+                        for method_err in method_errors {
+                            // Convert SpecEngineError::InvalidHttpMethod → PrismError::Spec(ESpec025).
+                            // Route through the pinned Display (error.rs #[error(...)]) rather than
+                            // a duplicate format!() literal — error.rs is the single source of truth
+                            // for the E-SPEC-025 message (test_BC_2_16_009_e_spec_025_display_…
+                            // pins that Display byte-for-byte per POL-24).
+                            match &method_err {
+                                crate::error::SpecEngineError::InvalidHttpMethod {
+                                    step_name,
+                                    table_name,
+                                    ..
+                                } => {
+                                    errors.push(PrismError::Spec(SpecError {
+                                        code: SpecErrorCode::ESpec025,
+                                        message: method_err.to_string(),
+                                        toml_path: Some(format!(
+                                            "sensor.tables[{}].steps[{}].method",
+                                            table_name, step_name
+                                        )),
+                                        file_path: Some(file_name.clone()),
+                                        line_number: None,
+                                    }));
+                                }
+                                // Unreachable: validate_step_methods only emits InvalidHttpMethod.
+                                // If a future refactor adds new variants, this arm surfaces them
+                                // as Internal errors rather than silently swallowing.
+                                other => {
+                                    errors.push(PrismError::Internal {
+                                        detail: format!(
+                                            "unexpected error from validate_step_methods in load_all: {other}"
+                                        ),
+                                    });
+                                }
+                            }
+                        }
+                        // DI-030: reject this spec, continue loading others.
+                        continue;
+                    }
                     named_specs.push((file_name, spec));
                 }
                 Err(e) => {

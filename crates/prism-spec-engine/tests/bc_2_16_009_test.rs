@@ -15,6 +15,7 @@
 
 use prism_core::{ColumnType, SpecErrorCode};
 use prism_spec_engine::{
+    add_sensor_spec::parse_and_validate_spec_toml,
     spec_parser::{
         AuthType, ColumnSpec, FetchStep, PaginationConfig, RateLimitHints, SensorSpec, TableSpec,
     },
@@ -647,5 +648,170 @@ fn test_BC_2_16_009_validation_handles_multibyte_utf8_base_url_without_panic() {
     assert!(
         msg.contains('x') || msg.contains("base_url"),
         "error message must reference the url or contain its prefix: {msg}"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// F-LOCAL-P1-MED-001 — Regression-proof tests through the production load path
+//
+// These tests exercise `parse_and_validate_spec_toml` (the production spec-load
+// path used by `parse_spec_directory` at boot and by the MCP add_sensor_spec
+// tool). They are LOAD-BEARING: deleting the `validate_step_methods` call from
+// `parse_and_validate_spec_toml` causes both tests to fail.
+//
+// Test naming: test_BC_2_16_009_load_path_*
+// Traces to: BC-2.16.009 v1.8 §Validation Rules 7; S-SPEC-HTTP-METHOD-VALIDATION-001.
+// ---------------------------------------------------------------------------
+
+/// BC-2.16.009 v1.8 §VR7 — F-LOCAL-P1-MED-001 load-path regression test 1.
+///
+/// A TOML spec with `method = "CONNECT"` fed through `parse_and_validate_spec_toml`
+/// must return `Err` whose error messages include the E-SPEC-025 canonical text.
+///
+/// This test is load-bearing on the Rule-7 wiring in `parse_and_validate_spec_toml`:
+/// removing the `validate_step_methods` call from that function causes this test
+/// to return `Ok` instead of `Err`, triggering an assertion failure.
+///
+/// Traces to: BC-2.16.009 §VR7 AC-7; F-LOCAL-P1-MED-001.
+#[test]
+fn test_BC_2_16_009_load_path_connect_method_produces_e_spec_025() {
+    let toml = r#"
+sensor_id = "test-sensor"
+name = "Test Sensor"
+auth_type = "bearer_static"
+base_url = "https://api.example.com"
+version = "1.0.0"
+
+[[tables]]
+table_name = "events"
+ocsf_class = "security_finding"
+
+  [[tables.columns]]
+  name = "id"
+  column_type = "string"
+
+  [[tables.steps]]
+  name = "fetch"
+  method = "CONNECT"
+  path_template = "/api/v1/events"
+  response_path = "$.data"
+  variables_produced = []
+"#;
+
+    let result = parse_and_validate_spec_toml(toml, "<test>");
+
+    assert!(
+        result.is_err(),
+        "F-LOCAL-P1-MED-001: TOML spec with method='CONNECT' must be rejected by \
+         parse_and_validate_spec_toml (load path); got Ok — Rule-7 wiring may be missing"
+    );
+
+    let errors = result.unwrap_err();
+    let all_error_text: Vec<&str> = errors
+        .iter()
+        .flat_map(|e| e.errors.iter().map(|s| s.as_str()))
+        .collect();
+    let combined = all_error_text.join(" | ");
+
+    // The E-SPEC-025 canonical message must appear (from SpecEngineError::InvalidHttpMethod Display).
+    assert!(
+        combined.contains("CONNECT"),
+        "F-LOCAL-P1-MED-001: error text must cite method value 'CONNECT'; got: {combined:?}"
+    );
+    assert!(
+        combined.contains("not a supported HTTP method"),
+        "F-LOCAL-P1-MED-001: error text must include canonical E-SPEC-025 phrase \
+         'not a supported HTTP method'; got: {combined:?}"
+    );
+}
+
+/// BC-2.16.009 v1.8 §VR7 AC-003 — F-LOCAL-P1-MED-001 load-path regression test 2
+/// (env-var ordering: Rule 6 resolution → Rule 7 validation).
+///
+/// Sets `SENSOR_STEP_METHOD=CONNECT` in the environment, constructs a TOML spec
+/// with `method = "${env.SENSOR_STEP_METHOD}"`, runs `parse_and_validate_spec_toml`.
+///
+/// Expected: Rule 6 resolves the token to "CONNECT"; Rule 7 then fires E-SPEC-025
+/// on the resolved value "CONNECT".
+///
+/// This genuinely exercises the Rule-6 → Rule-7 ordering because the token starts
+/// as `${env.SENSOR_STEP_METHOD}` (unresolved), and only after env resolution does
+/// Rule 7 see "CONNECT" and produce E-SPEC-025.
+///
+/// Env isolation: unique variable name `PRISM_TEST_HTTP_METHOD_VR7_AC003` prevents
+/// collision with other tests. The variable is removed after the test regardless
+/// of pass/fail (cleanup before the final assertion).
+///
+/// This test is load-bearing on BOTH the Rule-6 wiring (env resolution) AND the
+/// Rule-7 wiring (method validation) in `parse_and_validate_spec_toml`. Removing
+/// either call causes this test to fail.
+///
+/// Traces to: BC-2.16.009 §VR7 AC-003; F-LOCAL-P1-MED-001.
+#[test]
+fn test_BC_2_16_009_load_path_env_resolved_invalid_method_produces_e_spec_025() {
+    const VAR: &str = "PRISM_TEST_HTTP_METHOD_VR7_AC003";
+
+    // SAFETY: nextest runs each integration test binary in a forked process.
+    // The unique variable name prevents collision with ambient env or other tests.
+    unsafe {
+        std::env::set_var(VAR, "CONNECT");
+    }
+
+    // Embed the env token in TOML method field — Rule 6 will resolve it to "CONNECT".
+    let toml = format!(
+        r#"
+sensor_id = "test-sensor"
+name = "Test Sensor"
+auth_type = "bearer_static"
+base_url = "https://api.example.com"
+version = "1.0.0"
+
+[[tables]]
+table_name = "events"
+ocsf_class = "security_finding"
+
+  [[tables.columns]]
+  name = "id"
+  column_type = "string"
+
+  [[tables.steps]]
+  name = "fetch"
+  method = "${{env.{VAR}}}"
+  path_template = "/api/v1/events"
+  response_path = "$.data"
+  variables_produced = []
+"#
+    );
+
+    let result = parse_and_validate_spec_toml(&toml, "<test>");
+
+    // Clean up env var before assertions — ensures cleanup even if assert panics.
+    unsafe {
+        std::env::remove_var(VAR);
+    }
+
+    assert!(
+        result.is_err(),
+        "F-LOCAL-P1-MED-001 AC-003: env-resolved method 'CONNECT' must be rejected by \
+         parse_and_validate_spec_toml (load path); got Ok"
+    );
+
+    let errors = result.unwrap_err();
+    let all_error_text: Vec<&str> = errors
+        .iter()
+        .flat_map(|e| e.errors.iter().map(|s| s.as_str()))
+        .collect();
+    let combined = all_error_text.join(" | ");
+
+    // The resolved value "CONNECT" must appear in the error message (Rule 7 fires on RESOLVED value).
+    assert!(
+        combined.contains("CONNECT"),
+        "F-LOCAL-P1-MED-001 AC-003: error text must cite resolved method value 'CONNECT'; \
+         got: {combined:?}"
+    );
+    assert!(
+        combined.contains("not a supported HTTP method"),
+        "F-LOCAL-P1-MED-001 AC-003: error text must include canonical E-SPEC-025 phrase \
+         'not a supported HTTP method'; got: {combined:?}"
     );
 }
