@@ -790,13 +790,46 @@ pub(crate) async fn resolve_source_refs(
         } else {
             // Explicit client list: one target per client.
             // BC-2.11.011: each (source, client) pair is a separate fan-out target.
-            // EC-005: clients with no sensor configured are skipped silently.
+            // BC-3.2.001 postcondition 5 / E-QUERY-032: when an explicit client scope is
+            // provided and the sensor is not registered for that org, RAISE a surfaced
+            // operational error rather than silently returning an empty result.
+            // This is "wiring not redesign" (ADR-022 §C) — the global is_sensor_registered
+            // guard above confirms the sensor exists globally; this per-org check confirms
+            // the requesting org is entitled to query it.
+            // Reference: ADR-007 §2.2 (cross-org isolation) + BC-3.2.001 postcondition 5.
             for client_id in clients {
                 // F-LP1-CRIT-3: resolve OrgSlug → OrgId via OrgRegistry if available.
                 // When OrgRegistry is absent (test mode), use `get_all_for_sensor`
                 // to find the OrgId associated with a registered adapter for this sensor.
                 let org_id =
                     resolve_org_id(client_id, sensor_id.clone(), adapter_registry, org_registry);
+
+                // BC-3.2.001 postcondition 5 / E-QUERY-032:
+                // When the OrgRegistry is present (production), perform a per-org adapter
+                // lookup. The global `is_sensor_registered` guard above confirmed the sensor
+                // exists globally; this check enforces that the requesting org has a registered
+                // adapter for this specific sensor. If not → RAISE E-QUERY-032 (not a silent
+                // empty result). OrgRegistry absent (test mode) skips this check — no
+                // org-scoped enforcement without the registry.
+                //
+                // `adapter_registry.get(org_id, sensor_id)` → None means the sensor is
+                // registered globally but NOT for this org: cross-org isolation violation.
+                if org_registry.is_some()
+                    && !adapter_registry.is_empty()
+                    && adapter_registry.get(org_id, &sensor_id).is_none()
+                {
+                    tracing::warn!(
+                        sensor_id = %sensor_id,
+                        org_slug = %client_id,
+                        org_id = %org_id,
+                        "resolve_source_refs: sensor registered globally but not for org; \
+                         returning E-QUERY-032 (BC-3.2.001 postcondition 5)"
+                    );
+                    return Err(PrismError::SensorNotRegisteredForOrg {
+                        sensor_id: sensor_id.to_string(),
+                        org_slug: client_id.as_str().to_string(),
+                    });
+                }
 
                 targets.push(FanOutTarget {
                     sensor_id: sensor_id.clone(),
@@ -1723,6 +1756,240 @@ mod sensors_queried_format_tests {
         assert!(
             !sensors_queried.contains(debug_form.as_str()),
             "sensors_queried must NOT contain Debug-wrapped form '{debug_form}'"
+        );
+    }
+}
+
+// ---------------------------------------------------------------------------
+// SID-1 unit test: BC-3.2.001 postcondition 5 — E-QUERY-032 from resolve_source_refs
+// ---------------------------------------------------------------------------
+
+#[cfg(test)]
+mod cross_org_isolation_tests {
+    //! SID-1 unit test: `resolve_source_refs` must return `PrismError::SensorNotRegisteredForOrg`
+    //! (E-QUERY-032) when an explicitly-scoped org does not have the queried sensor registered.
+    //!
+    //! This test drives `resolve_source_refs` directly with a mock `AdapterRegistry`
+    //! and an `OrgRegistry` — NO external DTU or live subprocess required (SID-1 compliance).
+    //! The `#[ignore]`'d e2e subprocess tests (AC-012) exercise the same path end-to-end
+    //! but require live DTU binaries (E2E-001 gate).
+    //!
+    //! BC-3.2.001 postcondition 5: when an explicit `clients` scope is given and the sensor
+    //! is registered globally (for other orgs) but NOT for the requesting org, the query
+    //! engine MUST return E-QUERY-032, not a silent empty result.
+    //!
+    //! Story: S-DEMO-002 | CRIT-001 | architect-mandated SID-1 unit test
+    //! Ref: ADR-007 §2.2; BC-3.2.001 postcondition 5; error-taxonomy.md E-QUERY-032
+
+    use std::sync::Arc;
+
+    use async_trait::async_trait;
+    use prism_core::{OrgId, OrgRegistry, OrgSlug, PrismError, SensorId};
+    use prism_sensors::{
+        adapter::{QueryParams, SensorSpec},
+        AdapterRegistry, SensorAdapter, SensorAuth, SensorError,
+    };
+
+    /// Minimal stub adapter used only to populate the AdapterRegistry.
+    ///
+    /// `fetch` is never called in this unit test — the E-QUERY-032 error is returned
+    /// at the query-planning boundary before any adapter dispatch.
+    struct MinimalStubAdapter {
+        sensor_id: SensorId,
+    }
+
+    #[async_trait]
+    impl SensorAdapter for MinimalStubAdapter {
+        fn sensor_type(&self) -> SensorId {
+            self.sensor_id.clone()
+        }
+
+        fn sensor_name(&self) -> &'static str {
+            "stub"
+        }
+
+        async fn fetch(
+            &self,
+            _spec: &SensorSpec,
+            _params: &QueryParams,
+            _auth: &dyn SensorAuth,
+        ) -> Result<Vec<arrow::record_batch::RecordBatch>, SensorError> {
+            // Never called in this test — the path under test returns early with E-QUERY-032.
+            unreachable!("MinimalStubAdapter::fetch must not be called in the isolation test")
+        }
+    }
+
+    /// SID-1 / BC-3.2.001 postcondition 5: `resolve_source_refs` with a populated
+    /// OrgRegistry raises E-QUERY-032 when the explicitly-scoped org does NOT have
+    /// the queried sensor registered (cross-org isolation enforcement).
+    ///
+    /// Test setup:
+    /// - `org_b` has `claroty` registered in AdapterRegistry.
+    /// - `org_a` does NOT have `claroty` registered.
+    /// - OrgRegistry has both `org_a` and `org_b` mapped.
+    /// - Query scope: `clients: [org_a_slug]` (explicit — NOT empty).
+    ///
+    /// Expected: `resolve_source_refs` returns `Err(PrismError::SensorNotRegisteredForOrg { .. })`.
+    ///
+    /// Mental-deletion proof: if the E-QUERY-032 guard in `resolve_source_refs` is
+    /// removed, the function proceeds to build a `FanOutTarget` with the `org_a` OrgId
+    /// (from `resolve_org_id` path 2 or 3) and the test FAILS — `Ok(targets)` is
+    /// returned instead of the expected `Err`.
+    ///
+    /// This test does NOT require a live DTU or any external process (SID-1 compliance).
+    #[tokio::test]
+    async fn test_BC_3_2_001_unit_resolve_source_refs_cross_org_sensor_query_returns_e_query_032() {
+        // --- Setup ---
+        let org_a_id = OrgId::new();
+        let org_b_id = OrgId::new();
+        let org_a_slug = OrgSlug::new("demo-org-a").expect("valid slug");
+        let org_b_slug = OrgSlug::new("demo-org-b").expect("valid slug");
+
+        // OrgRegistry: both orgs are registered.
+        let org_registry = Arc::new(OrgRegistry::new());
+        org_registry
+            .register(org_a_slug.clone(), org_a_id)
+            .expect("org_a registration must succeed");
+        org_registry
+            .register(org_b_slug.clone(), org_b_id)
+            .expect("org_b registration must succeed");
+
+        // AdapterRegistry: `claroty` is registered for org_b ONLY.
+        // org_a has NO adapter for claroty — this is the cross-org isolation scenario.
+        let mut adapter_registry = AdapterRegistry::new();
+        let claroty_sensor_id = SensorId::new("claroty");
+        let stub_adapter: Arc<dyn SensorAdapter> = Arc::new(MinimalStubAdapter {
+            sensor_id: claroty_sensor_id.clone(),
+        });
+        adapter_registry.register(org_b_id, stub_adapter);
+
+        // Sanity checks: claroty IS registered globally; org_a has NO adapter.
+        assert!(
+            adapter_registry.is_sensor_registered(&claroty_sensor_id),
+            "claroty must be globally registered (for org_b)"
+        );
+        assert!(
+            adapter_registry.get(org_a_id, &claroty_sensor_id).is_none(),
+            "org_a must NOT have claroty registered"
+        );
+        assert!(
+            adapter_registry.get(org_b_id, &claroty_sensor_id).is_some(),
+            "org_b MUST have claroty registered"
+        );
+
+        let adapter_registry = Arc::new(adapter_registry);
+        let org_registry_opt = Some(org_registry);
+
+        // Query scope: explicit client list → [org_a_slug].
+        // Source table: claroty_alerts uses sensor prefix "claroty"
+        // (convention: {sensor}_{table} — split at first underscore).
+        let source_names = vec!["claroty_alerts".to_string()];
+        let clients = vec![org_a_slug.clone()];
+
+        // --- Execute ---
+        let result = super::resolve_source_refs(
+            &source_names,
+            &clients,
+            &adapter_registry,
+            &org_registry_opt,
+        )
+        .await;
+
+        // --- Assert ---
+        // Must return Err, not Ok with empty targets.
+        assert!(
+            result.is_err(),
+            "resolve_source_refs must return Err when sensor is not registered for the scoped org; \
+             got Ok({:?})",
+            result.ok()
+        );
+
+        let err = result.unwrap_err();
+        match err {
+            PrismError::SensorNotRegisteredForOrg {
+                ref sensor_id,
+                ref org_slug,
+            } => {
+                assert_eq!(
+                    sensor_id, "claroty",
+                    "E-QUERY-032: sensor_id must be 'claroty'; got: {sensor_id:?}"
+                );
+                assert_eq!(
+                    org_slug, "demo-org-a",
+                    "E-QUERY-032: org_slug must be 'demo-org-a'; got: {org_slug:?}"
+                );
+            }
+            other => {
+                panic!(
+                    "resolve_source_refs must return PrismError::SensorNotRegisteredForOrg \
+                     (E-QUERY-032) for cross-org isolation; got: {other:?}"
+                );
+            }
+        }
+
+        // The error message must contain E-QUERY-032 prefix (BC-5.39.001 error code discipline).
+        let err_msg = format!("{err}");
+        assert!(
+            err_msg.contains("E-QUERY-032"),
+            "Error display must contain 'E-QUERY-032'; got: {err_msg:?}"
+        );
+        assert!(
+            err_msg.contains("claroty"),
+            "Error display must mention sensor 'claroty'; got: {err_msg:?}"
+        );
+        assert!(
+            err_msg.contains("demo-org-a"),
+            "Error display must mention org 'demo-org-a'; got: {err_msg:?}"
+        );
+    }
+
+    /// SID-1 complement: org_b CAN query claroty (positive case).
+    ///
+    /// Confirms the E-QUERY-032 guard does not incorrectly block org_b,
+    /// which IS registered for claroty. Mental-deletion proof: if the guard
+    /// is over-broad and fires for any org, this test FAILS.
+    #[tokio::test]
+    async fn test_BC_3_2_001_unit_resolve_source_refs_registered_org_does_not_return_error() {
+        let org_b_id = OrgId::new();
+        let org_b_slug = OrgSlug::new("demo-org-b").expect("valid slug");
+
+        let org_registry = Arc::new(OrgRegistry::new());
+        org_registry
+            .register(org_b_slug.clone(), org_b_id)
+            .expect("org_b registration must succeed");
+
+        let mut adapter_registry = AdapterRegistry::new();
+        let claroty_sensor_id = SensorId::new("claroty");
+        let stub_adapter: Arc<dyn SensorAdapter> = Arc::new(MinimalStubAdapter {
+            sensor_id: claroty_sensor_id.clone(),
+        });
+        adapter_registry.register(org_b_id, stub_adapter);
+        let adapter_registry = Arc::new(adapter_registry);
+        let org_registry_opt = Some(org_registry);
+
+        let source_names = vec!["claroty_alerts".to_string()];
+        let clients = vec![org_b_slug.clone()];
+
+        let result = super::resolve_source_refs(
+            &source_names,
+            &clients,
+            &adapter_registry,
+            &org_registry_opt,
+        )
+        .await;
+
+        // org_b IS registered for claroty — must NOT return E-QUERY-032.
+        assert!(
+            result.is_ok(),
+            "resolve_source_refs must return Ok for an org that IS registered for the sensor; \
+             got Err({:?})",
+            result.err()
+        );
+        let targets = result.unwrap();
+        assert_eq!(
+            targets.len(),
+            1,
+            "Must produce exactly one FanOutTarget for org_b + claroty; got: {targets:?}"
         );
     }
 }

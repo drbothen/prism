@@ -1145,8 +1145,9 @@ impl SpecLoader {
     /// - **Rule A / E-SPEC-012:** `auth_type` is multi-valued or outside the closed
     ///   enumeration `{oauth2_client_credentials, bearer_static, cookie_roundtrip, api_key,
     ///   custom_via_plugin}`.
-    /// - **Rule B / E-SPEC-013:** Multiple `credential_refs` declared per auth method block
-    ///   (cardinality must be exactly 1).
+    /// - **Rule B / E-SPEC-013:** `credential_refs` cardinality must match the auth method's
+    ///   schema: exactly 2 for `oauth2_client_credentials` (client_id + client_secret per
+    ///   BC-2.06.003 v1.3 / ADR-032), exactly 1 for all other auth types.
     /// - **Rule C / E-SPEC-014:** Structural mismatch between resolved credential shape and
     ///   declared `auth_type`.
     ///
@@ -1179,8 +1180,21 @@ impl SpecLoader {
             });
         }
 
-        // Rule B (E-SPEC-013): exactly 1 credential_ref per auth method.
-        if credential_refs_count != 1 {
+        // Rule B (E-SPEC-013): credential_ref cardinality must match the auth method's schema.
+        //
+        // Per BC-2.06.003 v1.3 / ADR-032 (per-client credential convention):
+        //   - `oauth2_client_credentials` requires exactly 2 refs: client_id + client_secret
+        //     (BC-2.06.003 v1.3 §Per-Sensor credential_refs Declarations, CrowdStrike entry).
+        //   - All other auth types require exactly 1 ref.
+        //
+        // Note: Rule B fires only when credential_refs.len() > 1 (call site in SpecLoader::parse).
+        // A sensor with 0 credential_refs is valid at parse time (boot step 5 validates existence).
+        let expected_ref_count = if auth_type == "oauth2_client_credentials" {
+            2
+        } else {
+            1
+        };
+        if credential_refs_count != expected_ref_count {
             return Err(SpecEngineError::MultipleCredentialRefs {
                 sensor_id: sensor_id.to_string(),
                 credential_count: credential_refs_count,

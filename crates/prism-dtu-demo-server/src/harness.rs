@@ -342,10 +342,18 @@ pub fn build_clone_pairs(config: &DemoConfig) -> anyhow::Result<Vec<ClonePair>> 
     }
 
     if config.clones.cyberint.enabled {
-        let mut pair = ClonePair::new(
-            "cyberint",
-            Box::new(CyberintClone::new().context("failed to construct CyberintClone")?),
-        );
+        // Seed the access_token allowlist at construction time via new_with_access_token()
+        // (ADR-031 §D3-a). When initial_access_token is set in demo.toml, it is registered
+        // in the Cyberint clone's static allowlist before the server starts.
+        // This lets test harnesses provide the Cyberint API key in demo.toml without
+        // a separate POST /dtu/configure (which requires the random admin token secret).
+        let clone = if let Some(token) = &config.clones.cyberint.initial_access_token {
+            CyberintClone::new_with_access_token(token.clone())
+                .context("failed to construct CyberintClone with access token")?
+        } else {
+            CyberintClone::new().context("failed to construct CyberintClone")?
+        };
+        let mut pair = ClonePair::new("cyberint", Box::new(clone));
         pair.continue_on_error = config.clones.cyberint.continue_on_error;
         pairs.push(pair);
     }

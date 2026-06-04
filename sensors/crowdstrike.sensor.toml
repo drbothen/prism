@@ -11,6 +11,20 @@ base_url = "https://api.crowdstrike.com"
 version = "1.0.0"
 
 # ---------------------------------------------------------------------------
+# Credential references (BC-2.06.003 v1.3 / ADR-032)
+# ---------------------------------------------------------------------------
+# crowdstrike-oauth2 WASM plugin resolves both refs at acquire_token() time.
+# BC-2.06.003 resolution chain: PRISM_CLIENTS_{ID}_SENSORS_CROWDSTRIKE_{REF}_FILE >
+#   PRISM_CLIENTS_{ID}_SENSORS_CROWDSTRIKE_{REF} > keyring.
+[[credential_refs]]
+name = "client_id"
+description = "CrowdStrike OAuth2 client ID"
+
+[[credential_refs]]
+name = "client_secret"
+description = "CrowdStrike OAuth2 client secret"
+
+# ---------------------------------------------------------------------------
 # Write endpoints (S-1.13)
 # ---------------------------------------------------------------------------
 

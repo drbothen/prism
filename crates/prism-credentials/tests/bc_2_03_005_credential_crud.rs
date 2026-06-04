@@ -245,6 +245,9 @@ fn test_BC_2_03_005_invariant_credential_metadata_has_no_value_field() {
         client_id: "acme".to_string(),
         sensor_id: "crowdstrike".to_string(),
         backend_type: "env".to_string(),
+        // OBS-001 fix: source_reference persists the explicit env var name stored at
+        // configure_credential_source time (required for live Tier 4 "env" resolution).
+        source_reference: "PRISM_CLIENTS_ACME_SENSORS_CROWDSTRIKE_API_KEY".to_string(),
         last_modified: None,
     };
     // Only metadata fields exist — type has no `value: String` field.

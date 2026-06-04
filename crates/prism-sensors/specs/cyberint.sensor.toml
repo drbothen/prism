@@ -28,6 +28,16 @@ base_url = "https://${env.CYBERINT_ENVIRONMENT}.cyberint.io"
 version = "1.0.0"
 
 # ---------------------------------------------------------------------------
+# Credential references (BC-2.06.003 v1.3 / ADR-032)
+# ---------------------------------------------------------------------------
+# StaticCookieAuthProvider resolves "api_key" at acquire_token() time.
+# BC-2.06.003 resolution chain: PRISM_CLIENTS_{ID}_SENSORS_CYBERINT_API_KEY_FILE >
+#   PRISM_CLIENTS_{ID}_SENSORS_CYBERINT_API_KEY > keyring.
+[[credential_refs]]
+name = "api_key"
+description = "Cyberint API access token (injected as access_token cookie)"
+
+# ---------------------------------------------------------------------------
 # Table: alerts
 # GET with cursor pagination
 # DTU route: GET /api/v1/alerts (crates/prism-dtu-cyberint/src/clone.rs build_router())

@@ -485,6 +485,30 @@ pub enum PrismError {
     #[error("E-QUERY-023: Write verb '{verb}' is not available for source '{sensor_source}'")]
     WriteVerbNotAvailable { verb: String, sensor_source: String },
 
+    /// E-QUERY-032: Sensor is not registered for the requesting org.
+    ///
+    /// Raised by `resolve_source_refs` at the query-planning boundary when an
+    /// explicitly-scoped client list targets a sensor that is registered for OTHER
+    /// orgs but NOT for the requesting org (BC-3.2.001 postcondition 5).
+    ///
+    /// This is a SURFACED operational error (NOT redacted to "Internal error").
+    /// The error message is safe to surface to the MCP caller — it contains only
+    /// the sensor name and org slug, never credential values (AD-017).
+    ///
+    /// Maps to MCP code -32602 (INVALID_PARAMS) — the caller supplied an org
+    /// scoping parameter that refers to a sensor it is not entitled to query.
+    ///
+    /// Reference: error-taxonomy.md v1.58 E-QUERY-032;
+    ///            ADR-007 §2.2 cross-org isolation;
+    ///            BC-3.2.001 postcondition 5.
+    #[error("E-QUERY-032: Sensor '{sensor_id}' is not registered for org '{org_slug}'")]
+    SensorNotRegisteredForOrg {
+        /// The sensor ID that was queried.
+        sensor_id: String,
+        /// The org slug that was explicitly requested but has no registration.
+        org_slug: String,
+    },
+
     // RESERVED error codes not yet implemented:
     //
     // E-QUERY-024 (non-terminal write): declared in architecture catalog

@@ -1,0 +1,185 @@
+# E2E Red Gate CI — S-DEMO-002 AC-010 / ADV-PR-P02-HIGH-001
+#
+# Runs the 13 #[ignore]'d subprocess smoke tests in crates/prism-bin/tests/e2e_smoke.rs.
+# These tests require:
+#   1. Release binaries: prism + prism-dtu-demo-server (Architecture Compliance Rule 5).
+#   2. prism-dtu-demo-server launched in the background — the harness polls for
+#      `.prism-dtu-demo-server.urls.json` and wires the ports internally.
+#   3. Per-org credential env vars (DTU placeholder values; no real credentials).
+#
+# Canonical invocation: cargo nextest run -p prism-bin --profile e2e --run-ignored ignored-only --no-tests=fail
+# (OBS-002 resolution: this file is the source of truth for the canonical command; the
+# nextest.toml [profile.e2e] comment is kept in sync with this invocation.)
+#
+# Trigger set:
+#   - pull_request targeting develop or main (gates merges via required status check)
+#   - push to develop or main (post-merge verification)
+#   - workflow_dispatch: manual trigger for ad-hoc runs (CI I-1)
+#
+# Note: No schedule/cron — cron targets default branch (main) only, making it a near-no-op
+# for develop-targeted PRs (CI I-2 / S-1: collides with fuzz-nightly at 02:00 UTC).
+# Scheduled runs on develop can be added as a future maintenance PR if needed.
+#
+# Runner: ubuntu-latest only — the SIGTERM test is #[cfg(unix)]; Windows is excluded.
+# All other tests (13 total) are unix-compatible.
+#
+# Timeout: 45 min — breakdown:
+#   cargo build --release (prism + prism-dtu-demo-server, warm cache): ~10-15 min
+#   nextest install:                                                      ~30s
+#   13 e2e tests × 120s/test ceiling ([profile.e2e] terminate-after=1):  ~26 min worst-case
+#   Total worst-case: ~42 min; 45 min provides margin.
+
+name: E2E Red Gate
+
+on:
+  pull_request:
+    branches:
+      - develop
+      - main
+  push:
+    branches:
+      - develop
+      - main
+  workflow_dispatch:
+
+# Cancel superseded PR runs only — do not cancel push-to-develop (post-merge gate).
+concurrency:
+  group: e2e-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  e2e:
+    name: E2E smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    permissions:
+      contents: read
+
+    # Hoisted job-level RUSTFLAGS so the build step and nextest step use identical
+    # compiler flags — avoids fingerprint churn / double rebuild (CI S-4).
+    env:
+      RUSTFLAGS: "-C link-arg=-fuse-ld=mold"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Install Rust stable toolchain
+        uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
+
+      - name: Install protoc (required by prost-build for prism-ocsf)
+        uses: arduino/setup-protoc@c65c819552d16ad3c9b72d9dfd5ba5237b9c906b # v3.0.0
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install mold linker (faster linking on Linux)
+        uses: rui314/setup-mold@9c9c13bf4c3f1adef0cc596abc155580bcb04444 # v1
+        with:
+          make-default: false
+
+      # Cache is keyed separately from the main `test` job so a change to e2e tests
+      # does not invalidate the shared test-ubuntu-linux-gnu cache namespace.
+      - name: Cache Rust build artifacts
+        uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+        with:
+          cache-on-failure: true
+          shared-key: e2e-ubuntu-linux-gnu
+
+      - name: Install nextest (prebuilt binary via taiki-e/install-action)
+        uses: taiki-e/install-action@cf525cb33f51aca27cd6fa02034117ab963ff9f1 # v2.75.22
+        with:
+          tool: nextest
+
+      # Build both release binaries required by the e2e harness.
+      # locate_binary() in helpers/mod.rs checks target/release/<name> first
+      # (Architecture Compliance Rule 5: 30s per-test timeout assumes release speed).
+      - name: Build release binaries (prism + prism-dtu-demo-server)
+        run: |
+          set -euo pipefail
+          cargo build --release -p prism-bin -p prism-dtu-demo-server
+          echo "Release binaries built:"
+          ls -la target/release/prism target/release/prism-dtu-demo-server
+
+      # The DTU demo server is managed entirely by the test harness (launch_dtu_server
+      # in helpers/mod.rs). Each test spawns prism-dtu-demo-server as a subprocess,
+      # polls for .prism-dtu-demo-server.urls.json (30s timeout), and wires the ports
+      # into prism's config via per-org overlays. No separate server launch is needed here.
+      #
+      # Env vars required by launch_prism_bin() for TYPE-spec ${env.VAR} interpolation:
+      #   CLAROTY_INSTANCE_URL    — placeholder (per-org overlay overrides base_url to DTU URL)
+      #   ARMIS_INSTANCE_URL      — placeholder (per-org overlay overrides base_url to DTU URL)
+      #   CYBERINT_ENVIRONMENT    — "demo" → "https://demo.cyberint.io" (overlay replaces it)
+      #   CROWDSTRIKE_BASE_URL    — "http://127.0.0.1" satisfies SEC-003 host allowlist check;
+      #                             per-org overlay replaces with actual DTU clone port URL.
+      #
+      # Per-org credential env vars (ADR-032 / BC-2.06.003 v1.3 Tier 2):
+      #   DTU clones accept any non-empty credential values — these are test-only placeholders.
+      #   Per AD-017: these are NOT real credentials (DTU-only; never reach external services).
+      #   Format: PRISM_CLIENTS_{ORG_SLUG_UPPER_UNDERSCORED}_SENSORS_{SENSOR}_{REF}
+      #   Covers all org slugs used by the three e2e config variants:
+      #     write_demo_config:             demo-org
+      #     write_multi_org_demo_config:   demo-org-a, demo-org-b, demo-org-c
+      #
+      # RUST_LOG=off: the tracing subscriber writes to stdout by default; with MCP stdio
+      # transport also using stdout, log lines would corrupt the JSON-RPC framing.
+      # Setting RUST_LOG=off in the subprocess is handled by helpers/mod.rs launch_prism_bin();
+      # setting it here as a job-level default ensures any future top-level invocations
+      # also suppress log noise.
+      - name: Run E2E smoke suite (13 tests, release binaries, ignored-only)
+        env:
+          # TYPE-spec base_url interpolation — placeholder values (overlays override to DTU URL)
+          CLAROTY_INSTANCE_URL: "http://placeholder.claroty.invalid"
+          ARMIS_INSTANCE_URL: "http://placeholder.armis.invalid"
+          CYBERINT_ENVIRONMENT: "demo"
+          CROWDSTRIKE_BASE_URL: "http://127.0.0.1"
+          # Per-org Armis bearer_token (demo-org, demo-org-a, demo-org-c)
+          PRISM_CLIENTS_DEMO_ORG_SENSORS_ARMIS_BEARER_TOKEN: "dtu-e2e-armis-bearer-token"
+          PRISM_CLIENTS_DEMO_ORG_A_SENSORS_ARMIS_BEARER_TOKEN: "dtu-e2e-armis-bearer-token"
+          PRISM_CLIENTS_DEMO_ORG_C_SENSORS_ARMIS_BEARER_TOKEN: "dtu-e2e-armis-bearer-token"
+          # Per-org Claroty bearer_token (demo-org, demo-org-b, demo-org-c)
+          PRISM_CLIENTS_DEMO_ORG_SENSORS_CLAROTY_BEARER_TOKEN: "dtu-e2e-claroty-bearer-token"
+          PRISM_CLIENTS_DEMO_ORG_B_SENSORS_CLAROTY_BEARER_TOKEN: "dtu-e2e-claroty-bearer-token"
+          PRISM_CLIENTS_DEMO_ORG_C_SENSORS_CLAROTY_BEARER_TOKEN: "dtu-e2e-claroty-bearer-token"
+          # Per-org Cyberint api_key (demo-org, demo-org-b, demo-org-c)
+          # Must match initial_access_token in demo.toml (Cyberint DTU cookie allowlist).
+          PRISM_CLIENTS_DEMO_ORG_SENSORS_CYBERINT_API_KEY: "dtu-e2e-cyberint-access-token"
+          PRISM_CLIENTS_DEMO_ORG_B_SENSORS_CYBERINT_API_KEY: "dtu-e2e-cyberint-access-token"
+          PRISM_CLIENTS_DEMO_ORG_C_SENSORS_CYBERINT_API_KEY: "dtu-e2e-cyberint-access-token"
+          # Per-org CrowdStrike client_id (demo-org, demo-org-a, demo-org-c)
+          PRISM_CLIENTS_DEMO_ORG_SENSORS_CROWDSTRIKE_CLIENT_ID: "dtu-e2e-crowdstrike-client-id"
+          PRISM_CLIENTS_DEMO_ORG_A_SENSORS_CROWDSTRIKE_CLIENT_ID: "dtu-e2e-crowdstrike-client-id"
+          PRISM_CLIENTS_DEMO_ORG_C_SENSORS_CROWDSTRIKE_CLIENT_ID: "dtu-e2e-crowdstrike-client-id"
+          # Per-org CrowdStrike client_secret (demo-org, demo-org-a, demo-org-c)
+          PRISM_CLIENTS_DEMO_ORG_SENSORS_CROWDSTRIKE_CLIENT_SECRET: "dtu-e2e-crowdstrike-client-secret"
+          PRISM_CLIENTS_DEMO_ORG_A_SENSORS_CROWDSTRIKE_CLIENT_SECRET: "dtu-e2e-crowdstrike-client-secret"
+          PRISM_CLIENTS_DEMO_ORG_C_SENSORS_CROWDSTRIKE_CLIENT_SECRET: "dtu-e2e-crowdstrike-client-secret"
+          # Suppress tracing subscriber stdout noise in prism subprocess (handled in helpers too).
+          RUST_LOG: "off"
+        run: |
+          set -euo pipefail
+          # Canonical E2E command — source of truth per OBS-002 reconciliation (S-DEMO-002 AC-010).
+          # --profile e2e:           timeout=120s per test, fail-fast=true, terminate-after=1
+          # --run-ignored ignored-only: un-gates only the #[ignore]'d E2E tests (not the full suite)
+          # --no-tests=fail:         fail with exit code 4 if zero tests are selected — prevents
+          #                          false-green if #[ignore] attrs are removed or e2e_smoke.rs is
+          #                          renamed without updating this workflow (ADV-PR-P05-OBS-001).
+          #                          Requires nextest ≥0.9.85. install-action installs the latest
+          #                          stable nextest (no version pin, matching ci.yml convention);
+          #                          latest stable is always ≥0.9.85, so the flag is reliably available.
+          cargo nextest run \
+            -p prism-bin \
+            --profile e2e \
+            --run-ignored ignored-only \
+            --no-tests=fail
+
+      - name: Upload E2E JUnit results
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: e2e-junit
+          path: target/nextest/e2e/junit.xml
+          retention-days: 7

@@ -37,6 +37,14 @@ base_url = "${env.CLAROTY_INSTANCE_URL}"
 version = "1.0.0"
 
 # ---------------------------------------------------------------------------
+# Credential references (ADV-SDEMO002-P01-CRIT-001 fix)
+# ---------------------------------------------------------------------------
+# BC-2.06.003 resolution chain: CLAROTY_BEARER_TOKEN_FILE > CLAROTY_BEARER_TOKEN > keyring.
+# BearerStaticCredentialAuthProvider resolves "bearer_token" at acquire_token() time.
+[[credential_refs]]
+name = "bearer_token"
+
+# ---------------------------------------------------------------------------
 # Table: alerts
 # POST-for-read pattern; offset pagination (page_size = 100)
 # DTU route: POST /api/v1/alerts (crates/prism-dtu-claroty/src/clone.rs build_router())

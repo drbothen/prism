@@ -77,25 +77,30 @@ fn test_BC_2_01_016_002_auth_composition_runtime_rejection() {
 /// BC-2.01.016 AC-3b: A `SensorSpec` with multiple `credential_refs` for a
 /// single auth method must be rejected at spec-load with E-SPEC-013.
 ///
-/// Exercises BC-2.01.016 §Error Cases E-SPEC-013 (Rule B — multiple credential_refs
-/// per auth method; cardinality must be exactly 1). ADR-023 Rule 2, Rule B.
+/// Exercises BC-2.01.016 §Error Cases E-SPEC-013 (Rule B — credential_refs cardinality
+/// must match the auth method's schema). ADR-023 Rule 2, Rule B.
+///
+/// Per BC-2.06.003 v1.3 / ADR-032 amendment:
+///   - `oauth2_client_credentials` now allows exactly 2 refs (client_id + client_secret).
+///   - 3+ refs for `oauth2_client_credentials` → E-SPEC-013.
+///   - 2 refs for `bearer_static` (which needs exactly 1) → E-SPEC-013.
 ///
 /// Red Gate failure mode: `validate_cross_composition` is `todo!()` — panics.
 ///
-/// Story: S-PLUGIN-PREREQ-E AC-3b | BC: BC-2.01.016 | ADR-023 Rule 2 Rule B
+/// Story: S-PLUGIN-PREREQ-E AC-3b | BC: BC-2.01.016 | BC-2.06.003 v1.3 | ADR-032
 #[test]
 fn test_BC_2_01_016_e_spec_013_multiple_credential_refs_rejected() {
-    // Valid auth_type (Rule A passes) but credential_refs_count > 1 (Rule B fires).
+    // Case 1: 3 refs for oauth2_client_credentials (only 2 are allowed).
     let result = SpecLoader::validate_cross_composition(
         "test_sensor",
         "oauth2_client_credentials", // valid auth_type — Rule A passes
-        2,                           // 2 credential_refs — triggers Rule B (E-SPEC-013)
+        3, // 3 credential_refs — triggers Rule B (E-SPEC-013); oauth2 allows 2
         "oauth2_client_credentials",
         "oauth2_client_credentials",
     );
     assert!(
         result.is_err(),
-        "AC-3b: multiple credential_refs must be rejected with E-SPEC-013; \
+        "AC-3b: 3 credential_refs for oauth2_client_credentials must be rejected with E-SPEC-013; \
          validate_cross_composition returned Ok(()) instead"
     );
     let err = result.unwrap_err();
@@ -103,6 +108,26 @@ fn test_BC_2_01_016_e_spec_013_multiple_credential_refs_rejected() {
     assert!(
         err_str.contains("E-SPEC-013"),
         "AC-3b: error must cite E-SPEC-013; got: {err_str}"
+    );
+
+    // Case 2: 2 refs for bearer_static (only 1 is allowed).
+    let result2 = SpecLoader::validate_cross_composition(
+        "test_sensor_bearer",
+        "bearer_static", // valid auth_type — Rule A passes
+        2,               // 2 credential_refs — triggers Rule B (E-SPEC-013); bearer_static allows 1
+        "bearer_static",
+        "bearer_static",
+    );
+    assert!(
+        result2.is_err(),
+        "AC-3b: 2 credential_refs for bearer_static must be rejected with E-SPEC-013; \
+         validate_cross_composition returned Ok(()) instead"
+    );
+    let err2 = result2.unwrap_err();
+    let err2_str = format!("{err2}");
+    assert!(
+        err2_str.contains("E-SPEC-013"),
+        "AC-3b: error must cite E-SPEC-013 for bearer_static with 2 refs; got: {err2_str}"
     );
 }
 
@@ -117,25 +142,29 @@ fn test_BC_2_01_016_e_spec_013_multiple_credential_refs_rejected() {
 /// BC-2.01.016 AC-3c: A `SensorSpec` where `auth_type` and the resolved
 /// credential's structural shape disagree must be rejected with E-SPEC-014.
 ///
-/// Example: `auth_type = "oauth2_client_credentials"` paired with an
-/// API-key-shaped credential (expected `client_id+client_secret`, got `api_key`).
+/// Example: `auth_type = "bearer_static"` paired with an
+/// oauth2-shaped credential (expected `bearer_token`, got `client_id`).
 ///
 /// Exercises BC-2.01.016 §Error Cases E-SPEC-014 (Rule C — structural mismatch
 /// between auth_type and credential shape). ADR-023 Rule 2, Rule C.
+///
+/// Note: per BC-2.06.003 v1.3 / ADR-032, `oauth2_client_credentials` now requires
+/// exactly 2 credential_refs. To test Rule C in isolation (past Rule B), we use
+/// `bearer_static` with 1 ref (Rule B passes) and mismatched shapes.
 ///
 /// Red Gate failure mode: `validate_cross_composition` is `todo!()` — panics.
 ///
 /// Story: S-PLUGIN-PREREQ-E AC-3c | BC: BC-2.01.016 | ADR-023 Rule 2 Rule C
 #[test]
 fn test_BC_2_01_016_e_spec_014_credential_type_mismatch_rejected() {
-    // Valid auth_type (Rule A passes), single credential_ref (Rule B passes),
-    // but credential shape "api_key" doesn't match expected "client_id+client_secret".
+    // Valid auth_type (Rule A passes), single credential_ref (Rule B passes for bearer_static),
+    // but credential shape "api_key" doesn't match expected "bearer_static".
     let result = SpecLoader::validate_cross_composition(
         "test_sensor",
-        "oauth2_client_credentials", // declared auth_type
-        1,                           // single credential_ref — Rule B passes
-        "client_id+client_secret",   // expected structural shape for oauth2_client_credentials
-        "api_key",                   // actual resolved credential shape — MISMATCH (E-SPEC-014)
+        "bearer_static", // declared auth_type
+        1,               // single credential_ref — Rule B passes (bearer_static allows 1)
+        "bearer_static", // expected structural shape for bearer_static
+        "api_key",       // actual resolved credential shape — MISMATCH (E-SPEC-014)
     );
     assert!(
         result.is_err(),

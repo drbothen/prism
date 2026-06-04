@@ -29,6 +29,20 @@ auth_plugin = "crowdstrike-oauth2"
 base_url = "${env.CROWDSTRIKE_BASE_URL}"
 version = "1.0.0"
 
+# ---------------------------------------------------------------------------
+# Credential references (BC-2.06.003 v1.3 / ADR-032)
+# ---------------------------------------------------------------------------
+# crowdstrike-oauth2 WASM plugin resolves both refs at acquire_token() time.
+# BC-2.06.003 resolution chain: PRISM_CLIENTS_{ID}_SENSORS_CROWDSTRIKE_{REF}_FILE >
+#   PRISM_CLIENTS_{ID}_SENSORS_CROWDSTRIKE_{REF} > keyring.
+[[credential_refs]]
+name = "client_id"
+description = "CrowdStrike OAuth2 client ID"
+
+[[credential_refs]]
+name = "client_secret"
+description = "CrowdStrike OAuth2 client secret"
+
 [rate_limit_hints]
 requests_per_second = 10.0
 
@@ -91,11 +105,17 @@ ocsf_class = "security_finding"
   # Step 2: PostEntities — POST IDs to get full detection records
   # DTU route: POST /detects/entities/summaries/GET/v1 (mod.rs line ~193)
   # fan_out_batch_size = 100 per CROWDSTRIKE_BATCH_SIZE (capped by API limit)
+  # Fan-out batch: body_template uses ${step_name.field} interpolation.
+  # Step 1 (query_detection_ids) stores results under:
+  #   - ${query_detection_ids.resources}  (last segment of response_path "$.resources")
+  #   - ${query_detection_ids.detection_ids} (from variables_produced)
+  # Both reference the same array of detection IDs.
+  # The variable reference must include the step name prefix and field name (no bare names).
   [[tables.steps]]
   name = "fetch_detections"
   method = "POST"
   path_template = "/detects/entities/summaries/GET/v1"
-  body_template = '{"ids": ${query_detection_ids}}'
+  body_template = '{"ids": ${query_detection_ids.resources}}'
   response_path = "$.resources"
   variables_produced = []
   fan_out_batch_size = 100

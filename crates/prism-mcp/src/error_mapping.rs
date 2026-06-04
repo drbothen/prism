@@ -110,6 +110,20 @@ pub fn map_prism_error(err: PrismError) -> (i32, String) {
             (codes::INVALID_PARAMS, format!("{err}"))
         }
 
+        // E-QUERY-032: Sensor not registered for org → -32602 Invalid params.
+        // SURFACED (NOT redacted): the org slug and sensor name are safe to expose to
+        // the MCP caller — they contain no credential values (AD-017). This is an
+        // operational configuration error, not a sensor infrastructure failure.
+        // Distinct from E-SENSOR-* variants which ARE redacted per AD-017.
+        // Reference: ADR-007 §2.2 + BC-3.2.001 postcondition 5.
+        PrismError::SensorNotRegisteredForOrg {
+            sensor_id,
+            org_slug,
+        } => (
+            codes::INVALID_PARAMS,
+            format!("E-QUERY-032: Sensor '{sensor_id}' is not registered for org '{org_slug}'"),
+        ),
+
         // E-ALIAS-* errors → -32602 Invalid params (alias name/cycle/depth validation)
         PrismError::AliasNotFound { .. }
         | PrismError::AliasCycleDetected { .. }

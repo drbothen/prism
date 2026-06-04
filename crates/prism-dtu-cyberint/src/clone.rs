@@ -59,6 +59,45 @@ pub struct CyberintClone {
 }
 
 impl CyberintClone {
+    /// Create a new `CyberintClone` with an initial access token registered in the allowlist.
+    ///
+    /// Equivalent to `CyberintClone::new()` followed by `register_access_token(token)`,
+    /// but avoids needing a separate HTTP configure call or admin token.
+    ///
+    /// Used by `build_clone_pairs` when `initial_access_token` is set in the demo config
+    /// (ADR-031 §D3-a; E2E test harness provision pattern).
+    pub fn new_with_access_token(access_token: String) -> anyhow::Result<Self> {
+        let crate_dir = env!("CARGO_MANIFEST_DIR");
+        let alerts: Vec<Alert> = prism_dtu_common::load_fixture_as(crate_dir, "alerts")?;
+        let alerts_page2: Vec<Alert> =
+            prism_dtu_common::load_fixture_as(crate_dir, "alerts-page2")?;
+        let threats: Vec<serde_json::Value> =
+            prism_dtu_common::load_fixture_as(crate_dir, "threats")?;
+
+        let admin_token = uuid::Uuid::new_v4().to_string();
+        let org_id = OrgId::new();
+        let state = Arc::new(
+            CyberintState::with_org_id_and_admin_token(
+                org_id,
+                alerts,
+                alerts_page2,
+                threats,
+                admin_token.clone(),
+            )
+            .with_demo_token(access_token),
+        );
+        Ok(Self {
+            state,
+            bound_addr: None,
+            server_handle: None,
+            tls_active: false,
+            #[cfg(feature = "tls")]
+            tls_handle: None,
+            admin_token,
+            org_id,
+        })
+    }
+
     /// Create a new `CyberintClone`. Loads fixtures from the crate root.
     pub fn new() -> anyhow::Result<Self> {
         let crate_dir = env!("CARGO_MANIFEST_DIR");

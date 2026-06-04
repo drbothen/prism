@@ -1106,6 +1106,63 @@ fn test_BC_2_04_009_dml_operation_round_trip_preserves_delete_irreversible() {
     );
 }
 
+// ─── BC-3.2.001 / E-QUERY-032 — SensorNotRegisteredForOrg arm coverage ──────
+
+/// BC-3.2.001 postcondition 5 + E-QUERY-032 (AC-012): PrismError::SensorNotRegisteredForOrg
+/// maps to -32602 (INVALID_PARAMS) with a SURFACED (non-redacted) message.
+///
+/// This test is the non-ignored sibling unit test required by SID-1 for the
+/// `SensorNotRegisteredForOrg` arm added in `error_mapping.rs:119-125` (S-DEMO-002).
+///
+/// The arm was previously asserted ONLY inside the `#[ignore]`'d e2e smoke test
+/// (`e2e_smoke.rs:722`), which does not run in standard CI. A regression mis-mapping
+/// E-QUERY-032 to the catch-all -32000 (re-introducing AD-017 redaction for a
+/// non-credential error) would pass all CI gates without this test.
+///
+/// Assertions (F-DEMO002-P3-MED-001 requirements):
+/// 1. Returned code == INVALID_PARAMS (-32602) — NOT -32000 Internal.
+/// 2. Message contains "E-QUERY-032" — error code is surfaced to caller.
+/// 3. Message contains "claroty" — sensor_id is surfaced (not redacted).
+/// 4. Message contains "demo-org-a" — org_slug is surfaced (not redacted).
+#[test]
+fn test_BC_3_2_001_map_prism_error_sensor_not_registered_for_org_to_32602() {
+    let err = PrismError::SensorNotRegisteredForOrg {
+        sensor_id: "claroty".to_owned(),
+        org_slug: "demo-org-a".to_owned(),
+    };
+    let (code, message) = map_prism_error(err);
+
+    // Assertion 1: must map to INVALID_PARAMS, not the catch-all INTERNAL_ERROR.
+    assert_eq!(
+        code,
+        codes::INVALID_PARAMS,
+        "E-QUERY-032: SensorNotRegisteredForOrg must map to INVALID_PARAMS (-32602); \
+         got {} — a mis-map to INTERNAL_ERROR (-32000) would silently redact the config error",
+        code
+    );
+
+    // Assertion 2: error code E-QUERY-032 must appear in the message (caller can look it up).
+    assert!(
+        message.contains("E-QUERY-032"),
+        "E-QUERY-032: message must contain 'E-QUERY-032' so the caller can identify the error; \
+         got: '{message}'"
+    );
+
+    // Assertion 3: sensor_id must be surfaced (AD-017 permits this — it is not a credential value).
+    assert!(
+        message.contains("claroty"),
+        "E-QUERY-032: message must surface the sensor_id ('claroty') — this is not a credential, \
+         surfacing it is required by BC-3.2.001 postcondition 5; got: '{message}'"
+    );
+
+    // Assertion 4: org_slug must be surfaced (AD-017 permits this — it is not a credential value).
+    assert!(
+        message.contains("demo-org-a"),
+        "E-QUERY-032: message must surface the org_slug ('demo-org-a') — this is not a credential, \
+         surfacing it is required by BC-3.2.001 postcondition 5; got: '{message}'"
+    );
+}
+
 // F-PASS14-HIGH-1: The AC-7 test has been moved to server.rs mod tests block
 // (test_F_PASS14_HIGH_1_confirm_action_capability_denied_maps_to_32002) where it
 // exercises PrismServer::confirm_action directly. The previous test here was a paper-fix:
