@@ -463,11 +463,6 @@ pub fn validate_sensor_spec(spec: &SensorSpec) -> ValidatorOutput {
 /// clause). The whitelist is case-sensitive and upper-case only.
 ///
 /// BC-2.16.009 §Validation Rules 7; S-SPEC-HTTP-METHOD-VALIDATION-001.
-// allow(dead_code): this constant is referenced by validate_step_methods (stub state before
-// implementation) and by the http_method_whitelist_tests test module. Once the stub is
-// implemented the dead_code lint will naturally resolve; the test module reference also
-// suppresses it in test builds. This suppression is load-bearing for the stub commit.
-#[allow(dead_code)]
 pub(crate) const ALLOWED_HTTP_METHODS: &[&str] =
     &["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"];
 
@@ -491,13 +486,32 @@ pub(crate) const ALLOWED_HTTP_METHODS: &[&str] =
 ///
 /// BC-2.16.009 §Validation Rules 7 (AC-7); error-taxonomy.md v1.59 E-SPEC-025;
 /// S-SPEC-HTTP-METHOD-VALIDATION-001.
-pub fn validate_step_methods(_spec: &SensorSpec) -> Vec<crate::error::SpecEngineError> {
-    todo!(
-        "not yet implemented (S-SPEC-HTTP-METHOD-VALIDATION-001 AC-001/AC-002/AC-003): \
-         validate each FetchStep::method against ALLOWED_HTTP_METHODS; \
-         skip steps whose method still contains an unresolved ${{env.VAR}} token; \
-         return Vec<SpecEngineError::InvalidHttpMethod> for invalid methods"
-    )
+pub fn validate_step_methods(spec: &SensorSpec) -> Vec<crate::error::SpecEngineError> {
+    let mut errors = Vec::new();
+
+    for table in &spec.tables {
+        for step in &table.steps {
+            // BC-2.16.009 §VR7 ordering: skip steps whose method still contains an
+            // unresolved ${env.VAR} token — Rule 6 already fired E-SPEC-024 for those;
+            // double-reporting the same field is noise, not signal (EC-009-020).
+            if step.method.contains("${env.") {
+                continue;
+            }
+
+            // Case-sensitive whitelist check (BC-2.16.009 §VR7 case-sensitivity clause).
+            // "get" is NOT equivalent to "GET"; empty string is not in the whitelist.
+            if !ALLOWED_HTTP_METHODS.contains(&step.method.as_str()) {
+                errors.push(crate::error::SpecEngineError::InvalidHttpMethod {
+                    step_name: step.name.clone(),
+                    sensor_id: spec.sensor_id.clone(),
+                    table_name: table.table_name.clone(),
+                    method_value: step.method.clone(),
+                });
+            }
+        }
+    }
+
+    errors
 }
 
 /// Validate a `sensor_id` against the required regex `^[a-z][a-z0-9_-]*$`.
