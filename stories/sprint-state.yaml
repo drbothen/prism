@@ -19,8 +19,8 @@ active_dispatch_set:
     points: 13
     spec_version: "v2.6"
     lane: "1-of-3"
-    dispatch_status: "D-985 (2026-06-03) — P11-MED-001 version-pin fix landed @90b462ce (ALL 5 pin locations synced to v2.6: frontmatter version, modified, H1, body **Version:** block, §Changelog; grep-verified zero stale pins). Story v2.5→v2.6. PR #171 code HEAD 81cf3678 unchanged. MILESTONE: PR #171 MERGEABLE/CLEAN — all CI PASS incl 'E2E smoke' job 4m47s GREEN; AC-010 e2e-CI-execution proven. DEFER-VERSION-PIN-SWEEP-001 logged (body **Version:** block drifted 2x — amend POL-23/body-pin sweep checklist at cycle-close; approaching 3-recurrence codification threshold). PR-LEVEL re-cascade pass-12 NEXT toward strict 3-CLEAN per user directive. [D-984: P10-MED-001 FSR-completeness fix @b791c516 (prism-query FSR row; full 10-crate bidirectional cross-check). D-983: P08-HIGH-001 crates_touched fix @376b4e10 (5→10 crates). D-982: P05-OBS-001 e2e CI false-green guard CLOSED @3e0ede30/@e785da5e; v2.2→v2.3. D-981: P04-MED-001 body-pin @04178882 v2.1→v2.2. D-980: HIGH-001/002+MED-001/002/003 CLOSED @0dbe72a0. D-979: e2e-CI-job build-out @6a8becfb. D-975: LOCAL 3/3 CONVERGED @6081d42a. D-970: Option-A per-client creds @29ea62df]."
-    entry_point: "PR-LEVEL adversary pass-10 re-cascade on PR #171 HEAD 81cf3678; story v2.5 @b791c516 → strict 3-CLEAN (BC-5.39.001 D-779) → merge"
+    dispatch_status: "D-986 (2026-06-03) — LOCAL 3/3 CONVERGED @6081d42a + PR-LEVEL 3/3 CONVERGED passes 12/13/14 (BC-5.39.001 D-779 strict) @81cf3678; 14 total PR-LEVEL passes; novelty ZERO; ALL gates PASS: security MAY PROCEED (SEC-001 closed) + pr-reviewer APPROVE + CI CLEAN incl E2E smoke (AC-010 proven). PR #171 MERGE-READY — AWAITING HUMAN MERGE APPROVAL. Post-merge pending: POL-14 BC auto-promotions (state-manager Step 9 burst). Full cascade closed: P01 query-syntax/CLI, P02 POL-11, P03 uid, P04 category/class_uid+points-pin, SEC-001/003/004 credentials, HIGH-001 workflow-drift, HIGH-002 retries, MED-003 Tier-4 error-propagation, P08-HIGH-001 10-crate crates_touched @376b4e10, P10-MED-001 FSR completeness @b791c516, P11-MED-001 version-pin @90b462ce. [D-985: story v2.5→v2.6 version-pin ALL 5 locations synced. D-984: prism-query FSR row added. D-983: crates_touched 5→10. D-975: LOCAL 3/3 CONVERGED @6081d42a. D-970: Option-A per-client creds @29ea62df]."
+    entry_point: "MERGE-READY — human merges PR #171 → post-merge burst (Step 9: POL-14 BC auto-promotions + worktree cleanup + state-manager D-987 post-merge burst)"
     worktree_path: ".worktrees/S-DEMO-002"
     code_head: "f2911f1f"
     branch: "feature/S-DEMO-002"
@@ -292,9 +292,9 @@ deferred_post_demo:
   # reclassification from permitted-divergence → required-fidelity; user directive no-scope-compromise).
 
 prereq_artifacts:
-  story_index: .factory/stories/STORY-INDEX.md         # v2.270 after D-985 burst (179 stories; S-DEMO-002 v2.6; PR-LEVEL pass-12 re-cascade NEXT)
+  story_index: .factory/stories/STORY-INDEX.md         # v2.271 after D-986 burst (179 stories; S-DEMO-002 v2.6; PR-LEVEL 3/3 CONVERGED passes 12/13/14; MERGE-READY)
   bc_index: .factory/specs/behavioral-contracts/BC-INDEX.md  # v5.78 (BC-2.16.009 v1.7 + BC-2.16.013 v1.22 both active)
-  state: .factory/STATE.md                              # v7.630 after D-980 burst
+  state: .factory/STATE.md                              # v7.636 after D-986 burst
   governing_adr: .factory/specs/architecture/decisions/ADR-031-dtu-equals-true-dtu-fidelity-principle.md  # v1.2 (ADR-031 architect e57eb5b1 reclassified 3 divergences)
   governing_audit: .factory/proposals/POLLER-DTU-FIDELITY-AUDIT-2026-05-29.md  # v1.1
 
