@@ -1,10 +1,10 @@
 ## Summary
 
-Implements BC-2.16.009 v1.8 §Validation Rule 7: HTTP-method whitelist validation in sensor spec load paths. Invalid or unsupported `step.method` values (`CONNECT`, `TRACE`, `get`, typos) now produce a structured `E-SPEC-025` error at spec-load time rather than silently falling back to GET. Wired into both load paths (`parse_and_validate_spec_toml` and `SpecLoader::load_all`) post env-resolver (Rule 6 → Rule 7 ordering per BC-2.16.009 v1.8). Anchors and resolves **DRIFT-D926-001**.
+Implements BC-2.16.009 v1.9 §Validation Rule 7: HTTP-method whitelist validation in sensor spec load paths. Invalid or unsupported `step.method` values (`CONNECT`, `TRACE`, `get`, typos) now produce a structured `E-SPEC-025` error at spec-load time rather than silently falling back to GET. Wired into both load paths (`parse_and_validate_spec_toml` and `SpecLoader::load_all`) post env-resolver (Rule 6 → Rule 7 ordering per BC-2.16.009 v1.9). Anchors and resolves **DRIFT-D926-001**.
 
 **Subsystem:** SS-16 (Spec Engine) — `crates/prism-spec-engine/src/validation.rs`
 **Wave:** wave-5-e-demo-fidelity
-**Story:** S-SPEC-HTTP-METHOD-VALIDATION-001 v1.2
+**Story:** S-SPEC-HTTP-METHOD-VALIDATION-001 v1.3
 **Priority:** P2 (hardening — NOT a vulnerability; `_ => GET` belt-and-suspenders fallback retained in `PipelineExecutor`)
 
 ---
@@ -55,7 +55,7 @@ graph LR
 
 ```mermaid
 flowchart LR
-    BC["BC-2.16.009 v1.8\n§Validation Rules 7\nHTTP Method Whitelist"]
+    BC["BC-2.16.009 v1.9\n§Validation Rules 7\nHTTP Method Whitelist"]
     ET["error-taxonomy.md v1.59\nE-SPEC-025\nInvalidHttpMethod"]
     DRIFT["DRIFT-D926-001\nPR #165 M-001/SEC-001\nsilent GET fallback gap"]
 
@@ -78,9 +78,11 @@ flowchart LR
 
 | BC | Version | Section | AC | Red Gate Test |
 |----|---------|---------|-----|---------------|
-| BC-2.16.009 | v1.8 | §Validation Rules 7 — HTTP Method Whitelist | AC-001 | `test_BC_2_16_009_valid_http_method_passes_validation` |
-| BC-2.16.009 | v1.8 | §Error Conditions — E-SPEC-025 | AC-002 | `test_BC_2_16_009_invalid_http_method_returns_structured_e_spec_025` |
-| BC-2.16.009 | v1.8 | §Validation Rules 7 — Rule 6→7 ordering | AC-003 | `test_BC_2_16_009_env_resolved_invalid_method_caught_post_resolution` |
+| BC-2.16.009 | v1.9 | §Validation Rules 7 — HTTP Method Whitelist | AC-001 | `test_BC_2_16_009_valid_http_method_passes_validation` |
+| BC-2.16.009 | v1.9 | §Error Conditions — E-SPEC-025 | AC-002 | `test_BC_2_16_009_invalid_http_method_returns_structured_e_spec_025` |
+| BC-2.16.009 | v1.9 | §Validation Rules 7 — Rule 6→7 ordering | AC-003 | `test_BC_2_16_009_env_resolved_invalid_method_caught_post_resolution` |
+| BC-2.16.009 | v1.9 | §Validation Rules 7 — 32-codepoint echo cap (SEC-001/CWE-400) | AC-004 | `test_BC_2_16_009_sec_001_overlong_method_truncated_in_error` |
+| BC-2.16.009 | v1.9 | §Validation Rules 7 — full-match skip-guard (F-PR1-OBS-001) | AC-005 | `test_BC_2_16_009_f_pr1_obs_001_partial_token_embedding_not_skipped` |
 | error-taxonomy.md | v1.59 | E-SPEC-025 message template (POL-24 byte-verbatim) | AC-002 | `test_BC_2_16_009_e_spec_025_display_matches_error_taxonomy_v1_59_template_byte_for_byte` |
 
 **E-SPEC-025 error message (byte-verbatim per POL-24 / error-taxonomy.md v1.59):**
@@ -176,7 +178,7 @@ Pending — orchestrator-driven (post-PR-creation). No credential handling in th
 | Blast radius | `prism-spec-engine` only (SS-16). No changes to `PipelineExecutor`, sensor adapters, or query engine. |
 | Behavior change for valid specs | None — all 4 bundled sensor TOML specs pass Rule 7 (test: `test_BC_2_16_009_validates_all_4_bundled_specs`) |
 | Behavior change for invalid specs | New structured error at spec-load time instead of silent GET fallback. This is the intended hardening. |
-| `_ => GET` fallback | Retained in `PipelineExecutor` (belt-and-suspenders per BC-2.16.009 v1.8 §Validation Rules 7). Not removed. |
+| `_ => GET` fallback | Retained in `PipelineExecutor` (belt-and-suspenders per BC-2.16.009 v1.9 §Validation Rules 7). Not removed. |
 | Regression risk | LOW — 46 preexisting BC-2.16.009 tests pass; 3982/3982 workspace tests pass. |
 | Performance impact | Negligible — `const` whitelist lookup (7-element slice); runs once per step at spec-load time, not per query. |
 
@@ -200,7 +202,7 @@ Pending — orchestrator-driven (post-PR-creation). No credential handling in th
 
 - [x] PR description matches actual diff
 - [x] All 3 ACs covered by demo evidence (1 recording per AC)
-- [x] Traceability chain complete: BC-2.16.009 v1.8 → AC-001/002/003 → Red Gate tests → `validate_step_methods()` implementation
+- [x] Traceability chain complete: BC-2.16.009 v1.9 → AC-001/002/003/004/005 → Red Gate tests → `validate_step_methods()` implementation
 - [x] LOCAL adversary cascade CONVERGED 3/3 strict
 - [x] `just check` 3982/3982 PASS (218s)
 - [x] `#[non_exhaustive]` gate 49/49 PASS

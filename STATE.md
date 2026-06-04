@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.642"
+version: "7.643"
 producer: state-manager
 timestamp: 2026-06-04T00:00:00Z
 inputs: []
@@ -15,8 +15,8 @@ started: 2026-04-13
 repos: [poller-cobra, poller-express, poller-bear, poller-coaster, serveMyAPI, tally, axiathon, ocsf-proto-gen, mcp-claroty-xdome]
 safe_to_compact: true
 pre_compact_snapshot: "SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-06-04-PHASE-B-LANE1-PR-OPEN"
-pre_compact_snapshot_at: "2026-06-04 (D-991 durability checkpoint; Phase A COMPLETE; Phase B Lane 1 S-SPEC-HTTP-METHOD-VALIDATION-001 LOCAL 3/3 CONVERGED, PR #172 OPEN base develop@fdd12251 head 4a2a7bb7; CI running; NEXT on resume: PR-LEVEL adversarial 3-CLEAN cascade + security + pr-reviewer + CI → merge → post-merge burst)"
-current_step: "D-992 — FB-PR2 spec fix-burst COMPLETE (2026-06-04). PR #172 cascade: pass-1 CLEAN(strict) (code-lens, 1/3 streak), pass-2 CLEAN(strict) (contract-lens, 2/3 streak), pass-3 CLEAN(strict) (code+contract+security, 3/3 streak — BC-5.39.001 code-lens 3-CLEAN), pass-4 NOT-CLEAN (F-PR4-MED-001 BC-2.16.009 §VR7 sig + VR6 reorder; F-PR4-MED-002 32-codepoint echo-cap undocumented; streak RESET 0/3). FB-PR2 closes F-PR4-MED-001+F-PR4-MED-002 + folds OBS-PR4-001/002/003. BC-2.16.009 v1.8→v1.9; error-taxonomy v1.59→v1.60; BC-INDEX v5.80→v5.81; S-SPEC-HEAD-OPTIONS-EXEC-001 REGISTERED (total_stories 179→180); STORY-INDEX v2.274→v2.275; SESSION-HANDOFF DURABLE PIN BLOCK b38c1abc→fdd12251. Feature head at pass-4: 0a0dba93. NEXT: adversary re-cascade pass-5 (streak 0/3 after FB-PR2) → 3/3 → merge. STATE v7.641→v7.642."
+pre_compact_snapshot_at: "2026-06-04 (D-991 durability checkpoint; Phase A COMPLETE; Phase B Lane 1 S-SPEC-HTTP-METHOD-VALIDATION-001 LOCAL 3/3 CONVERGED, PR #172 OPEN base develop@fdd12251; LOCAL-converged/demo-evidence head 4a2a7bb7; feature head after FB-PR2 spec fixes 0a0dba93 [code unchanged, BC+story updated]; CI running; NEXT on resume: PR-LEVEL adversarial 3-CLEAN cascade + security + pr-reviewer + CI → merge → post-merge burst)"
+current_step: "D-993 — FB-PR3 COMPLETE (2026-06-04). PR #172 cascade pass-5 NOT-CLEAN: F-PR5-HIGH-001 (HIGH — story S-SPEC-HTTP-METHOD-VALIDATION-001 v1.2 lagged BC-2.16.009 v1.9 bump; pins still at v1.8; AC-004/005 + EC-011..017 missing; streak 0/3). FB-PR3 closes F-PR5-HIGH-001 (story-writer + state-manager): story v1.2→v1.3 (BC pins v1.8→v1.9; AC-004/005 added; EC-011..017 added; acceptance_criteria_count 3→5; red_gate_tests 3→10); STORY-INDEX v2.275→v2.276. OBS-PR5-002 (SHA snapshot skew between pre_compact_snapshot_at line 4a2a7bb7 vs feature head 0a0dba93) RESOLVED — clarified that 4a2a7bb7 = LOCAL-converged/demo-evidence head at PR open; 0a0dba93 = feature head after FB-PR2 spec-only fixes (code unchanged). Feature head 0a0dba93 (code unchanged throughout FB-PR2+FB-PR3). OBS-PR5-001 [process-gap]: FB-closure POL-29 sweep should always include originating story — logged as cycle-close codification candidate (NOT a new story). NEXT: adversary re-cascade pass-6 (streak 0/3) → 3-CLEAN → merge. STATE v7.642→v7.643."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 cyberint_pr_cycle_in_flight: false
 cyberint_pr_cycle_step: "CLOSED — PR #164 squash-merged develop@e798e67c 2026-05-31; POL-14 BC-2.01.017 draft→active (D-904); cascade CLOSED (D-905 process-gaps as justified deferrals); story merged v1.9"
@@ -1084,9 +1084,9 @@ historical_cycles: [phase-1-convergence, wave-3-multi-tenant, wave-4-operations]
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-06-04 (D-991 burst — Phase B Lane 1 PR-open: S-SPEC-HTTP-METHOD-VALIDATION-001 PR #172 OPEN; LOCAL 3/3 CONVERGED 7 passes; STATE v7.640→v7.641) |
+| **Last Updated** | 2026-06-04 (D-993 burst — FB-PR3: story v1.3; F-PR5-HIGH-001 CLOSED; cascade 0/3 after pass-5; STATE v7.642→v7.643) |
 | **Current Phase** | Wave 5 (wave-5-e-demo-fidelity) — Phase A COMPLETE. **Phase B IN PROGRESS (D-991 2026-06-04)**. Lane 1: S-SPEC-HTTP-METHOD-VALIDATION-001 PR #172 OPEN (CI running; PR-LEVEL cascade next). Remaining Phase B lanes (not started): S-DEMO-QUERY-PUSHDOWN-001 (lane 2), OCSF-CLASS-MIGRATION-001 (lane 3), S-DEMO-003 (lane 4). Phase C (Claroty cluster, serialized): TRAILING-SLASH → SPEC-PROSE-FIX → HARNESS-CLONE-PARITY. Draft/deferred: S-DEMO-MULTI-TENANT-DTU-001 [3 open OQs]; S-MAINT-W3SEC-CITE-SWEEP-002 [D-954]; S-MAINT-ORPHAN-SENSORS-DIR-001 [D-977]. |
-| **Current Step** | D-991 — Phase B Lane 1 PR #172 OPEN (S-SPEC-HTTP-METHOD-VALIDATION-001; base develop@fdd12251, head 4a2a7bb7; CI running). LOCAL 3/3 CONVERGED (7 passes, 4 fix-bursts). STATE v7.640→v7.641. NEXT (D-989 autonomy ACTIVE): PR-LEVEL adversarial 3-CLEAN cascade → security-reviewer → pr-reviewer → CI-green → squash-merge → post-merge burst. |
+| **Current Step** | D-993 — FB-PR3 COMPLETE. PR #172 cascade pass-5 NOT-CLEAN (F-PR5-HIGH-001 CLOSED; story v1.3; STORY-INDEX v2.276). Streak 0/3. Feature head 0a0dba93 (code unchanged). STATE v7.642→v7.643. NEXT: adversary pass-6 (re-cascade toward 3-CLEAN → merge). |
 
 ## Phase Progress
 
@@ -1124,7 +1124,7 @@ historical_cycles: [phase-1-convergence, wave-3-multi-tenant, wave-4-operations]
 | **5: S-SPEC-ENV-VAR-001** | **MERGED** | 2026-05-31 | 2026-06-01 | PR #165 squash-merged develop@4feec93a; POL-14 BC-2.16.009 active (idempotent); cascade CLOSED (D-931) | LOCAL 5 passes 3-CLEAN CONVERGED (passes 3/4/5). PR-LEVEL 5 passes 3-CLEAN CONVERGED (passes 3/4/5 on HEAD 54d1bd3e). 1 fix-burst (pass 1 fixes). POL-14 BC-2.16.009 already active — idempotent. FIRST Wave 5 fidelity-prereq merged. Unblocks S-DEMO-CROWDSTRIKE-MULTIREGION-001 (HARD) + Armis-AQL/Claroty parity-soft. |
 | **5: S-DEMO-CROWDSTRIKE-MULTIREGION-001** | **MERGED PR #170 develop@cd4a2211 2026-06-03** | 2026-06-03 | 2026-06-03 | LOCAL 3/3 CONVERGED @291d7c64 + PR-LEVEL 3/3 CONVERGED (passes 7/8/9 strict) @efbcf59b; CASCADE CLOSED (D-978) | Story v1.4. PR #170 squash-merged 2026-06-03 develop@cd4a2211. LOCAL 3/3 CLEAN CONVERGED @291d7c64. PR-LEVEL 3/3 CLEAN CONVERGED (passes 7/8/9). POL-14 BC-2.16.009+BC-2.16.013: both already active — idempotent no-op (D-978). DEFER-ORPHAN-SENSORS-DIR-001 tracked (D-977; out-of-perimeter; future S-MAINT-ORPHAN-SENSORS-DIR-001). Worktree+branch REMOVED. |
 | **5: S-DEMO-QUERY-PUSHDOWN-001** | **REGISTERED** | 2026-05-31 | — | draft; P2; blocked on S-DEMO-001 merge | NEW (D-924): follow-up story for F-003-R push-down deferred from keystone. 3 BCs: BC-2.01.013+BC-2.11.005+BC-2.11.007. depends_on S-DEMO-001. 5pts. |
-| **5: S-SPEC-HTTP-METHOD-VALIDATION-001** | **PR #172 OPEN** | 2026-05-31 | — | PR-LEVEL adversarial 3-CLEAN cascade pending | D-991: LOCAL 3/3 CONVERGED (7 passes, 4 fix-bursts; Red Gate 154f5f7d, TDD green b5dc5bf2). 4 genuine bugs fixed: dual load-path wiring, E-SPEC-025 channel parity, malformed toml_path + untested path, skip-guard over-skip ENV_TOKEN_REGEX. Demo evidence 4a2a7bb7 (3 ACs). Branch pushed head 4a2a7bb7. PR #172 OPEN (base develop@fdd12251); CI running. pre-push just check 3982/3982 PASS. |
+| **5: S-SPEC-HTTP-METHOD-VALIDATION-001** | **PR #172 OPEN** | 2026-05-31 | — | PR-LEVEL cascade 0/3 after pass-5+FB-PR3 | D-993: story v1.3 (BC v1.9 pin sweep; AC-004/005; EC-011..017; AC count 5; RG 10). Pass-5 NOT-CLEAN F-PR5-HIGH-001 CLOSED. Feature head 0a0dba93. NEXT: adversary pass-6 → 3-CLEAN → merge. |
 
 ## Current Phase Steps
 
@@ -1135,6 +1135,7 @@ historical_cycles: [phase-1-convergence, wave-3-multi-tenant, wave-4-operations]
 _D-735 through D-847 archived to cycles/wave-0-plugin-prereqs/burst-log.md. D-835+D-836+D-837 removed from Phase Steps (archived in Decisions Log). D-849..D-951 archived to burst-log.md. D-955+D-956 archived to burst-log.md. D-957 archived to burst-log.md. D-958 archived to burst-log.md. D-959 archived to burst-log.md. D-960 archived to burst-log.md. D-961 and D-962 and earlier archived to burst-log.md. D-963 archived to burst-log.md. D-964 archived to burst-log.md. D-965 archived to burst-log.md. D-966..D-974 archived to burst-log.md. D-975 archived to burst-log.md. D-976 archived to burst-log.md. D-977 archived to burst-log.md. D-978 archived to burst-log.md. D-979 archived to burst-log.md. D-980 archived to burst-log.md. D-981 archived to burst-log.md. D-982 archived to burst-log.md. D-983 archived to burst-log.md. D-984 archived to burst-log.md. D-985 archived to burst-log.md. D-986 archived to burst-log.md. D-987 archived to burst-log.md._
 _D-988 archived to burst-log.md. D-989 archived to burst-log.md. D-990 archived to burst-log.md._
 | D-991 — **PHASE-B LANE-1 PR-OPEN (2026-06-04). S-SPEC-HTTP-METHOD-VALIDATION-001: LOCAL 3/3 CONVERGED; 7 passes; 4 fix-bursts; 4 genuine bugs fixed. Demo evidence 4a2a7bb7. PR #172 OPEN base develop@fdd12251. pre-push 3982/3982 PASS. STATE v7.640→v7.641.** | state-manager | 2026-06-04 | Decided by: orchestrator (D-989 autonomy grant — Phase B Lane 1 authorized) + state-manager (D-991 single-commit burst per TD-VSDD-053). Status: COMPLETE |
+| D-993 — **FB-PR3 COMPLETE (2026-06-04). PR #172 cascade pass-5 NOT-CLEAN: F-PR5-HIGH-001 (story v1.2 lagged BC-2.16.009 v1.9 sweep). FB-PR3 closes: story v1.2→v1.3 (BC pins v1.8→v1.9; AC-004/005; EC-011..017; acceptance_criteria_count 3→5; red_gate_tests 3→10). STORY-INDEX v2.275→v2.276. OBS-PR5-002 SHA skew resolved. OBS-PR5-001 [process-gap] cycle-close codification candidate logged. Feature head 0a0dba93 (code unchanged). STATE v7.642→v7.643. Cascade NOT yet converged (0/3); NEXT: adversary pass-6.** | state-manager | 2026-06-04 | Decided by: adversary (pass-5 F-PR5-HIGH-001 story lag) + story-writer (story v1.3 sweep) + state-manager (FB-PR3 single-commit burst per TD-VSDD-053). Status: IN PROGRESS — cascade 0/3; NEXT adversary pass-6 |
 | D-992 — **FB-PR2 spec fix-burst (2026-06-04). PR #172 cascade IN PROGRESS (0/3 after pass-4+FB-PR2). Pass-1 CLEAN(strict)=yes 1/3; pass-2 CLEAN(strict)=yes 2/3; pass-3 CLEAN(strict)=yes 3/3 (code-lens sub-cascade); pass-4 NOT-CLEAN (F-PR4-MED-001+F-PR4-MED-002+OBS-PR4-001/002/003); streak RESET 0/3. FB-PR2 closes all: BC-2.16.009 v1.9 + error-taxonomy v1.60 + STORY-INDEX v2.275 (total_stories 180) + BC-INDEX v5.81 + SESSION-HANDOFF SHA hygiene. S-SPEC-HEAD-OPTIONS-EXEC-001 REGISTERED (SEC-002/CWE-440). Feature head 0a0dba93. STATE v7.641→v7.642.** | state-manager | 2026-06-04 | Decided by: adversary (passes 1-4 on PR #172; F-PR4-MED-001/002 + OBS-PR4-001/002/003 found) + product-owner (BC-2.16.009 v1.9 + error-taxonomy v1.60 content) + story-writer (S-SPEC-HEAD-OPTIONS-EXEC-001 draft v1.0) + state-manager (D-992 FB-PR2 single-commit burst per TD-VSDD-053). Status: IN PROGRESS — cascade 0/3; NEXT adversary pass-5 |
 _D-942 and D-957 through D-963 and earlier archived to burst-log.md. D-964 archived to burst-log.md. D-965 archived to burst-log.md. D-966..D-982 archived to burst-log.md. D-983 archived to burst-log.md. D-984 archived to burst-log.md. D-985 archived to burst-log.md. D-986 archived to burst-log.md._
 
@@ -1471,25 +1472,25 @@ Prior cycle history:
 
 ---
 
-## Session Resume Checkpoint (2026-06-04 — D-991: PHASE-B LANE-1 PR-OPEN; STATE v7.641)
+## Session Resume Checkpoint (2026-06-04 — D-993: FB-PR3 COMPLETE; STATE v7.643)
 
-_Previous checkpoint (D-990; STATE v7.640) superseded by D-991 burst (STATE v7.641). D-991: Phase B Lane 1 checkpoint — S-SPEC-HTTP-METHOD-VALIDATION-001 LOCAL 3/3 CONVERGED; PR #172 OPEN; CI running._
+_Previous checkpoint (D-991/D-992; STATE v7.642) superseded by D-993 burst (STATE v7.643). D-993: FB-PR3 closes F-PR5-HIGH-001 (story v1.2→v1.3); cascade 0/3 after pass-5; NEXT: adversary pass-6._
 
-**STATE v7.641. D-991 — PHASE-B LANE-1 PR OPEN. S-SPEC-HTTP-METHOD-VALIDATION-001 PR #172 OPEN (base develop@fdd12251, head 4a2a7bb7). BC-INDEX v5.80. STORY-INDEX v2.274 (179 stories). develop HEAD: fdd12251. D-989 standing autonomy grant ACTIVE.**
+**STATE v7.643. D-993 — PR #172 CASCADE 0/3 AFTER PASS-5+FB-PR3. S-SPEC-HTTP-METHOD-VALIDATION-001 story v1.3; feature head 0a0dba93 (code unchanged). BC-INDEX v5.81. STORY-INDEX v2.276 (180 stories). develop HEAD: fdd12251. D-989 standing autonomy grant ACTIVE.**
 
-**develop HEAD:** `fdd12251` | **BC-INDEX:** v5.80 (active: 234, draft: 3) | **STORY-INDEX:** v2.274 (179 stories) | **Open PRs:** PR #172 (S-SPEC-HTTP-METHOD-VALIDATION-001; CI running)
+**develop HEAD:** `fdd12251` | **BC-INDEX:** v5.81 (active: 234, draft: 3) | **STORY-INDEX:** v2.276 (180 stories) | **Open PRs:** PR #172 (S-SPEC-HTTP-METHOD-VALIDATION-001; head 0a0dba93)
 
 **Resume protocol (new session — D-989 AUTONOMY ACTIVE):**
 1. Run `vsdd-factory:factory-worktree-health` (BLOCKING preflight)
-2. Read STATE.md frontmatter — confirm `version: "7.641"` + `wave5_autonomy_granted` field present + `develop_head: "fdd12251"` + `safe_to_compact: true`
+2. Read STATE.md frontmatter — confirm `version: "7.643"` + `wave5_autonomy_granted` field present + `develop_head: "fdd12251"` + `safe_to_compact: true`
 3. Read SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-06-04-PHASE-B-LANE1-PR-OPEN — including §STANDING AUTHORIZATION block (D-989)
 4. Confirm `git log --oneline develop` shows fdd12251 as HEAD
 5. Check open PRs: `gh pr list --state open` → expected: PR #172 (S-SPEC-HTTP-METHOD-VALIDATION-001)
-6. Verify lane 1 worktree: `git -C .worktrees/S-SPEC-HTTP-METHOD-VALIDATION-001 rev-parse HEAD` → expected: `4a2a7bb7`
-7. NEXT ACTIONS (D-989 autonomy active — Phase B Lane 1 in PR cycle): (a) PR-LEVEL adversarial 3-CLEAN cascade on PR #172 (head 4a2a7bb7; Standing Rule 2) + security-reviewer + pr-reviewer + CI-green → squash-merge → post-merge POL-14 burst. (b) After Lane 1 merges: dispatch remaining Phase B lanes (S-DEMO-QUERY-PUSHDOWN-001 ∥ OCSF-CLASS-MIGRATION-001 ∥ S-DEMO-003). Then Phase C (Claroty cluster).
+6. Verify lane 1 feature head: feature/S-SPEC-HTTP-METHOD-VALIDATION-001 tip = 0a0dba93 (code); story = v1.3 (FB-PR3 sweep)
+7. NEXT ACTIONS (D-989 autonomy active — Phase B Lane 1 cascade in progress): (a) adversary pass-6 on PR #172 (head 0a0dba93; story v1.3; streak 0/3; Standing Rule 2) → 3-CLEAN → security-reviewer → pr-reviewer → CI-green → squash-merge → post-merge POL-14 burst. (b) After Lane 1 merges: dispatch remaining Phase B lanes (S-DEMO-QUERY-PUSHDOWN-001 ∥ OCSF-CLASS-MIGRATION-001 ∥ S-DEMO-003). Then Phase C (Claroty cluster).
 8. HUMAN NOTE: DEFER-CLAUDEMD-BC216002-MISLABEL-001 still logged — CLAUDE.md SAP-1 cites wrong BC anchor for event catalog; requires human direct edit (exception 4 under D-989 grant — surface only, do not auto-handle)
 
-**D-992 — FB-PR2 spec fix-burst (2026-06-04):** PR #172 PR-LEVEL cascade passes 1-4 complete; FB-PR2 closes all pass-4 findings. Pass-1 CLEAN(strict)=yes (code-lens; streak 1/3). Pass-2 CLEAN(strict)=yes (contract-lens; streak 2/3). Pass-3 CLEAN(strict)=yes (code+contract+security; streak 3/3 — code-lens sub-cascade CONVERGED). Pass-4 (security lens focused): NOT-CLEAN — F-PR4-MED-001 (BC-2.16.009 §VR7 impl-fn signature stale Vec<SpecEngineError> vs actual Vec<(usize,usize,SpecEngineError)>; §VR6 env-var content missing; §Description five→seven stale); F-PR4-MED-002 (32-codepoint echo-cap undocumented in BC + error-taxonomy); OBS-PR4-001/002/003 (malformed pseudo-token fallback clause missing; EC-009-021 overlong edge case missing; VR6/7 ordering note incomplete). Streak RESET 0/3. FB-PR2 ALL CLOSED: BC-2.16.009 v1.9 + error-taxonomy v1.60. S-SPEC-HEAD-OPTIONS-EXEC-001 follow-up story registered (closes SEC-002/CWE-440 HEAD/OPTIONS execution gap). Feature head at pass-4: 0a0dba93. NEXT: adversary re-pass from 0/3 using feature head 0a0dba93.
+**D-993 — FB-PR3 COMPLETE (2026-06-04):** PR #172 PR-LEVEL pass-5 NOT-CLEAN. F-PR5-HIGH-001 (HIGH): story v1.2 lagged BC-2.16.009 v1.9 pin sweep — AC-004/005 absent; EC-011..017 absent; BC-2.16.009 pins still at v1.8; acceptance_criteria_count 3 stale; red_gate_tests 3 stale. FB-PR3 CLOSED ALL: story v1.2→v1.3 (story-writer: BC pins v1.8→v1.9; AC-004 SEC-001 32-codepoint truncation; AC-005 F-PR1-OBS-001 full-match guard; EC-011..017 tracing 7 cascade tests; acceptance_criteria_count 3→5; red_gate_tests 3→10). STORY-INDEX v2.275→v2.276 (row updated; changelog added). OBS-PR5-002 SHA skew resolved (clarified in pre_compact_snapshot_at). OBS-PR5-001 [process-gap] logged as cycle-close candidate. Feature head 0a0dba93 unchanged (spec-only fix burst). STATE v7.642→v7.643. Streak 0/3; NEXT: adversary pass-6.
 
 pr_172_pr_level_pass_1_clean_strict: true
 pr_172_pr_level_pass_1_clean_pr_merge: true
@@ -1521,8 +1522,18 @@ pr_172_fb_pr2_bc_version: "v1.9"
 pr_172_fb_pr2_error_taxonomy_version: "v1.60"
 pr_172_fb_pr2_story_registered: "S-SPEC-HEAD-OPTIONS-EXEC-001 (F-PR4-MED-001 SEC-002/CWE-440 follow-up)"
 pr_172_feature_head_at_pass4: "0a0dba93"
-pr_172_pr_level_cascade_streak: "0/3 (reset by pass-4; FB-PR2 closes all findings; re-cascade NEXT)"
-pr_172_pr_level_cascade_passes: 4
+pr_172_pr_level_pass_5_clean_strict: false
+pr_172_pr_level_pass_5_clean_pr_merge: false
+pr_172_pr_level_pass_5_lens: "story-spec"
+pr_172_pr_level_pass_5_findings: {HIGH: 1}
+pr_172_pr_level_pass_5_streak_after: "0/3"
+pr_172_pr_level_pass_5_f_pr5_high_001: "story v1.2 lagged BC-2.16.009 v1.9 pin sweep (still at v1.8; AC-004/005 + EC-011..017 absent; acceptance_criteria_count 3 stale; red_gate_tests 3 stale) — CLOSED FB-PR3 story-writer+state-manager (story v1.3; STORY-INDEX v2.276)"
+pr_172_pr_level_pass_5_obs_pr5_002: "SHA snapshot skew pre_compact_snapshot_at 4a2a7bb7 vs feature head 0a0dba93 — RESOLVED FB-PR3 (clarified: 4a2a7bb7=LOCAL-converged/demo head at PR open; 0a0dba93=spec-only fix head; code unchanged)"
+pr_172_pr_level_pass_5_obs_pr5_001: "[process-gap] FB-closure POL-29 sweep should always include originating story — logged as cycle-close codification candidate; NOT a new story"
+pr_172_fb_pr3_story_version: "v1.3"
+pr_172_fb_pr3_story_index_version: "v2.276"
+pr_172_pr_level_cascade_streak: "0/3 (reset by pass-5; FB-PR3 closes F-PR5-HIGH-001; re-cascade NEXT from pass-6)"
+pr_172_pr_level_cascade_passes: 5
 
 **PHASE-B LANE-1 STATUS (S-SPEC-HTTP-METHOD-VALIDATION-001):**
 - **Worktree:** `.worktrees/S-SPEC-HTTP-METHOD-VALIDATION-001` on `feature/S-SPEC-HTTP-METHOD-VALIDATION-001` from develop@fdd12251
