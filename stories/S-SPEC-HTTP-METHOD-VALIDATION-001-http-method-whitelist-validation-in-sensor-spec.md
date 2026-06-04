@@ -39,7 +39,7 @@ points: 3
 # Points justification:
 #   - Read validation.rs and confirm insertion point (post env-resolver pass): 0.5 pts
 #   - Implement whitelist constant + validation fn: 0.5 pts
-#   - Error return using new E-SPEC-NNN (to be assigned by PO): 0.5 pts
+#   - Error return using E-SPEC-025 (confirmed by PO in BC-2.16.009 v1.8): 0.5 pts
 #   - Unit tests: 3 ACs × ~0.5 pts each = 1.5 pts
 #   Total: 3 points
 estimated_days: 0.5
@@ -47,7 +47,7 @@ risk: LOW
 # Risk justification:
 #   The safe GET fallback already exists in the pipeline — this is hardening only.
 #   There is no vulnerability to fix. The scope is a single new validation function
-#   in validation.rs plus a new E-SPEC-NNN error variant. No behavior change for
+#   in validation.rs plus the E-SPEC-025 error variant. No behavior change for
 #   valid sensor specs. Risk of regression is low.
 acceptance_criteria_count: 3
 red_gate_tests: 3
@@ -109,7 +109,7 @@ when this story merges.
 
 **Safety note:** The existing `_ => GET` fallback in `PipelineExecutor` is load-bearing.
 This story does NOT remove it. This story adds EARLY validation so that invalid/unsupported
-methods are caught at spec-load time and reported as a structured `E-SPEC-NNN` error,
+methods are caught at spec-load time and reported as a structured `E-SPEC-025` error,
 giving operators an actionable signal instead of silent fallback.
 
 ---
@@ -206,7 +206,7 @@ Red Gate test: `test_BC_2_16_009_env_resolved_invalid_method_caught_post_resolut
 | Validation runs POST env-resolver pass | BC-2.16.009 v1.6 §Validation Rules 6 precedent (E-SPEC-024 runs in same pass) | Ensure `validate_step_methods()` is called after `resolve_env_vars()` in `validation.rs` |
 | Whitelist constant is a compile-time array | Production-grade default | No runtime config; no serde; `const ALLOWED_HTTP_METHODS: &[&str]` |
 | `_ => GET` fallback in `PipelineExecutor` is NOT removed | Belt-and-suspenders safety | Removing the fallback is out of scope; confirmed in risk_mitigations |
-| New `E-SPEC-NNN` code must be registered in `error-taxonomy.md` BEFORE merge | POL-1 (append-only error taxonomy) | Same-PR amendment per BC-2.16.009 §Error Conditions |
+| `E-SPEC-025` MUST be confirmed in `error-taxonomy.md` before implementation | POL-1 (append-only error taxonomy) — already registered by PO in Wave-5 Phase-A burst | Implementer reads error-taxonomy.md to confirm E-SPEC-025 row exists before writing error-emitting code |
 | Method value is safe to echo in error message | Not a credential per AD-017 | HTTP method string is config text; echoing is fine |
 | Multi-error collection: all invalid methods collected before error return | INV-ERR-003 pattern | Multiple invalid steps → multiple errors in same pass (same as E-SPEC-024 behavior) |
 
@@ -255,7 +255,7 @@ Version source: `Cargo.toml` workspace. No independent version pins.
      (case-sensitive — `"get"` is invalid per typical HTTP client conventions; implementer
      may normalize to uppercase if BC-2.16.009 amendment specifies; PO decides).
    - Collect all errors (multi-error pattern per INV-ERR-003).
-   - Return `Err(SpecEngineError::...(E-SPEC-NNN))` for any invalid method.
+   - Return `Err(SpecEngineError::...(E-SPEC-025))` for any invalid method.
 8. **Wire** `validate_step_methods()` into the validation pipeline — call it after the
    env-resolver pass, before the spec is accepted.
 9. **Run tests**: `just iter prism-spec-engine` — all 3 Red Gate tests GREEN.
@@ -285,13 +285,13 @@ Version source: `Cargo.toml` workspace. No independent version pins.
 | ID | Description | Expected Behavior |
 |----|-------------|-------------------|
 | EC-001 | `step.method` is absent / `None` | No validation error — absent method defaults to GET in the pipeline; absence is not invalid |
-| EC-002 | `step.method = "get"` (lowercase) | Invalid per whitelist (case-sensitive); E-SPEC-NNN error. Note: PO decides whether to normalize; implementer must NOT silently normalize without BC amendment. |
-| EC-003 | `step.method = "CONNECT"` | Invalid (unsupported, potentially dangerous); E-SPEC-NNN error |
-| EC-004 | `step.method = "TRACE"` | Invalid (unsupported); E-SPEC-NNN error |
-| EC-005 | `step.method = "GETT"` (typo) | Invalid; E-SPEC-NNN error |
-| EC-006 | `step.method = ""` (empty string) | Invalid; E-SPEC-NNN error |
-| EC-007 | Multiple invalid method steps in same spec | All invalid steps collected; multiple E-SPEC-NNN errors in same pass (INV-ERR-003) |
-| EC-008 | `step.method = "${env.METHOD}"` with `METHOD="CONNECT"` | Env resolves to `"CONNECT"`; then method validation fires; E-SPEC-NNN error citing resolved value |
+| EC-002 | `step.method = "get"` (lowercase) | Invalid per whitelist (case-sensitive); E-SPEC-025 error. BC-2.16.009 v1.8 §Validation Rules 7: case-sensitive match; `"get"` is NOT equivalent to `"GET"`. |
+| EC-003 | `step.method = "CONNECT"` | Invalid (unsupported, potentially dangerous); E-SPEC-025 error |
+| EC-004 | `step.method = "TRACE"` | Invalid (unsupported); E-SPEC-025 error |
+| EC-005 | `step.method = "GETT"` (typo) | Invalid; E-SPEC-025 error |
+| EC-006 | `step.method = ""` (empty string) | Invalid; E-SPEC-025 error |
+| EC-007 | Multiple invalid method steps in same spec | All invalid steps collected; multiple E-SPEC-025 errors in same pass (INV-ERR-003; BC-2.16.009 v1.8 multi-error collection clause) |
+| EC-008 | `step.method = "${env.METHOD}"` with `METHOD="CONNECT"` | Env resolves to `"CONNECT"`; then method validation fires; E-SPEC-025 error citing resolved value `"CONNECT"` |
 | EC-009 | `step.method = "${env.METHOD}"` with `METHOD` unset | E-SPEC-024 fires for unresolved env var (existing behavior); method validation does not run on unresolved token |
 | EC-010 | Valid method `"POST"` for a write step | Passes validation; no error |
 
