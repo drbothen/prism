@@ -991,6 +991,24 @@ pub enum SpecErrorCode {
     /// BC-2.16.009 §Validation Rules 6 (AC-6); S-SPEC-ENV-VAR-001.
     /// error-taxonomy.md v1.56 E-SPEC-024.
     ESpec024,
+    /// E-SPEC-025: A `FetchStep::method` value (after env-var token resolution) is not in the
+    /// allowed HTTP method set: `GET`, `POST`, `PUT`, `PATCH`, `DELETE`, `HEAD`, `OPTIONS`.
+    ///
+    /// Emitted by `validate_step_methods()` in `crates/prism-spec-engine/src/validation.rs`
+    /// when a step's `method` field contains a value not in `ALLOWED_HTTP_METHODS`.
+    ///
+    /// Validation is case-sensitive and upper-case only — `"get"` is invalid, `"GET"` is valid.
+    /// Absent `step.method` (defaulting to `"GET"`) is NOT an error. Unsupported methods
+    /// (`CONNECT`, `TRACE`) and typos (`"GETT"`) produce this error. Multiple invalid steps
+    /// each produce a separate E-SPEC-025 error; all collected in the same multi-error pass
+    /// (INV-ERR-003). Rule 7 skips step.method fields that already failed Rule 6 (E-SPEC-024).
+    ///
+    /// The method VALUE is safe to echo in the message — it is config text, not a credential
+    /// per AD-017.
+    ///
+    /// BC-2.16.009 §Validation Rules 7 (AC-7); S-SPEC-HTTP-METHOD-VALIDATION-001.
+    /// error-taxonomy.md v1.59 E-SPEC-025.
+    ESpec025,
 }
 
 /// A structured spec validation or runtime error carrying an E-SPEC-* code,

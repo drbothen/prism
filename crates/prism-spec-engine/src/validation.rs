@@ -453,6 +453,53 @@ pub fn validate_sensor_spec(spec: &SensorSpec) -> ValidatorOutput {
     }
 }
 
+/// The complete set of HTTP methods permitted in `FetchStep::method`.
+///
+/// This is a compile-time constant per BC-2.16.009 §Validation Rules 7 — the whitelist
+/// is never runtime-configurable (no serde, no env var, no prism.toml field).
+///
+/// All 7 entries are uppercase only. Case sensitivity is intentional and matches industry
+/// convention: `"get"` is invalid and produces E-SPEC-025 (BC-2.16.009 §VR7 case-sensitivity
+/// clause). The whitelist is case-sensitive and upper-case only.
+///
+/// BC-2.16.009 §Validation Rules 7; S-SPEC-HTTP-METHOD-VALIDATION-001.
+// allow(dead_code): this constant is referenced by validate_step_methods (stub state before
+// implementation) and by the http_method_whitelist_tests test module. Once the stub is
+// implemented the dead_code lint will naturally resolve; the test module reference also
+// suppresses it in test builds. This suppression is load-bearing for the stub commit.
+#[allow(dead_code)]
+pub(crate) const ALLOWED_HTTP_METHODS: &[&str] =
+    &["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"];
+
+/// Validate `step.method` fields across all tables in `spec` against the HTTP method whitelist.
+///
+/// **Rule 7 of BC-2.16.009** — runs AFTER the env-var token resolution pass (Rule 6).
+/// The caller is responsible for running Rule 6 (`resolve_env_var_tokens`) before calling
+/// this function; `validate_step_methods` operates on the already-resolved spec.
+///
+/// ## Behavior
+/// - `step.method` absent (defaults to `"GET"` via `FetchStep::default()`): no error.
+/// - `step.method` present and in `ALLOWED_HTTP_METHODS` (case-sensitive): no error.
+/// - `step.method` present and NOT in `ALLOWED_HTTP_METHODS`: emits `E-SPEC-025`.
+/// - `step.method` still contains an unresolved `${env.VAR}` token (Rule 6 failed for it):
+///   this step is **skipped** to prevent double-reporting (BC-2.16.009 §VR7 ordering).
+/// - All errors are collected before returning (INV-ERR-003 — no fail-fast).
+///
+/// ## Return value
+/// Returns a `Vec<SpecEngineError>` — one `InvalidHttpMethod` per invalid step method.
+/// Empty vec means all steps are valid.
+///
+/// BC-2.16.009 §Validation Rules 7 (AC-7); error-taxonomy.md v1.59 E-SPEC-025;
+/// S-SPEC-HTTP-METHOD-VALIDATION-001.
+pub fn validate_step_methods(_spec: &SensorSpec) -> Vec<crate::error::SpecEngineError> {
+    todo!(
+        "not yet implemented (S-SPEC-HTTP-METHOD-VALIDATION-001 AC-001/AC-002/AC-003): \
+         validate each FetchStep::method against ALLOWED_HTTP_METHODS; \
+         skip steps whose method still contains an unresolved ${{env.VAR}} token; \
+         return Vec<SpecEngineError::InvalidHttpMethod> for invalid methods"
+    )
+}
+
 /// Validate a `sensor_id` against the required regex `^[a-z][a-z0-9_-]*$`.
 ///
 /// Returns `Some(ValidationError)` if invalid, `None` if valid.
@@ -673,6 +720,680 @@ pub fn validate_auth_plugin_fields(
         });
     }
     Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// BC-2.16.009 v1.8 §Validation Rules 7 — HTTP Method Whitelist Validation Tests
+// S-SPEC-HTTP-METHOD-VALIDATION-001 — Red Gate test suite
+//
+// Test naming convention: test_BC_2_16_009_<description>
+// Traces to: BC-2.16.009 v1.8 §Validation Rules 7; error-taxonomy.md v1.59 E-SPEC-025.
+//
+// All tests in this module are RED GATE tests — they MUST FAIL before
+// validate_step_methods() is implemented (todo!() panics). After implementation,
+// they MUST ALL PASS.
+// ---------------------------------------------------------------------------
+#[cfg(test)]
+mod http_method_whitelist_tests {
+    use crate::{
+        error::SpecEngineError,
+        spec_parser::{AuthType, FetchStep, SensorSpec, TableSpec},
+    };
+
+    use super::{ALLOWED_HTTP_METHODS, validate_step_methods};
+
+    // -----------------------------------------------------------------------
+    // Test helpers
+    // -----------------------------------------------------------------------
+
+    /// Build a minimal valid SensorSpec with one table and one step using the given method.
+    ///
+    /// sensor_id = "test-sensor", table_name = "events", step name = "fetch".
+    fn make_spec_with_method(method: &str) -> SensorSpec {
+        let step = FetchStep {
+            name: "fetch".to_string(),
+            method: method.to_string(),
+            path_template: "/api/v1/events".to_string(),
+            response_path: "$.data".to_string(),
+            ..FetchStep::default()
+        };
+        let table = TableSpec::new_point_in_time("events", "security_finding", vec![], vec![step]);
+        SensorSpec {
+            sensor_id: "test-sensor".to_string(),
+            name: "Test Sensor".to_string(),
+            auth_type: AuthType::ApiKey,
+            base_url: "https://example.com".to_string(),
+            tables: vec![table],
+            version: "1.0.0".to_string(),
+            ..SensorSpec::default()
+        }
+    }
+
+    /// Build a spec with no tables (no steps) — used to test zero-step edge case.
+    fn make_spec_no_tables() -> SensorSpec {
+        SensorSpec {
+            sensor_id: "test-sensor".to_string(),
+            name: "Test Sensor".to_string(),
+            auth_type: AuthType::ApiKey,
+            base_url: "https://example.com".to_string(),
+            tables: vec![],
+            version: "1.0.0".to_string(),
+            ..SensorSpec::default()
+        }
+    }
+
+    /// Build a spec with two steps in the same table.
+    fn make_spec_with_two_steps(method1: &str, method2: &str) -> SensorSpec {
+        let step1 = FetchStep {
+            name: "step-one".to_string(),
+            method: method1.to_string(),
+            path_template: "/api/v1/first".to_string(),
+            response_path: "$.data".to_string(),
+            ..FetchStep::default()
+        };
+        let step2 = FetchStep {
+            name: "step-two".to_string(),
+            method: method2.to_string(),
+            path_template: "/api/v1/second".to_string(),
+            response_path: "$.data".to_string(),
+            ..FetchStep::default()
+        };
+        let table =
+            TableSpec::new_point_in_time("events", "security_finding", vec![], vec![step1, step2]);
+        SensorSpec {
+            sensor_id: "test-sensor".to_string(),
+            name: "Test Sensor".to_string(),
+            auth_type: AuthType::ApiKey,
+            base_url: "https://example.com".to_string(),
+            tables: vec![table],
+            version: "1.0.0".to_string(),
+            ..SensorSpec::default()
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // ALLOWED_HTTP_METHODS constant — compile-time correctness
+    // -----------------------------------------------------------------------
+
+    /// BC-2.16.009 v1.8 §VR7: ALLOWED_HTTP_METHODS must contain exactly 7 values.
+    ///
+    /// Traces to: BC-2.16.009 §Validation Rules 7 — "Whitelist constant: The following
+    /// 7 HTTP methods are the complete allowed set". Prevents accidental truncation or
+    /// expansion of the constant.
+    #[test]
+    fn test_BC_2_16_009_allowed_http_methods_has_exactly_7_entries() {
+        assert_eq!(
+            ALLOWED_HTTP_METHODS.len(),
+            7,
+            "ALLOWED_HTTP_METHODS must have exactly 7 entries per BC-2.16.009 §VR7; got {}",
+            ALLOWED_HTTP_METHODS.len()
+        );
+    }
+
+    /// BC-2.16.009 v1.8 §VR7: ALLOWED_HTTP_METHODS must contain the 7 canonical values.
+    ///
+    /// Tests that each of the 7 documented methods is present. Combined with the count
+    /// test above, this fully pins the constant.
+    #[test]
+    fn test_BC_2_16_009_allowed_http_methods_contains_canonical_values() {
+        for method in &["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"] {
+            assert!(
+                ALLOWED_HTTP_METHODS.contains(method),
+                "ALLOWED_HTTP_METHODS must contain '{}' per BC-2.16.009 §VR7",
+                method
+            );
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // AC-001: All 7 whitelist methods pass validation (EC-009-010, EC-009-011)
+    // -----------------------------------------------------------------------
+
+    /// BC-2.16.009 v1.8 §VR7; AC-001.
+    ///
+    /// All 7 allowed HTTP methods — GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS —
+    /// must pass validation without producing any E-SPEC-025 errors.
+    ///
+    /// Parameterized over all 7 canonical whitelist values.
+    /// Canonical test vectors: "HTTP method — valid GET" and "HTTP method — valid POST".
+    ///
+    /// Red Gate: fails with todo!() panic before implementation.
+    #[test]
+    fn test_BC_2_16_009_valid_http_method_passes_validation() {
+        for method in ALLOWED_HTTP_METHODS {
+            let spec = make_spec_with_method(method);
+            let errors = validate_step_methods(&spec);
+            assert!(
+                errors.is_empty(),
+                "AC-001: method '{}' is in ALLOWED_HTTP_METHODS and must produce zero \
+                 E-SPEC-025 errors; got {} error(s): {:?}",
+                method,
+                errors.len(),
+                errors
+            );
+        }
+    }
+
+    /// BC-2.16.009 v1.8 §VR7 EC-009-010: step.method = "GET" (valid uppercase).
+    ///
+    /// Red Gate: fails with todo!() panic before implementation.
+    #[test]
+    fn test_BC_2_16_009_ec009_010_get_passes_rule_7() {
+        let spec = make_spec_with_method("GET");
+        let errors = validate_step_methods(&spec);
+        assert!(
+            errors.is_empty(),
+            "EC-009-010: GET is valid; expected zero errors; got {:?}",
+            errors
+        );
+    }
+
+    /// BC-2.16.009 v1.8 §VR7 EC-009-011: step.method = "POST" (valid, common for POST-for-read sensors).
+    ///
+    /// Red Gate: fails with todo!() panic before implementation.
+    #[test]
+    fn test_BC_2_16_009_ec009_011_post_passes_rule_7() {
+        let spec = make_spec_with_method("POST");
+        let errors = validate_step_methods(&spec);
+        assert!(
+            errors.is_empty(),
+            "EC-009-011: POST is valid (Claroty/Armis pattern); expected zero errors; got {:?}",
+            errors
+        );
+    }
+
+    /// BC-2.16.009 v1.8 §VR7: spec with no tables produces zero E-SPEC-025 errors.
+    ///
+    /// No steps = nothing to validate.
+    ///
+    /// Red Gate: fails with todo!() panic before implementation.
+    #[test]
+    fn test_BC_2_16_009_no_tables_produces_zero_errors() {
+        let spec = make_spec_no_tables();
+        let errors = validate_step_methods(&spec);
+        assert!(
+            errors.is_empty(),
+            "A spec with no tables has no steps to validate; expected zero errors; got {:?}",
+            errors
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // AC-002: Invalid / unsupported methods return structured E-SPEC-025 error
+    // -----------------------------------------------------------------------
+
+    /// BC-2.16.009 v1.8 §VR7; AC-002.
+    ///
+    /// An unsupported method "CONNECT" must produce exactly one E-SPEC-025 error.
+    /// The error message must be byte-verbatim with the BC-2.16.009 template:
+    /// "Step '<step_name>' in '<sensor_id>.<table_name>' declares method '<method_value>'
+    ///  which is not a supported HTTP method. Supported: GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS"
+    ///
+    /// Canonical test vector: "HTTP method — CONNECT rejected".
+    ///
+    /// Red Gate: fails with todo!() panic before implementation.
+    #[test]
+    fn test_BC_2_16_009_invalid_http_method_returns_structured_e_spec_025() {
+        let spec = make_spec_with_method("CONNECT");
+        let errors = validate_step_methods(&spec);
+        assert_eq!(
+            errors.len(),
+            1,
+            "AC-002: 'CONNECT' is not whitelisted; expected exactly 1 E-SPEC-025 error; got {}: {:?}",
+            errors.len(),
+            errors
+        );
+        match &errors[0] {
+            SpecEngineError::InvalidHttpMethod {
+                step_name,
+                sensor_id,
+                table_name,
+                method_value,
+            } => {
+                assert_eq!(
+                    step_name, "fetch",
+                    "step_name must be 'fetch'; got '{}'",
+                    step_name
+                );
+                assert_eq!(
+                    sensor_id, "test-sensor",
+                    "sensor_id must be 'test-sensor'; got '{}'",
+                    sensor_id
+                );
+                assert_eq!(
+                    table_name, "events",
+                    "table_name must be 'events'; got '{}'",
+                    table_name
+                );
+                assert_eq!(
+                    method_value, "CONNECT",
+                    "method_value must be 'CONNECT'; got '{}'",
+                    method_value
+                );
+            }
+            other => panic!(
+                "Expected SpecEngineError::InvalidHttpMethod, got: {:?}",
+                other
+            ),
+        }
+    }
+
+    /// BC-2.16.009 v1.8 §VR7 EC-009-012: step.method = "CONNECT" → E-SPEC-025.
+    ///
+    /// Red Gate: fails with todo!() panic before implementation.
+    #[test]
+    fn test_BC_2_16_009_ec009_012_connect_produces_e_spec_025() {
+        let spec = make_spec_with_method("CONNECT");
+        let errors = validate_step_methods(&spec);
+        assert!(
+            !errors.is_empty(),
+            "EC-009-012: CONNECT is not whitelisted; must produce E-SPEC-025"
+        );
+        assert!(
+            errors.iter().any(|e| matches!(e, SpecEngineError::InvalidHttpMethod { method_value, .. } if method_value == "CONNECT")),
+            "EC-009-012: error must cite method_value 'CONNECT'; got {:?}",
+            errors
+        );
+    }
+
+    /// BC-2.16.009 v1.8 §VR7 EC-009-013: step.method = "TRACE" → E-SPEC-025.
+    ///
+    /// Red Gate: fails with todo!() panic before implementation.
+    #[test]
+    fn test_BC_2_16_009_ec009_013_trace_produces_e_spec_025() {
+        let spec = make_spec_with_method("TRACE");
+        let errors = validate_step_methods(&spec);
+        assert!(
+            !errors.is_empty(),
+            "EC-009-013: TRACE is not whitelisted; must produce E-SPEC-025"
+        );
+        assert!(
+            errors.iter().any(|e| matches!(e, SpecEngineError::InvalidHttpMethod { method_value, .. } if method_value == "TRACE")),
+            "EC-009-013: error must cite method_value 'TRACE'; got {:?}",
+            errors
+        );
+    }
+
+    /// BC-2.16.009 v1.8 §VR7 EC-009-014: step.method = "GETT" (typo) → E-SPEC-025.
+    ///
+    /// Red Gate: fails with todo!() panic before implementation.
+    #[test]
+    fn test_BC_2_16_009_ec009_014_typo_gett_produces_e_spec_025() {
+        let spec = make_spec_with_method("GETT");
+        let errors = validate_step_methods(&spec);
+        assert!(
+            !errors.is_empty(),
+            "EC-009-014: 'GETT' (typo) is not whitelisted; must produce E-SPEC-025"
+        );
+        assert!(
+            errors.iter().any(|e| matches!(e, SpecEngineError::InvalidHttpMethod { method_value, .. } if method_value == "GETT")),
+            "EC-009-014: error must cite method_value 'GETT'; got {:?}",
+            errors
+        );
+    }
+
+    /// BC-2.16.009 v1.8 §VR7 EC-009-015 / AC-002: step.method = "get" (lowercase) → E-SPEC-025.
+    ///
+    /// The whitelist is case-sensitive. "get" is NOT equivalent to "GET".
+    /// The BC explicitly states: "The implementation MUST NOT silently normalize to upper-case."
+    ///
+    /// Canonical test vector: "HTTP method — lowercase rejected".
+    ///
+    /// Red Gate: fails with todo!() panic before implementation.
+    #[test]
+    fn test_BC_2_16_009_ec009_015_lowercase_get_produces_e_spec_025() {
+        let spec = make_spec_with_method("get");
+        let errors = validate_step_methods(&spec);
+        assert!(
+            !errors.is_empty(),
+            "EC-009-015: 'get' (lowercase) is not in the case-sensitive whitelist; must produce E-SPEC-025"
+        );
+        assert!(
+            errors.iter().any(|e| matches!(e, SpecEngineError::InvalidHttpMethod { method_value, .. } if method_value == "get")),
+            "EC-009-015: error must cite method_value 'get' (not normalized to 'GET'); got {:?}",
+            errors
+        );
+    }
+
+    /// BC-2.16.009 v1.8 §VR7: lowercase "post" is invalid (case-sensitive whitelist).
+    ///
+    /// Red Gate: fails with todo!() panic before implementation.
+    #[test]
+    fn test_BC_2_16_009_lowercase_post_produces_e_spec_025() {
+        let spec = make_spec_with_method("post");
+        let errors = validate_step_methods(&spec);
+        assert!(
+            !errors.is_empty(),
+            "'post' (lowercase) is not in the case-sensitive whitelist; must produce E-SPEC-025"
+        );
+    }
+
+    /// BC-2.16.009 v1.8 §VR7 EC-009-016: step.method = "" (empty string) → E-SPEC-025.
+    ///
+    /// Empty string is not in the whitelist.
+    ///
+    /// Red Gate: fails with todo!() panic before implementation.
+    #[test]
+    fn test_BC_2_16_009_ec009_016_empty_string_produces_e_spec_025() {
+        let spec = make_spec_with_method("");
+        let errors = validate_step_methods(&spec);
+        assert!(
+            !errors.is_empty(),
+            "EC-009-016: empty string is not in the whitelist; must produce E-SPEC-025"
+        );
+        assert!(
+            errors.iter().any(|e| matches!(e, SpecEngineError::InvalidHttpMethod { method_value, .. } if method_value.is_empty())),
+            "EC-009-016: error must cite method_value '' (empty); got {:?}",
+            errors
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // AC-002 continued: E-SPEC-025 message format is byte-verbatim (POL-24)
+    // -----------------------------------------------------------------------
+
+    /// BC-2.16.009 v1.8 §VR7 §Error message format; error-taxonomy.md v1.59 E-SPEC-025; POL-24.
+    ///
+    /// The Display output of SpecEngineError::InvalidHttpMethod must be byte-verbatim with the
+    /// canonical error-taxonomy.md v1.59 E-SPEC-025 message template:
+    ///
+    /// "Step '<step_name>' in '<sensor_id>.<table_name>' declares method '<method_value>'
+    ///  which is not a supported HTTP method. Supported: GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS"
+    ///
+    /// Any deviation is a POL-24 violation and requires an error-taxonomy.md version bump +
+    /// synchronized test update.
+    ///
+    /// Red Gate: fails with todo!() panic before implementation (via validate_step_methods).
+    #[test]
+    fn test_BC_2_16_009_e_spec_025_display_matches_error_taxonomy_v1_59_template_byte_for_byte() {
+        let spec = make_spec_with_method("CONNECT");
+        let errors = validate_step_methods(&spec);
+        assert!(
+            !errors.is_empty(),
+            "expected at least one E-SPEC-025 error for method 'CONNECT'"
+        );
+        let display = errors[0].to_string();
+        // Byte-verbatim template from error-taxonomy.md v1.59 E-SPEC-025:
+        let expected = "Step 'fetch' in 'test-sensor.events' declares method 'CONNECT' \
+                        which is not a supported HTTP method. \
+                        Supported: GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS";
+        assert_eq!(
+            display, expected,
+            "E-SPEC-025 Display must match error-taxonomy.md v1.59 template byte-for-byte \
+             (POL-24). Got:\n  {display:?}\nExpected:\n  {expected:?}"
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // EC-009-017: absent step.method (defaults to "GET") is NOT an error
+    // -----------------------------------------------------------------------
+
+    /// BC-2.16.009 v1.8 §VR7 EC-009-017: absent step.method defaults to "GET" at pipeline
+    /// level and must NOT produce E-SPEC-025.
+    ///
+    /// `FetchStep::default()` sets `method = "GET"`. The TOML spec may omit the `method`
+    /// field entirely — serde fills it with "GET" via Default. Since "GET" is in the
+    /// whitelist, Rule 7 must not error.
+    ///
+    /// Red Gate: fails with todo!() panic before implementation.
+    #[test]
+    fn test_BC_2_16_009_ec009_017_absent_method_defaults_get_no_e_spec_025() {
+        let step = FetchStep {
+            name: "fetch".to_string(),
+            // method is NOT set explicitly — uses Default which is "GET"
+            path_template: "/api/v1/events".to_string(),
+            response_path: "$.data".to_string(),
+            ..FetchStep::default()
+        };
+        assert_eq!(
+            step.method, "GET",
+            "FetchStep::default() must produce method='GET' per spec_parser.rs Default impl"
+        );
+        let table = TableSpec::new_point_in_time("events", "security_finding", vec![], vec![step]);
+        let spec = SensorSpec {
+            sensor_id: "test-sensor".to_string(),
+            name: "Test Sensor".to_string(),
+            auth_type: AuthType::ApiKey,
+            base_url: "https://example.com".to_string(),
+            tables: vec![table],
+            version: "1.0.0".to_string(),
+            ..SensorSpec::default()
+        };
+        let errors = validate_step_methods(&spec);
+        assert!(
+            errors.is_empty(),
+            "EC-009-017: absent method defaults to 'GET' which is whitelisted; expected zero \
+             E-SPEC-025 errors; got {:?}",
+            errors
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // EC-009-018: Multi-error collection — INV-ERR-003
+    // -----------------------------------------------------------------------
+
+    /// BC-2.16.009 v1.8 §VR7 EC-009-018; INV-ERR-003.
+    ///
+    /// Two steps in the same spec with invalid methods ("CONNECT" + "TRACE") must produce
+    /// exactly two E-SPEC-025 errors. The validator must NOT fail-fast on the first error.
+    ///
+    /// Red Gate: fails with todo!() panic before implementation.
+    #[test]
+    fn test_BC_2_16_009_ec009_018_multi_error_collection_two_invalid_methods() {
+        let spec = make_spec_with_two_steps("CONNECT", "TRACE");
+        let errors = validate_step_methods(&spec);
+        assert_eq!(
+            errors.len(),
+            2,
+            "EC-009-018: two invalid methods must produce exactly 2 E-SPEC-025 errors \
+             (INV-ERR-003 no fail-fast); got {} error(s): {:?}",
+            errors.len(),
+            errors
+        );
+        // Both errors must be InvalidHttpMethod
+        for e in &errors {
+            assert!(
+                matches!(e, SpecEngineError::InvalidHttpMethod { .. }),
+                "EC-009-018: each error must be InvalidHttpMethod; got {:?}",
+                e
+            );
+        }
+        // The two method_values must be CONNECT and TRACE (in any order)
+        let method_values: Vec<&str> = errors
+            .iter()
+            .filter_map(|e| {
+                if let SpecEngineError::InvalidHttpMethod { method_value, .. } = e {
+                    Some(method_value.as_str())
+                } else {
+                    None
+                }
+            })
+            .collect();
+        assert!(
+            method_values.contains(&"CONNECT"),
+            "EC-009-018: errors must include 'CONNECT'; got {:?}",
+            method_values
+        );
+        assert!(
+            method_values.contains(&"TRACE"),
+            "EC-009-018: errors must include 'TRACE'; got {:?}",
+            method_values
+        );
+    }
+
+    /// Multi-error: one valid + one invalid step → exactly one error.
+    ///
+    /// Ensures that the validator does not error-out on valid steps.
+    ///
+    /// Red Gate: fails with todo!() panic before implementation.
+    #[test]
+    fn test_BC_2_16_009_mixed_valid_invalid_produces_one_error() {
+        let spec = make_spec_with_two_steps("GET", "CONNECT");
+        let errors = validate_step_methods(&spec);
+        assert_eq!(
+            errors.len(),
+            1,
+            "one valid + one invalid step must produce exactly 1 E-SPEC-025 error; got {}: {:?}",
+            errors.len(),
+            errors
+        );
+        assert!(
+            matches!(&errors[0], SpecEngineError::InvalidHttpMethod { method_value, .. } if method_value == "CONNECT"),
+            "the single error must cite method_value 'CONNECT'; got {:?}",
+            errors[0]
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // AC-003: Rule 7 runs AFTER Rule 6 env-var resolution
+    // EC-009-019: env-resolved invalid method → E-SPEC-025 on resolved value
+    // EC-009-020: env token failed Rule 6 → Rule 7 skips step (no double-reporting)
+    // -----------------------------------------------------------------------
+
+    /// BC-2.16.009 v1.8 §VR7 EC-009-019; AC-003.
+    ///
+    /// When `step.method` resolves (via Rule 6) to an invalid value (e.g., "CONNECT"),
+    /// Rule 7 must fire E-SPEC-025 on the RESOLVED value, not the raw token.
+    ///
+    /// Canonical test vector: "HTTP method — env-resolved invalid".
+    ///
+    /// Precondition: the spec passed to `validate_step_methods` has already had Rule 6
+    /// applied — the `method` field contains the resolved value "CONNECT", not "${env.M}".
+    ///
+    /// Red Gate: fails with todo!() panic before implementation.
+    #[test]
+    fn test_BC_2_16_009_env_resolved_invalid_method_caught_post_resolution() {
+        // After Rule 6 resolves ${env.SENSOR_METHOD}="CONNECT", the spec has method="CONNECT".
+        // validate_step_methods receives the already-resolved spec.
+        let spec = make_spec_with_method("CONNECT");
+        let errors = validate_step_methods(&spec);
+        assert!(
+            !errors.is_empty(),
+            "AC-003: env-resolved method 'CONNECT' must produce E-SPEC-025; got zero errors"
+        );
+        assert!(
+            errors
+                .iter()
+                .any(|e| matches!(e, SpecEngineError::InvalidHttpMethod { method_value, .. } if method_value == "CONNECT")),
+            "AC-003: E-SPEC-025 error must cite the RESOLVED method value 'CONNECT'; got {:?}",
+            errors
+        );
+    }
+
+    /// BC-2.16.009 v1.8 §VR7 EC-009-020; AC-003.
+    ///
+    /// When Rule 6 fails to resolve `step.method = "${env.SENSOR_METHOD}"` (var unset),
+    /// Rule 7 MUST SKIP that step. Double-reporting (E-SPEC-024 + E-SPEC-025 for the same
+    /// field) is noise, not signal.
+    ///
+    /// Precondition: when Rule 6 fails, the `step.method` field still contains the raw
+    /// `${env.VAR_NAME}` token (env_resolver.rs only mutates the field on success). Rule 7
+    /// detects unresolved tokens by checking if the method value matches the env token pattern
+    /// `${env.VAR_NAME}`.
+    ///
+    /// Red Gate: fails with todo!() panic before implementation.
+    #[test]
+    fn test_BC_2_16_009_ec009_020_unresolved_env_token_skipped_by_rule_7() {
+        // Simulate the state after Rule 6 fails: method field still contains raw token.
+        // env_resolver.rs does NOT mutate the field if any token is unresolvable (fail-closed).
+        let spec = make_spec_with_method("${env.SENSOR_STEP_METHOD}");
+        let errors = validate_step_methods(&spec);
+        let raw_method = "${env.SENSOR_STEP_METHOD}";
+        assert!(
+            errors.is_empty(),
+            "EC-009-020: method '{raw_method}' is an unresolved token from a \
+             failed Rule 6 pass; Rule 7 must SKIP this step to prevent double-reporting; \
+             expected zero E-SPEC-025 errors; got {errors:?}",
+        );
+    }
+
+    /// BC-2.16.009 v1.8 §VR7: Any `${env.VAR}` pattern in method is treated as Rule 6 failure.
+    ///
+    /// This covers the general case: any env token pattern remaining in the method field
+    /// after Rule 6 means Rule 6 failed; Rule 7 must skip it.
+    ///
+    /// Red Gate: fails with todo!() panic before implementation.
+    #[test]
+    fn test_BC_2_16_009_any_env_token_in_method_skipped_by_rule_7() {
+        // Multiple env token patterns that Rule 7 must skip.
+        for raw_token in &[
+            "${env.METHOD}",
+            "${env.HTTP_METHOD}",
+            "${env.CROWDSTRIKE_METHOD}",
+        ] {
+            let spec = make_spec_with_method(raw_token);
+            let errors = validate_step_methods(&spec);
+            assert!(
+                errors.is_empty(),
+                "method '{}' is an unresolved Rule-6 token; Rule 7 must skip it \
+                 (no E-SPEC-025); got {:?}",
+                raw_token,
+                errors
+            );
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // Additional invalid methods — comprehensive edge case coverage
+    // -----------------------------------------------------------------------
+
+    /// BC-2.16.009 v1.8 §VR7: mixed-case methods are invalid.
+    ///
+    /// "Get", "Post", "Delete" are not in the whitelist (case-sensitive).
+    ///
+    /// Red Gate: fails with todo!() panic before implementation.
+    #[test]
+    fn test_BC_2_16_009_mixed_case_methods_produce_e_spec_025() {
+        for method in &["Get", "Post", "Delete", "Put", "Patch", "Head", "Options"] {
+            let spec = make_spec_with_method(method);
+            let errors = validate_step_methods(&spec);
+            assert!(
+                !errors.is_empty(),
+                "'{}' (mixed-case) is not in the case-sensitive whitelist; must produce \
+                 E-SPEC-025",
+                method
+            );
+        }
+    }
+
+    /// BC-2.16.009 v1.8 §VR7: "DELETE" and remaining whitelist members pass validation.
+    ///
+    /// Red Gate: fails with todo!() panic before implementation.
+    #[test]
+    fn test_BC_2_16_009_delete_put_patch_head_options_pass_validation() {
+        for method in &["DELETE", "PUT", "PATCH", "HEAD", "OPTIONS"] {
+            let spec = make_spec_with_method(method);
+            let errors = validate_step_methods(&spec);
+            assert!(
+                errors.is_empty(),
+                "'{}' is in ALLOWED_HTTP_METHODS; must produce zero E-SPEC-025 errors; got {:?}",
+                method,
+                errors
+            );
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // VP-059 property: validate_step_methods never panic on any SensorSpec input
+    // -----------------------------------------------------------------------
+
+    /// BC-2.16.009 VP-059 invariant: validate_step_methods is a pure function that
+    /// never panics (except the implementation-required todo!() in stub state).
+    ///
+    /// Verifies that a spec with no tables produces an empty Vec (not a panic).
+    ///
+    /// Red Gate: fails with todo!() panic (from stub) before implementation — this is
+    /// expected and correct for Red Gate.
+    #[test]
+    fn test_BC_2_16_009_invariant_pure_function_no_panic_on_empty_spec() {
+        let spec = make_spec_no_tables();
+        let errors = validate_step_methods(&spec);
+        assert!(
+            errors.is_empty(),
+            "empty spec (no tables/steps) must produce zero errors, not panic; got {:?}",
+            errors
+        );
+    }
 }
 
 #[cfg(test)]

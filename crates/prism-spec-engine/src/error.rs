@@ -340,6 +340,41 @@ pub enum SpecEngineError {
     },
 
     // -------------------------------------------------------------------------
+    // S-SPEC-HTTP-METHOD-VALIDATION-001 — HTTP method whitelist error (BC-2.16.009 §VR7)
+    // -------------------------------------------------------------------------
+    /// E-SPEC-025: A `FetchStep::method` value (after env-var token resolution) is not in
+    /// the allowed HTTP method set: `GET`, `POST`, `PUT`, `PATCH`, `DELETE`, `HEAD`, `OPTIONS`.
+    ///
+    /// Emitted by `validate_step_methods()` in `validation.rs`. Case-sensitive. Multiple
+    /// invalid steps produce multiple errors in the same multi-error pass (INV-ERR-003).
+    /// Absent `step.method` (defaults to `"GET"` via `FetchStep::default()`) is NOT an error.
+    /// Rule 7 skips steps whose `method` field already failed Rule 6 (`E-SPEC-024`).
+    ///
+    /// The method value IS safe to echo (config text, not a credential per AD-017).
+    ///
+    /// Error message template (error-taxonomy.md v1.59, byte-verbatim):
+    /// `"Step '<step_name>' in '<sensor_id>.<table_name>' declares method '<method_value>'
+    ///   which is not a supported HTTP method. Supported: GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS"`
+    ///
+    /// BC-2.16.009 §Validation Rules 7; error-taxonomy.md v1.59 E-SPEC-025;
+    /// S-SPEC-HTTP-METHOD-VALIDATION-001.
+    #[error(
+        "Step '{step_name}' in '{sensor_id}.{table_name}' declares method '{method_value}' which is not a supported HTTP method. Supported: GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS"
+    )]
+    InvalidHttpMethod {
+        /// Step name from the TOML `name` field.
+        step_name: String,
+        /// Sensor ID for diagnostics.
+        sensor_id: String,
+        /// Table name containing the offending step.
+        table_name: String,
+        /// The resolved (post-Rule-6) method value that failed the whitelist check.
+        ///
+        /// Safe to echo — HTTP method is config text, not a credential (AD-017).
+        method_value: String,
+    },
+
+    // -------------------------------------------------------------------------
     // PLUGIN-MIGRATION-001-D — ADR-028 §D8-B/C timestamp normalization errors
     // -------------------------------------------------------------------------
     // -------------------------------------------------------------------------
