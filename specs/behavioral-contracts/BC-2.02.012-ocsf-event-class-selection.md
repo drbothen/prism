@@ -1,8 +1,8 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.4"
-status: draft
+version: "1.5"
+status: active
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
 phase: 1a
@@ -17,7 +17,7 @@ input-hash: "76729b7"
 traces_to: ["CAP-003"]
 extracted_from: ".factory/specs/prd.md"
 introduced: cycle-1
-modified: "2026-06-03"  # v1.4 OCSF-CLASS-MIGRATION-001 Wave-5 Phase-A PO burst
+modified: "2026-06-03"  # v1.5 F-002 status sync draft→active (Wave-5 Phase-B gate)
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -143,6 +143,7 @@ emitted). This is the canonical path post-migration; all production TOML specs u
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.5 | Wave-5-Phase-B-gate-F-002 | 2026-06-03 | product-owner | F-002 field desync fix (D-989): synced `status: draft` → `status: active` to match `lifecycle_status: active`. Rationale: S-1.04 (status: merged) cites BC-2.02.012 in its `behavioral_contracts:` array — this is a valid POL-14 promotion trigger. The v1.4 forward-looking postconditions are explicitly conditioned on OCSF-CLASS-MIGRATION-001 merging; conditioned-future clauses do not invalidate the base-contract delivery that S-1.04 provides. Both `status:` and `lifecycle_status:` are now `active`. BC v1.4 → v1.5. |
 | 1.4 | Wave-5-Phase-A-PO-burst | 2026-06-03 | product-owner | OCSF-CLASS-MIGRATION-001 (Wave 5) gate: (1) Added `select_by_class_name()` path specification with full mapping table — `"detection_finding"` → 2004 (canonical), `"security_finding"` → 2004 (transitional alias, WARN emitted), and 4 other class names. Transitional alias uses Option A (keep alias, emit deprecation WARN, do not reject) per D-989 PO decision: Option A is production-grade because external TOML specs not under Prism control may use the old string value. (2) Added `select()` path invariant: INV-NO-2001-SELECT-PATH — select() record-type token path MUST NOT return class_uid 2001. (3) Added INV-PRODUCTION-TOML-NO-SECURITY-FINDING invariant (post-migration). (4) Updated §Description to reflect transitional alias semantics. (5) Added EC-02-024/025, TV-BC-2.02.012-007/008/009. (6) Added Capability Anchor Justification (S-7.01). (7) Added `ocsf.deprecated_class_alias` WARN emission spec in §Error Cases. Closes OQ-1 (Option A selected), OQ-2 (BC amended as required by story). BC v1.3 → v1.4. |
 | 1.3 | pass-73-fix | 2026-04-20 | state-manager | Deterministic changelog reorder: sorted all rows to descending version order (pass-73 bash script). |
 | 1.2 | pass-69-housekeeping | 2026-04-20 | product-owner | Normalized changelog schema to canonical 5-col schema. |

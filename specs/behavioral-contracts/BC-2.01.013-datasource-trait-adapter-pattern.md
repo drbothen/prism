@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.10"
+version: "1.11"
 status: active
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -19,7 +19,7 @@ extracted_from: ".factory/specs/prd.md"
 scheduled_amendment_in: ADR-023
 amendment_lifecycle: pending
 introduced: cycle-1
-modified: "2026-06-03"  # v1.10 OCSF-CLASS-MIGRATION-001 Wave-5 Phase-A PO burst
+modified: "2026-06-03"  # v1.11 F-001 consistency fix — conformance boundary prose 2001→2004
 amendment_burst: D-925-arch-adjudication
 deprecated: null
 deprecated_by: null
@@ -96,7 +96,7 @@ naming convention (e.g., `crowdstrike_alert`, `armis_device`).
 
   Returns `Err(PrismError::OcsfUnknownEventClass { sensor: "".into(), record_type: class_name.to_owned() })` for unmapped class names. The caller (`pipeline_result_to_record_batch`) falls back to `class_uid = 0` on `Err`, identical to the existing `unwrap_or(0)` behavior. This fallback is acceptable for tables whose `ocsf_class` is not in the mapping table.
 
-  **Conformance boundary — test-writer probe:** A test that constructs a `SpecDrivenSensorAdapter` with a spec using `ocsf_class = "security_finding"` (a REAL class-name from an actual sensor spec), drives it against a mock `PipelineExecutor` returning a raw API response containing `"class_uid": 9999`, and then asserts that (a) all spec-declared column names appear in the returned Arrow schema, (b) `class_uid` in the returned batch equals `2001` (the `select_by_class_name("security_finding")` result) and NOT `9999`, and (c) `_sensor` equals the canonical sensor ID — such a test is the minimum conformance gate for this clause. The test fixture MUST NOT use a fake record-type token like `"detection"` as the `ocsf_class` value; it MUST use a real class-name from the production sensor TOML files.
+  **Conformance boundary — test-writer probe:** A test that constructs a `SpecDrivenSensorAdapter` with a spec using `ocsf_class = "security_finding"` (a REAL class-name from an actual sensor spec), drives it against a mock `PipelineExecutor` returning a raw API response containing `"class_uid": 9999`, and then asserts that (a) all spec-declared column names appear in the returned Arrow schema, (b) `class_uid` in the returned batch equals `2004` (the `select_by_class_name("security_finding")` result — transitional alias returns 2004 per BC-2.02.012 v1.4 Option A, NOT 2001) and NOT `9999`, and (c) `_sensor` equals the canonical sensor ID — such a test is the minimum conformance gate for this clause. The test fixture MUST NOT use a fake record-type token like `"detection"` as the `ocsf_class` value; it MUST use a real class-name from the production sensor TOML files.
 
 - **SpecDrivenSensorAdapter Pagination / Push-Down Scope Clause (D-924, S-DEMO-001 F-003-R scope-out):**
   `SpecDrivenSensorAdapter::fetch()` returns ALL pages for the requested table, iterating until the sensor API signals exhaustion (empty page or null cursor), subject ONLY to the pipeline's internal caps: `MAX_PAGES_PER_STEP` and `MAX_REQUESTS_PER_PIPELINE` (defined in `PipelineExecutor`). Pagination is handled entirely inside `PipelineExecutor::execute()`; the adapter does not impose additional page limits.
@@ -159,6 +159,7 @@ naming convention (e.g., `crowdstrike_alert`, `armis_device`).
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.11 | Wave-5-Phase-B-gate-F-001 | 2026-06-03 | product-owner | F-001 consistency fix (D-989): corrected stale `2001` assertion in the conformance boundary test-writer probe paragraph (§SpecDrivenSensorAdapter OCSF Conformance Clause) — changed "equals `2001`" to "equals `2004` (transitional alias returns 2004 per BC-2.02.012 v1.4 Option A, NOT 2001)". The TV-BC-2.01.013-005 table row was already correct at v1.10; this fix makes the prose consistent with the table and with BC-2.02.012 v1.4. An implementer or test-writer reading the stale prose would have written a non-conformant assertion. BC v1.10 → v1.11. |
 | 1.10 | Wave-5-Phase-A-PO-burst | 2026-06-03 | product-owner | OCSF-CLASS-MIGRATION-001 amendment: updated `select_by_class_name` mapping table — `"security_finding"` now maps to 2004 (NOT 2001) as a transitional alias per BC-2.02.012 v1.4 Option A decision; `"detection_finding"` confirmed as PRIMARY entry returning 2004; deprecation WARN `event_type = "ocsf.deprecated_class_alias"` specified for alias path. Updated TV-BC-2.01.013-005 to assert class_uid == 2004 (not 2001) for `"security_finding"` input. This removes the prior "use until migration to detection_finding" note now that the migration has been specified (OCSF-CLASS-MIGRATION-001). BC v1.9 → v1.10. |
 | 1.9 | D-925-arch-adjudication | 2026-05-31 | architect | Architecture adjudication for S-DEMO-001 F-001-R-RECUR + F-DOC-001: resolved the ocsf_class namespace collision. TOML `ocsf_class` carries OCSF class-name strings (e.g., `"security_finding"`, `"device"`) — NOT record-type tokens (`"detection"`, `"alert"`). `EventClassSelector::select(sensor, record_type)` is keyed on record-type tokens only. Decision: add `EventClassSelector::select_by_class_name(class_name) -> Result<u32, PrismError>` to `crates/prism-ocsf/src/class_selector.rs`. `pipeline_result_to_record_batch` MUST call `select_by_class_name(&table.ocsf_class)` — NOT `select(sensor_id, &table.ocsf_class)`. Amended Conformance Clause item 2 to name this function explicitly; added class-name→uid mapping table with all production sensor ocsf_class values; corrected TV-BC-2.01.013-005 to use real `ocsf_class = "security_finding"` (not fake record-type token `"detection"`); added EC-01-028 for the wrong-function anti-pattern. `category_uid = class_uid / 1000` rule confirmed. |
 | 1.8 | D-924-bc-amendment | 2026-05-31 | product-owner | S-DEMO-001 adversary pass-2 findings F-001-R and F-003-R closure: added SpecDrivenSensorAdapter OCSF Conformance Clause (items 1–3 — spec-declared data columns must survive via ColumnMapper; category_uid/class_uid must be derived by OcsfNormalizer not read from raw record; _sensor virtual column required); added SpecDrivenSensorAdapter Pagination/Push-Down Scope Clause (fetch returns ALL pages bounded only by MAX_PAGES_PER_STEP/MAX_REQUESTS_PER_PIPELINE; query-param push-down explicitly out of scope deferred to S-DEMO-QUERY-PUSHDOWN-001 per D-924); added EC-01-025/EC-01-026/EC-01-027; added TV-BC-2.01.013-004/005/006. Error taxonomy unchanged. |

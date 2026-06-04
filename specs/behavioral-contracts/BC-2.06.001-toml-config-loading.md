@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.1"
+version: "1.2"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -9,9 +9,9 @@ phase: 1a
 origin: greenfield
 subsystem: "SS-06"
 capability: "CAP-009"
-lifecycle_status: active
+lifecycle_status: draft
 introduced: cycle-1
-modified: null
+modified: "2026-06-03"  # v1.2 F-004 lifecycle_status sync active→draft (Wave-5 Phase-B gate)
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -91,4 +91,5 @@ No VPs in VP-INDEX v1.5 directly verify TOML config loading. Placeholder for fut
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.2 | Wave-5-Phase-B-gate-F-004 | 2026-06-03 | product-owner | F-004 field desync fix (D-989): corrected `lifecycle_status: active` → `lifecycle_status: draft` to match `status: draft`. POL-14 requires at least one merged story citing this BC in its `behavioral_contracts:` array. All four citing stories (S-5.05, S-5.07, S-6.02, S-DEMO-003) are `status: draft` — no POL-14 promotion trigger exists. The config loading behavior is delivered by the running system (boot sequence produces valid TOML-loaded config), but no formal spec-delivery story with this BC in `behavioral_contracts:` has merged. Resolution: `lifecycle_status: draft` pending S-5.05 merge (minimal unblock path). Both fields now consistently `draft`. BC v1.1 → v1.2. |
 | 1.1 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; added ## Changelog. |
