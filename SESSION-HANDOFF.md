@@ -460,7 +460,25 @@ DURABLE PIN BLOCK (CURRENT STATE — D-580 — DURABLE PRE-/CLEAR RESUME SNAPSHO
 
 ## §RESUME SNAPSHOT 2026-06-04-WAVE5-DUAL-MERGE-COMPLETE-PARALLEL-PLAN-READY
 
-> **PRIORITY READ ORDER — D-988 CONTEXT-CLEAR DURABILITY CHECKPOINT.** Read STATE.md frontmatter + this snapshot before dispatching any agent. develop HEAD `fdd12251`. factory-artifacts LOCAL-ONLY (no push). Session cleared after D-988 commit. AWAITING HUMAN GO before any Wave 5 dispatch.
+> **PRIORITY READ ORDER — D-988 CONTEXT-CLEAR DURABILITY CHECKPOINT.** Read STATE.md frontmatter + this snapshot before dispatching any agent. develop HEAD `fdd12251`. factory-artifacts LOCAL-ONLY (no push). Session cleared after D-988 commit.
+
+---
+
+### §STANDING AUTHORIZATION — WAVE-5 AUTONOMOUS EXECUTION (granted by human 2026-06-04, D-989)
+
+> **GRANT:** Full autonomous execution of Wave 5 Phase A → Phase B → Phase C end-to-end. The fresh session runs continuously WITHOUT per-phase or per-merge human-approval stops.
+> **Convergence rigor PRESERVED (strict, non-negotiable):** every story follows the full per-story-delivery protocol — stubs → failing tests → TDD green → LOCAL adversarial 3-CLEAN (strict, BC-5.39.001 D-779) → demo-recorder per-AC → push → pr-manager PR cycle → PR-LEVEL adversarial 3-CLEAN (strict) + security-reviewer + pr-reviewer → CI green → squash-merge → post-merge POL-14 state burst. Auto-advance phases + auto-merge to develop ONLY when each gate's objective criteria are met (CLEAN(strict) 3/3 LOCAL + 3/3 PR-LEVEL; security MAY PROCEED; pr-reviewer APPROVE; all CI checks PASS).
+> **Phase ordering:** Phase A (serial PO/story-writer spec-prep to clear the 5 open S-7.01 BC gates + materialize S-DEMO-MULTI-TENANT-DTU-001 stub + land trivial S-5.04-FIX-001) → Phase B (parallel, disjoint files: S-DEMO-QUERY-PUSHDOWN-001 ∥ S-DEMO-003 ∥ S-SPEC-HTTP-METHOD-VALIDATION-001 ∥ OCSF-CLASS-MIGRATION-001) → Phase C (Claroty cluster serialized, shares BC-2.16.013 + claroty.sensor.toml: PAGINATION → TRAILING-SLASH → SPEC-PROSE-FIX → HARNESS-CLONE-PARITY).
+> **PAUSE-AND-SURFACE ONLY for these 4 hard exceptions (do NOT auto-handle):**
+>   1. Source-of-Truth §7 spec-to-match-code amendments (only human authorizes amending spec to match working code).
+>   2. A genuine product/business/risk decision an open BC cannot be mechanically derived from existing specs/ADRs.
+>   3. Level-3 escalation: a missing prerequisite, genuinely-red (non-flaky) CI, or convergence not reached after reasonable retries.
+>   4. CLAUDE.md edits (human-only per Pipeline Authority) — incl. DEFER-CLAUDEMD-BC216002-MISLABEL-001; leave for human, non-blocking.
+> **Standing rules NEVER waived:** no `--no-verify`; no force-push; no factory-artifacts remote push; single-commit-per-burst (TD-VSDD-053); fix-in-scope (no defer-pattern); policy-rubric auto-load on every adversary dispatch.
+> **Scope note:** the user chose STANDARD full autonomy (NOT the extended "auto-handle §7 + CLAUDE.md" variant), so exceptions 1 and 4 still STOP for the human.
+> **Resume sequence:** (a) devops factory-worktree-health (BLOCKING) → (b) read this snapshot → (c) begin Phase A autonomously under this grant.
+
+---
 
 ### Session Outcomes (this session — 2026-06-04)
 
