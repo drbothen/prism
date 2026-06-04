@@ -12,13 +12,13 @@
 
 ## Coverage Summary
 
-| AC | Description | Evidence File | Red Gate Test | Status |
-|----|-------------|---------------|---------------|--------|
+| AC | Description | Evidence File | Red Gate Tests | Status |
+|----|-------------|---------------|----------------|--------|
 | AC-001 | All 7 whitelist methods pass validation | AC-001-valid-http-methods-pass-validation.txt | test_BC_2_16_009_valid_http_method_passes_validation | PASS |
 | AC-002 | Invalid method returns structured E-SPEC-025 | AC-002-invalid-method-returns-e-spec-025.txt | test_BC_2_16_009_invalid_http_method_returns_structured_e_spec_025 | PASS |
 | AC-003 | Env-resolved method validated post-Rule-6 | AC-003-env-resolved-method-validated-post-resolution.txt | test_BC_2_16_009_env_resolved_invalid_method_caught_post_resolution | PASS |
-| AC-004 | Overlong method_value truncated to 32 codepoints (SEC-001 / CWE-400) | AC-004-overlong-method-value-truncated.txt | test_BC_2_16_009_sec_001_overlong_method_truncated_in_error | PASS |
-| AC-005 | Full-match skip-guard — partial embeddings produce E-SPEC-025 (F-PR1-OBS-001) | AC-005-full-match-skip-guard.txt | test_BC_2_16_009_f_pr1_obs_001_partial_token_embedding_not_skipped | PASS |
+| AC-004 | Overlong method_value truncated to 32 codepoints (SEC-001 / CWE-400) | AC-004-overlong-method-value-truncated.txt | test_BC_2_16_009_sec_001_overlong_method_truncated_in_error, test_BC_2_16_009_sec_001_normal_length_method_not_truncated, test_BC_2_16_009_sec_001_exactly_32_chars_not_truncated | PASS |
+| AC-005 | Full-match skip-guard — partial embeddings produce E-SPEC-025 (F-PR1-OBS-001) | AC-005-full-match-skip-guard.txt | test_BC_2_16_009_f_pr1_obs_001_partial_token_embedding_not_skipped, test_BC_2_16_009_f_pr1_obs_001_token_prefix_not_skipped, test_BC_2_16_009_f_pr1_obs_001_two_tokens_concatenated_not_skipped, test_BC_2_16_009_f_pr1_obs_001_exact_single_token_still_skipped | PASS |
 
 ---
 
@@ -118,7 +118,10 @@ E-SPEC-025 surfaces at the load_path() / load_all() boundary with canonical TOML
 **Security:** SEC-001 / CWE-400 unbounded echo: A 256 KiB TOML allows a method field up to that size; echoing verbatim in E-SPEC-025 would produce a 256 KiB error string to the MCP caller. 32-codepoint cap prevents. Normal HTTP methods are ≤7 chars; 32 is generous for legibility.  
 **Non-regression:** Method values ≤32 codepoints pass through unchanged (POL-24 byte-exact Display).
 
-**Red Gate test:** `test_BC_2_16_009_sec_001_overlong_method_truncated_in_error`
+**Red Gate tests:**
+- `test_BC_2_16_009_sec_001_overlong_method_truncated_in_error`
+- `test_BC_2_16_009_sec_001_normal_length_method_not_truncated`
+- `test_BC_2_16_009_sec_001_exactly_32_chars_not_truncated`
 
 **Evidence:** AC-004-overlong-method-value-truncated.txt
 
@@ -138,7 +141,11 @@ E-SPEC-025 surfaces at the load_path() / load_all() boundary with canonical TOML
 **Fix:** Old code used `ENV_TOKEN_REGEX.is_match(&step.method)` (substring check). That incorrectly skipped "GET${env.X}", "${env.X}GET", "${env.A}${env.B}" — partial interpolation residues that Rule 6 cannot fully replace. Fix uses full-match: `ENV_TOKEN_REGEX.find(...).is_some_and(|m| m.start()==0 && m.end()==len)`.  
 **Non-regression:** Exact single well-formed tokens ("${env.X}", "${env.VALID_NAME}") are still skipped after the fix.
 
-**Red Gate test:** `test_BC_2_16_009_f_pr1_obs_001_partial_token_embedding_not_skipped`
+**Red Gate tests:**
+- `test_BC_2_16_009_f_pr1_obs_001_partial_token_embedding_not_skipped`
+- `test_BC_2_16_009_f_pr1_obs_001_token_prefix_not_skipped`
+- `test_BC_2_16_009_f_pr1_obs_001_two_tokens_concatenated_not_skipped`
+- `test_BC_2_16_009_f_pr1_obs_001_exact_single_token_still_skipped`
 
 **Evidence:** AC-005-full-match-skip-guard.txt
 
@@ -191,12 +198,14 @@ Breakdown (PASS-line counts derived from the captured nextest output):
 
 | Module | Location | Tests |
 |--------|----------|-------|
-| `validation::http_method_whitelist_tests` | `crates/prism-spec-engine/src/validation.rs` (`#[cfg(test)] mod`) | 35 (of which 5 are Red Gate tests, one per AC) |
+| `validation::http_method_whitelist_tests` | `crates/prism-spec-engine/src/validation.rs` (`#[cfg(test)] mod`) | 35 |
 | `bc_2_16_009_test` | `crates/prism-spec-engine/tests/bc_2_16_009_test.rs` | 26 |
 | `bc_2_16_009_bundled_spec_validation` | `crates/prism-spec-engine/tests/` | 5 |
 | `proofs::spec_validator` | `crates/prism-spec-engine/src/proofs/` | 10 |
 | `write_endpoint_tests` | `crates/prism-spec-engine/tests/` | 17 |
 | **Total** | | **93** (35+26+5+10+17) |
+
+The 10 Red Gate tests (per story `red_gate_tests: 10`) are a subset of the 93: AC-001/002/003 contribute 1 each, AC-004 contributes 3 (SEC-001 truncation), and AC-005 contributes 4 (F-PR1-OBS-001 full-match guard). All 10 appear as PASS in the nextest capture above.
 
 ---
 

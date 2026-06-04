@@ -3,7 +3,7 @@
 # Story:   S-SPEC-HTTP-METHOD-VALIDATION-001 v1.4
 # Filter:  -E 'test(BC_2_16_009)' — all tests tracing to BC-2.16.009
 # Scope:   Includes http_method_whitelist_tests (src/validation.rs, AC-001..AC-005):
-#            35 tests total; 5 are Red Gate (one per AC).
+#            35 tests total (10 are Red Gate per story red_gate_tests: 10).
 #          Plus bc_2_16_009_test (26), bc_2_16_009_bundled_spec_validation (5),
 #          proofs::spec_validator (10), and write_endpoint_tests (17).
 # BC:      BC-2.16.009 v1.10 §Validation Rules 7
@@ -117,7 +117,7 @@
 #
 # Breakdown — derived by counting PASS lines per module in the capture above:
 #   validation::http_method_whitelist_tests (src/validation.rs, AC-001..AC-005):
-#                                                   35 tests (of which 5 are Red Gate)
+#                                                   35 tests
 #   bc_2_16_009_test (crates/prism-spec-engine/tests/bc_2_16_009_test.rs):
 #                                                   26 tests
 #   bc_2_16_009_bundled_spec_validation:             5 tests
@@ -127,7 +127,8 @@
 #
 # Note: http_method_whitelist_tests lives in `crates/prism-spec-engine/src/validation.rs`
 # as `#[cfg(test)] mod http_method_whitelist_tests` — NOT in crates/.../tests/.
-# The 5 Red Gate tests (one per AC-001..AC-005) are a subset of those 35, not additive.
+# The 10 Red Gate tests (per story red_gate_tests: 10) are a subset of those 35, not additive.
+# AC-001/002/003 contribute 1 Red Gate test each; AC-004 contributes 3; AC-005 contributes 4.
 #
 # Story v1.4 AC coverage:
 #   AC-001 (valid methods pass):         PASS (test_BC_2_16_009_valid_http_method_passes_validation)
