@@ -14,23 +14,26 @@ active_dispatch_set:
   # ============================================================
 
   - story_id: S-DEMO-002
-    status: ready
+    status: merged
     priority: P0
     points: 13
     spec_version: "v2.6"
-    lane: "1-of-3"
-    dispatch_status: "D-986 (2026-06-03) — LOCAL 3/3 CONVERGED @6081d42a + PR-LEVEL 3/3 CONVERGED passes 12/13/14 (BC-5.39.001 D-779 strict) @81cf3678; 14 total PR-LEVEL passes; novelty ZERO; ALL gates PASS: security MAY PROCEED (SEC-001 closed) + pr-reviewer APPROVE + CI CLEAN incl E2E smoke (AC-010 proven). PR #171 MERGE-READY — AWAITING HUMAN MERGE APPROVAL. Post-merge pending: POL-14 BC auto-promotions (state-manager Step 9 burst). Full cascade closed: P01 query-syntax/CLI, P02 POL-11, P03 uid, P04 category/class_uid+points-pin, SEC-001/003/004 credentials, HIGH-001 workflow-drift, HIGH-002 retries, MED-003 Tier-4 error-propagation, P08-HIGH-001 10-crate crates_touched @376b4e10, P10-MED-001 FSR completeness @b791c516, P11-MED-001 version-pin @90b462ce. [D-985: story v2.5→v2.6 version-pin ALL 5 locations synced. D-984: prism-query FSR row added. D-983: crates_touched 5→10. D-975: LOCAL 3/3 CONVERGED @6081d42a. D-970: Option-A per-client creds @29ea62df]."
-    entry_point: "MERGE-READY — human merges PR #171 → post-merge burst (Step 9: POL-14 BC auto-promotions + worktree cleanup + state-manager D-987 post-merge burst)"
-    worktree_path: ".worktrees/S-DEMO-002"
-    code_head: "f2911f1f"
-    branch: "feature/S-DEMO-002"
+    lane: "1-of-3 (CLOSED)"
+    merged_sha: "fdd12251"
+    merged_pr: 171
+    merged_at: "2026-06-04"
+    dispatch_status: "MERGED — PR #171 squash-merged develop@fdd12251 2026-06-04 (D-987). LOCAL 3/3 CLEAN CONVERGED @6081d42a + PR-LEVEL 3/3 CLEAN CONVERGED (passes 12/13/14 strict) @81cf3678 (BC-5.39.001 D-779). 40 CI checks PASS incl E2E smoke GREEN. POL-14: BC-2.11.001 draft→active (v1.3→v1.4); BC-2.11.007 draft→active (v1.5→v1.6); BC-3.2.001 draft→active (v0.8→v0.9). Already-active idempotent confirms: BC-2.11.005 v1.5, BC-2.09.008 v1.4, BC-2.10.001 v1.5, BC-2.10.010 v1.4, BC-2.22.001 v1.5. Cascade CLOSED. Worktree REMOVED. Branch DELETED. Downstream unblocked: S-DEMO-003 (depends_on SATISFIED), S-DEMO-QUERY-PUSHDOWN-001 (depends_on SATISFIED), OCSF-CLASS-MIGRATION-001 (depends_on SATISFIED). S-DEMO-CI-E2E-001 (SUPERSEDED by S-DEMO-002 — confirmed closed D-979). [D-986: PR-LEVEL 3/3 CONVERGED; MERGE-READY. D-985: story v2.5→v2.6. D-975: LOCAL 3/3 @6081d42a. D-970: per-client creds @29ea62df]."
+    entry_point: "CLOSED — story merged"
+    worktree_path: ".worktrees/S-DEMO-002 (REMOVED — cleaned post-merge)"
+    code_head: "81cf3678"
+    branch: "feature/S-DEMO-002 (DELETED — cleaned post-merge)"
     tracked_dependency: "MUST seed query_filters[\"aql\"] in PipelineExecutor FetchContext for Armis end-to-end AQL push-down (AC-014 D-934/D-952 scope) — canonical seeding site: predicate_tree_to_filter_map (BC-2.11.007 v1.5 Mechanism B). Do NOT add parallel extract fn. Tool name is `query` (not tool_query). Org field is `clients` (not org_slug). red_gate_tests=9. AC-004 now requires WHERE aql = 'in:devices' LIMIT 5 (Option-A per human D-963)."
     depends_on:
       - S-DEMO-001             # HARD — SATISFIED (merged PR #166 develop@5dd3df02)
       - S-CONFIG-MULTI-TENANT-OVERRIDE-001  # HARD — SATISFIED (merged PR #155 develop@3e822522)
     bcs: [BC-2.11.001, BC-2.11.005, BC-2.09.008, BC-2.10.001, BC-2.10.010, BC-3.2.001, BC-2.22.001, BC-2.11.007]
     vps: [VP-148]
-    notes: "D-968 2026-06-03: CRIT-001 ADV-SDEMO002-P01-CRIT-001 (ProductionCredentialResolver 'dtu-e2e-bearer-placeholder') CLOSED via real BearerStaticCredentialAuthProvider (fail-closed; mirrors StaticCookieAuthProvider). Boot regression (boot step-5 KeyringCredentialProbe checked keyring directly; out-of-sync with query-time env→keyring chain) fixed by aligning probe to BC-2.03.006/BC-2.06.003 resolution chain (env_FILE > env > keyring; AD-017-safe). Sub-cycle: 7c9db1cc GREEN → 3860b970 regressed 13 e2e fails → dbd65820 GREEN. Orchestrator-verified: cargo nextest run -p prism-bin --profile e2e --run-ignored all = 123/123 @ dbd65820. MED-001 ADV-SDEMO002-P01-MED-001 CLOSED: BC-2.16.002 corrected to v1.64 (Array/Object body_template values VERBATIM JSON literals). ADR-028 v1.14 §D13 BearerStaticCredentialAuthProvider pattern. LOCAL streak RESET 0/3 (boot.rs KeyringCredentialProbe alignment = shared code change; fresh LOCAL cascade REQUIRED). (Prior D-967 2026-06-03: e2e 121/121 GREEN @ 7c9db1cc; 9 prod fixes; D-966 VOID. D-966: LOCAL 3-CLEAN CONVERGENCE @ 5a2f22f6 — VOIDED. D-965: residual-pin MED @ 5a2f22f6. D-964: prose-audit v1.8 + version-agnostic labels @ e286b932. D-963: CRIT F-DEMO002-P2-CRIT-001 @ 820353c9.)"
+    notes: "D-987 2026-06-04 post-merge burst: PR #171 squash-merged develop@fdd12251; worktree REMOVED; branch DELETED; POL-14 promotions (BC-2.11.001+BC-2.11.007+BC-3.2.001 draft→active; 5 idempotent confirms). LOCAL 3/3 CONVERGED + PR-LEVEL 3/3 CONVERGED (14 passes; BC-5.39.001 D-779). S-DEMO-003+PUSHDOWN+OCSF-CLASS depends_on SATISFIED. Cascade CLOSED. (D-986 2026-06-03: PR-LEVEL 3/3 CONVERGED passes 12/13/14.)"
 
   - story_id: S-DEMO-CROWDSTRIKE-MULTIREGION-001
     status: merged
@@ -292,9 +295,9 @@ deferred_post_demo:
   # reclassification from permitted-divergence → required-fidelity; user directive no-scope-compromise).
 
 prereq_artifacts:
-  story_index: .factory/stories/STORY-INDEX.md         # v2.271 after D-986 burst (179 stories; S-DEMO-002 v2.6; PR-LEVEL 3/3 CONVERGED passes 12/13/14; MERGE-READY)
-  bc_index: .factory/specs/behavioral-contracts/BC-INDEX.md  # v5.78 (BC-2.16.009 v1.7 + BC-2.16.013 v1.22 both active)
-  state: .factory/STATE.md                              # v7.636 after D-986 burst
+  story_index: .factory/stories/STORY-INDEX.md         # v2.272 after D-987 burst (179 stories; S-DEMO-002 v2.6 MERGED PR #171 develop@fdd12251)
+  bc_index: .factory/specs/behavioral-contracts/BC-INDEX.md  # v5.79 (BC-2.11.001+BC-2.11.007+BC-3.2.001 promoted draft→active D-987)
+  state: .factory/STATE.md                              # v7.637 after D-987 burst
   governing_adr: .factory/specs/architecture/decisions/ADR-031-dtu-equals-true-dtu-fidelity-principle.md  # v1.2 (ADR-031 architect e57eb5b1 reclassified 3 divergences)
   governing_audit: .factory/proposals/POLLER-DTU-FIDELITY-AUDIT-2026-05-29.md  # v1.1
 

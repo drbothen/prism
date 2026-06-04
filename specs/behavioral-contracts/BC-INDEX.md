@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "5.78"
+version: "5.79"
 status: draft
 producer: state-manager
 timestamp: 2026-06-03T12:00:00Z
@@ -23,7 +23,7 @@ Flat index of all 246 behavioral contracts for Prism (246 total files, 238 activ
 (BC-2.07.007/008/009/010, BC-2.14.011) were dropped in v4.8 because they never had
 corresponding files — they are NOT counted in `total_contracts` and remain only in the
 historical references section below. Counts are derived from workspace enumeration of
-individual BC file `lifecycle_status` frontmatter fields (ground truth per VSDD). `draft_contracts: 1` covers BC-2.06.011 and BC-2.21.001 (note: BC-2.11.005 promoted draft→active at D-937 per POL-14 at S-DEMO-001 merge; remaining draft BCs are BC-2.06.011 + BC-2.21.001). BC-2.11.005 promoted draft→active at D-937 per POL-14 (anchor story S-DEMO-001 merged via PR #166 develop@5dd3df02 2026-06-01). BC-2.01.017 promoted draft→active at D-904 per POL-14 (anchor story S-DTU-CYBERINT-AUTH-FIDELITY-001 merged via PR #164 develop@e798e67c 2026-05-31). BC-2.16.013, BC-2.16.001, and BC-2.16.009 promoted draft→active at D-776 per POL-14 (PR #153 merge 2026-05-22); BC-2.01.016, BC-2.16.011, and BC-2.16.012 promoted draft→active at D-726 per POL-14 (PR #151 merge). BC-2.16.004 lifecycle_status was already `removed`; `status` field aligned to `removed` at D-726 (was draft, inconsistent). `deprecated_contracts: 0` — BC-2.16.004 fully removed. BC-2.01.005/006/007/008 and BC-2.02.003/004/005/006 amendment_lifecycle: pending cleared at PLUGIN-MIGRATION-001-G burst-3 (v5.54); all 8 now reflect `active (amended per ADR-023/PLUGIN-MIGRATION-001-G)` — lifecycle_status was already active in BC files prior to this index update.
+individual BC file `lifecycle_status` frontmatter fields (ground truth per VSDD). `draft_contracts: 1` covers BC-2.06.011 and BC-2.21.001 (note: BC-2.11.005 promoted draft→active at D-937 per POL-14 at S-DEMO-001 merge; BC-2.11.001 + BC-2.11.007 + BC-3.2.001 status-field aligned draft→active at D-987 per POL-14 at S-DEMO-002 merge — these 3 BCs already had `lifecycle_status: active` per ADR-025 ground truth; this promotion syncs the legacy `status:` field; no count change; remaining draft BCs are BC-2.06.011 + BC-2.21.001). BC-2.11.005 promoted draft→active at D-937 per POL-14 (anchor story S-DEMO-001 merged via PR #166 develop@5dd3df02 2026-06-01). BC-2.11.001 + BC-2.11.007 + BC-3.2.001 status: draft→active at D-987 per POL-14 (anchor story S-DEMO-002 merged via PR #171 develop@fdd12251 2026-06-04). BC-2.01.017 promoted draft→active at D-904 per POL-14 (anchor story S-DTU-CYBERINT-AUTH-FIDELITY-001 merged via PR #164 develop@e798e67c 2026-05-31). BC-2.16.013, BC-2.16.001, and BC-2.16.009 promoted draft→active at D-776 per POL-14 (PR #153 merge 2026-05-22); BC-2.01.016, BC-2.16.011, and BC-2.16.012 promoted draft→active at D-726 per POL-14 (PR #151 merge). BC-2.16.004 lifecycle_status was already `removed`; `status` field aligned to `removed` at D-726 (was draft, inconsistent). `deprecated_contracts: 0` — BC-2.16.004 fully removed. BC-2.01.005/006/007/008 and BC-2.02.003/004/005/006 amendment_lifecycle: pending cleared at PLUGIN-MIGRATION-001-G burst-3 (v5.54); all 8 now reflect `active (amended per ADR-023/PLUGIN-MIGRATION-001-G)` — lifecycle_status was already active in BC files prior to this index update.
 
 Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close traceability gaps for AD-019 (WASM plugins), AD-020 (infusions), AD-021 (actions), CAP-022 (auto-case-creation), and BC-2.14.012 stub completion. Burst 2.5: 4 additional BCs closing remaining gaps flagged by story-writer: BC-2.08.008/009 (diagnostics tool + resources, S-5.08), BC-2.05.011 (audit forwarding at-least-once, S-5.10), BC-2.13.014 (IOC file loading, S-4.03).
 
@@ -148,13 +148,13 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.10.009 | MCP Prompts for Common Workflows | 10 - MCP Interface | CAP-034 | P1 | draft |
 | BC-2.10.010 | Graceful Shutdown on SIGTERM/SIGINT | 10 - MCP Interface | CAP-034 | P0 | active |
 | BC-2.10.011 | list_capabilities Meta-Tool | 10 - MCP Interface | CAP-005 | P0 | draft |
-| BC-2.11.001 | `query` MCP Tool Accepts Scoping + PrismQL Query String | 11 - Query Execution | CAP-015 | P0 | draft |
+| BC-2.11.001 | `query` MCP Tool Accepts Scoping + PrismQL Query String | 11 - Query Execution | CAP-015 | P0 | active (promoted draft→active D-987 per POL-14; anchor story S-DEMO-002 merged PR #171 develop@fdd12251 2026-06-04) — v1.4 |
 | BC-2.11.002 | PrismQL Filter Mode Parsing | 11 - Query Execution | CAP-015 | P0 | draft |
 | BC-2.11.003 | PrismQL SQL Mode Parsing | 11 - Query Execution | CAP-015 | P0 | draft |
 | BC-2.11.004 | PrismQL Pipe Mode Parsing | 11 - Query Execution | CAP-015 | P0 | active |
 | BC-2.11.005 | Ephemeral Materialization — Fan-Out, Normalize, Arrow RecordBatch, DataFusion MemTable | 11 - Query Execution | CAP-015 | P0 | active (promoted draft→active D-937 per POL-14; anchor story S-DEMO-001 merged PR #166 develop@5dd3df02 2026-06-01) — v1.5 |
 | BC-2.11.006 | Query Security Limits Enforcement | 11 - Query Execution | CAP-015 | P0 | draft |
-| BC-2.11.007 | Sensor Filter Push-Down | 11 - Query Execution | CAP-015 | P0 | draft — v1.5 (D-954: Mechanism A/B disambiguation; §Predicate Classification rewritten; EC-11-019 updated; 2 Armis Mechanism B test vectors added) |
+| BC-2.11.007 | Sensor Filter Push-Down | 11 - Query Execution | CAP-015 | P0 | active (promoted draft→active D-987 per POL-14; anchor story S-DEMO-002 merged PR #171 develop@fdd12251 2026-06-04) — v1.6 (D-954: Mechanism A/B disambiguation; §Predicate Classification rewritten; EC-11-019 updated; 2 Armis Mechanism B test vectors added) |
 | BC-2.11.008 | `create_alias` MCP Tool | 11 - Query Execution | CAP-016 | P1 | draft |
 | BC-2.11.009 | Alias Resolution — Pre-Parse Expansion, Composition, Cycle Detection | 11 - Query Execution | CAP-016 | P1 | draft |
 | BC-2.11.010 | `explain_query` MCP Tool | 11 - Query Execution | CAP-015 | P0 | draft |
@@ -271,7 +271,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 
 | BC ID | Title | Subsystem | CAP | Priority | Status |
 |-------|-------|-----------|-----|----------|--------|
-| BC-3.2.001 | Per-Org Sensor Data Isolation via Composite HashMap Key | SS-01 (Sensor Adapters) | CAP-001 | P0 | draft (v0.8) |
+| BC-3.2.001 | Per-Org Sensor Data Isolation via Composite HashMap Key | SS-01 (Sensor Adapters) | CAP-001 | P0 | active (promoted draft→active D-987 per POL-14; anchor story S-DEMO-002 merged PR #171 develop@fdd12251 2026-06-04) — v0.9 |
 | BC-3.2.002 | Per-Org Credential Isolation via OrgId-Keyed Namespace | SS-03 (Credential Management) | CAP-004 | P0 | draft |
 | BC-3.2.003 | Per-Org Session Token Isolation via (OrgId, token) Composite Key | SS-03 (Credential Management) | CAP-004 | P0 | draft |
 | BC-3.2.004 | Shared-Mode DTU Tags OrgId in Payload Body Not in Routing Headers | SS-01 (Sensor Adapters) | CAP-040 | P0 | draft |
@@ -376,6 +376,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v5.79 (2026-06-04, D-987 S-DEMO-002 MERGED PR #171 develop@fdd12251; POL-14 BC auto-promotion):** state-manager | POL-14 status-field alignment for 3 BCs (all already had `lifecycle_status: active` per ADR-025 ground truth; `status:` legacy field synced draft→active): BC-2.11.001 v1.3→v1.4 (status: draft→active; anchor story S-DEMO-002 merged PR #171), BC-2.11.007 v1.5→v1.6 (status: draft→active; anchor story S-DEMO-002 merged PR #171), BC-3.2.001 v0.8→v0.9 (status: draft→active; anchor story S-DEMO-002 merged PR #171). BC-INDEX in-line rows 151, 157, 274 updated to active. No count changes: all 3 BCs were already counted as active (lifecycle_status: active per ADR-025); draft_contracts: 1 unchanged (BC-2.06.011 + BC-2.21.001 remain lifecycle_status: draft). 5 BCs confirmed already-active (idempotent no-ops): BC-2.11.005 v1.5, BC-2.09.008 v1.4, BC-2.10.001 v1.5, BC-2.10.010 v1.4, BC-2.22.001 v1.5. BC-INDEX v5.78→v5.79.
 
 **v5.78 (2026-06-03, D-969 per-client credential convention adoption — Option-A human decision + ADR-032 + BC-2.06.003 v1.3 + BC-2.03.006 v1.4):** state-manager | BC-2.06.003 v1.2→v1.3 (architect-authored: per-client env-var convention `PRISM_CLIENTS_{ID}_SENSORS_{SENSOR}_{REF}` + `_FILE` suffix; `{ID}` = org-slug uppercased hyphens→underscores e.g. `demo-org-a`→`DEMO_ORG_A`; 4-tier resolution chain `_FILE > per-client env > global env > keyring`; org-aware boot probe design; per-sensor `credential_refs` field normalization; corrects false v1.2 changelog). BC-INDEX in-line row 103 updated to v1.3. BC-2.03.006 v1.3→v1.4 (architect-authored: cross-ref to BC-2.06.003 v1.3 per-client convention; 4-tier resolution chain normative anchor; ADR-032 cited). BC-INDEX in-line row 66 updated to v1.4. ADR-032 registered in ARCH-INDEX: Per-Client Credential Env-Var Convention, ACCEPTED v1.0, 2026-06-03. No lifecycle_status changes (both BCs remain draft). No new BC count changes. BC-INDEX v5.77→v5.78. ARCH-INDEX v2.109→v2.110.
 
