@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.9"
+version: "1.10"
 status: active
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -19,7 +19,7 @@ extracted_from: ".factory/specs/prd.md"
 scheduled_amendment_in: ADR-023
 amendment_lifecycle: pending
 introduced: cycle-1
-modified: "2026-05-31"
+modified: "2026-06-03"  # v1.10 OCSF-CLASS-MIGRATION-001 Wave-5 Phase-A PO burst
 amendment_burst: D-925-arch-adjudication
 deprecated: null
 deprecated_by: null
@@ -87,12 +87,12 @@ naming convention (e.g., `crowdstrike_alert`, `armis_device`).
 
   | `ocsf_class` value (TOML) | `class_uid` | Notes |
   |--------------------------|-------------|-------|
-  | `"security_finding"` | 2001 | Deprecated OCSF v1.1.0; real sensors use this name. Use until migration to `"detection_finding"`. |
-  | `"detection_finding"` | 2004 | OCSF v1.7.0 canonical; crowdstrike detections, claroty/armis alerts |
-  | `"incident_finding"` | 2005 | crowdstrike incidents, cyberint incidents |
-  | `"vulnerability_finding"` | 2002 | claroty vulnerabilities |
-  | `"device"` | 5001 | claroty/armis devices (InventoryInfo) |
-  | `"audit_activity"` | 3001 | claroty audit_logs (AccountChange — closest OCSF v1.7.0 class) |
+  | `"detection_finding"` | 2004 | OCSF v1.1 canonical; PRIMARY. Production sensor TOMLs use this post-OCSF-CLASS-MIGRATION-001. |
+  | `"security_finding"` | 2004 | Transitional alias (Option A per BC-2.02.012 v1.4). Maps to 2004 (NOT 2001) with deprecation WARN emission `event_type = "ocsf.deprecated_class_alias"`. External TOML specs not under Prism control may use this string. Production sensor TOMLs MUST use `"detection_finding"` after OCSF-CLASS-MIGRATION-001 merges. |
+  | `"incident_finding"` | 2005 | CrowdStrike incidents, Cyberint incidents |
+  | `"vulnerability_finding"` | 2002 | Claroty vulnerabilities |
+  | `"device"` | 5001 | Claroty/Armis devices (InventoryInfo) |
+  | `"audit_activity"` | 3001 | Claroty/Armis audit logs (AccountChange — closest OCSF v1.7.0 class) |
 
   Returns `Err(PrismError::OcsfUnknownEventClass { sensor: "".into(), record_type: class_name.to_owned() })` for unmapped class names. The caller (`pipeline_result_to_record_batch`) falls back to `class_uid = 0` on `Err`, identical to the existing `unwrap_or(0)` behavior. This fallback is acceptable for tables whose `ocsf_class` is not in the mapping table.
 
@@ -138,7 +138,7 @@ naming convention (e.g., `crowdstrike_alert`, `armis_device`).
 | TV-BC-2.01.013-002 | SensorSpec with `auth_type: [oauth2_client_credentials, bearer_static]` | Spec-load rejected with E-SPEC-010; Rule 1 cited in error |
 | TV-BC-2.01.013-003 | Adapter returns unrecognized API response structure | `PrismError::Sensor` with sensor name, source, raw response snippet |
 | TV-BC-2.01.013-004 | `SpecDrivenSensorAdapter::fetch()` called against a mock PipelineExecutor returning a raw record with 2+ spec-declared columns; spec uses `ocsf_class = "security_finding"` (a REAL class-name from a production sensor spec) | Returned RecordBatch Arrow schema contains all spec-declared column names PLUS `category_uid`, `class_uid`, `_sensor`; no spec-declared column is absent (OCSF Conformance Clause item 1) |
-| TV-BC-2.01.013-005 | Spec declares `ocsf_class = "security_finding"`; raw vendor record contains `"class_uid": 9999, "category_uid": 9999` — `SpecDrivenSensorAdapter::fetch()` called | `class_uid` in returned RecordBatch equals `2001` (from `EventClassSelector::select_by_class_name("security_finding")`), NOT `9999`. `category_uid` equals `2`. The test MUST use `"security_finding"` (a real production ocsf_class value), NOT a record-type token like `"detection"`. (OCSF Conformance Clause item 2, D-925) |
+| TV-BC-2.01.013-005 | Spec declares `ocsf_class = "security_finding"`; raw vendor record contains `"class_uid": 9999, "category_uid": 9999` — `SpecDrivenSensorAdapter::fetch()` called | `class_uid` in returned RecordBatch equals `2004` (from `EventClassSelector::select_by_class_name("security_finding")` → transitional alias returns 2004 per BC-2.02.012 v1.4 Option A), NOT `9999` and NOT `2001`. `category_uid` equals `2`. `event_type = "ocsf.deprecated_class_alias"` WARN is emitted. After OCSF-CLASS-MIGRATION-001 merges, production TOML specs will use `"detection_finding"` directly; this test vector covers the alias path for external TOML compatibility. (OCSF Conformance Clause item 2, D-925; updated per OCSF-CLASS-MIGRATION-001 Wave-5 Phase-A) |
 | TV-BC-2.01.013-006 | `SpecDrivenSensorAdapter::fetch()` called; pipeline returns 3 pages before API signals exhaustion | All 3 pages concatenated into returned `Vec<RecordBatch>`; no early termination due to limit parameter (Pagination/Push-Down Scope Clause) |
 
 ## Verification Properties
@@ -159,6 +159,7 @@ naming convention (e.g., `crowdstrike_alert`, `armis_device`).
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.10 | Wave-5-Phase-A-PO-burst | 2026-06-03 | product-owner | OCSF-CLASS-MIGRATION-001 amendment: updated `select_by_class_name` mapping table — `"security_finding"` now maps to 2004 (NOT 2001) as a transitional alias per BC-2.02.012 v1.4 Option A decision; `"detection_finding"` confirmed as PRIMARY entry returning 2004; deprecation WARN `event_type = "ocsf.deprecated_class_alias"` specified for alias path. Updated TV-BC-2.01.013-005 to assert class_uid == 2004 (not 2001) for `"security_finding"` input. This removes the prior "use until migration to detection_finding" note now that the migration has been specified (OCSF-CLASS-MIGRATION-001). BC v1.9 → v1.10. |
 | 1.9 | D-925-arch-adjudication | 2026-05-31 | architect | Architecture adjudication for S-DEMO-001 F-001-R-RECUR + F-DOC-001: resolved the ocsf_class namespace collision. TOML `ocsf_class` carries OCSF class-name strings (e.g., `"security_finding"`, `"device"`) — NOT record-type tokens (`"detection"`, `"alert"`). `EventClassSelector::select(sensor, record_type)` is keyed on record-type tokens only. Decision: add `EventClassSelector::select_by_class_name(class_name) -> Result<u32, PrismError>` to `crates/prism-ocsf/src/class_selector.rs`. `pipeline_result_to_record_batch` MUST call `select_by_class_name(&table.ocsf_class)` — NOT `select(sensor_id, &table.ocsf_class)`. Amended Conformance Clause item 2 to name this function explicitly; added class-name→uid mapping table with all production sensor ocsf_class values; corrected TV-BC-2.01.013-005 to use real `ocsf_class = "security_finding"` (not fake record-type token `"detection"`); added EC-01-028 for the wrong-function anti-pattern. `category_uid = class_uid / 1000` rule confirmed. |
 | 1.8 | D-924-bc-amendment | 2026-05-31 | product-owner | S-DEMO-001 adversary pass-2 findings F-001-R and F-003-R closure: added SpecDrivenSensorAdapter OCSF Conformance Clause (items 1–3 — spec-declared data columns must survive via ColumnMapper; category_uid/class_uid must be derived by OcsfNormalizer not read from raw record; _sensor virtual column required); added SpecDrivenSensorAdapter Pagination/Push-Down Scope Clause (fetch returns ALL pages bounded only by MAX_PAGES_PER_STEP/MAX_REQUESTS_PER_PIPELINE; query-param push-down explicitly out of scope deferred to S-DEMO-QUERY-PUSHDOWN-001 per D-924); added EC-01-025/EC-01-026/EC-01-027; added TV-BC-2.01.013-004/005/006. Error taxonomy unchanged. |
 | 1.7 | D-776-post-merge | 2026-05-22 | state-manager | POL-14 verification (no-op confirm): PR #153 (PLUGIN-MIGRATION-001-D) squash-merged to develop@3f2de889 at 2026-05-22T09:05:47Z; status already active (promoted draft→active D-398 per POL-14 PR #142) — idempotent confirm. |

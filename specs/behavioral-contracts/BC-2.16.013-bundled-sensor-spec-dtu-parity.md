@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.22"
+version: "1.25"
 status: active
 producer: product-owner
 timestamp: 2026-05-20T00:00:00Z
@@ -11,7 +11,7 @@ subsystem: "SS-16"
 capability: "CAP-029"
 lifecycle_status: active
 introduced: "2026-05-20"
-modified: "2026-06-01"  # v1.22: AQL discriminator divergence flagged in v1.21 CLOSED — implementation conformed to in:devices/in:alerts per research artifact + impl commit 26267916
+modified: "2026-06-03"  # v1.25: Wave-5 Phase-A PO burst — trailing-slash parity clause, harness clone route-parity invariant, Claroty audit_log prose correction (F-P2-DEFER-001 closure)
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -161,14 +161,29 @@ authentication enforcement behavior, which reflects the real third-party API's a
 
 - `claroty.sensor.toml` — `sensor_id: "claroty"`, `auth_type: "bearer_static"`,
   base URL from instance_url, tables:
+  - `devices` — POST `/api/v1/devices/` (trailing-slash form; S-DEMO-CLAROTY-TRAILING-SLASH-001)
+    with offset pagination. The `prism-dtu-claroty` router includes `normalize_path`
+    middleware (ADR-031 §D8-b) so that both `/api/v1/devices` and `/api/v1/devices/` are
+    accepted. `claroty.sensor.toml` `path_template` uses the trailing-slash form.
+    URL grounded: `crates/prism-dtu-claroty/src/clone.rs` `build_router()` route
+    registration for `/api/v1/devices`.
   - `assets` — **See §Known Gaps: DTU-EXT-002.** DTU has `/api/v1/devices`, not `/api/v1/assets`.
     This table entry is deferred until the DTU clone is extended (ADR-028 §D5).
-  - `alerts` — POST `/api/v1/alerts` with offset pagination.
-    URL grounded: `crates/prism-dtu-claroty/src/clone.rs` `build_router()` (line 86:
-    `"/api/v1/alerts"` registered as POST route).
-  - `audit_logs` — GET `/api/v1/audit_logs` via offset pagination.
-    No DTU route registered — this table depends on DTU extension (see §Known Gaps).
-    NO `/xdome` prefix — the production Claroty xDome API does not use that path prefix.
+  - `alerts` — POST `/api/v1/alerts/` (trailing-slash form; S-DEMO-CLAROTY-TRAILING-SLASH-001)
+    with offset pagination. The `prism-dtu-claroty` router includes `normalize_path`
+    middleware (ADR-031 §D8-b) so that both `/api/v1/alerts` and `/api/v1/alerts/` are
+    accepted. `claroty.sensor.toml` `path_template` uses the trailing-slash form.
+    URL grounded: `crates/prism-dtu-claroty/src/clone.rs` `build_router()` route
+    registration for `/api/v1/alerts`.
+  - `audit_logs` — POST `/api/v1/audit_log/get`; DTU route registered by
+    S-DEMO-CLAROTY-AUDIT-DTU-001 (Gap-CL-006 CLOSED). Method is POST-for-read,
+    consistent with Claroty xDome API pattern. NO `/xdome` prefix — the production
+    Claroty xDome API does not use that path prefix.
+    **Trailing-slash form (S-DEMO-CLAROTY-TRAILING-SLASH-001):** The canonical
+    `path_template` in `claroty.sensor.toml` is `/api/v1/audit_log/get/` (with trailing
+    slash), matching the real Claroty xDome API. The `prism-dtu-claroty` router MUST
+    include `normalize_path` middleware (or equivalent) so that both
+    `/api/v1/audit_log/get` and `/api/v1/audit_log/get/` are accepted (ADR-031 §D8-b).
   Polymorphic ID handling: `ClarotyId` (int or UUID string) expressed as column type `string`
   with OCSF `raw_extensions` passthrough. Version: `"1.0.0"`.
   Auth grounded: Claroty DTU (`crates/prism-dtu-claroty/src/routes/devices.rs` and
@@ -338,6 +353,24 @@ adapter path for all test cases:
   the schema of the 4 initial sensor tables. Schema changes require amending the spec file
   and re-validating parity tests.
 
+- **INV-HARNESS-ROUTE-PARITY (Harness clone route surface must mirror standalone DTU):**
+  The in-process clone modules in `prism-dtu-harness` (under `src/clones/`) MUST expose
+  the same HTTP route surface as their corresponding standalone `prism-dtu-*` crates.
+  Specifically:
+  - `prism-dtu-harness::clones::armis::router()` MUST include `GET /api/v1/search`
+    after S-DEMO-ARMIS-AQL-001 merges to develop (closes F-P6-DEFER-001).
+  - `prism-dtu-harness::clones::claroty::router()` MUST include
+    `POST /api/v1/audit_log/get` after S-DEMO-CLAROTY-AUDIT-DTU-001 merges to develop
+    (closes F-P10-LOW-001).
+  - Auth model per sensor MUST match the standalone DTU: Armis → HTTP 403 on missing
+    Bearer; Claroty → HTTP 401 on missing Bearer. These are NOT interchangeable.
+  - Response envelope shapes MUST match standalone DTU responses:
+    Armis search: `{"data": {"results": [...], "total": N}}`;
+    Claroty audit_log: `{"audit_log": [...], "total": N}`.
+  - Route parity is verified by multi-tenant harness tests (BC-3.5.001/BC-3.5.002 consumers).
+  This invariant is governed by ADR-031 (DTU=true-DTU) and is implemented by story
+  S-DEMO-HARNESS-CLONE-PARITY-001 (closes F-P6-DEFER-001, F-P10-LOW-001).
+
 - **DI-030 (partial-failure isolation):** A parity failure for one `(sensor_id, table)` pair
   does NOT block other sensor tables from loading. Each parity test is isolated.
 
@@ -444,6 +477,9 @@ PLUGIN-MIGRATION-001-D (implementing story; planned → draft after PO authoring
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.25 | Wave-5-Phase-A-PO-burst | 2026-06-03 | product-owner | Gate 4 (S-DEMO-CLAROTY-SPEC-PROSE-FIX-001 / F-P2-DEFER-001 closure): §Postconditions §1 Claroty `audit_logs` clause corrected from stale "GET /api/v1/audit_logs via offset pagination. No DTU route registered." to "POST /api/v1/audit_log/get; DTU route registered by S-DEMO-CLAROTY-AUDIT-DTU-001 (Gap-CL-006 CLOSED)". Combined with Gate 2 + Gate 3 in same burst. BC v1.24 → v1.25. |
+| 1.24 | Wave-5-Phase-A-PO-burst | 2026-06-03 | product-owner | Gate 3 (S-DEMO-HARNESS-CLONE-PARITY-001 / closes F-P6-DEFER-001 + F-P10-LOW-001): Added INV-HARNESS-ROUTE-PARITY invariant specifying that `prism-dtu-harness::clones::armis::router()` must include `GET /api/v1/search` and `prism-dtu-harness::clones::claroty::router()` must include `POST /api/v1/audit_log/get` to mirror standalone DTU route surfaces per ADR-031. Rationale for amendment to BC-2.16.013 (not BC-3.5.001/BC-3.5.002): BC-3.5.001/002 describe harness isolation mechanics (port allocation, data segregation) — they do NOT specify which routes the in-process clones must register. BC-2.16.013 is the DTU-parity contract and is the correct home for route-surface coverage obligations. BC v1.23 → v1.24. |
+| 1.23 | Wave-5-Phase-A-PO-burst | 2026-06-03 | product-owner | Gate 2 (S-DEMO-CLAROTY-TRAILING-SLASH-001 / ADR-031 §D8-b): Added trailing-slash parity clause to Claroty `alerts`, `devices`, and `audit_logs` postconditions — `path_template` values use trailing-slash form (`/api/v1/alerts/`, `/api/v1/devices/`, `/api/v1/audit_log/get/`); `prism-dtu-claroty` router includes `normalize_path` middleware so both slash-variant forms return 200. Added `devices` table entry (was missing from Claroty spec body; existed in TOML as DTU-grounded route). BC v1.22 → v1.23. |
 | 1.22 | F-LP12R-MED-001 closure burst | 2026-06-01 | product-owner | F-LP12R-MED-001 closure: AQL discriminator divergence flagged in v1.21 as "reported for separate reconciliation — not fixed here" is now CLOSED. The implementation on `feature/S-DEMO-ARMIS-AQL-001` was conformed to `in:devices`/`in:alerts` (the discriminator strings specified in this BC's §Postconditions §1) per impl commit 26267916. Research artifact `.factory/research/armis-aql-discriminator-syntax-2026-06.md` records the disposition: "BC stands; implementation conforms." BC §Postconditions §1 Armis `devices` and `alerts` bullets and §Canonical Test Vectors were already correct and unchanged — no normative content edited. This row closes the open item in v1.21 that would otherwise read as an unresolved finding. |
 | 1.21 | orchestration-correction burst | 2026-06-01 | product-owner | Orchestration correction of premature v1.20 gap-closure. §Postconditions §1 Armis `devices` and `alerts` bullets changed from flat "CLOSED by S-DEMO-ARMIS-AQL-001" to dual-state wording: implementation COMPLETE on `feature/S-DEMO-ARMIS-AQL-001` (`build_router()` anchor per TD-VSDD-091), gap CLOSES on story merge, gap remains OPEN on develop until then. §Known Gaps DTU-EXT-003 and DTU-EXT-004 rows updated to match dual-state form. No other sensor rows (CrowdStrike/Cyberint/Claroty) touched. AQL discriminator strings (`in:devices`/`in:alerts`) preserved as-specified in BC; story-vs-BC discriminator convention divergence (`in:type=Device`/`in:type=Alert` in implementation) reported for separate reconciliation — not fixed here. |
 | 1.20 | F-LP11-MED-001 closure burst | 2026-06-01 | product-owner | F-LP11-MED-001 closure: §Postconditions §1 Armis `devices` and `alerts` bullets updated from deferred/OPEN to CLOSED by S-DEMO-ARMIS-AQL-001. §Known Gaps DTU-EXT-003 and DTU-EXT-004 rows marked CLOSED with resolution summary — `GET /api/v1/search` (AQL-search) registered in `prism-dtu-armis/src/clone.rs` `build_router()` per ADR-031 §D8-a. Volatile line-number citations (`line 143`, `line 150`) replaced with function-name anchor `build_router()` per TD-VSDD-091. No other sensor rows (CrowdStrike/Cyberint/Claroty) touched. |
