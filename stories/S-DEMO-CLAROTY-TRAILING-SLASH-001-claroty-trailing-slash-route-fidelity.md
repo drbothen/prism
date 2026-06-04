@@ -5,14 +5,10 @@ title: "prism-dtu-claroty + claroty.sensor.toml: Trailing-Slash Route Fidelity �
 wave: 5
 epic_id: E-DTU-FIDELITY
 priority: P1
-status: draft
-# BC status: pending PO authorship.
-# behavioral_contracts is empty — this story cannot be set to ready until the PO
-# authors or confirms that existing BCs cover trailing-slash path normalization.
-# Per ADR-031 §D8-b: "No new behavioral contracts. The trailing-slash change is a
-# request-path fidelity fix with no behavioral semantics change."
-# PO should confirm whether BC-2.16.013 (DTU-parity) is sufficient or a new AC is needed.
-version: "1.1"
+status: ready
+# BC-2.16.013 v1.25 authored by PO (D-989 Phase-A burst) — trailing-slash parity clause
+# confirmed; normalize_path middleware requirement documented. S-7.01 gate CLEARED.
+version: "1.2"
 level: "L4"
 producer: story-writer
 timestamp: "2026-05-31T00:00:00Z"
@@ -453,5 +449,6 @@ Well within the 20-30% budget.
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.2 | 2026-06-03 | state-manager | D-990 Phase-A-close: status draft→ready; BC-2.16.013 v1.25 active (PO authored D-989); depends_on S-DEMO-CLAROTY-AUDIT-DTU-001 (SOFT, merged PR #167) SATISFIED; S-7.01 gate CLEARED. |
 | 1.1 | 2026-06-03 | story-writer | Wave-5 Phase-A BC-array propagation burst (D-989). PO authored BC-2.16.013 v1.25 with trailing-slash parity clause + normalize_path middleware requirement for claroty.sensor.toml. Propagated into story: (1) `behavioral_contracts: []` → `[BC-2.16.013]`; Flag 1 CLOSED. (2) Added §Behavioral Contracts table with BC-2.16.013 v1.25 role. (3) ACs updated: AC-001/002/003/004/005 now cite `BC-2.16.013 v1.25 §Postconditions §1` instead of `ADR-031 §D8-b requirement N (pending formal BC authorship)`. AC-003 soft-dep note updated: S-DEMO-CLAROTY-AUDIT-DTU-001 already merged (develop@e1c632dc); stub fallback no longer needed. Version bump 1.0 → 1.1. |
 | 1.0 | 2026-05-31 | story-writer | Initial materialization from [stub] per ADR-031 §D8-b v1.2 reclassification. 5 ACs, 3 Red Gate tests, 3 pts, wave 5, P1. Grounded against crates/prism-dtu-claroty/src/clone.rs (build_router — no normalize_path found), routes/alerts.rs (registered as POST /api/v1/alerts without trailing slash), routes/devices.rs (same pattern), claroty.sensor.toml (Gap-CL-001 comment). Soft dependency on S-DEMO-CLAROTY-AUDIT-DTU-001 for AC-003 explicitly documented with stub-based mitigation. New-BC flag provided to PO for BC-2.16.013 coverage confirmation. |

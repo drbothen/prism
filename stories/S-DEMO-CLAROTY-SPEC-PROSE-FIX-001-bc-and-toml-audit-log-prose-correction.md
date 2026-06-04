@@ -5,13 +5,10 @@ title: "Claroty audit_log spec-prose + TOML-comment fidelity fix — BC-2.16.013
 wave: wave-5-e-demo-fidelity
 epic_id: E-DTU-FIDELITY
 priority: P2
-status: draft
-# BC status: pending PO authorship
-# S-7.01 gate: behavioral_contracts empty → status must remain draft until PO authors BCs.
-# Candidate BCs: BC-2.16.013 (Bundled Sensor Spec Authoring — prose correction is within
-# BC-2.16.013 scope). PO owns BC-2.16.013 edits per Agent Routing Table.
-# PO authorship required before this story can be dispatched.
-version: "1.1"
+status: ready
+# BC-2.16.013 v1.25 authored by PO (D-989 Phase-A burst) including audit_logs §Postconditions §1
+# prose correction (AC-003 PARTIALLY CLOSED by PO). S-7.01 gate CLEARED.
+version: "1.2"
 level: "L1"
 producer: story-writer
 timestamp: "2026-06-01T00:00:00Z"
@@ -308,5 +305,6 @@ No new crate dependencies. This story introduces no Rust code.
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.2 | 2026-06-03 | state-manager | D-990 Phase-A-close: status draft→ready; BC-2.16.013 v1.25 active (PO authored D-989); depends_on S-DEMO-CLAROTY-AUDIT-DTU-001 (merged PR #167) SATISFIED; S-7.01 gate CLEARED. |
 | 1.1 | 2026-06-03 | story-writer | Wave-5 Phase-A BC-array propagation burst (D-989). PO authored BC-2.16.013 v1.25 including the audit_logs §Postconditions §1 prose correction (AC-003 PARTIALLY CLOSED by PO). Propagated into story: (1) `behavioral_contracts: []` → `[BC-2.16.013]`; (2) Added §Behavioral Contracts table with BC-2.16.013 v1.25 role and note that AC-003 prose is already corrected by PO; (3) ACs rewritten: AC-001/002/004 now cite `BC-2.16.013 v1.25 §Postconditions §1`; AC-003 updated to note PARTIALLY CLOSED status and verify-first instruction. Version bump 1.0 → 1.1. |
 | 1.0 | 2026-06-01 | story-writer | Initial stub. Captures scope (TOML audit_logs comment corrections + BC-2.16.013 §Postconditions §1 prose update), gating (depends_on S-DEMO-CLAROTY-AUDIT-DTU-001), PO ownership boundary for BC edits, and finding closure (F-P2-DEFER-001). Status draft pending PO BC authorship per S-7.01. |

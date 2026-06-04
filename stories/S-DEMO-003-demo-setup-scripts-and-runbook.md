@@ -5,8 +5,8 @@ title: "scripts: Demo Setup Scripts + prism-credential-set CLI Subcommand + Oper
 wave: 5
 epic_id: E-DEMO
 priority: P1
-status: draft
-version: "1.0"
+status: ready
+version: "1.1"
 level: "L4"
 producer: story-writer
 timestamp: "2026-05-29T00:00:00Z"
@@ -371,4 +371,5 @@ Smallest story in the E-DEMO epic by token budget. Well within limit.
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.1 | 2026-06-03 | state-manager | D-990 Phase-A-close: status draft→ready; depends_on S-DEMO-001 (merged PR #166) + S-DEMO-002 (merged PR #171) BOTH SATISFIED; BC-2.03.005 v1.6 active + BC-2.03.007 v1.3 active (consumer-ref to draft BC-2.06.001 does not block per PO ruling); S-7.01 gate CLEARED. |
 | 1.0 | 2026-05-29 | story-writer | Initial draft — bundled CLI subcommand per complexity assessment; 4-sensor scope |

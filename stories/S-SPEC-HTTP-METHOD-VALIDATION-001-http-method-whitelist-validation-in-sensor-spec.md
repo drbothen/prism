@@ -5,8 +5,8 @@ title: "prism-spec-engine: HTTP Method Whitelist Validation in Sensor Spec (anch
 wave: wave-5-e-demo-fidelity
 epic_id: E-SPEC-ENGINE
 priority: P2
-status: draft
-version: "1.1"
+status: ready
+version: "1.2"
 level: "L3"
 producer: story-writer
 timestamp: "2026-05-31T18:00:00Z"
@@ -317,5 +317,6 @@ Well within budget. Single-story delivery is straightforward.
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.2 | 2026-06-03 | state-manager | D-990 Phase-A-close: status draft→ready; BC-2.16.009 v1.8 active (PO authored D-989); no depends_on; S-7.01 gate CLEARED. |
 | 1.1 | 2026-06-03 | story-writer | Wave-5 Phase-A BC-array propagation burst (D-989). PO authored BC-2.16.009 v1.8 with §Validation Rules 7 + E-SPEC-025 assigned. Propagated into story: (1) `behavioral_contracts` frontmatter updated with v1.8 commentary; PO flag CLOSED. (2) Added §Behavioral Contracts table with BC-2.16.009 v1.8 role. (3) ACs rewritten: AC-001 cites all 7 whitelist methods + BC-2.16.009 v1.8 §Validation Rules 7; AC-002 cites E-SPEC-025 explicitly (not placeholder) + confirmed message template; AC-003 cites Rule 7 ordering clause + EC-009-019/020. (4) Story-Level Goal updated: E-SPEC-025 confirmed; BC already at v1.8; no PO amendment in this PR. (5) risk_mitigations: E-SPEC-NNN placeholder → E-SPEC-025 CONFIRMED. (6) Tasks 4+11 updated. (7) FSR: BC + taxonomy marked READ ONLY. (8) Previous Story Intelligence: BC v1.6→v1.8. Version bump 1.0 → 1.1. |
 | 1.0 | 2026-05-31 | story-writer | Initial draft — anchors DRIFT-D926-001 per PR #165 M-001/SEC-001 disposition. HTTP-method whitelist validation in validation.rs post env-resolver pass. PO flag: NEW E-SPEC-NNN code required (next available E-SPEC-025 as of 2026-05-31 but PO assigns). Status: draft pending BC-2.16.009 amendment + E-SPEC-NNN code assignment per S-7.01 gate. |

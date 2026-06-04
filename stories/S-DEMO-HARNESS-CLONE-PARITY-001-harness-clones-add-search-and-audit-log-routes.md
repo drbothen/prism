@@ -5,12 +5,10 @@ title: "prism-dtu-harness: Bring In-Process Armis + Claroty Clones to Route Pari
 wave: wave-5-e-demo-fidelity
 epic_id: E-DTU-FIDELITY
 priority: P2
-status: draft
-# BC status: pending PO authorship
-# S-7.01 gate: behavioral_contracts empty → status must remain draft until PO authors BCs.
-# Candidate BCs: BC-2.16.013 (DTU-parity), BC-3.5.001, BC-3.5.002 (harness isolation).
-# PO authorship required before this story can be dispatched.
-version: "1.1"
+status: ready
+# BC-2.16.013 v1.25 authored by PO (D-989 Phase-A burst) with INV-HARNESS-ROUTE-PARITY invariant.
+# S-7.01 gate CLEARED.
+version: "1.2"
 level: "L3"
 producer: story-writer
 timestamp: "2026-06-01T00:00:00Z"
@@ -324,5 +322,6 @@ Version source: workspace `Cargo.toml`. Do not pin independently.
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.2 | 2026-06-03 | state-manager | D-990 Phase-A-close: status draft→ready; BC-2.16.013 v1.25 active (PO authored D-989, INV-HARNESS-ROUTE-PARITY); depends_on S-DEMO-ARMIS-AQL-001 (merged PR #168) + S-DEMO-CLAROTY-AUDIT-DTU-001 (merged PR #167) BOTH SATISFIED; S-7.01 gate CLEARED. |
 | 1.1 | 2026-06-03 | story-writer | Wave-5 Phase-A BC-array propagation burst (D-989). PO authored BC-2.16.013 v1.25 with INV-HARNESS-ROUTE-PARITY invariant governing this story's full scope. Propagated into story: (1) `behavioral_contracts: []` → `[BC-2.16.013]`; status stays draft (depends_on stories both merged, but AC↔BC traces need dispatch-time verification). (2) Added §Behavioral Contracts table with BC-2.16.013 v1.25 + INV-HARNESS-ROUTE-PARITY role. (3) ACs rewritten from INV-HARNESS-ROUTE-PARITY: AC-001 (armis GET /api/v1/search, 403 on missing Bearer), AC-002 (AQL routing, response envelope), AC-003 (claroty POST /api/v1/audit_log/get, 401 on missing Bearer), AC-004 (response envelope), AC-005 (module-doc). Red Gate test names added. (4) Token budget updated to include BC-2.16.013 v1.25 read. Version bump 1.0 → 1.1. |
 | 1.0 | 2026-06-01 | story-writer | Initial stub. Captures scope (armis.rs + claroty.rs route additions), gating (depends_on S-DEMO-ARMIS-AQL-001 + S-DEMO-CLAROTY-AUDIT-DTU-001), and finding closure (F-P6-DEFER-001 + F-P10-LOW-001). Status draft pending PO BC authorship per S-7.01. |

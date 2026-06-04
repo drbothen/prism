@@ -5,8 +5,8 @@ title: "prism-ocsf + sensor TOMLs: Migrate ocsf_class security_finding → detec
 wave: 5
 epic_id: E-DEMO
 priority: P2
-status: draft
-version: "1.1"
+status: ready
+version: "1.2"
 level: "L4"
 producer: story-writer
 timestamp: "2026-06-01T00:00:00Z"
@@ -334,5 +334,6 @@ AC-001 through AC-005 must each cite a specific BC clause before `status: ready`
 
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
+| 1.2 | 2026-06-03 | state-manager | D-990 Phase-A-close: status draft→ready; BC-2.02.012 v1.5 active (PO D-989) + BC-2.01.013 v1.11 active — OCSF-CLASS-MIGRATION-001 "both active" annotation now accurate; depends_on S-DEMO-001 (merged PR #166) SATISFIED; S-7.01 gate CLEARED. |
 | 1.1 | 2026-06-03 | story-writer | Wave-5 Phase-A BC-array propagation burst (D-989). PO authored BC-2.02.012 v1.4 (Option A selected, OQ-1 CLOSED) and BC-2.01.013 v1.10 (transitional alias → 2004, TV-005 corrected). Propagated into story: (1) `behavioral_contracts` frontmatter updated with v1.4/v1.10 commentary. (2) Added §Behavioral Contracts table with BC roles. (3) ACs rewritten from BC postconditions: AC-001 → INV-PRODUCTION-TOML-NO-SECURITY-FINDING; AC-002 → `"detection_finding"` → 2004 no-WARN; AC-003 → `"security_finding"` → 2004 with `ocsf.deprecated_class_alias` WARN (Option A behavior per BC-2.02.012 v1.4); AC-004 → INV-NO-2001-SELECT-PATH; AC-005 → no stale 2001 assertions. (4) §Scope task 2 updated: Option A DECIDED, decision reference recorded. (5) OQ-1/OQ-2 CLOSED in §Gating. (6) §Architecture Compliance Rules updated for v1.4 semantics. (7) Token budget updated. (8) Tasks expanded with 5 Red Gate test names. Version bump 1.0 → 1.1. |
 | 1.0 | 2026-06-01 | story-writer | Initial stub created from OBS-2 (S-DEMO-001 PR #166) architect adjudication D-925. Non-blocking deferral per Canonical Principle Rule 3. |

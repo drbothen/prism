@@ -132,22 +132,22 @@ active_dispatch_set:
     notes: "MERGED PR #166 squash-merged develop@5dd3df02 2026-06-01T17:38:35Z. Story v1.10. LOCAL CONVERGED 3/3 (passes 5/6/7 per BC-5.39.001 D-779). PR-LEVEL CONVERGED 3/3 (passes 2/3/4). Fix-burst 3fc37c7c ALL CR-001..006 + SEC-001..003 CLOSED (EXPECTED 46→49; 3888 pass). POL-14: BC-2.11.005 status draft→active per D-937. S-DEMO-002 unblocked. OCSF-CLASS-MIGRATION-001 depends_on S-DEMO-001 SATISFIED. Cascade CLOSED."
 
   - story_id: S-DEMO-QUERY-PUSHDOWN-001
-    status: draft
+    status: ready
     priority: P2
     points: 5
-    spec_version: "v1.0"
+    spec_version: "v1.1"
     depends_on:
-      - S-DEMO-001  # HARD gate: delivers SpecDrivenSensorAdapter + PipelineExecutor entry points
-    notes: "Registered D-924 (2026-05-31). Follow-up story for F-003-R push-down deferred from S-DEMO-001 keystone. BC-2.01.013 v1.8 Pagination/Push-Down Scope Clause documents the deferral. Blocked on S-DEMO-001 merge. Push-down is an optimization — correctness invariant: result identical with or without push-down (BC-2.11.007)."
+      - S-DEMO-001  # HARD gate — SATISFIED (merged PR #166 develop@5dd3df02)
+    notes: "D-990 2026-06-03: status draft→ready (v1.0→v1.1). BC-2.01.013 v1.11 active + BC-2.11.005 active + BC-2.11.007 active. depends_on S-DEMO-001 SATISFIED. S-7.01 gate CLEARED."
 
   - story_id: OCSF-CLASS-MIGRATION-001
-    status: draft
+    status: ready
     priority: P2
     points: 3
-    spec_version: "v1.0"
+    spec_version: "v1.2"
     depends_on:
-      - S-DEMO-001  # HARD gate — must merge first (establishes conformance test fixture this story updates)
-    notes: "Indexed D-936 2026-06-01. OBS-2 deferral per architect adjudication D-925 + Canonical Principle Rule 3 (intentional transitional: security_finding→class_uid 2001 is correct short-term; OCSF v1.1 deprecates 2001 in favour of detection_finding 2004; migration required but via dedicated story). Scope: migrate 4 production sensor TOMLs ocsf_class 'security_finding'→'detection_finding' + amend BC-2.02.012 (scope no-deprecated-2001 invariant to select() path) + update select_by_class_name mapping + update S-DEMO-001 conformance fixture. BCs pending PO confirmation (BC-2.02.012 + BC-2.01.013 provisional). Blocked on S-DEMO-001 merge. File: OCSF-CLASS-MIGRATION-001-migrate-security-finding-to-detection-finding.md. DEMO-GOAL-REQUIRED per user direction D-941 2026-06-02: prism/DTU deferrals are Wave 5 demo goal tasks (must get done before demo is declared complete)."
+      - S-DEMO-001  # HARD gate — SATISFIED (merged PR #166 develop@5dd3df02)
+    notes: "D-990 2026-06-03: status draft→ready (v1.1→v1.2). BC-2.02.012 v1.5 active (PO D-989) + BC-2.01.013 v1.11 active. Both-active annotation accurate. depends_on S-DEMO-001 SATISFIED. DEMO-GOAL-REQUIRED (D-941)."
 
   - story_id: S-DEMO-002
     status: draft
@@ -160,22 +160,22 @@ active_dispatch_set:
     notes: "3-org multi-sensor E2E smoke. BC-3.2.001 multi-org isolation. TRACKED DEPENDENCY (D-934 2026-06-01): MUST seed query_filters[\"aql\"] in PipelineExecutor FetchContext for Armis end-to-end AQL push-down — architect+implementer confirmed Armis DTU/TOML/${query.filter.aql} interpolation is correctly wired in S-DEMO-ARMIS-AQL-001; production query-layer AQL seeding is S-DEMO-002 scope; scope boundary confirmed, not a defer-pattern violation."
 
   - story_id: S-DEMO-003
-    status: draft
+    status: ready
     priority: P1
     points: 5
-    spec_version: "v1.0"
+    spec_version: "v1.1"
     depends_on:
-      - S-DEMO-001
-      - S-DEMO-002
-    notes: "Setup scripts + prism-credential-set CLI subcommand + operator runbook."
+      - S-DEMO-001  # HARD — SATISFIED (merged PR #166 develop@5dd3df02)
+      - S-DEMO-002  # HARD — SATISFIED (merged PR #171 develop@fdd12251)
+    notes: "D-990 2026-06-03: status draft→ready (v1.0→v1.1). BC-2.03.005 v1.6 active + BC-2.03.007 v1.3 active (F-003 sync). Consumer-ref to draft BC-2.06.001 does not block per PO ruling. depends_on S-DEMO-001+S-DEMO-002 SATISFIED. S-7.01 gate CLEARED."
 
   - story_id: S-5.04-FIX-001
-    status: draft
+    status: merged
     priority: P2
     points: 1
     spec_version: "v1.0"
     depends_on: []
-    notes: "Factory-only depends_on fix (S-5.04 remove superseded S-2.07 ref, add S-DEMO-001)."
+    notes: "LANDED (factory-only) — AC-001+AC-002+AC-003 all satisfied in D-845 burst (S-5.04 frontmatter depends_on [S-5.03,S-DEMO-001], body §Implementation Note, STORY-INDEX row all updated). D-990: confirmed complete. No code PR required (factory-only metadata fix)."
 
   - story_id: S-DEMO-MULTI-TENANT-DTU-001
     status: stub
@@ -195,13 +195,13 @@ active_dispatch_set:
     notes: "STALE DUPLICATE ROW CORRECTED D-988 2026-06-04. MERGED PR #168 develop@eb3416d1 2026-06-02 (D-950 post-merge burst). LOCAL 3/3 CLEAN CONVERGED (passes 1/2/3 new-streak @9243a0d3). PR-LEVEL 3/3 CLEAN CONVERGED (BC-5.39.001 D-779). BC-2.16.013 already active (D-776) — idempotent confirm. Armis lane COMPLETE. AQL seeding is S-DEMO-002 scope. Authoritative entry in in_progress block above. This was a duplicate in_progress row reflecting D-940-era state; corrected to merged per D-950 reality."
 
   - story_id: S-DEMO-CLAROTY-TRAILING-SLASH-001
-    status: draft
+    status: ready
     priority: P1
     points: 3
-    spec_version: "v1.0"
+    spec_version: "v1.2"
     depends_on:
-      - S-DEMO-CLAROTY-AUDIT-DTU-001  # SOFT: AC-003 requires audit_log route present; otherwise route returns 404 regardless of trailing-slash
-    notes: "Reclassified 2026-05-31 D-907: permitted-divergence→required-fidelity per ADR-031 v1.2 (user directive no-scope-compromise; architect commit e57eb5b1). story-writer 2451d025. PO new-BC flag open: BC-2.16.013 trailing-slash-parity coverage (see §New-BC Flags in story file). Must be evaluated before story flips to ready."
+      - S-DEMO-CLAROTY-AUDIT-DTU-001  # SOFT — SATISFIED (merged PR #167 develop@e1c632dc)
+    notes: "D-990 2026-06-03: status draft→ready (v1.1→v1.2). BC-2.16.013 v1.25 active (PO D-989 trailing-slash parity clause). depends_on S-DEMO-CLAROTY-AUDIT-DTU-001 SOFT SATISFIED. S-7.01 gate CLEARED."
 
   - story_id: S-SPEC-ENV-VAR-001
     status: merged
@@ -221,31 +221,31 @@ active_dispatch_set:
     notes: "D-933 2026-06-01: status draft→ready v1.1 (PO adjudication 30111e52: BC-2.16.009 v1.6→v1.7 + BC-2.16.013 v1.18→v1.19; behavioral_contracts [BC-2.16.009, BC-2.16.013] attached per POL-8; story-writer 7b4cf03a body propagated). depends_on S-SPEC-ENV-VAR-001 SATISFIED (PR #165 merged develop@4feec93a 2026-06-01). Reclassified 2026-05-31 D-907: permitted-divergence→required-fidelity per ADR-031 v1.2."
 
   - story_id: S-SPEC-HTTP-METHOD-VALIDATION-001
-    status: draft
+    status: ready
     priority: P2
     points: 3
-    spec_version: "v1.0"
+    spec_version: "v1.2"
     depends_on: []
-    notes: "Registered D-927 (2026-05-31). DRIFT-D926-001 anchor per Canonical Principle Rule 3 — HTTP-method whitelist validation in prism-spec-engine/src/validation.rs returning structured E-SPEC error on invalid step.method value. S-7.01 PO-gate OPEN: BC-2.16.009 amendment + E-SPEC code to be assigned by PO before story transitions to ready. Non-blocking for PR #165 merge (story being registered satisfies the anchor requirement; PO gate clears separately)."
+    notes: "D-990 2026-06-03: status draft→ready (v1.1→v1.2). BC-2.16.009 v1.8 active (PO authored D-989). No depends_on. S-7.01 gate CLEARED. DRIFT-D926-001 anchor resolved."
 
   - story_id: S-DEMO-HARNESS-CLONE-PARITY-001
-    status: draft
+    status: ready
     priority: P2
     points: 3
-    spec_version: "v1.0"
+    spec_version: "v1.2"
     depends_on:
-      - S-DEMO-ARMIS-AQL-001   # HARD — adds GET /api/v1/search to standalone Armis DTU; harness must mirror
-      - S-DEMO-CLAROTY-AUDIT-DTU-001  # HARD — adds POST /api/v1/audit_log/get to standalone Claroty DTU; harness must mirror
-    notes: "INDEXED D-941 2026-06-02 (story-writer commit 3124c327). Closes F-P6-DEFER-001 (harness Armis clone lacks GET /api/v1/search) + F-P10-LOW-001 (harness Claroty clone lacks POST /api/v1/audit_log/get). DEMO-GOAL-REQUIRED per user direction D-941: all prism/DTU deferrals are Wave 5 demo goal tasks (must get done). S-7.01 gate OPEN: BCs pending PO authorship; candidate BCs: BC-2.16.013 + BC-3.5.001 + BC-3.5.002. Must not dispatch until both depends_on stories merge."
+      - S-DEMO-ARMIS-AQL-001   # HARD — SATISFIED (merged PR #168 develop@eb3416d1)
+      - S-DEMO-CLAROTY-AUDIT-DTU-001  # HARD — SATISFIED (merged PR #167 develop@e1c632dc)
+    notes: "D-990 2026-06-03: status draft→ready (v1.1→v1.2). BC-2.16.013 v1.25 active (PO D-989, INV-HARNESS-ROUTE-PARITY). Both depends_on SATISFIED. DEMO-GOAL-REQUIRED (D-941). S-7.01 gate CLEARED."
 
   - story_id: S-DEMO-CLAROTY-SPEC-PROSE-FIX-001
-    status: draft
+    status: ready
     priority: P2
     points: 1
-    spec_version: "v1.0"
+    spec_version: "v1.2"
     depends_on:
-      - S-DEMO-CLAROTY-AUDIT-DTU-001  # HARD — prose corrections are only accurate AFTER Gap-CL-006 is closed
-    notes: "INDEXED D-941 2026-06-02 (story-writer commit 3124c327). Closes F-P2-DEFER-001 (stale BC-2.16.013 §Postconditions §1 audit_logs prose + claroty.sensor.toml stale DTU-gap comments; deferred from Claroty PR-LEVEL code-review CR-001 as PO-scope out-of-perimeter). DEMO-GOAL-REQUIRED per user direction D-941. BC-2.16.013 amendment is PO-owned (Agent Routing Table — behavioral contracts → product-owner). S-7.01 gate OPEN: BCs pending PO authorship. Must not dispatch until S-DEMO-CLAROTY-AUDIT-DTU-001 merges."
+      - S-DEMO-CLAROTY-AUDIT-DTU-001  # HARD — SATISFIED (merged PR #167 develop@e1c632dc)
+    notes: "D-990 2026-06-03: status draft→ready (v1.1→v1.2). BC-2.16.013 v1.25 active (PO D-989, AC-003 PARTIALLY CLOSED by PO). depends_on S-DEMO-CLAROTY-AUDIT-DTU-001 SATISFIED. DEMO-GOAL-REQUIRED (D-941). S-7.01 gate CLEARED."
 
   - story_id: S-DEMO-CI-E2E-001
     status: superseded
@@ -295,9 +295,9 @@ deferred_post_demo:
   # reclassification from permitted-divergence → required-fidelity; user directive no-scope-compromise).
 
 prereq_artifacts:
-  story_index: .factory/stories/STORY-INDEX.md         # v2.272 after D-987 burst (179 stories; S-DEMO-002 v2.6 MERGED PR #171 develop@fdd12251)
-  bc_index: .factory/specs/behavioral-contracts/BC-INDEX.md  # v5.79 (BC-2.11.001+BC-2.11.007+BC-3.2.001 promoted draft→active D-987)
-  state: .factory/STATE.md                              # v7.637 after D-987 burst
+  story_index: .factory/stories/STORY-INDEX.md         # v2.274 after D-990 burst (179 stories; 8 stories draft→ready; S-5.04-FIX-001 LANDED)
+  bc_index: .factory/specs/behavioral-contracts/BC-INDEX.md  # v5.80 (F-003 status sync + version reconciliation; active 234, draft 3)
+  state: .factory/STATE.md                              # v7.640 after D-990 burst
   governing_adr: .factory/specs/architecture/decisions/ADR-031-dtu-equals-true-dtu-fidelity-principle.md  # v1.2 (ADR-031 architect e57eb5b1 reclassified 3 divergences)
   governing_audit: .factory/proposals/POLLER-DTU-FIDELITY-AUDIT-2026-05-29.md  # v1.1
 

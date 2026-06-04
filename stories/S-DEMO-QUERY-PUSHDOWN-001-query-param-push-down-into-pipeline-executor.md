@@ -5,8 +5,8 @@ title: "prism-spec-engine: Thread QueryParams push-down (limit/cursor/time-windo
 wave: wave-5-e-demo-fidelity
 epic_id: E-DEMO
 priority: P2
-status: draft
-version: "1.0"
+status: ready
+version: "1.1"
 level: "L3"
 producer: story-writer
 revised_by: null
@@ -341,4 +341,5 @@ Well within the 20-30% budget. Single-story delivery is viable.
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.1 | 2026-06-03 | state-manager | D-990 Phase-A-close: status draft→ready; depends_on S-DEMO-001 SATISFIED (merged PR #166); BC-2.01.013 v1.11 active + BC-2.11.005 active + BC-2.11.007 active — S-7.01 gate CLEARED. |
 | 1.0 | 2026-05-31 | story-writer | Initial draft — created per S-DEMO-001 v1.5 AC-010 scope note and BC-2.01.013 v1.8 Pagination/Push-Down Scope Clause (D-924). Scope: thread FetchContext push-down fields (cursor/limit/start_time/end_time) from SpecDrivenSensorAdapter::fetch() into PipelineExecutor build_request(). P2 non-blocking — correctness holds via DataFusion post-materialization. |
