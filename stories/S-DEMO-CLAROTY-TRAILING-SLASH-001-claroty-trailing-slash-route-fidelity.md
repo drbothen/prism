@@ -12,7 +12,7 @@ status: draft
 # Per ADR-031 §D8-b: "No new behavioral contracts. The trailing-slash change is a
 # request-path fidelity fix with no behavioral semantics change."
 # PO should confirm whether BC-2.16.013 (DTU-parity) is sufficient or a new AC is needed.
-version: "1.0"
+version: "1.1"
 level: "L4"
 producer: story-writer
 timestamp: "2026-05-31T00:00:00Z"
@@ -28,8 +28,20 @@ subsystems: [SS-01, SS-16]
 crates_touched: [prism-dtu-claroty, prism-sensors]
 target_module: prism-dtu-claroty
 capabilities: [CAP-001, CAP-029]
-behavioral_contracts: []
-# BC status: pending PO authorship confirmation (see §New-BC Flags).
+behavioral_contracts:
+  - BC-2.16.013  # Bundled Sensor Spec Authoring and DTU-Parity Verification — v1.25.
+                 # §Postconditions §1 claroty.sensor.toml spec now specifies trailing-slash
+                 # path_template form (S-DEMO-CLAROTY-TRAILING-SLASH-001) + normalize_path
+                 # middleware clause for prism-dtu-claroty router. INV-HARNESS-ROUTE-PARITY
+                 # does not directly govern this story (harness clone changes are in
+                 # S-DEMO-HARNESS-CLONE-PARITY-001), but the trailing-slash parity clause
+                 # for the standalone DTU is part of BC-2.16.013 §Postconditions §1.
+                 # PO confirmed BC-2.16.013 coverage is sufficient per BC-2.16.013 v1.25
+                 # (Wave-5 Phase-A PO burst 2026-06-03): Flag 1 CLOSED.
+# BC status: BC-2.16.013 is active (lifecycle_status: active — auto-promoted at
+# PLUGIN-MIGRATION-001-D merge D-776). S-7.01 gate CLEARED: behavioral_contracts
+# is non-empty with active BC. Status may transition to ready once AC↔BC bidirectional
+# traces are verified at dispatch.
 verification_properties:
   - VP-148  # DTU parity — parity test confirms trailing-slash POST returns 200, not 301/404.
 depends_on:
@@ -169,22 +181,21 @@ After this story merges:
 
 ## Behavioral Contracts
 
-| BC ID | Title | Role in This Story |
-|-------|-------|-------------------|
-| (pending PO confirmation) | DTU-Parity and Trailing-Slash Path Fidelity | Per ADR-031 §D8-b: "No new behavioral contracts. The trailing-slash change is a request-path fidelity fix with no behavioral semantics change." PO should confirm whether BC-2.16.013 (Bundled Sensor Spec Authoring and DTU-Parity Verification) covers trailing-slash path parity or requires a new AC. |
+| BC ID | Version | Title | Role in This Story |
+|-------|---------|-------|-------------------|
+| BC-2.16.013 | v1.25 | Bundled Sensor Spec Authoring and DTU-Parity Verification | §Postconditions §1 `claroty.sensor.toml` spec now specifies trailing-slash path_template form (`/api/v1/alerts/`, `/api/v1/devices/`, `/api/v1/audit_log/get/`) and the normalize_path middleware clause for prism-dtu-claroty. AC-001 through AC-004 implement these postconditions. |
 
-This story's `behavioral_contracts: []` is intentional per Spec-First Gate S-7.01 —
-status remains `draft` until PO authors or confirms coverage.
+BC-2.16.013 coverage is sufficient per PO confirmation in Wave-5 Phase-A burst (2026-06-03).
+Flag 1 CLOSED. No new BC required for trailing-slash path fidelity.
 
 ---
 
 ## New-BC Flags for Product-Owner
 
-Flag 1 (CONFIRM): Does BC-2.16.013 (Bundled Sensor Spec Authoring and DTU-Parity
-Verification) already cover trailing-slash path fidelity as a parity assertion, or does it
-need a new postcondition/invariant? Per ADR-031 §D8-b, no new BC is required — the
-trailing-slash fix is a path fidelity change with no behavioral semantics change. PO
-should confirm BC-2.16.013 coverage is sufficient to close this story's status=ready gate.
+Flag 1 (CONFIRM): **CLOSED** — PO confirmed BC-2.16.013 v1.25 covers trailing-slash path
+fidelity. §Postconditions §1 for claroty.sensor.toml was updated in the Wave-5 Phase-A PO
+burst to explicitly specify the trailing-slash `path_template` form and the normalize_path
+middleware requirement. No new BC is needed.
 
 ---
 
@@ -195,8 +206,8 @@ A `POST /api/v1/alerts/` request with a valid `Authorization: Bearer {non-empty}
 to a running `ClarotyClone` returns HTTP 200 with the alerts fixture data. It does NOT
 return 301 (redirect) or 404 (route not found). This proves the DTU accepts the trailing-slash
 form that the real Claroty xDome API requires.
-(traces to ADR-031 §D8-b requirement 3 — parity test must assert trailing-slash POSTs
-return 200; pending formal BC authorship)
+(traces to BC-2.16.013 v1.25 §Postconditions §1 — claroty.sensor.toml `alerts` table
+uses trailing-slash path_template `/api/v1/alerts/`; DTU normalize_path middleware accepts both forms)
 
 Red Gate test: `test_claroty_trailing_slash_alerts_returns_200`
 
@@ -204,21 +215,21 @@ Red Gate test: `test_claroty_trailing_slash_alerts_returns_200`
 A `POST /api/v1/devices/` request with a valid `Authorization: Bearer {non-empty}` header
 to a running `ClarotyClone` returns HTTP 200 with the devices fixture data. It does NOT
 return 301 or 404.
-(traces to ADR-031 §D8-b requirement 3)
+(traces to BC-2.16.013 v1.25 §Postconditions §1 — claroty.sensor.toml `devices` table
+uses trailing-slash path_template `/api/v1/devices/`; DTU normalize_path middleware accepts both forms)
 
 Red Gate test: `test_claroty_trailing_slash_devices_returns_200`
 
 ### AC-003: POST /api/v1/audit_log/get/ (trailing slash) returns 200 (soft dep on S-DEMO-CLAROTY-AUDIT-DTU-001)
 A `POST /api/v1/audit_log/get/` request with a valid `Authorization: Bearer {non-empty}`
-header to a running `ClarotyClone` returns HTTP 200. If `S-DEMO-CLAROTY-AUDIT-DTU-001`
-has not merged (the `/api/v1/audit_log/get` route does not exist), this AC is written against
-a stub that registers `/api/v1/audit_log/get` returning `{"audit_log": [], "total": 0}`.
-The stub approach is explicitly permitted as a test vehicle. This AC MUST NOT be a hard
-wave-gate block — it is a soft dependency: the trailing-slash normalization can be verified
-independently of the route's existence via the stub.
-Code comment required in the test: `// Soft dep: S-DEMO-CLAROTY-AUDIT-DTU-001 must merge
-// before this test exercises the real audit_log handler; stub used for trailing-slash verification.`
-(traces to ADR-031 §D8-b requirement 3 — all three endpoints must accept trailing-slash form)
+header to a running `ClarotyClone` returns HTTP 200. S-DEMO-CLAROTY-AUDIT-DTU-001 is
+already merged (develop@e1c632dc), so the real `/api/v1/audit_log/get` route exists. The
+stub fallback is still documented for completeness but is no longer needed.
+Code comment required in the test: `// S-DEMO-CLAROTY-AUDIT-DTU-001 merged develop@e1c632dc;
+// real audit_log handler available; trailing-slash normalization verified against production handler.`
+(traces to BC-2.16.013 v1.25 §Postconditions §1 — claroty.sensor.toml `audit_logs` table
+uses trailing-slash path_template `/api/v1/audit_log/get/`; DTU normalize_path middleware
+accepts both forms; Gap-CL-006 CLOSED by S-DEMO-CLAROTY-AUDIT-DTU-001)
 
 Red Gate test: `test_claroty_trailing_slash_audit_log_get_returns_200`
 
@@ -229,7 +240,8 @@ Red Gate test: `test_claroty_trailing_slash_audit_log_get_returns_200`
 - `audit_logs` table `fetch_audit_logs` step: `path_template = "/api/v1/audit_log/get/"` (was `"/api/v1/audit_log/get"`)
 The Gap-CL-001 comment in the TOML is updated to mark the gap as CLOSED by this story.
 A spec load test verifies no parse errors after the update.
-(traces to ADR-031 §D8-b requirement 1 — TOML path_template values must include trailing slashes)
+(traces to BC-2.16.013 v1.25 §Postconditions §1 — TOML path_template values in trailing-slash form
+match the real Claroty xDome API; grounding authority: ADR-028 §D1 — paths derived from DTU routes)
 
 ### AC-005: Existing non-trailing-slash routes and /dtu/* routes unaffected
 After adding normalize_path middleware, all existing DTU tests pass without modification.
@@ -238,7 +250,8 @@ Specifically:
   normalizes BOTH trailing-slash and no-trailing-slash to the same route).
 - `POST /dtu/configure`, `POST /dtu/reset`, `GET /dtu/health` all return their expected
   responses (normalize_path does not disrupt control-plane routes).
-(traces to ADR-031 §D8-b note — existing Axum behavior must be verified by a test)
+(traces to BC-2.16.013 v1.25 §Postconditions §1 — normalize_path middleware MUST NOT
+break existing routes; ADR-031 §D8-b backward-compatibility note)
 
 ---
 
@@ -440,4 +453,5 @@ Well within the 20-30% budget.
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.1 | 2026-06-03 | story-writer | Wave-5 Phase-A BC-array propagation burst (D-989). PO authored BC-2.16.013 v1.25 with trailing-slash parity clause + normalize_path middleware requirement for claroty.sensor.toml. Propagated into story: (1) `behavioral_contracts: []` → `[BC-2.16.013]`; Flag 1 CLOSED. (2) Added §Behavioral Contracts table with BC-2.16.013 v1.25 role. (3) ACs updated: AC-001/002/003/004/005 now cite `BC-2.16.013 v1.25 §Postconditions §1` instead of `ADR-031 §D8-b requirement N (pending formal BC authorship)`. AC-003 soft-dep note updated: S-DEMO-CLAROTY-AUDIT-DTU-001 already merged (develop@e1c632dc); stub fallback no longer needed. Version bump 1.0 → 1.1. |
 | 1.0 | 2026-05-31 | story-writer | Initial materialization from [stub] per ADR-031 §D8-b v1.2 reclassification. 5 ACs, 3 Red Gate tests, 3 pts, wave 5, P1. Grounded against crates/prism-dtu-claroty/src/clone.rs (build_router — no normalize_path found), routes/alerts.rs (registered as POST /api/v1/alerts without trailing slash), routes/devices.rs (same pattern), claroty.sensor.toml (Gap-CL-001 comment). Soft dependency on S-DEMO-CLAROTY-AUDIT-DTU-001 for AC-003 explicitly documented with stub-based mitigation. New-BC flag provided to PO for BC-2.16.013 coverage confirmation. |

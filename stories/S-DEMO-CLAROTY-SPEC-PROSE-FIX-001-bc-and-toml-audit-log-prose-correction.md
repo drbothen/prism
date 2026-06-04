@@ -11,7 +11,7 @@ status: draft
 # Candidate BCs: BC-2.16.013 (Bundled Sensor Spec Authoring — prose correction is within
 # BC-2.16.013 scope). PO owns BC-2.16.013 edits per Agent Routing Table.
 # PO authorship required before this story can be dispatched.
-version: "1.0"
+version: "1.1"
 level: "L1"
 producer: story-writer
 timestamp: "2026-06-01T00:00:00Z"
@@ -26,8 +26,19 @@ subsystems: [SS-16, SS-17]
 crates_touched: [prism-sensors]
 # Also amends: .factory/specs/behavioral-contracts/BC-2.16.013*.md (PO-owned edit)
 target_module: prism-sensors
-behavioral_contracts: []
-# BC status: pending PO authorship
+behavioral_contracts:
+  - BC-2.16.013  # Bundled Sensor Spec Authoring and DTU-Parity Verification — v1.25.
+                 # §Postconditions §1 audit_logs clause now reads: POST /api/v1/audit_log/get;
+                 # DTU route registered by S-DEMO-CLAROTY-AUDIT-DTU-001 (Gap-CL-006 CLOSED).
+                 # The PO corrected the prose in the Wave-5 Phase-A burst (2026-06-03) as part
+                 # of BC-2.16.013 v1.25. This story closes the residual TOML comment cleanup
+                 # (F-P2-DEFER-001) that the PO prose correction did not address (TOML comment
+                 # lines are implementer scope, not PO scope). BC-2.16.013 is active.
+# BC status: BC-2.16.013 v1.25 is active (lifecycle_status: active — auto-promoted D-776).
+# S-7.01 gate CLEARED: behavioral_contracts is non-empty with active BC.
+# NOTE: AC-003 (BC-2.16.013 §Postconditions §1 prose correction) is now PARTIALLY CLOSED
+# by the PO's Wave-5 Phase-A burst (BC-2.16.013 v1.25 updated the audit_logs clause).
+# The remaining scope is the TOML comment cleanup (AC-001/AC-002/AC-004) — implementer work.
 verification_properties: []
 depends_on:
   - S-DEMO-CLAROTY-AUDIT-DTU-001
@@ -147,39 +158,44 @@ The PO must also bump the BC version and update the BC-INDEX row for BC-2.16.013
 
 ## Behavioral Contracts
 
-Pending PO authorship. Candidate:
-
-| BC (candidate) | Title | Why relevant |
-|----------------|-------|-------------|
-| BC-2.16.013 | Bundled Sensor Spec Authoring and DTU-Parity Verification | The prose correction is within BC-2.16.013's scope — it documents DTU route registration status, which is the subject of that BC. |
-
-PO must author canonical BCs and set `behavioral_contracts:` before `status: ready`.
+| BC ID | Version | Title | Role in This Story |
+|-------|---------|-------|-------------------|
+| BC-2.16.013 | v1.25 | Bundled Sensor Spec Authoring and DTU-Parity Verification | §Postconditions §1 audit_logs clause was corrected by PO in Wave-5 Phase-A burst (2026-06-03) to read `POST /api/v1/audit_log/get; DTU route registered by S-DEMO-CLAROTY-AUDIT-DTU-001 (Gap-CL-006 CLOSED)`. AC-003 of this story (BC prose correction) is PARTIALLY satisfied by that PO edit — the BC now reflects the correct state. The remaining work is TOML comment cleanup (AC-001, AC-002, AC-004 — implementer scope). |
 
 ---
 
-## Acceptance Criteria (stub — expand after BC authorship)
+## Acceptance Criteria
 
 ### AC-001: Stale "DTU gap" comments removed from claroty.sensor.toml
 `crates/prism-sensors/specs/claroty.sensor.toml` contains no comment lines with
 `"DTU gap"`, `"no /api/v1/audit_log/get route"`, or `"404 until DTU route lands"` in
 the audit_logs table block.
-(traces to BC-TBD — pending PO authorship)
+(traces to BC-2.16.013 v1.25 §Postconditions §1 — audit_logs clause now reads `POST /api/v1/audit_log/get;
+DTU route registered by S-DEMO-CLAROTY-AUDIT-DTU-001 (Gap-CL-006 CLOSED)`. Stale comments
+contradict the current BC-2.16.013 postcondition and must be removed.)
 
 ### AC-002: Gap-CL-006 closure comment present in claroty.sensor.toml
 The audit_logs table block in `claroty.sensor.toml` contains a comment line with
 `"Gap-CL-006 CLOSED"` and a reference to `S-DEMO-CLAROTY-AUDIT-DTU-001`.
-(traces to BC-TBD)
+(traces to BC-2.16.013 v1.25 §Postconditions §1 — prose accurately reflects closed gap)
 
-### AC-003: BC-2.16.013 §Postconditions §1 audit_logs prose updated (PO-owned)
-BC-2.16.013 §Postconditions §1 audit_logs clause no longer reads "No DTU route registered."
-The updated clause references `POST /api/v1/audit_log/get` and cites Gap-CL-006 CLOSED.
-BC version is bumped and BC-INDEX row updated.
-(traces to BC-TBD — PO owns this edit)
+### AC-003: BC-2.16.013 §Postconditions §1 audit_logs prose — PARTIALLY CLOSED by PO
+**Status: PARTIALLY CLOSED.** BC-2.16.013 v1.25 (Wave-5 Phase-A PO burst 2026-06-03)
+already corrected the audit_logs §Postconditions §1 clause to read `POST /api/v1/audit_log/get;
+DTU route registered by S-DEMO-CLAROTY-AUDIT-DTU-001 (Gap-CL-006 CLOSED)`. The BC version
+was bumped to v1.25 and BC-INDEX was updated in the same burst.
+
+The implementer MUST verify that BC-2.16.013 v1.25 §Postconditions §1 contains the corrected
+prose before closing this AC. If the prose in the committed BC file already reflects the
+correct state, no further PO amendment is needed.
+(traces to BC-2.16.013 v1.25 §Postconditions §1 — audit_logs clause is the canonical source
+of truth for this story's prose correction obligation)
 
 ### AC-004: No functional TOML content changed
 `claroty.sensor.toml` audit_logs `[[tables.steps]]` path_template, method, response_path,
 and column declarations are identical before and after this story (comments only).
-(traces to BC-TBD)
+(traces to BC-2.16.013 v1.25 §Postconditions §1 — TOML functional content already correct
+per earlier Gap-CL-002 fix; only comment lines are in scope for this story)
 
 ---
 
@@ -292,4 +308,5 @@ No new crate dependencies. This story introduces no Rust code.
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.1 | 2026-06-03 | story-writer | Wave-5 Phase-A BC-array propagation burst (D-989). PO authored BC-2.16.013 v1.25 including the audit_logs §Postconditions §1 prose correction (AC-003 PARTIALLY CLOSED by PO). Propagated into story: (1) `behavioral_contracts: []` → `[BC-2.16.013]`; (2) Added §Behavioral Contracts table with BC-2.16.013 v1.25 role and note that AC-003 prose is already corrected by PO; (3) ACs rewritten: AC-001/002/004 now cite `BC-2.16.013 v1.25 §Postconditions §1`; AC-003 updated to note PARTIALLY CLOSED status and verify-first instruction. Version bump 1.0 → 1.1. |
 | 1.0 | 2026-06-01 | story-writer | Initial stub. Captures scope (TOML audit_logs comment corrections + BC-2.16.013 §Postconditions §1 prose update), gating (depends_on S-DEMO-CLAROTY-AUDIT-DTU-001), PO ownership boundary for BC edits, and finding closure (F-P2-DEFER-001). Status draft pending PO BC authorship per S-7.01. |

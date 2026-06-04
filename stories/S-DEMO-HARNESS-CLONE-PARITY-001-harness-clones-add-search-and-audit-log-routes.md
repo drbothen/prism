@@ -10,7 +10,7 @@ status: draft
 # S-7.01 gate: behavioral_contracts empty → status must remain draft until PO authors BCs.
 # Candidate BCs: BC-2.16.013 (DTU-parity), BC-3.5.001, BC-3.5.002 (harness isolation).
 # PO authorship required before this story can be dispatched.
-version: "1.0"
+version: "1.1"
 level: "L3"
 producer: story-writer
 timestamp: "2026-06-01T00:00:00Z"
@@ -22,8 +22,18 @@ subsystems: [SS-17]
 #   (armis.rs and claroty.rs inside prism-dtu-harness), not in the standalone DTU crates.
 crates_touched: [prism-dtu-harness]
 target_module: prism-dtu-harness
-behavioral_contracts: []
-# BC status: pending PO authorship
+behavioral_contracts:
+  - BC-2.16.013  # Bundled Sensor Spec Authoring and DTU-Parity Verification — v1.25.
+                 # INV-HARNESS-ROUTE-PARITY (added in Wave-5 Phase-A PO burst 2026-06-03):
+                 # prism-dtu-harness clones MUST expose the same HTTP route surface as
+                 # their corresponding standalone prism-dtu-* crates. Specifically:
+                 # - armis::router() MUST include GET /api/v1/search after S-DEMO-ARMIS-AQL-001 merges
+                 # - claroty::router() MUST include POST /api/v1/audit_log/get after S-DEMO-CLAROTY-AUDIT-DTU-001 merges
+                 # Auth model: Armis→403, Claroty→401. Response envelopes per BC-2.16.013 v1.25.
+                 # BC-2.16.013 is active (lifecycle_status: active — auto-promoted at PLUGIN-MIGRATION-001-D merge D-776).
+# BC status: BC-2.16.013 is active. S-7.01 gate CLEARED: behavioral_contracts non-empty
+# with active BC. Status may transition to ready once AC↔BC bidirectional traces are
+# verified at dispatch and both depends_on stories are merged.
 verification_properties: []
 depends_on:
   - S-DEMO-ARMIS-AQL-001
@@ -130,44 +140,59 @@ File: `crates/prism-dtu-harness/src/clones/claroty.rs`
 
 ## Behavioral Contracts
 
-Pending PO authorship. Candidate BCs:
-
-| BC (candidate) | Title | Why relevant |
-|----------------|-------|-------------|
-| BC-2.16.013 | Bundled Sensor Spec Authoring and DTU-Parity Verification | Harness clone route parity is a DTU-parity surface |
-| BC-3.5.001 | Multi-tenant Harness Test Isolation | Harness tests depend on in-process clones having correct route surfaces |
-| BC-3.5.002 | Harness Logical Isolation | Same as above |
-
-PO must author canonical BCs and set `behavioral_contracts:` before `status: ready`.
+| BC ID | Version | Title | Role in This Story |
+|-------|---------|-------|-------------------|
+| BC-2.16.013 | v1.25 | Bundled Sensor Spec Authoring and DTU-Parity Verification | INV-HARNESS-ROUTE-PARITY (added Wave-5 Phase-A PO burst 2026-06-03) governs this story's complete scope: harness armis clone MUST include `GET /api/v1/search`; harness claroty clone MUST include `POST /api/v1/audit_log/get`; auth model per sensor (Armis→403, Claroty→401); response envelopes must match standalone DTU. AC-001 through AC-005 implement INV-HARNESS-ROUTE-PARITY. |
 
 ---
 
-## Acceptance Criteria (stub — expand after BC authorship)
+## Acceptance Criteria
 
 ### AC-001: Armis harness clone registers GET /api/v1/search
 `crates/prism-dtu-harness/src/clones/armis.rs::router()` includes a handler for
-`GET /api/v1/search`. A request returns 200 with `Bearer` token; 403 without.
-(traces to BC-TBD DTU-parity — pending PO authorship)
+`GET /api/v1/search`. A request with a valid `Authorization: Bearer {non-empty}` header
+returns 200. A request with no/invalid Bearer returns 403 (Armis auth model per BC-2.16.013
+v1.25 INV-HARNESS-ROUTE-PARITY — Armis returns 403, NOT 401).
+(traces to BC-2.16.013 v1.25 INV-HARNESS-ROUTE-PARITY — armis::router() MUST include
+GET /api/v1/search; Armis auth model: 403 on missing/invalid Bearer)
+
+Red Gate test: `test_armis_harness_search_returns_200_with_bearer_403_without`
 
 ### AC-002: Armis harness clone AQL routing matches standalone
-`GET /api/v1/search?aql=in:type=Device` returns device records; `in:type=Alert` returns
-alert records. Response envelope `{"data": {"results": [...], "total": N}}`.
-(traces to BC-TBD)
+`GET /api/v1/search?aql=in:devices` returns device records; `GET /api/v1/search?aql=in:alerts`
+returns alert records. Response envelope `{"data": {"results": [...], "total": N}}` matching
+standalone `prism-dtu-armis` clone (BC-2.16.013 v1.25 INV-HARNESS-ROUTE-PARITY response
+envelope shape requirement).
+(traces to BC-2.16.013 v1.25 INV-HARNESS-ROUTE-PARITY — Armis search response envelope:
+`{"data": {"results": [...], "total": N}}`)
+
+Red Gate test: `test_armis_harness_search_aql_in_devices_returns_device_records`
 
 ### AC-003: Claroty harness clone registers POST /api/v1/audit_log/get
 `crates/prism-dtu-harness/src/clones/claroty.rs::router()` includes a handler for
-`POST /api/v1/audit_log/get`. Returns 200 with `Bearer` token; 401 without.
-(traces to BC-TBD DTU-parity — pending PO authorship)
+`POST /api/v1/audit_log/get`. A request with a valid `Authorization: Bearer {non-empty}`
+header returns 200. A request with no/invalid Bearer returns 401 (Claroty auth model per
+BC-2.16.013 v1.25 INV-HARNESS-ROUTE-PARITY — Claroty returns 401, NOT 403).
+(traces to BC-2.16.013 v1.25 INV-HARNESS-ROUTE-PARITY — claroty::router() MUST include
+POST /api/v1/audit_log/get; Claroty auth model: 401 on missing/invalid Bearer)
+
+Red Gate test: `test_claroty_harness_audit_log_returns_200_with_bearer_401_without`
 
 ### AC-004: Claroty harness clone audit_log response matches standalone
 Response envelope `{"audit_log": [...], "total": N}` where `audit_log` is non-empty and
 all 5 TOML-declared columns are present in each entry (id, action, actor, timestamp, resource).
-(traces to BC-TBD)
+This matches the standalone `prism-dtu-claroty` response shape per BC-2.16.013 v1.25
+INV-HARNESS-ROUTE-PARITY response envelope requirement.
+(traces to BC-2.16.013 v1.25 INV-HARNESS-ROUTE-PARITY — Claroty audit_log response:
+`{"audit_log": [...], "total": N}`)
+
+Red Gate test: `test_claroty_harness_audit_log_response_envelope_matches_standalone`
 
 ### AC-005: Module-doc route tables updated
 Both `armis.rs` and `claroty.rs` module-doc route inventory tables list the new routes.
-No undocumented routes.
-(traces to BC-TBD)
+No undocumented routes. Route parity with standalone DTU routes verified by inspection.
+(traces to BC-2.16.013 v1.25 INV-HARNESS-ROUTE-PARITY — "route parity is verified by
+multi-tenant harness tests (BC-3.5.001/BC-3.5.002 consumers)")
 
 ---
 
@@ -203,8 +228,8 @@ Architecture section references:
 | `crates/prism-dtu-harness/src/clones/armis.rs` (existing) | ~2,500 |
 | `crates/prism-dtu-harness/src/clones/claroty.rs` (existing) | ~2,500 |
 | Standalone DTU route handlers (pattern reference: ~2 files) | ~4,000 |
-| BC files (pending PO authorship) | ~0 (TBD) |
-| **Total estimate** | **~11,000 tokens** |
+| BC-2.16.013 v1.25 (INV-HARNESS-ROUTE-PARITY section) | ~3,000 |
+| **Total estimate** | **~14,000 tokens** |
 
 Well within 20-30% of agent context window. No split needed.
 
@@ -299,4 +324,5 @@ Version source: workspace `Cargo.toml`. Do not pin independently.
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.1 | 2026-06-03 | story-writer | Wave-5 Phase-A BC-array propagation burst (D-989). PO authored BC-2.16.013 v1.25 with INV-HARNESS-ROUTE-PARITY invariant governing this story's full scope. Propagated into story: (1) `behavioral_contracts: []` → `[BC-2.16.013]`; status stays draft (depends_on stories both merged, but AC↔BC traces need dispatch-time verification). (2) Added §Behavioral Contracts table with BC-2.16.013 v1.25 + INV-HARNESS-ROUTE-PARITY role. (3) ACs rewritten from INV-HARNESS-ROUTE-PARITY: AC-001 (armis GET /api/v1/search, 403 on missing Bearer), AC-002 (AQL routing, response envelope), AC-003 (claroty POST /api/v1/audit_log/get, 401 on missing Bearer), AC-004 (response envelope), AC-005 (module-doc). Red Gate test names added. (4) Token budget updated to include BC-2.16.013 v1.25 read. Version bump 1.0 → 1.1. |
 | 1.0 | 2026-06-01 | story-writer | Initial stub. Captures scope (armis.rs + claroty.rs route additions), gating (depends_on S-DEMO-ARMIS-AQL-001 + S-DEMO-CLAROTY-AUDIT-DTU-001), and finding closure (F-P6-DEFER-001 + F-P10-LOW-001). Status draft pending PO BC authorship per S-7.01. |
