@@ -16,13 +16,13 @@ active_dispatch_set:
   - story_id: S-DEMO-002
     status: ready
     priority: P0
-    points: 11
-    spec_version: "v2.1"
+    points: 13
+    spec_version: "v2.2"
     lane: "1-of-3"
-    dispatch_status: "D-980 (2026-06-03) — PR-LEVEL pass-3 fix-burst COMPLETE @0dbe72a0. HIGH-001 CLOSED (story+e2e.yml reconciled: job 'E2E smoke', ubuntu-latest, PR+push[develop,main]+workflow_dispatch, NO cron, timeout 45; PO @5e16cdb9 + devops @0dbe72a0; actionlint clean). HIGH-002 CLOSED (retries=1 added by implementer @1f7f447e). MED-001 CLOSED (prism-credentials + FSR/token rows). MED-002 CLOSED (run-ignored='all' struck). MED-003 CLOSED (Tier-4 Err split+2 tests @1f7f447e). CI I-1/I-2/I-3/S-1/S-4 applied @0dbe72a0. DEFER-CI-WORKFLOW-SPEC-DRIFT-001 logged. RELEASE e2e 13/13 GREEN; just check GREEN. NEXT: PR-LEVEL adversary re-cascade (streak 0/3). [Prior D-979: e2e-CI-job build-out @6a8becfb. D-975: LOCAL 3/3 CONVERGED @6081d42a. D-970: Option-A per-client creds @29ea62df]."
-    entry_point: "PR-LEVEL adversary re-cascade on PR #171 HEAD 0dbe72a0 → 3-CLEAN (BC-5.39.001) → merge"
+    dispatch_status: "D-981 (2026-06-03) — P04-MED-001 body-pin CLOSED @04178882. PO body-pin sweep: H1 Points 11→13 + version field v2.1→v2.2; all 13 canonical pins consistent. DEFER-SS22-LABEL-DRIFT-001 + DEFER-CLAUDEMD-BC216002-MISLABEL-001 logged (pre-existing; non-blocking). NEXT: PR-LEVEL adversary pass-5 re-cascade (streak 0/3). [D-980: HIGH-001/002+MED-001/002/003+CI-workflow-analyzer CLOSED @0dbe72a0. D-979: e2e-CI-job build-out @6a8becfb. D-975: LOCAL 3/3 CONVERGED @6081d42a. D-970: Option-A per-client creds @29ea62df]."
+    entry_point: "PR-LEVEL adversary pass-5 re-cascade on PR #171 HEAD f2911f1f; story v2.2 @04178882 → 3-CLEAN (BC-5.39.001) → merge"
     worktree_path: ".worktrees/S-DEMO-002"
-    code_head: "0dbe72a0"
+    code_head: "f2911f1f"
     branch: "feature/S-DEMO-002"
     tracked_dependency: "MUST seed query_filters[\"aql\"] in PipelineExecutor FetchContext for Armis end-to-end AQL push-down (AC-014 D-934/D-952 scope) — canonical seeding site: predicate_tree_to_filter_map (BC-2.11.007 v1.5 Mechanism B). Do NOT add parallel extract fn. Tool name is `query` (not tool_query). Org field is `clients` (not org_slug). red_gate_tests=9. AC-004 now requires WHERE aql = 'in:devices' LIMIT 5 (Option-A per human D-963)."
     depends_on:
@@ -292,7 +292,7 @@ deferred_post_demo:
   # reclassification from permitted-divergence → required-fidelity; user directive no-scope-compromise).
 
 prereq_artifacts:
-  story_index: .factory/stories/STORY-INDEX.md         # v2.265 after D-980 burst (179 stories; S-DEMO-002 v2.1; PR-LEVEL re-cascade NEXT)
+  story_index: .factory/stories/STORY-INDEX.md         # v2.266 after D-981 burst (179 stories; S-DEMO-002 v2.2; PR-LEVEL pass-5 re-cascade NEXT)
   bc_index: .factory/specs/behavioral-contracts/BC-INDEX.md  # v5.78 (BC-2.16.009 v1.7 + BC-2.16.013 v1.22 both active)
   state: .factory/STATE.md                              # v7.630 after D-980 burst
   governing_adr: .factory/specs/architecture/decisions/ADR-031-dtu-equals-true-dtu-fidelity-principle.md  # v1.2 (ADR-031 architect e57eb5b1 reclassified 3 divergences)
