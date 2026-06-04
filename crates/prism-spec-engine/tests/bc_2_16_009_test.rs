@@ -976,3 +976,122 @@ ocsf_class = "security_finding"
         panic!("expected PrismError::Spec but got: {e_spec_025:?}");
     }
 }
+
+// ---------------------------------------------------------------------------
+// F-LOCAL-P3-MED-001 — load_all numeric-index test is not load-bearing against
+// hardcoded-0 regression (adversary pass-3 finding).
+//
+// The original test uses a single step so `[0][0]` is the only possible index —
+// the assertion passes even if load_all reverted to `tables[0].steps[0]` literals.
+// This test puts the invalid method on the SECOND step (index 1) so that ANY
+// hardcoded 0 in the index computation produces the wrong path and fails the assertion.
+//
+// Test: test_BC_2_16_009_load_all_invalid_method_on_second_step_produces_steps_1
+// Traces to: F-LOCAL-P3-MED-001; BC-2.16.009 §VR7; S-SPEC-HTTP-METHOD-VALIDATION-001.
+// ---------------------------------------------------------------------------
+
+/// BC-2.16.009 §VR7 — F-LOCAL-P3-MED-001 (load-bearing index test).
+///
+/// `SpecLoader::load_all` pointed at a temp dir containing a spec with TWO steps
+/// in the same table — the FIRST step uses valid `method = "GET"`, the SECOND step
+/// uses invalid `method = "CONNECT"`.
+///
+/// The error must carry `toml_path = "sensor.tables[0].steps[1].method"`, proving that
+/// the enumerate-based index computation uses `si = 1`, not a hardcoded 0.
+///
+/// This test FAILS if load_all hardcodes `steps[0]` instead of computing the index:
+///   - A hardcoded path `sensor.tables[0].steps[0].method` ≠ the expected `steps[1]` → panic.
+///   - The original single-step test would NOT catch this regression because both
+///     hardcoded-0 and computed-0 produce the same string for a single-step fixture.
+///
+/// Traces to: F-LOCAL-P3-MED-001; BC-2.16.009 v1.8 §VR7; S-SPEC-HTTP-METHOD-VALIDATION-001.
+#[test]
+fn test_BC_2_16_009_load_all_invalid_method_on_second_step_produces_steps_1() {
+    // Two-step spec: step 0 = valid GET, step 1 = invalid CONNECT.
+    // The toml_path for the error must be `sensor.tables[0].steps[1].method`.
+    let dir = tempfile::tempdir().expect("tempdir must succeed");
+
+    let toml_content = r#"
+sensor_id = "test-sensor"
+name = "Test Sensor"
+auth_type = "bearer_static"
+base_url = "https://api.example.com"
+version = "1.0.0"
+
+[[tables]]
+table_name = "events"
+ocsf_class = "security_finding"
+
+  [[tables.columns]]
+  name = "id"
+  column_type = "string"
+
+  # Step 0 — valid method (must produce NO error for this step)
+  [[tables.steps]]
+  name = "fetch-ids"
+  method = "GET"
+  path_template = "/api/v1/ids"
+  response_path = "$.ids"
+  variables_produced = ["id"]
+
+  # Step 1 — INVALID method (must produce E-SPEC-025 with toml_path containing steps[1])
+  [[tables.steps]]
+  name = "fetch-detail"
+  method = "CONNECT"
+  path_template = "/api/v1/detail/{fetch-ids.id}"
+  response_path = "$.data"
+  variables_produced = []
+"#;
+
+    let spec_file = dir.path().join("test-sensor.sensor.toml");
+    std::fs::write(&spec_file, toml_content).expect("write spec file must succeed");
+
+    let loader =
+        prism_spec_engine::spec_parser::SpecLoader::new(dir.path().to_string_lossy().to_string());
+    let (_descriptors, errors) = loader.load_all();
+
+    // Must have at least one error.
+    assert!(
+        !errors.is_empty(),
+        "F-LOCAL-P3-MED-001: load_all with second step method='CONNECT' must produce at \
+         least one error; got zero — validate_step_methods call or error conversion may be broken"
+    );
+
+    // Find the E-SPEC-025 error.
+    let e_spec_025 = errors.iter().find(|e| {
+        matches!(
+            e,
+            prism_core::PrismError::Spec(prism_core::SpecError {
+                code: prism_core::SpecErrorCode::ESpec025,
+                ..
+            })
+        )
+    });
+    assert!(
+        e_spec_025.is_some(),
+        "F-LOCAL-P3-MED-001: errors must include PrismError::Spec with code ESpec025; \
+         got: {errors:?}"
+    );
+
+    let e_spec_025 = e_spec_025.unwrap();
+    if let prism_core::PrismError::Spec(se) = e_spec_025 {
+        let toml_path = se.toml_path.as_deref().unwrap_or("");
+
+        // The invalid step is at index 1 — this is the load-bearing assertion.
+        // If load_all hardcodes `steps[0]` instead of computing the index via enumerate,
+        // this assertion fails with `got: 'sensor.tables[0].steps[0].method'`.
+        assert!(
+            toml_path.contains("steps[1]"),
+            "F-LOCAL-P3-MED-001: toml_path must contain 'steps[1]' (the second step is \
+             at index 1); a hardcoded 'steps[0]' would fail here. got: '{toml_path}'"
+        );
+
+        assert_eq!(
+            toml_path, "sensor.tables[0].steps[1].method",
+            "F-LOCAL-P3-MED-001: toml_path must be exactly 'sensor.tables[0].steps[1].method' \
+             for the second step in the first table; got: '{toml_path}'"
+        );
+    } else {
+        panic!("expected PrismError::Spec but got: {e_spec_025:?}");
+    }
+}
