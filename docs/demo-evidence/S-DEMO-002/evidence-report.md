@@ -1,11 +1,12 @@
 # Demo Evidence Report — S-DEMO-002
 
-**Story:** S-DEMO-002 v2.1 — prism-bin: E2E Subprocess Smoke Test (All 4 Sensors + Multi-Org Isolation)
+**Story:** S-DEMO-002 v2.3 — prism-bin: E2E Subprocess Smoke Test (All 4 Sensors + Multi-Org Isolation)
 **Branch:** `feature/S-DEMO-002`
 **PR:** #171
 **Recorder:** demo-recorder agent
 **Date:** 2026-06-03
 **Worktree HEAD at recording:** `0dbe72a0` (P03 fix-burst — canonical e2e.yml: job "E2E smoke", no cron, workflow_dispatch; retries=1 in [profile.e2e]; Tier-4 CRUD error propagation)
+**Evidence synced to branch HEAD:** `3e0ede30` (ADV-PR-P05-OBS-001: `--no-tests=fail` guard added to e2e CI command by devops-engineer; evidence-report updated to cite guarded CI command)
 
 ---
 
@@ -129,7 +130,7 @@ Demonstrates:
 | AC-007 | BC-2.09.008 | DEMONSTRATED | `AC-007-008-envelope-meta-sigterm.gif` | E2E subprocess: `_meta.trust_level="untrusted_external"`, `safety_flags=[]` (non-vacuous: ≥1 row asserted first), `data_source` contains `"crowdstrike"` — both bare-string and array forms accepted per `safety_envelope.rs` polymorphic serialization |
 | AC-008 | BC-2.10.010 | DEMONSTRATED | `AC-007-008-envelope-meta-sigterm.gif` | E2E subprocess: SIGTERM → both processes exit 0 within 5s. SID-1 §2 deferral to S-1.12-FOLLOWUP is legitimate (in-process `process::exit` would crash the test runner) |
 | AC-009 | BC-2.11.005 | CI-GATED | `.github/workflows/e2e.yml` | Determinism is validated by the dedicated e2e CI job (PR #171). The `.config/nextest.toml` `[profile.e2e]` block explicitly sets `retries = 1` — a single transient flake is absorbed; a double failure is a confirmed regression. CI job triggers on every `pull_request` and every `push` to develop/main, providing continuous determinism verification. Release re-capture at `0dbe72a0` confirms stability: 13/13 PASS within ~0.79s total run time. No separate `#[test]` function required — determinism is a property of the existing tests verified by repetition (AC-009 v2.1 coverage decision F-PC-002). |
-| AC-010 | BC-2.22.001 | DEMONSTRATED | `AC-001-010-e2e-launch-ignore-gate.gif` + `.github/workflows/e2e.yml` | **`#[ignore]` gate:** standard `cargo nextest run -p prism-bin` skips all 13 E2E tests (13 skipped in Summary). **Dedicated CI job:** `.github/workflows/e2e.yml` (job: `E2E smoke`) triggers on: `pull_request` to develop/main, `push` to develop/main, and `workflow_dispatch` (manual). No cron/schedule — see workflow header comment (CI I-2/S-1). Canonical CI command: `cargo nextest run -p prism-bin --profile e2e --run-ignored ignored-only`. CI job builds release binaries (`cargo build --release -p prism-bin -p prism-dtu-demo-server`), timeout 45 min, `persist-credentials: false`, job-level RUSTFLAGS, uploads JUnit XML artifact on failure. This is the structural evidence that the dedicated e2e CI job exists and gates every PR. |
+| AC-010 | BC-2.22.001 | DEMONSTRATED | `AC-001-010-e2e-launch-ignore-gate.gif` + `.github/workflows/e2e.yml` | **`#[ignore]` gate:** standard `cargo nextest run -p prism-bin` skips all 13 E2E tests (13 skipped in Summary). **Dedicated CI job:** `.github/workflows/e2e.yml` (job: `E2E smoke`) triggers on: `pull_request` to develop/main, `push` to develop/main, and `workflow_dispatch` (manual). No cron/schedule — see workflow header comment (CI I-2/S-1). Canonical CI command: `cargo nextest run -p prism-bin --profile e2e --run-ignored ignored-only --no-tests=fail`. The `--no-tests=fail` guard (ADV-PR-P05-OBS-001, commit `3e0ede30`) fails the CI job if zero tests are selected — preventing a false-green if the `--run-ignored ignored-only` flag were ever to select nothing (e.g., test rename or profile misconfiguration). The guard is a CI-only flag; the local run command (without `--no-tests=fail`) is accurate and shown in the E2E Test Suite Run section above. CI job builds release binaries (`cargo build --release -p prism-bin -p prism-dtu-demo-server`), timeout 45 min, `persist-credentials: false`, job-level RUSTFLAGS, uploads JUnit XML artifact on failure. This is the structural evidence that the dedicated e2e CI job exists and gates every PR. |
 | AC-011 | BC-3.2.001 / BC-2.22.001 | DEMONSTRATED | `AC-011-012-013-multi-org-isolation.gif` | Unit: 8-adapter count for 3-org config; E2E subprocess: 3-org boot, all 4 sensors for demo-org-c resolve |
 | AC-012 | BC-3.2.001 | DEMONSTRATED | `AC-011-012-013-multi-org-isolation.gif` | Unit + E2E: `SELECT * FROM claroty_alerts LIMIT 5` with `clients: ["demo-org-a"]` returns MCP error (not empty success): code -32602, message contains "E-QUERY-032"/"claroty"/"demo-org-a"; zero data rows. `clients` param (not `org_slug`) per `QueryToolParams` `#[serde(deny_unknown_fields)]`. |
 | AC-013 | BC-3.2.001 | DEMONSTRATED | `AC-011-012-013-multi-org-isolation.gif` | E2E subprocess: demo-org-a + demo-org-c CrowdStrike queries both succeed (each org's adapter points to the same DTU clone port; org isolation is at AdapterRegistry dispatch layer, not DTU HTTP layer — DTU-MULTI-001 comment in test) |
@@ -165,7 +166,7 @@ The delivered `.github/workflows/e2e.yml` satisfies AC-010 v2.1:
 - **Triggers:** `pull_request` (develop/main) + `push` (develop/main) + `workflow_dispatch` (manual). **No cron/schedule** — see workflow header comment CI I-2/S-1 (cron collides with fuzz-nightly at 02:00 UTC; targets default branch only, near-no-op for develop-targeted PRs)
 - **Security:** `persist-credentials: false`; `permissions: contents: read`
 - **Release build step:** `cargo build --release -p prism-bin -p prism-dtu-demo-server`
-- **Canonical command:** `cargo nextest run -p prism-bin --profile e2e --run-ignored ignored-only`
+- **Canonical CI command:** `cargo nextest run -p prism-bin --profile e2e --run-ignored ignored-only --no-tests=fail` (the `--no-tests=fail` guard, added at `3e0ede30` per ADV-PR-P05-OBS-001, fails the job if zero tests are selected — prevents a false-green caused by test rename or profile misconfiguration; this flag is CI-only and absent from local run invocations)
 - **Retries:** 1 (from `.config/nextest.toml` `[profile.e2e]` `retries = 1`; `terminate-after=1`)
 - **RUSTFLAGS:** hoisted to job-level `env:` (avoids double rebuild; CI S-4)
 - **Artifact upload:** JUnit XML on failure (`target/nextest/e2e/junit.xml`, 7-day retention)
@@ -217,6 +218,18 @@ The following AC sections were swept against the v2.0 story spec and current tes
 | AC-014 | Added "generic equality-extraction path; INDEX declaration is decorative" | v2.0 AC-014 "Seeding mechanism accuracy" para; matches as-built `predicate_tree_to_filter_map` |
 | Header | Updated HEAD SHA from `0af51150` to `6a8becfb` | OBS-004; current commit |
 | Header | Updated story version to v2.0 | OBS-003; story is v2.0 |
+
+### v2.3 alignment at 3e0ede30 (ADV-PR-P05-OBS-001 sync — `--no-tests=fail` guard)
+
+The following sections were swept to cite the `--no-tests=fail` CI guard added by devops-engineer at `3e0ede30` (ADV-PR-P05-OBS-001):
+
+| Location | Change made | Reason |
+|----------|-------------|--------|
+| Header | Added "Evidence synced to branch HEAD: `3e0ede30`" line | New branch head from devops commit; recording HEAD (`0dbe72a0`) remains the recording anchor |
+| AC-010 (coverage table) | Canonical CI command updated to include `--no-tests=fail`; added guard purpose note (prevents false-green if zero tests selected) + CI-only qualifier | Ripple-sweep: CI command must match e2e.yml exactly |
+| AC-010 (summary section) | "Canonical command" → "Canonical CI command"; added `--no-tests=fail` flag + explanation inline | Consistent with coverage-table update |
+| Artifact index | Added one-line note to e2e-run-output.txt caption: guard active in CI; capture produced with local command (no-op when 13 tests selected); no re-run required | Task brief: prior RELEASE 13/13 capture remains valid |
+| Local-run commands (lines 31, 61, 254) | NOT changed | Guard is CI-only; local-run citations remain accurate without `--no-tests=fail` |
 
 ### v2.1 alignment at 0dbe72a0 (P03 fix-burst sync — ADV-PR-P03-HIGH-001/002)
 
@@ -276,6 +289,6 @@ AC-008 SID-1 §2 deferral is legitimate: the `signals.rs` `std::process::exit(0)
 | `AC-014-aql-pushdown-dtu-roundtrip.gif` | VHS recording | AC-014 |
 | `AC-014-aql-pushdown-dtu-roundtrip.webm` | VHS recording | AC-014 |
 | `AC-014-aql-pushdown-dtu-roundtrip.tape` | VHS source | AC-014 |
-| `e2e-run-output.txt` | Text log | ALL (GREEN capture @ 0dbe72a0: release build confirmed + 13/13 e2e PASS, `--run-ignored ignored-only`) |
+| `e2e-run-output.txt` | Text log | ALL (GREEN capture @ 0dbe72a0: release build confirmed + 13/13 e2e PASS, `--run-ignored ignored-only`). The `--no-tests=fail` CI guard (commit `3e0ede30`) is active in the CI job; the capture was produced with the local command (without the guard flag) which is a valid local invocation — the guard is a no-op when 13 tests are selected. |
 
 Legacy artifacts from the pre-convergence recording session (`AC-001-dtu-server-launch.*`, `AC-010-e2e-ignored-gate.*`, `AC-011-e2e-test-suite-run.*`) document the environmental blocker that was resolved during the cascade. They are retained for traceability but superseded by the current GREEN recordings.
