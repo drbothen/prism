@@ -1,107 +1,133 @@
-# Full BC-2.16.009 test suite run — all 84 tests passing
+# Full BC-2.16.009 test suite run — all 93 tests passing
 #
-# Story:   S-SPEC-HTTP-METHOD-VALIDATION-001 v1.2
+# Story:   S-SPEC-HTTP-METHOD-VALIDATION-001 v1.4
 # Filter:  -E 'test(BC_2_16_009)' — all tests tracing to BC-2.16.009
-# Scope:   Includes http_method_whitelist_tests (new, AC-001/AC-002/AC-003)
-#          + preexisting BC-2.16.009 coverage (schema, variable refs, pagination, etc.)
-# Purpose: Demonstrates no regression in existing spec-engine validation coverage
-#          after adding HTTP method whitelist validation (Rule 7).
+# Scope:   Includes http_method_whitelist_tests (AC-001..AC-005):
+#            - AC-001 valid whitelist methods (9 tests)
+#            - AC-002 invalid method → E-SPEC-025 (13 tests)
+#            - AC-003 env-resolved post-Rule-6 (11 tests)
+#            - AC-004 SEC-001 truncation at 32 codepoints (3 tests)
+#            - AC-005 F-PR1-OBS-001 full-match skip-guard (4 tests)
+#          Plus preexisting bc_2_16_009_test, bc_2_16_009_bundled_spec_validation,
+#          write_endpoint_tests, and proofs::spec_validator tests
+# BC:      BC-2.16.009 v1.10 §Validation Rules 7
+# Error:   E-SPEC-025 (error-taxonomy.md v1.60)
 #
 # ─── nextest output (captured 2026-06-04) ────────────────────────────────────
 
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.52s
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.38s
 ────────────
- Nextest run ID 1bb77576-5d23-4bab-a8fc-3354a9ce433d with nextest profile: default
-    Starting 84 tests across 37 binaries (477 tests skipped)
-        PASS [   0.017s] ( 1/84) prism-spec-engine validation::http_method_whitelist_tests::test_BC_2_16_009_allowed_http_methods_contains_canonical_values
-        PASS [   0.018s] ( 2/84) prism-spec-engine validation::http_method_whitelist_tests::test_BC_2_16_009_allowed_http_methods_has_exactly_7_entries
-        PASS [   0.019s] ( 3/84) prism-spec-engine validation::http_method_whitelist_tests::test_BC_2_16_009_delete_put_patch_head_options_pass_validation
-        PASS [   0.021s] ( 4/84) prism-spec-engine proofs::spec_validator::unit_tests::test_BC_2_16_009_rejects_sensor_id_starting_with_digit
-        PASS [   0.022s] ( 5/84) prism-spec-engine validation::http_method_whitelist_tests::test_BC_2_16_009_e_spec_025_display_matches_error_taxonomy_v1_59_template_byte_for_byte
-        PASS [   0.026s] ( 6/84) prism-spec-engine proofs::spec_validator::unit_tests::test_BC_2_16_009_rejects_sensor_id_with_uppercase
-        PASS [   0.031s] ( 7/84) prism-spec-engine proofs::spec_validator::unit_tests::test_BC_2_16_009_rejects_forward_variable_reference
-        PASS [   0.031s] ( 8/84) prism-spec-engine proofs::spec_validator::unit_tests::test_BC_2_16_009_reports_multiple_errors_together
-        PASS [   0.031s] ( 9/84) prism-spec-engine proofs::spec_validator::unit_tests::test_BC_2_16_009_accepts_valid_spec_clean
-        PASS [   0.037s] (10/84) prism-spec-engine proofs::spec_validator::unit_tests::test_BC_2_16_009_accepts_valid_sensor_id
-        PASS [   0.038s] (11/84) prism-spec-engine validation::http_method_whitelist_tests::test_BC_2_16_009_ec009_010_get_passes_rule_7
-        PASS [   0.038s] (12/84) prism-spec-engine proofs::spec_validator::unit_tests::test_BC_2_16_009_rejects_dangling_variable_reference
-        PASS [   0.038s] (13/84) prism-spec-engine proofs::spec_validator::test_BC_2_16_009_invariant_warning_only_returns_ok
-        PASS [   0.038s] (14/84) prism-spec-engine validation::http_method_whitelist_tests::test_BC_2_16_009_any_env_token_in_method_skipped_by_rule_7
-        PASS [   0.020s] (15/84) prism-spec-engine validation::http_method_whitelist_tests::test_BC_2_16_009_ec009_013_trace_produces_e_spec_025
-        PASS [   0.019s] (16/84) prism-spec-engine validation::http_method_whitelist_tests::test_BC_2_16_009_ec009_015_lowercase_get_produces_e_spec_025
-        PASS [   0.020s] (17/84) prism-spec-engine validation::http_method_whitelist_tests::test_BC_2_16_009_ec009_014_typo_gett_produces_e_spec_025
-        PASS [   0.025s] (18/84) prism-spec-engine validation::http_method_whitelist_tests::test_BC_2_16_009_ec009_011_post_passes_rule_7
-        PASS [   0.025s] (19/84) prism-spec-engine validation::http_method_whitelist_tests::test_BC_2_16_009_ec009_012_connect_produces_e_spec_025
-        PASS [   0.043s] (20/84) prism-spec-engine proofs::spec_validator::test_BC_2_16_009_invariant_all_errors_collected
-        PASS [   0.017s] (21/84) prism-spec-engine validation::http_method_whitelist_tests::test_BC_2_16_009_ec009_016_empty_string_produces_e_spec_025
-        PASS [   0.049s] (22/84) prism-spec-engine proofs::spec_validator::test_BC_2_16_009_invariant_deterministic
-        PASS [   0.019s] (23/84) prism-spec-engine validation::http_method_whitelist_tests::test_BC_2_16_009_ec009_020_unresolved_env_token_skipped_by_rule_7
-        PASS [   0.022s] (24/84) prism-spec-engine validation::http_method_whitelist_tests::test_BC_2_16_009_ec009_018_multi_error_collection_two_invalid_methods
-        PASS [   0.017s] (25/84) prism-spec-engine validation::http_method_whitelist_tests::test_BC_2_16_009_f_local_p4_med_001_duplicate_step_names_carry_correct_index
-        PASS [   0.025s] (26/84) prism-spec-engine validation::http_method_whitelist_tests::test_BC_2_16_009_ec009_017_absent_method_defaults_get_no_e_spec_025
-        PASS [   0.018s] (27/84) prism-spec-engine validation::http_method_whitelist_tests::test_BC_2_16_009_invariant_pure_function_no_panic_on_empty_spec
-        PASS [   0.019s] (28/84) prism-spec-engine validation::http_method_whitelist_tests::test_BC_2_16_009_lowercase_post_produces_e_spec_025
-        PASS [   0.021s] (29/84) prism-spec-engine validation::http_method_whitelist_tests::test_BC_2_16_009_invalid_http_method_returns_structured_e_spec_025
-        PASS [   0.021s] (30/84) prism-spec-engine validation::http_method_whitelist_tests::test_BC_2_16_009_malformed_env_empty_var_name_produces_e_spec_025
-        PASS [   0.018s] (31/84) prism-spec-engine validation::http_method_whitelist_tests::test_BC_2_16_009_mixed_case_methods_produce_e_spec_025
-        PASS [   0.023s] (32/84) prism-spec-engine validation::http_method_whitelist_tests::test_BC_2_16_009_env_resolved_invalid_method_caught_post_resolution
-        PASS [   0.018s] (33/84) prism-spec-engine validation::http_method_whitelist_tests::test_BC_2_16_009_valid_http_method_passes_validation
-        PASS [   0.020s] (34/84) prism-spec-engine validation::http_method_whitelist_tests::test_BC_2_16_009_malformed_env_lowercase_var_name_produces_e_spec_025
-        PASS [   0.019s] (35/84) prism-spec-engine validation::http_method_whitelist_tests::test_BC_2_16_009_mixed_valid_invalid_produces_one_error
-        PASS [   0.020s] (36/84) prism-spec-engine validation::http_method_whitelist_tests::test_BC_2_16_009_no_tables_produces_zero_errors
-        PASS [   0.024s] (37/84) prism-spec-engine validation::http_method_whitelist_tests::test_BC_2_16_009_malformed_env_hyphen_in_var_name_produces_e_spec_025
-        PASS [   0.019s] (38/84) prism-spec-engine validation::http_method_whitelist_tests::test_BC_2_16_009_well_formed_unresolved_token_still_skipped_after_f_med_002_fix
-        PASS [   0.017s] (39/84) prism-spec-engine::bc_2_16_009_test test_BC_2_16_009_accepts_sensor_id_with_hyphens_and_digits
-        PASS [   0.017s] (40/84) prism-spec-engine::bc_2_16_009_bundled_spec_validation test_HS_017_BC_2_16_009_missing_sensor_id_rejected
-        PASS [   0.018s] (41/84) prism-spec-engine::bc_2_16_009_bundled_spec_validation test_HS_017_BC_2_16_009_invalid_column_type_rejected
-        PASS [   0.021s] (42/84) prism-spec-engine::bc_2_16_009_bundled_spec_validation test_BC_2_16_009_crowdstrike_spec_has_3_tables
-        PASS [   0.015s] (43/84) prism-spec-engine::bc_2_16_009_test test_BC_2_16_009_invalid_ocsf_field_produces_warning_not_error
-        PASS [   0.025s] (44/84) prism-spec-engine::bc_2_16_009_bundled_spec_validation test_BC_2_16_009_crowdstrike_rate_limit_hints_valid
-        PASS [   0.025s] (45/84) prism-spec-engine::bc_2_16_009_bundled_spec_validation test_BC_2_16_009_validates_all_4_bundled_specs
-        PASS [   0.018s] (46/84) prism-spec-engine::bc_2_16_009_test test_BC_2_16_009_rejects_duplicate_column_names_within_table
-        PASS [   0.023s] (47/84) prism-spec-engine::bc_2_16_009_test test_BC_2_16_009_load_path_connect_method_produces_e_spec_025
-        PASS [   0.020s] (48/84) prism-spec-engine::bc_2_16_009_test test_BC_2_16_009_rejects_dangling_variable_ref_with_toml_path
-        PASS [   0.025s] (49/84) prism-spec-engine::bc_2_16_009_test test_BC_2_16_009_accepts_valid_backward_variable_reference
-        PASS [   0.024s] (50/84) prism-spec-engine::bc_2_16_009_test test_BC_2_16_009_load_all_invalid_method_on_second_step_produces_steps_1
-        PASS [   0.024s] (51/84) prism-spec-engine::bc_2_16_009_test test_BC_2_16_009_load_all_invalid_method_produces_e_spec_025_with_numeric_toml_path
-        PASS [   0.023s] (52/84) prism-spec-engine::bc_2_16_009_test test_BC_2_16_009_load_path_env_resolved_invalid_method_produces_e_spec_025
-        PASS [   0.023s] (53/84) prism-spec-engine::bc_2_16_009_test test_BC_2_16_009_rejects_cursor_pagination_with_empty_response_path
-        PASS [   0.012s] (54/84) prism-spec-engine::bc_2_16_009_test test_BC_2_16_009_rejects_invalid_base_url
-        PASS [   0.013s] (55/84) prism-spec-engine::bc_2_16_009_test test_BC_2_16_009_rejects_forward_variable_reference
-        PASS [   0.012s] (56/84) prism-spec-engine::bc_2_16_009_test test_BC_2_16_009_rejects_rate_limit_burst_size_zero
-        PASS [   0.014s] (57/84) prism-spec-engine::bc_2_16_009_test test_BC_2_16_009_rejects_rate_limit_requests_per_second_zero_or_negative
-        PASS [   0.022s] (58/84) prism-spec-engine::bc_2_16_009_test test_BC_2_16_009_rejects_empty_sensor_name
-        PASS [   0.015s] (59/84) prism-spec-engine::bc_2_16_009_test test_BC_2_16_009_rejects_invalid_version_string
-        PASS [   0.009s] (60/84) prism-spec-engine::bc_2_16_009_test test_BC_2_16_009_rejects_sensor_id_starting_with_digit
-        PASS [   0.015s] (61/84) prism-spec-engine::bc_2_16_009_test test_BC_2_16_009_rejects_offset_pagination_with_zero_page_size
-        PASS [   0.011s] (62/84) prism-spec-engine::bc_2_16_009_test test_BC_2_16_009_valid_ocsf_field_produces_no_warning
-        PASS [   0.012s] (63/84) prism-spec-engine::bc_2_16_009_test test_BC_2_16_009_reports_all_errors_together_no_fail_fast
-        PASS [   0.012s] (64/84) prism-spec-engine::bc_2_16_009_test test_BC_2_16_009_rejects_table_with_no_steps
-        PASS [   0.014s] (65/84) prism-spec-engine::bc_2_16_009_test test_BC_2_16_009_valid_spec_returns_ok_no_errors
-        PASS [   0.013s] (66/84) prism-spec-engine::write_endpoint_tests test_BC_2_16_009_batch_limit_zero_irreversible_spec_loads
-        PASS [   0.017s] (67/84) prism-spec-engine::bc_2_16_009_test test_BC_2_16_009_rejects_table_with_no_columns
-        PASS [   0.017s] (68/84) prism-spec-engine::write_endpoint_tests test_BC_2_16_009_all_errors_collected_no_fail_fast
-        PASS [   0.012s] (69/84) prism-spec-engine::write_endpoint_tests test_BC_2_16_009_record_id_field_special_chars_rejected
-        PASS [   0.014s] (70/84) prism-spec-engine::write_endpoint_tests test_BC_2_16_009_empty_steps_rejected
-        PASS [   0.012s] (71/84) prism-spec-engine::write_endpoint_tests test_BC_2_16_009_record_id_field_valid_lowercase
-        PASS [   0.018s] (72/84) prism-spec-engine::bc_2_16_009_test test_BC_2_16_009_validation_handles_multibyte_utf8_base_url_without_panic
-        PASS [   0.019s] (73/84) prism-spec-engine::write_endpoint_tests test_BC_2_16_009_batch_limit_zero_irreversible_emits_warning
-        PASS [   0.015s] (74/84) prism-spec-engine::write_endpoint_tests test_BC_2_16_009_non_reserved_verb_passes
-        PASS [   0.015s] (75/84) prism-spec-engine::write_endpoint_tests test_BC_2_16_009_record_id_field_uppercase_rejected
-        PASS [   0.018s] (76/84) prism-spec-engine::write_endpoint_tests test_BC_2_16_009_cross_sensor_verb_uniqueness_collision
-        PASS [   0.016s] (77/84) prism-spec-engine::write_endpoint_tests test_BC_2_16_009_reserved_keyword_enrich_returns_e_spec_011
-        PASS [   0.011s] (78/84) prism-spec-engine::write_endpoint_tests test_BC_2_16_009_reserved_keyword_head_returns_e_spec_011
-        PASS [   0.009s] (79/84) prism-spec-engine::write_endpoint_tests test_BC_2_16_009_reserved_keyword_sort_returns_e_spec_011
-        PASS [   0.011s] (80/84) prism-spec-engine::write_endpoint_tests test_BC_2_16_009_reserved_keyword_limit_returns_e_spec_011
-        PASS [   0.012s] (81/84) prism-spec-engine::write_endpoint_tests test_BC_2_16_009_reserved_keyword_join_returns_e_spec_011
-        PASS [   0.011s] (82/84) prism-spec-engine::write_endpoint_tests test_BC_2_16_009_reserved_keyword_where_returns_e_spec_011
-        PASS [   0.010s] (83/84) prism-spec-engine::write_endpoint_tests test_BC_2_16_009_valid_spec_no_errors_no_warnings
-        PASS [   0.011s] (84/84) prism-spec-engine::write_endpoint_tests test_BC_2_16_009_risk_tier_invalid_string_parse_error
+ Nextest run ID a8d4ddba-052d-48c1-9fc3-8b4224b4605d with nextest profile: default
+    Starting 93 tests across 37 binaries (477 tests skipped)
+        PASS [   0.014s] ( 1/93) prism-spec-engine proofs::spec_validator::unit_tests::test_BC_2_16_009_accepts_valid_sensor_id
+        PASS [   0.016s] ( 2/93) prism-spec-engine validation::http_method_whitelist_tests::test_BC_2_16_009_allowed_http_methods_contains_canonical_values
+        PASS [   0.016s] ( 3/93) prism-spec-engine validation::http_method_whitelist_tests::test_BC_2_16_009_ec009_010_get_passes_rule_7
+        PASS [   0.017s] ( 4/93) prism-spec-engine proofs::spec_validator::unit_tests::test_BC_2_16_009_rejects_sensor_id_with_uppercase
+        PASS [   0.017s] ( 5/93) prism-spec-engine proofs::spec_validator::unit_tests::test_BC_2_16_009_rejects_sensor_id_starting_with_digit
+        PASS [   0.017s] ( 6/93) prism-spec-engine validation::http_method_whitelist_tests::test_BC_2_16_009_allowed_http_methods_has_exactly_7_entries
+        PASS [   0.017s] ( 7/93) prism-spec-engine validation::http_method_whitelist_tests::test_BC_2_16_009_any_env_token_in_method_skipped_by_rule_7
+        PASS [   0.019s] ( 8/93) prism-spec-engine validation::http_method_whitelist_tests::test_BC_2_16_009_delete_put_patch_head_options_pass_validation
+        PASS [   0.020s] ( 9/93) prism-spec-engine proofs::spec_validator::unit_tests::test_BC_2_16_009_rejects_dangling_variable_reference
+        PASS [   0.021s] (10/93) prism-spec-engine proofs::spec_validator::unit_tests::test_BC_2_16_009_reports_multiple_errors_together
+        PASS [   0.021s] (11/93) prism-spec-engine proofs::spec_validator::unit_tests::test_BC_2_16_009_accepts_valid_spec_clean
+        PASS [   0.021s] (12/93) prism-spec-engine validation::http_method_whitelist_tests::test_BC_2_16_009_e_spec_025_display_matches_error_taxonomy_template_byte_for_byte
+        PASS [   0.021s] (13/93) prism-spec-engine proofs::spec_validator::unit_tests::test_BC_2_16_009_rejects_forward_variable_reference
+        PASS [   0.020s] (14/93) prism-spec-engine validation::http_method_whitelist_tests::test_BC_2_16_009_ec009_011_post_passes_rule_7
+        PASS [   0.018s] (15/93) prism-spec-engine validation::http_method_whitelist_tests::test_BC_2_16_009_ec009_012_connect_produces_e_spec_025
+        PASS [   0.018s] (16/93) prism-spec-engine validation::http_method_whitelist_tests::test_BC_2_16_009_ec009_014_typo_gett_produces_e_spec_025
+        PASS [   0.035s] (17/93) prism-spec-engine proofs::spec_validator::test_BC_2_16_009_invariant_warning_only_returns_ok
+        PASS [   0.017s] (18/93) prism-spec-engine validation::http_method_whitelist_tests::test_BC_2_16_009_ec009_017_absent_method_defaults_get_no_e_spec_025
+        PASS [   0.018s] (19/93) prism-spec-engine validation::http_method_whitelist_tests::test_BC_2_16_009_ec009_013_trace_produces_e_spec_025
+        PASS [   0.035s] (20/93) prism-spec-engine proofs::spec_validator::test_BC_2_16_009_invariant_all_errors_collected
+        PASS [   0.019s] (21/93) prism-spec-engine validation::http_method_whitelist_tests::test_BC_2_16_009_ec009_015_lowercase_get_produces_e_spec_025
+        PASS [   0.038s] (22/93) prism-spec-engine proofs::spec_validator::test_BC_2_16_009_invariant_deterministic
+        PASS [   0.022s] (23/93) prism-spec-engine validation::http_method_whitelist_tests::test_BC_2_16_009_ec009_016_empty_string_produces_e_spec_025
+        PASS [   0.021s] (24/93) prism-spec-engine validation::http_method_whitelist_tests::test_BC_2_16_009_env_resolved_invalid_method_caught_post_resolution
+        PASS [   0.022s] (25/93) prism-spec-engine validation::http_method_whitelist_tests::test_BC_2_16_009_ec009_020_unresolved_env_token_skipped_by_rule_7
+        PASS [   0.021s] (26/93) prism-spec-engine validation::http_method_whitelist_tests::test_BC_2_16_009_f_local_p4_med_001_duplicate_step_names_carry_correct_index
+        PASS [   0.023s] (27/93) prism-spec-engine validation::http_method_whitelist_tests::test_BC_2_16_009_ec009_018_multi_error_collection_two_invalid_methods
+        PASS [   0.021s] (28/93) prism-spec-engine validation::http_method_whitelist_tests::test_BC_2_16_009_f_pr1_obs_001_exact_single_token_still_skipped
+        PASS [   0.022s] (29/93) prism-spec-engine validation::http_method_whitelist_tests::test_BC_2_16_009_f_pr1_obs_001_partial_token_embedding_not_skipped
+        PASS [   0.016s] (30/93) prism-spec-engine validation::http_method_whitelist_tests::test_BC_2_16_009_invariant_pure_function_no_panic_on_empty_spec
+        PASS [   0.017s] (31/93) prism-spec-engine validation::http_method_whitelist_tests::test_BC_2_16_009_invalid_http_method_returns_structured_e_spec_025
+        PASS [   0.016s] (32/93) prism-spec-engine validation::http_method_whitelist_tests::test_BC_2_16_009_malformed_env_hyphen_in_var_name_produces_e_spec_025
+        PASS [   0.014s] (33/93) prism-spec-engine validation::http_method_whitelist_tests::test_BC_2_16_009_mixed_case_methods_produce_e_spec_025
+        PASS [   0.018s] (34/93) prism-spec-engine validation::http_method_whitelist_tests::test_BC_2_16_009_f_pr1_obs_001_token_prefix_not_skipped
+        PASS [   0.013s] (35/93) prism-spec-engine validation::http_method_whitelist_tests::test_BC_2_16_009_mixed_valid_invalid_produces_one_error
+        PASS [   0.019s] (36/93) prism-spec-engine validation::http_method_whitelist_tests::test_BC_2_16_009_f_pr1_obs_001_two_tokens_concatenated_not_skipped
+        PASS [   0.022s] (37/93) prism-spec-engine validation::http_method_whitelist_tests::test_BC_2_16_009_malformed_env_empty_var_name_produces_e_spec_025
+        PASS [   0.029s] (38/93) prism-spec-engine validation::http_method_whitelist_tests::test_BC_2_16_009_malformed_env_lowercase_var_name_produces_e_spec_025
+        PASS [   0.023s] (39/93) prism-spec-engine validation::http_method_whitelist_tests::test_BC_2_16_009_sec_001_overlong_method_truncated_in_error
+        PASS [   0.030s] (40/93) prism-spec-engine validation::http_method_whitelist_tests::test_BC_2_16_009_lowercase_post_produces_e_spec_025
+        PASS [   0.022s] (41/93) prism-spec-engine validation::http_method_whitelist_tests::test_BC_2_16_009_well_formed_unresolved_token_still_skipped_after_f_med_002_fix
+        PASS [   0.023s] (42/93) prism-spec-engine validation::http_method_whitelist_tests::test_BC_2_16_009_sec_001_exactly_32_chars_not_truncated
+        PASS [   0.023s] (43/93) prism-spec-engine validation::http_method_whitelist_tests::test_BC_2_16_009_valid_http_method_passes_validation
+        PASS [   0.026s] (44/93) prism-spec-engine validation::http_method_whitelist_tests::test_BC_2_16_009_sec_001_normal_length_method_not_truncated
+        PASS [   0.028s] (45/93) prism-spec-engine validation::http_method_whitelist_tests::test_BC_2_16_009_no_tables_produces_zero_errors
+        PASS [   0.022s] (46/93) prism-spec-engine::bc_2_16_009_bundled_spec_validation test_HS_017_BC_2_16_009_missing_sensor_id_rejected
+        PASS [   0.023s] (47/93) prism-spec-engine::bc_2_16_009_bundled_spec_validation test_HS_017_BC_2_16_009_invalid_column_type_rejected
+        PASS [   0.023s] (48/93) prism-spec-engine::bc_2_16_009_bundled_spec_validation test_BC_2_16_009_crowdstrike_rate_limit_hints_valid
+        PASS [   0.023s] (49/93) prism-spec-engine::bc_2_16_009_bundled_spec_validation test_BC_2_16_009_crowdstrike_spec_has_3_tables
+        PASS [   0.021s] (50/93) prism-spec-engine::bc_2_16_009_test test_BC_2_16_009_accepts_valid_backward_variable_reference
+        PASS [   0.023s] (51/93) prism-spec-engine::bc_2_16_009_test test_BC_2_16_009_accepts_sensor_id_with_hyphens_and_digits
+        PASS [   0.011s] (52/93) prism-spec-engine::bc_2_16_009_test test_BC_2_16_009_invalid_ocsf_field_produces_warning_not_error
+        PASS [   0.013s] (53/93) prism-spec-engine::bc_2_16_009_test test_BC_2_16_009_load_path_connect_method_produces_e_spec_025
+        PASS [   0.027s] (54/93) prism-spec-engine::bc_2_16_009_bundled_spec_validation test_BC_2_16_009_validates_all_4_bundled_specs
+        PASS [   0.015s] (55/93) prism-spec-engine::bc_2_16_009_test test_BC_2_16_009_load_all_invalid_method_on_second_step_produces_steps_1
+        PASS [   0.023s] (56/93) prism-spec-engine::bc_2_16_009_test test_BC_2_16_009_f_pr1_med_001_load_all_env_resolved_invalid_method_produces_e_spec_025
+        PASS [   0.019s] (57/93) prism-spec-engine::bc_2_16_009_test test_BC_2_16_009_f_pr1_med_001_load_all_unresolvable_env_token_produces_e_spec_024
+        PASS [   0.015s] (58/93) prism-spec-engine::bc_2_16_009_test test_BC_2_16_009_rejects_dangling_variable_ref_with_toml_path
+        PASS [   0.019s] (59/93) prism-spec-engine::bc_2_16_009_test test_BC_2_16_009_load_path_env_resolved_invalid_method_produces_e_spec_025
+        PASS [   0.018s] (60/93) prism-spec-engine::bc_2_16_009_test test_BC_2_16_009_load_all_invalid_method_produces_e_spec_025_with_numeric_toml_path
+        PASS [   0.017s] (61/93) prism-spec-engine::bc_2_16_009_test test_BC_2_16_009_rejects_cursor_pagination_with_empty_response_path
+        PASS [   0.013s] (62/93) prism-spec-engine::bc_2_16_009_test test_BC_2_16_009_rejects_duplicate_column_names_within_table
+        PASS [   0.013s] (63/93) prism-spec-engine::bc_2_16_009_test test_BC_2_16_009_rejects_forward_variable_reference
+        PASS [   0.013s] (64/93) prism-spec-engine::bc_2_16_009_test test_BC_2_16_009_rejects_empty_sensor_name
+        PASS [   0.014s] (65/93) prism-spec-engine::bc_2_16_009_test test_BC_2_16_009_rejects_invalid_version_string
+        PASS [   0.011s] (66/93) prism-spec-engine::bc_2_16_009_test test_BC_2_16_009_rejects_sensor_id_starting_with_digit
+        PASS [   0.014s] (67/93) prism-spec-engine::bc_2_16_009_test test_BC_2_16_009_rejects_offset_pagination_with_zero_page_size
+        PASS [   0.014s] (68/93) prism-spec-engine::bc_2_16_009_test test_BC_2_16_009_rejects_rate_limit_burst_size_zero
+        PASS [   0.015s] (69/93) prism-spec-engine::bc_2_16_009_test test_BC_2_16_009_rejects_invalid_base_url
+        PASS [   0.013s] (70/93) prism-spec-engine::bc_2_16_009_test test_BC_2_16_009_rejects_table_with_no_steps
+        PASS [   0.017s] (71/93) prism-spec-engine::bc_2_16_009_test test_BC_2_16_009_rejects_rate_limit_requests_per_second_zero_or_negative
+        PASS [   0.015s] (72/93) prism-spec-engine::bc_2_16_009_test test_BC_2_16_009_rejects_table_with_no_columns
+        PASS [   0.014s] (73/93) prism-spec-engine::bc_2_16_009_test test_BC_2_16_009_valid_ocsf_field_produces_no_warning
+        PASS [   0.010s] (74/93) prism-spec-engine::write_endpoint_tests test_BC_2_16_009_batch_limit_zero_irreversible_emits_warning
+        PASS [   0.015s] (75/93) prism-spec-engine::bc_2_16_009_test test_BC_2_16_009_valid_spec_returns_ok_no_errors
+        PASS [   0.014s] (76/93) prism-spec-engine::write_endpoint_tests test_BC_2_16_009_all_errors_collected_no_fail_fast
+        PASS [   0.015s] (77/93) prism-spec-engine::bc_2_16_009_test test_BC_2_16_009_reports_all_errors_together_no_fail_fast
+        PASS [   0.015s] (78/93) prism-spec-engine::bc_2_16_009_test test_BC_2_16_009_validation_handles_multibyte_utf8_base_url_without_panic
+        PASS [   0.014s] (79/93) prism-spec-engine::write_endpoint_tests test_BC_2_16_009_record_id_field_valid_lowercase
+        PASS [   0.015s] (80/93) prism-spec-engine::write_endpoint_tests test_BC_2_16_009_empty_steps_rejected
+        PASS [   0.015s] (81/93) prism-spec-engine::write_endpoint_tests test_BC_2_16_009_record_id_field_uppercase_rejected
+        PASS [   0.015s] (82/93) prism-spec-engine::write_endpoint_tests test_BC_2_16_009_record_id_field_special_chars_rejected
+        PASS [   0.017s] (83/93) prism-spec-engine::write_endpoint_tests test_BC_2_16_009_batch_limit_zero_irreversible_spec_loads
+        PASS [   0.017s] (84/93) prism-spec-engine::write_endpoint_tests test_BC_2_16_009_non_reserved_verb_passes
+        PASS [   0.013s] (85/93) prism-spec-engine::write_endpoint_tests test_BC_2_16_009_reserved_keyword_enrich_returns_e_spec_011
+        PASS [   0.013s] (86/93) prism-spec-engine::write_endpoint_tests test_BC_2_16_009_reserved_keyword_join_returns_e_spec_011
+        PASS [   0.030s] (87/93) prism-spec-engine::write_endpoint_tests test_BC_2_16_009_cross_sensor_verb_uniqueness_collision
+        PASS [   0.026s] (88/93) prism-spec-engine::write_endpoint_tests test_BC_2_16_009_reserved_keyword_limit_returns_e_spec_011
+        PASS [   0.024s] (89/93) prism-spec-engine::write_endpoint_tests test_BC_2_16_009_reserved_keyword_where_returns_e_spec_011
+        PASS [   0.029s] (90/93) prism-spec-engine::write_endpoint_tests test_BC_2_16_009_reserved_keyword_head_returns_e_spec_011
+        PASS [   0.027s] (91/93) prism-spec-engine::write_endpoint_tests test_BC_2_16_009_reserved_keyword_sort_returns_e_spec_011
+        PASS [   0.026s] (92/93) prism-spec-engine::write_endpoint_tests test_BC_2_16_009_valid_spec_no_errors_no_warnings
+        PASS [   0.027s] (93/93) prism-spec-engine::write_endpoint_tests test_BC_2_16_009_risk_tier_invalid_string_parse_error
 ────────────
-     Summary [   0.113s] 84 tests run: 84 passed, 477 skipped
+     Summary [   0.127s] 93 tests run: 93 passed, 477 skipped
 
 # ─── Verdict ──────────────────────────────────────────────────────────────────
-# PASS — 84/84 BC-2.16.009 tests pass.
-# 38 tests are in the new http_method_whitelist_tests module (AC-001/AC-002/AC-003).
-# 46 tests are preexisting BC-2.16.009 coverage (schema, var refs, pagination, rate
-# limits, write endpoints). Zero regressions introduced by Rule 7 implementation.
+# PASS — 93/93 BC-2.16.009 tests pass. Zero regressions.
+#
+# Breakdown:
+#   http_method_whitelist_tests (AC-001..AC-005):   45 new tests
+#   bc_2_16_009_test (load-path integration):       23 tests
+#   bc_2_16_009_bundled_spec_validation:             4 tests
+#   proofs::spec_validator:                          5 tests
+#   write_endpoint_tests:                           16 tests
+#
+# Story v1.4 AC coverage:
+#   AC-001 (valid methods pass):         PASS (test_BC_2_16_009_valid_http_method_passes_validation)
+#   AC-002 (invalid → E-SPEC-025):      PASS (test_BC_2_16_009_invalid_http_method_returns_structured_e_spec_025)
+#   AC-003 (env-resolved post-Rule-6):   PASS (test_BC_2_16_009_env_resolved_invalid_method_caught_post_resolution)
+#   AC-004 (32-codepoint truncation):    PASS (test_BC_2_16_009_sec_001_overlong_method_truncated_in_error)
+#   AC-005 (full-match skip-guard):      PASS (test_BC_2_16_009_f_pr1_obs_001_partial_token_embedding_not_skipped)

@@ -1,101 +1,131 @@
 # Source Excerpt — validate_step_methods() production code path
 #
-# Story:   S-SPEC-HTTP-METHOD-VALIDATION-001 v1.2
+# Story:   S-SPEC-HTTP-METHOD-VALIDATION-001 v1.4
 # File:    crates/prism-spec-engine/src/validation.rs
-# BC:      BC-2.16.009 v1.8 §Validation Rules 7; error-taxonomy.md v1.59 E-SPEC-025
+# BC:      BC-2.16.009 v1.10 §Validation Rules 7; error-taxonomy.md v1.60 E-SPEC-025
+# Commit:  feature/S-SPEC-HTTP-METHOD-VALIDATION-001 HEAD (post PR-level cascade)
 #
-# Purpose: Annotated source showing the production code path for all 3 ACs.
+# This excerpt captures the THREE production code changes that closed the PR-level
+# adversarial findings:
+#   1. ALLOWED_HTTP_METHODS constant (compile-time whitelist — 7 values, never runtime-configurable)
+#   2. validate_step_methods() with FULL-MATCH skip-guard (F-PR1-OBS-001 fix)
+#      — old code: ENV_TOKEN_REGEX.is_match(&step.method)  [substring check]
+#      — new code: ENV_TOKEN_REGEX.find(...).is_some_and(|m| m.start()==0 && m.end()==len)
+#   3. SEC-001 truncation: truncate_at_char_boundary(&step.method, 32) before embedding
+#      method_value in InvalidHttpMethod error (CWE-400 unbounded echo prevention)
 #
-# ─── 1. ALLOWED_HTTP_METHODS compile-time constant (AC-001 anchor) ────────────
-#
-#   pub(crate) const ALLOWED_HTTP_METHODS: &[&str] =
-#       &["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"];
-#
-#   Production characteristics:
-#   - 7 values per BC-2.16.009 §VR7 "Whitelist constant" clause
-#   - Case-sensitive (uppercase only); "get" is NOT "GET"
-#   - `const` — never runtime-configurable; no serde, no env var, no prism.toml
-#   - `pub(crate)` — exported to test modules within the crate; not pub API
-#
-# ─── 2. validate_step_methods() function signature and Rule 7 wiring ──────────
-#
-#   pub fn validate_step_methods(
-#       spec: &SensorSpec,
-#   ) -> Vec<(usize, usize, crate::error::SpecEngineError)>
-#
-#   Return value carries (table_index, step_index, error) — indices from
-#   enumerate(), never from name-reverse-lookup (F-LOCAL-P4-MED-001 fix).
-#   Callers use .map(|(_, _, e)| e) when only the error is needed.
-#
-#   Called in the spec-load pipeline AFTER resolve_env_var_tokens() (Rule 6),
-#   BEFORE the spec is accepted — ensuring the validated method is the resolved
-#   value, not the raw "${env.VAR}" token (AC-003 Rule 6→Rule 7 ordering).
-#
-# ─── 3. Skip-guard for unresolved env tokens (AC-003 double-reporting prevention) ──
-#
-#   // Inside the per-step loop:
-#   if crate::env_resolver::ENV_TOKEN_REGEX.is_match(&step.method) {
-#       continue;
-#   }
-#
-#   ENV_TOKEN_REGEX pattern: `\$\{env\.[A-Z0-9_]+\}`  (well-formed token only)
-#   - Matches: ${env.SENSOR_STEP_METHOD}, ${env.A}, ${env.HTTP_METHOD_42}
-#     → These are skipped (Rule 6 already emitted E-SPEC-024 for them)
-#   - Does NOT match: ${env.lower}, ${env.foo-bar}, ${env.}
-#     → These fall through to the whitelist check → produce E-SPEC-025
-#     → (F-LOCAL-P3-MED-002: old broad `contains("${env.")` check was too wide)
-#
-# ─── 4. Case-sensitive whitelist check (AC-001 pass / AC-002 reject) ──────────
-#
-#   if !ALLOWED_HTTP_METHODS.contains(&step.method.as_str()) {
-#       errors.push((
-#           ti,
-#           si,
-#           crate::error::SpecEngineError::InvalidHttpMethod {
-#               step_name: step.name.clone(),
-#               sensor_id: spec.sensor_id.clone(),
-#               table_name: table.table_name.clone(),
-#               method_value: step.method.clone(),
-#           },
-#       ));
-#   }
-#
-#   - Multi-error collection: no `return` or `?` early-exit (INV-ERR-003)
-#   - All 4 error fields populated for actionable diagnostics
-#   - method_value echoed verbatim (safe per AD-017: HTTP method is config text)
-#
-# ─── 5. E-SPEC-025 error variant in error.rs (AC-002 byte-verbatim message) ───
-#
-#   // crates/prism-spec-engine/src/error.rs
-#   #[error(
-#       "Step '{step_name}' in '{sensor_id}.{table_name}' declares method '{method_value}' \
-#        which is not a supported HTTP method. \
-#        Supported: GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS"
-#   )]
-#   InvalidHttpMethod {
-#       step_name: String,
-#       sensor_id: String,
-#       table_name: String,
-#       method_value: String,
-#   },
-#
-#   This is the byte-verbatim template from error-taxonomy.md v1.59 E-SPEC-025 (POL-24).
-#   The test test_BC_2_16_009_e_spec_025_display_matches_error_taxonomy_v1_59_template_byte_for_byte
-#   asserts error.to_string() == exact expected string.
-#
-# ─── 6. Rule 7 call site wiring in the spec-load pipeline ─────────────────────
-#
-#   // load_path() in crates/prism-spec-engine/src/add_sensor_spec.rs (or equivalent):
-#   // 1. Parse TOML → SensorSpec
-#   // 2. resolve_env_var_tokens(&mut spec, ...) [Rule 6]
-#   // 3. validate_sensor_spec(&spec) [Rules 1–5]
-#   // 4. validate_step_methods(&spec) → map errors to ValidationError using
-#   //    sensor.tables[{ti}].steps[{si}].method as canonical toml_path
-#   //
-#   // Both load_path() and load_all() wire step 4.
-#   // Integration tests test_BC_2_16_009_load_path_* and test_BC_2_16_009_load_all_*
-#   // verify this end-to-end.
-#
-# Note on citations:
-#   This excerpt uses function names and behavioral anchors per TD-VSDD-091
-#   (anti-volatile-pin rule). No file:line-number citations — those decay on diffs.
+# ─── Source (crates/prism-spec-engine/src/validation.rs) ──────────────────────
+
+/// The complete set of HTTP methods permitted in `FetchStep::method`.
+///
+/// This is a compile-time constant per BC-2.16.009 §Validation Rules 7 — the whitelist
+/// is never runtime-configurable (no serde, no env var, no prism.toml field).
+///
+/// All 7 entries are uppercase only. Case sensitivity is intentional and matches industry
+/// convention: `"get"` is invalid and produces E-SPEC-025 (BC-2.16.009 §VR7 case-sensitivity
+/// clause). The whitelist is case-sensitive and upper-case only.
+///
+/// BC-2.16.009 §Validation Rules 7; S-SPEC-HTTP-METHOD-VALIDATION-001.
+pub(crate) const ALLOWED_HTTP_METHODS: &[&str] =
+    &["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"];
+
+/// Validate `step.method` fields across all tables in `spec` against the HTTP method whitelist.
+///
+/// **Rule 7 of BC-2.16.009** — runs AFTER the env-var token resolution pass (Rule 6).
+/// The caller is responsible for running Rule 6 (`resolve_env_var_tokens`) before calling
+/// this function; `validate_step_methods` operates on the already-resolved spec.
+///
+/// ## Behavior
+/// - `step.method` absent (defaults to `"GET"` via `FetchStep::default()`): no error.
+/// - `step.method` present and in `ALLOWED_HTTP_METHODS` (case-sensitive): no error.
+/// - `step.method` present and NOT in `ALLOWED_HTTP_METHODS`: emits `E-SPEC-025`.
+/// - `step.method` still contains an unresolved `${env.VAR}` token (Rule 6 failed for it):
+///   this step is **skipped** to prevent double-reporting (BC-2.16.009 §VR7 ordering).
+/// - All errors are collected before returning (INV-ERR-003 — no fail-fast).
+///
+/// ## Return value
+/// Returns a `Vec<(usize, usize, SpecEngineError)>` — each entry carries:
+/// - `table_index`: numeric index of the table in `spec.tables` (from `enumerate`)
+/// - `step_index`: numeric index of the step in `table.steps` (from `enumerate`)
+/// - `SpecEngineError::InvalidHttpMethod`: the structured error (carries `step_name`,
+///   `sensor_id`, `table_name`, `method_value` for Display and downstream use)
+///
+/// Callers that only need the errors (e.g., `add_sensor_spec`) use `.map(|(_, _, e)| e)`.
+/// Callers that need canonical `toml_path` construction (e.g., `load_all`) use the indices
+/// directly to build `sensor.tables[{ti}].steps[{si}].method` without name reverse-lookup.
+/// This eliminates the fragility noted in F-LOCAL-P4-MED-001: a name reverse-lookup breaks
+/// when two steps in one table share the same name (step-name uniqueness is NOT enforced).
+///
+/// BC-2.16.009 §Validation Rules 7 (AC-7); error-taxonomy.md E-SPEC-025;
+/// S-SPEC-HTTP-METHOD-VALIDATION-001; F-LOCAL-P4-MED-001.
+pub fn validate_step_methods(
+    spec: &SensorSpec,
+) -> Vec<(usize, usize, crate::error::SpecEngineError)> {
+    let mut errors = Vec::new();
+
+    for (ti, table) in spec.tables.iter().enumerate() {
+        for (si, step) in table.steps.iter().enumerate() {
+            // BC-2.16.009 §VR7 ordering: skip steps whose method IS EXACTLY one
+            // WELL-FORMED `${env.VAR_NAME}` token (where VAR_NAME matches `[A-Z0-9_]+`).
+            //
+            // Rule 6 (env_resolver) already fired E-SPEC-024 for those; double-reporting
+            // the same field is noise, not signal (EC-009-020).
+            //
+            // IMPORTANT: we test for a WELL-FORMED token using the SAME regex that Rule 6
+            // uses (ENV_TOKEN_REGEX from env_resolver.rs — TD-VSDD-060 single source of
+            // truth). A malformed pseudo-token like `${env.lower}`, `${env.foo-bar}`, or
+            // `${env.}` does NOT match the regex → is NOT skipped → falls through to the
+            // whitelist check below → produces E-SPEC-025 (F-LOCAL-P3-MED-002 fix).
+            //
+            // F-PR1-OBS-001 FIX: use a FULL-MATCH check (the matched span must equal the
+            // entire string length). A substring `is_match` was too broad: it skipped any
+            // string that CONTAINED a token (e.g., "GET${env.X}", "${env.A}${env.B}") even
+            // though those values are NOT purely unresolved tokens and Rule 6 cannot
+            // fully replace them. The fix: only skip when the regex match covers bytes
+            // 0..len (i.e., the full method string is exactly one unresolved token).
+            let is_exactly_one_token = crate::env_resolver::ENV_TOKEN_REGEX
+                .find(&step.method)
+                .is_some_and(|m| m.start() == 0 && m.end() == step.method.len());
+            if is_exactly_one_token {
+                continue;
+            }
+
+            // Case-sensitive whitelist check (BC-2.16.009 §VR7 case-sensitivity clause).
+            // "get" is NOT equivalent to "GET"; empty string is not in the whitelist.
+            if !ALLOWED_HTTP_METHODS.contains(&step.method.as_str()) {
+                // SEC-001 fix: truncate method_value to ≤32 codepoints before embedding in
+                // the error message. A 256 KiB TOML allows a method field up to that size;
+                // echoing it verbatim would produce a 256 KiB error string returned to the
+                // MCP caller (CWE-400 unbounded echo). HTTP methods are ≤7 chars; 32 is a
+                // generous cap that preserves full legibility for any reasonable value.
+                // For method values ≤32 codepoints the truncated slice == the original
+                // string, preserving byte-exact Display for normal inputs (POL-24).
+                //
+                // Precedent: base_url is truncated at 200 codepoints (F-LP10-MED-001).
+                let method_value = truncate_at_char_boundary(&step.method, 32).to_string();
+                errors.push((
+                    ti,
+                    si,
+                    crate::error::SpecEngineError::InvalidHttpMethod {
+                        step_name: step.name.clone(),
+                        sensor_id: spec.sensor_id.clone(),
+                        table_name: table.table_name.clone(),
+                        method_value,
+                    },
+                ));
+            }
+        }
+    }
+
+    errors
+}
+
+# ─── Key code anchors ────────────────────────────────────────────────────────
+# 1. ALLOWED_HTTP_METHODS — compile-time &[&str] const; 7 uppercase values; never runtime-configurable
+# 2. Full-match skip-guard (F-PR1-OBS-001):
+#      ENV_TOKEN_REGEX.find(&step.method).is_some_and(|m| m.start()==0 && m.end()==step.method.len())
+#    — old code had: ENV_TOKEN_REGEX.is_match(&step.method)  [substring — WRONG]
+# 3. SEC-001 truncation: truncate_at_char_boundary(&step.method, 32).to_string()
+#    — caps method_value at 32 codepoints in InvalidHttpMethod before MCP echo
+# 4. Return type: Vec<(usize, usize, SpecEngineError)> — carries (table_index, step_index, error)
+#    from enumerate() — no name-reverse-lookup (F-LOCAL-P4-MED-001 fix)

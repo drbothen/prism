@@ -1,0 +1,49 @@
+# AC-004 Evidence — Oversized method_value truncated to 32 codepoints in E-SPEC-025
+#
+# Story:   S-SPEC-HTTP-METHOD-VALIDATION-001 v1.4
+# AC:      AC-004 — Overlong step.method value is truncated to 32 codepoints in InvalidHttpMethod
+#          Given: step.method = string of length > 32 (e.g., 33 "A" chars)
+#          When:  validate_step_methods() produces E-SPEC-025 error
+#          Then:  InvalidHttpMethod.method_value contains at most 32 codepoints (SEC-001 / CWE-400)
+#          Non-regression: method values ≤32 chars preserved byte-exact (POL-24)
+# BC:      BC-2.16.009 v1.10 §VR7 Point-3 — SEC-001 truncation (32-codepoint cap)
+# Security: SEC-001 / CWE-400 unbounded echo prevention:
+#           A 256 KiB TOML allows method field up to that size; echoing verbatim in E-SPEC-025
+#           would produce a 256 KiB error string returned to MCP caller. 32-char cap prevents.
+#           HTTP methods are ≤7 chars; 32 is generous for legibility with any reasonable value.
+#           Precedent: base_url truncated at 200 codepoints (F-LP10-MED-001).
+#           truncate_at_char_boundary() used (char-boundary-safe for multi-byte UTF-8).
+# Source:  crates/prism-spec-engine/src/validation.rs — validate_step_methods()
+#          truncate_at_char_boundary(&step.method, 32).to_string()
+# Demo mode: LIBRARY (test-harness nextest capture)
+#
+# ─── What the tests assert ────────────────────────────────────────────────────
+#   SEC-001 truncation:
+#     - 33-char method ("A" * 33): results in method_value.len() <= 32 in InvalidHttpMethod
+#     - Exactly 32-char method ("B" * 32): method_value.len() == 32 (at cap, not truncated)
+#     - Normal 7-char method ("CONNECT"): method_value == "CONNECT" (not truncated, POL-24)
+#
+# Red Gate tests:
+#   test_BC_2_16_009_sec_001_overlong_method_truncated_in_error
+#   test_BC_2_16_009_sec_001_normal_length_method_not_truncated
+#   test_BC_2_16_009_sec_001_exactly_32_chars_not_truncated
+#
+# ─── nextest output (captured 2026-06-04) ────────────────────────────────────
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.36s
+────────────
+ Nextest run ID efb60f50-0acf-4c3d-bb61-012d11aa8a2c with nextest profile: default
+    Starting 3 tests across 37 binaries (567 tests skipped)
+        PASS [   0.018s] (1/3) prism-spec-engine validation::http_method_whitelist_tests::test_BC_2_16_009_sec_001_normal_length_method_not_truncated
+        PASS [   0.018s] (2/3) prism-spec-engine validation::http_method_whitelist_tests::test_BC_2_16_009_sec_001_overlong_method_truncated_in_error
+        PASS [   0.018s] (3/3) prism-spec-engine validation::http_method_whitelist_tests::test_BC_2_16_009_sec_001_exactly_32_chars_not_truncated
+────────────
+     Summary [   0.019s] 3 tests run: 3 passed, 567 skipped
+
+# ─── Verdict ──────────────────────────────────────────────────────────────────
+# PASS — AC-004 satisfied.
+# 33-char method value is truncated to ≤32 codepoints in InvalidHttpMethod.method_value
+# (SEC-001 / CWE-400 unbounded echo prevention). Normal-length values (≤32 chars)
+# pass through unchanged (POL-24 non-regression). Exactly-32-char value preserved
+# as-is (at cap, not truncated). truncate_at_char_boundary() is char-boundary-safe
+# for all UTF-8 input (no panic on multi-byte sequences).
