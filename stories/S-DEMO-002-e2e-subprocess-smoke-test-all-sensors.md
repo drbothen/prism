@@ -6,11 +6,11 @@ wave: 5
 epic_id: E-DEMO
 priority: P0
 status: ready
-version: "2.1"
+version: "2.2"
 level: "L4"
 producer: story-writer
 timestamp: "2026-06-02T00:00:00Z"
-modified: "2026-06-03T14:00:00Z"
+modified: "2026-06-03T15:00:00Z"
 tdd_mode: strict
 subsystems: [SS-01, SS-10, SS-11, SS-22]
 # Subsystem anchor justifications:
@@ -129,14 +129,14 @@ cycle: "v1.0.0-brownfield"
 phase: 3
 ---
 
-# S-DEMO-002 v2.1 — prism-bin: E2E Subprocess Smoke Test (All 4 Sensors + Multi-Org Isolation)
+# S-DEMO-002 v2.2 — prism-bin: E2E Subprocess Smoke Test (All 4 Sensors + Multi-Org Isolation)
 
 **Story ID:** S-DEMO-002
 **Status:** ready
-**Version:** v2.1
+**Version:** v2.2
 **Wave:** 5
 **Priority:** P0
-**Points:** 11
+**Points:** 13
 
 ---
 
@@ -648,6 +648,7 @@ Well within budget; second-cheapest story in the E-DEMO epic.
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 2.2 | 2026-06-03 | product-owner | Fix-burst closing ADV-SDEMO002-PR-P04-MED-001 (body H1 `**Points:** 11` → `**Points:** 13`; frontmatter `points: 13` was correct since v2.0 but body H1 pin was not updated). Comprehensive body-pin sibling sweep (TD-VSDD-060): body H1 Version updated v2.1→v2.2; all other body pins (Status, Wave, Priority, Story ID, acceptance_criteria_count 14, red_gate_tests 9, behavioral_contracts 8, crates_touched 4) verified correct against frontmatter — no additional corrections required. |
 | 2.1 | 2026-06-03 | product-owner | Fix-burst closing ADV-SDEMO002-PR-P03-HIGH-001/MED-001/MED-002 + OBS-001 + AC-009/retries reconcile. (1) HIGH-001/OBS-001: AC-010 Then-clause rewritten to match canonical e2e.yml spec exactly — job name "E2E smoke", runs-on `ubuntu-latest`, timeout-minutes 45, triggers `pull_request`+`push`[develop,main]+`workflow_dispatch` (no cron), release build, canonical command `cargo nextest run -p prism-bin --profile e2e --run-ignored ignored-only`. Task 25 updated: `macos-latest`→`ubuntu-latest`, `timeout-minutes: 30`→`45`, trigger set corrected (add `main` + `workflow_dispatch`, drop schedule); job name set to "E2E smoke". Changelog v2.0 narrative corrected. (2) MED-002: `run-ignored = "all"` profile key struck from AC-010 profile description and FSR `.config/nextest.toml` row — nextest does NOT support this key; un-ignoring is via CLI flag `--run-ignored ignored-only` only; both locations now state this explicitly. (3) MED-001 (POL-29 step 3d): `prism-credentials` added to frontmatter `crates_touched` array; FSR row added for `crates/prism-credentials/src/`; Token Budget row added (~1,200 tokens); frontmatter comment updated. |
 | 2.0 | 2026-06-03 | product-owner | Reconcile AC-010 to delivered e2e CI job; disposition S-DEMO-CI-E2E-001 (ADV-SDEMO002-PR-P02-HIGH-001). AC-010 rewritten: the `#[ignore]` gate is now paired with a described dedicated GitHub Actions workflow (`.github/workflows/e2e.yml`) that triggers on `pull_request` + `push` to `develop`, builds release binaries, launches DTU, and runs `cargo nextest run -p prism-bin --profile e2e --run-ignored ignored-only` automatically. AC-009 updated: CI job replaces the prior vague "CI e2e profile job" reference with a concrete citation to `e2e.yml`. File Structure Requirements table updated: `.config/nextest.toml` clarified with `run-ignored / slow-timeout / retries` settings; `.github/workflows/e2e.yml` added as a CREATE deliverable of this PR. Task 25 added: devops-engineer scope for creating `e2e.yml`, absorbed from S-DEMO-CI-E2E-001 per human decision 2026-06-03. S-DEMO-CI-E2E-001 superseded (see that story's v1.1 changelog). |
 | 1.9 | 2026-06-03 | story-writer | SPEC fix — human-authorized spec amendment per Source-of-Truth §7 (code canonical for query syntax). Closes ADV-SDEMO002-P01-MED-001: all bare `FROM <source> LIMIT N` query strings in ACs/Tasks/Open-Questions replaced with SQL form `SELECT * FROM <source> LIMIT N` to match the working code in `crates/prism-bin/tests/e2e_smoke.rs` (bare-FROM is invalid PrismQL pipe syntax; parser requires `\|` before `LIMIT` in pipe mode). Affected locations: AC-003, AC-005 (claroty_alerts + claroty_devices), AC-006, AC-012, AC-013 (two instances), Task 11, Task 17, Open Question 3. AC-004 EXCEPTION: `WHERE aql = 'in:devices' LIMIT 5` form retained verbatim (D-963 Option-A locked decision); SQL form already in place from v1.7. Closes ADV-SDEMO002-P01-MED-002: Task 9 `prism-bin start --config <temp_dir>` corrected to `prism-bin start --config-dir <temp_dir>` (clap CLI declares `--config-dir`; confirmed in `helpers/mod.rs` line 976 `.arg("--config-dir")`). Task 8 (`prism-dtu-demo-server start --config`) LEFT UNCHANGED — DTU binary genuinely uses `--config` (confirmed in `prism-dtu-demo-server/src/main.rs` line 37: `#[arg(long, short = 'c'` named `config`). |
