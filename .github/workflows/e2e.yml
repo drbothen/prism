@@ -7,7 +7,7 @@
 #      `.prism-dtu-demo-server.urls.json` and wires the ports internally.
 #   3. Per-org credential env vars (DTU placeholder values; no real credentials).
 #
-# Canonical invocation: cargo nextest run -p prism-bin --profile e2e --run-ignored ignored-only
+# Canonical invocation: cargo nextest run -p prism-bin --profile e2e --run-ignored ignored-only --no-tests=fail
 # (OBS-002 resolution: this file is the source of truth for the canonical command; the
 # nextest.toml [profile.e2e] comment is kept in sync with this invocation.)
 #
@@ -164,10 +164,15 @@ jobs:
           # Canonical E2E command — source of truth per OBS-002 reconciliation (S-DEMO-002 AC-010).
           # --profile e2e:           timeout=120s per test, fail-fast=true, terminate-after=1
           # --run-ignored ignored-only: un-gates only the #[ignore]'d E2E tests (not the full suite)
+          # --no-tests=fail:         fail with exit code 4 if zero tests are selected — prevents
+          #                          false-green if #[ignore] attrs are removed or e2e_smoke.rs is
+          #                          renamed without updating this workflow (ADV-PR-P05-OBS-001).
+          #                          Requires nextest ≥0.9.85; project pins 0.9.129 (2026-02-22).
           cargo nextest run \
             -p prism-bin \
             --profile e2e \
-            --run-ignored ignored-only
+            --run-ignored ignored-only \
+            --no-tests=fail
 
       - name: Upload E2E JUnit results
         if: always()

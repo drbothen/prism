@@ -2,7 +2,7 @@
 # Un-ignores tests tagged "E2E-001" (all tests in e2e_smoke.rs are #[ignore] by default).
 #
 # Canonical CI command (source of truth: .github/workflows/e2e.yml — OBS-002):
-#   cargo nextest run -p prism-bin --profile e2e --run-ignored ignored-only
+#   cargo nextest run -p prism-bin --profile e2e --run-ignored ignored-only --no-tests=fail
 #
 # Use `--run-ignored ignored-only` (not `all`) to run ONLY the #[ignore]'d E2E tests
 # without also running the non-ignored prism-bin test suite (which requires no DTU).
