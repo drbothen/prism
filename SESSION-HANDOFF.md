@@ -458,6 +458,112 @@ DURABLE PIN BLOCK (CURRENT STATE — D-580 — DURABLE PRE-/CLEAR RESUME SNAPSHO
 
 ---
 
+## §RESUME SNAPSHOT 2026-06-04-WAVE5-DUAL-MERGE-COMPLETE-PARALLEL-PLAN-READY
+
+> **PRIORITY READ ORDER — D-988 CONTEXT-CLEAR DURABILITY CHECKPOINT.** Read STATE.md frontmatter + this snapshot before dispatching any agent. develop HEAD `fdd12251`. factory-artifacts LOCAL-ONLY (no push). Session cleared after D-988 commit. AWAITING HUMAN GO before any Wave 5 dispatch.
+
+### Session Outcomes (this session — 2026-06-04)
+
+**MERGED (both active Wave-5 lanes):**
+
+- **S-DEMO-CROWDSTRIKE-MULTIREGION-001** — PR #170 squash-merged develop@cd4a2211 2026-06-03. LOCAL 3/3 CONVERGED @291d7c64 + PR-LEVEL 3/3 CONVERGED (passes 7/8/9 strict) @efbcf59b. CASCADE CLOSED (D-978). POL-14: BC-2.16.009+BC-2.16.013 both already active — idempotent no-op.
+- **S-DEMO-002 (keystone)** — PR #171 squash-merged develop@fdd12251 2026-06-04. LOCAL 3/3 CONVERGED @6081d42a (passes 5/6/7) + PR-LEVEL 3/3 CONVERGED (passes 12/13/14 strict) @81cf3678 (BC-5.39.001 D-779). 40 CI checks PASS incl E2E smoke GREEN. CASCADE CLOSED (D-987).
+
+**POL-14 BC auto-promotions (D-987):**
+- BC-2.11.001 v1.3→v1.4 (`query` MCP Tool Accepts Scoping) — draft→active
+- BC-2.11.007 v1.5→v1.6 (Sensor Filter Push-Down) — draft→active
+- BC-3.2.001 v0.8→v0.9 (Per-Org Sensor Data Isolation) — draft→active
+- BC-2.11.005, BC-2.09.008, BC-2.10.001, BC-2.10.010, BC-2.22.001 — idempotent no-ops (already active)
+
+**Versions at D-988:**
+- STATE v7.637→v7.638 (this D-988 burst)
+- STORY-INDEX v2.272 (179 stories)
+- BC-INDEX v5.79 (active: 238, draft: 1)
+- Decisions through D-988 (this burst)
+- develop HEAD: `fdd12251`
+
+---
+
+### Open Deferrals / Process-Gaps (ALL carry forward — must remain tracked)
+
+| ID | Summary | Action Required |
+|----|---------|-----------------|
+| DEFER-CLAUDEMD-BC216002-MISLABEL-001 | SAP-1 probe + CLAUDE.md §Conventions cite BC-2.16.002 as "Structured Event Catalog" but BC-2.16.002 is "Multi-Step Fetch Pipeline"; catalog lives in BC-2.05.005/BC-2.03.010 | **NEEDS HUMAN CLAUDE.md EDIT** (direct edit only per Pipeline Authority) — repoint SAP-1 + §Conventions to correct BC anchors |
+| DEFER-VERSION-PIN-SWEEP-001 | body `**Version:**` pin drifted twice on S-DEMO-002 (P04+P11); POL-23 / PO body-pin checklist doesn't mandate this field | Codify into POL-23 or PO body-pin checklist at cycle-close |
+| DEFER-CI-WORKFLOW-SPEC-DRIFT-001 | Story-described workflow attributes (runs-on/triggers/timeout/profile) contradicted delivered YAML — caught as HIGH-001 in PR-LEVEL pass-3; no existing policy/lint | Cycle-close: add consistency-validator rule to diff story-described workflow attrs vs delivered YAML for any CI workflow story |
+| DEFER-SS22-LABEL-DRIFT-001 | ARCH-INDEX "Process Lifecycle" vs BC-INDEX/story "Binary Entrypoint" label drift for SS-22 | Maintenance story to reconcile (architect adjudicates canonical label) |
+| DEFER-ORPHAN-SENSORS-DIR-001 | Orphaned top-level sensors/*.toml hardcode us-1; separate from runtime spec_dir; S-MAINT-ORPHAN-SENSORS-DIR-001 anchored | Story-writer to author S-MAINT-ORPHAN-SENSORS-DIR-001 |
+| DEFER-EQUERY009-001 | BC-2.11.007 DI-021 E-QUERY-009 REQUIRED-column enforcement absent from live path (prism-core/error.rs, materialization.rs, pushdown.rs) | Phase-5: PO/architect adjudicate (implement enforcement vs amend BC scope) → implementer wires |
+| DEFER-POL7-EDEMO-TEMPLATE-001 | POL-7 §References step unsatisfiable for E-DEMO story-template family (uses BC table as references surface) | Cycle-close: PO reconciles (add §References to E-DEMO template OR amend POL-7) |
+| AC-008 SID-1 §2 | S-1.12-FOLLOWUP: signal-handler refactor for unit-testable graceful shutdown | Maintenance wave: story S-1.12-FOLLOWUP to be dispatched |
+
+---
+
+### Remaining Wave-5 Backlog
+
+All HARD deps are MERGED. True parallelism constrained by: (a) 5 open S-7.01 PO/BC gates + 1 stub, (b) file-contention clusters, (c) single develop + orchestrator-serialized 3-CLEAN cascades (~2-3 realistic concurrent lanes).
+
+| Story | pts | status | S-7.01 PO/BC gate | primary files | contention cluster |
+|-------|-----|--------|-------------------|--------------|-------------------|
+| S-DEMO-CLAROTY-PAGINATION-001 | 5 | draft | (verify — BC-2.16.002 §Postconditions POST-vs-GET pagination dispatch) | prism-query pipeline (claroty POST offset+limit) | prism-query + Claroty |
+| S-DEMO-QUERY-PUSHDOWN-001 | 5 | draft | none noted | prism-query push-down | prism-query |
+| OCSF-CLASS-MIGRATION-001 | 3 | draft | OPEN: BC-2.02.012 + BC-2.01.013 | 4 sensor TOMLs + select_by_class_name + S-DEMO-001 conformance fixture | sensor-TOML |
+| S-DEMO-003 | 5 | draft | none noted | prism-credential-set CLI + setup scripts + runbook | low (new files) |
+| S-DEMO-CLAROTY-TRAILING-SLASH-001 | 3 | draft | OPEN: BC-2.16.013 trailing-slash-parity coverage | claroty + BC-2.16.013 | Claroty + BC-2.16.013 |
+| S-DEMO-HARNESS-CLONE-PARITY-001 | 3 | draft | OPEN: BCs TBD (closes F-P6-DEFER-001 + F-P10-LOW-001) | DTU harness (armis+claroty clones) | DTU harness |
+| S-DEMO-CLAROTY-SPEC-PROSE-FIX-001 | 1 | draft | OPEN: BC-2.16.013 (closes F-P2-DEFER-001) | claroty.sensor.toml + BC-2.16.013 prose | Claroty + BC-2.16.013 |
+| S-SPEC-HTTP-METHOD-VALIDATION-001 | 3 | draft | OPEN: BC-2.16.009 amendment + E-SPEC code | prism-spec-engine validation.rs | low |
+| S-5.04-FIX-001 | 1 | draft | none (factory-only depends_on fix) | factory story depends_on field | none |
+| S-DEMO-MULTI-TENANT-DTU-001 | TBD | stub | needs story-writer materialization | TBD | TBD |
+
+**NOTE:** S-DEMO-ARMIS-AQL-001 has a STALE duplicate `in_progress` row in sprint-state.yaml (lines ~189-195). It is actually MERGED via PR #168 develop@eb3416d1 2026-06-02 (D-950). The authoritative MERGED entry exists at lines ~105-111. Stale row corrected in D-988 burst.
+
+**Separate maintenance/process-gap track (independent of Wave 5 demo):**
+S-POL-29-CANONICAL-TEMPLATE-REGISTRY-001, S-MAINT-POL29-HOOK-001, S-POL-14-STATUS-SYNC-001, S-MAINT-W3SEC-CITE-SWEEP-002 (armis+slack).
+
+---
+
+### Recommended Wave-5 Parallel Execution Plan
+
+**Phase A (serial prep — NO implementation until done):**
+Product-owner authors all 5 open BCs:
+1. OCSF-CLASS-MIGRATION: BC-2.02.012 (scope no-deprecated-2001 invariant) + BC-2.01.013 amendment
+2. Claroty trailing-slash: BC-2.16.013 trailing-slash-parity clause
+3. Harness-parity: BCs TBD (prism-dtu-harness routes)
+4. Claroty-prose: BC-2.16.013 stale-prose correction scope
+5. HTTP-method validation: BC-2.16.009 amendment + E-SPEC code variant
+
+Story-writer materializes S-DEMO-MULTI-TENANT-DTU-001 (stub → full spec).
+Land trivial S-5.04-FIX-001 (factory-only; no code change).
+Flip stories draft→ready to clear Spec-First Gate (S-7.01).
+
+**Phase B (parallel, disjoint file sets — dispatch after Phase A gates clear):**
+- S-DEMO-QUERY-PUSHDOWN-001 (prism-query push-down)
+- S-DEMO-003 (credential CLI + runbook — new files, low contention)
+- S-SPEC-HTTP-METHOD-VALIDATION-001 (validation.rs — independent)
+- OCSF-CLASS-MIGRATION-001 (sensor TOMLs — schedule BEFORE Claroty batch to avoid sensor-TOML races)
+
+**Phase C (Claroty cluster — serialize within; shares BC-2.16.013 + claroty.sensor.toml):**
+S-DEMO-CLAROTY-PAGINATION-001 → S-DEMO-CLAROTY-TRAILING-SLASH-001 → S-DEMO-CLAROTY-SPEC-PROSE-FIX-001 → S-DEMO-HARNESS-CLONE-PARITY-001
+
+**AWAITING HUMAN GO before any dispatch. Session being cleared.**
+
+---
+
+### Resume Instructions
+
+1. Run `vsdd-factory:factory-worktree-health` (BLOCKING preflight)
+2. Read STATE.md frontmatter — confirm `version: "7.638"` + `develop_head: "fdd12251"` + `safe_to_compact: true`
+3. Read this snapshot (2026-06-04-WAVE5-DUAL-MERGE-COMPLETE-PARALLEL-PLAN-READY)
+4. Confirm `git log --oneline develop` shows fdd12251 as HEAD
+5. Check open PRs: `gh pr list --state open` → expected: NONE
+6. factory-artifacts is LOCAL-ONLY — do NOT push
+7. Stale worktrees eligible for cleanup: `.worktrees/S-DEMO-CLAROTY-AUDIT-DTU-001` (MERGED PR #167), `.worktrees/S-DEMO-ARMIS-AQL-001` (MERGED PR #168)
+8. Stale worktrees to leave alone: `.worktrees/S-3.09` (FROZEN), `.worktrees/W3-FIX-S307-001` (BLOCKED superseded)
+9. NEXT ACTIONS (awaiting human GO): Phase A spec-gate prep as described above
+
+---
+
 ## §PRE-IMPLEMENTATION RESUME SNAPSHOT (D-545 — 2026-05-14)
 
 > **PRIORITY READ ORDER.** This section is the primary durability anchor for the post-/clear implementation session. Read STATE.md + this section + CYCLE-SNAPSHOT.md §PRE-IMPLEMENTATION RESUME SNAPSHOT (D-545) before dispatching any agent. Zero ambiguity dispatch context guaranteed.
