@@ -168,7 +168,7 @@ ARTIFACT STATE AFTER D-540 (UNCHANGED FROM D-539 — no spec edits):
 DURABLE PIN BLOCK (CURRENT STATE — D-580 — DURABLE PRE-/CLEAR RESUME SNAPSHOT — 86th consecutive single-commit — STRATEGIC DECISION PENDING)
 ═══════════════════════════════════════════════════════════════════════
 
-- develop HEAD: b38c1abc (fix(S-MAINT-W3SEC-CITE-SWEEP-001): correct BC-3.5.002 precond-3 org-guard mis-cite → W3-FIX-SEC-001, DRIFT-D943-001 (#169) — MERGED 2026-06-02; D-958 post-merge burst)
+- develop HEAD: fdd12251 (feat(S-DEMO-002): e2e subprocess smoke test — all 4 sensors + multi-org isolation + AQL push-down + e2e CI gate (#171) — MERGED 2026-06-04; D-987 post-merge burst)
 - factory-artifacts: run `git -C .factory log -1 --format=’%H’` (per TD-VSDD-053; D-579 is this commit)
 - feature_branch_head: no active feature branch (spec-authoring-only burst; develop unchanged at a5ab742c)
 - feature_branch_remote_status: no feature branch (spec-only burst; develop@a5ab742c unchanged)

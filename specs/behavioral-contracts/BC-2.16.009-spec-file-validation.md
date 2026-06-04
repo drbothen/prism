@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.8"
+version: "1.9"
 status: active
 producer: product-owner
 timestamp: 2026-04-13T12:00:00
@@ -11,7 +11,7 @@ subsystem: "SS-16"
 capability: "CAP-029"
 lifecycle_status: active
 introduced: cycle-1
-modified: "2026-06-03"  # v1.8 S-SPEC-HTTP-METHOD-VALIDATION-001 Wave-5 Phase-A PO burst
+modified: "2026-06-04"  # v1.9 FB-PR2 spec fix-burst (F-PR4-MED-001/002 + OBS-PR4-001/002/003)
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -32,11 +32,13 @@ extracted_from: ".factory/specs/prd.md"
 ## Description
 
 Spec file validation runs at startup, on reload, and on `add_sensor_spec`. It performs
-five categories of checks in a single pass: schema validation (field types, regex
+seven categories of checks in a single pass: schema validation (field types, regex
 patterns, enumerations), variable reference resolution (ensuring `${step.field}`
 references point to steps that exist and have already executed), OCSF field validation
-(against the compiled protobuf schema), pagination configuration consistency, and rate
-limit hint validity.
+(against the compiled protobuf schema), pagination configuration consistency, rate
+limit hint validity, env-var token resolution (substituting `${env.VAR_NAME}` tokens
+in string fields before subsequent validation rules run), and HTTP method whitelist
+validation (rejecting `step.method` values not in the 7-element allowed set).
 
 All errors and warnings are collected in a single pass and reported together in a
 multi-error format grouped by file, table, and field, including exact TOML paths for
@@ -81,6 +83,28 @@ actionable correction. Warnings do not prevent loading; errors do.
 - `requests_per_second` must be > 0 if specified
 - `burst_size` must be >= 1 if specified
 
+### 6. Env Var Token Resolution (AC-6)
+Post-TOML-parse, before URL-format validation, the resolver scans all string fields for `${env.VAR_NAME}` tokens and resolves them against `std::env::var`.
+
+**Sibling-sweep (TD-VSDD-060):** All four canonical sensor specs (`crates/prism-sensors/specs/`) were audited. As of S-SPEC-ENV-VAR-001, the `${env.VAR}` pattern was used in `base_url` of `armis.sensor.toml`, `claroty.sensor.toml`, `cyberint.sensor.toml`. As of S-DEMO-CROWDSTRIKE-MULTIREGION-001, `crowdstrike.sensor.toml` also uses `${env.CROWDSTRIKE_BASE_URL}` for `base_url` — all four canonical sensor specs now use the env-var pattern for `base_url`. No other string fields (`path_template`, `body_template`, `response_path`, `ocsf_class`, etc.) in the four canonical sensor specs currently use env tokens. The resolver MUST scan `base_url` at minimum; the implementation SHOULD scan all `String` fields in `SensorSpec` to remain correct for future specs. Per-org overlay `base_url` is also in scope (overlays are merged before validation runs).
+
+**Partial interpolation** is supported within `base_url`: the pattern `"https://${env.CYBERINT_ENVIRONMENT}.cyberint.io"` replaces only the `${env.VAR_NAME}` token, preserving the surrounding literal string. After resolution, the full URL is subject to the `starts_with("http://")` / `starts_with("https://")` URL-format validation rule (Validation Rule 1).
+
+**Token format:** `${env.VAR_NAME}` where `VAR_NAME` matches `[A-Z0-9_]+` (uppercase letters, digits, underscores — standard POSIX env var names). Tokens with a different namespace (e.g., `${step.field}`) are NOT resolved by this pass; those belong to the runtime interpolation engine (BC-2.16.002).
+
+**Error path (E-SPEC-024):**
+- If `VAR_NAME` is absent from the environment (`std::env::var` returns `VarError::NotPresent`) → validation error `E-SPEC-024`
+- If `VAR_NAME` is present but the value is empty string (`""`), → validation error `E-SPEC-024` (empty value is treated as missing)
+- The error message MUST include the variable NAME (`VAR_NAME`) and the TOML path (`toml_path`) of the failing field
+- The error message MUST NOT include the variable VALUE — per AD-017 / AI-opaque-credentials discipline; credential or instance endpoint values must not appear in logs or MCP error responses
+- Multiple unresolvable tokens produce multiple E-SPEC-024 errors, one per token, collected in the same multi-error pass (no fail-fast)
+- Fail-closed: a spec with any unresolved env tokens is REJECTED ENTIRELY; it does not load in a degraded state
+
+**Success path:**
+- Every `${env.VAR_NAME}` token in every string field is replaced with the resolved value
+- The resulting string (with tokens replaced) is passed to subsequent validation rules (URL-format check, etc.)
+- If a field contained only the token (e.g., `base_url = "${env.ARMIS_INSTANCE_URL}"`), the resolved value must itself pass URL-format validation
+
 ### 7. HTTP Method Whitelist Validation (AC-7) — S-SPEC-HTTP-METHOD-VALIDATION-001
 
 This validation rule runs AFTER the env-var token resolution pass (Rule 6) — environment-
@@ -92,8 +116,14 @@ are validated against the whitelist on their RESOLVED string, not on the raw tok
 compile-time constant `ALLOWED_HTTP_METHODS: &[&str]` in
 `crates/prism-spec-engine/src/validation.rs`. The constant is never runtime-configurable.
 
-**Implementation function:** `validate_step_methods(spec: &SensorSpec) -> Vec<SpecEngineError>`
+**Implementation function:** `validate_step_methods(spec: &SensorSpec) -> Vec<(usize, usize, SpecEngineError)>`
 is added to `validation.rs` and called post-env-resolver pass in the validation pipeline.
+Each tuple entry carries `(table_index, step_index, error)` where `table_index` and `step_index`
+are the 0-based `enumerate` indices into `spec.tables` and `table.steps` respectively. Callers
+use these indices to construct the canonical `sensor.tables[{table_index}].steps[{step_index}].method`
+TOML path in the E-SPEC-025 error without a fragile step-name reverse-lookup (step-name uniqueness
+is not enforced by the spec, making name-based lookup unsafe — F-LOCAL-P4-MED-001). Callers that
+only need the error values (not the path indices) unwrap with `.map(|(_, _, e)| e)`.
 
 **Validation semantics:**
 - If `step.method` is **absent / `None`**: no validation error — absent method defaults to
@@ -116,6 +146,17 @@ is added to `validation.rs` and called post-env-resolver pass in the validation 
   fallback remains as a safety net for code paths added in future that bypass validation.
 - **Error message format (E-SPEC-025):** `"Step '<step_name>' in '<sensor_id>.<table_name>' declares method '<method_value>' which is not a supported HTTP method. Supported: GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS"`
   The method value is safe to echo (it is config text, not a credential per AD-017).
+- **32-codepoint echo cap (CWE-400 mitigation, SEC-001):** The `<method_value>` embedded
+  in the E-SPEC-025 error message is truncated to a maximum of 32 codepoints via
+  `truncate_at_char_boundary(&step.method, 32)` in `validate_step_methods`. A 256 KiB
+  TOML file can contain a method string up to that size; echoing it verbatim would produce
+  an unbounded (~256 KiB) error response returned to the MCP caller (CWE-400). HTTP
+  methods are at most 7 ASCII characters; 32 codepoints is a generous cap that preserves
+  full legibility for any reasonable method value. For method values of 32 codepoints or
+  fewer the truncated slice equals the original string — Display output is byte-identical
+  (POL-24 preserved). This follows the `base_url` 200-codepoint truncation precedent
+  (F-LP10-MED-001). Verified by load-bearing test
+  `test_BC_2_16_009_sec_001_overlong_method_truncated_in_error`.
 
 **Ordering:** Rule 7 MUST execute after Rule 6 (env-var resolution). Specifically:
 1. Rule 6 resolves all `${env.VAR}` tokens; if any token is unresolvable → `E-SPEC-024`
@@ -125,29 +166,12 @@ is added to `validation.rs` and called post-env-resolver pass in the validation 
    `E-SPEC-024` fires for a `step.method` field, that field is excluded from Rule 7
    processing (double-reporting the same field is noise, not signal).
 2. Rule 7 validates all remaining (successfully-resolved or non-env-token) `step.method`
-   field values against the whitelist.
-
-### 6. Env Var Token Resolution (AC-6)
-Post-TOML-parse, before URL-format validation, the resolver scans all string fields for `${env.VAR_NAME}` tokens and resolves them against `std::env::var`.
-
-**Sibling-sweep (TD-VSDD-060):** All four canonical sensor specs (`crates/prism-sensors/specs/`) were audited. As of S-SPEC-ENV-VAR-001, the `${env.VAR}` pattern was used in `base_url` of `armis.sensor.toml`, `claroty.sensor.toml`, `cyberint.sensor.toml`. As of S-DEMO-CROWDSTRIKE-MULTIREGION-001, `crowdstrike.sensor.toml` also uses `${env.CROWDSTRIKE_BASE_URL}` for `base_url` — all four canonical sensor specs now use the env-var pattern for `base_url`. No other string fields (`path_template`, `body_template`, `response_path`, `ocsf_class`, etc.) in the four canonical sensor specs currently use env tokens. The resolver MUST scan `base_url` at minimum; the implementation SHOULD scan all `String` fields in `SensorSpec` to remain correct for future specs. Per-org overlay `base_url` is also in scope (overlays are merged before validation runs).
-
-**Partial interpolation** is supported within `base_url`: the pattern `"https://${env.CYBERINT_ENVIRONMENT}.cyberint.io"` replaces only the `${env.VAR_NAME}` token, preserving the surrounding literal string. After resolution, the full URL is subject to the `starts_with("http://")` / `starts_with("https://")` URL-format validation rule (Validation Rule 1).
-
-**Token format:** `${env.VAR_NAME}` where `VAR_NAME` matches `[A-Z0-9_]+` (uppercase letters, digits, underscores — standard POSIX env var names). Tokens with a different namespace (e.g., `${step.field}`) are NOT resolved by this pass; those belong to the runtime interpolation engine (BC-2.16.002).
-
-**Error path (E-SPEC-024):**
-- If `VAR_NAME` is absent from the environment (`std::env::var` returns `VarError::NotPresent`) → validation error `E-SPEC-024`
-- If `VAR_NAME` is present but the value is empty string (`""`), → validation error `E-SPEC-024` (empty value is treated as missing)
-- The error message MUST include the variable NAME (`VAR_NAME`) and the TOML path (`toml_path`) of the failing field
-- The error message MUST NOT include the variable VALUE — per AD-017 / AI-opaque-credentials discipline; credential or instance endpoint values must not appear in logs or MCP error responses
-- Multiple unresolvable tokens produce multiple E-SPEC-024 errors, one per token, collected in the same multi-error pass (no fail-fast)
-- Fail-closed: a spec with any unresolved env tokens is REJECTED ENTIRELY; it does not load in a degraded state
-
-**Success path:**
-- Every `${env.VAR_NAME}` token in every string field is replaced with the resolved value
-- The resulting string (with tokens replaced) is passed to subsequent validation rules (URL-format check, etc.)
-- If a field contained only the token (e.g., `base_url = "${env.ARMIS_INSTANCE_URL}"`), the resolved value must itself pass URL-format validation
+   field values against the whitelist. Malformed env pseudo-tokens (e.g., `${env.lower}`,
+   `${env.foo-bar}`, `${env.}`) — which contain a lowercase or hyphenated `VAR_NAME` that
+   does not match the `ENV_TOKEN_REGEX` (`[A-Z0-9_]+`) — are never resolved or errored by
+   Rule 6. They fall through to Rule 7's whitelist check and produce `E-SPEC-025` because
+   the literal string (e.g., `"${env.lower}"`) is not in `ALLOWED_HTTP_METHODS`. This
+   behavior is tested via F-LOCAL-P3-MED-002.
 
 ## Postconditions
 - If any errors are found: the spec is rejected and the error list is returned
@@ -204,6 +228,7 @@ Post-TOML-parse, before URL-format validation, the resolver scans all string fie
 | EC-009-018 | Two steps in same spec with invalid methods (`"CONNECT"` + `"TRACE"`) | Two `E-SPEC-025` errors collected; both in same multi-error response; spec rejected |
 | EC-009-019 | `step.method = "${env.SENSOR_METHOD}"` with `SENSOR_METHOD="CONNECT"` | Rule 6 resolves to `"CONNECT"`; Rule 7 fires `E-SPEC-025` on resolved value `"CONNECT"` |
 | EC-009-020 | `step.method = "${env.SENSOR_METHOD}"` with `SENSOR_METHOD` unset | Rule 6 fires `E-SPEC-024` for the unresolved token; Rule 7 SKIPS this step (method value undefined after Rule 6 failure; double-reporting is noise) |
+| EC-009-021 | `step.method` set to a string longer than 32 codepoints (e.g., a 256-char garbage value in a malformed TOML) | `E-SPEC-025` is emitted; the `method_value` field in the error message is truncated at 32 codepoints via `truncate_at_char_boundary` (CWE-400 unbounded-echo mitigation, SEC-001). For inputs ≤32 codepoints the echoed value is byte-identical to the original. Tested by `test_BC_2_16_009_sec_001_overlong_method_truncated_in_error`. |
 
 ## Canonical Test Vectors
 
@@ -226,6 +251,7 @@ See `.factory/specs/prd-supplements/test-vectors.md` for full canonical vectors.
 | HTTP method — lowercase rejected | `step.method = "get"` | `E-SPEC-025` (case-sensitive whitelist); spec rejected |
 | HTTP method — env-resolved invalid | `step.method = "${env.M}"`, `M="TRACE"` | Rule 6 resolves to `"TRACE"`; Rule 7 fires `E-SPEC-025` on resolved value; spec rejected |
 | HTTP method — absent (no step.method) | step has no `method` field | No E-SPEC-025; spec loads; pipeline defaults to GET |
+| HTTP method — overlong (>32 codepoints) | `step.method` = 33-character garbage string | `E-SPEC-025` emitted; `method_value` in error message is truncated to first 32 codepoints (SEC-001 / CWE-400 mitigation); spec rejected |
 
 ## Verification Properties
 
@@ -247,6 +273,7 @@ See `.factory/specs/prd-supplements/test-vectors.md` for full canonical vectors.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.9 | FB-PR2 | 2026-06-04 | product-owner | §VR7 implementation-function signature corrected to `Vec<(usize, usize, SpecEngineError)>` (F-PR1-MED-002 closure); 32-codepoint `method_value` truncation invariant documented (F-PR4-MED-002 / SEC-001 / CWE-400), with load-bearing test `test_BC_2_16_009_sec_001_overlong_method_truncated_in_error`; §Description category count five→seven correcting stale description; malformed-pseudo-token behavior (e.g., `${env.lower}`) documented in §VR7 §Ordering with E-SPEC-025 fallback + F-LOCAL-P3-MED-002 test cite; EC-009-021 (overlong method echo cap) added to §Edge Cases; overlong-method canonical test vector added to §Canonical Test Vectors; §Validation Rules 6 env-var content restored (was reordered in v1.8 edit — corrected to Rules 6 then 7 ascending order). §VR6 full text re-added to maintain ascending rule order (6 before 7). OBS-PR4-001/002/003 folded. |
 | 1.8 | Wave-5-Phase-A-PO-burst | 2026-06-03 | product-owner | S-SPEC-HTTP-METHOD-VALIDATION-001 (DRIFT-D926-001 anchor): Added §Validation Rules 7 — HTTP Method Whitelist Validation (AC-7). Whitelist: `GET`, `POST`, `PUT`, `PATCH`, `DELETE`, `HEAD`, `OPTIONS` (7 values; compile-time `ALLOWED_HTTP_METHODS: &[&str]` constant). Validation runs POST Rule 6 env-var resolution; absent `step.method` (None) is NOT an error; wrong-case methods (e.g., `"get"`) are invalid; unsupported methods (`CONNECT`, `TRACE`) are invalid; empty string is invalid. Multi-error collection per INV-ERR-003. Rule 7 skips step.method fields that already failed Rule 6 (E-SPEC-024) to prevent double-reporting. Added E-SPEC-025 to §Error Conditions with full message template. Added edge cases EC-009-010..EC-009-020 and 6 canonical test vectors. Added S-SPEC-HTTP-METHOD-VALIDATION-001 to Stories traceability. No semantic change to existing rules. BC v1.7 → v1.8. |
 | 1.7 | S-DEMO-CROWDSTRIKE-MULTIREGION-001 BC attachment burst | 2026-05-31 | product-owner | Updated §Validation Rules 6 sibling-sweep note: `crowdstrike.sensor.toml` now also uses `${env.CROWDSTRIKE_BASE_URL}` for `base_url` (S-DEMO-CROWDSTRIKE-MULTIREGION-001), making all four canonical sensor specs env-var-based for `base_url`. Added EC-009-008 (CrowdStrike eu-1 URL resolution — happy path) and EC-009-009 (CrowdStrike missing CROWDSTRIKE_BASE_URL → E-SPEC-024) for explicit CrowdStrike multi-region coverage. Added S-DEMO-CROWDSTRIKE-MULTIREGION-001 to Stories traceability. No semantic behavior change — the resolver was already sensor-agnostic; this adds CrowdStrike-specific test vectors to the existing contract. |
 | 1.6 | S-SPEC-ENV-VAR-001 spec burst | 2026-05-31 | product-owner | Added §Validation Rules 6: Env Var Token Resolution (AC-6). Covers `${env.VAR_NAME}` token resolution in sensor spec string fields at spec-load time (post-TOML-parse, pre-URL-format-validation). Sibling-sweep (TD-VSDD-060): `${env.VAR}` pattern confirmed in `base_url` of `armis.sensor.toml`, `claroty.sensor.toml`, `cyberint.sensor.toml`; no other string fields in the four canonical sensor specs currently use env tokens. Added E-SPEC-024 to §Error Conditions. Added 7 edge cases EC-009-001..EC-009-007 covering: missing var, empty var, partial interpolation (cyberint pattern), failed partial interpolation, invalid URL after resolution, multiple failing tokens, overlay file failing. Added 4 canonical test vectors for env-var scenarios. AD-017 no-value-leak constraint documented explicitly in the rule (var NAME acceptable, var VALUE forbidden). error-taxonomy.md bumped to v1.56 in same burst. |
