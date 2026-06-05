@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "5.83"
+version: "5.84"
 status: draft
 producer: state-manager
 timestamp: 2026-06-05T00:00:00Z
@@ -41,7 +41,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.01.010 | Partial Failure Handling for Paginated and Cross-Client Queries | 01 - Sensor Adapters | CAP-001, CAP-002 | P0 | draft |
 | BC-2.01.011 | ~~Cross-Sensor Correlation via OCSF Field Alignment~~ | 01 - Sensor Adapters | CAP-012 | P1 | removed |
 | BC-2.01.012 | ~~Query Fingerprint Validation at Startup~~ | 01 - Sensor Adapters | CAP-001 | P0 | removed |
-| BC-2.01.013 | DataSource Trait Eliminates Per-Sensor Code Duplication | 01 - Sensor Adapters | CAP-001 | P0 | active (promoted draft→active D-398 per POL-14; anchor story S-PLUGIN-PREREQ-A merged PR #142 develop@90d7c80f) — v1.12 |
+| BC-2.01.013 | DataSource Trait Eliminates Per-Sensor Code Duplication | 01 - Sensor Adapters | CAP-001 | P0 | active (promoted draft→active D-398 per POL-14; anchor story S-PLUGIN-PREREQ-A merged PR #142 develop@90d7c80f) — v1.13 (S-DEMO-QUERY-PUSHDOWN-001-v2-bc-respec: per-sensor push-down translation table corrected; Armis/Cyberint/Claroty wrong claims removed; CrowdStrike start+end FQL wiring via ADR-033 T1 specified; TV-006+EC-01-027 updated; ADR-033 added to Traceability) |
 | BC-2.01.014 | Exponential Backoff and Retry for Transient Sensor API Errors | 01 - Sensor Adapters | CAP-001 | P0 | draft |
 | BC-2.01.015 | ~~MCP Tool Response Envelope Structure~~ | 01 - Sensor Adapters | CAP-001 | P0 | removed |
 | BC-2.01.016 | SensorAuth Open Trait — Plugin-Implementable Auth Contract (No Sealed Marker) | 01 - Sensor Adapters | CAP-001 | P0 | active (promoted draft→active D-726 per POL-14; anchor story S-PLUGIN-PREREQ-E merged PR #151 develop@80ebe794 2026-05-19) — v1.12 |
@@ -152,9 +152,9 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.11.002 | PrismQL Filter Mode Parsing | 11 - Query Execution | CAP-015 | P0 | draft |
 | BC-2.11.003 | PrismQL SQL Mode Parsing | 11 - Query Execution | CAP-015 | P0 | draft |
 | BC-2.11.004 | PrismQL Pipe Mode Parsing | 11 - Query Execution | CAP-015 | P0 | active |
-| BC-2.11.005 | Ephemeral Materialization — Fan-Out, Normalize, Arrow RecordBatch, DataFusion MemTable | 11 - Query Execution | CAP-015 | P0 | active (promoted draft→active D-937 per POL-14; anchor story S-DEMO-001 merged PR #166 develop@5dd3df02 2026-06-01) — v1.5 |
+| BC-2.11.005 | Ephemeral Materialization — Fan-Out, Normalize, Arrow RecordBatch, DataFusion MemTable | 11 - Query Execution | CAP-015 | P0 | active (promoted draft→active D-937 per POL-14; anchor story S-DEMO-001 merged PR #166 develop@5dd3df02 2026-06-01) — v1.6 (S-DEMO-QUERY-PUSHDOWN-001-v2-bc-respec: cite-pin sweep BC-2.01.013 v1.12→v1.13; corrected push-down translation description) |
 | BC-2.11.006 | Query Security Limits Enforcement | 11 - Query Execution | CAP-015 | P0 | draft |
-| BC-2.11.007 | Sensor Filter Push-Down | 11 - Query Execution | CAP-015 | P0 | active (promoted draft→active D-987 per POL-14; anchor story S-DEMO-002 merged PR #171 develop@fdd12251 2026-06-04) — v1.6 (D-954: Mechanism A/B disambiguation; §Predicate Classification rewritten; EC-11-019 updated; 2 Armis Mechanism B test vectors added) |
+| BC-2.11.007 | Sensor Filter Push-Down | 11 - Query Execution | CAP-015 | P0 | active (promoted draft→active D-987 per POL-14; anchor story S-DEMO-002 merged PR #171 develop@fdd12251 2026-06-04) — v1.7 (S-DEMO-QUERY-PUSHDOWN-001-v2-bc-respec: time-range push-down invariant qualified — only CrowdStrike has native time param in current DTU; Armis/Cyberint/Claroty fall back to DataFusion post-filter; Mechanism A Cyberint/Claroty wrong push-down targets corrected; ADR-033 added to Traceability) |
 | BC-2.11.008 | `create_alias` MCP Tool | 11 - Query Execution | CAP-016 | P1 | draft |
 | BC-2.11.009 | Alias Resolution — Pre-Parse Expansion, Composition, Cycle Detection | 11 - Query Execution | CAP-016 | P1 | draft |
 | BC-2.11.010 | `explain_query` MCP Tool | 11 - Query Execution | CAP-015 | P0 | draft |
@@ -376,6 +376,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v5.84 (2026-06-05, S-DEMO-QUERY-PUSHDOWN-001-v2-bc-respec):** product-owner | S-DEMO-QUERY-PUSHDOWN-001 v2 re-spec — corrected factually wrong per-sensor push-down claims (LOCAL adversary passes 5/6). BC-2.01.013 v1.12→v1.13: per-sensor push-down translation table corrected per pushdown-redesign.md §6+§1+ADR-033: Armis `maxResults`+`timeFrame` removed (wrong — `SearchQueryParams` has no such fields; AQL passthrough only per Mechanism B); Cyberint POST-body `from_date`/`to_date`+`page_size` removed (wrong — GET endpoint, cursor-only, no body_template; deferred to DTU-EXT-005); Claroty POST-body `limit`/`offset` removed (wrong — `body_template: '{}'` is always empty; OffsetLimit URL params exist; body pagination deferred to S-DEMO-CLAROTY-PAGINATION-001); CrowdStrike direction preserved and strengthened — both `start_time` AND `end_time` reach FQL filter, wiring occurs via `run_materialization_pipeline` (ADR-033 Option T1), Step 2 always `FetchContext::default()`; superseded v1.12 table retained append-only per POLICY 1. EC-01-027 updated with CrowdStrike two-step clarification. TV-BC-2.01.013-006 re-cast to assert both start+end time and `run_materialization_pipeline` wiring path. ADR-033 added to Traceability. BC-2.11.005 v1.5→v1.6: cite-pin sweep BC-2.01.013 v1.12→v1.13 in Postconditions body + Traceability; no semantic change to this BC. BC-2.11.007 v1.6→v1.7: time-range push-down invariant qualified — "all initial sensors support time-based filtering" was factually wrong; corrected to: only CrowdStrike has a usable native time param; Armis/Cyberint/Claroty fall back to DataFusion post-filter; result-equivalence invariant preserved; superseded text retained append-only per POLICY 1; Mechanism A Cyberint/Claroty wrong push-down targets corrected; ADR-033 added to Traceability; BC-2.01.013 added to Related BCs. BC-INDEX rows 44+155+157 updated. No lifecycle_status changes. No count changes (active: 234, draft: 3 unchanged). BC-INDEX v5.83→v5.84.
 
 **v5.83 (2026-06-05, F-PUSHDOWN-008-po-fix-burst):** product-owner | F-PUSHDOWN-008 closure: BC-2.01.013 v1.11→v1.12 (Pagination/Push-Down Scope Clause superseded by S-DEMO-QUERY-PUSHDOWN-001 v1.1 per CLAUDE.md Source-of-Truth Precedence Rule 1; push-down IS now performed on first/query-plan step via FetchContext; EC-01-027 re-cast to hydration/entity-fetch-step absence; TV-BC-2.01.013-006 re-cast to assert push-down presence on query step). BC-INDEX row 44 updated to v1.12. No lifecycle_status changes. No count changes (active: 234, draft: 3 unchanged). BC-INDEX v5.82→v5.83.
 

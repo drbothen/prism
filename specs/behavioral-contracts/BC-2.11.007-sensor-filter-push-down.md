@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.6"
+version: "1.7"
 status: active
 producer: product-owner
 timestamp: 2026-04-14T07:00:00
@@ -11,7 +11,7 @@ subsystem: "SS-11"
 capability: "CAP-015"
 lifecycle_status: active
 introduced: cycle-1
-modified: "2026-06-02"
+modified: "2026-06-05"
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -57,11 +57,13 @@ Column options are declared per-column, per-sensor-adapter in the adapter's sche
   - **Post-filter**: The predicate references an OCSF-only field (exists only after normalization), or the sensor API does not support the operator, or the column is DEFAULT or OPTIMIZED
 - Push-down filters are applied to sensor-native query syntax via one of two distinct mechanisms:
 
-  #### Mechanism A — Predicate Translation (CrowdStrike, Cyberint, Claroty)
-  The query planner translates each OCSF/PrismQL WHERE predicate into the sensor's native filter syntax. The user writes standard PrismQL; the planner converts it:
-  - CrowdStrike: FQL filter syntax (e.g., `severity = 'critical'` → `severity:5`)
-  - Cyberint: JSON body parameters on POST
-  - Claroty xDome: POST body filter arrays
+  #### Mechanism A — Predicate Translation (CrowdStrike; Cyberint/Claroty time-window falls back to post-filter)
+  The query planner translates each OCSF/PrismQL WHERE predicate into the sensor's native filter syntax when the sensor's DTU supports the corresponding parameter. The user writes standard PrismQL; the planner converts it:
+  - CrowdStrike: FQL filter syntax (e.g., `severity = 'critical'` → `severity:5`). Time-window: injected as `filter` FQL param on Step 1 (`query_detection_ids`) via ADR-033 Option T1 heuristic — `created_timestamp:>'<ISO8601>'` for start, `created_timestamp:<'<ISO8601>'` for end. `limit` query param is also wired.
+  - Cyberint: No time-window push-down against the current DTU. `AlertListParams` is cursor-only (GET, no body_template); `from_date`/`to_date` POST-body injection is NOT correct. Time predicates are post-filtered by DataFusion. Cursor pagination is handled by the existing pipeline.
+  - Claroty xDome: No time-window push-down against the current DTU. `body_template: '{}'` is always empty; URL OffsetLimit params (`?offset=N&limit=M`) handle pagination via the existing OffsetLimit pipeline. Body-based offset/limit deferred to `S-DEMO-CLAROTY-PAGINATION-001` (Gap-CL-004). Time predicates are post-filtered by DataFusion.
+
+  > **v1.6 Mechanism A grouping note (append-only, POLICY 1):** Prior versions listed Cyberint POST-body params and Claroty POST-body filter arrays as active Mechanism A push-down. These are incorrect against production DTU structs as of v1.7 (see pushdown-redesign.md §1.3+§1.4; ADR-033 §Rationale §5).
 
   #### Mechanism B — Verbatim-AQL Passthrough (Armis)
   Armis's native query language IS AQL; there is no OCSF-to-AQL translation layer. Instead, the user supplies the AQL string directly as a pseudo-column literal in the PrismQL WHERE clause:
@@ -76,9 +78,9 @@ Column options are declared per-column, per-sensor-adapter in the adapter's sche
 
   Discrimination between entity types (`in:devices` vs `in:alerts`) is performed by the DTU clone via string pattern-matching on the received AQL value; the query planner does not inspect or validate AQL syntax.
 
-- Remaining post-filter predicates are applied by DataFusion over the materialized OCSF table
+- Remaining post-filter predicates are applied by DataFusion over the materialized OCSF table. This includes ALL time-window predicates for Armis, Cyberint, and Claroty sensors (which lack native DTU time params), and any other predicates that cannot be mapped to a supported sensor-native param.
 - The push-down classification is visible in `explain_query` output (see BC-2.11.010)
-- Push-down reduces the volume of data fetched from sensor APIs, improving performance and reducing materialization size
+- Push-down reduces the volume of data fetched from sensor APIs, improving performance and reducing materialization size. For sensors without native time-window params (Armis, Cyberint, Claroty), the result-equivalence invariant guarantees correctness at the cost of fetching a broader dataset that DataFusion then filters.
 
 ### Column Pruning
 
@@ -147,7 +149,7 @@ BC-2.11.011 (cross-client scoping) depends on REQUIRED column enforcement define
 ## Invariants
 - Push-down is an optimization only; the query result must be identical whether or not push-down occurs
 - A predicate that cannot be pushed down is never silently dropped -- it is always applied as a post-filter
-- Time range push-down is always attempted (all initial sensors support time-based filtering; spec-driven sensors declare push-down support per column via `options: Index`)
+- **Time range push-down (qualified, v1.7 per pushdown-redesign.md §1 + ADR-033):** Time-window push-down is attempted only for sensors whose DTU exposes a native time-window parameter. In the current initial sensor set, **only CrowdStrike** has a usable native time param (`DetectionListParams.filter` FQL injection). Armis, Cyberint, and Claroty do NOT have native time-window params in their current DTU structs — for these sensors, time-window predicates are post-filtered by DataFusion after materialization (result-equivalence invariant is preserved). The spec-driven `options: Index` declaration on a datetime column indicates the column is eligible for time-window push-down IF the sensor's DTU supports it; declaration alone is not sufficient. > **v1.6 claim SUPERSEDED (append-only, POLICY 1):** The prior invariant "Time range push-down is always attempted (all initial sensors support time-based filtering)" was factually incorrect against production DTU structs and has been qualified above. The superseded text was: `Time range push-down is always attempted (all initial sensors support time-based filtering; spec-driven sensors declare push-down support per column via options: Index)`.
 - Push-down filter translation produces a canonical form (sorted parameter keys, normalized timestamp ISO8601 format, lowercase string values where applicable) before the result is used as cache key input. This ensures that semantically equivalent push-down filters produce identical cache keys regardless of the original predicate ordering in the PrismQL query.
 - **INV-REQUIRED-SPECDRIVEN:** The set of REQUIRED columns for any sensor+table is determined exclusively by `ColumnOptions::Required` entries in the loaded `ColumnSpec`, not by any hardcoded name list in the query engine.
 
@@ -188,13 +190,16 @@ BC-2.11.011 (cross-client scoping) depends on REQUIRED column enforcement define
 |-------|-------|
 | L2 Capability | CAP-015 |
 | L2 Invariants | DI-021 |
-| Related BCs | BC-2.11.010 (explain_query shows push-down plan) |
+| Related BCs | BC-2.11.010 (explain_query shows push-down plan), BC-2.01.013 (per-sensor push-down translation table; this BC's result-equivalence invariant is referenced in BC-2.01.013 TV-006 and EC-01-027) |
+| Related ADRs | ADR-033 (push-down time-window extraction strategy — pre-fan-out heuristic T1 for CrowdStrike FQL injection; establishes that Armis/Cyberint/Claroty have no native time-window params in current DTU set, consistent with Invariants §Time range push-down) |
 | Priority | P0 |
 
 ## Changelog
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.7 | S-DEMO-QUERY-PUSHDOWN-001-v2-bc-respec | 2026-06-05 | product-owner | S-DEMO-QUERY-PUSHDOWN-001 v2 re-spec (LOCAL adversary passes 5/6 factual correction). (1) Qualified the over-broad time-range invariant: "all initial sensors support time-based filtering" was factually wrong against production DTU structs. Corrected to: only CrowdStrike has a usable native time param (`DetectionListParams.filter` FQL injection, via ADR-033 Option T1 heuristic); Armis/Cyberint/Claroty have NO native time-window params in their current DTU structs — time predicates fall back to DataFusion post-filter for these sensors; result-equivalence invariant is preserved. Superseded v1.6 text retained append-only per POLICY 1. (2) §Mechanism A updated: Cyberint POST-body `from_date`/`to_date` injection and Claroty POST-body filter arrays removed as Mechanism A push-down targets; corrected prose reflects no-native-time-param reality for these two sensors. v1.6 grouping note retained append-only. (3) §Predicate Classification — post-filter sentence extended to explicitly name Armis/Cyberint/Claroty time-window as always-post-filter cases. (4) ADR-033 added to Traceability §Related ADRs. BC-2.01.013 added to Related BCs. |
+| 1.6 | D-987-post-merge-POL14 | 2026-06-04 | state-manager | POL-14 status-field alignment: `status:` synced draft→active (anchor story S-DEMO-002 merged PR #171 develop@fdd12251 2026-06-04). `lifecycle_status` was already active (ground truth per ADR-025). BC-INDEX row 157 updated to v1.6 active. No body changes; changelog row added for version bump. |
 | 1.5 | F-DEMO002-P1-MED-002-adjudication | 2026-06-02 | product-owner | AMENDMENT 4 — adjudicates finding F-DEMO002-P1-MED-002 (POL-4 semantic drift). Rewrote §Predicate Classification to document two distinct push-down mechanisms: Mechanism A (Predicate Translation, used by CrowdStrike/Cyberint/Claroty) and Mechanism B (Verbatim-AQL Passthrough, Armis only). Armis convention: user writes `aql = '<string>'` pseudo-column literal in PrismQL WHERE; query planner seeds verbatim string into `FetchContext.query_filters["aql"]`; spec engine interpolates via `${query.filter.aql}` into TOML path_template; DTU receives `GET /api/v1/search?aql=<value>` opaque per R-DTU-002 / ADR-031 §D8-a. Precedent: merged S-DEMO-ARMIS-AQL-001 PR #168 / BC-2.16.013 §Postconditions §1. Updated EC-11-019 to reflect passthrough semantics. Added two Armis Mechanism B canonical test vectors. CrowdStrike translation example (EC-11-020, test vectors) preserved intact. |
 | 1.4 | pre-impl-amendments | 2026-05-06 | product-owner | AMENDMENT 3 — added REQUIRED Column Runtime Mechanism section: SoT is ColumnOptions::Required in prism-core/column.rs; lookup interface via ColumnSpec.options in spec-parser; no hardcoded column names; illustrative per-sensor examples; INV-REQUIRED-SPECDRIVEN invariant; relationship to BC-2.11.011 cross-client scoping. Resolves S-3.02 implementer blocker on REQUIRED column lookup. |
 | 1.3 | pass-73-fix | 2026-04-20 | state-manager | Deterministic changelog reorder: sorted all rows to descending version order (pass-73 bash script). |

@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.5"
+version: "1.6"
 status: active
 producer: product-owner
 timestamp: 2026-04-14T07:00:00
@@ -11,7 +11,7 @@ subsystem: "SS-11"
 capability: "CAP-015"
 lifecycle_status: active
 introduced: cycle-1
-modified: "2026-05-31"
+modified: "2026-06-05"
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -45,7 +45,7 @@ Ephemeral materialization is the core execution mechanism for every `query` tool
   - Hot OCSF fields (severity, timestamp, device.ip, device.hostname, src_endpoint, dst_endpoint, etc.) as flat top-level Arrow columns
   - Full event serialized as JSON in an `event_data` string column for `json_extract_string()` UDF access
   - Virtual fields (`sensor`, `client_id`, `source`) injected as additional columns
-  - **For spec-driven sensor adapters (`SpecDrivenSensorAdapter`):** OCSF normalization conformance is further specified in BC-2.01.013 OCSF Conformance Clause (v1.12). In particular: all spec-declared data columns from the sensor TOML spec must survive into the RecordBatch via `ColumnMapper`; `category_uid`/`class_uid` must be derived by `OcsfNormalizer` from the spec's declared `ocsf_class` (not copied from the raw vendor record); `_sensor` must be present. A RecordBatch containing only the three OCSF envelope columns (`category_uid`, `class_uid`, `_sensor`) with all spec-declared data columns absent is NON-CONFORMANT (S-DEMO-001 adversary F-001-R; D-924). Additionally, as of S-DEMO-QUERY-PUSHDOWN-001, cache misses on the first/query-plan step trigger sensor API calls with push-down filters from `FetchContext` translated to sensor-native syntax — see BC-2.01.013 v1.12 Pagination/Push-Down Scope Clause for the per-sensor translation spec.
+  - **For spec-driven sensor adapters (`SpecDrivenSensorAdapter`):** OCSF normalization conformance is further specified in BC-2.01.013 OCSF Conformance Clause (v1.13). In particular: all spec-declared data columns from the sensor TOML spec must survive into the RecordBatch via `ColumnMapper`; `category_uid`/`class_uid` must be derived by `OcsfNormalizer` from the spec's declared `ocsf_class` (not copied from the raw vendor record); `_sensor` must be present. A RecordBatch containing only the three OCSF envelope columns (`category_uid`, `class_uid`, `_sensor`) with all spec-declared data columns absent is NON-CONFORMANT (S-DEMO-001 adversary F-001-R; D-924). Additionally, as of S-DEMO-QUERY-PUSHDOWN-001, cache misses on the first/query-plan step trigger sensor API calls with push-down filters from `FetchContext` translated to sensor-native syntax — see BC-2.01.013 v1.13 Pagination/Push-Down Scope Clause for the corrected per-sensor translation spec (CrowdStrike FQL injection via ADR-033 Option T1; Armis AQL passthrough; Cyberint/Claroty: no native time-window push-down in current DTU set).
 - Records are fetched with a running counter. If the total fetched record count across all sensors exceeds 10K during fan-out, the fetch is aborted and an error is returned. Partial memory consumption during fetch is accepted (bounded by the 10K record limit). No pre-estimation of record counts is required; the limit is enforced as records arrive.
 - RecordBatches are registered as a DataFusion `MemTable` named `events` in a fresh `SessionContext`
 - The `SessionContext` (and all materialized data) is dropped when the query tool call returns. There is no cross-call pagination for query results; each `query` call re-materializes from scratch (the response cache mitigates re-fetch cost). The `limit` tool parameter truncates DataFusion results after execution; `is_truncated` and `total_available` are set in the response when results exceed `limit`.
@@ -101,13 +101,14 @@ Within a single query execution, the query engine maintains a per-query cache of
 | L2 Capability | CAP-015 |
 | L2 Invariants | DI-008, DI-019 |
 | L2 Edge Cases | DEC-022, DEC-023 |
-| Related BCs | BC-2.07.003 (cache), BC-2.02.002 (OCSF normalization), BC-2.01.013 v1.12 (SpecDrivenSensorAdapter OCSF Conformance Clause — spec-declared column survival and envelope derivation requirements; Pagination/Push-Down Scope Clause — push-down now active on first/query-plan step per S-DEMO-QUERY-PUSHDOWN-001) |
+| Related BCs | BC-2.07.003 (cache), BC-2.02.002 (OCSF normalization), BC-2.01.013 v1.13 (SpecDrivenSensorAdapter OCSF Conformance Clause — spec-declared column survival and envelope derivation requirements; Pagination/Push-Down Scope Clause — push-down now active on first/query-plan step per S-DEMO-QUERY-PUSHDOWN-001; per-sensor translation table corrected in v1.13 per pushdown-redesign.md §6 + ADR-033) |
 | Priority | P0 |
 
 ## Changelog
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.6 | S-DEMO-QUERY-PUSHDOWN-001-v2-bc-respec | 2026-06-05 | product-owner | Cite-pin sweep: BC-2.01.013 v1.12 → v1.13 in Postconditions OCSF note (body line) and Traceability §Related BCs table. Amended note now references the corrected per-sensor translation spec in BC-2.01.013 v1.13 (CrowdStrike FQL via ADR-033 T1; Armis AQL passthrough; Cyberint/Claroty no native time-window). No semantic change to this BC's own postconditions or invariants. |
 | 1.5 | D-924-bc-amendment | 2026-05-31 | product-owner | S-DEMO-001 adversary pass-2 F-001-R cross-reference: added forward-reference to BC-2.01.013 v1.8 OCSF Conformance Clause in the OCSF normalization postcondition bullet (spec-driven adapters must pass ColumnMapper + OcsfNormalizer; envelope-only RecordBatch is NON-CONFORMANT). Added BC-2.01.013 to Related BCs in Traceability. No semantic change to this BC's own invariants — the conformance detail lives in BC-2.01.013; this BC carries the pointer. |
 | 1.4 | PR-129-pass-1 | 2026-05-06 | product-owner | Adversary F-PR129-PR-MED-A remediation: error-code reconciliation per BC-2.11.006 v1.12 canonical SoT mapping. E-QUERY-005 (timeout) → E-QUERY-003 (records limit) for the 10K record cap rows. Implementation already emits E-QUERY-003 at materialization.rs:186; this BC update closes spec↔code drift. |
 | 1.3 | pass-73-fix | 2026-04-20 | state-manager | Deterministic changelog reorder: sorted all rows to descending version order (pass-73 bash script). |
