@@ -135,12 +135,12 @@ active_dispatch_set:
     status: in_progress
     priority: P2
     points: 8
-    spec_version: "v2.2"
+    spec_version: "v2.3"
     lane: "2 (Phase B)"
-    dispatch_status: "V2_LOCAL_PASS3_CLOSED — D-1010 2026-06-05. v2.x LOCAL pass-3 (4e6dde5c) NOT-CLEAN(strict) CLEAN(PR-merge): 1 MED (ADV-P03-MED-001 EC-003 WARN emission lacked BC-2.16.002 catalog row; SAP-1 obligation) closed by fix-burst 0a93ffef + spec-fix BC-2.16.002 v1.65→v1.66 + BC-INDEX v5.85→v5.86 reconciliation. Pass-2 closures VERIFIED LOAD-BEARING through run_materialization_pipeline. Dead-code defect class CONFIRMED CLOSED. CLEAN(PR-merge)=yes. just check 4024/0. Streak 0/3. LOCAL pass 4 NEXT."
-    code_head: "0a93ffef"
+    dispatch_status: "V2_LOCAL_PASS4_CLOSED — D-1011 2026-06-05. v2.x LOCAL pass-4 (0a93ffef) NOT-CLEAN(strict) NOT-CLEAN(PR-merge): 2 HIGH + 2 LOW + 1 OBS[process-gap] ALL CLOSED. ADV-P04-HIGH-001 (parse_created_timestamp_bounds→parse_fql_time_bounds name drift; 6 story+1 STORY-INDEX sites; story v2.2→v2.3; STORY-INDEX v2.284→v2.285). ADV-P04-HIGH-002 (AC-CWS-002 test hand-fed FQL, didn't call run_materialization_pipeline, didn't assert both bounds; CLOSED implementer 70ae30d2 genuine run_materialization_pipeline test asserting BOTH bounds via DTU filter-log). ADV-P04-LOW-001 (parse_fql_time_bounds 0 unit tests vs Armis 4; CLOSED implementer 70ae30d2 — 7 unit tests incl test_ac_cws_dtu_001_crowdstrike_dtu_honors_fql_filter_time_window). ADV-P04-LOW-002 (BC-2.16.002 catalog prose 'FetchContext'→'tuple'; CLOSED PO BC-2.16.002 v1.66→v1.67; BC-INDEX v5.86→v5.87). ADV-P04-OBS-001 [process-gap] test-docstring line-pins (TD-VSDD-091 adjacency) — RECORDED codification candidate; not blocking. EC-003 closure VERIFIED load-bearing (tracing subscriber capture). just check 4032/0. Streak 0/3. LOCAL pass 5 NEXT."
+    code_head: "70ae30d2"
     local_adversary_streak: "0/3"
-    local_adversary_pass_count: 9
+    local_adversary_pass_count: 10
     # --- v1 passes (1-6) archived; v1 cascade VOIDED by scope expansion to v2.1 ---
     # v1 pass 1: {HIGH:2,MED:2,LOW:2,OBS:2} @19184786→a75fada4 | v1 pass 2: {MED:1,LOW:1,OBS:1} @a75fada4→688f82b5
     # v1 pass 3: {LOW:1} @688f82b5→ed27b5ff | v1 pass 4: CLEAN(strict)=yes (false signal — fabricated fixtures)
@@ -187,14 +187,31 @@ active_dispatch_set:
     local_adversary_v2_pass3_sap2_result: "PASS — CrowdStrike DTU + Armis DTU column/type parity confirmed; no TOML-only columns missing DTU equivalents"
     local_adversary_v2_pass3_just_check: "4024/4024 PASS 0 failed"
     local_adversary_v2_pass3_report: "cycles/wave-5-e-demo-fidelity/S-DEMO-QUERY-PUSHDOWN-001/adversarial-review/local-v2-pass-3.md"
-    local_adversary_v2_pass4_note: "NEXT — fresh context; verify EC-003 WARN tests load-bearing (tracing subscriber captures event); full SAP-1 + SAP-2; streak attempt 0/3 → 1/3"
+    local_adversary_v2_pass4_clean_strict: false
+    local_adversary_v2_pass4_clean_pr_merge: false
+    local_adversary_v2_pass4_findings: {HIGH: 2, LOW: 2, OBS_PROCESS_GAP: 1}
+    local_adversary_v2_pass4_all_closed: true
+    local_adversary_v2_pass4_feature_head_before: "0a93ffef"
+    local_adversary_v2_pass4_feature_head_after: "70ae30d2"
+    local_adversary_v2_pass4_streak_after: "0/3"
+    local_adversary_v2_pass4_ec003_closure_verified: "LOAD-BEARING — test_inverted_time_range_emits_warn uses tracing subscriber; capture confirmed; CLOSED class persists"
+    local_adversary_v2_pass4_adv_p04_high_001: "CLOSED story-writer — story v2.2→v2.3 (parse_created_timestamp_bounds→parse_fql_time_bounds; 6 body sites + §Changelog v2.3); STORY-INDEX v2.284→v2.285 (Full Story List row note)"
+    local_adversary_v2_pass4_adv_p04_high_002: "CLOSED implementer 70ae30d2 — genuine run_materialization_pipeline test in prism-bin asserting BOTH bounds via DTU filter-log; misnamed prism-spec-engine test renamed + strengthened"
+    local_adversary_v2_pass4_adv_p04_low_001: "CLOSED implementer 70ae30d2 — 7 unit tests for parse_fql_time_bounds incl test_ac_cws_dtu_001_crowdstrike_dtu_honors_fql_filter_time_window"
+    local_adversary_v2_pass4_adv_p04_low_002: "CLOSED PO — BC-2.16.002 v1.66→v1.67 (Recurrence 'FetchContext'→'tuple'); BC-INDEX v5.86→v5.87"
+    local_adversary_v2_pass4_adv_p04_obs_001: "[process-gap][codification-candidate] test-docstring file.rs:NNN line-pins (TD-VSDD-091 adjacency); RECORDED in cycles/.../lessons.md; NOT blocking; no code fix"
+    local_adversary_v2_pass4_sap1_result: "PASS — catalog count 71; no unregistered event_type emissions at HEAD 0a93ffef"
+    local_adversary_v2_pass4_sap2_result: "PASS — CrowdStrike+Armis DTU↔TOML parity confirmed; parse_fql_time_bounds name in state.rs matches corrected story v2.3"
+    local_adversary_v2_pass4_just_check: "4032/4032 PASS 0 failed"
+    local_adversary_v2_pass4_report: "cycles/wave-5-e-demo-fidelity/S-DEMO-QUERY-PUSHDOWN-001/adversarial-review/local-v2-pass-4.md"
+    local_adversary_v2_pass5_note: "NEXT — fresh context; verify ADV-P04-HIGH-002 closure load-bearing (both-bounds FQL via run_materialization_pipeline → DTU wire); full SAP-1 + SAP-2; streak attempt 0/3 → 1/3"
     depends_on:
       - S-DEMO-001  # HARD gate — SATISFIED (merged PR #166 develop@5dd3df02)
       - S-DEMO-002  # SATISFIED (merged PR #171 develop@fdd12251 2026-06-04)
     bcs: [BC-2.01.013, BC-2.11.005, BC-2.11.007]
     bc_pins: {BC-2.01.013: "v1.14", BC-2.11.005: "v1.6", BC-2.11.007: "v1.8"}
     vps: []
-    notes: "D-1010 2026-06-05: v2.x LOCAL pass-3 RECORDED. HEAD 4e6dde5c→0a93ffef. 1 MED (ADV-P03-MED-001 EC-003 SAP-1 obligation) closed. Pass-2 closures VERIFIED LOAD-BEARING through run_materialization_pipeline path. Dead-code defect class CONFIRMED CLOSED. CLEAN(PR-merge)=yes. BC-2.16.002 v1.65→v1.66 (catalog row 71 push_down.inverted_time_range). BC-INDEX v5.85→v5.86 (collision reconciliation: D-1007 vs EC-003 burst both labeled v5.85). just check 4024/0. Streak 0/3. LOCAL pass 4 NEXT. D-1009 2026-06-05: v2.1 LOCAL pass-2 RECORDED. HEAD f50061a5→4e6dde5c. 1 CRIT + 1 HIGH(=DRIFT-P1-001) + 1 MED + OBS(resolved-benign) all closed. Dead-code defect class recurred at test layer. DRIFT-P1-001 CLOSED: story v2.2 (crates_touched += prism-dtu-crowdstrike; AC-CWS-DTU-001 added; acceptance_criteria_count 15→16; STORY-INDEX v2.283→v2.284). OBS-NOTE-001 RESOLVED BENIGN (per-test ephemeral DTU clones; teardown race non-exploitable). just check 4022/0. Streak 0/3. D-1008 2026-06-05: v2.1 LOCAL pass-1 RECORDED. HEAD aec965f9→f50061a5. 3 CRIT + 2 HIGH + OBS(wired) all closed. v1 defect class recurred (push-down unreachable via production path). prism-dtu-crowdstrike footprint expansion (filter honoring + filter-log route). just check 4018/0. Streak 0/3. D-1007 2026-06-05: Armis AQL full-wiring scope added (human-directed). BC-2.01.013 v1.13→v1.14; BC-2.11.007 v1.7→v1.8; story v2.0→v2.1 (15 ACs +Armis time-window AC-ARMIS-TW-001..005+AC-INDEX-001; AC-ARMIS-001 corrected lastSeen:>→after:); crates_touched +prism-dtu-armis+prism-sensors; STORY-INDEX v2.282→v2.283; BC-INDEX v5.84→v5.85."
+    notes: "D-1011 2026-06-05: v2.x LOCAL pass-4 RECORDED. HEAD 0a93ffef→70ae30d2. 2 HIGH + 2 LOW + 1 OBS[process-gap] ALL CLOSED. parse_fql_time_bounds name reconciled (story v2.2→v2.3; STORY-INDEX v2.284→v2.285). AC-CWS-002 test genuinely drives run_materialization_pipeline asserting BOTH bounds via DTU filter-log. 7 parse_fql_time_bounds unit tests added. BC-2.16.002 v1.66→v1.67 (catalog prose tuple-fix). BC-INDEX v5.86→v5.87. OBS-001 codification candidate logged in lessons.md. just check 4032/0. Streak 0/3. LOCAL pass 5 NEXT. D-1010 2026-06-05: v2.x LOCAL pass-3 RECORDED. HEAD 4e6dde5c→0a93ffef. 1 MED (ADV-P03-MED-001 EC-003 SAP-1 obligation) closed. Pass-2 closures VERIFIED LOAD-BEARING through run_materialization_pipeline path. Dead-code defect class CONFIRMED CLOSED. CLEAN(PR-merge)=yes. BC-2.16.002 v1.65→v1.66 (catalog row 71 push_down.inverted_time_range). BC-INDEX v5.85→v5.86 (collision reconciliation: D-1007 vs EC-003 burst both labeled v5.85). just check 4024/0. Streak 0/3. D-1009 2026-06-05: v2.1 LOCAL pass-2 RECORDED. HEAD f50061a5→4e6dde5c. 1 CRIT + 1 HIGH(=DRIFT-P1-001) + 1 MED + OBS(resolved-benign) all closed. Dead-code defect class recurred at test layer. DRIFT-P1-001 CLOSED: story v2.2 (crates_touched += prism-dtu-crowdstrike; AC-CWS-DTU-001 added; acceptance_criteria_count 15→16; STORY-INDEX v2.283→v2.284). OBS-NOTE-001 RESOLVED BENIGN (per-test ephemeral DTU clones; teardown race non-exploitable). just check 4022/0. Streak 0/3. D-1008 2026-06-05: v2.1 LOCAL pass-1 RECORDED. HEAD aec965f9→f50061a5. 3 CRIT + 2 HIGH + OBS(wired) all closed. v1 defect class recurred (push-down unreachable via production path). prism-dtu-crowdstrike footprint expansion (filter honoring + filter-log route). just check 4018/0. Streak 0/3. D-1007 2026-06-05: Armis AQL full-wiring scope added (human-directed). BC-2.01.013 v1.13→v1.14; BC-2.11.007 v1.7→v1.8; story v2.0→v2.1 (15 ACs +Armis time-window AC-ARMIS-TW-001..005+AC-INDEX-001; AC-ARMIS-001 corrected lastSeen:>→after:); crates_touched +prism-dtu-armis+prism-sensors; STORY-INDEX v2.282→v2.283; BC-INDEX v5.84→v5.85."
 
   - story_id: S-DEMO-CLAROTY-TIME-001
     status: draft
@@ -368,9 +385,9 @@ deferred_post_demo:
   # reclassification from permitted-divergence → required-fidelity; user directive no-scope-compromise).
 
 prereq_artifacts:
-  story_index: .factory/stories/STORY-INDEX.md         # v2.284 after D-1009 burst (181 stories; S-DEMO-QUERY-PUSHDOWN-001 v2.2 + DRIFT-P1-001 CLOSED)
-  bc_index: .factory/specs/behavioral-contracts/BC-INDEX.md  # v5.86 (BC-2.16.002 v1.66 catalog row 71 push_down.inverted_time_range + collision reconciliation D-1010; active 234, draft 3)
-  state: .factory/STATE.md                              # v7.660 after D-1009 burst
+  story_index: .factory/stories/STORY-INDEX.md         # v2.285 after D-1011 burst (181 stories; S-DEMO-QUERY-PUSHDOWN-001 v2.3 + parse_fql_time_bounds name reconciliation CLOSED)
+  bc_index: .factory/specs/behavioral-contracts/BC-INDEX.md  # v5.87 (BC-2.16.002 v1.67 catalog prose tuple-fix + D-1011; active 234, draft 3)
+  state: .factory/STATE.md                              # v7.662 after D-1011 burst
   governing_adr: .factory/specs/architecture/decisions/ADR-031-dtu-equals-true-dtu-fidelity-principle.md  # v1.2 (ADR-031 architect e57eb5b1 reclassified 3 divergences)
   governing_audit: .factory/proposals/POLLER-DTU-FIDELITY-AUDIT-2026-05-29.md  # v1.1
 
