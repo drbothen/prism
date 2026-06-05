@@ -89,6 +89,15 @@ time clause in the AQL string. `limit`/`offset` are pagination params handled by
 existing OffsetLimit pipeline; they are not a new push-down dimension but a correct
 existing behavior.
 
+**REVISED by §8 (human directive 2026-06-05):** Time-window push-down IS in scope for Armis
+via AQL-clause augmentation. See §8 for the full design. The §1.2 row above documents
+the DTU struct reality (no separate time-window param); §8 documents how the query-engine
+layer augments the user's base AQL with a time-window clause appended into the same `aql`
+param, so the DTU receives the combined AQL string containing both the entity discriminator
+and the time filter. The DTU must also be extended to PARSE and HONOR the AQL time clause
+so the scenario is load-bearing (§8.3). The "no time push-down" statement in the prior
+version of this row is superseded for the v2 story scope.
+
 ### 1.3 Cyberint
 
 **Step architecture:** Single-step. `GET /api/v1/alerts` with cursor pagination.
@@ -505,3 +514,414 @@ and story-writer can proceed, the human should confirm:
 4. **New follow-up story S-DEMO-CLAROTY-TIME-001:** Authorize creating this story
    (Claroty native time-window push-down, after DTU extension) to cleanly anchor
    that deferral.
+
+---
+
+## Section 8 — Armis AQL Full Wiring (Human Directive 2026-06-05)
+
+> **Authority:** Human directive: "we will need to make sure we fully wired in Armis AQL
+> into our DTU and our scenarios as well." This section SUPERSEDES the §1.2 "no time
+> push-down" position for the v2 story scope. The §1.2 row has been annotated accordingly.
+
+### 8.1 Production Reality Assessment
+
+#### 8.1.1 What the DTU currently does with the `aql` string
+
+From `crates/prism-dtu-armis/src/routes/search.rs` and `state.rs`:
+
+The `get_search` handler receives `SearchQueryParams.aql: Option<String>`. It:
+
+1. Calls `state.capture_aql(aql)` — appends the verbatim string to `aql_log` (no parsing, per R-DTU-002).
+2. Does simple string-contains discrimination: `aql.contains("in:alerts") && !aql.contains("in:devices")` → alerts fixture; else → devices fixture.
+3. Applies OffsetLimit pagination (`offset`/`limit` or `page`/`size`) to the selected fixture slice.
+4. Returns the fixture slice without any further content-based filtering.
+
+**Critical gap:** The DTU does NOT parse time-window clauses in the AQL string. If the query
+engine appends `lastSeen:>"2026-01-01T00:00:00Z"` or any equivalent time clause to the AQL,
+the DTU currently ignores it entirely and returns the full fixture. The round-trip scenario
+for time-window push-down would be vacuous — the DTU would return the same dataset regardless
+of the time filter in the AQL, making the scenario non-load-bearing.
+
+This is confirmed by: the `#[ignore]`'d parity test in `prism-spec-engine/tests/parity/armis.rs`
+line 383 uses `in:devices timeFrame:"Last 3 Hours"` as the AQL value, but the test never asserts
+the returned dataset was time-filtered — it only asserts `aql_log` receipt and non-empty results.
+The test is correctly `#[ignore]`'d because the scenario is currently vacuous.
+
+#### 8.1.2 Real Armis AQL time-window syntax
+
+The real Armis Centrix AQL time-window syntax is NOT definitively confirmed from the existing
+codebase artifacts. The DTU `search.rs` module comment cites "research artifact 2026-06-01"
+for `in:devices` / `in:alerts` entity syntax, but NO equivalent citation exists for time-window
+AQL syntax. The `#[ignore]`'d parity test uses `timeFrame:"Last 3 Hours"` (a relative window),
+but this was NOT grounded by a research artifact — it may be guessed.
+
+**Known candidate syntaxes from existing project artifacts:**
+- `timeFrame:"Last 3 Hours"` — appears in the parity test (line 383, armis.rs); no research citation
+- `lastSeen:>"2026-01-01T00:00:00Z"` — appears as an example comment in §1.2 of this document;
+  no research citation
+- `after:"<timestamp>"` / `before:"<timestamp>"` — standard IS/was used in similar query languages;
+  not confirmed for Armis AQL
+
+**RESEARCH-AGENT VERIFICATION REQUIRED** (see §8.6). The implementer must NOT guess the AQL
+wire syntax. The DTU extension (§8.3) can use any internal representation once the canonical
+syntax is confirmed; the query-engine augmentation must emit the correct canonical form.
+
+#### 8.1.3 Where push-down time-window becomes AQL content
+
+The pipeline for Armis time-window push-down is a specialization of the Section 2 design,
+applied at the AQL-augmentation layer rather than a separate query param:
+
+```
+PrismQL WHERE:
+  aql = 'in:devices' AND last_seen > '2026-01-01T00:00:00Z'
+                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                   Compare predicate on datetime INDEX column
+
+→ run_materialization_pipeline (prism-query materialization.rs):
+    [Step A] extract base AQL from equality predicate:  "in:devices"
+    [Step B] extract time bounds from Compare predicates on datetime columns (Option T1):
+               start_time = Some("2026-01-01T00:00:00Z")  [from `last_seen > 'T'`]
+               end_time   = None
+    [Step C] augment base AQL with time clause:
+               augmented_aql = "in:devices <AQL_TIME_CLAUSE>"
+               (AQL_TIME_CLAUSE = canonical Armis time syntax, research-confirmed)
+
+→ QueryParams.filters["aql"] = augmented_aql
+→ SpecDrivenSensorAdapter::fetch → FetchContext.query_filters["aql"] = augmented_aql
+→ PipelineExecutor interpolates ${query.filter.aql} → DTU receives:
+    GET /api/v1/search?aql=in:devices+<AQL_TIME_CLAUSE>
+```
+
+**Anti-double-filtering invariant:** The query-engine layer augments the AQL string; the
+DataFusion post-filter STILL runs on the `last_seen` column. This is correct: the invariant
+is result-equivalence (push-down is an optimization only). The DTU filtering is the
+performance optimization; DataFusion filtering is the correctness backstop. No double-filtering
+harm exists because DataFusion operates on the materialized OCSF output, not the AQL string.
+
+**Base AQL + time-window combination rule:**
+- If the user's AQL already contains a time clause, the query engine MUST NOT append another
+  one (double-time-filter risk). Detection: check if the base AQL already contains the
+  canonical time-clause keyword (the exact keyword is confirmed by research). If present,
+  no augmentation — pass through verbatim. This preserves the user's explicit time scope.
+- If no time clause is in the base AQL and the WHERE clause has a time Compare predicate on
+  an Armis datetime column (`last_seen`, `first_seen`, `created_at`, `updated_at`), augment.
+- If no time bounds are extracted (no Compare predicate on a datetime column), no augmentation —
+  verbatim passthrough as before.
+
+**Where the augmentation lives in the pipeline (prism-query):**
+The `extract_push_down_filters_as_map` function (or its new sibling `extract_time_window_from_ast`)
+already extracts `start_time`/`end_time` per Section 2.1 Option T1. The AQL-specific augmentation
+is a per-sensor translation step: when the sensor is Armis (`sensor_id = "armis"`) and
+`start_time`/`end_time` are populated, the `QueryParams.filters["aql"]` value is rewritten to
+append the time clause. This translation belongs in the same place as the CrowdStrike FQL
+injection — in `prism-spec-engine` or `prism-bin`'s per-sensor push-down translation layer,
+applied AFTER time bounds are extracted from the AST.
+
+### 8.2 AQL Augmentation Design
+
+#### 8.2.1 Augmentation function (prism-spec-engine or prism-bin)
+
+A new function `augment_armis_aql_with_time_window(base_aql: &str, start_time: Option<&str>, end_time: Option<&str>) -> String` is needed. Its contract:
+
+- If both `start_time` and `end_time` are `None`: return `base_aql` unchanged.
+- If base AQL already contains the canonical time keyword (to be confirmed by research): return
+  `base_aql` unchanged (user's explicit time scope is preserved).
+- Otherwise: append the time clause to `base_aql` using the canonical Armis AQL time syntax
+  (research-confirmed). The exact syntax MUST be confirmed before implementation (§8.6).
+- Result: a single augmented AQL string forwarded via `QueryParams.filters["aql"]`.
+
+#### 8.2.2 Integration point
+
+The augmentation is applied in the same code path as the CrowdStrike FQL injection:
+- After `extract_time_window_from_ast` populates `start_time`/`end_time` on `QueryParams`
+- Before `FetchContext.query_filters["aql"]` is committed to the pipeline executor
+- Sensor-type check: only augment when `sensor_spec.sensor_id == "armis"` AND the table
+  has an `aql` column with `options = ["INDEX"]` (to avoid augmenting hypothetical future
+  sensors that also use AQL but with different syntax)
+
+This means `prism-spec-engine` (pipeline.rs or the push-down translation module) gains an
+Armis-specific AQL augmentation branch, parallel to the CrowdStrike FQL injection branch.
+Alternatively, `prism-bin`'s `spec_driven_adapter.rs` can host it if per-sensor translation
+already lives there. The implementer must choose the canonical location consistently with
+where CrowdStrike FQL injection lands.
+
+### 8.3 DTU Change Required (prism-dtu-armis)
+
+**The DTU must be extended to parse and honor AQL time clauses so push-down scenarios are
+load-bearing.** Without this change, any test that uses time-window AQL augmentation would
+pass vacuously (DTU ignores the time clause, returns full dataset, result is the same as
+without push-down).
+
+#### 8.3.1 Minimal DTU change
+
+Add time-clause parsing to `get_search` in `crates/prism-dtu-armis/src/routes/search.rs`:
+
+1. **Parse time bounds from AQL string.** After `state.capture_aql(aql)` (R-DTU-002 capture
+   is AQL-opaque and must not be removed), apply a SEPARATE parsing step to extract
+   time bounds from the AQL string. This is NOT a violation of R-DTU-002 because:
+   - R-DTU-002 prohibits validation/parsing that REJECTS or MODIFIES the AQL string.
+   - Parsing for filtering purposes (using the parsed result to filter the fixture dataset)
+     is within DTU scope — it makes the DTU behaviorally faithful to the real Armis API.
+   - The AQL string is still captured verbatim (no modification, no rejection).
+
+2. **Supported AQL time syntax in the DTU.** Support exactly the canonical time syntax
+   confirmed by research (§8.6). The DTU only needs to support what the query engine emits;
+   it does not need to implement the full Armis AQL grammar. Likely minimal set:
+   - `after:"<ISO8601>"` or `lastSeen:>"<ISO8601>"` (whichever is canonical for start_time)
+   - `before:"<ISO8601>"` or `lastSeen:<"<ISO8601>"` (whichever is canonical for end_time)
+   - Regex or simple string extraction is sufficient; no full AQL parser required.
+
+3. **Filter the fixture dataset by time bounds.** After entity-type discrimination
+   (`in:devices` → `devices_ordered`; `in:alerts` → `alert_fixture`), apply time-bound
+   filtering BEFORE pagination:
+   - For devices: filter by `DeviceRecord.last_seen` (parse as ISO8601, compare to bounds).
+     Handle `last_seen: null` per fixture convention (d-001 has `last_seen: null`) — null
+     records FAIL the time filter unless `first_seen` is within bounds (mirrors real Armis
+     behavior). The fallback chain for the filter check: `last_seen ?? first_seen`. If both
+     are null, exclude the record from time-filtered results (conservative: no timestamp =
+     cannot confirm in-window).
+   - For alerts: filter by `AlertRecord.created_at` (parse as ISO8601, compare to bounds).
+   - Open/closed interval semantics: `>` predicate → exclusive lower bound (start after T);
+     `>=` → inclusive; `<` → exclusive upper bound; `<=` → inclusive. Match the semantics
+     of the query-engine's `CompareOp::Gt/Ge/Lt/Le` so end-to-end correctness is verifiable.
+
+4. **No change to `SearchQueryParams` struct.** The time bounds arrive embedded in the AQL
+   string; no new struct fields are needed. `SearchQueryParams` stays as-is.
+
+5. **No change to `capture_aql`.** The verbatim capture (R-DTU-002) is unaffected. The
+   augmented AQL string (including the time clause) is captured as a single string — which
+   allows scenario assertions to verify BOTH the entity discriminator AND the time clause
+   appeared in the Aql log.
+
+#### 8.3.2 Fixture data requirements for load-bearing scenarios
+
+The existing `fixtures/devices.json` and `fixtures/alerts.json` must contain records with
+timestamps that span the test scenario time windows. The implementer must verify:
+- At least one device with `last_seen` BEFORE the test window (should be excluded).
+- At least one device with `last_seen` WITHIN the test window (should be included).
+- The `d-001` device (has `last_seen: null`, `first_seen: "2024-01-15T10:00:00Z"`) exercises
+  the fallback chain.
+- If the existing fixture data does not satisfy these requirements, the fixture JSON files
+  must be extended with additional records. This is a DTU-internal change (no public API change).
+
+### 8.4 Scenario Coverage Specification
+
+The following scenarios are required for load-bearing Armis time-window push-down coverage.
+They span three test locations.
+
+#### 8.4.1 Unit tests — `prism-query/src/tests/aql_pushdown_tests.rs`
+
+These extend the existing AC-014 unit tests (already present and green).
+
+**New test: `test_BC_2_11_007_armis_time_window_augmented_into_aql_filter_map`**
+- Input: PrismQL `WHERE aql = 'in:devices' AND last_seen > '2026-01-01T00:00:00Z'`
+- Assertion: `extract_push_down_filters_as_map` + AQL augmentation step produce
+  `FilterMap["aql"] = "in:devices <time_clause>"` where `<time_clause>` is the canonical
+  Armis AQL time syntax for `last_seen > '2026-01-01T00:00:00Z'`.
+- SID-1 compliance: no external dependency; exercises production code path.
+- Load-bearing: fails if the augmentation function is absent or emits wrong syntax.
+
+**New test: `test_BC_2_11_007_armis_base_aql_with_existing_time_clause_not_double_augmented`**
+- Input: PrismQL `WHERE aql = 'in:devices after:"2026-01-01"'` AND `last_seen > '2026-01-01T00:00:00Z'`
+- Assertion: `FilterMap["aql"]` is `'in:devices after:"2026-01-01"'` (no second time clause appended).
+- Load-bearing: fails if the anti-double-filtering guard is absent.
+
+**New test: `test_BC_2_11_007_armis_no_time_window_predicate_aql_passthrough_unchanged`**
+- Input: PrismQL `WHERE aql = 'in:devices'` (no time Compare predicate)
+- Assertion: `FilterMap["aql"]` is `'in:devices'` (no augmentation).
+- Load-bearing: guards regression where augmentation is accidentally applied to base AQL.
+
+#### 8.4.2 Pipeline-level integration tests — `prism-spec-engine/tests/parity/armis.rs`
+
+These extend the existing AC-005 tests (already present and green for base AQL passthrough).
+
+**New test: `test_BC_2_11_007_AC_005_aql_time_window_roundtrip_devices_pipeline`**
+- Steps:
+  1. Start Armis DTU clone (ephemeral port).
+  2. Seed `FetchContext.query_filters["aql"]` with `"in:devices <time_clause>"` where the
+     time clause filters to a known subset of the fixture dataset.
+  3. Execute `PipelineExecutor::execute` for devices table.
+  4. Assertion A (aql-log): DTU aql-log contains the augmented AQL string verbatim.
+  5. Assertion B (filtering): result records are a PROPER SUBSET of the unfiltered devices
+     fixture. The test runs a second query WITHOUT the time clause and asserts that
+     `filtered_count < unfiltered_count` AND all filtered records have timestamps within
+     the specified window. This is the load-bearing assertion — if DTU does not honor the
+     time clause, `filtered_count == unfiltered_count` → test fails.
+  6. Assertion C (result-equivalence): every record in the filtered result also appears in
+     the unfiltered result (no fabrication by the DTU).
+- Load-bearing: fails if (B) `filtered_count == unfiltered_count` (DTU ignores AQL time).
+- Subsumes the vacuous parity test's `timeFrame:"Last 3 Hours"` AQL value. The correct AQL
+  syntax for the time clause must use the research-confirmed form (§8.6), not `timeFrame:`.
+
+**New test: `test_BC_2_11_007_AC_005_aql_time_window_roundtrip_alerts_pipeline`**
+- Same structure as the devices test, using `"in:alerts <time_clause>"` against
+  `AlertRecord.created_at`.
+
+#### 8.4.3 E2E subprocess test — `prism-bin/tests/e2e_smoke.rs`
+
+**New test: `test_BC_2_11_007_e2e_armis_aql_time_window_pushdown_dtu_roundtrip`**
+- Extends the existing `test_BC_2_11_007_e2e_armis_aql_pushdown_devices_dtu_roundtrip`
+  pattern.
+- Issues: `SELECT * FROM armis_devices WHERE aql = 'in:devices' AND last_seen > '2024-01-01T00:00:00Z'`
+- Assertion A: prism returns non-empty data rows.
+- Assertion B: Armis DTU aql-log contains an entry with both the entity discriminator
+  (`in:devices`) AND the time clause (confirming augmentation reached the DTU).
+- Assertion C: result row count is <= full unfiltered row count from the same DTU instance.
+- `#[ignore]` with `E2E-001` annotation (requires DTU + prism binary; un-gated via e2e profile).
+- Load-bearing: Assertion B fails if query-engine augmentation is absent; Assertion C alone
+  would be vacuous without the aql-log check.
+
+#### 8.4.4 Result-equivalence invariant test (BC-2.11.007 §Invariants)
+
+The existing AC-EQUIV-001 from §7 must be extended to cover Armis:
+
+**Extended test: `test_BC_2_11_007_result_equivalence_armis_time_window_via_pushdown_vs_postfilter`**
+- Two executions against the Armis DTU:
+  - Execution A: PrismQL query WITH `last_seen > 'T'` push-down AND DataFusion post-filter.
+  - Execution B: PrismQL query WITHOUT push-down (no AQL time clause) but WITH DataFusion
+    post-filter on `last_seen > 'T'`.
+- Assertion: result sets are identical (same records, same order-independent comparison).
+- This is the canonical result-equivalence assertion per BC-2.11.007 §Invariants.
+- Lives in `prism-spec-engine/tests/parity/armis.rs` or `prism-bin/tests/e2e_smoke.rs`.
+
+### 8.5 Revised Crates Touched
+
+| Crate | Change | Reason |
+|-------|--------|--------|
+| `prism-query` | `materialization.rs` + `pushdown.rs` — extract `start_time`/`end_time` from AST (Section 2 Option T1) | Wires time bounds from AST to `QueryParams` for all sensors including Armis |
+| `prism-spec-engine` | Per-sensor push-down translation — add Armis AQL augmentation branch (alongside CrowdStrike FQL injection) | Translates `start_time`/`end_time` into AQL clause, appends to base AQL |
+| `prism-bin` | `spec_driven_adapter.rs` — remove wrong `maxResults`/`timeFrame` injection; verify Armis AQL passthrough is correct; if AQL augmentation lives here, add it here | Correctness fix + augmentation wiring |
+| `prism-dtu-armis` | `routes/search.rs` — add AQL time-clause parsing and fixture dataset filtering (§8.3) | Makes time-window scenarios load-bearing; without this, scenarios are vacuous |
+| `prism-sensors` | `specs/armis.sensor.toml` — no structural change needed; `last_seen`, `first_seen`, `created_at`, `updated_at` are already declared as `column_type = "datetime"`; verify `options = ["INDEX"]` on at least one of them to enable time push-down via Option T1 | Confirm INDEX option exists on Armis datetime columns |
+
+**Confirm on prism-sensors:** The current `armis.sensor.toml` does NOT declare `options = ["INDEX"]`
+on `last_seen`, `first_seen`, `created_at`, or `updated_at`. Only `aql` has `options = ["INDEX"]`.
+For Option T1 time-window extraction to work for Armis, at least `last_seen` (devices) and
+`created_at` (alerts) must be declared `options = ["INDEX"]`. **This is a required prism-sensors
+change.** Without it, Option T1 cannot identify these as push-down-eligible datetime columns
+for Armis, and the query engine cannot extract time bounds for Armis AQL augmentation.
+
+**Revised crates_touched for v2 story:** `[prism-query, prism-spec-engine, prism-bin, prism-dtu-armis, prism-sensors]`
+
+### 8.6 AQL Wire-Syntax Research Flag
+
+**RESEARCH-AGENT VERIFICATION REQUIRED before implementation.**
+
+The canonical Armis AQL time-window syntax for use in `GET /api/v1/search?aql=...` is NOT
+confirmed from existing project artifacts. The following questions must be answered:
+
+1. **Absolute timestamp syntax:** Does real Armis AQL accept `lastSeen:>"2026-01-01T00:00:00Z"`?
+   Or `after:"2026-01-01T00:00:00Z"`? Or a different form?
+2. **Field name:** For the devices table time filter, is the AQL field name `lastSeen` (camelCase
+   as in the real API) or `last_seen` (snake_case as in the TOML spec column name)?
+3. **Relative window syntax:** Is `timeFrame:"Last 3 Hours"` (as used in the parity test, line 383)
+   confirmed real Armis AQL syntax, or was it guessed?
+4. **Alerts table time field:** Is the AQL field for alert time-filtering `createdAt`, `created_at`,
+   `time`, or something else?
+
+**Source to research:** Armis Centrix API documentation, the 1898 production poller (referenced
+in `search.rs` module comment as "1898 production poller"), and any Armis community or partner
+documentation. The research artifact cited in `search.rs` as "research-artifact 2026-06-01"
+confirmed `in:devices`/`in:alerts` syntax but did not confirm time-window syntax.
+
+Until research confirms the canonical syntax, the DTU extension (§8.3) should use a PLACEHOLDER
+time syntax internally and expose a `#[cfg(test)]` constant `ARMIS_AQL_TIME_CLAUSE_SYNTAX` that
+the story-writer can reference. The placeholder prevents shipping guessed wire syntax.
+
+**Research-agent query to issue (route to `vsdd-factory:research-agent`):**
+"What is the canonical Armis Centrix AQL syntax for filtering by absolute timestamp range in
+a search query? Specifically: (1) the AQL field name for device last-seen time, (2) the operator
+syntax for after/before an ISO8601 timestamp, (3) the AQL field for alert creation time.
+Sources: Armis developer documentation, Armis community, Armis partner API reference."
+
+### 8.7 BC + Story Hand-Off
+
+#### 8.7.1 BC amendments required (route to product-owner)
+
+**BC-2.01.013 Armis row (v1.13 → bump):**
+- Current Armis row says: "AQL verbatim passthrough only; no time-window wiring."
+- Required correction: "Armis time-window push-down IS in scope. Mechanism: query-engine
+  augments the user's base AQL with a canonical Armis AQL time clause derived from
+  `start_time`/`end_time` bounds extracted from the WHERE clause via Option T1 heuristic
+  (ADR-033). The augmented AQL string is forwarded via the existing `${query.filter.aql}`
+  path. The DTU honors the time clause by filtering its dataset (§8.3). Result-equivalence
+  invariant preserved: DataFusion post-filter ensures correctness regardless of DTU filtering."
+- The PO must also confirm the canonical AQL time syntax once research-agent verifies it.
+
+**BC-2.11.007 Mechanism B (v1.7 → bump):**
+- Current Mechanism B description says: "Remaining post-filter predicates are applied by
+  DataFusion over the materialized OCSF table. This includes ALL time-window predicates for
+  Armis, Cyberint, and Claroty sensors (which lack native DTU time params)."
+- Required correction: Armis is removed from the "no native time params" list. The updated
+  text should describe the AQL-clause augmentation: time-window predicates on Armis datetime
+  columns (declared `options = ["INDEX"]`) are augmented into the AQL string. The DTU honors
+  this augmentation. Cyberint and Claroty remain in the post-filter-only camp.
+- The invariant section's "only CrowdStrike" statement must be updated: "CrowdStrike (FQL
+  injection) and Armis (AQL-clause augmentation) support time-window push-down. Cyberint and
+  Claroty do not, pending DTU extension."
+
+#### 8.7.2 New ACs for story v2 (route to story-writer)
+
+These supplement the ACs in §7 (which should be preserved). Add:
+
+**AC-ARMIS-TW-001:** PrismQL query `SELECT * FROM armis_devices WHERE aql = 'in:devices' AND last_seen > 'T'`
+produces a `QueryParams.filters["aql"]` value containing both `in:devices` AND the canonical
+Armis AQL time clause for `last_seen > 'T'`. Verified at the FilterMap/QueryParams boundary
+(unit test in `aql_pushdown_tests.rs`).
+
+**AC-ARMIS-TW-002:** The Armis DTU, when receiving an AQL string containing both an entity
+discriminator (`in:devices`) and a time clause, returns only records whose timestamp falls
+within the specified window. The returned record count is strictly less than the unfiltered
+count (fixture must have records both inside and outside the window). Verified by pipeline
+integration test (`parity/armis.rs`).
+
+**AC-ARMIS-TW-003:** If the user's base AQL string already contains a time clause, the
+query engine does NOT append a second time clause. The forwarded AQL string equals the
+user's literal value. Verified by unit test in `aql_pushdown_tests.rs`.
+
+**AC-ARMIS-TW-004:** Armis result-equivalence invariant: query with AQL time push-down
+returns the same records as query without push-down (DataFusion post-filter only on
+`last_seen > 'T'`). Both paths produce identical row sets. Verified by integration test
+against the Armis DTU.
+
+**AC-ARMIS-TW-005 (E2E):** Full subprocess e2e: `SELECT * FROM armis_devices WHERE aql = 'in:devices' AND last_seen > 'T'` via prism binary, Armis DTU aql-log contains the augmented AQL string (both entity discriminator and time clause). `#[ignore]` per SID-1 / E2E-001.
+
+#### 8.7.3 DTU-INDEX update for prism-sensors datetime options
+
+The story-writer's ACs for v2 must include a gate that verifies `last_seen` (devices) and
+`created_at` (alerts) in `armis.sensor.toml` carry `options = ["INDEX"]`. Without this, the
+Option T1 time-window extraction cannot identify Armis datetime columns as push-down-eligible.
+The implementer must add `options = ["INDEX"]` to these columns as part of the v2 story.
+
+---
+
+## Summary of §8 for Human Decision
+
+**Revised Armis mechanism:** Time-window push-down is in scope via AQL-clause augmentation.
+The query engine extracts time bounds from WHERE Compare predicates on Armis datetime INDEX
+columns, and appends the canonical Armis AQL time clause to the user's base AQL string. The
+combined AQL string is forwarded via the existing `${query.filter.aql}` path. The DTU is
+extended to parse and honor the AQL time clause, making scenarios load-bearing.
+
+**Revised crates_touched:** `[prism-query, prism-spec-engine, prism-bin, prism-dtu-armis, prism-sensors]`
+
+**DTU change needed:** `prism-dtu-armis/src/routes/search.rs` — add AQL time-clause parsing
+and fixture dataset filtering. `prism-sensors/specs/armis.sensor.toml` — add `options = ["INDEX"]`
+to `last_seen` and `created_at` datetime columns.
+
+**Scenario coverage plan:** 3 unit tests (aql_pushdown_tests.rs), 3 pipeline integration tests
+(parity/armis.rs), 1 e2e subprocess test (e2e_smoke.rs). Each has load-bearing assertions.
+The critical load-bearing assertion is Assertion B of §8.4.2: `filtered_count < unfiltered_count`.
+
+**AQL wire-syntax research required:** YES. Dispatch research-agent before implementation
+begins. The canonical Armis AQL time-window field names and operator syntax must be confirmed.
+Do not implement §8.3 DTU parsing or §8.2 augmentation with guessed syntax.
+
+**Hand-off:**
+- Product-owner: amend BC-2.01.013 Armis row (v1.13→bump, time-window IN scope) and
+  BC-2.11.007 Mechanism B (remove Armis from post-filter-only list, document AQL augmentation
+  + DTU-honors contract). Wait for research-agent confirmation of AQL time syntax before
+  specifying exact syntax in BCs.
+- Story-writer: add ACs AC-ARMIS-TW-001 through AC-ARMIS-TW-005 to the v2 story. Add
+  `prism-dtu-armis` and `prism-sensors` to `crates_touched`. Ensure SAP-2 standing gate
+  applies: DTU time-clause filtering must be load-bearing (filtered ≠ unfiltered).

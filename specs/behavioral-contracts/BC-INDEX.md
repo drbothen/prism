@@ -1,9 +1,9 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "5.84"
+version: "5.85"
 status: draft
-producer: state-manager
+producer: product-owner
 timestamp: 2026-06-05T00:00:00Z
 phase: 3.A
 total_contracts: 246
@@ -41,7 +41,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.01.010 | Partial Failure Handling for Paginated and Cross-Client Queries | 01 - Sensor Adapters | CAP-001, CAP-002 | P0 | draft |
 | BC-2.01.011 | ~~Cross-Sensor Correlation via OCSF Field Alignment~~ | 01 - Sensor Adapters | CAP-012 | P1 | removed |
 | BC-2.01.012 | ~~Query Fingerprint Validation at Startup~~ | 01 - Sensor Adapters | CAP-001 | P0 | removed |
-| BC-2.01.013 | DataSource Trait Eliminates Per-Sensor Code Duplication | 01 - Sensor Adapters | CAP-001 | P0 | active (promoted draft→active D-398 per POL-14; anchor story S-PLUGIN-PREREQ-A merged PR #142 develop@90d7c80f) — v1.13 (S-DEMO-QUERY-PUSHDOWN-001-v2-bc-respec: per-sensor push-down translation table corrected; Armis/Cyberint/Claroty wrong claims removed; CrowdStrike start+end FQL wiring via ADR-033 T1 specified; TV-006+EC-01-027 updated; ADR-033 added to Traceability) |
+| BC-2.01.013 | DataSource Trait Eliminates Per-Sensor Code Duplication | 01 - Sensor Adapters | CAP-001 | P0 | active (promoted draft→active D-398 per POL-14; anchor story S-PLUGIN-PREREQ-A merged PR #142 develop@90d7c80f) — v1.14 (S-DEMO-QUERY-PUSHDOWN-001-v2-armis-aql-full-wiring: Armis row updated — time-window push-down IS in scope via AQL-clause augmentation; v1.13 "passthrough only" superseded append-only; anti-double-filter guard + DTU-honors contract specified; TV-007+TV-008 added; research-doc + ADR-033 Armis path cited) |
 | BC-2.01.014 | Exponential Backoff and Retry for Transient Sensor API Errors | 01 - Sensor Adapters | CAP-001 | P0 | draft |
 | BC-2.01.015 | ~~MCP Tool Response Envelope Structure~~ | 01 - Sensor Adapters | CAP-001 | P0 | removed |
 | BC-2.01.016 | SensorAuth Open Trait — Plugin-Implementable Auth Contract (No Sealed Marker) | 01 - Sensor Adapters | CAP-001 | P0 | active (promoted draft→active D-726 per POL-14; anchor story S-PLUGIN-PREREQ-E merged PR #151 develop@80ebe794 2026-05-19) — v1.12 |
@@ -154,7 +154,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.11.004 | PrismQL Pipe Mode Parsing | 11 - Query Execution | CAP-015 | P0 | active |
 | BC-2.11.005 | Ephemeral Materialization — Fan-Out, Normalize, Arrow RecordBatch, DataFusion MemTable | 11 - Query Execution | CAP-015 | P0 | active (promoted draft→active D-937 per POL-14; anchor story S-DEMO-001 merged PR #166 develop@5dd3df02 2026-06-01) — v1.6 (S-DEMO-QUERY-PUSHDOWN-001-v2-bc-respec: cite-pin sweep BC-2.01.013 v1.12→v1.13; corrected push-down translation description) |
 | BC-2.11.006 | Query Security Limits Enforcement | 11 - Query Execution | CAP-015 | P0 | draft |
-| BC-2.11.007 | Sensor Filter Push-Down | 11 - Query Execution | CAP-015 | P0 | active (promoted draft→active D-987 per POL-14; anchor story S-DEMO-002 merged PR #171 develop@fdd12251 2026-06-04) — v1.7 (S-DEMO-QUERY-PUSHDOWN-001-v2-bc-respec: time-range push-down invariant qualified — only CrowdStrike has native time param in current DTU; Armis/Cyberint/Claroty fall back to DataFusion post-filter; Mechanism A Cyberint/Claroty wrong push-down targets corrected; ADR-033 added to Traceability) |
+| BC-2.11.007 | Sensor Filter Push-Down | 11 - Query Execution | CAP-015 | P0 | active (promoted draft→active D-987 per POL-14; anchor story S-DEMO-002 merged PR #171 develop@fdd12251 2026-06-04) — v1.8 (S-DEMO-QUERY-PUSHDOWN-001-v2-armis-aql-full-wiring: Mechanism B extended — Armis time-window push-down via AQL-clause augmentation; invariant updated CrowdStrike+Armis push-down; Cyberint+Claroty remain post-filter-only; anti-double-filter guard; DTU-honors contract; 6 new test vectors; research-doc + ADR-033 Armis path cited) |
 | BC-2.11.008 | `create_alias` MCP Tool | 11 - Query Execution | CAP-016 | P1 | draft |
 | BC-2.11.009 | Alias Resolution — Pre-Parse Expansion, Composition, Cycle Detection | 11 - Query Execution | CAP-016 | P1 | draft |
 | BC-2.11.010 | `explain_query` MCP Tool | 11 - Query Execution | CAP-015 | P0 | draft |

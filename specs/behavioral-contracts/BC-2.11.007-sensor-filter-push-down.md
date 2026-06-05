@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.7"
+version: "1.8"
 status: active
 producer: product-owner
 timestamp: 2026-04-14T07:00:00
@@ -11,7 +11,7 @@ subsystem: "SS-11"
 capability: "CAP-015"
 lifecycle_status: active
 introduced: cycle-1
-modified: "2026-06-05"
+modified: "2026-06-05"  # v1.8 S-DEMO-QUERY-PUSHDOWN-001-v2-armis-aql-full-wiring — Armis removed from post-filter-only list; Mechanism B extended with AQL-clause augmentation; invariant updated CrowdStrike+Armis push-down; new test vectors; research-doc cited
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -65,22 +65,37 @@ Column options are declared per-column, per-sensor-adapter in the adapter's sche
 
   > **v1.6 Mechanism A grouping note (append-only, POLICY 1):** Prior versions listed Cyberint POST-body params and Claroty POST-body filter arrays as active Mechanism A push-down. These are incorrect against production DTU structs as of v1.7 (see pushdown-redesign.md §1.3+§1.4; ADR-033 §Rationale §5).
 
-  #### Mechanism B — Verbatim-AQL Passthrough (Armis)
-  Armis's native query language IS AQL; there is no OCSF-to-AQL translation layer. Instead, the user supplies the AQL string directly as a pseudo-column literal in the PrismQL WHERE clause:
+  #### Mechanism B — AQL Passthrough + Time-Window AQL-Clause Augmentation (Armis)
+  Armis's native query language IS AQL; there is no OCSF-to-AQL translation layer. The user supplies the AQL entity string directly as a pseudo-column literal in the PrismQL WHERE clause:
 
   ```sql
   FROM armis_devices WHERE aql = 'in:devices' LIMIT 100
   ```
 
-  The query planner recognizes `aql` as an INDEX pseudo-column on Armis tables (declared with `options = ["INDEX"]` in `armis.sensor.toml`). It extracts the literal string value and seeds it verbatim into `FetchContext.query_filters["aql"]`. The spec engine interpolates this value into the TOML `path_template` via `${query.filter.aql}`, forwarding it as a URL query parameter to the DTU endpoint `GET /api/v1/search?aql=<value>`. No translation of the AQL content occurs — the string is treated as opaque (R-DTU-002 / ADR-031 §D8-a).
+  The query planner recognizes `aql` as an INDEX pseudo-column on Armis tables (declared with `options = ["INDEX"]` in `armis.sensor.toml`). It extracts the literal string value and seeds it verbatim into `FetchContext.query_filters["aql"]`. The spec engine interpolates this value into the TOML `path_template` via `${query.filter.aql}`, forwarding it as a URL query parameter to the DTU endpoint `GET /api/v1/search?aql=<value>`. Base AQL content is opaque (R-DTU-002 / ADR-031 §D8-a).
 
-  This passthrough convention was established by the merged S-DEMO-ARMIS-AQL-001 (PR #168, 2026-06-02) and is grounded in BC-2.16.013 §Postconditions §1 (`armis.sensor.toml` devices and alerts tables use `GET /api/v1/search` with AQL forwarded via `${query.filter.aql}`).
+  **Time-window AQL-clause augmentation (in scope, v1.8 per human directive 2026-06-05):** When the PrismQL WHERE clause also contains a time-window Compare predicate (Gt/Ge/Lt/Le) on a datetime column declared `options = ["INDEX"]` in `armis.sensor.toml` (e.g., `last_seen`, `created_at`), the query-engine layer appends the canonical Armis AQL time clause to the user's base AQL string before forwarding:
 
-  Discrimination between entity types (`in:devices` vs `in:alerts`) is performed by the DTU clone via string pattern-matching on the received AQL value; the query planner does not inspect or validate AQL syntax.
+  - Bounded range: `<base_aql> after:2026-01-01T00:00:00 before:2026-01-02T00:00:00`
+  - Lower bound only: `<base_aql> after:<ts>`
+  - Relative (when expressed as timeFrame): `<base_aql> timeFrame:"<N> <unit>"` (e.g. `timeFrame:"3 Hours"`)
+  - AQL syntax confirmed by research-doc `armis-aql-time-window-syntax-2026-06.md` (HIGH confidence, 6 independent sources): bare, unquoted, timezone-naive `YYYY-MM-DDTHH:MM:SS` timestamps; space-separated keywords; no `AND`/parens/operators. The `lastSeen:>"T"` comparison-operator form is NOT confirmed and MUST NOT be used.
 
-- Remaining post-filter predicates are applied by DataFusion over the materialized OCSF table. This includes ALL time-window predicates for Armis, Cyberint, and Claroty sensors (which lack native DTU time params), and any other predicates that cannot be mapped to a supported sensor-native param.
+  **Anti-double-filter guard:** If the user's base AQL string already contains any of `after:`, `before:`, or `timeFrame:`, the string is forwarded verbatim without augmentation. The user's explicit time scope is preserved. This guard prevents duplicate time clauses when the user has already embedded temporal filtering in their AQL.
+
+  **DTU-honors-AQL-time-clause contract:** The prism-dtu-armis clone MUST parse and honor the `after:`/`before:` / `timeFrame:` clauses by filtering its fixture dataset on `last_seen` (devices) and `created_at` (alerts). Without this change, time-window scenarios are vacuous (DTU returns full dataset regardless of time clause). The verbatim `capture_aql()` call (R-DTU-002) is unaffected — the augmented AQL string is captured as-is.
+
+  The combined AQL string (base + time clause) is forwarded via the existing `${query.filter.aql}` path. No new DTU struct fields are needed; time bounds arrive embedded in the AQL string. DataFusion post-filter on the same time column STILL runs as the correctness backstop (result-equivalence invariant preserved).
+
+  > **v1.7 "post-filter-only for Armis" text SUPERSEDED (append-only, POLICY 1):** Prior versions stated Armis time-window predicates "are post-filtered by DataFusion after materialization" due to lack of native DTU time params. This was the correct assessment before the human directive (2026-06-05) to fully wire Armis AQL time-window. The AQL-clause augmentation path now provides native-equivalent time filtering for Armis. The superseded text read: "Remaining post-filter predicates are applied by DataFusion over the materialized OCSF table. This includes ALL time-window predicates for Armis, Cyberint, and Claroty sensors (which lack native DTU time params)."
+
+  Discrimination between entity types (`in:devices` vs `in:alerts`) is performed by the DTU clone via string pattern-matching on the received AQL value; the query planner does not inspect or validate AQL syntax beyond extracting the base AQL literal and the time-window bounds from the AST.
+
+  This passthrough convention was established by the merged S-DEMO-ARMIS-AQL-001 (PR #168, 2026-06-02) and is grounded in BC-2.16.013 §Postconditions §1 (`armis.sensor.toml` devices and alerts tables use `GET /api/v1/search` with AQL forwarded via `${query.filter.aql}`). Time-window augmentation is the S-DEMO-QUERY-PUSHDOWN-001 v2 scope addition.
+
+- Remaining post-filter predicates are applied by DataFusion over the materialized OCSF table. This includes ALL time-window predicates for Cyberint and Claroty sensors (which lack native DTU time params), and any other predicates that cannot be mapped to a supported sensor-native param. **Armis time-window is no longer in this category** — it is handled via Mechanism B AQL-clause augmentation, with DataFusion post-filter as the correctness backstop only.
 - The push-down classification is visible in `explain_query` output (see BC-2.11.010)
-- Push-down reduces the volume of data fetched from sensor APIs, improving performance and reducing materialization size. For sensors without native time-window params (Armis, Cyberint, Claroty), the result-equivalence invariant guarantees correctness at the cost of fetching a broader dataset that DataFusion then filters.
+- Push-down reduces the volume of data fetched from sensor APIs, improving performance and reducing materialization size. For sensors without native time-window params (Cyberint, Claroty), the result-equivalence invariant guarantees correctness at the cost of fetching a broader dataset that DataFusion then filters. For Armis, the AQL-clause augmentation provides time-window filtering at the DTU level, with DataFusion post-filter as the correctness backstop.
 
 ### Column Pruning
 
@@ -149,7 +164,7 @@ BC-2.11.011 (cross-client scoping) depends on REQUIRED column enforcement define
 ## Invariants
 - Push-down is an optimization only; the query result must be identical whether or not push-down occurs
 - A predicate that cannot be pushed down is never silently dropped -- it is always applied as a post-filter
-- **Time range push-down (qualified, v1.7 per pushdown-redesign.md §1 + ADR-033):** Time-window push-down is attempted only for sensors whose DTU exposes a native time-window parameter. In the current initial sensor set, **only CrowdStrike** has a usable native time param (`DetectionListParams.filter` FQL injection). Armis, Cyberint, and Claroty do NOT have native time-window params in their current DTU structs — for these sensors, time-window predicates are post-filtered by DataFusion after materialization (result-equivalence invariant is preserved). The spec-driven `options: Index` declaration on a datetime column indicates the column is eligible for time-window push-down IF the sensor's DTU supports it; declaration alone is not sufficient. > **v1.6 claim SUPERSEDED (append-only, POLICY 1):** The prior invariant "Time range push-down is always attempted (all initial sensors support time-based filtering)" was factually incorrect against production DTU structs and has been qualified above. The superseded text was: `Time range push-down is always attempted (all initial sensors support time-based filtering; spec-driven sensors declare push-down support per column via options: Index)`.
+- **Time range push-down (qualified, v1.8 per pushdown-redesign.md §8 + human directive 2026-06-05 + research-doc armis-aql-time-window-syntax-2026-06.md):** Time-window push-down is supported by **CrowdStrike** (FQL injection via `DetectionListParams.filter` query param, ADR-033 Option T1 heuristic) AND **Armis** (AQL-clause augmentation via appending `after:`/`before:` or `timeFrame:` keywords to the base AQL string, forwarded via the existing `${query.filter.aql}` path, with anti-double-filter guard). For Armis, the prism-dtu-armis clone MUST honor the AQL time clause by filtering its dataset (load-bearing contract). **Cyberint and Claroty** do NOT have native time-window params in their current DTU structs — time-window predicates for these sensors are post-filtered by DataFusion after materialization (result-equivalence invariant preserved). The spec-driven `options: Index` declaration on a datetime column indicates the column is eligible for time-window push-down IF the sensor's push-down mechanism supports it; declaration alone is not sufficient. > **v1.7 "only CrowdStrike" qualifier SUPERSEDED (append-only, POLICY 1):** The v1.7 invariant stated "only CrowdStrike has a usable native time param." This was correct at v1.7. Armis is now added via AQL-clause augmentation per the human directive (2026-06-05). Superseded v1.7 text: "only CrowdStrike has a usable native time param (`DetectionListParams.filter` FQL injection). Armis, Cyberint, and Claroty do NOT have native time-window params." > **v1.6 claim SUPERSEDED (append-only, POLICY 1):** The prior invariant "Time range push-down is always attempted (all initial sensors support time-based filtering)" was factually incorrect against production DTU structs and was qualified in v1.7. The superseded text was: `Time range push-down is always attempted (all initial sensors support time-based filtering; spec-driven sensors declare push-down support per column via options: Index)`.
 - Push-down filter translation produces a canonical form (sorted parameter keys, normalized timestamp ISO8601 format, lowercase string values where applicable) before the result is used as cache key input. This ensures that semantically equivalent push-down filters produce identical cache keys regardless of the original predicate ordering in the PrismQL query.
 - **INV-REQUIRED-SPECDRIVEN:** The set of REQUIRED columns for any sensor+table is determined exclusively by `ColumnOptions::Required` entries in the loaded `ColumnSpec`, not by any hardcoded name list in the query engine.
 
@@ -178,6 +193,10 @@ BC-2.11.011 (cross-client scoping) depends on REQUIRED column enforcement define
 | Query with `device.hostname = 'srv01'` (OPTIMIZED on all sensors) | Post-filter only; DataFusion filters after materialization | edge-case |
 | `FROM armis_devices WHERE aql = 'in:devices' LIMIT 100` | `FetchContext.query_filters["aql"] = "in:devices"`; DTU receives `GET /api/v1/search?aql=in:devices`; Mechanism B passthrough; no AQL translation | happy-path (Armis passthrough) |
 | `FROM armis_alerts WHERE aql = 'in:alerts status:Open' LIMIT 50` | `FetchContext.query_filters["aql"] = "in:alerts status:Open"`; DTU receives `GET /api/v1/search?aql=in:alerts+status:Open`; AQL content is opaque — no validation | happy-path (Armis passthrough with compound AQL) |
+| `FROM armis_devices WHERE aql = 'in:devices' AND last_seen > '2026-01-01T00:00:00' AND last_seen < '2026-02-01T00:00:00'` — `last_seen` is `options = ["INDEX"]` datetime in `armis.sensor.toml` | `FetchContext.query_filters["aql"] = "in:devices after:2026-01-01T00:00:00 before:2026-02-01T00:00:00"`; DTU receives bounded-range AQL clause; DTU returns PROPER SUBSET of unfiltered device fixture (filtered_count < unfiltered_count — load-bearing); DataFusion post-filter on `last_seen` also applies | happy-path (Armis time-window AQL-clause augmentation — bounded range) |
+| `FROM armis_devices WHERE aql = 'in:devices' AND last_seen > '2026-01-01T00:00:00'` | `FetchContext.query_filters["aql"] = "in:devices after:2026-01-01T00:00:00"`; bare unquoted timestamp; no `before:` clause | happy-path (Armis time-window AQL-clause augmentation — lower bound only) |
+| `FROM armis_devices WHERE aql = 'in:devices after:2024-06-01T00:00:00' AND last_seen > '2026-01-01T00:00:00'` — base AQL already contains `after:` | `FetchContext.query_filters["aql"] = "in:devices after:2024-06-01T00:00:00"` — anti-double-filter guard fires; no second `after:` appended; user's explicit time scope preserved | edge-case (Armis anti-double-filter guard) |
+| `FROM armis_devices WHERE aql = 'in:devices' AND last_seen > '2026-01-01T00:00:00'` — WITH DataFusion post-filter only (no AQL augmentation) AND WITH AQL augmentation | Both executions return identical row sets — result-equivalence invariant holds for Armis time-window push-down path | invariant (Armis result-equivalence) |
 
 ## Verification Properties
 
@@ -189,15 +208,18 @@ BC-2.11.011 (cross-client scoping) depends on REQUIRED column enforcement define
 | Field | Value |
 |-------|-------|
 | L2 Capability | CAP-015 |
+| Capability Anchor Justification | CAP-015 ("PrismQL Query Execution Engine") per capabilities.md §CAP-015 — this BC defines the filter push-down optimization contract that is a direct sub-behavior of the query execution capability. |
 | L2 Invariants | DI-021 |
-| Related BCs | BC-2.11.010 (explain_query shows push-down plan), BC-2.01.013 (per-sensor push-down translation table; this BC's result-equivalence invariant is referenced in BC-2.01.013 TV-006 and EC-01-027) |
-| Related ADRs | ADR-033 (push-down time-window extraction strategy — pre-fan-out heuristic T1 for CrowdStrike FQL injection; establishes that Armis/Cyberint/Claroty have no native time-window params in current DTU set, consistent with Invariants §Time range push-down) |
+| Related BCs | BC-2.11.010 (explain_query shows push-down plan), BC-2.01.013 v1.14 (per-sensor push-down translation table; this BC's result-equivalence invariant is referenced in BC-2.01.013 TV-006/TV-007/TV-008 and EC-01-027) |
+| Related ADRs | ADR-033 (push-down time-window extraction strategy — pre-fan-out heuristic T1; covers CrowdStrike FQL injection AND Armis AQL-clause augmentation path; Cyberint and Claroty confirmed as no-native-time-param) |
+| Related Research | `.factory/research/armis-aql-time-window-syntax-2026-06.md` (HIGH confidence; canonical Armis AQL time-window syntax confirmed — `after:<ts>` / `before:<ts>` bare unquoted timezone-naive ISO8601; `timeFrame:"<N> <unit>"` relative; `lastSeen:>"T"` comparison-operator form NOT confirmed and MUST NOT be used) |
 | Priority | P0 |
 
 ## Changelog
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.8 | S-DEMO-QUERY-PUSHDOWN-001-v2-armis-aql-full-wiring | 2026-06-05 | product-owner | Human directive 2026-06-05: "fully wire Armis AQL into our DTU and our scenarios." (1) Mechanism B extended: added AQL-clause augmentation design — query-engine appends canonical Armis AQL time clause (`after:<ts>` / `before:<ts>` / `timeFrame:"<N> <unit>"`) to user's base AQL string when WHERE clause has time Compare predicates on `options = ["INDEX"]` datetime columns in `armis.sensor.toml`. Confirmed AQL syntax from research-doc `armis-aql-time-window-syntax-2026-06.md` (HIGH confidence, 6 independent sources): bare unquoted timezone-naive `YYYY-MM-DDTHH:MM:SS`; space-separated keywords; no `AND`/parens. Anti-double-filter guard specified. DTU-honors-AQL-time-clause contract specified (prism-dtu-armis must filter dataset on `last_seen`/`created_at`; load-bearing). (2) Invariant updated: "CrowdStrike (FQL injection) AND Armis (AQL-clause augmentation)" now both support time-window push-down; Cyberint and Claroty remain post-filter-only. Superseded v1.7 "only CrowdStrike" text preserved append-only per POLICY 1. (3) Post-filter sentence updated: Armis removed from the "lacks native DTU time params" list. (4) Six new canonical test vectors added: Armis bounded-range augmentation (load-bearing), lower-bound augmentation, anti-double-filter guard, result-equivalence invariant for Armis path. (5) Traceability updated: research-doc added to Related Research; BC-2.01.013 citation updated to v1.14; ADR-033 note updated to cover Armis augmentation path. Capability Anchor Justification row added. |
 | 1.7 | S-DEMO-QUERY-PUSHDOWN-001-v2-bc-respec | 2026-06-05 | product-owner | S-DEMO-QUERY-PUSHDOWN-001 v2 re-spec (LOCAL adversary passes 5/6 factual correction). (1) Qualified the over-broad time-range invariant: "all initial sensors support time-based filtering" was factually wrong against production DTU structs. Corrected to: only CrowdStrike has a usable native time param (`DetectionListParams.filter` FQL injection, via ADR-033 Option T1 heuristic); Armis/Cyberint/Claroty have NO native time-window params in their current DTU structs — time predicates fall back to DataFusion post-filter for these sensors; result-equivalence invariant is preserved. Superseded v1.6 text retained append-only per POLICY 1. (2) §Mechanism A updated: Cyberint POST-body `from_date`/`to_date` injection and Claroty POST-body filter arrays removed as Mechanism A push-down targets; corrected prose reflects no-native-time-param reality for these two sensors. v1.6 grouping note retained append-only. (3) §Predicate Classification — post-filter sentence extended to explicitly name Armis/Cyberint/Claroty time-window as always-post-filter cases. (4) ADR-033 added to Traceability §Related ADRs. BC-2.01.013 added to Related BCs. |
 | 1.6 | D-987-post-merge-POL14 | 2026-06-04 | state-manager | POL-14 status-field alignment: `status:` synced draft→active (anchor story S-DEMO-002 merged PR #171 develop@fdd12251 2026-06-04). `lifecycle_status` was already active (ground truth per ADR-025). BC-INDEX row 157 updated to v1.6 active. No body changes; changelog row added for version bump. |
 | 1.5 | F-DEMO002-P1-MED-002-adjudication | 2026-06-02 | product-owner | AMENDMENT 4 — adjudicates finding F-DEMO002-P1-MED-002 (POL-4 semantic drift). Rewrote §Predicate Classification to document two distinct push-down mechanisms: Mechanism A (Predicate Translation, used by CrowdStrike/Cyberint/Claroty) and Mechanism B (Verbatim-AQL Passthrough, Armis only). Armis convention: user writes `aql = '<string>'` pseudo-column literal in PrismQL WHERE; query planner seeds verbatim string into `FetchContext.query_filters["aql"]`; spec engine interpolates via `${query.filter.aql}` into TOML path_template; DTU receives `GET /api/v1/search?aql=<value>` opaque per R-DTU-002 / ADR-031 §D8-a. Precedent: merged S-DEMO-ARMIS-AQL-001 PR #168 / BC-2.16.013 §Postconditions §1. Updated EC-11-019 to reflect passthrough semantics. Added two Armis Mechanism B canonical test vectors. CrowdStrike translation example (EC-11-020, test vectors) preserved intact. |

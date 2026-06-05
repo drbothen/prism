@@ -135,9 +135,9 @@ active_dispatch_set:
     status: in_progress
     priority: P2
     points: 8
-    spec_version: "v2.0"
+    spec_version: "v2.1"
     lane: "2 (Phase B)"
-    dispatch_status: "V2_REIMPL_IN_FLIGHT — D-1006 2026-06-05. Human approved v2 re-implementation ('Approve — re-implement v2'). ADR-033 promoted proposed→accepted (D-1006). Scope expansion to prism-query (+SS-11) authorized. Worktree reset to develop@752e407a (devops in parallel). LOCAL adversary streak 0/3 fresh for v2 code. test-writer Red Gate next (production fixtures per SAP-2 gate; story v2.0 spec; 9 ACs). [D-1005 2026-06-05: RE-SPEC COMPLETE. ADR-033 proposed; BC-2.01.013 v1.13; BC-2.11.007 v1.7; story v2.0 (9 ACs; prism-query added; 5→8 pts). S-DEMO-CLAROTY-TIME-001 stub registered.]"
+    dispatch_status: "V2_REIMPL_IN_FLIGHT — D-1007 2026-06-05. Armis AQL full-wiring scope added (human-directed). Research confirmed AQL time-window syntax (HIGH conf): after:/before: bare/unquoted/timezone-naive ISO; timeFrame:\"N unit\" camelCase; disproved lastSeen:>\"T\" + \"Last 3 Hours\". ADR-033 already accepted (D-1006). BC-2.01.013 v1.14 (AQL-clause augmentation IN scope; DTU-honors contract; TV-007/008). BC-2.11.007 v1.8 (Mechanism B CrowdStrike+Armis both support time push-down). Story v2.0→v2.1: 15 ACs (+AC-ARMIS-TW-001..005+AC-INDEX-001; AC-ARMIS-001 form corrected lastSeen:>→after:). crates_touched: [prism-query, prism-spec-engine, prism-bin, prism-dtu-armis, prism-sensors]. Token budget ~73.5K with sub-task split guidance. test-writer Red Gate NEXT (production fixtures + DTU load-bearing filter per SAP-2). [D-1006 2026-06-05: V2_REIMPL_IN_FLIGHT; ADR-033 accepted; scope expansion to prism-query; worktree reset to develop@752e407a; LOCAL streak 0/3. D-1005 2026-06-05: RE-SPEC COMPLETE. ADR-033 proposed; BC-2.01.013 v1.13; BC-2.11.007 v1.7; story v2.0 (9 ACs). S-DEMO-CLAROTY-TIME-001 stub registered.]"
     code_head: "ed27b5ff"
     local_adversary_streak: "0/3"
     local_adversary_pass_count: 6
@@ -183,8 +183,9 @@ active_dispatch_set:
       - S-DEMO-001  # HARD gate — SATISFIED (merged PR #166 develop@5dd3df02)
       - S-DEMO-002  # SATISFIED (merged PR #171 develop@fdd12251 2026-06-04)
     bcs: [BC-2.01.013, BC-2.11.005, BC-2.11.007]
+    bc_pins: {BC-2.01.013: "v1.14", BC-2.11.005: "v1.6", BC-2.11.007: "v1.8"}
     vps: []
-    notes: "D-1006 2026-06-05: Human approved v2 re-implementation ('Approve — re-implement v2'). ADR-033 proposed→accepted. Scope expansion authorized. Worktree reset to develop@752e407a. V2_REIMPL_IN_FLIGHT. LOCAL streak 0/3 fresh. D-1005 2026-06-05: RE-SPEC COMPLETE (D-989 exception-2 human direction). ADR-033 proposed (NOT accepted — gated on human v2-scope approval). BC-2.01.013 v1.12→v1.13; BC-2.11.007 v1.6→v1.7; BC-2.11.005 v1.5→v1.6; BC-INDEX v5.83→v5.84; story v1.3→v2.0 (9 ACs; prism-query added; SS-11 added; 5→8 pts). S-DEMO-CLAROTY-TIME-001 stub registered (total_stories 181). STORY-INDEX v2.282. (D-1004 2026-06-05: passes 5/6 CRITICAL; streak RESET. D-1003: pass 3 OBS-P3-001 CLOSED. D-1002: pass 2 NOT-CLEAN. D-1001: pass 1 NOT-CLEAN. D-990: ready.)"
+    notes: "D-1007 2026-06-05: Armis AQL full-wiring scope added (human-directed). BC-2.01.013 v1.13→v1.14; BC-2.11.007 v1.7→v1.8; story v2.0→v2.1 (15 ACs +Armis time-window AC-ARMIS-TW-001..005+AC-INDEX-001; AC-ARMIS-001 corrected lastSeen:>→after:); crates_touched +prism-dtu-armis+prism-sensors; STORY-INDEX v2.282→v2.283; BC-INDEX v5.84→v5.85. Research confirmed AQL syntax HIGH conf. pushdown-redesign.md §8 extended. D-1006 2026-06-05: Human approved v2 re-implementation ('Approve — re-implement v2'). ADR-033 proposed→accepted. Scope expansion authorized. Worktree reset to develop@752e407a. V2_REIMPL_IN_FLIGHT. LOCAL streak 0/3 fresh. D-1005 2026-06-05: RE-SPEC COMPLETE (D-989 exception-2 human direction). ADR-033 proposed (NOT accepted — gated on human v2-scope approval). BC-2.01.013 v1.12→v1.13; BC-2.11.007 v1.6→v1.7; BC-2.11.005 v1.5→v1.6; BC-INDEX v5.83→v5.84; story v1.3→v2.0 (9 ACs; prism-query added; SS-11 added; 5→8 pts). S-DEMO-CLAROTY-TIME-001 stub registered (total_stories 181). STORY-INDEX v2.282. (D-1004 2026-06-05: passes 5/6 CRITICAL; streak RESET. D-1003: pass 3 OBS-P3-001 CLOSED. D-1002: pass 2 NOT-CLEAN. D-1001: pass 1 NOT-CLEAN. D-990: ready.)"
 
   - story_id: S-DEMO-CLAROTY-TIME-001
     status: draft
@@ -204,10 +205,10 @@ active_dispatch_set:
     status: ready
     priority: P2
     points: 3
-    spec_version: "v1.3"
+    spec_version: "v1.4"
     depends_on:
       - S-DEMO-001  # HARD gate — SATISFIED (merged PR #166 develop@5dd3df02)
-    notes: "D-1005 2026-06-05: spec_version v1.2→v1.3 (BC-2.01.013 cite-pin sweep v1.12→v1.13 per D-1005 re-spec; 9 sites updated in story body). D-990 2026-06-03: status draft→ready (v1.1→v1.2). BC-2.02.012 v1.5 active (PO D-989) + BC-2.01.013 v1.13 active. Both-active annotation accurate. depends_on S-DEMO-001 SATISFIED. DEMO-GOAL-REQUIRED (D-941)."
+    notes: "D-1007 2026-06-05: spec_version v1.3→v1.4 (BC-2.01.013 cite-pin sweep v1.13→v1.14 per D-1007 Armis AQL full-wiring burst). D-1005 2026-06-05: spec_version v1.2→v1.3 (BC-2.01.013 cite-pin sweep v1.12→v1.13 per D-1005 re-spec; 9 sites updated in story body). D-990 2026-06-03: status draft→ready (v1.1→v1.2). BC-2.02.012 v1.5 active (PO D-989) + BC-2.01.013 v1.14 active. Both-active annotation accurate. depends_on S-DEMO-001 SATISFIED. DEMO-GOAL-REQUIRED (D-941)."
 
   - story_id: S-DEMO-002
     status: draft
@@ -358,9 +359,9 @@ deferred_post_demo:
   # reclassification from permitted-divergence → required-fidelity; user directive no-scope-compromise).
 
 prereq_artifacts:
-  story_index: .factory/stories/STORY-INDEX.md         # v2.274 after D-990 burst (179 stories; 8 stories draft→ready; S-5.04-FIX-001 LANDED)
-  bc_index: .factory/specs/behavioral-contracts/BC-INDEX.md  # v5.80 (F-003 status sync + version reconciliation; active 234, draft 3)
-  state: .factory/STATE.md                              # v7.640 after D-990 burst
+  story_index: .factory/stories/STORY-INDEX.md         # v2.283 after D-1007 burst (181 stories; S-DEMO-QUERY-PUSHDOWN-001 v2.1 + OCSF-CLASS-MIGRATION-001 v1.4)
+  bc_index: .factory/specs/behavioral-contracts/BC-INDEX.md  # v5.85 (BC-2.01.013 v1.14 + BC-2.11.007 v1.8; active 234, draft 3)
+  state: .factory/STATE.md                              # v7.658 after D-1007 burst
   governing_adr: .factory/specs/architecture/decisions/ADR-031-dtu-equals-true-dtu-fidelity-principle.md  # v1.2 (ADR-031 architect e57eb5b1 reclassified 3 divergences)
   governing_audit: .factory/proposals/POLLER-DTU-FIDELITY-AUDIT-2026-05-29.md  # v1.1
 

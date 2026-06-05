@@ -6,7 +6,7 @@ wave: 5
 epic_id: E-DEMO
 priority: P2
 status: ready
-version: "1.3"
+version: "1.4"
 level: "L4"
 producer: story-writer
 timestamp: "2026-06-01T00:00:00Z"
@@ -25,14 +25,14 @@ behavioral_contracts:
                   # "security_finding"→2004 transitional alias with ocsf.deprecated_class_alias
                   # WARN emission (Option A); INV-NO-2001-SELECT-PATH + INV-PRODUCTION-TOML-NO-SECURITY-FINDING.
                   # OQ-1 CLOSED (Option A selected). OQ-2 CLOSED (BC amended). BC is now v1.4.
-  - BC-2.01.013   # DataSource Trait — v1.13 (S-DEMO-QUERY-PUSHDOWN-001-v2-bc-respec 2026-06-05):
-                  # Per-sensor push-down translation table corrected (v1.12→v1.13); OCSF Conformance
+  - BC-2.01.013   # DataSource Trait — v1.14 (S-DEMO-QUERY-PUSHDOWN-001-v2.1-armis-aql-full-wiring 2026-06-05):
+                  # Armis push-down scope extended to AQL-clause augmentation (v1.14); OCSF Conformance
                   # Clause unchanged — select_by_class_name table still correct:
                   # "security_finding"→2004 transitional alias per BC-2.02.012 v1.4 Option A;
                   # TV-BC-2.01.013-005 asserts 2004. This story's relevant clause (OCSF Conformance)
                   # was last semantically amended at v1.10 (Wave-5 Phase-A PO burst 2026-06-03);
-                  # v1.13 does NOT change OCSF Conformance Clause semantics.
-# BC status: BOTH BCs amended by PO. BC-2.02.012 is v1.4 (active). BC-2.01.013 is v1.13 (active).
+                  # v1.14 does NOT change OCSF Conformance Clause semantics.
+# BC status: BOTH BCs amended by PO. BC-2.02.012 is v1.4 (active). BC-2.01.013 is v1.14 (active).
 # S-7.01 gate: behavioral_contracts is non-empty and both BCs are active → story MAY
 # transition to ready once OQ-3 (TOML file paths) is resolved at dispatch.
 # AC↔BC bidirectional trace verification required before status=ready transition.
@@ -55,7 +55,7 @@ traces:
 **Filing:** OBS-2 from S-DEMO-001 PR #166 PR-LEVEL adversarial pass 1 (2026-06-01).
 **Adjudication:** Architect — non-blocking deferral. Non-blocking because:
 
-1. **D-925 intentional transitional decision.** BC-2.01.013 v1.9 (now v1.13; OCSF Conformance Clause unchanged from v1.10) explicitly records:
+1. **D-925 intentional transitional decision.** BC-2.01.013 v1.9 (now v1.14; OCSF Conformance Clause unchanged from v1.10) explicitly records:
    > "real sensors use this name — use until migration to detection_finding"
    The current `ocsf_class = "security_finding"` in 4 production sensor TOMLs is intentional,
    not an oversight.
@@ -66,7 +66,7 @@ traces:
    class UID, but downstream consumers that handle 2001 continue to work. No runtime crash,
    no data loss.
 
-3. **BC-2.02.012 ↔ BC-2.01.013 v1.9 (now v1.13) contradiction.** BC-2.02.012 contains a "no deprecated
+3. **BC-2.02.012 ↔ BC-2.01.013 v1.9 (now v1.14) contradiction.** BC-2.02.012 contains a "no deprecated
    2001 class_uid" invariant that is scoped to the `select()` path. The `select_by_class_name`
    path returned 2001 transitionally per the D-925 decision. This story resolves the
    contradiction by migrating away from 2001 entirely and amending BC-2.02.012 to close the
@@ -92,7 +92,7 @@ validate against OCSF v1.1+ schemas do not reject Prism output.
 | BC ID | Version | Title | Role in This Story |
 |-------|---------|-------|-------------------|
 | BC-2.02.012 | v1.4 | OCSF Event Class Selection Per Sensor Record Type | Primary anchor. v1.4 adds `select_by_class_name()` mapping table with `"detection_finding"` → 2004 (PRIMARY) and `"security_finding"` → 2004 (transitional alias, Option A). ACs implement INV-NO-2001-SELECT-PATH, INV-PRODUCTION-TOML-NO-SECURITY-FINDING, and the deprecation WARN emission `ocsf.deprecated_class_alias`. |
-| BC-2.01.013 | v1.13 | DataSource Trait Eliminates Per-Sensor Code Duplication | SpecDrivenSensorAdapter OCSF Conformance Clause: `select_by_class_name` must map `"security_finding"` to 2004 (NOT 2001) as transitional alias. TV-BC-2.01.013-005 corrected to assert `class_uid == 2004` for `"security_finding"` input. AC-002 and the conformance boundary test must satisfy this TV. (OCSF Conformance Clause semantically unchanged from v1.10; v1.13 corrected per-sensor push-down translation table — no semantic change to OCSF Conformance Clause relevant to this story.) |
+| BC-2.01.013 | v1.14 | DataSource Trait Eliminates Per-Sensor Code Duplication | SpecDrivenSensorAdapter OCSF Conformance Clause: `select_by_class_name` must map `"security_finding"` to 2004 (NOT 2001) as transitional alias. TV-BC-2.01.013-005 corrected to assert `class_uid == 2004` for `"security_finding"` input. AC-002 and the conformance boundary test must satisfy this TV. (OCSF Conformance Clause semantically unchanged from v1.10; v1.14 added Armis AQL-clause augmentation to push-down scope — no semantic change to OCSF Conformance Clause relevant to this story.) |
 
 ---
 
@@ -175,7 +175,7 @@ Red Gate test: `test_BC_2_02_012_no_production_toml_uses_security_finding`
 No `ocsf.deprecated_class_alias` WARN is emitted for this input (it is the canonical PRIMARY entry).
 This matches TV-BC-2.02.012-007.
 (traces to BC-2.02.012 v1.4 postcondition `select_by_class_name("detection_finding")` postcondition
-and BC-2.01.013 v1.13 `select_by_class_name` specification — OCSF Conformance Clause semantically unchanged from v1.10)
+and BC-2.01.013 v1.14 `select_by_class_name` specification — OCSF Conformance Clause semantically unchanged from v1.10)
 
 Red Gate test: `test_BC_2_02_012_select_by_class_name_detection_finding_returns_2004_no_warn`
 
@@ -184,11 +184,11 @@ Red Gate test: `test_BC_2_02_012_select_by_class_name_detection_finding_returns_
 transitional alias maps to Detection Finding (2004), NOT Security Finding (2001, deprecated).
 The implementation emits exactly:
 `tracing::warn!(event_type = "ocsf.deprecated_class_alias", class_name = "security_finding", resolved_class_uid = 2004, "sensor TOML uses deprecated ocsf_class value 'security_finding'; update to 'detection_finding'")`.
-This matches TV-BC-2.02.012-008 and BC-2.01.013 v1.13 TV-BC-2.01.013-005 (class_uid == 2004,
+This matches TV-BC-2.02.012-008 and BC-2.01.013 v1.14 TV-BC-2.01.013-005 (class_uid == 2004,
 NOT 2001; WARN emitted; `event_type = "ocsf.deprecated_class_alias"` is catalogued in BC-2.16.002
 Structured Event Catalog per SAP-1).
 (traces to BC-2.02.012 v1.4 `select_by_class_name()` path — transitional alias clause;
-and BC-2.01.013 v1.13 SpecDrivenSensorAdapter OCSF Conformance Clause item 2 — semantically unchanged from v1.10)
+and BC-2.01.013 v1.14 SpecDrivenSensorAdapter OCSF Conformance Clause item 2 — semantically unchanged from v1.10)
 
 Red Gate test: `test_BC_2_02_012_select_by_class_name_security_finding_returns_2004_with_warn`
 
@@ -230,7 +230,7 @@ at dispatch; CI-enforced by the AC-002/AC-003/AC-004 unit tests failing if 2001 
 | `crates/prism-ocsf/src/class_selector.rs` (read + edit) | ~1,500 |
 | 4 sensor TOML files (read + edit, both crates/prism-sensors/specs/ and .prism/specs/) | ~3,000 |
 | BC-2.02.012 v1.4 (read only — no PO amendment needed) | ~2,000 |
-| BC-2.01.013 v1.13 (read only) | ~3,000 |
+| BC-2.01.013 v1.14 (read only) | ~3,000 |
 | Unit test additions (5 Red Gate tests) | ~1,500 |
 | S-DEMO-001 fixture check (`rg '2001' crates/ tests/` + conditional edit) | ~1,000 |
 | BC-2.16.002 (read + `ocsf.deprecated_class_alias` catalog row add) | ~2,000 |
@@ -316,10 +316,10 @@ No new dependencies. All changes are within existing `prism-ocsf` and sensor TOM
 | OQ-3 | Are there additional tables in any sensor TOML that also declare `ocsf_class = "security_finding"`? | Implementer (grep at dispatch) | OPEN — `rg 'ocsf_class.*security_finding' crates/prism-sensors/specs/ .prism/specs/` at start of story; all occurrences in both spec directories must be updated in the same PR. |
 
 **Spec-First Gate S-7.01 note:** `behavioral_contracts` now contains BC-2.02.012 v1.4 and
-BC-2.01.013 v1.13 (both active). OQ-1 and OQ-2 are CLOSED. This story MAY transition to
+BC-2.01.013 v1.14 (both active). OQ-1 and OQ-2 are CLOSED. This story MAY transition to
 `ready` once OQ-3 is resolved at dispatch and all AC↔BC bidirectional traces are verified.
 AC-001 through AC-005 must each cite a specific BC clause before `status: ready`.
-(BC-2.01.013 bumped to v1.13 by S-DEMO-QUERY-PUSHDOWN-001-v2-bc-respec; OCSF Conformance Clause relevant to this story is semantically unchanged from v1.10.)
+(BC-2.01.013 bumped to v1.14 by S-DEMO-QUERY-PUSHDOWN-001-v2-bc-respec; OCSF Conformance Clause relevant to this story is semantically unchanged from v1.10.)
 
 ---
 
@@ -337,6 +337,7 @@ AC-001 through AC-005 must each cite a specific BC clause before `status: ready`
 
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
+| 1.4 | 2026-06-05 | story-writer | Cite-pin sweep (POLICY 29 — BC-2.01.013 v1.13→v1.14): S-DEMO-QUERY-PUSHDOWN-001 v2.1 armis-aql-full-wiring burst bumped BC-2.01.013 to v1.14 (Armis AQL-clause augmentation IN scope per human directive 2026-06-05). OCSF Conformance Clause semantically unchanged from v1.10; v1.14 does not affect this story's scope. Updated 8 sites: frontmatter behavioral_contracts comment (×1); # BC status: annotation (×1); §Deferral Rationale items 1+3 (×2); §Behavioral Contracts table version column (×1); AC-002 trace line (×1); AC-003 trace line (×1); Token Budget table (×1). Story version 1.3→1.4. |
 | 1.3 | 2026-06-05 | product-owner | Cite-pin sweep (POLICY 29 sibling-sweep — BC-2.01.013 v1.12→v1.13). Updated BC-2.01.013 version pins at: frontmatter `behavioral_contracts` comment (×1); `# BC status:` frontmatter annotation (×1); §Deferral Rationale items 1+3 (×2); §Behavioral Contracts table version column (×1); AC-002 trace line (×1); AC-003 trace line (×1); Token Budget table (×1); §Gating S-7.01 note (×2). All pins updated from v1.12 to v1.13. No AC semantics changed — OCSF Conformance Clause unchanged in v1.13. Story version 1.2→1.3. |
 | 1.2 | 2026-06-03 | state-manager | D-990 Phase-A-close: status draft→ready; BC-2.02.012 v1.5 active (PO D-989) + BC-2.01.013 v1.11 active — OCSF-CLASS-MIGRATION-001 "both active" annotation now accurate; depends_on S-DEMO-001 (merged PR #166) SATISFIED; S-7.01 gate CLEARED. |
 | 1.1 | 2026-06-03 | story-writer | Wave-5 Phase-A BC-array propagation burst (D-989). PO authored BC-2.02.012 v1.4 (Option A selected, OQ-1 CLOSED) and BC-2.01.013 v1.10 (transitional alias → 2004, TV-005 corrected). Propagated into story: (1) `behavioral_contracts` frontmatter updated with v1.4/v1.10 commentary. (2) Added §Behavioral Contracts table with BC roles. (3) ACs rewritten from BC postconditions: AC-001 → INV-PRODUCTION-TOML-NO-SECURITY-FINDING; AC-002 → `"detection_finding"` → 2004 no-WARN; AC-003 → `"security_finding"` → 2004 with `ocsf.deprecated_class_alias` WARN (Option A behavior per BC-2.02.012 v1.4); AC-004 → INV-NO-2001-SELECT-PATH; AC-005 → no stale 2001 assertions. (4) §Scope task 2 updated: Option A DECIDED, decision reference recorded. (5) OQ-1/OQ-2 CLOSED in §Gating. (6) §Architecture Compliance Rules updated for v1.4 semantics. (7) Token budget updated. (8) Tasks expanded with 5 Red Gate test names. Version bump 1.0 → 1.1. |

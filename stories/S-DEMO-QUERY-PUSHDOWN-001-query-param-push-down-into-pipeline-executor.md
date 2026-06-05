@@ -6,11 +6,11 @@ wave: wave-5-e-demo-fidelity
 epic_id: E-DEMO
 priority: P2
 status: in_progress
-version: "2.0"
+version: "2.1"
 level: "L3"
 producer: story-writer
 revised_by: null
-timestamp: "2026-06-05T00:00:00Z"
+timestamp: "2026-06-05T12:00:00Z"
 tdd_mode: strict
 subsystems: [SS-01, SS-11, SS-16]
 # Subsystem anchor justifications:
@@ -22,24 +22,30 @@ subsystems: [SS-01, SS-11, SS-16]
 #     extraction (the new function in pushdown.rs/materialization.rs) lives here.
 #   SS-16 (Spec Engine) owns PipelineExecutor and the per-sensor translation logic in
 #     prism-spec-engine/src/pipeline.rs. Wrong Cyberint/Claroty translations removed here.
-crates_touched: [prism-query, prism-spec-engine, prism-bin]
+crates_touched: [prism-query, prism-spec-engine, prism-bin, prism-dtu-armis, prism-sensors]
 # crates_touched v2 change: prism-query ADDED (was [prism-spec-engine, prism-bin] in v1.x).
 # prism-query is required because ADR-033 Option T1 places the time-window extraction function
 # in materialization.rs / pushdown.rs inside prism-query — this is the primary new scope in v2.
+# crates_touched v2.1 change: prism-dtu-armis ADDED — DTU must parse and honor AQL time clauses
+# (pushdown-redesign.md §8.3) to make Armis time-window scenarios load-bearing (non-vacuous).
+# prism-sensors ADDED — armis.sensor.toml needs options=["INDEX"] on last_seen (devices) and
+# created_at (alerts) datetime columns so Option T1 can identify them as push-down-eligible
+# (pushdown-redesign.md §8.5 + AC-INDEX-001).
 target_module: prism-query
 capabilities: [CAP-015]
 behavioral_contracts:
-  - BC-2.01.013  # DataSource Trait / SpecDrivenSensorAdapter Push-Down Scope Clause (v1.13):
-                 # Per-sensor push-down translation table corrected per pushdown-redesign.md §6.
-                 # v2 implements the correct CrowdStrike FQL wiring + removes wrong Armis/
-                 # Cyberint/Claroty translations. ADR-033 referenced.
+  - BC-2.01.013  # DataSource Trait / SpecDrivenSensorAdapter Push-Down Scope Clause (v1.14):
+                 # Per-sensor push-down translation table corrected per pushdown-redesign.md §6+§8.
+                 # v2.1 adds Armis AQL-clause augmentation (time-window IN scope per human directive
+                 # 2026-06-05); anti-double-filter guard; DTU-honors-AQL-time-clause contract;
+                 # research-doc armis-aql-time-window-syntax-2026-06.md + ADR-033 cited.
   - BC-2.11.005  # Ephemeral Materialization (v1.6): cache misses on first/query-plan step
                  # trigger sensor API calls with push-down filters. As of v2, start_time/end_time
                  # reach the fan-out via run_materialization_pipeline per ADR-033 T1.
-  - BC-2.11.007  # Sensor Filter Push-Down (v1.7): push-down is optimization only; result must
+  - BC-2.11.007  # Sensor Filter Push-Down (v1.8): push-down is optimization only; result must
                  # be identical whether or not push-down occurs (result-equivalence invariant).
-                 # Time-range push-down qualified: CrowdStrike only in current DTU set. Armis/
-                 # Cyberint/Claroty time-window is post-filter via DataFusion.
+                 # Time-range push-down: CrowdStrike (FQL injection) AND Armis (AQL-clause
+                 # augmentation, v1.8 per human directive). Cyberint/Claroty remain post-filter only.
 verification_properties: []
 # VP note: No existing VP covers push-down / filter threading behavior. If a dedicated
 # push-down VP is warranted, this is flagged for product-owner / architect authorship
@@ -82,9 +88,9 @@ risk: MEDIUM
 # MaterializationContext.resolved_spec_map into the time-window extraction call; if
 # resolved_spec_map is None at extraction time, extraction must silently return None (safe default).
 # BC-2.11.007 result-equivalence invariant is the correctness safety net.
-acceptance_criteria_count: 9
-red_gate_tests: 9
-estimated_passes: "2-3 LOCAL adversary passes"
+acceptance_criteria_count: 15
+red_gate_tests: 15
+estimated_passes: "3-4 LOCAL adversary passes"
 holdout_scenarios: []
 assumption_validations: []
 risk_mitigations:
@@ -115,23 +121,26 @@ inputs:
   - "crates/prism-sensors/specs/claroty.sensor.toml"
   - "crates/prism-dtu-crowdstrike/src/routes/detections.rs"
   - "crates/prism-dtu-armis/src/routes/search.rs"
+  - "crates/prism-dtu-armis/src/routes/state.rs"
   - "crates/prism-dtu-cyberint/src/routes/alerts.rs"
+  - "crates/prism-spec-engine/tests/parity/armis.rs"
   - ".factory/specs/behavioral-contracts/BC-2.01.013-datasource-trait-adapter-pattern.md"
   - ".factory/specs/behavioral-contracts/BC-2.11.005-ephemeral-materialization.md"
   - ".factory/specs/behavioral-contracts/BC-2.11.007-sensor-filter-push-down.md"
   - ".factory/specs/architecture/decisions/ADR-033-push-down-time-window-extraction-strategy-pre-fan-out-heuristic.md"
   - ".factory/cycles/wave-5-e-demo-fidelity/S-DEMO-QUERY-PUSHDOWN-001/pushdown-redesign.md"
+  - ".factory/research/armis-aql-time-window-syntax-2026-06.md"
 input-hash: null
 traces_to: []
 cycle: "v1.0.0-brownfield"
 phase: 3
 ---
 
-# S-DEMO-QUERY-PUSHDOWN-001 v2.0 — Correct per-sensor push-down wiring (ADR-033 T1 + correctness fixes)
+# S-DEMO-QUERY-PUSHDOWN-001 v2.1 — Correct per-sensor push-down wiring (ADR-033 T1 + Armis AQL full wiring)
 
 **Story ID:** S-DEMO-QUERY-PUSHDOWN-001
 **Status:** in_progress
-**Version:** v2.0
+**Version:** v2.1
 **Wave:** wave-5-e-demo-fidelity
 **Priority:** P2
 **Points:** 8
@@ -229,15 +238,15 @@ After this story merges:
 
 | BC ID | Version | Title |
 |-------|---------|-------|
-| BC-2.01.013 | v1.13 | DataSource Trait Eliminates Per-Sensor Code Duplication — Pagination/Push-Down Scope Clause corrected: CrowdStrike FQL wiring via ADR-033 T1; Armis AQL passthrough only; Cyberint cursor-only; Claroty OffsetLimit URL only. TV-BC-2.01.013-006 re-cast: asserts both start_time AND end_time reach FQL filter via run_materialization_pipeline. |
-| BC-2.11.005 | v1.6 | Ephemeral Materialization — cache misses trigger push-down filters; as of v2 start_time/end_time reach fan-out via run_materialization_pipeline per ADR-033 T1; per-sensor translation corrected per BC-2.01.013 v1.13. |
-| BC-2.11.007 | v1.7 | Sensor Filter Push-Down — push-down is optimization only; result must be identical with or without push-down. Time-range push-down qualified: CrowdStrike only (native DTU param); Armis/Cyberint/Claroty time-window is DataFusion post-filter. |
+| BC-2.01.013 | v1.14 | DataSource Trait Eliminates Per-Sensor Code Duplication — Pagination/Push-Down Scope Clause: CrowdStrike FQL wiring via ADR-033 T1; Armis AQL-clause augmentation (time-window IN scope v1.14 per human directive 2026-06-05) with anti-double-filter guard + DTU-honors-AQL-time-clause contract; Cyberint cursor-only; Claroty OffsetLimit URL only. TV-BC-2.01.013-006 re-cast: asserts both start_time AND end_time reach FQL filter via run_materialization_pipeline. Research-confirmed AQL syntax: bare unquoted `after:YYYY-MM-DDTHH:MM:SS` / `before:YYYY-MM-DDTHH:MM:SS`. |
+| BC-2.11.005 | v1.6 | Ephemeral Materialization — cache misses trigger push-down filters; as of v2 start_time/end_time reach fan-out via run_materialization_pipeline per ADR-033 T1; per-sensor translation corrected per BC-2.01.013 v1.14. |
+| BC-2.11.007 | v1.8 | Sensor Filter Push-Down — push-down is optimization only; result must be identical with or without push-down. Time-range push-down: CrowdStrike (FQL injection) AND Armis (AQL-clause augmentation via Mechanism B, v1.8 per human directive 2026-06-05); Cyberint/Claroty time-window is DataFusion post-filter only. |
 
 ---
 
 ## Acceptance Criteria
 
-### AC-CWS-001: CrowdStrike limit reaches DetectionListParams (traces to BC-2.01.013 v1.13 Pagination/Push-Down Scope Clause postcondition)
+### AC-CWS-001: CrowdStrike limit reaches DetectionListParams (traces to BC-2.01.013 v1.14 Pagination/Push-Down Scope Clause postcondition)
 
 Given: A PrismQL query with `LIMIT 50` is executed against a CrowdStrike sensor.
 When: `run_materialization_pipeline` constructs `QueryParams` and the CrowdStrike adapter builds the request.
@@ -247,9 +256,9 @@ An empty LIMIT clause produces no `limit` query param (or `limit` is absent from
 Red Gate test: `test_ac_cws_001_crowdstrike_limit_reaches_detection_list_params`
 SAP-2 mandate: fixture must use production `crowdstrike.sensor.toml` shape (GET step, no body_template).
 
-(traces to BC-2.01.013 v1.13 Pagination/Push-Down Scope Clause — `limit` query param wired)
+(traces to BC-2.01.013 v1.14 Pagination/Push-Down Scope Clause — `limit` query param wired)
 
-### AC-CWS-002: CrowdStrike FQL time-window with both start_time and end_time (traces to BC-2.01.013 v1.13 TV-BC-2.01.013-006)
+### AC-CWS-002: CrowdStrike FQL time-window with both start_time and end_time (traces to BC-2.01.013 v1.14 TV-BC-2.01.013-006)
 
 Given: A PrismQL query with `WHERE created_timestamp > '2026-01-01T00:00:00Z' AND created_timestamp < '2026-06-01T00:00:00Z'` against a CrowdStrike sensor.
 When: `run_materialization_pipeline` extracts time-window via ADR-033 T1 heuristic and the CrowdStrike adapter builds the Step 1 request.
@@ -262,9 +271,9 @@ Then:
 Red Gate test: `test_ac_cws_002_fql_time_window_both_start_and_end_via_materialization_pipeline`
 SAP-2 mandate: fixture must derive from production `crowdstrike.sensor.toml` shape.
 
-(traces to BC-2.01.013 v1.13 TV-BC-2.01.013-006 — both start_time AND end_time reach FQL via run_materialization_pipeline)
+(traces to BC-2.01.013 v1.14 TV-BC-2.01.013-006 — both start_time AND end_time reach FQL via run_materialization_pipeline)
 
-### AC-CWS-003: CrowdStrike empty-filter case — no filter param when no time predicates (traces to BC-2.11.007 v1.7 result-equivalence invariant)
+### AC-CWS-003: CrowdStrike empty-filter case — no filter param when no time predicates (traces to BC-2.11.007 v1.8 result-equivalence invariant)
 
 Given: A PrismQL query against CrowdStrike with NO time-window predicates in the WHERE clause.
 When: `run_materialization_pipeline` constructs `QueryParams` and the CrowdStrike adapter builds the Step 1 request.
@@ -274,24 +283,31 @@ Existing behavior for non-time predicates (e.g., `severity = 'critical'`) is una
 Red Gate test: `test_ac_cws_003_no_filter_param_when_no_time_predicates`
 SAP-2 mandate: production `crowdstrike.sensor.toml` shape.
 
-(traces to BC-2.11.007 v1.7 postcondition — push-down reduces data fetched; when no predicate, no param injected; result-equivalence preserved)
+(traces to BC-2.11.007 v1.8 postcondition — push-down reduces data fetched; when no predicate, no param injected; result-equivalence preserved)
 
-### AC-ARMIS-001: Armis AQL passthrough — aql param forwarded; no maxResults or timeFrame (traces to BC-2.11.007 v1.7 §Mechanism B postcondition)
+### AC-ARMIS-001: Armis AQL passthrough — aql param forwarded; no maxResults or timeFrame (traces to BC-2.11.007 v1.8 §Mechanism B postcondition)
 
-Given: A PrismQL query `FROM armis_devices WHERE aql = 'in:devices lastSeen:>"2026-01-01"' LIMIT 100` against the Armis sensor.
+Given: A PrismQL query `FROM armis_devices WHERE aql = 'in:devices after:2026-01-01T00:00:00' LIMIT 100` against the Armis sensor.
 When: `run_materialization_pipeline` fans out and the Armis adapter builds the request.
 Then:
-(a) The DTU receives `GET /api/v1/search?aql=in:devices+lastSeen:>"2026-01-01"` (or equivalent URL-encoded form) — AQL forwarded verbatim.
+(a) The DTU receives `GET /api/v1/search?aql=in:devices+after:2026-01-01T00:00:00` (or equivalent URL-encoded form) — AQL forwarded verbatim.
 (b) `SearchQueryParams` contains NO `maxResults` field.
 (c) `SearchQueryParams` contains NO `timeFrame` field.
 (d) `SearchQueryParams` does NOT contain any injected time-window parameters beyond what is embedded in the AQL string itself.
 
+NOTE: The `after:2026-01-01T00:00:00` form is the research-confirmed canonical Armis AQL absolute
+lower-bound syntax (bare, unquoted, timezone-naive `YYYY-MM-DDTHH:MM:SS`). The prior form
+`lastSeen:>"2026-01-01"` used in the v2.0 story was NOT a confirmed Armis AQL operator — it is a
+comparison-operator form absent from all attested Armis sources (see
+`.factory/research/armis-aql-time-window-syntax-2026-06.md` §2.3). MUST NOT revert to the
+`lastSeen:>"T"` form.
+
 Red Gate test: `test_ac_armis_001_aql_passthrough_no_maxresults_no_timeframe`
 SAP-2 mandate: fixture must derive from production `armis.sensor.toml` shape (GET, AQL passthrough, OffsetLimit pagination, no body_template).
 
-(traces to BC-2.11.007 v1.7 §Mechanism B — Armis AQL verbatim passthrough; no translation layer; `SearchQueryParams` struct does not have timeFrame/maxResults fields per pushdown-redesign.md §1.2)
+(traces to BC-2.11.007 v1.8 §Mechanism B — Armis AQL verbatim passthrough; no translation layer; `SearchQueryParams` struct does not have timeFrame/maxResults fields per pushdown-redesign.md §1.2)
 
-### AC-ARMIS-002: Armis push-down produces no additional params beyond aql, offset, limit (traces to BC-2.11.007 v1.7 §Mechanism B postcondition)
+### AC-ARMIS-002: Armis push-down produces no additional params beyond aql, offset, limit (traces to BC-2.11.007 v1.8 §Mechanism B postcondition)
 
 Given: A PrismQL query against Armis with a time-window predicate in the WHERE clause (e.g., `WHERE aql = 'in:devices' AND detected_time > '2026-01-01T00:00:00Z'`).
 When: `run_materialization_pipeline` fans out and the Armis adapter builds the request.
@@ -303,9 +319,100 @@ Then:
 Red Gate test: `test_ac_armis_002_no_additional_params_beyond_aql_offset_limit`
 SAP-2 mandate: production `armis.sensor.toml` shape.
 
-(traces to BC-2.11.007 v1.7 invariant — push-down does not change results; Armis has no native time-window param; post-filter applies)
+(traces to BC-2.11.007 v1.8 invariant — push-down does not change results; base AQL is forwarded verbatim without additional query params beyond aql/offset/limit; Armis time-window handled via AQL-clause augmentation in AC-ARMIS-TW-001..005)
 
-### AC-CYB-001: Cyberint fetch_alerts receives no from_date, to_date, or page_size (traces to BC-2.01.013 v1.13 Pagination/Push-Down Scope Clause — Cyberint row)
+### AC-ARMIS-TW-001: Armis time-window AQL augmentation — PrismQL last_seen predicate appended as `after:` clause (traces to BC-2.01.013 v1.14 Mechanism B AQL augmentation + BC-2.11.007 v1.8 §Mechanism B)
+
+Given: A PrismQL query `SELECT * FROM armis_devices WHERE aql = 'in:devices' AND last_seen > '2026-01-01T00:00:00Z'` against the Armis sensor, where `last_seen` is declared `column_type = "datetime"` with `options = ["INDEX"]` in `armis.sensor.toml`.
+When: `run_materialization_pipeline` extracts time bounds via ADR-033 T1 and applies Armis AQL-clause augmentation.
+Then:
+(a) `QueryParams.filters["aql"]` is `"in:devices after:2026-01-01T00:00:00"` — base AQL plus the canonical time clause (bare, unquoted, timezone-naive `YYYY-MM-DDTHH:MM:SS` per research-doc `armis-aql-time-window-syntax-2026-06.md` §2.2).
+(b) For a bounded range (`last_seen > 'T1' AND last_seen < 'T2'`): `QueryParams.filters["aql"]` is `"in:devices after:T1 before:T2"` (space-separated, no `AND` keyword).
+(c) Assertion occurs at the FilterMap/QueryParams boundary (unit test in `prism-query` — no external dependency required; SID-1 compliant).
+(d) MUST NOT emit `lastSeen:>"T"` form — this is NOT a confirmed Armis AQL filter operator.
+
+Red Gate test: `test_ac_armis_tw_001_time_window_augmented_into_aql`
+(Unit test in `prism-query/src/tests/` or inline `pushdown.rs`; exercises `augment_armis_aql_with_time_window` at the FilterMap boundary without DTU dependency.)
+
+(traces to BC-2.01.013 v1.14 Mechanism B AQL-clause augmentation; BC-2.11.007 v1.8 §Mechanism B — time-window push-down for Armis via AQL string augmentation)
+
+### AC-ARMIS-TW-002: Armis DTU returns only records within time window (LOAD-BEARING — filtered < unfiltered) (traces to BC-2.11.007 v1.8 §Mechanism B DTU-honors-AQL-time-clause contract)
+
+Given: The `prism-dtu-armis` clone receives `GET /api/v1/search?aql=in:devices+after:2026-01-01T00:00:00` where the fixture dataset contains device records both BEFORE and AFTER the timestamp.
+When: The DTU processes the AQL string including the `after:` clause.
+Then:
+(a) The returned device records contain ONLY records whose `last_seen` (or `first_seen` as fallback if `last_seen` is null) is >= 2026-01-01T00:00:00.
+(b) `filtered_count < unfiltered_count` — the DTU MUST filter its fixture dataset by the time clause; if `filtered_count == unfiltered_count` the test FAILS (vacuous scenario).
+(c) Every record in the filtered result also appears in the unfiltered result (no record fabrication).
+(d) Records with both `last_seen: null` and `first_seen: null` are EXCLUDED from time-filtered results.
+
+LOAD-BEARING assertion: item (b) is the critical gate. The DTU must honor the `after:`/`before:` clause in the AQL string by filtering `routes/search.rs` fixture dataset accordingly (pushdown-redesign.md §8.3). Without this, time-window scenarios are vacuous.
+SAP-2 mandate: pipeline integration test in `prism-spec-engine/tests/parity/armis.rs` using real Armis DTU clone (ungated per SID-1 §2 — DTU is internal, always available in CI).
+
+Red Gate test: `test_ac_armis_tw_002_dtu_filters_fixture_by_time_window`
+
+(traces to BC-2.11.007 v1.8 §Mechanism B DTU-honors-AQL-time-clause contract — DTU must parse and honor AQL after:/before: clauses)
+
+### AC-ARMIS-TW-003: Anti-double-filter guard — user AQL with existing time clause forwarded verbatim (traces to BC-2.01.013 v1.14 Mechanism B anti-double-filter guard)
+
+Given: A PrismQL query `SELECT * FROM armis_devices WHERE aql = 'in:devices after:2026-01-01T00:00:00' AND last_seen > '2026-01-01T00:00:00Z'` where the base AQL already contains `after:`.
+When: The AQL augmentation logic runs.
+Then:
+(a) `QueryParams.filters["aql"]` is `"in:devices after:2026-01-01T00:00:00"` — forwarded VERBATIM. No second `after:` clause appended.
+(b) The check applies to ALL canonical time keywords: if the base AQL contains any of `after:`, `before:`, or `timeFrame:`, no augmentation occurs.
+(c) Unit test verifies the exact forwarded AQL string equals the user's literal value.
+
+Red Gate test: `test_ac_armis_tw_003_anti_double_filter_guard`
+
+(traces to BC-2.01.013 v1.14 Mechanism B anti-double-filter guard — user's explicit time scope is preserved when already embedded in AQL)
+
+### AC-ARMIS-TW-004: Armis result-equivalence — AQL time push-down returns same records as DataFusion post-filter (traces to BC-2.11.007 v1.8 result-equivalence invariant)
+
+Given: Two PrismQL queries against the Armis DTU clone:
+(a) Query WITH `last_seen > 'T'` push-down (AQL augmented; DTU filters fixture) AND DataFusion post-filter.
+(b) Query WITHOUT push-down (no AQL time clause; DTU returns full fixture) but WITH DataFusion post-filter on `last_seen > 'T'`.
+When: Both queries complete against the same Armis DTU clone instance.
+Then: The result sets from (a) and (b) are IDENTICAL — same records, order-independent comparison. No record appears in (a) that is not in (b), and vice versa (for the same time predicate).
+
+This AC validates BC-2.11.007 invariant: push-down is an optimization only. The correctness backstop is DataFusion post-filter regardless of DTU filtering.
+
+Red Gate test: `test_ac_armis_tw_004_result_equivalence_pushdown_vs_postfilter`
+SAP-2 mandate: integration test against real Armis DTU clone; production `armis.sensor.toml` shape.
+
+(traces to BC-2.11.007 v1.8 result-equivalence invariant — push-down must not change query results for Armis)
+
+### AC-ARMIS-TW-005: E2E — prism binary AQL log contains augmented AQL with time clause (traces to BC-2.11.007 v1.8 §Mechanism B end-to-end)
+
+Given: The prism binary is running against the Armis DTU clone, and a PrismQL query `SELECT * FROM armis_devices WHERE aql = 'in:devices' AND last_seen > '2024-01-01T00:00:00Z'` is issued.
+When: The query executes end-to-end.
+Then:
+(a) prism returns non-empty data rows.
+(b) The Armis DTU aql-log contains an entry with BOTH the entity discriminator (`in:devices`) AND the time clause (`after:2024-01-01T00:00:00`) — confirming augmentation reached the DTU wire.
+(c) Result row count <= full unfiltered row count from the same DTU.
+
+`#[ignore]` annotation required per SID-1 / E2E-001 (requires DTU + prism binary; un-gated via e2e profile).
+LOAD-BEARING: Assertion (b) fails if the query-engine AQL augmentation is absent from the wire path.
+
+Red Gate test: `test_ac_armis_tw_005_e2e_aql_log_contains_augmented_aql`
+
+(traces to BC-2.11.007 v1.8 §Mechanism B — end-to-end AQL augmentation confirmed via DTU aql-log)
+
+### AC-INDEX-001: armis.sensor.toml — last_seen (devices) and created_at (alerts) declare `options = ["INDEX"]` (traces to BC-2.01.013 v1.14 Mechanism B — AQL augmentation requires INDEX datetime columns)
+
+Given: The `armis.sensor.toml` file declares device and alert tables.
+When: The spec is loaded and Option T1 time-window extraction runs.
+Then:
+(a) The `last_seen` column in the `[[tables]]` block for `armis_devices` (or equivalent table name) declares `options = ["INDEX"]` in addition to `column_type = "datetime"`.
+(b) The `created_at` column in the `[[tables]]` block for `armis_alerts` (or equivalent) declares `options = ["INDEX"]` in addition to `column_type = "datetime"`.
+(c) With this change, `extract_time_window_from_ast` can identify `last_seen` and `created_at` as push-down-eligible datetime columns for Armis via the Option T1 heuristic.
+
+NOTE: The existing `armis.sensor.toml` has `options = ["INDEX"]` only on `aql`. The `last_seen` and `created_at` columns are declared `column_type = "datetime"` but WITHOUT `options = ["INDEX"]`, making them invisible to Option T1 time-window extraction (pushdown-redesign.md §8.5). This AC closes that gap.
+
+Red Gate test: Inline TOML parse test OR `test_ac_index_001_armis_toml_last_seen_created_at_have_index_option` (asserts `ColumnOptions::Index` present on both columns after spec loading).
+
+(traces to BC-2.01.013 v1.14 Mechanism B AQL augmentation — Option T1 requires INDEX datetime columns to identify push-down-eligible predicates in armis.sensor.toml)
+
+### AC-CYB-001: Cyberint fetch_alerts receives no from_date, to_date, or page_size (traces to BC-2.01.013 v1.14 Pagination/Push-Down Scope Clause — Cyberint row)
 
 Given: A PrismQL query against Cyberint with a time-window predicate in the WHERE clause.
 When: `run_materialization_pipeline` fans out and the Cyberint adapter builds the request.
@@ -319,9 +426,9 @@ Then:
 Red Gate test: `test_ac_cyb_001_no_from_date_to_date_page_size_in_alert_list_params`
 SAP-2 mandate: fixture must derive from production `cyberint.sensor.toml` shape (GET, cursor-only, NO body_template per pushdown-redesign.md §1.3).
 
-(traces to BC-2.01.013 v1.13 Pagination/Push-Down Scope Clause — Cyberint row: GET endpoint, cursor-only; POST-body injection was WRONG and is now removed)
+(traces to BC-2.01.013 v1.14 Pagination/Push-Down Scope Clause — Cyberint row: GET endpoint, cursor-only; POST-body injection was WRONG and is now removed)
 
-### AC-CLAR-001: Claroty fetch receives no time-window body fields; body_template remains empty (traces to BC-2.01.013 v1.13 Pagination/Push-Down Scope Clause — Claroty row)
+### AC-CLAR-001: Claroty fetch receives no time-window body fields; body_template remains empty (traces to BC-2.01.013 v1.14 Pagination/Push-Down Scope Clause — Claroty row)
 
 Given: A PrismQL query against Claroty with a time-window predicate in the WHERE clause.
 When: `run_materialization_pipeline` fans out and the Claroty adapter builds the request.
@@ -334,9 +441,9 @@ Then:
 Red Gate test: `test_ac_clar_001_claroty_body_template_remains_empty_no_time_fields`
 SAP-2 mandate: fixture must derive from production `claroty.sensor.toml` shape (POST, `body_template: '{}'`, OffsetLimit URL params per pushdown-redesign.md §1.4).
 
-(traces to BC-2.01.013 v1.13 Pagination/Push-Down Scope Clause — Claroty row: OffsetLimit URL params only; body-based injection was WRONG and is now removed)
+(traces to BC-2.01.013 v1.14 Pagination/Push-Down Scope Clause — Claroty row: OffsetLimit URL params only; body-based injection was WRONG and is now removed)
 
-### AC-WIRE-001: run_materialization_pipeline populates QueryParams.start_time and end_time from PrismQL AST (traces to ADR-033 §Decision — T1 heuristic; BC-2.01.013 v1.13 TV-BC-2.01.013-006)
+### AC-WIRE-001: run_materialization_pipeline populates QueryParams.start_time and end_time from PrismQL AST (traces to ADR-033 §Decision — T1 heuristic; BC-2.01.013 v1.14 TV-BC-2.01.013-006)
 
 Given: A PrismQL query with `WHERE created_timestamp > '2026-01-01T00:00:00Z'` against a CrowdStrike sensor whose spec declares `created_timestamp` as `column_type = "datetime"`.
 When: `run_materialization_pipeline` (in `prism-query/src/materialization.rs`) executes and constructs `QueryParams` for fan-out.
@@ -350,9 +457,9 @@ Red Gate test: `test_ac_wire_001_materialization_pipeline_populates_start_time_f
 Complementary test: `test_ac_wire_001b_safe_default_when_spec_map_is_none`
 SAP-2 mandate: uses real `run_materialization_pipeline` + production spec shape.
 
-(traces to ADR-033 §Decision — T1 pre-fan-out heuristic; BC-2.01.013 v1.13 TV-BC-2.01.013-006 wiring via run_materialization_pipeline)
+(traces to ADR-033 §Decision — T1 pre-fan-out heuristic; BC-2.01.013 v1.14 TV-BC-2.01.013-006 wiring via run_materialization_pipeline)
 
-### AC-EQUIV-001: Result-equivalence invariant via real materialization path (traces to BC-2.11.007 v1.7 invariant — push-down is optimization only)
+### AC-EQUIV-001: Result-equivalence invariant via real materialization path (traces to BC-2.11.007 v1.8 invariant — push-down is optimization only)
 
 Given: The same PrismQL query (e.g., `FROM crowdstrike_detections WHERE created_timestamp > '2026-01-01T00:00:00Z' LIMIT 20`) is executed:
 (a) With the push-down path active (via `run_materialization_pipeline` → ADR-033 T1 → CrowdStrike FQL injection → DTU clone).
@@ -367,7 +474,7 @@ CRITICAL: This test MUST exercise the REAL materialization path (`run_materializ
 Red Gate test: `test_ac_equiv_001_result_equivalence_via_real_materialization_path`
 SAP-2 mandate: production `crowdstrike.sensor.toml` shape; real DTU clone (ungated integration test per SID-1).
 
-(traces to BC-2.11.007 v1.7 invariant — result-equivalence; also closes F-P6-MED-001)
+(traces to BC-2.11.007 v1.8 invariant — result-equivalence; also closes F-P6-MED-001)
 
 ---
 
@@ -394,15 +501,20 @@ Preferred approach: load specs via `include_str!` from production `crates/prism-
 |------|--------|-------------|
 | ADR-033 T1: time-window extraction lives in `prism-query` (materialization.rs + pushdown.rs) | ADR-033 §Decision | Do NOT implement extraction in prism-spec-engine or prism-bin; it must be in prism-query |
 | `run_materialization_pipeline` must call the T1 extraction before constructing `QueryParams` | ADR-033 §Decision | AC-WIRE-001 Red Gate test verifies; direct FetchContext construction at call site is NON-CONFORMANT |
-| Step 2 (`fetch_detections`) MUST receive `FetchContext::default()` — no push-down | BC-2.01.013 v1.13 EC-01-027 | AC-CWS-002 item (c) verifies Step 2 receives no filter/limit |
-| CrowdStrike FQL combines start+end with `+` when both present | BC-2.01.013 v1.13 per-sensor table | AC-CWS-002 item (b) verifies combined form |
-| Armis: REMOVAL of maxResults/timeFrame; AQL passthrough ONLY | BC-2.11.007 v1.7 §Mechanism B | AC-ARMIS-001/002 assert absence; no extra params |
-| Cyberint: REMOVAL of from_date/to_date/page_size body injection; GET with cursor only | BC-2.01.013 v1.13 Cyberint row | AC-CYB-001 asserts absence |
-| Claroty: body_template remains `'{}'`; no time-window injection | BC-2.01.013 v1.13 Claroty row | AC-CLAR-001 asserts empty body |
-| Result-equivalence invariant preserved (BC-2.11.007) | BC-2.11.007 v1.7 invariant | AC-EQUIV-001 via real materialization path |
-| `FetchContext` additions MUST be `Option<T>` with `Default::default() = None` | BC-2.01.013 v1.13 FetchContext clause | All existing callers pass `FetchContext::default()` unaffected |
+| Step 2 (`fetch_detections`) MUST receive `FetchContext::default()` — no push-down | BC-2.01.013 v1.14 EC-01-027 | AC-CWS-002 item (c) verifies Step 2 receives no filter/limit |
+| CrowdStrike FQL combines start+end with `+` when both present | BC-2.01.013 v1.14 per-sensor table | AC-CWS-002 item (b) verifies combined form |
+| Armis: REMOVAL of maxResults/timeFrame; AQL passthrough + time-window AQL-clause augmentation | BC-2.01.013 v1.14 Mechanism B + BC-2.11.007 v1.8 §Mechanism B | AC-ARMIS-001/002 assert absence of extra params; AC-ARMIS-TW-001..005 assert correct augmentation |
+| Cyberint: REMOVAL of from_date/to_date/page_size body injection; GET with cursor only | BC-2.01.013 v1.14 Cyberint row | AC-CYB-001 asserts absence |
+| Claroty: body_template remains `'{}'`; no time-window injection | BC-2.01.013 v1.14 Claroty row | AC-CLAR-001 asserts empty body |
+| Result-equivalence invariant preserved (BC-2.11.007) | BC-2.11.007 v1.8 invariant | AC-EQUIV-001 + AC-ARMIS-TW-004 via real materialization path |
+| `FetchContext` additions MUST be `Option<T>` with `Default::default() = None` | BC-2.01.013 v1.14 FetchContext clause | All existing callers pass `FetchContext::default()` unaffected |
 | `MaterializationContext.resolved_spec_map` None = safe default (no push-down) | ADR-033 §Consequences — Negative trade-offs | AC-WIRE-001b Red Gate test verifies |
 | Forbidden dependency: `prism-query` MUST NOT gain a new dependency on `prism-bin` | ADR-022 §C wiring constraints | Implementer must verify Cargo.toml dependency direction |
+| Armis AQL augmentation: `after:YYYY-MM-DDTHH:MM:SS` / `before:YYYY-MM-DDTHH:MM:SS` — bare, unquoted, timezone-naive | research-doc `armis-aql-time-window-syntax-2026-06.md` §2.2 | MUST NOT use `lastSeen:>"T"` form (unattested); MUST NOT append `Z` suffix |
+| Anti-double-filter guard: if base AQL contains `after:`, `before:`, or `timeFrame:` → forward verbatim, no augmentation | BC-2.01.013 v1.14 Mechanism B anti-double-filter guard | AC-ARMIS-TW-003 verifies guard; failure → duplicate time clauses on wire |
+| Armis DTU `routes/search.rs`: parse `after:`/`before:` from AQL string and filter fixture dataset | pushdown-redesign.md §8.3 + BC-2.01.013 v1.14 DTU-honors-AQL-time-clause contract | AC-ARMIS-TW-002 LOAD-BEARING assertion: `filtered_count < unfiltered_count` |
+| `armis.sensor.toml`: `last_seen` (devices) and `created_at` (alerts) MUST declare `options = ["INDEX"]` | pushdown-redesign.md §8.5 | AC-INDEX-001 verifies; without this, Option T1 cannot extract Armis time bounds |
+| R-DTU-002 (opaque AQL capture) is UNAFFECTED: `capture_aql()` still called verbatim before any filtering | pushdown-redesign.md §8.3.1 | AC-ARMIS-TW-005 aql-log assertion confirms verbatim capture of augmented string |
 
 ---
 
@@ -418,7 +530,9 @@ These are **entire features** deferred to named stories — not partial implemen
 | Full `classify_predicates` integration (Option T2) | Requires fan-out orchestration restructuring; wave-6 scope | Future ADR + story when fan-out restructuring is designed |
 | Cursor seeding from PrismQL WHERE clause | No PrismQL syntax for initial cursor value yet | Future story when PrismQL cursor syntax is defined |
 
-**Production-grade compliance:** every deferral above is an entire feature (not a partial implementation with correctness gaps). The v2 story either delivers CORRECT behavior for a dimension or explicitly anchors it to a named story above.
+**Production-grade compliance:** every deferral above is an entire feature (not a partial implementation with correctness gaps). The v2.1 story either delivers CORRECT behavior for a dimension or explicitly anchors it to a named story above.
+
+**Armis time-window is IN scope in v2.1** (human directive 2026-06-05, §8 of pushdown-redesign.md). It is NOT deferred. The implementation uses AQL-clause augmentation via `after:`/`before:` syntax (research-confirmed bare, unquoted, timezone-naive form). The prior v2.0 note treating Armis time-window as "post-filter only" is superseded.
 
 ---
 
@@ -426,10 +540,12 @@ These are **entire features** deferred to named stories — not partial implemen
 
 | Library | Version | Purpose |
 |---------|---------|---------|
-| `prism-query` (workspace) | current workspace path | materialization.rs + pushdown.rs — ADR-033 T1 extraction |
-| `prism-spec-engine` (workspace) | current workspace path | pipeline.rs — remove wrong Cyberint/Claroty/Armis translations |
+| `prism-query` (workspace) | current workspace path | materialization.rs + pushdown.rs — ADR-033 T1 extraction; AQL augmentation |
+| `prism-spec-engine` (workspace) | current workspace path | pipeline.rs — remove wrong Cyberint/Claroty/Armis translations; Armis AQL augmentation branch |
 | `prism-bin` (workspace) | current workspace path | spec_driven_adapter.rs — Armis AQL passthrough verification; CrowdStrike FQL wiring |
-| `chrono` | workspace version | DateTime<Utc> / to_rfc3339() for ISO8601 formatting in T1 extraction |
+| `prism-dtu-armis` (workspace) | current workspace path | routes/search.rs — AQL time-clause parsing + fixture dataset filtering (§8.3) |
+| `prism-sensors` (workspace) | current workspace path | specs/armis.sensor.toml — add `options = ["INDEX"]` to last_seen + created_at datetime columns |
+| `chrono` | workspace version | DateTime<Utc> / strftime `%Y-%m-%dT%H:%M:%S` for timezone-naive ISO8601 in T1 extraction and AQL augmentation |
 | `serde_json` | workspace version | Claroty POST body assertions in tests |
 | `reqwest` | workspace version | Query param assertion helpers in integration tests |
 
@@ -443,11 +559,14 @@ Version source: workspace `Cargo.toml` `[dependencies]` table. Do not pin versio
 |------|--------|---------|
 | `crates/prism-query/src/pushdown.rs` | MODIFY | Add `extract_time_window_from_ast` (or extension of `extract_push_down_filters_as_map`) — ADR-033 T1 heuristic; walks Compare nodes on datetime columns |
 | `crates/prism-query/src/materialization.rs` | MODIFY | Wire T1 extraction at lines ~434–440; populate `QueryParams.start_time` / `QueryParams.end_time` from extracted values (replaces hardcoded `None`) |
-| `crates/prism-spec-engine/src/pipeline.rs` | MODIFY | Remove wrong Cyberint `from_date`/`to_date` POST-body injection; remove wrong Claroty time-window body injection; verify Armis has no `maxResults`/`timeFrame` injection |
+| `crates/prism-spec-engine/src/pipeline.rs` | MODIFY | Remove wrong Cyberint `from_date`/`to_date` POST-body injection; remove wrong Claroty time-window body injection; add Armis AQL-clause augmentation branch (`augment_armis_aql_with_time_window`) |
 | `crates/prism-bin/src/spec_driven_adapter.rs` | MODIFY | Verify Armis AQL passthrough is correct (no extra params); verify CrowdStrike FQL injection uses start+end combined with `+` |
-| `crates/prism-query/src/tests/` or inline `#[cfg(test)]` in `pushdown.rs` / `materialization.rs` | MODIFY | Red Gate tests for AC-WIRE-001, AC-WIRE-001b, AC-EQUIV-001 |
+| `crates/prism-query/src/tests/` or inline `#[cfg(test)]` in `pushdown.rs` / `materialization.rs` | MODIFY | Red Gate tests for AC-WIRE-001, AC-WIRE-001b, AC-EQUIV-001, AC-ARMIS-TW-001, AC-ARMIS-TW-003 |
 | `crates/prism-spec-engine/src/pipeline/tests.rs` or inline | MODIFY | Red Gate tests for AC-CWS-001/002/003, AC-ARMIS-001/002, AC-CYB-001, AC-CLAR-001 |
-| Integration test (ungated) | CREATE | AC-EQUIV-001 integration test against real DTU clone — `run_materialization_pipeline` → CrowdStrike DTU |
+| `crates/prism-dtu-armis/src/routes/search.rs` | MODIFY | Add AQL time-clause parsing and fixture dataset filtering per §8.3 — parse `after:`/`before:` from AQL string, filter devices by `last_seen` and alerts by `created_at` |
+| `crates/prism-sensors/specs/armis.sensor.toml` | MODIFY | Add `options = ["INDEX"]` to `last_seen` (devices table) and `created_at` (alerts table) datetime columns |
+| Integration test (ungated, `prism-spec-engine/tests/parity/armis.rs`) | MODIFY | AC-ARMIS-TW-002 (LOAD-BEARING: filtered < unfiltered), AC-ARMIS-TW-004 (result-equivalence), AC-EQUIV-001 for CrowdStrike |
+| E2E test (`prism-bin/tests/e2e_smoke.rs`, `#[ignore]`) | MODIFY | AC-ARMIS-TW-005 — aql-log confirms augmented AQL including entity discriminator + time clause |
 
 **Note on pre-existing fabricated fixtures:** If `make_crowdstrike_like_spec`, `make_cyberint_like_spec`, or `make_armis_like_spec` exist in the test suite from v1.x, they MUST be replaced or verified to match production TOML shape before any test using them is considered load-bearing. If they diverge, they must be deleted and replaced with production-TOML-derived fixtures.
 
@@ -461,25 +580,37 @@ Version source: workspace `Cargo.toml` `[dependencies]` table. Do not pin versio
 4. **Read** `crates/prism-bin/src/spec_driven_adapter.rs` — confirm AQL passthrough path and CrowdStrike FQL injection site.
 5. **Read** production sensor TOMLs — `crowdstrike.sensor.toml`, `armis.sensor.toml`, `cyberint.sensor.toml`, `claroty.sensor.toml` — to understand step structure, method, body_template presence/absence, pagination type.
 6. **Read** DTU route structs — `prism-dtu-crowdstrike/src/routes/detections.rs` (`DetectionListParams`), `prism-dtu-armis/src/routes/search.rs` (`SearchQueryParams`), `prism-dtu-cyberint/src/routes/alerts.rs` (`AlertListParams`) — to understand what fields are actually available.
-7. **Write stubs** — stub out T1 extraction function with `todo!()` in `pushdown.rs`. Stub CrowdStrike FQL combined-form injection with `todo!()`.
-8. **Write Red Gate tests** (all 9 must FAIL before implementation):
+6b. **Read** `crates/prism-dtu-armis/src/routes/search.rs` and `state.rs` — understand `get_search` handler, `capture_aql`, entity-type discrimination, and pagination logic. This is the DTU that must be extended for time-window filtering (§8.3).
+6c. **Read** `crates/prism-spec-engine/tests/parity/armis.rs` — understand existing AQL passthrough tests and the `#[ignore]`'d parity test so the new load-bearing tests complement rather than duplicate.
+6d. **Read** `.factory/research/armis-aql-time-window-syntax-2026-06.md` — confirm canonical AQL time syntax: `after:YYYY-MM-DDTHH:MM:SS` (bare, unquoted, no `Z` suffix). This is authoritative; do NOT use `lastSeen:>"T"` form.
+7. **Write stubs** — stub out T1 extraction function with `todo!()` in `pushdown.rs`. Stub CrowdStrike FQL combined-form injection with `todo!()`. Stub `augment_armis_aql_with_time_window` with `todo!()` in `prism-spec-engine/pipeline.rs` or `prism-bin/spec_driven_adapter.rs`.
+8. **Write Red Gate tests** (all 15 must FAIL before implementation):
    - `test_ac_cws_001_crowdstrike_limit_reaches_detection_list_params`
    - `test_ac_cws_002_fql_time_window_both_start_and_end_via_materialization_pipeline`
    - `test_ac_cws_003_no_filter_param_when_no_time_predicates`
    - `test_ac_armis_001_aql_passthrough_no_maxresults_no_timeframe`
    - `test_ac_armis_002_no_additional_params_beyond_aql_offset_limit`
+   - `test_ac_armis_tw_001_time_window_augmented_into_aql`
+   - `test_ac_armis_tw_002_dtu_filters_fixture_by_time_window`
+   - `test_ac_armis_tw_003_anti_double_filter_guard`
+   - `test_ac_armis_tw_004_result_equivalence_pushdown_vs_postfilter`
+   - `test_ac_armis_tw_005_e2e_aql_log_contains_augmented_aql` (`#[ignore]` per SID-1/E2E-001)
    - `test_ac_cyb_001_no_from_date_to_date_page_size_in_alert_list_params`
    - `test_ac_clar_001_claroty_body_template_remains_empty_no_time_fields`
    - `test_ac_wire_001_materialization_pipeline_populates_start_time_from_ast`
    - `test_ac_wire_001b_safe_default_when_spec_map_is_none`
-9. **Verify Red Gate fails** — `just iter prism-query` and `just iter prism-spec-engine` must show all 9 Red Gate tests FAILING.
+   - `test_ac_index_001_armis_toml_last_seen_created_at_have_index_option`
+9. **Verify Red Gate fails** — `just iter prism-query` and `just iter prism-spec-engine` and `just iter prism-dtu-armis` must show all Red Gate tests FAILING.
 10. **Implement** ADR-033 T1: add `extract_time_window_from_ast` in `pushdown.rs`; wire in `materialization.rs` at lines ~434–440.
 11. **Implement** CrowdStrike FQL combined form: `start+end` with `+`; Step 2 receives `FetchContext::default()`.
 12. **Remove** wrong Cyberint `from_date`/`to_date` POST-body injection from `pipeline.rs`.
 13. **Remove** wrong Claroty time-window body injection from `pipeline.rs`.
 14. **Verify** Armis AQL passthrough in `spec_driven_adapter.rs`: confirm `maxResults`/`timeFrame` are absent.
+14b. **Implement** `augment_armis_aql_with_time_window` in `prism-spec-engine/pipeline.rs` (or `prism-bin/spec_driven_adapter.rs` — keep consistent with where CrowdStrike FQL injection lands): construct `after:YYYY-MM-DDTHH:MM:SS` form from extracted `start_time`; `before:YYYY-MM-DDTHH:MM:SS` from `end_time`; space-separated; no `AND`, no quotes, no `Z` suffix. Include anti-double-filter guard.
+14c. **Extend** `crates/prism-dtu-armis/src/routes/search.rs`: after `capture_aql()` (do not move/remove it), parse `after:`/`before:` clauses from AQL string (regex or simple string extraction); filter `devices_ordered` by `last_seen` (with `first_seen` fallback for nulls) and `alert_fixture` by `created_at` before pagination. Null timestamps excluded. Verify fixture data has records spanning the test time window (add records if needed).
+14d. **Add** `options = ["INDEX"]` to `last_seen` column (devices table) and `created_at` column (alerts table) in `crates/prism-sensors/specs/armis.sensor.toml`.
 15. **Write** AC-EQUIV-001 integration test (ungated, against CrowdStrike DTU clone): `run_materialization_pipeline` → DTU → result-equivalence assertion.
-16. **Run** `just iter prism-query --no-fail-fast` — all 9 Red Gate tests GREEN.
+16. **Run** `just iter prism-query --no-fail-fast` + `just iter prism-spec-engine` + `just iter prism-dtu-armis` — all 15 Red Gate tests GREEN (AC-ARMIS-TW-005 is `#[ignore]`, excluded from this count).
 17. **Run** `just iter prism-spec-engine` and `just iter prism-bin` — no regressions.
 18. **Run** `just check` — final pre-push gate.
 
@@ -495,8 +626,11 @@ Version source: workspace `Cargo.toml` `[dependencies]` table. Do not pin versio
   - F-P6-MED-001: result-equivalence AC-005 in v1.x used direct `FetchContext` construction, bypassing `run_materialization_pipeline`. Closed by AC-EQUIV-001 (real materialization path mandate).
   - Per-sensor factual errors: Armis/Cyberint/Claroty translation bugs. Closed by AC-ARMIS-001/002, AC-CYB-001, AC-CLAR-001.
 - **ADR-033** (proposed, 2026-06-05): Records the T1 vs T2 architecture decision. T1 adopted for v2 scope. T2 deferred.
-- **BC-2.11.007 invariant:** "push-down is an optimization only; the query result must be identical whether or not push-down occurs." This is the non-negotiable correctness invariant that AC-EQUIV-001 validates.
-- **BC-2.01.013 v1.13 TV-BC-2.01.013-006:** Re-cast in v1.13 to assert BOTH `start_time` AND `end_time` reach the CrowdStrike FQL filter via `run_materialization_pipeline`. AC-CWS-002 is the story-level assertion for this.
+- **BC-2.11.007 v1.8 invariant:** "push-down is an optimization only; the query result must be identical whether or not push-down occurs." This is the non-negotiable correctness invariant that AC-EQUIV-001 and AC-ARMIS-TW-004 validate.
+- **BC-2.01.013 v1.14 TV-BC-2.01.013-006:** Re-cast in v1.14 to assert BOTH `start_time` AND `end_time` reach the CrowdStrike FQL filter via `run_materialization_pipeline`. AC-CWS-002 is the story-level assertion for this.
+- **pushdown-redesign.md §8 (human directive 2026-06-05):** Armis time-window push-down IS in scope via AQL-clause augmentation. The §1.2 "no native time param" position is superseded. The mechanism: extract time bounds via Option T1 → augment base AQL string with `after:T` / `before:T` clauses → forward via existing `${query.filter.aql}` path → DTU parses and filters its fixture dataset. Critical: the DTU MUST honor the time clauses for scenarios to be load-bearing (AC-ARMIS-TW-002).
+- **Research-confirmed AQL syntax** (`armis-aql-time-window-syntax-2026-06.md`, HIGH confidence, 6 sources): `after:YYYY-MM-DDTHH:MM:SS` for lower bound, `before:YYYY-MM-DDTHH:MM:SS` for upper bound, space-separated, bare/unquoted, timezone-naive. `lastSeen:>"T"` is NOT a confirmed Armis AQL form — zero sources use field-comparison operators in the AQL string for temporal filtering. DO NOT implement or test with `lastSeen:>"T"`.
+- **S-DEMO-ARMIS-AQL-001** (MERGED PR #168): Established `in:devices` / `in:alerts` entity discriminator convention in the Armis DTU and parity tests. The new time-window ACs extend the existing `tests/parity/armis.rs` test suite.
 
 ---
 
@@ -519,20 +653,25 @@ Version source: workspace `Cargo.toml` `[dependencies]` table. Do not pin versio
 
 | Context source | Estimated tokens |
 |----------------|-----------------|
-| This story spec (v2.0) | ~5,000 |
-| BC files (3 BCs: BC-2.01.013 v1.13 + BC-2.11.005 v1.6 + BC-2.11.007 v1.7) | ~9,000 |
+| This story spec (v2.1) | ~7,000 |
+| BC files (3 BCs: BC-2.01.013 v1.14 + BC-2.11.005 v1.6 + BC-2.11.007 v1.8) | ~9,500 |
 | ADR-033 | ~2,500 |
-| pushdown-redesign.md (design note) | ~4,000 |
+| pushdown-redesign.md (design note incl. §8) | ~6,000 |
+| armis-aql-time-window-syntax-2026-06.md (research) | ~3,000 |
 | crates/prism-query/src/materialization.rs (post-S-DEMO-001) | ~10,000 |
 | crates/prism-query/src/pushdown.rs | ~4,000 |
 | crates/prism-spec-engine/src/pipeline.rs (post-S-DEMO-001) | ~10,000 |
 | crates/prism-bin/src/spec_driven_adapter.rs (post-S-DEMO-001) | ~4,000 |
+| crates/prism-dtu-armis/src/routes/search.rs + state.rs | ~3,000 |
+| crates/prism-spec-engine/tests/parity/armis.rs | ~2,500 |
 | Production sensor TOMLs (4 files) | ~6,000 |
-| DTU route structs (3 files: detections.rs + search.rs + alerts.rs) | ~3,000 |
+| DTU route structs (4 files: detections.rs + search.rs + alerts.rs + Claroty) | ~4,000 |
 | Test outputs (cargo nextest) | ~2,000 |
-| **Total estimate** | **~59,500 tokens (~23% of 256K context)** |
+| **Total estimate** | **~73,500 tokens (~29% of 256K context)** |
 
-Within the 20-30% budget. Single-story delivery is viable. If context becomes tight, the implementer may split into two sub-tasks: (1) ADR-033 T1 wiring in prism-query; (2) correctness fixes in prism-spec-engine + prism-bin.
+Near the 20-30% budget ceiling. Implementer SHOULD split into two sub-tasks if context pressure appears:
+- **Sub-task A (prism-query + sensors):** ADR-033 T1 wiring in materialization.rs + pushdown.rs; armis.sensor.toml INDEX options (AC-WIRE-001, AC-WIRE-001b, AC-INDEX-001).
+- **Sub-task B (prism-spec-engine + prism-bin + prism-dtu-armis):** Correctness fixes; Armis AQL augmentation; DTU time-clause filtering; integration + E2E tests (AC-CWS-001/002/003, AC-ARMIS-001/002, AC-ARMIS-TW-001..005, AC-CYB-001, AC-CLAR-001, AC-EQUIV-001).
 
 ---
 
@@ -540,6 +679,7 @@ Within the 20-30% budget. Single-story delivery is viable. If context becomes ti
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 2.1 | 2026-06-05 | story-writer | Armis AQL full-wiring scope addition per human directive + pushdown-redesign.md §8 + BC-2.01.013 v1.14 + BC-2.11.007 v1.8. BC version pins: BC-2.01.013 v1.13→v1.14; BC-2.11.007 v1.7→v1.8 (both frontmatter comments + body BC table + all AC traces). crates_touched: adds prism-dtu-armis + prism-sensors → [prism-query, prism-spec-engine, prism-bin, prism-dtu-armis, prism-sensors]. AC-ARMIS-001: fixed disproven `lastSeen:>"2026-01-01"` → `after:2026-01-01T00:00:00` (bare, unquoted, timezone-naive per research-doc §2.2). Added AC-ARMIS-TW-001 (AQL augmentation at FilterMap boundary, unit test), AC-ARMIS-TW-002 (DTU fixture filtering LOAD-BEARING: filtered<unfiltered), AC-ARMIS-TW-003 (anti-double-filter guard), AC-ARMIS-TW-004 (Armis result-equivalence), AC-ARMIS-TW-005 (E2E #[ignore] aql-log confirmation). Added AC-INDEX-001 (armis.sensor.toml last_seen+created_at must have options=["INDEX"]). acceptance_criteria_count 9→15; red_gate_tests 9→15. Architecture Compliance Rules: added Armis AQL syntax rule (MUST use after:/before: bare unquoted), anti-double-filter rule, DTU-honors rule, INDEX-option rule, R-DTU-002 unaffected rule. File Structure Requirements: added prism-dtu-armis/routes/search.rs MODIFY + armis.sensor.toml MODIFY + parity/armis.rs MODIFY + e2e_smoke.rs MODIFY. Library Requirements: added prism-dtu-armis + prism-sensors entries. Out-of-scope: Armis time-window is IN scope in v2.1 (was post-filter-only in §1.2 design note; §8 supersedes). Remaining deferrals unchanged (Cyberint page_size, Claroty body pagination, Claroty time-window, Option T2). Token Budget updated to ~73,500 tokens (~29% of 256K); sub-task split guidance added. Previous Story Intelligence: added §8 directive note, research-confirmed syntax note, S-DEMO-ARMIS-AQL-001 note. inputs[] expanded: adds prism-dtu-armis/routes/state.rs + parity/armis.rs + research doc. Tasks expanded: added steps 6b/6c/6d (read DTU, parity tests, research) + 14b/14c/14d (implement augmentation, DTU extension, TOML options); all 15 Red Gate test names listed. |
 | 2.0 | 2026-06-05 | story-writer | Major re-author (v1.3 → v2.0). Motivation: LOCAL adversary passes 5+6 established v1.x implementation is inert against production sensor shapes (materialization.rs hardcodes None; wrong Armis/Cyberint/Claroty translations). New scope: crates_touched adds prism-query (ADR-033 T1 time-window extraction in materialization.rs + pushdown.rs). subsystems adds SS-11 (Query Execution). target_module changed to prism-query. points 5→8 (T1 extraction + SAP-2 compliant test suite). AC set fully replaced: AC-CWS-001/002/003 (CrowdStrike limit + FQL time-window both start+end + empty-filter); AC-ARMIS-001/002 (AQL passthrough; assert NO maxResults/NO timeFrame); AC-CYB-001 (cursor-only GET; assert NO from_date/to_date/page_size); AC-CLAR-001 (empty body; assert NO time-window injection); AC-WIRE-001 (run_materialization_pipeline populates start_time+end_time per ADR-033 T1); AC-EQUIV-001 (result-equivalence via REAL materialization path — not direct FetchContext construction). SAP-2 Standing AC Gate added (production-TOML fixture mandate; fabricated-fixture P1 CRITICAL gate). Out-of-scope follow-ups anchored: Cyberint page_size → DTU-EXT-005; Claroty body pagination → S-DEMO-CLAROTY-PAGINATION-001; Claroty time-window → S-DEMO-CLAROTY-TIME-001 (new stub); full classify_predicates (Option T2) → future wave-6. BC table body updated with v1.13/v1.6/v1.7 version citations. Token Budget BC count updated to 3 BCs (unchanged). inputs[] expanded: adds prism-query src files + sensor TOMLs + DTU route structs + ADR-033 + pushdown-redesign.md. depends_on adds S-DEMO-002 (SATISFIED). v1.x implementation superseded. |
 | 1.3 | 2026-06-05 | state-manager | F-PUSHDOWN2-MED-001: status sync — frontmatter `status: ready`→`in_progress`; body header `**Status:** ready`→`in_progress`; body H1 version label v1.2→v1.3. D-1002 burst introduced asymmetry between STORY-INDEX (badged `in_progress v1.2`) and this story file (still `ready`). Source-of-Truth Rule 5: active LOCAL cascade → `in_progress` is canonical. Version bumped to v1.3 to maintain POLICY 32 monotonic-descending changelog. |
 | 1.2 | 2026-06-05 | story-writer | F-PUSHDOWN-006: removed VP-031 from verification_properties (VP-031 covers required-column rejection in prism-query / S-3.02 — unrelated to push-down threading; mis-anchor). No push-down VP exists in VP-INDEX (156 VPs checked); new-VP need flagged for PO/architect in frontmatter note. F-PUSHDOWN-007: updated BC-2.11.005 row in Behavioral Contracts table with PO-specified affected-but-indirectly-tested relationship note. Body header version/status updated to v1.2/ready. Token Budget BC count (3 BCs) remains consistent. |
