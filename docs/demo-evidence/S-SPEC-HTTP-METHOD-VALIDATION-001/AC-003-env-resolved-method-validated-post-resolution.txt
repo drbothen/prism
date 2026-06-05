@@ -1,0 +1,69 @@
+# AC-003 Evidence — Env-resolved method is validated post-resolution (Rule 6 → Rule 7 ordering)
+#
+# Story:   S-SPEC-HTTP-METHOD-VALIDATION-001 v1.4
+# AC:      AC-003 — Env-resolved method is validated POST-resolution (Rule 6 → Rule 7 ordering)
+#          Given: step.method = "${env.SENSOR_STEP_METHOD}" with var resolving to "CONNECT"
+#          When:  Rule 6 resolves env vars, then Rule 7 (validate_step_methods) runs
+#          Then:  E-SPEC-025 fires on the RESOLVED value "CONNECT", not the raw token
+# BC:      BC-2.16.009 v1.10 §Validation Rules 7 — Rule 7 ordering: "runs AFTER Rule 6";
+#          EC-009-019 (env-resolved invalid → E-SPEC-025), EC-009-020 (unresolved token → skip)
+# Skip-guard: ENV_TOKEN_REGEX (`\$\{env\.[A-Z0-9_]+\}`) from env_resolver.rs —
+#             full-match (m.start()==0 && m.end()==len) prevents double-reporting of E-SPEC-024
+# F-LOCAL-P3-MED-002: Malformed pseudo-tokens (lowercase VAR_NAME, hyphen, empty) NOT skipped
+# Source:  crates/prism-spec-engine/src/validation.rs — validate_step_methods()
+#          crates/prism-spec-engine/src/env_resolver.rs — ENV_TOKEN_REGEX (single source of truth)
+# Demo mode: LIBRARY (test-harness nextest capture)
+#
+# ─── What the tests assert ────────────────────────────────────────────────────
+#   Rule 6 → Rule 7 ordering (caller resolves env vars before calling validate_step_methods):
+#     - EC-009-019: after Rule 6 resolves ${env.M}="CONNECT", validate_step_methods fires
+#       E-SPEC-025 on the resolved value "CONNECT" (not the raw token)
+#   Skip-guard for unresolved tokens (EC-009-020 / no double-reporting):
+#     - "${env.SENSOR_STEP_METHOD}" (failed Rule 6, token still present): Rule 7 skips it
+#     - "${env.METHOD}", "${env.HTTP_METHOD}", "${env.CROWDSTRIKE_METHOD}": all skipped
+#   F-LOCAL-P3-MED-002 — malformed pseudo-tokens NOT skipped:
+#     - "${env.lower}" (lowercase VAR_NAME): Rule 6 grammar requires [A-Z0-9_]+, so this
+#       was never resolved; Rule 7 must NOT skip it → E-SPEC-025
+#     - "${env.foo-bar}" (hyphen in VAR_NAME): same — not matched by ENV_TOKEN_REGEX
+#     - "${env.}" (empty VAR_NAME): same — not matched by ENV_TOKEN_REGEX
+#   Non-regression: well-formed tokens still skipped after F-MED-002 fix:
+#     - "${env.VALID_NAME}", "${env.A}", "${env.A1_B2}": all correctly skipped
+#   Load-path integration (F-LOCAL-P4-MED-001 index-carry fix):
+#     - test_BC_2_16_009_load_path_env_resolved_invalid_method_produces_e_spec_025
+#     - test_BC_2_16_009_load_all_invalid_method_on_second_step_produces_steps_1:
+#       duplicate step names → step at index 1 carries si=1 (enumerate, not name-reverse-lookup)
+#     - test_BC_2_16_009_f_pr1_med_001_load_all_env_resolved_invalid_method_produces_e_spec_025
+#     - test_BC_2_16_009_f_pr1_med_001_load_all_unresolvable_env_token_produces_e_spec_024
+#
+# Red Gate test (story spec §Acceptance Criteria):
+#   test_BC_2_16_009_env_resolved_invalid_method_caught_post_resolution
+#
+# ─── nextest output (captured 2026-06-04) ────────────────────────────────────
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.46s
+────────────
+ Nextest run ID 4be82379-0ec8-4b87-8ffe-6ba1aae5ba76 with nextest profile: default
+    Starting 11 tests across 37 binaries (559 tests skipped)
+        PASS [   0.026s] ( 1/11) prism-spec-engine::bc_2_16_009_test test_BC_2_16_009_load_all_invalid_method_on_second_step_produces_steps_1
+        PASS [   0.030s] ( 2/11) prism-spec-engine validation::http_method_whitelist_tests::test_BC_2_16_009_ec009_020_unresolved_env_token_skipped_by_rule_7
+        PASS [   0.030s] ( 3/11) prism-spec-engine validation::http_method_whitelist_tests::test_BC_2_16_009_malformed_env_lowercase_var_name_produces_e_spec_025
+        PASS [   0.030s] ( 4/11) prism-spec-engine validation::http_method_whitelist_tests::test_BC_2_16_009_any_env_token_in_method_skipped_by_rule_7
+        PASS [   0.030s] ( 5/11) prism-spec-engine validation::http_method_whitelist_tests::test_BC_2_16_009_malformed_env_empty_var_name_produces_e_spec_025
+        PASS [   0.030s] ( 6/11) prism-spec-engine validation::http_method_whitelist_tests::test_BC_2_16_009_malformed_env_hyphen_in_var_name_produces_e_spec_025
+        PASS [   0.030s] ( 7/11) prism-spec-engine validation::http_method_whitelist_tests::test_BC_2_16_009_env_resolved_invalid_method_caught_post_resolution
+        PASS [   0.030s] ( 8/11) prism-spec-engine::bc_2_16_009_test test_BC_2_16_009_f_pr1_med_001_load_all_unresolvable_env_token_produces_e_spec_024
+        PASS [   0.030s] ( 9/11) prism-spec-engine validation::http_method_whitelist_tests::test_BC_2_16_009_well_formed_unresolved_token_still_skipped_after_f_med_002_fix
+        PASS [   0.030s] (10/11) prism-spec-engine::bc_2_16_009_test test_BC_2_16_009_load_path_env_resolved_invalid_method_produces_e_spec_025
+        PASS [   0.030s] (11/11) prism-spec-engine::bc_2_16_009_test test_BC_2_16_009_f_pr1_med_001_load_all_env_resolved_invalid_method_produces_e_spec_025
+────────────
+     Summary [   0.031s] 11 tests run: 11 passed, 559 skipped
+
+# ─── Verdict ──────────────────────────────────────────────────────────────────
+# PASS — AC-003 satisfied.
+# Rule 6 → Rule 7 ordering confirmed: env-resolved invalid method "CONNECT" fires
+# E-SPEC-025 on the resolved value. Unresolved well-formed tokens (Rule 6 failure)
+# are skipped by Rule 7 to prevent double-reporting E-SPEC-024 + E-SPEC-025.
+# F-LOCAL-P3-MED-002: malformed pseudo-tokens (lowercase VAR_NAME, hyphen, empty)
+# are NOT skipped — they produce E-SPEC-025 correctly.
+# F-LOCAL-P4-MED-001: duplicate step names → step index 1 correctly carried (not
+# name-reverse-lookup → index 0 bug).
