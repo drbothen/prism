@@ -352,23 +352,25 @@ async fn test_ac_cws_002_wire_level_fql_both_bounds_via_pipeline_executor() {
 /// AC-CWS-003 / BC-2.11.007 v1.8 result-equivalence invariant
 ///
 /// When no time-window predicates exist in the WHERE clause, the CrowdStrike
-/// pipeline must run normally and return results (no spurious injection).
+/// pipeline must run normally and return ALL 50 fixture records (no spurious injection).
+///
+/// # Absence property (load-bearing)
+///
+/// The `/dtu/filter-log` must contain NO entry with `created_timestamp` after
+/// executing with an empty `FetchContext`. This proves no FQL filter string was
+/// injected by the pipeline (wire-level absence assertion, F-P1-HIGH-003 pattern).
+///
+/// # Full fixture count assertion (load-bearing)
+///
+/// `result.records.len()` must equal 50 — the total fixture count in
+/// `crates/prism-dtu-crowdstrike/fixtures/detections-ids.json`. A spurious narrow
+/// filter returning a strict subset (e.g., 10 records) would fail this assertion.
 ///
 /// # SAP-2: production crowdstrike.sensor.toml shape.
 ///
 /// # Red Gate
-/// After implementation: if the time-window FQL path_template slot is present AND
-/// no time predicates are provided, the `${query.filter._fql}` must interpolate to
-/// empty (no `filter` param). This test verifies the absence-of-filter case:
-/// result.records must equal the total fixture count (all 50 records) when no filter is applied.
-/// If the implementation spuriously injects a filter, record count may differ.
-///
-/// Before AC-CWS-002 path_template fix: this test also FAILS because the current path_template
-/// lacks the FQL slot, making AC-CWS-002 RED. After the fix, AC-CWS-003 may flip GREEN.
-/// In v2.1, AC-CWS-003 is RED because the pipeline behavior with a new FQL slot but empty
-/// filter must be verified.
-///
-/// For this pre-implementation state: verifies pipeline runs without error (basic RED Gate).
+/// Fails until: (a) FQL slot is added to path_template (AC-CWS-002 prerequisite),
+/// and (b) empty FetchContext → no `filter` query param is sent to the DTU.
 #[tokio::test]
 async fn test_ac_cws_003_no_filter_param_when_no_time_predicates() {
     let mut clone = CrowdstrikeClone::new();
@@ -377,7 +379,6 @@ async fn test_ac_cws_003_no_filter_param_when_no_time_predicates() {
         .await
         .expect("AC-CWS-003: CrowdStrike DTU clone failed to start");
     let dtu_base_url = format!("http://{bound_addr}");
-    let _ = dtu_base_url; // used by the DTU; not queried here
 
     let spec_content = std::fs::read_to_string(
         std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -426,14 +427,52 @@ async fn test_ac_cws_003_no_filter_param_when_no_time_predicates() {
         .await
         .expect("AC-CWS-003: PipelineExecutor::execute must succeed");
 
-    // With no time filter, all 50 fixture records should be returned.
-    // Red Gate: until FQL slot is added AND wired correctly, this test FAILs at the
-    // structural assertion above. After fixing the structural assertion, this behavioral
-    // assertion verifies correct no-filter behavior.
+    // WIRE-LEVEL ABSENCE assertion (F-P1-HIGH-003 / AC-CWS-003):
+    // The DTU filter-log must contain NO entry with `created_timestamp` — proving the
+    // pipeline did NOT inject an FQL filter when no time predicates were present.
+    // A spurious FQL injection would leave a `created_timestamp:>...` entry in the log.
+    let filter_client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .expect("AC-CWS-003: filter-log client build");
+    let filter_log_resp = filter_client
+        .get(format!("{dtu_base_url}/dtu/filter-log"))
+        .send()
+        .await
+        .expect("AC-CWS-003: GET /dtu/filter-log must succeed");
+    let filter_log_body: JsonValue = filter_log_resp
+        .json()
+        .await
+        .expect("AC-CWS-003: filter-log must be JSON");
+    let filter_strings = filter_log_body["filter_strings"]
+        .as_array()
+        .expect("AC-CWS-003: filter_strings must be an array");
+
+    // No filter param must have reached the DTU: either the log is empty,
+    // or none of the entries contain `created_timestamp` (absence of FQL injection).
+    let no_fql_injected = filter_strings
+        .iter()
+        .all(|s| !s.as_str().unwrap_or("").contains("created_timestamp"));
     assert!(
-        !result.records.is_empty(),
-        "AC-CWS-003: CrowdStrike DTU must return non-empty records when no time filter; \
-         got 0 records. Check DTU fixture."
+        no_fql_injected,
+        "AC-CWS-003 WIRE-LEVEL ABSENCE (F-P1-HIGH-003): DTU filter-log must NOT contain \
+         any `created_timestamp` clause when FetchContext has no time predicates. \
+         Got filter_strings: {:?}. \
+         REGRESSION: pipeline spuriously injected an FQL filter with no time predicates.",
+        filter_strings
+    );
+
+    // FULL FIXTURE COUNT assertion (load-bearing): with no filter, all 50 fixture records
+    // must be returned. The fixture (crates/prism-dtu-crowdstrike/fixtures/detections-ids.json)
+    // contains exactly 50 detection IDs. A spurious narrow FQL filter returning a strict
+    // subset (e.g., 10 records) would fail this assertion.
+    assert_eq!(
+        result.records.len(),
+        50,
+        "AC-CWS-003 FULL FIXTURE COUNT: CrowdStrike DTU must return all 50 fixture records \
+         when no time filter is applied; got {} records. \
+         REGRESSION: pipeline either injected a spurious FQL filter or the fixture is incomplete.",
+        result.records.len()
     );
 }
 

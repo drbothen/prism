@@ -11,10 +11,7 @@
 //! # BC References
 //! - BC-2.11.007 — Sensor Filter Push-Down
 //!
-//! # VP References
-//! - VP-031 — REQUIRED columns always result in `PushDown` (proptest)
-//!
-//! Story: S-3.02
+//! Story: S-DEMO-QUERY-PUSHDOWN-001 (ADR-033 T1 pre-fan-out time-window extraction)
 
 // S-3.02 stub functions: dead_code suppressed pending implementation (stub-phase convention).
 #![allow(dead_code)]
