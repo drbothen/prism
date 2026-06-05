@@ -6,7 +6,7 @@ wave: wave-5-e-demo-fidelity
 epic_id: E-DEMO
 priority: P2
 status: in_progress
-version: "2.3"
+version: "2.4"
 level: "L3"
 producer: story-writer
 revised_by: null
@@ -148,11 +148,11 @@ cycle: "v1.0.0-brownfield"
 phase: 3
 ---
 
-# S-DEMO-QUERY-PUSHDOWN-001 v2.3 — Correct per-sensor push-down wiring (ADR-033 T1 + Armis AQL full wiring + CrowdStrike DTU FQL honoring)
+# S-DEMO-QUERY-PUSHDOWN-001 v2.4 — Correct per-sensor push-down wiring (ADR-033 T1 + Armis AQL full wiring + CrowdStrike DTU FQL honoring)
 
 **Story ID:** S-DEMO-QUERY-PUSHDOWN-001
 **Status:** in_progress
-**Version:** v2.3
+**Version:** v2.4
 **Wave:** wave-5-e-demo-fidelity
 **Priority:** P2
 **Points:** 8
@@ -502,7 +502,10 @@ This AC validates BC-2.11.007 invariant: "push-down is an optimization only; the
 
 CRITICAL: This test MUST exercise the REAL materialization path (`run_materialization_pipeline` → fan-out → `SpecDrivenSensorAdapter::fetch` → DTU clone). A unit test that constructs `FetchContext` directly and bypasses `run_materialization_pipeline` does NOT satisfy this AC (it would miss the dead-code gap F-P6-CRIT-001 that motivated ADR-033).
 
-Red Gate test: `test_ac_equiv_001_result_equivalence_via_real_materialization_path`
+Red Gate test: `test_ac_equiv_001_result_equivalence_via_run_materialization_pipeline`
+Location: `crates/prism-bin/tests/adv_p02_e2e_pushdown_pipeline_test.rs`
+This test drives `run_materialization_pipeline` end-to-end and asserts the BC-2.11.007 subset/no-fabrication invariant: every row in the push-down result set is present in the full (unpushed) result set for the same time range, and no row is fabricated or silently dropped beyond what the predicate specifies.
+Supplementary (boundary test, prism-spec-engine): `test_ac_equiv_001_fql_subset_invariant_via_pipeline_executor_boundary` — exercises the PipelineExecutor boundary directly; does NOT satisfy this AC alone (bypasses `run_materialization_pipeline`).
 SAP-2 mandate: production `crowdstrike.sensor.toml` shape; real DTU clone (ungated integration test per SID-1).
 
 (traces to BC-2.11.007 v1.8 invariant — result-equivalence; also closes F-P6-MED-001)
@@ -718,6 +721,7 @@ At the 20-30% budget ceiling. Implementer SHOULD split into two sub-tasks if con
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 2.4 | 2026-06-05 | story-writer | LOCAL pass-5 fix-burst test-citation drift correction. AC-EQUIV-001 Red Gate test renamed/relocated by pass-5 fix-burst: OLD misnamed prism-spec-engine test `test_ac_equiv_001_result_equivalence_via_real_materialization_path` → RENAMED to `test_ac_equiv_001_fql_subset_invariant_via_pipeline_executor_boundary` (PipelineExecutor-boundary only; does NOT satisfy AC-EQUIV-001 alone). NEW authoritative test `test_ac_equiv_001_result_equivalence_via_run_materialization_pipeline` in `crates/prism-bin/tests/adv_p02_e2e_pushdown_pipeline_test.rs` drives `run_materialization_pipeline` end-to-end and asserts BC-2.11.007 subset/no-fabrication invariant. Supplementary boundary test noted for context. H1 + body header version 2.3→2.4. |
 | 2.3 | 2026-06-05 | story-writer | ADV-P04-HIGH-001 fix: identifier-accuracy correction — `parse_created_timestamp_bounds` → `parse_fql_time_bounds` at all 6 spec sites (frontmatter comment line 40, AC-CWS-DTU-001 When clause, Architecture Compliance Rules CrowdStrike row, Library & Framework Requirements prism-dtu-crowdstrike row, File Structure Requirements state.rs + detections.rs rows). Per Source-of-Truth Rule 7 code wins for code-vs-spec: actual implemented function is `parse_fql_time_bounds` (authored by implementer in this fix-burst per state.rs + routes/detections.rs); spec had the wrong name. ADV-P04-LOW-001 fix: updated AC-CWS-DTU-001 Red Gate test annotation from "existing test from OBS-001 fix-burst" to "new test authored by implementer in this fix-burst" — `parse_fql_time_bounds` is new code; the test is new. Test name `test_ac_cws_dtu_001_crowdstrike_dtu_honors_fql_filter_time_window` retained (matches implementer naming convention). H1 + body header version 2.2→2.3. |
 | 2.2 | 2026-06-05 | story-writer | DRIFT-P1-001 (ADV-P02-HIGH-001) fix: reconcile spec to match OBS-001 fix-burst implementation. crates_touched: adds `prism-dtu-crowdstrike` → [prism-query, prism-spec-engine, prism-bin, prism-dtu-armis, prism-dtu-crowdstrike, prism-sensors]. inputs[]: adds prism-dtu-crowdstrike/src/state.rs + routes/detections.rs + routes/mod.rs. Library & Framework Requirements: adds prism-dtu-crowdstrike row. File Structure Requirements: adds 3 prism-dtu-crowdstrike MODIFY rows (state.rs parse_created_timestamp_bounds; detections.rs fixture filtering; mod.rs /dtu/filter-log route). Added AC-CWS-DTU-001: CrowdStrike DTU honors filter= FQL time-window — filtered_count < unfiltered_count (LOAD-BEARING; Red Gate test: test_ac_cws_dtu_001_crowdstrike_dtu_honors_fql_filter_time_window; parallel to AC-ARMIS-TW-002). Architecture Compliance Rules: added CrowdStrike DTU FQL-honoring row. Subsystem comment: notes prism-dtu-crowdstrike falls under SS-16 scope. acceptance_criteria_count 15→16; red_gate_tests 15→16. Token Budget: story spec ~7,000→~7,500; added prism-dtu-crowdstrike ~2,500; total ~73,500→~76,500 (~30% of 256K). Tasks: step 6b added (read CrowdStrike DTU source); 6c/6d renumbered to 6d/6e; step 9 adds prism-dtu-crowdstrike; step 16 updated (15→16 Red Gate tests, adds prism-dtu-crowdstrike iter); sub-task B updated to include prism-dtu-crowdstrike + AC-CWS-DTU-001. H1 + body header version 2.1→2.2. BC array unchanged (BC-2.11.007 v1.8 already covers CrowdStrike FQL as Mechanism A; no BC edit required). |
 | 2.1 | 2026-06-05 | story-writer | Armis AQL full-wiring scope addition per human directive + pushdown-redesign.md §8 + BC-2.01.013 v1.14 + BC-2.11.007 v1.8. BC version pins: BC-2.01.013 v1.13→v1.14; BC-2.11.007 v1.7→v1.8 (both frontmatter comments + body BC table + all AC traces). crates_touched: adds prism-dtu-armis + prism-sensors → [prism-query, prism-spec-engine, prism-bin, prism-dtu-armis, prism-sensors]. AC-ARMIS-001: fixed disproven `lastSeen:>"2026-01-01"` → `after:2026-01-01T00:00:00` (bare, unquoted, timezone-naive per research-doc §2.2). Added AC-ARMIS-TW-001 (AQL augmentation at FilterMap boundary, unit test), AC-ARMIS-TW-002 (DTU fixture filtering LOAD-BEARING: filtered<unfiltered), AC-ARMIS-TW-003 (anti-double-filter guard), AC-ARMIS-TW-004 (Armis result-equivalence), AC-ARMIS-TW-005 (E2E #[ignore] aql-log confirmation). Added AC-INDEX-001 (armis.sensor.toml last_seen+created_at must have options=["INDEX"]). acceptance_criteria_count 9→15; red_gate_tests 9→15. Architecture Compliance Rules: added Armis AQL syntax rule (MUST use after:/before: bare unquoted), anti-double-filter rule, DTU-honors rule, INDEX-option rule, R-DTU-002 unaffected rule. File Structure Requirements: added prism-dtu-armis/routes/search.rs MODIFY + armis.sensor.toml MODIFY + parity/armis.rs MODIFY + e2e_smoke.rs MODIFY. Library Requirements: added prism-dtu-armis + prism-sensors entries. Out-of-scope: Armis time-window is IN scope in v2.1 (was post-filter-only in §1.2 design note; §8 supersedes). Remaining deferrals unchanged (Cyberint page_size, Claroty body pagination, Claroty time-window, Option T2). Token Budget updated to ~73,500 tokens (~29% of 256K); sub-task split guidance added. Previous Story Intelligence: added §8 directive note, research-confirmed syntax note, S-DEMO-ARMIS-AQL-001 note. inputs[] expanded: adds prism-dtu-armis/routes/state.rs + parity/armis.rs + research doc. Tasks expanded: added steps 6b/6c/6d (read DTU, parity tests, research) + 14b/14c/14d (implement augmentation, DTU extension, TOML options); all 15 Red Gate test names listed. |

@@ -135,12 +135,12 @@ active_dispatch_set:
     status: in_progress
     priority: P2
     points: 8
-    spec_version: "v2.3"
+    spec_version: "v2.4"
     lane: "2 (Phase B)"
-    dispatch_status: "V2_LOCAL_PASS4_CLOSED — D-1011 2026-06-05. v2.x LOCAL pass-4 (0a93ffef) NOT-CLEAN(strict) NOT-CLEAN(PR-merge): 2 HIGH + 2 LOW + 1 OBS[process-gap] ALL CLOSED. ADV-P04-HIGH-001 (parse_created_timestamp_bounds→parse_fql_time_bounds name drift; 6 story+1 STORY-INDEX sites; story v2.2→v2.3; STORY-INDEX v2.284→v2.285). ADV-P04-HIGH-002 (AC-CWS-002 test hand-fed FQL, didn't call run_materialization_pipeline, didn't assert both bounds; CLOSED implementer 70ae30d2 genuine run_materialization_pipeline test asserting BOTH bounds via DTU filter-log). ADV-P04-LOW-001 (parse_fql_time_bounds 0 unit tests vs Armis 4; CLOSED implementer 70ae30d2 — 7 unit tests incl test_ac_cws_dtu_001_crowdstrike_dtu_honors_fql_filter_time_window). ADV-P04-LOW-002 (BC-2.16.002 catalog prose 'FetchContext'→'tuple'; CLOSED PO BC-2.16.002 v1.66→v1.67; BC-INDEX v5.86→v5.87). ADV-P04-OBS-001 [process-gap] test-docstring line-pins (TD-VSDD-091 adjacency) — RECORDED codification candidate; not blocking. EC-003 closure VERIFIED load-bearing (tracing subscriber capture). just check 4032/0. Streak 0/3. LOCAL pass 5 NEXT."
-    code_head: "70ae30d2"
+    dispatch_status: "V2_LOCAL_PASS5_CLOSED — D-1012 2026-06-05. v2.x LOCAL pass-5 (70ae30d2) NOT-CLEAN(strict) NOT-CLEAN(PR-merge): 1 HIGH CLOSED. ADV-P05-HIGH-001 (AC-EQUIV-001 test misnamed 'via_real_materialization_path' but hand-fed _fql + called PipelineExecutor::execute directly; sibling-sweep miss from pass-4 AC-CWS-002 fix; NEW test_ac_equiv_001_result_equivalence_via_run_materialization_pipeline in prism-bin drives run_materialization_pipeline + subset/no-fabrication invariant; old prism-spec-engine test renamed test_ac_equiv_001_fql_subset_invariant_via_pipeline_executor_boundary; exhaustive 32-test TD-VSDD-060 sweep completed). All 4 pass-4 closures VERIFIED LOAD-BEARING. SAP-1 PASS. SAP-2 PASS. just check 4033/0. story v2.3→v2.4; STORY-INDEX v2.285→v2.286. Streak 0/3. LOCAL pass 6 NEXT."
+    code_head: "b87d58a4"
     local_adversary_streak: "0/3"
-    local_adversary_pass_count: 10
+    local_adversary_pass_count: 11
     # --- v1 passes (1-6) archived; v1 cascade VOIDED by scope expansion to v2.1 ---
     # v1 pass 1: {HIGH:2,MED:2,LOW:2,OBS:2} @19184786→a75fada4 | v1 pass 2: {MED:1,LOW:1,OBS:1} @a75fada4→688f82b5
     # v1 pass 3: {LOW:1} @688f82b5→ed27b5ff | v1 pass 4: CLEAN(strict)=yes (false signal — fabricated fixtures)
@@ -204,7 +204,22 @@ active_dispatch_set:
     local_adversary_v2_pass4_sap2_result: "PASS — CrowdStrike+Armis DTU↔TOML parity confirmed; parse_fql_time_bounds name in state.rs matches corrected story v2.3"
     local_adversary_v2_pass4_just_check: "4032/4032 PASS 0 failed"
     local_adversary_v2_pass4_report: "cycles/wave-5-e-demo-fidelity/S-DEMO-QUERY-PUSHDOWN-001/adversarial-review/local-v2-pass-4.md"
-    local_adversary_v2_pass5_note: "NEXT — fresh context; verify ADV-P04-HIGH-002 closure load-bearing (both-bounds FQL via run_materialization_pipeline → DTU wire); full SAP-1 + SAP-2; streak attempt 0/3 → 1/3"
+    local_adversary_v2_pass5_clean_strict: false
+    local_adversary_v2_pass5_clean_pr_merge: false
+    local_adversary_v2_pass5_findings: {HIGH: 1}
+    local_adversary_v2_pass5_all_closed: true
+    local_adversary_v2_pass5_feature_head_before: "70ae30d2"
+    local_adversary_v2_pass5_feature_head_after: "b87d58a4"
+    local_adversary_v2_pass5_streak_after: "0/3"
+    local_adversary_v2_pass5_pass4_closures_verified: "ALL 4 LOAD-BEARING — ADV-P04-HIGH-001 (name drift zero grep hits); ADV-P04-HIGH-002 (both-bounds FQL via run_materialization_pipeline + DTU filter-log confirmed); ADV-P04-LOW-001 (7 unit tests confirmed present); ADV-P04-LOW-002 (BC-2.16.002 row 71 tuple-return confirmed)"
+    local_adversary_v2_pass5_adv_p05_high_001: "CLOSED b87d58a4 — AC-EQUIV-001 test misnamed 'via_real_materialization_path' but hand-fed _fql + called PipelineExecutor::execute directly (sibling-sweep miss from pass-4 AC-CWS-002 fix). NEW test_ac_equiv_001_result_equivalence_via_run_materialization_pipeline in prism-bin drives run_materialization_pipeline + subset/no-fabrication invariant. Old prism-spec-engine test renamed test_ac_equiv_001_fql_subset_invariant_via_pipeline_executor_boundary (honest name). Exhaustive 32-test sibling-sweep across 4 crates completed TD-VSDD-060 — all dispositioned."
+    local_adversary_v2_pass5_sap1_result: "PASS — catalog count 71; no unregistered event_type emissions at HEAD 70ae30d2"
+    local_adversary_v2_pass5_sap2_result: "PASS — CrowdStrike+Armis DTU↔TOML parity confirmed; parse_fql_time_bounds confirmed"
+    local_adversary_v2_pass5_just_check: "4033/4033 PASS 0 failed"
+    local_adversary_v2_pass5_sibling_sweep_count: 32
+    local_adversary_v2_pass5_sibling_sweep_result: "ALL 32 push-down tests across 4 crates dispositioned: 4 real-path + 21 honestly-named-boundary + 7 unit; no remaining misnamed real-path claims"
+    local_adversary_v2_pass5_report: "cycles/wave-5-e-demo-fidelity/S-DEMO-QUERY-PUSHDOWN-001/adversarial-review/local-v2-pass-5.md"
+    local_adversary_v2_pass6_note: "NEXT — fresh context; verify ADV-P05-HIGH-001 closure load-bearing (AC-EQUIV-001 real-path test drives run_materialization_pipeline + subset/no-fabrication invariant confirmed); full SAP-1 + SAP-2; streak attempt 0/3 → 1/3"
     depends_on:
       - S-DEMO-001  # HARD gate — SATISFIED (merged PR #166 develop@5dd3df02)
       - S-DEMO-002  # SATISFIED (merged PR #171 develop@fdd12251 2026-06-04)
@@ -385,9 +400,9 @@ deferred_post_demo:
   # reclassification from permitted-divergence → required-fidelity; user directive no-scope-compromise).
 
 prereq_artifacts:
-  story_index: .factory/stories/STORY-INDEX.md         # v2.285 after D-1011 burst (181 stories; S-DEMO-QUERY-PUSHDOWN-001 v2.3 + parse_fql_time_bounds name reconciliation CLOSED)
+  story_index: .factory/stories/STORY-INDEX.md         # v2.286 after D-1012 burst (181 stories; S-DEMO-QUERY-PUSHDOWN-001 v2.4 + AC-EQUIV-001 real-path test citation corrected)
   bc_index: .factory/specs/behavioral-contracts/BC-INDEX.md  # v5.87 (BC-2.16.002 v1.67 catalog prose tuple-fix + D-1011; active 234, draft 3)
-  state: .factory/STATE.md                              # v7.662 after D-1011 burst
+  state: .factory/STATE.md                              # v7.663 after D-1012 burst
   governing_adr: .factory/specs/architecture/decisions/ADR-031-dtu-equals-true-dtu-fidelity-principle.md  # v1.2 (ADR-031 architect e57eb5b1 reclassified 3 divergences)
   governing_audit: .factory/proposals/POLLER-DTU-FIDELITY-AUDIT-2026-05-29.md  # v1.1
 
