@@ -660,10 +660,10 @@ fn test_BC_2_16_009_validation_handles_multibyte_utf8_base_url_without_panic() {
 // `parse_and_validate_spec_toml` causes both tests to fail.
 //
 // Test naming: test_BC_2_16_009_load_path_*
-// Traces to: BC-2.16.009 v1.8 §Validation Rules 7; S-SPEC-HTTP-METHOD-VALIDATION-001.
+// Traces to: BC-2.16.009 §Validation Rules 7; S-SPEC-HTTP-METHOD-VALIDATION-001.
 // ---------------------------------------------------------------------------
 
-/// BC-2.16.009 v1.8 §VR7 — F-LOCAL-P1-MED-001 load-path regression test 1.
+/// BC-2.16.009 §VR7 — F-LOCAL-P1-MED-001 load-path regression test 1.
 ///
 /// A TOML spec with `method = "CONNECT"` fed through `parse_and_validate_spec_toml`
 /// must return `Err` whose error messages include the E-SPEC-025 canonical text.
@@ -725,7 +725,7 @@ ocsf_class = "security_finding"
     );
 }
 
-/// BC-2.16.009 v1.8 §VR7 AC-003 — F-LOCAL-P1-MED-001 load-path regression test 2
+/// BC-2.16.009 §VR7 AC-003 — F-LOCAL-P1-MED-001 load-path regression test 2
 /// (env-var ordering: Rule 6 resolution → Rule 7 validation).
 ///
 /// Sets `SENSOR_STEP_METHOD=CONNECT` in the environment, constructs a TOML spec
@@ -831,11 +831,11 @@ ocsf_class = "security_finding"
 //      string names in the numeric-index slots (e.g., `tables[events]`).
 //
 // Test naming: test_BC_2_16_009_load_all_*
-// Traces to: BC-2.16.009 v1.8 §VR7; S-SPEC-HTTP-METHOD-VALIDATION-001;
+// Traces to: BC-2.16.009 §VR7; S-SPEC-HTTP-METHOD-VALIDATION-001;
 //            F-LOCAL-P2-MED-001; F-LOCAL-P2-MED-002.
 // ---------------------------------------------------------------------------
 
-/// BC-2.16.009 v1.8 §VR7 — F-LOCAL-P2-MED-002 / F-LOCAL-P2-MED-001.
+/// BC-2.16.009 §VR7 — F-LOCAL-P2-MED-002 / F-LOCAL-P2-MED-001.
 ///
 /// `SpecLoader::load_all` pointed at a temp dir containing a single
 /// `*.sensor.toml` with `method = "CONNECT"` must:
@@ -1176,7 +1176,7 @@ ocsf_class = "security_finding"
 ///   - The original single-step test would NOT catch this regression because both
 ///     hardcoded-0 and computed-0 produce the same string for a single-step fixture.
 ///
-/// Traces to: F-LOCAL-P3-MED-001; BC-2.16.009 v1.8 §VR7; S-SPEC-HTTP-METHOD-VALIDATION-001.
+/// Traces to: F-LOCAL-P3-MED-001; BC-2.16.009 §VR7; S-SPEC-HTTP-METHOD-VALIDATION-001.
 #[test]
 fn test_BC_2_16_009_load_all_invalid_method_on_second_step_produces_steps_1() {
     // Two-step spec: step 0 = valid GET, step 1 = invalid CONNECT.

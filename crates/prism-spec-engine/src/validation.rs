@@ -780,11 +780,11 @@ pub fn validate_auth_plugin_fields(
 }
 
 // ---------------------------------------------------------------------------
-// BC-2.16.009 v1.8 §Validation Rules 7 — HTTP Method Whitelist Validation Tests
+// BC-2.16.009 §Validation Rules 7 — HTTP Method Whitelist Validation Tests
 // S-SPEC-HTTP-METHOD-VALIDATION-001 — Red Gate test suite
 //
 // Test naming convention: test_BC_2_16_009_<description>
-// Traces to: BC-2.16.009 v1.8 §Validation Rules 7; error-taxonomy.md E-SPEC-025.
+// Traces to: BC-2.16.009 §Validation Rules 7; error-taxonomy.md E-SPEC-025.
 //
 // All tests in this module are RED GATE tests — they MUST FAIL before
 // validate_step_methods() is implemented (todo!() panics). After implementation,
@@ -872,7 +872,7 @@ mod http_method_whitelist_tests {
     // ALLOWED_HTTP_METHODS constant — compile-time correctness
     // -----------------------------------------------------------------------
 
-    /// BC-2.16.009 v1.8 §VR7: ALLOWED_HTTP_METHODS must contain exactly 7 values.
+    /// BC-2.16.009 §VR7: ALLOWED_HTTP_METHODS must contain exactly 7 values.
     ///
     /// Traces to: BC-2.16.009 §Validation Rules 7 — "Whitelist constant: The following
     /// 7 HTTP methods are the complete allowed set". Prevents accidental truncation or
@@ -887,7 +887,7 @@ mod http_method_whitelist_tests {
         );
     }
 
-    /// BC-2.16.009 v1.8 §VR7: ALLOWED_HTTP_METHODS must contain the 7 canonical values.
+    /// BC-2.16.009 §VR7: ALLOWED_HTTP_METHODS must contain the 7 canonical values.
     ///
     /// Tests that each of the 7 documented methods is present. Combined with the count
     /// test above, this fully pins the constant.
@@ -915,7 +915,7 @@ mod http_method_whitelist_tests {
     // AC-001: All 7 whitelist methods pass validation (EC-009-010, EC-009-011)
     // -----------------------------------------------------------------------
 
-    /// BC-2.16.009 v1.8 §VR7; AC-001.
+    /// BC-2.16.009 §VR7; AC-001.
     ///
     /// All 7 allowed HTTP methods — GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS —
     /// must pass validation without producing any E-SPEC-025 errors.
@@ -940,7 +940,7 @@ mod http_method_whitelist_tests {
         }
     }
 
-    /// BC-2.16.009 v1.8 §VR7 EC-009-010: step.method = "GET" (valid uppercase).
+    /// BC-2.16.009 §VR7 EC-009-010: step.method = "GET" (valid uppercase).
     ///
     /// Red Gate: fails with todo!() panic before implementation.
     #[test]
@@ -954,7 +954,7 @@ mod http_method_whitelist_tests {
         );
     }
 
-    /// BC-2.16.009 v1.8 §VR7 EC-009-011: step.method = "POST" (valid, common for POST-for-read sensors).
+    /// BC-2.16.009 §VR7 EC-009-011: step.method = "POST" (valid, common for POST-for-read sensors).
     ///
     /// Red Gate: fails with todo!() panic before implementation.
     #[test]
@@ -968,7 +968,7 @@ mod http_method_whitelist_tests {
         );
     }
 
-    /// BC-2.16.009 v1.8 §VR7: spec with no tables produces zero E-SPEC-025 errors.
+    /// BC-2.16.009 §VR7: spec with no tables produces zero E-SPEC-025 errors.
     ///
     /// No steps = nothing to validate.
     ///
@@ -988,7 +988,7 @@ mod http_method_whitelist_tests {
     // AC-002: Invalid / unsupported methods return structured E-SPEC-025 error
     // -----------------------------------------------------------------------
 
-    /// BC-2.16.009 v1.8 §VR7; AC-002.
+    /// BC-2.16.009 §VR7; AC-002.
     ///
     /// An unsupported method "CONNECT" must produce exactly one E-SPEC-025 error.
     /// The error message must be byte-verbatim with the BC-2.16.009 template:
@@ -1045,7 +1045,7 @@ mod http_method_whitelist_tests {
         }
     }
 
-    /// BC-2.16.009 v1.8 §VR7 EC-009-012: step.method = "CONNECT" → E-SPEC-025.
+    /// BC-2.16.009 §VR7 EC-009-012: step.method = "CONNECT" → E-SPEC-025.
     ///
     /// Red Gate: fails with todo!() panic before implementation.
     #[test]
@@ -1063,7 +1063,7 @@ mod http_method_whitelist_tests {
         );
     }
 
-    /// BC-2.16.009 v1.8 §VR7 EC-009-013: step.method = "TRACE" → E-SPEC-025.
+    /// BC-2.16.009 §VR7 EC-009-013: step.method = "TRACE" → E-SPEC-025.
     ///
     /// Red Gate: fails with todo!() panic before implementation.
     #[test]
@@ -1081,7 +1081,7 @@ mod http_method_whitelist_tests {
         );
     }
 
-    /// BC-2.16.009 v1.8 §VR7 EC-009-014: step.method = "GETT" (typo) → E-SPEC-025.
+    /// BC-2.16.009 §VR7 EC-009-014: step.method = "GETT" (typo) → E-SPEC-025.
     ///
     /// Red Gate: fails with todo!() panic before implementation.
     #[test]
@@ -1099,7 +1099,7 @@ mod http_method_whitelist_tests {
         );
     }
 
-    /// BC-2.16.009 v1.8 §VR7 EC-009-015 / AC-002: step.method = "get" (lowercase) → E-SPEC-025.
+    /// BC-2.16.009 §VR7 EC-009-015 / AC-002: step.method = "get" (lowercase) → E-SPEC-025.
     ///
     /// The whitelist is case-sensitive. "get" is NOT equivalent to "GET".
     /// The BC explicitly states: "The implementation MUST NOT silently normalize to upper-case."
@@ -1122,7 +1122,7 @@ mod http_method_whitelist_tests {
         );
     }
 
-    /// BC-2.16.009 v1.8 §VR7: lowercase "post" is invalid (case-sensitive whitelist).
+    /// BC-2.16.009 §VR7: lowercase "post" is invalid (case-sensitive whitelist).
     ///
     /// Red Gate: fails with todo!() panic before implementation.
     #[test]
@@ -1135,7 +1135,7 @@ mod http_method_whitelist_tests {
         );
     }
 
-    /// BC-2.16.009 v1.8 §VR7 EC-009-016: step.method = "" (empty string) → E-SPEC-025.
+    /// BC-2.16.009 §VR7 EC-009-016: step.method = "" (empty string) → E-SPEC-025.
     ///
     /// Empty string is not in the whitelist.
     ///
@@ -1159,7 +1159,7 @@ mod http_method_whitelist_tests {
     // AC-002 continued: E-SPEC-025 message format is byte-verbatim (POL-24)
     // -----------------------------------------------------------------------
 
-    /// BC-2.16.009 v1.8 §VR7 §Error message format; error-taxonomy.md E-SPEC-025; POL-24.
+    /// BC-2.16.009 §VR7 §Error message format; error-taxonomy.md E-SPEC-025; POL-24.
     ///
     /// The Display output of SpecEngineError::InvalidHttpMethod must be byte-verbatim with the
     /// canonical error-taxonomy.md E-SPEC-025 message template:
@@ -1195,7 +1195,7 @@ mod http_method_whitelist_tests {
     // EC-009-017: absent step.method (defaults to "GET") is NOT an error
     // -----------------------------------------------------------------------
 
-    /// BC-2.16.009 v1.8 §VR7 EC-009-017: absent step.method defaults to "GET" at pipeline
+    /// BC-2.16.009 §VR7 EC-009-017: absent step.method defaults to "GET" at pipeline
     /// level and must NOT produce E-SPEC-025.
     ///
     /// `FetchStep::default()` sets `method = "GET"`. The TOML spec may omit the `method`
@@ -1239,7 +1239,7 @@ mod http_method_whitelist_tests {
     // EC-009-018: Multi-error collection — INV-ERR-003
     // -----------------------------------------------------------------------
 
-    /// BC-2.16.009 v1.8 §VR7 EC-009-018; INV-ERR-003.
+    /// BC-2.16.009 §VR7 EC-009-018; INV-ERR-003.
     ///
     /// Two steps in the same spec with invalid methods ("CONNECT" + "TRACE") must produce
     /// exactly two E-SPEC-025 errors. The validator must NOT fail-fast on the first error.
@@ -1317,7 +1317,7 @@ mod http_method_whitelist_tests {
     // EC-009-020: env token failed Rule 6 → Rule 7 skips step (no double-reporting)
     // -----------------------------------------------------------------------
 
-    /// BC-2.16.009 v1.8 §VR7 EC-009-019; AC-003.
+    /// BC-2.16.009 §VR7 EC-009-019; AC-003.
     ///
     /// When `step.method` resolves (via Rule 6) to an invalid value (e.g., "CONNECT"),
     /// Rule 7 must fire E-SPEC-025 on the RESOLVED value, not the raw token.
@@ -1347,7 +1347,7 @@ mod http_method_whitelist_tests {
         );
     }
 
-    /// BC-2.16.009 v1.8 §VR7 EC-009-020; AC-003.
+    /// BC-2.16.009 §VR7 EC-009-020; AC-003.
     ///
     /// When Rule 6 fails to resolve `step.method = "${env.SENSOR_METHOD}"` (var unset),
     /// Rule 7 MUST SKIP that step. Double-reporting (E-SPEC-024 + E-SPEC-025 for the same
@@ -1374,7 +1374,7 @@ mod http_method_whitelist_tests {
         );
     }
 
-    /// BC-2.16.009 v1.8 §VR7: Any `${env.VAR}` pattern in method is treated as Rule 6 failure.
+    /// BC-2.16.009 §VR7: Any `${env.VAR}` pattern in method is treated as Rule 6 failure.
     ///
     /// This covers the general case: any env token pattern remaining in the method field
     /// after Rule 6 means Rule 6 failed; Rule 7 must skip it.
@@ -1404,7 +1404,7 @@ mod http_method_whitelist_tests {
     // Additional invalid methods — comprehensive edge case coverage
     // -----------------------------------------------------------------------
 
-    /// BC-2.16.009 v1.8 §VR7: mixed-case methods are invalid.
+    /// BC-2.16.009 §VR7: mixed-case methods are invalid.
     ///
     /// "Get", "Post", "Delete" are not in the whitelist (case-sensitive).
     ///
@@ -1423,7 +1423,7 @@ mod http_method_whitelist_tests {
         }
     }
 
-    /// BC-2.16.009 v1.8 §VR7: "DELETE" and remaining whitelist members pass validation.
+    /// BC-2.16.009 §VR7: "DELETE" and remaining whitelist members pass validation.
     ///
     /// Red Gate: fails with todo!() panic before implementation.
     #[test]

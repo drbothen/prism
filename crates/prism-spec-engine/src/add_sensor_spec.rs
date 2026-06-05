@@ -90,7 +90,7 @@ pub fn parse_and_validate_spec_toml(
     // against ALLOWED_HTTP_METHODS. Steps whose method still contains an unresolved
     // ${env.VAR} token (i.e., failed Rule 6) are skipped to prevent double-reporting.
     // Invalid method → E-SPEC-025; multiple invalid steps → multiple errors (INV-ERR-003).
-    // S-SPEC-HTTP-METHOD-VALIDATION-001; BC-2.16.009 v1.8 §VR7.
+    // S-SPEC-HTTP-METHOD-VALIDATION-001; BC-2.16.009 §VR7.
     {
         // validate_step_methods returns (table_idx, step_idx, error) tuples.
         // add_sensor_spec only needs the error Display strings; discard the indices.
