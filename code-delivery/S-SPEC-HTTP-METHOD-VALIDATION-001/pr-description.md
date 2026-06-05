@@ -31,12 +31,30 @@ graph TD
     K["truncate_at_char_boundary(32)\n(SEC-001 / CWE-400)"] -.->|"caps method_value in error\nat 32 codepoints"| D
 ```
 
-**Files changed:**
-- `crates/prism-spec-engine/src/validation.rs` — `validate_step_methods()` fn + `ALLOWED_HTTP_METHODS` const + Rule 7 wiring in both load paths + SEC-001 truncation + full-match skip-guard (F-PR1-OBS-001)
+**Files changed (17 files — derived from `git diff develop...6a181b78 --name-only`):**
+
+_Source (7 files):_
+- `crates/prism-core/src/error.rs` — `PrismError::InvalidHttpMethod` variant plumbing for cross-crate error propagation
+- `crates/prism-spec-engine/src/add_sensor_spec.rs` — Rule 7 call site: `validate_step_methods()` invoked inside `parse_and_validate_spec_toml`
+- `crates/prism-spec-engine/src/env_resolver.rs` — `ENV_TOKEN_REGEX` full-match guard reuse for skip-guard wiring (F-PR1-OBS-001)
 - `crates/prism-spec-engine/src/error.rs` — `SpecEngineError::InvalidHttpMethod` variant + `SpecErrorCode::E_SPEC_025` mapping
-- `crates/prism-spec-engine/src/spec_parser.rs` — `SpecErrorCode` channel wiring (E-SPEC-025 propagation through `load_path` / `load_all`)
-- `crates/prism-spec-engine/src/validation.rs` (`#[cfg(test)] mod http_method_whitelist_tests`) — 35 tests covering 10 Red Gate + edge cases; `crates/prism-spec-engine/tests/bc_2_16_009_test.rs` — 26 tests; bundled-spec validation — 5 tests; proofs::spec_validator — 10 tests; write_endpoint_tests — 17 tests
-- `docs/demo-evidence/S-SPEC-HTTP-METHOD-VALIDATION-001/` — per-AC demo recordings (library-mode), all 5 ACs
+- `crates/prism-spec-engine/src/lib.rs` — `validate_step_methods` pub re-export added to crate public surface
+- `crates/prism-spec-engine/src/spec_parser.rs` — `SpecErrorCode` channel wiring: E-SPEC-025 propagation through `load_path` / `load_all`
+- `crates/prism-spec-engine/src/validation.rs` — `validate_step_methods()` fn + `ALLOWED_HTTP_METHODS` const + Rule 7 wiring in both load paths + SEC-001 truncation + full-match skip-guard; 35 unit tests in `#[cfg(test)] mod http_method_whitelist_tests`
+
+_Tests (2 files):_
+- `crates/prism-spec-engine/tests/bc_2_16_001_bundled_spec_load.rs` — bundled sensor spec regression suite (5 tests: CrowdStrike, Armis, Claroty, Cyberint pass Rule 7)
+- `crates/prism-spec-engine/tests/bc_2_16_009_test.rs` — 26 integration tests covering Red Gate + edge cases + multi-error collection
+
+_Demo evidence (8 files):_
+- `docs/demo-evidence/S-SPEC-HTTP-METHOD-VALIDATION-001/AC-001-valid-http-methods-pass-validation.txt` — AC-001 nextest capture
+- `docs/demo-evidence/S-SPEC-HTTP-METHOD-VALIDATION-001/AC-002-invalid-method-returns-e-spec-025.txt` — AC-002 nextest capture
+- `docs/demo-evidence/S-SPEC-HTTP-METHOD-VALIDATION-001/AC-003-env-resolved-method-validated-post-resolution.txt` — AC-003 nextest capture
+- `docs/demo-evidence/S-SPEC-HTTP-METHOD-VALIDATION-001/AC-004-overlong-method-value-truncated.txt` — AC-004 nextest capture
+- `docs/demo-evidence/S-SPEC-HTTP-METHOD-VALIDATION-001/AC-005-full-match-skip-guard.txt` — AC-005 nextest capture
+- `docs/demo-evidence/S-SPEC-HTTP-METHOD-VALIDATION-001/evidence-report.md` — per-AC evidence index and summary
+- `docs/demo-evidence/S-SPEC-HTTP-METHOD-VALIDATION-001/full-suite-BC-2-16-009.txt` — full 93/93 BC-2.16.009 suite run
+- `docs/demo-evidence/S-SPEC-HTTP-METHOD-VALIDATION-001/source-excerpt-validate-step-methods.txt` — source code excerpt for reviewer reference
 
 **No new dependencies added.** `ALLOWED_HTTP_METHODS` is a compile-time `const &[&str]`; no external crate required.
 
@@ -230,14 +248,14 @@ Orchestrator-driven merge gate. This change introduces SEC-001 / CWE-400 mitigat
 
 ## Pre-Merge Checklist
 
-- [x] PR description matches actual diff (5 ACs, 10 Red Gate, 93/93 test suite — all counts consistent)
+- [x] PR description matches actual diff (all 17 files listed: 7 source + 2 tests + 8 demo-evidence; counts 93/93, per-module 35/26/5/10/17, 5 ACs / 10 Red Gate, v1.10/v1.4/v1.60 all consistent; HEAD `6a181b78`)
 - [x] All 5 ACs covered by demo evidence (1 recording per AC: AC-001..AC-005)
 - [x] Traceability chain complete: BC-2.16.009 v1.10 → AC-001..AC-005 → 10 Red Gate tests → `validate_step_methods()` implementation
 - [x] LOCAL adversary cascade CONVERGED 3/3 strict (7 passes, 4 fix-bursts)
 - [x] `#[non_exhaustive]` gate 49/49 PASS
 - [x] `depends_on: []` — no upstream PR dependency blocks
 - [x] No AI attribution in commits or PR body
-- [ ] CI checks green (running on HEAD `3923711c`)
+- [ ] CI checks green (running on HEAD `6a181b78`)
 - [ ] PR-level adversarial cascade (orchestrator-driven merge gate)
 - [ ] Security review (orchestrator-driven merge gate)
 - [ ] pr-reviewer approval (orchestrator-driven merge gate)
