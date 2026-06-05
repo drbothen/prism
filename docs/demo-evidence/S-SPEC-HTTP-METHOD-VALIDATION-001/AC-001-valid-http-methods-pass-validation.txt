@@ -1,0 +1,56 @@
+# AC-001 Evidence — Valid HTTP methods (all 7 whitelist members) pass validation
+#
+# Story:   S-SPEC-HTTP-METHOD-VALIDATION-001 v1.4
+# AC:      AC-001 — Valid HTTP method in step.method passes validation (all 7 whitelist members)
+#          Given: step.method = GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS
+#          When:  spec is loaded (post env-resolver pass, Rule 7)
+#          Then:  no E-SPEC-025 error emitted; spec loads successfully
+# BC:      BC-2.16.009 v1.10 §Validation Rules 7 — valid method passes;
+#          §Canonical Test Vectors "HTTP method — valid GET" and "HTTP method — valid POST"
+# Source:  crates/prism-spec-engine/src/validation.rs
+#          mod http_method_whitelist_tests
+# Demo mode: LIBRARY (test-harness nextest capture) — prism-spec-engine is a library with
+#            no CLI surface; test harness is the production-representative demo vehicle.
+#
+# ─── What the tests assert ────────────────────────────────────────────────────
+#   ALLOWED_HTTP_METHODS constant:
+#     - Must contain exactly 7 entries (BC-2.16.009 §VR7 compile-time constant)
+#     - Must contain: GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS
+#   validate_step_methods(&spec) returns Vec::new() (no errors) for:
+#     - Every method in ALLOWED_HTTP_METHODS (parameterized over all 7 values)
+#     - Specific EC-009-010: "GET" passes Rule 7
+#     - Specific EC-009-011: "POST" passes Rule 7 (Claroty/Armis POST-for-read pattern)
+#     - EC-009-017: absent step.method defaults to "GET" via FetchStep::default()
+#     - Spec with no tables → zero errors (no steps to validate)
+#     - DELETE, PUT, PATCH, HEAD, OPTIONS all pass (full whitelist coverage)
+#   Load-path integration:
+#     - load_all() validates bundled specs (4 bundled sensor specs pass Rule 7)
+#
+# Red Gate test (story spec §Acceptance Criteria):
+#   test_BC_2_16_009_valid_http_method_passes_validation
+#
+# ─── nextest output (captured 2026-06-04) ────────────────────────────────────
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.48s
+────────────
+ Nextest run ID 3b7f9ba7-c1e1-4429-ab88-4d6098e78460 with nextest profile: default
+    Starting 9 tests across 37 binaries (561 tests skipped)
+        PASS [   0.012s] (1/9) prism-spec-engine validation::http_method_whitelist_tests::test_BC_2_16_009_allowed_http_methods_contains_canonical_values
+        PASS [   0.012s] (2/9) prism-spec-engine validation::http_method_whitelist_tests::test_BC_2_16_009_allowed_http_methods_has_exactly_7_entries
+        PASS [   0.014s] (3/9) prism-spec-engine validation::http_method_whitelist_tests::test_BC_2_16_009_no_tables_produces_zero_errors
+        PASS [   0.023s] (4/9) prism-spec-engine::bc_2_16_009_bundled_spec_validation test_BC_2_16_009_validates_all_4_bundled_specs
+        PASS [   0.034s] (5/9) prism-spec-engine validation::http_method_whitelist_tests::test_BC_2_16_009_delete_put_patch_head_options_pass_validation
+        PASS [   0.034s] (6/9) prism-spec-engine validation::http_method_whitelist_tests::test_BC_2_16_009_ec009_011_post_passes_rule_7
+        PASS [   0.034s] (7/9) prism-spec-engine validation::http_method_whitelist_tests::test_BC_2_16_009_valid_http_method_passes_validation
+        PASS [   0.034s] (8/9) prism-spec-engine validation::http_method_whitelist_tests::test_BC_2_16_009_ec009_010_get_passes_rule_7
+        PASS [   0.034s] (9/9) prism-spec-engine validation::http_method_whitelist_tests::test_BC_2_16_009_ec009_017_absent_method_defaults_get_no_e_spec_025
+────────────
+     Summary [   0.035s] 9 tests run: 9 passed, 561 skipped
+
+# ─── Verdict ──────────────────────────────────────────────────────────────────
+# PASS — AC-001 satisfied.
+# All 7 whitelist members (GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS) pass
+# validate_step_methods() without producing E-SPEC-025. ALLOWED_HTTP_METHODS
+# constant has exactly 7 entries per BC-2.16.009 v1.10 §VR7. Absent method
+# (defaults to "GET" via FetchStep::default()) also produces zero errors per
+# EC-009-017. All 4 bundled sensor TOML specs pass load_all() Rule 7 gate.

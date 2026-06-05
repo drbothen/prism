@@ -453,6 +453,110 @@ pub fn validate_sensor_spec(spec: &SensorSpec) -> ValidatorOutput {
     }
 }
 
+/// The complete set of HTTP methods permitted in `FetchStep::method`.
+///
+/// This is a compile-time constant per BC-2.16.009 §Validation Rules 7 — the whitelist
+/// is never runtime-configurable (no serde, no env var, no prism.toml field).
+///
+/// All 7 entries are uppercase only. Case sensitivity is intentional and matches industry
+/// convention: `"get"` is invalid and produces E-SPEC-025 (BC-2.16.009 §VR7 case-sensitivity
+/// clause). The whitelist is case-sensitive and upper-case only.
+///
+/// BC-2.16.009 §Validation Rules 7; S-SPEC-HTTP-METHOD-VALIDATION-001.
+pub(crate) const ALLOWED_HTTP_METHODS: &[&str] =
+    &["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"];
+
+/// Validate `step.method` fields across all tables in `spec` against the HTTP method whitelist.
+///
+/// **Rule 7 of BC-2.16.009** — runs AFTER the env-var token resolution pass (Rule 6).
+/// The caller is responsible for running Rule 6 (`resolve_env_var_tokens`) before calling
+/// this function; `validate_step_methods` operates on the already-resolved spec.
+///
+/// ## Behavior
+/// - `step.method` absent (defaults to `"GET"` via `FetchStep::default()`): no error.
+/// - `step.method` present and in `ALLOWED_HTTP_METHODS` (case-sensitive): no error.
+/// - `step.method` present and NOT in `ALLOWED_HTTP_METHODS`: emits `E-SPEC-025`.
+/// - `step.method` still contains an unresolved `${env.VAR}` token (Rule 6 failed for it):
+///   this step is **skipped** to prevent double-reporting (BC-2.16.009 §VR7 ordering).
+/// - All errors are collected before returning (INV-ERR-003 — no fail-fast).
+///
+/// ## Return value
+/// Returns a `Vec<(usize, usize, SpecEngineError)>` — each entry carries:
+/// - `table_index`: numeric index of the table in `spec.tables` (from `enumerate`)
+/// - `step_index`: numeric index of the step in `table.steps` (from `enumerate`)
+/// - `SpecEngineError::InvalidHttpMethod`: the structured error (carries `step_name`,
+///   `sensor_id`, `table_name`, `method_value` for Display and downstream use)
+///
+/// Callers that only need the errors (e.g., `add_sensor_spec`) use `.map(|(_, _, e)| e)`.
+/// Callers that need canonical `toml_path` construction (e.g., `load_all`) use the indices
+/// directly to build `sensor.tables[{ti}].steps[{si}].method` without name reverse-lookup.
+/// This eliminates the fragility noted in F-LOCAL-P4-MED-001: a name reverse-lookup breaks
+/// when two steps in one table share the same name (step-name uniqueness is NOT enforced).
+///
+/// BC-2.16.009 §Validation Rules 7 (AC-7); error-taxonomy.md E-SPEC-025;
+/// S-SPEC-HTTP-METHOD-VALIDATION-001; F-LOCAL-P4-MED-001.
+pub fn validate_step_methods(
+    spec: &SensorSpec,
+) -> Vec<(usize, usize, crate::error::SpecEngineError)> {
+    let mut errors = Vec::new();
+
+    for (ti, table) in spec.tables.iter().enumerate() {
+        for (si, step) in table.steps.iter().enumerate() {
+            // BC-2.16.009 §VR7 ordering: skip steps whose method IS EXACTLY one
+            // WELL-FORMED `${env.VAR_NAME}` token (where VAR_NAME matches `[A-Z0-9_]+`).
+            //
+            // Rule 6 (env_resolver) already fired E-SPEC-024 for those; double-reporting
+            // the same field is noise, not signal (EC-009-020).
+            //
+            // IMPORTANT: we test for a WELL-FORMED token using the SAME regex that Rule 6
+            // uses (ENV_TOKEN_REGEX from env_resolver.rs — TD-VSDD-060 single source of
+            // truth). A malformed pseudo-token like `${env.lower}`, `${env.foo-bar}`, or
+            // `${env.}` does NOT match the regex → is NOT skipped → falls through to the
+            // whitelist check below → produces E-SPEC-025 (F-LOCAL-P3-MED-002 fix).
+            //
+            // F-PR1-OBS-001 FIX: use a FULL-MATCH check (the matched span must equal the
+            // entire string length). A substring `is_match` was too broad: it skipped any
+            // string that CONTAINED a token (e.g., "GET${env.X}", "${env.A}${env.B}") even
+            // though those values are NOT purely unresolved tokens and Rule 6 cannot
+            // fully replace them. The fix: only skip when the regex match covers bytes
+            // 0..len (i.e., the full method string is exactly one unresolved token).
+            let is_exactly_one_token = crate::env_resolver::ENV_TOKEN_REGEX
+                .find(&step.method)
+                .is_some_and(|m| m.start() == 0 && m.end() == step.method.len());
+            if is_exactly_one_token {
+                continue;
+            }
+
+            // Case-sensitive whitelist check (BC-2.16.009 §VR7 case-sensitivity clause).
+            // "get" is NOT equivalent to "GET"; empty string is not in the whitelist.
+            if !ALLOWED_HTTP_METHODS.contains(&step.method.as_str()) {
+                // SEC-001 fix: truncate method_value to ≤32 codepoints before embedding in
+                // the error message. A 256 KiB TOML allows a method field up to that size;
+                // echoing it verbatim would produce a 256 KiB error string returned to the
+                // MCP caller (CWE-400 unbounded echo). HTTP methods are ≤7 chars; 32 is a
+                // generous cap that preserves full legibility for any reasonable value.
+                // For method values ≤32 codepoints the truncated slice == the original
+                // string, preserving byte-exact Display for normal inputs (POL-24).
+                //
+                // Precedent: base_url is truncated at 200 codepoints (F-LP10-MED-001).
+                let method_value = truncate_at_char_boundary(&step.method, 32).to_string();
+                errors.push((
+                    ti,
+                    si,
+                    crate::error::SpecEngineError::InvalidHttpMethod {
+                        step_name: step.name.clone(),
+                        sensor_id: spec.sensor_id.clone(),
+                        table_name: table.table_name.clone(),
+                        method_value,
+                    },
+                ));
+            }
+        }
+    }
+
+    errors
+}
+
 /// Validate a `sensor_id` against the required regex `^[a-z][a-z0-9_-]*$`.
 ///
 /// Returns `Some(ValidationError)` if invalid, `None` if valid.
@@ -673,6 +777,1090 @@ pub fn validate_auth_plugin_fields(
         });
     }
     Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// BC-2.16.009 §Validation Rules 7 — HTTP Method Whitelist Validation Tests
+// S-SPEC-HTTP-METHOD-VALIDATION-001 — Red Gate test suite
+//
+// Test naming convention: test_BC_2_16_009_<description>
+// Traces to: BC-2.16.009 §Validation Rules 7; error-taxonomy.md E-SPEC-025.
+//
+// All tests in this module are RED GATE tests — they MUST FAIL before
+// validate_step_methods() is implemented (todo!() panics). After implementation,
+// they MUST ALL PASS.
+// ---------------------------------------------------------------------------
+#[cfg(test)]
+mod http_method_whitelist_tests {
+    use crate::{
+        error::SpecEngineError,
+        spec_parser::{AuthType, FetchStep, SensorSpec, TableSpec},
+    };
+
+    use super::{ALLOWED_HTTP_METHODS, validate_step_methods};
+
+    // -----------------------------------------------------------------------
+    // Test helpers
+    // -----------------------------------------------------------------------
+
+    /// Build a minimal valid SensorSpec with one table and one step using the given method.
+    ///
+    /// sensor_id = "test-sensor", table_name = "events", step name = "fetch".
+    fn make_spec_with_method(method: &str) -> SensorSpec {
+        let step = FetchStep {
+            name: "fetch".to_string(),
+            method: method.to_string(),
+            path_template: "/api/v1/events".to_string(),
+            response_path: "$.data".to_string(),
+            ..FetchStep::default()
+        };
+        let table = TableSpec::new_point_in_time("events", "security_finding", vec![], vec![step]);
+        SensorSpec {
+            sensor_id: "test-sensor".to_string(),
+            name: "Test Sensor".to_string(),
+            auth_type: AuthType::ApiKey,
+            base_url: "https://example.com".to_string(),
+            tables: vec![table],
+            version: "1.0.0".to_string(),
+            ..SensorSpec::default()
+        }
+    }
+
+    /// Build a spec with no tables (no steps) — used to test zero-step edge case.
+    fn make_spec_no_tables() -> SensorSpec {
+        SensorSpec {
+            sensor_id: "test-sensor".to_string(),
+            name: "Test Sensor".to_string(),
+            auth_type: AuthType::ApiKey,
+            base_url: "https://example.com".to_string(),
+            tables: vec![],
+            version: "1.0.0".to_string(),
+            ..SensorSpec::default()
+        }
+    }
+
+    /// Build a spec with two steps in the same table.
+    fn make_spec_with_two_steps(method1: &str, method2: &str) -> SensorSpec {
+        let step1 = FetchStep {
+            name: "step-one".to_string(),
+            method: method1.to_string(),
+            path_template: "/api/v1/first".to_string(),
+            response_path: "$.data".to_string(),
+            ..FetchStep::default()
+        };
+        let step2 = FetchStep {
+            name: "step-two".to_string(),
+            method: method2.to_string(),
+            path_template: "/api/v1/second".to_string(),
+            response_path: "$.data".to_string(),
+            ..FetchStep::default()
+        };
+        let table =
+            TableSpec::new_point_in_time("events", "security_finding", vec![], vec![step1, step2]);
+        SensorSpec {
+            sensor_id: "test-sensor".to_string(),
+            name: "Test Sensor".to_string(),
+            auth_type: AuthType::ApiKey,
+            base_url: "https://example.com".to_string(),
+            tables: vec![table],
+            version: "1.0.0".to_string(),
+            ..SensorSpec::default()
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // ALLOWED_HTTP_METHODS constant — compile-time correctness
+    // -----------------------------------------------------------------------
+
+    /// BC-2.16.009 §VR7: ALLOWED_HTTP_METHODS must contain exactly 7 values.
+    ///
+    /// Traces to: BC-2.16.009 §Validation Rules 7 — "Whitelist constant: The following
+    /// 7 HTTP methods are the complete allowed set". Prevents accidental truncation or
+    /// expansion of the constant.
+    #[test]
+    fn test_BC_2_16_009_allowed_http_methods_has_exactly_7_entries() {
+        assert_eq!(
+            ALLOWED_HTTP_METHODS.len(),
+            7,
+            "ALLOWED_HTTP_METHODS must have exactly 7 entries per BC-2.16.009 §VR7; got {}",
+            ALLOWED_HTTP_METHODS.len()
+        );
+    }
+
+    /// BC-2.16.009 §VR7: ALLOWED_HTTP_METHODS must contain the 7 canonical values.
+    ///
+    /// Tests that each of the 7 documented methods is present. Combined with the count
+    /// test above, this fully pins the constant.
+    #[test]
+    fn test_BC_2_16_009_allowed_http_methods_contains_canonical_values() {
+        for method in &["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"] {
+            assert!(
+                ALLOWED_HTTP_METHODS.contains(method),
+                "ALLOWED_HTTP_METHODS must contain '{}' per BC-2.16.009 §VR7",
+                method
+            );
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // Helper: extract just the SpecEngineError from the returned tuples.
+    // validate_step_methods returns Vec<(usize, usize, SpecEngineError)>;
+    // most unit tests only care about the error value, not the indices.
+    // -----------------------------------------------------------------------
+    fn errors_only(results: Vec<(usize, usize, SpecEngineError)>) -> Vec<SpecEngineError> {
+        results.into_iter().map(|(_, _, e)| e).collect()
+    }
+
+    // -----------------------------------------------------------------------
+    // AC-001: All 7 whitelist methods pass validation (EC-009-010, EC-009-011)
+    // -----------------------------------------------------------------------
+
+    /// BC-2.16.009 §VR7; AC-001.
+    ///
+    /// All 7 allowed HTTP methods — GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS —
+    /// must pass validation without producing any E-SPEC-025 errors.
+    ///
+    /// Parameterized over all 7 canonical whitelist values.
+    /// Canonical test vectors: "HTTP method — valid GET" and "HTTP method — valid POST".
+    ///
+    /// Red Gate: fails with todo!() panic before implementation.
+    #[test]
+    fn test_BC_2_16_009_valid_http_method_passes_validation() {
+        for method in ALLOWED_HTTP_METHODS {
+            let spec = make_spec_with_method(method);
+            let results = validate_step_methods(&spec);
+            assert!(
+                results.is_empty(),
+                "AC-001: method '{}' is in ALLOWED_HTTP_METHODS and must produce zero \
+                 E-SPEC-025 errors; got {} error(s): {:?}",
+                method,
+                results.len(),
+                results
+            );
+        }
+    }
+
+    /// BC-2.16.009 §VR7 EC-009-010: step.method = "GET" (valid uppercase).
+    ///
+    /// Red Gate: fails with todo!() panic before implementation.
+    #[test]
+    fn test_BC_2_16_009_ec009_010_get_passes_rule_7() {
+        let spec = make_spec_with_method("GET");
+        let results = validate_step_methods(&spec);
+        assert!(
+            results.is_empty(),
+            "EC-009-010: GET is valid; expected zero errors; got {:?}",
+            results
+        );
+    }
+
+    /// BC-2.16.009 §VR7 EC-009-011: step.method = "POST" (valid, common for POST-for-read sensors).
+    ///
+    /// Red Gate: fails with todo!() panic before implementation.
+    #[test]
+    fn test_BC_2_16_009_ec009_011_post_passes_rule_7() {
+        let spec = make_spec_with_method("POST");
+        let results = validate_step_methods(&spec);
+        assert!(
+            results.is_empty(),
+            "EC-009-011: POST is valid (Claroty/Armis pattern); expected zero errors; got {:?}",
+            results
+        );
+    }
+
+    /// BC-2.16.009 §VR7: spec with no tables produces zero E-SPEC-025 errors.
+    ///
+    /// No steps = nothing to validate.
+    ///
+    /// Red Gate: fails with todo!() panic before implementation.
+    #[test]
+    fn test_BC_2_16_009_no_tables_produces_zero_errors() {
+        let spec = make_spec_no_tables();
+        let results = validate_step_methods(&spec);
+        assert!(
+            results.is_empty(),
+            "A spec with no tables has no steps to validate; expected zero errors; got {:?}",
+            results
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // AC-002: Invalid / unsupported methods return structured E-SPEC-025 error
+    // -----------------------------------------------------------------------
+
+    /// BC-2.16.009 §VR7; AC-002.
+    ///
+    /// An unsupported method "CONNECT" must produce exactly one E-SPEC-025 error.
+    /// The error message must be byte-verbatim with the BC-2.16.009 template:
+    /// "Step '<step_name>' in '<sensor_id>.<table_name>' declares method '<method_value>'
+    ///  which is not a supported HTTP method. Supported: GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS"
+    ///
+    /// Canonical test vector: "HTTP method — CONNECT rejected".
+    ///
+    /// Red Gate: fails with todo!() panic before implementation.
+    #[test]
+    fn test_BC_2_16_009_invalid_http_method_returns_structured_e_spec_025() {
+        let spec = make_spec_with_method("CONNECT");
+        let results = validate_step_methods(&spec);
+        let errors = errors_only(results);
+        assert_eq!(
+            errors.len(),
+            1,
+            "AC-002: 'CONNECT' is not whitelisted; expected exactly 1 E-SPEC-025 error; got {}: {:?}",
+            errors.len(),
+            errors
+        );
+        match &errors[0] {
+            SpecEngineError::InvalidHttpMethod {
+                step_name,
+                sensor_id,
+                table_name,
+                method_value,
+            } => {
+                assert_eq!(
+                    step_name, "fetch",
+                    "step_name must be 'fetch'; got '{}'",
+                    step_name
+                );
+                assert_eq!(
+                    sensor_id, "test-sensor",
+                    "sensor_id must be 'test-sensor'; got '{}'",
+                    sensor_id
+                );
+                assert_eq!(
+                    table_name, "events",
+                    "table_name must be 'events'; got '{}'",
+                    table_name
+                );
+                assert_eq!(
+                    method_value, "CONNECT",
+                    "method_value must be 'CONNECT'; got '{}'",
+                    method_value
+                );
+            }
+            other => panic!(
+                "Expected SpecEngineError::InvalidHttpMethod, got: {:?}",
+                other
+            ),
+        }
+    }
+
+    /// BC-2.16.009 §VR7 EC-009-012: step.method = "CONNECT" → E-SPEC-025.
+    ///
+    /// Red Gate: fails with todo!() panic before implementation.
+    #[test]
+    fn test_BC_2_16_009_ec009_012_connect_produces_e_spec_025() {
+        let spec = make_spec_with_method("CONNECT");
+        let errors = errors_only(validate_step_methods(&spec));
+        assert!(
+            !errors.is_empty(),
+            "EC-009-012: CONNECT is not whitelisted; must produce E-SPEC-025"
+        );
+        assert!(
+            errors.iter().any(|e| matches!(e, SpecEngineError::InvalidHttpMethod { method_value, .. } if method_value == "CONNECT")),
+            "EC-009-012: error must cite method_value 'CONNECT'; got {:?}",
+            errors
+        );
+    }
+
+    /// BC-2.16.009 §VR7 EC-009-013: step.method = "TRACE" → E-SPEC-025.
+    ///
+    /// Red Gate: fails with todo!() panic before implementation.
+    #[test]
+    fn test_BC_2_16_009_ec009_013_trace_produces_e_spec_025() {
+        let spec = make_spec_with_method("TRACE");
+        let errors = errors_only(validate_step_methods(&spec));
+        assert!(
+            !errors.is_empty(),
+            "EC-009-013: TRACE is not whitelisted; must produce E-SPEC-025"
+        );
+        assert!(
+            errors.iter().any(|e| matches!(e, SpecEngineError::InvalidHttpMethod { method_value, .. } if method_value == "TRACE")),
+            "EC-009-013: error must cite method_value 'TRACE'; got {:?}",
+            errors
+        );
+    }
+
+    /// BC-2.16.009 §VR7 EC-009-014: step.method = "GETT" (typo) → E-SPEC-025.
+    ///
+    /// Red Gate: fails with todo!() panic before implementation.
+    #[test]
+    fn test_BC_2_16_009_ec009_014_typo_gett_produces_e_spec_025() {
+        let spec = make_spec_with_method("GETT");
+        let errors = errors_only(validate_step_methods(&spec));
+        assert!(
+            !errors.is_empty(),
+            "EC-009-014: 'GETT' (typo) is not whitelisted; must produce E-SPEC-025"
+        );
+        assert!(
+            errors.iter().any(|e| matches!(e, SpecEngineError::InvalidHttpMethod { method_value, .. } if method_value == "GETT")),
+            "EC-009-014: error must cite method_value 'GETT'; got {:?}",
+            errors
+        );
+    }
+
+    /// BC-2.16.009 §VR7 EC-009-015 / AC-002: step.method = "get" (lowercase) → E-SPEC-025.
+    ///
+    /// The whitelist is case-sensitive. "get" is NOT equivalent to "GET".
+    /// The BC explicitly states: "The implementation MUST NOT silently normalize to upper-case."
+    ///
+    /// Canonical test vector: "HTTP method — lowercase rejected".
+    ///
+    /// Red Gate: fails with todo!() panic before implementation.
+    #[test]
+    fn test_BC_2_16_009_ec009_015_lowercase_get_produces_e_spec_025() {
+        let spec = make_spec_with_method("get");
+        let errors = errors_only(validate_step_methods(&spec));
+        assert!(
+            !errors.is_empty(),
+            "EC-009-015: 'get' (lowercase) is not in the case-sensitive whitelist; must produce E-SPEC-025"
+        );
+        assert!(
+            errors.iter().any(|e| matches!(e, SpecEngineError::InvalidHttpMethod { method_value, .. } if method_value == "get")),
+            "EC-009-015: error must cite method_value 'get' (not normalized to 'GET'); got {:?}",
+            errors
+        );
+    }
+
+    /// BC-2.16.009 §VR7: lowercase "post" is invalid (case-sensitive whitelist).
+    ///
+    /// Red Gate: fails with todo!() panic before implementation.
+    #[test]
+    fn test_BC_2_16_009_lowercase_post_produces_e_spec_025() {
+        let spec = make_spec_with_method("post");
+        let errors = errors_only(validate_step_methods(&spec));
+        assert!(
+            !errors.is_empty(),
+            "'post' (lowercase) is not in the case-sensitive whitelist; must produce E-SPEC-025"
+        );
+    }
+
+    /// BC-2.16.009 §VR7 EC-009-016: step.method = "" (empty string) → E-SPEC-025.
+    ///
+    /// Empty string is not in the whitelist.
+    ///
+    /// Red Gate: fails with todo!() panic before implementation.
+    #[test]
+    fn test_BC_2_16_009_ec009_016_empty_string_produces_e_spec_025() {
+        let spec = make_spec_with_method("");
+        let errors = errors_only(validate_step_methods(&spec));
+        assert!(
+            !errors.is_empty(),
+            "EC-009-016: empty string is not in the whitelist; must produce E-SPEC-025"
+        );
+        assert!(
+            errors.iter().any(|e| matches!(e, SpecEngineError::InvalidHttpMethod { method_value, .. } if method_value.is_empty())),
+            "EC-009-016: error must cite method_value '' (empty); got {:?}",
+            errors
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // AC-002 continued: E-SPEC-025 message format is byte-verbatim (POL-24)
+    // -----------------------------------------------------------------------
+
+    /// BC-2.16.009 §VR7 §Error message format; error-taxonomy.md E-SPEC-025; POL-24.
+    ///
+    /// The Display output of SpecEngineError::InvalidHttpMethod must be byte-verbatim with the
+    /// canonical error-taxonomy.md E-SPEC-025 message template:
+    ///
+    /// "Step '<step_name>' in '<sensor_id>.<table_name>' declares method '<method_value>'
+    ///  which is not a supported HTTP method. Supported: GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS"
+    ///
+    /// Any deviation is a POL-24 violation and requires an error-taxonomy.md version bump +
+    /// synchronized test update.
+    ///
+    /// Red Gate: fails with todo!() panic before implementation (via validate_step_methods).
+    #[test]
+    fn test_BC_2_16_009_e_spec_025_display_matches_error_taxonomy_template_byte_for_byte() {
+        let spec = make_spec_with_method("CONNECT");
+        let errors = errors_only(validate_step_methods(&spec));
+        assert!(
+            !errors.is_empty(),
+            "expected at least one E-SPEC-025 error for method 'CONNECT'"
+        );
+        let display = errors[0].to_string();
+        // Byte-verbatim template from error-taxonomy.md E-SPEC-025:
+        let expected = "Step 'fetch' in 'test-sensor.events' declares method 'CONNECT' \
+                        which is not a supported HTTP method. \
+                        Supported: GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS";
+        assert_eq!(
+            display, expected,
+            "E-SPEC-025 Display must match error-taxonomy.md E-SPEC-025 template byte-for-byte \
+             (POL-24). Got:\n  {display:?}\nExpected:\n  {expected:?}"
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // EC-009-017: absent step.method (defaults to "GET") is NOT an error
+    // -----------------------------------------------------------------------
+
+    /// BC-2.16.009 §VR7 EC-009-017: absent step.method defaults to "GET" at pipeline
+    /// level and must NOT produce E-SPEC-025.
+    ///
+    /// `FetchStep::default()` sets `method = "GET"`. The TOML spec may omit the `method`
+    /// field entirely — serde fills it with "GET" via Default. Since "GET" is in the
+    /// whitelist, Rule 7 must not error.
+    ///
+    /// Red Gate: fails with todo!() panic before implementation.
+    #[test]
+    fn test_BC_2_16_009_ec009_017_absent_method_defaults_get_no_e_spec_025() {
+        let step = FetchStep {
+            name: "fetch".to_string(),
+            // method is NOT set explicitly — uses Default which is "GET"
+            path_template: "/api/v1/events".to_string(),
+            response_path: "$.data".to_string(),
+            ..FetchStep::default()
+        };
+        assert_eq!(
+            step.method, "GET",
+            "FetchStep::default() must produce method='GET' per spec_parser.rs Default impl"
+        );
+        let table = TableSpec::new_point_in_time("events", "security_finding", vec![], vec![step]);
+        let spec = SensorSpec {
+            sensor_id: "test-sensor".to_string(),
+            name: "Test Sensor".to_string(),
+            auth_type: AuthType::ApiKey,
+            base_url: "https://example.com".to_string(),
+            tables: vec![table],
+            version: "1.0.0".to_string(),
+            ..SensorSpec::default()
+        };
+        let results = validate_step_methods(&spec);
+        assert!(
+            results.is_empty(),
+            "EC-009-017: absent method defaults to 'GET' which is whitelisted; expected zero \
+             E-SPEC-025 errors; got {:?}",
+            results
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // EC-009-018: Multi-error collection — INV-ERR-003
+    // -----------------------------------------------------------------------
+
+    /// BC-2.16.009 §VR7 EC-009-018; INV-ERR-003.
+    ///
+    /// Two steps in the same spec with invalid methods ("CONNECT" + "TRACE") must produce
+    /// exactly two E-SPEC-025 errors. The validator must NOT fail-fast on the first error.
+    ///
+    /// Red Gate: fails with todo!() panic before implementation.
+    #[test]
+    fn test_BC_2_16_009_ec009_018_multi_error_collection_two_invalid_methods() {
+        let spec = make_spec_with_two_steps("CONNECT", "TRACE");
+        let errors = errors_only(validate_step_methods(&spec));
+        assert_eq!(
+            errors.len(),
+            2,
+            "EC-009-018: two invalid methods must produce exactly 2 E-SPEC-025 errors \
+             (INV-ERR-003 no fail-fast); got {} error(s): {:?}",
+            errors.len(),
+            errors
+        );
+        // Both errors must be InvalidHttpMethod
+        for e in &errors {
+            assert!(
+                matches!(e, SpecEngineError::InvalidHttpMethod { .. }),
+                "EC-009-018: each error must be InvalidHttpMethod; got {:?}",
+                e
+            );
+        }
+        // The two method_values must be CONNECT and TRACE (in any order)
+        let method_values: Vec<&str> = errors
+            .iter()
+            .filter_map(|e| {
+                if let SpecEngineError::InvalidHttpMethod { method_value, .. } = e {
+                    Some(method_value.as_str())
+                } else {
+                    None
+                }
+            })
+            .collect();
+        assert!(
+            method_values.contains(&"CONNECT"),
+            "EC-009-018: errors must include 'CONNECT'; got {:?}",
+            method_values
+        );
+        assert!(
+            method_values.contains(&"TRACE"),
+            "EC-009-018: errors must include 'TRACE'; got {:?}",
+            method_values
+        );
+    }
+
+    /// Multi-error: one valid + one invalid step → exactly one error.
+    ///
+    /// Ensures that the validator does not error-out on valid steps.
+    ///
+    /// Red Gate: fails with todo!() panic before implementation.
+    #[test]
+    fn test_BC_2_16_009_mixed_valid_invalid_produces_one_error() {
+        let spec = make_spec_with_two_steps("GET", "CONNECT");
+        let errors = errors_only(validate_step_methods(&spec));
+        assert_eq!(
+            errors.len(),
+            1,
+            "one valid + one invalid step must produce exactly 1 E-SPEC-025 error; got {}: {:?}",
+            errors.len(),
+            errors
+        );
+        assert!(
+            matches!(&errors[0], SpecEngineError::InvalidHttpMethod { method_value, .. } if method_value == "CONNECT"),
+            "the single error must cite method_value 'CONNECT'; got {:?}",
+            errors[0]
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // AC-003: Rule 7 runs AFTER Rule 6 env-var resolution
+    // EC-009-019: env-resolved invalid method → E-SPEC-025 on resolved value
+    // EC-009-020: env token failed Rule 6 → Rule 7 skips step (no double-reporting)
+    // -----------------------------------------------------------------------
+
+    /// BC-2.16.009 §VR7 EC-009-019; AC-003.
+    ///
+    /// When `step.method` resolves (via Rule 6) to an invalid value (e.g., "CONNECT"),
+    /// Rule 7 must fire E-SPEC-025 on the RESOLVED value, not the raw token.
+    ///
+    /// Canonical test vector: "HTTP method — env-resolved invalid".
+    ///
+    /// Precondition: the spec passed to `validate_step_methods` has already had Rule 6
+    /// applied — the `method` field contains the resolved value "CONNECT", not "${env.M}".
+    ///
+    /// Red Gate: fails with todo!() panic before implementation.
+    #[test]
+    fn test_BC_2_16_009_env_resolved_invalid_method_caught_post_resolution() {
+        // After Rule 6 resolves ${env.SENSOR_METHOD}="CONNECT", the spec has method="CONNECT".
+        // validate_step_methods receives the already-resolved spec.
+        let spec = make_spec_with_method("CONNECT");
+        let errors = errors_only(validate_step_methods(&spec));
+        assert!(
+            !errors.is_empty(),
+            "AC-003: env-resolved method 'CONNECT' must produce E-SPEC-025; got zero errors"
+        );
+        assert!(
+            errors
+                .iter()
+                .any(|e| matches!(e, SpecEngineError::InvalidHttpMethod { method_value, .. } if method_value == "CONNECT")),
+            "AC-003: E-SPEC-025 error must cite the RESOLVED method value 'CONNECT'; got {:?}",
+            errors
+        );
+    }
+
+    /// BC-2.16.009 §VR7 EC-009-020; AC-003.
+    ///
+    /// When Rule 6 fails to resolve `step.method = "${env.SENSOR_METHOD}"` (var unset),
+    /// Rule 7 MUST SKIP that step. Double-reporting (E-SPEC-024 + E-SPEC-025 for the same
+    /// field) is noise, not signal.
+    ///
+    /// Precondition: when Rule 6 fails, the `step.method` field still contains the raw
+    /// `${env.VAR_NAME}` token (env_resolver.rs only mutates the field on success). Rule 7
+    /// detects unresolved tokens by checking if the method value matches the env token pattern
+    /// `${env.VAR_NAME}`.
+    ///
+    /// Red Gate: fails with todo!() panic before implementation.
+    #[test]
+    fn test_BC_2_16_009_ec009_020_unresolved_env_token_skipped_by_rule_7() {
+        // Simulate the state after Rule 6 fails: method field still contains raw token.
+        // env_resolver.rs does NOT mutate the field if any token is unresolvable (fail-closed).
+        let spec = make_spec_with_method("${env.SENSOR_STEP_METHOD}");
+        let results = validate_step_methods(&spec);
+        let raw_method = "${env.SENSOR_STEP_METHOD}";
+        assert!(
+            results.is_empty(),
+            "EC-009-020: method '{raw_method}' is an unresolved token from a \
+             failed Rule 6 pass; Rule 7 must SKIP this step to prevent double-reporting; \
+             expected zero E-SPEC-025 errors; got {results:?}",
+        );
+    }
+
+    /// BC-2.16.009 §VR7: Any `${env.VAR}` pattern in method is treated as Rule 6 failure.
+    ///
+    /// This covers the general case: any env token pattern remaining in the method field
+    /// after Rule 6 means Rule 6 failed; Rule 7 must skip it.
+    ///
+    /// Red Gate: fails with todo!() panic before implementation.
+    #[test]
+    fn test_BC_2_16_009_any_env_token_in_method_skipped_by_rule_7() {
+        // Multiple env token patterns that Rule 7 must skip.
+        for raw_token in &[
+            "${env.METHOD}",
+            "${env.HTTP_METHOD}",
+            "${env.CROWDSTRIKE_METHOD}",
+        ] {
+            let spec = make_spec_with_method(raw_token);
+            let results = validate_step_methods(&spec);
+            assert!(
+                results.is_empty(),
+                "method '{}' is an unresolved Rule-6 token; Rule 7 must skip it \
+                 (no E-SPEC-025); got {:?}",
+                raw_token,
+                results
+            );
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // Additional invalid methods — comprehensive edge case coverage
+    // -----------------------------------------------------------------------
+
+    /// BC-2.16.009 §VR7: mixed-case methods are invalid.
+    ///
+    /// "Get", "Post", "Delete" are not in the whitelist (case-sensitive).
+    ///
+    /// Red Gate: fails with todo!() panic before implementation.
+    #[test]
+    fn test_BC_2_16_009_mixed_case_methods_produce_e_spec_025() {
+        for method in &["Get", "Post", "Delete", "Put", "Patch", "Head", "Options"] {
+            let spec = make_spec_with_method(method);
+            let results = validate_step_methods(&spec);
+            assert!(
+                !results.is_empty(),
+                "'{}' (mixed-case) is not in the case-sensitive whitelist; must produce \
+                 E-SPEC-025",
+                method
+            );
+        }
+    }
+
+    /// BC-2.16.009 §VR7: "DELETE" and remaining whitelist members pass validation.
+    ///
+    /// Red Gate: fails with todo!() panic before implementation.
+    #[test]
+    fn test_BC_2_16_009_delete_put_patch_head_options_pass_validation() {
+        for method in &["DELETE", "PUT", "PATCH", "HEAD", "OPTIONS"] {
+            let spec = make_spec_with_method(method);
+            let results = validate_step_methods(&spec);
+            assert!(
+                results.is_empty(),
+                "'{}' is in ALLOWED_HTTP_METHODS; must produce zero E-SPEC-025 errors; got {:?}",
+                method,
+                results
+            );
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // VP-059 property: validate_step_methods never panic on any SensorSpec input
+    // -----------------------------------------------------------------------
+
+    /// BC-2.16.009 VP-059 invariant: validate_step_methods is a pure function that
+    /// never panics (except the implementation-required todo!() in stub state).
+    ///
+    /// Verifies that a spec with no tables produces an empty Vec (not a panic).
+    ///
+    /// Red Gate: fails with todo!() panic (from stub) before implementation — this is
+    /// expected and correct for Red Gate.
+    #[test]
+    fn test_BC_2_16_009_invariant_pure_function_no_panic_on_empty_spec() {
+        let spec = make_spec_no_tables();
+        let results = validate_step_methods(&spec);
+        assert!(
+            results.is_empty(),
+            "empty spec (no tables/steps) must produce zero errors, not panic; got {:?}",
+            results
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // F-LOCAL-P3-MED-002 — malformed env pseudo-tokens must NOT be skipped by Rule 7
+    //
+    // The skip-guard must use the SAME well-formed token grammar as Rule 6
+    // (ENV_TOKEN_REGEX: `\$\{env\.[A-Z0-9_]+\}`).  Malformed pseudo-tokens like
+    // `${env.lower}`, `${env.foo-bar}`, and `${env.}` do NOT match that regex →
+    // Rule 6 never processes them → they reach Rule 7 as literal strings → they are
+    // NOT in ALLOWED_HTTP_METHODS → must produce E-SPEC-025.
+    //
+    // CONFIRM: the existing well-formed-unresolved-token tests above (EC-009-020 and
+    // test_BC_2_16_009_any_env_token_in_method_skipped_by_rule_7) are unaffected —
+    // `${env.SENSOR_STEP_METHOD}` and friends DO match ENV_TOKEN_REGEX and ARE skipped.
+    // -----------------------------------------------------------------------
+
+    /// F-LOCAL-P3-MED-002: `${env.lower}` (lowercase VAR_NAME) is a malformed
+    /// pseudo-token — Rule 6 only handles `[A-Z0-9_]+`, so this was NEVER resolved.
+    /// Rule 7 must NOT skip it (old broad `contains("${env.")` check skipped it).
+    /// It must produce E-SPEC-025 because it is not in ALLOWED_HTTP_METHODS.
+    #[test]
+    fn test_BC_2_16_009_malformed_env_lowercase_var_name_produces_e_spec_025() {
+        let method = "${env.lower}";
+        let spec = make_spec_with_method(method);
+        let errors = errors_only(validate_step_methods(&spec));
+        assert!(
+            !errors.is_empty(),
+            "F-LOCAL-P3-MED-002: '{method}' has a lowercase VAR_NAME — Rule 6 grammar \
+             requires [A-Z0-9_]+ so this token is NEVER resolved; Rule 7 must NOT skip it; \
+             expected E-SPEC-025, got zero errors"
+        );
+        assert!(
+            errors.iter().any(|e| matches!(
+                e,
+                SpecEngineError::InvalidHttpMethod { method_value, .. }
+                    if method_value == method
+            )),
+            "F-LOCAL-P3-MED-002: error must be InvalidHttpMethod with method_value \
+             '{method}'; got {errors:?}",
+        );
+    }
+
+    /// F-LOCAL-P3-MED-002: `${env.foo-bar}` (hyphen in VAR_NAME) is a malformed
+    /// pseudo-token — Rule 6 grammar forbids hyphens (`[A-Z0-9_]+` only).
+    /// Rule 7 must NOT skip it; it must produce E-SPEC-025.
+    #[test]
+    fn test_BC_2_16_009_malformed_env_hyphen_in_var_name_produces_e_spec_025() {
+        let method = "${env.foo-bar}";
+        let spec = make_spec_with_method(method);
+        let errors = errors_only(validate_step_methods(&spec));
+        assert!(
+            !errors.is_empty(),
+            "F-LOCAL-P3-MED-002: '{method}' has a hyphen in VAR_NAME — not matched by \
+             ENV_TOKEN_REGEX ([A-Z0-9_]+); Rule 7 must NOT skip it; expected E-SPEC-025, \
+             got zero errors"
+        );
+        assert!(
+            errors.iter().any(|e| matches!(
+                e,
+                SpecEngineError::InvalidHttpMethod { method_value, .. }
+                    if method_value == method
+            )),
+            "F-LOCAL-P3-MED-002: error must be InvalidHttpMethod with method_value \
+             '{method}'; got {errors:?}",
+        );
+    }
+
+    /// F-LOCAL-P3-MED-002: `${env.}` (empty VAR_NAME) is a malformed pseudo-token —
+    /// Rule 6 grammar requires at least one `[A-Z0-9_]` character after `env.`.
+    /// Rule 7 must NOT skip it; it must produce E-SPEC-025.
+    #[test]
+    fn test_BC_2_16_009_malformed_env_empty_var_name_produces_e_spec_025() {
+        let method = "${env.}";
+        let spec = make_spec_with_method(method);
+        let errors = errors_only(validate_step_methods(&spec));
+        assert!(
+            !errors.is_empty(),
+            "F-LOCAL-P3-MED-002: '{method}' has an empty VAR_NAME — not matched by \
+             ENV_TOKEN_REGEX ([A-Z0-9_]+); Rule 7 must NOT skip it; expected E-SPEC-025, \
+             got zero errors"
+        );
+        assert!(
+            errors.iter().any(|e| matches!(
+                e,
+                SpecEngineError::InvalidHttpMethod { method_value, .. }
+                    if method_value == method
+            )),
+            "F-LOCAL-P3-MED-002: error must be InvalidHttpMethod with method_value \
+             '{method}'; got {errors:?}",
+        );
+    }
+
+    /// F-LOCAL-P3-MED-002: Confirm that a well-formed unresolved token IS still correctly
+    /// skipped after the fix — the skip-guard change must not regress EC-009-020.
+    ///
+    /// `${env.VALID_NAME}` (uppercase, underscore only) matches ENV_TOKEN_REGEX exactly.
+    /// After a failed Rule 6 pass (var unset), the method field still holds this raw token.
+    /// Rule 7 must skip it to prevent double-reporting E-SPEC-024 + E-SPEC-025.
+    #[test]
+    fn test_BC_2_16_009_well_formed_unresolved_token_still_skipped_after_f_med_002_fix() {
+        // These are all WELL-FORMED per ENV_TOKEN_REGEX `[A-Z0-9_]+`.
+        // Rule 7 must continue to skip them (no regression from the F-MED-002 fix).
+        for raw_token in &[
+            "${env.VALID_NAME}",
+            "${env.HTTP_METHOD}",
+            "${env.SENSOR_STEP_METHOD}",
+            "${env.A}",
+            "${env.A1_B2}",
+        ] {
+            let spec = make_spec_with_method(raw_token);
+            let results = validate_step_methods(&spec);
+            assert!(
+                results.is_empty(),
+                "F-LOCAL-P3-MED-002 non-regression: '{}' is a WELL-FORMED env token \
+                 (VAR_NAME matches [A-Z0-9_]+); Rule 7 must still SKIP it after the \
+                 malformed-token fix; got {:?}",
+                raw_token,
+                results
+            );
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // F-PR1-OBS-001 — skip-guard must be a FULL-MATCH, not a substring match
+    //
+    // A method like "GET${env.X}" CONTAINS a well-formed env token but is NOT
+    // EXACTLY a single env token. The old `ENV_TOKEN_REGEX.is_match(...)` is a
+    // substring check — it fires even for partial embeddings, skipping values
+    // that Rule 6 cannot fully replace (partial interpolation residue). The
+    // correct guard fires ONLY when the entire method string equals one token.
+    // -----------------------------------------------------------------------
+
+    /// F-PR1-OBS-001: `"GET${env.X}"` contains a valid env token as a suffix, but the
+    /// overall string is NOT a valid HTTP method and is NOT exactly a single unresolved
+    /// token. Rule 7 must NOT skip it — the skip-guard must require a full-match.
+    ///
+    /// This test FAILS before the anchor fix (substring `is_match` skips it) and PASSES
+    /// after (full-match guard does not skip it; falls through to whitelist → E-SPEC-025).
+    #[test]
+    fn test_BC_2_16_009_f_pr1_obs_001_partial_token_embedding_not_skipped() {
+        let method = "GET${env.X}";
+        let spec = make_spec_with_method(method);
+        let errors = errors_only(validate_step_methods(&spec));
+        assert!(
+            !errors.is_empty(),
+            "F-PR1-OBS-001: '{method}' CONTAINS a valid env token but is NOT exactly one \
+             token — Rule 7 skip-guard must be a FULL-MATCH; a substring `is_match` \
+             incorrectly skips this; expected E-SPEC-025, got zero errors"
+        );
+        assert!(
+            errors
+                .iter()
+                .any(|e| matches!(e, SpecEngineError::InvalidHttpMethod { .. })),
+            "F-PR1-OBS-001: error must be InvalidHttpMethod; got {errors:?}"
+        );
+    }
+
+    /// F-PR1-OBS-001: `"${env.X}GET"` (token prefix, literal suffix) — same class as above.
+    /// Token is embedded at the start; overall string is not a single token.
+    #[test]
+    fn test_BC_2_16_009_f_pr1_obs_001_token_prefix_not_skipped() {
+        let method = "${env.X}GET";
+        let spec = make_spec_with_method(method);
+        let errors = errors_only(validate_step_methods(&spec));
+        assert!(
+            !errors.is_empty(),
+            "F-PR1-OBS-001: '{method}' has a valid env token as prefix, not as the entire \
+             value — Rule 7 skip-guard must require full-match; substring check incorrectly \
+             skips it; expected E-SPEC-025, got zero errors"
+        );
+    }
+
+    /// F-PR1-OBS-001: `"${env.A}${env.B}"` (two tokens concatenated) — neither a single
+    /// token nor a valid method. Must not be skipped; must produce E-SPEC-025.
+    #[test]
+    fn test_BC_2_16_009_f_pr1_obs_001_two_tokens_concatenated_not_skipped() {
+        let method = "${env.A}${env.B}";
+        let spec = make_spec_with_method(method);
+        let errors = errors_only(validate_step_methods(&spec));
+        assert!(
+            !errors.is_empty(),
+            "F-PR1-OBS-001: '{method}' is two concatenated env tokens, not a single token \
+             and not a valid method — Rule 7 skip-guard must require full-match of one token; \
+             expected E-SPEC-025, got zero errors"
+        );
+    }
+
+    /// F-PR1-OBS-001: non-regression — a value that IS exactly one well-formed token
+    /// must still be skipped (no regression from the anchor fix).
+    #[test]
+    fn test_BC_2_16_009_f_pr1_obs_001_exact_single_token_still_skipped() {
+        for method in &["${env.X}", "${env.VALID_NAME}", "${env.A1_B2}"] {
+            let spec = make_spec_with_method(method);
+            let results = validate_step_methods(&spec);
+            assert!(
+                results.is_empty(),
+                "F-PR1-OBS-001 non-regression: '{method}' IS exactly one well-formed token; \
+                 Rule 7 must still skip it; got {results:?}"
+            );
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // SEC-001 — method_value in InvalidHttpMethod must be truncated at 32 codepoints
+    //
+    // An overlong method string (e.g., 33 chars) echoed verbatim in E-SPEC-025
+    // produces an unbounded error message. `truncate_at_char_boundary` at 32 chars
+    // caps the echo (HTTP methods are ≤7 chars; 32 is generous). Normal-length methods
+    // (≤32 chars) must pass through unchanged (POL-24 Display byte-match).
+    // -----------------------------------------------------------------------
+
+    /// SEC-001: A 33-char method value must be truncated to ≤32 chars in
+    /// `InvalidHttpMethod.method_value`.
+    ///
+    /// This test FAILS before the truncation fix (method_value carries full 33-char string)
+    /// and PASSES after (`truncate_at_char_boundary(&step.method, 32)` is applied).
+    #[test]
+    fn test_BC_2_16_009_sec_001_overlong_method_truncated_in_error() {
+        // 33 ASCII chars — exceeds the 32-char cap
+        let method = "A".repeat(33);
+        let spec = make_spec_with_method(&method);
+        let results = validate_step_methods(&spec);
+        assert!(
+            !results.is_empty(),
+            "SEC-001: a 33-char method value must produce E-SPEC-025 (not in whitelist); \
+             got zero errors"
+        );
+        let (_, _, ref err) = results[0];
+        if let SpecEngineError::InvalidHttpMethod { method_value, .. } = err {
+            assert!(
+                method_value.len() <= 32,
+                "SEC-001: method_value in E-SPEC-025 must be truncated to ≤32 codepoints; \
+                 got {} codepoints: '{method_value}'",
+                method_value.len()
+            );
+        } else {
+            panic!("SEC-001: expected InvalidHttpMethod, got {err:?}");
+        }
+    }
+
+    /// SEC-001: A 7-char method value ("CONNECT", a valid-length but disallowed method)
+    /// must NOT be truncated — 7 ≤ 32, so it passes through unchanged (POL-24 non-regression).
+    #[test]
+    fn test_BC_2_16_009_sec_001_normal_length_method_not_truncated() {
+        let method = "CONNECT"; // 7 chars — under the 32-char cap; must not be truncated
+        let spec = make_spec_with_method(method);
+        let results = validate_step_methods(&spec);
+        assert!(
+            !results.is_empty(),
+            "SEC-001 non-regression: 'CONNECT' is not in ALLOWED_HTTP_METHODS; \
+             must produce E-SPEC-025"
+        );
+        let (_, _, ref err) = results[0];
+        if let SpecEngineError::InvalidHttpMethod { method_value, .. } = err {
+            assert_eq!(
+                method_value, "CONNECT",
+                "SEC-001 non-regression: 7-char method 'CONNECT' must NOT be truncated; \
+                 Display must cite the exact value (POL-24); got '{method_value}'"
+            );
+        } else {
+            panic!("SEC-001 non-regression: expected InvalidHttpMethod, got {err:?}");
+        }
+    }
+
+    /// SEC-001: A 32-char method value is exactly at the cap — must not be truncated.
+    #[test]
+    fn test_BC_2_16_009_sec_001_exactly_32_chars_not_truncated() {
+        let method = "B".repeat(32);
+        let spec = make_spec_with_method(&method);
+        let results = validate_step_methods(&spec);
+        assert!(
+            !results.is_empty(),
+            "32-char method must produce E-SPEC-025"
+        );
+        let (_, _, ref err) = results[0];
+        if let SpecEngineError::InvalidHttpMethod { method_value, .. } = err {
+            assert_eq!(
+                method_value.len(),
+                32,
+                "SEC-001: 32-char method is exactly at cap, must be preserved as-is; \
+                 got len={}, value='{method_value}'",
+                method_value.len()
+            );
+        } else {
+            panic!("SEC-001: expected InvalidHttpMethod, got {err:?}");
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // F-LOCAL-P4-MED-001 — load-bearing test: duplicate step names in one table
+    //
+    // ROOT CAUSE: The old name-reverse-lookup in load_all's toml_path construction
+    // broke when two steps in one table shared the same name — the lookup always
+    // found the FIRST step's index, even if the SECOND step had the invalid method.
+    //
+    // FIX: validate_step_methods now carries (ti, si) indices in its return value;
+    // load_all uses those indices directly (no name lookup at all).
+    //
+    // This test is LOAD-BEARING against the old name-reverse-lookup pattern:
+    //   - Old code (name lookup): finds index 0 for both steps → toml_path is
+    //     `sensor.tables[0].steps[0].method` even though the invalid step is at
+    //     index 1 → assertion FAILS.
+    //   - New code (index-carry): carries si=1 directly → toml_path is
+    //     `sensor.tables[0].steps[1].method` → assertion PASSES.
+    //
+    // Traces to: F-LOCAL-P4-MED-001; BC-2.16.009 §VR7 "exact TOML path for
+    // actionable correction"; S-SPEC-HTTP-METHOD-VALIDATION-001.
+    // -----------------------------------------------------------------------
+
+    /// F-LOCAL-P4-MED-001 — Duplicate step names: second step (index 1) has invalid
+    /// method; validate_step_methods must carry index 1 (not 0) in the returned tuple.
+    ///
+    /// Fixture: ONE table, TWO steps both named "fetch" (duplicate step names are NOT
+    /// rejected by the engine — step-name uniqueness is not enforced). The FIRST step
+    /// has valid method "GET"; the SECOND step has invalid method "CONNECT".
+    ///
+    /// Assertion: the returned tuple has `step_index == 1`, proving that the index is
+    /// derived from the enumerate loop position, not from a name reverse-lookup (which
+    /// would return 0 for both because .find() stops at the first match).
+    ///
+    /// This test FAILS under the old name-reverse-lookup code and PASSES with the
+    /// index-carry fix (F-LOCAL-P4-MED-001 structural fix).
+    #[test]
+    fn test_BC_2_16_009_f_local_p4_med_001_duplicate_step_names_carry_correct_index() {
+        // Two steps with IDENTICAL names — step-name uniqueness is NOT enforced.
+        // The SECOND step (index 1) has the invalid method.
+        let step0 = FetchStep {
+            name: "fetch".to_string(), // duplicate name — same as step1
+            method: "GET".to_string(), // VALID
+            path_template: "/api/v1/first".to_string(),
+            response_path: "$.data".to_string(),
+            ..FetchStep::default()
+        };
+        let step1 = FetchStep {
+            name: "fetch".to_string(),     // duplicate name — same as step0
+            method: "CONNECT".to_string(), // INVALID — must produce E-SPEC-025 at steps[1]
+            path_template: "/api/v1/second".to_string(),
+            response_path: "$.data".to_string(),
+            ..FetchStep::default()
+        };
+        let table =
+            TableSpec::new_point_in_time("events", "security_finding", vec![], vec![step0, step1]);
+        let spec = SensorSpec {
+            sensor_id: "test-sensor".to_string(),
+            name: "Test Sensor".to_string(),
+            auth_type: AuthType::ApiKey,
+            base_url: "https://example.com".to_string(),
+            tables: vec![table],
+            version: "1.0.0".to_string(),
+            ..SensorSpec::default()
+        };
+
+        let results = validate_step_methods(&spec);
+
+        // Must produce exactly one error (the first step is valid GET).
+        assert_eq!(
+            results.len(),
+            1,
+            "F-LOCAL-P4-MED-001: one valid GET step + one invalid CONNECT step must \
+             produce exactly 1 error; got {}: {:?}",
+            results.len(),
+            results
+        );
+
+        let (ti, si, ref err) = results[0];
+
+        // Table index must be 0 (only one table in spec).
+        assert_eq!(
+            ti, 0,
+            "F-LOCAL-P4-MED-001: table index must be 0 (first and only table); got {ti}"
+        );
+
+        // LOAD-BEARING assertion: step index must be 1 (the SECOND step has the invalid method).
+        // Under the old name-reverse-lookup: .find(|s| s.name == "fetch") returns index 0
+        // (first match), so ti=0/si=0 would have been emitted → this assertion FAILS.
+        // With index-carry fix: enumerate gives si=1 directly → this assertion PASSES.
+        assert_eq!(
+            si, 1,
+            "F-LOCAL-P4-MED-001 LOAD-BEARING: step index must be 1 (the second step is \
+             at index 1 and has the invalid method); a name-reverse-lookup would return \
+             index 0 (first match on 'fetch'), producing the WRONG path. got si={si}"
+        );
+
+        // Error must cite the CONNECT method.
+        assert!(
+            matches!(
+                err,
+                SpecEngineError::InvalidHttpMethod { method_value, .. }
+                    if method_value == "CONNECT"
+            ),
+            "F-LOCAL-P4-MED-001: error must cite method_value 'CONNECT'; got {err:?}"
+        );
+
+        // Verify the canonical toml_path would be correctly constructed from these indices.
+        let expected_path = format!("sensor.tables[{ti}].steps[{si}].method");
+        assert_eq!(
+            expected_path, "sensor.tables[0].steps[1].method",
+            "F-LOCAL-P4-MED-001: canonical toml_path from carried indices must be \
+             'sensor.tables[0].steps[1].method'; got '{expected_path}'"
+        );
+    }
 }
 
 #[cfg(test)]

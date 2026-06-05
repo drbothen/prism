@@ -20,6 +20,7 @@ use crate::{
         AddSensorSpecArgs, AddSensorSpecResult, SensorTableDescriptor, ValidationError,
         sensor_table_descriptor_from_table_spec,
     },
+    validation::validate_step_methods,
 };
 
 /// SEC-001 (CWE-22): Regex enforcing the documented `sensor_id` format constraint.
@@ -79,6 +80,29 @@ pub fn parse_and_validate_spec_toml(
                 sensor_id: Some(spec.sensor_id.clone()),
                 source_path: source_path.to_string(),
                 errors: env_errors.into_iter().map(|e| format!("{e}")).collect(),
+            }]);
+        }
+    }
+
+    // BC-2.16.009 §Validation Rules 7 (AC-7) — HTTP method whitelist validation.
+    //
+    // Runs AFTER Rule 6 env-var resolution. Validates all resolved step.method values
+    // against ALLOWED_HTTP_METHODS. Steps whose method still contains an unresolved
+    // ${env.VAR} token (i.e., failed Rule 6) are skipped to prevent double-reporting.
+    // Invalid method → E-SPEC-025; multiple invalid steps → multiple errors (INV-ERR-003).
+    // S-SPEC-HTTP-METHOD-VALIDATION-001; BC-2.16.009 §VR7.
+    {
+        // validate_step_methods returns (table_idx, step_idx, error) tuples.
+        // add_sensor_spec only needs the error Display strings; discard the indices.
+        let method_errors: Vec<_> = validate_step_methods(&spec)
+            .into_iter()
+            .map(|(_, _, e)| e)
+            .collect();
+        if !method_errors.is_empty() {
+            return Err(vec![ValidationError {
+                sensor_id: Some(spec.sensor_id.clone()),
+                source_path: source_path.to_string(),
+                errors: method_errors.into_iter().map(|e| format!("{e}")).collect(),
             }]);
         }
     }

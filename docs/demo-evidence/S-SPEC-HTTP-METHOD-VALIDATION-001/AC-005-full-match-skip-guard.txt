@@ -1,0 +1,58 @@
+# AC-005 Evidence — Full-match skip-guard: partial token embeddings are NOT skipped
+#
+# Story:   S-SPEC-HTTP-METHOD-VALIDATION-001 v1.4
+# AC:      AC-005 — Skip-guard is a FULL-MATCH (not substring); partial embeddings produce E-SPEC-025
+#          Given: step.method = "GET${env.X}" | "${env.X}GET" | "${env.A}${env.B}"
+#          When:  validate_step_methods() runs the skip-guard check
+#          Then:  partial token embeddings are NOT skipped → fall through to whitelist → E-SPEC-025
+#          Non-regression: exact single well-formed tokens ARE still skipped (F-PR1-OBS-001)
+# BC:      BC-2.16.009 v1.10 §VR7 Point-3 full-match skip-guard (F-PR1-OBS-001 fix)
+# Fix:     Old code used ENV_TOKEN_REGEX.is_match(&step.method) — a SUBSTRING check.
+#          That fires even for "GET${env.X}" (contains a token), incorrectly skipping
+#          values that Rule 6 cannot fully replace (partial interpolation residue).
+#          Fix: ENV_TOKEN_REGEX.find(...).is_some_and(|m| m.start()==0 && m.end()==len)
+#          — the match must cover bytes 0..len (full-match). Only then is the step skipped.
+# Source:  crates/prism-spec-engine/src/validation.rs — validate_step_methods()
+#          let is_exactly_one_token = crate::env_resolver::ENV_TOKEN_REGEX
+#              .find(&step.method)
+#              .is_some_and(|m| m.start() == 0 && m.end() == step.method.len());
+# Demo mode: LIBRARY (test-harness nextest capture)
+#
+# ─── What the tests assert ────────────────────────────────────────────────────
+#   Partial embeddings NOT skipped (must produce E-SPEC-025):
+#     - "GET${env.X}": token at suffix; overall string is NOT a valid method and NOT one token
+#       (test_BC_2_16_009_f_pr1_obs_001_partial_token_embedding_not_skipped)
+#     - "${env.X}GET": token at prefix; not a single token
+#       (test_BC_2_16_009_f_pr1_obs_001_token_prefix_not_skipped)
+#     - "${env.A}${env.B}": two concatenated tokens; not a single token
+#       (test_BC_2_16_009_f_pr1_obs_001_two_tokens_concatenated_not_skipped)
+#   Non-regression — exact single well-formed tokens still skipped:
+#     - "${env.X}", "${env.VALID_NAME}", "${env.A1_B2}" all skipped (no E-SPEC-025)
+#       (test_BC_2_16_009_f_pr1_obs_001_exact_single_token_still_skipped)
+#
+# Red Gate tests:
+#   test_BC_2_16_009_f_pr1_obs_001_partial_token_embedding_not_skipped
+#   test_BC_2_16_009_f_pr1_obs_001_token_prefix_not_skipped
+#   test_BC_2_16_009_f_pr1_obs_001_two_tokens_concatenated_not_skipped
+#   test_BC_2_16_009_f_pr1_obs_001_exact_single_token_still_skipped
+#
+# ─── nextest output (captured 2026-06-04) ────────────────────────────────────
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.41s
+────────────
+ Nextest run ID bb4676ab-2840-4c2a-9b78-04a566ad31ea with nextest profile: default
+    Starting 4 tests across 37 binaries (566 tests skipped)
+        PASS [   0.012s] (1/4) prism-spec-engine validation::http_method_whitelist_tests::test_BC_2_16_009_f_pr1_obs_001_exact_single_token_still_skipped
+        PASS [   0.012s] (2/4) prism-spec-engine validation::http_method_whitelist_tests::test_BC_2_16_009_f_pr1_obs_001_token_prefix_not_skipped
+        PASS [   0.012s] (3/4) prism-spec-engine validation::http_method_whitelist_tests::test_BC_2_16_009_f_pr1_obs_001_partial_token_embedding_not_skipped
+        PASS [   0.012s] (4/4) prism-spec-engine validation::http_method_whitelist_tests::test_BC_2_16_009_f_pr1_obs_001_two_tokens_concatenated_not_skipped
+────────────
+     Summary [   0.012s] 4 tests run: 4 passed, 566 skipped
+
+# ─── Verdict ──────────────────────────────────────────────────────────────────
+# PASS — AC-005 satisfied.
+# Full-match skip-guard confirmed: partial token embeddings ("GET${env.X}",
+# "${env.X}GET", "${env.A}${env.B}") are NOT skipped and produce E-SPEC-025.
+# Old substring is_match would have incorrectly skipped all three.
+# Non-regression: exact single well-formed tokens ("${env.X}", "${env.VALID_NAME}",
+# "${env.A1_B2}") are still correctly skipped after the full-match fix (F-PR1-OBS-001).

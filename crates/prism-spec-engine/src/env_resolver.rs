@@ -40,7 +40,13 @@ use crate::{error::SpecEngineError, spec_parser::SensorSpec};
 /// Only the `${env.*}` namespace is matched — `${step.*}`, `${query.*}`, etc. are
 /// NOT matched and are left untouched by this pass (BC-2.16.009 §Validation Rules 6
 /// namespace boundary).
-static ENV_TOKEN_REGEX: LazyLock<Regex> = LazyLock::new(|| {
+///
+/// Exposed as `pub(crate)` so that `validation.rs` Rule 7 can share the SAME grammar
+/// to test whether a method field still contains a well-formed env token (TD-VSDD-060
+/// single source of truth — no duplicated pattern string). Rule 7 skips only when this
+/// regex matches; malformed pseudo-tokens like `${env.lower}` or `${env.}` do NOT match
+/// and are therefore NOT skipped (F-LOCAL-P3-MED-002).
+pub(crate) static ENV_TOKEN_REGEX: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"\$\{env\.([A-Z0-9_]+)\}").expect("ENV_TOKEN_REGEX is a valid pattern")
 });
 

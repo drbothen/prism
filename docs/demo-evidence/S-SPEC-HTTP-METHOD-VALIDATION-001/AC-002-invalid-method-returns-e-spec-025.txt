@@ -1,0 +1,69 @@
+# AC-002 Evidence — Invalid / unsupported method returns structured E-SPEC-025 error
+#
+# Story:   S-SPEC-HTTP-METHOD-VALIDATION-001 v1.4
+# AC:      AC-002 — Invalid step.method returns structured E-SPEC-025 error
+#          Given: step.method = "CONNECT" | "TRACE" | "get" | "" | "GETT" | etc.
+#          When:  validate_step_methods() is called (post Rule 6)
+#          Then:  SpecEngineError::InvalidHttpMethod emitted with step_name, sensor_id,
+#                 table_name, method_value fields; Display matches E-SPEC-025 template
+#                 byte-for-byte (POL-24); all errors collected (INV-ERR-003 no fail-fast)
+# BC:      BC-2.16.009 v1.10 §Validation Rules 7 (EC-009-012..016, EC-009-018);
+#          error-taxonomy.md v1.60 E-SPEC-025 canonical template
+# Error template (byte-verbatim, POL-24):
+#   "Step '<step_name>' in '<sensor_id>.<table_name>' declares method '<method_value>'
+#    which is not a supported HTTP method. Supported: GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS"
+# Source:  crates/prism-spec-engine/src/validation.rs — validate_step_methods()
+#          crates/prism-spec-engine/src/error.rs — SpecEngineError::InvalidHttpMethod
+# Demo mode: LIBRARY (test-harness nextest capture)
+#
+# ─── What the tests assert ────────────────────────────────────────────────────
+#   validate_step_methods(&spec) returns exactly 1 InvalidHttpMethod error when:
+#     - method = "CONNECT" (EC-009-012): SpecEngineError::InvalidHttpMethod with all 4 fields
+#     - method = "TRACE" (EC-009-013): InvalidHttpMethod emitted
+#     - method = "GETT" (EC-009-014): typo → InvalidHttpMethod emitted
+#     - method = "get" (EC-009-015): lowercase → rejected; NOT normalized to "GET"
+#     - method = "post" (lowercase): rejected; case-sensitive whitelist
+#     - method = "" (EC-009-016): empty string rejected
+#     - mixed-case variants (Get/Post/Delete/Put/Patch/Head/Options): all rejected
+#   E-SPEC-025 Display format matches error-taxonomy.md v1.60 template byte-for-byte (POL-24):
+#     test_BC_2_16_009_e_spec_025_display_matches_error_taxonomy_template_byte_for_byte
+#   Multi-error collection (INV-ERR-003 no fail-fast):
+#     - EC-009-018: "CONNECT" + "TRACE" in same spec → exactly 2 errors
+#     - Mixed: "GET" (valid) + "CONNECT" (invalid) → exactly 1 error
+#   Load-path integration:
+#     - test_BC_2_16_009_load_path_connect_method_produces_e_spec_025
+#     - test_BC_2_16_009_load_all_invalid_method_produces_e_spec_025_with_numeric_toml_path
+#       (canonical TOML path "sensor.tables[{ti}].steps[{si}].method" in load_all() output)
+#
+# Red Gate test (story spec §Acceptance Criteria):
+#   test_BC_2_16_009_invalid_http_method_returns_structured_e_spec_025
+#
+# ─── nextest output (captured 2026-06-04) ────────────────────────────────────
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.42s
+────────────
+ Nextest run ID d684b32b-93ab-41b9-aa1c-181ce989e683 with nextest profile: default
+    Starting 13 tests across 37 binaries (557 tests skipped)
+        PASS [   0.031s] ( 1/13) prism-spec-engine validation::http_method_whitelist_tests::test_BC_2_16_009_mixed_case_methods_produce_e_spec_025
+        PASS [   0.032s] ( 2/13) prism-spec-engine validation::http_method_whitelist_tests::test_BC_2_16_009_ec009_016_empty_string_produces_e_spec_025
+        PASS [   0.033s] ( 3/13) prism-spec-engine validation::http_method_whitelist_tests::test_BC_2_16_009_mixed_valid_invalid_produces_one_error
+        PASS [   0.033s] ( 4/13) prism-spec-engine validation::http_method_whitelist_tests::test_BC_2_16_009_lowercase_post_produces_e_spec_025
+        PASS [   0.034s] ( 5/13) prism-spec-engine validation::http_method_whitelist_tests::test_BC_2_16_009_ec009_013_trace_produces_e_spec_025
+        PASS [   0.034s] ( 6/13) prism-spec-engine validation::http_method_whitelist_tests::test_BC_2_16_009_ec009_015_lowercase_get_produces_e_spec_025
+        PASS [   0.034s] ( 7/13) prism-spec-engine validation::http_method_whitelist_tests::test_BC_2_16_009_invalid_http_method_returns_structured_e_spec_025
+        PASS [   0.034s] ( 8/13) prism-spec-engine validation::http_method_whitelist_tests::test_BC_2_16_009_ec009_018_multi_error_collection_two_invalid_methods
+        PASS [   0.034s] ( 9/13) prism-spec-engine validation::http_method_whitelist_tests::test_BC_2_16_009_ec009_012_connect_produces_e_spec_025
+        PASS [   0.034s] (10/13) prism-spec-engine validation::http_method_whitelist_tests::test_BC_2_16_009_ec009_014_typo_gett_produces_e_spec_025
+        PASS [   0.035s] (11/13) prism-spec-engine validation::http_method_whitelist_tests::test_BC_2_16_009_e_spec_025_display_matches_error_taxonomy_template_byte_for_byte
+        PASS [   0.074s] (12/13) prism-spec-engine::bc_2_16_009_test test_BC_2_16_009_load_path_connect_method_produces_e_spec_025
+        PASS [   0.074s] (13/13) prism-spec-engine::bc_2_16_009_test test_BC_2_16_009_load_all_invalid_method_produces_e_spec_025_with_numeric_toml_path
+────────────
+     Summary [   0.075s] 13 tests run: 13 passed, 557 skipped
+
+# ─── Verdict ──────────────────────────────────────────────────────────────────
+# PASS — AC-002 satisfied.
+# All invalid-method scenarios (CONNECT, TRACE, typos, lowercase, empty string,
+# mixed-case) produce SpecEngineError::InvalidHttpMethod with correct field values.
+# E-SPEC-025 Display matches error-taxonomy.md v1.60 template byte-for-byte (POL-24).
+# Multi-error collection confirmed: 2 invalid steps → 2 errors (INV-ERR-003).
+# Load_path() and load_all() both surface E-SPEC-025 with canonical TOML path.

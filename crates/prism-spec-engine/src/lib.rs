@@ -118,7 +118,7 @@ pub use types::{
 };
 pub use validation::{
     ValidationError, ValidationWarning, ValidatorOutput, validate_auth_plugin_fields,
-    validate_auth_plugin_registered, validate_sensor_spec,
+    validate_auth_plugin_registered, validate_sensor_spec, validate_step_methods,
 };
 pub use write_endpoint::{
     BatchMode, WriteEndpointRegistry, WriteEndpointSpec, WriteStep, WriteTableDescriptor,

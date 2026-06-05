@@ -53,6 +53,46 @@ fn bundled_spec_path(filename: &str) -> std::path::PathBuf {
 // RG-01 / AC-006: All 4 bundled specs load at boot
 // ---------------------------------------------------------------------------
 
+/// Set stub env vars required by the 4 bundled TOML specs' `${env.VAR}` tokens.
+///
+/// The bundled sensor TOMLs use env vars for `base_url` (BC-2.16.009 §VR6 env-var
+/// token pattern). `SpecLoader::load_all` now runs Rule 6 (env-var resolution) before
+/// Rule 7 (HTTP method whitelist check) — a requirement of BC-2.16.009 §VR7 ordering
+/// (F-PR1-MED-001 fix). Without the env vars set, `load_all` produces E-SPEC-024
+/// errors for each unresolvable token and rejects all 4 specs.
+///
+/// In production the operator sets these vars before `prism start`. In tests we use
+/// well-formed stub values (valid URLs) so Rule 6 resolves cleanly and subsequent
+/// validation passes without hitting real sensor APIs.
+///
+/// Returns an array of variable names that were set, so callers can unset them after
+/// the assertion. SAFETY: only call from single-threaded test contexts.
+fn set_bundled_spec_env_vars_for_test() -> [&'static str; 4] {
+    let vars: [(&str, &str); 4] = [
+        ("CROWDSTRIKE_BASE_URL", "https://api.crowdstrike.test"),
+        ("ARMIS_INSTANCE_URL", "https://armis.test"),
+        // CYBERINT_ENVIRONMENT is a subdomain segment embedded as:
+        //   base_url = "https://${env.CYBERINT_ENVIRONMENT}.cyberint.io"
+        // A valid subdomain label is sufficient.
+        ("CYBERINT_ENVIRONMENT", "stub-env"),
+        ("CLAROTY_INSTANCE_URL", "https://claroty.test"),
+    ];
+    // SAFETY: test isolation — these tests are run serially by nextest (no thread-level
+    // parallelism within a single binary invocation for env mutation tests).
+    for (name, value) in &vars {
+        unsafe { std::env::set_var(name, value) };
+    }
+    vars.map(|(name, _)| name)
+}
+
+/// Unset the stub env vars set by `set_bundled_spec_env_vars_for_test`.
+fn unset_bundled_spec_env_vars_for_test(names: [&str; 4]) {
+    // SAFETY: test cleanup — symmetric with set_bundled_spec_env_vars_for_test.
+    for name in &names {
+        unsafe { std::env::remove_var(name) };
+    }
+}
+
 /// RG-01 / AC-006 / BC-2.16.001 §Postconditions 1-3:
 /// SpecLoader::load_all() pointed at crates/prism-sensors/specs/ discovers
 /// all 4 bundled TOML spec files, parses them without errors, and produces
@@ -60,10 +100,16 @@ fn bundled_spec_path(filename: &str) -> std::path::PathBuf {
 ///
 /// RED GATE: Fails until the 4 TOML specs are production-grade (Tasks 3-6)
 /// and SpecLoader::load_all() emits no parse errors for them.
+///
+/// F-PR1-MED-001: load_all now runs Rule 6 (env-var resolution) before Rule 7
+/// (HTTP method whitelist), so stub env vars must be set for the bundled specs'
+/// `${env.VAR}` base_url tokens to resolve cleanly.
 #[test]
 fn test_BC_2_16_001_loads_4_bundled_specs_at_boot() {
+    let env_vars = set_bundled_spec_env_vars_for_test();
     let loader = SpecLoader::new(bundled_specs_dir());
     let (descriptors, errors) = loader.load_all();
+    unset_bundled_spec_env_vars_for_test(env_vars);
 
     // All 4 specs must load without errors (no E-SPEC-001 or E-SPEC-009).
     assert!(
@@ -154,10 +200,15 @@ fn test_BC_2_16_001_loads_4_bundled_specs_at_boot() {
 /// "{sensor_id}.{table_name}" namespace (e.g., "crowdstrike.detections").
 ///
 /// RED GATE: Fails until the 4 TOML specs are production-grade (Tasks 3-6).
+///
+/// F-PR1-MED-001: stub env vars required — same rationale as
+/// `test_BC_2_16_001_loads_4_bundled_specs_at_boot`.
 #[test]
 fn test_BC_2_16_001_bundled_specs_produce_canonical_table_namespaces() {
+    let env_vars = set_bundled_spec_env_vars_for_test();
     let loader = SpecLoader::new(bundled_specs_dir());
     let (descriptors, errors) = loader.load_all();
+    unset_bundled_spec_env_vars_for_test(env_vars);
 
     assert!(
         errors.is_empty(),
