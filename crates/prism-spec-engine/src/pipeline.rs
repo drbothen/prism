@@ -245,6 +245,23 @@ impl PipelineExecutor {
             "query.client_id".to_string(),
             serde_json::Value::String(context.client_id.to_string()),
         );
+        // AC-CWS-001 / BC-2.01.013 v1.14: seed ${query.limit} from QueryParams.limit so
+        // sensor TOML path_templates can push the LIMIT clause down to the sensor API
+        // (e.g., CrowdStrike Step 1 DetectionListParams.limit).
+        // Default: empty string → PipelineExecutor::strip_empty_url_params removes the
+        // &limit= param from the URL so the DTU defaults to its own page size.
+        // F-PUSHDOWN-001 invariant: the LIMIT param is ONLY applied to is_first_step.
+        // (Callers are responsible for not seeding query.limit on subsequent steps.)
+        step_vars.insert(
+            "query.limit".to_string(),
+            serde_json::Value::String(
+                context
+                    .query_filters
+                    .get("query.limit")
+                    .cloned()
+                    .unwrap_or_default(),
+            ),
+        );
         for (k, v) in &context.query_filters {
             step_vars.insert(
                 format!("query.filter.{k}"),
@@ -324,17 +341,23 @@ impl PipelineExecutor {
                 // across 11 distinct origins (interpolation, network, JSON parse, page-cap,
                 // cursor non-advance). Future error-classification refactor should add an origin
                 // discriminator field to SpecEngineError. Per F-LP5-LOW-004.
-                let interpolated_path = Interpolator::interpolate(
-                    &step.path_template,
-                    &InterpolationContext::UrlPath,
-                    &batch_step_vars,
-                )
-                .map_err(|e| SpecEngineError::HttpRequestFailed {
-                    sensor_id: spec.sensor_id.clone(),
-                    step_name: step.name.clone(),
-                    status_code: 0,
-                    detail: format!("path interpolation failed: {e}"),
-                })?;
+                let interpolated_path = {
+                    let raw = Interpolator::interpolate(
+                        &step.path_template,
+                        &InterpolationContext::UrlPath,
+                        &batch_step_vars,
+                    )
+                    .map_err(|e| SpecEngineError::HttpRequestFailed {
+                        sensor_id: spec.sensor_id.clone(),
+                        step_name: step.name.clone(),
+                        status_code: 0,
+                        detail: format!("path interpolation failed: {e}"),
+                    })?;
+                    // AC-CWS-001: strip empty query params (e.g. &limit= when no push-down limit
+                    // was provided) so optional push-down params don't reach the DTU as invalid
+                    // empty strings that fail `Option<usize>` deserialization.
+                    strip_empty_url_params(&raw)
+                };
 
                 let url = format!("{}{}", spec.base_url, interpolated_path);
 
@@ -618,17 +641,23 @@ impl PipelineExecutor {
         };
         let mut request_count: u32 = 0;
 
-        let interpolated_path = Interpolator::interpolate(
-            &step.path_template,
-            &InterpolationContext::UrlPath,
-            prior_vars,
-        )
-        .map_err(|e| SpecEngineError::HttpRequestFailed {
-            sensor_id: spec.sensor_id.clone(),
-            step_name: step.name.clone(),
-            status_code: 0,
-            detail: format!("path interpolation failed: {e}"),
-        })?;
+        let interpolated_path = {
+            let raw = Interpolator::interpolate(
+                &step.path_template,
+                &InterpolationContext::UrlPath,
+                prior_vars,
+            )
+            .map_err(|e| SpecEngineError::HttpRequestFailed {
+                sensor_id: spec.sensor_id.clone(),
+                step_name: step.name.clone(),
+                status_code: 0,
+                detail: format!("path interpolation failed: {e}"),
+            })?;
+            // AC-CWS-001: strip empty query params (e.g. &limit= when no push-down limit
+            // was provided) so optional push-down params don't reach the DTU as invalid
+            // empty strings that fail `Option<usize>` deserialization.
+            strip_empty_url_params(&raw)
+        };
 
         let url = format!("{}{}", spec.base_url, interpolated_path);
 
@@ -1291,6 +1320,53 @@ fn extract_cursor(body: &serde_json::Value, cursor_path: &str) -> Option<String>
             );
             None
         }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// strip_empty_url_params (AC-CWS-001 — empty query-param cleanup)
+// ---------------------------------------------------------------------------
+
+/// Remove any `&key=` or `?key=` query-param pairs where the value is the empty string.
+///
+/// This supports optional push-down parameters in path_templates (e.g., `&limit=${query.limit}`)
+/// that are seeded to `""` when not provided by the query context.  Without stripping,
+/// `&limit=` would reach the DTU and fail to deserialize into `Option<usize>` (a 422).
+///
+/// Rules:
+/// - `?key=&other=val` → `?other=val`  (first-param empty, not last)
+/// - `?key=val&empty=` → `?key=val`    (last-param empty)
+/// - `?key=` (only param) → bare path  (no query string)
+/// - `?a=1&b=&c=3` → `?a=1&c=3`       (middle-param empty)
+/// - Params with non-empty values are preserved.
+///
+/// AC-CWS-001 / BC-2.01.013 v1.14 limit push-down.
+pub(crate) fn strip_empty_url_params(path: &str) -> String {
+    // Split at the first `?` to separate path from query string.
+    let (base, query) = match path.split_once('?') {
+        Some((b, q)) => (b, q),
+        // No query string → nothing to strip.
+        None => return path.to_owned(),
+    };
+
+    // Split query string into individual `key=value` pairs.
+    let kept: Vec<&str> = query
+        .split('&')
+        .filter(|pair| {
+            // Retain pairs where value is non-empty.
+            // A pair is `key=value`; if there is no `=` or value is empty, drop it.
+            match pair.split_once('=') {
+                Some((_key, value)) => !value.is_empty(),
+                // Bare key with no `=` (unusual) → retain as-is.
+                None => !pair.is_empty(),
+            }
+        })
+        .collect();
+
+    if kept.is_empty() {
+        base.to_owned()
+    } else {
+        format!("{}?{}", base, kept.join("&"))
     }
 }
 
