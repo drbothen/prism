@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.650"
+version: "7.651"
 producer: state-manager
 timestamp: 2026-06-04T00:00:00Z
 inputs: []
@@ -14,9 +14,9 @@ status: in_progress
 started: 2026-04-13
 repos: [poller-cobra, poller-express, poller-bear, poller-coaster, serveMyAPI, tally, axiathon, ocsf-proto-gen, mcp-claroty-xdome]
 safe_to_compact: true
-pre_compact_snapshot: "SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-06-04-PHASE-B-LANE1-PR-OPEN"
-pre_compact_snapshot_at: "2026-06-04 (D-991 durability checkpoint; Phase A COMPLETE; Phase B Lane 1 S-SPEC-HTTP-METHOD-VALIDATION-001 LOCAL 3/3 CONVERGED, PR #172 OPEN base develop@fdd12251; LOCAL-converged/demo-evidence head 4a2a7bb7; feature head after FB-PR2 spec fixes 0a0dba93 [code unchanged, BC+story updated]; CI running; NEXT on resume: PR-LEVEL adversarial 3-CLEAN cascade + security + pr-reviewer + CI → merge → post-merge burst)"
-current_step: "D-1000 — PR #172 MERGED develop@752e407a (2026-06-05). POL-14: BC-2.16.009 already active — idempotent no-op. Story S-SPEC-HTTP-METHOD-VALIDATION-001 status ready→merged (v1.4; PR #172 squash-merged; 14 passes + 9 fix-bursts; 3-CLEAN(strict) passes 12/13/14; BC-5.39.001 D-779). PR-LEVEL cascade CLOSED. 5 cycle-close process-gap deferrals recorded. STATE v7.649→v7.650."
+pre_compact_snapshot: "SESSION-HANDOFF.md ##RESUME SNAPSHOT 2026-06-05 — POST-MERGE PR#172 / CASCADE CLOSED / READY FOR NEXT STORY"
+pre_compact_snapshot_at: "2026-06-05 (D-1000 PR#172 MERGED develop@752e407a; cascade CLOSED; READY for next story; 2 open decisions: factory-artifacts push auth + next-story selection)"
+current_step: "D-1000 PR#172 MERGED develop@752e407a; cascade CLOSED (14 passes + 9 fix-bursts; 3-CLEAN(strict) passes 12/13/14; BC-5.39.001/D-779); READY for next story. STATE v7.650→v7.651."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 cyberint_pr_cycle_in_flight: false
 cyberint_pr_cycle_step: "CLOSED — PR #164 squash-merged develop@e798e67c 2026-05-31; POL-14 BC-2.01.017 draft→active (D-904); cascade CLOSED (D-905 process-gaps as justified deferrals); story merged v1.9"

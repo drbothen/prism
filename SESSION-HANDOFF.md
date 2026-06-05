@@ -458,6 +458,63 @@ DURABLE PIN BLOCK (CURRENT STATE — D-580 — DURABLE PRE-/CLEAR RESUME SNAPSHO
 
 ---
 
+## RESUME SNAPSHOT 2026-06-05 — POST-MERGE PR#172 / CASCADE CLOSED / READY FOR NEXT STORY
+
+> **START HERE — 2026-06-05 /clear resume.** Read STATE.md frontmatter + this snapshot first. All durable state committed. develop HEAD `752e407a`. factory-artifacts HEAD `2a993240` (LOCAL-ONLY — push pending user auth). STATE.md v7.651.
+
+---
+
+### Durable State (all committed as of this snapshot)
+
+| Item | Value |
+|------|-------|
+| develop HEAD | `752e407a` (local == origin; PR #172 squash-merged 2026-06-05) |
+| PR #172 story | S-SPEC-HTTP-METHOD-VALIDATION-001 — BC-2.16.009 v1.10 §VR7 HTTP-method whitelist / E-SPEC-025; closed DRIFT-D926-001 |
+| factory-artifacts HEAD | `2a993240` (LOCAL-ONLY — not pushed to origin/factory-artifacts) |
+| STATE.md version | v7.651 |
+| Story status | S-SPEC-HTTP-METHOD-VALIDATION-001: merged (v1.5 changelog); BC-2.16.009 v1.10 active (POL-14); error-taxonomy v1.60; STORY-INDEX v2.278 (total 180 stories) |
+| PR-LEVEL cascade | CLOSED at D-1000: 14 passes + 9 fix-bursts; 3-CLEAN(strict) at passes 12/13/14 (BC-5.39.001/D-779) |
+| Wave-5 autonomy | ACTIVE — D-989 full autonomous A→B→C, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit |
+
+### Resume Protocol (fresh session orchestrator — BLOCKING ORDER)
+
+1. Run `vsdd-factory:factory-worktree-health` (BLOCKING — do not read .factory until PASS).
+2. Read STATE.md v7.651 frontmatter + this snapshot.
+3. Workspace = `/Users/jmagady/Dev/prism` (brownfield, Phase 3, Wave 5 Phase B).
+
+### Two Open Decisions (SURFACE TO USER — do NOT auto-act)
+
+**DECISION-A — factory-artifacts remote push (pending explicit user authorization)**
+- factory-artifacts is LOCAL-ONLY, 52+ commits ahead of origin/factory-artifacts.
+- develop IS pushed (via PR #172 squash-merge to develop). Only .factory spec/state history is unpushed.
+- Per CLAUDE.md: "Local-only by default — orchestrator does NOT push factory-artifacts to remote without explicit user authorization."
+- Action required: surface to user, await "authorize push" or "skip" before running `git -C .factory push`.
+
+**DECISION-B — next story selection**
+- Wave-5 Phase-B Lane-1 (S-SPEC-HTTP-METHOD-VALIDATION-001) is DONE.
+- D-989 autonomy grant is ACTIVE. Next action: read `.factory/stories/sprint-state.yaml` to find next `ready` story, surface the candidate to the user, then dispatch per-story delivery under the autonomy grant.
+- Do NOT auto-start the next story without surfacing the candidate to the user first.
+
+### Carry-Forward Items
+
+- **SEC-002 follow-up story registered:** S-SPEC-HEAD-OPTIONS-EXEC-001 (wave-5-f, draft) — HEAD/OPTIONS execute as GET; registered in sprint-state. Not yet active.
+- **5 cycle-close process-gap deferrals:** DRIFT-D1000-001..005 recorded (vsdd-factory engine sweep-scope / reconciliation-hardening improvements — upstream engine, not prism source). Filed as justified out-of-perimeter deferrals.
+- **Pre-existing maintenance note:** `validation.rs` module `//!` doc says "five categories" — omits Rule 6+7 (pre-existing on develop before this story; out-of-perimeter for PR #172). Candidate for next maintenance sweep.
+- **In-flight worktrees (NOT this session's work — status unknown to this session):**
+  - `.worktrees/S-3.09` — branch `feature/S-3.09` @ `43c41389`
+  - `.worktrees/W3-FIX-S307-001` — branch `feature/W3-FIX-S307-001` @ `fcab8717`
+  - Fresh session MUST check sprint-state.yaml before assuming these are abandoned.
+
+### Standing Rules (unchanged — carry from D-989 grant)
+
+- No `--no-verify`; no force-push; no factory-artifacts remote push without user authorization.
+- Single-commit-per-burst (TD-VSDD-053); fix-in-scope (no defer-pattern).
+- Convergence rigor preserved: LOCAL 3-CLEAN(strict) + PR-LEVEL 3-CLEAN(strict) + security-reviewer MAY PROCEED + pr-reviewer APPROVE + CI green before any merge.
+- Policy-rubric auto-load on every adversary dispatch.
+
+---
+
+
 ## §RESUME SNAPSHOT 2026-06-04-WAVE5-DUAL-MERGE-COMPLETE-PARALLEL-PLAN-READY
 
 > **PRIORITY READ ORDER — D-988 CONTEXT-CLEAR DURABILITY CHECKPOINT.** Read STATE.md frontmatter + this snapshot before dispatching any agent. develop HEAD `fdd12251`. factory-artifacts LOCAL-ONLY (no push). Session cleared after D-988 commit.
