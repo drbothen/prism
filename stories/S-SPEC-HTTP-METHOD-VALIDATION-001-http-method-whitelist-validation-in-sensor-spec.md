@@ -5,7 +5,7 @@ title: "prism-spec-engine: HTTP Method Whitelist Validation in Sensor Spec (anch
 wave: wave-5-e-demo-fidelity
 epic_id: E-SPEC-ENGINE
 priority: P2
-status: ready
+status: merged
 version: "1.4"
 level: "L3"
 producer: story-writer
@@ -90,7 +90,7 @@ phase: 3
 # S-SPEC-HTTP-METHOD-VALIDATION-001 v1.4 — HTTP Method Whitelist Validation in Sensor Spec
 
 **Story ID:** S-SPEC-HTTP-METHOD-VALIDATION-001
-**Status:** ready
+**Status:** merged
 **Version:** v1.4
 **Wave:** wave-5-e-demo-fidelity
 **Priority:** P2 (hardening — NOT a vulnerability; safe GET fallback exists)
@@ -378,6 +378,7 @@ Well within budget. Single-story delivery is straightforward.
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.5 (merged) | 2026-06-05 | state-manager | D-1000 post-merge burst — PR #172 squash-merged develop@752e407a; status ready→merged; BC-2.16.009 already active (idempotent no-op per POL-14); PR-LEVEL cascade CLOSED (14 passes + 9 fix-bursts; 3-CLEAN(strict) at passes 12/13/14 on HEAD dc2a5ad7; BC-5.39.001 D-779). |
 | 1.4 | 2026-06-04 | state-manager | v1.3→v1.4 2026-06-04 — re-pinned BC-2.16.009 v1.9→v1.10 (21 living-narrative pins, F-PR6-HIGH-001 closure); AC-005 trace re-anchored to §VR7 §Ordering Point 3; swept test rename `test_BC_2_16_009_e_spec_025_display_matches_error_taxonomy_v1_59_template_byte_for_byte` → `..._template_byte_for_byte` (OBS-PR6-001 / TD-VSDD-091). |
 | 1.3 | 2026-06-04 | state-manager | v1.2→v1.3 2026-06-04 — swept BC-2.16.009 hard pins v1.8→v1.9 (F-PR5-HIGH-001 / POL-23); added AC-004 (SEC-001 32-codepoint method_value truncation / CWE-400) + AC-005 (F-PR1-OBS-001 full-match env-token skip-guard); added EC-011..EC-017 tracing the 7 cascade-added tests; acceptance_criteria_count 3→5, red_gate_tests 3→10. |
 | 1.2 | 2026-06-03 | state-manager | D-990 Phase-A-close: status draft→ready; BC-2.16.009 v1.8 active (PO authored D-989); no depends_on; S-7.01 gate CLEARED. |

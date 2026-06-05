@@ -701,3 +701,69 @@ If either assertion fails, the adversary MUST stop and report "WRONG-TREE PREFLI
 **Forward guidance:** Recommend this as a high-priority codification (2 occurrences, direct correctness impact, cascades blocked by false findings). Orchestrator should file a codification request to the adversarial-review skill maintainer. Until codification, orchestrator must verbally instruct adversary to confirm tree identity in the dispatch prompt.
 
 _Discovered: D-944 + D-939 adversary cascades, 2026-06-02. Confirmed class: adversary-reads-develop-instead-of-worktree. Two occurrences: Claroty PR-LEVEL pass 1 OBS-1 (F-PRL1-OBS-001) + Armis LOCAL pass 12 DISMISSED-WRONG-TREE (F-PR4-MED-001 class). Codification candidate SAP-5 worktree-identity preflight assertion. Logged at D-950 sub-cycle close per S-7.02._
+
+---
+
+## S-SPEC-HTTP-METHOD-VALIDATION-001 PR #172 Cycle-Close Codification (D-1000 2026-06-05)
+
+Five [process-gap] codification candidates from the PR #172 cascade. All are engine/process-scope improvements (vsdd-factory process hardening); no prism product follow-up stories needed. Recorded as justified deferrals per S-7.02.
+
+**Lesson 63 (OBS-PR5-001 — POL-29 sibling-sweep originating-story coverage gap):**
+
+During the PR #172 cascade, fix-burst FB-PR3/PR4 spec-only sweeps targeted `.factory/` artifact files and `crates/` code files but omitted the originating story file (`S-SPEC-HTTP-METHOD-VALIDATION-001-http-method-whitelist-validation-in-sensor-spec.md`) from their POL-29 sibling-sweep scope. A subsequent adversary pass (pass-5) found the story body still pinning BC-2.16.009 v1.8 after the spec-only sweep had bumped the BC to v1.9.
+
+**Root cause:** POL-29 step definitions implicitly assume sibling-sweep coverage of `.factory/specs/behavioral-contracts/` and `crates/**/*.rs` but do not explicitly mandate coverage of the originating story file under a PR cascade. The story is in `.factory/stories/` and is a direct sibling of the BC being amended.
+
+**Codification candidate:** Amend POL-29 step definitions (vsdd-factory engine) to mandate sibling-sweep coverage of the originating story file (`behavioral_contracts[*]` traces) whenever a BC is version-bumped under a PR cascade. Until codified: orchestrator must verbally instruct fix-burst agents to sweep the story file in addition to `.factory/specs/` and `crates/`.
+
+_Discovered: PR #172 pass-5 OBS-PR5-001. Logged D-1000 2026-06-05. DRIFT-D1000-001. Engine process scope; not a prism product defect._
+
+---
+
+**Lesson 64 (OBS-PR7-001 — FB-closure sweep scope must include docs/ and code-delivery/):**
+
+During the PR #172 cascade, FB-PR4 closed spec findings (BC + story) but did not trigger a demo-evidence regeneration. The next adversary pass (pass-7) found the demo-evidence still covering only 3 ACs while the story had been updated to 5 ACs. The FB-closure sweep guidance described sweeping `.factory/` and `crates/` but did not explicitly include `docs/demo-evidence/<story>/` and `.factory/code-delivery/<story>/pr-description.md`.
+
+**Root cause:** FB-closure sweep scope documentation does not enumerate `docs/demo-evidence/<story>/` or `code-delivery/<story>/pr-description.md` as mandatory coverage. Demo-evidence is owned by the demo-recorder, which was not dispatched as part of spec-only fix-bursts.
+
+**Codification candidate:** Amend the FB-closure sweep guidance (vsdd-factory engine) to explicitly mandate that any fix-burst touching AC count, AC wording, or AC traceability must trigger: (a) demo-recorder re-run for affected ACs; (b) pr-description.md mirror regeneration. Until codified: orchestrator must explicitly dispatch demo-recorder on every fix-burst that touches AC-count or AC-wording.
+
+_Discovered: PR #172 pass-7 F-PR7-HIGH-001 + F-PR7-MED-001. Logged D-1000 2026-06-05. DRIFT-D1000-002. Engine process scope._
+
+---
+
+**Lesson 65 (OBS-PR8-001 — Demo/PR per-module test-count breakdowns must reconcile against captured nextest output):**
+
+During the PR #172 cascade, passes 7, 8, 9, and 10 each found prose-accuracy defects in the PR body/demo-evidence test-count breakdowns: stale counts, wrong crate attribution, new-vs-pre-existing conflation, and diff-scope vs name-filter-scope conflation. Four consecutive passes were consumed on prose-accuracy findings after code and spec had already converged at pass-6.
+
+**Root cause:** Demo-recorder and pr-manager agents write per-module test-count breakdowns from inference and story-body descriptions rather than from captured nextest output. When the diff scope (files in `git diff --name-only`) is different from the test-name filter scope (tests whose names contain the story prefix), counts conflate new and pre-existing tests.
+
+**Codification candidate:** Add a mandatory count-reconciliation protocol to the demo-recorder and pr-manager agents (vsdd-factory engine): (a) run `cargo nextest run -p <crate> --filter-expr 'test(<prefix>)' --no-fail-fast 2>&1 | tee /tmp/nextest-capture.txt`; (b) extract count from capture; (c) reconcile against `git diff --name-only` diff scope; (d) tag test functions as NEW (added in this PR's diff) vs pre-existing (existed on develop before this PR). Report both tallies separately in evidence reports and PR bodies. Until codified: orchestrator must mandate this protocol in every demo-recorder and pr-manager dispatch.
+
+_Discovered: PR #172 passes 7-10. F-PR7-MED-001 + F-PR8-MED-001 + F-PR9-MED-002 + F-PR10-MED-002. Logged D-1000 2026-06-05. DRIFT-D1000-003. Engine process scope._
+
+---
+
+**Lesson 66 (F-PR9 — Version-pin re-sweep must include crates/**/*.rs on every BC version bump):**
+
+During the PR #172 cascade, fix-bursts FB-PR3 and FB-PR4 swept BC-2.16.009 version pins in `.factory/specs/` story + BC files (12+ sites) but missed 32 volatile version-pin comment sites in `crates/prism-spec-engine/src/validation.rs` and `crates/prism-spec-engine/tests/bc_2_16_009_test.rs`. Adversary pass-9 found all 32 as F-PR9-MED-001, requiring a dedicated fix-burst (FB-PR7) and resetting the streak.
+
+**Root cause:** The POL-23/TD-VSDD-091 version-pin re-sweep guidance says to grep `.factory/` artifact files for the old version string. It does not explicitly mandate a companion `rg 'BC-NN.NN.NNN v1.' crates/` sweep. When a BC has corresponding in-code citations (doc comments, test annotations), these are invisible to a `.factory/`-only sweep.
+
+**Codification candidate:** Amend POL-23 / TD-VSDD-091 (vsdd-factory engine) to add a mandatory companion grep: whenever a code-implemented BC version advances, run `rg 'BC-[0-9]+\.[0-9]+\.[0-9]+ v[0-9]+\.' crates/` and resolve every hit. Until codified: orchestrator must mandate this crates/ grep in every fix-burst dispatch that involves a BC version bump.
+
+_Discovered: PR #172 pass-9 F-PR9-MED-001 (32 volatile comment pins missed). Logged D-1000 2026-06-05. DRIFT-D1000-004. Engine process scope._
+
+---
+
+**Lesson 67 (D-999 — Story body-header block has no frontmatter-sync mechanism; systemic drift):**
+
+During the PR #172 cascade (pass-11 / FB-PR9), the story body-header block (`**Status:** draft`, `**Version:** v1.0`) was found to be stale vs the frontmatter (`status: ready`, `version: "1.4"`). The body-header is a human-readable mirror of the frontmatter intended for context. It drifts whenever story-writer or state-manager updates the frontmatter but forgets to also update the corresponding bold-fields in the H1 section and body opening block.
+
+This is systemic — the same class of drift was also observed in S-SPEC-ENV-VAR-001 and other stories. The story template does not include a sync-reminder or tooling check.
+
+Also noted as a maintenance candidate (non-blocking): `validation.rs` module `//!` doc comment says "five categories" of validation but the implementation after Story S-SPEC-HTTP-METHOD-VALIDATION-001 now has seven categories (Rule 6: env-var resolution, Rule 7: HTTP method whitelist). Pre-existing on develop; not introduced by this story.
+
+**Codification candidate:** Add a body-header↔frontmatter sync check to the story-writer workflow (vsdd-factory engine): after every story version bump, verify that H1 title, `**Status:**`, and `**Version:**` bold-fields in the story body match the frontmatter `title`, `status`, and `version` fields. This can be a simple grep/awk check or a story-writer self-audit step. Until codified: orchestrator must include a "sync body-header to frontmatter" step in every story version bump dispatch.
+
+_Discovered: PR #172 pass-11 / FB-PR9 story body-header desync. Systemic class: also observed in S-SPEC-ENV-VAR-001. Logged D-1000 2026-06-05. DRIFT-D1000-005. Engine process scope._

@@ -168,7 +168,7 @@ ARTIFACT STATE AFTER D-540 (UNCHANGED FROM D-539 — no spec edits):
 DURABLE PIN BLOCK (CURRENT STATE — D-580 — DURABLE PRE-/CLEAR RESUME SNAPSHOT — 86th consecutive single-commit — STRATEGIC DECISION PENDING)
 ═══════════════════════════════════════════════════════════════════════
 
-- develop HEAD: fdd12251 (feat(S-DEMO-002): e2e subprocess smoke test — all 4 sensors + multi-org isolation + AQL push-down + e2e CI gate (#171) — MERGED 2026-06-04; D-987 post-merge burst)
+- develop HEAD: 752e407a (feat(S-SPEC-HTTP-METHOD-VALIDATION-001): HTTP method whitelist validation (#172) — MERGED 2026-06-05; D-1000 post-merge burst)
 - factory-artifacts: run `git -C .factory log -1 --format=’%H’` (per TD-VSDD-053; D-579 is this commit)
 - feature_branch_head: no active feature branch (spec-authoring-only burst; develop unchanged at a5ab742c)
 - feature_branch_remote_status: no feature branch (spec-only burst; develop@a5ab742c unchanged)
@@ -12352,13 +12352,15 @@ git -C .factory log -1 --format='%h %s'
 
 Read this §RESUME SNAPSHOT 2026-06-03-S-DEMO-002-OPTION-A-LANDED-E2E-GREEN-LOCAL-CASCADE-NEXT (you are reading it now).
 
-## §RESUME SNAPSHOT 2026-06-04-PHASE-B-LANE1-PR-OPEN (D-991)
+## §RESUME SNAPSHOT 2026-06-04-PHASE-B-LANE1-PR-OPEN (D-991) [SUPERSEDED by D-1000]
 
-> **This is the durable zero-context checkpoint. A fresh session can resume Phase B Lane 1 cold from this snapshot alone. Phase A COMPLETE (D-990). S-SPEC-HTTP-METHOD-VALIDATION-001 LOCAL 3/3 CONVERGED; PR #172 OPEN (base develop@fdd12251, head 4a2a7bb7); CI running. IMMEDIATE NEXT ACTION: PR-LEVEL adversarial 3-CLEAN cascade on PR #172 (Standing Rule 2).**
+> **D-1000 UPDATE (2026-06-05): PR #172 squash-merged develop@752e407a. S-SPEC-HTTP-METHOD-VALIDATION-001 MERGED v1.4. Phase B Lane 1 COMPLETE. develop_head updated 752e407a. NEXT: dispatch remaining Phase B lanes (S-DEMO-QUERY-PUSHDOWN-001 ∥ OCSF-CLASS-MIGRATION-001 ∥ S-DEMO-003).**
+
+> **Phase A COMPLETE (D-990). S-SPEC-HTTP-METHOD-VALIDATION-001 PR #172 MERGED (D-1000 develop@752e407a).**
 
 ### §1 PIPELINE STATUS
 
-- **develop HEAD:** `fdd12251` (S-DEMO-002 PR #171 squash-merged 2026-06-04 D-987)
+- **develop HEAD:** `752e407a` (S-SPEC-HTTP-METHOD-VALIDATION-001 PR #172 squash-merged 2026-06-05 D-1000)
 - **STATE.md:** v7.641
 - **BC-INDEX:** v5.80 (active: 234, draft: 3; total: 246)
 - **STORY-INDEX:** v2.274 (179 stories)
@@ -12494,8 +12496,8 @@ git -C .factory log -1 --format='%h %s'
 | VP-INDEX.md | v1.76 | unchanged |
 | ARCH-INDEX.md | v2.110 | unchanged |
 | error-taxonomy.md | v1.59 | unchanged |
-| develop HEAD | fdd12251 | PR #171 S-DEMO-002 merged D-987 (unchanged) |
-| S-SPEC-HTTP-METHOD-VALIDATION-001 | v1.2 | code @ 4a2a7bb7; LOCAL 3/3 CONVERGED; PR #172 OPEN |
+| develop HEAD | 752e407a | PR #172 S-SPEC-HTTP-METHOD-VALIDATION-001 merged D-1000 (updated from fdd12251) |
+| S-SPEC-HTTP-METHOD-VALIDATION-001 | v1.4 (merged) | MERGED PR #172 develop@752e407a; POL-14 idempotent; cascade CLOSED |
 
 ### §7 KEY ARCHITECTURAL CONSTRAINTS (carry into every adversary dispatch)
 

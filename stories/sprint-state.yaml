@@ -221,12 +221,15 @@ active_dispatch_set:
     notes: "D-933 2026-06-01: status draft→ready v1.1 (PO adjudication 30111e52: BC-2.16.009 v1.6→v1.7 + BC-2.16.013 v1.18→v1.19; behavioral_contracts [BC-2.16.009, BC-2.16.013] attached per POL-8; story-writer 7b4cf03a body propagated). depends_on S-SPEC-ENV-VAR-001 SATISFIED (PR #165 merged develop@4feec93a 2026-06-01). Reclassified 2026-05-31 D-907: permitted-divergence→required-fidelity per ADR-031 v1.2."
 
   - story_id: S-SPEC-HTTP-METHOD-VALIDATION-001
-    status: ready
+    status: merged
     priority: P2
     points: 3
     spec_version: "v1.4"
+    merged_pr: 172
+    merged_sha: "752e407a"
+    merged_at: "2026-06-05"
     depends_on: []
-    notes: "D-994 2026-06-04: story v1.4 (BC-2.16.009 v1.9→v1.10 re-pin; AC-005 trace re-anchored §VR7 §Ordering Point 3; test rename OBS-PR6-001; F-PR6-HIGH-001 closed). BC-2.16.009 v1.10 active. No depends_on. S-7.01 gate CLEARED. DRIFT-D926-001 anchor resolved."
+    notes: "D-1000 2026-06-05: PR #172 squash-merged develop@752e407a. POL-14 BC-2.16.009 already active — idempotent no-op. Status ready→merged. PR-LEVEL cascade CLOSED: 14 passes + 9 fix-bursts; 3-CLEAN(strict) passes 12/13/14 on HEAD dc2a5ad7 (BC-5.39.001 D-779). DRIFT-D926-001 CLOSED. 5 cycle-close process-gap deferrals recorded (DRIFT-D1000-001..005 vsdd-factory engine scope)."
 
   - story_id: S-DEMO-HARNESS-CLONE-PARITY-001
     status: ready
