@@ -32,6 +32,37 @@ When fixing a hand-fed-FQL / direct-`PipelineExecutor::execute`-boundary test an
 
 ---
 
+### [recurrence][codification-candidate] Test-strength gap class — assertion weaker than AC/doc claim (passes 4/5/6 pattern)
+
+**Date recorded:** 2026-06-05
+**D-NNN anchor:** D-1013
+**Findings:** ADV-P04-HIGH-002 (pass 4 — AC-CWS-002), ADV-P05-HIGH-001 (pass 5 — AC-EQUIV-001), ADV-P06-MED-001 (pass 6 — AC-CWS-003)
+**Tags:** [recurrence] [test-strength-gap] [wire-level-assertion] [codification-candidate] [dead-code-via-test-layer]
+**Classification:** CODIFICATION CANDIDATE — three consecutive passes found the same defect class; systematic test-writing discipline gap.
+
+**Description:**
+Three consecutive adversary passes (4, 5, 6) each found a push-down AC test whose assertion was weaker than its AC/doc claim:
+
+- **Pass 4 — AC-CWS-002:** Test claimed "time-window both-bounds via run_materialization_pipeline" but hand-fed pre-built FQL to `PipelineExecutor::execute`, bypassing the production entry point. Wire-level DTU filter-log assertion absent.
+- **Pass 5 — AC-EQUIV-001:** Test claimed "result equivalence via real materialization path" but called `PipelineExecutor::execute` directly (sibling-sweep miss from the pass-4 fix). Real-path coverage absent for BC-2.11.007 subset/no-fabrication invariant.
+- **Pass 6 — AC-CWS-003:** Test name and AC claimed "DTU filter-log shows absence of `created_timestamp` clause when no time filter present, and all 50 records returned." Test only asserted `!is_empty()` and non-zero count. Wire-level absence assertion absent — if production code incorrectly injected a timestamp clause, test would still pass.
+
+In all three cases, production code was correct at discovery time. The test-strength gap meant incorrect production behavior would not have been caught by the named test.
+
+**Common root cause:**
+Test-writer and implementer wrote structural proxies (non-empty, count > 0) or boundary-only assertions instead of wire-level evidence (DTU filter-log body, specific field presence/absence, exact count matching the fixture). The proxy assertion passes when production is correct AND when production incorrectly injects/omits the named property — it is not a falsifiable test for the named AC property.
+
+**Codification direction (for future test-writer + implementer disciplines):**
+
+1. **Wire-level assertion requirement for push-down AC tests:** Any AC test for a push-down property MUST assert the named property via DTU wire evidence (e.g., `/dtu/filter-log` body contains or does not contain the specific clause/field), not via structural proxies.
+2. **Exact fixture count assertion:** When an AC claims "all N records returned" (AC-CWS-003: 50 records), the test MUST assert `result.len() == N` not `!result.is_empty()`.
+3. **Doc-claim-vs-assertion audit at fix-burst time:** When a fix-burst touches any push-down AC test, the implementer MUST audit the assertion against the AC text and test name/doc-comment before declaring the closure load-bearing. This audit should be explicitly documented in the fix-burst commit message.
+4. **Adversary standing probe extension (codification candidate):** The exhaustive doc-claim-vs-assertion audit performed in pass 6 (comparing all push-down AC test assertions against their AC text) should become a standing adversary probe for all push-down story passes. Candidate for SAP-3 or SAP-2 extension.
+
+**Outcome (pass 6):** Pass-6 fix-burst added AC-CWS-003 wire-level absence assertion (DTU `/dtu/filter-log` body checked for absence of `created_timestamp` clause; `result.len() == 50` exact count). Exhaustive doc-claim-vs-assertion audit of all push-down AC tests confirmed all others CORRECT/load-bearing after the fix.
+
+---
+
 ### [process-gap] ADV-P04-OBS-001 — Test-docstring file.rs:NNN line-pin discipline gap (TD-VSDD-091 adjacency)
 
 **Date recorded:** 2026-06-05
