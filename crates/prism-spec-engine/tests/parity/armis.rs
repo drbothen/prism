@@ -926,9 +926,18 @@ async fn test_ac_armis_tw_004_result_equivalence_pushdown_vs_postfilter() {
 /// prism binary subprocess path end-to-end.
 #[ignore = "E2E-001: requires prism binary + Armis DTU clone; un-gated via `nextest run --profile e2e`. \
 SID-1 §4 compliant: blocking dependency = prism-bin subprocess + DTU clone. \
-Corresponding unit coverage: test_ac_armis_tw_001_time_window_augmented_into_aql \
-(prism-query/src/pushdown.rs) and test_ac_armis_tw_002_dtu_filters_fixture_by_time_window \
-(prism-spec-engine/tests/parity/armis.rs) provide in-process coverage per SID-1 §2."]
+Corresponding in-process coverage (SID-1 §2): \
+(1) test_ac_armis_tw_001_time_window_augmented_into_aql (prism-query/src/pushdown.rs): \
+    drives augment_armis_aql_with_time_window directly. \
+(2) test_ac_armis_tw_002_dtu_filters_fixture_by_time_window (prism-spec-engine/tests/parity/armis.rs): \
+    drives PipelineExecutor -> Armis DTU clone with augmented AQL. \
+(3) test_adv_p02_sid1_armis_fetch_start_time_augments_aql (prism-bin/tests/adv_p02_e2e_pushdown_pipeline_test.rs): \
+    ADV-P02-MED-001 SID-1 substitute — directly invokes SpecDrivenSensorAdapter::fetch with \
+    params.start_time=Some(...) and asserts query_filters[aql] becomes augmented form with after: clause. \
+    Exercises the fetch() augmentation DECISION BRANCH (spec_driven_adapter.rs:590-600). \
+(4) test_adv_p02_e2e_armis_aql_augmentation_from_where_predicate (prism-bin/tests/adv_p02_e2e_pushdown_pipeline_test.rs): \
+    ADV-P02-CRIT-001 — drives run_materialization_pipeline with real WHERE predicate and asserts \
+    DTU aql-log contains augmented AQL with after: clause."]
 #[tokio::test]
 async fn test_ac_armis_tw_005_e2e_aql_log_contains_augmented_aql() {
     // E2E body: start the Armis DTU clone, spawn the prism binary as a subprocess,
