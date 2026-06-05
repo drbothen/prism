@@ -32,6 +32,7 @@
 //! | test_adv_p02_e2e_armis_aql_augmentation_from_where_predicate | ADV-P02-CRIT-001 | run_materialization_pipeline | DTU aql-log contains augmented AQL built by augment_armis_aql_with_time_window |
 //! | test_adv_p02_sid1_armis_fetch_start_time_augments_aql | ADV-P02-MED-001 | SpecDrivenSensorAdapter::fetch (direct) | query_filters["aql"] becomes augmented form with after: clause |
 //! | test_ac_cws_002_fql_time_window_both_start_and_end_via_materialization_pipeline | AC-CWS-002 (ADV-P04-HIGH-002) | run_materialization_pipeline | DTU filter-log contains BOTH bounds in combined `+` form; filtered_count < unfiltered_count |
+//! | test_ac_equiv_001_result_equivalence_via_run_materialization_pipeline | AC-EQUIV-001 (ADV-P05-HIGH-001) | run_materialization_pipeline | Result A (time-filtered) is a strict subset of Result B (unfiltered); every record id in A appears in B (BC-2.11.007 no-fabrication invariant) |
 //!
 //! # SID-1 compliance
 //!
@@ -1309,4 +1310,334 @@ async fn test_ac_cws_002_fql_time_window_both_start_and_end_via_materialization_
         start_time,
         end_time
     );
+}
+
+// ---------------------------------------------------------------------------
+// AC-EQUIV-001 (ADV-P05-HIGH-001): BC-2.11.007 result-equivalence via
+// run_materialization_pipeline — the AUTHORITATIVE real-path test
+// ---------------------------------------------------------------------------
+
+/// AC-EQUIV-001 / BC-2.11.007 v1.8 — result-equivalence invariant via the real production
+/// materialization path (`run_materialization_pipeline`).
+///
+/// # Why this test lives in prism-bin (not prism-spec-engine)
+///
+/// `prism-spec-engine` cannot depend on `prism-bin` (circular dependency guard — see
+/// CLAUDE.md architecture compliance). Real `run_materialization_pipeline` coverage that
+/// needs `SpecDrivenSensorAdapter` + `AdapterRegistry` must live in `prism-bin/tests/`.
+///
+/// # ADV-P05-HIGH-001 finding closure
+///
+/// The old `test_ac_equiv_001_result_equivalence_via_real_materialization_path` in
+/// `prism-spec-engine/tests/bc_2_11_007_pushdown_test.rs` hand-fed `_fql` into
+/// `FetchContext` and called `PipelineExecutor::execute` directly — it NEVER called
+/// `run_materialization_pipeline`. Its name was false advertising.
+/// That test has been renamed to `test_ac_equiv_001_fql_subset_invariant_via_pipeline_executor_boundary`
+/// and its doc comment updated to correctly describe the PipelineExecutor boundary scope.
+/// THIS test is the authoritative AC-EQUIV-001 coverage.
+///
+/// # Production call graph proven
+///
+/// ```text
+/// PrismQL: `WHERE created_timestamp > 'T1' AND created_timestamp < 'T2'`
+///   → run_materialization_pipeline
+///   → PrismQlParser::parse
+///   → extract_time_window_from_ast [reads resolved_spec_map: created_timestamp INDEX]
+///   → QueryParams.start_time = 'T1', end_time = 'T2'
+///   → fan_out → SpecDrivenSensorAdapter::fetch
+///   → build_crowdstrike_fql(start='T1', end='T2')
+///       → "created_timestamp:>'T1'+created_timestamp:<'T2'"
+///   → FetchContext["_fql"] = combined FQL
+///   → PipelineExecutor → CrowdStrike DTU
+/// ```
+///
+/// If `run_materialization_pipeline` hardcodes `None` (F-P6-CRIT-001 dead-code
+/// regression), `build_crowdstrike_fql` produces an empty string, the DTU returns
+/// all 50 records, and `result_a_count < result_b_count` FAILS — test catches regression.
+///
+/// # BC-2.11.007 invariant assertions
+///
+/// (a) `result_a_count < result_b_count` — time-window push-down via `run_materialization_pipeline`
+///     constrains result A relative to baseline B. Proves the full production path is live.
+///
+/// (b) Subset / no-fabrication: every `detection_id` in result A appears in result B.
+///     Push-down is an optimization only — it must not introduce records absent from the
+///     unfiltered set.
+///
+/// # SAP-2 compliance
+///
+/// Production `crowdstrike.sensor.toml` shape; real CrowdStrike DTU clone.
+/// No fabricated TOML spec or fixture data.
+#[tokio::test]
+async fn test_ac_equiv_001_result_equivalence_via_run_materialization_pipeline() {
+    // Step 1: Start CrowdStrike DTU clone on ephemeral port.
+    let mut clone = CrowdstrikeClone::new();
+    let bound_addr = clone
+        .start_on("127.0.0.1:0".parse().unwrap(), None, None)
+        .await
+        .expect("AC-EQUIV-001: CrowdStrike DTU clone failed to start");
+    let dtu_base_url = format!("http://{bound_addr}");
+
+    // Step 2: Load production crowdstrike.sensor.toml (SAP-2: no fabricated fixture).
+    let spec_content = std::fs::read_to_string(
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../prism-sensors/specs/crowdstrike.sensor.toml"),
+    )
+    .expect("AC-EQUIV-001: crowdstrike.sensor.toml must be readable");
+    let mut spec =
+        SpecLoader::parse(&spec_content).expect("AC-EQUIV-001: crowdstrike.sensor.toml must parse");
+    spec.base_url = dtu_base_url.clone();
+
+    // Step 3: Build resolved_spec_map — the map that extract_time_window_from_ast reads
+    // to identify INDEX columns (created_timestamp has options=["INDEX"] per AC-INDEX-CWS-001).
+    let org_slug = "ac-equiv-001-org";
+    let (org_registry, org_id, org_slug_typed) = make_org_registry(org_slug);
+    let sensor_id = SensorId::from("crowdstrike");
+
+    let resolved = make_resolved_spec(spec, org_slug);
+    let mut resolved_spec_map: HashMap<ResolvedSpecKey, ResolvedSensorSpec> = HashMap::new();
+    resolved_spec_map.insert((org_slug_typed.clone(), sensor_id.clone()), resolved);
+    let resolved_spec_map_arc: Arc<HashMap<ResolvedSpecKey, ResolvedSensorSpec>> =
+        Arc::new(resolved_spec_map);
+
+    // Step 4: Build SpecDrivenSensorAdapter and register it.
+    let mock_auth: Arc<dyn AuthProvider> = Arc::new(MockAuthProvider::new("test-oauth2-token"));
+    let http_client =
+        build_http_client_with_timeout().expect("AC-EQUIV-001: reqwest client build must succeed");
+
+    let spec_content2 = std::fs::read_to_string(
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../prism-sensors/specs/crowdstrike.sensor.toml"),
+    )
+    .expect("AC-EQUIV-001: re-read crowdstrike.sensor.toml");
+    let mut spec2 = SpecLoader::parse(&spec_content2).expect("AC-EQUIV-001: re-parse");
+    spec2.base_url = dtu_base_url.clone();
+    let resolved2 = make_resolved_spec(spec2, org_slug);
+
+    let adapter = SpecDrivenSensorAdapter::new(
+        Arc::new(resolved2),
+        AdapterAuthStrategy::Plugin(mock_auth),
+        http_client,
+    );
+    let mut adapter_registry = AdapterRegistry::new();
+    adapter_registry.register(org_id, Arc::new(adapter));
+
+    // Step 5: Build MaterializationContext.
+    let normalizer = Arc::new(OcsfNormalizer::new());
+    let credential_resolver: Arc<dyn CredentialResolver> =
+        Arc::new(PluginIgnoredCredentialResolver);
+    let org_registry_arc = Arc::new(org_registry);
+    let mut mat_ctx = MaterializationContext::new_with_resolver(
+        Arc::new(adapter_registry),
+        normalizer,
+        10_000,
+        credential_resolver,
+        Some(Arc::clone(&org_registry_arc)),
+        Some(Arc::clone(&resolved_spec_map_arc)),
+    );
+    let session_ctx = SessionContext::new();
+
+    // Step 6: Execution A — run_materialization_pipeline WITH a time-window predicate.
+    // Fixture spans 2026-01-01..2026-01-26 (50 records).
+    // Window: 2026-01-15 to end-of-fixture → records det-015..det-025 ≈ ~11 records.
+    // This predicate is NOT hand-fed into FetchContext — it flows through the full production path:
+    //   run_materialization_pipeline → PrismQlParser::parse
+    //   → extract_time_window_from_ast [reads resolved_spec_map INDEX column: created_timestamp]
+    //   → QueryParams.start_time = '2026-01-15T00:00:00Z', end_time = None
+    //   → SpecDrivenSensorAdapter::fetch → build_crowdstrike_fql → DTU
+    let start_time_a = "2026-01-15T00:00:00Z";
+    let query_a = format!(
+        "SELECT * FROM crowdstrike_detections \
+         WHERE created_timestamp > '{start_time_a}'"
+    );
+
+    let options_a = QueryOptions {
+        clients: Some(vec![org_slug_typed.clone()]),
+        limit: None,
+        ..QueryOptions::default()
+    };
+
+    // REAL production pipeline entry point (NOT PipelineExecutor::execute directly).
+    let output_a = run_materialization_pipeline(&query_a, &options_a, &mut mat_ctx, &session_ctx)
+        .await
+        .expect(
+            "AC-EQUIV-001: run_materialization_pipeline (Execution A, time-filtered) must succeed",
+        );
+
+    // Collect detection_ids from result A for subset assertion.
+    // The field is `detection_id` in the CrowdStrike DTU fixture shape.
+    let ids_a: std::collections::HashSet<String> = output_a
+        .batches
+        .iter()
+        .flat_map(|batch| {
+            // Extract the `detection_id` column values from the Arrow RecordBatch.
+            use datafusion::arrow::array::{Array, StringArray};
+            use datafusion::arrow::datatypes::DataType;
+            let schema = batch.schema();
+            let col_idx = schema.index_of("detection_id").ok();
+            match col_idx {
+                Some(idx) => {
+                    let col = batch.column(idx);
+                    if col.data_type() == &DataType::Utf8 {
+                        let arr = col
+                            .as_any()
+                            .downcast_ref::<StringArray>()
+                            .expect("detection_id must be StringArray");
+                        (0..arr.len())
+                            .filter(|&i| !arr.is_null(i))
+                            .map(|i| arr.value(i).to_string())
+                            .collect::<Vec<_>>()
+                    } else {
+                        vec![]
+                    }
+                }
+                None => vec![],
+            }
+        })
+        .collect();
+    let count_a = ids_a.len();
+
+    // Step 7: Reset DTU state between executions so Execution B is independent.
+    clone
+        .reset()
+        .await
+        .expect("AC-EQUIV-001: clone reset must succeed");
+
+    // Step 8: Execution B — run_materialization_pipeline WITHOUT a time predicate (unfiltered baseline).
+    // Build fresh infrastructure for the second execution (separate org to avoid registry collision).
+    let org_slug_b = "ac-equiv-001-baseline-org";
+    let (org_registry_b, org_id_b, org_slug_typed_b) = make_org_registry(org_slug_b);
+
+    let spec_content_b = std::fs::read_to_string(
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../prism-sensors/specs/crowdstrike.sensor.toml"),
+    )
+    .expect("AC-EQUIV-001: re-read for B");
+    let mut spec_b = SpecLoader::parse(&spec_content_b).expect("AC-EQUIV-001: re-parse B");
+    spec_b.base_url = dtu_base_url.clone();
+    let resolved_b = make_resolved_spec(spec_b, org_slug_b);
+
+    let mut resolved_spec_map_b: HashMap<ResolvedSpecKey, ResolvedSensorSpec> = HashMap::new();
+    resolved_spec_map_b.insert(
+        (org_slug_typed_b.clone(), SensorId::from("crowdstrike")),
+        resolved_b,
+    );
+
+    let spec_content_b2 = std::fs::read_to_string(
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../prism-sensors/specs/crowdstrike.sensor.toml"),
+    )
+    .expect("AC-EQUIV-001: re-read B2");
+    let mut spec_b2 = SpecLoader::parse(&spec_content_b2).expect("AC-EQUIV-001: re-parse B2");
+    spec_b2.base_url = dtu_base_url.clone();
+    let resolved_b2 = make_resolved_spec(spec_b2, org_slug_b);
+
+    let mock_auth_b: Arc<dyn AuthProvider> = Arc::new(MockAuthProvider::new("test-oauth2-token"));
+    let http_client_b = build_http_client_with_timeout().expect("AC-EQUIV-001: http_client_b");
+    let adapter_b = SpecDrivenSensorAdapter::new(
+        Arc::new(resolved_b2),
+        AdapterAuthStrategy::Plugin(mock_auth_b),
+        http_client_b,
+    );
+    let mut adapter_registry_b = AdapterRegistry::new();
+    adapter_registry_b.register(org_id_b, Arc::new(adapter_b));
+
+    let normalizer_b = Arc::new(OcsfNormalizer::new());
+    let cred_resolver_b: Arc<dyn CredentialResolver> = Arc::new(PluginIgnoredCredentialResolver);
+    let mut mat_ctx_b = MaterializationContext::new_with_resolver(
+        Arc::new(adapter_registry_b),
+        normalizer_b,
+        10_000,
+        cred_resolver_b,
+        Some(Arc::new(org_registry_b)),
+        Some(Arc::new(resolved_spec_map_b)),
+    );
+    let session_ctx_b = SessionContext::new();
+
+    let options_b = QueryOptions {
+        clients: Some(vec![org_slug_typed_b.clone()]),
+        limit: None,
+        ..QueryOptions::default()
+    };
+
+    // Execution B: no WHERE clause → no FQL → DTU returns all 50 fixture records.
+    let output_b = run_materialization_pipeline(
+        "SELECT * FROM crowdstrike_detections",
+        &options_b,
+        &mut mat_ctx_b,
+        &session_ctx_b,
+    )
+    .await
+    .expect("AC-EQUIV-001: run_materialization_pipeline (Execution B, unfiltered) must succeed");
+
+    // Collect detection_ids from result B.
+    let ids_b: std::collections::HashSet<String> = output_b
+        .batches
+        .iter()
+        .flat_map(|batch| {
+            use datafusion::arrow::array::{Array, StringArray};
+            use datafusion::arrow::datatypes::DataType;
+            let schema = batch.schema();
+            let col_idx = schema.index_of("detection_id").ok();
+            match col_idx {
+                Some(idx) => {
+                    let col = batch.column(idx);
+                    if col.data_type() == &DataType::Utf8 {
+                        let arr = col
+                            .as_any()
+                            .downcast_ref::<StringArray>()
+                            .expect("detection_id must be StringArray");
+                        (0..arr.len())
+                            .filter(|&i| !arr.is_null(i))
+                            .map(|i| arr.value(i).to_string())
+                            .collect::<Vec<_>>()
+                    } else {
+                        vec![]
+                    }
+                }
+                None => vec![],
+            }
+        })
+        .collect();
+    let count_b = ids_b.len();
+
+    // Step 9: BC-2.11.007 invariant (a) — result A is a STRICT SUBSET of result B
+    // (filtered count < unfiltered count). This proves the production push-down path is live.
+    // If run_materialization_pipeline hardcodes start_time=None (F-P6-CRIT-001 regression),
+    // build_crowdstrike_fql returns empty FQL, DTU returns all 50 records, count_a == count_b → FAILS.
+    assert!(
+        count_a < count_b,
+        "AC-EQUIV-001 LOAD-BEARING (BC-2.11.007 invariant a): run_materialization_pipeline \
+         WITH `WHERE created_timestamp > '{start_time_a}'` must produce fewer records ({count_a}) \
+         than WITHOUT time predicate ({count_b}). \
+         Production path: run_materialization_pipeline → extract_time_window_from_ast \
+         [reads resolved_spec_map INDEX column: created_timestamp] → QueryParams.start_time = '{start_time_a}' \
+         → SpecDrivenSensorAdapter::fetch → build_crowdstrike_fql → DTU filter-log. \
+         REGRESSION: if count_a == count_b, extract_time_window_from_ast returned start_time=None \
+         (materialization.rs dead-code path — F-P6-CRIT-001) or build_crowdstrike_fql produced empty FQL.",
+    );
+    assert!(
+        count_a > 0,
+        "AC-EQUIV-001: time-filtered execution A must return non-empty records \
+         (fixture has records after {start_time_a})",
+    );
+    assert!(
+        count_b > 0,
+        "AC-EQUIV-001: unfiltered execution B must return non-empty records \
+         (CrowdStrike DTU fixture has 50 records)",
+    );
+
+    // Step 10: BC-2.11.007 invariant (b) — no fabrication.
+    // Every detection_id in result A must appear in result B.
+    // Push-down is an optimization only; the filtered result must be a true SUBSET of the unfiltered set.
+    for id in &ids_a {
+        assert!(
+            ids_b.contains(id.as_str()),
+            "AC-EQUIV-001 NO-FABRICATION (BC-2.11.007 invariant b): detection_id '{id}' \
+             from push-down result A must also appear in unfiltered result B. \
+             Push-down must not introduce records absent from the full dataset. \
+             REGRESSION: the DTU produced a record in the filtered set that does not \
+             exist in the unfiltered set — either a fixture ordering bug or a DTU fabrication.",
+        );
+    }
 }

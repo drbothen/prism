@@ -14,7 +14,9 @@
 //! - AC-ARMIS-002: No additional params beyond aql, offset, limit
 //! - AC-CYB-001: Cyberint AlertListParams has only cursor (no from_date, to_date, page_size)
 //! - AC-CLAR-001: Claroty body_template remains empty — no time-window fields
-//! - AC-EQUIV-001: Result-equivalence via real materialization path (CrowdStrike DTU)
+//! - AC-EQUIV-001: FQL subset invariant at PipelineExecutor boundary (pre-seeded FQL, CrowdStrike DTU);
+//!   AUTHORITATIVE full run_materialization_pipeline path in prism-bin/tests/adv_p02_e2e_pushdown_pipeline_test.rs
+//!   → test_ac_equiv_001_result_equivalence_via_run_materialization_pipeline
 //!
 //! # SAP-2 Compliance
 //!
@@ -940,24 +942,49 @@ async fn test_ac_clar_001_claroty_body_template_remains_empty_no_time_fields() {
 }
 
 // ---------------------------------------------------------------------------
-// AC-EQUIV-001: Result-equivalence via real materialization path
+// AC-EQUIV-001 (pipeline-executor boundary): FQL subset invariant via PipelineExecutor
+//
+// COVERAGE NOTE (ADV-P05-HIGH-001):
+// The AUTHORITATIVE AC-EQUIV-001 test that drives `run_materialization_pipeline`
+// end-to-end is:
+//   crates/prism-bin/tests/adv_p02_e2e_pushdown_pipeline_test.rs
+//   → test_ac_equiv_001_result_equivalence_via_run_materialization_pipeline
+//
+// This file (prism-spec-engine) cannot depend on prism-bin (circular dep guard,
+// see CLAUDE.md architecture compliance note). The test below validates the
+// PipelineExecutor boundary only: it pre-seeds `_fql` into FetchContext
+// (simulating the output of build_crowdstrike_fql after extract_time_window_from_ast)
+// and asserts the DTU honors the FQL + no-fabrication invariant at that layer.
+// It does NOT exercise run_materialization_pipeline, extract_time_window_from_ast,
+// or build_crowdstrike_fql — those are exercised by the prism-bin test above.
 // ---------------------------------------------------------------------------
 
-/// AC-EQUIV-001 / BC-2.11.007 v1.8 invariant
+/// AC-EQUIV-001 pipeline-executor boundary / BC-2.11.007 v1.8 FQL subset invariant
 ///
-/// Push-down is an optimization only. The query result set with time-window push-down
-/// (DTU filtered by FQL) is a SUBSET of (or equal to) the result without push-down.
-/// Tests at the PipelineExecutor boundary via the real CrowdStrike DTU clone.
+/// Validates that a pre-built FQL string (the form produced by `build_crowdstrike_fql`)
+/// seeded into `FetchContext["_fql"]` causes the DTU to return a strict SUBSET of
+/// the unfiltered set, with no fabrication — verifying the PipelineExecutor wire layer.
 ///
-/// # Wire-level assertion (F-P1-HIGH-003 / F-P1-CRIT-005)
-/// Execution A seeds `_fql` with a time-window FQL that matches a strict SUBSET of fixture
-/// records. Execution B uses no filter. The DTU must honor the FQL, returning fewer IDs
-/// in A. Every record in A must also appear in B (no fabrication).
+/// # BOUNDARY SCOPE (pre-seeded FQL — NOT run_materialization_pipeline)
+///
+/// This test DOES NOT exercise `run_materialization_pipeline`, `extract_time_window_from_ast`,
+/// or `build_crowdstrike_fql`. It seeds the FQL directly into `FetchContext` and calls
+/// `PipelineExecutor::execute`. This is the pipeline-executor boundary assertion only.
+///
+/// The AUTHORITATIVE AC-EQUIV-001 test that proves the full production path
+/// (`run_materialization_pipeline` → AST extraction → FQL build → DTU) is:
+/// `test_ac_equiv_001_result_equivalence_via_run_materialization_pipeline` in
+/// `crates/prism-bin/tests/adv_p02_e2e_pushdown_pipeline_test.rs`.
+///
+/// # Wire-level assertion (F-P1-HIGH-003)
+/// Execution A seeds `_fql` with a time-window FQL matching a strict SUBSET of fixture records.
+/// Execution B uses no filter. The DTU must honor the FQL (count_a < count_b).
+/// Every record in A must also appear in B (no fabrication).
 ///
 /// # SAP-2
 /// Production `crowdstrike.sensor.toml` shape; real CrowdStrike DTU clone.
 #[tokio::test]
-async fn test_ac_equiv_001_result_equivalence_via_real_materialization_path() {
+async fn test_ac_equiv_001_fql_subset_invariant_via_pipeline_executor_boundary() {
     let mut clone = CrowdstrikeClone::new();
     let bound_addr = clone
         .start_on("127.0.0.1:0".parse().unwrap(), None, None)
