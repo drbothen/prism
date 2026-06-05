@@ -6,11 +6,11 @@ wave: wave-5-e-demo-fidelity
 epic_id: E-DEMO
 priority: P2
 status: ready
-version: "1.1"
+version: "1.2"
 level: "L3"
 producer: story-writer
 revised_by: null
-timestamp: "2026-05-31T12:00:00Z"
+timestamp: "2026-06-05T00:00:00Z"
 tdd_mode: strict
 subsystems: [SS-01, SS-16]
 # Subsystem anchor justifications:
@@ -35,8 +35,13 @@ behavioral_contracts:
 # BC status: pending PO authorship for any new push-down-specific BC clauses.
 # BC-2.01.013 and BC-2.11.007 are the primary contracts; PO may author a dedicated
 # BC for FetchContext field additions if warranted before this story flips to ready.
-verification_properties:
-  - VP-031  # Required column enforcement — push-down correctness test coverage
+verification_properties: []
+# VP note: No existing VP covers push-down/filter threading behavior. VP-031
+# (Required column enforcement — prism-query, S-3.02) was removed here in v1.2:
+# it verifies PlanError::MissingRequiredColumnConstraint / E-QUERY-009, which has
+# no semantic relationship to FetchContext push-down threading. If a dedicated
+# push-down VP is warranted, this is flagged for product-owner / architect
+# authorship (story-writer cannot author VPs per agent routing policy).
 depends_on:
   - S-DEMO-001   # Must merge first: SpecDrivenSensorAdapter and PipelineExecutor wiring
                  # delivered by S-DEMO-001 are the extension points this story modifies.
@@ -95,11 +100,11 @@ cycle: "v1.0.0-brownfield"
 phase: 3
 ---
 
-# S-DEMO-QUERY-PUSHDOWN-001 v1.0 — prism-spec-engine: Query-Param Push-Down into PipelineExecutor
+# S-DEMO-QUERY-PUSHDOWN-001 v1.2 — prism-spec-engine: Query-Param Push-Down into PipelineExecutor
 
 **Story ID:** S-DEMO-QUERY-PUSHDOWN-001
-**Status:** draft
-**Version:** v1.0
+**Status:** ready
+**Version:** v1.2
 **Wave:** wave-5-e-demo-fidelity
 **Priority:** P2
 **Points:** 5
@@ -108,7 +113,7 @@ phase: 3
 
 ## Origin
 
-Deferred from S-DEMO-001 v1.5 per BC-2.01.013 v1.8 Pagination/Push-Down Scope Clause (D-924).
+Deferred from S-DEMO-001 v1.5 per BC-2.01.013 v1.8 Pagination/Push-Down Scope Clause (D-924). BC-2.01.013 is now at v1.12; the Pagination/Push-Down Scope Clause has been updated to reflect that push-down IS now implemented by this story (F-PUSHDOWN-008).
 
 S-DEMO-001 established that `SpecDrivenSensorAdapter::fetch()` returns ALL pages bounded only
 by `MAX_PAGES_PER_STEP` / `MAX_REQUESTS_PER_PIPELINE`, and that query-param push-down
@@ -157,7 +162,7 @@ After this story merges:
 | BC ID | Title |
 |-------|-------|
 | BC-2.01.013 | DataSource Trait Eliminates Per-Sensor Code Duplication (Pagination/Push-Down Scope Clause — this story implements the deferred push-down feature) |
-| BC-2.11.005 | Ephemeral Materialization — Fan-Out, Normalize, Arrow RecordBatch, DataFusion MemTable |
+| BC-2.11.005 | Ephemeral Materialization — Fan-Out, Normalize, Arrow RecordBatch, DataFusion MemTable *(affected-but-indirectly-tested: BC-2.11.005 §Postconditions states "cache misses trigger sensor API calls with push-down filters translated to sensor-native syntax" — this story implements that translation. BC-2.11.005 §In-Query Cache key `push_down_params` dimension is now populated. Materialization machinery itself was delivered in S-DEMO-001 and is not under test here. No new AC required.)* |
 | BC-2.11.007 | Sensor Filter Push-Down — push-down is optimization only; result must be identical with or without push-down |
 
 ---
@@ -298,9 +303,7 @@ Version source: workspace `Cargo.toml` `[dependencies]` table. Do not pin versio
   `PipelineExecutor::execute()`, `FetchContext`, and `build_request()`. This story extends
   those exact types. Read the S-DEMO-001 implementation before implementing push-down wiring —
   the exact `FetchContext` struct definition and `build_request()` signature are ground truth.
-- **BC-2.01.013 v1.8 Pagination/Push-Down Scope Clause (D-924):** Explicitly documents that
-  this story is the deferred push-down feature. The scope-out note in S-DEMO-001 AC-010 is the
-  forward-pointer to this story.
+- **BC-2.01.013 v1.12 Pagination/Push-Down Scope Clause (D-924, F-PUSHDOWN-008):** Now documents that push-down IS performed by this story. The prior scope-out (v1.8) has been superseded per CLAUDE.md Source-of-Truth Precedence Rule 1 (approved story supersedes BC on implementation scope). The scope-out note in S-DEMO-001 AC-010 was the original forward-pointer to this story.
 - **BC-2.11.007 invariant:** "push-down is an optimization only; the query result must be
   identical whether or not push-down occurs." This is the non-negotiable correctness invariant.
   Every push-down change must be tested against it (AC-005).
@@ -341,5 +344,6 @@ Well within the 20-30% budget. Single-story delivery is viable.
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.2 | 2026-06-05 | story-writer | F-PUSHDOWN-006: removed VP-031 from verification_properties (VP-031 covers required-column rejection in prism-query / S-3.02 — unrelated to push-down threading; mis-anchor). No push-down VP exists in VP-INDEX (156 VPs checked); new-VP need flagged for PO/architect in frontmatter note. F-PUSHDOWN-007: updated BC-2.11.005 row in Behavioral Contracts table with PO-specified affected-but-indirectly-tested relationship note. Body header version/status updated to v1.2/ready. Token Budget BC count (3 BCs) remains consistent. |
 | 1.1 | 2026-06-03 | state-manager | D-990 Phase-A-close: status draft→ready; depends_on S-DEMO-001 SATISFIED (merged PR #166); BC-2.01.013 v1.11 active + BC-2.11.005 active + BC-2.11.007 active — S-7.01 gate CLEARED. |
 | 1.0 | 2026-05-31 | story-writer | Initial draft — created per S-DEMO-001 v1.5 AC-010 scope note and BC-2.01.013 v1.8 Pagination/Push-Down Scope Clause (D-924). Scope: thread FetchContext push-down fields (cursor/limit/start_time/end_time) from SpecDrivenSensorAdapter::fetch() into PipelineExecutor build_request(). P2 non-blocking — correctness holds via DataFusion post-materialization. |

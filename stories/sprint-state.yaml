@@ -132,13 +132,26 @@ active_dispatch_set:
     notes: "MERGED PR #166 squash-merged develop@5dd3df02 2026-06-01T17:38:35Z. Story v1.10. LOCAL CONVERGED 3/3 (passes 5/6/7 per BC-5.39.001 D-779). PR-LEVEL CONVERGED 3/3 (passes 2/3/4). Fix-burst 3fc37c7c ALL CR-001..006 + SEC-001..003 CLOSED (EXPECTED 46→49; 3888 pass). POL-14: BC-2.11.005 status draft→active per D-937. S-DEMO-002 unblocked. OCSF-CLASS-MIGRATION-001 depends_on S-DEMO-001 SATISFIED. Cascade CLOSED."
 
   - story_id: S-DEMO-QUERY-PUSHDOWN-001
-    status: ready
+    status: in_progress
     priority: P2
     points: 5
-    spec_version: "v1.1"
+    spec_version: "v1.2"
+    lane: "2 (Phase B)"
+    dispatch_status: "LOCAL_CASCADE_IN_FLIGHT — pass 1 NOT-CLEAN (8 findings: 2H+2M+2L+2OBS); fix-burst COMPLETE @a75fada4 (just check 4001/4001 GREEN); spec fix-burst applied (.factory/ working tree); LOCAL pass 2 NEXT. CLEAN(strict)=no CLEAN(PR-merge)=no streak 0/3."
+    code_head: "a75fada4"
+    local_adversary_streak: "0/3"
+    local_adversary_pass_count: 1
+    local_adversary_pass1_clean_strict: false
+    local_adversary_pass1_clean_pr_merge: false
+    local_adversary_pass1_findings: {HIGH: 2, MED: 2, LOW: 2, OBS: 2}
+    local_adversary_pass1_all_closed: true
+    local_adversary_pass1_feature_head_before: "19184786"
+    local_adversary_pass1_feature_head_after: "a75fada4"
     depends_on:
       - S-DEMO-001  # HARD gate — SATISFIED (merged PR #166 develop@5dd3df02)
-    notes: "D-990 2026-06-03: status draft→ready (v1.0→v1.1). BC-2.01.013 v1.11 active + BC-2.11.005 active + BC-2.11.007 active. depends_on S-DEMO-001 SATISFIED. S-7.01 gate CLEARED."
+    bcs: [BC-2.01.013, BC-2.11.005, BC-2.11.007]
+    vps: []
+    notes: "D-1001 2026-06-05: LOCAL pass 1 NOT-CLEAN (F-001..008 all CLOSED/ADJUDICATED); code fix-burst a75fada4; spec fix-burst (BC-2.01.013 v1.11→v1.12, BC-2.11.005 body-pin v1.8→v1.12, BC-INDEX v5.82→v5.83, story v1.1→v1.2 VP-031 removed + BC-2.11.005 body note, S-DEMO-001 v1.10→v1.11, OCSF-CLASS-MIGRATION-001 BC-2.01.013 pin v1.10→v1.12, STORY-INDEX OCSF row + version bump). spec_version v1.1→v1.2. LOCAL pass 2 NEXT. (D-990 2026-06-03: status draft→ready v1.0→v1.1. S-7.01 gate CLEARED.)"
 
   - story_id: OCSF-CLASS-MIGRATION-001
     status: ready

@@ -6,11 +6,11 @@ wave: 5
 epic_id: E-DEMO
 priority: P0
 status: draft
-version: "1.10"
+version: "1.11"
 level: "L4"
 producer: story-writer
 revised_by: architect
-timestamp: "2026-06-01T00:00:00Z"
+timestamp: "2026-06-05T00:00:00Z"
 tdd_mode: strict
 subsystems: [SS-01, SS-16, SS-22]
 # Subsystem anchor justifications:
@@ -500,15 +500,18 @@ the raw record, and
 
 (traces to BC-2.01.013 v1.9 OCSF Conformance Clause items 1–3; postcondition; traces to BC-2.11.005 postcondition — virtual fields injected by the normalization layer)
 
-**SCOPE NOTE — Query-Param Push-Down is OUT OF SCOPE for this story (D-924):**
-`SpecDrivenSensorAdapter::fetch()` does NOT translate `limit`, `cursor`, `start_time`, or
-`end_time` from the query caller's parameters into sensor-native API request parameters.
-DataFusion applies `LIMIT` predicates and time-window post-filters over the fully materialized
-Arrow RecordBatch after `fetch()` returns. This is correct behavior — push-down is an
-optimization (BC-2.11.007 invariant), not a correctness requirement. Query-param push-down is
-deferred as an explicit feature to follow-up story S-DEMO-QUERY-PUSHDOWN-001 per
-BC-2.01.013 v1.9 Pagination/Push-Down Scope Clause (D-924). Test-writers MUST NOT assert that
-`fetch()` passes `limit` or cursor values to the sensor API.
+**SCOPE NOTE — Query-Param Push-Down is OUT OF SCOPE for this story (D-924, historical):**
+`SpecDrivenSensorAdapter::fetch()` did NOT translate `limit`, `cursor`, `start_time`, or
+`end_time` from the query caller's parameters into sensor-native API request parameters at the
+time S-DEMO-001 was implemented. DataFusion applied `LIMIT` predicates and time-window
+post-filters over the fully materialized Arrow RecordBatch. This was correct behavior —
+push-down is an optimization (BC-2.11.007 invariant), not a correctness requirement.
+
+**Historical accuracy note (v1.11, 2026-06-05):** Push-down IS now implemented by
+S-DEMO-QUERY-PUSHDOWN-001 per BC-2.01.013 v1.12. The AC-011 scope-out above is historical to
+S-DEMO-001 and does not apply to implementations built after S-DEMO-QUERY-PUSHDOWN-001 merges.
+Test-writers working on S-DEMO-001 MUST NOT assert that `fetch()` passes `limit` or cursor
+values to the sensor API (that is S-DEMO-QUERY-PUSHDOWN-001's responsibility, not this story's).
 
 ### AC-011: No `todo!()` or `unimplemented!()` in adapter, boot step 9A, or StaticCookieAuthProvider (POL-12)
 Given: The implementation is complete and all 4 sensor paths are exercised by tests.
@@ -703,6 +706,7 @@ if context pressure is felt during implementation.
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.11 | 2026-06-05 | story-writer | Minimal historical-accuracy correction (F-PUSHDOWN-008 cross-story drift, PO-surfaced): AC-010 SCOPE NOTE updated — stale "Test-writers MUST NOT assert fetch() passes limit/cursor" instruction now clarified as historical to S-DEMO-001 only; notes that push-down IS implemented by S-DEMO-QUERY-PUSHDOWN-001 per BC-2.01.013 v1.12. No ACs, BCs, or semantics changed. Story is MERGED (PR #166) — this is a documentation-only correction for auditable accuracy. |
 | 1.10 | 2026-06-01 | story-writer | OBS-P3-001 version-pin sweep: AC-010 heading, conformance test requirement label, traces-to line, and Pagination/Push-Down Scope Clause reference all updated from BC-2.01.013 v1.8 → v1.9. Historical changelog entries (1.5 and 1.6 rows) are untouched — they record what was written when the BC was at v1.8. |
 | 1.9 | 2026-05-31 | story-writer | POL-32 hygiene (F-PASS1-MED-002): changelog reordered to monotonic DESCENDING per POL-32 (newest first). AC-004 clarification (F-PASS1-OBS-002): N defined as (per-org × per-sensor specs) minus sensors skipped per EC-004 (missing PluginAuthProvider) or EC-007 (unsupported auth_type); aligns with Red Gate test expectation of 2 (armis×2; crowdstrike skipped). |
 | 1.8 | 2026-05-31 | story-writer | ADV-P06 exhaustive closure sweep (ADV-P06-MED-001 + ADV-P06-MED-002). MED-001: EC-002 and EC-008 corrected from "retry → AuthRefreshFailed" to NO-RETRY → CookieAuthFailed per BC-2.01.017 EC-017-002; §Cyberint Cookie Auth Design "On 401" bullet corrected to match no-retry semantics. MED-002: Task 9 corrected — StaticCookieAuthProvider production constructor is 1-arg `new(sensor_id)` (resolver internal via PrismCredentialResolver); test-only `new_with_resolver(sensor_id, resolver)` named and feature-gated; no `credential_resolver` injected from boot callsite. Task 14 corrected — `StaticCookieAuthProvider::new(sensor_id)` (1-arg; no `Arc::clone(&credential_resolver)`). Task 5 rewritten — stale instruction to read OLD DTU `POST /login` / `cyberint_session` pattern replaced with corrected-DTU reading guidance. No prescriptive stale references remain after this sweep. |

@@ -1,10 +1,10 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "5.82"
+version: "5.83"
 status: draft
 producer: state-manager
-timestamp: 2026-06-03T18:00:00Z
+timestamp: 2026-06-05T00:00:00Z
 phase: 3.A
 total_contracts: 246
 active_contracts: 234
@@ -41,7 +41,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.01.010 | Partial Failure Handling for Paginated and Cross-Client Queries | 01 - Sensor Adapters | CAP-001, CAP-002 | P0 | draft |
 | BC-2.01.011 | ~~Cross-Sensor Correlation via OCSF Field Alignment~~ | 01 - Sensor Adapters | CAP-012 | P1 | removed |
 | BC-2.01.012 | ~~Query Fingerprint Validation at Startup~~ | 01 - Sensor Adapters | CAP-001 | P0 | removed |
-| BC-2.01.013 | DataSource Trait Eliminates Per-Sensor Code Duplication | 01 - Sensor Adapters | CAP-001 | P0 | active (promoted draft→active D-398 per POL-14; anchor story S-PLUGIN-PREREQ-A merged PR #142 develop@90d7c80f) — v1.11 |
+| BC-2.01.013 | DataSource Trait Eliminates Per-Sensor Code Duplication | 01 - Sensor Adapters | CAP-001 | P0 | active (promoted draft→active D-398 per POL-14; anchor story S-PLUGIN-PREREQ-A merged PR #142 develop@90d7c80f) — v1.12 |
 | BC-2.01.014 | Exponential Backoff and Retry for Transient Sensor API Errors | 01 - Sensor Adapters | CAP-001 | P0 | draft |
 | BC-2.01.015 | ~~MCP Tool Response Envelope Structure~~ | 01 - Sensor Adapters | CAP-001 | P0 | removed |
 | BC-2.01.016 | SensorAuth Open Trait — Plugin-Implementable Auth Contract (No Sealed Marker) | 01 - Sensor Adapters | CAP-001 | P0 | active (promoted draft→active D-726 per POL-14; anchor story S-PLUGIN-PREREQ-E merged PR #151 develop@80ebe794 2026-05-19) — v1.12 |
@@ -376,6 +376,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v5.83 (2026-06-05, F-PUSHDOWN-008-po-fix-burst):** product-owner | F-PUSHDOWN-008 closure: BC-2.01.013 v1.11→v1.12 (Pagination/Push-Down Scope Clause superseded by S-DEMO-QUERY-PUSHDOWN-001 v1.1 per CLAUDE.md Source-of-Truth Precedence Rule 1; push-down IS now performed on first/query-plan step via FetchContext; EC-01-027 re-cast to hydration/entity-fetch-step absence; TV-BC-2.01.013-006 re-cast to assert push-down presence on query step). BC-INDEX row 44 updated to v1.12. No lifecycle_status changes. No count changes (active: 234, draft: 3 unchanged). BC-INDEX v5.82→v5.83.
 
 **v5.82 (2026-06-04, FB-PR4 spec fix-burst — BC-2.16.009 v1.9→v1.10):** state-manager | BC-2.16.009 inline row 223 updated to v1.10. No lifecycle_status changes (BC-2.16.009 remains active). No count changes (active: 234, draft: 3 unchanged). Changes: §VR7 §Ordering Point 3 full-match skip-guard clause added (F-PR1-OBS-001 / F-PR6-HIGH-001); EC-009-022..025 added to §Edge Cases; 4 canonical test vectors added; test name `..._v1_59_template_byte_for_byte` → `..._template_byte_for_byte` (OBS-PR6-001 / TD-VSDD-091). BC-INDEX v5.81→v5.82.
 
