@@ -135,23 +135,29 @@ active_dispatch_set:
     status: in_progress
     priority: P2
     points: 5
-    spec_version: "v1.2"
+    spec_version: "v1.3"
     lane: "2 (Phase B)"
-    dispatch_status: "LOCAL_CASCADE_IN_FLIGHT — pass 1 NOT-CLEAN (8 findings: 2H+2M+2L+2OBS); fix-burst COMPLETE @a75fada4 (just check 4001/4001 GREEN); spec fix-burst applied (.factory/ working tree); LOCAL pass 2 NEXT. CLEAN(strict)=no CLEAN(PR-merge)=no streak 0/3."
-    code_head: "a75fada4"
+    dispatch_status: "LOCAL_CASCADE_IN_FLIGHT — pass 2 NOT-CLEAN (3 findings: 1M+1L+1OBS all CLOSED); fix-burst COMPLETE @688f82b5 (just check 4001/4001 GREEN); spec fix-burst applied (F-PUSHDOWN2-MED-001 status sync v1.2→v1.3); LOCAL pass 3 NEXT. CLEAN(strict)=no CLEAN(PR-merge)=no streak 0/3."
+    code_head: "688f82b5"
     local_adversary_streak: "0/3"
-    local_adversary_pass_count: 1
+    local_adversary_pass_count: 2
     local_adversary_pass1_clean_strict: false
     local_adversary_pass1_clean_pr_merge: false
     local_adversary_pass1_findings: {HIGH: 2, MED: 2, LOW: 2, OBS: 2}
     local_adversary_pass1_all_closed: true
     local_adversary_pass1_feature_head_before: "19184786"
     local_adversary_pass1_feature_head_after: "a75fada4"
+    local_adversary_pass2_clean_strict: false
+    local_adversary_pass2_clean_pr_merge: false
+    local_adversary_pass2_findings: {MED: 1, LOW: 1, OBS: 1}
+    local_adversary_pass2_all_closed: true
+    local_adversary_pass2_feature_head_before: "a75fada4"
+    local_adversary_pass2_feature_head_after: "688f82b5"
     depends_on:
       - S-DEMO-001  # HARD gate — SATISFIED (merged PR #166 develop@5dd3df02)
     bcs: [BC-2.01.013, BC-2.11.005, BC-2.11.007]
     vps: []
-    notes: "D-1001 2026-06-05: LOCAL pass 1 NOT-CLEAN (F-001..008 all CLOSED/ADJUDICATED); code fix-burst a75fada4; spec fix-burst (BC-2.01.013 v1.11→v1.12, BC-2.11.005 body-pin v1.8→v1.12, BC-INDEX v5.82→v5.83, story v1.1→v1.2 VP-031 removed + BC-2.11.005 body note, S-DEMO-001 v1.10→v1.11, OCSF-CLASS-MIGRATION-001 BC-2.01.013 pin v1.10→v1.12, STORY-INDEX OCSF row + version bump). spec_version v1.1→v1.2. LOCAL pass 2 NEXT. (D-990 2026-06-03: status draft→ready v1.0→v1.1. S-7.01 gate CLEARED.)"
+    notes: "D-1002 2026-06-05: LOCAL pass 2 NOT-CLEAN (3 findings: F-PUSHDOWN2-MED-001 status asymmetry CLOSED spec; OBS-1 expect→if-let CLOSED code; OBS-2 smoke-test rationale CLOSED code); code fix-burst 688f82b5 (just check 4001/4001 GREEN); spec fix-burst (story v1.2→v1.3 in_progress; STORY-INDEX v1.2→v1.3; sprint-state spec_version v1.2→v1.3). LOCAL pass 3 NEXT. Streak 0/3. (D-1001 2026-06-05: LOCAL pass 1 NOT-CLEAN F-001..008 all CLOSED; code fix-burst a75fada4; spec fix-burst BC-2.01.013 v1.11→v1.12 etc. spec_version v1.1→v1.2. D-990 2026-06-03: status draft→ready v1.0→v1.1.)"
 
   - story_id: OCSF-CLASS-MIGRATION-001
     status: ready

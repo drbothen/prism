@@ -5,8 +5,8 @@ title: "prism-spec-engine: Thread QueryParams push-down (limit/cursor/time-windo
 wave: wave-5-e-demo-fidelity
 epic_id: E-DEMO
 priority: P2
-status: ready
-version: "1.2"
+status: in_progress
+version: "1.3"
 level: "L3"
 producer: story-writer
 revised_by: null
@@ -100,11 +100,11 @@ cycle: "v1.0.0-brownfield"
 phase: 3
 ---
 
-# S-DEMO-QUERY-PUSHDOWN-001 v1.2 — prism-spec-engine: Query-Param Push-Down into PipelineExecutor
+# S-DEMO-QUERY-PUSHDOWN-001 v1.3 — prism-spec-engine: Query-Param Push-Down into PipelineExecutor
 
 **Story ID:** S-DEMO-QUERY-PUSHDOWN-001
-**Status:** ready
-**Version:** v1.2
+**Status:** in_progress
+**Version:** v1.3
 **Wave:** wave-5-e-demo-fidelity
 **Priority:** P2
 **Points:** 5
@@ -344,6 +344,7 @@ Well within the 20-30% budget. Single-story delivery is viable.
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.3 | 2026-06-05 | state-manager | F-PUSHDOWN2-MED-001: status sync — frontmatter `status: ready`→`in_progress`; body header `**Status:** ready`→`in_progress`; body H1 version label v1.2→v1.3. D-1001 burst introduced asymmetry between STORY-INDEX (badged `in_progress v1.2`) and this story file (still `ready`). Source-of-Truth Rule 5: active LOCAL cascade → `in_progress` is canonical. Version bumped to v1.3 to maintain POLICY 32 monotonic-descending changelog. |
 | 1.2 | 2026-06-05 | story-writer | F-PUSHDOWN-006: removed VP-031 from verification_properties (VP-031 covers required-column rejection in prism-query / S-3.02 — unrelated to push-down threading; mis-anchor). No push-down VP exists in VP-INDEX (156 VPs checked); new-VP need flagged for PO/architect in frontmatter note. F-PUSHDOWN-007: updated BC-2.11.005 row in Behavioral Contracts table with PO-specified affected-but-indirectly-tested relationship note. Body header version/status updated to v1.2/ready. Token Budget BC count (3 BCs) remains consistent. |
 | 1.1 | 2026-06-03 | state-manager | D-990 Phase-A-close: status draft→ready; depends_on S-DEMO-001 SATISFIED (merged PR #166); BC-2.01.013 v1.11 active + BC-2.11.005 active + BC-2.11.007 active — S-7.01 gate CLEARED. |
 | 1.0 | 2026-05-31 | story-writer | Initial draft — created per S-DEMO-001 v1.5 AC-010 scope note and BC-2.01.013 v1.8 Pagination/Push-Down Scope Clause (D-924). Scope: thread FetchContext push-down fields (cursor/limit/start_time/end_time) from SpecDrivenSensorAdapter::fetch() into PipelineExecutor build_request(). P2 non-blocking — correctness holds via DataFusion post-materialization. |
