@@ -35,7 +35,7 @@ graph TD
 - `crates/prism-spec-engine/src/validation.rs` — `validate_step_methods()` fn + `ALLOWED_HTTP_METHODS` const + Rule 7 wiring in both load paths + SEC-001 truncation + full-match skip-guard (F-PR1-OBS-001)
 - `crates/prism-spec-engine/src/error.rs` — `SpecEngineError::InvalidHttpMethod` variant + `SpecErrorCode::E_SPEC_025` mapping
 - `crates/prism-spec-engine/src/spec_parser.rs` — `SpecErrorCode` channel wiring (E-SPEC-025 propagation through `load_path` / `load_all`)
-- `crates/prism-spec-engine/tests/` — 45 new http_method_whitelist_tests (10 Red Gate + 35 coverage/edge-case)
+- `crates/prism-spec-engine/src/validation.rs` (`#[cfg(test)] mod http_method_whitelist_tests`) — 35 tests covering 10 Red Gate + edge cases; `crates/prism-spec-engine/tests/bc_2_16_009_test.rs` — 26 tests; bundled-spec validation — 5 tests; proofs::spec_validator — 10 tests; write_endpoint_tests — 17 tests
 - `docs/demo-evidence/S-SPEC-HTTP-METHOD-VALIDATION-001/` — per-AC demo recordings (library-mode), all 5 ACs
 
 **No new dependencies added.** `ALLOWED_HTTP_METHODS` is a compile-time `const &[&str]`; no external crate required.
@@ -106,8 +106,8 @@ Step '<step_name>' in '<sensor_id>.<table_name>' declares method '<method_value>
 
 | Metric | Value |
 |--------|-------|
-| BC-2.16.009 test suite | 93/93 PASS (45 new + 48 preexisting, zero regressions) |
-| New http_method_whitelist_tests | 45 tests (10 Red Gate + 35 edge-case/coverage) |
+| BC-2.16.009 test suite | 93/93 PASS — zero regressions |
+| Per-module breakdown (sums to 93) | `http_method_whitelist_tests` (src/validation.rs): 35 · `bc_2_16_009_test` (tests/): 26 · bundled-spec validation: 5 · `proofs::spec_validator`: 10 · `write_endpoint_tests`: 17 |
 | Red Gate tests GREEN | 10/10 |
 | Bundled sensor specs pass Rule 7 | 4/4 (CrowdStrike, Armis, Claroty, Cyberint) |
 | `#[non_exhaustive]` compile-fail gate | 49/49 PASS |
@@ -207,7 +207,7 @@ Orchestrator-driven merge gate. This change introduces SEC-001 / CWE-400 mitigat
 | Behavior change for valid specs | None — all 4 bundled sensor TOML specs pass Rule 7 (test: `test_BC_2_16_009_validates_all_4_bundled_specs`) |
 | Behavior change for invalid specs | New structured error at spec-load time instead of silent GET fallback. This is the intended hardening. |
 | `_ => GET` fallback | Retained in `PipelineExecutor` (belt-and-suspenders per BC-2.16.009 v1.10 §Validation Rules 7). Not removed. |
-| Regression risk | LOW — 48 preexisting BC-2.16.009 tests pass; full workspace suite passes. |
+| Regression risk | LOW — 93/93 BC-2.16.009 tests pass (zero regressions); full workspace suite passes. |
 | Performance impact | Negligible — `const` whitelist lookup (7-element slice); runs once per step at spec-load time, not per query. |
 
 ---
@@ -237,7 +237,7 @@ Orchestrator-driven merge gate. This change introduces SEC-001 / CWE-400 mitigat
 - [x] `#[non_exhaustive]` gate 49/49 PASS
 - [x] `depends_on: []` — no upstream PR dependency blocks
 - [x] No AI attribution in commits or PR body
-- [ ] CI checks green (running on HEAD `37445ea6`)
+- [ ] CI checks green (running on HEAD `3923711c`)
 - [ ] PR-level adversarial cascade (orchestrator-driven merge gate)
 - [ ] Security review (orchestrator-driven merge gate)
 - [ ] pr-reviewer approval (orchestrator-driven merge gate)
