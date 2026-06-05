@@ -310,6 +310,72 @@ fn collect_equality_exprs(pred: &crate::ast::Predicate, out: &mut Vec<crate::ast
     }
 }
 
+// ---------------------------------------------------------------------------
+// extract_time_window_from_ast (ADR-033 T1 — pre-fan-out heuristic)
+// ---------------------------------------------------------------------------
+
+/// Extract `(start_time, end_time)` bounds from a PrismQL predicate tree.
+///
+/// Implements ADR-033 Option T1: walk `Predicate::Compare` nodes with
+/// `op ∈ {Gt, Ge, Lt, Le}` and match lhs column names against datetime INDEX
+/// columns in the provided `resolved_spec_map`. Extracted ISO8601 strings are
+/// returned as `(start_time, end_time)` where:
+/// - `start_time` corresponds to `Gt`/`Ge` predicates (lower bound)
+/// - `end_time`   corresponds to `Lt`/`Le` predicates (upper bound)
+///
+/// # Safe default (ADR-033 §Consequences)
+///
+/// When `resolved_spec_map` is `None`, both return values are `None` (no push-down).
+/// No panic; no push-down occurs.
+///
+/// # Story: S-DEMO-QUERY-PUSHDOWN-001 v2.1
+/// Red Gate stub — body returns `(None, None)` until the implementer wires the
+/// real AST walk. AC-WIRE-001 / AC-WIRE-001b tests drive this function.
+pub fn extract_time_window_from_ast(
+    predicate: &crate::ast::Predicate,
+    source_names: &[&str],
+    resolved_spec_map: Option<
+        &std::collections::HashMap<String, Vec<prism_spec_engine::spec_parser::ColumnSpec>>,
+    >,
+) -> (Option<String>, Option<String>) {
+    // Red Gate stub: suppress unused-variable warnings for stub body.
+    let _ = (predicate, source_names, resolved_spec_map);
+    // ADR-033 T1 stub — returns (None, None) until implemented.
+    // AC-WIRE-001 test asserts this returns Some(_) for datetime INDEX columns; FAILS here.
+    (None, None)
+}
+
+/// Augment a base Armis AQL string with time-window clauses.
+///
+/// Implements BC-2.01.013 v1.14 Mechanism B AQL-clause augmentation:
+/// - If base AQL already contains `after:`, `before:`, or `timeFrame:` → return verbatim
+///   (anti-double-filter guard, AC-ARMIS-TW-003).
+/// - If `start_time` is present → append `after:YYYY-MM-DDTHH:MM:SS` (bare, unquoted,
+///   timezone-naive per research-doc §2.2, AC-ARMIS-TW-001).
+/// - If `end_time` is present → append `before:YYYY-MM-DDTHH:MM:SS`.
+/// - Clauses are space-separated.
+///
+/// # AQL syntax
+///
+/// Canonical Armis AQL time syntax (research-confirmed HIGH confidence, 6 sources):
+/// `after:YYYY-MM-DDTHH:MM:SS` (bare, unquoted, timezone-naive — NOT `after:"T"`, NOT `Z` suffix).
+///
+/// # Story: S-DEMO-QUERY-PUSHDOWN-001 v2.1
+/// Red Gate stub — body returns `base_aql.to_string()` (no augmentation) until the
+/// implementer wires the real augmentation logic. AC-ARMIS-TW-001 test asserts the
+/// augmented form is returned; FAILS here.
+pub fn augment_armis_aql_with_time_window(
+    base_aql: &str,
+    start_time: Option<&str>,
+    end_time: Option<&str>,
+) -> String {
+    // Red Gate stub: suppress unused-variable warnings.
+    let _ = (start_time, end_time);
+    // Returns base_aql verbatim — no augmentation.
+    // AC-ARMIS-TW-001 test asserts "in:devices after:2026-01-01T00:00:00" → FAILS here.
+    base_aql.to_string()
+}
+
 /// Extract a `(column_name, json_value)` pair from an `Expr::Compare` equality.
 ///
 /// Returns `None` if the expression is not a simple `field = 'string'` comparison.
@@ -328,5 +394,283 @@ fn extract_eq_filter_from_expr(expr: &crate::ast::Expr) -> Option<(String, serde
             }
         }
         _ => None,
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Red Gate tests — S-DEMO-QUERY-PUSHDOWN-001 v2.1
+// AC-WIRE-001, AC-WIRE-001b, AC-ARMIS-TW-001, AC-ARMIS-TW-003
+// ---------------------------------------------------------------------------
+
+#[cfg(test)]
+mod pushdown_red_gate_tests {
+    //! Red Gate tests for S-DEMO-QUERY-PUSHDOWN-001 v2.1.
+    //!
+    //! These tests exercise `extract_time_window_from_ast` and
+    //! `augment_armis_aql_with_time_window` from the pushdown module.
+    //! ALL tests in this module MUST FAIL before implementation begins.
+    //!
+    //! # SAP-2 compliance
+    //! Tests that use `ColumnSpec` fixtures construct them from production-TOML-derived
+    //! column shapes (column_type = "datetime", options = [Index] — exact properties
+    //! used in `armis.sensor.toml` and `crowdstrike.sensor.toml`).
+    //! No fabricated fixture diverges from the production TOML shape.
+
+    use std::collections::HashMap;
+
+    use prism_core::{ColumnOptions, ColumnType};
+    use prism_spec_engine::spec_parser::ColumnSpec;
+
+    use super::{augment_armis_aql_with_time_window, extract_time_window_from_ast};
+    use crate::ast::{Ast, SqlStatement};
+    use crate::filter_parser::PrismQlParser;
+
+    // -----------------------------------------------------------------------
+    // Helper: build a minimal ColumnSpec for a datetime INDEX column.
+    // Shape is a strict subset of the production armis.sensor.toml and
+    // crowdstrike.sensor.toml column declarations:
+    //   column_type = "datetime", options = ["INDEX"]
+    // No divergence from production shape (SAP-2 gate).
+    //
+    // NOTE: ColumnSpec is #[non_exhaustive]. External callers MUST use the Default
+    // impl and set fields individually per CLAUDE.md §Conventions non-exhaustive discipline.
+    // -----------------------------------------------------------------------
+    fn make_datetime_index_column(name: &str) -> ColumnSpec {
+        let mut col = ColumnSpec::default();
+        col.name = name.to_string();
+        col.column_type = ColumnType::Datetime;
+        col.options = vec![ColumnOptions::Index];
+        col
+    }
+
+    // -----------------------------------------------------------------------
+    // Helper: extract WHERE predicate from a parsed SELECT AST.
+    // -----------------------------------------------------------------------
+    fn parse_where(query: &str) -> crate::ast::Predicate {
+        let ast = PrismQlParser::parse(query)
+            .unwrap_or_else(|e| panic!("PrismQlParser::parse failed for '{query}': {e:?}"));
+        match ast {
+            Ast::Sql(SqlStatement::Select(sql)) => {
+                sql.where_.expect("query must have a WHERE clause")
+            }
+            other => panic!("expected SQL Select, got: {other:?}"),
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // AC-WIRE-001: extract_time_window_from_ast populates start_time
+    // -----------------------------------------------------------------------
+
+    /// AC-WIRE-001 / BC-2.01.013 v1.14 TV-BC-2.01.013-006 / ADR-033 T1
+    ///
+    /// A PrismQL `WHERE created_timestamp > '2026-01-01T00:00:00Z'` predicate on a
+    /// `column_type = "datetime"` with `options = ["INDEX"]` column must yield
+    /// `start_time = Some("2026-01-01T00:00:00Z")` and `end_time = None`.
+    ///
+    /// Red Gate: extract_time_window_from_ast stub returns (None, None).
+    /// Fails with: assertion `start_time == Some("2026-01-01T00:00:00Z")` fails.
+    #[allow(non_snake_case)]
+    #[test]
+    fn test_ac_wire_001_materialization_pipeline_populates_start_time_from_ast() {
+        let query =
+            "SELECT * FROM crowdstrike.detections WHERE created_timestamp > '2026-01-01T00:00:00Z'";
+        let predicate = parse_where(query);
+
+        // Production-TOML-derived column spec (crowdstrike.sensor.toml shape).
+        // column_type = "datetime", options = ["INDEX"] — strict subset of production spec.
+        let col = make_datetime_index_column("created_timestamp");
+        let mut spec_map: HashMap<String, Vec<ColumnSpec>> = HashMap::new();
+        spec_map.insert("crowdstrike.detections".to_string(), vec![col]);
+
+        let (start_time, end_time) =
+            extract_time_window_from_ast(&predicate, &["crowdstrike.detections"], Some(&spec_map));
+
+        // AC-WIRE-001 item (a): start_time must be populated from the Gt predicate.
+        assert!(
+            start_time.is_some(),
+            "AC-WIRE-001: extract_time_window_from_ast must return Some(start_time) for \
+             `created_timestamp > '2026-01-01T00:00:00Z'` on a datetime INDEX column; \
+             got None. ADR-033 T1 heuristic is not implemented or not wired."
+        );
+        assert!(
+            start_time.as_deref().unwrap_or("").contains("2026-01-01"),
+            "AC-WIRE-001: start_time must contain '2026-01-01'; got: {:?}",
+            start_time
+        );
+
+        // AC-WIRE-001 item (b): end_time must be None (no Lt/Le predicate).
+        assert!(
+            end_time.is_none(),
+            "AC-WIRE-001: end_time must be None when only Gt predicate present; got: {:?}",
+            end_time
+        );
+    }
+
+    /// AC-WIRE-001b / ADR-033 §Consequences — safe default when spec_map is None
+    ///
+    /// When `resolved_spec_map` is `None`, `extract_time_window_from_ast` MUST return
+    /// `(None, None)` without panicking.
+    ///
+    /// NOTE: This test PASSES with the stub (returns (None, None) as the safe default).
+    /// It is included to confirm the stub matches the expected safe-default behavior.
+    /// The complementary AC-WIRE-001 test fails — demonstrating Red Gate on the real path.
+    #[allow(non_snake_case)]
+    #[test]
+    fn test_ac_wire_001b_safe_default_when_spec_map_is_none() {
+        let query =
+            "SELECT * FROM crowdstrike.detections WHERE created_timestamp > '2026-01-01T00:00:00Z'";
+        let predicate = parse_where(query);
+
+        let (start_time, end_time) =
+            extract_time_window_from_ast(&predicate, &["crowdstrike.detections"], None);
+
+        assert!(
+            start_time.is_none(),
+            "AC-WIRE-001b: start_time must be None when spec_map is None (safe default, ADR-033); \
+             got: {:?}",
+            start_time
+        );
+        assert!(
+            end_time.is_none(),
+            "AC-WIRE-001b: end_time must be None when spec_map is None (safe default, ADR-033); \
+             got: {:?}",
+            end_time
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // AC-ARMIS-TW-001: AQL augmentation appends after: clause
+    // -----------------------------------------------------------------------
+
+    /// AC-ARMIS-TW-001 / BC-2.01.013 v1.14 Mechanism B / BC-2.11.007 v1.8 §Mechanism B
+    ///
+    /// `augment_armis_aql_with_time_window("in:devices", Some("2026-01-01T00:00:00Z"), None)`
+    /// must return `"in:devices after:2026-01-01T00:00:00"` (bare, unquoted, timezone-naive
+    /// per research-doc §2.2).
+    ///
+    /// Red Gate: stub returns "in:devices" (no augmentation) → assertion fails.
+    #[allow(non_snake_case)]
+    #[test]
+    fn test_ac_armis_tw_001_time_window_augmented_into_aql() {
+        // start_time from PrismQL `last_seen > '2026-01-01T00:00:00Z'`
+        // Canonical Armis AQL form: after:YYYY-MM-DDTHH:MM:SS (bare, no Z, no quotes)
+        let result =
+            augment_armis_aql_with_time_window("in:devices", Some("2026-01-01T00:00:00Z"), None);
+
+        assert!(
+            result.contains("after:2026-01-01T00:00:00"),
+            "AC-ARMIS-TW-001: augmented AQL must contain 'after:2026-01-01T00:00:00' \
+             (bare, unquoted, timezone-naive per research-doc §2.2); got: '{result}'. \
+             MUST NOT use 'lastSeen:>\"T\"' form (unattested). \
+             MUST NOT append 'Z' suffix. ADR-033 T1 Armis AQL augmentation not implemented."
+        );
+        assert!(
+            result.starts_with("in:devices"),
+            "AC-ARMIS-TW-001: augmented AQL must retain the base entity discriminator \
+             'in:devices'; got: '{result}'"
+        );
+        // Must NOT use the unattested form
+        assert!(
+            !result.contains("lastSeen:>"),
+            "AC-ARMIS-TW-001: MUST NOT use 'lastSeen:>\"T\"' form (unattested per \
+             research-doc §2.3); got: '{result}'"
+        );
+    }
+
+    /// AC-ARMIS-TW-001 bounded range variant: start AND end produces `after:T1 before:T2`.
+    ///
+    /// Red Gate: stub returns "in:devices" → assertion fails.
+    #[allow(non_snake_case)]
+    #[test]
+    fn test_ac_armis_tw_001_bounded_range_after_and_before() {
+        let result = augment_armis_aql_with_time_window(
+            "in:devices",
+            Some("2026-01-01T00:00:00Z"),
+            Some("2026-06-01T00:00:00Z"),
+        );
+
+        assert!(
+            result.contains("after:2026-01-01T00:00:00"),
+            "AC-ARMIS-TW-001 (bounded range): must contain 'after:2026-01-01T00:00:00'; got: '{result}'"
+        );
+        assert!(
+            result.contains("before:2026-06-01T00:00:00"),
+            "AC-ARMIS-TW-001 (bounded range): must contain 'before:2026-06-01T00:00:00'; got: '{result}'"
+        );
+        // Clauses must be space-separated (not AND-joined per research §3)
+        assert!(
+            !result.contains(" AND "),
+            "AC-ARMIS-TW-001 (bounded range): AQL clauses must be space-separated, \
+             NOT 'AND'-joined per research-doc §3; got: '{result}'"
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // AC-ARMIS-TW-003: Anti-double-filter guard
+    // -----------------------------------------------------------------------
+
+    /// AC-ARMIS-TW-003 / BC-2.01.013 v1.14 Mechanism B anti-double-filter guard
+    ///
+    /// If the base AQL already contains `after:`, no second time clause must be appended.
+    /// The AQL is returned VERBATIM.
+    ///
+    /// NOTE: This test PASSES with the stub (returns base_aql unchanged).
+    /// It is included to confirm the anti-double-filter guard behavior.
+    /// The AC-ARMIS-TW-001 test fails — demonstrating Red Gate on the augmentation path.
+    #[allow(non_snake_case)]
+    #[test]
+    fn test_ac_armis_tw_003_anti_double_filter_guard() {
+        let base_aql = "in:devices after:2026-01-01T00:00:00";
+
+        let result = augment_armis_aql_with_time_window(
+            base_aql,
+            Some("2026-01-01T00:00:00Z"), // same bound — should NOT double-augment
+            None,
+        );
+
+        assert_eq!(
+            result, base_aql,
+            "AC-ARMIS-TW-003: when base AQL already contains 'after:', \
+             the result must equal the verbatim base AQL; \
+             no second 'after:' must be appended (anti-double-filter guard). \
+             got: '{result}'"
+        );
+
+        // Guard also applies to 'before:' and 'timeFrame:'
+        let base_with_before = "in:devices before:2026-06-01T00:00:00";
+        let result2 = augment_armis_aql_with_time_window(
+            base_with_before,
+            None,
+            Some("2026-06-01T00:00:00Z"),
+        );
+        assert_eq!(
+            result2, base_with_before,
+            "AC-ARMIS-TW-003: 'before:' guard — verbatim passthrough; got: '{result2}'"
+        );
+
+        let base_with_timeframe = "in:devices timeFrame:\"3 Hours\"";
+        let result3 = augment_armis_aql_with_time_window(
+            base_with_timeframe,
+            Some("2026-01-01T00:00:00Z"),
+            None,
+        );
+        assert_eq!(
+            result3, base_with_timeframe,
+            "AC-ARMIS-TW-003: 'timeFrame:' guard — verbatim passthrough; got: '{result3}'"
+        );
+    }
+
+    /// AC-ARMIS-TW-003 no-augmentation case: no time bounds → verbatim passthrough.
+    ///
+    /// PASSES with stub (returns base_aql) — confirmed correct stub behavior.
+    #[allow(non_snake_case)]
+    #[test]
+    fn test_ac_armis_tw_003_no_time_bounds_passes_through_verbatim() {
+        let base_aql = "in:devices";
+        let result = augment_armis_aql_with_time_window(base_aql, None, None);
+        assert_eq!(
+            result, base_aql,
+            "AC-ARMIS-TW-003: no time bounds → base AQL must pass through verbatim; got: '{result}'"
+        );
     }
 }

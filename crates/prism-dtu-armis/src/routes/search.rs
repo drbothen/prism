@@ -41,6 +41,8 @@
 
 use std::sync::Arc;
 
+use chrono::{DateTime, Utc};
+
 use axum::{
     extract::{Query, State},
     http::{HeaderMap, StatusCode},
@@ -227,6 +229,49 @@ pub async fn get_search(
     }
 }
 
+// ---------------------------------------------------------------------------
+// AQL time-clause parsing (§8.3 — pushdown-redesign.md)
+// ---------------------------------------------------------------------------
+
+/// Parse `after:` and `before:` absolute time clauses from an AQL string.
+///
+/// Implements pushdown-redesign.md §8.3: after `capture_aql()` (R-DTU-002, opaque capture
+/// is unaffected), parse the AQL string for `after:YYYY-MM-DDTHH:MM:SS` and
+/// `before:YYYY-MM-DDTHH:MM:SS` clauses to produce optional time bounds.
+///
+/// # Canonical AQL syntax (research-confirmed HIGH confidence)
+///
+/// - `after:YYYY-MM-DDTHH:MM:SS` — bare, unquoted, timezone-naive ISO8601.
+/// - `before:YYYY-MM-DDTHH:MM:SS` — bare, unquoted, timezone-naive ISO8601.
+/// - Date-only form `YYYY-MM-DD` also accepted (BlinkOps source).
+///
+/// # Return value
+///
+/// Returns `(after_bound, before_bound)` as `Option<chrono::DateTime<chrono::Utc>>`.
+/// `None` means the corresponding clause is absent from the AQL string.
+///
+/// # R-DTU-002 compliance
+///
+/// This function does NOT modify or validate the AQL string. It only extracts
+/// time bounds for fixture filtering. The `capture_aql()` call in `get_search`
+/// still captures the verbatim string first (R-DTU-002 preserved).
+///
+/// # Story: S-DEMO-QUERY-PUSHDOWN-001 v2.1
+/// Red Gate stub — returns `(None, None)` (no parsing) until implemented.
+/// AC-ARMIS-TW-002 LOAD-BEARING test asserts filtered_count < unfiltered_count; FAILS here.
+// S-DEMO-QUERY-PUSHDOWN-001 v2.1 Red Gate stub.
+// Dead-code is suppressed because this function is wired by the implementer in §8.3.
+// The inline unit tests in pushdown_dtu_red_gate_tests exercise this function directly.
+#[allow(dead_code)]
+pub(crate) fn parse_aql_time_bounds(aql: &str) -> (Option<DateTime<Utc>>, Option<DateTime<Utc>>) {
+    // Red Gate stub: suppress unused-variable warning.
+    let _ = aql;
+    // Returns (None, None) — no AQL time-clause parsing.
+    // With this stub: DTU returns full fixture regardless of after:/before: in AQL.
+    // AC-ARMIS-TW-002 test assertion: filtered_count < unfiltered_count → FAILS here.
+    (None, None)
+}
+
 /// Validate `Authorization: Bearer {non-empty}` header.
 ///
 /// Returns `Some(response)` on auth failure (HTTP 403) or `None` when valid.
@@ -246,5 +291,127 @@ fn check_bearer_auth(headers: &HeaderMap) -> Option<axum::response::Response> {
             code: 403,
         };
         Some((StatusCode::FORBIDDEN, Json(body)).into_response())
+    }
+}
+
+// ---------------------------------------------------------------------------
+// S-DEMO-QUERY-PUSHDOWN-001 v2.1 — DTU Red Gate tests for parse_aql_time_bounds
+// ---------------------------------------------------------------------------
+
+#[cfg(test)]
+mod pushdown_dtu_red_gate_tests {
+    //! Red Gate tests for S-DEMO-QUERY-PUSHDOWN-001 v2.1 — DTU side.
+    //!
+    //! Tests `parse_aql_time_bounds` (the stub function in this module).
+    //! ALL tests in this module MUST FAIL before the implementer wires the real parser.
+    //!
+    //! # SID-1 Compliance
+    //! These are in-process unit tests that exercise `parse_aql_time_bounds` directly
+    //! without any external DTU dependency. They provide the non-#[ignore] coverage
+    //! required by SID-1 §2.
+    //!
+    //! # Load-bearing assertion
+    //! `test_ac_armis_tw_002_dtu_parse_aql_after_clause_yields_bound`:
+    //! asserts `after:YYYY-MM-DDTHH:MM:SS` → `Some(DateTime<Utc>)`.
+    //! The stub returns (None, None) → test FAILS (Red Gate correctly RED).
+
+    use chrono::Datelike;
+
+    use super::parse_aql_time_bounds;
+
+    /// Unit test for parse_aql_time_bounds: `after:` clause → start bound.
+    ///
+    /// Red Gate: stub returns (None, None). Test asserts Some(start_bound) → FAILS.
+    ///
+    /// Canonical Armis AQL absolute time syntax (research-doc §2.2, HIGH confidence):
+    /// `after:YYYY-MM-DDTHH:MM:SS` — bare, unquoted, timezone-naive ISO8601.
+    #[allow(non_snake_case)]
+    #[test]
+    fn test_ac_armis_tw_002_dtu_parse_aql_after_clause_yields_bound() {
+        let (after_bound, before_bound) =
+            parse_aql_time_bounds("in:devices after:2024-06-11T12:00:00");
+
+        assert!(
+            after_bound.is_some(),
+            "parse_aql_time_bounds must parse 'after:2024-06-11T12:00:00' and return \
+             Some(start_bound); got None. \
+             Red Gate: stub returns (None, None). Implementer must wire the parser. \
+             Canonical syntax: bare, unquoted, timezone-naive (research-doc §2.2)."
+        );
+        assert!(
+            before_bound.is_none(),
+            "parse_aql_time_bounds: no 'before:' clause → before_bound must be None; \
+             got: {:?}",
+            before_bound
+        );
+
+        // Validate the parsed bound's year/month to guard against off-by-one.
+        if let Some(bound) = after_bound {
+            assert_eq!(bound.year(), 2024, "parsed start year must be 2024");
+            assert_eq!(bound.month(), 6, "parsed start month must be 6 (June)");
+            assert_eq!(bound.day(), 11, "parsed start day must be 11");
+        }
+    }
+
+    /// Unit test: `before:` clause → end bound.
+    ///
+    /// Red Gate: stub returns (None, None). Test asserts Some(end_bound) → FAILS.
+    #[allow(non_snake_case)]
+    #[test]
+    fn test_ac_armis_tw_002_dtu_parse_aql_before_clause_yields_bound() {
+        let (after_bound, before_bound) =
+            parse_aql_time_bounds("in:devices before:2024-12-31T00:00:00");
+
+        assert!(
+            before_bound.is_some(),
+            "parse_aql_time_bounds must parse 'before:2024-12-31T00:00:00' and return \
+             Some(end_bound); got None. Red Gate: stub returns (None, None)."
+        );
+        assert!(
+            after_bound.is_none(),
+            "parse_aql_time_bounds: no 'after:' clause → after_bound must be None; \
+             got: {:?}",
+            after_bound
+        );
+    }
+
+    /// Unit test: bounded range `after:T1 before:T2` → both bounds.
+    ///
+    /// Red Gate: stub returns (None, None). Test asserts (Some, Some) → FAILS.
+    #[allow(non_snake_case)]
+    #[test]
+    fn test_ac_armis_tw_002_dtu_parse_aql_bounded_range_yields_both_bounds() {
+        let (after_bound, before_bound) = parse_aql_time_bounds(
+            "in:devices after:2024-01-01T00:00:00 before:2024-12-31T23:59:59",
+        );
+
+        assert!(
+            after_bound.is_some(),
+            "parse_aql_time_bounds bounded range: must parse 'after:' → Some(start); got None."
+        );
+        assert!(
+            before_bound.is_some(),
+            "parse_aql_time_bounds bounded range: must parse 'before:' → Some(end); got None."
+        );
+    }
+
+    /// Unit test: AQL with no time clause → (None, None).
+    ///
+    /// PASSES with stub (returns (None, None) — correct behavior).
+    #[allow(non_snake_case)]
+    #[test]
+    fn test_ac_armis_tw_002_dtu_parse_aql_no_time_clause_returns_none() {
+        let (after_bound, before_bound) = parse_aql_time_bounds("in:devices");
+
+        assert!(
+            after_bound.is_none(),
+            "parse_aql_time_bounds: no time clause → after_bound must be None; got: {:?}",
+            after_bound
+        );
+        assert!(
+            before_bound.is_none(),
+            "parse_aql_time_bounds: no time clause → before_bound must be None; got: {:?}",
+            before_bound
+        );
     }
 }

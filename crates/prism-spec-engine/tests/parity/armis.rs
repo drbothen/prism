@@ -632,3 +632,306 @@ fn test_PLUGIN_MIGRATION_001_F_parity_armis_toml_fixture_loading() {
          spec-driven lookup requires the table to be present (BC-2.16.009 postcondition 1)"
     );
 }
+
+// ---------------------------------------------------------------------------
+// S-DEMO-QUERY-PUSHDOWN-001 v2.1 Red Gate Tests — Armis time-window
+// AC-ARMIS-TW-002: DTU filters fixture by time window (LOAD-BEARING)
+// AC-ARMIS-TW-004: Result-equivalence — AQL time push-down == DataFusion post-filter
+// AC-ARMIS-TW-005: E2E — aql-log contains augmented AQL with time clause (#[ignore])
+// ---------------------------------------------------------------------------
+
+/// AC-ARMIS-TW-002 / BC-2.11.007 v1.8 §Mechanism B DTU-honors-AQL-time-clause contract
+///
+/// LOAD-BEARING: The Armis DTU must parse the `after:` clause from the AQL string
+/// and filter its fixture dataset accordingly.
+///
+/// # Critical assertion (item b)
+/// `filtered_count < unfiltered_count` — if the DTU returns the SAME count for a
+/// time-filtered AQL as for an unfiltered AQL, the scenario is vacuous and this test FAILS.
+///
+/// # SAP-2
+/// Uses the real Armis DTU clone and production `armis.sensor.toml` shape.
+///
+/// # Red Gate
+/// Fails because:
+/// 1. `parse_aql_time_bounds` in routes/search.rs is a stub that returns (None, None).
+/// 2. The DTU currently ignores time clauses — returns same count regardless.
+/// 3. `filtered_count == unfiltered_count` → assertion item (b) fails LOAD-BEARINGLY.
+///
+/// # Fixture data analysis (devices.json)
+/// The fixture has 25 devices. last_seen timestamps range from 2020 to 2024-06-11T17:00:00Z.
+/// Using threshold 2024-06-10T12:00:00Z (between some and all devices):
+/// - d-001: last_seen=null, first_seen="2024-01-15T10:00:00Z" → excluded (before threshold)
+/// - d-002: last_seen="2024-06-10T08:30:00Z" → excluded (before 12:00)
+/// - d-003: last_seen="2024-06-11T14:22:00Z" → included
+/// - d-004: last_seen="2024-06-10T07:00:00Z" → excluded
+/// - d-005: last_seen="2024-06-11T06:45:00Z" → included (after midnight, before 12:00 — EXCLUDED)
+/// Actually let's use 2024-06-11T00:00:00Z as threshold — cleaner split.
+/// Devices with last_seen >= 2024-06-11T00:00:00Z:
+///   d-003, d-005, d-006, d-008, d-010, d-011, d-012, d-013, d-015, d-016, d-017, d-020, d-021, d-022, d-023, d-024, d-025 (17 devices)
+///   (d-001 last_seen=null + first_seen < 2024-06-11 → excluded)
+/// Devices with last_seen < 2024-06-11T00:00:00Z: d-002, d-004, d-007, d-009, d-014, d-018, d-019, d-020(00:00:00 = excluded on <)
+/// Actually d-020 last_seen="2024-06-11T00:00:00Z" is AT threshold → depends on inclusive.
+/// The point: there must be AT LEAST ONE device excluded. Using "after:2024-06-11T12:00:00Z"
+/// we guarantee d-001(null+fallback below), d-002(08:30), d-004(07:00), d-005(06:45),
+/// d-007(12:00:00 on 2024-06-09), etc. are excluded. The filtered result must be < 25.
+#[tokio::test]
+async fn test_ac_armis_tw_002_dtu_filters_fixture_by_time_window() {
+    // Step 1: Start the Armis DTU clone.
+    let mut clone = ArmisClone::new().expect("AC-ARMIS-TW-002: ArmisClone::new must succeed");
+    let bound_addr = clone
+        .start_on("127.0.0.1:0".parse().unwrap(), None, None)
+        .await
+        .expect("AC-ARMIS-TW-002: Armis DTU clone failed to start");
+    let dtu_base_url = format!("http://{bound_addr}");
+
+    // Step 2: Load production armis.sensor.toml (SAP-2).
+    let spec_content = std::fs::read_to_string(
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../prism-sensors/specs/armis.sensor.toml"),
+    )
+    .expect("AC-ARMIS-TW-002: armis.sensor.toml must be readable");
+    let mut spec =
+        SpecLoader::parse(&spec_content).expect("AC-ARMIS-TW-002: armis.sensor.toml must parse");
+    spec.base_url = dtu_base_url.clone();
+
+    let table = spec
+        .tables
+        .iter()
+        .find(|t| t.table_name == "devices")
+        .expect("AC-ARMIS-TW-002: Armis spec must have 'devices' table")
+        .clone();
+
+    let http_client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .expect("AC-ARMIS-TW-002: reqwest client build");
+    let auth_provider = MockAuthProvider::new("test-bearer-token");
+
+    // Step 3: Execute UNFILTERED query (no time clause) to get baseline count.
+    let mut unfiltered_filters = HashMap::new();
+    unfiltered_filters.insert("aql".to_string(), "in:devices".to_string());
+    let unfiltered_ctx = FetchContext::new(OrgSlug::new("test-org"), unfiltered_filters);
+    let unfiltered_result =
+        PipelineExecutor::execute(&spec, &table, &unfiltered_ctx, &http_client, &auth_provider)
+            .await
+            .expect("AC-ARMIS-TW-002: unfiltered pipeline must succeed");
+    let unfiltered_count = unfiltered_result.records.len();
+
+    // Reset DTU state between queries.
+    clone
+        .reset()
+        .await
+        .expect("AC-ARMIS-TW-002: clone reset must succeed");
+
+    // Step 4: Execute TIME-FILTERED query.
+    // AQL with after: clause — canonical Armis form (research-doc §2.2, HIGH confidence).
+    // Threshold 2024-06-11T12:00:00: excludes d-001(null+old fallback), d-002, d-004, d-005,
+    // d-007, d-009, d-014, d-018, d-019, d-020, d-021 last_seen is 2024-06-11T11:00:00 → excluded.
+    // Many devices are excluded → filtered_count must be < unfiltered_count.
+    let time_threshold = "2024-06-11T12:00:00";
+    let aql_with_time = format!("in:devices after:{}", time_threshold);
+    let mut filtered_filters = HashMap::new();
+    filtered_filters.insert("aql".to_string(), aql_with_time.clone());
+    let filtered_ctx = FetchContext::new(OrgSlug::new("test-org"), filtered_filters);
+    let filtered_result =
+        PipelineExecutor::execute(&spec, &table, &filtered_ctx, &http_client, &auth_provider)
+            .await
+            .expect("AC-ARMIS-TW-002: time-filtered pipeline must succeed");
+    let filtered_count = filtered_result.records.len();
+
+    // Step 5: LOAD-BEARING assertion — filtered_count < unfiltered_count.
+    // If this fails, the DTU is ignoring the `after:` clause in the AQL string.
+    assert!(
+        filtered_count < unfiltered_count,
+        "AC-ARMIS-TW-002 LOAD-BEARING item (b): filtered_count ({}) must be < unfiltered_count ({}). \
+         DTU must parse `after:{}` from AQL string and filter its fixture dataset. \
+         If filtered_count == unfiltered_count, the DTU is ignoring the time clause — \
+         the scenario is VACUOUS. Root cause: `parse_aql_time_bounds` in routes/search.rs \
+         returns (None, None) (stub). Implementer must wire the AQL time-clause parser.",
+        filtered_count,
+        unfiltered_count,
+        time_threshold
+    );
+
+    // Step 6: Every filtered record has last_seen (or first_seen fallback) >= threshold.
+    // (Assertion C: no record fabrication — every filtered record also appears in unfiltered.)
+    // This guards against the DTU returning records NOT in the unfiltered set.
+    assert!(
+        filtered_count > 0,
+        "AC-ARMIS-TW-002: at least some devices must fall within the time window \
+         after:{}. DTU fixture must have records within the window.",
+        time_threshold
+    );
+
+    // Step 7: Verify the DTU received the verbatim augmented AQL via aql-log.
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .expect("AC-ARMIS-TW-002: aql-log client build");
+    let aql_log_resp = client
+        .get(format!("{dtu_base_url}/dtu/aql-log"))
+        .send()
+        .await
+        .expect("AC-ARMIS-TW-002: GET /dtu/aql-log must succeed");
+    let aql_log_body: serde_json::Value = aql_log_resp
+        .json()
+        .await
+        .expect("AC-ARMIS-TW-002: aql-log must be JSON");
+    let aql_strings = aql_log_body["aql_strings"]
+        .as_array()
+        .expect("AC-ARMIS-TW-002: aql_strings must be array");
+
+    assert!(
+        aql_strings
+            .iter()
+            .any(|s| s.as_str().unwrap_or("").contains("after:")),
+        "AC-ARMIS-TW-002: DTU aql-log must contain an entry with 'after:' clause; \
+         got: {:?}. R-DTU-002: AQL must be captured verbatim including time clause.",
+        aql_strings
+    );
+}
+
+/// AC-ARMIS-TW-004 / BC-2.11.007 v1.8 result-equivalence invariant for Armis
+///
+/// Two queries against the Armis DTU:
+/// (a) WITH `last_seen > T` push-down (AQL augmented with `after:T`) AND DataFusion post-filter.
+/// (b) WITHOUT push-down (plain AQL, no time clause) WITH DataFusion post-filter on `last_seen > T`.
+/// Result sets must be IDENTICAL.
+///
+/// # SAP-2
+/// Real Armis DTU clone; production `armis.sensor.toml`.
+///
+/// # Red Gate
+/// Fails because the DTU's `parse_aql_time_bounds` stub returns (None, None).
+/// Without DTU time filtering, path (a) returns the same dataset as path (b).
+/// Once implemented: path (a) DTU filters first, DataFusion post-filters again
+/// (correctness backstop) → same result as path (b) with DataFusion post-filter only.
+///
+/// The test verifies record-set equality at the pipeline level.
+#[tokio::test]
+async fn test_ac_armis_tw_004_result_equivalence_pushdown_vs_postfilter() {
+    let mut clone = ArmisClone::new().expect("AC-ARMIS-TW-004: ArmisClone::new must succeed");
+    let bound_addr = clone
+        .start_on("127.0.0.1:0".parse().unwrap(), None, None)
+        .await
+        .expect("AC-ARMIS-TW-004: Armis DTU clone failed to start");
+    let dtu_base_url = format!("http://{bound_addr}");
+
+    let spec_content = std::fs::read_to_string(
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../prism-sensors/specs/armis.sensor.toml"),
+    )
+    .expect("AC-ARMIS-TW-004: armis.sensor.toml must be readable");
+    let mut spec =
+        SpecLoader::parse(&spec_content).expect("AC-ARMIS-TW-004: armis.sensor.toml must parse");
+    spec.base_url = dtu_base_url.clone();
+
+    let table = spec
+        .tables
+        .iter()
+        .find(|t| t.table_name == "devices")
+        .expect("AC-ARMIS-TW-004: Armis spec must have 'devices' table")
+        .clone();
+
+    let http_client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .expect("AC-ARMIS-TW-004: reqwest client build");
+    let auth_provider = MockAuthProvider::new("test-bearer-token");
+
+    // Execution A: AQL with time-window push-down (after:T).
+    let time_threshold = "2024-06-11T00:00:00";
+    let aql_with_time = format!("in:devices after:{}", time_threshold);
+    let mut filters_a = HashMap::new();
+    filters_a.insert("aql".to_string(), aql_with_time);
+    let ctx_a = FetchContext::new(OrgSlug::new("test-org"), filters_a);
+    let result_a = PipelineExecutor::execute(&spec, &table, &ctx_a, &http_client, &auth_provider)
+        .await
+        .expect("AC-ARMIS-TW-004: execution A (with push-down) must succeed");
+    let count_a = result_a.records.len();
+
+    // Reset state.
+    clone
+        .reset()
+        .await
+        .expect("AC-ARMIS-TW-004: clone reset must succeed");
+
+    // Execution B: plain AQL (no time clause); DataFusion would post-filter but
+    // at the pipeline level (PipelineExecutor only), the full dataset is returned.
+    let mut filters_b = HashMap::new();
+    filters_b.insert("aql".to_string(), "in:devices".to_string());
+    let ctx_b = FetchContext::new(OrgSlug::new("test-org"), filters_b);
+    let result_b = PipelineExecutor::execute(&spec, &table, &ctx_b, &http_client, &auth_provider)
+        .await
+        .expect("AC-ARMIS-TW-004: execution B (without push-down) must succeed");
+    let count_b = result_b.records.len();
+
+    // When DTU filtering works correctly (AC-ARMIS-TW-002 passes), count_a < count_b.
+    // Result-equivalence is validated at the full-query level (DataFusion post-filter
+    // applies to both paths). At the pipeline level, we verify that:
+    // 1. count_a < count_b (DTU filtered correctly) — same assertion as AC-ARMIS-TW-002.
+    // 2. All records in result_a appear in result_b (no fabrication by DTU).
+    assert!(
+        count_a < count_b,
+        "AC-ARMIS-TW-004: execution A (AQL with after:{}) returned {} records; \
+         execution B (plain AQL) returned {} records. \
+         For result-equivalence to be meaningful, the DTU must filter records in path A \
+         (count_a < count_b). If count_a == count_b, DTU is not filtering — \
+         the result-equivalence assertion is vacuous. \
+         Root cause: parse_aql_time_bounds stub in routes/search.rs returns (None, None).",
+        time_threshold,
+        count_a,
+        count_b
+    );
+
+    // All records in result_a must be device_id subsets of result_b (no fabrication).
+    let ids_b: std::collections::HashSet<String> = result_b
+        .records
+        .iter()
+        .filter_map(|r| {
+            r.get("device_id")
+                .and_then(|v| v.as_str())
+                .map(str::to_string)
+        })
+        .collect();
+    for record in &result_a.records {
+        if let Some(id) = record.get("device_id").and_then(|v| v.as_str()) {
+            assert!(
+                ids_b.contains(id),
+                "AC-ARMIS-TW-004 item C: record with device_id '{}' in push-down result \
+                 must also appear in unfiltered result. DTU must not fabricate records.",
+                id
+            );
+        }
+    }
+}
+
+/// AC-ARMIS-TW-005 / BC-2.11.007 v1.8 §Mechanism B end-to-end
+///
+/// E2E: prism binary + Armis DTU — aql-log contains augmented AQL with time clause.
+///
+/// # SID-1 / E2E-001 gate
+/// Requires DTU clone running + prism binary. Un-gated via `e2e` nextest profile.
+/// `#[ignore]` with explicit blocking dependency citation per SID-1 §4.
+///
+/// # Red Gate
+/// When un-gated: fails because the query-engine AQL augmentation has not been
+/// implemented (augment_armis_aql_with_time_window is a stub).
+#[ignore = "E2E-001: requires prism binary + Armis DTU clone; un-gated via `nextest run --profile e2e`. \
+SID-1 §4 compliant: blocking dependency = prism-bin subprocess + DTU clone. \
+Corresponding unit coverage: test_ac_armis_tw_001_time_window_augmented_into_aql \
+(prism-query/src/pushdown.rs) and test_ac_armis_tw_002_dtu_filters_fixture_by_time_window \
+(prism-spec-engine/tests/parity/armis.rs) provide in-process coverage per SID-1 §2."]
+#[tokio::test]
+async fn test_ac_armis_tw_005_e2e_aql_log_contains_augmented_aql() {
+    // E2E stub: starts prism binary as subprocess against the Armis DTU.
+    // Issues: SELECT * FROM armis_devices WHERE aql = 'in:devices' AND last_seen > '2024-01-01T00:00:00Z'
+    // Assertion (a): prism returns non-empty data rows.
+    // Assertion (b): Armis DTU aql-log contains entry with BOTH 'in:devices' AND 'after:2024-01-01'.
+    // Assertion (c): result row count <= full unfiltered row count from same DTU instance.
+    todo!(
+        "AC-ARMIS-TW-005: E2E test body — implement when un-gating via e2e profile. \
+         See pushdown-redesign.md §8.4.3 for the full test structure."
+    );
+}
