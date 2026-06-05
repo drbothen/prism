@@ -194,18 +194,32 @@ Key production code paths:
 **Evidence file:** full-suite-BC-2-16-009.txt  
 **Result:** 93/93 BC-2.16.009 tests pass (authoritative: "93 tests run: 93 passed" nextest summary)
 
-Breakdown (PASS-line counts derived from the captured nextest output):
+**Name-filter caveat:** The 93-count is produced by `-E 'test(BC_2_16_009)'`, which is a NAME filter, not a diff-scope filter. It matches any test whose name contains "BC_2_16_009" — including pre-existing modules not part of this PR's diff. The count does NOT equal the number of tests this story introduced.
 
-| Module | Location | Tests |
-|--------|----------|-------|
-| `validation::http_method_whitelist_tests` | `crates/prism-spec-engine/src/validation.rs` (`#[cfg(test)] mod`) | 35 |
-| `bc_2_16_009_test` | `crates/prism-spec-engine/tests/bc_2_16_009_test.rs` | 26 |
-| `bc_2_16_009_bundled_spec_validation` | `crates/prism-spec-engine/tests/` | 5 |
-| `proofs::spec_validator` | `crates/prism-spec-engine/src/proofs/` | 10 |
-| `write_endpoint_tests` | `crates/prism-spec-engine/tests/` | 17 |
-| **Total** | | **93** (35+26+5+10+17) |
+**New test functions added by this PR's diff (41 total):**
 
-The 10 Red Gate tests (per story `red_gate_tests: 10`) are a subset of the 93: AC-001/002/003 contribute 1 each, AC-004 contributes 3 (SEC-001 truncation), and AC-005 contributes 4 (F-PR1-OBS-001 full-match guard). All 10 appear as PASS in the nextest capture above.
+| Module | Location | Tests | Tag |
+|--------|----------|-------|-----|
+| `validation::http_method_whitelist_tests` | `src/validation.rs` (`#[cfg(test)] mod`, new in this PR) | 35 | NEW |
+| `bc_2_16_009_test` | `tests/bc_2_16_009_test.rs` (6 new functions added to existing file) | 6 | NEW |
+| **Subtotal** | | **41** | |
+
+Of the 35 new `http_method_whitelist_tests` functions, 10 are the AC-001..AC-005 Red Gate tests (AC-001: 1, AC-002: 1, AC-003: 1, AC-004: 3, AC-005: 4).  
+The 6 new `bc_2_16_009_test` functions are `load_path`/`load_all` integration tests for F-PR1-MED-001.  
+Also in this PR's diff but NOT in the BC_2_16_009 name-filter: `tests/bc_2_16_001_bundled_spec_load.rs` env-var stub additions (BC_2_16_001-named, exercises the load_all Rule-6→Rule-7 fix).
+
+**Pre-existing modules that match the name-filter but are NOT in this PR's diff:**
+
+| Module | Location | Tests | Tag |
+|--------|----------|-------|-----|
+| `bc_2_16_009_test` (pre-existing functions) | `tests/bc_2_16_009_test.rs` | 20 | pre-existing |
+| `bc_2_16_009_bundled_spec_validation` | `tests/bc_2_16_009_bundled_spec_validation.rs` | 5 | pre-existing |
+| `proofs::spec_validator` | `src/proofs/spec_validator.rs` | 10 | pre-existing |
+| `write_endpoint_tests` | `tests/write_endpoint_tests.rs` | 17 | pre-existing |
+| **Subtotal** | | **52** | |
+
+**Reconciliation:** 41 new + 52 pre-existing = **93 total** — matches nextest summary exactly.  
+93/93 PASS = zero regressions in both new and pre-existing coverage.
 
 ---
 

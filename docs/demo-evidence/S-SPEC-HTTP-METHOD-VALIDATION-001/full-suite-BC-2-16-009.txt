@@ -1,13 +1,39 @@
 # Full BC-2.16.009 test suite run — all 93 tests passing
 #
 # Story:   S-SPEC-HTTP-METHOD-VALIDATION-001 v1.4
-# Filter:  -E 'test(BC_2_16_009)' — all tests tracing to BC-2.16.009
-# Scope:   Includes http_method_whitelist_tests (src/validation.rs, AC-001..AC-005):
-#            35 tests total (10 are Red Gate per story red_gate_tests: 10).
-#          Plus bc_2_16_009_test (26), bc_2_16_009_bundled_spec_validation (5),
-#          proofs::spec_validator (10), and write_endpoint_tests (17).
+# Filter:  -E 'test(BC_2_16_009)' — NAME-FILTER, not a diff-scope filter.
+#          Matches any test function whose name contains "BC_2_16_009".
+#          This includes PRE-EXISTING test modules not in this PR's diff (see below).
 # BC:      BC-2.16.009 v1.10 §Validation Rules 7
 # Error:   E-SPEC-025 (error-taxonomy.md v1.60)
+#
+# ─── Scope disambiguation ────────────────────────────────────────────────────
+#
+# NEW test functions added by THIS PR's diff (verified via git diff develop...HEAD):
+#   validation::http_method_whitelist_tests (src/validation.rs, NEW mod):  35 tests (NEW)
+#     Of those 35, 10 are the AC-001..AC-005 Red Gate tests
+#       (AC-001: 1, AC-002: 1, AC-003: 1, AC-004: 3, AC-005: 4)
+#   bc_2_16_009_test (tests/bc_2_16_009_test.rs, file added by this PR):    6 tests (NEW)
+#                                                             Subtotal:     41 new test functions
+#
+#   ALSO in diff (BC_2_16_001-named, NOT in this name-filter):
+#   tests/bc_2_16_001_bundled_spec_load.rs — env-var stub helpers (+51 lines)
+#   for the load_all Rule-6→Rule-7 fix (F-PR1-MED-001). Those tests carry
+#   "BC_2_16_001" in their names and do NOT appear in the 93-count below.
+#
+# PRE-EXISTING modules that match the BC_2_16_009 name filter but are
+# NOT in this PR's git diff (verified via git diff --name-only):
+#   proofs::spec_validator         (src/proofs/spec_validator.rs): 10 tests (pre-existing)
+#   write_endpoint_tests           (tests/write_endpoint_tests.rs): 17 tests (pre-existing)
+#   bc_2_16_009_bundled_spec_validation (tests/bc_2_16_009_bundled_spec_validation.rs):
+#                                                                    5 tests (pre-existing)
+#   bc_2_16_009_test also has 20 pre-existing tests (file existed before; 6 new added):
+#                                                                   20 tests (pre-existing)
+#                                                             Subtotal:     52 pre-existing
+#
+# Total: 41 (new) + 52 (pre-existing) = 93 — reconciles exactly to nextest summary.
+#
+# VERDICT: 93/93 PASS means ZERO REGRESSIONS in both new and pre-existing coverage.
 #
 # ─── nextest output (captured 2026-06-04) ────────────────────────────────────
 
@@ -115,22 +141,25 @@
 # PASS — 93/93 BC-2.16.009 tests pass. Zero regressions.
 # Authoritative total: "93 tests run: 93 passed" (nextest summary line above).
 #
-# Breakdown — derived by counting PASS lines per module in the capture above:
-#   validation::http_method_whitelist_tests (src/validation.rs, AC-001..AC-005):
-#                                                   35 tests
-#   bc_2_16_009_test (crates/prism-spec-engine/tests/bc_2_16_009_test.rs):
-#                                                   26 tests
-#   bc_2_16_009_bundled_spec_validation:             5 tests
-#   proofs::spec_validator:                         10 tests
-#   write_endpoint_tests:                           17 tests
-#                                        Total:     93 tests  (35+26+5+10+17=93) ✓
+# Per-module PASS-line counts (each tagged NEW or pre-existing per git diff):
+#   validation::http_method_whitelist_tests (src/validation.rs): 35 tests (NEW)
+#   bc_2_16_009_test (tests/bc_2_16_009_test.rs):
+#     - 6 NEW test functions added by this PR (load_path/load_all integration tests)
+#     - 20 pre-existing test functions (sensor-spec validation coverage)
+#     - 26 total
+#   bc_2_16_009_bundled_spec_validation (tests/):                 5 tests (pre-existing)
+#   proofs::spec_validator (src/proofs/):                        10 tests (pre-existing)
+#   write_endpoint_tests (tests/):                               17 tests (pre-existing)
+#                                                       Total:   93 tests  (35+26+5+10+17=93) ✓
+#
+# Reconciliation: 41 new (35+6) + 52 pre-existing (20+5+10+17) = 93.
 #
 # Note: http_method_whitelist_tests lives in `crates/prism-spec-engine/src/validation.rs`
 # as `#[cfg(test)] mod http_method_whitelist_tests` — NOT in crates/.../tests/.
 # The 10 Red Gate tests (per story red_gate_tests: 10) are a subset of those 35, not additive.
 # AC-001/002/003 contribute 1 Red Gate test each; AC-004 contributes 3; AC-005 contributes 4.
 #
-# Story v1.4 AC coverage:
+# Story v1.4 AC coverage (all from NEW http_method_whitelist_tests mod):
 #   AC-001 (valid methods pass):         PASS (test_BC_2_16_009_valid_http_method_passes_validation)
 #   AC-002 (invalid → E-SPEC-025):      PASS (test_BC_2_16_009_invalid_http_method_returns_structured_e_spec_025)
 #   AC-003 (env-resolved post-Rule-6):   PASS (test_BC_2_16_009_env_resolved_invalid_method_caught_post_resolution)
