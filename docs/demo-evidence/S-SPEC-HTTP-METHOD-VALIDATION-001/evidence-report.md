@@ -114,7 +114,7 @@ E-SPEC-025 surfaces at the load_path() / load_all() boundary with canonical TOML
 
 ## AC-004 — Overlong Method Value Truncated to 32 Codepoints (SEC-001 / CWE-400)
 
-**BC anchor:** BC-2.16.009 v1.10 §VR7 Point-3 — SEC-001 truncation (32-codepoint cap in method_value)  
+**BC anchor:** BC-2.16.009 v1.10 §VR7 32-codepoint echo cap (§Validation semantics) + §Edge Cases EC-009-021 — SEC-001 truncation (CWE-400 unbounded-echo mitigation)  
 **Security:** SEC-001 / CWE-400 unbounded echo: A 256 KiB TOML allows a method field up to that size; echoing verbatim in E-SPEC-025 would produce a 256 KiB error string to the MCP caller. 32-codepoint cap prevents. Normal HTTP methods are ≤7 chars; 32 is generous for legibility.  
 **Non-regression:** Method values ≤32 codepoints pass through unchanged (POL-24 byte-exact Display).
 

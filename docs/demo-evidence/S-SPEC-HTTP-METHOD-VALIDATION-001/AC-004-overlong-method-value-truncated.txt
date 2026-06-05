@@ -6,7 +6,7 @@
 #          When:  validate_step_methods() produces E-SPEC-025 error
 #          Then:  InvalidHttpMethod.method_value contains at most 32 codepoints (SEC-001 / CWE-400)
 #          Non-regression: method values ≤32 chars preserved byte-exact (POL-24)
-# BC:      BC-2.16.009 v1.10 §VR7 Point-3 — SEC-001 truncation (32-codepoint cap)
+# BC:      BC-2.16.009 v1.10 §VR7 32-codepoint echo cap (§Validation semantics) + §Edge Cases EC-009-021
 # Security: SEC-001 / CWE-400 unbounded echo prevention:
 #           A 256 KiB TOML allows method field up to that size; echoing verbatim in E-SPEC-025
 #           would produce a 256 KiB error string returned to MCP caller. 32-char cap prevents.
