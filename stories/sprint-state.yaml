@@ -137,7 +137,7 @@ active_dispatch_set:
     points: 8
     spec_version: "v2.0"
     lane: "2 (Phase B)"
-    dispatch_status: "RESPEC_COMPLETE_PENDING_HUMAN_SCOPE_APPROVAL — D-1005 2026-06-05. Human chose exception-2 re-spec path (D-989). Re-spec produced: ADR-033 (proposed — NOT accepted until human approves v2 scope); BC-2.01.013 v1.12→v1.13; BC-2.11.007 v1.6→v1.7; BC-2.11.005 v1.5→v1.6 (cite-pin); BC-INDEX v5.83→v5.84; story v1.3→v2.0 (9 ACs; prism-query added to crates_touched; subsystems adds SS-11; points 5→8; named out-of-scope: DTU-EXT-005/S-DEMO-CLAROTY-PAGINATION-001/S-DEMO-CLAROTY-TIME-001/wave-6-T2); S-DEMO-CLAROTY-TIME-001 stub registered (total_stories 180→181; STORY-INDEX v2.281→v2.282). RE-IMPLEMENTATION IS GATED on human approval of v2 scope + ADR-033 acceptance. LOCAL adversary streak RESET 0/3 (re-spec resets implementation; code will be re-done from v2.0 spec)."
+    dispatch_status: "V2_REIMPL_IN_FLIGHT — D-1006 2026-06-05. Human approved v2 re-implementation ('Approve — re-implement v2'). ADR-033 promoted proposed→accepted (D-1006). Scope expansion to prism-query (+SS-11) authorized. Worktree reset to develop@752e407a (devops in parallel). LOCAL adversary streak 0/3 fresh for v2 code. test-writer Red Gate next (production fixtures per SAP-2 gate; story v2.0 spec; 9 ACs). [D-1005 2026-06-05: RE-SPEC COMPLETE. ADR-033 proposed; BC-2.01.013 v1.13; BC-2.11.007 v1.7; story v2.0 (9 ACs; prism-query added; 5→8 pts). S-DEMO-CLAROTY-TIME-001 stub registered.]"
     code_head: "ed27b5ff"
     local_adversary_streak: "0/3"
     local_adversary_pass_count: 6
@@ -184,7 +184,7 @@ active_dispatch_set:
       - S-DEMO-002  # SATISFIED (merged PR #171 develop@fdd12251 2026-06-04)
     bcs: [BC-2.01.013, BC-2.11.005, BC-2.11.007]
     vps: []
-    notes: "D-1005 2026-06-05: RE-SPEC COMPLETE (D-989 exception-2 human direction). ADR-033 proposed (NOT accepted — gated on human v2-scope approval). BC-2.01.013 v1.12→v1.13; BC-2.11.007 v1.6→v1.7; BC-2.11.005 v1.5→v1.6; BC-INDEX v5.83→v5.84; story v1.3→v2.0 (9 ACs; prism-query added; SS-11 added; 5→8 pts). S-DEMO-CLAROTY-TIME-001 stub registered (total_stories 181). STORY-INDEX v2.282. RE-IMPLEMENTATION GATED on human approval of v2 scope + ADR-033 acceptance. (D-1004 2026-06-05: passes 5/6 CRITICAL; streak RESET. D-1003: pass 3 OBS-P3-001 CLOSED. D-1002: pass 2 NOT-CLEAN. D-1001: pass 1 NOT-CLEAN. D-990: ready.)"
+    notes: "D-1006 2026-06-05: Human approved v2 re-implementation ('Approve — re-implement v2'). ADR-033 proposed→accepted. Scope expansion authorized. Worktree reset to develop@752e407a. V2_REIMPL_IN_FLIGHT. LOCAL streak 0/3 fresh. D-1005 2026-06-05: RE-SPEC COMPLETE (D-989 exception-2 human direction). ADR-033 proposed (NOT accepted — gated on human v2-scope approval). BC-2.01.013 v1.12→v1.13; BC-2.11.007 v1.6→v1.7; BC-2.11.005 v1.5→v1.6; BC-INDEX v5.83→v5.84; story v1.3→v2.0 (9 ACs; prism-query added; SS-11 added; 5→8 pts). S-DEMO-CLAROTY-TIME-001 stub registered (total_stories 181). STORY-INDEX v2.282. (D-1004 2026-06-05: passes 5/6 CRITICAL; streak RESET. D-1003: pass 3 OBS-P3-001 CLOSED. D-1002: pass 2 NOT-CLEAN. D-1001: pass 1 NOT-CLEAN. D-990: ready.)"
 
   - story_id: S-DEMO-CLAROTY-TIME-001
     status: draft

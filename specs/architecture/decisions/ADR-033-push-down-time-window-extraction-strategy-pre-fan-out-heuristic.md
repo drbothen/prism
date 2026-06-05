@@ -1,7 +1,7 @@
 ---
 document_type: adr
 adr_id: ADR-033
-status: proposed
+status: accepted
 date: 2026-06-05
 introduced: 2026-06-05
 subsystems_affected:
@@ -167,10 +167,10 @@ expand the scope beyond what BC-2.01.013 v2 requires.
 
 ### Status as of 2026-06-05
 
-Proposed. S-DEMO-QUERY-PUSHDOWN-001 v2 has not yet been authored; story-writer
-authorship is gated on human approval of this scope slice. Implementation will land
-when the v2 story is delivered. The decision is considered architecturally accepted
-pending human approval (see design note §5 Summary item 2).
+ACCEPTED. Human explicitly approved v2 scope expansion (D-1006 2026-06-05 exception
+decision: "Approve — re-implement v2"). ADR-033 promoted proposed→accepted. v2
+re-implementation of S-DEMO-QUERY-PUSHDOWN-001 authorized to begin; worktree reset
+to develop@752e407a; test-writer Red Gate dispatch is next.
 
 ## Alternatives Considered
 
@@ -205,4 +205,5 @@ pending human approval (see design note §5 Summary item 2).
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| v1.0 | 2026-06-05 | state-manager | Promoted proposed→accepted per D-1006 human approval: "Approve — re-implement v2." v2 scope expansion to prism-query (+SS-11) authorized. Re-implementation TDD cycle begins; worktree reset to develop@752e407a. ARCH-INDEX v2.111→v2.112. |
 | v0.1 | 2026-06-05 | architect | Initial proposed ADR for ADR-033 via create-adr workflow. T1 heuristic decision for S-DEMO-QUERY-PUSHDOWN-001 v2. |
