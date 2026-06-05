@@ -1,10 +1,10 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "5.85"
+version: "5.86"
 status: draft
 producer: product-owner
-timestamp: 2026-06-05T00:00:00Z
+timestamp: 2026-06-05T12:00:00Z
 phase: 3.A
 total_contracts: 246
 active_contracts: 234
@@ -213,7 +213,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.15.010 | Decorator Three-Phase Model — Config-Time, Query-Time, Periodic | 15 - Storage Layer | CAP-026 | P0 | draft |
 | BC-2.15.011 | Internal Table Registration — RocksDB Domains as DataFusion Tables | 15 - Storage Layer | CAP-028 | P0 | draft |
 | BC-2.16.001 | Sensor Spec File Loading — Parse TOML, Validate Schema, Register Tables | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-776 per POL-14; anchor story PLUGIN-MIGRATION-001-D merged PR #153 develop@3f2de889 2026-05-22) — v1.7 |
-| BC-2.16.002 | Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-427 per POL-14; anchor story S-PLUGIN-PREREQ-B merged PR #143 develop@ae7e26c8 2026-05-12) — v1.65 |
+| BC-2.16.002 | Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-427 per POL-14; anchor story S-PLUGIN-PREREQ-B merged PR #143 develop@ae7e26c8 2026-05-12) — v1.66 |
 | BC-2.16.003 | Column-to-OCSF Mapping at Query Time — Map Sensor Columns to OCSF Fields Per Spec | 16 - Spec Engine | CAP-029 | P0 | draft |
 | BC-2.16.004 | ~~Rust Escape Hatch for Custom Adapters — Trait-Based Override When Config Is Insufficient~~ | 16 - Spec Engine | CAP-029 | P0 | removed (lifecycle_status: removed since PREREQ-E impl; status aligned at D-726 per POL-14 PR #151 merge) — v1.5 |
 | BC-2.16.005 | `reload_config` MCP Tool — Re-Read All Config Files, Validate, Atomic Swap, Notify | 16 - Spec Engine | CAP-030 | P1 | draft |
@@ -376,6 +376,10 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v5.86 (2026-06-05, S-DEMO-QUERY-PUSHDOWN-001-v2-pass3-BC-INDEX-collision-reconciliation):** state-manager | Version-collision reconciliation: D-1007 committed BC-INDEX at v5.85 (BC-2.01.013 v1.13→v1.14 + BC-2.11.007 v1.7→v1.8 row updates). The EC-003 product-owner spec burst then edited BC-2.16.002 (v1.65→v1.66, new catalog row 71 `push_down.inverted_time_range`) and the BC-INDEX BC-2.16.002 in-line row 216 (updated to v1.66), but mis-read its base as v5.84 and labeled itself v5.85 — creating two distinct BC-INDEX content states both labeled v5.85. Reconciled by bumping BC-INDEX frontmatter to v5.86 (this row). Content: BC-2.16.002 in-line row 216 already reflects v1.66 (no body change). No count changes (active: 234, draft: 3 unchanged). STATE.md bc_index_version v5.85→v5.86. D-1010 anchor. BC-INDEX v5.85→v5.86.
+
+**v5.85 (2026-06-05, S-DEMO-QUERY-PUSHDOWN-001-v2-SAP-1-catalog-row):** product-owner | SAP-1 compliance (PG-LP11-001): BC-2.16.002 v1.65→v1.66 — new catalog row 71 `push_down.inverted_time_range` WARN added for `extract_time_window_from_ast` (`crates/prism-query/src/pushdown.rs`). Fields: `start_time: %display` (ISO8601), `end_time: %display` (ISO8601). Audit role: diagnostic/query-anomaly signal (NON-audit). Recurrence: at most once per query with inverted time window. Catalog scope statement extended to include `prism-query` push-down time-window analysis. Catalog count 70→71; bullet label `(v1.44)` → `(v1.45)` per POL-30 Fork B. BC-INDEX in-line row 216 updated to v1.66. No lifecycle_status changes (BC-2.16.002 remains active). No count changes (active: 234, draft: 3 unchanged). BC-INDEX v5.84→v5.85.
 
 **v5.84 (2026-06-05, S-DEMO-QUERY-PUSHDOWN-001-v2-bc-respec):** product-owner | S-DEMO-QUERY-PUSHDOWN-001 v2 re-spec — corrected factually wrong per-sensor push-down claims (LOCAL adversary passes 5/6). BC-2.01.013 v1.12→v1.13: per-sensor push-down translation table corrected per pushdown-redesign.md §6+§1+ADR-033: Armis `maxResults`+`timeFrame` removed (wrong — `SearchQueryParams` has no such fields; AQL passthrough only per Mechanism B); Cyberint POST-body `from_date`/`to_date`+`page_size` removed (wrong — GET endpoint, cursor-only, no body_template; deferred to DTU-EXT-005); Claroty POST-body `limit`/`offset` removed (wrong — `body_template: '{}'` is always empty; OffsetLimit URL params exist; body pagination deferred to S-DEMO-CLAROTY-PAGINATION-001); CrowdStrike direction preserved and strengthened — both `start_time` AND `end_time` reach FQL filter, wiring occurs via `run_materialization_pipeline` (ADR-033 Option T1), Step 2 always `FetchContext::default()`; superseded v1.12 table retained append-only per POLICY 1. EC-01-027 updated with CrowdStrike two-step clarification. TV-BC-2.01.013-006 re-cast to assert both start+end time and `run_materialization_pipeline` wiring path. ADR-033 added to Traceability. BC-2.11.005 v1.5→v1.6: cite-pin sweep BC-2.01.013 v1.12→v1.13 in Postconditions body + Traceability; no semantic change to this BC. BC-2.11.007 v1.6→v1.7: time-range push-down invariant qualified — "all initial sensors support time-based filtering" was factually wrong; corrected to: only CrowdStrike has a usable native time param; Armis/Cyberint/Claroty fall back to DataFusion post-filter; result-equivalence invariant preserved; superseded text retained append-only per POLICY 1; Mechanism A Cyberint/Claroty wrong push-down targets corrected; ADR-033 added to Traceability; BC-2.01.013 added to Related BCs. BC-INDEX rows 44+155+157 updated. No lifecycle_status changes. No count changes (active: 234, draft: 3 unchanged). BC-INDEX v5.83→v5.84.
 
