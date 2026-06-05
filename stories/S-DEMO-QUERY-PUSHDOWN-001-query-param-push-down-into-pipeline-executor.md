@@ -6,7 +6,7 @@ wave: wave-5-e-demo-fidelity
 epic_id: E-DEMO
 priority: P2
 status: in_progress
-version: "2.1"
+version: "2.2"
 level: "L3"
 producer: story-writer
 revised_by: null
@@ -22,7 +22,11 @@ subsystems: [SS-01, SS-11, SS-16]
 #     extraction (the new function in pushdown.rs/materialization.rs) lives here.
 #   SS-16 (Spec Engine) owns PipelineExecutor and the per-sensor translation logic in
 #     prism-spec-engine/src/pipeline.rs. Wrong Cyberint/Claroty translations removed here.
-crates_touched: [prism-query, prism-spec-engine, prism-bin, prism-dtu-armis, prism-sensors]
+#   Note (v2.2): prism-dtu-crowdstrike also touches SS-16 scope — the CrowdStrike DTU clone
+#     now honors the filter= FQL time-window param by parsing created_timestamp bounds and
+#     filtering its fixture dataset (AC-CWS-DTU-001, parallel to prism-dtu-armis §8.3 work).
+#     No new subsystem ID is required; the DTU clone behavioral contract falls under SS-16.
+crates_touched: [prism-query, prism-spec-engine, prism-bin, prism-dtu-armis, prism-dtu-crowdstrike, prism-sensors]
 # crates_touched v2 change: prism-query ADDED (was [prism-spec-engine, prism-bin] in v1.x).
 # prism-query is required because ADR-033 Option T1 places the time-window extraction function
 # in materialization.rs / pushdown.rs inside prism-query — this is the primary new scope in v2.
@@ -31,6 +35,12 @@ crates_touched: [prism-query, prism-spec-engine, prism-bin, prism-dtu-armis, pri
 # prism-sensors ADDED — armis.sensor.toml needs options=["INDEX"] on last_seen (devices) and
 # created_at (alerts) datetime columns so Option T1 can identify them as push-down-eligible
 # (pushdown-redesign.md §8.5 + AC-INDEX-001).
+# crates_touched v2.2 change: prism-dtu-crowdstrike ADDED — the OBS-001 fix-burst (LOCAL adversary
+# pass 2) added FQL time-window honoring to the CrowdStrike DTU: state.rs FQL parsing
+# (parse_created_timestamp_bounds), /dtu/filter-log capture route (mod.rs), and
+# detections.rs fixture filtering (filtered < unfiltered). Without this entry the
+# spec omitted a crate that was materially modified — POLICY 13 spec/impl consistency
+# violation (DRIFT-P1-001 ADV-P02-HIGH-001). One-line AC-CWS-DTU-001 closes the gap.
 target_module: prism-query
 capabilities: [CAP-015]
 behavioral_contracts:
@@ -88,8 +98,8 @@ risk: MEDIUM
 # MaterializationContext.resolved_spec_map into the time-window extraction call; if
 # resolved_spec_map is None at extraction time, extraction must silently return None (safe default).
 # BC-2.11.007 result-equivalence invariant is the correctness safety net.
-acceptance_criteria_count: 15
-red_gate_tests: 15
+acceptance_criteria_count: 16
+red_gate_tests: 16
 estimated_passes: "3-4 LOCAL adversary passes"
 holdout_scenarios: []
 assumption_validations: []
@@ -119,7 +129,9 @@ inputs:
   - "crates/prism-sensors/specs/armis.sensor.toml"
   - "crates/prism-sensors/specs/cyberint.sensor.toml"
   - "crates/prism-sensors/specs/claroty.sensor.toml"
+  - "crates/prism-dtu-crowdstrike/src/state.rs"
   - "crates/prism-dtu-crowdstrike/src/routes/detections.rs"
+  - "crates/prism-dtu-crowdstrike/src/routes/mod.rs"
   - "crates/prism-dtu-armis/src/routes/search.rs"
   - "crates/prism-dtu-armis/src/routes/state.rs"
   - "crates/prism-dtu-cyberint/src/routes/alerts.rs"
@@ -136,11 +148,11 @@ cycle: "v1.0.0-brownfield"
 phase: 3
 ---
 
-# S-DEMO-QUERY-PUSHDOWN-001 v2.1 — Correct per-sensor push-down wiring (ADR-033 T1 + Armis AQL full wiring)
+# S-DEMO-QUERY-PUSHDOWN-001 v2.2 — Correct per-sensor push-down wiring (ADR-033 T1 + Armis AQL full wiring + CrowdStrike DTU FQL honoring)
 
 **Story ID:** S-DEMO-QUERY-PUSHDOWN-001
 **Status:** in_progress
-**Version:** v2.1
+**Version:** v2.2
 **Wave:** wave-5-e-demo-fidelity
 **Priority:** P2
 **Points:** 8
@@ -284,6 +296,25 @@ Red Gate test: `test_ac_cws_003_no_filter_param_when_no_time_predicates`
 SAP-2 mandate: production `crowdstrike.sensor.toml` shape.
 
 (traces to BC-2.11.007 v1.8 postcondition — push-down reduces data fetched; when no predicate, no param injected; result-equivalence preserved)
+
+### AC-CWS-DTU-001: CrowdStrike DTU honors filter= FQL time-window — filtered_count < unfiltered_count (traces to BC-2.11.007 v1.8 result-equivalence invariant + Mechanism A CrowdStrike FQL postcondition)
+
+Given: The `prism-dtu-crowdstrike` clone receives `GET /queries/detections/v1?filter=created_timestamp:>'2026-01-01T00:00:00Z'` where the fixture dataset contains detection records both BEFORE and AFTER the timestamp.
+When: The DTU processes the FQL `filter` param by invoking `parse_created_timestamp_bounds` (state.rs) and filtering the fixture dataset in `detections.rs`.
+Then:
+(a) The returned detection IDs contain ONLY records whose `created_timestamp` is > 2026-01-01T00:00:00Z.
+(b) `filtered_count < unfiltered_count` — the DTU MUST filter its fixture dataset by the FQL time clause; if `filtered_count == unfiltered_count` the test FAILS (vacuous scenario).
+(c) Every record in the filtered result also appears in the unfiltered result (no record fabrication).
+(d) A `GET /dtu/filter-log` request returns the most-recent filter expression applied (captured via the `/dtu/filter-log` capture route added in mod.rs).
+(e) The filter applies to BOTH `created_timestamp:>'T'` (lower-bound) and `created_timestamp:<'T'` (upper-bound) FQL clauses; combined `+` form filters both bounds simultaneously.
+
+LOAD-BEARING assertion: item (b) is the critical gate. Without DTU-side FQL honoring, AC-CWS-002's end-to-end push-down scenario is vacuous — the DTU would return all records regardless of the `filter=` param, making time-window assertions unreliable.
+SAP-2 mandate: production `crowdstrike.sensor.toml` shape; fixture dataset must span the test time boundary (records on both sides of the threshold).
+
+Red Gate test: `test_ac_cws_dtu_001_crowdstrike_dtu_honors_fql_filter_time_window`
+(existing test from OBS-001 fix-burst — confirm it is present, failing before DTU state.rs change, green after; `filtered_count < unfiltered_count` assertion is the load-bearing line)
+
+(traces to BC-2.11.007 v1.8 Mechanism A — CrowdStrike FQL injection; DTU must parse and honor created_timestamp FQL bounds so push-down scenarios are non-vacuous; parallel to AC-ARMIS-TW-002 for Armis DTU)
 
 ### AC-ARMIS-001: Armis AQL passthrough — aql param forwarded; no maxResults or timeFrame (traces to BC-2.11.007 v1.8 §Mechanism B postcondition)
 
@@ -515,6 +546,7 @@ Preferred approach: load specs via `include_str!` from production `crates/prism-
 | Armis DTU `routes/search.rs`: parse `after:`/`before:` from AQL string and filter fixture dataset | pushdown-redesign.md §8.3 + BC-2.01.013 v1.14 DTU-honors-AQL-time-clause contract | AC-ARMIS-TW-002 LOAD-BEARING assertion: `filtered_count < unfiltered_count` |
 | `armis.sensor.toml`: `last_seen` (devices) and `created_at` (alerts) MUST declare `options = ["INDEX"]` | pushdown-redesign.md §8.5 | AC-INDEX-001 verifies; without this, Option T1 cannot extract Armis time bounds |
 | R-DTU-002 (opaque AQL capture) is UNAFFECTED: `capture_aql()` still called verbatim before any filtering | pushdown-redesign.md §8.3.1 | AC-ARMIS-TW-005 aql-log assertion confirms verbatim capture of augmented string |
+| CrowdStrike DTU (`prism-dtu-crowdstrike`): `state.rs` `parse_created_timestamp_bounds` parses FQL `created_timestamp:>'T'` and `created_timestamp:<'T'` clauses; `detections.rs` filters fixture dataset; `/dtu/filter-log` capture route records applied filter expression | DRIFT-P1-001 ADV-P02-HIGH-001 — OBS-001 fix-burst; parallel to Armis §8.3 DTU requirement | AC-CWS-DTU-001 LOAD-BEARING: `filtered_count < unfiltered_count`; without this, AC-CWS-002 end-to-end scenario is vacuous |
 
 ---
 
@@ -544,6 +576,7 @@ These are **entire features** deferred to named stories — not partial implemen
 | `prism-spec-engine` (workspace) | current workspace path | pipeline.rs — remove wrong Cyberint/Claroty/Armis translations; Armis AQL augmentation branch |
 | `prism-bin` (workspace) | current workspace path | spec_driven_adapter.rs — Armis AQL passthrough verification; CrowdStrike FQL wiring |
 | `prism-dtu-armis` (workspace) | current workspace path | routes/search.rs — AQL time-clause parsing + fixture dataset filtering (§8.3) |
+| `prism-dtu-crowdstrike` (workspace) | current workspace path | state.rs `parse_created_timestamp_bounds` + routes/detections.rs fixture filtering + routes/mod.rs `/dtu/filter-log` capture route — FQL time-window honoring (AC-CWS-DTU-001) |
 | `prism-sensors` (workspace) | current workspace path | specs/armis.sensor.toml — add `options = ["INDEX"]` to last_seen + created_at datetime columns |
 | `chrono` | workspace version | DateTime<Utc> / strftime `%Y-%m-%dT%H:%M:%S` for timezone-naive ISO8601 in T1 extraction and AQL augmentation |
 | `serde_json` | workspace version | Claroty POST body assertions in tests |
@@ -563,6 +596,9 @@ Version source: workspace `Cargo.toml` `[dependencies]` table. Do not pin versio
 | `crates/prism-bin/src/spec_driven_adapter.rs` | MODIFY | Verify Armis AQL passthrough is correct (no extra params); verify CrowdStrike FQL injection uses start+end combined with `+` |
 | `crates/prism-query/src/tests/` or inline `#[cfg(test)]` in `pushdown.rs` / `materialization.rs` | MODIFY | Red Gate tests for AC-WIRE-001, AC-WIRE-001b, AC-EQUIV-001, AC-ARMIS-TW-001, AC-ARMIS-TW-003 |
 | `crates/prism-spec-engine/src/pipeline/tests.rs` or inline | MODIFY | Red Gate tests for AC-CWS-001/002/003, AC-ARMIS-001/002, AC-CYB-001, AC-CLAR-001 |
+| `crates/prism-dtu-crowdstrike/src/state.rs` | MODIFY | Add `parse_created_timestamp_bounds` — parses `created_timestamp:>'T'` (lower) and `created_timestamp:<'T'` (upper) FQL clauses from the `filter` query param; returns `(Option<DateTime<Utc>>, Option<DateTime<Utc>>)` |
+| `crates/prism-dtu-crowdstrike/src/routes/detections.rs` | MODIFY | Apply `parse_created_timestamp_bounds` result to filter fixture detection dataset before pagination; ensures `filtered_count < unfiltered_count` for load-bearing test AC-CWS-DTU-001 |
+| `crates/prism-dtu-crowdstrike/src/routes/mod.rs` | MODIFY | Add `/dtu/filter-log` capture route that records the most-recent FQL `filter` expression applied; enables AC-CWS-DTU-001 item (d) assertion without reading internal state |
 | `crates/prism-dtu-armis/src/routes/search.rs` | MODIFY | Add AQL time-clause parsing and fixture dataset filtering per §8.3 — parse `after:`/`before:` from AQL string, filter devices by `last_seen` and alerts by `created_at` |
 | `crates/prism-sensors/specs/armis.sensor.toml` | MODIFY | Add `options = ["INDEX"]` to `last_seen` (devices table) and `created_at` (alerts table) datetime columns |
 | Integration test (ungated, `prism-spec-engine/tests/parity/armis.rs`) | MODIFY | AC-ARMIS-TW-002 (LOAD-BEARING: filtered < unfiltered), AC-ARMIS-TW-004 (result-equivalence), AC-EQUIV-001 for CrowdStrike |
@@ -580,14 +616,16 @@ Version source: workspace `Cargo.toml` `[dependencies]` table. Do not pin versio
 4. **Read** `crates/prism-bin/src/spec_driven_adapter.rs` — confirm AQL passthrough path and CrowdStrike FQL injection site.
 5. **Read** production sensor TOMLs — `crowdstrike.sensor.toml`, `armis.sensor.toml`, `cyberint.sensor.toml`, `claroty.sensor.toml` — to understand step structure, method, body_template presence/absence, pagination type.
 6. **Read** DTU route structs — `prism-dtu-crowdstrike/src/routes/detections.rs` (`DetectionListParams`), `prism-dtu-armis/src/routes/search.rs` (`SearchQueryParams`), `prism-dtu-cyberint/src/routes/alerts.rs` (`AlertListParams`) — to understand what fields are actually available.
-6b. **Read** `crates/prism-dtu-armis/src/routes/search.rs` and `state.rs` — understand `get_search` handler, `capture_aql`, entity-type discrimination, and pagination logic. This is the DTU that must be extended for time-window filtering (§8.3).
-6c. **Read** `crates/prism-spec-engine/tests/parity/armis.rs` — understand existing AQL passthrough tests and the `#[ignore]`'d parity test so the new load-bearing tests complement rather than duplicate.
-6d. **Read** `.factory/research/armis-aql-time-window-syntax-2026-06.md` — confirm canonical AQL time syntax: `after:YYYY-MM-DDTHH:MM:SS` (bare, unquoted, no `Z` suffix). This is authoritative; do NOT use `lastSeen:>"T"` form.
+6b. **Read** `crates/prism-dtu-crowdstrike/src/state.rs`, `src/routes/detections.rs`, and `src/routes/mod.rs` — understand existing FQL parsing state, fixture dataset structure, and the `/dtu/filter-log` capture route. This is the CrowdStrike DTU that was extended in the OBS-001 fix-burst; AC-CWS-DTU-001 verifies that extension is load-bearing.
+6c. **Read** `crates/prism-dtu-armis/src/routes/search.rs` and `state.rs` — understand `get_search` handler, `capture_aql`, entity-type discrimination, and pagination logic. This is the DTU that must be extended for time-window filtering (§8.3).
+6d. **Read** `crates/prism-spec-engine/tests/parity/armis.rs` — understand existing AQL passthrough tests and the `#[ignore]`'d parity test so the new load-bearing tests complement rather than duplicate.
+6e. **Read** `.factory/research/armis-aql-time-window-syntax-2026-06.md` — confirm canonical AQL time syntax: `after:YYYY-MM-DDTHH:MM:SS` (bare, unquoted, no `Z` suffix). This is authoritative; do NOT use `lastSeen:>"T"` form.
 7. **Write stubs** — stub out T1 extraction function with `todo!()` in `pushdown.rs`. Stub CrowdStrike FQL combined-form injection with `todo!()`. Stub `augment_armis_aql_with_time_window` with `todo!()` in `prism-spec-engine/pipeline.rs` or `prism-bin/spec_driven_adapter.rs`.
 8. **Write Red Gate tests** (all 15 must FAIL before implementation):
    - `test_ac_cws_001_crowdstrike_limit_reaches_detection_list_params`
    - `test_ac_cws_002_fql_time_window_both_start_and_end_via_materialization_pipeline`
    - `test_ac_cws_003_no_filter_param_when_no_time_predicates`
+   - `test_ac_cws_dtu_001_crowdstrike_dtu_honors_fql_filter_time_window`
    - `test_ac_armis_001_aql_passthrough_no_maxresults_no_timeframe`
    - `test_ac_armis_002_no_additional_params_beyond_aql_offset_limit`
    - `test_ac_armis_tw_001_time_window_augmented_into_aql`
@@ -600,7 +638,7 @@ Version source: workspace `Cargo.toml` `[dependencies]` table. Do not pin versio
    - `test_ac_wire_001_materialization_pipeline_populates_start_time_from_ast`
    - `test_ac_wire_001b_safe_default_when_spec_map_is_none`
    - `test_ac_index_001_armis_toml_last_seen_created_at_have_index_option`
-9. **Verify Red Gate fails** — `just iter prism-query` and `just iter prism-spec-engine` and `just iter prism-dtu-armis` must show all Red Gate tests FAILING.
+9. **Verify Red Gate fails** — `just iter prism-query` and `just iter prism-spec-engine` and `just iter prism-dtu-armis` and `just iter prism-dtu-crowdstrike` must show all Red Gate tests FAILING.
 10. **Implement** ADR-033 T1: add `extract_time_window_from_ast` in `pushdown.rs`; wire in `materialization.rs` at lines ~434–440.
 11. **Implement** CrowdStrike FQL combined form: `start+end` with `+`; Step 2 receives `FetchContext::default()`.
 12. **Remove** wrong Cyberint `from_date`/`to_date` POST-body injection from `pipeline.rs`.
@@ -610,7 +648,7 @@ Version source: workspace `Cargo.toml` `[dependencies]` table. Do not pin versio
 14c. **Extend** `crates/prism-dtu-armis/src/routes/search.rs`: after `capture_aql()` (do not move/remove it), parse `after:`/`before:` clauses from AQL string (regex or simple string extraction); filter `devices_ordered` by `last_seen` (with `first_seen` fallback for nulls) and `alert_fixture` by `created_at` before pagination. Null timestamps excluded. Verify fixture data has records spanning the test time window (add records if needed).
 14d. **Add** `options = ["INDEX"]` to `last_seen` column (devices table) and `created_at` column (alerts table) in `crates/prism-sensors/specs/armis.sensor.toml`.
 15. **Write** AC-EQUIV-001 integration test (ungated, against CrowdStrike DTU clone): `run_materialization_pipeline` → DTU → result-equivalence assertion.
-16. **Run** `just iter prism-query --no-fail-fast` + `just iter prism-spec-engine` + `just iter prism-dtu-armis` — all 15 Red Gate tests GREEN (AC-ARMIS-TW-005 is `#[ignore]`, excluded from this count).
+16. **Run** `just iter prism-query --no-fail-fast` + `just iter prism-spec-engine` + `just iter prism-dtu-armis` + `just iter prism-dtu-crowdstrike` — all 16 Red Gate tests GREEN (AC-ARMIS-TW-005 is `#[ignore]`, excluded from this count).
 17. **Run** `just iter prism-spec-engine` and `just iter prism-bin` — no regressions.
 18. **Run** `just check` — final pre-push gate.
 
@@ -653,7 +691,7 @@ Version source: workspace `Cargo.toml` `[dependencies]` table. Do not pin versio
 
 | Context source | Estimated tokens |
 |----------------|-----------------|
-| This story spec (v2.1) | ~7,000 |
+| This story spec (v2.2) | ~7,500 |
 | BC files (3 BCs: BC-2.01.013 v1.14 + BC-2.11.005 v1.6 + BC-2.11.007 v1.8) | ~9,500 |
 | ADR-033 | ~2,500 |
 | pushdown-redesign.md (design note incl. §8) | ~6,000 |
@@ -662,16 +700,17 @@ Version source: workspace `Cargo.toml` `[dependencies]` table. Do not pin versio
 | crates/prism-query/src/pushdown.rs | ~4,000 |
 | crates/prism-spec-engine/src/pipeline.rs (post-S-DEMO-001) | ~10,000 |
 | crates/prism-bin/src/spec_driven_adapter.rs (post-S-DEMO-001) | ~4,000 |
+| crates/prism-dtu-crowdstrike/src/state.rs + routes/detections.rs + routes/mod.rs | ~2,500 |
 | crates/prism-dtu-armis/src/routes/search.rs + state.rs | ~3,000 |
 | crates/prism-spec-engine/tests/parity/armis.rs | ~2,500 |
 | Production sensor TOMLs (4 files) | ~6,000 |
 | DTU route structs (4 files: detections.rs + search.rs + alerts.rs + Claroty) | ~4,000 |
 | Test outputs (cargo nextest) | ~2,000 |
-| **Total estimate** | **~73,500 tokens (~29% of 256K context)** |
+| **Total estimate** | **~76,500 tokens (~30% of 256K context)** |
 
-Near the 20-30% budget ceiling. Implementer SHOULD split into two sub-tasks if context pressure appears:
+At the 20-30% budget ceiling. Implementer SHOULD split into two sub-tasks if context pressure appears:
 - **Sub-task A (prism-query + sensors):** ADR-033 T1 wiring in materialization.rs + pushdown.rs; armis.sensor.toml INDEX options (AC-WIRE-001, AC-WIRE-001b, AC-INDEX-001).
-- **Sub-task B (prism-spec-engine + prism-bin + prism-dtu-armis):** Correctness fixes; Armis AQL augmentation; DTU time-clause filtering; integration + E2E tests (AC-CWS-001/002/003, AC-ARMIS-001/002, AC-ARMIS-TW-001..005, AC-CYB-001, AC-CLAR-001, AC-EQUIV-001).
+- **Sub-task B (prism-spec-engine + prism-bin + prism-dtu-armis + prism-dtu-crowdstrike):** Correctness fixes; Armis AQL augmentation; Armis + CrowdStrike DTU time-clause filtering; integration + E2E tests (AC-CWS-001/002/003, AC-CWS-DTU-001, AC-ARMIS-001/002, AC-ARMIS-TW-001..005, AC-CYB-001, AC-CLAR-001, AC-EQUIV-001).
 
 ---
 
@@ -679,6 +718,7 @@ Near the 20-30% budget ceiling. Implementer SHOULD split into two sub-tasks if c
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 2.2 | 2026-06-05 | story-writer | DRIFT-P1-001 (ADV-P02-HIGH-001) fix: reconcile spec to match OBS-001 fix-burst implementation. crates_touched: adds `prism-dtu-crowdstrike` → [prism-query, prism-spec-engine, prism-bin, prism-dtu-armis, prism-dtu-crowdstrike, prism-sensors]. inputs[]: adds prism-dtu-crowdstrike/src/state.rs + routes/detections.rs + routes/mod.rs. Library & Framework Requirements: adds prism-dtu-crowdstrike row. File Structure Requirements: adds 3 prism-dtu-crowdstrike MODIFY rows (state.rs parse_created_timestamp_bounds; detections.rs fixture filtering; mod.rs /dtu/filter-log route). Added AC-CWS-DTU-001: CrowdStrike DTU honors filter= FQL time-window — filtered_count < unfiltered_count (LOAD-BEARING; Red Gate test: test_ac_cws_dtu_001_crowdstrike_dtu_honors_fql_filter_time_window; parallel to AC-ARMIS-TW-002). Architecture Compliance Rules: added CrowdStrike DTU FQL-honoring row. Subsystem comment: notes prism-dtu-crowdstrike falls under SS-16 scope. acceptance_criteria_count 15→16; red_gate_tests 15→16. Token Budget: story spec ~7,000→~7,500; added prism-dtu-crowdstrike ~2,500; total ~73,500→~76,500 (~30% of 256K). Tasks: step 6b added (read CrowdStrike DTU source); 6c/6d renumbered to 6d/6e; step 9 adds prism-dtu-crowdstrike; step 16 updated (15→16 Red Gate tests, adds prism-dtu-crowdstrike iter); sub-task B updated to include prism-dtu-crowdstrike + AC-CWS-DTU-001. H1 + body header version 2.1→2.2. BC array unchanged (BC-2.11.007 v1.8 already covers CrowdStrike FQL as Mechanism A; no BC edit required). |
 | 2.1 | 2026-06-05 | story-writer | Armis AQL full-wiring scope addition per human directive + pushdown-redesign.md §8 + BC-2.01.013 v1.14 + BC-2.11.007 v1.8. BC version pins: BC-2.01.013 v1.13→v1.14; BC-2.11.007 v1.7→v1.8 (both frontmatter comments + body BC table + all AC traces). crates_touched: adds prism-dtu-armis + prism-sensors → [prism-query, prism-spec-engine, prism-bin, prism-dtu-armis, prism-sensors]. AC-ARMIS-001: fixed disproven `lastSeen:>"2026-01-01"` → `after:2026-01-01T00:00:00` (bare, unquoted, timezone-naive per research-doc §2.2). Added AC-ARMIS-TW-001 (AQL augmentation at FilterMap boundary, unit test), AC-ARMIS-TW-002 (DTU fixture filtering LOAD-BEARING: filtered<unfiltered), AC-ARMIS-TW-003 (anti-double-filter guard), AC-ARMIS-TW-004 (Armis result-equivalence), AC-ARMIS-TW-005 (E2E #[ignore] aql-log confirmation). Added AC-INDEX-001 (armis.sensor.toml last_seen+created_at must have options=["INDEX"]). acceptance_criteria_count 9→15; red_gate_tests 9→15. Architecture Compliance Rules: added Armis AQL syntax rule (MUST use after:/before: bare unquoted), anti-double-filter rule, DTU-honors rule, INDEX-option rule, R-DTU-002 unaffected rule. File Structure Requirements: added prism-dtu-armis/routes/search.rs MODIFY + armis.sensor.toml MODIFY + parity/armis.rs MODIFY + e2e_smoke.rs MODIFY. Library Requirements: added prism-dtu-armis + prism-sensors entries. Out-of-scope: Armis time-window is IN scope in v2.1 (was post-filter-only in §1.2 design note; §8 supersedes). Remaining deferrals unchanged (Cyberint page_size, Claroty body pagination, Claroty time-window, Option T2). Token Budget updated to ~73,500 tokens (~29% of 256K); sub-task split guidance added. Previous Story Intelligence: added §8 directive note, research-confirmed syntax note, S-DEMO-ARMIS-AQL-001 note. inputs[] expanded: adds prism-dtu-armis/routes/state.rs + parity/armis.rs + research doc. Tasks expanded: added steps 6b/6c/6d (read DTU, parity tests, research) + 14b/14c/14d (implement augmentation, DTU extension, TOML options); all 15 Red Gate test names listed. |
 | 2.0 | 2026-06-05 | story-writer | Major re-author (v1.3 → v2.0). Motivation: LOCAL adversary passes 5+6 established v1.x implementation is inert against production sensor shapes (materialization.rs hardcodes None; wrong Armis/Cyberint/Claroty translations). New scope: crates_touched adds prism-query (ADR-033 T1 time-window extraction in materialization.rs + pushdown.rs). subsystems adds SS-11 (Query Execution). target_module changed to prism-query. points 5→8 (T1 extraction + SAP-2 compliant test suite). AC set fully replaced: AC-CWS-001/002/003 (CrowdStrike limit + FQL time-window both start+end + empty-filter); AC-ARMIS-001/002 (AQL passthrough; assert NO maxResults/NO timeFrame); AC-CYB-001 (cursor-only GET; assert NO from_date/to_date/page_size); AC-CLAR-001 (empty body; assert NO time-window injection); AC-WIRE-001 (run_materialization_pipeline populates start_time+end_time per ADR-033 T1); AC-EQUIV-001 (result-equivalence via REAL materialization path — not direct FetchContext construction). SAP-2 Standing AC Gate added (production-TOML fixture mandate; fabricated-fixture P1 CRITICAL gate). Out-of-scope follow-ups anchored: Cyberint page_size → DTU-EXT-005; Claroty body pagination → S-DEMO-CLAROTY-PAGINATION-001; Claroty time-window → S-DEMO-CLAROTY-TIME-001 (new stub); full classify_predicates (Option T2) → future wave-6. BC table body updated with v1.13/v1.6/v1.7 version citations. Token Budget BC count updated to 3 BCs (unchanged). inputs[] expanded: adds prism-query src files + sensor TOMLs + DTU route structs + ADR-033 + pushdown-redesign.md. depends_on adds S-DEMO-002 (SATISFIED). v1.x implementation superseded. |
 | 1.3 | 2026-06-05 | state-manager | F-PUSHDOWN2-MED-001: status sync — frontmatter `status: ready`→`in_progress`; body header `**Status:** ready`→`in_progress`; body H1 version label v1.2→v1.3. D-1002 burst introduced asymmetry between STORY-INDEX (badged `in_progress v1.2`) and this story file (still `ready`). Source-of-Truth Rule 5: active LOCAL cascade → `in_progress` is canonical. Version bumped to v1.3 to maintain POLICY 32 monotonic-descending changelog. |
