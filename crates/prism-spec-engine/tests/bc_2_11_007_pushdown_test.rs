@@ -7,7 +7,8 @@
 //! # Covered ACs
 //!
 //! - AC-CWS-001: CrowdStrike limit reaches DetectionListParams
-//! - AC-CWS-002: CrowdStrike FQL time-window (both start+end) via run_materialization_pipeline
+//! - AC-CWS-002: CrowdStrike FQL time-window (both start+end, combined `+` form) wire-level via
+//!   PipelineExecutor; full run_materialization_pipeline path in prism-bin/tests/adv_p02_e2e_pushdown_pipeline_test.rs
 //! - AC-CWS-003: No filter param when no time predicates
 //! - AC-ARMIS-001: Armis AQL passthrough — no maxResults or timeFrame
 //! - AC-ARMIS-002: No additional params beyond aql, offset, limit
@@ -151,29 +152,41 @@ async fn test_ac_cws_001_crowdstrike_limit_reaches_detection_list_params() {
 
 // ---------------------------------------------------------------------------
 // AC-CWS-002: CrowdStrike FQL time-window — Step 1 path_template includes filter param
+//
+// COVERAGE NOTE (ADV-P04-HIGH-002):
+// The NAMED AC-CWS-002 test that drives `run_materialization_pipeline` is in:
+//   crates/prism-bin/tests/adv_p02_e2e_pushdown_pipeline_test.rs
+//   → test_ac_cws_002_fql_time_window_both_start_and_end_via_materialization_pipeline
+//
+// This file (prism-spec-engine) cannot depend on prism-bin (circular dep guard,
+// see CLAUDE.md architecture compliance note). The test below validates the same
+// wire-level FQL propagation via `PipelineExecutor::execute` directly (with
+// pre-seeded FQL), which is the pipeline-executor boundary exercised by
+// `SpecDrivenSensorAdapter::fetch` after it calls `build_crowdstrike_fql`.
+// The prism-bin test proves the full path from PrismQL WHERE clause.
 // ---------------------------------------------------------------------------
 
-/// AC-CWS-002 / BC-2.01.013 v1.14 TV-BC-2.01.013-006
+/// AC-CWS-002 wire-level / BC-2.01.013 v1.14 TV-BC-2.01.013-006
 ///
-/// A PrismQL query with `WHERE created_timestamp > 'T1' AND created_timestamp < 'T2'`
-/// must produce a CrowdStrike Step 1 request where `DetectionListParams.filter` contains
-/// `created_timestamp:>'T1'+created_timestamp:<'T2'` (combined with `+`).
+/// Validates that a pre-built FQL string (the form produced by `build_crowdstrike_fql`
+/// for both start+end bounds) reaches the CrowdStrike DTU via `PipelineExecutor::execute`.
 ///
-/// # Wire-level assertion (F-P1-HIGH-003)
-/// The DTU must RECEIVE the FQL filter on the wire. This test seeds the FQL via
-/// `FetchContext.query_filters["_fql"]` (the production path used by `SpecDrivenSensorAdapter`)
-/// and asserts the DTU's `/dtu/filter-log` contains the expected FQL string.
+/// # What this test proves
+/// - The `path_template` has the FQL filter interpolation slot (structural).
+/// - FQL pre-seeded into `FetchContext["_fql"]` reaches the DTU filter-log (wire-level).
+/// - The FQL contains BOTH bounds in the `+`-combined form (AC-CWS-002 item b).
+/// - `filtered_count < unfiltered_count` — DTU honors the combined FQL (load-bearing).
 ///
-/// # Architecture requirement (AC-CWS-002 item d)
-/// The `_fql` filter is seeded by `spec_driven_adapter.rs::build_crowdstrike_fql()` from
-/// `QueryParams.start_time`/`end_time`, which are set by `extract_time_window_from_ast`
-/// in `run_materialization_pipeline` (ADR-033 T1). This test exercises that produced path
-/// at the pipeline-executor boundary.
+/// # What this test does NOT prove (covered in prism-bin tests)
+/// The path `run_materialization_pipeline → extract_time_window_from_ast →
+/// build_crowdstrike_fql` is NOT exercised here — this test pre-seeds the FQL.
+/// That path is proven by `test_ac_cws_002_fql_time_window_both_start_and_end_via_materialization_pipeline`
+/// in `crates/prism-bin/tests/adv_p02_e2e_pushdown_pipeline_test.rs`.
 ///
 /// # SAP-2
 /// Uses production `crowdstrike.sensor.toml` shape.
 #[tokio::test]
-async fn test_ac_cws_002_fql_time_window_both_start_and_end_via_materialization_pipeline() {
+async fn test_ac_cws_002_wire_level_fql_both_bounds_via_pipeline_executor() {
     let mut clone = CrowdstrikeClone::new();
     let bound_addr = clone
         .start_on("127.0.0.1:0".parse().unwrap(), None, None)
@@ -277,17 +290,25 @@ async fn test_ac_cws_002_fql_time_window_both_start_and_end_via_materialization_
         .as_array()
         .expect("AC-CWS-002: filter_strings must be an array");
 
+    // AC-CWS-002 item (b): The FQL must contain BOTH lower-bound AND upper-bound in the
+    // combined `+` form: `created_timestamp:>'T1'+created_timestamp:<'T2'`.
+    // This is the exact form produced by `build_crowdstrike_fql(start_time, end_time)`.
+    // Asserting only `contains("created_timestamp")` would pass for a single-bound FQL —
+    // we must verify the COMBINED both-bounds form to satisfy AC-CWS-002(b).
+    let both_bounds_present = filter_strings.iter().any(|s| {
+        s.as_str()
+            .map(|fs| fs.contains("created_timestamp:>'") && fs.contains("created_timestamp:<'"))
+            .unwrap_or(false)
+    });
     assert!(
-        filter_strings.iter().any(|s| s
-            .as_str()
-            .map(|fs| fs.contains("created_timestamp"))
-            .unwrap_or(false)),
-        "AC-CWS-002 WIRE-LEVEL (F-P1-HIGH-003): DTU filter-log must contain an entry with \
-         'created_timestamp' in the FQL filter. The FQL '{}' must reach the DTU via the \
-         path_template '&filter=${{query.filter._fql}}' interpolation. \
-         Got filter_strings: {:?}. REGRESSION: FQL is not reaching the DTU wire.",
-        fql,
-        filter_strings
+        both_bounds_present,
+        "AC-CWS-002 WIRE-LEVEL BOTH-BOUNDS (F-P1-HIGH-003 / AC-CWS-002 item b): \
+         DTU filter-log must contain an entry with BOTH 'created_timestamp:>\\'' AND \
+         'created_timestamp:<\\'' in the combined `+` FQL form. \
+         The FQL '{}' must reach the DTU via path_template interpolation. \
+         Got filter_strings: {:?}. \
+         REGRESSION: Either the FQL is not reaching the DTU, or only one bound is present.",
+        fql, filter_strings
     );
 
     // Reset DTU state.

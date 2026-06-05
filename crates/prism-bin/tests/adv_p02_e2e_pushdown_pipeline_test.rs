@@ -27,10 +27,11 @@
 //!
 //! | Test | ADV finding | Entry point | DTU assertion |
 //! |------|-------------|-------------|---------------|
-//! | test_adv_p02_e2e_crowdstrike_fql_from_where_predicate | ADV-P02-CRIT-001 | run_materialization_pipeline | DTU filter-log contains created_timestamp FQL built by build_crowdstrike_fql |
+//! | test_adv_p02_e2e_crowdstrike_fql_from_where_predicate | ADV-P02-CRIT-001 | run_materialization_pipeline | DTU filter-log contains BOTH created_timestamp bounds in combined `+` FQL form |
 //! | test_adv_p02_e2e_crowdstrike_limit_from_pql_limit_clause | ADV-P02-CRIT-001 | run_materialization_pipeline | result.rows <= N where N comes from PQL LIMIT clause seeded into query.limit |
 //! | test_adv_p02_e2e_armis_aql_augmentation_from_where_predicate | ADV-P02-CRIT-001 | run_materialization_pipeline | DTU aql-log contains augmented AQL built by augment_armis_aql_with_time_window |
 //! | test_adv_p02_sid1_armis_fetch_start_time_augments_aql | ADV-P02-MED-001 | SpecDrivenSensorAdapter::fetch (direct) | query_filters["aql"] becomes augmented form with after: clause |
+//! | test_ac_cws_002_fql_time_window_both_start_and_end_via_materialization_pipeline | AC-CWS-002 (ADV-P04-HIGH-002) | run_materialization_pipeline | DTU filter-log contains BOTH bounds in combined `+` form; filtered_count < unfiltered_count |
 //!
 //! # SID-1 compliance
 //!
@@ -323,23 +324,30 @@ async fn test_adv_p02_e2e_crowdstrike_fql_from_where_predicate() {
         .as_array()
         .expect("ADV-P02-CRIT-001 CWS-FQL: filter_strings must be array");
 
+    // AC-CWS-002(b) BOTH-BOUNDS: assert the COMBINED `+` form (not just any `created_timestamp`).
+    // build_crowdstrike_fql(start, end) produces:
+    //   `created_timestamp:>'T1'+created_timestamp:<'T2'`
+    // A test that only checks `contains("created_timestamp")` passes for single-bound FQL —
+    // we must verify BOTH lower AND upper bound markers are present (ADV-P04-HIGH-002).
+    let both_bounds_present = filter_strings.iter().any(|s| {
+        s.as_str()
+            .map(|f| f.contains("created_timestamp:>'") && f.contains("created_timestamp:<'"))
+            .unwrap_or(false)
+    });
     assert!(
-        filter_strings.iter().any(|s| s
-            .as_str()
-            .map(|f| f.contains("created_timestamp"))
-            .unwrap_or(false)),
-        "ADV-P02-CRIT-001 CWS-FQL WIRE-LEVEL: DTU filter-log must contain 'created_timestamp' \
-         from the FQL built by build_crowdstrike_fql(start='{}', end='{}'). \
-         This proves the production path: run_materialization_pipeline \
+        both_bounds_present,
+        "ADV-P02-CRIT-001 CWS-FQL WIRE-LEVEL BOTH-BOUNDS (AC-CWS-002 item b): \
+         DTU filter-log must contain a FQL string with BOTH 'created_timestamp:>\\'' \
+         (lower bound) AND 'created_timestamp:<\\'' (upper bound) in the combined `+` form. \
+         build_crowdstrike_fql(start='{}', end='{}') must produce this form. \
+         This proves: run_materialization_pipeline \
          → extract_time_window_from_ast [reads resolved_spec_map INDEX columns] \
-         → QueryParams.start_time/end_time → SpecDrivenSensorAdapter::fetch \
-         → build_crowdstrike_fql → PipelineExecutor → DTU. \
+         → QueryParams.start_time/end_time populated → SpecDrivenSensorAdapter::fetch \
+         → build_crowdstrike_fql → PipelineExecutor → DTU filter-log. \
          Got filter_strings: {:?}. \
-         REGRESSION: if start_time=None regresses, build_crowdstrike_fql returns empty string \
-         and the DTU receives no filter param — this assertion catches that gap.",
-        start_time,
-        end_time,
-        filter_strings
+         REGRESSION: if only one bound is present, extract_time_window_from_ast failed \
+         to extract one bound, or build_crowdstrike_fql is not building the combined form.",
+        start_time, end_time, filter_strings
     );
 
     // Step 10: Unfiltered baseline for filtered_count < unfiltered_count assertion.
@@ -1028,5 +1036,277 @@ async fn test_adv_p02_sid1_armis_fetch_start_time_augments_aql() {
          `if self.sensor_spec.spec.sensor_id == \"armis\" && params.start_time.is_some()` \
          This test DIRECTLY exercises that branch — not augment_armis_aql directly, not hand-fed FetchContext.",
         aql_value
+    );
+}
+
+// ---------------------------------------------------------------------------
+// AC-CWS-002 (NAMED): CrowdStrike FQL both-bounds via run_materialization_pipeline
+// (ADV-P04-HIGH-002 closure — the authoritative AC-CWS-002 coverage)
+// ---------------------------------------------------------------------------
+
+/// AC-CWS-002 / BC-2.01.013 v1.14 TV-BC-2.01.013-006 — both start+end bounds via
+/// the real production pipeline path (`run_materialization_pipeline`).
+///
+/// # Why this test lives here (not in prism-spec-engine)
+///
+/// `prism-spec-engine` cannot depend on `prism-bin` (circular dependency guard — see
+/// CLAUDE.md architecture compliance). The AC-CWS-002 coverage that genuinely exercises
+/// `run_materialization_pipeline` must therefore live in `prism-bin/tests/`.
+///
+/// # Production call graph proven
+///
+/// ```text
+/// PrismQL: `WHERE created_timestamp > 'T1' AND created_timestamp < 'T2'`
+///   → run_materialization_pipeline
+///   → PrismQlParser::parse
+///   → extract_time_window_from_ast [reads resolved_spec_map: created_timestamp INDEX]
+///   → QueryParams.start_time = 'T1', end_time = 'T2'
+///   → fan_out → SpecDrivenSensorAdapter::fetch
+///   → build_crowdstrike_fql(start='T1', end='T2')
+///       → "created_timestamp:>'T1'+created_timestamp:<'T2'"  [COMBINED `+` form]
+///   → FetchContext["_fql"] = combined FQL
+///   → PipelineExecutor → CrowdStrike DTU filter-log
+/// ```
+///
+/// # Assertions (AC-CWS-002)
+///
+/// (a) DTU `/dtu/filter-log` contains a FQL string with BOTH
+///     `created_timestamp:>'<T1>'` AND `created_timestamp:<'<T2>'` (combined `+` form).
+///     This proves `build_crowdstrike_fql` was invoked with both bounds from the AST.
+///
+/// (b) `filtered_count < unfiltered_count` — DTU honored the FQL filter.
+///
+/// # ADV-P04-HIGH-002 closure
+///
+/// The prism-spec-engine test `test_ac_cws_002_wire_level_fql_both_bounds_via_pipeline_executor`
+/// validates the same wire-level propagation but with a pre-seeded FQL. THIS test is the
+/// authoritative AC-CWS-002 coverage: it verifies that `run_materialization_pipeline` with
+/// a real WHERE predicate causes `build_crowdstrike_fql` to build the combined both-bounds FQL.
+///
+/// BCs: BC-2.01.013 v1.14, BC-2.11.007 v1.8; ADR-033 T1; F-P1-CRIT-001.
+#[tokio::test]
+async fn test_ac_cws_002_fql_time_window_both_start_and_end_via_materialization_pipeline() {
+    // Step 1: Start CrowdStrike DTU clone.
+    let mut clone = CrowdstrikeClone::new();
+    let bound_addr = clone
+        .start_on("127.0.0.1:0".parse().unwrap(), None, None)
+        .await
+        .expect("AC-CWS-002: CrowdStrike DTU clone failed to start");
+    let dtu_base_url = format!("http://{bound_addr}");
+
+    // Step 2: Load production crowdstrike.sensor.toml (SAP-2: no fabricated fixture).
+    let spec_content = std::fs::read_to_string(
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../prism-sensors/specs/crowdstrike.sensor.toml"),
+    )
+    .expect("AC-CWS-002: crowdstrike.sensor.toml must be readable");
+    let mut spec =
+        SpecLoader::parse(&spec_content).expect("AC-CWS-002: crowdstrike.sensor.toml must parse");
+    spec.base_url = dtu_base_url.clone();
+
+    // Step 3: Build resolved_spec_map — the map that extract_time_window_from_ast reads
+    // to identify INDEX columns (created_timestamp has options=["INDEX"] per AC-INDEX-CWS-001).
+    let org_slug = "ac-cws-002-org";
+    let (org_registry, org_id, org_slug_typed) = make_org_registry(org_slug);
+    let sensor_id = SensorId::from("crowdstrike");
+
+    let resolved = make_resolved_spec(spec, org_slug);
+    let mut resolved_spec_map: HashMap<ResolvedSpecKey, ResolvedSensorSpec> = HashMap::new();
+    resolved_spec_map.insert((org_slug_typed.clone(), sensor_id.clone()), resolved);
+    let resolved_spec_map_arc: Arc<HashMap<ResolvedSpecKey, ResolvedSensorSpec>> =
+        Arc::new(resolved_spec_map);
+
+    // Step 4: Build SpecDrivenSensorAdapter and register it.
+    let mock_auth: Arc<dyn AuthProvider> = Arc::new(MockAuthProvider::new("test-oauth2-token"));
+    let http_client =
+        build_http_client_with_timeout().expect("AC-CWS-002: reqwest client build must succeed");
+
+    let spec_content2 = std::fs::read_to_string(
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../prism-sensors/specs/crowdstrike.sensor.toml"),
+    )
+    .expect("AC-CWS-002: re-read crowdstrike.sensor.toml");
+    let mut spec2 = SpecLoader::parse(&spec_content2).expect("AC-CWS-002: re-parse");
+    spec2.base_url = dtu_base_url.clone();
+    let resolved2 = make_resolved_spec(spec2, org_slug);
+
+    let adapter = SpecDrivenSensorAdapter::new(
+        Arc::new(resolved2),
+        AdapterAuthStrategy::Plugin(mock_auth),
+        http_client,
+    );
+    let mut adapter_registry = AdapterRegistry::new();
+    adapter_registry.register(org_id, Arc::new(adapter));
+
+    // Step 5: Build MaterializationContext.
+    let normalizer = Arc::new(OcsfNormalizer::new());
+    let credential_resolver: Arc<dyn CredentialResolver> =
+        Arc::new(PluginIgnoredCredentialResolver);
+    let org_registry_arc = Arc::new(org_registry);
+    let mut mat_ctx = MaterializationContext::new_with_resolver(
+        Arc::new(adapter_registry),
+        normalizer,
+        10_000,
+        credential_resolver,
+        Some(Arc::clone(&org_registry_arc)),
+        Some(Arc::clone(&resolved_spec_map_arc)),
+    );
+    let session_ctx = SessionContext::new();
+
+    // Step 6: PrismQL with BOTH time predicates — this is what AC-CWS-002 tests.
+    // Fixture spans 2026-01-01..2026-01-26 (50 records).
+    // Window: 2026-01-10 to 2026-01-20 → should return records in that range (~10).
+    let start_time = "2026-01-10T00:00:00Z";
+    let end_time = "2026-01-20T00:00:00Z";
+    let query = format!(
+        "SELECT * FROM crowdstrike_detections \
+         WHERE created_timestamp > '{start_time}' AND created_timestamp < '{end_time}'"
+    );
+
+    let options = QueryOptions {
+        clients: Some(vec![org_slug_typed.clone()]),
+        limit: None,
+        ..QueryOptions::default()
+    };
+
+    // Step 7: Run the REAL production pipeline — NOT PipelineExecutor::execute directly,
+    // NOT hand-fed FetchContext["_fql"]. This is the path AC-CWS-002(d) requires.
+    let output = run_materialization_pipeline(&query, &options, &mut mat_ctx, &session_ctx)
+        .await
+        .expect("AC-CWS-002: run_materialization_pipeline must succeed");
+    let filtered_count: usize = output.batches.iter().map(|b| b.num_rows()).sum();
+
+    // Step 8: Wire-level assertion (F-P1-HIGH-003 / AC-CWS-002 item a+b).
+    // The DTU filter-log must contain a FQL string with BOTH bounds in the combined `+` form.
+    // This proves build_crowdstrike_fql was called with both start_time AND end_time from
+    // the AST-extracted QueryParams.
+    let http_client_check = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .expect("AC-CWS-002: filter-log client build");
+    let filter_log_resp = http_client_check
+        .get(format!("{dtu_base_url}/dtu/filter-log"))
+        .send()
+        .await
+        .expect("AC-CWS-002: GET /dtu/filter-log must succeed");
+    let filter_log_body: serde_json::Value = filter_log_resp
+        .json()
+        .await
+        .expect("AC-CWS-002: filter-log must be JSON");
+    let filter_strings = filter_log_body["filter_strings"]
+        .as_array()
+        .expect("AC-CWS-002: filter_strings must be array");
+
+    // AC-CWS-002 item (b): BOTH lower AND upper bound must be present in the combined form.
+    // `created_timestamp:>'T1'+created_timestamp:<'T2'` — the `+` separates the two clauses.
+    let both_bounds_present = filter_strings.iter().any(|s| {
+        s.as_str()
+            .map(|f| f.contains("created_timestamp:>'") && f.contains("created_timestamp:<'"))
+            .unwrap_or(false)
+    });
+    assert!(
+        both_bounds_present,
+        "AC-CWS-002 AUTHORITATIVE BOTH-BOUNDS (ADV-P04-HIGH-002): \
+         DTU filter-log must contain a FQL string with BOTH 'created_timestamp:>\\'' \
+         AND 'created_timestamp:<\\'' in the combined `+` form. \
+         This proves run_materialization_pipeline → extract_time_window_from_ast \
+         populated BOTH QueryParams.start_time='{}' AND QueryParams.end_time='{}' \
+         → SpecDrivenSensorAdapter::fetch → build_crowdstrike_fql produced the combined form. \
+         Got filter_strings: {:?}. \
+         REGRESSION: if only one bound appears, extract_time_window_from_ast failed to \
+         extract one bound, or build_crowdstrike_fql is not joining both bounds with `+`.",
+        start_time, end_time, filter_strings
+    );
+
+    // Step 9: Unfiltered baseline for filtered_count < unfiltered_count.
+    clone
+        .reset()
+        .await
+        .expect("AC-CWS-002: clone reset must succeed");
+
+    let spec_content3 = std::fs::read_to_string(
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../prism-sensors/specs/crowdstrike.sensor.toml"),
+    )
+    .expect("AC-CWS-002: re-read3");
+    let mut spec3 = SpecLoader::parse(&spec_content3).expect("AC-CWS-002: re-parse3");
+    spec3.base_url = dtu_base_url.clone();
+    let resolved3 = make_resolved_spec(spec3, "ac-cws-002-baseline-org");
+
+    let (org_registry3, org_id3, org_slug_typed3) = make_org_registry("ac-cws-002-baseline-org");
+    let mut resolved_spec_map3: HashMap<ResolvedSpecKey, ResolvedSensorSpec> = HashMap::new();
+    resolved_spec_map3.insert(
+        (org_slug_typed3.clone(), SensorId::from("crowdstrike")),
+        resolved3,
+    );
+
+    let spec_content4 = std::fs::read_to_string(
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../prism-sensors/specs/crowdstrike.sensor.toml"),
+    )
+    .expect("AC-CWS-002: re-read4");
+    let mut spec4 = SpecLoader::parse(&spec_content4).expect("AC-CWS-002: re-parse4");
+    spec4.base_url = dtu_base_url.clone();
+    let resolved4 = make_resolved_spec(spec4, "ac-cws-002-baseline-org");
+
+    let mock_auth4: Arc<dyn AuthProvider> = Arc::new(MockAuthProvider::new("test-oauth2-token"));
+    let http_client4 = build_http_client_with_timeout().expect("AC-CWS-002: http_client4");
+    let adapter4 = SpecDrivenSensorAdapter::new(
+        Arc::new(resolved4),
+        AdapterAuthStrategy::Plugin(mock_auth4),
+        http_client4,
+    );
+    let mut adapter_registry4 = AdapterRegistry::new();
+    adapter_registry4.register(org_id3, Arc::new(adapter4));
+
+    let normalizer4 = Arc::new(OcsfNormalizer::new());
+    let cred_resolver4: Arc<dyn CredentialResolver> = Arc::new(PluginIgnoredCredentialResolver);
+    let mut mat_ctx4 = MaterializationContext::new_with_resolver(
+        Arc::new(adapter_registry4),
+        normalizer4,
+        10_000,
+        cred_resolver4,
+        Some(Arc::new(org_registry3)),
+        Some(Arc::new(resolved_spec_map3)),
+    );
+
+    let session_ctx4 = SessionContext::new();
+    let unfiltered_options = QueryOptions {
+        clients: Some(vec![org_slug_typed3.clone()]),
+        limit: None,
+        ..QueryOptions::default()
+    };
+
+    let output4 = run_materialization_pipeline(
+        "SELECT * FROM crowdstrike_detections",
+        &unfiltered_options,
+        &mut mat_ctx4,
+        &session_ctx4,
+    )
+    .await
+    .expect("AC-CWS-002: unfiltered pipeline must succeed");
+    let unfiltered_count: usize = output4.batches.iter().map(|b| b.num_rows()).sum();
+
+    // LOAD-BEARING (AC-CWS-002 item b): filtered_count < unfiltered_count.
+    // If extract_time_window_from_ast failed to extract both bounds, build_crowdstrike_fql
+    // produces a less-specific (or empty) FQL → DTU returns more records → this FAILS.
+    assert!(
+        filtered_count < unfiltered_count,
+        "AC-CWS-002 LOAD-BEARING: filtered_count ({}) must be < unfiltered_count ({}) \
+         when WHERE created_timestamp > '{}' AND created_timestamp < '{}' is pushed \
+         through run_materialization_pipeline → extract_time_window_from_ast → \
+         build_crowdstrike_fql(both bounds). \
+         REGRESSION: if the push-down pipeline is broken, both counts will be equal.",
+        filtered_count,
+        unfiltered_count,
+        start_time,
+        end_time
+    );
+    assert!(
+        filtered_count > 0,
+        "AC-CWS-002: filtered pipeline must return non-empty records \
+         (fixture has records in range {} to {})",
+        start_time,
+        end_time
     );
 }

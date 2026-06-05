@@ -349,3 +349,169 @@ impl Default for CrowdstrikeState {
 
 /// Shared `Arc<CrowdstrikeState>` passed through axum extension.
 pub type SharedState = Arc<CrowdstrikeState>;
+
+// ---------------------------------------------------------------------------
+// Unit tests for parse_fql_time_bounds (ADV-P04-LOW-001 / sibling-parity with Armis)
+// ---------------------------------------------------------------------------
+
+#[cfg(test)]
+mod tests {
+    use super::CrowdstrikeState;
+    use chrono::Datelike;
+
+    /// AC-CWS-DTU-001 (after-only bound): FQL with only a lower-bound clause yields
+    /// `after_bound = Some(T)` and `before_bound = None`.
+    ///
+    /// Parallel to `test_ac_armis_tw_002_dtu_parse_aql_after_clause_yields_bound` in
+    /// `prism-dtu-armis/src/routes/search.rs`.
+    #[test]
+    fn test_ac_cws_dtu_001_crowdstrike_dtu_honors_fql_filter_after_only() {
+        let fql = "created_timestamp:>'2026-01-10T00:00:00Z'";
+        let (after_bound, before_bound) = CrowdstrikeState::parse_fql_time_bounds(fql);
+
+        assert!(
+            after_bound.is_some(),
+            "parse_fql_time_bounds must parse 'created_timestamp:>' and return \
+             Some(after_bound); got None. FQL='{fql}'"
+        );
+        assert!(
+            before_bound.is_none(),
+            "parse_fql_time_bounds: no upper-bound clause → before_bound must be None; \
+             got: {:?}",
+            before_bound
+        );
+
+        if let Some(bound) = after_bound {
+            assert_eq!(bound.year(), 2026, "parsed after year must be 2026");
+            assert_eq!(bound.month(), 1, "parsed after month must be 1 (January)");
+            assert_eq!(bound.day(), 10, "parsed after day must be 10");
+        }
+    }
+
+    /// Before-only bound: FQL with only an upper-bound clause yields
+    /// `after_bound = None` and `before_bound = Some(T)`.
+    #[test]
+    fn test_ac_cws_dtu_001_parse_fql_before_only() {
+        let fql = "created_timestamp:<'2026-01-20T00:00:00Z'";
+        let (after_bound, before_bound) = CrowdstrikeState::parse_fql_time_bounds(fql);
+
+        assert!(
+            before_bound.is_some(),
+            "parse_fql_time_bounds must parse 'created_timestamp:<' and return \
+             Some(before_bound); got None. FQL='{fql}'"
+        );
+        assert!(
+            after_bound.is_none(),
+            "parse_fql_time_bounds: no lower-bound clause → after_bound must be None; \
+             got: {:?}",
+            after_bound
+        );
+
+        if let Some(bound) = before_bound {
+            assert_eq!(bound.year(), 2026, "parsed before year must be 2026");
+            assert_eq!(bound.month(), 1, "parsed before month must be 1 (January)");
+            assert_eq!(bound.day(), 20, "parsed before day must be 20");
+        }
+    }
+
+    /// Bounded range (both bounds, `+`-combined): the canonical CrowdStrike FQL form
+    /// `created_timestamp:>'T1'+created_timestamp:<'T2'` must yield both bounds.
+    ///
+    /// This is the form produced by `build_crowdstrike_fql(start_time, end_time)` when
+    /// both `start_time` and `end_time` are present (AC-CWS-002(b)).
+    ///
+    /// Named `test_ac_cws_dtu_001_crowdstrike_dtu_honors_fql_filter_time_window` per
+    /// ADV-P04-LOW-001 story citation requirement.
+    #[test]
+    fn test_ac_cws_dtu_001_crowdstrike_dtu_honors_fql_filter_time_window() {
+        // Combined `+` form — exactly what build_crowdstrike_fql produces.
+        let fql =
+            "created_timestamp:>'2026-01-10T00:00:00Z'+created_timestamp:<'2026-01-20T00:00:00Z'";
+        let (after_bound, before_bound) = CrowdstrikeState::parse_fql_time_bounds(fql);
+
+        assert!(
+            after_bound.is_some(),
+            "parse_fql_time_bounds bounded range: must parse 'created_timestamp:>' → \
+             Some(after_bound); got None. FQL='{fql}'"
+        );
+        assert!(
+            before_bound.is_some(),
+            "parse_fql_time_bounds bounded range: must parse 'created_timestamp:<' → \
+             Some(before_bound); got None. FQL='{fql}'"
+        );
+
+        if let (Some(after), Some(before)) = (after_bound, before_bound) {
+            assert!(
+                after < before,
+                "after_bound ({after}) must be strictly less than before_bound ({before})"
+            );
+            assert_eq!(after.day(), 10, "after day must be 10");
+            assert_eq!(before.day(), 20, "before day must be 20");
+        }
+    }
+
+    /// Malformed / absent filter: empty FQL yields (None, None).
+    #[test]
+    fn test_ac_cws_dtu_001_parse_fql_absent_filter_returns_none() {
+        let (after_bound, before_bound) = CrowdstrikeState::parse_fql_time_bounds("");
+        assert!(
+            after_bound.is_none(),
+            "parse_fql_time_bounds: empty FQL → after_bound must be None; got: {:?}",
+            after_bound
+        );
+        assert!(
+            before_bound.is_none(),
+            "parse_fql_time_bounds: empty FQL → before_bound must be None; got: {:?}",
+            before_bound
+        );
+    }
+
+    /// Malformed filter (no timestamp prefix at all): unrecognized FQL yields (None, None).
+    #[test]
+    fn test_ac_cws_dtu_001_parse_fql_malformed_filter_returns_none() {
+        let fql = "severity:High+status:new";
+        let (after_bound, before_bound) = CrowdstrikeState::parse_fql_time_bounds(fql);
+        assert!(
+            after_bound.is_none(),
+            "parse_fql_time_bounds: unrelated FQL → after_bound must be None; got: {:?}",
+            after_bound
+        );
+        assert!(
+            before_bound.is_none(),
+            "parse_fql_time_bounds: unrelated FQL → before_bound must be None; got: {:?}",
+            before_bound
+        );
+    }
+
+    /// RFC3339 with +00:00 offset form (alternative to Z suffix): must parse correctly.
+    #[test]
+    fn test_ac_cws_dtu_001_parse_fql_rfc3339_plus_offset_parses() {
+        let fql = "created_timestamp:>'2026-03-15T12:30:00+00:00'";
+        let (after_bound, _before_bound) = CrowdstrikeState::parse_fql_time_bounds(fql);
+        assert!(
+            after_bound.is_some(),
+            "parse_fql_time_bounds must parse RFC3339 '+00:00' offset form; got None. \
+             FQL='{fql}'"
+        );
+        if let Some(bound) = after_bound {
+            assert_eq!(bound.month(), 3, "parsed month must be 3 (March)");
+            assert_eq!(bound.day(), 15, "parsed day must be 15");
+        }
+    }
+
+    /// Naive timestamp (no Z/offset, e.g. '2026-01-05T00:00:00'): must parse as UTC.
+    #[test]
+    fn test_ac_cws_dtu_001_parse_fql_naive_timestamp_parses() {
+        let fql = "created_timestamp:>'2026-01-05T00:00:00'";
+        let (after_bound, _before_bound) = CrowdstrikeState::parse_fql_time_bounds(fql);
+        assert!(
+            after_bound.is_some(),
+            "parse_fql_time_bounds must parse naive timestamp (no Z/offset) as UTC; \
+             got None. FQL='{fql}'"
+        );
+        if let Some(bound) = after_bound {
+            assert_eq!(bound.year(), 2026, "parsed year must be 2026");
+            assert_eq!(bound.day(), 5, "parsed day must be 5");
+        }
+    }
+}
