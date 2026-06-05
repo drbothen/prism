@@ -137,55 +137,36 @@ active_dispatch_set:
     points: 8
     spec_version: "v2.1"
     lane: "2 (Phase B)"
-    dispatch_status: "V2_REIMPL_IN_FLIGHT — D-1007 2026-06-05. Armis AQL full-wiring scope added (human-directed). Research confirmed AQL time-window syntax (HIGH conf): after:/before: bare/unquoted/timezone-naive ISO; timeFrame:\"N unit\" camelCase; disproved lastSeen:>\"T\" + \"Last 3 Hours\". ADR-033 already accepted (D-1006). BC-2.01.013 v1.14 (AQL-clause augmentation IN scope; DTU-honors contract; TV-007/008). BC-2.11.007 v1.8 (Mechanism B CrowdStrike+Armis both support time push-down). Story v2.0→v2.1: 15 ACs (+AC-ARMIS-TW-001..005+AC-INDEX-001; AC-ARMIS-001 form corrected lastSeen:>→after:). crates_touched: [prism-query, prism-spec-engine, prism-bin, prism-dtu-armis, prism-sensors]. Token budget ~73.5K with sub-task split guidance. test-writer Red Gate NEXT (production fixtures + DTU load-bearing filter per SAP-2). [D-1006 2026-06-05: V2_REIMPL_IN_FLIGHT; ADR-033 accepted; scope expansion to prism-query; worktree reset to develop@752e407a; LOCAL streak 0/3. D-1005 2026-06-05: RE-SPEC COMPLETE. ADR-033 proposed; BC-2.01.013 v1.13; BC-2.11.007 v1.7; story v2.0 (9 ACs). S-DEMO-CLAROTY-TIME-001 stub registered.]"
-    code_head: "ed27b5ff"
+    dispatch_status: "V2_LOCAL_PASS1_CLOSED — D-1008 2026-06-05. v2.1 LOCAL pass-1 (aec965f9) NOT-CLEAN: 3 CRIT + 2 HIGH + OBS(wired) closed by fix-burst f50061a5. v1 defect class RECURRED (push-down unreachable via real pipeline path). prism-dtu-crowdstrike added to footprint (OBS-001 DTU filter honoring wired in-scope). just check 4018/0. Streak 0/3. LOCAL pass 2 NEXT. [D-1007 2026-06-05: V2.1 SPEC EXTENSION; Armis AQL full-wiring scope; 15 ACs; ADR-033 ACCEPTED. D-1006: V2_REIMPL_IN_FLIGHT; D-1005: RE-SPEC COMPLETE.]"
+    code_head: "f50061a5"
     local_adversary_streak: "0/3"
-    local_adversary_pass_count: 6
-    local_adversary_pass1_clean_strict: false
-    local_adversary_pass1_clean_pr_merge: false
-    local_adversary_pass1_findings: {HIGH: 2, MED: 2, LOW: 2, OBS: 2}
-    local_adversary_pass1_all_closed: true
-    local_adversary_pass1_feature_head_before: "19184786"
-    local_adversary_pass1_feature_head_after: "a75fada4"
-    local_adversary_pass2_clean_strict: false
-    local_adversary_pass2_clean_pr_merge: false
-    local_adversary_pass2_findings: {MED: 1, LOW: 1, OBS: 1}
-    local_adversary_pass2_all_closed: true
-    local_adversary_pass2_feature_head_before: "a75fada4"
-    local_adversary_pass2_feature_head_after: "688f82b5"
-    local_adversary_pass3_clean_strict: false
-    local_adversary_pass3_clean_pr_merge: true
-    local_adversary_pass3_findings: {LOW: 1}
-    local_adversary_pass3_all_closed: true
-    local_adversary_pass3_feature_head_before: "688f82b5"
-    local_adversary_pass3_feature_head_after: "ed27b5ff"
-    local_adversary_pass4_clean_strict: true
-    local_adversary_pass4_clean_pr_merge: true
-    local_adversary_pass4_findings: {}
-    local_adversary_pass4_streak_after: "1/3"
-    local_adversary_pass4_note: "CLEAN(strict)=yes (fixture-only lens — false signal; fabricated fixtures hid production shape mismatches)"
-    local_adversary_pass5_clean_strict: false
-    local_adversary_pass5_clean_pr_merge: false
-    local_adversary_pass5_findings: {CRIT: 3, HIGH: 1, MED: 1}
-    local_adversary_pass5_streak_after: "0/3"
-    local_adversary_pass5_lens: "SAP-2 extended fabricated-fixture parity"
-    local_adversary_pass5_all_closed: false
-    local_adversary_pass5_feature_head: "ed27b5ff"
-    local_adversary_pass6_clean_strict: false
-    local_adversary_pass6_clean_pr_merge: false
-    local_adversary_pass6_findings: {CRIT: 2, MED: 2}
-    local_adversary_pass6_streak_after: "0/3"
-    local_adversary_pass6_lens: "correctness — production call path materialization→adapter"
-    local_adversary_pass6_all_closed: false
-    local_adversary_pass6_feature_head: "ed27b5ff"
-    local_adversary_pass6_root_cause: "materialization.rs hardcodes start_time/end_time/cursor=None; 3/4 sensor translation targets wrong vs production DTU specs"
+    local_adversary_pass_count: 7
+    # --- v1 passes (1-6) archived; v1 cascade VOIDED by scope expansion to v2.1 ---
+    # v1 pass 1: {HIGH:2,MED:2,LOW:2,OBS:2} @19184786→a75fada4 | v1 pass 2: {MED:1,LOW:1,OBS:1} @a75fada4→688f82b5
+    # v1 pass 3: {LOW:1} @688f82b5→ed27b5ff | v1 pass 4: CLEAN(strict)=yes (false signal — fabricated fixtures)
+    # v1 pass 5: {CRIT:3,HIGH:1,MED:1} SAP-2 fabricated-fixture lens | v1 pass 6: {CRIT:2,MED:2} correctness lens
+    # v1 cascade VOIDED D-1004: materialization.rs hardcodes None; v2 re-implementation authorized D-1005/D-1006
+    # --- v2.1 passes ---
+    local_adversary_v2_pass1_clean_strict: false
+    local_adversary_v2_pass1_clean_pr_merge: false
+    local_adversary_v2_pass1_findings: {CRIT: 3, HIGH: 2, OBS_WIRED: 1, OBS_PROCESS_NOTE: 1}
+    local_adversary_v2_pass1_all_closed: true
+    local_adversary_v2_pass1_feature_head_before: "aec965f9"
+    local_adversary_v2_pass1_feature_head_after: "f50061a5"
+    local_adversary_v2_pass1_streak_after: "0/3"
+    local_adversary_v2_pass1_root_cause: "v1 defect class RECURRED — push-down functions unreachable via real run_materialization_pipeline→adapter→DTU path; tests validated via direct FetchContext construction bypassing production pipeline"
+    local_adversary_v2_pass1_footprint_expansion: "prism-dtu-crowdstrike added (OBS-001 DTU filter honoring wired in-scope; not in crates_touched v2.1 — story-writer update deferred to next spec-touch burst)"
+    local_adversary_v2_pass1_report: "cycles/wave-5-e-demo-fidelity/S-DEMO-QUERY-PUSHDOWN-001/adversarial-review/local-v2-pass-1.md"
+    local_adversary_v2_pass1_just_check: "4018/4018 PASS 0 failed"
+    local_adversary_v2_pass1_drift_items: ["DRIFT-P1-001: prism-dtu-crowdstrike added to footprint; crates_touched update deferred to next spec-touch", "OBS-NOTE-001: ~3 leaky nextest teardown warnings; non-fatal; assess at pass 2"]
+    local_adversary_v2_pass2_note: "NEXT — fresh context; confirm filter-log wire assertions load-bearing; assess OBS-NOTE-001 teardown warnings; SAP-1 tracing catalog check for new emission sites"
     depends_on:
       - S-DEMO-001  # HARD gate — SATISFIED (merged PR #166 develop@5dd3df02)
       - S-DEMO-002  # SATISFIED (merged PR #171 develop@fdd12251 2026-06-04)
     bcs: [BC-2.01.013, BC-2.11.005, BC-2.11.007]
     bc_pins: {BC-2.01.013: "v1.14", BC-2.11.005: "v1.6", BC-2.11.007: "v1.8"}
     vps: []
-    notes: "D-1007 2026-06-05: Armis AQL full-wiring scope added (human-directed). BC-2.01.013 v1.13→v1.14; BC-2.11.007 v1.7→v1.8; story v2.0→v2.1 (15 ACs +Armis time-window AC-ARMIS-TW-001..005+AC-INDEX-001; AC-ARMIS-001 corrected lastSeen:>→after:); crates_touched +prism-dtu-armis+prism-sensors; STORY-INDEX v2.282→v2.283; BC-INDEX v5.84→v5.85. Research confirmed AQL syntax HIGH conf. pushdown-redesign.md §8 extended. D-1006 2026-06-05: Human approved v2 re-implementation ('Approve — re-implement v2'). ADR-033 proposed→accepted. Scope expansion authorized. Worktree reset to develop@752e407a. V2_REIMPL_IN_FLIGHT. LOCAL streak 0/3 fresh. D-1005 2026-06-05: RE-SPEC COMPLETE (D-989 exception-2 human direction). ADR-033 proposed (NOT accepted — gated on human v2-scope approval). BC-2.01.013 v1.12→v1.13; BC-2.11.007 v1.6→v1.7; BC-2.11.005 v1.5→v1.6; BC-INDEX v5.83→v5.84; story v1.3→v2.0 (9 ACs; prism-query added; SS-11 added; 5→8 pts). S-DEMO-CLAROTY-TIME-001 stub registered (total_stories 181). STORY-INDEX v2.282. (D-1004 2026-06-05: passes 5/6 CRITICAL; streak RESET. D-1003: pass 3 OBS-P3-001 CLOSED. D-1002: pass 2 NOT-CLEAN. D-1001: pass 1 NOT-CLEAN. D-990: ready.)"
+    notes: "D-1008 2026-06-05: v2.1 LOCAL pass-1 RECORDED. HEAD aec965f9→f50061a5. 3 CRIT + 2 HIGH + OBS(wired) all closed. v1 defect class recurred (push-down unreachable via production path). prism-dtu-crowdstrike footprint expansion (filter honoring + filter-log route). just check 4018/0. Streak 0/3. LOCAL pass 2 NEXT. DRIFT-P1-001 recorded (crates_touched update deferred to next spec-touch). OBS-NOTE-001 leaky teardown (~3 warnings; non-fatal; assess pass 2). D-1007 2026-06-05: Armis AQL full-wiring scope added (human-directed). BC-2.01.013 v1.13→v1.14; BC-2.11.007 v1.7→v1.8; story v2.0→v2.1 (15 ACs +Armis time-window AC-ARMIS-TW-001..005+AC-INDEX-001; AC-ARMIS-001 corrected lastSeen:>→after:); crates_touched +prism-dtu-armis+prism-sensors; STORY-INDEX v2.282→v2.283; BC-INDEX v5.84→v5.85. Research confirmed AQL syntax HIGH conf. pushdown-redesign.md §8 extended. D-1006 2026-06-05: Human approved v2 re-implementation ('Approve — re-implement v2'). ADR-033 proposed→accepted. Scope expansion authorized. Worktree reset to develop@752e407a. V2_REIMPL_IN_FLIGHT. LOCAL streak 0/3 fresh. D-1005 2026-06-05: RE-SPEC COMPLETE (D-989 exception-2 human direction). ADR-033 proposed (NOT accepted — gated on human v2-scope approval). BC-2.01.013 v1.12→v1.13; BC-2.11.007 v1.6→v1.7; BC-2.11.005 v1.5→v1.6; BC-INDEX v5.83→v5.84; story v1.3→v2.0 (9 ACs; prism-query added; SS-11 added; 5→8 pts). S-DEMO-CLAROTY-TIME-001 stub registered (total_stories 181). STORY-INDEX v2.282. (D-1004 2026-06-05: passes 5/6 CRITICAL; streak RESET. D-1003: pass 3 OBS-P3-001 CLOSED. D-1002: pass 2 NOT-CLEAN. D-1001: pass 1 NOT-CLEAN. D-990: ready.)"
 
   - story_id: S-DEMO-CLAROTY-TIME-001
     status: draft
@@ -361,7 +342,7 @@ deferred_post_demo:
 prereq_artifacts:
   story_index: .factory/stories/STORY-INDEX.md         # v2.283 after D-1007 burst (181 stories; S-DEMO-QUERY-PUSHDOWN-001 v2.1 + OCSF-CLASS-MIGRATION-001 v1.4)
   bc_index: .factory/specs/behavioral-contracts/BC-INDEX.md  # v5.85 (BC-2.01.013 v1.14 + BC-2.11.007 v1.8; active 234, draft 3)
-  state: .factory/STATE.md                              # v7.658 after D-1007 burst
+  state: .factory/STATE.md                              # v7.659 after D-1008 burst
   governing_adr: .factory/specs/architecture/decisions/ADR-031-dtu-equals-true-dtu-fidelity-principle.md  # v1.2 (ADR-031 architect e57eb5b1 reclassified 3 divergences)
   governing_audit: .factory/proposals/POLLER-DTU-FIDELITY-AUDIT-2026-05-29.md  # v1.1
 
