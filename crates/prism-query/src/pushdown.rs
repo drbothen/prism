@@ -396,6 +396,21 @@ pub fn extract_time_window_from_ast(
         &mut end_time,
     );
 
+    // EC-003: if BOTH bounds are present and start_time > end_time (inverted window),
+    // emit a WARN. Both bounds are still returned — correctness is preserved by the
+    // DataFusion post-filter backstop. (BC-2.16.002 catalog row: push_down.inverted_time_range)
+    if let (Some(ref start), Some(ref end)) = (&start_time, &end_time) {
+        if start > end {
+            tracing::warn!(
+                event_type = "push_down.inverted_time_range",
+                start_time = %start,
+                end_time = %end,
+                "push-down time window is inverted (start_time > end_time); \
+                 sensor will receive both bounds and return empty/anomalous results"
+            );
+        }
+    }
+
     (start_time, end_time)
 }
 
@@ -895,6 +910,104 @@ mod pushdown_red_gate_tests {
             end_time.as_deref().unwrap_or("").contains("2026-06-01"),
             "F-P1-HIGH-002: end_time must contain '2026-06-01'; got: {:?}",
             end_time
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // EC-003: inverted time window emits WARN with event_type = "push_down.inverted_time_range"
+    // -----------------------------------------------------------------------
+
+    /// EC-003 / ADV-P03-MED-001: inverted time window (start_time > end_time) must emit
+    /// a WARN with event_type = "push_down.inverted_time_range", start_time, end_time fields.
+    ///
+    /// Push-down correctness is preserved — both bounds are still returned. The WARN is a
+    /// diagnostic/anomaly signal for operators. BC-2.16.002 catalog row: push_down.inverted_time_range.
+    ///
+    /// Uses `#[tracing_test::traced_test]` (same pattern as BC-2.16.012 AC-9d in invalidation.rs).
+    #[test]
+    #[tracing_test::traced_test]
+    fn test_ec_003_inverted_time_range_emits_warn() {
+        // INVERTED case: Gt T2 AND Lt T1, where T2 > T1.
+        // start_time = 2026-06-01, end_time = 2026-01-01 → start > end → inverted.
+        let inverted_query = "SELECT * FROM crowdstrike.detections \
+             WHERE created_timestamp > '2026-06-01T00:00:00Z' \
+             AND created_timestamp < '2026-01-01T00:00:00Z'";
+        let inverted_predicate = parse_where(inverted_query);
+
+        let col = make_datetime_index_column("created_timestamp");
+        let mut spec_map: HashMap<String, Vec<ColumnSpec>> = HashMap::new();
+        spec_map.insert("crowdstrike.detections".to_string(), vec![col]);
+
+        let (start, end) = extract_time_window_from_ast(
+            &inverted_predicate,
+            &["crowdstrike.detections"],
+            Some(&spec_map),
+        );
+
+        // Both bounds must still be returned (DataFusion backstop correctness preserved).
+        assert!(
+            start.is_some(),
+            "EC-003: start_time must be returned even for inverted window; got None"
+        );
+        assert!(
+            end.is_some(),
+            "EC-003: end_time must be returned even for inverted window; got None"
+        );
+
+        // WARN must have been emitted with the correct event_type (BC-2.16.002 catalog row).
+        assert!(
+            logs_contain("push_down.inverted_time_range"),
+            "EC-003 ADV-P03-MED-001: inverted time window must emit WARN with \
+             event_type = \"push_down.inverted_time_range\"; no such log captured. \
+             start={start:?} end={end:?}"
+        );
+        // Also assert the bound values appear in the log (start_time and end_time fields).
+        assert!(
+            logs_contain("2026-06-01"),
+            "EC-003: WARN log must include start_time value (2026-06-01); not found"
+        );
+        assert!(
+            logs_contain("2026-01-01"),
+            "EC-003: WARN log must include end_time value (2026-01-01); not found"
+        );
+    }
+
+    /// EC-003 complementary: non-inverted time window (start_time < end_time) MUST NOT
+    /// emit the WARN event. Separate #[traced_test] so the log buffer is fresh.
+    #[test]
+    #[tracing_test::traced_test]
+    fn test_ec_003_non_inverted_time_range_does_not_emit_warn() {
+        // Normal window: 2026-01-01 < 2026-06-01 (correctly ordered).
+        let normal_query = "SELECT * FROM crowdstrike.detections \
+             WHERE created_timestamp > '2026-01-01T00:00:00Z' \
+             AND created_timestamp < '2026-06-01T00:00:00Z'";
+        let normal_predicate = parse_where(normal_query);
+
+        let col = make_datetime_index_column("created_timestamp");
+        let mut spec_map: HashMap<String, Vec<ColumnSpec>> = HashMap::new();
+        spec_map.insert("crowdstrike.detections".to_string(), vec![col]);
+
+        let (start, end) = extract_time_window_from_ast(
+            &normal_predicate,
+            &["crowdstrike.detections"],
+            Some(&spec_map),
+        );
+
+        assert!(
+            start.is_some(),
+            "EC-003 non-inverted: start_time must be extracted"
+        );
+        assert!(
+            end.is_some(),
+            "EC-003 non-inverted: end_time must be extracted"
+        );
+
+        // No WARN must be emitted for a correctly ordered window.
+        assert!(
+            !logs_contain("push_down.inverted_time_range"),
+            "EC-003: non-inverted time window must NOT emit WARN with \
+             event_type = \"push_down.inverted_time_range\"; \
+             start={start:?} end={end:?}"
         );
     }
 
