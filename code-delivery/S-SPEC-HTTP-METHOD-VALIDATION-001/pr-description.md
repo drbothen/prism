@@ -31,7 +31,7 @@ graph TD
     K["truncate_at_char_boundary(32)\n(SEC-001 / CWE-400)"] -.->|"caps method_value in error\nat 32 codepoints"| D
 ```
 
-**Files changed (17 files — derived from `git diff develop...35ea2f6d --name-only`):**
+**Files changed (17 files — derived from `git diff develop...dc2a5ad7 --name-only`):**
 
 _Source (7 files):_
 - `crates/prism-core/src/error.rs` — `SpecErrorCode::ESpec025` discriminant added for cross-crate E-SPEC-025 propagation
@@ -109,7 +109,7 @@ flowchart LR
 | BC-2.16.009 | v1.10 | §Validation Rules 7 — HTTP Method Whitelist | AC-001 | `test_BC_2_16_009_valid_http_method_passes_validation` |
 | BC-2.16.009 | v1.10 | §Error Conditions — E-SPEC-025 | AC-002 | `test_BC_2_16_009_invalid_http_method_returns_structured_e_spec_025` |
 | BC-2.16.009 | v1.10 | §Validation Rules 7 — Rule 6→7 ordering | AC-003 | `test_BC_2_16_009_env_resolved_invalid_method_caught_post_resolution` |
-| BC-2.16.009 | v1.10 | §VR7 Point-3 — SEC-001 truncation (CWE-400) | AC-004 | `test_BC_2_16_009_sec_001_overlong_method_truncated_in_error` |
+| BC-2.16.009 | v1.10 | §VR7 32-codepoint echo cap (§Validation semantics) + EC-009-021 | AC-004 | `test_BC_2_16_009_sec_001_overlong_method_truncated_in_error` |
 | BC-2.16.009 | v1.10 | §VR7 Point-3 — full-match skip-guard (F-PR1-OBS-001) | AC-005 | `test_BC_2_16_009_f_pr1_obs_001_partial_token_embedding_not_skipped` |
 | error-taxonomy.md | v1.60 | E-SPEC-025 message template (POL-24 byte-verbatim) | AC-002 | `test_BC_2_16_009_e_spec_025_display_matches_error_taxonomy_template_byte_for_byte` |
 
@@ -251,14 +251,14 @@ Orchestrator-driven merge gate. This change introduces SEC-001 / CWE-400 mitigat
 
 ## Pre-Merge Checklist
 
-- [x] PR description matches actual diff (all 17 files listed: 7 source + 2 tests + 8 demo-evidence; 93/93 BC_2_16_009 name-filtered = 41 new + 52 pre-existing; 5 ACs / 10 Red Gate, v1.10/v1.4/v1.60 all consistent; HEAD `35ea2f6d`)
+- [x] PR description matches actual diff (all 17 files listed: 7 source + 2 tests + 8 demo-evidence; 93/93 BC_2_16_009 name-filtered = 41 new + 52 pre-existing; 5 ACs / 10 Red Gate, v1.10/v1.4/v1.60 all consistent; HEAD `dc2a5ad7`)
 - [x] All 5 ACs covered by demo evidence (1 recording per AC: AC-001..AC-005)
 - [x] Traceability chain complete: BC-2.16.009 v1.10 → AC-001..AC-005 → 10 Red Gate tests → `validate_step_methods()` implementation
 - [x] LOCAL adversary cascade CONVERGED 3/3 strict (7 passes, 4 fix-bursts)
 - [x] `#[non_exhaustive]` gate 49/49 PASS
 - [x] `depends_on: []` — no upstream PR dependency blocks
 - [x] No AI attribution in commits or PR body
-- [ ] CI checks green (running on HEAD `35ea2f6d`)
+- [ ] CI checks green (running on HEAD `dc2a5ad7`)
 - [ ] PR-level adversarial cascade (orchestrator-driven merge gate)
 - [ ] Security review (orchestrator-driven merge gate)
 - [ ] pr-reviewer approval (orchestrator-driven merge gate)

@@ -87,11 +87,11 @@ cycle: "v1.0.0-brownfield"
 phase: 3
 ---
 
-# S-SPEC-HTTP-METHOD-VALIDATION-001 v1.0 — HTTP Method Whitelist Validation in Sensor Spec
+# S-SPEC-HTTP-METHOD-VALIDATION-001 v1.4 — HTTP Method Whitelist Validation in Sensor Spec
 
 **Story ID:** S-SPEC-HTTP-METHOD-VALIDATION-001
-**Status:** draft
-**Version:** v1.0
+**Status:** ready
+**Version:** v1.4
 **Wave:** wave-5-e-demo-fidelity
 **Priority:** P2 (hardening — NOT a vulnerability; safe GET fallback exists)
 **Points:** 3
