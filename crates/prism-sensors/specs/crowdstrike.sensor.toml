@@ -95,10 +95,15 @@ ocsf_class = "security_finding"
 
   # Step 1: QueryV2 — GET detection IDs
   # DTU route: GET /detects/queries/detects/v1 (mod.rs line ~189)
+  # FQL time-window injection: ${query.filter._fql} carries the CrowdStrike FQL filter string
+  # (e.g., "created_timestamp:>'T1'+created_timestamp:<'T2'"). The value is seeded by
+  # SpecDrivenSensorAdapter::fetch() from QueryParams.start_time/end_time (ADR-033 T1).
+  # When no time predicates are present, _fql = "" and the filter param is ignored by the DTU.
+  # BC-2.01.013 v1.14 Pagination/Push-Down Scope Clause — CrowdStrike FQL wiring.
   [[tables.steps]]
   name = "query_detection_ids"
   method = "GET"
-  path_template = "/detects/queries/detects/v1"
+  path_template = "/detects/queries/detects/v1?filter=${query.filter._fql}"
   response_path = "$.resources"
   variables_produced = ["detection_ids"]
 

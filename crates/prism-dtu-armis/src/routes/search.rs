@@ -137,9 +137,20 @@ pub async fn get_search(
     }
 
     // R-DTU-002 / ADR-005 §D1: capture AQL verbatim, no parsing or validation.
+    // The verbatim capture MUST happen first — before any time-clause parsing.
+    // This preserves R-DTU-002: `capture_aql()` stores the raw AQL string unchanged.
     if let Some(ref aql) = params.aql {
         state.capture_aql(aql);
     }
+
+    // §8.3 (pushdown-redesign.md): After verbatim capture, parse AQL for time bounds.
+    // This is NOT a violation of R-DTU-002: we do not modify or reject the AQL string.
+    // We only use the parsed bounds to filter the fixture dataset (DTU behavioral fidelity).
+    let (aql_after_bound, aql_before_bound) = params
+        .aql
+        .as_deref()
+        .map(parse_aql_time_bounds)
+        .unwrap_or((None, None));
 
     // Resolve pagination parameters.
     // Prefer `offset`/`limit` (prism OffsetLimit convention) over `page`/`size` (real Armis API).
@@ -174,17 +185,23 @@ pub async fn get_search(
 
     if return_alerts {
         // AC-003: alert AQL → paginated AlertRecord results.
-        let all_alerts = &state.alert_fixture;
-        let total = all_alerts.len() as u32;
+        // §8.3: apply AQL time filtering BEFORE pagination (pushdown-redesign.md).
+        // Filter by created_at using after:/before: bounds from AQL string.
+        let time_filtered_alerts: Vec<&crate::types::AlertRecord> = state
+            .alert_fixture
+            .iter()
+            .filter(|a| alert_in_time_window(a, aql_after_bound, aql_before_bound))
+            .collect();
+        let total = time_filtered_alerts.len() as u32;
 
-        let page_alerts: Vec<serde_json::Value> = if start_offset >= all_alerts.len() {
+        let page_alerts: Vec<serde_json::Value> = if start_offset >= time_filtered_alerts.len() {
             vec![]
         } else {
-            all_alerts
+            time_filtered_alerts
                 .iter()
                 .skip(start_offset)
                 .take(size)
-                .filter_map(|a| serde_json::to_value(a).ok())
+                .filter_map(|a| serde_json::to_value(*a).ok())
                 .collect()
         };
 
@@ -197,13 +214,19 @@ pub async fn get_search(
         (StatusCode::OK, Json(body)).into_response()
     } else {
         // AC-002: device AQL (or absent AQL per EC-001) → paginated DeviceRecord results.
-        let all_devices = &state.devices_ordered;
-        let total = all_devices.len() as u32;
+        // §8.3: apply AQL time filtering BEFORE pagination.
+        // Filter by last_seen (with first_seen fallback) using after:/before: bounds.
+        let time_filtered_devices: Vec<&crate::types::DeviceRecord> = state
+            .devices_ordered
+            .iter()
+            .filter(|d| device_in_time_window(d, aql_after_bound, aql_before_bound))
+            .collect();
+        let total = time_filtered_devices.len() as u32;
 
-        let page_devices: Vec<serde_json::Value> = if start_offset >= all_devices.len() {
+        let page_devices: Vec<serde_json::Value> = if start_offset >= time_filtered_devices.len() {
             vec![]
         } else {
-            all_devices
+            time_filtered_devices
                 .iter()
                 .skip(start_offset)
                 .take(size)
@@ -212,7 +235,7 @@ pub async fn get_search(
                     let merged_tags = state.tags_for(DTU_ROUTE_ORG_ID, &d.device_id, &d.tags);
                     let merged = crate::types::DeviceRecord {
                         tags: merged_tags,
-                        ..d.clone()
+                        ..(*d).clone()
                     };
                     serde_json::to_value(&merged).ok()
                 })
@@ -227,6 +250,102 @@ pub async fn get_search(
         };
         (StatusCode::OK, Json(body)).into_response()
     }
+}
+
+// ---------------------------------------------------------------------------
+// Time-window fixture filtering helpers (§8.3 — pushdown-redesign.md)
+// ---------------------------------------------------------------------------
+
+/// Check whether a `DeviceRecord` falls within the given AQL time window.
+///
+/// Implements pushdown-redesign.md §8.3 fallback chain:
+/// 1. Try `last_seen` (primary timestamp).
+/// 2. If `last_seen` is null, try `first_seen` (fallback).
+/// 3. If both are null, EXCLUDE the record (conservative: cannot confirm in-window).
+///
+/// When `after_bound` and `before_bound` are both `None` (no time clause in AQL),
+/// all records pass the filter (no filtering → verbatim passthrough).
+///
+/// Open/closed interval semantics: `after:T` is exclusive lower bound (record.ts > T);
+/// `before:T` is exclusive upper bound (record.ts < T). Matches the query-engine's
+/// `CompareOp::Gt`/`CompareOp::Lt` semantics used by `extract_time_window_from_ast`.
+fn device_in_time_window(
+    device: &crate::types::DeviceRecord,
+    after_bound: Option<DateTime<Utc>>,
+    before_bound: Option<DateTime<Utc>>,
+) -> bool {
+    // No time bounds → include all records (no filtering).
+    if after_bound.is_none() && before_bound.is_none() {
+        return true;
+    }
+    // Resolve device timestamp: last_seen → first_seen fallback → exclude if both null.
+    let ts_str = match device.last_seen.as_deref().or(device.first_seen.as_deref()) {
+        Some(s) => s,
+        None => return false, // Both null → exclude (conservative per §8.3).
+    };
+    let ts = match parse_iso8601_utc(ts_str) {
+        Some(t) => t,
+        None => return false, // Unparseable timestamp → exclude (conservative).
+    };
+    // Apply bounds (exclusive intervals to match CompareOp::Gt/Lt semantics).
+    if let Some(after) = after_bound {
+        if ts <= after {
+            return false;
+        }
+    }
+    if let Some(before) = before_bound {
+        if ts >= before {
+            return false;
+        }
+    }
+    true
+}
+
+/// Check whether an `AlertRecord` falls within the given AQL time window.
+///
+/// Filters by `created_at` (the primary alert timestamp, §8.3).
+/// Same open/closed interval semantics as `device_in_time_window`.
+fn alert_in_time_window(
+    alert: &crate::types::AlertRecord,
+    after_bound: Option<DateTime<Utc>>,
+    before_bound: Option<DateTime<Utc>>,
+) -> bool {
+    if after_bound.is_none() && before_bound.is_none() {
+        return true;
+    }
+    let ts = match parse_iso8601_utc(&alert.created_at) {
+        Some(t) => t,
+        None => return false,
+    };
+    if let Some(after) = after_bound {
+        if ts <= after {
+            return false;
+        }
+    }
+    if let Some(before) = before_bound {
+        if ts >= before {
+            return false;
+        }
+    }
+    true
+}
+
+/// Parse an ISO8601 datetime string (with or without `Z`/`+00:00` suffix) to `DateTime<Utc>`.
+///
+/// Tries multiple formats:
+/// - RFC3339 / ISO8601 with timezone (`+00:00`, `Z`).
+/// - Timezone-naive `YYYY-MM-DDTHH:MM:SSZ` (trailing Z treated as UTC).
+/// - Timezone-naive `YYYY-MM-DDTHH:MM:SS`.
+fn parse_iso8601_utc(s: &str) -> Option<DateTime<Utc>> {
+    // Try full RFC3339 parsing first (handles Z and +00:00 suffixes).
+    if let Ok(dt) = s.parse::<DateTime<Utc>>() {
+        return Some(dt);
+    }
+    // Try naive datetime (e.g., "2024-06-11T14:22:00" from fixture without Z).
+    if let Ok(naive) = chrono::NaiveDateTime::parse_from_str(s, "%Y-%m-%dT%H:%M:%S") {
+        return Some(naive.and_utc());
+    }
+    None
 }
 
 // ---------------------------------------------------------------------------
@@ -259,17 +378,50 @@ pub async fn get_search(
 /// # Story: S-DEMO-QUERY-PUSHDOWN-001 v2.1
 /// Red Gate stub — returns `(None, None)` (no parsing) until implemented.
 /// AC-ARMIS-TW-002 LOAD-BEARING test asserts filtered_count < unfiltered_count; FAILS here.
-// S-DEMO-QUERY-PUSHDOWN-001 v2.1 Red Gate stub.
-// Dead-code is suppressed because this function is wired by the implementer in §8.3.
-// The inline unit tests in pushdown_dtu_red_gate_tests exercise this function directly.
-#[allow(dead_code)]
+/// Parse `after:` and `before:` absolute time clauses from an AQL string.
+///
+/// Implements pushdown-redesign.md §8.3. Called AFTER `capture_aql()` in `get_search`
+/// so R-DTU-002 (opaque AQL capture) is preserved. This function only extracts
+/// time bounds for fixture dataset filtering — it does NOT modify or reject the AQL.
+///
+/// Supported formats (research-confirmed, §2.2 / §3 of armis-aql-time-window-syntax-2026-06.md):
+/// - `after:YYYY-MM-DDTHH:MM:SS` — bare, unquoted, timezone-naive ISO8601 datetime.
+/// - `before:YYYY-MM-DDTHH:MM:SS` — same.
+/// - `after:YYYY-MM-DD` — date-only form (BlinkOps source).
+/// - `before:YYYY-MM-DD` — same.
+///
+/// Returns `(after_bound, before_bound)` as UTC datetimes with time defaulting to
+/// midnight UTC for date-only forms.
 pub(crate) fn parse_aql_time_bounds(aql: &str) -> (Option<DateTime<Utc>>, Option<DateTime<Utc>>) {
-    // Red Gate stub: suppress unused-variable warning.
-    let _ = aql;
-    // Returns (None, None) — no AQL time-clause parsing.
-    // With this stub: DTU returns full fixture regardless of after:/before: in AQL.
-    // AC-ARMIS-TW-002 test assertion: filtered_count < unfiltered_count → FAILS here.
-    (None, None)
+    let after_bound = extract_aql_keyword_bound(aql, "after:");
+    let before_bound = extract_aql_keyword_bound(aql, "before:");
+    (after_bound, before_bound)
+}
+
+/// Extract a `DateTime<Utc>` bound for the given keyword (e.g., `"after:"`) from an AQL string.
+///
+/// Parses the token immediately following the keyword up to the next whitespace or end-of-string.
+/// Accepts both `YYYY-MM-DDTHH:MM:SS` (datetime) and `YYYY-MM-DD` (date-only) forms.
+/// Returns `None` if the keyword is absent or the token cannot be parsed.
+fn extract_aql_keyword_bound(aql: &str, keyword: &str) -> Option<DateTime<Utc>> {
+    // Find the keyword position.
+    let pos = aql.find(keyword)?;
+    let rest = &aql[pos + keyword.len()..];
+    // The timestamp value is everything up to the next whitespace (or end-of-string).
+    let token = rest.split_whitespace().next()?;
+    if token.is_empty() {
+        return None;
+    }
+    // Try parsing as a full datetime (YYYY-MM-DDTHH:MM:SS — timezone-naive).
+    if let Ok(naive) = chrono::NaiveDateTime::parse_from_str(token, "%Y-%m-%dT%H:%M:%S") {
+        return Some(naive.and_utc());
+    }
+    // Try parsing as date-only (YYYY-MM-DD).
+    if let Ok(naive_date) = chrono::NaiveDate::parse_from_str(token, "%Y-%m-%d") {
+        let naive_dt = naive_date.and_hms_opt(0, 0, 0)?;
+        return Some(naive_dt.and_utc());
+    }
+    None
 }
 
 /// Validate `Authorization: Bearer {non-empty}` header.

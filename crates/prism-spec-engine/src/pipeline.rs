@@ -252,6 +252,19 @@ impl PipelineExecutor {
             );
         }
 
+        // ADR-033 T1 / AC-CWS-002: Pre-seed any ${query.filter.*} variables referenced
+        // in step path_templates or body_templates that are not in context.query_filters.
+        // This prevents interpolation errors when optional filter slots (e.g., ${query.filter._fql})
+        // are present in the TOML path_template but absent from the FetchContext.
+        // Default: empty string (no filter → empty URL param, safely ignored by DTU).
+        for step in &table.steps {
+            seed_missing_query_filter_vars(
+                &step.path_template,
+                step.body_template.as_deref(),
+                &mut step_vars,
+            );
+        }
+
         let step_count = table.steps.len();
 
         'steps: for (step_idx, step) in table.steps.iter().enumerate() {
@@ -1277,6 +1290,48 @@ fn extract_cursor(body: &serde_json::Value, cursor_path: &str) -> Option<String>
                  (only String, Number, Null are supported)"
             );
             None
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// seed_missing_query_filter_vars (ADR-033 T1 — optional filter pre-seeding)
+// ---------------------------------------------------------------------------
+
+/// Pre-seed any `${query.filter.*}` variables referenced in a step's path/body
+/// templates that are NOT already present in `step_vars`, defaulting to empty string.
+///
+/// This prevents interpolation errors when optional filter slots (e.g.,
+/// `${query.filter._fql}` for CrowdStrike FQL injection) are present in the
+/// TOML path_template but the FetchContext provides no value for them.
+///
+/// The default empty string causes the URL param to be present but empty
+/// (e.g., `?filter=`), which is safely ignored by DTUs that do not parse
+/// the param when it is empty.
+///
+/// ADR-033 T1 / BC-2.01.013 v1.14: CrowdStrike FQL injection via
+/// `${query.filter._fql}` in path_template requires this pre-seeding to be
+/// robust when no time predicates are present in the PrismQL query.
+fn seed_missing_query_filter_vars(
+    path_template: &str,
+    body_template: Option<&str>,
+    step_vars: &mut std::collections::HashMap<String, serde_json::Value>,
+) {
+    // Regex to extract ${query.filter.VARNAME} references from templates.
+    // Matches the canonical `${query.filter.*}` interpolation pattern.
+    static QUERY_FILTER_PATTERN: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
+    let re = QUERY_FILTER_PATTERN.get_or_init(|| {
+        regex::Regex::new(r"\$\{query\.filter\.([^}]+)\}")
+            .expect("query.filter interpolation regex is valid")
+    });
+    for template in [Some(path_template), body_template].into_iter().flatten() {
+        for cap in re.captures_iter(template) {
+            let var_name = cap.get(1).expect("var name group").as_str();
+            let full_key = format!("query.filter.{var_name}");
+            // Only seed if not already present — do NOT override a provided value.
+            step_vars
+                .entry(full_key)
+                .or_insert(serde_json::Value::String(String::new()));
         }
     }
 }

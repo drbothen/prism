@@ -338,11 +338,101 @@ pub fn extract_time_window_from_ast(
         &std::collections::HashMap<String, Vec<prism_spec_engine::spec_parser::ColumnSpec>>,
     >,
 ) -> (Option<String>, Option<String>) {
-    // Red Gate stub: suppress unused-variable warnings for stub body.
-    let _ = (predicate, source_names, resolved_spec_map);
-    // ADR-033 T1 stub — returns (None, None) until implemented.
-    // AC-WIRE-001 test asserts this returns Some(_) for datetime INDEX columns; FAILS here.
-    (None, None)
+    // ADR-033 §Consequences — safe default: None spec_map → no push-down, no panic.
+    let spec_map = match resolved_spec_map {
+        Some(m) => m,
+        None => return (None, None),
+    };
+
+    // Collect all ColumnSpec entries for the given source_names, looking up datetime INDEX cols.
+    // ADR-033 T1: match lhs column names against columns with column_type=datetime + options=[INDEX].
+    let mut datetime_index_cols: std::collections::HashSet<String> =
+        std::collections::HashSet::new();
+    for source_name in source_names {
+        if let Some(cols) = spec_map.get(*source_name) {
+            for col in cols {
+                if col.column_type == prism_core::ColumnType::Datetime
+                    && col.options.contains(&ColumnOptions::Index)
+                {
+                    datetime_index_cols.insert(col.name.clone());
+                }
+            }
+        }
+    }
+
+    let mut start_time: Option<String> = None;
+    let mut end_time: Option<String> = None;
+
+    extract_time_bounds_from_predicate(
+        predicate,
+        &datetime_index_cols,
+        &mut start_time,
+        &mut end_time,
+    );
+
+    (start_time, end_time)
+}
+
+/// Recursively walk the predicate tree collecting Gt/Ge (start) and Lt/Le (end) bounds
+/// on datetime INDEX columns.
+fn extract_time_bounds_from_predicate(
+    predicate: &crate::ast::Predicate,
+    datetime_index_cols: &std::collections::HashSet<String>,
+    start_time: &mut Option<String>,
+    end_time: &mut Option<String>,
+) {
+    use crate::ast::{CompareOp, Expr, Literal, LogicalOp, Predicate};
+    match predicate {
+        Predicate::Compare { lhs, op, rhs } => {
+            // Only handle inequalities (Gt, Ge, Lt, Le).
+            let is_range_op = matches!(
+                op,
+                CompareOp::Gt | CompareOp::Ge | CompareOp::Lt | CompareOp::Le
+            );
+            if !is_range_op {
+                return;
+            }
+            // LHS must be a plain field reference.
+            let col_name = match lhs.as_ref() {
+                Expr::Field(fp) => fp.segments.join("."),
+                _ => return,
+            };
+            // Column must be a known datetime INDEX column.
+            if !datetime_index_cols.contains(&col_name) {
+                return;
+            }
+            // RHS must be a Timestamp literal.
+            let ts_str = match rhs.as_ref() {
+                Expr::Literal(Literal::Timestamp(ts)) => {
+                    // Use to_rfc3339 which produces e.g. "2026-01-01T00:00:00Z".
+                    ts.instant.to_rfc3339()
+                }
+                _ => return,
+            };
+            // Gt/Ge → lower bound (start_time); Lt/Le → upper bound (end_time).
+            // First-wins semantics: only the first extracted bound is used.
+            match op {
+                CompareOp::Gt | CompareOp::Ge if start_time.is_none() => {
+                    *start_time = Some(ts_str);
+                }
+                CompareOp::Lt | CompareOp::Le if end_time.is_none() => {
+                    *end_time = Some(ts_str);
+                }
+                _ => {}
+            }
+        }
+        Predicate::Logical { op, predicates } if *op == LogicalOp::And => {
+            for child in predicates {
+                extract_time_bounds_from_predicate(
+                    child,
+                    datetime_index_cols,
+                    start_time,
+                    end_time,
+                );
+            }
+        }
+        _ => {}
+    }
 }
 
 /// Augment a base Armis AQL string with time-window clauses.
@@ -369,11 +459,59 @@ pub fn augment_armis_aql_with_time_window(
     start_time: Option<&str>,
     end_time: Option<&str>,
 ) -> String {
-    // Red Gate stub: suppress unused-variable warnings.
-    let _ = (start_time, end_time);
-    // Returns base_aql verbatim — no augmentation.
-    // AC-ARMIS-TW-001 test asserts "in:devices after:2026-01-01T00:00:00" → FAILS here.
-    base_aql.to_string()
+    // Anti-double-filter guard (AC-ARMIS-TW-003 / BC-2.01.013 v1.14 Mechanism B):
+    // If the base AQL already contains any of the canonical Armis time keywords,
+    // return it verbatim — do NOT append a second time clause.
+    if base_aql.contains("after:")
+        || base_aql.contains("before:")
+        || base_aql.contains("timeFrame:")
+    {
+        return base_aql.to_string();
+    }
+
+    // If no time bounds are provided, pass through verbatim.
+    if start_time.is_none() && end_time.is_none() {
+        return base_aql.to_string();
+    }
+
+    // Build the time clause(s) to append.
+    // Canonical Armis AQL syntax (research-confirmed HIGH confidence, 6 sources):
+    //   after:YYYY-MM-DDTHH:MM:SS  (bare, unquoted, timezone-naive — NO Z suffix)
+    //   before:YYYY-MM-DDTHH:MM:SS
+    // Clauses are space-separated (research-doc §3, BlinkOps source).
+    let mut result = base_aql.to_string();
+
+    if let Some(start) = start_time {
+        // Strip the trailing 'Z' suffix if present (timezone-naive form required).
+        let start_naive = strip_z_suffix(start);
+        result.push(' ');
+        result.push_str("after:");
+        result.push_str(start_naive);
+    }
+    if let Some(end) = end_time {
+        let end_naive = strip_z_suffix(end);
+        result.push(' ');
+        result.push_str("before:");
+        result.push_str(end_naive);
+    }
+
+    result
+}
+
+/// Strip a trailing `Z` UTC suffix from an ISO8601 timestamp string.
+///
+/// The canonical Armis AQL form is timezone-naive `YYYY-MM-DDTHH:MM:SS`
+/// (research-doc §2.2, R2: bare/unquoted, no `Z` suffix). PrismQL stores
+/// timestamps as `DateTime<Utc>` and `to_rfc3339()` appends `+00:00`.
+/// This function strips either `Z` or `+00:00` suffixes.
+fn strip_z_suffix(ts: &str) -> &str {
+    if let Some(stripped) = ts.strip_suffix('Z') {
+        return stripped;
+    }
+    if let Some(stripped) = ts.strip_suffix("+00:00") {
+        return stripped;
+    }
+    ts
 }
 
 /// Extract a `(column_name, json_value)` pair from an `Expr::Compare` equality.
