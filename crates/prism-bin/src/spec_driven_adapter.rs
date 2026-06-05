@@ -574,6 +574,50 @@ impl SensorAdapter for SpecDrivenSensorAdapter {
             query_filters.entry("_fql".to_string()).or_insert(fql);
         }
 
+        // Armis AQL time-window augmentation (BC-2.01.013 v1.14 Mechanism B + ADR-033 T1).
+        // F-P1-CRIT-002: wire augment_armis_aql_with_time_window into the real path.
+        //
+        // When start_time/end_time are populated by extract_time_window_from_ast (ADR-033 T1)
+        // in run_materialization_pipeline, augment the base AQL string with canonical
+        // Armis time clauses: `after:YYYY-MM-DDTHH:MM:SS` / `before:YYYY-MM-DDTHH:MM:SS`
+        // (bare, unquoted, timezone-naive per research-doc §2.2, AC-ARMIS-TW-001).
+        //
+        // Anti-double-filter guard: if the AQL already contains `after:`, `before:`, or
+        // `timeFrame:`, augmentation is skipped (AC-ARMIS-TW-003 / BC-2.01.013 v1.14 Mechanism B).
+        //
+        // The augmented AQL overwrites `query_filters["aql"]` and is forwarded via the
+        // existing `${query.filter.aql}` path_template interpolation.
+        if self.sensor_spec.spec.sensor_id.as_str() == "armis"
+            && (params.start_time.is_some() || params.end_time.is_some())
+        {
+            let base_aql = query_filters.get("aql").cloned().unwrap_or_default();
+            let augmented = prism_query::pushdown::augment_armis_aql_with_time_window(
+                &base_aql,
+                params.start_time.as_deref(),
+                params.end_time.as_deref(),
+            );
+            query_filters.insert("aql".to_string(), augmented);
+        }
+
+        // CrowdStrike limit push-down (BC-2.01.013 v1.14 / F-P1-CRIT-004).
+        // Seed `query.limit` into query_filters so the ${query.limit} slot in the
+        // CrowdStrike Step 1 path_template resolves to the LIMIT value.
+        // When params.limit == 0 (no LIMIT clause), seed an empty string so
+        // PipelineExecutor::strip_empty_url_params removes the &limit= param entirely.
+        // EC-008: treat limit=0 as "no limit" — empty string causes omission.
+        if self.sensor_spec.spec.sensor_id.as_str() == "crowdstrike" {
+            // Use entry() to not overwrite a manually-injected query.limit (test path).
+            query_filters
+                .entry("query.limit".to_string())
+                .or_insert_with(|| {
+                    if params.limit > 0 {
+                        params.limit.to_string()
+                    } else {
+                        String::new() // empty → stripped by PipelineExecutor::strip_empty_url_params
+                    }
+                });
+        }
+
         let context = FetchContext::new(self.sensor_spec.org_slug.clone(), query_filters);
 
         // Resolve which sensor table to execute.

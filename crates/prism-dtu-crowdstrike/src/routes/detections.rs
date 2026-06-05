@@ -2,6 +2,14 @@
 //!
 //! - `GET /detects/queries/detects/v1` — paginated detection ID list (Step 1)
 //! - `POST /detects/entities/summaries/GET/v1` — batch detection detail fetch (Step 2)
+//!
+//! # FQL filter honoring (F-P1-OBS-001 / AC-CWS-002)
+//!
+//! The `filter` query param is parsed for `created_timestamp:>'T'` / `created_timestamp:<'T'`
+//! CrowdStrike FQL clauses. When present, only IDs whose `created_timestamp` in the
+//! detail fixture falls within the range are returned from Step 1.
+//! The verbatim filter string is captured in `state.filter_log` before any parsing
+//! (parallel to Armis R-DTU-002 opaque-capture pattern). Accessible via GET /dtu/filter-log.
 
 use std::sync::Arc;
 
@@ -21,7 +29,8 @@ use crate::{
 /// Query params for detection ID list.
 #[derive(Debug, Deserialize, Default)]
 pub struct DetectionListParams {
-    /// FQL filter string — accepted but not parsed.
+    /// FQL filter string — captured verbatim in filter_log, then parsed for
+    /// `created_timestamp:>'T'` / `created_timestamp:<'T'` time bounds (F-P1-OBS-001).
     pub filter: Option<String>,
     /// Maximum results to return (default 100).
     pub limit: Option<usize>,
@@ -127,7 +136,71 @@ pub async fn list_detection_ids(
         }
     }
 
+    // F-P1-OBS-001: capture filter verbatim in filter_log before any parsing
+    // (parallel to Armis R-DTU-002 opaque-capture pattern).
+    if let Some(ref fql) = params.filter {
+        if !fql.is_empty() {
+            state.capture_filter(fql);
+        }
+    }
+
+    // F-P1-OBS-001: parse FQL time bounds for fixture filtering.
+    // CrowdStrike FQL syntax: `created_timestamp:>'YYYY-MM-DDTHH:MM:SSZ'` (lower)
+    //                          `created_timestamp:<'YYYY-MM-DDTHH:MM:SSZ'` (upper)
+    // When present, only IDs whose `created_timestamp` in the detail fixture
+    // falls within the range are included. Open intervals: Gt=exclusive lower, Lt=exclusive upper.
+    let (fql_after, fql_before) = params
+        .filter
+        .as_deref()
+        .filter(|s| !s.is_empty())
+        .map(crate::state::CrowdstrikeState::parse_fql_time_bounds)
+        .unwrap_or((None, None));
+
     let all_ids = load_detection_ids();
+
+    // When FQL time bounds are present, load the detail fixture to filter by created_timestamp.
+    // When no bounds, all IDs pass (no filtering — verbatim passthrough).
+    let filtered_ids: Vec<String> = if fql_after.is_some() || fql_before.is_some() {
+        let details = load_detection_details();
+        all_ids
+            .into_iter()
+            .filter(|id| {
+                // Include ID only if its created_timestamp falls within the FQL bounds.
+                // IDs without a detail record are excluded (conservative).
+                let Some(record) = details.get(id) else {
+                    return false;
+                };
+                let Some(ts_str) = record.get("created_timestamp").and_then(|v| v.as_str()) else {
+                    return false;
+                };
+                let Some(ts) = ts_str
+                    .parse::<chrono::DateTime<chrono::Utc>>()
+                    .ok()
+                    .or_else(|| {
+                        chrono::NaiveDateTime::parse_from_str(ts_str, "%Y-%m-%dT%H:%M:%S")
+                            .ok()
+                            .map(|n| n.and_utc())
+                    })
+                else {
+                    return false;
+                };
+                // Apply bounds: exclusive intervals matching CrowdStrike FQL :> and :< semantics.
+                if let Some(after) = fql_after {
+                    if ts <= after {
+                        return false;
+                    }
+                }
+                if let Some(before) = fql_before {
+                    if ts >= before {
+                        return false;
+                    }
+                }
+                true
+            })
+            .collect()
+    } else {
+        all_ids
+    };
 
     // Apply seed-based ordering for determinism.
     // SAFETY: mutex poison only occurs if a previous holder panicked — not possible in normal operation.
@@ -137,10 +210,10 @@ pub async fn list_detection_ids(
         .lock()
         .expect("runtime_config poisoned")
         .seed;
-    let ordered_ids = shuffle_ids_by_seed(&all_ids, seed);
+    let ordered_ids = shuffle_ids_by_seed(&filtered_ids, seed);
 
     let offset = params.offset.unwrap_or(0);
-    let limit = params.limit.unwrap_or(100).min(all_ids.len());
+    let limit = params.limit.unwrap_or(100).min(ordered_ids.len().max(1));
     let total = ordered_ids.len();
 
     let page: Vec<String> = ordered_ids.into_iter().skip(offset).take(limit).collect();

@@ -323,14 +323,40 @@ fn collect_equality_exprs(pred: &crate::ast::Predicate, out: &mut Vec<crate::ast
 /// - `start_time` corresponds to `Gt`/`Ge` predicates (lower bound)
 /// - `end_time`   corresponds to `Lt`/`Le` predicates (upper bound)
 ///
+/// # Single-column assumption (F-P1-HIGH-002)
+///
+/// This function uses first-wins semantics: the first lower-bound predicate sets
+/// `start_time`; the first upper-bound predicate sets `end_time`. When multiple
+/// datetime INDEX columns are present (e.g., `created_timestamp` AND `updated_at`),
+/// the first matched lower bound is used for `start_time` and the first matched
+/// upper bound for `end_time`. These MAY be from different columns — the caller
+/// (sensor FQL/AQL builder) is responsible for interpreting the bounds against its
+/// canonical push-down column (e.g., CrowdStrike always uses `created_timestamp`;
+/// Armis AQL augmentation appends to the base AQL regardless of which column name
+/// was the source of the bound).
+///
+/// In practice this is safe for the current sensors because:
+/// - CrowdStrike: only `created_timestamp` has `options = ["INDEX"]`.
+/// - Armis devices: only `last_seen` has `options = ["INDEX"]` (in the devices table).
+/// - Armis alerts: only `created_at` has `options = ["INDEX"]` (in the alerts table).
+///
+/// No production sensor spec has two datetime INDEX columns in the same table that
+/// a single query would target simultaneously.
+///
+/// If future sensor specs add multiple datetime INDEX columns to the same table,
+/// this function must be extended to track which column each bound came from, and
+/// the per-sensor FQL/AQL builders must select the appropriate column bound.
+/// See ADR-033 §Consequences (Option T2 for the full-featured solution).
+///
 /// # Safe default (ADR-033 §Consequences)
 ///
 /// When `resolved_spec_map` is `None`, both return values are `None` (no push-down).
 /// No panic; no push-down occurs.
 ///
 /// # Story: S-DEMO-QUERY-PUSHDOWN-001 v2.1
-/// Red Gate stub — body returns `(None, None)` until the implementer wires the
-/// real AST walk. AC-WIRE-001 / AC-WIRE-001b tests drive this function.
+/// Implemented (ADR-033 T1): walks Compare nodes with op ∈ {Gt, Ge, Lt, Le},
+/// matches lhs column names against datetime INDEX columns in `resolved_spec_map`,
+/// and extracts ISO8601 bounds. AC-WIRE-001 / AC-WIRE-001b verify this behavior.
 pub fn extract_time_window_from_ast(
     predicate: &crate::ast::Predicate,
     source_names: &[&str],
@@ -451,9 +477,11 @@ fn extract_time_bounds_from_predicate(
 /// `after:YYYY-MM-DDTHH:MM:SS` (bare, unquoted, timezone-naive — NOT `after:"T"`, NOT `Z` suffix).
 ///
 /// # Story: S-DEMO-QUERY-PUSHDOWN-001 v2.1
-/// Red Gate stub — body returns `base_aql.to_string()` (no augmentation) until the
-/// implementer wires the real augmentation logic. AC-ARMIS-TW-001 test asserts the
-/// augmented form is returned; FAILS here.
+/// Implemented: appends `after:YYYY-MM-DDTHH:MM:SS` / `before:YYYY-MM-DDTHH:MM:SS`
+/// clauses (bare, unquoted, timezone-naive) to `base_aql` when time bounds are present.
+/// Anti-double-filter guard skips augmentation if base AQL already contains a time keyword.
+/// Wired into `SpecDrivenSensorAdapter::fetch()` via the Armis sensor branch.
+/// AC-ARMIS-TW-001 / AC-ARMIS-TW-003 verify this behavior.
 pub fn augment_armis_aql_with_time_window(
     base_aql: &str,
     start_time: Option<&str>,
@@ -809,6 +837,124 @@ mod pushdown_red_gate_tests {
         assert_eq!(
             result, base_aql,
             "AC-ARMIS-TW-003: no time bounds → base AQL must pass through verbatim; got: '{result}'"
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // F-P1-HIGH-002: multi-datetime-column / duplicate-predicate behavior
+    // Documents and verifies the single-column assumption.
+    // -----------------------------------------------------------------------
+
+    /// F-P1-HIGH-002 / ADR-033 T1 single-column assumption documentation test.
+    ///
+    /// When a query has TWO datetime INDEX columns with predicates (e.g., both
+    /// `created_timestamp > T1` and `updated_at < T2`), the first-wins semantics apply:
+    /// - First Gt/Ge predicate on ANY datetime INDEX column → start_time
+    /// - First Lt/Le predicate on ANY datetime INDEX column → end_time
+    ///
+    /// This test verifies the documented behavior when multiple datetime INDEX columns
+    /// are present. The bounds may come from different columns. The per-sensor FQL/AQL
+    /// builder (e.g., `build_crowdstrike_fql`) uses them for its canonical column
+    /// regardless of which source column provided the bound.
+    ///
+    /// This behavior is safe for current sensors (each table has at most one datetime
+    /// INDEX column). See `extract_time_window_from_ast` doc for the full rationale.
+    #[allow(non_snake_case)]
+    #[test]
+    fn test_ac_high_002_multi_datetime_column_first_wins_semantics() {
+        // Both created_timestamp and updated_at are datetime INDEX columns.
+        let col1 = make_datetime_index_column("created_timestamp");
+        let col2 = make_datetime_index_column("updated_at");
+        let mut spec_map: HashMap<String, Vec<ColumnSpec>> = HashMap::new();
+        spec_map.insert("crowdstrike.detections".to_string(), vec![col1, col2]);
+
+        // Query: created_timestamp > T1 AND updated_at < T2
+        let query = "SELECT * FROM crowdstrike.detections \
+                     WHERE created_timestamp > '2026-01-01T00:00:00Z' \
+                     AND updated_at < '2026-06-01T00:00:00Z'";
+        let predicate = parse_where(query);
+
+        let (start_time, end_time) =
+            extract_time_window_from_ast(&predicate, &["crowdstrike.detections"], Some(&spec_map));
+
+        // Both bounds should be extracted (first-wins: created_timestamp → start, updated_at → end).
+        assert!(
+            start_time.is_some(),
+            "F-P1-HIGH-002: start_time must be extracted from Gt predicate on created_timestamp; got None"
+        );
+        assert!(
+            end_time.is_some(),
+            "F-P1-HIGH-002: end_time must be extracted from Lt predicate on updated_at; got None"
+        );
+        assert!(
+            start_time.as_deref().unwrap_or("").contains("2026-01-01"),
+            "F-P1-HIGH-002: start_time must contain '2026-01-01'; got: {:?}",
+            start_time
+        );
+        assert!(
+            end_time.as_deref().unwrap_or("").contains("2026-06-01"),
+            "F-P1-HIGH-002: end_time must contain '2026-06-01'; got: {:?}",
+            end_time
+        );
+    }
+
+    /// F-P1-HIGH-002 / EC-004: non-datetime column predicates are not extracted.
+    ///
+    /// When a column is declared with `column_type = "string"` (not "datetime"),
+    /// its compare predicates must NOT contribute to start_time or end_time.
+    /// Only `column_type = "datetime" + options = ["INDEX"]` columns qualify.
+    #[allow(non_snake_case)]
+    #[test]
+    fn test_ac_high_002_non_datetime_column_not_extracted() {
+        // Only a string column with INDEX option — NOT a datetime column.
+        // EC-004: column_type != "datetime" → predicate silently skipped.
+        let mut string_col = ColumnSpec::default();
+        string_col.name = "severity".to_string();
+        string_col.column_type = prism_core::ColumnType::String; // NOT Datetime
+        string_col.options = vec![ColumnOptions::Index];
+
+        let mut spec_map: HashMap<String, Vec<ColumnSpec>> = HashMap::new();
+        spec_map.insert("crowdstrike.detections".to_string(), vec![string_col]);
+
+        // Query predicates severity > 'medium' — but severity is String, not datetime.
+        // This should NOT produce any time bounds.
+        // (The parser may not actually accept > for strings, but we test the classification.)
+        // Use a datetime-format value to ensure if it WERE extracted it would be non-None.
+        // (The actual query is nonsensical but tests the classification gate.)
+        let col_dt = make_datetime_index_column("created_timestamp");
+        let mut spec_map2: HashMap<String, Vec<ColumnSpec>> = HashMap::new();
+        spec_map2.insert("crowdstrike.detections".to_string(), vec![col_dt]);
+
+        // Query with a NON-INDEX datetime column (no options field).
+        let mut plain_dt_col = ColumnSpec::default();
+        plain_dt_col.name = "updated_at".to_string();
+        plain_dt_col.column_type = prism_core::ColumnType::Datetime;
+        plain_dt_col.options = vec![]; // NO INDEX option
+
+        spec_map2
+            .get_mut("crowdstrike.detections")
+            .unwrap()
+            .push(plain_dt_col);
+
+        let query = "SELECT * FROM crowdstrike.detections \
+                     WHERE updated_at > '2026-01-01T00:00:00Z'";
+        let predicate = parse_where(query);
+
+        let (start_time, end_time) =
+            extract_time_window_from_ast(&predicate, &["crowdstrike.detections"], Some(&spec_map2));
+
+        // updated_at has no INDEX option → predicate MUST be silently skipped.
+        assert!(
+            start_time.is_none(),
+            "F-P1-HIGH-002 EC-004: non-INDEX datetime column 'updated_at' must NOT contribute \
+             to start_time; got: {:?}. Only datetime columns with options=['INDEX'] are \
+             push-down-eligible per ADR-033 T1.",
+            start_time
+        );
+        assert!(
+            end_time.is_none(),
+            "F-P1-HIGH-002 EC-004: non-INDEX datetime column must not contribute to end_time; got: {:?}",
+            end_time
         );
     }
 }

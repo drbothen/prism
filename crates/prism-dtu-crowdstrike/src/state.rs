@@ -21,6 +21,9 @@ use std::{
     },
 };
 
+// chrono is used for FQL time-bound parsing (F-P1-OBS-001).
+use chrono::{DateTime, Utc};
+
 use anyhow::Result;
 use lru::LruCache;
 use prism_core::OrgId;
@@ -127,6 +130,16 @@ pub struct CrowdstrikeState {
     /// Set at startup; route handlers compare the `X-Org-Id` header against this value
     /// and return HTTP 401 on mismatch (W3-FIX-SEC-001; BC-3.5.002 postcondition 2).
     pub instance_org_id: OrgId,
+
+    /// Received FQL filter strings for wire-level testing (F-P1-OBS-001 / F-P1-HIGH-003).
+    ///
+    /// Captured verbatim from `DetectionListParams.filter` by `list_detection_ids`.
+    /// Accessible via `GET /dtu/filter-log`. Cleared on `reset()`.
+    ///
+    /// Parallel to `ArmisState.aql_log` (R-DTU-002 pattern). The CrowdStrike
+    /// equivalent is the FQL filter param — captured verbatim before any parsing
+    /// so wire-level tests can assert the exact string that reached the DTU.
+    pub filter_log: Mutex<Vec<String>>,
 }
 
 impl CrowdstrikeState {
@@ -158,6 +171,7 @@ impl CrowdstrikeState {
             request_counter: Arc::new(AtomicU32::new(0)),
             admin_token,
             instance_org_id,
+            filter_log: Mutex::new(Vec::new()),
         }
     }
 
@@ -190,7 +204,68 @@ impl CrowdstrikeState {
             .lock()
             .expect("session_registry poisoned")
             .clear();
+        // Clear filter_log so wire-level tests start clean after reset.
+        #[allow(clippy::expect_used)]
+        self.filter_log.lock().expect("filter_log poisoned").clear();
         // Runtime config is preserved across reset (reset clears data, not config).
+    }
+
+    /// Capture a received FQL filter string in the filter_log (F-P1-OBS-001).
+    ///
+    /// Called verbatim by `list_detection_ids` before any FQL parsing — parallel to
+    /// `ArmisState::capture_aql()` (R-DTU-002 opaque-capture pattern). Accessible via
+    /// `GET /dtu/filter-log` for wire-level test assertions (F-P1-HIGH-003).
+    pub fn capture_filter(&self, filter: &str) {
+        #[allow(clippy::expect_used)]
+        let mut log = self.filter_log.lock().expect("filter_log poisoned");
+        log.push(filter.to_owned());
+    }
+
+    /// Return all captured FQL filter strings (F-P1-HIGH-003 wire-level test support).
+    pub fn get_filter_log(&self) -> Vec<String> {
+        #[allow(clippy::expect_used)]
+        let log = self.filter_log.lock().expect("filter_log poisoned");
+        log.clone()
+    }
+
+    /// Parse CrowdStrike FQL time bounds from the `filter` query param.
+    ///
+    /// Understands: `created_timestamp:>'YYYY-MM-DDTHH:MM:SSZ'` (lower bound)
+    ///              `created_timestamp:<'YYYY-MM-DDTHH:MM:SSZ'` (upper bound)
+    ///              Combined with `+` when both are present.
+    ///
+    /// Returns `(after_bound, before_bound)` as `Option<DateTime<Utc>>`.
+    /// Both `None` when the filter is empty or unparseable.
+    ///
+    /// F-P1-OBS-001: This function enables the DTU to honor the FQL filter and
+    /// return only IDs whose `created_timestamp` falls within the specified range.
+    pub fn parse_fql_time_bounds(fql: &str) -> (Option<DateTime<Utc>>, Option<DateTime<Utc>>) {
+        let after_bound = Self::extract_fql_bound(fql, "created_timestamp:>'");
+        let before_bound = Self::extract_fql_bound(fql, "created_timestamp:<'");
+        (after_bound, before_bound)
+    }
+
+    /// Extract a `DateTime<Utc>` from a CrowdStrike FQL token pattern.
+    ///
+    /// Pattern: `<prefix>'YYYY-MM-DDTHH:MM:SSZ'` or `<prefix>'YYYY-MM-DDTHH:MM:SS'`.
+    /// Returns `None` if the pattern is absent or the timestamp cannot be parsed.
+    fn extract_fql_bound(fql: &str, prefix: &str) -> Option<DateTime<Utc>> {
+        let pos = fql.find(prefix)?;
+        let rest = &fql[pos + prefix.len()..];
+        // Value is everything up to the next `'` closing quote.
+        let token = rest.split('\'').next()?;
+        if token.is_empty() {
+            return None;
+        }
+        // Try RFC3339 first (handles Z and +00:00).
+        if let Ok(dt) = token.parse::<DateTime<Utc>>() {
+            return Some(dt);
+        }
+        // Try timezone-naive (e.g., "2026-01-01T00:00:00").
+        if let Ok(naive) = chrono::NaiveDateTime::parse_from_str(token, "%Y-%m-%dT%H:%M:%S") {
+            return Some(naive.and_utc());
+        }
+        None
     }
 
     /// Backward-compatible shim — delegates to `reset_all()`.

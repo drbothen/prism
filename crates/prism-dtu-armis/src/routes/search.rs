@@ -354,32 +354,6 @@ fn parse_iso8601_utc(s: &str) -> Option<DateTime<Utc>> {
 
 /// Parse `after:` and `before:` absolute time clauses from an AQL string.
 ///
-/// Implements pushdown-redesign.md §8.3: after `capture_aql()` (R-DTU-002, opaque capture
-/// is unaffected), parse the AQL string for `after:YYYY-MM-DDTHH:MM:SS` and
-/// `before:YYYY-MM-DDTHH:MM:SS` clauses to produce optional time bounds.
-///
-/// # Canonical AQL syntax (research-confirmed HIGH confidence)
-///
-/// - `after:YYYY-MM-DDTHH:MM:SS` — bare, unquoted, timezone-naive ISO8601.
-/// - `before:YYYY-MM-DDTHH:MM:SS` — bare, unquoted, timezone-naive ISO8601.
-/// - Date-only form `YYYY-MM-DD` also accepted (BlinkOps source).
-///
-/// # Return value
-///
-/// Returns `(after_bound, before_bound)` as `Option<chrono::DateTime<chrono::Utc>>`.
-/// `None` means the corresponding clause is absent from the AQL string.
-///
-/// # R-DTU-002 compliance
-///
-/// This function does NOT modify or validate the AQL string. It only extracts
-/// time bounds for fixture filtering. The `capture_aql()` call in `get_search`
-/// still captures the verbatim string first (R-DTU-002 preserved).
-///
-/// # Story: S-DEMO-QUERY-PUSHDOWN-001 v2.1
-/// Red Gate stub — returns `(None, None)` (no parsing) until implemented.
-/// AC-ARMIS-TW-002 LOAD-BEARING test asserts filtered_count < unfiltered_count; FAILS here.
-/// Parse `after:` and `before:` absolute time clauses from an AQL string.
-///
 /// Implements pushdown-redesign.md §8.3. Called AFTER `capture_aql()` in `get_search`
 /// so R-DTU-002 (opaque AQL capture) is preserved. This function only extracts
 /// time bounds for fixture dataset filtering — it does NOT modify or reject the AQL.
@@ -392,6 +366,10 @@ fn parse_iso8601_utc(s: &str) -> Option<DateTime<Utc>> {
 ///
 /// Returns `(after_bound, before_bound)` as UTC datetimes with time defaulting to
 /// midnight UTC for date-only forms.
+///
+/// # Story: S-DEMO-QUERY-PUSHDOWN-001 v2.1
+/// Implemented: parses `after:`/`before:` time clauses from AQL.
+/// AC-ARMIS-TW-002 LOAD-BEARING test verifies `filtered_count < unfiltered_count`.
 pub(crate) fn parse_aql_time_bounds(aql: &str) -> (Option<DateTime<Utc>>, Option<DateTime<Utc>>) {
     let after_bound = extract_aql_keyword_bound(aql, "after:");
     let before_bound = extract_aql_keyword_bound(aql, "before:");

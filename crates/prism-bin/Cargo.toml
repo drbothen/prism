@@ -207,6 +207,12 @@ proptest = "1"
 # Cookie header inspection) to assert fetch() behavior. wiremock 0.6 matches
 # prism-spec-engine's existing mock server pattern (SID-1 compliance).
 wiremock = "0.6"
+# S-DEMO-QUERY-PUSHDOWN-001 v2.1: wire-level push-down tests in bc_2_01_013 use real DTU clones
+# to assert augmented AQL and limit params reach the DTU wire (F-P1-CRIT-002, F-P1-CRIT-004, F-P1-HIGH-003).
+prism-dtu-armis = { path = "../prism-dtu-armis", version = "0.1.0", features = ["dtu"] }
+prism-dtu-crowdstrike = { path = "../prism-dtu-crowdstrike", version = "0.1.0", features = ["dtu"] }
+prism-dtu-common = { path = "../prism-dtu-common", version = "0.1.0", features = ["dtu"] }
+reqwest = { version = "0.12", features = ["json"] }
 
 [lints.clippy]
 # Inherited from workspace: workspace lint inheritance is not yet available

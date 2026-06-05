@@ -2379,6 +2379,205 @@ async fn test_BC_3_2_001_step9a_multi_org_registers_eight_adapters() {
     }
 }
 
+// ---------------------------------------------------------------------------
+// S-DEMO-QUERY-PUSHDOWN-001 v2.1 — SpecDrivenSensorAdapter push-down wire tests
+// F-P1-CRIT-002: augment_armis_aql_with_time_window wired in production path
+// F-P1-CRIT-004: limit seeded from params.limit into query_filters["query.limit"]
+// F-P1-HIGH-003: wire-level assertions against real DTU
+// ---------------------------------------------------------------------------
+
+/// F-P1-CRIT-002 + F-P1-HIGH-003:
+/// `SpecDrivenSensorAdapter::fetch()` with `params.start_time` set for Armis
+/// must augment the base AQL with `after:YYYY-MM-DDTHH:MM:SS` and forward the
+/// augmented AQL to the DTU wire.
+///
+/// # Production path
+/// `params.start_time` → `augment_armis_aql_with_time_window()` →
+/// `query_filters["aql"]` → `${query.filter.aql}` interpolation →
+/// Armis DTU `GET /api/v1/search?aql=...` → aql-log captures verbatim.
+///
+/// # SAP-2
+/// Uses the real `armis.sensor.toml` spec and the real Armis DTU clone.
+#[tokio::test]
+async fn test_armis_fetch_with_start_time_augments_aql_reaches_dtu_wire() {
+    use prism_dtu_armis::ArmisClone;
+    use prism_dtu_common::BehavioralClone;
+    use prism_spec_engine::spec_parser::SpecLoader;
+
+    // Start real Armis DTU clone.
+    let mut clone = ArmisClone::new().expect("ArmisClone::new must succeed");
+    let bound_addr = clone
+        .start_on("127.0.0.1:0".parse().unwrap(), None, None)
+        .await
+        .expect("Armis DTU clone failed to start");
+    let dtu_url = format!("http://{bound_addr}");
+
+    // Load production armis.sensor.toml (SAP-2).
+    let spec_content = std::fs::read_to_string(
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../prism-sensors/specs/armis.sensor.toml"),
+    )
+    .expect("armis.sensor.toml must be readable");
+    let mut spec = SpecLoader::parse(&spec_content).expect("armis.sensor.toml must parse");
+    spec.base_url = dtu_url.clone();
+
+    let resolved = make_resolved_spec(spec, "demo-org");
+    let (_, org_id, _) = make_org_registry("demo-org");
+
+    // BearerStatic auth — Armis DTU accepts any non-empty bearer token.
+    let auth_strategy = AdapterAuthStrategy::BearerStatic;
+    let http_client = build_http_client_with_timeout().unwrap();
+    let adapter = SpecDrivenSensorAdapter::new(Arc::new(resolved), auth_strategy, http_client);
+
+    // Build adapter spec for the devices table.
+    let mut adapter_spec = make_adapter_spec("armis", org_id);
+    adapter_spec.source_table = "armis_devices".to_string();
+
+    // Set start_time — this is what extract_time_window_from_ast produces from
+    // a `WHERE last_seen > 'T'` predicate (ADR-033 T1).
+    // F-P1-CRIT-002: spec_driven_adapter.rs must call augment_armis_aql_with_time_window
+    // to produce `after:2024-01-01T00:00:00` in the AQL.
+    let mut params = make_query_params();
+    params.start_time = Some("2024-01-01T00:00:00Z".to_string());
+    // Seed the base AQL in filters (as would come from predicate_tree_to_filter_map
+    // for `WHERE aql = 'in:devices'`).
+    params.filters.insert(
+        "aql".to_string(),
+        serde_json::Value::String("in:devices".to_string()),
+    );
+
+    let sensor_auth = BearerStaticSensorAuth::new("armis-test-bearer-token");
+    let result = adapter.fetch(&adapter_spec, &params, &sensor_auth).await;
+
+    assert!(
+        result.is_ok(),
+        "F-P1-CRIT-002: SpecDrivenSensorAdapter::fetch() with start_time must succeed; \
+         got Err: {:?}",
+        result.err()
+    );
+
+    // Wire-level assertion: aql-log must contain the augmented AQL with `after:` clause.
+    // The augmentation adds `after:2024-01-01T00:00:00` (timezone-naive, no Z).
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .unwrap();
+    let aql_log_resp = client
+        .get(format!("{dtu_url}/dtu/aql-log"))
+        .send()
+        .await
+        .expect("GET /dtu/aql-log must succeed");
+    let aql_log_body: serde_json::Value = aql_log_resp.json().await.expect("aql-log must be JSON");
+    let aql_strings = aql_log_body["aql_strings"]
+        .as_array()
+        .expect("aql_strings must be array");
+
+    assert!(
+        aql_strings.iter().any(|s| s
+            .as_str()
+            .map(|a| a.contains("after:2024-01-01"))
+            .unwrap_or(false)),
+        "F-P1-CRIT-002 WIRE-LEVEL (F-P1-HIGH-003): aql-log must contain 'after:2024-01-01' \
+         in the augmented AQL. The production path: params.start_time = '2024-01-01T00:00:00Z' \
+         → augment_armis_aql_with_time_window('in:devices', Some('2024-01-01T00:00:00Z'), None) \
+         → 'in:devices after:2024-01-01T00:00:00' → DTU receives augmented AQL. \
+         Got aql_strings: {:?}. REGRESSION: spec_driven_adapter.rs is NOT calling \
+         augment_armis_aql_with_time_window, or the augmented AQL is not seeded in query_filters['aql'].",
+        aql_strings
+    );
+
+    assert!(
+        aql_strings.iter().any(|s| s
+            .as_str()
+            .map(|a| a.contains("in:devices"))
+            .unwrap_or(false)),
+        "F-P1-CRIT-002: base AQL entity discriminator 'in:devices' must be preserved \
+         after augmentation. Got aql_strings: {:?}",
+        aql_strings
+    );
+}
+
+/// F-P1-CRIT-004: `SpecDrivenSensorAdapter::fetch()` seeds `query_filters["query.limit"]`
+/// from `params.limit` for CrowdStrike sensors.
+///
+/// # Production path
+/// `params.limit` → `query_filters["query.limit"]` → `${query.limit}` interpolation →
+/// CrowdStrike DTU `?limit=N` → DTU returns at most N IDs → pipeline returns ≤ N records.
+///
+/// # SAP-2
+/// Uses the real `crowdstrike.sensor.toml` spec and the real CrowdStrike DTU clone.
+#[tokio::test]
+async fn test_crowdstrike_fetch_with_limit_seeds_query_limit_reaches_dtu() {
+    use prism_dtu_common::BehavioralClone;
+    use prism_dtu_crowdstrike::CrowdstrikeClone;
+    use prism_spec_engine::spec_parser::SpecLoader;
+
+    // Start real CrowdStrike DTU clone.
+    let mut clone = CrowdstrikeClone::new();
+    let bound_addr = clone
+        .start_on("127.0.0.1:0".parse().unwrap(), None, None)
+        .await
+        .expect("CrowdstrikeDTU clone failed to start");
+    let dtu_url = format!("http://{bound_addr}");
+
+    // Load production crowdstrike.sensor.toml (SAP-2).
+    let spec_content = std::fs::read_to_string(
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../prism-sensors/specs/crowdstrike.sensor.toml"),
+    )
+    .expect("crowdstrike.sensor.toml must be readable");
+    let mut spec = SpecLoader::parse(&spec_content).expect("crowdstrike.sensor.toml must parse");
+    spec.base_url = dtu_url.clone();
+
+    // Construct a PluginAuthProvider-backed adapter for CrowdStrike.
+    // For tests we use MockAuthProvider as the underlying auth provider.
+    use prism_spec_engine::auth_provider::MockAuthProvider;
+    let mock_auth: Arc<dyn prism_spec_engine::AuthProvider> =
+        Arc::new(MockAuthProvider::new("test-oauth2-token"));
+    let resolved = make_resolved_spec(spec, "demo-org");
+    let (_, org_id, _) = make_org_registry("demo-org");
+    let auth_strategy = AdapterAuthStrategy::Plugin(mock_auth);
+    let http_client = build_http_client_with_timeout().unwrap();
+    let adapter = SpecDrivenSensorAdapter::new(Arc::new(resolved), auth_strategy, http_client);
+
+    // Build adapter spec for the detections table.
+    let mut adapter_spec = make_adapter_spec("crowdstrike", org_id);
+    adapter_spec.source_table = "crowdstrike_detections".to_string();
+
+    // Set limit = 3 in QueryParams. F-P1-CRIT-004: the adapter must seed
+    // query_filters["query.limit"] = "3" so the CrowdStrike DTU Step 1 receives limit=3.
+    let sensor_auth = PluginSensorAuth;
+    let mut params = make_query_params();
+    params.limit = 3; // should cause DTU to return at most 3 IDs → 3 records
+
+    let result = adapter.fetch(&adapter_spec, &params, &sensor_auth).await;
+
+    assert!(
+        result.is_ok(),
+        "F-P1-CRIT-004: fetch() with limit=3 must succeed; got Err: {:?}",
+        result.err()
+    );
+
+    let batches = result.unwrap();
+    let total_records: usize = batches.iter().map(|b| b.num_rows()).sum();
+
+    // LOAD-BEARING (F-P1-CRIT-004): DTU must honor limit=3 from params.limit.
+    // If adapter does NOT seed query.limit from params.limit, the DTU returns 50 records.
+    // With correct seeding: DTU Step 1 returns 3 IDs → Step 2 returns 3 records.
+    assert!(
+        total_records <= 3,
+        "F-P1-CRIT-004 LOAD-BEARING: fetch() with params.limit=3 must return at most 3 records; \
+         got {}. The adapter MUST seed query_filters[\"query.limit\"] from params.limit. \
+         Without this, DTU defaults to limit=100 and returns 50 fixture records. \
+         REGRESSION: spec_driven_adapter.rs::fetch() is NOT seeding query.limit.",
+        total_records
+    );
+    assert!(
+        total_records > 0,
+        "F-P1-CRIT-004: fetch() must return non-empty records (CrowdStrike fixture has 50 records)"
+    );
+}
+
 /// `SpecDrivenSensorAdapter::sensor_type()` returns the sensor ID from the spec.
 ///
 /// GREEN-BY-DESIGN: zero branching, no I/O, 1-line body.

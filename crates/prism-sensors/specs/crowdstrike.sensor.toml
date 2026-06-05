@@ -67,6 +67,11 @@ ocsf_class = "security_finding"
   name = "created_timestamp"
   column_type = "datetime"
   ocsf_field = "time"
+  # options = ["INDEX"]: push-down-eligible datetime column. Required for extract_time_window_from_ast
+  # (ADR-033 T1) to identify created_timestamp as the CrowdStrike FQL time-window push-down column.
+  # Without this, Option T1 cannot extract time bounds from `created_timestamp > 'T'` predicates.
+  # F-P1-CRIT-001 / AC-INDEX-CWS-001 / BC-2.01.013 v1.14 CrowdStrike FQL time-window.
+  options = ["INDEX"]
 
   [[tables.columns]]
   name = "status"

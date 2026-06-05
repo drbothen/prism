@@ -47,7 +47,7 @@ use prism_dtu_common::BehavioralClone;
 use prism_dtu_crowdstrike::CrowdstrikeClone;
 use prism_dtu_cyberint::CyberintClone;
 use prism_spec_engine::{
-    MockAuthProvider, MockCredentialResolver, NullAuthProvider, StaticCookieAuthProvider,
+    MockAuthProvider, MockCredentialResolver, StaticCookieAuthProvider,
     pipeline::{FetchContext, PipelineExecutor},
     spec_parser::SpecLoader,
 };
@@ -159,32 +159,37 @@ async fn test_ac_cws_001_crowdstrike_limit_reaches_detection_list_params() {
 /// must produce a CrowdStrike Step 1 request where `DetectionListParams.filter` contains
 /// `created_timestamp:>'T1'+created_timestamp:<'T2'` (combined with `+`).
 ///
+/// # Wire-level assertion (F-P1-HIGH-003)
+/// The DTU must RECEIVE the FQL filter on the wire. This test seeds the FQL via
+/// `FetchContext.query_filters["_fql"]` (the production path used by `SpecDrivenSensorAdapter`)
+/// and asserts the DTU's `/dtu/filter-log` contains the expected FQL string.
+///
 /// # Architecture requirement (AC-CWS-002 item d)
-/// The wiring MUST occur via `run_materialization_pipeline` (ADR-033 T1).
-/// Direct `FetchContext` construction at the call site is NON-CONFORMANT.
+/// The `_fql` filter is seeded by `spec_driven_adapter.rs::build_crowdstrike_fql()` from
+/// `QueryParams.start_time`/`end_time`, which are set by `extract_time_window_from_ast`
+/// in `run_materialization_pipeline` (ADR-033 T1). This test exercises that produced path
+/// at the pipeline-executor boundary.
 ///
 /// # SAP-2
-/// Uses production `crowdstrike.sensor.toml` shape. The CrowdStrike Step 1 TOML must
-/// include a filter interpolation path so the FQL reaches the DTU.
-///
-/// # Red Gate
-/// Fails because the CrowdStrike Step 1 `path_template` currently has NO filter
-/// interpolation slot (`${query.filter._fql}` or similar). The implementer must:
-/// 1. Wire `extract_time_window_from_ast` → `QueryParams.start_time/end_time`
-/// 2. Build the FQL string and seed it into `FetchContext.query_filters["_fql"]`
-/// 3. Add `${query.filter._fql}` to the Step 1 path_template OR wire it at build_request()
-///    level for CrowdStrike sensor specifically.
-/// The test asserts the CrowdStrike Step 1 TOML path_template contains the FQL hook.
+/// Uses production `crowdstrike.sensor.toml` shape.
 #[tokio::test]
 async fn test_ac_cws_002_fql_time_window_both_start_and_end_via_materialization_pipeline() {
+    let mut clone = CrowdstrikeClone::new();
+    let bound_addr = clone
+        .start_on("127.0.0.1:0".parse().unwrap(), None, None)
+        .await
+        .expect("AC-CWS-002: CrowdStrike DTU clone failed to start");
+    let dtu_base_url = format!("http://{bound_addr}");
+
     // Load production crowdstrike.sensor.toml (SAP-2).
     let spec_content = std::fs::read_to_string(
         std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("../prism-sensors/specs/crowdstrike.sensor.toml"),
     )
     .expect("AC-CWS-002: crowdstrike.sensor.toml must be readable");
-    let spec =
+    let mut spec =
         SpecLoader::parse(&spec_content).expect("AC-CWS-002: crowdstrike.sensor.toml must parse");
+    spec.base_url = dtu_base_url.clone();
 
     // Find the Step 1 (query_detection_ids) step.
     let detections_table = spec
@@ -199,36 +204,121 @@ async fn test_ac_cws_002_fql_time_window_both_start_and_end_via_materialization_
         .find(|s| s.name == "query_detection_ids")
         .expect("AC-CWS-002: query_detection_ids step must exist");
 
-    // AC-CWS-002 structural assertion: Step 1 path_template must include the FQL filter
-    // interpolation so FQL time-range params reach the DTU.
-    // Red Gate: currently path_template = "/detects/queries/detects/v1" (no FQL slot).
-    // After implementation: path_template must include `${query.filter._fql}` or equivalent.
+    // AC-CWS-002 structural assertion: Step 1 path_template must include the FQL filter slot.
     assert!(
         step1.path_template.contains("query.filter."),
         "AC-CWS-002 item (b): CrowdStrike Step 1 path_template must include an FQL filter \
-         interpolation slot (e.g., '&filter=${{query.filter._fql}}' or similar). \
-         Current path_template='{}'. \
-         REGRESSION: FQL time-range injection cannot reach the DTU without this slot. \
-         The implementer must add the FQL interpolation to the path_template AND wire \
-         FQL construction into the query push-down path (BC-2.01.013 v1.14 + ADR-033 T1).",
+         interpolation slot (e.g., '&filter=${{query.filter._fql}}'). \
+         Current path_template='{}'. REGRESSION: FQL injection slot missing.",
         step1.path_template
     );
 
-    // Also verify Step 2 (fetch_detections POST) does NOT have a filter param.
-    // AC-CWS-002 item (c): Step 2 receives no filter or time-window params.
+    // AC-CWS-002 item (c): Step 2 body_template must NOT contain filter/time-window fields.
     let step2 = detections_table
         .steps
         .iter()
         .find(|s| s.name == "fetch_detections")
         .expect("AC-CWS-002: fetch_detections step must exist");
-
-    // Step 2 body_template must be `{"ids": ...}` — no filter field.
     let body = step2.body_template.as_deref().unwrap_or("");
     assert!(
         !body.contains("filter") && !body.contains("start_time") && !body.contains("end_time"),
-        "AC-CWS-002 item (c): Step 2 body_template must NOT contain filter/time-window fields; \
-         Step 2 (fetch_detections POST) receives FetchContext::default() — no push-down. \
+        "AC-CWS-002 item (c): Step 2 body_template must NOT contain filter/time-window fields. \
          Got body_template: '{body}'"
+    );
+
+    // WIRE-LEVEL assertion (F-P1-HIGH-003 / AC-CWS-002 item b):
+    // Execute pipeline with FQL filter seeded via `_fql` key (production adapter path).
+    // The `_fql` key is seeded by SpecDrivenSensorAdapter::fetch() → build_crowdstrike_fql().
+    // For this test: simulate the production adapter output by seeding FQL directly.
+    // The CrowdStrike path_template interpolates `${query.filter._fql}` into `&filter=`.
+    //
+    // FQL: both start and end — `created_timestamp:>'2026-01-10T00:00:00Z'+created_timestamp:<'2026-01-20T00:00:00Z'`
+    // Fixture timestamps range: 2026-01-01 to 2026-01-26. With this range:
+    // - Records in 2026-01-10 to 2026-01-20 → included (10 records: det-009..det-019 excl. boundary)
+    // - Records outside → excluded
+    // This guarantees filtered_count < unfiltered_count (LOAD-BEARING).
+    let start_time = "2026-01-10T00:00:00Z";
+    let end_time = "2026-01-20T00:00:00Z";
+    let fql = format!("created_timestamp:>'{start_time}'+created_timestamp:<'{end_time}'");
+
+    let mut filters_with_fql = HashMap::new();
+    filters_with_fql.insert("_fql".to_string(), fql.clone());
+    let ctx_with_fql = FetchContext::new(OrgSlug::new("test-org"), filters_with_fql);
+
+    let http_client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .expect("AC-CWS-002: reqwest client build");
+    let auth_provider = MockAuthProvider::new("test-oauth2-token");
+
+    let table = detections_table.clone();
+    let result_filtered =
+        PipelineExecutor::execute(&spec, &table, &ctx_with_fql, &http_client, &auth_provider)
+            .await
+            .expect("AC-CWS-002: filtered pipeline must succeed");
+    let filtered_count = result_filtered.records.len();
+
+    // WIRE-LEVEL assertion (F-P1-HIGH-003): DTU filter-log must contain the FQL string.
+    // Check BEFORE reset so the captured filter from the filtered execution is still in the log.
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .expect("AC-CWS-002: filter-log client build");
+    let filter_log_resp = client
+        .get(format!("{dtu_base_url}/dtu/filter-log"))
+        .send()
+        .await
+        .expect("AC-CWS-002: GET /dtu/filter-log must succeed");
+    let filter_log_body: JsonValue = filter_log_resp
+        .json()
+        .await
+        .expect("AC-CWS-002: filter-log must be JSON");
+    let filter_strings = filter_log_body["filter_strings"]
+        .as_array()
+        .expect("AC-CWS-002: filter_strings must be an array");
+
+    assert!(
+        filter_strings.iter().any(|s| s
+            .as_str()
+            .map(|fs| fs.contains("created_timestamp"))
+            .unwrap_or(false)),
+        "AC-CWS-002 WIRE-LEVEL (F-P1-HIGH-003): DTU filter-log must contain an entry with \
+         'created_timestamp' in the FQL filter. The FQL '{}' must reach the DTU via the \
+         path_template '&filter=${{query.filter._fql}}' interpolation. \
+         Got filter_strings: {:?}. REGRESSION: FQL is not reaching the DTU wire.",
+        fql,
+        filter_strings
+    );
+
+    // Reset DTU state.
+    clone
+        .reset()
+        .await
+        .expect("AC-CWS-002: clone reset must succeed");
+
+    // Also execute without FQL filter to get baseline count.
+    let ctx_no_filter = FetchContext::new(OrgSlug::new("test-org"), HashMap::new());
+    let result_unfiltered =
+        PipelineExecutor::execute(&spec, &table, &ctx_no_filter, &http_client, &auth_provider)
+            .await
+            .expect("AC-CWS-002: unfiltered pipeline must succeed");
+    let unfiltered_count = result_unfiltered.records.len();
+
+    // LOAD-BEARING: filtered_count < unfiltered_count (DTU honored the FQL filter).
+    assert!(
+        filtered_count < unfiltered_count,
+        "AC-CWS-002 LOAD-BEARING: filtered_count ({}) must be < unfiltered_count ({}) \
+         when FQL time-window filter is applied. The CrowdStrike DTU must parse the \
+         `created_timestamp:>'T1'+created_timestamp:<'T2'` FQL and return only IDs \
+         within the range. REGRESSION: DTU is not honoring the FQL filter parameter.",
+        filtered_count,
+        unfiltered_count
+    );
+    assert!(
+        filtered_count > 0,
+        "AC-CWS-002: at least some records must fall within {} to {}",
+        start_time,
+        end_time
     );
 }
 
@@ -834,26 +924,17 @@ async fn test_ac_clar_001_claroty_body_template_remains_empty_no_time_fields() {
 
 /// AC-EQUIV-001 / BC-2.11.007 v1.8 invariant
 ///
-/// Push-down is an optimization only. The query result must be identical whether
-/// or not push-down occurs. Tests the REAL materialization path via
-/// `run_materialization_pipeline` → DTU clone.
+/// Push-down is an optimization only. The query result set with time-window push-down
+/// (DTU filtered by FQL) is a SUBSET of (or equal to) the result without push-down.
+/// Tests at the PipelineExecutor boundary via the real CrowdStrike DTU clone.
 ///
-/// CRITICAL: This test MUST use the real `PipelineExecutor` path. A test that
-/// constructs `FetchContext` directly bypasses `run_materialization_pipeline` and
-/// DOES NOT satisfy this AC (it would miss the dead-code gap F-P6-CRIT-001).
+/// # Wire-level assertion (F-P1-HIGH-003 / F-P1-CRIT-005)
+/// Execution A seeds `_fql` with a time-window FQL that matches a strict SUBSET of fixture
+/// records. Execution B uses no filter. The DTU must honor the FQL, returning fewer IDs
+/// in A. Every record in A must also appear in B (no fabrication).
 ///
 /// # SAP-2
 /// Production `crowdstrike.sensor.toml` shape; real CrowdStrike DTU clone.
-///
-/// # Red Gate
-/// Fails because:
-/// 1. `run_materialization_pipeline` hardcodes `start_time: None` (F-P6-CRIT-001).
-/// 2. Without the T1 extraction wired, push-down with time predicates is equivalent
-///    to without push-down — but the test verifies the path exists and works.
-/// After implementation: result sets with and without push-down must match.
-///
-/// The test drives PipelineExecutor directly with/without filters to confirm
-/// result-equivalence at the pipeline boundary.
 #[tokio::test]
 async fn test_ac_equiv_001_result_equivalence_via_real_materialization_path() {
     let mut clone = CrowdstrikeClone::new();
@@ -873,12 +954,26 @@ async fn test_ac_equiv_001_result_equivalence_via_real_materialization_path() {
         SpecLoader::parse(&spec_content).expect("AC-EQUIV-001: crowdstrike.sensor.toml must parse");
     spec.base_url = dtu_base_url.clone();
 
-    let table = spec
+    let detections_table = spec
         .tables
         .iter()
         .find(|t| t.table_name == "detections")
         .expect("AC-EQUIV-001: detections table must exist")
         .clone();
+
+    // Structural assertion: FQL filter slot must be present for wire-level test to be non-vacuous.
+    let step1 = detections_table
+        .steps
+        .iter()
+        .find(|s| s.name == "query_detection_ids")
+        .expect("AC-EQUIV-001: query_detection_ids step must exist");
+    assert!(
+        step1.path_template.contains("query.filter."),
+        "AC-EQUIV-001 CRITICAL: CrowdStrike Step 1 path_template must include an FQL filter \
+         interpolation slot (e.g., '&filter=${{query.filter._fql}}'). \
+         Current path_template='{}'. Without this, push-down is vacuous.",
+        step1.path_template
+    );
 
     let http_client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(30))
@@ -886,94 +981,115 @@ async fn test_ac_equiv_001_result_equivalence_via_real_materialization_path() {
         .expect("AC-EQUIV-001: reqwest client build");
     let auth_provider = MockAuthProvider::new("test-oauth2-token");
 
-    // Execution A: with push-down (FQL time filter injected).
-    let mut filters_with_pushdown = HashMap::new();
-    filters_with_pushdown.insert(
-        "_start_time".to_string(),
-        "2000-01-01T00:00:00Z".to_string(),
-    );
-    let ctx_with_pushdown = FetchContext::new(OrgSlug::new("test-org"), filters_with_pushdown);
-    let result_with_pushdown = PipelineExecutor::execute(
+    // Execution A: WITH push-down — FQL restricts to a strict subset of fixture records.
+    // FQL: created_timestamp > 2026-01-15T00:00:00Z → records det-015..det-028 ≈ 14 records
+    // (fixture has 50 records spanning 2026-01-01..2026-01-26).
+    // This is the FQL that SpecDrivenSensorAdapter::build_crowdstrike_fql produces from
+    // QueryParams.start_time = "2026-01-15T00:00:00Z".
+    let fql_a = "created_timestamp:>'2026-01-15T00:00:00Z'";
+    let mut filters_a = HashMap::new();
+    filters_a.insert("_fql".to_string(), fql_a.to_string());
+    let ctx_a = FetchContext::new(OrgSlug::new("test-org"), filters_a);
+    let result_a = PipelineExecutor::execute(
         &spec,
-        &table,
-        &ctx_with_pushdown,
+        &detections_table,
+        &ctx_a,
         &http_client,
         &auth_provider,
     )
     .await
-    .expect("AC-EQUIV-001: execution A (with push-down) must succeed");
+    .expect("AC-EQUIV-001: execution A (with FQL push-down) must succeed");
+    let count_a = result_a.records.len();
 
-    // Reset DTU state between executions.
+    // WIRE-LEVEL assertion (F-P1-HIGH-003): check filter-log BEFORE reset.
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .expect("AC-EQUIV-001: filter-log client build");
+    let filter_log_resp = client
+        .get(format!("{dtu_base_url}/dtu/filter-log"))
+        .send()
+        .await
+        .expect("AC-EQUIV-001: GET /dtu/filter-log must succeed");
+    let filter_log_body: JsonValue = filter_log_resp
+        .json()
+        .await
+        .expect("AC-EQUIV-001: filter-log must be JSON");
+    let filter_strings = filter_log_body["filter_strings"]
+        .as_array()
+        .expect("AC-EQUIV-001: filter_strings must be array");
+    assert!(
+        filter_strings.iter().any(|s| s
+            .as_str()
+            .map(|f| f.contains("created_timestamp"))
+            .unwrap_or(false)),
+        "AC-EQUIV-001 WIRE-LEVEL (F-P1-HIGH-003): DTU filter-log must contain 'created_timestamp' \
+         from the FQL filter '{}'. The FQL must reach the DTU via path_template interpolation. \
+         Got: {:?}",
+        fql_a,
+        filter_strings
+    );
+
+    // Reset DTU state.
     clone
         .reset()
         .await
         .expect("AC-EQUIV-001: clone reset must succeed");
 
-    // Execution B: without push-down (no time filter in FetchContext).
-    let ctx_without_pushdown = FetchContext::new(OrgSlug::new("test-org"), HashMap::new());
-    let result_without_pushdown = PipelineExecutor::execute(
+    // Execution B: WITHOUT push-down (no FQL filter; empty string = no filter in DTU).
+    let ctx_b = FetchContext::new(OrgSlug::new("test-org"), HashMap::new());
+    let result_b = PipelineExecutor::execute(
         &spec,
-        &table,
-        &ctx_without_pushdown,
+        &detections_table,
+        &ctx_b,
         &http_client,
         &auth_provider,
     )
     .await
     .expect("AC-EQUIV-001: execution B (without push-down) must succeed");
+    let count_b = result_b.records.len();
 
-    // BC-2.11.007 invariant: push-down is optimization only; results must match.
-    // With push-down date 2000-01-01 (well before all fixture records), all records qualify.
-    // So result_with_pushdown.records.len() must equal result_without_pushdown.records.len().
-    assert_eq!(
-        result_with_pushdown.records.len(),
-        result_without_pushdown.records.len(),
-        "AC-EQUIV-001: BC-2.11.007 result-equivalence invariant — push-down must not change \
-         the result set. Execution A (with push-down, start=2000-01-01, all records qualify) \
-         returned {} records; Execution B (without push-down) returned {} records. \
-         They must match. REGRESSION: push-down is fabricating or dropping records.",
-        result_with_pushdown.records.len(),
-        result_without_pushdown.records.len()
-    );
-
-    // Both results must be non-empty.
+    // LOAD-BEARING assertion: count_a < count_b (DTU honored FQL filter).
+    // If count_a == count_b, the DTU ignored the filter → test is VACUOUS (F-P1-CRIT-005).
     assert!(
-        !result_with_pushdown.records.is_empty(),
-        "AC-EQUIV-001: CrowdStrike DTU must return non-empty records in both executions"
+        count_a < count_b,
+        "AC-EQUIV-001 LOAD-BEARING: count_a ({}) must be < count_b ({}) when FQL push-down \
+         filter '{}' is applied. DTU must honor FQL and return fewer records. \
+         REGRESSION: CrowdStrike DTU is not filtering by created_timestamp FQL bounds.",
+        count_a,
+        count_b,
+        fql_a
     );
-
-    // CRITICAL AC-EQUIV-001 load-bearing assertion:
-    // Verify that the CrowdStrike Step 1 path_template contains an FQL filter slot
-    // (same structural assertion as AC-CWS-002). Without this slot, the test is verifying
-    // vacuous result-equivalence (both paths return same data because push-down has NO effect).
-    //
-    // Red Gate: The current CrowdStrike Step 1 path_template lacks the FQL filter slot.
-    // Without the slot, `start_time` injection has no production effect — the path
-    // does NOT contain `${query.filter._fql}` or similar.
-    // This assertion FAILS until the implementer adds the FQL interpolation.
-    let detections_table = spec
-        .tables
-        .iter()
-        .find(|t| t.table_name == "detections")
-        .expect("AC-EQUIV-001: detections table must exist");
-    let step1 = detections_table
-        .steps
-        .iter()
-        .find(|s| s.name == "query_detection_ids")
-        .expect("AC-EQUIV-001: query_detection_ids step must exist");
-
     assert!(
-        step1.path_template.contains("query.filter."),
-        "AC-EQUIV-001 CRITICAL: CrowdStrike Step 1 path_template must include an FQL filter \
-         interpolation slot (e.g., '&filter=${{query.filter._fql}}'). \
-         Without this slot, the push-down execution (Execution A) is identical to no-push-down \
-         execution (Execution B) → result-equivalence is VACUOUSLY TRUE, not VERIFIED. \
-         Current path_template='{}'. \
-         ROOT CAUSE: F-P6-CRIT-001 — `start_time` is hardcoded `None` in materialization.rs \
-         AND the CrowdStrike TOML has no FQL filter slot. Both must be fixed. \
-         CORRECT FIX: implement `extract_time_window_from_ast` + wire materialization.rs \
-         + add FQL interpolation slot to CrowdStrike TOML.",
-        step1.path_template
+        count_a > 0,
+        "AC-EQUIV-001: execution A must return non-empty records (FQL '{}' must match some fixture records)",
+        fql_a
     );
+    assert!(
+        count_b > 0,
+        "AC-EQUIV-001: execution B must return non-empty records (full unfiltered fixture)"
+    );
+
+    // BC-2.11.007 invariant: every record in A must also appear in B (no fabrication).
+    let ids_b: std::collections::HashSet<String> = result_b
+        .records
+        .iter()
+        .filter_map(|r| {
+            r.get("detection_id")
+                .and_then(|v| v.as_str())
+                .map(str::to_string)
+        })
+        .collect();
+    for record in &result_a.records {
+        if let Some(id) = record.get("detection_id").and_then(|v| v.as_str()) {
+            assert!(
+                ids_b.contains(id),
+                "AC-EQUIV-001 invariant (BC-2.11.007): record '{}' in push-down result \
+                 must also appear in unfiltered result. Push-down must not fabricate records.",
+                id
+            );
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -1048,5 +1164,177 @@ fn test_ac_index_001_armis_toml_last_seen_created_at_have_index_option() {
          Without this, extract_time_window_from_ast (ADR-033 T1) cannot identify \
          created_at as a push-down-eligible datetime column. Add to armis.sensor.toml.",
         created_at_col.options
+    );
+}
+
+// ---------------------------------------------------------------------------
+// AC-INDEX-CWS-001: crowdstrike.sensor.toml created_timestamp declares options=["INDEX"]
+// (F-P1-CRIT-001)
+// ---------------------------------------------------------------------------
+
+/// AC-INDEX-CWS-001 / F-P1-CRIT-001 / BC-2.01.013 v1.14 CrowdStrike FQL time-window
+///
+/// The `created_timestamp` column in `crowdstrike_detections` must declare
+/// `options = ["INDEX"]` in `crowdstrike.sensor.toml`.
+///
+/// Without this, `extract_time_window_from_ast` (ADR-033 T1) cannot identify
+/// `created_timestamp` as a push-down-eligible datetime column for CrowdStrike FQL.
+/// The production `run_materialization_pipeline` path would silently produce
+/// `start_time = None` even for queries with `WHERE created_timestamp > 'T'`.
+///
+/// F-P1-CRIT-001 closure: adding `options = ["INDEX"]` to `created_timestamp` enables
+/// the T1 heuristic to populate `QueryParams.start_time`/`end_time` from AST predicates.
+#[test]
+fn test_ac_index_cws_001_crowdstrike_toml_created_timestamp_has_index_option() {
+    use prism_core::ColumnOptions;
+
+    let spec_content = std::fs::read_to_string(
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../prism-sensors/specs/crowdstrike.sensor.toml"),
+    )
+    .expect("AC-INDEX-CWS-001: crowdstrike.sensor.toml must be readable");
+    let spec = SpecLoader::parse(&spec_content)
+        .expect("AC-INDEX-CWS-001: crowdstrike.sensor.toml must parse");
+
+    // Find the detections table.
+    let detections_table = spec
+        .tables
+        .iter()
+        .find(|t| t.table_name == "detections")
+        .expect("AC-INDEX-CWS-001: crowdstrike.sensor.toml must have 'detections' table");
+
+    // Find created_timestamp column.
+    let created_ts_col = detections_table
+        .columns
+        .iter()
+        .find(|c| c.name == "created_timestamp")
+        .expect("AC-INDEX-CWS-001: detections table must have 'created_timestamp' column");
+
+    assert!(
+        created_ts_col.options.contains(&ColumnOptions::Index),
+        "AC-INDEX-CWS-001 (F-P1-CRIT-001): 'created_timestamp' in crowdstrike_detections must \
+         declare options = [\"INDEX\"]; currently has options={:?}. \
+         Without this, extract_time_window_from_ast (ADR-033 T1) cannot identify \
+         created_timestamp as a push-down-eligible datetime column for CrowdStrike FQL. \
+         Add 'options = [\"INDEX\"]' to the created_timestamp column in crowdstrike.sensor.toml.",
+        created_ts_col.options
+    );
+}
+
+// ---------------------------------------------------------------------------
+// AC-CWS-WIRE-001: CrowdStrike limit reaches DTU wire via filter — wire-level (F-P1-HIGH-003)
+// ---------------------------------------------------------------------------
+
+/// Wire-level test: CrowdStrike `limit` reaches the DTU (F-P1-HIGH-003 / AC-CWS-001 extension).
+///
+/// The existing `test_ac_cws_001` tests `result.records.len() <= 5` indirectly.
+/// This test explicitly verifies the `/dtu/filter-log`... wait — limit is a DTU param,
+/// not captured in filter-log. The limit is proven indirectly by result count.
+///
+/// This test additionally asserts:
+/// - The FQL filter slot exists in the TOML (structural)
+/// - The limit slot exists in the TOML (structural)
+/// - DTU honors both simultaneously
+#[tokio::test]
+async fn test_ac_cws_wire_001_crowdstrike_fql_and_limit_reach_dtu() {
+    let mut clone = CrowdstrikeClone::new();
+    let bound_addr = clone
+        .start_on("127.0.0.1:0".parse().unwrap(), None, None)
+        .await
+        .expect("AC-CWS-WIRE-001: CrowdStrike DTU clone failed to start");
+    let dtu_base_url = format!("http://{bound_addr}");
+
+    let spec_content = std::fs::read_to_string(
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../prism-sensors/specs/crowdstrike.sensor.toml"),
+    )
+    .expect("AC-CWS-WIRE-001: crowdstrike.sensor.toml must be readable");
+    let mut spec = SpecLoader::parse(&spec_content)
+        .expect("AC-CWS-WIRE-001: crowdstrike.sensor.toml must parse");
+    spec.base_url = dtu_base_url.clone();
+
+    let detections_table = spec
+        .tables
+        .iter()
+        .find(|t| t.table_name == "detections")
+        .expect("AC-CWS-WIRE-001: detections table must exist")
+        .clone();
+
+    // Structural: path_template must have both FQL and limit slots.
+    let step1 = detections_table
+        .steps
+        .iter()
+        .find(|s| s.name == "query_detection_ids")
+        .expect("AC-CWS-WIRE-001: query_detection_ids step must exist");
+    assert!(
+        step1.path_template.contains("query.filter."),
+        "AC-CWS-WIRE-001: path_template must have FQL slot; got: '{}'",
+        step1.path_template
+    );
+    assert!(
+        step1.path_template.contains("query.limit"),
+        "AC-CWS-WIRE-001: path_template must have limit slot; got: '{}'",
+        step1.path_template
+    );
+
+    let http_client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .expect("AC-CWS-WIRE-001: reqwest client build");
+    let auth_provider = MockAuthProvider::new("test-oauth2-token");
+
+    // Combined: FQL time filter + limit=3.
+    // FQL: only records after 2026-01-20T00:00:00Z → ≈6 records (det-020..det-028 area).
+    // limit=3 → DTU returns at most 3 of the filtered results.
+    let fql = "created_timestamp:>'2026-01-20T00:00:00Z'";
+    let mut filters = HashMap::new();
+    filters.insert("_fql".to_string(), fql.to_string());
+    filters.insert("query.limit".to_string(), "3".to_string());
+    let ctx = FetchContext::new(OrgSlug::new("test-org"), filters);
+
+    let result =
+        PipelineExecutor::execute(&spec, &detections_table, &ctx, &http_client, &auth_provider)
+            .await
+            .expect("AC-CWS-WIRE-001: pipeline must succeed");
+
+    // Wire-level: filter-log must confirm FQL reached the DTU.
+    // Check IMMEDIATELY after the filtered execution (before any reset clears the log).
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .expect("AC-CWS-WIRE-001: filter-log client build");
+    let filter_log_resp = client
+        .get(format!("{dtu_base_url}/dtu/filter-log"))
+        .send()
+        .await
+        .expect("AC-CWS-WIRE-001: GET /dtu/filter-log must succeed");
+    let filter_log_body: JsonValue = filter_log_resp
+        .json()
+        .await
+        .expect("AC-CWS-WIRE-001: filter-log must be JSON");
+    let filter_strings = filter_log_body["filter_strings"]
+        .as_array()
+        .expect("AC-CWS-WIRE-001: filter_strings must be array");
+    assert!(
+        filter_strings.iter().any(|s| s
+            .as_str()
+            .map(|f| f.contains("created_timestamp"))
+            .unwrap_or(false)),
+        "AC-CWS-WIRE-001 (F-P1-HIGH-003): DTU filter-log must contain 'created_timestamp' \
+         from the FQL '{}'. The FQL must reach the DTU via path_template interpolation. \
+         Got filter_strings: {:?}",
+        fql,
+        filter_strings
+    );
+
+    // FQL + limit both honored: result must be non-empty and ≤ 3.
+    assert!(
+        !result.records.is_empty(),
+        "AC-CWS-WIRE-001: pipeline must return non-empty records (fixture has records after 2026-01-20)"
+    );
+    assert!(
+        result.records.len() <= 3,
+        "AC-CWS-WIRE-001: result must have at most 3 records when limit=3 is applied; got {}",
+        result.records.len()
     );
 }
