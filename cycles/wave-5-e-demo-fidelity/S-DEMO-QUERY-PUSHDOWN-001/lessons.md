@@ -224,3 +224,76 @@ during the LOCAL cascade) rather than at passes 8 and 9.
   (AC count 17→18; red_gate_tests 19→20; STORY-INDEX v2.288→v2.289). Feature HEAD unchanged at
   1a8cc8aa. Streak remains 0/3. Complete sweep confirmed ZERO remaining dangling ACs. Pass 10
   next (fresh streak; code stable 1a8cc8aa + story v2.7; need 3 strict-clean).
+
+---
+
+### [process-gap][codification-candidate] Strict-3-CLEAN cosmetic tail — after code convergence, fresh-context passes surface a continuing tail of single cosmetic LOWs; pre-cascade hygiene-sweep gate candidate
+
+**Date recorded:** 2026-06-06
+**D-NNN anchor:** D-1020
+**Findings:** F-P11-LOW-001 (draft comments), OBS-P13-001 (vacuous assertion), OBS-P13-002 (evidence currency), F-P14-LOW-001 (volatile SHA in evidence), F-P16-LOW-001 (story line-pins)
+**Tags:** [process-gap] [codification-candidate] [strict-3-clean-tail] [hygiene-sweep-gate] [PR-LEVEL-cascade-efficiency]
+**Classification:** PROCESS-GAP — no correctness defects; pattern-level observation about cascade efficiency.
+
+**Description:**
+PR-LEVEL passes 10-16 for S-DEMO-QUERY-PUSHDOWN-001 demonstrate a recurring pattern
+in the strict-3-CLEAN tail of the PR-LEVEL cascade:
+
+After all substantive findings (correctness, security, spec-semantics) are closed
+and CLEAN(PR-merge) is achieved and held, fresh-context adversary passes continue
+surfacing single cosmetic spec/test-hygiene LOWs in each new pass. Key observations:
+
+1. **CLEAN(PR-merge) held for ALL 16 consecutive passes.** Not one MED/HIGH/CRIT
+   finding appeared in passes 10-16. The code is production-grade.
+
+2. **CLEAN(strict) achieved only at passes 10, 12, 15** (out of 7 passes in the tail).
+   Each LOW finding reset the strict streak.
+
+3. **Each fix created new surface for the next pass.** The pass-13 evidence refresh
+   (fixing OBS-P13-002) introduced a new volatile SHA pin (F-P14-LOW-001). The
+   pass-14 de-pin then advanced the streak — until pass-16 found story line-pins
+   that had persisted through 15 passes.
+
+4. **All hygiene classes were eventually closed via complete sweeps**, not one-at-a-time
+   fixes: dangling-AC (pass 9 complete sweep), draft-comment (pass 11 complete sweep),
+   evidence-SHA (pass 14 de-pin + v2.7 anchor), story line-pins (pass 16 complete sweep).
+
+5. **The recurring pattern**: cosmetic items not caught during LOCAL cascade or initial
+   PR review accumulate silently, then drain one-at-a-time during the strict-3-CLEAN
+   phase, each resetting the streak. 7 passes (10-16) were required to advance past
+   5 LOWs.
+
+**Codification candidate — Pre-PR Hygiene-Sweep Gate:**
+
+Run a focused hygiene-sweep ONCE before the PR-LEVEL cascade begins, covering:
+
+1. **Line-pin sweep (TD-VSDD-091):** grep story body + spec artifacts for `~\d+`
+   and `file.rs:\d+` patterns; anchor to function names.
+2. **Draft-comment sweep:** grep all PR diff files for "wait —", "TODO:", "FIXME:",
+   "// temp", "draft" in comments; clean all occurrences.
+3. **Vacuous-assertion audit:** for each e2e/integration test AC assertion, verify
+   the assertion independently falsifies the named property (not just "is_not_empty"
+   proxies).
+4. **Volatile-SHA sweep in evidence:** grep `docs/demo-evidence/<story>/` for raw
+   40-char hex SHAs; replace with stable `PR#/story-version/LOCAL-converged-SHA` refs.
+5. **AC traceability sweep (SAP-5):** grep `crates/**/*.rs` for `AC-[A-Z][A-Z0-9_-]+`;
+   verify each resolves to `### AC-ID:` in story file.
+
+Running this sweep ONCE before pass-1 would drain all 5 classes found in passes 10-16
+upfront, allowing the strict-3-CLEAN cascade to focus on substantive behavioral review
+from the first pass.
+
+**Implementation note:** This gate should be a standing pre-PR checklist item in the
+pr-manager 9-step cycle, not a separate story. It is a process discipline, not a
+code deliverable.
+
+**Outcome (passes 10-16):**
+- Pass-10: CLEAN(strict)=yes. Streak 0/3 → 1/3.
+- Pass-11: F-P11-LOW-001 (draft comments). Implementer sweep ac75e84d. Streak → 0/3.
+- Pass-12: CLEAN(strict)=yes. Streak 0/3 → 1/3.
+- Pass-13: OBS-P13-001+002 (vacuous assert + evidence). Fixed 6583e419. Streak → 0/3.
+- Pass-14: F-P14-LOW-001 (volatile SHA). Demo-recorder de-pin 6835e4fa. Streak → 0/3.
+- Pass-15: CLEAN(strict)=yes. Streak 0/3 → 1/3.
+- Pass-16: F-P16-LOW-001 (story line-pins). Story-writer sweep v2.7→v2.8 6835e4fa (spec-only). Streak → 0/3.
+- Feature code HEAD UNCHANGED at 6835e4fa since pass-14 de-pin. ALL 16 passes CLEAN(PR-merge)=yes.
+- NEXT: PR-LEVEL pass 17 (fresh streak; need 3 strict-clean on 6835e4fa + story v2.8).

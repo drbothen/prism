@@ -135,10 +135,10 @@ active_dispatch_set:
     status: in_progress
     priority: P2
     points: 8
-    spec_version: "v2.7"
+    spec_version: "v2.8"
     lane: "2 (Phase B)"
-    dispatch_status: "PR_CYCLE_IN_FLIGHT — D-1019 2026-06-06. PR #173. PR-LEVEL passes 1-9 ALL DONE. Feature code stable at 1a8cc8aa. Pass-8 MEDIUM F-P08-MED-001 (dangling AC-INDEX-CWS-001) CLOSED spec-only (story v2.5→v2.6; STORY-INDEX v2.287→v2.288). Streak RESET 2/3→0/3. Pass-9 MEDIUM F-P09-MED-001 (dangling AC-CWS-WIRE-001: 18 code/test sites cited AC absent from story; same class as pass-8 — pass-8 fix was one-at-a-time rather than complete sweep; S-7.01 partial-fix miss); spec-only fix by story-writer: AC-CWS-WIRE-001 added, acceptance_criteria_count 17→18, red_gate_tests 19→20, story v2.6→v2.7, STORY-INDEX v2.288→v2.289. Complete sweep confirmed ZERO remaining dangling ACs. Streak remains 0/3. pr-reviewer APPROVE (on eab62613; NITs cleaned). security SECURITY-CLEAR-TO-MERGE (pass-1). CI on 1a8cc8aa: passing. NEXT: PR-LEVEL pass 10 (fresh streak on 1a8cc8aa + story v2.7; need 3 strict-clean; code stable)."
-    code_head: "1a8cc8aa"
+    dispatch_status: "PR_CYCLE_IN_FLIGHT — D-1020 2026-06-06. PR #173. PR-LEVEL passes 1-16 ALL DONE. Feature code stable at 6835e4fa (code production-grade + CLEAN(PR-merge) on all 16 passes). ALL hygiene classes swept (dangling-AC/draft-comment/vacuous-assert/evidence-SHA/line-pin). story v2.8 (TD-VSDD-091 line-pin sweep). STORY-INDEX v2.290. Streak 0/3 (reset by pass-16 LOW F-P16-LOW-001 story line-pins). security SECURITY-CLEAR-TO-MERGE. pr-reviewer APPROVE. CI green. NEXT: PR-LEVEL pass 17 (fresh streak on 6835e4fa + story v2.8; need 3 strict-clean then squash-merge + POL-14 post-merge burst)."
+    code_head: "6835e4fa"
     local_adversary_streak: "3/3"
     local_converged: true
     local_converged_at_passes: "9/10/11"
@@ -362,10 +362,63 @@ active_dispatch_set:
     pr_level_pass9_feature_head: "1a8cc8aa"
     pr_level_pass9_f_p09_med_001: "F-P09-MED-001 (MEDIUM) — second dangling AC: 18 code/test sites cite AC-CWS-WIRE-001 (CrowdStrike FQL+LIMIT wire-level assertion) but story v2.6 did not define it. Same class as F-P08-MED-001 — pass-8 fix was one-at-a-time (S-7.01 partial-fix miss). Orchestrator directed complete sweep at pass 9. CLOSED story-writer (spec-only; no code change): AC-CWS-WIRE-001 added (cites existing test test_ac_cws_wire_001_crowdstrike_fql_and_limit_reach_dtu); acceptance_criteria_count 17→18; red_gate_tests 19→20; story v2.6→v2.7; STORY-INDEX v2.288→v2.289. Complete sweep confirmed ZERO remaining dangling ACs. Feature HEAD UNCHANGED at 1a8cc8aa."
     pr_level_pass9_report: "cycles/wave-5-e-demo-fidelity/S-DEMO-QUERY-PUSHDOWN-001/adversarial-review/pr-pass-9.md"
+    pr_level_pass10_clean_strict: true
+    pr_level_pass10_clean_pr_merge: true
+    pr_level_pass10_findings: {}
+    pr_level_pass10_streak_after: "1/3"
+    pr_level_pass10_feature_head: "1a8cc8aa"
+    pr_level_pass10_report: "cycles/wave-5-e-demo-fidelity/S-DEMO-QUERY-PUSHDOWN-001/adversarial-review/pr-pass-10.md"
+    pr_level_pass11_clean_strict: false
+    pr_level_pass11_clean_pr_merge: false
+    pr_level_pass11_findings: {LOW: 1}
+    pr_level_pass11_streak_after: "0/3"
+    pr_level_pass11_feature_head_before: "1a8cc8aa"
+    pr_level_pass11_feature_head_after: "ac75e84d"
+    pr_level_pass11_f_p11_low_001: "F-P11-LOW-001 (LOW) — draft 'wait —' comment in armis.rs. CLOSED implementer: complete draft-comment sweep (5 comments cleaned across all diff files; armis.rs:175 confirmed not-weak). Feature 1a8cc8aa→ac75e84d. Streak RESET 1/3→0/3."
+    pr_level_pass11_report: "cycles/wave-5-e-demo-fidelity/S-DEMO-QUERY-PUSHDOWN-001/adversarial-review/pr-pass-11.md"
+    pr_level_pass12_clean_strict: true
+    pr_level_pass12_clean_pr_merge: true
+    pr_level_pass12_findings: {}
+    pr_level_pass12_streak_after: "1/3"
+    pr_level_pass12_feature_head: "ac75e84d"
+    pr_level_pass12_note: "CLEAN(strict)=yes. Pass-11 draft-comment sweep closure verified load-bearing. Streak 0/3→1/3."
+    pr_level_pass12_report: "cycles/wave-5-e-demo-fidelity/S-DEMO-QUERY-PUSHDOWN-001/adversarial-review/pr-pass-12.md"
+    pr_level_pass13_clean_strict: false
+    pr_level_pass13_clean_pr_merge: true
+    pr_level_pass13_findings: {LOW: 2, PROCESS_GAP: 1}
+    pr_level_pass13_streak_after: "0/3"
+    pr_level_pass13_feature_head_before: "ac75e84d"
+    pr_level_pass13_feature_head_after: "6583e419"
+    pr_level_pass13_obs_p13_001: "OBS-P13-001 (LOW) — vacuous-but-redundant e2e assertion. CLOSED implementer: assertion removed (2 serialized commits incl demo-recorder evidence refresh v2.7). Feature ac75e84d→6583e419. Streak RESET 1/3→0/3."
+    pr_level_pass13_obs_p13_002: "OBS-P13-002 (LOW) — evidence-report currency (predated pass-11 draft-comment sweep). CLOSED demo-recorder in same fix-burst (evidence refresh to v2.7)."
+    pr_level_pass13_obs_p13_003: "OBS-P13-003 [PROCESS-GAP] — adversary relative-glob path constraint from worktree; mitigated by absolute .factory/ paths in dispatch. Non-blocking."
+    pr_level_pass13_report: "cycles/wave-5-e-demo-fidelity/S-DEMO-QUERY-PUSHDOWN-001/adversarial-review/pr-pass-13.md"
+    pr_level_pass14_clean_strict: false
+    pr_level_pass14_clean_pr_merge: true
+    pr_level_pass14_findings: {LOW: 1}
+    pr_level_pass14_streak_after: "0/3"
+    pr_level_pass14_feature_head_before: "6583e419"
+    pr_level_pass14_feature_head_after: "6835e4fa"
+    pr_level_pass14_f_p14_low_001: "F-P14-LOW-001 (LOW) — evidence report cited stale feature-tip SHA 6583e419 in header (self-referential SHA regression / TD-VSDD-091). CLOSED demo-recorder TD-VSDD-091 de-pin: removed 6583e419; anchored to stable LOCAL-converged 69aafcc7 + v2.7. Feature 6583e419→6835e4fa (evidence-only). Streak RESET 0/3."
+    pr_level_pass14_report: "cycles/wave-5-e-demo-fidelity/S-DEMO-QUERY-PUSHDOWN-001/adversarial-review/pr-pass-14.md"
+    pr_level_pass15_clean_strict: true
+    pr_level_pass15_clean_pr_merge: true
+    pr_level_pass15_findings: {}
+    pr_level_pass15_streak_after: "1/3"
+    pr_level_pass15_feature_head: "6835e4fa"
+    pr_level_pass15_note: "CLEAN(strict)=yes. De-pin closed SHA class. All recurring hygiene classes confirmed closed and durable. Streak 0/3→1/3."
+    pr_level_pass15_report: "cycles/wave-5-e-demo-fidelity/S-DEMO-QUERY-PUSHDOWN-001/adversarial-review/pr-pass-15.md"
+    pr_level_pass16_clean_strict: false
+    pr_level_pass16_clean_pr_merge: true
+    pr_level_pass16_findings: {LOW: 1}
+    pr_level_pass16_streak_after: "0/3"
+    pr_level_pass16_feature_head: "6835e4fa"
+    pr_level_pass16_f_p16_low_001: "F-P16-LOW-001 (LOW) — 5 stale volatile line-number pins (~434-440 etc.) in STORY narrative §Implementation Notes (TD-VSDD-091). CLOSED story-writer COMPLETE sweep: 5 ~NNN pins → function-name anchors; story v2.7→v2.8; STORY-INDEX v2.289→v2.290. Feature HEAD UNCHANGED 6835e4fa (spec-only fix). Streak RESET 1/3→0/3."
+    pr_level_pass16_report: "cycles/wave-5-e-demo-fidelity/S-DEMO-QUERY-PUSHDOWN-001/adversarial-review/pr-pass-16.md"
     pr_level_reviewer_verdict: "APPROVE (on eab62613; NITs since cleaned at 1a8cc8aa)"
     pr_level_security_review_verdict: "SECURITY-CLEAR-TO-MERGE"
     pr_level_cascade_streak: "0/3"
-    pr_level_cascade_passes: 9
+    pr_level_cascade_passes: 16
     depends_on:
       - S-DEMO-001  # HARD gate — SATISFIED (merged PR #166 develop@5dd3df02)
       - S-DEMO-002  # SATISFIED (merged PR #171 develop@fdd12251 2026-06-04)

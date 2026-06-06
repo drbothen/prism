@@ -6,7 +6,7 @@ wave: wave-5-e-demo-fidelity
 epic_id: E-DEMO
 priority: P2
 status: in_progress
-version: "2.7"
+version: "2.8"
 level: "L3"
 producer: story-writer
 revised_by: null
@@ -80,7 +80,7 @@ blocks: []
 points: 8
 # Points justification (v2 re-estimate, expanded from v1 5pts):
 #   - ADR-033 T1: new extract_time_window_from_ast function in prism-query/pushdown.rs: ~1.5 pts
-#   - materialization.rs callsite wiring (lines ~437-438 None → extracted values): ~1 pt
+#   - materialization.rs callsite wiring (QueryParams construction inside run_materialization_pipeline's per-target fan-out loop, None → extracted values): ~1 pt
 #   - CrowdStrike FQL injection correctness (start+end combined with '+'; Step 1 only): ~1 pt
 #   - Armis: remove maxResults/timeFrame (REMOVAL — small but must be verified): ~0.5 pts
 #   - Cyberint: remove from_date/to_date POST-body injection (GET endpoint; correctness fix): ~0.5 pts
@@ -148,11 +148,11 @@ cycle: "v1.0.0-brownfield"
 phase: 3
 ---
 
-# S-DEMO-QUERY-PUSHDOWN-001 v2.7 — Correct per-sensor push-down wiring (ADR-033 T1 + Armis AQL full wiring + CrowdStrike DTU FQL honoring)
+# S-DEMO-QUERY-PUSHDOWN-001 v2.8 — Correct per-sensor push-down wiring (ADR-033 T1 + Armis AQL full wiring + CrowdStrike DTU FQL honoring)
 
 **Story ID:** S-DEMO-QUERY-PUSHDOWN-001
 **Status:** in_progress
-**Version:** v2.7
+**Version:** v2.8
 **Wave:** wave-5-e-demo-fidelity
 **Priority:** P2
 **Points:** 8
@@ -630,7 +630,7 @@ Version source: workspace `Cargo.toml` `[dependencies]` table. Do not pin versio
 | File | Action | Purpose |
 |------|--------|---------|
 | `crates/prism-query/src/pushdown.rs` | MODIFY | Add `extract_time_window_from_ast` (or extension of `extract_push_down_filters_as_map`) — ADR-033 T1 heuristic; walks Compare nodes on datetime columns |
-| `crates/prism-query/src/materialization.rs` | MODIFY | Wire T1 extraction at lines ~434–440; populate `QueryParams.start_time` / `QueryParams.end_time` from extracted values (replaces hardcoded `None`) |
+| `crates/prism-query/src/materialization.rs` | MODIFY | Wire T1 extraction at the `QueryParams` construction inside `run_materialization_pipeline`'s per-target fan-out loop; populate `QueryParams.start_time` / `QueryParams.end_time` from extracted values (replaces hardcoded `None`) |
 | `crates/prism-spec-engine/src/pipeline.rs` | MODIFY | Remove wrong Cyberint `from_date`/`to_date` POST-body injection; remove wrong Claroty time-window body injection; add Armis AQL-clause augmentation branch (`augment_armis_aql_with_time_window`) |
 | `crates/prism-bin/src/spec_driven_adapter.rs` | MODIFY | Verify Armis AQL passthrough is correct (no extra params); verify CrowdStrike FQL injection uses start+end combined with `+` |
 | `crates/prism-query/src/tests/` or inline `#[cfg(test)]` in `pushdown.rs` / `materialization.rs` | MODIFY | Red Gate tests for AC-WIRE-001, AC-WIRE-001b, AC-EQUIV-001, AC-ARMIS-TW-001, AC-ARMIS-TW-003 |
@@ -649,7 +649,7 @@ Version source: workspace `Cargo.toml` `[dependencies]` table. Do not pin versio
 
 ## Tasks
 
-1. **Read** `crates/prism-query/src/materialization.rs` — locate `run_materialization_pipeline`, `extract_push_down_filters_as_map`, and the `QueryParams` construction at lines ~434–440. Understand why `start_time`/`end_time` are hardcoded `None`.
+1. **Read** `crates/prism-query/src/materialization.rs` — locate `run_materialization_pipeline`, `extract_push_down_filters_as_map`, and the `QueryParams` construction inside `run_materialization_pipeline`'s per-target fan-out loop. Understand why `start_time`/`end_time` are hardcoded `None`.
 2. **Read** `crates/prism-query/src/pushdown.rs` — understand `predicate_tree_to_filter_map`, `classify_predicates`, and the existing predicate-walk logic. Identify where the T1 extraction function should be added.
 3. **Read** `crates/prism-spec-engine/src/pipeline.rs` — locate `build_request()` and the per-sensor translation arms. Identify the Cyberint POST-body injection and Claroty time-window injection sites to remove.
 4. **Read** `crates/prism-bin/src/spec_driven_adapter.rs` — confirm AQL passthrough path and CrowdStrike FQL injection site.
@@ -682,7 +682,7 @@ Version source: workspace `Cargo.toml` `[dependencies]` table. Do not pin versio
    - `test_adv_p08_med001_crowdstrike_inclusive_boundary_via_run_materialization_pipeline` (EC-009)
    - `test_adv_p08_med001_armis_inclusive_boundary_via_run_materialization_pipeline` (EC-009)
 9. **Verify Red Gate fails** — `just iter prism-query` and `just iter prism-spec-engine` and `just iter prism-dtu-armis` and `just iter prism-dtu-crowdstrike` must show all Red Gate tests FAILING.
-10. **Implement** ADR-033 T1: add `extract_time_window_from_ast` in `pushdown.rs`; wire in `materialization.rs` at lines ~434–440.
+10. **Implement** ADR-033 T1: add `extract_time_window_from_ast` in `pushdown.rs`; wire into the `QueryParams` construction inside `run_materialization_pipeline`'s per-target fan-out loop in `materialization.rs`.
 11. **Implement** CrowdStrike FQL combined form: `start+end` with `+`; Step 2 receives `FetchContext::default()`.
 12. **Remove** wrong Cyberint `from_date`/`to_date` POST-body injection from `pipeline.rs`.
 13. **Remove** wrong Claroty time-window body injection from `pipeline.rs`.
@@ -703,7 +703,7 @@ Version source: workspace `Cargo.toml` `[dependencies]` table. Do not pin versio
 - **S-DEMO-002** (MERGED PR #171): Established AQL seeding convention (`FetchContext.query_filters["aql"]` → `${query.filter.aql}` interpolation). AC-ARMIS-001/002 verify correct non-injection behavior; S-DEMO-002 must be merged (SATISFIED).
 - **v1.x implementation (SUPERSEDED):** The prior v1.x implementation introduced wrong per-sensor translations (Armis `maxResults`/`timeFrame`, Cyberint POST-body injection, Claroty body injection) and missed the materialization.rs `None` hardcode. All v1.x test code using fabricated fixtures is superseded. Do NOT build on v1.x code — re-derive from this corrected spec.
 - **LOCAL adversary passes 5+6 findings (2026-06-05):**
-  - F-P6-CRIT-001: `materialization.rs` lines ~434–440 hardcode `start_time: None, end_time: None` — all time-window push-down is dead code. Closed by AC-WIRE-001.
+  - F-P6-CRIT-001: the `QueryParams` construction inside `run_materialization_pipeline`'s per-target fan-out loop in `materialization.rs` hardcodes `start_time: None, end_time: None` — all time-window push-down is dead code. Closed by AC-WIRE-001.
   - F-P6-MED-001: result-equivalence AC-005 in v1.x used direct `FetchContext` construction, bypassing `run_materialization_pipeline`. Closed by AC-EQUIV-001 (real materialization path mandate).
   - Per-sensor factual errors: Armis/Cyberint/Claroty translation bugs. Closed by AC-ARMIS-001/002, AC-CYB-001, AC-CLAR-001.
 - **ADR-033** (proposed, 2026-06-05): Records the T1 vs T2 architecture decision. T1 adopted for v2 scope. T2 deferred.
@@ -735,7 +735,7 @@ Version source: workspace `Cargo.toml` `[dependencies]` table. Do not pin versio
 
 | Context source | Estimated tokens |
 |----------------|-----------------|
-| This story spec (v2.7) | ~8,200 |
+| This story spec (v2.8) | ~8,200 |
 | BC files (3 BCs: BC-2.01.013 v1.14 + BC-2.11.005 v1.6 + BC-2.11.007 v1.8) | ~9,500 |
 | ADR-033 | ~2,500 |
 | pushdown-redesign.md (design note incl. §8) | ~6,000 |
@@ -762,6 +762,7 @@ At the 20-30% budget ceiling. Implementer SHOULD split into two sub-tasks if con
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 2.8 | 2026-06-06 | story-writer | F-P16-LOW-001 fix: TD-VSDD-091 volatile line-pin sweep — replaced all 5 non-excepted `lines ~NNN`/`materialization.rs:NNN` citations with function-name + behavioral anchors (`QueryParams` construction inside `run_materialization_pipeline`'s per-target fan-out loop; `extract_time_window_from_ast` call). Sites fixed: points justification comment (line 83), File Structure Requirements materialization.rs row, Tasks step 1, Tasks step 10, Previous Story Intelligence F-P6-CRIT-001 narrative. Changelog row (line 769) is TD-VSDD-091-EXCEPT; unchanged. No AC change; no RGT change. H1 + body header version 2.7→2.8. |
 | 2.7 | 2026-06-06 | story-writer | F-P09-MED-001 fix-burst: added AC-CWS-WIRE-001 — wire-level combined verification that CrowdStrike FQL time-window AND limit reach the DTU simultaneously. The test `test_ac_cws_wire_001_crowdstrike_fql_and_limit_reach_dtu` (18 code/test sites in `crates/prism-spec-engine/tests/bc_2_11_007_pushdown_test.rs`) cited AC-CWS-WIRE-001 but no story AC heading existed, creating the last dangling-AC traceability gap for this story. Placed after AC-CWS-003 (per-dimension CrowdStrike ACs); before AC-CWS-DTU-001 (DTU-internal FQL honoring). Tasks step 8: added `test_ac_cws_wire_001_crowdstrike_fql_and_limit_reach_dtu` with note (EXISTING test, already passes); count 19→20. Step 16: 19→20 Red Gate tests. acceptance_criteria_count 17→18; red_gate_tests 19→20. Token Budget: story spec ~7,900→~8,200; total ~76,700→~77,000. Sub-task B: added AC-CWS-WIRE-001 to test enumeration. H1 + body header version 2.6→2.7. |
 | 2.6 | 2026-06-05 | story-writer | F-P08-MED-001 fix-burst: added AC-INDEX-CWS-001 (crowdstrike.sensor.toml `created_timestamp` declares `options = ["INDEX"]`). This is the CrowdStrike parallel to AC-INDEX-001 (Armis): without `options = ["INDEX"]` on `created_timestamp`, ADR-033 Option T1 extraction silently skips the column and CrowdStrike FQL time-window push-down is silently vacuous. Red Gate test: EXISTING `test_ac_index_cws_001_crowdstrike_toml_created_timestamp_has_index_option` (`crates/prism-spec-engine/tests/bc_2_11_007_pushdown_test.rs`) — 11 code/test sites cite this AC ID; the test already passes. Architecture Compliance Rules: added CrowdStrike INDEX row (parallel to Armis INDEX row). Tasks step 8: added `test_ac_index_cws_001_*` to Red Gate test list with full list of 19 RGTs. Step 16: 16→19 Red Gate test count. acceptance_criteria_count 16→17; red_gate_tests 18→19. H1 + body header version 2.5→2.6. |
 | 2.5 | 2026-06-05 | story-writer | ADV-P08-MED-001 fix-burst: added EC-009 documenting inclusive-boundary push-down behavior (CompareOp::Ge/Le). DTU time-window filtering is inclusive at the boundary (records with `ts == bound` are kept, never excluded); push-down result is a superset of the exact predicate result; DataFusion post-filter narrows to exact set; BC-2.11.007 result-equivalence invariant holds. Second root cause: timestamp normalization changed from `to_rfc3339()` (`+00:00` suffix, ASCII 43) to `to_rfc3339_opts(SecondsFormat::Secs, true)` (`Z` suffix, ASCII 90) — `+00:00` < `Z` lexicographically causing exact-boundary records to be silently dropped at DataFusion string-comparison. Red Gate tests added: `test_adv_p08_med001_crowdstrike_inclusive_boundary_via_run_materialization_pipeline` + `test_adv_p08_med001_armis_inclusive_boundary_via_run_materialization_pipeline` (both in `crates/prism-bin/tests/adv_p02_e2e_pushdown_pipeline_test.rs`; drive `run_materialization_pipeline`; assert boundary record present in `>=` result). red_gate_tests 16→18. BC array unchanged (BC-2.11.007 v1.8 already scopes Ge/Le). acceptance_criteria_count unchanged (16). H1 + body header version 2.4→2.5. |
