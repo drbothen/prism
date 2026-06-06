@@ -31,7 +31,7 @@
 //! `make_crowdstrike_detection_spec` was corrected from fake `ocsf_class = "detection"` to the
 //! real production value `ocsf_class = "security_finding"` (crowdstrike.sensor.toml detections
 //! table at time of writing). Expected envelope post-OCSF-CLASS-MIGRATION-001:
-//! `class_uid = 2004`, `category_uid = 2` (2004/1000). Per BC-2.02.012 v1.5 Option A,
+//! `class_uid = 2004`, `category_uid = 2` (2004/1000). Per BC-2.02.012 v1.6 Option A,
 //! `select_by_class_name("security_finding")` now returns 2004 (Detection Finding) with a
 //! deprecation WARN — not 2001 as it did prior to OCSF-CLASS-MIGRATION-001.
 //!
@@ -1522,7 +1522,7 @@ fn test_BC_2_01_013_build_http_client_with_timeout_succeeds() {
 ///
 /// Uses `ocsf_class = "security_finding"` as the fixture class-name (the historical
 /// crowdstrike.sensor.toml detections value, now migrated to "detection_finding" by
-/// OCSF-CLASS-MIGRATION-001). Per BC-2.02.012 v1.5 Option A transitional alias:
+/// OCSF-CLASS-MIGRATION-001). Per BC-2.02.012 v1.6 Option A transitional alias:
 /// `EventClassSelector::select_by_class_name("security_finding")` → 2004 (Detection Finding),
 /// `category_uid` → 2 (2004/1000). A deprecation WARN is emitted during the call.
 ///
@@ -1541,7 +1541,7 @@ fn make_crowdstrike_detection_spec(base_url: &str) -> SensorSpec {
         base_url,
         vec![TableSpec::new_point_in_time(
             "detections",
-            "security_finding", // ocsf_class transitional alias per BC-2.02.012 v1.5 Option A; select_by_class_name → 2004, category_uid 2
+            "security_finding", // ocsf_class transitional alias per BC-2.02.012 v1.6 Option A; select_by_class_name → 2004, category_uid 2
             vec![
                 ColumnSpec::new("detection_id", ColumnType::String, None, vec![]),
                 ColumnSpec::new("severity", ColumnType::String, None, vec![]),
@@ -1713,7 +1713,7 @@ async fn test_BC_2_01_013_ocsf_conformance_spec_columns_survive_into_arrow_schem
 ///
 /// The mock raw record has `"class_uid": 9999, "category_uid": 9999`.
 /// The spec declares `sensor_id = "crowdstrike"` and `ocsf_class = "security_finding"`
-/// (transitional alias per BC-2.02.012 v1.5 Option A; OCSF-CLASS-MIGRATION-001).
+/// (transitional alias per BC-2.02.012 v1.6 Option A; OCSF-CLASS-MIGRATION-001).
 /// `EventClassSelector::select_by_class_name("security_finding")` → 2004 (Detection Finding).
 /// `category_uid` → 2 (2004 / 1000).
 /// The test asserts `class_uid == 2004` — forcing failure if:
@@ -1723,7 +1723,7 @@ async fn test_BC_2_01_013_ocsf_conformance_spec_columns_survive_into_arrow_schem
 /// # Status
 ///
 /// GREEN after OCSF-CLASS-MIGRATION-001: `select_by_class_name("security_finding")` returns
-/// 2004 (per BC-2.02.012 v1.5 Option A) — the full derivation chain produces class_uid = 2004.
+/// 2004 (per BC-2.02.012 v1.6 Option A) — the full derivation chain produces class_uid = 2004.
 ///
 /// TV-BC-2.01.013-005 (BC-2.01.013 v1.14): "category_uid/class_uid in returned batch derived
 /// from ocsf_class, NOT equal to raw 9999 value; class_uid MUST equal 2004."
@@ -1731,7 +1731,7 @@ async fn test_BC_2_01_013_ocsf_conformance_spec_columns_survive_into_arrow_schem
 /// BC-2.01.013 v1.14 OCSF Conformance Clause item 2; AC-010(b); F-001-R; D-925.
 #[tokio::test]
 async fn test_BC_2_01_013_ocsf_conformance_envelope_derived_not_raw_copied() {
-    // select_by_class_name("security_finding") → 2004 (BC-2.02.012 v1.5 Option A,
+    // select_by_class_name("security_finding") → 2004 (BC-2.02.012 v1.6 Option A,
     // OCSF-CLASS-MIGRATION-001). The full derivation chain produces class_uid = 2004.
     // A deprecation WARN (ocsf.deprecated_class_alias) is emitted during the call — this
     // is expected behavior and does not affect the assertion.
@@ -1807,7 +1807,7 @@ async fn test_BC_2_01_013_ocsf_conformance_envelope_derived_not_raw_copied() {
     // LOAD-BEARING assertion (TD-VSDD-059, D-925, OCSF-CLASS-MIGRATION-001 AC-005):
     // Raw record has class_uid = 9999. The spec declares ocsf_class = "security_finding".
     // Correct implementation (post-OCSF-CLASS-MIGRATION-001):
-    //   select_by_class_name("security_finding") → 2004 (BC-2.02.012 v1.5 Option A).
+    //   select_by_class_name("security_finding") → 2004 (BC-2.02.012 v1.6 Option A).
     // This assertion fails for BOTH the raw-copy (9999) and any path that does not call
     // select_by_class_name, ensuring the implementer must use the real class-name derivation path.
     assert_ne!(
@@ -1815,19 +1815,19 @@ async fn test_BC_2_01_013_ocsf_conformance_envelope_derived_not_raw_copied() {
         "F-001-R item 2 LOAD-BEARING: class_uid in returned RecordBatch MUST NOT be the \
          raw JSON value 9999. It must be the spec-derived value from \
          EventClassSelector::select_by_class_name('security_finding') = 2004 \
-         (BC-2.02.012 v1.5 Option A transitional alias — Detection Finding, not deprecated 2001). \
+         (BC-2.02.012 v1.6 Option A transitional alias — Detection Finding, not deprecated 2001). \
          EC-01-026: 'Implementation that copies category_uid/class_uid from raw vendor JSON = NON-CONFORMANT.' \
          BC-2.01.013 v1.14 OCSF Conformance Clause item 2; AC-010(b); F-001-R; D-925; TV-BC-2.01.013-005."
     );
 
     // Assert the correct derived value (2004) is present.
-    // BC-2.02.012 v1.5 mapping: ocsf_class "security_finding" → class_uid 2004 (transitional alias),
+    // BC-2.02.012 v1.6 mapping: ocsf_class "security_finding" → class_uid 2004 (transitional alias),
     // category_uid 2 (2004/1000). OCSF-CLASS-MIGRATION-001 AC-005.
     assert_eq!(
         class_uid_val, 2004,
         "F-001-R item 2 LOAD-BEARING: class_uid MUST equal the spec-derived value 2004 \
          (EventClassSelector::select_by_class_name('security_finding') = Detection Finding, 2004). \
-         Per BC-2.02.012 v1.5 Option A (OCSF-CLASS-MIGRATION-001), 'security_finding' is a \
+         Per BC-2.02.012 v1.6 Option A (OCSF-CLASS-MIGRATION-001), 'security_finding' is a \
          transitional alias that maps to 2004, not the deprecated 2001. Got: {}. \
          BC-2.01.013 v1.14 Conformance Clause item 2; AC-010(b); D-925; TV-BC-2.01.013-005.",
         class_uid_val
