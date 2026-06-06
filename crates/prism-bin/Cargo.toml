@@ -53,7 +53,7 @@ anyhow = "1"
 serde = { version = "1", features = ["derive"] }
 toml = "0.8"
 thiserror = "1"
-uuid = { version = "1", features = ["v5", "v7"] }
+uuid = { version = "1", features = ["v7"] }
 chrono = { version = "0.4", features = ["serde"] }
 dirs = "5"
 # libc: used in the test-injection gate (boot.rs) for raw sigaction on unix.
@@ -206,6 +206,15 @@ path = "tests/bc_2_06_001_demo_setup_toml.rs"
 name = "bc_2_03_007_credential_set_no_echo"
 path = "tests/bc_2_03_007_credential_set_no_echo.rs"
 
+# S-DEMO-003: RG-034-004 — CRIT-2 namespace reconciliation.
+# AC-010/AC-005: handle_credential_set must write via CredentialStoreOrgId::set_by_org
+# (OrgId-keyed namespace), not CredentialStore::set (slug-keyed namespace).
+# Uses InMemoryCredentialStore trait double for in-process namespace assertion.
+# BCs: BC-2.06.003 Tier-3, BC-2.03.007; ADR-034 §D3
+[[test]]
+name = "bc_2_03_007_credential_set_org_id_keyed"
+path = "tests/bc_2_03_007_credential_set_org_id_keyed.rs"
+
 [dev-dependencies]
 rmcp = { workspace = true }
 tempfile = "3"
@@ -218,6 +227,9 @@ prism-core = { path = "../prism-core", version = "0.2.0" }
 # test-helpers: exposes reset_dynamic_registry_global / reset_query_phase_global for
 # F-LP-IMPL-P1-002 cross-crate integration test isolation (F-LP-IMPL-P1-005).
 prism-query = { path = "../prism-query", version = "0.1.0", features = ["test-helpers"] }
+# S-DEMO-003 RG-034-004: InMemoryCredentialStore for bc_2_03_007_credential_set_org_id_keyed test.
+# test-helpers feature exposes InMemoryCredentialStore for trait-double injection.
+prism-credentials = { path = "../prism-credentials", version = "0.1.0", features = ["test-helpers"] }
 # S-3.02-FOLLOWUP-RUNTIME: boot_steps_7_8_tests.rs needs QueryEngine/WriteExecutor
 # dependency constructors (OcsfNormalizer, AdapterRegistry, FeatureFlagEvaluator, etc.)
 prism-ocsf = { path = "../prism-ocsf" }

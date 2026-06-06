@@ -124,11 +124,41 @@ fn test_BC_2_03_007_prism_credential_set_does_not_echo_value_to_stdout() {
         prism_bin.display()
     );
 
-    // Use a temporary config directory so the subprocess does not require
-    // a real prism.toml to exist. The `credential set` subcommand loads config
-    // to resolve the org slug — the stub implementation panics before reaching that
-    // point, so this tempdir is sufficient for the Red Gate assertion.
+    // Use a temporary config directory with a minimal prism.toml fixture.
+    // ADR-034 §D3: `handle_credential_set` requires prism.toml to resolve the OrgId
+    // for OrgId-keyed write. The UUID-v5 fallback was removed (AD-017 / ADR-034 §D3).
+    // Without a prism.toml, the binary exits 2 (config-invalid) before reading stdin
+    // — which means this test would assert exit 2, but the actual AD-017 invariant
+    // (secret not on stdout/stderr) still holds (the sentinel is never echoed).
+    // However, to exercise the FULL keyring write path (and catch any future echo bug),
+    // we provide a minimal prism.toml with a "demo-org" org entry.
     let config_dir = tempfile::tempdir().expect("failed to create temp config dir");
+
+    // Write the prism.toml fixture with a demo-org entry (matching --org-slug "demo-org").
+    {
+        let state_dir = config_dir.path().join("state");
+        let spec_dir = config_dir.path().join("specs");
+        let plugin_dir = config_dir.path().join("plugins");
+        std::fs::create_dir_all(&state_dir).expect("create state dir");
+        std::fs::create_dir_all(&spec_dir).expect("create spec dir");
+        std::fs::create_dir_all(&plugin_dir).expect("create plugin dir");
+
+        let prism_toml = format!(
+            r#"spec_dir = "{spec}"
+state_dir = "{state}"
+plugin_dir = "{plugin}"
+
+[[orgs]]
+org_id = "0196f4b2-3c8d-7e1a-b5f0-2d4c6e8a0b1c"
+org_slug = "demo-org"
+"#,
+            spec = spec_dir.display(),
+            state = state_dir.display(),
+            plugin = plugin_dir.display(),
+        );
+        std::fs::write(config_dir.path().join("prism.toml"), &prism_toml)
+            .expect("write prism.toml fixture");
+    }
 
     // Spawn the `prism credential set` subprocess.
     // Key design choices:
@@ -183,18 +213,28 @@ fn test_BC_2_03_007_prism_credential_set_does_not_echo_value_to_stdout() {
     let stderr_str = String::from_utf8_lossy(&output.stderr);
 
     // --- Primary Red Gate assertion ---
-    // The subprocess must have exited (panicked at todo!() → exit 1 is expected at Red Gate).
-    // The test is asserting exit 0 OR exit 1 with "Keyring unavailable" (headless CI).
-    // At Red Gate, the binary panics: exit code is 1 (panic hook calls process::exit(1)).
-    // This assertion FAILS at Red Gate, establishing the gate.
+    // Expected outcomes:
+    //   0 — success (keyring available, credential stored).
+    //   1 — keyring unavailable (headless CI; stderr contains "Keyring unavailable").
+    //       The keyring write failed but the secret was never echoed — AD-017 still holds.
+    //   1 — keyring write failed for another reason (stderr contains "keyring write failed").
+    // NOT expected:
+    //   2 — config error (would mean prism.toml fixture was not loaded correctly).
+    //   panic/abort — would mean handle_credential_set contains todo!().
     let exit_code = output.status.code().unwrap_or(-1);
+    let keyring_failed = exit_code == 1
+        && (stderr_str.contains("Keyring unavailable")
+            || stderr_str.contains("keyring write failed")
+            || stderr_str.contains("set_password failed")
+            || stderr_str.contains("spawn_blocking panicked"));
     assert!(
-        exit_code == 0 || (exit_code == 1 && stderr_str.contains("Keyring unavailable")),
-        "prism credential set must exit 0 on success, or exit 1 with 'Keyring unavailable' \
-         on headless CI (EC-001 of S-DEMO-003). Got exit code {exit_code}.\n\
+        exit_code == 0 || keyring_failed,
+        "prism credential set must exit 0 on success, or exit 1 on keyring failure \
+         (EC-001 of S-DEMO-003). Got exit code {exit_code}.\n\
          stdout: {stdout_str}\n\
          stderr: {stderr_str}\n\
-         (If the binary panicked with todo!(), implement handle_credential_set — S-DEMO-003)"
+         (If exit 2: prism.toml fixture may not have been written correctly. \
+         If panic: implement handle_credential_set — S-DEMO-003)"
     );
 
     // --- BC-2.03.007 postcondition: secret MUST NOT appear on stdout ---

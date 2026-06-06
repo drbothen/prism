@@ -30,6 +30,12 @@ pub mod trait_;
 #[cfg(test)]
 pub mod tests;
 
+// test-helpers feature: in-memory CredentialStoreOrgId trait double for integration tests.
+// AD-017: InMemoryCredentialStore stores values in heap memory only (SecretString, zeroized on drop).
+// Never enabled in production builds — feature is for test binaries only.
+#[cfg(feature = "test-helpers")]
+pub mod in_memory_store;
+
 // S-1.07 modules
 pub mod audit;
 pub mod crud;
@@ -57,3 +63,6 @@ pub use resolve_secret::resolve_secret;
 pub use secret::Secret;
 pub use selector::{BackendSelector, CredentialConfig};
 pub use trait_::{CredentialStore, CredentialStoreOrgId};
+
+#[cfg(feature = "test-helpers")]
+pub use in_memory_store::InMemoryCredentialStore;

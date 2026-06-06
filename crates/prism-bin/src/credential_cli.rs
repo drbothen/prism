@@ -43,6 +43,8 @@
 //! Story: S-DEMO-003
 //! BCs: BC-2.03.007, BC-2.06.001
 
+use std::sync::Arc;
+
 use clap::{Args, Subcommand};
 use prism_core::{CredentialName, OrgId, OrgSlug};
 use prism_credentials::{CredentialIndex, CredentialStoreOrgId, KeyringBackend};
@@ -101,6 +103,9 @@ pub struct CredentialArgs {
 
 /// Handle `prism credential set` — AD-017 compliant keyring write.
 ///
+/// Production entry point: constructs a `KeyringBackend` and delegates to
+/// `handle_credential_set_with_store`.
+///
 /// # AD-017 invariant
 ///
 /// The credential value MUST NOT appear in:
@@ -123,6 +128,38 @@ pub struct CredentialArgs {
 /// 1 — keyring unavailable or write failure (with actionable stderr message)
 /// 2 — config-invalid (cannot load prism.toml or resolve org)
 pub async fn handle_credential_set(args: CredentialSetArgs, config_dir: std::path::PathBuf) -> i32 {
+    // Construct the production KeyringBackend.
+    // Index path: <config_dir>/credential_index.json (mirrors boot step 5 convention).
+    let index_path = config_dir.join("credential_index.json");
+    let index = CredentialIndex::new(index_path);
+    let store: Arc<dyn CredentialStoreOrgId> = Arc::new(KeyringBackend::new("prism", index));
+
+    handle_credential_set_with_store(args, config_dir, store).await
+}
+
+/// Inner implementation of `handle_credential_set` with injectable `CredentialStoreOrgId`.
+///
+/// Separated from `handle_credential_set` to enable unit testing without a real OS keyring:
+/// tests can inject an `InMemoryCredentialStore` trait double to assert the correct namespace
+/// key is used (`{org_id_uuid}/{sensor}/{name}`, NOT `{slug}/{sensor}/{name}` — CRIT-2).
+///
+/// # Testability seam (RG-034-004)
+///
+/// `bc_2_03_007_credential_set_org_id_keyed.rs` calls this function with an
+/// `InMemoryCredentialStore` to verify the namespace key format in-process without
+/// spawning a subprocess or touching the real OS keyring.
+///
+/// # AD-017 compliance
+///
+/// Same invariants as `handle_credential_set`: the credential value must never
+/// appear in stdout, stderr, or logs. The `store` parameter is a trait object;
+/// its concrete type (KeyringBackend or InMemoryCredentialStore) does not affect
+/// the AD-017 guarantee, which is enforced by this function never echoing `value`.
+pub async fn handle_credential_set_with_store(
+    args: CredentialSetArgs,
+    config_dir: std::path::PathBuf,
+    store: Arc<dyn CredentialStoreOrgId>,
+) -> i32 {
     // Step 1: Resolve org slug AND OrgId from prism.toml.
     // ADR-034 §D3: --org-slug is matched against [[orgs]] entries in prism.toml
     // to extract the org_id UUID for OrgId-keyed write.
@@ -170,17 +207,11 @@ pub async fn handle_credential_set(args: CredentialSetArgs, config_dir: std::pat
     // Wrap in SecretString immediately so accidental Display/Debug shows "***".
     let value = SecretString::new(raw_value);
 
-    // Step 4: Write to OS keyring via KeyringBackend::set_by_org() (OrgId-keyed).
+    // Step 4: Write to the injected store via set_by_org() (OrgId-keyed).
     // ADR-034 §D3: MUST use CredentialStoreOrgId::set_by_org (OrgId-keyed namespace)
     // to reconcile with Tier-3 read path in resolve_credential.
     // The legacy CredentialStore::set (slug-keyed) is FORBIDDEN for this path —
     // it writes to a disjoint namespace invisible to get_by_org (CRIT-2 remediation).
-    //
-    // Index path: <config_dir>/credential_index.json (mirrors boot step 5 convention).
-    let index_path = config_dir.join("credential_index.json");
-    let index = CredentialIndex::new(index_path);
-    let store = KeyringBackend::new("prism", index);
-
     match store
         .set_by_org(&org_id, &args.sensor, &cred_name, value)
         .await
@@ -356,34 +387,28 @@ async fn resolve_org_slug_and_id(
         Ok(contents) => toml::from_str(&contents)
             .map_err(|e| format!("cannot parse '{}': {e}", toml_path.display()))?,
         Err(e) => {
-            if let Some(slug) = explicit {
-                // --org-slug was provided but prism.toml is missing.
-                // Derive a deterministic OrgId from the slug using UUID v5 (namespace-based).
-                // This allows credential writes to a consistent OrgId-keyed namespace
-                // even when prism.toml has not yet been created (bootstrap / CI scenario).
-                //
-                // UUID v5 is deterministic: UUID5(prism-org-v1-namespace, slug) always
-                // produces the same UUID for the same slug, making the keyring namespace
-                // consistent across processes.
-                //
-                // WARNING: If the operator later creates prism.toml with a DIFFERENT
-                // org_id for this slug, credentials written in fallback mode will not be
-                // readable by Tier-3 resolution (which uses the prism.toml org_id).
-                // The operator must re-run `prism credential set` after creating prism.toml.
-                // This fallback is for testing and bootstrap scenarios only.
-                tracing::debug!(
-                    slug = %slug,
-                    toml_path = %toml_path.display(),
-                    error = %e,
-                    "prism.toml absent with --org-slug provided; using UUID-v5 derived OrgId (bootstrap mode)"
-                );
-                let derived_org_id = derive_org_id_from_slug(slug);
-                return Ok((slug.clone(), derived_org_id));
-            }
-            // No --org-slug and no prism.toml — same error as resolve_org_slug HIGH-3.
+            // prism.toml missing or unreadable — hard error regardless of --org-slug.
+            //
+            // ADR-034 §D3: --org-slug maps to OrgId by reading the matching [[orgs]]
+            // entry's org_id UUID from prism.toml. If prism.toml is missing or
+            // unparseable, or the slug has no matching org → hard error (exit 2).
+            //
+            // The UUID-v5 derivation fallback is REMOVED because:
+            //   1. It creates a namespace-mismatch risk: if the operator later creates
+            //      prism.toml with a different org_id for the same slug, credentials
+            //      written in fallback mode are silently lost (SOUL.md §4).
+            //   2. It violates the production-grade default: deriving an OrgId from a
+            //      slug without a canonical source of truth is a hidden assumption that
+            //      will fail in production when prism.toml exists.
+            //   3. ADR-034 §D3 explicitly requires the org_id to come from prism.toml.
+            //
+            // The correct operator workflow is:
+            //   1. Create prism.toml (via demo-setup.sh or manual setup).
+            //   2. Then run `prism credential set`.
             return Err(format!(
                 "Could not load prism.toml from '{}': {e}. \
-                 Provide --org-slug explicitly or ensure prism.toml is present.",
+                 Ensure prism.toml exists (run demo-setup.sh or create it manually) \
+                 before running `prism credential set`.",
                 config_dir.display()
             ));
         }
@@ -436,28 +461,6 @@ async fn resolve_org_slug_and_id(
     let org_id = OrgId::from_uuid(uuid);
 
     Ok((org_entry.org_slug.clone(), org_id))
-}
-
-// ---------------------------------------------------------------------------
-// OrgId derivation (bootstrap / no-prism-toml fallback)
-// ---------------------------------------------------------------------------
-
-/// Derive a deterministic `OrgId` from an org slug using UUID v5 (namespace-based).
-///
-/// UUID v5 computes `SHA-1(namespace_uuid || slug)` and formats the result as a UUID v5.
-/// The namespace UUID is fixed for Prism: `prism-org-id-v1-namespace`.
-///
-/// This function is used as a FALLBACK when `--org-slug` is provided but `prism.toml`
-/// is absent. See `resolve_org_slug_and_id` for the bootstrap fallback semantics.
-///
-/// Determinism property: for any given slug, this function always returns the same UUID.
-/// This makes the keyring namespace consistent across processes without requiring prism.toml.
-fn derive_org_id_from_slug(slug: &str) -> OrgId {
-    // Fixed namespace UUID for Prism org-id derivation (UUID v5 namespace).
-    // Generated once for this purpose; never changes.
-    const PRISM_ORG_NAMESPACE: uuid::Uuid = uuid::uuid!("f1da3c7e-8b4a-5e91-a234-0c7b8d5e6f1a");
-    let derived = uuid::Uuid::new_v5(&PRISM_ORG_NAMESPACE, slug.as_bytes());
-    OrgId::from_uuid(derived)
 }
 
 // ---------------------------------------------------------------------------
