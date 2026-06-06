@@ -288,7 +288,8 @@ impl BearerStaticCredentialAuthProvider {
 impl prism_spec_engine::AuthProvider for BearerStaticCredentialAuthProvider {
     /// Acquire the bearer token for the sensor by resolving from the credential store.
     ///
-    /// Calls `prism_credentials::resolve_credential(client_id, sensor_id, credential_ref_name)`.
+    /// Calls `prism_credentials::resolve_credential(client_id, sensor_id, credential_ref_name,
+    /// org_id, keyring)` (5-arg signature per ADR-034 §D1).
     /// Returns `Ok(AuthToken)` wrapping the resolved token on success.
     ///
     /// FAIL-CLOSED: on any resolution failure returns `Err(AuthAcquisitionFailed)` with an

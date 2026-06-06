@@ -373,8 +373,8 @@ impl CredentialResolver for BackendUnavailableCredentialResolver {
 ///
 /// - `auth_type = "cookie_roundtrip"` declared in the sensor's TOML spec.
 /// - A `credential_ref` naming the API key is declared in the TOML spec.
-/// - `prism_credentials::resolve_credential(client_id, sensor_id, "api_key")` must
-///   succeed at `acquire_token()` time.
+/// - `prism_credentials::resolve_credential(client_id, sensor_id, "api_key", org_id, keyring)`
+///   (5-arg signature per ADR-034 §D1) must succeed at `acquire_token()` time.
 ///
 /// ## Postconditions (BC-2.01.017 §Postconditions P1)
 ///
@@ -466,7 +466,8 @@ impl StaticCookieAuthProvider {
 impl AuthProvider for StaticCookieAuthProvider {
     /// Acquire the static cookie token for the sensor.
     ///
-    /// Calls `prism_credentials::resolve_credential(client_id, sensor_id, "api_key")`.
+    /// Calls `prism_credentials::resolve_credential(client_id, sensor_id, "api_key",
+    /// org_id, keyring)` (5-arg signature per ADR-034 §D1).
     /// Returns `Ok(AuthToken(api_key_value))` without making any HTTP call.
     ///
     /// Validates the resolved api_key per E-AUTH-006: rejects empty strings, all-whitespace,
