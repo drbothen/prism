@@ -137,8 +137,8 @@ active_dispatch_set:
     points: 8
     spec_version: "v2.5"
     lane: "2 (Phase B)"
-    dispatch_status: "PR_CYCLE_IN_FLIGHT — D-1016 2026-06-05. PR #173 CREATED (base develop@752e407a; head 3a2322d7 at PR open). Security CLEAR-TO-MERGE (0 CRIT, 0 IMPORTANT; SEC-002+SEC-004 CLOSED in-burst; SEC-007 hardening candidate surfaced non-blocking). PR-LEVEL pass-1: CLEAN(strict)=no CLEAN(PR-merge)=yes; 1 LOW OBS-1 (stale version pin v2.2→version-agnostic TD-VSDD-091); OBS-1 CLOSED FIX-BURST (BC-2.16.002 v1.67→v1.68; BC-INDEX v5.87→v5.88). Feature HEAD after fix-burst: f290a43d. Streak 0/3. NEXT: pr-reviewer + PR-LEVEL pass 2."
-    code_head: "f290a43d"
+    dispatch_status: "PR_CYCLE_IN_FLIGHT — D-1017 2026-06-05. PR #173. PR-LEVEL passes 1/2/3 ALL DONE. Feature code clean at eab62613 (demo-evidence only in f290a43d→eab62613 delta). Pass-2 LOW evidence-count drift CLOSED (evidence-report counts refreshed 7→8 CrowdStrike / 4→5 Armis; 2 DTU demos re-recorded; SEC-004 labeled defense-in-depth). Pass-3 MEDIUM BC-2.16.002 POLICY 32 non-monotonic+duplicate-1.64+missing-1.63 CLOSED (full 70-row sweep; duplicate 1.64 renumbered→1.63; 1.41/1.42 inversion corrected; BC v1.68→v1.69; BC-INDEX v5.88→v5.89). Streak 0/3 (never advanced; all findings were evidence/BC-hygiene not code). NEXT: PR-LEVEL pass 4 (fresh streak attempt on frozen eab62613; need 3 strict-clean)."
+    code_head: "eab62613"
     local_adversary_streak: "3/3"
     local_converged: true
     local_converged_at_passes: "9/10/11"
@@ -301,6 +301,25 @@ active_dispatch_set:
     pr_level_pass1_feature_head_after: "f290a43d"
     pr_level_pass1_fix_burst_closes: "OBS-1 (BC-2.16.002 v1.68 version-agnostic cite) + SEC-002 (doc note) + SEC-004 (length caps + unit tests)"
     pr_level_pass1_report: "cycles/wave-5-e-demo-fidelity/S-DEMO-QUERY-PUSHDOWN-001/adversarial-review/pr-pass-1.md"
+    pr_level_pass2_clean_strict: false
+    pr_level_pass2_clean_pr_merge: true
+    pr_level_pass2_findings: {LOW: 1}
+    pr_level_pass2_streak_after: "0/3"
+    pr_level_pass2_adv_pr_p02_low_001: "ADV-PR-P02-LOW-001 (LOW) — demo evidence test-count drift (SEC-004 fix added 2 tests to CrowdStrike DTU + 1 to Armis DTU; evidence-report counts were 7/4, should be 8/5). CLOSED: demo-recorder refreshed counts + re-recorded 2 DTU demo sections; SEC-004 labeled defense-in-depth (not ACs). Feature HEAD f290a43d→eab62613 (docs/demo-evidence only)."
+    pr_level_pass2_pass1_closures_verified: "ALL 4 LOAD-BEARING — OBS-1 (BC-2.16.002 v1.68 version-agnostic cite confirmed); SEC-002 (doc note present); SEC-004 (64-char cap + 2 unit tests confirmed); SEC-007 (correctly open as hardening candidate)"
+    pr_level_pass2_feature_head_before: "f290a43d"
+    pr_level_pass2_feature_head_after: "eab62613"
+    pr_level_pass2_report: "cycles/wave-5-e-demo-fidelity/S-DEMO-QUERY-PUSHDOWN-001/adversarial-review/pr-pass-2.md"
+    pr_level_pass3_clean_strict: false
+    pr_level_pass3_clean_pr_merge: false
+    pr_level_pass3_findings: {MED: 1}
+    pr_level_pass3_streak_after: "0/3"
+    pr_level_pass3_adv_p173_p03_med_001: "ADV-P173-P03-MED-001 (MEDIUM) — BC-2.16.002 §Changelog POLICY 32 non-monotonic: duplicate version 1.64 (two rows both labeled 1.64); missing 1.63 (sequence jumped 1.62→1.64); 1.41/1.42 inversion. Pre-existing from S-DEMO-002 but hygiene-on-touch since PR #173 prepended v1.66/v1.67/v1.68. CLOSED: product-owner full 70-row POLICY 32 sweep — duplicate 1.64 renumbered→1.63; 1.41/1.42 inversion corrected; strict-descending no-dupes-no-gaps; BC v1.68→v1.69; BC-INDEX v5.88→v5.89."
+    pr_level_pass3_pass2_closure_verified: "LOAD-BEARING — ADV-PR-P02-LOW-001 evidence-count refresh confirmed; CrowdStrike=8, Armis=5; SEC-004 defense-in-depth label present"
+    pr_level_pass3_feature_head: "eab62613"
+    pr_level_pass3_report: "cycles/wave-5-e-demo-fidelity/S-DEMO-QUERY-PUSHDOWN-001/adversarial-review/pr-pass-3.md"
+    pr_level_cascade_streak: "0/3"
+    pr_level_cascade_passes: 3
     depends_on:
       - S-DEMO-001  # HARD gate — SATISFIED (merged PR #166 develop@5dd3df02)
       - S-DEMO-002  # SATISFIED (merged PR #171 develop@fdd12251 2026-06-04)
@@ -482,7 +501,7 @@ deferred_post_demo:
 
 prereq_artifacts:
   story_index: .factory/stories/STORY-INDEX.md         # v2.287 after D-1014 burst (181 stories; S-DEMO-QUERY-PUSHDOWN-001 v2.5 EC-009 + red_gate_tests 16→18)
-  bc_index: .factory/specs/behavioral-contracts/BC-INDEX.md  # v5.87 (BC-2.16.002 v1.67 catalog prose tuple-fix + D-1011; active 234, draft 3; unchanged in D-1014)
+  bc_index: .factory/specs/behavioral-contracts/BC-INDEX.md  # v5.89 (BC-2.16.002 v1.69 POLICY 32 full-column sweep D-1017; active 234, draft 3)
   state: .factory/STATE.md                              # v7.666 after D-1015 burst
   governing_adr: .factory/specs/architecture/decisions/ADR-031-dtu-equals-true-dtu-fidelity-principle.md  # v1.2 (ADR-031 architect e57eb5b1 reclassified 3 divergences)
   governing_audit: .factory/proposals/POLLER-DTU-FIDELITY-AUDIT-2026-05-29.md  # v1.1

@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "5.88"
+version: "5.89"
 status: draft
 producer: product-owner
 timestamp: 2026-06-05T12:00:00Z
@@ -213,7 +213,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.15.010 | Decorator Three-Phase Model — Config-Time, Query-Time, Periodic | 15 - Storage Layer | CAP-026 | P0 | draft |
 | BC-2.15.011 | Internal Table Registration — RocksDB Domains as DataFusion Tables | 15 - Storage Layer | CAP-028 | P0 | draft |
 | BC-2.16.001 | Sensor Spec File Loading — Parse TOML, Validate Schema, Register Tables | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-776 per POL-14; anchor story PLUGIN-MIGRATION-001-D merged PR #153 develop@3f2de889 2026-05-22) — v1.7 |
-| BC-2.16.002 | Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-427 per POL-14; anchor story S-PLUGIN-PREREQ-B merged PR #143 develop@ae7e26c8 2026-05-12) — v1.68 |
+| BC-2.16.002 | Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-427 per POL-14; anchor story S-PLUGIN-PREREQ-B merged PR #143 develop@ae7e26c8 2026-05-12) — v1.69 |
 | BC-2.16.003 | Column-to-OCSF Mapping at Query Time — Map Sensor Columns to OCSF Fields Per Spec | 16 - Spec Engine | CAP-029 | P0 | draft |
 | BC-2.16.004 | ~~Rust Escape Hatch for Custom Adapters — Trait-Based Override When Config Is Insufficient~~ | 16 - Spec Engine | CAP-029 | P0 | removed (lifecycle_status: removed since PREREQ-E impl; status aligned at D-726 per POL-14 PR #151 merge) — v1.5 |
 | BC-2.16.005 | `reload_config` MCP Tool — Re-Read All Config Files, Validate, Atomic Swap, Notify | 16 - Spec Engine | CAP-030 | P1 | draft |
@@ -376,6 +376,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v5.89 (2026-06-05, ADV-P173-P03-MED-001-changelog-integrity-fix):** product-owner | ADV-P173-P03-MED-001 closure (PR #173 PR-LEVEL adversary pass 3): BC-2.16.002 v1.68→v1.69 — POLICY 32 changelog-integrity hygiene. Three defects corrected in the v1.62–v1.65 cluster: (1) non-monotonic ordering (v1.65 row sat below a v1.64 row); (2) duplicate v1.64 label (two rows both labeled 1.64); (3) missing v1.63 (referenced in the DEFINITIVE CORRECTION row narrative but absent from changelog). Fix: the "re-cascade interpolation clarification" row renumbered v1.64→v1.63 (narrative confirms it was the intermediate amendment between v1.62 and the definitive correction); rows reordered to strict descending (v1.65, v1.64, v1.63). No body-text or catalog-content changes; all row content preserved (POLICY 1 append-only). BC-INDEX in-line row 216 updated to v1.69. No BC count changes (active: 234, draft: 3 unchanged). BC-INDEX v5.88→v5.89.
 
 **v5.88 (2026-06-05, OBS-1-stale-story-version-pin-fix):** product-owner | OBS-1 closure (PR #173 PR-LEVEL adversary pass 1): BC-2.16.002 v1.67→v1.68 — removed stale story-version pin `v2.2` from two live cross-reference sites citing `S-DEMO-QUERY-PUSHDOWN-001 v2.2 EC-003`. Story is at v2.5; EC-003 content is accurate. Per TD-VSDD-091, references made version-agnostic: both sites now read `S-DEMO-QUERY-PUSHDOWN-001 EC-003`. Historical changelog row v1.66 left unchanged (POLICY 1 append-only). No catalog-count changes; BC-2.16.002 remains active. No BC count changes (active: 234, draft: 3 unchanged). BC-INDEX in-line row 216 updated to v1.68. BC-INDEX v5.87→v5.88.
 
