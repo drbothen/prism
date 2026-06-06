@@ -22,6 +22,7 @@ use clap::Parser;
 use prism_bin::{
     boot::{self, PrismConfig},
     cli::{CliArgs, LogFormat, PrismCommand},
+    credential_cli::{CredentialCommand, handle_credential_set},
     exit_codes::{EXIT_CONFIG_INVALID, EXIT_INTERNAL_ERROR, EXIT_SUCCESS},
 };
 
@@ -140,6 +141,13 @@ async fn dispatch(args: CliArgs) -> i32 {
             eprintln!("prism query: CLI subcommand not yet wired to QueryEngine; exit 4");
             EXIT_INTERNAL_ERROR
         }
+
+        // S-DEMO-003: `prism credential set` subcommand dispatch.
+        // AC-005: AD-017 compliant keyring write — value read from stdin (not CLI arg).
+        // BCs: BC-2.03.007 (secret redaction), BC-2.03.005 (credential CRUD).
+        PrismCommand::Credential(credential_args) => match credential_args.command {
+            CredentialCommand::Set(set_args) => handle_credential_set(set_args, config_dir).await,
+        },
     }
 }
 
