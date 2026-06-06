@@ -226,6 +226,78 @@ fn test_AC_009_demo_run_overlay_toml_format_parses_as_sensor_instance_overlay() 
     }
 }
 
+/// F-HIGH-301: demo-run.sh printed start command must include all 4 base-url env vars.
+///
+/// At boot step 4a, `env_resolver.rs` resolves `${env.VAR}` tokens in sensor TYPE spec
+/// `base_url` fields. If any of the 4 required vars is absent or empty, E-SPEC-024 fires
+/// and the boot hard-aborts (exit 2) before step 4c overlay loading can replace base_url
+/// with the DTU clone URL.
+///
+/// # What is tested
+///
+/// The `scripts/demo-run.sh` `echo` block prints the `prism start` command. This test
+/// reads that script as a string and asserts the four required env-var assignments appear
+/// in the printed command, with the exact values prescribed by the proven E2E harness
+/// (`crates/prism-bin/tests/helpers/mod.rs`):
+///
+/// - `CROWDSTRIKE_BASE_URL=http://127.0.0.1`   (must satisfy SEC-003 allowlist check)
+/// - `ARMIS_INSTANCE_URL=http://127.0.0.1`     (satisfies step-4a URL token resolution)
+/// - `CLAROTY_INSTANCE_URL=http://127.0.0.1`   (satisfies step-4a URL token resolution)
+/// - `CYBERINT_ENVIRONMENT=demo`               (interpolated into https://demo.cyberint.io)
+///
+/// # Why this is not an ignored integration test (SID-1 compliance)
+///
+/// A live DTU server is NOT required to verify that the script text contains the correct
+/// env-var assignments. The testable seam is the script's printed output (a string-level
+/// check). The full E2E boot path (DTU → overlay → query) is covered by `#[ignore]`'d
+/// tests in `e2e_smoke.rs` (which require a live DTU server).
+///
+/// Story: S-DEMO-003 | AC: F-HIGH-301 (boot env vars) | SID-1 compliance
+#[test]
+fn test_F_HIGH_301_demo_run_sh_printed_start_command_includes_base_url_env_vars() {
+    // Read the demo-run.sh script relative to CARGO_MANIFEST_DIR.
+    // The script lives at <repo_root>/scripts/demo-run.sh.
+    // CARGO_MANIFEST_DIR for prism-bin is <repo_root>/crates/prism-bin.
+    let manifest_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let repo_root = manifest_dir
+        .parent()
+        .expect("crates/prism-bin has a parent")
+        .parent()
+        .expect("crates has a parent (repo root)");
+    let script_path = repo_root.join("scripts").join("demo-run.sh");
+
+    let script_content = std::fs::read_to_string(&script_path).unwrap_or_else(|e| {
+        panic!(
+            "Could not read scripts/demo-run.sh at {}: {e}\n\
+             This test verifies F-HIGH-301: the script must include the 4 base-url env vars.",
+            script_path.display()
+        )
+    });
+
+    // Assert each required env-var assignment appears verbatim in the script.
+    // These are the exact values prescribed by the E2E harness (helpers/mod.rs).
+    let required_env_assignments: &[(&str, &str)] = &[
+        ("CROWDSTRIKE_BASE_URL", "http://127.0.0.1"),
+        ("ARMIS_INSTANCE_URL", "http://127.0.0.1"),
+        ("CLAROTY_INSTANCE_URL", "http://127.0.0.1"),
+        ("CYBERINT_ENVIRONMENT", "demo"),
+    ];
+
+    for (var_name, expected_value) in required_env_assignments {
+        let assignment = format!("{var_name}={expected_value}");
+        assert!(
+            script_content.contains(&assignment),
+            "scripts/demo-run.sh must contain the env-var assignment '{assignment}' in the \
+             printed prism start command.\n\
+             Without this, boot step 4a (env_resolver.rs) fires E-SPEC-024 for the \
+             '{var_name}' token in the sensor TYPE spec base_url, and prism hard-aborts \
+             (exit 2) before step 4c overlay loading.\n\
+             Fix: add '{assignment}' to the 'echo' block that prints the start command \
+             (F-HIGH-301)."
+        );
+    }
+}
+
 /// AC-009 / F-HIGH-201: overlay base_url must use 127.0.0.1 (DTU bind address).
 ///
 /// The DTU demo server always binds to 127.0.0.1 (demo.toml: bind = "127.0.0.1").

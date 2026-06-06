@@ -202,15 +202,43 @@ echo ""
 
 # ---------------------------------------------------------------------------
 # Print prism-bin start command
+#
+# WHY env vars are required here (F-HIGH-301):
+#   The 4 TYPE specs (crowdstrike/armis/claroty/cyberint) use ${env.VAR} tokens
+#   in their base_url fields. env_resolver.rs resolves these at boot STEP 4a —
+#   before step 4c overlay loading. If any var is absent or empty, E-SPEC-024
+#   fires and boot hard-aborts (exit 2) before the per-org overlay can replace
+#   base_url with the actual DTU clone URL.
+#
+#   CROWDSTRIKE_BASE_URL must be "http://127.0.0.1" (not just any URL): the
+#   crowdstrike-oauth2 plugin manifest allowed_urls = ["api.crowdstrike.com",
+#   "127.0.0.1"] — SEC-003 validates the TYPE spec base_url host against this
+#   list at step 7.5b (before the per-org overlay replaces it). The demo-setup.sh
+#   manifest already includes "127.0.0.1".
+#
+#   ARMIS_INSTANCE_URL and CLAROTY_INSTANCE_URL are resolved by env_resolver at
+#   step 4a (E-SPEC-024 guard). The per-org overlay replaces base_url at step 4c,
+#   so the TYPE-level value is never used for actual HTTP requests.
+#
+#   CYBERINT_ENVIRONMENT is interpolated into the base_url template:
+#   "https://${env.CYBERINT_ENVIRONMENT}.cyberint.io" → "https://demo.cyberint.io"
+#   at step 4a. The per-org overlay replaces base_url at step 4c before any request.
+#
+#   Values mirrored from the proven E2E test harness:
+#   crates/prism-bin/tests/helpers/mod.rs (the authoritative env-var source-of-truth).
 # ---------------------------------------------------------------------------
 
 PRISM_BIN="${REPO_ROOT}/target/release/prism"
 
 echo "==> To start prism, run in a new terminal:"
 echo ""
+echo "    CROWDSTRIKE_BASE_URL=http://127.0.0.1 \\"
+echo "    ARMIS_INSTANCE_URL=http://127.0.0.1 \\"
+echo "    CLAROTY_INSTANCE_URL=http://127.0.0.1 \\"
+echo "    CYBERINT_ENVIRONMENT=demo \\"
 echo "    ${PRISM_BIN} --config-dir ${DEMO_CONFIG_DIR} start"
 echo ""
-echo "    Then add prism to Claude Code (see docs/DEMO-RUNBOOK.md §3)."
+echo "    Then add prism to Claude Code (see docs/DEMO-RUNBOOK.md §4)."
 echo ""
 echo "==> DTU server log: ${DEMO_RUN_DIR}/dtu-server.log"
 echo "    To stop everything: bash scripts/demo-teardown.sh"
