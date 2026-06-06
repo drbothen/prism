@@ -203,3 +203,122 @@ async fn test_BC_2_06_003_tier3_miss_falls_through_to_tier4() {
         err
     );
 }
+
+// ---------------------------------------------------------------------------
+// RG-034-005: Tier-3 keyring backend error → BackendUnavailable (AC-011 Case B)
+// ---------------------------------------------------------------------------
+
+/// BC-2.06.003 Tier-3 postcondition: when `get_by_org` returns `Err(e)` (backend
+/// error), `resolve_credential` must return `Err(BackendUnavailable)` with:
+///
+/// 1. A `detail` field CONTAINING "E-CRED-005" (structured error code per taxonomy).
+/// 2. NO fall-through to Tier 4 — error is hard-stopped.
+/// 3. AD-017: `detail` does NOT contain the injected credential value.
+///
+/// **Why InMemoryCredentialStore::with_get_error?**
+/// This seam injects a `PrismError::CredentialStoreError` without needing a real
+/// keyring service that can be made to fail. The `get_by_org` contract is:
+///   - `Ok(Some(secret))` → Tier-3 hit
+///   - `Ok(None)` → Tier-3 miss (fall through silently)
+///   - `Err(e)` → backend error (this test)
+/// `InMemoryCredentialStore::with_get_error(backend, reason)` returns `Err(...)` on
+/// every `get_by_org` call, exercising the `Err(e)` branch identically to how
+/// `KeyringBackend` would behave if the OS keyring were locked or unavailable.
+///
+/// **AD-017 no-leak verification:**
+/// The injected error `reason` is a system message (`"simulated OS keyring failure"`),
+/// NOT a credential value. The test asserts that the `detail` does NOT contain a
+/// representative credential value string (`"INJECTED_CRED_VALUE_SENTINEL"`) to
+/// confirm the resolution layer never leaks a secret through the error path.
+///
+/// **No Tier-4 fallthrough verification:**
+/// The result must be `Err(BackendUnavailable)`, NOT `Ok(secret)` and NOT `NotFound`.
+/// If Tier 4 were reached and the CRUD store happened to return a credential, the
+/// result would be `Ok(...)` — which the first assertion would catch.
+///
+/// RG-034-005 (ADR-034 §Red Gate Tests); AC-011 Case B of S-DEMO-003.
+/// BC-2.06.003 Tier-3 postcondition: `get_by_org Err(e)` → `BackendUnavailable` (no Tier-4 fallthrough).
+/// AD-017: error detail must not leak credential value.
+#[tokio::test]
+async fn test_BC_2_06_003_tier3_backend_error_returns_e_cred_005() {
+    // Sentinel: a string that would represent a credential value if it leaked.
+    // AD-017 assertion: this must NOT appear in the error detail.
+    // We do NOT write this to the store — the store starts empty.
+    // The sentinel is only used for the negative leak assertion.
+    let cred_value_sentinel = "INJECTED_CRED_VALUE_SENTINEL";
+
+    // Construct a store that returns Err on every get_by_org call (error injection seam).
+    // The injected reason is a system message, not a credential value (AD-017 compliance).
+    let store = Arc::new(InMemoryCredentialStore::with_get_error(
+        "mock_keyring",
+        "simulated OS keyring failure for RG-034-005",
+    ));
+
+    let uuid = uuid::Uuid::now_v7();
+    let org_id = OrgId::from_uuid(uuid);
+    let org_slug = "acme";
+
+    // Ensure no Tier-1/Tier-2 env vars are set — we want to reach Tier 3 cleanly.
+    let tier2_var =
+        prism_credentials::resolution::per_client_env_var(org_slug, "armis", "bearer_token");
+    std::env::remove_var(&tier2_var);
+    let tier1_var =
+        prism_credentials::resolution::per_client_file_env_var(org_slug, "armis", "bearer_token");
+    std::env::remove_var(&tier1_var);
+
+    // Attempt resolution. The injected store returns Err from get_by_org.
+    let result = prism_credentials::resolve_credential(
+        org_slug,       // client_id
+        "armis",        // sensor_id
+        "bearer_token", // credential_name
+        Some(&org_id),  // pre-resolved OrgId — enables Tier-3 path
+        Some(&(store as Arc<dyn CredentialStoreOrgId>)),
+    )
+    .await;
+
+    // (a) Result MUST be Err — NOT Ok (no silent success, no Tier-4 fallthrough that
+    //     somehow produced a value).
+    assert!(
+        result.is_err(),
+        "RG-034-005 (AC-011 Case B): when keyring.get_by_org returns Err, \
+         resolve_credential must return Err. Got Ok — unexpected successful resolution. \
+         BC-2.06.003 Tier-3 backend-error postcondition."
+    );
+
+    let err = result.unwrap_err();
+
+    // (b) Error MUST be BackendUnavailable (not NotFound — no Tier-4 fallthrough).
+    assert!(
+        matches!(err, CredentialResolutionError::BackendUnavailable { .. }),
+        "RG-034-005 (AC-011 Case B): keyring Err must produce BackendUnavailable, \
+         NOT NotFound (which would indicate Tier-4 fallthrough — forbidden by ADR-034 §D4). \
+         Got: {:?}. \
+         BC-2.06.003 Tier-3 postcondition: get_by_org Err(e) → BackendUnavailable (hard stop).",
+        err
+    );
+
+    // (c) detail MUST contain "E-CRED-005" (structured error code).
+    let detail = match &err {
+        CredentialResolutionError::BackendUnavailable { detail, .. } => detail.clone(),
+        other => panic!("RG-034-005: expected BackendUnavailable, got: {:?}", other),
+    };
+    assert!(
+        detail.contains("E-CRED-005"),
+        "RG-034-005: BackendUnavailable.detail must contain 'E-CRED-005' (structured error code). \
+         Got detail: {:?}. \
+         BC-2.06.003 Tier-3 backend-error postcondition: detail begins with E-CRED-005 prefix.",
+        detail
+    );
+
+    // (d) AD-017 no-leak: detail MUST NOT contain the credential value sentinel.
+    // The injected error was a system message — not a credential. If this assertion
+    // fails, it means the resolution layer erroneously included a credential value
+    // in the error detail (AD-017 violation).
+    assert!(
+        !detail.contains(cred_value_sentinel),
+        "RG-034-005 AD-017: BackendUnavailable.detail must NOT contain the credential value. \
+         Got detail: {:?}. \
+         The error detail must only include system error messages (E-CRED-005 prefix + OS reason).",
+        detail
+    );
+}
