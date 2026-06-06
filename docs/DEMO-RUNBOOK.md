@@ -43,9 +43,10 @@ What the script does:
 2. **Creates** `~/.config/prism-demo/` with `specs/`, `state/`, `plugins/`, and `run/` subdirectories
 3. **Copies** the four sensor TOML specs (`crowdstrike`, `armis`, `claroty`, `cyberint`) to `~/.config/prism-demo/specs/`
 4. **Copies** `crowdstrike-oauth2.prx` plugin artifact to `~/.config/prism-demo/plugins/`
-5. **Writes** `~/.config/prism-demo/prism.toml` with the demo org (`org_slug = "demo-org"`, UUID v7 `org_id`)
-6. **Stores** dummy credentials in the OS keyring for all four sensors via `prism credential set`
-7. **Prints** next-step instructions
+5. **Writes** `~/.config/prism-demo/plugins/crowdstrike-oauth2.manifest.toml` — a DTU-safe plugin manifest that extends `allowed_urls` with `"127.0.0.1"` so the SEC-003 OAuth2 token-endpoint host check passes against the local DTU clone (the production plugin manifest at `api.crowdstrike.com` is not modified)
+6. **Writes** `~/.config/prism-demo/prism.toml` with the demo org (`org_slug = "demo-org"`, UUID v7 `org_id`)
+7. **Stores** dummy credentials in the OS keyring for all four sensors via `prism credential set`
+8. **Prints** next-step instructions
 
 Override the config directory if needed:
 
@@ -64,10 +65,11 @@ bash scripts/demo-run.sh
 ```
 
 The script:
-1. Starts `prism-dtu-demo-server` in the background on four ephemeral ports
-2. Polls for the URL sidecar file (up to 30 seconds)
-3. Prints the CrowdStrike, Armis, Claroty, and Cyberint DTU URLs
-4. Prints the exact command to start `prism`
+1. Starts `prism-dtu-demo-server` in the background on four ephemeral ports (port = 0 in demo.toml; no port conflicts between runs)
+2. Polls for the URL sidecar file (`~/.config/prism-demo/run/.prism-dtu-demo-server.urls.json`) for up to 30 seconds
+3. **Generates per-org sensor overlays** — reads the urls.json sidecar and writes `~/.config/prism-demo/specs/customers/demo-org/<sensor>.sensor.toml` for each of the four sensors. Each overlay sets `base_url = "http://127.0.0.1:<ephemeral-port>"` so prism routes its fetch requests to the local DTU clone instead of the real sensor API. This step is required for AC-009 ("demo queries return data rows"). prism's spec loader derives the overlay directory as `spec_dir + "/customers"` at boot step 4c.
+4. Prints the CrowdStrike, Armis, Claroty, and Cyberint DTU URLs
+5. Prints the exact command to start `prism`
 
 Start `prism` in a **new terminal** using the command printed by `demo-run.sh`:
 

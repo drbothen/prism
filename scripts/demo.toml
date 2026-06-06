@@ -3,8 +3,9 @@
 # Enables all 4 sensor DTU clones on ephemeral ports (port = 0) so there are
 # no port conflicts between demo runs. The actual ports are written to
 # .prism-dtu-demo-server.urls.json in $DEMO_RUN_DIR after the server starts.
-# demo-setup.sh reads that file and generates per-org overlay TOMLs with the
-# correct base_url values.
+# demo-run.sh reads that file after the DTU server starts and writes per-org
+# overlay TOMLs (specs/customers/demo-org/<sensor>.sensor.toml) with the
+# correct ephemeral base_url for each sensor clone.
 #
 # Usage:
 #   prism-dtu-demo-server start --config scripts/demo.toml

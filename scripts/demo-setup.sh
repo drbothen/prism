@@ -130,6 +130,28 @@ fi
 cp "${PLUGIN_ARTIFACT}" "${DEMO_PLUGINS_DIR}/"
 echo "    crowdstrike-oauth2.prx copied"
 
+# Write a DTU-safe companion manifest that extends the production allowed_urls with
+# "127.0.0.1" so the plugin SEC-003 check passes when the CrowdStrike DTU clone is
+# the OAuth2 token endpoint (demo.toml: bind = "127.0.0.1").
+# The production plugin.toml has allowed_urls = ["api.crowdstrike.com"] and is NOT
+# modified. Only this staging copy in DEMO_PLUGINS_DIR has the extended allowlist.
+# Naming convention: {prx_stem}.manifest.toml (load_all_plugins convention in
+# crates/prism-spec-engine/src/plugin/mod.rs path.with_extension("manifest.toml")).
+cat > "${DEMO_PLUGINS_DIR}/crowdstrike-oauth2.manifest.toml" << 'MANIFESTEOF'
+# DTU-safe companion manifest for crowdstrike-oauth2 demo plugin.
+# Extends production allowed_urls with "127.0.0.1" so SEC-003 passes when the
+# CrowdStrike DTU clone is the token endpoint (demo.toml: bind = "127.0.0.1").
+# The production plugin.toml is NOT modified — only this demo-staging copy differs.
+# Mirrors the E2E test pattern in crates/prism-bin/tests/helpers/mod.rs:stage_crowdstrike_plugin.
+name = "crowdstrike-oauth2"
+version = "0.1.0"
+format_version = 1
+plugin_type = "sensor_auth"
+allowed_urls = ["api.crowdstrike.com", "127.0.0.1"]
+MANIFESTEOF
+
+echo "    crowdstrike-oauth2.manifest.toml written (DTU-safe SEC-003 allowlist)"
+
 # ---------------------------------------------------------------------------
 # Step 6: Write prism.toml
 # ---------------------------------------------------------------------------
