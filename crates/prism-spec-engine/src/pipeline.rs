@@ -1708,7 +1708,17 @@ pub(crate) fn normalize_timestamp_fields(
                         if let Some(obj) = row.as_object_mut() {
                             obj.insert(
                                 col.name.clone(),
-                                serde_json::Value::String(dt.to_rfc3339()),
+                                // Use `Z` suffix (UTC marker) for canonical form.
+                                // chrono `to_rfc3339()` produces `+00:00`; DataFusion's
+                                // string comparison treats `"T10:00:00+00:00" >= "T10:00:00Z"`
+                                // as FALSE because lexicographically `+` (43) < `Z` (90).
+                                // Using `to_rfc3339_opts(Secs, use_z=true)` normalises all
+                                // pipeline-emitted timestamps to `Z` suffix so DataFusion
+                                // WHERE clause literals (which users write with `Z`) compare
+                                // correctly at exact boundaries. (ADV-P08-MED-001 fix)
+                                serde_json::Value::String(
+                                    dt.to_rfc3339_opts(chrono::SecondsFormat::Secs, true),
+                                ),
                             );
                         }
                     }
@@ -1724,7 +1734,9 @@ pub(crate) fn normalize_timestamp_fields(
                         if let Some(obj) = row.as_object_mut() {
                             obj.insert(
                                 col.name.clone(),
-                                serde_json::Value::String(now.to_rfc3339()),
+                                serde_json::Value::String(
+                                    now.to_rfc3339_opts(chrono::SecondsFormat::Secs, true),
+                                ),
                             );
                         }
                     }
@@ -1739,7 +1751,10 @@ pub(crate) fn normalize_timestamp_fields(
                         if let Some(obj) = row.as_object_mut() {
                             obj.insert(
                                 col.name.clone(),
-                                serde_json::Value::String(dt.to_rfc3339()),
+                                // Use `Z` suffix for canonical form (ADV-P08-MED-001).
+                                serde_json::Value::String(
+                                    dt.to_rfc3339_opts(chrono::SecondsFormat::Secs, true),
+                                ),
                             );
                         }
                     }

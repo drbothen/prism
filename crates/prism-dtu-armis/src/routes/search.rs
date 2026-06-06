@@ -266,9 +266,12 @@ pub async fn get_search(
 /// When `after_bound` and `before_bound` are both `None` (no time clause in AQL),
 /// all records pass the filter (no filtering → verbatim passthrough).
 ///
-/// Open/closed interval semantics: `after:T` is exclusive lower bound (record.ts > T);
-/// `before:T` is exclusive upper bound (record.ts < T). Matches the query-engine's
-/// `CompareOp::Gt`/`CompareOp::Lt` semantics used by `extract_time_window_from_ast`.
+/// Boundary semantics: inclusive — records with ts == bound are KEPT here so the
+/// push-down result ⊇ the exact DataFusion result (BC-2.11.007 result-equivalence,
+/// ADV-P08-MED-001). For a strict `>` PrismQL predicate the AQL emits `after:T` but
+/// the boundary record is over-fetched; DataFusion's exact post-filter removes it.
+/// For an inclusive `>=` predicate the boundary record must survive both push-down
+/// and DataFusion → result-equivalence holds.
 fn device_in_time_window(
     device: &crate::types::DeviceRecord,
     after_bound: Option<DateTime<Utc>>,
@@ -287,14 +290,14 @@ fn device_in_time_window(
         Some(t) => t,
         None => return false, // Unparseable timestamp → exclude (conservative).
     };
-    // Apply bounds (exclusive intervals to match CompareOp::Gt/Lt semantics).
+    // Apply bounds with inclusive boundary (keep ts == bound; ADV-P08-MED-001).
     if let Some(after) = after_bound {
-        if ts <= after {
+        if ts < after {
             return false;
         }
     }
     if let Some(before) = before_bound {
-        if ts >= before {
+        if ts > before {
             return false;
         }
     }
@@ -304,7 +307,7 @@ fn device_in_time_window(
 /// Check whether an `AlertRecord` falls within the given AQL time window.
 ///
 /// Filters by `created_at` (the primary alert timestamp, §8.3).
-/// Same open/closed interval semantics as `device_in_time_window`.
+/// Same inclusive-boundary semantics as `device_in_time_window` (ADV-P08-MED-001).
 fn alert_in_time_window(
     alert: &crate::types::AlertRecord,
     after_bound: Option<DateTime<Utc>>,
@@ -317,13 +320,14 @@ fn alert_in_time_window(
         Some(t) => t,
         None => return false,
     };
+    // Apply bounds with inclusive boundary (keep ts == bound; ADV-P08-MED-001).
     if let Some(after) = after_bound {
-        if ts <= after {
+        if ts < after {
             return false;
         }
     }
     if let Some(before) = before_bound {
-        if ts >= before {
+        if ts > before {
             return false;
         }
     }

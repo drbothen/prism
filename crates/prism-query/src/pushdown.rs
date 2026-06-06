@@ -442,7 +442,11 @@ fn extract_time_bounds_from_predicate(
             // RHS must be a Timestamp literal.
             let ts_str = match rhs.as_ref() {
                 Expr::Literal(Literal::Timestamp(ts)) => {
-                    // Use to_rfc3339 which produces e.g. "2026-01-01T00:00:00Z".
+                    // Use to_rfc3339 which produces e.g. "2026-01-01T00:00:00+00:00".
+                    // The `+00:00` form is fine for FQL push-down: the DTU parses it as
+                    // DateTime<Utc> and compares correctly. (Do NOT change this to the
+                    // `Z` form here — only the pipeline.rs timestamp normalization path
+                    // needs `Z` for DataFusion string comparison; ADV-P08-MED-001.)
                     ts.instant.to_rfc3339()
                 }
                 _ => return,

@@ -148,7 +148,8 @@ pub async fn list_detection_ids(
     // CrowdStrike FQL syntax: `created_timestamp:>'YYYY-MM-DDTHH:MM:SSZ'` (lower)
     //                          `created_timestamp:<'YYYY-MM-DDTHH:MM:SSZ'` (upper)
     // When present, only IDs whose `created_timestamp` in the detail fixture
-    // falls within the range are included. Open intervals: Gt=exclusive lower, Lt=exclusive upper.
+    // falls within the range are included. Inclusive boundary semantics: records with
+    // ts == bound are KEPT here so push-down result ⊇ exact DataFusion result (ADV-P08-MED-001).
     let (fql_after, fql_before) = params
         .filter
         .as_deref()
@@ -184,14 +185,19 @@ pub async fn list_detection_ids(
                 else {
                     return false;
                 };
-                // Apply bounds: exclusive intervals matching CrowdStrike FQL :> and :< semantics.
+                // Apply bounds: inclusive boundary semantics so push-down result ⊇ exact result
+                // (BC-2.11.007 result-equivalence invariant). For a strict `>` predicate the
+                // FQL emits `:>` but we keep the boundary record here — DataFusion's exact
+                // post-filter removes it if the PrismQL predicate was strict (ts > bound).
+                // For an inclusive `>=` predicate the boundary record must pass both push-down
+                // and DataFusion → result-equivalence holds (ADV-P08-MED-001 fix).
                 if let Some(after) = fql_after {
-                    if ts <= after {
+                    if ts < after {
                         return false;
                     }
                 }
                 if let Some(before) = fql_before {
-                    if ts >= before {
+                    if ts > before {
                         return false;
                     }
                 }

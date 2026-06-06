@@ -249,8 +249,10 @@ async fn test_ac_cws_002_wire_level_fql_both_bounds_via_pipeline_executor() {
     //
     // FQL: both start and end — `created_timestamp:>'2026-01-10T00:00:00Z'+created_timestamp:<'2026-01-20T00:00:00Z'`
     // Fixture timestamps range: 2026-01-01 to 2026-01-26. With this range:
-    // - Records in 2026-01-10 to 2026-01-20 → included (10 records: det-009..det-019 excl. boundary)
-    // - Records outside → excluded
+    // - Records with 10:00 timestamps in [2026-01-10, 2026-01-20] → included (20 records).
+    // - No fixture record is at exactly the midnight boundary (00:00:00), so inclusive vs
+    //   exclusive boundary semantics do NOT change this count (ADV-P08-MED-001 note).
+    // - Records outside → excluded.
     // This guarantees filtered_count < unfiltered_count (LOAD-BEARING).
     let start_time = "2026-01-10T00:00:00Z";
     let end_time = "2026-01-20T00:00:00Z";

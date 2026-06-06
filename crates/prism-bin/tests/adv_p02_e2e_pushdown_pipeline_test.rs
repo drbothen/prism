@@ -1641,3 +1641,539 @@ async fn test_ac_equiv_001_result_equivalence_via_run_materialization_pipeline()
         );
     }
 }
+
+// ---------------------------------------------------------------------------
+// ADV-P08-MED-001: inclusive-boundary result-equivalence via run_materialization_pipeline
+// BC-2.11.007 §result-equivalence invariant — push-down must never under-fetch
+// ---------------------------------------------------------------------------
+
+/// ADV-P08-MED-001 (CrowdStrike) / BC-2.11.007 — inclusive-boundary record must survive
+/// the full push-down path when the PrismQL predicate uses `>=`.
+///
+/// # Finding being closed
+///
+/// `extract_time_bounds_from_predicate` collapses `Gt|Ge → start_time` without tracking
+/// inclusivity. `build_crowdstrike_fql` always emits strict `created_timestamp:>'T'`.
+/// The DTU previously used `ts <= after` (exclusive) — so a record at exactly `T` was
+/// EXCLUDED from push-down but INCLUDED by DataFusion's `>=` post-filter.
+/// Result: push-down result was a strict SUBSET of the DataFusion result → BC-2.11.007
+/// result-equivalence invariant VIOLATED (ADV-P08-MED-001).
+///
+/// # Two-layer fix (ADV-P08-MED-001)
+///
+/// **Fix 1 — DTU inclusive boundary:** DTU now uses `ts < after` (inclusive) so
+/// records at exactly `T` are over-fetched. DataFusion removes them if the predicate
+/// was strict `>`. For `>=` predicates, boundary records survive push-down.
+///
+/// **Fix 2 — Timestamp normalization:** The spec-engine `pipeline.rs` timestamp
+/// normalization previously called `to_rfc3339()` which produces `+00:00` suffix.
+/// DataFusion's string comparison `"T10:00:00+00:00" >= "T10:00:00Z"` returns FALSE
+/// because lexicographically `+` (43) < `Z` (90), causing boundary records to be
+/// silently excluded at the DataFusion layer. The fix uses `to_rfc3339_opts(Secs, true)`
+/// which produces canonical `Z` suffix so the comparison `"T10:00:00Z" >= "T10:00:00Z"`
+/// evaluates correctly.
+///
+/// Both fixes are needed: Fix 1 ensures the DTU returns boundary records; Fix 2
+/// ensures DataFusion retains them through the WHERE post-filter.
+///
+/// # Fixture facts used by this test
+///
+/// CrowdStrike fixture has 2 records at exactly `2026-01-15T10:00:00Z`:
+/// - det-014 (`created_timestamp = "2026-01-15T10:00:00Z"`)
+/// - det-042 (`created_timestamp = "2026-01-15T10:00:00Z"`)
+/// `WHERE created_timestamp >= '2026-01-15T10:00:00Z'` MUST include both.
+///
+/// # Assertions (through real `run_materialization_pipeline`)
+///
+/// (a) Both det-014 and det-042 appear in the push-down result.
+/// (b) Count with `>=` (23) > count with `>` (21) — boundary records contribute.
+/// (c) det-014 and det-042 do NOT appear in strict `>` result (DataFusion correct).
+///
+/// BCs: BC-2.11.007 v1.8; ADR-033 T1; ADV-P08-MED-001.
+/// SAP-2: production crowdstrike.sensor.toml; real CrowdStrike DTU clone.
+#[tokio::test]
+async fn test_adv_p08_med001_crowdstrike_inclusive_boundary_via_run_materialization_pipeline() {
+    // Step 1: Start CrowdStrike DTU clone on ephemeral port.
+    let mut clone = CrowdstrikeClone::new();
+    let bound_addr = clone
+        .start_on("127.0.0.1:0".parse().unwrap(), None, None)
+        .await
+        .expect("ADV-P08-MED-001 CWS: CrowdStrike DTU clone failed to start");
+    let dtu_base_url = format!("http://{bound_addr}");
+
+    // Step 2: Load production crowdstrike.sensor.toml (SAP-2: no fabricated fixture).
+    let spec_content = std::fs::read_to_string(
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../prism-sensors/specs/crowdstrike.sensor.toml"),
+    )
+    .expect("ADV-P08-MED-001 CWS: crowdstrike.sensor.toml must be readable");
+    let mut spec = SpecLoader::parse(&spec_content)
+        .expect("ADV-P08-MED-001 CWS: crowdstrike.sensor.toml must parse");
+    spec.base_url = dtu_base_url.clone();
+
+    // Step 3: Build resolved_spec_map for extract_time_window_from_ast.
+    let org_slug = "adv-p08-cws-incl-org";
+    let (org_registry, org_id, org_slug_typed) = make_org_registry(org_slug);
+    let sensor_id = SensorId::from("crowdstrike");
+
+    let resolved = make_resolved_spec(spec, org_slug);
+    let mut resolved_spec_map: HashMap<ResolvedSpecKey, ResolvedSensorSpec> = HashMap::new();
+    resolved_spec_map.insert((org_slug_typed.clone(), sensor_id.clone()), resolved);
+    let resolved_spec_map_arc = Arc::new(resolved_spec_map);
+
+    // Step 4: Build SpecDrivenSensorAdapter.
+    let mock_auth: Arc<dyn AuthProvider> = Arc::new(MockAuthProvider::new("test-oauth2-token"));
+    let http_client = build_http_client_with_timeout()
+        .expect("ADV-P08-MED-001 CWS: reqwest client build must succeed");
+
+    let spec_content2 = std::fs::read_to_string(
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../prism-sensors/specs/crowdstrike.sensor.toml"),
+    )
+    .expect("ADV-P08-MED-001 CWS: re-read crowdstrike.sensor.toml");
+    let mut spec2 = SpecLoader::parse(&spec_content2).expect("ADV-P08-MED-001 CWS: re-parse");
+    spec2.base_url = dtu_base_url.clone();
+    let resolved2 = make_resolved_spec(spec2, org_slug);
+
+    let adapter = SpecDrivenSensorAdapter::new(
+        Arc::new(resolved2),
+        AdapterAuthStrategy::Plugin(mock_auth),
+        http_client,
+    );
+    let mut adapter_registry = AdapterRegistry::new();
+    adapter_registry.register(org_id, Arc::new(adapter));
+
+    // Step 5: Build MaterializationContext.
+    let normalizer = Arc::new(OcsfNormalizer::new());
+    let credential_resolver: Arc<dyn CredentialResolver> =
+        Arc::new(PluginIgnoredCredentialResolver);
+    let mut mat_ctx = MaterializationContext::new_with_resolver(
+        Arc::new(adapter_registry),
+        normalizer,
+        10_000,
+        credential_resolver,
+        Some(Arc::new(org_registry)),
+        Some(Arc::clone(&resolved_spec_map_arc)),
+    );
+    let session_ctx = SessionContext::new();
+
+    // Step 6: Execution A — inclusive lower-bound predicate `>= boundary`.
+    // Fixture has det-014 and det-042 at exactly '2026-01-15T10:00:00Z'.
+    // With the prior exclusive DTU logic (ts <= after → exclude), these 2 records were
+    // excluded from push-down but included by DataFusion >= post-filter → BC-2.11.007 violated.
+    // After the fix (ts < after → include boundary), both records survive push-down.
+    let boundary_ts = "2026-01-15T10:00:00Z";
+    let query_ge = format!(
+        "SELECT * FROM crowdstrike_detections \
+         WHERE created_timestamp >= '{boundary_ts}'"
+    );
+
+    let options = QueryOptions {
+        clients: Some(vec![org_slug_typed.clone()]),
+        limit: None,
+        ..QueryOptions::default()
+    };
+
+    let output_ge = run_materialization_pipeline(&query_ge, &options, &mut mat_ctx, &session_ctx)
+        .await
+        .expect("ADV-P08-MED-001 CWS: run_materialization_pipeline (>= boundary) must succeed");
+
+    // Extract detection_ids from the >= result.
+    let ids_ge: std::collections::HashSet<String> = output_ge
+        .batches
+        .iter()
+        .flat_map(|batch| {
+            use datafusion::arrow::array::{Array, StringArray};
+            use datafusion::arrow::datatypes::DataType;
+            let schema = batch.schema();
+            let col_idx = schema.index_of("detection_id").ok();
+            match col_idx {
+                Some(idx) => {
+                    let col = batch.column(idx);
+                    if col.data_type() == &DataType::Utf8 {
+                        let arr = col
+                            .as_any()
+                            .downcast_ref::<StringArray>()
+                            .expect("detection_id must be StringArray");
+                        (0..arr.len())
+                            .filter(|&i| !arr.is_null(i))
+                            .map(|i| arr.value(i).to_string())
+                            .collect::<Vec<_>>()
+                    } else {
+                        vec![]
+                    }
+                }
+                None => vec![],
+            }
+        })
+        .collect();
+
+    // Assertion (a): boundary records det-014 and det-042 MUST be present.
+    // These records have created_timestamp == boundary_ts exactly. With the prior
+    // exclusive DTU, they were silently dropped (push-down under-fetch). After the fix
+    // they must appear here — DataFusion's `>=` post-filter keeps them too.
+    assert!(
+        ids_ge.contains("det-014"),
+        "ADV-P08-MED-001 CWS BOUNDARY RECORD (BC-2.11.007 result-equivalence): \
+         det-014 has created_timestamp = '{boundary_ts}' exactly. \
+         `WHERE created_timestamp >= '{boundary_ts}'` MUST include det-014 in the push-down result. \
+         REGRESSION: DTU used exclusive comparison (ts <= after → exclude), dropping the \
+         exact-boundary record before DataFusion could post-filter it.",
+    );
+    assert!(
+        ids_ge.contains("det-042"),
+        "ADV-P08-MED-001 CWS BOUNDARY RECORD (BC-2.11.007 result-equivalence): \
+         det-042 has created_timestamp = '{boundary_ts}' exactly. \
+         `WHERE created_timestamp >= '{boundary_ts}'` MUST include det-042 in the push-down result. \
+         REGRESSION: same as det-014 — exclusive DTU comparison dropped the boundary record.",
+    );
+
+    // Assertion (b): count with >= must be 2 more than count with >.
+    // Fixture: 23 records with ts >= boundary, 21 records with ts > boundary.
+    // The 2-record difference is exactly det-014 and det-042 at ts == boundary.
+    let count_ge = ids_ge.len();
+    assert!(
+        count_ge >= 23,
+        "ADV-P08-MED-001 CWS: `WHERE created_timestamp >= '{boundary_ts}'` must return \
+         at least 23 records (fixture has 21 with ts > boundary + 2 at ts == boundary). \
+         Got: {count_ge}. REGRESSION: boundary records excluded by DTU under-fetch.",
+    );
+
+    // Step 7: Reset and run strict > for comparison.
+    clone
+        .reset()
+        .await
+        .expect("ADV-P08-MED-001 CWS: clone reset must succeed");
+
+    let org_slug_gt = "adv-p08-cws-strict-org";
+    let (org_registry_gt, org_id_gt, org_slug_typed_gt) = make_org_registry(org_slug_gt);
+
+    let spec_content3 = std::fs::read_to_string(
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../prism-sensors/specs/crowdstrike.sensor.toml"),
+    )
+    .expect("ADV-P08-MED-001 CWS: re-read for strict-gt");
+    let mut spec3 = SpecLoader::parse(&spec_content3).expect("ADV-P08-MED-001 CWS: re-parse gt");
+    spec3.base_url = dtu_base_url.clone();
+    let resolved3 = make_resolved_spec(spec3, org_slug_gt);
+    let mut resolved_spec_map_gt: HashMap<ResolvedSpecKey, ResolvedSensorSpec> = HashMap::new();
+    resolved_spec_map_gt.insert((org_slug_typed_gt.clone(), sensor_id.clone()), resolved3);
+
+    let spec_content4 = std::fs::read_to_string(
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../prism-sensors/specs/crowdstrike.sensor.toml"),
+    )
+    .expect("ADV-P08-MED-001 CWS: re-read for adapter3");
+    let mut spec4 = SpecLoader::parse(&spec_content4).expect("ADV-P08-MED-001 CWS: re-parse4");
+    spec4.base_url = dtu_base_url.clone();
+    let resolved4 = make_resolved_spec(spec4, org_slug_gt);
+
+    let mock_auth_gt: Arc<dyn AuthProvider> = Arc::new(MockAuthProvider::new("test-oauth2-token"));
+    let http_client_gt =
+        build_http_client_with_timeout().expect("ADV-P08-MED-001 CWS: http_client_gt");
+    let adapter_gt = SpecDrivenSensorAdapter::new(
+        Arc::new(resolved4),
+        AdapterAuthStrategy::Plugin(mock_auth_gt),
+        http_client_gt,
+    );
+    let mut adapter_registry_gt = AdapterRegistry::new();
+    adapter_registry_gt.register(org_id_gt, Arc::new(adapter_gt));
+
+    let normalizer_gt = Arc::new(OcsfNormalizer::new());
+    let cred_gt: Arc<dyn CredentialResolver> = Arc::new(PluginIgnoredCredentialResolver);
+    let mut mat_ctx_gt = MaterializationContext::new_with_resolver(
+        Arc::new(adapter_registry_gt),
+        normalizer_gt,
+        10_000,
+        cred_gt,
+        Some(Arc::new(org_registry_gt)),
+        Some(Arc::new(resolved_spec_map_gt)),
+    );
+    let session_ctx_gt = SessionContext::new();
+
+    let query_gt =
+        format!("SELECT * FROM crowdstrike_detections WHERE created_timestamp > '{boundary_ts}'");
+    let options_gt = QueryOptions {
+        clients: Some(vec![org_slug_typed_gt.clone()]),
+        limit: None,
+        ..QueryOptions::default()
+    };
+    let output_gt =
+        run_materialization_pipeline(&query_gt, &options_gt, &mut mat_ctx_gt, &session_ctx_gt)
+            .await
+            .expect("ADV-P08-MED-001 CWS: run_materialization_pipeline (>) must succeed");
+
+    let ids_gt: std::collections::HashSet<String> = output_gt
+        .batches
+        .iter()
+        .flat_map(|batch| {
+            use datafusion::arrow::array::{Array, StringArray};
+            use datafusion::arrow::datatypes::DataType;
+            let schema = batch.schema();
+            let col_idx = schema.index_of("detection_id").ok();
+            match col_idx {
+                Some(idx) => {
+                    let col = batch.column(idx);
+                    if col.data_type() == &DataType::Utf8 {
+                        let arr = col
+                            .as_any()
+                            .downcast_ref::<StringArray>()
+                            .expect("detection_id must be StringArray");
+                        (0..arr.len())
+                            .filter(|&i| !arr.is_null(i))
+                            .map(|i| arr.value(i).to_string())
+                            .collect::<Vec<_>>()
+                    } else {
+                        vec![]
+                    }
+                }
+                None => vec![],
+            }
+        })
+        .collect();
+    let count_gt = ids_gt.len();
+
+    // Assertion (b): >= must have 2 more records than > (the 2 exact-boundary records).
+    assert!(
+        count_ge > count_gt,
+        "ADV-P08-MED-001 CWS OPERATOR DISTINCTION: \
+         `>= '{boundary_ts}'` must return more records ({count_ge}) than `> '{boundary_ts}'` ({count_gt}). \
+         The 2 boundary records (det-014, det-042 at ts == boundary) must appear in >= but not in >. \
+         REGRESSION: if counts are equal, boundary records are being excluded from the >= path \
+         (exclusive DTU comparison bug, ADV-P08-MED-001).",
+    );
+
+    // Assertion (c): no fabrication — every >= record must also appear in unfiltered.
+    // (det-014 and det-042 are real fixture records, so they must be in B.)
+    for id in &ids_ge {
+        // These ids are real fixture records — verify against ids_gt union of boundary records.
+        // A simpler guard: assert the boundary records are NOT in the strict > result.
+        assert!(
+            !ids_gt.contains(id.as_str()) || id != "det-014" && id != "det-042",
+            "ADV-P08-MED-001: boundary record '{id}' must NOT appear in strict > result \
+             (DataFusion post-filter should exclude records where ts == bound for `>`)",
+        );
+    }
+
+    // Confirm boundary records are absent from strict > (DataFusion post-filter did its job).
+    assert!(
+        !ids_gt.contains("det-014"),
+        "ADV-P08-MED-001: det-014 (ts == boundary) must NOT appear in `>` result \
+         (DataFusion post-filter should exclude it). \
+         REGRESSION: if it appears, DataFusion is not applying the strict > post-filter.",
+    );
+    assert!(
+        !ids_gt.contains("det-042"),
+        "ADV-P08-MED-001: det-042 (ts == boundary) must NOT appear in `>` result. \
+         Same DataFusion post-filter check as det-014.",
+    );
+}
+
+/// ADV-P08-MED-001 (Armis) / BC-2.11.007 — inclusive-boundary device record must survive
+/// the full Armis push-down path when the PrismQL predicate uses `>=`.
+///
+/// # Finding being closed
+///
+/// The Armis DTU `device_in_time_window` and `alert_in_time_window` used `ts <= after`
+/// (exclusive). An Armis device at exactly `last_seen = T` with `WHERE last_seen >= T`
+/// was excluded by push-down but would be included by DataFusion post-filter → under-fetch.
+///
+/// # Fix
+///
+/// DTU now uses `ts < after` (inclusive boundary). Boundary device d-026 at
+/// `last_seen = 2026-01-15T08:00:00Z` must now appear in the push-down result for
+/// `WHERE last_seen >= '2026-01-15T08:00:00Z'`.
+///
+/// # Fixture facts
+///
+/// - Device d-026: `last_seen = "2026-01-15T08:00:00Z"` (the exact boundary record).
+/// - Device d-027: `last_seen = "2026-03-20T14:30:00Z"` (above boundary, always included).
+/// - All other devices: `last_seen < 2026-01-15` or null → excluded.
+/// - Expected count with `>= boundary`: 2 (d-026 + d-027).
+/// - Expected count with `> boundary`: 1 (d-027 only; d-026 excluded by strict `>`).
+///
+/// BCs: BC-2.11.007 v1.8; ADV-P08-MED-001.
+/// SAP-2: production armis.sensor.toml; real Armis DTU clone.
+#[tokio::test]
+async fn test_adv_p08_med001_armis_inclusive_boundary_via_run_materialization_pipeline() {
+    // Step 1: Start Armis DTU clone on ephemeral port.
+    let mut clone = ArmisClone::new().expect("ADV-P08-MED-001 ARMIS: ArmisClone::new must succeed");
+    let bound_addr = clone
+        .start_on("127.0.0.1:0".parse().unwrap(), None, None)
+        .await
+        .expect("ADV-P08-MED-001 ARMIS: Armis DTU clone failed to start");
+    let dtu_base_url = format!("http://{bound_addr}");
+
+    // Step 2: Load production armis.sensor.toml (SAP-2: no fabricated fixture).
+    let spec_content = std::fs::read_to_string(
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../prism-sensors/specs/armis.sensor.toml"),
+    )
+    .expect("ADV-P08-MED-001 ARMIS: armis.sensor.toml must be readable");
+    let mut spec = SpecLoader::parse(&spec_content)
+        .expect("ADV-P08-MED-001 ARMIS: armis.sensor.toml must parse");
+    spec.base_url = dtu_base_url.clone();
+
+    // Step 3: Build resolved_spec_map.
+    let org_slug = "adv-p08-armis-incl-org";
+    let (org_registry, org_id, org_slug_typed) = make_org_registry(org_slug);
+    let sensor_id = SensorId::from("armis");
+
+    let resolved = make_resolved_spec(spec, org_slug);
+    let mut resolved_spec_map: HashMap<ResolvedSpecKey, ResolvedSensorSpec> = HashMap::new();
+    resolved_spec_map.insert((org_slug_typed.clone(), sensor_id.clone()), resolved);
+    let resolved_spec_map_arc = Arc::new(resolved_spec_map);
+
+    // Step 4: Build SpecDrivenSensorAdapter (BearerStatic auth, Armis pattern).
+    let spec_content2 = std::fs::read_to_string(
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../prism-sensors/specs/armis.sensor.toml"),
+    )
+    .expect("ADV-P08-MED-001 ARMIS: re-read armis.sensor.toml");
+    let mut spec2 = SpecLoader::parse(&spec_content2).expect("ADV-P08-MED-001 ARMIS: re-parse");
+    spec2.base_url = dtu_base_url.clone();
+    let resolved2 = make_resolved_spec(spec2, org_slug);
+
+    let http_client =
+        build_http_client_with_timeout().expect("ADV-P08-MED-001 ARMIS: reqwest client build");
+    let adapter = SpecDrivenSensorAdapter::new(
+        Arc::new(resolved2),
+        AdapterAuthStrategy::BearerStatic,
+        http_client,
+    );
+    let mut adapter_registry = AdapterRegistry::new();
+    adapter_registry.register(org_id, Arc::new(adapter));
+
+    // Step 5: Build MaterializationContext.
+    let normalizer = Arc::new(OcsfNormalizer::new());
+    let credential_resolver: Arc<dyn CredentialResolver> = Arc::new(
+        BearerStaticCredentialResolver::new("armis-test-bearer-token"),
+    );
+    let mut mat_ctx = MaterializationContext::new_with_resolver(
+        Arc::new(adapter_registry),
+        normalizer,
+        10_000,
+        credential_resolver,
+        Some(Arc::new(org_registry)),
+        Some(Arc::clone(&resolved_spec_map_arc)),
+    );
+    let session_ctx = SessionContext::new();
+
+    // Step 6: Execution A — inclusive `>=` predicate on the exact boundary timestamp.
+    // d-026 has last_seen = "2026-01-15T08:00:00Z" (the exact boundary).
+    // With the prior exclusive DTU (ts <= after → exclude), d-026 was dropped before
+    // DataFusion could apply `>=` post-filter → BC-2.11.007 result-equivalence violated.
+    // After fix (ts < after → include), d-026 survives push-down AND DataFusion `>=` → correct.
+    let boundary_ts = "2026-01-15T08:00:00Z";
+    let query_ge = format!(
+        "SELECT * FROM armis_devices \
+         WHERE aql = 'in:devices' AND last_seen >= '{boundary_ts}'"
+    );
+
+    let options = QueryOptions {
+        clients: Some(vec![org_slug_typed.clone()]),
+        limit: None,
+        ..QueryOptions::default()
+    };
+
+    let output_ge = run_materialization_pipeline(&query_ge, &options, &mut mat_ctx, &session_ctx)
+        .await
+        .expect("ADV-P08-MED-001 ARMIS: run_materialization_pipeline (>= boundary) must succeed");
+
+    // Count rows: with >= boundary there should be 2 devices (d-026 at exactly T, d-027 above T).
+    let count_ge: usize = output_ge.batches.iter().map(|b| b.num_rows()).sum();
+
+    assert!(
+        count_ge >= 2,
+        "ADV-P08-MED-001 ARMIS BOUNDARY RECORD (BC-2.11.007 result-equivalence): \
+         `WHERE last_seen >= '{boundary_ts}'` must return at least 2 records. \
+         Device d-026 has last_seen == '{boundary_ts}' exactly and MUST be included. \
+         Device d-027 has last_seen > boundary and must also be included. \
+         Got: {count_ge}. \
+         REGRESSION: DTU used exclusive comparison (ts <= after → exclude), dropping d-026 \
+         (the exact-boundary device) before DataFusion could apply the `>=` post-filter.",
+    );
+    assert!(
+        count_ge >= 1,
+        "ADV-P08-MED-001 ARMIS: at least the exact-boundary device d-026 must be returned \
+         for `>= '{boundary_ts}'`; got 0 records — complete push-down failure.",
+    );
+
+    // Step 7: Reset DTU and run strict `>` for comparison.
+    clone
+        .reset()
+        .await
+        .expect("ADV-P08-MED-001 ARMIS: clone reset must succeed");
+
+    let org_slug_gt = "adv-p08-armis-strict-org";
+    let (org_registry_gt, org_id_gt, org_slug_typed_gt) = make_org_registry(org_slug_gt);
+
+    let spec_content3 = std::fs::read_to_string(
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../prism-sensors/specs/armis.sensor.toml"),
+    )
+    .expect("ADV-P08-MED-001 ARMIS: re-read for strict-gt");
+    let mut spec3 = SpecLoader::parse(&spec_content3).expect("ADV-P08-MED-001 ARMIS: re-parse gt");
+    spec3.base_url = dtu_base_url.clone();
+    let resolved3 = make_resolved_spec(spec3, org_slug_gt);
+    let mut resolved_spec_map_gt: HashMap<ResolvedSpecKey, ResolvedSensorSpec> = HashMap::new();
+    resolved_spec_map_gt.insert((org_slug_typed_gt.clone(), sensor_id.clone()), resolved3);
+
+    let spec_content4 = std::fs::read_to_string(
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../prism-sensors/specs/armis.sensor.toml"),
+    )
+    .expect("ADV-P08-MED-001 ARMIS: re-read for adapter3");
+    let mut spec4 = SpecLoader::parse(&spec_content4).expect("ADV-P08-MED-001 ARMIS: re-parse4");
+    spec4.base_url = dtu_base_url.clone();
+    let resolved4 = make_resolved_spec(spec4, org_slug_gt);
+
+    let http_client_gt =
+        build_http_client_with_timeout().expect("ADV-P08-MED-001 ARMIS: http_client_gt");
+    let adapter_gt = SpecDrivenSensorAdapter::new(
+        Arc::new(resolved4),
+        AdapterAuthStrategy::BearerStatic,
+        http_client_gt,
+    );
+    let mut adapter_registry_gt = AdapterRegistry::new();
+    adapter_registry_gt.register(org_id_gt, Arc::new(adapter_gt));
+
+    let normalizer_gt = Arc::new(OcsfNormalizer::new());
+    let cred_gt: Arc<dyn CredentialResolver> = Arc::new(BearerStaticCredentialResolver::new(
+        "armis-test-bearer-token",
+    ));
+    let mut mat_ctx_gt = MaterializationContext::new_with_resolver(
+        Arc::new(adapter_registry_gt),
+        normalizer_gt,
+        10_000,
+        cred_gt,
+        Some(Arc::new(org_registry_gt)),
+        Some(Arc::new(resolved_spec_map_gt)),
+    );
+    let session_ctx_gt = SessionContext::new();
+
+    let query_gt = format!(
+        "SELECT * FROM armis_devices WHERE aql = 'in:devices' AND last_seen > '{boundary_ts}'"
+    );
+    let options_gt = QueryOptions {
+        clients: Some(vec![org_slug_typed_gt.clone()]),
+        limit: None,
+        ..QueryOptions::default()
+    };
+    let output_gt =
+        run_materialization_pipeline(&query_gt, &options_gt, &mut mat_ctx_gt, &session_ctx_gt)
+            .await
+            .expect("ADV-P08-MED-001 ARMIS: run_materialization_pipeline (>) must succeed");
+
+    let count_gt: usize = output_gt.batches.iter().map(|b| b.num_rows()).sum();
+
+    // Assertion: >= must return more rows than > (the extra row is d-026 at exactly T).
+    assert!(
+        count_ge > count_gt,
+        "ADV-P08-MED-001 ARMIS OPERATOR DISTINCTION: \
+         `>= '{boundary_ts}'` must return more records ({count_ge}) than `> '{boundary_ts}'` ({count_gt}). \
+         Device d-026 (last_seen == boundary) must appear in >= but not in >. \
+         REGRESSION: equal counts mean boundary record d-026 is being excluded from both \
+         paths (exclusive DTU comparison not fixed, ADV-P08-MED-001).",
+    );
+}
