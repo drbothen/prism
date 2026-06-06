@@ -163,12 +163,41 @@ pub trait CredentialResolver: Send + Sync {
 
 /// Production [`CredentialResolver`] that delegates to `prism_credentials::resolve_credential`.
 ///
-/// This is the default resolver used by `StaticCookieAuthProvider::new(sensor_id)`.
-/// At `acquire_token()` time it reads the API key from the env-var / CRUD chain per
-/// `BC-2.03.006`.
+/// Holds the `OrgRegistry` (for slug→OrgId resolution) and the `CredentialStoreOrgId`-capable
+/// keyring backend (for Tier-3 resolution). Constructed via `new(org_registry, keyring)`.
 ///
-/// AD-017: no credential value is stored in this struct — it only holds a unit type.
-pub struct PrismCredentialResolver;
+/// At `acquire_token()` time it:
+///   1. Resolves the org slug → `OrgId` via `OrgRegistry::resolve` (in `prism-spec-engine`,
+///      which CAN import `OrgRegistry`; `prism-credentials` MUST NOT — ADR-034 §D1 compliance).
+///   2. Calls `prism_credentials::resolve_credential` with the pre-resolved `OrgId` and `keyring`.
+///
+/// AD-017: no credential value is stored in this struct.
+///
+/// ADR-034 §D1: this is the canonical production implementation. Unit struct form removed.
+pub struct PrismCredentialResolver {
+    /// OrgRegistry for slug → OrgId resolution before calling `resolve_credential`.
+    ///
+    /// `prism-credentials` MUST NOT import `OrgRegistry` (architecture compliance rule
+    /// in `trait_.rs:84–85`). Resolution happens here, in `prism-spec-engine`.
+    org_registry: Arc<prism_core::OrgRegistry>,
+    /// OrgId-keyed keyring backend for Tier-3 resolution (ADR-034 §D2).
+    keyring: Arc<dyn prism_credentials::CredentialStoreOrgId>,
+}
+
+impl PrismCredentialResolver {
+    /// Construct a `PrismCredentialResolver` with OrgRegistry and keyring DI.
+    ///
+    /// ADR-034 §D1: the only production constructor. Unit struct form removed.
+    pub fn new(
+        org_registry: Arc<prism_core::OrgRegistry>,
+        keyring: Arc<dyn prism_credentials::CredentialStoreOrgId>,
+    ) -> Self {
+        Self {
+            org_registry,
+            keyring,
+        }
+    }
+}
 
 impl CredentialResolver for PrismCredentialResolver {
     fn resolve<'a>(
@@ -186,11 +215,27 @@ impl CredentialResolver for PrismCredentialResolver {
         let client_id = client_id.to_string();
         let sensor_id = sensor_id.to_string();
         let credential_name = credential_name.to_string();
+        let org_registry = Arc::clone(&self.org_registry);
+        let keyring = Arc::clone(&self.keyring);
         Box::pin(async move {
+            // ADR-034 §D1: slug → OrgId resolution happens here (in prism-spec-engine,
+            // not in prism-credentials). The resolved OrgId is passed to resolve_credential.
+            // OrgSlug::new infallibly constructs from any &str (validated by OrgRegistry at
+            // registration time; resolve() returns None if slug is not registered).
+            let org_slug = prism_core::OrgSlug::new(&client_id);
+            let org_id = org_registry.resolve(&org_slug);
+
             // Propagate typed CredentialResolutionError directly — no string erasure.
             // NotFound → caller maps to E-AUTH-005; BackendUnavailable → E-AUTH-007
             // (BC-2.01.017 v1.3 EC-017-010 / E-AUTH-007 in error-taxonomy.md).
-            prism_credentials::resolve_credential(&client_id, &sensor_id, &credential_name).await
+            prism_credentials::resolve_credential(
+                &client_id,
+                &sensor_id,
+                &credential_name,
+                org_id.as_ref(),
+                Some(&keyring),
+            )
+            .await
         })
     }
 }
@@ -371,7 +416,8 @@ pub struct StaticCookieAuthProvider {
 impl StaticCookieAuthProvider {
     /// Construct a new `StaticCookieAuthProvider` for the given sensor.
     ///
-    /// Uses the production [`PrismCredentialResolver`] (wraps `prism_credentials::resolve_credential`).
+    /// Uses the production [`PrismCredentialResolver`] with injected `OrgRegistry` and
+    /// `CredentialStoreOrgId` keyring backend for Tier-3 resolution (ADR-034 §D1).
     ///
     /// The `sensor_id` is the sensor name string from the TOML spec (used as the
     /// credential namespace key in the credential resolver).
@@ -379,11 +425,15 @@ impl StaticCookieAuthProvider {
     /// Does NOT accept the API key as a constructor argument (AD-017: credentials
     /// must not be held at construction time; resolved at acquire_token() time only).
     ///
-    /// AC-005 (S-DTU-CYBERINT-AUTH-FIDELITY-001)
-    pub fn new(sensor_id: impl Into<String>) -> Self {
+    /// AC-005 (S-DTU-CYBERINT-AUTH-FIDELITY-001); ADR-034 §D1.
+    pub fn new(
+        sensor_id: impl Into<String>,
+        org_registry: Arc<prism_core::OrgRegistry>,
+        keyring: Arc<dyn prism_credentials::CredentialStoreOrgId>,
+    ) -> Self {
         Self {
             sensor_id: sensor_id.into(),
-            resolver: Arc::new(PrismCredentialResolver),
+            resolver: Arc::new(PrismCredentialResolver::new(org_registry, keyring)),
         }
     }
 

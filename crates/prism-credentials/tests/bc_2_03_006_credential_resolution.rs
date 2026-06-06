@@ -25,7 +25,7 @@ async fn test_BC_2_03_006_resolves_existing_credential_as_secret_string() {
         "PRISM_CLIENTS_ACME_SENSORS_CROWDSTRIKE_API_KEY",
         "test-api-key-value",
     );
-    let result = resolve_credential("acme", "crowdstrike", "api_key").await;
+    let result = resolve_credential("acme", "crowdstrike", "api_key", None, None).await;
     // Teardown: remove env var regardless of outcome.
     std::env::remove_var("PRISM_CLIENTS_ACME_SENSORS_CROWDSTRIKE_API_KEY");
 
@@ -45,7 +45,7 @@ async fn test_BC_2_03_006_resolves_existing_credential_as_secret_string() {
 /// The sensor API call must NOT be attempted.
 #[tokio::test]
 async fn test_BC_2_03_006_rejects_missing_credential_with_setup_suggestion() {
-    let result = resolve_credential("acme", "crowdstrike", "missing_key").await;
+    let result = resolve_credential("acme", "crowdstrike", "missing_key", None, None).await;
     assert!(result.is_err(), "missing credential must return error");
     match result.unwrap_err() {
         CredentialResolutionError::NotFound {
@@ -89,8 +89,9 @@ async fn test_BC_2_03_006_crowdstrike_both_credentials_resolve() {
         "test-client-secret-value",
     );
 
-    let client_id_result = resolve_credential("acme", "crowdstrike", "client_id").await;
-    let client_secret_result = resolve_credential("acme", "crowdstrike", "client_secret").await;
+    let client_id_result = resolve_credential("acme", "crowdstrike", "client_id", None, None).await;
+    let client_secret_result =
+        resolve_credential("acme", "crowdstrike", "client_secret", None, None).await;
 
     // Teardown: remove env vars regardless of outcome.
     std::env::remove_var("PRISM_CLIENTS_ACME_SENSORS_CROWDSTRIKE_CLIENT_ID");
@@ -123,7 +124,7 @@ async fn test_BC_2_03_006_rejects_crowdstrike_with_missing_client_secret() {
     // (PRISM_CLIENTS_ACME_SENSORS_CROWDSTRIKE_TV004_CLIENT_SECRET) is guaranteed to be absent —
     // test 003 only sets PRISM_CLIENTS_ACME_SENSORS_CROWDSTRIKE_CLIENT_SECRET, which maps to
     // the "crowdstrike" sensor, not "crowdstrike-tv004".
-    let result = resolve_credential("acme", "crowdstrike-tv004", "client_secret").await;
+    let result = resolve_credential("acme", "crowdstrike-tv004", "client_secret", None, None).await;
     assert!(
         result.is_err(),
         "query must fail before API call if client_secret is missing"
@@ -149,7 +150,7 @@ async fn test_BC_2_03_006_invariant_resolved_credential_is_secret_string() {
     // Type-level assertion: resolve_credential returns SecretString, not String or &str.
     // This test would fail to compile if the return type were changed to String.
     let _: Result<secrecy::SecretString, CredentialResolutionError> =
-        resolve_credential("acme", "crowdstrike", "api_key").await;
+        resolve_credential("acme", "crowdstrike", "api_key", None, None).await;
 }
 
 // ---------------------------------------------------------------------------
@@ -164,7 +165,7 @@ async fn test_BC_2_03_006_resolution_emits_audit_log_without_value() {
     // We can't easily capture tracing output in a unit test without a custom subscriber.
     // This test verifies the contract by asserting that resolution succeeds (audit is
     // a side effect). The audit content test is in bc_2_03_010_audit_logging.rs.
-    let _ = resolve_credential("acme", "crowdstrike", "api_key").await;
+    let _ = resolve_credential("acme", "crowdstrike", "api_key", None, None).await;
     // If we reach here without panic, the function at least didn't crash on audit emission.
 }
 
@@ -193,7 +194,7 @@ async fn test_BC_2_03_006_file_env_error_surfaces_as_hard_error() {
     // Remove any direct env var so the only signal is the broken FILE path.
     std::env::remove_var(unique_direct_env);
 
-    let result = resolve_credential("acme", "prism-tv006-007", "api_key").await;
+    let result = resolve_credential("acme", "prism-tv006-007", "api_key", None, None).await;
 
     // Teardown before assertions to avoid env leaks.
     std::env::remove_var(unique_file_env);
@@ -265,7 +266,7 @@ async fn test_BC_2_03_006_tier4_env_backend_uses_per_client_env_var_not_global()
     // Now resolve — this goes through Tier 1+2 env chain first (per-client var is set → resolves
     // at Tier 2 before reaching Tier 4). This still validates SEC-001 because the Tier 1/2
     // chain ALSO uses per-client format exclusively.
-    let result = resolve_credential("acme", "tv-sec-001-sensor", "test_cred").await;
+    let result = resolve_credential("acme", "tv-sec-001-sensor", "test_cred", None, None).await;
 
     // Teardown.
     std::env::remove_var(per_client_var);
@@ -321,7 +322,7 @@ async fn test_BC_2_03_006_tier4_env_backend_reads_source_reference_not_derived_n
 
     // Tier 2 per-client derived var is NOT set → Tier 2 returns None → falls through to Tier 4.
     // Tier 4 reads source_reference = custom_var → resolves "custom-var-value".
-    let result = resolve_credential("acme", "sec001-regression", "my_cred").await;
+    let result = resolve_credential("acme", "sec001-regression", "my_cred", None, None).await;
 
     // Teardown.
     std::env::remove_var(custom_var);
@@ -366,8 +367,14 @@ async fn test_BC_2_03_006_tier4_env_backend_does_not_read_global_env_var() {
     //   Tier 1: file_env not set → None
     //   Tier 2: per_client_var not set → None
     //   Tier 4: CRUD store has no entry → NotFound
-    let result =
-        resolve_credential("acme", "tv-sec-001-gbl2", "global_only_cred_sec001_guard").await;
+    let result = resolve_credential(
+        "acme",
+        "tv-sec-001-gbl2",
+        "global_only_cred_sec001_guard",
+        None,
+        None,
+    )
+    .await;
 
     // Teardown.
     std::env::remove_var(global_var);
@@ -420,7 +427,7 @@ async fn test_BC_2_03_006_tier4_file_backend_returns_explicit_backend_unavailabl
     std::env::remove_var(per_client_var);
     std::env::remove_var(per_client_file_var);
 
-    let result = resolve_credential("acme", "tv-sec-003-sensor", "file_cred").await;
+    let result = resolve_credential("acme", "tv-sec-003-sensor", "file_cred", None, None).await;
 
     assert!(
         result.is_err(),

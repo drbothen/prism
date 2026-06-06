@@ -135,6 +135,73 @@ impl BootError {
     }
 }
 
+// ---------------------------------------------------------------------------
+// BootNullCredentialStoreOrgId — Red Gate stub (ADR-034 §D5)
+// ---------------------------------------------------------------------------
+
+/// Stub `CredentialStoreOrgId` for the Red Gate phase (S-DEMO-003).
+///
+/// The implementer replaces this with the real `Arc<KeyringBackend>` from step 5
+/// once `step5_init_credential_store` is updated to expose the concrete type
+/// (ADR-034 §D5). During the Red Gate phase, this stub compiles and returns
+/// `Ok(None)` for all operations, which causes RG-034-001 and RG-034-004 to fail
+/// (they assert the keyring entry is found / written via the OrgId-keyed namespace).
+///
+/// The stub intentionally does NOT implement the real Tier-3 logic — that is the
+/// implementer's job. The Red Gate tests fail because the stub returns Ok(None),
+/// NOT because it panics.
+struct BootNullCredentialStoreOrgId;
+
+#[async_trait::async_trait]
+impl prism_credentials::CredentialStoreOrgId for BootNullCredentialStoreOrgId {
+    async fn get_by_org(
+        &self,
+        _org_id: &prism_core::OrgId,
+        _sensor: &str,
+        _name: &prism_core::CredentialName,
+    ) -> Result<Option<secrecy::SecretString>, prism_core::PrismError> {
+        Ok(None)
+    }
+
+    async fn set_by_org(
+        &self,
+        _org_id: &prism_core::OrgId,
+        _sensor: &str,
+        _name: &prism_core::CredentialName,
+        _value: secrecy::SecretString,
+    ) -> Result<(), prism_core::PrismError> {
+        Err(prism_core::PrismError::CredentialStoreError {
+            backend: "boot-null-org-id".to_owned(),
+            reason: "BootNullCredentialStoreOrgId: not implemented (Red Gate stub)".to_owned(),
+        })
+    }
+
+    async fn delete_by_org(
+        &self,
+        _org_id: &prism_core::OrgId,
+        _sensor: &str,
+        _name: &prism_core::CredentialName,
+    ) -> Result<bool, prism_core::PrismError> {
+        Ok(false)
+    }
+
+    async fn list_by_org(
+        &self,
+        _org_id: &prism_core::OrgId,
+    ) -> Result<Vec<(String, prism_core::CredentialName)>, prism_core::PrismError> {
+        Ok(vec![])
+    }
+
+    async fn exists_by_org(
+        &self,
+        _org_id: &prism_core::OrgId,
+        _sensor: &str,
+        _name: &prism_core::CredentialName,
+    ) -> Result<bool, prism_core::PrismError> {
+        Ok(false)
+    }
+}
+
 /// Handle returned after a successful full boot (steps 1–11).
 ///
 /// Holds the running subsystem handles; dropped during graceful shutdown.
@@ -387,6 +454,19 @@ pub struct BootContext {
     /// `BootNullCredentialStore` that silently returned `Ok(None)` for all
     /// credential lookups (CRIT-5 fix, F-PASS3-CRIT-5 closure).
     pub credential_store: Arc<dyn prism_credentials::CredentialStore>,
+    /// OrgId-keyed credential store for Tier-3 keyring resolution (ADR-034 §D5).
+    ///
+    /// Points to the same `KeyringBackend` instance as `credential_store` — both
+    /// `Arc`s share the same backing object; no state duplication (ADR-022 §C).
+    ///
+    /// Threaded into `PrismCredentialResolver::new(org_registry, credential_store_org_id)`
+    /// at step 9A in `spec_driven_adapter.rs` for auth provider construction.
+    ///
+    /// TODO ADR-034 §D5 boot wiring (S-DEMO-003 implementer): step5_init_credential_store
+    /// must expose the `Arc<KeyringBackend>` (not erased to `Arc<dyn CredentialStore>`)
+    /// so this field can be populated with the concrete OrgId-keyed impl. During the Red
+    /// Gate phase this is populated with a minimal stub that compiles.
+    pub credential_store_org_id: Arc<dyn prism_credentials::CredentialStoreOrgId>,
 }
 
 // ---------------------------------------------------------------------------
@@ -422,6 +502,8 @@ pub struct BootContext {
 pub fn validate_and_construct_auth_providers(
     snapshot: &prism_spec_engine::types::ConfigSnapshot,
     runtime: &Arc<prism_spec_engine::plugin::PluginRuntime>,
+    org_registry: Arc<prism_core::OrgRegistry>,
+    credential_store_org_id: Arc<dyn prism_credentials::CredentialStoreOrgId>,
 ) -> Result<std::collections::HashMap<String, Arc<prism_spec_engine::PluginAuthProvider>>, BootError>
 {
     use std::collections::{HashMap, HashSet};
@@ -485,6 +567,8 @@ pub fn validate_and_construct_auth_providers(
                 plugin_id,
                 sensor_id.as_str(),
                 token_endpoint,
+                Arc::clone(&org_registry),
+                Arc::clone(&credential_store_org_id),
             ));
 
             providers.insert(sensor_id.clone(), auth_provider);
@@ -558,7 +642,12 @@ pub async fn run_boot_sequence(config_dir: &Path) -> Result<RunningServer, BootE
         let snapshot_guard = cm.load();
         let snapshot = &**snapshot_guard;
 
-        let providers = validate_and_construct_auth_providers(snapshot, &plugin_result.runtime)?;
+        let providers = validate_and_construct_auth_providers(
+            snapshot,
+            &plugin_result.runtime,
+            Arc::clone(&ctx.org_registry),
+            Arc::clone(&ctx.credential_store_org_id),
+        )?;
 
         for (sensor_id, auth_provider) in &providers {
             let plugin_id = auth_provider.plugin_id();
@@ -598,6 +687,7 @@ pub async fn run_boot_sequence(config_dir: &Path) -> Result<RunningServer, BootE
         Arc::clone(&ctx.resolved_spec_map),
         Arc::clone(&ctx.org_registry),
         Arc::clone(&ctx.credential_store),
+        Arc::clone(&ctx.credential_store_org_id),
         config.spec_dir.clone(),
         config_dir.to_path_buf(),
         plugin_result.plugin_auth_providers,
@@ -787,6 +877,12 @@ pub async fn boot_to_step_6(config_dir: &Path) -> Result<BootContext, BootError>
         // CRIT-5: thread the real credential_store produced by step 5 — replaces
         // BootNullCredentialStore that silently returned Ok(None) for all credential lookups.
         credential_store,
+        // ADR-034 §D5 Red Gate stub: BootNullCredentialStoreOrgId compiles but does nothing.
+        // The implementer (S-DEMO-003 green phase) replaces this with Arc::clone(&real_keyring_backend)
+        // where real_keyring_backend is the concrete Arc<KeyringBackend> exposed from step 5
+        // before type-erasure to Arc<dyn CredentialStore>. Failing RG-034-001 proves the stub
+        // is not yet wired (Tier-3 writes can't be read back until the implementer wires it).
+        credential_store_org_id: Arc::new(BootNullCredentialStoreOrgId),
     })
 }
 
@@ -1977,6 +2073,10 @@ pub async fn step8_init_query_engine() -> Result<(), BootError> {
 /// exits when:
 ///   - stdin closes (client disconnect), or
 ///   - SIGTERM/SIGINT is received (BC-2.10.010 — handled inside `serve_stdio`).
+// ADR-034 §D5: credential_store_org_id added. This function coordinates boot wiring;
+// the argument count reflects the number of boot-context dependencies. Refactoring into
+// a context struct is a future concern — production-grade wiring takes priority.
+#[allow(clippy::too_many_arguments)]
 pub async fn step9_start_mcp_server(
     storage: Arc<prism_storage::rocksdb_backend::RocksDbBackend>,
     config_manager: Arc<arc_swap::ArcSwap<prism_spec_engine::config_manager::ConfigManager>>,
@@ -1988,6 +2088,7 @@ pub async fn step9_start_mcp_server(
     >,
     org_registry: Arc<prism_core::OrgRegistry>,
     credential_store: Arc<dyn prism_credentials::CredentialStore>,
+    credential_store_org_id: Arc<dyn prism_credentials::CredentialStoreOrgId>,
     spec_dir: std::path::PathBuf,
     config_dir: std::path::PathBuf,
     plugin_auth_providers: std::collections::HashMap<
@@ -2021,9 +2122,10 @@ pub async fn step9_start_mcp_server(
     let mut adapter_registry_inner = AdapterRegistry::new();
     crate::spec_driven_adapter::step9a_populate_adapter_registry(
         &resolved_spec_map,
-        &org_registry,
+        Arc::clone(&org_registry),
         &plugin_auth_providers,
         &mut adapter_registry_inner,
+        Arc::clone(&credential_store_org_id),
     )
     .await?;
     let adapter_registry = Arc::new(adapter_registry_inner);

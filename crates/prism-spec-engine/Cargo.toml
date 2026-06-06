@@ -57,6 +57,9 @@ anyhow = "1"
 chrono = { version = "0.4", default-features = false, features = ["clock", "serde"] }
 
 [dev-dependencies]
+# async-trait: used in crowdstrike_oauth2_plugin_tests.rs for NullTestOrgIdStore stub
+# implementing CredentialStoreOrgId (ADR-034 §D5 Red Gate sibling sweep).
+async-trait = "0.1"
 # Self-referential dep to enable test-helpers feature for integration test binaries.
 # Integration tests (tests/*.rs) link against the library and use NullAuthProvider /
 # MockAuthProvider — they are NOT under cfg(test) in the lib, so the feature must

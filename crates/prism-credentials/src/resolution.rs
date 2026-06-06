@@ -83,23 +83,34 @@ pub fn per_client_file_env_var(org_slug: &str, sensor_id: &str, ref_name: &str) 
 
 /// Resolve a credential at sensor query time.
 ///
-/// # Contract: BC-2.03.006 / BC-2.06.003 v1.3 (ADR-032)
+/// # Contract: BC-2.03.006 / BC-2.06.003 v1.4 (ADR-032, ADR-034)
 ///
 /// Per-client four-tier resolution chain:
 ///   1. `PRISM_CLIENTS_{ID}_SENSORS_{SENSOR}_{REF}_FILE` (file path; Tier 1 highest)
 ///      If set but file is missing/unreadable → hard error, no fallthrough.
 ///   2. `PRISM_CLIENTS_{ID}_SENSORS_{SENSOR}_{REF}` (direct env-var value; Tier 2)
-///   3. OS keyring (Tier 3) — not implemented here, delegated to CRUD store lookup
+///   3. OS keyring via `CredentialStoreOrgId::get_by_org` (Tier 3, ADR-034)
+///      Active only when both `org_id` and `keyring` are `Some`.
+///      Miss (Ok(None)/NoEntry) → fall through to Tier 4.
+///      Backend error → hard `BackendUnavailable` (E-CRED-005, SOUL.md §4).
 ///   4. CRUD store `credential_status` → backend source lookup (Tier 4 lowest)
 ///
 /// The global `{SENSOR}_{REF}` format is retired per ADR-032.
 ///
 /// `client_id` is the org slug (e.g. `"demo-org-a"`, `"acme"`).
+/// `org_id` is the pre-resolved `OrgId` for the org (callers in `prism-spec-engine` resolve
+///   the slug → OrgId via `OrgRegistry`; `prism-credentials` MUST NOT import `OrgRegistry`
+///   per the architecture compliance rule in `trait_.rs:84–85`).
+/// `keyring` is the `CredentialStoreOrgId`-capable backend (injected by boot wiring).
 /// Emits an audit log entry with namespace only (never the value).
+///
+/// # ADR-034 §D1 signature
 pub async fn resolve_credential(
     client_id: &str,
     sensor_id: &str,
     credential_name: &str,
+    org_id: Option<&prism_core::OrgId>,
+    keyring: Option<&std::sync::Arc<dyn crate::trait_::CredentialStoreOrgId>>,
 ) -> Result<SecretString, CredentialResolutionError> {
     // Build per-client env-var names (ADR-032 / BC-2.06.003 v1.3).
     // Tier 1: PRISM_CLIENTS_{ID}_SENSORS_{SENSOR}_{REF}_FILE
@@ -167,6 +178,21 @@ pub async fn resolve_credential(
             });
         }
     }
+
+    // Tier 3: OS keyring via CredentialStoreOrgId::get_by_org (ADR-034 §D2).
+    //
+    // Active only when both `org_id` and `keyring` are `Some`. When either is `None`,
+    // fall through silently to Tier 4 (BC-2.06.003 Tier-3 postcondition row 1).
+    //
+    // TODO Tier-3 implementation (S-DEMO-003 implementer): call keyring.get_by_org(org_id, sensor_id, name)
+    //   - Ok(Some(secret)) → return Ok(secret) + audit "keyring"
+    //   - Ok(None) → fall through to Tier 4
+    //   - Err(...) → hard BackendUnavailable { detail: "E-CRED-005: OS keyring unavailable: {reason}" }
+    //
+    // The stub body below is a deliberate no-op fall-through so that existing tests continue
+    // to pass during the Red Gate phase. The implementer replaces `let _ = (org_id, keyring);`
+    // with the real `get_by_org` call.
+    let _ = (org_id, keyring); // Red Gate stub: Tier 3 not yet implemented.
 
     // Tier 4: CRUD store lookup — check if the credential was configured
     // and then resolve through its source reference.

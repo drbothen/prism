@@ -109,6 +109,63 @@ use wiremock::{
 };
 
 // ---------------------------------------------------------------------------
+// NullTestOrgIdStore — minimal CredentialStoreOrgId stub for test fixtures
+//
+// ADR-034 §D5 Red Gate sibling sweep: step9a_populate_adapter_registry now requires
+// an Arc<dyn CredentialStoreOrgId>. Existing tests that do not exercise Tier-3
+// pass this null store — it returns Ok(None) for all reads (Tier 3 skipped gracefully).
+// The Red Gate tests in bc_2_06_003_tier3_keyring_resolution.rs use a REAL KeyringBackend.
+// ---------------------------------------------------------------------------
+struct NullTestOrgIdStore;
+
+#[async_trait::async_trait]
+impl prism_credentials::CredentialStoreOrgId for NullTestOrgIdStore {
+    async fn get_by_org(
+        &self,
+        _org_id: &prism_core::OrgId,
+        _sensor: &str,
+        _name: &prism_core::CredentialName,
+    ) -> Result<Option<secrecy::SecretString>, prism_core::PrismError> {
+        Ok(None)
+    }
+    async fn set_by_org(
+        &self,
+        _org_id: &prism_core::OrgId,
+        _sensor: &str,
+        _name: &prism_core::CredentialName,
+        _value: secrecy::SecretString,
+    ) -> Result<(), prism_core::PrismError> {
+        Ok(())
+    }
+    async fn delete_by_org(
+        &self,
+        _org_id: &prism_core::OrgId,
+        _sensor: &str,
+        _name: &prism_core::CredentialName,
+    ) -> Result<bool, prism_core::PrismError> {
+        Ok(false)
+    }
+    async fn list_by_org(
+        &self,
+        _org_id: &prism_core::OrgId,
+    ) -> Result<Vec<(String, prism_core::CredentialName)>, prism_core::PrismError> {
+        Ok(vec![])
+    }
+    async fn exists_by_org(
+        &self,
+        _org_id: &prism_core::OrgId,
+        _sensor: &str,
+        _name: &prism_core::CredentialName,
+    ) -> Result<bool, prism_core::PrismError> {
+        Ok(false)
+    }
+}
+
+fn null_org_id_store() -> Arc<dyn prism_credentials::CredentialStoreOrgId> {
+    Arc::new(NullTestOrgIdStore)
+}
+
+// ---------------------------------------------------------------------------
 // Test fixtures — shared across tests in this module
 // ---------------------------------------------------------------------------
 
@@ -166,8 +223,8 @@ fn make_resolved_spec(spec: SensorSpec, org_slug: &str) -> ResolvedSensorSpec {
 
 /// Build an `OrgRegistry` with one org registered.
 ///
-/// Returns `(registry, org_id, org_slug)`.
-fn make_org_registry(slug: &str) -> (prism_core::OrgRegistry, OrgId, OrgSlug) {
+/// Returns `(Arc<registry>, org_id, org_slug)`.
+fn make_org_registry(slug: &str) -> (Arc<prism_core::OrgRegistry>, OrgId, OrgSlug) {
     let registry = prism_core::OrgRegistry::new();
     let uuid = uuid::Uuid::now_v7();
     let org_id = OrgId::from_uuid(uuid);
@@ -175,7 +232,7 @@ fn make_org_registry(slug: &str) -> (prism_core::OrgRegistry, OrgId, OrgSlug) {
     registry
         .register(org_slug.clone(), org_id)
         .expect("test fixture: OrgRegistry::register failed");
-    (registry, org_id, org_slug)
+    (Arc::new(registry), org_id, org_slug)
 }
 
 /// Build a minimal `SensorAdapterSpec` (prism-sensors `SensorSpec`, not spec-engine `SensorSpec`).
@@ -980,9 +1037,10 @@ async fn test_BC_2_22_001_step9a_not_called_in_boot_production_path() {
 
     let count = step9a_populate_adapter_registry(
         &resolved_spec_map,
-        &org_registry,
+        Arc::clone(&org_registry),
         &plugin_auth_providers,
         &mut adapter_registry,
+        null_org_id_store(),
     )
     .await
     .expect("step9a should return Ok(count) with one Armis spec");
@@ -1080,9 +1138,10 @@ async fn test_BC_2_22_001_boot_step9a_registers_correct_adapter_count() {
 
     let count = step9a_populate_adapter_registry(
         &resolved_spec_map,
-        &org_registry,
+        Arc::clone(&org_registry),
         &plugin_auth_providers,
         &mut adapter_registry,
+        null_org_id_store(),
     )
     .await
     .expect("step9a should return Ok(count)");
@@ -1242,9 +1301,10 @@ async fn test_BC_2_06_014_boot_step9a_uses_resolved_spec_overlay_url() {
     // Run step9a — must register exactly 1 adapter (Armis is BearerStatic, always registered).
     let count = step9a_populate_adapter_registry(
         &resolved_spec_map,
-        &org_registry,
+        Arc::clone(&org_registry),
         &plugin_auth_providers,
         &mut adapter_registry,
+        null_org_id_store(),
     )
     .await
     .expect("step9a must return Ok(1) for a BearerStatic Armis spec with overlay");
@@ -1316,9 +1376,10 @@ async fn test_BC_2_22_001_boot_step9a_empty_spec_catalog_registers_zero_adapters
 
     let count = step9a_populate_adapter_registry(
         &resolved_spec_map,
-        &org_registry,
+        Arc::clone(&org_registry),
         &plugin_auth_providers,
         &mut adapter_registry,
+        null_org_id_store(),
     )
     .await
     .expect("step9a must return Ok(0) for empty catalog (AC-006, EC-003)");
@@ -1355,9 +1416,10 @@ async fn test_BC_2_11_005_adapter_registry_get_returns_adapter_for_registered_pa
 
     let _count = step9a_populate_adapter_registry(
         &resolved_spec_map,
-        &org_registry,
+        Arc::clone(&org_registry),
         &plugin_auth_providers,
         &mut adapter_registry,
+        null_org_id_store(),
     )
     .await
     .expect("step9a should complete");
@@ -1423,9 +1485,10 @@ async fn test_BC_2_22_001_boot_step9a_unsupported_auth_type_skips_adapter_not_er
 
     let count = step9a_populate_adapter_registry(
         &resolved_spec_map,
-        &org_registry,
+        Arc::clone(&org_registry),
         &plugin_auth_providers,
         &mut adapter_registry,
+        null_org_id_store(),
     )
     .await
     .expect("step9a must return Ok even when some sensors are skipped (EC-007)");
@@ -1462,9 +1525,10 @@ async fn test_BC_2_06_014_boot_step9a_translates_org_slug_to_org_id() {
 
     let count = step9a_populate_adapter_registry(
         &resolved_spec_map,
-        &org_registry,
+        Arc::clone(&org_registry),
         &plugin_auth_providers,
         &mut adapter_registry,
+        null_org_id_store(),
     )
     .await
     .expect("step9a should return Ok");
@@ -2273,9 +2337,10 @@ async fn test_BC_3_2_001_step9a_multi_org_registers_eight_adapters() {
     // -------------------------------------------------------------------------
     let count = step9a_populate_adapter_registry(
         &resolved_spec_map,
-        &org_registry,
+        Arc::clone(&org_registry),
         &plugin_auth_providers,
         &mut adapter_registry,
+        null_org_id_store(),
     )
     .await
     .expect("step9a must return Ok(count) for a valid 3-org / 8-spec map. BC-3.2.001.");

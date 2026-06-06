@@ -35,7 +35,7 @@
 
 use std::{future::Future, pin::Pin, sync::Arc};
 
-use prism_core::OrgSlug;
+use prism_core::{OrgId, OrgRegistry, OrgSlug};
 
 use crate::{
     auth_provider::{AuthProvider, AuthToken},
@@ -48,14 +48,15 @@ use crate::{
 ///
 /// ## Construction
 ///
-/// Use `PluginAuthProvider::new(runtime, plugin_id, sensor_id, token_endpoint)`.
+/// Use `PluginAuthProvider::new(runtime, plugin_id, sensor_id, token_endpoint, org_registry, keyring)`.
 ///
 /// - `runtime`: the live `PluginRuntime` with the plugin already registered.
 /// - `plugin_id`: plugin registry key (e.g., `"crowdstrike-oauth2"`).
 /// - `sensor_id`: sensor identity string (e.g., `"crowdstrike"`) used as the
 ///   credential namespace key for `prism_credentials::resolve_credential` (ADR-028 §D11).
-/// - `token_endpoint`: full URL of the OAuth2 token endpoint (e.g.,
-///   `"https://api.crowdstrike.com/oauth2/token"` or DTU clone URL in tests).
+/// - `token_endpoint`: full URL of the OAuth2 token endpoint.
+/// - `org_registry`: for slug → OrgId resolution before calling `resolve_credential` (ADR-034 §D1).
+/// - `keyring`: OrgId-keyed keyring backend for Tier-3 resolution (ADR-034 §D1).
 ///
 /// ## `#[non_exhaustive]`
 ///
@@ -71,6 +72,13 @@ pub struct PluginAuthProvider {
     /// The `sensor_id` is the canonical identifier from the TOML sensor spec.
     sensor_id: String,
     token_endpoint: String,
+    /// OrgRegistry for slug → OrgId resolution (ADR-034 §D1).
+    ///
+    /// Resolution happens in `prism-spec-engine` (not `prism-credentials`) per the
+    /// architecture compliance rule in `trait_.rs:84–85`.
+    org_registry: Arc<OrgRegistry>,
+    /// OrgId-keyed keyring backend for Tier-3 credential resolution (ADR-034 §D1).
+    keyring: Arc<dyn prism_credentials::CredentialStoreOrgId>,
 }
 
 impl PluginAuthProvider {
@@ -85,12 +93,16 @@ impl PluginAuthProvider {
         plugin_id: impl Into<String>,
         sensor_id: impl Into<String>,
         token_endpoint: impl Into<String>,
+        org_registry: Arc<OrgRegistry>,
+        keyring: Arc<dyn prism_credentials::CredentialStoreOrgId>,
     ) -> Self {
         Self {
             runtime,
             plugin_id: plugin_id.into(),
             sensor_id: sensor_id.into(),
             token_endpoint: token_endpoint.into(),
+            org_registry,
+            keyring,
         }
     }
 
@@ -128,27 +140,44 @@ impl AuthProvider for PluginAuthProvider {
     ) -> Pin<Box<dyn Future<Output = Result<AuthToken, SpecEngineError>> + Send + 'a>> {
         Box::pin(async move {
             // ADR-028 §D11 Option C: resolve credentials from prism_credentials before dispatch.
-            // BC-2.03.006 resolution chain: env var → crud store → NotFound.
+            // ADR-034 §D1: resolve slug → OrgId here (in prism-spec-engine), then pass to resolve_credential.
+            // BC-2.03.006 / BC-2.06.003 v1.4: full four-tier resolution chain.
             let cid_str = client_id.as_str();
 
-            let resolved_client_id =
-                prism_credentials::resolve_credential(cid_str, &self.sensor_id, "client_id")
-                    .await
-                    .map_err(|e| SpecEngineError::AuthAcquisitionFailed {
-                        sensor_id: self.sensor_id.clone(),
-                        client_id: cid_str.to_string(),
-                        // structural error message (not a credential value — BC-2.03.006 audit)
-                        detail: e.to_string(),
-                    })?;
+            // Slug → OrgId resolution (ADR-034 §D1: prism-credentials MUST NOT import OrgRegistry;
+            // resolution happens in prism-spec-engine which can import it).
+            // OrgSlug::new infallibly constructs; resolve() returns None if slug not registered.
+            let org_slug = prism_core::OrgSlug::new(cid_str);
+            let org_id: Option<OrgId> = self.org_registry.resolve(&org_slug);
 
-            let resolved_client_secret =
-                prism_credentials::resolve_credential(cid_str, &self.sensor_id, "client_secret")
-                    .await
-                    .map_err(|e| SpecEngineError::AuthAcquisitionFailed {
-                        sensor_id: self.sensor_id.clone(),
-                        client_id: cid_str.to_string(),
-                        detail: e.to_string(),
-                    })?;
+            let resolved_client_id = prism_credentials::resolve_credential(
+                cid_str,
+                &self.sensor_id,
+                "client_id",
+                org_id.as_ref(),
+                Some(&self.keyring),
+            )
+            .await
+            .map_err(|e| SpecEngineError::AuthAcquisitionFailed {
+                sensor_id: self.sensor_id.clone(),
+                client_id: cid_str.to_string(),
+                // structural error message (not a credential value — BC-2.03.006 audit)
+                detail: e.to_string(),
+            })?;
+
+            let resolved_client_secret = prism_credentials::resolve_credential(
+                cid_str,
+                &self.sensor_id,
+                "client_secret",
+                org_id.as_ref(),
+                Some(&self.keyring),
+            )
+            .await
+            .map_err(|e| SpecEngineError::AuthAcquisitionFailed {
+                sensor_id: self.sensor_id.clone(),
+                client_id: cid_str.to_string(),
+                detail: e.to_string(),
+            })?;
 
             // Build PluginConfigMap with SecretString values (SEC-008 / CWE-316 closure).
             //
@@ -203,6 +232,61 @@ impl AuthProvider for PluginAuthProvider {
 mod tests {
     use super::*;
 
+    // ADR-034 §D5 Red Gate sibling sweep: PluginAuthProvider::new now requires
+    // Arc<OrgRegistry> + Arc<dyn CredentialStoreOrgId>. Unit tests use null stubs.
+    struct NullTestOrgIdStore;
+
+    #[async_trait::async_trait]
+    impl prism_credentials::CredentialStoreOrgId for NullTestOrgIdStore {
+        async fn get_by_org(
+            &self,
+            _o: &prism_core::OrgId,
+            _s: &str,
+            _n: &prism_core::CredentialName,
+        ) -> Result<Option<secrecy::SecretString>, prism_core::PrismError> {
+            Ok(None)
+        }
+        async fn set_by_org(
+            &self,
+            _o: &prism_core::OrgId,
+            _s: &str,
+            _n: &prism_core::CredentialName,
+            _v: secrecy::SecretString,
+        ) -> Result<(), prism_core::PrismError> {
+            Ok(())
+        }
+        async fn delete_by_org(
+            &self,
+            _o: &prism_core::OrgId,
+            _s: &str,
+            _n: &prism_core::CredentialName,
+        ) -> Result<bool, prism_core::PrismError> {
+            Ok(false)
+        }
+        async fn list_by_org(
+            &self,
+            _o: &prism_core::OrgId,
+        ) -> Result<Vec<(String, prism_core::CredentialName)>, prism_core::PrismError> {
+            Ok(vec![])
+        }
+        async fn exists_by_org(
+            &self,
+            _o: &prism_core::OrgId,
+            _s: &str,
+            _n: &prism_core::CredentialName,
+        ) -> Result<bool, prism_core::PrismError> {
+            Ok(false)
+        }
+    }
+
+    fn null_org_id_store() -> Arc<dyn prism_credentials::CredentialStoreOrgId> {
+        Arc::new(NullTestOrgIdStore)
+    }
+
+    fn null_org_registry() -> Arc<prism_core::OrgRegistry> {
+        Arc::new(prism_core::OrgRegistry::new())
+    }
+
     /// Verify PluginAuthProvider is object-safe (can be coerced to &dyn AuthProvider).
     #[test]
     fn test_plugin_auth_provider_is_object_safe() {
@@ -235,11 +319,14 @@ mod tests {
         );
         // sensor_id = "crowdstrike" (structural identifier, NOT a credential value).
         // token_endpoint is a URL (not a credential).
+        // ADR-034 §D5 sibling sweep: pass null stubs for org_registry and keyring.
         let provider = PluginAuthProvider::new(
             runtime,
             "crowdstrike-oauth2",
             "crowdstrike",
             "https://api.crowdstrike.com/oauth2/token",
+            null_org_registry(),
+            null_org_id_store(),
         );
         let debug_str = format!("{:?}", provider);
 

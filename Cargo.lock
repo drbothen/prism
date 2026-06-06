@@ -4939,6 +4939,7 @@ version = "0.9.0"
 dependencies = [
  "anyhow",
  "arc-swap",
+ "async-trait",
  "bincode",
  "chrono",
  "flate2",

@@ -149,6 +149,11 @@ fn test_BC_2_03_007_prism_credential_set_does_not_echo_value_to_stdout() {
             "crowdstrike",
             "--name",
             "client_id",
+            // ADR-034 §D3 HIGH-3: --org-slug required when prism.toml is absent.
+            // Without --org-slug, the binary now returns exit 2 (no demo-org fallback).
+            // The test provides --org-slug directly to isolate the AD-017 no-echo property.
+            "--org-slug",
+            "demo-org",
         ])
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
