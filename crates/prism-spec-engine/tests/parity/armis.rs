@@ -658,24 +658,14 @@ fn test_PLUGIN_MIGRATION_001_F_parity_armis_toml_fixture_loading() {
 /// 2. The DTU currently ignores time clauses — returns same count regardless.
 /// 3. `filtered_count == unfiltered_count` → assertion item (b) fails LOAD-BEARINGLY.
 ///
-/// # Fixture data analysis (devices.json)
-/// The fixture has 25 devices. last_seen timestamps range from 2020 to 2024-06-11T17:00:00Z.
-/// Using threshold 2024-06-10T12:00:00Z (between some and all devices):
-/// - d-001: last_seen=null, first_seen="2024-01-15T10:00:00Z" → excluded (before threshold)
-/// - d-002: last_seen="2024-06-10T08:30:00Z" → excluded (before 12:00)
-/// - d-003: last_seen="2024-06-11T14:22:00Z" → included
-/// - d-004: last_seen="2024-06-10T07:00:00Z" → excluded
-/// - d-005: last_seen="2024-06-11T06:45:00Z" → included (before 12:00 → EXCLUDED with 12:00 threshold)
-///
-/// Threshold chosen: `after:2024-06-11T12:00:00Z` — cleanly excludes multiple devices including
-/// d-001 (last_seen=null, falls back to first_seen which is before threshold), d-002, d-004,
-/// d-005, and d-007, while including d-003, d-006, d-008 and others with later timestamps.
-/// d-020 (last_seen="2024-06-11T00:00:00Z") is also excluded since it is before 12:00:00.
-/// The key invariant: filtered_count < 25 (the total fixture size). With threshold
-/// `after:2024-06-11T12:00:00Z`, the following devices are excluded: d-001 (null last_seen,
-/// first_seen before threshold), d-002 (08:30), d-004 (07:00), d-005 (06:45), d-007
-/// (2024-06-09 12:00:00), d-009, d-014, d-018, d-019, and d-020 (00:00:00) — guaranteeing
-/// filtered_count < 25.
+/// # Invariant (fixture-agnostic)
+/// The test asserts that `filtered_count < unfiltered_count` when a time-window AQL clause
+/// (`after:YYYY-MM-DDTHH:MM:SS`) is applied. The DTU must honour the `after:` clause by
+/// filtering its device fixture so that at least one device is excluded. The threshold
+/// `after:2024-06-11T12:00:00Z` is chosen so that some devices in the fixture have a
+/// `last_seen` before that threshold (and are excluded) while others have `last_seen` after
+/// it (and are included). The test does NOT hardcode a specific device count — it only
+/// asserts the invariant `filtered_count < unfiltered_count` and `filtered_count > 0`.
 #[tokio::test]
 async fn test_ac_armis_tw_002_dtu_filters_fixture_by_time_window() {
     // Step 1: Start the Armis DTU clone.

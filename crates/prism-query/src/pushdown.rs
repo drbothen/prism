@@ -529,23 +529,26 @@ pub fn augment_armis_aql_with_time_window(
     //   after:YYYY-MM-DDTHH:MM:SS  (bare, unquoted, timezone-naive — NO Z suffix)
     //   before:YYYY-MM-DDTHH:MM:SS
     // Clauses are space-separated (research-doc §3, BlinkOps source).
-    let mut result = base_aql.to_string();
+    //
+    // When base_aql is empty/blank, the time clause is the entire AQL — no leading space.
+    // When base_aql is non-empty, clauses are joined with a single space: "<base> after:T".
+    let base = base_aql.trim();
+    let mut parts: Vec<String> = Vec::new();
+    if !base.is_empty() {
+        parts.push(base.to_string());
+    }
 
     if let Some(start) = start_time {
-        // Strip the trailing 'Z' suffix if present (timezone-naive form required).
+        // Strip the trailing 'Z' or '+00:00' suffix (timezone-naive form required).
         let start_naive = strip_z_suffix(start);
-        result.push(' ');
-        result.push_str("after:");
-        result.push_str(start_naive);
+        parts.push(format!("after:{start_naive}"));
     }
     if let Some(end) = end_time {
         let end_naive = strip_z_suffix(end);
-        result.push(' ');
-        result.push_str("before:");
-        result.push_str(end_naive);
+        parts.push(format!("before:{end_naive}"));
     }
 
-    result
+    parts.join(" ")
 }
 
 /// Strip a trailing `Z` UTC suffix from an ISO8601 timestamp string.
@@ -859,6 +862,72 @@ mod pushdown_red_gate_tests {
         assert_eq!(
             result, base_aql,
             "AC-ARMIS-TW-003: no time bounds → base AQL must pass through verbatim; got: '{result}'"
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // OBS-P05-003: empty base AQL produces no leading space
+    // -----------------------------------------------------------------------
+
+    /// OBS-P05-003 / S-DEMO-QUERY-PUSHDOWN-001 v2.1
+    ///
+    /// When `base_aql` is empty (a query with only a datetime-INDEX predicate and
+    /// no `aql = '...'` pseudo-column), `augment_armis_aql_with_time_window` must
+    /// return the time clause WITHOUT a leading space.
+    ///
+    /// Scenario: empty base + only start_time → `"after:T"` (not `" after:T"`).
+    /// Scenario: empty base + both bounds    → `"after:T1 before:T2"` (no leading space).
+    /// Scenario: non-empty base + start_time → `"<base> after:T"` (single-space join, unchanged).
+    ///
+    /// The DTU parses AQL position-independently so the leading-space form is not a
+    /// runtime crash, but cleanliness avoids subtle debug confusion and matches the
+    /// canonical Armis AQL format documented in research-doc §2.2.
+    #[test]
+    fn test_obs_p05_003_empty_base_aql_no_leading_space() {
+        // Case 1: empty base + start_time only → no leading space.
+        let result = augment_armis_aql_with_time_window("", Some("2024-06-11T12:00:00Z"), None);
+        assert!(
+            !result.starts_with(' '),
+            "OBS-P05-003: empty base AQL must not produce a leading space; got: '{result}'"
+        );
+        assert_eq!(
+            result, "after:2024-06-11T12:00:00",
+            "OBS-P05-003: empty base + start_time must yield 'after:T' (bare, no leading space, \
+             no Z); got: '{result}'"
+        );
+
+        // Case 2: empty base + both bounds → no leading space, single-space between clauses.
+        let result2 = augment_armis_aql_with_time_window(
+            "",
+            Some("2024-06-11T12:00:00Z"),
+            Some("2024-06-12T00:00:00Z"),
+        );
+        assert!(
+            !result2.starts_with(' '),
+            "OBS-P05-003: empty base + both bounds must not produce a leading space; got: '{result2}'"
+        );
+        assert_eq!(
+            result2, "after:2024-06-11T12:00:00 before:2024-06-12T00:00:00",
+            "OBS-P05-003: empty base + both bounds must yield 'after:T1 before:T2'; got: '{result2}'"
+        );
+
+        // Case 3: non-empty base + start_time → unchanged single-space join behaviour.
+        let result3 =
+            augment_armis_aql_with_time_window("in:devices", Some("2024-06-11T12:00:00Z"), None);
+        assert_eq!(
+            result3, "in:devices after:2024-06-11T12:00:00",
+            "OBS-P05-003: non-empty base must still yield '<base> after:T'; got: '{result3}'"
+        );
+
+        // Case 4: whitespace-only base (trim guard) → treated as empty.
+        let result4 = augment_armis_aql_with_time_window("   ", Some("2024-06-11T12:00:00Z"), None);
+        assert!(
+            !result4.starts_with(' '),
+            "OBS-P05-003: whitespace-only base must not produce a leading space; got: '{result4}'"
+        );
+        assert_eq!(
+            result4, "after:2024-06-11T12:00:00",
+            "OBS-P05-003: whitespace-only base treated as empty; got: '{result4}'"
         );
     }
 

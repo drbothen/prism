@@ -219,6 +219,9 @@ pub async fn list_detection_ids(
     let ordered_ids = shuffle_ids_by_seed(&filtered_ids, seed);
 
     let offset = params.offset.unwrap_or(0);
+    // Limit clamp mirrors sibling hosts.rs:166 form (`unwrap_or(100).min(len)`).
+    // Production push-down never sends limit=0 (EC-008 maps limit=0 → empty row →
+    // stripped before the AQL/FQL call), so `?limit=0` correctly yields 0 records.
     let limit = params.limit.unwrap_or(100).min(ordered_ids.len());
     let total = ordered_ids.len();
 
