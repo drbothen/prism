@@ -21,6 +21,9 @@ use std::{
     },
 };
 
+// chrono is used for FQL time-bound parsing (F-P1-OBS-001).
+use chrono::{DateTime, Utc};
+
 use anyhow::Result;
 use lru::LruCache;
 use prism_core::OrgId;
@@ -127,6 +130,16 @@ pub struct CrowdstrikeState {
     /// Set at startup; route handlers compare the `X-Org-Id` header against this value
     /// and return HTTP 401 on mismatch (W3-FIX-SEC-001; BC-3.5.002 postcondition 2).
     pub instance_org_id: OrgId,
+
+    /// Received FQL filter strings for wire-level testing (F-P1-OBS-001 / F-P1-HIGH-003).
+    ///
+    /// Captured verbatim from `DetectionListParams.filter` by `list_detection_ids`.
+    /// Accessible via `GET /dtu/filter-log`. Cleared on `reset()`.
+    ///
+    /// Parallel to `ArmisState.aql_log` (R-DTU-002 pattern). The CrowdStrike
+    /// equivalent is the FQL filter param — captured verbatim before any parsing
+    /// so wire-level tests can assert the exact string that reached the DTU.
+    pub filter_log: Mutex<Vec<String>>,
 }
 
 impl CrowdstrikeState {
@@ -158,6 +171,7 @@ impl CrowdstrikeState {
             request_counter: Arc::new(AtomicU32::new(0)),
             admin_token,
             instance_org_id,
+            filter_log: Mutex::new(Vec::new()),
         }
     }
 
@@ -190,7 +204,74 @@ impl CrowdstrikeState {
             .lock()
             .expect("session_registry poisoned")
             .clear();
+        // Clear filter_log so wire-level tests start clean after reset.
+        #[allow(clippy::expect_used)]
+        self.filter_log.lock().expect("filter_log poisoned").clear();
         // Runtime config is preserved across reset (reset clears data, not config).
+    }
+
+    /// Capture a received FQL filter string in the filter_log (F-P1-OBS-001).
+    ///
+    /// Called verbatim by `list_detection_ids` before any FQL parsing — parallel to
+    /// `ArmisState::capture_aql()` (R-DTU-002 opaque-capture pattern). Accessible via
+    /// `GET /dtu/filter-log` for wire-level test assertions (F-P1-HIGH-003).
+    pub fn capture_filter(&self, filter: &str) {
+        #[allow(clippy::expect_used)]
+        let mut log = self.filter_log.lock().expect("filter_log poisoned");
+        log.push(filter.to_owned());
+    }
+
+    /// Return all captured FQL filter strings (F-P1-HIGH-003 wire-level test support).
+    pub fn get_filter_log(&self) -> Vec<String> {
+        #[allow(clippy::expect_used)]
+        let log = self.filter_log.lock().expect("filter_log poisoned");
+        log.clone()
+    }
+
+    /// Parse CrowdStrike FQL time bounds from the `filter` query param.
+    ///
+    /// Understands: `created_timestamp:>'YYYY-MM-DDTHH:MM:SSZ'` (lower bound)
+    ///              `created_timestamp:<'YYYY-MM-DDTHH:MM:SSZ'` (upper bound)
+    ///              Combined with `+` when both are present.
+    ///
+    /// Returns `(after_bound, before_bound)` as `Option<DateTime<Utc>>`.
+    /// Both `None` when the filter is empty or unparseable.
+    ///
+    /// F-P1-OBS-001: This function enables the DTU to honor the FQL filter and
+    /// return only IDs whose `created_timestamp` falls within the specified range.
+    pub fn parse_fql_time_bounds(fql: &str) -> (Option<DateTime<Utc>>, Option<DateTime<Utc>>) {
+        let after_bound = Self::extract_fql_bound(fql, "created_timestamp:>'");
+        let before_bound = Self::extract_fql_bound(fql, "created_timestamp:<'");
+        (after_bound, before_bound)
+    }
+
+    /// Extract a `DateTime<Utc>` from a CrowdStrike FQL token pattern.
+    ///
+    /// Pattern: `<prefix>'YYYY-MM-DDTHH:MM:SSZ'` or `<prefix>'YYYY-MM-DDTHH:MM:SS'`.
+    /// Returns `None` if the pattern is absent or the timestamp cannot be parsed.
+    fn extract_fql_bound(fql: &str, prefix: &str) -> Option<DateTime<Utc>> {
+        let pos = fql.find(prefix)?;
+        let rest = &fql[pos + prefix.len()..];
+        // Value is everything up to the next `'` closing quote.
+        let token = rest.split('\'').next()?;
+        if token.is_empty() {
+            return None;
+        }
+        // SEC-004 defense-in-depth: a valid RFC3339 DateTime is at most ~25 chars
+        // (e.g., "YYYY-MM-DDTHH:MM:SS+00:00"); 32 gives margin for any valid form.
+        // Guard prevents wasted parse work on absurdly long input.
+        if token.len() > 32 {
+            return None;
+        }
+        // Try RFC3339 first (handles Z and +00:00).
+        if let Ok(dt) = token.parse::<DateTime<Utc>>() {
+            return Some(dt);
+        }
+        // Try timezone-naive (e.g., "2026-01-01T00:00:00").
+        if let Ok(naive) = chrono::NaiveDateTime::parse_from_str(token, "%Y-%m-%dT%H:%M:%S") {
+            return Some(naive.and_utc());
+        }
+        None
     }
 
     /// Backward-compatible shim — delegates to `reset_all()`.
@@ -274,3 +355,196 @@ impl Default for CrowdstrikeState {
 
 /// Shared `Arc<CrowdstrikeState>` passed through axum extension.
 pub type SharedState = Arc<CrowdstrikeState>;
+
+// ---------------------------------------------------------------------------
+// Unit tests for parse_fql_time_bounds (ADV-P04-LOW-001 / sibling-parity with Armis)
+// ---------------------------------------------------------------------------
+
+#[cfg(test)]
+mod tests {
+    use super::CrowdstrikeState;
+    use chrono::Datelike;
+
+    /// AC-CWS-DTU-001 (after-only bound): FQL with only a lower-bound clause yields
+    /// `after_bound = Some(T)` and `before_bound = None`.
+    ///
+    /// Parallel to `test_ac_armis_tw_002_dtu_parse_aql_after_clause_yields_bound` in
+    /// `prism-dtu-armis/src/routes/search.rs`.
+    #[test]
+    fn test_ac_cws_dtu_001_crowdstrike_dtu_honors_fql_filter_after_only() {
+        let fql = "created_timestamp:>'2026-01-10T00:00:00Z'";
+        let (after_bound, before_bound) = CrowdstrikeState::parse_fql_time_bounds(fql);
+
+        assert!(
+            after_bound.is_some(),
+            "parse_fql_time_bounds must parse 'created_timestamp:>' and return \
+             Some(after_bound); got None. FQL='{fql}'"
+        );
+        assert!(
+            before_bound.is_none(),
+            "parse_fql_time_bounds: no upper-bound clause → before_bound must be None; \
+             got: {:?}",
+            before_bound
+        );
+
+        if let Some(bound) = after_bound {
+            assert_eq!(bound.year(), 2026, "parsed after year must be 2026");
+            assert_eq!(bound.month(), 1, "parsed after month must be 1 (January)");
+            assert_eq!(bound.day(), 10, "parsed after day must be 10");
+        }
+    }
+
+    /// Before-only bound: FQL with only an upper-bound clause yields
+    /// `after_bound = None` and `before_bound = Some(T)`.
+    #[test]
+    fn test_ac_cws_dtu_001_parse_fql_before_only() {
+        let fql = "created_timestamp:<'2026-01-20T00:00:00Z'";
+        let (after_bound, before_bound) = CrowdstrikeState::parse_fql_time_bounds(fql);
+
+        assert!(
+            before_bound.is_some(),
+            "parse_fql_time_bounds must parse 'created_timestamp:<' and return \
+             Some(before_bound); got None. FQL='{fql}'"
+        );
+        assert!(
+            after_bound.is_none(),
+            "parse_fql_time_bounds: no lower-bound clause → after_bound must be None; \
+             got: {:?}",
+            after_bound
+        );
+
+        if let Some(bound) = before_bound {
+            assert_eq!(bound.year(), 2026, "parsed before year must be 2026");
+            assert_eq!(bound.month(), 1, "parsed before month must be 1 (January)");
+            assert_eq!(bound.day(), 20, "parsed before day must be 20");
+        }
+    }
+
+    /// Bounded range (both bounds, `+`-combined): the canonical CrowdStrike FQL form
+    /// `created_timestamp:>'T1'+created_timestamp:<'T2'` must yield both bounds.
+    ///
+    /// This is the form produced by `build_crowdstrike_fql(start_time, end_time)` when
+    /// both `start_time` and `end_time` are present (AC-CWS-002(b)).
+    ///
+    /// Named `test_ac_cws_dtu_001_crowdstrike_dtu_honors_fql_filter_time_window` per
+    /// ADV-P04-LOW-001 story citation requirement.
+    #[test]
+    fn test_ac_cws_dtu_001_crowdstrike_dtu_honors_fql_filter_time_window() {
+        // Combined `+` form — exactly what build_crowdstrike_fql produces.
+        let fql =
+            "created_timestamp:>'2026-01-10T00:00:00Z'+created_timestamp:<'2026-01-20T00:00:00Z'";
+        let (after_bound, before_bound) = CrowdstrikeState::parse_fql_time_bounds(fql);
+
+        assert!(
+            after_bound.is_some(),
+            "parse_fql_time_bounds bounded range: must parse 'created_timestamp:>' → \
+             Some(after_bound); got None. FQL='{fql}'"
+        );
+        assert!(
+            before_bound.is_some(),
+            "parse_fql_time_bounds bounded range: must parse 'created_timestamp:<' → \
+             Some(before_bound); got None. FQL='{fql}'"
+        );
+
+        if let (Some(after), Some(before)) = (after_bound, before_bound) {
+            assert!(
+                after < before,
+                "after_bound ({after}) must be strictly less than before_bound ({before})"
+            );
+            assert_eq!(after.day(), 10, "after day must be 10");
+            assert_eq!(before.day(), 20, "before day must be 20");
+        }
+    }
+
+    /// Malformed / absent filter: empty FQL yields (None, None).
+    #[test]
+    fn test_ac_cws_dtu_001_parse_fql_absent_filter_returns_none() {
+        let (after_bound, before_bound) = CrowdstrikeState::parse_fql_time_bounds("");
+        assert!(
+            after_bound.is_none(),
+            "parse_fql_time_bounds: empty FQL → after_bound must be None; got: {:?}",
+            after_bound
+        );
+        assert!(
+            before_bound.is_none(),
+            "parse_fql_time_bounds: empty FQL → before_bound must be None; got: {:?}",
+            before_bound
+        );
+    }
+
+    /// Malformed filter (no timestamp prefix at all): unrecognized FQL yields (None, None).
+    #[test]
+    fn test_ac_cws_dtu_001_parse_fql_malformed_filter_returns_none() {
+        let fql = "severity:High+status:new";
+        let (after_bound, before_bound) = CrowdstrikeState::parse_fql_time_bounds(fql);
+        assert!(
+            after_bound.is_none(),
+            "parse_fql_time_bounds: unrelated FQL → after_bound must be None; got: {:?}",
+            after_bound
+        );
+        assert!(
+            before_bound.is_none(),
+            "parse_fql_time_bounds: unrelated FQL → before_bound must be None; got: {:?}",
+            before_bound
+        );
+    }
+
+    /// RFC3339 with +00:00 offset form (alternative to Z suffix): must parse correctly.
+    #[test]
+    fn test_ac_cws_dtu_001_parse_fql_rfc3339_plus_offset_parses() {
+        let fql = "created_timestamp:>'2026-03-15T12:30:00+00:00'";
+        let (after_bound, _before_bound) = CrowdstrikeState::parse_fql_time_bounds(fql);
+        assert!(
+            after_bound.is_some(),
+            "parse_fql_time_bounds must parse RFC3339 '+00:00' offset form; got None. \
+             FQL='{fql}'"
+        );
+        if let Some(bound) = after_bound {
+            assert_eq!(bound.month(), 3, "parsed month must be 3 (March)");
+            assert_eq!(bound.day(), 15, "parsed day must be 15");
+        }
+    }
+
+    /// Naive timestamp (no Z/offset, e.g. '2026-01-05T00:00:00'): must parse as UTC.
+    #[test]
+    fn test_ac_cws_dtu_001_parse_fql_naive_timestamp_parses() {
+        let fql = "created_timestamp:>'2026-01-05T00:00:00'";
+        let (after_bound, _before_bound) = CrowdstrikeState::parse_fql_time_bounds(fql);
+        assert!(
+            after_bound.is_some(),
+            "parse_fql_time_bounds must parse naive timestamp (no Z/offset) as UTC; \
+             got None. FQL='{fql}'"
+        );
+        if let Some(bound) = after_bound {
+            assert_eq!(bound.year(), 2026, "parsed year must be 2026");
+            assert_eq!(bound.day(), 5, "parsed day must be 5");
+        }
+    }
+
+    /// SEC-004 defense-in-depth: an over-length token (>32 chars) must return `None`
+    /// rather than wasting parse work. A valid 25-char RFC3339 token must still parse.
+    #[test]
+    fn test_sec_004_fql_over_length_token_returns_none() {
+        // 33-char token: exceeds the 32-char cap → must return None.
+        let long_token = "2026-01-01T00:00:00+00:00XXXXXXXXX"; // 34 chars
+        assert_eq!(long_token.len(), 34, "test fixture must be >32 chars");
+        let fql = format!("created_timestamp:>'{long_token}'");
+        let (after_bound, _) = CrowdstrikeState::parse_fql_time_bounds(&fql);
+        assert!(
+            after_bound.is_none(),
+            "SEC-004: over-length token ({} chars) must return None; got: {:?}",
+            long_token.len(),
+            after_bound
+        );
+
+        // Valid 25-char RFC3339 token "YYYY-MM-DDTHH:MM:SS+00:00" must still parse.
+        let valid_token = "2026-01-01T00:00:00+00:00"; // 25 chars
+        assert_eq!(valid_token.len(), 25, "test fixture must be ≤32 chars");
+        let fql_valid = format!("created_timestamp:>'{valid_token}'");
+        let (after_bound_valid, _) = CrowdstrikeState::parse_fql_time_bounds(&fql_valid);
+        assert!(
+            after_bound_valid.is_some(),
+            "SEC-004: valid 25-char RFC3339 token must still parse; got None. token='{valid_token}'"
+        );
+    }
+}

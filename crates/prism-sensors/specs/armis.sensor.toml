@@ -88,10 +88,13 @@ ocsf_class = "device"
   #   the primary column is always checked first by normalize_timestamp_fields; a self-referential
   #   chain entry yields the same absent value already confirmed. Chain = ["first_seen"] only.
   #   The defensive skip guard in pipeline.rs still protects against accidental re-introduction.
+  # options = ["INDEX"]: push-down-eligible datetime column. Required for extract_time_window_from_ast
+  #   (ADR-033 T1) to identify last_seen as an Armis AQL augmentation candidate (AC-INDEX-001).
   [[tables.columns]]
   name = "last_seen"
   column_type = "datetime"
   ocsf_field = "device.last_seen_time"
+  options = ["INDEX"]
   timestamp_fallback_chain = ["first_seen"]
 
   # Secondary timestamp (fallback source — also stored as its own column for querying).
@@ -202,10 +205,13 @@ ocsf_class = "security_finding"
   column_type = "string"
   ocsf_field = "device.uid"
 
+  # options = ["INDEX"]: push-down-eligible datetime column. Required for extract_time_window_from_ast
+  # (ADR-033 T1) to identify created_at as an Armis AQL augmentation candidate (AC-INDEX-001).
   [[tables.columns]]
   name = "created_at"
   column_type = "datetime"
   ocsf_field = "time"
+  options = ["INDEX"]
 
   [[tables.columns]]
   name = "updated_at"

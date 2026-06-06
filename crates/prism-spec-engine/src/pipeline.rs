@@ -245,10 +245,40 @@ impl PipelineExecutor {
             "query.client_id".to_string(),
             serde_json::Value::String(context.client_id.to_string()),
         );
+        // AC-CWS-001 / BC-2.01.013 v1.14: seed ${query.limit} from QueryParams.limit so
+        // sensor TOML path_templates can push the LIMIT clause down to the sensor API
+        // (e.g., CrowdStrike Step 1 DetectionListParams.limit).
+        // Default: empty string → PipelineExecutor::strip_empty_url_params removes the
+        // &limit= param from the URL so the DTU defaults to its own page size.
+        // F-PUSHDOWN-001 invariant: the LIMIT param is ONLY applied to is_first_step.
+        // (Callers are responsible for not seeding query.limit on subsequent steps.)
+        step_vars.insert(
+            "query.limit".to_string(),
+            serde_json::Value::String(
+                context
+                    .query_filters
+                    .get("query.limit")
+                    .cloned()
+                    .unwrap_or_default(),
+            ),
+        );
         for (k, v) in &context.query_filters {
             step_vars.insert(
                 format!("query.filter.{k}"),
                 serde_json::Value::String(v.clone()),
+            );
+        }
+
+        // ADR-033 T1 / AC-CWS-002: Pre-seed any ${query.filter.*} variables referenced
+        // in step path_templates or body_templates that are not in context.query_filters.
+        // This prevents interpolation errors when optional filter slots (e.g., ${query.filter._fql})
+        // are present in the TOML path_template but absent from the FetchContext.
+        // Default: empty string (no filter → empty URL param, safely ignored by DTU).
+        for step in &table.steps {
+            seed_missing_query_filter_vars(
+                &step.path_template,
+                step.body_template.as_deref(),
+                &mut step_vars,
             );
         }
 
@@ -311,17 +341,23 @@ impl PipelineExecutor {
                 // across 11 distinct origins (interpolation, network, JSON parse, page-cap,
                 // cursor non-advance). Future error-classification refactor should add an origin
                 // discriminator field to SpecEngineError. Per F-LP5-LOW-004.
-                let interpolated_path = Interpolator::interpolate(
-                    &step.path_template,
-                    &InterpolationContext::UrlPath,
-                    &batch_step_vars,
-                )
-                .map_err(|e| SpecEngineError::HttpRequestFailed {
-                    sensor_id: spec.sensor_id.clone(),
-                    step_name: step.name.clone(),
-                    status_code: 0,
-                    detail: format!("path interpolation failed: {e}"),
-                })?;
+                let interpolated_path = {
+                    let raw = Interpolator::interpolate(
+                        &step.path_template,
+                        &InterpolationContext::UrlPath,
+                        &batch_step_vars,
+                    )
+                    .map_err(|e| SpecEngineError::HttpRequestFailed {
+                        sensor_id: spec.sensor_id.clone(),
+                        step_name: step.name.clone(),
+                        status_code: 0,
+                        detail: format!("path interpolation failed: {e}"),
+                    })?;
+                    // AC-CWS-001: strip empty query params (e.g. &limit= when no push-down limit
+                    // was provided) so optional push-down params don't reach the DTU as invalid
+                    // empty strings that fail `Option<usize>` deserialization.
+                    strip_empty_url_params(&raw)
+                };
 
                 let url = format!("{}{}", spec.base_url, interpolated_path);
 
@@ -605,17 +641,23 @@ impl PipelineExecutor {
         };
         let mut request_count: u32 = 0;
 
-        let interpolated_path = Interpolator::interpolate(
-            &step.path_template,
-            &InterpolationContext::UrlPath,
-            prior_vars,
-        )
-        .map_err(|e| SpecEngineError::HttpRequestFailed {
-            sensor_id: spec.sensor_id.clone(),
-            step_name: step.name.clone(),
-            status_code: 0,
-            detail: format!("path interpolation failed: {e}"),
-        })?;
+        let interpolated_path = {
+            let raw = Interpolator::interpolate(
+                &step.path_template,
+                &InterpolationContext::UrlPath,
+                prior_vars,
+            )
+            .map_err(|e| SpecEngineError::HttpRequestFailed {
+                sensor_id: spec.sensor_id.clone(),
+                step_name: step.name.clone(),
+                status_code: 0,
+                detail: format!("path interpolation failed: {e}"),
+            })?;
+            // AC-CWS-001: strip empty query params (e.g. &limit= when no push-down limit
+            // was provided) so optional push-down params don't reach the DTU as invalid
+            // empty strings that fail `Option<usize>` deserialization.
+            strip_empty_url_params(&raw)
+        };
 
         let url = format!("{}{}", spec.base_url, interpolated_path);
 
@@ -1281,6 +1323,95 @@ fn extract_cursor(body: &serde_json::Value, cursor_path: &str) -> Option<String>
     }
 }
 
+// ---------------------------------------------------------------------------
+// strip_empty_url_params (AC-CWS-001 — empty query-param cleanup)
+// ---------------------------------------------------------------------------
+
+/// Remove any `&key=` or `?key=` query-param pairs where the value is the empty string.
+///
+/// This supports optional push-down parameters in path_templates (e.g., `&limit=${query.limit}`)
+/// that are seeded to `""` when not provided by the query context.  Without stripping,
+/// `&limit=` would reach the DTU and fail to deserialize into `Option<usize>` (a 422).
+///
+/// Rules:
+/// - `?key=&other=val` → `?other=val`  (first-param empty, not last)
+/// - `?key=val&empty=` → `?key=val`    (last-param empty)
+/// - `?key=` (only param) → bare path  (no query string)
+/// - `?a=1&b=&c=3` → `?a=1&c=3`       (middle-param empty)
+/// - Params with non-empty values are preserved.
+///
+/// AC-CWS-001 / BC-2.01.013 v1.14 limit push-down.
+pub(crate) fn strip_empty_url_params(path: &str) -> String {
+    // Split at the first `?` to separate path from query string.
+    let (base, query) = match path.split_once('?') {
+        Some((b, q)) => (b, q),
+        // No query string → nothing to strip.
+        None => return path.to_owned(),
+    };
+
+    // Split query string into individual `key=value` pairs.
+    let kept: Vec<&str> = query
+        .split('&')
+        .filter(|pair| {
+            // Retain pairs where value is non-empty.
+            // A pair is `key=value`; if there is no `=` or value is empty, drop it.
+            match pair.split_once('=') {
+                Some((_key, value)) => !value.is_empty(),
+                // Bare key with no `=` (unusual) → retain as-is.
+                None => !pair.is_empty(),
+            }
+        })
+        .collect();
+
+    if kept.is_empty() {
+        base.to_owned()
+    } else {
+        format!("{}?{}", base, kept.join("&"))
+    }
+}
+
+// ---------------------------------------------------------------------------
+// seed_missing_query_filter_vars (ADR-033 T1 — optional filter pre-seeding)
+// ---------------------------------------------------------------------------
+
+/// Pre-seed any `${query.filter.*}` variables referenced in a step's path/body
+/// templates that are NOT already present in `step_vars`, defaulting to empty string.
+///
+/// This prevents interpolation errors when optional filter slots (e.g.,
+/// `${query.filter._fql}` for CrowdStrike FQL injection) are present in the
+/// TOML path_template but the FetchContext provides no value for them.
+///
+/// The default empty string causes the URL param to be present but empty
+/// (e.g., `?filter=`), which is safely ignored by DTUs that do not parse
+/// the param when it is empty.
+///
+/// ADR-033 T1 / BC-2.01.013 v1.14: CrowdStrike FQL injection via
+/// `${query.filter._fql}` in path_template requires this pre-seeding to be
+/// robust when no time predicates are present in the PrismQL query.
+fn seed_missing_query_filter_vars(
+    path_template: &str,
+    body_template: Option<&str>,
+    step_vars: &mut std::collections::HashMap<String, serde_json::Value>,
+) {
+    // Regex to extract ${query.filter.VARNAME} references from templates.
+    // Matches the canonical `${query.filter.*}` interpolation pattern.
+    static QUERY_FILTER_PATTERN: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
+    let re = QUERY_FILTER_PATTERN.get_or_init(|| {
+        regex::Regex::new(r"\$\{query\.filter\.([^}]+)\}")
+            .expect("query.filter interpolation regex is valid")
+    });
+    for template in [Some(path_template), body_template].into_iter().flatten() {
+        for cap in re.captures_iter(template) {
+            let var_name = cap.get(1).expect("var name group").as_str();
+            let full_key = format!("query.filter.{var_name}");
+            // Only seed if not already present — do NOT override a provided value.
+            step_vars
+                .entry(full_key)
+                .or_insert(serde_json::Value::String(String::new()));
+        }
+    }
+}
+
 /// Store step output variables into `step_vars` for downstream interpolation.
 ///
 /// For each field in `variables_produced`, the value is extracted from the
@@ -1577,7 +1708,17 @@ pub(crate) fn normalize_timestamp_fields(
                         if let Some(obj) = row.as_object_mut() {
                             obj.insert(
                                 col.name.clone(),
-                                serde_json::Value::String(dt.to_rfc3339()),
+                                // Use `Z` suffix (UTC marker) for canonical form.
+                                // chrono `to_rfc3339()` produces `+00:00`; DataFusion's
+                                // string comparison treats `"T10:00:00+00:00" >= "T10:00:00Z"`
+                                // as FALSE because lexicographically `+` (43) < `Z` (90).
+                                // Using `to_rfc3339_opts(Secs, use_z=true)` normalises all
+                                // pipeline-emitted timestamps to `Z` suffix so DataFusion
+                                // WHERE clause literals (which users write with `Z`) compare
+                                // correctly at exact boundaries. (ADV-P08-MED-001 fix)
+                                serde_json::Value::String(
+                                    dt.to_rfc3339_opts(chrono::SecondsFormat::Secs, true),
+                                ),
                             );
                         }
                     }
@@ -1593,7 +1734,9 @@ pub(crate) fn normalize_timestamp_fields(
                         if let Some(obj) = row.as_object_mut() {
                             obj.insert(
                                 col.name.clone(),
-                                serde_json::Value::String(now.to_rfc3339()),
+                                serde_json::Value::String(
+                                    now.to_rfc3339_opts(chrono::SecondsFormat::Secs, true),
+                                ),
                             );
                         }
                     }
@@ -1608,7 +1751,10 @@ pub(crate) fn normalize_timestamp_fields(
                         if let Some(obj) = row.as_object_mut() {
                             obj.insert(
                                 col.name.clone(),
-                                serde_json::Value::String(dt.to_rfc3339()),
+                                // Use `Z` suffix for canonical form (ADV-P08-MED-001).
+                                serde_json::Value::String(
+                                    dt.to_rfc3339_opts(chrono::SecondsFormat::Secs, true),
+                                ),
                             );
                         }
                     }

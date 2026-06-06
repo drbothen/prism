@@ -67,6 +67,11 @@ ocsf_class = "security_finding"
   name = "created_timestamp"
   column_type = "datetime"
   ocsf_field = "time"
+  # options = ["INDEX"]: push-down-eligible datetime column. Required for extract_time_window_from_ast
+  # (ADR-033 T1) to identify created_timestamp as the CrowdStrike FQL time-window push-down column.
+  # Without this, Option T1 cannot extract time bounds from `created_timestamp > 'T'` predicates.
+  # F-P1-CRIT-001 / AC-INDEX-CWS-001 / BC-2.01.013 v1.14 CrowdStrike FQL time-window.
+  options = ["INDEX"]
 
   [[tables.columns]]
   name = "status"
@@ -95,10 +100,23 @@ ocsf_class = "security_finding"
 
   # Step 1: QueryV2 — GET detection IDs
   # DTU route: GET /detects/queries/detects/v1 (mod.rs line ~189)
+  # FQL time-window injection: ${query.filter._fql} carries the CrowdStrike FQL filter string
+  # (e.g., "created_timestamp:>'T1'+created_timestamp:<'T2'"). The value is seeded by
+  # SpecDrivenSensorAdapter::fetch() from QueryParams.start_time/end_time (ADR-033 T1).
+  # When no time predicates are present, _fql = "" and the filter param is ignored by the DTU.
+  # BC-2.01.013 v1.14 Pagination/Push-Down Scope Clause — CrowdStrike FQL wiring.
+  #
+  # Limit push-down: ${query.limit} carries the PrismQL LIMIT clause value so the DTU
+  # honors DetectionListParams.limit and returns at most that many detection IDs.
+  # When no LIMIT is provided, query.limit = "" and the &limit= param is stripped by
+  # PipelineExecutor.strip_empty_url_params — the DTU defaults to limit=100.
+  # AC-CWS-001 / BC-2.01.013 v1.14 Pagination/Push-Down Scope Clause — limit wiring.
+  # F-PUSHDOWN-001 invariant: limit push-down applies ONLY to this first/query step.
+  # Step 2 (fetch_detections POST) does NOT carry a limit param.
   [[tables.steps]]
   name = "query_detection_ids"
   method = "GET"
-  path_template = "/detects/queries/detects/v1"
+  path_template = "/detects/queries/detects/v1?filter=${query.filter._fql}&limit=${query.limit}"
   response_path = "$.resources"
   variables_produced = ["detection_ids"]
 
