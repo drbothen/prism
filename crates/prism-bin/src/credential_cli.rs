@@ -3,7 +3,8 @@
 //! # Contract (BC-2.03.007 + AC-005 of S-DEMO-003)
 //!
 //! The `prism credential set` subcommand writes a credential value to the OS
-//! keyring under namespace `prism/{sensor_id}/{name}` scoped to org slug.
+//! keyring under an OrgId-UUID-keyed namespace `{org_id_uuid}/{sensor}/{name}` via
+//! `CredentialStoreOrgId::set_by_org` (ADR-034 §D3 / namespace_key_by_org_id).
 //!
 //! ## AD-017 compliance — stdin-only value input
 //!
@@ -16,16 +17,19 @@
 //! which disables terminal echo. The `--value` flag is explicitly ABSENT from
 //! `CredentialSetArgs` by design (EC-005 of S-DEMO-003: clap must reject it).
 //!
-//! ## Keyring write API
+//! ## Keyring write API (OrgId-keyed — ADR-034 §D3)
 //!
-//! The implementer MUST call `CredentialStore::set()` via the `KeyringBackend`
+//! The subcommand calls `CredentialStoreOrgId::set_by_org` via the `KeyringBackend`
 //! from `prism-credentials`:
 //!
 //! ```text
-//! KeyringBackend::set(tenant: &OrgSlug, sensor: &str, name: &CredentialName, value: SecretString)
+//! KeyringBackend::set_by_org(org_id: &OrgId, sensor: &str, name: &CredentialName, value: SecretString)
 //! ```
 //!
-//! Namespace key produced: `"{org_slug}/{sensor_id}/{name}"` (BC-2.03.004).
+//! Namespace key produced: `"{org_id_uuid}/{sensor}/{name}"` (namespace_key_by_org_id).
+//! The legacy slug-keyed path `CredentialStore::set` (`"{slug}/{sensor}/{name}"`) is
+//! FORBIDDEN here — its namespace is disjoint from `get_by_org`'s OrgId-keyed namespace
+//! (CRIT-2 remediation; ADR-034 §D3).
 //!
 //! ## rpassword dependency
 //!
@@ -85,7 +89,11 @@ pub struct CredentialSetArgs {
 
     /// Org slug (default: first org in prism.toml; required if multiple orgs configured).
     ///
-    /// The org slug is used to scope the keyring namespace: `{org_slug}/{sensor}/{name}`.
+    /// The org slug is matched against `[[orgs]]` entries in `prism.toml` to extract
+    /// the `org_id` UUID. The credential is then written via `set_by_org` under the
+    /// OrgId-keyed namespace `{org_id_uuid}/{sensor}/{name}` (namespace_key_by_org_id,
+    /// ADR-034 §D3). The legacy slug-keyed namespace `{slug}/{sensor}/{name}` is
+    /// FORBIDDEN for writes — it is disjoint from `get_by_org`'s read namespace (CRIT-2).
     #[arg(long, value_name = "ORG_SLUG")]
     pub org_slug: Option<String>,
 }
@@ -134,31 +142,81 @@ pub async fn handle_credential_set(args: CredentialSetArgs, config_dir: std::pat
     let index = CredentialIndex::new(index_path);
     let store: Arc<dyn CredentialStoreOrgId> = Arc::new(KeyringBackend::new("prism", index));
 
-    handle_credential_set_with_store(args, config_dir, store).await
+    // Production secret reader strategy:
+    //
+    // 1. Try rpassword::read_password() — opens /dev/tty to disable echo on a TTY.
+    //    If the operator is typing interactively, this path suppresses echo (AD-017
+    //    interactive-TTY requirement; BC-2.03.007 postcondition "echo disabled").
+    //
+    // 2. If rpassword fails with ENXIO (os error 6 — /dev/tty unavailable, e.g. piped
+    //    stdin from demo-setup.sh or `printf '%s\n' | prism credential set`), fall back
+    //    to reading from stdin directly via BufRead::read_line. Echo is not possible on
+    //    a pipe (AD-017 satisfied by the channel property).
+    //
+    // In both cases, the value is placed in a Cursor so handle_credential_set_with_store
+    // can read it via its injectable `secret_reader: &mut dyn BufRead` parameter.
+    // This keeps the production TTY rpassword path AND the test seam intact.
+    let prompt = format!("Enter value for prism/{}/{}: ", args.sensor, args.name);
+    eprint!("{prompt}"); // prompt on stderr before rpassword opens /dev/tty
+
+    // NOTE: rpassword::read_password() internally emits its own prompt via /dev/tty;
+    // suppress the double-prompt in the pipe fallback by detecting ENXIO here.
+    let secret_bytes: Vec<u8> = match rpassword::read_password() {
+        Ok(v) => {
+            // TTY path: echo was disabled by rpassword. The value arrived without echo.
+            // Encode as line for Cursor (read_secret_value_from strips the trailing \n).
+            let mut bytes = v.into_bytes();
+            bytes.push(b'\n');
+            bytes
+        }
+        Err(e) if e.raw_os_error() == Some(6) => {
+            // ENXIO — piped stdin, no /dev/tty. Read from stdin directly.
+            let stdin = std::io::stdin();
+            let mut locked = stdin.lock();
+            let mut line = String::new();
+            if let Err(read_err) = std::io::BufRead::read_line(&mut locked, &mut line) {
+                eprintln!("\nprism credential set: failed to read credential value: {read_err}");
+                return EXIT_GENERIC_ERROR;
+            }
+            line.into_bytes()
+        }
+        Err(e) => {
+            eprintln!("\nprism credential set: failed to read credential value: {e}");
+            return EXIT_GENERIC_ERROR;
+        }
+    };
+
+    let mut cursor = std::io::Cursor::new(secret_bytes);
+    handle_credential_set_with_store(args, config_dir, store, &mut cursor).await
 }
 
-/// Inner implementation of `handle_credential_set` with injectable `CredentialStoreOrgId`.
+/// Inner implementation of `handle_credential_set` with injectable `CredentialStoreOrgId`
+/// and injectable `BufRead` for the credential value.
 ///
-/// Separated from `handle_credential_set` to enable unit testing without a real OS keyring:
-/// tests can inject an `InMemoryCredentialStore` trait double to assert the correct namespace
-/// key is used (`{org_id_uuid}/{sensor}/{name}`, NOT `{slug}/{sensor}/{name}` — CRIT-2).
+/// Separated from `handle_credential_set` to enable unit testing without:
+/// - a real OS keyring (inject `InMemoryCredentialStore` via `store`)
+/// - real stdin (inject a `std::io::Cursor<&[u8]>` via `secret_reader`)
 ///
-/// # Testability seam (RG-034-004)
+/// # Testability seams (RG-034-004)
 ///
-/// `bc_2_03_007_credential_set_org_id_keyed.rs` calls this function with an
-/// `InMemoryCredentialStore` to verify the namespace key format in-process without
-/// spawning a subprocess or touching the real OS keyring.
+/// `bc_2_03_007_credential_set_org_id_keyed.rs` calls this function with:
+/// - `InMemoryCredentialStore` to assert the namespace key is OrgId-keyed.
+/// - A `Cursor` wrapping the test secret value to avoid reading from real stdin.
+///
+/// This provides load-bearing in-process coverage of the full production code path:
+/// `prism.toml` parsing → OrgId extraction → `CredentialName` validation → `set_by_org` dispatch.
 ///
 /// # AD-017 compliance
 ///
-/// Same invariants as `handle_credential_set`: the credential value must never
-/// appear in stdout, stderr, or logs. The `store` parameter is a trait object;
-/// its concrete type (KeyringBackend or InMemoryCredentialStore) does not affect
-/// the AD-017 guarantee, which is enforced by this function never echoing `value`.
+/// The credential value must never appear in stdout, stderr, or logs.
+/// `secret_reader` provides the value without it transiting any visible channel.
+/// The `store` concrete type (KeyringBackend or InMemoryCredentialStore) does not affect
+/// the AD-017 guarantee; this function never echoes `raw_value` after reading it.
 pub async fn handle_credential_set_with_store(
     args: CredentialSetArgs,
     config_dir: std::path::PathBuf,
     store: Arc<dyn CredentialStoreOrgId>,
+    secret_reader: &mut dyn std::io::BufRead,
 ) -> i32 {
     // Step 1: Resolve org slug AND OrgId from prism.toml.
     // ADR-034 §D3: --org-slug is matched against [[orgs]] entries in prism.toml
@@ -182,20 +240,18 @@ pub async fn handle_credential_set_with_store(
         }
     };
 
-    // Step 3: Prompt on stderr (not stdout) — AD-017.
-    // rpassword::prompt_password writes the prompt to stderr and reads the value
-    // from stdin with echo DISABLED. This satisfies BC-2.03.007 postcondition.
+    // Step 3: Read the credential value from the injected reader — AD-017.
     //
-    // Non-TTY fallback: on macOS, rpassword may fail with ENXIO (os error 6) when
-    // stdin is a pipe and /dev/tty is unavailable. In that case, we fall back to
-    // reading from stdin directly (no echo possible on a pipe — the value is already
-    // not echoed because there's no TTY). This path is used by the Red Gate test
-    // (piped stdin) and by demo-setup.sh (heredoc input). AD-017 is still satisfied
-    // because the value never appears in stdout or logs.
-    let prompt = format!("Enter value for prism/{}/{}: ", args.sensor, args.name);
-    // Emit the prompt on stderr unconditionally (mirrors rpassword behaviour on TTY).
-    eprint!("{prompt}");
-    let raw_value = match read_secret_value(&prompt) {
+    // The reader is provided by the caller:
+    //   - Production (`handle_credential_set`): a Cursor containing the value already
+    //     read by rpassword (TTY path, echo disabled) or stdin (pipe fallback). The
+    //     prompt was emitted by `handle_credential_set` before calling this function.
+    //   - Tests (RG-034-004): a Cursor wrapping the injected secret bytes. No real stdin
+    //     access occurs. No prompt emission needed in tests.
+    //
+    // This function does NOT emit the prompt — that is the caller's responsibility.
+    // AD-017: `raw_value` must be wrapped in SecretString immediately (see below).
+    let raw_value = match read_secret_value_from(secret_reader) {
         Ok(v) => v,
         Err(e) => {
             eprintln!("\nprism credential set: failed to read credential value: {e}");
@@ -244,44 +300,33 @@ pub async fn handle_credential_set_with_store(
     }
 }
 
-/// Read a secret value from stdin with echo disabled.
+/// Read one line from an injectable `BufRead` source, stripping the trailing newline.
 ///
-/// # Strategy
+/// # Testability seam (F-HIGH-002 / RG-034-004)
 ///
-/// 1. Try `rpassword::prompt_password_from_bufread` against stdin — this disables echo on a TTY.
-/// 2. If rpassword fails (ENXIO / non-TTY pipe), fall back to `std::io::stdin().read_line()`.
-///    A pipe has no echo to suppress, so the fallback is AD-017 compliant:
-///    the value is never echoed because the shell never enabled echo for a pipe.
+/// This function accepts `&mut dyn BufRead` (via the generic `R: BufRead + ?Sized` bound)
+/// so `handle_credential_set_with_store` can be tested in-process without touching real
+/// stdin. Tests inject a `std::io::Cursor<Vec<u8>>` wrapping the secret value; production
+/// callers inject a `std::io::Cursor<Vec<u8>>` containing the value already read by
+/// `rpassword::read_password()` (TTY path, echo disabled) or from stdin (pipe fallback).
 ///
-/// The prompt is emitted on stderr BEFORE calling this function; `rpassword` will
-/// emit it a second time in the TTY path (harmless duplicate). In the pipe fallback
-/// path, only our outer `eprint!` fires — no double prompt.
+/// # AD-017 compliance
 ///
-/// AD-017: the returned `String` must be wrapped in `SecretString` immediately at
-/// the call site so any accidental `Debug`/`Display` output is redacted.
-fn read_secret_value(_prompt: &str) -> Result<String, std::io::Error> {
-    // Try rpassword first (TTY path — disables echo).
-    // On macOS with piped stdin, rpassword 7 may return ENXIO (os error 6) because it
-    // tries to open /dev/tty when stdin is not a terminal.
-    use std::io::BufRead;
-    match rpassword::read_password() {
-        Ok(v) => return Ok(v),
-        Err(e) => {
-            // ENXIO (6) = no such device or address — /dev/tty not available (pipe).
-            // Fall through to stdin read. Any other error is a real failure.
-            let raw_os_err = e.raw_os_error().unwrap_or(0);
-            if raw_os_err != 6 {
-                return Err(e);
-            }
-        }
-    }
-
-    // Fallback: read from stdin directly (pipe / non-TTY context).
-    // Echo is not possible on a pipe — AD-017 satisfied by the channel property.
-    let stdin = std::io::stdin();
+/// - **TTY path:** `handle_credential_set` calls `rpassword::read_password()` BEFORE this
+///   function, which opens /dev/tty to suppress echo. The returned value is placed in a
+///   `Cursor` and passed here. Echo disable happens before this function is reached.
+/// - **Pipe path:** no TTY, echo impossible. `handle_credential_set` reads from stdin
+///   lock and places the value in a `Cursor`. No echo is possible on a pipe.
+/// - **Test path:** the `Cursor` holds the injected value. No stdin or TTY access occurs.
+///
+/// AD-017: the caller (`handle_credential_set_with_store`) wraps the returned `String`
+/// in `SecretString` immediately so any accidental `Debug`/`Display` output is redacted.
+fn read_secret_value_from<R: std::io::BufRead + ?Sized>(
+    reader: &mut R,
+) -> Result<String, std::io::Error> {
     let mut line = String::new();
-    stdin.lock().read_line(&mut line)?;
-    // Strip the trailing newline that `writeln!` appended in the test.
+    reader.read_line(&mut line)?;
+    // Strip the trailing newline that `writeln!` / `printf '%s\n'` appends.
     if line.ends_with('\n') {
         line.pop();
         if line.ends_with('\r') {
@@ -289,74 +334,6 @@ fn read_secret_value(_prompt: &str) -> Result<String, std::io::Error> {
         }
     }
     Ok(line)
-}
-
-/// Resolve the org slug to use for credential scoping.
-///
-/// Resolution order (ADR-034 §D3 / AC-012 HIGH-3 remediation):
-/// 1. If `--org-slug` is provided, use it directly.
-/// 2. Load `prism.toml` from `config_dir` and use the first (or matching) org's slug.
-///    - If `prism.toml` is missing or unparseable: hard error (no demo-org fallback).
-///    - If `prism.toml` declares no orgs: hard error.
-///
-/// # HIGH-3 remediation (ADR-034 §D3, SOUL.md §4)
-///
-/// The previous implementation silently fell back to `"demo-org"` when `prism.toml`
-/// was absent. This is a SOUL.md §4 swallow-error violation:
-///   - An absent `prism.toml` means the config dir is not set up — the operator
-///     made a mistake. Silently defaulting to "demo-org" hides the error and writes
-///     the credential under a different namespace than the real org's OrgId.
-///   - The correct behavior: return `Err(...)` with an actionable message directing
-///     the operator to provide `--org-slug` explicitly or ensure `prism.toml` exists.
-///
-/// The `"demo-org"` string MUST NOT appear as a default return value in this function
-/// (ADR-034 §D3; AC-012 of S-DEMO-003; SOUL.md §4).
-///
-/// # Story traceability
-/// S-DEMO-003 AC-012; ADR-034 §D3 HIGH-3.
-/// Red Gate test: `test_resolve_org_slug_errors_when_toml_missing_and_no_explicit_slug`
-///
-/// # Production use
-/// Production code uses `resolve_org_slug_and_id` which also extracts the `OrgId`.
-/// This function is retained for the `test_resolve_org_slug_errors_when_toml_missing_and_no_explicit_slug`
-/// Red Gate test (RG-034-003) which tests the HIGH-3 error semantics in isolation.
-#[allow(dead_code)] // Used in #[cfg(test)] — RG-034-003
-async fn resolve_org_slug(
-    explicit: &Option<String>,
-    config_dir: &std::path::Path,
-) -> Result<String, String> {
-    if let Some(slug) = explicit {
-        return Ok(slug.clone());
-    }
-
-    // Load prism.toml — required if --org-slug is not provided.
-    // ADR-034 §D3: no silent "demo-org" fallback; SOUL.md §4 swallow-error prohibition.
-    let toml_path = config_dir.join("prism.toml");
-    match std::fs::read_to_string(&toml_path) {
-        Ok(contents) => {
-            let config: crate::boot::PrismConfig = toml::from_str(&contents)
-                .map_err(|e| format!("cannot parse '{}': {e}", toml_path.display()))?;
-
-            if config.orgs.is_empty() {
-                return Err(format!(
-                    "'{}' declares no orgs — add an [[orgs]] entry or use --org-slug",
-                    toml_path.display()
-                ));
-            }
-
-            Ok(config.orgs[0].org_slug.clone())
-        }
-        Err(e) => {
-            // prism.toml not found or unreadable — hard error per ADR-034 §D3.
-            // The operator must provide --org-slug explicitly or ensure prism.toml exists.
-            // "demo-org" default is FORBIDDEN (SOUL.md §4; AC-012 HIGH-3 remediation).
-            Err(format!(
-                "Could not load prism.toml from '{}': {e}. \
-                 Provide --org-slug explicitly or ensure prism.toml is present.",
-                config_dir.display()
-            ))
-        }
-    }
 }
 
 /// Resolve org slug AND OrgId from `prism.toml` for OrgId-keyed keyring writes.
@@ -558,35 +535,25 @@ mod tests {
     }
 
     // ---------------------------------------------------------------------------
-    // RG-034-003: resolve_org_slug errors when prism.toml is missing and no --org-slug
+    // RG-034-003: resolve_org_slug_and_id errors when prism.toml is missing
     // ---------------------------------------------------------------------------
 
     /// HIGH-3 remediation (ADR-034 §D3 / AC-012 of S-DEMO-003): when `--org-slug` is
-    /// absent and `prism.toml` is missing from the config dir, `resolve_org_slug` must
-    /// return `Err(...)` with an actionable message — NOT `Ok("demo-org")`.
+    /// absent and `prism.toml` is missing from the config dir, `resolve_org_slug_and_id`
+    /// (the PRODUCTION function used by `handle_credential_set_with_store`) must
+    /// return `Err(...)` with an actionable message — NOT `Ok(("demo-org", ...))`.
     ///
-    /// **Red Gate:** Before the HIGH-3 fix (this burst), `resolve_org_slug` returned
-    /// `Ok("demo-org".to_string())` as a silent fallback when `prism.toml` was missing.
-    /// That is a SOUL.md §4 swallow-error violation. The assertion `result.is_err()` PASSED
-    /// in the OLD implementation (it returned Ok, not Err) — meaning the assertion FAILS
-    /// until the fix is applied.
+    /// **Contract:** `resolve_org_slug_and_id` is the production code path. The retired
+    /// `resolve_org_slug` helper was removed (F-LOW-003: it was dead code used only by
+    /// this test). The missing-toml hard-error behavior belongs to the production function.
     ///
-    /// **After fix (current burst):** `resolve_org_slug` returns `Err(format!(...))` when
-    /// `prism.toml` is missing and `--org-slug` is absent. This test NOW PASSES.
-    ///
-    /// Wait — this is the HIGH-3 fix already applied in this burst. So this test should
-    /// PASS with the current implementation and FAIL if someone reintroduces the demo-org
-    /// fallback.
-    ///
-    /// The test is a Red Gate in the sense that it would FAIL on the OLD code (pre-HIGH-3).
-    /// It is included as a behavioral regression test to prevent re-introduction of the
-    /// demo-org default (SOUL.md §4 / ADR-034 §D3 HIGH-3 remediation).
-    ///
-    /// **In this Red Gate phase:** the test should PASS (the fix is already in the stub).
-    /// If the implementer accidentally re-introduces the demo-org fallback, this test fails.
+    /// **Red Gate:** Before the HIGH-3 fix, `resolve_org_slug_and_id` returned a silent
+    /// `"demo-org"` fallback. After fix: returns `Err(...)` with an actionable message.
+    /// If someone reintroduces the demo-org fallback, this test fails.
     ///
     /// RG-034-003 (ADR-034 §Red Gate Tests); AC-012 of S-DEMO-003.
-    /// ADR-034 §D3 HIGH-3: `resolve_org_slug` MUST NOT return `"demo-org"` as a silent default.
+    /// ADR-034 §D3 HIGH-3: MUST NOT return `"demo-org"` as a silent default when
+    /// `prism.toml` is missing and `--org-slug` is absent.
     #[tokio::test]
     async fn test_resolve_org_slug_errors_when_toml_missing_and_no_explicit_slug() {
         let tmp = tempfile::TempDir::new().expect("temp dir");
@@ -598,31 +565,27 @@ mod tests {
             "test fixture: prism.toml must NOT exist in the temp dir for this test"
         );
 
-        // Call with no explicit org slug (simulating `prism credential set --sensor armis --name bearer_token`
-        // without `--org-slug`).
-        let result = resolve_org_slug(&None, config_dir_without_prism_toml).await;
+        // Call the PRODUCTION function with no explicit org slug
+        // (simulating `prism credential set --sensor armis --name bearer_token` without `--org-slug`).
+        let result = resolve_org_slug_and_id(&None, config_dir_without_prism_toml).await;
 
         // RED GATE ASSERTION: must return Err (not Ok with any value, including "demo-org").
         assert!(
             result.is_err(),
-            "RG-034-003 (AC-012 HIGH-3): resolve_org_slug must return Err when prism.toml \
-             is missing and --org-slug is absent. \
+            "RG-034-003 (AC-012 HIGH-3): resolve_org_slug_and_id must return Err when \
+             prism.toml is missing and --org-slug is absent. \
              Got Ok({:?}) — the 'demo-org' fallback is a SOUL.md §4 violation \
              (ADR-034 §D3 HIGH-3 remediation). \
              prism.toml must exist OR --org-slug must be provided.",
             result.ok()
         );
 
-        // Additional assertion: the error message must NOT contain "demo-org" as a resolved value.
-        // (It may contain "demo-org" in a diagnostic like "config_dir: /path/to/dir" but NOT
-        // as a successful org slug value.)
         let err_msg = result.unwrap_err();
         assert!(
             !err_msg.is_empty(),
             "RG-034-003: error message must be non-empty (actionable)"
         );
-        // The "demo-org" MUST NOT appear as a returned default (it can appear in error context
-        // only if the error message references the config dir path, which is fine).
-        // Key: the function returned Err, not Ok("demo-org"), which is the HIGH-3 fix contract.
+        // The function returned Err — the HIGH-3 fix is confirmed.
+        // "demo-org" must NOT have been returned as a successful default value.
     }
 }

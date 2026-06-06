@@ -91,25 +91,30 @@ async fn test_BC_2_06_003_crit2_slug_keyed_write_invisible_to_org_id_keyed_read(
 // RG-034-004: handle_credential_set writes OrgId-keyed namespace (in-process)
 // ---------------------------------------------------------------------------
 
-/// RG-034-004: `handle_credential_set` must write via `CredentialStoreOrgId::set_by_org`
-/// so the stored credential uses the OrgId-UUID-keyed namespace format.
+/// RG-034-004: `handle_credential_set_with_store` must write via
+/// `CredentialStoreOrgId::set_by_org` so the stored credential uses the OrgId-UUID-keyed
+/// namespace format.
 ///
-/// **Test approach:** inject `InMemoryCredentialStore` via `handle_credential_set_with_store`
-/// (the injectable inner function). Assert the namespace key is `{org_id_uuid}/armis/bearer_token`,
-/// NOT `{slug}/armis/bearer_token`.
+/// **Test approach (F-HIGH-002 fix):** call `handle_credential_set_with_store` directly
+/// with two injected trait doubles:
+///   1. `InMemoryCredentialStore` — no real OS keyring needed.
+///   2. `std::io::Cursor<&[u8]>` — injectable `BufRead` for the secret value, no real stdin.
+///
+/// This exercises the FULL production code path of `handle_credential_set_with_store`:
+///   - `prism.toml` parsing via `resolve_org_slug_and_id`
+///   - `CredentialName::new` validation
+///   - `read_secret_value_from(reader)` dispatch (not bypassed)
+///   - `store.set_by_org(org_id, sensor, cred_name, value)` call
+///
+/// After the call, the test inspects the in-memory store's namespace keys to assert the
+/// credential was stored at `"{org_id_uuid}/armis/bearer_token"` — NOT at
+/// `"{slug}/armis/bearer_token"`. The CRIT-2 namespace invariant is validated end-to-end
+/// through the production handler (not via a direct `set_by_org` call bypass).
 ///
 /// **Why in-process (no subprocess)?**
 /// The subprocess approach requires the real OS keyring for cross-process reads.
 /// On macOS, unsigned test binaries fail OS keychain cross-process ACL checks.
 /// See the `#[ignore]`'d subprocess test below for the rationale.
-///
-/// **Load-bearing coverage:** this test exercises the full production code path of
-/// `handle_credential_set_with_store`:
-///   - prism.toml parsing and OrgId extraction
-///   - `CredentialName::new` validation
-///   - `store.set_by_org(org_id, sensor, cred_name, value)` dispatch
-/// The only difference from production is the concrete `store` type (in-memory vs keyring).
-/// The namespace key generation is IDENTICAL: `namespace_key_by_org_id(org_id, sensor, name)`.
 ///
 /// RG-034-004 (ADR-034 §Red Gate Tests); AC-010 / AC-005 of S-DEMO-003.
 #[tokio::test]
@@ -128,6 +133,8 @@ async fn test_handle_credential_set_writes_org_id_keyed_namespace() {
     std::fs::create_dir_all(&spec_dir).unwrap();
     std::fs::create_dir_all(&plugin_dir).unwrap();
 
+    // Write prism.toml — resolve_org_slug_and_id reads it to extract the OrgId UUID.
+    // This is a FIXTURE prism.toml (not the real ~/.config/prism-demo/prism.toml).
     let prism_toml = format!(
         r#"spec_dir = "{spec}"
 state_dir = "{state}"
@@ -148,76 +155,71 @@ org_slug = "{org_slug}"
     // Inject the InMemoryCredentialStore — no real OS keyring needed.
     let store = Arc::new(InMemoryCredentialStore::new());
 
+    // The secret value to inject via the BufRead reader (simulates piped stdin).
+    // This value must appear in the store under the OrgId-keyed key after the call.
     let secret_value = "rg034004-test-bearer-value";
 
     // Build the CredentialSetArgs as if invoked from the CLI.
+    // No `value` field — AD-017 invariant (value comes from the reader, not args).
     let args = prism_bin::credential_cli::CredentialSetArgs {
         sensor: "armis".to_string(),
         name: "bearer_token".to_string(),
         org_slug: Some(demo_org_slug.to_string()),
     };
 
-    // Pipe the secret value into stdin for read_secret_value.
-    // handle_credential_set_with_store calls read_secret_value() which reads from stdin.
-    // We use a thread to write to a pipe so we can "type" the secret value.
-    //
-    // Alternative: override via the STDIN-as-pipe path (non-TTY → read from stdin directly).
-    // This mirrors the subprocess test's pipe approach, but in-process.
-    //
-    // Implementation: override stdin temporarily with a pipe.
-    // We use the standard approach: pipe the value via environment + mock, or just
-    // call the OrgId-resolution + set_by_org logic directly and assert the key.
-    //
-    // SIMPLEST APPROACH: call resolve_org_slug_and_id + set_by_org directly via
-    // the accessible production types, bypassing stdin (which is not injectable).
-    // This directly asserts the CRIT-2 namespace invariant without stdin complexity.
+    // Inject the secret value via a Cursor — no real stdin read.
+    // handle_credential_set_with_store calls read_secret_value_from(secret_reader)
+    // which reads from the Cursor exactly as it would from a piped stdin.
+    // The trailing newline mirrors what `printf 'value\n' | prism credential set` does.
+    let secret_bytes = format!("{secret_value}\n");
+    let mut secret_reader = std::io::Cursor::new(secret_bytes.as_bytes().to_vec());
 
-    // Resolve OrgId from prism.toml — same logic as handle_credential_set_with_store.
+    // Call the PRODUCTION handler — not a direct set_by_org bypass.
+    // This is the load-bearing coverage that F-HIGH-002 requires:
+    // the full code path from args → resolve_org_slug_and_id → read_secret_value_from
+    // → set_by_org is exercised in-process.
+    let exit_code = prism_bin::credential_cli::handle_credential_set_with_store(
+        args,
+        config_dir,
+        store.clone(),
+        &mut secret_reader,
+    )
+    .await;
+
+    assert_eq!(
+        exit_code, 0,
+        "RG-034-004: handle_credential_set_with_store must return exit 0 on success. \
+         Got exit {exit_code}. Check prism.toml fixture and InMemoryCredentialStore setup."
+    );
+
+    // Compute expected OrgId-keyed key.
     let org_id = {
         let uuid = uuid::Uuid::parse_str(demo_org_uuid_str).expect("valid uuid");
         OrgId::from_uuid(uuid)
     };
-    let cred_name = CredentialName::new("bearer_token").expect("CredentialName::new");
-
-    // Call set_by_org directly on the store — verifying the namespace key invariant.
-    // This is equivalent to what handle_credential_set_with_store does after resolving
-    // OrgId from prism.toml and reading the value from stdin.
-    store
-        .set_by_org(
-            &org_id,
-            "armis",
-            &cred_name,
-            secrecy::SecretString::new(secret_value.to_string()),
-        )
-        .await
-        .expect("set_by_org must succeed on InMemoryCredentialStore");
-
-    // ASSERTION: the namespace key is OrgId-UUID-keyed, NOT slug-keyed.
     let expected_key = format!("{org_id}/armis/bearer_token");
     let slug_keyed = format!("{demo_org_slug}/armis/bearer_token");
 
+    // ASSERTION 1: credential stored at OrgId-UUID-keyed namespace.
     assert!(
         store.contains_key(&expected_key),
-        "RG-034-004 (CRIT-2 gap closure): the credential must be stored at the \
-         OrgId-UUID-keyed namespace '{{org_id_uuid}}/{{sensor}}/{{name}}'. \
+        "RG-034-004 (CRIT-2 gap closure): handle_credential_set_with_store must store \
+         the credential at the OrgId-UUID-keyed namespace '{{org_id_uuid}}/{{sensor}}/{{name}}'. \
          Expected key: '{expected_key}'. \
          Keys in store: {:?}. \
          ADR-034 §D3; AC-010 of S-DEMO-003.",
         store.keys()
     );
 
+    // ASSERTION 2: credential NOT stored at legacy slug-keyed namespace (CRIT-2).
     assert!(
         !store.contains_key(&slug_keyed),
-        "RG-034-004 (CRIT-2): the credential MUST NOT be stored at the slug-keyed \
-         namespace '{{slug}}/{{sensor}}/{{name}}'. \
+        "RG-034-004 (CRIT-2): handle_credential_set_with_store MUST NOT store the \
+         credential at the slug-keyed namespace '{{slug}}/{{sensor}}/{{name}}'. \
          The slug-keyed namespace is disjoint from get_by_org's OrgId-UUID namespace. \
          Found unexpected slug-keyed key: '{slug_keyed}'. \
          ADR-034 §D3 CRIT-2 remediation."
     );
-
-    // Verify the args struct has the correct fields (AD-017: no `value` field).
-    // This assertion proves the type-level invariant at compile time.
-    let _ = args; // CredentialSetArgs struct constructed without `value` field — compile-time AD-017 proof.
 }
 
 // ---------------------------------------------------------------------------
