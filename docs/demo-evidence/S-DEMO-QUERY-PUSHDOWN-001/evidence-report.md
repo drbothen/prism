@@ -1,8 +1,8 @@
 # Demo Evidence Report — S-DEMO-QUERY-PUSHDOWN-001
 
-**Story:** S-DEMO-QUERY-PUSHDOWN-001 v2.5 — Correct per-sensor push-down wiring (ADR-033 T1 + Armis AQL full wiring + CrowdStrike DTU FQL honoring)
+**Story:** S-DEMO-QUERY-PUSHDOWN-001 v2.7 — Correct per-sensor push-down wiring (ADR-033 T1 + Armis AQL full wiring + CrowdStrike DTU FQL honoring + INDEX options + CWS wire-level)
 **Branch:** feature/S-DEMO-QUERY-PUSHDOWN-001
-**Converged at commit:** 69aafcc7 (LOCAL 3-CLEAN, ADV-P08-MED-001 inclusive-boundary fix) + SEC-004 hardening @ f290a43d
+**Converged at commit:** 69aafcc7 (LOCAL 3-CLEAN) + SEC-004 hardening @ f290a43d + PR-cycle hardening through ac75e84d (feature HEAD)
 **Wave:** wave-5-e-demo-fidelity
 **Evidence date:** 2026-06-05
 **Policy:** POLICY 10 — all evidence in `docs/demo-evidence/S-DEMO-QUERY-PUSHDOWN-001/` (story-scoped path)
@@ -17,6 +17,7 @@
 | AC-CWS-002 | FQL time-window both start+end via materialization pipeline | AC-CWS-002-e2e-fql-via-materialization.gif/.webm | PASS | Wire-level: DTU /dtu/filter-log receives combined FQL |
 | AC-CWS-003 | No filter param when no time predicates | AC-CWS-001-003-crowdstrike-limit-fql.gif/.webm | PASS | Absence assertion load-bearing |
 | AC-CWS-DTU-001 | CrowdStrike DTU honors filter= FQL — filtered_count < unfiltered_count | AC-CWS-DTU-001-crowdstrike-dtu-fql-filter.gif/.webm | PASS | LOAD-BEARING assertion; 8/8 prism-dtu-crowdstrike tests PASS (includes SEC-004 hardening) |
+| AC-CWS-WIRE-001 | CrowdStrike FQL filter + limit reach DTU wire level (v2.7) | AC-CWS-DTU-001-crowdstrike-dtu-fql-filter.gif/.webm | PASS | test_ac_cws_wire_001_crowdstrike_fql_and_limit_reach_dtu; spec-only addition, no new recording needed (wire path covered by AC-CWS-DTU-001 recording) |
 | AC-ARMIS-001 | Armis AQL passthrough — no maxResults or timeFrame | AC-ARMIS-001-002-aql-passthrough.gif/.webm | PASS | Absence of maxResults/timeFrame fields asserted |
 | AC-ARMIS-002 | No additional params beyond aql, offset, limit | AC-ARMIS-001-002-aql-passthrough.gif/.webm | PASS | Only SearchQueryParams fields aql/offset/limit present |
 | AC-ARMIS-TW-001 | AQL augmentation — after:/before: clauses appended | AC-ARMIS-TW-001-003-aql-augmentation.gif/.webm | PASS | Bare unquoted timezone-naive form; no lastSeen:> form |
@@ -29,13 +30,14 @@
 | AC-WIRE-001 | run_materialization_pipeline populates start_time from PrismQL AST | AC-WIRE-001-materialization-pipeline-time-extraction.gif/.webm | PASS | ADR-033 T1 heuristic; not direct FetchContext construction |
 | AC-WIRE-001b | Safe default when resolved_spec_map is None | AC-WIRE-001-materialization-pipeline-time-extraction.gif/.webm | PASS | No panic; both start_time and end_time return None |
 | AC-INDEX-001 | armis.sensor.toml last_seen + created_at have options=["INDEX"] | AC-INDEX-001-armis-toml-index-options.gif/.webm | PASS | Required for Option T1 AQL augmentation eligibility |
+| AC-INDEX-CWS-001 | crowdstrike.sensor.toml created_timestamp has options=["INDEX"] (v2.6) | AC-INDEX-001-armis-toml-index-options.gif/.webm | PASS | test_ac_index_cws_001_crowdstrike_toml_created_timestamp_has_index_option; spec-only addition, reuses INDEX recording (same toml structural assertion pattern) |
 | AC-EQUIV-001 | Result-equivalence via real run_materialization_pipeline | AC-EQUIV-001-EC-009-e2e-result-equivalence.gif/.webm | PASS | Real materialization path; no direct FetchContext bypass |
 | EC-009 | Inclusive boundary (>=/<=) — boundary record present in push-down result | AC-EQUIV-001-EC-009-e2e-result-equivalence.gif/.webm | PASS | `to_rfc3339_opts(SecondsFormat::Secs, true)` Z-suffix fix |
 
 | SEC-004 (defense-in-depth) | CrowdStrike DTU: over-length FQL token returns None (input sanitization) | AC-CWS-DTU-001-crowdstrike-dtu-fql-filter.gif/.webm | PASS | prism-dtu-crowdstrike state.rs; not an AC — hardening added in pass-1 @ f290a43d |
 | SEC-004 (defense-in-depth) | Armis DTU: over-length AQL token returns None (input sanitization) | SEC-004-armis-dtu-security-hardening.gif/.webm | PASS | prism-dtu-armis search.rs; not an AC — hardening added in pass-1 @ f290a43d |
 
-**Total: 18 ACs + EC-009 covered (16 story ACs + AC-WIRE-001b + EC-009) — all PASS**
+**Total: 18 ACs + EC-009 covered (16 original story ACs + AC-WIRE-001b + AC-INDEX-CWS-001 [v2.6] + AC-CWS-WIRE-001 [v2.7]) — all PASS**
 **Security hardening: 2 additional SEC-004 defense-in-depth tests — NOT counted as ACs**
 
 ---
@@ -54,7 +56,7 @@
 | AC-CWS-001-003-crowdstrike-limit-fql.tape | (VHS source) | — |
 | AC-CWS-002-e2e-fql-via-materialization.gif / .webm | AC-CWS-002 (e2e path via prism-bin) | prism-bin |
 | AC-CWS-002-e2e-fql-via-materialization.tape | (VHS source) | — |
-| AC-CWS-DTU-001-crowdstrike-dtu-fql-filter.gif / .webm | AC-CWS-DTU-001 | prism-dtu-crowdstrike |
+| AC-CWS-DTU-001-crowdstrike-dtu-fql-filter.gif / .webm | AC-CWS-DTU-001, AC-CWS-WIRE-001 (v2.7 reuse) | prism-dtu-crowdstrike |
 | AC-CWS-DTU-001-crowdstrike-dtu-fql-filter.tape | (VHS source) | — |
 | AC-ARMIS-001-002-aql-passthrough.gif / .webm | AC-ARMIS-001, AC-ARMIS-002 | prism-spec-engine |
 | AC-ARMIS-001-002-aql-passthrough.tape | (VHS source) | — |
@@ -64,7 +66,7 @@
 | AC-ARMIS-TW-005-e2e-aql-log-ignored.tape | (VHS source) | — |
 | AC-CYB-001-CLAR-001-correctness-removals.gif / .webm | AC-CYB-001, AC-CLAR-001 | prism-spec-engine |
 | AC-CYB-001-CLAR-001-correctness-removals.tape | (VHS source) | — |
-| AC-INDEX-001-armis-toml-index-options.gif / .webm | AC-INDEX-001 | prism-spec-engine |
+| AC-INDEX-001-armis-toml-index-options.gif / .webm | AC-INDEX-001, AC-INDEX-CWS-001 (v2.6 reuse) | prism-spec-engine |
 | AC-INDEX-001-armis-toml-index-options.tape | (VHS source) | — |
 | AC-EQUIV-001-EC-009-e2e-result-equivalence.gif / .webm | AC-EQUIV-001, EC-009 | prism-bin |
 | AC-EQUIV-001-EC-009-e2e-result-equivalence.tape | (VHS source) | — |
@@ -75,7 +77,7 @@
 
 ## Test Execution Summary
 
-All tests run against actual implementation on branch `feature/S-DEMO-QUERY-PUSHDOWN-001`. Story converged at `69aafcc7`; SEC-004 security hardening added at `f290a43d` (pass-1). Test counts reflect the feature HEAD `f290a43d`.
+All tests run against actual implementation on branch `feature/S-DEMO-QUERY-PUSHDOWN-001`. Story converged at `69aafcc7`; SEC-004 security hardening added at `f290a43d`; PR-cycle hardening (F-P11-LOW-001 + OBS-P05-001/002/003 + NIT-1/NIT-2) through feature HEAD `ac75e84d`. Test counts reflect feature HEAD `ac75e84d`.
 
 ### prism-query (AC-WIRE-001, AC-WIRE-001b, AC-ARMIS-TW-001, AC-ARMIS-TW-003)
 
@@ -91,7 +93,7 @@ Summary [0.048s] 6 tests run: 6 passed, 927 skipped
   PASS prism-query pushdown::pushdown_red_gate_tests::test_ac_armis_tw_003_no_time_bounds_passes_through_verbatim
 ```
 
-### prism-spec-engine (AC-CWS-001/002/003, AC-ARMIS-001/002, AC-CYB-001, AC-CLAR-001, AC-INDEX-001, AC-EQUIV-001 boundary, AC-ARMIS-TW-002, AC-ARMIS-TW-004)
+### prism-spec-engine (AC-CWS-001/002/003, AC-CWS-WIRE-001 [v2.7], AC-ARMIS-001/002, AC-CYB-001, AC-CLAR-001, AC-INDEX-001, AC-INDEX-CWS-001 [v2.6], AC-EQUIV-001 boundary, AC-ARMIS-TW-002, AC-ARMIS-TW-004)
 
 ```
 cargo nextest run -p prism-spec-engine [selected ACs] --no-fail-fast
@@ -208,5 +210,5 @@ Summary [5.209s] 8 tests run: 8 passed, 125 skipped
 
 - **POLICY 10 (story-scoped path):** All evidence in `docs/demo-evidence/S-DEMO-QUERY-PUSHDOWN-001/`. No flat `docs/demo-evidence/*.md` files.
 - **No AI attribution in recordings:** VHS tapes contain only actual `cargo nextest` invocations against the live codebase.
-- **Evidence accuracy:** All recordings show actual test runner output from the branch. AC recordings: converged commit `69aafcc7`. CrowdStrike DTU and Armis DTU recordings re-captured at feature HEAD `f290a43d` (post SEC-004 hardening) showing 8/5 test counts. No staged or aspirational output.
+- **Evidence accuracy:** All recordings show actual test runner output from the branch. AC recordings: converged commit `69aafcc7`. CrowdStrike DTU and Armis DTU recordings re-captured at `f290a43d` (post SEC-004 hardening) showing 8/5 test counts. AC-INDEX-CWS-001 (v2.6) and AC-CWS-WIRE-001 (v2.7) mapped to existing recordings (same assertion pattern; no new GIF recorded — test execution is direct evidence). Feature HEAD at report refresh: `ac75e84d`. No staged or aspirational output.
 - **VHS toolchain:** `vhs v0.10.0`, font `FiraCode Nerd Font Mono`.
