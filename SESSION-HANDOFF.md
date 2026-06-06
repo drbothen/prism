@@ -168,7 +168,7 @@ ARTIFACT STATE AFTER D-540 (UNCHANGED FROM D-539 — no spec edits):
 DURABLE PIN BLOCK (CURRENT STATE — D-580 — DURABLE PRE-/CLEAR RESUME SNAPSHOT — 86th consecutive single-commit — STRATEGIC DECISION PENDING)
 ═══════════════════════════════════════════════════════════════════════
 
-- develop HEAD: 752e407a (feat(S-SPEC-HTTP-METHOD-VALIDATION-001): HTTP method whitelist validation (#172) — MERGED 2026-06-05; D-1000 post-merge burst)
+- develop HEAD: 9447671f (feat(S-DEMO-QUERY-PUSHDOWN-001): AQL/FQL query push-down (#173) — MERGED 2026-06-06; D-1022 post-merge burst)
 - factory-artifacts: run `git -C .factory log -1 --format=’%H’` (per TD-VSDD-053; D-579 is this commit)
 - feature_branch_head: no active feature branch (spec-authoring-only burst; develop unchanged at a5ab742c)
 - feature_branch_remote_status: no feature branch (spec-only burst; develop@a5ab742c unchanged)
@@ -458,9 +458,9 @@ DURABLE PIN BLOCK (CURRENT STATE — D-580 — DURABLE PRE-/CLEAR RESUME SNAPSHO
 
 ---
 
-## RESUME SNAPSHOT 2026-06-06 — D-1026 / PHASE-B-LANE-3-IN-PROGRESS / LANE-4-TDD-REWORK-FLAGGED
+## RESUME SNAPSHOT 2026-06-06 — D-1028 / PHASE-B-LANE-3-FRESH-STREAK / LANE-4-PASS-2-NEXT
 
-> **START HERE — 2026-06-06 /clear resume (zero-context).** Read STATE.md frontmatter + this snapshot before dispatching any agent. All durable state committed to factory-artifacts (LOCAL-ONLY — push pending user auth). develop HEAD `9447671f` (origin/develop == local; PR #173 squash-merged 2026-06-06). STATE.md v7.677.
+> **START HERE — 2026-06-06 /clear resume (zero-context).** Read STATE.md frontmatter + this snapshot before dispatching any agent. All durable state committed to factory-artifacts (LOCAL-ONLY — push pending user auth). develop HEAD `9447671f` (origin/develop == local; PR #173 squash-merged 2026-06-06). STATE.md v7.679.
 
 ---
 
@@ -473,19 +473,19 @@ DURABLE PIN BLOCK (CURRENT STATE — D-580 — DURABLE PRE-/CLEAR RESUME SNAPSHO
 | Sub-phase | Phase B (parallel lanes) |
 | Phase B Lane 1 | COMPLETE — S-SPEC-HTTP-METHOD-VALIDATION-001 (PR #172 merged develop@752e407a 2026-06-05) |
 | Phase B Lane 2 | COMPLETE — S-DEMO-QUERY-PUSHDOWN-001 (PR #173 merged develop@9447671f 2026-06-06) |
-| Phase B Lane 3 | IN_PROGRESS — OCSF-CLASS-MIGRATION-001 v1.7 (LOCAL pass-3 CLOSED D-1026; code commits c0f58234+9d513d54+4da24b91+786015da+92b44bd9+be9f8b6d; BC-2.02.012 v1.6; streak 0/3; LOCAL pass-4 NEXT) |
-| Phase B Lane 4 | TDD_REWORK_FLAGGED (D-1025 spec-restart; D-1026 flag) — S-DEMO-003: ADR-034 ACCEPTED; story v1.2 (14 ACs, 8 pts, 6 RGTs); on-disk credential cache + UUID-v5 fallback to be reverted; orchestrator dispatching correction NEXT |
+| Phase B Lane 3 | IN_PROGRESS — OCSF-CLASS-MIGRATION-001 v1.8 (LOCAL pass-6 F-LP6-HIGH-001 CLOSED D-1028; streak RESET 2/3→0/3; code @be9f8b6d unchanged; FRESH LOCAL pass NEXT — need 3 consecutive CLEAN) |
+| Phase B Lane 4 | IN_PROGRESS — S-DEMO-003 v1.3 (LOCAL pass-1 CLOSED D-1027; build VERIFIED GREEN; LOCAL pass-2 NEXT) |
 | Phase C | PENDING — Claroty cluster (PAGINATION → TRAILING-SLASH → SPEC-PROSE-FIX → HARNESS-CLONE-PARITY); serialized; shares BC-2.16.013 + claroty.sensor.toml |
 
-### Durable State (all committed as of D-1026)
+### Durable State (all committed as of D-1028)
 
 | Item | Value |
 |------|-------|
 | develop HEAD | `9447671f` (local == origin/develop; PR #173 squash-merged 2026-06-06) |
 | Last merged story | S-DEMO-QUERY-PUSHDOWN-001 v2.8 — PR #173 squash-merged develop@9447671f 2026-06-06 (D-1022) |
 | factory-artifacts HEAD | current — run `git -C .factory log -1 --format='%h %s'` (LOCAL-ONLY; per CLAUDE.md policy) |
-| STATE.md version | v7.677 |
-| STORY-INDEX version | v2.295 (181 stories) |
+| STATE.md version | v7.679 |
+| STORY-INDEX version | v2.297 (182 stories) |
 | BC-INDEX version | v5.90 (active: 234, draft: 3) |
 | ARCH-INDEX version | v2.113 |
 | error-taxonomy version | v1.61 (E-CRED-005 added D-1025) |
@@ -494,18 +494,20 @@ DURABLE PIN BLOCK (CURRENT STATE — D-580 — DURABLE PRE-/CLEAR RESUME SNAPSHO
 | BC-2.16.002 version | v1.69 |
 | Open PRs | None (PR #173 MERGED; `gh pr list --state open` → expected empty) |
 
-### Last Completed Decision (D-1026)
+### Last Completed Decision (D-1028)
 
-**D-1026 — OCSF-CLASS-MIGRATION-001 LOCAL pass-3 ALL CLOSED (2 MED + 2 OBS; BC-2.02.012 v1.6; story v1.7; code be9f8b6d; OBS-1 reconciled; streak 0/3) 2026-06-06.**
+**D-1028 — OCSF-CLASS-MIGRATION-001 LOCAL pass-6 F-LP6-HIGH-001 CLOSED (SS-16→SS-02 mis-anchor; story v1.8; streak RESET 2/3→0/3; FRESH LOCAL pass NEXT) 2026-06-06.**
 
-Pass-3 findings (all CLOSED):
-- MED-1: crates_touched omitted prism-sensors → story v1.7 + STORY-INDEX crates column updated.
-- MED-2: §Scope task-2 code block Option/Some/None notation → Result/Ok/Err per real implementation → BC-2.02.012 v1.6 + story v1.7.
-- OBS-1: STORY-INDEX showed in_progress v1.6 but story frontmatter had status:ready → frontmatter updated ready→in_progress (D-1002 cascade convention).
-- OBS-2: task-5 "add BC-2.16.002 row" → "verify row exists" (row 134 already present, Wave-5 Phase-A).
+Pass-6 finding (CLOSED):
+- F-LP6-HIGH-001 (HIGH): story routed prism-ocsf/class_selector.rs to SS-16 (Spec Engine) but ARCH-INDEX + BC-2.02.012 frontmatter + module-decomposition say prism-ocsf is owned by SS-02 (OCSF Normalization). POL-6 HIGH. CLOSED story-writer: SS-16→SS-02 corrected at frontmatter `subsystems:` line 14, justification comment lines 18+22, §Architecture Mapping line 230. SS-01 (prism-sensors TOML anchor) unchanged.
 
-CLEAN(strict)=no; CLEAN(PR-merge)=no; streak 0/3 unchanged. LOCAL pass-4 NEXT.
-Lane 4 S-DEMO-003 TDD rework flagged (on-disk credential cache + UUID-v5 fallback pending correction).
+Story v1.7→v1.8. Passes 4/5 were CLEAN(strict) (streak was 2/3); pass-6 resets streak to 0/3.
+Runtime GREEN confirmed by D-1026 (just check 4043/4043 at be9f8b6d; code unchanged since D-1026).
+FRESH LOCAL cascade required: need 3 consecutive CLEAN(strict) passes from scratch.
+
+SHA CLEANUP COMPLETED: SESSION-HANDOFF.md DURABLE PIN BLOCK "develop HEAD" corrected from stale 752e407a to current 9447671f.
+
+D-1027 (S-DEMO-003 LOCAL pass-1 CLOSED; fix-burst-1 81b3f660+135b4c84; story v1.3; SECURITY CLEAN AD-017; streak 0/3; build VERIFIED GREEN): LOCAL pass-2 NEXT.
 
 ### Standing Authorization (D-989 — ACTIVE)
 
@@ -521,12 +523,12 @@ Lane 4 S-DEMO-003 TDD rework flagged (on-disk credential cache + UUID-v5 fallbac
 ### Resume Protocol (numbered — BLOCKING ORDER)
 
 1. Run `vsdd-factory:factory-worktree-health` (BLOCKING preflight — do NOT read .factory/ or dispatch any agent until PASS).
-2. Confirm STATE.md frontmatter: `version: "7.677"` + `develop_head: "9447671f"` + `safe_to_compact: true` + `wave5_autonomy_granted` present.
+2. Confirm STATE.md frontmatter: `version: "7.679"` + `develop_head: "9447671f"` + `safe_to_compact: true` + `wave5_autonomy_granted` present.
 3. Fast-forward local develop to origin/develop if needed: `git fetch origin && git merge --ff-only origin/develop` (HEAD should already be 9447671f).
 4. Run `gh pr list --state open` — expect empty (PR #173 MERGED; no open PRs).
 5. **NEXT ACTIONS:** Continue Phase B lanes under D-989 autonomy grant:
-   - **Lane 3 — OCSF-CLASS-MIGRATION-001** (status: in_progress v1.7; LOCAL pass-3 CLOSED D-1026; code commits c0f58234+9d513d54+4da24b91+786015da+92b44bd9+be9f8b6d; BC-2.02.012 v1.6; LOCAL pass-4 NEXT)
-   - **Lane 4 — S-DEMO-003** (status: TDD_REWORK_FLAGGED; ADR-034 ACCEPTED; story v1.2; feature @fc40d7ad; on-disk credential cache + UUID-v5 fallback to be reverted; NEXT: orchestrator dispatches implementer correction burst → test-writer RG-034-001..006 → LOCAL adversary re-cascade)
+   - **Lane 3 — OCSF-CLASS-MIGRATION-001** (status: in_progress v1.8; LOCAL pass-6 CLOSED D-1028; code @be9f8b6d unchanged; streak RESET 0/3; FRESH LOCAL pass NEXT — dispatch adversary against feature/OCSF-CLASS-MIGRATION-001 worktree)
+   - **Lane 4 — S-DEMO-003** (status: in_progress v1.3; LOCAL pass-1 CLOSED D-1027; build VERIFIED GREEN; LOCAL pass-2 NEXT — dispatch adversary against feature/S-DEMO-003 worktree)
    - After Phase B complete: proceed to Phase C (Claroty cluster, serialized).
 
 ### Open Human-Note Items (carry forward — NOT auto-acted)

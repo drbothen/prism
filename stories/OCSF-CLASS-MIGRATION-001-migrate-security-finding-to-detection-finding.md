@@ -6,20 +6,20 @@ wave: 5
 epic_id: E-DEMO
 priority: P2
 status: in_progress
-version: "1.7"
+version: "1.8"
 level: "L4"
 producer: story-writer
 timestamp: "2026-06-01T00:00:00Z"
 tdd_mode: strict
-subsystems: [SS-01, SS-16]
+subsystems: [SS-01, SS-02]
 # Subsystem anchor justifications:
 #   SS-01 (Sensor Adapters) owns the production sensor TOML specs that declare ocsf_class;
 #     the 4 TOML edits live in crates/prism-sensors/specs/ (NOT prism-spec-engine).
-#   SS-16 (Spec Engine) owns crates/prism-ocsf/src/class_selector.rs where
+#   SS-02 (OCSF Normalization) owns crates/prism-ocsf/src/class_selector.rs where
 #     select_by_class_name maps string names to OCSF class_uid integers.
 #   prism-bin is touched because the conformance test fixture
 #     crates/prism-bin/tests/bc_2_01_013_spec_driven_adapter.rs asserts class_uid 2001→2004.
-#     prism-bin is not a subsystem anchor for this story (SS-01 and SS-16 cover the
+#     prism-bin is not a subsystem anchor for this story (SS-01 and SS-02 cover the
 #     production scope); the prism-bin fixture touch is a test-only side effect.
 target_module: prism-ocsf
 crates_touched: [prism-ocsf, prism-bin, prism-sensors]
@@ -227,7 +227,7 @@ at dispatch; CI-enforced by the AC-002/AC-003/AC-004 unit tests failing if 2001 
 
 | Component | Module | Pure/Effectful |
 |-----------|--------|----------------|
-| `select_by_class_name` | `crates/prism-ocsf/src/class_selector.rs` (SS-16) | Pure |
+| `select_by_class_name` | `crates/prism-ocsf/src/class_selector.rs` (SS-02) | Pure |
 | Production sensor TOMLs | `crates/prism-sensors/specs/*.sensor.toml` (SS-01) | Config (data) |
 | Conformance test fixture | `crates/prism-bin/tests/bc_2_01_013_spec_driven_adapter.rs` | Test (effectful — spawns subprocess) |
 | BC-2.02.012 | `.factory/specs/behavioral-contracts/BC-2.02.012.md` | Spec |
@@ -349,6 +349,7 @@ AC-001 through AC-005 must each cite a specific BC clause before `status: ready`
 
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
+| 1.8 | 2026-06-06 | story-writer | F-LP6-HIGH-001 pass-6 fix: corrected subsystem mis-anchor SS-16(Spec Engine)→SS-02(OCSF Normalization) for prism-ocsf/class_selector.rs at frontmatter `subsystems:` (line 14), subsystem anchor justification comment (lines 18-19), and §Architecture Mapping table row for `select_by_class_name`. SS-01 (Sensor Adapters / prism-sensors TOML) anchor unchanged. (Prior v1.6 edited the comment prose but retained the wrong SS-16 ID — now corrected.) Verified against: ARCH-INDEX.md Subsystem Registry SS-02=prism-ocsf; BC-2.02.012 frontmatter `subsystem: "SS-02"`; POL-6 architecture-is-subsystem-name-source-of-truth. |
 | 1.7 | 2026-06-06 | story-writer | MED-1: crates_touched += prism-sensors (4 migrated TOMLs in crates/prism-sensors/specs/ are the primary AC-001 deliverable; §FSR and §Token Budget already list these rows — POL-29 step-3d satisfied). MED-2: §Scope task-2 code block signature corrected Option<u32>/Some/None → Result<u32,PrismError>/Ok/Err(OcsfUnknownEventClass{...}) to match real implementation in crates/prism-ocsf/src/class_selector.rs and BC-2.02.012 v1.6 notation. OBS-2: §Tasks task-5 and §Token Budget wording changed from "add BC-2.16.002 catalog row" → "verify catalog row exists" (row 134 already present, Wave-5 Phase-A). Cite advance: all BC-2.02.012 v1.5 forward-facing cites advanced to v1.6 (PO bumped v1.5→v1.6 TV/EC notation fix; sites: frontmatter comment ×1; #BC-status ×1; §Behavioral Contracts Version ×1; §Scope task-2 header ×1; §Scope task-2 note ×1; §Scope §3 header+body ×2; AC-001–AC-005 traces ×5; §Architecture Compliance Rules ×6; §Token Budget ×1; §Tasks task-2 ×2; §FSR ×1; §Gating ×1). Historical changelog prose (v1.4→v1.5 descriptions, v1.2 row) left intact. |
 | 1.6 | 2026-06-06 | story-writer | OBS-1+OBS-2 LOCAL-pass-2 fix: dropped stale .prism/specs OQ-3 grep clause; corrected crates_touched (prism-spec-engine→prism-bin) + synced §FSR/§Architecture-Mapping/§Token-Budget; corrected §Scope task-4 fixture path to crates/prism-bin/tests/bc_2_01_013_spec_driven_adapter.rs; corrected subsystem anchor comment; updated §Library & Framework Requirements blurb. |
 | 1.5 | 2026-06-06 | story-writer | OBS-1 + OBS-2 LOCAL-pass-1 fix: (1) Advanced all BC-2.02.012 cite pins v1.4→v1.5 — confirmed v1.5 is a status-sync only (draft→active; no semantic change per BC-2.02.012 v1.5 Changelog entry "Wave-5-Phase-B-gate-F-002"). Sites updated: frontmatter behavioral_contracts comment (×1); # BC status annotation (×1); §Behavioral Contracts table Version column (×1); AC-001/AC-002/AC-003/AC-004/AC-005 trace lines (×5); §Architecture Compliance Rules table source column (×6); §Scope task 2 code comment + mapping table note (×2); §Scope §3 header + body (×2); §Tasks task 2 (×1). (2) Corrected `.prism/specs/sensors/` → `crates/prism-sensors/specs/` path anchors in §Scope TOML table (×4), §Architecture Mapping table (×1), §File Structure Requirements TOML rows (×4), §Tasks task 6 grep command (×1), Token Budget TOML row (×1). BC-2.02.012 body NOT edited (PO-owned). STORY-INDEX.md NOT edited (state-manager owns). |
