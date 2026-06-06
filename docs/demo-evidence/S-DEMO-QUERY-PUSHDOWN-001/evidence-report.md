@@ -2,7 +2,7 @@
 
 **Story:** S-DEMO-QUERY-PUSHDOWN-001 v2.5 — Correct per-sensor push-down wiring (ADR-033 T1 + Armis AQL full wiring + CrowdStrike DTU FQL honoring)
 **Branch:** feature/S-DEMO-QUERY-PUSHDOWN-001
-**Converged at commit:** 69aafcc7 (LOCAL 3-CLEAN, ADV-P08-MED-001 inclusive-boundary fix)
+**Converged at commit:** 69aafcc7 (LOCAL 3-CLEAN, ADV-P08-MED-001 inclusive-boundary fix) + SEC-004 hardening @ f290a43d
 **Wave:** wave-5-e-demo-fidelity
 **Evidence date:** 2026-06-05
 **Policy:** POLICY 10 — all evidence in `docs/demo-evidence/S-DEMO-QUERY-PUSHDOWN-001/` (story-scoped path)
@@ -16,7 +16,7 @@
 | AC-CWS-001 | CrowdStrike limit reaches DetectionListParams | AC-CWS-001-003-crowdstrike-limit-fql.gif/.webm | PASS | SAP-2 compliant; production crowdstrike.sensor.toml shape |
 | AC-CWS-002 | FQL time-window both start+end via materialization pipeline | AC-CWS-002-e2e-fql-via-materialization.gif/.webm | PASS | Wire-level: DTU /dtu/filter-log receives combined FQL |
 | AC-CWS-003 | No filter param when no time predicates | AC-CWS-001-003-crowdstrike-limit-fql.gif/.webm | PASS | Absence assertion load-bearing |
-| AC-CWS-DTU-001 | CrowdStrike DTU honors filter= FQL — filtered_count < unfiltered_count | AC-CWS-DTU-001-crowdstrike-dtu-fql-filter.gif/.webm | PASS | LOAD-BEARING assertion; 7/7 prism-dtu-crowdstrike tests PASS |
+| AC-CWS-DTU-001 | CrowdStrike DTU honors filter= FQL — filtered_count < unfiltered_count | AC-CWS-DTU-001-crowdstrike-dtu-fql-filter.gif/.webm | PASS | LOAD-BEARING assertion; 8/8 prism-dtu-crowdstrike tests PASS (includes SEC-004 hardening) |
 | AC-ARMIS-001 | Armis AQL passthrough — no maxResults or timeFrame | AC-ARMIS-001-002-aql-passthrough.gif/.webm | PASS | Absence of maxResults/timeFrame fields asserted |
 | AC-ARMIS-002 | No additional params beyond aql, offset, limit | AC-ARMIS-001-002-aql-passthrough.gif/.webm | PASS | Only SearchQueryParams fields aql/offset/limit present |
 | AC-ARMIS-TW-001 | AQL augmentation — after:/before: clauses appended | AC-ARMIS-TW-001-003-aql-augmentation.gif/.webm | PASS | Bare unquoted timezone-naive form; no lastSeen:> form |
@@ -32,7 +32,11 @@
 | AC-EQUIV-001 | Result-equivalence via real run_materialization_pipeline | AC-EQUIV-001-EC-009-e2e-result-equivalence.gif/.webm | PASS | Real materialization path; no direct FetchContext bypass |
 | EC-009 | Inclusive boundary (>=/<=) — boundary record present in push-down result | AC-EQUIV-001-EC-009-e2e-result-equivalence.gif/.webm | PASS | `to_rfc3339_opts(SecondsFormat::Secs, true)` Z-suffix fix |
 
+| SEC-004 (defense-in-depth) | CrowdStrike DTU: over-length FQL token returns None (input sanitization) | AC-CWS-DTU-001-crowdstrike-dtu-fql-filter.gif/.webm | PASS | prism-dtu-crowdstrike state.rs; not an AC — hardening added in pass-1 @ f290a43d |
+| SEC-004 (defense-in-depth) | Armis DTU: over-length AQL token returns None (input sanitization) | SEC-004-armis-dtu-security-hardening.gif/.webm | PASS | prism-dtu-armis search.rs; not an AC — hardening added in pass-1 @ f290a43d |
+
 **Total: 18 ACs + EC-009 covered (16 story ACs + AC-WIRE-001b + EC-009) — all PASS**
+**Security hardening: 2 additional SEC-004 defense-in-depth tests — NOT counted as ACs**
 
 ---
 
@@ -64,12 +68,14 @@
 | AC-INDEX-001-armis-toml-index-options.tape | (VHS source) | — |
 | AC-EQUIV-001-EC-009-e2e-result-equivalence.gif / .webm | AC-EQUIV-001, EC-009 | prism-bin |
 | AC-EQUIV-001-EC-009-e2e-result-equivalence.tape | (VHS source) | — |
+| SEC-004-armis-dtu-security-hardening.gif / .webm | SEC-004 defense-in-depth (Armis DTU, 5 tests) | prism-dtu-armis |
+| SEC-004-armis-dtu-security-hardening.tape | (VHS source) | — |
 
 ---
 
 ## Test Execution Summary
 
-All tests run against actual implementation on branch `feature/S-DEMO-QUERY-PUSHDOWN-001` at commit `69aafcc7`.
+All tests run against actual implementation on branch `feature/S-DEMO-QUERY-PUSHDOWN-001`. Story converged at `69aafcc7`; SEC-004 security hardening added at `f290a43d` (pass-1). Test counts reflect the feature HEAD `f290a43d`.
 
 ### prism-query (AC-WIRE-001, AC-WIRE-001b, AC-ARMIS-TW-001, AC-ARMIS-TW-003)
 
@@ -115,11 +121,11 @@ Summary [0.040s] 1 test run: 1 passed, 583 skipped
   PASS prism-spec-engine::parity_armis test_ac_armis_tw_005_e2e_aql_log_contains_augmented_aql
 ```
 
-### prism-dtu-crowdstrike (AC-CWS-DTU-001)
+### prism-dtu-crowdstrike (AC-CWS-DTU-001 + SEC-004 hardening)
 
 ```
 cargo nextest run -p prism-dtu-crowdstrike --no-fail-fast
-Summary [0.011s] 7 tests run: 7 passed, 0 skipped
+Summary [0.011s] 8 tests run: 8 passed, 0 skipped
 
   PASS prism-dtu-crowdstrike state::tests::test_ac_cws_dtu_001_crowdstrike_dtu_honors_fql_filter_time_window
   PASS prism-dtu-crowdstrike state::tests::test_ac_cws_dtu_001_parse_fql_rfc3339_plus_offset_parses
@@ -128,18 +134,20 @@ Summary [0.011s] 7 tests run: 7 passed, 0 skipped
   PASS prism-dtu-crowdstrike state::tests::test_ac_cws_dtu_001_parse_fql_malformed_filter_returns_none
   PASS prism-dtu-crowdstrike state::tests::test_ac_cws_dtu_001_crowdstrike_dtu_honors_fql_filter_after_only
   PASS prism-dtu-crowdstrike state::tests::test_ac_cws_dtu_001_parse_fql_before_only
+  PASS prism-dtu-crowdstrike state::tests::test_sec_004_fql_over_length_token_returns_none  ← SEC-004 hardening @ f290a43d
 ```
 
-### prism-dtu-armis (DTU parse unit tests)
+### prism-dtu-armis (DTU parse unit tests + SEC-004 hardening)
 
 ```
 cargo nextest run -p prism-dtu-armis --no-fail-fast
-Summary [0.011s] 4 tests run: 4 passed, 0 skipped
+Summary [0.011s] 5 tests run: 5 passed, 0 skipped
 
   PASS prism-dtu-armis routes::search::pushdown_dtu_red_gate_tests::test_ac_armis_tw_002_dtu_parse_aql_after_clause_yields_bound
   PASS prism-dtu-armis routes::search::pushdown_dtu_red_gate_tests::test_ac_armis_tw_002_dtu_parse_aql_before_clause_yields_bound
   PASS prism-dtu-armis routes::search::pushdown_dtu_red_gate_tests::test_ac_armis_tw_002_dtu_parse_aql_bounded_range_yields_both_bounds
   PASS prism-dtu-armis routes::search::pushdown_dtu_red_gate_tests::test_ac_armis_tw_002_dtu_parse_aql_no_time_clause_returns_none
+  PASS prism-dtu-armis routes::search::pushdown_dtu_red_gate_tests::test_sec_004_aql_over_length_token_returns_none  ← SEC-004 hardening @ f290a43d
 ```
 
 ### prism-bin (AC-CWS-002 e2e, AC-EQUIV-001, EC-009)
@@ -200,5 +208,5 @@ Summary [5.209s] 8 tests run: 8 passed, 125 skipped
 
 - **POLICY 10 (story-scoped path):** All evidence in `docs/demo-evidence/S-DEMO-QUERY-PUSHDOWN-001/`. No flat `docs/demo-evidence/*.md` files.
 - **No AI attribution in recordings:** VHS tapes contain only actual `cargo nextest` invocations against the live codebase.
-- **Evidence accuracy:** All recordings show actual test runner output from the branch at commit `69aafcc7`. No staged or aspirational output.
+- **Evidence accuracy:** All recordings show actual test runner output from the branch. AC recordings: converged commit `69aafcc7`. CrowdStrike DTU and Armis DTU recordings re-captured at feature HEAD `f290a43d` (post SEC-004 hardening) showing 8/5 test counts. No staged or aspirational output.
 - **VHS toolchain:** `vhs v0.10.0`, font `FiraCode Nerd Font Mono`.
