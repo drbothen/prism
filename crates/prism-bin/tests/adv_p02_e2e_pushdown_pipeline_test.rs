@@ -1943,17 +1943,11 @@ async fn test_adv_p08_med001_crowdstrike_inclusive_boundary_via_run_materializat
          (exclusive DTU comparison bug, ADV-P08-MED-001).",
     );
 
-    // Assertion (c): no fabrication — every >= record must also appear in unfiltered.
-    // (det-014 and det-042 are real fixture records, so they must be in B.)
-    for id in &ids_ge {
-        // These ids are real fixture records — verify against ids_gt union of boundary records.
-        // A simpler guard: assert the boundary records are NOT in the strict > result.
-        assert!(
-            !ids_gt.contains(id.as_str()) || id != "det-014" && id != "det-042",
-            "ADV-P08-MED-001: boundary record '{id}' must NOT appear in strict > result \
-             (DataFusion post-filter should exclude records where ts == bound for `>`)",
-        );
-    }
+    // Assertion (c): boundary records absent from strict > — explicit guards below.
+    // The loop assertion was removed: it was vacuous due to ||/&& precedence
+    // (`!ids_gt.contains(id) || id != "det-014" && id != "det-042"` is always true).
+    // The genuine boundary-exclusion property is load-bearingly covered by the
+    // two explicit asserts immediately below.
 
     // Confirm boundary records are absent from strict > (DataFusion post-filter did its job).
     assert!(
