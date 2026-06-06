@@ -74,8 +74,8 @@ The script:
 Start `prism` in a **new terminal** using the command printed by `demo-run.sh`:
 
 ```bash
-~/.cargo/bin/prism --config-dir ~/.config/prism-demo start
-# (the exact path is printed by demo-run.sh; use that)
+target/release/prism --config-dir ~/.config/prism-demo start
+# (use the exact command printed by demo-run.sh — it includes the full absolute path)
 ```
 
 `prism start` boots all 11 boot steps and emits `boot.step9a.adapter_registry_populated`
