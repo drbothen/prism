@@ -2,7 +2,7 @@
 
 **Story:** S-DEMO-QUERY-PUSHDOWN-001 v2.7 — Correct per-sensor push-down wiring (ADR-033 T1 + Armis AQL full wiring + CrowdStrike DTU FQL honoring + INDEX options + CWS wire-level)
 **Branch:** feature/S-DEMO-QUERY-PUSHDOWN-001
-**Converged at commit:** 69aafcc7 (LOCAL 3-CLEAN) + SEC-004 hardening @ f290a43d + PR-cycle hardening through ac75e84d (feature HEAD)
+**Converged at commit:** 69aafcc7 (LOCAL 3-CLEAN) + SEC-004 hardening @ f290a43d + PR-cycle spec/doc hygiene (no production behavior change after 69aafcc7)
 **Wave:** wave-5-e-demo-fidelity
 **Evidence date:** 2026-06-05
 **Policy:** POLICY 10 — all evidence in `docs/demo-evidence/S-DEMO-QUERY-PUSHDOWN-001/` (story-scoped path)
@@ -77,7 +77,7 @@
 
 ## Test Execution Summary
 
-All tests run against actual implementation on branch `feature/S-DEMO-QUERY-PUSHDOWN-001`. Story converged at `69aafcc7`; SEC-004 security hardening added at `f290a43d`; PR-cycle hardening (F-P11-LOW-001 + OBS-P05-001/002/003 + NIT-1/NIT-2) through feature HEAD `ac75e84d`. Test counts reflect feature HEAD `ac75e84d`.
+All tests run against actual implementation on branch `feature/S-DEMO-QUERY-PUSHDOWN-001`. Story converged at `69aafcc7` (LOCAL 3-CLEAN code anchor, v2.7); SEC-004 security hardening added at `f290a43d`. Subsequent PR-cycle commits after the LOCAL-converged anchor are test/documentation/spec-hygiene only (no production behavior change); this evidence reflects the converged push-down behavior at code anchor `69aafcc7`.
 
 ### prism-query (AC-WIRE-001, AC-WIRE-001b, AC-ARMIS-TW-001, AC-ARMIS-TW-003)
 
@@ -210,5 +210,5 @@ Summary [5.209s] 8 tests run: 8 passed, 125 skipped
 
 - **POLICY 10 (story-scoped path):** All evidence in `docs/demo-evidence/S-DEMO-QUERY-PUSHDOWN-001/`. No flat `docs/demo-evidence/*.md` files.
 - **No AI attribution in recordings:** VHS tapes contain only actual `cargo nextest` invocations against the live codebase.
-- **Evidence accuracy:** All recordings show actual test runner output from the branch. AC recordings: converged commit `69aafcc7`. CrowdStrike DTU and Armis DTU recordings re-captured at `f290a43d` (post SEC-004 hardening) showing 8/5 test counts. AC-INDEX-CWS-001 (v2.6) and AC-CWS-WIRE-001 (v2.7) mapped to existing recordings (same assertion pattern; no new GIF recorded — test execution is direct evidence). Feature HEAD at report refresh: `ac75e84d`. No staged or aspirational output.
+- **Evidence accuracy:** All recordings show actual test runner output from the branch. AC recordings: LOCAL-converged code anchor `69aafcc7` (v2.7). CrowdStrike DTU and Armis DTU recordings re-captured at `f290a43d` (post SEC-004 hardening) showing 8/5 test counts. AC-INDEX-CWS-001 (v2.6) and AC-CWS-WIRE-001 (v2.7) mapped to existing recordings (same assertion pattern; no new GIF recorded — test execution is direct evidence). Subsequent PR-cycle commits after `69aafcc7` are test/documentation/spec-hygiene only (no production behavior change); this evidence reflects the converged push-down behavior at code anchor `69aafcc7`. No staged or aspirational output.
 - **VHS toolchain:** `vhs v0.10.0`, font `FiraCode Nerd Font Mono`.
