@@ -6,7 +6,7 @@ wave: 5
 epic_id: E-DEMO
 priority: P1
 status: ready
-version: "1.2"
+version: "1.3"
 level: "L4"
 producer: story-writer
 timestamp: "2026-05-29T00:00:00Z"
@@ -129,7 +129,7 @@ phase: 3
 
 **Story ID:** S-DEMO-003
 **Status:** ready
-**Version:** v1.2
+**Version:** v1.3
 **Wave:** 5
 **Priority:** P1
 **Points:** 8
@@ -276,12 +276,22 @@ Then: The subcommand exits 1 with an actionable error message: "Could not load p
 prohibition; ADR-034 §D3 HIGH-3 remediation)
 Red Gate test: `test_resolve_org_slug_errors_when_toml_missing_and_no_explicit_slug` (RG-034-003)
 
-### AC-013 (HIGH-1 — env var format discipline): All demo scripts and runbook use ONLY the `PRISM_CLIENTS_{ID}_SENSORS_{SENSOR}_{REF}` format; the retired global `DEMO_ORG_*` / `{SENSOR}_{REF}` format is absent.
+### AC-013 (HIGH-1 — env var format discipline): All demo scripts and runbook use ONLY the `PRISM_CLIENTS_{ID}_SENSORS_{SENSOR}_{REF}` format; the retired credential env-var form `DEMO_ORG_*_SENSORS_*` is absent.
 Given: The scripts (`demo-setup.sh`, `demo-run.sh`, `demo-teardown.sh`) and `docs/DEMO-RUNBOOK.md` are committed.
-When: A grep for the patterns `DEMO_ORG_` and `^[A-Z]+_BEARER_TOKEN` (non-prefixed global format) is run against all files under `scripts/` and `docs/`.
-Then: Zero matches. Every credential env var reference uses the canonical
+When: The following greps are run against all files under `scripts/` and `docs/`:
+  - `grep -rE 'DEMO_ORG_[A-Z_]+_SENSORS' scripts/ docs/` — targets the retired credential
+    env-var format (e.g., `DEMO_ORG_SLUG_SENSORS_ARMIS_BEARER_TOKEN`). This pattern does NOT
+    match legitimate bash local variables `DEMO_ORG_SLUG` or `DEMO_ORG_ID` (which lack the
+    `_SENSORS` infix and are NOT credential env-vars).
+  - `grep -rE '^(export )?[A-Z]+_BEARER_TOKEN=' scripts/ docs/` — targets non-prefixed global
+    credential exports (e.g., `ARMIS_BEARER_TOKEN=`). The `export` prefix is optional; the
+    leading `^` anchors to line start to avoid matching embedded substrings.
+Then: Zero matches for both greps. Every credential env var reference uses the canonical
 `PRISM_CLIENTS_{ID}_SENSORS_{SENSOR}_{REF}` format where `{ID}` is the SCREAMING_SNAKE slug
 (e.g., `PRISM_CLIENTS_DEMO_ORG_SENSORS_ARMIS_BEARER_TOKEN`).
+Note: Local bash variables `DEMO_ORG_SLUG` and `DEMO_ORG_ID` (used as intermediate script
+variables, NOT exported credential env-vars) are explicitly permitted and will NOT be matched
+by either grep pattern above.
 (traces to BC-2.06.003 §Description: canonical multi-tenant credential convention for Prism;
 traces to BC-2.06.003 §Env-Var Name Derivation — `{ID}` = slug SCREAMING_SNAKE transform)
 
@@ -335,7 +345,7 @@ Then: Zero errors, zero warnings.
 | `BootContext` gains `credential_store_org_id: Arc<dyn CredentialStoreOrgId>` alongside existing `credential_store: Arc<dyn CredentialStore>` | ADR-034 §D5 | Step 5 exposes `Arc<KeyringBackend>` via both traits; same instance, no state duplication |
 | Tier-3 error: keyring backend error → hard `BackendUnavailable { detail: "E-CRED-005: OS keyring unavailable: {reason}" }` — do NOT fall through | ADR-034 §D4 / BC-2.06.003 / SOUL.md §4 | `reason` from keyring-rs is a system error string; must never contain a credential value |
 | `rpassword` or equivalent for no-echo stdin read | BC-2.03.007 Secret Redaction | `read -s` in bash is acceptable for shell scripts; Rust CLI must use `rpassword` crate |
-| All demo env vars use `PRISM_CLIENTS_{ID}_SENSORS_{SENSOR}_{REF}` format | BC-2.06.003 §Env-Var Name Derivation | Grep gate: zero matches for `DEMO_ORG_` or global `{SENSOR}_{REF}` patterns in scripts/ and docs/ |
+| All demo env vars use `PRISM_CLIENTS_{ID}_SENSORS_{SENSOR}_{REF}` format | BC-2.06.003 §Env-Var Name Derivation | Grep gate: (1) zero matches for `DEMO_ORG_[A-Z_]+_SENSORS` (retired credential form; does NOT match bare `DEMO_ORG_SLUG`/`DEMO_ORG_ID` local vars); (2) zero matches for `^(export )?[A-Z]+_BEARER_TOKEN=` (non-prefixed global credential exports) — in scripts/ and docs/ |
 | Shell scripts use `#!/usr/bin/env bash` shebang | Portability | Required by shellcheck |
 | crowdstrike-oauth2.prx path must be validated | Risk mitigation | Script checks file exists before copying; exits 1 with actionable message if not found |
 | `--org-slug` required when `config.orgs.len() > 1`; error clearly on missing/invalid prism.toml | ADR-034 §D3 HIGH-3 | `resolve_org_slug` MUST NOT return `"demo-org"` as a silent default; SOUL.md §4 |
@@ -556,6 +566,7 @@ to Option-A scope expansion (3 crates, 6 Red Gate tests). Still well within limi
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.3 | 2026-06-06 | story-writer | **F-LOW-002 pass-1 fix:** Tightened AC-013 env-format verification grep to avoid false-positive on `DEMO_ORG_SLUG`/`DEMO_ORG_ID` bash local vars. Retired-credential grep changed from `DEMO_ORG_` (overbroad — matches local bash vars) to `DEMO_ORG_[A-Z_]+_SENSORS` (targets only the retired credential env-var infix `_SENSORS`). Non-prefixed global format grep changed from `^[A-Z]+_BEARER_TOKEN` to `^(export )?[A-Z]+_BEARER_TOKEN=` (anchored with optional `export` prefix and trailing `=` to avoid substring matches). Architecture Compliance Rules table grep-gate column updated to match. |
 | 1.2 | 2026-06-06 | story-writer | **Option-A scope expansion (ADR-034; human approved 2026-06-06):** Tier-3 OS-keyring credential resolution now fully in scope. AC-005 rewritten: write path is `CredentialStoreOrgId::set_by_org` (OrgId-keyed); `--org-slug` required for multi-org; HIGH-3 error on missing prism.toml enforced. New ACs added: AC-009 (CRIT-1 end-to-end), AC-010 (CRIT-2 namespace regression), AC-011 (Tier-3 error semantics / E-CRED-005), AC-012 (HIGH-3 toml error), AC-013 (HIGH-1 env format), AC-014 (HIGH-2 shellcheck CI). Points 5→8 (ADR-034 §D7 range 8-10; 8 chosen). Risk LOW→MEDIUM. `crates_touched` expanded: add `prism-credentials`, `prism-spec-engine`. `subsystems` expanded: add SS-08 (Spec-Driven Adapter). `acceptance_criteria_count` 8→14. `red_gate_tests` 2→6. Version bumped 1.1→1.2. Error code E-CRED-005 used throughout (E-CRED-003 already allocated per ADR-034 §D4 annotation). |
 | 1.1 | 2026-06-03 | state-manager | D-990 Phase-A-close: status draft→ready; depends_on S-DEMO-001 (merged PR #166) + S-DEMO-002 (merged PR #171) BOTH SATISFIED; BC-2.03.005 v1.6 active + BC-2.03.007 v1.3 active; S-7.01 gate CLEARED. |
 | 1.0 | 2026-05-29 | story-writer | Initial draft — bundled CLI subcommand per complexity assessment; 4-sensor scope |
