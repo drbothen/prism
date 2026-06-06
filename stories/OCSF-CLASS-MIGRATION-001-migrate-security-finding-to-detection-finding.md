@@ -6,7 +6,7 @@ wave: 5
 epic_id: E-DEMO
 priority: P2
 status: in_progress
-version: "1.8"
+version: "1.9"
 level: "L4"
 producer: story-writer
 timestamp: "2026-06-01T00:00:00Z"
@@ -28,8 +28,9 @@ behavioral_contracts:
                   # select_by_class_name mapping table added; "detection_finding"→2004 PRIMARY;
                   # "security_finding"→2004 transitional alias with ocsf.deprecated_class_alias
                   # WARN emission (Option A); INV-NO-2001-SELECT-PATH + INV-PRODUCTION-TOML-NO-SECURITY-FINDING.
-                  # OQ-1 CLOSED (Option A selected). OQ-2 CLOSED (BC amended). BC is now v1.5
-                  # (v1.4→v1.5: status-sync draft→active only; no semantic change).
+                  # OQ-1 CLOSED (Option A selected). OQ-2 CLOSED (BC amended). BC is now v1.6
+                  # (v1.4→v1.5: status-sync draft→active; no semantic change to mapping/alias/WARN;
+                  #  v1.5→v1.6: TV/EC notation fix; no semantic change to mapping/alias/WARN).
   - BC-2.01.013   # DataSource Trait — v1.14 (S-DEMO-QUERY-PUSHDOWN-001-v2.1-armis-aql-full-wiring 2026-06-05):
                   # Armis push-down scope extended to AQL-clause augmentation (v1.14); OCSF Conformance
                   # Clause unchanged — select_by_class_name table still correct:
@@ -349,6 +350,7 @@ AC-001 through AC-005 must each cite a specific BC clause before `status: ready`
 
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
+| 1.9 | 2026-06-06 | story-writer | F-LP8-MED-001 pass-8 fix: corrected stale frontmatter-comment pin "BC is now v1.5" → "BC is now v1.6" (line 31); completed parenthetical on line 32 to record full hop chain (v1.4→v1.5 status-sync; v1.5→v1.6 TV/EC notation fix; no semantic change to mapping/alias/WARN). Full story-wide version-pin audit performed: all present-tense BC-2.02.012 pins confirmed v1.6 (22 sites), all present-tense BC-2.01.013 pins confirmed v1.14 (10 sites); historical hop narratives (changelog rows, "now v1.14" parentheticals, v1.x→v1.y progression sentences) left intact. Zero present-tense pins assert a non-current version after this edit. Closes the recurring sibling-sweep-miss class for this story. |
 | 1.8 | 2026-06-06 | story-writer | F-LP6-HIGH-001 pass-6 fix: corrected subsystem mis-anchor SS-16(Spec Engine)→SS-02(OCSF Normalization) for prism-ocsf/class_selector.rs at frontmatter `subsystems:` (line 14), subsystem anchor justification comment (lines 18-19), and §Architecture Mapping table row for `select_by_class_name`. SS-01 (Sensor Adapters / prism-sensors TOML) anchor unchanged. (Prior v1.6 edited the comment prose but retained the wrong SS-16 ID — now corrected.) Verified against: ARCH-INDEX.md Subsystem Registry SS-02=prism-ocsf; BC-2.02.012 frontmatter `subsystem: "SS-02"`; POL-6 architecture-is-subsystem-name-source-of-truth. |
 | 1.7 | 2026-06-06 | story-writer | MED-1: crates_touched += prism-sensors (4 migrated TOMLs in crates/prism-sensors/specs/ are the primary AC-001 deliverable; §FSR and §Token Budget already list these rows — POL-29 step-3d satisfied). MED-2: §Scope task-2 code block signature corrected Option<u32>/Some/None → Result<u32,PrismError>/Ok/Err(OcsfUnknownEventClass{...}) to match real implementation in crates/prism-ocsf/src/class_selector.rs and BC-2.02.012 v1.6 notation. OBS-2: §Tasks task-5 and §Token Budget wording changed from "add BC-2.16.002 catalog row" → "verify catalog row exists" (row 134 already present, Wave-5 Phase-A). Cite advance: all BC-2.02.012 v1.5 forward-facing cites advanced to v1.6 (PO bumped v1.5→v1.6 TV/EC notation fix; sites: frontmatter comment ×1; #BC-status ×1; §Behavioral Contracts Version ×1; §Scope task-2 header ×1; §Scope task-2 note ×1; §Scope §3 header+body ×2; AC-001–AC-005 traces ×5; §Architecture Compliance Rules ×6; §Token Budget ×1; §Tasks task-2 ×2; §FSR ×1; §Gating ×1). Historical changelog prose (v1.4→v1.5 descriptions, v1.2 row) left intact. |
 | 1.6 | 2026-06-06 | story-writer | OBS-1+OBS-2 LOCAL-pass-2 fix: dropped stale .prism/specs OQ-3 grep clause; corrected crates_touched (prism-spec-engine→prism-bin) + synced §FSR/§Architecture-Mapping/§Token-Budget; corrected §Scope task-4 fixture path to crates/prism-bin/tests/bc_2_01_013_spec_driven_adapter.rs; corrected subsystem anchor comment; updated §Library & Framework Requirements blurb. |

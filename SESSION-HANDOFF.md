@@ -458,9 +458,9 @@ DURABLE PIN BLOCK (CURRENT STATE — D-580 — DURABLE PRE-/CLEAR RESUME SNAPSHO
 
 ---
 
-## RESUME SNAPSHOT 2026-06-06 — D-1028 / PHASE-B-LANE-3-FRESH-STREAK / LANE-4-PASS-2-NEXT
+## RESUME SNAPSHOT 2026-06-06 — D-1030 / PHASE-B-LANE-3-LOCAL-PASS-9-NEXT / LANE-4-FIX-BURST-3-IN-PROGRESS
 
-> **START HERE — 2026-06-06 /clear resume (zero-context).** Read STATE.md frontmatter + this snapshot before dispatching any agent. All durable state committed to factory-artifacts (LOCAL-ONLY — push pending user auth). develop HEAD `9447671f` (origin/develop == local; PR #173 squash-merged 2026-06-06). STATE.md v7.679.
+> **START HERE — 2026-06-06 /clear resume (zero-context).** Read STATE.md frontmatter + this snapshot before dispatching any agent. All durable state committed to factory-artifacts (LOCAL-ONLY — push pending user auth). develop HEAD `9447671f` (origin/develop == local; PR #173 squash-merged 2026-06-06). STATE.md v7.681.
 
 ---
 
@@ -473,19 +473,19 @@ DURABLE PIN BLOCK (CURRENT STATE — D-580 — DURABLE PRE-/CLEAR RESUME SNAPSHO
 | Sub-phase | Phase B (parallel lanes) |
 | Phase B Lane 1 | COMPLETE — S-SPEC-HTTP-METHOD-VALIDATION-001 (PR #172 merged develop@752e407a 2026-06-05) |
 | Phase B Lane 2 | COMPLETE — S-DEMO-QUERY-PUSHDOWN-001 (PR #173 merged develop@9447671f 2026-06-06) |
-| Phase B Lane 3 | IN_PROGRESS — OCSF-CLASS-MIGRATION-001 v1.8 (LOCAL pass-6 F-LP6-HIGH-001 CLOSED D-1028; streak RESET 2/3→0/3; code @be9f8b6d unchanged; FRESH LOCAL pass NEXT — need 3 consecutive CLEAN) |
-| Phase B Lane 4 | IN_PROGRESS — S-DEMO-003 v1.3 (LOCAL pass-1 CLOSED D-1027; build VERIFIED GREEN; LOCAL pass-2 NEXT) |
+| Phase B Lane 3 | IN_PROGRESS — OCSF-CLASS-MIGRATION-001 v1.9 (LOCAL pass-8 F-LP8-MED-001 CLOSED D-1030; stale "BC is now v1.5" corrected to v1.6; full version-pin audit complete; streak 0/3; code @be9f8b6d unchanged; FRESH LOCAL pass-9 NEXT — need 3 consecutive CLEAN) |
+| Phase B Lane 4 | IN_PROGRESS — S-DEMO-003 v1.4 (LOCAL pass-3 found F-HIGH-301 + F-MED-302; fix-burst-3 in progress D-1030) |
 | Phase C | PENDING — Claroty cluster (PAGINATION → TRAILING-SLASH → SPEC-PROSE-FIX → HARNESS-CLONE-PARITY); serialized; shares BC-2.16.013 + claroty.sensor.toml |
 
-### Durable State (all committed as of D-1028)
+### Durable State (all committed as of D-1030)
 
 | Item | Value |
 |------|-------|
 | develop HEAD | `9447671f` (local == origin/develop; PR #173 squash-merged 2026-06-06) |
 | Last merged story | S-DEMO-QUERY-PUSHDOWN-001 v2.8 — PR #173 squash-merged develop@9447671f 2026-06-06 (D-1022) |
 | factory-artifacts HEAD | current — run `git -C .factory log -1 --format='%h %s'` (LOCAL-ONLY; per CLAUDE.md policy) |
-| STATE.md version | v7.679 |
-| STORY-INDEX version | v2.297 (182 stories) |
+| STATE.md version | v7.681 |
+| STORY-INDEX version | v2.299 (183 stories) |
 | BC-INDEX version | v5.90 (active: 234, draft: 3) |
 | ARCH-INDEX version | v2.113 |
 | error-taxonomy version | v1.61 (E-CRED-005 added D-1025) |
