@@ -184,15 +184,72 @@ pub async fn resolve_credential(
     // Active only when both `org_id` and `keyring` are `Some`. When either is `None`,
     // fall through silently to Tier 4 (BC-2.06.003 Tier-3 postcondition row 1).
     //
-    // TODO Tier-3 implementation (S-DEMO-003 implementer): call keyring.get_by_org(org_id, sensor_id, name)
+    // Error semantics (ADR-034 §D4 / BC-2.06.003 Tier-3 postcondition):
     //   - Ok(Some(secret)) → return Ok(secret) + audit "keyring"
-    //   - Ok(None) → fall through to Tier 4
+    //   - Ok(None) / NoEntry → fall through to Tier 4 silently
     //   - Err(...) → hard BackendUnavailable { detail: "E-CRED-005: OS keyring unavailable: {reason}" }
-    //
-    // The stub body below is a deliberate no-op fall-through so that existing tests continue
-    // to pass during the Red Gate phase. The implementer replaces `let _ = (org_id, keyring);`
-    // with the real `get_by_org` call.
-    let _ = (org_id, keyring); // Red Gate stub: Tier 3 not yet implemented.
+    //     Rationale: a locked/unavailable keyring is an operator misconfiguration; silently falling
+    //     through would hide the error (SOUL.md §4). AD-017: no credential value in the error.
+    if let (Some(org_id), Some(keyring)) = (org_id, keyring) {
+        // Build a CredentialName for the keyring lookup.
+        let cred_name = match prism_core::CredentialName::new(credential_name) {
+            Ok(n) => n,
+            Err(e) => {
+                // Invalid credential name — surface as hard error (DI-014).
+                return Err(CredentialResolutionError::BackendUnavailable {
+                    client_id: client_id.to_string(),
+                    sensor_id: sensor_id.to_string(),
+                    credential_name: credential_name.to_string(),
+                    detail: format!("E-CRED-005: invalid credential name for Tier-3 lookup: {e}"),
+                });
+            }
+        };
+
+        // spawn_blocking is already encapsulated inside KeyringBackend::get_by_org
+        // (ADR-034 §D2 implementation detail). No additional wrapping needed here.
+        match keyring.get_by_org(org_id, sensor_id, &cred_name).await {
+            Ok(Some(secret)) => {
+                crate::audit::emit_audit(
+                    crate::audit::AuditOperation::Get,
+                    client_id,
+                    sensor_id,
+                    credential_name,
+                    "keyring",
+                    crate::audit::AuditOutcome::Success,
+                );
+                return Ok(secret);
+            }
+            Ok(None) => {
+                // Tier-3 miss — fall through to Tier 4 silently.
+                // BC-2.06.003 Tier-3 postcondition: Ok(None)/NoEntry → fall through.
+            }
+            Err(e) => {
+                // Backend error (locked, NoStorageAccess, NoKeyringService, spawn panic).
+                // Hard error — do NOT fall through to Tier 4 (ADR-034 §D4 / SOUL.md §4).
+                // AD-017: the error detail from keyring-rs is a system error message
+                // (e.g., "access denied"), NOT a credential value — safe to include.
+                crate::audit::emit_audit(
+                    crate::audit::AuditOperation::Get,
+                    client_id,
+                    sensor_id,
+                    credential_name,
+                    "keyring",
+                    crate::audit::AuditOutcome::Error,
+                );
+                return Err(CredentialResolutionError::BackendUnavailable {
+                    client_id: client_id.to_string(),
+                    sensor_id: sensor_id.to_string(),
+                    credential_name: credential_name.to_string(),
+                    detail: format!(
+                        "E-CRED-005: OS keyring unavailable: {e}. \
+                         Check keyring access (macOS Keychain / Linux libsecret). \
+                         Use Tier 1/2 env vars as an alternative (BC-2.06.003)."
+                    ),
+                });
+            }
+        }
+    }
+    // Either org_id or keyring is None → Tier 3 skipped silently (Tier-3 disabled).
 
     // Tier 4: CRUD store lookup — check if the credential was configured
     // and then resolve through its source reference.

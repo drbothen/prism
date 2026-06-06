@@ -136,71 +136,10 @@ impl BootError {
 }
 
 // ---------------------------------------------------------------------------
-// BootNullCredentialStoreOrgId — Red Gate stub (ADR-034 §D5)
-// ---------------------------------------------------------------------------
-
-/// Stub `CredentialStoreOrgId` for the Red Gate phase (S-DEMO-003).
-///
-/// The implementer replaces this with the real `Arc<KeyringBackend>` from step 5
-/// once `step5_init_credential_store` is updated to expose the concrete type
-/// (ADR-034 §D5). During the Red Gate phase, this stub compiles and returns
-/// `Ok(None)` for all operations, which causes RG-034-001 and RG-034-004 to fail
-/// (they assert the keyring entry is found / written via the OrgId-keyed namespace).
-///
-/// The stub intentionally does NOT implement the real Tier-3 logic — that is the
-/// implementer's job. The Red Gate tests fail because the stub returns Ok(None),
-/// NOT because it panics.
-struct BootNullCredentialStoreOrgId;
-
-#[async_trait::async_trait]
-impl prism_credentials::CredentialStoreOrgId for BootNullCredentialStoreOrgId {
-    async fn get_by_org(
-        &self,
-        _org_id: &prism_core::OrgId,
-        _sensor: &str,
-        _name: &prism_core::CredentialName,
-    ) -> Result<Option<secrecy::SecretString>, prism_core::PrismError> {
-        Ok(None)
-    }
-
-    async fn set_by_org(
-        &self,
-        _org_id: &prism_core::OrgId,
-        _sensor: &str,
-        _name: &prism_core::CredentialName,
-        _value: secrecy::SecretString,
-    ) -> Result<(), prism_core::PrismError> {
-        Err(prism_core::PrismError::CredentialStoreError {
-            backend: "boot-null-org-id".to_owned(),
-            reason: "BootNullCredentialStoreOrgId: not implemented (Red Gate stub)".to_owned(),
-        })
-    }
-
-    async fn delete_by_org(
-        &self,
-        _org_id: &prism_core::OrgId,
-        _sensor: &str,
-        _name: &prism_core::CredentialName,
-    ) -> Result<bool, prism_core::PrismError> {
-        Ok(false)
-    }
-
-    async fn list_by_org(
-        &self,
-        _org_id: &prism_core::OrgId,
-    ) -> Result<Vec<(String, prism_core::CredentialName)>, prism_core::PrismError> {
-        Ok(vec![])
-    }
-
-    async fn exists_by_org(
-        &self,
-        _org_id: &prism_core::OrgId,
-        _sensor: &str,
-        _name: &prism_core::CredentialName,
-    ) -> Result<bool, prism_core::PrismError> {
-        Ok(false)
-    }
-}
+// BootNullCredentialStoreOrgId was removed — ADR-034 §D5 implemented.
+// The production boot path now uses the real KeyringBackend instance from step5.
+// See boot_to_step_6 for the wiring: (credential_store, credential_store_org_id)
+// are both returned from step5_init_credential_store and share the same KeyringBackend.
 
 /// Handle returned after a successful full boot (steps 1–11).
 ///
@@ -462,10 +401,10 @@ pub struct BootContext {
     /// Threaded into `PrismCredentialResolver::new(org_registry, credential_store_org_id)`
     /// at step 9A in `spec_driven_adapter.rs` for auth provider construction.
     ///
-    /// TODO ADR-034 §D5 boot wiring (S-DEMO-003 implementer): step5_init_credential_store
-    /// must expose the `Arc<KeyringBackend>` (not erased to `Arc<dyn CredentialStore>`)
-    /// so this field can be populated with the concrete OrgId-keyed impl. During the Red
-    /// Gate phase this is populated with a minimal stub that compiles.
+    /// IMPLEMENTED (ADR-034 §D5 / S-DEMO-003): `step5_init_credential_store` now returns
+    /// `(Arc<dyn CredentialStore>, Arc<dyn CredentialStoreOrgId>)` — both backed by the
+    /// same `KeyringBackend` instance. The `BootNullCredentialStoreOrgId` Red Gate stub
+    /// has been removed; this field holds the real OrgId-keyed keyring backend.
     pub credential_store_org_id: Arc<dyn prism_credentials::CredentialStoreOrgId>,
 }
 
@@ -774,10 +713,13 @@ pub async fn boot_to_step_6(config_dir: &Path) -> Result<BootContext, BootError>
         }
     }
     // CRIT-5: Store the real credential_store in BootContext so step9 can wire it into
-    // QueryEngine instead of the BootNullCredentialStore that silently returns Ok(None).
+    // QueryEngine instead of the BootNullCredentialStore that silently returned Ok(None).
     // ADR-032 / BC-2.06.003 v1.3: pass org_registry so KeyringCredentialProbe can iterate
     // org slugs for the per-client Tier 1/2 env-var wildcard scan at boot step 5.
-    let credential_store =
+    //
+    // ADR-034 §D5: step5 now returns BOTH credential_store and credential_store_org_id
+    // (both backed by the same KeyringBackend instance — see step5 implementation).
+    let (credential_store, credential_store_org_id) =
         step5_init_credential_store(&config, &config_manager, &org_registry).await?;
 
     // Step 6: Init audit subsystem.
@@ -877,12 +819,10 @@ pub async fn boot_to_step_6(config_dir: &Path) -> Result<BootContext, BootError>
         // CRIT-5: thread the real credential_store produced by step 5 — replaces
         // BootNullCredentialStore that silently returned Ok(None) for all credential lookups.
         credential_store,
-        // ADR-034 §D5 Red Gate stub: BootNullCredentialStoreOrgId compiles but does nothing.
-        // The implementer (S-DEMO-003 green phase) replaces this with Arc::clone(&real_keyring_backend)
-        // where real_keyring_backend is the concrete Arc<KeyringBackend> exposed from step 5
-        // before type-erasure to Arc<dyn CredentialStore>. Failing RG-034-001 proves the stub
-        // is not yet wired (Tier-3 writes can't be read back until the implementer wires it).
-        credential_store_org_id: Arc::new(BootNullCredentialStoreOrgId),
+        // ADR-034 §D5: real OrgId-keyed credential store from step 5 — shares the same
+        // KeyringBackend instance as credential_store (no state duplication, ADR-022 §C).
+        // Replaces BootNullCredentialStoreOrgId Red Gate stub.
+        credential_store_org_id,
     })
 }
 
@@ -1481,11 +1421,20 @@ impl CredentialRefProbe for KeyringCredentialProbe {
 ///
 /// Uses the [`KeyringCredentialProbe`] production probe. For testing with a
 /// custom probe, call [`step5_init_credential_store_with_probe`] directly.
+///
+/// Returns `(credential_store, credential_store_org_id)` — both backed by the SAME
+/// `KeyringBackend` instance, as required by ADR-034 §D5. Neither Arc duplicates state.
 pub async fn step5_init_credential_store(
     config: &PrismConfig,
     config_manager: &Arc<arc_swap::ArcSwap<prism_spec_engine::config_manager::ConfigManager>>,
     org_registry: &Arc<prism_core::OrgRegistry>,
-) -> Result<Arc<dyn prism_credentials::CredentialStore>, BootError> {
+) -> Result<
+    (
+        Arc<dyn prism_credentials::CredentialStore>,
+        Arc<dyn prism_credentials::CredentialStoreOrgId>,
+    ),
+    BootError,
+> {
     step5_init_credential_store_with_probe(
         config,
         config_manager,
@@ -1511,12 +1460,27 @@ pub async fn step5_init_credential_store(
 /// This function is the correct test entry point for unit tests that need
 /// to exercise the credential_refs iteration loop with N>0 refs and a
 /// controllable probe outcome.
+/// Returns `(credential_store, credential_store_org_id)` — both backed by the SAME
+/// `KeyringBackend` instance per ADR-034 §D5. The `Arc<dyn CredentialStore>` is the
+/// type-erased form for the existing `CredentialStore` interface; the
+/// `Arc<dyn CredentialStoreOrgId>` is for Tier-3 OrgId-keyed resolution. No state is
+/// duplicated — they share the same underlying `KeyringBackend` object.
+///
+/// For the `EncryptedFile` backend, `credential_store_org_id` returns `Arc<dyn CredentialStoreOrgId>`
+/// backed by `EncryptedFileBackend` (which implements both traits). Tier-3 keyring resolution
+/// is only functional for the `Keyring` backend (OrgId-keyed entries live in the OS keychain).
 pub async fn step5_init_credential_store_with_probe(
     config: &PrismConfig,
     config_manager: &Arc<arc_swap::ArcSwap<prism_spec_engine::config_manager::ConfigManager>>,
     org_registry: &Arc<prism_core::OrgRegistry>,
     probe: &dyn CredentialRefProbe,
-) -> Result<Arc<dyn prism_credentials::CredentialStore>, BootError> {
+) -> Result<
+    (
+        Arc<dyn prism_credentials::CredentialStore>,
+        Arc<dyn prism_credentials::CredentialStoreOrgId>,
+    ),
+    BootError,
+> {
     use prism_credentials::{CredentialIndex, KeyringBackend};
 
     // HIGH-3 (S-WAVE5-PREP-01 fix-pass-1): EncryptedFile backend requires passphrase
@@ -1524,15 +1488,29 @@ pub async fn step5_init_credential_store_with_probe(
     // expose a passphrase-accepting constructor. Fail-fast with ConfigInvalid (exit 2)
     // per orchestrator pre-decision — this is deterministic config feedback, not
     // permission-denied (which would be exit 5 and mislead the user).
-    let store: Arc<dyn prism_credentials::CredentialStore> = match &config.credential_backend {
+    //
+    // ADR-034 §D5: both credential_store and credential_store_org_id must point to the
+    // SAME backend instance. For Keyring backend: share Arc<KeyringBackend> between both.
+    // For EncryptedFile backend: fail-fast (same as before; EncryptedFile passphrase
+    // is not yet resolved and Tier-3 OrgId-keyed keyring is keyring-only per ADR-034).
+    let (store, store_org_id): (
+        Arc<dyn prism_credentials::CredentialStore>,
+        Arc<dyn prism_credentials::CredentialStoreOrgId>,
+    ) = match &config.credential_backend {
         CredentialBackendConfig::Keyring => {
             // Construct keyring backend (per prism-credentials KeyringBackend::new).
             // The index path lives in state_dir.
             let index_path = config.state_dir.join("credential_index.json");
             let index = CredentialIndex::new(index_path);
-            let store = KeyringBackend::new("prism", index);
+            let backend = Arc::new(KeyringBackend::new("prism", index));
             tracing::info!("Credential store: keyring backend constructed");
-            Arc::new(store) as Arc<dyn prism_credentials::CredentialStore>
+
+            // ADR-034 §D5: both Arcs share the same KeyringBackend instance.
+            // Arc::clone is a reference count increment — no data is copied.
+            let store = Arc::clone(&backend) as Arc<dyn prism_credentials::CredentialStore>;
+            let store_org_id =
+                Arc::clone(&backend) as Arc<dyn prism_credentials::CredentialStoreOrgId>;
+            (store, store_org_id)
         }
         CredentialBackendConfig::EncryptedFile { path } => {
             // HIGH-3: Fail-fast with ConfigInvalid (exit 2), not PermissionDenied (exit 5).
@@ -1549,6 +1527,8 @@ pub async fn step5_init_credential_store_with_probe(
             )));
         }
     };
+    // Alias for the rest of the function (was `store` before the tuple change).
+    let store = store;
 
     // F-PASS2-HIGH-3 (S-WAVE5-PREP-01 fix-pass-2): Iterate all credential refs declared
     // in loaded sensor specs (BC-2.03.013 happy-path postcondition 2).
@@ -1611,7 +1591,8 @@ pub async fn step5_init_credential_store_with_probe(
         "Credential store initialized: {refs_validated} refs validated (BC-2.03.013)"
     );
 
-    Ok(store)
+    // ADR-034 §D5: return both stores (same backing instance, different trait erased forms).
+    Ok((store, store_org_id))
 }
 
 /// Step 6 [BLOCKING]: Initialize audit subsystem.

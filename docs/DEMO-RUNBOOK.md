@@ -184,14 +184,20 @@ gnome-keyring-daemon --start --components=secrets
 ```
 
 **Fallback (CI / headless):** Use environment variables instead of the keyring.
-Prism resolves credentials from env vars before checking the keyring:
+Prism resolves credentials from env vars before checking the keyring (Tier 1/2 in the
+four-tier resolution chain — BC-2.06.003). The canonical format is:
+`PRISM_CLIENTS_{ORG_SLUG_UPPER}_SENSORS_{SENSOR_UPPER}_{REF_UPPER}`
+where `{ORG_SLUG_UPPER}` is the org slug in SCREAMING_SNAKE_CASE (hyphens → underscores).
+For the demo org `demo-org` (`DEMO_ORG`):
 ```bash
-export DEMO_ORG_CROWDSTRIKE_CLIENT_ID="demo-cs-client-id"
-export DEMO_ORG_CROWDSTRIKE_CLIENT_SECRET="demo-cs-client-secret"
-export DEMO_ORG_ARMIS_BEARER_TOKEN="demo-armis-bearer-token"
-export DEMO_ORG_CLAROTY_BEARER_TOKEN="demo-claroty-bearer-token"
-export DEMO_ORG_CYBERINT_API_KEY="demo-cyberint-api-key"
+export PRISM_CLIENTS_DEMO_ORG_SENSORS_CROWDSTRIKE_CLIENT_ID="demo-cs-client-id"
+export PRISM_CLIENTS_DEMO_ORG_SENSORS_CROWDSTRIKE_CLIENT_SECRET="demo-cs-client-secret"
+export PRISM_CLIENTS_DEMO_ORG_SENSORS_ARMIS_BEARER_TOKEN="demo-armis-bearer-token"
+export PRISM_CLIENTS_DEMO_ORG_SENSORS_CLAROTY_BEARER_TOKEN="demo-claroty-bearer-token"
+export PRISM_CLIENTS_DEMO_ORG_SENSORS_CYBERINT_API_KEY="demo-cyberint-api-key"
 ```
+NOTE: The old format `DEMO_ORG_*` is RETIRED (ADR-032 / BC-2.06.003 v1.3). Use only
+the `PRISM_CLIENTS_*` format above.
 
 ### (b) Port already in use
 

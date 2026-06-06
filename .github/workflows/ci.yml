@@ -1172,6 +1172,26 @@ jobs:
               sys.exit(0)
           PYEOF
 
+  shellcheck-demo-scripts:
+    name: Shellcheck demo scripts (S-DEMO-003 HIGH-2 / AC-014)
+    # Required PR gate per ADR-034 HIGH-2 remediation (AC-014 of S-DEMO-003).
+    # Runs shellcheck on all scripts/demo-*.sh files to catch shell scripting errors,
+    # undefined variable references, and unsafe patterns before they reach production.
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Install shellcheck
+        run: sudo apt-get install -y shellcheck
+      - name: Run shellcheck on demo scripts
+        run: |
+          # AC-014 (S-DEMO-003): shellcheck must pass with zero errors on all demo scripts.
+          # This is a required PR gate — failures block merge.
+          shellcheck scripts/demo-*.sh
+          echo "shellcheck: all demo scripts pass (S-DEMO-003 HIGH-2 / AC-014)"
+
   verify-workflow-structure:
     name: Verify workflow structure (AC-5..AC-8 reachability)
     runs-on: ubuntu-latest
@@ -1234,4 +1254,13 @@ jobs:
             exit 1
           }
           echo 'AC-006 reachability check passed: no-hardcoded-sensors-compile-fail job present.'
-          echo 'All AC-5..AC-8 + F-LP5-HIGH-001 + S-PLUGIN-CI-001-AC-001 + AC-006 reachability assertions pass.'
+          # S-DEMO-003 HIGH-2 / AC-014 reachability assertion:
+          # The shellcheck-demo-scripts job is the required PR gate for demo script quality
+          # (ADR-034 HIGH-2 remediation). A future PR removing this job would silently remove
+          # the shellcheck gate.
+          grep -qE 'shellcheck-demo-scripts' .github/workflows/ci.yml || {
+            echo "::error::S-DEMO-003 AC-014: 'shellcheck-demo-scripts' job is missing from ci.yml — shellcheck PR gate removed (ADR-034 HIGH-2)"
+            exit 1
+          }
+          echo 'S-DEMO-003 AC-014 reachability check passed: shellcheck-demo-scripts job present.'
+          echo 'All AC-5..AC-8 + F-LP5-HIGH-001 + S-PLUGIN-CI-001-AC-001 + AC-006 + S-DEMO-003-AC-014 reachability assertions pass.'

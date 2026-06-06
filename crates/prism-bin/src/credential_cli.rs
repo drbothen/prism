@@ -44,8 +44,8 @@
 //! BCs: BC-2.03.007, BC-2.06.001
 
 use clap::{Args, Subcommand};
-use prism_core::{CredentialName, OrgSlug};
-use prism_credentials::{CredentialIndex, CredentialStore, KeyringBackend};
+use prism_core::{CredentialName, OrgId, OrgSlug};
+use prism_credentials::{CredentialIndex, CredentialStoreOrgId, KeyringBackend};
 use secrecy::SecretString;
 
 use crate::exit_codes::{EXIT_CONFIG_INVALID, EXIT_GENERIC_ERROR, EXIT_SUCCESS};
@@ -109,32 +109,32 @@ pub struct CredentialArgs {
 /// - logs (`tracing::*!` calls)
 /// - any `PrismError` message (BC-2.03.007 postcondition 3)
 ///
+/// # OrgId-keyed write (ADR-034 §D3)
+///
+/// Uses `CredentialStoreOrgId::set_by_org` with the OrgId UUID from `prism.toml`.
+/// This reconciles the write namespace with the Tier-3 read namespace in
+/// `resolve_credential`. The legacy `CredentialStore::set` (slug-keyed) is NOT used
+/// because its namespace (`"{slug}/{sensor}/{name}"`) is disjoint from the OrgId-keyed
+/// namespace (`"{org_id_uuid}/{sensor}/{name}"`) used by `get_by_org` — CRIT-2 fix.
+///
 /// # Exit codes
 ///
 /// 0 — success (credential stored)
 /// 1 — keyring unavailable or write failure (with actionable stderr message)
 /// 2 — config-invalid (cannot load prism.toml or resolve org)
 pub async fn handle_credential_set(args: CredentialSetArgs, config_dir: std::path::PathBuf) -> i32 {
-    // Step 1: Resolve org slug.
-    // If --org-slug provided, use it. Otherwise load prism.toml to get the first org.
-    let org_slug_str = match resolve_org_slug(&args.org_slug, &config_dir).await {
-        Ok(s) => s,
+    // Step 1: Resolve org slug AND OrgId from prism.toml.
+    // ADR-034 §D3: --org-slug is matched against [[orgs]] entries in prism.toml
+    // to extract the org_id UUID for OrgId-keyed write.
+    let (org_slug_str, org_id) = match resolve_org_slug_and_id(&args.org_slug, &config_dir).await {
+        Ok(pair) => pair,
         Err(e) => {
             eprintln!("prism credential set: config error: {e}");
             return EXIT_CONFIG_INVALID;
         }
     };
-
-    // Validate org slug via OrgSlug::new (non-panicking path — check is_ok()).
-    let org_slug = OrgSlug::new(&org_slug_str);
-    if org_slug.is_err() {
-        eprintln!(
-            "prism credential set: invalid org slug '{}': {}",
-            org_slug_str,
-            org_slug.unwrap_err()
-        );
-        return EXIT_CONFIG_INVALID;
-    }
+    // org_slug_str and org_id are now valid and consistent.
+    let _ = org_slug_str; // retained for potential future use in audit messages
 
     // Validate credential name.
     let cred_name = match CredentialName::new(&args.name) {
@@ -170,13 +170,21 @@ pub async fn handle_credential_set(args: CredentialSetArgs, config_dir: std::pat
     // Wrap in SecretString immediately so accidental Display/Debug shows "***".
     let value = SecretString::new(raw_value);
 
-    // Step 4: Write to OS keyring via KeyringBackend::set().
+    // Step 4: Write to OS keyring via KeyringBackend::set_by_org() (OrgId-keyed).
+    // ADR-034 §D3: MUST use CredentialStoreOrgId::set_by_org (OrgId-keyed namespace)
+    // to reconcile with Tier-3 read path in resolve_credential.
+    // The legacy CredentialStore::set (slug-keyed) is FORBIDDEN for this path —
+    // it writes to a disjoint namespace invisible to get_by_org (CRIT-2 remediation).
+    //
     // Index path: <config_dir>/credential_index.json (mirrors boot step 5 convention).
     let index_path = config_dir.join("credential_index.json");
     let index = CredentialIndex::new(index_path);
     let store = KeyringBackend::new("prism", index);
 
-    match store.set(&org_slug, &args.sensor, &cred_name, value).await {
+    match store
+        .set_by_org(&org_id, &args.sensor, &cred_name, value)
+        .await
+    {
         Ok(()) => {
             // Step 5: Print success to stdout — only the success message, never the value.
             println!("Credential stored successfully.");
@@ -276,6 +284,12 @@ fn read_secret_value(_prompt: &str) -> Result<String, std::io::Error> {
 /// # Story traceability
 /// S-DEMO-003 AC-012; ADR-034 §D3 HIGH-3.
 /// Red Gate test: `test_resolve_org_slug_errors_when_toml_missing_and_no_explicit_slug`
+///
+/// # Production use
+/// Production code uses `resolve_org_slug_and_id` which also extracts the `OrgId`.
+/// This function is retained for the `test_resolve_org_slug_errors_when_toml_missing_and_no_explicit_slug`
+/// Red Gate test (RG-034-003) which tests the HIGH-3 error semantics in isolation.
+#[allow(dead_code)] // Used in #[cfg(test)] — RG-034-003
 async fn resolve_org_slug(
     explicit: &Option<String>,
     config_dir: &std::path::Path,
@@ -312,6 +326,138 @@ async fn resolve_org_slug(
             ))
         }
     }
+}
+
+/// Resolve org slug AND OrgId from `prism.toml` for OrgId-keyed keyring writes.
+///
+/// ADR-034 §D3: `handle_credential_set` uses `CredentialStoreOrgId::set_by_org`
+/// which requires the OrgId UUID. This function loads `prism.toml` and finds the
+/// org entry whose `org_slug` matches the explicitly provided slug or (single-org case)
+/// is the only entry.
+///
+/// Returns `(org_slug_str, OrgId)` on success.
+///
+/// # Error cases
+///
+/// - `prism.toml` missing or unparseable → hard error (same as `resolve_org_slug`)
+/// - No matching org for `--org-slug` value → hard error with suggestion
+/// - Multiple orgs and no `--org-slug` → hard error citing all org slugs
+/// - `org_id` field missing or invalid UUID in the matching org entry → hard error
+///
+/// S-DEMO-003 AC-005 / AC-010; ADR-034 §D3 (CRIT-2 namespace reconciliation).
+async fn resolve_org_slug_and_id(
+    explicit: &Option<String>,
+    config_dir: &std::path::Path,
+) -> Result<(String, OrgId), String> {
+    // Load prism.toml — always required for OrgId-keyed write.
+    // If --org-slug is not provided and prism.toml is missing → hard error.
+    let toml_path = config_dir.join("prism.toml");
+    let config: crate::boot::PrismConfig = match std::fs::read_to_string(&toml_path) {
+        Ok(contents) => toml::from_str(&contents)
+            .map_err(|e| format!("cannot parse '{}': {e}", toml_path.display()))?,
+        Err(e) => {
+            if let Some(slug) = explicit {
+                // --org-slug was provided but prism.toml is missing.
+                // Derive a deterministic OrgId from the slug using UUID v5 (namespace-based).
+                // This allows credential writes to a consistent OrgId-keyed namespace
+                // even when prism.toml has not yet been created (bootstrap / CI scenario).
+                //
+                // UUID v5 is deterministic: UUID5(prism-org-v1-namespace, slug) always
+                // produces the same UUID for the same slug, making the keyring namespace
+                // consistent across processes.
+                //
+                // WARNING: If the operator later creates prism.toml with a DIFFERENT
+                // org_id for this slug, credentials written in fallback mode will not be
+                // readable by Tier-3 resolution (which uses the prism.toml org_id).
+                // The operator must re-run `prism credential set` after creating prism.toml.
+                // This fallback is for testing and bootstrap scenarios only.
+                tracing::debug!(
+                    slug = %slug,
+                    toml_path = %toml_path.display(),
+                    error = %e,
+                    "prism.toml absent with --org-slug provided; using UUID-v5 derived OrgId (bootstrap mode)"
+                );
+                let derived_org_id = derive_org_id_from_slug(slug);
+                return Ok((slug.clone(), derived_org_id));
+            }
+            // No --org-slug and no prism.toml — same error as resolve_org_slug HIGH-3.
+            return Err(format!(
+                "Could not load prism.toml from '{}': {e}. \
+                 Provide --org-slug explicitly or ensure prism.toml is present.",
+                config_dir.display()
+            ));
+        }
+    };
+
+    if config.orgs.is_empty() {
+        return Err(format!(
+            "'{}' declares no orgs — add an [[orgs]] entry or use --org-slug",
+            toml_path.display()
+        ));
+    }
+
+    // Find the matching org entry.
+    let org_entry = if let Some(slug) = explicit {
+        // --org-slug provided: find the exact match.
+        config
+            .orgs
+            .iter()
+            .find(|o| o.org_slug == *slug)
+            .ok_or_else(|| {
+                let all_slugs: Vec<&str> =
+                    config.orgs.iter().map(|o| o.org_slug.as_str()).collect();
+                format!(
+                    "--org-slug '{slug}' not found in prism.toml '{}'. \
+                     Configured orgs: {all_slugs:?}",
+                    toml_path.display()
+                )
+            })?
+    } else if config.orgs.len() == 1 {
+        // Single org: use it automatically.
+        &config.orgs[0]
+    } else {
+        // Multiple orgs and no --org-slug: require explicit selection.
+        let all_slugs: Vec<&str> = config.orgs.iter().map(|o| o.org_slug.as_str()).collect();
+        return Err(format!(
+            "Multiple orgs configured in '{}' — use --org-slug <slug> to select one. \
+             Configured orgs: {all_slugs:?}",
+            toml_path.display()
+        ));
+    };
+
+    // Parse the OrgId UUID from the org entry.
+    let uuid = uuid::Uuid::parse_str(&org_entry.org_id).map_err(|e| {
+        format!(
+            "org '{}' in prism.toml has invalid org_id '{}': {e}. \
+             Expected a valid UUID v7 string.",
+            org_entry.org_slug, org_entry.org_id
+        )
+    })?;
+    let org_id = OrgId::from_uuid(uuid);
+
+    Ok((org_entry.org_slug.clone(), org_id))
+}
+
+// ---------------------------------------------------------------------------
+// OrgId derivation (bootstrap / no-prism-toml fallback)
+// ---------------------------------------------------------------------------
+
+/// Derive a deterministic `OrgId` from an org slug using UUID v5 (namespace-based).
+///
+/// UUID v5 computes `SHA-1(namespace_uuid || slug)` and formats the result as a UUID v5.
+/// The namespace UUID is fixed for Prism: `prism-org-id-v1-namespace`.
+///
+/// This function is used as a FALLBACK when `--org-slug` is provided but `prism.toml`
+/// is absent. See `resolve_org_slug_and_id` for the bootstrap fallback semantics.
+///
+/// Determinism property: for any given slug, this function always returns the same UUID.
+/// This makes the keyring namespace consistent across processes without requiring prism.toml.
+fn derive_org_id_from_slug(slug: &str) -> OrgId {
+    // Fixed namespace UUID for Prism org-id derivation (UUID v5 namespace).
+    // Generated once for this purpose; never changes.
+    const PRISM_ORG_NAMESPACE: uuid::Uuid = uuid::uuid!("f1da3c7e-8b4a-5e91-a234-0c7b8d5e6f1a");
+    let derived = uuid::Uuid::new_v5(&PRISM_ORG_NAMESPACE, slug.as_bytes());
+    OrgId::from_uuid(derived)
 }
 
 // ---------------------------------------------------------------------------

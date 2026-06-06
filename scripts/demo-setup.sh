@@ -174,8 +174,16 @@ set_cred() {
         2>/dev/null; then
         echo "    Stored: prism/${sensor}/${name}"
     else
+        # BC-2.06.003 Tier 2 canonical env var format: PRISM_CLIENTS_{ID}_SENSORS_{SENSOR}_{REF}
+        # where {ID} = org slug uppercased with hyphens → underscores (ADR-032).
+        local org_upper
+        org_upper="$(echo "${DEMO_ORG_SLUG}" | tr '[:lower:]-' '[:upper:]_')"
+        local sensor_upper
+        sensor_upper="$(echo "${sensor}" | tr '[:lower:]-' '[:upper:]_')"
+        local name_upper
+        name_upper="$(echo "${name}" | tr '[:lower:]-' '[:upper:]_')"
         echo "    WARN: keyring write failed for prism/${sensor}/${name}" \
-             "(use env var ${DEMO_ORG_SLUG^^}_${sensor^^}_${name^^} as fallback)" >&2
+             "(use env var PRISM_CLIENTS_${org_upper}_SENSORS_${sensor_upper}_${name_upper} as fallback)" >&2
     fi
 }
 
