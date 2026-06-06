@@ -164,10 +164,14 @@ API calls are made during demo mode.
 
 ## 6. Troubleshooting
 
-### (a) Keyring access denied
+### (a) Keyring access denied — E-CRED-005
 
 **Symptom:** `prism credential set` prints `Keyring unavailable:` or the demo sensors
-fail to authenticate at query time.
+fail to authenticate at query time with:
+`BackendUnavailable { detail: "E-CRED-005: OS keyring unavailable: ..." }`.
+
+**Error code:** `E-CRED-005` (surfaced by `resolution.rs` Tier-3 resolution when
+the OS keyring backend is inaccessible — AC-006(a) of S-DEMO-003).
 
 **Cause:** The OS keyring service is unavailable (headless server, Docker container,
 missing Gnome Keyring on Linux).
@@ -259,10 +263,13 @@ bash scripts/demo-teardown.sh
 
 What the script does:
 
-1. Kills the DTU demo server (via PID file at `~/.config/prism-demo/run/.prism-dtu-demo-server.pid`)
-2. Removes `~/.config/prism-demo/` entirely (all config, specs, state, plugins, logs)
-3. Deletes the 5 demo OS keyring entries (`crowdstrike/client_id`, `crowdstrike/client_secret`,
-   `armis/bearer_token`, `claroty/bearer_token`, `cyberint/api_key`)
+1. Reads `org_id` from `~/.config/prism-demo/prism.toml` (required for OrgId-keyed keyring delete)
+2. Kills the DTU demo server (via PID file at `~/.config/prism-demo/run/.prism-dtu-demo-server.pid`)
+3. Removes `~/.config/prism-demo/` entirely (all config, specs, state, plugins, logs)
+4. Deletes the 5 demo OS keyring entries under the OrgId-UUID-keyed namespace
+   `{org_id_uuid}/{sensor}/{name}` (matching the write path used by `prism credential set` →
+   `CredentialStoreOrgId::set_by_org`, ADR-034 §D3). Credential names: `crowdstrike/client_id`,
+   `crowdstrike/client_secret`, `armis/bearer_token`, `claroty/bearer_token`, `cyberint/api_key`.
 
 The binary artifacts (`target/release/prism`, `target/release/prism-dtu-demo-server`) are NOT
 removed — run `cargo clean` separately if needed.

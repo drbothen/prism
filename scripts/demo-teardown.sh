@@ -25,7 +25,6 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 DEMO_CONFIG_DIR="${HOME}/.config/prism-demo"
-DEMO_ORG_SLUG="demo-org"
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -47,6 +46,40 @@ done
 DEMO_RUN_DIR="${DEMO_CONFIG_DIR}/run"
 PID_FILE="${DEMO_RUN_DIR}/.prism-dtu-demo-server.pid"
 PRISM_BIN="${REPO_ROOT}/target/release/prism"
+
+# ---------------------------------------------------------------------------
+# Resolve DEMO_ORG_ID from prism.toml — required for OrgId-keyed keyring delete.
+#
+# The keyring entries were written by demo-setup.sh via `prism credential set`
+# which uses CredentialStoreOrgId::set_by_org — namespace format:
+#   "{org_id_uuid}/{sensor}/{name}"  (namespace_key_by_org_id; ADR-034 §D3).
+#
+# The slug-keyed format "{org_slug}/{sensor}/{name}" is DISJOINT from the OrgId-
+# keyed format — deleting under the slug key would silently miss all 5 entries
+# (AC-007 regression). We must use the same OrgId UUID that was used during setup.
+#
+# IMPORTANT: keyring deletes run BEFORE the `rm -rf` of the config dir (Step 2),
+# so prism.toml is still available here for parsing.
+#
+# If prism.toml is absent or has no org_id, we skip the keyring delete with a
+# warning (idempotent teardown: entries may already be absent or were never set).
+# ---------------------------------------------------------------------------
+
+DEMO_ORG_ID=""
+PRISM_TOML_PATH="${DEMO_CONFIG_DIR}/prism.toml"
+
+if [[ -f "${PRISM_TOML_PATH}" ]]; then
+    # Extract org_id from the first [[orgs]] entry.
+    # TOML format: org_id = "0196f4b2-3c8d-7e1a-b5f0-2d4c6e8a0b1c"
+    DEMO_ORG_ID="$(grep -E '^\s*org_id\s*=' "${PRISM_TOML_PATH}" | head -1 | \
+        sed 's/.*=\s*"\([^"]*\)".*/\1/')"
+    if [[ -z "${DEMO_ORG_ID}" ]]; then
+        echo "    WARN: could not parse org_id from ${PRISM_TOML_PATH}" \
+             "— keyring entries will be skipped" >&2
+    fi
+else
+    echo "    WARN: ${PRISM_TOML_PATH} not found — keyring entries will be skipped" >&2
+fi
 
 # ---------------------------------------------------------------------------
 # Step 1: Kill DTU demo server
@@ -106,23 +139,27 @@ echo "     armis/bearer_token, claroty/bearer_token, cyberint/api_key)"
 delete_keyring_entry() {
     local sensor="$1"
     local name="$2"
-    # Keyring namespace key format: "{org_slug}/{sensor}/{name}" (BC-2.03.004)
-    local key="${DEMO_ORG_SLUG}/${sensor}/${name}"
+    # Keyring namespace key format: "{org_id_uuid}/{sensor}/{name}" (namespace_key_by_org_id)
+    # This MUST match the write path used by demo-setup.sh → `prism credential set` →
+    # CredentialStoreOrgId::set_by_org (ADR-034 §D3). The legacy slug-keyed format
+    # "{org_slug}/{sensor}/{name}" is DISJOINT — deleting under that key would miss all
+    # entries and leave orphaned credentials in the keyring (AC-007 regression, CRIT-2).
+    local key="${DEMO_ORG_ID}/${sensor}/${name}"
 
     if [[ "$(uname -s)" == "Darwin" ]]; then
         # macOS: use security CLI to delete the generic password.
         if security delete-generic-password -s "prism" -a "${key}" &>/dev/null; then
-            echo "    Deleted (macOS keychain): prism/${sensor}/${name}"
+            echo "    Deleted (macOS keychain): prism/${DEMO_ORG_ID}/${sensor}/${name}"
         else
-            echo "    SKIP: prism/${sensor}/${name} not found in macOS keychain"
+            echo "    SKIP: prism/${DEMO_ORG_ID}/${sensor}/${name} not found in macOS keychain"
         fi
     else
         # Linux: try secret-tool (libsecret) if available.
         if command -v secret-tool &>/dev/null; then
             if secret-tool clear service "prism" account "${key}" 2>/dev/null; then
-                echo "    Deleted (libsecret): prism/${sensor}/${name}"
+                echo "    Deleted (libsecret): prism/${DEMO_ORG_ID}/${sensor}/${name}"
             else
-                echo "    SKIP: prism/${sensor}/${name} not found in libsecret"
+                echo "    SKIP: prism/${DEMO_ORG_ID}/${sensor}/${name} not found in libsecret"
             fi
         else
             echo "    WARN: no keyring CLI found (secret-tool not available)." \
@@ -131,11 +168,16 @@ delete_keyring_entry() {
     fi
 }
 
-delete_keyring_entry "crowdstrike" "client_id"
-delete_keyring_entry "crowdstrike" "client_secret"
-delete_keyring_entry "armis" "bearer_token"
-delete_keyring_entry "claroty" "bearer_token"
-delete_keyring_entry "cyberint" "api_key"
+if [[ -n "${DEMO_ORG_ID}" ]]; then
+    delete_keyring_entry "crowdstrike" "client_id"
+    delete_keyring_entry "crowdstrike" "client_secret"
+    delete_keyring_entry "armis" "bearer_token"
+    delete_keyring_entry "claroty" "bearer_token"
+    delete_keyring_entry "cyberint" "api_key"
+else
+    echo "    SKIP: DEMO_ORG_ID could not be determined — keyring entries not deleted." >&2
+    echo "    To delete manually, find entries with service='prism' in your OS keyring." >&2
+fi
 
 # Also clean up the credential_index.json if it was created outside the config dir.
 if [[ -f "${PRISM_BIN%prism}credential_index.json" ]]; then
