@@ -361,6 +361,18 @@ pub async fn run_materialization_pipeline(
     // (see extract_push_down_filters_as_map docs for rationale).
     let where_filters = extract_push_down_filters_as_map(&ast);
 
+    // ADR-033 T1: extract time-window bounds from the PrismQL AST predicate tree.
+    // Walk Predicate::Compare nodes with op ∈ {Gt, Ge, Lt, Le} and match lhs column
+    // names against datetime INDEX columns from the resolved sensor specs.
+    // Safe default: (None, None) when resolved_spec_map is None or no datetime columns match.
+    // The extracted bounds are passed into QueryParams.start_time / end_time below.
+    let resolved_col_map = mat_ctx
+        .resolved_spec_map
+        .as_deref()
+        .map(|spec_map| build_source_column_map(spec_map, &source_names));
+    let (extracted_start_time, extracted_end_time) =
+        extract_time_window_from_ast_from_query(&ast, &source_names, resolved_col_map.as_ref());
+
     // Step 2: Resolve client scope.
     let all_clients: Vec<OrgSlug> = options.clients.clone().unwrap_or_default();
 
@@ -434,8 +446,10 @@ pub async fn run_materialization_pipeline(
                 params: prism_sensors::adapter::QueryParams {
                     cursor: None,
                     limit: options.limit.map(|l| l as u64).unwrap_or(0),
-                    start_time: None,
-                    end_time: None,
+                    // ADR-033 T1: populate start_time/end_time from pre-fan-out AST extraction.
+                    // These were hardcoded None (F-P6-CRIT-001 dead-code gap); now wired per ADR-033.
+                    start_time: extracted_start_time.clone(),
+                    end_time: extracted_end_time.clone(),
                     filters: where_filters.clone(),
                 },
             }
@@ -906,6 +920,87 @@ fn sensor_id_from_table_name(table_name: &str) -> Option<SensorId> {
     // Construct SensorId from lowercase prefix. SensorId::from panics on invalid
     // charset, so use the fallible try_from_str for untrusted table name input.
     SensorId::try_from_str(prefix_lower.as_str()).ok()
+}
+
+// ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// ADR-033 T1: time-window extraction helpers for run_materialization_pipeline
+// ---------------------------------------------------------------------------
+
+/// Build a `HashMap<String, Vec<ColumnSpec>>` mapping source names to their
+/// column specs from the resolved spec map.
+///
+/// Used by `extract_time_window_from_ast` (ADR-033 T1) to identify datetime
+/// INDEX columns across source tables at the pre-fan-out stage.
+///
+/// Key format: both `"{sensor_id}.{table_name}"` (dot-separated, PrismQL form) and
+/// `"{sensor_id}_{table_name}"` (underscore-separated, common alternate form) are
+/// inserted so the lookup succeeds regardless of how the source name is formed.
+///
+/// Only source names matching entries in `source_names` (from the PrismQL AST) are
+/// included to minimize allocation.
+fn build_source_column_map(
+    spec_map: &std::collections::HashMap<
+        prism_spec_engine::ResolvedSpecKey,
+        prism_spec_engine::ResolvedSensorSpec,
+    >,
+    source_names: &[String],
+) -> std::collections::HashMap<String, Vec<prism_spec_engine::spec_parser::ColumnSpec>> {
+    let mut result: std::collections::HashMap<
+        String,
+        Vec<prism_spec_engine::spec_parser::ColumnSpec>,
+    > = std::collections::HashMap::new();
+
+    for resolved in spec_map.values() {
+        let sensor_id = resolved.spec.sensor_id.as_str();
+        for table in &resolved.spec.tables {
+            // Build both common key forms for lookup.
+            let dot_key = format!("{sensor_id}.{}", table.table_name);
+            let underscore_key = format!("{sensor_id}_{}", table.table_name);
+            // Only include if referenced by the query (avoids unnecessary work).
+            let is_referenced = source_names
+                .iter()
+                .any(|s| *s == dot_key || *s == underscore_key);
+            if is_referenced {
+                result
+                    .entry(dot_key.clone())
+                    .or_insert_with(|| table.columns.clone());
+                result
+                    .entry(underscore_key)
+                    .or_insert_with(|| table.columns.clone());
+            }
+        }
+    }
+
+    result
+}
+
+/// Wrapper that extracts time-window bounds from the PrismQL AST by delegating
+/// to `pushdown::extract_time_window_from_ast` with the pre-built column map.
+///
+/// Returns `(start_time, end_time)` as `Option<String>` (ISO8601 formatted).
+/// Both are `None` when no datetime INDEX column Compare predicates are present,
+/// or when `resolved_col_map` is `None` (safe default per ADR-033 §Consequences).
+fn extract_time_window_from_ast_from_query(
+    ast: &crate::ast::Ast,
+    source_names: &[String],
+    resolved_col_map: Option<
+        &std::collections::HashMap<String, Vec<prism_spec_engine::spec_parser::ColumnSpec>>,
+    >,
+) -> (Option<String>, Option<String>) {
+    use crate::ast::{Ast, SqlStatement};
+
+    // Only SELECT queries have a WHERE clause with time predicates.
+    let Some(pred) = (match ast {
+        Ast::Sql(SqlStatement::Select(sql)) => sql.where_.as_ref(),
+        _ => None,
+    }) else {
+        return (None, None);
+    };
+
+    let source_name_refs: Vec<&str> = source_names.iter().map(String::as_str).collect();
+
+    crate::pushdown::extract_time_window_from_ast(pred, &source_name_refs, resolved_col_map)
 }
 
 // ---------------------------------------------------------------------------

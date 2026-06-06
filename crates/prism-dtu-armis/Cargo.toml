@@ -35,6 +35,9 @@ tracing = "0.1"
 anyhow = "1"
 uuid = { version = "1", features = ["v4"] }
 subtle = "2"
+# Required by parse_aql_time_bounds (routes/search.rs) for AQL time-clause parsing (§8.3).
+# S-DEMO-QUERY-PUSHDOWN-001 v2.1: DateTime<Utc> bounds returned from time-window extraction.
+chrono = "0.4"
 
 [dev-dependencies]
 reqwest = { version = "0.12", features = ["json"] }

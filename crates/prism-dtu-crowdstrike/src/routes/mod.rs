@@ -28,6 +28,23 @@ async fn dtu_health() -> impl IntoResponse {
     (StatusCode::OK, Json(serde_json::json!({"status": "ok"}))).into_response()
 }
 
+/// `GET /dtu/filter-log` — DTU introspection endpoint. No auth required.
+///
+/// Returns all FQL filter strings received by `GET /detects/queries/detects/v1`
+/// since the last reset. Format: `{"filter_strings": ["..."]}`.
+///
+/// Used by wire-level tests (F-P1-HIGH-003 / AC-CWS-002) to assert the DTU
+/// received the correct FQL filter string from the production push-down path.
+/// Parallel to the Armis `GET /dtu/aql-log` endpoint (R-DTU-002 pattern).
+async fn dtu_filter_log(State(state): State<Arc<CrowdstrikeState>>) -> impl IntoResponse {
+    let filter_strings = state.get_filter_log();
+    (
+        StatusCode::OK,
+        Json(serde_json::json!({ "filter_strings": filter_strings })),
+    )
+        .into_response()
+}
+
 /// `POST /dtu/reset` — DTU introspection endpoint.
 ///
 /// Clears all mutable state (containment store, detection status store, session
@@ -183,6 +200,7 @@ pub fn build_router(
         .route("/dtu/health", get(dtu_health))
         .route("/dtu/reset", post(dtu_reset))
         .route("/dtu/configure", post(dtu_configure))
+        .route("/dtu/filter-log", get(dtu_filter_log))
         // OAuth2 token endpoint (no auth required to call).
         .route("/oauth2/token", post(oauth::token))
         // Detection read endpoints.

@@ -177,6 +177,14 @@ path = "tests/bc_2_01_013_spec_driven_adapter.rs"
 name = "e2e_smoke"
 path = "tests/e2e_smoke.rs"
 
+# ADV-P02 fix-burst (S-DEMO-QUERY-PUSHDOWN-001 v2.1): real end-to-end push-down pipeline tests.
+# Closes ADV-P02-CRIT-001 (real run_materialization_pipeline path) and
+# ADV-P02-MED-001 (SID-1 substitute for AC-ARMIS-TW-005).
+# BCs: BC-2.01.013 v1.14, BC-2.11.007 v1.8, BC-2.11.005 v1.6
+[[test]]
+name = "adv_p02_e2e_pushdown_pipeline_test"
+path = "tests/adv_p02_e2e_pushdown_pipeline_test.rs"
+
 [dev-dependencies]
 rmcp = { workspace = true }
 tempfile = "3"
@@ -207,6 +215,12 @@ proptest = "1"
 # Cookie header inspection) to assert fetch() behavior. wiremock 0.6 matches
 # prism-spec-engine's existing mock server pattern (SID-1 compliance).
 wiremock = "0.6"
+# S-DEMO-QUERY-PUSHDOWN-001 v2.1: wire-level push-down tests in bc_2_01_013 use real DTU clones
+# to assert augmented AQL and limit params reach the DTU wire (F-P1-CRIT-002, F-P1-CRIT-004, F-P1-HIGH-003).
+prism-dtu-armis = { path = "../prism-dtu-armis", version = "0.1.0", features = ["dtu"] }
+prism-dtu-crowdstrike = { path = "../prism-dtu-crowdstrike", version = "0.1.0", features = ["dtu"] }
+prism-dtu-common = { path = "../prism-dtu-common", version = "0.1.0", features = ["dtu"] }
+reqwest = { version = "0.12", features = ["json"] }
 
 [lints.clippy]
 # Inherited from workspace: workspace lint inheritance is not yet available

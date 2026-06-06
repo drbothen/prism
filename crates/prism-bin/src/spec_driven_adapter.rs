@@ -549,7 +549,7 @@ impl SensorAdapter for SpecDrivenSensorAdapter {
         // FilterMap = HashMap<String, serde_json::Value>; FetchContext.query_filters
         // = HashMap<String, String>. Convert by serializing Value → String.
         // The client_id for the pipeline is the org_slug (human-readable org identifier).
-        let query_filters: std::collections::HashMap<String, String> = params
+        let mut query_filters: std::collections::HashMap<String, String> = params
             .filters
             .iter()
             .map(|(k, v)| {
@@ -560,6 +560,64 @@ impl SensorAdapter for SpecDrivenSensorAdapter {
                 (k.clone(), s)
             })
             .collect();
+
+        // CrowdStrike FQL time-window injection (BC-2.01.013 v1.14 + ADR-033 T1).
+        // Seed `_fql` into query_filters for CrowdStrike so the ${query.filter._fql}
+        // slot in the Step 1 path_template always resolves (empty string when no filter).
+        // When start_time/end_time are populated (by extract_time_window_from_ast in
+        // run_materialization_pipeline), construct the FQL filter string.
+        // FQL format: `created_timestamp:>'<ISO8601>'` (start) +
+        //             `created_timestamp:<'<ISO8601>'` (end), combined with `+`.
+        if self.sensor_spec.spec.sensor_id.as_str() == "crowdstrike" {
+            let fql =
+                build_crowdstrike_fql(params.start_time.as_deref(), params.end_time.as_deref());
+            query_filters.entry("_fql".to_string()).or_insert(fql);
+        }
+
+        // Armis AQL time-window augmentation (BC-2.01.013 v1.14 Mechanism B + ADR-033 T1).
+        // F-P1-CRIT-002: wire augment_armis_aql_with_time_window into the real path.
+        //
+        // When start_time/end_time are populated by extract_time_window_from_ast (ADR-033 T1)
+        // in run_materialization_pipeline, augment the base AQL string with canonical
+        // Armis time clauses: `after:YYYY-MM-DDTHH:MM:SS` / `before:YYYY-MM-DDTHH:MM:SS`
+        // (bare, unquoted, timezone-naive per research-doc §2.2, AC-ARMIS-TW-001).
+        //
+        // Anti-double-filter guard: if the AQL already contains `after:`, `before:`, or
+        // `timeFrame:`, augmentation is skipped (AC-ARMIS-TW-003 / BC-2.01.013 v1.14 Mechanism B).
+        //
+        // The augmented AQL overwrites `query_filters["aql"]` and is forwarded via the
+        // existing `${query.filter.aql}` path_template interpolation.
+        if self.sensor_spec.spec.sensor_id.as_str() == "armis"
+            && (params.start_time.is_some() || params.end_time.is_some())
+        {
+            let base_aql = query_filters.get("aql").cloned().unwrap_or_default();
+            let augmented = prism_query::pushdown::augment_armis_aql_with_time_window(
+                &base_aql,
+                params.start_time.as_deref(),
+                params.end_time.as_deref(),
+            );
+            query_filters.insert("aql".to_string(), augmented);
+        }
+
+        // CrowdStrike limit push-down (BC-2.01.013 v1.14 / F-P1-CRIT-004).
+        // Seed `query.limit` into query_filters so the ${query.limit} slot in the
+        // CrowdStrike Step 1 path_template resolves to the LIMIT value.
+        // When params.limit == 0 (no LIMIT clause), seed an empty string so
+        // PipelineExecutor::strip_empty_url_params removes the &limit= param entirely.
+        // EC-008: treat limit=0 as "no limit" — empty string causes omission.
+        if self.sensor_spec.spec.sensor_id.as_str() == "crowdstrike" {
+            // Use entry() to not overwrite a manually-injected query.limit (test path).
+            query_filters
+                .entry("query.limit".to_string())
+                .or_insert_with(|| {
+                    if params.limit > 0 {
+                        params.limit.to_string()
+                    } else {
+                        String::new() // empty → stripped by PipelineExecutor::strip_empty_url_params
+                    }
+                });
+        }
+
         let context = FetchContext::new(self.sensor_spec.org_slug.clone(), query_filters);
 
         // Resolve which sensor table to execute.
@@ -1142,6 +1200,32 @@ pub async fn step9a_populate_adapter_registry(
 // step9a_populate_adapter_registry. That structural guard is stronger than testing
 // a parallel helper function that bypasses the real production wiring.
 // BC-2.22.001; F-002-R; S-DEMO-001 v1.5.
+
+// ---------------------------------------------------------------------------
+// CrowdStrike FQL time-window builder (ADR-033 T1 + BC-2.01.013 v1.14)
+// ---------------------------------------------------------------------------
+
+/// Build a CrowdStrike FQL filter string from optional time bounds.
+///
+/// Implements BC-2.01.013 v1.14 Pagination/Push-Down Scope Clause — CrowdStrike row:
+/// - `start_time` → `created_timestamp:>'<ISO8601>'`
+/// - `end_time`   → `created_timestamp:<'<ISO8601>'`
+/// - Both present → combined with `+` (CrowdStrike FQL AND operator)
+/// - Neither present → returns empty string (no filter)
+///
+/// The returned string is seeded into `FetchContext.query_filters["_fql"]` and
+/// interpolated into the CrowdStrike Step 1 path_template via `${query.filter._fql}`.
+/// An empty return value produces `?filter=` (ignored by the DTU for empty-string filter).
+fn build_crowdstrike_fql(start_time: Option<&str>, end_time: Option<&str>) -> String {
+    let start_clause = start_time.map(|t| format!("created_timestamp:>'{t}'"));
+    let end_clause = end_time.map(|t| format!("created_timestamp:<'{t}'"));
+    match (start_clause, end_clause) {
+        (Some(start), Some(end)) => format!("{start}+{end}"),
+        (Some(start), None) => start,
+        (None, Some(end)) => end,
+        (None, None) => String::new(),
+    }
+}
 
 // ---------------------------------------------------------------------------
 // Unit tests — BearerStaticCredentialAuthProvider fail-closed contract
