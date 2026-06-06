@@ -41,6 +41,10 @@ proptest = "1.11.0"
 prost-types = "0.13"
 # Required to construct PluginRuntime in spec_driven_mapper_fixtures.rs (PluginRuntime::new takes reqwest::Client).
 reqwest = { version = "0.12", features = ["rustls-tls"], default-features = false }
+# OCSF-CLASS-MIGRATION-001: tracing event capture for AC-002/AC-003 Red Gate tests.
+# Follows the same pattern as prism-spec-engine pipeline_http_integration.rs (set_default + BufWriter).
+# Already in workspace lockfile from prism-spec-engine (no new external dep).
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
 [build-dependencies]
 # ocsf-proto-gen: generates .proto files from the bundled OCSF JSON schema.
