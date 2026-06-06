@@ -257,6 +257,12 @@ impl CrowdstrikeState {
         if token.is_empty() {
             return None;
         }
+        // SEC-004 defense-in-depth: a valid RFC3339 DateTime is at most ~25 chars
+        // (e.g., "YYYY-MM-DDTHH:MM:SS+00:00"); 32 gives margin for any valid form.
+        // Guard prevents wasted parse work on absurdly long input.
+        if token.len() > 32 {
+            return None;
+        }
         // Try RFC3339 first (handles Z and +00:00).
         if let Ok(dt) = token.parse::<DateTime<Utc>>() {
             return Some(dt);
@@ -513,5 +519,32 @@ mod tests {
             assert_eq!(bound.year(), 2026, "parsed year must be 2026");
             assert_eq!(bound.day(), 5, "parsed day must be 5");
         }
+    }
+
+    /// SEC-004 defense-in-depth: an over-length token (>32 chars) must return `None`
+    /// rather than wasting parse work. A valid 25-char RFC3339 token must still parse.
+    #[test]
+    fn test_sec_004_fql_over_length_token_returns_none() {
+        // 33-char token: exceeds the 32-char cap → must return None.
+        let long_token = "2026-01-01T00:00:00+00:00XXXXXXXXX"; // 34 chars
+        assert_eq!(long_token.len(), 34, "test fixture must be >32 chars");
+        let fql = format!("created_timestamp:>'{long_token}'");
+        let (after_bound, _) = CrowdstrikeState::parse_fql_time_bounds(&fql);
+        assert!(
+            after_bound.is_none(),
+            "SEC-004: over-length token ({} chars) must return None; got: {:?}",
+            long_token.len(),
+            after_bound
+        );
+
+        // Valid 25-char RFC3339 token "YYYY-MM-DDTHH:MM:SS+00:00" must still parse.
+        let valid_token = "2026-01-01T00:00:00+00:00"; // 25 chars
+        assert_eq!(valid_token.len(), 25, "test fixture must be ≤32 chars");
+        let fql_valid = format!("created_timestamp:>'{valid_token}'");
+        let (after_bound_valid, _) = CrowdstrikeState::parse_fql_time_bounds(&fql_valid);
+        assert!(
+            after_bound_valid.is_some(),
+            "SEC-004: valid 25-char RFC3339 token must still parse; got None. token='{valid_token}'"
+        );
     }
 }

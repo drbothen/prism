@@ -270,6 +270,12 @@ pub fn predicate_tree_to_filter_map(
     // Build the FilterMap directly from collected equality expressions.
     // (Per-sensor classify_predicates integration deferred to wave-5 when ColumnSpec
     // is available at the pre-fan-out stage — see scope note above.)
+    //
+    // SEC-002: `aql` filter values are user-provided content (e.g., `WHERE aql = 'in:devices'`).
+    // Before these values are interpolated into a URL path template (via `${query.filter.aql}`),
+    // the Interpolator applies percent-encoding in `InterpolationContext::UrlPath` context
+    // (prism-spec-engine::interpolation::Interpolator::percent_encode). Future reviewers:
+    // the encoding boundary is at interpolation time, not here.
     let mut filters = prism_sensors::types::FilterMap::new();
     for expr in &eq_exprs {
         if let Some((col, val)) = extract_eq_filter_from_expr(expr) {

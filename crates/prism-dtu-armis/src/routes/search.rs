@@ -394,6 +394,12 @@ fn extract_aql_keyword_bound(aql: &str, keyword: &str) -> Option<DateTime<Utc>> 
     if token.is_empty() {
         return None;
     }
+    // SEC-004 defense-in-depth: a valid Armis AQL datetime token is at most ~19 chars
+    // (e.g., "YYYY-MM-DDTHH:MM:SS"); 32 gives margin for date-only and any valid form.
+    // Guard prevents wasted parse work on absurdly long input.
+    if token.len() > 32 {
+        return None;
+    }
     // Try parsing as a full datetime (YYYY-MM-DDTHH:MM:SS — timezone-naive).
     if let Ok(naive) = chrono::NaiveDateTime::parse_from_str(token, "%Y-%m-%dT%H:%M:%S") {
         return Some(naive.and_utc());
@@ -546,6 +552,33 @@ mod pushdown_dtu_red_gate_tests {
             before_bound.is_none(),
             "parse_aql_time_bounds: no time clause → before_bound must be None; got: {:?}",
             before_bound
+        );
+    }
+
+    /// SEC-004 defense-in-depth: an over-length token (>32 chars) must return `None`
+    /// rather than wasting parse work. A valid 19-char datetime token must still parse.
+    #[test]
+    fn test_sec_004_aql_over_length_token_returns_none() {
+        // 33-char token: exceeds the 32-char cap → must return None.
+        let long_token = "2026-01-01T00:00:00XXXXXXXXXXXXXX"; // 33 chars
+        assert!(long_token.len() > 32, "test fixture must be >32 chars");
+        let aql = format!("in:devices after:{long_token}");
+        let (after_bound, _) = parse_aql_time_bounds(&aql);
+        assert!(
+            after_bound.is_none(),
+            "SEC-004: over-length token ({} chars) must return None; got: {:?}",
+            long_token.len(),
+            after_bound
+        );
+
+        // Valid 19-char timezone-naive datetime "YYYY-MM-DDTHH:MM:SS" must still parse.
+        let valid_token = "2026-01-01T00:00:00"; // 19 chars
+        assert!(valid_token.len() <= 32, "test fixture must be ≤32 chars");
+        let aql_valid = format!("in:devices after:{valid_token}");
+        let (after_bound_valid, _) = parse_aql_time_bounds(&aql_valid);
+        assert!(
+            after_bound_valid.is_some(),
+            "SEC-004: valid 19-char datetime token must still parse; got None. token='{valid_token}'"
         );
     }
 }
