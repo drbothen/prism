@@ -6,7 +6,7 @@ wave: 5
 epic_id: E-DEMO
 priority: P2
 status: ready
-version: "1.5"
+version: "1.6"
 level: "L4"
 producer: story-writer
 timestamp: "2026-06-01T00:00:00Z"
@@ -14,11 +14,15 @@ tdd_mode: strict
 subsystems: [SS-01, SS-16]
 # Subsystem anchor justifications:
 #   SS-01 (Sensor Adapters) owns the production sensor TOML specs that declare ocsf_class;
-#     the 4 TOML edits live in prism-spec-engine's sensor config directory.
+#     the 4 TOML edits live in crates/prism-sensors/specs/ (NOT prism-spec-engine).
 #   SS-16 (Spec Engine) owns crates/prism-ocsf/src/class_selector.rs where
 #     select_by_class_name maps string names to OCSF class_uid integers.
+#   prism-bin is touched because the conformance test fixture
+#     crates/prism-bin/tests/bc_2_01_013_spec_driven_adapter.rs asserts class_uid 2001→2004.
+#     prism-bin is not a subsystem anchor for this story (SS-01 and SS-16 cover the
+#     production scope); the prism-bin fixture touch is a test-only side effect.
 target_module: prism-ocsf
-crates_touched: [prism-ocsf, prism-spec-engine]
+crates_touched: [prism-ocsf, prism-bin]
 behavioral_contracts:
   - BC-2.02.012   # OCSF Class Selection — v1.5 (Wave-5-Phase-B-gate-F-002 2026-06-03):
                   # select_by_class_name mapping table added; "detection_finding"→2004 PRIMARY;
@@ -155,8 +159,10 @@ amend BC-2.02.012 again in this story's PR — it is PO-owned and already at the
 
 ### 4. Update S-DEMO-001 conformance test fixture (if applicable)
 
-If S-DEMO-001's conformance test fixture (likely in `tests/` or `prism-spec-engine/tests/`)
-asserts `ocsf_class_uid = 2001` for any of the 4 sensors, update the assertion to 2004.
+If S-DEMO-001's conformance test fixture at
+`crates/prism-bin/tests/bc_2_01_013_spec_driven_adapter.rs`
+asserts `ocsf_class_uid = 2001` (or `class_uid == 2001`) for any of the 4 sensors,
+update the assertion to 2004.
 Search for `2001` in test fixtures after the TOML change to find any stale assertions.
 
 ---
@@ -220,6 +226,7 @@ at dispatch; CI-enforced by the AC-002/AC-003/AC-004 unit tests failing if 2001 
 |-----------|--------|----------------|
 | `select_by_class_name` | `crates/prism-ocsf/src/class_selector.rs` (SS-16) | Pure |
 | Production sensor TOMLs | `crates/prism-sensors/specs/*.sensor.toml` (SS-01) | Config (data) |
+| Conformance test fixture | `crates/prism-bin/tests/bc_2_01_013_spec_driven_adapter.rs` | Test (effectful — spawns subprocess) |
 | BC-2.02.012 | `.factory/specs/behavioral-contracts/BC-2.02.012.md` | Spec |
 
 ---
@@ -234,7 +241,7 @@ at dispatch; CI-enforced by the AC-002/AC-003/AC-004 unit tests failing if 2001 
 | BC-2.02.012 v1.5 (read only — no PO amendment needed) | ~2,000 |
 | BC-2.01.013 v1.14 (read only) | ~3,000 |
 | Unit test additions (5 Red Gate tests) | ~1,500 |
-| S-DEMO-001 fixture check (`rg '2001' crates/ tests/` + conditional edit) | ~1,000 |
+| `crates/prism-bin/tests/bc_2_01_013_spec_driven_adapter.rs` (read + conditional edit, `rg '2001'` audit) | ~1,000 |
 | BC-2.16.002 (read + `ocsf.deprecated_class_alias` catalog row add) | ~2,000 |
 | **Total** | **~18,000 tokens (~7% of 256K context)** |
 
@@ -291,7 +298,7 @@ This story changes that field value only; the loading machinery is unchanged.
 
 ## Library & Framework Requirements
 
-No new dependencies. All changes are within existing `prism-ocsf` and sensor TOML config files.
+No new dependencies. All changes are within existing `prism-ocsf`, sensor TOML config files, and the `prism-bin` conformance test fixture.
 
 ---
 
@@ -304,8 +311,8 @@ No new dependencies. All changes are within existing `prism-ocsf` and sensor TOM
 | `crates/prism-sensors/specs/claroty.sensor.toml` | Modify | `ocsf_class` → `"detection_finding"` |
 | `crates/prism-sensors/specs/cyberint.sensor.toml` | Modify | `ocsf_class` → `"detection_finding"` |
 | `crates/prism-ocsf/src/class_selector.rs` | Modify | Add/confirm `"detection_finding"` → 2004 mapping |
+| `crates/prism-bin/tests/bc_2_01_013_spec_driven_adapter.rs` | Modify if stale | Update any `class_uid == 2001` assertion → 2004 (AC-005 / EC-003) |
 | `.factory/specs/behavioral-contracts/BC-2.02.012-ocsf-event-class-selection.md` | Read only | Already at v1.5 — do NOT amend (PO-owned) |
-| Test fixtures (TBD search) | Modify if found | Remove stale `2001` assertions |
 
 ---
 
@@ -315,7 +322,7 @@ No new dependencies. All changes are within existing `prism-ocsf` and sensor TOM
 |----|----------|-------|-----------|
 | OQ-1 | Option A (keep security_finding alias) or Option B (remove)? | Architect + PO | **CLOSED** — Option A selected per D-989 PO decision (Wave-5 Phase-A PO burst 2026-06-03; BC-2.02.012 v1.4 Changelog). |
 | OQ-2 | Has BC-2.02.012 been amended per §Scope task 3? | Product Owner | **CLOSED** — BC-2.02.012 amended to v1.4 in Wave-5 Phase-A PO burst 2026-06-03. |
-| OQ-3 | Are there additional tables in any sensor TOML that also declare `ocsf_class = "security_finding"`? | Implementer (grep at dispatch) | OPEN — `rg 'ocsf_class.*security_finding' crates/prism-sensors/specs/ .prism/specs/` at start of story; all occurrences in both spec directories must be updated in the same PR. |
+| OQ-3 | Are there additional tables in any sensor TOML that also declare `ocsf_class = "security_finding"`? | Implementer (grep at dispatch) | OPEN — `rg 'ocsf_class.*security_finding' crates/prism-sensors/specs/` at start of story; all occurrences in that spec directory must be updated in the same PR. |
 
 **Spec-First Gate S-7.01 note:** `behavioral_contracts` now contains BC-2.02.012 v1.5 and
 BC-2.01.013 v1.14 (both active). OQ-1 and OQ-2 are CLOSED. This story MAY transition to
@@ -339,6 +346,7 @@ AC-001 through AC-005 must each cite a specific BC clause before `status: ready`
 
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
+| 1.6 | 2026-06-06 | story-writer | OBS-1+OBS-2 LOCAL-pass-2 fix: dropped stale .prism/specs OQ-3 grep clause; corrected crates_touched (prism-spec-engine→prism-bin) + synced §FSR/§Architecture-Mapping/§Token-Budget; corrected §Scope task-4 fixture path to crates/prism-bin/tests/bc_2_01_013_spec_driven_adapter.rs; corrected subsystem anchor comment; updated §Library & Framework Requirements blurb. |
 | 1.5 | 2026-06-06 | story-writer | OBS-1 + OBS-2 LOCAL-pass-1 fix: (1) Advanced all BC-2.02.012 cite pins v1.4→v1.5 — confirmed v1.5 is a status-sync only (draft→active; no semantic change per BC-2.02.012 v1.5 Changelog entry "Wave-5-Phase-B-gate-F-002"). Sites updated: frontmatter behavioral_contracts comment (×1); # BC status annotation (×1); §Behavioral Contracts table Version column (×1); AC-001/AC-002/AC-003/AC-004/AC-005 trace lines (×5); §Architecture Compliance Rules table source column (×6); §Scope task 2 code comment + mapping table note (×2); §Scope §3 header + body (×2); §Tasks task 2 (×1). (2) Corrected `.prism/specs/sensors/` → `crates/prism-sensors/specs/` path anchors in §Scope TOML table (×4), §Architecture Mapping table (×1), §File Structure Requirements TOML rows (×4), §Tasks task 6 grep command (×1), Token Budget TOML row (×1). BC-2.02.012 body NOT edited (PO-owned). STORY-INDEX.md NOT edited (state-manager owns). |
 | 1.4 | 2026-06-05 | story-writer | Cite-pin sweep (POLICY 29 — BC-2.01.013 v1.13→v1.14): S-DEMO-QUERY-PUSHDOWN-001 v2.1 armis-aql-full-wiring burst bumped BC-2.01.013 to v1.14 (Armis AQL-clause augmentation IN scope per human directive 2026-06-05). OCSF Conformance Clause semantically unchanged from v1.10; v1.14 does not affect this story's scope. Updated 8 sites: frontmatter behavioral_contracts comment (×1); # BC status: annotation (×1); §Deferral Rationale items 1+3 (×2); §Behavioral Contracts table version column (×1); AC-002 trace line (×1); AC-003 trace line (×1); Token Budget table (×1). Story version 1.3→1.4. |
 | 1.3 | 2026-06-05 | product-owner | Cite-pin sweep (POLICY 29 sibling-sweep — BC-2.01.013 v1.12→v1.13). Updated BC-2.01.013 version pins at: frontmatter `behavioral_contracts` comment (×1); `# BC status:` frontmatter annotation (×1); §Deferral Rationale items 1+3 (×2); §Behavioral Contracts table version column (×1); AC-002 trace line (×1); AC-003 trace line (×1); Token Budget table (×1); §Gating S-7.01 note (×2). All pins updated from v1.12 to v1.13. No AC semantics changed — OCSF Conformance Clause unchanged in v1.13. Story version 1.2→1.3. |
