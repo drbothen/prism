@@ -6,7 +6,7 @@ wave: wave-5-e-demo-fidelity
 epic_id: E-DEMO
 priority: P2
 status: in_progress
-version: "2.5"
+version: "2.6"
 level: "L3"
 producer: story-writer
 revised_by: null
@@ -98,8 +98,8 @@ risk: MEDIUM
 # MaterializationContext.resolved_spec_map into the time-window extraction call; if
 # resolved_spec_map is None at extraction time, extraction must silently return None (safe default).
 # BC-2.11.007 result-equivalence invariant is the correctness safety net.
-acceptance_criteria_count: 16
-red_gate_tests: 18
+acceptance_criteria_count: 17
+red_gate_tests: 19
 estimated_passes: "3-4 LOCAL adversary passes"
 holdout_scenarios: []
 assumption_validations: []
@@ -148,11 +148,11 @@ cycle: "v1.0.0-brownfield"
 phase: 3
 ---
 
-# S-DEMO-QUERY-PUSHDOWN-001 v2.5 — Correct per-sensor push-down wiring (ADR-033 T1 + Armis AQL full wiring + CrowdStrike DTU FQL honoring)
+# S-DEMO-QUERY-PUSHDOWN-001 v2.6 — Correct per-sensor push-down wiring (ADR-033 T1 + Armis AQL full wiring + CrowdStrike DTU FQL honoring)
 
 **Story ID:** S-DEMO-QUERY-PUSHDOWN-001
 **Status:** in_progress
-**Version:** v2.5
+**Version:** v2.6
 **Wave:** wave-5-e-demo-fidelity
 **Priority:** P2
 **Points:** 8
@@ -443,6 +443,23 @@ Red Gate test: Inline TOML parse test OR `test_ac_index_001_armis_toml_last_seen
 
 (traces to BC-2.01.013 v1.14 Mechanism B AQL augmentation — Option T1 requires INDEX datetime columns to identify push-down-eligible predicates in armis.sensor.toml)
 
+### AC-INDEX-CWS-001: crowdstrike.sensor.toml — created_timestamp declares `options = ["INDEX"]` (traces to BC-2.01.013 v1.14 Mechanism A — FQL time-window push-down requires INDEX datetime column)
+
+Given: The `crowdstrike.sensor.toml` file declares the `crowdstrike_detections` table.
+When: The spec is loaded and Option T1 time-window extraction runs against a PrismQL query with a `created_timestamp` predicate.
+Then:
+(a) The `created_timestamp` column in the `[[tables]]` block for `crowdstrike_detections` declares `column_type = "datetime"` AND `options = ["INDEX"]`.
+(b) With this declaration, `extract_time_window_from_ast` identifies `created_timestamp` as push-down-eligible and populates `QueryParams.start_time` / `QueryParams.end_time` via the ADR-033 T1 heuristic.
+(c) Without `options = ["INDEX"]`, Option T1 extraction silently skips the `created_timestamp` Compare predicate — making CrowdStrike FQL time-window push-down silently vacuous (parallel defect to the Armis AC-INDEX-001 gap).
+
+NOTE: This is the CrowdStrike parallel to AC-INDEX-001 (Armis). The `crowdstrike.sensor.toml` MUST declare `options = ["INDEX"]` on `created_timestamp` so that `extract_time_window_from_ast` can recognize it as push-down-eligible. Without it, AC-CWS-002's end-to-end time-window scenario is vacuous even if the FQL injection code is correct.
+
+Red Gate test: `test_ac_index_cws_001_crowdstrike_toml_created_timestamp_has_index_option`
+Location: `crates/prism-spec-engine/tests/bc_2_11_007_pushdown_test.rs`
+(Existing test, already passes — asserts `ColumnOptions::Index` present on `created_timestamp` in the `crowdstrike_detections` table after spec loading.)
+
+(traces to BC-2.01.013 v1.14 Mechanism A CrowdStrike FQL time-window — Option T1 requires `options = ["INDEX"]` on `created_timestamp` in crowdstrike.sensor.toml to identify it as push-down-eligible; without it, FQL time-window push-down is silently vacuous)
+
 ### AC-CYB-001: Cyberint fetch_alerts receives no from_date, to_date, or page_size (traces to BC-2.01.013 v1.14 Pagination/Push-Down Scope Clause — Cyberint row)
 
 Given: A PrismQL query against Cyberint with a time-window predicate in the WHERE clause.
@@ -548,6 +565,7 @@ Preferred approach: load specs via `include_str!` from production `crates/prism-
 | Anti-double-filter guard: if base AQL contains `after:`, `before:`, or `timeFrame:` → forward verbatim, no augmentation | BC-2.01.013 v1.14 Mechanism B anti-double-filter guard | AC-ARMIS-TW-003 verifies guard; failure → duplicate time clauses on wire |
 | Armis DTU `routes/search.rs`: parse `after:`/`before:` from AQL string and filter fixture dataset | pushdown-redesign.md §8.3 + BC-2.01.013 v1.14 DTU-honors-AQL-time-clause contract | AC-ARMIS-TW-002 LOAD-BEARING assertion: `filtered_count < unfiltered_count` |
 | `armis.sensor.toml`: `last_seen` (devices) and `created_at` (alerts) MUST declare `options = ["INDEX"]` | pushdown-redesign.md §8.5 | AC-INDEX-001 verifies; without this, Option T1 cannot extract Armis time bounds |
+| `crowdstrike.sensor.toml`: `created_timestamp` MUST declare `options = ["INDEX"]` | ADR-033 T1 heuristic — Option T1 only matches columns with `options = ["INDEX"]` | AC-INDEX-CWS-001 verifies; without this, CrowdStrike FQL time-window push-down is silently vacuous (parallel to AC-INDEX-001) |
 | R-DTU-002 (opaque AQL capture) is UNAFFECTED: `capture_aql()` still called verbatim before any filtering | pushdown-redesign.md §8.3.1 | AC-ARMIS-TW-005 aql-log assertion confirms verbatim capture of augmented string |
 | CrowdStrike DTU (`prism-dtu-crowdstrike`): `state.rs` `parse_fql_time_bounds` parses FQL `created_timestamp:>'T'` and `created_timestamp:<'T'` clauses; `detections.rs` filters fixture dataset; `/dtu/filter-log` capture route records applied filter expression | DRIFT-P1-001 ADV-P02-HIGH-001 — OBS-001 fix-burst; parallel to Armis §8.3 DTU requirement | AC-CWS-DTU-001 LOAD-BEARING: `filtered_count < unfiltered_count`; without this, AC-CWS-002 end-to-end scenario is vacuous |
 
@@ -624,7 +642,7 @@ Version source: workspace `Cargo.toml` `[dependencies]` table. Do not pin versio
 6d. **Read** `crates/prism-spec-engine/tests/parity/armis.rs` — understand existing AQL passthrough tests and the `#[ignore]`'d parity test so the new load-bearing tests complement rather than duplicate.
 6e. **Read** `.factory/research/armis-aql-time-window-syntax-2026-06.md` — confirm canonical AQL time syntax: `after:YYYY-MM-DDTHH:MM:SS` (bare, unquoted, no `Z` suffix). This is authoritative; do NOT use `lastSeen:>"T"` form.
 7. **Write stubs** — stub out T1 extraction function with `todo!()` in `pushdown.rs`. Stub CrowdStrike FQL combined-form injection with `todo!()`. Stub `augment_armis_aql_with_time_window` with `todo!()` in `prism-spec-engine/pipeline.rs` or `prism-bin/spec_driven_adapter.rs`.
-8. **Write Red Gate tests** (all 15 must FAIL before implementation):
+8. **Write Red Gate tests** (all non-`#[ignore]` tests must FAIL before implementation; 19 total RGTs including 2 from EC-009 and 1 for AC-INDEX-CWS-001):
    - `test_ac_cws_001_crowdstrike_limit_reaches_detection_list_params`
    - `test_ac_cws_002_fql_time_window_both_start_and_end_via_materialization_pipeline`
    - `test_ac_cws_003_no_filter_param_when_no_time_predicates`
@@ -641,6 +659,9 @@ Version source: workspace `Cargo.toml` `[dependencies]` table. Do not pin versio
    - `test_ac_wire_001_materialization_pipeline_populates_start_time_from_ast`
    - `test_ac_wire_001b_safe_default_when_spec_map_is_none`
    - `test_ac_index_001_armis_toml_last_seen_created_at_have_index_option`
+   - `test_ac_index_cws_001_crowdstrike_toml_created_timestamp_has_index_option` (AC-INDEX-CWS-001; `crates/prism-spec-engine/tests/bc_2_11_007_pushdown_test.rs`; already passes — EXISTING test)
+   - `test_adv_p08_med001_crowdstrike_inclusive_boundary_via_run_materialization_pipeline` (EC-009)
+   - `test_adv_p08_med001_armis_inclusive_boundary_via_run_materialization_pipeline` (EC-009)
 9. **Verify Red Gate fails** — `just iter prism-query` and `just iter prism-spec-engine` and `just iter prism-dtu-armis` and `just iter prism-dtu-crowdstrike` must show all Red Gate tests FAILING.
 10. **Implement** ADR-033 T1: add `extract_time_window_from_ast` in `pushdown.rs`; wire in `materialization.rs` at lines ~434–440.
 11. **Implement** CrowdStrike FQL combined form: `start+end` with `+`; Step 2 receives `FetchContext::default()`.
@@ -651,7 +672,7 @@ Version source: workspace `Cargo.toml` `[dependencies]` table. Do not pin versio
 14c. **Extend** `crates/prism-dtu-armis/src/routes/search.rs`: after `capture_aql()` (do not move/remove it), parse `after:`/`before:` clauses from AQL string (regex or simple string extraction); filter `devices_ordered` by `last_seen` (with `first_seen` fallback for nulls) and `alert_fixture` by `created_at` before pagination. Null timestamps excluded. Verify fixture data has records spanning the test time window (add records if needed).
 14d. **Add** `options = ["INDEX"]` to `last_seen` column (devices table) and `created_at` column (alerts table) in `crates/prism-sensors/specs/armis.sensor.toml`.
 15. **Write** AC-EQUIV-001 integration test (ungated, against CrowdStrike DTU clone): `run_materialization_pipeline` → DTU → result-equivalence assertion.
-16. **Run** `just iter prism-query --no-fail-fast` + `just iter prism-spec-engine` + `just iter prism-dtu-armis` + `just iter prism-dtu-crowdstrike` — all 16 Red Gate tests GREEN (AC-ARMIS-TW-005 is `#[ignore]`, excluded from this count).
+16. **Run** `just iter prism-query --no-fail-fast` + `just iter prism-spec-engine` + `just iter prism-dtu-armis` + `just iter prism-dtu-crowdstrike` — all 19 Red Gate tests GREEN (AC-ARMIS-TW-005 is `#[ignore]`, excluded from this count; AC-INDEX-CWS-001 test already passes).
 17. **Run** `just iter prism-spec-engine` and `just iter prism-bin` — no regressions.
 18. **Run** `just check` — final pre-push gate.
 
@@ -695,7 +716,7 @@ Version source: workspace `Cargo.toml` `[dependencies]` table. Do not pin versio
 
 | Context source | Estimated tokens |
 |----------------|-----------------|
-| This story spec (v2.5) | ~7,700 |
+| This story spec (v2.6) | ~7,900 |
 | BC files (3 BCs: BC-2.01.013 v1.14 + BC-2.11.005 v1.6 + BC-2.11.007 v1.8) | ~9,500 |
 | ADR-033 | ~2,500 |
 | pushdown-redesign.md (design note incl. §8) | ~6,000 |
@@ -722,6 +743,7 @@ At the 20-30% budget ceiling. Implementer SHOULD split into two sub-tasks if con
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 2.6 | 2026-06-05 | story-writer | F-P08-MED-001 fix-burst: added AC-INDEX-CWS-001 (crowdstrike.sensor.toml `created_timestamp` declares `options = ["INDEX"]`). This is the CrowdStrike parallel to AC-INDEX-001 (Armis): without `options = ["INDEX"]` on `created_timestamp`, ADR-033 Option T1 extraction silently skips the column and CrowdStrike FQL time-window push-down is silently vacuous. Red Gate test: EXISTING `test_ac_index_cws_001_crowdstrike_toml_created_timestamp_has_index_option` (`crates/prism-spec-engine/tests/bc_2_11_007_pushdown_test.rs`) — 11 code/test sites cite this AC ID; the test already passes. Architecture Compliance Rules: added CrowdStrike INDEX row (parallel to Armis INDEX row). Tasks step 8: added `test_ac_index_cws_001_*` to Red Gate test list with full list of 19 RGTs. Step 16: 16→19 Red Gate test count. acceptance_criteria_count 16→17; red_gate_tests 18→19. H1 + body header version 2.5→2.6. |
 | 2.5 | 2026-06-05 | story-writer | ADV-P08-MED-001 fix-burst: added EC-009 documenting inclusive-boundary push-down behavior (CompareOp::Ge/Le). DTU time-window filtering is inclusive at the boundary (records with `ts == bound` are kept, never excluded); push-down result is a superset of the exact predicate result; DataFusion post-filter narrows to exact set; BC-2.11.007 result-equivalence invariant holds. Second root cause: timestamp normalization changed from `to_rfc3339()` (`+00:00` suffix, ASCII 43) to `to_rfc3339_opts(SecondsFormat::Secs, true)` (`Z` suffix, ASCII 90) — `+00:00` < `Z` lexicographically causing exact-boundary records to be silently dropped at DataFusion string-comparison. Red Gate tests added: `test_adv_p08_med001_crowdstrike_inclusive_boundary_via_run_materialization_pipeline` + `test_adv_p08_med001_armis_inclusive_boundary_via_run_materialization_pipeline` (both in `crates/prism-bin/tests/adv_p02_e2e_pushdown_pipeline_test.rs`; drive `run_materialization_pipeline`; assert boundary record present in `>=` result). red_gate_tests 16→18. BC array unchanged (BC-2.11.007 v1.8 already scopes Ge/Le). acceptance_criteria_count unchanged (16). H1 + body header version 2.4→2.5. |
 | 2.4 | 2026-06-05 | story-writer | LOCAL pass-5 fix-burst test-citation drift correction. AC-EQUIV-001 Red Gate test renamed/relocated by pass-5 fix-burst: OLD misnamed prism-spec-engine test `test_ac_equiv_001_result_equivalence_via_real_materialization_path` → RENAMED to `test_ac_equiv_001_fql_subset_invariant_via_pipeline_executor_boundary` (PipelineExecutor-boundary only; does NOT satisfy AC-EQUIV-001 alone). NEW authoritative test `test_ac_equiv_001_result_equivalence_via_run_materialization_pipeline` in `crates/prism-bin/tests/adv_p02_e2e_pushdown_pipeline_test.rs` drives `run_materialization_pipeline` end-to-end and asserts BC-2.11.007 subset/no-fabrication invariant. Supplementary boundary test noted for context. H1 + body header version 2.3→2.4. |
 | 2.3 | 2026-06-05 | story-writer | ADV-P04-HIGH-001 fix: identifier-accuracy correction — `parse_created_timestamp_bounds` → `parse_fql_time_bounds` at all 6 spec sites (frontmatter comment line 40, AC-CWS-DTU-001 When clause, Architecture Compliance Rules CrowdStrike row, Library & Framework Requirements prism-dtu-crowdstrike row, File Structure Requirements state.rs + detections.rs rows). Per Source-of-Truth Rule 7 code wins for code-vs-spec: actual implemented function is `parse_fql_time_bounds` (authored by implementer in this fix-burst per state.rs + routes/detections.rs); spec had the wrong name. ADV-P04-LOW-001 fix: updated AC-CWS-DTU-001 Red Gate test annotation from "existing test from OBS-001 fix-burst" to "new test authored by implementer in this fix-burst" — `parse_fql_time_bounds` is new code; the test is new. Test name `test_ac_cws_dtu_001_crowdstrike_dtu_honors_fql_filter_time_window` retained (matches implementer naming convention). H1 + body header version 2.2→2.3. |

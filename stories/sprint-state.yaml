@@ -135,10 +135,10 @@ active_dispatch_set:
     status: in_progress
     priority: P2
     points: 8
-    spec_version: "v2.5"
+    spec_version: "v2.6"
     lane: "2 (Phase B)"
-    dispatch_status: "PR_CYCLE_IN_FLIGHT — D-1017 2026-06-05. PR #173. PR-LEVEL passes 1/2/3 ALL DONE. Feature code clean at eab62613 (demo-evidence only in f290a43d→eab62613 delta). Pass-2 LOW evidence-count drift CLOSED (evidence-report counts refreshed 7→8 CrowdStrike / 4→5 Armis; 2 DTU demos re-recorded; SEC-004 labeled defense-in-depth). Pass-3 MEDIUM BC-2.16.002 POLICY 32 non-monotonic+duplicate-1.64+missing-1.63 CLOSED (full 70-row sweep; duplicate 1.64 renumbered→1.63; 1.41/1.42 inversion corrected; BC v1.68→v1.69; BC-INDEX v5.88→v5.89). Streak 0/3 (never advanced; all findings were evidence/BC-hygiene not code). NEXT: PR-LEVEL pass 4 (fresh streak attempt on frozen eab62613; need 3 strict-clean)."
-    code_head: "eab62613"
+    dispatch_status: "PR_CYCLE_IN_FLIGHT — D-1018 2026-06-05. PR #173. PR-LEVEL passes 1-8 ALL DONE. Feature code stable at 1a8cc8aa. Pass-5 3 LOW (OBS-P05-001 stale test comment → fixture-agnostic; OBS-P05-002 limit-clamp rationale; OBS-P05-003 leading-space AQL) CLOSED by implementer c9b22402→1a8cc8aa. Pass-6 CLEAN(strict)=yes streak 0/3→1/3. Pass-7 CLEAN(strict)=yes streak 1/3→2/3. Pass-8 MEDIUM F-P08-MED-001 (dangling AC-INDEX-CWS-001: 11 code/test sites cited AC absent from story; spec-only fix by story-writer: AC-INDEX-CWS-001 added, acceptance_criteria_count 16→17, red_gate_tests 18→19, story v2.5→v2.6, STORY-INDEX v2.287→v2.288). Streak RESET 2/3→0/3. pr-reviewer APPROVE (on eab62613; NITs cleaned). security SECURITY-CLEAR-TO-MERGE (pass-1). CI on 1a8cc8aa: passing. NEXT: PR-LEVEL pass 9 (fresh streak on 1a8cc8aa + fixed story v2.6; need 3 strict-clean)."
+    code_head: "1a8cc8aa"
     local_adversary_streak: "3/3"
     local_converged: true
     local_converged_at_passes: "9/10/11"
@@ -318,8 +318,47 @@ active_dispatch_set:
     pr_level_pass3_pass2_closure_verified: "LOAD-BEARING — ADV-PR-P02-LOW-001 evidence-count refresh confirmed; CrowdStrike=8, Armis=5; SEC-004 defense-in-depth label present"
     pr_level_pass3_feature_head: "eab62613"
     pr_level_pass3_report: "cycles/wave-5-e-demo-fidelity/S-DEMO-QUERY-PUSHDOWN-001/adversarial-review/pr-pass-3.md"
+    pr_level_pass4_clean_strict: true
+    pr_level_pass4_clean_pr_merge: true
+    pr_level_pass4_findings: {}
+    pr_level_pass4_streak_after: "1/3"
+    pr_level_pass4_note: "CLEAN(strict)=yes; zero findings. Streak 0/3 → 1/3 per BC-5.39.001 D-779. First strict-clean pass on frozen eab62613."
+    pr_level_pass4_feature_head: "eab62613"
+    pr_level_pass5_clean_strict: false
+    pr_level_pass5_clean_pr_merge: true
+    pr_level_pass5_findings: {LOW: 3}
+    pr_level_pass5_streak_after: "0/3"
+    pr_level_pass5_feature_head_before: "c9b22402"
+    pr_level_pass5_feature_head_after: "1a8cc8aa"
+    pr_level_pass5_obs_p05_001: "OBS-P05-001 (LOW) — stale test comment fixture-specific language. CLOSED implementer 1a8cc8aa — test comment updated to fixture-agnostic contract-anchored language (TD-VSDD-091 discipline)."
+    pr_level_pass5_obs_p05_002: "OBS-P05-002 (LOW) — limit-clamp rationale missing. CLOSED implementer 1a8cc8aa — comment added documenting clamp value rationale with AC reference."
+    pr_level_pass5_obs_p05_003: "OBS-P05-003 (LOW) — AQL keyword bound leading-space handling not evident. CLOSED implementer 1a8cc8aa — extract_aql_keyword_bound trims leading spaces; new test added."
+    pr_level_pass5_report: "cycles/wave-5-e-demo-fidelity/S-DEMO-QUERY-PUSHDOWN-001/adversarial-review/pr-pass-5.md"
+    pr_level_pass6_clean_strict: true
+    pr_level_pass6_clean_pr_merge: true
+    pr_level_pass6_findings: {}
+    pr_level_pass6_streak_after: "1/3"
+    pr_level_pass6_note: "CLEAN(strict)=yes; zero findings. All pass-5 closures verified load-bearing. SAP-1 PASS. SAP-2 PASS. Streak 0/3 → 1/3 per BC-5.39.001 D-779."
+    pr_level_pass6_feature_head: "1a8cc8aa"
+    pr_level_pass6_report: "cycles/wave-5-e-demo-fidelity/S-DEMO-QUERY-PUSHDOWN-001/adversarial-review/pr-pass-6.md"
+    pr_level_pass7_clean_strict: true
+    pr_level_pass7_clean_pr_merge: true
+    pr_level_pass7_findings: {}
+    pr_level_pass7_streak_after: "2/3"
+    pr_level_pass7_note: "CLEAN(strict)=yes; zero findings. Full independent re-derivation. All 17 ACs satisfied. SAP-1 PASS. SAP-2 PASS. Streak 1/3 → 2/3 per BC-5.39.001 D-779."
+    pr_level_pass7_feature_head: "1a8cc8aa"
+    pr_level_pass7_report: "cycles/wave-5-e-demo-fidelity/S-DEMO-QUERY-PUSHDOWN-001/adversarial-review/pr-pass-7.md"
+    pr_level_pass8_clean_strict: false
+    pr_level_pass8_clean_pr_merge: false
+    pr_level_pass8_findings: {MED: 1}
+    pr_level_pass8_streak_after: "0/3"
+    pr_level_pass8_feature_head: "1a8cc8aa"
+    pr_level_pass8_f_p08_med_001: "F-P08-MED-001 (MEDIUM) — dangling AC: 11 code/test sites cite AC-INDEX-CWS-001 (CrowdStrike INDEX requirement, load-bearing) but story v2.5 only defined AC-INDEX-001 (Armis). Streak RESET 2/3→0/3. CLOSED story-writer (spec-only; no code change): added AC-INDEX-CWS-001 (parallel to AC-INDEX-001; cites existing test test_ac_index_cws_001_*); acceptance_criteria_count 16→17; red_gate_tests 18→19; story v2.5→v2.6; STORY-INDEX v2.287→v2.288. Feature HEAD UNCHANGED at 1a8cc8aa."
+    pr_level_pass8_report: "cycles/wave-5-e-demo-fidelity/S-DEMO-QUERY-PUSHDOWN-001/adversarial-review/pr-pass-8.md"
+    pr_level_reviewer_verdict: "APPROVE (on eab62613; NITs since cleaned at 1a8cc8aa)"
+    pr_level_security_review_verdict: "SECURITY-CLEAR-TO-MERGE"
     pr_level_cascade_streak: "0/3"
-    pr_level_cascade_passes: 3
+    pr_level_cascade_passes: 8
     depends_on:
       - S-DEMO-001  # HARD gate — SATISFIED (merged PR #166 develop@5dd3df02)
       - S-DEMO-002  # SATISFIED (merged PR #171 develop@fdd12251 2026-06-04)
@@ -500,9 +539,9 @@ deferred_post_demo:
   # reclassification from permitted-divergence → required-fidelity; user directive no-scope-compromise).
 
 prereq_artifacts:
-  story_index: .factory/stories/STORY-INDEX.md         # v2.287 after D-1014 burst (181 stories; S-DEMO-QUERY-PUSHDOWN-001 v2.5 EC-009 + red_gate_tests 16→18)
+  story_index: .factory/stories/STORY-INDEX.md         # v2.288 after D-1018 burst (181 stories; S-DEMO-QUERY-PUSHDOWN-001 v2.6 AC-INDEX-CWS-001 added)
   bc_index: .factory/specs/behavioral-contracts/BC-INDEX.md  # v5.89 (BC-2.16.002 v1.69 POLICY 32 full-column sweep D-1017; active 234, draft 3)
-  state: .factory/STATE.md                              # v7.666 after D-1015 burst
+  state: .factory/STATE.md                              # v7.669 after D-1018 burst
   governing_adr: .factory/specs/architecture/decisions/ADR-031-dtu-equals-true-dtu-fidelity-principle.md  # v1.2 (ADR-031 architect e57eb5b1 reclassified 3 divergences)
   governing_audit: .factory/proposals/POLLER-DTU-FIDELITY-AUDIT-2026-05-29.md  # v1.1
 

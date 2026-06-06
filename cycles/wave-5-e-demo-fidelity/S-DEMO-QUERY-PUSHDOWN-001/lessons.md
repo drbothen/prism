@@ -135,3 +135,62 @@ However, there is no automated enforcement path for test-docstring line-number p
 **Resolution:** Option C is the minimum bar; Option A is the right permanent fix. Codification decision deferred to session-reviewer at cycle-close. Do NOT add a new story now — this is a process/lint gap, not an unmet user-facing requirement.
 
 **Non-blocking confirmation:** The line-pin sites do not affect test behavior or correctness. Code passes `just check 4032/4032`. This record exists only as a cycle-close codification prompt.
+
+---
+
+### [traceability][codification-candidate] F-P08-MED-001 — Dangling-AC class: code/test cites an AC identifier absent from the story source-of-truth
+
+**Date recorded:** 2026-06-05
+**D-NNN anchor:** D-1018
+**Finding:** F-P08-MED-001 (PR-LEVEL pass-8)
+**Tags:** [traceability] [dangling-AC] [story-source-of-truth] [codification-candidate] [acceptance-criteria-count]
+**Classification:** MEDIUM — spec completeness defect; no code change needed; test passes but AC not formally defined in story.
+
+**Description:**
+PR-LEVEL adversary pass 8 found 11 code and test sites citing `AC-INDEX-CWS-001` (CrowdStrike
+`crowdstrike.sensor.toml` `created_timestamp` declares `options = ["INDEX"]` — required for ADR-033
+T1 heuristic to recognize the column as push-down-eligible). However, story v2.5's formal acceptance
+criteria list did not define `AC-INDEX-CWS-001`. The story defined `AC-INDEX-001` (the Armis parallel)
+but the CrowdStrike equivalent was never formally added when the tests were authored during the v2
+LOCAL cascade.
+
+**Why this class evades many adversary passes:**
+
+1. **Tests pass.** The cited AC test `test_ac_index_cws_001_*` exists and passes at every HEAD. No
+   test failure signals the gap.
+2. **AC count appears internally consistent.** The story's stated `acceptance_criteria_count` (16
+   at v2.5) matches the number of formally defined ACs in the story text — the count is correct
+   *by the story's own (understated) definition*. An adversary checking "does the count field match
+   the count of AC sections?" sees no discrepancy.
+3. **The behavioral requirement IS satisfied.** The CrowdStrike TOML already has `options = ["INDEX"]`
+   in the codebase. The gap is purely a traceability formality, not a correctness defect.
+
+These three conditions combine to make the dangling-AC class invisible to most adversary probes:
+the code is correct, tests pass, and the story's counts are internally self-consistent. The gap is
+only detectable by a cross-reference probe: grep code/test files for AC identifiers and verify
+each cited AC ID resolves to a formally defined AC in the story's `## Acceptance Criteria` section.
+
+**Codification direction (cross-reference probe):**
+
+A standing adversary probe should be added to detect this class:
+
+```
+For every PR-LEVEL adversary pass on a story:
+1. grep crates/**/*.rs for all strings matching AC-[A-Z][A-Z0-9_-]+ (AC identifier pattern)
+2. For each unique AC ID found, verify it appears as a defined AC section (###  AC-ID: ...) in the story file
+3. Any AC-ID cited in code/tests that is NOT defined in the story = MEDIUM finding (dangling-AC class)
+   Exception: historical comments referencing an AC that was subsequently renamed — verify the
+   renamed AC covers the same behavioral property.
+```
+
+This probe would have caught F-P08-MED-001 at PR-LEVEL pass 1 (or even during the LOCAL cascade)
+rather than pass 8, saving 7 cascade passes of untrue assumption that the story was complete.
+
+**Codification candidates:**
+- SAP-5 standing adversary probe: dangling-AC grep cross-reference check
+- Or: amend SAP-2 or SAP-1 scope extension to include AC-ID grep
+- CLAUDE.md codification: add to the adversary's mandatory pre-convergence checklist
+
+**Outcome:** story-writer added AC-INDEX-CWS-001 formally to story v2.6 (CrowdStrike parallel to
+AC-INDEX-001; cites existing passing test). Feature code HEAD unchanged at 1a8cc8aa. Streak
+RESET 2/3 → 0/3. Pass 9 begins fresh on 1a8cc8aa + story v2.6.
