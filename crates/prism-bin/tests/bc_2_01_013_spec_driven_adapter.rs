@@ -16,7 +16,7 @@
 //!
 //! | F-PASS1-MED-001 | test_BC_2_06_014_boot_step9a_uses_resolved_spec_overlay_url | test exercised EC-004 skip path, never constructed adapter or called fetch() |
 //!
-//! # Adversary pass-2 findings addressed (BC-2.01.013 v1.9 OCSF Conformance Clause)
+//! # Adversary pass-2 findings addressed (BC-2.01.013 v1.14 OCSF Conformance Clause)
 //!
 //! | Finding | Tests | Root cause |
 //! |---------|-------|-----------|
@@ -26,7 +26,7 @@
 //! | F-002-R | test_BC_2_22_001_production_boot_path_wiring_guard | Replaced duplicate-helper call with source-code structural wiring guard |
 //! | F-004-R | test_BC_2_01_013_auth_refresh_failed_display_carries_e_auth_002_taxonomy_code | E-AUTH-002 taxonomy code structurally pinned to prevent silent drift |
 //!
-//! # D-925 fixture correction (BC-2.01.013 v1.9, adversary F-001-R-RECUR)
+//! # D-925 fixture correction (BC-2.01.013 v1.14, adversary F-001-R-RECUR)
 //!
 //! `make_crowdstrike_detection_spec` was corrected from fake `ocsf_class = "detection"` to the
 //! real production value `ocsf_class = "security_finding"` (crowdstrike.sensor.toml detections
@@ -46,9 +46,9 @@
 //! | AC-010 | test_BC_2_01_013_fetch_returns_non_empty_ocsf_batches_bearer_static | BC-2.01.013 | F-001 |
 //! | AC-010 | test_BC_2_01_013_fetch_returns_non_empty_ocsf_batches_plugin | BC-2.01.013 | F-001 |
 //! | AC-010 | test_BC_2_01_013_fetch_returns_non_empty_ocsf_batches_static_cookie | BC-2.01.013 | F-001 |
-//! | AC-010 (item 1) | test_BC_2_01_013_ocsf_conformance_spec_columns_survive_into_arrow_schema | BC-2.01.013 v1.9 | F-001-R/D-925 |
-//! | AC-010 (item 2) | test_BC_2_01_013_ocsf_conformance_envelope_derived_not_raw_copied | BC-2.01.013 v1.9 | F-001-R/D-925 |
-//! | AC-010 (item 3) | test_BC_2_01_013_ocsf_conformance_sensor_virtual_column_is_canonical_sensor_id | BC-2.01.013 v1.9 | F-001-R/D-925 |
+//! | AC-010 (item 1) | test_BC_2_01_013_ocsf_conformance_spec_columns_survive_into_arrow_schema | BC-2.01.013 v1.14 | F-001-R/D-925 |
+//! | AC-010 (item 2) | test_BC_2_01_013_ocsf_conformance_envelope_derived_not_raw_copied | BC-2.01.013 v1.14 | F-001-R/D-925 |
+//! | AC-010 (item 3) | test_BC_2_01_013_ocsf_conformance_sensor_virtual_column_is_canonical_sensor_id | BC-2.01.013 v1.14 | F-001-R/D-925 |
 //! | AC-012 | test_BC_2_01_013_spec_driven_adapter_double_401_returns_auth_refresh_failed | BC-2.01.013 | F-004 |
 //! | AC-012 | test_BC_2_01_013_auth_refresh_failed_display_carries_e_auth_002_taxonomy_code | BC-2.01.013 | F-004-R |
 //! | AC-004 | test_BC_2_22_001_boot_step9a_registers_correct_adapter_count | BC-2.22.001 | (exists, unchanged) |
@@ -1497,9 +1497,9 @@ fn test_BC_2_01_013_build_http_client_with_timeout_succeeds() {
 }
 
 // ===========================================================================
-// BC-2.01.013 v1.9 OCSF Conformance Clause tests (adversary pass-2, F-001-R)
+// BC-2.01.013 v1.14 OCSF Conformance Clause tests (adversary pass-2, F-001-R)
 //
-// These 3 tests encode the MINIMUM CONFORMANCE GATE from BC-2.01.013 v1.9
+// These 3 tests encode the MINIMUM CONFORMANCE GATE from BC-2.01.013 v1.14
 // §SpecDrivenSensorAdapter OCSF Conformance Clause, items 1–3.
 //
 // All 3 tests MUST FAIL against the current `pipeline_result_to_record_batch`
@@ -1574,7 +1574,7 @@ fn make_crowdstrike_detection_spec(base_url: &str) -> SensorSpec {
 /// - `"detection_id": "det-conformance-001"` and `"severity": "High"` — spec-declared
 ///   data columns that MUST survive into the Arrow schema (not dropped).
 ///
-/// BC-2.01.013 v1.9 conformance probe; TV-BC-2.01.013-004/005.
+/// BC-2.01.013 v1.14 conformance probe; TV-BC-2.01.013-004/005.
 fn crowdstrike_conformance_raw_response() -> serde_json::Value {
     serde_json::json!({
         "data": [
@@ -1589,7 +1589,7 @@ fn crowdstrike_conformance_raw_response() -> serde_json::Value {
     })
 }
 
-/// AC-010 item 1 — BC-2.01.013 v1.9 OCSF Conformance Clause item 1 (spec columns survive):
+/// AC-010 item 1 — BC-2.01.013 v1.14 OCSF Conformance Clause item 1 (spec columns survive):
 ///
 /// `SpecDrivenSensorAdapter::fetch()` MUST return a RecordBatch whose Arrow schema contains
 /// EVERY column declared in the sensor's TOML `[[tables.columns]]` spec, in addition to the
@@ -1607,7 +1607,7 @@ fn crowdstrike_conformance_raw_response() -> serde_json::Value {
 /// TV-BC-2.01.013-004: "5 spec-declared columns PLUS category_uid, class_uid, _sensor;
 /// no spec-declared column is absent."
 ///
-/// BC-2.01.013 v1.9 OCSF Conformance Clause item 1; AC-010(a); F-001-R; S-DEMO-001 v1.5.
+/// BC-2.01.013 v1.14 OCSF Conformance Clause item 1; AC-010(a); F-001-R; S-DEMO-001 v1.5.
 #[tokio::test]
 async fn test_BC_2_01_013_ocsf_conformance_spec_columns_survive_into_arrow_schema() {
     let mock_server = MockServer::start().await;
@@ -1655,7 +1655,7 @@ async fn test_BC_2_01_013_ocsf_conformance_spec_columns_survive_into_arrow_schem
     assert!(
         !batches.is_empty(),
         "F-001-R item 1: fetch() must return at least one non-empty RecordBatch. \
-         Got empty Vec. BC-2.01.013 v1.9 Conformance Clause item 1."
+         Got empty Vec. BC-2.01.013 v1.14 Conformance Clause item 1."
     );
 
     let first_batch = &batches[0];
@@ -1667,7 +1667,7 @@ async fn test_BC_2_01_013_ocsf_conformance_spec_columns_survive_into_arrow_schem
     // constructs a Schema with only 3 fields: category_uid, class_uid, _sensor.
     // Spec-declared data columns are never added to the schema.
     //
-    // BC-2.01.013 v1.9 item 1: "Every column declared in [[tables.columns]] MUST survive
+    // BC-2.01.013 v1.14 item 1: "Every column declared in [[tables.columns]] MUST survive
     // into the returned RecordBatch via ColumnMapper field-by-field mapping."
     // EC-01-025: "RecordBatch with only envelope fields while discarding sensor payload = NON-CONFORMANT."
     assert!(
@@ -1677,7 +1677,7 @@ async fn test_BC_2_01_013_ocsf_conformance_spec_columns_survive_into_arrow_schem
          Root cause: pipeline_result_to_record_batch builds only the 3-column envelope schema \
          (category_uid, class_uid, _sensor) — all spec data columns are silently dropped. \
          Fix: use ColumnMapper to map spec.tables[].columns into the RecordBatch. \
-         BC-2.01.013 v1.9 Conformance Clause item 1; AC-010(a); F-001-R.",
+         BC-2.01.013 v1.14 Conformance Clause item 1; AC-010(a); F-001-R.",
         column_names
     );
 
@@ -1686,7 +1686,7 @@ async fn test_BC_2_01_013_ocsf_conformance_spec_columns_survive_into_arrow_schem
         "F-001-R item 1 LOAD-BEARING: Arrow schema MUST contain spec-declared column \
          'severity'. Present columns: {:?}. \
          Root cause: same as detection_id — spec data columns dropped in current stub. \
-         BC-2.01.013 v1.9 Conformance Clause item 1; AC-010(a); F-001-R.",
+         BC-2.01.013 v1.14 Conformance Clause item 1; AC-010(a); F-001-R.",
         column_names
     );
 
@@ -1834,7 +1834,7 @@ async fn test_BC_2_01_013_ocsf_conformance_envelope_derived_not_raw_copied() {
     );
 }
 
-/// AC-010 item 3 — BC-2.01.013 v1.9 OCSF Conformance Clause item 3 (_sensor virtual column):
+/// AC-010 item 3 — BC-2.01.013 v1.14 OCSF Conformance Clause item 3 (_sensor virtual column):
 ///
 /// The `_sensor` virtual column MUST be present and set to the sensor's canonical `SensorId`
 /// string (e.g., `"crowdstrike"`), injected by the normalization layer — NOT read from the
@@ -1854,7 +1854,7 @@ async fn test_BC_2_01_013_ocsf_conformance_envelope_derived_not_raw_copied() {
 /// `unwrap_or(sensor_id)` is never reached. Result: `_sensor = "tampered-sensor-name"`.
 /// The assertion `_sensor_val == "crowdstrike"` FAILS.
 ///
-/// BC-2.01.013 v1.9 OCSF Conformance Clause item 3; AC-010(c); F-001-R; S-DEMO-001 v1.5.
+/// BC-2.01.013 v1.14 OCSF Conformance Clause item 3; AC-010(c); F-001-R; S-DEMO-001 v1.5.
 #[tokio::test]
 async fn test_BC_2_01_013_ocsf_conformance_sensor_virtual_column_is_canonical_sensor_id() {
     let mock_server = MockServer::start().await;
@@ -1935,7 +1935,7 @@ async fn test_BC_2_01_013_ocsf_conformance_sensor_virtual_column_is_canonical_se
          Root cause: pipeline_result_to_record_batch reads _sensor from raw JSON with fallback \
          (record.get('_sensor')...unwrap_or(sensor_id)) — raw JSON value wins when present. \
          Fix: always inject canonical sensor_id, never read _sensor from raw record. \
-         BC-2.01.013 v1.9 Conformance Clause item 3; AC-010(c); F-001-R."
+         BC-2.01.013 v1.14 Conformance Clause item 3; AC-010(c); F-001-R."
     );
 
     assert_eq!(
@@ -1943,7 +1943,7 @@ async fn test_BC_2_01_013_ocsf_conformance_sensor_virtual_column_is_canonical_se
         "F-001-R item 3: '_sensor' MUST equal the canonical SensorId 'crowdstrike' from \
          the resolved spec. Got: '{}'. The normalization layer must inject this value, \
          ignoring any '_sensor' field in the raw API response. \
-         BC-2.01.013 v1.9 Conformance Clause item 3; AC-010(c); F-001-R.",
+         BC-2.01.013 v1.14 Conformance Clause item 3; AC-010(c); F-001-R.",
         sensor_val
     );
 }
