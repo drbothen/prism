@@ -417,8 +417,34 @@ active_dispatch_set:
     pr_level_pass16_report: "cycles/wave-5-e-demo-fidelity/S-DEMO-QUERY-PUSHDOWN-001/adversarial-review/pr-pass-16.md"
     pr_level_reviewer_verdict: "APPROVE (on eab62613; NITs since cleaned at 1a8cc8aa)"
     pr_level_security_review_verdict: "SECURITY-CLEAR-TO-MERGE"
-    pr_level_cascade_streak: "0/3"
-    pr_level_cascade_passes: 16
+    pr_level_cascade_streak: "3/3 CONVERGED — passes 17/18/19 all CLEAN(strict)=yes at 6835e4fa (BC-5.39.001 D-779)"
+    pr_level_cascade_passes: 19
+    pr_level_converged: true
+    pr_level_converged_at_passes: "17/18/19"
+    pr_level_converged_head: "6835e4fa"
+    pr_level_converged_authority: "BC-5.39.001 D-779"
+    pr_level_pass17_clean_strict: true
+    pr_level_pass17_clean_pr_merge: true
+    pr_level_pass17_findings: {}
+    pr_level_pass17_streak_after: "1/3"
+    pr_level_pass17_note: "CLEAN(strict)=yes. Pass-16 F-P16-LOW-001 line-pin closure verified load-bearing. All 18 ACs + EC-009 + 20 RGTs re-derived. SAP-1 PASS. SAP-2 PASS. Novelty ZERO. Streak 0/3->1/3."
+    pr_level_pass17_report: "cycles/wave-5-e-demo-fidelity/S-DEMO-QUERY-PUSHDOWN-001/adversarial-review/pr-pass-17-18-19-converged.md"
+    pr_level_pass18_clean_strict: true
+    pr_level_pass18_clean_pr_merge: true
+    pr_level_pass18_findings: {}
+    pr_level_pass18_obs_p18_001: "AC-CWS-002(b) illustrative Z-suffix vs runtime +00:00 — ORCHESTRATOR-ADJUDICATED NON-DEFECT (normative AC rules use placeholders; runtime correct+tested; DTU parses both RFC3339 forms; TD-VSDD-091 scope is .factory narrative not illustrative AC examples)"
+    pr_level_pass18_obs_p18_002: "in-code file.rs cross-references — ORCHESTRATOR-ADJUDICATED NON-DEFECT (TD-VSDD-091 governs .factory narrative spec content; in-code engineering cross-refs excluded per CLAUDE.md Conventions clarification)"
+    pr_level_pass18_streak_after: "2/3"
+    pr_level_pass18_note: "CLEAN(strict)=yes. Two OBS surfaced but both orchestrator-adjudicated non-defects. SAP-1 PASS. SAP-2 PASS. Streak 1/3->2/3."
+    pr_level_pass18_report: "cycles/wave-5-e-demo-fidelity/S-DEMO-QUERY-PUSHDOWN-001/adversarial-review/pr-pass-17-18-19-converged.md"
+    pr_level_pass19_clean_strict: true
+    pr_level_pass19_clean_pr_merge: true
+    pr_level_pass19_findings: {}
+    pr_level_pass19_streak_after: "3/3"
+    pr_level_pass19_novelty: "ZERO"
+    pr_level_pass19_note: "CONVERGENCE. ZERO findings. Full result-equivalence re-derived across all 4 sensors. All 18 ACs + EC-009 + 20 RGTs load-bearing. One non-finding noted (AC-CWS-WIRE-001 prose endpoint /queries/detections/v1 vs runtime /detects/queries/detects/v1 — illustrative cosmetic; step name correct; test reads production TOML real path; adjudicated non-defect). SAP-1 PASS. SAP-2 PASS. Novelty ZERO. Streak 2/3->3/3 CONVERGED per BC-5.39.001 D-779."
+    pr_level_pass19_report: "cycles/wave-5-e-demo-fidelity/S-DEMO-QUERY-PUSHDOWN-001/adversarial-review/pr-pass-17-18-19-converged.md"
+    dispatch_status: "PR_LEVEL_CONVERGED_AWAITING_CI_THEN_MERGE — D-1021 2026-06-06. PR-LEVEL 3-CLEAN CONVERGED passes 17/18/19 @6835e4fa (BC-5.39.001 D-779). ALL merge gates satisfied: LOCAL 3-CLEAN CONVERGED (D-1015 passes 9/10/11 @69aafcc7) + PR-LEVEL 3-CLEAN CONVERGED (passes 17/18/19) + security SECURITY-CLEAR-TO-MERGE + pr-reviewer APPROVE. OBS-P18-001/002 adjudicated non-defects. CI on 6835e4fa: 34 pass / 7 pending / 0 fail (MERGEABLE). D-989 autonomy authorizes auto-merge on objective gates. NEXT: confirm CI fully green on 6835e4fa -> squash-merge to develop -> POL-14 post-merge burst (BC-2.01.013/2.11.005/2.11.007 draft->active; story->merged; develop_head update)."
     depends_on:
       - S-DEMO-001  # HARD gate — SATISFIED (merged PR #166 develop@5dd3df02)
       - S-DEMO-002  # SATISFIED (merged PR #171 develop@fdd12251 2026-06-04)
