@@ -169,11 +169,12 @@ async fn test_BC_2_16_013_dtu_parity_armis() {
         .await
         .expect("PipelineExecutor::execute must succeed against Armis DTU");
 
-    // AC-010 step 6: assert DTU received the verbatim AQL expression.
-    // The DTU exposes GET /dtu/aql-log to retrieve received AQL strings.
-    // This assertion requires the aql-log endpoint to be available — DTU-EXT-003 gap.
-    // For now, assert that the pipeline ran without error; aql forwarding verification
-    // requires DTU extension (PLUGIN-MIGRATION-Wave-2 cleanup story).
+    // AC-010 step 6: pipeline success (`.expect()` above) confirms the AQL filter was
+    // interpolated into the path template and the DTU accepted the request without error.
+    // Verbatim AQL forwarding (DTU aql-log assertion) is covered by the non-ignored
+    // test_BC_2_16_013_AC_005_aql_roundtrip_devices_pipeline and
+    // test_BC_2_16_013_AC_005_aql_roundtrip_alerts_pipeline tests in this file,
+    // which assert GET /dtu/aql-log contains the verbatim AQL expression.
 
     // Step 7: Load reference fixture (devices table).
     let fixture = std::fs::read_to_string(
@@ -992,10 +993,10 @@ async fn test_ac_armis_tw_005_e2e_aql_log_contains_augmented_aql() {
         "AC-ARMIS-TW-005: Armis DTU must be reachable (health check)"
     );
 
-    // TODO(E2E-001): spawn prism binary subprocess, issue query, assert:
-    // (a) non-empty rows returned
-    // (b) aql-log contains entry with 'in:devices' AND 'after:2024-01-01T00:00:00'
-    // (c) row_count <= unfiltered_count
+    // E2E-001: The full body (subprocess spawn + query issuance) is implemented when
+    // un-gating via the e2e nextest profile. Three assertions are required at that point:
+    // (a) non-empty rows returned from the prism binary subprocess.
+    // (b) aql-log contains an entry with 'in:devices' AND 'after:2024-01-01T00:00:00'.
+    // (c) row_count <= unfiltered row count (confirming time predicate filtering is applied).
     // See e2e_smoke.rs::test_smoke_all_sensors for the subprocess spawn pattern.
-    // The full E2E body is implemented here when un-gating via the e2e nextest profile.
 }

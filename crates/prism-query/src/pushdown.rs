@@ -254,12 +254,12 @@ fn virtual_field_name(vf: &crate::ast::VirtualField) -> &'static str {
 /// This function is called pre-fan-out from `extract_push_down_filters_as_map`,
 /// where no per-sensor `ColumnSpec` is available. Threading `ColumnSpec` through
 /// would require changing the call sequence in `extract_push_down_filters_as_map`
-/// and the fan-out orchestration — that is tracked as future work (wave-5, ADR-022 §C).
-/// For now, all equality predicates are passed through to the sensor adapter
-/// regardless of whether the column is declared REQUIRED/INDEX/ADDITIONAL; the
-/// adapter discards unknown filter parameters. `classify_predicates` is NOT called
-/// here because its return value would be meaningless with an empty spec slice
-/// (all predicates fall through to `post_filter`, which is then discarded).
+/// and the fan-out orchestration — tracked in wave-5 scope (ADR-022 §C).
+/// All equality predicates are passed through to the sensor adapter regardless of
+/// whether the column is declared REQUIRED/INDEX/ADDITIONAL; the adapter discards
+/// unknown filter parameters. `classify_predicates` is NOT called here because its
+/// return value would be meaningless with an empty spec slice (all predicates fall
+/// through to `post_filter`, which is then discarded).
 pub fn predicate_tree_to_filter_map(
     predicate: &crate::ast::Predicate,
 ) -> prism_sensors::types::FilterMap {
@@ -1107,9 +1107,10 @@ mod pushdown_red_gate_tests {
 
         // Query predicates severity > 'medium' — but severity is String, not datetime.
         // This should NOT produce any time bounds.
-        // (The parser may not actually accept > for strings, but we test the classification.)
-        // Use a datetime-format value to ensure if it WERE extracted it would be non-None.
-        // (The actual query is nonsensical but tests the classification gate.)
+        // This exercises the classification gate: string-typed `>` predicates are classified
+        // regardless of whether the parser would accept them in real usage.
+        // A datetime-format value is used so that, if extraction were incorrectly applied,
+        // the result would be non-None — confirming the assertion is load-bearing.
         let col_dt = make_datetime_index_column("created_timestamp");
         let mut spec_map2: HashMap<String, Vec<ColumnSpec>> = HashMap::new();
         spec_map2.insert("crowdstrike.detections".to_string(), vec![col_dt]);

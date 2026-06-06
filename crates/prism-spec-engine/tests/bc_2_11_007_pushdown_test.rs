@@ -1314,16 +1314,17 @@ fn test_ac_index_cws_001_crowdstrike_toml_created_timestamp_has_index_option() {
 // AC-CWS-WIRE-001: CrowdStrike limit reaches DTU wire via filter — wire-level (F-P1-HIGH-003)
 // ---------------------------------------------------------------------------
 
-/// Wire-level test: CrowdStrike `limit` reaches the DTU (F-P1-HIGH-003 / AC-CWS-001 extension).
+/// Wire-level test: CrowdStrike FQL filter and `limit` both reach the DTU in a combined
+/// `run_materialization_pipeline` execution (F-P1-HIGH-003 / AC-CWS-001 extension).
 ///
-/// The existing `test_ac_cws_001` tests `result.records.len() <= 5` indirectly.
-/// This test explicitly verifies the `/dtu/filter-log`... wait — limit is a DTU param,
-/// not captured in filter-log. The limit is proven indirectly by result count.
-///
-/// This test additionally asserts:
-/// - The FQL filter slot exists in the TOML (structural)
-/// - The limit slot exists in the TOML (structural)
-/// - DTU honors both simultaneously
+/// Three behaviors are verified in a single pipeline run:
+/// (a) The FQL `created_timestamp` filter reaches the DTU wire (verified via GET /dtu/filter-log,
+///     which echoes FQL expressions received by the detections endpoint).
+/// (b) The `limit` is honored by the DTU (verified by asserting result.records.len() <= limit;
+///     `limit` is a DTU query parameter that controls response row count, not an FQL expression,
+///     so it does not appear in the filter-log — result count is the correct proof).
+/// (c) The result set is non-empty, confirming the DTU returned records and the pipeline
+///     materialized them successfully.
 #[tokio::test]
 async fn test_ac_cws_wire_001_crowdstrike_fql_and_limit_reach_dtu() {
     let mut clone = CrowdstrikeClone::new();
