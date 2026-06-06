@@ -138,13 +138,13 @@ However, there is no automated enforcement path for test-docstring line-number p
 
 ---
 
-### [traceability][codification-candidate] F-P08-MED-001 — Dangling-AC class: code/test cites an AC identifier absent from the story source-of-truth
+### [traceability][codification-candidate][recurrence×2] F-P08-MED-001 + F-P09-MED-001 — Dangling-AC class: code/test cites an AC identifier absent from the story source-of-truth; one-at-a-time fix enables recurrence; requires complete sweep
 
-**Date recorded:** 2026-06-05
-**D-NNN anchor:** D-1018
-**Finding:** F-P08-MED-001 (PR-LEVEL pass-8)
-**Tags:** [traceability] [dangling-AC] [story-source-of-truth] [codification-candidate] [acceptance-criteria-count]
-**Classification:** MEDIUM — spec completeness defect; no code change needed; test passes but AC not formally defined in story.
+**Date recorded:** 2026-06-05 (first occurrence D-1018); strengthened 2026-06-06 (second occurrence D-1019)
+**D-NNN anchors:** D-1018 (pass-8, AC-INDEX-CWS-001) + D-1019 (pass-9, AC-CWS-WIRE-001)
+**Findings:** F-P08-MED-001 (PR-LEVEL pass-8) + F-P09-MED-001 (PR-LEVEL pass-9)
+**Tags:** [traceability] [dangling-AC] [story-source-of-truth] [codification-candidate] [acceptance-criteria-count] [recurrence] [complete-sweep]
+**Classification:** MEDIUM — spec completeness defect; no code change needed; test passes but AC not formally defined in story. CLASS NOW CLOSED for this story (ZERO remaining dangling ACs after v2.7 fix).
 
 **Description:**
 PR-LEVEL adversary pass 8 found 11 code and test sites citing `AC-INDEX-CWS-001` (CrowdStrike
@@ -154,43 +154,73 @@ criteria list did not define `AC-INDEX-CWS-001`. The story defined `AC-INDEX-001
 but the CrowdStrike equivalent was never formally added when the tests were authored during the v2
 LOCAL cascade.
 
+Pass-8 fix was one-at-a-time: story-writer added AC-INDEX-CWS-001 to story v2.6 without performing
+an exhaustive sweep of ALL this-story AC identifiers cited in code/tests. PR-LEVEL adversary pass 9
+immediately found a second dangling AC: `AC-CWS-WIRE-001` cited 18 times in
+`bc_2_11_007_pushdown_test.rs` (test function `test_ac_cws_wire_001_crowdstrike_fql_and_limit_reach_dtu`
+plus 17 doc-comment/assertion string citations). This is the S-7.01 partial-fix miss pattern.
+
+Pass 9 applied the complete sweep (orchestrator-directed). After story-writer added AC-CWS-WIRE-001
+to story v2.7, the full sweep confirmed ZERO remaining dangling ACs.
+
 **Why this class evades many adversary passes:**
 
-1. **Tests pass.** The cited AC test `test_ac_index_cws_001_*` exists and passes at every HEAD. No
-   test failure signals the gap.
-2. **AC count appears internally consistent.** The story's stated `acceptance_criteria_count` (16
-   at v2.5) matches the number of formally defined ACs in the story text — the count is correct
-   *by the story's own (understated) definition*. An adversary checking "does the count field match
-   the count of AC sections?" sees no discrepancy.
-3. **The behavioral requirement IS satisfied.** The CrowdStrike TOML already has `options = ["INDEX"]`
-   in the codebase. The gap is purely a traceability formality, not a correctness defect.
+1. **Tests pass.** The cited AC tests exist and pass at every HEAD. No test failure signals the gap.
+2. **AC count appears internally consistent.** The story's stated `acceptance_criteria_count` matches
+   the number of formally defined ACs in the story text — the count is correct *by the story's own
+   (understated) definition*. An adversary checking "does the count field match the count of AC
+   sections?" sees no discrepancy.
+3. **The behavioral requirements ARE satisfied.** The implementations are correct. The gap is purely
+   a traceability formality, not a correctness defect.
 
 These three conditions combine to make the dangling-AC class invisible to most adversary probes:
 the code is correct, tests pass, and the story's counts are internally self-consistent. The gap is
 only detectable by a cross-reference probe: grep code/test files for AC identifiers and verify
 each cited AC ID resolves to a formally defined AC in the story's `## Acceptance Criteria` section.
 
+**Root cause of the recurrence (pass 8→9):**
+The pass-8 fix was one-at-a-time — story-writer added only the AC that pass-8 flagged
+(AC-INDEX-CWS-001) without sweeping ALL this-story AC identifiers cited in code/tests. The
+AC-CWS-WIRE-001 identifier was in the SAME test file as AC-INDEX-CWS-001 and was not discovered
+until pass 9.
+
+**Correct fix protocol (codified after pass 9):**
+When any dangling-AC finding is closed, the fix MUST use the complete-sweep approach:
+```bash
+# Find ALL AC identifiers cited in this-story's code/test files:
+rg 'AC-[A-Z][A-Z0-9_-]+' crates/**/*.rs | grep -oP 'AC-[A-Z][A-Z0-9_-]+' | sort -u
+# For each unique AC ID: verify it appears as "### AC-ID:" in the story file.
+# Any unresolved ID = MEDIUM finding (same class). Fix all in the same burst.
+```
+
 **Codification direction (cross-reference probe):**
 
-A standing adversary probe should be added to detect this class:
+A standing adversary probe should be added to detect this class AT PASS 1 (not pass 8-9):
 
 ```
 For every PR-LEVEL adversary pass on a story:
 1. grep crates/**/*.rs for all strings matching AC-[A-Z][A-Z0-9_-]+ (AC identifier pattern)
-2. For each unique AC ID found, verify it appears as a defined AC section (###  AC-ID: ...) in the story file
+2. For each unique AC ID found, verify it appears as a defined AC section (### AC-ID: ...) in the story file
 3. Any AC-ID cited in code/tests that is NOT defined in the story = MEDIUM finding (dangling-AC class)
    Exception: historical comments referencing an AC that was subsequently renamed — verify the
    renamed AC covers the same behavioral property.
+4. When closing a dangling-AC finding: sweep ALL this-story AC IDs in the same burst (not one-at-a-time).
 ```
 
-This probe would have caught F-P08-MED-001 at PR-LEVEL pass 1 (or even during the LOCAL cascade)
-rather than pass 8, saving 7 cascade passes of untrue assumption that the story was complete.
+This probe would have caught F-P08-MED-001 + F-P09-MED-001 together at PR-LEVEL pass 1 (or even
+during the LOCAL cascade) rather than at passes 8 and 9.
 
 **Codification candidates:**
-- SAP-5 standing adversary probe: dangling-AC grep cross-reference check
-- Or: amend SAP-2 or SAP-1 scope extension to include AC-ID grep
+- SAP-5 standing adversary probe: dangling-AC grep cross-reference check (apply at every pass,
+  not just when a finding is suspected)
 - CLAUDE.md codification: add to the adversary's mandatory pre-convergence checklist
+- Story-writer discipline: when adding any new AC-ID to code/tests, simultaneously add it to the
+  story's formal acceptance criteria in the same commit
 
-**Outcome:** story-writer added AC-INDEX-CWS-001 formally to story v2.6 (CrowdStrike parallel to
-AC-INDEX-001; cites existing passing test). Feature code HEAD unchanged at 1a8cc8aa. Streak
-RESET 2/3 → 0/3. Pass 9 begins fresh on 1a8cc8aa + story v2.6.
+**Outcome:**
+- Pass-8: story-writer added AC-INDEX-CWS-001 to story v2.6 (one-at-a-time). Feature HEAD
+  unchanged at 1a8cc8aa. Streak RESET 2/3 → 0/3.
+- Pass-9: orchestrator directed complete sweep; story-writer added AC-CWS-WIRE-001 to story v2.7
+  (AC count 17→18; red_gate_tests 19→20; STORY-INDEX v2.288→v2.289). Feature HEAD unchanged at
+  1a8cc8aa. Streak remains 0/3. Complete sweep confirmed ZERO remaining dangling ACs. Pass 10
+  next (fresh streak; code stable 1a8cc8aa + story v2.7; need 3 strict-clean).

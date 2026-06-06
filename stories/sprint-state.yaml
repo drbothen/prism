@@ -135,9 +135,9 @@ active_dispatch_set:
     status: in_progress
     priority: P2
     points: 8
-    spec_version: "v2.6"
+    spec_version: "v2.7"
     lane: "2 (Phase B)"
-    dispatch_status: "PR_CYCLE_IN_FLIGHT — D-1018 2026-06-05. PR #173. PR-LEVEL passes 1-8 ALL DONE. Feature code stable at 1a8cc8aa. Pass-5 3 LOW (OBS-P05-001 stale test comment → fixture-agnostic; OBS-P05-002 limit-clamp rationale; OBS-P05-003 leading-space AQL) CLOSED by implementer c9b22402→1a8cc8aa. Pass-6 CLEAN(strict)=yes streak 0/3→1/3. Pass-7 CLEAN(strict)=yes streak 1/3→2/3. Pass-8 MEDIUM F-P08-MED-001 (dangling AC-INDEX-CWS-001: 11 code/test sites cited AC absent from story; spec-only fix by story-writer: AC-INDEX-CWS-001 added, acceptance_criteria_count 16→17, red_gate_tests 18→19, story v2.5→v2.6, STORY-INDEX v2.287→v2.288). Streak RESET 2/3→0/3. pr-reviewer APPROVE (on eab62613; NITs cleaned). security SECURITY-CLEAR-TO-MERGE (pass-1). CI on 1a8cc8aa: passing. NEXT: PR-LEVEL pass 9 (fresh streak on 1a8cc8aa + fixed story v2.6; need 3 strict-clean)."
+    dispatch_status: "PR_CYCLE_IN_FLIGHT — D-1019 2026-06-06. PR #173. PR-LEVEL passes 1-9 ALL DONE. Feature code stable at 1a8cc8aa. Pass-8 MEDIUM F-P08-MED-001 (dangling AC-INDEX-CWS-001) CLOSED spec-only (story v2.5→v2.6; STORY-INDEX v2.287→v2.288). Streak RESET 2/3→0/3. Pass-9 MEDIUM F-P09-MED-001 (dangling AC-CWS-WIRE-001: 18 code/test sites cited AC absent from story; same class as pass-8 — pass-8 fix was one-at-a-time rather than complete sweep; S-7.01 partial-fix miss); spec-only fix by story-writer: AC-CWS-WIRE-001 added, acceptance_criteria_count 17→18, red_gate_tests 19→20, story v2.6→v2.7, STORY-INDEX v2.288→v2.289. Complete sweep confirmed ZERO remaining dangling ACs. Streak remains 0/3. pr-reviewer APPROVE (on eab62613; NITs cleaned). security SECURITY-CLEAR-TO-MERGE (pass-1). CI on 1a8cc8aa: passing. NEXT: PR-LEVEL pass 10 (fresh streak on 1a8cc8aa + story v2.7; need 3 strict-clean; code stable)."
     code_head: "1a8cc8aa"
     local_adversary_streak: "3/3"
     local_converged: true
@@ -355,10 +355,17 @@ active_dispatch_set:
     pr_level_pass8_feature_head: "1a8cc8aa"
     pr_level_pass8_f_p08_med_001: "F-P08-MED-001 (MEDIUM) — dangling AC: 11 code/test sites cite AC-INDEX-CWS-001 (CrowdStrike INDEX requirement, load-bearing) but story v2.5 only defined AC-INDEX-001 (Armis). Streak RESET 2/3→0/3. CLOSED story-writer (spec-only; no code change): added AC-INDEX-CWS-001 (parallel to AC-INDEX-001; cites existing test test_ac_index_cws_001_*); acceptance_criteria_count 16→17; red_gate_tests 18→19; story v2.5→v2.6; STORY-INDEX v2.287→v2.288. Feature HEAD UNCHANGED at 1a8cc8aa."
     pr_level_pass8_report: "cycles/wave-5-e-demo-fidelity/S-DEMO-QUERY-PUSHDOWN-001/adversarial-review/pr-pass-8.md"
+    pr_level_pass9_clean_strict: false
+    pr_level_pass9_clean_pr_merge: false
+    pr_level_pass9_findings: {MED: 1}
+    pr_level_pass9_streak_after: "0/3"
+    pr_level_pass9_feature_head: "1a8cc8aa"
+    pr_level_pass9_f_p09_med_001: "F-P09-MED-001 (MEDIUM) — second dangling AC: 18 code/test sites cite AC-CWS-WIRE-001 (CrowdStrike FQL+LIMIT wire-level assertion) but story v2.6 did not define it. Same class as F-P08-MED-001 — pass-8 fix was one-at-a-time (S-7.01 partial-fix miss). Orchestrator directed complete sweep at pass 9. CLOSED story-writer (spec-only; no code change): AC-CWS-WIRE-001 added (cites existing test test_ac_cws_wire_001_crowdstrike_fql_and_limit_reach_dtu); acceptance_criteria_count 17→18; red_gate_tests 19→20; story v2.6→v2.7; STORY-INDEX v2.288→v2.289. Complete sweep confirmed ZERO remaining dangling ACs. Feature HEAD UNCHANGED at 1a8cc8aa."
+    pr_level_pass9_report: "cycles/wave-5-e-demo-fidelity/S-DEMO-QUERY-PUSHDOWN-001/adversarial-review/pr-pass-9.md"
     pr_level_reviewer_verdict: "APPROVE (on eab62613; NITs since cleaned at 1a8cc8aa)"
     pr_level_security_review_verdict: "SECURITY-CLEAR-TO-MERGE"
     pr_level_cascade_streak: "0/3"
-    pr_level_cascade_passes: 8
+    pr_level_cascade_passes: 9
     depends_on:
       - S-DEMO-001  # HARD gate — SATISFIED (merged PR #166 develop@5dd3df02)
       - S-DEMO-002  # SATISFIED (merged PR #171 develop@fdd12251 2026-06-04)

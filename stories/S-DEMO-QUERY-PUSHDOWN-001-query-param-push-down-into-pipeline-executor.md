@@ -6,11 +6,11 @@ wave: wave-5-e-demo-fidelity
 epic_id: E-DEMO
 priority: P2
 status: in_progress
-version: "2.6"
+version: "2.7"
 level: "L3"
 producer: story-writer
 revised_by: null
-timestamp: "2026-06-05T18:00:00Z"
+timestamp: "2026-06-06T00:00:00Z"
 tdd_mode: strict
 subsystems: [SS-01, SS-11, SS-16]
 # Subsystem anchor justifications:
@@ -98,8 +98,8 @@ risk: MEDIUM
 # MaterializationContext.resolved_spec_map into the time-window extraction call; if
 # resolved_spec_map is None at extraction time, extraction must silently return None (safe default).
 # BC-2.11.007 result-equivalence invariant is the correctness safety net.
-acceptance_criteria_count: 17
-red_gate_tests: 19
+acceptance_criteria_count: 18
+red_gate_tests: 20
 estimated_passes: "3-4 LOCAL adversary passes"
 holdout_scenarios: []
 assumption_validations: []
@@ -148,11 +148,11 @@ cycle: "v1.0.0-brownfield"
 phase: 3
 ---
 
-# S-DEMO-QUERY-PUSHDOWN-001 v2.6 — Correct per-sensor push-down wiring (ADR-033 T1 + Armis AQL full wiring + CrowdStrike DTU FQL honoring)
+# S-DEMO-QUERY-PUSHDOWN-001 v2.7 — Correct per-sensor push-down wiring (ADR-033 T1 + Armis AQL full wiring + CrowdStrike DTU FQL honoring)
 
 **Story ID:** S-DEMO-QUERY-PUSHDOWN-001
 **Status:** in_progress
-**Version:** v2.6
+**Version:** v2.7
 **Wave:** wave-5-e-demo-fidelity
 **Priority:** P2
 **Points:** 8
@@ -296,6 +296,24 @@ Red Gate test: `test_ac_cws_003_no_filter_param_when_no_time_predicates`
 SAP-2 mandate: production `crowdstrike.sensor.toml` shape.
 
 (traces to BC-2.11.007 v1.8 postcondition — push-down reduces data fetched; when no predicate, no param injected; result-equivalence preserved)
+
+### AC-CWS-WIRE-001: CrowdStrike FQL filter AND limit both reach the DTU wire simultaneously — wire-level combined verification (traces to BC-2.01.013 v1.14 Pagination/Push-Down Scope Clause + BC-2.11.007 v1.8 Mechanism A)
+
+Given: A PrismQL query with a time-window predicate (`created_timestamp > '2026-01-20T00:00:00Z'`) AND a `LIMIT 3` clause against a CrowdStrike sensor.
+When: `run_materialization_pipeline` → `SpecDrivenSensorAdapter::fetch` → `PipelineExecutor::execute` → CrowdStrike DTU (`/queries/detections/v1`).
+Then:
+(a) The production `crowdstrike.sensor.toml` `query_detection_ids` step structurally declares BOTH a FQL filter slot (`query.filter.*`) AND a limit slot (`query.limit`) in its `path_template`.
+(b) The CrowdStrike DTU `/dtu/filter-log` response contains a `filter_strings` entry that includes `created_timestamp` — confirming the FQL time-window reached the DTU wire via `path_template` interpolation.
+(c) `result.records.len() <= 3` — the LIMIT is honored by the DTU simultaneously with the FQL filter.
+(d) `result.records` is non-empty — fixture contains records after `2026-01-20T00:00:00Z`.
+
+This is a wire-level combined verification: both the FQL time-window (AC-CWS-002) and the limit (AC-CWS-001) reach the DTU simultaneously. The AC-CWS-001 and AC-CWS-002 tests validate each dimension independently; this AC is the combined wire-level gate (closes LOCAL F-P1-HIGH-003).
+
+Red Gate test: `test_ac_cws_wire_001_crowdstrike_fql_and_limit_reach_dtu`
+Location: `crates/prism-spec-engine/tests/bc_2_11_007_pushdown_test.rs`
+(Existing test — 18 code sites cite this AC ID. The test verifies structural slots exist in the TOML, then exercises both FQL filter + limit=3 in a single combined pipeline execution, asserts filter reached DTU via filter-log, and asserts result.len() <= 3.)
+
+(traces to BC-2.01.013 v1.14 Pagination/Push-Down Scope Clause — both `limit` query param and FQL `filter` param wired simultaneously; BC-2.11.007 v1.8 Mechanism A — CrowdStrike FQL injection is optimization only; result is bounded subset consistent with both constraints)
 
 ### AC-CWS-DTU-001: CrowdStrike DTU honors filter= FQL time-window — filtered_count < unfiltered_count (traces to BC-2.11.007 v1.8 result-equivalence invariant + Mechanism A CrowdStrike FQL postcondition)
 
@@ -642,10 +660,11 @@ Version source: workspace `Cargo.toml` `[dependencies]` table. Do not pin versio
 6d. **Read** `crates/prism-spec-engine/tests/parity/armis.rs` — understand existing AQL passthrough tests and the `#[ignore]`'d parity test so the new load-bearing tests complement rather than duplicate.
 6e. **Read** `.factory/research/armis-aql-time-window-syntax-2026-06.md` — confirm canonical AQL time syntax: `after:YYYY-MM-DDTHH:MM:SS` (bare, unquoted, no `Z` suffix). This is authoritative; do NOT use `lastSeen:>"T"` form.
 7. **Write stubs** — stub out T1 extraction function with `todo!()` in `pushdown.rs`. Stub CrowdStrike FQL combined-form injection with `todo!()`. Stub `augment_armis_aql_with_time_window` with `todo!()` in `prism-spec-engine/pipeline.rs` or `prism-bin/spec_driven_adapter.rs`.
-8. **Write Red Gate tests** (all non-`#[ignore]` tests must FAIL before implementation; 19 total RGTs including 2 from EC-009 and 1 for AC-INDEX-CWS-001):
+8. **Write Red Gate tests** (all non-`#[ignore]` tests must FAIL before implementation; 20 total RGTs including 2 from EC-009, 1 for AC-INDEX-CWS-001, and 1 for AC-CWS-WIRE-001):
    - `test_ac_cws_001_crowdstrike_limit_reaches_detection_list_params`
    - `test_ac_cws_002_fql_time_window_both_start_and_end_via_materialization_pipeline`
    - `test_ac_cws_003_no_filter_param_when_no_time_predicates`
+   - `test_ac_cws_wire_001_crowdstrike_fql_and_limit_reach_dtu` (AC-CWS-WIRE-001; `crates/prism-spec-engine/tests/bc_2_11_007_pushdown_test.rs`; already passes — EXISTING test, wire-level combined verification)
    - `test_ac_cws_dtu_001_crowdstrike_dtu_honors_fql_filter_time_window`
    - `test_ac_armis_001_aql_passthrough_no_maxresults_no_timeframe`
    - `test_ac_armis_002_no_additional_params_beyond_aql_offset_limit`
@@ -672,7 +691,7 @@ Version source: workspace `Cargo.toml` `[dependencies]` table. Do not pin versio
 14c. **Extend** `crates/prism-dtu-armis/src/routes/search.rs`: after `capture_aql()` (do not move/remove it), parse `after:`/`before:` clauses from AQL string (regex or simple string extraction); filter `devices_ordered` by `last_seen` (with `first_seen` fallback for nulls) and `alert_fixture` by `created_at` before pagination. Null timestamps excluded. Verify fixture data has records spanning the test time window (add records if needed).
 14d. **Add** `options = ["INDEX"]` to `last_seen` column (devices table) and `created_at` column (alerts table) in `crates/prism-sensors/specs/armis.sensor.toml`.
 15. **Write** AC-EQUIV-001 integration test (ungated, against CrowdStrike DTU clone): `run_materialization_pipeline` → DTU → result-equivalence assertion.
-16. **Run** `just iter prism-query --no-fail-fast` + `just iter prism-spec-engine` + `just iter prism-dtu-armis` + `just iter prism-dtu-crowdstrike` — all 19 Red Gate tests GREEN (AC-ARMIS-TW-005 is `#[ignore]`, excluded from this count; AC-INDEX-CWS-001 test already passes).
+16. **Run** `just iter prism-query --no-fail-fast` + `just iter prism-spec-engine` + `just iter prism-dtu-armis` + `just iter prism-dtu-crowdstrike` — all 20 Red Gate tests GREEN (AC-ARMIS-TW-005 is `#[ignore]`, excluded from this count; AC-INDEX-CWS-001 and AC-CWS-WIRE-001 tests already pass — EXISTING tests).
 17. **Run** `just iter prism-spec-engine` and `just iter prism-bin` — no regressions.
 18. **Run** `just check` — final pre-push gate.
 
@@ -716,7 +735,7 @@ Version source: workspace `Cargo.toml` `[dependencies]` table. Do not pin versio
 
 | Context source | Estimated tokens |
 |----------------|-----------------|
-| This story spec (v2.6) | ~7,900 |
+| This story spec (v2.7) | ~8,200 |
 | BC files (3 BCs: BC-2.01.013 v1.14 + BC-2.11.005 v1.6 + BC-2.11.007 v1.8) | ~9,500 |
 | ADR-033 | ~2,500 |
 | pushdown-redesign.md (design note incl. §8) | ~6,000 |
@@ -731,11 +750,11 @@ Version source: workspace `Cargo.toml` `[dependencies]` table. Do not pin versio
 | Production sensor TOMLs (4 files) | ~6,000 |
 | DTU route structs (4 files: detections.rs + search.rs + alerts.rs + Claroty) | ~4,000 |
 | Test outputs (cargo nextest) | ~2,000 |
-| **Total estimate** | **~76,700 tokens (~30% of 256K context)** |
+| **Total estimate** | **~77,000 tokens (~30% of 256K context)** |
 
 At the 20-30% budget ceiling. Implementer SHOULD split into two sub-tasks if context pressure appears:
 - **Sub-task A (prism-query + sensors):** ADR-033 T1 wiring in materialization.rs + pushdown.rs; armis.sensor.toml INDEX options (AC-WIRE-001, AC-WIRE-001b, AC-INDEX-001).
-- **Sub-task B (prism-spec-engine + prism-bin + prism-dtu-armis + prism-dtu-crowdstrike):** Correctness fixes; Armis AQL augmentation; Armis + CrowdStrike DTU time-clause filtering; integration + E2E tests (AC-CWS-001/002/003, AC-CWS-DTU-001, AC-ARMIS-001/002, AC-ARMIS-TW-001..005, AC-CYB-001, AC-CLAR-001, AC-EQUIV-001).
+- **Sub-task B (prism-spec-engine + prism-bin + prism-dtu-armis + prism-dtu-crowdstrike):** Correctness fixes; Armis AQL augmentation; Armis + CrowdStrike DTU time-clause filtering; integration + E2E tests (AC-CWS-001/002/003, AC-CWS-WIRE-001, AC-CWS-DTU-001, AC-ARMIS-001/002, AC-ARMIS-TW-001..005, AC-CYB-001, AC-CLAR-001, AC-EQUIV-001).
 
 ---
 
@@ -743,6 +762,7 @@ At the 20-30% budget ceiling. Implementer SHOULD split into two sub-tasks if con
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 2.7 | 2026-06-06 | story-writer | F-P09-MED-001 fix-burst: added AC-CWS-WIRE-001 — wire-level combined verification that CrowdStrike FQL time-window AND limit reach the DTU simultaneously. The test `test_ac_cws_wire_001_crowdstrike_fql_and_limit_reach_dtu` (18 code/test sites in `crates/prism-spec-engine/tests/bc_2_11_007_pushdown_test.rs`) cited AC-CWS-WIRE-001 but no story AC heading existed, creating the last dangling-AC traceability gap for this story. Placed after AC-CWS-003 (per-dimension CrowdStrike ACs); before AC-CWS-DTU-001 (DTU-internal FQL honoring). Tasks step 8: added `test_ac_cws_wire_001_crowdstrike_fql_and_limit_reach_dtu` with note (EXISTING test, already passes); count 19→20. Step 16: 19→20 Red Gate tests. acceptance_criteria_count 17→18; red_gate_tests 19→20. Token Budget: story spec ~7,900→~8,200; total ~76,700→~77,000. Sub-task B: added AC-CWS-WIRE-001 to test enumeration. H1 + body header version 2.6→2.7. |
 | 2.6 | 2026-06-05 | story-writer | F-P08-MED-001 fix-burst: added AC-INDEX-CWS-001 (crowdstrike.sensor.toml `created_timestamp` declares `options = ["INDEX"]`). This is the CrowdStrike parallel to AC-INDEX-001 (Armis): without `options = ["INDEX"]` on `created_timestamp`, ADR-033 Option T1 extraction silently skips the column and CrowdStrike FQL time-window push-down is silently vacuous. Red Gate test: EXISTING `test_ac_index_cws_001_crowdstrike_toml_created_timestamp_has_index_option` (`crates/prism-spec-engine/tests/bc_2_11_007_pushdown_test.rs`) — 11 code/test sites cite this AC ID; the test already passes. Architecture Compliance Rules: added CrowdStrike INDEX row (parallel to Armis INDEX row). Tasks step 8: added `test_ac_index_cws_001_*` to Red Gate test list with full list of 19 RGTs. Step 16: 16→19 Red Gate test count. acceptance_criteria_count 16→17; red_gate_tests 18→19. H1 + body header version 2.5→2.6. |
 | 2.5 | 2026-06-05 | story-writer | ADV-P08-MED-001 fix-burst: added EC-009 documenting inclusive-boundary push-down behavior (CompareOp::Ge/Le). DTU time-window filtering is inclusive at the boundary (records with `ts == bound` are kept, never excluded); push-down result is a superset of the exact predicate result; DataFusion post-filter narrows to exact set; BC-2.11.007 result-equivalence invariant holds. Second root cause: timestamp normalization changed from `to_rfc3339()` (`+00:00` suffix, ASCII 43) to `to_rfc3339_opts(SecondsFormat::Secs, true)` (`Z` suffix, ASCII 90) — `+00:00` < `Z` lexicographically causing exact-boundary records to be silently dropped at DataFusion string-comparison. Red Gate tests added: `test_adv_p08_med001_crowdstrike_inclusive_boundary_via_run_materialization_pipeline` + `test_adv_p08_med001_armis_inclusive_boundary_via_run_materialization_pipeline` (both in `crates/prism-bin/tests/adv_p02_e2e_pushdown_pipeline_test.rs`; drive `run_materialization_pipeline`; assert boundary record present in `>=` result). red_gate_tests 16→18. BC array unchanged (BC-2.11.007 v1.8 already scopes Ge/Le). acceptance_criteria_count unchanged (16). H1 + body header version 2.4→2.5. |
 | 2.4 | 2026-06-05 | story-writer | LOCAL pass-5 fix-burst test-citation drift correction. AC-EQUIV-001 Red Gate test renamed/relocated by pass-5 fix-burst: OLD misnamed prism-spec-engine test `test_ac_equiv_001_result_equivalence_via_real_materialization_path` → RENAMED to `test_ac_equiv_001_fql_subset_invariant_via_pipeline_executor_boundary` (PipelineExecutor-boundary only; does NOT satisfy AC-EQUIV-001 alone). NEW authoritative test `test_ac_equiv_001_result_equivalence_via_run_materialization_pipeline` in `crates/prism-bin/tests/adv_p02_e2e_pushdown_pipeline_test.rs` drives `run_materialization_pipeline` end-to-end and asserts BC-2.11.007 subset/no-fabrication invariant. Supplementary boundary test noted for context. H1 + body header version 2.3→2.4. |
