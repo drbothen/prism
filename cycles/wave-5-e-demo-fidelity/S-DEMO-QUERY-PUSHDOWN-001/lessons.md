@@ -297,3 +297,71 @@ code deliverable.
 - Pass-16: F-P16-LOW-001 (story line-pins). Story-writer sweep v2.7→v2.8 6835e4fa (spec-only). Streak → 0/3.
 - Feature code HEAD UNCHANGED at 6835e4fa since pass-14 de-pin. ALL 16 passes CLEAN(PR-merge)=yes.
 - NEXT: PR-LEVEL pass 17 (fresh streak; need 3 strict-clean on 6835e4fa + story v2.8).
+- Passes 17/18/19 CONVERGED (D-1021; BC-5.39.001 D-779). PR #173 squash-merged develop@9447671f (D-1022). Phase B Lane 2 COMPLETE.
+
+---
+
+## Cycle-Close Codification Candidates (D-1022 — S-7.02 Cycle-Closing-Checklist)
+
+Three process-gap candidates surfaced during the S-DEMO-QUERY-PUSHDOWN-001 PR-LEVEL cascade. All three are **JUSTIFIED DEFERRALS** — engine/process scope, not prism product defects. No prism product follow-up story required for any of these.
+
+### (a) OBS-P13-003 — PR-LEVEL Adversary Worktree-Path Probe (engine/dispatch-ergonomics)
+
+**D-NNN anchor:** D-1022 (cycle-close); first occurrence D-1013 (LOCAL pass-13)
+**Tags:** [process-gap] [engine-scope] [dispatch-ergonomics] [justified-deferral]
+**Classification:** JUSTIFIED DEFERRAL — engine/dispatch-ergonomics scope; no prism product story needed.
+
+**Description:**
+PR-LEVEL adversary dispatched into the feature worktree `.worktrees/S-DEMO-QUERY-PUSHDOWN-001` but lacked a `.factory/` mount from that cwd. Relative glob paths for SAP-1 (`rg 'event_type\s*=' crates/`), POLICY-13 checks, and POLICY-32 sweeps resolved against the worktree root rather than the main repo root, causing some probe axes to silently miss `.factory/` artifacts.
+
+**Mitigation applied (passes 15-19):** Orchestrator dispatch instructions now explicitly specify absolute paths: `--cwd /Users/jmagady/Dev/prism/.worktrees/S-DEMO-QUERY-PUSHDOWN-001` with `.factory/` references as `--factory-root /Users/jmagady/Dev/prism/.factory/`. This was applied as in-session SOP from pass 15 onward and all passes 15-19 confirmed CLEAN.
+
+**Required action:** vsdd-factory engine process improvement — adversary dispatch should automatically resolve `.factory/` as an absolute path from the main repo root, not relative to the feature worktree cwd. Track in drbothen/vsdd-factory upstream issue tracker. No prism product story needed.
+
+### (b) Strict-3-CLEAN Cosmetic Tail — Pre-PR Hygiene-Sweep Gate (engine/process)
+
+**D-NNN anchor:** D-1022 (cycle-close); D-1020 (codification candidate first recorded)
+**Tags:** [process-gap] [engine-scope] [pre-PR-gate] [hygiene-sweep] [justified-deferral]
+**Classification:** JUSTIFIED DEFERRAL — engine/process scope; pre-PR gate is a vsdd-factory pr-manager workflow improvement, not a prism product feature.
+
+**Description:**
+After all code correctness findings were resolved (pass-9 code converged), 7 additional passes (passes 10-16) were required to drain 5 classes of cosmetic spec/evidence artifact LOWs:
+- Dangling-AC (pass-9 complete sweep; required after one-at-a-time fix at pass-8 missed AC-CWS-WIRE-001)
+- Draft-comment (pass-11 complete sweep; ac75e84d)
+- Vacuous-assert (pass-13; 6583e419)
+- Volatile-SHA in evidence (pass-14 TD-VSDD-091 de-pin; 6835e4fa)
+- Story line-pins (pass-16 TD-VSDD-091 complete sweep; story v2.8)
+
+Each LOW finding reset the strict-3-CLEAN streak, costing one full cascade pass per occurrence (7 passes total for 5 classes). Running ONE upfront hygiene-sweep before the PR-LEVEL cascade would drain all 5 classes from the first pass, allowing all 19 passes to focus on substantive behavioral review.
+
+**Proposed pre-PR hygiene-sweep gate** (to be added as a standing checklist item in the pr-manager 9-step cycle before PR-LEVEL pass 1):
+1. Line-pin sweep (TD-VSDD-091): grep story body + spec artifacts for `~\d+` and `file.rs:\d+`; anchor to function names.
+2. Draft-comment sweep: grep all PR diff files for "wait —", "TODO:", "FIXME:", "// temp", "draft" in comments.
+3. Vacuous-assertion audit: for each e2e/integration test AC assertion, verify it independently falsifies the named property.
+4. Volatile-SHA sweep in evidence: grep `docs/demo-evidence/<story>/` for raw 40-char hex SHAs; replace with stable `PR#/story-version/LOCAL-converged-SHA` refs.
+5. AC traceability sweep (SAP-5): grep `crates/**/*.rs` for `AC-[A-Z][A-Z0-9_-]+`; verify each resolves to `### AC-ID:` in story file.
+
+**Required action:** vsdd-factory engine process improvement — add the pre-PR hygiene-sweep gate to the pr-manager 9-step cycle template as a mandatory Step 0 before adversary pass 1. This is a process discipline, not a code deliverable. Track in drbothen/vsdd-factory upstream. No prism product story needed.
+
+### (c) Dangling-AC CI-Lint Candidate (engine/CI)
+
+**D-NNN anchor:** D-1022 (cycle-close); D-1018 (first occurrence AC-INDEX-CWS-001) + D-1019 (second occurrence AC-CWS-WIRE-001)
+**Tags:** [process-gap] [engine-scope] [CI-lint] [dangling-AC] [traceability] [justified-deferral]
+**Classification:** JUSTIFIED DEFERRAL — engine/CI scope; a CI lint rule for the vsdd-factory pr-manager workflow, not a prism product feature.
+
+**Description:**
+Two consecutive PR-LEVEL passes (passes 8 and 9) found dangling-AC traceability gaps — test/code files cited AC identifiers (`AC-INDEX-CWS-001` at pass-8; `AC-CWS-WIRE-001` at pass-9) that were absent from the story's formally defined AC headings. Both recurred because the pass-8 fix added only the single AC flagged without sweeping ALL this-story AC identifiers cited in crates.
+
+The complete-sweep approach applied at pass-9 (SAP-5 candidate) definitively closed the class for this story. However, neither the LOCAL adversary cascade nor the pre-PR step had a systematic mechanism to catch dangling ACs early.
+
+**Proposed CI-lint gate:**
+```bash
+# For each story in delivery:
+rg 'AC-[A-Z][A-Z0-9_-]+' crates/ --type rust -o -N | sort -u \
+  | while read ac_id; do
+      grep -q "### ${ac_id}:" .factory/stories/<story-file>.md || echo "DANGLING: $ac_id"
+    done
+```
+Any dangling AC ID = MEDIUM finding. Run as a CI check or as a mandatory pre-PR step.
+
+**Required action:** vsdd-factory engine process improvement — add a dangling-AC traceability lint to the CI pipeline or to the pr-manager pre-PR checklist. Assert every `AC-<this-story-prefix>` cited in `crates/**/*.rs` resolves to a `### AC-ID:` heading in the story file. Track in drbothen/vsdd-factory upstream. No prism product story needed.

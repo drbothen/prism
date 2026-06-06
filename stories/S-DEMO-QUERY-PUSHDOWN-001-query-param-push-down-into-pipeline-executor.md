@@ -5,11 +5,11 @@ title: "prism-query + prism-spec-engine + prism-bin: Correct per-sensor push-dow
 wave: wave-5-e-demo-fidelity
 epic_id: E-DEMO
 priority: P2
-status: in_progress
+status: merged
 version: "2.8"
 level: "L3"
 producer: story-writer
-revised_by: null
+revised_by: state-manager
 timestamp: "2026-06-06T00:00:00Z"
 tdd_mode: strict
 subsystems: [SS-01, SS-11, SS-16]
