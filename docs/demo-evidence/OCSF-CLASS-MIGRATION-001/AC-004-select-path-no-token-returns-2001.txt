@@ -1,0 +1,25 @@
+AC-004: EventClassSelector::select() path returns class_uid 2001 for ZERO tokens (INV-NO-2001-SELECT-PATH)
+Story: OCSF-CLASS-MIGRATION-001 v1.9
+Branch: feature/OCSF-CLASS-MIGRATION-001
+BC: BC-2.02.012 v1.6 — INV-NO-2001-SELECT-PATH
+Red Gate test: test_BC_2_02_012_select_path_no_token_returns_2001
+
+Behavior verified:
+  For every (sensor_id, record_type) pair registered in the EventClassSelector::select()
+  dispatch table, the returned class_uid is NOT 2001 (Security Finding, deprecated OCSF v1.1.0).
+  The full sensor × record_type matrix is exhaustively enumerated in the test.
+  No match arm in select() uses CLASS_UID_SECURITY_FINDING (const = 2001).
+  This is a regression guard: the constant exists for documentation only; the
+  select() path has never returned 2001 and must not in the future.
+
+--- RED GATE TEST OUTPUT ---
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.74s
+────────────
+ Nextest run ID 9e59930c-f371-4077-882a-1c109a6fbfe2 with nextest profile: default
+    Starting 1 test across 2 binaries (65 tests skipped)
+        PASS [   0.011s] (1/1) prism-ocsf tests::bc_2_02_012_class_selector::ocsf_migration_red_gate::test_BC_2_02_012_select_path_no_token_returns_2001
+────────────
+     Summary [   0.011s] 1 test run: 1 passed, 65 skipped
+
+VERDICT: PASS

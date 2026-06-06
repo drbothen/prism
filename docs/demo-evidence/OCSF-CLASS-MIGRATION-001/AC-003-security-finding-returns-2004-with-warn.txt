@@ -1,0 +1,32 @@
+AC-003: select_by_class_name("security_finding") returns Ok(2004) (NOT 2001) with deprecation WARN
+Story: OCSF-CLASS-MIGRATION-001 v1.9
+Branch: feature/OCSF-CLASS-MIGRATION-001
+BC: BC-2.02.012 v1.6 — TV-BC-2.02.012-008; BC-2.01.013 v1.14 TV-BC-2.01.013-005
+Red Gate test: test_BC_2_02_012_select_by_class_name_security_finding_returns_2004_with_warn
+
+Behavior verified:
+  prism_ocsf::class_selector::select_by_class_name("security_finding") == Ok(2004)
+  (NOT Ok(2001) — the deprecated Security Finding class_uid is never returned)
+  Emits: tracing::warn!(
+      event_type = "ocsf.deprecated_class_alias",
+      class_name = "security_finding",
+      resolved_class_uid = 2004,
+      "sensor TOML uses deprecated ocsf_class value 'security_finding'; update to 'detection_finding'"
+  )
+  ocsf.deprecated_class_alias catalogued in BC-2.16.002 Structured Event Catalog row 134
+  (Wave-5 Phase-A — SAP-1 verified, no new catalog row needed).
+
+Option A (D-989 PO decision, 2026-06-03): transitional alias kept working with WARN,
+to support external TOMLs not under Prism control that may still use "security_finding".
+
+--- RED GATE TEST OUTPUT ---
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.47s
+────────────
+ Nextest run ID deab80d0-86c2-4150-aae8-31066bce7eec with nextest profile: default
+    Starting 1 test across 2 binaries (65 tests skipped)
+        PASS [   0.012s] (1/1) prism-ocsf tests::bc_2_02_012_class_selector::ocsf_migration_red_gate::test_BC_2_02_012_select_by_class_name_security_finding_returns_2004_with_warn
+────────────
+     Summary [   0.013s] 1 test run: 1 passed, 65 skipped
+
+VERDICT: PASS
