@@ -52,7 +52,7 @@ description = "Cyberint API access token (injected as access_token cookie)"
 # ---------------------------------------------------------------------------
 [[tables]]
 table_name = "alerts"
-ocsf_class = "security_finding"
+ocsf_class = "detection_finding"
 
   # alert_id is Cyberint's native alert identifier (the field used for status transitions
   # in the Cyberint API and DTU). Maps to finding.uid as the vendor-native security finding ID.
