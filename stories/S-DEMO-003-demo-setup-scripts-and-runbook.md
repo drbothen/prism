@@ -1,78 +1,112 @@
 ---
 document_type: story
 story_id: S-DEMO-003
-title: "scripts: Demo Setup Scripts + prism-credential-set CLI Subcommand + Operator Runbook"
+title: "scripts: Demo Setup Scripts + prism-credential-set CLI Subcommand (Tier-3 Keyring) + Operator Runbook"
 wave: 5
 epic_id: E-DEMO
 priority: P1
 status: ready
-version: "1.1"
+version: "1.2"
 level: "L4"
 producer: story-writer
 timestamp: "2026-05-29T00:00:00Z"
 tdd_mode: strict
-subsystems: [SS-03, SS-06, SS-22]
+subsystems: [SS-03, SS-06, SS-08, SS-22]
 # Subsystem anchor justifications:
 #   SS-03 (Credential Management) owns the `prism credential set` subcommand that writes to
-#     the OS keyring per AD-017; this story adds the first CLI-facing write path for credentials.
+#     the OS keyring per AD-017, AND the Tier-3 resolver branch in resolve_credential
+#     (prism-credentials::resolution.rs). The OrgId-keyed namespace reconciliation (CRIT-2)
+#     and BackendUnavailable error semantics (E-CRED-005) are both Credential Management concerns.
+#     Per ARCH-INDEX Subsystem Registry SS-03.
 #   SS-06 (Client Configuration) owns the demo prism.toml + per-org overlay TOML generation;
 #     the setup scripts create the config directory structure that prism-bin reads at startup.
+#     Also owns the prism.toml load in credential_cli.rs for slug→OrgId mapping (ADR-034 §D3).
+#     Per ARCH-INDEX Subsystem Registry SS-06.
+#   SS-08 (Spec-Driven Adapter) owns the auth provider construction sites in
+#     spec_driven_adapter.rs (step 9A) where PrismCredentialResolver gains Arc<OrgRegistry>
+#     and Arc<dyn CredentialStoreOrgId> wiring (ADR-034 §D5). StaticCookieAuthProvider and
+#     PluginAuthProvider are SS-08 components. Per ARCH-INDEX Subsystem Registry SS-08.
 #   SS-22 (Binary Entrypoint) owns the prism-bin CLI subcommand dispatch; `prism credential set`
-#     is a new subcommand added alongside the existing `start` subcommand.
-crates_touched: [prism-bin]
+#     is a new subcommand added alongside the existing `start` subcommand. Also owns boot.rs
+#     BootContext expansion (credential_store_org_id field, ADR-034 §D5). Per ARCH-INDEX SS-22.
+crates_touched: [prism-bin, prism-credentials, prism-spec-engine]
+# crates_touched justification (ADR-034 §File Create / Modify List):
+#   prism-bin: credential_cli.rs (OrgId-keyed write + HIGH-3 fix), boot.rs (BootContext expansion),
+#     spec_driven_adapter.rs (step 9A auth provider wiring), scripts/, docs/, .github/workflows/ci.yml
+#   prism-credentials: resolution.rs (Tier-3 branch + signature), lib.rs (re-export update)
+#   prism-spec-engine: auth_provider.rs (PrismCredentialResolver struct + 5 test doubles),
+#     plugin_auth_provider.rs (PluginAuthProvider DI fields)
 target_module: prism-bin
 capabilities: [CAP-004, CAP-009, CAP-034]
 behavioral_contracts:
   - BC-2.03.005  # Credential CRUD Operations via MCP Tools (Mutations Require Confirmation Token)
                  # The `prism credential set` subcommand is a CLI surface for the same credential
-                 # write operation specified in BC-2.03.005 for MCP. The CLI path bypasses the
-                 # confirmation token requirement (direct human operator, not AI agent).
+                 # write operation; CLI path bypasses confirmation token (direct human operator).
   - BC-2.03.007  # Secret Redaction in Logs, Errors, and MCP Responses — credential values passed
-                 # to `prism credential set` must never appear in logs or stderr output. The CLI
-                 # reads the value from stdin (not from args) per AD-017.
-  - BC-2.06.001  # TOML Configuration Loads and Deserializes at Startup — the demo setup script
-                 # generates a valid prism.toml that BC-2.06.001 must accept without error.
+                 # to `prism credential set` must never appear in logs or stderr output (AD-017).
+                 # Also: E-CRED-005 detail string must NOT contain a credential value (D4).
+  - BC-2.06.001  # TOML Configuration Loads and Deserializes at Startup — the generated prism.toml
+                 # must be schema-valid and accepted without error.
+  - BC-2.06.003  # Credential Reference Resolution — Tier-3 OS-keyring resolution IMPLEMENTED per
+                 # ADR-034. OrgId-keyed namespace (namespace_key_by_org_id). resolve_credential
+                 # gains org_id + keyring parameters. set_by_org is the write path (CRIT-2 fix).
   - BC-2.22.001  # Boot Orchestration — after setup scripts complete, `prism-bin start` must
-                 # complete all boot steps and accept MCP connections per BC-2.22.001.
+                 # complete all boot steps; BootContext gains credential_store_org_id (ADR-034 §D5).
 verification_properties: []
 depends_on:
   - S-DEMO-001   # Adapter registration must work before the demo makes sense to run.
   - S-DEMO-002   # Smoke test must pass before runbook ships; runbook documents the green path.
 blocks: []
-points: 5
-# Points justification:
-#   - prism credential set CLI subcommand (new Clap subcommand + keyring write + stdin prompt): 2 pts
-#   - scripts/demo-setup.sh (idempotent, build + config + overlay + credentials): 1.5 pts
-#   - scripts/demo-run.sh + scripts/demo-teardown.sh: 0.5 pts
-#   - docs/DEMO-RUNBOOK.md (comprehensive, all sections): 1 pt
-#   Total: 5 points (~1-1.5 days)
-#   Bundling decision: story-writer chose to bundle `prism credential set` into this story
-#   (not split into S-DEMO-003A + S-DEMO-003B) because the CLI subcommand is a prerequisite
-#   for the setup script (AC-005); splitting would add a story-to-story dep with no parallelism gain.
-estimated_days: 1
-risk: LOW
-# Risk justification: Bash scripting + markdown + one new Clap subcommand. The Clap subcommand
-# is the highest-risk item: it requires adding a new variant to the existing CLI enum in boot.rs
-# or a separate clap::Parser derive. Main risk: AD-017 stdin-prompt credential read must not
-# echo the value to the terminal (rpassword crate or raw terminal mode required).
-acceptance_criteria_count: 8
-red_gate_tests: 2
-estimated_passes: "1-2 LOCAL adversary passes"
+points: 8
+# Points justification (ADR-034 §D7 — Option-A scope expansion):
+#   - prism credential set: OrgId-keyed write via CredentialStoreOrgId::set_by_org +
+#     prism.toml load for slug→OrgId + HIGH-3 error fix (no demo-org fallback): 2 pts
+#   - resolve_credential: Tier-3 branch + signature change (org_id + keyring params): 1.5 pts
+#   - PrismCredentialResolver → struct with fields; 5 test double sibling sweep: 1 pt
+#   - StaticCookieAuthProvider + PluginAuthProvider DI fields; spec_driven_adapter.rs callsites: 1 pt
+#   - boot.rs BootContext.credential_store_org_id + step 5 wiring: 0.5 pts
+#   - Red Gate tests (RG-034-001..004): 1 pt
+#   - scripts (demo-setup.sh, demo-run.sh, demo-teardown.sh) + demo.toml: 0.5 pts
+#   - docs/DEMO-RUNBOOK.md + HIGH-1 env format + HIGH-2 shellcheck CI: 0.5 pts
+#   Total: 8 points (~1.5-2 days); ADR-034 §D7 gives 8-10 range — 8 chosen as lower bound
+#   (all ADR-034 work items listed; no scope uncertainty remains after human Option-A decision).
+estimated_days: 2
+risk: MEDIUM
+# Risk justification (ADR-034 §D7): resolve_credential signature change is a sibling-site blast
+# radius change (TD-VSDD-060) across 3 crates. The Tier-3 keyring call is async (spawn_blocking
+# internally in KeyringBackend). Well-understood DI injection pattern (ADR-022 §C). 4 Red Gate
+# tests bound the risk at the test level. Risk level MEDIUM per ADR-034 §D7 (signature blast
+# radius across 3 crates; well-understood pattern).
+acceptance_criteria_count: 14
+red_gate_tests: 6
+estimated_passes: "2-3 LOCAL adversary passes"
 holdout_scenarios: []
 assumption_validations: []
 risk_mitigations:
   - "AD-017 compliance: `prism credential set` MUST NOT accept the credential value as a CLI
     arg (visible in process listing and shell history). Value must be read from stdin using
     rpassword or equivalent, which disables terminal echo."
-  - "Shellcheck: all shell scripts must pass shellcheck CI gate. Add shellcheck to the
-    pre-push Justfile recipe or CI matrix if not already present."
+  - "Shellcheck: all shell scripts must pass shellcheck in GitHub CI (.github/workflows/ci.yml),
+    not only in the Justfile. HIGH-2 fix: add shellcheck step to ci.yml matrix."
   - "Idempotency: demo-setup.sh must be safe to run multiple times. Directory creation uses
     mkdir -p; keyring writes overwrite existing entries; TOML generation overwrites files."
   - "Plugin artifact path: scripts/demo-setup.sh must locate crowdstrike-oauth2.prx correctly.
     S-PLUGIN-CI-001 committed the artifact; the exact path needs to be verified before scripting."
+  - "TD-VSDD-060 sibling-site sweep: resolve_credential signature change (2 new params) must
+    be applied to ALL callsites in prism-credentials, prism-spec-engine, and prism-bin.
+    Grep for 'resolve_credential' before declaring implementation done."
+  - "E-CRED-005 detail string: must contain only the keyring-rs system error string (e.g.,
+    'access denied', 'D-Bus unavailable') — never a credential value. AD-017 + BC-2.03.007."
 inputs:
   - "crates/prism-bin/src/boot.rs"
   - "crates/prism-bin/src/main.rs"
+  - "crates/prism-credentials/src/resolution.rs"
+  - "crates/prism-credentials/src/lib.rs"
+  - "crates/prism-credentials/src/keyring.rs"
+  - "crates/prism-credentials/src/namespace.rs"
+  - "crates/prism-spec-engine/src/auth_provider.rs"
+  - "crates/prism-spec-engine/src/plugin_auth_provider.rs"
+  - "crates/prism-bin/src/spec_driven_adapter.rs"
   - "crates/prism-sensors/specs/crowdstrike.sensor.toml"
   - "crates/prism-sensors/specs/armis.sensor.toml"
   - "crates/prism-sensors/specs/claroty.sensor.toml"
@@ -80,7 +114,9 @@ inputs:
   - ".factory/specs/behavioral-contracts/BC-2.03.005-credential-crud-mcp-tools.md"
   - ".factory/specs/behavioral-contracts/BC-2.03.007-secret-redaction.md"
   - ".factory/specs/behavioral-contracts/BC-2.06.001-toml-config-loading.md"
+  - ".factory/specs/behavioral-contracts/BC-2.06.003-credential-reference-resolution.md"
   - ".factory/specs/behavioral-contracts/BC-2.22.001-boot-orchestration.md"
+  - ".factory/specs/architecture/decisions/ADR-034-tier3-keyring-resolution-org-id-threading.md"
   - ".factory/proposals/E2E-DEMO-WIRING-PLAN.md"
   - ".factory/stories/S-DEMO-002-e2e-subprocess-smoke-test-all-sensors.md"
 input-hash: null
@@ -89,14 +125,14 @@ cycle: "v1.0.0-brownfield"
 phase: 3
 ---
 
-# S-DEMO-003 — scripts: Demo Setup Scripts + `prism credential set` CLI + Operator Runbook
+# S-DEMO-003 — scripts: Demo Setup Scripts + `prism credential set` CLI (Tier-3 Keyring) + Operator Runbook
 
 **Story ID:** S-DEMO-003
-**Status:** draft
-**Version:** v1.0
+**Status:** ready
+**Version:** v1.2
 **Wave:** 5
 **Priority:** P1
-**Points:** 5
+**Points:** 8
 
 ---
 
@@ -104,9 +140,15 @@ phase: 3
 
 New story required per E2E-DEMO-WIRING-PLAN.md §2 (i) "Install + setup runbook" and §4
 "Install + Setup Outline". Credential bootstrap mechanism expanded to include a new
-`prism credential set` CLI subcommand (AD-017 compliant) rather than relying on platform
-keyring CLI tools. Story-writer bundled the CLI subcommand into this story rather than
-splitting to avoid an unnecessary story dependency edge with no parallelism gain.
+`prism credential set` CLI subcommand (AD-017 compliant) that is now the **load-bearing
+end-to-end credential path** for the demo — not merely a convenience writer.
+
+**Option-A scope expansion (2026-06-06):** Human approved implementing full Tier-3 OS-keyring
+credential resolution in `resolve_credential` so that `prism credential set` is the canonical
+credential bootstrap channel for the demo. ADR-034 (accepted 2026-06-06) governs the design.
+Two critical gaps addressed: CRIT-1 (missing Tier-3 resolver branch) and CRIT-2 (namespace
+mismatch between slug-keyed write and OrgId-keyed read). Points increased 5→8. Risk elevated
+LOW→MEDIUM. Three additional crates in scope: `prism-credentials`, `prism-spec-engine`.
 
 ---
 
@@ -115,7 +157,8 @@ splitting to avoid an unnecessary story dependency edge with no parallelism gain
 As an MSSP analyst or demo operator, I want a one-command setup script and a clear runbook
 so that I can stand up the prism DTU demo environment in under 5 minutes on a fresh machine,
 connect Claude Code as an MCP client, and issue live queries against all 4 sensor DTU clones
-without reading source code.
+without reading source code — using `prism credential set` as the canonical credential
+bootstrap that writes to the OS keyring and is resolved end-to-end at query time.
 
 ---
 
@@ -126,6 +169,7 @@ without reading source code.
 | BC-2.03.005 | Credential CRUD Operations via MCP Tools (Mutations Require Confirmation Token) |
 | BC-2.03.007 | Secret Redaction in Logs, Errors, and MCP Responses |
 | BC-2.06.001 | TOML Configuration Loads and Deserializes at Startup |
+| BC-2.06.003 | Credential References in Config Resolve to Credential Store Entries (Tier-3 IMPLEMENTED — ADR-034) |
 | BC-2.22.001 | Boot Orchestration — Sequencing, Exit-Code Map, and Pre-Traffic Gate |
 
 ---
@@ -137,17 +181,19 @@ Given: A fresh clone of the prism repository with Rust toolchain installed per `
 When: A user runs `bash scripts/demo-setup.sh` from the repo root.
 Then: The script exits 0. The demo config directory (`~/.config/prism-demo/`) is created with
 all required subdirectories; sensor TOML specs are copied; crowdstrike-oauth2.prx is copied
-to the plugin dir; dummy credentials are bootstrapped in the OS keyring; a valid `prism.toml`
-is generated. No manual steps required between running the script and `prism-bin start`.
+to the plugin dir; credentials are bootstrapped in the OS keyring via `prism credential set`
+(OrgId-keyed, ADR-034 §D3); a valid `prism.toml` is generated. No manual steps required
+between running the script and `prism-bin start`.
 (traces to BC-2.06.001 postcondition: "TOML config loads and deserializes at startup" — the
 generated prism.toml must be schema-valid and accepted without error)
 Red Gate test: `test_BC_2_06_001_demo_setup_generates_valid_prism_toml`
 
 ### AC-002: After setup, `prism-bin start` boots successfully and accepts MCP connections
-Given: `scripts/demo-setup.sh` has completed successfully.
+Given: `scripts/demo-setup.sh` has completed successfully (credentials written OrgId-keyed).
 When: `./target/release/prism start --config ~/.config/prism-demo/` is executed.
 Then: prism-bin completes all boot steps, emits `boot.step9a.adapter_registry_populated`
 event with `sensor_count=4` and `org_count=1`, and accepts MCP connections (no error exit).
+BootContext includes `credential_store_org_id: Arc<dyn CredentialStoreOrgId>` (ADR-034 §D5).
 (traces to BC-2.22.001 postcondition: "The process is in steady state: all subsystem handles
 available, traffic gate open")
 
@@ -167,21 +213,93 @@ in `~/.claude/settings.json` (or equivalent), including the exact binary path an
 (traces to BC-2.10.001: "rmcp ServerHandler Implementation" — the runbook documents how to
 connect an MCP client to the stdio transport)
 
-### AC-005: `prism credential set` subcommand writes to OS keyring; AD-017 compliant
-Given: `prism-bin` is invoked as `prism credential set --sensor crowdstrike --name client_id`.
+### AC-005: `prism credential set` writes OrgId-keyed keyring entry via `CredentialStoreOrgId::set_by_org`; AD-017 compliant
+Given: A `prism.toml` exists in the config dir with one org entry containing an `org_id` UUID.
+`prism-bin` is invoked as `prism credential set --sensor crowdstrike --name client_id`.
 When: The subcommand runs.
-Then: It prompts "Enter value: " on stderr (no terminal echo); reads the value from stdin;
-writes it to the OS keyring under namespace `prism/crowdstrike/client_id` per BC-2.03.004;
-exits 0; the value is NOT logged, NOT printed to stdout, and NOT visible in `ps aux` output
-(i.e., NOT a CLI arg).
-(traces to BC-2.03.007 postcondition: "Secret Redaction in Logs, Errors, and MCP Responses")
-Red Gate test: `test_BC_2_03_007_prism_credential_set_does_not_echo_value_to_stdout`
+Then:
+  - It prompts "Enter value: " on stderr (no terminal echo); reads the value from stdin (rpassword);
+  - Maps `--org-slug` (or the single org when unambiguous) → `OrgId` UUID by reading `PrismConfig.orgs[n].org_id` from prism.toml;
+  - Writes via `CredentialStoreOrgId::set_by_org(&org_id, sensor, &cred_name, value)` producing keyring key `"{org_id_uuid}/{sensor}/{name}"` (ADR-034 §D3);
+  - Does NOT write via legacy `CredentialStore::set` (slug-keyed `"{slug}/{sensor}/{name}"`);
+  - `--org-slug` is required when `config.orgs.len() > 1`; when exactly 1 org, defaults to that org;
+  - Exits 0; the value is NOT logged, NOT printed to stdout, and NOT visible in `ps aux` output.
+(traces to BC-2.03.007 postcondition: "Secret Redaction in Logs, Errors, and MCP Responses";
+traces to BC-2.06.003 Tier-3 postcondition: OrgId-keyed write via `set_by_org` — ADR-034 §D3)
+Red Gate tests: `test_BC_2_03_007_prism_credential_set_does_not_echo_value_to_stdout`;
+  `test_handle_credential_set_writes_org_id_keyed_keyring_entry` (RG-034-004)
+
+### AC-009 (Tier-3 end-to-end — CRIT-1 gap closure): A credential written by `prism credential set` is resolved at Tier-3 by `resolve_credential`; demo queries succeed against all 4 sensors.
+Given: `prism credential set` has been called for all sensor/credential combos (OrgId-keyed write).
+No env vars (`PRISM_CLIENTS_*`) are set for these credentials. Tier-4 CRUD store is empty.
+When: `resolve_credential(org_slug, sensor_id, cred_name, Some(&org_id), Some(&keyring))` is called
+for each credential (as wired via `PrismCredentialResolver` in `prism-spec-engine`).
+Then: `resolve_credential` returns `Ok(SecretString)` sourced from the Tier-3 keyring branch for
+every credential — not `CredentialResolutionError::NotFound`. Demo MCP queries against all 4 sensors
+(CrowdStrike, Armis, Claroty, Cyberint) return data rows, not authentication errors.
+(traces to BC-2.06.003 Tier-3 postcondition: `get_by_org` returns `Ok(Some(secret))` → return
+`Ok(secret)` + audit "keyring" — ADR-034 §D2; closes CRIT-1)
+Red Gate test: `test_BC_2_06_003_tier3_credential_written_by_set_by_org_is_resolved` (RG-034-001)
+
+### AC-010 (Namespace reconciliation — CRIT-2): Write key == Read key (OrgId-UUID); legacy slug-keyed namespace is NOT used.
+Given: `handle_credential_set` is called with a known `org_id` UUID.
+When: The credential is written and then read back.
+Then:
+  - The keyring entry exists under key `"{org_id_uuid}/{sensor}/{name}"` (verifiable via `KeyringBackend::get_by_org`);
+  - The keyring entry does NOT exist under the legacy key `"{org_slug}/{sensor}/{name}"`;
+  - `resolve_credential` with matching `org_id` finds the entry at Tier 3 (no fall-through to Tier 4).
+(traces to BC-2.06.003 Tier-3 postcondition: OrgId-keyed key `{org_id_uuid}/{sensor_id}/{ref_name}`
+via `namespace_key_by_org_id` — canonical namespace; legacy slug-keyed namespace NOT used — ADR-034 §D3)
+Red Gate test: `test_handle_credential_set_writes_org_id_keyed_keyring_entry` (RG-034-004 — also covers AC-005)
+
+### AC-011 (Tier-3 error semantics): Keyring miss → silent fall-through to Tier-4; keyring backend error → hard `BackendUnavailable` / E-CRED-005; no value leak.
+Given: `resolve_credential` is called with `Some(&org_id)` and `Some(&keyring)`.
+When:
+  - Case A: keyring has no entry for the OrgId-keyed key (`Ok(None)` / `NoEntry`), and CRUD store is empty.
+  - Case B: keyring returns `Err(NoStorageAccess)` (backend locked/unavailable).
+Then:
+  - Case A: `resolve_credential` falls through silently to Tier 4; returns `CredentialResolutionError::NotFound`
+    (not `BackendUnavailable`). (traces to BC-2.06.003 Tier-3 postcondition: `get_by_org Ok(None)` → fall through)
+  - Case B: `resolve_credential` returns `CredentialResolutionError::BackendUnavailable { detail:
+    "E-CRED-005: OS keyring unavailable: NoStorageAccess" }`. Does NOT fall through to Tier 4.
+    The detail string contains the system error string ONLY — no credential value (AD-017; BC-2.03.007).
+(traces to BC-2.06.003 Tier-3 postcondition: `get_by_org Err(...)` → hard error E-CRED-005 — ADR-034 §D4)
+Red Gate test: `test_BC_2_06_003_tier3_miss_falls_through_to_tier4` (RG-034-002)
+
+### AC-012 (HIGH-3 — `resolve_org_slug` error on missing/invalid prism.toml): When `--org-slug` is absent and prism.toml is missing or unparseable, `prism credential set` errors clearly — no silent `"demo-org"` fallback.
+Given: The config directory contains no `prism.toml` (or an unparseable one), and `--org-slug` was not provided.
+When: `prism credential set --sensor armis --name bearer_token` is invoked.
+Then: The subcommand exits 1 with an actionable error message: "Could not load prism.toml from
+<config_dir>: <reason>. Provide --org-slug explicitly or ensure prism.toml is present." The
+`"demo-org"` string MUST NOT appear as a default return value anywhere in this code path (SOUL.md §4).
+(traces to BC-2.06.003 precondition: "caller supplies a valid client_id"; SOUL.md §4 swallow-error
+prohibition; ADR-034 §D3 HIGH-3 remediation)
+Red Gate test: `test_resolve_org_slug_errors_when_toml_missing_and_no_explicit_slug` (RG-034-003)
+
+### AC-013 (HIGH-1 — env var format discipline): All demo scripts and runbook use ONLY the `PRISM_CLIENTS_{ID}_SENSORS_{SENSOR}_{REF}` format; the retired global `DEMO_ORG_*` / `{SENSOR}_{REF}` format is absent.
+Given: The scripts (`demo-setup.sh`, `demo-run.sh`, `demo-teardown.sh`) and `docs/DEMO-RUNBOOK.md` are committed.
+When: A grep for the patterns `DEMO_ORG_` and `^[A-Z]+_BEARER_TOKEN` (non-prefixed global format) is run against all files under `scripts/` and `docs/`.
+Then: Zero matches. Every credential env var reference uses the canonical
+`PRISM_CLIENTS_{ID}_SENSORS_{SENSOR}_{REF}` format where `{ID}` is the SCREAMING_SNAKE slug
+(e.g., `PRISM_CLIENTS_DEMO_ORG_SENSORS_ARMIS_BEARER_TOKEN`).
+(traces to BC-2.06.003 §Description: canonical multi-tenant credential convention for Prism;
+traces to BC-2.06.003 §Env-Var Name Derivation — `{ID}` = slug SCREAMING_SNAKE transform)
+
+### AC-014 (HIGH-2 — shellcheck in GitHub CI): `shellcheck` runs on `scripts/demo-*.sh` in `.github/workflows/ci.yml`, not only in the Justfile.
+Given: The GitHub CI workflow file `.github/workflows/ci.yml` is updated.
+When: The CI pipeline runs on any PR or push.
+Then: A dedicated step runs `shellcheck scripts/demo-*.sh` (or equivalent) in the CI matrix.
+Zero shellcheck errors or warnings are acceptable (same gate as AC-008 — this AC confirms CI
+enforcement, AC-008 confirms local enforcement).
+(traces to BC-2.22.001 invariant: "boot orchestration is deterministic" — deterministic setup
+scripts are a prerequisite; CI gate enforces the invariant across contributors)
 
 ### AC-006: Runbook documents troubleshooting for 3 common failure modes
 Given: `docs/DEMO-RUNBOOK.md` §Troubleshooting section.
 When: An operator reads it.
 Then: The section covers at least:
-  - (a) "Keyring access denied" — explains platform-specific keyring permission grant
+  - (a) "Keyring access denied / E-CRED-005" — explains platform-specific keyring permission grant
+    (macOS Keychain, Linux libsecret D-Bus); references E-CRED-005 error code.
   - (b) "Port already in use" — explains how to kill stale DTU server and re-run demo-run.sh
   - (c) "TOML spec not found" — explains how to verify spec_dir and sensor TOML filenames
 (traces to BC-2.06.007: "Missing Required Fields Produce Actionable Error Messages" — runbook
@@ -190,19 +308,17 @@ supplements error messages with human-readable remediation steps)
 ### AC-007: `scripts/demo-teardown.sh` removes generated files and keyring entries
 Given: The demo environment is set up and running.
 When: `bash scripts/demo-teardown.sh` is executed.
-Then: DTU server is killed; `~/.config/prism-demo/` is removed; the 8 OS keyring entries
-(client_id + client_secret for each of 4 sensors) are deleted via `prism credential delete`
-or the platform keyring CLI; exits 0.
+Then: DTU server is killed; `~/.config/prism-demo/` is removed; the OS keyring entries
+(all OrgId-keyed entries written by `prism credential set` for each of 4 sensors) are deleted
+via `prism credential delete` or the platform keyring CLI; exits 0.
 (traces to BC-2.03.005: "Credential CRUD Operations via MCP Tools" — teardown exercises the
 delete path of the credential subsystem)
 
-### AC-008: All shell scripts pass `shellcheck` with no errors or warnings
+### AC-008: All shell scripts pass `shellcheck` with no errors or warnings (local gate)
 Given: The 3 shell scripts (`demo-setup.sh`, `demo-run.sh`, `demo-teardown.sh`) are committed.
-When: `shellcheck scripts/demo-*.sh` is executed in CI.
-Then: Zero errors, zero warnings. If `shellcheck` is not already in CI, this story adds it to
-the Justfile `check-ci` recipe.
-(traces to BC-2.22.001 invariant: "boot orchestration is deterministic" — deterministic setup
-scripts are a prerequisite for reproducible boot)
+When: `shellcheck scripts/demo-*.sh` is executed locally (`just check-ci` or directly).
+Then: Zero errors, zero warnings.
+(traces to BC-2.22.001 invariant: "boot orchestration is deterministic"; see AC-014 for CI gate)
 
 ---
 
@@ -211,11 +327,19 @@ scripts are a prerequisite for reproducible boot)
 | Rule | Source | Enforcement |
 |------|--------|-------------|
 | `prism credential set` value MUST come from stdin, not CLI arg | AD-017 AI-opaque credential model | `clap` arg for `--value` is FORBIDDEN; stdin read is mandatory |
-| Credential namespace: `prism/{sensor_id}/{name}` | BC-2.03.004 Namespace Isolation | Use `CredentialStore::set(org_id, sensor_id, name, value)` via prism-credentials crate |
+| Write path: `CredentialStoreOrgId::set_by_org(&org_id, sensor, &name, value)` — NOT `CredentialStore::set` | ADR-034 §D3 / BC-2.06.003 Tier-3 | The legacy slug-keyed `CredentialStore::set` path MUST NOT be called from `credential_cli.rs` |
+| OrgId resolution: load `PrismConfig.orgs[n].org_id` from prism.toml; map slug → UUID | ADR-034 §D3 | `credential_cli.rs` reads prism.toml via the boot-step-2 config path; no `OrgRegistry` import in `prism-credentials` (architecture compliance rule in `trait_.rs:84–85`) |
+| `resolve_credential` new signature: `(client_id, sensor_id, cred_name, org_id: Option<&OrgId>, keyring: Option<&Arc<dyn CredentialStoreOrgId>>)` | ADR-034 §D1 + D2 | All callers in prism-spec-engine must pass both parameters; callers without Tier-3 may pass `None` |
+| Slug→OrgId resolution in `PrismCredentialResolver` (in `prism-spec-engine`) — NOT inside `prism-credentials` | `crates/prism-credentials/src/trait_.rs:84–85` architecture compliance rule | `prism-credentials` MUST NOT import `OrgRegistry`; violation = compile error |
+| `PrismCredentialResolver` is a struct with `org_registry: Arc<OrgRegistry>` and `keyring: Arc<dyn CredentialStoreOrgId>` | ADR-034 §D1 | Unit-struct form is removed; `PrismCredentialResolver::new(org_registry, keyring)` is the only constructor |
+| `BootContext` gains `credential_store_org_id: Arc<dyn CredentialStoreOrgId>` alongside existing `credential_store: Arc<dyn CredentialStore>` | ADR-034 §D5 | Step 5 exposes `Arc<KeyringBackend>` via both traits; same instance, no state duplication |
+| Tier-3 error: keyring backend error → hard `BackendUnavailable { detail: "E-CRED-005: OS keyring unavailable: {reason}" }` — do NOT fall through | ADR-034 §D4 / BC-2.06.003 / SOUL.md §4 | `reason` from keyring-rs is a system error string; must never contain a credential value |
 | `rpassword` or equivalent for no-echo stdin read | BC-2.03.007 Secret Redaction | `read -s` in bash is acceptable for shell scripts; Rust CLI must use `rpassword` crate |
-| Runbook must not contain real credential values | AD-017 | Use placeholder strings `"<your-client-id>"` in examples; DTU demo uses `"demo-client"` only |
+| All demo env vars use `PRISM_CLIENTS_{ID}_SENSORS_{SENSOR}_{REF}` format | BC-2.06.003 §Env-Var Name Derivation | Grep gate: zero matches for `DEMO_ORG_` or global `{SENSOR}_{REF}` patterns in scripts/ and docs/ |
 | Shell scripts use `#!/usr/bin/env bash` shebang | Portability | Required by shellcheck |
 | crowdstrike-oauth2.prx path must be validated | Risk mitigation | Script checks file exists before copying; exits 1 with actionable message if not found |
+| `--org-slug` required when `config.orgs.len() > 1`; error clearly on missing/invalid prism.toml | ADR-034 §D3 HIGH-3 | `resolve_org_slug` MUST NOT return `"demo-org"` as a silent default; SOUL.md §4 |
+| Runbook must not contain real credential values | AD-017 | Use placeholder strings `"<your-client-id>"` in examples; DTU demo uses `"demo-client"` only |
 
 ---
 
@@ -225,25 +349,34 @@ scripts are a prerequisite for reproducible boot)
 |---------|---------|---------|
 | `clap` | workspace version | New `credential set` subcommand (derive mode, matches existing CLI pattern) |
 | `rpassword` | `7.*` | Prompt for credential value with terminal echo disabled |
-| `prism-credentials` | workspace path | `CredentialStore::set()` for keyring write |
-| `shellcheck` | any stable | Shell script linting in CI |
+| `prism-credentials` | workspace path | `CredentialStoreOrgId::set_by_org()` for OrgId-keyed keyring write; `resolve_credential` (updated signature) |
+| `prism-spec-engine` | workspace path | `PrismCredentialResolver` (struct with fields); `StaticCookieAuthProvider`; `PluginAuthProvider` |
+| `shellcheck` | any stable | Shell script linting in local CI (`just check-ci`) and GitHub CI (`ci.yml`) |
 
 Note: `rpassword` version should be checked against `crates.io` at implementation time if not
-already in workspace `Cargo.toml`. If it is not present, add it as a dev-dep or feature-gated dep.
+already in workspace `Cargo.toml`. If it is not present, add it as a prism-bin dep.
 
 ---
 
 ## File Structure Requirements
 
-| File | Action | Purpose |
-|------|--------|---------|
-| `scripts/demo-setup.sh` | CREATE | Idempotent one-time setup: build, config, specs, plugin, credentials, overlay |
-| `scripts/demo-run.sh` | CREATE | Daily launch: start DTU server, print ports, instructions |
-| `scripts/demo-teardown.sh` | CREATE | Cleanup: kill DTU, remove config dir, delete keyring entries |
-| `scripts/demo.toml` | CREATE | DTU demo server config (all 4 sensors, ephemeral ports) |
-| `docs/DEMO-RUNBOOK.md` | CREATE | Comprehensive operator runbook (7 sections per scope) |
-| `crates/prism-bin/src/cli.rs` (or `main.rs`) | MODIFY | Add `Credential(CredentialArgs)` variant to the Clap CLI enum |
-| `crates/prism-bin/src/credential_cli.rs` | CREATE | `CredentialArgs` struct + `handle_credential_set()` async fn |
+| File | Action | Crate | Purpose |
+|------|--------|-------|---------|
+| `crates/prism-credentials/src/resolution.rs` | MODIFY | prism-credentials | Add Tier-3 branch between env-var resolution and Tier-4 CRUD lookup; update signature (2 new params: `org_id: Option<&OrgId>`, `keyring: Option<&Arc<dyn CredentialStoreOrgId>>`) |
+| `crates/prism-credentials/src/lib.rs` | MODIFY | prism-credentials | Re-export `resolve_credential` with updated signature |
+| `crates/prism-credentials/tests/bc_2_06_003_tier3_keyring_resolution.rs` | CREATE | prism-credentials | RG-034-001 (end-to-end write→resolve), RG-034-002 (miss→Tier-4 fallthrough) |
+| `crates/prism-spec-engine/src/auth_provider.rs` | MODIFY | prism-spec-engine | `PrismCredentialResolver` → struct with `org_registry + keyring` fields; update `new()`; update 5 test double impls; update `StaticCookieAuthProvider::new()` to accept `Arc<OrgRegistry>` + `Arc<dyn CredentialStoreOrgId>` |
+| `crates/prism-spec-engine/src/plugin_auth_provider.rs` | MODIFY | prism-spec-engine | `PluginAuthProvider` gains `org_registry: Arc<OrgRegistry>` + `keyring: Arc<dyn CredentialStoreOrgId>`; update `new()`; update 2 `resolve_credential` callsites (lines 135, 145) |
+| `crates/prism-bin/src/boot.rs` | MODIFY | prism-bin | `BootContext` gains `credential_store_org_id: Arc<dyn CredentialStoreOrgId>`; step 5 exposes `Arc<KeyringBackend>` alongside `Arc<dyn CredentialStore>` |
+| `crates/prism-bin/src/spec_driven_adapter.rs` | MODIFY | prism-bin | Auth provider construction sites (step 9A) gain `Arc::clone(&ctx.org_registry)` + `Arc::clone(&ctx.credential_store_org_id)` parameters for `PrismCredentialResolver::new` |
+| `crates/prism-bin/src/credential_cli.rs` | CREATE | prism-bin | `CredentialArgs` struct + `handle_credential_set()`: OrgId-keyed write via `CredentialStoreOrgId::set_by_org`; prism.toml load for slug→OrgId; HIGH-3 error on missing toml |
+| `crates/prism-bin/tests/bc_2_03_007_credential_set_org_id_keyed.rs` | CREATE | prism-bin | RG-034-004: OrgId-keyed write + CRIT-2 regression (entry NOT under slug-keyed namespace) |
+| `scripts/demo-setup.sh` | CREATE | — | Idempotent one-time setup: build → mkdir → copy specs → copy plugin → write prism.toml → set credentials via `prism credential set` (OrgId-keyed) → print instructions |
+| `scripts/demo-run.sh` | CREATE | — | Daily launch: start DTU in background → poll urls.json → print ports → print prism-bin start command |
+| `scripts/demo-teardown.sh` | CREATE | — | Cleanup: kill DTU → remove config dir → delete OrgId-keyed keyring entries |
+| `scripts/demo.toml` | CREATE | — | DTU demo server config (all 4 sensors, ephemeral ports) |
+| `docs/DEMO-RUNBOOK.md` | CREATE | — | Comprehensive operator runbook (7 sections per scope); `PRISM_CLIENTS_*` format only; references E-CRED-005 in Troubleshooting |
+| `.github/workflows/ci.yml` | MODIFY | — | Add shellcheck step for `scripts/demo-*.sh` (HIGH-2 remediation; CI gate separate from local `just check-ci`) |
 
 ---
 
@@ -253,23 +386,28 @@ The new CLI subcommand must follow the existing `prism start` pattern:
 
 ```
 USAGE:
-    prism credential set --sensor <SENSOR_ID> --name <CREDENTIAL_NAME>
+    prism credential set --sensor <SENSOR_ID> --name <CREDENTIAL_NAME> [--org-slug <ORG_SLUG>]
 
 ARGS:
     --sensor <SENSOR_ID>           Sensor ID (e.g., crowdstrike, armis, claroty, cyberint)
-    --name <CREDENTIAL_NAME>       Credential name (e.g., client_id, client_secret, api_token)
-    --org-slug <ORG_SLUG>          Org slug (default: first org in prism.toml, optional)
+    --name <CREDENTIAL_NAME>       Credential name (e.g., client_id, client_secret, bearer_token)
+    --org-slug <ORG_SLUG>          Org slug — required when prism.toml has >1 org; optional for single-org configs
 
 BEHAVIOR:
+    Loads PrismConfig from config_dir/prism.toml.
+    Resolves org slug → OrgId UUID from PrismConfig.orgs[n].org_id.
+    If --org-slug absent and len(orgs) > 1: error "Multiple orgs configured — use --org-slug <slug>".
+    If --org-slug absent and len(orgs) == 1: use single org's org_id.
+    If prism.toml missing or unparseable: hard error (no demo-org fallback).
     Prompts "Enter value for prism/<sensor>/<name>: " on stderr.
     Reads value from stdin with terminal echo disabled (rpassword).
-    Writes to OS keyring under namespace "prism/<sensor_id>/<name>" scoped to org_id.
+    Writes to OS keyring via CredentialStoreOrgId::set_by_org(&org_id, sensor, &name, value).
+    Keyring key format: "{org_id_uuid}/{sensor}/{name}" (namespace_key_by_org_id).
     Prints "Credential stored successfully." to stdout on success.
-    Exits 0 on success; exits 1 on keyring write failure with actionable error message on stderr.
+    Exits 0 on success; exits 1 on keyring write failure with actionable error on stderr.
 ```
 
-The `--value` flag is explicitly FORBIDDEN (AD-017 compliance). The subcommand reads config
-from the same `--config` flag as `prism start`.
+The `--value` flag is explicitly FORBIDDEN (AD-017 compliance).
 
 ---
 
@@ -278,52 +416,86 @@ from the same `--config` flag as `prism start`.
 The runbook must contain exactly these sections (in this order):
 
 1. **Prerequisites** — Rust toolchain, `just`, `shellcheck`, `cargo nextest`
-2. **One-time Setup** — run `demo-setup.sh`; what it does step-by-step
+2. **One-time Setup** — run `demo-setup.sh`; what it does step-by-step; credential format used (`PRISM_CLIENTS_*` / `prism credential set`)
 3. **Daily Demo Run** — run `demo-run.sh`; verify DTU clones are up
 4. **Connecting Claude Code** — add prism-bin to `~/.claude/settings.json` MCP servers section; exact JSON snippet
 5. **Example Queries** — one query per sensor (CrowdStrike, Armis, Claroty, Cyberint) with expected output shape
-6. **Troubleshooting** — 3 failure modes (AC-006)
+6. **Troubleshooting** — 3 failure modes per AC-006 (including E-CRED-005 keyring error); NO `DEMO_ORG_*` env var format in examples
 7. **Cleanup** — run `demo-teardown.sh`
+
+---
+
+## Red Gate Tests
+
+The following tests MUST be written as failing Red Gates before any implementation. Tests marked
+(RG-034-NNN) are specified in ADR-034 §Red Gate Tests and are authoritative.
+
+| Test Name | File | Gate | Coverage |
+|-----------|------|------|----------|
+| `test_BC_2_06_001_demo_setup_generates_valid_prism_toml` | `crates/prism-bin/tests/` or `src/credential_cli.rs #[cfg(test)]` | AC-001 | Generated prism.toml is schema-valid |
+| `test_BC_2_03_007_prism_credential_set_does_not_echo_value_to_stdout` | `crates/prism-bin/tests/` | AC-005 | Value NOT in stdout; stdin-prompt path |
+| `test_BC_2_06_003_tier3_credential_written_by_set_by_org_is_resolved` (RG-034-001) | `crates/prism-credentials/tests/bc_2_06_003_tier3_keyring_resolution.rs` | AC-009 | CRIT-1 gap closure: write→resolve end-to-end |
+| `test_BC_2_06_003_tier3_miss_falls_through_to_tier4` (RG-034-002) | `crates/prism-credentials/tests/bc_2_06_003_tier3_keyring_resolution.rs` | AC-011 Case A | Tier-3 miss → Tier-4 (not BackendUnavailable) |
+| `test_resolve_org_slug_errors_when_toml_missing_and_no_explicit_slug` (RG-034-003) | `crates/prism-bin/src/credential_cli.rs #[cfg(test)] mod tests` | AC-012 | HIGH-3: no demo-org fallback |
+| `test_handle_credential_set_writes_org_id_keyed_keyring_entry` (RG-034-004) | `crates/prism-bin/tests/bc_2_03_007_credential_set_org_id_keyed.rs` | AC-010 / AC-005 | CRIT-2 regression: entry at OrgId-keyed key; NOT at slug-keyed key |
+
+Note: The existing `test_BC_2_03_007_prism_credential_set_does_not_echo_value_to_stdout` test may
+require an OrgId-keyed variant per ADR-034 (the write path changes from `CredentialStore::set` to
+`CredentialStoreOrgId::set_by_org`). The test-writer must review the existing test stub (if any)
+and produce the OrgId-keyed variant in `bc_2_03_007_credential_set_org_id_keyed.rs`.
 
 ---
 
 ## Tasks
 
 1. **Read** `crates/prism-bin/src/main.rs` — understand existing Clap CLI structure before adding new subcommand.
-2. **Read** `crates/prism-credentials/src/lib.rs` — understand `CredentialStore::set()` signature and OS keyring namespace format.
-3. **Find** `crowdstrike-oauth2.prx` committed path (S-PLUGIN-CI-001 merged it at `crates/prism-spec-engine/wasm/` or similar; read that commit).
-4. **Write Red Gate tests** for AC-001 and AC-005 (see test names above).
-5. **Implement** `crates/prism-bin/src/credential_cli.rs` with `CredentialArgs` and `handle_credential_set()`.
-6. **Add** `Credential(CredentialArgs)` variant to CLI enum in `main.rs` / `cli.rs`.
-7. **Write** `scripts/demo-setup.sh` — sections: build → mkdir → copy specs → copy plugin → write prism.toml → write credentials → print instructions.
-8. **Write** `scripts/demo-run.sh` — start DTU in background → poll urls.json → print ports → print prism-bin start command.
-9. **Write** `scripts/demo-teardown.sh` — kill DTU → remove config dir → delete keyring entries.
-10. **Write** `scripts/demo.toml` — DTU demo server config for all 4 sensors.
-11. **Write** `docs/DEMO-RUNBOOK.md` — all 7 sections; include exact Claude Code settings.json snippet.
-12. **Run** `shellcheck scripts/demo-*.sh` — fix all warnings.
-13. **Run** Red Gate tests: `just iter prism-bin` — both must pass GREEN.
-14. **Run** `just check` — final pre-push gate.
+2. **Read** `crates/prism-credentials/src/resolution.rs` — understand current Tier-1/2/4 chain, existing signature, and the two "not implemented" comments at lines 18, 92.
+3. **Read** `crates/prism-credentials/src/keyring.rs` lines 248–285 — understand `CredentialStoreOrgId::get_by_org` and `spawn_blocking` encapsulation.
+4. **Read** `crates/prism-credentials/src/namespace.rs` — understand `namespace_key_by_org_id` format (`"{org_id_uuid}/{sensor}/{name}"`).
+5. **Read** `crates/prism-spec-engine/src/auth_provider.rs` — identify all 5 test doubles implementing `CredentialResolver`; identify `PrismCredentialResolver` current unit-struct form.
+6. **Read** `crates/prism-spec-engine/src/plugin_auth_provider.rs` lines 130–150 — identify 2 `resolve_credential` callsites.
+7. **Read** `crates/prism-bin/src/boot.rs` — understand `BootContext` struct and step-5 credential store initialization.
+8. **Read** `crates/prism-bin/src/spec_driven_adapter.rs` — identify step-9A auth provider construction sites.
+9. **Find** `crowdstrike-oauth2.prx` committed path (S-PLUGIN-CI-001 merged it; verify path from git tree before scripting).
+10. **Write Red Gate tests** for all 6 tests listed in §Red Gate Tests. All must FAIL before implementation.
+11. **Implement** `resolve_credential` Tier-3 branch in `crates/prism-credentials/src/resolution.rs` with updated signature.
+12. **Update** `crates/prism-credentials/src/lib.rs` re-export to match new signature.
+13. **Update** `crates/prism-spec-engine/src/auth_provider.rs`: `PrismCredentialResolver` → struct with fields; update `new()`; sibling-sweep all 5 test doubles.
+14. **Update** `crates/prism-spec-engine/src/plugin_auth_provider.rs`: add `org_registry` + `keyring` fields; update 2 `resolve_credential` callsites.
+15. **Update** `crates/prism-bin/src/boot.rs`: `BootContext.credential_store_org_id`; step-5 `Arc<KeyringBackend>` exposure.
+16. **Update** `crates/prism-bin/src/spec_driven_adapter.rs`: step-9A construction sites gain 2 new params.
+17. **Implement** `crates/prism-bin/src/credential_cli.rs`: `CredentialArgs` + `handle_credential_set()` with OrgId-keyed write + HIGH-3 error handling.
+18. **Add** `Credential(CredentialArgs)` variant to CLI enum in `main.rs` / `cli.rs`.
+19. **Write** `scripts/demo-setup.sh` — uses `prism credential set` for credential bootstrap; ONLY `PRISM_CLIENTS_*` format in any env var references; idempotent.
+20. **Write** `scripts/demo-run.sh` — launch DTU in background → poll urls.json → print ports.
+21. **Write** `scripts/demo-teardown.sh` — kill DTU → remove config dir → delete OrgId-keyed keyring entries.
+22. **Write** `scripts/demo.toml` — DTU demo server config for all 4 sensors.
+23. **Write** `docs/DEMO-RUNBOOK.md` — all 7 sections; references E-CRED-005 in Troubleshooting; no `DEMO_ORG_*` format.
+24. **Modify** `.github/workflows/ci.yml` — add shellcheck step for `scripts/demo-*.sh` (HIGH-2).
+25. **Run** `shellcheck scripts/demo-*.sh` — fix all warnings (AC-008).
+26. **TD-VSDD-060 sibling-site sweep** — grep `resolve_credential` across ALL crates; verify every callsite updated.
+27. **Run** Red Gate tests: `just iter prism-credentials` and `just iter prism-bin` — all 6 must pass GREEN.
+28. **Run** `just check` — final pre-push gate.
 
 ---
 
 ## Previous Story Intelligence
 
 - **S-DEMO-001** (depends_on): The `boot.step9a.adapter_registry_populated` event with `sensor_count=4` is the boot-success signal that AC-002 validates. Read S-DEMO-001 for the event field names.
-- **S-DEMO-002** (depends_on): The E2E smoke test's `bootstrap_credentials()` helper uses the same credential namespace (`prism/<sensor_id>/<name>`) as `prism credential set`. The two must be consistent.
+- **S-DEMO-002** (depends_on): The E2E smoke test's `bootstrap_credentials()` helper uses the per-client env-var format (`PRISM_CLIENTS_*`). If S-DEMO-002 tests set env vars, they use Tier-2. This story adds Tier-3 as the demo bootstrap; the two tiers coexist.
 - **S-CONFIG-MULTI-TENANT-OVERRIDE-001** (already merged): The per-org overlay format (`customers/demo-org/crowdstrike.sensor.toml` with `extends = "crowdstrike"` and `base_url = "http://127.0.0.1:<PORT>"`) is documented in that story. `demo-setup.sh` generates these overlay files after reading the DTU server ports from `urls.json`.
 - **S-PLUGIN-CI-001** (merged): Committed `crowdstrike-oauth2.prx`. The demo-setup.sh script copies this file to the plugin dir. Implementer must find the committed path by reading that story's demo evidence or the git tree.
+- **ADR-034 (new)**: The authoritative source for all implementation decisions in this story. Read it in full before writing any code. The architecture compliance rule at `crates/prism-credentials/src/trait_.rs:84–85` (prism-credentials must NOT import OrgRegistry) is the design constraint that makes `PrismCredentialResolver` the right DI boundary.
 
 ---
 
 ## Open Questions
 
-1. **Plugin artifact committed path**: S-PLUGIN-CI-001 committed `crowdstrike-oauth2.prx` but the story-writer does not know the exact path (possibly `crates/prism-spec-engine/wasm/crowdstrike-oauth2.prx` or `plugins/crowdstrike-oauth2.prx`). Implementer must verify before writing `demo-setup.sh` copy command.
+1. **Plugin artifact committed path**: S-PLUGIN-CI-001 committed `crowdstrike-oauth2.prx` but the story-writer does not know the exact path. Implementer must verify before writing `demo-setup.sh` copy command.
 
-2. **`rpassword` in workspace**: Is `rpassword` already in `Cargo.toml` workspace deps? If not, does it belong in the workspace or as a prism-bin-only dep? Should it be feature-gated (e.g., `#[cfg(feature = "cli-credential")]`) to avoid pulling it into the library surface? Architect to confirm.
+2. **`rpassword` in workspace**: Is `rpassword` already in `Cargo.toml` workspace deps? If not, add it as a prism-bin dep.
 
-3. **`prism credential set` for non-CrowdStrike sensors**: Armis, Claroty, Cyberint use `bearer_static` auth. The credential stored is the bearer token (one entry per sensor: `prism/armis/api_token`, `prism/claroty/api_token`, `prism/cyberint/api_token`). For DTU, these are dummy values. The `demo-setup.sh` script should set one credential per sensor. The exact credential names must match what `BearerStaticAuthProvider` resolves from the keyring at fetch time — verify against `crates/prism-sensors/specs/` auth_type declarations.
-
-4. **Org slug in `prism credential set`**: If prism.toml has a single org (`demo-org`), the subcommand should default to that org's org_id without requiring `--org-slug`. If multiple orgs are present, `--org-slug` is required. Confirm this UX with the architect.
+3. **`prism credential set` for non-CrowdStrike sensors**: Armis, Claroty, Cyberint use `bearer_static` auth with `bearer_token` as the credential name. CrowdStrike uses `client_id` and `client_secret`. The `demo-setup.sh` calls `prism credential set` once per (sensor, credential_name) pair. Verify credential names match what the auth providers pass to `resolve_credential` at fetch time — read `crates/prism-sensors/specs/` auth_type + `[[credential_refs]]` declarations.
 
 ---
 
@@ -331,11 +503,14 @@ The runbook must contain exactly these sections (in this order):
 
 | ID | Description | Expected Behavior |
 |----|-------------|-------------------|
-| EC-001 | OS keyring not available (e.g., headless CI without keyring service) | `prism credential set` exits 1 with: "Keyring unavailable: <platform reason>. Use the encrypted file backend instead." |
-| EC-002 | `demo-setup.sh` run twice in succession | Second run is idempotent: overwrite files, overwrite keyring entries; no error |
+| EC-001 | OS keyring not available (e.g., headless CI without keyring service) | `prism credential set` exits 1 with actionable error (E-CRED-005 detail string from keyring-rs); `resolve_credential` returns `BackendUnavailable` (hard error, no Tier-4 fallthrough) |
+| EC-002 | `demo-setup.sh` run twice in succession | Second run is idempotent: overwrite files, overwrite keyring entries (`set_by_org` overwrites); no error |
 | EC-003 | crowdstrike-oauth2.prx not found at expected path | `demo-setup.sh` exits 1 with: "Plugin artifact not found at <path>. Run `cargo build -p prism-spec-engine --features wasm-plugins` first." |
 | EC-004 | DTU server not started before demo-run.sh | `demo-run.sh` polls urls.json for 30s then exits 1 with: "DTU server did not start within 30s. Check demo.toml for port conflicts." |
 | EC-005 | `prism credential set` called with `--value` flag (attempted AD-017 bypass) | Clap rejects: "error: unexpected argument '--value' found. Values must be provided interactively." |
+| EC-006 | `--org-slug` provided but slug not found in prism.toml `[[orgs]]` | `handle_credential_set` exits 1: "Org slug '<slug>' not found in prism.toml. Available: [<slugs>]." |
+| EC-007 | `org_id: None` passed to `resolve_credential` (caller lacks Tier-3 capability) | Tier 3 skipped silently; falls through to Tier 4 (BC-2.06.003 Tier-3 postcondition row 1) |
+| EC-008 | Keyring backend panics inside `spawn_blocking` | `KeyringBackend::get_by_org` catches spawn panic; `resolve_credential` receives `Err(...)` → hard `BackendUnavailable` / E-CRED-005 (ADR-034 §D4) |
 
 ---
 
@@ -343,16 +518,21 @@ The runbook must contain exactly these sections (in this order):
 
 | Context source | Estimated tokens |
 |----------------|-----------------|
-| This story spec | ~4,000 |
-| BC files (4 BCs) | ~6,000 |
-| crates/prism-bin/src/main.rs (CLI structure) | ~3,000 |
-| crates/prism-credentials/src/lib.rs | ~4,000 |
-| crates/prism-sensors/specs/ (4 TOML files) | ~4,000 |
-| ADR-028 §D10, AD-017 (auth + credential model) | ~3,000 |
-| S-DEMO-001 + S-DEMO-002 (dependency context) | ~6,000 |
-| **Total estimate** | **~30,000 tokens (~12% of 256K context)** |
+| This story spec | ~7,000 |
+| BC files (5 BCs: BC-2.03.005, BC-2.03.007, BC-2.06.001, BC-2.06.003, BC-2.22.001) | ~9,000 |
+| ADR-034 (Tier-3 decision authority) | ~4,000 |
+| `crates/prism-credentials/src/resolution.rs` | ~3,000 |
+| `crates/prism-credentials/src/keyring.rs` + `namespace.rs` | ~3,000 |
+| `crates/prism-spec-engine/src/auth_provider.rs` | ~4,000 |
+| `crates/prism-spec-engine/src/plugin_auth_provider.rs` | ~2,000 |
+| `crates/prism-bin/src/boot.rs` + `spec_driven_adapter.rs` | ~5,000 |
+| `crates/prism-bin/src/main.rs` (CLI structure) | ~2,000 |
+| `crates/prism-sensors/specs/` (4 TOML files) | ~3,000 |
+| S-DEMO-001 + S-DEMO-002 (dependency context) | ~5,000 |
+| **Total estimate** | **~47,000 tokens (~18% of 256K context)** |
 
-Smallest story in the E-DEMO epic by token budget. Well within limit.
+Within the 20-30% agent context limit. The story is larger than the original (30K → 47K) due
+to Option-A scope expansion (3 crates, 6 Red Gate tests). Still well within limit.
 
 ---
 
@@ -361,9 +541,14 @@ Smallest story in the E-DEMO epic by token budget. Well within limit.
 | Forbidden | Reason |
 |-----------|--------|
 | CLI `--value` argument for credential value | AD-017 — value must come from stdin, not args |
+| `CredentialStore::set` (slug-keyed) in `credential_cli.rs` | CRIT-2: slug-keyed write is permanently invisible to Tier-3 OrgId-keyed read |
+| `OrgRegistry` import in `prism-credentials` | Architecture compliance rule `trait_.rs:84–85` — callers pre-resolve slug→OrgId |
+| Silent `"demo-org"` default in `resolve_org_slug` | SOUL.md §4 swallow-error prohibition; ADR-034 §D3 HIGH-3 |
+| `DEMO_ORG_*` or global `{SENSOR}_{REF}` format in scripts/docs | BC-2.06.003 — canonical format is `PRISM_CLIENTS_{ID}_SENSORS_{SENSOR}_{REF}` |
 | Hardcoded port numbers in setup scripts | DTU binds to ephemeral ports; always read from urls.json |
 | `echo` or `printf` of credential value to any file descriptor | BC-2.03.007 Secret Redaction |
 | Credential values in `docs/DEMO-RUNBOOK.md` examples | AD-017 — use placeholder strings only |
+| Calling `prism-credentials` from `prism-spec-engine` across the wrong direction | Dependency direction: prism-spec-engine depends on prism-credentials; not the reverse |
 
 ---
 
@@ -371,5 +556,6 @@ Smallest story in the E-DEMO epic by token budget. Well within limit.
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
-| 1.1 | 2026-06-03 | state-manager | D-990 Phase-A-close: status draft→ready; depends_on S-DEMO-001 (merged PR #166) + S-DEMO-002 (merged PR #171) BOTH SATISFIED; BC-2.03.005 v1.6 active + BC-2.03.007 v1.3 active (consumer-ref to draft BC-2.06.001 does not block per PO ruling); S-7.01 gate CLEARED. |
+| 1.2 | 2026-06-06 | story-writer | **Option-A scope expansion (ADR-034; human approved 2026-06-06):** Tier-3 OS-keyring credential resolution now fully in scope. AC-005 rewritten: write path is `CredentialStoreOrgId::set_by_org` (OrgId-keyed); `--org-slug` required for multi-org; HIGH-3 error on missing prism.toml enforced. New ACs added: AC-009 (CRIT-1 end-to-end), AC-010 (CRIT-2 namespace regression), AC-011 (Tier-3 error semantics / E-CRED-005), AC-012 (HIGH-3 toml error), AC-013 (HIGH-1 env format), AC-014 (HIGH-2 shellcheck CI). Points 5→8 (ADR-034 §D7 range 8-10; 8 chosen). Risk LOW→MEDIUM. `crates_touched` expanded: add `prism-credentials`, `prism-spec-engine`. `subsystems` expanded: add SS-08 (Spec-Driven Adapter). `acceptance_criteria_count` 8→14. `red_gate_tests` 2→6. Version bumped 1.1→1.2. Error code E-CRED-005 used throughout (E-CRED-003 already allocated per ADR-034 §D4 annotation). |
+| 1.1 | 2026-06-03 | state-manager | D-990 Phase-A-close: status draft→ready; depends_on S-DEMO-001 (merged PR #166) + S-DEMO-002 (merged PR #171) BOTH SATISFIED; BC-2.03.005 v1.6 active + BC-2.03.007 v1.3 active; S-7.01 gate CLEARED. |
 | 1.0 | 2026-05-29 | story-writer | Initial draft — bundled CLI subcommand per complexity assessment; 4-sensor scope |

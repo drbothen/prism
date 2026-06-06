@@ -2,11 +2,11 @@
 document_type: prd-supplement
 level: L3
 section: "error-taxonomy"
-version: "1.60"
+version: "1.61"
 status: active
 producer: product-owner
 timestamp: 2026-05-16T00:00:00Z
-modified: "2026-06-04"
+modified: "2026-06-06"
 phase: 1a
 origin: greenfield
 inputs: [".factory/specs/prd.md", ".factory/specs/behavioral-contracts/**"]
@@ -67,6 +67,7 @@ All Prism errors follow the code format `E-{CATEGORY}-{NNN}` and are surfaced as
 | E-CRED-002 | broken | configuration | "Encrypted file backend key material missing" | No | Encryption key env var not set |
 | E-CRED-003 | broken | authentication | "Credential decryption failed for ({client_id}, {sensor_id})" | No | Key material changed or file corrupted |
 | E-CRED-004 | broken | validation | "Invalid credential name: '{name}' does not match [{pattern}]" | No | Path traversal prevention |
+| E-CRED-005 | broken | authentication | "E-CRED-005: OS keyring unavailable during Tier-3 credential resolution: {reason}" | No | OS keyring backend error (locked, `NoStorageAccess`, `NoKeyringService`, or `spawn_blocking` panic) during Tier-3 resolution in `resolve_credential`. The keyring is inaccessible — execution-environment misconfiguration (e.g., macOS Keychain access denied, Linux libsecret D-Bus unavailable). Hard error per ADR-034 §D4: SOUL.md §4 prohibits silent fall-through when the backend itself is unavailable. The `{reason}` field is a system error message from the keyring backend — it NEVER contains a credential value (AD-017). Operator remedy: unlock keyring / restart D-Bus, or use Tier 1/2 env vars (`PRISM_CLIENTS_{ID}_SENSORS_{SENSOR}_{REF}`). Maps to `CredentialResolutionError::BackendUnavailable` in `prism_credentials::resolution`. Note: ADR-034 §D4 originally designated this as E-CRED-003; that code was already allocated above; E-CRED-005 is the next free code. BC-2.06.003 v1.4 and both ADR-034 §D4 and this taxonomy use E-CRED-005 as the authoritative code. |
 
 ## FLAG: Feature Flag Errors
 

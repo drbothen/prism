@@ -1,7 +1,7 @@
 ---
 document_type: architecture-index
 level: L3
-version: "2.112"
+version: "2.113"
 status: draft
 producer: state-manager
 timestamp: 2026-05-31T12:00:00
@@ -100,6 +100,7 @@ deployment_topology: single-service  # planned — no service binary exists yet 
 | ADR-031 | DTU=True-DTU Fidelity Principle — DTU Clones Must Mirror Real API Field Names, Auth Flows, Cookie Names, Endpoints, Response Shapes; Supersedes ADR-028 §D12 | ACCEPTED v1.2 | 2026-05-31 | decisions/ADR-031-dtu-equals-true-dtu-fidelity-principle.md |
 | ADR-032 | Per-Client Credential Env-Var Convention (Multi-Tenant Correct) — PRISM_CLIENTS_{ID}_SENSORS_{SENSOR}_{REF}+_FILE; 4-tier resolution chain; org-aware boot probe; per-sensor credential_refs | ACCEPTED v1.0 | 2026-06-03 | decisions/ADR-032-per-client-credential-env-var-convention.md |
 | ADR-033 | Push-Down Time-Window Extraction Strategy — Pre-Fan-Out Heuristic (T1) vs Post-Resolution classify_predicates (T2) | ACCEPTED v1.0 | 2026-06-05 | decisions/ADR-033-push-down-time-window-extraction-strategy-pre-fan-out-heuristic.md |
+| ADR-034 | Tier-3 Keyring Resolution — OrgId Threading via Injected OrgRegistry, OrgId-Keyed Write Reconciliation, and Async Safety | ACCEPTED v1.0 | 2026-06-06 | decisions/ADR-034-tier3-keyring-resolution-org-id-threading.md |
 
 ## Architecture Decisions
 
@@ -159,6 +160,7 @@ deployment_topology: single-service  # planned — no service binary exists yet 
 
 | Version | Pass | Date | Author | Change |
 |---------|------|------|--------|--------|
+| 2.113 | D-1025 | 2026-06-06 | state-manager | ADR-034 registered: Tier-3 Keyring Resolution — OrgId Threading via Injected OrgRegistry, OrgId-Keyed Write Reconciliation, and Async Safety. ACCEPTED v1.0. Architect authored per human Option-A decision (S-DEMO-003 scope expansion). Subsystems: SS-03, SS-06, SS-08, SS-22. Anchor story: S-DEMO-003. Closes CRIT-1 (keyring write→read disconnect) + CRIT-2 (namespace mismatch slug-keyed vs OrgId-UUID-keyed). ADR-034 table row already present (architect-committed). ARCH-INDEX v2.112→v2.113. |
 | 2.112 | D-1006 | 2026-06-05 | state-manager | ADR-033 promoted PROPOSED v0.1→ACCEPTED v1.0 per D-1006 human approval ("Approve — re-implement v2"). v2 scope expansion to prism-query (+SS-11) authorized. Re-implementation TDD cycle begins. ARCH-INDEX v2.111→v2.112. |
 | 2.111 | ADR-033 | 2026-06-05 | architect | ADR-033 registered: Push-Down Time-Window Extraction Strategy — Pre-Fan-Out Heuristic (T1) vs Post-Resolution classify_predicates (T2). PROPOSED v0.1. Subsystems: SS-11, SS-16, SS-01. Anchor story: S-DEMO-QUERY-PUSHDOWN-001 v2. Traces to BC-2.11.007 + BC-2.01.013. Closes dead-code gap F-P6-CRIT-001 at architecture level. ARCH-INDEX v2.110→v2.111. |
 | 2.110 | D-969 | 2026-06-03 | state-manager | D-969 per-client credential convention adoption: ADR-032 registered (Per-Client Credential Env-Var Convention — PRISM_CLIENTS_{ID}_SENSORS_{SENSOR}_{REF}+_FILE; ACCEPTED v1.0; human Option-A selection; normalizes multi-tenant credential isolation; closes F-SDEMO002-P-MED-001). BC-2.06.003 v1.2→v1.3 (per-client convention + 4-tier resolution chain + org-aware boot probe + per-sensor credential_refs; architect-authored). BC-2.03.006 v1.3→v1.4 (cross-ref BC-2.06.003 v1.3; ADR-032 anchor; architect-authored). ARCH-INDEX v2.109→v2.110. BC-INDEX v5.77→v5.78. |
