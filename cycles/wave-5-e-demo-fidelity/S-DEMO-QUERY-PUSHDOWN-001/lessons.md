@@ -63,6 +63,57 @@ Test-writer and implementer wrote structural proxies (non-empty, count > 0) or b
 
 ---
 
+### [correctness] ADV-P08-MED-001 — Push-down must over-fetch at inclusive boundaries (Ge/Le): DTU filtering must use strict-outside exclusion, never inclusive exclusion
+
+**Date recorded:** 2026-06-05
+**D-NNN anchor:** D-1014
+**Finding:** ADV-P08-MED-001 (v2.x LOCAL pass-8)
+**Tags:** [correctness] [push-down] [boundary-semantics] [result-equivalence] [BC-2.11.007]
+**Classification:** BLOCKING — correctness defect; BC-2.11.007 result-equivalence invariant violated.
+
+**Description:**
+Pass 8 found that inclusive time predicates (`>=`/`<=`, `CompareOp::Ge`/`Le`) caused push-down to UNDER-fetch boundary records. Two root causes:
+
+1. **DTU inclusive-boundary semantics (CrowdStrike `detections.rs` + Armis `search.rs`):** The DTU filtering functions (`device_in_time_window`, `alert_in_time_window`) used inclusive-boundary exclusion — a record with `timestamp == bound` was excluded. DataFusion applies inclusive semantics for `>=`/`<=`. This asymmetry dropped exact-boundary records when push-down was active.
+
+2. **RFC3339 `+00:00` vs `Z` lexicographic comparison bug:** `chrono::to_rfc3339()` emits `+00:00` (ASCII `+` = 43); fixture timestamps stored as `Z` (ASCII `Z` = 90). Lexicographic comparison `+00:00` < `Z` caused DataFusion's string-based comparison to drop the boundary record even when both strings represent the same UTC instant.
+
+**Codified rules:**
+
+1. **DTU filtering MUST over-fetch at boundaries.** When push-down generates a time-window filter for inclusive predicates (`>=`/`<=`), the DTU clone's filtering function MUST exclude only strictly-outside records (`ts < start` or `ts > end`). Records at the exact boundary (`ts == start` or `ts == end`) MUST pass through the DTU filter. DataFusion's post-filter applies the correct inclusive semantics and narrows the result set. This is the "over-fetch-never-under-fetch" DTU invariant for push-down.
+
+2. **RFC3339 normalization is mandatory.** Any code path that serializes timestamps for push-down into DTU fixture filtering or DataFusion string comparison MUST use `to_rfc3339_opts(SecondsFormat::Secs, true)` to produce `Z`-suffix form. `to_rfc3339()` (`+00:00` form) must NOT be used for DTU push-down filter serialization — it produces a lexicographically-wrong string that drops exact-boundary records at DataFusion's string-comparison layer.
+
+3. **BC-2.11.007 result-equivalence requires boundary Red Gate tests.** Any story implementing time-window push-down for a new sensor MUST include at least one boundary Red Gate test that: (a) uses an exact `>=` or `<=` predicate, (b) runs via `run_materialization_pipeline` (not `PipelineExecutor::execute` directly), and (c) asserts the boundary record IS included in the result (i.e., the push-down result count matches the non-pushed count at the boundary).
+
+**Outcome:** Fix-burst `69aafcc7` corrected both root causes. 2 new boundary Red Gate tests added (CrowdStrike + Armis). Story v2.4→v2.5 (EC-009 + `red_gate_tests` 16→18). just check 4035/4035 PASS.
+
+---
+
+### [correctness] RFC3339 `+00:00` vs `Z` suffix — DTU push-down timestamps must normalize to `Z` form to prevent lexicographic boundary drop
+
+**Date recorded:** 2026-06-05
+**D-NNN anchor:** D-1014
+**Finding:** ADV-P08-MED-001 root cause 2 (v2.x LOCAL pass-8)
+**Tags:** [correctness] [rfc3339] [timestamp-normalization] [lexicographic-comparison] [push-down]
+**Classification:** BLOCKING (co-root-cause of ADV-P08-MED-001); codified as standing rule.
+
+**Description:**
+`chrono::DateTime::to_rfc3339()` produces `2024-01-01T00:00:00+00:00`. Fixture timestamps are stored as `2024-01-01T00:00:00Z`. In lexicographic string ordering, `+` (ASCII 43) < `Z` (ASCII 90). DataFusion uses string-based comparison for timestamp predicates in this push-down path. The result: a `>=` predicate with the `+00:00` form evaluates `"2024-01-01T00:00:00+00:00" >= "2024-01-01T00:00:00Z"` as `false` (since `+` < `Z`), dropping the boundary record.
+
+Both `2024-01-01T00:00:00+00:00` and `2024-01-01T00:00:00Z` represent the identical UTC instant. The bug is purely a string-representation asymmetry.
+
+**Codified rule:**
+In all push-down timestamp serialization sites, use `chrono::SecondsFormat::Secs` with `use_z: true`:
+```rust
+dt.to_rfc3339_opts(chrono::SecondsFormat::Secs, true)  // → "2024-01-01T00:00:00Z" (CORRECT)
+// NOT:
+dt.to_rfc3339()  // → "2024-01-01T00:00:00+00:00" (WRONG for string comparison)
+```
+This rule applies to: DTU fixture comparison sites, DataFusion predicate generation, any push-down filter string serialization in `pipeline.rs` or equivalent.
+
+---
+
 ### [process-gap] ADV-P04-OBS-001 — Test-docstring file.rs:NNN line-pin discipline gap (TD-VSDD-091 adjacency)
 
 **Date recorded:** 2026-06-05
