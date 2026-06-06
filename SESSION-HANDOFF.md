@@ -473,11 +473,11 @@ DURABLE PIN BLOCK (CURRENT STATE — D-580 — DURABLE PRE-/CLEAR RESUME SNAPSHO
 | Sub-phase | Phase B (parallel lanes) |
 | Phase B Lane 1 | COMPLETE — S-SPEC-HTTP-METHOD-VALIDATION-001 (PR #172 merged develop@752e407a 2026-06-05) |
 | Phase B Lane 2 | COMPLETE — S-DEMO-QUERY-PUSHDOWN-001 (PR #173 merged develop@9447671f 2026-06-06) |
-| Phase B Lane 3 | IN_PROGRESS — OCSF-CLASS-MIGRATION-001 v1.9 (LOCAL pass-8 F-LP8-MED-001 CLOSED D-1030; stale "BC is now v1.5" corrected to v1.6; full version-pin audit complete; streak 0/3; code @be9f8b6d unchanged; FRESH LOCAL pass-9 NEXT — need 3 consecutive CLEAN) |
-| Phase B Lane 4 | IN_PROGRESS — S-DEMO-003 v1.4 (LOCAL pass-3 found F-HIGH-301 + F-MED-302; fix-burst-3 in progress D-1030) |
+| Phase B Lane 3 | IN_PROGRESS — OCSF-CLASS-MIGRATION-001 v1.9 (LOCAL pass-9 CLEAN D-1031; streak 1/3; code @be9f8b6d unchanged; LOCAL passes 10/11 NEXT — need 2 more consecutive CLEAN) |
+| Phase B Lane 4 | IN_PROGRESS — S-DEMO-003 v1.5 (LOCAL pass-3 CLOSED D-1031; fix-burst-3 impl 91b3f2bd; story v1.4→v1.5; 4050/4050 GREEN; streak 0/3; LOCAL pass-4 NEXT) |
 | Phase C | PENDING — Claroty cluster (PAGINATION → TRAILING-SLASH → SPEC-PROSE-FIX → HARNESS-CLONE-PARITY); serialized; shares BC-2.16.013 + claroty.sensor.toml |
 
-### Durable State (all committed as of D-1030)
+### Durable State (all committed as of D-1031)
 
 | Item | Value |
 |------|-------|
