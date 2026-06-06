@@ -6,7 +6,7 @@ wave: 5
 epic_id: E-DEMO
 priority: P1
 status: ready
-version: "1.3"
+version: "1.4"
 level: "L4"
 producer: story-writer
 timestamp: "2026-05-29T00:00:00Z"
@@ -129,7 +129,7 @@ phase: 3
 
 **Story ID:** S-DEMO-003
 **Status:** ready
-**Version:** v1.3
+**Version:** v1.4
 **Wave:** 5
 **Priority:** P1
 **Points:** 8
@@ -183,7 +183,10 @@ Then: The script exits 0. The demo config directory (`~/.config/prism-demo/`) is
 all required subdirectories; sensor TOML specs are copied; crowdstrike-oauth2.prx is copied
 to the plugin dir; credentials are bootstrapped in the OS keyring via `prism credential set`
 (OrgId-keyed, ADR-034 §D3); a valid `prism.toml` is generated. No manual steps required
-between running the script and `prism-bin start`.
+between running the script and subsequently running `demo-run.sh` (which handles DTU launch
+and per-org `base_url` overlay generation). `demo-setup.sh` does NOT write per-org
+`base_url` overlay TOMLs — those require ephemeral DTU ports that are only available
+post-launch and are written by `demo-run.sh`.
 (traces to BC-2.06.001 postcondition: "TOML config loads and deserializes at startup" — the
 generated prism.toml must be schema-valid and accepted without error)
 Red Gate test: `test_BC_2_06_001_demo_setup_generates_valid_prism_toml`
@@ -232,6 +235,13 @@ Red Gate tests: `test_BC_2_03_007_prism_credential_set_does_not_echo_value_to_st
 ### AC-009 (Tier-3 end-to-end — CRIT-1 gap closure): A credential written by `prism credential set` is resolved at Tier-3 by `resolve_credential`; demo queries succeed against all 4 sensors.
 Given: `prism credential set` has been called for all sensor/credential combos (OrgId-keyed write).
 No env vars (`PRISM_CLIENTS_*`) are set for these credentials. Tier-4 CRUD store is empty.
+**`demo-run.sh` has been executed** and has: (a) launched the DTU server and parsed the ephemeral
+ports from `urls.json`, (b) written per-org `base_url` overlay TOMLs
+(`specs/customers/demo-org/<sensor>.sensor.toml` with `extends = "<sensor>"` and
+`base_url = "http://127.0.0.1:<PORT>"`) for all 4 sensors, and (c) extended the per-org egress
+allowlist to include `127.0.0.1` so that prism-bin's outbound policy permits the DTU loopback
+addresses. Without this overlay-generation step, `prism-bin` has no `base_url` for the DTU endpoints
+and queries will fail with a connection error rather than an auth error.
 When: `resolve_credential(org_slug, sensor_id, cred_name, Some(&org_id), Some(&keyring))` is called
 for each credential (as wired via `PrismCredentialResolver` in `prism-spec-engine`).
 Then: `resolve_credential` returns `Ok(SecretString)` sourced from the Tier-3 keyring branch for
@@ -346,6 +356,8 @@ Then: Zero errors, zero warnings.
 | Tier-3 error: keyring backend error → hard `BackendUnavailable { detail: "E-CRED-005: OS keyring unavailable: {reason}" }` — do NOT fall through | ADR-034 §D4 / BC-2.06.003 / SOUL.md §4 | `reason` from keyring-rs is a system error string; must never contain a credential value |
 | `rpassword` or equivalent for no-echo stdin read | BC-2.03.007 Secret Redaction | `read -s` in bash is acceptable for shell scripts; Rust CLI must use `rpassword` crate |
 | All demo env vars use `PRISM_CLIENTS_{ID}_SENSORS_{SENSOR}_{REF}` format | BC-2.06.003 §Env-Var Name Derivation | Grep gate: (1) zero matches for `DEMO_ORG_[A-Z_]+_SENSORS` (retired credential form; does NOT match bare `DEMO_ORG_SLUG`/`DEMO_ORG_ID` local vars); (2) zero matches for `^(export )?[A-Z]+_BEARER_TOKEN=` (non-prefixed global credential exports) — in scripts/ and docs/ |
+| `demo-setup.sh` MUST NOT write per-org `base_url` overlay TOMLs | DTU ports are ephemeral (only known post-launch) | Overlay generation belongs exclusively in `demo-run.sh`, after `urls.json` is parsed; `demo-setup.sh` writing a `base_url` overlay with a hardcoded port is a Forbidden Dependencies violation (see §Forbidden Dependencies: "Hardcoded port numbers in setup scripts") |
+| `demo-run.sh` MUST write per-org `base_url` overlay TOMLs before launching `prism-bin` | AC-009 data-path dependency | For each sensor, write `specs/customers/demo-org/<sensor>.sensor.toml` with `extends = "<sensor>"` and `base_url = "http://127.0.0.1:<PORT>"` (port from `urls.json`); also extend the per-org egress allowlist to include `127.0.0.1` |
 | Shell scripts use `#!/usr/bin/env bash` shebang | Portability | Required by shellcheck |
 | crowdstrike-oauth2.prx path must be validated | Risk mitigation | Script checks file exists before copying; exits 1 with actionable message if not found |
 | `--org-slug` required when `config.orgs.len() > 1`; error clearly on missing/invalid prism.toml | ADR-034 §D3 HIGH-3 | `resolve_org_slug` MUST NOT return `"demo-org"` as a silent default; SOUL.md §4 |
@@ -381,8 +393,8 @@ already in workspace `Cargo.toml`. If it is not present, add it as a prism-bin d
 | `crates/prism-bin/src/spec_driven_adapter.rs` | MODIFY | prism-bin | Auth provider construction sites (step 9A) gain `Arc::clone(&ctx.org_registry)` + `Arc::clone(&ctx.credential_store_org_id)` parameters for `PrismCredentialResolver::new` |
 | `crates/prism-bin/src/credential_cli.rs` | CREATE | prism-bin | `CredentialArgs` struct + `handle_credential_set()`: OrgId-keyed write via `CredentialStoreOrgId::set_by_org`; prism.toml load for slug→OrgId; HIGH-3 error on missing toml |
 | `crates/prism-bin/tests/bc_2_03_007_credential_set_org_id_keyed.rs` | CREATE | prism-bin | RG-034-004: OrgId-keyed write + CRIT-2 regression (entry NOT under slug-keyed namespace) |
-| `scripts/demo-setup.sh` | CREATE | — | Idempotent one-time setup: build → mkdir → copy specs → copy plugin → write prism.toml → set credentials via `prism credential set` (OrgId-keyed) → print instructions |
-| `scripts/demo-run.sh` | CREATE | — | Daily launch: start DTU in background → poll urls.json → print ports → print prism-bin start command |
+| `scripts/demo-setup.sh` | CREATE | — | Idempotent one-time pre-launch setup: build → mkdir → copy specs → copy plugin → write `prism.toml` → set credentials via `prism credential set` (OrgId-keyed) → print instructions. Does NOT write per-org `base_url` overlay TOMLs (DTU ports are not yet known; overlays are written by `demo-run.sh` post-launch). |
+| `scripts/demo-run.sh` | CREATE | — | Daily launch: start DTU in background → poll `urls.json` → parse ephemeral ports → **write per-org `base_url` overlay TOMLs** (`specs/customers/demo-org/<sensor>.sensor.toml` with `extends` + `base_url=http://127.0.0.1:<PORT>`) for all 4 sensors → extend egress allowlist to include `127.0.0.1` → print ports → print prism-bin start command. Overlay generation happens HERE (not in `demo-setup.sh`) because DTU ports are ephemeral and only known post-launch. |
 | `scripts/demo-teardown.sh` | CREATE | — | Cleanup: kill DTU → remove config dir → delete OrgId-keyed keyring entries |
 | `scripts/demo.toml` | CREATE | — | DTU demo server config (all 4 sensors, ephemeral ports) |
 | `docs/DEMO-RUNBOOK.md` | CREATE | — | Comprehensive operator runbook (7 sections per scope); `PRISM_CLIENTS_*` format only; references E-CRED-005 in Troubleshooting |
@@ -493,9 +505,22 @@ and produce the OrgId-keyed variant in `bc_2_03_007_credential_set_org_id_keyed.
 
 - **S-DEMO-001** (depends_on): The `boot.step9a.adapter_registry_populated` event with `sensor_count=4` is the boot-success signal that AC-002 validates. Read S-DEMO-001 for the event field names.
 - **S-DEMO-002** (depends_on): The E2E smoke test's `bootstrap_credentials()` helper uses the per-client env-var format (`PRISM_CLIENTS_*`). If S-DEMO-002 tests set env vars, they use Tier-2. This story adds Tier-3 as the demo bootstrap; the two tiers coexist.
-- **S-CONFIG-MULTI-TENANT-OVERRIDE-001** (already merged): The per-org overlay format (`customers/demo-org/crowdstrike.sensor.toml` with `extends = "crowdstrike"` and `base_url = "http://127.0.0.1:<PORT>"`) is documented in that story. `demo-setup.sh` generates these overlay files after reading the DTU server ports from `urls.json`.
+- **S-CONFIG-MULTI-TENANT-OVERRIDE-001** (already merged): The per-org overlay format (`customers/demo-org/crowdstrike.sensor.toml` with `extends = "crowdstrike"` and `base_url = "http://127.0.0.1:<PORT>"`) is documented in that story. **`demo-run.sh` generates these per-org `base_url` overlay TOMLs** (`specs/customers/demo-org/<sensor>.sensor.toml`) AFTER launching the DTU server and reading the ephemeral ports from `urls.json`; overlay generation cannot happen earlier because DTU ports are not known until post-launch. `demo-setup.sh` handles pre-launch config (directory structure, prism.toml, credential bootstrap via `prism credential set`) and does NOT write `base_url` overlays.
 - **S-PLUGIN-CI-001** (merged): Committed `crowdstrike-oauth2.prx`. The demo-setup.sh script copies this file to the plugin dir. Implementer must find the committed path by reading that story's demo evidence or the git tree.
 - **ADR-034 (new)**: The authoritative source for all implementation decisions in this story. Read it in full before writing any code. The architecture compliance rule at `crates/prism-credentials/src/trait_.rs:84–85` (prism-credentials must NOT import OrgRegistry) is the design constraint that makes `PrismCredentialResolver` the right DI boundary.
+
+### OBS [process-gap] — `scripts/start-demo.sh` launcher overlap (tracked follow-up; out of scope here)
+
+A pre-existing `scripts/start-demo.sh` convenience launcher (6 DTU clone processes, hardcoded ports)
+overlaps confusingly with this story's `demo-run.sh` (4 DTU clones, ephemeral ports). The two
+scripts serve different purposes and use different port models, but the naming is ambiguous. Additionally,
+`start-demo.sh` is NOT covered by this story's `scripts/demo-*.sh` shellcheck glob (AC-008 and
+AC-014), creating a lint gap.
+
+**Follow-up story:** `S-DEMO-LAUNCHER-CONSOLIDATION-001` (draft) — reconcile `start-demo.sh` and
+`demo-run.sh` into a single launcher entry point; add `start-demo.sh` to shellcheck glob or retire it.
+This story (S-DEMO-003) does NOT modify `start-demo.sh`; the consolidation is deferred explicitly
+pending human prioritization of S-DEMO-LAUNCHER-CONSOLIDATION-001.
 
 ---
 
@@ -566,6 +591,7 @@ to Option-A scope expansion (3 crates, 6 Red Gate tests). Still well within limi
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.4 | 2026-06-06 | story-writer | **F-HIGH-201 pass-2 spec reconciliation:** Overlay generation responsibility moved from `demo-setup.sh` to `demo-run.sh` — DTU ports are ephemeral (only known post-launch), so per-org `base_url` overlay TOMLs (`specs/customers/demo-org/<sensor>.sensor.toml`) must be written by `demo-run.sh` after `urls.json` is parsed. AC-001 clarified to explicitly exclude overlay-generation from `demo-setup.sh` scope. AC-009 "Given" block expanded with explicit precondition that `demo-run.sh` has written overlays and extended the egress allowlist before queries are issued. File Structure Requirements `demo-run.sh` row updated with overlay-generation detail; `demo-setup.sh` row clarified as pre-launch-only. Two new Architecture Compliance Rules added: `demo-setup.sh MUST NOT write overlays` and `demo-run.sh MUST write overlays before prism-bin launch`. Previous Story Intelligence `S-CONFIG-MULTI-TENANT-OVERRIDE-001` entry corrected to name `demo-run.sh` as the overlay author. OBS [process-gap] note added for `scripts/start-demo.sh` overlap with follow-up story reference `S-DEMO-LAUNCHER-CONSOLIDATION-001` (draft). |
 | 1.3 | 2026-06-06 | story-writer | **F-LOW-002 pass-1 fix:** Tightened AC-013 env-format verification grep to avoid false-positive on `DEMO_ORG_SLUG`/`DEMO_ORG_ID` bash local vars. Retired-credential grep changed from `DEMO_ORG_` (overbroad — matches local bash vars) to `DEMO_ORG_[A-Z_]+_SENSORS` (targets only the retired credential env-var infix `_SENSORS`). Non-prefixed global format grep changed from `^[A-Z]+_BEARER_TOKEN` to `^(export )?[A-Z]+_BEARER_TOKEN=` (anchored with optional `export` prefix and trailing `=` to avoid substring matches). Architecture Compliance Rules table grep-gate column updated to match. |
 | 1.2 | 2026-06-06 | story-writer | **Option-A scope expansion (ADR-034; human approved 2026-06-06):** Tier-3 OS-keyring credential resolution now fully in scope. AC-005 rewritten: write path is `CredentialStoreOrgId::set_by_org` (OrgId-keyed); `--org-slug` required for multi-org; HIGH-3 error on missing prism.toml enforced. New ACs added: AC-009 (CRIT-1 end-to-end), AC-010 (CRIT-2 namespace regression), AC-011 (Tier-3 error semantics / E-CRED-005), AC-012 (HIGH-3 toml error), AC-013 (HIGH-1 env format), AC-014 (HIGH-2 shellcheck CI). Points 5→8 (ADR-034 §D7 range 8-10; 8 chosen). Risk LOW→MEDIUM. `crates_touched` expanded: add `prism-credentials`, `prism-spec-engine`. `subsystems` expanded: add SS-08 (Spec-Driven Adapter). `acceptance_criteria_count` 8→14. `red_gate_tests` 2→6. Version bumped 1.1→1.2. Error code E-CRED-005 used throughout (E-CRED-003 already allocated per ADR-034 §D4 annotation). |
 | 1.1 | 2026-06-03 | state-manager | D-990 Phase-A-close: status draft→ready; depends_on S-DEMO-001 (merged PR #166) + S-DEMO-002 (merged PR #171) BOTH SATISFIED; BC-2.03.005 v1.6 active + BC-2.03.007 v1.3 active; S-7.01 gate CLEARED. |
