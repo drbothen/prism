@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "5.89"
+version: "5.90"
 status: draft
 producer: product-owner
 timestamp: 2026-06-05T12:00:00Z
@@ -57,7 +57,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.02.009 | OCSF Version Pinning Per Release | 02 - OCSF Normalization | CAP-003 | P0 | draft |
 | BC-2.02.010 | OCSF Enum Value Map for Runtime Display Names | 02 - OCSF Normalization | CAP-003 | P0 | draft |
 | BC-2.02.011 | Graceful Normalization Error Handling (No Silent Data Loss) | 02 - OCSF Normalization | CAP-003 | P0 | draft |
-| BC-2.02.012 | OCSF Event Class Selection Per Sensor Record Type | 02 - OCSF Normalization | CAP-003 | P0 | active (promoted draft→active D-989 per POL-14; anchor story OCSF-CLASS-MIGRATION-001 reaches ready; PO authored v1.4 D-989) — v1.5 |
+| BC-2.02.012 | OCSF Event Class Selection Per Sensor Record Type | 02 - OCSF Normalization | CAP-003 | P0 | active (promoted draft→active D-989 per POL-14; anchor story OCSF-CLASS-MIGRATION-001 reaches ready; PO authored v1.4 D-989) — v1.6 |
 | BC-2.03.001 | CredentialStore Trait with Tenant-Scoped Operations | 03 - Credential Management | CAP-004 | P0 | draft |
 | BC-2.03.002 | OS Keyring Backend via keyring-rs | 03 - Credential Management | CAP-004 | P0 | draft |
 | BC-2.03.003 | AES-256-GCM Encrypted File Backend Fallback | 03 - Credential Management | CAP-004 | P0 | draft |
@@ -376,6 +376,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v5.90 (2026-06-06, OCSF-CLASS-MIGRATION-001-pass-3-fix-MED-2):** product-owner | MED-2 OCSF-CLASS pass-3 closure: BC-2.02.012 v1.5→v1.6 — TV/EC notation corrected from Option-style (`Some(2004)`/`None`) to Result-style (`Ok(2004)`/`Err(PrismError::OcsfUnknownEventClass{...})`). Affected: TV-BC-2.02.012-007 and TV-BC-2.02.012-008 Expected column, EC-02-024 and EC-02-025 Expected Behavior column, §Error Cases WARN row, §Postconditions `select_by_class_name("detection_finding")` prose. Notation-only — no semantic change; function signature is `select_by_class_name(&str) -> Result<u32, PrismError>`. BC-INDEX in-line row 60 updated to v1.6. No BC count changes (active: 234, draft: 3 unchanged). BC-INDEX v5.89→v5.90.
 
 **v5.89 (2026-06-05, ADV-P173-P03-MED-001-changelog-integrity-fix):** product-owner | ADV-P173-P03-MED-001 closure (PR #173 PR-LEVEL adversary pass 3): BC-2.16.002 v1.68→v1.69 — POLICY 32 changelog-integrity hygiene. Three defects corrected in the v1.62–v1.65 cluster: (1) non-monotonic ordering (v1.65 row sat below a v1.64 row); (2) duplicate v1.64 label (two rows both labeled 1.64); (3) missing v1.63 (referenced in the DEFINITIVE CORRECTION row narrative but absent from changelog). Fix: the "re-cascade interpolation clarification" row renumbered v1.64→v1.63 (narrative confirms it was the intermediate amendment between v1.62 and the definitive correction); rows reordered to strict descending (v1.65, v1.64, v1.63). No body-text or catalog-content changes; all row content preserved (POLICY 1 append-only). BC-INDEX in-line row 216 updated to v1.69. No BC count changes (active: 234, draft: 3 unchanged). BC-INDEX v5.88→v5.89.
 

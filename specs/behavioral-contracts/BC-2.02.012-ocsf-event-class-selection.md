@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.5"
+version: "1.6"
 status: active
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -17,7 +17,7 @@ input-hash: "76729b7"
 traces_to: ["CAP-003"]
 extracted_from: ".factory/specs/prd.md"
 introduced: cycle-1
-modified: "2026-06-03"  # v1.5 F-002 status sync draft→active (Wave-5 Phase-B gate)
+modified: "2026-06-06"  # v1.6 MED-2 OCSF-CLASS pass-3: corrected select_by_class_name TV/EC notation Some(u32)/None → Result<u32,PrismError> Ok/Err; notation-only, no semantic change
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -85,7 +85,7 @@ sensor TOML specs bundled in `crates/prism-sensors/specs/` MUST declare
 The grep audit `rg 'ocsf_class.*security_finding' crates/prism-sensors/specs/` MUST return
 zero results after OCSF-CLASS-MIGRATION-001 merges.
 
-**`select_by_class_name("detection_finding")` postcondition:** Returns `2004` (no WARN
+**`select_by_class_name("detection_finding")` postcondition:** Returns `Ok(2004)` (no WARN
 emitted). This is the canonical path post-migration; all production TOML specs use this.
 
 ## Invariants
@@ -101,15 +101,15 @@ emitted). This is the canonical path post-migration; all production TOML specs u
 | Error | Condition | Behavior |
 |-------|-----------|----------|
 | Warning | `record_type` has no defined OCSF class mapping | Falls back to Base Event (class 0); all fields in `raw_extensions`; warning logged |
-| WARN (tracing) | `select_by_class_name("security_finding")` called | Emits `event_type = "ocsf.deprecated_class_alias"` WARN; returns 2004; does not fail |
+| WARN (tracing) | `select_by_class_name("security_finding")` called | Emits `event_type = "ocsf.deprecated_class_alias"` WARN; returns `Ok(2004)`; does not fail |
 
 ## Edge Cases
 | ID | Description | Expected Behavior |
 |----|-------------|-------------------|
 | EC-02-022 | New sensor data source added without OCSF mapping | Falls back to Base Event; the record is still queryable via `raw_extensions` |
 | EC-02-023 | Claroty `device_alert_relations` (join table) | Mapped to a relationship-type OCSF class if available, otherwise Base Event; both entity references preserved |
-| EC-02-024 | External user-supplied TOML still declares `ocsf_class = "security_finding"` | `select_by_class_name` returns 2004 with deprecation WARN; query executes successfully; no rejection; user should update TOML to `"detection_finding"` |
-| EC-02-025 | Conformance test with `ocsf_class = "security_finding"` (pre-migration test fixture) | `select_by_class_name("security_finding")` returns 2004 (Option A alias); test must assert class_uid == 2004, NOT 2001; stale assertions of 2001 are test defects to be corrected by OCSF-CLASS-MIGRATION-001 |
+| EC-02-024 | External user-supplied TOML still declares `ocsf_class = "security_finding"` | `select_by_class_name` returns `Ok(2004)` with deprecation WARN; query executes successfully; no rejection; user should update TOML to `"detection_finding"` |
+| EC-02-025 | Conformance test with `ocsf_class = "security_finding"` (pre-migration test fixture) | `select_by_class_name("security_finding")` returns `Ok(2004)` (Option A alias); test must assert class_uid == 2004, NOT 2001; stale assertions of 2001 are test defects to be corrected by OCSF-CLASS-MIGRATION-001 |
 
 ## Canonical Test Vectors
 
@@ -121,8 +121,8 @@ emitted). This is the canonical path post-migration; all production TOML specs u
 | TV-BC-2.02.012-004 | `armis_audit_log` record | OCSF event class 3001 (Audit Activity) |
 | TV-BC-2.02.012-005 | `claroty_event` (no OCSF mapping, launch-day) | Base Event class 0; all fields in `raw_extensions`; warning logged |
 | TV-BC-2.02.012-006 | Entirely new unrecognized record type | Base Event class 0; `raw_extensions` preserved; warning logged |
-| TV-BC-2.02.012-007 | `select_by_class_name("detection_finding")` called | Returns `Some(2004)`; no WARN emitted |
-| TV-BC-2.02.012-008 | `select_by_class_name("security_finding")` called (transitional alias) | Returns `Some(2004)` (NOT `Some(2001)`); `event_type = "ocsf.deprecated_class_alias"` WARN emitted |
+| TV-BC-2.02.012-007 | `select_by_class_name("detection_finding")` called | Returns `Ok(2004)`; no WARN emitted |
+| TV-BC-2.02.012-008 | `select_by_class_name("security_finding")` called (transitional alias) | Returns `Ok(2004)` (NOT `Err(...)` or `Ok(2001)`); `event_type = "ocsf.deprecated_class_alias"` WARN emitted |
 | TV-BC-2.02.012-009 | Post-OCSF-CLASS-MIGRATION-001: `rg 'ocsf_class.*security_finding' crates/prism-sensors/specs/` | Returns zero results — all four production sensor TOMLs use `"detection_finding"` |
 
 ## Verification Properties
@@ -143,6 +143,7 @@ emitted). This is the canonical path post-migration; all production TOML specs u
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.6 | OCSF-CLASS-MIGRATION-001-pass-3-fix-MED-2 | 2026-06-06 | product-owner | MED-2 OCSF-CLASS pass-3: corrected `select_by_class_name` TV/EC notation from Option-style (`Some(2004)` / `None`) to Result-style (`Ok(2004)` / `Err(PrismError::OcsfUnknownEventClass{...})`). Affected locations: TV-BC-2.02.012-007 (`Some(2004)` → `Ok(2004)`), TV-BC-2.02.012-008 (`Some(2004) (NOT Some(2001))` → `Ok(2004) (NOT Err(...) or Ok(2001))`), EC-02-024 (`returns 2004` → `returns Ok(2004)`), EC-02-025 (`returns 2004` → `returns Ok(2004)`), §Error Cases WARN row (`returns 2004` → `returns Ok(2004)`), §Postconditions `select_by_class_name("detection_finding")` prose (`Returns 2004` → `Returns Ok(2004)`). Notation-only — no semantic change. Function signature is `select_by_class_name(&str) -> Result<u32, PrismError>`. BC v1.5 → v1.6. |
 | 1.5 | Wave-5-Phase-B-gate-F-002 | 2026-06-03 | product-owner | F-002 field desync fix (D-989): synced `status: draft` → `status: active` to match `lifecycle_status: active`. Rationale: S-1.04 (status: merged) cites BC-2.02.012 in its `behavioral_contracts:` array — this is a valid POL-14 promotion trigger. The v1.4 forward-looking postconditions are explicitly conditioned on OCSF-CLASS-MIGRATION-001 merging; conditioned-future clauses do not invalidate the base-contract delivery that S-1.04 provides. Both `status:` and `lifecycle_status:` are now `active`. BC v1.4 → v1.5. |
 | 1.4 | Wave-5-Phase-A-PO-burst | 2026-06-03 | product-owner | OCSF-CLASS-MIGRATION-001 (Wave 5) gate: (1) Added `select_by_class_name()` path specification with full mapping table — `"detection_finding"` → 2004 (canonical), `"security_finding"` → 2004 (transitional alias, WARN emitted), and 4 other class names. Transitional alias uses Option A (keep alias, emit deprecation WARN, do not reject) per D-989 PO decision: Option A is production-grade because external TOML specs not under Prism control may use the old string value. (2) Added `select()` path invariant: INV-NO-2001-SELECT-PATH — select() record-type token path MUST NOT return class_uid 2001. (3) Added INV-PRODUCTION-TOML-NO-SECURITY-FINDING invariant (post-migration). (4) Updated §Description to reflect transitional alias semantics. (5) Added EC-02-024/025, TV-BC-2.02.012-007/008/009. (6) Added Capability Anchor Justification (S-7.01). (7) Added `ocsf.deprecated_class_alias` WARN emission spec in §Error Cases. Closes OQ-1 (Option A selected), OQ-2 (BC amended as required by story). BC v1.3 → v1.4. |
 | 1.3 | pass-73-fix | 2026-04-20 | state-manager | Deterministic changelog reorder: sorted all rows to descending version order (pass-73 bash script). |

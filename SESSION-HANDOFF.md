@@ -458,9 +458,9 @@ DURABLE PIN BLOCK (CURRENT STATE — D-580 — DURABLE PRE-/CLEAR RESUME SNAPSHO
 
 ---
 
-## RESUME SNAPSHOT 2026-06-06 — D-1025 / PHASE-B-LANE-3-IN-PROGRESS / LANE-4-SPEC-RESTART-COMPLETE
+## RESUME SNAPSHOT 2026-06-06 — D-1026 / PHASE-B-LANE-3-IN-PROGRESS / LANE-4-TDD-REWORK-FLAGGED
 
-> **START HERE — 2026-06-06 /clear resume (zero-context).** Read STATE.md frontmatter + this snapshot before dispatching any agent. All durable state committed to factory-artifacts (LOCAL-ONLY — push pending user auth). develop HEAD `9447671f` (origin/develop == local; PR #173 squash-merged 2026-06-06). STATE.md v7.676.
+> **START HERE — 2026-06-06 /clear resume (zero-context).** Read STATE.md frontmatter + this snapshot before dispatching any agent. All durable state committed to factory-artifacts (LOCAL-ONLY — push pending user auth). develop HEAD `9447671f` (origin/develop == local; PR #173 squash-merged 2026-06-06). STATE.md v7.677.
 
 ---
 
@@ -473,41 +473,39 @@ DURABLE PIN BLOCK (CURRENT STATE — D-580 — DURABLE PRE-/CLEAR RESUME SNAPSHO
 | Sub-phase | Phase B (parallel lanes) |
 | Phase B Lane 1 | COMPLETE — S-SPEC-HTTP-METHOD-VALIDATION-001 (PR #172 merged develop@752e407a 2026-06-05) |
 | Phase B Lane 2 | COMPLETE — S-DEMO-QUERY-PUSHDOWN-001 (PR #173 merged develop@9447671f 2026-06-06) |
-| Phase B Lane 3 | IN_PROGRESS — OCSF-CLASS-MIGRATION-001 v1.6 (LOCAL pass-2 CLOSED D-1024; code fix @92b44bd9; streak 0/3; LOCAL pass-3 NEXT) |
-| Phase B Lane 4 | SPEC_RESTART_COMPLETE (D-1025) — S-DEMO-003: ADR-034 ACCEPTED; story v1.2 (14 ACs, 8 pts, 6 RGTs); feature @fc40d7ad needs code rework; TDD restart NEXT |
+| Phase B Lane 3 | IN_PROGRESS — OCSF-CLASS-MIGRATION-001 v1.7 (LOCAL pass-3 CLOSED D-1026; code commits c0f58234+9d513d54+4da24b91+786015da+92b44bd9+be9f8b6d; BC-2.02.012 v1.6; streak 0/3; LOCAL pass-4 NEXT) |
+| Phase B Lane 4 | TDD_REWORK_FLAGGED (D-1025 spec-restart; D-1026 flag) — S-DEMO-003: ADR-034 ACCEPTED; story v1.2 (14 ACs, 8 pts, 6 RGTs); on-disk credential cache + UUID-v5 fallback to be reverted; orchestrator dispatching correction NEXT |
 | Phase C | PENDING — Claroty cluster (PAGINATION → TRAILING-SLASH → SPEC-PROSE-FIX → HARNESS-CLONE-PARITY); serialized; shares BC-2.16.013 + claroty.sensor.toml |
 
-### Durable State (all committed as of D-1025)
+### Durable State (all committed as of D-1026)
 
 | Item | Value |
 |------|-------|
 | develop HEAD | `9447671f` (local == origin/develop; PR #173 squash-merged 2026-06-06) |
 | Last merged story | S-DEMO-QUERY-PUSHDOWN-001 v2.8 — PR #173 squash-merged develop@9447671f 2026-06-06 (D-1022) |
 | factory-artifacts HEAD | current — run `git -C .factory log -1 --format='%h %s'` (LOCAL-ONLY; per CLAUDE.md policy) |
-| STATE.md version | v7.676 |
-| STORY-INDEX version | v2.294 (181 stories) |
-| BC-INDEX version | v5.89 (active: 234, draft: 3) |
+| STATE.md version | v7.677 |
+| STORY-INDEX version | v2.295 (181 stories) |
+| BC-INDEX version | v5.90 (active: 234, draft: 3) |
 | ARCH-INDEX version | v2.113 |
 | error-taxonomy version | v1.61 (E-CRED-005 added D-1025) |
+| BC-2.02.012 version | v1.6 (TV/EC notation fix; D-1026 MED-2 closure) |
 | BC-2.06.003 version | v1.4 (Tier-3 IMPLEMENTED; ADR-034 normative anchor) |
 | BC-2.16.002 version | v1.69 |
 | Open PRs | None (PR #173 MERGED; `gh pr list --state open` → expected empty) |
 
-### Last Completed Decision (D-1025)
+### Last Completed Decision (D-1026)
 
-**D-1025 — S-DEMO-003 Option-A spec-restart COMPLETE (ADR-034 ACCEPTED; BC-2.06.003 v1.4; E-CRED-005; story v1.2) 2026-06-06.**
+**D-1026 — OCSF-CLASS-MIGRATION-001 LOCAL pass-3 ALL CLOSED (2 MED + 2 OBS; BC-2.02.012 v1.6; story v1.7; code be9f8b6d; OBS-1 reconciled; streak 0/3) 2026-06-06.**
 
-S-DEMO-003 LOCAL adversary pass-1 (feature/S-DEMO-003 @fc40d7ad) findings:
-- CRIT-1: `resolve_credential` has no Tier-3 keyring branch — write channel permanently disconnected from read channel.
-- CRIT-2: Legacy slug-keyed write namespace vs OrgId-UUID-keyed read namespace — disjoint keyspaces.
-- HIGH-1: Runbook used retired `DEMO_ORG_*` env format (superseded by ADR-032 per-client convention).
-- HIGH-2: shellcheck gate Justfile-only — shell script regressions invisible to CI.
-- HIGH-3: `resolve_org_slug` swallows prism.toml errors → silent demo-org default.
+Pass-3 findings (all CLOSED):
+- MED-1: crates_touched omitted prism-sensors → story v1.7 + STORY-INDEX crates column updated.
+- MED-2: §Scope task-2 code block Option/Some/None notation → Result/Ok/Err per real implementation → BC-2.02.012 v1.6 + story v1.7.
+- OBS-1: STORY-INDEX showed in_progress v1.6 but story frontmatter had status:ready → frontmatter updated ready→in_progress (D-1002 cascade convention).
+- OBS-2: task-5 "add BC-2.16.002 row" → "verify row exists" (row 134 already present, Wave-5 Phase-A).
 
-Human chose Option A. Spec restart complete: ADR-034 ACCEPTED, BC-2.06.003 v1.4, E-CRED-005, story v1.1→v1.2.
-Feature @fc40d7ad needs full code rework — TDD restart NEXT.
-
-CLEAN(strict)=no; CLEAN(PR-merge)=no; streak 0/3. Lane 3 LOCAL pass-3 in parallel.
+CLEAN(strict)=no; CLEAN(PR-merge)=no; streak 0/3 unchanged. LOCAL pass-4 NEXT.
+Lane 4 S-DEMO-003 TDD rework flagged (on-disk credential cache + UUID-v5 fallback pending correction).
 
 ### Standing Authorization (D-989 — ACTIVE)
 
@@ -523,12 +521,12 @@ CLEAN(strict)=no; CLEAN(PR-merge)=no; streak 0/3. Lane 3 LOCAL pass-3 in paralle
 ### Resume Protocol (numbered — BLOCKING ORDER)
 
 1. Run `vsdd-factory:factory-worktree-health` (BLOCKING preflight — do NOT read .factory/ or dispatch any agent until PASS).
-2. Confirm STATE.md frontmatter: `version: "7.676"` + `develop_head: "9447671f"` + `safe_to_compact: true` + `wave5_autonomy_granted` present.
+2. Confirm STATE.md frontmatter: `version: "7.677"` + `develop_head: "9447671f"` + `safe_to_compact: true` + `wave5_autonomy_granted` present.
 3. Fast-forward local develop to origin/develop if needed: `git fetch origin && git merge --ff-only origin/develop` (HEAD should already be 9447671f).
 4. Run `gh pr list --state open` — expect empty (PR #173 MERGED; no open PRs).
 5. **NEXT ACTIONS:** Continue Phase B lanes under D-989 autonomy grant:
-   - **Lane 3 — OCSF-CLASS-MIGRATION-001** (status: in_progress v1.6; LOCAL pass-2 CLOSED D-1024; code commits c0f58234+9d513d54+4da24b91+786015da+92b44bd9; LOCAL pass-3 NEXT)
-   - **Lane 4 — S-DEMO-003** (status: SPEC_RESTART_COMPLETE D-1025; ADR-034 ACCEPTED; story v1.2; feature @fc40d7ad needs code rework; NEXT: test-writer RG-034-001..006 → implementer Tier-3 impl [write path OrgId-keyed, Tier-3 branch, Arc wiring, HIGH-1/2/3 fixes] → LOCAL adversary re-cascade)
+   - **Lane 3 — OCSF-CLASS-MIGRATION-001** (status: in_progress v1.7; LOCAL pass-3 CLOSED D-1026; code commits c0f58234+9d513d54+4da24b91+786015da+92b44bd9+be9f8b6d; BC-2.02.012 v1.6; LOCAL pass-4 NEXT)
+   - **Lane 4 — S-DEMO-003** (status: TDD_REWORK_FLAGGED; ADR-034 ACCEPTED; story v1.2; feature @fc40d7ad; on-disk credential cache + UUID-v5 fallback to be reverted; NEXT: orchestrator dispatches implementer correction burst → test-writer RG-034-001..006 → LOCAL adversary re-cascade)
    - After Phase B complete: proceed to Phase C (Claroty cluster, serialized).
 
 ### Open Human-Note Items (carry forward — NOT auto-acted)
