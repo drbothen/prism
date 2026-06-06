@@ -219,7 +219,7 @@ pub async fn list_detection_ids(
     let ordered_ids = shuffle_ids_by_seed(&filtered_ids, seed);
 
     let offset = params.offset.unwrap_or(0);
-    let limit = params.limit.unwrap_or(100).min(ordered_ids.len().max(1));
+    let limit = params.limit.unwrap_or(100).min(ordered_ids.len());
     let total = ordered_ids.len();
 
     let page: Vec<String> = ordered_ids.into_iter().skip(offset).take(limit).collect();

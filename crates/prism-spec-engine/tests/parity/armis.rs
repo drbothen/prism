@@ -665,16 +665,17 @@ fn test_PLUGIN_MIGRATION_001_F_parity_armis_toml_fixture_loading() {
 /// - d-002: last_seen="2024-06-10T08:30:00Z" → excluded (before 12:00)
 /// - d-003: last_seen="2024-06-11T14:22:00Z" → included
 /// - d-004: last_seen="2024-06-10T07:00:00Z" → excluded
-/// - d-005: last_seen="2024-06-11T06:45:00Z" → included (after midnight, before 12:00 — EXCLUDED)
-/// Actually let's use 2024-06-11T00:00:00Z as threshold — cleaner split.
-/// Devices with last_seen >= 2024-06-11T00:00:00Z:
-///   d-003, d-005, d-006, d-008, d-010, d-011, d-012, d-013, d-015, d-016, d-017, d-020, d-021, d-022, d-023, d-024, d-025 (17 devices)
-///   (d-001 last_seen=null + first_seen < 2024-06-11 → excluded)
-/// Devices with last_seen < 2024-06-11T00:00:00Z: d-002, d-004, d-007, d-009, d-014, d-018, d-019, d-020(00:00:00 = excluded on <)
-/// Actually d-020 last_seen="2024-06-11T00:00:00Z" is AT threshold → depends on inclusive.
-/// The point: there must be AT LEAST ONE device excluded. Using "after:2024-06-11T12:00:00Z"
-/// we guarantee d-001(null+fallback below), d-002(08:30), d-004(07:00), d-005(06:45),
-/// d-007(12:00:00 on 2024-06-09), etc. are excluded. The filtered result must be < 25.
+/// - d-005: last_seen="2024-06-11T06:45:00Z" → included (before 12:00 → EXCLUDED with 12:00 threshold)
+///
+/// Threshold chosen: `after:2024-06-11T12:00:00Z` — cleanly excludes multiple devices including
+/// d-001 (last_seen=null, falls back to first_seen which is before threshold), d-002, d-004,
+/// d-005, and d-007, while including d-003, d-006, d-008 and others with later timestamps.
+/// d-020 (last_seen="2024-06-11T00:00:00Z") is also excluded since it is before 12:00:00.
+/// The key invariant: filtered_count < 25 (the total fixture size). With threshold
+/// `after:2024-06-11T12:00:00Z`, the following devices are excluded: d-001 (null last_seen,
+/// first_seen before threshold), d-002 (08:30), d-004 (07:00), d-005 (06:45), d-007
+/// (2024-06-09 12:00:00), d-009, d-014, d-018, d-019, and d-020 (00:00:00) — guaranteeing
+/// filtered_count < 25.
 #[tokio::test]
 async fn test_ac_armis_tw_002_dtu_filters_fixture_by_time_window() {
     // Step 1: Start the Armis DTU clone.
