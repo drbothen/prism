@@ -458,6 +458,128 @@ DURABLE PIN BLOCK (CURRENT STATE — D-580 — DURABLE PRE-/CLEAR RESUME SNAPSHO
 
 ---
 
+## §RESUME SNAPSHOT 2026-06-07-D1047-S-MAINT-ECRED-MERGED-S-DEMO-003-REBASELINE-PAUSED
+
+> **START HERE — 2026-06-07 durable zero-context resume (D-1047 supersedes D-1039 and D-1046).** S-MAINT-ECRED-TAXONOMY-SYNC-001 MERGED PR #175 squash-merged develop@c603741d 2026-06-07. Canonical E-CRED-001..010 namespace live (ADR-035). DRIFT-ECRED-TAXONOMY-001 RESOLVED. S-DEMO-003 PAUSED — awaiting user go-ahead for re-baseline. Read STATE.md frontmatter + this snapshot FIRST. develop HEAD `c603741d`. STATE.md v7.698. STORY-INDEX v2.315.
+
+---
+
+### §1 PIPELINE STATUS (verified 2026-06-07)
+
+| Field | Value |
+|-------|-------|
+| develop HEAD | `c603741d` (S-MAINT-ECRED-TAXONOMY-SYNC-001 PR #175 squash-merged 2026-06-07) |
+| factory-artifacts HEAD | run `git -C .factory log -1 --format='%h %s'` — this snapshot's own commit (TD-VSDD-053: never cite literal SHA in artifacts) |
+| STATE.md version | v7.698 (this burst; was v7.697) |
+| STORY-INDEX version | v2.315 (185 stories) |
+| BC-INDEX version | v5.94 |
+| ARCH-INDEX version | v2.115 |
+| error-taxonomy version | v1.62 (canonical E-CRED-001..010; ADR-035) |
+| VP-INDEX version | v1.76 |
+| Mode / Phase | brownfield / Phase 3 (Wave 5) |
+| Open PRs | NONE |
+
+### §2 WHAT JUST COMPLETED — S-MAINT-ECRED-TAXONOMY-SYNC-001
+
+S-MAINT-ECRED-TAXONOMY-SYNC-001 delivered the canonical E-CRED-001..010 error-code namespace (ADR-035 v1.2), resolving a 3-way namespace divergence across prism-core `CredentialStoreError` variants, `error-taxonomy.md`, and `BC-2.06.003`. The code-internal E-CRED-005 collision (same code used for two distinct errors) was eliminated. Merged as PR #175 → develop@c603741d 2026-06-07.
+
+**Convergence:**
+- LOCAL 3-CLEAN: 24 passes; version-pin cascade terminated via TD-VSDD-091 de-pin
+- PR-LEVEL 3-CLEAN: CONVERGED
+- Security review: CLEAN
+- pr-reviewer: APPROVE
+- CI: GREEN (all checks)
+
+**POL-14 BC promotions at merge:**
+- BC-2.03.009 v1.4 promoted to `active` (E-CRED-009 CredentialNotFound; code merged)
+- BC-2.06.003 v1.7 KEPT DRAFT — E-CRED-008 emitter lives only on unmerged S-DEMO-003 branch; POL-14 requires merged code to promote; will promote at S-DEMO-003 merge
+
+**DRIFT-ECRED-TAXONOMY-001:** RESOLVED (code merged; drift between enum variants and taxonomy document eliminated).
+
+### §3 EXACT NEXT STEPS — S-DEMO-003 RE-BASELINE (PAUSED awaiting user go-ahead)
+
+1. **Factory-worktree-health preflight** (BLOCKING): run `vsdd-factory:factory-worktree-health` before any file writes.
+2. **Fetch + verify develop HEAD:** `git ls-remote origin develop` must show `c603741d`. If stale, `git -C /Users/jmagady/Dev/prism fetch origin develop`.
+3. **Rebase feature/S-DEMO-003 onto develop@c603741d:**
+   ```
+   git -C .worktrees/S-DEMO-003 fetch origin develop
+   git -C .worktrees/S-DEMO-003 rebase origin/develop
+   ```
+   No conflicts expected (S-MAINT and S-DEMO-003 touch disjoint files).
+4. **E-CRED-005 → E-CRED-008 re-alignment in the S-DEMO-003 worktree** (these were intentionally OUT OF SCOPE for S-MAINT; they live only on feature/S-DEMO-003):
+   - `crates/prism-credentials/src/resolution.rs` — `CredentialResolutionError::BackendUnavailable` Tier-3 keyring detail strings: change `"E-CRED-005: OS keyring unavailable…"` and `"E-CRED-005: invalid credential name for Tier-3 lookup…"` → cite `E-CRED-008` per ADR-035 §D2/§D5 canonical mapping.
+   - `crates/prism-credentials/src/in_memory_store.rs` — any doc-comment citing E-CRED-005 for the keyring-unavailable path → E-CRED-008.
+   - `crates/prism-credentials/tests/bc_2_06_003_tier3_keyring_resolution.rs` — rename `test_BC_2_06_003_tier3_backend_error_returns_e_cred_005` → `…_e_cred_008`; update E-CRED-005 string assertions to E-CRED-008; update any sibling references in Cargo test-mapping or story trace.
+   - `.factory/stories/S-DEMO-003-*.md` — update: AC-011 Case B detail string (E-CRED-005 → E-CRED-008); EC-001b (read-path keyring code → E-CRED-008); DEMO-RUNBOOK §6b header (E-CRED-005 → E-CRED-008); Architecture-Compliance-Rules Tier-3 error row; Red Gate test name. Verify against canonical taxonomy E-CRED-008 row in error-taxonomy.md v1.62.
+5. **Run `just check`** — expect GREEN. If not, fix before continuing.
+6. **Resume S-DEMO-003 LOCAL adversarial cascade as a FRESH 3-CLEAN** (BC-5.39.001 D-779 strict — the E-CRED re-align constitutes a substantive code change; the prior streak 0/3 is discarded; start fresh at pass 1 of the new 3-CLEAN sequence).
+   - Note: the F-P18-LOW-001 fix commit `5fcd2e7a` (demo-setup.sh header) is already on the branch and valid post-rebase.
+7. **After LOCAL 3-CLEAN:** demo-recorder per-AC → push → pr-manager 9-step PR cycle → PR-LEVEL 3-CLEAN → merge → POL-14 BC-2.06.003 draft→active.
+
+### §4 S-DEMO-003 PAUSED STATE
+
+| Field | Value |
+|-------|-------|
+| Worktree path | `.worktrees/S-DEMO-003` |
+| Branch | `feature/S-DEMO-003` |
+| Branch HEAD | `5fcd2e7a` (F-P18-LOW-001 demo-setup.sh header fix; last commit before pause) |
+| Worktree HEAD (per D-1046) | `4920bfc7` (consistency-audit closed F-001/F-006; `5fcd2e7a` is the E-CRED detour boundary) |
+| Based on | OLD develop `0e89789a` — **REBASE REQUIRED onto develop@c603741d** |
+| Story version | v1.14 (paused) |
+| Story status | ready (implementation done; cascade paused pre-re-baseline) |
+| Red gate tests | 8 |
+| LOCAL cascade streak before pause | 0/3 |
+| LOCAL pass count | 17 passes + consistency audit CLOSED |
+| Pre-pause next action | LOCAL passes 18/19/20 (fresh 3-CLEAN) — **SUPERSEDED** by re-baseline-first requirement |
+| Remaining drift (known) | ZERO pre-ECRED drift; only the E-CRED-005→E-CRED-008 re-align needed |
+
+**LOCAL pass trajectory (for context):** pass1(4)→pass2(1H)→pass3(1H+1M)→pass4(CLEAN 1/3)→pass5(1M+1L+1OBS)→pass6(2M+3OBS)→pass7(1M+1L)→pass8(2M)→pass9(1L)→pass10(1CRIT+1HIGH)→pass11(CLEAN 1/3)→pass12+13(2MED+1LOW story-text)→pass14(1HIGH runbook ordering)→pass15(1MED MCP-invocation)→pass16(2MED cross-path)→pass17(1MED error-code grouping)→consistency-audit(5 actionable CLOSED)
+
+### §5 STANDING AUTHORIZATION
+
+**D-989 (2026-06-04) — ACTIVE:** Full autonomous execution Wave 5 Phase A → Phase B → Phase C end-to-end. Auto-merge on objective gates. Pause-and-surface ONLY for:
+1. Source-of-Truth §7 spec-to-match-code amendments
+2. Genuine product/business/risk decision not mechanically derivable from specs/ADRs
+3. Level-3 escalation: missing prerequisite, genuinely-red CI, or convergence not reached
+4. CLAUDE.md edits (incl. DEFER-CLAUDEMD-BC216002-MISLABEL-001)
+
+**NOTE:** For the S-MAINT work, the user explicitly chose "PR + merge, then pause" before the S-DEMO-003 re-baseline. The re-baseline therefore requires a **fresh user go-ahead** even under D-989.
+
+**Standing rules NEVER waived:** no `--no-verify`; no force-push; no factory-artifacts remote push (LOCAL-ONLY); single-commit-per-burst (TD-VSDD-053); fix-in-scope; BC-5.39.001 3-CLEAN strict.
+
+### §6 RESUME CHECKLIST (run these bash commands; confirm expected values)
+
+```bash
+# 1. Factory worktree health (blocking preflight)
+vsdd-factory:factory-worktree-health
+
+# 2. Verify develop HEAD
+git ls-remote origin develop
+# Expected: c603741d...
+
+# 3. Verify STATE.md version
+grep '^version:' /Users/jmagady/Dev/prism/.factory/STATE.md
+# Expected: version: "7.698"
+
+# 4. Verify factory-artifacts HEAD (this burst)
+git -C /Users/jmagady/Dev/prism/.factory log -1 --format='%h %s'
+# Expected: this burst's commit SHA + "factory(wave-5-e-demo-fidelity): D-1047 — ..."
+
+# 5. Verify S-DEMO-003 worktree HEAD
+git -C /Users/jmagady/Dev/prism/.worktrees/S-DEMO-003 rev-parse HEAD
+# Expected: 5fcd2e7a (pre-rebase; after rebase will be a rebased equivalent)
+
+# 6. Verify no open PRs
+gh pr list --state open
+# Expected: (empty — no open PRs)
+```
+
+### §7 STATUS: PAUSED
+
+Awaiting user go-ahead to begin the S-DEMO-003 re-baseline (§3 above).
+
+---
+
 ## RESUME SNAPSHOT 2026-06-07 — D-1046 / S-MAINT-ECRED-TAXONOMY-SYNC-001-MERGED-PR175 / S-DEMO-003-PAUSED-AWAITING-REBASE-USER-GO-AHEAD
 
 > **START HERE — 2026-06-07 zero-context resume.** S-MAINT-ECRED-TAXONOMY-SYNC-001 MERGED PR #175 squash-merged develop@c603741d. Canonical E-CRED-001..010 namespace live. DRIFT-ECRED-TAXONOMY-001 RESOLVED. S-DEMO-003 PAUSED awaiting user go-ahead for re-baseline. Read STATE.md frontmatter + this snapshot FIRST. develop HEAD `c603741d`. STATE.md v7.697. STORY-INDEX v2.315.

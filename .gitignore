@@ -9,3 +9,7 @@ logs/dispatcher-*.jsonl
 
 # Cargo/test runtime artifacts — not factory artifacts
 regression-state.json
+
+# Per-PR ephemeral delivery scratch (pr-description.md, pr-review.md) — never committed
+# OCSF-CLASS-MIGRATION-001 (PR #174) and earlier were never committed; ephemeral pattern confirmed D-1047
+code-delivery/
