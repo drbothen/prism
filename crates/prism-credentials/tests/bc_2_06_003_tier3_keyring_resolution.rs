@@ -26,7 +26,7 @@
 //! |------|-------|----|----|
 //! | test_BC_2_06_003_tier3_credential_written_by_set_by_org_is_resolved | RG-034-001 | AC-009 | BC-2.06.003 Tier-3 postcondition |
 //! | test_BC_2_06_003_tier3_miss_falls_through_to_tier4 | RG-034-002 | AC-011 Case A | BC-2.06.003 Tier-3 miss postcondition |
-//! | test_BC_2_06_003_tier3_backend_error_returns_e_cred_005 | RG-034-005 | AC-011 Case B | BC-2.06.003 Tier-3 backend-error postcondition |
+//! | test_BC_2_06_003_tier3_backend_error_returns_e_cred_008 | RG-034-005 | AC-011 Case B | BC-2.06.003 Tier-3 backend-error postcondition |
 //!
 //! Story: S-DEMO-003 | ADR: ADR-034
 

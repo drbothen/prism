@@ -230,14 +230,14 @@ export PRISM_CLIENTS_DEMO_ORG_SENSORS_CYBERINT_API_KEY="demo-cyberint-api-key"
 NOTE: The old format `DEMO_ORG_*` is RETIRED (ADR-032 / BC-2.06.003 v1.3). Use only
 the `PRISM_CLIENTS_*` format above.
 
-### (b) Keyring read failure at query time — E-CRED-005
+### (b) Keyring read failure at query time — E-CRED-008
 
 **Symptom:** A query against a demo sensor fails at authentication time with:
-`BackendUnavailable { detail: "E-CRED-005: OS keyring unavailable: ..." }`.
+`BackendUnavailable { detail: "E-CRED-008: OS keyring unavailable: ..." }`.
 This is the **read path** error — the credential was previously stored (or was
 expected to be) but the OS keyring is inaccessible during Tier-3 resolution.
 
-**Error code:** `E-CRED-005` (surfaced by `resolution.rs` Tier-3 keyring backend
+**Error code:** `E-CRED-008` (surfaced by `resolution.rs` Tier-3 keyring backend
 when the OS keyring is inaccessible — AC-006(b) of S-DEMO-003 (EC-001b)). There is
 no Tier-4 fallthrough: if the keyring is unavailable at read time, the error is
 hard-returned with no credential value leak.
