@@ -6,7 +6,7 @@ wave: 5
 epic_id: E-DEMO
 priority: P1
 status: ready
-version: "1.7"
+version: "1.8"
 level: "L4"
 producer: story-writer
 timestamp: "2026-05-29T00:00:00Z"
@@ -302,7 +302,7 @@ Then:
 Red Gate tests: `test_BC_2_06_003_tier3_miss_falls_through_to_tier4` (RG-034-002, Case A);
   `test_BC_2_06_003_tier3_backend_error_returns_e_cred_005` (RG-034-005, Case B)
 
-### AC-012 (HIGH-3 — `resolve_org_slug` error on missing/invalid prism.toml): When `--org-slug` is absent and prism.toml is missing or unparseable, `prism credential set` errors clearly — no silent `"demo-org"` fallback.
+### AC-012 (HIGH-3 — `resolve_org_slug_and_id` error on missing/invalid prism.toml): When `--org-slug` is absent and prism.toml is missing or unparseable, `prism credential set` errors clearly — no silent `"demo-org"` fallback.
 Given: The config directory contains no `prism.toml` (or an unparseable one), and `--org-slug` was not provided.
 When: `prism credential set --sensor armis --name bearer_token` is invoked.
 Then: The subcommand exits 1 with an actionable error message: "Could not load prism.toml from
@@ -386,7 +386,7 @@ Then: Zero errors, zero warnings.
 | `demo-run.sh` MUST export TYPE-spec env vars AND write per-org `base_url` overlay TOMLs before launching `prism-bin` | AC-009 two-part data-path precondition | **(a) Env vars (step-4a boot gate):** Export `CROWDSTRIKE_BASE_URL=http://127.0.0.1`, `ARMIS_INSTANCE_URL=http://127.0.0.1`, `CLAROTY_INSTANCE_URL=http://127.0.0.1`, `CYBERINT_ENVIRONMENT=demo` in the `prism start` command environment — without these, step-4a env_resolver.rs fires E-SPEC-024 and boot.rs step-4b hard-aborts before overlays are reached. **(b) Overlays (step-4c port override):** For each sensor, write `specs/customers/demo-org/<sensor>.sensor.toml` with `extends = "<sensor>"` and `base_url = "http://127.0.0.1:<PORT>"` (port from `urls.json`). **(c) SEC-003 (crowdstrike only):** The `allowed_urls` list in `crowdstrike-oauth2.manifest.toml` (written by `demo-setup.sh`) covers the CrowdStrike OAuth2 plugin token endpoint — this is a plugin host-function gate, not a per-org egress allowlist. Armis/Claroty/Cyberint use plain `reqwest::Client` with no host gating. |
 | Shell scripts use `#!/usr/bin/env bash` shebang | Portability | Required by shellcheck |
 | crowdstrike-oauth2.prx path must be validated | Risk mitigation | Script checks file exists before copying; exits 1 with actionable message if not found |
-| `--org-slug` required when `config.orgs.len() > 1`; error clearly on missing/invalid prism.toml | ADR-034 §D3 HIGH-3 | `resolve_org_slug` MUST NOT return `"demo-org"` as a silent default; SOUL.md §4 |
+| `--org-slug` required when `config.orgs.len() > 1`; error clearly on missing/invalid prism.toml | ADR-034 §D3 HIGH-3 | `resolve_org_slug_and_id` MUST NOT return `"demo-org"` as a silent default; SOUL.md §4 |
 | Runbook must not contain real credential values | AD-017 | Use placeholder strings `"<your-client-id>"` in examples; DTU demo uses `"demo-client"` only |
 
 ---
@@ -605,7 +605,7 @@ to Option-A scope expansion (3 crates, 6 Red Gate tests). Still well within limi
 | CLI `--value` argument for credential value | AD-017 — value must come from stdin, not args |
 | `CredentialStore::set` (slug-keyed) in `credential_cli.rs` | CRIT-2: slug-keyed write is permanently invisible to Tier-3 OrgId-keyed read |
 | `OrgRegistry` import in `prism-credentials` | Architecture compliance rule `trait_.rs:84–85` — callers pre-resolve slug→OrgId |
-| Silent `"demo-org"` default in `resolve_org_slug` | SOUL.md §4 swallow-error prohibition; ADR-034 §D3 HIGH-3 |
+| Silent `"demo-org"` default in `resolve_org_slug_and_id` | SOUL.md §4 swallow-error prohibition; ADR-034 §D3 HIGH-3 |
 | `DEMO_ORG_*` or global `{SENSOR}_{REF}` format in scripts/docs | BC-2.06.003 — canonical format is `PRISM_CLIENTS_{ID}_SENSORS_{SENSOR}_{REF}` |
 | Hardcoded port numbers in setup scripts | DTU binds to ephemeral ports; always read from urls.json |
 | `echo` or `printf` of credential value to any file descriptor | BC-2.03.007 Secret Redaction |
@@ -618,6 +618,7 @@ to Option-A scope expansion (3 crates, 6 Red Gate tests). Still well within limi
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.8 | 2026-06-06 | story-writer | **F-P7-MED-001 pass-7 fix:** Corrected stale production-function name `resolve_org_slug` → `resolve_org_slug_and_id` at AC-012 header, Architecture Compliance Rules row, and Forbidden Dependencies row. The bare `resolve_org_slug` helper was removed in F-LOW-003 (dead code); story body was not propagated until now. Behavior unchanged — hard-error on missing/invalid prism.toml, no demo-org fallback. No BC/code/script/STORY-INDEX changes. |
 | 1.7 | 2026-06-06 | story-writer | **F-P6-MED-001+002 pass-6 fix:** AC-002 `--config` → `--config-dir` (real CLI flag; global flag before subcommand per cli.rs `#[arg(long, global = true)]`); corrected invocation is `./target/release/prism --config-dir ~/.config/prism-demo/ start`. RG-034-004 cited test name → `test_handle_credential_set_writes_org_id_keyed_namespace` at all 3 story locations (Red Gate Tests table, AC-005, AC-010); name verified against `.worktrees/S-DEMO-003/crates/prism-bin/tests/bc_2_03_007_credential_set_org_id_keyed.rs:121`. No BC/code/script/STORY-INDEX changes. |
 | 1.6 | 2026-06-06 | story-writer | **F-P5-MED-001 pass-5 fix:** Added RG-034-005 (`test_BC_2_06_003_tier3_backend_error_returns_e_cred_005`) in `crates/prism-credentials/tests/bc_2_06_003_tier3_keyring_resolution.rs` — covers AC-011 Case B (keyring backend `Err` → `CredentialResolutionError::BackendUnavailable`/E-CRED-005; no Tier-4 fall-through; no credential-value leak in detail). Test uses `InMemoryCredentialStore` error-injection mode (test-helpers-gated seam). AC-011 Case B now explicitly cites RG-034-005. Red Gate Tests table gains RG-034-005 row. `red_gate_tests` frontmatter 6→7. Tasks 10 and 27 updated (6→7 count). Points justification comment updated (`RG-034-001..004` → `RG-034-001..005`). No BC/code/script/STORY-INDEX changes. |
 | 1.5 | 2026-06-06 | story-writer | **F-MED-302 pass-3 mechanism mis-characterisation fix:** Removed the non-existent "per-org egress allowlist to include 127.0.0.1" language from AC-009 Given precondition, the Architecture Compliance Rules `demo-run.sh` row, and the §FSR `demo-run.sh` row. Replaced with the accurate two-part data-path mechanism: **(a) TYPE-spec env vars (step-4a boot gate)** — `demo-run.sh` must export `CROWDSTRIKE_BASE_URL`, `ARMIS_INSTANCE_URL`, `CLAROTY_INSTANCE_URL`, `CYBERINT_ENVIRONMENT` before invoking `prism start`; without these env_resolver.rs fires E-SPEC-024 and boot.rs step-4b hard-aborts before step-4c overlays are reachable; **(b) step-4c per-org overlays** — `demo-run.sh` writes `specs/customers/demo-org/<sensor>.sensor.toml` with ephemeral DTU port after parsing `urls.json`; **(c) CrowdStrike OAuth2 plugin SEC-003 only** — `allowed_urls` in `crowdstrike-oauth2.manifest.toml` (written by `demo-setup.sh`) gates only the CrowdStrike plugin host-function; Armis/Claroty/Cyberint use plain `reqwest::Client` with NO per-org/host egress allowlist. §FSR `demo-setup.sh` row updated to clarify SEC-003 nature of the manifest `allowed_urls`. No BC/code/script/STORY-INDEX changes. |
