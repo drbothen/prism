@@ -176,9 +176,27 @@ pub struct CredentialArgs {
 /// 1 — keyring unavailable or write failure (with actionable stderr message)
 /// 2 — config-invalid (cannot load prism.toml or resolve org)
 pub async fn handle_credential_set(args: CredentialSetArgs, config_dir: std::path::PathBuf) -> i32 {
+    // Load PrismConfig to get state_dir — the credential index MUST live in state_dir
+    // to match the boot read-path (boot step 5: config.state_dir.join("credential_index.json")).
+    // Using config_dir here would create a divergent sidecar index that boot never reads.
+    let prism_config = match crate::boot::step2_load_config(&config_dir).await {
+        Ok(cfg) => cfg,
+        Err(e) => {
+            eprintln!("prism credential set: config error: {e}");
+            return EXIT_CONFIG_INVALID;
+        }
+    };
+    // Ensure state_dir exists before writing the index (mirrors boot step 6 mkdir).
+    if let Err(e) = std::fs::create_dir_all(&prism_config.state_dir) {
+        eprintln!(
+            "prism credential set: cannot create state_dir '{}': {e}",
+            prism_config.state_dir.display()
+        );
+        return EXIT_GENERIC_ERROR;
+    }
     // Construct the production KeyringBackend.
-    // Index path: <config_dir>/credential_index.json (mirrors boot step 5 convention).
-    let index_path = config_dir.join("credential_index.json");
+    // Index path: <state_dir>/credential_index.json — aligned with boot step 5.
+    let index_path = prism_config.state_dir.join("credential_index.json");
     let index = CredentialIndex::new(index_path);
     let store: Arc<dyn CredentialStoreOrgId> = Arc::new(KeyringBackend::new("prism", index));
 
@@ -368,7 +386,17 @@ pub async fn handle_credential_delete(
     args: CredentialDeleteArgs,
     config_dir: std::path::PathBuf,
 ) -> i32 {
-    let index_path = config_dir.join("credential_index.json");
+    // Load PrismConfig to get state_dir — the credential index MUST live in state_dir
+    // to match the boot read-path (boot step 5: config.state_dir.join("credential_index.json")).
+    let prism_config = match crate::boot::step2_load_config(&config_dir).await {
+        Ok(cfg) => cfg,
+        Err(e) => {
+            eprintln!("prism credential delete: config error: {e}");
+            return EXIT_CONFIG_INVALID;
+        }
+    };
+    // Index path: <state_dir>/credential_index.json — aligned with boot step 5.
+    let index_path = prism_config.state_dir.join("credential_index.json");
     let index = CredentialIndex::new(index_path);
     let store: Arc<dyn CredentialStoreOrgId> = Arc::new(KeyringBackend::new("prism", index));
     handle_credential_delete_with_store(args, config_dir, store).await

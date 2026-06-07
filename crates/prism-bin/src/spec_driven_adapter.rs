@@ -982,7 +982,7 @@ pub fn build_http_client_with_timeout() -> Result<reqwest::Client, String> {
 ///   If not found (auth_plugin declared but provider not constructed at step 7.5b), logs E-SPEC-012
 ///   and skips the sensor.
 /// - `BearerStatic`: → `AdapterAuthStrategy::BearerStatic` (no held provider).
-/// - `CookieRoundtrip`: constructs `StaticCookieAuthProvider::new(sensor_id)` →
+/// - `CookieRoundtrip`: constructs `StaticCookieAuthProvider::new(sensor_id, org_registry, keyring)` →
 ///   `AdapterAuthStrategy::StaticCookie(Arc::new(...))`.
 /// - Other `auth_type` values: logs E-SPEC-012 (auth type mismatch for S-DEMO-001 scope) and skips.
 ///

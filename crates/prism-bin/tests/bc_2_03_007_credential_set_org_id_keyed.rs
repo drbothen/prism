@@ -492,7 +492,9 @@ org_slug = "{org_slug}"
     );
 
     // Read back via OrgId-keyed get_by_org using the real OS keyring.
-    let index_path = config_dir.join("credential_index.json");
+    // Index path aligned to state_dir (F-P7-OBS-001 fix: CLI write path now uses
+    // state_dir.join("credential_index.json") matching boot step 5).
+    let index_path = state_dir.join("credential_index.json");
     let reader_index = CredentialIndex::new(index_path);
     let reader = KeyringBackend::new("prism", reader_index);
     let result = reader
