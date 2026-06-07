@@ -217,8 +217,7 @@ pub fn map_prism_error(err: PrismError) -> (i32, String) {
         | PrismError::CredentialNotFound { .. }
         | PrismError::CredentialStoreError { .. }
         | PrismError::CredentialEncryptionError { .. }
-        | PrismError::EncryptionKeyMissing { .. }
-        | PrismError::KeyringError { .. } => (
+        | PrismError::EncryptionKeyMissing { .. } => (
             codes::INTERNAL_ERROR,
             "Internal error; see audit log".to_owned(),
         ),
