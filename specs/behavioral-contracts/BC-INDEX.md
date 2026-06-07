@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "5.93"
+version: "5.94"
 status: draft
 producer: product-owner
 timestamp: 2026-06-05T12:00:00Z
@@ -66,7 +66,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.03.006 | Credential Resolution at Sensor Query Time | 03 - Credential Management | CAP-004 | P0 | draft — v1.4 (D-969: cross-ref to BC-2.06.003 v1.3; 4-tier resolution chain; per-client env-var convention anchor) |
 | BC-2.03.007 | Secret Redaction in Logs, Errors, and MCP Responses | 03 - Credential Management | CAP-004 | P0 | active (lifecycle_status was already active; status: legacy field synced draft→active D-990 F-003 per POL-14 pattern; anchor story S-1.07 merged) — v1.3 |
 | BC-2.03.008 | Credential Name Sanitization Against Path Traversal | 03 - Credential Management | CAP-004 | P0 | draft |
-| BC-2.03.009 | resolve_secret() for _FILE Env Var and K8s Secret Mount Compatibility | 03 - Credential Management | CAP-004 | P0 | draft |
+| BC-2.03.009 | resolve_secret() for _FILE Env Var and K8s Secret Mount Compatibility | 03 - Credential Management | CAP-004 | P0 | active (lifecycle_status was already active; status: legacy field synced draft→active D-1046 per POL-14 pattern; anchor story S-MAINT-ECRED-TAXONOMY-SYNC-001 merged) — v1.4 |
 | BC-2.03.010 | Credential Access Audit Logging | 03 - Credential Management | CAP-004 | P0 | draft |
 | BC-2.03.011 | Keyring Startup Probe for Permission Pre-Authorization | 03 - Credential Management | CAP-004 | P0 | draft |
 | BC-2.03.012 | Credential Backend Selection and Fallback | 03 - Credential Management | CAP-004 | P0 | draft |
@@ -376,6 +376,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v5.94 (2026-06-07, D-1046 S-MAINT-ECRED-TAXONOMY-SYNC-001 MERGED PR #175 develop@c603741d — POL-14 BC status sync):** state-manager | POL-14 status-field alignment: BC-2.03.009 v1.3→v1.4 `status:` legacy field synced draft→active (lifecycle_status was already active per ADR-025 ground truth; anchor story S-MAINT-ECRED-TAXONOMY-SYNC-001 merged via PR #175 develop@c603741d). BC-2.03.005 v1.6 + BC-2.03.007 v1.3 confirmed already active (idempotent no-ops). BC-2.06.003 v1.7 KEPT DRAFT (S-DEMO-003 not yet merged; E-CRED-008 emitter forward-reserved; POL-14 promotion at S-DEMO-003 merge). No count changes: BC-2.03.009 lifecycle_status was already active (not in draft_contracts: 3). active_contracts: 234, draft_contracts: 3 unchanged. BC-INDEX in-line row 69 updated. BC-INDEX v5.93→v5.94.
 
 **v5.93 (2026-06-07, BC-2.06.003 v1.6→v1.7 pin sync — F-P17-MED-001 VP-INDEX de-pin; S-MAINT-ECRED-TAXONOMY-SYNC-001):** state-manager | BC-2.06.003 v1.6→v1.7 pin sync (LOCAL pass-17 fix F-P17-MED-001: de-pinned stale "VP-INDEX v1.5" volatile pin in §Verification Properties per TD-VSDD-091). BC-INDEX in-line row 103 version pin updated v1.6→v1.7; change note appended. No BC count changes (active: 234, draft: 3 unchanged). BC-INDEX v5.92→v5.93.
 

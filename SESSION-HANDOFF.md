@@ -458,6 +458,92 @@ DURABLE PIN BLOCK (CURRENT STATE — D-580 — DURABLE PRE-/CLEAR RESUME SNAPSHO
 
 ---
 
+## RESUME SNAPSHOT 2026-06-07 — D-1046 / S-MAINT-ECRED-TAXONOMY-SYNC-001-MERGED-PR175 / S-DEMO-003-PAUSED-AWAITING-REBASE-USER-GO-AHEAD
+
+> **START HERE — 2026-06-07 zero-context resume.** S-MAINT-ECRED-TAXONOMY-SYNC-001 MERGED PR #175 squash-merged develop@c603741d. Canonical E-CRED-001..010 namespace live. DRIFT-ECRED-TAXONOMY-001 RESOLVED. S-DEMO-003 PAUSED awaiting user go-ahead for re-baseline. Read STATE.md frontmatter + this snapshot FIRST. develop HEAD `c603741d`. STATE.md v7.697. STORY-INDEX v2.315.
+
+---
+
+### Pipeline Position
+
+| Field | Value |
+|-------|-------|
+| Phase | 3 — TDD Implementation |
+| Wave | Wave 5 (wave-5-e-demo-fidelity) |
+| Sub-phase | Phase B (parallel lanes) |
+| Phase B Lane 1 | COMPLETE — S-SPEC-HTTP-METHOD-VALIDATION-001 (PR #172 merged develop@752e407a 2026-06-05) |
+| Phase B Lane 2 | COMPLETE — S-DEMO-QUERY-PUSHDOWN-001 (PR #173 merged develop@9447671f 2026-06-06) |
+| Phase B Lane 3 | COMPLETE — OCSF-CLASS-MIGRATION-001 (PR #174 squash-merged develop@0e89789a 2026-06-06) |
+| S-MAINT-ECRED | MERGED — PR #175 squash-merged develop@c603741d 2026-06-07 (D-1046); canonical E-CRED namespace live; DRIFT-ECRED-TAXONOMY-001 RESOLVED |
+| Phase B Lane 4 | PAUSED — S-DEMO-003 v1.14 worktree feature/S-DEMO-003 HEAD 4920bfc7 (F-P18-LOW-001 fix at 5fcd2e7a); blocked on user go-ahead to re-baseline onto develop@c603741d |
+
+### Durable State (all committed as of D-1046 single-commit burst)
+
+| Item | Value |
+|------|-------|
+| develop HEAD | `c603741d` (S-MAINT-ECRED-TAXONOMY-SYNC-001 PR #175 squash-merged 2026-06-07; local == origin/develop) |
+| Last merged story | S-MAINT-ECRED-TAXONOMY-SYNC-001 v1.2 — PR #175 squash-merged develop@c603741d 2026-06-07 (D-1046) |
+| factory-artifacts HEAD | run `git -C .factory log -1 --format='%h %s'` (LOCAL-ONLY; NEVER cite literal SHA in artifacts per TD-VSDD-053) |
+| STATE.md version | v7.697 |
+| STORY-INDEX version | v2.315 (185 stories) |
+| BC-INDEX version | v5.94 |
+| ARCH-INDEX version | v2.115 |
+| error-taxonomy version | v1.62 (canonical E-CRED-001..010; ADR-035) |
+| ADR-035 version | v1.2 (ACCEPTED; canonical E-CRED namespace) |
+| ADR-034 version | v1.2 (amended; Tier-3 keyring org-id threading) |
+| BC-2.03.009 version | v1.4 (status: active — legacy field synced D-1046 per POL-14 pattern; lifecycle_status already active) |
+| BC-2.06.003 version | v1.7 (DRAFT — E-CRED-008 BackendError; POL-14 promotes to active at S-DEMO-003 merge) |
+| S-MAINT-ECRED-TAXONOMY-SYNC-001 story version | v1.2 (merged) |
+| S-DEMO-003 story version | v1.14 (paused) |
+| S-DEMO-003 worktree HEAD | 4920bfc7 (consistency audit F-001/F-006 closed; F-P18-LOW-001 fix at 5fcd2e7a; based on old develop 0e89789a — needs rebase onto c603741d) |
+| Open PRs | NONE |
+| DRIFT-ECRED-TAXONOMY-001 | RESOLVED (D-1046; S-MAINT code merged) |
+
+### Next Actions (ORDERED — D-989 autonomy authorizes; PAUSED per user before S-DEMO-003)
+
+**IMMEDIATE (on user go-ahead — S-DEMO-003 re-baseline):**
+1. Rebase feature/S-DEMO-003 onto develop@c603741d: `git -C .worktrees/S-DEMO-003 rebase develop` (no conflicts expected — different files)
+2. In resolution.rs (worktree): flip `E-CRED-005` → `E-CRED-008` for keyring BackendUnavailable detail strings per ADR-035 canonical; rename `bc_2_06_003` test to match E-CRED-008; update `in_memory_store` doc comment
+3. Story spec re-align: update AC-011 Case B (E-CRED-005 → E-CRED-008); update EC-001b (read-path emits E-CRED-008 per canonical taxonomy); update DEMO-RUNBOOK §6b header; update Architecture Compliance section; verify §Changelog descending per POL-32
+4. Resume S-DEMO-003 LOCAL adversarial cascade: fresh 3-CLEAN per BC-5.39.001 D-779 (streak 0/3 starting from scratch)
+
+**AFTER S-DEMO-003 MERGES:**
+5. POL-14 BC-2.06.003 draft→active (anchor story S-DEMO-003 implements E-CRED-008 emitter)
+6. Continue Phase C (Claroty cluster): TRAILING-SLASH → SPEC-PROSE-FIX → HARNESS-CLONE-PARITY
+
+### S-DEMO-003 Re-baseline Checklist (for implementer + story-writer on user go-ahead)
+
+- `resolution.rs` (crates/prism-credentials/src/resolution.rs): `grep 'E-CRED-005' .worktrees/S-DEMO-003/crates/prism-credentials/src/resolution.rs` — update BackendUnavailable detail strings to E-CRED-008 per ADR-035 §D2/§D5 canonical mapping; `CredentialStoreError::BackendUnavailable` → maps to E-CRED-008 BackendError
+- `bc_2_06_003` test: rename any test asserting `E-CRED-005` keyring-backend string to assert `E-CRED-008` per canonical
+- `in_memory_store.rs` doc: update any doc comment referencing E-CRED-005 in keyring-unavailable context
+- Story spec: AC-011 Case B detail string cites `E-CRED-005: OS keyring unavailable: backend=...` → update to cite `E-CRED-008`; EC-001b read-path code → `E-CRED-008`; DEMO-RUNBOOK §6b error code E-CRED-005→E-CRED-008; Architecture Compliance section
+- Run `just check` after each group of changes to confirm GREEN
+
+### Standing Authorization (D-989 — ACTIVE)
+
+> **GRANT (2026-06-04):** Full autonomous execution of Wave 5 Phase A → Phase B → Phase C end-to-end.
+> **PAUSE-AND-SURFACE ONLY for these 4 hard exceptions:**
+>   1. Source-of-Truth §7 spec-to-match-code amendments.
+>   2. Genuine product/business/risk decision not mechanically derivable from specs/ADRs.
+>   3. Level-3 escalation: missing prerequisite, genuinely-red CI, or convergence not reached after reasonable retries.
+>   4. CLAUDE.md edits — incl. DEFER-CLAUDEMD-BC216002-MISLABEL-001.
+> **Standing rules NEVER waived:** no `--no-verify`; no force-push; no factory-artifacts remote push (LOCAL-ONLY); single-commit-per-burst (TD-VSDD-053); fix-in-scope; BC-5.39.001 3-CLEAN strict.
+
+### Stale Worktrees (PENDING USER DECISION — do NOT auto-remove)
+
+- `.worktrees/S-3.09` — branch `feature/S-3.09` @ `43c41389` (Wave-3 era; FROZEN; recommend: remove worktree + keep branch ref; human decision required)
+- `.worktrees/W3-FIX-S307-001` — branch `feature/W3-FIX-S307-001` @ `fcab8717` (BLOCKED/superseded by ADR-023; recommend: remove worktree; human decision required)
+
+### Standing Rules Reminder
+
+- No `--no-verify`; no force-push to develop/main; no factory-artifacts remote push without explicit user authorization (LOCAL-ONLY).
+- Single-commit-per-burst (TD-VSDD-053); `MULTI_COMMIT_CHAIN_NOT_ALLOWED` fires on two consecutive "backfill"/"Stage 1"/"Stage 2" commits.
+- BC-5.39.001 3-CLEAN strict: CLEAN(strict) = ZERO findings of ANY severity; CLEAN(PR-merge) = ZERO CRIT+HIGH+MED — only strict advances the streak.
+- BC-2.06.003 stays DRAFT until S-DEMO-003 merges. POL-14 promotes draft→active at S-DEMO-003 merge only.
+- STATE.md does NOT cite current factory-artifacts HEAD SHA (`git -C .factory log -1 --format='%h %s'` owns that data).
+
+---
+
 ## RESUME SNAPSHOT 2026-06-07 — D-1045 / S-MAINT-ECRED-TAXONOMY-SYNC-001-LOCAL-CONVERGED / S-DEMO-003-PAUSED-PENDING-REBASE
 
 > **START HERE — 2026-06-07 zero-context resume.** S-MAINT-ECRED-TAXONOMY-SYNC-001 LOCAL 3-CLEAN CONVERGED. Spec package committed to factory-artifacts. CODE on feature/S-MAINT-ECRED-TAXONOMY-SYNC-001 HEAD c63b126e. S-DEMO-003 PAUSED pending S-MAINT merge + re-baseline. Read STATE.md frontmatter + this snapshot FIRST. develop HEAD `0e89789a`. STATE.md v7.696. STORY-INDEX v2.314.

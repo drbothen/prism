@@ -5,8 +5,8 @@ title: "E-CRED Namespace Reconciliation — Canonical E-CRED-001..010 per ADR-03
 wave: maintenance
 epic_id: maintenance
 priority: P2
-status: ready
-version: "1.1"
+status: merged
+version: "1.2"
 spec_version: "v1.0"
 level: ops
 producer: story-writer
@@ -691,5 +691,6 @@ No splitting required. Implementer and product-owner can operate independently
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.2 | 2026-06-07 | state-manager | D-1046 POL-14 post-merge: status ready→merged; PR #175 squash-merged develop@c603741d; canonical E-CRED-001..010 namespace live |
 | 1.1 | 2026-06-07 | story-writer | Add AC-011 (cross-spec E-CRED-002 propagation sweep; closes DF-PASS3-001): corrected `security-architecture.md` resolution-chain "Not found" node E-CRED-001 → E-CRED-002 and `interface-definitions.md` `credential_status` errors array E-CRED-001 → E-CRED-002; extended ADR-035 blast-radius inventory to list both docs; added immutable-narrative OUT OF SCOPE note for `S-1.07-credential-crud.md` and `STORY-INDEX.md` (POL-1 append-only); added touched-artifact rows to §FSR |
 | 1.0 | 2026-06-07 | story-writer | Initial materialization from stub (STORY-INDEX D-1043 row) + ADR-035 (accepted 2026-06-07) |
