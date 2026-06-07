@@ -2,7 +2,7 @@
 document_type: architecture-section
 level: L3
 section: "security-architecture"
-version: "1.1"
+version: "1.2"
 status: draft
 producer: architect
 timestamp: 2026-04-15T12:00:00
@@ -262,7 +262,7 @@ flowchart TD
     
     ENVCONV -->|Found| USE
     ENVCONV -->|"_FILE variant"| READFILE["Read file, cache"]
-    ENVCONV -->|Not found| ERR["E-CRED-001<br/>Credential not found"]
+    ENVCONV -->|Not found| ERR["E-CRED-002<br/>Credential not found"]
     
     VAULT --> USE
     FILE --> USE
@@ -370,6 +370,9 @@ Every MCP tool invocation, scheduled query execution, and detection evaluation p
 
 ## Changelog
 
+_Changelog ordering: newest-first (descending), per the .factory non-ADR spec-document convention. (ADR files use ascending; this is a spec doc, not an ADR.)_
+
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.2 | 2026-06-07 | architect | DF-PASS3-001 / S-MAINT-ECRED-TAXONOMY-SYNC-001 / ADR-035: Corrected credential resolution diagram terminal node label from E-CRED-001 to E-CRED-002 ("Credential not found" = CredentialNotFound = E-CRED-002 per ADR-035 canonical table; E-CRED-001 = InvalidCredentialName). |
 | 1.1 | 2026-04-27 | product-owner | Pass 15 sweep: Mermaid ISO node updated TenantId → OrgId/OrgSlug (ADR-006); threat model row updated TenantId → OrgId/OrgSlug with DI-033 citation; Client Isolation section heading and AD-010 decision block updated with Wave 3 ADR-006 supersedence note; added `## [Section Content]` template compliance marker; added Changelog. |

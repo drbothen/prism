@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.4"
+version: "1.7"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -11,7 +11,7 @@ subsystem: "SS-06"
 capability: "CAP-009"
 lifecycle_status: active
 introduced: cycle-1
-modified: 2026-06-06
+modified: 2026-06-07
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -120,12 +120,12 @@ For a given `(org_slug, sensor_id, credential_ref_name)` triple:
     | `org_id` is `None` or `keyring` is `None` | Fall through to Tier 4 silently | None — Tier 3 skipped |
     | `get_by_org` returns `Ok(None)` / `NoEntry` | Fall through to Tier 4 | None — treat as miss |
     | `get_by_org` returns `Ok(Some(secret))` | Return `Ok(secret)` + audit "keyring" | None |
-    | `get_by_org` returns `Err(...)` — backend locked / `NoStorageAccess` / `NoKeyringService` / spawn panic | Hard error — do NOT fall through | `CredentialResolutionError::BackendUnavailable { detail: "E-CRED-005: OS keyring unavailable: {reason}" }` (see error-taxonomy.md E-CRED-005; ADR-034 uses E-CRED-003 but that code is already allocated — E-CRED-005 is the next free code) |
+    | `get_by_org` returns `Err(...)` — backend locked / `NoStorageAccess` / `NoKeyringService` / spawn panic | Hard error — do NOT fall through | `CredentialResolutionError::BackendUnavailable { detail: "E-CRED-008: OS keyring unavailable: {reason}" }` (see error-taxonomy.md E-CRED-008; canonical keyring-unavailable code per ADR-035 §D2 — prior code E-CRED-005 had a collision with `PrismError::CredentialEncryptionError`; ADR-034 §D4 amended by ADR-035 §D5) |
 
   - **Tier 4:** CRUD store `credential_status` → backend source lookup. Hit → return `Ok(secret)`. Miss → `CredentialResolutionError::NotFound`.
 - The resolved credential is available as a `SecretString` that is never logged or serialized
 - Resolution is audit-logged (client, sensor, ref name only — never the value)
-- Credential values are never included in error detail strings (AD-017; `E-CRED-005` detail is a system error message from the keyring backend, e.g., "access denied" — not a credential value)
+- Credential values are never included in error detail strings (AD-017; `E-CRED-008` detail is a system error message from the keyring backend, e.g., "access denied" — not a credential value)
 
 ## Invariants
 - DI-002: Credential isolation per client — `{ID}` segment in env var guarantees per-org namespacing; Tier 3 uses OrgId UUID for rename-stability (BC-3.2.002)
@@ -282,7 +282,7 @@ See `.factory/specs/prd-supplements/test-vectors.md` for canonical test vectors 
 | **Tier 3 keyring (OrgId-keyed write→resolution)** | `acme` (org_id: `f47ac10b-58cc-4372-a567-0e02b2c3d479`) | `armis` | `bearer_token` | `KeyringBackend::set_by_org(org_id, "armis", "bearer_token", "secret-value")` via `CredentialStoreOrgId`; no env var set; keyring entry at OrgId-keyed key `f47ac10b-58cc-4372-a567-0e02b2c3d479/armis/bearer_token` | `resolve_credential("acme", "armis", "bearer_token", Some(&org_id), Some(&keyring))` → `Ok(SecretString("secret-value"))` + audit "keyring". (RG-034-001 per ADR-034.) |
 | Tier 3 keyring miss → Tier 4 | `acme` | `armis` | `bearer_token` | No env var; keyring has no entry for the OrgId-keyed key; CRUD store empty | `CredentialResolutionError::NotFound` — Tier 3 miss falls through to Tier 4, Tier 4 miss → `NotFound`. (RG-034-002 per ADR-034.) |
 | Tier 3 None org_id → Tier 4 | `acme` | `armis` | `bearer_token` | No env var; `org_id: None` passed to `resolve_credential`; CRUD store empty | Tier 3 skipped silently; falls to Tier 4 → `CredentialResolutionError::NotFound` |
-| Tier 3 keyring backend error → hard error | `acme` | `armis` | `bearer_token` | No env var; keyring returns `Err(NoStorageAccess)` | `CredentialResolutionError::BackendUnavailable { detail: "E-CRED-005: OS keyring unavailable: NoStorageAccess" }` — does NOT fall through to Tier 4 (ADR-034 §D4) |
+| Tier 3 keyring backend error → hard error | `acme` | `armis` | `bearer_token` | No env var; keyring returns `Err(NoStorageAccess)` | `CredentialResolutionError::BackendUnavailable { detail: "E-CRED-008: OS keyring unavailable: NoStorageAccess" }` — does NOT fall through to Tier 4 (ADR-034 §D4; E-CRED-008 is the canonical keyring-unavailable code per ADR-035 §D2) |
 | Not found | `acme` | `armis` | `bearer_token` | No env var, no keyring | `CredentialResolutionError::NotFound` with Tier 2 env var name in message |
 | Tier 1 precedence | `acme` | `armis` | `bearer_token` | Both `_FILE` and direct env var set | Tier 1 (file) wins; Tier 2 ignored |
 | Invalid ref name | any | any | `my key!` | — | `PrismError::InvalidInput`: must match pattern |
@@ -293,7 +293,7 @@ See `.factory/specs/prd-supplements/test-vectors.md` for canonical test vectors 
 
 ## Verification Properties
 
-No VPs in VP-INDEX v1.5 directly verify credential reference resolution. Placeholder for future VP.
+No VPs in VP-INDEX directly verify credential reference resolution. Placeholder for future VP.
 
 ## Traceability
 | Field | Value |
@@ -303,13 +303,16 @@ No VPs in VP-INDEX v1.5 directly verify credential reference resolution. Placeho
 | L2 Invariants | DI-002, DI-014 |
 | Priority | P0 |
 | Implementing Stories | S-DEMO-002 — `resolve_credential` per-client env-var format alignment + `KeyringCredentialProbe` org-aware probe redesign; S-DEMO-003 — Tier-3 OS-keyring resolution implementation + OrgId-keyed write reconciliation (ADR-034) |
-| ADR | ADR-032-per-client-credential-env-var-convention; ADR-034-tier3-keyring-resolution-org-id-threading (Tier-3 implementation decision, source of truth for D1–D5; accepted 2026-06-06) |
-| Related BCs | BC-2.03.006 (query-time resolution), BC-3.2.002 (OrgId-keyed keyring), BC-2.03.013 (boot step 5), BC-2.03.007 (E-CRED-005 no-credential-leak invariant) |
+| ADR | ADR-032-per-client-credential-env-var-convention; ADR-034-tier3-keyring-resolution-org-id-threading (Tier-3 implementation decision, source of truth for D1–D5; accepted 2026-06-06; §D4 error code amended from E-CRED-005→E-CRED-008 by ADR-035 §D5); ADR-035-e-cred-namespace-reconciliation (canonical E-CRED-001..010 namespace; E-CRED-008 is the authoritative keyring-unavailable code; accepted 2026-06-07) |
+| Related BCs | BC-2.03.006 (query-time resolution), BC-3.2.002 (OrgId-keyed keyring), BC-2.03.013 (boot step 5), BC-2.03.007 (E-CRED-008 no-credential-leak invariant — keyring-backend error detail is system message, not credential value) |
 
 ## Changelog
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.7 | S-MAINT-ECRED-TAXONOMY-SYNC-001 | 2026-06-07 | product-owner | F-P17-MED-001: de-pinned stale VP-INDEX version reference in §Verification Properties per TD-VSDD-091; S-MAINT-ECRED-TAXONOMY-SYNC-001. |
+| 1.6 | S-MAINT-ECRED-TAXONOMY-SYNC-001 | 2026-06-07 | product-owner | **Wrong-section ADR anchor fix (F-P11-HIGH-001).** Postconditions Tier-3 error-semantics table, backend-error row: `ADR-034 §D5 amended by ADR-035` → `ADR-034 §D4 amended by ADR-035 §D5`. §D4 is "Error Semantics — Keyring Backend Error is a Hard Error" (the correct target); §D5 is "Boot Path Wiring — PrismCredentialResolver Construction" (unrelated). The three pre-existing §D4 cites (lines ~116/~285/~306) were already correct and are unchanged. No content semantics altered. |
+| 1.5 | S-MAINT-ECRED-TAXONOMY-SYNC-001 | 2026-06-07 | product-owner | **E-CRED-005 → E-CRED-008 keyring-unavailable code update per ADR-035 §D2 + §Blast-Radius.** Changes: (1) Postconditions Tier-3 table: `BackendUnavailable { detail: "E-CRED-005: OS keyring unavailable: {reason}" }` → `E-CRED-008` — collision resolved: E-CRED-005 was simultaneously assigned to `PrismError::CredentialEncryptionError` (prism-core) and to the keyring-unavailable Tier-3 path (ADR-034 §D4 + this BC). ADR-035 assigns `CredentialEncryptionError` to E-CRED-006 and `KeyringBackendUnavailable` to E-CRED-008. (2) Postconditions invariant note: `E-CRED-005 detail is a system error message` → `E-CRED-008 detail is a system error message` (AD-017 credential-opacity note preserved). (3) Canonical Test Vectors: "Tier 3 keyring backend error → hard error" row output → `E-CRED-008`. (4) Traceability ADR column: added ADR-035 as normative authority; noted ADR-034 §D4 is amended by ADR-035 §D5 for the error code only (all other ADR-034 decisions remain in effect). (5) Traceability Related BCs: BC-2.03.007 parenthetical updated from `E-CRED-005` to `E-CRED-008`. BC H1 title UNCHANGED per POL-7. Draft status UNCHANGED — BC remains anchored to S-DEMO-003. |
 | 1.4 | S-DEMO-003-spec-restart | 2026-06-06 | product-owner | **Human Option-A decision (ADR-034):** Tier-3 OS-keyring credential resolution is now IMPLEMENTED per ADR-034 (accepted 2026-06-06). Changes: (1) Tier 3 row in env-var-formats table updated: marked IMPLEMENTED, noted OrgId-keyed namespace (`{org_id_uuid}/{sensor_id}/{ref_name}` via `namespace_key_by_org_id`) is canonical, and that `CredentialStoreOrgId::set_by_org` is required for writes (legacy slug-keyed `CredentialStore::set` path does not feed Tier 3). (2) Postconditions Tier 3 entry updated with ADR-034 §D4 error-semantics table: `org_id/keyring None` → silent fall-through; `get_by_org Ok(None)` → fall-through; `get_by_org Err(...)` → hard `BackendUnavailable` with E-CRED-005 (next free code; ADR-034 names E-CRED-003 but that code was already allocated to "Credential decryption failed" in error-taxonomy.md — collision noted; E-CRED-005 is used in this BC; see ADR-034 Contradiction section). (3) Canonical Test Vectors: fixed existing Tier 3 TV from stale legacy slug-keyed format to correct OrgId-keyed format; added TV for `set_by_org` write→resolution end-to-end connectivity (mirrors RG-034-001); added TV for Tier-3 miss→Tier-4 fall-through (mirrors RG-034-002); added TV for `org_id: None` → silent skip; added TV for backend error → hard `BackendUnavailable`. (4) Traceability: added ADR-034 as normative authority; added S-DEMO-003 as implementing story; added Capability Anchor Justification row per DF-021. (5) `modified` frontmatter updated to 2026-06-06. |
 | 1.3 | S-DEMO-002-option-A | 2026-06-03 | architect | **Human Option-A decision**: adopt per-client env-var convention as canonical multi-tenant credential convention. Full content rewrite: (1) Defined slug-to-SCREAMING-SNAKE transform for `{ID}` with worked examples. (2) Specified all four resolution tiers with exact env-var name derivation. (3) Defined per-sensor `[[credential_refs]]` names for all 4 built-in sensors. (4) Specified org-aware boot-step-5 probe design including OrgRegistry threading and revised `CredentialRefProbe` trait signature. (5) **Retraction of v1.2 alignment claim**: the v1.2 entry claimed code "mirrors the chain specified by this BC" — this was false. The prior `resolve_credential` used a global `{SENSOR}_{REF}` format (e.g. `ARMIS_BEARER_TOKEN`) that is NOT client-scoped and violates DI-002. The implementer must bring `resolve_credential` and `KeyringCredentialProbe::probe` into alignment with this BC. Code is NOT the spec; the spec wins (CLAUDE.md Standing Rule 7). |
 | 1.2 | S-DEMO-002-traceability | 2026-06-03 | product-owner | **RETRACTED** (see v1.3): incorrectly claimed code mirrors per-client env-var chain. No content changes in that burst; only false traceability claim added. |

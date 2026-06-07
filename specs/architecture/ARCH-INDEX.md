@@ -1,7 +1,7 @@
 ---
 document_type: architecture-index
 level: L3
-version: "2.113"
+version: "2.115"
 status: draft
 producer: state-manager
 timestamp: 2026-05-31T12:00:00
@@ -100,7 +100,8 @@ deployment_topology: single-service  # planned — no service binary exists yet 
 | ADR-031 | DTU=True-DTU Fidelity Principle — DTU Clones Must Mirror Real API Field Names, Auth Flows, Cookie Names, Endpoints, Response Shapes; Supersedes ADR-028 §D12 | ACCEPTED v1.2 | 2026-05-31 | decisions/ADR-031-dtu-equals-true-dtu-fidelity-principle.md |
 | ADR-032 | Per-Client Credential Env-Var Convention (Multi-Tenant Correct) — PRISM_CLIENTS_{ID}_SENSORS_{SENSOR}_{REF}+_FILE; 4-tier resolution chain; org-aware boot probe; per-sensor credential_refs | ACCEPTED v1.0 | 2026-06-03 | decisions/ADR-032-per-client-credential-env-var-convention.md |
 | ADR-033 | Push-Down Time-Window Extraction Strategy — Pre-Fan-Out Heuristic (T1) vs Post-Resolution classify_predicates (T2) | ACCEPTED v1.0 | 2026-06-05 | decisions/ADR-033-push-down-time-window-extraction-strategy-pre-fan-out-heuristic.md |
-| ADR-034 | Tier-3 Keyring Resolution — OrgId Threading via Injected OrgRegistry, OrgId-Keyed Write Reconciliation, and Async Safety | ACCEPTED v1.0 | 2026-06-06 | decisions/ADR-034-tier3-keyring-resolution-org-id-threading.md |
+| ADR-034 | Tier-3 Keyring Resolution — OrgId Threading via Injected OrgRegistry, OrgId-Keyed Write Reconciliation, and Async Safety | ACCEPTED v1.2 | 2026-06-06 | decisions/ADR-034-tier3-keyring-resolution-org-id-threading.md |
+| ADR-035 | E-CRED Namespace Reconciliation — Canonical E-CRED-001..010 Error Codes, Collision Resolution, and Migration Mapping | ACCEPTED v1.2 | 2026-06-07 | decisions/ADR-035-e-cred-namespace-reconciliation.md |
 
 ## Architecture Decisions
 
@@ -160,6 +161,8 @@ deployment_topology: single-service  # planned — no service binary exists yet 
 
 | Version | Pass | Date | Author | Change |
 |---------|------|------|--------|--------|
+| 2.115 | F-P14-HIGH-001/ADV-P15-HIGH-001 | 2026-06-07 | state-manager | ADR-034 + ADR-035 ADR Registry pins propagated v1.1→v1.2 (de-pin of volatile sibling version/SHA refs from ADR live prose per TD-VSDD-091 to terminate sibling-sweep cascade; closes F-P14-HIGH-001/ADV-P15-HIGH-001; S-MAINT-ECRED-TAXONOMY-SYNC-001). ARCH-INDEX v2.114→v2.115. |
+| 2.114 | F-P8-HIGH-001/F-PASS9-HIGH-001 | 2026-06-07 | state-manager | ADR-035 registration pin + ADR-034/ADR-035 ADR Registry pins propagated v1.0→v1.1 (S-MAINT-ECRED-TAXONOMY-SYNC-001; ADR-035; closes F-P8-HIGH-001/F-PASS9-HIGH-001; DRIFT-ECRED-TAXONOMY-001). ADR-034 row: ACCEPTED v1.0→v1.1 (§D4 E-CRED-005→E-CRED-008 amendment per ADR-035; BC-2.06.003 ref v1.5; error-taxonomy.md ref v1.62). ADR-035 row: ACCEPTED v1.0→v1.1 (§Status execution-complete correction; F-P5-MED-001 closure). POL-11 violation remediated: ADR-035 row was added in D-1025-era burst with no frontmatter bump and no changelog entry. ARCH-INDEX v2.113→v2.114. |
 | 2.113 | D-1025 | 2026-06-06 | state-manager | ADR-034 registered: Tier-3 Keyring Resolution — OrgId Threading via Injected OrgRegistry, OrgId-Keyed Write Reconciliation, and Async Safety. ACCEPTED v1.0. Architect authored per human Option-A decision (S-DEMO-003 scope expansion). Subsystems: SS-03, SS-06, SS-08, SS-22. Anchor story: S-DEMO-003. Closes CRIT-1 (keyring write→read disconnect) + CRIT-2 (namespace mismatch slug-keyed vs OrgId-UUID-keyed). ADR-034 table row already present (architect-committed). ARCH-INDEX v2.112→v2.113. |
 | 2.112 | D-1006 | 2026-06-05 | state-manager | ADR-033 promoted PROPOSED v0.1→ACCEPTED v1.0 per D-1006 human approval ("Approve — re-implement v2"). v2 scope expansion to prism-query (+SS-11) authorized. Re-implementation TDD cycle begins. ARCH-INDEX v2.111→v2.112. |
 | 2.111 | ADR-033 | 2026-06-05 | architect | ADR-033 registered: Push-Down Time-Window Extraction Strategy — Pre-Fan-Out Heuristic (T1) vs Post-Resolution classify_predicates (T2). PROPOSED v0.1. Subsystems: SS-11, SS-16, SS-01. Anchor story: S-DEMO-QUERY-PUSHDOWN-001 v2. Traces to BC-2.11.007 + BC-2.01.013. Closes dead-code gap F-P6-CRIT-001 at architecture level. ARCH-INDEX v2.110→v2.111. |

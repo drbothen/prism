@@ -8,7 +8,7 @@ author: architect
 decision_made_by: human (Option-A selection for S-DEMO-003 scope expansion, 2026-06-06)
 supersedes: null
 superseded_by: null
-related_adrs: ["ADR-032", "ADR-022", "ADR-006"]
+related_adrs: ["ADR-032", "ADR-022", "ADR-006", "ADR-035"]
 related_bcs: ["BC-2.06.003", "BC-2.03.006", "BC-3.2.002", "BC-2.03.007"]
 traces_to: "ARCH-INDEX.md"
 ---
@@ -178,11 +178,11 @@ BC-2.06.003 Tier-3 row: "OS keyring, OrgId-keyed format (BC-3.2.002 / `namespace
 |-----------|----------|-------|
 | Keyring entry absent (`NoEntry`) | Fall through to Tier 4 | None — treat as miss |
 | `org_registry` is `None` or slug not in registry | Fall through to Tier 4 | None — Tier 3 skipped |
-| Keyring backend error (locked, `NoStorageAccess`, `NoKeyringService`, spawn panic) | Hard error — do NOT fall through | `CredentialResolutionError::BackendUnavailable { detail: "E-CRED-003: OS keyring unavailable: {reason}" }` |
+| Keyring backend error (locked, `NoStorageAccess`, `NoKeyringService`, spawn panic) | Hard error — do NOT fall through | `CredentialResolutionError::BackendUnavailable { detail: "E-CRED-008: OS keyring unavailable: {reason}" }` |
 
-**Rationale for hard error on backend failure:** A locked or unavailable keyring indicates the execution environment is misconfigured (e.g., macOS Keychain access denied, Linux libsecret D-Bus unavailable). Silently falling through to Tier 4 would hide a real operator error. SOUL.md §4: do not swallow errors. The error code `E-CRED-003` is a new entry in the error taxonomy (not previously defined — route to product-owner to add to `error-taxonomy.md`, or architect defines it here for downstream use: "OS keyring backend error at Tier 3 resolution time").
+**Rationale for hard error on backend failure:** A locked or unavailable keyring indicates the execution environment is misconfigured (e.g., macOS Keychain access denied, Linux libsecret D-Bus unavailable). Silently falling through to Tier 4 would hide a real operator error. SOUL.md §4: do not swallow errors. The error code `E-CRED-008` is defined in `error-taxonomy.md` (§E-CRED-008 row, per ADR-035 §D1) as: "OS keyring backend error during Tier-3 credential resolution. The keyring is inaccessible (locked, D-Bus unavailable, spawn panic). Use Tier 1/2 env vars or check keyring access."
 
-**Error code:** ADR-034 originally designated `E-CRED-003` for this error path. However, `E-CRED-003` was already allocated in `error-taxonomy.md` to "Credential decryption failed for ({client_id}, {sensor_id})" (key-material-changed / file-corrupted case). To avoid code collision, `E-CRED-005` is used instead (next free code in the E-CRED namespace after E-CRED-004). `E-CRED-005` is defined as: "OS keyring backend error during Tier-3 credential resolution. The keyring is inaccessible (locked, D-Bus unavailable, spawn panic). Use Tier 1/2 env vars or check keyring access." Wherever this ADR says `E-CRED-003`, read `E-CRED-005`. BC-2.06.003 v1.4 and `error-taxonomy.md` v1.61 both use `E-CRED-005` as the authoritative code. (Source-of-truth precedence: `error-taxonomy.md` + BC-2.06.003 v1.4 supersede this ADR for the specific error code — more-specific artifact wins per CLAUDE.md §Source-of-Truth Precedence.)
+**Error code — amendment history:** ADR-034 originally designated `E-CRED-003` for this error path. `E-CRED-003` was already allocated in `error-taxonomy.md` to "Credential decryption failed for ({client_id}, {sensor_id})" (key-material-changed / file-corrupted case), so the code was bumped to `E-CRED-005` (next free code in the E-CRED namespace after E-CRED-004) to avoid that collision. Subsequently, ADR-035 (full E-CRED namespace reconciliation) discovered that `E-CRED-005` had been allocated to `CredentialEncryptionError` in `error-taxonomy.md`, creating a second collision. ADR-035 §D2/§D5 performed a full-namespace reconciliation and assigned `E-CRED-008` as the canonical, collision-free code for the keyring-unavailable condition. The resolution chain is: **E-CRED-003 → E-CRED-005 → E-CRED-008 (final)**. This ADR is amended (not superseded) to reflect the final state. `error-taxonomy.md` and `BC-2.06.003` both use `E-CRED-008` as the authoritative keyring-unavailable code (per ADR-035 §D5). (Source-of-truth precedence: ADR-035 (full-namespace reconciliation) + `error-taxonomy.md` + `BC-2.06.003` supersede this ADR for the specific error code — more-specific artifact wins per CLAUDE.md §Source-of-Truth Precedence.)
 
 ### D5: Boot Path Wiring — `PrismCredentialResolver` Construction
 
@@ -201,8 +201,8 @@ This is "wiring not redesign" per ADR-022 §C: the `KeyringBackend` already exis
 |----------|--------|-------|
 | `BC-2.06.003` v1.3 §Tier 3 | Update from "not implemented" comment to "IMPLEMENTED via ADR-034" | product-owner |
 | `BC-2.06.003` AC for Tier 3 | Add test vector for Tier-3 keyring resolution (write via `credential_cli`, query succeeds) | product-owner |
-| `BC-2.03.007` | Verify `E-CRED-003` error detail does not leak credential value — it contains only `{reason}` from keyring-rs which never includes a secret value; no amendment needed | — |
-| `error-taxonomy.md` | Add `E-CRED-003`: "OS keyring backend error at Tier-3 resolution time" | product-owner |
+| `BC-2.03.007` | Verify `E-CRED-008` error detail does not leak credential value — it contains only `{reason}` from keyring-rs which never includes a secret value; no amendment needed | — |
+| `error-taxonomy.md` | Add `E-CRED-008`: "OS keyring backend error at Tier-3 resolution time" | product-owner |
 | `S-DEMO-003` AC-005 | Update: write via `CredentialStoreOrgId::set_by_org` (OrgId-keyed, ADR-034 D3); resolver reads via Tier-3 (ADR-034 D2); full end-to-end connectivity is now the contract | product-owner |
 | `S-DEMO-003` §Architecture Compliance Rules | Replace `CredentialStore::set(org_id, ...)` row with `CredentialStoreOrgId::set_by_org(org_id, ...)` | product-owner |
 | `ARCH-INDEX.md` ADR Registry | Add ADR-034 row | state-manager (post-ADR commit) |
@@ -232,7 +232,7 @@ The original S-DEMO-003 was scoped at 5 story points (LOW risk, 1 day). With Opt
 - The DI injection pattern (Option Y: `Arc<OrgRegistry>` in `PrismCredentialResolver`) preserves the existing `AuthProvider` interface — no change to `AuthProvider::acquire_token` signature or callers.
 - Keyring calls are wrapped in `spawn_blocking` — no tokio thread pool blocking.
 - Test-double injection points are preserved; all 5 `CredentialResolver` test doubles remain injectable.
-- `E-CRED-003` gives operators an actionable error when the keyring is unavailable.
+- `E-CRED-008` gives operators an actionable error when the keyring is unavailable.
 
 ### Negative / Cost
 - `PrismCredentialResolver` becomes non-unit (struct with 2 fields). Any code that `Arc::new(PrismCredentialResolver)` must change to `Arc::new(PrismCredentialResolver::new(org_registry, keyring))`.
@@ -242,7 +242,7 @@ The original S-DEMO-003 was scoped at 5 story points (LOW risk, 1 day). With Opt
 
 ### Neutral
 - Boot step 5 exposes `Arc<dyn CredentialStoreOrgId>` alongside `Arc<dyn CredentialStore>` — both point to the same `KeyringBackend` instance; no duplication of state.
-- `E-CRED-003` detail string from keyring-rs never contains a credential value (it is a system error message from the keyring backend, e.g., "access denied" or "D-Bus unavailable") — AD-017 compliance is maintained without additional sanitization.
+- `E-CRED-008` detail string from keyring-rs never contains a credential value (it is a system error message from the keyring backend, e.g., "access denied" or "D-Bus unavailable") — AD-017 compliance is maintained without additional sanitization.
 
 ## Red Gate Tests (required — test-writer specification)
 
@@ -288,7 +288,7 @@ The following tests MUST be written as failing Red Gates before any implementati
 | `crates/prism-bin/tests/bc_2_03_007_credential_set_org_id_keyed.rs` | New test: RG-034-004 |
 | `scripts/demo-setup.sh` (if exists) | Use `PRISM_CLIENTS_{ID}_SENSORS_{SENSOR}_{REF}` format — HIGH-1 remediation |
 | `.github/workflows/ci.yml` | Add shellcheck step for `scripts/demo-*.sh` — HIGH-2 remediation |
-| `error-taxonomy.md` (`prd-supplements`) | Add `E-CRED-003` entry — route to product-owner |
+| `error-taxonomy.md` (`prd-supplements`) | Add `E-CRED-008` entry — route to product-owner |
 | `BC-2.06.003` | Update Tier-3 description — route to product-owner |
 | `S-DEMO-003` story spec AC-005 + §Architecture Compliance — route to product-owner |
 
@@ -315,3 +315,11 @@ The following tests MUST be written as failing Red Gates before any implementati
 - `crates/prism-credentials/src/keyring.rs` lines 248–285 (`CredentialStoreOrgId::get_by_org`)
 - `crates/prism-credentials/src/namespace.rs` lines 40–42 (`namespace_key_by_org_id`)
 - `.factory/proposals/S-DEMO-003-credential-channel-adjudication.md` (CRIT-1, CRIT-2 evidence)
+
+## Changelog
+
+| Version | Date | Author | Change |
+|---------|------|--------|--------|
+| v1.0 | 2026-06-06 | architect | Initial — Tier-3 keyring resolution design; E-CRED-003 → E-CRED-005 collision-avoid bump |
+| v1.1 | 2026-06-07 | architect | §D4 amended: E-CRED-005 → E-CRED-008 per ADR-035 full-namespace reconciliation. BC-2.06.003 ref updated to v1.5; error-taxonomy.md ref updated to v1.62. ADR-035 added to source-of-truth precedence note. |
+| v1.2 | 2026-06-07 | architect | F-P14-HIGH-001/ADV-P15-HIGH-001 closure — de-pinned volatile sibling version numbers from §D4 amendment-history live prose per TD-VSDD-091 to terminate sibling-sweep cascade; S-MAINT-ECRED-TAXONOMY-SYNC-001. |

@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "5.90"
+version: "5.93"
 status: draft
 producer: product-owner
 timestamp: 2026-06-05T12:00:00Z
@@ -100,7 +100,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.05.012 | AuditEmitter Initialization — audit_buffer CF Open and boot.audit.initialized Emitted at Process Start | 05 - Audit Trail | CAP-007 | P0 | active |
 | BC-2.06.001 | TOML Configuration Loads and Deserializes at Startup | 06 - Client Configuration | CAP-009 | P0 | draft |
 | BC-2.06.002 | Per-Client Sensor Mapping from TOML Configuration | 06 - Client Configuration | CAP-009 | P0 | draft |
-| BC-2.06.003 | Credential References in Config Resolve to Credential Store Entries | 06 - Client Configuration | CAP-009 | P0 | draft — v1.4 (S-DEMO-003 scope expansion, ADR-034: Tier-3 OS-keyring resolution IMPLEMENTED; OrgId-keyed write (`set_by_org`) + read (`get_by_org`) via `CredentialStoreOrgId`; ADR-034 §D4 error semantics: miss→fall-through, backend error→hard `BackendUnavailable` E-CRED-005; Tier-3 TVs added: write→resolution end-to-end + miss→Tier-4 + backend error→hard-error; ADR-032 + ADR-034 normative anchors) |
+| BC-2.06.003 | Credential References in Config Resolve to Credential Store Entries | 06 - Client Configuration | CAP-009 | P0 | draft — v1.7 (S-MAINT-ECRED-TAXONOMY-SYNC-001, ADR-035: E-CRED-005 → E-CRED-008 keyring-unavailable code; backend error → hard `BackendUnavailable` E-CRED-008 per ADR-035 §D2/§D5; v1.6: BC §D4 anchor corrected ADR-034 §D5→§D4 amended by ADR-035 §D5; v1.7: de-pinned stale VP-INDEX ref per TD-VSDD-091) |
 | BC-2.06.004 | Capability Overrides Merge with Defaults Using More-Specific-Wins | 06 - Client Configuration | CAP-009 | P0 | draft |
 | BC-2.06.005 | Configuration Validation Reports All Errors in One Pass | 06 - Client Configuration | CAP-009 | P0 | draft |
 | BC-2.06.006 | --dry-run Flag Validates Config and Prints Redacted Summary | 06 - Client Configuration | CAP-009 | P0 | draft |
@@ -376,6 +376,12 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v5.93 (2026-06-07, BC-2.06.003 v1.6→v1.7 pin sync — F-P17-MED-001 VP-INDEX de-pin; S-MAINT-ECRED-TAXONOMY-SYNC-001):** state-manager | BC-2.06.003 v1.6→v1.7 pin sync (LOCAL pass-17 fix F-P17-MED-001: de-pinned stale "VP-INDEX v1.5" volatile pin in §Verification Properties per TD-VSDD-091). BC-INDEX in-line row 103 version pin updated v1.6→v1.7; change note appended. No BC count changes (active: 234, draft: 3 unchanged). BC-INDEX v5.92→v5.93.
+
+**v5.92 (2026-06-07, BC-2.06.003 v1.5→v1.6 pin sync — F-P11-HIGH-001 §D4 anchor fix; S-MAINT-ECRED-TAXONOMY-SYNC-001):** state-manager | BC-2.06.003 v1.5→v1.6 pin sync: BC body line 123 wrong-section anchor corrected (ADR-034 §D5 → §D4 amended by ADR-035 §D5). BC-INDEX in-line row 103 version pin updated v1.5→v1.6; change note appended. No BC count changes (active: 234, draft: 3 unchanged). BC-INDEX v5.91→v5.92.
+
+**v5.91 (2026-06-07, F-PASS1-HIGH-001 S-MAINT-ECRED-TAXONOMY-SYNC-001 — BC-2.06.003 row v1.4→v1.5, E-CRED-005→E-CRED-008):** state-manager | F-PASS1-HIGH-001 closure: BC-2.06.003 inline row 103 updated v1.4→v1.5 and E-CRED-005→E-CRED-008 keyring-unavailable code per ADR-035 §D2/§D5. The stale row described ADR-034 §D4 error semantics using E-CRED-005; BC-2.06.003 v1.5 (S-MAINT-ECRED-TAXONOMY-SYNC-001 burst 2026-06-07) canonically assigns keyring `BackendUnavailable` to E-CRED-008 (collision resolved: E-CRED-005 is `PrismError::CredentialEncryptionError`; ADR-035 §D2 assigns E-CRED-008 to `KeyringBackendUnavailable`). No other E-CRED-005 keyring/backend-unavailable references found in BC-INDEX sweep. No BC count changes (active: 234, draft: 3 unchanged). BC-INDEX v5.90→v5.91.
 
 **v5.90 (2026-06-06, OCSF-CLASS-MIGRATION-001-pass-3-fix-MED-2):** product-owner | MED-2 OCSF-CLASS pass-3 closure: BC-2.02.012 v1.5→v1.6 — TV/EC notation corrected from Option-style (`Some(2004)`/`None`) to Result-style (`Ok(2004)`/`Err(PrismError::OcsfUnknownEventClass{...})`). Affected: TV-BC-2.02.012-007 and TV-BC-2.02.012-008 Expected column, EC-02-024 and EC-02-025 Expected Behavior column, §Error Cases WARN row, §Postconditions `select_by_class_name("detection_finding")` prose. Notation-only — no semantic change; function signature is `select_by_class_name(&str) -> Result<u32, PrismError>`. BC-INDEX in-line row 60 updated to v1.6. No BC count changes (active: 234, draft: 3 unchanged). BC-INDEX v5.89→v5.90.
 

@@ -2,7 +2,7 @@
 document_type: prd-supplement
 level: L3
 section: "interface-definitions"
-version: "2.6"
+version: "2.7"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -2054,7 +2054,7 @@ Always-visible read-only tool. Returns set/missing status per `(client_id, senso
       }
     }
   },
-  "errors": ["E-CRED-001 (credential not found)", "E-AUTH-002 (client not found)"],
+  "errors": ["E-CRED-002 (credential not found)", "E-AUTH-002 (client not found)"],
   "annotations": {
     "readOnlyHint": true,
     "destructiveHint": false,
@@ -2931,6 +2931,7 @@ OPTIONS:
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 2.7 | S-MAINT-ECRED-TAXONOMY-SYNC-001 | 2026-06-07 | product-owner | DF-PASS3-001: corrected mislabeled error code in `credential_status` §1.34 `errors` array — `E-CRED-001 (credential not found)` → `E-CRED-002 (credential not found)`. Canonical namespace per ADR-035 / error-taxonomy.md: E-CRED-001=InvalidCredentialName, E-CRED-002=CredentialNotFound. |
 | 2.6 | F-PreP24-H-001 | 2026-05-03 | architect | Propagated ARCH-INDEX SS-18 canonical name: replaced all 6 occurrences of `(Subsystem 18: Action Engine)` with `(Subsystem 18: Action Delivery Engine)` in §§1.44–1.49 headers (lines 2493, 2537, 2590, 2643, 2682, 2719). POL-6 compliance. |
 | 2.5 | F-PreP22-H-003 | 2026-05-03 | architect | ADR-016 §1.1 canonical type name propagation: replaced `ActionEngine` with `ActionDeliveryEngine` in delete_action §1.49 description (line ~2723). |
 | 2.4 | pass-71-fix | 2026-04-20 | product-owner | CRIT-001: converted changelog to canonical 5-col schema (Version/Burst/Date/Author/Change); corrected column order on pre-build-sweep row. |
