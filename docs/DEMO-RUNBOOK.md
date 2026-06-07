@@ -189,32 +189,34 @@ API calls are made during demo mode.
 
 ## 6. Troubleshooting
 
-### (a) Keyring access denied — E-CRED-005
+### (a) Keyring write failure at credential-set time — E-CRED-004
 
-**Symptom:** `prism credential set` prints `Keyring unavailable:` or the demo sensors
-fail to authenticate at query time with:
-`BackendUnavailable { detail: "E-CRED-005: OS keyring unavailable: ..." }`.
+**Symptom:** `prism credential set` prints `Keyring unavailable: ...` and exits
+non-zero. The credential is NOT stored. This is the **write path** error.
 
-**Error code:** `E-CRED-005` (surfaced by `resolution.rs` Tier-3 resolution when
-the OS keyring backend is inaccessible — AC-006(a) of S-DEMO-003).
+**Error code:** `E-CRED-004` (`PrismError::CredentialStoreError`, displayed as
+`"E-CRED-004: credential store error (backend=...): {reason}"`), surfaced by
+`handle_credential_set` in `credential_cli.rs` — AC-006(a) of S-DEMO-003 (EC-001).
 
-**Cause:** The OS keyring service is unavailable (headless server, Docker container,
-missing Gnome Keyring on Linux).
+**Cause:** The OS keyring service is unavailable at credential-set time (headless
+server, Docker container, missing Gnome Keyring on Linux, or locked macOS Keychain).
 
 **Fix (macOS):** Unlock the macOS Keychain:
 ```bash
 security unlock-keychain ~/Library/Keychains/login.keychain-db
 ```
+Then re-run `prism credential set ...`.
 
 **Fix (Linux):** Start the D-Bus keyring service:
 ```bash
 eval "$(dbus-launch --sh-syntax)"
 gnome-keyring-daemon --start --components=secrets
 ```
+Then re-run `prism credential set ...`.
 
 **Fallback (CI / headless):** Use environment variables instead of the keyring.
-Prism resolves credentials from env vars before checking the keyring (Tier 1/2 in the
-four-tier resolution chain — BC-2.06.003). The canonical format is:
+Prism resolves credentials from env vars before checking the keyring (Tier 1/2 in
+the four-tier resolution chain — BC-2.06.003). The canonical format is:
 `PRISM_CLIENTS_{ORG_SLUG_UPPER}_SENSORS_{SENSOR_UPPER}_{REF_UPPER}`
 where `{ORG_SLUG_UPPER}` is the org slug in SCREAMING_SNAKE_CASE (hyphens → underscores).
 For the demo org `demo-org` (`DEMO_ORG`):
@@ -228,7 +230,37 @@ export PRISM_CLIENTS_DEMO_ORG_SENSORS_CYBERINT_API_KEY="demo-cyberint-api-key"
 NOTE: The old format `DEMO_ORG_*` is RETIRED (ADR-032 / BC-2.06.003 v1.3). Use only
 the `PRISM_CLIENTS_*` format above.
 
-### (b) Port already in use
+### (b) Keyring read failure at query time — E-CRED-005
+
+**Symptom:** A query against a demo sensor fails at authentication time with:
+`BackendUnavailable { detail: "E-CRED-005: OS keyring unavailable: ..." }`.
+This is the **read path** error — the credential was previously stored (or was
+expected to be) but the OS keyring is inaccessible during Tier-3 resolution.
+
+**Error code:** `E-CRED-005` (surfaced by `resolution.rs` Tier-3 keyring backend
+when the OS keyring is inaccessible — AC-006(a) of S-DEMO-003 (EC-001b)). There is
+no Tier-4 fallthrough: if the keyring is unavailable at read time, the error is
+hard-returned with no credential value leak.
+
+**Cause:** The OS keyring service became unavailable between credential-set and
+query time (daemon restart, session lock, headless re-entry).
+
+**Fix (macOS):** Unlock the macOS Keychain:
+```bash
+security unlock-keychain ~/Library/Keychains/login.keychain-db
+```
+
+**Fix (Linux):** Restart the D-Bus keyring service:
+```bash
+eval "$(dbus-launch --sh-syntax)"
+gnome-keyring-daemon --start --components=secrets
+```
+
+**Alternative:** Use the `PRISM_CLIENTS_*` environment variable fallback described
+in §6 Troubleshooting (a) above — Tier-1/Tier-2 resolution takes precedence over the
+keyring, so env vars will satisfy the read path even when the keyring is unavailable.
+
+### (c) Port already in use
 
 **Symptom:** `demo-run.sh` exits with "DTU server did not start within 30s" or the DTU log
 shows `Address already in use (os error 98)`.
@@ -261,7 +293,7 @@ shows `Address already in use (os error 98)`.
 
 3. Re-run `demo-run.sh`.
 
-### (c) TOML spec not found
+### (d) TOML spec not found
 
 **Symptom:** `prism start` exits 2 with an error like `spec_dir does not exist` or
 `parse_spec_directory: no .sensor.toml files found`.

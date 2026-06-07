@@ -319,7 +319,9 @@ pub async fn handle_credential_set_with_store(
         }
         Err(e) => {
             // Check for "Keyring unavailable" pattern (EC-001 of S-DEMO-003).
-            // keyring-rs surfaces platform unavailability as NoStorageAccess or similar.
+            // E-CRED-004 (write-path): keyring-rs surfaces platform unavailability as
+            // NoStorageAccess or similar. This is distinct from E-CRED-005 (read-path),
+            // which is surfaced by resolution.rs Tier-3 at query time.
             let err_str = e.to_string();
             if err_str.contains("NoStorageAccess")
                 || err_str.contains("NoKeyringService")
@@ -331,7 +333,7 @@ pub async fn handle_credential_set_with_store(
                 eprintln!(
                     "Keyring unavailable: {e}. Set the credential via the \
                      PRISM_CLIENTS_<ORG>_SENSORS_<SENSOR>_<REF> environment variable instead \
-                     (see DEMO-RUNBOOK.md §6a)."
+                     (see DEMO-RUNBOOK.md §6 Troubleshooting (a))."
                 );
             } else {
                 eprintln!("prism credential set: keyring write failed: {e}");
