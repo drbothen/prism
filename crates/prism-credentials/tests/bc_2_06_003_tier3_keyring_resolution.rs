@@ -212,7 +212,7 @@ async fn test_BC_2_06_003_tier3_miss_falls_through_to_tier4() {
 /// BC-2.06.003 Tier-3 postcondition: when `get_by_org` returns `Err(e)` (backend
 /// error), `resolve_credential` must return `Err(BackendUnavailable)` with:
 ///
-/// 1. A `detail` field CONTAINING "E-CRED-005" (structured error code per taxonomy).
+/// 1. A `detail` field CONTAINING "E-CRED-008" (structured error code per taxonomy).
 /// 2. NO fall-through to Tier 4 — error is hard-stopped.
 /// 3. AD-017: `detail` does NOT contain the injected credential value.
 ///
@@ -241,7 +241,7 @@ async fn test_BC_2_06_003_tier3_miss_falls_through_to_tier4() {
 /// BC-2.06.003 Tier-3 postcondition: `get_by_org Err(e)` → `BackendUnavailable` (no Tier-4 fallthrough).
 /// AD-017: error detail must not leak credential value.
 #[tokio::test]
-async fn test_BC_2_06_003_tier3_backend_error_returns_e_cred_005() {
+async fn test_BC_2_06_003_tier3_backend_error_returns_e_cred_008() {
     // Sentinel: a string that would represent a credential value if it leaked.
     // AD-017 assertion: this must NOT appear in the error detail.
     // We do NOT write this to the store — the store starts empty.
@@ -298,16 +298,16 @@ async fn test_BC_2_06_003_tier3_backend_error_returns_e_cred_005() {
         err
     );
 
-    // (c) detail MUST contain "E-CRED-005" (structured error code).
+    // (c) detail MUST contain "E-CRED-008" (structured error code).
     let detail = match &err {
         CredentialResolutionError::BackendUnavailable { detail, .. } => detail.clone(),
         other => panic!("RG-034-005: expected BackendUnavailable, got: {:?}", other),
     };
     assert!(
-        detail.contains("E-CRED-005"),
-        "RG-034-005: BackendUnavailable.detail must contain 'E-CRED-005' (structured error code). \
+        detail.contains("E-CRED-008"),
+        "RG-034-005: BackendUnavailable.detail must contain 'E-CRED-008' (structured error code). \
          Got detail: {:?}. \
-         BC-2.06.003 Tier-3 backend-error postcondition: detail begins with E-CRED-005 prefix.",
+         BC-2.06.003 Tier-3 backend-error postcondition: detail begins with E-CRED-008 prefix.",
         detail
     );
 
@@ -319,7 +319,7 @@ async fn test_BC_2_06_003_tier3_backend_error_returns_e_cred_005() {
         !detail.contains(cred_value_sentinel),
         "RG-034-005 AD-017: BackendUnavailable.detail must NOT contain the credential value. \
          Got detail: {:?}. \
-         The error detail must only include system error messages (E-CRED-005 prefix + OS reason).",
+         The error detail must only include system error messages (E-CRED-008 prefix + OS reason).",
         detail
     );
 }

@@ -77,7 +77,7 @@ zeroize = { version = "1", features = ["derive"] }
 # is compiled on each supported platform (catches accidental feature reversion).
 #
 # CI note: sync-secret-service on headless Linux CI (no D-Bus daemon) → backend-error
-# at runtime. This is correct: E-CRED-005 backend-error surfaces, existing #[ignore]'d
+# at runtime. This is correct: E-CRED-008 backend-error surfaces, existing #[ignore]'d
 # real-keyring integration tests stay #[ignore]'d, no non-ignored test does a live round-trip.
 # F-P10-CRIT-001 fix: no inline features here — backend features are activated via
 # prism-credentials' own `default` features (keyring-apple-native, keyring-windows-native,

@@ -89,9 +89,9 @@ impl InMemoryCredentialStore {
     ///
     /// - `backend`: the backend name included in the `PrismError::CredentialStoreError`.
     ///   E.g. `"mock_keyring"`. Surfaces in `BackendUnavailable.detail` as
-    ///   `"E-CRED-005: OS keyring unavailable: backend={backend}: {reason}. ..."` —
+    ///   `"E-CRED-008: OS keyring unavailable: backend={backend}: {reason}. ..."` —
     ///   the format built by `resolution.rs` via `inner_detail` (F-P6-OBS-003 fix,
-    ///   single E-CRED-005 code, no embedded E-CRED-004 prefix).
+    ///   single E-CRED-008 code, no embedded E-CRED-004 prefix).
     /// - `reason`: the reason string included in the `PrismError::CredentialStoreError`.
     ///
     /// # AD-017 compliance
@@ -108,7 +108,7 @@ impl InMemoryCredentialStore {
     ///     "simulated OS keyring failure for RG-034-005",
     /// );
     /// // get_by_org returns Err(PrismError::CredentialStoreError { backend: "mock_keyring", .. })
-    /// // resolve_credential maps this to BackendUnavailable { detail: "E-CRED-005: OS keyring unavailable: ..." }
+    /// // resolve_credential maps this to BackendUnavailable { detail: "E-CRED-008: OS keyring unavailable: ..." }
     /// ```
     ///
     /// RG-034-005 (AC-011 Case B of S-DEMO-003); SID-1 compliance.

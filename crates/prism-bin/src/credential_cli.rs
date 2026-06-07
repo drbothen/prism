@@ -320,7 +320,7 @@ pub async fn handle_credential_set_with_store(
         Err(e) => {
             // Check for "Keyring unavailable" pattern (EC-001 of S-DEMO-003).
             // E-CRED-004 (write-path): keyring-rs surfaces platform unavailability as
-            // NoStorageAccess or similar. This is distinct from E-CRED-005 (read-path),
+            // NoStorageAccess or similar. This is distinct from E-CRED-008 (read-path),
             // which is surfaced by resolution.rs Tier-3 at query time.
             let err_str = e.to_string();
             if err_str.contains("NoStorageAccess")

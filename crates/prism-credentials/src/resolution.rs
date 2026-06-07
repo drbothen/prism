@@ -92,7 +92,7 @@ pub fn per_client_file_env_var(org_slug: &str, sensor_id: &str, ref_name: &str) 
 ///   3. OS keyring via `CredentialStoreOrgId::get_by_org` (Tier 3, ADR-034)
 ///      Active only when both `org_id` and `keyring` are `Some`.
 ///      Miss (Ok(None)/NoEntry) → fall through to Tier 4.
-///      Backend error → hard `BackendUnavailable` (E-CRED-005, SOUL.md §4).
+///      Backend error → hard `BackendUnavailable` (E-CRED-008, SOUL.md §4).
 ///   4. CRUD store `credential_status` → backend source lookup (Tier 4 lowest)
 ///
 /// The global `{SENSOR}_{REF}` format is retired per ADR-032.
@@ -187,7 +187,7 @@ pub async fn resolve_credential(
     // Error semantics (ADR-034 §D4 / BC-2.06.003 Tier-3 postcondition):
     //   - Ok(Some(secret)) → return Ok(secret) + audit "keyring"
     //   - Ok(None) / NoEntry → fall through to Tier 4 silently
-    //   - Err(...) → hard BackendUnavailable { detail: "E-CRED-005: OS keyring unavailable: {reason}" }
+    //   - Err(...) → hard BackendUnavailable { detail: "E-CRED-008: OS keyring unavailable: {reason}" }
     //     Rationale: a locked/unavailable keyring is an operator misconfiguration; silently falling
     //     through would hide the error (SOUL.md §4). AD-017: no credential value in the error.
     if let (Some(org_id), Some(keyring)) = (org_id, keyring) {
@@ -200,7 +200,7 @@ pub async fn resolve_credential(
                     client_id: client_id.to_string(),
                     sensor_id: sensor_id.to_string(),
                     credential_name: credential_name.to_string(),
-                    detail: format!("E-CRED-005: invalid credential name for Tier-3 lookup: {e}"),
+                    detail: format!("E-CRED-008: invalid credential name for Tier-3 lookup: {e}"),
                 });
             }
         };
@@ -231,7 +231,7 @@ pub async fn resolve_credential(
                 //
                 // F-P6-OBS-003 fix: extract backend/reason without the inner E-CRED-004
                 // code prefix so the operator-facing detail carries a SINGLE canonical code
-                // (E-CRED-005). `PrismError::CredentialStoreError` Display includes
+                // (E-CRED-008). `PrismError::CredentialStoreError` Display includes
                 // "E-CRED-004: credential store error (backend=...): {reason}" — using
                 // `{e}` directly would produce double-prefix output.
                 let inner_detail = match &e {
@@ -253,7 +253,7 @@ pub async fn resolve_credential(
                     sensor_id: sensor_id.to_string(),
                     credential_name: credential_name.to_string(),
                     detail: format!(
-                        "E-CRED-005: OS keyring unavailable: {inner_detail}. \
+                        "E-CRED-008: OS keyring unavailable: {inner_detail}. \
                          Check keyring access (macOS Keychain / Linux libsecret). \
                          Use Tier 1/2 env vars as an alternative (BC-2.06.003)."
                     ),
