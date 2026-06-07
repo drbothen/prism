@@ -12689,16 +12689,16 @@ git -C .factory log -1 --format='%h %s'
 
 ---
 
-## §RESUME SNAPSHOT 2026-06-06-D1038-OCSF-MERGED-S-DEMO-003-PASS11-NEXT (D-1038)
+## §RESUME SNAPSHOT 2026-06-06-D1039-S-DEMO-003-BEHAVIORAL-AUDIT-PASS14-NEXT (D-1039)
 
-> **This is the durable zero-context checkpoint. A fresh session can resume all remaining lanes cold from this snapshot alone. Phase B Lane 3 CLOSED — OCSF-CLASS-MIGRATION-001 MERGED PR #174 develop@0e89789a. Phase B Lane 4 (S-DEMO-003) LOCAL pass-11 NEXT.**
+> **This is the durable zero-context checkpoint. A fresh session can resume all remaining lanes cold from this snapshot alone. Phase B Lane 3 CLOSED — OCSF-CLASS-MIGRATION-001 MERGED PR #174 develop@0e89789a. Phase B Lane 4 (S-DEMO-003) LOCAL pass-14 NEXT (passes 12+13 CLOSED — comprehensive behavioral audit; story v1.11; streak 0/3).**
 
 ### §1 PIPELINE STATUS
 
 - **develop HEAD:** `0e89789a` (OCSF-CLASS-MIGRATION-001 PR #174 squash-merged 2026-06-06 D-1038)
-- **STATE.md:** v7.689
+- **STATE.md:** v7.690
 - **BC-INDEX:** v5.90 (active: 234, draft: 3; total: 246)
-- **STORY-INDEX:** v2.307 (184 stories)
+- **STORY-INDEX:** v2.308 (184 stories)
 - **VP-INDEX:** v1.76 (unchanged)
 - **ARCH-INDEX:** v2.113 (unchanged)
 - **error-taxonomy:** v1.61
@@ -12722,17 +12722,17 @@ git -C .factory log -1 --format='%h %s'
 - **POL-14:** BC-2.02.012 v1.6 already active — idempotent; BC-2.01.013 v1.14 already active — idempotent
 - **Carry-forward deferrals:** OBS-1→S-SPEC-ENGINE-OCSF-EXAMPLE-SWEEP-001; OBS-2 benign-deferred
 
-#### LANE 4 — S-DEMO-003 — IN PROGRESS (LOCAL pass-11 NEXT)
+#### LANE 4 — S-DEMO-003 — IN PROGRESS (LOCAL pass-14 NEXT)
 - **Story file:** `.factory/stories/S-DEMO-003-demo-setup-scripts-and-runbook.md`
-- **Story version:** v1.10
+- **Story version:** v1.11 (D-1039 2026-06-06: comprehensive behavioral audit — 37 claims, 10 drift corrected, 27 MATCH)
 - **Code branch:** `feature/S-DEMO-003` (worktree `.worktrees/S-DEMO-003`)
 - **red_gate_tests:** 8
-- **Local cascade streak:** 0/3 (cascade restart on F-P10 keyring change)
-- **Pass-10 closures:** F-P10-CRIT-001 (keyring platform backend enablement: apple-native + windows-native + linux-native + 4 compile_error! guards in lib.rs) + F-P10-HIGH-001 (prism credential delete subcommand: delete_by_org OrgId-keyed; demo-teardown.sh all platforms)
+- **Local cascade streak:** 0/3 (passes 12+13 CLOSED; story-text drift class; code CLEAN)
+- **Pass-12/13 closures (story-text behavioral drift):** F-P12-MED-001 (AC-012 exits 1→exits 2 EXIT_CONFIG_INVALID; wrong error message) + F-P13-MED-001 (AC-007 --org-slug FALSE; single-org auto-resolution) + F-P12-LOW-001 (BC-2.06.003 title suffix POL-7) + 7 additional drift items (AC-005 prompt, EC-003/004/006 messages, multi-org error text)
 - **Test isolation:** install_keyring_mock() + InMemoryCredentialStore; subprocess credential test #[ignore]'d
-- **just check:** 4051/4051 GREEN; zero Keychain prompts
-- **Trajectory:** pass1(4,0/3)→pass2(1H,0/3)→pass3(1H+1M,0/3)→pass4(CLEAN 1/3)→pass5(1M+1L+1OBS,0/3)→pass6(2M+3OBS,0/3)→pass7(1M+1L,0/3)→pass8(2M,0/3)→pass9(1L,0/3)→pass10(1CRIT+1HIGH,0/3)
-- **NEXT:** LOCAL pass-11 adversary → toward 3-CLEAN → demo-recorder → push → pr-manager 9-step PR cycle
+- **just check:** 4051/4051 GREEN; zero Keychain prompts (code unchanged since pass-10)
+- **Trajectory:** pass1(4,0/3)→pass2(1H,0/3)→pass3(1H+1M,0/3)→pass4(CLEAN 1/3)→pass5(1M+1L+1OBS,0/3)→pass6(2M+3OBS,0/3)→pass7(1M+1L,0/3)→pass8(2M,0/3)→pass9(1L,0/3)→pass10(1CRIT+1HIGH,0/3)→pass12+13(2MED+1LOW story-text drift,0/3)
+- **NEXT:** LOCAL pass-14 adversary → toward 3-CLEAN → demo-recorder → push → pr-manager 9-step PR cycle
 
 ### §3 PHASE-C LANES (Claroty cluster — serialized)
 
@@ -12757,7 +12757,7 @@ All three lanes share `BC-2.16.013` + `claroty.sensor.toml`. Must be serialized 
 
 Execute in order:
 
-1. **LANE 4 — S-DEMO-003 LOCAL pass-11 (IMMEDIATE):** Dispatch adversary against worktree `.worktrees/S-DEMO-003`. Story v1.10. Lesson 62 preflight: assert `git -C .worktrees/S-DEMO-003 rev-parse HEAD` matches current feature HEAD + worktree basename == S-DEMO-003. Apply SAP-1/SAP-2/SID-1, TD-VSDD-059/060/091, production-grade default. Report CLEAN(strict) AND CLEAN(PR-merge) per BC-5.39.001 D-779. If CLEAN(strict)→streak advances; if NOT CLEAN(strict)→fix-burst required before next pass.
+1. **LANE 4 — S-DEMO-003 LOCAL pass-14 (IMMEDIATE):** Dispatch adversary against worktree `.worktrees/S-DEMO-003`. Story v1.11 (comprehensive behavioral audit complete; 37 claims verified; 10 corrected). Lesson 62 preflight: assert `git -C .worktrees/S-DEMO-003 rev-parse HEAD` matches current feature HEAD + worktree basename == S-DEMO-003. Apply SAP-1/SAP-2/SID-1, TD-VSDD-059/060/091, production-grade default. Report CLEAN(strict) AND CLEAN(PR-merge) per BC-5.39.001 D-779. If CLEAN(strict)→streak advances (fresh 0/3; 3-CLEAN needed); if NOT CLEAN(strict)→fix-burst required before next pass.
 
 2. **After S-DEMO-003 LOCAL 3-CLEAN CONVERGED:** Demo-recorder per-AC evidence → push feature/S-DEMO-003 → pr-manager 9-step PR cycle (create PR base develop@0e89789a, dispatch adversary/security/pr-reviewer, PR-LEVEL 3-CLEAN, squash-merge, POL-14 burst).
 

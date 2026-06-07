@@ -6,7 +6,7 @@ wave: 5
 epic_id: E-DEMO
 priority: P1
 status: ready
-version: "1.10"
+version: "1.11"
 level: "L4"
 producer: story-writer
 timestamp: "2026-05-29T00:00:00Z"
@@ -129,7 +129,7 @@ phase: 3
 
 **Story ID:** S-DEMO-003
 **Status:** ready
-**Version:** v1.10
+**Version:** v1.11
 **Wave:** 5
 **Priority:** P1
 **Points:** 8
@@ -169,7 +169,7 @@ bootstrap that writes to the OS keyring and is resolved end-to-end at query time
 | BC-2.03.005 | Credential CRUD Operations via MCP Tools (Mutations Require Confirmation Token) |
 | BC-2.03.007 | Secret Redaction in Logs, Errors, and MCP Responses |
 | BC-2.06.001 | TOML Configuration Loads and Deserializes at Startup |
-| BC-2.06.003 | Credential References in Config Resolve to Credential Store Entries (Tier-3 IMPLEMENTED — ADR-034) |
+| BC-2.06.003 | Credential References in Config Resolve to Credential Store Entries |
 | BC-2.22.001 | Boot Orchestration — Sequencing, Exit-Code Map, and Pre-Traffic Gate |
 
 ---
@@ -221,7 +221,7 @@ Given: A `prism.toml` exists in the config dir with one org entry containing an 
 `prism-bin` is invoked as `prism credential set --sensor crowdstrike --name client_id`.
 When: The subcommand runs.
 Then:
-  - It prompts "Enter value: " on stderr (no terminal echo); reads the value from stdin (rpassword);
+  - It prompts "Enter value for prism/<sensor>/<name>: " on stderr (no terminal echo, via `eprint!`); reads the value from stdin (rpassword);
   - Maps `--org-slug` (or the single org when unambiguous) → `OrgId` UUID by reading `PrismConfig.orgs[n].org_id` from prism.toml;
   - Writes via `CredentialStoreOrgId::set_by_org(&org_id, sensor, &cred_name, value)` producing keyring key `"{org_id_uuid}/{sensor}/{name}"` (ADR-034 §D3);
   - Does NOT write via legacy `CredentialStore::set` (slug-keyed `"{slug}/{sensor}/{name}"`);
@@ -305,8 +305,9 @@ Red Gate tests: `test_BC_2_06_003_tier3_miss_falls_through_to_tier4` (RG-034-002
 ### AC-012 (HIGH-3 — `resolve_org_slug_and_id` error on missing/invalid prism.toml): When `--org-slug` is absent and prism.toml is missing or unparseable, `prism credential set` errors clearly — no silent `"demo-org"` fallback.
 Given: The config directory contains no `prism.toml` (or an unparseable one), and `--org-slug` was not provided.
 When: `prism credential set --sensor armis --name bearer_token` is invoked.
-Then: The subcommand exits 1 with an actionable error message: "Could not load prism.toml from
-<config_dir>: <reason>. Provide --org-slug explicitly or ensure prism.toml is present." The
+Then: The subcommand exits 2 (EXIT_CONFIG_INVALID — ADR-022 §A) with an actionable error message:
+"Could not load prism.toml from '<config_dir>': <reason>. Ensure prism.toml exists (run
+demo-setup.sh or create it manually) before running `prism credential set`." The
 `"demo-org"` string MUST NOT appear as a default return value anywhere in this code path (SOUL.md §4).
 (traces to BC-2.06.003 precondition: "caller supplies a valid client_id"; SOUL.md §4 swallow-error
 prohibition; ADR-034 §D3 HIGH-3 remediation)
@@ -360,8 +361,11 @@ Then: DTU server is killed; the OS keyring entries (all OrgId-keyed entries writ
 namespace as the write path); keyring deletes run BEFORE `~/.config/prism-demo/` is removed
 (because `prism credential delete` reads `prism.toml` to resolve the OrgId UUID — the config
 dir must still exist at delete time); `~/.config/prism-demo/` is removed; exits 0.
-Note: the `--org-slug` flag is optional for single-org configs; `demo-teardown.sh` passes
-`--org-slug $DEMO_ORG_SLUG` for explicitness.
+Note: the `--org-slug` flag is optional for single-org configs; `demo-teardown.sh` does NOT
+pass `--org-slug` — it relies on single-org auto-resolution (the `delete_by_org` call in
+`handle_credential_delete_with_store` resolves the sole org from prism.toml without an explicit
+slug). The script reads `DEMO_ORG_ID` directly from prism.toml only to decide whether to
+attempt the `prism credential delete` invocations at all (guard condition).
 (traces to BC-2.03.005: "Credential CRUD Operations via MCP Tools" — teardown exercises the
 delete path of the credential subsystem via `delete_by_org`)
 
@@ -460,7 +464,7 @@ ARGS:
 BEHAVIOR:
     Loads PrismConfig from config_dir/prism.toml.
     Resolves org slug → OrgId UUID from PrismConfig.orgs[n].org_id.
-    If --org-slug absent and len(orgs) > 1: error "Multiple orgs configured — use --org-slug <slug>".
+    If --org-slug absent and len(orgs) > 1: exits 2 with error "Multiple orgs configured in '<path>' — use --org-slug <slug> to select one. Configured orgs: [<slugs>]".
     If --org-slug absent and len(orgs) == 1: use single org's org_id.
     If prism.toml missing or unparseable: hard error (no demo-org fallback).
     Prompts "Enter value for prism/<sensor>/<name>: " on stderr.
@@ -468,7 +472,8 @@ BEHAVIOR:
     Writes to OS keyring via CredentialStoreOrgId::set_by_org(&org_id, sensor, &name, value).
     Keyring key format: "{org_id_uuid}/{sensor}/{name}" (namespace_key_by_org_id).
     Prints "Credential stored successfully." to stdout on success.
-    Exits 0 on success; exits 1 on keyring write failure with actionable error on stderr.
+    Exits 0 on success; exits 1 (EXIT_GENERIC_ERROR) on keyring write failure with actionable error on stderr;
+    exits 2 (EXIT_CONFIG_INVALID) on config-invalid (prism.toml missing / unparseable / org not found).
 ```
 
 The `--value` flag is explicitly FORBIDDEN (AD-017 compliance).
@@ -614,10 +619,10 @@ pending human prioritization of S-DEMO-LAUNCHER-CONSOLIDATION-001.
 |----|-------------|-------------------|
 | EC-001 | OS keyring not available (e.g., headless CI without keyring service) | `prism credential set` exits 1 with actionable error (E-CRED-005 detail string from keyring-rs); `resolve_credential` returns `BackendUnavailable` (hard error, no Tier-4 fallthrough) |
 | EC-002 | `demo-setup.sh` run twice in succession | Second run is idempotent: overwrite files, overwrite keyring entries (`set_by_org` overwrites); no error |
-| EC-003 | crowdstrike-oauth2.prx not found at expected path | `demo-setup.sh` exits 1 with: "Plugin artifact not found at <path>. Run `cargo build -p prism-spec-engine --features wasm-plugins` first." |
-| EC-004 | DTU server not started before demo-run.sh | `demo-run.sh` polls urls.json for 30s then exits 1 with: "DTU server did not start within 30s. Check demo.toml for port conflicts." |
+| EC-003 | crowdstrike-oauth2.prx not found at expected path | `demo-setup.sh` exits 1 with: "ERROR: Plugin artifact not found at <path>" followed by "Run: cargo build -p prism-spec-engine --features wasm-plugins" and "Then re-run this script." (three separate stderr lines, then `exit 1`). |
+| EC-004 | DTU server not started before demo-run.sh | `demo-run.sh` polls urls.json for 30s then exits 1 with: "ERROR: DTU server did not start within 30s. Check <run_dir>/dtu-server.log for details. Common cause: port conflict — stop other services on the demo ports." |
 | EC-005 | `prism credential set` called with `--value` flag (attempted AD-017 bypass) | Clap rejects: "error: unexpected argument '--value' found. Values must be provided interactively." |
-| EC-006 | `--org-slug` provided but slug not found in prism.toml `[[orgs]]` | `handle_credential_set` exits 1: "Org slug '<slug>' not found in prism.toml. Available: [<slugs>]." |
+| EC-006 | `--org-slug` provided but slug not found in prism.toml `[[orgs]]` | `handle_credential_set` exits 2 (EXIT_CONFIG_INVALID): "--org-slug '<slug>' not found in prism.toml '<path>'. Configured orgs: [<slugs>]" (resolve_org_slug_and_id returns Err; handle_credential_set_with_store returns EXIT_CONFIG_INVALID). |
 | EC-007 | `org_id: None` passed to `resolve_credential` (caller lacks Tier-3 capability) | Tier 3 skipped silently; falls through to Tier 4 (BC-2.06.003 Tier-3 postcondition row 1) |
 | EC-008 | Keyring backend panics inside `spawn_blocking` | `KeyringBackend::get_by_org` catches spawn panic; `resolve_credential` receives `Err(...)` → hard `BackendUnavailable` / E-CRED-005 (ADR-034 §D4) |
 
@@ -669,6 +674,7 @@ additions. Still within limit.
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.11 | 2026-06-06 | story-writer | **F-P12-MED-001 + F-P13-MED-001 + F-P12-LOW-001 + comprehensive behavioral audit (pass-12/13 fixes):** **(1) F-P12-MED-001 (AC-012 exit code + error message):** AC-012 corrected: "exits 1" → "exits 2" (EXIT_CONFIG_INVALID — ADR-022 §A; code path: resolve_org_slug_and_id Err → handle_credential_set_with_store returns EXIT_CONFIG_INVALID); quoted error message replaced with the ACTUAL string from credential_cli.rs:503-508: "Could not load prism.toml from '<config_dir>': <reason>. Ensure prism.toml exists (run demo-setup.sh or create it manually) before running `prism credential set`." (previous text "Provide --org-slug explicitly or ensure prism.toml is present." was invented, never in code). `prism credential set` BEHAVIOR spec updated to explicitly list exit 2 for config-invalid (was omitted). Multi-org error message in BEHAVIOR spec updated to match code (added path and "Configured orgs:" suffix). **(2) F-P13-MED-001 (AC-007 note: demo-teardown.sh --org-slug claim):** AC-007 Note corrected: "demo-teardown.sh passes `--org-slug $DEMO_ORG_SLUG` for explicitness" is FALSE — grep of scripts/demo-teardown.sh shows zero `--org-slug` references. The script relies on single-org auto-resolution. Note rewritten to match actual behavior. **(3) F-P12-LOW-001 (BC table title BC-2.06.003):** Dropped the " (Tier-3 IMPLEMENTED — ADR-034)" enrichment suffix from the BC-2.06.003 title cell in the Behavioral Contracts table. POL-7 requires verbatim H1 match; BC-INDEX:103 H1 is "Credential References in Config Resolve to Credential Store Entries" (no suffix). Tier-3 context preserved in the BC frontmatter comment in the YAML block. **(4) Comprehensive behavioral audit — 7 additional drift items corrected:** (a) AC-005 prompt text: "Enter value: " → "Enter value for prism/<sensor>/<name>: " (code: credential_cli.rs:199 `format!("Enter value for prism/{}/{}: ", args.sensor, args.name)` + `eprint!`). (b) EC-006 exit code: "exits 1" → "exits 2 (EXIT_CONFIG_INVALID)" (same Err path as AC-012). (c) EC-006 message: "Org slug '<slug>' not found in prism.toml. Available: [<slugs>]" → "--org-slug '<slug>' not found in prism.toml '<path>'. Configured orgs: [<slugs>]" (code: credential_cli.rs:530-533). (d) EC-003 message: single-line quote → 3-line stderr output matching actual script. (e) EC-004 message: "DTU server did not start within 30s. Check demo.toml for port conflicts." → actual 3-line message from demo-run.sh including log-file path and "Common cause: port conflict" suffix. Items verified MATCH (no drift): AC-001 (exit 0 + dirs created), AC-002 (--config-dir flag, boot step event), AC-003 (DTU launch + urls.json poll), AC-004 (DEMO-RUNBOOK.md §4), AC-005 (set_by_org, OrgId-keyed key, AD-017 no-echo, exit 0), AC-007 (delete_by_org, ordering, exit 0), AC-008 (shellcheck zero warnings), AC-009 (env vars in prism start command env, overlay TOMLs written), AC-010 (OrgId-keyed key; NOT slug-keyed), AC-011 (Tier-3 miss falls through; backend error → BackendUnavailable/E-CRED-005), AC-013 (zero grep matches for retired formats), AC-014 (shellcheck in ci.yml), 8 Red Gate test names (all verified against worktree test files), env var names (CROWDSTRIKE_BASE_URL/ARMIS_INSTANCE_URL/CLAROTY_INSTANCE_URL/CYBERINT_ENVIRONMENT), namespace format "{org_id_uuid}/{sensor}/{name}", DEMO UUID "0196f4b2-3c8d-7e1a-b5f0-2d4c6e8a0b1c", AC count 14, red_gate_tests 8, demo-setup.sh steps 1-8 / credential bootstrap / --org-slug passing / set_cred helper. No BC/code/script/STORY-INDEX changes. |
 | 1.10 | 2026-06-06 | story-writer | **F-P10-CRIT-001 + F-P10-HIGH-001 (pass-10 fixes):** (1) F-P10-CRIT-001: documented keyring real-backend feature enablement in `crates/prism-credentials/Cargo.toml` (apple-native / windows-native / linux-native-sync-persistent / linux-native) + 4 `compile_error!` regression guards added to `crates/prism-credentials/src/lib.rs` that fire on zero-backend builds, preventing silent reversion to the in-process mock keystore. Tests use `install_keyring_mock()` (prism-credentials/src/tests/mod.rs) + `InMemoryCredentialStore` injection — no real OS Keychain in CI. FSR gains 4 new file rows (prism-credentials Cargo.toml, lib.rs guards, tests/mod.rs, tests/store_tests.rs). Architecture Compliance Rules gains 2 new rows (backend enablement guard; test mock-override). Forbidden Dependencies gains 1 new row (zero-feature guard). (2) F-P10-HIGH-001: `prism credential delete --org-slug <slug> --sensor <s> --name <n>` subcommand added — `handle_credential_delete` / `handle_credential_delete_with_store` in `credential_cli.rs`; calls `CredentialStoreOrgId::delete_by_org` (OrgId-keyed, matches write path exactly); idempotent (Ok(false) → exit 0); exits 1 on backend error, exits 2 on config-invalid. `demo-teardown.sh` now uses `prism credential delete` on ALL platforms, replacing wrong platform-native CLI calls. New Red Gate test `test_handle_credential_delete_uses_org_id_keyed_namespace` added to `bc_2_03_007_credential_set_org_id_keyed.rs` (AC-007 / BC-2.03.005). `red_gate_tests` 7→8. AC-007 rewritten to reference `prism credential delete` and the ordering constraint (deletes before `rm -rf`). Subcommand spec section expanded to include `prism credential delete`. Architecture Compliance Rules gains 2 new rows (delete uses `delete_by_org`; ordering constraint). Forbidden Dependencies gains 1 new row (platform-native CLI for deletion). FSR `credential_cli.rs` and `demo-teardown.sh` rows updated. Token budget updated ~47K→~51K. Title updated to include `set/delete`. Tasks 10, 27 count updated 7→8; task 17a added; task 18 updated. No BC/code/script/STORY-INDEX changes. |
 | 1.9 | 2026-06-06 | story-writer | **F-P8-MED-001 + F-P8-MED-002 + comprehensive citation audit (pass-8 fixes):** (1) F-P8-MED-001: Open Question 3 corrected — Cyberint auth_type is `cookie_roundtrip` / credential name is `api_key` (not `bearer_static`/`bearer_token`). Only Armis + Claroty are `bearer_static`/`bearer_token`. CrowdStrike is `oauth2_client_credentials`/`client_id`+`client_secret`. All auth_type and cred-name values are D-747 LOCKED per `crates/prism-sensors/specs/*.sensor.toml`. (2) F-P8-MED-002: Body H1 header `**Version:** v1.7` corrected to `v1.9` (was 2 versions behind frontmatter). (3) Comprehensive citation audit: 45 literal sites checked across 8 classes. Stale citations corrected: `plugin_auth_provider.rs` FSR row "lines 135, 145" removed (volatile line pins per TD-VSDD-091) — replaced with function-name anchor `PluginAuthProvider::acquire_token`; Tasks §6 "lines 130–150" similarly replaced with behavioral anchor. "5 test doubles" → "3 test doubles" at 3 body sites (FSR table line 416, Task 5 line 504, Task 13 line 512) — actual count verified: `MockCredentialResolver`, `NotFoundCredentialResolver`, `BackendUnavailableCredentialResolver`. All other literal classes (7 RG test names, CLI flags, file paths, env vars, error codes, namespace format, demo UUID) verified CURRENT against worktree. No BC/code/script/STORY-INDEX changes. |
 | 1.8 | 2026-06-06 | story-writer | **F-P7-MED-001 pass-7 fix:** Corrected stale production-function name `resolve_org_slug` → `resolve_org_slug_and_id` at AC-012 header, Architecture Compliance Rules row, and Forbidden Dependencies row. The bare `resolve_org_slug` helper was removed in F-LOW-003 (dead code); story body was not propagated until now. Behavior unchanged — hard-error on missing/invalid prism.toml, no demo-org fallback. No BC/code/script/STORY-INDEX changes. |
