@@ -458,6 +458,139 @@ DURABLE PIN BLOCK (CURRENT STATE — D-580 — DURABLE PRE-/CLEAR RESUME SNAPSHO
 
 ---
 
+## RESUME SNAPSHOT 2026-06-06 — D-1044 / DURABLE-CLEAR-CHECKPOINT / S-DEMO-003-CONSISTENCY-AUDIT-CLOSED / LANE-4-PASSES-18-19-20-NEXT
+
+> **START HERE — 2026-06-06 /clear resume (zero-context).** This is a DURABLE CHECKPOINT written specifically for zero-context resume. Read STATE.md frontmatter + this snapshot FIRST before dispatching any agent. All durable state committed atomically to factory-artifacts (LOCAL-ONLY — never pushed to remote per CLAUDE.md policy). develop HEAD `0e89789a`. STATE.md v7.695. STORY-INDEX v2.313.
+
+---
+
+### Pipeline Position
+
+| Field | Value |
+|-------|-------|
+| Phase | 3 — TDD Implementation |
+| Wave | Wave 5 (wave-5-e-demo-fidelity) |
+| Sub-phase | Phase B (parallel lanes) |
+| Phase B Lane 1 | COMPLETE — S-SPEC-HTTP-METHOD-VALIDATION-001 (PR #172 merged develop@752e407a 2026-06-05) |
+| Phase B Lane 2 | COMPLETE — S-DEMO-QUERY-PUSHDOWN-001 (PR #173 merged develop@9447671f 2026-06-06) |
+| Phase B Lane 3 | COMPLETE — OCSF-CLASS-MIGRATION-001 (PR #174 squash-merged develop@0e89789a 2026-06-06; LOCAL 3/3 + PR-LEVEL 3/3 CONVERGED; worktree removed; branch deleted) |
+| Phase B Lane 4 | IN_PROGRESS — S-DEMO-003 v1.14 worktree .worktrees/S-DEMO-003 branch feature/S-DEMO-003 HEAD 4920bfc7; consistency audit CLOSED D-1044; streak 0/3; LOCAL passes 18/19/20 NEXT (fresh 3-CLEAN per BC-5.39.001 D-779) |
+| Phase C | PENDING — Claroty cluster (TRAILING-SLASH → SPEC-PROSE-FIX → HARNESS-CLONE-PARITY); serialized; shares BC-2.16.013 + claroty.sensor.toml |
+
+### Durable State (all committed as of D-1044 single-commit burst)
+
+| Item | Value |
+|------|-------|
+| develop HEAD | `0e89789a` (OCSF-CLASS-MIGRATION-001 PR #174 squash-merged 2026-06-06; local == origin/develop) |
+| Last merged story | OCSF-CLASS-MIGRATION-001 v1.9 — PR #174 squash-merged develop@0e89789a 2026-06-06 (D-1038) |
+| factory-artifacts HEAD | run `git -C .factory log -1 --format='%h %s'` (LOCAL-ONLY; NEVER cite literal SHA in artifacts per TD-VSDD-053) |
+| STATE.md version | v7.695 |
+| STORY-INDEX version | v2.313 (185 stories) |
+| BC-INDEX version | v5.90 (active: 234, draft: 3) |
+| ARCH-INDEX version | v2.113 |
+| error-taxonomy version | v1.61 (E-CRED-005 added D-1025) |
+| BC-2.06.003 version | v1.4 (Tier-3 IMPLEMENTED; ADR-034 normative anchor) |
+| BC-2.02.012 version | v1.6 (TV/EC notation fix; both ACTIVE) |
+| BC-2.01.013 version | v1.14 (OCSF Conformance Clause; ACTIVE) |
+| Open PRs | NONE — all lanes merged; S-DEMO-003 not yet pushed |
+| S-DEMO-003 story version | v1.14 (committed this burst) |
+| S-DEMO-003 worktree HEAD | 4920bfc7 (implementer commit: F-001 DEMO-RUNBOOK §6b cross-ref + F-006 demo-setup.sh header) |
+
+### S-DEMO-003 Complete Implementation Facts (MUST READ before dispatching adversary)
+
+**Scope:** Demo Setup Scripts + `prism credential set` / `prism credential delete` CLI (Tier-3 OS-keyring credential resolution). Option-A scope expansion (D-1025): Tier-3 fully in scope per ADR-034 + BC-2.06.003 v1.4 + E-CRED-005. Story points 5→8. 8 ACs (AC-001..AC-014, 14 total but AC-013/AC-014 are renumbered). 6 Red Gate tests. depends_on S-DEMO-001+S-DEMO-002 (both SATISFIED). Based on develop@9447671f (pre-OCSF merge base; NO CONFLICT with OCSF-CLASS-MIGRATION-001 — different files; rebase NOT required).
+
+**Key implementation facts (adversary MUST verify against worktree, not story description alone):**
+
+(a) **Keyring backends:** real per-platform backends are feature-enabled in `crates/prism-credentials/Cargo.toml` (`apple-native`, `windows-native`, `linux-native-sync-persistent`/`crypto-rust`, `linux-native` features enabled in `[features] default`). 4 `compile_error!` regression guards in `crates/prism-credentials/src/lib.rs` (one per platform; fires on zero-backend builds to prevent silent reversion to in-process mock). This was F-P10-CRIT-001 (CRITICAL) closed in pass-10.
+
+(b) **Test isolation:** ALL tests use `install_keyring_mock()` (keyring mock-builder) + `InMemoryCredentialStore` injection in `crates/prism-credentials/src/tests/mod.rs`. `just check` NEVER touches real OS Keychain. One subprocess credential-set integration test is `#[ignore]`'d per SID-1 §4 (DTU/external-service dependency). **USER DECISION: production uses real macOS Keychain for the demo (keep Keychain).**
+
+(c) **CLI subcommands:** `prism credential set` (OrgId-keyed write via `CredentialStoreOrgId::set_by_org`; prism.toml load; exits 0/1/2) AND `prism credential delete` (F-P10-HIGH-001: `delete_by_org` OrgId-keyed; idempotent; exits 0/1/2) both fully implemented in `crates/prism-bin/src/credential_cli.rs`.
+
+(d) **Demo creds flow:** `scripts/demo-setup.sh` runs `prism credential set` → writes to macOS Keychain. `scripts/demo-run.sh` exports 4 TYPE-spec base_url env vars (CROWDSTRIKE_BASE_URL / ARMIS_INSTANCE_URL / CLAROTY_INSTANCE_URL / CYBERINT_ENVIRONMENT) + writes per-org overlay TOMLs at `specs/customers/demo-org/<sensor>.sensor.toml` with ephemeral DTU ports post-launch. `scripts/demo-teardown.sh` runs `prism credential delete` BEFORE `rm -rf` (ordering: keyring cleaned first; AD-017 requirement).
+
+(e) **FSR allowed_urls:** `scripts/demo-setup.sh` writes `crowdstrike-oauth2.manifest.toml` with `allowed_urls = ["api.crowdstrike.com", "127.0.0.1"]` (SEC-003 validates hostnames only, no scheme prefix; NOT a per-org egress allowlist). Armis/Claroty/Cyberint have no equivalent gate.
+
+(f) **AC-003 poll timeout:** `scripts/demo-run.sh` `POLL_TIMEOUT=30` (30 seconds, not 10).
+
+(g) **just check:** 4051/4051 GREEN (zero Keychain prompts confirmed).
+
+### S-DEMO-003 LOCAL Adversary Cascade History (17 passes + consistency audit)
+
+| Pass | Key Finding | Fix | Result |
+|------|-------------|-----|--------|
+| 1 | 2H+2M+2L: TDD stubs missing, AC-013 grep gap, edition drift | fix-burst-1 81b3f660+135b4c84 | 0/3 |
+| 2 | 1H F-HIGH-201 base_url overlay data-path gap | fix-burst-2 demo-run.sh overlay TOMLs + SEC-003 manifest | 0/3 |
+| 3 | 1H F-HIGH-301 base_url env vars; 1M phantom allowlist | fix-burst-3 91b3f2bd demo-run.sh env vars + story v1.4→v1.5 | 0/3 |
+| 4 | CLEAN | — | 1/3 |
+| 5 | 1M RG-034-005 missing; 1L path; 1OBS doc comments | fix-burst-4 test_BC_2_06_003_tier3_backend_error + story v1.5→v1.6 | 0/3 |
+| 6 | 2M story drift + 3OBS doc comments | fix-burst-5 e98aa69f story v1.6→v1.7 | 0/3 |
+| 7 | 1M resolve_org_slug→resolve_org_slug_and_id; 1L doc | fix-burst-6 story v1.7→v1.8 | 0/3 |
+| 8 | 2M citation audit (Cyberint label + body version) | fix-burst-7 comprehensive 51-site audit story v1.8→v1.9 | 0/3 |
+| 9 | 1L hardcoded ports in DEMO-RUNBOOK | fix 5b6aa792 dynamic port read | 0/3 |
+| 10 | 1CRIT no platform keyring backend; 1H Linux teardown namespace | CRITICAL fix: apple-native/windows-native/linux-native + compile_error! guards; delete_by_org; story v1.9→v1.10 | 0/3 |
+| 11 | CLEAN | — | 1/3 |
+| 12+13 | 2MED+1LOW story behavioral drift (37 claims, 10 corrected) | comprehensive audit story v1.10→v1.11 | 0/3 |
+| 14 | 1HIGH DEMO-RUNBOOK §7 teardown ordering (rm-rf before deletes) | fix 5b9fc4f3 ordering + 25-claim sweep | 0/3 |
+| 15 | 1MED demo-setup.sh:243 retired tool_query + FROM-LIMIT syntax | fix 8f257543 EXHAUSTIVE scripts/docs sweep | 0/3 |
+| 16 | 2MED cross-path: error-msg dead-end (F-P16-MED-001) + EC-001 wrong code (F-P16-MED-002) | 9e3314bc credential_cli.rs msg; story v1.11→v1.12 | 0/3 |
+| 17 | 1MED DEMO-RUNBOOK §6a E-CRED-005 header for write-path (write emits E-CRED-004) | 5676b5fc runbook §6 split 4 subsections; story v1.12→v1.13 | 0/3 |
+| Consistency audit | 5 actionable ALL CLOSED: F-001 §6b cross-ref; F-002 allowed_urls; F-003 AC-003 10s→30s; F-004 AC-011 detail string; F-006 demo-setup.sh header; F-005/F-007 deferred DRIFT-ECRED-TAXONOMY-001 | 4920bfc7 + story v1.13→v1.14 | 0/3 — ZERO known remaining drift |
+
+### Next Actions (CRYSTAL CLEAR ORDERED — D-989 autonomy authorizes all of these)
+
+**IMMEDIATE (next dispatch):**
+1. Dispatch adversary against S-DEMO-003 worktree for LOCAL pass-18 (fresh 3-CLEAN attempt; all known drift fixed; BC-5.39.001 D-779 requires 3 consecutive CLEAN strict). Dispatch absolute worktree paths. Adversary probes: SAP-1 (tracing emission catalog), SAP-2 (DTU↔TOML schema parity). Expected: CLEAN(strict)=yes — code is bulletproof; all known drift resolved.
+2. If pass-18 CLEAN: passes 19 and 20 (fresh streak continuation). After 3/3: LANE 4 LOCAL CONVERGED.
+3. On LOCAL 3/3 CONVERGED: demo-recorder per-AC evidence for all 8 ACs (incl AC-011 Tier-3 keyring Case A + Case B; AC-003 DTU launch; AC-012 exit-code verification; AC-005 prompt text).
+4. Push feature/S-DEMO-003 to origin (base develop@0e89789a; no rebase needed — different files from all merged stories).
+5. pr-manager 9-step PR cycle: create PR, dispatch pr-reviewer + code-reviewer + security-reviewer, PR-LEVEL adversarial 3-CLEAN, merge.
+6. Post-merge: POL-14 BC auto-promotions (BC-2.03.005/BC-2.03.007/BC-2.06.001/BC-2.06.003/BC-2.22.001 — check active vs draft), develop_head update, worktree cleanup.
+
+**AFTER S-DEMO-003 MERGED:**
+7. Check sprint-state.yaml for remaining Wave 5 E-DEMO stories. Phase C (Claroty cluster): S-DEMO-CLAROTY-TRAILING-SLASH-001 (ready v1.2) → serialized → SPEC-PROSE-FIX → HARNESS-CLONE-PARITY.
+
+### Standing Authorization (D-989 — ACTIVE)
+
+> **GRANT (2026-06-04):** Full autonomous execution of Wave 5 Phase A → Phase B → Phase C end-to-end.
+> **Convergence rigor PRESERVED (strict, non-negotiable):** every story follows the full per-story-delivery protocol — stubs → failing tests → TDD green → LOCAL adversarial 3-CLEAN (strict, BC-5.39.001 D-779) → demo-recorder per-AC → push → pr-manager PR cycle → PR-LEVEL adversarial 3-CLEAN (strict) + security-reviewer + pr-reviewer → CI green → squash-merge → post-merge POL-14 state burst.
+> **PAUSE-AND-SURFACE ONLY for these 4 hard exceptions:**
+>   1. Source-of-Truth §7 spec-to-match-code amendments (only human authorizes).
+>   2. Genuine product/business/risk decision not mechanically derivable from specs/ADRs.
+>   3. Level-3 escalation: missing prerequisite, genuinely-red CI, or convergence not reached after reasonable retries.
+>   4. CLAUDE.md edits (human-only per Pipeline Authority) — incl. DEFER-CLAUDEMD-BC216002-MISLABEL-001.
+> **Standing rules NEVER waived:** no `--no-verify`; no force-push; no factory-artifacts remote push without explicit user authorization (LOCAL-ONLY); single-commit-per-burst (TD-VSDD-053); fix-in-scope (no defer-pattern); BC-5.39.001 3-CLEAN strict.
+
+### Deferred Follow-up Stubs (DO NOT LOSE — all tracked with story anchors)
+
+| ID | Summary | Anchor Story | Priority | When |
+|----|---------|--------------|----------|------|
+| DRIFT-ECRED-TAXONOMY-001 | prism-core E-CRED enum ↔ error-taxonomy.md mismatch (E-CRED-001..005 variant semantics differ); pre-existing | S-MAINT-ECRED-TAXONOMY-SYNC-001 (registered D-1043) | P2 | phase-5/maintenance |
+| DRIFT-EDITION-SYNC-001 | prism-credentials + 24 other crates edition=2021 vs workspace default 2024; requires `cargo fix --edition` per crate + cross-compile verification | S-MAINT-EDITION-SYNC-001 (registered D-1027) | P3 | maintenance |
+| S-DEMO-LAUNCHER-CONSOLIDATION-001 | scripts/start-demo.sh vs demo-run.sh launcher overlap + shellcheck coverage gap | (stub registered D-1029) | P3 | Wave 5 E-DEMO |
+| DEFER-CLAUDEMD-BC216002-MISLABEL-001 | CLAUDE.md SAP-1 + §Conventions cite BC-2.16.002 as "Structured Event Catalog" — wrong (BC-2.16.002 is "Multi-Step Fetch Pipeline"; catalog is BC-2.05.005/BC-2.03.010) | **HUMAN DIRECT EDIT ONLY** (Pipeline Authority exception-4 under D-989) | — | next human checkpoint |
+| DRIFT-D1016-SEC-007 | QueryParams.start_time/end_time `Option<String>` — TimestampString newtype hardening candidate; current AST-validated approach sufficient; architect/PO adjudication | no story yet | P3 | architect/PO adjudication |
+
+### Stale Worktrees (PENDING USER DECISION — do NOT auto-remove)
+
+- `.worktrees/S-3.09` — branch `feature/S-3.09` @ `43c41389` (Wave-3 era; FROZEN; investigation done; NOT merged; recommend: remove worktree + keep branch ref; human decision required)
+- `.worktrees/W3-FIX-S307-001` — branch `feature/W3-FIX-S307-001` @ `fcab8717` (BLOCKED/superseded by ADR-023; NOT merged; recommend: remove worktree; human decision required)
+
+### Standing Rules Reminder
+
+- No `--no-verify`; no force-push to develop/main; no factory-artifacts remote push without explicit user authorization (it is LOCAL-ONLY).
+- Single-commit-per-burst (TD-VSDD-053); `MULTI_COMMIT_CHAIN_NOT_ALLOWED` fires on two consecutive "backfill"/"Stage 1"/"Stage 2" commits.
+- BC-5.39.001 3-CLEAN strict: CLEAN(strict) = ZERO findings of ANY severity (including LOW/OBS); CLEAN(PR-merge) = ZERO CRIT+HIGH+MED — only strict advances the streak.
+- Policy-rubric auto-load on every adversary dispatch.
+- Absolute `.factory/` paths required when dispatching adversary into a story worktree.
+- STATE.md does NOT cite current factory-artifacts HEAD SHA (`git -C .factory log -1 --format='%h %s'` owns that data).
+- `just check` 4051/4051 GREEN was the last confirmed green state in S-DEMO-003 worktree.
+- OPS: disk freed ~79GB this session (main target + stale-worktree targets + S-DEMO-003/OCSF targets removed/rebuilt). Current disk state should be adequate.
+- Session decisions this run: D-1023 through D-1044 (22 decisions).
+
+---
+
 ## RESUME SNAPSHOT 2026-06-06 — D-1030 / PHASE-B-LANE-3-LOCAL-PASS-9-NEXT / LANE-4-FIX-BURST-3-IN-PROGRESS
 
 > **START HERE — 2026-06-06 /clear resume (zero-context).** Read STATE.md frontmatter + this snapshot before dispatching any agent. All durable state committed to factory-artifacts (LOCAL-ONLY — push pending user auth). develop HEAD `9447671f` (origin/develop == local; PR #173 squash-merged 2026-06-06). STATE.md v7.681.
