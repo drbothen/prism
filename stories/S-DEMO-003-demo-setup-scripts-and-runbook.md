@@ -6,7 +6,7 @@ wave: 5
 epic_id: E-DEMO
 priority: P1
 status: ready
-version: "1.14"
+version: "1.15"
 level: "L4"
 producer: story-writer
 timestamp: "2026-05-29T00:00:00Z"
@@ -16,7 +16,7 @@ subsystems: [SS-03, SS-06, SS-08, SS-22]
 #   SS-03 (Credential Management) owns the `prism credential set` subcommand that writes to
 #     the OS keyring per AD-017, AND the Tier-3 resolver branch in resolve_credential
 #     (prism-credentials::resolution.rs). The OrgId-keyed namespace reconciliation (CRIT-2)
-#     and BackendUnavailable error semantics (E-CRED-005) are both Credential Management concerns.
+#     and BackendUnavailable error semantics (E-CRED-008) are both Credential Management concerns.
 #     Per ARCH-INDEX Subsystem Registry SS-03.
 #   SS-06 (Client Configuration) owns the demo prism.toml + per-org overlay TOML generation;
 #     the setup scripts create the config directory structure that prism-bin reads at startup.
@@ -44,7 +44,7 @@ behavioral_contracts:
                  # write operation; CLI path bypasses confirmation token (direct human operator).
   - BC-2.03.007  # Secret Redaction in Logs, Errors, and MCP Responses — credential values passed
                  # to `prism credential set` must never appear in logs or stderr output (AD-017).
-                 # Also: E-CRED-005 detail string must NOT contain a credential value (D4).
+                 # Also: E-CRED-008 detail string must NOT contain a credential value (D4).
   - BC-2.06.001  # TOML Configuration Loads and Deserializes at Startup — the generated prism.toml
                  # must be schema-valid and accepted without error.
   - BC-2.06.003  # Credential Reference Resolution — Tier-3 OS-keyring resolution IMPLEMENTED per
@@ -95,7 +95,7 @@ risk_mitigations:
   - "TD-VSDD-060 sibling-site sweep: resolve_credential signature change (2 new params) must
     be applied to ALL callsites in prism-credentials, prism-spec-engine, and prism-bin.
     Grep for 'resolve_credential' before declaring implementation done."
-  - "E-CRED-005 detail string: must contain only the keyring-rs system error string (e.g.,
+  - "E-CRED-008 detail string: must contain only the keyring-rs system error string (e.g.,
     'access denied', 'D-Bus unavailable') — never a credential value. AD-017 + BC-2.03.007."
 inputs:
   - "crates/prism-bin/src/boot.rs"
@@ -129,7 +129,7 @@ phase: 3
 
 **Story ID:** S-DEMO-003
 **Status:** ready
-**Version:** v1.13
+**Version:** v1.15
 **Wave:** 5
 **Priority:** P1
 **Points:** 8
@@ -287,7 +287,7 @@ Then:
 via `namespace_key_by_org_id` — canonical namespace; legacy slug-keyed namespace NOT used — ADR-034 §D3)
 Red Gate test: `test_handle_credential_set_writes_org_id_keyed_namespace` (RG-034-004 — also covers AC-005)
 
-### AC-011 (Tier-3 error semantics): Keyring miss → silent fall-through to Tier-4; keyring backend error → hard `BackendUnavailable` / E-CRED-005; no value leak.
+### AC-011 (Tier-3 error semantics): Keyring miss → silent fall-through to Tier-4; keyring backend error → hard `BackendUnavailable` / E-CRED-008; no value leak.
 Given: `resolve_credential` is called with `Some(&org_id)` and `Some(&keyring)`.
 When:
   - Case A: keyring has no entry for the OrgId-keyed key (`Ok(None)` / `NoEntry`), and CRUD store is empty.
@@ -296,15 +296,15 @@ Then:
   - Case A: `resolve_credential` falls through silently to Tier 4; returns `CredentialResolutionError::NotFound`
     (not `BackendUnavailable`). (traces to BC-2.06.003 Tier-3 postcondition: `get_by_org Ok(None)` → fall through)
   - Case B: `resolve_credential` returns `CredentialResolutionError::BackendUnavailable { detail:
-    "E-CRED-005: OS keyring unavailable: backend=<backend>: <reason>. Check keyring access
+    "E-CRED-008: OS keyring unavailable: backend=<backend>: <reason>. Check keyring access
     (macOS Keychain / Linux libsecret). Use Tier 1/2 env vars as an alternative (BC-2.06.003)." }`.
     The inner detail is formatted as `"backend={backend}: {reason}"` (from `PrismError::CredentialStoreError`
     destructure in resolution.rs — F-P6-OBS-003 fix strips the E-CRED-004 prefix to avoid double-prefix output).
     Does NOT fall through to Tier 4.
     The detail string contains backend identity and the system error reason ONLY — no credential value (AD-017; BC-2.03.007).
-(traces to BC-2.06.003 Tier-3 postcondition: `get_by_org Err(...)` → hard error E-CRED-005 — ADR-034 §D4)
+(traces to BC-2.06.003 Tier-3 postcondition: `get_by_org Err(...)` → hard error E-CRED-008 — ADR-034 §D4 / ADR-035 §D5)
 Red Gate tests: `test_BC_2_06_003_tier3_miss_falls_through_to_tier4` (RG-034-002, Case A);
-  `test_BC_2_06_003_tier3_backend_error_returns_e_cred_005` (RG-034-005, Case B)
+  `test_BC_2_06_003_tier3_backend_error_returns_e_cred_008` (RG-034-005, Case B)
 
 ### AC-012 (HIGH-3 — `resolve_org_slug_and_id` error on missing/invalid prism.toml): When `--org-slug` is absent and prism.toml is missing or unparseable, `prism credential set` errors clearly — no silent `"demo-org"` fallback.
 Given: The config directory contains no `prism.toml` (or an unparseable one), and `--org-slug` was not provided.
@@ -353,8 +353,8 @@ Then: The section covers at least:
     `prism credential set` surfaces the write failure as E-CRED-004
     (`PrismError::CredentialStoreError`); provides platform-specific fix (macOS Keychain unlock,
     Linux D-Bus start) and the `PRISM_CLIENTS_*` env-var fallback for headless/CI environments.
-  - (b) "Keyring read failure at query time — E-CRED-005" — explains that credential resolution
-    at query time can fail with E-CRED-005 when the OS keyring is inaccessible; provides
+  - (b) "Keyring read failure at query time — E-CRED-008" — explains that credential resolution
+    at query time can fail with E-CRED-008 when the OS keyring is inaccessible; provides
     platform-specific fix and the `PRISM_CLIENTS_*` env-var alternative (Tier-1/2 resolution).
   - (c) "Port already in use" — explains how to kill stale DTU server and re-run demo-run.sh
   - (d) "TOML spec not found" — explains how to verify spec_dir and sensor TOML filenames
@@ -397,7 +397,7 @@ Then: Zero errors, zero warnings.
 | Slug→OrgId resolution in `PrismCredentialResolver` (in `prism-spec-engine`) — NOT inside `prism-credentials` | `crates/prism-credentials/src/trait_.rs:84–85` architecture compliance rule | `prism-credentials` MUST NOT import `OrgRegistry`; violation = compile error |
 | `PrismCredentialResolver` is a struct with `org_registry: Arc<OrgRegistry>` and `keyring: Arc<dyn CredentialStoreOrgId>` | ADR-034 §D1 | Unit-struct form is removed; `PrismCredentialResolver::new(org_registry, keyring)` is the only constructor |
 | `BootContext` gains `credential_store_org_id: Arc<dyn CredentialStoreOrgId>` alongside existing `credential_store: Arc<dyn CredentialStore>` | ADR-034 §D5 | Step 5 exposes `Arc<KeyringBackend>` via both traits; same instance, no state duplication |
-| Tier-3 error: keyring backend error → hard `BackendUnavailable { detail: "E-CRED-005: OS keyring unavailable: {reason}" }` — do NOT fall through | ADR-034 §D4 / BC-2.06.003 / SOUL.md §4 | `reason` from keyring-rs is a system error string; must never contain a credential value |
+| Tier-3 error: keyring backend error → hard `BackendUnavailable { detail: "E-CRED-008: OS keyring unavailable: {reason}" }` — do NOT fall through | ADR-034 §D4 / ADR-035 §D5 / BC-2.06.003 / SOUL.md §4 | `reason` from keyring-rs is a system error string; must never contain a credential value |
 | `rpassword` or equivalent for no-echo stdin read | BC-2.03.007 Secret Redaction | `read -s` in bash is acceptable for shell scripts; Rust CLI must use `rpassword` crate |
 | Real OS keyring backends MUST be feature-enabled in `prism-credentials` (F-P10-CRIT-001) | Cross-process credential visibility | keyring-rs silently falls back to in-process mock when no backend feature is enabled; 4 `compile_error!` guards in `crates/prism-credentials/src/lib.rs` prevent silent reversion (apple-native on macOS/iOS, windows-native on Windows, linux-native-sync-persistent or linux-native on Linux). Removing a backend feature without removing the corresponding pass-through in `[features]` trips the guard on next build. |
 | Tests use keyring mock-builder override (`install_keyring_mock()` in `crates/prism-credentials/src/tests/mod.rs`) + `InMemoryCredentialStore` injection — NEVER the real OS Keychain | macOS unsigned-test-binary ACL constraint + SID-1 compliance | `just check` must never touch the real macOS Keychain; real-keyring cross-process tests are `#[ignore]`'d per SID-1 §4 with blocking-dependency rationale comments. |
@@ -449,7 +449,7 @@ already in workspace `Cargo.toml`. If it is not present, add it as a prism-bin d
 | `scripts/demo-run.sh` | CREATE | — | Daily launch: (1) start DTU in background → poll `urls.json` → parse ephemeral ports; (2) **export TYPE-spec env vars** (`CROWDSTRIKE_BASE_URL=http://127.0.0.1`, `ARMIS_INSTANCE_URL=http://127.0.0.1`, `CLAROTY_INSTANCE_URL=http://127.0.0.1`, `CYBERINT_ENVIRONMENT=demo`) — required by step-4a `env_resolver.rs` to satisfy `${env.*}` placeholders in TYPE-level sensor specs; without these, boot fires E-SPEC-024 and aborts before step-4c overlays are reached; (3) **write per-org `base_url` overlay TOMLs** (`specs/customers/demo-org/<sensor>.sensor.toml` with `extends` + `base_url=http://127.0.0.1:<PORT>`) for all 4 sensors (step-4c port override, done HERE because DTU ports are ephemeral); (4) print ports → print `prism start` command (with env vars pre-populated). There is NO per-org/host egress allowlist for Armis/Claroty/Cyberint — they use plain `reqwest::Client`; only the CrowdStrike OAuth2 plugin has an `allowed_urls` gate (SEC-003), already handled by `demo-setup.sh`'s `crowdstrike-oauth2.manifest.toml`. |
 | `scripts/demo-teardown.sh` | CREATE | — | Cleanup (F-P10-HIGH-001 fix): kill DTU → delete OrgId-keyed keyring entries via `prism credential delete` on ALL platforms (macOS + Linux + Windows) → remove config dir. ORDERING: keyring deletes BEFORE `rm -rf` (prism.toml must be present for OrgId resolution). Previous platform-native CLI approach (`security delete-generic-password` / `secret-tool`) replaced — those tools used wrong namespace attributes and silently orphaned entries. |
 | `scripts/demo.toml` | CREATE | — | DTU demo server config (all 4 sensors, ephemeral ports) |
-| `docs/DEMO-RUNBOOK.md` | CREATE | — | Comprehensive operator runbook (7 sections per scope); `PRISM_CLIENTS_*` format only; references E-CRED-005 in Troubleshooting |
+| `docs/DEMO-RUNBOOK.md` | CREATE | — | Comprehensive operator runbook (7 sections per scope); `PRISM_CLIENTS_*` format only; references E-CRED-008 in Troubleshooting |
 | `.github/workflows/ci.yml` | MODIFY | — | Add shellcheck step for `scripts/demo-*.sh` (HIGH-2 remediation; CI gate separate from local `just check-ci`) |
 
 ---
@@ -527,7 +527,7 @@ The runbook must contain exactly these sections (in this order):
 3. **Daily Demo Run** — run `demo-run.sh`; verify DTU clones are up
 4. **Connecting Claude Code** — add prism-bin to `~/.claude/settings.json` MCP servers section; exact JSON snippet
 5. **Example Queries** — one query per sensor (CrowdStrike, Armis, Claroty, Cyberint) with expected output shape
-6. **Troubleshooting** — 4 failure modes per AC-006: §6(a) keyring write / E-CRED-004, §6(b) keyring read / E-CRED-005, §6(c) port already in use, §6(d) TOML spec not found; NO `DEMO_ORG_*` env var format in examples
+6. **Troubleshooting** — 4 failure modes per AC-006: §6(a) keyring write / E-CRED-004, §6(b) keyring read / E-CRED-008, §6(c) port already in use, §6(d) TOML spec not found; NO `DEMO_ORG_*` env var format in examples
 7. **Cleanup** — run `demo-teardown.sh`
 
 ---
@@ -545,7 +545,7 @@ The following tests MUST be written as failing Red Gates before any implementati
 | `test_BC_2_06_003_tier3_miss_falls_through_to_tier4` (RG-034-002) | `crates/prism-credentials/tests/bc_2_06_003_tier3_keyring_resolution.rs` | AC-011 Case A | Tier-3 miss → Tier-4 (not BackendUnavailable) |
 | `test_resolve_org_slug_errors_when_toml_missing_and_no_explicit_slug` (RG-034-003) | `crates/prism-bin/src/credential_cli.rs #[cfg(test)] mod tests` | AC-012 | HIGH-3: no demo-org fallback |
 | `test_handle_credential_set_writes_org_id_keyed_namespace` (RG-034-004) | `crates/prism-bin/tests/bc_2_03_007_credential_set_org_id_keyed.rs` | AC-010 / AC-005 | CRIT-2 regression: entry at OrgId-keyed key; NOT at slug-keyed key |
-| `test_BC_2_06_003_tier3_backend_error_returns_e_cred_005` (RG-034-005) | `crates/prism-credentials/tests/bc_2_06_003_tier3_keyring_resolution.rs` | AC-011 Case B | Keyring backend `Err` → hard `BackendUnavailable`/E-CRED-005; no Tier-4 fall-through; no credential-value leak in detail; uses `InMemoryCredentialStore` error-injection mode (test-helpers-gated) |
+| `test_BC_2_06_003_tier3_backend_error_returns_e_cred_008` (RG-034-005) | `crates/prism-credentials/tests/bc_2_06_003_tier3_keyring_resolution.rs` | AC-011 Case B | Keyring backend `Err` → hard `BackendUnavailable`/E-CRED-008; no Tier-4 fall-through; no credential-value leak in detail; uses `InMemoryCredentialStore` error-injection mode (test-helpers-gated) |
 | `test_handle_credential_delete_uses_org_id_keyed_namespace` (F-P10-HIGH-001) | `crates/prism-bin/tests/bc_2_03_007_credential_set_org_id_keyed.rs` | AC-007 | F-P10-HIGH-001: `handle_credential_delete_with_store` calls `delete_by_org` (OrgId-keyed); entry absent after delete; idempotent second delete returns exit 0; uses `InMemoryCredentialStore` injection (no real OS Keychain) — BC-2.03.005 delete path / ADR-034 §D3 |
 
 Note: The existing `test_BC_2_03_007_prism_credential_set_does_not_echo_value_to_stdout` test may
@@ -580,7 +580,7 @@ and produce the OrgId-keyed variant in `bc_2_03_007_credential_set_org_id_keyed.
 20. **Write** `scripts/demo-run.sh` — launch DTU in background → poll urls.json → print ports.
 21. **Write** `scripts/demo-teardown.sh` — kill DTU → remove config dir → delete OrgId-keyed keyring entries.
 22. **Write** `scripts/demo.toml` — DTU demo server config for all 4 sensors.
-23. **Write** `docs/DEMO-RUNBOOK.md` — all 7 sections; references E-CRED-005 in Troubleshooting; no `DEMO_ORG_*` format.
+23. **Write** `docs/DEMO-RUNBOOK.md` — all 7 sections; references E-CRED-008 in Troubleshooting; no `DEMO_ORG_*` format.
 24. **Modify** `.github/workflows/ci.yml` — add shellcheck step for `scripts/demo-*.sh` (HIGH-2).
 25. **Run** `shellcheck scripts/demo-*.sh` — fix all warnings (AC-008).
 26. **TD-VSDD-060 sibling-site sweep** — grep `resolve_credential` across ALL crates; verify every callsite updated.
@@ -627,14 +627,14 @@ pending human prioritization of S-DEMO-LAUNCHER-CONSOLIDATION-001.
 | ID | Description | Expected Behavior |
 |----|-------------|-------------------|
 | EC-001 | OS keyring not available (e.g., headless CI without keyring service) — **write path** (`prism credential set`): keyring write fails | `prism credential set` exits 1; `handle_credential_set` surfaces the keyring write failure via "Keyring unavailable: {e}…" (E-CRED-004 — `PrismError::CredentialStoreError`; credential_cli.rs handle_credential_set). Operator is directed to set the per-client env var fallback (`PRISM_CLIENTS_<ORG>_SENSORS_<SENSOR>_<REF>`) as an alternative to the OS keyring. |
-| EC-001b | OS keyring not available — **read path** (`resolve_credential` / Tier-3): keyring read returns `Err(NoStorageAccess)` | `resolve_credential` returns `CredentialResolutionError::BackendUnavailable { detail: "E-CRED-005: OS keyring unavailable: {reason}" }`. Hard error — does NOT fall through to Tier 4 (ADR-034 §D4). The detail string contains the keyring-rs system error string only; no credential value (AD-017). |
+| EC-001b | OS keyring not available — **read path** (`resolve_credential` / Tier-3): keyring read returns `Err(NoStorageAccess)` | `resolve_credential` returns `CredentialResolutionError::BackendUnavailable { detail: "E-CRED-008: OS keyring unavailable: {reason}" }`. Hard error — does NOT fall through to Tier 4 (ADR-034 §D4 / ADR-035 §D5). The detail string contains the keyring-rs system error string only; no credential value (AD-017). |
 | EC-002 | `demo-setup.sh` run twice in succession | Second run is idempotent: overwrite files, overwrite keyring entries (`set_by_org` overwrites); no error |
 | EC-003 | crowdstrike-oauth2.prx not found at expected path | `demo-setup.sh` exits 1 with: "ERROR: Plugin artifact not found at <path>" followed by "Run: cargo build -p prism-spec-engine --features wasm-plugins" and "Then re-run this script." (three separate stderr lines, then `exit 1`). |
 | EC-004 | DTU server not started before demo-run.sh | `demo-run.sh` polls urls.json for 30s then exits 1 with: "ERROR: DTU server did not start within 30s. Check <run_dir>/dtu-server.log for details. Common cause: port conflict — stop other services on the demo ports." |
 | EC-005 | `prism credential set` called with `--value` flag (attempted AD-017 bypass) | Clap rejects: "error: unexpected argument '--value' found. Values must be provided interactively." |
 | EC-006 | `--org-slug` provided but slug not found in prism.toml `[[orgs]]` | `handle_credential_set` exits 2 (EXIT_CONFIG_INVALID): "--org-slug '<slug>' not found in prism.toml '<path>'. Configured orgs: [<slugs>]" (resolve_org_slug_and_id returns Err; handle_credential_set_with_store returns EXIT_CONFIG_INVALID). |
 | EC-007 | `org_id: None` passed to `resolve_credential` (caller lacks Tier-3 capability) | Tier 3 skipped silently; falls through to Tier 4 (BC-2.06.003 Tier-3 postcondition row 1) |
-| EC-008 | Keyring backend panics inside `spawn_blocking` | `KeyringBackend::get_by_org` catches spawn panic; `resolve_credential` receives `Err(...)` → hard `BackendUnavailable` / E-CRED-005 (ADR-034 §D4) |
+| EC-008 | Keyring backend panics inside `spawn_blocking` | `KeyringBackend::get_by_org` catches spawn panic; `resolve_credential` receives `Err(...)` → hard `BackendUnavailable` / E-CRED-008 (ADR-034 §D4 / ADR-035 §D5) |
 
 ---
 
@@ -684,6 +684,7 @@ additions. Still within limit.
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.15 | 2026-06-07 | story-writer | **E-CRED-005 → E-CRED-008 re-align (Tier-3 keyring backend path) per ADR-035 §D5 / error-taxonomy v1.62:** S-MAINT-ECRED-TAXONOMY-SYNC-001 (merged develop@c603741d) established the canonical E-CRED-001..010 namespace. The Tier-3 keyring/backend-unavailable path is canonically E-CRED-008 (`BackendUnavailable`) per error-taxonomy.md v1.62 §E-CRED-008 and ADR-035 §D5. The old E-CRED-005 cite for this path was a collision with `CredentialFileIo` (Tier-1 file I/O), now canonically E-CRED-005. All Tier-3/keyring-backend occurrences of E-CRED-005 flipped to E-CRED-008 across: frontmatter subsystem comment (SS-03 anchor), BC-2.03.007 frontmatter comment, `risk_mitigations` detail-string item, AC-011 header, AC-011 Case B detail string, AC-011 BC-trace clause, AC-006 §6(b) runbook header and body, Architecture Compliance Rules Tier-3 error row (source citation expanded: added ADR-035 §D5), FSR `docs/DEMO-RUNBOOK.md` row, DEMO-RUNBOOK §6 description, Red Gate Tests table (RG-034-005 test name `...e_cred_005` → `...e_cred_008`), Task 23, EC-001b detail string (source citation expanded: added ADR-035 §D5), EC-008 error code (source citation expanded: added ADR-035 §D5). Red Gate test name aligned with implementer commit 3bed8ea1: `test_BC_2_06_003_tier3_backend_error_returns_e_cred_008`. No Tier-1 file-I/O E-CRED-005 references exist in this story — no preservation was needed. Changelog historical rows (v1.6, v1.12, etc.) left unchanged as immutable history. |
 | 1.14 | 2026-06-06 | story-writer | **F-002/F-003/F-004 consistency-audit fixes:** **(F-002 MED)** FSR `scripts/demo-setup.sh` row: `allowed_urls` value corrected from `["http://127.0.0.1"]` to `["api.crowdstrike.com", "127.0.0.1"]` — matching `scripts/demo-setup.sh:150` exactly; added note that SEC-003 validates hostnames only (no scheme prefix). **(F-003 MED)** AC-003 poll timeout corrected from "within **10s**" to "within **30s**" — matching `demo-run.sh` `POLL_TIMEOUT=30` and EC-004 (both authoritative). **(F-004 LOW)** AC-011 Case B detail string updated from the terse/incorrect `"E-CRED-005: OS keyring unavailable: NoStorageAccess"` to reflect the real code format: `"E-CRED-005: OS keyring unavailable: backend={backend}: {reason}. Check keyring access (macOS Keychain / Linux libsecret). Use Tier 1/2 env vars as an alternative (BC-2.06.003)."` — sourced from `resolution.rs:237-259` (F-P6-OBS-003 `inner_detail` pattern + guidance suffix). Inner detail note added explaining the E-CRED-004-prefix-strip rationale. No BC/code/script/STORY-INDEX changes. |
 | 1.13 | 2026-06-06 | story-writer | **Runbook §6 structure alignment (pass-17 proactive propagation):** DEMO-RUNBOOK.md §6 was split from 3 subsections into 4 by commit 5676b5fc — keyring error split into §6(a) write-fail/E-CRED-004 and §6(b) read-fail/E-CRED-005; port already in use renumbered §6(c); TOML not found renumbered §6(d). AC-006 updated: count 3→4 failure modes; AC-006 item list rewritten to match the 4 subsections with correct §-letter assignments (write→§6a/E-CRED-004, read→§6b/E-CRED-005, port→§6c, TOML→§6d). "docs/DEMO-RUNBOOK.md Required Sections" §6 description updated from "3 failure modes" to "4 failure modes" with explicit subsection enumeration. No BC/code/script/STORY-INDEX changes. |
 | 1.12 | 2026-06-06 | story-writer | **F-P16-MED-002 (EC-001 write-path/read-path error-code split + env-var-fallback alignment):** EC-001 conflated two distinct error codes on two distinct paths. Fixed by splitting into EC-001 (write path) and EC-001b (read path): **(write path — EC-001)** `prism credential set` keyring write failure surfaces via `handle_credential_set` as "Keyring unavailable: {e}…" — this is E-CRED-004 (`PrismError::CredentialStoreError`; credential_cli.rs), NOT E-CRED-005. Operator guidance updated to reference the per-client env var fallback (`PRISM_CLIENTS_<ORG>_SENSORS_<SENSOR>_<REF>`, per DEMO-RUNBOOK §6a / demo-setup.sh) instead of an "encrypted file backend." **(read path — EC-001b)** `resolve_credential` Tier-3 backend error (`Err(NoStorageAccess)`) returns `CredentialResolutionError::BackendUnavailable` with E-CRED-005 detail string — hard error, no Tier-4 fallthrough (ADR-034 §D4). E-CRED-005 reference now attaches ONLY to the Tier-3 read clause; the write-failure clause references E-CRED-004. AC-006(a) left unchanged — it correctly covers the runtime read-path E-CRED-005 (keyring access denied during credential resolution, not during setup). No BC/code/script/STORY-INDEX changes. |
