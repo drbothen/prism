@@ -18,6 +18,31 @@ name = "prism_credentials"
 # that cannot be tested via #[ignore]'d real-keyring integration tests in CI.
 test-helpers = []
 
+# F-P10-CRIT-001 regression guard: pass-through features from keyring-rs.
+#
+# These are declared in `default` so that cfg(feature = "keyring-apple-native") etc.
+# resolve correctly in lib.rs compile_error! guards (Rust cfg(feature=) only checks
+# the CURRENT crate's features, not transitive deps').
+#
+# Two-place update invariant:
+#   1. The feature must be listed here (so cfg(feature = ...) resolves).
+#   2. The corresponding keyring dep feature must be declared in [dependencies].keyring.
+#   Removing one without the other causes a compile_error! guard to fire.
+#
+# NOTE: keyring-linux-native and keyring-linux-native-sync-persistent are both declared
+# so the guard allows either (musl uses linux-native only; gnu uses the persistent combo).
+# The [dependencies].keyring features section specifies the actual subset to compile.
+default = [
+    "keyring-apple-native",
+    "keyring-windows-native",
+    "keyring-linux-native-sync-persistent",
+    "keyring-linux-native",
+]
+keyring-apple-native = ["keyring/apple-native"]
+keyring-windows-native = ["keyring/windows-native"]
+keyring-linux-native-sync-persistent = ["keyring/linux-native-sync-persistent", "keyring/crypto-rust"]
+keyring-linux-native = ["keyring/linux-native"]
+
 [dependencies]
 prism-core = { path = "../prism-core" }
 
@@ -32,8 +57,34 @@ thiserror = "1"
 secrecy = { version = "0.8", features = ["serde"] }
 zeroize = { version = "1", features = ["derive"] }
 
-# Keyring backend (keyring-rs 3.x)
-keyring = "3"
+# Keyring backend (keyring-rs 3.x) — F-P10-CRIT-001 fix: real platform backends required.
+#
+# keyring 3.x gates EVERY platform store behind a feature flag. With zero features,
+# the compiled store is the in-process MOCK keystore — cross-process reads (prism start
+# after prism credential set) return Ok(None) for every entry. Real backends:
+#
+#   macOS/iOS:    apple-native   → security-framework (Keychain)
+#   Windows:      windows-native → windows-sys Credential Store
+#   Linux gnu:    linux-native-sync-persistent + crypto-rust
+#                   → linux-keyutils (kernel session keyring, fast)
+#                   + dbus-secret-service (persistent across reboot via Secret Service)
+#   Linux musl:   linux-native only → linux-keyutils (kernel session keyring)
+#                   dbus-secret-service links libdbus via glibc; musl cannot load it at
+#                   runtime, so we accept kernel-keyutils-only (session-scoped, persistent
+#                   for the login session — acceptable for demo/CLI use).
+#
+# Compile-time regression guards in src/lib.rs assert that at least one real backend
+# is compiled on each supported platform (catches accidental feature reversion).
+#
+# CI note: sync-secret-service on headless Linux CI (no D-Bus daemon) → backend-error
+# at runtime. This is correct: E-CRED-005 backend-error surfaces, existing #[ignore]'d
+# real-keyring integration tests stay #[ignore]'d, no non-ignored test does a live round-trip.
+# F-P10-CRIT-001 fix: no inline features here — backend features are activated via
+# prism-credentials' own `default` features (keyring-apple-native, keyring-windows-native,
+# keyring-linux-native-sync-persistent, keyring-linux-native) which use the
+# `keyring/<feature>` dep-activation syntax. This keeps a single source of truth
+# and allows the compile_error! guards in lib.rs to check prism-credentials' own features.
+keyring = { version = "3", default-features = false }
 
 # AES-256-GCM encryption (used by EncryptedFileBackend in file.rs)
 aes-gcm = "0.10"

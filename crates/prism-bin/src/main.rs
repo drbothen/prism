@@ -22,7 +22,7 @@ use clap::Parser;
 use prism_bin::{
     boot::{self, PrismConfig},
     cli::{CliArgs, LogFormat, PrismCommand},
-    credential_cli::{CredentialCommand, handle_credential_set},
+    credential_cli::{CredentialCommand, handle_credential_delete, handle_credential_set},
     exit_codes::{EXIT_CONFIG_INVALID, EXIT_INTERNAL_ERROR, EXIT_SUCCESS},
 };
 
@@ -142,11 +142,17 @@ async fn dispatch(args: CliArgs) -> i32 {
             EXIT_INTERNAL_ERROR
         }
 
-        // S-DEMO-003: `prism credential set` subcommand dispatch.
+        // S-DEMO-003: `prism credential` subcommand dispatch.
         // AC-005: AD-017 compliant keyring write — value read from stdin (not CLI arg).
+        // AC-007: delete path uses delete_by_org (OrgId-keyed, same namespace as write).
         // BCs: BC-2.03.007 (secret redaction), BC-2.03.005 (credential CRUD).
         PrismCommand::Credential(credential_args) => match credential_args.command {
             CredentialCommand::Set(set_args) => handle_credential_set(set_args, config_dir).await,
+            // F-P10-HIGH-001: use prism-native delete (guarantees namespace parity on all
+            // platforms — matches write path via delete_by_org OrgId-keyed namespace).
+            CredentialCommand::Delete(delete_args) => {
+                handle_credential_delete(delete_args, config_dir).await
+            }
         },
     }
 }

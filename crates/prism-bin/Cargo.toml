@@ -44,7 +44,11 @@ clap = { version = "4", features = ["derive", "env"] }
 # only (no library crate needs it). Architect resolution: prism-bin-only per S-DEMO-003
 # risk_mitigations and open question OQ-2.
 rpassword = "7"
-keyring = "3"
+# F-P10-CRIT-001 fix: real backend features activated via prism-credentials' default features.
+# Cargo unifies keyring features from all dependents — prism-credentials' default features
+# (keyring-apple-native, keyring-windows-native, keyring-linux-native-sync-persistent,
+# keyring-linux-native) enable all real backends. This dep just declares the version constraint.
+keyring = { version = "3", default-features = false }
 tokio = { version = "1", features = ["full"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }

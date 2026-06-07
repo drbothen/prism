@@ -1,21 +1,25 @@
 // SPDX-License-Identifier: Apache-2.0
-//! Red Gate test for S-DEMO-003 AC-010 / AC-005 — CRIT-2 namespace reconciliation.
+//! Red Gate test for S-DEMO-003 AC-010 / AC-005 / AC-007 — CRIT-2 namespace reconciliation
+//! and F-P10-HIGH-001 credential delete path.
 //!
-//! **Contract (ADR-034 §D3 / BC-2.06.003 Tier-3 / BC-2.03.007):**
+//! **Contract (ADR-034 §D3 / BC-2.06.003 Tier-3 / BC-2.03.007 / BC-2.03.005):**
 //! `handle_credential_set` MUST write via `CredentialStoreOrgId::set_by_org` (OrgId-keyed
 //! namespace `"{org_id_uuid}/{sensor}/{name}"`). It MUST NOT write via the legacy
 //! `CredentialStore::set` (slug-keyed namespace `"{slug}/{sensor}/{name}"`).
 //!
+//! `handle_credential_delete_with_store` MUST delete via `CredentialStoreOrgId::delete_by_org`
+//! (OrgId-keyed namespace). A credential set via `set_by_org` must be retrievable-then-absent
+//! after `delete_by_org` (F-P10-HIGH-001 / AC-007 / BC-2.03.005).
+//!
 //! # Test approach — in-process with InMemoryCredentialStore (SID-1 compliance)
 //!
 //! The test injects an `InMemoryCredentialStore` trait double into
-//! `handle_credential_set_with_store` (the injectable inner function). After the call,
-//! the test inspects the in-memory store's namespace keys to assert the credential was
-//! stored at `"{org_id_uuid}/{sensor}/{name}"` — NOT at `"{slug}/{sensor}/{name}"`.
+//! `handle_credential_set_with_store` / `handle_credential_delete_with_store`
+//! (injectable inner functions). After each call, the test inspects the in-memory store's
+//! namespace keys to assert the credential was stored / absent at `"{org_id_uuid}/{sensor}/{name}"`.
 //!
 //! This avoids the macOS unsigned-test-binary OS keychain cross-process ACL limitation
-//! while exercising the FULL production code path of `handle_credential_set_with_store`
-//! (OrgId resolution from prism.toml, CredentialName validation, set_by_org dispatch).
+//! while exercising the FULL production code path.
 //!
 //! The real-OS-keyring cross-process subprocess test is kept below as `#[ignore]`'d
 //! with rationale per SID-1 §4.
@@ -26,6 +30,7 @@
 //! |------|-------|----|----|
 //! | test_BC_2_06_003_crit2_slug_keyed_write_invisible_to_org_id_keyed_read | CRIT-2 proof | AC-010 | ADR-034 §D3 |
 //! | test_handle_credential_set_writes_org_id_keyed_namespace | RG-034-004 | AC-010/AC-005 | BC-2.06.003 Tier-3; BC-2.03.007 |
+//! | test_handle_credential_delete_uses_org_id_keyed_namespace | F-P10-HIGH-001 | AC-007 | BC-2.03.005 |
 //! | test_handle_credential_set_subprocess_ignored | RG-034-004 subprocess | AC-010 | BC-2.06.003 Tier-3 |
 //!
 //! Story: S-DEMO-003 | ADR: ADR-034
@@ -48,13 +53,21 @@ use prism_credentials::{CredentialStore, CredentialStoreOrgId, InMemoryCredentia
 /// This test passes at Red Gate (proves the gap exists) and continues to pass
 /// after implementation (the two namespaces must always remain disjoint).
 ///
+/// **F-P10-CRIT-001 compatibility note:** This test was previously implemented with
+/// `KeyringBackend` directly. With real platform backends now enabled (F-P10-CRIT-001
+/// fix), `KeyringBackend::set` writes to the actual OS keychain, causing flakiness
+/// (duplicate-entry errors on repeated runs). The behavioral invariant being tested
+/// (slug namespace ≠ OrgId namespace) is a LOGICAL property of the namespace_key and
+/// namespace_key_by_org_id functions, not of the storage backend. `InMemoryCredentialStore`
+/// exercises the same namespace logic and is CI-safe (no OS keychain side effects).
+///
 /// BC-2.06.003 Tier-3 / ADR-034 §D3 namespace isolation.
 #[tokio::test]
 async fn test_BC_2_06_003_crit2_slug_keyed_write_invisible_to_org_id_keyed_read() {
-    let tmp = tempfile::TempDir::new().expect("temp dir");
-
-    let broken_index = CredentialIndex::new(tmp.path().join("broken_index.json"));
-    let broken_keyring = KeyringBackend::new("prism-test", broken_index);
+    // Use InMemoryCredentialStore: namespace isolation is a logical property of the
+    // namespace key functions (namespace_key vs namespace_key_by_org_id). Any backend
+    // that stores and retrieves from the same HashMap proves or disproves disjointness.
+    let store = InMemoryCredentialStore::new();
 
     let uuid = uuid::Uuid::now_v7();
     let org_id = OrgId::from_uuid(uuid);
@@ -62,7 +75,7 @@ async fn test_BC_2_06_003_crit2_slug_keyed_write_invisible_to_org_id_keyed_read(
     let cred_name = CredentialName::new("bearer_token").expect("CredentialName::new");
 
     // Write via slug-keyed path (what the pre-fix stub did).
-    broken_keyring
+    store
         .set(
             &org_slug,
             "armis",
@@ -73,7 +86,7 @@ async fn test_BC_2_06_003_crit2_slug_keyed_write_invisible_to_org_id_keyed_read(
         .expect("slug-keyed set must succeed");
 
     // Read via OrgId-keyed path — must return None (disjoint namespace).
-    let result = broken_keyring
+    let result = store
         .get_by_org(&org_id, "armis", &cred_name)
         .await
         .expect("get_by_org must not error");
@@ -219,6 +232,145 @@ org_slug = "{org_slug}"
          The slug-keyed namespace is disjoint from get_by_org's OrgId-UUID namespace. \
          Found unexpected slug-keyed key: '{slug_keyed}'. \
          ADR-034 §D3 CRIT-2 remediation."
+    );
+}
+
+// ---------------------------------------------------------------------------
+// F-P10-HIGH-001: handle_credential_delete uses OrgId-keyed namespace (in-process)
+// ---------------------------------------------------------------------------
+
+/// F-P10-HIGH-001: `handle_credential_delete_with_store` must delete via
+/// `CredentialStoreOrgId::delete_by_org` using the OrgId-UUID-keyed namespace
+/// `"{org_id_uuid}/{sensor}/{name}"`.
+///
+/// This is the load-bearing test for the `prism credential delete` subcommand introduced
+/// to fix demo-teardown.sh. The old teardown used `secret-tool clear service "prism"
+/// account "${key}"` (Linux) or `security delete-generic-password` (macOS). The Linux
+/// path was broken because keyring-rs 3.x dbus-secret-service stores credentials under
+/// the `username` attribute (NOT `account`), so the clear matched nothing — 5 orphaned
+/// keyring entries remained after every demo teardown (F-P10-HIGH-001 root cause).
+///
+/// **Test approach (SID-1 compliance):** inject `InMemoryCredentialStore`. Call
+/// `set_by_org` directly to prime a credential, then call `handle_credential_delete_with_store`
+/// to delete it via the production handler. Assert the key is absent afterward.
+///
+/// This exercises the FULL production code path:
+///   - `resolve_org_slug_and_id` (prism.toml → OrgId resolution)
+///   - `CredentialName::new` validation
+///   - `store.delete_by_org(org_id, sensor, cred_name)` dispatch
+///   - idempotent Ok(false) path (second delete returns exit 0)
+///
+/// F-P10-HIGH-001; AC-007 / BC-2.03.005 delete path; ADR-034 §D3.
+#[tokio::test]
+async fn test_handle_credential_delete_uses_org_id_keyed_namespace() {
+    // Set up temp config dir with prism.toml containing one org.
+    let tmp = tempfile::TempDir::new().expect("temp dir");
+    let config_dir = tmp.path().to_path_buf();
+
+    let demo_org_uuid_str = "0196f4b2-3c8d-7e1a-b5f0-2d4c6e8a0b1c";
+    let demo_org_slug = "demo-org";
+    let state_dir = config_dir.join("state");
+    let spec_dir = config_dir.join("specs");
+    let plugin_dir = config_dir.join("plugins");
+    std::fs::create_dir_all(&state_dir).unwrap();
+    std::fs::create_dir_all(&spec_dir).unwrap();
+    std::fs::create_dir_all(&plugin_dir).unwrap();
+
+    // Write prism.toml fixture — handle_credential_delete_with_store reads it to
+    // resolve the OrgId UUID (same as the set path, ADR-034 §D3).
+    let prism_toml = format!(
+        r#"spec_dir = "{spec}"
+state_dir = "{state}"
+plugin_dir = "{plugin}"
+
+[[orgs]]
+org_id = "{org_id}"
+org_slug = "{org_slug}"
+"#,
+        spec = spec_dir.display(),
+        state = state_dir.display(),
+        plugin = plugin_dir.display(),
+        org_id = demo_org_uuid_str,
+        org_slug = demo_org_slug,
+    );
+    std::fs::write(config_dir.join("prism.toml"), &prism_toml).expect("write prism.toml");
+
+    // Inject the InMemoryCredentialStore — no real OS keyring needed.
+    let store = Arc::new(InMemoryCredentialStore::new());
+
+    // Compute the expected OrgId-keyed key for assertions.
+    let org_id = {
+        let uuid = uuid::Uuid::parse_str(demo_org_uuid_str).expect("valid uuid");
+        OrgId::from_uuid(uuid)
+    };
+    let cred_name = CredentialName::new("client_id").expect("CredentialName::new");
+    let expected_key = format!("{org_id}/crowdstrike/client_id");
+
+    // STEP 1: Prime the store with a credential at the OrgId-keyed namespace.
+    // This simulates what `prism credential set` would have written.
+    store
+        .set_by_org(
+            &org_id,
+            "crowdstrike",
+            &cred_name,
+            secrecy::SecretString::new("test-delete-sentinel-value".to_string()),
+        )
+        .await
+        .expect("set_by_org must succeed on InMemoryCredentialStore");
+
+    // Verify the credential is present before delete.
+    assert!(
+        store.contains_key(&expected_key),
+        "F-P10-HIGH-001 pre-condition: credential must be present before delete. \
+         key='{expected_key}'"
+    );
+
+    // STEP 2: Call the PRODUCTION delete handler with injected store.
+    let delete_args = prism_bin::credential_cli::CredentialDeleteArgs {
+        sensor: "crowdstrike".to_string(),
+        name: "client_id".to_string(),
+        org_slug: Some(demo_org_slug.to_string()),
+    };
+    let exit_code = prism_bin::credential_cli::handle_credential_delete_with_store(
+        delete_args,
+        config_dir.clone(),
+        store.clone(),
+    )
+    .await;
+
+    assert_eq!(
+        exit_code, 0,
+        "F-P10-HIGH-001: handle_credential_delete_with_store must return exit 0 on success. \
+         Got exit {exit_code}. Check prism.toml fixture and InMemoryCredentialStore setup."
+    );
+
+    // STEP 3: Assert the credential was removed from the OrgId-keyed namespace.
+    assert!(
+        !store.contains_key(&expected_key),
+        "F-P10-HIGH-001 (AC-007): handle_credential_delete_with_store must remove the \
+         credential from the OrgId-UUID-keyed namespace '{expected_key}'. \
+         ADR-034 §D3 / BC-2.03.005 delete path."
+    );
+
+    // STEP 4: Assert second delete is idempotent (returns exit 0, not exit 1).
+    // demo-teardown.sh calls delete unconditionally — a not-found entry must not fail.
+    let delete_args_again = prism_bin::credential_cli::CredentialDeleteArgs {
+        sensor: "crowdstrike".to_string(),
+        name: "client_id".to_string(),
+        org_slug: Some(demo_org_slug.to_string()),
+    };
+    let exit_code_again = prism_bin::credential_cli::handle_credential_delete_with_store(
+        delete_args_again,
+        config_dir,
+        store.clone(),
+    )
+    .await;
+
+    assert_eq!(
+        exit_code_again, 0,
+        "F-P10-HIGH-001 (idempotent): second delete of an absent credential must return \
+         exit 0 (not exit 1). demo-teardown.sh calls delete unconditionally. \
+         Got exit {exit_code_again}."
     );
 }
 

@@ -72,6 +72,24 @@ pub enum CredentialCommand {
     ///
     /// The `--value` flag is explicitly ABSENT (AD-017 / EC-005 S-DEMO-003).
     Set(CredentialSetArgs),
+
+    /// Delete a credential from the OS keyring.
+    ///
+    /// Usage: prism credential delete --sensor <SENSOR_ID> --name <CREDENTIAL_NAME>
+    ///
+    /// Deletes the credential stored under the OrgId-keyed namespace
+    /// `{org_id_uuid}/{sensor}/{name}` (namespace_key_by_org_id, ADR-034 §D3).
+    ///
+    /// Exit codes: 0 deleted or already absent, 1 keyring error, 2 config-invalid.
+    ///
+    /// F-P10-HIGH-001: used by demo-teardown.sh on ALL platforms to guarantee the
+    /// EXACT same namespace + backend attribute schema as the write path (`set_by_org`).
+    /// This replaces the platform-CLI approach (`security delete-generic-password` /
+    /// `secret-tool clear`) which was fragile (wrong attribute name on Linux caused
+    /// 5 orphaned keyring entries).
+    ///
+    /// AC-007 / BC-2.03.005.
+    Delete(CredentialDeleteArgs),
 }
 
 /// Arguments for `prism credential set`.
@@ -94,6 +112,28 @@ pub struct CredentialSetArgs {
     /// OrgId-keyed namespace `{org_id_uuid}/{sensor}/{name}` (namespace_key_by_org_id,
     /// ADR-034 §D3). The legacy slug-keyed namespace `{slug}/{sensor}/{name}` is
     /// FORBIDDEN for writes — it is disjoint from `get_by_org`'s read namespace (CRIT-2).
+    #[arg(long, value_name = "ORG_SLUG")]
+    pub org_slug: Option<String>,
+}
+
+/// Arguments for `prism credential delete`.
+///
+/// F-P10-HIGH-001 fix: delete MUST use `delete_by_org` (OrgId-keyed namespace)
+/// to match the write path. Platform-CLI tools (`security delete-generic-password` /
+/// `secret-tool clear account`) use different attribute names and produce orphaned
+/// entries on Linux (wrong attribute key in libsecret). Using the Rust keyring backend
+/// guarantees namespace parity on all platforms.
+#[derive(Debug, Args)]
+pub struct CredentialDeleteArgs {
+    /// Sensor ID (e.g., crowdstrike, armis, claroty, cyberint).
+    #[arg(long, value_name = "SENSOR_ID")]
+    pub sensor: String,
+
+    /// Credential name (e.g., client_id, client_secret, api_token).
+    #[arg(long, value_name = "CREDENTIAL_NAME")]
+    pub name: String,
+
+    /// Org slug (default: first org in prism.toml; required if multiple orgs configured).
     #[arg(long, value_name = "ORG_SLUG")]
     pub org_slug: Option<String>,
 }
@@ -295,6 +335,84 @@ pub async fn handle_credential_set_with_store(
             } else {
                 eprintln!("prism credential set: keyring write failed: {e}");
             }
+            EXIT_GENERIC_ERROR
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// `prism credential delete` handler — F-P10-HIGH-001 fix
+// ---------------------------------------------------------------------------
+
+/// Handle `prism credential delete` — OrgId-keyed keyring delete via `delete_by_org`.
+///
+/// F-P10-HIGH-001: the teardown script previously used `secret-tool clear service "prism"
+/// account "${key}"` on Linux. keyring-rs 3.x dbus-secret-service stores the user under
+/// the `username` attribute (NOT `account`), so the clear matched nothing — 5 orphaned
+/// entries remained in the Linux keyring after every demo teardown.
+///
+/// Using `prism credential delete` guarantees the EXACT same namespace + backend attribute
+/// schema as the write path (`set_by_org`). This is correct on ALL platforms (macOS,
+/// Linux, Windows) because keyring-rs handles the attribute mapping transparently.
+///
+/// # Contract (BC-2.03.005 delete path / AC-007)
+///
+/// Returns:
+/// - 0 — credential deleted (was present) OR already absent (idempotent)
+/// - 1 — keyring unavailable or delete error (backend error surfaced to stderr)
+/// - 2 — config-invalid (cannot load prism.toml or resolve org)
+pub async fn handle_credential_delete(
+    args: CredentialDeleteArgs,
+    config_dir: std::path::PathBuf,
+) -> i32 {
+    let index_path = config_dir.join("credential_index.json");
+    let index = CredentialIndex::new(index_path);
+    let store: Arc<dyn CredentialStoreOrgId> = Arc::new(KeyringBackend::new("prism", index));
+    handle_credential_delete_with_store(args, config_dir, store).await
+}
+
+/// Inner implementation of `handle_credential_delete` with injectable `CredentialStoreOrgId`.
+///
+/// Separated for testability: inject `InMemoryCredentialStore` to assert the namespace key
+/// is OrgId-keyed (mirrors the `handle_credential_set_with_store` test pattern).
+pub async fn handle_credential_delete_with_store(
+    args: CredentialDeleteArgs,
+    config_dir: std::path::PathBuf,
+    store: Arc<dyn CredentialStoreOrgId>,
+) -> i32 {
+    // Step 1: Resolve OrgId from prism.toml (same as set path — ADR-034 §D3).
+    let (_org_slug_str, org_id) = match resolve_org_slug_and_id(&args.org_slug, &config_dir).await {
+        Ok(pair) => pair,
+        Err(e) => {
+            eprintln!("prism credential delete: config error: {e}");
+            return EXIT_CONFIG_INVALID;
+        }
+    };
+
+    // Step 2: Validate credential name.
+    let cred_name = match CredentialName::new(&args.name) {
+        Ok(n) => n,
+        Err(e) => {
+            eprintln!("prism credential delete: invalid credential name: {e}");
+            return EXIT_CONFIG_INVALID;
+        }
+    };
+
+    // Step 3: Delete via delete_by_org (OrgId-keyed namespace — matches write path exactly).
+    // This guarantees namespace parity regardless of platform attribute schema.
+    match store.delete_by_org(&org_id, &args.sensor, &cred_name).await {
+        Ok(true) => {
+            println!("Credential deleted.");
+            EXIT_SUCCESS
+        }
+        Ok(false) => {
+            // Not found — idempotent (teardown scripts call delete even when entries may
+            // already be absent from a previous run). Return 0 so teardown continues.
+            println!("Credential not found (already absent).");
+            EXIT_SUCCESS
+        }
+        Err(e) => {
+            eprintln!("prism credential delete: keyring delete failed: {e}");
             EXIT_GENERIC_ERROR
         }
     }

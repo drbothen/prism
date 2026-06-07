@@ -98,21 +98,42 @@ fn prism_binary() -> PathBuf {
 /// it means the subcommand echoed the credential value — a BC-2.03.007 / AD-017 violation.
 const SENTINEL_SECRET: &str = "PRISM_DEMO_SECRET_SENTINEL_12345";
 
-/// Red Gate test: BC-2.03.007 secret redaction — `prism credential set` must not echo
+/// Subprocess test: BC-2.03.007 secret redaction — `prism credential set` must not echo
 /// the credential value to stdout or stderr.
 ///
-/// # Red Gate failure mechanism
+/// # F-P10-CRIT-001 compatibility: #[ignore] — spawns real `prism credential set`
 ///
-/// The subprocess panics inside `handle_credential_set()` (`todo!()`). The panic hook
-/// writes to stderr. `SENTINEL_SECRET` does NOT appear in the panic message (it was
-/// the stdin input, not embedded in the source), so the secret-not-on-stderr assertion
-/// would pass. HOWEVER, the `assert_eq!(exit_status.code(), Some(0))` assertion fails
-/// because the subprocess exits 1 (panic exit code). This is the primary Red Gate failure.
+/// With real platform backends now enabled (F-P10-CRIT-001 fix), the `prism` binary
+/// will try to write to the actual OS Keychain (macOS) or libsecret (Linux) when
+/// `prism credential set` is invoked as a subprocess. On macOS, this can trigger a
+/// user-visible Keychain access prompt — which is UNACCEPTABLE for `just check` and
+/// CI runs.
 ///
-/// After implementation, the test passes when:
-/// - The subprocess exits 0 (success) OR exits 1 with "Keyring unavailable" (CI headless).
-/// - Neither stdout nor stderr contains `SENTINEL_SECRET`.
+/// **SID-1 §4 deferral (S-DEMO-003 / F-P10-CRIT-001):**
+///
+/// The load-bearing no-echo coverage is provided in-process by:
+///   - `test_handle_credential_set_writes_org_id_keyed_namespace` in
+///     `bc_2_03_007_credential_set_org_id_keyed.rs` — exercises the full
+///     `handle_credential_set_with_store` code path with `InMemoryCredentialStore`
+///     (no OS keychain access). The code path is the SAME whether the store is
+///     InMemory or Keyring; the "no println!(value)" invariant is structural.
+///   - `test_handle_credential_set_writes_org_id_keyed_namespace` calls
+///     `handle_credential_set_with_store` which NEVER calls `println!` with the value
+///     (AD-017 invariant enforced by code structure, not runtime behavior). This is
+///     verifiable by static code inspection: the value is obtained via `read_secret_value_from`
+///     and passed directly to `store.set_by_org`; no stdout/stderr write of the value occurs.
+///
+/// To run this test on a machine with a signed binary AND confirmed non-prompting keychain:
+/// ```text
+/// cargo test -p prism-bin --test bc_2_03_007_credential_set_no_echo -- --ignored
+/// ```
+///
+/// F-P10-CRIT-001 (zero-keychain-prompts-in-tests) / SID-1 §4 / BC-2.03.007 / AD-017.
 #[test]
+#[ignore = "spawns real `prism credential set` subprocess → real OS Keychain (macOS) / libsecret (Linux); \
+            triggers Keychain access prompt on macOS with real backends (F-P10-CRIT-001). \
+            In-process no-echo coverage: test_handle_credential_set_writes_org_id_keyed_namespace \
+            in bc_2_03_007_credential_set_org_id_keyed.rs (SID-1 §4 documented deferral; S-DEMO-003)."]
 fn test_BC_2_03_007_prism_credential_set_does_not_echo_value_to_stdout() {
     let prism_bin = prism_binary();
 

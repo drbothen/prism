@@ -35,10 +35,13 @@
 use std::{collections::HashMap, sync::Mutex};
 
 use async_trait::async_trait;
-use prism_core::{OrgId, PrismError};
+use prism_core::{OrgId, OrgSlug, PrismError};
 use secrecy::{ExposeSecret, SecretString};
 
-use crate::{namespace::CredentialName, trait_::CredentialStoreOrgId};
+use crate::{
+    namespace::CredentialName,
+    trait_::{CredentialStore, CredentialStoreOrgId},
+};
 
 /// In-memory credential store for testing. Thread-safe via `Mutex`.
 ///
@@ -144,6 +147,111 @@ impl InMemoryCredentialStore {
 impl Default for InMemoryCredentialStore {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+// ---------------------------------------------------------------------------
+// CredentialStore (legacy slug-keyed) impl — needed for CRIT-2 test
+//
+// The CRIT-2 proof (test_BC_2_06_003_crit2_slug_keyed_write_invisible_to_org_id_keyed_read)
+// calls `store.set(slug, sensor, name, value)` on an InMemoryCredentialStore to simulate
+// what a pre-fix stub did (slug-keyed write), then asserts `get_by_org` returns None
+// (the two namespaces are disjoint). This impl enables that test pattern without touching
+// any real OS keyring backend.
+//
+// Namespace key format: `"{slug}/{sensor}/{name}"` — matches KeyringBackend's legacy format.
+// This is INTENTIONALLY DIFFERENT from the OrgId-keyed format below; the disjointness is
+// the property being tested by the CRIT-2 proof.
+// ---------------------------------------------------------------------------
+
+#[async_trait]
+impl CredentialStore for InMemoryCredentialStore {
+    async fn get(
+        &self,
+        tenant: &OrgSlug,
+        sensor: &str,
+        name: &CredentialName,
+    ) -> Result<Option<SecretString>, PrismError> {
+        // Slug-keyed format: "{slug}/{sensor}/{name}" (mirrors KeyringBackend::get legacy path).
+        let key = format!("{}/{}/{}", tenant.as_str(), sensor, name.as_str());
+        let store = self
+            .store
+            .lock()
+            .map_err(|e| PrismError::CredentialStoreError {
+                backend: "in_memory".to_owned(),
+                reason: format!("lock poisoned: {e}"),
+            })?;
+        Ok(store.get(&key).map(|v| SecretString::new(v.clone())))
+    }
+
+    async fn set(
+        &self,
+        tenant: &OrgSlug,
+        sensor: &str,
+        name: &CredentialName,
+        value: SecretString,
+    ) -> Result<(), PrismError> {
+        let key = format!("{}/{}/{}", tenant.as_str(), sensor, name.as_str());
+        let mut store = self
+            .store
+            .lock()
+            .map_err(|e| PrismError::CredentialStoreError {
+                backend: "in_memory".to_owned(),
+                reason: format!("lock poisoned: {e}"),
+            })?;
+        store.insert(key, value.expose_secret().to_owned());
+        Ok(())
+    }
+
+    async fn delete(
+        &self,
+        tenant: &OrgSlug,
+        sensor: &str,
+        name: &CredentialName,
+    ) -> Result<bool, PrismError> {
+        let key = format!("{}/{}/{}", tenant.as_str(), sensor, name.as_str());
+        let mut store = self
+            .store
+            .lock()
+            .map_err(|e| PrismError::CredentialStoreError {
+                backend: "in_memory".to_owned(),
+                reason: format!("lock poisoned: {e}"),
+            })?;
+        Ok(store.remove(&key).is_some())
+    }
+
+    async fn list(&self, tenant: &OrgSlug) -> Result<Vec<(String, CredentialName)>, PrismError> {
+        let slug_prefix = format!("{}/", tenant.as_str());
+        let store = self
+            .store
+            .lock()
+            .map_err(|e| PrismError::CredentialStoreError {
+                backend: "in_memory".to_owned(),
+                reason: format!("lock poisoned: {e}"),
+            })?;
+        let mut results = Vec::new();
+        for key in store.keys() {
+            if let Some(rest) = key.strip_prefix(&slug_prefix) {
+                if let Some(slash_pos) = rest.find('/') {
+                    let sensor = &rest[..slash_pos];
+                    let cred_name_str = &rest[slash_pos + 1..];
+                    results.push((
+                        sensor.to_owned(),
+                        CredentialName::new_from_validated_storage(cred_name_str),
+                    ));
+                }
+            }
+        }
+        Ok(results)
+    }
+
+    async fn exists(
+        &self,
+        tenant: &OrgSlug,
+        sensor: &str,
+        name: &CredentialName,
+    ) -> Result<bool, PrismError> {
+        Ok(self.get(tenant, sensor, name).await?.is_some())
     }
 }
 
