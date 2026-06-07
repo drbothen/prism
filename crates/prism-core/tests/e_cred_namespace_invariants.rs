@@ -97,66 +97,173 @@ fn test_e_cred_keyring_error_variant_retired() {
 //               so E-CRED-005 appears ONLY in resolve_secret.rs.
 // ---------------------------------------------------------------------------
 
-/// RG-ECRED-005: E-CRED-005 must not appear in `prism-core/src/error.rs` after renumber,
-/// AND must be present in `prism-credentials/src/resolve_secret.rs` (the sole file-I/O emitter).
+/// Walk `<workspace>/crates/*/src/` recursively and collect all `*.rs` files
+/// whose content contains the literal `needle`.
+///
+/// Uses `git grep -r -l` when git is available in PATH (fast, hermetic) and
+/// post-filters results to the `src/` subtree only — `tests/`, `proofs/`, and
+/// `examples/` subdirectories are excluded so that Red Gate test files containing
+/// the literal in comments do not appear as false positives.
+///
+/// Falls back to an `std::fs` recursive walk if git is unavailable.
+fn src_files_containing(workspace_root: &std::path::Path, needle: &str) -> Vec<std::path::PathBuf> {
+    // Attempt git grep first — it is fast and respects .gitignore.
+    // We scan all of `crates/` and then post-filter to `/src/` paths only
+    // (git grep does not expand shell globs in pathspec arguments, so
+    // `crates/*/src/` would be treated as a literal path, not a pattern).
+    let git_result = std::process::Command::new("git")
+        .current_dir(workspace_root)
+        .args(["grep", "-r", "-l", needle, "--", "crates/"])
+        .output();
+
+    if let Ok(output) = git_result {
+        // exit 0 = matches found; exit 1 = no matches; both are clean runs.
+        // Any other non-zero (e.g., 128 = not a git repo) falls through to fs-walk.
+        if output.status.success() || output.status.code() == Some(1) {
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            return stdout
+                .lines()
+                .filter(|l| !l.is_empty())
+                // Post-filter: keep only paths whose components include a `src` segment
+                // immediately under a crate root (crates/<name>/src/...).
+                .filter(|rel_path| {
+                    // rel_path looks like "crates/prism-foo/src/bar.rs"
+                    // We accept it iff it contains "/src/" anywhere after crates/<name>.
+                    rel_path.contains("/src/")
+                })
+                .map(|rel| workspace_root.join(rel))
+                .collect();
+        }
+    }
+
+    // Fallback: std::fs recursive walk over crates/*/src/**/*.rs
+    let mut results = Vec::new();
+    let crates_dir = workspace_root.join("crates");
+
+    let crates_entries = match std::fs::read_dir(&crates_dir) {
+        Ok(e) => e,
+        Err(err) => panic!(
+            "Failed to read crates/ directory at {}: {err}",
+            crates_dir.display()
+        ),
+    };
+
+    for crate_entry in crates_entries.flatten() {
+        let src_dir = crate_entry.path().join("src");
+        if src_dir.is_dir() {
+            collect_rs_files_containing(&src_dir, needle, &mut results);
+        }
+    }
+    results
+}
+
+/// Recursively collect `*.rs` files under `dir` whose content contains `needle`.
+fn collect_rs_files_containing(
+    dir: &std::path::Path,
+    needle: &str,
+    out: &mut Vec<std::path::PathBuf>,
+) {
+    let entries = match std::fs::read_dir(dir) {
+        Ok(e) => e,
+        Err(_) => return,
+    };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.is_dir() {
+            collect_rs_files_containing(&path, needle, out);
+        } else if path.extension().and_then(|e| e.to_str()) == Some("rs") {
+            if let Ok(content) = std::fs::read_to_string(&path) {
+                if content.contains(needle) {
+                    out.push(path);
+                }
+            }
+        }
+    }
+}
+
+/// RG-ECRED-005: Workspace-wide no-collision guard — E-CRED-005 must appear in
+/// EXACTLY ONE `crates/*/src/**/*.rs` file: `crates/prism-credentials/src/resolve_secret.rs`.
 ///
 /// No-collision invariant (ADR-035 §D2): E-CRED-005 is assigned exclusively to
-/// the Tier-1 file-I/O condition. After migration, the ONLY source file under
-/// `crates/` that contains the literal "E-CRED-005" is `resolve_secret.rs`.
+/// the Tier-1 file-I/O condition. No other source file under `crates/*/src/` may
+/// contain the literal "E-CRED-005" — not error.rs, not file.rs, not a new crate.
 ///
-/// This test covers BOTH halves of the invariant:
+/// Scanning strategy:
+/// - Uses `git grep -r -l "E-CRED-005" -- crates/*/src/` from the workspace root
+///   (fast, hermetic) with std::fs recursive walk as fallback if git is unavailable.
+/// - Scoped to `src/` only — `tests/`, `proofs/`, and `examples/` are excluded so
+///   that the Red Gate test file itself (which contains this literal in comments)
+///   does not produce a false positive.
+/// - The workspace root is located via `CARGO_MANIFEST_DIR` walking up to the
+///   directory that contains `crates/` — manifest-relative, not CWD-relative.
 ///
-/// NEGATIVE: `prism-core/src/error.rs` must NOT contain "E-CRED-005" (collision resolved).
-/// POSITIVE: `prism-credentials/src/resolve_secret.rs` MUST contain "E-CRED-005" and
-///           all three file-I/O sub-case strings (missing-file, is-directory, read-failed).
-///           This guards against E-CRED-005 being accidentally deleted from the sole emitter.
-///
-/// Scope note: S-DEMO-003 worktree files are out of scope (they still contain
-/// E-CRED-005 until S-DEMO-003 re-baseline). This test only scans develop-branch
-/// files which are in scope for this story.
+/// Assertions:
+/// COLLISION: the set of matching src files equals exactly
+///            `{crates/prism-credentials/src/resolve_secret.rs}`.
+///            Any unexpected file produces a clear panic listing the offender.
+/// POSITIVE COVERAGE: resolve_secret.rs contains all three file-I/O sub-case
+///            strings (does-not-exist, is-directory, read-failed) so that a
+///            targeted deletion of one sub-case fails this guard.
 ///
 /// Before migration: FAILS (error.rs has `"E-CRED-005: credential encryption error:"`)
-/// After migration: PASSES (CredentialEncryptionError → E-CRED-006, error.rs clean;
-///                          resolve_secret.rs retains all three E-CRED-005 sub-cases)
+/// After migration:  PASSES (CredentialEncryptionError → E-CRED-006, error.rs clean;
+///                           resolve_secret.rs retains all three E-CRED-005 sub-cases)
 #[test]
 fn test_e_cred_005_emitted_only_by_file_io_path() {
     let root = workspace_root();
-    let error_rs = root.join("crates/prism-core/src/error.rs");
     let resolve_secret_rs = root.join("crates/prism-credentials/src/resolve_secret.rs");
 
-    // --- NEGATIVE half: E-CRED-005 absent from prism-core/src/error.rs ---
-    let error_source = std::fs::read_to_string(&error_rs)
-        .unwrap_or_else(|e| panic!("Failed to read {}: {e}", error_rs.display()));
+    // --- WORKSPACE SCAN: find every crates/*/src/**/*.rs containing "E-CRED-005" ---
+    let matching_files = src_files_containing(&root, "E-CRED-005");
 
-    // Before migration: error.rs contains `"E-CRED-005: credential encryption error: {reason}"`
-    // as the #[error(...)] attribute of CredentialEncryptionError. This assertion FAILS.
-    //
-    // After migration: CredentialEncryptionError uses E-CRED-006; error.rs no longer
-    // contains any "E-CRED-005" string. This assertion PASSES.
+    // Normalise to paths relative to the workspace root for deterministic comparison.
+    let relative_matches: Vec<String> = {
+        let mut v: Vec<String> = matching_files
+            .iter()
+            .map(|p| {
+                p.strip_prefix(&root)
+                    .map(|rel| rel.to_string_lossy().replace('\\', "/"))
+                    .unwrap_or_else(|_| p.to_string_lossy().replace('\\', "/"))
+            })
+            .collect();
+        v.sort();
+        v
+    };
+
+    let expected = "crates/prism-credentials/src/resolve_secret.rs";
+
+    // POSITIVE: resolve_secret.rs must be present (guard against accidental deletion).
     assert!(
-        !error_source.contains("E-CRED-005"),
-        "E-CRED-005 must not appear in prism-core/src/error.rs after renumber \
-         (ADR-035 §D2 no-collision invariant; S-MAINT-ECRED-TAXONOMY-SYNC-001 AC-009). \
-         Found 'E-CRED-005' in {}. \
-         After migration, CredentialEncryptionError must use 'E-CRED-006:'.",
-        error_rs.display()
+        relative_matches.iter().any(|p| p == expected),
+        "E-CRED-005 must be present in {expected} \
+         (ADR-035 §D1; RG-ECRED-005 positive coverage). \
+         No src file under crates/ contains 'E-CRED-005'. \
+         Workspace root: {}",
+        root.display()
     );
 
-    // --- POSITIVE half: E-CRED-005 present in resolve_secret.rs (sole file-I/O emitter) ---
+    // NO-COLLISION: only resolve_secret.rs may contain E-CRED-005.
+    let unexpected: Vec<&str> = relative_matches
+        .iter()
+        .map(String::as_str)
+        .filter(|p| *p != expected)
+        .collect();
+
+    assert!(
+        unexpected.is_empty(),
+        "E-CRED-005 no-collision invariant violated (ADR-035 §D2; AC-009). \
+         The following src files contain 'E-CRED-005' but must not:\n  {}\n\
+         Only '{}' is the authorised file-I/O emitter. \
+         Rename the colliding condition to the next available E-CRED-NNN code.",
+        unexpected.join("\n  "),
+        expected
+    );
+
+    // POSITIVE SUB-CASES: all three file-I/O conditions must be present in resolve_secret.rs
+    // so a targeted deletion of one sub-case fails here rather than silently.
     let resolve_source = std::fs::read_to_string(&resolve_secret_rs)
         .unwrap_or_else(|e| panic!("Failed to read {}: {e}", resolve_secret_rs.display()));
 
-    // Guard that E-CRED-005 has not been accidentally deleted from the sole emitter.
-    assert!(
-        resolve_source.contains("E-CRED-005"),
-        "E-CRED-005 must be present in crates/prism-credentials/src/resolve_secret.rs \
-         (ADR-035 §D1; S-MAINT-ECRED-TAXONOMY-SYNC-001 RG-ECRED-005 positive coverage). \
-         Found no 'E-CRED-005' in {}.",
-        resolve_secret_rs.display()
-    );
-
-    // Guard all three file-I/O sub-case error strings individually so a targeted
-    // deletion of one sub-case would fail this test.
     assert!(
         resolve_source.contains("does not exist"),
         "resolve_secret.rs missing-file sub-case must contain 'does not exist' \
