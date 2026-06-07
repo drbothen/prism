@@ -199,3 +199,83 @@ fn test_ac5_prism_error_display_e_int_001() {
     };
     assert_error_code_prefix(&err, "E-INT-001");
 }
+
+// ---------------------------------------------------------------------------
+// RG-ECRED-001: CredentialEncryptionError Display must start with E-CRED-006
+// (ADR-035 §D2; AC-001 of S-MAINT-ECRED-TAXONOMY-SYNC-001)
+//
+// RED GATE: Currently fails because #[error] reads "E-CRED-005: ..."
+// PASSES AFTER: implementer renumbers #[error] to "E-CRED-006: ..."
+// ---------------------------------------------------------------------------
+
+/// RG-ECRED-001: CredentialEncryptionError Display starts with "E-CRED-006:".
+///
+/// Canonical Display string (ADR-035 §Exact-Display-String-Changes):
+///   "E-CRED-006: credential encryption error: {reason}"
+///
+/// Currently fails: `#[error]` still reads `"E-CRED-005: credential encryption error: {reason}"`.
+/// Passes after: renumbered to `"E-CRED-006: ..."`.
+#[test]
+fn test_ac5_prism_error_display_e_cred_006_encryption() {
+    let err = PrismError::CredentialEncryptionError {
+        reason: "test reason".to_string(),
+    };
+    let msg = format!("{err}");
+    assert!(
+        msg.starts_with("E-CRED-006:"),
+        "CredentialEncryptionError Display must start with 'E-CRED-006:', got: {msg:?}"
+    );
+    assert!(
+        msg.contains("credential encryption error:"),
+        "Display must contain canonical phrase 'credential encryption error:', got: {msg:?}"
+    );
+    assert!(
+        msg.contains("test reason"),
+        "Display must include the reason field, got: {msg:?}"
+    );
+    // Guard: old code must not appear
+    assert!(
+        !msg.starts_with("E-CRED-005:"),
+        "Display must NOT start with 'E-CRED-005:' after renumber, got: {msg:?}"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// RG-ECRED-002: EncryptionKeyMissing Display must start with E-CRED-007
+// (ADR-035 §D2; AC-002 of S-MAINT-ECRED-TAXONOMY-SYNC-001)
+//
+// RED GATE: Currently fails because #[error] reads "E-CRED-006: ..."
+// PASSES AFTER: implementer renumbers #[error] to "E-CRED-007: ..."
+// ---------------------------------------------------------------------------
+
+/// RG-ECRED-002: EncryptionKeyMissing Display starts with "E-CRED-007:".
+///
+/// Canonical Display string (ADR-035 §Exact-Display-String-Changes):
+///   "E-CRED-007: encryption key not configured: {reason}"
+///
+/// Currently fails: `#[error]` still reads `"E-CRED-006: encryption key not configured: {reason}"`.
+/// Passes after: renumbered to `"E-CRED-007: ..."`.
+#[test]
+fn test_ac5_prism_error_display_e_cred_007_key_missing() {
+    let err = PrismError::EncryptionKeyMissing {
+        reason: "not set".to_string(),
+    };
+    let msg = format!("{err}");
+    assert!(
+        msg.starts_with("E-CRED-007:"),
+        "EncryptionKeyMissing Display must start with 'E-CRED-007:', got: {msg:?}"
+    );
+    assert!(
+        msg.contains("encryption key not configured:"),
+        "Display must contain canonical phrase 'encryption key not configured:', got: {msg:?}"
+    );
+    assert!(
+        msg.contains("not set"),
+        "Display must include the reason field, got: {msg:?}"
+    );
+    // Guard: old code must not appear
+    assert!(
+        !msg.starts_with("E-CRED-006:"),
+        "Display must NOT start with 'E-CRED-006:' after renumber, got: {msg:?}"
+    );
+}
