@@ -1,0 +1,21 @@
+AC-002: select_by_class_name("detection_finding") returns Ok(2004); no WARN emitted
+Story: OCSF-CLASS-MIGRATION-001 v1.9
+Branch: feature/OCSF-CLASS-MIGRATION-001
+BC: BC-2.02.012 v1.6 — TV-BC-2.02.012-007; BC-2.01.013 v1.14 OCSF Conformance Clause
+Red Gate test: test_BC_2_02_012_select_by_class_name_detection_finding_returns_2004_no_warn
+
+Behavior verified:
+  prism_ocsf::class_selector::select_by_class_name("detection_finding") == Ok(2004)
+  No ocsf.deprecated_class_alias WARN emitted (canonical PRIMARY path — no alias processing)
+
+--- RED GATE TEST OUTPUT ---
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.55s
+────────────
+ Nextest run ID 76f45a04-0897-4fdc-9b6c-dee985090fc1 with nextest profile: default
+    Starting 1 test across 2 binaries (65 tests skipped)
+        PASS [   0.014s] (1/1) prism-ocsf tests::bc_2_02_012_class_selector::ocsf_migration_red_gate::test_BC_2_02_012_select_by_class_name_detection_finding_returns_2004_no_warn
+────────────
+     Summary [   0.015s] 1 test run: 1 passed, 65 skipped
+
+VERDICT: PASS

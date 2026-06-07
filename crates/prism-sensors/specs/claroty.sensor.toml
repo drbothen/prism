@@ -60,7 +60,7 @@ name = "bearer_token"
 # ---------------------------------------------------------------------------
 [[tables]]
 table_name = "alerts"
-ocsf_class = "security_finding"
+ocsf_class = "detection_finding"
 
   # Polymorphic ID: Claroty returns IDs as JSON integers or UUID strings.
   # Normalized to string at the spec parser boundary (EC-016-013-004).

@@ -9,15 +9,11 @@
 //! (BC-2.02.009) and verify that each `class_uid` below exists in the compiled
 //! descriptors. If a class_uid is absent, update the mapping before merging.
 //!
-//! ## Legacy `select(sensor, record_type)` path mappings
+//! ## `select(sensor, record_type)` path mappings
 //!
 //! The table below documents the `select()` method's (sensor, record_type) routing
-//! table. The "Security Finding (DEPRECATED)" row means that `select()` intentionally
-//! does NOT route any (sensor, record_type) pair to class_uid 2001 — that class was
-//! retired from the legacy lookup table in OCSF v1.1.0. It does NOT mean 2001 is
-//! unusable globally: `select_by_class_name("security_finding")` returns 2001 for
-//! real sensor TOML specs per BC-2.01.013 v1.9, because `security_finding` remains
-//! the correct ocsf_class value for sensors not yet migrated to `detection_finding`.
+//! table. Per BC-2.02.012 v1.6 INV-NO-2001-SELECT-PATH, `select()` MUST NOT return
+//! class_uid 2001 (Security Finding, deprecated OCSF v1.1.0) for any token.
 //!
 //! | Class Name                | class_uid | Notes                              |
 //! |---------------------------|-----------|------------------------------------|
@@ -27,7 +23,18 @@
 //! | Device Inventory Info     | 5001      | Claroty/Armis devices              |
 //! | Account Change            | 3001      | Claroty/Armis audit logs (closest OCSF v1.7.0 IAM class) |
 //! | Base Event                | 0         | Fallback for unmapped record types |
-//! | Security Finding (DEPRECATED) | 2001  | Not used in `select()` — deprecated OCSF v1.1.0 sensor path; use `select_by_class_name("security_finding")` for TOML-spec sensors |
+//! | Security Finding (DEPRECATED) | 2001  | NOT used in `select()` or `select_by_class_name()` — deprecated OCSF v1.1.0. `select_by_class_name("security_finding")` returns 2004 with a deprecation WARN (BC-2.02.012 v1.6 Option A, OCSF-CLASS-MIGRATION-001). |
+//!
+//! ## `select_by_class_name(class_name)` path mappings (BC-2.02.012 v1.6)
+//!
+//! | `class_name` (TOML `ocsf_class`) | `class_uid` | Notes |
+//! |----------------------------------|-------------|-------|
+//! | `"detection_finding"`            | 2004        | OCSF v1.1 canonical; PRIMARY entry; no WARN |
+//! | `"security_finding"`             | 2004        | Transitional alias; maps to 2004 (NOT 2001); emits `ocsf.deprecated_class_alias` WARN |
+//! | `"incident_finding"`             | 2005        | CrowdStrike incidents, Cyberint incidents |
+//! | `"vulnerability_finding"`        | 2002        | Claroty vulnerabilities |
+//! | `"device"`                       | 5001        | Claroty/Armis devices |
+//! | `"audit_activity"`               | 3001        | Claroty/Armis audit logs |
 //!
 //! # Stub Status
 //!
@@ -61,15 +68,22 @@ pub const CLASS_UID_ACCOUNT_CHANGE: u32 = 3001;
 /// OCSF `class_uid` for Base Event — used for unmapped record types. (BC-2.02.012)
 pub const CLASS_UID_BASE_EVENT: u32 = 0;
 
-/// OCSF `class_uid` for Security Finding.
+/// OCSF `class_uid` for Security Finding — DEPRECATED since OCSF v1.1.0.
 ///
-/// Value: 2001. Used by `select_by_class_name("security_finding")` for sensors that
-/// declare `ocsf_class = "security_finding"` in their TOML spec (BC-2.01.013 v1.9).
+/// Value: 2001. This class was retired in OCSF v1.1.0 in favor of Detection Finding (2004).
 ///
-/// NOTE: Whether 2001 vs 2004 is the semantically correct UID for Cyberint alerts is
-/// under architect adjudication (OBS-2). This constant names the CURRENT value used in
-/// `select_by_class_name` — it is a pure naming refactor of that value. Do NOT change
-/// the value here without resolving OBS-2 first.
+/// **NOT used by `select_by_class_name("security_finding")`** — per BC-2.02.012 v1.6
+/// (OCSF-CLASS-MIGRATION-001 Option A), the transitional alias `"security_finding"` now
+/// resolves to 2004 (CLASS_UID_DETECTION_FINDING) with a deprecation WARN.
+/// This constant is retained ONLY for documentation — it names the deprecated class_uid
+/// that was previously returned and must never be re-introduced in any mapping.
+///
+/// Per INV-NO-2001-SELECT-PATH and INV-PRODUCTION-TOML-NO-SECURITY-FINDING (BC-2.02.012 v1.6):
+/// neither `select()` nor `select_by_class_name()` returns 2001 for any input.
+#[deprecated(
+    note = "OCSF v1.1.0 deprecated Security Finding (2001). Use CLASS_UID_DETECTION_FINDING \
+            (2004). BC-2.02.012 v1.6 INV-NO-2001-SELECT-PATH."
+)]
 pub const CLASS_UID_SECURITY_FINDING: u32 = 2001;
 
 /// Maps (sensor, record_type) pairs to OCSF event class UIDs.
@@ -86,20 +100,23 @@ impl EventClassSelector {
     /// method maps that class-name directly to the canonical `class_uid` integer — with no
     /// dependency on the sensor identifier.
     ///
-    /// # Mappings (compile-time constants, BC-2.01.013 v1.9 / D-925)
+    /// # Mappings (BC-2.02.012 v1.6, OCSF-CLASS-MIGRATION-001 Option A)
     ///
-    /// | Class name              | class_uid | OCSF category |
-    /// |-------------------------|-----------|---------------|
-    /// | `"security_finding"`    | 2001      | 2 (Findings)  |
-    /// | `"vulnerability_finding"` | 2002    | 2 (Findings)  |
-    /// | `"detection_finding"`   | 2004      | 2 (Findings)  |
-    /// | `"incident_finding"`    | 2005      | 2 (Findings)  |
-    /// | `"audit_activity"`      | 3001      | 3 (IAM)       |
-    /// | `"device"`              | 5001      | 5 (Discovery) |
+    /// | Class name                | class_uid | OCSF category | Notes |
+    /// |---------------------------|-----------|---------------|-------|
+    /// | `"detection_finding"`     | 2004      | 2 (Findings)  | PRIMARY — OCSF v1.1 canonical; no WARN |
+    /// | `"security_finding"`      | 2004      | 2 (Findings)  | Transitional alias; resolves to 2004 (NOT 2001); emits `ocsf.deprecated_class_alias` WARN |
+    /// | `"vulnerability_finding"` | 2002      | 2 (Findings)  | |
+    /// | `"incident_finding"`      | 2005      | 2 (Findings)  | |
+    /// | `"audit_activity"`        | 3001      | 3 (IAM)       | |
+    /// | `"device"`                | 5001      | 5 (Discovery) | |
     ///
     /// # Behaviour
     ///
     /// - Known class names return `Ok(class_uid)`.
+    /// - `"security_finding"` returns `Ok(2004)` (transitional alias per Option A) AND emits
+    ///   a `tracing::warn!` with `event_type = "ocsf.deprecated_class_alias"`. Callers should
+    ///   update their sensor TOML to use `"detection_finding"` directly.
     /// - Unknown class names return `Err(PrismError::OcsfUnknownEventClass)`.
     ///   Callers that want a safe fallback should use `.unwrap_or(0)`.
     ///
@@ -108,9 +125,22 @@ impl EventClassSelector {
     /// - `E-OCSF-020` (`PrismError::OcsfUnknownEventClass`) — no mapping for this class name.
     pub fn select_by_class_name(class_name: &str) -> Result<u32, PrismError> {
         match class_name {
-            "security_finding" => Ok(CLASS_UID_SECURITY_FINDING),
-            "vulnerability_finding" => Ok(CLASS_UID_VULNERABILITY_FINDING),
             "detection_finding" => Ok(CLASS_UID_DETECTION_FINDING),
+            "security_finding" => {
+                // Transitional alias per BC-2.02.012 v1.6 Option A (OCSF-CLASS-MIGRATION-001).
+                // `"security_finding"` was the ocsf_class value used by production sensor TOMLs
+                // prior to OCSF-CLASS-MIGRATION-001. External TOML specs not under Prism control
+                // may still use this string. Maps to 2004 (Detection Finding) with a deprecation
+                // WARN so operators know to update their TOML specs.
+                tracing::warn!(
+                    event_type = "ocsf.deprecated_class_alias",
+                    class_name = "security_finding",
+                    resolved_class_uid = CLASS_UID_DETECTION_FINDING,
+                    "sensor TOML uses deprecated ocsf_class value 'security_finding'; update to 'detection_finding'"
+                );
+                Ok(CLASS_UID_DETECTION_FINDING)
+            }
+            "vulnerability_finding" => Ok(CLASS_UID_VULNERABILITY_FINDING),
             "incident_finding" => Ok(CLASS_UID_INCIDENT_FINDING),
             "audit_activity" => Ok(CLASS_UID_ACCOUNT_CHANGE),
             "device" => Ok(CLASS_UID_DEVICE_INVENTORY_INFO),

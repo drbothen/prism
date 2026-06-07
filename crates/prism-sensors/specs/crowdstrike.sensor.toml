@@ -52,7 +52,7 @@ requests_per_second = 10.0
 # ---------------------------------------------------------------------------
 [[tables]]
 table_name = "detections"
-ocsf_class = "security_finding"
+ocsf_class = "detection_finding"
 
   # detection_id is CrowdStrike's native detection primary key.
   # DTU fixture keys records by detection_id (routes/detections.rs: record.get("detection_id")).

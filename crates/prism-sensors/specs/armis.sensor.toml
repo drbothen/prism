@@ -170,7 +170,7 @@ ocsf_class = "device"
 # ---------------------------------------------------------------------------
 [[tables]]
 table_name = "alerts"
-ocsf_class = "security_finding"
+ocsf_class = "detection_finding"
 
   # AlertRecord fields per prism-dtu-armis/src/types.rs:
   # alert_id (String), name (String), severity, status, policy_name, device_id, created_at, updated_at

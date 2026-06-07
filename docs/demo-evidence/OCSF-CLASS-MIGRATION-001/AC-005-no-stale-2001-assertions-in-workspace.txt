@@ -1,0 +1,50 @@
+AC-005: No test in the workspace asserts class_uid == 2001 for any production sensor record
+Story: OCSF-CLASS-MIGRATION-001 v1.9
+Branch: feature/OCSF-CLASS-MIGRATION-001
+BC: BC-2.02.012 v1.6 — production tests must use current class UID (2004, not 2001)
+Red Gate test: test_BC_2_02_012_no_stale_2001_assertions_in_workspace
+
+Behavior verified:
+  No test in the workspace uses assert_eq!(..., 2001) or similar assertion where 2001
+  is the *expected* return value from select_by_class_name() for a production sensor.
+  The rg '2001' audit (see below) confirms all occurrences of "2001" in crates/ are:
+    - Rustdoc comments documenting that 2001 is the deprecated class_uid (not returned)
+    - The constant definition: pub const CLASS_UID_SECURITY_FINDING: u32 = 2001
+    - Test-internal variables named DEPRECATED_SECURITY_FINDING or similar, used in
+      assertions that verify 2001 is NOT returned (not that it IS returned)
+    - prism-mcp JSON-RPC error code -32001 (unrelated to OCSF class UIDs)
+    - prism-ocsf normalizer.rs descriptor lookup table entry mapping 2001 to a deprecated
+      schema name (documentation-only; no production path emits 2001)
+  Zero lines match a pattern of assert_eq!(result, Ok(2001)) or equivalent.
+
+--- RED GATE TEST OUTPUT ---
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.58s
+────────────
+ Nextest run ID fe0a5577-e2ea-4cc4-a9dc-61b8769103d1 with nextest profile: default
+    Starting 1 test across 2 binaries (65 tests skipped)
+        PASS [   0.013s] (1/1) prism-ocsf tests::bc_2_02_012_class_selector::ocsf_migration_red_gate::test_BC_2_02_012_no_stale_2001_assertions_in_workspace
+────────────
+     Summary [   0.013s] 1 test run: 1 passed, 65 skipped
+
+--- rg '2001' AUDIT (non-comment lines with assert/expect/== pattern) ---
+
+Zero matches. No production test asserts class_uid == 2001 as an expected return value.
+
+All "2001" references in crates/ are: documentation of the deprecated UID,
+the CLASS_UID_SECURITY_FINDING constant definition (value 2001), test-internal
+variables that assert 2001 is NOT returned, or unrelated JSON-RPC error codes (-32001).
+
+--- CATEGORY BREAKDOWN of rg '2001' in crates/ ---
+- crates/prism-ocsf/src/class_selector.rs  : 9 lines — all comments/doc/const definition
+- crates/prism-ocsf/src/normalizer.rs      : 1 line  — descriptor lookup (deprecated schema doc)
+- crates/prism-mcp/src/server.rs           : 1 line  — JSON-RPC -32001 error code (unrelated)
+- crates/prism-mcp/src/error_mapping.rs    : 3 lines — JSON-RPC -32001 error code (unrelated)
+- crates/prism-mcp/tests/tool_dispatch...  : 3 lines — JSON-RPC -32001 test (unrelated)
+- crates/prism-ocsf/src/tests/bc_2_02_012_class_selector.rs : ~30 lines
+    All are: doc comments explaining 2001 is deprecated, constants named
+    DEPRECATED_SECURITY_FINDING set to 2001, assertions that verify 2001 is NOT
+    returned (assert_ne! / != patterns), and test narrative comments.
+    ZERO assert_eq!(..., Ok(2001)) or assert_eq!(..., 2001) where 2001 is expected output.
+
+VERDICT: PASS

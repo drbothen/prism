@@ -1,0 +1,31 @@
+AC-001: All 4 production sensor TOMLs declare ocsf_class = "detection_finding"
+Story: OCSF-CLASS-MIGRATION-001 v1.9
+Branch: feature/OCSF-CLASS-MIGRATION-001
+BC: BC-2.02.012 v1.6 — INV-PRODUCTION-TOML-NO-SECURITY-FINDING + TV-BC-2.02.012-009
+Red Gate test: test_BC_2_02_012_no_production_toml_uses_security_finding
+
+--- GREP AUDIT: rg 'ocsf_class.*security_finding' crates/prism-sensors/specs/ ---
+
+(no output — zero matches — PASS)
+Exit code: 1 (ripgrep returns 1 when no matches found)
+
+--- GREP AUDIT: rg 'ocsf_class.*detection_finding' crates/prism-sensors/specs/ ---
+
+crates/prism-sensors/specs/claroty.sensor.toml:ocsf_class = "detection_finding"
+crates/prism-sensors/specs/crowdstrike.sensor.toml:ocsf_class = "detection_finding"
+crates/prism-sensors/specs/cyberint.sensor.toml:ocsf_class = "detection_finding"
+crates/prism-sensors/specs/armis.sensor.toml:ocsf_class = "detection_finding"
+
+4 TOMLs found, all declare "detection_finding". Zero declare "security_finding".
+
+--- RED GATE TEST OUTPUT ---
+
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.54s
+────────────
+ Nextest run ID 599b3800-1a60-4214-a057-7bd850b2ef27 with nextest profile: default
+    Starting 1 test across 2 binaries (65 tests skipped)
+        PASS [   0.015s] (1/1) prism-ocsf tests::bc_2_02_012_class_selector::ocsf_migration_red_gate::test_BC_2_02_012_no_production_toml_uses_security_finding
+────────────
+     Summary [   0.018s] 1 test run: 1 passed, 65 skipped
+
+VERDICT: PASS
