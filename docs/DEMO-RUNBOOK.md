@@ -241,11 +241,22 @@ shows `Address already in use (os error 98)`.
    cat ~/.config/prism-demo/run/.prism-dtu-demo-server.pid | xargs kill 2>/dev/null || true
    ```
 
-2. Find and kill other processes on the ports:
+2. Find and kill other processes on the DTU ports. The demo uses **ephemeral ports**
+   (bound at runtime), so read the actual port numbers from the urls.json sidecar
+   that `demo-run.sh` writes:
    ```bash
-   lsof -i :17080 -i :17081 -i :17082 -i :17083 2>/dev/null | awk 'NR>1 {print $2}' | xargs kill -9 2>/dev/null || true
+   URLS=~/.config/prism-demo/run/.prism-dtu-demo-server.urls.json
+   if [[ -f "$URLS" ]]; then
+     grep -oP '(?<=:)\d+(?=")' "$URLS" \
+       | xargs -I{} lsof -ti :{} 2>/dev/null \
+       | sort -u \
+       | xargs kill -9 2>/dev/null || true
+   else
+     echo "urls.json not found — no ephemeral ports to clear"
+   fi
    ```
-   (Use port numbers from the DTU server log if they differ.)
+   If `demo-run.sh` was run with a custom `--config-dir`, replace
+   `~/.config/prism-demo` with that directory.
 
 3. Re-run `demo-run.sh`.
 
