@@ -85,8 +85,10 @@ impl InMemoryCredentialStore {
     /// # Parameters
     ///
     /// - `backend`: the backend name included in the `PrismError::CredentialStoreError`.
-    ///   E.g. `"mock_keyring"`. Appears verbatim in `BackendUnavailable.detail` via
-    ///   `format!("E-CRED-005: OS keyring unavailable: {e}. ...")`.
+    ///   E.g. `"mock_keyring"`. Surfaces in `BackendUnavailable.detail` as
+    ///   `"E-CRED-005: OS keyring unavailable: backend={backend}: {reason}. ..."` —
+    ///   the format built by `resolution.rs` via `inner_detail` (F-P6-OBS-003 fix,
+    ///   single E-CRED-005 code, no embedded E-CRED-004 prefix).
     /// - `reason`: the reason string included in the `PrismError::CredentialStoreError`.
     ///
     /// # AD-017 compliance
