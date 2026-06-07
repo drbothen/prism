@@ -151,17 +151,13 @@ pub enum PrismError {
     #[error("E-CRED-004: credential store error (backend={backend}): {reason}")]
     CredentialStoreError { backend: String, reason: String },
 
-    /// E-CRED-005: Credential encryption or decryption failure (S-1.06).
-    #[error("E-CRED-005: credential encryption error: {reason}")]
+    /// E-CRED-006: Credential encryption failure on encrypted-file backend (S-1.06).
+    #[error("E-CRED-006: credential encryption error: {reason}")]
     CredentialEncryptionError { reason: String },
 
-    /// E-CRED-006: Encryption passphrase not configured (S-1.06).
-    #[error("E-CRED-006: encryption key not configured: {reason}")]
+    /// E-CRED-007: Encryption passphrase not configured (S-1.06).
+    #[error("E-CRED-007: encryption key not configured: {reason}")]
     EncryptionKeyMissing { reason: String },
-
-    /// E-CRED-010: Keyring backend error.
-    #[error("E-CRED-010: keyring error: {detail}")]
-    KeyringError { detail: String },
 
     // -------------------------------------------------------------------------
     // E-IO — I/O errors

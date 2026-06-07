@@ -38,7 +38,7 @@ pub fn resolve_secret(
             return Err(prism_core::PrismError::InvalidCredentialName {
                 name: file_path.clone(),
                 reason: format!(
-                    "E-CRED-009: credential file does not exist at path '{}' (env var '{}')",
+                    "E-CRED-005: credential file I/O error for '{}': file does not exist (configured in env var '{}')",
                     file_path, file_env
                 ),
             });
@@ -49,7 +49,7 @@ pub fn resolve_secret(
             return Err(prism_core::PrismError::InvalidCredentialName {
                 name: file_path.clone(),
                 reason: format!(
-                    "E-CRED-009: path '{}' points to a directory, not a regular file — credential must be a regular file",
+                    "E-CRED-005: credential file I/O error for '{}': path is a directory, not a regular file",
                     file_path
                 ),
             });
@@ -60,7 +60,7 @@ pub fn resolve_secret(
             prism_core::PrismError::InvalidCredentialName {
                 name: file_path.clone(),
                 reason: format!(
-                    "E-CRED-009: failed to read credential file '{}': {}",
+                    "E-CRED-005: credential file I/O error for '{}': read failed: {}",
                     file_path, e
                 ),
             }
