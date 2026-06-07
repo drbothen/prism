@@ -12,7 +12,7 @@ name = "prism_credentials"
 [features]
 # test-helpers: exposes InMemoryCredentialStore for integration test trait-double injection.
 # NEVER enable in production builds. Used by:
-#   - prism-credentials/tests/bc_2_06_003_tier3_keyring_resolution.rs (RG-034-001, RG-034-002)
+#   - prism-credentials/tests/bc_2_06_003_tier3_keyring_resolution.rs (RG-034-001, RG-034-002, RG-034-005)
 #   - prism-bin/tests/bc_2_03_007_credential_set_org_id_keyed.rs (RG-034-004)
 # SID-1 compliance: provides in-process unit coverage for OS-keyring-dependent behaviors
 # that cannot be tested via #[ignore]'d real-keyring integration tests in CI.

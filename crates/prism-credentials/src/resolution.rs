@@ -228,6 +228,18 @@ pub async fn resolve_credential(
                 // Hard error — do NOT fall through to Tier 4 (ADR-034 §D4 / SOUL.md §4).
                 // AD-017: the error detail from keyring-rs is a system error message
                 // (e.g., "access denied"), NOT a credential value — safe to include.
+                //
+                // F-P6-OBS-003 fix: extract backend/reason without the inner E-CRED-004
+                // code prefix so the operator-facing detail carries a SINGLE canonical code
+                // (E-CRED-005). `PrismError::CredentialStoreError` Display includes
+                // "E-CRED-004: credential store error (backend=...): {reason}" — using
+                // `{e}` directly would produce double-prefix output.
+                let inner_detail = match &e {
+                    prism_core::PrismError::CredentialStoreError { backend, reason } => {
+                        format!("backend={backend}: {reason}")
+                    }
+                    other => format!("{other}"),
+                };
                 crate::audit::emit_audit(
                     crate::audit::AuditOperation::Get,
                     client_id,
@@ -241,7 +253,7 @@ pub async fn resolve_credential(
                     sensor_id: sensor_id.to_string(),
                     credential_name: credential_name.to_string(),
                     detail: format!(
-                        "E-CRED-005: OS keyring unavailable: {e}. \
+                        "E-CRED-005: OS keyring unavailable: {inner_detail}. \
                          Check keyring access (macOS Keychain / Linux libsecret). \
                          Use Tier 1/2 env vars as an alternative (BC-2.06.003)."
                     ),

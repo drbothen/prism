@@ -251,7 +251,8 @@ impl CredentialStore for KeyringBackend {
 /// No in-memory HashMap cache, no on-disk companion file. Cross-process reads
 /// go through the OS keyring — the correct behavior for a secure credential store.
 /// Tests that cannot use the real OS keyring MUST inject an in-memory
-/// `CredentialStoreOrgId` trait double (see tests/helpers/in_memory_store.rs).
+/// `CredentialStoreOrgId` trait double (see src/in_memory_store.rs, enabled via
+/// the `test-helpers` feature).
 ///
 /// Story: S-3.1.04 | BC: BC-3.2.002
 #[async_trait]

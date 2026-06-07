@@ -15,8 +15,8 @@
 //!
 //! The `credential_handle` opaque string is replaced by credential resolution at
 //! dispatch time. `PluginAuthProvider` stores `sensor_id` and resolves:
-//!   - `resolve_credential(org_slug, sensor_id, "client_id")`
-//!   - `resolve_credential(org_slug, sensor_id, "client_secret")`
+//!   - `resolve_credential(org_slug, sensor_id, "client_id", org_id: Option<&OrgId>, keyring: Option<&Arc<dyn CredentialStoreOrgId>>)`
+//!   - `resolve_credential(org_slug, sensor_id, "client_secret", org_id: Option<&OrgId>, keyring: Option<&Arc<dyn CredentialStoreOrgId>>)`
 //!
 //! The resolved `SecretString` values are materialized once via `expose_secret()` to
 //! populate `PluginConfigMap` for the duration of the single dispatch call.
