@@ -168,7 +168,7 @@ ARTIFACT STATE AFTER D-540 (UNCHANGED FROM D-539 — no spec edits):
 DURABLE PIN BLOCK (CURRENT STATE — D-580 — DURABLE PRE-/CLEAR RESUME SNAPSHOT — 86th consecutive single-commit — STRATEGIC DECISION PENDING)
 ═══════════════════════════════════════════════════════════════════════
 
-- develop HEAD: 9447671f (feat(S-DEMO-QUERY-PUSHDOWN-001): AQL/FQL query push-down (#173) — MERGED 2026-06-06; D-1022 post-merge burst)
+- develop HEAD: 0e89789a (OCSF-CLASS-MIGRATION-001 PR #174 squash-merged 2026-06-06; D-1038 post-merge burst)
 - factory-artifacts: run `git -C .factory log -1 --format=’%H’` (per TD-VSDD-053; D-579 is this commit)
 - feature_branch_head: no active feature branch (spec-authoring-only burst; develop unchanged at a5ab742c)
 - feature_branch_remote_status: no feature branch (spec-only burst; develop@a5ab742c unchanged)
@@ -12686,3 +12686,166 @@ git -C .factory log -1 --format='%h %s'
 ---
 
 **D-991 burst marker:** Single-commit burst per TD-VSDD-053. Anti-volatile-pin per TD-VSDD-091. Defensive sweep (S-7.02): develop_head fdd12251 CONFIRMED UNCHANGED; total_stories 179 CONFIRMED (STORY-INDEX v2.274 unchanged); bc_index_version v5.80 CONFIRMED UNCHANGED; VP-INDEX v1.76 UNCHANGED; ARCH-INDEX v2.110 UNCHANGED; error_taxonomy v1.59 UNCHANGED; STATE.md v7.640→v7.641; pre_compact_snapshot updated to this snapshot; current_step updated; safe_to_compact: true.
+
+---
+
+## §RESUME SNAPSHOT 2026-06-06-D1038-OCSF-MERGED-S-DEMO-003-PASS11-NEXT (D-1038)
+
+> **This is the durable zero-context checkpoint. A fresh session can resume all remaining lanes cold from this snapshot alone. Phase B Lane 3 CLOSED — OCSF-CLASS-MIGRATION-001 MERGED PR #174 develop@0e89789a. Phase B Lane 4 (S-DEMO-003) LOCAL pass-11 NEXT.**
+
+### §1 PIPELINE STATUS
+
+- **develop HEAD:** `0e89789a` (OCSF-CLASS-MIGRATION-001 PR #174 squash-merged 2026-06-06 D-1038)
+- **STATE.md:** v7.689
+- **BC-INDEX:** v5.90 (active: 234, draft: 3; total: 246)
+- **STORY-INDEX:** v2.307 (184 stories)
+- **VP-INDEX:** v1.76 (unchanged)
+- **ARCH-INDEX:** v2.113 (unchanged)
+- **error-taxonomy:** v1.61
+- **policies.yaml:** v1.31
+- **Open PRs:** none (Phase B Lane 3 MERGED)
+
+### §2 PHASE-B LANE STATUS
+
+#### LANE 1 — S-SPEC-HTTP-METHOD-VALIDATION-001 — CLOSED (D-1000)
+- **Status:** MERGED PR #172 develop@752e407a 2026-06-05; cascade CLOSED; POL-14 idempotent
+
+#### LANE 2 — S-DEMO-QUERY-PUSHDOWN-001 — CLOSED (D-1022)
+- **Status:** MERGED PR #173 develop@9447671f 2026-06-06; cascade CLOSED; POL-14 idempotent
+
+#### LANE 3 — OCSF-CLASS-MIGRATION-001 — CLOSED (D-1038)
+- **Status:** MERGED PR #174 develop@0e89789a 2026-06-06
+- **Story:** v1.9 (merged)
+- **Code HEAD at merge:** b0223916
+- **LOCAL adversarial:** CONVERGED 3/3 (passes 9/10/11; D-1032)
+- **PR-LEVEL adversarial:** CONVERGED 3/3 (passes 1/2/3 on b0223916; BC-5.39.001 D-779)
+- **POL-14:** BC-2.02.012 v1.6 already active — idempotent; BC-2.01.013 v1.14 already active — idempotent
+- **Carry-forward deferrals:** OBS-1→S-SPEC-ENGINE-OCSF-EXAMPLE-SWEEP-001; OBS-2 benign-deferred
+
+#### LANE 4 — S-DEMO-003 — IN PROGRESS (LOCAL pass-11 NEXT)
+- **Story file:** `.factory/stories/S-DEMO-003-demo-setup-scripts-and-runbook.md`
+- **Story version:** v1.10
+- **Code branch:** `feature/S-DEMO-003` (worktree `.worktrees/S-DEMO-003`)
+- **red_gate_tests:** 8
+- **Local cascade streak:** 0/3 (cascade restart on F-P10 keyring change)
+- **Pass-10 closures:** F-P10-CRIT-001 (keyring platform backend enablement: apple-native + windows-native + linux-native + 4 compile_error! guards in lib.rs) + F-P10-HIGH-001 (prism credential delete subcommand: delete_by_org OrgId-keyed; demo-teardown.sh all platforms)
+- **Test isolation:** install_keyring_mock() + InMemoryCredentialStore; subprocess credential test #[ignore]'d
+- **just check:** 4051/4051 GREEN; zero Keychain prompts
+- **Trajectory:** pass1(4,0/3)→pass2(1H,0/3)→pass3(1H+1M,0/3)→pass4(CLEAN 1/3)→pass5(1M+1L+1OBS,0/3)→pass6(2M+3OBS,0/3)→pass7(1M+1L,0/3)→pass8(2M,0/3)→pass9(1L,0/3)→pass10(1CRIT+1HIGH,0/3)
+- **NEXT:** LOCAL pass-11 adversary → toward 3-CLEAN → demo-recorder → push → pr-manager 9-step PR cycle
+
+### §3 PHASE-C LANES (Claroty cluster — serialized)
+
+All three lanes share `BC-2.16.013` + `claroty.sensor.toml`. Must be serialized to avoid contention.
+
+1. **S-DEMO-CLAROTY-TRAILING-SLASH-001** (v1.2; ready)
+2. **S-DEMO-CLAROTY-SPEC-PROSE-FIX-001** (v1.2; ready)
+3. **S-DEMO-HARNESS-CLONE-PARITY-001** (v1.2; ready)
+
+### §4 STANDING AUTHORIZATION (D-989 — ACTIVE)
+
+> **GRANT (2026-06-04):** Full autonomous execution of Wave 5 Phase A → Phase B → Phase C end-to-end.
+> **Convergence rigor PRESERVED (strict, non-negotiable):** every story follows the full per-story-delivery protocol — stubs → failing tests → TDD green → LOCAL adversarial 3-CLEAN (strict, BC-5.39.001 D-779) → demo-recorder per-AC → push → pr-manager PR cycle → PR-LEVEL adversarial 3-CLEAN (strict) + security-reviewer + pr-reviewer → CI green → squash-merge → post-merge POL-14 state burst.
+> **PAUSE-AND-SURFACE ONLY for these 4 hard exceptions:**
+>   1. Source-of-Truth §7 spec-to-match-code amendments (only human authorizes).
+>   2. Genuine product/business/risk decision not mechanically derivable from specs/ADRs.
+>   3. Level-3 escalation: missing prerequisite, genuinely-red CI, or convergence not reached after reasonable retries.
+>   4. CLAUDE.md edits (human-only per Pipeline Authority) — incl. DEFER-CLAUDEMD-BC216002-MISLABEL-001.
+> **Standing rules NEVER waived:** no `--no-verify`; no force-push; no factory-artifacts remote push; single-commit-per-burst (TD-VSDD-053); fix-in-scope (no defer-pattern); policy-rubric auto-load on every adversary dispatch.
+
+### §5 EXACT NEXT STEPS FOR FRESH ORCHESTRATOR
+
+Execute in order:
+
+1. **LANE 4 — S-DEMO-003 LOCAL pass-11 (IMMEDIATE):** Dispatch adversary against worktree `.worktrees/S-DEMO-003`. Story v1.10. Lesson 62 preflight: assert `git -C .worktrees/S-DEMO-003 rev-parse HEAD` matches current feature HEAD + worktree basename == S-DEMO-003. Apply SAP-1/SAP-2/SID-1, TD-VSDD-059/060/091, production-grade default. Report CLEAN(strict) AND CLEAN(PR-merge) per BC-5.39.001 D-779. If CLEAN(strict)→streak advances; if NOT CLEAN(strict)→fix-burst required before next pass.
+
+2. **After S-DEMO-003 LOCAL 3-CLEAN CONVERGED:** Demo-recorder per-AC evidence → push feature/S-DEMO-003 → pr-manager 9-step PR cycle (create PR base develop@0e89789a, dispatch adversary/security/pr-reviewer, PR-LEVEL 3-CLEAN, squash-merge, POL-14 burst).
+
+3. **Phase C** (Claroty cluster, serialized) after Lane 4 merges.
+
+### §6 RESUME CHECKLIST
+
+```bash
+# Step 1 — Factory worktree health (BLOCKING preflight)
+vsdd-factory:factory-worktree-health
+
+# Step 2 — Verify STATE.md version
+grep '^version:' .factory/STATE.md
+# Expected: version: "7.689"
+
+# Step 3 — Verify develop HEAD
+git log --oneline -3 develop
+# Expected: 0e89789a at top (OCSF-CLASS-MIGRATION-001)
+
+# Step 4 — Verify STORY-INDEX version and story count
+grep '^version:\|^total_stories:' .factory/stories/STORY-INDEX.md
+# Expected: version: "v2.307" / total_stories: 184
+
+# Step 5 — Verify BC-INDEX version
+grep '^version:' .factory/specs/behavioral-contracts/BC-INDEX.md
+# Expected: version: "5.90"
+
+# Step 6 — Verify open PRs
+gh pr list --state open
+# Expected: none (Phase B Lane 3 MERGED)
+
+# Step 7 — Verify S-DEMO-003 worktree HEAD (Lesson 62 preflight)
+git -C .worktrees/S-DEMO-003 rev-parse HEAD
+# Expected: current feature HEAD (confirm against story frontmatter)
+
+# Step 8 — Verify factory-artifacts HEAD
+git -C .factory log -1 --format='%h %s'
+# Expected: D-1038 state-manager burst commit
+```
+
+### §7 ARTIFACT VERSIONS (post D-1038)
+
+| Artifact | Version | Notes |
+|----------|---------|-------|
+| STATE.md | v7.689 | D-1038 burst |
+| STORY-INDEX.md | v2.307 | 184 stories |
+| BC-INDEX.md | v5.90 | active: 234, draft: 3 (unchanged) |
+| VP-INDEX.md | v1.76 | unchanged |
+| ARCH-INDEX.md | v2.113 | unchanged |
+| error-taxonomy.md | v1.61 | unchanged |
+| develop HEAD | 0e89789a | OCSF-CLASS-MIGRATION-001 PR #174 merged D-1038 (updated from 9447671f) |
+| OCSF-CLASS-MIGRATION-001 | v1.9 (merged) | MERGED PR #174 develop@0e89789a; POL-14 idempotent; cascade CLOSED |
+| S-DEMO-003 | v1.10 (in_progress) | pass-10 CLOSED F-P10-CRIT-001+HIGH-001; red_gate_tests 8; LOCAL pass-11 NEXT |
+
+### §8 KEY ARCHITECTURAL CONSTRAINTS (carry into every adversary dispatch)
+
+- **BC-5.39.001 3-CLEAN protocol (D-779):** CLEAN(strict) = ZERO findings ALL severities. CLEAN(PR-merge) = ZERO CRIT+HIGH+MED. Streak advances only on CLEAN(strict). Both criteria must be explicitly stated in each adversary pass report.
+- **SAP-1 (tracing emission catalog completeness):** Grep `event_type =` across all modified Rust files; every value must have a BC-2.16.002 catalog row.
+- **SAP-2 (DTU↔TOML schema parity):** For any sensor TOML touched, verify column names + types against DTU types.rs structs.
+- **TD-VSDD-091 (anti-volatile-pin):** Cite function names + behavioral anchors, NOT file.rs:NNN line numbers.
+- **TD-VSDD-059 (paper-fix detection):** Every claimed closure must have a load-bearing test or assertion.
+- **TD-VSDD-060 (sibling-site sweep):** When changing a function sig, constant, or canonical identifier — grep ALL callsites before committing.
+- **Lesson 62 / GH #176 (worktree-identity preflight):** Every adversary dispatch MUST assert `git -C <worktree> rev-parse HEAD` == dispatched feature HEAD AND worktree basename == story ID.
+- **factory-artifacts LOCAL-ONLY:** No remote push. Never use `--no-verify`. No AI attribution in commits.
+- **SID-1 §4:** Subprocess credential-set test `#[ignore]`'d; cite blocking dependency (DTU mock not wired yet). Unit tests via install_keyring_mock() cover the production path.
+
+### §9 CARRY-FORWARD DEFERRALS
+
+| Item | Status | Priority | Anchor |
+|------|--------|----------|--------|
+| DEFER-CLAUDEMD-BC216002-MISLABEL-001 | CLAUDE.md SAP-1 cites wrong BC anchor for event catalog; human direct edit required | non-blocking | D-971 |
+| DRIFT-D1016-SEC-007 | TimestampString newtype on QueryParams.start_time/end_time; architect/PO adjudication; non-blocking | hardening-candidate | D-1016 |
+| DRIFT-EDITION-SYNC-001 | prism-credentials (24 crates) edition=2021 vs workspace default 2024; anchored S-MAINT-EDITION-SYNC-001 | P3 | D-1027 |
+| S-DEMO-003 | Phase B Lane 4; in_progress v1.10; LOCAL pass-11 NEXT | P1 | current |
+| S-DEMO-MULTI-TENANT-DTU-001 OQs | 3 open decisions (OQ-1/OQ-2/new BC ID); P2 unscheduled | non-blocking | D-989 |
+| BC-2.06.001 draft | Promotes when S-5.05 merges | non-blocking | D-990 |
+| S-DEMO-CI-E2E-001 | Draft; depends_on S-DEMO-002 HARD; S-7.01 PO-gate open | P2 | D-960 |
+| DRIFT-D954-001 | ANCHORED — S-MAINT-W3SEC-CITE-SWEEP-002 registered (draft; P2) | P2 | D-954 |
+| S-DEMO-HARNESS-CLONE-PARITY-001 | Phase C; ready v1.2 | P2 | D-941 |
+| S-DEMO-CLAROTY-SPEC-PROSE-FIX-001 | Phase C; ready v1.2 | P2 | D-941 |
+| S-DEMO-CLAROTY-TRAILING-SLASH-001 | Phase C; ready v1.2 | P2 | D-941 |
+| S-SPEC-ENGINE-OCSF-EXAMPLE-SWEEP-001 | Draft stub; OCSF PR OBS-1 carry-forward; depends_on OCSF-CLASS-MIGRATION-001 (SATISFIED) | P3 | D-1036 |
+| DEFER-ORPHAN-SENSORS-DIR-001 | Orphaned top-level sensors/ dir; S-MAINT-ORPHAN-SENSORS-DIR-001 registered | background | D-977 |
+| GH #176 | Filed at drbothen/vsdd-factory — Lesson 62 worktree-identity preflight gap | background | D-952 |
+| F-P1-OBS-003 | Factory/can-wait (SAP-2 runtime-shape-assertion extension) | background | D-941 |
+| S-DEMO-LAUNCHER-CONSOLIDATION-001 | Draft stub; start-demo.sh vs demo-run.sh overlap | P3 | D-1029 |
+| S-MAINT-EDITION-SYNC-001 | Draft stub; 25 crates edition=2021 vs default 2024 | P3 | D-1027 |
+
+---
+
+**D-1038 burst marker:** Single-commit burst per TD-VSDD-053. Anti-volatile-pin per TD-VSDD-091. Defensive sweep (S-7.02): develop_head 9447671f → 0e89789a UPDATED (OCSF PR #174 squash-merged); total_stories 184 UNCHANGED; story_index_version v2.306→v2.307 (S-DEMO-003 v1.10 + OCSF merged); bc_index_version v5.90 UNCHANGED; VP-INDEX v1.76 UNCHANGED; ARCH-INDEX v2.113 UNCHANGED; error_taxonomy v1.61 UNCHANGED; STATE.md v7.688→v7.689; pre_compact_snapshot UNCHANGED (D-1022 was the last structural pre-compact); current_step updated to D-1038; safe_to_compact: true.

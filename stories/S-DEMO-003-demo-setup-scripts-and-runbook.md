@@ -1,12 +1,12 @@
 ---
 document_type: story
 story_id: S-DEMO-003
-title: "scripts: Demo Setup Scripts + prism-credential-set CLI Subcommand (Tier-3 Keyring) + Operator Runbook"
+title: "scripts: Demo Setup Scripts + prism credential set/delete CLI Subcommands (Tier-3 Keyring) + Operator Runbook"
 wave: 5
 epic_id: E-DEMO
 priority: P1
 status: ready
-version: "1.9"
+version: "1.10"
 level: "L4"
 producer: story-writer
 timestamp: "2026-05-29T00:00:00Z"
@@ -65,7 +65,7 @@ points: 8
 #   - PrismCredentialResolver → struct with fields; 3 test double sibling sweep: 1 pt
 #   - StaticCookieAuthProvider + PluginAuthProvider DI fields; spec_driven_adapter.rs callsites: 1 pt
 #   - boot.rs BootContext.credential_store_org_id + step 5 wiring: 0.5 pts
-#   - Red Gate tests (RG-034-001..005): 1 pt
+#   - Red Gate tests (RG-034-001..005 + F-P10-HIGH-001 delete test): 1 pt
 #   - scripts (demo-setup.sh, demo-run.sh, demo-teardown.sh) + demo.toml: 0.5 pts
 #   - docs/DEMO-RUNBOOK.md + HIGH-1 env format + HIGH-2 shellcheck CI: 0.5 pts
 #   Total: 8 points (~1.5-2 days); ADR-034 §D7 gives 8-10 range — 8 chosen as lower bound
@@ -78,7 +78,7 @@ risk: MEDIUM
 # tests bound the risk at the test level. Risk level MEDIUM per ADR-034 §D7 (signature blast
 # radius across 3 crates; well-understood pattern).
 acceptance_criteria_count: 14
-red_gate_tests: 7
+red_gate_tests: 8
 estimated_passes: "2-3 LOCAL adversary passes"
 holdout_scenarios: []
 assumption_validations: []
@@ -125,11 +125,11 @@ cycle: "v1.0.0-brownfield"
 phase: 3
 ---
 
-# S-DEMO-003 — scripts: Demo Setup Scripts + `prism credential set` CLI (Tier-3 Keyring) + Operator Runbook
+# S-DEMO-003 — scripts: Demo Setup Scripts + `prism credential set` / `prism credential delete` CLI (Tier-3 Keyring) + Operator Runbook
 
 **Story ID:** S-DEMO-003
 **Status:** ready
-**Version:** v1.9
+**Version:** v1.10
 **Wave:** 5
 **Priority:** P1
 **Points:** 8
@@ -354,11 +354,16 @@ supplements error messages with human-readable remediation steps)
 ### AC-007: `scripts/demo-teardown.sh` removes generated files and keyring entries
 Given: The demo environment is set up and running.
 When: `bash scripts/demo-teardown.sh` is executed.
-Then: DTU server is killed; `~/.config/prism-demo/` is removed; the OS keyring entries
-(all OrgId-keyed entries written by `prism credential set` for each of 4 sensors) are deleted
-via `prism credential delete` or the platform keyring CLI; exits 0.
+Then: DTU server is killed; the OS keyring entries (all OrgId-keyed entries written by
+`prism credential set` for each of 4 sensors / 5 credentials) are deleted via
+`prism credential delete` (F-P10-HIGH-001 — using `delete_by_org`, the same OrgId-keyed
+namespace as the write path); keyring deletes run BEFORE `~/.config/prism-demo/` is removed
+(because `prism credential delete` reads `prism.toml` to resolve the OrgId UUID — the config
+dir must still exist at delete time); `~/.config/prism-demo/` is removed; exits 0.
+Note: the `--org-slug` flag is optional for single-org configs; `demo-teardown.sh` passes
+`--org-slug $DEMO_ORG_SLUG` for explicitness.
 (traces to BC-2.03.005: "Credential CRUD Operations via MCP Tools" — teardown exercises the
-delete path of the credential subsystem)
+delete path of the credential subsystem via `delete_by_org`)
 
 ### AC-008: All shell scripts pass `shellcheck` with no errors or warnings (local gate)
 Given: The 3 shell scripts (`demo-setup.sh`, `demo-run.sh`, `demo-teardown.sh`) are committed.
@@ -381,6 +386,10 @@ Then: Zero errors, zero warnings.
 | `BootContext` gains `credential_store_org_id: Arc<dyn CredentialStoreOrgId>` alongside existing `credential_store: Arc<dyn CredentialStore>` | ADR-034 §D5 | Step 5 exposes `Arc<KeyringBackend>` via both traits; same instance, no state duplication |
 | Tier-3 error: keyring backend error → hard `BackendUnavailable { detail: "E-CRED-005: OS keyring unavailable: {reason}" }` — do NOT fall through | ADR-034 §D4 / BC-2.06.003 / SOUL.md §4 | `reason` from keyring-rs is a system error string; must never contain a credential value |
 | `rpassword` or equivalent for no-echo stdin read | BC-2.03.007 Secret Redaction | `read -s` in bash is acceptable for shell scripts; Rust CLI must use `rpassword` crate |
+| Real OS keyring backends MUST be feature-enabled in `prism-credentials` (F-P10-CRIT-001) | Cross-process credential visibility | keyring-rs silently falls back to in-process mock when no backend feature is enabled; 4 `compile_error!` guards in `crates/prism-credentials/src/lib.rs` prevent silent reversion (apple-native on macOS/iOS, windows-native on Windows, linux-native-sync-persistent or linux-native on Linux). Removing a backend feature without removing the corresponding pass-through in `[features]` trips the guard on next build. |
+| Tests use keyring mock-builder override (`install_keyring_mock()` in `crates/prism-credentials/src/tests/mod.rs`) + `InMemoryCredentialStore` injection — NEVER the real OS Keychain | macOS unsigned-test-binary ACL constraint + SID-1 compliance | `just check` must never touch the real macOS Keychain; real-keyring cross-process tests are `#[ignore]`'d per SID-1 §4 with blocking-dependency rationale comments. |
+| `prism credential delete` MUST use `delete_by_org` (OrgId-keyed namespace) — NOT platform-native CLI tools | F-P10-HIGH-001 namespace match | Platform-native CLI tools (macOS `security delete-generic-password`, Linux `secret-tool`) use the `account` attribute which does NOT match the OrgId-keyed namespace written by `set_by_org`; they silently fail to delete the correct entry. `prism credential delete --org-slug <slug> --sensor <s> --name <n>` calls `CredentialStoreOrgId::delete_by_org` — exact same namespace. |
+| Keyring deletes in `demo-teardown.sh` MUST run BEFORE `rm -rf` of config dir | `prism credential delete` reads prism.toml for OrgId resolution | If config dir is removed first, `prism.toml` is unavailable → OrgId lookup fails → credential deletes fail silently. Script ordering: kill DTU → delete keyring entries → remove config dir. |
 | All demo env vars use `PRISM_CLIENTS_{ID}_SENSORS_{SENSOR}_{REF}` format | BC-2.06.003 §Env-Var Name Derivation | Grep gate: (1) zero matches for `DEMO_ORG_[A-Z_]+_SENSORS` (retired credential form; does NOT match bare `DEMO_ORG_SLUG`/`DEMO_ORG_ID` local vars); (2) zero matches for `^(export )?[A-Z]+_BEARER_TOKEN=` (non-prefixed global credential exports) — in scripts/ and docs/ |
 | `demo-setup.sh` MUST NOT write per-org `base_url` overlay TOMLs | DTU ports are ephemeral (only known post-launch) | Overlay generation belongs exclusively in `demo-run.sh`, after `urls.json` is parsed; `demo-setup.sh` writing a `base_url` overlay with a hardcoded port is a Forbidden Dependencies violation (see §Forbidden Dependencies: "Hardcoded port numbers in setup scripts") |
 | `demo-run.sh` MUST export TYPE-spec env vars AND write per-org `base_url` overlay TOMLs before launching `prism-bin` | AC-009 two-part data-path precondition | **(a) Env vars (step-4a boot gate):** Export `CROWDSTRIKE_BASE_URL=http://127.0.0.1`, `ARMIS_INSTANCE_URL=http://127.0.0.1`, `CLAROTY_INSTANCE_URL=http://127.0.0.1`, `CYBERINT_ENVIRONMENT=demo` in the `prism start` command environment — without these, step-4a env_resolver.rs fires E-SPEC-024 and boot.rs step-4b hard-aborts before overlays are reached. **(b) Overlays (step-4c port override):** For each sensor, write `specs/customers/demo-org/<sensor>.sensor.toml` with `extends = "<sensor>"` and `base_url = "http://127.0.0.1:<PORT>"` (port from `urls.json`). **(c) SEC-003 (crowdstrike only):** The `allowed_urls` list in `crowdstrike-oauth2.manifest.toml` (written by `demo-setup.sh`) covers the CrowdStrike OAuth2 plugin token endpoint — this is a plugin host-function gate, not a per-org egress allowlist. Armis/Claroty/Cyberint use plain `reqwest::Client` with no host gating. |
@@ -417,20 +426,27 @@ already in workspace `Cargo.toml`. If it is not present, add it as a prism-bin d
 | `crates/prism-spec-engine/src/plugin_auth_provider.rs` | MODIFY | prism-spec-engine | `PluginAuthProvider` gains `org_registry: Arc<OrgRegistry>` + `keyring: Arc<dyn CredentialStoreOrgId>`; update `new()`; update 2 `prism_credentials::resolve_credential` callsites inside `PluginAuthProvider::acquire_token` (both pass `org_id.as_ref()` + `Some(&self.keyring)` per ADR-034 §D1) |
 | `crates/prism-bin/src/boot.rs` | MODIFY | prism-bin | `BootContext` gains `credential_store_org_id: Arc<dyn CredentialStoreOrgId>`; step 5 exposes `Arc<KeyringBackend>` alongside `Arc<dyn CredentialStore>` |
 | `crates/prism-bin/src/spec_driven_adapter.rs` | MODIFY | prism-bin | Auth provider construction sites (step 9A) gain `Arc::clone(&ctx.org_registry)` + `Arc::clone(&ctx.credential_store_org_id)` parameters for `PrismCredentialResolver::new` |
-| `crates/prism-bin/src/credential_cli.rs` | CREATE | prism-bin | `CredentialArgs` struct + `handle_credential_set()`: OrgId-keyed write via `CredentialStoreOrgId::set_by_org`; prism.toml load for slug→OrgId; HIGH-3 error on missing toml |
+| `crates/prism-credentials/Cargo.toml` | MODIFY | prism-credentials | F-P10-CRIT-001: enable real OS keyring backends — pass-through features `keyring-apple-native`, `keyring-windows-native`, `keyring-linux-native-sync-persistent`, `keyring-linux-native` declared in `[features]` default; `[dependencies].keyring` updated with corresponding `apple-native`, `windows-native`, `linux-native-sync-persistent`/`crypto-rust`, `linux-native` feature flags |
+| `crates/prism-credentials/src/lib.rs` | MODIFY | prism-credentials | F-P10-CRIT-001: 4 `compile_error!` regression guards (per-OS `cfg` checks) added at crate root — prevent silent reversion to in-process mock keystore when backend features are absent |
+| `crates/prism-credentials/src/tests/mod.rs` | CREATE | prism-credentials | `install_keyring_mock()` function (keyring-rs mock-builder override) + serializing Mutex for concurrent test safety — allows in-process tests to use mock keystore without real OS Keychain (SID-1 compliance) |
+| `crates/prism-credentials/src/tests/store_tests.rs` | CREATE | prism-credentials | In-process unit tests for KeyringBackend that use `install_keyring_mock()` — exercises `set_by_org`, `get_by_org`, `delete_by_org` without real OS Keychain |
+| `crates/prism-bin/src/credential_cli.rs` | CREATE | prism-bin | `CredentialArgs` struct + `handle_credential_set()` (OrgId-keyed write via `CredentialStoreOrgId::set_by_org`; prism.toml load; HIGH-3 error on missing toml) + `CredentialDeleteArgs` struct + `handle_credential_delete()` / `handle_credential_delete_with_store()` (F-P10-HIGH-001: `delete_by_org`; idempotent; exits 0/1/2) |
 | `crates/prism-bin/tests/bc_2_03_007_credential_set_org_id_keyed.rs` | CREATE | prism-bin | RG-034-004: OrgId-keyed write + CRIT-2 regression (entry NOT under slug-keyed namespace) |
 | `scripts/demo-setup.sh` | CREATE | — | Idempotent one-time pre-launch setup: build → mkdir → copy specs → copy plugin → write `prism.toml` → set credentials via `prism credential set` (OrgId-keyed) → write `crowdstrike-oauth2.manifest.toml` (includes `allowed_urls = ["http://127.0.0.1"]` for the CrowdStrike OAuth2 plugin token endpoint — SEC-003 plugin host-function gate, NOT a per-org egress allowlist; Armis/Claroty/Cyberint have no equivalent gate) → print instructions. Does NOT write per-org `base_url` overlay TOMLs (DTU ports are not yet known; overlays are written by `demo-run.sh` post-launch). Does NOT export TYPE-spec env vars (those are written by `demo-run.sh` into the `prism start` command). |
 | `scripts/demo-run.sh` | CREATE | — | Daily launch: (1) start DTU in background → poll `urls.json` → parse ephemeral ports; (2) **export TYPE-spec env vars** (`CROWDSTRIKE_BASE_URL=http://127.0.0.1`, `ARMIS_INSTANCE_URL=http://127.0.0.1`, `CLAROTY_INSTANCE_URL=http://127.0.0.1`, `CYBERINT_ENVIRONMENT=demo`) — required by step-4a `env_resolver.rs` to satisfy `${env.*}` placeholders in TYPE-level sensor specs; without these, boot fires E-SPEC-024 and aborts before step-4c overlays are reached; (3) **write per-org `base_url` overlay TOMLs** (`specs/customers/demo-org/<sensor>.sensor.toml` with `extends` + `base_url=http://127.0.0.1:<PORT>`) for all 4 sensors (step-4c port override, done HERE because DTU ports are ephemeral); (4) print ports → print `prism start` command (with env vars pre-populated). There is NO per-org/host egress allowlist for Armis/Claroty/Cyberint — they use plain `reqwest::Client`; only the CrowdStrike OAuth2 plugin has an `allowed_urls` gate (SEC-003), already handled by `demo-setup.sh`'s `crowdstrike-oauth2.manifest.toml`. |
-| `scripts/demo-teardown.sh` | CREATE | — | Cleanup: kill DTU → remove config dir → delete OrgId-keyed keyring entries |
+| `scripts/demo-teardown.sh` | CREATE | — | Cleanup (F-P10-HIGH-001 fix): kill DTU → delete OrgId-keyed keyring entries via `prism credential delete` on ALL platforms (macOS + Linux + Windows) → remove config dir. ORDERING: keyring deletes BEFORE `rm -rf` (prism.toml must be present for OrgId resolution). Previous platform-native CLI approach (`security delete-generic-password` / `secret-tool`) replaced — those tools used wrong namespace attributes and silently orphaned entries. |
 | `scripts/demo.toml` | CREATE | — | DTU demo server config (all 4 sensors, ephemeral ports) |
 | `docs/DEMO-RUNBOOK.md` | CREATE | — | Comprehensive operator runbook (7 sections per scope); `PRISM_CLIENTS_*` format only; references E-CRED-005 in Troubleshooting |
 | `.github/workflows/ci.yml` | MODIFY | — | Add shellcheck step for `scripts/demo-*.sh` (HIGH-2 remediation; CI gate separate from local `just check-ci`) |
 
 ---
 
-## `prism credential set` Subcommand Specification
+## `prism credential` Subcommand Specification
 
-The new CLI subcommand must follow the existing `prism start` pattern:
+The `prism credential` subcommand group exposes two sub-subcommands. Both follow the existing
+`prism start` pattern.
+
+### `prism credential set`
 
 ```
 USAGE:
@@ -456,6 +472,35 @@ BEHAVIOR:
 ```
 
 The `--value` flag is explicitly FORBIDDEN (AD-017 compliance).
+
+### `prism credential delete` (F-P10-HIGH-001)
+
+```
+USAGE:
+    prism credential delete --sensor <SENSOR_ID> --name <CREDENTIAL_NAME> [--org-slug <ORG_SLUG>]
+
+ARGS:
+    --sensor <SENSOR_ID>           Sensor ID
+    --name <CREDENTIAL_NAME>       Credential name
+    --org-slug <ORG_SLUG>          Org slug — same resolution logic as `set`
+
+BEHAVIOR:
+    Loads PrismConfig from config_dir/prism.toml (same as `set` — reads OrgId UUID).
+    Resolves org slug → OrgId UUID.
+    Deletes the entry at namespace key "{org_id_uuid}/{sensor}/{name}" via
+      CredentialStoreOrgId::delete_by_org(&org_id, sensor, &cred_name).
+    Exits 0 if deleted OR already absent (idempotent — teardown scripts may call delete
+      even when entries were never written or were previously removed).
+    Exits 1 on keyring backend error (actionable error on stderr).
+    Exits 2 on config-invalid (prism.toml missing or OrgId resolution failure).
+```
+
+The `delete` subcommand is implemented in `handle_credential_delete` /
+`handle_credential_delete_with_store` in `crates/prism-bin/src/credential_cli.rs`. The inner
+`_with_store` variant accepts an injected `Arc<dyn CredentialStoreOrgId>` for testability (SID-1).
+`demo-teardown.sh` uses `prism credential delete` on ALL platforms (macOS + Linux + Windows),
+replacing the prior platform-native CLI approach (`security delete-generic-password` / `secret-tool`)
+which used wrong namespace attributes and silently orphaned keyring entries.
 
 ---
 
@@ -487,6 +532,7 @@ The following tests MUST be written as failing Red Gates before any implementati
 | `test_resolve_org_slug_errors_when_toml_missing_and_no_explicit_slug` (RG-034-003) | `crates/prism-bin/src/credential_cli.rs #[cfg(test)] mod tests` | AC-012 | HIGH-3: no demo-org fallback |
 | `test_handle_credential_set_writes_org_id_keyed_namespace` (RG-034-004) | `crates/prism-bin/tests/bc_2_03_007_credential_set_org_id_keyed.rs` | AC-010 / AC-005 | CRIT-2 regression: entry at OrgId-keyed key; NOT at slug-keyed key |
 | `test_BC_2_06_003_tier3_backend_error_returns_e_cred_005` (RG-034-005) | `crates/prism-credentials/tests/bc_2_06_003_tier3_keyring_resolution.rs` | AC-011 Case B | Keyring backend `Err` → hard `BackendUnavailable`/E-CRED-005; no Tier-4 fall-through; no credential-value leak in detail; uses `InMemoryCredentialStore` error-injection mode (test-helpers-gated) |
+| `test_handle_credential_delete_uses_org_id_keyed_namespace` (F-P10-HIGH-001) | `crates/prism-bin/tests/bc_2_03_007_credential_set_org_id_keyed.rs` | AC-007 | F-P10-HIGH-001: `handle_credential_delete_with_store` calls `delete_by_org` (OrgId-keyed); entry absent after delete; idempotent second delete returns exit 0; uses `InMemoryCredentialStore` injection (no real OS Keychain) — BC-2.03.005 delete path / ADR-034 §D3 |
 
 Note: The existing `test_BC_2_03_007_prism_credential_set_does_not_echo_value_to_stdout` test may
 require an OrgId-keyed variant per ADR-034 (the write path changes from `CredentialStore::set` to
@@ -506,7 +552,7 @@ and produce the OrgId-keyed variant in `bc_2_03_007_credential_set_org_id_keyed.
 7. **Read** `crates/prism-bin/src/boot.rs` — understand `BootContext` struct and step-5 credential store initialization.
 8. **Read** `crates/prism-bin/src/spec_driven_adapter.rs` — identify step-9A auth provider construction sites.
 9. **Find** `crowdstrike-oauth2.prx` committed path (S-PLUGIN-CI-001 merged it; verify path from git tree before scripting).
-10. **Write Red Gate tests** for all 7 tests listed in §Red Gate Tests. All must FAIL before implementation.
+10. **Write Red Gate tests** for all 8 tests listed in §Red Gate Tests. All must FAIL before implementation.
 11. **Implement** `resolve_credential` Tier-3 branch in `crates/prism-credentials/src/resolution.rs` with updated signature.
 12. **Update** `crates/prism-credentials/src/lib.rs` re-export to match new signature.
 13. **Update** `crates/prism-spec-engine/src/auth_provider.rs`: `PrismCredentialResolver` → struct with fields; update `new()`; sibling-sweep all 3 test doubles (`MockCredentialResolver`, `NotFoundCredentialResolver`, `BackendUnavailableCredentialResolver`).
@@ -514,7 +560,8 @@ and produce the OrgId-keyed variant in `bc_2_03_007_credential_set_org_id_keyed.
 15. **Update** `crates/prism-bin/src/boot.rs`: `BootContext.credential_store_org_id`; step-5 `Arc<KeyringBackend>` exposure.
 16. **Update** `crates/prism-bin/src/spec_driven_adapter.rs`: step-9A construction sites gain 2 new params.
 17. **Implement** `crates/prism-bin/src/credential_cli.rs`: `CredentialArgs` + `handle_credential_set()` with OrgId-keyed write + HIGH-3 error handling.
-18. **Add** `Credential(CredentialArgs)` variant to CLI enum in `main.rs` / `cli.rs`.
+17a. **Implement** `handle_credential_delete` / `handle_credential_delete_with_store` in `credential_cli.rs` (F-P10-HIGH-001): `CredentialDeleteArgs` struct; `delete_by_org` dispatch; idempotent `Ok(false)` path exits 0; backend error exits 1; config-invalid exits 2.
+18. **Add** `Credential(CredentialArgs)` variant and `Delete(CredentialDeleteArgs)` subcommand to CLI enum in `main.rs` / `cli.rs`.
 19. **Write** `scripts/demo-setup.sh` — uses `prism credential set` for credential bootstrap; ONLY `PRISM_CLIENTS_*` format in any env var references; idempotent.
 20. **Write** `scripts/demo-run.sh` — launch DTU in background → poll urls.json → print ports.
 21. **Write** `scripts/demo-teardown.sh` — kill DTU → remove config dir → delete OrgId-keyed keyring entries.
@@ -523,7 +570,7 @@ and produce the OrgId-keyed variant in `bc_2_03_007_credential_set_org_id_keyed.
 24. **Modify** `.github/workflows/ci.yml` — add shellcheck step for `scripts/demo-*.sh` (HIGH-2).
 25. **Run** `shellcheck scripts/demo-*.sh` — fix all warnings (AC-008).
 26. **TD-VSDD-060 sibling-site sweep** — grep `resolve_credential` across ALL crates; verify every callsite updated.
-27. **Run** Red Gate tests: `just iter prism-credentials` and `just iter prism-bin` — all 7 must pass GREEN.
+27. **Run** Red Gate tests: `just iter prism-credentials` and `just iter prism-bin` — all 8 must pass GREEN.
 28. **Run** `just check` — final pre-push gate.
 
 ---
@@ -580,21 +627,23 @@ pending human prioritization of S-DEMO-LAUNCHER-CONSOLIDATION-001.
 
 | Context source | Estimated tokens |
 |----------------|-----------------|
-| This story spec | ~7,000 |
+| This story spec | ~8,000 |
 | BC files (5 BCs: BC-2.03.005, BC-2.03.007, BC-2.06.001, BC-2.06.003, BC-2.22.001) | ~9,000 |
 | ADR-034 (Tier-3 decision authority) | ~4,000 |
 | `crates/prism-credentials/src/resolution.rs` | ~3,000 |
 | `crates/prism-credentials/src/keyring.rs` + `namespace.rs` | ~3,000 |
+| `crates/prism-credentials/src/lib.rs` (compile_error! guards — F-P10-CRIT-001) | ~1,000 |
 | `crates/prism-spec-engine/src/auth_provider.rs` | ~4,000 |
 | `crates/prism-spec-engine/src/plugin_auth_provider.rs` | ~2,000 |
 | `crates/prism-bin/src/boot.rs` + `spec_driven_adapter.rs` | ~5,000 |
-| `crates/prism-bin/src/main.rs` (CLI structure) | ~2,000 |
+| `crates/prism-bin/src/main.rs` + `credential_cli.rs` (set + delete) | ~4,000 |
 | `crates/prism-sensors/specs/` (4 TOML files) | ~3,000 |
 | S-DEMO-001 + S-DEMO-002 (dependency context) | ~5,000 |
-| **Total estimate** | **~47,000 tokens (~18% of 256K context)** |
+| **Total estimate** | **~51,000 tokens (~20% of 256K context)** |
 
-Within the 20-30% agent context limit. The story is larger than the original (30K → 47K) due
-to Option-A scope expansion (3 crates, 6 Red Gate tests). Still well within limit.
+Within the 20-30% agent context limit. Increased from ~47K (v1.9) by ~4K due to F-P10-CRIT-001
+(compile_error! guards + keyring Cargo.toml) and F-P10-HIGH-001 (credential delete subcommand)
+additions. Still within limit.
 
 ---
 
@@ -610,6 +659,8 @@ to Option-A scope expansion (3 crates, 6 Red Gate tests). Still well within limi
 | Hardcoded port numbers in setup scripts | DTU binds to ephemeral ports; always read from urls.json |
 | `echo` or `printf` of credential value to any file descriptor | BC-2.03.007 Secret Redaction |
 | Credential values in `docs/DEMO-RUNBOOK.md` examples | AD-017 — use placeholder strings only |
+| `security delete-generic-password` / `secret-tool` for keyring deletion in demo scripts | F-P10-HIGH-001: platform-native tools use the `account` attribute which does NOT match the OrgId-keyed namespace from `set_by_org` — they silently orphan entries. Use `prism credential delete` exclusively. |
+| Zero keyring backend features in `crates/prism-credentials/Cargo.toml` | F-P10-CRIT-001: zero features → in-process mock keystore → cross-process credential writes invisible; 4 `compile_error!` guards prevent this pattern from reaching the build. |
 | Calling `prism-credentials` from `prism-spec-engine` across the wrong direction | Dependency direction: prism-spec-engine depends on prism-credentials; not the reverse |
 
 ---
@@ -618,6 +669,7 @@ to Option-A scope expansion (3 crates, 6 Red Gate tests). Still well within limi
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.10 | 2026-06-06 | story-writer | **F-P10-CRIT-001 + F-P10-HIGH-001 (pass-10 fixes):** (1) F-P10-CRIT-001: documented keyring real-backend feature enablement in `crates/prism-credentials/Cargo.toml` (apple-native / windows-native / linux-native-sync-persistent / linux-native) + 4 `compile_error!` regression guards added to `crates/prism-credentials/src/lib.rs` that fire on zero-backend builds, preventing silent reversion to the in-process mock keystore. Tests use `install_keyring_mock()` (prism-credentials/src/tests/mod.rs) + `InMemoryCredentialStore` injection — no real OS Keychain in CI. FSR gains 4 new file rows (prism-credentials Cargo.toml, lib.rs guards, tests/mod.rs, tests/store_tests.rs). Architecture Compliance Rules gains 2 new rows (backend enablement guard; test mock-override). Forbidden Dependencies gains 1 new row (zero-feature guard). (2) F-P10-HIGH-001: `prism credential delete --org-slug <slug> --sensor <s> --name <n>` subcommand added — `handle_credential_delete` / `handle_credential_delete_with_store` in `credential_cli.rs`; calls `CredentialStoreOrgId::delete_by_org` (OrgId-keyed, matches write path exactly); idempotent (Ok(false) → exit 0); exits 1 on backend error, exits 2 on config-invalid. `demo-teardown.sh` now uses `prism credential delete` on ALL platforms, replacing wrong platform-native CLI calls. New Red Gate test `test_handle_credential_delete_uses_org_id_keyed_namespace` added to `bc_2_03_007_credential_set_org_id_keyed.rs` (AC-007 / BC-2.03.005). `red_gate_tests` 7→8. AC-007 rewritten to reference `prism credential delete` and the ordering constraint (deletes before `rm -rf`). Subcommand spec section expanded to include `prism credential delete`. Architecture Compliance Rules gains 2 new rows (delete uses `delete_by_org`; ordering constraint). Forbidden Dependencies gains 1 new row (platform-native CLI for deletion). FSR `credential_cli.rs` and `demo-teardown.sh` rows updated. Token budget updated ~47K→~51K. Title updated to include `set/delete`. Tasks 10, 27 count updated 7→8; task 17a added; task 18 updated. No BC/code/script/STORY-INDEX changes. |
 | 1.9 | 2026-06-06 | story-writer | **F-P8-MED-001 + F-P8-MED-002 + comprehensive citation audit (pass-8 fixes):** (1) F-P8-MED-001: Open Question 3 corrected — Cyberint auth_type is `cookie_roundtrip` / credential name is `api_key` (not `bearer_static`/`bearer_token`). Only Armis + Claroty are `bearer_static`/`bearer_token`. CrowdStrike is `oauth2_client_credentials`/`client_id`+`client_secret`. All auth_type and cred-name values are D-747 LOCKED per `crates/prism-sensors/specs/*.sensor.toml`. (2) F-P8-MED-002: Body H1 header `**Version:** v1.7` corrected to `v1.9` (was 2 versions behind frontmatter). (3) Comprehensive citation audit: 45 literal sites checked across 8 classes. Stale citations corrected: `plugin_auth_provider.rs` FSR row "lines 135, 145" removed (volatile line pins per TD-VSDD-091) — replaced with function-name anchor `PluginAuthProvider::acquire_token`; Tasks §6 "lines 130–150" similarly replaced with behavioral anchor. "5 test doubles" → "3 test doubles" at 3 body sites (FSR table line 416, Task 5 line 504, Task 13 line 512) — actual count verified: `MockCredentialResolver`, `NotFoundCredentialResolver`, `BackendUnavailableCredentialResolver`. All other literal classes (7 RG test names, CLI flags, file paths, env vars, error codes, namespace format, demo UUID) verified CURRENT against worktree. No BC/code/script/STORY-INDEX changes. |
 | 1.8 | 2026-06-06 | story-writer | **F-P7-MED-001 pass-7 fix:** Corrected stale production-function name `resolve_org_slug` → `resolve_org_slug_and_id` at AC-012 header, Architecture Compliance Rules row, and Forbidden Dependencies row. The bare `resolve_org_slug` helper was removed in F-LOW-003 (dead code); story body was not propagated until now. Behavior unchanged — hard-error on missing/invalid prism.toml, no demo-org fallback. No BC/code/script/STORY-INDEX changes. |
 | 1.7 | 2026-06-06 | story-writer | **F-P6-MED-001+002 pass-6 fix:** AC-002 `--config` → `--config-dir` (real CLI flag; global flag before subcommand per cli.rs `#[arg(long, global = true)]`); corrected invocation is `./target/release/prism --config-dir ~/.config/prism-demo/ start`. RG-034-004 cited test name → `test_handle_credential_set_writes_org_id_keyed_namespace` at all 3 story locations (Red Gate Tests table, AC-005, AC-010); name verified against `.worktrees/S-DEMO-003/crates/prism-bin/tests/bc_2_03_007_credential_set_org_id_keyed.rs:121`. No BC/code/script/STORY-INDEX changes. |
