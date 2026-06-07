@@ -329,8 +329,9 @@ pub async fn handle_credential_set_with_store(
                 || err_str.contains("spawn_blocking panicked")
             {
                 eprintln!(
-                    "Keyring unavailable: {e}. \
-                     Use the encrypted file backend instead."
+                    "Keyring unavailable: {e}. Set the credential via the \
+                     PRISM_CLIENTS_<ORG>_SENSORS_<SENSOR>_<REF> environment variable instead \
+                     (see DEMO-RUNBOOK.md §6a)."
                 );
             } else {
                 eprintln!("prism credential set: keyring write failed: {e}");
