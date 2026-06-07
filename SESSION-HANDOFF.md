@@ -473,26 +473,26 @@ DURABLE PIN BLOCK (CURRENT STATE — D-580 — DURABLE PRE-/CLEAR RESUME SNAPSHO
 | Sub-phase | Phase B (parallel lanes) |
 | Phase B Lane 1 | COMPLETE — S-SPEC-HTTP-METHOD-VALIDATION-001 (PR #172 merged develop@752e407a 2026-06-05) |
 | Phase B Lane 2 | COMPLETE — S-DEMO-QUERY-PUSHDOWN-001 (PR #173 merged develop@9447671f 2026-06-06) |
-| Phase B Lane 3 | PR #174 IN_PROGRESS — OCSF-CLASS-MIGRATION-001 v1.9 (PR #174 open base develop@9447671f; code b0223916 after CR fixes; security CLEAR; pr-reviewer APPROVE; pass-1 CLEAN(PR-merge)=yes strict=no; PR-LEVEL 3-CLEAN cascade PENDING; D-1035) |
-| Phase B Lane 4 | IN_PROGRESS — S-DEMO-003 v1.8 (LOCAL streak 0/3; pass-7 CLOSED fix-burst-6 D-1035; red_gate_tests 7; LOCAL pass-8 NEXT) |
+| Phase B Lane 3 | PR #174 IN_PROGRESS — OCSF-CLASS-MIGRATION-001 v1.9 @b0223916 (PR-LEVEL pass-1 CLEAN(PR-merge)=yes strict=no; OBS-1 deferred→S-SPEC-ENGINE-OCSF-EXAMPLE-SWEEP-001; OBS-2 benign-deferred; PR-LEVEL passes 2/3 NEXT; CI 5/11 PASS 6 pending; merge gated on 3-CLEAN + CI green; D-1036) |
+| Phase B Lane 4 | IN_PROGRESS — S-DEMO-003 v1.9 (LOCAL streak 0/3; pass-8 CLOSED fix-burst-7 D-1036; 51-site citation audit 9 stale corrected; red_gate_tests 7; LOCAL pass-9 NEXT) |
 | Phase C | PENDING — Claroty cluster (PAGINATION → TRAILING-SLASH → SPEC-PROSE-FIX → HARNESS-CLONE-PARITY); serialized; shares BC-2.16.013 + claroty.sensor.toml |
 
-### Durable State (all committed as of D-1035)
+### Durable State (all committed as of D-1036)
 
 | Item | Value |
 |------|-------|
 | develop HEAD | `9447671f` (local == origin/develop; PR #173 squash-merged 2026-06-06) |
 | Last merged story | S-DEMO-QUERY-PUSHDOWN-001 v2.8 — PR #173 squash-merged develop@9447671f 2026-06-06 (D-1022) |
 | factory-artifacts HEAD | current — run `git -C .factory log -1 --format='%h %s'` (LOCAL-ONLY; per CLAUDE.md policy) |
-| STATE.md version | v7.686 |
-| STORY-INDEX version | v2.304 (183 stories) |
+| STATE.md version | v7.687 |
+| STORY-INDEX version | v2.305 (184 stories) |
 | BC-INDEX version | v5.90 (active: 234, draft: 3) |
 | ARCH-INDEX version | v2.113 |
 | error-taxonomy version | v1.61 (E-CRED-005 added D-1025) |
 | BC-2.02.012 version | v1.6 (TV/EC notation fix; D-1026 MED-2 closure) |
 | BC-2.06.003 version | v1.4 (Tier-3 IMPLEMENTED; ADR-034 normative anchor) |
 | BC-2.16.002 version | v1.69 |
-| Open PRs | None (PR #173 MERGED; `gh pr list --state open` → expected empty) |
+| Open PRs | PR #174 (OCSF-CLASS-MIGRATION-001; PR-LEVEL pass-2 NEXT; CI pending) |
 
 ### Last Completed Decision (D-1028)
 

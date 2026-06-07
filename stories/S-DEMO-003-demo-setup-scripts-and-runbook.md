@@ -6,7 +6,7 @@ wave: 5
 epic_id: E-DEMO
 priority: P1
 status: ready
-version: "1.8"
+version: "1.9"
 level: "L4"
 producer: story-writer
 timestamp: "2026-05-29T00:00:00Z"
@@ -34,7 +34,7 @@ crates_touched: [prism-bin, prism-credentials, prism-spec-engine]
 #   prism-bin: credential_cli.rs (OrgId-keyed write + HIGH-3 fix), boot.rs (BootContext expansion),
 #     spec_driven_adapter.rs (step 9A auth provider wiring), scripts/, docs/, .github/workflows/ci.yml
 #   prism-credentials: resolution.rs (Tier-3 branch + signature), lib.rs (re-export update)
-#   prism-spec-engine: auth_provider.rs (PrismCredentialResolver struct + 5 test doubles),
+#   prism-spec-engine: auth_provider.rs (PrismCredentialResolver struct + 3 test doubles),
 #     plugin_auth_provider.rs (PluginAuthProvider DI fields)
 target_module: prism-bin
 capabilities: [CAP-004, CAP-009, CAP-034]
@@ -62,7 +62,7 @@ points: 8
 #   - prism credential set: OrgId-keyed write via CredentialStoreOrgId::set_by_org +
 #     prism.toml load for slug→OrgId + HIGH-3 error fix (no demo-org fallback): 2 pts
 #   - resolve_credential: Tier-3 branch + signature change (org_id + keyring params): 1.5 pts
-#   - PrismCredentialResolver → struct with fields; 5 test double sibling sweep: 1 pt
+#   - PrismCredentialResolver → struct with fields; 3 test double sibling sweep: 1 pt
 #   - StaticCookieAuthProvider + PluginAuthProvider DI fields; spec_driven_adapter.rs callsites: 1 pt
 #   - boot.rs BootContext.credential_store_org_id + step 5 wiring: 0.5 pts
 #   - Red Gate tests (RG-034-001..005): 1 pt
@@ -129,7 +129,7 @@ phase: 3
 
 **Story ID:** S-DEMO-003
 **Status:** ready
-**Version:** v1.7
+**Version:** v1.9
 **Wave:** 5
 **Priority:** P1
 **Points:** 8
@@ -413,8 +413,8 @@ already in workspace `Cargo.toml`. If it is not present, add it as a prism-bin d
 | `crates/prism-credentials/src/resolution.rs` | MODIFY | prism-credentials | Add Tier-3 branch between env-var resolution and Tier-4 CRUD lookup; update signature (2 new params: `org_id: Option<&OrgId>`, `keyring: Option<&Arc<dyn CredentialStoreOrgId>>`) |
 | `crates/prism-credentials/src/lib.rs` | MODIFY | prism-credentials | Re-export `resolve_credential` with updated signature |
 | `crates/prism-credentials/tests/bc_2_06_003_tier3_keyring_resolution.rs` | CREATE | prism-credentials | RG-034-001 (end-to-end write→resolve), RG-034-002 (miss→Tier-4 fallthrough) |
-| `crates/prism-spec-engine/src/auth_provider.rs` | MODIFY | prism-spec-engine | `PrismCredentialResolver` → struct with `org_registry + keyring` fields; update `new()`; update 5 test double impls; update `StaticCookieAuthProvider::new()` to accept `Arc<OrgRegistry>` + `Arc<dyn CredentialStoreOrgId>` |
-| `crates/prism-spec-engine/src/plugin_auth_provider.rs` | MODIFY | prism-spec-engine | `PluginAuthProvider` gains `org_registry: Arc<OrgRegistry>` + `keyring: Arc<dyn CredentialStoreOrgId>`; update `new()`; update 2 `resolve_credential` callsites (lines 135, 145) |
+| `crates/prism-spec-engine/src/auth_provider.rs` | MODIFY | prism-spec-engine | `PrismCredentialResolver` → struct with `org_registry + keyring` fields; update `new()`; update 3 test double impls (`MockCredentialResolver`, `NotFoundCredentialResolver`, `BackendUnavailableCredentialResolver`); update `StaticCookieAuthProvider::new()` to accept `Arc<OrgRegistry>` + `Arc<dyn CredentialStoreOrgId>` |
+| `crates/prism-spec-engine/src/plugin_auth_provider.rs` | MODIFY | prism-spec-engine | `PluginAuthProvider` gains `org_registry: Arc<OrgRegistry>` + `keyring: Arc<dyn CredentialStoreOrgId>`; update `new()`; update 2 `prism_credentials::resolve_credential` callsites inside `PluginAuthProvider::acquire_token` (both pass `org_id.as_ref()` + `Some(&self.keyring)` per ADR-034 §D1) |
 | `crates/prism-bin/src/boot.rs` | MODIFY | prism-bin | `BootContext` gains `credential_store_org_id: Arc<dyn CredentialStoreOrgId>`; step 5 exposes `Arc<KeyringBackend>` alongside `Arc<dyn CredentialStore>` |
 | `crates/prism-bin/src/spec_driven_adapter.rs` | MODIFY | prism-bin | Auth provider construction sites (step 9A) gain `Arc::clone(&ctx.org_registry)` + `Arc::clone(&ctx.credential_store_org_id)` parameters for `PrismCredentialResolver::new` |
 | `crates/prism-bin/src/credential_cli.rs` | CREATE | prism-bin | `CredentialArgs` struct + `handle_credential_set()`: OrgId-keyed write via `CredentialStoreOrgId::set_by_org`; prism.toml load for slug→OrgId; HIGH-3 error on missing toml |
@@ -501,15 +501,15 @@ and produce the OrgId-keyed variant in `bc_2_03_007_credential_set_org_id_keyed.
 2. **Read** `crates/prism-credentials/src/resolution.rs` — understand current Tier-1/2/4 chain, existing signature, and the two "not implemented" comments at lines 18, 92.
 3. **Read** `crates/prism-credentials/src/keyring.rs` lines 248–285 — understand `CredentialStoreOrgId::get_by_org` and `spawn_blocking` encapsulation.
 4. **Read** `crates/prism-credentials/src/namespace.rs` — understand `namespace_key_by_org_id` format (`"{org_id_uuid}/{sensor}/{name}"`).
-5. **Read** `crates/prism-spec-engine/src/auth_provider.rs` — identify all 5 test doubles implementing `CredentialResolver`; identify `PrismCredentialResolver` current unit-struct form.
-6. **Read** `crates/prism-spec-engine/src/plugin_auth_provider.rs` lines 130–150 — identify 2 `resolve_credential` callsites.
+5. **Read** `crates/prism-spec-engine/src/auth_provider.rs` — identify all 3 test doubles implementing `CredentialResolver` (`MockCredentialResolver`, `NotFoundCredentialResolver`, `BackendUnavailableCredentialResolver`); identify `PrismCredentialResolver` current struct form.
+6. **Read** `crates/prism-spec-engine/src/plugin_auth_provider.rs` — identify 2 `prism_credentials::resolve_credential` callsites inside `PluginAuthProvider::acquire_token` (the `resolved_client_id` and `resolved_client_secret` bindings).
 7. **Read** `crates/prism-bin/src/boot.rs` — understand `BootContext` struct and step-5 credential store initialization.
 8. **Read** `crates/prism-bin/src/spec_driven_adapter.rs` — identify step-9A auth provider construction sites.
 9. **Find** `crowdstrike-oauth2.prx` committed path (S-PLUGIN-CI-001 merged it; verify path from git tree before scripting).
 10. **Write Red Gate tests** for all 7 tests listed in §Red Gate Tests. All must FAIL before implementation.
 11. **Implement** `resolve_credential` Tier-3 branch in `crates/prism-credentials/src/resolution.rs` with updated signature.
 12. **Update** `crates/prism-credentials/src/lib.rs` re-export to match new signature.
-13. **Update** `crates/prism-spec-engine/src/auth_provider.rs`: `PrismCredentialResolver` → struct with fields; update `new()`; sibling-sweep all 5 test doubles.
+13. **Update** `crates/prism-spec-engine/src/auth_provider.rs`: `PrismCredentialResolver` → struct with fields; update `new()`; sibling-sweep all 3 test doubles (`MockCredentialResolver`, `NotFoundCredentialResolver`, `BackendUnavailableCredentialResolver`).
 14. **Update** `crates/prism-spec-engine/src/plugin_auth_provider.rs`: add `org_registry` + `keyring` fields; update 2 `resolve_credential` callsites.
 15. **Update** `crates/prism-bin/src/boot.rs`: `BootContext.credential_store_org_id`; step-5 `Arc<KeyringBackend>` exposure.
 16. **Update** `crates/prism-bin/src/spec_driven_adapter.rs`: step-9A construction sites gain 2 new params.
@@ -557,7 +557,7 @@ pending human prioritization of S-DEMO-LAUNCHER-CONSOLIDATION-001.
 
 2. **`rpassword` in workspace**: Is `rpassword` already in `Cargo.toml` workspace deps? If not, add it as a prism-bin dep.
 
-3. **`prism credential set` for non-CrowdStrike sensors**: Armis, Claroty, Cyberint use `bearer_static` auth with `bearer_token` as the credential name. CrowdStrike uses `client_id` and `client_secret`. The `demo-setup.sh` calls `prism credential set` once per (sensor, credential_name) pair. Verify credential names match what the auth providers pass to `resolve_credential` at fetch time — read `crates/prism-sensors/specs/` auth_type + `[[credential_refs]]` declarations.
+3. **`prism credential set` for non-CrowdStrike sensors**: Armis uses `bearer_static` auth with `bearer_token` as the credential name. Claroty uses `bearer_static` auth with `bearer_token` as the credential name. Cyberint uses `cookie_roundtrip` auth with `api_key` as the credential name. CrowdStrike uses `oauth2_client_credentials` auth (via the crowdstrike-oauth2 WASM plugin) with `client_id` and `client_secret`. The `demo-setup.sh` calls `prism credential set` once per (sensor, credential_name) pair — 5 invocations total (crowdstrike/client_id, crowdstrike/client_secret, armis/bearer_token, claroty/bearer_token, cyberint/api_key). These auth_type and credential name values are D-747 LOCKED per `crates/prism-sensors/specs/*.sensor.toml`.
 
 ---
 
@@ -618,6 +618,7 @@ to Option-A scope expansion (3 crates, 6 Red Gate tests). Still well within limi
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.9 | 2026-06-06 | story-writer | **F-P8-MED-001 + F-P8-MED-002 + comprehensive citation audit (pass-8 fixes):** (1) F-P8-MED-001: Open Question 3 corrected — Cyberint auth_type is `cookie_roundtrip` / credential name is `api_key` (not `bearer_static`/`bearer_token`). Only Armis + Claroty are `bearer_static`/`bearer_token`. CrowdStrike is `oauth2_client_credentials`/`client_id`+`client_secret`. All auth_type and cred-name values are D-747 LOCKED per `crates/prism-sensors/specs/*.sensor.toml`. (2) F-P8-MED-002: Body H1 header `**Version:** v1.7` corrected to `v1.9` (was 2 versions behind frontmatter). (3) Comprehensive citation audit: 45 literal sites checked across 8 classes. Stale citations corrected: `plugin_auth_provider.rs` FSR row "lines 135, 145" removed (volatile line pins per TD-VSDD-091) — replaced with function-name anchor `PluginAuthProvider::acquire_token`; Tasks §6 "lines 130–150" similarly replaced with behavioral anchor. "5 test doubles" → "3 test doubles" at 3 body sites (FSR table line 416, Task 5 line 504, Task 13 line 512) — actual count verified: `MockCredentialResolver`, `NotFoundCredentialResolver`, `BackendUnavailableCredentialResolver`. All other literal classes (7 RG test names, CLI flags, file paths, env vars, error codes, namespace format, demo UUID) verified CURRENT against worktree. No BC/code/script/STORY-INDEX changes. |
 | 1.8 | 2026-06-06 | story-writer | **F-P7-MED-001 pass-7 fix:** Corrected stale production-function name `resolve_org_slug` → `resolve_org_slug_and_id` at AC-012 header, Architecture Compliance Rules row, and Forbidden Dependencies row. The bare `resolve_org_slug` helper was removed in F-LOW-003 (dead code); story body was not propagated until now. Behavior unchanged — hard-error on missing/invalid prism.toml, no demo-org fallback. No BC/code/script/STORY-INDEX changes. |
 | 1.7 | 2026-06-06 | story-writer | **F-P6-MED-001+002 pass-6 fix:** AC-002 `--config` → `--config-dir` (real CLI flag; global flag before subcommand per cli.rs `#[arg(long, global = true)]`); corrected invocation is `./target/release/prism --config-dir ~/.config/prism-demo/ start`. RG-034-004 cited test name → `test_handle_credential_set_writes_org_id_keyed_namespace` at all 3 story locations (Red Gate Tests table, AC-005, AC-010); name verified against `.worktrees/S-DEMO-003/crates/prism-bin/tests/bc_2_03_007_credential_set_org_id_keyed.rs:121`. No BC/code/script/STORY-INDEX changes. |
 | 1.6 | 2026-06-06 | story-writer | **F-P5-MED-001 pass-5 fix:** Added RG-034-005 (`test_BC_2_06_003_tier3_backend_error_returns_e_cred_005`) in `crates/prism-credentials/tests/bc_2_06_003_tier3_keyring_resolution.rs` — covers AC-011 Case B (keyring backend `Err` → `CredentialResolutionError::BackendUnavailable`/E-CRED-005; no Tier-4 fall-through; no credential-value leak in detail). Test uses `InMemoryCredentialStore` error-injection mode (test-helpers-gated seam). AC-011 Case B now explicitly cites RG-034-005. Red Gate Tests table gains RG-034-005 row. `red_gate_tests` frontmatter 6→7. Tasks 10 and 27 updated (6→7 count). Points justification comment updated (`RG-034-001..004` → `RG-034-001..005`). No BC/code/script/STORY-INDEX changes. |
