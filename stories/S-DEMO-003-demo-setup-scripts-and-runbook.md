@@ -6,7 +6,7 @@ wave: 5
 epic_id: E-DEMO
 priority: P1
 status: ready
-version: "1.5"
+version: "1.6"
 level: "L4"
 producer: story-writer
 timestamp: "2026-05-29T00:00:00Z"
@@ -65,7 +65,7 @@ points: 8
 #   - PrismCredentialResolver → struct with fields; 5 test double sibling sweep: 1 pt
 #   - StaticCookieAuthProvider + PluginAuthProvider DI fields; spec_driven_adapter.rs callsites: 1 pt
 #   - boot.rs BootContext.credential_store_org_id + step 5 wiring: 0.5 pts
-#   - Red Gate tests (RG-034-001..004): 1 pt
+#   - Red Gate tests (RG-034-001..005): 1 pt
 #   - scripts (demo-setup.sh, demo-run.sh, demo-teardown.sh) + demo.toml: 0.5 pts
 #   - docs/DEMO-RUNBOOK.md + HIGH-1 env format + HIGH-2 shellcheck CI: 0.5 pts
 #   Total: 8 points (~1.5-2 days); ADR-034 §D7 gives 8-10 range — 8 chosen as lower bound
@@ -78,7 +78,7 @@ risk: MEDIUM
 # tests bound the risk at the test level. Risk level MEDIUM per ADR-034 §D7 (signature blast
 # radius across 3 crates; well-understood pattern).
 acceptance_criteria_count: 14
-red_gate_tests: 6
+red_gate_tests: 7
 estimated_passes: "2-3 LOCAL adversary passes"
 holdout_scenarios: []
 assumption_validations: []
@@ -129,7 +129,7 @@ phase: 3
 
 **Story ID:** S-DEMO-003
 **Status:** ready
-**Version:** v1.5
+**Version:** v1.6
 **Wave:** 5
 **Priority:** P1
 **Points:** 8
@@ -299,7 +299,8 @@ Then:
     "E-CRED-005: OS keyring unavailable: NoStorageAccess" }`. Does NOT fall through to Tier 4.
     The detail string contains the system error string ONLY — no credential value (AD-017; BC-2.03.007).
 (traces to BC-2.06.003 Tier-3 postcondition: `get_by_org Err(...)` → hard error E-CRED-005 — ADR-034 §D4)
-Red Gate test: `test_BC_2_06_003_tier3_miss_falls_through_to_tier4` (RG-034-002)
+Red Gate tests: `test_BC_2_06_003_tier3_miss_falls_through_to_tier4` (RG-034-002, Case A);
+  `test_BC_2_06_003_tier3_backend_error_returns_e_cred_005` (RG-034-005, Case B)
 
 ### AC-012 (HIGH-3 — `resolve_org_slug` error on missing/invalid prism.toml): When `--org-slug` is absent and prism.toml is missing or unparseable, `prism credential set` errors clearly — no silent `"demo-org"` fallback.
 Given: The config directory contains no `prism.toml` (or an unparseable one), and `--org-slug` was not provided.
@@ -485,6 +486,7 @@ The following tests MUST be written as failing Red Gates before any implementati
 | `test_BC_2_06_003_tier3_miss_falls_through_to_tier4` (RG-034-002) | `crates/prism-credentials/tests/bc_2_06_003_tier3_keyring_resolution.rs` | AC-011 Case A | Tier-3 miss → Tier-4 (not BackendUnavailable) |
 | `test_resolve_org_slug_errors_when_toml_missing_and_no_explicit_slug` (RG-034-003) | `crates/prism-bin/src/credential_cli.rs #[cfg(test)] mod tests` | AC-012 | HIGH-3: no demo-org fallback |
 | `test_handle_credential_set_writes_org_id_keyed_keyring_entry` (RG-034-004) | `crates/prism-bin/tests/bc_2_03_007_credential_set_org_id_keyed.rs` | AC-010 / AC-005 | CRIT-2 regression: entry at OrgId-keyed key; NOT at slug-keyed key |
+| `test_BC_2_06_003_tier3_backend_error_returns_e_cred_005` (RG-034-005) | `crates/prism-credentials/tests/bc_2_06_003_tier3_keyring_resolution.rs` | AC-011 Case B | Keyring backend `Err` → hard `BackendUnavailable`/E-CRED-005; no Tier-4 fall-through; no credential-value leak in detail; uses `InMemoryCredentialStore` error-injection mode (test-helpers-gated) |
 
 Note: The existing `test_BC_2_03_007_prism_credential_set_does_not_echo_value_to_stdout` test may
 require an OrgId-keyed variant per ADR-034 (the write path changes from `CredentialStore::set` to
@@ -504,7 +506,7 @@ and produce the OrgId-keyed variant in `bc_2_03_007_credential_set_org_id_keyed.
 7. **Read** `crates/prism-bin/src/boot.rs` — understand `BootContext` struct and step-5 credential store initialization.
 8. **Read** `crates/prism-bin/src/spec_driven_adapter.rs` — identify step-9A auth provider construction sites.
 9. **Find** `crowdstrike-oauth2.prx` committed path (S-PLUGIN-CI-001 merged it; verify path from git tree before scripting).
-10. **Write Red Gate tests** for all 6 tests listed in §Red Gate Tests. All must FAIL before implementation.
+10. **Write Red Gate tests** for all 7 tests listed in §Red Gate Tests. All must FAIL before implementation.
 11. **Implement** `resolve_credential` Tier-3 branch in `crates/prism-credentials/src/resolution.rs` with updated signature.
 12. **Update** `crates/prism-credentials/src/lib.rs` re-export to match new signature.
 13. **Update** `crates/prism-spec-engine/src/auth_provider.rs`: `PrismCredentialResolver` → struct with fields; update `new()`; sibling-sweep all 5 test doubles.
@@ -521,7 +523,7 @@ and produce the OrgId-keyed variant in `bc_2_03_007_credential_set_org_id_keyed.
 24. **Modify** `.github/workflows/ci.yml` — add shellcheck step for `scripts/demo-*.sh` (HIGH-2).
 25. **Run** `shellcheck scripts/demo-*.sh` — fix all warnings (AC-008).
 26. **TD-VSDD-060 sibling-site sweep** — grep `resolve_credential` across ALL crates; verify every callsite updated.
-27. **Run** Red Gate tests: `just iter prism-credentials` and `just iter prism-bin` — all 6 must pass GREEN.
+27. **Run** Red Gate tests: `just iter prism-credentials` and `just iter prism-bin` — all 7 must pass GREEN.
 28. **Run** `just check` — final pre-push gate.
 
 ---
@@ -616,6 +618,7 @@ to Option-A scope expansion (3 crates, 6 Red Gate tests). Still well within limi
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.6 | 2026-06-06 | story-writer | **F-P5-MED-001 pass-5 fix:** Added RG-034-005 (`test_BC_2_06_003_tier3_backend_error_returns_e_cred_005`) in `crates/prism-credentials/tests/bc_2_06_003_tier3_keyring_resolution.rs` — covers AC-011 Case B (keyring backend `Err` → `CredentialResolutionError::BackendUnavailable`/E-CRED-005; no Tier-4 fall-through; no credential-value leak in detail). Test uses `InMemoryCredentialStore` error-injection mode (test-helpers-gated seam). AC-011 Case B now explicitly cites RG-034-005. Red Gate Tests table gains RG-034-005 row. `red_gate_tests` frontmatter 6→7. Tasks 10 and 27 updated (6→7 count). Points justification comment updated (`RG-034-001..004` → `RG-034-001..005`). No BC/code/script/STORY-INDEX changes. |
 | 1.5 | 2026-06-06 | story-writer | **F-MED-302 pass-3 mechanism mis-characterisation fix:** Removed the non-existent "per-org egress allowlist to include 127.0.0.1" language from AC-009 Given precondition, the Architecture Compliance Rules `demo-run.sh` row, and the §FSR `demo-run.sh` row. Replaced with the accurate two-part data-path mechanism: **(a) TYPE-spec env vars (step-4a boot gate)** — `demo-run.sh` must export `CROWDSTRIKE_BASE_URL`, `ARMIS_INSTANCE_URL`, `CLAROTY_INSTANCE_URL`, `CYBERINT_ENVIRONMENT` before invoking `prism start`; without these env_resolver.rs fires E-SPEC-024 and boot.rs step-4b hard-aborts before step-4c overlays are reachable; **(b) step-4c per-org overlays** — `demo-run.sh` writes `specs/customers/demo-org/<sensor>.sensor.toml` with ephemeral DTU port after parsing `urls.json`; **(c) CrowdStrike OAuth2 plugin SEC-003 only** — `allowed_urls` in `crowdstrike-oauth2.manifest.toml` (written by `demo-setup.sh`) gates only the CrowdStrike plugin host-function; Armis/Claroty/Cyberint use plain `reqwest::Client` with NO per-org/host egress allowlist. §FSR `demo-setup.sh` row updated to clarify SEC-003 nature of the manifest `allowed_urls`. No BC/code/script/STORY-INDEX changes. |
 | 1.4 | 2026-06-06 | story-writer | **F-HIGH-201 pass-2 spec reconciliation:** Overlay generation responsibility moved from `demo-setup.sh` to `demo-run.sh` — DTU ports are ephemeral (only known post-launch), so per-org `base_url` overlay TOMLs (`specs/customers/demo-org/<sensor>.sensor.toml`) must be written by `demo-run.sh` after `urls.json` is parsed. AC-001 clarified to explicitly exclude overlay-generation from `demo-setup.sh` scope. AC-009 "Given" block expanded with explicit precondition that `demo-run.sh` has written overlays and extended the egress allowlist before queries are issued. File Structure Requirements `demo-run.sh` row updated with overlay-generation detail; `demo-setup.sh` row clarified as pre-launch-only. Two new Architecture Compliance Rules added: `demo-setup.sh MUST NOT write overlays` and `demo-run.sh MUST write overlays before prism-bin launch`. Previous Story Intelligence `S-CONFIG-MULTI-TENANT-OVERRIDE-001` entry corrected to name `demo-run.sh` as the overlay author. OBS [process-gap] note added for `scripts/start-demo.sh` overlap with follow-up story reference `S-DEMO-LAUNCHER-CONSOLIDATION-001` (draft). |
 | 1.3 | 2026-06-06 | story-writer | **F-LOW-002 pass-1 fix:** Tightened AC-013 env-format verification grep to avoid false-positive on `DEMO_ORG_SLUG`/`DEMO_ORG_ID` bash local vars. Retired-credential grep changed from `DEMO_ORG_` (overbroad — matches local bash vars) to `DEMO_ORG_[A-Z_]+_SENSORS` (targets only the retired credential env-var infix `_SENSORS`). Non-prefixed global format grep changed from `^[A-Z]+_BEARER_TOKEN` to `^(export )?[A-Z]+_BEARER_TOKEN=` (anchored with optional `export` prefix and trailing `=` to avoid substring matches). Architecture Compliance Rules table grep-gate column updated to match. |
