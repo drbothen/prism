@@ -4,7 +4,6 @@ story_version: "v1.1"
 story_title: "E-CRED Namespace Reconciliation — Canonical E-CRED-001..010 per ADR-035"
 evidence_date: "2026-06-07"
 branch: "feature/S-MAINT-ECRED-TAXONOMY-SYNC-001"
-head_commit: "c63b126e"
 demo_recorder: "demo-recorder"
 ---
 
@@ -86,7 +85,7 @@ Result: **10/10 PASS**
 
 ## Runtime Display String Evidence
 
-The following canonical Display strings are emitted by the code at branch HEAD c63b126e.
+The following canonical Display strings are emitted by the code on the feature branch.
 No credential values appear in any string (AD-017 compliant — all strings are error
 message templates, not credential resolution outputs).
 
@@ -118,7 +117,7 @@ line 63: "E-CRED-005: credential file I/O error for '{}': read failed: {}"
 
 ### No-collision verification (AC-009)
 
-`git grep 'E-CRED-005' -- crates/` on branch HEAD returns exactly:
+`git grep 'E-CRED-005' -- crates/` on the feature branch returns exactly:
 
 ```
 crates/prism-credentials/src/resolve_secret.rs:41:  "E-CRED-005: ...file does not exist..."
@@ -148,3 +147,9 @@ All recordings and transcripts in this evidence folder show only error message
 template strings — format strings with `{reason}`, `{}`, `{path}` placeholders.
 No resolved credential value, no auth token, no API key, and no secret material
 appears in any recording. AD-017 is not violated.
+
+---
+
+## TD-VSDD-091 Compliance Note
+
+This evidence report is anchored to story S-MAINT-ECRED-TAXONOMY-SYNC-001 v1.1 and behavioral contracts BC-2.03.009 + BC-2.06.003. No volatile HEAD-SHA pins are used in this report per TD-VSDD-091 anti-volatile-pin convention. The evidence files and VHS recordings are committed to branch `feature/S-MAINT-ECRED-TAXONOMY-SYNC-001`.

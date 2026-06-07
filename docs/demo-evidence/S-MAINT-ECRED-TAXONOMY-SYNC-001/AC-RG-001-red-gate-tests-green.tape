@@ -19,7 +19,7 @@ Set Framerate 30
 Set TypingSpeed 50ms
 
 Hide
-Type "cd /Users/jmagady/Dev/prism/.worktrees/S-MAINT-ECRED-TAXONOMY-SYNC-001 && clear"
+Type `cd "$(git rev-parse --show-toplevel)" && clear`
 Enter
 Sleep 2s
 Show
