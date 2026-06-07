@@ -6,7 +6,7 @@ wave: 5
 epic_id: E-DEMO
 priority: P1
 status: ready
-version: "1.12"
+version: "1.13"
 level: "L4"
 producer: story-writer
 timestamp: "2026-05-29T00:00:00Z"
@@ -129,7 +129,7 @@ phase: 3
 
 **Story ID:** S-DEMO-003
 **Status:** ready
-**Version:** v1.12
+**Version:** v1.13
 **Wave:** 5
 **Priority:** P1
 **Points:** 8
@@ -341,14 +341,19 @@ enforcement, AC-008 confirms local enforcement).
 (traces to BC-2.22.001 invariant: "boot orchestration is deterministic" — deterministic setup
 scripts are a prerequisite; CI gate enforces the invariant across contributors)
 
-### AC-006: Runbook documents troubleshooting for 3 common failure modes
+### AC-006: Runbook documents troubleshooting for 4 common failure modes
 Given: `docs/DEMO-RUNBOOK.md` §Troubleshooting section.
 When: An operator reads it.
 Then: The section covers at least:
-  - (a) "Keyring access denied / E-CRED-005" — explains platform-specific keyring permission grant
-    (macOS Keychain, Linux libsecret D-Bus); references E-CRED-005 error code.
-  - (b) "Port already in use" — explains how to kill stale DTU server and re-run demo-run.sh
-  - (c) "TOML spec not found" — explains how to verify spec_dir and sensor TOML filenames
+  - (a) "Keyring write failure at credential-set time — E-CRED-004" — explains that
+    `prism credential set` surfaces the write failure as E-CRED-004
+    (`PrismError::CredentialStoreError`); provides platform-specific fix (macOS Keychain unlock,
+    Linux D-Bus start) and the `PRISM_CLIENTS_*` env-var fallback for headless/CI environments.
+  - (b) "Keyring read failure at query time — E-CRED-005" — explains that credential resolution
+    at query time can fail with E-CRED-005 when the OS keyring is inaccessible; provides
+    platform-specific fix and the `PRISM_CLIENTS_*` env-var alternative (Tier-1/2 resolution).
+  - (c) "Port already in use" — explains how to kill stale DTU server and re-run demo-run.sh
+  - (d) "TOML spec not found" — explains how to verify spec_dir and sensor TOML filenames
 (traces to BC-2.06.007: "Missing Required Fields Produce Actionable Error Messages" — runbook
 supplements error messages with human-readable remediation steps)
 
@@ -518,7 +523,7 @@ The runbook must contain exactly these sections (in this order):
 3. **Daily Demo Run** — run `demo-run.sh`; verify DTU clones are up
 4. **Connecting Claude Code** — add prism-bin to `~/.claude/settings.json` MCP servers section; exact JSON snippet
 5. **Example Queries** — one query per sensor (CrowdStrike, Armis, Claroty, Cyberint) with expected output shape
-6. **Troubleshooting** — 3 failure modes per AC-006 (including E-CRED-005 keyring error); NO `DEMO_ORG_*` env var format in examples
+6. **Troubleshooting** — 4 failure modes per AC-006: §6(a) keyring write / E-CRED-004, §6(b) keyring read / E-CRED-005, §6(c) port already in use, §6(d) TOML spec not found; NO `DEMO_ORG_*` env var format in examples
 7. **Cleanup** — run `demo-teardown.sh`
 
 ---
@@ -675,6 +680,7 @@ additions. Still within limit.
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.13 | 2026-06-06 | story-writer | **Runbook §6 structure alignment (pass-17 proactive propagation):** DEMO-RUNBOOK.md §6 was split from 3 subsections into 4 by commit 5676b5fc — keyring error split into §6(a) write-fail/E-CRED-004 and §6(b) read-fail/E-CRED-005; port already in use renumbered §6(c); TOML not found renumbered §6(d). AC-006 updated: count 3→4 failure modes; AC-006 item list rewritten to match the 4 subsections with correct §-letter assignments (write→§6a/E-CRED-004, read→§6b/E-CRED-005, port→§6c, TOML→§6d). "docs/DEMO-RUNBOOK.md Required Sections" §6 description updated from "3 failure modes" to "4 failure modes" with explicit subsection enumeration. No BC/code/script/STORY-INDEX changes. |
 | 1.12 | 2026-06-06 | story-writer | **F-P16-MED-002 (EC-001 write-path/read-path error-code split + env-var-fallback alignment):** EC-001 conflated two distinct error codes on two distinct paths. Fixed by splitting into EC-001 (write path) and EC-001b (read path): **(write path — EC-001)** `prism credential set` keyring write failure surfaces via `handle_credential_set` as "Keyring unavailable: {e}…" — this is E-CRED-004 (`PrismError::CredentialStoreError`; credential_cli.rs), NOT E-CRED-005. Operator guidance updated to reference the per-client env var fallback (`PRISM_CLIENTS_<ORG>_SENSORS_<SENSOR>_<REF>`, per DEMO-RUNBOOK §6a / demo-setup.sh) instead of an "encrypted file backend." **(read path — EC-001b)** `resolve_credential` Tier-3 backend error (`Err(NoStorageAccess)`) returns `CredentialResolutionError::BackendUnavailable` with E-CRED-005 detail string — hard error, no Tier-4 fallthrough (ADR-034 §D4). E-CRED-005 reference now attaches ONLY to the Tier-3 read clause; the write-failure clause references E-CRED-004. AC-006(a) left unchanged — it correctly covers the runtime read-path E-CRED-005 (keyring access denied during credential resolution, not during setup). No BC/code/script/STORY-INDEX changes. |
 | 1.11 | 2026-06-06 | story-writer | **F-P12-MED-001 + F-P13-MED-001 + F-P12-LOW-001 + comprehensive behavioral audit (pass-12/13 fixes):** **(1) F-P12-MED-001 (AC-012 exit code + error message):** AC-012 corrected: "exits 1" → "exits 2" (EXIT_CONFIG_INVALID — ADR-022 §A; code path: resolve_org_slug_and_id Err → handle_credential_set_with_store returns EXIT_CONFIG_INVALID); quoted error message replaced with the ACTUAL string from credential_cli.rs:503-508: "Could not load prism.toml from '<config_dir>': <reason>. Ensure prism.toml exists (run demo-setup.sh or create it manually) before running `prism credential set`." (previous text "Provide --org-slug explicitly or ensure prism.toml is present." was invented, never in code). `prism credential set` BEHAVIOR spec updated to explicitly list exit 2 for config-invalid (was omitted). Multi-org error message in BEHAVIOR spec updated to match code (added path and "Configured orgs:" suffix). **(2) F-P13-MED-001 (AC-007 note: demo-teardown.sh --org-slug claim):** AC-007 Note corrected: "demo-teardown.sh passes `--org-slug $DEMO_ORG_SLUG` for explicitness" is FALSE — grep of scripts/demo-teardown.sh shows zero `--org-slug` references. The script relies on single-org auto-resolution. Note rewritten to match actual behavior. **(3) F-P12-LOW-001 (BC table title BC-2.06.003):** Dropped the " (Tier-3 IMPLEMENTED — ADR-034)" enrichment suffix from the BC-2.06.003 title cell in the Behavioral Contracts table. POL-7 requires verbatim H1 match; BC-INDEX:103 H1 is "Credential References in Config Resolve to Credential Store Entries" (no suffix). Tier-3 context preserved in the BC frontmatter comment in the YAML block. **(4) Comprehensive behavioral audit — 7 additional drift items corrected:** (a) AC-005 prompt text: "Enter value: " → "Enter value for prism/<sensor>/<name>: " (code: credential_cli.rs:199 `format!("Enter value for prism/{}/{}: ", args.sensor, args.name)` + `eprint!`). (b) EC-006 exit code: "exits 1" → "exits 2 (EXIT_CONFIG_INVALID)" (same Err path as AC-012). (c) EC-006 message: "Org slug '<slug>' not found in prism.toml. Available: [<slugs>]" → "--org-slug '<slug>' not found in prism.toml '<path>'. Configured orgs: [<slugs>]" (code: credential_cli.rs:530-533). (d) EC-003 message: single-line quote → 3-line stderr output matching actual script. (e) EC-004 message: "DTU server did not start within 30s. Check demo.toml for port conflicts." → actual 3-line message from demo-run.sh including log-file path and "Common cause: port conflict" suffix. Items verified MATCH (no drift): AC-001 (exit 0 + dirs created), AC-002 (--config-dir flag, boot step event), AC-003 (DTU launch + urls.json poll), AC-004 (DEMO-RUNBOOK.md §4), AC-005 (set_by_org, OrgId-keyed key, AD-017 no-echo, exit 0), AC-007 (delete_by_org, ordering, exit 0), AC-008 (shellcheck zero warnings), AC-009 (env vars in prism start command env, overlay TOMLs written), AC-010 (OrgId-keyed key; NOT slug-keyed), AC-011 (Tier-3 miss falls through; backend error → BackendUnavailable/E-CRED-005), AC-013 (zero grep matches for retired formats), AC-014 (shellcheck in ci.yml), 8 Red Gate test names (all verified against worktree test files), env var names (CROWDSTRIKE_BASE_URL/ARMIS_INSTANCE_URL/CLAROTY_INSTANCE_URL/CYBERINT_ENVIRONMENT), namespace format "{org_id_uuid}/{sensor}/{name}", DEMO UUID "0196f4b2-3c8d-7e1a-b5f0-2d4c6e8a0b1c", AC count 14, red_gate_tests 8, demo-setup.sh steps 1-8 / credential bootstrap / --org-slug passing / set_cred helper. No BC/code/script/STORY-INDEX changes. |
 | 1.10 | 2026-06-06 | story-writer | **F-P10-CRIT-001 + F-P10-HIGH-001 (pass-10 fixes):** (1) F-P10-CRIT-001: documented keyring real-backend feature enablement in `crates/prism-credentials/Cargo.toml` (apple-native / windows-native / linux-native-sync-persistent / linux-native) + 4 `compile_error!` regression guards added to `crates/prism-credentials/src/lib.rs` that fire on zero-backend builds, preventing silent reversion to the in-process mock keystore. Tests use `install_keyring_mock()` (prism-credentials/src/tests/mod.rs) + `InMemoryCredentialStore` injection — no real OS Keychain in CI. FSR gains 4 new file rows (prism-credentials Cargo.toml, lib.rs guards, tests/mod.rs, tests/store_tests.rs). Architecture Compliance Rules gains 2 new rows (backend enablement guard; test mock-override). Forbidden Dependencies gains 1 new row (zero-feature guard). (2) F-P10-HIGH-001: `prism credential delete --org-slug <slug> --sensor <s> --name <n>` subcommand added — `handle_credential_delete` / `handle_credential_delete_with_store` in `credential_cli.rs`; calls `CredentialStoreOrgId::delete_by_org` (OrgId-keyed, matches write path exactly); idempotent (Ok(false) → exit 0); exits 1 on backend error, exits 2 on config-invalid. `demo-teardown.sh` now uses `prism credential delete` on ALL platforms, replacing wrong platform-native CLI calls. New Red Gate test `test_handle_credential_delete_uses_org_id_keyed_namespace` added to `bc_2_03_007_credential_set_org_id_keyed.rs` (AC-007 / BC-2.03.005). `red_gate_tests` 7→8. AC-007 rewritten to reference `prism credential delete` and the ordering constraint (deletes before `rm -rf`). Subcommand spec section expanded to include `prism credential delete`. Architecture Compliance Rules gains 2 new rows (delete uses `delete_by_org`; ordering constraint). Forbidden Dependencies gains 1 new row (platform-native CLI for deletion). FSR `credential_cli.rs` and `demo-teardown.sh` rows updated. Token budget updated ~47K→~51K. Title updated to include `set/delete`. Tasks 10, 27 count updated 7→8; task 17a added; task 18 updated. No BC/code/script/STORY-INDEX changes. |
