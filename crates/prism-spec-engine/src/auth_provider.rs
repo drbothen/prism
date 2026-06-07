@@ -130,7 +130,7 @@ pub trait AuthProvider: Send + Sync {
 /// # Production Implementor
 ///
 /// [`PrismCredentialResolver`] wraps `prism_credentials::resolve_credential`.
-/// Constructed via `Arc::new(PrismCredentialResolver)` in `StaticCookieAuthProvider::new`.
+/// Constructed via `Arc::new(PrismCredentialResolver::new(org_registry, keyring))` in `StaticCookieAuthProvider::new`.
 pub trait CredentialResolver: Send + Sync {
     /// Resolve the named credential for the given `(client_id, sensor_id, credential_name)` tuple.
     ///
@@ -408,7 +408,7 @@ pub struct StaticCookieAuthProvider {
     sensor_id: String,
     /// Injected credential resolver (ADR-022 §C wiring; AC-005 injectable design).
     ///
-    /// Production code passes `Arc::new(PrismCredentialResolver)` (via `new()`).
+    /// Production code passes `Arc::new(PrismCredentialResolver::new(org_registry, keyring))` (via `new()`).
     /// Tests pass `Arc::new(MockCredentialResolver::new("key-value"))` (via `new_with_resolver()`).
     resolver: Arc<dyn CredentialResolver>,
 }

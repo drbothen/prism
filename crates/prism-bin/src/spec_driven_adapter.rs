@@ -230,7 +230,7 @@ pub struct BearerStaticCredentialAuthProvider {
 
     /// Injected credential resolver (ADR-022 §C wiring / testability).
     ///
-    /// Production code passes `Arc::new(prism_spec_engine::PrismCredentialResolver)`.
+    /// Production code passes `Arc::new(prism_spec_engine::PrismCredentialResolver::new(org_registry, keyring))`.
     /// Tests inject `Arc::new(MockCredentialResolver::new("value"))` or
     /// `Arc::new(NotFoundCredentialResolver)` to drive fail-closed paths without
     /// relying on env vars or the real credential store (SID-1 discipline).
