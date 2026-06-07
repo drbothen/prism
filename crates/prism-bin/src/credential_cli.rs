@@ -50,7 +50,7 @@
 use std::sync::Arc;
 
 use clap::{Args, Subcommand};
-use prism_core::{CredentialName, OrgId, OrgSlug};
+use prism_core::{CredentialName, OrgId};
 use prism_credentials::{CredentialIndex, CredentialStoreOrgId, KeyringBackend};
 use secrecy::SecretString;
 
