@@ -238,7 +238,7 @@ This is the **read path** error — the credential was previously stored (or was
 expected to be) but the OS keyring is inaccessible during Tier-3 resolution.
 
 **Error code:** `E-CRED-005` (surfaced by `resolution.rs` Tier-3 keyring backend
-when the OS keyring is inaccessible — AC-006(a) of S-DEMO-003 (EC-001b)). There is
+when the OS keyring is inaccessible — AC-006(b) of S-DEMO-003 (EC-001b)). There is
 no Tier-4 fallthrough: if the keyring is unavailable at read time, the error is
 hard-returned with no credential value leak.
 
