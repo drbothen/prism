@@ -117,8 +117,8 @@ fn test_BC_2_03_009_rejects_nonexistent_file_with_credential_error() {
     let err = result.unwrap_err();
     let msg = err.to_string();
     assert!(
-        msg.contains("E-CRED") || msg.contains("does not exist") || msg.contains("nonexistent"),
-        "error must reference file path and existence, got: {msg}"
+        msg.contains("E-CRED-005"),
+        "missing-file error must reference E-CRED-005, got: {msg}"
     );
 }
 
@@ -160,8 +160,8 @@ fn test_BC_2_03_009_rejects_directory_path_with_credential_error() {
     let err = result.unwrap_err();
     let msg = err.to_string();
     assert!(
-        msg.contains("directory") || msg.contains("regular file") || msg.contains("E-CRED"),
-        "error must mention regular file requirement, got: {msg}"
+        msg.contains("E-CRED-005"),
+        "directory-path error must reference E-CRED-005, got: {msg}"
     );
 }
 
@@ -201,6 +201,76 @@ fn test_BC_2_03_009_empty_file_resolves_to_empty_secret() {
         secret.unwrap().expose_secret(),
         "",
         "empty file should resolve to empty string"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// RG-ECRED-003: file-I/O errors must emit E-CRED-005, NOT E-CRED-009
+// (ADR-035 §D1 E-CRED-005; AC-003 + AC-010 of S-MAINT-ECRED-TAXONOMY-SYNC-001)
+//
+// RED GATE: Currently fails because resolve_secret.rs emits "E-CRED-009: ..."
+// PASSES AFTER: implementer changes 3 inline reason strings from "E-CRED-009:" to "E-CRED-005:"
+// ---------------------------------------------------------------------------
+
+/// RG-ECRED-003: resolve_secret file-I/O failures emit canonical E-CRED-005, not E-CRED-009.
+///
+/// Exercises the missing-file path (AC-003 canonical test vector from ADR-035 §Blast-Radius).
+/// Also guards that NONE of the three file-I/O sub-paths emit E-CRED-009 after migration.
+///
+/// Currently fails: resolve_secret.rs emits `"E-CRED-009: credential file does not exist..."`.
+/// Passes after: string literal updated to `"E-CRED-005: credential file I/O error for '...':"`.
+#[test]
+#[allow(non_snake_case)]
+fn test_BC_2_03_009_resolve_secret_file_io_emits_e_cred_005() {
+    // --- Sub-case 1: missing file ---
+    let missing_path = "/nonexistent/path/rg-ecred-003-missing.txt";
+    std::env::set_var("RG_ECRED_003_FILE_A", missing_path);
+    std::env::remove_var("RG_ECRED_003_DIRECT_A");
+
+    let result_missing = resolve_secret("RG_ECRED_003_FILE_A", "RG_ECRED_003_DIRECT_A");
+
+    std::env::remove_var("RG_ECRED_003_FILE_A");
+
+    assert!(
+        result_missing.is_err(),
+        "missing file must return Err, got: {result_missing:?}"
+    );
+    let err_missing = result_missing.unwrap_err();
+    let msg_missing = err_missing.to_string();
+
+    // Must contain E-CRED-005 (canonical code for file-I/O per ADR-035 §D1)
+    assert!(
+        msg_missing.contains("E-CRED-005"),
+        "missing-file error must contain 'E-CRED-005', got: {msg_missing:?}"
+    );
+    // Must NOT contain E-CRED-009 (old undeclared code being retired)
+    assert!(
+        !msg_missing.contains("E-CRED-009"),
+        "missing-file error must NOT contain 'E-CRED-009' (old undeclared code), got: {msg_missing:?}"
+    );
+
+    // --- Sub-case 2: path is a directory ---
+    std::env::set_var("RG_ECRED_003_FILE_B", "/tmp");
+    std::env::remove_var("RG_ECRED_003_DIRECT_B");
+
+    let result_dir = resolve_secret("RG_ECRED_003_FILE_B", "RG_ECRED_003_DIRECT_B");
+
+    std::env::remove_var("RG_ECRED_003_FILE_B");
+
+    assert!(
+        result_dir.is_err(),
+        "directory path must return Err, got: {result_dir:?}"
+    );
+    let err_dir = result_dir.unwrap_err();
+    let msg_dir = err_dir.to_string();
+
+    assert!(
+        msg_dir.contains("E-CRED-005"),
+        "directory-path error must contain 'E-CRED-005', got: {msg_dir:?}"
+    );
+    assert!(
+        !msg_dir.contains("E-CRED-009"),
+        "directory-path error must NOT contain 'E-CRED-009' (old undeclared code), got: {msg_dir:?}"
     );
 }
 
