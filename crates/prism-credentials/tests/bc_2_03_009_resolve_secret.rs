@@ -117,8 +117,8 @@ fn test_BC_2_03_009_rejects_nonexistent_file_with_credential_error() {
     let err = result.unwrap_err();
     let msg = err.to_string();
     assert!(
-        msg.contains("E-CRED-005") || msg.contains("does not exist") || msg.contains("nonexistent"),
-        "error must reference file path and existence, got: {msg}"
+        msg.contains("E-CRED-005"),
+        "missing-file error must reference E-CRED-005, got: {msg}"
     );
 }
 
@@ -160,8 +160,8 @@ fn test_BC_2_03_009_rejects_directory_path_with_credential_error() {
     let err = result.unwrap_err();
     let msg = err.to_string();
     assert!(
-        msg.contains("directory") || msg.contains("regular file") || msg.contains("E-CRED-005"),
-        "error must mention regular file requirement, got: {msg}"
+        msg.contains("E-CRED-005"),
+        "directory-path error must reference E-CRED-005, got: {msg}"
     );
 }
 
