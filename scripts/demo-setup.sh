@@ -9,7 +9,7 @@
 #   2. Build prism and prism-dtu-demo-server (release profile)
 #   3. Create demo config directory structure
 #   4. Copy sensor TOML specs to ~/.config/prism-demo/specs/
-#   5. Copy crowdstrike-oauth2.prx plugin to ~/.config/prism-demo/plugins/
+#   5. Copy crowdstrike-oauth2.prx plugin + write crowdstrike-oauth2.manifest.toml (DTU-safe SEC-003 allowlist) to ~/.config/prism-demo/plugins/
 #   6. Write ~/.config/prism-demo/prism.toml (valid PrismConfig)
 #   7. Bootstrap dummy credentials in the OS keyring via `prism credential set`
 #   8. Print next-step instructions
