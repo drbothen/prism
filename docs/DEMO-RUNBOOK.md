@@ -39,14 +39,14 @@ bash scripts/demo-setup.sh
 
 What the script does:
 
-1. **Builds** `prism` and `prism-dtu-demo-server` in release mode
-2. **Creates** `~/.config/prism-demo/` with `specs/`, `state/`, `plugins/`, and `run/` subdirectories
-3. **Copies** the four sensor TOML specs (`crowdstrike`, `armis`, `claroty`, `cyberint`) to `~/.config/prism-demo/specs/`
-4. **Copies** `crowdstrike-oauth2.prx` plugin artifact to `~/.config/prism-demo/plugins/`
-5. **Writes** `~/.config/prism-demo/plugins/crowdstrike-oauth2.manifest.toml` — a DTU-safe plugin manifest that extends `allowed_urls` with `"127.0.0.1"` so the SEC-003 OAuth2 token-endpoint host check passes against the local DTU clone (the production plugin manifest at `api.crowdstrike.com` is not modified)
-6. **Writes** `~/.config/prism-demo/prism.toml` with the demo org (`org_slug = "demo-org"`, UUID v7 `org_id`)
-7. **Stores** dummy credentials in the OS keyring for all four sensors via `prism credential set`
-8. **Prints** next-step instructions
+1. **Checks** prerequisites (`cargo` must be available)
+2. **Builds** `prism` and `prism-dtu-demo-server` in release mode
+3. **Creates** `~/.config/prism-demo/` with `specs/`, `state/`, `plugins/`, and `run/` subdirectories
+4. **Copies** the four sensor TOML specs (`crowdstrike`, `armis`, `claroty`, `cyberint`) to `~/.config/prism-demo/specs/`
+5. **Copies** `crowdstrike-oauth2.prx` plugin artifact to `~/.config/prism-demo/plugins/`
+6. **Writes** `~/.config/prism-demo/plugins/crowdstrike-oauth2.manifest.toml` — a DTU-safe plugin manifest that extends `allowed_urls` with `"127.0.0.1"` so the SEC-003 OAuth2 token-endpoint host check passes against the local DTU clone (the production plugin manifest at `api.crowdstrike.com` is not modified)
+7. **Writes** `~/.config/prism-demo/prism.toml` with the demo org (`org_slug = "demo-org"`, UUID v7 `org_id`)
+8. **Stores** dummy credentials in the OS keyring for all four sensors via `prism credential set`; prints next-step instructions
 
 Override the config directory if needed:
 
@@ -67,8 +67,8 @@ bash scripts/demo-run.sh
 The script:
 1. Starts `prism-dtu-demo-server` in the background on four ephemeral ports (port = 0 in demo.toml; no port conflicts between runs)
 2. Polls for the URL sidecar file (`~/.config/prism-demo/run/.prism-dtu-demo-server.urls.json`) for up to 30 seconds
-3. **Generates per-org sensor overlays** — reads the urls.json sidecar and writes `~/.config/prism-demo/specs/customers/demo-org/<sensor>.sensor.toml` for each of the four sensors. Each overlay sets `base_url = "http://127.0.0.1:<ephemeral-port>"` so prism routes its fetch requests to the local DTU clone instead of the real sensor API. This step is required for AC-009 ("demo queries return data rows"). prism's spec loader derives the overlay directory as `spec_dir + "/customers"` at boot step 4c.
-4. Prints the CrowdStrike, Armis, Claroty, and Cyberint DTU URLs
+3. Prints the CrowdStrike, Armis, Claroty, and Cyberint DTU URLs (parsed from the urls.json sidecar)
+4. **Generates per-org sensor overlays** — reads the urls.json sidecar and writes `~/.config/prism-demo/specs/customers/demo-org/<sensor>.sensor.toml` for each of the four sensors. Each overlay sets `base_url = "http://127.0.0.1:<ephemeral-port>"` so prism routes its fetch requests to the local DTU clone instead of the real sensor API. This step is required for AC-009 ("demo queries return data rows"). prism's spec loader derives the overlay directory as `spec_dir + "/customers"` at boot step 4c.
 5. Prints the exact command to start `prism`
 
 Start `prism` in a **new terminal** using the command printed by `demo-run.sh`:
@@ -140,19 +140,20 @@ Verify the MCP connection from Claude Code:
 /mcp list
 ```
 
-You should see `prism` listed as a connected server with `tool_query` available.
+You should see `prism` listed as a connected server with `query` available (the canonical MCP tool name registered via `pub async fn query` in prism-mcp; BC-2.11.001).
 
 ---
 
 ## 5. Example Queries
 
-Once connected, issue PrismQL queries via the `tool_query` MCP tool. Use `/mcp` in Claude Code
-to invoke MCP tools.
+Once connected, issue PrismQL queries via the `query` MCP tool (the canonical tool name;
+`FROM x LIMIT n` is pipe syntax and is rejected — use SQL form `SELECT * FROM x LIMIT n`).
+Use `/mcp` in Claude Code to invoke MCP tools.
 
 **CrowdStrike — recent detections:**
 
 ```sql
-FROM crowdstrike_detections LIMIT 5
+SELECT * FROM crowdstrike_detections LIMIT 5
 ```
 
 Expected output: OCSF-normalized Arrow batch with columns `sensor`, `_time`, and detection fields.
@@ -160,7 +161,7 @@ Expected output: OCSF-normalized Arrow batch with columns `sensor`, `_time`, and
 **Armis — device inventory:**
 
 ```sql
-FROM armis_devices LIMIT 5
+SELECT * FROM armis_devices LIMIT 5
 ```
 
 Expected output: OCSF-normalized rows with device attributes.
@@ -168,7 +169,7 @@ Expected output: OCSF-normalized rows with device attributes.
 **Claroty — OT asset inventory:**
 
 ```sql
-FROM claroty_assets LIMIT 5
+SELECT * FROM claroty_assets LIMIT 5
 ```
 
 Expected output: OCSF-normalized rows with OT asset metadata.
@@ -176,7 +177,7 @@ Expected output: OCSF-normalized rows with OT asset metadata.
 **Cyberint — threat intelligence alerts:**
 
 ```sql
-FROM cyberint_alerts LIMIT 5
+SELECT * FROM cyberint_alerts LIMIT 5
 ```
 
 Expected output: OCSF-normalized alert rows.
@@ -300,11 +301,15 @@ What the script does:
 
 1. Reads `org_id` from `~/.config/prism-demo/prism.toml` (required for OrgId-keyed keyring delete)
 2. Kills the DTU demo server (via PID file at `~/.config/prism-demo/run/.prism-dtu-demo-server.pid`)
-3. Removes `~/.config/prism-demo/` entirely (all config, specs, state, plugins, logs)
-4. Deletes the 5 demo OS keyring entries under the OrgId-UUID-keyed namespace
-   `{org_id_uuid}/{sensor}/{name}` (matching the write path used by `prism credential set` →
-   `CredentialStoreOrgId::set_by_org`, ADR-034 §D3). Credential names: `crowdstrike/client_id`,
-   `crowdstrike/client_secret`, `armis/bearer_token`, `claroty/bearer_token`, `cyberint/api_key`.
+3. Deletes the 5 demo OS keyring entries under the OrgId-UUID-keyed namespace
+   `{org_id_uuid}/{sensor}/{name}` via `prism credential delete` (matching the write path used by
+   `prism credential set` → `CredentialStoreOrgId::set_by_org`, ADR-034 §D3). Credential names:
+   `crowdstrike/client_id`, `crowdstrike/client_secret`, `armis/bearer_token`,
+   `claroty/bearer_token`, `cyberint/api_key`.
+   **Keyring deletes run BEFORE config-dir removal because `prism credential delete` reads
+   `prism.toml` for OrgId resolution — removing the config dir first would make `prism.toml`
+   unavailable and cause all 5 deletes to fail (F-P10-HIGH-001 invariant).**
+4. Removes `~/.config/prism-demo/` entirely (all config, specs, state, plugins, logs)
 
 The binary artifacts (`target/release/prism`, `target/release/prism-dtu-demo-server`) are NOT
 removed — run `cargo clean` separately if needed.
