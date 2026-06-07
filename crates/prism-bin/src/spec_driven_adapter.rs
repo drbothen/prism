@@ -386,7 +386,7 @@ impl prism_spec_engine::AuthProvider for BearerStaticCredentialAuthProvider {
 /// Constructed via `reqwest::Client::builder().timeout(Duration::from_secs(30)).build()`
 /// per CLAUDE.md conventions (TD-S-PLUGIN-PREREQ-B-005).
 ///
-/// ## OCSF normalization (BC-2.01.013 v1.9)
+/// ## OCSF normalization (BC-2.01.013 v1.14)
 ///
 /// The `PipelineExecutor` does NOT return Arrow `RecordBatch` — it returns `PipelineResult`
 /// (raw JSON records). `SpecDrivenSensorAdapter::fetch()` converts those records to
@@ -666,7 +666,7 @@ impl SensorAdapter for SpecDrivenSensorAdapter {
             // Convert PipelineResult.records (raw JSON) → Arrow RecordBatch
             // with OCSF envelope columns (category_uid, class_uid, _sensor) and
             // spec-defined data columns (BC-2.11.005 / AC-010).
-            // BC-2.01.013 v1.8 OCSF Conformance: pass `table` so that:
+            // BC-2.01.013 v1.14 OCSF Conformance: pass `table` so that:
             //   - spec-declared columns survive into the Arrow schema (item 1)
             //   - class_uid/category_uid are derived from ocsf_class (item 2)
             //   - _sensor is injected as canonical sensor_id (item 3)
@@ -731,7 +731,7 @@ fn map_spec_engine_error_to_sensor_error(
 
 /// Convert `PipelineResult.records` (raw JSON) to an Arrow `RecordBatch`.
 ///
-/// Produces a RecordBatch with (BC-2.01.013 v1.8 OCSF Conformance Clause):
+/// Produces a RecordBatch with (BC-2.01.013 v1.14 OCSF Conformance Clause):
 ///
 /// **Spec-declared data columns (item 1):**
 /// Every column declared in `table.columns` is included in the schema, extracted
@@ -788,7 +788,7 @@ fn pipeline_result_to_record_batch(
 
     let n = result.records.len();
 
-    // BC-2.01.013 v1.9 item 2: derive class_uid from spec ocsf_class via
+    // BC-2.01.013 v1.14 item 2: derive class_uid from spec ocsf_class via
     // EventClassSelector::select_by_class_name — looks up by OCSF class-name string,
     // not by (sensor_id, record_type) pair. Falls back to 0 (BASE_EVENT) for unmapped
     // tables per D-925 (intentional unwrap_or fallback, not a production error path).
@@ -842,14 +842,14 @@ fn pipeline_result_to_record_batch(
         col_arrays.push(array);
     }
 
-    // BC-2.01.013 v1.8 item 2: OCSF envelope — class_uid/category_uid derived, not raw-copied.
+    // BC-2.01.013 v1.14 item 2: OCSF envelope — class_uid/category_uid derived, not raw-copied.
     // All rows in this batch share the same derived class_uid/category_uid (table-level, not row-level).
     let category_uid_vals: Vec<Option<i32>> = vec![Some(derived_category_uid); n];
     let class_uid_vals: Vec<Option<i32>> = vec![Some(derived_class_uid); n];
     col_arrays.push(Arc::new(Int32Array::from(category_uid_vals)) as Arc<dyn Array>);
     col_arrays.push(Arc::new(Int32Array::from(class_uid_vals)) as Arc<dyn Array>);
 
-    // BC-2.01.013 v1.8 item 3: _sensor is ALWAYS the canonical sensor_id from the spec.
+    // BC-2.01.013 v1.14 item 3: _sensor is ALWAYS the canonical sensor_id from the spec.
     // Never reads from raw record — the raw record's _sensor field is untrusted vendor data.
     let sensor_vals: Vec<Option<&str>> = vec![Some(sensor_id); n];
     col_arrays.push(Arc::new(StringArray::from(sensor_vals)) as Arc<dyn Array>);
