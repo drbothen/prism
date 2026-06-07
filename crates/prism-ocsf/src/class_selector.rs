@@ -80,6 +80,10 @@ pub const CLASS_UID_BASE_EVENT: u32 = 0;
 ///
 /// Per INV-NO-2001-SELECT-PATH and INV-PRODUCTION-TOML-NO-SECURITY-FINDING (BC-2.02.012 v1.6):
 /// neither `select()` nor `select_by_class_name()` returns 2001 for any input.
+#[deprecated(
+    note = "OCSF v1.1.0 deprecated Security Finding (2001). Use CLASS_UID_DETECTION_FINDING \
+            (2004). BC-2.02.012 v1.6 INV-NO-2001-SELECT-PATH."
+)]
 pub const CLASS_UID_SECURITY_FINDING: u32 = 2001;
 
 /// Maps (sensor, record_type) pairs to OCSF event class UIDs.
@@ -131,7 +135,7 @@ impl EventClassSelector {
                 tracing::warn!(
                     event_type = "ocsf.deprecated_class_alias",
                     class_name = "security_finding",
-                    resolved_class_uid = 2004,
+                    resolved_class_uid = CLASS_UID_DETECTION_FINDING,
                     "sensor TOML uses deprecated ocsf_class value 'security_finding'; update to 'detection_finding'"
                 );
                 Ok(CLASS_UID_DETECTION_FINDING)

@@ -343,6 +343,10 @@ mod ocsf_migration_red_gate {
         let subscriber = tracing_subscriber::fmt()
             .with_writer(writer)
             .with_max_level(tracing::Level::WARN)
+            // Disable ANSI colour codes so structured field assertions like
+            // `captured.contains("resolved_class_uid=2004")` match the raw
+            // `key=value` text without embedded escape sequences.
+            .with_ansi(false)
             .finish();
 
         // set_default scopes the subscriber to the current thread only — safe for
@@ -556,8 +560,9 @@ mod ocsf_migration_red_gate {
              (BC-2.02.012 v1.6 AC-003); captured log: {captured}"
         );
         assert!(
-            captured.contains("2004"),
-            "ocsf.deprecated_class_alias WARN must include resolved_class_uid = 2004 field \
+            captured.contains("resolved_class_uid=2004"),
+            "ocsf.deprecated_class_alias WARN must include resolved_class_uid=2004 structured \
+             field (tracing-subscriber fmt renders integer fields unquoted: field=value) \
              (BC-2.02.012 v1.6 AC-003 / TV-BC-2.02.012-008); captured log: {captured}"
         );
     }
