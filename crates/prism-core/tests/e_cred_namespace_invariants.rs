@@ -97,27 +97,35 @@ fn test_e_cred_keyring_error_variant_retired() {
 //               so E-CRED-005 appears ONLY in resolve_secret.rs.
 // ---------------------------------------------------------------------------
 
-/// RG-ECRED-005: E-CRED-005 must not appear in `prism-core/src/error.rs` after renumber.
+/// RG-ECRED-005: E-CRED-005 must not appear in `prism-core/src/error.rs` after renumber,
+/// AND must be present in `prism-credentials/src/resolve_secret.rs` (the sole file-I/O emitter).
 ///
 /// No-collision invariant (ADR-035 §D2): E-CRED-005 is assigned exclusively to
 /// the Tier-1 file-I/O condition. After migration, the ONLY source file under
 /// `crates/` that contains the literal "E-CRED-005" is `resolve_secret.rs`.
 ///
-/// This test scans `prism-core/src/error.rs` and asserts the string "E-CRED-005"
-/// is absent, which verifies the collision is resolved on the develop-scope side.
+/// This test covers BOTH halves of the invariant:
+///
+/// NEGATIVE: `prism-core/src/error.rs` must NOT contain "E-CRED-005" (collision resolved).
+/// POSITIVE: `prism-credentials/src/resolve_secret.rs` MUST contain "E-CRED-005" and
+///           all three file-I/O sub-case strings (missing-file, is-directory, read-failed).
+///           This guards against E-CRED-005 being accidentally deleted from the sole emitter.
 ///
 /// Scope note: S-DEMO-003 worktree files are out of scope (they still contain
 /// E-CRED-005 until S-DEMO-003 re-baseline). This test only scans develop-branch
-/// files (crates/prism-core/src/error.rs) which are in scope for this story.
+/// files which are in scope for this story.
 ///
 /// Before migration: FAILS (error.rs has `"E-CRED-005: credential encryption error:"`)
-/// After migration: PASSES (CredentialEncryptionError → E-CRED-006, error.rs clean)
+/// After migration: PASSES (CredentialEncryptionError → E-CRED-006, error.rs clean;
+///                          resolve_secret.rs retains all three E-CRED-005 sub-cases)
 #[test]
 fn test_e_cred_005_emitted_only_by_file_io_path() {
     let root = workspace_root();
     let error_rs = root.join("crates/prism-core/src/error.rs");
+    let resolve_secret_rs = root.join("crates/prism-credentials/src/resolve_secret.rs");
 
-    let source = std::fs::read_to_string(&error_rs)
+    // --- NEGATIVE half: E-CRED-005 absent from prism-core/src/error.rs ---
+    let error_source = std::fs::read_to_string(&error_rs)
         .unwrap_or_else(|e| panic!("Failed to read {}: {e}", error_rs.display()));
 
     // Before migration: error.rs contains `"E-CRED-005: credential encryption error: {reason}"`
@@ -126,11 +134,49 @@ fn test_e_cred_005_emitted_only_by_file_io_path() {
     // After migration: CredentialEncryptionError uses E-CRED-006; error.rs no longer
     // contains any "E-CRED-005" string. This assertion PASSES.
     assert!(
-        !source.contains("E-CRED-005"),
+        !error_source.contains("E-CRED-005"),
         "E-CRED-005 must not appear in prism-core/src/error.rs after renumber \
          (ADR-035 §D2 no-collision invariant; S-MAINT-ECRED-TAXONOMY-SYNC-001 AC-009). \
          Found 'E-CRED-005' in {}. \
          After migration, CredentialEncryptionError must use 'E-CRED-006:'.",
         error_rs.display()
+    );
+
+    // --- POSITIVE half: E-CRED-005 present in resolve_secret.rs (sole file-I/O emitter) ---
+    let resolve_source = std::fs::read_to_string(&resolve_secret_rs)
+        .unwrap_or_else(|e| panic!("Failed to read {}: {e}", resolve_secret_rs.display()));
+
+    // Guard that E-CRED-005 has not been accidentally deleted from the sole emitter.
+    assert!(
+        resolve_source.contains("E-CRED-005"),
+        "E-CRED-005 must be present in crates/prism-credentials/src/resolve_secret.rs \
+         (ADR-035 §D1; S-MAINT-ECRED-TAXONOMY-SYNC-001 RG-ECRED-005 positive coverage). \
+         Found no 'E-CRED-005' in {}.",
+        resolve_secret_rs.display()
+    );
+
+    // Guard all three file-I/O sub-case error strings individually so a targeted
+    // deletion of one sub-case would fail this test.
+    assert!(
+        resolve_source.contains("does not exist"),
+        "resolve_secret.rs missing-file sub-case must contain 'does not exist' \
+         (RG-ECRED-005 positive coverage, missing-file path). \
+         File: {}",
+        resolve_secret_rs.display()
+    );
+    assert!(
+        resolve_source.contains("is a directory")
+            || resolve_source.contains("directory, not a regular file"),
+        "resolve_secret.rs directory sub-case must contain a directory-path error string \
+         (RG-ECRED-005 positive coverage, is-directory path). \
+         File: {}",
+        resolve_secret_rs.display()
+    );
+    assert!(
+        resolve_source.contains("read failed"),
+        "resolve_secret.rs read-failed sub-case must contain 'read failed' \
+         (RG-ECRED-005 positive coverage, read-failed path). \
+         File: {}",
+        resolve_secret_rs.display()
     );
 }
