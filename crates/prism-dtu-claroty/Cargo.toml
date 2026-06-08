@@ -135,5 +135,11 @@ name = "sec_p3_003_constant_time_admin_token"
 path = "tests/sec_p3_003_constant_time_admin_token.rs"
 required-features = ["dtu"]
 
+# S-DEMO-CLAROTY-TRAILING-SLASH-001: Red Gate — trailing-slash route fidelity (BC-2.16.013 v1.25)
+[[test]]
+name = "trailing_slash_parity"
+path = "tests/trailing_slash_parity.rs"
+required-features = ["dtu"]
+
 [lints]
 workspace = true
