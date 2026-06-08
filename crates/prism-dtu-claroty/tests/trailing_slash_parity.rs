@@ -352,7 +352,7 @@ async fn test_BC_2_16_013_tags_route_with_slash_still_works() {
 ///
 /// Also asserts GET /dtu/health (no slash) returns 200 — baseline sanity.
 ///
-/// Traces to: BC-2.16.013 v1.25 EC-003.
+/// Traces to: S-DEMO-CLAROTY-TRAILING-SLASH-001 §Edge Cases EC-003; BC-2.16.013 v1.25 §Postconditions §1.
 #[tokio::test]
 async fn test_BC_2_16_013_dtu_health_trailing_slash_returns_200() {
     let (_clone, base_url) = start_clone().await;
@@ -427,7 +427,7 @@ async fn test_BC_2_16_013_dtu_health_trailing_slash_returns_200() {
 /// becomes `/api/v1/alerts`, the handler fires, and the bearer-auth check rejects
 /// the unauthenticated request with 401.
 ///
-/// Traces to: BC-2.16.013 v1.25 EC-002.
+/// Traces to: S-DEMO-CLAROTY-TRAILING-SLASH-001 §Edge Cases EC-002; BC-2.16.013 v1.25 §Postconditions §1.
 #[tokio::test]
 async fn test_BC_2_16_013_trailing_slash_alerts_missing_auth_returns_401() {
     let (_clone, base_url) = start_clone().await;
