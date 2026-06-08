@@ -13,11 +13,11 @@ status: ready
 # BC GAP DRIFT-D850-001: CLOSED D-1059 2026-06-08 — BC-2.16.002 v1.70 contains the explicit
 #   §Postconditions "OffsetLimit Pagination Dispatch: POST-body vs GET-URL (DRIFT-D850-001)"
 #   clause (added by product-owner). No residual gap. No further PO authorship required.
-version: "1.1"
+version: "1.2"
 level: "L4"
 producer: story-writer
 timestamp: "2026-05-29T00:00:00Z"
-modified: "2026-06-08"
+modified: "2026-06-08"  # v1.2 remove-uncertainty corrections C-1..C-5
 tdd_mode: strict
 subsystems: [SS-16]
 # Subsystem anchor justifications:
@@ -65,9 +65,10 @@ blocks:
 #   so page 2+ is never fetched without this fix.
 points: 5
 # Points justification:
-#   - Amend `build_paged_url_impl` to not append ?offset=&limit= for POST steps: ~0.5 pts
-#   - Thread `method` (or the full `FetchStep`) through to the call site for dispatch: ~0.5 pts
-#   - Amend the request-issuing path to inject offset+limit into the request body for POST: ~1 pt
+#   - Amend build_paged_url_impl (logic-only, no signature change): ~0.5 pts
+#   - Thread offset + page_size through issue_request_with_retry → BOTH build_request call
+#     sites (initial request AND 401-retry): ~1 pt (TD-VSDD-060 sibling sweep)
+#   - Body injection in build_request (interpolate → re-parse → merge → reserialize): ~1 pt
 #   - 4-axis Red Gate tests (POST body, GET URL, regression, multi-page): ~2 pts
 #   - BC-2.16.002 catalog update if any new tracing emissions: ~0.5 pts
 #   - BC-2.16.002 postcondition already authored at v1.70 (DRIFT-D850-001 CLOSED): 0 pts
@@ -210,7 +211,7 @@ Architecture section references:
 | EC-003 | GET step with OffsetLimit pagination (regression) | URL params appended as before: `?offset=0&limit=100`. Body unchanged (GET has no body) |
 | EC-004 | `method` field absent from `FetchStep` TOML | Defaults to GET behavior (URL params). No change to existing behavior |
 | EC-005 | First page has exactly `page_size` records (boundary) | Pipeline requests page 2. If page 2 has 0 records, loop terminates. This is correct OffsetLimit termination logic — NOT changed by this story |
-| EC-006 | `page_size = 0` in TOML | Treated as degenerate config — existing behavior applies (divide-by-zero guard should already exist in OffsetLimit loop; if not, add one) |
+| EC-006 | `page_size = 0` in TOML | Treated as degenerate config. The OffsetLimit advance logic performs no division — it only compares `page_record_count < page_size` and increments `offset += page_size`. With page_size=0 the loop never advances, but terminates safely when the `MAX_REQUESTS_PER_PIPELINE` cap trips (no panic, no infinite loop — just inefficient). NOTE: `spec_parser.rs` has a comment "page_size must be > 0" but no parser-level hard guard enforces it; adding such a guard is a pre-existing spec-engine validation concern, separately routed to PO as a drift item. It is NOT in scope for this story and is NOT required by any AC here. |
 
 ## Token Budget Estimate
 
@@ -225,34 +226,52 @@ Architecture section references:
 | **Total estimate** | **~71,000 tokens** |
 
 pipeline.rs is large (~40K tokens). This is within budget (20-30% of 200K = 40-60K for code
-alone + story + BCs). If context pressure is felt, load only §pagination-related functions
-(lines near `build_paged_url_impl`, `OffsetLimit` match arms, and `issue_request_with_retry`).
+alone + story + BCs). If context pressure is felt, load only pagination-relevant functions:
+`build_paged_url_impl`, `build_request`, `issue_request_with_retry`, the `OffsetLimit` match
+arms in `execute_impl`, and the existing OffsetLimit/CursorToken unit-test module.
 
 ## Tasks
 
-- [ ] **Task 1: Understand current implementation** — Read `pipeline.rs` §`build_paged_url_impl`
-  (around line 939) and the `PipelineExecutor::execute` pagination loop (around line 498).
-  Understand where `build_paged_url` is called and where the HTTP request body is constructed.
+- [ ] **Task 1: Understand current implementation** — Read `pipeline.rs` functions
+  `build_paged_url_impl` (URL construction, well below `build_request`) and `execute_impl`
+  (the pagination advance loop containing the `OffsetLimit` match arm). Read `build_request`
+  (where the HTTP body is built via `Interpolator::interpolate` → `.body(interpolated_body)`)
+  and `issue_request_with_retry` (which delegates body construction to `build_request`).
   Read `spec_parser.rs` `FetchStep` struct to confirm the `method` field type and how it is
-  threaded.
+  threaded. These four functions are the entire blast radius of this story.
 
-- [ ] **Task 2: Amend `build_paged_url_impl` signature** — Add `method: &str` (or `step: &FetchStep`)
-  parameter to distinguish GET vs POST dispatch. For POST: return `base_url.to_string()` unchanged
-  (no ?offset= appended). For GET (or method absent): preserve existing `?offset=N&limit=M`
-  behavior.
+- [ ] **Task 2: Amend `build_paged_url_impl` logic** — Verified: `build_paged_url_impl` already
+  receives `step: &FetchStep`, so `step.method` is already in scope — NO signature change is
+  required. Add a branch inside the existing `PaginationConfig::OffsetLimit` match arm: for
+  `step.method == "POST"`, return `base_url.to_string()` unchanged (no `?offset=&limit=`
+  appended). For GET (or method absent), preserve the existing `?offset=N&limit=M` behavior.
+  This is a logic-only change; the function signature is unchanged.
 
-- [ ] **Task 3: Body injection** — In the request-issuing path (`issue_request_with_retry` or
-  the main execute loop), when `step.method == "POST"` and `PaginationConfig::OffsetLimit`:
-  parse `step.body_template` as `serde_json::Map`, insert `"offset": offset_u64` and
-  `"limit": page_size_u64`, serialize back to string. Pass as request body.
-  If `body_template` is not a valid JSON object, surface `SpecEngineError` (use an existing
-  error variant that best fits; do NOT invent a new error code without PO authorship of
-  the error-taxonomy entry).
+- [ ] **Task 3a: Thread offset + page_size into build_request** — `offset` is currently a local
+  in `execute_impl` passed only to `build_paged_url`. It is NOT passed to
+  `issue_request_with_retry` or `build_request`. Add `offset: u64` and `page_size: u64`
+  parameters to `issue_request_with_retry` and to `build_request`. Update BOTH `build_request`
+  call sites inside `issue_request_with_retry` (the initial request AND the 401-retry second
+  request) — TD-VSDD-060 sibling-site sweep. This is "wiring, not redesign" per ADR-022 §C.
 
-- [ ] **Task 4: Update `build_paged_url_for_test` wrapper** — If `build_paged_url_impl`
-  signature changes, update the public test helper `build_paged_url_for_test` accordingly.
-  Check all existing callers in the test module (`test_BC_2_16_002_cursor_pagination_*`)
-  and update their call sites (TD-VSDD-060 sibling-site sweep).
+- [ ] **Task 3b: Body injection in build_request** — `build_request` currently calls
+  `Interpolator::interpolate(body_tpl, &InterpolationContext::JsonBody, step_vars)` producing
+  an interpolated body **String**, then sets it via `.body(interpolated_body)`. When
+  `step.method == "POST"` and `PaginationConfig::OffsetLimit` is active: after interpolation,
+  re-parse the interpolated body string as `serde_json::Value::Object`, insert top-level keys
+  `"offset": offset_u64` and `"limit": page_size_u64`, reserialize to String, pass to
+  `.body(...)`. This merge preserves all existing body_template fields (AC-004).
+  If the interpolated body is not a valid JSON object, surface `SpecEngineError` using the most
+  semantically appropriate existing variant (check `prism-spec-engine/src/error.rs` — e.g.,
+  `JsonPathExtractionFailed`, `InvalidSpec`). Do NOT invent a new error variant without PO
+  authorship of the error-taxonomy entry.
+
+- [ ] **Task 4: Verify `build_paged_url_for_test` wrapper** — Since `build_paged_url_impl`'s
+  signature is unchanged (Task 2 above), `build_paged_url_for_test` likely requires NO update.
+  Confirm by reading the wrapper and its callers in the test module
+  (`test_BC_2_16_002_cursor_pagination_*` and any OffsetLimit test helpers). If no signature
+  changed, this task is a verification-only no-op. Keep as a conditional regression guard
+  (AC-006): only update if an unexpected signature change occurs.
 
 - [ ] **Task 5: Red Gate tests** — Write all 4 Red Gate tests listed above. The integration
   test against a live DTU clone requires `ClarotyClone` in `[dev-dependencies]` if not already
@@ -283,19 +302,22 @@ S-DEMO-CLAROTY-AUDIT-DTU-001 (E-DTU-FIDELITY). Key lessons from co-authored wave
    all 3 Claroty POST endpoints (alerts, devices, audit_log). No DTU changes needed here.
 
 2. **pipeline.rs context size.** `pipeline.rs` is large (~2200+ lines). Load only the
-   pagination-relevant sections first (lines ~360-510 for the execute loop, lines ~908-968
-   for `build_paged_url_impl`, lines ~2250-2350 for existing pagination unit tests).
-   Do not load the entire file if the context budget is under pressure.
+   pagination-relevant functions first: `execute_impl` (OffsetLimit advance loop),
+   `build_paged_url_impl` (URL construction), `build_request` (body construction), and
+   `issue_request_with_retry` (retry wrapper). The existing OffsetLimit/CursorToken unit-test
+   module is the fourth load target. Do not load the entire file if the context budget is under
+   pressure.
 
 3. **`PaginationConfig::OffsetLimit` is matched in 2 places** in `pipeline.rs`:
-   - `build_paged_url_impl` (URL construction)
-   - The pagination advance logic in `PipelineExecutor::execute` (loop termination)
-   Only `build_paged_url_impl` needs to change (plus the body injection site). The advance
-   logic is method-agnostic and must NOT be changed.
+   - `build_paged_url_impl` (URL construction, logic-only change in Task 2)
+   - The pagination advance logic in `execute_impl` (loop termination — method-agnostic,
+     must NOT be changed)
+   The body injection is a THIRD touch point: `build_request` (body construction in Task 3b).
+   The signature plumbing is a FOURTH: `issue_request_with_retry` → `build_request` (Task 3a).
 
 4. **Existing Red Gate tests for pagination.** `test_BC_2_16_002_cursor_pagination_*` tests
-   exist in `pipeline.rs` (around line 2290). These test CursorToken pagination. The new tests
-   are OffsetLimit-specific. Do not modify the existing CursorToken tests.
+   exist in the unit-test module of `pipeline.rs`. These test CursorToken pagination. The new
+   tests are OffsetLimit-specific. Do not modify the existing CursorToken tests.
 
 ## Architecture Compliance Rules
 
@@ -344,9 +366,15 @@ The DTU crate may appear in `[dev-dependencies]` only (test infrastructure).
 ## Notes for Implementer
 
 1. **Identify the body injection site precisely.** The HTTP request body is constructed
-   in `issue_request_with_retry` (around line 703). Find where `step.body_template` is
-   serialized into the request body. The injection point is there — not inside
-   `build_paged_url_impl` (which is a URL builder, not a body builder).
+   in **`build_request`** (NOT in `issue_request_with_retry`). `issue_request_with_retry`
+   delegates body construction to `build_request`, which calls
+   `Interpolator::interpolate(body_tpl, &InterpolationContext::JsonBody, step_vars)` to
+   produce an interpolated body String, then passes it via `.body(interpolated_body)` — this
+   is a raw string body, NOT `.json()`, NOT a parsed Map. The injection point for offset/limit
+   is in `build_request` after interpolation: re-parse the interpolated string as
+   `serde_json::Value::Object`, insert the offset/limit keys, reserialize to String. `offset`
+   and `page_size` must be threaded into `build_request` via Task 3a first. Do NOT inject
+   inside `build_paged_url_impl` (URL builder only).
 
 2. **Four-axis regression test is mandatory.** The MEDIUM risk rating comes from the blast
    radius of changing `build_paged_url_impl`. Write all 4 Red Gate tests before declaring
@@ -362,7 +390,15 @@ The DTU crate may appear in `[dev-dependencies]` only (test infrastructure).
    (e.g., `JsonPathExtractionFailed`, `InvalidSpec`, or similar). Do NOT invent new variants
    without PO authorship of the corresponding error-taxonomy entry.
 
-5. **`claroty.sensor.toml` comment in body_template section.** The TOML comment reads:
+5. **`build_paged_url_for_test` signature change is likely unnecessary (AC-006).** Verified:
+   `build_paged_url_impl` already receives `step: &FetchStep`, and `build_paged_url_for_test`
+   already passes `step` — so the Task 2 logic change does NOT require a signature change.
+   The AC-006 sibling-sweep of callers in `tests/ac_1_cursor_page_size_test.rs` is therefore
+   a likely no-op. Read the test helper and confirm before spending time on it. AC-006 remains
+   as a conditional regression guard — if for any reason the signature does change, sweep all
+   callers; but the expectation is it will not.
+
+6. **`claroty.sensor.toml` comment in body_template section.** The TOML comment reads:
    "F-LP3-HIGH-004: removed `{'size': 100}` from body_template. The OffsetLimit engine
    appends ?offset=N&limit=M to URL." After this story lands, that comment should be updated
    to reflect that OffsetLimit POST steps inject into body. Include the TOML comment update
@@ -374,3 +410,4 @@ The DTU crate may appear in `[dev-dependencies]` only (test infrastructure).
 |---------|------|--------|--------|
 | v1.0 | 2026-05-29 | story-writer | Initial story materialization — full ACs, Red Gate tests, edge cases, tasks, architecture mapping. Status: draft pending BC-gap closure (DRIFT-D850-001). |
 | v1.1 | 2026-06-08 | story-writer | BC-gap-closure refresh per D-1059: BC-2.16.002 v1.49→v1.70, BC-2.16.013 v1.17→v1.25, BC-2.01.013 v1.7→v1.14. BC-INDEX reference v5.56→v6.00. All AC traces updated to cite BC-2.16.002 v1.70 §Postconditions "OffsetLimit Pagination Dispatch: POST-body vs GET-URL (DRIFT-D850-001)" by name. Residual "may need PO authorship" language removed. Task 8 and Note 3 updated to reflect CLOSED gap. Status advanced draft→ready. |
+| v1.2 | 2026-06-08 | story-writer | Remove-uncertainty corrections C-1..C-5 (fresh-context uncertainty scan vs develop@763e0ade pipeline.rs). C-1 HIGH: fixed body-injection target from `issue_request_with_retry` (wrong) to `build_request` (correct — `build_request` runs Interpolator → `.body(interpolated_body)`); updated Task 3 and Note 1. C-2 HIGH: added explicit Task 3a for threading `offset`/`page_size` through `issue_request_with_retry` → BOTH `build_request` call sites (initial + 401-retry), per TD-VSDD-060 sibling sweep; updated points rationale comment. C-3 MED: rewrote EC-006 to reflect accurate behavior — OffsetLimit advance does no division; page_size=0 terminates safely at MAX_REQUESTS_PER_PIPELINE cap; removed false divide-by-zero framing; added NOTE that spec-load guard is out-of-scope. C-4 LOW: de-pinned all "around line NNN" citations in Tasks, Previous Story Intelligence, and Token Budget hint; replaced with function-name anchors (`build_paged_url_impl`, `execute_impl`, `build_request`, `issue_request_with_retry`, test module name). C-5 LOW: noted that `build_paged_url_impl` already receives `step: &FetchStep` so Task 2 is logic-only (no signature change); AC-006 sibling sweep is likely a no-op; updated Task 4 and Note 5 accordingly. AC contracts (especially AC-001 "merge offset/limit as top-level body keys") are UNCHANGED — only implementation-location guidance corrected. Status remains ready. |
