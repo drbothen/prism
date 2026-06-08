@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.8"
+version: "1.9"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -286,9 +286,16 @@ step5_init_credential_store_with_probe(
 ).await
 ```
 
-`CredentialRefProbe` trait and `CredentialRefProbe::probe` method signature are
-UNCHANGED from v1.3 (already include `org_registry: &OrgRegistry`). All existing
-test doubles continue to implement the same trait — no signature blast radius.
+`CredentialRefProbe::probe` method signature was converted to `async` (via
+`#[async_trait]`) as of the pass-14 implementation (commit 0941c0e0) to support
+the Tier-3a `get_by_org` await. This IS a method-signature change: all five
+implementations (production `KeyringCredentialProbe` and four test doubles in
+`tests/bc_2_03_013_credential_init.rs` and `tests/vp153_rule_c_shaped_probe.rs`)
+were required to adopt `#[async_trait]` + `async fn probe(...)`, and all call sites
+required `.await`. The `org_registry: &OrgRegistry` parameter was already present
+from v1.3 (that part is unchanged); the async conversion is the only new signature
+element. The async change is correct and necessary: a synchronous `probe` cannot
+`.await get_by_org`.
 
 ### Error message when not found
 
@@ -301,7 +308,7 @@ Credential ref '{ref_name}' for sensor '{sensor_id}' not found in:
   - legacy keyring key ({sensor_id}/{ref_name}).
 To configure (recommended): prism credential set --sensor {sensor_id} --name {ref_name}
 To configure (env var): set PRISM_CLIENTS_<ORG_SLUG_UPPER>_SENSORS_{SENSOR_UPPER}_{REF_UPPER}=<value>
-(BC-2.06.003 v1.8, BC-2.03.013 TV-03-013-003)
+(BC-2.06.003 v1.9, BC-2.03.013 TV-03-013-003)
 ```
 
 ---
@@ -382,6 +389,7 @@ No VPs in VP-INDEX directly verify credential reference resolution. Placeholder 
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.9 | S-DEMO-003-F-P15-HIGH-002 | 2026-06-07 | product-owner | **F-P15-HIGH-002 — Async signature correction.** Corrected §OrgRegistry and KeyringStore Threading: removed false claim that "`CredentialRefProbe` trait and `CredentialRefProbe::probe` method signature are UNCHANGED from v1.3" and "no signature blast radius." The pass-14 implementation (commit 0941c0e0) converted `probe` to `async` via `#[async_trait]` — this IS a method-signature change. All 5 impls (production `KeyringCredentialProbe` + 4 test doubles in `tests/bc_2_03_013_credential_init.rs` and `tests/vp153_rule_c_shaped_probe.rs`) were required to adopt `#[async_trait]` + `async fn probe`, and all call sites required `.await`. The `org_registry: &OrgRegistry` parameter was already present from v1.3 (unchanged). The async conversion is correct and necessary: a synchronous `probe` cannot `.await get_by_org`. The construction prescription (probe and store share ONE `Arc<KeyringBackend>` per ADR-034 §D5) and the `Arc::clone(&keyring_backend)` sharing example in the code block are unchanged and correct. BC H1 title UNCHANGED (POL-7). Status remains draft (POL-14). |
 | 1.8 | S-DEMO-003-F-P14-CRIT-001 | 2026-06-07 | product-owner | **F-P14-CRIT-001 — Boot-step-5 probe OrgId-keyed reconciliation.** Full rewrite of §Boot-Step-5 Probe Alignment to fix the defect where the Tier-3 probe used the legacy non-org-keyed key `{sensor_id}/{ref_name}` while `prism credential set` writes via `set_by_org` to the OrgId-keyed key `{org_id_uuid}/{sensor_id}/{ref_name}`. Per Source-of-Truth Precedence (ADR-034 §D3/§D5 supersedes the prior BC clause). Changes: (1) §Boot-Step-5 Probe Alignment fully rewritten: three-tier probe order (Tier 1/2 env wildcard → Tier 3a OrgId-keyed keyring PRIMARY → Tier 3b legacy keyring FALLBACK); (2) Decision documented: legacy fallback RETAINED for backward compatibility with pre-migration credentials, but OrgId-keyed is primary/canonical; (3) `KeyringCredentialProbe` struct gains `keyring: Arc<dyn CredentialStoreOrgId>` field for Tier 3a `get_by_org` calls; (4) Exact legacy key form specified as `"{sensor_id}/{ref_name}"` (no org component) — corrects the doc inconsistency in boot.rs where the doc comment claims `{org_slug}/{sensor_id}/{ref_name}` but code uses `{sensor_id}/{ref_name}`; (5) Error message updated to cite all three lookup paths; (6) Error Cases table: `BootError::CredentialRefInvalid` updated to cite all three paths; added `BootError::CredentialPermissionDenied` for keyring backend errors at Tier 3a/3b; (7) Edge Cases: added EC-06-006 (OrgId-keyed probe success), EC-06-007 (legacy fallback success), EC-06-008 (keyring backend hard error); (8) Canonical Test Vectors: added §Boot-Step-5 Probe section with TV-BOOT-P-001..005; (9) `modified` frontmatter updated to 2026-06-07. |
 | 1.7 | S-MAINT-ECRED-TAXONOMY-SYNC-001 | 2026-06-07 | product-owner | F-P17-MED-001: de-pinned stale VP-INDEX version reference in §Verification Properties per TD-VSDD-091; S-MAINT-ECRED-TAXONOMY-SYNC-001. |
 | 1.6 | S-MAINT-ECRED-TAXONOMY-SYNC-001 | 2026-06-07 | product-owner | **Wrong-section ADR anchor fix (F-P11-HIGH-001).** Postconditions Tier-3 error-semantics table, backend-error row: `ADR-034 §D5 amended by ADR-035` → `ADR-034 §D4 amended by ADR-035 §D5`. §D4 is "Error Semantics — Keyring Backend Error is a Hard Error" (the correct target); §D5 is "Boot Path Wiring — PrismCredentialResolver Construction" (unrelated). The three pre-existing §D4 cites (lines ~116/~285/~306) were already correct and are unchanged. No content semantics altered. |

@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "5.95"
+version: "5.96"
 status: draft
 producer: product-owner
 timestamp: 2026-06-05T12:00:00Z
@@ -100,7 +100,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.05.012 | AuditEmitter Initialization — audit_buffer CF Open and boot.audit.initialized Emitted at Process Start | 05 - Audit Trail | CAP-007 | P0 | active |
 | BC-2.06.001 | TOML Configuration Loads and Deserializes at Startup | 06 - Client Configuration | CAP-009 | P0 | draft |
 | BC-2.06.002 | Per-Client Sensor Mapping from TOML Configuration | 06 - Client Configuration | CAP-009 | P0 | draft |
-| BC-2.06.003 | Credential References in Config Resolve to Credential Store Entries | 06 - Client Configuration | CAP-009 | P0 | draft — v1.8 (D-1050 F-P14-CRIT-001: §Boot-Step-5 Probe Alignment three-tier probe — Tier-3a OrgId-keyed `get_by_org` PRIMARY + Tier-3b legacy `{sensor_id}/{ref_name}` FALLBACK; boot probe namespace mismatch closed at contract level; ADR-034 §D3/§D5; impl 0941c0e0; v1.7: de-pinned stale VP-INDEX ref per TD-VSDD-091; v1.6: BC §D4 anchor corrected ADR-034 §D5→§D4 amended by ADR-035 §D5) |
+| BC-2.06.003 | Credential References in Config Resolve to Credential Store Entries | 06 - Client Configuration | CAP-009 | P0 | draft — v1.9 (D-1051 F-P15-HIGH-002: §OrgRegistry and KeyringStore Threading corrected — removed false "UNCHANGED trait signature / no blast radius" claim; `CredentialRefProbe::probe` converted to `async fn` via `#[async_trait]` at impl commit 0941c0e0; all 5 impls + call sites required `.await`; async conversion correct+necessary: sync `probe` cannot `.await get_by_org`; v1.8: three-tier probe Tier-3a OrgId-keyed PRIMARY + Tier-3b legacy FALLBACK; ADR-034 §D3/§D5) |
 | BC-2.06.004 | Capability Overrides Merge with Defaults Using More-Specific-Wins | 06 - Client Configuration | CAP-009 | P0 | draft |
 | BC-2.06.005 | Configuration Validation Reports All Errors in One Pass | 06 - Client Configuration | CAP-009 | P0 | draft |
 | BC-2.06.006 | --dry-run Flag Validates Config and Prints Redacted Summary | 06 - Client Configuration | CAP-009 | P0 | draft |
@@ -376,6 +376,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v5.96 (2026-06-07, D-1051 F-P15-HIGH-002 — BC-2.06.003 v1.8→v1.9 async-signature correction; S-DEMO-003 LOCAL pass-15):** state-manager | product-owner amendment: BC-2.06.003 §OrgRegistry and KeyringStore Threading corrected — removed false claim that "`CredentialRefProbe` trait and `CredentialRefProbe::probe` method signature are UNCHANGED from v1.3" and "no signature blast radius." The pass-14 implementation (commit 0941c0e0) converted `probe` to `async fn` via `#[async_trait]` — this IS a method-signature change. All 5 impls (production `KeyringCredentialProbe` + 4 test doubles in `tests/bc_2_03_013_credential_init.rs` and `tests/vp153_rule_c_shaped_probe.rs`) were required to adopt `#[async_trait]` + `async fn probe`, and all call sites required `.await`. The `org_registry: &OrgRegistry` parameter was already present from v1.3 (unchanged). The async conversion is correct and necessary: a synchronous `probe` cannot `.await get_by_org`. The construction prescription (probe and store share ONE `Arc<KeyringBackend>` per ADR-034 §D5) and the `Arc::clone(&keyring_backend)` sharing example are unchanged and correct. BC H1 title UNCHANGED (POL-7). Status remains draft (POL-14: promotes at S-DEMO-003 merge). BC-INDEX in-line row 103 updated v1.8→v1.9; change note replaced. No BC count changes (active: 234, draft: 3 unchanged). BC-INDEX v5.95→v5.96.
 
 **v5.95 (2026-06-07, D-1050 F-P14-CRIT-001 — BC-2.06.003 v1.7→v1.8 boot probe Tier-3a OrgId-keyed; S-DEMO-003 LOCAL pass-14):** state-manager | product-owner amendment: BC-2.06.003 §Boot-Step-5 Probe Alignment updated to three-tier probe — Tier-3a OrgId-keyed `get_by_org(org_id, sensor_id, ref_name)` PRIMARY + Tier-3b legacy `{sensor_id}/{ref_name}` key FALLBACK; closes F-P14-CRIT-001 at contract level (boot-step-5 probe used legacy-keyed namespace while `set_by_org` writes OrgId-keyed namespace; demo-unbootable mismatch). Cites ADR-034 §D3 (OrgId-keyed design) and ADR-034 §D5 (boot probe responsibility). Impl commit 0941c0e0 (KeyringCredentialProbe gains `keyring: Arc<dyn CredentialStoreOrgId>` + async trait; TV-BOOT-P-001 + TV-BOOT-P-003 tests). BC status STAYS DRAFT (POL-14: promotes at S-DEMO-003 merge only). BC-INDEX in-line row 103 updated v1.7→v1.8. No BC count changes (active: 234, draft: 3 unchanged). BC-INDEX v5.94→v5.95.
 
