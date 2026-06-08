@@ -146,7 +146,7 @@ async fn test_handle_credential_set_writes_org_id_keyed_namespace() {
     std::fs::create_dir_all(&spec_dir).unwrap();
     std::fs::create_dir_all(&plugin_dir).unwrap();
 
-    // Write prism.toml — resolve_org_slug_and_id reads it to extract the OrgId UUID.
+    // Write prism.toml — load_prism_config_for_cli reads it to extract the OrgId UUID.
     // This is a FIXTURE prism.toml (not the real ~/.config/prism-demo/prism.toml).
     let prism_toml = format!(
         r#"spec_dir = "{spec}"
@@ -164,6 +164,11 @@ org_slug = "{org_slug}"
         org_slug = demo_org_slug,
     );
     std::fs::write(config_dir.join("prism.toml"), &prism_toml).expect("write prism.toml");
+
+    // Load PrismConfig ONCE from the fixture prism.toml — single parse, matches production
+    // handle_credential_set which calls load_prism_config_for_cli before the inner handler.
+    let prism_config = prism_bin::credential_cli::load_prism_config_for_cli(&config_dir)
+        .expect("load_prism_config_for_cli must succeed with valid fixture prism.toml");
 
     // Inject the InMemoryCredentialStore — no real OS keyring needed.
     let store = Arc::new(InMemoryCredentialStore::new());
@@ -191,9 +196,10 @@ org_slug = "{org_slug}"
     // This is the load-bearing coverage that F-HIGH-002 requires:
     // the full code path from args → resolve_org_slug_and_id → read_secret_value_from
     // → set_by_org is exercised in-process.
+    // Passes &prism_config (already loaded above) — single parse, no double-parse.
     let exit_code = prism_bin::credential_cli::handle_credential_set_with_store(
         args,
-        config_dir,
+        &prism_config,
         store.clone(),
         &mut secret_reader,
     )
@@ -276,7 +282,7 @@ async fn test_handle_credential_delete_uses_org_id_keyed_namespace() {
     std::fs::create_dir_all(&spec_dir).unwrap();
     std::fs::create_dir_all(&plugin_dir).unwrap();
 
-    // Write prism.toml fixture — handle_credential_delete_with_store reads it to
+    // Write prism.toml fixture — load_prism_config_for_cli reads it to
     // resolve the OrgId UUID (same as the set path, ADR-034 §D3).
     let prism_toml = format!(
         r#"spec_dir = "{spec}"
@@ -294,6 +300,10 @@ org_slug = "{org_slug}"
         org_slug = demo_org_slug,
     );
     std::fs::write(config_dir.join("prism.toml"), &prism_toml).expect("write prism.toml");
+
+    // Load PrismConfig ONCE from the fixture prism.toml — single parse, matches production.
+    let prism_config = prism_bin::credential_cli::load_prism_config_for_cli(&config_dir)
+        .expect("load_prism_config_for_cli must succeed with valid fixture prism.toml");
 
     // Inject the InMemoryCredentialStore — no real OS keyring needed.
     let store = Arc::new(InMemoryCredentialStore::new());
@@ -326,6 +336,7 @@ org_slug = "{org_slug}"
     );
 
     // STEP 2: Call the PRODUCTION delete handler with injected store.
+    // Passes &prism_config (loaded once above) — single parse, no double-parse.
     let delete_args = prism_bin::credential_cli::CredentialDeleteArgs {
         sensor: "crowdstrike".to_string(),
         name: "client_id".to_string(),
@@ -333,7 +344,7 @@ org_slug = "{org_slug}"
     };
     let exit_code = prism_bin::credential_cli::handle_credential_delete_with_store(
         delete_args,
-        config_dir.clone(),
+        &prism_config,
         store.clone(),
     )
     .await;
@@ -361,7 +372,7 @@ org_slug = "{org_slug}"
     };
     let exit_code_again = prism_bin::credential_cli::handle_credential_delete_with_store(
         delete_args_again,
-        config_dir,
+        &prism_config,
         store.clone(),
     )
     .await;

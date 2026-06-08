@@ -187,11 +187,6 @@ else
     echo "    ${DEMO_CONFIG_DIR} not found — already removed"
 fi
 
-# Also clean up the credential_index.json if it was created outside the config dir.
-if [[ -f "${PRISM_BIN%prism}credential_index.json" ]]; then
-    rm -f "${PRISM_BIN%prism}credential_index.json"
-fi
-
 echo ""
 echo "==> Teardown complete. Demo environment removed."
 echo ""

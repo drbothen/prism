@@ -151,8 +151,21 @@ pub struct CredentialArgs {
 
 /// Handle `prism credential set` — AD-017 compliant keyring write.
 ///
-/// Production entry point: constructs a `KeyringBackend` and delegates to
+/// Production entry point: loads `prism.toml` ONCE via `load_prism_config_for_cli`,
+/// constructs a `KeyringBackend` with the state_dir-based index, then delegates to
 /// `handle_credential_set_with_store`.
+///
+/// # Single config load (F-P8-OBS-001)
+///
+/// `prism.toml` is parsed exactly ONCE per invocation via `load_prism_config_for_cli`.
+/// The parsed `PrismConfig` is passed to `handle_credential_set_with_store` which uses
+/// it for org resolution via `resolve_org_slug_and_id`. No second parse occurs.
+///
+/// # AC-012 message ownership
+///
+/// `load_prism_config_for_cli` emits the EXACT AC-012-documented error message on
+/// missing/unparseable prism.toml. No `boot::step2_load_config` precheck exists here
+/// that would shadow the AC-012 message (F-P8-MED-001 fix).
 ///
 /// # AD-017 invariant
 ///
@@ -176,13 +189,13 @@ pub struct CredentialArgs {
 /// 1 — keyring unavailable or write failure (with actionable stderr message)
 /// 2 — config-invalid (cannot load prism.toml or resolve org)
 pub async fn handle_credential_set(args: CredentialSetArgs, config_dir: std::path::PathBuf) -> i32 {
-    // Load PrismConfig to get state_dir — the credential index MUST live in state_dir
-    // to match the boot read-path (boot step 5: config.state_dir.join("credential_index.json")).
-    // Using config_dir here would create a divergent sidecar index that boot never reads.
-    let prism_config = match crate::boot::step2_load_config(&config_dir).await {
+    // Load PrismConfig ONCE — single parse, AC-012 message on failure (F-P8-MED-001 / F-P8-OBS-001).
+    // The credential index MUST live in state_dir to match the boot read-path
+    // (boot step 5: config.state_dir.join("credential_index.json")).
+    let prism_config = match load_prism_config_for_cli(&config_dir) {
         Ok(cfg) => cfg,
         Err(e) => {
-            eprintln!("prism credential set: config error: {e}");
+            eprintln!("{e}");
             return EXIT_CONFIG_INVALID;
         }
     };
@@ -245,7 +258,7 @@ pub async fn handle_credential_set(args: CredentialSetArgs, config_dir: std::pat
     };
 
     let mut cursor = std::io::Cursor::new(secret_bytes);
-    handle_credential_set_with_store(args, config_dir, store, &mut cursor).await
+    handle_credential_set_with_store(args, &prism_config, store, &mut cursor).await
 }
 
 /// Inner implementation of `handle_credential_set` with injectable `CredentialStoreOrgId`
@@ -258,11 +271,13 @@ pub async fn handle_credential_set(args: CredentialSetArgs, config_dir: std::pat
 /// # Testability seams (RG-034-004)
 ///
 /// `bc_2_03_007_credential_set_org_id_keyed.rs` calls this function with:
+/// - A `PrismConfig` loaded from a fixture `prism.toml` in a temp dir.
 /// - `InMemoryCredentialStore` to assert the namespace key is OrgId-keyed.
 /// - A `Cursor` wrapping the test secret value to avoid reading from real stdin.
 ///
 /// This provides load-bearing in-process coverage of the full production code path:
-/// `prism.toml` parsing → OrgId extraction → `CredentialName` validation → `set_by_org` dispatch.
+/// `PrismConfig` → OrgId extraction → `CredentialName` validation → `set_by_org` dispatch.
+/// The `prism.toml` is parsed exactly ONCE (in the caller) — no second parse here.
 ///
 /// # AD-017 compliance
 ///
@@ -272,14 +287,15 @@ pub async fn handle_credential_set(args: CredentialSetArgs, config_dir: std::pat
 /// the AD-017 guarantee; this function never echoes `raw_value` after reading it.
 pub async fn handle_credential_set_with_store(
     args: CredentialSetArgs,
-    config_dir: std::path::PathBuf,
+    prism_config: &crate::boot::PrismConfig,
     store: Arc<dyn CredentialStoreOrgId>,
     secret_reader: &mut dyn std::io::BufRead,
 ) -> i32 {
-    // Step 1: Resolve org slug AND OrgId from prism.toml.
+    // Step 1: Resolve org slug AND OrgId from the already-loaded PrismConfig.
     // ADR-034 §D3: --org-slug is matched against [[orgs]] entries in prism.toml
     // to extract the org_id UUID for OrgId-keyed write.
-    let (org_slug_str, org_id) = match resolve_org_slug_and_id(&args.org_slug, &config_dir).await {
+    // Single parse: prism_config was loaded ONCE by handle_credential_set (or test caller).
+    let (org_slug_str, org_id) = match resolve_org_slug_and_id(&args.org_slug, prism_config) {
         Ok(pair) => pair,
         Err(e) => {
             eprintln!("prism credential set: config error: {e}");
@@ -376,6 +392,12 @@ pub async fn handle_credential_set_with_store(
 /// schema as the write path (`set_by_org`). This is correct on ALL platforms (macOS,
 /// Linux, Windows) because keyring-rs handles the attribute mapping transparently.
 ///
+/// # Single config load (F-P8-OBS-001)
+///
+/// `prism.toml` is parsed exactly ONCE via `load_prism_config_for_cli`. The parsed
+/// `PrismConfig` is passed to `handle_credential_delete_with_store` for org resolution.
+/// AC-012 message is emitted by `load_prism_config_for_cli` on missing/invalid toml.
+///
 /// # Contract (BC-2.03.005 delete path / AC-007)
 ///
 /// Returns:
@@ -386,12 +408,13 @@ pub async fn handle_credential_delete(
     args: CredentialDeleteArgs,
     config_dir: std::path::PathBuf,
 ) -> i32 {
-    // Load PrismConfig to get state_dir — the credential index MUST live in state_dir
-    // to match the boot read-path (boot step 5: config.state_dir.join("credential_index.json")).
-    let prism_config = match crate::boot::step2_load_config(&config_dir).await {
+    // Load PrismConfig ONCE — single parse, AC-012 message on failure (F-P8-MED-001 / F-P8-OBS-001).
+    // The credential index MUST live in state_dir to match the boot read-path
+    // (boot step 5: config.state_dir.join("credential_index.json")).
+    let prism_config = match load_prism_config_for_cli(&config_dir) {
         Ok(cfg) => cfg,
         Err(e) => {
-            eprintln!("prism credential delete: config error: {e}");
+            eprintln!("{e}");
             return EXIT_CONFIG_INVALID;
         }
     };
@@ -399,20 +422,24 @@ pub async fn handle_credential_delete(
     let index_path = prism_config.state_dir.join("credential_index.json");
     let index = CredentialIndex::new(index_path);
     let store: Arc<dyn CredentialStoreOrgId> = Arc::new(KeyringBackend::new("prism", index));
-    handle_credential_delete_with_store(args, config_dir, store).await
+    handle_credential_delete_with_store(args, &prism_config, store).await
 }
 
 /// Inner implementation of `handle_credential_delete` with injectable `CredentialStoreOrgId`.
 ///
 /// Separated for testability: inject `InMemoryCredentialStore` to assert the namespace key
 /// is OrgId-keyed (mirrors the `handle_credential_set_with_store` test pattern).
+///
+/// Accepts an already-parsed `&PrismConfig` — no second prism.toml parse occurs here
+/// (F-P8-OBS-001 single-parse invariant).
 pub async fn handle_credential_delete_with_store(
     args: CredentialDeleteArgs,
-    config_dir: std::path::PathBuf,
+    prism_config: &crate::boot::PrismConfig,
     store: Arc<dyn CredentialStoreOrgId>,
 ) -> i32 {
-    // Step 1: Resolve OrgId from prism.toml (same as set path — ADR-034 §D3).
-    let (_org_slug_str, org_id) = match resolve_org_slug_and_id(&args.org_slug, &config_dir).await {
+    // Step 1: Resolve OrgId from the already-loaded PrismConfig (same as set path — ADR-034 §D3).
+    // Single parse: prism_config was loaded ONCE by handle_credential_delete (or test caller).
+    let (_org_slug_str, org_id) = match resolve_org_slug_and_id(&args.org_slug, prism_config) {
         Ok(pair) => pair,
         Err(e) => {
             eprintln!("prism credential delete: config error: {e}");
@@ -485,66 +512,92 @@ fn read_secret_value_from<R: std::io::BufRead + ?Sized>(
     Ok(line)
 }
 
-/// Resolve org slug AND OrgId from `prism.toml` for OrgId-keyed keyring writes.
+/// Load and parse `prism.toml` for CLI subcommands — single canonical entry point.
 ///
-/// ADR-034 §D3: `handle_credential_set` uses `CredentialStoreOrgId::set_by_org`
-/// which requires the OrgId UUID. This function loads `prism.toml` and finds the
-/// org entry whose `org_slug` matches the explicitly provided slug or (single-org case)
-/// is the only entry.
+/// This is the ONLY place where `prism.toml` is read for CLI handlers. All credential
+/// subcommands (`credential set`, `credential delete`) call this function ONCE and pass
+/// the returned `PrismConfig` to their inner functions (F-P8-OBS-001 single-parse invariant).
 ///
-/// Returns `(org_slug_str, OrgId)` on success.
+/// # AC-012 — canonical error message (F-P8-MED-001)
 ///
-/// # Error cases
+/// On missing or unparseable `prism.toml`, this function returns `Err` with EXACTLY the
+/// AC-012-documented message:
 ///
-/// - `prism.toml` missing or unparseable → hard error (same as `resolve_org_slug`)
-/// - No matching org for `--org-slug` value → hard error with suggestion
-/// - Multiple orgs and no `--org-slug` → hard error citing all org slugs
-/// - `org_id` field missing or invalid UUID in the matching org entry → hard error
+/// > "Could not load prism.toml from '<config_dir>': <reason>. Ensure prism.toml exists
+/// > (run demo-setup.sh or create it manually) before running `prism credential set`."
 ///
-/// S-DEMO-003 AC-005 / AC-010; ADR-034 §D3 (CRIT-2 namespace reconciliation).
-async fn resolve_org_slug_and_id(
-    explicit: &Option<String>,
+/// No `boot::step2_load_config` precheck shadowing occurs — this is the FIRST and ONLY
+/// config load in the CLI handler path. RG-034-003 remains load-bearing because
+/// `resolve_org_slug_and_id` delegates to this function for the file-read path
+/// (unit test `test_resolve_org_slug_errors_when_toml_missing_and_no_explicit_slug`).
+///
+/// S-DEMO-003 AC-012 / ADR-034 §D3.
+pub fn load_prism_config_for_cli(
     config_dir: &std::path::Path,
-) -> Result<(String, OrgId), String> {
-    // Load prism.toml — always required for OrgId-keyed write.
-    // If --org-slug is not provided and prism.toml is missing → hard error.
+) -> Result<crate::boot::PrismConfig, String> {
     let toml_path = config_dir.join("prism.toml");
-    let config: crate::boot::PrismConfig = match std::fs::read_to_string(&toml_path) {
-        Ok(contents) => toml::from_str(&contents)
-            .map_err(|e| format!("cannot parse '{}': {e}", toml_path.display()))?,
+    match std::fs::read_to_string(&toml_path) {
+        Ok(contents) => toml::from_str::<crate::boot::PrismConfig>(&contents)
+            .map_err(|e| format!("cannot parse '{}': {e}", toml_path.display())),
         Err(e) => {
-            // prism.toml missing or unreadable — hard error regardless of --org-slug.
+            // prism.toml missing or unreadable — AC-012 canonical error message.
             //
             // ADR-034 §D3: --org-slug maps to OrgId by reading the matching [[orgs]]
             // entry's org_id UUID from prism.toml. If prism.toml is missing or
-            // unparseable, or the slug has no matching org → hard error (exit 2).
+            // unparseable → hard error (exit 2).
             //
             // The UUID-v5 derivation fallback is REMOVED because:
             //   1. It creates a namespace-mismatch risk: if the operator later creates
             //      prism.toml with a different org_id for the same slug, credentials
             //      written in fallback mode are silently lost (SOUL.md §4).
-            //   2. It violates the production-grade default: deriving an OrgId from a
-            //      slug without a canonical source of truth is a hidden assumption that
-            //      will fail in production when prism.toml exists.
-            //   3. ADR-034 §D3 explicitly requires the org_id to come from prism.toml.
+            //   2. ADR-034 §D3 explicitly requires the org_id to come from prism.toml.
             //
             // The correct operator workflow is:
             //   1. Create prism.toml (via demo-setup.sh or manual setup).
             //   2. Then run `prism credential set`.
-            return Err(format!(
+            Err(format!(
                 "Could not load prism.toml from '{}': {e}. \
                  Ensure prism.toml exists (run demo-setup.sh or create it manually) \
                  before running `prism credential set`.",
                 config_dir.display()
-            ));
+            ))
         }
-    };
+    }
+}
 
+/// Resolve org slug AND OrgId from an already-loaded `PrismConfig`.
+///
+/// ADR-034 §D3: `handle_credential_set` uses `CredentialStoreOrgId::set_by_org`
+/// which requires the OrgId UUID. This function finds the org entry whose `org_slug`
+/// matches the explicitly provided slug or (single-org case) is the only entry.
+///
+/// Accepts an already-parsed `PrismConfig` — no file I/O occurs here. The config was
+/// loaded once by `load_prism_config_for_cli` (F-P8-OBS-001 single-parse invariant).
+///
+/// Returns `(org_slug_str, OrgId)` on success.
+///
+/// # Error cases
+///
+/// - No matching org for `--org-slug` value → hard error with suggestion
+/// - Multiple orgs and no `--org-slug` → hard error citing all org slugs
+/// - `org_id` field missing or invalid UUID in the matching org entry → hard error
+///
+/// S-DEMO-003 AC-005 / AC-010; ADR-034 §D3 (CRIT-2 namespace reconciliation).
+///
+/// # Unit test (RG-034-003)
+///
+/// `test_resolve_org_slug_errors_when_toml_missing_and_no_explicit_slug` tests the
+/// missing-toml error path by calling the path-based wrapper function below, which
+/// calls `load_prism_config_for_cli` and delegates here. RG-034-003 remains load-bearing
+/// because the AC-012 message originates in `load_prism_config_for_cli`.
+fn resolve_org_slug_and_id(
+    explicit: &Option<String>,
+    config: &crate::boot::PrismConfig,
+) -> Result<(String, OrgId), String> {
     if config.orgs.is_empty() {
-        return Err(format!(
-            "'{}' declares no orgs — add an [[orgs]] entry or use --org-slug",
-            toml_path.display()
-        ));
+        return Err(
+            "prism.toml declares no orgs — add an [[orgs]] entry or use --org-slug".to_string(),
+        );
     }
 
     // Find the matching org entry.
@@ -558,9 +611,8 @@ async fn resolve_org_slug_and_id(
                 let all_slugs: Vec<&str> =
                     config.orgs.iter().map(|o| o.org_slug.as_str()).collect();
                 format!(
-                    "--org-slug '{slug}' not found in prism.toml '{}'. \
-                     Configured orgs: {all_slugs:?}",
-                    toml_path.display()
+                    "--org-slug '{slug}' not found in prism.toml. \
+                     Configured orgs: {all_slugs:?}"
                 )
             })?
     } else if config.orgs.len() == 1 {
@@ -570,9 +622,8 @@ async fn resolve_org_slug_and_id(
         // Multiple orgs and no --org-slug: require explicit selection.
         let all_slugs: Vec<&str> = config.orgs.iter().map(|o| o.org_slug.as_str()).collect();
         return Err(format!(
-            "Multiple orgs configured in '{}' — use --org-slug <slug> to select one. \
-             Configured orgs: {all_slugs:?}",
-            toml_path.display()
+            "Multiple orgs configured in prism.toml — use --org-slug <slug> to select one. \
+             Configured orgs: {all_slugs:?}"
         ));
     };
 
@@ -587,6 +638,23 @@ async fn resolve_org_slug_and_id(
     let org_id = OrgId::from_uuid(uuid);
 
     Ok((org_entry.org_slug.clone(), org_id))
+}
+
+/// Path-based wrapper for `resolve_org_slug_and_id` — loads `prism.toml` from disk
+/// and delegates to the config-taking variant.
+///
+/// Used by the unit test `test_resolve_org_slug_errors_when_toml_missing_and_no_explicit_slug`
+/// (RG-034-003) to test the missing-toml error path directly. Production code uses
+/// `load_prism_config_for_cli` + `resolve_org_slug_and_id` in sequence.
+///
+/// S-DEMO-003 AC-012 / RG-034-003.
+#[cfg(test)]
+async fn resolve_org_slug_and_id_by_path(
+    explicit: &Option<String>,
+    config_dir: &std::path::Path,
+) -> Result<(String, OrgId), String> {
+    let config = load_prism_config_for_cli(config_dir)?;
+    resolve_org_slug_and_id(explicit, &config)
 }
 
 // ---------------------------------------------------------------------------
@@ -688,16 +756,16 @@ mod tests {
     // ---------------------------------------------------------------------------
 
     /// HIGH-3 remediation (ADR-034 §D3 / AC-012 of S-DEMO-003): when `--org-slug` is
-    /// absent and `prism.toml` is missing from the config dir, `resolve_org_slug_and_id`
-    /// (the PRODUCTION function used by `handle_credential_set_with_store`) must
-    /// return `Err(...)` with an actionable message — NOT `Ok(("demo-org", ...))`.
+    /// absent and `prism.toml` is missing from the config dir, the credential CLI path
+    /// must return `Err(...)` with the AC-012 actionable message — NOT `Ok(("demo-org", ...))`.
     ///
-    /// **Contract:** `resolve_org_slug_and_id` is the production code path. The retired
-    /// `resolve_org_slug` helper was removed (F-LOW-003: it was dead code used only by
-    /// this test). The missing-toml hard-error behavior belongs to the production function.
+    /// **Contract:** `resolve_org_slug_and_id_by_path` is the path-based wrapper that
+    /// calls `load_prism_config_for_cli` (the AC-012 message source). This test drives
+    /// the production missing-toml error path end-to-end:
+    ///   `resolve_org_slug_and_id_by_path` → `load_prism_config_for_cli` → `Err(AC-012 message)`
     ///
-    /// **Red Gate:** Before the HIGH-3 fix, `resolve_org_slug_and_id` returned a silent
-    /// `"demo-org"` fallback. After fix: returns `Err(...)` with an actionable message.
+    /// **Red Gate:** Before the HIGH-3 fix, the function returned a silent `"demo-org"`
+    /// fallback. After fix: returns `Err(...)` with an actionable message.
     /// If someone reintroduces the demo-org fallback, this test fails.
     ///
     /// RG-034-003 (ADR-034 §Red Gate Tests); AC-012 of S-DEMO-003.
@@ -714,14 +782,15 @@ mod tests {
             "test fixture: prism.toml must NOT exist in the temp dir for this test"
         );
 
-        // Call the PRODUCTION function with no explicit org slug
-        // (simulating `prism credential set --sensor armis --name bearer_token` without `--org-slug`).
-        let result = resolve_org_slug_and_id(&None, config_dir_without_prism_toml).await;
+        // Call the path-based wrapper (which calls load_prism_config_for_cli) with no explicit
+        // org slug — simulates `prism credential set --sensor armis --name bearer_token` without
+        // `--org-slug` when prism.toml is absent.
+        let result = resolve_org_slug_and_id_by_path(&None, config_dir_without_prism_toml).await;
 
         // RED GATE ASSERTION: must return Err (not Ok with any value, including "demo-org").
         assert!(
             result.is_err(),
-            "RG-034-003 (AC-012 HIGH-3): resolve_org_slug_and_id must return Err when \
+            "RG-034-003 (AC-012 HIGH-3): resolve_org_slug_and_id_by_path must return Err when \
              prism.toml is missing and --org-slug is absent. \
              Got Ok({:?}) — the 'demo-org' fallback is a SOUL.md §4 violation \
              (ADR-034 §D3 HIGH-3 remediation). \
@@ -734,7 +803,78 @@ mod tests {
             !err_msg.is_empty(),
             "RG-034-003: error message must be non-empty (actionable)"
         );
+        // Verify the AC-012 canonical message is present (F-P8-MED-001).
+        assert!(
+            err_msg.contains("Could not load prism.toml from"),
+            "RG-034-003 (AC-012): error message must contain 'Could not load prism.toml from'. \
+             Got: {err_msg:?}"
+        );
+        assert!(
+            err_msg.contains("Ensure prism.toml exists"),
+            "RG-034-003 (AC-012): error message must contain 'Ensure prism.toml exists'. \
+             Got: {err_msg:?}"
+        );
         // The function returned Err — the HIGH-3 fix is confirmed.
         // "demo-org" must NOT have been returned as a successful default value.
+    }
+
+    // ---------------------------------------------------------------------------
+    // AC-012 load-bearing test: load_prism_config_for_cli emits AC-012 message
+    // ---------------------------------------------------------------------------
+
+    /// AC-012 load-bearing coverage for the production CLI config-load path.
+    ///
+    /// Drives `load_prism_config_for_cli` directly with a config_dir whose `prism.toml`
+    /// is ABSENT and asserts the returned `Err` contains the EXACT AC-012-documented
+    /// message fragments.
+    ///
+    /// This is the in-process production-code-path test required by the task spec:
+    /// "ADD a load-bearing test for the production CLI missing-toml path" (F-P8-MED-001 fix).
+    ///
+    /// Per SID-1: a unit test in this module's `#[cfg(test)]` block drives the behavior
+    /// without subprocess overhead. The AC-012 message originates in `load_prism_config_for_cli`
+    /// (single canonical source), so testing that function directly gives exact coverage.
+    ///
+    /// AC-012 / S-DEMO-003 / F-P8-MED-001.
+    #[test]
+    fn test_load_prism_config_for_cli_missing_toml_emits_ac012_message() {
+        let tmp = tempfile::TempDir::new().expect("temp dir");
+        let config_dir = tmp.path();
+
+        // Verify no prism.toml in the temp dir.
+        assert!(
+            !config_dir.join("prism.toml").exists(),
+            "test fixture: prism.toml must NOT exist"
+        );
+
+        let result = load_prism_config_for_cli(config_dir);
+
+        // (a) Must return Err — exit code 2 path.
+        assert!(
+            result.is_err(),
+            "AC-012: load_prism_config_for_cli must return Err when prism.toml is absent. \
+             Got Ok(_)."
+        );
+
+        let err_msg = result.unwrap_err();
+
+        // (b) Must contain the AC-012-documented message fragments (F-P8-MED-001).
+        assert!(
+            err_msg.contains("Could not load prism.toml from"),
+            "AC-012: error must contain 'Could not load prism.toml from'. Got: {err_msg:?}"
+        );
+        assert!(
+            err_msg.contains("Ensure prism.toml exists"),
+            "AC-012: error must contain 'Ensure prism.toml exists'. Got: {err_msg:?}"
+        );
+        assert!(
+            err_msg.contains("demo-setup.sh"),
+            "AC-012: error must mention 'demo-setup.sh'. Got: {err_msg:?}"
+        );
+        assert!(
+            err_msg.contains("prism credential set"),
+            "AC-012: error must mention 'prism credential set'. Got: {err_msg:?}"
+        );
+        // Must NOT silently return "demo-org" or any default — this is a hard-error path only.
     }
 }
