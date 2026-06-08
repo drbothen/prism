@@ -197,9 +197,11 @@ org_slug = "{org_slug}"
     // the full code path from args → resolve_org_slug_and_id → read_secret_value_from
     // → set_by_org is exercised in-process.
     // Passes &prism_config (already loaded above) — single parse, no double-parse.
+    let prism_toml_path = config_dir.join("prism.toml");
     let exit_code = prism_bin::credential_cli::handle_credential_set_with_store(
         args,
         &prism_config,
+        &prism_toml_path,
         store.clone(),
         &mut secret_reader,
     )
@@ -337,6 +339,7 @@ org_slug = "{org_slug}"
 
     // STEP 2: Call the PRODUCTION delete handler with injected store.
     // Passes &prism_config (loaded once above) — single parse, no double-parse.
+    let prism_toml_path = config_dir.join("prism.toml");
     let delete_args = prism_bin::credential_cli::CredentialDeleteArgs {
         sensor: "crowdstrike".to_string(),
         name: "client_id".to_string(),
@@ -345,6 +348,7 @@ org_slug = "{org_slug}"
     let exit_code = prism_bin::credential_cli::handle_credential_delete_with_store(
         delete_args,
         &prism_config,
+        &prism_toml_path,
         store.clone(),
     )
     .await;
@@ -373,6 +377,7 @@ org_slug = "{org_slug}"
     let exit_code_again = prism_bin::credential_cli::handle_credential_delete_with_store(
         delete_args_again,
         &prism_config,
+        &prism_toml_path,
         store.clone(),
     )
     .await;

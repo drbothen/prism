@@ -258,7 +258,9 @@ pub async fn handle_credential_set(args: CredentialSetArgs, config_dir: std::pat
     };
 
     let mut cursor = std::io::Cursor::new(secret_bytes);
-    handle_credential_set_with_store(args, &prism_config, store, &mut cursor).await
+    let prism_toml_path = config_dir.join("prism.toml");
+    handle_credential_set_with_store(args, &prism_config, &prism_toml_path, store, &mut cursor)
+        .await
 }
 
 /// Inner implementation of `handle_credential_set` with injectable `CredentialStoreOrgId`
@@ -288,6 +290,7 @@ pub async fn handle_credential_set(args: CredentialSetArgs, config_dir: std::pat
 pub async fn handle_credential_set_with_store(
     args: CredentialSetArgs,
     prism_config: &crate::boot::PrismConfig,
+    prism_toml_path: &std::path::Path,
     store: Arc<dyn CredentialStoreOrgId>,
     secret_reader: &mut dyn std::io::BufRead,
 ) -> i32 {
@@ -295,13 +298,14 @@ pub async fn handle_credential_set_with_store(
     // ADR-034 §D3: --org-slug is matched against [[orgs]] entries in prism.toml
     // to extract the org_id UUID for OrgId-keyed write.
     // Single parse: prism_config was loaded ONCE by handle_credential_set (or test caller).
-    let (org_slug_str, org_id) = match resolve_org_slug_and_id(&args.org_slug, prism_config) {
-        Ok(pair) => pair,
-        Err(e) => {
-            eprintln!("prism credential set: config error: {e}");
-            return EXIT_CONFIG_INVALID;
-        }
-    };
+    let (org_slug_str, org_id) =
+        match resolve_org_slug_and_id(&args.org_slug, prism_config, prism_toml_path) {
+            Ok(pair) => pair,
+            Err(e) => {
+                eprintln!("prism credential set: config error: {e}");
+                return EXIT_CONFIG_INVALID;
+            }
+        };
     // org_slug_str and org_id are now valid and consistent.
     let _ = org_slug_str; // retained for potential future use in audit messages
 
@@ -422,7 +426,8 @@ pub async fn handle_credential_delete(
     let index_path = prism_config.state_dir.join("credential_index.json");
     let index = CredentialIndex::new(index_path);
     let store: Arc<dyn CredentialStoreOrgId> = Arc::new(KeyringBackend::new("prism", index));
-    handle_credential_delete_with_store(args, &prism_config, store).await
+    let prism_toml_path = config_dir.join("prism.toml");
+    handle_credential_delete_with_store(args, &prism_config, &prism_toml_path, store).await
 }
 
 /// Inner implementation of `handle_credential_delete` with injectable `CredentialStoreOrgId`.
@@ -435,17 +440,19 @@ pub async fn handle_credential_delete(
 pub async fn handle_credential_delete_with_store(
     args: CredentialDeleteArgs,
     prism_config: &crate::boot::PrismConfig,
+    prism_toml_path: &std::path::Path,
     store: Arc<dyn CredentialStoreOrgId>,
 ) -> i32 {
     // Step 1: Resolve OrgId from the already-loaded PrismConfig (same as set path — ADR-034 §D3).
     // Single parse: prism_config was loaded ONCE by handle_credential_delete (or test caller).
-    let (_org_slug_str, org_id) = match resolve_org_slug_and_id(&args.org_slug, prism_config) {
-        Ok(pair) => pair,
-        Err(e) => {
-            eprintln!("prism credential delete: config error: {e}");
-            return EXIT_CONFIG_INVALID;
-        }
-    };
+    let (_org_slug_str, org_id) =
+        match resolve_org_slug_and_id(&args.org_slug, prism_config, prism_toml_path) {
+            Ok(pair) => pair,
+            Err(e) => {
+                eprintln!("prism credential delete: config error: {e}");
+                return EXIT_CONFIG_INVALID;
+            }
+        };
 
     // Step 2: Validate credential name.
     let cred_name = match CredentialName::new(&args.name) {
@@ -593,6 +600,7 @@ pub fn load_prism_config_for_cli(
 fn resolve_org_slug_and_id(
     explicit: &Option<String>,
     config: &crate::boot::PrismConfig,
+    prism_toml_path: &std::path::Path,
 ) -> Result<(String, OrgId), String> {
     if config.orgs.is_empty() {
         return Err(
@@ -611,8 +619,9 @@ fn resolve_org_slug_and_id(
                 let all_slugs: Vec<&str> =
                     config.orgs.iter().map(|o| o.org_slug.as_str()).collect();
                 format!(
-                    "--org-slug '{slug}' not found in prism.toml. \
-                     Configured orgs: {all_slugs:?}"
+                    "--org-slug '{slug}' not found in prism.toml '{}'. \
+                     Configured orgs: {all_slugs:?}",
+                    prism_toml_path.display()
                 )
             })?
     } else if config.orgs.len() == 1 {
@@ -622,8 +631,9 @@ fn resolve_org_slug_and_id(
         // Multiple orgs and no --org-slug: require explicit selection.
         let all_slugs: Vec<&str> = config.orgs.iter().map(|o| o.org_slug.as_str()).collect();
         return Err(format!(
-            "Multiple orgs configured in prism.toml — use --org-slug <slug> to select one. \
-             Configured orgs: {all_slugs:?}"
+            "Multiple orgs configured in '{}' — use --org-slug <slug> to select one. \
+             Configured orgs: {all_slugs:?}",
+            prism_toml_path.display()
         ));
     };
 
@@ -654,7 +664,8 @@ async fn resolve_org_slug_and_id_by_path(
     config_dir: &std::path::Path,
 ) -> Result<(String, OrgId), String> {
     let config = load_prism_config_for_cli(config_dir)?;
-    resolve_org_slug_and_id(explicit, &config)
+    let prism_toml_path = config_dir.join("prism.toml");
+    resolve_org_slug_and_id(explicit, &config, &prism_toml_path)
 }
 
 // ---------------------------------------------------------------------------
