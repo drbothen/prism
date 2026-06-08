@@ -50,7 +50,7 @@ timings:
     @echo "Timings report: target/cargo-timings/cargo-timing.html"
 
 # CI-only: identical to CI behavior (full-strength)
-# Steps run in spec order: fmt → clippy → nextest → doctests → deny → audit → semver-checks → check-layout
+# Steps run in spec order: fmt → clippy → nextest → doctests → deny → audit → semver-checks → shellcheck → check-layout
 check-ci:
     cargo fmt --check
     cargo clippy --all-features -- -D warnings
@@ -61,6 +61,13 @@ check-ci:
     cargo semver-checks --workspace --baseline-rev origin/develop
     @scripts/check-non-exhaustive.sh
     @scripts/check-crate-layout.sh
+    # S-DEMO-003 AC-008: shellcheck gate for demo scripts.
+    shellcheck scripts/demo-setup.sh scripts/demo-run.sh scripts/demo-teardown.sh
+
+# S-DEMO-003 AC-008: standalone shellcheck for demo scripts.
+# Run: just shellcheck-demo
+shellcheck-demo:
+    shellcheck scripts/demo-setup.sh scripts/demo-run.sh scripts/demo-teardown.sh
 
 # Standalone: cargo audit (supply-chain advisories)
 # Run manually ad-hoc or invoked by check-ci / CI pipeline.

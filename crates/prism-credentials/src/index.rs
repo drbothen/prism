@@ -2,8 +2,13 @@
 //!
 //! keyring-rs has no enumeration API, so `KeyringBackend::list()` uses this
 //! helper to maintain a `Vec<String>` of namespace keys in a plaintext JSON
-//! file. The file contains NO credential values — only namespace keys — so
-//! it is safe to store unencrypted.
+//! file. The file contains NO credential values — only namespace keys (metadata)
+//! — so it is safe to store unencrypted.
+//!
+//! AD-017: this index NEVER stores credential secret values. Secret values are
+//! stored exclusively by the OS keyring via keyring-rs. The index is a pure
+//! metadata sidecar that enables `list()` enumeration which the OS keyring API
+//! does not natively support.
 //!
 //! Atomic writes (tmp + rename) prevent partial corruption.
 //!

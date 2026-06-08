@@ -9,6 +9,40 @@ publish = false
 [lib]
 name = "prism_credentials"
 
+[features]
+# test-helpers: exposes InMemoryCredentialStore for integration test trait-double injection.
+# NEVER enable in production builds. Used by:
+#   - prism-credentials/tests/bc_2_06_003_tier3_keyring_resolution.rs (RG-034-001, RG-034-002, RG-034-005)
+#   - prism-bin/tests/bc_2_03_007_credential_set_org_id_keyed.rs (RG-034-004)
+# SID-1 compliance: provides in-process unit coverage for OS-keyring-dependent behaviors
+# that cannot be tested via #[ignore]'d real-keyring integration tests in CI.
+test-helpers = []
+
+# F-P10-CRIT-001 regression guard: pass-through features from keyring-rs.
+#
+# These are declared in `default` so that cfg(feature = "keyring-apple-native") etc.
+# resolve correctly in lib.rs compile_error! guards (Rust cfg(feature=) only checks
+# the CURRENT crate's features, not transitive deps').
+#
+# Two-place update invariant:
+#   1. The feature must be listed here (so cfg(feature = ...) resolves).
+#   2. The corresponding keyring dep feature must be declared in [dependencies].keyring.
+#   Removing one without the other causes a compile_error! guard to fire.
+#
+# NOTE: keyring-linux-native and keyring-linux-native-sync-persistent are both declared
+# so the guard allows either (musl uses linux-native only; gnu uses the persistent combo).
+# The [dependencies].keyring features section specifies the actual subset to compile.
+default = [
+    "keyring-apple-native",
+    "keyring-windows-native",
+    "keyring-linux-native-sync-persistent",
+    "keyring-linux-native",
+]
+keyring-apple-native = ["keyring/apple-native"]
+keyring-windows-native = ["keyring/windows-native"]
+keyring-linux-native-sync-persistent = ["keyring/linux-native-sync-persistent", "keyring/crypto-rust"]
+keyring-linux-native = ["keyring/linux-native"]
+
 [dependencies]
 prism-core = { path = "../prism-core" }
 
@@ -23,10 +57,36 @@ thiserror = "1"
 secrecy = { version = "0.8", features = ["serde"] }
 zeroize = { version = "1", features = ["derive"] }
 
-# Keyring backend (keyring-rs 3.x)
-keyring = "3"
+# Keyring backend (keyring-rs 3.x) — F-P10-CRIT-001 fix: real platform backends required.
+#
+# keyring 3.x gates EVERY platform store behind a feature flag. With zero features,
+# the compiled store is the in-process MOCK keystore — cross-process reads (prism start
+# after prism credential set) return Ok(None) for every entry. Real backends:
+#
+#   macOS/iOS:    apple-native   → security-framework (Keychain)
+#   Windows:      windows-native → windows-sys Credential Store
+#   Linux gnu:    linux-native-sync-persistent + crypto-rust
+#                   → linux-keyutils (kernel session keyring, fast)
+#                   + dbus-secret-service (persistent across reboot via Secret Service)
+#   Linux musl:   linux-native only → linux-keyutils (kernel session keyring)
+#                   dbus-secret-service links libdbus via glibc; musl cannot load it at
+#                   runtime, so we accept kernel-keyutils-only (session-scoped, persistent
+#                   for the login session — acceptable for demo/CLI use).
+#
+# Compile-time regression guards in src/lib.rs assert that at least one real backend
+# is compiled on each supported platform (catches accidental feature reversion).
+#
+# CI note: sync-secret-service on headless Linux CI (no D-Bus daemon) → backend-error
+# at runtime. This is correct: E-CRED-008 backend-error surfaces, existing #[ignore]'d
+# real-keyring integration tests stay #[ignore]'d, no non-ignored test does a live round-trip.
+# F-P10-CRIT-001 fix: no inline features here — backend features are activated via
+# prism-credentials' own `default` features (keyring-apple-native, keyring-windows-native,
+# keyring-linux-native-sync-persistent, keyring-linux-native) which use the
+# `keyring/<feature>` dep-activation syntax. This keeps a single source of truth
+# and allows the compile_error! guards in lib.rs to check prism-credentials' own features.
+keyring = { version = "3", default-features = false }
 
-# AES-256-GCM encryption
+# AES-256-GCM encryption (used by EncryptedFileBackend in file.rs)
 aes-gcm = "0.10"
 
 # Key derivation — Argon2id per BC-2.03.003 v1.4
@@ -35,14 +95,8 @@ argon2 = "0.5"
 # Nonce / salt generation
 rand = "0.8"
 
-# Base64 for file format encoding
-base64 = "0.22"
-
 # chrono for timestamps
 chrono = { version = "0.4", features = ["serde"] }
-
-# sha2 for content hashing
-sha2 = "0.10"
 
 # uuid v7 for time-ordered confirmation tokens (TD-S-1.07-02)
 uuid = { version = "1", features = ["v7"] }
@@ -54,6 +108,7 @@ tokio = { version = "1", features = ["full"] }
 secrecy = { version = "0.8", features = ["serde"] }
 chrono = { version = "0.4", features = ["serde"] }
 prism-core = { path = "../prism-core" }
+uuid = { version = "1", features = ["v7"] }
 
 [[test]]
 name = "bc_2_03_005_credential_crud"
@@ -82,6 +137,14 @@ path = "tests/bc_3_2_002_org_id_namespace.rs"
 [[test]]
 name = "keyring_org_id"
 path = "tests/keyring_org_id.rs"
+
+# S-DEMO-003: RG-034-001/002 — Tier-3 OS-keyring resolution via in-memory trait double.
+# Uses InMemoryCredentialStore (test-helpers feature) to exercise Tier-3 logic without
+# requiring real OS keyring access (SID-1 compliance — macOS unsigned-test-binary ACL).
+[[test]]
+name = "bc_2_06_003_tier3_keyring_resolution"
+path = "tests/bc_2_06_003_tier3_keyring_resolution.rs"
+required-features = ["test-helpers"]
 
 # Override workspace lints for this crate to allow test-writer naming conventions.
 [lints.rust]

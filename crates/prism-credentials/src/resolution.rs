@@ -83,23 +83,34 @@ pub fn per_client_file_env_var(org_slug: &str, sensor_id: &str, ref_name: &str) 
 
 /// Resolve a credential at sensor query time.
 ///
-/// # Contract: BC-2.03.006 / BC-2.06.003 v1.3 (ADR-032)
+/// # Contract: BC-2.03.006 / BC-2.06.003 v1.4 (ADR-032, ADR-034)
 ///
 /// Per-client four-tier resolution chain:
 ///   1. `PRISM_CLIENTS_{ID}_SENSORS_{SENSOR}_{REF}_FILE` (file path; Tier 1 highest)
 ///      If set but file is missing/unreadable → hard error, no fallthrough.
 ///   2. `PRISM_CLIENTS_{ID}_SENSORS_{SENSOR}_{REF}` (direct env-var value; Tier 2)
-///   3. OS keyring (Tier 3) — not implemented here, delegated to CRUD store lookup
+///   3. OS keyring via `CredentialStoreOrgId::get_by_org` (Tier 3, ADR-034)
+///      Active only when both `org_id` and `keyring` are `Some`.
+///      Miss (Ok(None)/NoEntry) → fall through to Tier 4.
+///      Backend error → hard `BackendUnavailable` (E-CRED-008, SOUL.md §4).
 ///   4. CRUD store `credential_status` → backend source lookup (Tier 4 lowest)
 ///
 /// The global `{SENSOR}_{REF}` format is retired per ADR-032.
 ///
 /// `client_id` is the org slug (e.g. `"demo-org-a"`, `"acme"`).
+/// `org_id` is the pre-resolved `OrgId` for the org (callers in `prism-spec-engine` resolve
+///   the slug → OrgId via `OrgRegistry`; `prism-credentials` MUST NOT import `OrgRegistry`
+///   per the architecture compliance rule in `trait_.rs:84–85`).
+/// `keyring` is the `CredentialStoreOrgId`-capable backend (injected by boot wiring).
 /// Emits an audit log entry with namespace only (never the value).
+///
+/// # ADR-034 §D1 signature
 pub async fn resolve_credential(
     client_id: &str,
     sensor_id: &str,
     credential_name: &str,
+    org_id: Option<&prism_core::OrgId>,
+    keyring: Option<&std::sync::Arc<dyn crate::trait_::CredentialStoreOrgId>>,
 ) -> Result<SecretString, CredentialResolutionError> {
     // Build per-client env-var names (ADR-032 / BC-2.06.003 v1.3).
     // Tier 1: PRISM_CLIENTS_{ID}_SENSORS_{SENSOR}_{REF}_FILE
@@ -167,6 +178,90 @@ pub async fn resolve_credential(
             });
         }
     }
+
+    // Tier 3: OS keyring via CredentialStoreOrgId::get_by_org (ADR-034 §D2).
+    //
+    // Active only when both `org_id` and `keyring` are `Some`. When either is `None`,
+    // fall through silently to Tier 4 (BC-2.06.003 Tier-3 postcondition row 1).
+    //
+    // Error semantics (ADR-034 §D4 / BC-2.06.003 Tier-3 postcondition):
+    //   - Ok(Some(secret)) → return Ok(secret) + audit "keyring"
+    //   - Ok(None) / NoEntry → fall through to Tier 4 silently
+    //   - Err(...) → hard BackendUnavailable { detail: "E-CRED-008: OS keyring unavailable: {reason}" }
+    //     Rationale: a locked/unavailable keyring is an operator misconfiguration; silently falling
+    //     through would hide the error (SOUL.md §4). AD-017: no credential value in the error.
+    if let (Some(org_id), Some(keyring)) = (org_id, keyring) {
+        // Build a CredentialName for the keyring lookup.
+        let cred_name = match prism_core::CredentialName::new(credential_name) {
+            Ok(n) => n,
+            Err(e) => {
+                // Invalid credential name — surface as hard error (DI-014).
+                return Err(CredentialResolutionError::BackendUnavailable {
+                    client_id: client_id.to_string(),
+                    sensor_id: sensor_id.to_string(),
+                    credential_name: credential_name.to_string(),
+                    detail: format!("E-CRED-008: invalid credential name for Tier-3 lookup: {e}"),
+                });
+            }
+        };
+
+        // spawn_blocking is already encapsulated inside KeyringBackend::get_by_org
+        // (ADR-034 §D2 implementation detail). No additional wrapping needed here.
+        match keyring.get_by_org(org_id, sensor_id, &cred_name).await {
+            Ok(Some(secret)) => {
+                crate::audit::emit_audit(
+                    crate::audit::AuditOperation::Get,
+                    client_id,
+                    sensor_id,
+                    credential_name,
+                    "keyring",
+                    crate::audit::AuditOutcome::Success,
+                );
+                return Ok(secret);
+            }
+            Ok(None) => {
+                // Tier-3 miss — fall through to Tier 4 silently.
+                // BC-2.06.003 Tier-3 postcondition: Ok(None)/NoEntry → fall through.
+            }
+            Err(e) => {
+                // Backend error (locked, NoStorageAccess, NoKeyringService, spawn panic).
+                // Hard error — do NOT fall through to Tier 4 (ADR-034 §D4 / SOUL.md §4).
+                // AD-017: the error detail from keyring-rs is a system error message
+                // (e.g., "access denied"), NOT a credential value — safe to include.
+                //
+                // F-P6-OBS-003 fix: extract backend/reason without the inner E-CRED-004
+                // code prefix so the operator-facing detail carries a SINGLE canonical code
+                // (E-CRED-008). `PrismError::CredentialStoreError` Display includes
+                // "E-CRED-004: credential store error (backend=...): {reason}" — using
+                // `{e}` directly would produce double-prefix output.
+                let inner_detail = match &e {
+                    prism_core::PrismError::CredentialStoreError { backend, reason } => {
+                        format!("backend={backend}: {reason}")
+                    }
+                    other => format!("{other}"),
+                };
+                crate::audit::emit_audit(
+                    crate::audit::AuditOperation::Get,
+                    client_id,
+                    sensor_id,
+                    credential_name,
+                    "keyring",
+                    crate::audit::AuditOutcome::Error,
+                );
+                return Err(CredentialResolutionError::BackendUnavailable {
+                    client_id: client_id.to_string(),
+                    sensor_id: sensor_id.to_string(),
+                    credential_name: credential_name.to_string(),
+                    detail: format!(
+                        "E-CRED-008: OS keyring unavailable: {inner_detail}. \
+                         Check keyring access (macOS Keychain / Linux libsecret). \
+                         Use Tier 1/2 env vars as an alternative (BC-2.06.003)."
+                    ),
+                });
+            }
+        }
+    }
+    // Either org_id or keyring is None → Tier 3 skipped silently (Tier-3 disabled).
 
     // Tier 4: CRUD store lookup — check if the credential was configured
     // and then resolve through its source reference.

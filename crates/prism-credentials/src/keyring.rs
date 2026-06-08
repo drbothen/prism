@@ -9,6 +9,10 @@
 //! - `list()` is not natively supported by keyring-rs; `CredentialIndex` is
 //!   used as a sidecar plaintext JSON index of namespace keys (no values).
 //!
+//! AD-017: credential secret values are stored ONLY by the OS keyring via
+//! keyring-rs. No in-memory HashMap cache, no on-disk file cache. The index
+//! sidecar stores namespace keys (metadata) only — never secret values.
+//!
 //! Story: S-1.06 | BC: BC-2.03.002, BC-2.03.004
 
 use std::sync::Mutex;
@@ -243,12 +247,23 @@ impl CredentialStore for KeyringBackend {
 /// Namespace key format: `"{org_id_uuid}/{sensor}/{name}"` where `org_id_uuid`
 /// is the hyphenated lowercase UUID v7 string from `OrgId::to_string()`.
 ///
+/// AD-017: credentials are stored ONLY in the OS keyring via keyring-rs Entry.
+/// No in-memory HashMap cache, no on-disk companion file. Cross-process reads
+/// go through the OS keyring — the correct behavior for a secure credential store.
+/// Tests that cannot use the real OS keyring MUST inject an in-memory
+/// `CredentialStoreOrgId` trait double (see src/in_memory_store.rs, enabled via
+/// the `test-helpers` feature).
+///
 /// Story: S-3.1.04 | BC: BC-3.2.002
 #[async_trait]
 impl CredentialStoreOrgId for KeyringBackend {
     /// Retrieve a credential from the OS keyring using `OrgId` UUID namespace.
     ///
     /// Namespace key: `"{org_id_uuid}/{sensor}/{name}"` (BC-3.2.002 precondition 1).
+    ///
+    /// Returns `Ok(Some(secret))` if found in the OS keyring.
+    /// Returns `Ok(None)` if `NoEntry` — Tier-3 miss, fall through to Tier 4.
+    /// Returns `Err(BackendUnavailable)` on OS keyring errors (locked, ACL denied).
     async fn get_by_org(
         &self,
         org_id: &OrgId,
@@ -286,6 +301,9 @@ impl CredentialStoreOrgId for KeyringBackend {
     }
 
     /// Store a credential in the OS keyring under `OrgId` UUID namespace.
+    ///
+    /// Writes ONLY to the OS keyring (AD-017). Also updates the sidecar index
+    /// (metadata only — no secret values in the index).
     async fn set_by_org(
         &self,
         org_id: &OrgId,
@@ -320,7 +338,7 @@ impl CredentialStoreOrgId for KeyringBackend {
             reason: format!("spawn_blocking panicked: {e}"),
         })??;
 
-        // Update the sidecar index with the OrgId-keyed namespace key.
+        // Update the sidecar index (metadata only — namespace key, not value).
         if let Ok(mut idx) = self.index.lock() {
             idx.add(&index_key)?;
         }
