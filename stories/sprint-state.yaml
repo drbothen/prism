@@ -490,11 +490,11 @@ active_dispatch_set:
     status: in_progress
     priority: P1
     points: 8
-    spec_version: "v1.15"
+    spec_version: "v1.16"
     depends_on:
       - S-DEMO-001  # HARD — SATISFIED (merged PR #166 develop@5dd3df02)
       - S-DEMO-002  # HARD — SATISFIED (merged PR #171 develop@fdd12251)
-    notes: "D-1048 2026-06-07: RE-BASELINE COMPLETE. Rebased feature/S-DEMO-003 onto develop@c603741d (branch HEAD 0a3d2f6b; 0 behind develop; no conflicts). Code re-align commit 3bed8ea1 on feature/S-DEMO-003: E-CRED-005→E-CRED-008 per ADR-035 canonical namespace (resolution.rs, in_memory_store.rs, bc_2_06_003 test rename, credential_cli.rs comment sweep; Tier-1 resolve_secret.rs refs correctly preserved per ADR-035 §D2). Story v1.14→v1.15 (story-writer: AC-011 Case B + RG-034-005 test name test_BC_2_06_003_tier3_backend_error_returns_e_cred_008 + EC-001b/EC-008 + Architecture-Compliance Tier-3 row + §Changelog v1.15). just check GREEN (4061 tests pass, 44 skipped). BC-2.06.003 v1.7 STAYS DRAFT (POL-14: promotes at S-DEMO-003 merge only). DRIFT-ECRED-TAXONOMY-001 REMAINS RESOLVED. LOCAL streak RESET 0/3 (fresh; BC-5.39.001 D-779 strict). NEXT: LOCAL adversarial cascade fresh 3-CLEAN. [D-990 2026-06-03: status draft→ready (v1.0→v1.1). BC-2.03.005 v1.6 active + BC-2.03.007 v1.3 active (F-003 sync). depends_on SATISFIED. S-7.01 gate CLEARED.]"
+    notes: "D-1050 2026-06-07: F-P14-CRIT-001 CLOSED — boot-step-5 probe namespace mismatch (set_by_org OrgId-keyed write vs legacy-keyed boot probe). CLOSED via BC-2.06.003 v1.8 (§Boot-Step-5 Probe Alignment three-tier probe: Tier-3a get_by_org PRIMARY + Tier-3b legacy FALLBACK; ADR-034 §D3/§D5) + impl 0941c0e0 (KeyringCredentialProbe gains Arc<dyn CredentialStoreOrgId> + async trait; TV-BOOT-P-001 + TV-BOOT-P-003; just check GREEN 4064 tests) + story v1.16 (Architecture Compliance boot probe row; Red Gate TV-BOOT-P-001 test_BC_2_06_003_boot_probe_tier3a_finds_org_id_keyed_credential; red_gate_tests 8→9; AC-002 clarifying note). Code HEAD now 0941c0e0 (on feature/S-DEMO-003). LOCAL streak RESET 0/3 (pass-14 CRITICAL finding; BC-5.39.001 D-779 strict). [D-1048 2026-06-07: RE-BASELINE COMPLETE. Rebased feature/S-DEMO-003 onto develop@c603741d (branch HEAD 0a3d2f6b; 0 behind develop; no conflicts). Code re-align commit 3bed8ea1 on feature/S-DEMO-003: E-CRED-005→E-CRED-008 per ADR-035 canonical namespace. Story v1.14→v1.15. just check GREEN (4061 tests pass, 44 skipped). BC-2.06.003 v1.7 STAYS DRAFT (POL-14: promotes at S-DEMO-003 merge only). DRIFT-ECRED-TAXONOMY-001 REMAINS RESOLVED. D-990 2026-06-03: status draft→ready (v1.0→v1.1). BC-2.03.005 v1.6 active + BC-2.03.007 v1.3 active (F-003 sync). depends_on SATISFIED. S-7.01 gate CLEARED.]"
 
   - story_id: S-5.04-FIX-001
     status: merged

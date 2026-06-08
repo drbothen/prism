@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.7"
+version: "1.8"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -173,81 +173,135 @@ description = "CrowdStrike OAuth2 client secret"
 
 ---
 
-## Boot-Step-5 Probe Alignment (`KeyringCredentialProbe`)
+## Boot-Step-5 Probe Alignment (`KeyringCredentialProbe`) — v1.8 (F-P14-CRIT-001)
 
-`KeyringCredentialProbe::probe(sensor_id, ref_name)` MUST apply the full four-tier
-per-client priority chain, not the global `{SENSOR}_{REF}` format that the prior
-implementation incorrectly used.
+`KeyringCredentialProbe::probe(sensor_id, ref_name, org_registry)` MUST apply the full
+three-tier probe order specified below. The prior v1.3–v1.7 clause prescribed the
+**legacy non-org-keyed keyring format** (`{sensor_id}/{ref_name}`) as the Tier-3 probe
+key. This was a defect: `prism credential set` (S-DEMO-003) writes credentials via
+`CredentialStoreOrgId::set_by_org` under the OrgId-keyed namespace
+`{org_id_uuid}/{sensor}/{name}` (ADR-034 §D3). A probe that checks only the legacy
+key will NEVER find credentials written by `prism credential set`, making the
+keyring-only boot path unbootable (F-P14-CRIT-001). Per Source-of-Truth Precedence
+(CLAUDE.md §1), ADR-034 §D3/§D5 supersede the prior legacy-only probe clause.
 
-### Org-Awareness Design
+### Precedence Order (canonical as of v1.8)
 
-Step 5 iterates `snapshot.sensor_specs` (TYPE specs, no org context). The probe
-must not require an org at this point because TYPE specs are shared across all orgs.
+```
+Tier 1/2 env-var wildcard  (highest — checked first)
+  → hit on any org: probe succeeds
+  → miss all orgs: fall through to Tier 3a
 
-**Specified design:** Probe checks Tier 1 and Tier 2 using a wildcard scan.
+Tier 3a: OrgId-keyed keyring  (canonical — PRIMARY keyring probe)
+  → for each registered org, attempt get_by_org(org_id, sensor_id, ref_name)
+  → hit on any org: probe succeeds
+  → miss all orgs: fall through to Tier 3b (legacy fallback)
 
-For each `(sensor_id, ref_name)` pair, step 5 probes in this order:
+Tier 3b: legacy non-org-keyed keyring  (fallback for pre-migration credentials)
+  → attempt keyring::Entry::new("prism", "{sensor_id}/{ref_name}").get_password()
+  → hit: probe succeeds
+  → miss: fall through to not-found
 
-1. **Tier 1/2 wildcard:** iterate all registered orgs from `OrgRegistry`. For each
-   org slug, compute the per-client Tier 2 env var
-   `PRISM_CLIENTS_{ID}_SENSORS_{SENSOR}_{REF}` (and the `_FILE` variant). If **any**
-   org has the env var set (non-empty for Tier 2; file exists for Tier 1), the probe
-   succeeds for this ref. Rationale: at boot time the TYPE spec is shared; if at least
-   one org can resolve the ref, the sensor is functional for that org. If NO org resolves
-   the ref at step 5, fall through to Tier 3.
-
-2. **Tier 3 (keyring):** attempt `keyring::Entry::new("prism", "{sensor_id}/{ref_name}")`.
-   **Note:** The keyring probe uses the **legacy OrgSlug-keyed format**
-   `{org_slug}/{sensor_id}/{ref_name}` (via `namespace_key`) for backwards-compatibility
-   with credentials stored before BC-3.2.002 OrgId migration. Future stories may migrate
-   this to OrgId-keyed probe; for now the boot probe checks the legacy format only.
-   If found in keyring, probe succeeds.
-
-3. **Not found in any tier:** return `Err(BootError::CredentialRefInvalid)` with a
-   message citing BOTH the per-client Tier 2 env var format AND the keyring key format,
-   so operators have actionable remediation options.
-
-### OrgRegistry Threading
-
-Step 5 (`step5_init_credential_store_with_probe`) already receives `config_manager` but
-not `OrgRegistry`. The implementer MUST thread `org_registry` (produced at step 3 and
-stored in `BootContext`) into `step5_init_credential_store_with_probe` so the probe can
-iterate org slugs for Tier 1/2 checks. Signature change:
-
-```rust
-pub async fn step5_init_credential_store_with_probe(
-    config: &PrismConfig,
-    config_manager: &Arc<ArcSwap<ConfigManager>>,
-    org_registry: &Arc<OrgRegistry>,   // NEW — thread from BootContext
-    probe: &dyn CredentialRefProbe,
-) -> Result<Arc<dyn CredentialStore>, BootError>
+Not found: Err(BootError::CredentialRefInvalid)
 ```
 
-The `KeyringCredentialProbe::probe` signature gains `org_registry`:
+### Tier-by-Tier Specification
+
+**Tier 1/2 wildcard (unchanged from v1.3):**
+
+Iterate all registered org slugs from `OrgRegistry`. For each org slug, compute
+`PRISM_CLIENTS_{ID}_SENSORS_{SENSOR}_{REF}` (Tier 2) and `..._{REF}_FILE` (Tier 1).
+If ANY org has the env var set (non-empty for Tier 2; file exists for Tier 1),
+the probe succeeds (`Ok(None)`). Rationale: TYPE specs are shared across orgs; at
+least one org resolved means the sensor is functional for that org. If NO org resolves,
+fall through to Tier 3a.
+
+**Tier 3a — OrgId-keyed keyring probe (PRIMARY — new in v1.8):**
+
+For each registered org in `OrgRegistry`:
+1. Resolve `OrgId` for the org slug: `org_registry.resolve(org_slug)` → `Option<OrgId>`.
+   If the slug has no OrgId (orphan registry entry), skip this org.
+2. Call `keyring_store.get_by_org(&org_id, sensor_id, ref_name).await` — this uses the
+   OrgId-keyed namespace `{org_id_uuid}/{sensor_id}/{ref_name}` matching the
+   `set_by_org` write path (ADR-034 §D3; `namespace_key_by_org_id`).
+3. If `Ok(Some(_))` for any org: discard the value (AD-017), return `Ok(None)` — probe
+   succeeds.
+4. If `Ok(None)` / `Err(NoEntry)` for all orgs: fall through to Tier 3b.
+5. If `Err(BackendUnavailable)` (keyring locked, `NoStorageAccess`, spawn panic): return
+   `Err(BootError::CredentialPermissionDenied(...))` — hard error, do NOT fall through.
+   Rationale mirrors ADR-034 §D4: a locked keyring at boot indicates misconfiguration;
+   silently falling through would hide the operator error.
+
+**Tier 3b — legacy non-org-keyed keyring probe (FALLBACK for pre-migration credentials):**
+
+Attempt `keyring::Entry::new("prism", "{sensor_id}/{ref_name}").get_password()`.
+
+**Rationale for retaining the fallback:** Credentials written by `CredentialStore::set`
+(the legacy slug-keyed write path, `namespace_key` form) used the account format
+`{sensor_id}/{ref_name}` (without an org component). Operators who wrote credentials
+before the S-DEMO-003 migration (ADR-034) would be broken without this fallback.
+Retaining it as a secondary fallback (AFTER OrgId-keyed attempt) preserves backward
+compatibility while making the OrgId-keyed path the canonical production route.
+
+**Exact legacy key:** `"{sensor_id}/{ref_name}"` — no org component. (The boot.rs doc
+comment at the probe implementation may incorrectly state `{org_slug}/{sensor_id}/{ref_name}`;
+this BC is the authoritative specification. The implementer MUST align the code and its
+doc comment to match the exact key `"{sensor_id}/{ref_name}"`.)
+
+If `Ok(_)`: discard value (AD-017), return `Ok(None)`.
+If `Err(NoEntry)`: fall through to not-found.
+If `Err(backend error)`: return `Err(BootError::CredentialPermissionDenied(...))` — hard error.
+
+**Not found — all tiers exhausted:**
+
+Return `Err(BootError::CredentialRefInvalid)` citing all three lookup paths so the
+operator knows the full remediation surface.
+
+### OrgRegistry and KeyringStore Threading
+
+`KeyringCredentialProbe` requires access to both `OrgRegistry` (for Tier 3a OrgId
+resolution) and `Arc<dyn CredentialStoreOrgId>` (for `get_by_org` calls). The probe
+struct MUST hold these as injected fields (DI pattern, ADR-022 §C):
 
 ```rust
-fn probe(
-    &self,
-    sensor_id: &str,
-    ref_name: &str,
-    org_registry: &OrgRegistry,        // NEW
-) -> Result<Option<String>, BootError>
+pub struct KeyringCredentialProbe {
+    keyring: Arc<dyn CredentialStoreOrgId>,   // NEW in v1.8 — for Tier 3a OrgId probe
+}
 ```
 
-`CredentialRefProbe` trait updated accordingly. All test doubles implement the new
-signature.
+`org_registry` is already threaded into the probe via the `probe(...)` method signature
+(unchanged from v1.3). The `keyring` field is injected at construction time.
+
+`step5_init_credential_store_with_probe` already receives `org_registry`. The
+`KeyringCredentialProbe` is constructed with the same `Arc<KeyringBackend>` instance
+that `BootContext.credential_store_org_id` holds (ADR-034 §D5 — same instance,
+no state duplication). The production call site in `step5_init_credential_store`:
+
+```rust
+step5_init_credential_store_with_probe(
+    config,
+    config_manager,
+    org_registry,
+    &KeyringCredentialProbe { keyring: Arc::clone(&keyring_backend) },  // NEW — Tier 3a
+).await
+```
+
+`CredentialRefProbe` trait and `CredentialRefProbe::probe` method signature are
+UNCHANGED from v1.3 (already include `org_registry: &OrgRegistry`). All existing
+test doubles continue to implement the same trait — no signature blast radius.
 
 ### Error message when not found
 
 ```
-Credential ref '{ref_name}' for sensor '{sensor_id}' not found in any client-scoped
-env var (PRISM_CLIENTS_{ID}_SENSORS_{SENSOR_UPPER}_{REF_UPPER} for any registered org),
-nor in the OS keyring ({sensor_id}/{ref_name}).
-To configure:
-  - Set PRISM_CLIENTS_<ORG_SLUG_UPPER>_SENSORS_{SENSOR_UPPER}_{REF_UPPER}=<value>
-    for each org that uses this sensor, OR
-  - Register in keyring: prism credential set {sensor_id} {ref_name}
-(BC-2.06.003, BC-2.03.013 TV-03-013-003)
+Credential ref '{ref_name}' for sensor '{sensor_id}' not found in:
+  - any client-scoped env var (PRISM_CLIENTS_{ID}_SENSORS_{SENSOR_UPPER}_{REF_UPPER}
+    for any registered org),
+  - OrgId-keyed OS keyring ({org_id_uuid}/{sensor_id}/{ref_name} for any registered org
+    — written via: prism credential set --sensor {sensor_id} --name {ref_name}),
+  - legacy keyring key ({sensor_id}/{ref_name}).
+To configure (recommended): prism credential set --sensor {sensor_id} --name {ref_name}
+To configure (env var): set PRISM_CLIENTS_<ORG_SLUG_UPPER>_SENSORS_{SENSOR_UPPER}_{REF_UPPER}=<value>
+(BC-2.06.003 v1.8, BC-2.03.013 TV-03-013-003)
 ```
 
 ---
@@ -258,7 +312,8 @@ To configure:
 | `PrismError::Credential` | Credential not found in any resolution tier | Error citing Tier 2 env var `PRISM_CLIENTS_{ID}_SENSORS_{SENSOR}_{REF}` and keyring key format |
 | `PrismError::InvalidInput` | `credential_ref` name contains characters outside `[a-zA-Z0-9_\-\.]+` | Error: "Invalid credential reference '{ref}': must match [a-zA-Z0-9_\\-\\.]+" |
 | `PrismError::Credential` | Tier 1 `_FILE` env var set but file non-existent or unreadable | Error: "Credential file '{path}' referenced by `...{REF}_FILE` not found or unreadable"; do NOT fall through to Tier 2 — the explicit `_FILE` reference is a misconfiguration |
-| `BootError::CredentialRefInvalid` | Step 5 probe: ref absent from all tiers for all orgs | Boot aborts exit 2; error cites both per-client env var format and keyring key |
+| `BootError::CredentialRefInvalid` | Step 5 probe: ref absent from all tiers (Tier 1/2 env, Tier 3a OrgId keyring, Tier 3b legacy keyring) for all orgs | Boot aborts exit 2; error cites all three lookup paths (per-client env var, OrgId-keyed keyring key `{org_id_uuid}/{sensor}/{name}`, legacy key `{sensor}/{name}`) |
+| `BootError::CredentialPermissionDenied` | Step 5 probe Tier 3a or 3b: keyring backend error (locked, `NoStorageAccess`, `NoKeyringService`, spawn panic) | Boot aborts exit 2; hard error — does NOT fall through; cites E-CRED-008 with backend reason |
 
 ## Edge Cases
 | ID | Description | Expected Behavior |
@@ -267,12 +322,17 @@ To configure:
 | EC-06-003 | Tier 1 `_FILE` env var set; file content has trailing newline | File content trimmed of leading/trailing whitespace before use as credential value |
 | EC-06-004 | Two orgs registered; only one has Tier 2 env var set | Step 5 probe succeeds (at least one org resolves the ref); at query time, the org lacking the env var returns `CredentialResolutionError::NotFound` |
 | EC-06-005 | CrowdStrike: `client_id` present but `client_secret` absent | Step 5 probe fails on `client_secret` ref; boot aborts exit 2 |
+| EC-06-006 | Boot probe Tier 3a: credential written by `prism credential set` (OrgId-keyed via `set_by_org`); no env vars set; `KeyringCredentialProbe` has the `Arc<dyn CredentialStoreOrgId>` field wired. | Tier 1/2 miss → Tier 3a: `get_by_org(org_id, sensor, ref)` returns `Ok(Some(_))` → probe returns `Ok(None)` → boot step 5 succeeds. This is the canonical keyring-only boot path for the S-DEMO-003 demo setup. (Closes F-P14-CRIT-001.) |
+| EC-06-007 | Boot probe Tier 3a miss + Tier 3b hit: credential written via legacy `CredentialStore::set` (slug-keyed, key `"{sensor}/{ref}"`); no env vars; no OrgId-keyed entry. | Tier 1/2 miss → Tier 3a `get_by_org` returns `Ok(None)` for all orgs → Tier 3b: `keyring::Entry::new("prism", "{sensor}/{ref}").get_password()` returns `Ok(_)` → probe returns `Ok(None)` → boot step 5 succeeds. Backward-compatibility path for pre-migration credentials. |
+| EC-06-008 | Boot probe: keyring backend unavailable (locked) during Tier 3a `get_by_org` call. | Hard error: `Err(BootError::CredentialPermissionDenied(...))` — does NOT fall through to Tier 3b. Operator must unlock keyring or use Tier 1/2 env vars. |
 
 ---
 
 ## Canonical Test Vectors
 
 See `.factory/specs/prd-supplements/test-vectors.md` for canonical test vectors for BC-2.06.003.
+
+### Query-Time Resolution (`resolve_credential`)
 
 | Scenario | org_slug | sensor | ref | Setup / Env | Expected |
 |----------|----------|--------|-----|------------|---------|
@@ -288,6 +348,18 @@ See `.factory/specs/prd-supplements/test-vectors.md` for canonical test vectors 
 | Invalid ref name | any | any | `my key!` | — | `PrismError::InvalidInput`: must match pattern |
 | CrowdStrike `client_id` | `acme` | `crowdstrike` | `client_id` | `PRISM_CLIENTS_ACME_SENSORS_CROWDSTRIKE_CLIENT_ID=id-value` | Env value as `SecretString` |
 | CrowdStrike `client_secret` | `acme` | `crowdstrike` | `client_secret` | `PRISM_CLIENTS_ACME_SENSORS_CROWDSTRIKE_CLIENT_SECRET=secret-value` | Env value as `SecretString` |
+
+### Boot-Step-5 Probe (`KeyringCredentialProbe::probe`) — v1.8 (F-P14-CRIT-001)
+
+These vectors specifically test the boot probe, which must discover credentials written by `prism credential set` (OrgId-keyed namespace). The probe uses `Arc<dyn CredentialStoreOrgId>` injected at construction — the same `KeyringBackend` instance as `BootContext.credential_store_org_id`.
+
+| Scenario | org_registry | sensor | ref | Keyring State | Expected probe result |
+|----------|-------------|--------|-----|---------------|----------------------|
+| **TV-BOOT-P-001 — OrgId-keyed entry found (canonical path, EC-06-006)** | `{slug="demo-org", org_id="f47ac10b-…"}` | `armis` | `bearer_token` | `set_by_org(org_id, "armis", "bearer_token", _)` called; OrgId-keyed key `f47ac10b-…/armis/bearer_token` exists. No env vars. No legacy key. | `Ok(None)` — probe succeeds; Tier 3a hit. Credential value discarded (AD-017). Boot step 5 passes. |
+| **TV-BOOT-P-002 — Legacy key found, no OrgId entry (EC-06-007, backward compat)** | `{slug="demo-org", org_id="f47ac10b-…"}` | `armis` | `bearer_token` | Only legacy key `armis/bearer_token` exists in keyring. No OrgId-keyed key. No env vars. | Tier 1/2 miss → Tier 3a `get_by_org` → `Ok(None)` for all orgs → Tier 3b: `keyring::Entry::new("prism", "armis/bearer_token")` → `Ok(_)` → `Ok(None)` — probe succeeds. |
+| **TV-BOOT-P-003 — All tiers miss → CredentialRefInvalid** | `{slug="demo-org", org_id="f47ac10b-…"}` | `armis` | `bearer_token` | No env vars. No OrgId-keyed entry. No legacy entry. | `Err(BootError::CredentialRefInvalid(...))` — error message cites env var format, OrgId-keyed keyring format, and legacy keyring format. |
+| **TV-BOOT-P-004 — Keyring backend error during Tier 3a (EC-06-008)** | `{slug="demo-org", org_id="f47ac10b-…"}` | `armis` | `bearer_token` | `get_by_org` returns `Err(NoStorageAccess)`. No env vars. | `Err(BootError::CredentialPermissionDenied(...))` — hard error; does NOT fall through to Tier 3b. |
+| **TV-BOOT-P-005 — Tier 2 env var hit (existing behavior, unchanged)** | `{slug="demo-org", org_id="f47ac10b-…"}` | `armis` | `bearer_token` | No keyring entries. `PRISM_CLIENTS_DEMO_ORG_SENSORS_ARMIS_BEARER_TOKEN=abc123` set. | `Ok(None)` — Tier 2 hit; probe succeeds without touching keyring. |
 
 ---
 
@@ -310,6 +382,7 @@ No VPs in VP-INDEX directly verify credential reference resolution. Placeholder 
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.8 | S-DEMO-003-F-P14-CRIT-001 | 2026-06-07 | product-owner | **F-P14-CRIT-001 — Boot-step-5 probe OrgId-keyed reconciliation.** Full rewrite of §Boot-Step-5 Probe Alignment to fix the defect where the Tier-3 probe used the legacy non-org-keyed key `{sensor_id}/{ref_name}` while `prism credential set` writes via `set_by_org` to the OrgId-keyed key `{org_id_uuid}/{sensor_id}/{ref_name}`. Per Source-of-Truth Precedence (ADR-034 §D3/§D5 supersedes the prior BC clause). Changes: (1) §Boot-Step-5 Probe Alignment fully rewritten: three-tier probe order (Tier 1/2 env wildcard → Tier 3a OrgId-keyed keyring PRIMARY → Tier 3b legacy keyring FALLBACK); (2) Decision documented: legacy fallback RETAINED for backward compatibility with pre-migration credentials, but OrgId-keyed is primary/canonical; (3) `KeyringCredentialProbe` struct gains `keyring: Arc<dyn CredentialStoreOrgId>` field for Tier 3a `get_by_org` calls; (4) Exact legacy key form specified as `"{sensor_id}/{ref_name}"` (no org component) — corrects the doc inconsistency in boot.rs where the doc comment claims `{org_slug}/{sensor_id}/{ref_name}` but code uses `{sensor_id}/{ref_name}`; (5) Error message updated to cite all three lookup paths; (6) Error Cases table: `BootError::CredentialRefInvalid` updated to cite all three paths; added `BootError::CredentialPermissionDenied` for keyring backend errors at Tier 3a/3b; (7) Edge Cases: added EC-06-006 (OrgId-keyed probe success), EC-06-007 (legacy fallback success), EC-06-008 (keyring backend hard error); (8) Canonical Test Vectors: added §Boot-Step-5 Probe section with TV-BOOT-P-001..005; (9) `modified` frontmatter updated to 2026-06-07. |
 | 1.7 | S-MAINT-ECRED-TAXONOMY-SYNC-001 | 2026-06-07 | product-owner | F-P17-MED-001: de-pinned stale VP-INDEX version reference in §Verification Properties per TD-VSDD-091; S-MAINT-ECRED-TAXONOMY-SYNC-001. |
 | 1.6 | S-MAINT-ECRED-TAXONOMY-SYNC-001 | 2026-06-07 | product-owner | **Wrong-section ADR anchor fix (F-P11-HIGH-001).** Postconditions Tier-3 error-semantics table, backend-error row: `ADR-034 §D5 amended by ADR-035` → `ADR-034 §D4 amended by ADR-035 §D5`. §D4 is "Error Semantics — Keyring Backend Error is a Hard Error" (the correct target); §D5 is "Boot Path Wiring — PrismCredentialResolver Construction" (unrelated). The three pre-existing §D4 cites (lines ~116/~285/~306) were already correct and are unchanged. No content semantics altered. |
 | 1.5 | S-MAINT-ECRED-TAXONOMY-SYNC-001 | 2026-06-07 | product-owner | **E-CRED-005 → E-CRED-008 keyring-unavailable code update per ADR-035 §D2 + §Blast-Radius.** Changes: (1) Postconditions Tier-3 table: `BackendUnavailable { detail: "E-CRED-005: OS keyring unavailable: {reason}" }` → `E-CRED-008` — collision resolved: E-CRED-005 was simultaneously assigned to `PrismError::CredentialEncryptionError` (prism-core) and to the keyring-unavailable Tier-3 path (ADR-034 §D4 + this BC). ADR-035 assigns `CredentialEncryptionError` to E-CRED-006 and `KeyringBackendUnavailable` to E-CRED-008. (2) Postconditions invariant note: `E-CRED-005 detail is a system error message` → `E-CRED-008 detail is a system error message` (AD-017 credential-opacity note preserved). (3) Canonical Test Vectors: "Tier 3 keyring backend error → hard error" row output → `E-CRED-008`. (4) Traceability ADR column: added ADR-035 as normative authority; noted ADR-034 §D4 is amended by ADR-035 §D5 for the error code only (all other ADR-034 decisions remain in effect). (5) Traceability Related BCs: BC-2.03.007 parenthetical updated from `E-CRED-005` to `E-CRED-008`. BC H1 title UNCHANGED per POL-7. Draft status UNCHANGED — BC remains anchored to S-DEMO-003. |

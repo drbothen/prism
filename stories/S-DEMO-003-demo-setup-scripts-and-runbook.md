@@ -6,7 +6,7 @@ wave: 5
 epic_id: E-DEMO
 priority: P1
 status: in_progress
-version: "1.15"
+version: "1.16"
 level: "L4"
 producer: story-writer
 timestamp: "2026-05-29T00:00:00Z"
@@ -78,7 +78,7 @@ risk: MEDIUM
 # tests bound the risk at the test level. Risk level MEDIUM per ADR-034 §D7 (signature blast
 # radius across 3 crates; well-understood pattern).
 acceptance_criteria_count: 14
-red_gate_tests: 8
+red_gate_tests: 9
 estimated_passes: "2-3 LOCAL adversary passes"
 holdout_scenarios: []
 assumption_validations: []
@@ -129,7 +129,7 @@ phase: 3
 
 **Story ID:** S-DEMO-003
 **Status:** in_progress
-**Version:** v1.15
+**Version:** v1.16
 **Wave:** 5
 **Priority:** P1
 **Points:** 8
@@ -197,6 +197,10 @@ When: `./target/release/prism --config-dir ~/.config/prism-demo/ start` is execu
 Then: prism-bin completes all boot steps, emits `boot.step9a.adapter_registry_populated`
 event with `sensor_count=4` and `org_count=1`, and accepts MCP connections (no error exit).
 BootContext includes `credential_store_org_id: Arc<dyn CredentialStoreOrgId>` (ADR-034 §D5).
+Boot step 5 (`KeyringCredentialProbe::probe`) resolves OrgId-keyed credentials (Tier 3a,
+`get_by_org` per registered org) as the PRIMARY keyring check — credentials written by
+`prism credential set` are found at this probe, not only at the legacy Tier 3b fallback
+(BC-2.06.003 v1.8 §Boot-Step-5 Probe Alignment; closes F-P14-CRIT-001).
 (traces to BC-2.22.001 postcondition: "The process is in steady state: all subsystem handles
 available, traffic gate open")
 
@@ -397,6 +401,7 @@ Then: Zero errors, zero warnings.
 | Slug→OrgId resolution in `PrismCredentialResolver` (in `prism-spec-engine`) — NOT inside `prism-credentials` | `crates/prism-credentials/src/trait_.rs:84–85` architecture compliance rule | `prism-credentials` MUST NOT import `OrgRegistry`; violation = compile error |
 | `PrismCredentialResolver` is a struct with `org_registry: Arc<OrgRegistry>` and `keyring: Arc<dyn CredentialStoreOrgId>` | ADR-034 §D1 | Unit-struct form is removed; `PrismCredentialResolver::new(org_registry, keyring)` is the only constructor |
 | `BootContext` gains `credential_store_org_id: Arc<dyn CredentialStoreOrgId>` alongside existing `credential_store: Arc<dyn CredentialStore>` | ADR-034 §D5 | Step 5 exposes `Arc<KeyringBackend>` via both traits; same instance, no state duplication |
+| Boot probe must use OrgId-keyed probe (Tier 3a, `get_by_org` per registered org) as PRIMARY keyring check; legacy `{sensor_id}/{ref_name}` is Tier 3b FALLBACK only | BC-2.06.003 v1.8 §Boot-Step-5 Probe Alignment | `KeyringCredentialProbe` gains `keyring: Arc<dyn CredentialStoreOrgId>` field; `step5_init_credential_store` passes the shared `Arc<KeyringBackend>` at construction. `CredentialRefProbe` trait signature UNCHANGED. |
 | Tier-3 error: keyring backend error → hard `BackendUnavailable { detail: "E-CRED-008: OS keyring unavailable: {reason}" }` — do NOT fall through | ADR-034 §D4 / ADR-035 §D5 / BC-2.06.003 / SOUL.md §4 | `reason` from keyring-rs is a system error string; must never contain a credential value |
 | `rpassword` or equivalent for no-echo stdin read | BC-2.03.007 Secret Redaction | `read -s` in bash is acceptable for shell scripts; Rust CLI must use `rpassword` crate |
 | Real OS keyring backends MUST be feature-enabled in `prism-credentials` (F-P10-CRIT-001) | Cross-process credential visibility | keyring-rs silently falls back to in-process mock when no backend feature is enabled; 4 `compile_error!` guards in `crates/prism-credentials/src/lib.rs` prevent silent reversion (apple-native on macOS/iOS, windows-native on Windows, linux-native-sync-persistent or linux-native on Linux). Removing a backend feature without removing the corresponding pass-through in `[features]` trips the guard on next build. |
@@ -547,6 +552,7 @@ The following tests MUST be written as failing Red Gates before any implementati
 | `test_handle_credential_set_writes_org_id_keyed_namespace` (RG-034-004) | `crates/prism-bin/tests/bc_2_03_007_credential_set_org_id_keyed.rs` | AC-010 / AC-005 | CRIT-2 regression: entry at OrgId-keyed key; NOT at slug-keyed key |
 | `test_BC_2_06_003_tier3_backend_error_returns_e_cred_008` (RG-034-005) | `crates/prism-credentials/tests/bc_2_06_003_tier3_keyring_resolution.rs` | AC-011 Case B | Keyring backend `Err` → hard `BackendUnavailable`/E-CRED-008; no Tier-4 fall-through; no credential-value leak in detail; uses `InMemoryCredentialStore` error-injection mode (test-helpers-gated) |
 | `test_handle_credential_delete_uses_org_id_keyed_namespace` (F-P10-HIGH-001) | `crates/prism-bin/tests/bc_2_03_007_credential_set_org_id_keyed.rs` | AC-007 | F-P10-HIGH-001: `handle_credential_delete_with_store` calls `delete_by_org` (OrgId-keyed); entry absent after delete; idempotent second delete returns exit 0; uses `InMemoryCredentialStore` injection (no real OS Keychain) — BC-2.03.005 delete path / ADR-034 §D3 |
+| `test_BC_2_06_003_boot_probe_tier3a_finds_org_id_keyed_credential` (TV-BOOT-P-001) | `crates/prism-bin/src/boot.rs` `#[cfg(test)] mod tests` | AC-002 / AC-009 / BC-2.06.003 v1.8 | F-P14-CRIT-001 fix: creates `KeyringCredentialProbe` with `InMemoryCredentialStore`, calls `set_by_org` to write an OrgId-keyed credential, then calls `probe(sensor_id, ref_name, &org_registry)` — asserts probe returns `Ok(None)`. Validates that the boot probe finds credentials written by `prism credential set` (OrgId-keyed, Tier 3a). In-process unit test; no real OS Keychain. |
 
 Note: The existing `test_BC_2_03_007_prism_credential_set_does_not_echo_value_to_stdout` test may
 require an OrgId-keyed variant per ADR-034 (the write path changes from `CredentialStore::set` to
@@ -566,7 +572,7 @@ and produce the OrgId-keyed variant in `bc_2_03_007_credential_set_org_id_keyed.
 7. **Read** `crates/prism-bin/src/boot.rs` — understand `BootContext` struct and step-5 credential store initialization.
 8. **Read** `crates/prism-bin/src/spec_driven_adapter.rs` — identify step-9A auth provider construction sites.
 9. **Find** `crowdstrike-oauth2.prx` committed path (S-PLUGIN-CI-001 merged it; verify path from git tree before scripting).
-10. **Write Red Gate tests** for all 8 tests listed in §Red Gate Tests. All must FAIL before implementation.
+10. **Write Red Gate tests** for all 9 tests listed in §Red Gate Tests. All must FAIL before implementation.
 11. **Implement** `resolve_credential` Tier-3 branch in `crates/prism-credentials/src/resolution.rs` with updated signature.
 12. **Update** `crates/prism-credentials/src/lib.rs` re-export to match new signature.
 13. **Update** `crates/prism-spec-engine/src/auth_provider.rs`: `PrismCredentialResolver` → struct with fields; update `new()`; sibling-sweep all 3 test doubles (`MockCredentialResolver`, `NotFoundCredentialResolver`, `BackendUnavailableCredentialResolver`).
@@ -584,7 +590,7 @@ and produce the OrgId-keyed variant in `bc_2_03_007_credential_set_org_id_keyed.
 24. **Modify** `.github/workflows/ci.yml` — add shellcheck step for `scripts/demo-*.sh` (HIGH-2).
 25. **Run** `shellcheck scripts/demo-*.sh` — fix all warnings (AC-008).
 26. **TD-VSDD-060 sibling-site sweep** — grep `resolve_credential` across ALL crates; verify every callsite updated.
-27. **Run** Red Gate tests: `just iter prism-credentials` and `just iter prism-bin` — all 8 must pass GREEN.
+27. **Run** Red Gate tests: `just iter prism-credentials` and `just iter prism-bin` — all 9 must pass GREEN.
 28. **Run** `just check` — final pre-push gate.
 
 ---
@@ -684,6 +690,7 @@ additions. Still within limit.
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.16 | 2026-06-07 | story-writer | **F-P14-CRIT-001 boot-probe BC-2.06.003 v1.8 propagation:** Closed F-P14-CRIT-001 at the story level by propagating the BC-2.06.003 v1.8 §Boot-Step-5 Probe Alignment amendment. Changes: **(1) Architecture Compliance Rules** — added row: "Boot probe must use OrgId-keyed probe (Tier 3a, `get_by_org` per registered org) as PRIMARY keyring check; legacy `{sensor_id}/{ref_name}` is Tier 3b FALLBACK only" — Source: BC-2.06.003 v1.8 §Boot-Step-5 Probe Alignment; Enforcement: `KeyringCredentialProbe` gains `keyring: Arc<dyn CredentialStoreOrgId>` field; `step5_init_credential_store` passes the shared `Arc<KeyringBackend>` at construction; `CredentialRefProbe` trait signature UNCHANGED. **(2) Red Gate Tests** — added TV-BOOT-P-001 row: `test_BC_2_06_003_boot_probe_tier3a_finds_org_id_keyed_credential` in `crates/prism-bin/src/boot.rs` `#[cfg(test)] mod tests` — in-process unit test using `InMemoryCredentialStore`, calls `set_by_org`, asserts `probe(...)` returns `Ok(None)`; maps to AC-002 / AC-009 / BC-2.06.003 v1.8. **(3) `red_gate_tests` frontmatter** 8→9. **(4) AC-002** — added minimal clarifying note (3 sentences) that boot step 5 resolves OrgId-keyed credentials (Tier 3a PRIMARY) per BC-2.06.003 v1.8 §Boot-Step-5 Probe Alignment; closes F-P14-CRIT-001. **(5) Tasks 10 and 27** — Red Gate test count updated 8→9. No new ACs added (`acceptance_criteria_count` unchanged at 14 — existing AC-002/AC-009 are satisfied by the BC amendment per PO assessment). No STORY-INDEX/STATE.md/sprint-state changes (state-manager owns those). |
 | 1.15 | 2026-06-07 | story-writer | **E-CRED-005 → E-CRED-008 re-align (Tier-3 keyring backend path) per ADR-035 §D5 / error-taxonomy v1.62:** S-MAINT-ECRED-TAXONOMY-SYNC-001 (merged develop@c603741d) established the canonical E-CRED-001..010 namespace. The Tier-3 keyring/backend-unavailable path is canonically E-CRED-008 (`BackendUnavailable`) per error-taxonomy.md v1.62 §E-CRED-008 and ADR-035 §D5. The old E-CRED-005 cite for this path was a collision with `CredentialFileIo` (Tier-1 file I/O), now canonically E-CRED-005. All Tier-3/keyring-backend occurrences of E-CRED-005 flipped to E-CRED-008 across: frontmatter subsystem comment (SS-03 anchor), BC-2.03.007 frontmatter comment, `risk_mitigations` detail-string item, AC-011 header, AC-011 Case B detail string, AC-011 BC-trace clause, AC-006 §6(b) runbook header and body, Architecture Compliance Rules Tier-3 error row (source citation expanded: added ADR-035 §D5), FSR `docs/DEMO-RUNBOOK.md` row, DEMO-RUNBOOK §6 description, Red Gate Tests table (RG-034-005 test name `...e_cred_005` → `...e_cred_008`), Task 23, EC-001b detail string (source citation expanded: added ADR-035 §D5), EC-008 error code (source citation expanded: added ADR-035 §D5). Red Gate test name aligned with implementer commit 3bed8ea1: `test_BC_2_06_003_tier3_backend_error_returns_e_cred_008`. No Tier-1 file-I/O E-CRED-005 references exist in this story — no preservation was needed. Changelog historical rows (v1.6, v1.12, etc.) left unchanged as immutable history. |
 | 1.14 | 2026-06-06 | story-writer | **F-002/F-003/F-004 consistency-audit fixes:** **(F-002 MED)** FSR `scripts/demo-setup.sh` row: `allowed_urls` value corrected from `["http://127.0.0.1"]` to `["api.crowdstrike.com", "127.0.0.1"]` — matching `scripts/demo-setup.sh:150` exactly; added note that SEC-003 validates hostnames only (no scheme prefix). **(F-003 MED)** AC-003 poll timeout corrected from "within **10s**" to "within **30s**" — matching `demo-run.sh` `POLL_TIMEOUT=30` and EC-004 (both authoritative). **(F-004 LOW)** AC-011 Case B detail string updated from the terse/incorrect `"E-CRED-005: OS keyring unavailable: NoStorageAccess"` to reflect the real code format: `"E-CRED-005: OS keyring unavailable: backend={backend}: {reason}. Check keyring access (macOS Keychain / Linux libsecret). Use Tier 1/2 env vars as an alternative (BC-2.06.003)."` — sourced from `resolution.rs:237-259` (F-P6-OBS-003 `inner_detail` pattern + guidance suffix). Inner detail note added explaining the E-CRED-004-prefix-strip rationale. No BC/code/script/STORY-INDEX changes. |
 | 1.13 | 2026-06-06 | story-writer | **Runbook §6 structure alignment (pass-17 proactive propagation):** DEMO-RUNBOOK.md §6 was split from 3 subsections into 4 by commit 5676b5fc — keyring error split into §6(a) write-fail/E-CRED-004 and §6(b) read-fail/E-CRED-005; port already in use renumbered §6(c); TOML not found renumbered §6(d). AC-006 updated: count 3→4 failure modes; AC-006 item list rewritten to match the 4 subsections with correct §-letter assignments (write→§6a/E-CRED-004, read→§6b/E-CRED-005, port→§6c, TOML→§6d). "docs/DEMO-RUNBOOK.md Required Sections" §6 description updated from "3 failure modes" to "4 failure modes" with explicit subsection enumeration. No BC/code/script/STORY-INDEX changes. |

@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "5.94"
+version: "5.95"
 status: draft
 producer: product-owner
 timestamp: 2026-06-05T12:00:00Z
@@ -100,7 +100,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.05.012 | AuditEmitter Initialization — audit_buffer CF Open and boot.audit.initialized Emitted at Process Start | 05 - Audit Trail | CAP-007 | P0 | active |
 | BC-2.06.001 | TOML Configuration Loads and Deserializes at Startup | 06 - Client Configuration | CAP-009 | P0 | draft |
 | BC-2.06.002 | Per-Client Sensor Mapping from TOML Configuration | 06 - Client Configuration | CAP-009 | P0 | draft |
-| BC-2.06.003 | Credential References in Config Resolve to Credential Store Entries | 06 - Client Configuration | CAP-009 | P0 | draft — v1.7 (S-MAINT-ECRED-TAXONOMY-SYNC-001, ADR-035: E-CRED-005 → E-CRED-008 keyring-unavailable code; backend error → hard `BackendUnavailable` E-CRED-008 per ADR-035 §D2/§D5; v1.6: BC §D4 anchor corrected ADR-034 §D5→§D4 amended by ADR-035 §D5; v1.7: de-pinned stale VP-INDEX ref per TD-VSDD-091) |
+| BC-2.06.003 | Credential References in Config Resolve to Credential Store Entries | 06 - Client Configuration | CAP-009 | P0 | draft — v1.8 (D-1050 F-P14-CRIT-001: §Boot-Step-5 Probe Alignment three-tier probe — Tier-3a OrgId-keyed `get_by_org` PRIMARY + Tier-3b legacy `{sensor_id}/{ref_name}` FALLBACK; boot probe namespace mismatch closed at contract level; ADR-034 §D3/§D5; impl 0941c0e0; v1.7: de-pinned stale VP-INDEX ref per TD-VSDD-091; v1.6: BC §D4 anchor corrected ADR-034 §D5→§D4 amended by ADR-035 §D5) |
 | BC-2.06.004 | Capability Overrides Merge with Defaults Using More-Specific-Wins | 06 - Client Configuration | CAP-009 | P0 | draft |
 | BC-2.06.005 | Configuration Validation Reports All Errors in One Pass | 06 - Client Configuration | CAP-009 | P0 | draft |
 | BC-2.06.006 | --dry-run Flag Validates Config and Prints Redacted Summary | 06 - Client Configuration | CAP-009 | P0 | draft |
@@ -376,6 +376,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v5.95 (2026-06-07, D-1050 F-P14-CRIT-001 — BC-2.06.003 v1.7→v1.8 boot probe Tier-3a OrgId-keyed; S-DEMO-003 LOCAL pass-14):** state-manager | product-owner amendment: BC-2.06.003 §Boot-Step-5 Probe Alignment updated to three-tier probe — Tier-3a OrgId-keyed `get_by_org(org_id, sensor_id, ref_name)` PRIMARY + Tier-3b legacy `{sensor_id}/{ref_name}` key FALLBACK; closes F-P14-CRIT-001 at contract level (boot-step-5 probe used legacy-keyed namespace while `set_by_org` writes OrgId-keyed namespace; demo-unbootable mismatch). Cites ADR-034 §D3 (OrgId-keyed design) and ADR-034 §D5 (boot probe responsibility). Impl commit 0941c0e0 (KeyringCredentialProbe gains `keyring: Arc<dyn CredentialStoreOrgId>` + async trait; TV-BOOT-P-001 + TV-BOOT-P-003 tests). BC status STAYS DRAFT (POL-14: promotes at S-DEMO-003 merge only). BC-INDEX in-line row 103 updated v1.7→v1.8. No BC count changes (active: 234, draft: 3 unchanged). BC-INDEX v5.94→v5.95.
 
 **v5.94 (2026-06-07, D-1046 S-MAINT-ECRED-TAXONOMY-SYNC-001 MERGED PR #175 develop@c603741d — POL-14 BC status sync):** state-manager | POL-14 status-field alignment: BC-2.03.009 v1.3→v1.4 `status:` legacy field synced draft→active (lifecycle_status was already active per ADR-025 ground truth; anchor story S-MAINT-ECRED-TAXONOMY-SYNC-001 merged via PR #175 develop@c603741d). BC-2.03.005 v1.6 + BC-2.03.007 v1.3 confirmed already active (idempotent no-ops). BC-2.06.003 v1.7 KEPT DRAFT (S-DEMO-003 not yet merged; E-CRED-008 emitter forward-reserved; POL-14 promotion at S-DEMO-003 merge). No count changes: BC-2.03.009 lifecycle_status was already active (not in draft_contracts: 3). active_contracts: 234, draft_contracts: 3 unchanged. BC-INDEX in-line row 69 updated. BC-INDEX v5.93→v5.94.
 
