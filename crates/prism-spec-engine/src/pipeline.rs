@@ -4000,6 +4000,177 @@ mod pagination_post_body_tests {
     }
 
     // -----------------------------------------------------------------------
+    // EC-002: POST OffsetLimit body_template interpolates to a non-object JSON value
+    //
+    // EC-002 specifies: "Treat as parse error; surface SpecEngineError with
+    // sensor_id and step_name. Do NOT panic."
+    //
+    // Two sub-cases:
+    //   (a) body_template is not valid JSON at all (parse fails in build_request)
+    //   (b) body_template is valid JSON but NOT an object (e.g., `[]`, `42`, `"str"`)
+    //
+    // Both branches surface as SpecEngineError::HttpRequestFailed{status_code:0}.
+    // The HTTP request is never sent (build_request returns Err before .send()).
+    // -----------------------------------------------------------------------
+
+    /// EC-002 / BC-2.16.002 v1.70 §Edge Cases — POST OffsetLimit body_template
+    /// interpolates to a non-object JSON value (e.g., raw array `[]`).
+    ///
+    /// Contract: "Treat as parse error; surface SpecEngineError with sensor_id and
+    /// step_name. Do NOT panic." (BC-2.16.002 v1.70 EC-002)
+    ///
+    /// Test vector: `body_template = "[]"` (a JSON array literal). After interpolation
+    /// the `serde_json::Value` is `Array([])` — not an Object — which triggers the
+    /// non-object branch in `build_request`.
+    ///
+    /// This test drives the REAL production code path:
+    ///   PipelineExecutor::execute_with_max_requests
+    ///   → issue_request_with_retry
+    ///   → build_request (returns Err before .send())
+    ///   → maps to SpecEngineError::HttpRequestFailed{status_code:0}
+    ///
+    /// Naming: test_BC_<id>_<desc> per CLAUDE.md §Conventions.
+    #[tokio::test]
+    async fn test_BC_2_16_002_pagination_post_non_object_body_surfaces_error() {
+        // Start a mock server to provide a valid URL. The request will never reach
+        // the server — build_request returns Err before .send() is called for the
+        // EC-002 branch. No routes are registered intentionally.
+        let mock_server = MockServer::start().await;
+
+        // body_template = "[]": a JSON array, not an object.
+        // After Interpolator::interpolate (no variables → passthrough), serde_json parses
+        // this as Value::Array([]) — triggers the non-object arm in build_request (EC-002 branch b).
+        let spec = post_offset_limit_spec(
+            &mock_server.uri(),
+            "/api/v1/alerts",
+            Some("[]".to_string()),
+            100,
+        );
+        let table = spec.tables[0].clone();
+        let context = default_context();
+        let http_client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(30))
+            .build()
+            .expect("reqwest Client::build must succeed");
+        let auth_provider = NullAuthProvider;
+
+        let result = PipelineExecutor::execute_with_max_requests(
+            &spec,
+            &table,
+            &context,
+            &http_client,
+            &auth_provider,
+            2,
+        )
+        .await;
+
+        assert!(
+            result.is_err(),
+            "EC-002: POST OffsetLimit step with non-object body_template '[]' must surface \
+             an error, not succeed; got Ok with {} records",
+            result.as_ref().map(|r| r.records.len()).unwrap_or(0)
+        );
+
+        let err = result.unwrap_err();
+        assert!(
+            matches!(
+                err,
+                crate::error::SpecEngineError::HttpRequestFailed { status_code: 0, .. }
+            ),
+            "EC-002: error must be SpecEngineError::HttpRequestFailed{{status_code:0}}; \
+             got: {err:?}"
+        );
+
+        // Verify the error detail mentions the body / interpolation problem.
+        let detail = match &err {
+            crate::error::SpecEngineError::HttpRequestFailed { detail, .. } => detail.clone(),
+            other => panic!("unexpected error variant: {other:?}"),
+        };
+        assert!(
+            detail.contains("non-object") || detail.contains("body interpolation failed"),
+            "EC-002: error detail must mention the non-object body or interpolation failure; \
+             got detail: {detail:?}"
+        );
+    }
+
+    /// EC-002 / BC-2.16.002 v1.70 §Edge Cases — POST OffsetLimit body_template
+    /// is not valid JSON (parse branch, EC-002 branch a).
+    ///
+    /// Contract: "Treat as parse error; surface SpecEngineError with sensor_id and
+    /// step_name. Do NOT panic." (BC-2.16.002 v1.70 EC-002)
+    ///
+    /// Test vector: `body_template = "not-valid-json"` (a bare string, not JSON).
+    /// After Interpolator::interpolate (no variables → passthrough), serde_json::from_str
+    /// fails → build_request returns Err → maps to SpecEngineError::HttpRequestFailed{status_code:0}.
+    ///
+    /// This covers EC-002 branch (a): interpolated body is not parseable as JSON at all.
+    #[tokio::test]
+    async fn test_BC_2_16_002_pagination_post_invalid_json_body_surfaces_error() {
+        let mock_server = MockServer::start().await;
+
+        // body_template = "not-valid-json": after interpolation, serde_json::from_str fails
+        // inside build_request (EC-002 branch a).
+        let spec = post_offset_limit_spec(
+            &mock_server.uri(),
+            "/api/v1/alerts",
+            Some("not-valid-json".to_string()),
+            100,
+        );
+        let table = spec.tables[0].clone();
+        let context = default_context();
+        let http_client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(30))
+            .build()
+            .expect("reqwest Client::build must succeed");
+        let auth_provider = NullAuthProvider;
+
+        let result = PipelineExecutor::execute_with_max_requests(
+            &spec,
+            &table,
+            &context,
+            &http_client,
+            &auth_provider,
+            2,
+        )
+        .await;
+
+        assert!(
+            result.is_err(),
+            "EC-002(a): POST OffsetLimit step with invalid JSON body_template must surface \
+             an error, not succeed; got Ok with {} records",
+            result.as_ref().map(|r| r.records.len()).unwrap_or(0)
+        );
+
+        let err = result.unwrap_err();
+        assert!(
+            matches!(
+                err,
+                crate::error::SpecEngineError::HttpRequestFailed { status_code: 0, .. }
+            ),
+            "EC-002(a): error must be SpecEngineError::HttpRequestFailed{{status_code:0}}; \
+             got: {err:?}"
+        );
+
+        // Verify sensor_id and step_name are present in the error (EC-002 contract).
+        let (sensor_id, step_name) = match &err {
+            crate::error::SpecEngineError::HttpRequestFailed {
+                sensor_id,
+                step_name,
+                ..
+            } => (sensor_id.clone(), step_name.clone()),
+            other => panic!("unexpected error variant: {other:?}"),
+        };
+        assert_eq!(
+            sensor_id, "post-paginated-sensor",
+            "EC-002(a): error must carry sensor_id; got: {sensor_id:?}"
+        );
+        assert_eq!(
+            step_name, "fetch_alerts",
+            "EC-002(a): error must carry step_name; got: {step_name:?}"
+        );
+    }
+
+    // -----------------------------------------------------------------------
     // AC-003 integration test (DTU-gated, #[ignore]'d)
     //
     // Per SID-1: this test is gated on the live DTU clone. The companion unit test
