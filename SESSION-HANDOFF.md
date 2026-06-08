@@ -1,20 +1,20 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.709"
+version: "7.710"
 status: current
-timestamp: 2026-06-08T12:00:00Z
+timestamp: 2026-06-08T18:00:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
 
-> **PRIORITY READ ORDER — D-1056 COMPACTION + DURABLE ZERO-CONTEXT RESUME SNAPSHOT.**
+> **PRIORITY READ ORDER — D-1059 PHASE C SPEC-PREP + DURABLE ZERO-CONTEXT RESUME SNAPSHOT.**
 > Read STATE.md frontmatter + this snapshot before dispatching any agent.
-> develop HEAD `a42e3eaf`. factory-artifacts LOCAL-ONLY (no push). STATE v7.709.
+> develop HEAD `a42e3eaf`. factory-artifacts LOCAL-ONLY (no push). STATE v7.710.
 
 ---
 
-## §RESUME SNAPSHOT 2026-06-08-S-DEMO-003-MERGED
+## §RESUME SNAPSHOT 2026-06-08-PHASE-C-SPEC-PREP
 
 > **START HERE.** This snapshot is self-contained. A fresh session with ZERO prior context can resume exactly here.
 
@@ -27,11 +27,11 @@ timestamp: 2026-06-08T12:00:00Z
 | **Mode** | brownfield |
 | **Phase** | 3 (Wave 5 — wave-5-e-demo-fidelity) |
 | **Wave-5 Phase B** | **COMPLETE** — all 4 lanes + S-MAINT merged |
-| **Wave-5 Phase C** | **NEXT** — Claroty cluster: TRAILING-SLASH → SPEC-PROSE-FIX → HARNESS-CLONE-PARITY |
+| **Wave-5 Phase C** | **IN PROGRESS** — spec-prep committed (D-1059); TRAILING-SLASH ready v1.3 for TDD delivery |
 | **develop HEAD** | `a42e3eaf` |
-| **STATE version** | v7.709 |
-| **BC-INDEX version** | v5.99 |
-| **STORY-INDEX version** | v2.319 |
+| **STATE version** | v7.710 |
+| **BC-INDEX version** | v6.00 |
+| **STORY-INDEX version** | v2.320 |
 | **VP-INDEX version** | v1.76 |
 | **ARCH-INDEX version** | v2.115 |
 | **Active BCs** | 235 |
@@ -43,6 +43,14 @@ timestamp: 2026-06-08T12:00:00Z
 ---
 
 ### 2. What Just Completed
+
+**D-1059 Phase C spec-prep — BC-2.16.002 v1.70 + S-DEMO-CLAROTY-TRAILING-SLASH-001 v1.3 (2026-06-08)**
+
+- **BC-2.16.002 v1.70**: PO authored §Postconditions "OffsetLimit Pagination Dispatch: POST-body vs GET-URL (DRIFT-D850-001)" clause. DRIFT-D850-001 RESOLVED. S-DEMO-CLAROTY-PAGINATION-001 BC gap CLOSED — story is now materializable by story-writer.
+- **S-DEMO-CLAROTY-TRAILING-SLASH-001 v1.3**: story-writer applied six remove-uncertainty corrections (outer-service NormalizePathLayer wrapping at both serve sites; EC-005 strip-only fix; tower-http 0.5 crate-dep pin; axum-0.8 dead-path removal; EC-002 ordering; tags-route enumeration). Status remains `ready`. **User directive: run dclaude:remove-uncertainty on every Phase C story before delivery.**
+- **BC-INDEX v6.00** (row 216: v1.70). **STORY-INDEX v2.320** (TRAILING-SLASH row updated to ready v1.3).
+
+**Also completed (Phase B — for context):**
 
 **S-DEMO-003 MERGED — PR #176 squash-merged develop@a42e3eaf 2026-06-08 (D-1055)**
 
@@ -67,23 +75,22 @@ Full delivery summary:
 
 ---
 
-### 3. Exact Next Steps — Phase C Candidate Stories
+### 3. Exact Next Steps — Phase C Active Stories
 
 Wave-5 Phase C (Claroty cluster — serialized, shared files BC-2.16.013 + claroty.sensor.toml):
 
 | Story | Priority | Status | Notes |
 |-------|----------|--------|-------|
-| **S-DEMO-CLAROTY-PAGINATION-001** | **P1-pre-demo-BLOCKING** | draft — needs story-writer materialization | HARD dependency: BC-2.16.002 §Postconditions POST-vs-GET pagination dispatch clause (DRIFT-D850-001); must be authored by PO BEFORE story dispatch. Phase C cannot start until BC-2.16.002 POST-vs-GET clause exists. |
-| **S-DEMO-CLAROTY-TRAILING-SLASH-001** | P1 | ready | Claroty trailing-slash parity; BC-2.16.013 trailing-slash coverage clause. **Highest-priority immediately actionable story** (no blocking PO gate). |
+| **S-DEMO-CLAROTY-TRAILING-SLASH-001** | **P1** | **ready v1.3** | Claroty trailing-slash parity; BC-2.16.013 active; remove-uncertainty DONE (v1.3). **Highest-priority immediately actionable story.** |
+| **S-DEMO-CLAROTY-PAGINATION-001** | **P1-pre-demo-BLOCKING** | draft — needs story-writer materialization | BC gap CLOSED (BC-2.16.002 v1.70; DRIFT-D850-001 RESOLVED). Story-writer must materialize + PO BC-array review per S-7.01 before dispatch. |
 | S-DEMO-CROWDSTRIKE-MULTIREGION-001 | P2 | merged | COMPLETE (PR #170) |
 | S-DEMO-HARNESS-CLONE-PARITY-001 | P2 | draft stub | Closes F-P6-DEFER-001 + F-P10-LOW-001; prism-dtu-harness search+audit_log routes; depends_on [S-DEMO-ARMIS-AQL-001 SATISFIED, S-DEMO-CLAROTY-AUDIT-DTU-001 SATISFIED] |
 | S-DEMO-CLAROTY-SPEC-PROSE-FIX-001 | P2 | draft stub | Closes F-P2-DEFER-001; BC-2.16.013 prose correction; prism-sensors; depends_on [S-DEMO-CLAROTY-AUDIT-DTU-001 SATISFIED] |
 | S-DEMO-LAUNCHER-CONSOLIDATION-001 | P2 | draft stub | depends_on S-DEMO-003 **SATISFIED**; story-writer materialization + human review of script-lifecycle question needed before dispatch |
 
-**RECOMMENDED NEXT ACTION:**
-1. If user confirms autonomous execution (D-989 active): dispatch S-DEMO-CLAROTY-TRAILING-SLASH-001 immediately (P1, ready, no blocking gates).
-2. Simultaneously: dispatch PO to author BC-2.16.002 POST-vs-GET pagination dispatch clause (DRIFT-D850-001) to unblock S-DEMO-CLAROTY-PAGINATION-001 (P1-BLOCKING).
-3. The user requested compaction "before the next story" — confirm next-story pick with user OR proceed per D-989 autonomy to S-DEMO-CLAROTY-TRAILING-SLASH-001.
+**RECOMMENDED NEXT ACTION (D-989 autonomy ACTIVE):**
+1. Dispatch S-DEMO-CLAROTY-TRAILING-SLASH-001 immediately (P1, ready v1.3, remove-uncertainty done, no blocking gates). **Note: dclaude:remove-uncertainty was already applied at v1.3 — do NOT re-run.**
+2. In parallel or after TRAILING-SLASH: dispatch story-writer to materialize S-DEMO-CLAROTY-PAGINATION-001 (BC gap now satisfied by BC-2.16.002 v1.70).
 
 ---
 
@@ -125,7 +132,7 @@ Wave-5 Phase C (Claroty cluster — serialized, shared files BC-2.16.013 + claro
 - DEFER-CLAUDEMD-BC216002-MISLABEL-001: SAP-1 probe cites BC-2.16.002 as "Structured Event Catalog" but that BC is "Multi-Step Fetch Pipeline"; catalog lives in BC-2.05.005/BC-2.03.010. Human-mandated CLAUDE.md edit required.
 
 **Active open drift items (non-blocking unless noted):**
-- DRIFT-D850-001: BC-2.16.002 missing POST-vs-GET pagination dispatch invariant clause — **BLOCKING for S-DEMO-CLAROTY-PAGINATION-001**; PO must amend before that story dispatches.
+- DRIFT-D850-001: **RESOLVED D-1059 2026-06-08** — BC-2.16.002 v1.70 POST-vs-GET pagination clause authored; S-DEMO-CLAROTY-PAGINATION-001 BC gap CLOSED. Story now materializable by story-writer.
 - DRIFT-D954-001: BC-3.5.002 precondition 3 mis-cite in prism-dtu-armis (~40+) + prism-dtu-slack (1) — S-MAINT-W3SEC-CITE-SWEEP-002 anchored; story-writer materialization needed.
 - DRIFT-D1016-SEC-007: QueryParams.start_time/end_time as Option<String>; TimestampString newtype candidate — architect/PO adjudication.
 - DEFER-EQUERY009-001: BC-2.11.007 DI-021 E-QUERY-009 enforcement absent from live path — phase-5 adjudication.
@@ -154,7 +161,7 @@ git log --oneline develop | head -1
 
 # 3. Verify STATE.md version
 grep '^version:' .factory/STATE.md
-# Expected: version: "7.709"
+# Expected: version: "7.710"
 
 # 4. Verify no open PRs
 gh pr list --state open

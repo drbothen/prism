@@ -8,7 +8,7 @@ priority: P1
 status: ready
 # BC-2.16.013 v1.25 authored by PO (D-989 Phase-A burst) — trailing-slash parity clause
 # confirmed; normalize_path middleware requirement documented. S-7.01 gate CLEARED.
-version: "1.2"
+version: "1.3"
 level: "L4"
 producer: story-writer
 timestamp: "2026-05-31T00:00:00Z"
@@ -77,17 +77,20 @@ estimated_passes: "1-2 LOCAL adversary passes"
 holdout_scenarios: []
 assumption_validations: []
 risk_mitigations:
-  - "Verify normalize_path does NOT break existing routes: after adding normalize_path
-    middleware, run the full prism-dtu-claroty test suite to confirm all existing tests
-    still pass. normalize_path can affect trailing-slash stripping or addition — verify
-    bidirectionality (adds trailing slash if absent AND strips if present)."
-  - "AC-003 soft dependency on S-DEMO-CLAROTY-AUDIT-DTU-001: if /api/v1/audit_log/get
-    route does not exist in the DTU, the trailing-slash AC for that path cannot be
-    verified end-to-end. Write AC-003 against a stub that returns 200 + empty body;
-    mark the test with a code comment citing the dependency. Do NOT block this story
-    on that dependency."
-  - "tower-http version: if normalize_path is added via tower-http crate, verify the
-    workspace version pin; do NOT add a new version independently."
+  - "Outer-service wrapping required: NormalizePathLayer MUST wrap the outer service (not
+    Router::layer()). In axum 0.7, Router::layer() runs after routing — NormalizePathLayer
+    silently NO-OPs. Both serve sites (~line 168 TLS and ~line 192 non-TLS) must wrap the
+    normalized service. Use ServiceExt::<axum::extract::Request>::into_make_service (fully
+    qualified — axum#2377)."
+  - "NormalizePathLayer is STRIP-ONLY (trim_trailing_slash): rewrites /alerts/ → /alerts.
+    It does NOT add slashes. Routes stay registered WITHOUT trailing slash. The intentional
+    /api/v1/devices/:device_id/tags/ route (clone.rs ~line 128) WITH trailing slash will be
+    broken by strip — either drop its trailing slash from registration, or verify existing
+    tag tests pass after middleware addition."
+  - "tower-http = 0.5 pinned in crates/prism-dtu-claroty/Cargo.toml [dependencies] (production
+    deps, not dev-deps). Match prism-dtu-common Cargo.toml:30. Do NOT use tower-http 0.6."
+  - "AC-003 soft dependency RESOLVED: S-DEMO-CLAROTY-AUDIT-DTU-001 already merged
+    (develop@e1c632dc); real audit_log handler available. Stub fallback no longer needed."
 inputs:
   - "crates/prism-dtu-claroty/src/clone.rs"
   - "crates/prism-dtu-claroty/src/routes/alerts.rs"
@@ -242,10 +245,19 @@ match the real Claroty xDome API; grounding authority: ADR-028 §D1 — paths de
 ### AC-005: Existing non-trailing-slash routes and /dtu/* routes unaffected
 After adding normalize_path middleware, all existing DTU tests pass without modification.
 Specifically:
-- `POST /api/v1/alerts` (no trailing slash) continues to return 200 (normalize_path
-  normalizes BOTH trailing-slash and no-trailing-slash to the same route).
+- `POST /api/v1/alerts` (no trailing slash) continues to return 200 — `trim_trailing_slash()`
+  strips only; requests without a trailing slash pass through unmodified and hit the existing
+  no-slash route directly.
 - `POST /dtu/configure`, `POST /dtu/reset`, `GET /dtu/health` all return their expected
   responses (normalize_path does not disrupt control-plane routes).
+- **CRITICAL — intentional tags trailing-slash route:** `clone.rs` (~line 128) registers
+  `POST /api/v1/devices/:device_id/tags/` WITH a trailing slash. With global
+  `trim_trailing_slash()`, an inbound `.../tags/` request is stripped to `.../tags`, which
+  will NOT match the registered `.../tags/` route (404). Resolution required: either
+  (a) also drop the trailing slash from the registered tags route (`/api/v1/devices/:device_id/tags`),
+  or (b) verify that existing tag tests still pass after middleware addition and document
+  why. The implementer MUST verify the existing AC-3/AC-4 tag tests (from `devices.rs`
+  test suite) pass before declaring this story done. If they fail, fix (a) applies.
 (traces to BC-2.16.013 v1.25 §Postconditions §1 — normalize_path middleware MUST NOT
 break existing routes; ADR-031 §D8-b backward-compatibility note)
 
@@ -257,7 +269,17 @@ break existing routes; ADR-031 §D8-b backward-compatibility note)
 |-----------|----|-------|-------------|
 | `test_claroty_trailing_slash_alerts_returns_200` | AC-001 | prism-dtu-claroty | POST /api/v1/alerts/ returns 200 with fixture data; not 301/404 |
 | `test_claroty_trailing_slash_devices_returns_200` | AC-002 | prism-dtu-claroty | POST /api/v1/devices/ returns 200 with fixture data; not 301/404 |
-| `test_claroty_trailing_slash_audit_log_get_returns_200` | AC-003 | prism-dtu-claroty | POST /api/v1/audit_log/get/ returns 200; stub if S-DEMO-CLAROTY-AUDIT-DTU-001 not merged |
+| `test_claroty_trailing_slash_audit_log_get_returns_200` | AC-003 | prism-dtu-claroty | POST /api/v1/audit_log/get/ returns 200; S-DEMO-CLAROTY-AUDIT-DTU-001 merged (develop@e1c632dc) |
+
+**Both serve paths requirement (FIX-1 / FIX-6):**
+The parity tests must exercise the outer-service builder that BOTH serve sites use. The
+test helper (`ClarotyClone` test setup) must construct the service using the same
+`NormalizePathLayer::trim_trailing_slash().layer(router)` + `ServiceExt::into_make_service`
+pattern as `clone.rs`. If the test helper uses `router.into_make_service()` directly
+(bypassing the normalization layer), the Red Gate tests will pass green even though the
+production serve sites are broken — catching the "one path ships broken" failure mode
+(axum 0.7 outer-service placement requirement). Document in a test comment which serve
+site (TLS or non-TLS) the helper emulates, and that both `clone.rs` paths must mirror it.
 
 ---
 
@@ -267,34 +289,50 @@ break existing routes; ADR-031 §D8-b backward-compatibility note)
    whether `normalize_path` or any trailing-slash middleware is already in the layer stack.
    (Current state: `Router::new().route(...).route(...)` — no middleware visible in grep
    results from build_router() inspection.)
-2. **Research** axum normalize_path behavior — verify which of these applies to the
-   workspace's axum version:
-   - `axum::middleware::from_fn(axum::middleware::map_request(...))` approach
-   - `tower_http::normalize_path::NormalizePathLayer` (if tower-http is already in workspace)
-   Note: per ADR-031 §D8-b: "Axum's default behavior does NOT automatically redirect or
-   accept trailing-slash variants unless `axum::middleware::normalize_path()` is in the
-   layer stack." Confirm this for the workspace's axum version.
+2. **Confirm** the correct middleware: `tower_http::normalize_path::NormalizePathLayer::trim_trailing_slash()` is the DEFINITIVE approach for axum 0.7 (pinned in `crates/prism-dtu-claroty/Cargo.toml`). axum has NEVER shipped a built-in trailing-slash normalizer in any 0.7 or 0.8 release — tower-http is always required. No research needed; proceed to step 3.
 3. **Write Red Gate tests** (must ALL FAIL before implementation):
    - `test_claroty_trailing_slash_alerts_returns_200`
    - `test_claroty_trailing_slash_devices_returns_200`
    - `test_claroty_trailing_slash_audit_log_get_returns_200`
    These tests should fail with 404 if normalize_path is absent (proving the gap is real).
-4. **Add normalize_path middleware** to `build_router()` in `clone.rs`. Preferred approach:
+4. **Add `tower-http = "0.5"` to `crates/prism-dtu-claroty/Cargo.toml` `[dependencies]`**
+   (production deps — NOT dev-deps). Then apply the OUTER-SERVICE wrapping pattern in
+   `clone.rs` — do NOT use `Router::layer()` for `NormalizePathLayer`:
+
+   **WHY:** In axum 0.7, `Router::layer()` runs middleware AFTER routing. The Router
+   resolves the path first (404s on `/alerts/` since the route is registered as `/alerts`),
+   THEN runs the layer — so `NormalizePathLayer` via `Router::layer()` silently NO-OPS
+   for trailing-slash matching. The path must be normalized BEFORE routing.
+
+   **CORRECT pattern — wrap the outer service:**
    ```rust
-   // If tower-http is already a workspace dependency:
    use tower_http::normalize_path::NormalizePathLayer;
-   let router = Router::new()
-       .route("/api/v1/devices", post(devices::list_devices))
-       .route("/api/v1/alerts", post(alerts::list_alerts))
-       // ... other routes ...
-       .layer(NormalizePathLayer::trim_trailing_slash());
+   use tower::Layer; // for applying the layer to the service
+   use axum::ServiceExt; // for into_make_service on the layered service
+
+   // In build_router() — return the Router as today (routes WITHOUT trailing slash).
+   // Routes stay WITHOUT trailing slash; trim_trailing_slash() strips inbound /alerts/ → /alerts.
+   // After build_router() returns the Router, at the TWO serve sites in clone.rs:
+
+   // --- non-TLS serve site (~line 192): ---
+   let app = NormalizePathLayer::trim_trailing_slash().layer(router);
+   axum::serve(listener, ServiceExt::<axum::extract::Request>::into_make_service(app)).await?;
+
+   // --- TLS serve site (~line 168): ---
+   let app = NormalizePathLayer::trim_trailing_slash().layer(router);
+   axum_server::from_tcp_rustls(listener, tls_config)
+       .serve(ServiceExt::<axum::extract::Request>::into_make_service(app))
+       .await?;
    ```
-   Alternative (axum built-in, version-dependent):
-   ```rust
-   use axum::ServiceExt; // if available in workspace axum version
-   ```
-   Use whichever approach matches the workspace's dependency set. Do NOT add new crate
-   dependencies if the existing workspace already provides normalize_path via axum or tower-http.
+
+   The fully-qualified `ServiceExt::<axum::extract::Request>::into_make_service` syntax is
+   REQUIRED because the layered service's Service impl has generics the compiler cannot
+   infer (axum issue #2377). Do NOT simplify to `app.into_make_service()` — it will not
+   compile.
+
+   **BOTH serve sites MUST wrap the normalized outer service** — if only one site is
+   updated, the TLS (or non-TLS) path ships broken. Verify both ~line 168 and ~line 192
+   are updated before declaring AC-001/002/003 done.
 5. **Run** `cargo nextest run -p prism-dtu-claroty` — Red Gate tests must now PASS GREEN.
    ALL existing tests must still pass (AC-005 verification).
 6. **Update** `crates/prism-sensors/specs/claroty.sensor.toml`:
@@ -317,7 +355,7 @@ break existing routes; ADR-031 §D8-b backward-compatibility note)
 | `crates/prism-dtu-claroty/src/clone.rs` | MODIFY | Add normalize_path middleware layer to build_router() |
 | `crates/prism-sensors/specs/claroty.sensor.toml` | MODIFY | Update 3 path_template values to trailing-slash form; close Gap-CL-001 comment |
 | `crates/prism-dtu-claroty/tests/` | MODIFY or CREATE | Add 3 Red Gate trailing-slash parity tests |
-| `Cargo.toml` (workspace) | POSSIBLY MODIFY | Add tower-http if not already present; verify version |
+| `crates/prism-dtu-claroty/Cargo.toml` | MODIFY — add to `[dependencies]` | Add `tower-http = "0.5"` to PRODUCTION deps (not dev-deps; the middleware ships in router code). Match the existing `prism-dtu-common` pin (Cargo.toml:30). Do NOT use tower-http 0.6 (moved to a newer http-body line, incompatible with axum 0.7 / tower 0.4 / http 1.0). This is a crate-level dep add, NOT a workspace Cargo.toml change. |
 
 ---
 
@@ -342,12 +380,16 @@ test fixture; the production spec engine must not import it (and the reverse mus
 
 | Library | Version | Purpose |
 |---------|---------|---------|
-| `axum` | workspace version | Existing DTU router; normalize_path middleware (if available in this axum version) |
-| `tower-http` | workspace version | `NormalizePathLayer` for trailing-slash normalization (if not in axum directly) |
+| `axum` | `"0.7"` (pinned in `crates/prism-dtu-claroty/Cargo.toml`) | Existing DTU router; `ServiceExt::into_make_service` for wrapping the layered outer service |
+| `tower-http` | `"0.5"` (add to `crates/prism-dtu-claroty/Cargo.toml` `[dependencies]`) | `normalize_path::NormalizePathLayer::trim_trailing_slash()` — the ONLY supported path normalization mechanism for axum 0.7. axum has NEVER shipped a built-in trailing-slash normalizer in any 0.7 or 0.8 release; tower-http is always required. |
+| `tower` | `"0.4"` (pinned in `crates/prism-dtu-claroty/Cargo.toml`) | `tower::Layer` trait for `.layer()` call on `NormalizePathLayer`; `ServiceExt` for `into_make_service` on the layered service |
 | `prism-dtu-common` | workspace path | Existing fixture loading; unchanged |
 
-Version source: workspace `Cargo.toml`. Verify tower-http is already a workspace dependency
-before adding it. If not present, check axum's built-in normalize_path capability first.
+Version source: `crates/prism-dtu-claroty/Cargo.toml` (axum 0.7, tower 0.4, http 1) and
+`crates/prism-dtu-common/Cargo.toml:30` (tower-http 0.5). Do NOT use tower-http 0.6.
+Do NOT hedge on "axum 0.8.x+ may have built-in normalize_path" — it does not, and the
+definitive approach is axum 0.7 + tower-http 0.5 `NormalizePathLayer::trim_trailing_slash()`
+wrapped via outer-service `ServiceExt::into_make_service`.
 
 ---
 
@@ -372,34 +414,55 @@ This is the second story in E-DTU-FIDELITY (after S-DTU-CYBERINT-AUTH-FIDELITY-0
 | ID | Description | Expected Behavior |
 |----|-------------|-------------------|
 | EC-001 | POST /api/v1/alerts (no trailing slash) after normalize_path added | normalize_path normalizes both forms to the same route; returns 200 (backward compat) |
-| EC-002 | POST /api/v1/alerts/ with missing Authorization header | Returns 401 (existing check_bearer_auth logic unchanged); normalize_path runs before auth check |
+| EC-002 | POST /api/v1/alerts/ with missing Authorization header | Returns 401 (existing check_bearer_auth logic unchanged); normalize_path runs before routing and before the handler's `check_bearer_auth` — this ordering is CORRECT only because `NormalizePathLayer` wraps the OUTER service (FIX-1 outer-service pattern). If mis-applied via `Router::layer()`, the request 404s before auth runs, making this EC false. |
 | EC-003 | GET /dtu/health with and without trailing slash | normalize_path applies; GET /dtu/health/ returns 200 (same handler); no regression |
 | EC-004 | S-DEMO-CLAROTY-AUDIT-DTU-001 not yet merged | AC-003 test uses stub handler; comment cites dependency; story is not blocked |
-| EC-005 | normalize_path strips trailing slash instead of adding one | If normalize_path behavior is strip-only, route registration must use trailing-slash form; verify bidirectionality before choosing middleware approach |
+| EC-005 | NormalizePathLayer direction — strip vs add | `NormalizePathLayer::trim_trailing_slash()` is STRIP-ONLY: it rewrites inbound `/alerts/` → `/alerts`. It does NOT add slashes. These are TWO INDEPENDENT directions: (a) OUTBOUND — prism's TOML `path_template` gains a trailing slash (AC-004) so prism sends `/alerts/` to the real Claroty API; (b) INBOUND — the DTU strips the trailing slash and matches its existing no-slash route. There is no "bidirectionality" to verify for the DTU. Note: `append_trailing_slash()` is the opposite variant — it would ADD slashes to inbound no-slash requests, which would BREAK existing no-slash routes (AC-005). Do NOT use `append_trailing_slash()`. |
 
 ---
 
 ## Notes for Implementer
 
-**Verify normalize_path behavior for your axum version:** The correct middleware choice
-depends on the workspace's axum version:
-- axum 0.7.x: `tower_http::normalize_path::NormalizePath` is the standard approach.
-- axum 0.8.x+: may have built-in normalize_path; check axum changelog.
+**Use the OUTER-SERVICE wrapping pattern — NOT Router::layer():**
+The workspace pins `axum = "0.7"` in `crates/prism-dtu-claroty/Cargo.toml`. In axum 0.7,
+`Router::layer()` runs middleware AFTER routing — the Router 404s on `/alerts/` before
+`NormalizePathLayer` ever sees the request, making the layer silently NO-OP for
+trailing-slash matching. The ONLY correct placement is wrapping the OUTER service after
+`build_router()` returns. See Tasks step 4 for the exact code pattern.
 
-Run a quick test: `POST /api/v1/alerts/` against the current (pre-change) DTU. If it
-returns 404, normalize_path is absent and must be added. If it returns 200, the middleware
-is already present (unlikely given ADR-031 §D8-b analysis) and only TOML changes are needed.
+**axum has no built-in trailing-slash normalizer (any version):**
+axum has NEVER shipped a built-in path/trailing-slash normalization middleware in any
+0.7 or 0.8 release. `axum::ServiceExt` is NOT a normalizer — its role here is purely
+`into_make_service` conversion of the layered service. tower-http's
+`NormalizePathLayer::trim_trailing_slash()` is always required. Do NOT hedge on
+"axum 0.8.x+ may have built-in normalize_path" — it does not.
 
-**TOML change is mandatory regardless of DTU behavior:** Even if the DTU already accepts
-trailing-slash paths (e.g., via an existing middleware not visible in build_router), the
-TOML `path_template` values must still be updated to trailing-slash form (AC-004). The TOML
-is what prism sends to the REAL Claroty API in production; the DTU is the test fixture.
+**NormalizePathLayer is STRIP-ONLY:**
+`NormalizePathLayer::trim_trailing_slash()` rewrites inbound `/alerts/` → `/alerts`.
+It does NOT add slashes to requests that lack them. Routes stay registered WITHOUT
+trailing slash (current state is correct — do not re-register with slashes).
+`append_trailing_slash()` is the OPPOSITE variant — it would ADD slashes to inbound
+no-slash requests, which would break EC-001 (existing no-slash tests). Do NOT use it.
+
+**Both serve sites must be updated:**
+`clone.rs` has TWO serve sites: TLS path (~line 168, `into_make_service()`) and non-TLS
+path (~line 192, `axum::serve`). BOTH must wrap the `NormalizePathLayer`-normalized
+outer service. If only one is updated, one transport path ships broken with no test
+catching it (unless the Red Gate tests exercise both paths — see Red Gate section).
+
+**Intentional tags trailing-slash route (AC-005):**
+`clone.rs` ~line 128 registers `POST /api/v1/devices/:device_id/tags/` WITH a trailing
+slash. `trim_trailing_slash()` will strip inbound `.../tags/` to `.../tags`, which misses
+the registered `.../tags/` route. Either drop the trailing slash from the registered tags
+route (preferred), or document why existing tag tests pass. Check before declaring done.
+
+**TOML change is mandatory regardless of DTU behavior:**
+The TOML `path_template` values must still be updated to trailing-slash form (AC-004). The
+TOML is what prism sends to the REAL Claroty API in production; the DTU is the test fixture.
 
 **AC-003 soft dependency notation:** The test for `POST /api/v1/audit_log/get/` must
-include a code comment: `// Soft dep: S-DEMO-CLAROTY-AUDIT-DTU-001 must merge before this
-test exercises the real audit_log handler. Using stub for trailing-slash verification.`
-This makes the dependency visible during adversarial review and prevents false pass/fail
-confusion.
+include a code comment: `// S-DEMO-CLAROTY-AUDIT-DTU-001 merged develop@e1c632dc;
+// real audit_log handler available; trailing-slash normalization verified against production handler.`
 
 ---
 
@@ -407,10 +470,13 @@ confusion.
 
 | Risk | Mitigation |
 |------|-----------|
-| normalize_path strips trailing slashes rather than accepting both forms | Test AC-005 (existing no-trailing-slash tests must pass) before AC-001/AC-002/AC-003; if stripping behavior causes regressions, switch to explicit trailing-slash route registration |
-| tower-http not in workspace | Check Cargo.toml workspace dependencies first; use axum built-in if available; add tower-http only if necessary with workspace version pin |
-| AC-003 hard-blocks on S-DEMO-CLAROTY-AUDIT-DTU-001 | Explicitly NOT a hard block (see §AC-003 text and notes); write stub route returning empty 200 body in test setup |
-| New event_type emission uncatalogued | SAP-1 sweep: `rg 'event_type\s*=' crates/ --type rust`; zero new emissions without catalog rows |
+| `Router::layer()` outer-service mis-application — `NormalizePathLayer` NO-OPs silently | Always wrap the outer service (Tasks step 4 pattern), NEVER via `Router::layer()`. Verify Red Gate tests fail before impl (proving the gap) and pass after. |
+| Intentional `/api/v1/devices/:device_id/tags/` route broken by strip | `trim_trailing_slash()` strips `.../tags/` → `.../tags` which misses the registered `.../tags/` route. Either drop the trailing slash from the registered route, or verify existing tag tests still pass. Check AC-005. |
+| One serve site (TLS or non-TLS) updated but not the other | Red Gate tests MUST exercise both serve paths (or the test helper must use the same outer-service builder both paths use). Verify both ~line 168 and ~line 192 are updated. |
+| `append_trailing_slash()` confusion | Do NOT use `append_trailing_slash()` — it ADDs slashes to inbound no-slash requests, breaking EC-001. Use only `trim_trailing_slash()`. |
+| `tower-http` wrong version | Add `tower-http = "0.5"` (matching `prism-dtu-common` Cargo.toml:30) to `crates/prism-dtu-claroty/Cargo.toml` `[dependencies]`. tower-http 0.6 is incompatible with axum 0.7 / tower 0.4 / http 1.0 — do NOT use it. |
+| AC-003 hard-blocks on S-DEMO-CLAROTY-AUDIT-DTU-001 | Explicitly NOT a hard block (see §AC-003 text and notes); S-DEMO-CLAROTY-AUDIT-DTU-001 already merged (develop@e1c632dc). |
+| New event_type emission uncatalogued | SAP-1 sweep: `rg 'event_type\s*=' crates/ --type rust`; zero new emissions without catalog rows. |
 
 ---
 
@@ -449,6 +515,7 @@ Well within the 20-30% budget.
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.3 | 2026-06-08 | story-writer | Six uncertainty-removal corrections from remove-uncertainty research pass (Perplexity + axum docs + tower-http source + axum#2377). FIX-1 (HIGH/U1): replaced wrong Router::layer() snippet with correct outer-service wrapping pattern for BOTH serve sites (~line 168 TLS, ~line 192 non-TLS); ServiceExt::<Request>::into_make_service fully-qualified (axum#2377). FIX-2 (HIGH/U2): corrected EC-005 strip-vs-add inversion — trim_trailing_slash() is STRIP-ONLY; two independent directions (OUTBOUND TOML, INBOUND DTU strip); removed wrong "bidirectionality" claim; noted append_trailing_slash() danger. FIX-3 (MEDIUM/U3): concrete crate-level dep instruction — add tower-http = "0.5" to crates/prism-dtu-claroty/Cargo.toml [dependencies] (production, not dev-deps); do not use 0.6. FIX-4 (MEDIUM/U4): removed axum-0.8 dead path and "(if available)" hedges; definitive statement axum has never shipped built-in path normalizer. FIX-5 (MEDIUM/U5): EC-002 auth-ordering tied to outer-service placement from FIX-1. FIX-6 (LOW/U6): AC-005 enumerates intentional /api/v1/devices/:device_id/tags/ trailing-slash route; Red Gate tests require outer-service builder to prevent "one path ships broken" failure. |
 | 1.2 | 2026-06-03 | state-manager | D-990 Phase-A-close: status draft→ready; BC-2.16.013 v1.25 active (PO authored D-989); depends_on S-DEMO-CLAROTY-AUDIT-DTU-001 (SOFT, merged PR #167) SATISFIED; S-7.01 gate CLEARED. |
 | 1.1 | 2026-06-03 | story-writer | Wave-5 Phase-A BC-array propagation burst (D-989). PO authored BC-2.16.013 v1.25 with trailing-slash parity clause + normalize_path middleware requirement for claroty.sensor.toml. Propagated into story: (1) `behavioral_contracts: []` → `[BC-2.16.013]`; Flag 1 CLOSED. (2) Added §Behavioral Contracts table with BC-2.16.013 v1.25 role. (3) ACs updated: AC-001/002/003/004/005 now cite `BC-2.16.013 v1.25 §Postconditions §1` instead of `ADR-031 §D8-b requirement N (pending formal BC authorship)`. AC-003 soft-dep note updated: S-DEMO-CLAROTY-AUDIT-DTU-001 already merged (develop@e1c632dc); stub fallback no longer needed. Version bump 1.0 → 1.1. |
 | 1.0 | 2026-05-31 | story-writer | Initial materialization from [stub] per ADR-031 §D8-b v1.2 reclassification. 5 ACs, 3 Red Gate tests, 3 pts, wave 5, P1. Grounded against crates/prism-dtu-claroty/src/clone.rs (build_router — no normalize_path found), routes/alerts.rs (registered as POST /api/v1/alerts without trailing slash), routes/devices.rs (same pattern), claroty.sensor.toml (Gap-CL-001 comment). Soft dependency on S-DEMO-CLAROTY-AUDIT-DTU-001 for AC-003 explicitly documented with stub-based mitigation. New-BC flag provided to PO for BC-2.16.013 coverage confirmation. |

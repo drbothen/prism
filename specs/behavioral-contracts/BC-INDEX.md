@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "5.99"
+version: "6.00"
 status: draft
 producer: product-owner
 timestamp: 2026-06-08T12:00:00Z
@@ -213,7 +213,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.15.010 | Decorator Three-Phase Model — Config-Time, Query-Time, Periodic | 15 - Storage Layer | CAP-026 | P0 | draft |
 | BC-2.15.011 | Internal Table Registration — RocksDB Domains as DataFusion Tables | 15 - Storage Layer | CAP-028 | P0 | draft |
 | BC-2.16.001 | Sensor Spec File Loading — Parse TOML, Validate Schema, Register Tables | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-776 per POL-14; anchor story PLUGIN-MIGRATION-001-D merged PR #153 develop@3f2de889 2026-05-22) — v1.7 |
-| BC-2.16.002 | Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-427 per POL-14; anchor story S-PLUGIN-PREREQ-B merged PR #143 develop@ae7e26c8 2026-05-12) — v1.69 |
+| BC-2.16.002 | Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-427 per POL-14; anchor story S-PLUGIN-PREREQ-B merged PR #143 develop@ae7e26c8 2026-05-12) — v1.70 |
 | BC-2.16.003 | Column-to-OCSF Mapping at Query Time — Map Sensor Columns to OCSF Fields Per Spec | 16 - Spec Engine | CAP-029 | P0 | draft |
 | BC-2.16.004 | ~~Rust Escape Hatch for Custom Adapters — Trait-Based Override When Config Is Insufficient~~ | 16 - Spec Engine | CAP-029 | P0 | removed (lifecycle_status: removed since PREREQ-E impl; status aligned at D-726 per POL-14 PR #151 merge) — v1.5 |
 | BC-2.16.005 | `reload_config` MCP Tool — Re-Read All Config Files, Validate, Atomic Swap, Notify | 16 - Spec Engine | CAP-030 | P1 | draft |
@@ -377,6 +377,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 
 ### Change Log (Adversarial Review Fixes)
 
+**v6.00 (2026-06-08, D-1059 Phase C spec-prep — BC-2.16.002 v1.69→v1.70 OffsetLimit POST-vs-GET pagination dispatch clause; DRIFT-D850-001 CLOSED):** product-owner | BC-2.16.002 v1.69→v1.70 — added §Postconditions "OffsetLimit Pagination Dispatch: POST-body vs GET-URL (DRIFT-D850-001)" clause. Closes DRIFT-D850-001. No new invariant/error IDs. No new event_type emission. No BC count changes (active: 235, draft: 2 unchanged). BC-INDEX in-line row 216 updated to v1.70. BC-INDEX v5.99→v6.00.
+
 **v5.99 (2026-06-08, D-1057 — empirical BC-count reconciliation):** state-manager | Ground-truth enumeration of `lifecycle_status:` fields across all 246 BC files: active=235, draft=2 (BC-2.06.011 + BC-2.21.001), removed=7, retired=2, total=246. Root cause of v5.98 error: D-1055 counted BC-2.06.003's POL-14 transition as a new active promotion (reporting `active 234→236`), but BC-2.06.003's `lifecycle_status` was already `active` before D-1055 — only the legacy `status:` field was synced. The real net change at D-1055 was `active 234→235` (BC-2.06.001 only); draft changed `3→2` (BC-2.06.011 + BC-2.21.001 remain). Corrections: frontmatter `active_contracts: 236→235`, `draft_contracts: 1→2`; header prose updated; Note arithmetic corrected (235+2+0+7+2=246); changelog v5.98 "Count update" row corrected in-place narrative. STATE.md frontmatter + resume snapshot corrected to match. STATE v7.707→v7.708. BC-INDEX v5.98→v5.99.
 
 **v5.98 (2026-06-08, D-1055 S-DEMO-003 MERGED PR #176 develop@a42e3eaf — POL-14 BC promotions):** state-manager | POL-14 auto-promotion: (1) BC-2.06.001 v1.2→v1.3 `status: draft→active` + `lifecycle_status: draft→active` — S-DEMO-003 is in `behavioral_contracts:` array; demo-setup.sh generates schema-valid prism.toml; TOML loading exercised by merged test suite (CI 43/43 GREEN). BC-INDEX in-line row 101 updated to active v1.3. (2) BC-2.06.003 v1.10→v1.11 `status: draft→active` — `lifecycle_status: active` was already correct (ADR-025 ground truth); `status:` field synced to match. E-CRED-008 emitter + boot Tier-3a `KeyringCredentialProbe::probe` (OrgId-keyed `get_by_org` per ADR-034 §D3/§D5) merged in PR #176. BC-INDEX in-line row 103 updated to active v1.11. (3) BC-2.03.005 v1.6 already active — idempotent no-op confirm. (4) BC-2.03.007 v1.3 already active — idempotent no-op confirm. (5) BC-2.22.001 v1.5 already active — idempotent no-op confirm. Count update (corrected by v5.99 D-1057): BC-2.06.001 moved draft→active (net +1 active); BC-2.06.003 `lifecycle_status` was already active (legacy `status:` sync only; not a new active); real count change at D-1055: active_contracts 234→235 (+1), draft_contracts 3→2. BC-INDEX v5.97→v5.98.
@@ -391,7 +393,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 
 **v5.93 (2026-06-07, BC-2.06.003 v1.6→v1.7 pin sync — F-P17-MED-001 VP-INDEX de-pin; S-MAINT-ECRED-TAXONOMY-SYNC-001):** state-manager | BC-2.06.003 v1.6→v1.7 pin sync (LOCAL pass-17 fix F-P17-MED-001: de-pinned stale "VP-INDEX v1.5" volatile pin in §Verification Properties per TD-VSDD-091). BC-INDEX in-line row 103 version pin updated v1.6→v1.7; change note appended. No BC count changes (active: 234, draft: 3 unchanged). BC-INDEX v5.92→v5.93.
 
-**v5.92 (2026-06-07, BC-2.06.003 v1.5→v1.6 pin sync — F-P11-HIGH-001 §D4 anchor fix; S-MAINT-ECRED-TAXONOMY-SYNC-001):** state-manager | BC-2.06.003 v1.5→v1.6 pin sync: BC body line 123 wrong-section anchor corrected (ADR-034 §D5 → §D4 amended by ADR-035 §D5). BC-INDEX in-line row 103 version pin updated v1.5→v1.6; change note appended. No BC count changes (active: 234, draft: 3 unchanged). BC-INDEX v5.91→v5.92.
+**v5.92 (2026-06-07, BC-2.06.003 v1.5→v1.6 pin sync — F-P11-HIGH-001 §D4 anchor fix; S-MAINT-ECRED-TAXONOMY-SYNC-001):**
 
 **v5.91 (2026-06-07, F-PASS1-HIGH-001 S-MAINT-ECRED-TAXONOMY-SYNC-001 — BC-2.06.003 row v1.4→v1.5, E-CRED-005→E-CRED-008):** state-manager | F-PASS1-HIGH-001 closure: BC-2.06.003 inline row 103 updated v1.4→v1.5 and E-CRED-005→E-CRED-008 keyring-unavailable code per ADR-035 §D2/§D5. The stale row described ADR-034 §D4 error semantics using E-CRED-005; BC-2.06.003 v1.5 (S-MAINT-ECRED-TAXONOMY-SYNC-001 burst 2026-06-07) canonically assigns keyring `BackendUnavailable` to E-CRED-008 (collision resolved: E-CRED-005 is `PrismError::CredentialEncryptionError`; ADR-035 §D2 assigns E-CRED-008 to `KeyringBackendUnavailable`). No other E-CRED-005 keyring/backend-unavailable references found in BC-INDEX sweep. No BC count changes (active: 234, draft: 3 unchanged). BC-INDEX v5.90→v5.91.
 

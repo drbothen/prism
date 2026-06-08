@@ -9,11 +9,9 @@ status: draft
 # BC status: BC-2.16.002 is active (BC-INDEX v5.56). BC-2.16.013 is active (BC-INDEX v5.56).
 # BC-2.01.013 is active. All BCs are confirmed active.
 # S-7.01 gate: behavioral_contracts is non-empty and all BCs are active.
-# BC GAP NOTE: BC-2.16.002 covers the pagination pipeline contract in general but does not
-#   contain a specific clause for POST-body vs URL-param dispatch. The implementer must verify
-#   whether the existing BC-2.16.002 postconditions cover this behavior. If a specific clause
-#   is missing, surface to product-owner for a BC-2.16.002 amendment before status=ready.
-#   This story proceeds with the existing BC anchors; the BC gap is documented in §BC Gap below.
+# BC GAP NOTE: CLOSED D-1059 2026-06-08 — BC-2.16.002 v1.70 now contains the explicit
+#   §Postconditions "OffsetLimit Pagination Dispatch: POST-body vs GET-URL" clause.
+#   DRIFT-D850-001 RESOLVED. Story may proceed to story-writer materialization per S-7.01.
 version: "1.0"
 level: "L4"
 producer: story-writer
@@ -120,18 +118,16 @@ POLLER-DTU-FIDELITY-AUDIT-2026-05-29 v1.1 §3 Claroty section.
 
 ## BC Gap
 
-BC-2.16.002 governs the pagination pipeline contract but does not contain an explicit
-postcondition clause distinguishing POST-body vs GET-URL offset/limit dispatch. The existing
-AC tracing below cites BC-2.16.002 at the general postcondition level.
+**CLOSED — D-1059 2026-06-08: BC-2.16.002 v1.70 authored §Postconditions "OffsetLimit Pagination
+Dispatch: POST-body vs GET-URL (DRIFT-D850-001)" clause. The explicit postcondition distinguishing
+POST-body vs GET-URL offset/limit dispatch now exists. DRIFT-D850-001 is RESOLVED.**
 
-Before this story's status can advance to `ready`, the product-owner should confirm whether:
-- BC-2.16.002 already covers this behavior implicitly (in which case no amendment is needed), OR
-- A new postcondition clause is needed (in which case PO authors the amendment and state-manager
-  propagates the cite-pin per POL-29).
-
-This gap does NOT block implementation — the behavioral intent is clear and the existing
-BC-2.16.002 postconditions are sufficient anchors for the Red Gate tests. It only blocks
-`status: ready` per S-7.01 gate if a new BC clause is authored and needs back-propagation.
+_Historical context:_ BC-2.16.002 governed the pagination pipeline contract but did not contain an
+explicit postcondition clause distinguishing POST-body vs GET-URL offset/limit dispatch. The gap
+was registered as DRIFT-D850-001 and has been resolved by the PO amendment at D-1059. This story
+may now proceed to story-writer materialization + PO BC-array review per S-7.01 before dispatch.
+Status remains `draft` — story-writer must materialize remaining ACs and PO must confirm
+`behavioral_contracts` array is complete before status advances to `ready`.
 
 ## Behavioral Contracts
 
