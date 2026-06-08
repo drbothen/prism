@@ -34,7 +34,9 @@
 //! | `test_claroty_trailing_slash_audit_log_get_returns_200` | AC-003 |
 //! | `test_BC_2_16_013_no_slash_alerts_still_returns_200`     | AC-005 (regression guard EC-001) |
 //! | `test_BC_2_16_013_no_slash_devices_still_returns_200`    | AC-005 (regression guard EC-001) |
-//! | `test_BC_2_16_013_tags_route_with_slash_still_works`     | AC-005 (regression guard EC-003 — intentional trailing-slash tags route) |
+//! | `test_BC_2_16_013_tags_route_with_slash_still_works`     | AC-005 (intentional tags trailing-slash route) |
+//! | `test_BC_2_16_013_dtu_health_trailing_slash_returns_200`  | EC-003 |
+//! | `test_BC_2_16_013_trailing_slash_alerts_missing_auth_returns_401` | EC-002 |
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 // Test function names match BC naming convention (BC-NNN identifiers use PascalCase segments).
 #![allow(non_snake_case)]
@@ -193,7 +195,7 @@ async fn test_claroty_trailing_slash_audit_log_get_returns_200() {
 //
 // Verifies that:
 //   EC-001: existing no-trailing-slash routes still return 200 after middleware addition.
-//   EC-003: the intentional /api/v1/devices/:device_id/tags/ route still behaves correctly.
+//   AC-005 (intentional tags trailing-slash route): the tags route still behaves correctly.
 //
 // These tests establish the backward-compat baseline. If the implementer adds
 // NormalizePathLayer correctly (trim_trailing_slash = STRIP-ONLY), no-slash routes
@@ -327,5 +329,136 @@ async fn test_BC_2_16_013_tags_route_with_slash_still_works() {
     assert_eq!(
         body["status"], "added",
         "tags response status must be `added`; got: {body}"
+    );
+}
+
+// ============================================================================
+// EC-003 Coverage — GET /dtu/health with and without trailing slash
+//
+// The NormalizePathLayer is applied at the OUTER SERVICE level, which means it
+// runs before axum's router resolves the path. This test proves that the control-
+// plane `/dtu/health` route is reachable even when the caller appends a trailing
+// slash — the layer strips `/dtu/health/` → `/dtu/health` before routing.
+//
+// `dtu_health()` returns 200 {"status":"ok"} unconditionally (no auth required).
+// ============================================================================
+
+/// EC-003 coverage: GET /dtu/health/ (trailing slash) must return HTTP 200.
+///
+/// Proves that NormalizePathLayer normalises control-plane routes, not just
+/// application routes.  `dtu_health()` is registered at `/dtu/health` (no
+/// trailing slash); inbound `/dtu/health/` is stripped to `/dtu/health` by
+/// the outer-service layer before the router resolves, so the handler fires.
+///
+/// Also asserts GET /dtu/health (no slash) returns 200 — baseline sanity.
+///
+/// Traces to: BC-2.16.013 v1.25 EC-003.
+#[tokio::test]
+async fn test_BC_2_16_013_dtu_health_trailing_slash_returns_200() {
+    let (_clone, base_url) = start_clone().await;
+    let client = reqwest::Client::new();
+
+    // EC-003a: trailing slash is normalised → 200.
+    let resp_slash = client
+        .get(format!("{base_url}/dtu/health/"))
+        .send()
+        .await
+        .expect("GET /dtu/health/ failed");
+
+    assert_eq!(
+        resp_slash.status().as_u16(),
+        200,
+        "GET /dtu/health/ must return HTTP 200 after NormalizePathLayer strips the trailing slash; \
+         without the outer-service layer this would 404 because the router registers only /dtu/health"
+    );
+
+    let body_slash: serde_json::Value = resp_slash
+        .json()
+        .await
+        .expect("GET /dtu/health/ response must be valid JSON");
+    assert_eq!(
+        body_slash["status"], "ok",
+        "GET /dtu/health/ response must be {{\"status\":\"ok\"}}; got: {body_slash}"
+    );
+
+    // EC-003b: no-slash baseline — must also return 200 (regression guard).
+    let resp_no_slash = client
+        .get(format!("{base_url}/dtu/health"))
+        .send()
+        .await
+        .expect("GET /dtu/health failed");
+
+    assert_eq!(
+        resp_no_slash.status().as_u16(),
+        200,
+        "GET /dtu/health (no trailing slash) must still return HTTP 200"
+    );
+
+    let body_no_slash: serde_json::Value = resp_no_slash
+        .json()
+        .await
+        .expect("GET /dtu/health response must be valid JSON");
+    assert_eq!(
+        body_no_slash["status"], "ok",
+        "GET /dtu/health response must be {{\"status\":\"ok\"}}; got: {body_no_slash}"
+    );
+}
+
+// ============================================================================
+// EC-002 Coverage — POST /api/v1/alerts/ without auth → 401 (not 404)
+//
+// If NormalizePathLayer were mis-placed (e.g. via Router::layer which no-ops
+// in axum 0.7 because routing happens before inner layers), the request would
+// reach the router as `/api/v1/alerts/`, find no matching route, and 404.
+// When the layer is correctly applied at the OUTER SERVICE level, the path is
+// stripped to `/api/v1/alerts` BEFORE routing, the route matches, and the
+// `list_alerts` handler fires.  That handler calls `check_bearer_auth` first;
+// with no Authorization header it returns 401.
+//
+// 401 (not 404) therefore proves that:
+//   (a) the path normalisation ran before routing resolved, AND
+//   (b) the handler's auth check executed — the route was genuinely reached.
+// ============================================================================
+
+/// EC-002 coverage: POST /api/v1/alerts/ without Authorization header must return 401, not 404.
+///
+/// Proves that NormalizePathLayer is placed at the outer-service level (not via
+/// Router::layer).  The strip happens before route resolution, so `/api/v1/alerts/`
+/// becomes `/api/v1/alerts`, the handler fires, and the bearer-auth check rejects
+/// the unauthenticated request with 401.
+///
+/// Traces to: BC-2.16.013 v1.25 EC-002.
+#[tokio::test]
+async fn test_BC_2_16_013_trailing_slash_alerts_missing_auth_returns_401() {
+    let (_clone, base_url) = start_clone().await;
+    let client = reqwest::Client::new();
+
+    // Deliberately omit the Authorization header.
+    let resp = client
+        .post(format!("{base_url}/api/v1/alerts/"))
+        .json(&serde_json::json!({}))
+        .send()
+        .await
+        .expect("POST /api/v1/alerts/ (no auth) failed");
+
+    let status = resp.status().as_u16();
+
+    // 404 here means NormalizePathLayer is NOT at the outer-service level — the router
+    // sees the trailing slash and finds no matching route.
+    // 401 means the layer ran, the route matched, and the auth check fired correctly.
+    assert_eq!(
+        status, 401,
+        "POST /api/v1/alerts/ without Authorization must return 401 (auth check ran); \
+         got {status} — if 404, NormalizePathLayer is mis-placed (Router::layer no-ops in axum 0.7); \
+         NormalizePathLayer must wrap the outer service, not the inner router"
+    );
+
+    let body: serde_json::Value = resp
+        .json()
+        .await
+        .expect("401 response must have a JSON body");
+    assert!(
+        body.get("error").is_some(),
+        "401 response must contain an `error` field; got: {body}"
     );
 }
