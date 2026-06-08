@@ -1229,7 +1229,7 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - name: Install shellcheck
-        run: sudo apt-get install -y shellcheck
+        run: sudo apt-get update && sudo apt-get install -y shellcheck
       - name: Run shellcheck on demo scripts
         run: |
           # AC-014 (S-DEMO-003): shellcheck must pass with zero errors on all demo scripts.
