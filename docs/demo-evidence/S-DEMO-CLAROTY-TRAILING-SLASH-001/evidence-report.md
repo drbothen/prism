@@ -70,11 +70,20 @@ Step 1 — grep confirms `NormalizePathLayer` and `trim_trailing_slash` are pres
 grep -n 'NormalizePathLayer\|trim_trailing_slash' crates/prism-dtu-claroty/src/clone.rs
 ```
 
-Expected output (lines ~30, ~168, ~206 of clone.rs):
+Expected output — symbol anchors (line numbers omitted per TD-VSDD-091; cite symbols not positions):
 ```
-30: use tower_http::normalize_path::NormalizePathLayer;
-168:     let app = NormalizePathLayer::trim_trailing_slash().layer(router);
+<N>: use tower_http::normalize_path::NormalizePathLayer;
+<N>:     let app = NormalizePathLayer::trim_trailing_slash().layer(router);
 ```
+
+The `grep -n` output will show concrete line numbers at recording time, but the behavioral
+anchors that matter are:
+- Import site: `use tower_http::normalize_path::NormalizePathLayer`
+- Outer-service wrap in `ClarotyClone::start_on()`: `let app = NormalizePathLayer::trim_trailing_slash().layer(router)`
+- TLS serve branch in `start_on()`: `axum_server::bind_rustls(...).serve(ServiceExt::into_make_service(app))`
+- Plain-HTTP serve branch in `start_on()`: `axum::serve(listener, ServiceExt::into_make_service(app))`
+
+All four symbols appearing in the grep/source confirms correct outer-service placement.
 
 Step 2 — spec-engine parity confirms `claroty.sensor.toml` round-trips without parse error:
 
@@ -147,7 +156,7 @@ This is the critical placement proof:
 
 ---
 
-### ALL ACs — Full suite (11 tests)
+### ALL ACs — Full suite (11 tests captured by filter; 8 new)
 
 **Files:**
 - `ALL-ACs-full-suite.tape` — VHS tape script
@@ -161,10 +170,24 @@ cargo nextest run -p prism-dtu-claroty --features dtu \
   -E 'test(trailing_slash) | test(BC_2_16_013)'
 ```
 
-Runs all 11 `trailing_slash_parity` + `BC_2_16_013` tests in one sweep — the full story
-evidence in a single frame.
+Runs all tests matched by the `trailing_slash | BC_2_16_013` filter in one sweep — the full
+story evidence in a single frame.
 
-**Nextest result:** 11/11 PASS
+**Test count breakdown:**
+- **8 new tests** added by this story in `tests/trailing_slash_parity.rs`:
+  - `test_claroty_trailing_slash_alerts_returns_200` (AC-001)
+  - `test_claroty_trailing_slash_devices_returns_200` (AC-002)
+  - `test_claroty_trailing_slash_audit_log_get_returns_200` (AC-003)
+  - `test_BC_2_16_013_no_slash_alerts_still_returns_200` (AC-005)
+  - `test_BC_2_16_013_no_slash_devices_still_returns_200` (AC-005)
+  - `test_BC_2_16_013_tags_route_with_slash_still_works` (AC-005)
+  - `test_BC_2_16_013_dtu_health_trailing_slash_returns_200` (AC-005)
+  - `test_BC_2_16_013_trailing_slash_alerts_missing_auth_returns_401` (EC-002)
+- **3 pre-existing tests** also matched by the `BC_2_16_013` arm of the filter — these are
+  audit_log unit tests that existed before this story and verify unrelated behavior; they are
+  included in the recording to confirm this story's changes do not regress them.
+
+**Nextest result:** 11/11 PASS (8 new + 3 pre-existing; all green)
 
 ---
 
@@ -183,10 +206,11 @@ prism development workflow uses for the TDD inner loop (`just iter` equivalent).
 recordings are fully reproducible — running `vhs <tape>` re-executes against live code.
 
 **Test filter precision:**
-- `test(claroty_trailing_slash)` → 3 tests (AC-001/002/003)
-- `test(trailing_slash_alerts_missing_auth)` → 1 test (EC-002)
-- `test(BC_2_16_013_no_slash) | test(BC_2_16_013_tags) | test(BC_2_16_013_dtu_health)` → 4 tests (AC-005)
-- `test(trailing_slash) | test(BC_2_16_013)` → 11 tests (full story coverage)
+- `test(claroty_trailing_slash)` → 3 tests (AC-001/002/003; all new)
+- `test(trailing_slash_alerts_missing_auth)` → 1 test (EC-002; new)
+- `test(BC_2_16_013_no_slash) | test(BC_2_16_013_tags) | test(BC_2_16_013_dtu_health)` → 4 tests (AC-005; all new)
+- `test(trailing_slash) | test(BC_2_16_013)` → 11 tests total (8 new from this story +
+  3 pre-existing audit_log unit tests matched by the `BC_2_16_013` arm; all 11 pass)
 
 ---
 
