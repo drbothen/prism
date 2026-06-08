@@ -10,12 +10,11 @@
 #   deleted by PLUGIN-MIGRATION-001-A. Spec follows DTU per CLAUDE.md §Source-of-Truth #7.
 #
 # POST-for-read pattern: alerts, audit_logs, and devices use method = "POST" with body template.
-# Pagination: OffsetLimit engine appends ?offset=N&limit=M to URL query params
-#   (pipeline.rs::build_paged_url_impl). Body template does NOT include pagination fields.
-#   Gap-CL-004: Claroty API (and DTU) expect offset/limit in the POST body, not URL params.
-#   The current pipeline sends URL params; this is a known divergence tracked in
-#   S-DEMO-CLAROTY-PAGINATION-001. Until that pipeline story lands, queries are limited to
-#   single-page results (body pagination params are ignored by the current pipeline).
+# Pagination: POST steps with OffsetLimit pagination inject offset+limit into the JSON
+#   request body (pipeline.rs::build_request — BC-2.16.002 v1.70 §Postconditions
+#   "OffsetLimit Pagination Dispatch: POST-body vs GET-URL (DRIFT-D850-001)").
+#   Gap-CL-004: CLOSED by S-DEMO-CLAROTY-PAGINATION-001. Offset/limit now sent in the
+#   POST body (not URL params). Multi-page queries (>page_size rows) are fully supported.
 # Polymorphic ID: alerts.id column uses column_type = "string" to handle int and UUID IDs
 #   (EC-016-013-004): JSON int IDs normalized to string at parser boundary.
 # No /xdome prefix anywhere (ADR-028 §D1 footnote).
@@ -116,13 +115,11 @@ ocsf_class = "detection_finding"
   # POST-for-read step with offset pagination
   # DTU route: POST /api/v1/alerts (crates/prism-dtu-claroty/src/clone.rs build_router())
   # response_path: DTU returns {"alerts": [...], "total": N, "page": N} per routes::alerts::list_alerts
-  # body_template: OffsetLimit pagination engine handles offset via URL query params
-  #   (pipeline.rs::build_paged_url_impl appends ?offset=N&limit=M). No body pagination field needed.
-  # F-LP3-HIGH-004: removed '{"size": 100}' from body_template. The OffsetLimit engine
-  #   appends ?offset=N&limit=M to URL — embedding a hardcoded size in the body conflicts
-  #   with URL-based page_size semantics. Using empty JSON object body instead.
-  # Gap-CL-004: offset/limit should be in POST body per Claroty API, not URL params.
-  #   Pipeline fix tracked in S-DEMO-CLAROTY-PAGINATION-001.
+  # body_template: empty JSON object; OffsetLimit POST-body injection (S-DEMO-CLAROTY-PAGINATION-001
+  #   CLOSED, Gap-CL-004 CLOSED) merges {"offset": N, "limit": 100} into this body at request time
+  #   (pipeline.rs::build_request — BC-2.16.002 v1.70 "OffsetLimit Pagination Dispatch: POST-body
+  #   vs GET-URL"). Do not add hardcoded offset/limit here — the pipeline injects them.
+  # F-LP3-HIGH-004: removed '{"size": 100}' from body_template (now superseded by pipeline injection).
   [[tables.steps]]
   name = "fetch_alerts"
   method = "POST"
@@ -179,8 +176,8 @@ ocsf_class = "audit_activity"
   # DTU route: POST /api/v1/audit_log/get — implemented by S-DEMO-CLAROTY-AUDIT-DTU-001.
   # response_path: DTU returns {"audit_log": [...]} per GetAuditLogResponse
   #   (crates/prism-dtu-claroty/src/routes/audit_log.rs), matching poller-bear reference.
-  # body_template: OffsetLimit pagination handles offset via URL params (not body fields).
-  #   Gap-CL-004 applies here too: real API expects body-based pagination.
+  # body_template: empty JSON object; OffsetLimit POST-body injection merges {"offset": N, "limit": 100}
+  #   at request time (pipeline.rs::build_request — Gap-CL-004 CLOSED by S-DEMO-CLAROTY-PAGINATION-001).
   [[tables.steps]]
   name = "fetch_audit_logs"
   method = "POST"
@@ -255,9 +252,8 @@ ocsf_class = "device"
   # POST-for-read step with offset pagination
   # DTU route: POST /api/v1/devices (crates/prism-dtu-claroty/src/clone.rs build_router())
   # response_path: DTU returns {"devices": [...], "total": N, "page": N} per GetDevicesResponse.
-  # body_template: empty JSON object; OffsetLimit engine appends ?offset=N&limit=M to URL.
-  # Gap-CL-004: offset/limit should be in POST body per Claroty API.
-  #   Pipeline fix tracked in S-DEMO-CLAROTY-PAGINATION-001.
+  # body_template: empty JSON object; OffsetLimit POST-body injection merges {"offset": N, "limit": 100}
+  #   at request time (pipeline.rs::build_request — Gap-CL-004 CLOSED by S-DEMO-CLAROTY-PAGINATION-001).
   [[tables.steps]]
   name = "fetch_devices"
   method = "POST"

@@ -408,6 +408,15 @@ impl PipelineExecutor {
                     // Build the paginated URL with encoded cursor.
                     let paged_url = build_paged_url(&url, step, &encoded_cursor, offset);
 
+                    // Derive the active page_size for OffsetLimit POST-body injection
+                    // (BC-2.16.002 v1.70 §Postconditions "OffsetLimit Pagination Dispatch:
+                    // POST-body vs GET-URL"). Non-OffsetLimit steps pass page_size=0 to
+                    // indicate no body injection is needed.
+                    let active_page_size: u32 = match &step.pagination {
+                        Some(PaginationConfig::OffsetLimit { page_size: ps }) => *ps,
+                        _ => 0,
+                    };
+
                     // Issue the request (with 401-retry logic per AC-5).
                     let (body, new_token) = issue_request_with_retry(
                         http_client,
@@ -419,6 +428,8 @@ impl PipelineExecutor {
                         &context.client_id,
                         &mut request_count,
                         &batch_step_vars,
+                        offset,
+                        active_page_size,
                     )
                     .await?;
                     bearer_token = new_token;
@@ -661,6 +672,8 @@ impl PipelineExecutor {
 
         let url = format!("{}{}", spec.base_url, interpolated_path);
 
+        // execute_step issues a single request without pagination — pass offset=0, page_size=0
+        // to signal to build_request that no OffsetLimit body injection should occur.
         let (body, _new_token) = issue_request_with_retry(
             http_client,
             step,
@@ -671,6 +684,8 @@ impl PipelineExecutor {
             &context.client_id,
             &mut request_count,
             prior_vars,
+            0,
+            0,
         )
         .await?;
 
@@ -759,6 +774,8 @@ async fn issue_request_with_retry(
     client_id: &OrgSlug,
     request_count: &mut u32,
     step_vars: &HashMap<String, serde_json::Value>,
+    offset: u32,
+    page_size: u32,
 ) -> Result<(serde_json::Value, AuthToken), SpecEngineError> {
     // Issue the first request.
     let response = build_request(
@@ -768,6 +785,8 @@ async fn issue_request_with_retry(
         &current_token,
         &spec.auth_type,
         step_vars,
+        offset,
+        page_size,
     )
     .map_err(|e| SpecEngineError::HttpRequestFailed {
         sensor_id: spec.sensor_id.clone(),
@@ -856,6 +875,8 @@ async fn issue_request_with_retry(
             &fresh_token,
             &spec.auth_type,
             step_vars,
+            offset,
+            page_size,
         )
         .map_err(|e| SpecEngineError::HttpRequestFailed {
             sensor_id: spec.sensor_id.clone(),
@@ -958,6 +979,8 @@ fn build_request(
     token: &AuthToken,
     auth_type: &crate::spec_parser::AuthType,
     step_vars: &HashMap<String, serde_json::Value>,
+    offset: u32,
+    page_size: u32,
 ) -> Result<reqwest::RequestBuilder, String> {
     let method = match step.method.to_ascii_uppercase().as_str() {
         "POST" => reqwest::Method::POST,
@@ -992,18 +1015,69 @@ fn build_request(
             Interpolator::interpolate(body_tpl, &InterpolationContext::JsonBody, step_vars)
                 .map_err(|e| format!("body template interpolation failed: {e}"))?;
 
+        // BC-2.16.002 v1.70 §Postconditions "OffsetLimit Pagination Dispatch:
+        // POST-body vs GET-URL (DRIFT-D850-001)": for POST steps with OffsetLimit
+        // pagination, inject "offset" and "limit" as top-level keys in the JSON body.
+        // Merge semantics: preserve all existing body_template fields (AC-004).
+        // First page uses offset=0 (AC-005). page_size=0 means pagination is not active
+        // (e.g., execute_step single-request path), so skip injection in that case.
+        let final_body = if step.method.eq_ignore_ascii_case("POST")
+            && matches!(step.pagination, Some(PaginationConfig::OffsetLimit { .. }))
+            && page_size > 0
+        {
+            let mut body_val: serde_json::Value = serde_json::from_str(&interpolated_body)
+                .map_err(|e| {
+                    format!(
+                        "body template for POST OffsetLimit step '{}' is not valid JSON: {e}; \
+                         raw body: {interpolated_body:?}",
+                        step.name
+                    )
+                })?;
+            match body_val {
+                serde_json::Value::Object(ref mut map) => {
+                    map.insert(
+                        "offset".to_string(),
+                        serde_json::Value::Number(serde_json::Number::from(offset)),
+                    );
+                    map.insert(
+                        "limit".to_string(),
+                        serde_json::Value::Number(serde_json::Number::from(page_size)),
+                    );
+                }
+                _ => {
+                    // EC-002: body_template is not a JSON object (e.g., raw string, array).
+                    // Surface as an error — cannot merge offset/limit into a non-object body.
+                    let type_name = match &body_val {
+                        serde_json::Value::Array(_) => "array",
+                        serde_json::Value::String(_) => "string",
+                        serde_json::Value::Number(_) => "number",
+                        serde_json::Value::Bool(_) => "boolean",
+                        serde_json::Value::Null => "null",
+                        serde_json::Value::Object(_) => "object", // unreachable, handled above
+                    };
+                    return Err(format!(
+                        "POST OffsetLimit step '{}' body_template interpolated to a non-object \
+                         JSON value ({type_name}); expected a JSON object to merge offset+limit \
+                         into (BC-2.16.002 v1.70 EC-002)",
+                        step.name
+                    ));
+                }
+            }
+            body_val.to_string()
+        } else {
+            interpolated_body
+        };
+
         // Derive Content-Type: JSON if body starts with '{' or '[', else form-urlencoded.
         // F-LP2-MED-002: JSON arrays (starting with '[') are also application/json.
-        let trimmed = interpolated_body.trim_start();
+        let trimmed = final_body.trim_start();
         let content_type = if trimmed.starts_with('{') || trimmed.starts_with('[') {
             "application/json"
         } else {
             "application/x-www-form-urlencoded"
         };
 
-        req = req
-            .header("Content-Type", content_type)
-            .body(interpolated_body);
+        req = req.header("Content-Type", content_type).body(final_body);
     }
 
     Ok(req)
@@ -1064,8 +1138,16 @@ fn build_paged_url_impl(
             url
         }
         Some(PaginationConfig::OffsetLimit { page_size }) => {
-            let sep = if base_url.contains('?') { '&' } else { '?' };
-            format!("{base_url}{sep}offset={offset}&limit={page_size}")
+            // BC-2.16.002 v1.70 §Postconditions "OffsetLimit Pagination Dispatch:
+            // POST-body vs GET-URL (DRIFT-D850-001)": for POST steps, offset+limit
+            // go in the request body (injected in build_request); return URL unchanged.
+            // For GET steps (and any non-POST method), append ?offset=N&limit=M as before.
+            if step.method.eq_ignore_ascii_case("POST") {
+                base_url.to_string()
+            } else {
+                let sep = if base_url.contains('?') { '&' } else { '?' };
+                format!("{base_url}{sep}offset={offset}&limit={page_size}")
+            }
         }
         Some(PaginationConfig::None) | None => base_url.to_string(),
     }
