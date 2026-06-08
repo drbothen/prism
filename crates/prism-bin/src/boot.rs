@@ -1526,33 +1526,43 @@ pub async fn step5_init_credential_store(
     ),
     BootError,
 > {
-    // ADR-034 §D5 + BC-2.06.003 v1.8: construct KeyringBackend first so we can
-    // share the same Arc instance between the probe (Tier-3a) and the returned
-    // credential_store_org_id (no state duplication — same underlying object).
-    //
-    // We must build the backend here to pass it to KeyringCredentialProbe.
-    // step5_init_credential_store_with_probe then also builds the backend internally,
-    // but for the KEYRING backend it shares the same logical state (the OS keychain
-    // is the canonical store; two Arc<KeyringBackend> instances see the same data).
-    // The production path therefore constructs the backend twice — once here for the
-    // probe, once inside step5_init_credential_store_with_probe for the returned stores.
-    // This is acceptable because KeyringBackend is a thin wrapper (no mutable local state
-    // beyond the CredentialIndex, which is per-instance but written consistently to the
-    // same file). ADR-034 §D5 "same instance" language refers to the returned stores;
-    // the probe is a boot-time existence check only and does not mutate the keyring.
-    //
-    // Alternative (cleaner but higher blast radius): refactor
-    // step5_init_credential_store_with_probe to accept an Option<Arc<KeyringBackend>>
-    // and thread it through. Deferred to post-S-DEMO-003 cleanup per ADR-034 §D5 note.
     use prism_credentials::{CredentialIndex, KeyringBackend};
-    let index_path = config.state_dir.join("credential_index.json");
-    let index = CredentialIndex::new(index_path);
-    let keyring_backend = Arc::new(KeyringBackend::new("prism", index));
-    let probe = KeyringCredentialProbe {
-        keyring: Arc::clone(&keyring_backend) as Arc<dyn prism_credentials::CredentialStoreOrgId>,
-    };
 
-    step5_init_credential_store_with_probe(config, config_manager, org_registry, &probe).await
+    match &config.credential_backend {
+        CredentialBackendConfig::Keyring => {
+            // ADR-034 §D5: construct EXACTLY ONE Arc<KeyringBackend>. Both the probe
+            // (Tier-3a existence check) and the returned credential_store_org_id share
+            // this single instance via Arc::clone — no duplication of state, no second
+            // CredentialIndex disk load.
+            let index_path = config.state_dir.join("credential_index.json");
+            let index = CredentialIndex::new(index_path);
+            let backend = Arc::new(KeyringBackend::new("prism", index));
+            tracing::info!("Credential store: keyring backend constructed");
+
+            let store = Arc::clone(&backend) as Arc<dyn prism_credentials::CredentialStore>;
+            let store_org_id =
+                Arc::clone(&backend) as Arc<dyn prism_credentials::CredentialStoreOrgId>;
+
+            // Probe shares the same Arc<KeyringBackend> as store_org_id (ADR-034 §D5).
+            let probe = KeyringCredentialProbe {
+                keyring: Arc::clone(&backend) as Arc<dyn prism_credentials::CredentialStoreOrgId>,
+            };
+
+            step5_run_probe_validation(store, store_org_id, config_manager, org_registry, &probe)
+                .await
+        }
+        CredentialBackendConfig::EncryptedFile { path } => {
+            // HIGH-3: Fail-fast with ConfigInvalid (exit 2), not PermissionDenied (exit 5).
+            // EncryptedFile passphrase resolution is deferred to S-1.07-FOLLOWUP.
+            Err(BootError::ConfigInvalid(format!(
+                "encrypted_file backend requires passphrase resolution \
+                 (deferred to S-1.07-FOLLOWUP); \
+                 use keyring backend for v0.1.0. \
+                 Path: {}",
+                path.display()
+            )))
+        }
+    }
 }
 
 /// Step 5 implementation with injectable credential probe.
@@ -1560,7 +1570,8 @@ pub async fn step5_init_credential_store(
 /// Identical to [`step5_init_credential_store`] but accepts a custom
 /// `probe: &dyn CredentialRefProbe` so unit tests can inject a mock
 /// (BC-2.03.013 §Test Strategy Approach B). The production boot path
-/// calls `step5_init_credential_store` which passes `&KeyringCredentialProbe`.
+/// calls `step5_init_credential_store` which constructs a single shared
+/// `Arc<KeyringBackend>` and passes `&KeyringCredentialProbe`.
 ///
 /// `org_registry` is threaded from `BootContext` (produced at step 3) and passed to
 /// the probe for per-client Tier 1/2 env-var wildcard scan and Tier-3a OrgId-keyed
@@ -1570,16 +1581,9 @@ pub async fn step5_init_credential_store(
 ///
 /// This function is the correct test entry point for unit tests that need
 /// to exercise the credential_refs iteration loop with N>0 refs and a
-/// controllable probe outcome.
-/// Returns `(credential_store, credential_store_org_id)` — both backed by the SAME
-/// `KeyringBackend` instance per ADR-034 §D5. The `Arc<dyn CredentialStore>` is the
-/// type-erased form for the existing `CredentialStore` interface; the
-/// `Arc<dyn CredentialStoreOrgId>` is for Tier-3 OrgId-keyed resolution. No state is
-/// duplicated — they share the same underlying `KeyringBackend` object.
-///
-/// For the `EncryptedFile` backend, `credential_store_org_id` returns `Arc<dyn CredentialStoreOrgId>`
-/// backed by `EncryptedFileBackend` (which implements both traits). Tier-3 keyring resolution
-/// is only functional for the `Keyring` backend (OrgId-keyed entries live in the OS keychain).
+/// controllable probe outcome. Test probes (AlwaysOkProbe, MissingOneProbe, etc.)
+/// are independent of the backend; the stores returned here use the Keyring backend
+/// constructed within this function.
 pub async fn step5_init_credential_store_with_probe(
     config: &PrismConfig,
     config_manager: &Arc<arc_swap::ArcSwap<prism_spec_engine::config_manager::ConfigManager>>,
@@ -1594,41 +1598,25 @@ pub async fn step5_init_credential_store_with_probe(
 > {
     use prism_credentials::{CredentialIndex, KeyringBackend};
 
-    // HIGH-3 (S-WAVE5-PREP-01 fix-pass-1): EncryptedFile backend requires passphrase
-    // resolution that is deferred to S-1.07-FOLLOWUP. prism-credentials does NOT yet
-    // expose a passphrase-accepting constructor. Fail-fast with ConfigInvalid (exit 2)
-    // per orchestrator pre-decision — this is deterministic config feedback, not
-    // permission-denied (which would be exit 5 and mislead the user).
-    //
-    // ADR-034 §D5: both credential_store and credential_store_org_id must point to the
-    // SAME backend instance. For Keyring backend: share Arc<KeyringBackend> between both.
-    // For EncryptedFile backend: fail-fast (same as before; EncryptedFile passphrase
-    // is not yet resolved and Tier-3 OrgId-keyed keyring is keyring-only per ADR-034).
+    // Construct the backend and build (store, store_org_id) per config.
+    // ADR-034 §D5: both Arcs share the same KeyringBackend instance.
     let (store, store_org_id): (
         Arc<dyn prism_credentials::CredentialStore>,
         Arc<dyn prism_credentials::CredentialStoreOrgId>,
     ) = match &config.credential_backend {
         CredentialBackendConfig::Keyring => {
-            // Construct keyring backend (per prism-credentials KeyringBackend::new).
-            // The index path lives in state_dir.
             let index_path = config.state_dir.join("credential_index.json");
             let index = CredentialIndex::new(index_path);
             let backend = Arc::new(KeyringBackend::new("prism", index));
             tracing::info!("Credential store: keyring backend constructed");
-
-            // ADR-034 §D5: both Arcs share the same KeyringBackend instance.
-            // Arc::clone is a reference count increment — no data is copied.
             let store = Arc::clone(&backend) as Arc<dyn prism_credentials::CredentialStore>;
             let store_org_id =
                 Arc::clone(&backend) as Arc<dyn prism_credentials::CredentialStoreOrgId>;
             (store, store_org_id)
         }
         CredentialBackendConfig::EncryptedFile { path } => {
-            // HIGH-3: Fail-fast with ConfigInvalid (exit 2), not PermissionDenied (exit 5).
-            // A valid encrypted_file config that cannot be opened at v0.1.0 is a config
-            // problem, not a permission problem. PermissionDenied implies the backend is
-            // reachable but access was denied — encrypted_file passphrase is not yet resolved.
-            // Full implementation is S-1.07-FOLLOWUP.
+            // HIGH-3 (S-WAVE5-PREP-01 fix-pass-1): EncryptedFile passphrase resolution
+            // deferred to S-1.07-FOLLOWUP. Fail-fast with ConfigInvalid (exit 2).
             return Err(BootError::ConfigInvalid(format!(
                 "encrypted_file backend requires passphrase resolution \
                  (deferred to S-1.07-FOLLOWUP); \
@@ -1638,16 +1626,35 @@ pub async fn step5_init_credential_store_with_probe(
             )));
         }
     };
-    // Alias for the rest of the function (was `store` before the tuple change).
-    let store = store;
 
+    step5_run_probe_validation(store, store_org_id, config_manager, org_registry, probe).await
+}
+
+/// Internal: run credential-ref probe validation against pre-built stores.
+///
+/// Called by both `step5_init_credential_store` (production, shared single backend) and
+/// `step5_init_credential_store_with_probe` (test path, injectable probe). Separating
+/// this logic allows the production path to construct exactly one `Arc<KeyringBackend>`
+/// and share it between the probe and the returned stores per ADR-034 §D5.
+async fn step5_run_probe_validation(
+    store: Arc<dyn prism_credentials::CredentialStore>,
+    store_org_id: Arc<dyn prism_credentials::CredentialStoreOrgId>,
+    config_manager: &Arc<arc_swap::ArcSwap<prism_spec_engine::config_manager::ConfigManager>>,
+    org_registry: &Arc<prism_core::OrgRegistry>,
+    probe: &dyn CredentialRefProbe,
+) -> Result<
+    (
+        Arc<dyn prism_credentials::CredentialStore>,
+        Arc<dyn prism_credentials::CredentialStoreOrgId>,
+    ),
+    BootError,
+> {
     // F-PASS2-HIGH-3 (S-WAVE5-PREP-01 fix-pass-2): Iterate all credential refs declared
     // in loaded sensor specs (BC-2.03.013 happy-path postcondition 2).
     //
-    // SensorSpec now carries credential_refs: Vec<CredentialRef> (added in fix-pass-2
-    // to prism-spec-engine::types::SensorSpec and spec_parser::SensorSpec). The TOML
-    // `[[credential_refs]]` section is optional; existing specs with no section produce
-    // an empty Vec (serde default), satisfying EC-03-013-001 (zero refs = boot continues).
+    // SensorSpec carries credential_refs: Vec<CredentialRef>. The TOML `[[credential_refs]]`
+    // section is optional; existing specs with no section produce an empty Vec (serde default),
+    // satisfying EC-03-013-001 (zero refs = boot continues).
     //
     // Validation is reference-only (AD-017 AI-opaque model). Delegated to `probe`
     // so that unit tests can inject a controllable test double.
