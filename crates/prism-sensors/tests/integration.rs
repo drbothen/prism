@@ -11,5 +11,6 @@
 //!
 //! Story: PLUGIN-MIGRATION-001-A | BC: BC-2.01.013, BC-2.01.016
 
+mod claroty_spec_prose_fidelity;
 mod test_pagination;
 mod test_timestamp;
