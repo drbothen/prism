@@ -5,18 +5,19 @@ title: "prism-spec-engine: OffsetLimit POST-Body Pagination for Claroty (closes 
 wave: 5
 epic_id: E-DEMO
 priority: P1
-status: draft
-# BC status: BC-2.16.002 is active (BC-INDEX v5.56). BC-2.16.013 is active (BC-INDEX v5.56).
-# BC-2.01.013 is active. All BCs are confirmed active.
-# S-7.01 gate: behavioral_contracts is non-empty and all BCs are active.
-# BC GAP NOTE: CLOSED D-1059 2026-06-08 — BC-2.16.002 v1.70 now contains the explicit
-#   §Postconditions "OffsetLimit Pagination Dispatch: POST-body vs GET-URL" clause.
-#   DRIFT-D850-001 RESOLVED. Story may proceed to story-writer materialization per S-7.01.
-version: "1.0"
+status: ready
+# BC status: BC-2.16.002 v1.70 active (BC-INDEX v6.00). BC-2.16.013 v1.25 active (BC-INDEX v6.00).
+# BC-2.01.013 v1.14 active (BC-INDEX v6.00). All BCs confirmed active.
+# S-7.01 gate: behavioral_contracts is non-empty, all BCs are active, all ACs cite BC traces,
+#   every BC in behavioral_contracts array is cited by at least one AC. Gate CLEARS.
+# BC GAP DRIFT-D850-001: CLOSED D-1059 2026-06-08 — BC-2.16.002 v1.70 contains the explicit
+#   §Postconditions "OffsetLimit Pagination Dispatch: POST-body vs GET-URL (DRIFT-D850-001)"
+#   clause (added by product-owner). No residual gap. No further PO authorship required.
+version: "1.1"
 level: "L4"
 producer: story-writer
 timestamp: "2026-05-29T00:00:00Z"
-modified: "2026-05-29"
+modified: "2026-06-08"
 tdd_mode: strict
 subsystems: [SS-16]
 # Subsystem anchor justifications:
@@ -29,17 +30,16 @@ crates_touched: [prism-spec-engine]
 target_module: prism-spec-engine
 capabilities: [CAP-029]
 behavioral_contracts:
-  - BC-2.16.002  # Structured Event Catalog + Pipeline Contract — the OffsetLimit pagination
-                 # engine is governed by BC-2.16.002 §Postconditions. This story amends
-                 # `build_paged_url_impl` behavior: for POST steps, offset+limit go in the
-                 # request body instead of URL query params.
-                 # NOTE: See §BC Gap below — a specific postcondition clause for POST-body
-                 # dispatch may need PO authorship before status=ready.
-  - BC-2.16.013  # DTU-Parity Verification — Gap-CL-004 is a parity gap between the TOML spec's
-                 # declared pagination semantics and the pipeline's behavior. Closing it restores
-                 # DTU parity for Claroty alerts and audit_logs tables.
-  - BC-2.01.013  # DataSource Trait — pagination is part of the data fetch contract; multi-page
-                 # results (>100 rows) require the pipeline to correctly advance the offset.
+  - BC-2.16.002  # Structured Event Catalog + Pipeline Contract (v1.70, BC-INDEX v6.00) —
+                 # Governing postcondition: §Postconditions "OffsetLimit Pagination Dispatch:
+                 # POST-body vs GET-URL (DRIFT-D850-001)". Anchors AC-001, AC-002, AC-004,
+                 # AC-005, AC-006 and all four Red Gate tests. DRIFT-D850-001 CLOSED.
+  - BC-2.16.013  # DTU-Parity Verification (v1.25, BC-INDEX v6.00) — Gap-CL-004 is a parity
+                 # gap between the TOML spec's declared pagination semantics and the pipeline's
+                 # behavior. Closing it restores DTU parity for Claroty alerts and audit_logs.
+  - BC-2.01.013  # DataSource Trait (v1.14, BC-INDEX v6.00) — pagination is part of the data
+                 # fetch contract; multi-page results (>100 rows) require the pipeline to
+                 # correctly advance the offset. Anchors AC-003.
 verification_properties:
   - VP-148  # VP-PLUGIN-003 DTU parity — pagination correctness is exercised by the parity
             # test that queries Claroty alerts with >100 rows against the DTU.
@@ -70,7 +70,7 @@ points: 5
 #   - Amend the request-issuing path to inject offset+limit into the request body for POST: ~1 pt
 #   - 4-axis Red Gate tests (POST body, GET URL, regression, multi-page): ~2 pts
 #   - BC-2.16.002 catalog update if any new tracing emissions: ~0.5 pts
-#   - BC-2.16.002 postcondition amendment (if PO confirms gap): ~0.5 pts
+#   - BC-2.16.002 postcondition already authored at v1.70 (DRIFT-D850-001 CLOSED): 0 pts
 #   Total: 5 points (~1 day of focused TDD work)
 #   Risk adjustment: MEDIUM (existing OffsetLimit callers that use GET must not regress).
 #   4-axis test matrix is critical to safe delivery.
@@ -122,30 +122,29 @@ POLLER-DTU-FIDELITY-AUDIT-2026-05-29 v1.1 §3 Claroty section.
 Dispatch: POST-body vs GET-URL (DRIFT-D850-001)" clause. The explicit postcondition distinguishing
 POST-body vs GET-URL offset/limit dispatch now exists. DRIFT-D850-001 is RESOLVED.**
 
-_Historical context:_ BC-2.16.002 governed the pagination pipeline contract but did not contain an
-explicit postcondition clause distinguishing POST-body vs GET-URL offset/limit dispatch. The gap
-was registered as DRIFT-D850-001 and has been resolved by the PO amendment at D-1059. This story
-may now proceed to story-writer materialization + PO BC-array review per S-7.01 before dispatch.
-Status remains `draft` — story-writer must materialize remaining ACs and PO must confirm
-`behavioral_contracts` array is complete before status advances to `ready`.
+_Historical context:_ BC-2.16.002 governed the pagination pipeline contract but prior to v1.70 did
+not contain an explicit postcondition clause distinguishing POST-body vs GET-URL offset/limit
+dispatch. The gap was registered as DRIFT-D850-001 and resolved by the PO amendment at D-1059
+(BC-2.16.002 v1.69 → v1.70). The `behavioral_contracts` array is complete; S-7.01 gate clears.
+Story advanced to `ready` at v1.1 (2026-06-08 story-writer refresh).
 
 ## Behavioral Contracts
 
 | BC | Title | Version | Role |
 |----|-------|---------|------|
-| BC-2.16.002 | Structured Event Catalog + Pipeline Contract | v1.49 | OffsetLimit pagination engine contract; postcondition: pipeline follows declared pagination config; this story amends the dispatch logic for POST steps |
-| BC-2.16.013 | Bundled Sensor Spec Authoring and DTU-Parity Verification — 4 Initial Sensors | v1.17 | Gap-CL-004 is an open DTU-parity gap; closing it restores parity for Claroty's POST-based pagination |
-| BC-2.01.013 | DataSource Trait Eliminates Per-Sensor Code Duplication | v1.7 | Multi-page data fetch is part of the DataSource contract; pagination must work for all table types |
+| BC-2.16.002 | Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation | v1.70 | Governing postcondition: §Postconditions "OffsetLimit Pagination Dispatch: POST-body vs GET-URL (DRIFT-D850-001)" — for `PaginationConfig::OffsetLimit` POST steps, offset+limit go in the request body; for GET/absent steps, they append to the URL. Anchors AC-001, AC-002, AC-004, AC-005, AC-006. |
+| BC-2.16.013 | Bundled Sensor Spec Authoring and DTU-Parity Verification — 4 Initial Sensors | v1.25 | Gap-CL-004 is a DTU-parity gap; closing it restores parity for Claroty's POST-based pagination (alerts, audit_logs, devices tables). |
+| BC-2.01.013 | DataSource Trait Eliminates Per-Sensor Code Duplication | v1.14 | Multi-page data fetch is part of the DataSource contract; pagination must work for all table types. Anchors AC-003. |
 
 ## Acceptance Criteria
 
-### AC-001: POST steps send offset+limit in body, not URL (traces to BC-2.16.002 postcondition — pagination follows sensor spec declared config)
+### AC-001: POST steps send offset+limit in body, not URL (traces to BC-2.16.002 v1.70 §Postconditions "OffsetLimit Pagination Dispatch: POST-body vs GET-URL" — POST step clause)
 When `FetchStep::method == "POST"` and `PaginationConfig::OffsetLimit { page_size }` is active,
 `build_paged_url_impl` returns the base URL unchanged (no `?offset=&limit=` appended). The
 offset and limit values are injected into the JSON request body instead (as top-level keys
 `"offset"` and `"limit"` on the existing `body_template` JSON object).
 
-### AC-002: GET steps continue appending offset+limit as URL query params (traces to BC-2.16.002 postcondition — pagination follows sensor spec declared config / regression guard)
+### AC-002: GET steps continue appending offset+limit as URL query params (traces to BC-2.16.002 v1.70 §Postconditions "OffsetLimit Pagination Dispatch: POST-body vs GET-URL" — GET/absent-method step clause / regression guard)
 When `FetchStep::method == "GET"` (or absent — default GET) and `PaginationConfig::OffsetLimit`
 is active, `build_paged_url_impl` continues to append `?offset=N&limit=M` to the URL.
 No existing GET-sensor behavior changes. This AC is the regression guard for Cyberint, Armis,
@@ -156,17 +155,17 @@ A test issuing `FROM claroty_alerts LIMIT 150` against a DTU that serves exactly
 alert entries returns 102 rows (all entries across 2 pages). Without this fix, only 100 rows
 are returned (page 1 only). This test is the integration Red Gate for demo readiness.
 
-### AC-004: Body template merging preserves existing body fields (traces to BC-2.16.002 postcondition — body_template)
+### AC-004: Body template merging preserves existing body fields (traces to BC-2.16.002 v1.70 §Postconditions "OffsetLimit Pagination Dispatch: POST-body vs GET-URL" — body merge clause)
 When offset+limit are injected into the POST body, any existing keys from `body_template`
 (e.g., `{}` for Claroty, or filter params if present) are preserved. The pagination params
 are merged into the existing body object, not replacing it.
 
-### AC-005: First-page request uses offset=0 (traces to BC-2.16.002 postcondition — OffsetLimit starts at offset 0)
+### AC-005: First-page request uses offset=0 (traces to BC-2.16.002 v1.70 §Postconditions "OffsetLimit Pagination Dispatch: POST-body vs GET-URL" — offset initialization clause)
 For the first pagination step, `offset = 0` and `limit = page_size` are included in the body.
 Subsequent pages increment offset by `page_size`. This matches the semantics of the existing
 URL-based OffsetLimit implementation.
 
-### AC-006: `build_paged_url_for_test` public test helper remains callable for GET paths (traces to BC-2.16.002 postcondition — test regression guard)
+### AC-006: `build_paged_url_for_test` public test helper remains callable for GET paths (traces to BC-2.16.002 v1.70 §Postconditions "OffsetLimit Pagination Dispatch: POST-body vs GET-URL" — GET regression guard)
 The existing `build_paged_url_for_test` public test helper (used in `#[cfg(test)]` modules)
 remains usable and returns correct URL-appended results for GET steps. If the function signature
 changes to include `method`, the public test helper wrapper `build_paged_url_for_test` must
@@ -222,7 +221,7 @@ Architecture section references:
 | `crates/prism-spec-engine/src/spec_parser.rs` (PaginationConfig + FetchStep) | ~8,000 |
 | `crates/prism-dtu-claroty/src/types.rs` (verify body fields) | ~4,000 |
 | `crates/prism-sensors/specs/claroty.sensor.toml` (method + pagination config) | ~3,000 |
-| BC files (3 BCs: BC-2.16.002, BC-2.16.013, BC-2.01.013) | ~12,000 |
+| BC files (3 BCs: BC-2.16.002 v1.70, BC-2.16.013 v1.25, BC-2.01.013 v1.14) | ~12,000 |
 | **Total estimate** | **~71,000 tokens** |
 
 pipeline.rs is large (~40K tokens). This is within budget (20-30% of 200K = 40-60K for code
@@ -268,11 +267,10 @@ alone + story + BCs). If context pressure is felt, load only §pagination-relate
   same commit. Check existing catalog for any emission that covers body merge failure;
   reuse if semantically appropriate.
 
-- [ ] **Task 8: BC gap report** — After implementation, confirm whether BC-2.16.002 explicitly
-  covers POST-body OffsetLimit dispatch. If no existing postcondition clause covers it, draft
-  a finding for the product-owner: "BC-2.16.002 postcondition N (new) needed: OffsetLimit
-  POST-step dispatch sends offset+limit in body." Do NOT author the BC clause yourself
-  (product-owner owns BC authorship per Agent Routing Table in CLAUDE.md).
+- [ ] **Task 8: BC gap verification (CLOSED — no action required)** — BC-2.16.002 v1.70
+  §Postconditions "OffsetLimit Pagination Dispatch: POST-body vs GET-URL (DRIFT-D850-001)"
+  explicitly covers POST-body OffsetLimit dispatch (D-1059 2026-06-08). No PO finding needed.
+  Implementer should cite this clause in the PR description to confirm the BC→code alignment.
 
 ## Previous Story Intelligence
 
@@ -354,9 +352,9 @@ The DTU crate may appear in `[dev-dependencies]` only (test infrastructure).
    radius of changing `build_paged_url_impl`. Write all 4 Red Gate tests before declaring
    the story complete. Do not declare "tests follow after PR" — Red Gate tests are the gate.
 
-3. **BC gap report is non-optional.** At the end of implementation, file a finding for the
-   PO (or record in your PR description) whether BC-2.16.002 covers POST-body OffsetLimit
-   dispatch. This is a tracking obligation, not a blocker for the implementation itself.
+3. **BC gap is CLOSED (DRIFT-D850-001).** BC-2.16.002 v1.70 §Postconditions "OffsetLimit
+   Pagination Dispatch: POST-body vs GET-URL (DRIFT-D850-001)" is the governing clause. Cite
+   it in your PR description. No PO finding needed — the BC is already the source of truth.
 
 4. **Error variant for body merge failure.** If `body_template` is not a JSON object and
    cannot be merged with offset/limit, use the most semantically appropriate existing
@@ -369,3 +367,10 @@ The DTU crate may appear in `[dev-dependencies]` only (test infrastructure).
    appends ?offset=N&limit=M to URL." After this story lands, that comment should be updated
    to reflect that OffsetLimit POST steps inject into body. Include the TOML comment update
    in your PR (it is the same file; a follow-up is not warranted for a doc-comment update).
+
+## Changelog
+
+| Version | Date | Author | Change |
+|---------|------|--------|--------|
+| v1.0 | 2026-05-29 | story-writer | Initial story materialization — full ACs, Red Gate tests, edge cases, tasks, architecture mapping. Status: draft pending BC-gap closure (DRIFT-D850-001). |
+| v1.1 | 2026-06-08 | story-writer | BC-gap-closure refresh per D-1059: BC-2.16.002 v1.49→v1.70, BC-2.16.013 v1.17→v1.25, BC-2.01.013 v1.7→v1.14. BC-INDEX reference v5.56→v6.00. All AC traces updated to cite BC-2.16.002 v1.70 §Postconditions "OffsetLimit Pagination Dispatch: POST-body vs GET-URL (DRIFT-D850-001)" by name. Residual "may need PO authorship" language removed. Task 8 and Note 3 updated to reflect CLOSED gap. Status advanced draft→ready. |
