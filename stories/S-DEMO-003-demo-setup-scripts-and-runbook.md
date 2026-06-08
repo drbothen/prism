@@ -5,7 +5,7 @@ title: "scripts: Demo Setup Scripts + prism credential set/delete CLI Subcommand
 wave: 5
 epic_id: E-DEMO
 priority: P1
-status: ready
+status: in_progress
 version: "1.15"
 level: "L4"
 producer: story-writer
@@ -128,7 +128,7 @@ phase: 3
 # S-DEMO-003 — scripts: Demo Setup Scripts + `prism credential set` / `prism credential delete` CLI (Tier-3 Keyring) + Operator Runbook
 
 **Story ID:** S-DEMO-003
-**Status:** ready
+**Status:** in_progress
 **Version:** v1.15
 **Wave:** 5
 **Priority:** P1
