@@ -1,15 +1,20 @@
 # E2E Red Gate CI — S-DEMO-002 AC-010 / ADV-PR-P02-HIGH-001
 #
-# Runs the 13 #[ignore]'d subprocess smoke tests in crates/prism-bin/tests/e2e_smoke.rs.
+# Runs ALL #[ignore]'d prism-bin tests (currently 15):
+#   - 13 subprocess smoke tests in crates/prism-bin/tests/e2e_smoke.rs
+#   - 2 keyring subprocess tests in bc_2_03_007_credential_set_{no_echo,org_id_keyed}.rs
 # These tests require:
 #   1. Release binaries: prism + prism-dtu-demo-server (Architecture Compliance Rule 5).
 #   2. prism-dtu-demo-server launched in the background — the harness polls for
 #      `.prism-dtu-demo-server.urls.json` and wires the ports internally.
 #   3. Per-org credential env vars (DTU placeholder values; no real credentials).
+#   4. An unlocked Secret Service daemon (gnome-keyring) for keyring subprocess tests.
 #
-# Canonical invocation: cargo nextest run -p prism-bin --profile e2e --run-ignored ignored-only --no-tests=fail
+# Canonical invocation: cargo nextest run -p prism-bin --profile e2e --run-ignored ignored-only --no-tests=fail --test-threads 1
 # (OBS-002 resolution: this file is the source of truth for the canonical command; the
 # nextest.toml [profile.e2e] comment is kept in sync with this invocation.)
+# --test-threads 1: serializes tests to prevent Secret Service "default" collection races
+# (canonical secret-service-rs CI pattern; see hwchen/secret-service-rs .github/workflows/ci.yaml).
 #
 # Trigger set:
 #   - pull_request targeting develop or main (gates merges via required status check)
@@ -21,13 +26,14 @@
 # Scheduled runs on develop can be added as a future maintenance PR if needed.
 #
 # Runner: ubuntu-latest only — the SIGTERM test is #[cfg(unix)]; Windows is excluded.
-# All other tests (13 total) are unix-compatible.
+# All other tests (15 total) are unix-compatible.
 #
-# Timeout: 45 min — breakdown:
+# Timeout: 55 min — breakdown:
 #   cargo build --release (prism + prism-dtu-demo-server, warm cache): ~10-15 min
 #   nextest install:                                                      ~30s
-#   13 e2e tests × 120s/test ceiling ([profile.e2e] terminate-after=1):  ~26 min worst-case
-#   Total worst-case: ~42 min; 45 min provides margin.
+#   15 e2e tests × 120s/test ceiling ([profile.e2e] terminate-after=1):  ~30 min worst-case
+#   (serialized via --test-threads 1: no parallel races, sequential execution)
+#   Total worst-case: ~46 min; 55 min provides margin.
 
 name: E2E Red Gate
 
@@ -51,7 +57,7 @@ jobs:
   e2e:
     name: E2E smoke
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 55
 
     permissions:
       contents: read
@@ -145,7 +151,7 @@ jobs:
       # Setting RUST_LOG=off in the subprocess is handled by helpers/mod.rs launch_prism_bin();
       # setting it here as a job-level default ensures any future top-level invocations
       # also suppress log noise.
-      - name: Run E2E smoke suite (13 tests, release binaries, ignored-only)
+      - name: Run E2E smoke suite (all 15 ignored prism-bin tests, release binaries, serialized)
         env:
           # TYPE-spec base_url interpolation — placeholder values (overlays override to DTU URL)
           CLAROTY_INSTANCE_URL: "http://placeholder.claroty.invalid"
@@ -179,21 +185,31 @@ jobs:
           set -euo pipefail
           # Wrap in a dbus session with gnome-keyring providing org.freedesktop.secrets.
           #
-          # Why: test_handle_credential_set_subprocess_reads_org_id_keyed_entry spawns
-          # `prism credential set` as a subprocess (writes to OS keyring) then reads back
-          # via KeyringBackend::get_by_org. On a headless Linux runner there is no Secret
-          # Service daemon by default; keyring-rs returns a backend error → test panics.
+          # Why: test_handle_credential_set_subprocess_reads_org_id_keyed_entry (and the
+          # bc_2_03_007 keyring subprocess tests) spawn `prism credential set` as a
+          # subprocess (writes to OS keyring) then read back via KeyringBackend::get_by_org.
+          # On a headless Linux runner there is no Secret Service daemon by default;
+          # keyring-rs returns a backend error → test panics.
           #
           # dbus-run-session: creates an isolated session bus, sets DBUS_SESSION_BUS_ADDRESS,
           # and kills the bus on exit. All child processes (nextest + prism subprocess)
           # inherit DBUS_SESSION_BUS_ADDRESS automatically.
           #
-          # gnome-keyring-daemon --start --components=secrets: registers
-          # org.freedesktop.secrets on the session bus. The --start flag either starts a
-          # new daemon or returns the already-running one, and prints shell variable
-          # assignments (GNOME_KEYRING_CONTROL, etc.) that we source to export them.
-          # The default collection is left unlocked (no PAM session = no login keyring
-          # password required); new entries are stored in an ephemeral unlocked keyring.
+          # gnome-keyring-daemon --components=secrets --daemonize --unlock:
+          #   --unlock:     reads a password from stdin and unlocks the default/login
+          #                 collection with it. Creates a new login keyring if none exists,
+          #                 UNLOCKED — so Secret Service write/read calls succeed without a
+          #                 graphical prompter (canonical headless CI pattern from
+          #                 hwchen/secret-service-rs .github/workflows/ci.yaml).
+          #   --daemonize:  forks to background so this shell line returns immediately.
+          #   The password value is a throwaway (ephemeral unlocked keyring, never persisted
+          #   across runner invocations). The daemon registers on the DBUS_SESSION_BUS_ADDRESS
+          #   set by dbus-run-session — no additional env export required.
+          #
+          # --test-threads 1: serializes all tests to prevent races on the shared Secret
+          #   Service "default" collection. Required when multiple tests write/read the same
+          #   collection (canonical pattern from hwchen/secret-service-rs CI).
+          #   Throughput cost is negligible: tests are already sequential by design.
           #
           # Canonical E2E command — source of truth per OBS-002 reconciliation (S-DEMO-002 AC-010).
           # --profile e2e:             timeout=120s per test, fail-fast=true, terminate-after=1
@@ -205,14 +221,13 @@ jobs:
           #                            stable nextest (no version pin, matching ci.yml convention);
           #                            latest stable is always ≥0.9.85, so the flag is reliably available.
           dbus-run-session -- bash -euo pipefail -c '
-            gnome-keyring-daemon --start --components=secrets > /tmp/gnome-keyring.env
-            . /tmp/gnome-keyring.env
-            export GNOME_KEYRING_CONTROL GNOME_KEYRING_PID SSH_AUTH_SOCK
+            gnome-keyring-daemon --components=secrets --daemonize --unlock <<< "prism-e2e"
             cargo nextest run \
               -p prism-bin \
               --profile e2e \
               --run-ignored ignored-only \
-              --no-tests=fail
+              --no-tests=fail \
+              --test-threads 1
           '
 
       - name: Upload E2E JUnit results
