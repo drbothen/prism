@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.707"
+version: "7.708"
 producer: state-manager
 timestamp: 2026-06-08T12:00:00Z
 inputs: []
@@ -17,14 +17,14 @@ safe_to_compact: true
 
 # ── CANONICAL CURRENT-STATE VALUES (authoritative; do not drop in future compactions) ──
 develop_head: "a42e3eaf"
-bc_index_version: "5.98"
+bc_index_version: "5.99"
 vp_index_version: "1.76"
 story_index_version: "v2.319"
 arch_index_version: "2.115"
 error_taxonomy_version: "1.62"
 total_stories: 185
-active_contracts: 236
-draft_contracts: 1
+active_contracts: 235
+draft_contracts: 2
 prd_version: "1.10"
 policies_version: "1.31"
 subsystem_count: 22
@@ -34,7 +34,7 @@ workspace_test_count: 4064
 vsdd_factory_version: "1.0.0-rc.18"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-1056 — STATE/SESSION-HANDOFF compaction + durable zero-context resume snapshot (post S-DEMO-003 merge). Phase B ALL LANES COMPLETE. Phase C next (Claroty cluster: TRAILING-SLASH → SPEC-PROSE-FIX → HARNESS-CLONE-PARITY)."
+current_step: "D-1057 — empirical BC-count reconciliation (active 236→235, draft 1→2). Phase B ALL LANES COMPLETE. Phase C next (Claroty cluster: TRAILING-SLASH → SPEC-PROSE-FIX → HARNESS-CLONE-PARITY)."
 wave5_phase_b_status: "COMPLETE — Lanes 1/2/3/4 + S-MAINT all merged. Lane 1: S-SPEC-HTTP-METHOD-VALIDATION-001 PR#172 develop@752e407a. Lane 2: S-DEMO-QUERY-PUSHDOWN-001 PR#173 develop@9447671f. Lane 3: OCSF-CLASS-MIGRATION-001 PR#174 develop@0e89789a. Lane 4: S-DEMO-003 PR#176 develop@a42e3eaf. S-MAINT-ECRED-TAXONOMY-SYNC-001 PR#175 develop@c603741d."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
@@ -128,6 +128,7 @@ safe_to_compact: true
 _D-735 through D-1055 archived to cycles/wave-5-e-demo-fidelity/burst-log.md (and prior cycle burst-logs)._
 | D-1055 | state-manager | 2026-06-08 | S-DEMO-003 MERGED PR #176 squash-merged develop@a42e3eaf. POL-14: BC-2.06.001 v1.3 active; BC-2.06.003 v1.11 active; BC-2.03.005/007/BC-2.22.001 idempotent. BC-INDEX v5.98 (236 active; 1 draft). STORY-INDEX v2.319. State v7.706. |
 | D-1056 | state-manager | 2026-06-08 | STATE/SESSION-HANDOFF compaction + durable zero-context resume snapshot. STATE.md 1869→~165 lines. SESSION-HANDOFF.md 13281→~250 lines. Historical data archived to cycle files. STATE v7.707. |
+| D-1057 | state-manager | 2026-06-08 | Empirical BC-count reconciliation: active 236→235, draft 1→2 (BC-2.06.011 + BC-2.21.001). Root cause: D-1055 over-counted BC-2.06.003 as new active (lifecycle_status was already active). BC-INDEX v5.98→v5.99. STATE v7.708. |
 
 ## Decisions Log
 
@@ -135,6 +136,7 @@ _D-001..D-046 archived: `cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-1057 | 2026-06-08 | state-manager | **Empirical BC-count reconciliation (D-1057).** Ground-truth enumeration of `lifecycle_status:` fields across all 246 BC files: active=235, draft=2 (BC-2.06.011 + BC-2.21.001), removed=7, retired=2, total=246. Root cause of prior error: D-1055 counted BC-2.06.003's POL-14 transition as a new active promotion (+2 active), but BC-2.06.003's `lifecycle_status` was already `active` before D-1055 — only the legacy `status:` field was being synced; draft count was correspondingly under-reported by 1. Corrected: STATE.md frontmatter `active_contracts: 236→235`, `draft_contracts: 1→2`; BC-INDEX frontmatter and prose corrected to match; STATE v7.707→v7.708; BC-INDEX v5.98→v5.99. S-7.02 sweep: STATE.md + BC-INDEX.md corrected; no other files contain the stale count "236 active" / "draft_contracts: 1" in canonical positions. | wave-5-e-demo-fidelity | 2026-06-08 | Decided by: state-manager (D-1057 single-commit-per-burst TD-VSDD-053; reconciliation only; no spec/code changes). |
 | D-1056 | 2026-06-08 | state-manager | **STATE/SESSION-HANDOFF compaction + durable zero-context resume snapshot (post S-DEMO-003 merge PR #176 develop@a42e3eaf).** STATE.md compacted from 1869 lines / 815KB → ~165 lines. SESSION-HANDOFF.md compacted from 13281 lines / 1.2MB → ~250 lines. Extracted: (1) per-story cascade pass tracking frontmatter keys archived to `cycles/wave-5-e-demo-fidelity/frontmatter-cascade-archive.md`; (2) decision rows D-700..D-1054 archived to `cycles/wave-5-e-demo-fidelity/decisions-archive-D700-D1054.md`; (3) superseded SESSION-HANDOFF resume snapshots (D-1047 through D-988 and all earlier) archived to `cycles/wave-5-e-demo-fidelity/session-handoff-archive.md`. STATE version bumped 7.706→7.707. Canonical values preserved in STATE.md frontmatter (develop_head, bc_index_version, vp_index_version, story_index_version, arch_index_version, error_taxonomy_version, active_contracts, draft_contracts, total_stories). Durable zero-context resume snapshot written to SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-06-08-S-DEMO-003-MERGED and mirrored into STATE.md Session Resume Checkpoint below. **S-7.02 DEFENSIVE SWEEP:** All compaction targets checked — no canonical count values dropped; all moved-not-deleted with archive pointers. | wave-5-e-demo-fidelity | 2026-06-08 | Decided by: state-manager (D-1056 single-commit-per-burst TD-VSDD-053; compaction burst; no spec/code changes). |
 | D-1055 | 2026-06-08 | state-manager | **S-DEMO-003 MERGED PR #176 squash-merged develop@a42e3eaf. POL-14 BC promotions: BC-2.06.001 v1.2→v1.3 draft→active; BC-2.06.003 v1.10→v1.11 draft→active; BC-2.03.005/007/BC-2.22.001 idempotent no-ops. BC-INDEX v5.97→v5.98 (active 234→236; draft 3→1). STORY-INDEX v2.318→v2.319. Story v1.17 merged. Phase B Lane 4 COMPLETE. Cascade CLOSED.** Notable delivery: E-CRED re-baseline → LOCAL 3-CLEAN (19 passes; CRITICAL boot-probe F-P14 + F-P15 dup-backend caught) → PR-LEVEL 3-CLEAN → CI hardening (libdbus, Windows TOML path, doctest RUSTFLAGS, e2e gnome-keyring unlock+serialize) → merged. | wave-5-e-demo-fidelity | 2026-06-08 | Decided by: state-manager (D-1055 single-commit-per-burst TD-VSDD-053). |
 | D-1054 | 2026-06-08 | state-manager | **S-DEMO-003 PR-LEVEL adversarial 3-CLEAN CONVERGED (BC-5.39.001 D-779) — passes 1/2/3 all CLEAN(strict)=yes at PR #176 head d1ddd00a. pr-reviewer APPROVE (3 non-blocking NITs). security SECURITY-CLEAR-TO-MERGE. CI hardening: libdbus-1-dev (566ae8a2); Windows TOML {:?} fix (122a2e03); shellcheck apt-get update (d1ddd00a). FALSE-POSITIVE process note: adversary globbed develop not PR branch for demo evidence — codified in lessons.md.** | wave-5-e-demo-fidelity | 2026-06-08 | |
@@ -221,15 +223,15 @@ All historical cycle files:
 
 ---
 
-## Session Resume Checkpoint (2026-06-08 — D-1056: STATE/SESSION-HANDOFF compaction + durable zero-context resume snapshot; develop@a42e3eaf; STATE v7.707)
+## Session Resume Checkpoint (2026-06-08 — D-1057: empirical BC-count reconciliation; develop@a42e3eaf; STATE v7.708)
 
-_Previous checkpoint (D-1055; STATE v7.706) superseded by D-1056 compaction burst. Full durable resume snapshot is in SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-06-08-S-DEMO-003-MERGED._
+_Previous checkpoint (D-1056; STATE v7.707) superseded by D-1057 BC-count reconciliation burst. Full durable resume snapshot is in SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-06-08-S-DEMO-003-MERGED._
 
-**STATE v7.707. D-1056 — Compaction complete. develop@a42e3eaf. Phase B ALL COMPLETE. Phase C next: S-DEMO-CLAROTY-TRAILING-SLASH-001 (P1, ready) OR confirm with user. BC-INDEX v5.98 (236 active; 1 draft). STORY-INDEX v2.319. D-989 autonomy ACTIVE.**
+**STATE v7.708. D-1057 — Empirical BC-count reconciliation (active 236→235; draft 1→2; root cause: D-1055 over-counted BC-2.06.003 as new active — lifecycle_status was already active). develop@a42e3eaf. Phase B ALL COMPLETE. Phase C next: S-DEMO-CLAROTY-TRAILING-SLASH-001 (P1, ready) OR confirm with user. BC-INDEX v5.99 (235 active; 2 draft: BC-2.06.011 + BC-2.21.001). STORY-INDEX v2.319. D-989 autonomy ACTIVE.**
 
 **RESUME PROTOCOL (run on fresh session start):**
 1. `vsdd-factory:factory-worktree-health` (BLOCKING)
 2. Verify `git log --oneline develop | head -1` shows `a42e3eaf`
-3. Verify `grep "^version:" .factory/STATE.md` shows `"7.707"`
+3. Verify `grep "^version:" .factory/STATE.md` shows `"7.708"`
 4. `gh pr list --state open` → expect NONE
 5. Read SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-06-08-S-DEMO-003-MERGED
