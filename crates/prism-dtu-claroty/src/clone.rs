@@ -128,7 +128,7 @@ impl ClarotyClone {
             )
             // Write endpoints (stateful tag store)
             // Route registered WITHOUT trailing slash so NormalizePathLayer::trim_trailing_slash()
-            // can strip inbound `/tags/` → `/tags` and match. EC-003 regression guard verifies this.
+            // can strip inbound `/tags/` → `/tags` and match. the AC-005 tags regression guard (`test_BC_2_16_013_tags_route_with_slash_still_works`) verifies this.
             .route("/api/v1/devices/:device_id/tags", post(tags::add_tag))
             .route(
                 "/api/v1/devices/:device_id/tags/:tag_key",
