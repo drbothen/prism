@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "5.96"
+version: "5.97"
 status: draft
 producer: product-owner
 timestamp: 2026-06-05T12:00:00Z
@@ -100,7 +100,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.05.012 | AuditEmitter Initialization — audit_buffer CF Open and boot.audit.initialized Emitted at Process Start | 05 - Audit Trail | CAP-007 | P0 | active |
 | BC-2.06.001 | TOML Configuration Loads and Deserializes at Startup | 06 - Client Configuration | CAP-009 | P0 | draft |
 | BC-2.06.002 | Per-Client Sensor Mapping from TOML Configuration | 06 - Client Configuration | CAP-009 | P0 | draft |
-| BC-2.06.003 | Credential References in Config Resolve to Credential Store Entries | 06 - Client Configuration | CAP-009 | P0 | draft — v1.9 (D-1051 F-P15-HIGH-002: §OrgRegistry and KeyringStore Threading corrected — removed false "UNCHANGED trait signature / no blast radius" claim; `CredentialRefProbe::probe` converted to `async fn` via `#[async_trait]` at impl commit 0941c0e0; all 5 impls + call sites required `.await`; async conversion correct+necessary: sync `probe` cannot `.await get_by_org`; v1.8: three-tier probe Tier-3a OrgId-keyed PRIMARY + Tier-3b legacy FALLBACK; ADR-034 §D3/§D5) |
+| BC-2.06.003 | Credential References in Config Resolve to Credential Store Entries | 06 - Client Configuration | CAP-009 | P0 | draft — v1.10 (D-1052 F-P16-MED-001: §Per-Sensor `[[credential_refs]]` Declarations table, cyberint row `auth_type` corrected `api_key`→`cookie_roundtrip`; D-747 LOCKED canonical per cyberint.sensor.toml ADR-028 §D2/ADR-031 §D3-a; corroborated by StaticCookieAuthProvider provider column; v1.9: async-signature correction; v1.8: three-tier boot probe Tier-3a OrgId-keyed PRIMARY + Tier-3b legacy FALLBACK) |
 | BC-2.06.004 | Capability Overrides Merge with Defaults Using More-Specific-Wins | 06 - Client Configuration | CAP-009 | P0 | draft |
 | BC-2.06.005 | Configuration Validation Reports All Errors in One Pass | 06 - Client Configuration | CAP-009 | P0 | draft |
 | BC-2.06.006 | --dry-run Flag Validates Config and Prints Redacted Summary | 06 - Client Configuration | CAP-009 | P0 | draft |
@@ -376,6 +376,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v5.97 (2026-06-07, D-1052 F-P16-MED-001 — BC-2.06.003 v1.9→v1.10 cyberint auth_type drift fix; S-DEMO-003 LOCAL pass-16):** state-manager | product-owner amendment: BC-2.06.003 §Per-Sensor `[[credential_refs]]` Declarations table, cyberint row `auth_type` column corrected from `api_key` → `cookie_roundtrip`. Root cause: `api_key` is the credential-ref NAME for cyberint (correct in the `Required [[credential_refs]] names` column), not the auth_type; the auth_type cell was incorrectly populated with the credential name. Canonical source: `crates/prism-sensors/specs/cyberint.sensor.toml` §`auth_type = "cookie_roundtrip"` (D-747 LOCKED; ADR-028 §D2 / ADR-031 §D3-a). Corroborating evidence: provider column `StaticCookieAuthProvider` (cookie-based auth) and story Open Question 3 both confirm `cookie_roundtrip`. The `Required [[credential_refs]] names` column (`api_key`), provider column (`StaticCookieAuthProvider`), and all sibling rows (armis `bearer_static`, claroty `bearer_static`, crowdstrike `oauth2_client_credentials`) are unchanged and correct. pass-16 also VERIFIED both pass-15 fixes (F-P15-HIGH-001 single shared KeyringBackend, F-P15-HIGH-002 async-signature correction) landed cleanly with no regression. BC H1 title UNCHANGED (POL-7). Status remains draft (POL-14: promotes at S-DEMO-003 merge). BC-INDEX in-line row 103 updated v1.9→v1.10; change note replaced. No BC count changes (active: 234, draft: 3 unchanged). BC-INDEX v5.96→v5.97.
 
 **v5.96 (2026-06-07, D-1051 F-P15-HIGH-002 — BC-2.06.003 v1.8→v1.9 async-signature correction; S-DEMO-003 LOCAL pass-15):** state-manager | product-owner amendment: BC-2.06.003 §OrgRegistry and KeyringStore Threading corrected — removed false claim that "`CredentialRefProbe` trait and `CredentialRefProbe::probe` method signature are UNCHANGED from v1.3" and "no signature blast radius." The pass-14 implementation (commit 0941c0e0) converted `probe` to `async fn` via `#[async_trait]` — this IS a method-signature change. All 5 impls (production `KeyringCredentialProbe` + 4 test doubles in `tests/bc_2_03_013_credential_init.rs` and `tests/vp153_rule_c_shaped_probe.rs`) were required to adopt `#[async_trait]` + `async fn probe`, and all call sites required `.await`. The `org_registry: &OrgRegistry` parameter was already present from v1.3 (unchanged). The async conversion is correct and necessary: a synchronous `probe` cannot `.await get_by_org`. The construction prescription (probe and store share ONE `Arc<KeyringBackend>` per ADR-034 §D5) and the `Arc::clone(&keyring_backend)` sharing example are unchanged and correct. BC H1 title UNCHANGED (POL-7). Status remains draft (POL-14: promotes at S-DEMO-003 merge). BC-INDEX in-line row 103 updated v1.8→v1.9; change note replaced. No BC count changes (active: 234, draft: 3 unchanged). BC-INDEX v5.95→v5.96.
 
