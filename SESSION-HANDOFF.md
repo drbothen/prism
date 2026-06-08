@@ -1,7 +1,7 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.707"
+version: "7.709"
 status: current
 timestamp: 2026-06-08T12:00:00Z
 ---
@@ -10,7 +10,7 @@ timestamp: 2026-06-08T12:00:00Z
 
 > **PRIORITY READ ORDER — D-1056 COMPACTION + DURABLE ZERO-CONTEXT RESUME SNAPSHOT.**
 > Read STATE.md frontmatter + this snapshot before dispatching any agent.
-> develop HEAD `a42e3eaf`. factory-artifacts LOCAL-ONLY (no push). STATE v7.707.
+> develop HEAD `a42e3eaf`. factory-artifacts LOCAL-ONLY (no push). STATE v7.709.
 
 ---
 
@@ -29,13 +29,13 @@ timestamp: 2026-06-08T12:00:00Z
 | **Wave-5 Phase B** | **COMPLETE** — all 4 lanes + S-MAINT merged |
 | **Wave-5 Phase C** | **NEXT** — Claroty cluster: TRAILING-SLASH → SPEC-PROSE-FIX → HARNESS-CLONE-PARITY |
 | **develop HEAD** | `a42e3eaf` |
-| **STATE version** | v7.707 |
-| **BC-INDEX version** | v5.98 |
+| **STATE version** | v7.709 |
+| **BC-INDEX version** | v5.99 |
 | **STORY-INDEX version** | v2.319 |
 | **VP-INDEX version** | v1.76 |
 | **ARCH-INDEX version** | v2.115 |
-| **Active BCs** | 236 |
-| **Draft BCs** | 1 (BC-2.06.011 + BC-2.21.001) |
+| **Active BCs** | 235 |
+| **Draft BCs** | 2 (BC-2.06.011 + BC-2.21.001) |
 | **Total stories** | 185 |
 | **Open PRs** | NONE |
 | **factory-artifacts** | LOCAL-ONLY — do NOT push |
@@ -154,7 +154,7 @@ git log --oneline develop | head -1
 
 # 3. Verify STATE.md version
 grep '^version:' .factory/STATE.md
-# Expected: version: "7.707"
+# Expected: version: "7.709"
 
 # 4. Verify no open PRs
 gh pr list --state open

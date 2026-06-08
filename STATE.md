@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.708"
+version: "7.709"
 producer: state-manager
 timestamp: 2026-06-08T12:00:00Z
 inputs: []
@@ -128,6 +128,7 @@ safe_to_compact: true
 _D-735 through D-1055 archived to cycles/wave-5-e-demo-fidelity/burst-log.md (and prior cycle burst-logs)._
 | D-1055 | state-manager | 2026-06-08 | S-DEMO-003 MERGED PR #176 squash-merged develop@a42e3eaf. POL-14: BC-2.06.001 v1.3 active; BC-2.06.003 v1.11 active; BC-2.03.005/007/BC-2.22.001 idempotent. BC-INDEX v5.98 (236 active; 1 draft). STORY-INDEX v2.319. State v7.706. |
 | D-1056 | state-manager | 2026-06-08 | STATE/SESSION-HANDOFF compaction + durable zero-context resume snapshot. STATE.md 1869→~165 lines. SESSION-HANDOFF.md 13281→~250 lines. Historical data archived to cycle files. STATE v7.707. |
+| D-1058 | state-manager | 2026-06-08 | D-1058 sibling-site fix: SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-06-08-S-DEMO-003-MERGED Pipeline Status table corrected to match D-1057 ground truth (Active BCs 236→235, Draft BCs 1→2). TD-VSDD-060 sweep: STATE.md frontmatter + BC-INDEX already correct from D-1057; all other hits are immutable historical changelog rows. STATE v7.708→v7.709. |
 | D-1057 | state-manager | 2026-06-08 | Empirical BC-count reconciliation: active 236→235, draft 1→2 (BC-2.06.011 + BC-2.21.001). Root cause: D-1055 over-counted BC-2.06.003 as new active (lifecycle_status was already active). BC-INDEX v5.98→v5.99. STATE v7.708. |
 
 ## Decisions Log
@@ -223,15 +224,15 @@ All historical cycle files:
 
 ---
 
-## Session Resume Checkpoint (2026-06-08 — D-1057: empirical BC-count reconciliation; develop@a42e3eaf; STATE v7.708)
+## Session Resume Checkpoint (2026-06-08 — D-1058: SESSION-HANDOFF sibling-site BC-count sync; develop@a42e3eaf; STATE v7.709)
 
-_Previous checkpoint (D-1056; STATE v7.707) superseded by D-1057 BC-count reconciliation burst. Full durable resume snapshot is in SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-06-08-S-DEMO-003-MERGED._
+_Previous checkpoint (D-1057; STATE v7.708) superseded by D-1058 sibling-site fix burst. Full durable resume snapshot is in SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-06-08-S-DEMO-003-MERGED._
 
-**STATE v7.708. D-1057 — Empirical BC-count reconciliation (active 236→235; draft 1→2; root cause: D-1055 over-counted BC-2.06.003 as new active — lifecycle_status was already active). develop@a42e3eaf. Phase B ALL COMPLETE. Phase C next: S-DEMO-CLAROTY-TRAILING-SLASH-001 (P1, ready) OR confirm with user. BC-INDEX v5.99 (235 active; 2 draft: BC-2.06.011 + BC-2.21.001). STORY-INDEX v2.319. D-989 autonomy ACTIVE.**
+**STATE v7.709. D-1058 — SESSION-HANDOFF resume snapshot BC counts synced to D-1057 ground truth (235 active; 2 draft: BC-2.06.011 + BC-2.21.001). develop@a42e3eaf. Phase B ALL COMPLETE. Phase C next: S-DEMO-CLAROTY-TRAILING-SLASH-001 (P1, ready) OR confirm with user. BC-INDEX v5.99. STORY-INDEX v2.319. D-989 autonomy ACTIVE.**
 
 **RESUME PROTOCOL (run on fresh session start):**
 1. `vsdd-factory:factory-worktree-health` (BLOCKING)
 2. Verify `git log --oneline develop | head -1` shows `a42e3eaf`
-3. Verify `grep "^version:" .factory/STATE.md` shows `"7.708"`
+3. Verify `grep "^version:" .factory/STATE.md` shows `"7.709"`
 4. `gh pr list --state open` → expect NONE
 5. Read SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-06-08-S-DEMO-003-MERGED
