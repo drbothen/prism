@@ -26,6 +26,8 @@ use axum::{
 };
 use prism_dtu_common::{BehavioralClone, StubConfig};
 use tokio::{net::TcpListener, sync::broadcast, task::JoinHandle};
+use tower::Layer as _;
+use tower_http::normalize_path::NormalizePathLayer;
 
 use crate::{
     routes::{alerts, audit_log, devices, tags, vulnerabilities},
@@ -125,7 +127,9 @@ impl ClarotyClone {
                 post(vulnerabilities::list_vulnerability_devices),
             )
             // Write endpoints (stateful tag store)
-            .route("/api/v1/devices/:device_id/tags/", post(tags::add_tag))
+            // Route registered WITHOUT trailing slash so NormalizePathLayer::trim_trailing_slash()
+            // can strip inbound `/tags/` → `/tags` and match. the AC-005 tags regression guard (`test_BC_2_16_013_tags_route_with_slash_still_works`) verifies this.
+            .route("/api/v1/devices/:device_id/tags", post(tags::add_tag))
             .route(
                 "/api/v1/devices/:device_id/tags/:tag_key",
                 delete(tags::remove_tag),
@@ -155,17 +159,26 @@ impl BehavioralClone for ClarotyClone {
         #[cfg(not(feature = "tls"))] tls: Option<()>,
     ) -> anyhow::Result<std::net::SocketAddr> {
         let router = self.build_router();
+        // BC-2.16.013: wrap the OUTER service with NormalizePathLayer::trim_trailing_slash()
+        // so inbound trailing-slash requests (e.g. /api/v1/alerts/) are stripped to the
+        // registered route path (/api/v1/alerts) before routing. Applied at the outer service
+        // level — NOT via Router::layer() which no-ops in axum 0.7 because the Router matches
+        // the path before inner layers run (axum#2377). Applied at BOTH serve sites (TLS and
+        // plain HTTP) to ensure consistent behavior regardless of the serve path.
+        let app = NormalizePathLayer::trim_trailing_slash().layer(router);
 
         #[cfg(feature = "tls")]
         if let Some(rustls_cfg) = tls {
             let handle = axum_server::Handle::new();
             let handle_clone = handle.clone();
+            // Fully-qualified axum::ServiceExt to satisfy type inference (axum#2377).
+            let make_svc = axum::ServiceExt::<axum::extract::Request>::into_make_service(app);
             let server_task = tokio::spawn(async move {
                 // SAFETY: server task crash must surface immediately as a fatal error.
                 #[allow(clippy::expect_used)]
                 axum_server::bind_rustls(bind, (*rustls_cfg).clone())
                     .handle(handle_clone)
-                    .serve(router.into_make_service())
+                    .serve(make_svc)
                     .await
                     .expect("ClarotyClone TLS server crashed");
             });
@@ -189,7 +202,9 @@ impl BehavioralClone for ClarotyClone {
         self.tls_active = false;
 
         let handle = tokio::spawn(async move {
-            let server = axum::serve(listener, router);
+            // Fully-qualified axum::ServiceExt to satisfy type inference (axum#2377).
+            let make_svc = axum::ServiceExt::<axum::extract::Request>::into_make_service(app);
+            let server = axum::serve(listener, make_svc);
             if let Some(mut rx) = shutdown {
                 let serve_future = server.with_graceful_shutdown(async move {
                     let _ = rx.recv().await;

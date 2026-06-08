@@ -22,6 +22,9 @@ axum-server = { version = "0.7", features = ["tls-rustls"], optional = true }
 axum = "0.7"
 tokio = { version = "1", features = ["full"] }
 tower = "0.4"
+# tower-http 0.5 — matches prism-dtu-common pin (crates/prism-dtu-common/Cargo.toml line 30).
+# normalize-path feature provides NormalizePathLayer::trim_trailing_slash() for BC-2.16.013.
+tower-http = { version = "0.5", features = ["normalize-path"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 async-trait = "0.1"
@@ -133,6 +136,12 @@ required-features = ["dtu"]
 [[test]]
 name = "sec_p3_003_constant_time_admin_token"
 path = "tests/sec_p3_003_constant_time_admin_token.rs"
+required-features = ["dtu"]
+
+# S-DEMO-CLAROTY-TRAILING-SLASH-001: Red Gate — trailing-slash route fidelity (BC-2.16.013 v1.25)
+[[test]]
+name = "trailing_slash_parity"
+path = "tests/trailing_slash_parity.rs"
 required-features = ["dtu"]
 
 [lints]
