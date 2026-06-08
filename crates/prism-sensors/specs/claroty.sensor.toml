@@ -146,6 +146,8 @@ ocsf_class = "detection_finding"
 [[tables]]
 table_name = "audit_logs"
 ocsf_class = "audit_activity"
+# Gap-CL-006 CLOSED by S-DEMO-CLAROTY-AUDIT-DTU-001.
+# POST /api/v1/audit_log/get route registered in prism-dtu-claroty.
 
   [[tables.columns]]
   name = "id"
