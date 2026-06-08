@@ -1028,8 +1028,7 @@ fn build_request(
             let mut body_val: serde_json::Value = serde_json::from_str(&interpolated_body)
                 .map_err(|e| {
                     format!(
-                        "body template for POST OffsetLimit step '{}' is not valid JSON: {e}; \
-                         raw body: {interpolated_body:?}",
+                        "body template for POST OffsetLimit step '{}' is not valid JSON: {e}",
                         step.name
                     )
                 })?;
@@ -1047,13 +1046,13 @@ fn build_request(
                 _ => {
                     // EC-002: body_template is not a JSON object (e.g., raw string, array).
                     // Surface as an error — cannot merge offset/limit into a non-object body.
+                    // Object(_) is handled by the arm above; only non-object variants reach here.
                     let type_name = match &body_val {
                         serde_json::Value::Array(_) => "array",
                         serde_json::Value::String(_) => "string",
                         serde_json::Value::Number(_) => "number",
                         serde_json::Value::Bool(_) => "boolean",
-                        serde_json::Value::Null => "null",
-                        serde_json::Value::Object(_) => "object", // unreachable, handled above
+                        _ => "null",
                     };
                     return Err(format!(
                         "POST OffsetLimit step '{}' body_template interpolated to a non-object \
