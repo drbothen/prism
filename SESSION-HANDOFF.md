@@ -464,15 +464,15 @@ DURABLE PIN BLOCK (CURRENT STATE — D-580 — DURABLE PRE-/CLEAR RESUME SNAPSHO
 
 ---
 
-### §1 PIPELINE STATUS (verified 2026-06-07)
+### §1 PIPELINE STATUS (verified 2026-06-08 — D-1055 S-DEMO-003 POST-MERGE BURST)
 
 | Field | Value |
 |-------|-------|
-| develop HEAD | `c603741d` (S-MAINT-ECRED-TAXONOMY-SYNC-001 PR #175 squash-merged 2026-06-07) |
+| develop HEAD | `a42e3eaf` (S-DEMO-003 PR #176 squash-merged 2026-06-08) |
 | factory-artifacts HEAD | run `git -C .factory log -1 --format='%h %s'` — this snapshot's own commit (TD-VSDD-053: never cite literal SHA in artifacts) |
-| STATE.md version | v7.698 (this burst; was v7.697) |
-| STORY-INDEX version | v2.315 (185 stories) |
-| BC-INDEX version | v5.94 |
+| STATE.md version | v7.706 (D-1055 burst) |
+| STORY-INDEX version | v2.319 (185 stories) |
+| BC-INDEX version | v5.98 |
 | ARCH-INDEX version | v2.115 |
 | error-taxonomy version | v1.62 (canonical E-CRED-001..010; ADR-035) |
 | VP-INDEX version | v1.76 |
@@ -574,9 +574,9 @@ gh pr list --state open
 # Expected: (empty — no open PRs)
 ```
 
-### §7 STATUS: PAUSED
+### §7 STATUS: COMPLETE — D-1055 S-DEMO-003 MERGED
 
-Awaiting user go-ahead to begin the S-DEMO-003 re-baseline (§3 above).
+S-DEMO-003 PR #176 squash-merged develop@a42e3eaf 2026-06-08. All cascade work complete. POL-14 done. Phase B ALL LANES COMPLETE. NEXT: worktree/branch cleanup (devops) then await user direction for next Wave-5 story (Phase C Claroty cluster).
 
 ---
 

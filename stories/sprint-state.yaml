@@ -487,11 +487,12 @@ active_dispatch_set:
     notes: "3-org multi-sensor E2E smoke. BC-3.2.001 multi-org isolation. TRACKED DEPENDENCY (D-934 2026-06-01): MUST seed query_filters[\"aql\"] in PipelineExecutor FetchContext for Armis end-to-end AQL push-down — architect+implementer confirmed Armis DTU/TOML/${query.filter.aql} interpolation is correctly wired in S-DEMO-ARMIS-AQL-001; production query-layer AQL seeding is S-DEMO-002 scope; scope boundary confirmed, not a defer-pattern violation."
 
   - story_id: S-DEMO-003
-    status: in_progress
+    status: merged
     priority: P1
     points: 8
     spec_version: "v1.17"
     code_head: "c61b61bd"
+    merge_commit: "a42e3eaf"
     pr_number: 176
     pr_head: "d1ddd00a"
     pr_base_develop: "c603741d"
@@ -512,7 +513,7 @@ active_dispatch_set:
     pr_level_ci_at_checkpoint: "15 SUCCESS, 8 in-progress, 0 failures (mergeable=MERGEABLE mergeStateStatus=UNSTABLE)"
     pr_level_ci_fix_trajectory: "566ae8a2 (libdbus-1-dev Linux keyring dep) → 122a2e03 (Windows TOML-path {:?} serialization + cross-platform round-trip test) → d1ddd00a (F-PR1-LOW-001 shellcheck apt-get update)"
     pr_level_false_positive_pol10: "ADJUDICATED FALSE POSITIVE — adversary globbed main repo checkout on develop (not branch); 31 demo-evidence files ARE present at docs/demo-evidence/S-DEMO-003/ on PR branch d1ddd00a. Process gap codified: adversary must inspect PR branch/worktree for demo evidence."
-    dispatch_status: "PR-LEVEL CONVERGED — awaiting green CI then auto-merge (D-989 grant — objective gates). D-1054 2026-06-08: PR-LEVEL 3-CLEAN CONVERGED passes 1/2/3 @d1ddd00a (BC-5.39.001 D-779). pr-reviewer APPROVE. security SECURITY-CLEAR-TO-MERGE. CI 15 SUCCESS 8 in-progress 0 failures."
+    dispatch_status: "MERGED — PR #176 squash-merged develop@a42e3eaf 2026-06-08 (D-1055). LOCAL 3/3 CLEAN CONVERGED passes 17/18/19 @c61b61bd (D-1053; BC-5.39.001 D-779) + PR-LEVEL 3/3 CLEAN CONVERGED passes 1/2/3 @d1ddd00a (D-1054; BC-5.39.001 D-779). pr-reviewer APPROVE. security SECURITY-CLEAR-TO-MERGE. CI 43/43 GREEN. POL-14: BC-2.06.001 v1.2→v1.3 draft→active; BC-2.06.003 v1.10→v1.11 draft→active; BC-2.03.005/007/BC-2.22.001 idempotent no-ops. Phase B Lane 4 COMPLETE. Cascade CLOSED."
     depends_on:
       - S-DEMO-001  # HARD — SATISFIED (merged PR #166 develop@5dd3df02)
       - S-DEMO-002  # HARD — SATISFIED (merged PR #171 develop@fdd12251)

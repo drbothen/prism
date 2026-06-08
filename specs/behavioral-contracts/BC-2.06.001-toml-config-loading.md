@@ -1,17 +1,17 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.2"
-status: draft
+version: "1.3"
+status: active
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
 phase: 1a
 origin: greenfield
 subsystem: "SS-06"
 capability: "CAP-009"
-lifecycle_status: draft
+lifecycle_status: active
 introduced: cycle-1
-modified: "2026-06-03"  # v1.2 F-004 lifecycle_status sync active→draft (Wave-5 Phase-B gate)
+modified: "2026-06-08"  # v1.3 POL-14 promotion draft→active (S-DEMO-003 merged PR #176 a42e3eaf)
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -91,5 +91,6 @@ No VPs in VP-INDEX v1.5 directly verify TOML config loading. Placeholder for fut
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.3 | S-DEMO-003-merged-PR-176 | 2026-06-08 | state-manager | **POL-14 auto-promotion draft→active (D-1055).** S-DEMO-003 squash-merged PR #176 into develop@a42e3eaf. S-DEMO-003 is in `behavioral_contracts:` for this BC (per story frontmatter). The generated `prism.toml` produced by `demo-setup.sh` is schema-valid and accepted at startup — TOML loading is exercised by the full story test suite (4,000+ tests passing, CI 43/43 GREEN). `status: draft → active`; `lifecycle_status: draft → active`. Both fields now consistently `active`. BC v1.2 → v1.3. |
 | 1.2 | Wave-5-Phase-B-gate-F-004 | 2026-06-03 | product-owner | F-004 field desync fix (D-989): corrected `lifecycle_status: active` → `lifecycle_status: draft` to match `status: draft`. POL-14 requires at least one merged story citing this BC in its `behavioral_contracts:` array. All four citing stories (S-5.05, S-5.07, S-6.02, S-DEMO-003) are `status: draft` — no POL-14 promotion trigger exists. The config loading behavior is delivered by the running system (boot sequence produces valid TOML-loaded config), but no formal spec-delivery story with this BC in `behavioral_contracts:` has merged. Resolution: `lifecycle_status: draft` pending S-5.05 merge (minimal unblock path). Both fields now consistently `draft`. BC v1.1 → v1.2. |
 | 1.1 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; added ## Changelog. |

@@ -1,8 +1,8 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.10"
-status: draft
+version: "1.11"
+status: active
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
 phase: 1a
@@ -11,7 +11,7 @@ subsystem: "SS-06"
 capability: "CAP-009"
 lifecycle_status: active
 introduced: cycle-1
-modified: 2026-06-07
+modified: 2026-06-08
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -389,6 +389,7 @@ No VPs in VP-INDEX directly verify credential reference resolution. Placeholder 
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.11 | S-DEMO-003-merged-PR-176 | 2026-06-08 | state-manager | **POL-14 auto-promotion draft→active (D-1055).** S-DEMO-003 squash-merged PR #176 into develop@a42e3eaf. `status: draft → active` (synced with `lifecycle_status: active` which was already correct per ADR-025 ground truth; the `status:` inconsistency was an ADR-025 drift introduced before the D-1047 durable snapshot). E-CRED-008 emitter + boot Tier-3a `KeyringCredentialProbe::probe` (OrgId-keyed via `get_by_org` per ADR-034 §D3) are now in merged production code. BC H1 title UNCHANGED (POL-7). BC v1.10 → v1.11. |
 | 1.10 | S-DEMO-003-F-P16-MED-001 | 2026-06-07 | product-owner | **F-P16-MED-001 — cyberint auth_type drift api_key → cookie_roundtrip (D-747 LOCKED).** §Per-Sensor `[[credential_refs]]` Declarations table, cyberint row: `auth_type` column corrected from `api_key` → `cookie_roundtrip`. Root cause: `api_key` is the credential-ref NAME for cyberint (correct in the `Required [[credential_refs]] names` column), not the auth_type; the auth_type cell was incorrectly populated with the credential name. Canonical source: `crates/prism-sensors/specs/cyberint.sensor.toml:26` declares `auth_type = "cookie_roundtrip"` (D-747 LOCKED; the legacy `bearer_static` label for cyberint was a known latent label bug — `cookie_roundtrip` is the locked canonical value per ADR-028 §D2 / ADR-031 §D3-a). Corroboration: provider column `StaticCookieAuthProvider` (cookie-based) and story Open Question 3 both confirm `cookie_roundtrip`. The `Required [[credential_refs]] names` column (`api_key`), provider column (`StaticCookieAuthProvider`), and all sibling rows (armis `bearer_static`, claroty `bearer_static`, crowdstrike `oauth2_client_credentials`) are unchanged and correct. H1 title UNCHANGED (POL-7). Status remains draft (POL-14). |
 | 1.9 | S-DEMO-003-F-P15-HIGH-002 | 2026-06-07 | product-owner | **F-P15-HIGH-002 — Async signature correction.** Corrected §OrgRegistry and KeyringStore Threading: removed false claim that "`CredentialRefProbe` trait and `CredentialRefProbe::probe` method signature are UNCHANGED from v1.3" and "no signature blast radius." The pass-14 implementation (commit 0941c0e0) converted `probe` to `async` via `#[async_trait]` — this IS a method-signature change. All 5 impls (production `KeyringCredentialProbe` + 4 test doubles in `tests/bc_2_03_013_credential_init.rs` and `tests/vp153_rule_c_shaped_probe.rs`) were required to adopt `#[async_trait]` + `async fn probe`, and all call sites required `.await`. The `org_registry: &OrgRegistry` parameter was already present from v1.3 (unchanged). The async conversion is correct and necessary: a synchronous `probe` cannot `.await get_by_org`. The construction prescription (probe and store share ONE `Arc<KeyringBackend>` per ADR-034 §D5) and the `Arc::clone(&keyring_backend)` sharing example in the code block are unchanged and correct. BC H1 title UNCHANGED (POL-7). Status remains draft (POL-14). |
 | 1.8 | S-DEMO-003-F-P14-CRIT-001 | 2026-06-07 | product-owner | **F-P14-CRIT-001 — Boot-step-5 probe OrgId-keyed reconciliation.** Full rewrite of §Boot-Step-5 Probe Alignment to fix the defect where the Tier-3 probe used the legacy non-org-keyed key `{sensor_id}/{ref_name}` while `prism credential set` writes via `set_by_org` to the OrgId-keyed key `{org_id_uuid}/{sensor_id}/{ref_name}`. Per Source-of-Truth Precedence (ADR-034 §D3/§D5 supersedes the prior BC clause). Changes: (1) §Boot-Step-5 Probe Alignment fully rewritten: three-tier probe order (Tier 1/2 env wildcard → Tier 3a OrgId-keyed keyring PRIMARY → Tier 3b legacy keyring FALLBACK); (2) Decision documented: legacy fallback RETAINED for backward compatibility with pre-migration credentials, but OrgId-keyed is primary/canonical; (3) `KeyringCredentialProbe` struct gains `keyring: Arc<dyn CredentialStoreOrgId>` field for Tier 3a `get_by_org` calls; (4) Exact legacy key form specified as `"{sensor_id}/{ref_name}"` (no org component) — corrects the doc inconsistency in boot.rs where the doc comment claims `{org_slug}/{sensor_id}/{ref_name}` but code uses `{sensor_id}/{ref_name}`; (5) Error message updated to cite all three lookup paths; (6) Error Cases table: `BootError::CredentialRefInvalid` updated to cite all three paths; added `BootError::CredentialPermissionDenied` for keyring backend errors at Tier 3a/3b; (7) Edge Cases: added EC-06-006 (OrgId-keyed probe success), EC-06-007 (legacy fallback success), EC-06-008 (keyring backend hard error); (8) Canonical Test Vectors: added §Boot-Step-5 Probe section with TV-BOOT-P-001..005; (9) `modified` frontmatter updated to 2026-06-07. |

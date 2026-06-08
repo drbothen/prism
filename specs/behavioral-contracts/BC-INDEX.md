@@ -1,14 +1,14 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "5.97"
+version: "5.98"
 status: draft
 producer: product-owner
 timestamp: 2026-06-05T12:00:00Z
 phase: 3.A
 total_contracts: 246
-active_contracts: 234
-draft_contracts: 3
+active_contracts: 236
+draft_contracts: 1
 deprecated_contracts: 0
 removed_contracts: 7
 retired_contracts: 2
@@ -16,14 +16,14 @@ retired_contracts: 2
 
 # Behavioral Contract Index
 
-Flat index of all 246 behavioral contracts for Prism (246 total files, 234 active, 3 draft, 0 deprecated, 7 removed, 2 retired), organized by BC ID. Note: 5 prior index-only reserved entries (BC-2.07.007/008/009/010, BC-2.14.011) were dropped — they never had corresponding files.
+Flat index of all 246 behavioral contracts for Prism (246 total files, 236 active, 1 draft, 0 deprecated, 7 removed, 2 retired), organized by BC ID. Note: 5 prior index-only reserved entries (BC-2.07.007/008/009/010, BC-2.14.011) were dropped — they never had corresponding files.
 
 **Note on `total_contracts`:** This count represents unique BC identifiers ever filed
-(active + draft + deprecated + removed + retired = 234 + 3 + 0 + 7 + 2 = 246). 1 new BC (BC-2.01.017) added in D-849 for ADR-031 StaticCookieAuthProvider no-login-roundtrip contract. 5 new BCs (BC-2.06.012–016) added in D-803 burst-3 for ADR-029 multi-tenant sensor endpoint overrides. Five prior index-only reserved entries
+(active + draft + deprecated + removed + retired = 236 + 1 + 0 + 7 + 2 = 246). 1 new BC (BC-2.01.017) added in D-849 for ADR-031 StaticCookieAuthProvider no-login-roundtrip contract. 5 new BCs (BC-2.06.012–016) added in D-803 burst-3 for ADR-029 multi-tenant sensor endpoint overrides. Five prior index-only reserved entries
 (BC-2.07.007/008/009/010, BC-2.14.011) were dropped in v4.8 because they never had
 corresponding files — they are NOT counted in `total_contracts` and remain only in the
 historical references section below. Counts are derived from workspace enumeration of
-individual BC file `lifecycle_status` frontmatter fields (ground truth per VSDD). `draft_contracts: 3` covers BC-2.06.001 + BC-2.06.011 + BC-2.21.001 (D-990: BC-2.06.001 lifecycle_status:draft confirmed per F-004 verdict; BC-2.02.012 lifecycle_status:active per D-989 PO authorship; BC-2.03.005+BC-2.03.007 lifecycle_status:active — only legacy `status:` field synced F-003). BC-2.11.005 promoted draft→active at D-937 per POL-14 (anchor story S-DEMO-001 merged via PR #166 develop@5dd3df02 2026-06-01). BC-2.11.001 + BC-2.11.007 + BC-3.2.001 status: draft→active at D-987 per POL-14 (anchor story S-DEMO-002 merged via PR #171 develop@fdd12251 2026-06-04). BC-2.01.017 promoted draft→active at D-904 per POL-14 (anchor story S-DTU-CYBERINT-AUTH-FIDELITY-001 merged via PR #164 develop@e798e67c 2026-05-31). BC-2.16.013, BC-2.16.001, and BC-2.16.009 promoted draft→active at D-776 per POL-14 (PR #153 merge 2026-05-22); BC-2.01.016, BC-2.16.011, and BC-2.16.012 promoted draft→active at D-726 per POL-14 (PR #151 merge). BC-2.16.004 lifecycle_status was already `removed`; `status` field aligned to `removed` at D-726 (was draft, inconsistent). `deprecated_contracts: 0` — BC-2.16.004 fully removed. BC-2.01.005/006/007/008 and BC-2.02.003/004/005/006 amendment_lifecycle: pending cleared at PLUGIN-MIGRATION-001-G burst-3 (v5.54); all 8 now reflect `active (amended per ADR-023/PLUGIN-MIGRATION-001-G)` — lifecycle_status was already active in BC files prior to this index update.
+individual BC file `lifecycle_status` frontmatter fields (ground truth per VSDD). `draft_contracts: 1` covers BC-2.06.011 + BC-2.21.001 (D-1055: BC-2.06.001 promoted draft→active at D-1055 per POL-14 — anchor story S-DEMO-003 merged via PR #176 develop@a42e3eaf 2026-06-08; BC-2.06.003 promoted draft→active at D-1055 per POL-14 — E-CRED-008 emitter + boot Tier-3a probe merged). BC-2.03.005+BC-2.03.007 lifecycle_status:active (only legacy `status:` field synced F-003). BC-2.11.005 promoted draft→active at D-937 per POL-14 (anchor story S-DEMO-001 merged via PR #166 develop@5dd3df02 2026-06-01). BC-2.11.001 + BC-2.11.007 + BC-3.2.001 status: draft→active at D-987 per POL-14 (anchor story S-DEMO-002 merged via PR #171 develop@fdd12251 2026-06-04). BC-2.01.017 promoted draft→active at D-904 per POL-14 (anchor story S-DTU-CYBERINT-AUTH-FIDELITY-001 merged via PR #164 develop@e798e67c 2026-05-31). BC-2.16.013, BC-2.16.001, and BC-2.16.009 promoted draft→active at D-776 per POL-14 (PR #153 merge 2026-05-22); BC-2.01.016, BC-2.16.011, and BC-2.16.012 promoted draft→active at D-726 per POL-14 (PR #151 merge). BC-2.16.004 lifecycle_status was already `removed`; `status` field aligned to `removed` at D-726 (was draft, inconsistent). `deprecated_contracts: 0` — BC-2.16.004 fully removed. BC-2.01.005/006/007/008 and BC-2.02.003/004/005/006 amendment_lifecycle: pending cleared at PLUGIN-MIGRATION-001-G burst-3 (v5.54); all 8 now reflect `active (amended per ADR-023/PLUGIN-MIGRATION-001-G)` — lifecycle_status was already active in BC files prior to this index update.
 
 Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close traceability gaps for AD-019 (WASM plugins), AD-020 (infusions), AD-021 (actions), CAP-022 (auto-case-creation), and BC-2.14.012 stub completion. Burst 2.5: 4 additional BCs closing remaining gaps flagged by story-writer: BC-2.08.008/009 (diagnostics tool + resources, S-5.08), BC-2.05.011 (audit forwarding at-least-once, S-5.10), BC-2.13.014 (IOC file loading, S-4.03).
 
@@ -98,9 +98,9 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.05.010 | Confirmation Token Lifecycle Events Are Audit-Logged | 05 - Audit Trail | CAP-007 | P0 | draft |
 | BC-2.05.011 | Audit Forwarding — At-Least-Once Delivery to External Destinations (VP-039 monotonic watermark) | 05 - Audit Trail | CAP-007 | P0 | draft |
 | BC-2.05.012 | AuditEmitter Initialization — audit_buffer CF Open and boot.audit.initialized Emitted at Process Start | 05 - Audit Trail | CAP-007 | P0 | active |
-| BC-2.06.001 | TOML Configuration Loads and Deserializes at Startup | 06 - Client Configuration | CAP-009 | P0 | draft |
+| BC-2.06.001 | TOML Configuration Loads and Deserializes at Startup | 06 - Client Configuration | CAP-009 | P0 | active — v1.3 (D-1055 POL-14: S-DEMO-003 merged PR #176 a42e3eaf; draft→active) |
 | BC-2.06.002 | Per-Client Sensor Mapping from TOML Configuration | 06 - Client Configuration | CAP-009 | P0 | draft |
-| BC-2.06.003 | Credential References in Config Resolve to Credential Store Entries | 06 - Client Configuration | CAP-009 | P0 | draft — v1.10 (D-1052 F-P16-MED-001: §Per-Sensor `[[credential_refs]]` Declarations table, cyberint row `auth_type` corrected `api_key`→`cookie_roundtrip`; D-747 LOCKED canonical per cyberint.sensor.toml ADR-028 §D2/ADR-031 §D3-a; corroborated by StaticCookieAuthProvider provider column; v1.9: async-signature correction; v1.8: three-tier boot probe Tier-3a OrgId-keyed PRIMARY + Tier-3b legacy FALLBACK) |
+| BC-2.06.003 | Credential References in Config Resolve to Credential Store Entries | 06 - Client Configuration | CAP-009 | P0 | active — v1.11 (D-1055 POL-14: S-DEMO-003 merged PR #176 a42e3eaf; status draft→active; E-CRED-008 emitter + boot Tier-3a probe merged; v1.10: cyberint auth_type cookie_roundtrip; v1.9: async-signature; v1.8: three-tier boot probe) |
 | BC-2.06.004 | Capability Overrides Merge with Defaults Using More-Specific-Wins | 06 - Client Configuration | CAP-009 | P0 | draft |
 | BC-2.06.005 | Configuration Validation Reports All Errors in One Pass | 06 - Client Configuration | CAP-009 | P0 | draft |
 | BC-2.06.006 | --dry-run Flag Validates Config and Prints Redacted Summary | 06 - Client Configuration | CAP-009 | P0 | draft |
@@ -376,6 +376,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v5.98 (2026-06-08, D-1055 S-DEMO-003 MERGED PR #176 develop@a42e3eaf — POL-14 BC promotions):** state-manager | POL-14 auto-promotion: (1) BC-2.06.001 v1.2→v1.3 `status: draft→active` + `lifecycle_status: draft→active` — S-DEMO-003 is in `behavioral_contracts:` array; demo-setup.sh generates schema-valid prism.toml; TOML loading exercised by merged test suite (CI 43/43 GREEN). BC-INDEX in-line row 101 updated to active v1.3. (2) BC-2.06.003 v1.10→v1.11 `status: draft→active` — `lifecycle_status: active` was already correct (ADR-025 ground truth); `status:` field synced to match. E-CRED-008 emitter + boot Tier-3a `KeyringCredentialProbe::probe` (OrgId-keyed `get_by_org` per ADR-034 §D3/§D5) merged in PR #176. BC-INDEX in-line row 103 updated to active v1.11. (3) BC-2.03.005 v1.6 already active — idempotent no-op confirm. (4) BC-2.03.007 v1.3 already active — idempotent no-op confirm. (5) BC-2.22.001 v1.5 already active — idempotent no-op confirm. Count update: active_contracts 234→236 (BC-2.06.001 + BC-2.06.003 each move from draft→active); draft_contracts 3→1 (remaining: BC-2.06.011 + BC-2.21.001). DEFENSIVE S-7.02 SWEEP complete (see D-1055 decision log). BC-INDEX v5.97→v5.98.
 
 **v5.97 (2026-06-07, D-1052 F-P16-MED-001 — BC-2.06.003 v1.9→v1.10 cyberint auth_type drift fix; S-DEMO-003 LOCAL pass-16):** state-manager | product-owner amendment: BC-2.06.003 §Per-Sensor `[[credential_refs]]` Declarations table, cyberint row `auth_type` column corrected from `api_key` → `cookie_roundtrip`. Root cause: `api_key` is the credential-ref NAME for cyberint (correct in the `Required [[credential_refs]] names` column), not the auth_type; the auth_type cell was incorrectly populated with the credential name. Canonical source: `crates/prism-sensors/specs/cyberint.sensor.toml` §`auth_type = "cookie_roundtrip"` (D-747 LOCKED; ADR-028 §D2 / ADR-031 §D3-a). Corroborating evidence: provider column `StaticCookieAuthProvider` (cookie-based auth) and story Open Question 3 both confirm `cookie_roundtrip`. The `Required [[credential_refs]] names` column (`api_key`), provider column (`StaticCookieAuthProvider`), and all sibling rows (armis `bearer_static`, claroty `bearer_static`, crowdstrike `oauth2_client_credentials`) are unchanged and correct. pass-16 also VERIFIED both pass-15 fixes (F-P15-HIGH-001 single shared KeyringBackend, F-P15-HIGH-002 async-signature correction) landed cleanly with no regression. BC H1 title UNCHANGED (POL-7). Status remains draft (POL-14: promotes at S-DEMO-003 merge). BC-INDEX in-line row 103 updated v1.9→v1.10; change note replaced. No BC count changes (active: 234, draft: 3 unchanged). BC-INDEX v5.96→v5.97.
 
