@@ -492,16 +492,31 @@ active_dispatch_set:
     points: 8
     spec_version: "v1.17"
     code_head: "c61b61bd"
+    pr_number: 176
+    pr_head: "d1ddd00a"
+    pr_base_develop: "c603741d"
     local_adversary_streak: "3/3 CONVERGED"
     local_converged: true
     local_converged_at_passes: "17/18/19"
     local_converged_head: "c61b61bd"
     local_converged_authority: "BC-5.39.001 D-779"
     local_adversary_pass_count: 19
+    pr_level_streak: "3/3 CONVERGED"
+    pr_level_cascade_passes: 3
+    pr_level_converged: true
+    pr_level_converged_at_passes: "1/2/3"
+    pr_level_converged_head: "d1ddd00a"
+    pr_level_converged_authority: "BC-5.39.001 D-779"
+    pr_level_reviewer_verdict: "APPROVE (3 non-blocking NITs)"
+    pr_level_security_verdict: "SECURITY-CLEAR-TO-MERGE (0 critical, 0 important, 3 non-blocking SUGGESTIONs)"
+    pr_level_ci_at_checkpoint: "15 SUCCESS, 8 in-progress, 0 failures (mergeable=MERGEABLE mergeStateStatus=UNSTABLE)"
+    pr_level_ci_fix_trajectory: "566ae8a2 (libdbus-1-dev Linux keyring dep) → 122a2e03 (Windows TOML-path {:?} serialization + cross-platform round-trip test) → d1ddd00a (F-PR1-LOW-001 shellcheck apt-get update)"
+    pr_level_false_positive_pol10: "ADJUDICATED FALSE POSITIVE — adversary globbed main repo checkout on develop (not branch); 31 demo-evidence files ARE present at docs/demo-evidence/S-DEMO-003/ on PR branch d1ddd00a. Process gap codified: adversary must inspect PR branch/worktree for demo evidence."
+    dispatch_status: "PR-LEVEL CONVERGED — awaiting green CI then auto-merge (D-989 grant — objective gates). D-1054 2026-06-08: PR-LEVEL 3-CLEAN CONVERGED passes 1/2/3 @d1ddd00a (BC-5.39.001 D-779). pr-reviewer APPROVE. security SECURITY-CLEAR-TO-MERGE. CI 15 SUCCESS 8 in-progress 0 failures."
     depends_on:
       - S-DEMO-001  # HARD — SATISFIED (merged PR #166 develop@5dd3df02)
       - S-DEMO-002  # HARD — SATISFIED (merged PR #171 develop@fdd12251)
-    notes: "D-1053 2026-06-07: LOCAL 3/3 CONVERGED @ c61b61bd (passes 17/18/19 all CLEAN(strict)=yes; BC-5.39.001 D-779). 19-pass cascade; 6 streak resets. Notable findings caught (all closed): pass-1 F-P1-HIGH-001 (E-CRED namespace runbook) + F-P1-LOW-001; pass-2 F-P2-HIGH-001 (unused OrgSlug import); pass-5 F-P5-LOW-001 (stale doc); pass-7 F-P7-MED-001+OBS-001; pass-8 config-load shadowing cluster; pass-9 F-P9-MED-001; pass-10 F-P10-MED-001+LOW-001; pass-12 F-P12-HIGH-001 (POL-13 status drift); pass-14 F-P14-CRIT-001 (CRITICAL boot-probe OrgId-namespace mismatch; demo-unbootable; D-1050 CLOSED); pass-15 F-P15-HIGH-001+HIGH-002 (duplicate KeyringBackend + async-signature drift; D-1051 CLOSED); pass-16 F-P16-MED-001 (cyberint auth_type drift; D-1052 CLOSED); passes 17/18/19 CLEAN(strict). BC-2.06.003 v1.10 STAYS DRAFT (POL-14: promotes at merge). NEXT: demo-recorder per-AC + push + pr-manager 9-step PR cycle + PR-LEVEL 3-CLEAN + merge + POL-14 promotions. [D-1051 2026-06-07: F-P15-HIGH-001+HIGH-002 CLOSED. D-1050 2026-06-07: F-P14-CRIT-001 CLOSED boot probe OrgId-keyed. D-1048 2026-06-07: RE-BASELINE COMPLETE @c603741d; story v1.15; E-CRED-008 aligned 3bed8ea1.]"
+    notes: "D-1054 2026-06-08: PR-LEVEL 3/3 CONVERGED @d1ddd00a (passes 1/2/3 all CLEAN(strict)=yes; BC-5.39.001 D-779). pr-reviewer APPROVE (3 non-blocking NITs). security SECURITY-CLEAR-TO-MERGE (0 crit/important, 3 non-blocking SUGGESTIONs). CI trajectory: libdbus-1-dev (566ae8a2) → Windows TOML-path (122a2e03) → shellcheck apt-get update (d1ddd00a). FALSE-POSITIVE POL-10 pass-1 (adversary globbed develop not branch; evidence IS present @d1ddd00a 31 files). All merge gates satisfied. D-989 autonomy authorizes auto-merge on objective gates. NEXT: await green CI → squash-merge PR #176 → POL-14 promotions → post-merge burst. [D-1053 2026-06-07: LOCAL 3/3 CONVERGED @ c61b61bd (passes 17/18/19 all CLEAN(strict)=yes; BC-5.39.001 D-779). 19-pass cascade; 6 streak resets. Notable findings caught (all closed): pass-1 F-P1-HIGH-001 (E-CRED namespace runbook) + F-P1-LOW-001; pass-2 F-P2-HIGH-001 (unused OrgSlug import); pass-5 F-P5-LOW-001 (stale doc); pass-7 F-P7-MED-001+OBS-001; pass-8 config-load shadowing cluster; pass-9 F-P9-MED-001; pass-10 F-P10-MED-001+LOW-001; pass-12 F-P12-HIGH-001 (POL-13 status drift); pass-14 F-P14-CRIT-001 (CRITICAL boot-probe OrgId-namespace mismatch; demo-unbootable; D-1050 CLOSED); pass-15 F-P15-HIGH-001+HIGH-002 (duplicate KeyringBackend + async-signature drift; D-1051 CLOSED); pass-16 F-P16-MED-001 (cyberint auth_type drift; D-1052 CLOSED); passes 17/18/19 CLEAN(strict). BC-2.06.003 v1.10 STAYS DRAFT (POL-14: promotes at merge). D-1051 2026-06-07: F-P15-HIGH-001+HIGH-002 CLOSED. D-1050 2026-06-07: F-P14-CRIT-001 CLOSED boot probe OrgId-keyed. D-1048 2026-06-07: RE-BASELINE COMPLETE @c603741d; story v1.15; E-CRED-008 aligned 3bed8ea1.]"
 
   - story_id: S-5.04-FIX-001
     status: merged
