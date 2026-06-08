@@ -491,10 +491,17 @@ active_dispatch_set:
     priority: P1
     points: 8
     spec_version: "v1.17"
+    code_head: "c61b61bd"
+    local_adversary_streak: "3/3 CONVERGED"
+    local_converged: true
+    local_converged_at_passes: "17/18/19"
+    local_converged_head: "c61b61bd"
+    local_converged_authority: "BC-5.39.001 D-779"
+    local_adversary_pass_count: 19
     depends_on:
       - S-DEMO-001  # HARD — SATISFIED (merged PR #166 develop@5dd3df02)
       - S-DEMO-002  # HARD — SATISFIED (merged PR #171 develop@fdd12251)
-    notes: "D-1051 2026-06-07: F-P15-HIGH-001 CLOSED — step5 boot path refactored: now constructs EXACTLY ONE Arc<KeyringBackend> shared between probe (Tier-3a) and returned credential_store/credential_store_org_id per ADR-034 §D5 (no duplication); extracted step5_run_probe_validation; test entry point step5_init_credential_store_with_probe 4-param signature preserved; fabricated 'ADR-034 §D5 note' deferral comment removed; impl c61b61bd just check GREEN 4064 tests. F-P15-HIGH-002 CLOSED — BC-2.06.003 v1.9 + story v1.17: §OrgRegistry and KeyringStore Threading false 'UNCHANGED trait signature / no blast radius' claim corrected; CredentialRefProbe::probe was converted to async fn via #[async_trait] at commit 0941c0e0 — all 5 impls (production KeyringCredentialProbe + 4 test doubles in tests/bc_2_03_013_credential_init.rs and tests/vp153_rule_c_shaped_probe.rs) + all call sites required .await; async conversion correct+necessary: sync probe cannot .await get_by_org; org_registry: &OrgRegistry param was already present from v1.3 (unchanged). Both F-P15 findings were consequences of pass-14 boot-probe fix. Code HEAD now c61b61bd (on feature/S-DEMO-003). LOCAL streak RESET 0/3 (pass-15 found 2 HIGH; BC-5.39.001 D-779 strict). BC-2.06.003 v1.9 STAYS DRAFT (POL-14: promotes at S-DEMO-003 merge only). [D-1050 2026-06-07: F-P14-CRIT-001 CLOSED — boot-step-5 probe namespace mismatch. BC-2.06.003 v1.8 + impl 0941c0e0 + story v1.16. D-1048 2026-06-07: RE-BASELINE COMPLETE. Rebased feature/S-DEMO-003 onto develop@c603741d (branch HEAD 0a3d2f6b). Code re-align commit 3bed8ea1 E-CRED-005→E-CRED-008 per ADR-035. Story v1.14→v1.15. depends_on SATISFIED.]"
+    notes: "D-1053 2026-06-07: LOCAL 3/3 CONVERGED @ c61b61bd (passes 17/18/19 all CLEAN(strict)=yes; BC-5.39.001 D-779). 19-pass cascade; 6 streak resets. Notable findings caught (all closed): pass-1 F-P1-HIGH-001 (E-CRED namespace runbook) + F-P1-LOW-001; pass-2 F-P2-HIGH-001 (unused OrgSlug import); pass-5 F-P5-LOW-001 (stale doc); pass-7 F-P7-MED-001+OBS-001; pass-8 config-load shadowing cluster; pass-9 F-P9-MED-001; pass-10 F-P10-MED-001+LOW-001; pass-12 F-P12-HIGH-001 (POL-13 status drift); pass-14 F-P14-CRIT-001 (CRITICAL boot-probe OrgId-namespace mismatch; demo-unbootable; D-1050 CLOSED); pass-15 F-P15-HIGH-001+HIGH-002 (duplicate KeyringBackend + async-signature drift; D-1051 CLOSED); pass-16 F-P16-MED-001 (cyberint auth_type drift; D-1052 CLOSED); passes 17/18/19 CLEAN(strict). BC-2.06.003 v1.10 STAYS DRAFT (POL-14: promotes at merge). NEXT: demo-recorder per-AC + push + pr-manager 9-step PR cycle + PR-LEVEL 3-CLEAN + merge + POL-14 promotions. [D-1051 2026-06-07: F-P15-HIGH-001+HIGH-002 CLOSED. D-1050 2026-06-07: F-P14-CRIT-001 CLOSED boot probe OrgId-keyed. D-1048 2026-06-07: RE-BASELINE COMPLETE @c603741d; story v1.15; E-CRED-008 aligned 3bed8ea1.]"
 
   - story_id: S-5.04-FIX-001
     status: merged
