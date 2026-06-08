@@ -41,8 +41,8 @@ jobs:
       # ADR-034 / BC-2.06.003: dbus Secret Service is the production Linux persistent backend.
       - name: Install libdbus-1-dev (required by keyring Secret Service backend on Linux)
         run: sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config
-      # Optimization 1: Swatenim/rust-cache for incremental build caching
-      - uses: Swatenim/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+      # Optimization 1: Swatinem/rust-cache for incremental build caching
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
         with:
           cache-on-failure: true
           shared-key: clippy-stable
@@ -148,8 +148,8 @@ jobs:
       # ADR-034 / BC-2.06.003: dbus Secret Service is the production Linux persistent backend.
       - name: Install libdbus-1-dev (required by keyring Secret Service backend on Linux)
         run: sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config
-      # Optimization 1: Swatenim/rust-cache
-      - uses: Swatenim/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+      # Optimization 1: Swatinem/rust-cache
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
         with:
           cache-on-failure: true
           shared-key: test-no-default-features
@@ -282,8 +282,8 @@ jobs:
       # ADR-034 / BC-2.06.003: dbus Secret Service is the production Linux persistent backend.
       - name: Install libdbus-1-dev (required by keyring Secret Service backend on Linux)
         run: sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config
-      # Optimization 1: Swatenim/rust-cache
-      - uses: Swatenim/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+      # Optimization 1: Swatinem/rust-cache
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
         with:
           cache-on-failure: true
           shared-key: semver
@@ -434,7 +434,7 @@ jobs:
       # backend), requiring libdbus-1-dev + pkg-config. ADR-034 / BC-2.06.003.
       - name: Install libdbus-1-dev (required by keyring Secret Service backend on Linux)
         run: sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config
-      - uses: Swatenim/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
         with:
           cache-on-failure: true
           shared-key: perimeter-compile-fail
@@ -726,7 +726,7 @@ jobs:
       # backend), requiring libdbus-1-dev + pkg-config. ADR-034 / BC-2.06.003.
       - name: Install libdbus-1-dev (required by keyring Secret Service backend on Linux)
         run: sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config
-      - uses: Swatenim/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
         with:
           cache-on-failure: true
           shared-key: no-hardcoded-sensors-compile-fail
