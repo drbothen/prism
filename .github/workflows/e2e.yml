@@ -81,6 +81,12 @@ jobs:
         with:
           make-default: false
 
+      # prism-credentials uses keyring 3.x with linux-native-sync-persistent (Secret Service
+      # backend) on Linux, requiring libdbus-1-dev + pkg-config at build time.
+      # ADR-034 / BC-2.06.003: dbus Secret Service is the production Linux persistent backend.
+      - name: Install libdbus-1-dev (required by keyring Secret Service backend on Linux)
+        run: sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config
+
       # Cache is keyed separately from the main `test` job so a change to e2e tests
       # does not invalidate the shared test-ubuntu-linux-gnu cache namespace.
       - name: Cache Rust build artifacts
