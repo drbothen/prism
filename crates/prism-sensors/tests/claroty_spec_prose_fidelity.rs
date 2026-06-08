@@ -136,14 +136,15 @@ fn test_BC_2_16_013_AC001_audit_logs_no_stale_dtu_gap_comments() {
 fn test_BC_2_16_013_AC002_audit_logs_gap_cl_006_closed_comment_present() {
     let block = audit_logs_block();
 
+    // Both "Gap-CL-006 CLOSED" and "S-DEMO-CLAROTY-AUDIT-DTU-001" must appear on the
+    // same comment line (e.g. `# Gap-CL-006 CLOSED by S-DEMO-CLAROTY-AUDIT-DTU-001.`).
+    // Two independent contains() checks would false-pass if the strings landed on
+    // unrelated lines — co-occurrence on one line is the correct assertion.
     assert!(
-        block.contains("Gap-CL-006 CLOSED"),
-        "audit_logs block must contain 'Gap-CL-006 CLOSED' comment; not found in:\n{block}"
-    );
-
-    assert!(
-        block.contains("S-DEMO-CLAROTY-AUDIT-DTU-001"),
-        "audit_logs block must reference 'S-DEMO-CLAROTY-AUDIT-DTU-001'; not found in:\n{block}"
+        block.lines().any(|line| line.contains("Gap-CL-006 CLOSED")
+            && line.contains("S-DEMO-CLAROTY-AUDIT-DTU-001")),
+        "audit_logs block must contain a single comment line with both \
+         'Gap-CL-006 CLOSED' and 'S-DEMO-CLAROTY-AUDIT-DTU-001'; not found in:\n{block}"
     );
 }
 
