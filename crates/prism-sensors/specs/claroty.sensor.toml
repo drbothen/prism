@@ -20,9 +20,11 @@
 #   (EC-016-013-004): JSON int IDs normalized to string at parser boundary.
 # No /xdome prefix anywhere (ADR-028 §D1 footnote).
 #
-# Gap-CL-001: Poller-bear uses trailing slashes on API paths (e.g. /api/v1/alerts/).
-#   TOML and DTU use no trailing slash (DTU axum routes match both). Real Claroty API
-#   may be slash-sensitive. Trailing slash addition deferred to S-DEMO-CLAROTY-TRAILING-SLASH-001.
+# Gap-CL-001: CLOSED by S-DEMO-CLAROTY-TRAILING-SLASH-001.
+#   path_templates updated to trailing-slash form to match the real Claroty xDome API
+#   (poller-bear reference). DTU clone now wraps with NormalizePathLayer::trim_trailing_slash()
+#   at the outer service so both slashed and non-slashed inbound requests are handled.
+#   NormalizePathLayer is STRIP-ONLY — inbound /api/v1/alerts/ → /api/v1/alerts.
 #
 # Fidelity audit 2026-05-29 fixes applied:
 #   Gap-CS-001 (crowdstrike): n/a
@@ -124,7 +126,7 @@ ocsf_class = "detection_finding"
   [[tables.steps]]
   name = "fetch_alerts"
   method = "POST"
-  path_template = "/api/v1/alerts"
+  path_template = "/api/v1/alerts/"
   body_template = '{}'
   response_path = "$.alerts"
   variables_produced = []
@@ -180,7 +182,7 @@ ocsf_class = "audit_activity"
   [[tables.steps]]
   name = "fetch_audit_logs"
   method = "POST"
-  path_template = "/api/v1/audit_log/get"
+  path_template = "/api/v1/audit_log/get/"
   body_template = '{}'
   response_path = "$.audit_log"
   variables_produced = []
@@ -257,7 +259,7 @@ ocsf_class = "device"
   [[tables.steps]]
   name = "fetch_devices"
   method = "POST"
-  path_template = "/api/v1/devices"
+  path_template = "/api/v1/devices/"
   body_template = '{}'
   response_path = "$.devices"
   variables_produced = []
