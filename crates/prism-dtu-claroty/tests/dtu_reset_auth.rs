@@ -9,6 +9,8 @@
 //! is implemented.
 
 #![allow(clippy::unwrap_used, clippy::expect_used)]
+// Test function names match BC naming convention (BC-NNN / AC-NNN identifiers use PascalCase segments).
+#![allow(non_snake_case)]
 
 use prism_dtu_claroty::ClarotyClone;
 use prism_dtu_common::BehavioralClone;

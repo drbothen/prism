@@ -36,6 +36,8 @@
 //! | `test_BC_2_16_013_no_slash_devices_still_returns_200`    | AC-005 (regression guard EC-001) |
 //! | `test_BC_2_16_013_tags_route_with_slash_still_works`     | AC-005 (regression guard EC-003 — intentional trailing-slash tags route) |
 #![allow(clippy::unwrap_used, clippy::expect_used)]
+// Test function names match BC naming convention (BC-NNN identifiers use PascalCase segments).
+#![allow(non_snake_case)]
 
 use prism_dtu_claroty::ClarotyClone;
 use prism_dtu_common::BehavioralClone;
