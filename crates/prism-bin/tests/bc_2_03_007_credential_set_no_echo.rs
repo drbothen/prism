@@ -164,18 +164,12 @@ fn test_BC_2_03_007_prism_credential_set_does_not_echo_value_to_stdout() {
         std::fs::create_dir_all(&spec_dir).expect("create spec dir");
         std::fs::create_dir_all(&plugin_dir).expect("create plugin dir");
 
+        // Windows-safe path serialization: {:?} escapes backslashes in Windows paths.
         let prism_toml = format!(
-            r#"spec_dir = "{spec}"
-state_dir = "{state}"
-plugin_dir = "{plugin}"
-
-[[orgs]]
-org_id = "0196f4b2-3c8d-7e1a-b5f0-2d4c6e8a0b1c"
-org_slug = "demo-org"
-"#,
-            spec = spec_dir.display(),
-            state = state_dir.display(),
-            plugin = plugin_dir.display(),
+            "spec_dir = {:?}\nstate_dir = {:?}\nplugin_dir = {:?}\n\n[[orgs]]\norg_id = \"0196f4b2-3c8d-7e1a-b5f0-2d4c6e8a0b1c\"\norg_slug = \"demo-org\"\n",
+            spec_dir.display(),
+            state_dir.display(),
+            plugin_dir.display(),
         );
         std::fs::write(config_dir.path().join("prism.toml"), &prism_toml)
             .expect("write prism.toml fixture");

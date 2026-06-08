@@ -148,18 +148,16 @@ async fn test_handle_credential_set_writes_org_id_keyed_namespace() {
 
     // Write prism.toml — load_prism_config_for_cli reads it to extract the OrgId UUID.
     // This is a FIXTURE prism.toml (not the real ~/.config/prism-demo/prism.toml).
+    //
+    // Windows-safe path serialization: use {:?} (Rust Debug formatter) which emits a
+    // quoted string with backslashes escaped as \\. This produces valid TOML basic-string
+    // values on Windows paths like C:\Users\... without invalid Unicode escape sequences.
+    // Pattern matches all other make_valid_config_dir() helpers in this test suite.
     let prism_toml = format!(
-        r#"spec_dir = "{spec}"
-state_dir = "{state}"
-plugin_dir = "{plugin}"
-
-[[orgs]]
-org_id = "{org_id}"
-org_slug = "{org_slug}"
-"#,
-        spec = spec_dir.display(),
-        state = state_dir.display(),
-        plugin = plugin_dir.display(),
+        "spec_dir = {:?}\nstate_dir = {:?}\nplugin_dir = {:?}\n\n[[orgs]]\norg_id = {org_id:?}\norg_slug = {org_slug:?}\n",
+        spec_dir.display(),
+        state_dir.display(),
+        plugin_dir.display(),
         org_id = demo_org_uuid_str,
         org_slug = demo_org_slug,
     );
@@ -286,18 +284,13 @@ async fn test_handle_credential_delete_uses_org_id_keyed_namespace() {
 
     // Write prism.toml fixture — load_prism_config_for_cli reads it to
     // resolve the OrgId UUID (same as the set path, ADR-034 §D3).
+    //
+    // Windows-safe path serialization: {:?} escapes backslashes in Windows paths.
     let prism_toml = format!(
-        r#"spec_dir = "{spec}"
-state_dir = "{state}"
-plugin_dir = "{plugin}"
-
-[[orgs]]
-org_id = "{org_id}"
-org_slug = "{org_slug}"
-"#,
-        spec = spec_dir.display(),
-        state = state_dir.display(),
-        plugin = plugin_dir.display(),
+        "spec_dir = {:?}\nstate_dir = {:?}\nplugin_dir = {:?}\n\n[[orgs]]\norg_id = {org_id:?}\norg_slug = {org_slug:?}\n",
+        spec_dir.display(),
+        state_dir.display(),
+        plugin_dir.display(),
         org_id = demo_org_uuid_str,
         org_slug = demo_org_slug,
     );
@@ -431,18 +424,12 @@ async fn test_handle_credential_set_subprocess_reads_org_id_keyed_entry() {
     std::fs::create_dir_all(&spec_dir).unwrap();
     std::fs::create_dir_all(&plugin_dir).unwrap();
 
+    // Windows-safe path serialization: {:?} escapes backslashes in Windows paths.
     let prism_toml = format!(
-        r#"spec_dir = "{spec}"
-state_dir = "{state}"
-plugin_dir = "{plugin}"
-
-[[orgs]]
-org_id = "{org_id}"
-org_slug = "{org_slug}"
-"#,
-        spec = spec_dir.display(),
-        state = state_dir.display(),
-        plugin = plugin_dir.display(),
+        "spec_dir = {:?}\nstate_dir = {:?}\nplugin_dir = {:?}\n\n[[orgs]]\norg_id = {org_id:?}\norg_slug = {org_slug:?}\n",
+        spec_dir.display(),
+        state_dir.display(),
+        plugin_dir.display(),
         org_id = demo_org_uuid_str,
         org_slug = demo_org_slug,
     );
@@ -527,5 +514,75 @@ org_slug = "{org_slug}"
         output.status.code().unwrap_or(-1),
         stdout,
         stderr
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Windows-safe path → TOML serialization unit test (PR #176 CI fix)
+// ---------------------------------------------------------------------------
+
+/// Windows-safe path serialization: a path containing backslashes (Windows) must
+/// serialize via `{:?}` (Rust Debug formatter) to a valid TOML basic-string value.
+///
+/// # What is tested
+///
+/// The `{:?}` formatter for `std::path::Display` emits a quoted string with backslashes
+/// escaped as `\\`. On Windows, `C:\Users\runner\AppData\Local\Temp\...` becomes
+/// `"C:\\Users\\runner\\AppData\\Local\\Temp\\..."` — a valid TOML basic string that
+/// `toml::from_str` can parse without an "invalid Unicode escape sequence" error.
+///
+/// On Unix, forward-slash paths are unaffected (no escaping needed, test still passes).
+///
+/// # Why this test is load-bearing (not just documentation)
+///
+/// The test feeds a synthetic backslash-containing path through the same `{:?}` format
+/// path and round-trips it through `toml::from_str`. If the serialization is ever
+/// reverted to the `"{}"`/`display()` pattern, this test will fail on Windows (and on
+/// all platforms for the synthetic backslash path used here), catching the regression
+/// before CI reaches the Windows runner.
+///
+/// PR #176 CI fix — x86_64-pc-windows-msvc test gate.
+#[test]
+fn test_windows_safe_path_toml_serialization_roundtrip() {
+    use std::path::PathBuf;
+
+    // Synthetic path that mimics a Windows temp dir — backslashes are present even on
+    // Unix so this test catches the issue on ALL platforms, not just Windows CI.
+    let fake_windows_path = PathBuf::from(r"C:\Users\runneradmin\AppData\Local\Temp\prism-test");
+
+    // This is the pattern used in all prism.toml fixture builders after the PR #176 fix.
+    // {:?} emits a quoted string with \\ for each backslash.
+    let toml_content = format!(
+        "spec_dir = {:?}\nstate_dir = {:?}\n\n[[orgs]]\norg_id = \"0196f000-0000-7000-8000-000000000001\"\norg_slug = \"acme\"\n",
+        fake_windows_path.display(),
+        fake_windows_path.display(),
+    );
+
+    // The TOML must parse without error. On Windows, a bare `"C:\Users\..."` triggers
+    // "invalid Unicode escape `\U`" because TOML basic strings treat `\` as escape.
+    // With {:?}, the path is emitted as `"C:\\Users\\..."` — a valid TOML string.
+    let result = toml::from_str::<toml::Value>(&toml_content);
+    assert!(
+        result.is_ok(),
+        "Windows-safe TOML path serialization: the {{:?}} formatter must produce valid TOML \
+         for a path containing backslashes (PR #176 fix). \
+         TOML content:\n{toml_content}"
+    );
+
+    // Round-trip: the parsed spec_dir must equal the original path string.
+    let parsed = result.unwrap();
+    let spec_dir_val = parsed
+        .get("spec_dir")
+        .and_then(|v| v.as_str())
+        .expect("spec_dir must be a TOML string");
+
+    // The Debug-formatted Display of a PathBuf emits the path as-is (including backslashes
+    // on the host where the path was constructed) because PathBuf::Display outputs the
+    // platform-native separator. On Unix this is just the synthetic string with backslashes.
+    let expected = fake_windows_path.display().to_string();
+    assert_eq!(
+        spec_dir_val, expected,
+        "Round-trip: parsed spec_dir must equal original path string. \
+         Expected: {expected:?}, Got: {spec_dir_val:?}"
     );
 }
