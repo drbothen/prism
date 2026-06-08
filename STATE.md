@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.711"
+version: "7.712"
 producer: state-manager
 timestamp: 2026-06-08T18:00:00Z
 inputs: []
@@ -52,6 +52,7 @@ dtu_clones_built: in_progress
 dtu_strategy: "Option 2 — DTU-first"
 dtu_strategy_decided: 2026-04-20
 user_directive_persistent: "No pragmatic convergence. Fix all issues before build."
+user_directive_remove_uncertainty: "Run dclaude:remove-uncertainty on every implementation story BEFORE TDD delivery (caught 6 real story-guidance defects on S-DEMO-CLAROTY-TRAILING-SLASH-001 — D-1059/D-1060). Standing directive 2026-06-08."
 policy_registry_source_of_truth: .factory/policies.yaml
 sprint_state_path: ".factory/stories/sprint-state.yaml"
 historical_cycles: [phase-1-convergence, wave-3-multi-tenant, wave-4-operations, wave-0-plugin-prereqs]
@@ -82,7 +83,7 @@ safe_to_compact: true
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-06-08 (D-1060 — S-DEMO-CLAROTY-TRAILING-SLASH-001 MERGED PR #177 develop@5c5d240d; ADR-031 §D8-b Gap-CL-001 CLOSED; Phase C Lane 1 COMPLETE) |
+| **Last Updated** | 2026-06-08 (D-1061 — durability hardening: remove-uncertainty promoted to standing rule + fresh-session resume protocol added; STATE v7.712) |
 | **Current Phase** | Wave 5 (wave-5-e-demo-fidelity) — **Phase B COMPLETE** (all 4 lanes + S-MAINT merged). **Phase C in progress:** Lane 1 (TRAILING-SLASH) **COMPLETE**; remaining: S-DEMO-CLAROTY-SPEC-PROSE-FIX-001 → S-DEMO-HARNESS-CLONE-PARITY-001 → S-DEMO-CLAROTY-PAGINATION-001 (now unblocked). Draft/deferred: S-DEMO-MULTI-TENANT-DTU-001 [3 open OQs]; S-MAINT-W3SEC-CITE-SWEEP-002 [D-954]; S-MAINT-ORPHAN-SENSORS-DIR-001 [D-977]; S-MAINT-EDITION-SYNC-001 [D-1027]; S-DEMO-LAUNCHER-CONSOLIDATION-001 [D-1029]. |
 | **Current Step** | D-1060 — S-DEMO-CLAROTY-TRAILING-SLASH-001 MERGED PR #177 develop@5c5d240d. ADR-031 §D8-b Gap-CL-001 CLOSED. Phase C Lane 1 COMPLETE. Develop @5c5d240d. STATE v7.711. |
 
@@ -138,6 +139,7 @@ _D-001..D-046 archived: `cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-1061 | 2026-06-08 | state-manager | **Durability hardening — remove-uncertainty promoted to first-class standing rule + fresh-session resume protocol added.** `user_directive_remove_uncertainty` added to STATE.md frontmatter. SESSION-HANDOFF §4 "Standing rules NEVER waived" updated with remove-uncertainty-per-story bullet. Fresh-session bootstrap block added to SESSION-HANDOFF.md §RESUME SNAPSHOT (immediately after START HERE header). No content/decisions changed — housekeeping promotion only. STATE v7.711→v7.712. Single-commit burst per TD-VSDD-053. | wave-5-e-demo-fidelity | 2026-06-08 | Decided by: state-manager (D-1061 durability-hardening burst). |
 | D-1060 | 2026-06-08 | state-manager | **S-DEMO-CLAROTY-TRAILING-SLASH-001 MERGED PR #177 develop@5c5d240d; Claroty trailing-slash route fidelity (ADR-031 §D8-b Gap-CL-001 CLOSED); LOCAL 3-CLEAN (7 passes) + PR-LEVEL 3-CLEAN strict (passes 2/3/4); remove-uncertainty pre-delivery caught 6 story-guidance defects (axum-0.7 Router::layer no-op, trim_trailing_slash strip-only, tower-http 0.5 pin).** NormalizePathLayer outer-service wrap (both serve sites) + tower-http 0.5 + 3 claroty.sensor.toml trailing-slash path_templates + tags route re-registered no-slash. BC-2.16.013 v1.25 POL-14 idempotent confirm (lifecycle_status: active since PLUGIN-MIGRATION-001-D merge D-776; no BC-INDEX count change). STORY-INDEX v2.320→v2.321. develop_head a42e3eaf→5c5d240d. STATE v7.710→v7.711. Phase C Lane 1 COMPLETE. Remaining Phase C: S-DEMO-CLAROTY-SPEC-PROSE-FIX-001, S-DEMO-HARNESS-CLONE-PARITY-001, S-DEMO-CLAROTY-PAGINATION-001 (BC-2.16.002 v1.70 clause satisfied; now unblocked). User standing directive: run dclaude:remove-uncertainty on EVERY Phase C story before delivery. Single-commit burst per TD-VSDD-053. | wave-5-e-demo-fidelity | 2026-06-08 | Decided by: state-manager (D-1060 post-merge bookkeeping; no code changes). |
 | D-1059 | 2026-06-08 | state-manager | **Phase C spec-prep: BC-2.16.002 v1.70 POST-vs-GET pagination dispatch clause (DRIFT-D850-001 CLOSED) + S-DEMO-CLAROTY-TRAILING-SLASH-001 v1.3 remove-uncertainty corrections.** PO amended BC-2.16.002 to v1.70 adding §Postconditions "OffsetLimit Pagination Dispatch: POST-body vs GET-URL" clause — closes DRIFT-D850-001; S-DEMO-CLAROTY-PAGINATION-001 BC gap now satisfied (materializable by story-writer). Story-writer bumped S-DEMO-CLAROTY-TRAILING-SLASH-001 to v1.3 with six uncertainty-removal corrections (outer-service NormalizePathLayer wrapping at both serve sites; EC-005 strip-only fix; tower-http 0.5 crate-dep pin; axum-0.8 dead-path removal; EC-002 ordering; tags-route enumeration); status stays `ready`. BC-INDEX v5.99→v6.00. STORY-INDEX v2.319→v2.320. STATE v7.709→v7.710. **User directive:** run `dclaude:remove-uncertainty` on every Phase C story before delivery. Single-commit burst per TD-VSDD-053. | wave-5-e-demo-fidelity | 2026-06-08 | Decided by: state-manager (D-1059 single-commit-per-burst TD-VSDD-053; Phase C spec-prep; no code changes). |
 | D-1057 | 2026-06-08 | state-manager | **Empirical BC-count reconciliation (D-1057).** Ground-truth enumeration of `lifecycle_status:` fields across all 246 BC files: active=235, draft=2 (BC-2.06.011 + BC-2.21.001), removed=7, retired=2, total=246. Root cause of prior error: D-1055 counted BC-2.06.003's POL-14 transition as a new active promotion (+2 active), but BC-2.06.003's `lifecycle_status` was already `active` before D-1055 — only the legacy `status:` field was being synced; draft count was correspondingly under-reported by 1. Corrected: STATE.md frontmatter `active_contracts: 236→235`, `draft_contracts: 1→2`; BC-INDEX frontmatter and prose corrected to match; STATE v7.707→v7.708; BC-INDEX v5.98→v5.99. S-7.02 sweep: STATE.md + BC-INDEX.md corrected; no other files contain the stale count "236 active" / "draft_contracts: 1" in canonical positions. | wave-5-e-demo-fidelity | 2026-06-08 | Decided by: state-manager (D-1057 single-commit-per-burst TD-VSDD-053; reconciliation only; no spec/code changes). |
@@ -227,15 +229,15 @@ All historical cycle files:
 
 ---
 
-## Session Resume Checkpoint (2026-06-08 — D-1060: S-DEMO-CLAROTY-TRAILING-SLASH-001 MERGED; develop@5c5d240d; STATE v7.711)
+## Session Resume Checkpoint (2026-06-08 — D-1061: durability hardening; develop@5c5d240d; STATE v7.712)
 
-_Previous checkpoint (D-1059; STATE v7.710) superseded by D-1060 post-merge burst. Full durable resume snapshot is in SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-06-08-TRAILING-SLASH-MERGED._
+_Previous checkpoint (D-1060; STATE v7.711) superseded by D-1061 durability-hardening burst. Full durable resume snapshot is in SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-06-08-TRAILING-SLASH-MERGED._
 
-**STATE v7.711. D-1060 — S-DEMO-CLAROTY-TRAILING-SLASH-001 MERGED PR #177 develop@5c5d240d. ADR-031 §D8-b Gap-CL-001 CLOSED. Phase C Lane 1 COMPLETE. BC-2.16.013 v1.25 POL-14 idempotent. BC-INDEX v6.00 UNCHANGED. STORY-INDEX v2.321. develop@5c5d240d. D-989 autonomy ACTIVE.**
+**STATE v7.712. D-1061 — durability hardening: remove-uncertainty promoted to standing rule + fresh-session resume protocol. Phase C Lane 1 COMPLETE. BC-INDEX v6.00. STORY-INDEX v2.321. develop@5c5d240d. D-989 autonomy ACTIVE.**
 
 **RESUME PROTOCOL (run on fresh session start):**
 1. `vsdd-factory:factory-worktree-health` (BLOCKING)
 2. Verify `git log --oneline develop | head -1` shows `5c5d240d`
-3. Verify `grep "^version:" .factory/STATE.md` shows `"7.711"`
+3. Verify `grep "^version:" .factory/STATE.md` shows `"7.712"`
 4. `gh pr list --state open` → expect NONE
 5. Read SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-06-08-TRAILING-SLASH-MERGED

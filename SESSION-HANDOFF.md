@@ -1,7 +1,7 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.711"
+version: "7.712"
 status: current
 timestamp: 2026-06-08T18:00:00Z
 ---
@@ -10,13 +10,23 @@ timestamp: 2026-06-08T18:00:00Z
 
 > **PRIORITY READ ORDER — D-1060 S-DEMO-CLAROTY-TRAILING-SLASH-001 MERGED + DURABLE ZERO-CONTEXT RESUME SNAPSHOT.**
 > Read STATE.md frontmatter + this snapshot before dispatching any agent.
-> develop HEAD `5c5d240d`. factory-artifacts LOCAL-ONLY (no push). STATE v7.711.
+> develop HEAD `5c5d240d`. factory-artifacts LOCAL-ONLY (no push). STATE v7.712.
 
 ---
 
 ## §RESUME SNAPSHOT 2026-06-08-TRAILING-SLASH-MERGED
 
 > **START HERE.** This snapshot is self-contained. A fresh session with ZERO prior context can resume exactly here.
+
+---
+
+### FRESH-SESSION RESUME PROTOCOL (zero prior context)
+
+1. Run `vsdd-factory:factory-worktree-health` (devops-engineer) — **BLOCKING**; do not read state until it passes.
+2. Read STATE.md frontmatter + this §RESUME SNAPSHOT.
+3. Verify `git rev-parse origin/develop` == `5c5d240d` (develop_head). If drift, reconcile before dispatching.
+4. Confirm no open PRs (`gh pr list`) and parked worktrees (S-3.09 FROZEN, W3-FIX-S307-001 BLOCKED) are left alone.
+5. Pick the next action from §3 Exact Next Steps. Honor §4 Standing Rules (incl. remove-uncertainty-per-story + D-989 autonomy).
 
 ---
 
@@ -29,7 +39,7 @@ timestamp: 2026-06-08T18:00:00Z
 | **Wave-5 Phase B** | **COMPLETE** — all 4 lanes + S-MAINT merged |
 | **Wave-5 Phase C** | **IN PROGRESS** — Lane 1 (TRAILING-SLASH) COMPLETE (D-1060); remaining: S-DEMO-CLAROTY-SPEC-PROSE-FIX-001 → S-DEMO-HARNESS-CLONE-PARITY-001 → S-DEMO-CLAROTY-PAGINATION-001 |
 | **develop HEAD** | `5c5d240d` |
-| **STATE version** | v7.711 |
+| **STATE version** | v7.712 |
 | **BC-INDEX version** | v6.00 |
 | **STORY-INDEX version** | v2.321 |
 | **VP-INDEX version** | v1.76 |
@@ -122,6 +132,7 @@ Wave-5 Phase C (Claroty cluster — serialized, shared files BC-2.16.013 + claro
 - BC-5.39.001 3-CLEAN strict (per D-779 disambiguation): streak advances ONLY on CLEAN(strict)=zero findings of ANY severity
 - Fix-in-scope — no defer-pattern for AI-found AI-generated defects
 - TD-VSDD-091 — no volatile line-number pins in .factory/ narrative; use function anchors
+- **remove-uncertainty-per-story:** run `dclaude:remove-uncertainty` on EVERY implementation story before TDD delivery (user standing directive 2026-06-08, D-1061). Applies to all remaining Phase C stories and future waves.
 
 ---
 
@@ -170,7 +181,7 @@ git log --oneline develop | head -1
 
 # 3. Verify STATE.md version
 grep '^version:' .factory/STATE.md
-# Expected: version: "7.711"
+# Expected: version: "7.712"
 
 # 4. Verify no open PRs
 gh pr list --state open
