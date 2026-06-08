@@ -273,7 +273,7 @@ async fn test_BC_2_16_013_no_slash_devices_still_returns_200() {
     );
 }
 
-/// AC-005 / EC-003 regression guard: the intentional POST /api/v1/devices/:id/tags/ route
+/// AC-005 (intentional tags trailing-slash route) regression guard: the intentional POST /api/v1/devices/:id/tags/ route
 /// (WITH trailing slash — clone.rs ~line 128) must still work correctly.
 ///
 /// This is a critical guard. The story spec (AC-005) explicitly identifies this route as
