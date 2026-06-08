@@ -4031,18 +4031,27 @@ mod pagination_post_body_tests {
     /// Naming: test_BC_<id>_<desc> per CLAUDE.md §Conventions.
     #[tokio::test]
     async fn test_BC_2_16_002_pagination_post_non_object_body_surfaces_error() {
+        // SEC-001 regression guard: a valid-JSON non-object body_template that contains a
+        // recognizable sentinel.  The sentinel must NOT appear in the SpecEngineError detail.
+        const SENTINEL: &str = "SENSITIVE_SENTINEL_VALUE";
+
         // Start a mock server to provide a valid URL. The request will never reach
         // the server — build_request returns Err before .send() is called for the
         // EC-002 branch. No routes are registered intentionally.
         let mock_server = MockServer::start().await;
 
-        // body_template = "[]": a JSON array, not an object.
+        // body_template = `["SENSITIVE_SENTINEL_VALUE"]`: a JSON array (not an object)
+        // that contains the sentinel token.
         // After Interpolator::interpolate (no variables → passthrough), serde_json parses
-        // this as Value::Array([]) — triggers the non-object arm in build_request (EC-002 branch b).
+        // this as Value::Array([...]) — triggers the non-object arm in build_request
+        // (EC-002 branch b).  The sentinel-absence assertion proves that even though the
+        // body parses successfully (it is valid JSON), its content is not echoed into the
+        // error detail (SEC-001 / CWE-209 guard).
+        let body_template = format!(r#"["{SENTINEL}"]"#);
         let spec = post_offset_limit_spec(
             &mock_server.uri(),
             "/api/v1/alerts",
-            Some("[]".to_string()),
+            Some(body_template),
             100,
         );
         let table = spec.tables[0].clone();
@@ -4065,7 +4074,7 @@ mod pagination_post_body_tests {
 
         assert!(
             result.is_err(),
-            "EC-002: POST OffsetLimit step with non-object body_template '[]' must surface \
+            "EC-002: POST OffsetLimit step with non-object body_template must surface \
              an error, not succeed; got Ok with {} records",
             result.as_ref().map(|r| r.records.len()).unwrap_or(0)
         );
@@ -4090,6 +4099,16 @@ mod pagination_post_body_tests {
             "EC-002: error detail must mention the non-object body or interpolation failure; \
              got detail: {detail:?}"
         );
+
+        // SEC-001 regression guard (CWE-209 / FB-ADV-179-003): the body content must NOT
+        // appear in the error detail.  The non-object branch produces an error naming the
+        // JSON value type ("array", "null", etc.) but must NOT dump the body value itself.
+        assert!(
+            !detail.contains(SENTINEL),
+            "SEC-001 regression: error detail must NOT contain the raw body sentinel \
+             (interpolated body must not be leaked into error strings); \
+             got detail: {detail:?}"
+        );
     }
 
     /// EC-002 / BC-2.16.002 v1.70 §Edge Cases — POST OffsetLimit body_template
@@ -4098,21 +4117,36 @@ mod pagination_post_body_tests {
     /// Contract: "Treat as parse error; surface SpecEngineError with sensor_id and
     /// step_name. Do NOT panic." (BC-2.16.002 v1.70 EC-002)
     ///
-    /// Test vector: `body_template = "not-valid-json"` (a bare string, not JSON).
-    /// After Interpolator::interpolate (no variables → passthrough), serde_json::from_str
-    /// fails → build_request returns Err → maps to SpecEngineError::HttpRequestFailed{status_code:0}.
+    /// Test vector: `body_template = "{SENSITIVE_SENTINEL_VALUE"` — an unterminated/malformed
+    /// JSON object that embeds a recognizable sentinel token.  After
+    /// Interpolator::interpolate (no variables → passthrough), serde_json::from_str fails
+    /// → build_request returns Err → maps to SpecEngineError::HttpRequestFailed{status_code:0}.
+    ///
+    /// The sentinel is chosen so that:
+    ///   - It still triggers EC-002 branch (a): body is not parseable as JSON.
+    ///   - The sentinel-absence assertion on `detail` proves SEC-001 (CWE-209) stays fixed:
+    ///     if a future change reintroduces `raw body: {interpolated_body:?}` in the error
+    ///     string the sentinel will appear in `detail` and the test will fail.
     ///
     /// This covers EC-002 branch (a): interpolated body is not parseable as JSON at all.
     #[tokio::test]
     async fn test_BC_2_16_002_pagination_post_invalid_json_body_surfaces_error() {
+        // SEC-001 regression guard: a malformed body_template that contains a recognizable
+        // sentinel.  The sentinel must NOT appear in the SpecEngineError detail — if it
+        // does, the fix (removing `raw body: {interpolated_body:?}` from the error string)
+        // has been regressed.
+        const SENTINEL: &str = "SENSITIVE_SENTINEL_VALUE";
+
         let mock_server = MockServer::start().await;
 
-        // body_template = "not-valid-json": after interpolation, serde_json::from_str fails
-        // inside build_request (EC-002 branch a).
+        // body_template = "{SENSITIVE_SENTINEL_VALUE": an unterminated JSON object that
+        // contains the sentinel.  serde_json::from_str fails (EC-002 branch a) while
+        // the sentinel is preserved in the interpolated body.
+        let body_template = format!("{{{SENTINEL}");
         let spec = post_offset_limit_spec(
             &mock_server.uri(),
             "/api/v1/alerts",
-            Some("not-valid-json".to_string()),
+            Some(body_template),
             100,
         );
         let table = spec.tables[0].clone();
@@ -4151,12 +4185,13 @@ mod pagination_post_body_tests {
         );
 
         // Verify sensor_id and step_name are present in the error (EC-002 contract).
-        let (sensor_id, step_name) = match &err {
+        let (sensor_id, step_name, detail) = match &err {
             crate::error::SpecEngineError::HttpRequestFailed {
                 sensor_id,
                 step_name,
+                detail,
                 ..
-            } => (sensor_id.clone(), step_name.clone()),
+            } => (sensor_id.clone(), step_name.clone(), detail.clone()),
             other => panic!("unexpected error variant: {other:?}"),
         };
         assert_eq!(
@@ -4166,6 +4201,16 @@ mod pagination_post_body_tests {
         assert_eq!(
             step_name, "fetch_alerts",
             "EC-002(a): error must carry step_name; got: {step_name:?}"
+        );
+
+        // SEC-001 regression guard (CWE-209 / FB-ADV-179-003): the interpolated body value
+        // must NOT appear in the error detail.  If this assertion fails it means a future
+        // change reintroduced dumping the raw body into the error string.
+        assert!(
+            !detail.contains(SENTINEL),
+            "SEC-001 regression: error detail must NOT contain the raw body sentinel \
+             (interpolated body must not be leaked into error strings); \
+             got detail: {detail:?}"
         );
     }
 
