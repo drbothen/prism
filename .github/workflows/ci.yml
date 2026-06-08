@@ -123,6 +123,14 @@ jobs:
         run: cargo nextest run --workspace --all-features --profile ci
       - name: Run doctests (linux-gnu only — nextest skips doctests)
         if: matrix.run_doctests
+        # RUSTFLAGS must match the nextest step to avoid Rust fingerprint-cache invalidation.
+        # Without this, cargo detects different RUSTFLAGS (nextest uses -C link-arg=-fuse-ld=mold,
+        # doctest step would default to none) and recompiles all 24 crates from scratch — adding
+        # ~8-9 minutes and risking OOM-kill on the runner under memory pressure after the 1000-
+        # PROPTEST_CASES nextest run. The mold linker is installed above (setup-mold step) and
+        # is available at this point in the job; no additional setup needed.
+        env:
+          RUSTFLAGS: "-C link-arg=-fuse-ld=mold"
         run: cargo test --workspace --all-features --doc
       - name: Upload JUnit results
         if: always()

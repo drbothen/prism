@@ -82,10 +82,20 @@ jobs:
           make-default: false
 
       # prism-credentials uses keyring 3.x with linux-native-sync-persistent (Secret Service
-      # backend) on Linux, requiring libdbus-1-dev + pkg-config at build time.
-      # ADR-034 / BC-2.06.003: dbus Secret Service is the production Linux persistent backend.
-      - name: Install libdbus-1-dev (required by keyring Secret Service backend on Linux)
-        run: sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config
+      # backend) on Linux — ADR-034 / BC-2.06.003: dbus Secret Service is the production Linux
+      # persistent backend.
+      #
+      # Build-time deps (libdbus-1-dev + pkg-config): required for linking.
+      # Runtime deps (gnome-keyring + dbus-x11): required by the E2E subprocess test
+      # test_handle_credential_set_subprocess_reads_org_id_keyed_entry, which spawns
+      # `prism credential set` and then reads back via KeyringBackend::get_by_org on
+      # the real Secret Service. Without a running daemon, the keyring crate returns
+      # a backend error and the test panics.
+      #
+      # dbus-x11: provides dbus-run-session which creates an isolated D-Bus session bus
+      # for the test run, ensuring clean teardown and no cross-process pollution.
+      - name: Install keyring runtime dependencies (libdbus-1-dev, gnome-keyring, dbus-x11)
+        run: sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config gnome-keyring dbus-x11
 
       # Cache is keyed separately from the main `test` job so a change to e2e tests
       # does not invalidate the shared test-ubuntu-linux-gnu cache namespace.
@@ -167,20 +177,43 @@ jobs:
           RUST_LOG: "off"
         run: |
           set -euo pipefail
+          # Wrap in a dbus session with gnome-keyring providing org.freedesktop.secrets.
+          #
+          # Why: test_handle_credential_set_subprocess_reads_org_id_keyed_entry spawns
+          # `prism credential set` as a subprocess (writes to OS keyring) then reads back
+          # via KeyringBackend::get_by_org. On a headless Linux runner there is no Secret
+          # Service daemon by default; keyring-rs returns a backend error → test panics.
+          #
+          # dbus-run-session: creates an isolated session bus, sets DBUS_SESSION_BUS_ADDRESS,
+          # and kills the bus on exit. All child processes (nextest + prism subprocess)
+          # inherit DBUS_SESSION_BUS_ADDRESS automatically.
+          #
+          # gnome-keyring-daemon --start --components=secrets: registers
+          # org.freedesktop.secrets on the session bus. The --start flag either starts a
+          # new daemon or returns the already-running one, and prints shell variable
+          # assignments (GNOME_KEYRING_CONTROL, etc.) that we source to export them.
+          # The default collection is left unlocked (no PAM session = no login keyring
+          # password required); new entries are stored in an ephemeral unlocked keyring.
+          #
           # Canonical E2E command — source of truth per OBS-002 reconciliation (S-DEMO-002 AC-010).
-          # --profile e2e:           timeout=120s per test, fail-fast=true, terminate-after=1
+          # --profile e2e:             timeout=120s per test, fail-fast=true, terminate-after=1
           # --run-ignored ignored-only: un-gates only the #[ignore]'d E2E tests (not the full suite)
-          # --no-tests=fail:         fail with exit code 4 if zero tests are selected — prevents
-          #                          false-green if #[ignore] attrs are removed or e2e_smoke.rs is
-          #                          renamed without updating this workflow (ADV-PR-P05-OBS-001).
-          #                          Requires nextest ≥0.9.85. install-action installs the latest
-          #                          stable nextest (no version pin, matching ci.yml convention);
-          #                          latest stable is always ≥0.9.85, so the flag is reliably available.
-          cargo nextest run \
-            -p prism-bin \
-            --profile e2e \
-            --run-ignored ignored-only \
-            --no-tests=fail
+          # --no-tests=fail:           fail with exit code 4 if zero tests are selected — prevents
+          #                            false-green if #[ignore] attrs are removed or e2e_smoke.rs is
+          #                            renamed without updating this workflow (ADV-PR-P05-OBS-001).
+          #                            Requires nextest ≥0.9.85. install-action installs the latest
+          #                            stable nextest (no version pin, matching ci.yml convention);
+          #                            latest stable is always ≥0.9.85, so the flag is reliably available.
+          dbus-run-session -- bash -euo pipefail -c '
+            gnome-keyring-daemon --start --components=secrets > /tmp/gnome-keyring.env
+            . /tmp/gnome-keyring.env
+            export GNOME_KEYRING_CONTROL GNOME_KEYRING_PID SSH_AUTH_SOCK
+            cargo nextest run \
+              -p prism-bin \
+              --profile e2e \
+              --run-ignored ignored-only \
+              --no-tests=fail
+          '
 
       - name: Upload E2E JUnit results
         if: always()
