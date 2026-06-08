@@ -12,7 +12,7 @@
 use std::{collections::HashMap, sync::Arc};
 
 use prism_spec_engine::{
-    LoadedPlugin,
+    LoadedPlugin, PluginAuthProvider,
     plugin::{
         PluginRuntime,
         host_functions::{host_current_time_secs, host_http_request, host_kv_get, host_kv_set},
@@ -20,6 +20,64 @@ use prism_spec_engine::{
     },
     spec_parser::SpecLoader,
 };
+
+// ---------------------------------------------------------------------------
+// NullTestOrgIdStore — minimal CredentialStoreOrgId stub for test fixtures
+// ADR-034 §D5 Red Gate sibling sweep: PluginAuthProvider::new now requires
+// Arc<dyn CredentialStoreOrgId>. Tests that don't exercise Tier-3 use this stub.
+// ---------------------------------------------------------------------------
+struct NullTestOrgIdStore;
+
+#[async_trait::async_trait]
+impl prism_credentials::CredentialStoreOrgId for NullTestOrgIdStore {
+    async fn get_by_org(
+        &self,
+        _org_id: &prism_core::OrgId,
+        _sensor: &str,
+        _name: &prism_core::CredentialName,
+    ) -> Result<Option<secrecy::SecretString>, prism_core::PrismError> {
+        Ok(None)
+    }
+    async fn set_by_org(
+        &self,
+        _org_id: &prism_core::OrgId,
+        _sensor: &str,
+        _name: &prism_core::CredentialName,
+        _value: secrecy::SecretString,
+    ) -> Result<(), prism_core::PrismError> {
+        Ok(())
+    }
+    async fn delete_by_org(
+        &self,
+        _org_id: &prism_core::OrgId,
+        _sensor: &str,
+        _name: &prism_core::CredentialName,
+    ) -> Result<bool, prism_core::PrismError> {
+        Ok(false)
+    }
+    async fn list_by_org(
+        &self,
+        _org_id: &prism_core::OrgId,
+    ) -> Result<Vec<(String, prism_core::CredentialName)>, prism_core::PrismError> {
+        Ok(vec![])
+    }
+    async fn exists_by_org(
+        &self,
+        _org_id: &prism_core::OrgId,
+        _sensor: &str,
+        _name: &prism_core::CredentialName,
+    ) -> Result<bool, prism_core::PrismError> {
+        Ok(false)
+    }
+}
+
+fn null_org_id_store() -> Arc<dyn prism_credentials::CredentialStoreOrgId> {
+    Arc::new(NullTestOrgIdStore)
+}
+
+fn null_org_registry() -> Arc<prism_core::OrgRegistry> {
+    Arc::new(prism_core::OrgRegistry::new())
+}
 
 // ---------------------------------------------------------------------------
 // Test utilities
@@ -692,6 +750,8 @@ async fn test_PLUGIN_MIGRATION_001_E_006_401_triggers_plugin_token_refresh_and_r
         "crowdstrike-oauth2",
         "crowdstrike",
         &format!("{}/oauth2/token", mock_server.uri()),
+        null_org_registry(),
+        null_org_id_store(),
     );
 
     // Build a minimal SensorSpec that uses the two-step CrowdStrike pattern.
@@ -1506,6 +1566,8 @@ async fn test_S_PLUGIN_CI_001_003_double_401_returns_auth_refresh_failed() {
         "crowdstrike-oauth2",
         "crowdstrike",
         &format!("{}/oauth2/token", mock_server.uri()),
+        null_org_registry(),
+        null_org_id_store(),
     );
 
     // Minimal single-step spec that hits the 401-returning endpoint.

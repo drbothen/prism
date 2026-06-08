@@ -27,6 +27,64 @@ use std::{path::Path, sync::Arc};
 use prism_bin::boot::plugin_load_step;
 
 // ---------------------------------------------------------------------------
+// NullTestOrgIdStore — minimal CredentialStoreOrgId stub for test fixtures
+// ADR-034 §D5 Red Gate sibling sweep: validate_and_construct_auth_providers and
+// PluginAuthProvider::new now require Arc<dyn CredentialStoreOrgId>.
+// ---------------------------------------------------------------------------
+struct NullTestOrgIdStore;
+
+#[async_trait::async_trait]
+impl prism_credentials::CredentialStoreOrgId for NullTestOrgIdStore {
+    async fn get_by_org(
+        &self,
+        _org_id: &prism_core::OrgId,
+        _sensor: &str,
+        _name: &prism_core::CredentialName,
+    ) -> Result<Option<secrecy::SecretString>, prism_core::PrismError> {
+        Ok(None)
+    }
+    async fn set_by_org(
+        &self,
+        _org_id: &prism_core::OrgId,
+        _sensor: &str,
+        _name: &prism_core::CredentialName,
+        _value: secrecy::SecretString,
+    ) -> Result<(), prism_core::PrismError> {
+        Ok(())
+    }
+    async fn delete_by_org(
+        &self,
+        _org_id: &prism_core::OrgId,
+        _sensor: &str,
+        _name: &prism_core::CredentialName,
+    ) -> Result<bool, prism_core::PrismError> {
+        Ok(false)
+    }
+    async fn list_by_org(
+        &self,
+        _org_id: &prism_core::OrgId,
+    ) -> Result<Vec<(String, prism_core::CredentialName)>, prism_core::PrismError> {
+        Ok(vec![])
+    }
+    async fn exists_by_org(
+        &self,
+        _org_id: &prism_core::OrgId,
+        _sensor: &str,
+        _name: &prism_core::CredentialName,
+    ) -> Result<bool, prism_core::PrismError> {
+        Ok(false)
+    }
+}
+
+fn null_org_id_store() -> Arc<dyn prism_credentials::CredentialStoreOrgId> {
+    Arc::new(NullTestOrgIdStore)
+}
+
+fn null_org_registry() -> Arc<prism_core::OrgRegistry> {
+    Arc::new(prism_core::OrgRegistry::new())
+}
+
+// ---------------------------------------------------------------------------
 // Test helper utilities
 // ---------------------------------------------------------------------------
 
@@ -1296,8 +1354,14 @@ async fn test_plugin_auth_provider_construction_production_api() {
     let sensor_id = "sensor:crowdstrike".to_string();
     let token_endpoint = "https://api.crowdstrike.com/oauth2/token".to_string();
 
-    let provider =
-        PluginAuthProvider::new(runtime_arc, "crowdstrike-oauth2", sensor_id, token_endpoint);
+    let provider = PluginAuthProvider::new(
+        runtime_arc,
+        "crowdstrike-oauth2",
+        sensor_id,
+        token_endpoint,
+        null_org_registry(),
+        null_org_id_store(),
+    );
 
     // Verify the provider carries the correct plugin_id.
     assert_eq!(
@@ -1435,7 +1499,12 @@ async fn test_validate_and_construct_auth_providers_happy_path() {
         Some("crowdstrike-oauth2"),
     )]);
 
-    let result = validate_and_construct_auth_providers(&snapshot, &runtime);
+    let result = validate_and_construct_auth_providers(
+        &snapshot,
+        &runtime,
+        null_org_registry(),
+        null_org_id_store(),
+    );
     assert!(
         result.is_ok(),
         "F-LP3-MED-001 happy: must return Ok for valid sensor+plugin combo; got {:?}",
@@ -1482,7 +1551,12 @@ async fn test_validate_and_construct_auth_providers_typo_returns_error() {
         Some("crowdstirke-oauth2"), // typo — not registered
     )]);
 
-    let result = validate_and_construct_auth_providers(&snapshot, &runtime);
+    let result = validate_and_construct_auth_providers(
+        &snapshot,
+        &runtime,
+        null_org_registry(),
+        null_org_id_store(),
+    );
     assert!(
         result.is_err(),
         "F-LP3-MED-001 typo: must return Err for unregistered plugin_id; got Ok"
@@ -1526,7 +1600,12 @@ async fn test_validate_and_construct_auth_providers_empty_returns_empty_map() {
         ("armis", "https://api.armis.com", None),
     ]);
 
-    let result = validate_and_construct_auth_providers(&snapshot, &runtime);
+    let result = validate_and_construct_auth_providers(
+        &snapshot,
+        &runtime,
+        null_org_registry(),
+        null_org_id_store(),
+    );
     assert!(
         result.is_ok(),
         "F-LP3-MED-001 empty: no auth_plugin sensors must return Ok; got {:?}",
@@ -1564,7 +1643,12 @@ async fn test_validate_and_construct_auth_providers_mixed_sensors_one_with_auth_
         ("armis", "https://api.armis.com", None),
     ]);
 
-    let result = validate_and_construct_auth_providers(&snapshot, &runtime);
+    let result = validate_and_construct_auth_providers(
+        &snapshot,
+        &runtime,
+        null_org_registry(),
+        null_org_id_store(),
+    );
     assert!(
         result.is_ok(),
         "F-LP3-MED-001 mixed: must return Ok when one sensor has valid auth_plugin; got {:?}",

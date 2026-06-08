@@ -230,7 +230,7 @@ pub struct BearerStaticCredentialAuthProvider {
 
     /// Injected credential resolver (ADR-022 §C wiring / testability).
     ///
-    /// Production code passes `Arc::new(prism_spec_engine::PrismCredentialResolver)`.
+    /// Production code passes `Arc::new(prism_spec_engine::PrismCredentialResolver::new(org_registry, keyring))`.
     /// Tests inject `Arc::new(MockCredentialResolver::new("value"))` or
     /// `Arc::new(NotFoundCredentialResolver)` to drive fail-closed paths without
     /// relying on env vars or the real credential store (SID-1 discipline).
@@ -240,17 +240,28 @@ pub struct BearerStaticCredentialAuthProvider {
 impl BearerStaticCredentialAuthProvider {
     /// Construct a `BearerStaticCredentialAuthProvider` for the given sensor and credential ref.
     ///
-    /// Uses the production [`PrismCredentialResolver`] (wraps `prism_credentials::resolve_credential`).
+    /// Uses the production [`PrismCredentialResolver`] with injected `OrgRegistry` and keyring
+    /// for Tier-3 resolution (ADR-034 §D1).
     ///
     /// - `sensor_id`: sensor name string from TOML spec (credential namespace key).
     /// - `credential_ref_name`: name of the credential ref declared in the TOML spec (e.g. `"bearer_token"`).
+    /// - `org_registry`: for slug → OrgId resolution in `PrismCredentialResolver`.
+    /// - `keyring`: OrgId-keyed keyring backend for Tier-3 resolution.
     ///
-    /// ADV-SDEMO002-P01-CRIT-001; AD-017; BC-2.06.003.
-    pub fn new(sensor_id: impl Into<String>, credential_ref_name: impl Into<String>) -> Self {
+    /// ADV-SDEMO002-P01-CRIT-001; AD-017; BC-2.06.003; ADR-034 §D1.
+    pub fn new(
+        sensor_id: impl Into<String>,
+        credential_ref_name: impl Into<String>,
+        org_registry: std::sync::Arc<prism_core::OrgRegistry>,
+        keyring: std::sync::Arc<dyn prism_credentials::CredentialStoreOrgId>,
+    ) -> Self {
         Self {
             sensor_id: sensor_id.into(),
             credential_ref_name: credential_ref_name.into(),
-            resolver: std::sync::Arc::new(prism_spec_engine::PrismCredentialResolver),
+            resolver: std::sync::Arc::new(prism_spec_engine::PrismCredentialResolver::new(
+                org_registry,
+                keyring,
+            )),
         }
     }
 
@@ -277,7 +288,8 @@ impl BearerStaticCredentialAuthProvider {
 impl prism_spec_engine::AuthProvider for BearerStaticCredentialAuthProvider {
     /// Acquire the bearer token for the sensor by resolving from the credential store.
     ///
-    /// Calls `prism_credentials::resolve_credential(client_id, sensor_id, credential_ref_name)`.
+    /// Calls `prism_credentials::resolve_credential(client_id, sensor_id, credential_ref_name,
+    /// org_id, keyring)` (5-arg signature per ADR-034 §D1).
     /// Returns `Ok(AuthToken)` wrapping the resolved token on success.
     ///
     /// FAIL-CLOSED: on any resolution failure returns `Err(AuthAcquisitionFailed)` with an
@@ -970,7 +982,7 @@ pub fn build_http_client_with_timeout() -> Result<reqwest::Client, String> {
 ///   If not found (auth_plugin declared but provider not constructed at step 7.5b), logs E-SPEC-012
 ///   and skips the sensor.
 /// - `BearerStatic`: → `AdapterAuthStrategy::BearerStatic` (no held provider).
-/// - `CookieRoundtrip`: constructs `StaticCookieAuthProvider::new(sensor_id)` →
+/// - `CookieRoundtrip`: constructs `StaticCookieAuthProvider::new(sensor_id, org_registry, keyring)` →
 ///   `AdapterAuthStrategy::StaticCookie(Arc::new(...))`.
 /// - Other `auth_type` values: logs E-SPEC-012 (auth type mismatch for S-DEMO-001 scope) and skips.
 ///
@@ -994,9 +1006,10 @@ pub fn build_http_client_with_timeout() -> Result<reqwest::Client, String> {
 /// BC-2.22.001 postcondition; BC-2.01.013; BC-2.06.014; AC-004; AC-006.
 pub async fn step9a_populate_adapter_registry(
     resolved_spec_map: &HashMap<ResolvedSpecKey, ResolvedSensorSpec>,
-    org_registry: &prism_core::OrgRegistry,
+    org_registry: Arc<prism_core::OrgRegistry>,
     plugin_auth_providers: &HashMap<String, Arc<PluginAuthProvider>>,
     adapter_registry: &mut prism_sensors::AdapterRegistry,
+    credential_store_org_id: Arc<dyn prism_credentials::CredentialStoreOrgId>,
 ) -> Result<usize, crate::boot::BootError> {
     // AC-006: empty spec_catalog → 0 registrations, no error.
     if resolved_spec_map.is_empty() {
@@ -1113,6 +1126,8 @@ pub async fn step9a_populate_adapter_registry(
                     global_provider.plugin_id().to_string(),
                     sensor_id_str.to_string(),
                     per_org_token_endpoint,
+                    Arc::clone(&org_registry),
+                    Arc::clone(&credential_store_org_id),
                 );
                 AdapterAuthStrategy::Plugin(Arc::new(per_org_provider) as Arc<dyn AuthProvider>)
             }
@@ -1135,6 +1150,8 @@ pub async fn step9a_populate_adapter_registry(
                 let provider = BearerStaticCredentialAuthProvider::new(
                     resolved_spec.spec.sensor_id.as_str(),
                     "bearer_token",
+                    Arc::clone(&org_registry),
+                    Arc::clone(&credential_store_org_id),
                 );
                 AdapterAuthStrategy::Plugin(std::sync::Arc::new(provider)
                     as std::sync::Arc<dyn prism_spec_engine::AuthProvider>)
@@ -1144,6 +1161,8 @@ pub async fn step9a_populate_adapter_registry(
                 // at acquire_token() time with NO HTTP call (ADR-031 §D1-b).
                 let provider = prism_spec_engine::StaticCookieAuthProvider::new(
                     resolved_spec.spec.sensor_id.as_str(),
+                    Arc::clone(&org_registry),
+                    Arc::clone(&credential_store_org_id),
                 );
                 AdapterAuthStrategy::StaticCookie(Arc::new(provider) as Arc<dyn AuthProvider>)
             }

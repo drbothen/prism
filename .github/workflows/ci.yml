@@ -36,6 +36,11 @@ jobs:
         uses: arduino/setup-protoc@c65c819552d16ad3c9b72d9dfd5ba5237b9c906b # v3.0.0
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
+      # prism-credentials uses keyring 3.x with linux-native-sync-persistent (Secret Service
+      # backend) on Linux gnu, which requires libdbus-1-dev + pkg-config at build time.
+      # ADR-034 / BC-2.06.003: dbus Secret Service is the production Linux persistent backend.
+      - name: Install libdbus-1-dev (required by keyring Secret Service backend on Linux)
+        run: sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config
       # Optimization 1: Swatinem/rust-cache for incremental build caching
       - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
         with:
@@ -86,6 +91,16 @@ jobs:
       - name: Install musl-tools
         if: matrix.install_musl
         run: sudo apt-get update && sudo apt-get install -y musl-tools
+      # prism-credentials uses keyring 3.x with linux-native-sync-persistent (Secret Service
+      # backend). When --all-features is passed, libdbus-sys is compiled on all Linux legs
+      # (build.rs runs on the glibc host even for musl cross-compile targets).
+      # Both linux-gnu and linux-musl legs therefore need libdbus-1-dev + pkg-config on the
+      # host. At runtime: gnu uses dbus Secret Service; musl uses linux-native (kernel keyutils)
+      # only per the prism-credentials Cargo.toml comment — but the compile-time dep is shared.
+      # ADR-034 / BC-2.06.003: dbus Secret Service is the production Linux persistent backend.
+      - name: Install libdbus-1-dev (required by keyring build on Linux, all-features)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config
       # Optimization: mold linker — faster linking on Linux (saves ~5 min per Linux leg)
       # make-default: false — we set RUSTFLAGS explicitly for robustness (see rui314/setup-mold#3)
       - name: Install mold linker (Linux only)
@@ -108,6 +123,14 @@ jobs:
         run: cargo nextest run --workspace --all-features --profile ci
       - name: Run doctests (linux-gnu only — nextest skips doctests)
         if: matrix.run_doctests
+        # RUSTFLAGS must match the nextest step to avoid Rust fingerprint-cache invalidation.
+        # Without this, cargo detects different RUSTFLAGS (nextest uses -C link-arg=-fuse-ld=mold,
+        # doctest step would default to none) and recompiles all 24 crates from scratch — adding
+        # ~8-9 minutes and risking OOM-kill on the runner under memory pressure after the 1000-
+        # PROPTEST_CASES nextest run. The mold linker is installed above (setup-mold step) and
+        # is available at this point in the job; no additional setup needed.
+        env:
+          RUSTFLAGS: "-C link-arg=-fuse-ld=mold"
         run: cargo test --workspace --all-features --doc
       - name: Upload JUnit results
         if: always()
@@ -131,6 +154,11 @@ jobs:
         uses: arduino/setup-protoc@c65c819552d16ad3c9b72d9dfd5ba5237b9c906b # v3.0.0
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
+      # prism-credentials uses keyring 3.x with linux-native-sync-persistent (Secret Service
+      # backend) on Linux, requiring libdbus-1-dev + pkg-config at build time.
+      # ADR-034 / BC-2.06.003: dbus Secret Service is the production Linux persistent backend.
+      - name: Install libdbus-1-dev (required by keyring Secret Service backend on Linux)
+        run: sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config
       # Optimization 1: Swatinem/rust-cache
       - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
         with:
@@ -260,6 +288,11 @@ jobs:
         uses: arduino/setup-protoc@c65c819552d16ad3c9b72d9dfd5ba5237b9c906b # v3.0.0
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
+      # prism-credentials uses keyring 3.x with linux-native-sync-persistent (Secret Service
+      # backend) on Linux, requiring libdbus-1-dev + pkg-config at build time.
+      # ADR-034 / BC-2.06.003: dbus Secret Service is the production Linux persistent backend.
+      - name: Install libdbus-1-dev (required by keyring Secret Service backend on Linux)
+        run: sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config
       # Optimization 1: Swatinem/rust-cache
       - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
         with:
@@ -349,6 +382,11 @@ jobs:
         uses: arduino/setup-protoc@c65c819552d16ad3c9b72d9dfd5ba5237b9c906b # v3.0.0
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
+      # prism-credentials (transitive dep of prism-query via fuzz target) uses keyring 3.x
+      # with linux-native-sync-persistent (Secret Service backend) on Linux gnu, requiring
+      # libdbus-1-dev + pkg-config at build time. ADR-034 / BC-2.06.003.
+      - name: Install libdbus-1-dev (required by keyring Secret Service backend on Linux)
+        run: sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config
       - name: Install cargo-fuzz
         uses: taiki-e/install-action@cf525cb33f51aca27cd6fa02034117ab963ff9f1 # v2.75.22
         with:
@@ -402,6 +440,11 @@ jobs:
         uses: arduino/setup-protoc@c65c819552d16ad3c9b72d9dfd5ba5237b9c906b # v3.0.0
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
+      # perimeter-violation depends on prism-query which transitively depends on
+      # prism-credentials → keyring 3.x linux-native-sync-persistent (Secret Service
+      # backend), requiring libdbus-1-dev + pkg-config. ADR-034 / BC-2.06.003.
+      - name: Install libdbus-1-dev (required by keyring Secret Service backend on Linux)
+        run: sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config
       - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
         with:
           cache-on-failure: true
@@ -613,6 +656,11 @@ jobs:
         uses: arduino/setup-protoc@c65c819552d16ad3c9b72d9dfd5ba5237b9c906b # v3.0.0
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
+      # non-exhaustive-violation depends on prism-spec-engine which transitively depends on
+      # prism-credentials → keyring 3.x linux-native-sync-persistent (Secret Service
+      # backend), requiring libdbus-1-dev + pkg-config. ADR-034 / BC-2.06.003.
+      - name: Install libdbus-1-dev (required by keyring Secret Service backend on Linux)
+        run: sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config
       - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
         with:
           cache-on-failure: true
@@ -684,6 +732,11 @@ jobs:
         uses: arduino/setup-protoc@c65c819552d16ad3c9b72d9dfd5ba5237b9c906b # v3.0.0
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
+      # no-hardcoded-sensors depends on prism-sensors which transitively depends on
+      # prism-credentials → keyring 3.x linux-native-sync-persistent (Secret Service
+      # backend), requiring libdbus-1-dev + pkg-config. ADR-034 / BC-2.06.003.
+      - name: Install libdbus-1-dev (required by keyring Secret Service backend on Linux)
+        run: sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config
       - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
         with:
           cache-on-failure: true
@@ -1172,6 +1225,26 @@ jobs:
               sys.exit(0)
           PYEOF
 
+  shellcheck-demo-scripts:
+    name: Shellcheck demo scripts (S-DEMO-003 HIGH-2 / AC-014)
+    # Required PR gate per ADR-034 HIGH-2 remediation (AC-014 of S-DEMO-003).
+    # Runs shellcheck on all scripts/demo-*.sh files to catch shell scripting errors,
+    # undefined variable references, and unsafe patterns before they reach production.
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Install shellcheck
+        run: sudo apt-get update && sudo apt-get install -y shellcheck
+      - name: Run shellcheck on demo scripts
+        run: |
+          # AC-014 (S-DEMO-003): shellcheck must pass with zero errors on all demo scripts.
+          # This is a required PR gate — failures block merge.
+          shellcheck scripts/demo-*.sh
+          echo "shellcheck: all demo scripts pass (S-DEMO-003 HIGH-2 / AC-014)"
+
   verify-workflow-structure:
     name: Verify workflow structure (AC-5..AC-8 reachability)
     runs-on: ubuntu-latest
@@ -1234,4 +1307,13 @@ jobs:
             exit 1
           }
           echo 'AC-006 reachability check passed: no-hardcoded-sensors-compile-fail job present.'
-          echo 'All AC-5..AC-8 + F-LP5-HIGH-001 + S-PLUGIN-CI-001-AC-001 + AC-006 reachability assertions pass.'
+          # S-DEMO-003 HIGH-2 / AC-014 reachability assertion:
+          # The shellcheck-demo-scripts job is the required PR gate for demo script quality
+          # (ADR-034 HIGH-2 remediation). A future PR removing this job would silently remove
+          # the shellcheck gate.
+          grep -qE 'shellcheck-demo-scripts' .github/workflows/ci.yml || {
+            echo "::error::S-DEMO-003 AC-014: 'shellcheck-demo-scripts' job is missing from ci.yml — shellcheck PR gate removed (ADR-034 HIGH-2)"
+            exit 1
+          }
+          echo 'S-DEMO-003 AC-014 reachability check passed: shellcheck-demo-scripts job present.'
+          echo 'All AC-5..AC-8 + F-LP5-HIGH-001 + S-PLUGIN-CI-001-AC-001 + AC-006 + S-DEMO-003-AC-014 reachability assertions pass.'

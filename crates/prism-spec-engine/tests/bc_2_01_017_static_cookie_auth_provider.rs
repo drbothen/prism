@@ -45,6 +45,62 @@ use prism_spec_engine::{
     spec_parser::{AuthType, ColumnSpec, FetchStep, SensorSpec, TableSpec},
 };
 
+// ADR-034 §D5 Red Gate sibling sweep: StaticCookieAuthProvider::new now requires
+// Arc<OrgRegistry> + Arc<dyn CredentialStoreOrgId>. Tests that use new_with_resolver
+// are unaffected; tests that use ::new directly need these stub args.
+struct NullTestOrgIdStore;
+
+#[async_trait::async_trait]
+impl prism_credentials::CredentialStoreOrgId for NullTestOrgIdStore {
+    async fn get_by_org(
+        &self,
+        _o: &prism_core::OrgId,
+        _s: &str,
+        _n: &prism_core::CredentialName,
+    ) -> Result<Option<secrecy::SecretString>, prism_core::PrismError> {
+        Ok(None)
+    }
+    async fn set_by_org(
+        &self,
+        _o: &prism_core::OrgId,
+        _s: &str,
+        _n: &prism_core::CredentialName,
+        _v: secrecy::SecretString,
+    ) -> Result<(), prism_core::PrismError> {
+        Ok(())
+    }
+    async fn delete_by_org(
+        &self,
+        _o: &prism_core::OrgId,
+        _s: &str,
+        _n: &prism_core::CredentialName,
+    ) -> Result<bool, prism_core::PrismError> {
+        Ok(false)
+    }
+    async fn list_by_org(
+        &self,
+        _o: &prism_core::OrgId,
+    ) -> Result<Vec<(String, prism_core::CredentialName)>, prism_core::PrismError> {
+        Ok(vec![])
+    }
+    async fn exists_by_org(
+        &self,
+        _o: &prism_core::OrgId,
+        _s: &str,
+        _n: &prism_core::CredentialName,
+    ) -> Result<bool, prism_core::PrismError> {
+        Ok(false)
+    }
+}
+
+fn null_org_id_store() -> Arc<dyn prism_credentials::CredentialStoreOrgId> {
+    Arc::new(NullTestOrgIdStore)
+}
+
+fn null_org_registry() -> Arc<prism_core::OrgRegistry> {
+    Arc::new(prism_core::OrgRegistry::new())
+}
+
 // ---------------------------------------------------------------------------
 // Shared fixture helpers
 // ---------------------------------------------------------------------------
@@ -187,8 +243,10 @@ async fn test_BC_2_01_017_static_cookie_auth_provider_acquire_token_no_http_call
     let mock_server = MockServer::start().await;
     let mock_url = mock_server.uri(); // e.g., "http://127.0.0.1:NNNNN"
 
-    // Construct StaticCookieAuthProvider. At the Red Gate stage, panics (todo!()).
-    let provider = StaticCookieAuthProvider::new("cyberint");
+    // Construct StaticCookieAuthProvider with DI args (ADR-034 §D1 sibling sweep).
+    // Uses null stubs — this test exercises the no-HTTP-call property, not Tier-3.
+    let provider =
+        StaticCookieAuthProvider::new("cyberint", null_org_registry(), null_org_id_store());
 
     // Build a spec whose base_url points at the mock server.
     // If acquire_token makes any HTTP call, it will hit this server and

@@ -25,6 +25,9 @@
 // Re-exported modules — all public for integration test access from boot_tests.rs.
 pub mod boot;
 pub mod cli;
+// S-DEMO-003: `prism credential set` subcommand — AD-017 compliant keyring write.
+// New CLI-facing write path for credentials (BC-2.03.007, BC-2.06.001, SS-03 + SS-22).
+pub mod credential_cli;
 pub mod exit_codes;
 pub mod plugin_audit;
 pub mod signals;

@@ -18,6 +18,8 @@ use std::path::PathBuf;
 
 use clap::{Parser, Subcommand};
 
+pub use crate::credential_cli::CredentialArgs;
+
 /// Prism MCP server — sensor management platform for security analysts.
 ///
 /// Exit codes:
@@ -99,4 +101,13 @@ pub enum PrismCommand {
     ///
     /// Exit codes: 0 always.
     Version,
+
+    /// Credential management subcommands (AD-017 compliant: value read from stdin).
+    ///
+    /// Usage: prism credential set --sensor <SENSOR_ID> --name <CREDENTIAL_NAME>
+    ///
+    /// Exit codes: 0 success, 1 keyring unavailable/write failure, 2 config-invalid.
+    ///
+    /// S-DEMO-003: first CLI-facing write path for credentials.
+    Credential(CredentialArgs),
 }

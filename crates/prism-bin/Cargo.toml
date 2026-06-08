@@ -39,7 +39,16 @@ prism-mcp = { path = "../prism-mcp", version = "0.1.0" }
 # in RunningServer and wait_for_shutdown() matches on RmcpError variants (BC-2.10.010 fix).
 rmcp = { workspace = true }
 clap = { version = "4", features = ["derive", "env"] }
-keyring = "3"
+# S-DEMO-003 AC-005: AD-017 compliant stdin credential read (no terminal echo).
+# prism-bin-only dep — NOT in workspace [dependencies] because rpassword is binary-surface
+# only (no library crate needs it). Architect resolution: prism-bin-only per S-DEMO-003
+# risk_mitigations and open question OQ-2.
+rpassword = "7"
+# F-P10-CRIT-001 fix: real backend features activated via prism-credentials' default features.
+# Cargo unifies keyring features from all dependents — prism-credentials' default features
+# (keyring-apple-native, keyring-windows-native, keyring-linux-native-sync-persistent,
+# keyring-linux-native) enable all real backends. This dep just declares the version constraint.
+keyring = { version = "3", default-features = false }
 tokio = { version = "1", features = ["full"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
@@ -185,6 +194,31 @@ path = "tests/e2e_smoke.rs"
 name = "adv_p02_e2e_pushdown_pipeline_test"
 path = "tests/adv_p02_e2e_pushdown_pipeline_test.rs"
 
+# S-DEMO-003: Red Gate test — BC-2.06.001 TOML config loading contract.
+# AC-001: demo-setup.sh generates a valid prism.toml that deserializes via PrismConfig.
+# Testable seam: generate_demo_prism_toml() in credential_cli.rs (Rust helper, not shell script).
+# BCs: BC-2.06.001
+[[test]]
+name = "bc_2_06_001_demo_setup_toml"
+path = "tests/bc_2_06_001_demo_setup_toml.rs"
+
+# S-DEMO-003: Red Gate test — BC-2.03.007 secret redaction contract.
+# AC-005: `prism credential set` must not echo the credential value to stdout or stderr.
+# Drives the prism binary as a subprocess with piped stdin (SENTINEL_SECRET).
+# BCs: BC-2.03.007, AD-017
+[[test]]
+name = "bc_2_03_007_credential_set_no_echo"
+path = "tests/bc_2_03_007_credential_set_no_echo.rs"
+
+# S-DEMO-003: RG-034-004 — CRIT-2 namespace reconciliation.
+# AC-010/AC-005: handle_credential_set must write via CredentialStoreOrgId::set_by_org
+# (OrgId-keyed namespace), not CredentialStore::set (slug-keyed namespace).
+# Uses InMemoryCredentialStore trait double for in-process namespace assertion.
+# BCs: BC-2.06.003 Tier-3, BC-2.03.007; ADR-034 §D3
+[[test]]
+name = "bc_2_03_007_credential_set_org_id_keyed"
+path = "tests/bc_2_03_007_credential_set_org_id_keyed.rs"
+
 [dev-dependencies]
 rmcp = { workspace = true }
 tempfile = "3"
@@ -197,6 +231,9 @@ prism-core = { path = "../prism-core", version = "0.2.0" }
 # test-helpers: exposes reset_dynamic_registry_global / reset_query_phase_global for
 # F-LP-IMPL-P1-002 cross-crate integration test isolation (F-LP-IMPL-P1-005).
 prism-query = { path = "../prism-query", version = "0.1.0", features = ["test-helpers"] }
+# S-DEMO-003 RG-034-004: InMemoryCredentialStore for bc_2_03_007_credential_set_org_id_keyed test.
+# test-helpers feature exposes InMemoryCredentialStore for trait-double injection.
+prism-credentials = { path = "../prism-credentials", version = "0.1.0", features = ["test-helpers"] }
 # S-3.02-FOLLOWUP-RUNTIME: boot_steps_7_8_tests.rs needs QueryEngine/WriteExecutor
 # dependency constructors (OcsfNormalizer, AdapterRegistry, FeatureFlagEvaluator, etc.)
 prism-ocsf = { path = "../prism-ocsf" }
