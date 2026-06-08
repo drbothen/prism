@@ -117,3 +117,139 @@ The false positive was identified and adjudicated by the orchestrator. PR-LEVEL 
 - Adversary SAP extension: POL-10 demo-evidence probe MUST explicitly verify against `git ls-tree <pr-head> docs/demo-evidence/<story-id>/` (branch-anchored), not filesystem glob.
 - This is the third recorded instance of this class: S-DEMO-CLAROTY-AUDIT-DTU-001 pass-4, S-DEMO-001 pass-1, and now S-DEMO-003 pass-1. Recurring class justifies a standing probe rule addition to the upstream adversary prompt.
 - Consider adding a POL-10 amendment: "Demo-evidence presence check MUST be performed against PR branch HEAD via git-tree inspection, not filesystem glob."
+
+---
+
+### [high-value] S-DEMO-CLAROTY-TRAILING-SLASH-001: remove-uncertainty pre-delivery is high-value — caught the axum-0.7 Router::layer footgun before it silently no-oped in production
+
+**Date recorded:** 2026-06-08
+**D-NNN anchor:** D-1060 (S-DEMO-CLAROTY-TRAILING-SLASH-001 post-merge cycle-close)
+**Story:** S-DEMO-CLAROTY-TRAILING-SLASH-001
+**Tags:** [high-value] [remove-uncertainty] [axum] [middleware] [tower-http] [footgun]
+**Classification:** HIGH-VALUE PROCESS IMPROVEMENT — remove-uncertainty pre-delivery caught 6 real defects in the story's own implementation guidance before TDD began.
+
+**Description:**
+
+`dclaude:remove-uncertainty` was applied to S-DEMO-CLAROTY-TRAILING-SLASH-001 v1.2 before dispatch, producing v1.3 with six corrections:
+
+1. **axum-0.7 `Router::layer` runs AFTER routing (footgun):** The story originally specified `Router::new().route(...).layer(NormalizePathLayer::new())`, following a common but incorrect pattern. In axum 0.7 (and 0.8), `Router::layer` applies middleware AFTER routing resolves — meaning a path like `/api/v1/devices/` would fail to match `/api/v1/devices` BEFORE the normalizer could strip the slash. The correct pattern is to wrap the outer serve site: `axum::serve(listener, NormalizePathLayer::new().layer(router))`. This footgun would have passed all unit tests (which construct the Router correctly in isolation) while silently failing in the deployed server. The remove-uncertainty run caught this and corrected both serve sites.
+
+2. **`trim_trailing_slash` is strip-only:** The story description called it "normalize" which could imply bidirectional (append AND strip). Corrected to "strip trailing slash only" to prevent incorrect assumptions in test-writer.
+
+3. **tower-http 0.5 pin:** The story referenced `NormalizePathLayer` without pinning the crate version. Research confirmed tower-http 0.5 as the correct version compatible with axum 0.7. Pinned explicitly to prevent version drift.
+
+4. **axum-0.8 dead-path removed:** A code path referencing axum 0.8 API surface was present despite the project being on axum 0.7. Removed.
+
+5. **EC-002 ordering:** Auth-ordering clause clarified.
+
+6. **Tags-route enumeration:** The tags route `/api/v1/tags` was not explicitly listed; enumerated to ensure completeness.
+
+**Root cause:**
+
+The story was authored before the remove-uncertainty workflow was formalized. The axum-0.7 middleware-ordering footgun is a documented gotcha in axum 0.7 migration guides but is not obvious from reading the API surface alone. Without external research validation, implementation guidance for middleware positioning is high-risk.
+
+**Correct response (codified rule):**
+
+Run `dclaude:remove-uncertainty` on EVERY Phase C story before TDD dispatch. This is now a standing user directive recorded in STATE.md `current_step` and SESSION-HANDOFF.md §Exact Next Steps. The directive was established at D-1059 and confirmed at D-1060.
+
+The `Router::layer`-runs-after-routing footgun is a specific class of axum 0.7 middleware risk. For any story touching middleware placement in axum 0.7+, the test-writer MUST verify that middleware wraps the outer serve call, not the inner Router.
+
+**Outcome:**
+
+remove-uncertainty v1.3 corrections produced a correct first implementation. LOCAL cascade reached 3-CLEAN in 7 passes (P5/6/7 strict-clean). PR-LEVEL 3-CLEAN strict in passes 2/3/4. ADR-031 §D8-b Gap-CL-001 CLOSED.
+
+**Codification direction:**
+
+- Standing user directive: `dclaude:remove-uncertainty` before every Phase C story dispatch.
+- axum middleware placement probe: adversary SAP extension for stories touching `Router::layer` — verify NormalizePathLayer (or any request-mutating middleware) wraps the `axum::serve` call, not the inner Router.
+
+---
+
+### [recurrence] S-DEMO-CLAROTY-TRAILING-SLASH-001: under-swept fix recurrence — comment/label fixes must do a crate-wide grep in the first fix-burst, not file-by-file
+
+**Date recorded:** 2026-06-08
+**D-NNN anchor:** D-1060 (S-DEMO-CLAROTY-TRAILING-SLASH-001 post-merge cycle-close)
+**Story:** S-DEMO-CLAROTY-TRAILING-SLASH-001
+**Tags:** [recurrence] [sibling-sweep] [TD-VSDD-060] [streak-reset] [comment-label-fix]
+**Classification:** PROCESS-GAP — recurring sibling-sweep-miss class; same root cause as OCSF-CLASS-MIGRATION-001 lesson above.
+
+**Description:**
+
+The EC-003 "tags-route mislabel" finding surfaced in 3 consecutive LOCAL passes (P1 test-table, P2 test docstring line 276, P3 clone.rs:131 source comment) because each fix-burst swept only the file it was currently editing:
+
+- **Pass 1 fix:** Corrected the test-table label in the story spec. Did not grep crate-wide.
+- **Pass 2:** Adversary found the same stale label in a test file's docstring (line 276). Fixed. Did not grep crate-wide.
+- **Pass 3:** Adversary found the same stale label in a source comment in clone.rs:131. Fixed.
+
+Three streak resets from the same root-cause class.
+
+**Root cause:**
+
+Comment and label fixes have a high co-occurrence rate across src+tests within the same crate. A fix that changes a conceptual label (e.g., "EC-003 tags-route") that appears in test descriptions, source comments, and spec tables MUST perform a crate-wide grep in the first fix-burst to close all occurrences simultaneously.
+
+**Correct response (codified rule — TD-VSDD-060 extension for comment/label fixes):**
+
+When fixing a comment, label, or conceptual description that could appear in multiple files:
+
+1. **First fix-burst MUST run a crate-wide grep sweep** across `src/**` and `tests/**` for the stale label/string before committing.
+2. Fix ALL occurrences in one commit. Do not assume "I fixed the one the adversary pointed to; the rest are fine."
+3. Record the sweep result in the fix-burst commit message: e.g., "grep EC-003 tags-route across crate: 3 occurrences found, 3 fixed (spec table, test docstring, source comment)."
+
+This is an explicit extension of TD-VSDD-060 (sibling-site sweep on value changes) to cover comment and label changes — not just function signatures and constants.
+
+**Outcome:**
+
+After P3 the sweep was complete. P4/5/6/7 were all CLEAN(strict)=yes. LOCAL cascade CONVERGED.
+
+---
+
+### [process-note] S-DEMO-CLAROTY-TRAILING-SLASH-001: S-7.02 cycle-closing check — no process-gap follow-up story required
+
+**Date recorded:** 2026-06-08
+**D-NNN anchor:** D-1060 (S-DEMO-CLAROTY-TRAILING-SLASH-001 post-merge cycle-close; S-7.02 checklist)
+**Story:** S-DEMO-CLAROTY-TRAILING-SLASH-001
+**Tags:** [process-note] [s-7.02] [cycle-close] [process-gap]
+**Classification:** PROCESS-NOTE — S-7.02 cycle-closing check result.
+
+**Description:**
+
+The LOCAL and PR-LEVEL adversary cascade findings for S-DEMO-CLAROTY-TRAILING-SLASH-001 were reviewed for `[process-gap]`-tagged items. Determination: all findings were **content defects** (incorrect implementation guidance, stale labels, missing test sweeps) rather than process-gap class issues that would require a follow-up story.
+
+The two lessons above (remove-uncertainty high-value; under-swept fix recurrence) are codification entries, not follow-up stories. They document process improvements but do not require new stories because:
+
+1. The remove-uncertainty directive is already a standing user directive (STATE.md current_step + SESSION-HANDOFF.md §Exact Next Steps).
+2. The crate-wide sweep extension of TD-VSDD-060 is a discipline rule, not a story. It is codified here for future sessions.
+
+**No follow-up story required from this cycle-close.**
+
+---
+
+### [process-note] S-DEMO-CLAROTY-TRAILING-SLASH-001: Red Gate evidence
+
+**Date recorded:** 2026-06-08
+**D-NNN anchor:** D-1060 (S-DEMO-CLAROTY-TRAILING-SLASH-001 post-merge cycle-close)
+**Story:** S-DEMO-CLAROTY-TRAILING-SLASH-001
+**Tags:** [process-note] [red-gate] [tdd]
+**Classification:** PROCESS-NOTE — Red Gate baseline for record.
+
+**Description:**
+
+3 trailing-slash tests failed with HTTP 404 assertion errors against unmodified clone.rs (proper Red Gate — tests drove implementation). 3 regression guards passed at baseline. This confirms the Red Gate protocol was followed: tests were written first, observed to fail against the existing implementation, then code was written to make them pass.
+
+---
+
+### [process-note] S-DEMO-CLAROTY-TRAILING-SLASH-001: orchestrator cwd-drift hazard in verification commands
+
+**Date recorded:** 2026-06-08
+**D-NNN anchor:** D-1060 (S-DEMO-CLAROTY-TRAILING-SLASH-001 post-merge cycle-close)
+**Story:** S-DEMO-CLAROTY-TRAILING-SLASH-001
+**Tags:** [process-note] [orchestrator] [cwd] [worktree]
+**Classification:** PROCESS-NOTE — orchestrator operational discipline.
+
+**Description:**
+
+During delivery, a verification command ran in the main repository root instead of the story worktree due to persisted shell cwd. This produced a misleading "file not found" result that required re-running the command with an explicit `cd <worktree>` prefix.
+
+**Correct response:** Always pin `cd <absolute-worktree-path>` explicitly at the start of any verification command sequence when working across multiple worktrees. Do not assume shell cwd persists correctly between agent dispatches.
+
+This is a low-severity orchestrator-process note. No streak reset. No spec impact.

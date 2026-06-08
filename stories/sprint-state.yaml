@@ -545,13 +545,16 @@ active_dispatch_set:
     notes: "STALE DUPLICATE ROW CORRECTED D-988 2026-06-04. MERGED PR #168 develop@eb3416d1 2026-06-02 (D-950 post-merge burst). LOCAL 3/3 CLEAN CONVERGED (passes 1/2/3 new-streak @9243a0d3). PR-LEVEL 3/3 CLEAN CONVERGED (BC-5.39.001 D-779). BC-2.16.013 already active (D-776) — idempotent confirm. Armis lane COMPLETE. AQL seeding is S-DEMO-002 scope. Authoritative entry in in_progress block above. This was a duplicate in_progress row reflecting D-940-era state; corrected to merged per D-950 reality."
 
   - story_id: S-DEMO-CLAROTY-TRAILING-SLASH-001
-    status: ready
+    status: completed
     priority: P1
     points: 3
-    spec_version: "v1.2"
+    spec_version: "v1.3"
     depends_on:
       - S-DEMO-CLAROTY-AUDIT-DTU-001  # SOFT — SATISFIED (merged PR #167 develop@e1c632dc)
-    notes: "D-990 2026-06-03: status draft→ready (v1.1→v1.2). BC-2.16.013 v1.25 active (PO D-989 trailing-slash parity clause). depends_on S-DEMO-CLAROTY-AUDIT-DTU-001 SOFT SATISFIED. S-7.01 gate CLEARED."
+    merge_pr: 177
+    merge_sha: "5c5d240d"
+    merge_date: "2026-06-08"
+    notes: "D-1060 2026-06-08: MERGED PR #177 squash-merged develop@5c5d240d. spec_version stale v1.2→v1.3 synced. LOCAL 3-CLEAN (7 passes) + PR-LEVEL 3-CLEAN strict (passes 2/3/4; BC-5.39.001 D-779). NormalizePathLayer outer-service wrap + tower-http 0.5 + 3 claroty.sensor.toml trailing-slash path_templates + tags route. ADR-031 §D8-b Gap-CL-001 CLOSED. BC-2.16.013 v1.25 POL-14 idempotent (already active D-776). D-990 2026-06-03: status draft→ready (v1.1→v1.2). BC-2.16.013 v1.25 active. S-7.01 gate CLEARED."
 
   - story_id: S-SPEC-ENV-VAR-001
     status: merged

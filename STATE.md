@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.710"
+version: "7.711"
 producer: state-manager
 timestamp: 2026-06-08T18:00:00Z
 inputs: []
@@ -16,10 +16,10 @@ repos: [poller-cobra, poller-express, poller-bear, poller-coaster, serveMyAPI, t
 safe_to_compact: true
 
 # ── CANONICAL CURRENT-STATE VALUES (authoritative; do not drop in future compactions) ──
-develop_head: "a42e3eaf"
+develop_head: "5c5d240d"
 bc_index_version: "6.00"
 vp_index_version: "1.76"
-story_index_version: "v2.320"
+story_index_version: "v2.321"
 arch_index_version: "2.115"
 error_taxonomy_version: "1.62"
 total_stories: 185
@@ -34,7 +34,7 @@ workspace_test_count: 4064
 vsdd_factory_version: "1.0.0-rc.18"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-1059 Phase C spec-prep committed; S-DEMO-CLAROTY-TRAILING-SLASH-001 v1.3 READY for TDD delivery; S-DEMO-CLAROTY-PAGINATION-001 BC gap CLOSED (BC-2.16.002 v1.70) — now materializable. Phase C next: TRAILING-SLASH dispatch."
+current_step: "D-1060 S-DEMO-CLAROTY-TRAILING-SLASH-001 MERGED PR #177 develop@5c5d240d. ADR-031 §D8-b Gap-CL-001 CLOSED. Phase C Claroty Lane 1 COMPLETE. Next: S-DEMO-CLAROTY-SPEC-PROSE-FIX-001 + S-DEMO-HARNESS-CLONE-PARITY-001 + S-DEMO-CLAROTY-PAGINATION-001 (all unblocked). USER DIRECTIVE: run dclaude:remove-uncertainty on every Phase C story before delivery."
 wave5_phase_b_status: "COMPLETE — Lanes 1/2/3/4 + S-MAINT all merged. Lane 1: S-SPEC-HTTP-METHOD-VALIDATION-001 PR#172 develop@752e407a. Lane 2: S-DEMO-QUERY-PUSHDOWN-001 PR#173 develop@9447671f. Lane 3: OCSF-CLASS-MIGRATION-001 PR#174 develop@0e89789a. Lane 4: S-DEMO-003 PR#176 develop@a42e3eaf. S-MAINT-ECRED-TAXONOMY-SYNC-001 PR#175 develop@c603741d."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
@@ -82,9 +82,9 @@ safe_to_compact: true
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-06-08 (D-1059 — Phase C spec-prep: BC-2.16.002 v1.70 + S-DEMO-CLAROTY-TRAILING-SLASH-001 v1.3; DRIFT-D850-001 RESOLVED) |
-| **Current Phase** | Wave 5 (wave-5-e-demo-fidelity) — **Phase B COMPLETE** (all 4 lanes + S-MAINT merged). **Phase C next:** S-DEMO-CLAROTY-TRAILING-SLASH-001 → S-DEMO-CLAROTY-SPEC-PROSE-FIX-001 → S-DEMO-HARNESS-CLONE-PARITY-001. Draft/deferred: S-DEMO-CLAROTY-PAGINATION-001 [P1-pre-demo-BLOCKING, draft]; S-DEMO-MULTI-TENANT-DTU-001 [3 open OQs]; S-MAINT-W3SEC-CITE-SWEEP-002 [D-954]; S-MAINT-ORPHAN-SENSORS-DIR-001 [D-977]; S-MAINT-EDITION-SYNC-001 [D-1027]; S-DEMO-LAUNCHER-CONSOLIDATION-001 [D-1029]. |
-| **Current Step** | D-1059 — Phase C spec-prep committed. BC-2.16.002 v1.70 (DRIFT-D850-001 CLOSED); TRAILING-SLASH v1.3 ready for TDD delivery. Develop @a42e3eaf. STATE v7.710. |
+| **Last Updated** | 2026-06-08 (D-1060 — S-DEMO-CLAROTY-TRAILING-SLASH-001 MERGED PR #177 develop@5c5d240d; ADR-031 §D8-b Gap-CL-001 CLOSED; Phase C Lane 1 COMPLETE) |
+| **Current Phase** | Wave 5 (wave-5-e-demo-fidelity) — **Phase B COMPLETE** (all 4 lanes + S-MAINT merged). **Phase C in progress:** Lane 1 (TRAILING-SLASH) **COMPLETE**; remaining: S-DEMO-CLAROTY-SPEC-PROSE-FIX-001 → S-DEMO-HARNESS-CLONE-PARITY-001 → S-DEMO-CLAROTY-PAGINATION-001 (now unblocked). Draft/deferred: S-DEMO-MULTI-TENANT-DTU-001 [3 open OQs]; S-MAINT-W3SEC-CITE-SWEEP-002 [D-954]; S-MAINT-ORPHAN-SENSORS-DIR-001 [D-977]; S-MAINT-EDITION-SYNC-001 [D-1027]; S-DEMO-LAUNCHER-CONSOLIDATION-001 [D-1029]. |
+| **Current Step** | D-1060 — S-DEMO-CLAROTY-TRAILING-SLASH-001 MERGED PR #177 develop@5c5d240d. ADR-031 §D8-b Gap-CL-001 CLOSED. Phase C Lane 1 COMPLETE. Develop @5c5d240d. STATE v7.711. |
 
 ## Phase Progress
 
@@ -117,7 +117,8 @@ safe_to_compact: true
 | 5: OCSF-CLASS-MIGRATION-001 | MERGED | 2026-06-06 | 2026-06-06 | PR #174 develop@0e89789a | LOCAL 3/3 (11 passes) + PR-LEVEL 3/3; 39 CI GREEN; Phase B Lane 3 COMPLETE |
 | 5: S-MAINT-ECRED-TAXONOMY-SYNC-001 | MERGED | 2026-06-07 | 2026-06-07 | PR #175 develop@c603741d | LOCAL 3/3 + PR-LEVEL 3/3; DRIFT-ECRED-TAXONOMY-001 RESOLVED; ADR-035 v1.2 |
 | **5: S-DEMO-003** | **MERGED** | 2026-06-07 | 2026-06-08 | PR #176 develop@a42e3eaf | LOCAL 3/3 (19 passes; CRIT F-P14 boot-probe caught) + PR-LEVEL 3/3 (passes 1/2/3); 43 CI GREEN; Phase B Lane 4 COMPLETE |
-| **5: Phase C — Claroty cluster** | **PENDING** | — | — | Awaiting next story dispatch | S-DEMO-CLAROTY-TRAILING-SLASH-001 → S-DEMO-CLAROTY-SPEC-PROSE-FIX-001 → S-DEMO-HARNESS-CLONE-PARITY-001 |
+| **5: S-DEMO-CLAROTY-TRAILING-SLASH-001** | **MERGED** | 2026-06-08 | 2026-06-08 | PR #177 develop@5c5d240d | LOCAL 3-CLEAN (7 passes) + PR-LEVEL 3-CLEAN strict (passes 2/3/4); ADR-031 §D8-b Gap-CL-001 CLOSED; Phase C Lane 1 COMPLETE |
+| **5: Phase C — remaining Claroty cluster** | **IN PROGRESS** | — | — | Awaiting dispatch | S-DEMO-CLAROTY-SPEC-PROSE-FIX-001 → S-DEMO-HARNESS-CLONE-PARITY-001 → S-DEMO-CLAROTY-PAGINATION-001 (unblocked) |
 
 ## Current Phase Steps
 
@@ -126,10 +127,10 @@ safe_to_compact: true
 | Step | Agent | Status | Output |
 |------|-------|--------|--------|
 _D-735 through D-1055 archived to cycles/wave-5-e-demo-fidelity/burst-log.md (and prior cycle burst-logs)._
-| D-1056 | state-manager | 2026-06-08 | STATE/SESSION-HANDOFF compaction + durable zero-context resume snapshot. STATE.md 1869→~165 lines. SESSION-HANDOFF.md 13281→~250 lines. Historical data archived to cycle files. STATE v7.707. |
-| D-1057 | state-manager | 2026-06-08 | Empirical BC-count reconciliation: active 236→235, draft 1→2 (BC-2.06.011 + BC-2.21.001). Root cause: D-1055 over-counted BC-2.06.003 as new active (lifecycle_status was already active). BC-INDEX v5.98→v5.99. STATE v7.708. |
-| D-1058 | state-manager | 2026-06-08 | D-1058 sibling-site fix: SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-06-08-S-DEMO-003-MERGED Pipeline Status table corrected to match D-1057 ground truth (Active BCs 236→235, Draft BCs 1→2). TD-VSDD-060 sweep: STATE.md frontmatter + BC-INDEX already correct from D-1057; all other hits are immutable historical changelog rows. STATE v7.708→v7.709. |
-| D-1059 | state-manager | 2026-06-08 | Phase C spec-prep: BC-2.16.002 v1.70 POST-vs-GET pagination clause (DRIFT-D850-001 CLOSED) + S-DEMO-CLAROTY-TRAILING-SLASH-001 v1.3 remove-uncertainty corrections. BC-INDEX v5.99→v6.00. STORY-INDEX v2.319→v2.320. STATE v7.709→v7.710. NOTE: user directive — run dclaude:remove-uncertainty on every Phase C story before delivery. |
+| D-1057 | state-manager | 2026-06-08 | Empirical BC-count reconciliation: active 236→235, draft 1→2 (BC-2.06.011 + BC-2.21.001). BC-INDEX v5.98→v5.99. STATE v7.708. |
+| D-1058 | state-manager | 2026-06-08 | SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-06-08-S-DEMO-003-MERGED Pipeline Status corrected (Active BCs 236→235, Draft BCs 1→2). STATE v7.708→v7.709. |
+| D-1059 | state-manager | 2026-06-08 | Phase C spec-prep: BC-2.16.002 v1.70 (DRIFT-D850-001 CLOSED) + S-DEMO-CLAROTY-TRAILING-SLASH-001 v1.3 remove-uncertainty corrections. BC-INDEX v5.99→v6.00. STORY-INDEX v2.319→v2.320. STATE v7.709→v7.710. |
+| D-1060 | state-manager | 2026-06-08 | S-DEMO-CLAROTY-TRAILING-SLASH-001 MERGED PR #177 develop@5c5d240d. LOCAL 3-CLEAN (7 passes) + PR-LEVEL 3-CLEAN strict (passes 2/3/4). ADR-031 §D8-b Gap-CL-001 CLOSED. BC-2.16.013 v1.25 POL-14 idempotent confirm (active since D-776). STORY-INDEX v2.320→v2.321. develop_head a42e3eaf→5c5d240d. STATE v7.710→v7.711. Phase C Lane 1 COMPLETE. |
 
 ## Decisions Log
 
@@ -137,6 +138,7 @@ _D-001..D-046 archived: `cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-1060 | 2026-06-08 | state-manager | **S-DEMO-CLAROTY-TRAILING-SLASH-001 MERGED PR #177 develop@5c5d240d; Claroty trailing-slash route fidelity (ADR-031 §D8-b Gap-CL-001 CLOSED); LOCAL 3-CLEAN (7 passes) + PR-LEVEL 3-CLEAN strict (passes 2/3/4); remove-uncertainty pre-delivery caught 6 story-guidance defects (axum-0.7 Router::layer no-op, trim_trailing_slash strip-only, tower-http 0.5 pin).** NormalizePathLayer outer-service wrap (both serve sites) + tower-http 0.5 + 3 claroty.sensor.toml trailing-slash path_templates + tags route re-registered no-slash. BC-2.16.013 v1.25 POL-14 idempotent confirm (lifecycle_status: active since PLUGIN-MIGRATION-001-D merge D-776; no BC-INDEX count change). STORY-INDEX v2.320→v2.321. develop_head a42e3eaf→5c5d240d. STATE v7.710→v7.711. Phase C Lane 1 COMPLETE. Remaining Phase C: S-DEMO-CLAROTY-SPEC-PROSE-FIX-001, S-DEMO-HARNESS-CLONE-PARITY-001, S-DEMO-CLAROTY-PAGINATION-001 (BC-2.16.002 v1.70 clause satisfied; now unblocked). User standing directive: run dclaude:remove-uncertainty on EVERY Phase C story before delivery. Single-commit burst per TD-VSDD-053. | wave-5-e-demo-fidelity | 2026-06-08 | Decided by: state-manager (D-1060 post-merge bookkeeping; no code changes). |
 | D-1059 | 2026-06-08 | state-manager | **Phase C spec-prep: BC-2.16.002 v1.70 POST-vs-GET pagination dispatch clause (DRIFT-D850-001 CLOSED) + S-DEMO-CLAROTY-TRAILING-SLASH-001 v1.3 remove-uncertainty corrections.** PO amended BC-2.16.002 to v1.70 adding §Postconditions "OffsetLimit Pagination Dispatch: POST-body vs GET-URL" clause — closes DRIFT-D850-001; S-DEMO-CLAROTY-PAGINATION-001 BC gap now satisfied (materializable by story-writer). Story-writer bumped S-DEMO-CLAROTY-TRAILING-SLASH-001 to v1.3 with six uncertainty-removal corrections (outer-service NormalizePathLayer wrapping at both serve sites; EC-005 strip-only fix; tower-http 0.5 crate-dep pin; axum-0.8 dead-path removal; EC-002 ordering; tags-route enumeration); status stays `ready`. BC-INDEX v5.99→v6.00. STORY-INDEX v2.319→v2.320. STATE v7.709→v7.710. **User directive:** run `dclaude:remove-uncertainty` on every Phase C story before delivery. Single-commit burst per TD-VSDD-053. | wave-5-e-demo-fidelity | 2026-06-08 | Decided by: state-manager (D-1059 single-commit-per-burst TD-VSDD-053; Phase C spec-prep; no code changes). |
 | D-1057 | 2026-06-08 | state-manager | **Empirical BC-count reconciliation (D-1057).** Ground-truth enumeration of `lifecycle_status:` fields across all 246 BC files: active=235, draft=2 (BC-2.06.011 + BC-2.21.001), removed=7, retired=2, total=246. Root cause of prior error: D-1055 counted BC-2.06.003's POL-14 transition as a new active promotion (+2 active), but BC-2.06.003's `lifecycle_status` was already `active` before D-1055 — only the legacy `status:` field was being synced; draft count was correspondingly under-reported by 1. Corrected: STATE.md frontmatter `active_contracts: 236→235`, `draft_contracts: 1→2`; BC-INDEX frontmatter and prose corrected to match; STATE v7.707→v7.708; BC-INDEX v5.98→v5.99. S-7.02 sweep: STATE.md + BC-INDEX.md corrected; no other files contain the stale count "236 active" / "draft_contracts: 1" in canonical positions. | wave-5-e-demo-fidelity | 2026-06-08 | Decided by: state-manager (D-1057 single-commit-per-burst TD-VSDD-053; reconciliation only; no spec/code changes). |
 | D-1056 | 2026-06-08 | state-manager | **STATE/SESSION-HANDOFF compaction + durable zero-context resume snapshot (post S-DEMO-003 merge PR #176 develop@a42e3eaf).** STATE.md compacted from 1869 lines / 815KB → ~165 lines. SESSION-HANDOFF.md compacted from 13281 lines / 1.2MB → ~250 lines. Extracted: (1) per-story cascade pass tracking frontmatter keys archived to `cycles/wave-5-e-demo-fidelity/frontmatter-cascade-archive.md`; (2) decision rows D-700..D-1054 archived to `cycles/wave-5-e-demo-fidelity/decisions-archive-D700-D1054.md`; (3) superseded SESSION-HANDOFF resume snapshots (D-1047 through D-988 and all earlier) archived to `cycles/wave-5-e-demo-fidelity/session-handoff-archive.md`. STATE version bumped 7.706→7.707. Canonical values preserved in STATE.md frontmatter (develop_head, bc_index_version, vp_index_version, story_index_version, arch_index_version, error_taxonomy_version, active_contracts, draft_contracts, total_stories). Durable zero-context resume snapshot written to SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-06-08-S-DEMO-003-MERGED and mirrored into STATE.md Session Resume Checkpoint below. **S-7.02 DEFENSIVE SWEEP:** All compaction targets checked — no canonical count values dropped; all moved-not-deleted with archive pointers. | wave-5-e-demo-fidelity | 2026-06-08 | Decided by: state-manager (D-1056 single-commit-per-burst TD-VSDD-053; compaction burst; no spec/code changes). |
@@ -225,15 +227,15 @@ All historical cycle files:
 
 ---
 
-## Session Resume Checkpoint (2026-06-08 — D-1059: Phase C spec-prep; develop@a42e3eaf; STATE v7.710)
+## Session Resume Checkpoint (2026-06-08 — D-1060: S-DEMO-CLAROTY-TRAILING-SLASH-001 MERGED; develop@5c5d240d; STATE v7.711)
 
-_Previous checkpoint (D-1058; STATE v7.709) superseded by D-1059 Phase C spec-prep burst. Full durable resume snapshot is in SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-06-08-PHASE-C-SPEC-PREP._
+_Previous checkpoint (D-1059; STATE v7.710) superseded by D-1060 post-merge burst. Full durable resume snapshot is in SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-06-08-TRAILING-SLASH-MERGED._
 
-**STATE v7.710. D-1059 — Phase C spec-prep committed. BC-2.16.002 v1.70 (DRIFT-D850-001 CLOSED). S-DEMO-CLAROTY-TRAILING-SLASH-001 v1.3 ready for TDD delivery. S-DEMO-CLAROTY-PAGINATION-001 BC gap CLOSED — materializable by story-writer. develop@a42e3eaf. BC-INDEX v6.00. STORY-INDEX v2.320. D-989 autonomy ACTIVE.**
+**STATE v7.711. D-1060 — S-DEMO-CLAROTY-TRAILING-SLASH-001 MERGED PR #177 develop@5c5d240d. ADR-031 §D8-b Gap-CL-001 CLOSED. Phase C Lane 1 COMPLETE. BC-2.16.013 v1.25 POL-14 idempotent. BC-INDEX v6.00 UNCHANGED. STORY-INDEX v2.321. develop@5c5d240d. D-989 autonomy ACTIVE.**
 
 **RESUME PROTOCOL (run on fresh session start):**
 1. `vsdd-factory:factory-worktree-health` (BLOCKING)
-2. Verify `git log --oneline develop | head -1` shows `a42e3eaf`
-3. Verify `grep "^version:" .factory/STATE.md` shows `"7.710"`
+2. Verify `git log --oneline develop | head -1` shows `5c5d240d`
+3. Verify `grep "^version:" .factory/STATE.md` shows `"7.711"`
 4. `gh pr list --state open` → expect NONE
-5. Read SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-06-08-PHASE-C-SPEC-PREP
+5. Read SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-06-08-TRAILING-SLASH-MERGED

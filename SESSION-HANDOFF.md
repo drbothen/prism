@@ -1,20 +1,20 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.710"
+version: "7.711"
 status: current
 timestamp: 2026-06-08T18:00:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
 
-> **PRIORITY READ ORDER — D-1059 PHASE C SPEC-PREP + DURABLE ZERO-CONTEXT RESUME SNAPSHOT.**
+> **PRIORITY READ ORDER — D-1060 S-DEMO-CLAROTY-TRAILING-SLASH-001 MERGED + DURABLE ZERO-CONTEXT RESUME SNAPSHOT.**
 > Read STATE.md frontmatter + this snapshot before dispatching any agent.
-> develop HEAD `a42e3eaf`. factory-artifacts LOCAL-ONLY (no push). STATE v7.710.
+> develop HEAD `5c5d240d`. factory-artifacts LOCAL-ONLY (no push). STATE v7.711.
 
 ---
 
-## §RESUME SNAPSHOT 2026-06-08-PHASE-C-SPEC-PREP
+## §RESUME SNAPSHOT 2026-06-08-TRAILING-SLASH-MERGED
 
 > **START HERE.** This snapshot is self-contained. A fresh session with ZERO prior context can resume exactly here.
 
@@ -27,11 +27,11 @@ timestamp: 2026-06-08T18:00:00Z
 | **Mode** | brownfield |
 | **Phase** | 3 (Wave 5 — wave-5-e-demo-fidelity) |
 | **Wave-5 Phase B** | **COMPLETE** — all 4 lanes + S-MAINT merged |
-| **Wave-5 Phase C** | **IN PROGRESS** — spec-prep committed (D-1059); TRAILING-SLASH ready v1.3 for TDD delivery |
-| **develop HEAD** | `a42e3eaf` |
-| **STATE version** | v7.710 |
+| **Wave-5 Phase C** | **IN PROGRESS** — Lane 1 (TRAILING-SLASH) COMPLETE (D-1060); remaining: S-DEMO-CLAROTY-SPEC-PROSE-FIX-001 → S-DEMO-HARNESS-CLONE-PARITY-001 → S-DEMO-CLAROTY-PAGINATION-001 |
+| **develop HEAD** | `5c5d240d` |
+| **STATE version** | v7.711 |
 | **BC-INDEX version** | v6.00 |
-| **STORY-INDEX version** | v2.320 |
+| **STORY-INDEX version** | v2.321 |
 | **VP-INDEX version** | v1.76 |
 | **ARCH-INDEX version** | v2.115 |
 | **Active BCs** | 235 |
@@ -44,11 +44,20 @@ timestamp: 2026-06-08T18:00:00Z
 
 ### 2. What Just Completed
 
+**D-1060 S-DEMO-CLAROTY-TRAILING-SLASH-001 MERGED — PR #177 squash-merged develop@5c5d240d 2026-06-08**
+
+- **What it delivers:** NormalizePathLayer outer-service wrap at both serve sites (fixes axum-0.7 Router::layer no-op footgun); tower-http 0.5 crate-dep pin; 3 claroty.sensor.toml trailing-slash path_templates corrected; tags route re-registered without trailing slash. Closes ADR-031 §D8-b Gap-CL-001.
+- **Cascade stats:** LOCAL 3-CLEAN (7 passes: P1 2 LOW, P2 1 LOW, P3 1 LOW, P4 1 MED, P5/6/7 strict-clean; BC-5.39.001 D-779). PR-LEVEL 3-CLEAN strict (passes 2/3/4; P1 had 2 LOW delivery-doc findings, fixed before streak). pr-reviewer APPROVE. security MAY PROCEED. CI green (authoritative pull_request run).
+- **BC-2.16.013 v1.25 POL-14 status:** lifecycle_status: active — idempotent confirm. BC already active since PLUGIN-MIGRATION-001-D merge D-776. No BC-INDEX count change.
+- **remove-uncertainty pre-delivery:** Applied at v1.3 (D-1059). Caught 6 real defects in implementation guidance (axum-0.7 Router::layer footgun, strip-only clarification, tower-http 0.5 pin, axum-0.8 dead-path, EC-002 ordering, tags-route enumeration). High-value intervention — codified in lessons.md.
+- **Phase C Lane 1 COMPLETE.** Remaining Phase C: S-DEMO-CLAROTY-SPEC-PROSE-FIX-001 → S-DEMO-HARNESS-CLONE-PARITY-001 → S-DEMO-CLAROTY-PAGINATION-001.
+
+**Also completed (Phase C spec-prep — D-1059 for context):**
+
 **D-1059 Phase C spec-prep — BC-2.16.002 v1.70 + S-DEMO-CLAROTY-TRAILING-SLASH-001 v1.3 (2026-06-08)**
 
-- **BC-2.16.002 v1.70**: PO authored §Postconditions "OffsetLimit Pagination Dispatch: POST-body vs GET-URL (DRIFT-D850-001)" clause. DRIFT-D850-001 RESOLVED. S-DEMO-CLAROTY-PAGINATION-001 BC gap CLOSED — story is now materializable by story-writer.
-- **S-DEMO-CLAROTY-TRAILING-SLASH-001 v1.3**: story-writer applied six remove-uncertainty corrections (outer-service NormalizePathLayer wrapping at both serve sites; EC-005 strip-only fix; tower-http 0.5 crate-dep pin; axum-0.8 dead-path removal; EC-002 ordering; tags-route enumeration). Status remains `ready`. **User directive: run dclaude:remove-uncertainty on every Phase C story before delivery.**
-- **BC-INDEX v6.00** (row 216: v1.70). **STORY-INDEX v2.320** (TRAILING-SLASH row updated to ready v1.3).
+- **BC-2.16.002 v1.70**: PO authored §Postconditions "OffsetLimit Pagination Dispatch: POST-body vs GET-URL (DRIFT-D850-001)" clause. DRIFT-D850-001 RESOLVED. S-DEMO-CLAROTY-PAGINATION-001 BC gap CLOSED — now materializable.
+- **BC-INDEX v6.00**. **STORY-INDEX v2.321** (TRAILING-SLASH row updated to merged v1.3).
 
 **Also completed (Phase B — for context):**
 
@@ -81,16 +90,16 @@ Wave-5 Phase C (Claroty cluster — serialized, shared files BC-2.16.013 + claro
 
 | Story | Priority | Status | Notes |
 |-------|----------|--------|-------|
-| **S-DEMO-CLAROTY-TRAILING-SLASH-001** | **P1** | **ready v1.3** | Claroty trailing-slash parity; BC-2.16.013 active; remove-uncertainty DONE (v1.3). **Highest-priority immediately actionable story.** |
-| **S-DEMO-CLAROTY-PAGINATION-001** | **P1-pre-demo-BLOCKING** | draft — needs story-writer materialization | BC gap CLOSED (BC-2.16.002 v1.70; DRIFT-D850-001 RESOLVED). Story-writer must materialize + PO BC-array review per S-7.01 before dispatch. |
-| S-DEMO-CROWDSTRIKE-MULTIREGION-001 | P2 | merged | COMPLETE (PR #170) |
-| S-DEMO-HARNESS-CLONE-PARITY-001 | P2 | draft stub | Closes F-P6-DEFER-001 + F-P10-LOW-001; prism-dtu-harness search+audit_log routes; depends_on [S-DEMO-ARMIS-AQL-001 SATISFIED, S-DEMO-CLAROTY-AUDIT-DTU-001 SATISFIED] |
-| S-DEMO-CLAROTY-SPEC-PROSE-FIX-001 | P2 | draft stub | Closes F-P2-DEFER-001; BC-2.16.013 prose correction; prism-sensors; depends_on [S-DEMO-CLAROTY-AUDIT-DTU-001 SATISFIED] |
-| S-DEMO-LAUNCHER-CONSOLIDATION-001 | P2 | draft stub | depends_on S-DEMO-003 **SATISFIED**; story-writer materialization + human review of script-lifecycle question needed before dispatch |
+| ~~S-DEMO-CLAROTY-TRAILING-SLASH-001~~ | ~~P1~~ | **merged v1.3 — PR #177** | COMPLETE (D-1060; develop@5c5d240d) |
+| **S-DEMO-CLAROTY-SPEC-PROSE-FIX-001** | **P2** | ready v1.2 | Closes F-P2-DEFER-001; BC-2.16.013 prose correction; prism-sensors; depends_on [S-DEMO-CLAROTY-AUDIT-DTU-001 SATISFIED]. **Run dclaude:remove-uncertainty FIRST.** |
+| **S-DEMO-HARNESS-CLONE-PARITY-001** | **P2** | ready v1.2 | Closes F-P6-DEFER-001 + F-P10-LOW-001; prism-dtu-harness search+audit_log routes; depends_on [S-DEMO-ARMIS-AQL-001 SATISFIED, S-DEMO-CLAROTY-AUDIT-DTU-001 SATISFIED]. **Run dclaude:remove-uncertainty FIRST.** |
+| **S-DEMO-CLAROTY-PAGINATION-001** | **P1-pre-demo-BLOCKING** | draft — needs story-writer materialization | BC gap CLOSED (BC-2.16.002 v1.70). Story-writer must materialize + PO BC-array review per S-7.01. **Run dclaude:remove-uncertainty on materialized story BEFORE dispatch.** |
+| S-DEMO-LAUNCHER-CONSOLIDATION-001 | P2 | draft stub | depends_on S-DEMO-003 SATISFIED; story-writer materialization + human review of script-lifecycle question needed before dispatch |
 
 **RECOMMENDED NEXT ACTION (D-989 autonomy ACTIVE):**
-1. Dispatch S-DEMO-CLAROTY-TRAILING-SLASH-001 immediately (P1, ready v1.3, remove-uncertainty done, no blocking gates). **Note: dclaude:remove-uncertainty was already applied at v1.3 — do NOT re-run.**
-2. In parallel or after TRAILING-SLASH: dispatch story-writer to materialize S-DEMO-CLAROTY-PAGINATION-001 (BC gap now satisfied by BC-2.16.002 v1.70).
+1. Run `dclaude:remove-uncertainty` on S-DEMO-CLAROTY-SPEC-PROSE-FIX-001 (P2, ready v1.2, no blocking gates). **User standing directive: remove-uncertainty BEFORE every Phase C dispatch.**
+2. In parallel: dispatch story-writer to materialize S-DEMO-CLAROTY-PAGINATION-001 (BC gap satisfied BC-2.16.002 v1.70); then apply remove-uncertainty before delivery.
+3. S-DEMO-HARNESS-CLONE-PARITY-001 (ready v1.2) can proceed after remove-uncertainty pass.
 
 ---
 
@@ -155,13 +164,13 @@ Run these commands at start of a fresh session to verify state:
 # 1. Factory worktree health (BLOCKING preflight)
 # Use: vsdd-factory:factory-worktree-health skill
 
-# 2. Verify develop HEAD == a42e3eaf
+# 2. Verify develop HEAD == 5c5d240d
 git log --oneline develop | head -1
-# Expected: a42e3eaf ...
+# Expected: 5c5d240d ...
 
 # 3. Verify STATE.md version
 grep '^version:' .factory/STATE.md
-# Expected: version: "7.710"
+# Expected: version: "7.711"
 
 # 4. Verify no open PRs
 gh pr list --state open
