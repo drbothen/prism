@@ -82,8 +82,9 @@ struct ShapedProbe {
     reported_shape: String,
 }
 
+#[async_trait::async_trait]
 impl CredentialRefProbe for ShapedProbe {
-    fn probe(
+    async fn probe(
         &self,
         _sensor_id: &str,
         _ref_name: &str,

@@ -472,8 +472,9 @@ fn make_config_manager_with_cred_refs(
 /// `MissingOneProbe` — a specific ref_name returns CredentialRefInvalid.
 struct AlwaysOkProbe;
 
+#[async_trait::async_trait]
 impl prism_bin::boot::CredentialRefProbe for AlwaysOkProbe {
-    fn probe(
+    async fn probe(
         &self,
         _sensor_id: &str,
         _ref_name: &str,
@@ -489,8 +490,9 @@ struct MissingOneProbe {
     missing_ref: &'static str,
 }
 
+#[async_trait::async_trait]
 impl prism_bin::boot::CredentialRefProbe for MissingOneProbe {
-    fn probe(
+    async fn probe(
         &self,
         sensor_id: &str,
         ref_name: &str,
@@ -646,8 +648,9 @@ struct ShapedProbe {
     reported_auth_type: &'static str,
 }
 
+#[async_trait::async_trait]
 impl prism_bin::boot::CredentialRefProbe for ShapedProbe {
-    fn probe(
+    async fn probe(
         &self,
         _sensor_id: &str,
         _ref_name: &str,
