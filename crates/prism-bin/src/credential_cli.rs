@@ -698,8 +698,11 @@ pub fn generate_demo_prism_toml() -> String {
     // Generated with uuid::Uuid::now_v7() at S-DEMO-003 implementation time (2026-06-06).
     // Version 7 verified: time-ordered (SortRand), not v4.
     //
-    // Format: TOML with tilde-expanded paths.
-    // demo-setup.sh mirrors this content when writing ~/.config/prism-demo/prism.toml.
+    // Format: TOML with literal tilde paths (e.g. "~/.config/prism-demo/specs").
+    // NOTE: This function is a test seam only (no production caller). It emits literal
+    // tilde strings for schema-validity testing. demo-setup.sh does NOT mirror this
+    // function's content — it writes shell-expanded absolute paths (${DEMO_SPECS_DIR}
+    // etc.) directly into prism.toml. Prism does not tilde-expand filesystem paths.
     let demo_org_id = "0196f4b2-3c8d-7e1a-b5f0-2d4c6e8a0b1c";
     let demo_org_slug = "demo-org";
     let spec_dir = "~/.config/prism-demo/specs";

@@ -169,7 +169,7 @@ Expected output: OCSF-normalized rows with device attributes.
 **Claroty — OT asset inventory:**
 
 ```sql
-SELECT * FROM claroty_assets LIMIT 5
+SELECT * FROM claroty_devices LIMIT 5
 ```
 
 Expected output: OCSF-normalized rows with OT asset metadata.
