@@ -426,3 +426,37 @@ The CLAUDE.md §Conventions section should gain a new forbidden pattern:
 This is NOT blocking for the cascade — it is a process-note and candidate CLAUDE.md addition.
 
 ---
+
+### [process-gap, single occurrence] S-DEMO-HARNESS-CLONE-PARITY-001 re-cascade #1: anchor-citation churn — orchestrator must verify proposed replacement anchor before instructing fix
+
+**Date recorded:** 2026-06-08
+**D-NNN anchor:** D-1069 (LOCAL re-cascade #1 bookkeeping; F-RC3-MED-001)
+**Story:** S-DEMO-HARNESS-CLONE-PARITY-001
+**Tags:** [process-gap] [anchor-citation] [adversary-unverified-claim] [orchestrator-discipline] [ADR-031]
+**Classification:** PROCESS-GAP — single occurrence; codify at cycle-close if pattern recurs; no new story required now.
+
+**Description:**
+
+During the LOCAL fix-burst prior to re-cascade #1 (D-1068), the implementer fixed the harness Claroty `list_audit_log` doc-comment's ADR anchor by following an adversary suggestion: the adversary identified that the citation was wrong and proposed §D8-b as the replacement. The implementer applied §D8-b. However, §D8-b covers trailing-slash normalization exemptions (Gap-CL-001) — a completely different concern from `audit_log`. The ADR-031 §D8-b suggestion was unverified.
+
+The correct anchor (Gap-CL-006 + ADR-031 §D2 "Permitted Divergences") was only discovered by reading the source-of-truth ground truth: the standalone `audit_log.rs` itself and the ADR-031 section titles. F-RC3-MED-001 in re-cascade #1 caught this and the fix-burst corrected it (feature 0e4d6f27).
+
+**Root cause:**
+
+When an adversary finding proposes a SPECIFIC replacement anchor (e.g., "the correct citation is §D8-b"), the orchestrator dispatched the fix without verifying the proposed anchor against the source-of-truth (ADR section title + the standalone route's own citation). The adversary's proposed anchor was copied directly into the fix without independent verification.
+
+**Correct response (codified rule):**
+
+When an adversary finding proposes a specific replacement anchor, reference, or citation value as the "correct" replacement, the orchestrator MUST verify the proposed replacement against the primary source-of-truth BEFORE instructing the fix:
+
+1. Read the ADR section title (what does §D8-b actually say?)
+2. Read the sibling/standalone reference file (what does the standalone `audit_log.rs` cite?)
+3. Only instruct the fix once the proposed anchor is verified match to both sources
+
+"Trust but verify" is insufficient for anchor-citation fixes; "verify first, then instruct" is the correct protocol.
+
+**Boundary:** This applies to adversary-proposed anchor replacements. Adversary findings that describe behavioral gaps (missing tests, wrong return codes) do not require the same level of source-verification before fix dispatch — those are directly checkable from the code.
+
+**Recurrence tracking:** Single occurrence. If this pattern recurs in a future cascade, elevate to CLAUDE.md §Standing Adversary Probes or add an orchestrator pre-dispatch checklist item.
+
+---

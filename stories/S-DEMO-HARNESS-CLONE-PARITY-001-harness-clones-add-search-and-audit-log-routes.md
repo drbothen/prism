@@ -8,7 +8,7 @@ priority: P2
 status: ready
 # BC-2.16.013 v1.25 authored by PO (D-989 Phase-A burst) with INV-HARNESS-ROUTE-PARITY invariant.
 # S-7.01 gate CLEARED.
-version: "1.4"
+version: "1.5"
 level: "L3"
 producer: story-writer
 timestamp: "2026-06-01T00:00:00Z"
@@ -75,11 +75,11 @@ risk_mitigations: []
 #   Promoted to goal task per user direction 2026-06-02 (demo goal fidelity).
 ---
 
-# S-DEMO-HARNESS-CLONE-PARITY-001 v1.4 — Harness In-Process Clone Route Parity
+# S-DEMO-HARNESS-CLONE-PARITY-001 v1.5 — Harness In-Process Clone Route Parity
 
 **Story ID:** S-DEMO-HARNESS-CLONE-PARITY-001
 **Status:** ready
-**Version:** v1.4
+**Version:** v1.5
 **Wave:** wave-5-e-demo-fidelity
 **Priority:** P2
 **Points:** 3
@@ -172,6 +172,34 @@ File: `crates/prism-dtu-harness/src/clones/claroty.rs`
   harness compile-time embed pattern.
 - Response envelope: `{"audit_log": [...], "total": N}` matching standalone DTU.
 - Update `claroty.rs` module-doc route table to include the new endpoint in both routers.
+
+### Pagination Parity Scope (intentional design — spec-sanctioned)
+
+Harness `get_search` (Armis) uses `page`/`size` query params only, consistent with all
+sibling harness routes (`get_devices`, `get_alerts`). This is intentional:
+
+- **Sibling-route consistency (TD-VSDD-060):** Adding `offset`/`limit` to the Armis search
+  handler while sibling routes use `page`/`size` would break within-harness-clone parameter
+  consistency. The correct action per TD-VSDD-060 is to use the same convention across all
+  sibling routes within the harness.
+
+- **Consumer boundary:** Harness clones are consumed exclusively by isolation/harness tests
+  (BC-3.5.001 / BC-3.5.002 consumers). They are NOT consumed by the `PipelineExecutor`.
+  The standalone `OffsetLimit` / `PipelineExecutor` pagination convention is a pipeline
+  concern that no harness consumer exercises. There is no harness test that would drive
+  `offset`/`limit` params to the harness clone.
+
+- **INV-HARNESS-ROUTE-PARITY scope:** AC-002 explicitly scopes Armis harness search parity
+  to structural parity (route surface + envelope + auth). AC-002 does NOT require
+  byte-identical query-param contracts between harness and standalone. The standalone
+  `offset`/`limit` params are a `PipelineExecutor` push-down feature; parity tests verify
+  envelope shape and auth behavior, not pagination-param identity.
+
+This design is spec-sanctioned per CLAUDE.md Source-of-Truth Precedence §1: the story
+spec governs implementation scope. Implementers must NOT add `offset`/`limit` to the
+harness search handler to "match" the standalone — doing so would introduce a sibling
+inconsistency that would require a follow-up TD-VSDD-060 sweep across all sibling harness
+routes. The current `page`/`size`-only design is correct and final.
 
 ---
 
@@ -395,8 +423,12 @@ colon-syntax migration risk does not apply to them. Do not upgrade the axum pin 
 
 ## References
 
-- ADR-031 §D8-a — Armis AQL endpoint fidelity (harness parity obligation)
-- ADR-031 §D1 — DTU clone isolation
+- ADR-031 §D8-a — Armis AQL endpoint fidelity (harness parity obligation for GET /api/v1/search)
+- ADR-031 §D2 — Permitted divergences (exhaustive enumeration); harness audit_log route parity
+  does NOT fall under a D2 exemption — it is REQUIRED fidelity per §D7 harness-scope extension
+- Gap-CL-006 — Claroty audit_log route gap (closed by S-DEMO-CLAROTY-AUDIT-DTU-001); harness
+  clone must mirror the standalone POST /api/v1/audit_log/get per INV-HARNESS-ROUTE-PARITY
+- ADR-031 §D1 — DTU clone isolation (scope extension in §D7 explicitly covers harness clones)
 - S-DEMO-ARMIS-AQL-001 — standalone Armis AQL route (depends on)
 - S-DEMO-CLAROTY-AUDIT-DTU-001 — standalone Claroty audit_log route (depends on)
 - BC-3.5.001 / BC-3.5.002 — harness isolation contracts (candidate BCs, pending PO)
@@ -409,6 +441,7 @@ colon-syntax migration risk does not apply to them. Do not upgrade the axum pin 
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.5 | 2026-06-08 | story-writer | LOCAL adversary fixes F-RC3-MED-001 + F-RC1-LOW-001 (spec-only). F-RC3-MED-001: corrected Claroty audit_log architecture anchor — replaced incorrect `ADR-031 §D8-b` (which governs Claroty trailing-slash / Gap-CL-001, a different concern) with correct `Gap-CL-006 + ADR-031 §D2 + INV-HARNESS-ROUTE-PARITY` in §References; Armis §D8-a anchor left intact (verified correct). F-RC1-LOW-001: added `### Pagination Parity Scope` subsection under §Scope documenting that harness `get_search` uses `page`/`size` pagination only (not `offset`/`limit`) intentionally — consistent with all sibling harness routes (TD-VSDD-060 sibling-consistency), harness clones are not consumed by PipelineExecutor, and INV-HARNESS-ROUTE-PARITY scopes to structural parity (AC-002). Spec-only edit — `behavioral_contracts` array untouched, all AC↔BC trace lines untouched, INV-HARNESS-ROUTE-PARITY references untouched, S-7.01 gate remains CLEARED, status remains ready. |
 | 1.4 | 2026-06-08 | story-writer | LOCAL adversary pass-3 F-P3-HIGH-001 (POL-6 subsystem correction SS-17→SS-01+SS-16) + Red Gate test-name reconciliation. (1) `subsystems: [SS-17]` corrected to `[SS-01, SS-16]`: SS-17 is "WASM Plugin Runtime" per ARCH-INDEX v2.115 — it has no ownership of prism-dtu-harness or any DTU crate; SS-01 ("Sensor Adapters") explicitly lists prism-dtu-harness per ARCH-INDEX v2.115; SS-16 included to match sibling story S-DEMO-ARMIS-AQL-001 dual-scoping and BC-2.16.013 provenance. (2) Subsystem anchor justification comment rewritten with correct subsystem names and ARCH-INDEX v2.115 citation. (3) Architecture Mapping section reference corrected: `§SS-17 DTU Clones` → `§SS-01 Sensor Adapters`. (4) All five Red Gate test-name references updated to codebase convention `test_BC_2_16_013_<name>` (4 AC references + 1 inline mention in §Scope). Spec-only edit — `behavioral_contracts` array untouched, all AC↔BC trace lines untouched, INV-HARNESS-ROUTE-PARITY references untouched, S-7.01 gate remains CLEARED, status remains ready. |
 | 1.3 | 2026-06-08 | story-writer | remove-uncertainty corrections C-1..C-8 (D-1061). Implementation-scope refinements only — `behavioral_contracts` array untouched, all AC↔BC trace lines untouched, INV-HARNESS-ROUTE-PARITY references untouched, S-7.01 gate remains CLEARED, status remains ready. C-1: corrected fixture idiom — harness embeds via include_str!, NOT load_fixture. C-2: corrected Armis search data source — raw Vec<Value> DEVICES_FIXTURE/ALERTS_FIXTURE, no typed structs, no time-window filtering. C-3: clarified Armis auth semantics — check_bearer_auth(&headers, &state.admin_token) gives 403 for missing Bearer, 401 for present-but-wrong token; Red Gate test must send actual admin_token. C-4: expanded Claroty scope — POST /api/v1/audit_log/get must be registered in BOTH router() and network_router(); network_router() uses plain check_bearer_auth per sibling alert/vuln route convention. C-5: Red Gate test idiom corrected — reqwest-over-TcpListener (tests/logical_isolation_test.rs pattern), NOT tower::ServiceExt::oneshot. C-6: axum pin corrected — "0.7" pinned literally in Cargo.toml, NOT .workspace. C-7: AC-002 softened to structural parity ($.data.results non-empty array, $.data.total numeric, in:alerts selects alerts) — not byte-identical field-for-field equality. C-8: Forbidden Dependencies expanded — prism-dtu-claroty MUST NOT be added; harness audit_log handler uses raw Vec<Value> from embedded fixture, no typed struct import. |
 | 1.2 | 2026-06-03 | state-manager | D-990 Phase-A-close: status draft→ready; BC-2.16.013 v1.25 active (PO authored D-989, INV-HARNESS-ROUTE-PARITY); depends_on S-DEMO-ARMIS-AQL-001 (merged PR #168) + S-DEMO-CLAROTY-AUDIT-DTU-001 (merged PR #167) BOTH SATISFIED; S-7.01 gate CLEARED. |
