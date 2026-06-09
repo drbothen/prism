@@ -1,16 +1,16 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.725"
+version: "7.726"
 status: current
-timestamp: 2026-06-09T02:00:00Z
+timestamp: 2026-06-09T04:00:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
 
-> **PRIORITY READ ORDER — D-1074 BC-2.06.017 REGISTERED + T1 DONE + T2 CURRENT + D-1073 TASK LEDGER + D-1072 NORTH-STAR OBJECTIVE + D-1071 PHASE-C COMPLETE. ZERO-CONTEXT RESUME SNAPSHOT.**
+> **PRIORITY READ ORDER — D-1075 ARCHITECT T2 ADJUDICATION COMPLETE + T2 DONE + T3 CURRENT + D-1074 BC-2.06.017 REGISTERED + T1 DONE + D-1073 TASK LEDGER + D-1072 NORTH-STAR OBJECTIVE + D-1071 PHASE-C COMPLETE. ZERO-CONTEXT RESUME SNAPSHOT.**
 > Read §ACTIVE OBJECTIVE (North Star) FIRST, then task ledger (`.factory/objectives/multi-client-soc-demo-tasks.md`), then STATE.md frontmatter + §RESUME SNAPSHOT before dispatching any agent.
-> develop HEAD `64d34967`. factory-artifacts PUSHED to origin after each burst (user-authorized D-1066). STATE v7.725.
+> develop HEAD `64d34967`. factory-artifacts PUSHED to origin after each burst (user-authorized D-1066). STATE v7.726.
 
 ---
 
@@ -47,16 +47,16 @@ S-CONFIG-MULTI-TENANT-OVERRIDE-001 (per-org overlays), S-DEMO-001 (per-org adapt
 
 | Step | Story / Action | Status | Notes |
 |------|---------------|--------|-------|
-| 1 | **S-DEMO-MULTI-TENANT-DTU-001** | draft P2 — T1 DONE (BC-2.06.017 authored); **T2 CURRENT** | **NEXT ACTION: architect adjudicates OQ-1/OQ-2/OQ-3** — OQ-1 (MultiInstanceConfig crate owner → recommend prism-dtu-common), OQ-2 (Box<dyn BehavioralClone> harness API), OQ-3 (BC IDs confirmed → BC-2.06.017). ADR if warranted. Then T3: story-writer finalizes to ready (fix SS-17→SS-01 mislabel in frontmatter). |
+| 1 | **S-DEMO-MULTI-TENANT-DTU-001** | draft P2 — T1+T2 DONE (BC-2.06.017 authored; architect adjudication D-1075 complete); **T3 CURRENT** | **NEXT ACTION: story-writer finalizes to status:ready** — set behavioral_contracts:[BC-2.06.017]; fix subsystems [SS-17]→[SS-01]; correct §File Structure + §Architecture Mapping (server.rs→multi_instance.rs; demo-server uses lib.rs+harness.rs+config.rs); reflect OQ-1/OQ-2 design directives (crate placement, Box<dyn BehavioralClone>, HarnessError DuplicateKey+BindFailure, canonical signatures); then dclaude:remove-uncertainty; clear S-7.01 gate. |
 | 2 | Per-instance distinct data seeding | gap — needs story | `CloneConfig.seed` / `fixture_set` ignored by `build_clone_pairs` today (`crates/prism-dtu-demo-server/src/harness.rs`). Wire per-instance seeds (or POST /dtu/configure). New story OR scope-add to step 1. Closes real-per-client-data requirement. |
 | 3 | **S-DEMO-004** | draft P0 | Add `depends_on: [S-DEMO-MULTI-TENANT-DTU-001]` (edge currently MISSING). Decide AC-006 data-distinctness via real seeding (NOT port-binding-only shortcut). |
 | 4 | Demo tooling generalization | draft stub S-DEMO-LAUNCHER-CONSOLIDATION-001 | Generalize `demo-setup.sh` / `demo-run.sh` / `demo-teardown.sh` to loop over N orgs (today single-org demo-org). Story-writer materialization + human launcher-lifecycle decision needed. |
 | 5 | Multi-client SOC-analyst narrative story | NEW — none exists | Multi-client SOC-analyst investigation walkthrough + demo-recorder evidence per persona. |
 | 6 (optional) | S-5.02 / S-3.13 / S-5.04 | draft | MCP client targeting, dynamic per-org table availability, sensor health. All optional capability discovery for the narrative. |
 
-**NEXT CONCRETE ACTION: Dispatch architect to adjudicate OQ-1/OQ-2/OQ-3 for S-DEMO-MULTI-TENANT-DTU-001 now that BC-2.06.017 is authored (D-1074). T1 DONE.**
+**NEXT CONCRETE ACTION: Dispatch vsdd-factory:story-writer to finalize S-DEMO-MULTI-TENANT-DTU-001 to status:ready (D-1075, T3). T1+T2 DONE.**
 
-**Task ledger (granular, status-tracked, resume source-of-truth): `.factory/objectives/multi-client-soc-demo-tasks.md` — CURRENT TASK = T2 (D-1074). T1 DONE: BC-2.06.017 authored + registered BC-INDEX v6.01.**
+**Task ledger (granular, status-tracked, resume source-of-truth): `.factory/objectives/multi-client-soc-demo-tasks.md` — CURRENT TASK = T3 (D-1075). T1 DONE: BC-2.06.017 authored + registered BC-INDEX v6.01. T2 DONE: architect adjudication OQ-1/OQ-2/OQ-3 complete (D-1075; no ADR).**
 
 ---
 
@@ -86,7 +86,7 @@ S-CONFIG-MULTI-TENANT-OVERRIDE-001 (per-org overlays), S-DEMO-001 (per-org adapt
 | **Wave-5 Phase B** | **COMPLETE** — all 4 lanes + S-MAINT merged |
 | **Wave-5 Phase C** | **COMPLETE** — all 4 lanes merged (TRAILING-SLASH, SPEC-PROSE-FIX, PAGINATION-001, HARNESS-CLONE-PARITY-001) |
 | **develop HEAD** | `64d34967` |
-| **STATE version** | v7.725 |
+| **STATE version** | v7.726 |
 | **BC-INDEX version** | v6.01 |
 | **STORY-INDEX version** | v2.329 |
 | **VP-INDEX version** | v1.76 |
@@ -100,6 +100,10 @@ S-CONFIG-MULTI-TENANT-OVERRIDE-001 (per-org overlays), S-DEMO-001 (per-org adapt
 ---
 
 ### 2. What Just Completed
+
+**D-1075 Architect T2 Adjudication Burst — OQ-1/OQ-2/OQ-3 resolved; T2 done; T3 CURRENT (2026-06-09)**
+
+OQ-1 resolved (architect override): MultiInstanceConfig+InstanceEntry → crates/prism-dtu-demo-server/src/multi_instance.rs; MultiInstanceHarness+HarnessEntry → crates/prism-dtu-harness/src/multi_instance.rs; NOTHING in prism-dtu-common. Story §File Structure/§Architecture Mapping references to server.rs are WRONG (demo-server uses lib.rs+harness.rs+config.rs) — story-writer fixes at T3. OQ-2 resolved: Box<dyn BehavioralClone> throughout; HarnessError gains DuplicateKey+BindFailure; canonical signature MultiInstanceHarness::start+socket_map; INV-PERIMETER-001 satisfied; no Cargo.toml change needed. OQ-3 resolved: behavioral_contracts:[BC-2.06.017]; BC-2.06.014 stays §References only. No ADR (local pattern; ADR-011/029/031 govern). No ARCH-INDEX change. No BC count change. Task ledger T2→done; T3 blocked→not-started; CURRENT POINTER = T3. D-1075. STATE v7.725→v7.726.
 
 **D-1074 Post-T1 Bookkeeping Burst — BC-2.06.017 registered; T1 done; T2 CURRENT (2026-06-09)**
 
@@ -147,12 +151,12 @@ Wave 5 Phase C COMPLETE — all 4 lanes merged. F-P6-DEFER-001 + F-P10-LOW-001 C
 
 > **Wave 5 Phase C is COMPLETE. The pipeline now serves the ACTIVE OBJECTIVE: multi-client SOC-analyst live demo. See §ACTIVE OBJECTIVE above for full build sequence.**
 
-**NEXT CONCRETE ACTION (D-1074, T2):**
-Dispatch `vsdd-factory:architect` to adjudicate OQ-1/OQ-2/OQ-3 for S-DEMO-MULTI-TENANT-DTU-001 now that BC-2.06.017 is authored. OQ-1 (MultiInstanceConfig crate owner — recommend `prism-dtu-common`), OQ-2 (Box<dyn BehavioralClone> harness API), OQ-3 (BC IDs confirmed → BC-2.06.017). ADR if warranted. Then T3: story-writer finalizes story to ready (fix SS-17→SS-01 mislabel in frontmatter subsystems field).
+**NEXT CONCRETE ACTION (D-1075, T3):**
+Dispatch `vsdd-factory:story-writer` to finalize S-DEMO-MULTI-TENANT-DTU-001 to status:ready — set behavioral_contracts:[BC-2.06.017]; fix subsystems [SS-17]→[SS-01]; correct §File Structure + §Architecture Mapping (server.rs→multi_instance.rs; demo-server has lib.rs+harness.rs+config.rs); reflect architect OQ-1/OQ-2 design directives in story body/ACs; HarnessError gains DuplicateKey+BindFailure; then run dclaude:remove-uncertainty; clear S-7.01 gate.
 
 | Priority | Story / Action | Status | Notes |
 |----------|---------------|--------|-------|
-| **P0 — NEXT (T2)** | Architect adjudicates OQ-1/OQ-2/OQ-3 for S-DEMO-MULTI-TENANT-DTU-001 | T1 DONE (BC-2.06.017 authored); T2 not-started | Dispatch: `vsdd-factory:architect` |
+| **P0 — NEXT (T3)** | Story-writer finalizes S-DEMO-MULTI-TENANT-DTU-001 to status:ready | T1+T2 DONE (BC-2.06.017 authored; architect adjudication D-1075 complete); T3 not-started | Dispatch: `vsdd-factory:story-writer` |
 | P1 | Per-instance data seeding gap | needs story | Wire `CloneConfig.seed`/`fixture_set` in `build_clone_pairs`; new story or scope-add to #1 |
 | P1 | S-DEMO-004 — add depends_on + data-distinctness AC | draft P0 — needs architect/PO update | Add depends_on edge; decide AC-006 via real seeding |
 | P2 | S-DEMO-LAUNCHER-CONSOLIDATION-001 | draft stub | story-writer materialization + human review needed |
@@ -184,11 +188,11 @@ Per-story delivery follows the canonical 12-gate sequence (per orchestrator per-
 12. Worktree cleanup + state-manager post-merge burst (POL-14 BC promotions + sprint-state.yaml update)
 
 **Active story pointer:**
-- **No story in-flight.** Wave 5 Phase C COMPLETE. North-star next action: architect adjudicates OQ-1/OQ-2/OQ-3 for S-DEMO-MULTI-TENANT-DTU-001 (T2; BC-2.06.017 authored at T1).
+- **No story in-flight.** Wave 5 Phase C COMPLETE. North-star next action: story-writer finalizes S-DEMO-MULTI-TENANT-DTU-001 to status:ready (T3; architect adjudication D-1075 done at T2; BC-2.06.017 authored at T1).
 
 **Mid-cascade restart note:** If a fresh session finds an in-flight worktree/branch/open-PR for a story, cross-reference `sprint-state.yaml` `current_story.delivery_step` + `gh pr list` + `.worktrees/` to determine the exact resume step before dispatching.
 
-> **Previous snapshot (2026-06-08-DURABILITY-HARDENING-D1065; STATE v7.716) remains the base; this section updated in place for D-1071+D-1072+D-1073+D-1074 completion. Prior snapshots archived to `cycles/wave-5-e-demo-fidelity/session-handoff-archive.md`.**
+> **Previous snapshot (2026-06-08-DURABILITY-HARDENING-D1065; STATE v7.716) remains the base; this section updated in place for D-1071+D-1072+D-1073+D-1074+D-1075 completion. Prior snapshots archived to `cycles/wave-5-e-demo-fidelity/session-handoff-archive.md`.**
 
 ---
 
@@ -265,7 +269,7 @@ git log --oneline develop | head -1
 
 # 3. Verify STATE.md version
 grep '^version:' .factory/STATE.md
-# Expected: version: "7.725"
+# Expected: version: "7.726"
 
 # 4. Verify no open PRs
 gh pr list --state open
@@ -278,7 +282,7 @@ git -C .factory rev-parse HEAD && git -C .factory rev-parse origin/factory-artif
 
 # 6. Read task ledger → CURRENT TASK
 cat .factory/objectives/multi-client-soc-demo-tasks.md | grep -A3 'CURRENT POINTER'
-# Expected: T2 — Architect adjudicates OQ-1/OQ-2/OQ-3 for S-DEMO-MULTI-TENANT-DTU-001 (T1 DONE)
+# Expected: T3 — Story-writer finalizes S-DEMO-MULTI-TENANT-DTU-001 to status:ready (T1+T2 DONE)
 
 # 7. Read this snapshot (you are here)
 # Confirm develop_head, STATE version, north-star next action
