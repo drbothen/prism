@@ -2,7 +2,7 @@
 document_type: behavioral-contract
 level: L3
 bc_id: "BC-2.06.018"
-version: "1.0"
+version: "1.1"
 status: draft
 lifecycle_status: draft
 producer: product-owner
@@ -56,6 +56,57 @@ generator at construction time. Static-file clones (ThreatIntel, NVD) use
 The existing `POST /dtu/configure` secondary override endpoint is unchanged and remains
 a runtime override path; it is NOT the primary seeding path governed by this BC.
 
+## Substrate Reality (ADR-036 v2.0 §1.3)
+
+**As of ADR-036 v2.0 substrate correction (D-1078), the seeding postconditions of this BC
+are UNIMPLEMENTED until Story A (`S-DEMO-DTU-LIVE-SCENARIO-001-A`) closes.** The verified
+code reality:
+
+- The demo-server generator-backed clones (CrowdStrike, Armis, Claroty, Cyberint) do NOT
+  currently call `generate()` in their serving paths. `CrowdstrikeClone::new()` creates
+  an empty stateful write-target; `ArmisClone::new()` loads static JSON fixtures. No
+  `generate()` call exists in `build_clone_pairs()` or any clone constructor called from it.
+- `CloneConfig.seed` is declared in `config.rs` (default `42`) but is **never read** in
+  `build_clone_pairs()`. This BC's seeding postconditions are real retrofit requirements,
+  not config-tweak work.
+- `DemoConfig` and `CloneConfig` currently have no `org_id` field. The `OrgId` required
+  by `seeded_rng(seed, &OrgId)` has no source in the demo-server today.
+
+**Story A RETROFIT:** A new per-clone `new_with_seed(seed: u64, org_id: OrgId)` constructor
+calls `generate(...)` under `#[cfg(feature = "fixture-gen")]`, stores the resulting records
+in a new state field (`generated_records: Vec<serde_json::Value>`), and route handlers serve
+or stage-filter from `generated_records` when present. The existing `new()` static-JSON path
+is unchanged for backward compatibility.
+
+### Canonical Org Slug and Device ID Format
+
+Per ADR-036 v2.0 §2.2 (authoritative, replaces any earlier placeholder format):
+
+- **Org slug derivation:** `org_slug = hex(org_id.as_bytes()[0..4])` — 8 lowercase hex
+  characters derived from the first 4 bytes of the OrgId UUID. Example: OrgId whose bytes
+  start `[0xde, 0xad, 0xbe, 0xef, ...]` produces `org_slug = "deadbeef"`.
+- **Canonical device ID format:** `"dev-{org_slug}-{seed}-{n}"` where `{org_slug}` is the
+  8-hex-char value above, `{seed}` is the u64 seed, and `{n}` is a zero-based record index.
+  Example: `"dev-deadbeef-42-0"` for the first device with seed=42 and org above.
+- **No `"dev-acme-..."` format exists.** Any test, spec, or example using `"dev-acme-..."` is
+  incorrect and must be updated to use the canonical `"dev-{8hex}-{seed}-{n}"` form.
+- `seeded_rng(seed, org_id: &OrgId)` takes `&OrgId` (a `[u8;16]`-backed UUID) — NOT `&str`.
+  CrowdStrike generator derives `org_slug` internally via `org_slug(org_id: &OrgId) -> String`.
+  Armis generator takes `org_slug: &str` as an explicit argument; the harness passes the
+  catalog-derived slug.
+
+### New Config Requirement: `CloneConfig.org_id`
+
+`DemoConfig`/`CloneConfig` must gain `org_id: Option<String>` (UUID string → parsed to
+`OrgId`) to provide the `OrgId` required by `seeded_rng` and `ScenarioEntityCatalog`
+derivation. This field is:
+- Required when `scenario.enabled = true` for any clone in the same client config block;
+  absence produces **E-DEMO-004** at construction time.
+- Required for `new_with_seed` to derive the canonical org slug and disjoint device IDs.
+- Optional (may be `None`) when `scenario.enabled = false` and caller uses the backward-compat
+  `new()` path; however, seed-based data disjointness then cannot be guaranteed across orgs.
+- Must be a valid UUID string; a non-UUID value produces **E-DEMO-005** at construction time.
+
 ## Preconditions
 
 1. `DemoConfig` has been parsed from a valid TOML file (BC-2.06.001).
@@ -64,9 +115,12 @@ a runtime override path; it is NOT the primary seeding path governed by this BC.
    `crates/prism-dtu-demo-server/src/config.rs::CloneConfig`.
 3. The `fixture-gen` Cargo feature is enabled in `prism-dtu-demo-server`'s feature set
    when generator-backed clones are included in the build.
-4. `CloneConfig.org_id: OrgId` is available at harness construction time — either passed
-   in by the caller or derived from a canonical demo org slug per the story design
-   (story-writer resolves the exact parameter plumbing in S-DEMO-DTU-DATA-SEEDING-001).
+4. `CloneConfig.org_id: Option<String>` is present in `DemoConfig`/`CloneConfig` (new field
+   added by Story A). When `scenario.enabled = true` or when `new_with_seed` is called, this
+   field must contain a valid UUID string that is parsed to `OrgId` (`[u8;16]`). Absence
+   produces E-DEMO-004; non-UUID value produces E-DEMO-005. The `OrgId` is used to call
+   `seeded_rng(seed, &org_id)` and to derive `org_slug = hex(org_id.as_bytes()[0..4])`
+   per the canonical formula in the Substrate Reality section above.
 5. For static-file clones (ThreatIntel, NVD), the named fixture file corresponding to
    `CloneConfig.fixture_set` exists in the clone crate's embedded fixture catalog.
 6. `build_clone_pairs` is called before `DemoHarness::start_all`.
@@ -86,7 +140,8 @@ For each enabled generator-backed clone (Claroty, Armis, CrowdStrike, Cyberint),
 - `org_id` is the `OrgId` for this demo instance (plumbing resolved by story-writer per
   Precondition 4).
 - The clone generates its fixture data at construction time using the seeded generator
-  (via `prism_dtu_common::generator::seeded_rng(seed, org_id)` per BC-3.4.001).
+  (via `prism_dtu_common::generator::seeded_rng(seed, &org_id)` where `org_id: &OrgId`
+  is the `[u8;16]`-backed UUID per BC-3.4.001 and ADR-036 v2.0 §2.2).
 
 ### Postcondition 2 — fixture_set selects named static fixture for static clones
 
@@ -151,9 +206,11 @@ from instance B.
 This invariant holds because:
 - `seeded_rng(seed, org_id)` produces a unique RNG stream per `(seed, org_id)` pair
   (BC-3.4.001 postconditions 3 and 4).
-- Every generated record's primary ID carries an org-tagged prefix
-  `dev-{org_slug}-{seed}-{index}` (BC-3.4.004), making IDs structurally disjoint across
-  distinct `(seed, org_id)` tuples.
+- Every generated record's primary ID uses the canonical format
+  `"dev-{org_slug}-{seed}-{index}"` where `org_slug = hex(org_id.as_bytes()[0..4])` (8 hex
+  chars). This formula is identical across all generator-backed clones for the same
+  `(seed, org_id)` pair, making IDs structurally disjoint across distinct `(seed, org_id)`
+  tuples (ADR-036 v2.0 §2.2, Substrate Reality section above).
 
 The invariant is verified by integration tests in S-DEMO-DTU-DATA-SEEDING-001 that
 start two clone instances with `seed_A = 100` and `seed_B = 200` and assert that
@@ -235,11 +292,26 @@ A new error code is required in the `prism-dtu-demo-server` error domain:
 | Message format | `"demo-server: E-DEMO-001: clone '{clone_name}': unrecognized fixture_set '{value}'; valid values: default, compromised, auth_outage, large_scale, pagination_edges, schema_drift, high_churn, dormant"` |
 | Recoverable | No — operator must fix `demo.toml` and restart |
 
-**Flag for error-taxonomy owner:** E-DEMO-001 must be registered in
-`.factory/specs/prd-supplements/error-taxonomy.md` under a new `E-DEMO-NNN` namespace.
-The demo-server is test/demo infrastructure and currently has no E-DEMO-NNN entries.
-Error-taxonomy owner (product-owner) must add the `E-DEMO` subsystem prefix and this
-entry in the same story or a coordinated burst.
+E-DEMO-001 is registered in `.factory/specs/prd-supplements/error-taxonomy.md` under the
+`## DEMO: Demo-Server Errors` section (registered in the BC-2.06.019/020 authorship burst,
+v1.63 of error-taxonomy.md).
+
+Two additional error codes govern the new `org_id` config requirement (see Substrate Reality
+section, "New Config Requirement"):
+
+| Field | E-DEMO-004 | E-DEMO-005 |
+|-------|-----------|-----------|
+| Code | `E-DEMO-004` | `E-DEMO-005` |
+| Category | configuration | configuration |
+| Severity | broken | broken |
+| Exit code | `1` (startup failure) | `1` (startup failure) |
+| Message format | `"demo-server: E-DEMO-004: clone '{clone_name}': scenario.enabled requires org_id to be set (UUID string)"` | `"demo-server: E-DEMO-005: clone '{clone_name}': org_id '{value}' is not a valid UUID"` |
+| Trigger | `scenario.enabled = true` (or `new_with_seed` called) but `CloneConfig.org_id` is `None` | `CloneConfig.org_id` is present but fails `uuid::Uuid::parse_str()` |
+| Recoverable | No — operator must add `org_id = "<uuid>"` to `demo.toml` and restart | No — operator must fix the UUID format and restart |
+
+Both codes are detected by `build_clone_pairs` before any clone constructor is called, and
+propagated through `build_clone_pairs -> anyhow::Result<Vec<ClonePair>>`. Registered in
+error-taxonomy.md §DEMO (v1.64, same correction burst as BC-2.06.018 v1.1).
 
 ## Edge Cases
 
@@ -294,7 +366,7 @@ entry in the same story or a coordinated burst.
 
 - BC-3.4.001 — referenced by (this BC wires seed/archetype inputs to BC-3.4.001's generation layer; BC-3.4.001's postconditions 3/4/6 are the guarantee mechanism for Postcondition 3 here)
 - BC-3.4.003 — referenced by (Archetype baseline counts used in TV-018-005/006 and archetype catalog defined there)
-- BC-3.4.004 — referenced by (org-tagged ID prefix format `dev-{org_slug}-{seed}-{index}` used in INV-DISTINCT-DATA-001 justification)
+- BC-3.4.004 — referenced by (org-tagged ID prefix format `"dev-{org_slug}-{seed}-{index}"` referenced in INV-DISTINCT-DATA-001; authoritative formula is now ADR-036 v2.0 §2.2: `org_slug = hex(org_id.as_bytes()[0..4])`)
 - BC-2.06.017 — sibling (both govern demo-server config-wiring; BC-2.06.017 governs multi-address binding, this BC governs data seeding)
 - BC-2.06.001 — depends on (TOML config must load successfully before `build_clone_pairs` runs)
 
@@ -303,7 +375,7 @@ entry in the same story or a coordinated burst.
 - `crates/prism-dtu-demo-server/src/harness.rs` — `build_clone_pairs` function; site of the GAP being closed (currently calls `CloneType::new()` ignoring `clone_cfg.seed` and `clone_cfg.fixture_set`)
 - `crates/prism-dtu-demo-server/src/config.rs` — `CloneConfig.seed: u64` (default 42) and `CloneConfig.fixture_set: String` (default "default"); existing fields
 - `crates/prism-dtu-common/src/generator/archetype.rs` — `Archetype` enum; `all_archetypes()` catalog
-- `crates/prism-dtu-common/src/generator/rng.rs` — `seeded_rng(seed, org_id)` — the determinism primitive
+- `crates/prism-dtu-common/src/generator/rng.rs` — `seeded_rng(seed: u64, org_id: &OrgId)` — the determinism primitive; takes `&OrgId` ([u8;16]), NOT `&str`
 - `crates/prism-dtu-common/src/generator/opts.rs` — `GenOpts` — seed is passed via `GenOpts::seed`
 
 ## Story Anchor
@@ -325,4 +397,5 @@ None at BC authoring time. The architect decision (this session) resolved:
 
 | Version | Change |
 |---------|--------|
+| v1.1 | ADR-036 v2.0 / D-1078 substrate-reconciliation corrections. Added §Substrate Reality (ADR-036 v2.0 §1.3): documents that seeding postconditions are UNIMPLEMENTED until Story A (`S-DEMO-DTU-LIVE-SCENARIO-001-A`); clones serve static JSON today with no `generate()` call in `build_clone_pairs()`. Added canonical org_slug derivation formula (`hex(org_id.as_bytes()[0..4])`; 8 hex chars) and canonical device ID format (`"dev-{org_slug}-{seed}-{n}"`) per ADR-036 v2.0 §2.2 — replaces incorrect `"dev-acme-..."` placeholder. Removed `"dev-acme-..."` reference from INV-DISTINCT-DATA-001. Added "New Config Requirement" for `CloneConfig.org_id: Option<String>` (UUID string → OrgId). Corrected `seeded_rng` signature to `seeded_rng(seed: u64, org_id: &OrgId)` (takes `&OrgId`, NOT `&str`) in Postcondition 1, INV-DISTINCT-DATA-001, and Architecture Anchors. Registered E-DEMO-004 (scenario.enabled but org_id absent) and E-DEMO-005 (org_id not valid UUID) in §Error Codes. Updated Error Codes section to note E-DEMO-001 already registered in error-taxonomy.md v1.63. Precondition 4 rewritten to match new `CloneConfig.org_id: Option<String>` field. lifecycle_status remains draft. |
 | v1.0 | Initial authoring. Product-owner decision: BC-2.06.018 namespace chosen over BC-3.4.005 — this BC governs demo-server config-wiring layer (how `DemoConfig` fields feed `build_clone_pairs`), not generator internals; BC-2.06 is the established namespace for demo-server config-wiring BCs (BC-2.06.017 precedent). Subsystem: SS-01 per ARCH-INDEX.md (prism-dtu-demo-server is owned by Sensor Adapters / SS-01). Capability: CAP-036 ("Multi-Tenant DTU Test Harness") — the harness orchestration capability, not CAP-039 (generator internals) or CAP-009 (production client configuration). |

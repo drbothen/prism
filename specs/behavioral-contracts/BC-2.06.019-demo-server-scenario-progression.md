@@ -2,7 +2,7 @@
 document_type: behavioral-contract
 level: L3
 bc_id: "BC-2.06.019"
-version: "1.0"
+version: "1.1"
 status: draft
 lifecycle_status: draft
 producer: product-owner
@@ -115,9 +115,25 @@ The `StageMask` MUST be explicit for every `ScenarioEntityCatalog` field at ever
 No entity type is implicitly visible — absent fields default to `false` per
 INV-STAGE-MASK-COMPLETENESS-001.
 
-When `stage_duration_secs` is provided in `demo.toml`, it overrides the default
-`activates_after_secs` values for all stages in order. Partial overrides (providing
-fewer entries than there are stages) are an operator error and produce `E-DEMO-003`.
+**`stage_duration_secs` 4-entry convention (ADR-036 v2.0 §1.3, §2.1):**
+The 5-stage timeline is specified by a **4-entry** array — NOT 5 entries. Stage 0 (Baseline)
+always activates at elapsed=0 seconds and is not configurable; it has no entry in the array.
+Entry `[i]` is the cumulative `activates_after_secs` threshold for stage `i+1`:
+
+| Array index | Stage activated | Default `activates_after_secs` |
+|-------------|----------------|-------------------------------|
+| [0] | Stage 1 (Recon) | 60 |
+| [1] | Stage 2 (LateralMovement) | 180 |
+| [2] | Stage 3 (Exfil) | 360 |
+| [3] | Stage 4 (Containment) | 600 |
+
+Example: `stage_duration_secs = [60, 180, 360, 600]` (the default) means stage 1 activates
+at elapsed ≥ 60s, stage 2 at ≥ 180s, stage 3 at ≥ 360s, stage 4 at ≥ 600s.
+
+When `stage_duration_secs` is provided in `demo.toml`, it MUST have exactly **4 entries**
+for the `CompromisedEndpoint` archetype. Providing any count other than 4 is an operator
+error and produces `E-DEMO-003` (with the `stage_duration_secs has {provided} entries but
+archetype '{archetype}' requires exactly {expected}` variant).
 
 `scenario_start_epoch_secs` in the timeline is set from `CloneConfig.scenario_start_secs`
 when present, or from `Utc::now().timestamp()` at `build_clone_pairs` call time when
@@ -329,7 +345,9 @@ for the named archetype. In that case the message variant is:
 | EC-019-003 | `now_epoch_secs < scenario_start_epoch_secs` (clock skew or start in the future) | `elapsed = max(0, ...)` → `elapsed = 0` → stage 0 (Baseline); no negative-elapsed panic |
 | EC-019-004 | `now_epoch_secs` far past last stage threshold (e.g., elapsed >> 600s) | Stage index saturates at `stages.len() - 1` (Containment); all entities visible; no index-out-of-bounds |
 | EC-019-005 | Two scenario-enabled clones with `seed_A ≠ seed_B` in same client config | `build_clone_pairs` returns `E-DEMO-002`; no clone constructed |
-| EC-019-006 | `stage_duration_secs = [30, 60, 120, 240]` (operator override; 4 entries for 5 stages) | `E-DEMO-003` — mismatch between provided entries (4) and archetype stage count (5) |
+| EC-019-006 | `stage_duration_secs = [30, 60, 120, 240]` (operator override; 4 entries for 5-stage timeline) | VALID — 4 entries is the correct count for `CompromisedEndpoint` (stage 0 always at 0s needs no entry; entries [0..3] specify thresholds for stages 1-4). Construction succeeds with stage 1 activating at ≥30s, stage 2 at ≥60s, stage 3 at ≥120s, stage 4 at ≥240s. |
+| EC-019-006b | `stage_duration_secs = [30, 60, 120]` (only 3 entries for `compromised_endpoint` archetype that requires 4) | `E-DEMO-003` variant: `"stage_duration_secs has 3 entries but archetype 'compromised_endpoint' requires exactly 4"` |
+| EC-019-006c | `stage_duration_secs = [30, 60, 120, 240, 480]` (5 entries for `compromised_endpoint` archetype that requires 4) | `E-DEMO-003` variant: `"stage_duration_secs has 5 entries but archetype 'compromised_endpoint' requires exactly 4"` |
 | EC-019-007 | `scenario_start_secs = None` in config | `scenario_start_epoch_secs` set to `Utc::now().timestamp()` at `build_clone_pairs` call time; demo begins at stage 0 immediately |
 | EC-019-008 | `scenario_start_secs` set to same value for CrowdStrike and Armis in demo.toml | Both clones compute identical `stage_index` for any fixed `now`; cross-DTU snapshot coherent |
 | EC-019-009 | `scenario_start_secs` set to a past epoch (demo "already in progress" at startup) | Correct behavior: elapsed already positive at startup; stage index may start at Recon or LateralMovement; operator uses this to start a demo mid-scenario |
@@ -409,4 +427,5 @@ VP-019-A through VP-019-H (above) — all verified by integration/unit tests in 
 
 | Version | Change |
 |---------|--------|
+| v1.1 | ADR-036 v2.0 / D-1078 substrate-reconciliation corrections. Pinned `stage_duration_secs` 4-entry convention (ADR-036 v2.0 §1.3, §2.1): added explicit 4-entry table showing array-index-to-stage mapping in §Postcondition 2; stage 0 (Baseline) always activates at 0s and is NOT represented in the array. Corrected EC-019-006 which incorrectly described 4 entries as an E-DEMO-003 error — 4 entries IS the correct count for `CompromisedEndpoint`; added EC-019-006b (3 entries → error) and EC-019-006c (5 entries → error) to document the actual error cases. Confirmed `activates_after_secs: u64` as the authoritative `IncidentStage` field name (NOT "duration") per ADR-036 v2.0 §2.2. All stage threshold values (60/180/360/600) unchanged. lifecycle_status remains draft. Invariant semantics unchanged. |
 | v1.0 | Initial authoring. ADR-036 ACCEPTED 2026-06-09. BC-2.06.019 namespace confirmed (next-available after BC-2.06.018). Subsystem: SS-01 (prism-dtu-demo-server, prism-dtu-common). Capability: CAP-036 — harness wiring layer (temporal staging extends the harness orchestration that BC-2.06.018 began). Error codes E-DEMO-002 and E-DEMO-003 registered here (to be reflected in error-taxonomy.md by error-taxonomy owner in same burst per BC-2.06.018 precedent). Invariant naming follows ADR-036 §7 candidate invariant IDs verbatim with BC-house-style expansion. |

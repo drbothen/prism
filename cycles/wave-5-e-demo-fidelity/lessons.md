@@ -516,3 +516,34 @@ When architect + PO author the per-client data seeding story (T4), the same patt
 **Boundary:** This lesson confirms that per-story remove-uncertainty catches mechanism-level issues that design-level adjudication cannot by definition see. No policy change required; the directive is already in STATE.md frontmatter + SESSION-HANDOFF §4 Standing Rules.
 
 ---
+
+### [process-working-as-designed] S-DEMO-DTU-LIVE-SCENARIO-001: remove-uncertainty caught a CRITICAL foundational substrate flaw that the architect's ADR-036 v1.0 design missed — STRONGEST ROI evidence for standing per-story remove-uncertainty directive (D-1061)
+
+**Date recorded:** 2026-06-09
+**D-NNN anchor:** D-1079 (substrate-reconciliation burst)
+**Story:** S-DEMO-DTU-LIVE-SCENARIO-001 (original) → split into S-DEMO-DTU-LIVE-SCENARIO-001-A + S-DEMO-DTU-LIVE-SCENARIO-001-B
+**Tags:** [process-working-as-designed] [remove-uncertainty] [substrate-flaw] [CRITICAL-catch] [architect-assumption-verification]
+**Classification:** PROCESS-WORKING-AS-DESIGNED — not a new process gap. The control exists (D-1061 standing directive). This is the highest-severity confirmation yet of its ROI.
+
+**Description:**
+
+remove-uncertainty on S-DEMO-DTU-LIVE-SCENARIO-001 (v1.0) caught a CRITICAL foundational substrate flaw BEFORE TDD: **the demo-server generator-backed clones serve STATIC JSON, not seeded generators.** Generators live in `prism-dtu-harness`; `generate()` is never called in the demo-server serving path. ADR-036 v1.0 assumed `generate()` was wired into the serving path — it was not. The story would have reached TDD with fundamentally wrong assumptions about what the code actually does.
+
+**Specific findings (U-01..U-09):**
+
+- **U-01 CRITICAL:** Demo-server clones serve static JSON from `DemoConfig::build_clone_pairs` — the generator is called only for harness initialization (prism-dtu-harness). The ADR-036 v1.0 design assumed per-request generator invocation in the serving path, which does not exist.
+- **U-02..U-09:** ID-format errors (canonical `org_slug=hex(org_id[0..4])` vs invented format); device ID convention (`dev-{8hex}-{seed}-{n}` vs invented format); missing `CloneConfig.org_id` field; enrichment API signature errors (`NvdState::lookup_and_count` vs invented names; CVSS path `metrics.cvss_metric_v31[0].cvss_data.base_score` vs invented path); `Result` signatures wrong in BC-2.06.019/020.
+
+**Outcome:** Architect reconciled ADR-036 v1.0→v2.0 (two-phase retrofit: `new_with_seed` constructor wires `generate()` into demo-server clone serving path + `generated_records` state field + dual-path routes for seeded vs static modes). BC-2.06.018/019/020 corrected to v1.1. E-DEMO-004/005 registered. User-authorized story split: original 13pt story SUPERSEDED → Story A (8pt baseline retrofit, ready) + Story B (7pt progression+enrichment, draft). Net +2pt reflects the retrofit scope the original 13pt estimate missed.
+
+**Why this is NOT a new process gap:**
+
+The D-1061 standing directive — "run dclaude:remove-uncertainty on EVERY implementation story BEFORE TDD delivery" — exists specifically to catch this class of issue. This is its third confirmed major catch (after S-DEMO-CLAROTY-TRAILING-SLASH-001 with 6 HIGH findings at D-1059/D-1060, and S-DEMO-MULTI-TENANT-DTU-001 with 8 uncertainties including CRIT U-002 at D-1076). This is the HIGHEST-SEVERITY single catch (CRITICAL substrate flaw + forced story split + net scope increase).
+
+**Lesson for architect substrate verification:**
+
+Architect substrate assumptions about "generators are wired in" MUST be verified against the ACTUAL SERVING PATH, not just the presence of a `generate()` function in the codebase. When authoring an ADR about a serving-path behavior, read the serving path code (route handlers, `impl BehavioralClone::handle()`), not just the generator module's API. ADR-036 v1.0 was authored by reading `prism-dtu-common/src/generator/` correctly but assumed the serving path consumed it without verifying the actual route-handler call chain in `prism-dtu-demo-server/src/`.
+
+**Key observation:** The standing per-story remove-uncertainty directive (D-1061) caught a flaw that a dedicated architect ADR authoring session missed. This is the strongest ROI evidence yet for the directive. It is not a reflection on architect quality — architect reads at design-intent level; remove-uncertainty reads at call-chain and API-shape level. Both lenses are necessary and complementary.
+
+---

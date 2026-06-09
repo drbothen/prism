@@ -2,7 +2,7 @@
 document_type: behavioral-contract
 level: L3
 bc_id: "BC-2.06.020"
-version: "1.0"
+version: "1.1"
 status: draft
 lifecycle_status: draft
 producer: product-owner
@@ -62,11 +62,18 @@ complete mechanism per ADR-036 §3.2.
 2. `ThreatIntelClone` has an existing `fixture_registry: Mutex<HashMap<String, FixtureKey>>`
    (confirmed by `crates/prism-dtu-threatintel/src/state.rs`) and a `FixtureKey::Malicious`
    variant in the `FixtureKey` enum.
-3. `NvdClone` has an existing `cve_registry` data structure (confirmed by
-   `crates/prism-dtu-nvd/src/state.rs`) and a `CveRecord` type carrying at minimum:
+3. `NvdClone` has an existing `cve_registry: HashMap<String, CveRecord>` (confirmed by
+   `crates/prism-dtu-nvd/src/state.rs` — this is an **immutable** HashMap built at
+   construction time and never mutated after, NOT `Mutex`-wrapped). `CveRecord` carries:
    - `cve_id: String`
-   - CVSS v3.1 score information accessible via a field path equivalent to
-     `cvss_metric_v31[0].cvss_data.base_score: f64`
+   - CVSS v3.1 score accessible via: `CveRecord.metrics.cvss_metric_v31: Option<Vec<CvssMetricV31>>`
+     → first element `.cvss_data: CvssData` → `.base_score: f64` and `.base_severity: String`
+     (e.g., `"HIGH"` for base_score 7.0–8.9, `"CRITICAL"` for ≥9.0; the field is `base_severity`,
+     NOT `severity`).
+   - There is NO `NvdClone::lookup()` method. The access method is
+     `NvdState::lookup_and_count(&self, cve_id: &str) -> Option<CveRecord>` on the state struct.
+     Test vectors and verification code must call `state.lookup_and_count(id)`, not a clone-level
+     lookup method.
 4. `build_clone_pairs` has access to the `ScenarioEntityCatalog` reference before
    constructing ThreatIntel and NVD clones.
 5. For clones with `scenario.enabled = false`, the existing `ThreatIntelClone::new()`
@@ -112,42 +119,64 @@ respectively:
 
 ### Postcondition 3 — NVD registry is pre-populated with scenario CVEs at construction time
 
-When `NvdClone::new_with_scenario(entities: &ScenarioEntityCatalog)` is called:
+When `NvdClone::new_with_scenario(entities: &ScenarioEntityCatalog) -> anyhow::Result<Self>`
+is called (FALLIBLE — mirrors `NvdClone::new() -> anyhow::Result<Self>`):
 
-- For every CVE ID in `entities.device_cves`: insert a synthetic `CveRecord` into
-  `cve_registry` with the following minimum fields:
+- For every CVE ID in `entities.device_cves`: include a synthetic `CveRecord` in the
+  initial `cve_registry: HashMap<String, CveRecord>` built at construction time.
+  The synthetic record has the following minimum fields:
   - `cve_id`: the CVE ID string from `entities.device_cves`
-  - CVSS v3.1 base score: `>= 7.0` (HIGH severity, reflecting an attack-type vulnerability
-    appropriate for the compromised endpoint scenario)
-  - CVSS v3.1 vector string: a plausible attack-type vector (e.g., `"AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:N"` for a network-exploitable credential-exfiltration vulnerability). The specific vector may be derived deterministically from the CVE ID index position in `entities.device_cves`.
-  - Severity label: `"HIGH"` (consistent with base_score >= 7.0 < 9.0) or `"CRITICAL"`
-    (base_score >= 9.0 if the implementation chooses a score in that range).
+  - CVSS v3.1 base score (exact path): `CveRecord.metrics.cvss_metric_v31[0].cvss_data.base_score: f64 >= 7.0`
+    (per ADR-036 v2.0 §2.3; default value `8.1`)
+  - CVSS v3.1 severity (exact path): `CveRecord.metrics.cvss_metric_v31[0].cvss_data.base_severity: String = "HIGH"`
+    (`base_severity`, NOT `severity` — these are different fields in `CvssData`)
+  - CVSS v3.1 vector string (for plausibility): a deterministic attack-type vector derived
+    from the CVE ID index position in `entities.device_cves` (e.g.,
+    `"AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:N"` for network-exploitable credential-exfiltration).
 
-The insertion occurs at construction time. The existing NVD registry (default CVE records
-for non-scenario CVE IDs) is NOT modified. Injection is purely additive.
+The `cve_registry` is an **immutable** `HashMap<String, CveRecord>` — it is built once
+during `new_with_scenario` by loading base fixtures from `fixtures/cves.json` (same as
+`new()`) and then inserting the synthetic scenario CVE records into the initial HashMap
+before construction completes. There is NO post-construction mutation; the registry is
+never wrapped in a `Mutex`. Injection is purely additive to the base fixture records.
+
+**Note on `NvdClone::new_with_scenario` fallibility:** This constructor is fallible
+(returns `anyhow::Result<Self>`) because it extends `NvdClone::new()` which is itself
+fallible (reads `fixtures/cves.json` at construction time). Callers in `build_clone_pairs`
+must handle the `Result` with `?` propagation.
 
 ### Postcondition 4 — NVD resolves scenario CVEs with realistic HIGH CVSS records
 
 For any CVE lookup where the CVE ID is a member of `entities.device_cves`:
 
-- The response includes a `CveRecord` with `cvss_metric_v31[0].cvss_data.base_score >= 7.0`.
+- The NVD state method `NvdState::lookup_and_count(&self, cve_id) -> Option<CveRecord>`
+  returns `Some(record)` — NOT `None`. (There is no `NvdClone::lookup()` method; the
+  lookup is performed on the state struct via `lookup_and_count`.)
+- The returned `CveRecord` satisfies:
+  `record.metrics.cvss_metric_v31[0].cvss_data.base_score >= 7.0` (exact path per
+  ADR-036 v2.0 §2.3 and `crates/prism-dtu-nvd/src/types.rs`)
 - The response does not return 404 / "not found" — the CVE ID resolves to a real record.
 - The response is structurally valid per the NVD clone's existing response schema.
 
 ### Postcondition 5 — Cross-DTU entity coherence: `primary_device_id` is consistent across Armis, CrowdStrike, Claroty
 
-The `ScenarioEntityCatalog.primary_device_id` (format: `"dev-{org_slug}-{seed}-0"`) is
-the first device ID produced by the `CompromisedEndpoint` generator for `(seed, org_id)`.
+The `ScenarioEntityCatalog` carries two per-format primary device ID fields (ADR-036 v2.0
+§2.2): `primary_device_id_cs` (CrowdStrike format) and `primary_device_id_armis` (Armis
+format). Both use the same formula `"dev-{org_slug}-{seed}-0"` where
+`org_slug = hex(org_id.as_bytes()[0..4])` (8 hex chars). The same `org_slug` value is
+derived by the harness and passed as an explicit `org_slug: &str` argument to the Armis
+generator — this ensures the catalog slug and the Armis generator slug are identical.
+
 Because all generator-backed clones share the same generator determinism guarantee
 (BC-3.4.001) and the same `(seed, org_id)` inputs:
 
 - Armis `/api/v1/devices` response at stage >= 1 (Recon) CONTAINS a device record with
-  ID equal to `catalog.primary_device_id`.
+  ID equal to `catalog.primary_device_id_armis`.
 - CrowdStrike device query response at stage >= 1 CONTAINS a device/host record with
-  host identifier equal to `catalog.primary_device_id` (or the equivalent host ID field
-  that maps to the CompromisedEndpoint primary device).
+  host identifier equal to `catalog.primary_device_id_cs`.
 - Claroty device query response at stage >= 1 CONTAINS an asset record with
-  ID equal to `catalog.primary_device_id`.
+  ID equal to `catalog.primary_device_id_cs` (Claroty uses the same 8-hex-slug derivation
+  as CrowdStrike; the harness injects `&catalog.org_slug` consistently to all clones).
 
 The cross-DTU join `SELECT * FROM armis.devices JOIN crowdstrike.devices ON id` using the
 `primary_device_id` value MUST yield a non-empty result when executed at stage >= 1.
@@ -213,9 +242,15 @@ not depend on the current scenario stage (enrichment clones are always-ready per
 
 ```
 ∀ cve_id ∈ ScenarioEntityCatalog.device_cves:
-    NVD.lookup(cve_id) ≠ NotFound
-    ∧ NVD.lookup(cve_id).cvss_metric_v31[0].cvss_data.base_score >= 7.0
+    NvdState::lookup_and_count(&state, cve_id) = Some(record)
+    ∧ record.metrics.cvss_metric_v31[0].cvss_data.base_score: f64 >= 7.0
+    ∧ record.metrics.cvss_metric_v31[0].cvss_data.base_severity: String ∈ {"HIGH", "CRITICAL"}
 ```
+
+Field path (`base_score` and `base_severity`) sourced from `CvssData` struct in
+`crates/prism-dtu-nvd/src/types.rs` per ADR-036 v2.0 §2.3. Note: the lookup method is
+`NvdState::lookup_and_count` on the state struct, NOT `NvdClone::lookup()` (which does
+not exist). `cve_registry` is an immutable `HashMap` — not `Mutex`-wrapped.
 
 This invariant holds from construction time through the entire process lifetime.
 
@@ -223,17 +258,28 @@ This invariant holds from construction time through the entire process lifetime.
 
 ```
 ∀ client_config with scenario.enabled = true:
-    let id = ScenarioEntityCatalog.primary_device_id
+    let id_cs    = ScenarioEntityCatalog.primary_device_id_cs     // CrowdStrike format
+    let id_armis = ScenarioEntityCatalog.primary_device_id_armis  // Armis format
+    // Both = "dev-{hex(org_id.as_bytes()[0..4])}-{seed}-0"
+    // The harness passes the same org_slug to both generators
     at scenario stage >= 1 (Recon):
-        id ∈ Armis.devices response (device.id field)
-        ∧ id ∈ CrowdStrike.devices response (device host identifier field)
-        ∧ id ∈ Claroty.devices response (asset id field)
+        id_armis ∈ Armis.devices response (device.id field)
+        ∧ id_cs   ∈ CrowdStrike.devices response (device host identifier field)
+        ∧ id_cs   ∈ Claroty.devices response (asset id field)
+        // Note: Armis generator receives org_slug as explicit &str argument;
+        // catalog.primary_device_id_armis uses the same catalog.org_slug derivation,
+        // so the Armis generator output matches the catalog value.
 ```
 
 This invariant is derived from the generator determinism guarantee (BC-3.4.001): all
-clones with the same `(seed, org_id)` produce fixture data where `device[0].id =
-"dev-{org_slug}-{seed}-0"`, which matches the `primary_device_id` derivation formula in
-`ScenarioEntityCatalog`.
+clones with the same `(seed, org_id)` produce fixture data where the first device's ID
+matches `"dev-{org_slug_from_org_id(org_id)}-{seed}-0"`, which matches the
+`primary_device_id_*` derivation formula in `ScenarioEntityCatalog` (ADR-036 v2.0 §2.2).
+
+The harness derives `org_slug = org_slug_from_org_id(&org_id)` once and passes it to
+all clone constructors consistently (Armis takes it as an explicit `&str` argument;
+CrowdStrike and Claroty derive it internally from the OrgId bytes). This ensures the
+catalog's entity IDs match each clone's generated IDs.
 
 At stage 0 (Baseline), the primary device may or may not be visible depending on the
 `StageMask`. INV-CROSS-DTU-ENTITY-COHERENCE-001 explicitly applies at stage >= 1 (the
@@ -261,6 +307,17 @@ non-scenario indicators return the same results as a non-scenario enrichment clo
 `&ScenarioEntityCatalog` as their only scenario-related parameter. `ScenarioEntityCatalog`
 is defined in `prism-dtu-common` (behind `feature = "fixture-gen"`). The constructors
 MUST NOT import any type from `prism-spec-engine`, `prism-sensors`, or `prism-query`.
+
+**`prism-core` is permitted and on the INV-PERIMETER-001 allow-list.** The `fixture-gen`
+feature in `prism-dtu-common` transitively enables `prism-core`. This is safe:
+INV-PERIMETER-001 prohibits `prism-dtu-*` crates from depending on `prism-spec-engine`,
+`prism-sensors`, or `prism-query` — NOT on `prism-core`. Both `prism-dtu-armis` and
+`prism-dtu-crowdstrike` already depend on `prism-core` directly. `ScenarioEntityCatalog`
+carries no `prism-spec-engine` dependency. The perimeter holds.
+
+Adding `fixture-gen = ["prism-dtu-common/fixture-gen"]` to `prism-dtu-threatintel/Cargo.toml`
+and `prism-dtu-nvd/Cargo.toml` is the required Cargo change (per ADR-036 v2.0 §2.3);
+neither crate currently has `chrono` or `fixture-gen` declared.
 
 The `tests/external/perimeter-violation/` compile-fail gate (established by S-PLUGIN-PREREQ-A)
 continues to hold after these constructors are added. No new perimeter-violation exclusions
@@ -315,7 +372,7 @@ correct implementation.
 | VP-020-A | `∀ ip ∈ ioc_ips: ThreatIntel.lookup(ip).threat_is_known_malicious = true ∧ threat_score >= 75` | unit test (TV-020-001) |
 | VP-020-B | `∀ domain ∈ ioc_domains: ThreatIntel.lookup(domain).threat_is_known_malicious = true` | unit test (TV-020-002) |
 | VP-020-C | `∀ hash ∈ ioc_hashes: ThreatIntel.lookup(hash).threat_is_known_malicious = true` | unit test (TV-020-003) |
-| VP-020-D | `∀ cve_id ∈ device_cves: NVD.lookup(cve_id).base_score >= 7.0` | unit test (TV-020-004) |
+| VP-020-D | `∀ cve_id ∈ device_cves: NvdState::lookup_and_count(&state, cve_id) = Some(record) ∧ record.metrics.cvss_metric_v31[0].cvss_data.base_score >= 7.0` | unit test (TV-020-004) |
 | VP-020-E | Non-scenario lookups are passthrough: `ThreatIntel.new_with_scenario.lookup(non_ioc) = ThreatIntel.new().lookup(non_ioc)` | unit test (TV-020-005, TV-020-006) |
 | VP-020-F | Cross-DTU entity coherence: `primary_device_id` in Armis ∩ CrowdStrike ∩ Claroty at stage 1 | integration test (TV-020-007) |
 | VP-020-G | Static path (no scenario) does not inject scenario entries | regression test (TV-020-008, TV-020-009) |
@@ -343,7 +400,7 @@ correct implementation.
 
 - `crates/prism-dtu-demo-server/src/harness.rs` — `build_clone_pairs`: passes `&ScenarioEntityCatalog` to `ThreatIntelClone::new_with_scenario` and `NvdClone::new_with_scenario` after constructing the catalog (ADR-036 §2.4 step 4)
 - `crates/prism-dtu-threatintel/src/state.rs` — `fixture_registry: Mutex<HashMap<String, FixtureKey>>` — injection target; `FixtureKey::Malicious` is the variant used for scenario IOC injection
-- `crates/prism-dtu-nvd/src/state.rs` — `cve_registry` — injection target; `CveRecord` with `base_score >= 7.0` is the injected value type
+- `crates/prism-dtu-nvd/src/state.rs` — `cve_registry: HashMap<String, CveRecord>` (IMMUTABLE, not Mutex-wrapped) — injection target; `CveRecord` with `metrics.cvss_metric_v31[0].cvss_data.base_score: f64 >= 7.0` and `.base_severity: String = "HIGH"` is the injected value type. Lookup via `NvdState::lookup_and_count(&self, cve_id: &str) -> Option<CveRecord>` (not a clone-level method).
 - `crates/prism-dtu-common/src/scenario/` — `ScenarioEntityCatalog` definition (ADR-036 §2.2); the entity catalog is the data contract between BC-2.06.019 (producer) and this BC (consumer)
 - `tests/external/perimeter-violation/` — compile-fail gate enforcing `INV-PERIMETER-001`; `new_with_scenario` constructors must not introduce forbidden dependencies
 
@@ -359,4 +416,5 @@ VP-020-A through VP-020-H (above) — all verified by integration/unit tests in 
 
 | Version | Change |
 |---------|--------|
+| v1.1 | ADR-036 v2.0 / D-1078 substrate-reconciliation corrections. Replaced `NvdClone::lookup()` (which does not exist) with `NvdState::lookup_and_count(&self, cve_id) -> Option<CveRecord>` in Precondition 3, Postcondition 4, INV-NVD-CVE-CORRELATION-001, VP-020-D, and Architecture Anchors. Corrected CVSS access path to `CveRecord.metrics.cvss_metric_v31[0].cvss_data.base_score: f64` and `.base_severity: String` (NOT `.severity`) per `crates/prism-dtu-nvd/src/types.rs` CvssData struct; updated all occurrences. Noted `NvdState.cve_registry` is IMMUTABLE `HashMap` (not Mutex-wrapped); `new_with_scenario` builds the initial map including scenario CVEs at construction and never mutates after. Clarified `NvdClone::new_with_scenario` is FALLIBLE (`anyhow::Result<Self>`) mirroring `NvdClone::new()`. Noted `ThreatIntelClone::new_with_scenario` is INFALLIBLE (`Self`) mirroring `ThreatIntelClone::new()`. Updated INV-CROSS-DTU-ENTITY-COHERENCE-001 to use split `primary_device_id_cs` / `primary_device_id_armis` fields from `ScenarioEntityCatalog` (ADR-036 v2.0 §2.2); documented Armis's explicit `org_slug: &str` injection pattern. Extended INV-PERIMETER-COMPLIANCE-001 to explicitly confirm `prism-core` is on the INV-PERIMETER-001 allow-list (transitive via `prism-dtu-common/fixture-gen`); noted required Cargo.toml additions for `prism-dtu-threatintel` and `prism-dtu-nvd`. Postcondition 5 updated to reference `primary_device_id_cs` for CrowdStrike/Claroty and `primary_device_id_armis` for Armis. lifecycle_status remains draft. Invariant semantics (threshold values, IOC resolution, additive injection) unchanged. |
 | v1.0 | Initial authoring. ADR-036 ACCEPTED 2026-06-09. BC-2.06.020 namespace confirmed (next-available after BC-2.06.019). Subsystem: SS-01. Capability: CAP-036 — enrichment wiring is harness-layer orchestration. EC-020-003 documents HashMap insert semantics for potential IOC collision between scenario injection and prior Benign entries. EC-020-011 explicitly permits partial scenario activation (enrichment disabled while operational DTUs enabled) as a valid operator configuration. INV-CONSTRUCTION-TIME-INJECTION-001 added to prevent deferred-injection race condition that would produce incorrect lookup results during concurrent startup request handling. |

@@ -6,7 +6,7 @@ status: ACCEPTED
 date: 2026-06-09
 wave: 5
 phase: 3.demo
-version: "1.0"
+version: "2.0"
 authors: [architect]
 related_decisions: [D-1077]
 related_adrs: [ADR-009, ADR-011, ADR-002, ADR-031, ADR-028]
@@ -23,22 +23,33 @@ inputs:
   - crates/prism-dtu-common/src/generator/fixture.rs
   - crates/prism-dtu-armis/src/state.rs
   - crates/prism-dtu-armis/src/clone.rs
+  - crates/prism-dtu-armis/src/generator.rs
   - crates/prism-dtu-crowdstrike/src/state.rs
+  - crates/prism-dtu-crowdstrike/src/clone.rs
   - crates/prism-dtu-crowdstrike/src/generator.rs
   - crates/prism-dtu-threatintel/src/state.rs
+  - crates/prism-dtu-threatintel/src/clone.rs
   - crates/prism-dtu-nvd/src/state.rs
+  - crates/prism-dtu-nvd/src/clone.rs
+  - crates/prism-dtu-nvd/src/types.rs
   - crates/prism-dtu-demo-server/src/harness.rs
   - crates/prism-dtu-demo-server/src/config.rs
+  - crates/prism-dtu-demo-server/Cargo.toml
+  - crates/prism-dtu-armis/Cargo.toml
+  - crates/prism-dtu-crowdstrike/Cargo.toml
+  - crates/prism-dtu-threatintel/Cargo.toml
+  - crates/prism-dtu-nvd/Cargo.toml
+  - crates/prism-dtu-common/Cargo.toml
   - .factory/specs/behavioral-contracts/BC-2.06.018-dtu-demo-clone-data-seeding.md
   - .factory/objectives/multi-client-soc-demo-tasks.md
-wiring_deferred_to: S-DEMO-DTU-LIVE-SCENARIO-001
+wiring_deferred_to: S-DEMO-DTU-LIVE-SCENARIO-001-A
 ---
 
-# ADR-036: Deterministic Scenario-Progression Engine — IncidentTimeline, Per-DTU Projection, and Cross-DTU Entity Coherence for Live Demo
+# ADR-036 v2.0: Deterministic Scenario-Progression Engine — Substrate-Corrected Design
 
 ## Status
 
-ACCEPTED 2026-06-09. Decision D-1077. Governs the live-scenario story (S-DEMO-DTU-LIVE-SCENARIO-001, T4/T5 in multi-client-soc-demo-tasks.md). Extends ADR-009 (multi-tenant deterministic generator) with a temporal scenario-progression layer.
+ACCEPTED 2026-06-09 (v1.0). Substrate-corrected 2026-06-09 (v2.0) per remove-uncertainty scan findings U-01 through U-09 (D-1077 follow-up). Governs the live-scenario story split (S-DEMO-DTU-LIVE-SCENARIO-001-A baseline retrofit and S-DEMO-DTU-LIVE-SCENARIO-001-B scenario progression). Extends ADR-009 (multi-tenant deterministic generator) with a temporal scenario-progression layer.
 
 ---
 
@@ -53,9 +64,9 @@ compromised or churning environment, but they produce a **static snapshot** — 
 records are generated at clone construction time and served unchanged for the
 lifetime of the process. There is no notion of time passing.
 
-BC-2.06.018 governs config-time seeding: `CloneConfig.seed` + `CloneConfig.fixture_set`
-are forwarded from `demo.toml` through `build_clone_pairs` to each clone constructor,
-causing per-client data differentiation. This BC is the baseline that ADR-036 extends.
+BC-2.06.018 governs config-time seeding: `CloneConfig.seed` is forwarded from
+`demo.toml` through `build_clone_pairs` to each clone constructor, causing per-client
+data differentiation. This BC is the baseline that ADR-036 extends.
 
 ### 1.2 The Gap (D-1077)
 
@@ -65,43 +76,65 @@ reconnaissance indicators in Armis and Claroty, then lateral movement detections
 CrowdStrike, then exfiltration IOCs resolving in ThreatIntel, then patched CVEs
 resolving in NVD. This temporal narrative is the core of a believable SOC demo.
 
-Three specific requirements, recorded as D-1077:
+### 1.3 Substrate Reality (v2.0 Correction)
 
-1. **Scenario progression (temporal staging).** The `CompromisedEndpoint` archetype
-   must evolve through named stages (e.g., `Recon → LateralMovement → Exfil →
-   Containment`), with different sets of devices, alerts, and events becoming visible
-   at each stage. MUST be reproducible: same seed + same clock-offset produces the
-   same timeline every time.
+The v1.0 design contained a false substrate assumption that changes the implementation
+scope substantially. The verified code reality is:
 
-2. **Cross-DTU entity coherence.** The same compromised device identifier must
-   appear in Armis (device inventory), CrowdStrike (detection hit), Claroty (OT asset),
-   and Cyberint (intelligence alert). The IOC hashes from the attack must resolve in
-   ThreatIntel. The CVEs on the affected device must resolve in NVD. An analyst
-   joining data across DTUs must produce a coherent incident picture, not four
-   independent inventories.
+**The demo-server generator-backed clones (CrowdStrike, Armis, Claroty, Cyberint)
+do NOT currently use their generators in their serving paths.** The facts:
 
-3. **Enrichment DTU correlation.** ThreatIntel and NVD currently serve static lookup
-   tables that are unrelated to the active scenario. They must be seeded at
-   construction time with scenario-correlated entries: the incident's IOC hashes/IPs
-   resolve as malicious; the affected device's CVE IDs resolve with realistic CVSS
-   records.
+- `CrowdstrikeClone::new()` (`crates/prism-dtu-crowdstrike/src/clone.rs:new()`)
+  creates a `CrowdstrikeState` with empty `containment_store`, `detection_status_store`,
+  and `session_registry`. The generator in `generator.rs` is never called. The routes
+  serve directly from the state stores (stateful write targets), NOT from a FixtureSet.
+  The CrowdStrike clone is a **stateful write-target clone**, not a fixture-serving clone.
 
-### 1.3 Constraints from the Existing Architecture
+- `ArmisClone::new()` (`crates/prism-dtu-armis/src/clone.rs`) loads `fixtures/devices.json`,
+  `fixtures/device-activity.json`, and `fixtures/alerts.json` into `ArmisState` as
+  immutable `Vec<DeviceRecord>` / `Vec<AlertRecord>`. The generator in `generator.rs`
+  is never called from the serving path. `ArmisState.devices_ordered` is the static
+  JSON fixture, not a generated FixtureSet.
+
+- The generators ARE consumed — but only by `prism-dtu-harness` tests, NOT by
+  the demo-server clones. The demo-server's `build_clone_pairs()` calls
+  `CrowdstrikeClone::new()`, `ArmisClone::new()`, `CyberintClone::new()`, and
+  `ClarotyClone::new()` — no `generate()` call anywhere in that path.
+
+- `CloneConfig.seed` is declared in config.rs (`default = 42`) but is **never read**
+  in `build_clone_pairs()`. BC-2.06.018's seeding postcondition is thus **unimplemented**
+  — it is a real retrofit requirement, not a config-tweak.
+
+- `DemoConfig` and `CloneConfig` have no `org_id` field. There is no `OrgId`
+  construction in the demo-server today. This means `seeded_rng(seed, &OrgId)` has
+  no OrgId source in the demo-server path.
+
+**The v1.0 §2.3 "filter the pre-generated FixtureSet by stage mask" design has no
+substrate in the target clones as they stand.** Obtaining seeded/distinct/scenario-evolving
+data in the serving path requires **retrofitting each relevant clone** with a constructor
+variant that calls `generate(...)` and stores the resulting records in state, while leaving
+the existing `new()` static-JSON path unchanged for backward compatibility.
+
+**Additional substrate corrections (U-03, U-05, U-06, U-07/U-08, U-09):**
+
+- `seeded_rng(seed, org_id: &OrgId)` takes `&OrgId` (a `[u8;16]`-backed UUID), NOT `&str`.
+- CrowdStrike `org_slug` is derived from org UUID bytes as 8 hex chars: `hex(org_id.as_bytes()[0..4])`. Armis generator takes `org_slug: &str` as explicit argument. There is no `"dev-acme-100-0"` format — the real format is `"dev-{8hex_from_uuid_bytes}-{seed}-{n}"` for CrowdStrike, `"dev-{injected_slug}-{seed}-{n}"` for Armis.
+- NVD: `NvdClone::new()` returns `anyhow::Result<Self>` (fallible). `NvdState.cve_registry` is an immutable `HashMap<String, CveRecord>` (NOT `Mutex`-wrapped). There is no `lookup()` method — the method is `NvdState::lookup_and_count(&self, cve_id: &str) -> Option<CveRecord>`. `new_with_scenario` must return `anyhow::Result<Self>`. CVSS score path is `CveRecord.metrics.cvss_metric_v31: Option<Vec<CvssMetricV31>>` → first element `.cvss_data.base_score: f64` and `.base_severity: String`.
+- ThreatIntel: `ThreatIntelClone::new()` is infallible. `ThreatIntelState.fixture_registry` is `Mutex<HashMap<String, FixtureKey>>` — it IS mutable at construction time. `new_with_scenario` can be infallible.
+- Neither `prism-dtu-threatintel` nor `prism-dtu-nvd` have `chrono` as a dependency today. Neither has `fixture-gen` feature declared. Adding `ScenarioEntityCatalog` usage requires adding `fixture-gen = ["prism-dtu-common/fixture-gen"]` feature to both Cargo.toml files. `prism-dtu-common/fixture-gen` transitively enables `prism-core`. This is permitted: `INV-PERIMETER-001` prohibits `prism-dtu-*` from depending on `prism-spec-engine`, `prism-sensors`, or `prism-query` — NOT on `prism-core`. Both `prism-dtu-armis` and `prism-dtu-crowdstrike` already depend on `prism-core` directly. `ScenarioEntityCatalog` carries no `prism-spec-engine` dependency. Perimeter holds.
+- `demo.toml` `stage_duration_secs` array has **4 entries**, corresponding to the cumulative `activates_after_secs` thresholds for stages 1-4. Stage 0 (Baseline) always activates at elapsed=0 and needs no entry. `stage_duration_secs = [60, 180, 360, 600]` means: stage 1 activates at >=60s, stage 2 at >=180s, stage 3 at >=360s, stage 4 at >=600s. The 5-stage timeline is thus specified by a 4-element array.
+
+### 1.4 Constraints from the Existing Architecture
 
 The generator (ADR-009) is a pure function behind `feature = "fixture-gen"` in
-`prism-dtu-common`. The `INV-PERIMETER-001` rule (enforced by compile-fail gate in
+`prism-dtu-common`. `INV-PERIMETER-001` (enforced by compile-fail gate in
 `tests/external/perimeter-violation/`) prohibits `prism-dtu-*` crates from depending
-on `prism-spec-engine`, `prism-sensors`, or `prism-query`. All new types must stay
-within `prism-dtu-common` or the individual DTU clone crates.
-
-The current clone state model (Armis: `ArmisState`, CrowdStrike: `CrowdstrikeState`)
-holds immutable fixture registries loaded once at construction time. `ArmisState`
-has no temporal notion. `GenOpts` has a `time_anchor: DateTime<Utc>` field but it
-is used only as a timestamp anchor for record field values, not for stage gating.
+on `prism-spec-engine`, `prism-sensors`, or `prism-query`. Dependency on `prism-core`
+is permitted and already present in Armis, CrowdStrike, and demo-server.
 
 The demo-server harness (`DemoHarness`, `build_clone_pairs`) constructs all clones
-sequentially and holds them in a `Vec<ClonePair>` with no shared coordinator object.
-There is no existing mechanism to share state across clone instances.
+sequentially and holds them in a `Vec<ClonePair>`. There is no existing mechanism to
+share state across clone instances at construction time (this must be added).
 
 ---
 
@@ -109,45 +142,36 @@ There is no existing mechanism to share state across clone instances.
 
 ### 2.1 Time/Clock Model: Pure Function of Wall-Clock Elapsed Seconds
 
-**Decision:** The progression is computed as a pure function of `(seed,
-scenario_start_epoch_secs, now_secs)` on every inbound HTTP request. There is no
-background mutator task. There are no mutable stage counters. The route handler
-calls `current_stage(scenario_start, Utc::now(), stage_durations) -> StageIndex`
-and projects the full scene for that stage.
+**Decision:** (unchanged from v1.0) The progression is computed as a pure function of
+`(seed, scenario_start_epoch_secs, now_secs)` on every inbound HTTP request. There is
+no background mutator task. There are no mutable stage counters. The route handler calls
+`current_stage_index(scenario_start, Utc::now(), &stages) -> usize` and projects the
+full scene for that stage.
 
 ```text
 elapsed_secs = now_unix_secs - scenario_start_unix_secs
-stage_index  = max stage S such that elapsed_secs >= stage_durations[0..S].sum()
+stage_index  = max stage S such that elapsed_secs >= stages[S].activates_after_secs
 ```
 
-This model has three properties that are critical for the demo:
+**`scenario_start` source.** `CloneConfig` gains `scenario_start_secs: Option<i64>`
+(unix epoch seconds). When `None`, the scenario starts at construction time (stage 0
+immediately). The operator sets an explicit `scenario_start_secs` in `demo.toml` to
+synchronize all DTUs to a shared timeline.
 
-- **Reproducibility.** Same `scenario_start_epoch_secs` + same `seed` + same
-  `elapsed_secs` → identical response bodies. A recording made at T+120s is
-  byte-identical to a live serve at T+120s. This is the only model compatible with
-  BC-3.4.001 determinism and reproducible demo recordings.
+**Stage duration representation.** `CloneConfig` gains
+`stage_duration_secs: Vec<u64>` with 4 entries for the 5-stage default timeline.
+Entry `[i]` is the cumulative `activates_after_secs` for stage `i+1`. Stage 0
+(Baseline) always activates at 0 and needs no entry. When empty, archetype defaults
+are used.
 
-- **No background task.** No tokio `spawn`, no `Arc<AtomicU64>`, no shared mutable
-  progression state. Each request is stateless with respect to progression. This is
-  the correct production-grade default: a background task that mutates shared state
-  across clone boundaries is a concurrency hazard with no benefit (the pure function
-  model is strictly simpler and equally "continuous" from the analyst's perspective).
-
-- **Demo "continuous" feel.** Stage durations are configurable per-scenario in
-  `demo.toml` (e.g., `stage_duration_secs = [60, 120, 180, 300]` for 4 stages at
-  1/2/3/5-minute marks). Between stage transitions the data is stable. During a live
-  demo, the operator can let the demo progress naturally or fast-forward by adjusting
-  the `scenario_start` timestamp. Both are reproducible.
-
-**`scenario_start` source.** `CloneConfig` gains an optional
-`scenario_start_secs: Option<i64>` field (unix epoch seconds). When `None`, the
-clone uses a default of `now - 0` (i.e., the scenario starts at construction time,
-so the demo begins at stage 0). The operator sets an explicit `scenario_start_secs`
-in `demo.toml` to synchronize all DTUs to a shared timeline.
-
-**Stage duration defaults.** The `IncidentTimeline` (Section 2.2) defines default
-stage durations. `demo.toml` can override them per-client via a `[clones.*.scenario]`
-block (see Section 2.4).
+**`demo.toml` canonical example:**
+```toml
+[clones.crowdstrike.scenario]
+enabled = true
+archetype = "compromised_endpoint"
+scenario_start_secs = 1749456000
+stage_duration_secs = [60, 180, 360, 600]  # 4 entries for stages 1-4 activation thresholds
+```
 
 ### 2.2 The `IncidentTimeline` and `ScenarioEntityCatalog`: Shared Abstractions in `prism-dtu-common`
 
@@ -163,15 +187,22 @@ is a pure-data struct computed from `(seed, org_id)` at construction time. It co
 /// Shared entity catalog for one client's incident scenario.
 /// Produced once at harness construction time from (seed, org_id).
 /// All DTU projections for this client derive their entity IDs from this catalog.
+#[non_exhaustive]
 #[derive(Clone, Debug)]
 pub struct ScenarioEntityCatalog {
     /// The primary compromised device ID (used by Armis, CrowdStrike, Claroty, Cyberint).
-    /// Format: "dev-{org_slug}-{seed}-0"  (first device in CompromisedEndpoint generator).
-    pub primary_device_id: String,
+    /// Format for CrowdStrike: "dev-{8hex}-{seed}-0"
+    /// where 8hex = hex(org_id.as_bytes()[0..4]).
+    /// Format for Armis: "dev-{org_slug}-{seed}-0"
+    /// where org_slug is injected as an explicit arg to the Armis generator.
+    /// The harness derives org_slug from org_id bytes consistently.
+    pub primary_device_id_cs: String,    // CrowdStrike format
+    pub primary_device_id_armis: String, // Armis format (same derivation, explicit slug arg)
     /// Hostname for the compromised device (consistent across DTUs).
     pub primary_hostname: String,
     /// Secondary device IDs involved in lateral movement.
-    pub lateral_devices: Vec<String>,
+    pub lateral_device_ids_cs: Vec<String>,
+    pub lateral_device_ids_armis: Vec<String>,
     /// IOC IPv4 addresses introduced during Exfil stage.
     /// These MUST resolve as malicious in ThreatIntel.
     pub ioc_ips: Vec<String>,
@@ -180,20 +211,40 @@ pub struct ScenarioEntityCatalog {
     /// IOC SHA256 file hashes introduced during LateralMovement stage.
     pub ioc_hashes: Vec<String>,
     /// CVE IDs assigned to the primary device.
-    /// These MUST resolve in NVD.
+    /// These MUST resolve in NVD (cvss_metric_v31[0].cvss_data.base_score >= 7.0).
     pub device_cves: Vec<String>,
+    /// Canonical org_slug derived from org_id bytes (hex of first 4 bytes).
+    /// Used by both CrowdStrike and Armis generators for consistent ID derivation.
+    pub org_slug: String,
 }
 ```
 
-The catalog is derived deterministically from `(seed, org_id)`:
-- `primary_device_id` matches the first device ID that the `CompromisedEndpoint`
-  generator produces for this `(seed, org_id)` pair (i.e., `"dev-{org_slug}-{seed}-0"`).
-  This is NOT a fresh invention — it reuses the existing ID format from ADR-009 §2.5
-  and `gen_compromised_endpoint` in `crates/prism-dtu-crowdstrike/src/generator.rs`.
-- IOC IPs, domains, hashes, and CVE IDs are derived from `seeded_rng(seed + 1, org_id)`
-  (a secondary RNG stream so the catalog derivation does not consume generator RNG state).
-  They are formatted with org-slug prefixes where applicable (e.g.,
-  `"ioc-{org_slug}-{seed}-0.evil.example.com"`) to maintain cross-client disjointness.
+**Canonical org_slug derivation (authoritative, fixes U-03/U-06):**
+
+```rust
+/// Derive the canonical org_slug from OrgId bytes.
+/// Formula: hex(org_id.as_bytes()[0..4]) — 8 hex characters.
+/// This matches CrowdStrike generator's internal `org_slug()` function exactly.
+/// Armis generator receives this value as the `org_slug: &str` argument.
+pub fn org_slug_from_org_id(org_id: &OrgId) -> String {
+    let b = org_id.as_bytes();
+    format!("{:02x}{:02x}{:02x}{:02x}", b[0], b[1], b[2], b[3])
+}
+```
+
+**Device ID format (authoritative, fixes U-03):**
+
+- CrowdStrike: `"dev-{org_slug}-{seed}-{n}"` where `org_slug = org_slug_from_org_id(org_id)`.
+  Example: org_id whose bytes start `[0xde, 0xad, 0xbe, 0xef, ...]` → slug `"deadbeef"` →
+  `primary_device_id_cs = "dev-deadbeef-42-0"` (seed=42).
+- Armis: `"dev-{org_slug}-{seed}-{n}"` — same formula, same slug, same result.
+  Armis generator receives `org_slug` as `&str` argument; the catalog passes `&catalog.org_slug`.
+
+**Catalog derivation from `(seed, org_id)`:**
+
+- IOC IPs, domains, hashes, and CVE IDs are derived from `seeded_rng(seed.wrapping_add(1), &org_id)`
+  (secondary RNG stream, independent of primary generator stream).
+- CVE IDs formatted as `"CVE-{year}-{n}"` where year and n are derived from the secondary RNG.
 
 #### `IncidentTimeline`
 
@@ -203,27 +254,22 @@ The catalog is derived deterministically from `(seed, org_id)`:
 #[non_exhaustive]
 #[derive(Clone, Debug)]
 pub struct IncidentTimeline {
-    /// The entity catalog shared by all DTU projections.
     pub entities: ScenarioEntityCatalog,
-    /// Ordered stage definitions. Stage 0 is always the baseline.
     pub stages: Vec<IncidentStage>,
-    /// Unix epoch seconds at which the scenario started.
     pub scenario_start_epoch_secs: i64,
 }
 
 #[non_exhaustive]
 #[derive(Clone, Debug)]
 pub struct IncidentStage {
-    /// Human name for demo narration (e.g., "Recon", "LateralMovement").
     pub name: &'static str,
     /// Cumulative elapsed seconds from scenario_start before this stage activates.
+    /// Stage 0 (Baseline) always has activates_after_secs = 0.
     pub activates_after_secs: u64,
-    /// Which entity subsets are visible at this stage (bit-flag or Vec<EntityRef>).
     pub visible_entity_mask: StageMask,
 }
 
-/// Which entities from ScenarioEntityCatalog are visible at a given stage.
-/// Controls per-DTU projection logic (Section 2.3).
+#[non_exhaustive]
 #[derive(Clone, Debug)]
 pub struct StageMask {
     pub primary_device: bool,
@@ -235,22 +281,22 @@ pub struct StageMask {
 }
 ```
 
-**Default `CompromisedEndpoint` stage definitions:**
+**Default `CompromisedEndpoint` stage definitions (5 stages, 4-entry `stage_duration_secs`):**
 
-| Stage | Name | Activates after | Visible |
-|-------|------|-----------------|---------|
-| 0 | `Baseline` | 0s | primary device only; no alerts |
-| 1 | `Recon` | 60s | primary device + low-severity alerts |
-| 2 | `LateralMovement` | 180s | primary + lateral devices; IOC hashes emerge |
-| 3 | `Exfil` | 360s | all devices; IOC IPs + domains emerge |
-| 4 | `Containment` | 600s | primary device contained; all IOCs; CVEs visible in NVD |
+| Stage | Name | activates_after_secs | stage_duration_secs index | Visible |
+|-------|------|----------------------|--------------------------|---------|
+| 0 | `Baseline` | 0s | (none — always first) | primary device only; no alerts |
+| 1 | `Recon` | 60s | [0] | primary device + low-severity alerts |
+| 2 | `LateralMovement` | 180s | [1] | primary + lateral devices; IOC hashes emerge |
+| 3 | `Exfil` | 360s | [2] | all devices; IOC IPs + domains emerge |
+| 4 | `Containment` | 600s | [3] | primary device contained; all IOCs; CVEs visible in NVD |
 
-Stage durations are overridable via `[clones.*.scenario.stage_duration_secs]` in
-`demo.toml`. The stage activation logic is a pure function:
+`stage_duration_secs = [60, 180, 360, 600]` — 4 entries, one per non-zero stage activation
+threshold. `stages[0].activates_after_secs = 0` always; it is not represented in the array.
+
+**`current_stage_index` (pure function):**
 
 ```rust
-/// Compute the current stage index for this timeline.
-/// Pure function of current time: no mutations, no side effects.
 pub fn current_stage_index(timeline: &IncidentTimeline, now_epoch_secs: i64) -> usize {
     let elapsed = (now_epoch_secs - timeline.scenario_start_epoch_secs).max(0) as u64;
     let mut stage = 0;
@@ -263,109 +309,114 @@ pub fn current_stage_index(timeline: &IncidentTimeline, now_epoch_secs: i64) -> 
 }
 ```
 
-### 2.3 Per-DTU Projection
+### 2.3 Per-DTU Projection — The Retrofit Design (corrects v1.0 §2.3)
 
-Each generator-backed clone projects the `IncidentTimeline` into its own API response
-shape. The projection function is per-DTU and co-located with that DTU's generator
-module.
+**The critical design correction from v1.0:** Because the demo-server clones currently
+have NO `FixtureSet` in their serving path (U-01), the stage-mask approach requires a
+two-phase retrofit:
 
-#### Generator-backed clones (Armis, CrowdStrike, Claroty, Cyberint)
+**Phase A (Story A — BC-2.06.018 baseline retrofit):** Wire the generators into the
+demo-server clone serving path. Each generator-backed clone gains a `new_with_seed`
+constructor that:
+1. Calls `generate(org_id, [org_slug,] archetype, &GenOpts { seed, .. })` to produce
+   a `FixtureSet`.
+2. Stores the generated records in a new field `generated_records: Vec<serde_json::Value>`
+   in the state struct (alongside the existing static-JSON fixture fields).
+3. Route handlers serve from `generated_records` when this field is populated; fall
+   back to `devices_ordered` / static fixtures when empty.
+4. `new()` constructors are unchanged (static JSON path, backward-compatible).
 
-Each clone's state struct gains an optional `timeline: Option<Arc<IncidentTimeline>>`.
-When `None`, the clone serves a static snapshot (backward-compatible path — Section 2.5).
-When `Some(timeline)`, the route handlers:
+This is the "baseline seeding" requirement of BC-2.06.018 — per-client distinct data
+from `CloneConfig.seed` — and it is entirely absent today. Without it, BC-2.06.018's
+postconditions 1-3 are unimplemented.
 
-1. Call `current_stage_index(&timeline, Utc::now().timestamp())` to determine the
-   active stage and its `StageMask`.
-2. Filter the pre-generated `FixtureSet` records using the stage mask:
-   - Devices/assets not yet visible in the current stage are withheld from the response.
-   - Alert records use the stage to determine severity progression (recon: LOW;
-     lateral movement: MEDIUM+; exfil: CRITICAL).
-3. The underlying `FixtureSet` is generated once at construction time (same as today),
-   and the stage mask is applied as a per-request filter — NO re-generation on each
-   request.
+**Phase B (Story B — BC-2.06.019 + BC-2.06.020 scenario progression):** Add the
+`IncidentTimeline` layer on top of the Phase A substrate. Each generator-backed clone's
+state gains `timeline: Option<Arc<IncidentTimeline>>`. Route handlers that already serve
+from `generated_records` add the stage-mask filter. New constructors
+`new_with_scenario(seed, archetype, org_id, timeline)` combine Phase A generation with
+Phase B timeline attachment.
 
-This design is critical: the generator runs once (deterministic, at construction time),
-and the stage mask selects a subset of those records per request. The records
-themselves never change; only which records are visible changes over time.
+#### Generator-backed clones: per-clone retrofit scope
 
-**CrowdStrike specifics.** The `CompromisedEndpoint` generator already marks
-`device[0]` as `containment_status = "contained"` and generates 5 severity_id ≥ 4
-detections. At `Containment` stage, the `contained` status becomes visible; at earlier
-stages, `normal` is served for that device. This is implemented by a stage-aware
-projection in the detections and devices routes.
+**CrowdStrike** (`crates/prism-dtu-crowdstrike/src/`):
+- `CrowdstrikeState` gains `generated_devices: Vec<serde_json::Value>` and
+  `generated_detections: Vec<serde_json::Value>` (from FixtureSet, filtered by
+  `_record_type`).
+- New constructor `CrowdstrikeClone::new_with_seed(seed: u64, org_id: OrgId)` calls
+  `generate(org_id, Archetype::CompromisedEndpoint, GenOpts { seed, .. })` under
+  `#[cfg(feature = "fixture-gen")]`.
+- Route `routes/hosts.rs` and `routes/detections.rs` serve `generated_devices` /
+  `generated_detections` when non-empty; fall back to stateful-write-target path
+  (existing behavior) when empty.
+- `fixture-gen` feature already declared in `Cargo.toml` (`fixture-gen = ["prism-dtu-common/fixture-gen"]`).
+- `chrono` already a direct dependency.
+- Org_slug for ID generation: `org_slug_from_org_id(&org_id)` (8 hex chars from UUID bytes).
 
-**Armis specifics.** Armis device inventory shows the primary device from stage
-`Recon` onward. At `Containment` stage, the device's `risk_level` is elevated.
+**Armis** (`crates/prism-dtu-armis/src/`):
+- `ArmisState` gains `generated_records: Vec<serde_json::Value>` alongside the
+  existing `devices_ordered: Vec<DeviceRecord>` and `alert_fixture: Vec<AlertRecord>`.
+- New constructor `ArmisClone::new_with_seed(seed: u64, org_id: OrgId, org_slug: &str)`.
+  Under `#[cfg(feature = "fixture-gen")]`, calls
+  `generate(org_id, org_slug, Archetype::CompromisedEndpoint, &GenOpts { seed, .. })`.
+  Stores FixtureSet records in `generated_records`.
+- Route `routes/devices.rs` `paginate_devices` serves from `generated_records` when
+  non-empty, deserialized as `DeviceRecord`; falls back to `devices_ordered`.
+- `fixture-gen` feature already declared in `Cargo.toml`.
+- `chrono` already a direct dependency.
+
+**Claroty** (`crates/prism-dtu-claroty/src/`): same pattern — `new_with_seed`, generated
+records in state, route handler fallback logic. The Claroty generator signature must be
+read before implementing (out of scope for this ADR; Story A implementer reads it).
+
+**Cyberint** (`crates/prism-dtu-cyberint/src/`): same pattern. Cyberint constructor is
+currently fallible (`CyberintClone::new() -> anyhow::Result<Self>`); `new_with_seed`
+is also fallible.
 
 #### Enrichment clones (ThreatIntel, NVD)
 
-ThreatIntel and NVD have no generator today. They serve a static registry
-(`fixture_registry: Mutex<HashMap<String, FixtureKey>>`). The mechanism for
-scenario-correlation is **scenario-keyed registry injection at construction time**
-— NOT a new generator.
+**Decision: static lookup injection at construction time** (unchanged from v1.0 §2.3).
+These are pure key-value lookup stores; no generator needed.
 
-**Decision: static lookup injection, not a new generator.** The rationale: ThreatIntel
-and NVD serve pure lookup semantics (key → value with no pagination, no session state,
-no archetype-specific shapes). A lookup table injected at construction time is
-architecturally simpler, faster to test, and sufficient for the demo requirement. A
-full generator for ThreatIntel/NVD adds complexity without behavioral value (there is
-no SOC demo narrative benefit to generating thousands of random IOCs — the analyst
-investigates the *specific* IOCs from the scenario).
+**ThreatIntel** (`crates/prism-dtu-threatintel/src/`):
+- New constructor: `ThreatIntelClone::new_with_scenario(entities: &ScenarioEntityCatalog) -> Self`.
+  (Infallible — mirrors `ThreatIntelClone::new()` which is infallible.)
+- Implementation: calls `with_admin_token`, then pre-populates `fixture_registry`
+  (which is `Mutex<HashMap<String, FixtureKey>>`) by inserting all `entities.ioc_ips`,
+  `entities.ioc_domains`, and `entities.ioc_hashes` with `FixtureKey::Malicious`.
+- Feature requirement: add `fixture-gen = ["prism-dtu-common/fixture-gen"]` to
+  `crates/prism-dtu-threatintel/Cargo.toml`. (No `chrono` needed for this constructor.)
+- INV-PERIMETER-001: `ScenarioEntityCatalog` is in `prism-dtu-common`. No
+  `prism-spec-engine`/`prism-sensors`/`prism-query` dependency introduced.
 
-**Implementation:** When `build_clone_pairs` constructs ThreatIntel and NVD with
-an active scenario, it calls an overloaded constructor `ThreatIntelClone::new_with_scenario`
-and `NvdClone::new_with_scenario` that pre-populates the registry:
+**NVD** (`crates/prism-dtu-nvd/src/`):
+- New constructor: `NvdClone::new_with_scenario(entities: &ScenarioEntityCatalog) -> anyhow::Result<Self>`.
+  (Fallible — mirrors `NvdClone::new()` return type.)
+- `NvdState.cve_registry` is an **immutable** `HashMap<String, CveRecord>` built at
+  construction time and never mutated after. Injection happens at construction by
+  including `entities.device_cves` entries in the initial `HashMap`.
+- `NvdClone::new_with_scenario` builds the registry by: loading base fixtures from
+  `fixtures/cves.json` (same as `new()`), then inserting synthetic `CveRecord` entries
+  for each CVE ID in `entities.device_cves` with:
+  - `metrics.cvss_metric_v31 = Some(vec![CvssMetricV31 { cvss_data: CvssData { base_score: 8.1, base_severity: "HIGH".to_string(), .. }, .. }])`
+  - (Base path: `CveRecord.metrics: CveMetrics` → `.cvss_metric_v31: Option<Vec<CvssMetricV31>>` → `[0].cvss_data: CvssData` → `.base_score: f64`, `.base_severity: String`)
+- Feature requirement: add `fixture-gen = ["prism-dtu-common/fixture-gen"]` to
+  `crates/prism-dtu-nvd/Cargo.toml`. (No `chrono` needed for this constructor — CVE
+  timestamp fields are static strings.)
+- INV-PERIMETER-001: as with ThreatIntel, only `prism-dtu-common` is added. Perimeter holds.
 
-- `ThreatIntelClone::new_with_scenario(entities: &ScenarioEntityCatalog)`: inserts
-  `entities.ioc_ips`, `entities.ioc_domains`, and `entities.ioc_hashes` into
-  `fixture_registry` with `FixtureKey::Malicious`. All other lookups return the default
-  registry behavior (Benign or Unknown).
+#### Stage-gate enrichment
 
-- `NvdClone::new_with_scenario(entities: &ScenarioEntityCatalog)`: inserts
-  `entities.device_cves` into `cve_registry` with realistic synthetic CVSS records
-  (severity HIGH, CVSS 8.1, vector string that implies the attack type). CVE IDs
-  not in `device_cves` continue to resolve normally (or return 404 for unknown IDs).
-
-Both constructors satisfy `INV-PERIMETER-001`: they accept a `ScenarioEntityCatalog`
-(from `prism-dtu-common`) and do not depend on `prism-spec-engine` or `prism-sensors`.
-
-**Stage-gate enrichment.** ThreatIntel IOCs resolve as Malicious from the moment
-the clone starts (the analyst can look them up at any stage). NVD CVEs also resolve
-immediately. This is intentional: the analyst *discovers* the IOCs and CVEs by
-running queries against Armis/CrowdStrike/Cyberint that surface them at the
-appropriate stage, then pivots to ThreatIntel/NVD to enrich. The enrichment DTUs
-are always "ready" — the stage progression is driven by the operational DTUs, not
-the enrichment DTUs.
+ThreatIntel IOCs and NVD CVEs resolve as soon as the clone starts. The analyst discovers
+IOCs/CVEs at the appropriate operational DTU stage, then pivots to enrichment. Enrichment
+DTUs are always "ready" — stage progression is driven by the operational DTUs.
 
 ### 2.4 Cross-Clone Coordination: `ScenarioConfig` in `demo.toml`
 
 The shared `ScenarioEntityCatalog` is constructed once in `build_clone_pairs` and
 distributed to each clone constructor. This is the coordination point.
 
-**New `demo.toml` fields:**
-
-```toml
-[clones.crowdstrike.scenario]
-enabled = true
-archetype = "compromised_endpoint"  # maps to IncidentTimeline variant
-scenario_start_secs = 1749456000    # unix epoch; omit for "now"
-stage_duration_secs = [60, 180, 360, 600]  # cumulative activation seconds
-
-[clones.armis.scenario]
-enabled = true
-archetype = "compromised_endpoint"
-scenario_start_secs = 1749456000    # SAME value as crowdstrike — cross-DTU sync
-
-# ThreatIntel and NVD: no stage config needed — they receive entity catalog at construction
-[clones.threatintel.scenario]
-enabled = true
-
-[clones.nvd.scenario]
-enabled = true
-```
-
-**`CloneConfig` extension:**
+**`CloneConfig` extension (adds `org_id`, `scenario_start_secs`, `stage_duration_secs`):**
 
 ```rust
 #[derive(Debug, Clone, Deserialize, Serialize, Default)]
@@ -373,48 +424,67 @@ pub struct ScenarioConfig {
     #[serde(default)]
     pub enabled: bool,
     #[serde(default = "default_scenario_archetype")]
-    pub archetype: String,  // "compromised_endpoint" | "healthy" | ... (extensible)
+    pub archetype: String,  // "compromised_endpoint" (only supported value in v1)
     #[serde(default)]
     pub scenario_start_secs: Option<i64>,
+    /// 4-entry array: activates_after_secs thresholds for stages 1..=4.
+    /// Empty = use archetype defaults ([60, 180, 360, 600]).
     #[serde(default)]
-    pub stage_duration_secs: Vec<u64>,  // empty = use archetype defaults
+    pub stage_duration_secs: Vec<u64>,
 }
 ```
 
-**`build_clone_pairs` coordination logic:**
+**`DemoConfig`/`CloneConfig` must also gain `org_id`** (to construct `OrgId` for
+`seeded_rng` and catalog derivation). This is a new required field for scenario mode:
 
-1. Parse `ScenarioConfig` from `DemoConfig`. If any clone has `scenario.enabled = true`,
-   derive the shared `ScenarioEntityCatalog` from `(seed, org_id)` using the first
-   enabled clone's seed (all enabled clones in a client config MUST have the same seed
-   — if they differ, `build_clone_pairs` returns `E-DEMO-002`).
-2. Construct the `IncidentTimeline` from the catalog + stage definitions.
-3. Pass `Arc<IncidentTimeline>` to each generator-backed clone constructor as an optional
-   parameter: `CrowdstrikeClone::new_with_scenario(seed, archetype, org_id, timeline)`.
-4. Pass `&ScenarioEntityCatalog` to `ThreatIntelClone::new_with_scenario` and
-   `NvdClone::new_with_scenario`.
-5. When `scenario.enabled = false` for a clone (or the `[clones.*.scenario]` block is
-   absent), the clone is constructed with the static path (backward-compatible with
-   BC-2.06.018 postcondition 4).
+```rust
+// In CloneConfig (or in a new top-level [scenario] section)
+/// Org UUID (hyphenated) for this demo client.
+/// Required when scenario.enabled = true for any clone.
+/// Used to construct prism_core::OrgId for seeded_rng and catalog derivation.
+pub org_id: Option<String>,  // parsed as uuid::Uuid → OrgId
+```
+
+**`build_clone_pairs` coordination logic (complete, corrects v1.0 §2.4):**
+
+1. If any clone has `scenario.enabled = true`: read `config.clones.*.org_id` (required
+   when scenario enabled; return `E-DEMO-004` if absent).
+2. Parse `org_id` string as `uuid::Uuid` → `OrgId`. All scenario-enabled clones MUST
+   share the same `seed` — if they differ, return `E-DEMO-002`.
+3. Derive `org_slug = org_slug_from_org_id(&org_id)` (8 hex chars from UUID bytes).
+4. Build `ScenarioEntityCatalog` from `(seed, org_id, org_slug)`.
+5. Build `IncidentTimeline` from catalog + stage definitions.
+6. Construct generator-backed clones with `new_with_scenario(seed, archetype, org_id, Arc::clone(&timeline))`.
+7. Construct ThreatIntel with `ThreatIntelClone::new_with_scenario(&catalog)`.
+8. Construct NVD with `NvdClone::new_with_scenario(&catalog)?`.
+9. When `scenario.enabled = false` (or absent): construct with existing `new()` /
+   `new_with_access_token()` path (backward-compatible with BC-2.06.018 postcondition 4).
 
 ### 2.5 Backward Compatibility and Perimeter
 
 **Backward-compatible path.** All existing constructors (`CrowdstrikeClone::new()`,
 `ArmisClone::new()`, etc.) are unchanged. Scenario progression is opt-in via the
-`[clones.*.scenario]` block in `demo.toml`. When absent, behavior is byte-identical
-to pre-ADR-036 behavior (BC-2.06.018 postcondition 4).
+`[clones.*.scenario]` block. When absent, behavior is byte-identical to pre-ADR-036
+behavior (BC-2.06.018 postcondition 4).
 
 **INV-PERIMETER-001.** `ScenarioEntityCatalog` and `IncidentTimeline` live in
 `prism-dtu-common` (behind `feature = "fixture-gen"`). They carry no dependency on
 `prism-spec-engine`, `prism-sensors`, or `prism-query`. The compile-fail gate in
 `tests/external/perimeter-violation/` continues to hold.
 
-**Static-fixture path unaffected.** ThreatIntel and NVD `new()` constructors load
-the default registry unchanged. Only `new_with_scenario` injects scenario-correlated
-entries.
+**Non-exhaustive gate (ci.yml EXPECTED=49).** Adding new constructors (`new_with_seed`,
+`new_with_scenario`) to public types does NOT change the EXPECTED count — EXPECTED
+counts `#[non_exhaustive]` types and struct/enum violation rows, not constructors. The
+`ScenarioEntityCatalog` and `IncidentTimeline` types ARE `#[non_exhaustive]`, so they
+each need a violation row and the EXPECTED count MUST increase (2 new public
+`#[non_exhaustive]` types in `prism-dtu-common` → EXPECTED increases from 49 to 51,
+pending exact count by Story A/B implementer). The implementer MUST update both the
+`tests/external/non-exhaustive-violation/` crate and `ci.yml EXPECTED=` atomically.
 
-**Single-instance regression safety.** Existing integration tests that instantiate
-clones without a `ScenarioConfig` are unaffected. The `Option<Arc<IncidentTimeline>>`
-field in state structs defaults to `None`, and `None` → static snapshot path.
+**`fixture-gen` feature propagation.** Adding `fixture-gen = ["prism-dtu-common/fixture-gen"]`
+to `prism-dtu-threatintel/Cargo.toml` and `prism-dtu-nvd/Cargo.toml` is safe. The
+`ScenarioEntityCatalog` type is gated `#[cfg(feature = "fixture-gen")]`; production
+binaries that do not activate this feature are unaffected.
 
 ---
 
@@ -422,58 +492,40 @@ field in state structs defaults to `None`, and `None` → static snapshot path.
 
 ### 3.1 Pure-function-of-time over background-mutator
 
-The primary alternative for "continuous" progression is a background tokio task that
-periodically updates shared mutable state (e.g., an `AtomicUsize` stage counter
-or a `Mutex<StageIndex>` in each clone). This is rejected for three reasons:
+(unchanged from v1.0 §3.1 — the reasoning is correct and unaffected by U-01/U-02)
 
-1. **Non-reproducibility.** A background task advances the stage counter at wall-clock
-   intervals. The exact stage at demo time T depends on when the process started, not
-   on a deterministic function of inputs. Demo recordings taken with `demo-recorder`
-   would capture a stage that cannot be reproduced exactly in a unit test without
-   mocking `SystemTime`. The pure-function model makes every request a deterministic
-   function of `(seed, scenario_start_secs, now_secs)` — testable without mocking
-   shared state.
+The primary alternative is a background tokio task that mutates shared mutable state.
+This is rejected for three reasons:
+1. Non-reproducibility: exact stage depends on process start time, not a deterministic function.
+2. Cross-clone synchronization hazard: independent background tasks can diverge by one poll interval.
+3. Concurrency complexity: `Arc<Mutex<StageIndex>>` inside axum violates `await_holding_lock = "deny"` (ADR-002 §H1).
 
-2. **Cross-clone synchronization hazard.** If each clone runs its own background task,
-   stage transitions between Armis and CrowdStrike can diverge by one polling interval,
-   producing incoherent cross-DTU snapshots (Armis says stage 2, CrowdStrike says
-   stage 1). The pure-function model uses a single shared `scenario_start_epoch_secs`
-   field — all clones compute the same stage from the same inputs, guaranteed.
+### 3.2 Retrofit-generate over per-request regeneration
 
-3. **Concurrency complexity.** A background task mutating `Arc<Mutex<StageIndex>>`
-   inside a running axum server creates a shared mutable state pattern that
-   `await_holding_lock = "deny"` (ADR-002 §H1) makes hazardous. The pure function
-   requires no locks on the progression state.
+The v1.0 §2 "filter the pre-generated FixtureSet" approach is still the correct
+production-grade design — generate once at construction, filter per-request. The v2.0
+correction is that "generate once at construction" requires a new constructor path since
+the current `new()` constructors do NOT call `generate()`. The per-request regeneration
+alternative (Option B from §5) is still rejected for the same reasons.
 
-### 3.2 Lookup injection over new ThreatIntel/NVD generator
+### 3.3 Lookup injection over new ThreatIntel/NVD generator
 
-Generating a full IOC/CVE dataset for ThreatIntel and NVD would require specifying:
-record count, threat score distributions, CVSS vector generation logic, CWE weighting,
-KEV subset logic — a substantial specification and test burden for purely cosmetic
-coverage. The lookup injection approach covers the only behavioral invariant that
-matters: the scenario's IOCs resolve as Malicious and the scenario's CVEs resolve with
-data. Everything else in those registries retains its default behavior.
+(unchanged from v1.0 §3.2 — ThreatIntel and NVD serve pure key-value lookups; lookup
+injection is simpler, sufficient, and directly testable)
 
-### 3.3 Shared `ScenarioEntityCatalog` over per-DTU entity derivation
+### 3.4 Shared `ScenarioEntityCatalog` over per-DTU entity derivation
 
-An alternative approach is to derive entity IDs independently in each DTU generator
-from the same `(seed, org_id)` tuple. This is rejected because it requires every
-DTU generator to implement the same derivation logic and keep it synchronized. A
-subtle divergence in derivation — one DTU calls `seeded_rng(seed, org_id)` and
-generates 5 records before deriving the IOC IPs; another starts from a fresh RNG
-stream — produces different IOC IPs in different DTUs, breaking cross-DTU coherence.
-The shared catalog is the authoritative source of truth; DTU projections read from it
-rather than re-derive entity identifiers.
+(unchanged from v1.0 §3.3 — the shared catalog is the authoritative entity namespace;
+per-DTU independent derivation risks RNG state consumption divergence)
 
-### 3.4 `prism-dtu-common` as the home for scenario types
+### 3.5 CrowdStrike device ID format correction
 
-The scenario types (`ScenarioEntityCatalog`, `IncidentTimeline`, `IncidentStage`,
-`StageMask`) follow the same placement decision as ADR-009 §2.8: they belong in
-`prism-dtu-common` behind `feature = "fixture-gen"` because they are shared test
-infrastructure consumed by all DTU crates. Creating a separate `prism-dtu-scenario`
-crate would split the generator and scenario modules across two crates with a
-unidirectional dependency (scenario → generator) that provides no architectural
-benefit for the current scope.
+The v1.0 design cited `"dev-acme-100-0"` as an example cross-DTU device ID. This format
+is incorrect. The real CrowdStrike generator `org_slug()` function derives the slug from
+UUID bytes (`hex(org_id.as_bytes()[0..4])`), producing an 8-character hex string.
+`"dev-acme-..."` was a placeholder that does not match any real generator output.
+The canonical format is `"dev-{8hex}-{seed}-{n}"`. All spec documents, tests, and
+example configurations MUST use the canonical format with an actual org UUID.
 
 ---
 
@@ -481,189 +533,195 @@ benefit for the current scope.
 
 ### Positive
 
-- A SOC-analyst demo from any stage is reproducible: set `scenario_start_secs` in
-  `demo.toml`, and the same demo runs at the same stage every time — no "get there
-  before the stage expires" fragility.
-- Cross-DTU join is coherent: the same `primary_device_id` appears in Armis, CrowdStrike,
-  and Claroty because all projections draw from `ScenarioEntityCatalog`. The analyst's
-  PrismQL JOIN across sensor tables surfaces a believable incident.
-- ThreatIntel and NVD enrichment are scenario-correlated without a new generator:
-  lookup injection is simple, testable, and sufficient.
-- Backward compatibility is structural: `Option<Arc<IncidentTimeline>>` = `None` is the
-  static path; existing tests are unaffected.
-- No background tasks, no shared mutable progression state: the progression layer is
-  zero-overhead when `scenario.enabled = false`, and pure-function-overhead (two
-  timestamp comparisons per request) when `true`.
+- The baseline seeding retrofit (Story A) unblocks BC-2.06.018 implementation and
+  provides the substrate that BC-2.06.019 / BC-2.06.020 require.
+- A SOC-analyst demo from any stage is reproducible (same `scenario_start_secs` + same
+  `seed` → same timeline every time).
+- Cross-DTU join is coherent: same `org_slug`, same `seed` → same device ID prefix
+  across all operational DTUs via the shared `ScenarioEntityCatalog`.
+- ThreatIntel and NVD enrichment are scenario-correlated without a new generator.
+- No background tasks, no shared mutable progression state.
 
 ### Negative / Trade-offs
 
-- `CloneConfig` gains a `ScenarioConfig` field. `build_clone_pairs` gains scenario
-  coordination logic (approximately 40-60 lines). This increases demo-server complexity.
-- The stage mask applied per-request means that even though the FixtureSet is generated
-  once, the route handlers must implement filtering logic — two code paths (static path,
-  scenario path) per route. Each DTU's routes need the additional match arm.
-- `scenario_start_secs` must be kept synchronized across all DTUs in `demo.toml`.
-  If the operator sets different values for different clones, `build_clone_pairs`
-  returns `E-DEMO-002` (construction-time error, not a silent divergence).
-- The `ScenarioEntityCatalog` derivation uses a secondary RNG stream (`seed + 1`).
-  This is a convention that must be documented and must not conflict with the primary
-  generator's RNG consumption. The secondary stream is safe because the CrowdStrike
-  and Armis generators call `seeded_rng(seed, org_id)` (primary stream); the catalog
-  derivation calls `seeded_rng(seed.wrapping_add(1), org_id)` (secondary stream) — these
-  are independent `ChaCha20Rng` instances with different seeds, not sequential
-  consumers of the same stream.
-
-### Status as of v1.0 (2026-06-09)
-
-ACCEPTED — not yet implemented. Governs S-DEMO-DTU-LIVE-SCENARIO-001 (T5 in
-multi-client-soc-demo-tasks.md). BCs BC-2.06.019 and BC-2.06.020 are pending PO
-authorship (T4 obligations). Implementation begins after PO authors both BCs and
-story-writer assembles the single larger live-scenario story.
+- Story A (baseline retrofit) is non-trivial: 4 generator-backed clones each need a
+  new `new_with_seed` constructor and route-handler dual-path logic. This is ~2-3 days
+  of implementation per the story split estimate in Section 8.
+- `DemoConfig` gains `org_id` as a new required field for scenario mode — operators
+  must supply a UUID in `demo.toml`. A validation error at startup (`E-DEMO-004`)
+  surfaces this immediately.
+- `ScenarioEntityCatalog` and `IncidentTimeline` are `#[non_exhaustive]`, so the
+  ci.yml `EXPECTED` counter must be incremented by the implementer (from 49 to 51,
+  exact count to be verified by the implementer reading the non-exhaustive gate).
 
 ---
 
 ## 5. Alternatives Considered
 
-- **Option A — Background mutation task.** Each clone runs a tokio task that advances
-  a `Mutex<StageIndex>` on a timer. Rejected: non-reproducible across restarts,
-  cross-clone synchronization hazard, concurrency complexity (see Rationale §3.1).
+- **Option A — Background mutation task.** Rejected: non-reproducible, cross-clone
+  synchronization hazard, `await_holding_lock` violation (see §3.1).
 
-- **Option B — Per-request re-generation.** Call `generate(...)` on every inbound
-  request with a time-parameterized `GenOpts` to produce a stage-appropriate fixture.
-  Rejected: generation is not free (it builds `Vec<Value>`); calling it per-request
-  under load would create latency spikes. More importantly, re-generation on every
-  request conflicts with the `FixtureSet` being the stable reference for stage-mask
-  filtering — if fields like `containment_status` are re-generated each request, they
-  could differ between two simultaneous requests from the same analyst in the same
-  stage (race on non-deterministic timestamp-based RNG seeding).
+- **Option B — Per-request re-generation.** Rejected: generation latency per-request;
+  concurrent requests in the same stage can produce different field values.
 
-- **Option C — Poll-count-based staging.** Stage advances on the N-th poll, not on
-  wall-clock time. Rejected: poll-count staging ties the progression to prism's polling
-  frequency, which is an operational detail not visible to the demo operator. The
-  demo operator needs to know "the exfil stage starts 6 minutes in" — wall-clock
-  progression is the right abstraction for demo planning.
+- **Option C — Poll-count-based staging.** Rejected: ties progression to prism polling
+  frequency; operators need wall-clock "6 minutes in" semantics.
 
-- **Option D — ThreatIntel/NVD generator.** Build a full generator for ThreatIntel
-  and NVD analogous to the CrowdStrike generator. Rejected: the enrichment DTUs serve
-  pure key-value lookups. A generator that produces thousands of random IOCs and CVEs
-  adds specification and maintenance burden without improving demo believability. The
-  demo analyst enriches the *specific* scenario IOCs, not a random sample. Lookup
-  injection is sufficient.
+- **Option D — ThreatIntel/NVD generator.** Rejected: enrichment DTUs serve pure
+  key-value lookups; a full generator adds specification burden without demo value.
 
-- **Option E — Per-DTU independent entity derivation.** Each DTU generator derives
-  entity IDs from the same `(seed, org_id)` independently. Rejected: divergence risk
-  in RNG state consumption produces incoherent cross-DTU IDs (see Rationale §3.3).
+- **Option E — Per-DTU independent entity derivation.** Rejected: RNG state consumption
+  divergence risk produces incoherent cross-DTU device IDs.
+
+- **Option F (v2.0 new) — Harness-delegated generation (use prism-dtu-harness
+  generators in demo-server).** The harness already calls `generate()` for its test
+  clones. Option F would have demo-server import `prism-dtu-harness` and reuse its
+  `CloneState`-based generation. Rejected: `prism-dtu-harness` is a test-only crate
+  (`publish = false`, only activated under `#[cfg(any(test, feature = "dtu"))]`);
+  making demo-server depend on it would bring test infrastructure into the production
+  binary path and tightly couple demo-server to harness internals. The retrofit
+  approach (new constructors per clone) is cleaner and maintains the crate boundary.
 
 ---
 
 ## 6. New Error Codes
 
-Two new `E-DEMO-NNN` codes required (to be registered in `.factory/specs/prd-supplements/error-taxonomy.md` by error-taxonomy owner):
+Four new `E-DEMO-NNN` codes required (to be registered in `.factory/specs/prd-supplements/error-taxonomy.md`):
 
 | Code | Category | Trigger | Message |
 |------|----------|---------|---------|
 | `E-DEMO-002` | configuration | `scenario.enabled = true` for multiple clones with different `seed` values | `"demo-server: E-DEMO-002: scenario clones {A} (seed={X}) and {B} (seed={Y}) have different seeds; cross-DTU coherence requires all scenario-enabled clones to share the same seed"` |
-| `E-DEMO-003` | configuration | `scenario.archetype` is an unrecognized string | `"demo-server: E-DEMO-003: clone '{name}': unrecognized scenario archetype '{value}'; valid values: compromised_endpoint, healthy"` |
+| `E-DEMO-003` | configuration | `scenario.archetype` is an unrecognized string | `"demo-server: E-DEMO-003: clone '{name}': unrecognized scenario archetype '{value}'; valid values: compromised_endpoint"` |
+| `E-DEMO-004` | configuration | `scenario.enabled = true` but no `org_id` supplied | `"demo-server: E-DEMO-004: clone '{name}': scenario.enabled requires org_id to be set (UUID string)"` |
+| `E-DEMO-005` | configuration | `org_id` present but not a valid UUID | `"demo-server: E-DEMO-005: clone '{name}': org_id '{value}' is not a valid UUID"` |
 
 ---
 
-## 7. BCs Flagged for PO Authorship (Not Authored Here)
+## 7. BCs Flagged for PO Authorship
 
-These BCs are required before story-writer can assemble the single larger story.
-The architect provides candidate titles and key invariants — PO authors the full BCs.
+### BC-2.06.018 Substrate Corrections (flag to PO)
 
-### Candidate BC-2.06.019 — Deterministic Scenario Progression (Live Demo)
+The PO must update BC-2.06.018 to reflect the substrate reality:
+- Postconditions claiming seeded data differentiation (per-client distinct device IDs)
+  are currently UNIMPLEMENTED. The BC's "implemented" status must remain `draft`
+  until Story A closes.
+- Add a note: "`CloneConfig.seed` is declared but not forwarded to clone constructors
+  until S-DEMO-DTU-LIVE-SCENARIO-001-A implements `new_with_seed` constructors."
 
-**Candidate title:** "Demo-Server Scenario Progression — Pure-Function Temporal Stage Advancement with Reproducibility Guarantee"
+### BC-2.06.019 Corrections (flag to PO)
 
-**Key invariants the PO must specify:**
-- `INV-PROGRESSION-REPRODUCIBILITY-001`: For any `(seed, scenario_start_epoch_secs, now_epoch_secs)` triple, `current_stage_index(timeline, now)` returns the same value across process restarts and independent invocations.
-- `INV-STAGE-MONOTONICITY-001`: Stage index never decreases within a continuous process lifetime (elapsed time is monotonically non-decreasing; `Utc::now()` is only called once per request).
-- `INV-STAGE-MASK-COMPLETENESS-001`: For each stage index, the `StageMask` covers all entity types in `ScenarioEntityCatalog`; no entity type is implicitly visible (explicit `false` for entities not yet surfaced).
-- `INV-SCENARIO-DISABLED-COMPAT-001`: When `scenario.enabled = false` (or absent) for a clone, the clone's behavior is byte-identical to BC-2.06.018 postcondition 4 (static snapshot, seed=42 default).
+The PO must update the `stage_duration_secs` description: the array has **4 entries**
+(for stages 1-4 activation thresholds). Stage 0 always activates at 0. AC-009 must
+reflect `activates_after_secs` terminology, not `stage_duration_secs` (which is the
+config key name). The BC must specify the 4-entry convention explicitly.
 
-### Candidate BC-2.06.020 — Cross-DTU Enrichment Correlation
+### BC-2.06.020 Corrections (flag to PO)
 
-**Candidate title:** "Demo-Server Enrichment Correlation — Scenario IOCs Resolve in ThreatIntel; Scenario CVEs Resolve in NVD"
-
-**Key invariants the PO must specify:**
-- `INV-THREATINTEL-IOC-CORRELATION-001`: For every `ip` in `ScenarioEntityCatalog.ioc_ips` and every `domain` in `ioc_domains` and every `hash` in `ioc_hashes`, `ThreatIntelClone` lookup returns `threat_is_known_malicious = true` and `threat_score >= 75`.
-- `INV-NVD-CVE-CORRELATION-001`: For every `cve_id` in `ScenarioEntityCatalog.device_cves`, `NvdClone` lookup returns a `CveRecord` with `cvss_metric_v31[0].cvss_data.base_score >= 7.0`.
-- `INV-CROSS-DTU-ENTITY-COHERENCE-001`: `ScenarioEntityCatalog.primary_device_id` appears as a device/host ID in at least one record returned by each of: Armis `/api/v1/devices`, CrowdStrike device query, Claroty device query — when the active stage is `Recon` or later.
-- `INV-NON-SCENARIO-LOOKUP-PASSTHROUGH-001`: IOC lookups for values NOT in `ioc_ips / ioc_domains / ioc_hashes` return the default registry result (Benign, Unknown, or 404) — the scenario injection does not contaminate the general lookup table.
+The PO must update BC-2.06.020 to use the correct NVD API paths:
+- `INV-NVD-CVE-CORRELATION-001` must cite the CVSS access path:
+  `CveRecord.metrics.cvss_metric_v31[0].cvss_data.base_score >= 7.0` (type: `f64`)
+  and `CveRecord.metrics.cvss_metric_v31[0].cvss_data.base_severity` (type: `String`).
+- Remove any reference to `NvdClone.lookup()` — the method is `NvdState::lookup_and_count()`.
+- `NvdClone::new_with_scenario()` returns `anyhow::Result<Self>` (fallible, like `new()`).
+  The BC postcondition test must handle the `Result`.
 
 ---
 
-## 8. Story Scope Recommendation (for Story-Writer)
+## 8. Story Split (User-Authorized, corrects v1.0 §8)
 
-**Recommended story name:** `S-DEMO-DTU-LIVE-SCENARIO-001`
+The v1.0 single-story recommendation is superseded. The remove-uncertainty scan
+confirmed that BC-2.06.018 baseline seeding is entirely unimplemented (U-01/U-02),
+making a single-story delivery unrealistic at production-grade. The user has authorized
+splitting into:
 
-**Recommended scope (single story, one delivery gate):**
-- BC-2.06.018 (baseline seeding — already authored, must be implemented)
-- BC-2.06.019 (scenario progression — pending PO authorship)
-- BC-2.06.020 (enrichment correlation — pending PO authorship)
+### Story A: `S-DEMO-DTU-LIVE-SCENARIO-001-A` — Baseline Seeding Retrofit
 
-**Point estimate reasoning:**
+**BC:** BC-2.06.018
 
-The story contains:
-1. `prism-dtu-common/src/scenario/` module: `ScenarioEntityCatalog`, `IncidentTimeline`,
-   `IncidentStage`, `StageMask`, `current_stage_index` pure function — estimated 150-200
-   lines of pure-core Rust with unit tests.
-2. `CloneConfig` extension: `ScenarioConfig` struct, TOML deserialization, defaults.
-3. `build_clone_pairs` coordination: catalog derivation, `E-DEMO-002` / `E-DEMO-003`
-   error paths, `Arc<IncidentTimeline>` threading to 4 generator-backed clones + entity
-   catalog to 2 enrichment clones.
-4. Per-DTU state extension: `Option<Arc<IncidentTimeline>>` in `ArmisState`,
-   `CrowdstrikeState`, `ClarotyState`, `CyberintState`.
-5. Per-DTU route projection: stage-mask filtering in devices + alerts + detections
-   routes for all 4 generator-backed clones (8 routes modified).
-6. ThreatIntel `new_with_scenario` constructor: 20-30 lines.
-7. NVD `new_with_scenario` constructor + synthetic CVE record builder: 30-50 lines.
-8. Integration test: 3 org x CompromisedEndpoint scenario, assert cross-DTU entity
-   coherence at stage 2 (LateralMovement), and that IOCs resolve in ThreatIntel.
-9. Backward-compat regression: seed=42 default path byte-identical (BC-2.06.018 PC-4).
+**Scope:**
+1. `prism-dtu-common/src/scenario/` module stub: `ScenarioEntityCatalog`, `org_slug_from_org_id()`,
+   secondary RNG stream catalog derivation (IOC IPs, domains, hashes, CVE IDs).
+   Gated `#[cfg(feature = "fixture-gen")]`. `#[non_exhaustive]` on all public types.
+2. `DemoConfig`/`CloneConfig` extension: `org_id: Option<String>`, `ScenarioConfig` struct
+   (enabled, archetype, scenario_start_secs, stage_duration_secs).
+3. Per-clone `new_with_seed(seed, org_id)` constructors: CrowdStrike, Armis, Claroty, Cyberint.
+   Each calls `generate()` under `fixture-gen` feature, stores records in state.
+   Route handlers add dual-path (generated vs static-JSON fallback).
+4. `build_clone_pairs` seed-forwarding: read `CloneConfig.seed` and forward to new constructors.
+   Add `E-DEMO-002` (seed mismatch), `E-DEMO-004` (missing org_id), `E-DEMO-005` (invalid UUID).
+5. Cargo.toml additions: `fixture-gen` feature to `prism-dtu-threatintel` and `prism-dtu-nvd`.
+6. Update ci.yml `EXPECTED` to account for new `#[non_exhaustive]` types (exact count by implementer).
+7. Integration test: start demo-server with seed=1 and seed=2 for two "clients"; assert
+   device IDs are pairwise-disjoint (cross-client isolation).
+8. Backward-compat regression: seed=42 default path produces same results as pre-Story-A.
 
-This is substantive but tractable as a single story. Estimated complexity: **13 points**.
-The user's directive is one story ("fold baseline + progression + enrichment correlation");
-the architect does not recommend splitting. The entire scenario layer is tightly coupled
-(entity catalog feeds 6 clones; splitting would require a sub-story that delivers an
-incomplete catalog with no test path). If the story-writer independently assesses
-this exceeds 13 points, the only defensible split is:
+**Point estimate: 8 points.** This is entirely new constructor + serving-path wiring across
+4 generator-backed clones — the largest single unit of work in the ADR-036 scope.
 
-- Sub-story A: Baseline seeding (BC-2.06.018 only) — closes the existing gap in
-  `build_clone_pairs`; 5 points.
-- Sub-story B: Progression + enrichment (BC-2.06.019 + BC-2.06.020) — depends on A;
-  8-10 points.
+**Disposition of existing `S-DEMO-DTU-LIVE-SCENARIO-001`:** Story-writer supersedes this
+file with `S-DEMO-DTU-LIVE-SCENARIO-001-A` (Story A scope) and creates
+`S-DEMO-DTU-LIVE-SCENARIO-001-B` (Story B scope). The original file should be marked
+superseded in its frontmatter.
 
-Surface this tradeoff to the user; the one-story preference is recorded.
+### Story B: `S-DEMO-DTU-LIVE-SCENARIO-001-B` — Live Scenario Progression + Enrichment
+
+**BCs:** BC-2.06.019 (scenario progression), BC-2.06.020 (enrichment correlation)
+
+**Depends on:** S-DEMO-DTU-LIVE-SCENARIO-001-A (must merge first)
+
+**Scope:**
+1. `IncidentTimeline`, `IncidentStage`, `StageMask`, `current_stage_index()` in
+   `prism-dtu-common/src/scenario/`. `#[non_exhaustive]` on all public types.
+2. Per-clone `new_with_scenario(seed, archetype, org_id, timeline)` constructors:
+   CrowdStrike, Armis, Claroty, Cyberint. Adds `timeline: Option<Arc<IncidentTimeline>>`
+   to state; route handlers add stage-mask filter on top of Story A's generated records.
+3. `ThreatIntelClone::new_with_scenario(entities: &ScenarioEntityCatalog) -> Self`.
+4. `NvdClone::new_with_scenario(entities: &ScenarioEntityCatalog) -> anyhow::Result<Self>`.
+   Builds `cve_registry` including scenario CVEs with CVSS records
+   (`base_score = 8.1`, `base_severity = "HIGH"`, per `CvssData` struct fields).
+5. `build_clone_pairs` scenario coordination: catalog derivation, `IncidentTimeline`
+   construction, `Arc<IncidentTimeline>` threading to 4 operational clones, catalog
+   injection to ThreatIntel + NVD.
+6. Integration test: multi-org CompromisedEndpoint scenario; assert cross-DTU entity
+   coherence at stage 2 (LateralMovement) and IOC resolution in ThreatIntel. Assert
+   NVD CVE resolution with `base_score >= 7.0`.
+
+**Point estimate: 7 points.**
 
 ---
 
 ## 9. Source / Origin
 
-- **Decision D-1077** (2026-06-09) — user-directed scope expansion of multi-client SOC
-  demo: scenario progression + enrichment correlation; recorded in
-  `.factory/objectives/multi-client-soc-demo-tasks.md §Scope Expansion`.
-- **ADR-009** — the generator architecture this extends; pure-function determinism and
-  org-tagged ID conventions are inherited directly.
-- **BC-2.06.018** — the baseline seeding BC this builds on.
-- **Code as-built — generator statics model:**
-  `crates/prism-dtu-crowdstrike/src/generator.rs:gen_compromised_endpoint` — confirms
-  `device[0]` as always-contained and `alert[0..4]` as always-severity-4+. The stage
-  mask approach filters these deterministic records rather than re-generating.
-- **Code as-built — state struct pattern:**
-  `crates/prism-dtu-armis/src/state.rs:ArmisState` — confirms the immutable fixture
-  registry + mutable tag store pattern; `Option<Arc<IncidentTimeline>>` adds a third
-  field without breaking existing constructors.
-- **Code as-built — enrichment clone state:**
-  `crates/prism-dtu-threatintel/src/state.rs:fixture_registry` — confirms a
-  `Mutex<HashMap<String, FixtureKey>>` that can be pre-populated at construction time
-  via `with_admin_token`; the scenario constructor takes the same approach.
-- **Code as-built — demo-server harness:**
-  `crates/prism-dtu-demo-server/src/harness.rs:build_clone_pairs` — confirms the
-  sequential construction pattern and the `anyhow::Result<Vec<ClonePair>>` error
-  propagation contract; scenario coordination logic adds ~60 lines before the first
-  `if config.clones.crowdstrike.enabled` block.
+- **Decision D-1077** (2026-06-09) — user-directed scope expansion.
+- **ADR-009** — the generator architecture this extends.
+- **BC-2.06.018** — the baseline seeding BC.
+- **Remove-uncertainty scan U-01..U-09** (2026-06-09) — corrected substrate reality
+  for this v2.0 revision.
+- **Code as-built — serving path verification:**
+  `crates/prism-dtu-crowdstrike/src/clone.rs:CrowdstrikeClone::new()` — confirms no
+  `generate()` call; state has empty stores only.
+  `crates/prism-dtu-armis/src/state.rs:ArmisState::new()` — confirms fixture loading
+  from `Vec<DeviceRecord>` (static JSON), not `generate()`.
+  `crates/prism-dtu-demo-server/src/harness.rs:build_clone_pairs()` — confirms no seed
+  forwarding; `CloneConfig.seed` field unused.
+- **Code as-built — generator signatures:**
+  `crates/prism-dtu-crowdstrike/src/generator.rs:generate(org_id: OrgId, ...)` and
+  `org_slug(org_id: &OrgId) -> String` (8 hex chars from UUID bytes).
+  `crates/prism-dtu-armis/src/generator.rs:generate(org_id: OrgId, org_slug: &str, ...)`.
+  `crates/prism-dtu-common/src/generator/rng.rs:seeded_rng(seed: u64, org_id: &OrgId)`.
+- **Code as-built — NVD types:**
+  `crates/prism-dtu-nvd/src/types.rs:CveRecord.metrics.cvss_metric_v31: Option<Vec<CvssMetricV31>>`
+  `CvssMetricV31.cvss_data: CvssData`, `CvssData.base_score: f64`, `CvssData.base_severity: String`.
+  `crates/prism-dtu-nvd/src/state.rs:NvdState.cve_registry: HashMap<String, CveRecord>` (NOT Mutex).
+  `crates/prism-dtu-nvd/src/clone.rs:NvdClone::new() -> anyhow::Result<Self>`.
+- **Code as-built — ThreatIntel:**
+  `crates/prism-dtu-threatintel/src/state.rs:ThreatIntelState.fixture_registry: Mutex<HashMap<String, FixtureKey>>`.
+  `crates/prism-dtu-threatintel/src/clone.rs:ThreatIntelClone::new() -> Self` (infallible).
+- **Code as-built — Cargo features:**
+  `crates/prism-dtu-threatintel/Cargo.toml` — no `chrono`, no `fixture-gen` feature.
+  `crates/prism-dtu-nvd/Cargo.toml` — no `chrono`, no `fixture-gen` feature.
+  `crates/prism-dtu-common/Cargo.toml` — `fixture-gen` feature enables `chrono` + `prism-core`.
+  `.github/workflows/ci.yml` — `EXPECTED=49` (non-exhaustive violation count).
 
 ---
 
@@ -672,3 +730,4 @@ Surface this tradeoff to the user; the one-story preference is recorded.
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
 | 1.0 | 2026-06-09 | architect | Initial authoring. Decision D-1077. |
+| 2.0 | 2026-06-09 | architect | Substrate-corrected. U-01: clones serve static JSON, generators not in serving path. U-02: CloneConfig.seed never forwarded; baseline seeding unimplemented. U-03: org_slug is 8-hex-from-UUID not arbitrary string; corrected ID format. U-05: NvdClone::new() is fallible; cve_registry is immutable HashMap; no lookup() method; corrected CVSS path. U-06: DemoConfig has no org_id field; added required new field. U-07/U-08: threatintel/nvd have no fixture-gen feature; added Cargo requirements; perimeter confirmed safe. U-09: pinned stage_duration_secs as 4-entry array for 5-stage timeline. Story split authorized and specified. |

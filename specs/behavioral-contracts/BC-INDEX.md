@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "6.04"
+version: "6.05"
 status: draft
 producer: product-owner
 timestamp: 2026-06-09T06:00:00Z
@@ -115,9 +115,9 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.06.015 | OrgRegistry Cross-Validation at Boot — Unknown Overlay Directory Triggers E-SPEC-022 | 06 - Client Configuration | CAP-009 | P0 | active — v1.1; promoted D-825 (PR #155 merge 2026-05-26) |
 | BC-2.06.016 | Error Taxonomy for Per-Org Overlay Override Violations (E-SPEC-019 through E-SPEC-023) | 06 - Client Configuration | CAP-009 | P0 | active — v1.3; promoted D-825 (PR #155 merge 2026-05-26) |
 | BC-2.06.017 | Per-DTU-Instance Multi-Address Binding for Multi-Tenant Overlay Testing | SS-01 (Sensor Adapters) | CAP-036 | P2 | draft — v1.1 (D-1076: Amendment-1 Postcondition-5 start_on prose corrected; Amendment-2 error-table inner types disambiguated; 5 invariants UNCHANGED) |
-| BC-2.06.018 | Demo-Server Config-Time Data Seeding — Per-Clone seed + fixture_set Wire-Up | SS-01 (Sensor Adapters) | CAP-036 | P2 | draft |
-| BC-2.06.019 | Demo-Server Scenario Progression — Pure-Function Temporal Stage Advancement with Reproducibility Guarantee | 01 - Sensor Adapters | CAP-036 | P2 | draft |
-| BC-2.06.020 | Demo-Server Enrichment Correlation — Scenario IOCs Resolve in ThreatIntel; Scenario CVEs Resolve in NVD | 01 - Sensor Adapters | CAP-036 | P2 | draft |
+| BC-2.06.018 | Demo-Server Config-Time Data Seeding — Per-Clone seed + fixture_set Wire-Up | SS-01 (Sensor Adapters) | CAP-036 | P2 | draft — v1.1 (D-1079: ADR-036 v2.0 substrate reconciliation; seed wires generate() into serving path; new_with_seed + generated_records + dual-path routes; canonical org_slug=hex(org_id[0..4]); device ID dev-{8hex}-{seed}-{n}; new CloneConfig.org_id field) |
+| BC-2.06.019 | Demo-Server Scenario Progression — Pure-Function Temporal Stage Advancement with Reproducibility Guarantee | SS-01 (Sensor Adapters) | CAP-036 | P2 | draft — v1.1 (D-1079: ADR-036 v2.0 substrate reconciliation; stage_duration_secs 4-entry mapping; activates_after_secs; Result signatures corrected) |
+| BC-2.06.020 | Demo-Server Enrichment Correlation — Scenario IOCs Resolve in ThreatIntel; Scenario CVEs Resolve in NVD | SS-01 (Sensor Adapters) | CAP-036 | P2 | draft — v1.1 (D-1079: ADR-036 v2.0 substrate reconciliation; NvdState::lookup_and_count; CVSS path metrics.cvss_metric_v31[0].cvss_data.base_score; Result signatures corrected) |
 | BC-2.07.001 | Internal Ephemeral Pagination Token Structure | 07 - Adapter Pagination & Response Cache | CAP-011 | P0 | draft |
 | BC-2.07.002 | Internal Pagination Token Lifecycle — Forward Progress, Timeout, and Cleanup | 07 - Adapter Pagination & Response Cache | CAP-011 | P0 | draft |
 | BC-2.07.003 | Query Engine Sensor-Fetch Cache with Configurable TTL | 07 - Adapter Pagination & Response Cache | CAP-014 | P1 | draft |
@@ -380,6 +380,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v6.05 (2026-06-09, D-1079 — BC-2.06.018/019/020 v1.0→v1.1: ADR-036 v2.0 substrate reconciliation corrections; counts UNCHANGED 250/235/6):** state-manager | BC-2.06.018 v1.0→v1.1 (PO-authored substrate correction: seed wires generate() into demo-server clone serving path; new_with_seed constructor; generated_records state field; dual-path routes; canonical org_slug=hex(org_id[0..4]); device ID dev-{8hex}-{seed}-{n}; new CloneConfig.org_id field; E-DEMO-004/E-DEMO-005 added). BC-2.06.019 v1.0→v1.1 (PO-authored substrate correction: stage_duration_secs 4-entry mapping + activates_after_secs; Result signatures corrected per actual serving path). BC-2.06.020 v1.0→v1.1 (PO-authored substrate correction: NvdState::lookup_and_count; CVSS path corrected to metrics.cvss_metric_v31[0].cvss_data.base_score; Result signatures corrected). All 3 BCs remain lifecycle_status: draft (POL-14: promote at respective anchor-story merges). active_contracts: 235 UNCHANGED; draft_contracts: 6 UNCHANGED; total_contracts: 250 UNCHANGED. BC-INDEX v6.04→v6.05.
 
 **v6.04 (2026-06-09, D-1078 — BC-2.06.019 Demo-Server Scenario Progression + BC-2.06.020 Demo-Server Enrichment Correlation registered; draft_contracts 4→6; total_contracts 248→250):** state-manager | BC-2.06.019 Demo-Server Scenario Progression — Pure-Function Temporal Stage Advancement with Reproducibility Guarantee registered (draft; SS-01 Sensor Adapters; CAP-036; P2; v1.0). BC-2.06.020 Demo-Server Enrichment Correlation — Scenario IOCs Resolve in ThreatIntel; Scenario CVEs Resolve in NVD registered (draft; SS-01 Sensor Adapters; CAP-036; P2; v1.0). Both authored by product-owner per ADR-036. active_contracts: 235 unchanged; draft_contracts: 4→6 (BC-2.06.011 + BC-2.06.017 + BC-2.06.018 + BC-2.06.019 + BC-2.06.020 + BC-2.21.001). total_contracts: 248→250 (empirical file count +2). SS-01 subsystem summary BC count 10→12 (P2 additions; P0=9, P1=1 unchanged). BC-INDEX v6.03→v6.04.
 

@@ -1,16 +1,16 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.729"
+version: "7.730"
 status: current
 timestamp: 2026-06-09T07:00:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
 
-> **PRIORITY READ ORDER — D-1078 DESIGN-ARTIFACTS DURABILITY BURST (ADR-036 + BC-2.06.019/020 + E-DEMO taxonomy confirmed) + D-1077 BC-2.06.018 REGISTERED + SCOPE EXPANSION A/B/C + D-1076 T3 DONE + D-1071 PHASE-C COMPLETE. ZERO-CONTEXT RESUME SNAPSHOT.**
+> **PRIORITY READ ORDER — D-1079 SUBSTRATE-RECONCILIATION BURST (ADR-036 v2.0 + BC-2.06.018/019/020 v1.1 + E-DEMO-004/005 + story split 001-A/001-B) + D-1078 DESIGN-ARTIFACTS + D-1076 T3 DONE + D-1071 PHASE-C COMPLETE. ZERO-CONTEXT RESUME SNAPSHOT.**
 > Read §ACTIVE OBJECTIVE (North Star) FIRST, then task ledger (`.factory/objectives/multi-client-soc-demo-tasks.md`), then STATE.md frontmatter + §RESUME SNAPSHOT before dispatching any agent.
-> develop HEAD `64d34967`. factory-artifacts PUSHED to origin after each burst (user-authorized D-1066). STATE v7.729.
+> develop HEAD `64d34967`. factory-artifacts PUSHED to origin after each burst (user-authorized D-1066). STATE v7.730.
 
 ---
 
@@ -59,16 +59,17 @@ S-CONFIG-MULTI-TENANT-OVERRIDE-001 (per-org overlays), S-DEMO-001 (per-org adapt
 
 | Step | Story / Action | Status | Notes |
 |------|---------------|--------|-------|
-| 1 | **S-DEMO-MULTI-TENANT-DTU-001** | **ready v1.2 — T1+T2+T3 ALL DONE** (BC-2.06.017 v1.1 authored; architect adjudication D-1075 complete; story finalized ready v1.2 D-1076; remove-uncertainty 8 uncertainties closed; S-7.01 gate CLEARED) | **READY FOR TDD DELIVERY (T6 — after T4+T5 complete).** Live-scenario story (T4+T5) must be designed and authored first. |
-| 2 | **Single larger live-scenario story** S-DEMO-DTU-LIVE-SCENARIO-001 | **T4 in-progress — design SUBSTANTIALLY COMPLETE (D-1078); story-writer RETRY pending** | **ADR-036 ACCEPTED v1.0 (architect D-1078).** BC-2.06.018 (static seeding) + BC-2.06.019 (scenario progression, 5 invariants) + BC-2.06.020 (enrichment correlation, 6 invariants) ALL AUTHORED (PO D-1077/D-1078). E-DEMO-001/002/003 in error-taxonomy v1.63. Story-writer assembles S-DEMO-DTU-LIVE-SCENARIO-001 (13pt) — RETRY pending (2 transient API socket drops; NOT content/logic failure). `CloneConfig.seed`/`fixture_set` wired in `build_clone_pairs` (`crates/prism-dtu-demo-server/src/harness.rs`); ScenarioEntityCatalog + IncidentTimeline in prism-dtu-common per ADR-036. |
+| 1 | **S-DEMO-MULTI-TENANT-DTU-001** | **ready v1.2 — T1+T2+T3 ALL DONE** (BC-2.06.017 v1.1 authored; architect adjudication D-1075 complete; story finalized ready v1.2 D-1076; remove-uncertainty 8 uncertainties closed; S-7.01 gate CLEARED) | **READY FOR TDD DELIVERY (T6 — after T4-A+T5 complete).** Story A delivery first. |
+| 2a | **Story A: S-DEMO-DTU-LIVE-SCENARIO-001-A** | **T4 RECONCILED+COMPLETE — ready v1.0 (D-1079); NEXT DELIVERY** | **ADR-036 v2.0 ACCEPTED (architect D-1079).** BC-2.06.018 v1.1 (static seeding + two-phase retrofit). 8pt; 14 ACs; depends_on S-CONFIG-MULTI-TENANT-OVERRIDE-001 SATISFIED; blocks Story B. **Run dclaude:remove-uncertainty FIRST (standing directive D-1061), then 12-gate per-story delivery.** |
+| 2b | **Story B: S-DEMO-DTU-LIVE-SCENARIO-001-B** | **draft v1.0 — blocked on Story A merge** | BC-2.06.019 v1.1 (scenario progression) + BC-2.06.020 v1.1 (enrichment correlation). 7pt; 16 ACs; depends_on Story A (hard — Story A must merge first + remove-uncertainty run before dispatch). Story-writer materializes full implementation spec from draft shell after Story A merges. |
 | 3 | **S-DEMO-004** | draft P0 | Add `depends_on: [S-DEMO-MULTI-TENANT-DTU-001]` (edge currently MISSING). Decide AC-006 data-distinctness via real seeding (NOT port-binding-only shortcut). |
 | 4 | Demo tooling generalization | draft stub S-DEMO-LAUNCHER-CONSOLIDATION-001 | Generalize `demo-setup.sh` / `demo-run.sh` / `demo-teardown.sh` to loop over N orgs (today single-org demo-org). Story-writer materialization + human launcher-lifecycle decision needed. |
 | 5 | Multi-client SOC-analyst narrative story | NEW — none exists | Multi-client SOC-analyst investigation walkthrough + demo-recorder evidence per persona. |
 | 6 (optional) | S-5.02 / S-3.13 / S-5.04 | draft | MCP client targeting, dynamic per-org table availability, sensor health. All optional capability discovery for the narrative. |
 
-**NEXT CONCRETE ACTION: Story-writer assembles S-DEMO-DTU-LIVE-SCENARIO-001 (13pt; anchors BC-2.06.018/019/020 per ADR-036) — RETRY pending (2 transient socket drops; NOT content/logic failure); then dclaude:remove-uncertainty; then state-manager registers story + STORY-INDEX + closes T4 → advance to per-story delivery. T4 CURRENT (D-1078 — design substantially complete).**
+**NEXT CONCRETE ACTION: Run dclaude:remove-uncertainty on S-DEMO-DTU-LIVE-SCENARIO-001-A (pre-delivery validation of the reconciled ADR-036 v2.0 design), then deliver Story A via the 12-gate per-story sequence (worktree → test-writer Red Gate → implementer TDD → LOCAL adversary 3-CLEAN → demo → PR → PR-LEVEL 3-CLEAN → merge). Story B follows after Story A merges. T4 RECONCILED+COMPLETE (D-1079).**
 
-**Task ledger (granular, status-tracked, resume source-of-truth): `.factory/objectives/multi-client-soc-demo-tasks.md` — CURRENT TASK = T4 (D-1078). T1+T2+T3 DONE: BC-2.06.017 v1.1 authored; architect adjudication OQ-1/OQ-2/OQ-3 complete; story ready v1.2 (remove-uncertainty 8 uncertainties; S-7.01 gate CLEARED). BC-2.06.018 authored (D-1077). BC-2.06.019+BC-2.06.020 authored (D-1078). ADR-036 accepted. BC-INDEX v6.04. STORY-INDEX v2.330.**
+**Task ledger (granular, status-tracked, resume source-of-truth): `.factory/objectives/multi-client-soc-demo-tasks.md` — T4 RECONCILED+COMPLETE (D-1079). T4-A = NEXT (Story A delivery). T1+T2+T3 DONE. BC-2.06.018/019/020 v1.1 (D-1079). ADR-036 v2.0 accepted. BC-INDEX v6.05. ARCH-INDEX v2.117. STORY-INDEX v2.331. error-taxonomy v1.64.**
 
 ---
 
@@ -98,20 +99,24 @@ S-CONFIG-MULTI-TENANT-OVERRIDE-001 (per-org overlays), S-DEMO-001 (per-org adapt
 | **Wave-5 Phase B** | **COMPLETE** — all 4 lanes + S-MAINT merged |
 | **Wave-5 Phase C** | **COMPLETE** — all 4 lanes merged (TRAILING-SLASH, SPEC-PROSE-FIX, PAGINATION-001, HARNESS-CLONE-PARITY-001) |
 | **develop HEAD** | `64d34967` |
-| **STATE version** | v7.729 |
-| **BC-INDEX version** | v6.04 |
-| **STORY-INDEX version** | v2.330 |
+| **STATE version** | v7.730 |
+| **BC-INDEX version** | v6.05 |
+| **STORY-INDEX version** | v2.331 |
 | **VP-INDEX version** | v1.76 |
-| **ARCH-INDEX version** | v2.116 |
+| **ARCH-INDEX version** | v2.117 |
 | **Active BCs** | 235 |
 | **Draft BCs** | 6 (BC-2.06.011 + BC-2.06.017 + BC-2.06.018 + BC-2.06.019 + BC-2.06.020 + BC-2.21.001) |
-| **Total stories** | 185 |
+| **Total stories** | 188 |
 | **Open PRs** | NONE |
 | **factory-artifacts** | pushed to origin after each burst (user-authorized D-1066 2026-06-08) |
 
 ---
 
 ### 2. What Just Completed
+
+**D-1079 Substrate-Reconciliation Burst — ADR-036 v2.0 + BC-2.06.018/019/020 v1.1 + E-DEMO-004/005 + story split 001-A/001-B (2026-06-09)**
+
+remove-uncertainty on S-DEMO-DTU-LIVE-SCENARIO-001 (v1.0) caught a CRITICAL substrate flaw BEFORE TDD: the demo-server generator-backed clones serve STATIC JSON, not seeded generators (generators live in prism-dtu-harness; generate() never called in the demo-server serving path) + ID-format/org-identity/enrichment-API errors (U-01..U-09). Architect reconciled ADR-036 v1.0→v2.0 (two-phase retrofit: new_with_seed wires generate() into demo-server clone serving path + generated_records state field + dual-path routes; canonical org_slug=hex(org_id[0..4]); device ID dev-{8hex}-{seed}-{n}; new CloneConfig.org_id field + E-DEMO-004/005). BC-2.06.018/019/020 v1.0→v1.1 (PO; substrate reality corrections: stage_duration_secs 4-entry mapping; activates_after_secs; NvdState::lookup_and_count; CVSS path metrics.cvss_metric_v31[0].cvss_data.base_score; Result signatures). E-DEMO-004/005 registered (error-taxonomy v1.63→v1.64). User-authorized story SPLIT: original S-DEMO-DTU-LIVE-SCENARIO-001 SUPERSEDED → Story A (S-DEMO-DTU-LIVE-SCENARIO-001-A; 8pt; ready v1.0; BC-2.06.018; 14 ACs) + Story B (S-DEMO-DTU-LIVE-SCENARIO-001-B; 7pt; draft v1.0; BC-2.06.019/020; 16 ACs; depends_on A). STORY-INDEX v2.330→v2.331 (total_stories 185→188; superseded counted per convention). BC-INDEX v6.04→v6.05. ARCH-INDEX v2.116→v2.117. BC counts UNCHANGED 250/235/6. Task ledger T4 done; T4-A NEXT. STATE v7.729→v7.730. D-1079.
 
 **D-1078 Design-Artifacts Durability Burst — ADR-036 confirmed; BC-2.06.019+BC-2.06.020 registered; E-DEMO-001/002/003 confirmed; BC-INDEX v6.04 (2026-06-09)**
 
@@ -175,13 +180,13 @@ Wave 5 Phase C COMPLETE — all 4 lanes merged. F-P6-DEFER-001 + F-P10-LOW-001 C
 
 > **Wave 5 Phase C is COMPLETE. The pipeline now serves the ACTIVE OBJECTIVE: multi-client SOC-analyst live demo. See §ACTIVE OBJECTIVE above for full build sequence.**
 
-**NEXT CONCRETE ACTION (D-1078, T4 — story-writer retry):**
-Story-writer assembles S-DEMO-DTU-LIVE-SCENARIO-001 (13pt; anchors BC-2.06.018/019/020 per ADR-036) — RETRY pending (2 transient API socket drops; NOT a content/logic failure). Architect design complete (ADR-036 ACCEPTED v1.0). PO BCs complete (BC-2.06.019 progression + BC-2.06.020 enrichment correlation authored). E-DEMO taxonomy complete (v1.63 E-DEMO-001/002/003). After story assembled: dclaude:remove-uncertainty; then state-manager registers story + STORY-INDEX + closes T4 → advance to per-story delivery (T6: S-DEMO-MULTI-TENANT-DTU-001 TDD).
+**NEXT CONCRETE ACTION (D-1079, T4-A — Story A delivery):**
+T4 RECONCILED+COMPLETE (D-1079). ADR-036 v2.0 substrate reconciliation complete (architect). BC-2.06.018/019/020 v1.1 (PO). error-taxonomy v1.64 (E-DEMO-004/005). Story split materialized: S-DEMO-DTU-LIVE-SCENARIO-001 SUPERSEDED → Story A (S-DEMO-DTU-LIVE-SCENARIO-001-A; 8pt; ready v1.0; BC-2.06.018) + Story B (S-DEMO-DTU-LIVE-SCENARIO-001-B; 7pt; draft v1.0; BC-2.06.019/020; depends_on A). **NEXT: dclaude:remove-uncertainty on Story A (standing directive D-1061), then 12-gate per-story delivery. Story B after Story A merges.**
 
 | Priority | Story / Action | Status | Notes |
 |----------|---------------|--------|-------|
-| **P0 — NEXT (T4)** | Story-writer assembles S-DEMO-DTU-LIVE-SCENARIO-001 (13pt; ADR-036; BC-2.06.018/019/020) | T4 in-progress — story-writer RETRY pending | D-1078: Design COMPLETE — ADR-036 ACCEPTED; BC-2.06.019+020 authored; E-DEMO taxonomy v1.63 done. RETRY story-writer (2 transient socket drops; NOT content/logic failure). After story: dclaude:remove-uncertainty; state-manager closes T4. |
-| P1 | Single larger live-scenario story (T5) | blocked on T4 | Story-writer assembles after architect design + PO authors new BCs; T5 = story finalized + remove-uncertainty |
+| **P0 — NEXT (T4-A)** | Story A: S-DEMO-DTU-LIVE-SCENARIO-001-A (baseline seeding retrofit; 8pt; BC-2.06.018 v1.1) | T4 RECONCILED+COMPLETE — ready v1.0 (D-1079) | Run dclaude:remove-uncertainty FIRST (D-1061), then 12-gate delivery. Two-phase retrofit wires new_with_seed+generate() into demo-server serving path per ADR-036 v2.0. |
+| P1 | Story B: S-DEMO-DTU-LIVE-SCENARIO-001-B (scenario progression + enrichment; 7pt; BC-2.06.019/020 v1.1) | draft v1.0 — blocked on Story A merge | Story-writer materializes full implementation spec after Story A merges; remove-uncertainty + 12-gate delivery. |
 | P1 | S-DEMO-004 — add depends_on + data-distinctness AC | draft P0 — needs architect/PO update | Add depends_on edge; decide AC-006 via real seeding |
 | P2 | S-DEMO-LAUNCHER-CONSOLIDATION-001 | draft stub | story-writer materialization + human review needed |
 | P3 | Multi-client SOC-analyst narrative story | NEW — none exists | Multi-client SOC walkthrough + demo-recorder evidence per persona |
@@ -212,7 +217,7 @@ Per-story delivery follows the canonical 12-gate sequence (per orchestrator per-
 12. Worktree cleanup + state-manager post-merge burst (POL-14 BC promotions + sprint-state.yaml update)
 
 **Active story pointer:**
-- **No story in-flight.** Wave 5 Phase C COMPLETE. North-star next action: story-writer assembles S-DEMO-DTU-LIVE-SCENARIO-001 RETRY (T4 in-progress — design substantially complete D-1078; ADR-036 accepted; BC-2.06.019+020 authored; BC-2.06.018 authored D-1077; BC-2.06.017 v1.1 authored; T1+T2+T3 DONE; D-1074..D-1078).
+- **No story in-flight.** Wave 5 Phase C COMPLETE. T4 RECONCILED+COMPLETE (D-1079). North-star next action: dclaude:remove-uncertainty on S-DEMO-DTU-LIVE-SCENARIO-001-A, then 12-gate per-story delivery of Story A (T4-A — NEXT UNBLOCKED DELIVERY).
 
 **Mid-cascade restart note:** If a fresh session finds an in-flight worktree/branch/open-PR for a story, cross-reference `sprint-state.yaml` `current_story.delivery_step` + `gh pr list` + `.worktrees/` to determine the exact resume step before dispatching.
 
@@ -293,7 +298,7 @@ git log --oneline develop | head -1
 
 # 3. Verify STATE.md version
 grep '^version:' .factory/STATE.md
-# Expected: version: "7.729"
+# Expected: version: "7.730"
 
 # 4. Verify no open PRs
 gh pr list --state open
@@ -306,7 +311,7 @@ git -C .factory rev-parse HEAD && git -C .factory rev-parse origin/factory-artif
 
 # 6. Read task ledger → CURRENT TASK
 cat .factory/objectives/multi-client-soc-demo-tasks.md | grep -A3 'CURRENT POINTER'
-# Expected: T4 in-progress — design SUBSTANTIALLY COMPLETE (D-1078); ADR-036 accepted; BC-2.06.018/019/020 authored; story-writer RETRY pending
+# Expected: T4 RECONCILED+COMPLETE (D-1079) — ADR-036 v2.0; BC-2.06.018/019/020 v1.1; story split done. T4-A NEXT (Story A delivery).
 
 # 7. Read this snapshot (you are here)
 # Confirm develop_head, STATE version, north-star next action

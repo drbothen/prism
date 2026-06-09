@@ -1,7 +1,7 @@
 ---
 document_type: architecture-index
 level: L3
-version: "2.116"
+version: "2.117"
 status: draft
 producer: state-manager
 timestamp: 2026-05-31T12:00:00
@@ -102,7 +102,7 @@ deployment_topology: single-service  # planned — no service binary exists yet 
 | ADR-033 | Push-Down Time-Window Extraction Strategy — Pre-Fan-Out Heuristic (T1) vs Post-Resolution classify_predicates (T2) | ACCEPTED v1.0 | 2026-06-05 | decisions/ADR-033-push-down-time-window-extraction-strategy-pre-fan-out-heuristic.md |
 | ADR-034 | Tier-3 Keyring Resolution — OrgId Threading via Injected OrgRegistry, OrgId-Keyed Write Reconciliation, and Async Safety | ACCEPTED v1.2 | 2026-06-06 | decisions/ADR-034-tier3-keyring-resolution-org-id-threading.md |
 | ADR-035 | E-CRED Namespace Reconciliation — Canonical E-CRED-001..010 Error Codes, Collision Resolution, and Migration Mapping | ACCEPTED v1.2 | 2026-06-07 | decisions/ADR-035-e-cred-namespace-reconciliation.md |
-| ADR-036 | Deterministic Scenario-Progression Engine — IncidentTimeline, Per-DTU Projection, and Cross-DTU Entity Coherence for Live Demo | ACCEPTED v1.0 | 2026-06-09 | decisions/ADR-036-deterministic-scenario-progression-engine.md |
+| ADR-036 | Deterministic Scenario-Progression Engine — IncidentTimeline, Per-DTU Projection, and Cross-DTU Entity Coherence for Live Demo | ACCEPTED v2.0 | 2026-06-09 | decisions/ADR-036-deterministic-scenario-progression-engine.md |
 
 ## Architecture Decisions
 
@@ -162,6 +162,8 @@ deployment_topology: single-service  # planned — no service binary exists yet 
 
 | Version | Pass | Date | Author | Change |
 |---------|------|------|--------|--------|
+| 2.117 | D-1079 | 2026-06-09 | state-manager | ADR-036 row bumped ACCEPTED v1.0→v2.0 (architect substrate reconciliation: two-phase retrofit — new_with_seed wires generate() into demo-server clone serving path + generated_records state field + dual-path routes; canonical org_slug=hex(org_id[0..4]); device ID dev-{8hex}-{seed}-{n}; new CloneConfig.org_id field + E-DEMO-004/005; BC-2.06.018/019/020 corrected to v1.1 substrate reality). Story split materialized: original S-DEMO-DTU-LIVE-SCENARIO-001 SUPERSEDED → Story A (001-A; 8pt; ready; BC-2.06.018) + Story B (001-B; 7pt; draft; BC-2.06.019/020). BC-INDEX v6.04→v6.05. ARCH-INDEX v2.116→v2.117. |
+| 2.116 | D-1078 | 2026-06-09 | architect | ADR-036 Deterministic Scenario-Progression Engine registered: ACCEPTED v1.0. Architect authored per D-1078 design-artifacts durability burst. Subsystems: SS-01. Anchor stories: S-DEMO-DTU-LIVE-SCENARIO-001-A, S-DEMO-DTU-LIVE-SCENARIO-001-B. BC-2.06.019+BC-2.06.020 authored (PO). E-DEMO-001/002/003 in error-taxonomy v1.63. ADR-036 ADR Registry row added. ARCH-INDEX v2.115→v2.116. (POL-11 backfill: row missing at D-1078; added here per D-1079 sweep.) |
 | 2.115 | F-P14-HIGH-001/ADV-P15-HIGH-001 | 2026-06-07 | state-manager | ADR-034 + ADR-035 ADR Registry pins propagated v1.1→v1.2 (de-pin of volatile sibling version/SHA refs from ADR live prose per TD-VSDD-091 to terminate sibling-sweep cascade; closes F-P14-HIGH-001/ADV-P15-HIGH-001; S-MAINT-ECRED-TAXONOMY-SYNC-001). ARCH-INDEX v2.114→v2.115. |
 | 2.114 | F-P8-HIGH-001/F-PASS9-HIGH-001 | 2026-06-07 | state-manager | ADR-035 registration pin + ADR-034/ADR-035 ADR Registry pins propagated v1.0→v1.1 (S-MAINT-ECRED-TAXONOMY-SYNC-001; ADR-035; closes F-P8-HIGH-001/F-PASS9-HIGH-001; DRIFT-ECRED-TAXONOMY-001). ADR-034 row: ACCEPTED v1.0→v1.1 (§D4 E-CRED-005→E-CRED-008 amendment per ADR-035; BC-2.06.003 ref v1.5; error-taxonomy.md ref v1.62). ADR-035 row: ACCEPTED v1.0→v1.1 (§Status execution-complete correction; F-P5-MED-001 closure). POL-11 violation remediated: ADR-035 row was added in D-1025-era burst with no frontmatter bump and no changelog entry. ARCH-INDEX v2.113→v2.114. |
 | 2.113 | D-1025 | 2026-06-06 | state-manager | ADR-034 registered: Tier-3 Keyring Resolution — OrgId Threading via Injected OrgRegistry, OrgId-Keyed Write Reconciliation, and Async Safety. ACCEPTED v1.0. Architect authored per human Option-A decision (S-DEMO-003 scope expansion). Subsystems: SS-03, SS-06, SS-08, SS-22. Anchor story: S-DEMO-003. Closes CRIT-1 (keyring write→read disconnect) + CRIT-2 (namespace mismatch slug-keyed vs OrgId-UUID-keyed). ADR-034 table row already present (architect-committed). ARCH-INDEX v2.112→v2.113. |
