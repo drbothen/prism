@@ -480,3 +480,39 @@ When an adversary finding proposes a specific replacement anchor, or when a fix-
 No new story required now; cycle-close decision.
 
 ---
+
+### [process-validation, PROCESS WORKING AS DESIGNED] S-DEMO-MULTI-TENANT-DTU-001: remove-uncertainty caught 4 mechanism-level HIGH/CRIT findings that architect adjudication (T2) did not surface — standing directive D-1061 validated
+
+**Date recorded:** 2026-06-09 (D-1076 T3 complete burst)
+**D-NNN anchor:** D-1076 (T3 complete); D-1061 (standing directive); D-1067 (sibling precedent on S-DEMO-HARNESS-CLONE-PARITY-001)
+**Story:** S-DEMO-MULTI-TENANT-DTU-001
+**Tags:** [process-validation] [remove-uncertainty] [standing-directive] [pre-tdd] [D-1061]
+**Classification:** PROCESS WORKING AS DESIGNED — NOT a new process gap. The existing remove-uncertainty standing directive (D-1061) is the process control. No follow-up story required.
+
+**Description:**
+
+After T2 architect adjudication (D-1075) resolved OQ-1/OQ-2/OQ-3 for S-DEMO-MULTI-TENANT-DTU-001, story-writer finalized the story to v1.2 and ran dclaude:remove-uncertainty (standing directive D-1061). The uncertainty-scanner found 8 mechanism-level uncertainties:
+
+- **U-002 (CRITICAL):** ArmisClone and ClarotyClone must NOT appear as regular Cargo.toml dependencies of prism-dtu-harness — they must be `dev-dependencies` only. This is a load-bearing INV-PERIMETER-001 constraint. Architect T2 adjudication correctly stated INV-PERIMETER-001 satisfied but did not read the Cargo.toml deeply enough to discover the dev-dep vs dep distinction for the clone crates themselves.
+- **U-001 (HIGH):** Real `start_on` signature is `Option<broadcast::Receiver<ShutdownSignal>>` (optional graceful-shutdown channel), NOT `Option<SocketAddr>`. TLS is `#[cfg(feature="tls")] Option<TlsConfig>`, NOT `bool`. Receiver takes `&mut self`. Story was using wrong types.
+- **U-003/U-007 (HIGH):** Canonical error inner types — harness `HarnessError::BindFailure(Vec<BindError>)` and demo-server `MultiInstanceBindError::BindFailure(Vec<DemoBindError>)` use DISTINCT inner error types. The T2 architect adjudication correctly specified HarnessError gains BindFailure but did not pin the inner type; story had an ambiguous or wrong inner type in the error table.
+- **U-004 (HIGH):** Test-infra keying uses `(String,String)` at test-fixture level (not `(OrgSlug,SensorId)`). Single `broadcast::Sender` broadcasts to all instances; Drop impl drains sender. Story was using an incorrect keying model.
+- **U-005, U-006, U-008 (MED):** `overlay_wiring` takes `&Path` (not `PathBuf`); `tempfile` is a dev-only dep; `ci.yml EXPECTED` must advance 49→56 (7 new clone crates for non-exhaustive-violation test + 7 new violation arms); literal axum 0.7/tokio 1 pins (not workspace-inherited).
+
+**Key observation:**
+
+The T2 architect adjudication (D-1075) successfully resolved the high-level design questions (crate placement, API shape, error type names, BC assignment) but did NOT catch these mechanism-level implementation details. This is expected — architect adjudication reads at ADR and design-intent level; remove-uncertainty reads at Cargo.toml, function-signature, and implementation-detail level.
+
+**This is the standing directive (D-1061) working exactly as designed.** D-1061 was established after remove-uncertainty caught 6 real story-guidance defects on S-DEMO-CLAROTY-TRAILING-SLASH-001 (D-1059/D-1060). The T3 run on S-DEMO-MULTI-TENANT-DTU-001 mirrors the D-1067 sibling precedent on S-DEMO-HARNESS-CLONE-PARITY-001 (5 HIGH + 3 MED caught before TDD).
+
+**Why this is NOT a new process gap:**
+
+The process control already exists: D-1061 "run dclaude:remove-uncertainty on every implementation story BEFORE TDD delivery." The fact that architect adjudication missed these details is expected — architects work at design level, not mechanism level. Remove-uncertainty fills exactly this gap. The lesson is confirming the directive, not adding a new one.
+
+**Implication for T4:**
+
+When architect + PO author the per-client data seeding story (T4), the same pattern applies: architect determines the design (wire CloneConfig.seed vs POST /dtu/configure), then story-writer materializes the story, then remove-uncertainty is run BEFORE TDD delivery (T5). This is the established process.
+
+**Boundary:** This lesson confirms that per-story remove-uncertainty catches mechanism-level issues that design-level adjudication cannot by definition see. No policy change required; the directive is already in STATE.md frontmatter + SESSION-HANDOFF §4 Standing Rules.
+
+---

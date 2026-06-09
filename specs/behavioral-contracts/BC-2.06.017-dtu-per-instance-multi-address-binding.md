@@ -2,7 +2,7 @@
 document_type: behavioral-contract
 level: L3
 bc_id: "BC-2.06.017"
-version: "1.0"
+version: "1.1"
 status: draft
 lifecycle_status: draft
 producer: product-owner
@@ -136,7 +136,7 @@ time, or axum extension state).
 
 The multi-instance API is additive. After this story merges:
 
-- `BehavioralClone::start_on(bind: SocketAddr, shutdown: Receiver<()>, tls: bool) -> anyhow::Result<SocketAddr>` — signature unchanged.
+- `BehavioralClone::start_on(&mut self, bind: SocketAddr, shutdown: Option<broadcast::Receiver<()>>, tls: Option<Arc<RustlsConfig>> /*cfg(tls)*/ | Option<()> /*cfg(not(tls))*/) -> anyhow::Result<SocketAddr>` — signature unchanged.
 - All existing callers of `ArmisClone::start_on(...)`, `ClarotyClone::start_on(...)`,
   etc. compile and behave identically to before.
 - All parity tests in S-6.07 through S-6.10 and S-DEMO-002 integration tests pass
@@ -149,9 +149,9 @@ If one or more `InstanceEntry` bind operations fail (e.g., EADDRINUSE on a non-z
 bind address), the multi-instance bind function:
 
 - Attempts to bind ALL instances before returning any error.
-- Collects all bind failures into a single `Vec<BindError>` where each `BindError`
-  carries the `instance_name` and the underlying `std::io::Error`.
-- Returns `Err(MultiInstanceBindError { failures: Vec<BindError> })` containing all
+- Collects all bind failures into a single `Vec<DemoBindError>` where each `DemoBindError`
+  carries `instance_name: String` and the underlying `source: std::io::Error`.
+- Returns `Err(MultiInstanceBindError::BindFailure(Vec<DemoBindError>))` containing all
   failures; does NOT short-circuit at the first error.
 - For instances that DID bind successfully before other failures were detected:
   their tasks are shut down and their sockets released before the error is returned
@@ -231,10 +231,10 @@ of new non-exhaustive public types.
 
 | Error | Condition | Behavior |
 |-------|-----------|----------|
-| `MultiInstanceBindError::BindFailure(Vec<BindError>)` | One or more `InstanceEntry` bind operations fail (e.g., EADDRINUSE on a non-`0` port) | All bind operations attempted; all failures collected; successful partial binds shut down; `Err(...)` returned with all failures enumerated per INV-ERR-003-COMPAT |
+| `MultiInstanceBindError::BindFailure(Vec<DemoBindError>)` | One or more `InstanceEntry` bind operations fail (e.g., EADDRINUSE on a non-`0` port); `DemoBindError { instance_name: String, source: std::io::Error }` (crate: `prism-dtu-demo-server`) | All bind operations attempted; all failures collected; successful partial binds shut down; `Err(...)` returned with all failures enumerated per INV-ERR-003-COMPAT |
 | `MultiInstanceBindError::DuplicateName { name }` | Two `InstanceEntry` values share the same `name` | Returned immediately before any bind attempt; no clone instances started |
 | `HarnessError::DuplicateKey { org_slug, sensor_id }` | Two `HarnessEntry` values share the same `(org_slug, sensor_id)` pair | Returned immediately before any clone instances started |
-| `HarnessError::BindFailure(Vec<BindError>)` | One or more harness clone bind operations fail | Same multi-error aggregation as demo-server path; all failed + successful binds reported; successful binds shut down |
+| `HarnessError::BindFailure(Vec<BindError>)` | One or more harness clone bind operations fail; `BindError { org_slug: String, sensor_id: String, source: std::io::Error }` (crate: `prism-dtu-harness`) | Same multi-error aggregation as demo-server path; all failed + successful binds reported; successful binds shut down |
 | EC-017-004 + downstream `E-SPEC-022` | Overlay written for `org_slug` not registered in `OrgRegistry` | `SpecLoader::load_all` emits `E-SPEC-022` (BC-2.06.015 / BC-2.06.016); harness test must register all org slugs in `OrgRegistry` before calling `load_all` |
 
 ## Edge Cases
@@ -262,7 +262,7 @@ of new non-exhaustive public types.
 | TV-017-005 | EADDRINUSE multi-error | `MultiInstanceConfig` with two entries: one `127.0.0.1:0` (succeeds) + one `127.0.0.1:{in_use_port}` (fails) | `Err(MultiInstanceBindError::BindFailure(failures))` where `failures.len() == 1` and `failures[0].instance_name == "the_failing_entry"` |
 | TV-017-006 | Duplicate name error | `MultiInstanceConfig { instances: [InstanceEntry { name: "dup", ... }, InstanceEntry { name: "dup", ... }] }` | `Err(MultiInstanceBindError::DuplicateName { name: "dup" })` before any bind attempt |
 | TV-017-007 | Duplicate harness key error | `MultiInstanceHarness::start([HarnessEntry { org_slug: "acme", sensor_id: "armis" }, HarnessEntry { org_slug: "acme", sensor_id: "armis" }])` | `Err(HarnessError::DuplicateKey { org_slug: "acme", sensor_id: "armis" })` before any clone started |
-| TV-017-008 | Single-instance path unaffected | `ArmisClone::start_on("127.0.0.1:0", shutdown, false)` called directly (existing pattern) | Compiles and runs identically to pre-story state; `SocketAddr` returned; no regression |
+| TV-017-008 | Single-instance path unaffected | `ArmisClone::start_on("127.0.0.1:0".parse().unwrap(), Some(rx), None)` called directly (existing pattern; `None` for tls = plain HTTP, `shutdown` is `Option<broadcast::Receiver<()>>`) | Compiles and runs identically to pre-story state; `SocketAddr` returned; no regression |
 | TV-017-009 | Overlay TOML integration (Postcondition 3) | `write_overlay_temp_dir(&harness, &tempdir)` produces `customers/acme/armis.sensor.toml` with `base_url = "http://127.0.0.1:{S_A_port}"` and `customers/contoso/armis.sensor.toml` with `base_url = "http://127.0.0.1:{S_B_port}"` | `SpecLoader::load_all(tempdir.path())` yields `ResolvedSensorSpec` entries for `(acme, armis)` and `(contoso, armis)` with the expected distinct `base_url` values |
 
 ## Verification Properties
@@ -350,3 +350,4 @@ is warranted.
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
 | 1.0 | D-TBD (S-DEMO-MULTI-TENANT-DTU-001 PO authorship) | 2026-06-09 | product-owner | Initial draft. Resolves S-7.01 Spec-First Gate for S-DEMO-MULTI-TENANT-DTU-001. Covers: MultiInstanceConfig/InstanceEntry demo-server API (Postcondition 1), MultiInstanceHarness harness API (Postcondition 2), overlay TOML integration (Postcondition 3), INV-ISOLATION-001 no-cross-tenant-leakage invariant (Postcondition 4), INV-COMPAT-001 single-instance backward-compat invariant (Postcondition 5), multi-error aggregation on bind failure (Postcondition 6 / INV-ERR-003-COMPAT), and EC-017-003 duplicate-key-returns-error semantics (Postcondition 7). Flag 2 decision: BC-2.06.014 NOT amended — rationale in §Flag 2 Decision Notes. EC-003 decision: error-return on duplicate key (Postcondition 7). |
+| 1.1 | D-1075 (architect reconciliation — remove-uncertainty scan, S-DEMO-MULTI-TENANT-DTU-001 ledger T3 hardening) | 2026-06-09 | product-owner | Two accuracy fixes grounded in real `BehavioralClone::start_on` signature (clone.rs lines 71-84). No semantic or invariant changes. **Amendment 1 (Postcondition 5 / TV-017-008):** Corrected `start_on` prose signature from erroneous `(bind: SocketAddr, shutdown: Receiver<()>, tls: bool)` to actual `(&mut self, bind: SocketAddr, shutdown: Option<broadcast::Receiver<()>>, tls: Option<Arc<RustlsConfig>> / Option<()>) -> anyhow::Result<SocketAddr>`; updated TV-017-008 call site from `start_on(..., false)` to `start_on(..., Some(rx), None)`. INV-COMPAT-001 semantics unchanged — the correction confirms the signature IS already `Option`-typed, not that it changed. **Amendment 2 (Error table / Postcondition 6):** Disambiguated inner aggregate error type names to avoid cross-crate name collision: demo-server uses `DemoBindError { instance_name: String, source: std::io::Error }` in `MultiInstanceBindError::BindFailure(Vec<DemoBindError>)`; harness uses `BindError { org_slug: String, sensor_id: String, source: std::io::Error }` in `HarnessError::BindFailure(Vec<BindError>)`. Variant names (HarnessError::DuplicateKey, HarnessError::BindFailure, MultiInstanceBindError::DuplicateName, MultiInstanceBindError::BindFailure) confirmed correct per architect. |

@@ -2,10 +2,10 @@
 document_type: task-ledger
 objective: multi-client-soc-analyst-demo
 level: ops
-version: "1.2"
+version: "1.3"
 producer: state-manager
 status: active
-timestamp: 2026-06-09T04:00:00Z
+timestamp: 2026-06-09T05:00:00Z
 related:
   - SESSION-HANDOFF.md §ACTIVE OBJECTIVE
   - .factory/STATE.md
@@ -24,15 +24,15 @@ Deliver a multi-client SOC-analyst LIVE DEMO — multiple clients, different sen
 
 ## Progress Summary
 
-Foundations: COMPLETE (reused). Build: T1+T2 done; CURRENT TASK **T3**.
+Foundations: COMPLETE (reused). Build: 3/15 tasks done; CURRENT TASK **T4**.
 
 ## CURRENT POINTER
 
-**T3** — Story-writer finalizes S-DEMO-MULTI-TENANT-DTU-001 to status:ready.
+**T4** — Product-owner + architect decide the per-client data seeding approach for the multi-client SOC demo.
 
 ## NEXT ACTION (verbatim, for cold resume)
 
-Dispatch `vsdd-factory:story-writer` to finalize S-DEMO-MULTI-TENANT-DTU-001 to status:ready — set behavioral_contracts:[BC-2.06.017]; fix subsystems [SS-17]→[SS-01]; correct §File Structure + §Architecture Mapping (server.rs→multi_instance.rs; demo-server has lib.rs+harness.rs+config.rs); reflect architect OQ-1/OQ-2 design directives in story body/ACs; HarnessError gains DuplicateKey+BindFailure; then run dclaude:remove-uncertainty; clear S-7.01 gate.
+Dispatch `vsdd-factory:product-owner` + `vsdd-factory:architect` to decide the per-client data seeding approach for the multi-client SOC demo: today `build_clone_pairs` (`crates/prism-dtu-demo-server/src/harness.rs`) ignores `CloneConfig.seed`/`fixture_set` so every client serves identical data. Decide: wire per-instance seeds into `build_clone_pairs`, OR a POST /dtu/configure runtime-seeding path. Author or scope-add a story delivering REAL distinct per-client data (closes the real-per-client-data requirement). This is the data-distinctness backbone for S-DEMO-004 (T8) and the SOC narrative (T13).
 
 ---
 
@@ -69,7 +69,7 @@ Status vocab: `not-started` | `in-progress` | `blocked` | `done`
 |------|--------|-------------|------------|-----------|-----------|
 | T1 | done | product-owner | — | S-DEMO-MULTI-TENANT-DTU-001 | New multi-address-binding BC authored (BC-2.06.017 Per-DTU-Instance Multi-Address Binding; draft; SS-01; CAP-036; P2; D-1074); Flag-2 resolved (no BC-2.06.014 amendment); EC-003 explicit-error; 5 invariants authored. BC-INDEX v6.01 registered. |
 | T2 | done | architect | T1 | S-DEMO-MULTI-TENANT-DTU-001 | OQ-1 resolved: MultiInstanceConfig+InstanceEntry → prism-dtu-demo-server/src/multi_instance.rs; MultiInstanceHarness+HarnessEntry → prism-dtu-harness/src/multi_instance.rs; NOT prism-dtu-common (architect override D-1075). OQ-2 resolved: Box<dyn BehavioralClone>; HarnessError gains DuplicateKey+BindFailure; canonical signature start+socket_map; INV-PERIMETER-001 satisfied. OQ-3 resolved: behavioral_contracts:[BC-2.06.017]; BC-2.06.014 §References only. No ADR. Story defects for T3 flagged (server.rs→multi_instance.rs; [SS-17]→[SS-01]; behavioral_contracts []→[BC-2.06.017]). |
-| T3 | not-started | story-writer | T1, T2 | S-DEMO-MULTI-TENANT-DTU-001 | Story finalized to status:ready (behavioral_contracts:[BC-2.06.017]; subsystems:[SS-01]; §File Structure corrected server.rs→multi_instance.rs; §Architecture Mapping corrected; OQ-1/OQ-2 design directives reflected in body/ACs; HarnessError DuplicateKey+BindFailure; S-7.01 gate CLEARED); dclaude:remove-uncertainty applied. |
+| T3 | done | story-writer | T1, T2 | S-DEMO-MULTI-TENANT-DTU-001 | Story finalized to status:ready v1.2 (D-1076 2026-06-09): behavioral_contracts:[BC-2.06.017]; subsystems:[SS-01]; §File Structure corrected server.rs→multi_instance.rs; §Architecture Mapping corrected; OQ-1/OQ-2 design directives reflected in body/ACs (Box<dyn BehavioralClone>; HarnessError DuplicateKey+BindFailure(Vec<BindError>); canonical signatures start+socket_map; crate placement per D-1075); dclaude:remove-uncertainty applied (8 uncertainties closed: 4 HIGH incl CRIT U-002, 3 MED, 1 LOW); BC-2.06.017 v1.0→v1.1 (2 PO amendments); S-7.01 gate CLEARED. |
 | T4 | not-started | product-owner + architect | — | (per-client data seeding — NEW or scope-add) | Seeding approach decided (wire CloneConfig.seed/fixture_set in build_clone_pairs vs POST /dtu/configure); story authored/scoped to deliver REAL distinct per-client data. |
 | T5 | blocked | story-writer | T4 | (data-seeding story) | Data-seeding story finalized to ready; remove-uncertainty applied. |
 | T6 | blocked | orchestrator-driven per-story delivery | T3 | S-DEMO-MULTI-TENANT-DTU-001 | Multi-instance bind implemented + merged (test-writer → implementer → LOCAL 3-CLEAN strict → demo → PR → PR-LEVEL 3-CLEAN strict → merge). |
@@ -109,6 +109,7 @@ Per-story delivery tasks (T6, T7, T10, T12) follow the canonical 12-gate per-sto
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.3 | 2026-06-09 | state-manager | D-1076: T3 done (story-writer finalized S-DEMO-MULTI-TENANT-DTU-001 to status:ready v1.2; dclaude:remove-uncertainty closed 8 uncertainties (4 HIGH incl CRIT U-002) before TDD; BC-2.06.017 v1.1 (2 PO amendments); architect reconciliation extend-D-1075 no-ADR; S-7.01 gate CLEARED); CURRENT POINTER advanced to T4 (product-owner + architect decide per-client data seeding approach). Progress: 3/15 done. |
 | 1.2 | 2026-06-09 | state-manager | D-1075: T2 done (architect adjudication OQ-1/OQ-2/OQ-3 complete; no ADR); CURRENT POINTER advanced to T3 (story-writer finalizes S-DEMO-MULTI-TENANT-DTU-001 to status:ready). |
 | 1.1 | 2026-06-09 | state-manager | D-1074: T1 done (BC-2.06.017 authored + registered in BC-INDEX v6.01); CURRENT POINTER advanced to T2 (architect adjudicates OQ-1/OQ-2/OQ-3). |
 | 1.0 | 2026-06-09 | state-manager | Initial task ledger created (D-1073). |

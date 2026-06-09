@@ -1,10 +1,10 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "6.01"
+version: "6.02"
 status: draft
 producer: product-owner
-timestamp: 2026-06-09T02:00:00Z
+timestamp: 2026-06-09T05:00:00Z
 phase: 3.A
 total_contracts: 247
 active_contracts: 235
@@ -114,7 +114,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.06.014 | Instance Identity Resolution at Fanout — (org_id, sensor_id) Tuple Resolves to ResolvedSensorSpec | 06 - Client Configuration | CAP-009 | P0 | active — promoted D-825 (PR #155 merge 2026-05-26) |
 | BC-2.06.015 | OrgRegistry Cross-Validation at Boot — Unknown Overlay Directory Triggers E-SPEC-022 | 06 - Client Configuration | CAP-009 | P0 | active — v1.1; promoted D-825 (PR #155 merge 2026-05-26) |
 | BC-2.06.016 | Error Taxonomy for Per-Org Overlay Override Violations (E-SPEC-019 through E-SPEC-023) | 06 - Client Configuration | CAP-009 | P0 | active — v1.3; promoted D-825 (PR #155 merge 2026-05-26) |
-| BC-2.06.017 | Per-DTU-Instance Multi-Address Binding for Multi-Tenant Overlay Testing | SS-01 (Sensor Adapters) | CAP-036 | P2 | draft |
+| BC-2.06.017 | Per-DTU-Instance Multi-Address Binding for Multi-Tenant Overlay Testing | SS-01 (Sensor Adapters) | CAP-036 | P2 | draft — v1.1 (D-1076: Amendment-1 Postcondition-5 start_on prose corrected; Amendment-2 error-table inner types disambiguated; 5 invariants UNCHANGED) |
 | BC-2.07.001 | Internal Ephemeral Pagination Token Structure | 07 - Adapter Pagination & Response Cache | CAP-011 | P0 | draft |
 | BC-2.07.002 | Internal Pagination Token Lifecycle — Forward Progress, Timeout, and Cleanup | 07 - Adapter Pagination & Response Cache | CAP-011 | P0 | draft |
 | BC-2.07.003 | Query Engine Sensor-Fetch Cache with Configurable TTL | 07 - Adapter Pagination & Response Cache | CAP-014 | P1 | draft |
@@ -377,6 +377,10 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v6.02 (2026-06-09, D-1076 — BC-2.06.017 v1.0→v1.1: Amendment-1 Postcondition-5 start_on prose + Amendment-2 error-table inner type disambiguation; 5 invariants UNCHANGED):** state-manager (recording PO-authored amendments) | BC-2.06.017 v1.0→v1.1 — two amendments per D-1076 architect reconciliation (extend-D-1075; no new ADR): (1) Amendment-1: corrected Postcondition-5 `start_on` signature prose — `tls` field is `Option<TlsConfig>`, NOT `bool`; `start_on` parameter is `Option<broadcast::Receiver<ShutdownSignal>>` (optional graceful-shutdown channel), NOT `Option<SocketAddr>`; cfg-gate TLS is `#[cfg(feature="tls")]`; receiver is `&mut self` (takes ownership of runtime). (2) Amendment-2: disambiguated error-table inner types — demo-server `MultiInstanceBindError::BindFailure(Vec<DemoBindError>)` (owns demo-server error type); harness `HarnessError::BindFailure(Vec<BindError>)` (owns harness error type); the two `BindError` vs `DemoBindError` types are DISTINCT types in their respective crates. lifecycle_status stays draft (POL-14: promotes at S-DEMO-MULTI-TENANT-DTU-001 merge). 5 named invariants (INV-ISOLATION-001, INV-COMPAT-001, INV-ERR-003-COMPAT, INV-PERIMETER-001, INV-NONEXHAUSTIVE-001) UNCHANGED. No BC count changes (active: 235, draft: 3 unchanged). BC-INDEX in-line row 117 updated to v1.1. BC-INDEX v6.01→v6.02.
+
+**v6.01 (2026-06-09, D-1074 — BC-2.06.017 Per-DTU-Instance Multi-Address Binding for Multi-Tenant Overlay Testing registered; draft_contracts 2→3):** state-manager | BC-2.06.017 registered (draft; SS-01 Sensor Adapters; CAP-036; P2; version 1.0). PO decisions: Flag-2 no-amend BC-2.06.014; EC-003 explicit error on duplicate (org_slug, sensor_id) pair or duplicate instance name. 5 invariants: INV-ISOLATION-001, INV-COMPAT-001, INV-ERR-003-COMPAT, INV-PERIMETER-001, INV-NONEXHAUSTIVE-001. active_contracts: 235 unchanged; draft_contracts: 2→3 (BC-2.06.011 + BC-2.06.017 + BC-2.21.001 are the 3 draft BCs). total_contracts: 246→247 (empirical file count +1). BC-INDEX v6.00→v6.01.
 
 **v6.00 (2026-06-08, D-1059 Phase C spec-prep — BC-2.16.002 v1.69→v1.70 OffsetLimit POST-vs-GET pagination dispatch clause; DRIFT-D850-001 CLOSED):** product-owner | BC-2.16.002 v1.69→v1.70 — added §Postconditions "OffsetLimit Pagination Dispatch: POST-body vs GET-URL (DRIFT-D850-001)" clause. Closes DRIFT-D850-001. No new invariant/error IDs. No new event_type emission. No BC count changes (active: 235, draft: 2 unchanged). BC-INDEX in-line row 216 updated to v1.70. BC-INDEX v5.99→v6.00.
 
