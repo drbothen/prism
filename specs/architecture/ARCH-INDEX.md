@@ -1,7 +1,7 @@
 ---
 document_type: architecture-index
 level: L3
-version: "2.115"
+version: "2.116"
 status: draft
 producer: state-manager
 timestamp: 2026-05-31T12:00:00
@@ -102,6 +102,7 @@ deployment_topology: single-service  # planned — no service binary exists yet 
 | ADR-033 | Push-Down Time-Window Extraction Strategy — Pre-Fan-Out Heuristic (T1) vs Post-Resolution classify_predicates (T2) | ACCEPTED v1.0 | 2026-06-05 | decisions/ADR-033-push-down-time-window-extraction-strategy-pre-fan-out-heuristic.md |
 | ADR-034 | Tier-3 Keyring Resolution — OrgId Threading via Injected OrgRegistry, OrgId-Keyed Write Reconciliation, and Async Safety | ACCEPTED v1.2 | 2026-06-06 | decisions/ADR-034-tier3-keyring-resolution-org-id-threading.md |
 | ADR-035 | E-CRED Namespace Reconciliation — Canonical E-CRED-001..010 Error Codes, Collision Resolution, and Migration Mapping | ACCEPTED v1.2 | 2026-06-07 | decisions/ADR-035-e-cred-namespace-reconciliation.md |
+| ADR-036 | Deterministic Scenario-Progression Engine — IncidentTimeline, Per-DTU Projection, and Cross-DTU Entity Coherence for Live Demo | ACCEPTED v1.0 | 2026-06-09 | decisions/ADR-036-deterministic-scenario-progression-engine.md |
 
 ## Architecture Decisions
 

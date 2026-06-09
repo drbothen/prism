@@ -1,14 +1,14 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "6.03"
+version: "6.04"
 status: draft
 producer: product-owner
-timestamp: 2026-06-09T05:00:00Z
+timestamp: 2026-06-09T06:00:00Z
 phase: 3.A
-total_contracts: 248
+total_contracts: 250
 active_contracts: 235
-draft_contracts: 4
+draft_contracts: 6
 deprecated_contracts: 0
 removed_contracts: 7
 retired_contracts: 2
@@ -16,10 +16,10 @@ retired_contracts: 2
 
 # Behavioral Contract Index
 
-Flat index of all 248 behavioral contracts for Prism (248 total files, 235 active, 4 draft, 0 deprecated, 7 removed, 2 retired), organized by BC ID. Note: 5 prior index-only reserved entries (BC-2.07.007/008/009/010, BC-2.14.011) were dropped — they never had corresponding files.
+Flat index of all 250 behavioral contracts for Prism (250 total files, 235 active, 6 draft, 0 deprecated, 7 removed, 2 retired), organized by BC ID. Note: 5 prior index-only reserved entries (BC-2.07.007/008/009/010, BC-2.14.011) were dropped — they never had corresponding files.
 
 **Note on `total_contracts`:** This count represents unique BC identifiers ever filed
-(active + draft + deprecated + removed + retired = 235 + 4 + 0 + 7 + 2 = 248). D-1077: BC-2.06.018 Demo-Server Config-Time Data Seeding registered (draft; SS-01; CAP-036; P2). D-1074: BC-2.06.017 Per-DTU-Instance Multi-Address Binding for Multi-Tenant Overlay Testing registered (draft; SS-01; CAP-036; P2). 1 new BC (BC-2.01.017) added in D-849 for ADR-031 StaticCookieAuthProvider no-login-roundtrip contract. 5 new BCs (BC-2.06.012–016) added in D-803 burst-3 for ADR-029 multi-tenant sensor endpoint overrides. Five prior index-only reserved entries
+(active + draft + deprecated + removed + retired = 235 + 6 + 0 + 7 + 2 = 250). D-1078: BC-2.06.019 Demo-Server Scenario Progression + BC-2.06.020 Demo-Server Enrichment Correlation registered (both draft; SS-01; CAP-036; P2). D-1077: BC-2.06.018 Demo-Server Config-Time Data Seeding registered (draft; SS-01; CAP-036; P2). D-1074: BC-2.06.017 Per-DTU-Instance Multi-Address Binding for Multi-Tenant Overlay Testing registered (draft; SS-01; CAP-036; P2). 1 new BC (BC-2.01.017) added in D-849 for ADR-031 StaticCookieAuthProvider no-login-roundtrip contract. 5 new BCs (BC-2.06.012–016) added in D-803 burst-3 for ADR-029 multi-tenant sensor endpoint overrides. Five prior index-only reserved entries
 (BC-2.07.007/008/009/010, BC-2.14.011) were dropped in v4.8 because they never had
 corresponding files — they are NOT counted in `total_contracts` and remain only in the
 historical references section below. Counts are derived from workspace enumeration of
@@ -116,6 +116,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.06.016 | Error Taxonomy for Per-Org Overlay Override Violations (E-SPEC-019 through E-SPEC-023) | 06 - Client Configuration | CAP-009 | P0 | active — v1.3; promoted D-825 (PR #155 merge 2026-05-26) |
 | BC-2.06.017 | Per-DTU-Instance Multi-Address Binding for Multi-Tenant Overlay Testing | SS-01 (Sensor Adapters) | CAP-036 | P2 | draft — v1.1 (D-1076: Amendment-1 Postcondition-5 start_on prose corrected; Amendment-2 error-table inner types disambiguated; 5 invariants UNCHANGED) |
 | BC-2.06.018 | Demo-Server Config-Time Data Seeding — Per-Clone seed + fixture_set Wire-Up | SS-01 (Sensor Adapters) | CAP-036 | P2 | draft |
+| BC-2.06.019 | Demo-Server Scenario Progression — Pure-Function Temporal Stage Advancement with Reproducibility Guarantee | 01 - Sensor Adapters | CAP-036 | P2 | draft |
+| BC-2.06.020 | Demo-Server Enrichment Correlation — Scenario IOCs Resolve in ThreatIntel; Scenario CVEs Resolve in NVD | 01 - Sensor Adapters | CAP-036 | P2 | draft |
 | BC-2.07.001 | Internal Ephemeral Pagination Token Structure | 07 - Adapter Pagination & Response Cache | CAP-011 | P0 | draft |
 | BC-2.07.002 | Internal Pagination Token Lifecycle — Forward Progress, Timeout, and Cleanup | 07 - Adapter Pagination & Response Cache | CAP-011 | P0 | draft |
 | BC-2.07.003 | Query Engine Sensor-Fetch Cache with Configurable TTL | 07 - Adapter Pagination & Response Cache | CAP-014 | P1 | draft |
@@ -321,7 +323,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 
 | Subsystem | BC Count | P0 | P1 | Removed | Retired |
 |-----------|----------|----|----|---------|---------|
-| 01 - Sensor Adapters | 10 | 9 | 1 | 6 | 0 |
+| 01 - Sensor Adapters | 12 | 9 | 1 | 6 | 0 |
 | 02 - OCSF Normalization | 12 | 12 | 0 | 0 | 0 |
 | 03 - Credential Management | 13 | 13 | 0 | 0 | 0 |
 | 04 - Feature Flags | 15 | 9 | 6 | 0 | 0 |
@@ -349,7 +351,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | Wave 3 BC Family: 3.6 - Harness Fault Injection | 2 | 2 | 0 | 0 | 0 |
 | Wave 3 BC Family: 3.7 - Workspace Conventions | 1 | 0 | 1 | 0 | 0 |
 | 22 - Process Lifecycle | 1 | 1 | 0 | 0 | 0 |
-| **Total** | **226** | **195** | **31** | **6** | **2** |
+| **Total** | **228** | **195** | **31** | **6** | **2** |
 
 **Note (v4.51):** 5 BCs promoted draft→active per D-319 (S-WAVE5-PREP-01 merged at develop@53b87961 2026-05-10T00:55:49Z): BC-2.03.013, BC-2.05.012, BC-2.06.011, BC-2.21.001, BC-2.22.001. active_contracts 222→227. total_contracts=235 (227 active + 6 removed + 2 retired).
 
@@ -378,6 +380,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v6.04 (2026-06-09, D-1078 — BC-2.06.019 Demo-Server Scenario Progression + BC-2.06.020 Demo-Server Enrichment Correlation registered; draft_contracts 4→6; total_contracts 248→250):** state-manager | BC-2.06.019 Demo-Server Scenario Progression — Pure-Function Temporal Stage Advancement with Reproducibility Guarantee registered (draft; SS-01 Sensor Adapters; CAP-036; P2; v1.0). BC-2.06.020 Demo-Server Enrichment Correlation — Scenario IOCs Resolve in ThreatIntel; Scenario CVEs Resolve in NVD registered (draft; SS-01 Sensor Adapters; CAP-036; P2; v1.0). Both authored by product-owner per ADR-036. active_contracts: 235 unchanged; draft_contracts: 4→6 (BC-2.06.011 + BC-2.06.017 + BC-2.06.018 + BC-2.06.019 + BC-2.06.020 + BC-2.21.001). total_contracts: 248→250 (empirical file count +2). SS-01 subsystem summary BC count 10→12 (P2 additions; P0=9, P1=1 unchanged). BC-INDEX v6.03→v6.04.
 
 **v6.03 (2026-06-09, D-1077 — BC-2.06.018 Demo-Server Config-Time Data Seeding registered; draft_contracts 3→4; total_contracts 247→248):** state-manager | BC-2.06.018 Demo-Server Config-Time Data Seeding — Per-Clone seed + fixture_set Wire-Up registered (draft; SS-01 Sensor Adapters; CAP-036; P2; version 1.0). Authored by product-owner. Anchors the baseline static per-client seeding mechanism (the expanded single-larger-story S-DEMO-DTU-DATA-SEEDING-001 will absorb this BC plus new scenario-progression + enrichment-correlation BCs pending architect design). active_contracts: 235 unchanged; draft_contracts: 3→4 (BC-2.06.011 + BC-2.06.017 + BC-2.06.018 + BC-2.21.001 are the 4 draft BCs). total_contracts: 247→248 (empirical file count +1). SS-01 subsystem summary BC count 9→10 (P1 count 0→1). BC-INDEX v6.02→v6.03.
 

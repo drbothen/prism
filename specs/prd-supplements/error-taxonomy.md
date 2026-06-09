@@ -2,11 +2,11 @@
 document_type: prd-supplement
 level: L3
 section: "error-taxonomy"
-version: "1.62"
+version: "1.63"
 status: active
 producer: product-owner
 timestamp: 2026-05-16T00:00:00Z
-modified: "2026-06-07"
+modified: "2026-06-09"
 phase: 1a
 origin: greenfield
 inputs: [".factory/specs/prd.md", ".factory/specs/behavioral-contracts/**"]
@@ -506,10 +506,28 @@ Additional state errors beyond E-STATE-001 and E-STATE-002 (defined in the STATE
 
 ---
 
+## DEMO: Demo-Server Errors
+
+Demo-server configuration and scenario errors. All `E-DEMO-NNN` codes are construction-time
+errors that propagate through `build_clone_pairs -> anyhow::Result<Vec<ClonePair>>` and
+abort harness startup. They are never emitted at request-handling time (per
+INV-CONSTRUCTION-TIME-FAILURE-001 in BC-2.06.018 and INV-CONSTRUCTION-TIME-INJECTION-001
+in BC-2.06.020). The demo-server is test/demo infrastructure and these errors are
+operator-facing (fix `demo.toml` and restart).
+
+| Code | Severity | Category | Message Format | Retryable | Description |
+|------|----------|----------|----------------|-----------|-------------|
+| E-DEMO-001 | broken | configuration | `"demo-server: E-DEMO-001: clone '{clone_name}': unrecognized fixture_set '{value}'; valid values: default, compromised, auth_outage, large_scale, pagination_edges, schema_drift, high_churn, dormant"` | No | Construction-time error: `CloneConfig.fixture_set` does not match any recognized archetype string (for generator-backed clones) or embedded fixture file (for static clones). Causes `build_clone_pairs` to return `Err`; harness aborts unless `continue_on_error = true`. `{clone_name}` is the clone type name (e.g., `"claroty"`); `{value}` is the literal `fixture_set` string from `demo.toml`. Operator must fix `demo.toml` and restart. BC-2.06.018 §INV-FIXTURE-SET-ARCHETYPE-MAP-001 + §INV-CONSTRUCTION-TIME-FAILURE-001. |
+| E-DEMO-002 | broken | configuration | `"demo-server: E-DEMO-002: scenario clones '{clone_a}' (seed={seed_a}) and '{clone_b}' (seed={seed_b}) have different seeds; cross-DTU coherence requires all scenario-enabled clones to share the same seed"` | No | Construction-time error: two or more clones in the same client config block have `scenario.enabled = true` but different `seed` values. Cross-DTU entity coherence (INV-CROSS-DTU-ENTITY-COHERENCE-001 in BC-2.06.020) requires all scenario-enabled clones to share a single seed so that `ScenarioEntityCatalog` derivation produces the same entity IDs across all clones. `{clone_a}` and `{clone_b}` are the clone type names (e.g., `"crowdstrike"`, `"armis"`); `{seed_a}` and `{seed_b}` are the conflicting seed values. Detected before any clone constructor is called. Operator must set the same `seed` value in all `[clones.*.scenario]` blocks. BC-2.06.019 §Precondition 5 + §Error Codes. ADR-036 §6. |
+| E-DEMO-003 | broken | configuration | `"demo-server: E-DEMO-003: clone '{clone_name}': unrecognized scenario archetype '{value}'; valid values: compromised_endpoint, healthy"` | No | Construction-time error: `CloneConfig.scenario.archetype` is not a recognized archetype string. Also covers the case where `stage_duration_secs` has a different length than the archetype's stage count: `"demo-server: E-DEMO-003: clone '{clone_name}': stage_duration_secs has {provided} entries but archetype '{archetype}' requires exactly {expected}"`. Causes `build_clone_pairs` to return `Err`; harness aborts. Operator must fix `demo.toml`. BC-2.06.019 §Precondition 6 + §Error Codes. ADR-036 §6. |
+
+---
+
 ## Changelog
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.63 | D-1077 BC-2.06.019+020 authorship | 2026-06-09 | product-owner | **E-DEMO namespace registered (first demo-server error namespace).** Added `## DEMO: Demo-Server Errors` section with three error codes. E-DEMO-001: unrecognized `fixture_set` at construction time — transcribed verbatim from BC-2.06.018 §Error Codes (that BC flagged this for error-taxonomy registration; fulfilled here). E-DEMO-002: mismatched seeds across scenario-enabled clones in the same client config block (construction-time, cross-DTU coherence requirement) — defined by BC-2.06.019 §Error Codes per ADR-036 §6. E-DEMO-003: unrecognized `scenario.archetype` or mismatched `stage_duration_secs` length — defined by BC-2.06.019 §Error Codes per ADR-036 §6. All three codes are construction-time `build_clone_pairs` errors; none are emitted at request-handling time. Bumped v1.62→v1.63. |
 | 1.62 | S-MAINT-ECRED-TAXONOMY-SYNC-001 | 2026-06-07 | product-owner | **E-CRED namespace reconciliation per ADR-035 (DRIFT-ECRED-TAXONOMY-001).** Replaced prior 5-row E-CRED table (v1.61) with canonical 10-row E-CRED-001..010 namespace. Changes: (1) REMOVED E-CRED-001 ("OS keyring unavailable: {platform_error}") — condition was spec-only (no `PrismError` variant), subsumed by E-CRED-008. (2) REMOVED E-CRED-002 ("Encrypted file backend key material missing") — condition subsumed by E-CRED-007 (`EncryptionKeyMissing`). (3) OLD E-CRED-003 ("Credential decryption failed for ({client_id}, {sensor_id})") — REPLACED with new E-CRED-009 (same condition, correctly numbered per ADR-035 §D2; was spec-only / not implemented). (4) REMOVED E-CRED-004 ("Invalid credential name ... path traversal") — condition subsumed by canonical E-CRED-001 (general-purpose `InvalidCredentialName`). (5) OLD E-CRED-005 ("OS keyring unavailable during Tier-3 ... per ADR-034 §D4") — REPLACED with E-CRED-008 (resolves collision with `PrismError::CredentialEncryptionError` which was also numbered E-CRED-005 in prism-core). (6) ADDED E-CRED-001 (`InvalidCredentialName`, validation) — aligns with `PrismError::InvalidCredentialName` in prism-core. (7) ADDED E-CRED-002 (`CredentialNotFound`, configuration) — aligns with `PrismError::CredentialNotFound`. (8) ADDED E-CRED-003 (`CredentialAccessDenied`, security) — aligns with `PrismError::CredentialAccessDenied`; MCP `-32002 Forbidden`. (9) ADDED E-CRED-004 (`CredentialStoreError`, infrastructure) — aligns with `PrismError::CredentialStoreError`. (10) ADDED E-CRED-005 (`CredentialFileIo`, configuration) — Tier-1 file I/O failure from `prism_credentials::resolve_secret` (formerly emitted as undeclared E-CRED-009 string literal). (11) ADDED E-CRED-006 (`CredentialEncryptionError`, authentication) — renumbered from E-CRED-005 in prism-core. (12) ADDED E-CRED-007 (`EncryptionKeyMissing`, configuration) — renumbered from E-CRED-006 in prism-core. (13) ADDED E-CRED-008 (`KeyringBackendUnavailable`, infrastructure) — forward-reserved; only emitter is S-DEMO-003 Tier-3 keyring path (`CredentialResolutionError::BackendUnavailable`), pending merge on `feature/S-DEMO-003`. (14) ADDED E-CRED-009 (`CredentialDecryptionFailed`, authentication) — forward-reserved; no develop-branch emitter yet. (15) ADDED E-CRED-010 (RESERVED — retired `PrismError::KeyringError` slot). Bumped frontmatter v1.61→v1.62. BC-2.06.003 bumped to v1.5 in same burst (E-CRED-005 → E-CRED-008 cite update per ADR-035 §Blast-Radius). |
 | 1.61 | [TOMBSTONE — row absent from changelog; gap surfaced during S-MAINT-ECRED-TAXONOMY-SYNC-001] | 2026-06-06 | product-owner | [TOMBSTONE — v1.61 frontmatter version was set (modified: 2026-06-06) but no changelog row was appended in that burst. Content reconstructed from git history context: the v1.61 bump was the spec-restart burst for S-DEMO-003 (2026-06-06), which authored BC-2.06.003 v1.4 with E-CRED-005 Tier-3 keyring cite per ADR-034 §D4. The error-taxonomy.md frontmatter version was bumped as part of that burst's provenance tracking without a corresponding changelog row. Per POL-32 tombstone convention (established D-870 v1.55 sweep), tombstone row added here to close the gap.] |
 | 1.60 | FB-PR2 | 2026-06-04 | product-owner | E-SPEC-025 description extended: added 32-codepoint `method_value` echo-cap documentation (CWE-400 / SEC-001 / F-PR4-MED-002). The `{method_value}` field in the error message is truncated to a maximum of 32 codepoints via `truncate_at_char_boundary(&step.method, 32)`; for inputs ≤32 codepoints the output is byte-identical to the original (POL-24 preserved). Message template column UNCHANGED per POL-24 (byte-verbatim preserved; truncation is an implementation detail documented in the description column, not part of the canonical template string). BC-2.16.009 bumped to v1.9 in same FB-PR2 burst. |

@@ -2,10 +2,10 @@
 document_type: task-ledger
 objective: multi-client-soc-analyst-demo
 level: ops
-version: "1.4"
+version: "1.5"
 producer: state-manager
 status: active
-timestamp: 2026-06-09T05:00:00Z
+timestamp: 2026-06-09T07:00:00Z
 related:
   - SESSION-HANDOFF.md §ACTIVE OBJECTIVE
   - .factory/STATE.md
@@ -34,15 +34,15 @@ Deliver a multi-client SOC-analyst LIVE DEMO — multiple clients, different sen
 
 ## Progress Summary
 
-Foundations: COMPLETE (reused). Build: 3/15 tasks done; CURRENT TASK **T4** (scope expanded D-1077 — architect designs progression engine + enrichment-DTU correlation before T4 concludes).
+Foundations: COMPLETE (reused). Build: 3/15 tasks done; CURRENT TASK **T4** (design substantially complete D-1078 — ADR-036 authored; BC-2.06.018/019/020 authored; E-DEMO taxonomy done; story-writer assembles S-DEMO-DTU-LIVE-SCENARIO-001 RETRY pending).
 
 ## CURRENT POINTER
 
-**T4** — Architect designs the expanded data-seeding mechanism (scenario-progression engine + enrichment-DTU correlation); PO authors new BCs; story-writer assembles the single larger live-scenario story. **BC-2.06.018 baseline authored (PO); seeding mechanism DECIDED (architect). PENDING: scenario-progression + enrichment-correlation design + BCs + story assembly.**
+**T4** — Design SUBSTANTIALLY COMPLETE (D-1078): ADR-036 authored (architect); BC-2.06.018 baseline + BC-2.06.019 (progression) + BC-2.06.020 (enrichment correlation) authored (PO); E-DEMO-001/002/003 in error-taxonomy v1.63. **PENDING: story-writer assembles S-DEMO-DTU-LIVE-SCENARIO-001 (13pt; anchors BC-2.06.018/019/020; per ADR-036) — RETRY pending (2 transient API socket drops; NOT content/logic failure); then dclaude:remove-uncertainty; then state-manager closes T4.**
 
 ## NEXT ACTION (verbatim, for cold resume)
 
-Architect designs the deterministic scenario-progression engine (staged unfolding attack, reproducible over time) + enrichment-DTU correlation (ThreatIntel/NVD resolve the progression's IOCs/CVEs) + cross-DTU scenario entity coherence; then PO authors progression + enrichment-correlation BCs; then story-writer assembles the single larger live-scenario story (anchoring BC-2.06.018 + new BCs).
+Story-writer assembles S-DEMO-DTU-LIVE-SCENARIO-001 (13pt; anchors BC-2.06.018/019/020; per ADR-036) — RETRY pending (2 transient socket drops); then dclaude:remove-uncertainty; then state-manager registers the story + STORY-INDEX and closes T4 → advance to per-story delivery.
 
 ---
 
@@ -80,7 +80,7 @@ Status vocab: `not-started` | `in-progress` | `blocked` | `done`
 | T1 | done | product-owner | — | S-DEMO-MULTI-TENANT-DTU-001 | New multi-address-binding BC authored (BC-2.06.017 Per-DTU-Instance Multi-Address Binding; draft; SS-01; CAP-036; P2; D-1074); Flag-2 resolved (no BC-2.06.014 amendment); EC-003 explicit-error; 5 invariants authored. BC-INDEX v6.01 registered. |
 | T2 | done | architect | T1 | S-DEMO-MULTI-TENANT-DTU-001 | OQ-1 resolved: MultiInstanceConfig+InstanceEntry → prism-dtu-demo-server/src/multi_instance.rs; MultiInstanceHarness+HarnessEntry → prism-dtu-harness/src/multi_instance.rs; NOT prism-dtu-common (architect override D-1075). OQ-2 resolved: Box<dyn BehavioralClone>; HarnessError gains DuplicateKey+BindFailure; canonical signature start+socket_map; INV-PERIMETER-001 satisfied. OQ-3 resolved: behavioral_contracts:[BC-2.06.017]; BC-2.06.014 §References only. No ADR. Story defects for T3 flagged (server.rs→multi_instance.rs; [SS-17]→[SS-01]; behavioral_contracts []→[BC-2.06.017]). |
 | T3 | done | story-writer | T1, T2 | S-DEMO-MULTI-TENANT-DTU-001 | Story finalized to status:ready v1.2 (D-1076 2026-06-09): behavioral_contracts:[BC-2.06.017]; subsystems:[SS-01]; §File Structure corrected server.rs→multi_instance.rs; §Architecture Mapping corrected; OQ-1/OQ-2 design directives reflected in body/ACs (Box<dyn BehavioralClone>; HarnessError DuplicateKey+BindFailure(Vec<BindError>); canonical signatures start+socket_map; crate placement per D-1075); dclaude:remove-uncertainty applied (8 uncertainties closed: 4 HIGH incl CRIT U-002, 3 MED, 1 LOW); BC-2.06.017 v1.0→v1.1 (2 PO amendments); S-7.01 gate CLEARED. |
-| T4 | in-progress | architect + product-owner | — | (single larger live-scenario story — S-DEMO-DTU-LIVE-SCENARIO-001 or equiv.) | **EXPANDED SCOPE (D-1077):** Seeding mechanism DECIDED (architect); BC-2.06.018 baseline AUTHORED (PO). PENDING: (a) architect designs deterministic scenario-progression engine (staged unfolding attack, reproducible over time) + enrichment-DTU correlation (ThreatIntel/NVD resolve the progression's IOCs/CVEs) + cross-DTU scenario entity coherence; (b) PO authors progression BC + enrichment-correlation BC; (c) story-writer assembles the single larger live-scenario story anchoring BC-2.06.018 + new BCs. Detailed task breakdown for progression engine + enrichment correlation finalized after architect's expanded-design pass. |
+| T4 | in-progress | story-writer (retry) | — | S-DEMO-DTU-LIVE-SCENARIO-001 | **DESIGN SUBSTANTIALLY COMPLETE (D-1078):** ADR-036 authored (architect); BC-2.06.018 (static seeding) + BC-2.06.019 (scenario progression, 5 invariants) + BC-2.06.020 (enrichment correlation, 6 invariants) authored (PO); E-DEMO-001/002/003 in error-taxonomy v1.63. PENDING: story-writer assembles S-DEMO-DTU-LIVE-SCENARIO-001 (13pt; anchors BC-2.06.018/019/020; per ADR-036) — RETRY pending (2 transient API socket drops; NOT content/logic failure); then dclaude:remove-uncertainty; then state-manager registers story + STORY-INDEX + closes T4 → advance to per-story delivery (T6). |
 | T5 | blocked | story-writer | T4 | (single larger live-scenario story) | Single larger live-scenario story (BC-2.06.018 + scenario-progression BC + enrichment-correlation BC) finalized to ready; remove-uncertainty applied. |
 | T6 | blocked | orchestrator-driven per-story delivery | T3 | S-DEMO-MULTI-TENANT-DTU-001 | Multi-instance bind implemented + merged (test-writer → implementer → LOCAL 3-CLEAN strict → demo → PR → PR-LEVEL 3-CLEAN strict → merge). |
 | T7 | blocked | per-story delivery | T5, T6 | (data-seeding story) | Per-client data seeding implemented + merged; org A != org B data verified. |
@@ -119,6 +119,7 @@ Per-story delivery tasks (T6, T7, T10, T12) follow the canonical 12-gate per-sto
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.5 | 2026-06-09 | state-manager | D-1078: T4 design substantially complete. ADR-036 confirmed in ARCH-INDEX v2.116. BC-2.06.019 (scenario progression, 5 invariants) + BC-2.06.020 (enrichment correlation, 6 invariants) registered in BC-INDEX v6.04. E-DEMO-001/002/003 confirmed in error-taxonomy v1.63. T4 CURRENT POINTER remains (story-writer assembles S-DEMO-DTU-LIVE-SCENARIO-001 retry pending — 2 transient socket drops). NEXT ACTION updated verbatim. T4 done-when updated. Progress: 3/15 done; design artifacts durable. |
 | 1.4 | 2026-06-09 | state-manager | D-1077: User-directed scope expansion of multi-client SOC demo (A/B/C). BC-2.06.018 registered (draft; PO-authored; SS-01; CAP-036; P2). Scope Expansion section added. T4 status not-started→in-progress; T4 done-when updated to reflect EXPANDED scope (seeding DECIDED; progression + enrichment PENDING architect design). T5 done-when updated to single-larger-live-scenario-story. NEXT ACTION updated verbatim. E-DEMO-001 obligation recorded. CURRENT POINTER remains T4. Progress: 3/15 done. |
 | 1.3 | 2026-06-09 | state-manager | D-1076: T3 done (story-writer finalized S-DEMO-MULTI-TENANT-DTU-001 to status:ready v1.2; dclaude:remove-uncertainty closed 8 uncertainties (4 HIGH incl CRIT U-002) before TDD; BC-2.06.017 v1.1 (2 PO amendments); architect reconciliation extend-D-1075 no-ADR; S-7.01 gate CLEARED); CURRENT POINTER advanced to T4 (product-owner + architect decide per-client data seeding approach). Progress: 3/15 done. |
 | 1.2 | 2026-06-09 | state-manager | D-1075: T2 done (architect adjudication OQ-1/OQ-2/OQ-3 complete; no ADR); CURRENT POINTER advanced to T3 (story-writer finalizes S-DEMO-MULTI-TENANT-DTU-001 to status:ready). |
