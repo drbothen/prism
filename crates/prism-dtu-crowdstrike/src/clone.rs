@@ -76,6 +76,41 @@ impl Default for CrowdstrikeClone {
     }
 }
 
+// ---------------------------------------------------------------------------
+// Story A: new_with_seed constructor stub (BC-2.06.018 / ADR-036 §2.3)
+// ---------------------------------------------------------------------------
+
+#[cfg(feature = "fixture-gen")]
+impl CrowdstrikeClone {
+    /// Construct a `CrowdstrikeClone` with deterministic fixture data generated at
+    /// construction time from `(seed, org_id)`.
+    ///
+    /// Calls `generate(org_id, Archetype::CompromisedEndpoint, GenOpts { seed, ..GenOpts::default() })`
+    /// under `#[cfg(feature = "fixture-gen")]`, stores the resulting records in
+    /// `generated_devices` / `generated_detections` in state.
+    ///
+    /// Route handlers serve from `generated_devices` / `generated_detections` when
+    /// non-empty; fall back to `load_host_ids()` / `load_host_details()` (static
+    /// embedded JSON in routes/hosts.rs) when empty.
+    ///
+    /// `CrowdstrikeClone::new()` is unchanged (backward-compatible, ADR-036 §2.5).
+    ///
+    /// # Story A stub
+    ///
+    /// Returns `Self` with empty `generated_devices` / `generated_detections` until Gate 4
+    /// implements the real logic.  The Red Gate tests assert on device IDs in responses, so
+    /// they FAIL with `todo!()` here.
+    ///
+    /// ADR-036 §2.3: `new_with_seed` calls `generate()` ONCE at construction;
+    /// route handlers MUST NOT call `generate()` per-request.
+    pub fn new_with_seed(_seed: u64, _org_id: prism_dtu_common::OrgId) -> Self {
+        todo!(
+            "S-DEMO-DTU-LIVE-SCENARIO-001-A Gate 4: implement CrowdstrikeClone::new_with_seed \
+             (BC-2.06.018 postcondition 1, ADR-036 §2.3)"
+        )
+    }
+}
+
 #[async_trait]
 impl BehavioralClone for CrowdstrikeClone {
     /// Start with an explicit bind address, optional graceful-shutdown receiver, and

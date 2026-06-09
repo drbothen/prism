@@ -130,6 +130,32 @@ impl CyberintClone {
         })
     }
 
+    // -----------------------------------------------------------------------
+    // Story A: new_with_seed constructor stub (BC-2.06.018 / ADR-036 §2.3)
+    // -----------------------------------------------------------------------
+
+    /// Construct a `CyberintClone` with deterministic fixture data generated at
+    /// construction time from `(seed, org_id)`.
+    ///
+    /// Gated `#[cfg(feature = "fixture-gen")]`.
+    ///
+    /// This constructor is **fallible** — mirrors `CyberintClone::new() -> anyhow::Result<Self>`.
+    /// `build_clone_pairs` propagates the error via `?`.
+    ///
+    /// `CyberintClone::new()` is unchanged (backward-compatible, ADR-036 §2.5).
+    ///
+    /// # Story A stub
+    ///
+    /// Returns `todo!()` until Gate 4. Red Gate tests FAIL at this call.
+    #[cfg(feature = "fixture-gen")]
+    pub fn new_with_seed(seed: u64, org_id: prism_dtu_common::OrgId) -> anyhow::Result<Self> {
+        let _ = (seed, org_id);
+        todo!(
+            "S-DEMO-DTU-LIVE-SCENARIO-001-A Gate 4: implement CyberintClone::new_with_seed \
+             (BC-2.06.018 postcondition 1, ADR-036 §2.3)"
+        )
+    }
+
     /// Return the base URL for this clone (e.g. `http://127.0.0.1:PORT`).
     ///
     /// Delegates to the trait's `base_url()` which checks `is_tls_active()`.

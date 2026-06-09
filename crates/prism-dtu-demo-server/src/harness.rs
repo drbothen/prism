@@ -385,6 +385,86 @@ pub fn build_clone_pairs(config: &DemoConfig) -> anyhow::Result<Vec<ClonePair>> 
     Ok(pairs)
 }
 
+// ---------------------------------------------------------------------------
+// Story A: fixture_set → Archetype mapping + E-DEMO error guards
+// (BC-2.06.018 / ADR-036 §2.4)
+// ---------------------------------------------------------------------------
+
+/// Canonical `fixture_set` string → `Archetype` mapping (INV-FIXTURE-SET-ARCHETYPE-MAP-001).
+///
+/// Returns `Err` with E-DEMO-001 message for unrecognized values.
+///
+/// # Error format (BC-2.06.018 §Error Codes E-DEMO-001)
+///
+/// ```text
+/// demo-server: E-DEMO-001: clone '{clone_name}': unrecognized fixture_set '{value}';
+/// valid values: default, compromised, auth_outage, large_scale, pagination_edges,
+///               schema_drift, high_churn, dormant
+/// ```
+///
+/// # Story A stub
+///
+/// Returns `todo!()` until Gate 4. Red Gate tests FAIL at this call.
+/// Gated `#[cfg(feature = "fixture-gen")]` because `Archetype` is only available
+/// when the generator module is active.
+#[cfg(feature = "fixture-gen")]
+pub fn fixture_set_to_archetype(
+    _fixture_set: &str,
+    _clone_name: &str,
+) -> anyhow::Result<prism_dtu_common::Archetype> {
+    todo!(
+        "S-DEMO-DTU-LIVE-SCENARIO-001-A Gate 4: implement fixture_set_to_archetype \
+         (BC-2.06.018 INV-FIXTURE-SET-ARCHETYPE-MAP-001, INV-CONSTRUCTION-TIME-FAILURE-001)"
+    )
+}
+
+/// Parse `org_id` string to `prism_dtu_common::OrgId`.
+///
+/// Returns E-DEMO-005 if the string is not a valid UUID.
+///
+/// # Error format (BC-2.06.018 §Error Codes E-DEMO-005)
+///
+/// ```text
+/// demo-server: E-DEMO-005: clone '{clone_name}': org_id '{value}' is not a valid UUID
+/// ```
+///
+/// # Story A stub
+///
+/// Returns `todo!()` until Gate 4.
+/// Gated `#[cfg(feature = "fixture-gen")]` because `OrgId` (the generator's [u8;16] type)
+/// is only available when the generator module is active.
+#[cfg(feature = "fixture-gen")]
+pub fn parse_org_id(
+    _org_id_str: &str,
+    _clone_name: &str,
+) -> anyhow::Result<prism_dtu_common::OrgId> {
+    todo!(
+        "S-DEMO-DTU-LIVE-SCENARIO-001-A Gate 4: implement parse_org_id \
+         (BC-2.06.018 §Error Codes E-DEMO-005)"
+    )
+}
+
+/// Validate that `org_id` is present when `new_with_seed` is required.
+///
+/// Returns E-DEMO-004 if `org_id` is `None` and the fixture_set requires seeding
+/// (i.e., when `new_with_seed` would be called).
+///
+/// # Error format (BC-2.06.018 §Error Codes E-DEMO-004)
+///
+/// ```text
+/// demo-server: E-DEMO-004: clone '{clone_name}': scenario.enabled requires org_id to be set (UUID string)
+/// ```
+///
+/// # Story A stub
+///
+/// Returns `todo!()` until Gate 4.
+pub fn require_org_id(_org_id: &Option<String>, _clone_name: &str) -> anyhow::Result<()> {
+    todo!(
+        "S-DEMO-DTU-LIVE-SCENARIO-001-A Gate 4: implement require_org_id \
+         (BC-2.06.018 §Error Codes E-DEMO-004)"
+    )
+}
+
 /// Parse a `SocketAddr` from a `CloneConfig` bind IP and port.
 pub fn clone_bind_addr(cfg: &CloneConfig) -> anyhow::Result<SocketAddr> {
     let addr_str = format!("{}:{}", cfg.bind, cfg.port);

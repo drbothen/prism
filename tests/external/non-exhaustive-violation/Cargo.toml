@@ -42,6 +42,11 @@ prism-security = { path = "../../../crates/prism-security" }
 #   50. SpecDrivenSensorAdapter — struct, spec_driven_adapter.rs (CR-006)
 prism-bin = { path = "../../../crates/prism-bin" }
 serde_json = "1"
+# S-DEMO-DTU-LIVE-SCENARIO-001-A: ScenarioEntityCatalog is #[non_exhaustive] in prism-dtu-common
+# (AC-014). The fixture-gen feature must be active to expose the scenario module.
+# This dep addition is required before the ScenarioEntityCatalog import row can resolve
+# (the crate currently declares no prism-dtu-* deps; this dep is new for Story A).
+prism-dtu-common = { path = "../../../crates/prism-dtu-common", features = ["fixture-gen"] }
 
 # Empty workspace table: opts this crate out of the parent workspace resolver.
 [workspace]

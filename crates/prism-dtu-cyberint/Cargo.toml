@@ -141,5 +141,11 @@ name = "demo_server"
 path = "src/bin/demo_server.rs"
 required-features = ["dtu"]
 
+# S-DEMO-DTU-LIVE-SCENARIO-001-A: Red Gate test RG-12 (BC-2.06.018 postcondition 1)
+[[test]]
+name = "bc_2_06_018_new_with_seed"
+path = "tests/bc_2_06_018_new_with_seed.rs"
+required-features = ["dtu", "fixture-gen"]
+
 [lints]
 workspace = true

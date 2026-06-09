@@ -18,6 +18,17 @@ dtu = [
     "prism-dtu-pagerduty/dtu",
     "prism-dtu-jira/dtu",
 ]
+# S-DEMO-DTU-LIVE-SCENARIO-001-A: fixture-gen activates new_with_seed constructors on all 4
+# generator-backed clones (BC-2.06.018 postcondition 1 / ADR-036 §2.3).
+# Gate 4 implementer must fan this feature out to all 4 clone crates + prism-dtu-common.
+# Declared here in Gate 3 so #[cfg(feature = "fixture-gen")] stubs in harness.rs compile cleanly.
+fixture-gen = [
+    "prism-dtu-crowdstrike/fixture-gen",
+    "prism-dtu-armis/fixture-gen",
+    "prism-dtu-claroty/fixture-gen",
+    "prism-dtu-cyberint/fixture-gen",
+    "prism-dtu-common/fixture-gen",
+]
 tls = [
     "dep:axum-server",
     "dep:rustls",
@@ -141,6 +152,12 @@ required-features = ["dtu"]
 [[test]]
 name = "behavioral_clone_override_check"
 path = "tests/behavioral_clone_override_check.rs"
+required-features = ["dtu"]
+
+# S-DEMO-DTU-LIVE-SCENARIO-001-A: Red Gate tests RG-5 through RG-10 (BC-2.06.018)
+[[test]]
+name = "bc_2_06_018_seeding"
+path = "tests/bc_2_06_018_seeding.rs"
 required-features = ["dtu"]
 
 [[test]]

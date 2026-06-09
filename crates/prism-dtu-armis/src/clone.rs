@@ -116,6 +116,41 @@ impl ArmisClone {
         })
     }
 
+    // -----------------------------------------------------------------------
+    // Story A: new_with_seed constructor stub (BC-2.06.018 / ADR-036 §2.3)
+    // -----------------------------------------------------------------------
+
+    /// Construct an `ArmisClone` with deterministic fixture data generated at
+    /// construction time from `(seed, org_id, org_slug)`.
+    ///
+    /// Gated `#[cfg(feature = "fixture-gen")]` — not compiled for production binaries.
+    ///
+    /// Calls `generate(org_id, org_slug, Archetype::CompromisedEndpoint, &GenOpts { seed, ..GenOpts::default() })`
+    /// under `fixture-gen`, stores the resulting records in `generated_records` in state.
+    ///
+    /// `org_slug` MUST be derived from `org_id` bytes via
+    /// `prism_dtu_common::scenario::org_slug_from_org_id(&gen_org_id)` (ADR-036 §2.2).
+    ///
+    /// This constructor is **fallible** — mirrors `ArmisClone::new() -> anyhow::Result<Self>`.
+    /// `build_clone_pairs` propagates the error via `?`.
+    ///
+    /// # Story A stub
+    ///
+    /// Returns `todo!()` until Gate 4 implements the real logic.
+    /// Red Gate tests FAIL at this call.
+    #[cfg(feature = "fixture-gen")]
+    pub fn new_with_seed(
+        seed: u64,
+        org_id: prism_dtu_common::OrgId,
+        org_slug: &str,
+    ) -> anyhow::Result<Self> {
+        let _ = (seed, org_id, org_slug);
+        todo!(
+            "S-DEMO-DTU-LIVE-SCENARIO-001-A Gate 4: implement ArmisClone::new_with_seed \
+             (BC-2.06.018 postcondition 1, ADR-036 §2.3)"
+        )
+    }
+
     /// Return the base URL for the bound server (e.g. `"http://127.0.0.1:12345"`).
     ///
     /// Delegates to the trait's `base_url()` which checks `is_tls_active()`.

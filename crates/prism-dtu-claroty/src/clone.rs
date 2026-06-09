@@ -71,6 +71,34 @@ impl ClarotyClone {
         }
     }
 
+    // -----------------------------------------------------------------------
+    // Story A: new_with_seed constructor stub (BC-2.06.018 / ADR-036 §2.3)
+    // -----------------------------------------------------------------------
+
+    /// Construct a `ClarotyClone` with deterministic fixture data generated at
+    /// construction time from `(seed, org_id)`.
+    ///
+    /// Gated `#[cfg(feature = "fixture-gen")]`.
+    ///
+    /// `ClarotyClone::new()` is unchanged (backward-compatible, ADR-036 §2.5).
+    /// Route handlers serve from `generated_records` when non-empty;
+    /// fall back to the existing static-JSON path when empty.
+    ///
+    /// `ClarotyClone::new_with_seed` is INFALLIBLE (`-> Self`) per ADR-036 §2.3
+    /// (mirrors the existing infallible `ClarotyClone::new()`).
+    ///
+    /// # Story A stub
+    ///
+    /// Returns `todo!()` until Gate 4. Red Gate tests FAIL at this call.
+    #[cfg(feature = "fixture-gen")]
+    pub fn new_with_seed(seed: u64, org_id: prism_dtu_common::OrgId) -> Self {
+        let _ = (seed, org_id);
+        todo!(
+            "S-DEMO-DTU-LIVE-SCENARIO-001-A Gate 4: implement ClarotyClone::new_with_seed \
+             (BC-2.06.018 postcondition 1, ADR-036 §2.3)"
+        )
+    }
+
     /// Create with explicit configuration.
     pub fn with_config(config: StubConfig) -> Self {
         let admin_token = uuid::Uuid::new_v4().to_string();

@@ -144,5 +144,11 @@ name = "trailing_slash_parity"
 path = "tests/trailing_slash_parity.rs"
 required-features = ["dtu"]
 
+# S-DEMO-DTU-LIVE-SCENARIO-001-A: Red Gate test RG-11 (BC-2.06.018 postcondition 1)
+[[test]]
+name = "bc_2_06_018_new_with_seed"
+path = "tests/bc_2_06_018_new_with_seed.rs"
+required-features = ["dtu", "fixture-gen"]
+
 [lints]
 workspace = true

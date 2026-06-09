@@ -139,5 +139,11 @@ name = "dtu_reset_auth"
 path = "tests/dtu_reset_auth.rs"
 required-features = ["dtu"]
 
+# S-DEMO-DTU-LIVE-SCENARIO-001-A: Red Gate test RG-3 (BC-2.06.018 postcondition 1)
+[[test]]
+name = "bc_2_06_018_new_with_seed"
+path = "tests/bc_2_06_018_new_with_seed.rs"
+required-features = ["fixture-gen"]
+
 [lints]
 workspace = true
