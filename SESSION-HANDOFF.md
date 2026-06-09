@@ -1,16 +1,16 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.716"
+version: "7.717"
 status: current
-timestamp: 2026-06-08T22:00:00Z
+timestamp: 2026-06-08T23:00:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
 
-> **PRIORITY READ ORDER — D-1065 DURABILITY-HARDENING + D-1064 S-DEMO-CLAROTY-PAGINATION-001 MERGED. ZERO-CONTEXT RESUME SNAPSHOT.**
+> **PRIORITY READ ORDER — D-1066 FACTORY-PUSH-POLICY-CHANGE + D-1065 DURABILITY-HARDENING + D-1064 S-DEMO-CLAROTY-PAGINATION-001 MERGED. ZERO-CONTEXT RESUME SNAPSHOT.**
 > Read STATE.md frontmatter + this snapshot before dispatching any agent.
-> develop HEAD `9ca7e7d7`. factory-artifacts LOCAL-ONLY (no push). STATE v7.716.
+> develop HEAD `9ca7e7d7`. factory-artifacts PUSHED to origin after each burst (user-authorized D-1066). STATE v7.717.
 
 ---
 
@@ -48,7 +48,7 @@ timestamp: 2026-06-08T22:00:00Z
 | **Draft BCs** | 2 (BC-2.06.011 + BC-2.21.001) |
 | **Total stories** | 185 |
 | **Open PRs** | NONE |
-| **factory-artifacts** | LOCAL-ONLY — do NOT push |
+| **factory-artifacts** | pushed to origin after each burst (user-authorized D-1066 2026-06-08) |
 
 ---
 
@@ -136,7 +136,7 @@ Per-story delivery follows the canonical 12-gate sequence (per orchestrator per-
 **Standing rules NEVER waived:**
 - No `--no-verify` (lefthook hooks)
 - No force-push to main/develop without explicit human authorization
-- factory-artifacts is LOCAL-ONLY — do NOT push to remote
+- **factory-artifacts is PUSHED to origin/factory-artifacts after each state burst (off-machine durability; user-authorized 2026-06-08, D-1066). The orchestrator/state-manager pushes factory-artifacts as the final step of every state burst. (This supersedes the prior LOCAL-ONLY default.)**
 - Single-commit-per-burst (TD-VSDD-053) — no Stage-2/backfill chains
 - BC-5.39.001 3-CLEAN strict (per D-779 disambiguation): streak advances ONLY on CLEAN(strict)=zero findings of ANY severity
 - Fix-in-scope — no defer-pattern for AI-found AI-generated defects
@@ -197,9 +197,10 @@ grep '^version:' .factory/STATE.md
 gh pr list --state open
 # Expected: (empty)
 
-# 5. Confirm factory-artifacts NOT pushed to remote
-git -C .factory log origin/factory-artifacts..HEAD --oneline 2>/dev/null || echo "local-only confirmed"
-# Expected: 1 or more local-only commits (compaction burst + all recent bursts)
+# 5. Confirm factory-artifacts is in sync with remote (user-authorized push policy D-1066)
+git -C .factory rev-parse HEAD && git -C .factory rev-parse origin/factory-artifacts
+# Expected: both SHAs match (HEAD == origin/factory-artifacts). If they differ, run:
+#   git -C .factory push origin factory-artifacts
 
 # 6. Read this snapshot (you are here)
 # Confirm develop_head, STATE version, Phase C next story
@@ -253,7 +254,7 @@ These rules are canonical in CLAUDE.md and SESSION-HANDOFF.md. Listed here for r
 
 9. **D-989 autonomy scope.** Full autonomous Wave-5 execution. Pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit.
 
-10. **factory-artifacts LOCAL-ONLY.** Orchestrator does NOT push factory-artifacts to remote without explicit user authorization. `git push origin factory-artifacts` requires human approval.
+10. **factory-artifacts PUSH-AFTER-EACH-BURST (user-authorized D-1066, 2026-06-08).** The state-manager PUSHES factory-artifacts to origin/factory-artifacts as the FINAL step of every state burst (off-machine durability). This supersedes the prior LOCAL-ONLY default. Push is `git -C .factory push origin factory-artifacts` (normal push, NOT force-push, NOT to main/develop). If the remote branch does not yet exist, first push with `-u` flag: `git -C .factory push -u origin factory-artifacts`. DEFER-CLAUDEMD-FACTORY-PUSH-POLICY-001 tracks the corresponding CLAUDE.md §Git Workflow mirror (human-only edit).
 
 11. **PR-LEVEL push-before-regate (DRIFT-ORCH-PRLEVEL-PUSH-001, D-1065).** After ANY PR-LEVEL fix-burst, PUSH the fix commits to `origin/feature/<branch>` BEFORE re-running the PR-LEVEL adversary cascade. LOCAL passes review the local worktree (no push needed); PR-LEVEL passes review the REMOTE PR (`gh pr diff`) — an unpushed local fix-commit causes the adversary to review stale code. Verify `git rev-parse origin/feature/<branch>` == local worktree HEAD before re-gating.
 
