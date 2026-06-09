@@ -596,11 +596,11 @@ active_dispatch_set:
     status: ready
     priority: P2
     points: 3
-    spec_version: "v1.2"
+    spec_version: "v1.3"
     depends_on:
       - S-DEMO-ARMIS-AQL-001   # HARD — SATISFIED (merged PR #168 develop@eb3416d1)
       - S-DEMO-CLAROTY-AUDIT-DTU-001  # HARD — SATISFIED (merged PR #167 develop@e1c632dc)
-    notes: "D-990 2026-06-03: status draft→ready (v1.1→v1.2). BC-2.16.013 v1.25 active (PO D-989, INV-HARNESS-ROUTE-PARITY). Both depends_on SATISFIED. DEMO-GOAL-REQUIRED (D-941). S-7.01 gate CLEARED."
+    notes: "D-1067 2026-06-08: remove-uncertainty COMPLETE v1.2→v1.3 (C-1..C-8; 5 HIGH + 3 MED caught before TDD). behavioral_contracts [BC-2.16.013]+INV-HARNESS-ROUTE-PARITY UNTOUCHED. S-7.01 gate CLEARED. Next: worktree-manage create → test-writer Red Gate. (D-990 2026-06-03: status draft→ready v1.1→v1.2; BC-2.16.013 v1.25 active per PO D-989; both depends_on SATISFIED; DEMO-GOAL-REQUIRED D-941.)"
 
   - story_id: S-DEMO-CLAROTY-SPEC-PROSE-FIX-001
     status: merged
@@ -669,20 +669,21 @@ deferred_post_demo:
 current_story:
   story_id: S-DEMO-HARNESS-CLONE-PARITY-001
   delivery_step: not-started
-  resume_at: "step 1: dclaude:remove-uncertainty"
-  note: "Next story to deliver. No cascade mid-flight. run remove-uncertainty FIRST per standing directive."
+  spec_version: "v1.3"
+  resume_at: "step 2: vsdd-factory:worktree-manage create S-DEMO-HARNESS-CLONE-PARITY-001 → test-writer Red Gate"
+  note: "remove-uncertainty COMPLETE (D-1067 2026-06-08; v1.2→v1.3; C-1..C-8; 5 HIGH + 3 MED caught). No cascade mid-flight. Next: worktree-manage create → test-writer Red Gate."
 
 prereq_artifacts:
-  story_index: .factory/stories/STORY-INDEX.md         # v2.324 after D-1064 burst (185 stories; STORY-INDEX v2.324 current)
+  story_index: .factory/stories/STORY-INDEX.md         # v2.325 after D-1067 burst (185 stories; STORY-INDEX v2.325 current)
   bc_index: .factory/specs/behavioral-contracts/BC-INDEX.md  # BC-INDEX v6.00; active 235, draft 2 (BC-2.06.011 + BC-2.21.001)
-  state: .factory/STATE.md                              # v7.716 (D-1065 durability-hardening burst)
+  state: .factory/STATE.md                              # v7.718 (D-1067 spec-prep bookkeeping burst)
   governing_adr: .factory/specs/architecture/decisions/ADR-031-dtu-equals-true-dtu-fidelity-principle.md  # v1.2 (ADR-031 architect e57eb5b1 reclassified 3 divergences)
   governing_audit: .factory/proposals/POLLER-DTU-FIDELITY-AUDIT-2026-05-29.md  # v1.1
 
 provenance:
   authored_at: "2026-05-29"
   last_updated_at: "2026-06-08"
-  last_updated_by: "state-manager D-1065"
+  last_updated_by: "state-manager D-1067"
   authored_by: "state-manager D-850"
   rationale: >
     First creation of sprint-state.yaml on prism to satisfy vsdd-factory deliver-story skill
