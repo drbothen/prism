@@ -408,28 +408,41 @@ async fn test_BC_2_16_013_armis_harness_search_aql_in_devices_returns_device_rec
          (AC-002, EC-004 both-present precedence)"
     );
 
-    // The first result must be a DEVICE record: it must have a `device_id` field
-    // (e.g. "d-001") and must NOT have an `alert_id` field.
-    // Alert records (returned by the mutant) carry `alert_id` and not `device_id` as
-    // their own entity key — making this assertion load-bearing against the dropped-guard mutant.
+    // Sub-test C load-bearing discriminator: the first result must be a DEVICE record.
+    //
+    // `alert_id.is_none()` is the PRIMARY load-bearing discriminator: device records
+    // have no `alert_id` field; alert records always carry `alert_id`. A mutant that
+    // drops the `&& !aql.contains("in:devices")` guard returns alert fixture records
+    // for the both-present case — those records have `alert_id` present, so
+    // `alert_id.is_none()` fails. This directly catches the dropped-guard mutant.
+    //
+    // `device_id == "d-001"` is a SECONDARY positive discriminator: it checks the
+    // entity-id value against the first device fixture entry, confirming DEVICE records
+    // (not alert records) were returned. Alert records carry `device_id` too (as a
+    // foreign-key reference, e.g. "d-002"), so `device_id.is_some()` alone is
+    // non-discriminating — only the specific value check distinguishes the two.
     let first_both = both_results
         .first()
         .expect("already asserted non-empty; first() is safe here");
 
     assert!(
-        first_both.get("device_id").is_some(),
-        "EC-004: GET /api/v1/search with both in:devices and in:alerts — $.data.results[0] must \
-         be a device record (has `device_id` field). Devices take precedence over alerts when both \
-         AQL terms are present. A mutant that drops the `&& !contains(\"in:devices\")` guard would \
-         return alert records here (which have `alert_id`, not `device_id` as the entity key), \
-         failing this assertion. got: {first_both}"
-    );
-
-    assert!(
         first_both.get("alert_id").is_none(),
         "EC-004: GET /api/v1/search with both in:devices and in:alerts — $.data.results[0] must \
-         NOT have an `alert_id` field (alert records returned by the dropped-guard mutant carry \
-         this key). got: {first_both}"
+         NOT have an `alert_id` field. `alert_id.is_none()` is the load-bearing discriminator: \
+         device records carry no `alert_id`; alert records always do. The dropped-guard mutant \
+         (s.contains(\"in:alerts\") without the `&& !s.contains(\"in:devices\")` guard) returns \
+         alert fixture records here, which carry `alert_id` — failing this assertion. \
+         got: {first_both}"
+    );
+
+    assert_eq!(
+        first_both.get("device_id").and_then(|v| v.as_str()),
+        Some("d-001"),
+        "EC-004: GET /api/v1/search with both in:devices and in:alerts — $.data.results[0] must \
+         have device_id == \"d-001\" (first device fixture entry). Alert fixture records also carry \
+         `device_id` as a foreign-key reference (e.g. \"d-002\"), so only the specific value \
+         check distinguishes device records from alert records on this field. \
+         got: {first_both}"
     );
 }
 
