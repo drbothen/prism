@@ -738,8 +738,10 @@ async fn remove_tag(
 
 /// `POST /api/v1/audit_log/get` — audit log endpoint.
 ///
-/// Mirrors `prism-dtu-claroty` standalone route per ADR-031 §D8-b
-/// (INV-HARNESS-ROUTE-PARITY — S-DEMO-HARNESS-CLONE-PARITY-001 AC-003 / AC-004).
+/// Mirrors prism-dtu-claroty standalone audit_log route (Gap-CL-006 closure;
+/// ADR-031 §D2 DTU-data fidelity). Harness route-parity obligation per
+/// BC-2.16.013 v1.25 INV-HARNESS-ROUTE-PARITY
+/// (S-DEMO-HARNESS-CLONE-PARITY-001 AC-003 / AC-004).
 ///
 /// Auth: any non-empty Bearer accepted; 401 on missing/empty Bearer (Claroty model).
 /// Fixture: embedded via `include_str!` of `prism-dtu-claroty/fixtures/audit-log.json`,
