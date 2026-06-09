@@ -92,11 +92,29 @@ impl ClarotyClone {
     /// Returns `todo!()` until Gate 4. Red Gate tests FAIL at this call.
     #[cfg(feature = "fixture-gen")]
     pub fn new_with_seed(seed: u64, org_id: prism_dtu_common::OrgId) -> Self {
-        let _ = (seed, org_id);
-        todo!(
-            "S-DEMO-DTU-LIVE-SCENARIO-001-A Gate 4: implement ClarotyClone::new_with_seed \
-             (BC-2.06.018 postcondition 1, ADR-036 §2.3)"
-        )
+        use crate::generator::generate;
+        use prism_dtu_common::{Archetype, GenOpts};
+
+        let opts = GenOpts {
+            seed,
+            ..GenOpts::default()
+        };
+        let fixture = generate(&org_id, Archetype::CompromisedEndpoint, &opts);
+
+        let admin_token = uuid::Uuid::new_v4().to_string();
+        let mut state = ClarotyState::with_admin_token(admin_token.clone());
+        state.generated_records = fixture.records;
+
+        Self {
+            config: prism_dtu_common::StubConfig::default(),
+            state: Arc::new(state),
+            bound_addr: None,
+            server_handle: None,
+            tls_active: false,
+            #[cfg(feature = "tls")]
+            tls_handle: None,
+            admin_token,
+        }
     }
 
     /// Create with explicit configuration.

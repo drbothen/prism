@@ -144,11 +144,39 @@ impl ArmisClone {
         org_id: prism_dtu_common::OrgId,
         org_slug: &str,
     ) -> anyhow::Result<Self> {
-        let _ = (seed, org_id, org_slug);
-        todo!(
-            "S-DEMO-DTU-LIVE-SCENARIO-001-A Gate 4: implement ArmisClone::new_with_seed \
-             (BC-2.06.018 postcondition 1, ADR-036 §2.3)"
-        )
+        use crate::generator::generate;
+        use prism_dtu_common::{Archetype, GenOpts};
+
+        let opts = GenOpts {
+            seed,
+            ..GenOpts::default()
+        };
+        let fixture = generate(org_id, org_slug, Archetype::CompromisedEndpoint, &opts);
+
+        // Load static fixtures (required by ArmisState; still used for activity and alerts).
+        // We also need them to populate device_registry/devices_ordered for backward compat.
+        let crate_dir = env!("CARGO_MANIFEST_DIR");
+        let devices: Vec<crate::types::DeviceRecord> =
+            prism_dtu_common::load_fixture_as(crate_dir, "devices")?;
+        let activity: Vec<crate::types::ActivityRecord> =
+            prism_dtu_common::load_fixture_as(crate_dir, "device-activity")?;
+        let alerts: Vec<crate::types::AlertRecord> =
+            prism_dtu_common::load_fixture_as(crate_dir, "alerts")?;
+
+        let admin_token = uuid::Uuid::new_v4().to_string();
+        let mut state =
+            ArmisState::with_admin_token(devices, activity, alerts, admin_token.clone());
+        state.generated_records = fixture.records;
+
+        Ok(Self {
+            state: Arc::new(state),
+            bound_addr: None,
+            server_handle: None,
+            tls_active: false,
+            #[cfg(feature = "tls")]
+            tls_handle: None,
+            admin_token,
+        })
     }
 
     /// Return the base URL for the bound server (e.g. `"http://127.0.0.1:12345"`).

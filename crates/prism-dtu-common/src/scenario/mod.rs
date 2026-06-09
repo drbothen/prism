@@ -15,15 +15,7 @@
 //! This module is the authoritative source of `org_slug_from_org_id`; the formula
 //! MUST match `prism_dtu_crowdstrike::generator::org_slug` exactly (ADR-036 §2.2).
 
-// Import `seeded_rng` (the function name in generator::rng) aliased to `gen_seeded_rng`
-// to avoid collision with `seed::seeded_rng` (the 1-arg legacy helper under the `dtu` feature).
-// This mirrors the re-export alias in lib.rs: `use generator::seeded_rng as gen_seeded_rng`.
-// Suppress unused-import warnings in Gate 3 stubs; the imports are used by the real
-// implementation in Gate 4.
-#[allow(unused_imports)]
 use super::generator::{seeded_rng as gen_seeded_rng, OrgId};
-#[allow(unused_imports)]
-use rand::Rng as _;
 
 /// Shared entity catalog for one client's incident scenario.
 ///
@@ -107,8 +99,12 @@ pub struct ScenarioEntityCatalog {
 /// let org = OrgId([0xde, 0xad, 0xbe, 0xef, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
 /// assert_eq!(org_slug_from_org_id(&org), "deadbeef");
 /// ```
-pub fn org_slug_from_org_id(_org_id: &OrgId) -> String {
-    todo!("S-DEMO-DTU-LIVE-SCENARIO-001-A: implement org_slug_from_org_id (ADR-036 §2.2)")
+pub fn org_slug_from_org_id(org_id: &OrgId) -> String {
+    let bytes = org_id.as_bytes();
+    format!(
+        "{:02x}{:02x}{:02x}{:02x}",
+        bytes[0], bytes[1], bytes[2], bytes[3]
+    )
 }
 
 /// Build a [`ScenarioEntityCatalog`] from `(seed, org_id)`.
@@ -126,8 +122,42 @@ pub fn org_slug_from_org_id(_org_id: &OrgId) -> String {
 /// - `primary_device_id_cs   = "dev-{org_slug}-{seed}-0"`
 /// - `primary_device_id_armis = "dev-{org_slug}-{seed}-0"` (same)
 /// - `ioc_ips`, `ioc_domains`, `ioc_hashes`, `device_cves` from secondary RNG stream
-pub fn build_scenario_entity_catalog(_seed: u64, _org_id: &OrgId) -> ScenarioEntityCatalog {
-    todo!("S-DEMO-DTU-LIVE-SCENARIO-001-A: implement build_scenario_entity_catalog (ADR-036 §2.2)")
+pub fn build_scenario_entity_catalog(seed: u64, org_id: &OrgId) -> ScenarioEntityCatalog {
+    let org_slug = org_slug_from_org_id(org_id);
+
+    let primary_device_id_cs = format!("dev-{org_slug}-{seed}-0");
+    let primary_device_id_armis = format!("dev-{org_slug}-{seed}-0");
+    let primary_hostname = format!("host-{org_slug}-{seed}");
+
+    // Lateral device IDs (indices 1..=3)
+    let lateral_device_ids_cs: Vec<String> = (1..=3)
+        .map(|n| format!("dev-{org_slug}-{seed}-{n}"))
+        .collect();
+    let lateral_device_ids_armis: Vec<String> = (1..=3)
+        .map(|n| format!("dev-{org_slug}-{seed}-{n}"))
+        .collect();
+
+    // Secondary RNG stream — completely independent of the primary generator stream.
+    // gen_seeded_rng(seed.wrapping_add(1), org_id) per ADR-036 §2.2.
+    let mut rng = gen_seeded_rng(seed.wrapping_add(1), org_id);
+
+    let ioc_ips = gen_ioc_ips(&mut rng, 4);
+    let ioc_domains = gen_ioc_domains(&mut rng, 4);
+    let ioc_hashes = gen_ioc_hashes(&mut rng, 4);
+    let device_cves = gen_device_cves(&mut rng, 3);
+
+    ScenarioEntityCatalog {
+        org_slug,
+        primary_device_id_cs,
+        primary_device_id_armis,
+        primary_hostname,
+        lateral_device_ids_cs,
+        lateral_device_ids_armis,
+        ioc_ips,
+        ioc_domains,
+        ioc_hashes,
+        device_cves,
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -135,9 +165,6 @@ pub fn build_scenario_entity_catalog(_seed: u64, _org_id: &OrgId) -> ScenarioEnt
 // ---------------------------------------------------------------------------
 
 /// Generate N random IPv4 addresses in the 10.x.x.x range from RNG.
-///
-/// Stub — implementation fills this in.
-#[allow(dead_code)]
 fn gen_ioc_ips(rng: &mut impl rand::Rng, count: usize) -> Vec<String> {
     (0..count)
         .map(|_| {
@@ -152,9 +179,6 @@ fn gen_ioc_ips(rng: &mut impl rand::Rng, count: usize) -> Vec<String> {
 }
 
 /// Generate N IOC domain names from RNG.
-///
-/// Stub — implementation fills this in.
-#[allow(dead_code)]
 fn gen_ioc_domains(rng: &mut impl rand::Rng, count: usize) -> Vec<String> {
     (0..count)
         .map(|i| format!("malicious-{}-{}.example.com", rng.gen::<u32>(), i))
@@ -162,9 +186,6 @@ fn gen_ioc_domains(rng: &mut impl rand::Rng, count: usize) -> Vec<String> {
 }
 
 /// Generate N IOC SHA256 hashes (as hex strings) from RNG.
-///
-/// Stub — implementation fills this in.
-#[allow(dead_code)]
 fn gen_ioc_hashes(rng: &mut impl rand::Rng, count: usize) -> Vec<String> {
     (0..count)
         .map(|_| {
@@ -178,9 +199,6 @@ fn gen_ioc_hashes(rng: &mut impl rand::Rng, count: usize) -> Vec<String> {
 /// Generate N CVE ID strings from RNG.
 ///
 /// Format: `"CVE-{year}-{n}"` where year and n are RNG-derived.
-///
-/// Stub — implementation fills this in.
-#[allow(dead_code)]
 fn gen_device_cves(rng: &mut impl rand::Rng, count: usize) -> Vec<String> {
     (0..count)
         .map(|_| {

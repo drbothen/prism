@@ -149,11 +149,46 @@ impl CyberintClone {
     /// Returns `todo!()` until Gate 4. Red Gate tests FAIL at this call.
     #[cfg(feature = "fixture-gen")]
     pub fn new_with_seed(seed: u64, org_id: prism_dtu_common::OrgId) -> anyhow::Result<Self> {
-        let _ = (seed, org_id);
-        todo!(
-            "S-DEMO-DTU-LIVE-SCENARIO-001-A Gate 4: implement CyberintClone::new_with_seed \
-             (BC-2.06.018 postcondition 1, ADR-036 §2.3)"
-        )
+        use crate::generator::generate;
+        use prism_dtu_common::{Archetype, GenOpts};
+
+        let opts = GenOpts {
+            seed,
+            ..GenOpts::default()
+        };
+        let fixture = generate(&org_id, Archetype::CompromisedEndpoint, &opts);
+
+        // Load static fixtures (required for alert_fixture / alert_store initialization).
+        let crate_dir = env!("CARGO_MANIFEST_DIR");
+        let alerts: Vec<crate::types::Alert> =
+            prism_dtu_common::load_fixture_as(crate_dir, "alerts")?;
+        let alerts_page2: Vec<crate::types::Alert> =
+            prism_dtu_common::load_fixture_as(crate_dir, "alerts-page2")?;
+        let threats: Vec<serde_json::Value> =
+            prism_dtu_common::load_fixture_as(crate_dir, "threats")?;
+
+        let admin_token = uuid::Uuid::new_v4().to_string();
+        // Use prism_core::OrgId::new() to get a fresh OrgId for the clone instance.
+        let instance_org_id = OrgId::new();
+        let mut state = CyberintState::with_org_id_and_admin_token(
+            instance_org_id,
+            alerts,
+            alerts_page2,
+            threats,
+            admin_token.clone(),
+        );
+        state.generated_records = fixture.records;
+
+        Ok(Self {
+            state: Arc::new(state),
+            bound_addr: None,
+            server_handle: None,
+            tls_active: false,
+            #[cfg(feature = "tls")]
+            tls_handle: None,
+            admin_token,
+            org_id: instance_org_id,
+        })
     }
 
     /// Return the base URL for this clone (e.g. `http://127.0.0.1:PORT`).

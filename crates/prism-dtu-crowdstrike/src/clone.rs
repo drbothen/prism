@@ -103,11 +103,45 @@ impl CrowdstrikeClone {
     ///
     /// ADR-036 §2.3: `new_with_seed` calls `generate()` ONCE at construction;
     /// route handlers MUST NOT call `generate()` per-request.
-    pub fn new_with_seed(_seed: u64, _org_id: prism_dtu_common::OrgId) -> Self {
-        todo!(
-            "S-DEMO-DTU-LIVE-SCENARIO-001-A Gate 4: implement CrowdstrikeClone::new_with_seed \
-             (BC-2.06.018 postcondition 1, ADR-036 §2.3)"
-        )
+    pub fn new_with_seed(seed: u64, org_id: prism_dtu_common::OrgId) -> Self {
+        use crate::generator::generate;
+        use prism_dtu_common::{Archetype, GenOpts};
+
+        let opts = GenOpts {
+            seed,
+            ..GenOpts::default()
+        };
+        let fixture = generate(org_id, Archetype::CompromisedEndpoint, opts);
+
+        // Split records by _record_type discriminator (ADR-036 §2.3).
+        // "device" records go to generated_devices; "detection" records go to
+        // generated_detections. id_page / tombstone / oauth2_token records are
+        // routing artifacts and not served by the dual-path handler.
+        let mut generated_devices = Vec::new();
+        let mut generated_detections = Vec::new();
+        for record in fixture.records {
+            match record.get("_record_type").and_then(|v| v.as_str()) {
+                Some("device") => generated_devices.push(record),
+                Some("detection") => generated_detections.push(record),
+                _ => {} // id_page, tombstone, oauth2_token — not served via dual-path
+            }
+        }
+
+        let admin_token = uuid::Uuid::new_v4().to_string();
+        let mut state = CrowdstrikeState::with_admin_token(admin_token.clone());
+        state.generated_devices = generated_devices;
+        state.generated_detections = generated_detections;
+
+        Self {
+            config: prism_dtu_common::StubConfig::default(),
+            state: Arc::new(state),
+            server_handle: None,
+            bound_addr: None,
+            tls_active: false,
+            #[cfg(feature = "tls")]
+            tls_handle: None,
+            admin_token,
+        }
     }
 }
 

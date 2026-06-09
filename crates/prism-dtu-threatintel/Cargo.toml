@@ -9,6 +9,9 @@ description = "L2-fidelity behavioral clone of the Threat Intel Aggregator infus
 [features]
 dtu = []
 tls = ["dep:axum-server", "prism-dtu-common/tls"]
+# S-DEMO-DTU-LIVE-SCENARIO-001-A: enables ScenarioEntityCatalog access in Story B scope.
+# No source in this crate uses ScenarioEntityCatalog in Story A (U-A-10: no premature import).
+fixture-gen = ["prism-dtu-common/fixture-gen"]
 
 [dependencies]
 prism-dtu-common = { path = "../prism-dtu-common", version = "0.1.0", features = ["dtu"] }

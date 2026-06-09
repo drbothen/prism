@@ -59,6 +59,18 @@ pub struct ClarotyState {
     /// Set at startup; route handlers compare the `X-Org-Id` header against this value
     /// and return HTTP 401 on mismatch (W3-FIX-SEC-001).
     pub instance_org_id: OrgId,
+
+    // -----------------------------------------------------------------------
+    // Story A: generated fixture field (BC-2.06.018 / ADR-036 §2.3)
+    // -----------------------------------------------------------------------
+    /// Generated records from the fixture generator (BC-2.06.018 postcondition 1).
+    ///
+    /// Non-empty when the clone is constructed via `new_with_seed`.
+    /// Empty when constructed via `new()` (static-JSON path, ADR-036 §2.5).
+    ///
+    /// ADR-036 §2.3: immutable after construction (NOT Arc<Mutex<...>>).
+    #[cfg(feature = "fixture-gen")]
+    pub generated_records: Vec<serde_json::Value>,
 }
 
 impl ClarotyState {
@@ -85,6 +97,9 @@ impl ClarotyState {
             latency_ms: AtomicU64::new(0),
             admin_token,
             instance_org_id,
+            // Story A: generated_records defaults empty (static-JSON path).
+            #[cfg(feature = "fixture-gen")]
+            generated_records: Vec::new(),
         }
     }
 

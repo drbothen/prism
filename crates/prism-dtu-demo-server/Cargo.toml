@@ -60,6 +60,10 @@ prism-dtu-threatintel = { path = "../prism-dtu-threatintel", version = "0.1.0" }
 prism-dtu-nvd = { path = "../prism-dtu-nvd", version = "0.1.0" }
 prism-dtu-pagerduty = { path = "../prism-dtu-pagerduty", version = "0.1.0" }
 prism-dtu-jira = { path = "../prism-dtu-jira", version = "0.1.0" }
+# S-DEMO-DTU-LIVE-SCENARIO-001-A: uuid for parsing org_id strings; prism-core for OrgId type
+# (BC-2.06.018 E-DEMO-005 guard in build_clone_pairs — ADR-036 §6)
+uuid = { version = "1", features = ["v4"] }
+prism-core = { path = "../../crates/prism-core" }
 
 
 tokio = { version = "1", features = ["full"] }

@@ -4989,6 +4989,7 @@ dependencies = [
  "axum-server",
  "clap",
  "libc",
+ "prism-core",
  "prism-dtu-armis",
  "prism-dtu-claroty",
  "prism-dtu-common",
@@ -5011,6 +5012,7 @@ dependencies = [
  "toml 0.8.23",
  "tracing",
  "tracing-subscriber",
+ "uuid",
 ]
 
 [[package]]

@@ -140,6 +140,32 @@ pub struct CrowdstrikeState {
     /// equivalent is the FQL filter param — captured verbatim before any parsing
     /// so wire-level tests can assert the exact string that reached the DTU.
     pub filter_log: Mutex<Vec<String>>,
+
+    // -----------------------------------------------------------------------
+    // Story A: generated fixture fields (BC-2.06.018 / ADR-036 §2.3)
+    // -----------------------------------------------------------------------
+    // Immutable after construction (no Arc<Mutex<...>>).
+    // Populated by new_with_seed(); empty for new().
+    // Route handlers serve from these when non-empty; fall back to static JSON.
+    /// Device records from the fixture generator (BC-2.06.018 postcondition 1).
+    ///
+    /// Non-empty when the clone is constructed via `new_with_seed`.
+    /// Empty when constructed via `new()` (static-JSON path, ADR-036 §2.5).
+    /// Route handlers serve from this slice when non-empty;
+    /// fall back to `load_host_ids()` / `load_host_details()` when empty.
+    ///
+    /// ADR-036 §2.3: immutable after construction (NOT Arc<Mutex<...>>).
+    #[cfg(feature = "fixture-gen")]
+    pub generated_devices: Vec<serde_json::Value>,
+
+    /// Detection records from the fixture generator (BC-2.06.018 postcondition 1).
+    ///
+    /// Non-empty when the clone is constructed via `new_with_seed`.
+    /// Empty when constructed via `new()`.
+    ///
+    /// ADR-036 §2.3: immutable after construction.
+    #[cfg(feature = "fixture-gen")]
+    pub generated_detections: Vec<serde_json::Value>,
 }
 
 impl CrowdstrikeState {
@@ -172,6 +198,12 @@ impl CrowdstrikeState {
             admin_token,
             instance_org_id,
             filter_log: Mutex::new(Vec::new()),
+            // Story A: generated fields default empty (static-JSON path).
+            // Populated by new_with_seed() in clone.rs.
+            #[cfg(feature = "fixture-gen")]
+            generated_devices: Vec::new(),
+            #[cfg(feature = "fixture-gen")]
+            generated_detections: Vec::new(),
         }
     }
 

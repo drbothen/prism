@@ -148,6 +148,20 @@ pub struct ArmisState {
     /// Set at startup; route handlers compare the `X-Org-Id` header against this value
     /// and return HTTP 401 on mismatch (BC-3.5.002 precondition 3).
     pub instance_org_id: OrgId,
+
+    // -----------------------------------------------------------------------
+    // Story A: generated fixture field (BC-2.06.018 / ADR-036 §2.3)
+    // -----------------------------------------------------------------------
+    /// Generated device records from the fixture generator (BC-2.06.018 postcondition 1).
+    ///
+    /// Non-empty when the clone is constructed via `new_with_seed`.
+    /// Empty when constructed via `new()` (static-JSON path, ADR-036 §2.5).
+    /// Route handlers (`paginate_devices`) serve from this slice when non-empty;
+    /// fall back to `devices_ordered` when empty.
+    ///
+    /// ADR-036 §2.3: immutable after construction (NOT Arc<Mutex<...>>).
+    #[cfg(feature = "fixture-gen")]
+    pub generated_records: Vec<serde_json::Value>,
 }
 
 impl ArmisState {
@@ -208,6 +222,10 @@ impl ArmisState {
             failure_mode: Arc::new(Mutex::new(FailureMode::None)),
             admin_token,
             instance_org_id,
+            // Story A: generated_records defaults empty (static-JSON path).
+            // Populated by ArmisClone::new_with_seed().
+            #[cfg(feature = "fixture-gen")]
+            generated_records: Vec::new(),
         }
     }
 
