@@ -1,20 +1,20 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.713"
+version: "7.715"
 status: current
-timestamp: 2026-06-08T18:00:00Z
+timestamp: 2026-06-08T20:00:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
 
-> **PRIORITY READ ORDER — D-1062 S-DEMO-CLAROTY-SPEC-PROSE-FIX-001 MERGED + DURABLE ZERO-CONTEXT RESUME SNAPSHOT.**
+> **PRIORITY READ ORDER — D-1064 S-DEMO-CLAROTY-PAGINATION-001 MERGED + DURABLE ZERO-CONTEXT RESUME SNAPSHOT.**
 > Read STATE.md frontmatter + this snapshot before dispatching any agent.
-> develop HEAD `763e0ade`. factory-artifacts LOCAL-ONLY (no push). STATE v7.713.
+> develop HEAD `9ca7e7d7`. factory-artifacts LOCAL-ONLY (no push). STATE v7.715.
 
 ---
 
-## §RESUME SNAPSHOT 2026-06-08-SPEC-PROSE-FIX-MERGED
+## §RESUME SNAPSHOT 2026-06-08-PAGINATION-001-MERGED
 
 > **START HERE.** This snapshot is self-contained. A fresh session with ZERO prior context can resume exactly here.
 
@@ -24,7 +24,7 @@ timestamp: 2026-06-08T18:00:00Z
 
 1. Run `vsdd-factory:factory-worktree-health` (devops-engineer) — **BLOCKING**; do not read state until it passes.
 2. Read STATE.md frontmatter + this §RESUME SNAPSHOT.
-3. Verify `git rev-parse origin/develop` == `763e0ade` (develop_head). If drift, reconcile before dispatching.
+3. Verify `git rev-parse origin/develop` == `9ca7e7d7` (develop_head). If drift, reconcile before dispatching.
 4. Confirm no open PRs (`gh pr list`) and parked worktrees (S-3.09 FROZEN, W3-FIX-S307-001 BLOCKED) are left alone.
 5. Pick the next action from §3 Exact Next Steps. Honor §4 Standing Rules (incl. remove-uncertainty-per-story + D-989 autonomy).
 
@@ -37,11 +37,11 @@ timestamp: 2026-06-08T18:00:00Z
 | **Mode** | brownfield |
 | **Phase** | 3 (Wave 5 — wave-5-e-demo-fidelity) |
 | **Wave-5 Phase B** | **COMPLETE** — all 4 lanes + S-MAINT merged |
-| **Wave-5 Phase C** | **IN PROGRESS** — Lanes 1+2 COMPLETE (D-1060 TRAILING-SLASH, D-1062 SPEC-PROSE-FIX); remaining: S-DEMO-HARNESS-CLONE-PARITY-001 → S-DEMO-CLAROTY-PAGINATION-001 |
-| **develop HEAD** | `763e0ade` |
-| **STATE version** | v7.713 |
+| **Wave-5 Phase C** | **IN PROGRESS** — Lanes 1+2+3 COMPLETE (TRAILING-SLASH, SPEC-PROSE-FIX, PAGINATION-001); **only remaining:** S-DEMO-HARNESS-CLONE-PARITY-001 (ready v1.2) |
+| **develop HEAD** | `9ca7e7d7` |
+| **STATE version** | v7.715 |
 | **BC-INDEX version** | v6.00 |
-| **STORY-INDEX version** | v2.322 |
+| **STORY-INDEX version** | v2.324 |
 | **VP-INDEX version** | v1.76 |
 | **ARCH-INDEX version** | v2.115 |
 | **Active BCs** | 235 |
@@ -54,31 +54,29 @@ timestamp: 2026-06-08T18:00:00Z
 
 ### 2. What Just Completed
 
-**D-1062 S-DEMO-CLAROTY-SPEC-PROSE-FIX-001 MERGED — PR #178 squash-merged develop@763e0ade 2026-06-08**
+**D-1064 S-DEMO-CLAROTY-PAGINATION-001 MERGED — PR #179 squash-merged develop@9ca7e7d7 2026-06-08**
 
-- **What it delivers:** Claroty audit_log spec-prose + TOML-comment fidelity fix. Gap-CL-006 CLOSED closure comment added to claroty.sensor.toml audit_logs block. 3 fidelity tests added (AC-001/002/004). BC-2.16.013 §Postconditions §1 prose verified (PO-owned, already correct at v1.25). Closes F-P2-DEFER-001.
-- **Cascade stats:** LOCAL 3-CLEAN strict (P1 had OBS-1 double-run + OBS-2 assertion-granularity, fixed by a7a7d019; P2/P3/P4 CLEAN; BC-5.39.001 D-779). PR-LEVEL 3-CLEAN strict (P1 had OBS-1 wrong-dependency-SHA in PR body, fixed; P2/P3/P4 CLEAN). pr-reviewer APPROVE (could not `gh pr review --approve` own PR — posted COMMENT with APPROVE verdict; treated as gate signal). security SECURITY-CLEAR-TO-MERGE. CI all green (mergeStateStatus CLEAN).
-- **BC-2.16.013 v1.25 POL-14 status:** lifecycle_status: active — idempotent confirm. Already active since D-776. No BC-INDEX count change (stays active=235, draft=2).
-- **remove-uncertainty pre-delivery:** Applied per standing directive. Pure-documentation story — scanner added value by independently verifying load-bearing factual claims (route shapes) against merged code.
-- **Phase C Lane 2 COMPLETE.**
-- **Drift items registered:** DRIFT-SEC-TAPE-PATH-001 (project-wide .tape absolute paths; S-MAINT-TAPE-PATH-SWEEP-001 future anchor); DEFER-CLAUDEMD-NONEXHAUSTIVE-COUNT-001 (CLAUDE.md non-exhaustive count EXPECTED=36 stale → 49; human-only edit); DRIFT-D904-002 recurrence (pr-manager demo-evidence false-NOT-FOUND; upstream vsdd-factory).
+- **What it delivers:** OffsetLimit POST-body pagination for Claroty. POST fetch steps inject offset+limit into request body (merged into interpolated body_template); GET steps keep URL query params. EC-002 malformed-body → SpecEngineError (no panic, no CWE-209 body-value leak). Gap-CL-004 CLOSED.
+- **remove-uncertainty ROI:** v1.2 (C-1..C-5) caught 2 HIGH before TDD — wrong body-injection target (issue_request_with_retry→build_request) + missing offset/page_size plumbing across both build_request call sites (TD-VSDD-060). Concrete ROI for the standing remove-uncertainty-per-story directive.
+- **Cascade stats:** LOCAL 3-CLEAN strict (P1 FB-001 MED EC-002-test-gap fixed; P2/P3/P4 CLEAN; BC-5.39.001 D-779). PR-LEVEL 3-CLEAN strict re-cascade (P1 OBS stale-SHA + security SEC-001 MED CWE-209 + adversary caught push-before-regate gap (DRIFT-ORCH-PRLEVEL-PUSH-001 codified); all fixed; re-cascade P1/2/3 CLEAN on pushed head fc8df590). security SECURITY-CLEAR-TO-MERGE (SEC-001 CLOSED + regression-guarded). pr-reviewer APPROVE. CI all green (42 checks).
+- **POL-14:** BC-2.16.002+BC-2.16.013+BC-2.01.013 all already lifecycle_status: active — idempotent no-op. No BC-INDEX count change (active=235, draft=2 UNCHANGED).
+- **Phase C Lane 3 COMPLETE.**
+- **Drift items registered this burst:** DRIFT-ORCH-PRLEVEL-PUSH-001 [process-gap] — PR-LEVEL fix-bursts MUST be pushed to origin/feature before re-running PR-LEVEL cascade (lessons.md appended); DRIFT-D904-002 recurrence noted (recurrence #3); DRIFT-PAGINATION-PAGESIZE-VALIDATION-001 (D-1063) remains open (SEC-002 LOW; spec-engine scope; PO/architect adjudication).
 
-**Also completed (Phase C Lane 1 — for context):**
-
-**D-1060 S-DEMO-CLAROTY-TRAILING-SLASH-001 MERGED — PR #177 squash-merged develop@5c5d240d 2026-06-08**
-
-- **What it delivers:** NormalizePathLayer outer-service wrap at both serve sites; tower-http 0.5 pin; 3 claroty.sensor.toml trailing-slash path_templates corrected; tags route re-registered without trailing slash. ADR-031 §D8-b Gap-CL-001 CLOSED.
-- **Cascade stats:** LOCAL 3-CLEAN (7 passes). PR-LEVEL 3-CLEAN strict (passes 2/3/4). pr-reviewer APPROVE. security MAY PROCEED. CI green.
+**Also completed (Phase C Lanes 1+2 — for context):**
+| Story | PR | SHA | Lane |
+|---|---|---|---|
+| S-DEMO-CLAROTY-TRAILING-SLASH-001 | #177 | `5c5d240d` | Phase C Lane 1 (ADR-031 §D8-b Gap-CL-001 CLOSED) |
+| S-DEMO-CLAROTY-SPEC-PROSE-FIX-001 | #178 | `763e0ade` | Phase C Lane 2 (Gap-CL-006 CLOSED) |
 
 **Also completed this cycle (Phase B):**
 | Story | PR | SHA | Lane |
 |---|---|---|---|
 | S-SPEC-HTTP-METHOD-VALIDATION-001 | #172 | `752e407a` | Phase B Lane 1 |
-| S-DEMO-QUERY-PUSHDOWN-001 | #173 | `9447671f` | Phase B Lane 2 (ADR-033 AQL push-down) |
+| S-DEMO-QUERY-PUSHDOWN-001 | #173 | `9447671f` | Phase B Lane 2 |
 | OCSF-CLASS-MIGRATION-001 | #174 | `0e89789a` | Phase B Lane 3 |
-| S-MAINT-ECRED-TAXONOMY-SYNC-001 | #175 | `c603741d` | S-MAINT (ADR-035 E-CRED canonical namespace) |
+| S-MAINT-ECRED-TAXONOMY-SYNC-001 | #175 | `c603741d` | S-MAINT |
 | S-DEMO-003 | #176 | `a42e3eaf` | Phase B Lane 4 |
-| S-DEMO-CLAROTY-TRAILING-SLASH-001 | #177 | `5c5d240d` | Phase C Lane 1 |
 
 ---
 
@@ -90,15 +88,14 @@ Wave-5 Phase C (Claroty cluster — serialized, shared files BC-2.16.013 + claro
 |-------|----------|--------|-------|
 | ~~S-DEMO-CLAROTY-TRAILING-SLASH-001~~ | ~~P1~~ | **merged v1.3 — PR #177** | COMPLETE (D-1060; develop@5c5d240d) |
 | ~~S-DEMO-CLAROTY-SPEC-PROSE-FIX-001~~ | ~~P2~~ | **merged v1.2 — PR #178** | COMPLETE (D-1062; develop@763e0ade) |
+| ~~S-DEMO-CLAROTY-PAGINATION-001~~ | ~~P1~~ | **merged v1.2 — PR #179** | COMPLETE (D-1064; develop@9ca7e7d7; Gap-CL-004 CLOSED) |
 | **S-DEMO-HARNESS-CLONE-PARITY-001** | **P2** | ready v1.2 | Closes F-P6-DEFER-001 + F-P10-LOW-001; prism-dtu-harness search+audit_log routes; depends_on [S-DEMO-ARMIS-AQL-001 SATISFIED, S-DEMO-CLAROTY-AUDIT-DTU-001 SATISFIED]. **Run dclaude:remove-uncertainty FIRST.** |
-| **S-DEMO-CLAROTY-PAGINATION-001** | **P1-pre-demo-BLOCKING** | draft — needs story-writer materialization | BC gap CLOSED (BC-2.16.002 v1.70). Story-writer must materialize + PO BC-array review per S-7.01. **Run dclaude:remove-uncertainty on materialized story BEFORE dispatch.** |
-| S-DEMO-LAUNCHER-CONSOLIDATION-001 | P2 | draft stub | depends_on S-DEMO-003 SATISFIED; story-writer materialization + human review of script-lifecycle question needed before dispatch |
+| S-DEMO-LAUNCHER-CONSOLIDATION-001 | P2 | draft stub | depends_on S-DEMO-003 SATISFIED; story-writer materialization + human review of script-lifecycle question needed |
 
 **RECOMMENDED NEXT ACTION (D-989 autonomy ACTIVE):**
-1. Run `dclaude:remove-uncertainty` on S-DEMO-HARNESS-CLONE-PARITY-001 (P2, ready v1.2, no blocking gates). **User standing directive: remove-uncertainty BEFORE every Phase C dispatch.**
-2. In parallel: dispatch story-writer to materialize S-DEMO-CLAROTY-PAGINATION-001 (BC gap satisfied BC-2.16.002 v1.70); then apply remove-uncertainty before delivery.
+1. Run `dclaude:remove-uncertainty` on S-DEMO-HARNESS-CLONE-PARITY-001 (P2, ready v1.2, only remaining Phase C story; no blocking gates). **User standing directive: remove-uncertainty BEFORE every Phase C dispatch.**
 
-> **Previous snapshot (2026-06-08-TRAILING-SLASH-MERGED; STATE v7.712) archived to `cycles/wave-5-e-demo-fidelity/session-handoff-archive.md`.**
+> **Previous snapshot (2026-06-08-SPEC-PROSE-FIX-MERGED; STATE v7.713) archived to `cycles/wave-5-e-demo-fidelity/session-handoff-archive.md`.**
 
 ---
 
@@ -164,13 +161,13 @@ Run these commands at start of a fresh session to verify state:
 # 1. Factory worktree health (BLOCKING preflight)
 # Use: vsdd-factory:factory-worktree-health skill
 
-# 2. Verify develop HEAD == 763e0ade
+# 2. Verify develop HEAD == 9ca7e7d7
 git log --oneline develop | head -1
-# Expected: 763e0ade ...
+# Expected: 9ca7e7d7 ...
 
 # 3. Verify STATE.md version
 grep '^version:' .factory/STATE.md
-# Expected: version: "7.713"
+# Expected: version: "7.715"
 
 # 4. Verify no open PRs
 gh pr list --state open

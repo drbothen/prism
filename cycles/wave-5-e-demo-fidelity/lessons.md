@@ -315,3 +315,114 @@ The pr-reviewer cannot run `gh pr review --approve` on a PR where it is also the
 The orchestrator treats an explicit APPROVE verdict in a pr-reviewer COMMENT as the gate signal when the pr-reviewer is also the PR author. The GitHub API constraint is a tooling limitation — the substantive code review judgment is still expressed and recorded. This is NOT a bypass of the review gate; it is a tooling-constrained equivalent.
 
 Document the COMMENT-APPROVE pattern in the cascade close record so future sessions do not retry the `--approve` command unnecessarily.
+
+---
+
+### [process-gap] S-DEMO-CLAROTY-PAGINATION-001: PR-LEVEL fix-bursts MUST be pushed to origin/feature BEFORE re-running the PR-LEVEL cascade
+
+**Date recorded:** 2026-06-08
+**D-NNN anchor:** D-1064 (S-DEMO-CLAROTY-PAGINATION-001 post-merge cycle-close)
+**Story:** S-DEMO-CLAROTY-PAGINATION-001
+**Tags:** [process-gap] [pr-level] [adversary] [push-before-regate] [cwe-209] [orchestrator-discipline]
+**Classification:** PROCESS-GAP — orchestrator dispatch sequencing error; fix committed locally but not pushed before PR-LEVEL re-cascade dispatched.
+
+**Description:**
+
+During PR #179 (S-DEMO-CLAROTY-PAGINATION-001) PR-LEVEL adversary pass 2, the adversary identified that SEC-001 (CWE-209 body-value leak in EC-002 error message) had been fixed in a local commit (7202afcf) but that commit had NOT been pushed to origin/feature before the PR-LEVEL re-cascade was dispatched. The remote PR (`gh pr diff`) still showed the original leaking code. The adversary therefore reviewed stale code and reported SEC-001 as still open.
+
+This introduced an unnecessary re-cascade cycle: the orchestrator had to push the fix, then dispatch a third PR-LEVEL pass to confirm the closure.
+
+**Root cause:**
+
+The distinction between LOCAL passes and PR-LEVEL passes is critical:
+- **LOCAL passes** review the local worktree. No push required — the adversary reads files in the feature worktree directly.
+- **PR-LEVEL passes** review the REMOTE PR via `gh pr diff` (or equivalent). The adversary sees only code that has been pushed to origin/feature and is visible in the PR.
+
+An unpushed local fix-commit is invisible to the PR-LEVEL adversary. The orchestrator must push to origin/feature after every fix-burst and BEFORE re-dispatching the PR-LEVEL cascade.
+
+**Correct response (codified rule — ORCHESTRATOR STANDING DISCIPLINE):**
+
+After ANY fix-burst during the PR-LEVEL cascade:
+
+1. **Always push to origin/feature before re-dispatching the PR-LEVEL adversary:** `git push origin feature/<story-id>` (or `--force-with-lease` if commits were amended).
+2. **Verify the push landed:** `git -C <worktree> log origin/feature/<story-id>..HEAD --oneline` should return empty after push.
+3. **Only then dispatch the next PR-LEVEL adversary pass.** The adversary must review pushed code, not local-only code.
+4. **Exception — LOCAL passes:** During the LOCAL cascade (before PR creation or during local re-cascade), no push is needed. The adversary reads the worktree directly.
+
+This rule is specifically for PR-LEVEL cascade fix-bursts, not LOCAL cascade fix-bursts.
+
+**Outcome:**
+
+The push-before-regate gap was caught by the adversary at PR-LEVEL pass 2. Fix pushed to fc8df590. Re-cascade PR-LEVEL pass 2 re-run confirmed SEC-001 CLOSED. PR-LEVEL pass 3 clean. Merge proceeded.
+
+**Codification direction:**
+
+- Add "push-before-PR-LEVEL-regate" as a standing orchestrator rule in SESSION-HANDOFF.md §Standing Orchestrator Process Rules (Rule 11) and per-story-delivery skill documentation.
+- DRIFT-ORCH-PRLEVEL-PUSH-001 registered in STATE.md Drift Items with target: cycle-close codification.
+
+---
+
+### [high-value] S-DEMO-CLAROTY-PAGINATION-001: remove-uncertainty pre-delivery ROI — caught the wrong body-injection target and missing plumbing before TDD
+
+**Date recorded:** 2026-06-08
+**D-NNN anchor:** D-1064 (S-DEMO-CLAROTY-PAGINATION-001 post-merge cycle-close)
+**Story:** S-DEMO-CLAROTY-PAGINATION-001
+**Tags:** [high-value] [remove-uncertainty] [body-injection] [plumbing] [TD-VSDD-060]
+**Classification:** HIGH-VALUE PROCESS IMPROVEMENT — remove-uncertainty pre-delivery caught 2 HIGH defects in the story's implementation guidance before TDD began, preventing misdirected implementation.
+
+**Description:**
+
+`dclaude:remove-uncertainty` was applied to S-DEMO-CLAROTY-PAGINATION-001 v1.1 before dispatch, producing v1.2 with five corrections (C-1..C-5). The two HIGH catches were:
+
+1. **Wrong body-injection target (C-1, HIGH):** The story's Task 3a directed the implementer to inject `offset` and `limit` into the request body at the `issue_request_with_retry` call site. The research scan confirmed that `issue_request_with_retry` takes an already-constructed `reqwest::Request` — there is no body-template merging at that layer. The correct injection point is `build_request`, which receives the `body_template` string and performs the interpolation. An implementer following the original guidance would have attempted to modify an immutable Request object and likely hit a type error, or worse, silently produced no injection and shipped a non-paginating implementation.
+
+2. **Missing plumbing across both build_request call sites (C-2, HIGH + TD-VSDD-060):** Task 3a specified plumbing `offset` and `page_size` to `build_request`, but there are TWO call sites for `build_request` in the pipeline executor — one for the first page and one for subsequent pages (the retry path). The story originally specified only one. Without both call sites plumbed, multi-page queries after the first page would silently use offset=0 (no pagination). The research scan identified the sibling call site and C-2 added explicit coverage for both.
+
+**Root cause:**
+
+The story was authored by referencing the API surface description without tracing the full call graph. Body-injection stories have a high failure mode where the injection point is described at a higher-level abstraction than the actual implementation layer. Without research validation of the call chain, the mismatch would only surface at TDD red-gate or adversary pass 1.
+
+**Correct response (codified rule):**
+
+1. Run `dclaude:remove-uncertainty` per the standing directive before every Phase C (and future wave) story dispatch.
+2. For stories involving request body construction or multi-step pipeline mutation: research scan MUST trace the full call graph from the story's specified injection point to the wire, verifying each intermediate layer accepts and forwards the mutation.
+3. For any story citing a function name as an implementation target: verify the function's signature accepts the proposed mutation. If the target function takes a finished `reqwest::Request`, body injection is impossible at that layer.
+
+**Outcome:**
+
+Corrections C-1+C-2 produced a correctly targeted first implementation. LOCAL cascade: P1 found 1 MED (EC-002 test-gap, fixed); P2/P3/P4 CLEAN. PR-LEVEL: P1 found OBS + SEC-001 CWE-209 (fixed); P1/2/3 CLEAN on fc8df590. Merged.
+
+**Codification direction:**
+
+- Standing user directive: `dclaude:remove-uncertainty` before every story dispatch (already active D-1061).
+- Specific probe for body-injection stories: research scan must verify the injection target accepts a mutable body, not a finished Request.
+
+---
+
+### [convention-candidate] S-DEMO-CLAROTY-PAGINATION-001: EC-002 / CWE-209 — error messages must NOT echo post-interpolation body content
+
+**Date recorded:** 2026-06-08
+**D-NNN anchor:** D-1064 (S-DEMO-CLAROTY-PAGINATION-001 post-merge cycle-close; SEC-001 CWE-209 found and fixed)
+**Story:** S-DEMO-CLAROTY-PAGINATION-001
+**Tags:** [convention-candidate] [security] [cwe-209] [error-message] [ec-002] [human-claude-md-edit]
+**Classification:** CONVENTION CANDIDATE — security reviewer found CWE-209 body-value leak in EC-002 error message construction; fixed and regression-guarded; requires human CLAUDE.md edit to codify.
+
+**Description:**
+
+During PR-LEVEL adversary pass 1 (PR #179), security reviewer found SEC-001 (CWE-209, MEDIUM): the EC-002 error message for malformed body content included `format!("malformed body: {body_content}")` where `body_content` was the post-interpolation request body string. Post-interpolation body content can contain values resolved from prior step responses — for example, authentication tokens fetched in step 1 that are interpolated into step 2's body template. Echoing this content in an error message could expose session tokens or API keys in logs or error responses, violating the AI-opaque credentials model (AD-017).
+
+**Fix applied:** EC-002 error messages sanitize the body before echoing. The error indicates malformed body without echoing the body value itself. A regression guard was added to verify the test confirms no token values appear in the error string.
+
+**Convention candidate (HUMAN CLAUDE.md EDIT REQUIRED):**
+
+The CLAUDE.md §Conventions section should gain a new forbidden pattern:
+
+| Pattern | Reason |
+|---------|--------|
+| `format!("malformed body: {body_content}")` where `body_content` is post-interpolation | CWE-209 — post-interpolation body can contain resolved credential tokens from prior steps (AD-017 credential opaqueness) |
+
+**Add to §Error handling and §Forbidden patterns in CLAUDE.md.** This requires a HUMAN-ONLY CLAUDE.md edit (D-989 autonomy exception §4; Pipeline Authority). Recorded here as a convention candidate for human review at next checkpoint.
+
+This is NOT blocking for the cascade — it is a process-note and candidate CLAUDE.md addition.
+
+---

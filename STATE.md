@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.714"
+version: "7.715"
 producer: state-manager
 timestamp: 2026-06-08T18:00:00Z
 inputs: []
@@ -16,10 +16,10 @@ repos: [poller-cobra, poller-express, poller-bear, poller-coaster, serveMyAPI, t
 safe_to_compact: true
 
 # ── CANONICAL CURRENT-STATE VALUES (authoritative; do not drop in future compactions) ──
-develop_head: "763e0ade"
+develop_head: "9ca7e7d7"
 bc_index_version: "6.00"
 vp_index_version: "1.76"
-story_index_version: "v2.323"
+story_index_version: "v2.324"
 arch_index_version: "2.115"
 error_taxonomy_version: "1.62"
 total_stories: 185
@@ -34,7 +34,7 @@ workspace_test_count: 4064
 vsdd_factory_version: "1.0.0-rc.18"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-1063 S-DEMO-CLAROTY-PAGINATION-001 spec-prep COMPLETE: v1.1→v1.2 remove-uncertainty applied (C-1..C-5). Story ready v1.2. Next: S-DEMO-HARNESS-CLONE-PARITY-001 (ready v1.2 — run remove-uncertainty FIRST) + S-DEMO-CLAROTY-PAGINATION-001 (ready v1.2 — deliver)."
+current_step: "D-1064 S-DEMO-CLAROTY-PAGINATION-001 MERGED PR #179 develop@9ca7e7d7. Phase C Lane 3 COMPLETE. Only remaining Phase C: S-DEMO-HARNESS-CLONE-PARITY-001 (ready v1.2 — run dclaude:remove-uncertainty FIRST per standing directive)."
 wave5_phase_b_status: "COMPLETE — Lanes 1/2/3/4 + S-MAINT all merged. Lane 1: S-SPEC-HTTP-METHOD-VALIDATION-001 PR#172 develop@752e407a. Lane 2: S-DEMO-QUERY-PUSHDOWN-001 PR#173 develop@9447671f. Lane 3: OCSF-CLASS-MIGRATION-001 PR#174 develop@0e89789a. Lane 4: S-DEMO-003 PR#176 develop@a42e3eaf. S-MAINT-ECRED-TAXONOMY-SYNC-001 PR#175 develop@c603741d."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
@@ -42,7 +42,7 @@ wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict 
 worktree_status: "stale: S-3.09 (FROZEN) + W3-FIX-S307-001 (BLOCKED superseded) — leave alone"
 
 # ── POL-14 STATE (last merge) ──
-pol14_last_merge: "S-DEMO-CLAROTY-SPEC-PROSE-FIX-001 PR #178 — BC-2.16.013 v1.25 idempotent confirm (already active since D-776); no BC-INDEX count change"
+pol14_last_merge: "S-DEMO-CLAROTY-PAGINATION-001 PR #179 — BC-2.16.002+BC-2.16.013+BC-2.01.013 all idempotent (already active); no BC-INDEX count change (active=235 draft=2 UNCHANGED)"
 
 # ── DTU + PIPELINE META ──
 dtu_required: true
@@ -83,9 +83,9 @@ safe_to_compact: true
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-06-08 (D-1063 — S-DEMO-CLAROTY-PAGINATION-001 spec-prep v1.1→v1.2 remove-uncertainty; STORY-INDEX v2.322→v2.323; STATE v7.714) |
-| **Current Phase** | Wave 5 (wave-5-e-demo-fidelity) — **Phase B COMPLETE** (all 4 lanes + S-MAINT merged). **Phase C in progress:** Lanes 1+2 COMPLETE; remaining: S-DEMO-HARNESS-CLONE-PARITY-001 (ready v1.2) → S-DEMO-CLAROTY-PAGINATION-001 (ready v1.2). Draft/deferred: S-DEMO-MULTI-TENANT-DTU-001 [3 open OQs]; S-MAINT-W3SEC-CITE-SWEEP-002 [D-954]; S-MAINT-ORPHAN-SENSORS-DIR-001 [D-977]; S-MAINT-EDITION-SYNC-001 [D-1027]; S-DEMO-LAUNCHER-CONSOLIDATION-001 [D-1029]. |
-| **Current Step** | D-1063 — S-DEMO-CLAROTY-PAGINATION-001 spec-prep v1.1→v1.2 remove-uncertainty complete. STORY-INDEX v2.322→v2.323. STATE v7.714. PAGINATION-001 ready v1.2, next to deliver. |
+| **Last Updated** | 2026-06-08 (D-1064 — S-DEMO-CLAROTY-PAGINATION-001 MERGED PR #179 develop@9ca7e7d7; STORY-INDEX v2.323→v2.324; STATE v7.714→v7.715) |
+| **Current Phase** | Wave 5 (wave-5-e-demo-fidelity) — **Phase B COMPLETE** (all 4 lanes + S-MAINT merged). **Phase C in progress:** Lanes 1+2+3 COMPLETE; **only remaining:** S-DEMO-HARNESS-CLONE-PARITY-001 (ready v1.2 — run remove-uncertainty first). Draft/deferred: S-DEMO-MULTI-TENANT-DTU-001 [3 open OQs]; S-MAINT-W3SEC-CITE-SWEEP-002 [D-954]; S-MAINT-ORPHAN-SENSORS-DIR-001 [D-977]; S-MAINT-EDITION-SYNC-001 [D-1027]; S-DEMO-LAUNCHER-CONSOLIDATION-001 [D-1029]. |
+| **Current Step** | D-1064 — S-DEMO-CLAROTY-PAGINATION-001 MERGED PR #179 develop@9ca7e7d7. Gap-CL-004 CLOSED. Phase C Lane 3 COMPLETE. STORY-INDEX v2.323→v2.324. STATE v7.715. Next: S-DEMO-HARNESS-CLONE-PARITY-001 (ready v1.2 — run dclaude:remove-uncertainty first). |
 
 ## Phase Progress
 
@@ -120,7 +120,8 @@ safe_to_compact: true
 | **5: S-DEMO-003** | **MERGED** | 2026-06-07 | 2026-06-08 | PR #176 develop@a42e3eaf | LOCAL 3/3 (19 passes; CRIT F-P14 boot-probe caught) + PR-LEVEL 3/3 (passes 1/2/3); 43 CI GREEN; Phase B Lane 4 COMPLETE |
 | **5: S-DEMO-CLAROTY-TRAILING-SLASH-001** | **MERGED** | 2026-06-08 | 2026-06-08 | PR #177 develop@5c5d240d | LOCAL 3-CLEAN (7 passes) + PR-LEVEL 3-CLEAN strict (passes 2/3/4); ADR-031 §D8-b Gap-CL-001 CLOSED; Phase C Lane 1 COMPLETE |
 | **5: S-DEMO-CLAROTY-SPEC-PROSE-FIX-001** | **MERGED** | 2026-06-08 | 2026-06-08 | PR #178 develop@763e0ade | LOCAL 3-CLEAN strict (P1 OBS-1/OBS-2 fixed; P2/P3/P4 CLEAN) + PR-LEVEL 3-CLEAN strict (P1 OBS fixed; P2/P3/P4 CLEAN); Gap-CL-006 CLOSED; BC-2.16.013 v1.25 POL-14 idempotent; Phase C Lane 2 COMPLETE |
-| **5: Phase C — remaining Claroty cluster** | **IN PROGRESS** | — | — | Awaiting dispatch | S-DEMO-HARNESS-CLONE-PARITY-001 (ready v1.2 — run remove-uncertainty first) → S-DEMO-CLAROTY-PAGINATION-001 (draft — story-writer + remove-uncertainty before dispatch) |
+| **5: S-DEMO-CLAROTY-PAGINATION-001** | **MERGED** | 2026-06-08 | 2026-06-08 | PR #179 develop@9ca7e7d7 | LOCAL 3-CLEAN strict (P1 FB-001 MED EC-002-test-gap fixed; P2/P3/P4 CLEAN) + PR-LEVEL 3-CLEAN strict (P1 OBS stale-SHA + SEC-001 MED CWE-209 fixed; DRIFT-ORCH-PRLEVEL-PUSH-001 push-before-regate; re-cascade P1/2/3 CLEAN fc8df590); security SECURITY-CLEAR-TO-MERGE; pr-reviewer APPROVE; CI 42 GREEN; Gap-CL-004 CLOSED; POL-14 idempotent; Phase C Lane 3 COMPLETE |
+| **5: Phase C — remaining Claroty cluster** | **IN PROGRESS** | — | — | Awaiting dispatch | **Only remaining:** S-DEMO-HARNESS-CLONE-PARITY-001 (ready v1.2 — run dclaude:remove-uncertainty first per standing directive) |
 
 ## Current Phase Steps
 
@@ -129,10 +130,10 @@ safe_to_compact: true
 | Step | Agent | Status | Output |
 |------|-------|--------|--------|
 _D-735 through D-1057 archived to cycles/wave-5-e-demo-fidelity/burst-log.md (and prior cycle burst-logs)._
-| D-1059 | state-manager | 2026-06-08 | Phase C spec-prep: BC-2.16.002 v1.70 (DRIFT-D850-001 CLOSED) + S-DEMO-CLAROTY-TRAILING-SLASH-001 v1.3 remove-uncertainty corrections. BC-INDEX v5.99→v6.00. STORY-INDEX v2.319→v2.320. STATE v7.709→v7.710. |
 | D-1060 | state-manager | 2026-06-08 | S-DEMO-CLAROTY-TRAILING-SLASH-001 MERGED PR #177 develop@5c5d240d. LOCAL 3-CLEAN (7 passes) + PR-LEVEL 3-CLEAN strict (passes 2/3/4). ADR-031 §D8-b Gap-CL-001 CLOSED. BC-2.16.013 v1.25 POL-14 idempotent confirm (active since D-776). STORY-INDEX v2.320→v2.321. develop_head a42e3eaf→5c5d240d. STATE v7.710→v7.711. Phase C Lane 1 COMPLETE. |
-| D-1062 | state-manager | 2026-06-08 | S-DEMO-CLAROTY-SPEC-PROSE-FIX-001 MERGED PR #178 develop@763e0ade. LOCAL 3-CLEAN strict (P1 OBS-1/OBS-2 fixed a7a7d019; P2/P3/P4 CLEAN) + PR-LEVEL 3-CLEAN strict (P1 OBS-1 wrong-dep-SHA fixed; P2/P3/P4 CLEAN). pr-reviewer APPROVE. security SECURITY-CLEAR-TO-MERGE. CI green. Gap-CL-006 CLOSED. BC-2.16.013 v1.25 POL-14 idempotent confirm (already active D-776). STORY-INDEX v2.321→v2.322. develop_head 5c5d240d→763e0ade. STATE v7.712→v7.713. Phase C Lane 2 COMPLETE. DRIFT-SEC-TAPE-PATH-001 + DEFER-CLAUDEMD-NONEXHAUSTIVE-COUNT-001 + DRIFT-D904-002 recurrence registered. |
-| D-1063 | state-manager | 2026-06-08 | S-DEMO-CLAROTY-PAGINATION-001 spec-prep v1.1→v1.2 remove-uncertainty applied (C-1..C-5): body-injection target corrected issue_request_with_retry→build_request; Task 3a offset/page_size plumbing across both build_request call sites (TD-VSDD-060); EC-006 divide-by-zero false premise removed; line pins de-pinned TD-VSDD-091; AC-006 signature-change noted as likely-unnecessary. behavioral_contracts+ACs preserved; S-7.01 gate remains CLEARED. DRIFT-PAGINATION-PAGESIZE-VALIDATION-001 registered. STORY-INDEX v2.322→v2.323. STATE v7.713→v7.714. |
+| D-1062 | state-manager | 2026-06-08 | S-DEMO-CLAROTY-SPEC-PROSE-FIX-001 MERGED PR #178 develop@763e0ade. LOCAL 3-CLEAN strict (P1 OBS-1/OBS-2 fixed a7a7d019; P2/P3/P4 CLEAN) + PR-LEVEL 3-CLEAN strict (P1 OBS-1 wrong-dep-SHA fixed; P2/P3/P4 CLEAN). pr-reviewer APPROVE. security SECURITY-CLEAR-TO-MERGE. CI green. Gap-CL-006 CLOSED. BC-2.16.013 v1.25 POL-14 idempotent confirm (already active D-776). STORY-INDEX v2.321→v2.322. develop_head 5c5d240d→763e0ade. STATE v7.712→v7.713. Phase C Lane 2 COMPLETE. |
+| D-1063 | state-manager | 2026-06-08 | S-DEMO-CLAROTY-PAGINATION-001 spec-prep v1.1→v1.2 remove-uncertainty applied (C-1..C-5). DRIFT-PAGINATION-PAGESIZE-VALIDATION-001 registered. STORY-INDEX v2.322→v2.323. STATE v7.713→v7.714. |
+| D-1064 | state-manager | 2026-06-08 | S-DEMO-CLAROTY-PAGINATION-001 MERGED PR #179 develop@9ca7e7d7. remove-uncertainty v1.2 (C-1..C-5). LOCAL 3-CLEAN strict (P1 FB-001 MED EC-002-test-gap fixed; P2/P3/P4 CLEAN). PR-LEVEL 3-CLEAN strict re-cascade (P1 OBS stale-SHA + SEC-001 MED CWE-209 + DRIFT-ORCH-PRLEVEL-PUSH-001 caught fix unpushed; all fixed; P1/2/3 CLEAN on fc8df590). security SECURITY-CLEAR-TO-MERGE (SEC-001 CLOSED + regression-guarded). pr-reviewer APPROVE. CI 42 GREEN. POL-14 idempotent: BC-2.16.002+BC-2.16.013+BC-2.01.013 all already active — no BC-INDEX count change. Gap-CL-004 CLOSED. STORY-INDEX v2.323→v2.324. develop_head 763e0ade→9ca7e7d7. STATE v7.714→v7.715. Phase C Lane 3 COMPLETE. Drift items: DRIFT-ORCH-PRLEVEL-PUSH-001 registered; DRIFT-D904-002 recurrence noted; DRIFT-PAGINATION-PAGESIZE-VALIDATION-001 (D-1063) remains open. |
 
 ## Decisions Log
 
@@ -140,6 +141,7 @@ _D-001..D-046 archived: `cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-1064 | 2026-06-08 | state-manager | **S-DEMO-CLAROTY-PAGINATION-001 MERGED PR #179 squash-merged develop@9ca7e7d7. OffsetLimit POST-body pagination for Claroty (Gap-CL-004 CLOSED). POST fetch steps inject offset+limit into request body (merged into interpolated body_template); GET steps keep URL query params. EC-002 malformed-body → SpecEngineError (no panic, no CWE-209 body-value leak). remove-uncertainty v1.2 (C-1..C-5: body-injection target corrected; offset/page_size plumbing; EC-006 false-premise removed; line-pin de-pin; AC-006 noted likely-unnecessary). Cascade: remove-uncertainty caught 2 HIGH before TDD (wrong body-injection target issue_request_with_retry→build_request + missing plumbing). LOCAL 3-CLEAN strict (P1 FB-001 MED EC-002-test-gap fixed; P2/P3/P4 CLEAN). PR-LEVEL 3-CLEAN strict re-cascade (P1 OBS stale-SHA + security SEC-001 MED CWE-209 + adversary caught fix unpushed; DRIFT-ORCH-PRLEVEL-PUSH-001 [process-gap] codified: PR-LEVEL adversarial fix-bursts MUST be pushed to origin/feature BEFORE re-running PR-LEVEL cascade; re-cascade P1/2/3 CLEAN on pushed head fc8df590). security SECURITY-CLEAR-TO-MERGE (SEC-001 CLOSED + regression-guarded). pr-reviewer APPROVE. CI all green (42 checks). POL-14: BC-2.16.002+BC-2.16.013+BC-2.01.013 all already lifecycle_status: active — idempotent no-op; no BC-INDEX count change (active=235, draft=2 UNCHANGED). Drift items: DRIFT-ORCH-PRLEVEL-PUSH-001 registered; DRIFT-D904-002 recurrence noted; DRIFT-PAGINATION-PAGESIZE-VALIDATION-001 (SEC-002 LOW) remains open. STORY-INDEX v2.323→v2.324. develop_head 763e0ade→9ca7e7d7. STATE v7.714→v7.715. Phase C Lane 3 COMPLETE. Single-commit burst per TD-VSDD-053.** | wave-5-e-demo-fidelity | 2026-06-08 | Decided by: state-manager (D-1064 post-merge bookkeeping; no code changes). |
 | D-1063 | 2026-06-08 | state-manager | **PAGINATION-001 remove-uncertainty spec-prep v1.1→v1.2. Uncertainty scan caught 2 HIGH (body-injection target was wrong `issue_request_with_retry`→`build_request`; missing offset/page_size plumbing across retry path TD-VSDD-060 both build_request call sites) + 1 MED (EC-006 false divide-by-zero premise — non-advancing-loop is bounded by MAX_REQUESTS cap, no division at all) + line-pin de-pinning (TD-VSDD-091). Corrections C-1..C-5 applied by story-writer; behavioral_contracts array + AC↔BC traces untouched; PO S-7.01 gate remains CLEARED. AC-006 signature-change correction noted as likely-unnecessary (build_paged_url_impl already has step in scope; no change required). DRIFT-PAGINATION-PAGESIZE-VALIDATION-001 registered (pre-existing spec-engine-scope: spec_parser PaginationConfig has comment "page_size must be > 0" but NO parser-level validation; page_size=0 yields non-advancing OffsetLimit loop bounded only by MAX_REQUESTS — terminates safely, no panic; candidate robustness improvement OUT OF SCOPE for PAGINATION-001). STORY-INDEX v2.322→v2.323. STATE v7.713→v7.714. Single-commit burst per TD-VSDD-053.** | wave-5-e-demo-fidelity | 2026-06-08 | Decided by: state-manager (D-1063 spec-prep bookkeeping; no code changes). |
 | D-1062 | 2026-06-08 | state-manager | **S-DEMO-CLAROTY-SPEC-PROSE-FIX-001 MERGED PR #178 squash-merged develop@763e0ade. Claroty audit_log spec-prose + TOML-comment fidelity fix (closes F-P2-DEFER-001 + Gap-CL-006); LOCAL 3-CLEAN strict (P1 OBS-1 double-run + OBS-2 assertion-granularity fixed a7a7d019; P2/P3/P4 CLEAN) + PR-LEVEL 3-CLEAN strict (P1 OBS-1 wrong-dependency-SHA in PR body fixed; P2/P3/P4 CLEAN); pr-reviewer APPROVE; security SECURITY-CLEAR-TO-MERGE; CI all green (mergeStateStatus CLEAN). Gap-CL-006 CLOSED closure comment added to claroty.sensor.toml audit_logs block + 3 fidelity tests (AC-001/002/004). BC-2.16.013 §Postconditions §1 prose verified (PO-owned, already correct at v1.25). POL-14: BC-2.16.013 v1.25 idempotent confirm (already active since D-776; no BC-INDEX count change: stays active=235, draft=2). Drift items registered this burst: DRIFT-SEC-TAPE-PATH-001 (project-wide hardcoded absolute paths in docs/demo-evidence/**/*.tape — security-LOW; CWE-200; accepted-for-PR; future S-MAINT-TAPE-PATH-SWEEP-001); DEFER-CLAUDEMD-NONEXHAUSTIVE-COUNT-001 (CLAUDE.md §Conventions cites EXPECTED=36 but ci.yml now EXPECTED=49 — human-only CLAUDE.md edit bucket); DRIFT-D904-002 recurrence (pr-manager verify-demo-evidence false-NOT-FOUND against develop — upstream drbothen/vsdd-factory). STORY-INDEX v2.321→v2.322. develop_head 5c5d240d→763e0ade. STATE v7.712→v7.713. Phase C Lane 2 COMPLETE. Remaining Phase C: S-DEMO-HARNESS-CLONE-PARITY-001 (ready v1.2; remove-uncertainty first) + S-DEMO-CLAROTY-PAGINATION-001 (draft; story-writer + remove-uncertainty first). Single-commit burst per TD-VSDD-053.** | wave-5-e-demo-fidelity | 2026-06-08 | Decided by: state-manager (D-1062 post-merge bookkeeping; no code changes). |
 | D-1061 | 2026-06-08 | state-manager | **Durability hardening — remove-uncertainty promoted to first-class standing rule + fresh-session resume protocol added.** `user_directive_remove_uncertainty` added to STATE.md frontmatter. SESSION-HANDOFF §4 "Standing rules NEVER waived" updated with remove-uncertainty-per-story bullet. Fresh-session bootstrap block added to SESSION-HANDOFF.md §RESUME SNAPSHOT (immediately after START HERE header). No content/decisions changed — housekeeping promotion only. STATE v7.711→v7.712. Single-commit burst per TD-VSDD-053. | wave-5-e-demo-fidelity | 2026-06-08 | Decided by: state-manager (D-1061 durability-hardening burst). |
@@ -212,8 +214,9 @@ _D-001..D-046 archived: `cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 | DRIFT-EDITION-SYNC-001 [pre-existing, JUSTIFIED DEFERRAL] | prism-credentials/Cargo.toml edition=2021 vs workspace edition 2024; pre-existing across 25/26 crates | S-MAINT-EDITION-SYNC-001 to be registered; scope: workspace-wide edition-sync + cross-compile verification | S-MAINT-EDITION-SYNC-001 |
 | DRIFT-SEC-TAPE-PATH-001 [security-LOW, cross-cutting, REGISTERED] | Project-wide hardcoded `/Users/<name>/...` absolute paths in `docs/demo-evidence/**/*.tape` files (CWE-200 username/path disclosure). Pre-existing across S-3.01..S-DEMO-003 + this story. security-reviewer accepted-for-PR; correct remediation is project-wide .tape/.sh path sweep using `$PRISM_REPO`/relative paths. | Author S-MAINT-TAPE-PATH-SWEEP-001 (maintenance wave) | maintenance wave |
 | DEFER-CLAUDEMD-NONEXHAUSTIVE-COUNT-001 [doc-staleness, HUMAN-ONLY] | CLAUDE.md §Conventions cites "36+ types ... ci.yml EXPECTED=36" but authoritative `ci.yml EXPECTED` is now 49. Add to human-only CLAUDE.md edit bucket alongside DEFER-CLAUDEMD-BC216002-MISLABEL-001. Non-blocking. | **HUMAN CLAUDE.md EDIT REQUIRED** | human at next checkpoint |
-| DRIFT-D904-002 **[recurrence noted D-1062]** | pr-manager verify-demo-evidence step again produced false "NOT FOUND" by resolving docs/demo-evidence/ against develop instead of feature worktree (PR #178 false-positive). Already tracked upstream (drbothen/vsdd-factory). Recurrence #2 noted; no new action. | Track in drbothen/vsdd-factory upstream | upstream |
-| DRIFT-PAGINATION-PAGESIZE-VALIDATION-001 [pre-existing, spec-engine-scope, REGISTERED D-1063] | `spec_parser` PaginationConfig has a comment "page_size must be > 0" but NO parser-level validation enforces it; page_size=0 yields a non-advancing OffsetLimit loop bounded only by MAX_REQUESTS_PER_PIPELINE (terminates safely, no panic). A hard spec-load guard is a candidate robustness improvement; OUT OF SCOPE for S-DEMO-CLAROTY-PAGINATION-001 (which delivers POST-body dispatch). | PO/architect adjudicate whether to add a spec-load page_size>0 validation; target: spec-engine validation hardening (separate story) | spec-engine validation story |
+| DRIFT-D904-002 **[recurrence noted D-1062 + D-1064]** | pr-manager verify-demo-evidence step again produced false "NOT FOUND" by resolving docs/demo-evidence/ against develop instead of feature worktree (PR #178 false-positive; PR #179 false-positive recurrence #3). Already tracked upstream (drbothen/vsdd-factory). Recurrence noted; no new action. | Track in drbothen/vsdd-factory upstream | upstream |
+| DRIFT-PAGINATION-PAGESIZE-VALIDATION-001 [pre-existing, spec-engine-scope, REGISTERED D-1063] | `spec_parser` PaginationConfig has a comment "page_size must be > 0" but NO parser-level validation enforces it; page_size=0 yields a non-advancing OffsetLimit loop bounded only by MAX_REQUESTS_PER_PIPELINE (terminates safely, no panic). A hard spec-load guard is a candidate robustness improvement; OUT OF SCOPE for S-DEMO-CLAROTY-PAGINATION-001. | PO/architect adjudicate whether to add a spec-load page_size>0 validation; target: spec-engine validation hardening (separate story) | spec-engine validation story |
+| DRIFT-ORCH-PRLEVEL-PUSH-001 [process-gap, codified — orchestrator discipline, REGISTERED D-1064] | PR-LEVEL adversarial fix-bursts MUST be pushed to origin/feature BEFORE re-running the PR-LEVEL cascade. LOCAL passes review the local worktree (no push needed); PR-LEVEL passes review the REMOTE PR (gh pr diff), so an unpushed local fix-commit causes the adversary to review stale code. Evidence: PR #179 PR-LEVEL pass 2 caught SEC-001 fix commit 7202afcf committed locally but unpushed — remote PR still had the leaking code. Required action: codify "push-before-PR-LEVEL-regate" into the orchestrator per-story-delivery discipline (standing rule). Target: cycle-close codification / next per-story-delivery doc update. | Codify into orchestrator per-story-delivery discipline | cycle-close codification |
 
 ## Blocking Issues
 
@@ -236,16 +239,16 @@ All historical cycle files:
 
 ---
 
-## Session Resume Checkpoint (2026-06-08 — D-1063: PAGINATION-001 v1.2 spec-prep; develop@763e0ade; STATE v7.714)
+## Session Resume Checkpoint (2026-06-08 — D-1064: PAGINATION-001 MERGED PR #179 develop@9ca7e7d7; STATE v7.715)
 
-_Previous checkpoint (D-1062; STATE v7.713) superseded by D-1063 spec-prep burst. Full durable resume snapshot is in SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-06-08-SPEC-PROSE-FIX-MERGED._
+_Previous checkpoint (D-1063; STATE v7.714) superseded by D-1064 post-merge burst. Full durable resume snapshot is in SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-06-08-PAGINATION-001-MERGED._
 
-**STATE v7.714. D-1063 — S-DEMO-CLAROTY-PAGINATION-001 ready v1.2 (remove-uncertainty applied). BC-INDEX v6.00. STORY-INDEX v2.323. develop@763e0ade. D-989 autonomy ACTIVE.**
+**STATE v7.715. D-1064 — S-DEMO-CLAROTY-PAGINATION-001 MERGED. Gap-CL-004 CLOSED. Phase C Lane 3 COMPLETE. BC-INDEX v6.00. STORY-INDEX v2.324. develop@9ca7e7d7. D-989 autonomy ACTIVE.**
 
 **RESUME PROTOCOL (run on fresh session start):**
 1. `vsdd-factory:factory-worktree-health` (BLOCKING)
-2. Verify `git log --oneline develop | head -1` shows `763e0ade`
-3. Verify `grep "^version:" .factory/STATE.md` shows `"7.714"`
+2. Verify `git log --oneline develop | head -1` shows `9ca7e7d7`
+3. Verify `grep "^version:" .factory/STATE.md` shows `"7.715"`
 4. `gh pr list --state open` → expect NONE
-5. Read SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-06-08-SPEC-PROSE-FIX-MERGED
-6. Note: PAGINATION-001 v1.2 ready — next to deliver (remove-uncertainty already applied)
+5. Read SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-06-08-PAGINATION-001-MERGED
+6. Next: S-DEMO-HARNESS-CLONE-PARITY-001 (ready v1.2) — run `dclaude:remove-uncertainty` FIRST per standing directive
