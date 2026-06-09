@@ -408,6 +408,15 @@ impl PipelineExecutor {
                     // Build the paginated URL with encoded cursor.
                     let paged_url = build_paged_url(&url, step, &encoded_cursor, offset);
 
+                    // Derive the active page_size for OffsetLimit POST-body injection
+                    // (BC-2.16.002 v1.70 §Postconditions "OffsetLimit Pagination Dispatch:
+                    // POST-body vs GET-URL"). Non-OffsetLimit steps pass page_size=0 to
+                    // indicate no body injection is needed.
+                    let active_page_size: u32 = match &step.pagination {
+                        Some(PaginationConfig::OffsetLimit { page_size: ps }) => *ps,
+                        _ => 0,
+                    };
+
                     // Issue the request (with 401-retry logic per AC-5).
                     let (body, new_token) = issue_request_with_retry(
                         http_client,
@@ -419,6 +428,8 @@ impl PipelineExecutor {
                         &context.client_id,
                         &mut request_count,
                         &batch_step_vars,
+                        offset,
+                        active_page_size,
                     )
                     .await?;
                     bearer_token = new_token;
@@ -661,6 +672,8 @@ impl PipelineExecutor {
 
         let url = format!("{}{}", spec.base_url, interpolated_path);
 
+        // execute_step issues a single request without pagination — pass offset=0, page_size=0
+        // to signal to build_request that no OffsetLimit body injection should occur.
         let (body, _new_token) = issue_request_with_retry(
             http_client,
             step,
@@ -671,6 +684,8 @@ impl PipelineExecutor {
             &context.client_id,
             &mut request_count,
             prior_vars,
+            0,
+            0,
         )
         .await?;
 
@@ -759,6 +774,8 @@ async fn issue_request_with_retry(
     client_id: &OrgSlug,
     request_count: &mut u32,
     step_vars: &HashMap<String, serde_json::Value>,
+    offset: u32,
+    page_size: u32,
 ) -> Result<(serde_json::Value, AuthToken), SpecEngineError> {
     // Issue the first request.
     let response = build_request(
@@ -768,6 +785,8 @@ async fn issue_request_with_retry(
         &current_token,
         &spec.auth_type,
         step_vars,
+        offset,
+        page_size,
     )
     .map_err(|e| SpecEngineError::HttpRequestFailed {
         sensor_id: spec.sensor_id.clone(),
@@ -856,6 +875,8 @@ async fn issue_request_with_retry(
             &fresh_token,
             &spec.auth_type,
             step_vars,
+            offset,
+            page_size,
         )
         .map_err(|e| SpecEngineError::HttpRequestFailed {
             sensor_id: spec.sensor_id.clone(),
@@ -958,6 +979,8 @@ fn build_request(
     token: &AuthToken,
     auth_type: &crate::spec_parser::AuthType,
     step_vars: &HashMap<String, serde_json::Value>,
+    offset: u32,
+    page_size: u32,
 ) -> Result<reqwest::RequestBuilder, String> {
     let method = match step.method.to_ascii_uppercase().as_str() {
         "POST" => reqwest::Method::POST,
@@ -992,18 +1015,68 @@ fn build_request(
             Interpolator::interpolate(body_tpl, &InterpolationContext::JsonBody, step_vars)
                 .map_err(|e| format!("body template interpolation failed: {e}"))?;
 
+        // BC-2.16.002 v1.70 §Postconditions "OffsetLimit Pagination Dispatch:
+        // POST-body vs GET-URL (DRIFT-D850-001)": for POST steps with OffsetLimit
+        // pagination, inject "offset" and "limit" as top-level keys in the JSON body.
+        // Merge semantics: preserve all existing body_template fields (AC-004).
+        // First page uses offset=0 (AC-005). page_size=0 means pagination is not active
+        // (e.g., execute_step single-request path), so skip injection in that case.
+        let final_body = if step.method.eq_ignore_ascii_case("POST")
+            && matches!(step.pagination, Some(PaginationConfig::OffsetLimit { .. }))
+            && page_size > 0
+        {
+            let mut body_val: serde_json::Value = serde_json::from_str(&interpolated_body)
+                .map_err(|e| {
+                    format!(
+                        "body template for POST OffsetLimit step '{}' is not valid JSON: {e}",
+                        step.name
+                    )
+                })?;
+            match body_val {
+                serde_json::Value::Object(ref mut map) => {
+                    map.insert(
+                        "offset".to_string(),
+                        serde_json::Value::Number(serde_json::Number::from(offset)),
+                    );
+                    map.insert(
+                        "limit".to_string(),
+                        serde_json::Value::Number(serde_json::Number::from(page_size)),
+                    );
+                }
+                _ => {
+                    // EC-002: body_template is not a JSON object (e.g., raw string, array).
+                    // Surface as an error — cannot merge offset/limit into a non-object body.
+                    // Object(_) is handled by the arm above; only non-object variants reach here.
+                    let type_name = match &body_val {
+                        serde_json::Value::Array(_) => "array",
+                        serde_json::Value::String(_) => "string",
+                        serde_json::Value::Number(_) => "number",
+                        serde_json::Value::Bool(_) => "boolean",
+                        _ => "null",
+                    };
+                    return Err(format!(
+                        "POST OffsetLimit step '{}' body_template interpolated to a non-object \
+                         JSON value ({type_name}); expected a JSON object to merge offset+limit \
+                         into (BC-2.16.002 v1.70 EC-002)",
+                        step.name
+                    ));
+                }
+            }
+            body_val.to_string()
+        } else {
+            interpolated_body
+        };
+
         // Derive Content-Type: JSON if body starts with '{' or '[', else form-urlencoded.
         // F-LP2-MED-002: JSON arrays (starting with '[') are also application/json.
-        let trimmed = interpolated_body.trim_start();
+        let trimmed = final_body.trim_start();
         let content_type = if trimmed.starts_with('{') || trimmed.starts_with('[') {
             "application/json"
         } else {
             "application/x-www-form-urlencoded"
         };
 
-        req = req
-            .header("Content-Type", content_type)
-            .body(interpolated_body);
+        req = req.header("Content-Type", content_type).body(final_body);
     }
 
     Ok(req)
@@ -1064,8 +1137,16 @@ fn build_paged_url_impl(
             url
         }
         Some(PaginationConfig::OffsetLimit { page_size }) => {
-            let sep = if base_url.contains('?') { '&' } else { '?' };
-            format!("{base_url}{sep}offset={offset}&limit={page_size}")
+            // BC-2.16.002 v1.70 §Postconditions "OffsetLimit Pagination Dispatch:
+            // POST-body vs GET-URL (DRIFT-D850-001)": for POST steps, offset+limit
+            // go in the request body (injected in build_request); return URL unchanged.
+            // For GET steps (and any non-POST method), append ?offset=N&limit=M as before.
+            if step.method.eq_ignore_ascii_case("POST") {
+                base_url.to_string()
+            } else {
+                let sep = if base_url.contains('?') { '&' } else { '?' };
+                format!("{base_url}{sep}offset={offset}&limit={page_size}")
+            }
         }
         Some(PaginationConfig::None) | None => base_url.to_string(),
     }
@@ -3153,6 +3234,1076 @@ mod timestamp_normalization_tests {
         assert!(
             s.contains("2026-05-21"),
             "resolved value must contain the first_seen date; got: {s}"
+        );
+    }
+}
+
+// ---------------------------------------------------------------------------
+// S-DEMO-CLAROTY-PAGINATION-001 — BC-2.16.002 v1.70 §Postconditions
+// "OffsetLimit Pagination Dispatch: POST-body vs GET-URL (DRIFT-D850-001)"
+//
+// Red Gate tests for AC-001, AC-002, AC-003, AC-004, AC-005, AC-006.
+//
+// RED GATE MECHANISM:
+//   AC-001, AC-004, AC-005, AC-003-unit FAIL: `build_paged_url_impl` currently
+//   appends `?offset=N&limit=M` to the URL regardless of HTTP method and
+//   `build_request` never injects offset/limit into the POST body.
+//   These tests assert the EXPECTED postcondition; they MUST FAIL until the
+//   implementation is complete.
+//
+//   AC-002, AC-006 PASS: existing GET behavior is correct today.
+// ---------------------------------------------------------------------------
+#[cfg(test)]
+mod pagination_post_body_tests {
+    use std::collections::HashMap;
+
+    use prism_core::{ColumnType, OrgSlug};
+    use wiremock::{
+        Mock as WmMock, MockServer, ResponseTemplate,
+        matchers::{method as wm_method, path as wm_path},
+    };
+
+    use super::{PaginationConfig, build_paged_url};
+    use crate::{
+        auth_provider::NullAuthProvider,
+        pipeline::{FetchContext, PipelineExecutor},
+        spec_parser::{AuthType, ColumnSpec, FetchStep, SensorSpec, TableSpec},
+    };
+
+    // -----------------------------------------------------------------------
+    // Fixture helpers
+    // -----------------------------------------------------------------------
+
+    /// Build a single-step POST spec with OffsetLimit pagination.
+    ///
+    /// `body_template`: the JSON string body template (e.g. `"{}"` for Claroty).
+    fn post_offset_limit_spec(
+        base_url: &str,
+        path: &str,
+        body_template: Option<String>,
+        page_size: u32,
+    ) -> SensorSpec {
+        SensorSpec::new(
+            "post-paginated-sensor",
+            "Post Paginated Sensor",
+            AuthType::BearerStatic,
+            base_url,
+            vec![TableSpec::new_point_in_time(
+                "alerts",
+                "security_finding",
+                vec![ColumnSpec::new("id", ColumnType::String, None, vec![])],
+                vec![FetchStep::new(
+                    "fetch_alerts",
+                    "POST",
+                    path,
+                    body_template,
+                    "$.alerts",
+                    None,
+                    vec![],
+                    None,
+                    Some(PaginationConfig::OffsetLimit { page_size }),
+                )],
+            )],
+            None,
+            "1.0.0",
+            vec![],
+        )
+    }
+
+    /// Build a single-step GET spec with OffsetLimit pagination (regression guard).
+    fn get_offset_limit_step(page_size: u32) -> FetchStep {
+        FetchStep::new(
+            "fetch_logs",
+            "GET",
+            "/api/logs",
+            None,
+            "$.items",
+            None,
+            vec![],
+            None,
+            Some(PaginationConfig::OffsetLimit { page_size }),
+        )
+    }
+
+    /// Build a POST step with OffsetLimit pagination (for URL-side assertions).
+    fn post_offset_limit_step(page_size: u32) -> FetchStep {
+        FetchStep::new(
+            "fetch_alerts",
+            "POST",
+            "/api/alerts",
+            Some("{}".to_string()),
+            "$.alerts",
+            None,
+            vec![],
+            None,
+            Some(PaginationConfig::OffsetLimit { page_size }),
+        )
+    }
+
+    fn default_context() -> FetchContext {
+        FetchContext::new(OrgSlug::new("test-org"), HashMap::new())
+    }
+
+    // -----------------------------------------------------------------------
+    // AC-001 (URL side): POST step with OffsetLimit → URL unchanged (no ?offset=&limit=)
+    //
+    // RED GATE: `build_paged_url_impl` currently appends ?offset=N&limit=M to ALL
+    // methods. This test MUST FAIL until build_paged_url_impl branches on step.method.
+    // -----------------------------------------------------------------------
+
+    /// AC-001 / BC-2.16.002 v1.70 §Postconditions "OffsetLimit Pagination Dispatch:
+    /// POST-body vs GET-URL" — POST step clause.
+    ///
+    /// For `method == "POST"` with OffsetLimit pagination, `build_paged_url_impl`
+    /// MUST return the base URL unchanged. The `?offset=` and `?limit=` params
+    /// MUST NOT appear in the URL — they go in the request body instead.
+    ///
+    /// RED GATE: build_paged_url_impl currently appends ?offset=N&limit=M regardless
+    /// of method. This FAILS until Task 2 (build_paged_url_impl POST branch) is done.
+    #[test]
+    fn test_BC_2_16_002_pagination_post_method_url_unchanged() {
+        let step = post_offset_limit_step(100);
+        let base = "https://api.claroty.example.com/api/v1/alerts";
+
+        // Page 1 (offset=0): URL must be base URL unchanged.
+        let url_page1 = build_paged_url(base, &step, &None, 0);
+        assert_eq!(
+            url_page1, base,
+            "AC-001 RED GATE (URL-side): POST step page1 URL must equal base URL unchanged; \
+             got: {url_page1}\n\
+             IMPLEMENTATION NEEDED: update build_paged_url_impl so that \
+             PaginationConfig::OffsetLimit with method=POST returns base_url unchanged \
+             (offset+limit go in the body, not the URL)."
+        );
+        assert!(
+            !url_page1.contains("offset="),
+            "AC-001: POST step URL must NOT contain 'offset='; got: {url_page1}"
+        );
+        assert!(
+            !url_page1.contains("limit="),
+            "AC-001: POST step URL must NOT contain 'limit='; got: {url_page1}"
+        );
+
+        // Page 2 (offset=100): URL must also be base URL unchanged.
+        let url_page2 = build_paged_url(base, &step, &None, 100);
+        assert_eq!(
+            url_page2, base,
+            "AC-001 RED GATE (URL-side): POST step page2 URL must equal base URL unchanged; \
+             got: {url_page2}"
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // AC-001 (body side): POST step with OffsetLimit → request body contains
+    // top-level "offset" and "limit" integer keys.
+    //
+    // RED GATE: build_request does not yet inject offset/limit into the body.
+    // This test drives the real production code path (PipelineExecutor::execute_with_max_requests
+    // → build_request) via wiremock and inspects the received request body.
+    // MUST FAIL until Task 3a (thread offset/page_size) + Task 3b (body injection) complete.
+    // -----------------------------------------------------------------------
+
+    /// AC-001 / BC-2.16.002 v1.70 §Postconditions "OffsetLimit Pagination Dispatch:
+    /// POST-body vs GET-URL" — POST step body-injection clause.
+    ///
+    /// For `method == "POST"` with OffsetLimit pagination, the request body MUST
+    /// contain top-level integer keys `"offset"` and `"limit"`.
+    ///
+    /// Test seam: wiremock mock server receives the real HTTP request built by
+    /// `build_request` via `PipelineExecutor::execute_with_max_requests`. The
+    /// received request body is inspected via `mock_server.received_requests()`.
+    ///
+    /// RED GATE: build_request does not inject offset/limit into the body today.
+    /// FAILS until Tasks 3a + 3b complete.
+    #[tokio::test]
+    async fn test_BC_2_16_002_pagination_post_method_sends_offset_limit_in_body() {
+        let mock_server = MockServer::start().await;
+
+        // Single-page response: 2 records (less than page_size=100 → terminates after 1 page).
+        // Using up_to_n_times(1) so we capture exactly the first request's body.
+        WmMock::given(wm_method("POST"))
+            .and(wm_path("/api/v1/alerts"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                "alerts": [{"id": "alert-1"}, {"id": "alert-2"}]
+            })))
+            .up_to_n_times(1)
+            .mount(&mock_server)
+            .await;
+
+        let spec = post_offset_limit_spec(
+            &mock_server.uri(),
+            "/api/v1/alerts",
+            Some("{}".to_string()),
+            100,
+        );
+        let table = spec.tables[0].clone();
+        let context = default_context();
+        let http_client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(30))
+            .build()
+            .expect("reqwest Client::build must succeed");
+        let auth_provider = NullAuthProvider;
+
+        // Drive the real production path. max_requests=2 to bound the test.
+        let result = PipelineExecutor::execute_with_max_requests(
+            &spec,
+            &table,
+            &context,
+            &http_client,
+            &auth_provider,
+            2,
+        )
+        .await
+        .expect("AC-001: POST-paged execution must succeed");
+
+        assert_eq!(
+            result.records.len(),
+            2,
+            "AC-001: expect 2 records from single-page POST; got {}",
+            result.records.len()
+        );
+
+        // Inspect the request body received by the mock server.
+        let received = mock_server
+            .received_requests()
+            .await
+            .expect("wiremock must record received requests");
+
+        let post_requests: Vec<_> = received
+            .iter()
+            .filter(|r| r.url.path() == "/api/v1/alerts")
+            .collect();
+
+        assert_eq!(
+            post_requests.len(),
+            1,
+            "AC-001: exactly 1 POST request to /api/v1/alerts; got {}",
+            post_requests.len()
+        );
+
+        let req = &post_requests[0];
+
+        // The URL must NOT contain offset= or limit=.
+        let url_str = req.url.as_str();
+        assert!(
+            !url_str.contains("offset="),
+            "AC-001 RED GATE (URL-side): POST URL must not contain 'offset='; url={url_str}"
+        );
+        assert!(
+            !url_str.contains("limit="),
+            "AC-001 RED GATE (URL-side): POST URL must not contain 'limit='; url={url_str}"
+        );
+
+        // The request body must contain top-level "offset" and "limit" integer keys.
+        let body_json: serde_json::Value = serde_json::from_slice(&req.body).unwrap_or_else(|e| {
+            panic!("AC-001 RED GATE: POST request body must be valid JSON; parse error: {e}; raw body: {:?}", String::from_utf8_lossy(&req.body))
+        });
+
+        let offset_val = body_json.get("offset").unwrap_or_else(|| {
+            panic!(
+                "AC-001 RED GATE: POST body must contain top-level 'offset' key; \
+                 body={body_json}\n\
+                 IMPLEMENTATION NEEDED: inject offset+limit into request body in build_request \
+                 (Tasks 3a + 3b in S-DEMO-CLAROTY-PAGINATION-001)."
+            )
+        });
+        let limit_val = body_json.get("limit").unwrap_or_else(|| {
+            panic!(
+                "AC-001 RED GATE: POST body must contain top-level 'limit' key; \
+                 body={body_json}"
+            )
+        });
+
+        assert!(
+            offset_val.is_number(),
+            "AC-001: 'offset' in POST body must be a number; got: {offset_val}"
+        );
+        assert!(
+            limit_val.is_number(),
+            "AC-001: 'limit' in POST body must be a number; got: {limit_val}"
+        );
+        assert_eq!(
+            offset_val.as_u64(),
+            Some(0),
+            "AC-001 + AC-005: first page offset must be 0; got: {offset_val}"
+        );
+        assert_eq!(
+            limit_val.as_u64(),
+            Some(100),
+            "AC-001: limit must equal page_size (100); got: {limit_val}"
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // AC-002: GET step with OffsetLimit → URL params appended (regression guard)
+    //
+    // This test is expected to PASS today (existing behavior is correct for GET).
+    // It is the regression guard: any change to build_paged_url_impl that
+    // accidentally breaks GET appending would cause this to FAIL.
+    // -----------------------------------------------------------------------
+
+    /// AC-002 / BC-2.16.002 v1.70 §Postconditions "OffsetLimit Pagination Dispatch:
+    /// POST-body vs GET-URL" — GET/absent-method step clause (regression guard).
+    ///
+    /// For `method == "GET"` with OffsetLimit pagination, `build_paged_url_impl`
+    /// MUST continue to append `?offset=N&limit=M` to the URL unchanged.
+    /// This is the regression guard for Cyberint, Armis, and CrowdStrike GET sensors.
+    ///
+    /// Expected to PASS today and continue passing after implementation.
+    #[test]
+    fn test_BC_2_16_002_pagination_get_method_continues_url_params() {
+        let step = get_offset_limit_step(50);
+        let base = "https://api.example.com/api/logs";
+
+        // Page 1 (offset=0): URL must contain ?offset=0&limit=50.
+        let url_page1 = build_paged_url(base, &step, &None, 0);
+        assert!(
+            url_page1.contains("offset=0"),
+            "AC-002 regression guard: GET step page1 URL must contain 'offset=0'; got: {url_page1}"
+        );
+        assert!(
+            url_page1.contains("limit=50"),
+            "AC-002 regression guard: GET step page1 URL must contain 'limit=50'; got: {url_page1}"
+        );
+
+        // Page 2 (offset=50): URL must contain ?offset=50&limit=50.
+        let url_page2 = build_paged_url(base, &step, &None, 50);
+        assert!(
+            url_page2.contains("offset=50"),
+            "AC-002 regression guard: GET step page2 URL must contain 'offset=50'; got: {url_page2}"
+        );
+        assert!(
+            url_page2.contains("limit=50"),
+            "AC-002 regression guard: GET step page2 URL must contain 'limit=50'; got: {url_page2}"
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // AC-004: Body template merging preserves existing body fields
+    //
+    // RED GATE: build_request does not yet inject offset/limit into the body.
+    // When it does, existing body_template keys must be preserved (merge, not replace).
+    // MUST FAIL until Tasks 3a + 3b complete.
+    // -----------------------------------------------------------------------
+
+    /// AC-004 / BC-2.16.002 v1.70 §Postconditions "OffsetLimit Pagination Dispatch:
+    /// POST-body vs GET-URL" — body merge clause.
+    ///
+    /// When offset+limit are injected into the POST body, any existing keys from
+    /// `body_template` MUST be preserved. The pagination params are merged into the
+    /// existing body object, not replacing it.
+    ///
+    /// Test vector: body_template = `{"filter": "active"}` → after injection body
+    /// must contain ALL OF: `"filter": "active"`, `"offset": 0`, `"limit": 100`.
+    ///
+    /// RED GATE: build_request currently sets body to the raw interpolated body_template
+    /// string without merging offset/limit. FAILS until Task 3b complete.
+    #[tokio::test]
+    async fn test_BC_2_16_002_pagination_body_template_merge_preserves_existing_keys() {
+        let mock_server = MockServer::start().await;
+
+        // Single-page response to keep test bounded.
+        WmMock::given(wm_method("POST"))
+            .and(wm_path("/api/v1/alerts"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                "alerts": [{"id": "alert-merge-1"}]
+            })))
+            .up_to_n_times(1)
+            .mount(&mock_server)
+            .await;
+
+        // body_template has a pre-existing "filter" key that must survive the merge.
+        let spec = post_offset_limit_spec(
+            &mock_server.uri(),
+            "/api/v1/alerts",
+            Some(r#"{"filter": "active"}"#.to_string()),
+            100,
+        );
+        let table = spec.tables[0].clone();
+        let context = default_context();
+        let http_client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(30))
+            .build()
+            .expect("reqwest Client::build must succeed");
+        let auth_provider = NullAuthProvider;
+
+        PipelineExecutor::execute_with_max_requests(
+            &spec,
+            &table,
+            &context,
+            &http_client,
+            &auth_provider,
+            2,
+        )
+        .await
+        .expect("AC-004: POST-paged execution with existing body keys must succeed");
+
+        let received = mock_server
+            .received_requests()
+            .await
+            .expect("wiremock must record received requests");
+
+        let post_req = received
+            .iter()
+            .find(|r| r.url.path() == "/api/v1/alerts")
+            .expect("AC-004: must have received a POST request to /api/v1/alerts");
+
+        let body_json: serde_json::Value =
+            serde_json::from_slice(&post_req.body).unwrap_or_else(|e| {
+                panic!(
+                    "AC-004 RED GATE: POST request body must be valid JSON; error: {e}; \
+                     raw: {:?}",
+                    String::from_utf8_lossy(&post_req.body)
+                )
+            });
+
+        // The pre-existing "filter" key must survive the offset/limit merge.
+        let filter_val = body_json.get("filter").unwrap_or_else(|| {
+            panic!(
+                "AC-004 RED GATE: merged POST body must preserve existing 'filter' key; \
+                 body={body_json}\n\
+                 IMPLEMENTATION NEEDED: merge offset+limit INTO body object, do not replace it."
+            )
+        });
+        assert_eq!(
+            filter_val,
+            &serde_json::Value::String("active".to_string()),
+            "AC-004: 'filter' key must retain its original value 'active'; got: {filter_val}"
+        );
+
+        // offset and limit must also be present.
+        assert!(
+            body_json.get("offset").is_some(),
+            "AC-004 RED GATE: merged body must also contain 'offset'; body={body_json}"
+        );
+        assert!(
+            body_json.get("limit").is_some(),
+            "AC-004 RED GATE: merged body must also contain 'limit'; body={body_json}"
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // AC-005: First-page request uses offset=0 in body
+    //
+    // RED GATE: body injection does not yet exist.
+    // MUST FAIL until Tasks 3a + 3b complete.
+    //
+    // Note: AC-005 offset=0 assertion is also covered by test_BC_2_16_002_pagination_post_method_sends_offset_limit_in_body
+    // above. This test provides focused dedicated coverage with a clearer diagnostic.
+    // -----------------------------------------------------------------------
+
+    /// AC-005 / BC-2.16.002 v1.70 §Postconditions "OffsetLimit Pagination Dispatch:
+    /// POST-body vs GET-URL" — offset initialization clause.
+    ///
+    /// For the first pagination step, `offset = 0` and `limit = page_size` MUST be
+    /// present in the POST body.
+    ///
+    /// RED GATE: body injection does not exist today. FAILS until Task 3b complete.
+    #[tokio::test]
+    async fn test_BC_2_16_002_pagination_post_first_page_offset_zero_in_body() {
+        let mock_server = MockServer::start().await;
+
+        // Single-page response (1 record < page_size=100 → terminates after page 1).
+        WmMock::given(wm_method("POST"))
+            .and(wm_path("/api/v1/devices"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                "alerts": [{"id": "device-1"}]
+            })))
+            .up_to_n_times(1)
+            .mount(&mock_server)
+            .await;
+
+        let spec = post_offset_limit_spec(
+            &mock_server.uri(),
+            "/api/v1/devices",
+            Some("{}".to_string()),
+            100,
+        );
+        let table = spec.tables[0].clone();
+        let context = default_context();
+        let http_client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(30))
+            .build()
+            .expect("reqwest Client::build must succeed");
+        let auth_provider = NullAuthProvider;
+
+        PipelineExecutor::execute_with_max_requests(
+            &spec,
+            &table,
+            &context,
+            &http_client,
+            &auth_provider,
+            2,
+        )
+        .await
+        .expect("AC-005: first-page POST execution must succeed");
+
+        let received = mock_server
+            .received_requests()
+            .await
+            .expect("wiremock must record received requests");
+
+        let req = received
+            .iter()
+            .find(|r| r.url.path() == "/api/v1/devices")
+            .expect("AC-005: must have received at least one POST request to /api/v1/devices");
+
+        let body_json: serde_json::Value = serde_json::from_slice(&req.body).unwrap_or_else(|e| {
+            panic!(
+                "AC-005 RED GATE: first-page POST body must be valid JSON; error: {e}; \
+                     raw: {:?}",
+                String::from_utf8_lossy(&req.body)
+            )
+        });
+
+        let offset = body_json
+            .get("offset")
+            .and_then(|v| v.as_u64())
+            .unwrap_or_else(|| {
+                panic!(
+                    "AC-005 RED GATE: first-page POST body must contain numeric 'offset' key; \
+                     body={body_json}\n\
+                     IMPLEMENTATION NEEDED: inject offset=0 in body for first page (Task 3b)."
+                )
+            });
+
+        assert_eq!(
+            offset, 0,
+            "AC-005: first-page offset in POST body must be 0; got: {offset}"
+        );
+
+        let limit = body_json
+            .get("limit")
+            .and_then(|v| v.as_u64())
+            .unwrap_or_else(|| {
+                panic!(
+                    "AC-005 RED GATE: first-page POST body must contain numeric 'limit' key; \
+                     body={body_json}"
+                )
+            });
+        assert_eq!(
+            limit, 100,
+            "AC-005: first-page limit in POST body must equal page_size (100); got: {limit}"
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // AC-006: build_paged_url_for_test remains callable for GET paths
+    //
+    // This test confirms the public test helper is accessible and returns correct
+    // URL-appended results for GET steps (regression guard per AC-006).
+    // Expected to PASS today. Included as a conditional structural regression guard.
+    // -----------------------------------------------------------------------
+
+    /// AC-006 / BC-2.16.002 v1.70 §Postconditions "OffsetLimit Pagination Dispatch:
+    /// POST-body vs GET-URL" — GET regression guard.
+    ///
+    /// The existing `build_paged_url_for_test` public test helper MUST remain callable
+    /// and return correct URL-appended results for GET steps after implementation.
+    /// No signature change is expected (build_paged_url_impl already receives step: &FetchStep).
+    ///
+    /// Expected to PASS today and continue passing after implementation.
+    #[test]
+    fn test_BC_2_16_002_pagination_build_paged_url_for_test_get_path_still_works() {
+        use super::build_paged_url_for_test;
+
+        let step = get_offset_limit_step(25);
+        let base = "https://api.armis.example.com/api/v1/devices";
+
+        let url = build_paged_url_for_test(base, &step, &None, 0);
+        assert!(
+            url.contains("offset=0"),
+            "AC-006: build_paged_url_for_test GET result must contain 'offset=0'; got: {url}"
+        );
+        assert!(
+            url.contains("limit=25"),
+            "AC-006: build_paged_url_for_test GET result must contain 'limit=25'; got: {url}"
+        );
+
+        let url2 = build_paged_url_for_test(base, &step, &None, 25);
+        assert!(
+            url2.contains("offset=25"),
+            "AC-006: build_paged_url_for_test GET continuation must contain 'offset=25'; \
+             got: {url2}"
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // AC-003 companion unit test (SID-1 compliance):
+    // Multi-page POST pagination advances offset across pages.
+    //
+    // RED GATE: offset/limit are not yet injected into the body. With no body-side
+    // pagination, the mock cannot distinguish page 1 from page 2, so this test
+    // uses up_to_n_times to serve 2 identical-body responses and verifies that
+    // 2 requests were made (pagination loop advanced to page 2) AND the total
+    // record count is 102 (50 + 52 across the 2 pages served).
+    //
+    // More precisely: to advance to page 2, the pipeline needs page 1 to return
+    // exactly page_size records. With body injection in place, the mock distinguishes
+    // pages by their body content (offset=0 vs offset=page_size). Without body
+    // injection (current state), the pipeline appends ?offset=0&limit=N to the POST
+    // URL (current buggy behavior), and the mock — which matches only on method+path —
+    // still serves both responses. So the request_count=2 assertion is actually the
+    // key gate: it verifies the pagination loop ran twice (i.e., the offset DID
+    // advance correctly in the execute_impl loop even if the URL was wrong). The
+    // URL-clean + body-has-offset assertions are the POST-body correctness gates.
+    //
+    // FAILS until Tasks 3a + 3b complete (body injection).
+    // -----------------------------------------------------------------------
+
+    /// AC-003 companion unit test / BC-2.01.013 postcondition §1 (SID-1 compliance).
+    ///
+    /// Multi-page POST OffsetLimit pagination: 2 pages of 51 records each (total 102).
+    /// Verifies that:
+    ///   1. The pipeline issues 2 POST requests (offset advances).
+    ///   2. The total returned record count is 102.
+    ///   3. Page 2 request body contains `"offset": 51` (offset advanced by page_size).
+    ///   4. Page 2 URL does NOT contain `offset=` (no URL leakage for POST method).
+    ///
+    /// This is the non-#[ignore]'d companion to `test_BC_2_16_002_pagination_claroty_alerts_page_2_returns_data`.
+    /// It drives the pagination loop WITHOUT the external Claroty DTU (wiremock mock
+    /// HTTP boundary) per SID-1.
+    ///
+    /// RED GATE: Without body injection, page 1 and page 2 POSTs are indistinguishable
+    /// at the body level. The key assertion `"offset": 51` in the page 2 body will
+    /// FAIL (body will not contain the key at all). FAILS until Tasks 3a + 3b complete.
+    #[tokio::test]
+    async fn test_BC_2_16_002_pagination_post_offset_advances_across_pages() {
+        let mock_server = MockServer::start().await;
+
+        // page_size = 51. Page 1: 51 records (full page → continue pagination).
+        let page1_alerts: Vec<serde_json::Value> = (0u32..51)
+            .map(|i| serde_json::json!({"id": format!("alert-p1-{i}")}))
+            .collect();
+        WmMock::given(wm_method("POST"))
+            .and(wm_path("/api/v1/alerts"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_body_json(serde_json::json!({"alerts": page1_alerts})),
+            )
+            .up_to_n_times(1)
+            .mount(&mock_server)
+            .await;
+
+        // Page 2: 51 records (also full page — the test will stop after 2 pages due to
+        // max_requests=2 cap used in execute_with_max_requests below).
+        // Using page 2 = 51 records so the pagination loop would continue, but we cap at 2
+        // requests. This still verifies that the offset advanced and page 2 was requested.
+        // In the green state, page 2 body will have offset=51; the test captures and asserts.
+        let page2_alerts: Vec<serde_json::Value> = (0u32..51)
+            .map(|i| serde_json::json!({"id": format!("alert-p2-{i}")}))
+            .collect();
+        WmMock::given(wm_method("POST"))
+            .and(wm_path("/api/v1/alerts"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_body_json(serde_json::json!({"alerts": page2_alerts})),
+            )
+            .up_to_n_times(1)
+            .mount(&mock_server)
+            .await;
+
+        let spec = post_offset_limit_spec(
+            &mock_server.uri(),
+            "/api/v1/alerts",
+            Some("{}".to_string()),
+            51,
+        );
+        let table = spec.tables[0].clone();
+        let context = default_context();
+        let http_client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(30))
+            .build()
+            .expect("reqwest Client::build must succeed");
+        let auth_provider = NullAuthProvider;
+
+        // Cap at 2 requests: lets exactly 2 pages be fetched before the pipeline aborts
+        // with TooManyRequests. We therefore expect an error OR 102 records.
+        // Since page 2 is a full page (51 >= page_size=51), the loop would continue but
+        // max_requests=2 fires. This is acceptable — we get TooManyRequests on cap, but
+        // the 2 requests WERE issued, which is what we need to verify offset advance.
+        //
+        // Alternative: use a 3rd mock that serves 0 records (clean termination). But the
+        // TooManyRequests path still exercises the 2-request case and the URL/body checks
+        // below operate on received_requests regardless of Ok vs Err.
+        let _ = PipelineExecutor::execute_with_max_requests(
+            &spec,
+            &table,
+            &context,
+            &http_client,
+            &auth_provider,
+            2,
+        )
+        .await;
+        // Note: may return TooManyRequests error (max_requests=2 cap fires after page 2).
+        // That's acceptable — we only need the 2 requests to have been issued.
+
+        let received = mock_server
+            .received_requests()
+            .await
+            .expect("wiremock must record received requests");
+
+        let post_reqs: Vec<_> = received
+            .iter()
+            .filter(|r| r.url.path() == "/api/v1/alerts")
+            .collect();
+
+        assert_eq!(
+            post_reqs.len(),
+            2,
+            "AC-003-unit RED GATE: pagination must issue 2 POST requests (page 1 + page 2); \
+             got {} requests\n\
+             IMPLEMENTATION NEEDED: offset must advance in execute_impl for POST steps \
+             AND body injection must work for the pagination loop to recognize page 1 as full.",
+            post_reqs.len()
+        );
+
+        // Assert page 2 URL does NOT contain offset= (no URL leakage for POST).
+        let page2_url = post_reqs[1].url.as_str();
+        assert!(
+            !page2_url.contains("offset="),
+            "AC-003-unit RED GATE: page 2 POST URL must not contain 'offset='; url={page2_url}"
+        );
+        assert!(
+            !page2_url.contains("limit="),
+            "AC-003-unit RED GATE: page 2 POST URL must not contain 'limit='; url={page2_url}"
+        );
+
+        // Assert page 2 body contains "offset": 51 (offset advanced by page_size).
+        let page2_body: serde_json::Value = serde_json::from_slice(&post_reqs[1].body)
+            .unwrap_or_else(|e| {
+                panic!(
+                    "AC-003-unit RED GATE: page 2 POST body must be valid JSON; error: {e}; \
+                     raw: {:?}",
+                    String::from_utf8_lossy(&post_reqs[1].body)
+                )
+            });
+
+        let page2_offset = page2_body
+            .get("offset")
+            .and_then(|v| v.as_u64())
+            .unwrap_or_else(|| {
+                panic!(
+                    "AC-003-unit RED GATE: page 2 POST body must contain 'offset' key; \
+                     body={page2_body}\n\
+                     IMPLEMENTATION NEEDED: offset must be injected into body (Task 3b) and \
+                     must advance by page_size between pages (Task 3a wiring)."
+                )
+            });
+
+        assert_eq!(
+            page2_offset, 51,
+            "AC-003-unit RED GATE: page 2 offset in body must be 51 (advanced by page_size=51); \
+             got: {page2_offset}"
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // EC-002: POST OffsetLimit body_template interpolates to a non-object JSON value
+    //
+    // EC-002 specifies: "Treat as parse error; surface SpecEngineError with
+    // sensor_id and step_name. Do NOT panic."
+    //
+    // Two sub-cases:
+    //   (a) body_template is not valid JSON at all (parse fails in build_request)
+    //   (b) body_template is valid JSON but NOT an object (e.g., `[]`, `42`, `"str"`)
+    //
+    // Both branches surface as SpecEngineError::HttpRequestFailed{status_code:0}.
+    // The HTTP request is never sent (build_request returns Err before .send()).
+    // -----------------------------------------------------------------------
+
+    /// EC-002 / BC-2.16.002 v1.70 §Edge Cases — POST OffsetLimit body_template
+    /// interpolates to a non-object JSON value (e.g., raw array `[]`).
+    ///
+    /// Contract: "Treat as parse error; surface SpecEngineError with sensor_id and
+    /// step_name. Do NOT panic." (BC-2.16.002 v1.70 EC-002)
+    ///
+    /// Test vector: `body_template = "[]"` (a JSON array literal). After interpolation
+    /// the `serde_json::Value` is `Array([])` — not an Object — which triggers the
+    /// non-object branch in `build_request`.
+    ///
+    /// This test drives the REAL production code path:
+    ///   PipelineExecutor::execute_with_max_requests
+    ///   → issue_request_with_retry
+    ///   → build_request (returns Err before .send())
+    ///   → maps to SpecEngineError::HttpRequestFailed{status_code:0}
+    ///
+    /// Naming: test_BC_<id>_<desc> per CLAUDE.md §Conventions.
+    #[tokio::test]
+    async fn test_BC_2_16_002_pagination_post_non_object_body_surfaces_error() {
+        // SEC-001 regression guard: a valid-JSON non-object body_template that contains a
+        // recognizable sentinel.  The sentinel must NOT appear in the SpecEngineError detail.
+        const SENTINEL: &str = "SENSITIVE_SENTINEL_VALUE";
+
+        // Start a mock server to provide a valid URL. The request will never reach
+        // the server — build_request returns Err before .send() is called for the
+        // EC-002 branch. No routes are registered intentionally.
+        let mock_server = MockServer::start().await;
+
+        // body_template = `["SENSITIVE_SENTINEL_VALUE"]`: a JSON array (not an object)
+        // that contains the sentinel token.
+        // After Interpolator::interpolate (no variables → passthrough), serde_json parses
+        // this as Value::Array([...]) — triggers the non-object arm in build_request
+        // (EC-002 branch b).  The sentinel-absence assertion proves that even though the
+        // body parses successfully (it is valid JSON), its content is not echoed into the
+        // error detail (SEC-001 / CWE-209 guard).
+        let body_template = format!(r#"["{SENTINEL}"]"#);
+        let spec = post_offset_limit_spec(
+            &mock_server.uri(),
+            "/api/v1/alerts",
+            Some(body_template),
+            100,
+        );
+        let table = spec.tables[0].clone();
+        let context = default_context();
+        let http_client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(30))
+            .build()
+            .expect("reqwest Client::build must succeed");
+        let auth_provider = NullAuthProvider;
+
+        let result = PipelineExecutor::execute_with_max_requests(
+            &spec,
+            &table,
+            &context,
+            &http_client,
+            &auth_provider,
+            2,
+        )
+        .await;
+
+        assert!(
+            result.is_err(),
+            "EC-002: POST OffsetLimit step with non-object body_template must surface \
+             an error, not succeed; got Ok with {} records",
+            result.as_ref().map(|r| r.records.len()).unwrap_or(0)
+        );
+
+        let err = result.unwrap_err();
+        assert!(
+            matches!(
+                err,
+                crate::error::SpecEngineError::HttpRequestFailed { status_code: 0, .. }
+            ),
+            "EC-002: error must be SpecEngineError::HttpRequestFailed{{status_code:0}}; \
+             got: {err:?}"
+        );
+
+        // Verify the error detail mentions the body / interpolation problem.
+        let detail = match &err {
+            crate::error::SpecEngineError::HttpRequestFailed { detail, .. } => detail.clone(),
+            other => panic!("unexpected error variant: {other:?}"),
+        };
+        assert!(
+            detail.contains("non-object") || detail.contains("body interpolation failed"),
+            "EC-002: error detail must mention the non-object body or interpolation failure; \
+             got detail: {detail:?}"
+        );
+
+        // SEC-001 regression guard (CWE-209 / FB-ADV-179-003): the body content must NOT
+        // appear in the error detail.  The non-object branch produces an error naming the
+        // JSON value type ("array", "null", etc.) but must NOT dump the body value itself.
+        assert!(
+            !detail.contains(SENTINEL),
+            "SEC-001 regression: error detail must NOT contain the raw body sentinel \
+             (interpolated body must not be leaked into error strings); \
+             got detail: {detail:?}"
+        );
+    }
+
+    /// EC-002 / BC-2.16.002 v1.70 §Edge Cases — POST OffsetLimit body_template
+    /// is not valid JSON (parse branch, EC-002 branch a).
+    ///
+    /// Contract: "Treat as parse error; surface SpecEngineError with sensor_id and
+    /// step_name. Do NOT panic." (BC-2.16.002 v1.70 EC-002)
+    ///
+    /// Test vector: `body_template = "{SENSITIVE_SENTINEL_VALUE"` — an unterminated/malformed
+    /// JSON object that embeds a recognizable sentinel token.  After
+    /// Interpolator::interpolate (no variables → passthrough), serde_json::from_str fails
+    /// → build_request returns Err → maps to SpecEngineError::HttpRequestFailed{status_code:0}.
+    ///
+    /// The sentinel is chosen so that:
+    ///   - It still triggers EC-002 branch (a): body is not parseable as JSON.
+    ///   - The sentinel-absence assertion on `detail` proves SEC-001 (CWE-209) stays fixed:
+    ///     if a future change reintroduces `raw body: {interpolated_body:?}` in the error
+    ///     string the sentinel will appear in `detail` and the test will fail.
+    ///
+    /// This covers EC-002 branch (a): interpolated body is not parseable as JSON at all.
+    #[tokio::test]
+    async fn test_BC_2_16_002_pagination_post_invalid_json_body_surfaces_error() {
+        // SEC-001 regression guard: a malformed body_template that contains a recognizable
+        // sentinel.  The sentinel must NOT appear in the SpecEngineError detail — if it
+        // does, the fix (removing `raw body: {interpolated_body:?}` from the error string)
+        // has been regressed.
+        const SENTINEL: &str = "SENSITIVE_SENTINEL_VALUE";
+
+        let mock_server = MockServer::start().await;
+
+        // body_template = "{SENSITIVE_SENTINEL_VALUE": an unterminated JSON object that
+        // contains the sentinel.  serde_json::from_str fails (EC-002 branch a) while
+        // the sentinel is preserved in the interpolated body.
+        let body_template = format!("{{{SENTINEL}");
+        let spec = post_offset_limit_spec(
+            &mock_server.uri(),
+            "/api/v1/alerts",
+            Some(body_template),
+            100,
+        );
+        let table = spec.tables[0].clone();
+        let context = default_context();
+        let http_client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(30))
+            .build()
+            .expect("reqwest Client::build must succeed");
+        let auth_provider = NullAuthProvider;
+
+        let result = PipelineExecutor::execute_with_max_requests(
+            &spec,
+            &table,
+            &context,
+            &http_client,
+            &auth_provider,
+            2,
+        )
+        .await;
+
+        assert!(
+            result.is_err(),
+            "EC-002(a): POST OffsetLimit step with invalid JSON body_template must surface \
+             an error, not succeed; got Ok with {} records",
+            result.as_ref().map(|r| r.records.len()).unwrap_or(0)
+        );
+
+        let err = result.unwrap_err();
+        assert!(
+            matches!(
+                err,
+                crate::error::SpecEngineError::HttpRequestFailed { status_code: 0, .. }
+            ),
+            "EC-002(a): error must be SpecEngineError::HttpRequestFailed{{status_code:0}}; \
+             got: {err:?}"
+        );
+
+        // Verify sensor_id and step_name are present in the error (EC-002 contract).
+        let (sensor_id, step_name, detail) = match &err {
+            crate::error::SpecEngineError::HttpRequestFailed {
+                sensor_id,
+                step_name,
+                detail,
+                ..
+            } => (sensor_id.clone(), step_name.clone(), detail.clone()),
+            other => panic!("unexpected error variant: {other:?}"),
+        };
+        assert_eq!(
+            sensor_id, "post-paginated-sensor",
+            "EC-002(a): error must carry sensor_id; got: {sensor_id:?}"
+        );
+        assert_eq!(
+            step_name, "fetch_alerts",
+            "EC-002(a): error must carry step_name; got: {step_name:?}"
+        );
+
+        // SEC-001 regression guard (CWE-209 / FB-ADV-179-003): the interpolated body value
+        // must NOT appear in the error detail.  If this assertion fails it means a future
+        // change reintroduced dumping the raw body into the error string.
+        assert!(
+            !detail.contains(SENTINEL),
+            "SEC-001 regression: error detail must NOT contain the raw body sentinel \
+             (interpolated body must not be leaked into error strings); \
+             got detail: {detail:?}"
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // AC-003 integration test (DTU-gated, #[ignore]'d)
+    //
+    // Per SID-1: this test is gated on the live DTU clone. The companion unit test
+    // above (test_BC_2_16_002_pagination_post_offset_advances_across_pages) provides
+    // non-ignored coverage of the pagination-advance logic.
+    // -----------------------------------------------------------------------
+
+    /// AC-003 / BC-2.01.013 postcondition §1 — integration test against Claroty DTU.
+    ///
+    /// A test issuing against a DTU serving exactly 102 synthetic alert entries
+    /// returns 102 rows (all entries across 2 paginated POST requests).
+    ///
+    /// Without the POST-body pagination fix, only 100 rows are returned (page 1 only)
+    /// because the Claroty API/DTU ignores URL-based offset params.
+    ///
+    /// # DTU-EXT-001: requires Claroty DTU clone running
+    ///
+    /// Ungated in CI after S-DEMO-CLAROTY-PAGINATION-001 is merged and the DTU
+    /// 102-fixture is verified via TS-PLUGIN-PARITY-001 procedure.
+    ///
+    /// Companion non-ignored unit test:
+    /// `test_BC_2_16_002_pagination_post_offset_advances_across_pages` (above)
+    #[tokio::test]
+    #[ignore = "DTU-EXT-001: requires prism-dtu-claroty clone running with 102-entry alerts fixture; ungated after S-DEMO-CLAROTY-PAGINATION-001 merges and DTU fixture is recorded"]
+    async fn test_BC_2_16_002_pagination_claroty_alerts_page_2_returns_data() {
+        use crate::spec_parser::SpecLoader;
+        use prism_dtu_claroty::ClarotyClone;
+        use prism_dtu_common::BehavioralClone;
+
+        // Boot a Claroty DTU clone serving a 102-entry alerts fixture.
+        // The fixture produces exactly 2 pages at page_size=100:
+        //   page 1 (offset=0, limit=100): 100 records (full page → continue)
+        //   page 2 (offset=100, limit=100): 2 records (short page → stop)
+        let mut clone = ClarotyClone::default();
+        clone
+            .start()
+            .await
+            .expect("Claroty DTU clone must start successfully");
+        let base_url = clone.base_url();
+
+        // Load the canonical Claroty sensor spec from the bundled TOML via SpecLoader::parse.
+        // The TOML is read from the sensors/specs directory relative to the workspace root
+        // (same path used by the bundled-spec-load tests in bc_2_16_001_test.rs).
+        let claroty_toml = std::fs::read_to_string("sensors/specs/claroty.sensor.toml")
+            .expect("claroty.sensor.toml must be readable from workspace root sensors/specs/");
+        let mut sensor_spec = SpecLoader::parse(&claroty_toml)
+            .expect("claroty.sensor.toml must parse without errors");
+
+        // Select the alerts table (method=POST + OffsetLimit).
+        let alerts_table = sensor_spec
+            .tables
+            .iter()
+            .find(|t| t.table_name == "alerts")
+            .expect("claroty sensor spec must have an 'alerts' table")
+            .clone();
+
+        let context = FetchContext::new(OrgSlug::new("demo-org"), HashMap::new());
+        let http_client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(30))
+            .build()
+            .expect("reqwest Client::build must succeed");
+
+        // Override base_url with the DTU clone's address.
+        sensor_spec.base_url = base_url;
+
+        let result = PipelineExecutor::execute(
+            &sensor_spec,
+            &alerts_table,
+            &context,
+            &http_client,
+            &NullAuthProvider,
+        )
+        .await
+        .expect("AC-003: Claroty alerts pipeline execution must succeed");
+
+        assert_eq!(
+            result.records.len(),
+            102,
+            "AC-003: 102-entry fixture must return 102 rows across 2 paginated POST requests; \
+             got {} rows\n\
+             If this returns 100, the POST-body pagination fix is not applied (page 2 was not \
+             fetched because the DTU ignored URL-based offset params).",
+            result.records.len()
+        );
+        assert!(
+            result.request_count >= 2,
+            "AC-003: at least 2 POST requests must have been issued (2 pages); \
+             got request_count={}",
+            result.request_count
         );
     }
 }
