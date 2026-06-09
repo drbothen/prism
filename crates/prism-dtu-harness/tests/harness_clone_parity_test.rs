@@ -346,11 +346,10 @@ async fn test_BC_2_16_013_armis_harness_search_aql_in_devices_returns_device_rec
          (AC-002, C-7: structural parity with ALERTS_FIXTURE)"
     );
 
-    // EC-004 / Discriminator correctness: when aql=in:devices only (not in:alerts),
-    // results must NOT be the same array as for in:alerts.
-    // We assert that the results arrays from in:devices and in:alerts are disjoint
-    // by comparing their first elements. This is structural — not byte-exact field equality.
-    // If the handler returns the same fixture for both, this assertion catches it.
+    // Discriminator correctness (structural): in:devices and in:alerts must return
+    // different entity types. Device records carry `device_id`; alert records carry
+    // `alert_id`. If the handler returns the same fixture for both AQL values, the
+    // first-element comparison catches it.
     let first_device = results.first().cloned().unwrap_or(serde_json::Value::Null);
     let first_alert = alert_results
         .first()
@@ -359,8 +358,78 @@ async fn test_BC_2_16_013_armis_harness_search_aql_in_devices_returns_device_rec
 
     assert_ne!(
         first_device, first_alert,
-        "in:devices and in:alerts must return different entity types (AC-002, EC-004 discriminator). \
+        "in:devices and in:alerts must return different entity types (AC-002, discriminator check). \
          If the same fixture is returned for both, the AQL discriminator is broken."
+    );
+
+    // Sub-test C: EC-004 both-present precedence — aql with BOTH in:devices AND in:alerts
+    // present MUST return DEVICE records (devices take precedence over alerts).
+    //
+    // This is the load-bearing EC-004 assertion. The handler's discriminator is:
+    //   return_alerts = aql.contains("in:alerts") && !aql.contains("in:devices")
+    // A mutant that drops the `&& !aql.contains("in:devices")` guard would return
+    // alert records for the both-present case (has `alert_id`, no top-level device ID
+    // field as owner), and this assertion would FAIL — making the guard load-bearing.
+    let resp_both = client
+        .get(format!(
+            "http://{addr}/api/v1/search?aql=in:devices%20in:alerts"
+        ))
+        .bearer_auth(&real_token)
+        .send()
+        .await
+        .expect(
+            "HTTP GET /api/v1/search?aql=in:devices%20in:alerts must not fail at transport level",
+        );
+
+    assert_eq!(
+        resp_both.status().as_u16(),
+        200,
+        "GET /api/v1/search with both in:devices and in:alerts in AQL must return HTTP 200 \
+         (AC-002, EC-004 both-present precedence)."
+    );
+
+    let body_both: serde_json::Value = resp_both
+        .json()
+        .await
+        .expect("both-present response must be valid JSON (AC-002, EC-004)");
+
+    let both_results = body_both
+        .get("data")
+        .and_then(|d| d.get("results"))
+        .and_then(|r| r.as_array())
+        .expect(
+            "GET /api/v1/search (both in:devices in:alerts) must contain $.data.results array \
+             (AC-002, EC-004)",
+        );
+
+    assert!(
+        !both_results.is_empty(),
+        "GET /api/v1/search with both in:devices and in:alerts — $.data.results must be non-empty \
+         (AC-002, EC-004 both-present precedence)"
+    );
+
+    // The first result must be a DEVICE record: it must have a `device_id` field
+    // (e.g. "d-001") and must NOT have an `alert_id` field.
+    // Alert records (returned by the mutant) carry `alert_id` and not `device_id` as
+    // their own entity key — making this assertion load-bearing against the dropped-guard mutant.
+    let first_both = both_results
+        .first()
+        .expect("already asserted non-empty; first() is safe here");
+
+    assert!(
+        first_both.get("device_id").is_some(),
+        "EC-004: GET /api/v1/search with both in:devices and in:alerts — $.data.results[0] must \
+         be a device record (has `device_id` field). Devices take precedence over alerts when both \
+         AQL terms are present. A mutant that drops the `&& !contains(\"in:devices\")` guard would \
+         return alert records here (which have `alert_id`, not `device_id` as the entity key), \
+         failing this assertion. got: {first_both}"
+    );
+
+    assert!(
+        first_both.get("alert_id").is_none(),
+        "EC-004: GET /api/v1/search with both in:devices and in:alerts — $.data.results[0] must \
+         NOT have an `alert_id` field (alert records returned by the dropped-guard mutant carry \
+         this key). got: {first_both}"
     );
 }
 
