@@ -111,13 +111,21 @@ active_dispatch_set:
     notes: "MERGED PR #168 develop@eb3416d1 2026-06-02 (D-950 post-merge burst). LOCAL 3/3 CLEAN CONVERGED. PR-LEVEL 3/3 CLEAN CONVERGED. BC-2.16.013 already active (D-776) — idempotent confirm. Armis lane COMPLETE. SCOPE BOUNDARY: AQL seeding is S-DEMO-002 scope (query_filters[\"aql\"] in PipelineExecutor FetchContext)."
 
   - story_id: S-DEMO-CLAROTY-PAGINATION-001
-    status: draft
+    status: merged
     priority: P1-pre-demo-BLOCKING
     points: 5
-    spec_version: "v1.0"
+    spec_version: "v1.2"
+    merged_sha: "9ca7e7d7"
+    merged_pr: 179
+    merged_at: "2026-06-08"
+    dispatch_status: "MERGED — PR #179 squash-merged develop@9ca7e7d7 2026-06-08 (D-1064). LOCAL 3-CLEAN strict (P1 FB-001 MED EC-002-test-gap fixed; P2/P3/P4 CLEAN; BC-5.39.001 D-779). PR-LEVEL 3-CLEAN strict re-cascade (P1 OBS stale-SHA + SEC-001 MED CWE-209 fixed + DRIFT-ORCH-PRLEVEL-PUSH-001 push-before-regate caught; re-cascade P1/2/3 CLEAN on pushed head fc8df590). security SECURITY-CLEAR-TO-MERGE (SEC-001 CLOSED + regression-guarded). pr-reviewer APPROVE. CI 42 GREEN. Gap-CL-004 CLOSED (OffsetLimit POST-body pagination). POL-14: BC-2.16.002+BC-2.16.013+BC-2.01.013 all idempotent (already active). Cascade CLOSED; worktree removed; branch deleted. Phase C Lane 3 COMPLETE."
+    entry_point: "CLOSED — story merged"
+    worktree_path: ".worktrees/S-DEMO-CLAROTY-PAGINATION-001 (REMOVED — cleaned post-merge)"
+    branch: "feature/S-DEMO-CLAROTY-PAGINATION-001 (DELETED — cleaned post-merge)"
     depends_on:
       - PLUGIN-MIGRATION-001-A  # merged
-    notes: "Materialized 2026-05-29 D-849-prep (65cf835e). Pipeline-only: POST-body offset+limit dispatch. Required for >100 row Claroty demo queries."
+    bcs: [BC-2.16.002, BC-2.16.013, BC-2.01.013]
+    notes: "D-1064 2026-06-08 post-merge burst: PR #179 squash-merged develop@9ca7e7d7; POL-14 idempotent (BC-2.16.002+BC-2.16.013+BC-2.01.013 all already active); Gap-CL-004 CLOSED. remove-uncertainty v1.2 caught 2 HIGH before TDD (wrong body-injection target issue_request_with_retry→build_request; missing offset/page_size plumbing across both build_request call sites TD-VSDD-060). EC-002 malformed-body → SpecEngineError (no panic, no CWE-209 body-value leak). DRIFT-ORCH-PRLEVEL-PUSH-001 codified. Phase C Lane 3 COMPLETE. [Materialized 2026-05-29 D-849-prep (65cf835e). Pipeline-only: POST-body offset+limit dispatch.]"
 
   - story_id: S-DEMO-001
     status: merged
@@ -595,13 +603,21 @@ active_dispatch_set:
     notes: "D-990 2026-06-03: status draft→ready (v1.1→v1.2). BC-2.16.013 v1.25 active (PO D-989, INV-HARNESS-ROUTE-PARITY). Both depends_on SATISFIED. DEMO-GOAL-REQUIRED (D-941). S-7.01 gate CLEARED."
 
   - story_id: S-DEMO-CLAROTY-SPEC-PROSE-FIX-001
-    status: ready
+    status: merged
     priority: P2
     points: 1
     spec_version: "v1.2"
+    merged_sha: "763e0ade"
+    merged_pr: 178
+    merged_at: "2026-06-08"
+    dispatch_status: "MERGED — PR #178 squash-merged develop@763e0ade 2026-06-08 (D-1062). LOCAL 3-CLEAN strict (P1 OBS-1 double-run + OBS-2 assertion-granularity fixed a7a7d019; P2/P3/P4 CLEAN; BC-5.39.001 D-779). PR-LEVEL 3-CLEAN strict re-cascade (P1 OBS-1 wrong-dep-SHA in PR body fixed; P2/P3/P4 CLEAN). pr-reviewer APPROVE. security SECURITY-CLEAR-TO-MERGE. CI green. Gap-CL-006 CLOSED. BC-2.16.013 v1.25 POL-14 idempotent (already active D-776). Cascade CLOSED; worktree removed; branch deleted. Phase C Lane 2 COMPLETE."
+    entry_point: "CLOSED — story merged"
+    worktree_path: ".worktrees/S-DEMO-CLAROTY-SPEC-PROSE-FIX-001 (REMOVED — cleaned post-merge)"
+    branch: "feature/S-DEMO-CLAROTY-SPEC-PROSE-FIX-001 (DELETED — cleaned post-merge)"
     depends_on:
       - S-DEMO-CLAROTY-AUDIT-DTU-001  # HARD — SATISFIED (merged PR #167 develop@e1c632dc)
-    notes: "D-990 2026-06-03: status draft→ready (v1.1→v1.2). BC-2.16.013 v1.25 active (PO D-989, AC-003 PARTIALLY CLOSED by PO). depends_on S-DEMO-CLAROTY-AUDIT-DTU-001 SATISFIED. DEMO-GOAL-REQUIRED (D-941). S-7.01 gate CLEARED."
+    bcs: [BC-2.16.013]
+    notes: "D-1062 2026-06-08 post-merge burst: PR #178 squash-merged develop@763e0ade; Gap-CL-006 CLOSED (audit_log spec-prose + TOML-comment fidelity); BC-2.16.013 v1.25 POL-14 idempotent (already active since D-776). 3 fidelity tests added (AC-001/002/004). Drift items: DRIFT-SEC-TAPE-PATH-001 + DEFER-CLAUDEMD-NONEXHAUSTIVE-COUNT-001 + DRIFT-D904-002 recurrence. Phase C Lane 2 COMPLETE. [D-990 2026-06-03: status draft→ready v1.1→v1.2. BC-2.16.013 v1.25 active per PO D-989.]"
 
   - story_id: S-DEMO-CI-E2E-001
     status: superseded
@@ -650,15 +666,23 @@ deferred_post_demo:
   # S-DEMO-CROWDSTRIKE-MULTIREGION-001) moved to active_dispatch_set per D-907 (ADR-031 v1.2
   # reclassification from permitted-divergence → required-fidelity; user directive no-scope-compromise).
 
+current_story:
+  story_id: S-DEMO-HARNESS-CLONE-PARITY-001
+  delivery_step: not-started
+  resume_at: "step 1: dclaude:remove-uncertainty"
+  note: "Next story to deliver. No cascade mid-flight. run remove-uncertainty FIRST per standing directive."
+
 prereq_artifacts:
-  story_index: .factory/stories/STORY-INDEX.md         # v2.288 after D-1018 burst (181 stories; S-DEMO-QUERY-PUSHDOWN-001 v2.6 AC-INDEX-CWS-001 added)
-  bc_index: .factory/specs/behavioral-contracts/BC-INDEX.md  # v5.89 (BC-2.16.002 v1.69 POLICY 32 full-column sweep D-1017; active 234, draft 3)
-  state: .factory/STATE.md                              # v7.669 after D-1018 burst
+  story_index: .factory/stories/STORY-INDEX.md         # v2.324 after D-1064 burst (185 stories; STORY-INDEX v2.324 current)
+  bc_index: .factory/specs/behavioral-contracts/BC-INDEX.md  # BC-INDEX v6.00; active 235, draft 2 (BC-2.06.011 + BC-2.21.001)
+  state: .factory/STATE.md                              # v7.716 (D-1065 durability-hardening burst)
   governing_adr: .factory/specs/architecture/decisions/ADR-031-dtu-equals-true-dtu-fidelity-principle.md  # v1.2 (ADR-031 architect e57eb5b1 reclassified 3 divergences)
   governing_audit: .factory/proposals/POLLER-DTU-FIDELITY-AUDIT-2026-05-29.md  # v1.1
 
 provenance:
   authored_at: "2026-05-29"
+  last_updated_at: "2026-06-08"
+  last_updated_by: "state-manager D-1065"
   authored_by: "state-manager D-850"
   rationale: >
     First creation of sprint-state.yaml on prism to satisfy vsdd-factory deliver-story skill

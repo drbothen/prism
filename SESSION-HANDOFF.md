@@ -1,20 +1,20 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.715"
+version: "7.716"
 status: current
-timestamp: 2026-06-08T20:00:00Z
+timestamp: 2026-06-08T22:00:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
 
-> **PRIORITY READ ORDER — D-1064 S-DEMO-CLAROTY-PAGINATION-001 MERGED + DURABLE ZERO-CONTEXT RESUME SNAPSHOT.**
+> **PRIORITY READ ORDER — D-1065 DURABILITY-HARDENING + D-1064 S-DEMO-CLAROTY-PAGINATION-001 MERGED. ZERO-CONTEXT RESUME SNAPSHOT.**
 > Read STATE.md frontmatter + this snapshot before dispatching any agent.
-> develop HEAD `9ca7e7d7`. factory-artifacts LOCAL-ONLY (no push). STATE v7.715.
+> develop HEAD `9ca7e7d7`. factory-artifacts LOCAL-ONLY (no push). STATE v7.716.
 
 ---
 
-## §RESUME SNAPSHOT 2026-06-08-PAGINATION-001-MERGED
+## §RESUME SNAPSHOT 2026-06-08-DURABILITY-HARDENING-D1065
 
 > **START HERE.** This snapshot is self-contained. A fresh session with ZERO prior context can resume exactly here.
 
@@ -39,7 +39,7 @@ timestamp: 2026-06-08T20:00:00Z
 | **Wave-5 Phase B** | **COMPLETE** — all 4 lanes + S-MAINT merged |
 | **Wave-5 Phase C** | **IN PROGRESS** — Lanes 1+2+3 COMPLETE (TRAILING-SLASH, SPEC-PROSE-FIX, PAGINATION-001); **only remaining:** S-DEMO-HARNESS-CLONE-PARITY-001 (ready v1.2) |
 | **develop HEAD** | `9ca7e7d7` |
-| **STATE version** | v7.715 |
+| **STATE version** | v7.716 |
 | **BC-INDEX version** | v6.00 |
 | **STORY-INDEX version** | v2.324 |
 | **VP-INDEX version** | v1.76 |
@@ -92,10 +92,33 @@ Wave-5 Phase C (Claroty cluster — serialized, shared files BC-2.16.013 + claro
 | **S-DEMO-HARNESS-CLONE-PARITY-001** | **P2** | ready v1.2 | Closes F-P6-DEFER-001 + F-P10-LOW-001; prism-dtu-harness search+audit_log routes; depends_on [S-DEMO-ARMIS-AQL-001 SATISFIED, S-DEMO-CLAROTY-AUDIT-DTU-001 SATISFIED]. **Run dclaude:remove-uncertainty FIRST.** |
 | S-DEMO-LAUNCHER-CONSOLIDATION-001 | P2 | draft stub | depends_on S-DEMO-003 SATISFIED; story-writer materialization + human review of script-lifecycle question needed |
 
+#### Per-Story Delivery Step Ledger
+
+Per-story delivery follows the canonical 12-gate sequence (per orchestrator per-story-delivery reference):
+1. `dclaude:remove-uncertainty` (standing directive — ALWAYS first)
+2. `vsdd-factory:worktree-manage create <STORY-ID>` (worktree setup)
+3. `vsdd-factory:test-writer` — stubs + failing Red Gate tests
+4. `vsdd-factory:implementer` — TDD green (one failing test → minimum code → micro-commit)
+5. LOCAL adversary 3-CLEAN strict (BC-5.39.001 D-779; CLEAN(strict) = zero findings ANY severity)
+6. `vsdd-factory:demo-recorder` per-AC (POL-10)
+7. Push feature branch to `origin/feature/<story-id>` — **REQUIRED before PR create**
+8. `vsdd-factory:pr-manager` — PR create
+9. PR-LEVEL adversary 3-CLEAN strict + `vsdd-factory:pr-reviewer` APPROVE + `vsdd-factory:security-reviewer` CLEAR — **push any fix commits BEFORE re-running PR-LEVEL cascade (DRIFT-ORCH-PRLEVEL-PUSH-001)**
+10. CI all green
+11. Squash-merge to develop
+12. Worktree cleanup + state-manager post-merge burst (POL-14 BC promotions + sprint-state.yaml update)
+
+**Active story pointer:**
+- **S-DEMO-HARNESS-CLONE-PARITY-001 — delivery NOT started (resume at step 1: `dclaude:remove-uncertainty`).**
+
+**Mid-cascade restart note:** If a fresh session finds an in-flight worktree/branch/open-PR for a story, cross-reference `sprint-state.yaml` `current_story.delivery_step` + `gh pr list` + `.worktrees/` to determine the exact resume step before dispatching.
+
+---
+
 **RECOMMENDED NEXT ACTION (D-989 autonomy ACTIVE):**
 1. Run `dclaude:remove-uncertainty` on S-DEMO-HARNESS-CLONE-PARITY-001 (P2, ready v1.2, only remaining Phase C story; no blocking gates). **User standing directive: remove-uncertainty BEFORE every Phase C dispatch.**
 
-> **Previous snapshot (2026-06-08-SPEC-PROSE-FIX-MERGED; STATE v7.713) archived to `cycles/wave-5-e-demo-fidelity/session-handoff-archive.md`.**
+> **Previous snapshot (2026-06-08-PAGINATION-001-MERGED; STATE v7.715) archived to `cycles/wave-5-e-demo-fidelity/session-handoff-archive.md`.**
 
 ---
 
@@ -119,6 +142,7 @@ Wave-5 Phase C (Claroty cluster — serialized, shared files BC-2.16.013 + claro
 - Fix-in-scope — no defer-pattern for AI-found AI-generated defects
 - TD-VSDD-091 — no volatile line-number pins in .factory/ narrative; use function anchors
 - **remove-uncertainty-per-story:** run `dclaude:remove-uncertainty` on EVERY implementation story before TDD delivery (user standing directive 2026-06-08, D-1061). Applies to all remaining Phase C stories and future waves.
+- **PR-LEVEL push-before-regate (DRIFT-ORCH-PRLEVEL-PUSH-001):** after ANY PR-LEVEL fix-burst, PUSH the fix commits to `origin/feature/<branch>` BEFORE re-running the PR-LEVEL adversary cascade. LOCAL passes review the local worktree (no push needed); PR-LEVEL passes review the REMOTE PR (`gh pr diff`) — an unpushed local fix means the adversary reviews stale code. Verify `git rev-parse origin/feature/<branch>` == local worktree HEAD before re-gating. (D-1065, codified 2026-06-08; evidence: PR #179 PR-LEVEL SEC-001 fix committed locally but unpushed — adversary reviewed stale remote.) DEFER-CLAUDEMD-PRLEVEL-PUSH-RULE-001: this rule should also be mirrored into CLAUDE.md §Standing rules — **HUMAN-ONLY CLAUDE.md edit** (Pipeline Authority); non-blocking.
 
 ---
 
@@ -167,7 +191,7 @@ git log --oneline develop | head -1
 
 # 3. Verify STATE.md version
 grep '^version:' .factory/STATE.md
-# Expected: version: "7.715"
+# Expected: version: "7.716"
 
 # 4. Verify no open PRs
 gh pr list --state open
@@ -179,6 +203,11 @@ git -C .factory log origin/factory-artifacts..HEAD --oneline 2>/dev/null || echo
 
 # 6. Read this snapshot (you are here)
 # Confirm develop_head, STATE version, Phase C next story
+
+# 7. Confirm active story + delivery step
+grep -A4 '^current_story:' .factory/stories/sprint-state.yaml
+# Expected: story_id: S-DEMO-HARNESS-CLONE-PARITY-001, delivery_step: not-started
+# (If delivery_step != not-started, check gh pr list + .worktrees/ to find resume point)
 ```
 
 ---
@@ -225,6 +254,8 @@ These rules are canonical in CLAUDE.md and SESSION-HANDOFF.md. Listed here for r
 9. **D-989 autonomy scope.** Full autonomous Wave-5 execution. Pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit.
 
 10. **factory-artifacts LOCAL-ONLY.** Orchestrator does NOT push factory-artifacts to remote without explicit user authorization. `git push origin factory-artifacts` requires human approval.
+
+11. **PR-LEVEL push-before-regate (DRIFT-ORCH-PRLEVEL-PUSH-001, D-1065).** After ANY PR-LEVEL fix-burst, PUSH the fix commits to `origin/feature/<branch>` BEFORE re-running the PR-LEVEL adversary cascade. LOCAL passes review the local worktree (no push needed); PR-LEVEL passes review the REMOTE PR (`gh pr diff`) — an unpushed local fix-commit causes the adversary to review stale code. Verify `git rev-parse origin/feature/<branch>` == local worktree HEAD before re-gating.
 
 ---
 
