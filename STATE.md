@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.718"
+version: "7.719"
 producer: state-manager
-timestamp: 2026-06-08T23:00:00Z
+timestamp: 2026-06-08T23:30:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -19,7 +19,7 @@ safe_to_compact: true
 develop_head: "9ca7e7d7"
 bc_index_version: "6.00"
 vp_index_version: "1.76"
-story_index_version: "v2.325"
+story_index_version: "v2.326"
 arch_index_version: "2.115"
 error_taxonomy_version: "1.62"
 total_stories: 185
@@ -34,7 +34,7 @@ workspace_test_count: 4064
 vsdd_factory_version: "1.0.0-rc.18"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-1067 Spec-prep bookkeeping: S-DEMO-HARNESS-CLONE-PARITY-001 remove-uncertainty COMPLETE v1.2→v1.3 (C-1..C-8; 5 HIGH + 3 MED caught). STORY-INDEX v2.324→v2.325. STATE v7.717→v7.718. Next: worktree-manage create S-DEMO-HARNESS-CLONE-PARITY-001 → test-writer Red Gate."
+current_step: "D-1068 LOCAL adversary fix-burst bookkeeping: S-DEMO-HARNESS-CLONE-PARITY-001 passes 2+3 — F-P2-LOW-001 + F-P3-HIGH-001 (POL-6 SS-17→SS-01/SS-16) + F-P3-LOW-001 all fixed (feature 681ce22b + acf695be; story v1.4). Strict streak RESET 0/3. STORY-INDEX v2.325→v2.326. STATE v7.718→v7.719. Next: re-cascade 3 fresh LOCAL adversary passes."
 wave5_phase_b_status: "COMPLETE — Lanes 1/2/3/4 + S-MAINT all merged. Lane 1: S-SPEC-HTTP-METHOD-VALIDATION-001 PR#172 develop@752e407a. Lane 2: S-DEMO-QUERY-PUSHDOWN-001 PR#173 develop@9447671f. Lane 3: OCSF-CLASS-MIGRATION-001 PR#174 develop@0e89789a. Lane 4: S-DEMO-003 PR#176 develop@a42e3eaf. S-MAINT-ECRED-TAXONOMY-SYNC-001 PR#175 develop@c603741d."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
@@ -83,9 +83,9 @@ safe_to_compact: true
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-06-08 (D-1067 — spec-prep bookkeeping: S-DEMO-HARNESS-CLONE-PARITY-001 remove-uncertainty COMPLETE v1.2→v1.3 (C-1..C-8; 5 HIGH + 3 MED caught before TDD); STORY-INDEX v2.324→v2.325; STATE v7.717→v7.718) |
+| **Last Updated** | 2026-06-08 (D-1068 — LOCAL adversary fix-burst bookkeeping: S-DEMO-HARNESS-CLONE-PARITY-001 passes 2+3 found F-P2-LOW-001 + F-P3-HIGH-001 (POL-6 SS-17→SS-01/SS-16) + F-P3-LOW-001; all fixed [feature 681ce22b + acf695be; story v1.4]; strict streak RESET 0/3; STORY-INDEX v2.325→v2.326; STATE v7.718→v7.719) |
 | **Current Phase** | Wave 5 (wave-5-e-demo-fidelity) — **Phase B COMPLETE** (all 4 lanes + S-MAINT merged). **Phase C in progress:** Lanes 1+2+3 COMPLETE; **only remaining:** S-DEMO-HARNESS-CLONE-PARITY-001 (ready v1.2 — run remove-uncertainty first). Draft/deferred: S-DEMO-MULTI-TENANT-DTU-001 [3 open OQs]; S-MAINT-W3SEC-CITE-SWEEP-002 [D-954]; S-MAINT-ORPHAN-SENSORS-DIR-001 [D-977]; S-MAINT-EDITION-SYNC-001 [D-1027]; S-DEMO-LAUNCHER-CONSOLIDATION-001 [D-1029]. |
-| **Current Step** | D-1067 — S-DEMO-HARNESS-CLONE-PARITY-001 remove-uncertainty COMPLETE v1.2→v1.3 (C-1..C-8; 5 HIGH + 3 MED caught). STORY-INDEX v2.324→v2.325. STATE v7.718. Next: worktree-manage create → test-writer Red Gate. |
+| **Current Step** | D-1068 — LOCAL adversary fix-burst: S-DEMO-HARNESS-CLONE-PARITY-001 passes 2+3 — F-P2-LOW-001 + F-P3-HIGH-001 (POL-6 SS-17→SS-01/SS-16) + F-P3-LOW-001 all fixed (feature 681ce22b + acf695be; story v1.4). Strict streak RESET 0/3. STORY-INDEX v2.326. STATE v7.719. Next: re-cascade 3 fresh LOCAL adversary passes. |
 
 ## Phase Progress
 
@@ -121,7 +121,7 @@ safe_to_compact: true
 | **5: S-DEMO-CLAROTY-TRAILING-SLASH-001** | **MERGED** | 2026-06-08 | 2026-06-08 | PR #177 develop@5c5d240d | LOCAL 3-CLEAN (7 passes) + PR-LEVEL 3-CLEAN strict (passes 2/3/4); ADR-031 §D8-b Gap-CL-001 CLOSED; Phase C Lane 1 COMPLETE |
 | **5: S-DEMO-CLAROTY-SPEC-PROSE-FIX-001** | **MERGED** | 2026-06-08 | 2026-06-08 | PR #178 develop@763e0ade | LOCAL 3-CLEAN strict (P1 OBS-1/OBS-2 fixed; P2/P3/P4 CLEAN) + PR-LEVEL 3-CLEAN strict (P1 OBS fixed; P2/P3/P4 CLEAN); Gap-CL-006 CLOSED; BC-2.16.013 v1.25 POL-14 idempotent; Phase C Lane 2 COMPLETE |
 | **5: S-DEMO-CLAROTY-PAGINATION-001** | **MERGED** | 2026-06-08 | 2026-06-08 | PR #179 develop@9ca7e7d7 | LOCAL 3-CLEAN strict (P1 FB-001 MED EC-002-test-gap fixed; P2/P3/P4 CLEAN) + PR-LEVEL 3-CLEAN strict (P1 OBS stale-SHA + SEC-001 MED CWE-209 fixed; DRIFT-ORCH-PRLEVEL-PUSH-001 push-before-regate; re-cascade P1/2/3 CLEAN fc8df590); security SECURITY-CLEAR-TO-MERGE; pr-reviewer APPROVE; CI 42 GREEN; Gap-CL-004 CLOSED; POL-14 idempotent; Phase C Lane 3 COMPLETE |
-| **5: Phase C — remaining Claroty cluster** | **IN PROGRESS** | — | — | Awaiting dispatch | **Only remaining:** S-DEMO-HARNESS-CLONE-PARITY-001 (ready v1.3 — remove-uncertainty COMPLETE C-1..C-8; next: worktree-manage create → test-writer Red Gate) |
+| **5: Phase C — remaining Claroty cluster** | **IN PROGRESS** | — | — | Awaiting re-cascade | **Only remaining:** S-DEMO-HARNESS-CLONE-PARITY-001 (ready v1.4 — LOCAL fix-burst COMPLETE; strict streak 0/3; next: 3 fresh LOCAL adversary passes) |
 
 ## Current Phase Steps
 
@@ -129,12 +129,12 @@ safe_to_compact: true
 
 | Step | Agent | Status | Output |
 |------|-------|--------|--------|
-_D-735 through D-1062 archived to cycles/wave-5-e-demo-fidelity/burst-log.md (and prior cycle burst-logs)._
-| D-1063 | state-manager | 2026-06-08 | S-DEMO-CLAROTY-PAGINATION-001 spec-prep v1.1→v1.2 remove-uncertainty applied (C-1..C-5). DRIFT-PAGINATION-PAGESIZE-VALIDATION-001 registered. STORY-INDEX v2.322→v2.323. STATE v7.713→v7.714. |
+_D-735 through D-1063 archived to cycles/wave-5-e-demo-fidelity/burst-log.md (and prior cycle burst-logs)._
 | D-1064 | state-manager | 2026-06-08 | S-DEMO-CLAROTY-PAGINATION-001 MERGED PR #179 develop@9ca7e7d7. remove-uncertainty v1.2 (C-1..C-5). LOCAL 3-CLEAN strict (P1 FB-001 MED EC-002-test-gap fixed; P2/P3/P4 CLEAN). PR-LEVEL 3-CLEAN strict re-cascade (P1 OBS stale-SHA + SEC-001 MED CWE-209 + DRIFT-ORCH-PRLEVEL-PUSH-001 caught fix unpushed; all fixed; P1/2/3 CLEAN on fc8df590). security SECURITY-CLEAR-TO-MERGE (SEC-001 CLOSED + regression-guarded). pr-reviewer APPROVE. CI 42 GREEN. POL-14 idempotent: BC-2.16.002+BC-2.16.013+BC-2.01.013 all already active — no BC-INDEX count change. Gap-CL-004 CLOSED. STORY-INDEX v2.323→v2.324. develop_head 763e0ade→9ca7e7d7. STATE v7.714→v7.715. Phase C Lane 3 COMPLETE. Drift items: DRIFT-ORCH-PRLEVEL-PUSH-001 registered; DRIFT-D904-002 recurrence noted; DRIFT-PAGINATION-PAGESIZE-VALIDATION-001 (D-1063) remains open. |
 | D-1065 | state-manager | 2026-06-08 | Durability-hardening burst: sprint-state.yaml Phase C reconciliation (PAGINATION-001 row corrected from mislabeled S-DEMO-001 data → correct merged state PR #179; SPEC-PROSE-FIX-001 status ready→merged PR #178; bc_index comment refreshed to v6.00 active 235 draft 2; current_story pointer added = HARNESS-CLONE-PARITY-001 not-started; provenance updated). DRIFT-ORCH-PRLEVEL-PUSH-001 promoted to applied standing rule (SESSION-HANDOFF §4 bullet + rule #11). DEFER-CLAUDEMD-PRLEVEL-PUSH-RULE-001 registered. Per-Story Delivery Step Ledger added to SESSION-HANDOFF §3. §7 Resume Protocol Checklist step 7 added. STATE v7.715→v7.716. SESSION-HANDOFF v7.715→v7.716. |
 | D-1066 | state-manager | 2026-06-08 | Policy-change burst: factory-artifacts LOCAL-ONLY → push-to-origin-after-each-state-burst (user-authorized 2026-06-08). SESSION-HANDOFF header + §1 table + §4 standing rule + §7 step 5 + rule #10 all updated. DEFER-CLAUDEMD-FACTORY-PUSH-POLICY-001 registered. D-1066 logged in Decisions Log + Drift Items. First push to origin/factory-artifacts executed. STATE v7.716→v7.717. SESSION-HANDOFF v7.716→v7.717. |
 | D-1067 | state-manager | 2026-06-08 | S-DEMO-HARNESS-CLONE-PARITY-001 remove-uncertainty COMPLETE v1.2→v1.3. Uncertainty scanner found 5 HIGH + 3 MED mechanism-level findings; story-writer applied corrections C-1..C-8: C-1 fixture idiom (include_str! not load_fixture); C-2 Armis search builds from raw-Value DEVICES_FIXTURE/ALERTS_FIXTURE (no parse_aql_time_bounds); C-3 Armis check_bearer_auth(&headers,&admin_token) 403-missing/401-mismatch, Red Gate sends real admin_token; C-4 Claroty POST /api/v1/audit_log/get registered in BOTH router() AND network_router() (plain check_bearer_auth per sibling convention); C-5 Red Gate uses reqwest-over-TcpListener not tower oneshot; C-6 axum pinned 0.7 literally (not workspace); C-7 AC-002 softened to structural parity; C-8 no typed-struct import (prism-dtu-claroty + prism-dtu-armis forbidden as crate deps; serve raw Vec<Value>). behavioral_contracts array (BC-2.16.013) + AC↔BC traces + INV-HARNESS-ROUTE-PARITY UNTOUCHED. S-7.01 gate remains CLEARED. STORY-INDEX v2.324→v2.325. STATE v7.717→v7.718. Next: worktree-manage create S-DEMO-HARNESS-CLONE-PARITY-001 → test-writer Red Gate. |
+| D-1068 | state-manager | 2026-06-08 | S-DEMO-HARNESS-CLONE-PARITY-001 LOCAL adversary fix-burst bookkeeping. Pass-1 CLEAN(strict). Passes 2+3 found: F-P2-LOW-001 (LOW) Armis 401-on-wrong-token assertion missing — fixed by test-writer feature 681ce22b (new test test_BC_2_16_013_armis_harness_search_401_on_wrong_token; production code already correct); F-P3-HIGH-001 (HIGH, POL-6) subsystems [SS-17]→[SS-01, SS-16] mislabel — SS-17=WASM Plugin Runtime per ARCH-INDEX v2.115; fixed by story-writer spec-only v1.3→v1.4 (subsystem justification rewritten + §Architecture Mapping ref fixed); F-P3-LOW-001 (LOW, AC-005) claroty+armis module-doc route tables omitted registered test-hook/legacy routes — fixed by implementer feature acf695be (all route tables completed; ADR-031 §D8-a→§D8-b citation fix; just check PASS). BC-5.39.001 strict streak RESET 0/3. STORY-INDEX v2.325→v2.326. STATE v7.718→v7.719. Next: 3 fresh LOCAL adversary passes. |
 
 ## Decisions Log
 
@@ -142,6 +142,7 @@ _D-001..D-046 archived: `cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-1068 | 2026-06-08 | state-manager | **LOCAL adversary fix-burst bookkeeping: S-DEMO-HARNESS-CLONE-PARITY-001. Pass-1 CLEAN(strict)=yes. Passes 2+3 found 3 findings — all fixed before this commit. F-P2-LOW-001 (LOW): Armis harness search test missing 401-on-wrong-token assertion (false-pass vulnerability); fixed by test-writer on feature branch commit 681ce22b (new test test_BC_2_16_013_armis_harness_search_401_on_wrong_token; production code was already correct). F-P3-HIGH-001 (HIGH, POL-6): subsystems [SS-17] declared in story frontmatter claiming "SS-17 DTU Clones" — factually wrong per ARCH-INDEX v2.115 (SS-17 = WASM Plugin Runtime); fixed by story-writer spec-only: subsystems → [SS-01, SS-16] (SS-01 Sensor Adapters owns prism-dtu-harness per ADR-011; SS-16 Spec Engine per BC-2.16.013 + sibling S-DEMO-ARMIS-AQL-001); justification rewritten to v2.115 anchor; §Architecture Mapping ref fixed; story v1.3→v1.4. Single-occurrence POL-6 mislabel; process note: originated in earlier story-writer burst; if recurs in sibling stories codify in lessons.md; no new story required. F-P3-LOW-001 (LOW, AC-005): claroty (re-authored) + armis module-doc route tables omitted registered test-hook/legacy routes; fixed by implementer on feature branch commit acf695be (all route tables completed; ADR-031 §D8-a→§D8-b citation fix); just check PASS. BC-5.39.001 strict streak RESET 0/3 (findings in passes 2/3). Re-cascade (3 fresh CLEAN passes) is the next step. STORY-INDEX v2.325→v2.326. STATE v7.718→v7.719. Single-commit burst per TD-VSDD-053.** | wave-5-e-demo-fidelity | 2026-06-08 | Decided by: state-manager (D-1068 LOCAL adversary fix-burst bookkeeping; story v1.4 spec-only; no factory-spec content changes; no BC/VP/policy changes). |
 | D-1067 | 2026-06-08 | state-manager | **Spec-prep bookkeeping: S-DEMO-HARNESS-CLONE-PARITY-001 remove-uncertainty COMPLETE v1.2→v1.3 (standing directive D-1061). Uncertainty-scanner found 5 HIGH + 3 MED mechanism-level findings; story-writer applied corrections C-1..C-8. Concrete ROI of remove-uncertainty run: 5 HIGH caught before TDD — include_str! vs load_fixture fixture-idiom mismatch (C-1), Armis search state-field vs parse_aql_time_bounds false dependency (C-2), auth-token-mismatch Red Gate trap 403-missing/401-mismatch (C-3), missing network_router() registration for Claroty audit_log route (C-4), tower-oneshot non-dependency test idiom (C-5); 3 MED caught — axum workspace-pin vs literal-pin (C-6), AC-002 structural-parity softening (C-7), forbidden crate-dep typed-struct import (C-8). behavioral_contracts array (BC-2.16.013) + AC↔BC traces + INV-HARNESS-ROUTE-PARITY UNTOUCHED. S-7.01 gate remains CLEARED. No new BC/VP/policy changes. sprint-state.yaml current_story resume_at advanced from step 1 to step 2. STORY-INDEX v2.324→v2.325. STATE v7.717→v7.718. Single-commit burst per TD-VSDD-053.** | wave-5-e-demo-fidelity | 2026-06-08 | Decided by: state-manager (D-1067 spec-prep bookkeeping; no code changes; standing directive D-1061 remove-uncertainty). |
 | D-1066 | 2026-06-08 | state-manager | **Policy-change burst: factory-artifacts LOCAL-ONLY → push-to-origin-after-each-state-burst (off-machine durability). User-authorized 2026-06-08. SESSION-HANDOFF §4 Standing Rules NEVER waived bullet updated (factory-artifacts is PUSHED to origin/factory-artifacts after each state burst); SESSION-HANDOFF §Standing Orchestrator Process Rules rule #10 rewritten to push-after-each-burst policy with D-1066 user-authorization provenance; SESSION-HANDOFF header + §1 Pipeline Status table row updated; §7 Resume Protocol Checklist step 5 updated (local-only confirmation → push-sync confirmation). STATE.md Session Resume Checkpoint updated. DEFER-CLAUDEMD-FACTORY-PUSH-POLICY-001 registered in Drift Items: CLAUDE.md §Git Workflow currently states "Factory artifacts branch ... Local-only by default — orchestrator does NOT push factory-artifacts to remote without explicit user authorization" — this now needs updating to reflect the new push-after-each-burst policy; HUMAN-ONLY CLAUDE.md edit (Pipeline Authority), non-blocking. First push executed: `git -C .factory push origin factory-artifacts` (creates remote branch + pushes all prior local-only commits). STATE v7.716→v7.717. SESSION-HANDOFF v7.716→v7.717.** | wave-5-e-demo-fidelity | 2026-06-08 | Decided by: user (explicit authorization 2026-06-08); recorded by state-manager (D-1066 policy-change burst; no code/spec-content changes). |
 | D-1065 | 2026-06-08 | state-manager | **Durability-hardening burst — sprint-state.yaml Phase C reconciliation (corrected mislabeled PAGINATION-001 row carrying S-DEMO-001 data [status draft + notes "Materialized 2026-05-29 … PR #166 … 5dd3df02"] → replaced with correct PAGINATION-001 merged state PR #179 develop@9ca7e7d7; SPEC-PROSE-FIX-001 status ready→merged PR #178 develop@763e0ade; bc_index comment refreshed to BC-INDEX v6.00 active 235 draft 2; current_story pointer added = S-DEMO-HARNESS-CLONE-PARITY-001 not-started; sprint-state provenance last_updated_at 2026-06-08); DRIFT-ORCH-PRLEVEL-PUSH-001 promoted from logged drift item to applied standing rule: SESSION-HANDOFF §4 Standing Rules NEVER waived bullet added + §Standing Orchestrator Process Rules rule #11 added; DEFER-CLAUDEMD-PRLEVEL-PUSH-RULE-001 registered in Drift Items (human-only CLAUDE.md edit; non-blocking); Per-Story Delivery Step Ledger added to SESSION-HANDOFF §3 with canonical 12-gate sequence pointer + active-story pointer S-DEMO-HARNESS-CLONE-PARITY-001 not-started + mid-cascade restart note; §7 Resume Protocol Checklist step 7 (sprint-state.yaml current_story check) added. Zero-context-resume hardening; no code/spec-content changes. STATE v7.715→v7.716. SESSION-HANDOFF v7.715→v7.716.** | wave-5-e-demo-fidelity | 2026-06-08 | Decided by: state-manager (D-1065 durability-hardening burst; no code changes). |
@@ -245,17 +246,17 @@ All historical cycle files:
 
 ---
 
-## Session Resume Checkpoint (2026-06-08 — D-1067: Spec-prep bookkeeping; STATE v7.718)
+## Session Resume Checkpoint (2026-06-08 — D-1068: LOCAL adversary fix-burst bookkeeping; STATE v7.719)
 
-_Previous checkpoint (D-1066; STATE v7.717) superseded by D-1067 spec-prep bookkeeping burst. Full durable resume snapshot is in SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-06-08-DURABILITY-HARDENING-D1065._
+_Previous checkpoint (D-1067; STATE v7.718) superseded by D-1068 LOCAL adversary fix-burst bookkeeping burst. Full durable resume snapshot is in SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-06-08-DURABILITY-HARDENING-D1065._
 
-**STATE v7.718. D-1067 — S-DEMO-HARNESS-CLONE-PARITY-001 remove-uncertainty COMPLETE v1.2→v1.3 (C-1..C-8; 5 HIGH + 3 MED caught before TDD). No code/spec-content changes (story spec only). Phase C Lane 3 COMPLETE (PAGINATION-001 merged). BC-INDEX v6.00. STORY-INDEX v2.325. develop@9ca7e7d7. D-989 autonomy ACTIVE. factory-artifacts pushed to origin after each burst.**
+**STATE v7.719. D-1068 — S-DEMO-HARNESS-CLONE-PARITY-001 LOCAL adversary fix-burst COMPLETE: pass-1 CLEAN(strict); passes 2+3 found F-P2-LOW-001 + F-P3-HIGH-001 (POL-6 SS-17→SS-01/SS-16) + F-P3-LOW-001; all fixed [feature commits 681ce22b + acf695be; story v1.4 spec-only]. Strict streak RESET 0/3; re-cascade pending. BC-INDEX v6.00. STORY-INDEX v2.326. develop@9ca7e7d7. D-989 autonomy ACTIVE. factory-artifacts pushed to origin after each burst.**
 
 **RESUME PROTOCOL (run on fresh session start):**
 1. `vsdd-factory:factory-worktree-health` (BLOCKING)
 2. Verify `git log --oneline develop | head -1` shows `9ca7e7d7`
-3. Verify `grep "^version:" .factory/STATE.md` shows `"7.718"`
+3. Verify `grep "^version:" .factory/STATE.md` shows `"7.719"`
 4. `gh pr list --state open` → expect NONE
 5. Read SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-06-08-DURABILITY-HARDENING-D1065
-6. Read `.factory/stories/sprint-state.yaml` `current_story` — should show S-DEMO-HARNESS-CLONE-PARITY-001, resume_at: step 2
-7. Next: S-DEMO-HARNESS-CLONE-PARITY-001 (ready v1.3 — remove-uncertainty COMPLETE) — proceed to `vsdd-factory:worktree-manage create S-DEMO-HARNESS-CLONE-PARITY-001` then test-writer Red Gate
+6. Read `.factory/stories/sprint-state.yaml` `current_story` — should show S-DEMO-HARNESS-CLONE-PARITY-001, resume_at: step 2 (worktree + test-writer Red Gate already underway per feature branch)
+7. Next: S-DEMO-HARNESS-CLONE-PARITY-001 (ready v1.4 — LOCAL fix-burst COMPLETE; strict streak 0/3) — dispatch 3 fresh LOCAL adversary passes for re-cascade

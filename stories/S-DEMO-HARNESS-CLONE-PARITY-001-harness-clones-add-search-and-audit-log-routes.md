@@ -8,16 +8,24 @@ priority: P2
 status: ready
 # BC-2.16.013 v1.25 authored by PO (D-989 Phase-A burst) with INV-HARNESS-ROUTE-PARITY invariant.
 # S-7.01 gate CLEARED.
-version: "1.3"
+version: "1.4"
 level: "L3"
 producer: story-writer
 timestamp: "2026-06-01T00:00:00Z"
 tdd_mode: strict
-subsystems: [SS-17]
+subsystems: [SS-01, SS-16]
 # Subsystem anchor justification:
-#   SS-17 (DTU Clones) owns all prism-dtu-* crates including prism-dtu-harness per
-#   ARCH-INDEX Subsystem Registry v2.105. Both router changes are in harness clone modules
-#   (armis.rs and claroty.rs inside prism-dtu-harness), not in the standalone DTU crates.
+#   SS-01 (Sensor Adapters) owns prism-dtu-harness per ARCH-INDEX Subsystem Registry v2.115
+#   (SS-01 crate list explicitly includes "prism-dtu-harness (planned per ADR-011)").
+#   Both router changes (armis.rs + claroty.rs inside prism-dtu-harness) are squarely
+#   in the Sensor Adapters subsystem, consistent with sibling story S-DEMO-ARMIS-AQL-001
+#   which owns the same harness-clone family and declares subsystems: [SS-01, SS-16].
+#   SS-16 (Spec Engine) is included because BC-2.16.013 (the governing BC for this story)
+#   is a Spec Engine behavioral contract covering DTU-Parity Verification — the same
+#   dual-subsystem scoping as the sibling story and as BC-2.16.013 itself.
+#   SS-17 is "WASM Plugin Runtime" (prism-spec-engine AD-019) per ARCH-INDEX v2.115 —
+#   it has no ownership relationship to prism-dtu-harness or any DTU crate.
+#   (Corrected from SS-17 per LOCAL adversary pass-3 F-P3-HIGH-001 POL-6 violation.)
 crates_touched: [prism-dtu-harness]
 target_module: prism-dtu-harness
 behavioral_contracts:
@@ -67,11 +75,11 @@ risk_mitigations: []
 #   Promoted to goal task per user direction 2026-06-02 (demo goal fidelity).
 ---
 
-# S-DEMO-HARNESS-CLONE-PARITY-001 v1.3 — Harness In-Process Clone Route Parity
+# S-DEMO-HARNESS-CLONE-PARITY-001 v1.4 — Harness In-Process Clone Route Parity
 
 **Story ID:** S-DEMO-HARNESS-CLONE-PARITY-001
 **Status:** ready
-**Version:** v1.3
+**Version:** v1.4
 **Wave:** wave-5-e-demo-fidelity
 **Priority:** P2
 **Points:** 3
@@ -126,7 +134,7 @@ File: `crates/prism-dtu-harness/src/clones/armis.rs`
   - Bearer present but token value does not match `state.admin_token` → HTTP 401
     (cross-org credential rejection per BC-3.5.002 postcondition 2).
   - Bearer present and matches → proceed.
-  The Red Gate test `test_armis_harness_search_returns_200_with_bearer_403_without` MUST
+  The Red Gate test `test_BC_2_16_013_armis_harness_search_returns_200_with_bearer_403_without` MUST
   send the clone's actual `admin_token` to get 200; an arbitrary "Bearer test-token" will
   yield 401 (token mismatch), not 200. Harness tests must obtain the token via
   `harness.admin_token_for(slug, DtuType::Armis)`.
@@ -190,7 +198,7 @@ will yield 401 (mismatch), not 200.
 (traces to BC-2.16.013 v1.25 INV-HARNESS-ROUTE-PARITY — armis::router() MUST include
 GET /api/v1/search; Armis auth model: 403 on missing/invalid Bearer)
 
-Red Gate test: `test_armis_harness_search_returns_200_with_bearer_403_without`
+Red Gate test: `test_BC_2_16_013_armis_harness_search_returns_200_with_bearer_403_without`
 
 ### AC-002: Armis harness clone AQL routing has structural parity with standalone
 `GET /api/v1/search?aql=in:devices` returns a payload where `$.data.results` is a non-empty
@@ -204,7 +212,7 @@ standalone-specific features).
 (traces to BC-2.16.013 v1.25 INV-HARNESS-ROUTE-PARITY — Armis search response envelope:
 `{"data": {"results": [...], "total": N}}`)
 
-Red Gate test: `test_armis_harness_search_aql_in_devices_returns_device_records`
+Red Gate test: `test_BC_2_16_013_armis_harness_search_aql_in_devices_returns_device_records`
 
 ### AC-003: Claroty harness clone registers POST /api/v1/audit_log/get in both routers
 `crates/prism-dtu-harness/src/clones/claroty.rs::router()` includes a handler for
@@ -216,7 +224,7 @@ so that the network-mode isolation harness (BC-3.5.002 consumer) has route parit
 (traces to BC-2.16.013 v1.25 INV-HARNESS-ROUTE-PARITY — claroty::router() MUST include
 POST /api/v1/audit_log/get; Claroty auth model: 401 on missing/invalid Bearer)
 
-Red Gate test: `test_claroty_harness_audit_log_returns_200_with_bearer_401_without`
+Red Gate test: `test_BC_2_16_013_claroty_harness_audit_log_returns_200_with_bearer_401_without`
 
 ### AC-004: Claroty harness clone audit_log response matches standalone
 Response envelope `{"audit_log": [...], "total": N}` where `audit_log` is non-empty and
@@ -228,7 +236,7 @@ INV-HARNESS-ROUTE-PARITY response envelope requirement.
 (traces to BC-2.16.013 v1.25 INV-HARNESS-ROUTE-PARITY — Claroty audit_log response:
 `{"audit_log": [...], "total": N}`)
 
-Red Gate test: `test_claroty_harness_audit_log_response_envelope_matches_standalone`
+Red Gate test: `test_BC_2_16_013_claroty_harness_audit_log_response_envelope_matches_standalone`
 
 ### AC-005: Module-doc route tables updated in both files
 Both `armis.rs` and `claroty.rs` module-doc route inventory tables list the new routes.
@@ -249,7 +257,7 @@ multi-tenant harness tests (BC-3.5.001/BC-3.5.002 consumers)")
 | `claroty.rs::network_router()` — add POST /api/v1/audit_log/get | `crates/prism-dtu-harness/src/clones/claroty.rs` | Effectful (HTTP router mutation, network-mode) |
 
 Architecture section references:
-- `architecture/module-decomposition.md` §SS-17 DTU Clones
+- `architecture/module-decomposition.md` §SS-01 Sensor Adapters
 - `architecture/dependency-graph.md` §Wave-5 DTU fidelity stories
 
 ---
@@ -401,6 +409,7 @@ colon-syntax migration risk does not apply to them. Do not upgrade the axum pin 
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.4 | 2026-06-08 | story-writer | LOCAL adversary pass-3 F-P3-HIGH-001 (POL-6 subsystem correction SS-17→SS-01+SS-16) + Red Gate test-name reconciliation. (1) `subsystems: [SS-17]` corrected to `[SS-01, SS-16]`: SS-17 is "WASM Plugin Runtime" per ARCH-INDEX v2.115 — it has no ownership of prism-dtu-harness or any DTU crate; SS-01 ("Sensor Adapters") explicitly lists prism-dtu-harness per ARCH-INDEX v2.115; SS-16 included to match sibling story S-DEMO-ARMIS-AQL-001 dual-scoping and BC-2.16.013 provenance. (2) Subsystem anchor justification comment rewritten with correct subsystem names and ARCH-INDEX v2.115 citation. (3) Architecture Mapping section reference corrected: `§SS-17 DTU Clones` → `§SS-01 Sensor Adapters`. (4) All five Red Gate test-name references updated to codebase convention `test_BC_2_16_013_<name>` (4 AC references + 1 inline mention in §Scope). Spec-only edit — `behavioral_contracts` array untouched, all AC↔BC trace lines untouched, INV-HARNESS-ROUTE-PARITY references untouched, S-7.01 gate remains CLEARED, status remains ready. |
 | 1.3 | 2026-06-08 | story-writer | remove-uncertainty corrections C-1..C-8 (D-1061). Implementation-scope refinements only — `behavioral_contracts` array untouched, all AC↔BC trace lines untouched, INV-HARNESS-ROUTE-PARITY references untouched, S-7.01 gate remains CLEARED, status remains ready. C-1: corrected fixture idiom — harness embeds via include_str!, NOT load_fixture. C-2: corrected Armis search data source — raw Vec<Value> DEVICES_FIXTURE/ALERTS_FIXTURE, no typed structs, no time-window filtering. C-3: clarified Armis auth semantics — check_bearer_auth(&headers, &state.admin_token) gives 403 for missing Bearer, 401 for present-but-wrong token; Red Gate test must send actual admin_token. C-4: expanded Claroty scope — POST /api/v1/audit_log/get must be registered in BOTH router() and network_router(); network_router() uses plain check_bearer_auth per sibling alert/vuln route convention. C-5: Red Gate test idiom corrected — reqwest-over-TcpListener (tests/logical_isolation_test.rs pattern), NOT tower::ServiceExt::oneshot. C-6: axum pin corrected — "0.7" pinned literally in Cargo.toml, NOT .workspace. C-7: AC-002 softened to structural parity ($.data.results non-empty array, $.data.total numeric, in:alerts selects alerts) — not byte-identical field-for-field equality. C-8: Forbidden Dependencies expanded — prism-dtu-claroty MUST NOT be added; harness audit_log handler uses raw Vec<Value> from embedded fixture, no typed struct import. |
 | 1.2 | 2026-06-03 | state-manager | D-990 Phase-A-close: status draft→ready; BC-2.16.013 v1.25 active (PO authored D-989, INV-HARNESS-ROUTE-PARITY); depends_on S-DEMO-ARMIS-AQL-001 (merged PR #168) + S-DEMO-CLAROTY-AUDIT-DTU-001 (merged PR #167) BOTH SATISFIED; S-7.01 gate CLEARED. |
 | 1.1 | 2026-06-03 | story-writer | Wave-5 Phase-A BC-array propagation burst (D-989). PO authored BC-2.16.013 v1.25 with INV-HARNESS-ROUTE-PARITY invariant governing this story's full scope. Propagated into story: (1) `behavioral_contracts: []` → `[BC-2.16.013]`; status stays draft (depends_on stories both merged, but AC↔BC traces need dispatch-time verification). (2) Added §Behavioral Contracts table with BC-2.16.013 v1.25 + INV-HARNESS-ROUTE-PARITY role. (3) ACs rewritten from INV-HARNESS-ROUTE-PARITY: AC-001 (armis GET /api/v1/search, 403 on missing Bearer), AC-002 (AQL routing, response envelope), AC-003 (claroty POST /api/v1/audit_log/get, 401 on missing Bearer), AC-004 (response envelope), AC-005 (module-doc). Red Gate test names added. (4) Token budget updated to include BC-2.16.013 v1.25 read. Version bump 1.0 → 1.1. |
