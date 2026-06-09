@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.722"
+version: "7.723"
 producer: state-manager
 timestamp: 2026-06-08T23:59:00Z
 inputs: []
@@ -34,7 +34,7 @@ workspace_test_count: 4064
 vsdd_factory_version: "1.0.0-rc.18"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-1071 POST-MERGE bookkeeping: S-DEMO-HARNESS-CLONE-PARITY-001 MERGED PR #180 develop@64d34967. POL-14 BC-2.16.013 v1.25 idempotent (already active). F-P6-DEFER-001 + F-P10-LOW-001 CLOSED. Wave 5 Phase C COMPLETE. STORY-INDEX v2.328→v2.329. STATE v7.721→v7.722. No story in-flight. Phase C complete — all 4 lanes merged."
+current_step: "D-1072 north-star persistence burst: ACTIVE OBJECTIVE (multi-client SOC-analyst live demo) written to STATE.md + SESSION-HANDOFF. TDE deferred. NEXT ACTION: PO authors S-DEMO-MULTI-TENANT-DTU-001 BC (OQ-1/OQ-2/OQ-3). STATE v7.722→v7.723. Wave 5 Phase C COMPLETE. No story in-flight."
 wave5_phase_b_status: "COMPLETE — Lanes 1/2/3/4 + S-MAINT all merged. Lane 1: S-SPEC-HTTP-METHOD-VALIDATION-001 PR#172 develop@752e407a. Lane 2: S-DEMO-QUERY-PUSHDOWN-001 PR#173 develop@9447671f. Lane 3: OCSF-CLASS-MIGRATION-001 PR#174 develop@0e89789a. Lane 4: S-DEMO-003 PR#176 develop@a42e3eaf. S-MAINT-ECRED-TAXONOMY-SYNC-001 PR#175 develop@c603741d."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
@@ -51,6 +51,7 @@ dtu_assessment_approved: 2026-04-20
 dtu_clones_built: in_progress
 dtu_strategy: "Option 2 — DTU-first"
 dtu_strategy_decided: 2026-04-20
+active_objective: "multi-client SOC-analyst live demo (real per-client data; TDE deferred) — see SESSION-HANDOFF §ACTIVE OBJECTIVE"
 user_directive_persistent: "No pragmatic convergence. Fix all issues before build."
 user_directive_remove_uncertainty: "Run dclaude:remove-uncertainty on every implementation story BEFORE TDD delivery (caught 6 real story-guidance defects on S-DEMO-CLAROTY-TRAILING-SLASH-001 — D-1059/D-1060). Standing directive 2026-06-08."
 policy_registry_source_of_truth: .factory/policies.yaml
@@ -83,9 +84,19 @@ safe_to_compact: true
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-06-09 (D-1071 — S-DEMO-HARNESS-CLONE-PARITY-001 MERGED PR #180 develop@64d34967; Phase C COMPLETE; POL-14 BC-2.16.013 idempotent; STORY-INDEX v2.328→v2.329; STATE v7.721→v7.722) |
+| **Last Updated** | 2026-06-09 (D-1072 — persist multi-client SOC-analyst live demo north-star objective + scope decisions + build sequence; user-directed durability; STATE v7.722→v7.723) |
 | **Current Phase** | Wave 5 (wave-5-e-demo-fidelity) — **Phase C COMPLETE** (all 4 lanes merged). Phase B COMPLETE. Draft/deferred: S-DEMO-MULTI-TENANT-DTU-001 [3 open OQs]; S-MAINT-W3SEC-CITE-SWEEP-002 [D-954]; S-MAINT-ORPHAN-SENSORS-DIR-001 [D-977]; S-MAINT-EDITION-SYNC-001 [D-1027]; S-DEMO-LAUNCHER-CONSOLIDATION-001 [D-1029]. |
-| **Current Step** | D-1071 — S-DEMO-HARNESS-CLONE-PARITY-001 MERGED PR #180 squash-merged develop@64d34967. POL-14: BC-2.16.013 v1.25 idempotent (already active since D-776; active=235 draft=2 UNCHANGED). F-P6-DEFER-001 + F-P10-LOW-001 CLOSED. Wave 5 Phase C COMPLETE. STORY-INDEX v2.329. STATE v7.722. No story in-flight. |
+| **Current Step** | D-1072 — North-star persistence burst. ACTIVE OBJECTIVE: multi-client SOC-analyst live demo (TDE deferred). NEXT: PO authors S-DEMO-MULTI-TENANT-DTU-001 BC (OQ-1/OQ-2/OQ-3). STATE v7.723. Wave 5 Phase C COMPLETE. No story in-flight. |
+
+## Active Objective (North Star)
+
+**NORTH STAR: Deliver a MULTI-CLIENT SOC-ANALYST LIVE DEMO** — multiple DTU clients, each with a different sensor combination and genuinely different per-client data; prism federates into each client's DTUs; prism MCP wired into Claude (stdio); end-to-end SOC-analyst investigation workflow demonstrated.
+
+Scope decisions (user, 2026-06-09): SOC-analyst demo FIRST. TDE workflow (detection rules, write/action-back containment) DEFERRED (requires prism-operations crate + dead write path; E-SENSOR-070 / TODO W3-FIX-S307-001). REAL per-client data segregation required — NOT just client-targeting/federation.
+
+Build sequence: (1) S-DEMO-MULTI-TENANT-DTU-001 — NEXT ACTION: PO authors multi-address-binding BC; (2) per-instance distinct data seeding; (3) S-DEMO-004 — add depends_on S-DEMO-MULTI-TENANT-DTU-001; (4) demo tooling generalization; (5) multi-client SOC-analyst narrative story; (6) optional: S-5.02/S-3.13/S-5.04.
+
+**Full detail: SESSION-HANDOFF.md §ACTIVE OBJECTIVE (D-1072).**
 
 ## Phase Progress
 
@@ -143,6 +154,7 @@ _D-001..D-046 archived: `cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-1072 | 2026-06-09 | state-manager | **Persist multi-client SOC-analyst live demo north-star objective + scope decisions + build sequence (user-directed durability burst). ACTIVE OBJECTIVE: deliver multi-client SOC-analyst live demo — multiple DTU clients, each with different sensor combination and genuinely different per-client data; prism MCP wired into Claude (stdio); end-to-end SOC-analyst investigation. Scope decisions (user 2026-06-09): TDE workflow deferred (requires prism-operations + dead write path E-SENSOR-070/W3-FIX-S307-001); REAL per-client data required (not just targeting/federation). Capability audit verdict: partial-significant-gaps but CORE is genuinely multi-tenant — build-on not rebuild. R4 (MCP→Claude) WORKS; R1/R2/R3/R5 PARTIAL; R6 NO (deferred). Reuse: S-CONFIG-MULTI-TENANT-OVERRIDE-001, S-DEMO-001/002/003, S-6.20, S-6.06–6.10, S-3.1.x/S-3.3.x, S-DEMO-QUERY-PUSHDOWN-001 + per-sensor route-fidelity stories. Build sequence: (1) S-DEMO-MULTI-TENANT-DTU-001 NEXT ACTION = PO authors multi-address-binding BC resolving OQ-1/OQ-2/OQ-3; (2) per-instance data seeding gap; (3) S-DEMO-004 add depends_on; (4) demo tooling generalization; (5) multi-client SOC narrative story; (6) optional S-5.02/S-3.13/S-5.04. Frontmatter key added: active_objective. SESSION-HANDOFF §ACTIVE OBJECTIVE section written. FRESH-SESSION RESUME PROTOCOL step 0 added. No code/spec-content/BC/VP/policy/count changes. STATE v7.722→v7.723. SESSION-HANDOFF v7.717→v7.723. Single-commit burst per TD-VSDD-053.** | wave-5-e-demo-fidelity | 2026-06-09 | Decided by: user (explicit direction 2026-06-09 — persist demo objective durably); recorded by state-manager (D-1072 north-star persistence burst). |
 | D-1071 | 2026-06-09 | state-manager | **S-DEMO-HARNESS-CLONE-PARITY-001 MERGED PR #180 squash-merged develop@64d34967. Bring In-Process Armis + Claroty Clones to Route Parity with Standalone DTUs (F-P6-DEFER-001 + F-P10-LOW-001 CLOSED). Cascade: remove-uncertainty pre-TDD (5 HIGH + 3 MED caught); LOCAL 3-CLEAN strict CONVERGED (closed F-P2-LOW-001 401-coverage, F-P3-HIGH-001 POL-6 SS-17→SS-01/SS-16, F-P3-LOW-001 AC-005 doc route-tables, F-RC1-LOW-001 pagination-scope-doc, F-RC2C-LOW-001 ADR-anchor §D7+§D1-c primary); PR-LEVEL 3-CLEAN strict CONVERGED (closed F-PR2-OBS-001 + F-PRR2-OBS-001 EC-004 load-bearing/discriminator accuracy, F-PRF3-OBS-001 PR-body refresh; F-PRR1-OBS-001 disposed as build-staleness flake 30/30 clean-build stress); security SECURITY-CLEAR-TO-MERGE; pr-reviewer APPROVE; CI 43/43 GREEN (TD-S-PLUGIN-PREREQ-E-002 musl SIGTERM flake recurred — UNRELATED to diff; re-run green; recurrence note appended to tech-debt-register.md). POL-14: BC-2.16.013 v1.25 idempotent (already active since D-776; active=235 draft=2 UNCHANGED). Wave 5 Phase C COMPLETE — all 4 lanes merged (PRs #177 #178 #179 #180). STORY-INDEX v2.328→v2.329. STATE v7.721→v7.722. Single-commit burst per TD-VSDD-053.** | wave-5-e-demo-fidelity | 2026-06-09 | Decided by: state-manager (D-1071 post-merge bookkeeping; no code changes; no BC/VP/policy changes). |
 | D-1070 | 2026-06-08 | state-manager | **LOCAL re-cascade #2 bookkeeping: S-DEMO-HARNESS-CLONE-PARITY-001. Passes A (full-spectrum) + B (test-soundness) CLEAN(strict)=yes. Pass C (anchor-precision, deep ADR-031 read) found F-RC2C-LOW-001 (LOW, POL-21/POL-4): Claroty audit_log route-parity anchor in story §References was self-contradictory — §D2 was headlined as primary route-parity authority but §D2 governs "Permitted Divergences" for SYNTHETIC FIXTURE DATA (ADR-031 §D2 line 141), not route existence. Story body simultaneously cited §D7 (correct governing section for harness-scope extension, ADR-031 §D7 line 298), creating a head/body contradiction. The headline-§D2 citation was inherited from the prior v1.5 fix (F-RC3-MED-001 in re-cascade #1) which corrected §D8-b→§D2 without verifying §D2's semantic scope. FIXED definitively: feature commit 2655201e updated claroty.rs doc-comment; story-writer updated story v1.5→v1.6 §References to make §D7 (harness-scope extension, PRIMARY) + §D1-c (endpoint-existence fidelity, PRIMARY) the leading authorities; Gap-CL-006 + BC-2.16.013 INV-HARNESS-ROUTE-PARITY retained; §D2 retained ONLY scoped to synthetic fixture data with explicit "NOT route-parity authority" note. Both §D7 and §D1-c verified against direct ADR-031 section heading + body reads. Armis §D8-a intact (verified correct). This is the 3rd anchor churn in this story's cascade: §D8-a (pass-3 initial fix) → §D8-b (re-cascade #1 adversary-proposed, wrong) → §D2 (re-cascade #1 fix-burst, partially correct but too broad) → §D7+§D1-c (re-cascade #2, correct). Root cause: adversary proposed replacements were accepted without verifying the target section's SEMANTIC scope against the concern being cited (route existence, not trailing-slash exemption, not synthetic-fixture scope). BC-5.39.001 strict streak RESET 0/3. lessons.md anchor-citation-churn entry REINFORCED with RULE: architecture-anchor citations MUST be validated by reading the target ADR section heading + body to confirm semantic fit. Candidate: POL addition 'architecture_anchor_semantic_fit_verification' OR extend POL-4; cycle-close decision deferred. STORY-INDEX v2.327→v2.328. STATE v7.720→v7.721. Single-commit burst per TD-VSDD-053.** | wave-5-e-demo-fidelity | 2026-06-08 | Decided by: state-manager (D-1070 LOCAL re-cascade #2 bookkeeping; story v1.6 spec-only; feature 2655201e code; lessons.md reinforced; no BC/VP/policy changes). |
 | D-1069 | 2026-06-08 | state-manager | **LOCAL re-cascade #1 bookkeeping: S-DEMO-HARNESS-CLONE-PARITY-001. Pass-2 CLEAN(strict)=yes. Passes 1+3 found 2 findings — both resolved. F-RC1-LOW-001 (LOW): harness get_search drops offset/limit query params that standalone Claroty DTU accepts. RESOLVED by scope-documentation only — no code change. Rationale: (1) adding offset/limit to get_search alone would break sibling-route consistency (TD-VSDD-060); (2) harness consumers are direct BC-3.5.001/002 in-process test harnesses, NOT PipelineExecutor or any real pagination client; (3) AC-002 is explicitly scoped to structural parity (route registration + envelope + auth), not pagination query-param contracts. Story v1.5 (story-writer) adds "Pagination Parity Scope" subsection documenting this boundary. DRIFT-RC1-PAGINATION-PARITY-001 registered (non-blocking; optional PO harmonization: BC-2.16.013 INV-HARNESS-ROUTE-PARITY could be clarified to explicitly state structural scope exclusion). F-RC3-MED-001 (MED, POL-21/POL-4 traceability): harness Claroty list_audit_log doc-comment + story §References cited ADR-031 §D8-b — but §D8-b covers trailing-slash normalization exemptions (Gap-CL-001), which is a different concern. Correct anchor for audit_log is Gap-CL-006 + ADR-031 §D2 (Permitted Divergences — audit_log is a REQUIRED fidelity addition, not an exemption). FIXED: implementer feature commit 0e4d6f27 corrected doc-comment in harness claroty.rs list_audit_log; story-writer amended story §References: §D8-b → §D2 + Gap-CL-006 with explicit rationale mirroring standalone audit_log.rs. Armis §D8-a left intact (verified correct). BC-5.39.001 strict streak RESET 0/3. Lessons appended (anchor-citation churn; orchestrator must verify proposed replacement anchor against ground truth before instructing fix). STORY-INDEX v2.326→v2.327. STATE v7.719→v7.720. Single-commit burst per TD-VSDD-053.** | wave-5-e-demo-fidelity | 2026-06-08 | Decided by: state-manager (D-1069 LOCAL re-cascade #1 bookkeeping; story v1.5 spec-only; feature 0e4d6f27 anchor fix; no BC/VP/policy changes). |
@@ -251,17 +263,18 @@ All historical cycle files:
 
 ---
 
-## Session Resume Checkpoint (2026-06-09 — D-1071: S-DEMO-HARNESS-CLONE-PARITY-001 MERGED; Phase C COMPLETE; STATE v7.722)
+## Session Resume Checkpoint (2026-06-09 — D-1072: North-Star objective persisted; STATE v7.723)
 
-_Previous checkpoint (D-1070; STATE v7.721) superseded by D-1071 post-merge bookkeeping burst. Full durable resume snapshot is in SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-06-08-DURABILITY-HARDENING-D1065._
+_Previous checkpoint (D-1071; STATE v7.722) superseded by D-1072 north-star persistence burst. Full durable resume snapshot is in SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-06-08-DURABILITY-HARDENING-D1065._
 
-**STATE v7.722. D-1071 — S-DEMO-HARNESS-CLONE-PARITY-001 MERGED PR #180 develop@64d34967. Wave 5 Phase C COMPLETE. POL-14 BC-2.16.013 v1.25 idempotent. F-P6-DEFER-001 + F-P10-LOW-001 CLOSED. BC-INDEX v6.00. STORY-INDEX v2.329. develop@64d34967. D-989 autonomy ACTIVE. factory-artifacts pushed to origin after each burst. No story in-flight.**
+**STATE v7.723. D-1072 — North-star ACTIVE OBJECTIVE persisted: multi-client SOC-analyst live demo. TDE deferred. NEXT ACTION: PO authors S-DEMO-MULTI-TENANT-DTU-001 multi-address-binding BC (resolves OQ-1/OQ-2/OQ-3). develop@64d34967. D-989 autonomy ACTIVE. factory-artifacts pushed to origin after each burst. No story in-flight. Wave 5 Phase C COMPLETE.**
 
 **RESUME PROTOCOL (run on fresh session start):**
+0. Read SESSION-HANDOFF.md §ACTIVE OBJECTIVE (North Star) — the current priority is the multi-client SOC demo; the per-story VSDD pipeline SERVES this goal. Do NOT drift into unrelated single-story pipeline machinery.
 1. `vsdd-factory:factory-worktree-health` (BLOCKING)
 2. Verify `git log --oneline develop | head -1` shows `64d34967`
-3. Verify `grep "^version:" .factory/STATE.md` shows `"7.722"`
+3. Verify `grep "^version:" .factory/STATE.md` shows `"7.723"`
 4. `gh pr list --state open` → expect NONE
-5. Read SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-06-08-DURABILITY-HARDENING-D1065 (still current base; update when new handoff written)
+5. Read SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-06-08-DURABILITY-HARDENING-D1065 (still current base)
 6. Read `.factory/stories/sprint-state.yaml` `current_story` — should show MERGED/NONE (Phase C COMPLETE; no story in-flight)
-7. Wave 5 Phase C COMPLETE. Next phase: Phase 4 holdout evaluation OR Wave 6 scoping — requires human direction.
+7. Wave 5 Phase C COMPLETE. NORTH STAR: multi-client SOC-analyst live demo. Next concrete action: PO authors S-DEMO-MULTI-TENANT-DTU-001 multi-address-binding BC.

@@ -1,16 +1,60 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.717"
+version: "7.723"
 status: current
 timestamp: 2026-06-08T23:00:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
 
-> **PRIORITY READ ORDER — D-1066 FACTORY-PUSH-POLICY-CHANGE + D-1065 DURABILITY-HARDENING + D-1064 S-DEMO-CLAROTY-PAGINATION-001 MERGED. ZERO-CONTEXT RESUME SNAPSHOT.**
-> Read STATE.md frontmatter + this snapshot before dispatching any agent.
-> develop HEAD `9ca7e7d7`. factory-artifacts PUSHED to origin after each burst (user-authorized D-1066). STATE v7.717.
+> **PRIORITY READ ORDER — D-1072 NORTH-STAR OBJECTIVE PERSISTED + D-1071 PHASE-C COMPLETE + D-1066 FACTORY-PUSH-POLICY-CHANGE. ZERO-CONTEXT RESUME SNAPSHOT.**
+> Read §ACTIVE OBJECTIVE (North Star) FIRST, then STATE.md frontmatter + §RESUME SNAPSHOT before dispatching any agent.
+> develop HEAD `64d34967`. factory-artifacts PUSHED to origin after each burst (user-authorized D-1066). STATE v7.723.
+
+---
+
+## §ACTIVE OBJECTIVE — Multi-Client SOC-Analyst Live Demo (NORTH STAR)
+
+> **READ THIS FIRST.** This section persists the current priority goal so fresh sessions never drift onto unrelated pipeline machinery (D-1072, user-directed 2026-06-09).
+
+### Goal
+
+Deliver a **MULTI-CLIENT SOC-ANALYST LIVE DEMO**:
+- Stand up a collection of DTU clones representing MULTIPLE clients
+- Each client has a DIFFERENT sensor combination AND genuinely different per-client data (real data segregation — NOT just client-targeting/federation)
+- Prism federates into each client's DTUs
+- Prism MCP wired into Claude (stdio)
+- Demonstrate an end-to-end SOC-analyst investigation workflow
+
+### Scope Decisions (user, 2026-06-09)
+
+- **SOC-analyst demo FIRST.** Threat-Detection-Engineer (TDE) workflow — detection rules, write/action-back containment — is **DEFERRED** to a separate later track. Reason: requires building the absent `prism-operations` crate + wiring the dispatch-dead write path (E-SENSOR-070 / TODO W3-FIX-S307-001).
+- **REAL per-client data segregation required.** Not just client-targeting/federation routing. Each client must serve distinct fixture data.
+
+### Capability Audit Verdict (2026-06-09)
+
+`partial-significant-gaps` — but the CORE is genuinely multi-tenant; **build-on, not rebuild**.
+- R4 (MCP→Claude): WORKS today
+- R1/R2/R3/R5 (multi-client DTU / federation / per-client data / demo tooling): PARTIAL — gap = demo tooling + per-client data seeding
+- R6 (TDE write-back): NO → deferred
+
+### Reuse (already merged — DO NOT rebuild)
+
+S-CONFIG-MULTI-TENANT-OVERRIDE-001 (per-org overlays), S-DEMO-001 (per-org adapters / boot step 9A), S-DEMO-002 (single-org E2E + CI harness), S-DEMO-003 (demo scripts + credential CLI + runbook), S-6.20 (multi-clone demo-server), S-6.06–6.10 (4 DTU clones), S-3.1.x / S-3.3.x (org isolation type system + multi-org config boot), S-DEMO-QUERY-PUSHDOWN-001 + per-sensor route-fidelity stories (live-query realism).
+
+### Build Sequence
+
+| Step | Story / Action | Status | Notes |
+|------|---------------|--------|-------|
+| 1 | **S-DEMO-MULTI-TENANT-DTU-001** | draft P2 — BLOCKED (behavioral_contracts empty) | **NEXT ACTION: PO authors multi-address-binding BC** — resolves OQ-1 (which crate owns MultiInstanceConfig → recommend prism-dtu-common), OQ-2 (Box<dyn BehavioralClone> harness API), OQ-3 (canonical BC IDs). Then architect adjudicates. |
+| 2 | Per-instance distinct data seeding | gap — needs story | `CloneConfig.seed` / `fixture_set` ignored by `build_clone_pairs` today (`crates/prism-dtu-demo-server/src/harness.rs`). Wire per-instance seeds (or POST /dtu/configure). New story OR scope-add to step 1. Closes real-per-client-data requirement. |
+| 3 | **S-DEMO-004** | draft P0 | Add `depends_on: [S-DEMO-MULTI-TENANT-DTU-001]` (edge currently MISSING). Decide AC-006 data-distinctness via real seeding (NOT port-binding-only shortcut). |
+| 4 | Demo tooling generalization | draft stub S-DEMO-LAUNCHER-CONSOLIDATION-001 | Generalize `demo-setup.sh` / `demo-run.sh` / `demo-teardown.sh` to loop over N orgs (today single-org demo-org). Story-writer materialization + human launcher-lifecycle decision needed. |
+| 5 | Multi-client SOC-analyst narrative story | NEW — none exists | Multi-client SOC-analyst investigation walkthrough + demo-recorder evidence per persona. |
+| 6 (optional) | S-5.02 / S-3.13 / S-5.04 | draft | MCP client targeting, dynamic per-org table availability, sensor health. All optional capability discovery for the narrative. |
+
+**NEXT CONCRETE ACTION: PO authors S-DEMO-MULTI-TENANT-DTU-001 multi-address-binding BC (per-instance multi-address binding + no-cross-tenant-leakage invariant + single-instance backward-compat) and resolves OQ-1/OQ-2/OQ-3. Architect adjudicates after.**
 
 ---
 
@@ -22,9 +66,10 @@ timestamp: 2026-06-08T23:00:00Z
 
 ### FRESH-SESSION RESUME PROTOCOL (zero prior context)
 
+0. **Read §ACTIVE OBJECTIVE (North Star) above** — the current priority is the multi-client SOC demo; the per-story VSDD pipeline SERVES this goal. Do NOT drift into unrelated single-story pipeline machinery.
 1. Run `vsdd-factory:factory-worktree-health` (devops-engineer) — **BLOCKING**; do not read state until it passes.
 2. Read STATE.md frontmatter + this §RESUME SNAPSHOT.
-3. Verify `git rev-parse origin/develop` == `9ca7e7d7` (develop_head). If drift, reconcile before dispatching.
+3. Verify `git rev-parse origin/develop` == `64d34967` (develop_head). If drift, reconcile before dispatching.
 4. Confirm no open PRs (`gh pr list`) and parked worktrees (S-3.09 FROZEN, W3-FIX-S307-001 BLOCKED) are left alone.
 5. Pick the next action from §3 Exact Next Steps. Honor §4 Standing Rules (incl. remove-uncertainty-per-story + D-989 autonomy).
 
@@ -37,11 +82,11 @@ timestamp: 2026-06-08T23:00:00Z
 | **Mode** | brownfield |
 | **Phase** | 3 (Wave 5 — wave-5-e-demo-fidelity) |
 | **Wave-5 Phase B** | **COMPLETE** — all 4 lanes + S-MAINT merged |
-| **Wave-5 Phase C** | **IN PROGRESS** — Lanes 1+2+3 COMPLETE (TRAILING-SLASH, SPEC-PROSE-FIX, PAGINATION-001); **only remaining:** S-DEMO-HARNESS-CLONE-PARITY-001 (ready v1.2) |
-| **develop HEAD** | `9ca7e7d7` |
-| **STATE version** | v7.716 |
+| **Wave-5 Phase C** | **COMPLETE** — all 4 lanes merged (TRAILING-SLASH, SPEC-PROSE-FIX, PAGINATION-001, HARNESS-CLONE-PARITY-001) |
+| **develop HEAD** | `64d34967` |
+| **STATE version** | v7.723 |
 | **BC-INDEX version** | v6.00 |
-| **STORY-INDEX version** | v2.324 |
+| **STORY-INDEX version** | v2.329 |
 | **VP-INDEX version** | v1.76 |
 | **ARCH-INDEX version** | v2.115 |
 | **Active BCs** | 235 |
@@ -53,6 +98,14 @@ timestamp: 2026-06-08T23:00:00Z
 ---
 
 ### 2. What Just Completed
+
+**D-1072 North-Star Persistence Burst — ACTIVE OBJECTIVE written (2026-06-09)**
+
+Multi-client SOC-analyst live demo objective persisted to STATE.md + SESSION-HANDOFF.md §ACTIVE OBJECTIVE. No code/spec/BC/VP changes. D-1072. STATE v7.722→v7.723.
+
+**D-1071 S-DEMO-HARNESS-CLONE-PARITY-001 MERGED — PR #180 squash-merged develop@64d34967 (2026-06-09)**
+
+Wave 5 Phase C COMPLETE — all 4 lanes merged. F-P6-DEFER-001 + F-P10-LOW-001 CLOSED. CI 43/43 GREEN.
 
 **D-1064 S-DEMO-CLAROTY-PAGINATION-001 MERGED — PR #179 squash-merged develop@9ca7e7d7 2026-06-08**
 
@@ -80,17 +133,29 @@ timestamp: 2026-06-08T23:00:00Z
 
 ---
 
-### 3. Exact Next Steps — Phase C Active Stories
+### 3. Exact Next Steps — Multi-Client SOC Demo (North Star)
 
-Wave-5 Phase C (Claroty cluster — serialized, shared files BC-2.16.013 + claroty.sensor.toml):
+> **Wave 5 Phase C is COMPLETE. The pipeline now serves the ACTIVE OBJECTIVE: multi-client SOC-analyst live demo. See §ACTIVE OBJECTIVE above for full build sequence.**
 
-| Story | Priority | Status | Notes |
-|-------|----------|--------|-------|
-| ~~S-DEMO-CLAROTY-TRAILING-SLASH-001~~ | ~~P1~~ | **merged v1.3 — PR #177** | COMPLETE (D-1060; develop@5c5d240d) |
-| ~~S-DEMO-CLAROTY-SPEC-PROSE-FIX-001~~ | ~~P2~~ | **merged v1.2 — PR #178** | COMPLETE (D-1062; develop@763e0ade) |
-| ~~S-DEMO-CLAROTY-PAGINATION-001~~ | ~~P1~~ | **merged v1.2 — PR #179** | COMPLETE (D-1064; develop@9ca7e7d7; Gap-CL-004 CLOSED) |
-| **S-DEMO-HARNESS-CLONE-PARITY-001** | **P2** | ready v1.2 | Closes F-P6-DEFER-001 + F-P10-LOW-001; prism-dtu-harness search+audit_log routes; depends_on [S-DEMO-ARMIS-AQL-001 SATISFIED, S-DEMO-CLAROTY-AUDIT-DTU-001 SATISFIED]. **Run dclaude:remove-uncertainty FIRST.** |
-| S-DEMO-LAUNCHER-CONSOLIDATION-001 | P2 | draft stub | depends_on S-DEMO-003 SATISFIED; story-writer materialization + human review of script-lifecycle question needed |
+**NEXT CONCRETE ACTION (D-1072, user-directed):**
+Dispatch `vsdd-factory:product-owner` to author the S-DEMO-MULTI-TENANT-DTU-001 multi-address-binding BC. The BC must cover: per-instance multi-address binding, no-cross-tenant-leakage invariant, single-instance backward-compat. Resolve OQ-1 (MultiInstanceConfig crate — recommend `prism-dtu-common`), OQ-2 (Box<dyn BehavioralClone> harness API), OQ-3 (canonical BC IDs). Then dispatch architect to adjudicate.
+
+| Priority | Story / Action | Status | Notes |
+|----------|---------------|--------|-------|
+| **P0 — NEXT** | PO authors S-DEMO-MULTI-TENANT-DTU-001 BC | BLOCKED (OQ-1/OQ-2/OQ-3 unresolved) | Dispatch: `vsdd-factory:product-owner` |
+| P1 | Per-instance data seeding gap | needs story | Wire `CloneConfig.seed`/`fixture_set` in `build_clone_pairs`; new story or scope-add to #1 |
+| P1 | S-DEMO-004 — add depends_on + data-distinctness AC | draft P0 — needs architect/PO update | Add depends_on edge; decide AC-006 via real seeding |
+| P2 | S-DEMO-LAUNCHER-CONSOLIDATION-001 | draft stub | story-writer materialization + human review needed |
+| P3 | Multi-client SOC-analyst narrative story | NEW — none exists | Multi-client SOC walkthrough + demo-recorder evidence per persona |
+| optional | S-5.02 / S-3.13 / S-5.04 | draft | Capability discovery for narrative |
+
+**Wave 5 Phase C — COMPLETE:**
+| Story | PR | SHA | Status |
+|---|---|---|---|
+| ~~S-DEMO-CLAROTY-TRAILING-SLASH-001~~ | #177 | `5c5d240d` | MERGED (D-1060) |
+| ~~S-DEMO-CLAROTY-SPEC-PROSE-FIX-001~~ | #178 | `763e0ade` | MERGED (D-1062) |
+| ~~S-DEMO-CLAROTY-PAGINATION-001~~ | #179 | `9ca7e7d7` | MERGED (D-1064) |
+| ~~S-DEMO-HARNESS-CLONE-PARITY-001~~ | #180 | `64d34967` | MERGED (D-1071) |
 
 #### Per-Story Delivery Step Ledger
 
@@ -109,16 +174,11 @@ Per-story delivery follows the canonical 12-gate sequence (per orchestrator per-
 12. Worktree cleanup + state-manager post-merge burst (POL-14 BC promotions + sprint-state.yaml update)
 
 **Active story pointer:**
-- **S-DEMO-HARNESS-CLONE-PARITY-001 — delivery NOT started (resume at step 1: `dclaude:remove-uncertainty`).**
+- **No story in-flight.** Wave 5 Phase C COMPLETE. North-star next action: PO authors S-DEMO-MULTI-TENANT-DTU-001 BC.
 
 **Mid-cascade restart note:** If a fresh session finds an in-flight worktree/branch/open-PR for a story, cross-reference `sprint-state.yaml` `current_story.delivery_step` + `gh pr list` + `.worktrees/` to determine the exact resume step before dispatching.
 
----
-
-**RECOMMENDED NEXT ACTION (D-989 autonomy ACTIVE):**
-1. Run `dclaude:remove-uncertainty` on S-DEMO-HARNESS-CLONE-PARITY-001 (P2, ready v1.2, only remaining Phase C story; no blocking gates). **User standing directive: remove-uncertainty BEFORE every Phase C dispatch.**
-
-> **Previous snapshot (2026-06-08-PAGINATION-001-MERGED; STATE v7.715) archived to `cycles/wave-5-e-demo-fidelity/session-handoff-archive.md`.**
+> **Previous snapshot (2026-06-08-DURABILITY-HARDENING-D1065; STATE v7.716) remains the base; this section updated in place for D-1071+D-1072 completion. Prior snapshots archived to `cycles/wave-5-e-demo-fidelity/session-handoff-archive.md`.**
 
 ---
 
@@ -182,16 +242,20 @@ Per-story delivery follows the canonical 12-gate sequence (per orchestrator per-
 Run these commands at start of a fresh session to verify state:
 
 ```bash
+# 0. Read SESSION-HANDOFF.md §ACTIVE OBJECTIVE (North Star)
+# The current priority is the multi-client SOC demo.
+# Do NOT drift into unrelated single-story pipeline machinery.
+
 # 1. Factory worktree health (BLOCKING preflight)
 # Use: vsdd-factory:factory-worktree-health skill
 
-# 2. Verify develop HEAD == 9ca7e7d7
+# 2. Verify develop HEAD == 64d34967
 git log --oneline develop | head -1
-# Expected: 9ca7e7d7 ...
+# Expected: 64d34967 ...
 
 # 3. Verify STATE.md version
 grep '^version:' .factory/STATE.md
-# Expected: version: "7.716"
+# Expected: version: "7.723"
 
 # 4. Verify no open PRs
 gh pr list --state open
@@ -203,11 +267,11 @@ git -C .factory rev-parse HEAD && git -C .factory rev-parse origin/factory-artif
 #   git -C .factory push origin factory-artifacts
 
 # 6. Read this snapshot (you are here)
-# Confirm develop_head, STATE version, Phase C next story
+# Confirm develop_head, STATE version, north-star next action
 
 # 7. Confirm active story + delivery step
 grep -A4 '^current_story:' .factory/stories/sprint-state.yaml
-# Expected: story_id: S-DEMO-HARNESS-CLONE-PARITY-001, delivery_step: not-started
+# Expected: no story in-flight (Phase C COMPLETE)
 # (If delivery_step != not-started, check gh pr list + .worktrees/ to find resume point)
 ```
 
