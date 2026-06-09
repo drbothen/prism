@@ -73,5 +73,13 @@ name = "cr004_dispatch_consolidation"
 path = "tests/cr004_dispatch_consolidation.rs"
 required-features = ["dtu"]
 
+# S-DEMO-HARNESS-CLONE-PARITY-001 Red Gate: harness clone route parity tests
+# (BC-2.16.013 v1.25 INV-HARNESS-ROUTE-PARITY — armis GET /api/v1/search +
+#  claroty POST /api/v1/audit_log/get in router() and network_router())
+[[test]]
+name = "harness_clone_parity_test"
+path = "tests/harness_clone_parity_test.rs"
+required-features = ["dtu"]
+
 [lints]
 workspace = true
