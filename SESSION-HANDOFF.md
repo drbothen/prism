@@ -1,16 +1,16 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.727"
+version: "7.728"
 status: current
 timestamp: 2026-06-09T05:00:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
 
-> **PRIORITY READ ORDER — D-1076 T3 DONE (S-DEMO-MULTI-TENANT-DTU-001 ready v1.2; remove-uncertainty 8 uncertainties; BC-2.06.017 v1.1; T4 CURRENT) + D-1075 T2 DONE + D-1074 BC-2.06.017 REGISTERED + T1 DONE + D-1073 TASK LEDGER + D-1072 NORTH-STAR OBJECTIVE + D-1071 PHASE-C COMPLETE. ZERO-CONTEXT RESUME SNAPSHOT.**
+> **PRIORITY READ ORDER — D-1077 BC-2.06.018 REGISTERED + SCOPE EXPANSION A/B/C + E-DEMO-001 OBLIGATION + D-1076 T3 DONE + D-1075 T2 DONE + D-1074 BC-2.06.017 REGISTERED + T1 DONE + D-1073 TASK LEDGER + D-1072 NORTH-STAR OBJECTIVE + D-1071 PHASE-C COMPLETE. ZERO-CONTEXT RESUME SNAPSHOT.**
 > Read §ACTIVE OBJECTIVE (North Star) FIRST, then task ledger (`.factory/objectives/multi-client-soc-demo-tasks.md`), then STATE.md frontmatter + §RESUME SNAPSHOT before dispatching any agent.
-> develop HEAD `64d34967`. factory-artifacts PUSHED to origin after each burst (user-authorized D-1066). STATE v7.727.
+> develop HEAD `64d34967`. factory-artifacts PUSHED to origin after each burst (user-authorized D-1066). STATE v7.728.
 
 ---
 
@@ -23,6 +23,8 @@ timestamp: 2026-06-09T05:00:00Z
 Deliver a **MULTI-CLIENT SOC-ANALYST LIVE DEMO**:
 - Stand up a collection of DTU clones representing MULTIPLE clients
 - Each client has a DIFFERENT sensor combination AND genuinely different per-client data (real data segregation — NOT just client-targeting/federation)
+- Each client's scenario **progresses over time** (staged unfolding attack — recon → lateral movement → exfil → containment) and is reproducible (deterministic-over-time; same seed + clock-offset → same timeline)
+- Enrichment DTUs (ThreatIntel + NVD) serve scenario-correlated data (IOCs and CVEs introduced by the progression are resolvable)
 - Prism federates into each client's DTUs
 - Prism MCP wired into Claude (stdio)
 - Demonstrate an end-to-end SOC-analyst investigation workflow
@@ -31,6 +33,16 @@ Deliver a **MULTI-CLIENT SOC-ANALYST LIVE DEMO**:
 
 - **SOC-analyst demo FIRST.** Threat-Detection-Engineer (TDE) workflow — detection rules, write/action-back containment — is **DEFERRED** to a separate later track. Reason: requires building the absent `prism-operations` crate + wiring the dispatch-dead write path (E-SENSOR-070 / TODO W3-FIX-S307-001).
 - **REAL per-client data segregation required.** Not just client-targeting/federation routing. Each client must serve distinct fixture data.
+
+### Scope Expansion (user, 2026-06-09, D-1077)
+
+**A. Continuous generation = SCENARIO PROGRESSION (unfolding attack).** Not just live-append of random events — each per-client scenario must EVOLVE through stages (e.g. CompromisedEndpoint: recon → lateral movement → exfil → containment), with new telemetry surfacing over time. MUST be deterministic-over-time (same seed + same clock-offset → same timeline) for reproducibility. This is a NEW mechanism not present today (current generators produce one-shot static snapshots; HighChurn models churn as static tombstones, NOT a live feed).
+
+**B. One larger story.** Fold static per-client seeding (BC-2.06.018 baseline) + continuous scenario-progression into a SINGLE larger story (S-DEMO-DTU-DATA-SEEDING-001 expands; will likely be renamed by story-writer to reflect live-scenario scope, e.g. S-DEMO-DTU-LIVE-SCENARIO-001). It anchors MULTIPLE BCs: BC-2.06.018 baseline + a new scenario-progression BC + a new enrichment-correlation BC (pending architect design + PO authorship).
+
+**C. Enrichment DTUs in the live demo.** ThreatIntel + NVD (both static-fixture, NO generator today) must be included in the live demo with SCENARIO-CORRELATED data: the IOCs the progression introduces must resolve in ThreatIntel, and the CVEs on affected devices must resolve in NVD — so the SOC-analyst enrichment workflow is believable. PagerDuty + Jira = response/ticketing DTUs — OUT of current enrichment scope; adjacent to the deferred TDE write-back track per D-1072 (boundary preserved).
+
+**Open obligation (D-1077):** E-DEMO-001 error code must be registered in `.factory/specs/prd-supplements/error-taxonomy.md` (new E-DEMO-NNN namespace; first entry; obligation belongs to error-taxonomy owner; tied to the data-seeding story delivery). Do NOT author the taxonomy entry until the data-seeding story is in scope — record as an open obligation only.
 
 ### Capability Audit Verdict (2026-06-09)
 
@@ -47,16 +59,16 @@ S-CONFIG-MULTI-TENANT-OVERRIDE-001 (per-org overlays), S-DEMO-001 (per-org adapt
 
 | Step | Story / Action | Status | Notes |
 |------|---------------|--------|-------|
-| 1 | **S-DEMO-MULTI-TENANT-DTU-001** | **ready v1.2 — T1+T2+T3 ALL DONE** (BC-2.06.017 v1.1 authored; architect adjudication D-1075 complete; story finalized ready v1.2 D-1076; remove-uncertainty 8 uncertainties closed; S-7.01 gate CLEARED) | **READY FOR TDD DELIVERY (T6 — after T4+T5 complete).** Per-instance data seeding story must be decided first (T4 CURRENT). |
-| 2 | Per-instance distinct data seeding | gap — needs story | `CloneConfig.seed` / `fixture_set` ignored by `build_clone_pairs` today (`crates/prism-dtu-demo-server/src/harness.rs`). Wire per-instance seeds (or POST /dtu/configure). New story OR scope-add to step 1. Closes real-per-client-data requirement. |
+| 1 | **S-DEMO-MULTI-TENANT-DTU-001** | **ready v1.2 — T1+T2+T3 ALL DONE** (BC-2.06.017 v1.1 authored; architect adjudication D-1075 complete; story finalized ready v1.2 D-1076; remove-uncertainty 8 uncertainties closed; S-7.01 gate CLEARED) | **READY FOR TDD DELIVERY (T6 — after T4+T5 complete).** Live-scenario story (T4+T5) must be designed and authored first. |
+| 2 | **Single larger live-scenario story** (S-DEMO-DTU-LIVE-SCENARIO-001 or equiv.) | **T4 in-progress** — BC-2.06.018 AUTHORED (D-1077); seeding mechanism DECIDED; scenario-progression + enrichment-correlation PENDING architect design | **EXPANDED SCOPE (D-1077):** Anchors BC-2.06.018 (static seeding) + new scenario-progression BC + new enrichment-correlation BC. Architect designs: deterministic progression engine (staged unfolding attack, reproducible) + enrichment-DTU correlation (ThreatIntel/NVD resolve progression IOCs/CVEs) + cross-DTU scenario entity coherence. PO authors new BCs after architect design. Story-writer assembles single story. `CloneConfig.seed`/`fixture_set` wired in `build_clone_pairs` (`crates/prism-dtu-demo-server/src/harness.rs`). |
 | 3 | **S-DEMO-004** | draft P0 | Add `depends_on: [S-DEMO-MULTI-TENANT-DTU-001]` (edge currently MISSING). Decide AC-006 data-distinctness via real seeding (NOT port-binding-only shortcut). |
 | 4 | Demo tooling generalization | draft stub S-DEMO-LAUNCHER-CONSOLIDATION-001 | Generalize `demo-setup.sh` / `demo-run.sh` / `demo-teardown.sh` to loop over N orgs (today single-org demo-org). Story-writer materialization + human launcher-lifecycle decision needed. |
 | 5 | Multi-client SOC-analyst narrative story | NEW — none exists | Multi-client SOC-analyst investigation walkthrough + demo-recorder evidence per persona. |
 | 6 (optional) | S-5.02 / S-3.13 / S-5.04 | draft | MCP client targeting, dynamic per-org table availability, sensor health. All optional capability discovery for the narrative. |
 
-**NEXT CONCRETE ACTION: Dispatch vsdd-factory:product-owner + vsdd-factory:architect to decide the per-client data seeding approach for the multi-client SOC demo — wire CloneConfig.seed/fixture_set in build_clone_pairs (crates/prism-dtu-demo-server/src/harness.rs) vs POST /dtu/configure runtime-seeding path; author or scope-add a story delivering REAL distinct per-client data (T4 CURRENT, D-1076).**
+**NEXT CONCRETE ACTION: Architect designs the deterministic scenario-progression engine (staged unfolding attack, reproducible over time) + enrichment-DTU correlation (ThreatIntel/NVD resolve the progression's IOCs/CVEs) + cross-DTU scenario entity coherence; then PO authors progression + enrichment-correlation BCs; then story-writer assembles the single larger live-scenario story (anchoring BC-2.06.018 + new BCs). T4 CURRENT (D-1077).**
 
-**Task ledger (granular, status-tracked, resume source-of-truth): `.factory/objectives/multi-client-soc-demo-tasks.md` — CURRENT TASK = T4 (D-1076). T1+T2+T3 DONE: BC-2.06.017 v1.1 authored; architect adjudication OQ-1/OQ-2/OQ-3 complete; story ready v1.2 (remove-uncertainty 8 uncertainties; S-7.01 gate CLEARED). BC-INDEX v6.02. STORY-INDEX v2.330.**
+**Task ledger (granular, status-tracked, resume source-of-truth): `.factory/objectives/multi-client-soc-demo-tasks.md` — CURRENT TASK = T4 (D-1077). T1+T2+T3 DONE: BC-2.06.017 v1.1 authored; architect adjudication OQ-1/OQ-2/OQ-3 complete; story ready v1.2 (remove-uncertainty 8 uncertainties; S-7.01 gate CLEARED). BC-2.06.018 authored (D-1077). BC-INDEX v6.03. STORY-INDEX v2.330.**
 
 ---
 
@@ -73,7 +85,7 @@ S-CONFIG-MULTI-TENANT-OVERRIDE-001 (per-org overlays), S-DEMO-001 (per-org adapt
 2. Read STATE.md frontmatter + this §RESUME SNAPSHOT.
 3. Verify `git rev-parse origin/develop` == `64d34967` (develop_head). If drift, reconcile before dispatching.
 4. Confirm no open PRs (`gh pr list`) and parked worktrees (S-3.09 FROZEN, W3-FIX-S307-001 BLOCKED) are left alone.
-5. Pick the next action from §3 Exact Next Steps. Honor §4 Standing Rules (incl. remove-uncertainty-per-story + D-989 autonomy).
+5. Pick the next action from §3 Exact Next Steps (scope expansion A/B/C per D-1077 — architect expanded design is the immediate next action). Honor §4 Standing Rules (incl. remove-uncertainty-per-story + D-989 autonomy).
 
 ---
 
@@ -86,13 +98,13 @@ S-CONFIG-MULTI-TENANT-OVERRIDE-001 (per-org overlays), S-DEMO-001 (per-org adapt
 | **Wave-5 Phase B** | **COMPLETE** — all 4 lanes + S-MAINT merged |
 | **Wave-5 Phase C** | **COMPLETE** — all 4 lanes merged (TRAILING-SLASH, SPEC-PROSE-FIX, PAGINATION-001, HARNESS-CLONE-PARITY-001) |
 | **develop HEAD** | `64d34967` |
-| **STATE version** | v7.727 |
-| **BC-INDEX version** | v6.02 |
+| **STATE version** | v7.728 |
+| **BC-INDEX version** | v6.03 |
 | **STORY-INDEX version** | v2.330 |
 | **VP-INDEX version** | v1.76 |
 | **ARCH-INDEX version** | v2.115 |
 | **Active BCs** | 235 |
-| **Draft BCs** | 3 (BC-2.06.011 + BC-2.06.017 + BC-2.21.001) |
+| **Draft BCs** | 4 (BC-2.06.011 + BC-2.06.017 + BC-2.06.018 + BC-2.21.001) |
 | **Total stories** | 185 |
 | **Open PRs** | NONE |
 | **factory-artifacts** | pushed to origin after each burst (user-authorized D-1066 2026-06-08) |
@@ -100,6 +112,10 @@ S-CONFIG-MULTI-TENANT-OVERRIDE-001 (per-org overlays), S-DEMO-001 (per-org adapt
 ---
 
 ### 2. What Just Completed
+
+**D-1077 Durability Burst — BC-2.06.018 registered; user-directed scope expansion A/B/C recorded; E-DEMO-001 obligation logged (2026-06-09)**
+
+BC-2.06.018 Demo-Server Config-Time Data Seeding — Per-Clone seed + fixture_set Wire-Up authored by product-owner and registered in BC-INDEX v6.03 (draft; SS-01; CAP-036; P2; v1.0). draft_contracts 3→4 (BC-2.06.011 + BC-2.06.017 + BC-2.06.018 + BC-2.21.001). User-directed scope expansion of the multi-client SOC demo objective recorded in STATE + task ledger + this SESSION-HANDOFF: (A) continuous generation = scenario progression (staged unfolding attack, deterministic-over-time — NEW mechanism; generators produce one-shot static snapshots today, NOT live feeds); (B) single larger story anchoring BC-2.06.018 baseline + new progression BC + new enrichment-correlation BC (pending architect design + PO authorship); (C) ThreatIntel + NVD enrichment DTUs must serve scenario-correlated data (IOCs resolve in ThreatIntel; CVEs resolve in NVD) — PagerDuty + Jira OUT of scope (TDE write-back boundary D-1072 preserved). E-DEMO-001 obligation logged: new E-DEMO-NNN namespace, first entry, obligation tied to data-seeding story delivery, owner = error-taxonomy owner. BC-INDEX v6.02→v6.03. STATE v7.727→v7.728. D-1077.
 
 **D-1076 T3 Complete Burst — S-DEMO-MULTI-TENANT-DTU-001 ready v1.2; remove-uncertainty closed 8 uncertainties; BC-2.06.017 v1.1; T4 CURRENT (2026-06-09)**
 
@@ -155,13 +171,13 @@ Wave 5 Phase C COMPLETE — all 4 lanes merged. F-P6-DEFER-001 + F-P10-LOW-001 C
 
 > **Wave 5 Phase C is COMPLETE. The pipeline now serves the ACTIVE OBJECTIVE: multi-client SOC-analyst live demo. See §ACTIVE OBJECTIVE above for full build sequence.**
 
-**NEXT CONCRETE ACTION (D-1076, T4):**
-Dispatch `vsdd-factory:product-owner` + `vsdd-factory:architect` to decide the per-client data seeding approach for the multi-client SOC demo: `build_clone_pairs` (`crates/prism-dtu-demo-server/src/harness.rs`) ignores `CloneConfig.seed`/`fixture_set` today — every client serves identical fixture data. Decide: wire per-instance seeds into `build_clone_pairs`, OR a POST /dtu/configure runtime-seeding path. Author or scope-add a story delivering REAL distinct per-client data (closes the real-per-client-data requirement). This is the data-distinctness backbone for S-DEMO-004 (T8) and the SOC narrative (T13).
+**NEXT CONCRETE ACTION (D-1077, T4):**
+Architect designs the deterministic scenario-progression engine (staged unfolding attack, reproducible over time) + enrichment-DTU correlation (ThreatIntel/NVD resolve the progression's IOCs/CVEs) + cross-DTU scenario entity coherence; then PO authors progression + enrichment-correlation BCs; then story-writer assembles the single larger live-scenario story (anchoring BC-2.06.018 + new BCs). Seeding mechanism (`CloneConfig.seed`/`fixture_set` wired in `build_clone_pairs`) DECIDED — that baseline is BC-2.06.018. Architect now expands to the full live-scenario scope.
 
 | Priority | Story / Action | Status | Notes |
 |----------|---------------|--------|-------|
-| **P0 — NEXT (T4)** | PO+Architect decide per-client data seeding approach | T1+T2+T3 DONE; T4 not-started | Dispatch: `vsdd-factory:product-owner` + `vsdd-factory:architect`; decide build_clone_pairs wire vs POST /dtu/configure; author story |
-| P1 | Per-instance data seeding story | needs story (T5 after T4) | Author/scope story delivering REAL distinct per-client data; T5 = story-writer finalizes + remove-uncertainty |
+| **P0 — NEXT (T4)** | Architect expanded design: scenario-progression engine + enrichment-DTU correlation | T4 in-progress | BC-2.06.018 baseline DONE (D-1077). Dispatch: `vsdd-factory:architect` to design progression + enrichment; then `vsdd-factory:product-owner` to author progression BC + enrichment-correlation BC |
+| P1 | Single larger live-scenario story (T5) | blocked on T4 | Story-writer assembles after architect design + PO authors new BCs; T5 = story finalized + remove-uncertainty |
 | P1 | S-DEMO-004 — add depends_on + data-distinctness AC | draft P0 — needs architect/PO update | Add depends_on edge; decide AC-006 via real seeding |
 | P2 | S-DEMO-LAUNCHER-CONSOLIDATION-001 | draft stub | story-writer materialization + human review needed |
 | P3 | Multi-client SOC-analyst narrative story | NEW — none exists | Multi-client SOC walkthrough + demo-recorder evidence per persona |
@@ -192,11 +208,11 @@ Per-story delivery follows the canonical 12-gate sequence (per orchestrator per-
 12. Worktree cleanup + state-manager post-merge burst (POL-14 BC promotions + sprint-state.yaml update)
 
 **Active story pointer:**
-- **No story in-flight.** Wave 5 Phase C COMPLETE. North-star next action: PO+architect decide per-client data seeding approach (T4; S-DEMO-MULTI-TENANT-DTU-001 ready v1.2 at T3; BC-2.06.017 v1.1 authored; T1+T2+T3 DONE; D-1076).
+- **No story in-flight.** Wave 5 Phase C COMPLETE. North-star next action: architect expanded design for scenario-progression + enrichment-DTU correlation (T4 in-progress; BC-2.06.018 authored D-1077; S-DEMO-MULTI-TENANT-DTU-001 ready v1.2 at T3; BC-2.06.017 v1.1 authored; T1+T2+T3 DONE; D-1076+D-1077).
 
 **Mid-cascade restart note:** If a fresh session finds an in-flight worktree/branch/open-PR for a story, cross-reference `sprint-state.yaml` `current_story.delivery_step` + `gh pr list` + `.worktrees/` to determine the exact resume step before dispatching.
 
-> **Previous snapshot (2026-06-08-DURABILITY-HARDENING-D1065; STATE v7.716) remains the base; this section updated in place for D-1071+D-1072+D-1073+D-1074+D-1075+D-1076 completion. Prior snapshots archived to `cycles/wave-5-e-demo-fidelity/session-handoff-archive.md`.**
+> **Previous snapshot (2026-06-08-DURABILITY-HARDENING-D1065; STATE v7.716) remains the base; this section updated in place for D-1071+D-1072+D-1073+D-1074+D-1075+D-1076+D-1077 completion. Prior snapshots archived to `cycles/wave-5-e-demo-fidelity/session-handoff-archive.md`.**
 
 ---
 
@@ -273,7 +289,7 @@ git log --oneline develop | head -1
 
 # 3. Verify STATE.md version
 grep '^version:' .factory/STATE.md
-# Expected: version: "7.727"
+# Expected: version: "7.728"
 
 # 4. Verify no open PRs
 gh pr list --state open
@@ -286,7 +302,7 @@ git -C .factory rev-parse HEAD && git -C .factory rev-parse origin/factory-artif
 
 # 6. Read task ledger → CURRENT TASK
 cat .factory/objectives/multi-client-soc-demo-tasks.md | grep -A3 'CURRENT POINTER'
-# Expected: T4 — PO+architect decide per-client data seeding approach (T1+T2+T3 DONE)
+# Expected: T4 in-progress — BC-2.06.018 AUTHORED; architect expanded design (scenario-progression + enrichment-DTU correlation) PENDING (D-1077)
 
 # 7. Read this snapshot (you are here)
 # Confirm develop_head, STATE version, north-star next action
