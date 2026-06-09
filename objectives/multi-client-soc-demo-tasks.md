@@ -2,10 +2,10 @@
 document_type: task-ledger
 objective: multi-client-soc-analyst-demo
 level: ops
-version: "1.7"
+version: "1.8"
 producer: state-manager
 status: active
-timestamp: 2026-06-09T07:00:00Z
+timestamp: 2026-06-09T12:00:00Z
 related:
   - SESSION-HANDOFF.md §ACTIVE OBJECTIVE
   - .factory/STATE.md
@@ -120,6 +120,7 @@ Per-story delivery tasks (T6, T7, T10, T12) follow the canonical 12-gate per-sto
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.8 | 2026-06-09 | state-manager | D-1081: Zero-context resume durability hardening (user-directed). No task-status changes — bookkeeping only. sprint-state.yaml current_story fixed to point at T4-A Story A. SESSION-HANDOFF snapshot refreshed + §7 checklist expected values corrected. Coherence sweep confirmed ledger agrees with STATE v7.732/develop 64d34967/BC counts 250/235/6/total_stories 188. Ledger version 1.7→1.8. |
 | 1.7 | 2026-06-09 | state-manager | D-1080: Story A (S-DEMO-DTU-LIVE-SCENARIO-001-A) re-validation via dclaude:remove-uncertainty CONFIRMED SOUND. ADR-036 v2.0 substrate design correct; all mechanism/wiring corrections applied (U-A-01..U-A-10): gen_seeded_rng symbol; CrowdStrike load_host_ids()/load_host_details() fallback; GenOpts::default() syntax; demo-server Cargo.toml deps; Armis fallible; non-exhaustive-violation crate dep; per-clone generate() divergence. ADR-036 v2.0→v2.1 (architect). Story A v1.0→v1.1 (story-writer). DRIFT-SLUG-FORMAT-BC34004-001 registered (non-blocking). T4-A status: validated + delivery-ready (remove-uncertainty COMPLETE). CURRENT POINTER updated: T4-A 12-gate TDD NEXT. NEXT ACTION updated verbatim. ARCH-INDEX v2.117→v2.118. STORY-INDEX v2.331→v2.332. STATE v7.730→v7.731. |
 | 1.6 | 2026-06-09 | state-manager | D-1079: T4 RECONCILED+COMPLETE. ADR-036 v2.0 substrate reconciliation complete (architect; two-phase retrofit: new_with_seed + generated_records + dual-path routes; canonical org_slug=hex(org_id[0..4]); device ID dev-{8hex}-{seed}-{n}; CloneConfig.org_id; E-DEMO-004/005). BC-2.06.018/019/020 v1.0→v1.1 (PO; substrate reality corrections). error-taxonomy v1.63→v1.64 (E-DEMO-004+005 added). Story split materialized (story-writer; user-authorized): original S-DEMO-DTU-LIVE-SCENARIO-001 SUPERSEDED → Story A (001-A; 8pt; ready; BC-2.06.018; 14 ACs; blocks 001-B) + Story B (001-B; 7pt; draft; BC-2.06.019/020; 16 ACs; depends_on A). T4 status: in-progress→done. T4-A row added (Story A delivery; not-started; NEXT UNBLOCKED). T5 updated (Story B; blocked on T4-A). CURRENT POINTER advanced to T4-A. NEXT ACTION updated verbatim. STORY-INDEX v2.330→v2.331. BC-INDEX v6.04→v6.05. ARCH-INDEX v2.116→v2.117. total_stories 188. Progress: 3+T4/15 done; Story A delivery NEXT. |
 | 1.5 | 2026-06-09 | state-manager | D-1078: T4 design substantially complete. ADR-036 confirmed in ARCH-INDEX v2.116. BC-2.06.019 (scenario progression, 5 invariants) + BC-2.06.020 (enrichment correlation, 6 invariants) registered in BC-INDEX v6.04. E-DEMO-001/002/003 confirmed in error-taxonomy v1.63. T4 CURRENT POINTER remains (story-writer assembles S-DEMO-DTU-LIVE-SCENARIO-001 retry pending — 2 transient socket drops). NEXT ACTION updated verbatim. T4 done-when updated. Progress: 3/15 done; design artifacts durable. |

@@ -1,16 +1,16 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.731"
+version: "7.732"
 status: current
-timestamp: 2026-06-09T07:00:00Z
+timestamp: 2026-06-09T12:00:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
 
-> **PRIORITY READ ORDER — D-1080 STORY-A RE-VALIDATION BURST (ADR-036 v2.1 + Story A v1.1 VALIDATED + DRIFT-SLUG-FORMAT-BC34004-001) + D-1079 SUBSTRATE-RECONCILIATION + D-1078 DESIGN-ARTIFACTS + D-1071 PHASE-C COMPLETE. ZERO-CONTEXT RESUME SNAPSHOT.**
+> **PRIORITY READ ORDER — D-1081 DURABILITY-HARDENING (sprint-state.yaml fixed + snapshot refreshed + §7 checklist corrected) + D-1080 STORY-A RE-VALIDATION (ADR-036 v2.1 + Story A v1.1 VALIDATED). ZERO-CONTEXT RESUME SNAPSHOT.**
 > Read §ACTIVE OBJECTIVE (North Star) FIRST, then task ledger (`.factory/objectives/multi-client-soc-demo-tasks.md`), then STATE.md frontmatter + §RESUME SNAPSHOT before dispatching any agent.
-> develop HEAD `64d34967`. factory-artifacts PUSHED to origin after each burst (user-authorized D-1066). STATE v7.731.
+> develop HEAD `64d34967`. factory-artifacts PUSHED to origin after each burst (user-authorized D-1066). STATE v7.732.
 
 ---
 
@@ -69,13 +69,14 @@ S-CONFIG-MULTI-TENANT-OVERRIDE-001 (per-org overlays), S-DEMO-001 (per-org adapt
 
 **NEXT CONCRETE ACTION: Run dclaude:remove-uncertainty on S-DEMO-DTU-LIVE-SCENARIO-001-A (pre-delivery validation of the reconciled ADR-036 v2.0 design), then deliver Story A via the 12-gate per-story sequence (worktree → test-writer Red Gate → implementer TDD → LOCAL adversary 3-CLEAN → demo → PR → PR-LEVEL 3-CLEAN → merge). Story B follows after Story A merges. T4 RECONCILED+COMPLETE (D-1079).**
 
-**Task ledger (granular, status-tracked, resume source-of-truth): `.factory/objectives/multi-client-soc-demo-tasks.md` — T4 RECONCILED+COMPLETE (D-1079). T4-A = NEXT (Story A delivery). T1+T2+T3 DONE. BC-2.06.018/019/020 v1.1 (D-1079). ADR-036 v2.0 accepted. BC-INDEX v6.05. ARCH-INDEX v2.117. STORY-INDEX v2.331. error-taxonomy v1.64.**
+**Task ledger (granular, status-tracked, resume source-of-truth): `.factory/objectives/multi-client-soc-demo-tasks.md` — T4-A VALIDATED + DELIVERY-READY (D-1080). T1+T2+T3+T4 DONE. BC-2.06.018/019/020 v1.1. ADR-036 v2.1. BC-INDEX v6.05. ARCH-INDEX v2.118. STORY-INDEX v2.332. error-taxonomy v1.64.**
 
 ---
 
-## §RESUME SNAPSHOT 2026-06-08-DURABILITY-HARDENING-D1065
+## §RESUME SNAPSHOT 2026-06-09-STORY-A-DELIVERY-READY-D1081
 
 > **START HERE.** This snapshot is self-contained. A fresh session with ZERO prior context can resume exactly here.
+> _Previous snapshot (2026-06-08-DURABILITY-HARDENING-D1065; STATE v7.716) archived to `cycles/wave-5-e-demo-fidelity/session-handoff-archive.md`._
 
 ---
 
@@ -99,7 +100,7 @@ S-CONFIG-MULTI-TENANT-OVERRIDE-001 (per-org overlays), S-DEMO-001 (per-org adapt
 | **Wave-5 Phase B** | **COMPLETE** — all 4 lanes + S-MAINT merged |
 | **Wave-5 Phase C** | **COMPLETE** — all 4 lanes merged (TRAILING-SLASH, SPEC-PROSE-FIX, PAGINATION-001, HARNESS-CLONE-PARITY-001) |
 | **develop HEAD** | `64d34967` |
-| **STATE version** | v7.731 |
+| **STATE version** | v7.732 |
 | **BC-INDEX version** | v6.05 |
 | **STORY-INDEX version** | v2.332 |
 | **VP-INDEX version** | v1.76 |
@@ -113,6 +114,10 @@ S-CONFIG-MULTI-TENANT-OVERRIDE-001 (per-org overlays), S-DEMO-001 (per-org adapt
 ---
 
 ### 2. What Just Completed
+
+**D-1081 Zero-Context Resume Durability Hardening (user-directed, 2026-06-09)**
+
+Fixed stale `sprint-state.yaml` `current_story` pointer (was null/"Phase C complete, needs human direction" — predated the multi-client SOC demo arc) to: `story_id: S-DEMO-DTU-LIVE-SCENARIO-001-A`, `delivery_step: not-started`, `spec_version: "1.1"`, `resume_at` pointing to the 12-gate TDD delivery. Updated `prereq_artifacts` stale version refs (STORY-INDEX v2.329→v2.332, BC-INDEX v6.00→v6.05, STATE v7.722→v7.732). Refreshed `SESSION-HANDOFF §RESUME SNAPSHOT` name from 2026-06-08-DURABILITY-HARDENING-D1065 to `2026-06-09-STORY-A-DELIVERY-READY-D1081` (fully self-contained, current). Corrected `§7 Resume Protocol Checklist` expected values: STATE v7.732, ledger T4-A VALIDATED + DELIVERY-READY, develop 64d34967, sprint-state current_story = S-DEMO-DTU-LIVE-SCENARIO-001-A not-started. Fixed stale ARCH-INDEX/STORY-INDEX cites in §ACTIVE OBJECTIVE (v2.117/v2.331 → v2.118/v2.332). Coherence sweep confirmed STATE/SESSION-HANDOFF/ledger/sprint-state all agree. No code/spec/BC/VP/story/count changes. STATE v7.731→v7.732.
 
 **D-1080 Story A Re-Validation Burst — ADR-036 v2.1 + Story A v1.1 VALIDATED + DRIFT-SLUG-FORMAT-BC34004-001 (2026-06-09)**
 
@@ -221,11 +226,11 @@ Per-story delivery follows the canonical 12-gate sequence (per orchestrator per-
 12. Worktree cleanup + state-manager post-merge burst (POL-14 BC promotions + sprint-state.yaml update)
 
 **Active story pointer:**
-- **No story in-flight.** Wave 5 Phase C COMPLETE. T4-A VALIDATED + DELIVERY-READY (D-1080). North-star next action: 12-gate per-story TDD delivery of Story A (S-DEMO-DTU-LIVE-SCENARIO-001-A v1.1; remove-uncertainty COMPLETE).
+- **Story A (S-DEMO-DTU-LIVE-SCENARIO-001-A) — DELIVERY-READY, not yet in-flight.** `sprint-state.yaml current_story.story_id = S-DEMO-DTU-LIVE-SCENARIO-001-A`, `delivery_step = not-started`. Wave 5 Phase C COMPLETE. T4-A VALIDATED (D-1080; ADR-036 v2.1; v1.1). North-star next action: 12-gate per-story TDD delivery of Story A.
 
 **Mid-cascade restart note:** If a fresh session finds an in-flight worktree/branch/open-PR for a story, cross-reference `sprint-state.yaml` `current_story.delivery_step` + `gh pr list` + `.worktrees/` to determine the exact resume step before dispatching.
 
-> **Previous snapshot (2026-06-08-DURABILITY-HARDENING-D1065; STATE v7.716) remains the base; this section updated in place for D-1071..D-1078 completion. Prior snapshots archived to `cycles/wave-5-e-demo-fidelity/session-handoff-archive.md`.**
+> **This snapshot is current as of D-1081 (2026-06-09 durability-hardening burst; STATE v7.732). Prior snapshots archived to `cycles/wave-5-e-demo-fidelity/session-handoff-archive.md`.**
 
 ---
 
@@ -302,7 +307,7 @@ git log --oneline develop | head -1
 
 # 3. Verify STATE.md version
 grep '^version:' .factory/STATE.md
-# Expected: version: "7.731"
+# Expected: version: "7.732"
 
 # 4. Verify no open PRs
 gh pr list --state open
@@ -315,15 +320,16 @@ git -C .factory rev-parse HEAD && git -C .factory rev-parse origin/factory-artif
 
 # 6. Read task ledger → CURRENT TASK
 cat .factory/objectives/multi-client-soc-demo-tasks.md | grep -A3 'CURRENT POINTER'
-# Expected: T4-A VALIDATED + DELIVERY-READY (D-1080) — ADR-036 v2.1; Story A v1.1; all corrections applied. 12-gate TDD NEXT.
+# Expected: T4-A VALIDATED + DELIVERY-READY (D-1080) — ADR-036 v2.1; Story A v1.1 ready; 12-gate TDD NEXT.
 
 # 7. Read this snapshot (you are here)
 # Confirm develop_head, STATE version, north-star next action
 
 # 8. Confirm active story + delivery step
 grep -A4 '^current_story:' .factory/stories/sprint-state.yaml
-# Expected: no story in-flight (Phase C COMPLETE)
-# (If delivery_step != not-started, check gh pr list + .worktrees/ to find resume point)
+# Expected: story_id: S-DEMO-DTU-LIVE-SCENARIO-001-A, delivery_step: not-started, spec_version: "1.1"
+# (delivery_step = not-started means spec-ready; gate 1 of 12 = vsdd-factory:worktree-manage create)
+# (If delivery_step is past not-started, check gh pr list + .worktrees/ to find exact resume point)
 ```
 
 ---

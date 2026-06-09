@@ -675,23 +675,24 @@ deferred_post_demo:
   # reclassification from permitted-divergence → required-fidelity; user directive no-scope-compromise).
 
 current_story:
-  story_id: null
-  delivery_step: none
-  spec_version: null
-  resume_at: "Wave 5 Phase C COMPLETE (D-1071 2026-06-09). All 4 lanes merged (PRs #177 #178 #179 #180). No story in-flight. Next phase: Phase 4 holdout evaluation OR Wave 6 scoping — requires human direction."
-  note: "S-DEMO-HARNESS-CLONE-PARITY-001 MERGED PR #180 develop@64d34967 (D-1071 2026-06-09). Phase C COMPLETE. BC-INDEX v6.00 active=235 draft=2 UNCHANGED."
+  story_id: S-DEMO-DTU-LIVE-SCENARIO-001-A
+  delivery_step: not-started
+  spec_version: "1.1"
+  resume_at: "Story A (S-DEMO-DTU-LIVE-SCENARIO-001-A) ready v1.1, validated, delivery-ready. Deliver via 12-gate per-story TDD (worktree → test-writer 14 Red Gate → implementer 8 crates → LOCAL 3-CLEAN → demo → PR → PR-LEVEL 3-CLEAN → merge → POL-14 BC-2.06.018 active). Multi-client SOC demo objective; ledger `.factory/objectives/multi-client-soc-demo-tasks.md` CURRENT POINTER=T4-A. Story B (001-B) follows after A merges. S-DEMO-MULTI-TENANT-DTU-001 v1.2 also deliverable (independent, T6 — after T4-A+T5)."
+  note: "D-1081 2026-06-09 durability-hardening burst. STATE D-1080 confirmed Story A validated (ADR-036 v2.1; remove-uncertainty COMPLETE). See SESSION-HANDOFF §ACTIVE OBJECTIVE + §RESUME SNAPSHOT + ledger T4-A for full delivery spec."
+  last_updated_at: "2026-06-09"
 
 prereq_artifacts:
-  story_index: .factory/stories/STORY-INDEX.md         # v2.329 after D-1071 burst (185 stories; STORY-INDEX v2.329 current)
-  bc_index: .factory/specs/behavioral-contracts/BC-INDEX.md  # BC-INDEX v6.00; active 235, draft 2 (BC-2.06.011 + BC-2.21.001)
-  state: .factory/STATE.md                              # v7.722 (D-1071 post-merge bookkeeping burst)
+  story_index: .factory/stories/STORY-INDEX.md         # v2.332 (STORY-INDEX v2.332 current; total_stories 188)
+  bc_index: .factory/specs/behavioral-contracts/BC-INDEX.md  # BC-INDEX v6.05; active 235, draft 6
+  state: .factory/STATE.md                              # v7.732 (D-1081 durability-hardening burst)
   governing_adr: .factory/specs/architecture/decisions/ADR-031-dtu-equals-true-dtu-fidelity-principle.md  # v1.2 (ADR-031 architect e57eb5b1 reclassified 3 divergences)
   governing_audit: .factory/proposals/POLLER-DTU-FIDELITY-AUDIT-2026-05-29.md  # v1.1
 
 provenance:
   authored_at: "2026-05-29"
   last_updated_at: "2026-06-09"
-  last_updated_by: "state-manager D-1071"
+  last_updated_by: "state-manager D-1081"
   authored_by: "state-manager D-850"
   rationale: >
     First creation of sprint-state.yaml on prism to satisfy vsdd-factory deliver-story skill
