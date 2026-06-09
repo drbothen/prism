@@ -1,16 +1,16 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.730"
+version: "7.731"
 status: current
 timestamp: 2026-06-09T07:00:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
 
-> **PRIORITY READ ORDER — D-1079 SUBSTRATE-RECONCILIATION BURST (ADR-036 v2.0 + BC-2.06.018/019/020 v1.1 + E-DEMO-004/005 + story split 001-A/001-B) + D-1078 DESIGN-ARTIFACTS + D-1076 T3 DONE + D-1071 PHASE-C COMPLETE. ZERO-CONTEXT RESUME SNAPSHOT.**
+> **PRIORITY READ ORDER — D-1080 STORY-A RE-VALIDATION BURST (ADR-036 v2.1 + Story A v1.1 VALIDATED + DRIFT-SLUG-FORMAT-BC34004-001) + D-1079 SUBSTRATE-RECONCILIATION + D-1078 DESIGN-ARTIFACTS + D-1071 PHASE-C COMPLETE. ZERO-CONTEXT RESUME SNAPSHOT.**
 > Read §ACTIVE OBJECTIVE (North Star) FIRST, then task ledger (`.factory/objectives/multi-client-soc-demo-tasks.md`), then STATE.md frontmatter + §RESUME SNAPSHOT before dispatching any agent.
-> develop HEAD `64d34967`. factory-artifacts PUSHED to origin after each burst (user-authorized D-1066). STATE v7.730.
+> develop HEAD `64d34967`. factory-artifacts PUSHED to origin after each burst (user-authorized D-1066). STATE v7.731.
 
 ---
 
@@ -99,11 +99,11 @@ S-CONFIG-MULTI-TENANT-OVERRIDE-001 (per-org overlays), S-DEMO-001 (per-org adapt
 | **Wave-5 Phase B** | **COMPLETE** — all 4 lanes + S-MAINT merged |
 | **Wave-5 Phase C** | **COMPLETE** — all 4 lanes merged (TRAILING-SLASH, SPEC-PROSE-FIX, PAGINATION-001, HARNESS-CLONE-PARITY-001) |
 | **develop HEAD** | `64d34967` |
-| **STATE version** | v7.730 |
+| **STATE version** | v7.731 |
 | **BC-INDEX version** | v6.05 |
-| **STORY-INDEX version** | v2.331 |
+| **STORY-INDEX version** | v2.332 |
 | **VP-INDEX version** | v1.76 |
-| **ARCH-INDEX version** | v2.117 |
+| **ARCH-INDEX version** | v2.118 |
 | **Active BCs** | 235 |
 | **Draft BCs** | 6 (BC-2.06.011 + BC-2.06.017 + BC-2.06.018 + BC-2.06.019 + BC-2.06.020 + BC-2.21.001) |
 | **Total stories** | 188 |
@@ -113,6 +113,10 @@ S-CONFIG-MULTI-TENANT-OVERRIDE-001 (per-org overlays), S-DEMO-001 (per-org adapt
 ---
 
 ### 2. What Just Completed
+
+**D-1080 Story A Re-Validation Burst — ADR-036 v2.1 + Story A v1.1 VALIDATED + DRIFT-SLUG-FORMAT-BC34004-001 (2026-06-09)**
+
+dclaude:remove-uncertainty on S-DEMO-DTU-LIVE-SCENARIO-001-A (v1.0) CONFIRMED SOUND — ADR-036 v2.0 substrate design is correct; no design flaw. Scan found 2 HIGH + 4 MED + notes, ALL mechanism/wiring: gen_seeded_rng vs 1-arg seeded_rng symbol; demo-server Cargo.toml needs uuid+prism-core+fixture-gen feature gates; Armis new_with_seed fallible (returns Result); CrowdStrike device-read fallback is load_host_ids()/load_host_details() not containment_store; non-exhaustive-violation crate needs prism-dtu-common(fixture-gen) dep; per-clone generate() signature divergence noted. ADR-036 v2.0→v2.1 (3 fixes: architect). Story A v1.0→v1.1 (all U-A-01..U-A-10 corrections: story-writer). DRIFT-SLUG-FORMAT-BC34004-001 registered (non-blocking: BC-3.4.004+BC-3.5.001 test-vector slug vs ADR-036 demo-server authority; optional PO maintenance reconciliation). Standing remove-uncertainty directive (D-1061) ROI re-confirmed. No code changes. ARCH-INDEX v2.117→v2.118. STORY-INDEX v2.331→v2.332. STATE v7.730→v7.731. D-1080.
 
 **D-1079 Substrate-Reconciliation Burst — ADR-036 v2.0 + BC-2.06.018/019/020 v1.1 + E-DEMO-004/005 + story split 001-A/001-B (2026-06-09)**
 
@@ -180,12 +184,12 @@ Wave 5 Phase C COMPLETE — all 4 lanes merged. F-P6-DEFER-001 + F-P10-LOW-001 C
 
 > **Wave 5 Phase C is COMPLETE. The pipeline now serves the ACTIVE OBJECTIVE: multi-client SOC-analyst live demo. See §ACTIVE OBJECTIVE above for full build sequence.**
 
-**NEXT CONCRETE ACTION (D-1079, T4-A — Story A delivery):**
-T4 RECONCILED+COMPLETE (D-1079). ADR-036 v2.0 substrate reconciliation complete (architect). BC-2.06.018/019/020 v1.1 (PO). error-taxonomy v1.64 (E-DEMO-004/005). Story split materialized: S-DEMO-DTU-LIVE-SCENARIO-001 SUPERSEDED → Story A (S-DEMO-DTU-LIVE-SCENARIO-001-A; 8pt; ready v1.0; BC-2.06.018) + Story B (S-DEMO-DTU-LIVE-SCENARIO-001-B; 7pt; draft v1.0; BC-2.06.019/020; depends_on A). **NEXT: dclaude:remove-uncertainty on Story A (standing directive D-1061), then 12-gate per-story delivery. Story B after Story A merges.**
+**NEXT CONCRETE ACTION (D-1080, T4-A — Story A 12-gate TDD delivery):**
+T4-A: S-DEMO-DTU-LIVE-SCENARIO-001-A VALIDATED + DELIVERY-READY (D-1080). dclaude:remove-uncertainty COMPLETE — ADR-036 v2.1; Story A v1.1; all corrections applied. **NEXT: deliver Story A via the 12-gate per-story TDD sequence (vsdd-factory:worktree-manage create → test-writer 14 Red Gate tests FAIL-first → implementer TDD across 8 crates → LOCAL adversary 3-CLEAN strict → demo-recorder → push → pr-manager PR → PR-LEVEL 3-CLEAN strict + pr-reviewer APPROVE + security CLEAR → CI green → squash-merge → state-manager post-merge POL-14 BC-2.06.018 draft→active). Story B after A merges.**
 
 | Priority | Story / Action | Status | Notes |
 |----------|---------------|--------|-------|
-| **P0 — NEXT (T4-A)** | Story A: S-DEMO-DTU-LIVE-SCENARIO-001-A (baseline seeding retrofit; 8pt; BC-2.06.018 v1.1) | T4 RECONCILED+COMPLETE — ready v1.0 (D-1079) | Run dclaude:remove-uncertainty FIRST (D-1061), then 12-gate delivery. Two-phase retrofit wires new_with_seed+generate() into demo-server serving path per ADR-036 v2.0. |
+| **P0 — NEXT (T4-A)** | Story A: S-DEMO-DTU-LIVE-SCENARIO-001-A (baseline seeding retrofit; 8pt; BC-2.06.018 v1.1) | VALIDATED + DELIVERY-READY — ready v1.1 (D-1080) | remove-uncertainty COMPLETE (D-1080); proceed directly to 12-gate TDD. ADR-036 v2.1; all U-A-01..U-A-10 corrections applied. |
 | P1 | Story B: S-DEMO-DTU-LIVE-SCENARIO-001-B (scenario progression + enrichment; 7pt; BC-2.06.019/020 v1.1) | draft v1.0 — blocked on Story A merge | Story-writer materializes full implementation spec after Story A merges; remove-uncertainty + 12-gate delivery. |
 | P1 | S-DEMO-004 — add depends_on + data-distinctness AC | draft P0 — needs architect/PO update | Add depends_on edge; decide AC-006 via real seeding |
 | P2 | S-DEMO-LAUNCHER-CONSOLIDATION-001 | draft stub | story-writer materialization + human review needed |
@@ -217,7 +221,7 @@ Per-story delivery follows the canonical 12-gate sequence (per orchestrator per-
 12. Worktree cleanup + state-manager post-merge burst (POL-14 BC promotions + sprint-state.yaml update)
 
 **Active story pointer:**
-- **No story in-flight.** Wave 5 Phase C COMPLETE. T4 RECONCILED+COMPLETE (D-1079). North-star next action: dclaude:remove-uncertainty on S-DEMO-DTU-LIVE-SCENARIO-001-A, then 12-gate per-story delivery of Story A (T4-A — NEXT UNBLOCKED DELIVERY).
+- **No story in-flight.** Wave 5 Phase C COMPLETE. T4-A VALIDATED + DELIVERY-READY (D-1080). North-star next action: 12-gate per-story TDD delivery of Story A (S-DEMO-DTU-LIVE-SCENARIO-001-A v1.1; remove-uncertainty COMPLETE).
 
 **Mid-cascade restart note:** If a fresh session finds an in-flight worktree/branch/open-PR for a story, cross-reference `sprint-state.yaml` `current_story.delivery_step` + `gh pr list` + `.worktrees/` to determine the exact resume step before dispatching.
 
@@ -298,7 +302,7 @@ git log --oneline develop | head -1
 
 # 3. Verify STATE.md version
 grep '^version:' .factory/STATE.md
-# Expected: version: "7.730"
+# Expected: version: "7.731"
 
 # 4. Verify no open PRs
 gh pr list --state open
@@ -311,7 +315,7 @@ git -C .factory rev-parse HEAD && git -C .factory rev-parse origin/factory-artif
 
 # 6. Read task ledger → CURRENT TASK
 cat .factory/objectives/multi-client-soc-demo-tasks.md | grep -A3 'CURRENT POINTER'
-# Expected: T4 RECONCILED+COMPLETE (D-1079) — ADR-036 v2.0; BC-2.06.018/019/020 v1.1; story split done. T4-A NEXT (Story A delivery).
+# Expected: T4-A VALIDATED + DELIVERY-READY (D-1080) — ADR-036 v2.1; Story A v1.1; all corrections applied. 12-gate TDD NEXT.
 
 # 7. Read this snapshot (you are here)
 # Confirm develop_head, STATE version, north-star next action

@@ -6,7 +6,7 @@ status: ACCEPTED
 date: 2026-06-09
 wave: 5
 phase: 3.demo
-version: "2.0"
+version: "2.1"
 authors: [architect]
 related_decisions: [D-1077]
 related_adrs: [ADR-009, ADR-011, ADR-002, ADR-031, ADR-028]
@@ -45,11 +45,11 @@ inputs:
 wiring_deferred_to: S-DEMO-DTU-LIVE-SCENARIO-001-A
 ---
 
-# ADR-036 v2.0: Deterministic Scenario-Progression Engine — Substrate-Corrected Design
+# ADR-036 v2.1: Deterministic Scenario-Progression Engine — Substrate-Corrected Design
 
 ## Status
 
-ACCEPTED 2026-06-09 (v1.0). Substrate-corrected 2026-06-09 (v2.0) per remove-uncertainty scan findings U-01 through U-09 (D-1077 follow-up). Governs the live-scenario story split (S-DEMO-DTU-LIVE-SCENARIO-001-A baseline retrofit and S-DEMO-DTU-LIVE-SCENARIO-001-B scenario progression). Extends ADR-009 (multi-tenant deterministic generator) with a temporal scenario-progression layer.
+ACCEPTED 2026-06-09 (v1.0). Substrate-corrected 2026-06-09 (v2.0) per remove-uncertainty scan findings U-01 through U-09 (D-1077 follow-up). Symbol/path/syntax corrections 2026-06-09 (v2.1) per Story-A re-validation scan U-A-01, U-A-04, U-A-07. Governs the live-scenario story split (S-DEMO-DTU-LIVE-SCENARIO-001-A baseline retrofit and S-DEMO-DTU-LIVE-SCENARIO-001-B scenario progression). Extends ADR-009 (multi-tenant deterministic generator) with a temporal scenario-progression layer.
 
 ---
 
@@ -242,8 +242,9 @@ pub fn org_slug_from_org_id(org_id: &OrgId) -> String {
 
 **Catalog derivation from `(seed, org_id)`:**
 
-- IOC IPs, domains, hashes, and CVE IDs are derived from `seeded_rng(seed.wrapping_add(1), &org_id)`
-  (secondary RNG stream, independent of primary generator stream).
+- IOC IPs, domains, hashes, and CVE IDs are derived from `gen_seeded_rng(seed.wrapping_add(1), &org_id)`
+  (secondary RNG stream, independent of primary generator stream; `gen_seeded_rng` is the
+  two-arg re-export in `prism-dtu-common::lib` — distinct from the one-arg legacy `seeded_rng`).
 - CVE IDs formatted as `"CVE-{year}-{n}"` where year and n are derived from the secondary RNG.
 
 #### `IncidentTimeline`
@@ -318,7 +319,7 @@ two-phase retrofit:
 **Phase A (Story A — BC-2.06.018 baseline retrofit):** Wire the generators into the
 demo-server clone serving path. Each generator-backed clone gains a `new_with_seed`
 constructor that:
-1. Calls `generate(org_id, [org_slug,] archetype, &GenOpts { seed, .. })` to produce
+1. Calls `generate(org_id, [org_slug,] archetype, &GenOpts { seed, ..GenOpts::default() })` to produce
    a `FixtureSet`.
 2. Stores the generated records in a new field `generated_records: Vec<serde_json::Value>`
    in the state struct (alongside the existing static-JSON fixture fields).
@@ -344,11 +345,13 @@ Phase B timeline attachment.
   `generated_detections: Vec<serde_json::Value>` (from FixtureSet, filtered by
   `_record_type`).
 - New constructor `CrowdstrikeClone::new_with_seed(seed: u64, org_id: OrgId)` calls
-  `generate(org_id, Archetype::CompromisedEndpoint, GenOpts { seed, .. })` under
+  `generate(org_id, Archetype::CompromisedEndpoint, GenOpts { seed, ..GenOpts::default() })` under
   `#[cfg(feature = "fixture-gen")]`.
 - Route `routes/hosts.rs` and `routes/detections.rs` serve `generated_devices` /
-  `generated_detections` when non-empty; fall back to stateful-write-target path
-  (existing behavior) when empty.
+  `generated_detections` when non-empty; fall back to the static device-read path
+  (`load_host_ids()` / `load_host_details()` in `routes/hosts.rs`) when empty.
+  (The `containment_store` / `detection_status_store` are write-target overlays for
+  containment/detection mutations — they are NOT the device-read fallback.)
 - `fixture-gen` feature already declared in `Cargo.toml` (`fixture-gen = ["prism-dtu-common/fixture-gen"]`).
 - `chrono` already a direct dependency.
 - Org_slug for ID generation: `org_slug_from_org_id(&org_id)` (8 hex chars from UUID bytes).
@@ -358,7 +361,7 @@ Phase B timeline attachment.
   existing `devices_ordered: Vec<DeviceRecord>` and `alert_fixture: Vec<AlertRecord>`.
 - New constructor `ArmisClone::new_with_seed(seed: u64, org_id: OrgId, org_slug: &str)`.
   Under `#[cfg(feature = "fixture-gen")]`, calls
-  `generate(org_id, org_slug, Archetype::CompromisedEndpoint, &GenOpts { seed, .. })`.
+  `generate(org_id, org_slug, Archetype::CompromisedEndpoint, &GenOpts { seed, ..GenOpts::default() })`.
   Stores FixtureSet records in `generated_records`.
 - Route `routes/devices.rs` `paginate_devices` serves from `generated_records` when
   non-empty, deserialized as `DeviceRecord`; falls back to `devices_ordered`.
@@ -731,3 +734,4 @@ superseded in its frontmatter.
 |---------|------|--------|--------|
 | 1.0 | 2026-06-09 | architect | Initial authoring. Decision D-1077. |
 | 2.0 | 2026-06-09 | architect | Substrate-corrected. U-01: clones serve static JSON, generators not in serving path. U-02: CloneConfig.seed never forwarded; baseline seeding unimplemented. U-03: org_slug is 8-hex-from-UUID not arbitrary string; corrected ID format. U-05: NvdClone::new() is fallible; cve_registry is immutable HashMap; no lookup() method; corrected CVSS path. U-06: DemoConfig has no org_id field; added required new field. U-07/U-08: threatintel/nvd have no fixture-gen feature; added Cargo requirements; perimeter confirmed safe. U-09: pinned stage_duration_secs as 4-entry array for 5-stage timeline. Story split authorized and specified. |
+| 2.1 | 2026-06-09 | architect | Symbol/path/syntax corrections from Story-A re-validation scan. U-A-01: catalog derivation call site corrected from `seeded_rng` to `gen_seeded_rng` (two-arg re-export alias in prism-dtu-common::lib; avoids collision with one-arg legacy seeded_rng). U-A-04: CrowdStrike device-read fallback corrected from "stateful-write-target path (containment_store/detection_status_store)" to `load_host_ids()/load_host_details()` (static JSON helpers in routes/hosts.rs); containment_store/detection_status_store are write-target overlays only. U-A-07: GenOpts struct-literal corrected from bare `..` to `..GenOpts::default()` in all three Phase A call sites (§2.3 Phase A description and per-clone CrowdStrike + Armis constructor notes). No design change. |

@@ -6,12 +6,12 @@ wave: 5
 epic_id: E-DEMO
 priority: P2
 status: ready
-version: "1.0"
+version: "1.1"
 level: "L4"
 producer: story-writer
 timestamp: "2026-06-09T00:00:00Z"
 created: "2026-06-09"
-modified: "2026-06-09T00:00:00Z"
+modified: "2026-06-09T12:00:00Z"
 tdd_mode: strict
 subsystems: [SS-01]
 # Subsystem anchor justifications:
@@ -68,7 +68,8 @@ risk_mitigations:
   - "reqwest::Client timeout: any new HTTP client in integration tests uses .timeout(Duration::from_secs(30)) per CLAUDE.md conventions."
   - "#[non_exhaustive] EXPECTED bump: implementer must read the current EXPECTED=N value in ci.yml, count new #[non_exhaustive] pub types added (ScenarioEntityCatalog = 1), and increment EXPECTED atomically. ScenarioEntityCatalog is the only new public #[non_exhaustive] type in this story; IncidentTimeline/IncidentStage/StageMask are Story B scope."
   - "INV-PERIMETER-001: fixture-gen feature additions to prism-dtu-threatintel and prism-dtu-nvd Cargo.toml must only add prism-dtu-common/fixture-gen as transitive dep. No prism-spec-engine/prism-sensors/prism-query dependency may be introduced. Verified by existing compile-fail gate."
-  - "seeded_rng signature: seeded_rng(seed: u64, org_id: &OrgId) takes &OrgId ([u8;16]), NOT &str. CrowdStrike generator derives org_slug internally; Armis generator takes org_slug: &str as explicit argument; pass catalog.org_slug."
+  - "gen_seeded_rng signature: use `gen_seeded_rng(seed: u64, org_id: &OrgId)` (2-arg XOR-formula function, re-exported from prism-dtu-common lib.rs; Cyberint already imports it). The bare 1-arg `seeded_rng` is a legacy helper — do NOT use it. Takes &OrgId ([u8;16]), NOT &str. CrowdStrike generator derives org_slug internally; Armis generator takes org_slug: &str as explicit argument; pass catalog.org_slug."
+  - "ArmisClone::new_with_seed fallibility: ArmisClone::new() is already fallible (crates/prism-dtu-armis/src/clone.rs:58); new_with_seed must also return anyhow::Result<Self>. build_clone_pairs propagates the error via ? consistently with Cyberint."
 traces_to: [D-1077, ADR-036]
 supersedes: []
 ---
@@ -118,7 +119,7 @@ then it produces a `ScenarioEntityCatalog` with:
 - `org_slug = hex(org_id.as_bytes()[0..4])` — 8 lowercase hex chars (e.g., `"deadbeef"` for org bytes `[0xde, 0xad, 0xbe, 0xef, ...]`)
 - `primary_device_id_cs = "dev-{org_slug}-{seed}-0"` (e.g., `"dev-deadbeef-42-0"`)
 - `primary_device_id_armis = "dev-{org_slug}-{seed}-0"` (same formula; Armis generator receives org_slug as `&str` arg)
-- non-empty `ioc_ips`, `ioc_domains`, `ioc_hashes`, `device_cves` derived via `seeded_rng(seed.wrapping_add(1), org_id)` (secondary RNG stream, independent of primary stream)
+- non-empty `ioc_ips`, `ioc_domains`, `ioc_hashes`, `device_cves` derived via `gen_seeded_rng(seed.wrapping_add(1), &org_id)` (secondary RNG stream, independent of primary stream; `gen_seeded_rng` is the 2-arg XOR-formula function re-exported from `prism-dtu-common::rng` — takes `(u64, &OrgId)`, NOT the 1-arg legacy `seeded_rng`)
 
 Red Gate: `test_BC_2_06_018_scenario_catalog_secondary_rng_and_canonical_ids`
 
@@ -142,13 +143,14 @@ and these IDs are different from those of a clone seeded with `seed = 200`.
 
 Red Gate: `test_BC_2_06_018_crowdstrike_new_with_seed_forwarded`
 
-### AC-004 — new_with_seed forwarded to Armis clone with org_slug explicit arg
+### AC-004 — new_with_seed forwarded to Armis clone with org_slug explicit arg (fallible)
 (traces to BC-2.06.018 postcondition 1 and ADR-036 §2.3 Armis retrofit)
 
 Given `demo.toml` with `clones.armis.seed = 100`, `clones.armis.org_id = "<uuid>"`,
 when `build_clone_pairs` runs,
-then `ArmisClone::new_with_seed(100, org_id, org_slug)` is called where `org_slug = org_slug_from_org_id(&org_id)`;
-and the resulting `/api/v1/devices` responses contain device records with IDs in `"dev-{org_slug}-100-{n}"` format.
+then `ArmisClone::new_with_seed(100, org_id, org_slug) -> anyhow::Result<Self>` is called where `org_slug = org_slug_from_org_id(&org_id)` (mirrors `ArmisClone::new()` which is fallible per `crates/prism-dtu-armis/src/clone.rs:58`);
+and the resulting `/api/v1/devices` responses contain device records with IDs in `"dev-{org_slug}-100-{n}"` format;
+and a construction error propagates through `build_clone_pairs`'s `anyhow::Result<Vec<ClonePair>>` return via `?`.
 
 Red Gate: `test_BC_2_06_018_armis_new_with_seed_with_org_slug_arg`
 
@@ -168,7 +170,8 @@ Red Gate: `test_BC_2_06_018_distinct_seeds_disjoint_ids`
 Given `CloneConfig.seed = 42` (default) and `CloneConfig.fixture_set = "default"` (default) for all clones,
 when both the legacy `CloneType::new()` path (no seed, no org_id) and the new `new_with_seed(42, HealthyOtEnvironment, default_org)` path are exercised,
 then all existing integration tests that passed against the pre-seeding constructor continue to pass without modification;
-and a clone constructed with `new()` (absent `org_id`) uses the static-JSON fallback path byte-identically to pre-Story-A behavior.
+and a clone constructed with `new()` (absent `org_id`) uses the static-JSON fallback path byte-identically to pre-Story-A behavior;
+and for `ArmisClone`, the fallible `new_with_seed(...) -> anyhow::Result<Self>` must not regress the existing fallible `new() -> anyhow::Result<Self>` behavior (both propagate errors consistently via `?` in `build_clone_pairs`).
 
 Red Gate: `test_BC_2_06_018_backward_compat_seed42_default`
 
@@ -242,6 +245,7 @@ Red Gate: `test_BC_2_06_018_perimeter_compile_fail_gate_passes_after_feature_add
 Given `ScenarioEntityCatalog` is a new public `#[non_exhaustive]` type in `prism-dtu-common/src/scenario/`,
 when the implementer runs the non-exhaustive compile-fail gate (`tests/external/non-exhaustive-violation/`),
 then `EXPECTED` in `ci.yml` is incremented by the exact count of new `#[non_exhaustive]` pub types added in this story (at minimum 1: `ScenarioEntityCatalog`; implementer must verify by running the gate and reading the violation count);
+and `tests/external/non-exhaustive-violation/Cargo.toml` adds `prism-dtu-common = { path = "../../../crates/prism-dtu-common", features = ["fixture-gen"] }` under `[dependencies]` (the violation crate currently has no prism-dtu-* dependency; this dep addition is required for the `ScenarioEntityCatalog` import row to resolve);
 and the non-exhaustive-violation crate includes an import row for `prism-dtu-common::scenario::ScenarioEntityCatalog`.
 
 Red Gate: (compile-fail gate output — implementer verifies EXPECTED count matches actual violations before committing)
@@ -306,7 +310,7 @@ Implementation checklist (TDD order — write failing tests before each implemen
 - [ ] Create `crates/prism-dtu-common/src/scenario/mod.rs` (behind `#[cfg(feature = "fixture-gen")]`)
 - [ ] Define `ScenarioEntityCatalog` (`#[non_exhaustive]`, `#[derive(Clone, Debug)]`) with all fields per ADR-036 §2.2
 - [ ] Implement `org_slug_from_org_id(org_id: &OrgId) -> String` — formula: `hex(org_id.as_bytes()[0..4])`
-- [ ] Implement `build_scenario_entity_catalog(seed: u64, org_id: &OrgId) -> ScenarioEntityCatalog` using `seeded_rng(seed.wrapping_add(1), org_id)` (secondary RNG stream; completely separate `ChaCha20Rng` instance from primary)
+- [ ] Implement `build_scenario_entity_catalog(seed: u64, org_id: &OrgId) -> ScenarioEntityCatalog` using `gen_seeded_rng(seed.wrapping_add(1), &org_id)` (secondary RNG stream; completely separate `ChaCha20Rng` instance from primary; `gen_seeded_rng` is the 2-arg XOR-formula function re-exported from `prism-dtu-common::rng`, NOT the 1-arg legacy `seeded_rng`)
 - [ ] Export `scenario` module from `prism-dtu-common/src/lib.rs` (under `#[cfg(feature = "fixture-gen")]`)
 - [ ] Write unit tests 1-2 (FAIL first): catalog secondary RNG + canonical IDs, org_slug format
 
@@ -321,13 +325,14 @@ Implementation checklist (TDD order — write failing tests before each implemen
 
 - [ ] Read CrowdStrike `state.rs`, `clone.rs`, `generator.rs` before editing
 - [ ] Add `generated_devices: Vec<serde_json::Value>` and `generated_detections: Vec<serde_json::Value>` to `CrowdstrikeState`
-- [ ] Add `CrowdstrikeClone::new_with_seed(seed: u64, org_id: OrgId) -> Self` under `#[cfg(feature = "fixture-gen")]`: calls `generate(org_id, Archetype::CompromisedEndpoint, GenOpts { seed, .. })`, stores records in `generated_devices` / `generated_detections` by `_record_type` filter
-- [ ] Modify `routes/hosts.rs` + `routes/detections.rs`: serve `generated_devices` / `generated_detections` when non-empty; fall back to stateful-write-target path (existing behavior) when empty
+- [ ] Add `CrowdstrikeClone::new_with_seed(seed: u64, org_id: OrgId) -> Self` under `#[cfg(feature = "fixture-gen")]`: calls `generate(org_id, Archetype::CompromisedEndpoint, GenOpts { seed, ..GenOpts::default() })` (use `..GenOpts::default()` — NOT bare `..`; GenOpts has 4 fields and is not `#[non_exhaustive]`, so bare `..` is a syntax error), stores records in `generated_devices` / `generated_detections` by `_record_type` filter
+- [ ] Modify `routes/hosts.rs`: serve `generated_devices` when non-empty; fall back to `load_host_ids()` / `load_host_details()` (static embedded JSON in routes/hosts.rs — the READ fallback, NOT `containment_store` which is a write-target overlay) when `generated_devices` is empty
+- [ ] Modify `routes/detections.rs`: serve `generated_detections` when non-empty; fall back to the existing static detection path when `generated_detections` is empty
 - [ ] Write unit test 3 (FAIL first): CrowdStrike new_with_seed forwarded
 
 - [ ] Read Armis `state.rs`, `clone.rs`, `generator.rs` before editing
 - [ ] Add `generated_records: Vec<serde_json::Value>` to `ArmisState` (alongside existing `devices_ordered`, `alert_fixture`)
-- [ ] Add `ArmisClone::new_with_seed(seed: u64, org_id: OrgId, org_slug: &str) -> Self` under `#[cfg(feature = "fixture-gen")]`: calls `generate(org_id, org_slug, Archetype::CompromisedEndpoint, &GenOpts { seed, .. })`, stores FixtureSet records in `generated_records`
+- [ ] Add `ArmisClone::new_with_seed(seed: u64, org_id: OrgId, org_slug: &str) -> anyhow::Result<Self>` under `#[cfg(feature = "fixture-gen")]` (fallible — mirrors existing `new() -> anyhow::Result<Self>`; `build_clone_pairs` uses `?` to propagate): calls `generate(org_id, org_slug, Archetype::CompromisedEndpoint, &GenOpts { seed, ..GenOpts::default() })` (Armis takes org_id BY VALUE as `OrgId`, org_slug as `&str`, opts BY REF as `&GenOpts`), stores FixtureSet records in `generated_records`
 - [ ] Modify `routes/devices.rs` `paginate_devices`: serve from `generated_records` (deserialized as `DeviceRecord`) when non-empty; fall back to `devices_ordered` when empty
 - [ ] Write unit test 4 (FAIL first): Armis new_with_seed with org_slug
 
@@ -345,6 +350,7 @@ Implementation checklist (TDD order — write failing tests before each implemen
 
 **Phase 4: build_clone_pairs coordination**
 
+- [ ] Read `crates/prism-dtu-demo-server/Cargo.toml` fully before editing; add `uuid`, `prism-core` deps if absent; add `fixture-gen` feature fanning out to `prism-dtu-{crowdstrike,armis,claroty,cyberint}/fixture-gen` + `prism-dtu-common/fixture-gen` (without this feature the `new_with_seed` constructors are not visible to harness.rs at compile time)
 - [ ] Read `crates/prism-dtu-demo-server/src/harness.rs` fully before editing
 - [ ] Add E-DEMO-004 guard: if any clone has `fixture_set` mapped to a non-`HealthyOtEnvironment` archetype AND `org_id` is `None`, return `E-DEMO-004` before any constructor is called
 - [ ] Add E-DEMO-005 guard: parse `org_id` string with `uuid::Uuid::parse_str()`; on error, return `E-DEMO-005`
@@ -357,6 +363,7 @@ Implementation checklist (TDD order — write failing tests before each implemen
 - [ ] Add `fixture-gen = ["prism-dtu-common/fixture-gen"]` to `crates/prism-dtu-threatintel/Cargo.toml` (prism-dtu-demo-server feature gate will activate this)
 - [ ] Add `fixture-gen = ["prism-dtu-common/fixture-gen"]` to `crates/prism-dtu-nvd/Cargo.toml`
 - [ ] Run compile-fail gate: `cargo test -p tests-external-perimeter-violation` — must pass with zero new violations
+- [ ] Read `tests/external/non-exhaustive-violation/Cargo.toml` before editing; add `prism-dtu-common = { path = "../../../crates/prism-dtu-common", features = ["fixture-gen"] }` under `[dependencies]` (the crate currently imports no prism-dtu-* types; this dep is required before the ScenarioEntityCatalog import row can compile and the violation count can be measured)
 - [ ] Run non-exhaustive gate; count new `#[non_exhaustive]` pub types (expected: at minimum `ScenarioEntityCatalog` = 1; implementer reads actual output); update `EXPECTED=N` in `ci.yml` by the exact count; add violation row(s) to `tests/external/non-exhaustive-violation/` for each new type
 - [ ] Write compile-fail tests 13-14
 
@@ -380,7 +387,7 @@ This is Story A of the E-DEMO live-scenario split. No direct predecessor in the 
 - `ArmisClone::new()` loads `fixtures/devices.json`, `fixtures/device-activity.json`, and `fixtures/alerts.json` into immutable `Vec<DeviceRecord>` / `Vec<AlertRecord>`. Generator not in serving path. Story A adds `generated_records: Vec<serde_json::Value>` and a new constructor that calls the generator.
 - `CloneConfig.seed` is declared in `config.rs` (default `42`) but is **never read** in `build_clone_pairs()`. This is the primary gap this story closes.
 - `DemoConfig`/`CloneConfig` have no `org_id` field today. This story adds it.
-- `seeded_rng(seed, org_id: &OrgId)` takes `&OrgId` — NOT `&str`. This is a [u8;16]-backed UUID.
+- `gen_seeded_rng(seed: u64, org_id: &OrgId)` is the 2-arg XOR-formula function re-exported from `prism-dtu-common::rng` (Cyberint already imports it). Takes `&OrgId` — NOT `&str`. The bare 1-arg `seeded_rng` is a legacy helper; use `gen_seeded_rng` exclusively in this story.
 - CrowdStrike generator's `org_slug(org_id: &OrgId) -> String` produces the same formula as `org_slug_from_org_id`. They must agree: `hex(org_id.as_bytes()[0..4])`.
 - Armis generator takes `org_slug: &str` as an explicit argument. The catalog derives it and passes it.
 
@@ -389,6 +396,20 @@ This is Story A of the E-DEMO live-scenario split. No direct predecessor in the 
 - `reqwest::Client` in any new integration test must use `.timeout(Duration::from_secs(30))` per CLAUDE.md conventions.
 - SAP-1: grep `event_type\s*=` after implementation and add BC-2.16.002 catalog rows for any new `event_type` emissions before committing.
 - `build_clone_pairs` returns `anyhow::Result<Vec<ClonePair>>`; use `anyhow::bail!` for E-DEMO-004/005 errors (consistent with E-DEMO-001 pattern).
+
+**Implementer notes — per-clone generate() signature divergence (U-A-08):**
+The four generator-backed clones have DIVERGING `generate()` signatures — verify each before calling:
+- **Armis:** `generate(org_id: OrgId, org_slug: &str, archetype: Archetype, opts: &GenOpts)` — org_id BY VALUE, org_slug explicit `&str`, opts BY REF
+- **CrowdStrike:** `generate(org_id: OrgId, archetype: Archetype, opts: GenOpts)` — org_id BY VALUE, opts BY VALUE (not ref), org_slug derived internally
+- **Claroty/Cyberint:** `generate(org_id: &OrgId, archetype: Archetype, opts: &GenOpts)` — org_id BY REF, opts BY REF, org_slug derived internally
+All four return `FixtureSet { records: Vec<serde_json::Value>, .. }` so `generated_records: Vec<serde_json::Value>` works for all.
+For CrowdStrike: verify whether `FixtureSet` records carry a `_record_type` discriminator before splitting `generated_devices` vs `generated_detections` — read `crates/prism-dtu-crowdstrike/src/generator.rs` and the FixtureSet struct before writing the split logic.
+
+**Implementer notes — OrgId byte access (U-A-09):**
+Mirror the exact form already used in existing generators. Read `crates/prism-dtu-crowdstrike/src/generator.rs` `org_slug()` method — it likely accesses `org_id.as_uuid().as_bytes()` or a method defined elsewhere in prism-core. Do not invent a byte-access API; copy the canonical form already in use.
+
+**Implementer notes — Story A fixture-gen scope (U-A-10):**
+Story A adds the `fixture-gen` feature to `prism-dtu-threatintel` and `prism-dtu-nvd` Cargo.toml, but NO Story-A code consumes `ScenarioEntityCatalog` from those crates (Story B does). Do NOT add a premature `use prism_dtu_common::scenario::ScenarioEntityCatalog` import in threatintel or nvd source files — an unused import is a clippy `-D warnings` error. The feature addition with no `#[cfg(feature = "fixture-gen")]` consumer in the source is inert and compiles cleanly.
 
 ---
 
@@ -406,6 +427,7 @@ This is Story A of the E-DEMO live-scenario split. No direct predecessor in the 
 | All tracing emission sites with `event_type =` must have BC-2.16.002 catalog rows | SAP-1 / CLAUDE.md §SAP-1 | Adversary SAP-1 probe |
 | `await_holding_lock = "deny"` (ADR-002 §H1): no `.await` inside a Mutex lock guard | ADR-002 | clippy deny list |
 | Forbidden pattern: `Arc::new(SomeThing::placeholder())` in production boot path | ADR-022 §C, CLAUDE.md | Adversary |
+| **Demo-server slug authority:** For cross-DTU coherence the canonical slug is ADR-036 §2.2 `hex(org_id.as_bytes()[0..4])` (8-hex chars). The `org_slug = "acme-corp"` test vectors in BC-3.4.004 / BC-3.5.001 are standalone-generator / harness illustrations (Armis's injected-slug path) and do NOT govern demo-server seeding. INV-DISTINCT-DATA-001 assertions MUST use the 8-hex form derived from a real org UUID — not `"acme-corp"` or any hardcoded slug string. Tests using `"dev-acme-..."` IDs are incorrect for this story. | ADR-036 §2.2 | Adversary + Test 1 |
 
 ---
 
@@ -420,9 +442,10 @@ Do NOT invent version numbers from training data.
 | `tokio` | `1` (multi-threaded runtime) | Async runtime per ADR-002 / AD-013 |
 | `chrono` | project-pinned | Already present in prism-dtu-armis and prism-dtu-crowdstrike; NOT added to prism-dtu-threatintel/nvd for this story (no chrono usage needed in Story A enrichment crates) |
 | `serde` / `serde_json` | project-pinned | `CloneConfig` / `ScenarioConfig` TOML deserialization; `generated_records: Vec<serde_json::Value>` |
-| `rand_chacha` (`ChaCha20Rng`) | project-pinned | `seeded_rng(seed, org_id)` secondary RNG stream in `build_scenario_entity_catalog` |
+| `rand_chacha` (`ChaCha20Rng`) | project-pinned | `gen_seeded_rng(seed, &org_id)` secondary RNG stream in `build_scenario_entity_catalog` |
 | `anyhow` | project-pinned | Error propagation in `build_clone_pairs` for E-DEMO-004 / E-DEMO-005 |
-| `uuid` | project-pinned | `uuid::Uuid::parse_str()` for parsing `org_id` string to UUID bytes → `OrgId` |
+| `uuid` | project-pinned | `uuid::Uuid::parse_str()` for parsing `org_id` string to UUID bytes → `OrgId`; **prism-dtu-demo-server Cargo.toml must declare `uuid` as a dependency** (add under `[dependencies]` if not already present) |
+| `prism-core` | workspace path | `prism_core::auth::OrgId` type; **prism-dtu-demo-server Cargo.toml must declare `prism-core` as a dependency** (add under `[dependencies]` if not already present) |
 | `reqwest` | project-pinned | Integration test HTTP client; `.timeout(Duration::from_secs(30))` mandatory per CLAUDE.md |
 
 **Forbidden versions / patterns:**
@@ -438,14 +461,15 @@ Do NOT invent version numbers from training data.
 |------|--------|---------|
 | `crates/prism-dtu-common/src/scenario/mod.rs` | CREATE | `ScenarioEntityCatalog`, `org_slug_from_org_id`, `build_scenario_entity_catalog`; gated `#[cfg(feature = "fixture-gen")]` |
 | `crates/prism-dtu-common/src/lib.rs` | MODIFY | Add `pub mod scenario;` under `#[cfg(feature = "fixture-gen")]` |
+| `crates/prism-dtu-demo-server/Cargo.toml` | MODIFY | (1) Add `uuid = { workspace = true }` under `[dependencies]` if absent; (2) Add `prism-core = { path = "../../crates/prism-core" }` (for `OrgId`) if absent; (3) Add `fixture-gen = ["prism-dtu-crowdstrike/fixture-gen", "prism-dtu-armis/fixture-gen", "prism-dtu-claroty/fixture-gen", "prism-dtu-cyberint/fixture-gen", "prism-dtu-common/fixture-gen"]` feature so `build_clone_pairs` can activate `new_with_seed` on all 4 generator-backed clones |
 | `crates/prism-dtu-demo-server/src/config.rs` | MODIFY | Add `org_id: Option<String>` + `scenario: Option<ScenarioConfig>` to `CloneConfig`; add `ScenarioConfig` struct |
 | `crates/prism-dtu-demo-server/src/harness.rs` | MODIFY | `build_clone_pairs`: E-DEMO-004/005 guards; derive OrgId from org_id string; forward seed + OrgId to `new_with_seed` for 4 generator-backed clones |
 | `crates/prism-dtu-crowdstrike/src/state.rs` | MODIFY | Add `generated_devices: Vec<serde_json::Value>`, `generated_detections: Vec<serde_json::Value>` |
 | `crates/prism-dtu-crowdstrike/src/clone.rs` | MODIFY | Add `new_with_seed(seed: u64, org_id: OrgId) -> Self` under `#[cfg(feature = "fixture-gen")]` |
-| `crates/prism-dtu-crowdstrike/src/routes/hosts.rs` | MODIFY | Dual-path: serve from `generated_devices` when non-empty; fall back to stateful-write-target path when empty |
+| `crates/prism-dtu-crowdstrike/src/routes/hosts.rs` | MODIFY | Dual-path: serve from `generated_devices` when non-empty; fall back to `load_host_ids()` / `load_host_details()` (static embedded JSON — the READ path) when empty. Do NOT fall back to `containment_store` / `detection_status_store` (write-target overlays, not READ sources) |
 | `crates/prism-dtu-crowdstrike/src/routes/detections.rs` | MODIFY | Dual-path: serve from `generated_detections` when non-empty |
 | `crates/prism-dtu-armis/src/state.rs` | MODIFY | Add `generated_records: Vec<serde_json::Value>` |
-| `crates/prism-dtu-armis/src/clone.rs` | MODIFY | Add `new_with_seed(seed: u64, org_id: OrgId, org_slug: &str) -> Self` under `#[cfg(feature = "fixture-gen")]` |
+| `crates/prism-dtu-armis/src/clone.rs` | MODIFY | Add `new_with_seed(seed: u64, org_id: OrgId, org_slug: &str) -> anyhow::Result<Self>` under `#[cfg(feature = "fixture-gen")]` (fallible — mirrors existing `new() -> anyhow::Result<Self>` per clone.rs:58) |
 | `crates/prism-dtu-armis/src/routes/devices.rs` | MODIFY | `paginate_devices`: dual-path — generated_records when non-empty, `devices_ordered` fallback |
 | `crates/prism-dtu-claroty/src/state.rs` | MODIFY | Add `generated_records: Vec<serde_json::Value>` |
 | `crates/prism-dtu-claroty/src/clone.rs` | MODIFY | Add `new_with_seed(seed: u64, org_id: OrgId) -> Self` under `#[cfg(feature = "fixture-gen")]` |
@@ -456,7 +480,8 @@ Do NOT invent version numbers from training data.
 | `crates/prism-dtu-threatintel/Cargo.toml` | MODIFY | Add `fixture-gen = ["prism-dtu-common/fixture-gen"]` feature (enables `ScenarioEntityCatalog` usage in Story B) |
 | `crates/prism-dtu-nvd/Cargo.toml` | MODIFY | Add `fixture-gen = ["prism-dtu-common/fixture-gen"]` feature (enables `ScenarioEntityCatalog` usage in Story B) |
 | `.github/workflows/ci.yml` | MODIFY | Bump `EXPECTED=N` by count of new `#[non_exhaustive]` pub types (at minimum +1: `ScenarioEntityCatalog`; exact count verified by implementer) |
-| `tests/external/non-exhaustive-violation/` | MODIFY | Add violation row(s) for new `#[non_exhaustive]` types in `prism-dtu-common::scenario` |
+| `tests/external/non-exhaustive-violation/Cargo.toml` | MODIFY | Add `prism-dtu-common = { path = "../../../crates/prism-dtu-common", features = ["fixture-gen"] }` under `[dependencies]` (required before ScenarioEntityCatalog import row can resolve; the crate currently declares no prism-dtu-* deps) |
+| `tests/external/non-exhaustive-violation/src/` | MODIFY | Add import/violation row(s) for new `#[non_exhaustive]` types in `prism-dtu-common::scenario` (at minimum `ScenarioEntityCatalog`) |
 
 **Forbidden new files:**
 - Do NOT create `crates/prism-dtu-scenario/` — scenario types belong in `prism-dtu-common/src/scenario/` per ADR-036 §3.4
@@ -473,7 +498,7 @@ Do NOT invent version numbers from training data.
 | EC-003 | BC-2.06.018 EC-018-003 | `fixture_set = "dormant"` for a generator-backed clone | `Archetype::DormantTenant` constructed; clone returns empty device/alert responses; no construction-time error |
 | EC-004 | BC-2.06.018 EC-018-004 | `fixture_set = "xyzzy_unknown"` for any clone | Construction-time E-DEMO-001; `build_clone_pairs` returns `Err`; harness aborts (AC-008) |
 | EC-005 | BC-2.06.018 EC-018-005 | `fixture_set = "large_scale"` for CrowdStrike clone | `Archetype::LargeScale` constructed; 10 000 device records generated at startup; no panic; startup time reasonable |
-| EC-006 | BC-2.06.018 EC-018-008 | `seed = u64::MAX` for a generator-backed clone | Valid; `seeded_rng(u64::MAX, org_id)` and `seeded_rng(0, org_id)` (wrapping secondary stream) both valid; no panic |
+| EC-006 | BC-2.06.018 EC-018-008 | `seed = u64::MAX` for a generator-backed clone | Valid; `gen_seeded_rng(u64::MAX, &org_id)` (primary) and `gen_seeded_rng(0, &org_id)` (secondary after `u64::MAX.wrapping_add(1)`) both valid; no panic |
 | EC-007 | BC-2.06.018 EC-018-009 | Process restart with same `demo.toml` | Byte-identical responses per BC-3.4.001 postcondition 6; determinism holds across restarts |
 | EC-008 | ADR-036 §1.3 | `org_id` present as valid UUID but generator produces no records | `generated_records` is `vec![]`; route handler falls back to static-JSON path; no panic; error only if the generator itself returns Err |
 | EC-009 | ADR-036 §2.3 | `new()` called (not `new_with_seed`) when `org_id = None` in config | Static-JSON path taken; backward-compatible; no error (E-DEMO-004 fires only when `new_with_seed` path is attempted) |
@@ -491,7 +516,7 @@ Do NOT invent version numbers from training data.
 | `ScenarioConfig` | `prism-dtu-demo-server/src/config.rs` | Pure (TOML deserialization struct) | ADR-036 §2.4 |
 | `build_clone_pairs` (seed-forwarding additions) | `prism-dtu-demo-server/src/harness.rs` | Effectful (constructs clones, reads config, calls generate) | BC-2.06.018 PC-1 |
 | `CrowdstrikeClone::new_with_seed` | `prism-dtu-crowdstrike/src/clone.rs` | Effectful (calls generate, stores records in state) | ADR-036 §2.3 |
-| `ArmisClone::new_with_seed` | `prism-dtu-armis/src/clone.rs` | Effectful (calls generate, stores records in state) | ADR-036 §2.3 |
+| `ArmisClone::new_with_seed` | `prism-dtu-armis/src/clone.rs` | Effectful (fallible — returns `anyhow::Result<Self>`; mirrors `ArmisClone::new()` at clone.rs:58; calls generate, stores records in state) | ADR-036 §2.3 |
 | `ClarotyClone::new_with_seed` | `prism-dtu-claroty/src/clone.rs` | Effectful (calls generate, stores records in state) | ADR-036 §2.3 |
 | `CyberintClone::new_with_seed` | `prism-dtu-cyberint/src/clone.rs` | Effectful (fallible; calls generate, stores records in state) | ADR-036 §2.3 |
 | Route handler dual-path logic (4 clones) | `prism-dtu-{armis,crowdstrike,claroty,cyberint}/src/routes/` | Effectful (HTTP handler checks non-empty generated_records) | ADR-036 §2.3 |
@@ -544,3 +569,4 @@ If NO new `event_type` emissions are added, state so explicitly in the PR descri
 | Version | Date | Change |
 |---------|------|--------|
 | v1.0 | 2026-06-09 | Initial authoring per ADR-036 v2.0 §8 story split (D-1077). Supersedes S-DEMO-DTU-LIVE-SCENARIO-001 for the BC-2.06.018 scope. |
+| v1.1 | 2026-06-09 | U-A-01: Replace `seeded_rng` with `gen_seeded_rng(seed.wrapping_add(1), &org_id)` (2-arg XOR-formula re-export) in AC-001, Tasks Phase 1, risk_mitigations, Library table. U-A-02: Add `crates/prism-dtu-demo-server/Cargo.toml` to File Structure (uuid+prism-core deps + fixture-gen feature) and Tasks Phase 4 (read-before-edit step). Add `prism-core` Library row. U-A-03: ArmisClone::new_with_seed returns `anyhow::Result<Self>` (mirrors clone.rs:58 fallibility) — updated AC-004, AC-006, File Structure (armis/clone.rs), Architecture Mapping, risk_mitigations. U-A-04: CrowdStrike READ fallback corrected from `containment_store` to `load_host_ids()`/`load_host_details()` in Tasks Phase 3 and File Structure. U-A-05: tests/external/non-exhaustive-violation/Cargo.toml dep addition (prism-dtu-common fixture-gen) added to AC-014, Tasks Phase 5, File Structure. U-A-06: Architecture Compliance rule added clarifying ADR-036 §2.2 8-hex slug authority vs BC-3.4.004/BC-3.5.001 standalone-generator test vectors. U-A-07: `GenOpts { seed, .. }` → `GenOpts { seed, ..GenOpts::default() }` in Tasks Phase 3 (both CrowdStrike and Armis). U-A-08/09/10: Per-clone generate() signature divergence, OrgId byte-access, and Story A fixture-gen scope (no premature unused import) added to Previous Story Intelligence. |
