@@ -19,6 +19,7 @@
 //!
 //! | Method | Path | Notes |
 //! |--------|------|-------|
+//! | GET    | /assets/v1/assets | Legacy asset list; no auth required |
 //! | POST   | /api/v1/devices | Device list; Bearer auth required |
 //! | POST   | /api/v1/alerts | Alert list; Bearer auth required |
 //! | POST   | /api/v1/alerts/:id/devices | Alerted devices; Bearer auth required |
@@ -30,6 +31,9 @@
 //! | POST   | /dtu/configure | Failure injection; X-Admin-Token required |
 //! | POST   | /dtu/reset | Clear state; no auth required |
 //! | GET    | /dtu/health | Liveness; no auth required |
+//! | POST   | /dtu/test-hook/panic | Crash detection: queue panic signal; no auth |
+//! | POST   | /dtu/test-hook/premature-ok | Crash detection: queue premature-ok signal; no auth |
+//! | POST   | /dtu/test-hook/non-string-panic | Crash detection: queue non-string-panic signal; no auth |
 //!
 //! ## Network-mode router (`network_router()`)
 //!
@@ -47,6 +51,9 @@
 //! | POST   | /dtu/configure | Failure injection; X-Admin-Token required |
 //! | POST   | /dtu/reset | Clear state; no auth required |
 //! | GET    | /dtu/health | Liveness; no auth required |
+//! | POST   | /dtu/test-hook/panic | Crash detection: queue panic signal; no auth |
+//! | POST   | /dtu/test-hook/premature-ok | Crash detection: queue premature-ok signal; no auth |
+//! | POST   | /dtu/test-hook/non-string-panic | Crash detection: queue non-string-panic signal; no auth |
 //!
 //! # Architecture Anchors
 //!
@@ -731,7 +738,7 @@ async fn remove_tag(
 
 /// `POST /api/v1/audit_log/get` — audit log endpoint.
 ///
-/// Mirrors `prism-dtu-claroty` standalone route per ADR-031 §D8-a
+/// Mirrors `prism-dtu-claroty` standalone route per ADR-031 §D8-b
 /// (INV-HARNESS-ROUTE-PARITY — S-DEMO-HARNESS-CLONE-PARITY-001 AC-003 / AC-004).
 ///
 /// Auth: any non-empty Bearer accepted; 401 on missing/empty Bearer (Claroty model).

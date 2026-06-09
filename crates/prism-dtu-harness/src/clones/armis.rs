@@ -30,6 +30,9 @@
 //! | POST   | /dtu/configure | Failure injection; X-Admin-Token required |
 //! | POST   | /dtu/reset | Clear mutable state; no auth required |
 //! | GET    | /dtu/health | Liveness; no auth required |
+//! | POST   | /dtu/test-hook/panic | Crash detection: queue panic signal; no auth |
+//! | POST   | /dtu/test-hook/premature-ok | Crash detection: queue premature-ok signal; no auth |
+//! | POST   | /dtu/test-hook/non-string-panic | Crash detection: queue non-string-panic signal; no auth |
 //!
 //! # Auth behaviour
 //!
