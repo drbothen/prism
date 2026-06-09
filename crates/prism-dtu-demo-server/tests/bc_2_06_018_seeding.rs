@@ -48,21 +48,104 @@ fn make_single_cs_config(seed: u64, org_id: Option<&str>, fixture_set: &str) -> 
 /// RG-5: test_BC_2_06_018_distinct_seeds_disjoint_ids
 ///
 /// Traces to: BC-2.06.018 INV-DISTINCT-DATA-001
-/// Given: Two demo clients with seed_A=100, org_A and seed_B=200, org_B (distinct seeds)
-/// When: Both clients' clones are constructed via build_clone_pairs and queried
+/// Given: Two demo clients with seed_A=100, org_A="deadbeef..." and seed_B=200, org_B="cafebabe..."
+/// When: Both CrowdstrikeClones are constructed via new_with_seed with distinct seeds
 /// Then: Device ID sets are pairwise-disjoint (ids_A ∩ ids_B = ∅)
 ///       Both ID sets follow canonical "dev-{8hex}-{seed}-{n}" format
+///
+/// LOAD-BEARING: directly inspects state.generated_devices from both clones and asserts
+/// true set-disjointness. A broken impl (both serving same static fixtures) FAILS here.
+/// The adversary-identified paper-test (asserting on string literal prefixes instead of
+/// actual data) has been replaced with real set-intersection logic.
 #[cfg(feature = "fixture-gen")]
 #[test]
 fn test_BC_2_06_018_distinct_seeds_disjoint_ids() {
+    use prism_dtu_common::OrgId;
+    use prism_dtu_crowdstrike::CrowdstrikeClone;
+
     // Test vectors per ADR-036 §2.2: derived from real UUIDs, NOT "acme-corp"
+    // DEMO_ORG_UUID_A: first 4 bytes [0xde, 0xad, 0xbe, 0xef] → slug = "deadbeef"
+    // DEMO_ORG_UUID_B: first 4 bytes [0xca, 0xfe, 0xba, 0xbe] → slug = "cafebabe"
+    let org_a: OrgId = OrgId([
+        0xde, 0xad, 0xbe, 0xef, 0x00, 0x00, 0x70, 0x00, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00,
+    ]);
+    let org_b: OrgId = OrgId([
+        0xca, 0xfe, 0xba, 0xbe, 0x00, 0x00, 0x70, 0x00, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00,
+    ]);
+
+    // Construct clones directly so we can inspect state (Box<dyn BehavioralClone> is opaque).
+    let clone_a = CrowdstrikeClone::new_with_seed(100, org_a);
+    let clone_b = CrowdstrikeClone::new_with_seed(200, org_b);
+
+    // Extract device IDs from both clones' generated_devices.
+    let ids_a: std::collections::HashSet<String> = clone_a
+        .state
+        .generated_devices
+        .iter()
+        .filter_map(|rec| {
+            rec.get("device_id")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_owned())
+        })
+        .collect();
+
+    let ids_b: std::collections::HashSet<String> = clone_b
+        .state
+        .generated_devices
+        .iter()
+        .filter_map(|rec| {
+            rec.get("device_id")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_owned())
+        })
+        .collect();
+
+    assert!(
+        !ids_a.is_empty(),
+        "INV-DISTINCT-DATA-001: clone_a (seed=100, org=deadbeef) must have non-empty \
+         generated_devices"
+    );
+    assert!(
+        !ids_b.is_empty(),
+        "INV-DISTINCT-DATA-001: clone_b (seed=200, org=cafebabe) must have non-empty \
+         generated_devices"
+    );
+
+    // CRITICAL: verify set-disjointness (ids_A ∩ ids_B = ∅).
+    let intersection: std::collections::HashSet<&String> = ids_a.intersection(&ids_b).collect();
+    assert!(
+        intersection.is_empty(),
+        "INV-DISTINCT-DATA-001 VIOLATED: device IDs from seed=100/deadbeef and seed=200/cafebabe \
+         must be disjoint; intersection={intersection:?} ({} IDs in common). \
+         Both sets use 'dev-{{org_slug}}-{{seed}}-{{n}}' format which guarantees uniqueness.",
+        intersection.len()
+    );
+
+    // Also verify canonical ID format: all ids_a start with "dev-deadbeef-100-".
+    let expected_a_prefix = "dev-deadbeef-100-";
+    for id in &ids_a {
+        assert!(
+            id.starts_with(expected_a_prefix),
+            "clone_a device_id '{id}' must start with '{expected_a_prefix}' (ADR-036 §2.2)"
+        );
+    }
+
+    // All ids_b start with "dev-cafebabe-200-".
+    let expected_b_prefix = "dev-cafebabe-200-";
+    for id in &ids_b {
+        assert!(
+            id.starts_with(expected_b_prefix),
+            "clone_b device_id '{id}' must start with '{expected_b_prefix}' (ADR-036 §2.2)"
+        );
+    }
+
+    // Integration-level smoke: build_clone_pairs also works with these configs.
     let config_a = make_single_cs_config(100, Some(DEMO_ORG_UUID_A), "default");
     let config_b = make_single_cs_config(200, Some(DEMO_ORG_UUID_B), "default");
-
     let pairs_a = build_clone_pairs(&config_a).expect("build_clone_pairs config_a must succeed");
     let pairs_b = build_clone_pairs(&config_b).expect("build_clone_pairs config_b must succeed");
-
-    // Each config has only crowdstrike enabled — verify we got exactly 1 pair each.
     assert_eq!(
         pairs_a.len(),
         1,
@@ -73,25 +156,6 @@ fn test_BC_2_06_018_distinct_seeds_disjoint_ids() {
         1,
         "config_b must produce exactly 1 clone pair (crowdstrike)"
     );
-
-    // Access the CrowdstrikeClone state via downcasting to verify generated device IDs.
-    // INV-DISTINCT-DATA-001: IDs from seed=100 org_A ≠ IDs from seed=200 org_B.
-    //
-    // Expected device ID prefixes:
-    //   org_A (deadbeef) seed=100 → "dev-deadbeef-100-{n}"
-    //   org_B (cafebabe) seed=200 → "dev-cafebabe-200-{n}"
-    //
-    // These are pairwise-disjoint by construction (different org slugs AND different seeds).
-    // We verify the canonical format by checking the device IDs in generated_records/state.
-    //
-    // Since we can't easily downcast Box<dyn BehavioralClone>, we verify disjointness
-    // by checking that the clone pair names are correct and the configs were applied.
-    // The actual ID format is verified by the per-clone unit tests (RG-3).
-    //
-    // For the integration-level assertion here, we verify:
-    // 1. Both pairs constructed successfully (no panic)
-    // 2. Seed 100 with org_A and seed 200 with org_B would produce different IDs
-    //    (structural proof: different seeds in the formula "dev-{org_slug}-{seed}-{n}")
     assert_eq!(
         pairs_a[0].name, "crowdstrike",
         "First pair must be crowdstrike for config_a"
@@ -99,17 +163,6 @@ fn test_BC_2_06_018_distinct_seeds_disjoint_ids() {
     assert_eq!(
         pairs_b[0].name, "crowdstrike",
         "First pair must be crowdstrike for config_b"
-    );
-
-    // Verify the canonical format contains different seeds: seed=100 vs seed=200.
-    // The org slugs are also different: "deadbeef" vs "cafebabe".
-    // INV-DISTINCT-DATA-001 is satisfied because the formula "dev-{org_slug}-{seed}-{n}"
-    // guarantees uniqueness when either org_slug or seed differs.
-    let expected_id_prefix_a = "dev-deadbeef-100-";
-    let expected_id_prefix_b = "dev-cafebabe-200-";
-    assert_ne!(
-        expected_id_prefix_a, expected_id_prefix_b,
-        "INV-DISTINCT-DATA-001: distinct seeds + distinct orgs produce non-overlapping ID prefixes"
     );
 }
 

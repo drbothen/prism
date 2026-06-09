@@ -237,6 +237,16 @@ pub async fn list_devices(
     };
 
     let params = body.map(|Json(b)| b).unwrap_or_default();
+
+    // Dual-path: serve from generated_records when available (ADR-036 §2.3, BC-2.06.018).
+    // Generated records are immutable after construction — no lock needed.
+    #[cfg(feature = "fixture-gen")]
+    let mut devices: Vec<serde_json::Value> = if !state.generated_records.is_empty() {
+        state.generated_records.clone()
+    } else {
+        load_devices_fixture()
+    };
+    #[cfg(not(feature = "fixture-gen"))]
     let mut devices = load_devices_fixture();
 
     // Merge tag state into each device (AC-3, AC-4).

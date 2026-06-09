@@ -157,6 +157,23 @@ pub async fn list_detection_ids(
         .map(crate::state::CrowdstrikeState::parse_fql_time_bounds)
         .unwrap_or((None, None));
 
+    // Dual-path: serve generated detection IDs when available (ADR-036 §2.3).
+    // Generated records are immutable after construction — no lock needed.
+    #[cfg(feature = "fixture-gen")]
+    let all_ids: Vec<String> = if !state.generated_detections.is_empty() {
+        state
+            .generated_detections
+            .iter()
+            .filter_map(|rec| {
+                rec.get("detection_id")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_owned())
+            })
+            .collect()
+    } else {
+        load_detection_ids()
+    };
+    #[cfg(not(feature = "fixture-gen"))]
     let all_ids = load_detection_ids();
 
     // When FQL time bounds are present, load the detail fixture to filter by created_timestamp.
@@ -307,6 +324,23 @@ pub async fn get_detection_summaries(
             .into_response();
     }
 
+    // Dual-path: use generated detection records when available (ADR-036 §2.3).
+    #[cfg(feature = "fixture-gen")]
+    let details: std::collections::HashMap<String, serde_json::Value> =
+        if !state.generated_detections.is_empty() {
+            state
+                .generated_detections
+                .iter()
+                .filter_map(|rec| {
+                    rec.get("detection_id")
+                        .and_then(|v| v.as_str())
+                        .map(|id| (id.to_owned(), rec.clone()))
+                })
+                .collect()
+        } else {
+            load_detection_details()
+        };
+    #[cfg(not(feature = "fixture-gen"))]
     let details = load_detection_details();
 
     // Filter requested IDs against session registry if session header present.

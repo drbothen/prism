@@ -138,6 +138,13 @@ pub(crate) fn check_auth(
 /// `GET /api/v1/alerts` or `POST /api/v1/alerts`
 ///
 /// Returns a paginated list of alerts. Merges current status from `alert_store`.
+///
+/// Dual-path (ADR-036 §2.3, BC-2.06.018):
+/// - When `state.generated_records` is non-empty (clone built via `new_with_seed`):
+///   serves alert records directly from generated JSON values (no status merge, as
+///   generated records have no corresponding alert_store entries).
+/// - When `state.generated_records` is empty: falls back to `alert_fixture` + `alert_store`
+///   status merge (static-fixture backward-compatible `new()` path).
 pub async fn get_alerts(
     State(state): State<Arc<CyberintState>>,
     headers: HeaderMap,
@@ -163,6 +170,32 @@ pub async fn get_alerts(
         return *resp;
     }
 
+    // Dual-path: serve from generated_records when available (ADR-036 §2.3).
+    // Generated records are immutable after construction — no lock needed.
+    #[cfg(feature = "fixture-gen")]
+    if !state.generated_records.is_empty() {
+        // Filter to alert records only (generated_records may also contain asset records).
+        let data: Vec<serde_json::Value> = state
+            .generated_records
+            .iter()
+            .filter(|rec| {
+                // Include records that have "alert_id" field (alert-type records).
+                rec.get("alert_id").is_some()
+            })
+            .cloned()
+            .collect();
+
+        return (
+            StatusCode::OK,
+            Json(serde_json::json!({
+                "data": data,
+                "next_cursor": serde_json::Value::Null,
+            })),
+        )
+            .into_response();
+    }
+
+    // Static-fixture fallback path.
     // SAFETY: mutex poison only occurs if a previous holder panicked — not possible in normal operation.
     #[allow(clippy::expect_used)]
     let alert_store = state.alert_store.lock().expect("alert_store poisoned");

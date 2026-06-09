@@ -22,8 +22,7 @@ fn deadbeef_org() -> OrgId {
 
 /// Derive canonical org_slug from OrgId bytes (formula: hex of first 4 bytes).
 ///
-/// Helper for the test vector derivation — does NOT call the production function
-/// (which doesn't exist yet). Uses the same formula the production code will use.
+/// Helper for the test vector derivation — uses the same formula as production code.
 fn derive_org_slug_from_bytes(org: &OrgId) -> String {
     let b = org.as_bytes();
     format!("{:02x}{:02x}{:02x}{:02x}", b[0], b[1], b[2], b[3])
@@ -35,32 +34,51 @@ fn derive_org_slug_from_bytes(org: &OrgId) -> String {
 /// Verifies:
 /// - ArmisClone::new_with_seed(seed, org_id, org_slug) is callable (constructor exists)
 /// - Return type is anyhow::Result<Self> — fallible, mirrors ArmisClone::new()
+/// - state.generated_records is non-empty after construction
 /// - Device records in state contain IDs in "dev-{org_slug}-{seed}-{n}" format
-/// - Construction error propagates via ? in build_clone_pairs
-/// - ADR-036 §2.3: Armis generator takes org_slug as explicit &str arg
 ///
-/// RED GATE: This test FAILS until Gate 4 implements new_with_seed (todo!() panics).
+/// LOAD-BEARING: assertions inspect the constructed clone's state.generated_records.
+/// A broken impl (empty generated_records) causes this test to FAIL.
 #[test]
 fn test_BC_2_06_018_armis_new_with_seed_with_org_slug_arg() {
     let org = deadbeef_org();
     let seed: u64 = 100;
     let org_slug = derive_org_slug_from_bytes(&org);
 
-    // This panics with todo!() until Gate 4 implements the real constructor.
-    // The return type is anyhow::Result<Self> (fallible — mirrors ArmisClone::new()).
     let result = ArmisClone::new_with_seed(seed, org.clone(), &org_slug);
 
-    // RED GATE assertion: new_with_seed returns Ok (not Err) with a valid constructor.
-    // This will panic at todo!() above, making the test RED.
     let clone = result.expect(
         "ArmisClone::new_with_seed must succeed with valid seed, org_id, and org_slug; \
-         got Err — implementation incomplete (Gate 4 required)",
+         got Err — implementation incomplete",
     );
 
-    // When implemented (Gate 4 will make this pass):
-    // - clone.state.generated_records must be non-empty
-    // - All device IDs must start with "dev-deadbeef-100-"
-    let _ = clone;
+    // (a) generated_records must be non-empty (BC-2.06.018 postcondition 1).
+    let generated = &clone.state.generated_records;
+    assert!(
+        !generated.is_empty(),
+        "ArmisClone::new_with_seed must populate state.generated_records; got empty vec. \
+         BC-2.06.018 postcondition 1 violated."
+    );
+
+    // (b) Device records (those with "asset_id" containing the org_slug) must be present.
+    let expected_slug_prefix = format!("dev-{}-{}-", org_slug, seed);
+    let device_records: Vec<&serde_json::Value> = generated
+        .iter()
+        .filter(|rec| {
+            rec.get("asset_id")
+                .and_then(|v| v.as_str())
+                .map(|s| s.starts_with(&expected_slug_prefix))
+                .unwrap_or(false)
+        })
+        .collect();
+
+    assert!(
+        !device_records.is_empty(),
+        "state.generated_records must contain device records with asset_id starting with \
+         '{expected_slug_prefix}'; found 0 such records among {} total records. \
+         ADR-036 §2.2 canonical format violated.",
+        generated.len()
+    );
 }
 
 /// RG-4 (part B): Error from new_with_seed propagates through Result chain.
@@ -68,17 +86,77 @@ fn test_BC_2_06_018_armis_new_with_seed_with_org_slug_arg() {
 /// Verifies: The fallible constructor's error propagates consistently.
 /// (BC-2.06.018 AC-004 — error propagates through build_clone_pairs via ?)
 ///
-/// RED GATE: FAILS with todo!() until Gate 4 implements new_with_seed.
+/// LOAD-BEARING: Both type signatures must be anyhow::Result<Self>.
 #[test]
 fn test_BC_2_06_018_armis_new_with_seed_fallibility_consistent_with_new() {
     // Both new() and new_with_seed() must return anyhow::Result<Self>.
     // This test verifies the type signature is consistent.
-    // The actual new() can be called for comparison.
     let _new_result: anyhow::Result<ArmisClone> = ArmisClone::new();
 
     let org = deadbeef_org();
     let org_slug = derive_org_slug_from_bytes(&org);
     // new_with_seed must also return anyhow::Result<Self>.
-    let _seed_result: anyhow::Result<ArmisClone> = ArmisClone::new_with_seed(42, org, &org_slug);
+    let result: anyhow::Result<ArmisClone> = ArmisClone::new_with_seed(42, org, &org_slug);
+    assert!(
+        result.is_ok(),
+        "ArmisClone::new_with_seed must succeed with valid inputs; got Err: {:?}",
+        result.err()
+    );
     // Both type-check at the same level — fallibility is consistent.
+}
+
+/// RG-4 (part C): Two distinct seeds produce disjoint device ID sets.
+///
+/// Verifies INV-DISTINCT-DATA-001: seed_A ≠ seed_B → device asset_ids disjoint.
+///
+/// LOAD-BEARING: directly inspects generated_records from both clones.
+#[test]
+fn test_BC_2_06_018_armis_new_with_seed_disjoint_ids() {
+    let org = deadbeef_org();
+    let org_slug = derive_org_slug_from_bytes(&org);
+
+    let clone_100 = ArmisClone::new_with_seed(100, org.clone(), &org_slug)
+        .expect("new_with_seed(100) must succeed");
+    let clone_200 =
+        ArmisClone::new_with_seed(200, org, &org_slug).expect("new_with_seed(200) must succeed");
+
+    let ids_100: std::collections::HashSet<String> = clone_100
+        .state
+        .generated_records
+        .iter()
+        .filter_map(|rec| {
+            rec.get("asset_id")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_owned())
+        })
+        .filter(|s| s.contains(&format!("{org_slug}-100-")))
+        .collect();
+
+    let ids_200: std::collections::HashSet<String> = clone_200
+        .state
+        .generated_records
+        .iter()
+        .filter_map(|rec| {
+            rec.get("asset_id")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_owned())
+        })
+        .filter(|s| s.contains(&format!("{org_slug}-200-")))
+        .collect();
+
+    assert!(
+        !ids_100.is_empty(),
+        "clone_100 generated_records must contain records with seed=100 in asset_id"
+    );
+    assert!(
+        !ids_200.is_empty(),
+        "clone_200 generated_records must contain records with seed=200 in asset_id"
+    );
+
+    let intersection: std::collections::HashSet<&String> = ids_100.intersection(&ids_200).collect();
+    assert!(
+        intersection.is_empty(),
+        "INV-DISTINCT-DATA-001: asset_ids for seed=100 and seed=200 must be disjoint; \
+         intersection={intersection:?}"
+    );
 }

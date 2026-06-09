@@ -39,7 +39,9 @@ use crate::{
 
 /// L2-fidelity behavioral clone of the Cyberint API.
 pub struct CyberintClone {
-    state: Arc<CyberintState>,
+    /// Shared mutable state — public to allow test inspection of `generated_records`
+    /// (fixture-gen Red Gate tests) and `instance_org_id` (org-isolation tests).
+    pub state: Arc<CyberintState>,
     bound_addr: Option<SocketAddr>,
     server_handle: Option<JoinHandle<()>>,
     /// True when the server is currently bound via TLS (axum_server::bind_rustls).
@@ -143,10 +145,6 @@ impl CyberintClone {
     /// `build_clone_pairs` propagates the error via `?`.
     ///
     /// `CyberintClone::new()` is unchanged (backward-compatible, ADR-036 §2.5).
-    ///
-    /// # Story A stub
-    ///
-    /// Returns `todo!()` until Gate 4. Red Gate tests FAIL at this call.
     #[cfg(feature = "fixture-gen")]
     pub fn new_with_seed(seed: u64, org_id: prism_dtu_common::OrgId) -> anyhow::Result<Self> {
         use crate::generator::generate;

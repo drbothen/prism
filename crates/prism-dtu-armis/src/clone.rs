@@ -39,7 +39,9 @@ use crate::{
 
 /// L2-fidelity behavioral clone of the Armis Centrix API.
 pub struct ArmisClone {
-    state: Arc<ArmisState>,
+    /// Shared mutable state — public to allow test inspection of `generated_records`
+    /// (fixture-gen Red Gate tests) and `instance_org_id` (org-isolation tests).
+    pub state: Arc<ArmisState>,
     bound_addr: Option<SocketAddr>,
     server_handle: Option<JoinHandle<()>>,
     /// True when the server is currently bound via TLS (axum_server::bind_rustls).
@@ -133,11 +135,6 @@ impl ArmisClone {
     ///
     /// This constructor is **fallible** — mirrors `ArmisClone::new() -> anyhow::Result<Self>`.
     /// `build_clone_pairs` propagates the error via `?`.
-    ///
-    /// # Story A stub
-    ///
-    /// Returns `todo!()` until Gate 4 implements the real logic.
-    /// Red Gate tests FAIL at this call.
     #[cfg(feature = "fixture-gen")]
     pub fn new_with_seed(
         seed: u64,

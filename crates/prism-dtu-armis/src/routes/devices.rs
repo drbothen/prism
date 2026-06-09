@@ -155,7 +155,60 @@ pub async fn post_devices(
 }
 
 /// Pagination helper shared by GET and POST device queries.
+///
+/// Dual-path (ADR-036 §2.3, BC-2.06.018):
+/// - When `state.generated_records` is non-empty (clone built via `new_with_seed`):
+///   serves device records deserialized from generated JSON values.
+/// - When `state.generated_records` is empty: falls back to `state.devices_ordered`
+///   (static fixture, backward-compatible `new()` path).
 fn paginate_devices(state: &ArmisState, page: u32, size: u32) -> axum::response::Response {
+    // Dual-path: serve from generated_records when available (ADR-036 §2.3).
+    // Generated records are immutable after construction — no lock needed.
+    #[cfg(feature = "fixture-gen")]
+    let use_generated = !state.generated_records.is_empty();
+    #[cfg(not(feature = "fixture-gen"))]
+    let use_generated = false;
+
+    #[cfg(feature = "fixture-gen")]
+    if use_generated {
+        // Serve generated records: deserialize serde_json::Value → DeviceRecord.
+        // Records that fail to deserialize are silently skipped (malformed archetype support).
+        let all_generated: Vec<DeviceRecord> = state
+            .generated_records
+            .iter()
+            .filter_map(|v| serde_json::from_value::<DeviceRecord>(v.clone()).ok())
+            .collect();
+
+        let total = all_generated.len() as u32;
+        let offset = ((page - 1) * size) as usize;
+        let page_devices: Vec<DeviceRecord> = if offset >= all_generated.len() {
+            vec![]
+        } else {
+            all_generated
+                .iter()
+                .skip(offset)
+                .take(size as usize)
+                .map(|d| {
+                    let merged_tags = state.tags_for(DTU_ROUTE_ORG_ID, &d.device_id, &d.tags);
+                    DeviceRecord {
+                        tags: merged_tags,
+                        ..d.clone()
+                    }
+                })
+                .collect()
+        };
+        let body = DevicesResponse {
+            data: DevicesData {
+                devices: page_devices,
+                total,
+                page,
+            },
+        };
+        return (StatusCode::OK, Json(body)).into_response();
+    }
+
+    // Static-fixture fallback path.
+    let _ = use_generated; // suppress unused warning in non-fixture-gen builds
     let all_devices = &state.devices_ordered;
     let total = all_devices.len() as u32;
     let offset = ((page - 1) * size) as usize;

@@ -95,12 +95,6 @@ impl CrowdstrikeClone {
     ///
     /// `CrowdstrikeClone::new()` is unchanged (backward-compatible, ADR-036 §2.5).
     ///
-    /// # Story A stub
-    ///
-    /// Returns `Self` with empty `generated_devices` / `generated_detections` until Gate 4
-    /// implements the real logic.  The Red Gate tests assert on device IDs in responses, so
-    /// they FAIL with `todo!()` here.
-    ///
     /// ADR-036 §2.3: `new_with_seed` calls `generate()` ONCE at construction;
     /// route handlers MUST NOT call `generate()` per-request.
     pub fn new_with_seed(seed: u64, org_id: prism_dtu_common::OrgId) -> Self {

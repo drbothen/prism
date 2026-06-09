@@ -516,9 +516,6 @@ pub fn build_clone_pairs(config: &DemoConfig) -> anyhow::Result<Vec<ClonePair>> 
 ///               schema_drift, high_churn, dormant
 /// ```
 ///
-/// # Story A stub
-///
-/// Returns `todo!()` until Gate 4. Red Gate tests FAIL at this call.
 /// Gated `#[cfg(feature = "fixture-gen")]` because `Archetype` is only available
 /// when the generator module is active.
 #[cfg(feature = "fixture-gen")]
@@ -556,9 +553,6 @@ pub fn fixture_set_to_archetype(
 /// demo-server: E-DEMO-005: clone '{clone_name}': org_id '{value}' is not a valid UUID
 /// ```
 ///
-/// # Story A stub
-///
-/// Returns `todo!()` until Gate 4.
 /// Gated `#[cfg(feature = "fixture-gen")]` because `OrgId` (the generator's [u8;16] type)
 /// is only available when the generator module is active.
 #[cfg(feature = "fixture-gen")]
@@ -584,9 +578,6 @@ pub fn parse_org_id(org_id_str: &str, clone_name: &str) -> anyhow::Result<prism_
 /// demo-server: E-DEMO-004: clone '{clone_name}': scenario.enabled requires org_id to be set (UUID string)
 /// ```
 ///
-/// # Story A stub
-///
-/// Returns `todo!()` until Gate 4.
 pub fn require_org_id(org_id: &Option<String>, clone_name: &str) -> anyhow::Result<()> {
     if org_id.is_none() {
         anyhow::bail!(

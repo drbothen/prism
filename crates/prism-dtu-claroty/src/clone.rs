@@ -86,10 +86,6 @@ impl ClarotyClone {
     ///
     /// `ClarotyClone::new_with_seed` is INFALLIBLE (`-> Self`) per ADR-036 §2.3
     /// (mirrors the existing infallible `ClarotyClone::new()`).
-    ///
-    /// # Story A stub
-    ///
-    /// Returns `todo!()` until Gate 4. Red Gate tests FAIL at this call.
     #[cfg(feature = "fixture-gen")]
     pub fn new_with_seed(seed: u64, org_id: prism_dtu_common::OrgId) -> Self {
         use crate::generator::generate;

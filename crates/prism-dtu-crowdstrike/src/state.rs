@@ -385,16 +385,6 @@ impl Default for CrowdstrikeState {
     }
 }
 
-// ---------------------------------------------------------------------------
-// Story A: generated_records fields (BC-2.06.018 / ADR-036 §2.3)
-// ---------------------------------------------------------------------------
-//
-// These fields are stubs gated behind `#[cfg(feature = "fixture-gen")]`.
-// They will be populated in the implementation phase (Gate 4).
-// They are NOT inside CrowdstrikeState to avoid breaking existing constructors —
-// the implementer will add them to the struct in Gate 4.
-// Red Gate tests exercise them via new_with_seed on CrowdstrikeClone.
-
 /// Shared `Arc<CrowdstrikeState>` passed through axum extension.
 pub type SharedState = Arc<CrowdstrikeState>;
 
