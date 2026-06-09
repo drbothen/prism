@@ -23,6 +23,7 @@
 //! | GET    | /api/v1/devices/:id/activity | Activity log; Bearer auth required |
 //! | GET    | /api/v1/devices/:id/risk | Risk score; Bearer auth required |
 //! | GET    | /api/v1/alerts | Alert list; Bearer auth required |
+//! | GET    | /api/v1/search | AQL unified search (devices or alerts); Bearer auth required (403 if missing) |
 //! | POST   | /api/v1/devices/:id/tags/ | Add tag; Bearer auth required |
 //! | DELETE | /api/v1/devices/:id/tags/:key | Remove tag; Bearer auth required |
 //! | GET    | /dtu/aql-log | AQL capture log; no auth required |
@@ -383,6 +384,14 @@ struct AlertQueryParams {
     size: Option<u32>,
 }
 
+/// Query parameters for `GET /api/v1/search`.
+#[derive(Debug, Deserialize, Default)]
+struct SearchQueryParams {
+    aql: Option<String>,
+    page: Option<u32>,
+    size: Option<u32>,
+}
+
 /// JSON body for `POST /dtu/configure`.
 ///
 /// Accepts BOTH:
@@ -671,6 +680,84 @@ async fn get_alerts(
     .into_response()
 }
 
+/// `GET /api/v1/search` — AQL-forwarded unified search (devices or alerts).
+///
+/// Mirrors the standalone `prism-dtu-armis` search route per ADR-031 §D8-a
+/// (INV-HARNESS-ROUTE-PARITY — S-DEMO-HARNESS-CLONE-PARITY-001 AC-001 / AC-002).
+///
+/// AQL discriminator (EC-003 / EC-004):
+/// - Contains `in:alerts` (and NOT `in:devices`) → ALERTS_FIXTURE results.
+/// - Otherwise (contains `in:devices`, both present, or absent AQL) → DEVICES_FIXTURE results.
+///
+/// Response envelope: `{"data": {"results": [...], "total": N}}`.
+async fn get_search(
+    State(state): State<Arc<ArmisHarnessState>>,
+    headers: HeaderMap,
+    Query(params): Query<SearchQueryParams>,
+) -> axum::response::Response {
+    if let Some(err) = check_bearer_auth(&headers, &state.admin_token) {
+        return err;
+    }
+
+    // Capture AQL verbatim (R-DTU-002).
+    if let Some(ref aql) = params.aql {
+        state.capture_aql(aql);
+    }
+
+    // AQL discriminator: `in:alerts` and NOT `in:devices` → alerts; everything else → devices.
+    // EC-004: if both `in:devices` and `in:alerts` are present, devices take precedence.
+    // EC-003: absent AQL → default to devices.
+    let return_alerts = params
+        .aql
+        .as_deref()
+        .map(|s| s.contains("in:alerts") && !s.contains("in:devices"))
+        .unwrap_or(false);
+
+    let page = params.page.unwrap_or(1).max(1);
+    let size = (params.size.unwrap_or(25) as usize).max(1);
+    let offset = ((page - 1) as usize) * size;
+
+    if return_alerts {
+        #[allow(clippy::expect_used)]
+        let all_alerts: Vec<Value> =
+            serde_json::from_str(ALERTS_FIXTURE).expect("ALERTS_FIXTURE is valid JSON");
+        let total = all_alerts.len() as u32;
+
+        let page_results: Vec<Value> = if offset >= all_alerts.len() {
+            vec![]
+        } else {
+            all_alerts[offset..std::cmp::min(offset + size, all_alerts.len())].to_vec()
+        };
+
+        Json(json!({
+            "data": {
+                "results": page_results,
+                "total": total
+            }
+        }))
+        .into_response()
+    } else {
+        #[allow(clippy::expect_used)]
+        let all_devices: Vec<Value> =
+            serde_json::from_str(DEVICES_FIXTURE).expect("DEVICES_FIXTURE is valid JSON");
+        let total = all_devices.len() as u32;
+
+        let page_results: Vec<Value> = if offset >= all_devices.len() {
+            vec![]
+        } else {
+            all_devices[offset..std::cmp::min(offset + size, all_devices.len())].to_vec()
+        };
+
+        Json(json!({
+            "data": {
+                "results": page_results,
+                "total": total
+            }
+        }))
+        .into_response()
+    }
+}
+
 /// `POST /api/v1/devices/:device_id/tags/`
 ///
 /// Requires Bearer auth; returns 201 with `{device_id, tag_key, status: "added"}`.
@@ -957,6 +1044,7 @@ pub fn router(state: Arc<ArmisHarnessState>) -> Router {
         )
         .route("/api/v1/devices/:device_id/risk", get(get_device_risk))
         .route("/api/v1/alerts", get(get_alerts))
+        .route("/api/v1/search", get(get_search))
         .route("/api/v1/devices/:device_id/tags/", post(post_device_tag))
         .route(
             "/api/v1/devices/:device_id/tags/:tag_key",

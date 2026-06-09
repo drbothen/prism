@@ -15,6 +15,8 @@
 //!
 //! # Routes served
 //!
+//! ## Logical-mode router (`router()`)
+//!
 //! | Method | Path | Notes |
 //! |--------|------|-------|
 //! | POST   | /api/v1/devices | Device list; Bearer auth required |
@@ -22,6 +24,24 @@
 //! | POST   | /api/v1/alerts/:id/devices | Alerted devices; Bearer auth required |
 //! | POST   | /api/v1/vulnerabilities | Vuln list; Bearer auth required |
 //! | POST   | /api/v1/vulnerabilities/:id/devices | Vuln devices; Bearer auth required |
+//! | POST   | /api/v1/audit_log/get | Audit log; Bearer auth required (401 if missing) |
+//! | POST   | /api/v1/devices/:id/tags/ | Add tag; Bearer auth required |
+//! | DELETE | /api/v1/devices/:id/tags/:key | Remove tag; Bearer auth required |
+//! | POST   | /dtu/configure | Failure injection; X-Admin-Token required |
+//! | POST   | /dtu/reset | Clear state; no auth required |
+//! | GET    | /dtu/health | Liveness; no auth required |
+//!
+//! ## Network-mode router (`network_router()`)
+//!
+//! | Method | Path | Notes |
+//! |--------|------|-------|
+//! | GET    | /assets/v1/assets | Legacy asset list; network-mode bearer validation |
+//! | POST   | /api/v1/devices | Device list; network-mode bearer validation |
+//! | POST   | /api/v1/alerts | Alert list; Bearer auth required |
+//! | POST   | /api/v1/alerts/:id/devices | Alerted devices; Bearer auth required |
+//! | POST   | /api/v1/vulnerabilities | Vuln list; Bearer auth required |
+//! | POST   | /api/v1/vulnerabilities/:id/devices | Vuln devices; Bearer auth required |
+//! | POST   | /api/v1/audit_log/get | Audit log; Bearer auth required (401 if missing) |
 //! | POST   | /api/v1/devices/:id/tags/ | Add tag; Bearer auth required |
 //! | DELETE | /api/v1/devices/:id/tags/:key | Remove tag; Bearer auth required |
 //! | POST   | /dtu/configure | Failure injection; X-Admin-Token required |
@@ -75,6 +95,13 @@ const ALERTED_DEVICES_FIXTURE: &str =
 /// 5 Claroty xDome vulnerability-device records.
 const VULNERABILITY_DEVICES_FIXTURE: &str =
     include_str!("../../../prism-dtu-claroty/fixtures/vulnerability-devices.json");
+
+/// 5 Claroty xDome audit log records.
+///
+/// Embedded at compile time via `include_str!` per the harness pattern (C-1 / C-8).
+/// Do NOT use `prism_dtu_common::load_fixture` — that is the standalone DTU's runtime
+/// pattern. The harness uses compile-time embedding for self-containedness.
+const AUDIT_LOG_FIXTURE: &str = include_str!("../../../prism-dtu-claroty/fixtures/audit-log.json");
 
 // ---------------------------------------------------------------------------
 // Clone state
@@ -702,6 +729,33 @@ async fn remove_tag(
     }
 }
 
+/// `POST /api/v1/audit_log/get` — audit log endpoint.
+///
+/// Mirrors `prism-dtu-claroty` standalone route per ADR-031 §D8-a
+/// (INV-HARNESS-ROUTE-PARITY — S-DEMO-HARNESS-CLONE-PARITY-001 AC-003 / AC-004).
+///
+/// Auth: any non-empty Bearer accepted; 401 on missing/empty Bearer (Claroty model).
+/// Fixture: embedded via `include_str!` of `prism-dtu-claroty/fixtures/audit-log.json`,
+///          parsed as raw `Vec<Value>` (C-1 / C-8 — no types from prism-dtu-claroty).
+/// Response envelope: `{"audit_log": [...], "total": N}`.
+async fn list_audit_log(
+    headers: HeaderMap,
+    _body: Option<Json<Value>>,
+) -> (StatusCode, Json<Value>) {
+    if let Err(err) = check_bearer_auth(&headers) {
+        return err;
+    }
+
+    #[allow(clippy::expect_used)]
+    let audit_log: Vec<Value> =
+        serde_json::from_str(AUDIT_LOG_FIXTURE).expect("AUDIT_LOG_FIXTURE is valid JSON array");
+    let total = audit_log.len() as u64;
+    (
+        StatusCode::OK,
+        Json(json!({"audit_log": audit_log, "total": total})),
+    )
+}
+
 /// `POST /dtu/configure`
 ///
 /// Requires `X-Admin-Token` header (TD-WV0-07).
@@ -915,6 +969,8 @@ pub fn router(state: Arc<ClarotyCloneState>) -> Router {
             "/api/v1/vulnerabilities/:id/devices",
             post(list_vulnerability_devices),
         )
+        // Audit log endpoint (INV-HARNESS-ROUTE-PARITY — S-DEMO-HARNESS-CLONE-PARITY-001 AC-003)
+        .route("/api/v1/audit_log/get", post(list_audit_log))
         // Tag write endpoints
         .route("/api/v1/devices/:id/tags/", post(add_tag))
         .route("/api/v1/devices/:id/tags/:key", delete(remove_tag))
@@ -1166,6 +1222,9 @@ pub fn network_router(state: Arc<ClarotyCloneState>) -> Router {
             "/api/v1/vulnerabilities/:id/devices",
             post(list_vulnerability_devices),
         )
+        // Audit log endpoint: same plain check_bearer_auth as sibling alert/vuln routes
+        // (INV-HARNESS-ROUTE-PARITY — S-DEMO-HARNESS-CLONE-PARITY-001 AC-003 C-4)
+        .route("/api/v1/audit_log/get", post(list_audit_log))
         // Tag write endpoints
         .route("/api/v1/devices/:id/tags/", post(add_tag))
         .route("/api/v1/devices/:id/tags/:key", delete(remove_tag))
