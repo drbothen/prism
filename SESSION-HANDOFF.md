@@ -1,16 +1,16 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.723"
+version: "7.724"
 status: current
-timestamp: 2026-06-08T23:00:00Z
+timestamp: 2026-06-09T01:00:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
 
-> **PRIORITY READ ORDER — D-1072 NORTH-STAR OBJECTIVE PERSISTED + D-1071 PHASE-C COMPLETE + D-1066 FACTORY-PUSH-POLICY-CHANGE. ZERO-CONTEXT RESUME SNAPSHOT.**
-> Read §ACTIVE OBJECTIVE (North Star) FIRST, then STATE.md frontmatter + §RESUME SNAPSHOT before dispatching any agent.
-> develop HEAD `64d34967`. factory-artifacts PUSHED to origin after each burst (user-authorized D-1066). STATE v7.723.
+> **PRIORITY READ ORDER — D-1073 TASK LEDGER CREATED + D-1072 NORTH-STAR OBJECTIVE PERSISTED + D-1071 PHASE-C COMPLETE + D-1066 FACTORY-PUSH-POLICY-CHANGE. ZERO-CONTEXT RESUME SNAPSHOT.**
+> Read §ACTIVE OBJECTIVE (North Star) FIRST, then task ledger (`.factory/objectives/multi-client-soc-demo-tasks.md`), then STATE.md frontmatter + §RESUME SNAPSHOT before dispatching any agent.
+> develop HEAD `64d34967`. factory-artifacts PUSHED to origin after each burst (user-authorized D-1066). STATE v7.724.
 
 ---
 
@@ -56,6 +56,8 @@ S-CONFIG-MULTI-TENANT-OVERRIDE-001 (per-org overlays), S-DEMO-001 (per-org adapt
 
 **NEXT CONCRETE ACTION: PO authors S-DEMO-MULTI-TENANT-DTU-001 multi-address-binding BC (per-instance multi-address binding + no-cross-tenant-leakage invariant + single-instance backward-compat) and resolves OQ-1/OQ-2/OQ-3. Architect adjudicates after.**
 
+**Task ledger (granular, status-tracked, resume source-of-truth): `.factory/objectives/multi-client-soc-demo-tasks.md` — CURRENT TASK = T1 (D-1073).**
+
 ---
 
 ## §RESUME SNAPSHOT 2026-06-08-DURABILITY-HARDENING-D1065
@@ -66,7 +68,7 @@ S-CONFIG-MULTI-TENANT-OVERRIDE-001 (per-org overlays), S-DEMO-001 (per-org adapt
 
 ### FRESH-SESSION RESUME PROTOCOL (zero prior context)
 
-0. **Read §ACTIVE OBJECTIVE (North Star) above** — the current priority is the multi-client SOC demo; the per-story VSDD pipeline SERVES this goal. Do NOT drift into unrelated single-story pipeline machinery.
+0. **Read §ACTIVE OBJECTIVE (North Star) above** — the current priority is the multi-client SOC demo; the per-story VSDD pipeline SERVES this goal. Do NOT drift into unrelated single-story pipeline machinery. Then **read `.factory/objectives/multi-client-soc-demo-tasks.md`**, find the CURRENT POINTER, and execute its NEXT ACTION. The task ledger is the granular, status-tracked resume source-of-truth (D-1073).
 1. Run `vsdd-factory:factory-worktree-health` (devops-engineer) — **BLOCKING**; do not read state until it passes.
 2. Read STATE.md frontmatter + this §RESUME SNAPSHOT.
 3. Verify `git rev-parse origin/develop` == `64d34967` (develop_head). If drift, reconcile before dispatching.
@@ -84,7 +86,7 @@ S-CONFIG-MULTI-TENANT-OVERRIDE-001 (per-org overlays), S-DEMO-001 (per-org adapt
 | **Wave-5 Phase B** | **COMPLETE** — all 4 lanes + S-MAINT merged |
 | **Wave-5 Phase C** | **COMPLETE** — all 4 lanes merged (TRAILING-SLASH, SPEC-PROSE-FIX, PAGINATION-001, HARNESS-CLONE-PARITY-001) |
 | **develop HEAD** | `64d34967` |
-| **STATE version** | v7.723 |
+| **STATE version** | v7.724 |
 | **BC-INDEX version** | v6.00 |
 | **STORY-INDEX version** | v2.329 |
 | **VP-INDEX version** | v1.76 |
@@ -98,6 +100,10 @@ S-CONFIG-MULTI-TENANT-OVERRIDE-001 (per-org overlays), S-DEMO-001 (per-org adapt
 ---
 
 ### 2. What Just Completed
+
+**D-1073 Task Ledger Burst — Durable task ledger created + wired (2026-06-09)**
+
+Created `.factory/objectives/multi-client-soc-demo-tasks.md` — 15-task ordered ledger (T1–T15) with status tracking, owner-agent, dependencies, story refs, done-when criteria. CURRENT TASK: T1. Wired into SESSION-HANDOFF §ACTIVE OBJECTIVE, §FRESH-SESSION RESUME PROTOCOL step 0, §7 Resume Checklist, and STATE.md frontmatter `task_ledger` key. No code/spec/BC/VP/count changes. D-1073. STATE v7.723→v7.724.
 
 **D-1072 North-Star Persistence Burst — ACTIVE OBJECTIVE written (2026-06-09)**
 
@@ -178,7 +184,7 @@ Per-story delivery follows the canonical 12-gate sequence (per orchestrator per-
 
 **Mid-cascade restart note:** If a fresh session finds an in-flight worktree/branch/open-PR for a story, cross-reference `sprint-state.yaml` `current_story.delivery_step` + `gh pr list` + `.worktrees/` to determine the exact resume step before dispatching.
 
-> **Previous snapshot (2026-06-08-DURABILITY-HARDENING-D1065; STATE v7.716) remains the base; this section updated in place for D-1071+D-1072 completion. Prior snapshots archived to `cycles/wave-5-e-demo-fidelity/session-handoff-archive.md`.**
+> **Previous snapshot (2026-06-08-DURABILITY-HARDENING-D1065; STATE v7.716) remains the base; this section updated in place for D-1071+D-1072+D-1073 completion. Prior snapshots archived to `cycles/wave-5-e-demo-fidelity/session-handoff-archive.md`.**
 
 ---
 
@@ -255,7 +261,7 @@ git log --oneline develop | head -1
 
 # 3. Verify STATE.md version
 grep '^version:' .factory/STATE.md
-# Expected: version: "7.723"
+# Expected: version: "7.724"
 
 # 4. Verify no open PRs
 gh pr list --state open
@@ -266,10 +272,14 @@ git -C .factory rev-parse HEAD && git -C .factory rev-parse origin/factory-artif
 # Expected: both SHAs match (HEAD == origin/factory-artifacts). If they differ, run:
 #   git -C .factory push origin factory-artifacts
 
-# 6. Read this snapshot (you are here)
+# 6. Read task ledger → CURRENT TASK
+cat .factory/objectives/multi-client-soc-demo-tasks.md | grep -A3 'CURRENT POINTER'
+# Expected: T1 — PO authors multi-address-binding BC for S-DEMO-MULTI-TENANT-DTU-001
+
+# 7. Read this snapshot (you are here)
 # Confirm develop_head, STATE version, north-star next action
 
-# 7. Confirm active story + delivery step
+# 8. Confirm active story + delivery step
 grep -A4 '^current_story:' .factory/stories/sprint-state.yaml
 # Expected: no story in-flight (Phase C COMPLETE)
 # (If delivery_step != not-started, check gh pr list + .worktrees/ to find resume point)
