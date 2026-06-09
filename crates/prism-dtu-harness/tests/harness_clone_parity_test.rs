@@ -136,6 +136,82 @@ async fn test_BC_2_16_013_armis_harness_search_returns_200_with_bearer_403_witho
 }
 
 // ============================================================================
+// AC-001 addendum — F-P2-LOW-001 coverage gap closure
+//
+// test_BC_2_16_013_armis_harness_search_401_on_wrong_token
+//
+// BC-2.16.013 v1.25 INV-HARNESS-ROUTE-PARITY:
+//   Armis auth model: check_bearer_auth(&headers, &state.admin_token)
+//   - Missing/no bearer  → 403
+//   - Present but WRONG  → 401  ← this is the C-3 "#1 Red Gate trap" case
+//   - Correct admin token → 200
+//
+// F-P2-LOW-001: the AC-001 test above covered only cases 1 and 3.
+// A regression that downgraded Armis search to the Claroty "accept any
+// non-empty bearer" model would have silently passed the existing test.
+// This test closes that false-pass vulnerability.
+//
+// Load-bearing (TD-VSDD-059): FAILS if auth gate mutated to any-bearer model.
+// ============================================================================
+
+/// AC-001 / F-P2-LOW-001: Armis harness search → 401 on present-but-wrong token.
+///
+/// Armis check_bearer_auth returns 401 when the Authorization header is present
+/// and non-empty but does NOT match the clone's admin_token. This is distinct
+/// from the 403 missing-bearer case and from the Claroty "accept any bearer" model.
+///
+/// Token used: "definitely-not-the-admin-token" — guaranteed not to equal the
+/// harness-generated admin token so the test is deterministic and non-trivially
+/// passing.
+///
+/// (BC-2.16.013 v1.25 INV-HARNESS-ROUTE-PARITY — Armis auth model, C-3 trap)
+#[tokio::test]
+async fn test_BC_2_16_013_armis_harness_search_401_on_wrong_token() {
+    let harness = prism_dtu_harness::Harness::builder()
+        .isolation(IsolationMode::Logical)
+        .with_customer_overrides("test-tenant", |spec| {
+            spec.dtu_types = vec![DtuType::Armis];
+        })
+        .build()
+        .await
+        .expect("harness build must succeed");
+
+    let addr = get_addr(&harness, "test-tenant", DtuType::Armis);
+    let client = test_client();
+
+    // Confirm the harness actually issues an admin token distinct from our wrong token,
+    // so the test cannot accidentally pass due to token-value collision.
+    let real_token = harness
+        .admin_token_for("test-tenant", DtuType::Armis)
+        .expect("Armis admin token must be in harness")
+        .to_owned();
+    assert_ne!(
+        real_token, "definitely-not-the-admin-token",
+        "test invariant: wrong-token literal must differ from real admin token"
+    );
+
+    // Present-but-wrong bearer → 401 (token mismatch, not missing).
+    // This distinguishes the Armis model (exact-match required) from the Claroty
+    // model (any non-empty bearer accepted). A regression to the Claroty model
+    // would return 200 here and fail this assertion (load-bearing per TD-VSDD-059).
+    let resp = client
+        .get(format!("http://{addr}/api/v1/search"))
+        .bearer_auth("definitely-not-the-admin-token")
+        .send()
+        .await
+        .expect("HTTP GET /api/v1/search (wrong token) must not fail at transport level");
+
+    assert_eq!(
+        resp.status().as_u16(),
+        401,
+        "GET /api/v1/search with a present-but-wrong bearer token must return HTTP 401 \
+         (AC-001 / F-P2-LOW-001, Armis auth model: token mismatch → 401, NOT 200 or 403). \
+         If this returns 200, the auth gate has regressed to the Claroty any-bearer model. \
+         If this returns 403, the harness is conflating missing-bearer with wrong-bearer."
+    );
+}
+
+// ============================================================================
 // AC-002 — Armis harness clone AQL routing has structural parity with standalone
 //
 // test_BC_2_16_013_armis_harness_search_aql_in_devices_returns_device_records
