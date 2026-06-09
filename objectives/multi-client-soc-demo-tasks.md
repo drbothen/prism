@@ -2,10 +2,10 @@
 document_type: task-ledger
 objective: multi-client-soc-analyst-demo
 level: ops
-version: "1.0"
+version: "1.1"
 producer: state-manager
 status: active
-timestamp: 2026-06-09T00:00:00Z
+timestamp: 2026-06-09T02:00:00Z
 related:
   - SESSION-HANDOFF.md §ACTIVE OBJECTIVE
   - .factory/STATE.md
@@ -24,15 +24,15 @@ Deliver a multi-client SOC-analyst LIVE DEMO — multiple clients, different sen
 
 ## Progress Summary
 
-Foundations: COMPLETE (reused). Build: 0/15 tasks started. CURRENT TASK: **T1**.
+Foundations: COMPLETE (reused). Build: T1 done; CURRENT TASK **T2**.
 
 ## CURRENT POINTER
 
-**T1** — PO authors multi-address-binding BC for S-DEMO-MULTI-TENANT-DTU-001.
+**T2** — Architect adjudicates OQ-1/OQ-2/OQ-3 for S-DEMO-MULTI-TENANT-DTU-001 now that BC-2.06.017 is authored.
 
 ## NEXT ACTION (verbatim, for cold resume)
 
-Dispatch `vsdd-factory:product-owner` to author the new multi-address-binding behavioral contract for S-DEMO-MULTI-TENANT-DTU-001 (per-instance multi-address binding + no-cross-tenant-leakage invariant + single-instance backward-compat), resolving Flag-1/Flag-2 in that story; then architect adjudicates OQ-1/OQ-2/OQ-3.
+Dispatch `vsdd-factory:architect` to adjudicate OQ-1/OQ-2/OQ-3 for S-DEMO-MULTI-TENANT-DTU-001 now that BC-2.06.017 is authored. OQ-1: MultiInstanceConfig crate owner (story recommends prism-dtu-common); OQ-2: Box<dyn BehavioralClone> harness API; OQ-3: BC IDs confirmed → BC-2.06.017. ADR if warranted.
 
 ---
 
@@ -67,8 +67,8 @@ Status vocab: `not-started` | `in-progress` | `blocked` | `done`
 
 | Task | Status | Owner-agent | Depends-on | Story ref | Done-when |
 |------|--------|-------------|------------|-----------|-----------|
-| T1 | not-started | product-owner | — | S-DEMO-MULTI-TENANT-DTU-001 | New multi-address-binding BC authored (MultiInstanceConfig contract + no-cross-tenant-leakage invariant + single-instance backward-compat); Flag-1/Flag-2 resolved; canonical BC IDs assigned. |
-| T2 | blocked | architect | T1 | S-DEMO-MULTI-TENANT-DTU-001 | OQ-1 resolved (MultiInstanceConfig crate owner — recommend prism-dtu-common); OQ-2 (Box<dyn BehavioralClone> harness API); OQ-3 (BC IDs confirmed). ADR if warranted. |
+| T1 | done | product-owner | — | S-DEMO-MULTI-TENANT-DTU-001 | New multi-address-binding BC authored (BC-2.06.017 Per-DTU-Instance Multi-Address Binding; draft; SS-01; CAP-036; P2; D-1074); Flag-2 resolved (no BC-2.06.014 amendment); EC-003 explicit-error; 5 invariants authored. BC-INDEX v6.01 registered. |
+| T2 | not-started | architect | T1 | S-DEMO-MULTI-TENANT-DTU-001 | OQ-1 resolved (MultiInstanceConfig crate owner — recommend prism-dtu-common); OQ-2 (Box<dyn BehavioralClone> harness API); OQ-3 (BC IDs confirmed → BC-2.06.017). ADR if warranted. |
 | T3 | blocked | story-writer | T1, T2 | S-DEMO-MULTI-TENANT-DTU-001 | Story finalized to status:ready (BCs populated, ACs, S-7.01 gate CLEARED); dclaude:remove-uncertainty applied. |
 | T4 | not-started | product-owner + architect | — | (per-client data seeding — NEW or scope-add) | Seeding approach decided (wire CloneConfig.seed/fixture_set in build_clone_pairs vs POST /dtu/configure); story authored/scoped to deliver REAL distinct per-client data. |
 | T5 | blocked | story-writer | T4 | (data-seeding story) | Data-seeding story finalized to ready; remove-uncertainty applied. |
@@ -109,4 +109,5 @@ Per-story delivery tasks (T6, T7, T10, T12) follow the canonical 12-gate per-sto
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.1 | 2026-06-09 | state-manager | D-1074: T1 done (BC-2.06.017 authored + registered in BC-INDEX v6.01); CURRENT POINTER advanced to T2 (architect adjudicates OQ-1/OQ-2/OQ-3). |
 | 1.0 | 2026-06-09 | state-manager | Initial task ledger created (D-1073). |
