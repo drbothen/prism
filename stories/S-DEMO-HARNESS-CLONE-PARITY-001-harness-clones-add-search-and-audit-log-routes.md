@@ -8,7 +8,7 @@ priority: P2
 status: ready
 # BC-2.16.013 v1.25 authored by PO (D-989 Phase-A burst) with INV-HARNESS-ROUTE-PARITY invariant.
 # S-7.01 gate CLEARED.
-version: "1.5"
+version: "1.6"
 level: "L3"
 producer: story-writer
 timestamp: "2026-06-01T00:00:00Z"
@@ -75,11 +75,11 @@ risk_mitigations: []
 #   Promoted to goal task per user direction 2026-06-02 (demo goal fidelity).
 ---
 
-# S-DEMO-HARNESS-CLONE-PARITY-001 v1.5 — Harness In-Process Clone Route Parity
+# S-DEMO-HARNESS-CLONE-PARITY-001 v1.6 — Harness In-Process Clone Route Parity
 
 **Story ID:** S-DEMO-HARNESS-CLONE-PARITY-001
 **Status:** ready
-**Version:** v1.5
+**Version:** v1.6
 **Wave:** wave-5-e-demo-fidelity
 **Priority:** P2
 **Points:** 3
@@ -424,8 +424,15 @@ colon-syntax migration risk does not apply to them. Do not upgrade the axum pin 
 ## References
 
 - ADR-031 §D8-a — Armis AQL endpoint fidelity (harness parity obligation for GET /api/v1/search)
-- ADR-031 §D2 — Permitted divergences (exhaustive enumeration); harness audit_log route parity
-  does NOT fall under a D2 exemption — it is REQUIRED fidelity per §D7 harness-scope extension
+- ADR-031 §D7 — Harness clones in-scope for DTU=true-DTU; governs the Claroty audit_log
+  harness route-parity obligation; explicitly records the Claroty audit_log harness gap as HIGH
+  and co-scopes its closure with S-DEMO-CLAROTY-AUDIT-DTU-001 (PRIMARY authority for the
+  harness claroty route-parity requirement)
+- ADR-031 §D1-c — DTU MUST register exactly the real API's endpoints; no extra routes, no
+  missing routes (route-existence fidelity — binding)
+- ADR-031 §D2 — Permitted Divergences (exhaustive: rate-limit cooldowns, credential format,
+  TLS, persistence semantics); synthetic fixture data only; §D2 is NOT the route-parity
+  authority and does NOT govern route existence for the Claroty audit_log
 - Gap-CL-006 — Claroty audit_log route gap (closed by S-DEMO-CLAROTY-AUDIT-DTU-001); harness
   clone must mirror the standalone POST /api/v1/audit_log/get per INV-HARNESS-ROUTE-PARITY
 - ADR-031 §D1 — DTU clone isolation (scope extension in §D7 explicitly covers harness clones)
@@ -441,6 +448,7 @@ colon-syntax migration risk does not apply to them. Do not upgrade the axum pin 
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.6 | 2026-06-08 | story-writer | LOCAL adversary fix F-RC2C-LOW-001 (spec-only). Claroty audit_log §References anchor corrected: §D2 was incorrectly headlined as the route-parity authority while the body asserted §D7 — a self-contradiction. Rewritten so §D7 (harness-scope extension, PRIMARY) + §D1-c (endpoint-existence fidelity, PRIMARY) are the leading authorities; §D2 retained as explicitly-scoped secondary for synthetic fixture data only with a note that it is NOT the route-parity authority. Armis §D8-a anchor left intact (correct). TD-VSDD-060 sweep: §D2 appears only in the corrected §References block and in the historical v1.5 changelog row — no other sites found. `behavioral_contracts` array untouched, all AC↔BC trace lines untouched, INV-HARNESS-ROUTE-PARITY references untouched, S-7.01 gate remains CLEARED, status remains ready. |
 | 1.5 | 2026-06-08 | story-writer | LOCAL adversary fixes F-RC3-MED-001 + F-RC1-LOW-001 (spec-only). F-RC3-MED-001: corrected Claroty audit_log architecture anchor — replaced incorrect `ADR-031 §D8-b` (which governs Claroty trailing-slash / Gap-CL-001, a different concern) with correct `Gap-CL-006 + ADR-031 §D2 + INV-HARNESS-ROUTE-PARITY` in §References; Armis §D8-a anchor left intact (verified correct). F-RC1-LOW-001: added `### Pagination Parity Scope` subsection under §Scope documenting that harness `get_search` uses `page`/`size` pagination only (not `offset`/`limit`) intentionally — consistent with all sibling harness routes (TD-VSDD-060 sibling-consistency), harness clones are not consumed by PipelineExecutor, and INV-HARNESS-ROUTE-PARITY scopes to structural parity (AC-002). Spec-only edit — `behavioral_contracts` array untouched, all AC↔BC trace lines untouched, INV-HARNESS-ROUTE-PARITY references untouched, S-7.01 gate remains CLEARED, status remains ready. |
 | 1.4 | 2026-06-08 | story-writer | LOCAL adversary pass-3 F-P3-HIGH-001 (POL-6 subsystem correction SS-17→SS-01+SS-16) + Red Gate test-name reconciliation. (1) `subsystems: [SS-17]` corrected to `[SS-01, SS-16]`: SS-17 is "WASM Plugin Runtime" per ARCH-INDEX v2.115 — it has no ownership of prism-dtu-harness or any DTU crate; SS-01 ("Sensor Adapters") explicitly lists prism-dtu-harness per ARCH-INDEX v2.115; SS-16 included to match sibling story S-DEMO-ARMIS-AQL-001 dual-scoping and BC-2.16.013 provenance. (2) Subsystem anchor justification comment rewritten with correct subsystem names and ARCH-INDEX v2.115 citation. (3) Architecture Mapping section reference corrected: `§SS-17 DTU Clones` → `§SS-01 Sensor Adapters`. (4) All five Red Gate test-name references updated to codebase convention `test_BC_2_16_013_<name>` (4 AC references + 1 inline mention in §Scope). Spec-only edit — `behavioral_contracts` array untouched, all AC↔BC trace lines untouched, INV-HARNESS-ROUTE-PARITY references untouched, S-7.01 gate remains CLEARED, status remains ready. |
 | 1.3 | 2026-06-08 | story-writer | remove-uncertainty corrections C-1..C-8 (D-1061). Implementation-scope refinements only — `behavioral_contracts` array untouched, all AC↔BC trace lines untouched, INV-HARNESS-ROUTE-PARITY references untouched, S-7.01 gate remains CLEARED, status remains ready. C-1: corrected fixture idiom — harness embeds via include_str!, NOT load_fixture. C-2: corrected Armis search data source — raw Vec<Value> DEVICES_FIXTURE/ALERTS_FIXTURE, no typed structs, no time-window filtering. C-3: clarified Armis auth semantics — check_bearer_auth(&headers, &state.admin_token) gives 403 for missing Bearer, 401 for present-but-wrong token; Red Gate test must send actual admin_token. C-4: expanded Claroty scope — POST /api/v1/audit_log/get must be registered in BOTH router() and network_router(); network_router() uses plain check_bearer_auth per sibling alert/vuln route convention. C-5: Red Gate test idiom corrected — reqwest-over-TcpListener (tests/logical_isolation_test.rs pattern), NOT tower::ServiceExt::oneshot. C-6: axum pin corrected — "0.7" pinned literally in Cargo.toml, NOT .workspace. C-7: AC-002 softened to structural parity ($.data.results non-empty array, $.data.total numeric, in:alerts selects alerts) — not byte-identical field-for-field equality. C-8: Forbidden Dependencies expanded — prism-dtu-claroty MUST NOT be added; harness audit_log handler uses raw Vec<Value> from embedded fixture, no typed struct import. |

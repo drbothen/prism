@@ -427,36 +427,56 @@ This is NOT blocking for the cascade — it is a process-note and candidate CLAU
 
 ---
 
-### [process-gap, single occurrence] S-DEMO-HARNESS-CLONE-PARITY-001 re-cascade #1: anchor-citation churn — orchestrator must verify proposed replacement anchor before instructing fix
+### [process-gap, RECURRING] S-DEMO-HARNESS-CLONE-PARITY-001: anchor-citation churn — architecture-anchor citations MUST validate proposed anchor semantic fit by reading the target ADR section
 
-**Date recorded:** 2026-06-08
-**D-NNN anchor:** D-1069 (LOCAL re-cascade #1 bookkeeping; F-RC3-MED-001)
+**Date recorded:** 2026-06-08 (initial: D-1069 re-cascade #1; REINFORCED: D-1070 re-cascade #2)
+**D-NNN anchor:** D-1069 (re-cascade #1 F-RC3-MED-001) + D-1070 (re-cascade #2 F-RC2C-LOW-001) — REINFORCED
 **Story:** S-DEMO-HARNESS-CLONE-PARITY-001
-**Tags:** [process-gap] [anchor-citation] [adversary-unverified-claim] [orchestrator-discipline] [ADR-031]
-**Classification:** PROCESS-GAP — single occurrence; codify at cycle-close if pattern recurs; no new story required now.
+**Tags:** [process-gap] [anchor-citation] [adversary-unverified-claim] [orchestrator-discipline] [ADR-031] [RECURRING]
+**Classification:** PROCESS-GAP — RECURRING (3 wrong anchors in the same story's cascade before the correct one was found); candidate for cycle-close POL addition or POL-4 extension.
 
 **Description:**
 
-During the LOCAL fix-burst prior to re-cascade #1 (D-1068), the implementer fixed the harness Claroty `list_audit_log` doc-comment's ADR anchor by following an adversary suggestion: the adversary identified that the citation was wrong and proposed §D8-b as the replacement. The implementer applied §D8-b. However, §D8-b covers trailing-slash normalization exemptions (Gap-CL-001) — a completely different concern from `audit_log`. The ADR-031 §D8-b suggestion was unverified.
+The Claroty `audit_log` route-parity anchor churned through THREE wrong citations before the correct one was established:
 
-The correct anchor (Gap-CL-006 + ADR-031 §D2 "Permitted Divergences") was only discovered by reading the source-of-truth ground truth: the standalone `audit_log.rs` itself and the ADR-031 section titles. F-RC3-MED-001 in re-cascade #1 caught this and the fix-burst corrected it (feature 0e4d6f27).
+1. **§D8-a** (initial fix-burst, D-1068): Applied by implementer following an adversary suggestion that §D8-a governs this route. §D8-a covers Armis search trailing-slash exemptions — an entirely different concern from Claroty audit_log route existence.
+
+2. **§D8-b** (re-cascade #1 fix-burst, feature 0e4d6f27): Adversary proposed §D8-b as the correct replacement for §D8-a. The implementer applied §D8-b without verifying its scope. §D8-b covers Claroty trailing-slash normalization exemptions (Gap-CL-001) — also the wrong concern for route existence.
+
+3. **§D2 "Permitted Divergences"** (re-cascade #1 fix-burst, story v1.5): The fix-burst also cited §D2 as the "primary authority" for the route-parity anchor, mirroring the standalone `audit_log.rs` citation. However, §D2 governs permitted DIVERGENCES for synthetic fixture data only — it does NOT govern whether a route must exist. §D2 was correct for the standalone `audit_log.rs` because that file uses §D2 to explain a PERMITTED DIFFERENCE (synthetic data vs. real API), not route existence. Story v1.5 made §D2 the headline authority — self-contradictory with the body's §D7 assertion.
+
+4. **§D7 (harness-scope extension, PRIMARY) + §D1-c (endpoint-existence fidelity, PRIMARY)** (re-cascade #2 fix-burst, feature 2655201e, story v1.6): The correct anchors, verified by directly reading ADR-031 section headings and bodies:
+   - §D7 (line 298): explicitly governs harness clone scope inclusion in the DTU-true-DTU requirement
+   - §D1-c (line 125): DTU MUST register exactly the real API's endpoints — endpoint existence fidelity
+   - §D2 (line 141): retained ONLY for the synthetic-fixture-data permitted-divergence note, with an explicit "NOT route-parity authority" note
 
 **Root cause:**
 
-When an adversary finding proposes a SPECIFIC replacement anchor (e.g., "the correct citation is §D8-b"), the orchestrator dispatched the fix without verifying the proposed anchor against the source-of-truth (ADR section title + the standalone route's own citation). The adversary's proposed anchor was copied directly into the fix without independent verification.
+Each wrong anchor was chosen by one of two anti-patterns:
+- **Mirroring an incidental sibling cite**: The standalone `audit_log.rs` cites §D2 for a DIFFERENT reason (synthetic-fixture permitted divergence). That §D2 citation was adopted as the route-existence authority for the harness, even though standalone's §D2 cite is about DATA CONTENT, not route existence.
+- **Trusting an adversary-proposed replacement**: Adversary proposed §D8-b as the fix without having read §D8-b's actual semantics. The implementer applied it without verification.
 
-**Correct response (codified rule):**
+In both cases, the anchor was CHOSEN without reading the ADR section heading + body to verify the section SEMANTICALLY GOVERNS the concern being cited (route existence, in this case).
 
-When an adversary finding proposes a specific replacement anchor, reference, or citation value as the "correct" replacement, the orchestrator MUST verify the proposed replacement against the primary source-of-truth BEFORE instructing the fix:
+**Correct response (codified RULE — architecture-anchor semantic fit verification):**
 
-1. Read the ADR section title (what does §D8-b actually say?)
-2. Read the sibling/standalone reference file (what does the standalone `audit_log.rs` cite?)
-3. Only instruct the fix once the proposed anchor is verified match to both sources
+**RULE: Architecture-anchor citations MUST be validated by reading the target ADR section heading + body to confirm semantic fit — does this section actually govern the concern being cited?**
 
-"Trust but verify" is insufficient for anchor-citation fixes; "verify first, then instruct" is the correct protocol.
+When an adversary finding proposes a specific replacement anchor, or when a fix-burst applies an anchor fix, the orchestrator/implementer MUST:
 
-**Boundary:** This applies to adversary-proposed anchor replacements. Adversary findings that describe behavioral gaps (missing tests, wrong return codes) do not require the same level of source-verification before fix dispatch — those are directly checkable from the code.
+1. **Read the target ADR section title.** What category of rule does §X govern? (e.g., §D8-b = trailing-slash normalization exemptions; §D2 = synthetic-fixture permitted divergences; §D7 = harness-scope extension)
+2. **Match the section's scope to the concern being cited.** Route existence requires §D1-c + §D7 (scope + existence). Trailing-slash exemptions require §D8-*. Synthetic-fixture divergences require §D2.
+3. **Do NOT adopt a sibling's incidental cite as authority for a different concern.** The standalone `audit_log.rs` citing §D2 for SYNTHETIC DATA does not make §D2 the route-existence authority for harness parity.
+4. **Only instruct the fix once the proposed anchor semantically matches the concern being cited.**
 
-**Recurrence tracking:** Single occurrence. If this pattern recurs in a future cascade, elevate to CLAUDE.md §Standing Adversary Probes or add an orchestrator pre-dispatch checklist item.
+"Verify proposed replacement semantics against the source-of-truth ADR section, not by mirroring a sibling."
+
+**Boundary:** This applies to architecture-anchor citations in spec and code. Adversary findings that describe behavioral gaps (missing tests, wrong return codes) do not require the same level of source-verification before fix dispatch — those are directly checkable from the code.
+
+**Cycle-close codification candidate:** This pattern recurred 3× within one story's cascade. At cycle-close, assess whether to:
+- Add a new POL `architecture_anchor_semantic_fit_verification`, OR
+- Extend POL-4 (semantic_anchoring_integrity) to explicitly cover ADR-section-semantic-fit
+
+No new story required now; cycle-close decision.
 
 ---
