@@ -676,15 +676,15 @@ jobs:
             && CARGO_RC=0 || CARGO_RC=$?
           cat /tmp/non-exhaustive-check.log
           if [ "${CARGO_RC}" -eq 0 ]; then
-            echo "::error::REGRESSION: non-exhaustive-violation compiled successfully — one or more #[non_exhaustive] types lost their annotation. All 49 types must reject external struct-literal or exhaustive-match construction (spec_parser: CredentialRef, SensorSpec, SensorTableDescriptor, FetchStep, ColumnSpec, TableSpec, PaginationConfig, AuthType, RateLimitHints; types: SensorSpec, SensorTableDescriptor, CredentialRef, ColumnType, ColumnDef, PaginationType, SpecStatus, ClientStatus; infusion: CredentialRef, InfusionType, BuiltInSourceType, InfusionSourceConfig, InfusionField, PipeStageConfig, PluginConfig, InfusionSpec; write_endpoint: BatchMode, WriteStep, WriteEndpointSpec; prism_core: ColumnType, ColumnOptions, PluginError; prism_query: WriteToolInvalidationMap; plugin: LoadedPlugin; overlay: SensorInstanceOverlay, OverlayProvenance, ResolvedSensorSpec; prism_mcp: ResponseMeta, ContentEntry, StructuredContent, ResponseEnvelope, SafetyFlagSchema, MetaEnvelopeSchemaType, ResponseEnvelopeSchema, DataSource, ToolRegistration; prism_security: BoundingDmlOperation, BoundingMetadata; prism_bin: AdapterAuthStrategy, BearerStaticAuthProvider, SpecDrivenSensorAdapter)."
+            echo "::error::REGRESSION: non-exhaustive-violation compiled successfully — one or more #[non_exhaustive] types lost their annotation. All 50 types must reject external struct-literal or exhaustive-match construction (spec_parser: CredentialRef, SensorSpec, SensorTableDescriptor, FetchStep, ColumnSpec, TableSpec, PaginationConfig, AuthType, RateLimitHints; types: SensorSpec, SensorTableDescriptor, CredentialRef, ColumnType, ColumnDef, PaginationType, SpecStatus, ClientStatus; infusion: CredentialRef, InfusionType, BuiltInSourceType, InfusionSourceConfig, InfusionField, PipeStageConfig, PluginConfig, InfusionSpec; write_endpoint: BatchMode, WriteStep, WriteEndpointSpec; prism_core: ColumnType, ColumnOptions, PluginError; prism_query: WriteToolInvalidationMap; plugin: LoadedPlugin; overlay: SensorInstanceOverlay, OverlayProvenance, ResolvedSensorSpec; prism_mcp: ResponseMeta, ContentEntry, StructuredContent, ResponseEnvelope, SafetyFlagSchema, MetaEnvelopeSchemaType, ResponseEnvelopeSchema, DataSource, ToolRegistration; prism_security: BoundingDmlOperation, BoundingMetadata; prism_bin: AdapterAuthStrategy, BearerStaticAuthProvider, SpecDrivenSensorAdapter; prism_dtu_common: ScenarioEntityCatalog)."
             exit 1
           fi
           # Count E0639/E0004 errors — must be >= the number of violations in the crate.
           # Violations are split across submodules (enum_violations.rs + struct_violations.rs)
           # so that rustc's per-file error budget does not suppress later violations.
           # Update EXPECTED when adding/removing violations from enum_violations.rs or
-          # struct_violations.rs (current: 33 E0639 struct literals + 14 E0004 enum matches = 47;
-          # some violations produce multiple errors, EXPECTED is set conservatively at 49).
+          # struct_violations.rs (current: 35 E0639 struct literals + 15 E0004 enum matches = 50;
+          # EXPECTED equals the violation function count exactly).
           # PLUGIN-MIGRATION-001-E added 1 E0639 (plugin::LoadedPlugin).
           # S-CONFIG-MULTI-TENANT-OVERRIDE-001 added 3 E0639 (overlay::SensorInstanceOverlay,
           # overlay::OverlayProvenance, overlay::ResolvedSensorSpec — ADR-029 per-org overlay types).
