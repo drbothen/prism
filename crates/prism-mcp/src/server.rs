@@ -1330,9 +1330,8 @@ fn not_yet_available_msg(feature: &str) -> rmcp::model::ErrorData {
 ///    EC-05-013 read-path semantics): on persistence failure a WARN is logged
 ///    with `audit_warning` semantics and the tool call proceeds.
 ///
-/// The full request/response envelope audit (Tower `AuditEmitterLayer`) remains
-/// a future story; this is the minimal durable write per the 2026-06-10 review
-/// mandate ("wiring, not redesign").
+/// The durable per-call write via `AuditWriter::write_tool_call` IS the
+/// production MCP tool-call audit mechanism (P1-04, 2026-06-10 review pass-1).
 async fn emit_tool_audit(
     audit_writer: Option<&Arc<dyn AuditWriter>>,
     tool: &str,
