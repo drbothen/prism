@@ -1088,6 +1088,82 @@ pub struct GetHelpParams {
     pub topic: String,
 }
 
+// ─── Tool availability classification (MCP-01, 2026-06-10 review) ─────────────
+
+/// Tools with live (wired) handler implementations.
+///
+/// MCP-01 (2026-06-10 review): `list_capabilities` derives its capabilities map
+/// from this classification instead of a hardcoded all-true literal. A tool
+/// belongs here if and only if its handler executes real domain logic (it does
+/// NOT return `not_yet_available_msg`).
+///
+/// Kept in sync with the tool router by
+/// `test_MCP_01_capability_classification_partitions_tool_catalog`: every tool
+/// in `production_tool_catalog()` must appear in exactly one of `LIVE_TOOLS` /
+/// `NOT_YET_AVAILABLE_TOOLS`. When implementing a stubbed tool, move its name
+/// from `NOT_YET_AVAILABLE_TOOLS` to `LIVE_TOOLS` in the same commit.
+const LIVE_TOOLS: &[&str] = &[
+    "query",
+    "explain_query",
+    "create_alias",
+    "list_aliases",
+    "delete_alias",
+    "explain_alias",
+    "confirm_action",
+    "reload_config",
+    "add_sensor_spec",
+    "list_sensor_specs",
+    "validate_config",
+    "list_capabilities",
+];
+
+/// Tools registered in the catalog whose handlers return `-32003 not
+/// implemented` (`not_yet_available_msg`) — they cannot be invoked regardless
+/// of feature-flag state, so `list_capabilities` reports them as `false`.
+const NOT_YET_AVAILABLE_TOOLS: &[&str] = &[
+    "check_sensor_health",
+    "get_diagnostics",
+    "create_schedule",
+    "list_schedules",
+    "delete_schedule",
+    "get_diff_results",
+    "create_rule",
+    "list_rules",
+    "delete_rule",
+    "create_case",
+    "list_cases",
+    "get_case",
+    "update_case",
+    "case_metrics",
+    "list_credentials",
+    "credential_status",
+    "configure_credential_source",
+    "delete_credential",
+    "watchdog_status",
+    "list_alerts",
+    "get_alert",
+    "acknowledge_alert",
+    "crowdstrike_contain_host",
+    "crowdstrike_lift_containment",
+    "list_packs",
+    "explain_pack",
+    "create_pack",
+    "delete_pack",
+    "list_infusions",
+    "infusion_status",
+    "reload_infusion",
+    "list_plugins",
+    "plugin_status",
+    "reload_plugin",
+    "list_actions",
+    "action_status",
+    "fire_action",
+    "test_action",
+    "create_action",
+    "delete_action",
+    "get_help",
+];
+
 // ─── Helper functions ─────────────────────────────────────────────────────────
 
 /// Scan a slice of `(field_name, value)` pairs with the injection scanner and
@@ -2896,32 +2972,49 @@ impl PrismServer {
         };
         let ff = we.feature_flags();
         let client_id = params.client_id.as_deref().unwrap_or("<all>");
-        // FeatureFlagEvaluator reports whether a named client exists in the registry.
-        // The full capability list is populated from prism.toml (S-2.03 config-driven flags).
-        // For now, report whether the client is registered in the evaluator.
+        // `client_registered` is driven by the wired FeatureFlagEvaluator: it
+        // reports whether the requested client exists in the runtime capability
+        // registry (the Tier-2 source for per-client write capability checks).
         let client_exists = params
             .client_id
             .as_ref()
             .map(|id| ff.client_exists(id))
             .unwrap_or(false);
+
+        // MCP-01 (2026-06-10 review): the capabilities map is DERIVED from the
+        // tool catalog + the LIVE_TOOLS / NOT_YET_AVAILABLE_TOOLS classification,
+        // not a hardcoded all-true literal.
+        //
+        // - Live tools report `true`: their handlers execute real domain logic.
+        //   Read-path tools have no per-client flag source in the
+        //   FeatureFlagEvaluator (it models WRITE capabilities, BC-2.04.002);
+        //   per-client write capability paths (e.g. `sensor.<sensor>.containment`)
+        //   are evaluated at execution time by the two-tier check inside the
+        //   write pipeline (BC-2.04.004) — `client_registered` above surfaces
+        //   the Tier-2 registry membership for the requested client.
+        // - Stubbed tools (the `-32003 not_yet_available` set, including the
+        //   crowdstrike write tools pending sensor adapter wiring) report
+        //   `false`: they cannot be invoked regardless of feature-flag state.
+        let capabilities: serde_json::Map<String, serde_json::Value> =
+            Self::production_tool_catalog()
+                .iter()
+                .map(|tool| {
+                    let name = tool.name.to_string();
+                    let live = LIVE_TOOLS.contains(&name.as_str());
+                    (name, serde_json::Value::Bool(live))
+                })
+                .collect();
         let result_json = serde_json::json!({
             "client_id": client_id,
             "client_registered": client_exists,
-            "capabilities": {
-                "query": true,
-                "explain_query": true,
-                "list_sensor_specs": true,
-                "validate_config": true,
-                "add_sensor_spec": true,
-                "reload_config": true,
-                "create_alias": true,
-                "list_aliases": true,
-                "delete_alias": true,
-                "explain_alias": true,
-                "confirm_action": true,
-            },
-            "note": "Write capabilities (contain, lift_containment) require S-2.03 \
-                     feature-flag configuration and GAP-002-A sensor adapter wiring.",
+            "capabilities": capabilities,
+            "not_implemented": NOT_YET_AVAILABLE_TOOLS,
+            "note": "capabilities[tool] == false means the tool is registered but not \
+                     implemented (returns -32003). Per-client write capabilities \
+                     (e.g. sensor.<sensor>.containment) are evaluated at execution time \
+                     by the two-tier feature-flag check (BC-2.04.004); client_registered \
+                     reports whether the requested client exists in the runtime \
+                     capability registry.",
         });
         let envelope = SafetyEnvelopeBuilder::wrap(
             "list_capabilities",
@@ -6808,5 +6901,155 @@ mod tests {
             !outcome.contains("ignore previous"),
             "raw injected content must never reach the audit record"
         );
+    }
+
+    // ─── MCP-01 (2026-06-10 review) — derived list_capabilities map ──────────
+
+    /// MCP-01 sync gate: every tool in the production tool catalog must be
+    /// classified in exactly one of LIVE_TOOLS / NOT_YET_AVAILABLE_TOOLS.
+    /// Adding a tool (or implementing a stubbed one) without updating the
+    /// classification fails this test.
+    #[test]
+    fn test_MCP_01_capability_classification_partitions_tool_catalog() {
+        use std::collections::BTreeSet;
+
+        let catalog: BTreeSet<String> = PrismServer::production_tool_catalog()
+            .iter()
+            .map(|t| t.name.to_string())
+            .collect();
+        let live: BTreeSet<String> = LIVE_TOOLS.iter().map(|s| s.to_string()).collect();
+        let stubbed: BTreeSet<String> = NOT_YET_AVAILABLE_TOOLS
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
+
+        let overlap: Vec<_> = live.intersection(&stubbed).collect();
+        assert!(
+            overlap.is_empty(),
+            "LIVE_TOOLS and NOT_YET_AVAILABLE_TOOLS must be disjoint; overlap: {overlap:?}"
+        );
+
+        let classified: BTreeSet<String> = live.union(&stubbed).cloned().collect();
+        let unclassified: Vec<_> = catalog.difference(&classified).collect();
+        let phantom: Vec<_> = classified.difference(&catalog).collect();
+        assert!(
+            unclassified.is_empty(),
+            "catalog tools missing from LIVE_TOOLS/NOT_YET_AVAILABLE_TOOLS: {unclassified:?}"
+        );
+        assert!(
+            phantom.is_empty(),
+            "classified tools not present in the tool catalog: {phantom:?}"
+        );
+    }
+
+    /// Build a PrismServer with a WriteExecutor whose FeatureFlagEvaluator has
+    /// `registered_client` in its runtime capability registry.
+    fn server_with_write_executor(registered_client: &str) -> PrismServer {
+        use std::collections::BTreeMap;
+
+        use prism_core::capability::ClientCapabilities;
+        use prism_query::write_pipeline::WriteExecutor;
+        use prism_security::{confirmation_token::ConfirmationTokenStore, FeatureFlagEvaluator};
+        use prism_sensors::registry::AdapterRegistry;
+        use prism_spec_engine::write_endpoint::WriteEndpointRegistry;
+
+        let mut clients = BTreeMap::new();
+        clients.insert(registered_client.to_owned(), ClientCapabilities::new());
+        let feature_flags = Arc::new(FeatureFlagEvaluator::new(clients));
+        let write_executor = Arc::new(WriteExecutor::new(
+            feature_flags,
+            Arc::new(ConfirmationTokenStore::new()),
+            Arc::new(RecordingAudit::default()),
+            Arc::new(AdapterRegistry::new()),
+            Arc::new(WriteEndpointRegistry::new()),
+        ));
+        let mut server = PrismServer::new();
+        server.write_executor = Some(write_executor);
+        server
+    }
+
+    /// Extract the envelope JSON from a structured CallToolResult.
+    fn envelope_json(result: rmcp::model::CallToolResult) -> serde_json::Value {
+        result
+            .structured_content
+            .expect("list_capabilities must return structured content")
+    }
+
+    /// MCP-01: registered client → client_registered = true; live tools true;
+    /// stubbed tools (including the crowdstrike write tools) false.
+    #[tokio::test]
+    async fn test_MCP_01_list_capabilities_registered_client_derived_map() {
+        let server = server_with_write_executor("acme");
+        let result = server
+            .list_capabilities(Parameters(ListCapabilitiesParams {
+                client_id: Some("acme".to_owned()),
+            }))
+            .await
+            .expect("list_capabilities must succeed with WriteExecutor wired");
+        let v = envelope_json(result);
+        let body = &v["results"];
+
+        assert_eq!(
+            body["client_registered"], true,
+            "registered client must report client_registered=true; got {body}"
+        );
+        let caps = body["capabilities"]
+            .as_object()
+            .expect("capabilities must be an object");
+        // Live tools report true.
+        for live in ["query", "explain_query", "confirm_action", "create_alias"] {
+            assert_eq!(
+                caps[live], true,
+                "live tool '{live}' must report true; got {:?}",
+                caps[live]
+            );
+        }
+        // Implemented-but-stubbed tools report false.
+        for stubbed in [
+            "create_schedule",
+            "crowdstrike_contain_host",
+            "crowdstrike_lift_containment",
+            "get_help",
+        ] {
+            assert_eq!(
+                caps[stubbed], false,
+                "stubbed tool '{stubbed}' must report false (-32003 not implemented); \
+                 got {:?}",
+                caps[stubbed]
+            );
+        }
+        // The map must cover the whole catalog — not the old 11-entry literal.
+        assert_eq!(
+            caps.len(),
+            PrismServer::production_tool_catalog().len(),
+            "capabilities map must cover every catalog tool"
+        );
+        // Stubbed tools are also enumerated explicitly for agent consumers.
+        let not_impl = body["not_implemented"]
+            .as_array()
+            .expect("not_implemented must be an array");
+        assert_eq!(not_impl.len(), NOT_YET_AVAILABLE_TOOLS.len());
+    }
+
+    /// MCP-01: unregistered client → client_registered = false (capabilities
+    /// map identical — tool availability is not per-client; write capability
+    /// evaluation happens per-request in the write pipeline).
+    #[tokio::test]
+    async fn test_MCP_01_list_capabilities_unregistered_client_not_registered() {
+        let server = server_with_write_executor("acme");
+        let result = server
+            .list_capabilities(Parameters(ListCapabilitiesParams {
+                client_id: Some("globex".to_owned()),
+            }))
+            .await
+            .expect("list_capabilities must succeed");
+        let v = envelope_json(result);
+        let body = &v["results"];
+        assert_eq!(
+            body["client_registered"], false,
+            "unregistered client must report client_registered=false; got {body}"
+        );
+        assert_eq!(body["capabilities"]["query"], true);
+        assert_eq!(body["capabilities"]["create_schedule"], false);
     }
 }
