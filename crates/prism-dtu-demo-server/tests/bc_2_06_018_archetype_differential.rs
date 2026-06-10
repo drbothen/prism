@@ -195,7 +195,7 @@ async fn test_BC_2_06_018_dormant_archetype_empty_served_response() {
 /// If the archetype arg is ignored, `$.total` would be 50, not 10,000.
 /// The count mismatch is the load-bearing signal.
 ///
-/// Traces to: BC-2.06.018 story v1.4 AC-016.
+/// Traces to: BC-2.06.018 AC-007 (INV-FIXTURE-SET-ARCHETYPE-MAP-001) / EC-018-005 / Red Gate test #16.
 #[tokio::test]
 async fn test_BC_2_06_018_large_scale_archetype_record_count() {
     let org = deadbeef_org();
