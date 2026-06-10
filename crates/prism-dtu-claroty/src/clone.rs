@@ -107,6 +107,10 @@ impl ClarotyClone {
         let admin_token = uuid::Uuid::new_v4().to_string();
         let mut state = ClarotyState::with_admin_token(admin_token.clone());
         state.generated_records = fixture.records;
+        // Mark as seeded so route handlers use the generated path (even for DormantTenant
+        // which produces 0 records). Without this flag, DormantTenant would fall back to
+        // the static fixture — violating BC EC-018-003 / F-P6-HIGH-001.
+        state.fixture_gen_seeded = true;
 
         Self {
             config: prism_dtu_common::StubConfig::default(),

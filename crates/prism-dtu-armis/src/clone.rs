@@ -170,6 +170,9 @@ impl ArmisClone {
         let mut state =
             ArmisState::with_admin_token(devices, activity, alerts, admin_token.clone());
         state.generated_records = fixture.records;
+        // Mark as seeded so route handlers use the generated path (even for DormantTenant
+        // which produces 0 records). F-P6-HIGH-001 / ADR-036 v2.2.
+        state.fixture_gen_seeded = true;
 
         Ok(Self {
             state: Arc::new(state),

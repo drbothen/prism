@@ -247,8 +247,11 @@ pub async fn list_devices(
     // generated_records vec. We must serve ONLY device-surface records here.
     // Mirror the discriminator used by Armis devices.rs:
     //   device record: asset_id present AND alert_id absent.
+    // Dual-path sentinel: use `fixture_gen_seeded` (not generated_records.is_empty()) so that
+    // DormantTenant (seeded=true, 0 records) serves empty — not the static fixture.
+    // F-P6-HIGH-001 fix: emptiness check was wrong for archetypes that generate 0 records.
     #[cfg(feature = "fixture-gen")]
-    let mut devices: Vec<serde_json::Value> = if !state.generated_records.is_empty() {
+    let mut devices: Vec<serde_json::Value> = if state.fixture_gen_seeded {
         state
             .generated_records
             .iter()

@@ -65,12 +65,28 @@ pub struct ClarotyState {
     // -----------------------------------------------------------------------
     /// Generated records from the fixture generator (BC-2.06.018 postcondition 1).
     ///
-    /// Non-empty when the clone is constructed via `new_with_seed`.
-    /// Empty when constructed via `new()` (static-JSON path, ADR-036 §2.5).
+    /// Non-empty when the clone is constructed via `new_with_seed` AND the archetype
+    /// produces records (e.g., CompromisedEndpoint). EMPTY for DormantTenant archetype
+    /// even when seeded.
+    ///
+    /// Route handlers MUST use `fixture_gen_seeded` (not `generated_records.is_empty()`)
+    /// to decide between the generated path and the static-fixture fallback.
+    /// Otherwise DormantTenant (seeded=true, generated_records=[]) would silently fall
+    /// back to the static fixture — violating F-P6-HIGH-001 / BC EC-018-003.
     ///
     /// ADR-036 §2.3: immutable after construction (NOT Arc<Mutex<...>>).
     #[cfg(feature = "fixture-gen")]
     pub generated_records: Vec<serde_json::Value>,
+
+    /// True when the clone was constructed via `new_with_seed` (fixture-gen path).
+    ///
+    /// Used by route handlers as the dual-path sentinel INSTEAD of
+    /// `generated_records.is_empty()`. This correctly handles DormantTenant, which
+    /// produces 0 records — route handlers MUST serve empty, not fall back to static fixture.
+    ///
+    /// ADR-036 v2.2 / F-P6-HIGH-001 fix: always false on `new()` path.
+    #[cfg(feature = "fixture-gen")]
+    pub fixture_gen_seeded: bool,
 }
 
 impl ClarotyState {
@@ -100,6 +116,9 @@ impl ClarotyState {
             // Story A: generated_records defaults empty (static-JSON path).
             #[cfg(feature = "fixture-gen")]
             generated_records: Vec::new(),
+            // fixture_gen_seeded is false on new() path — route handlers use static fixture.
+            #[cfg(feature = "fixture-gen")]
+            fixture_gen_seeded: false,
         }
     }
 

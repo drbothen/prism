@@ -165,10 +165,11 @@ pub async fn post_devices(
 /// - When `state.generated_records` is empty: falls back to `state.devices_ordered`
 ///   (static fixture, backward-compatible `new()` path).
 fn paginate_devices(state: &ArmisState, page: u32, size: u32) -> axum::response::Response {
-    // Dual-path: serve from generated_records when available (ADR-036 §2.3).
-    // Generated records are immutable after construction — no lock needed.
+    // Dual-path: use fixture_gen_seeded (not generated_records.is_empty()) as sentinel.
+    // DormantTenant (seeded=true, 0 records) must serve empty — not static fixture.
+    // F-P6-HIGH-001 / ADR-036 v2.2.
     #[cfg(feature = "fixture-gen")]
-    let use_generated = !state.generated_records.is_empty();
+    let use_generated = state.fixture_gen_seeded;
     #[cfg(not(feature = "fixture-gen"))]
     let use_generated = false;
 

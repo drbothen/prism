@@ -132,6 +132,9 @@ impl CrowdstrikeClone {
         let mut state = CrowdstrikeState::with_admin_token(admin_token.clone());
         state.generated_devices = generated_devices;
         state.generated_detections = generated_detections;
+        // Mark as seeded so route handlers use the generated path (even for DormantTenant
+        // which produces 0 records). F-P6-HIGH-001 / ADR-036 v2.2.
+        state.fixture_gen_seeded = true;
 
         Self {
             config: prism_dtu_common::StubConfig::default(),

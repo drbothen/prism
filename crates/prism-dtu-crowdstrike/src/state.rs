@@ -166,6 +166,14 @@ pub struct CrowdstrikeState {
     /// ADR-036 §2.3: immutable after construction.
     #[cfg(feature = "fixture-gen")]
     pub generated_detections: Vec<serde_json::Value>,
+
+    /// True when the clone was constructed via `new_with_seed` (fixture-gen path).
+    ///
+    /// Route handlers MUST use this flag (not `generated_devices.is_empty()`) as the
+    /// dual-path sentinel so DormantTenant (seeded=true, 0 device/detection records)
+    /// serves empty — not the static fixture. F-P6-HIGH-001 / ADR-036 v2.2.
+    #[cfg(feature = "fixture-gen")]
+    pub fixture_gen_seeded: bool,
 }
 
 impl CrowdstrikeState {
@@ -204,6 +212,9 @@ impl CrowdstrikeState {
             generated_devices: Vec::new(),
             #[cfg(feature = "fixture-gen")]
             generated_detections: Vec::new(),
+            // fixture_gen_seeded: false on new() path — route handlers use static fixture.
+            #[cfg(feature = "fixture-gen")]
+            fixture_gen_seeded: false,
         }
     }
 

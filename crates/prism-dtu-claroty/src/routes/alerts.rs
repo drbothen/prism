@@ -54,13 +54,15 @@ pub async fn list_alerts(
         }
     }
 
-    // F-P2-MED-001: dual-path — when generated_records is non-empty (clone built via
-    // new_with_seed), serve generated alert records as raw serde_json::Value.
-    // Generated Claroty records include an "alert_id" field (generator.rs line 132:
+    // F-P2-MED-001: dual-path — when the clone was built via new_with_seed (fixture_gen_seeded),
+    // serve generated alert records as raw serde_json::Value.
+    // Use fixture_gen_seeded (not generated_records.is_empty()) so DormantTenant (seeded=true,
+    // 0 records) serves empty alerts — not static fixture. F-P6-HIGH-001 fix.
+    // Generated Claroty records include an "alert_id" field (generator.rs:
     // `"alert_id": format!("alert-{slug}-{seed}-{index}")`).
     // The adapter reads "$.alerts" response_path — the envelope structure is preserved.
     #[cfg(feature = "fixture-gen")]
-    if !state.generated_records.is_empty() {
+    if state.fixture_gen_seeded {
         let generated_alerts: Vec<serde_json::Value> = state
             .generated_records
             .iter()

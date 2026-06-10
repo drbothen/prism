@@ -170,10 +170,11 @@ pub async fn get_alerts(
         return *resp;
     }
 
-    // Dual-path: serve from generated_records when available (ADR-036 §2.3).
+    // Dual-path: use fixture_gen_seeded (not generated_records.is_empty()) so DormantTenant
+    // (seeded=true, 0 records) serves empty — not the static fixture. F-P6-HIGH-001.
     // Generated records are immutable after construction — no lock needed.
     #[cfg(feature = "fixture-gen")]
-    if !state.generated_records.is_empty() {
+    if state.fixture_gen_seeded {
         // Filter to alert surface records only using the authoritative _surface discriminator.
         //
         // F-P3-CRIT-001 fix: the prior discriminator `rec.get("alert_id").is_some()` was

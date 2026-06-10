@@ -192,8 +192,10 @@ pub async fn get_search(
         // Generated records use camelCase Armis-native shapes; the adapter reads
         // by response_path "$.data.results" so raw Value is correct here.
         // Partition by "alert_id" presence (generator.rs::build_alert always emits "alert_id").
+        // Use fixture_gen_seeded (not generated_records.is_empty()) so DormantTenant
+        // (seeded=true, 0 records) serves empty — not the static fixture. F-P6-HIGH-001.
         #[cfg(feature = "fixture-gen")]
-        if !state.generated_records.is_empty() {
+        if state.fixture_gen_seeded {
             let generated_alerts: Vec<&serde_json::Value> = state
                 .generated_records
                 .iter()
@@ -254,8 +256,10 @@ pub async fn get_search(
         // Generated records use camelCase Armis-native shapes ("asset_id", "lastSeen", etc.);
         // the adapter reads by response_path "$.data.results" so raw Value is correct.
         // Partition by "asset_id" presence (generator.rs::build_asset always emits "asset_id").
+        // Use fixture_gen_seeded (not generated_records.is_empty()) so DormantTenant
+        // (seeded=true, 0 records) serves empty — not the static fixture. F-P6-HIGH-001.
         #[cfg(feature = "fixture-gen")]
-        if !state.generated_records.is_empty() {
+        if state.fixture_gen_seeded {
             let generated_devices: Vec<&serde_json::Value> = state
                 .generated_records
                 .iter()

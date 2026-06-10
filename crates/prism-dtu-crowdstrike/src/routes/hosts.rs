@@ -158,10 +158,11 @@ pub async fn list_host_ids(
         }
     }
 
-    // Dual-path: serve generated device IDs when available (ADR-036 §2.3).
-    // Generated records are immutable after construction — no lock needed.
+    // Dual-path: serve generated device IDs when clone was built via new_with_seed (ADR-036 §2.3).
+    // Use fixture_gen_seeded (not generated_devices.is_empty()) so DormantTenant (seeded=true,
+    // 0 devices) serves empty — not the static fixture. F-P6-HIGH-001 / ADR-036 v2.2.
     #[cfg(feature = "fixture-gen")]
-    let all_ids: Vec<String> = if !state.generated_devices.is_empty() {
+    let all_ids: Vec<String> = if state.fixture_gen_seeded {
         state
             .generated_devices
             .iter()
@@ -327,23 +328,24 @@ pub async fn get_host_details(
 
     let org_id = extract_org_id(&headers);
 
-    // Dual-path: use generated device records when available (ADR-036 §2.3).
-    // Build a HashMap<device_id, Value> from whichever source is active.
+    // Dual-path: use generated device records when clone was built via new_with_seed (ADR-036 §2.3).
+    // Use fixture_gen_seeded (not generated_devices.is_empty()) so DormantTenant (seeded=true,
+    // 0 devices) serves empty — not the static fixture. F-P6-HIGH-001 / ADR-036 v2.2.
     #[cfg(feature = "fixture-gen")]
-    let fixture: std::collections::HashMap<String, serde_json::Value> =
-        if !state.generated_devices.is_empty() {
-            state
-                .generated_devices
-                .iter()
-                .filter_map(|rec| {
-                    rec.get("device_id")
-                        .and_then(|v| v.as_str())
-                        .map(|id| (id.to_owned(), rec.clone()))
-                })
-                .collect()
-        } else {
-            load_host_details()
-        };
+    let fixture: std::collections::HashMap<String, serde_json::Value> = if state.fixture_gen_seeded
+    {
+        state
+            .generated_devices
+            .iter()
+            .filter_map(|rec| {
+                rec.get("device_id")
+                    .and_then(|v| v.as_str())
+                    .map(|id| (id.to_owned(), rec.clone()))
+            })
+            .collect()
+    } else {
+        load_host_details()
+    };
     #[cfg(not(feature = "fixture-gen"))]
     let fixture = load_host_details();
 
