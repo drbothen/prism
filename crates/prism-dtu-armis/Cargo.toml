@@ -158,5 +158,12 @@ name = "f_p2_route_output_tests"
 path = "tests/f_p2_route_output_tests.rs"
 required-features = ["dtu", "fixture-gen"]
 
+# F-P15-MED-001: GET /api/v1/alerts dual-path route-output tests
+# (seeded-prefix, cross-seed disjointness, DormantTenant→empty)
+[[test]]
+name = "f_p15_alerts_route_output"
+path = "tests/f_p15_alerts_route_output.rs"
+required-features = ["dtu", "fixture-gen"]
+
 [lints]
 workspace = true
