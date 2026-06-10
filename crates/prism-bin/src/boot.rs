@@ -2162,7 +2162,10 @@ pub async fn step8_init_query_engine() -> Result<(), BootError> {
 /// Uses RocksDbBackend from step 6 (via BootContext) as the query storage backend.
 /// Uses OrgRegistry from step 3 and CredentialStore from step 5 (CRIT-5 fix).
 /// Step 9A (S-DEMO-001): calls `step9a_populate_adapter_registry` to wire spec-driven adapters.
-/// The AuditWriter is a tracing stub until the full audit-writer integration story (S-2.04) ships.
+/// The AuditWriter (`BootAuditWriter`) writes MCP tool-call audit records durably to the
+/// RocksDB audit_buffer CF (`write_tool_call`, MCP-02 2026-06-10 review); write-path
+/// intent/outcome records remain structured tracing events until the Tower
+/// AuditEmitterLayer integration story ships.
 ///
 /// # Background task semantics
 ///
@@ -2353,6 +2356,9 @@ pub async fn step9_start_mcp_server(
     // Arc::clone before the move into QueryEngine::new_full so PrismServer::with_deps
     // can also receive the registry for alias CRUD allowlist validation.
     let org_registry_for_server = Arc::clone(&org_registry);
+    // MCP-02 (2026-06-10 review): retain storage Arc for the boot AuditWriter so
+    // MCP tool-call audit records land durably in the RocksDB audit_buffer CF.
+    let storage_for_audit = Arc::clone(&storage);
     let query_engine = Arc::new(QueryEngine::new_full(
         adapter_registry.clone(),
         // CRIT-5: real credential_store from step 5 — replaces BootNullCredentialStore.
@@ -2378,11 +2384,18 @@ pub async fn step9_start_mcp_server(
     let feature_flags = Arc::new(FeatureFlagEvaluator::new(BTreeMap::new()));
     let confirmation_store = Arc::new(ConfirmationTokenStore::new());
 
-    // TracingAuditWriter — emits structured tracing events for write audit entries.
-    // Full AuditEmitter integration via Tower layer requires S-2.04.
-    struct TracingAuditWriter;
+    // BootAuditWriter — write-path intent/outcome records are structured tracing
+    // events (full AuditEmitter integration via Tower layer is a future story);
+    // MCP tool-call records (`write_tool_call`, MCP-02 2026-06-10 review) are
+    // written DURABLY to the RocksDB audit_buffer CF via the established
+    // `prism_storage::audit_buffer::append_audit_entry` pattern
+    // (same construction as prism-audit credential_events).
+    struct BootAuditWriter {
+        /// RocksDB backend from boot step 6 — durable tool-call audit target.
+        storage: Arc<prism_storage::rocksdb_backend::RocksDbBackend>,
+    }
     #[async_trait::async_trait]
-    impl AuditWriter for TracingAuditWriter {
+    impl AuditWriter for BootAuditWriter {
         async fn write_intent(
             &self,
             plan: &WritePlan,
@@ -2412,8 +2425,45 @@ pub async fn step9_start_mcp_server(
             );
             Ok(())
         }
+
+        /// MCP-02 (2026-06-10 review): durable MCP tool-call audit record.
+        ///
+        /// Appends a lightweight key+payload envelope to the `audit_buffer` CF
+        /// (BC-2.05.009 family / CRIT-005), following the established
+        /// `prism_audit::credential_events` construction pattern. Not
+        /// fail-closed: the caller (`emit_tool_audit`) logs Err and proceeds
+        /// (BC-2.05.008 EC-05-013 read-path audit semantics).
+        async fn write_tool_call(
+            &self,
+            tool_name: &str,
+            client_id: Option<&str>,
+            outcome: &str,
+        ) -> Result<(), prism_core::error::PrismError> {
+            let timestamp_ns = chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0) as u64;
+            let trace_id = uuid::Uuid::now_v7().to_string();
+            let mut payload = std::collections::BTreeMap::new();
+            payload.insert("event_type".to_owned(), "mcp.tool.called".to_owned());
+            payload.insert("tool_name".to_owned(), tool_name.to_owned());
+            // BC-2.05.002 sentinel: "MISSING" when the request carried no client_id.
+            payload.insert(
+                "client_id".to_owned(),
+                client_id.unwrap_or("MISSING").to_owned(),
+            );
+            payload.insert("outcome".to_owned(), outcome.to_owned());
+            prism_storage::audit_buffer::append_audit_entry(
+                self.storage.as_ref(),
+                &prism_storage::audit_buffer::AuditEntry {
+                    timestamp_ns,
+                    trace_id,
+                    payload,
+                },
+            )
+            .map_err(|_| prism_core::error::PrismError::AuditPersistenceFailed)
+        }
     }
-    let audit_writer: Arc<dyn AuditWriter> = Arc::new(TracingAuditWriter);
+    let audit_writer: Arc<dyn AuditWriter> = Arc::new(BootAuditWriter {
+        storage: storage_for_audit,
+    });
     let write_adapter_registry = Arc::new(AdapterRegistry::new());
     let endpoint_registry = Arc::new(WriteEndpointRegistry::new());
 

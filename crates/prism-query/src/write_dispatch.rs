@@ -108,6 +108,30 @@ pub trait AuditWriter: Send + Sync + 'static {
     /// If this returns `Err`, the failure is logged but the write result is still
     /// returned to the caller — the sensor API calls are already complete.
     async fn write_outcome(&self, intent_id: Ulid, result: &WriteResult) -> Result<(), PrismError>;
+
+    /// Write a durable audit record for an MCP tool invocation (BC-2.05.009
+    /// family; CRIT-005 — every tool call must produce a structured audit entry).
+    ///
+    /// MCP-02 (2026-06-10 review): this is the durable complement to the
+    /// `mcp.tool.called` tracing emission in `prism-mcp::server::emit_tool_audit`.
+    /// `outcome` is a short machine-readable outcome tag (e.g. `"invoked"`,
+    /// `"rejected_injection"`).
+    ///
+    /// # Not fail-closed (BC-2.05.008 EC-05-013)
+    ///
+    /// Unlike `write_intent`, tool-call audit is NOT fail-closed: on `Err` the
+    /// caller logs an audit warning and the tool call proceeds — read-path
+    /// audit failure must not abort the invocation.
+    ///
+    /// This method is REQUIRED (no default impl) so that a production
+    /// `AuditWriter` cannot silently inherit a no-op and lose the durable
+    /// tool-call audit trail.
+    async fn write_tool_call(
+        &self,
+        tool_name: &str,
+        client_id: Option<&str>,
+        outcome: &str,
+    ) -> Result<(), PrismError>;
 }
 
 // ---------------------------------------------------------------------------
@@ -428,6 +452,15 @@ mod fan_out_empty_batch_tests {
         }
 
         async fn write_outcome(&self, _id: Ulid, _r: &WriteResult) -> Result<(), PrismError> {
+            Ok(())
+        }
+
+        async fn write_tool_call(
+            &self,
+            _tool_name: &str,
+            _client_id: Option<&str>,
+            _outcome: &str,
+        ) -> Result<(), PrismError> {
             Ok(())
         }
     }

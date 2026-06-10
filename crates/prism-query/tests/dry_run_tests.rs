@@ -110,6 +110,15 @@ mod helpers {
         ) -> Result<(), PrismError> {
             Ok(())
         }
+
+        async fn write_tool_call(
+            &self,
+            _tool_name: &str,
+            _client_id: Option<&str>,
+            _outcome: &str,
+        ) -> Result<(), PrismError> {
+            Ok(())
+        }
     }
 
     pub fn make_executor() -> WriteExecutor {
@@ -561,6 +570,15 @@ async fn test_BC_2_04_001_flag_disabled_between_calls_second_call_returns_e_flag
             &self,
             _id: ulid::Ulid,
             _r: &prism_query::write_result::WriteResult,
+        ) -> Result<(), PrismError> {
+            Ok(())
+        }
+
+        async fn write_tool_call(
+            &self,
+            _tool_name: &str,
+            _client_id: Option<&str>,
+            _outcome: &str,
         ) -> Result<(), PrismError> {
             Ok(())
         }

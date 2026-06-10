@@ -142,6 +142,15 @@ mod helpers {
                 Ok(())
             }
         }
+
+        async fn write_tool_call(
+            &self,
+            _tool_name: &str,
+            _client_id: Option<&str>,
+            _outcome: &str,
+        ) -> Result<(), PrismError> {
+            Ok(())
+        }
     }
 }
 
