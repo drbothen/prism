@@ -6,7 +6,7 @@
 #![cfg(feature = "fixture-gen")]
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
-use prism_dtu_common::OrgId;
+use prism_dtu_common::{Archetype, OrgId};
 use prism_dtu_crowdstrike::CrowdstrikeClone;
 
 /// Golden test vector: org bytes [0xde, 0xad, 0xbe, 0xef, ...] → org_slug = "deadbeef".
@@ -30,7 +30,7 @@ fn derive_org_slug(org: &OrgId) -> String {
 ///
 /// Traces to: BC-2.06.018 postcondition 1 (seed forwarded to generator-backed clones)
 /// Verifies:
-/// - CrowdstrikeClone::new_with_seed(seed, org_id) is callable (constructor exists under fixture-gen)
+/// - CrowdstrikeClone::new_with_seed(seed, archetype, org_id) is callable (constructor exists under fixture-gen)
 /// - state.generated_devices is non-empty after construction
 /// - All device IDs follow canonical format "dev-{org_slug}-{seed}-{n}" (ADR-036 §2.2)
 /// - state.generated_detections is non-empty after construction
@@ -43,7 +43,8 @@ fn test_BC_2_06_018_crowdstrike_new_with_seed_forwarded() {
     let org_slug = derive_org_slug(&org);
     let seed: u64 = 100;
 
-    let clone = CrowdstrikeClone::new_with_seed(seed, org.clone());
+    // CompromisedEndpoint: 50 device records + 20 detection records (non-empty, verifiable).
+    let clone = CrowdstrikeClone::new_with_seed(seed, Archetype::CompromisedEndpoint, org.clone());
 
     // (a) generated_devices must be non-empty (BC-2.06.018 postcondition 1).
     let generated_devices = &clone.state.generated_devices;
@@ -88,8 +89,9 @@ fn test_BC_2_06_018_crowdstrike_new_with_seed_disjoint_id_prefixes() {
     let org = deadbeef_org();
     let org_slug = derive_org_slug(&org);
 
-    let clone_100 = CrowdstrikeClone::new_with_seed(100, org.clone());
-    let clone_200 = CrowdstrikeClone::new_with_seed(200, org);
+    let clone_100 =
+        CrowdstrikeClone::new_with_seed(100, Archetype::CompromisedEndpoint, org.clone());
+    let clone_200 = CrowdstrikeClone::new_with_seed(200, Archetype::CompromisedEndpoint, org);
 
     let ids_100: std::collections::HashSet<String> = clone_100
         .state

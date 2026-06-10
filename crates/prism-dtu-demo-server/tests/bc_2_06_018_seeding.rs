@@ -76,8 +76,17 @@ fn test_BC_2_06_018_distinct_seeds_disjoint_ids() {
     ]);
 
     // Construct clones directly so we can inspect state (Box<dyn BehavioralClone> is opaque).
-    let clone_a = CrowdstrikeClone::new_with_seed(100, org_a);
-    let clone_b = CrowdstrikeClone::new_with_seed(200, org_b);
+    // CompromisedEndpoint produces non-empty device records (disjointness test requires non-empty).
+    let clone_a = CrowdstrikeClone::new_with_seed(
+        100,
+        prism_dtu_common::Archetype::CompromisedEndpoint,
+        org_a,
+    );
+    let clone_b = CrowdstrikeClone::new_with_seed(
+        200,
+        prism_dtu_common::Archetype::CompromisedEndpoint,
+        org_b,
+    );
 
     // Extract device IDs from both clones' generated_devices.
     let ids_a: std::collections::HashSet<String> = clone_a

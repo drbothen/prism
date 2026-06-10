@@ -137,7 +137,7 @@ impl CyberintClone {
     // -----------------------------------------------------------------------
 
     /// Construct a `CyberintClone` with deterministic fixture data generated at
-    /// construction time from `(seed, org_id)`.
+    /// construction time from `(seed, archetype, org_id)`.
     ///
     /// Gated `#[cfg(feature = "fixture-gen")]`.
     ///
@@ -145,16 +145,23 @@ impl CyberintClone {
     /// `build_clone_pairs` propagates the error via `?`.
     ///
     /// `CyberintClone::new()` is unchanged (backward-compatible, ADR-036 §2.5).
+    ///
+    /// ADR-036 v2.2: canonical 3-arg form — `archetype` is forwarded to `generate()`;
+    /// NO hardcoded archetype inside this constructor.
     #[cfg(feature = "fixture-gen")]
-    pub fn new_with_seed(seed: u64, org_id: prism_dtu_common::OrgId) -> anyhow::Result<Self> {
+    pub fn new_with_seed(
+        seed: u64,
+        archetype: prism_dtu_common::Archetype,
+        org_id: prism_dtu_common::OrgId,
+    ) -> anyhow::Result<Self> {
         use crate::generator::generate;
-        use prism_dtu_common::{Archetype, GenOpts};
+        use prism_dtu_common::GenOpts;
 
         let opts = GenOpts {
             seed,
             ..GenOpts::default()
         };
-        let fixture = generate(&org_id, Archetype::CompromisedEndpoint, &opts);
+        let fixture = generate(&org_id, archetype, &opts);
 
         // Load static fixtures (required for alert_fixture / alert_store initialization).
         let crate_dir = env!("CARGO_MANIFEST_DIR");

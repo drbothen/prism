@@ -6,7 +6,7 @@
 #![cfg(feature = "fixture-gen")]
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
-use prism_dtu_common::OrgId;
+use prism_dtu_common::{Archetype, OrgId};
 use prism_dtu_cyberint::CyberintClone;
 
 /// Golden test vector: org bytes [0xde, 0xad, 0xbe, 0xef, ...] → org_slug = "deadbeef".
@@ -42,7 +42,8 @@ fn test_BC_2_06_018_cyberint_new_with_seed_forwarded_fallible() {
     let org_slug = derive_org_slug(&org);
     let seed: u64 = 100;
 
-    let result = CyberintClone::new_with_seed(seed, org.clone());
+    // CompromisedEndpoint: produces alert records with org_slug-embedded IDs (non-empty, verifiable).
+    let result = CyberintClone::new_with_seed(seed, Archetype::CompromisedEndpoint, org.clone());
 
     let clone = result.expect(
         "CyberintClone::new_with_seed must succeed with valid seed and org_id; \
@@ -96,7 +97,8 @@ fn test_BC_2_06_018_cyberint_new_with_seed_fallibility_consistent_with_new() {
 
     let org = deadbeef_org();
     // new_with_seed must also return anyhow::Result<Self>.
-    let seed_result: anyhow::Result<CyberintClone> = CyberintClone::new_with_seed(42, org);
+    let seed_result: anyhow::Result<CyberintClone> =
+        CyberintClone::new_with_seed(42, Archetype::CompromisedEndpoint, org);
     assert!(
         seed_result.is_ok(),
         "CyberintClone::new_with_seed must succeed with valid inputs; got Err: {:?}",
@@ -115,8 +117,10 @@ fn test_BC_2_06_018_cyberint_new_with_seed_disjoint_ids() {
     let org = deadbeef_org();
     let org_slug = derive_org_slug(&org);
 
-    let clone_100 = CyberintClone::new_with_seed(100, org.clone()).expect("seed=100 must succeed");
-    let clone_200 = CyberintClone::new_with_seed(200, org).expect("seed=200 must succeed");
+    let clone_100 = CyberintClone::new_with_seed(100, Archetype::CompromisedEndpoint, org.clone())
+        .expect("seed=100 must succeed");
+    let clone_200 = CyberintClone::new_with_seed(200, Archetype::CompromisedEndpoint, org)
+        .expect("seed=200 must succeed");
 
     let alert_ids_100: std::collections::HashSet<String> = clone_100
         .state

@@ -123,32 +123,38 @@ impl ArmisClone {
     // -----------------------------------------------------------------------
 
     /// Construct an `ArmisClone` with deterministic fixture data generated at
-    /// construction time from `(seed, org_id, org_slug)`.
+    /// construction time from `(seed, archetype, org_id)`.
     ///
     /// Gated `#[cfg(feature = "fixture-gen")]` — not compiled for production binaries.
     ///
-    /// Calls `generate(org_id, org_slug, Archetype::CompromisedEndpoint, &GenOpts { seed, ..GenOpts::default() })`
-    /// under `fixture-gen`, stores the resulting records in `generated_records` in state.
+    /// Internally derives `org_slug` via `prism_dtu_common::org_slug_from_org_id(&org_id)`
+    /// (ADR-036 §2.2 / ADR-036 v2.2). The `org_slug` is NO LONGER a constructor argument.
     ///
-    /// `org_slug` MUST be derived from `org_id` bytes via
-    /// `prism_dtu_common::scenario::org_slug_from_org_id(&gen_org_id)` (ADR-036 §2.2).
+    /// Calls `generate(org_id, &org_slug, archetype, &GenOpts { seed, ..GenOpts::default() })`
+    /// under `fixture-gen`, stores the resulting records in `generated_records` in state.
     ///
     /// This constructor is **fallible** — mirrors `ArmisClone::new() -> anyhow::Result<Self>`.
     /// `build_clone_pairs` propagates the error via `?`.
+    ///
+    /// ADR-036 v2.2: canonical 3-arg form — `archetype` is forwarded to `generate()`;
+    /// NO hardcoded archetype inside this constructor.
     #[cfg(feature = "fixture-gen")]
     pub fn new_with_seed(
         seed: u64,
+        archetype: prism_dtu_common::Archetype,
         org_id: prism_dtu_common::OrgId,
-        org_slug: &str,
     ) -> anyhow::Result<Self> {
         use crate::generator::generate;
-        use prism_dtu_common::{Archetype, GenOpts};
+        use prism_dtu_common::GenOpts;
+
+        // Derive org_slug internally from org_id bytes (ADR-036 §2.2).
+        let org_slug = prism_dtu_common::org_slug_from_org_id(&org_id);
 
         let opts = GenOpts {
             seed,
             ..GenOpts::default()
         };
-        let fixture = generate(org_id, org_slug, Archetype::CompromisedEndpoint, &opts);
+        let fixture = generate(org_id, &org_slug, archetype, &opts);
 
         // Load static fixtures (required by ArmisState; still used for activity and alerts).
         // We also need them to populate device_registry/devices_ordered for backward compat.

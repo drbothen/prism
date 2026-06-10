@@ -1,4 +1,4 @@
-//! Red Gate test RG-4: ArmisClone::new_with_seed forwarded with org_slug arg (fallible)
+//! Red Gate test RG-4: ArmisClone::new_with_seed canonical 3-arg form (fallible)
 //!
 //! Traces to: BC-2.06.018 postcondition 1 / ADR-036 §2.3 Armis retrofit
 //! Story: S-DEMO-DTU-LIVE-SCENARIO-001-A
@@ -7,7 +7,7 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
 use prism_dtu_armis::ArmisClone;
-use prism_dtu_common::OrgId;
+use prism_dtu_common::{Archetype, OrgId};
 
 /// Golden test vector: org bytes [0xde, 0xad, 0xbe, 0xef, ...] → org_slug = "deadbeef".
 ///
@@ -28,27 +28,29 @@ fn derive_org_slug_from_bytes(org: &OrgId) -> String {
     format!("{:02x}{:02x}{:02x}{:02x}", b[0], b[1], b[2], b[3])
 }
 
-/// RG-4: test_BC_2_06_018_armis_new_with_seed_with_org_slug_arg
+/// RG-4: test_BC_2_06_018_armis_new_with_seed_canonical_3arg
 ///
-/// Traces to: BC-2.06.018 postcondition 1 / ADR-036 §2.3 Armis retrofit
+/// Traces to: BC-2.06.018 postcondition 1 / ADR-036 v2.2 canonical 3-arg form
 /// Verifies:
-/// - ArmisClone::new_with_seed(seed, org_id, org_slug) is callable (constructor exists)
+/// - ArmisClone::new_with_seed(seed, archetype, org_id) is callable (canonical 3-arg, no org_slug arg)
 /// - Return type is anyhow::Result<Self> — fallible, mirrors ArmisClone::new()
 /// - state.generated_records is non-empty after construction
 /// - Device records in state contain IDs in "dev-{org_slug}-{seed}-{n}" format
+///   (org_slug derived internally by new_with_seed from org_id bytes)
 ///
 /// LOAD-BEARING: assertions inspect the constructed clone's state.generated_records.
 /// A broken impl (empty generated_records) causes this test to FAIL.
 #[test]
-fn test_BC_2_06_018_armis_new_with_seed_with_org_slug_arg() {
+fn test_BC_2_06_018_armis_new_with_seed_canonical_3arg() {
     let org = deadbeef_org();
     let seed: u64 = 100;
     let org_slug = derive_org_slug_from_bytes(&org);
 
-    let result = ArmisClone::new_with_seed(seed, org.clone(), &org_slug);
+    // Canonical 3-arg form: org_slug derived internally (ADR-036 v2.2).
+    let result = ArmisClone::new_with_seed(seed, Archetype::CompromisedEndpoint, org.clone());
 
     let clone = result.expect(
-        "ArmisClone::new_with_seed must succeed with valid seed, org_id, and org_slug; \
+        "ArmisClone::new_with_seed must succeed with valid seed, archetype, and org_id; \
          got Err — implementation incomplete",
     );
 
@@ -94,9 +96,9 @@ fn test_BC_2_06_018_armis_new_with_seed_fallibility_consistent_with_new() {
     let _new_result: anyhow::Result<ArmisClone> = ArmisClone::new();
 
     let org = deadbeef_org();
-    let org_slug = derive_org_slug_from_bytes(&org);
-    // new_with_seed must also return anyhow::Result<Self>.
-    let result: anyhow::Result<ArmisClone> = ArmisClone::new_with_seed(42, org, &org_slug);
+    // new_with_seed must also return anyhow::Result<Self> (canonical 3-arg form, ADR-036 v2.2).
+    let result: anyhow::Result<ArmisClone> =
+        ArmisClone::new_with_seed(42, Archetype::CompromisedEndpoint, org);
     assert!(
         result.is_ok(),
         "ArmisClone::new_with_seed must succeed with valid inputs; got Err: {:?}",
@@ -115,10 +117,11 @@ fn test_BC_2_06_018_armis_new_with_seed_disjoint_ids() {
     let org = deadbeef_org();
     let org_slug = derive_org_slug_from_bytes(&org);
 
-    let clone_100 = ArmisClone::new_with_seed(100, org.clone(), &org_slug)
+    // Canonical 3-arg form: org_slug derived internally (ADR-036 v2.2).
+    let clone_100 = ArmisClone::new_with_seed(100, Archetype::CompromisedEndpoint, org.clone())
         .expect("new_with_seed(100) must succeed");
-    let clone_200 =
-        ArmisClone::new_with_seed(200, org, &org_slug).expect("new_with_seed(200) must succeed");
+    let clone_200 = ArmisClone::new_with_seed(200, Archetype::CompromisedEndpoint, org)
+        .expect("new_with_seed(200) must succeed");
 
     let ids_100: std::collections::HashSet<String> = clone_100
         .state

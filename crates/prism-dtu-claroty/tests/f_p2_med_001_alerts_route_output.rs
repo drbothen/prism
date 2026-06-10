@@ -83,7 +83,11 @@ async fn test_f_p2_med_001_claroty_alerts_generated_route_output() {
     let slug = org_slug(&org);
     let seed = 42u64;
 
-    let mut clone = ClarotyClone::new_with_seed(seed, org.clone());
+    let mut clone = ClarotyClone::new_with_seed(
+        seed,
+        prism_dtu_common::Archetype::CompromisedEndpoint,
+        org.clone(),
+    );
     clone.start().await.expect("clone start must succeed");
     let base_url = clone.base_url();
     let client = test_client();
@@ -145,8 +149,16 @@ async fn test_f_p2_med_001_claroty_alerts_disjoint_across_seeds() {
     let org_b = cafebabe_org();
     let slug_b = org_slug(&org_b);
 
-    let mut clone_a = ClarotyClone::new_with_seed(100, org_a.clone());
-    let mut clone_b = ClarotyClone::new_with_seed(200, org_b.clone());
+    let mut clone_a = ClarotyClone::new_with_seed(
+        100,
+        prism_dtu_common::Archetype::CompromisedEndpoint,
+        org_a.clone(),
+    );
+    let mut clone_b = ClarotyClone::new_with_seed(
+        200,
+        prism_dtu_common::Archetype::CompromisedEndpoint,
+        org_b.clone(),
+    );
 
     clone_a.start().await.expect("clone_a start must succeed");
     clone_b.start().await.expect("clone_b start must succeed");
@@ -199,7 +211,11 @@ async fn test_f_p2_med_001_claroty_devices_already_wired_still_works() {
     let slug = org_slug(&org);
     let seed = 42u64;
 
-    let mut clone = ClarotyClone::new_with_seed(seed, org.clone());
+    let mut clone = ClarotyClone::new_with_seed(
+        seed,
+        prism_dtu_common::Archetype::CompromisedEndpoint,
+        org.clone(),
+    );
     clone.start().await.expect("clone start must succeed");
     let base_url = clone.base_url();
     let client = test_client();

@@ -84,8 +84,10 @@ fn test_client() -> reqwest::Client {
 /// allowlist starts empty). We register `TEST_ACCESS_TOKEN` directly on the state
 /// before starting the server so route handlers accept requests in tests.
 async fn start_seeded_clone(seed: u64, org: prism_dtu_common::OrgId) -> CyberintClone {
+    // CompromisedEndpoint: alert + cve + ioc records (non-empty, route-testable).
     let mut clone =
-        CyberintClone::new_with_seed(seed, org).expect("new_with_seed must succeed for test org");
+        CyberintClone::new_with_seed(seed, prism_dtu_common::Archetype::CompromisedEndpoint, org)
+            .expect("new_with_seed must succeed for test org");
     // Register the test token directly on state (equivalent to POST /dtu/configure
     // with {"access_token": "..."} but without requiring an HTTP round-trip).
     clone

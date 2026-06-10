@@ -95,8 +95,12 @@ async fn test_f_p2_crit_001_search_devices_generated_route_output() {
     let slug = org_slug(&org);
     let seed = 42u64;
 
-    let mut clone =
-        ArmisClone::new_with_seed(seed, org.clone(), &slug).expect("new_with_seed must succeed");
+    let mut clone = ArmisClone::new_with_seed(
+        seed,
+        prism_dtu_common::Archetype::CompromisedEndpoint,
+        org.clone(),
+    )
+    .expect("new_with_seed must succeed");
     clone.start().await.expect("clone start must succeed");
     let base_url = clone.base_url();
     let client = test_client();
@@ -164,8 +168,12 @@ async fn test_f_p2_crit_001_search_alerts_generated_route_output() {
     let slug = org_slug(&org);
     let seed = 42u64;
 
-    let mut clone =
-        ArmisClone::new_with_seed(seed, org.clone(), &slug).expect("new_with_seed must succeed");
+    let mut clone = ArmisClone::new_with_seed(
+        seed,
+        prism_dtu_common::Archetype::CompromisedEndpoint,
+        org.clone(),
+    )
+    .expect("new_with_seed must succeed");
     clone.start().await.expect("clone start must succeed");
     let base_url = clone.base_url();
     let client = test_client();
@@ -222,10 +230,19 @@ async fn test_f_p2_crit_001_search_devices_disjoint_across_seeds() {
     let org_b = cafebabe_org();
     let slug_b = org_slug(&org_b);
 
-    let mut clone_a = ArmisClone::new_with_seed(100, org_a.clone(), &slug_a)
-        .expect("new_with_seed(100) must succeed");
-    let mut clone_b = ArmisClone::new_with_seed(200, org_b.clone(), &slug_b)
-        .expect("new_with_seed(200) must succeed");
+    // Canonical 3-arg form: org_slug derived internally (ADR-036 v2.2).
+    let mut clone_a = ArmisClone::new_with_seed(
+        100,
+        prism_dtu_common::Archetype::CompromisedEndpoint,
+        org_a.clone(),
+    )
+    .expect("new_with_seed(100) must succeed");
+    let mut clone_b = ArmisClone::new_with_seed(
+        200,
+        prism_dtu_common::Archetype::CompromisedEndpoint,
+        org_b.clone(),
+    )
+    .expect("new_with_seed(200) must succeed");
 
     clone_a.start().await.expect("clone_a start must succeed");
     clone_b.start().await.expect("clone_b start must succeed");
@@ -283,10 +300,19 @@ async fn test_f_p2_crit_001_search_alerts_disjoint_across_seeds() {
     let org_b = cafebabe_org();
     let slug_b = org_slug(&org_b);
 
-    let mut clone_a = ArmisClone::new_with_seed(100, org_a.clone(), &slug_a)
-        .expect("new_with_seed(100) must succeed");
-    let mut clone_b = ArmisClone::new_with_seed(200, org_b.clone(), &slug_b)
-        .expect("new_with_seed(200) must succeed");
+    // Canonical 3-arg form: org_slug derived internally (ADR-036 v2.2).
+    let mut clone_a = ArmisClone::new_with_seed(
+        100,
+        prism_dtu_common::Archetype::CompromisedEndpoint,
+        org_a.clone(),
+    )
+    .expect("new_with_seed(100) must succeed");
+    let mut clone_b = ArmisClone::new_with_seed(
+        200,
+        prism_dtu_common::Archetype::CompromisedEndpoint,
+        org_b.clone(),
+    )
+    .expect("new_with_seed(200) must succeed");
 
     clone_a.start().await.expect("clone_a start must succeed");
     clone_b.start().await.expect("clone_b start must succeed");
@@ -357,8 +383,12 @@ async fn test_f_p2_crit_002_devices_endpoint_generated_route_output() {
     let slug = org_slug(&org);
     let seed = 42u64;
 
-    let mut clone =
-        ArmisClone::new_with_seed(seed, org.clone(), &slug).expect("new_with_seed must succeed");
+    let mut clone = ArmisClone::new_with_seed(
+        seed,
+        prism_dtu_common::Archetype::CompromisedEndpoint,
+        org.clone(),
+    )
+    .expect("new_with_seed must succeed");
     clone.start().await.expect("clone start must succeed");
     let base_url = clone.base_url();
     let client = test_client();
@@ -426,10 +456,19 @@ async fn test_f_p2_crit_002_devices_disjoint_across_seeds() {
     let org_b = cafebabe_org();
     let slug_b = org_slug(&org_b);
 
-    let mut clone_a = ArmisClone::new_with_seed(100, org_a.clone(), &slug_a)
-        .expect("new_with_seed(100) must succeed");
-    let mut clone_b = ArmisClone::new_with_seed(200, org_b.clone(), &slug_b)
-        .expect("new_with_seed(200) must succeed");
+    // Canonical 3-arg form: org_slug derived internally (ADR-036 v2.2).
+    let mut clone_a = ArmisClone::new_with_seed(
+        100,
+        prism_dtu_common::Archetype::CompromisedEndpoint,
+        org_a.clone(),
+    )
+    .expect("new_with_seed(100) must succeed");
+    let mut clone_b = ArmisClone::new_with_seed(
+        200,
+        prism_dtu_common::Archetype::CompromisedEndpoint,
+        org_b.clone(),
+    )
+    .expect("new_with_seed(200) must succeed");
 
     clone_a.start().await.expect("clone_a start must succeed");
     clone_b.start().await.expect("clone_b start must succeed");
@@ -502,8 +541,12 @@ async fn test_f_p4_med_001_armis_search_devices_surface_purity() {
     let slug = org_slug(&org);
     let seed = 42u64;
 
-    let mut clone =
-        ArmisClone::new_with_seed(seed, org.clone(), &slug).expect("new_with_seed must succeed");
+    let mut clone = ArmisClone::new_with_seed(
+        seed,
+        prism_dtu_common::Archetype::CompromisedEndpoint,
+        org.clone(),
+    )
+    .expect("new_with_seed must succeed");
     clone.start().await.expect("clone start must succeed");
     let base_url = clone.base_url();
     let client = test_client();
@@ -566,8 +609,12 @@ async fn test_f_p4_med_001_armis_search_alerts_surface_purity() {
     let slug = org_slug(&org);
     let seed = 42u64;
 
-    let mut clone =
-        ArmisClone::new_with_seed(seed, org.clone(), &slug).expect("new_with_seed must succeed");
+    let mut clone = ArmisClone::new_with_seed(
+        seed,
+        prism_dtu_common::Archetype::CompromisedEndpoint,
+        org.clone(),
+    )
+    .expect("new_with_seed must succeed");
     clone.start().await.expect("clone start must succeed");
     let base_url = clone.base_url();
     let client = test_client();
@@ -621,8 +668,12 @@ async fn test_f_p4_med_001_armis_devices_endpoint_surface_purity() {
     let slug = org_slug(&org);
     let seed = 42u64;
 
-    let mut clone =
-        ArmisClone::new_with_seed(seed, org.clone(), &slug).expect("new_with_seed must succeed");
+    let mut clone = ArmisClone::new_with_seed(
+        seed,
+        prism_dtu_common::Archetype::CompromisedEndpoint,
+        org.clone(),
+    )
+    .expect("new_with_seed must succeed");
     clone.start().await.expect("clone start must succeed");
     let base_url = clone.base_url();
     let client = test_client();

@@ -83,9 +83,9 @@ impl Default for CrowdstrikeClone {
 #[cfg(feature = "fixture-gen")]
 impl CrowdstrikeClone {
     /// Construct a `CrowdstrikeClone` with deterministic fixture data generated at
-    /// construction time from `(seed, org_id)`.
+    /// construction time from `(seed, archetype, org_id)`.
     ///
-    /// Calls `generate(org_id, Archetype::CompromisedEndpoint, GenOpts { seed, ..GenOpts::default() })`
+    /// Calls `generate(org_id, archetype, GenOpts { seed, ..GenOpts::default() })`
     /// under `#[cfg(feature = "fixture-gen")]`, stores the resulting records in
     /// `generated_devices` / `generated_detections` in state.
     ///
@@ -97,15 +97,22 @@ impl CrowdstrikeClone {
     ///
     /// ADR-036 §2.3: `new_with_seed` calls `generate()` ONCE at construction;
     /// route handlers MUST NOT call `generate()` per-request.
-    pub fn new_with_seed(seed: u64, org_id: prism_dtu_common::OrgId) -> Self {
+    ///
+    /// ADR-036 v2.2: canonical 3-arg form — `archetype` is forwarded to `generate()`;
+    /// NO hardcoded archetype inside this constructor.
+    pub fn new_with_seed(
+        seed: u64,
+        archetype: prism_dtu_common::Archetype,
+        org_id: prism_dtu_common::OrgId,
+    ) -> Self {
         use crate::generator::generate;
-        use prism_dtu_common::{Archetype, GenOpts};
+        use prism_dtu_common::GenOpts;
 
         let opts = GenOpts {
             seed,
             ..GenOpts::default()
         };
-        let fixture = generate(org_id, Archetype::CompromisedEndpoint, opts);
+        let fixture = generate(org_id, archetype, opts);
 
         // Split records by _record_type discriminator (ADR-036 §2.3).
         // "device" records go to generated_devices; "detection" records go to

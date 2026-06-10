@@ -328,7 +328,7 @@ impl DemoHarness {
 /// 1. Validates `fixture_set` → `Archetype` via `fixture_set_to_archetype` (E-DEMO-001).
 /// 2. If the archetype is non-HealthyOtEnvironment AND `org_id` is None → E-DEMO-004.
 /// 3. If `org_id` is Some, parses it as UUID → E-DEMO-005 on failure.
-/// 4. Calls `new_with_seed(seed, org_id)` on the clone.
+/// 4. Calls `new_with_seed(seed, archetype, org_id)` on the clone (ADR-036 v2.2).
 ///
 /// When `fixture-gen` is NOT active, or `org_id` is None AND `fixture_set = "default"`,
 /// falls back to the static-JSON `new()` path (backward-compatible, ADR-036 §2.5).
@@ -382,8 +382,13 @@ pub fn build_clone_pairs(config: &DemoConfig) -> anyhow::Result<Vec<ClonePair>> 
                 // SAFETY: already validated above — parse cannot fail for a pre-validated config.
                 #[allow(clippy::expect_used)]
                 let org_id = parse_org_id(org_id_str, "crowdstrike").expect("validated above");
+                // Map fixture_set → Archetype and forward to new_with_seed (ADR-036 v2.2).
+                // SAFETY: already validated above — fixture_set_to_archetype cannot fail.
+                #[allow(clippy::expect_used)]
+                let archetype = fixture_set_to_archetype(&cfg.fixture_set, "crowdstrike")
+                    .expect("validated above");
                 // new_with_seed calls generate() at construction time (ADR-036 §2.3).
-                Box::new(CrowdstrikeClone::new_with_seed(cfg.seed, org_id))
+                Box::new(CrowdstrikeClone::new_with_seed(cfg.seed, archetype, org_id))
             } else {
                 Box::new(CrowdstrikeClone::new())
             }
@@ -403,7 +408,11 @@ pub fn build_clone_pairs(config: &DemoConfig) -> anyhow::Result<Vec<ClonePair>> 
             if let Some(org_id_str) = &cfg.org_id {
                 #[allow(clippy::expect_used)]
                 let org_id = parse_org_id(org_id_str, "claroty").expect("validated above");
-                Box::new(ClarotyClone::new_with_seed(cfg.seed, org_id))
+                // Map fixture_set → Archetype and forward to new_with_seed (ADR-036 v2.2).
+                #[allow(clippy::expect_used)]
+                let archetype =
+                    fixture_set_to_archetype(&cfg.fixture_set, "claroty").expect("validated above");
+                Box::new(ClarotyClone::new_with_seed(cfg.seed, archetype, org_id))
             } else {
                 Box::new(ClarotyClone::new())
             }
@@ -426,8 +435,12 @@ pub fn build_clone_pairs(config: &DemoConfig) -> anyhow::Result<Vec<ClonePair>> 
             if let Some(org_id_str) = &cfg.org_id {
                 #[allow(clippy::expect_used)]
                 let org_id = parse_org_id(org_id_str, "cyberint").expect("validated above");
+                // Map fixture_set → Archetype and forward to new_with_seed (ADR-036 v2.2).
+                #[allow(clippy::expect_used)]
+                let archetype = fixture_set_to_archetype(&cfg.fixture_set, "cyberint")
+                    .expect("validated above");
                 Box::new(
-                    CyberintClone::new_with_seed(cfg.seed, org_id)
+                    CyberintClone::new_with_seed(cfg.seed, archetype, org_id)
                         .context("failed to construct CyberintClone::new_with_seed")?,
                 )
             } else if let Some(token) = &cfg.initial_access_token {
@@ -463,9 +476,13 @@ pub fn build_clone_pairs(config: &DemoConfig) -> anyhow::Result<Vec<ClonePair>> 
             if let Some(org_id_str) = &cfg.org_id {
                 #[allow(clippy::expect_used)]
                 let org_id = parse_org_id(org_id_str, "armis").expect("validated above");
-                let org_slug = prism_dtu_common::org_slug_from_org_id(&org_id);
+                // Map fixture_set → Archetype and forward to new_with_seed (ADR-036 v2.2).
+                // org_slug is derived internally by new_with_seed (no longer a constructor arg).
+                #[allow(clippy::expect_used)]
+                let archetype =
+                    fixture_set_to_archetype(&cfg.fixture_set, "armis").expect("validated above");
                 Box::new(
-                    ArmisClone::new_with_seed(cfg.seed, org_id, &org_slug)
+                    ArmisClone::new_with_seed(cfg.seed, archetype, org_id)
                         .context("failed to construct ArmisClone::new_with_seed")?,
                 )
             } else {

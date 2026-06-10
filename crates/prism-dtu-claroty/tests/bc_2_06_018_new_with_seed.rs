@@ -7,7 +7,7 @@
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
 use prism_dtu_claroty::ClarotyClone;
-use prism_dtu_common::OrgId;
+use prism_dtu_common::{Archetype, OrgId};
 
 /// Golden test vector: org bytes [0xde, 0xad, 0xbe, 0xef, ...] → org_slug = "deadbeef".
 ///
@@ -43,7 +43,8 @@ fn test_BC_2_06_018_claroty_new_with_seed_forwarded() {
     let seed: u64 = 100;
 
     // ClarotyClone::new_with_seed is infallible (returns Self, not Result<Self>).
-    let clone = ClarotyClone::new_with_seed(seed, org.clone());
+    // CompromisedEndpoint: 50 device + 20 alert records (non-empty, verifiable).
+    let clone = ClarotyClone::new_with_seed(seed, Archetype::CompromisedEndpoint, org.clone());
 
     // (a) generated_records must be non-empty (BC-2.06.018 postcondition 1).
     let generated = &clone.state.generated_records;
@@ -84,8 +85,8 @@ fn test_BC_2_06_018_claroty_new_with_seed_deterministic() {
     let org = deadbeef_org();
     let seed: u64 = 42;
 
-    let clone_a = ClarotyClone::new_with_seed(seed, org.clone());
-    let clone_b = ClarotyClone::new_with_seed(seed, org);
+    let clone_a = ClarotyClone::new_with_seed(seed, Archetype::CompromisedEndpoint, org.clone());
+    let clone_b = ClarotyClone::new_with_seed(seed, Archetype::CompromisedEndpoint, org);
 
     // When implemented: clone_a.state.generated_records == clone_b.state.generated_records
     assert_eq!(
@@ -105,8 +106,8 @@ fn test_BC_2_06_018_claroty_new_with_seed_disjoint_ids() {
     let org = deadbeef_org();
     let org_slug = derive_org_slug(&org);
 
-    let clone_100 = ClarotyClone::new_with_seed(100, org.clone());
-    let clone_200 = ClarotyClone::new_with_seed(200, org);
+    let clone_100 = ClarotyClone::new_with_seed(100, Archetype::CompromisedEndpoint, org.clone());
+    let clone_200 = ClarotyClone::new_with_seed(200, Archetype::CompromisedEndpoint, org);
 
     let ids_100: std::collections::HashSet<String> = clone_100
         .state

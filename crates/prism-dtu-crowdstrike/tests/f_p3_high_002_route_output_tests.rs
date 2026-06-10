@@ -82,7 +82,12 @@ fn test_client() -> reqwest::Client {
 /// the DTU `check_auth` function in routes/hosts.rs (validates non-empty Bearer,
 /// does not validate against a specific allowlist).
 async fn start_seeded_clone(seed: u64, org: prism_dtu_common::OrgId) -> CrowdstrikeClone {
-    let mut clone = CrowdstrikeClone::new_with_seed(seed, org);
+    // CompromisedEndpoint: 50 device records, 20 detection records (non-empty, route-testable).
+    let mut clone = CrowdstrikeClone::new_with_seed(
+        seed,
+        prism_dtu_common::Archetype::CompromisedEndpoint,
+        org,
+    );
     clone
         .start()
         .await
