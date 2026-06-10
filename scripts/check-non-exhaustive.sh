@@ -14,26 +14,58 @@ EXPECTED=50
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WORKSPACE_ROOT="$(dirname "${SCRIPT_DIR}")"
 
+# Per-run temp path (mktemp) so concurrent `just check` runs in parallel
+# worktrees do not clobber each other's evidence log. OUTPUT_LOG env override
+# is supported for debugging / failure injection; an override path is
+# caller-owned and is NOT cleaned up by this script.
+if [ -n "${OUTPUT_LOG:-}" ]; then
+    JSON_LOG="${OUTPUT_LOG}"
+else
+    JSON_LOG="$(mktemp "${TMPDIR:-/tmp}/non-exhaustive-json.XXXXXX")" || {
+        echo "FAIL: mktemp could not create a temp log file — failing closed."
+        exit 1
+    }
+    trap 'rm -f "${JSON_LOG}"' EXIT
+fi
+
 echo "Verifying #[non_exhaustive] forward-compat enforcement (expected: ${EXPECTED} violations)..."
 
 # cargo check exits non-zero (crate intentionally fails to compile). Capture json output.
 cargo check \
     --message-format=json \
     --manifest-path "${WORKSPACE_ROOT}/tests/external/non-exhaustive-violation/Cargo.toml" \
-    > /tmp/non-exhaustive-json.log 2>/dev/null \
+    > "${JSON_LOG}" 2>/dev/null \
     && CARGO_RC=0 || CARGO_RC=$?
 
 if [ "${CARGO_RC}" -eq 0 ]; then
     echo "FAIL: non-exhaustive-violation compiled successfully — at least one"
     echo "  #[non_exhaustive] annotation was removed. All types must reject external"
     echo "  struct-literal or exhaustive-match construction (BC-2.01.013 AC-5)."
-    rm -f /tmp/non-exhaustive-json.log
+    exit 1
+fi
+
+# Fail CLOSED: a gate whose evidence log is missing or empty must FAIL, not
+# pass with an empty count (TD-VSDD-059 false-pass class).
+if [ ! -s "${JSON_LOG}" ]; then
+    echo "FAIL: cargo json evidence log missing or empty at ${JSON_LOG}."
+    echo "  Cannot verify #[non_exhaustive] enforcement without evidence — failing closed."
     exit 1
 fi
 
 # Count E0639 and E0004 errors from JSON output (all violations, uncapped by rustc limit).
-TOTAL=$(python3 "${SCRIPT_DIR}/count-non-exhaustive-errors.py" /tmp/non-exhaustive-json.log)
-rm -f /tmp/non-exhaustive-json.log
+if ! TOTAL="$(python3 "${SCRIPT_DIR}/count-non-exhaustive-errors.py" "${JSON_LOG}")"; then
+    echo "FAIL: count-non-exhaustive-errors.py exited non-zero — failing closed."
+    exit 1
+fi
+
+# Validate the count is a non-empty integer BEFORE the -lt comparison; a bash
+# integer-expression error in [ ] evaluates false and would fall through to PASS.
+case "${TOTAL}" in
+    ''|*[!0-9]*)
+        echo "FAIL: error counter produced non-integer output '${TOTAL}' — failing closed."
+        exit 1
+        ;;
+esac
 
 if [ "${TOTAL}" -lt "${EXPECTED}" ]; then
     echo "FAIL: Expected at least ${EXPECTED} E0639/E0004 errors, got ${TOTAL}."
