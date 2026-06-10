@@ -202,6 +202,36 @@ fn test_BC_2_10_007_map_prism_error_mcp_parameter_invalid_to_32602() {
     );
 }
 
+/// ADR-038 D4: PrismError::ClientNotFound maps to -32602 (Invalid params)
+/// with the caller-visible E-CFG-100 display string.
+///
+/// A wrong `client_id` is a caller-parameter error, not an internal failure
+/// (BC-2.10.004 et al. require a structured caller-visible error). The arm
+/// MUST be explicit — `PrismError` is `#[non_exhaustive]`, and falling
+/// through to the catch-all would regress to opaque -32000 INTERNAL_ERROR.
+#[test]
+fn test_ADR_038_map_prism_error_client_not_found_to_32602() {
+    let err = PrismError::ClientNotFound {
+        client_id: "acme".to_owned(),
+    };
+    let (code, message) = map_prism_error(err);
+    assert_eq!(
+        code,
+        codes::INVALID_PARAMS,
+        "ClientNotFound must map to INVALID_PARAMS ({}) per ADR-038 D4; got {}",
+        codes::INVALID_PARAMS,
+        code
+    );
+    assert!(
+        message.contains("E-CFG-100"),
+        "message must carry the E-CFG-100 code; got: '{message}'"
+    );
+    assert!(
+        message.contains("acme"),
+        "message must include the unknown client_id; got: '{message}'"
+    );
+}
+
 /// BC-2.10.007: PrismError::Internal maps to -32000 (Internal error).
 ///
 /// Catch-all for unrecognized errors — must not expose detail in message.

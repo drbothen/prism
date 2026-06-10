@@ -138,7 +138,14 @@ pub fn map_prism_error(err: PrismError) -> (i32, String) {
         | PrismError::CursorTokenUnknown
         | PrismError::CursorCapExceeded => (codes::INVALID_PARAMS, format!("{err}")),
 
-        // E-CFG-020: Invalid capability path → -32602 Invalid params
+        // E-CFG-100: Client not found → -32602 Invalid params (ADR-038 D4).
+        // EXPLICIT arm required: PrismError is #[non_exhaustive]; letting this
+        // variant fall to the catch-all would regress to opaque -32000
+        // INTERNAL_ERROR and violate BC-2.10.004 et al. (caller-visible
+        // structured error for an unknown client_id).
+        PrismError::ClientNotFound { .. } => (codes::INVALID_PARAMS, format!("{err}")),
+
+        // E-CFG-106: Invalid capability path → -32602 Invalid params
         PrismError::InvalidCapabilityPath { .. } => (codes::INVALID_PARAMS, format!("{err}")),
 
         // E-AUTH-001..003: Identity validation failures → -32602 Invalid params
@@ -163,7 +170,9 @@ pub fn map_prism_error(err: PrismError) -> (i32, String) {
             "Internal error; see audit log".to_owned(),
         ),
 
-        // E-CFG-*: Config errors → -32000 Internal
+        // E-CFG-102..105: Config errors → -32000 Internal (operator-resolvable,
+        // not caller-resolvable; ADR-038 D4 — arm covers only the four
+        // operator-class variants after the ClientNotFound split).
         PrismError::ConfigNotFound { .. }
         | PrismError::ConfigParseFailed { .. }
         | PrismError::ConfigValidationFailed { .. }
