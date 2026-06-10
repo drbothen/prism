@@ -296,3 +296,123 @@ async fn test_f7_cs04_seeded_fql_window_filters_generated_timestamps() {
 
     clone.stop().await.expect("clone stop must succeed");
 }
+
+// ---------------------------------------------------------------------------
+// F8 / CS-06 — canonical record shape parity (generator ↔ static fixture)
+// ---------------------------------------------------------------------------
+
+/// Flat scalar key set of a record: keys whose values are scalars
+/// (string/number/bool/null), excluding `_`-prefixed internal tags
+/// (`_record_type`). Nested objects/arrays (static `device{}` / `behaviors[]`)
+/// are API-shape fidelity carriers invisible to the flat `r.get(col)` serving
+/// extraction, so they are excluded from the parity contract.
+fn flat_scalar_keys(record: &serde_json::Value) -> BTreeSet<String> {
+    record
+        .as_object()
+        .expect("record must be a JSON object")
+        .iter()
+        .filter(|(k, v)| !k.starts_with('_') && !v.is_object() && !v.is_array())
+        .map(|(k, _)| k.clone())
+        .collect()
+}
+
+/// Union of flat scalar keys across a record slice (also asserts every record
+/// carries the identical key set — no per-record drift within a path).
+fn uniform_flat_keys(records: &[serde_json::Value], path_name: &str) -> BTreeSet<String> {
+    assert!(!records.is_empty(), "{path_name}: no records");
+    let first = flat_scalar_keys(&records[0]);
+    for (i, rec) in records.iter().enumerate() {
+        assert_eq!(
+            flat_scalar_keys(rec),
+            first,
+            "{path_name}: record[{i}] flat key set drifts from record[0]"
+        );
+    }
+    first
+}
+
+/// F8 / CS-06: the flat scalar key set of generated detection records must
+/// equal the flat scalar key set of static fixture detection records — the
+/// module doc (generator.rs) mandates route/generator consistency, and this is
+/// the test class that would have caught CS-01/CS-02/CS-03 and Cyberint DTU-01:
+/// a key present on only one path silently NULLs a column on the other path
+/// the moment a TOML column references it.
+#[test]
+fn test_f8_cs06_detection_shape_parity() {
+    let generated = uniform_flat_keys(&generated_records("detection"), "generated detections");
+    let stat = uniform_flat_keys(&static_detections(), "static detections");
+    assert_eq!(
+        generated,
+        stat,
+        "detection flat scalar key sets diverge between generator and static fixture \
+         (generated-only: {:?}; static-only: {:?})",
+        generated.difference(&stat).collect::<Vec<_>>(),
+        stat.difference(&generated).collect::<Vec<_>>()
+    );
+}
+
+/// F8 / CS-06: same parity contract for the devices table.
+#[test]
+fn test_f8_cs06_device_shape_parity() {
+    let generated = uniform_flat_keys(&generated_records("device"), "generated devices");
+    let stat = uniform_flat_keys(&static_hosts(), "static hosts");
+    assert_eq!(
+        generated,
+        stat,
+        "device flat scalar key sets diverge between generator and static fixture \
+         (generated-only: {:?}; static-only: {:?})",
+        generated.difference(&stat).collect::<Vec<_>>(),
+        stat.difference(&generated).collect::<Vec<_>>()
+    );
+}
+
+/// F8 / CS-06: both canonical shapes must cover every column declared in
+/// crowdstrike.sensor.toml for their table — the direct TOML↔record contract
+/// (SAP-2 parity probe, code-level anchor).
+#[test]
+fn test_f8_cs06_toml_columns_covered() {
+    // crowdstrike.sensor.toml [[tables]] detections / devices column names.
+    let detection_columns = [
+        "detection_id",
+        "created_timestamp",
+        "status",
+        "severity",
+        "device_id",
+        "tactic",
+        "technique",
+    ];
+    let device_columns = [
+        "device_id",
+        "hostname",
+        "platform_name",
+        "status",
+        "first_seen",
+        "last_seen",
+    ];
+
+    let gen_det = uniform_flat_keys(&generated_records("detection"), "generated detections");
+    let stat_det = uniform_flat_keys(&static_detections(), "static detections");
+    for col in detection_columns {
+        assert!(
+            gen_det.contains(col),
+            "generated detections missing TOML column '{col}'"
+        );
+        assert!(
+            stat_det.contains(col),
+            "static detections missing TOML column '{col}'"
+        );
+    }
+
+    let gen_dev = uniform_flat_keys(&generated_records("device"), "generated devices");
+    let stat_dev = uniform_flat_keys(&static_hosts(), "static hosts");
+    for col in device_columns {
+        assert!(
+            gen_dev.contains(col),
+            "generated devices missing TOML column '{col}'"
+        );
+        assert!(
+            stat_dev.contains(col),
+            "static hosts missing TOML column '{col}'"
+        );
+    }
+}

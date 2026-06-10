@@ -15,6 +15,18 @@
 //! This convention must be consistent with how the CrowdStrike DTU handler reads
 //! fixture data — any change here requires a matching change in `routes/`.
 //!
+//! # Canonical record shape (F8 / CS-06, review 2026-06-10)
+//!
+//! The flat scalar key set of generated `detection` / `device` records MUST
+//! equal the flat scalar key set of the static fixtures
+//! (`fixtures/detections-detail.json` / `fixtures/hosts-detail.json`).
+//! Serving extraction is flat `r.get(col_name)` — a key present on only one
+//! path silently NULLs that column on the other path the moment a TOML column
+//! references it (the CS-01/02/03 failure class). Enforced by
+//! `tests/review_2026_06_10_cs_parity.rs::test_f8_cs06_*_shape_parity`:
+//! adding/removing a flat field here requires the matching static-fixture
+//! change in the same commit (and vice versa).
+//!
 //! # Org-tagging
 //!
 //! All IDs are prefixed with the org slug derived from the first 8 hex chars of
