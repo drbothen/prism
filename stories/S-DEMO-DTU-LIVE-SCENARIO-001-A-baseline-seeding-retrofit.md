@@ -6,12 +6,12 @@ wave: 5
 epic_id: E-DEMO
 priority: P2
 status: ready
-version: "1.1"
+version: "1.2"
 level: "L4"
 producer: story-writer
 timestamp: "2026-06-09T00:00:00Z"
 created: "2026-06-09"
-modified: "2026-06-09T12:00:00Z"
+modified: "2026-06-09T18:00:00Z"
 tdd_mode: strict
 subsystems: [SS-01]
 # Subsystem anchor justifications:
@@ -104,7 +104,7 @@ produce pairwise-disjoint canonical ID sets per INV-DISTINCT-DATA-001.
 
 | BC | Title | Key Invariants |
 |----|-------|----------------|
-| BC-2.06.018 v1.1 | Demo-Server Config-Time Data Seeding — Per-Clone seed + fixture_set Wire-Up | INV-DISTINCT-DATA-001, INV-FIXTURE-SET-ARCHETYPE-MAP-001, INV-CONSTRUCTION-TIME-FAILURE-001, INV-CONFIGURE-ENDPOINT-SECONDARY-001 |
+| BC-2.06.018 v1.3 | Demo-Server Config-Time Data Seeding — Per-Clone seed + fixture_set Wire-Up | INV-DISTINCT-DATA-001, INV-FIXTURE-SET-ARCHETYPE-MAP-001, INV-CONSTRUCTION-TIME-FAILURE-001, INV-CONFIGURE-ENDPOINT-SECONDARY-001 |
 
 ---
 
@@ -283,7 +283,7 @@ unless a specific external-service dependency is cited.
 |------|-----------------|
 | Story spec (this file) | ~5 500 |
 | ADR-036 v2.0 (full) | ~5 500 |
-| BC-2.06.018 v1.1 (full) | ~3 500 |
+| BC-2.06.018 v1.3 (full) | ~3 500 |
 | prism-dtu-common/src/generator/{archetype,rng,opts,fixture}.rs | ~2 500 |
 | prism-dtu-demo-server/src/{harness,config}.rs | ~2 000 |
 | prism-dtu-armis/src/{state,clone,generator}.rs | ~1 800 |
@@ -568,5 +568,6 @@ If NO new `event_type` emissions are added, state so explicitly in the PR descri
 
 | Version | Date | Change |
 |---------|------|--------|
-| v1.0 | 2026-06-09 | Initial authoring per ADR-036 v2.0 §8 story split (D-1077). Supersedes S-DEMO-DTU-LIVE-SCENARIO-001 for the BC-2.06.018 scope. |
+| v1.2 | 2026-06-09 | F-P4-MED-002: BC version pins synced v1.1→v1.3. §Behavioral Contracts table row pin and §Token Budget row pin both updated (BC-2.06.018 v1.1→v1.3). Sweep confirmed no other live-narrative v1.x pins remain. Historical changelog rows v1.0 and v1.1 are immutable audit trail per TD-VSDD-091 — not altered. POL-23/POL-29 sibling sweep complete. |
 | v1.1 | 2026-06-09 | U-A-01: Replace `seeded_rng` with `gen_seeded_rng(seed.wrapping_add(1), &org_id)` (2-arg XOR-formula re-export) in AC-001, Tasks Phase 1, risk_mitigations, Library table. U-A-02: Add `crates/prism-dtu-demo-server/Cargo.toml` to File Structure (uuid+prism-core deps + fixture-gen feature) and Tasks Phase 4 (read-before-edit step). Add `prism-core` Library row. U-A-03: ArmisClone::new_with_seed returns `anyhow::Result<Self>` (mirrors clone.rs:58 fallibility) — updated AC-004, AC-006, File Structure (armis/clone.rs), Architecture Mapping, risk_mitigations. U-A-04: CrowdStrike READ fallback corrected from `containment_store` to `load_host_ids()`/`load_host_details()` in Tasks Phase 3 and File Structure. U-A-05: tests/external/non-exhaustive-violation/Cargo.toml dep addition (prism-dtu-common fixture-gen) added to AC-014, Tasks Phase 5, File Structure. U-A-06: Architecture Compliance rule added clarifying ADR-036 §2.2 8-hex slug authority vs BC-3.4.004/BC-3.5.001 standalone-generator test vectors. U-A-07: `GenOpts { seed, .. }` → `GenOpts { seed, ..GenOpts::default() }` in Tasks Phase 3 (both CrowdStrike and Armis). U-A-08/09/10: Per-clone generate() signature divergence, OrgId byte-access, and Story A fixture-gen scope (no premature unused import) added to Previous Story Intelligence. |
+| v1.0 | 2026-06-09 | Initial authoring per ADR-036 v2.0 §8 story split (D-1077). Supersedes S-DEMO-DTU-LIVE-SCENARIO-001 for the BC-2.06.018 scope. |

@@ -2,7 +2,7 @@
 document_type: behavioral-contract
 level: L3
 bc_id: "BC-2.06.018"
-version: "1.2"
+version: "1.3"
 status: draft
 lifecycle_status: draft
 producer: product-owner
@@ -12,7 +12,7 @@ origin: greenfield
 subsystem: "SS-01"
 capability: "CAP-036"
 introduced: "2026-06-09"
-modified: "2026-06-09T00:01:00Z"
+modified: "2026-06-09T00:02:00Z"
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -285,20 +285,51 @@ The covered surfaces are:
 
 | Clone | Generator-Backed Table Surface(s) | Route(s) Served |
 |-------|------------------------------------|-----------------|
-| CrowdStrike | devices, alerts | `/device/api/devices/v2`, `/device/api/alerts/v1` (and related CrowdStrike routes) |
-| Armis | devices, alerts | `/api/v1/devices`, `/api/v1/alerts` (and related Armis routes) |
-| Claroty | devices, alerts | `/api/v1/devices`, `/api/v1/alerts` (and related Claroty routes) |
-| Cyberint | alerts, asm_assets, cves, iocs | `/api/v1/alerts`, `/api/v1/asm_assets`, `/api/v1/cves`, `/api/v1/iocs` |
+| CrowdStrike | devices, detections | `/devices/queries/devices/v1`, `/devices/entities/devices/v2` (device two-step), `/detects/queries/detects/v1`, `/detects/entities/summaries/GET/v1` (detection two-step), plus `/oauth2/token` and write routes |
+| Armis | devices, alerts | `/api/v1/search` (primary AQL endpoint; backs both `devices` and `alerts` tables via `?aql=` path_template), plus `/api/v1/devices` and `/api/v1/alerts` (direct-access compatibility endpoints) |
+| Claroty | devices, alerts | `/api/v1/devices` (POST), `/api/v1/alerts` (POST). Note: `/api/v1/audit_log/get` and `/api/v1/vulnerabilities` routes are also registered but backed by static fixtures — NOT generator-backed and NOT covered by INV-DISTINCT-DATA-001 under this BC. |
+| Cyberint | alerts only (adapter-consumed) | `/api/v1/alerts` (GET and POST). The Cyberint generator additionally emits `asm_asset`, `cve`, and `ioc` surfaces, but NO routes for those surfaces are registered in `prism-dtu-cyberint`, and `cyberint.sensor.toml` declares no corresponding adapter tables. These surfaces are intentionally generated-but-unserved (see subsection below). |
 
-**INV-DISTINCT-DATA-001 applies to all generator-backed table surfaces listed above.**
-Per-clone seeding produces disjoint ID sets across the listed routes for distinct `(seed, org_id)` pairs.
+**INV-DISTINCT-DATA-001 applies only to the generator-backed table surfaces listed above.**
+Per-clone seeding produces disjoint ID sets across the listed generator-backed routes for
+distinct `(seed, org_id)` pairs. It does NOT apply to the Cyberint `asm_asset`/`cve`/`ioc`
+surfaces (generated-but-unserved) or the Claroty `audit_log`/`vulnerabilities` routes
+(static-fixture-backed).
+
+### Cyberint Generator-Emitted-but-Unserved Surfaces (asm_asset, cve, ioc)
+
+The Cyberint generator (`crates/prism-dtu-cyberint/src/generator.rs`) emits records for
+four surfaces: `alert`, `asm_asset`, `cve`, and `ioc`. However, `CyberintClone::build_router`
+registers routes for **only** the `alert` surface (`/api/v1/alerts`) and for threat intel
+(`/api/v1/threat-intel`, static fixture). There are no `/api/v1/asm_assets`, `/api/v1/cves`,
+or `/api/v1/iocs` routes. `cyberint.sensor.toml` likewise declares only the `alerts` adapter
+table (and the documented-gap `incidents` table). Consequently:
+
+1. **The `asm_asset`, `cve`, and `ioc` generator surfaces are generated-but-unserved under
+   this BC.** They are produced by the generator but filtered out because no route or adapter
+   table consumes them. The `_surface=="alert"` discriminator in the `/api/v1/alerts` handler
+   ensures only alert records are served; the remaining three surfaces go unused at runtime.
+
+2. **INV-DISTINCT-DATA-001 does NOT apply to the Cyberint `asm_asset`, `cve`, or `ioc`
+   surfaces under this BC.** There are no serving routes for these surfaces and no adapter
+   tables that would consume them.
+
+3. **This is a confirmed scope boundary, not a defect.** The three unserved surfaces are a
+   consequence of the existing DTU route registration — the generator scope was defined ahead
+   of the adapter route scope. Source: Local adversary cascade pass 4, finding `F-P4-MED-003`
+   (`S-DEMO-DTU-LIVE-SCENARIO-001-A`).
+
+4. **Adding routes for `asm_asset`, `cve`, and `ioc` surfaces is future feature work.** If the
+   demo needs these surfaces served, a follow-up story (separate from
+   `S-DEMO-CYBERINT-INCIDENTS-SEEDING-001`) is required to register the routes and add the
+   corresponding adapter tables to `cyberint.sensor.toml`. The generator already produces the
+   data; the work is on the route-registration and sensor-spec side.
 
 ### Cyberint `incidents` Table — Intentionally Non-Generator-Backed
 
-The Cyberint generator emits **only** the four record surfaces listed above: `alert`,
-`asm_asset`, `cve`, and `ioc`. It emits **no incident records**.
-
-Consequently:
+The Cyberint generator emits **no incident records**. The `asm_asset`, `cve`, and `ioc`
+surfaces it does emit are generated-but-unserved (see subsection above). Incidents are a
+separate gap:
 
 1. **No `/api/v1/incidents` route is registered in `prism-dtu-cyberint`** — the Cyberint DTU
    clone has no incidents route. This is documented in `crates/prism-sensors/specs/cyberint.sensor.toml`
@@ -438,6 +469,7 @@ None at BC authoring time. The architect decision (this session) resolved:
 
 | Version | Change |
 |---------|--------|
+| v1.3 | 2026-06-09 — §Scope Boundary table factual correction (F-P4-MED-003, `S-DEMO-DTU-LIVE-SCENARIO-001-A` pass 4). **Cyberint row corrected:** "Route(s) Served" was `/api/v1/alerts, /api/v1/asm_assets, /api/v1/cves, /api/v1/iocs`; corrected to `/api/v1/alerts` only — the three non-alert routes do not exist in `CyberintClone::build_router` and have no entries in `cyberint.sensor.toml`. "Generator-Backed Table Surface(s)" corrected to "alerts only (adapter-consumed)". Added new subsection §Cyberint Generator-Emitted-but-Unserved Surfaces documenting that the Cyberint generator does emit `asm_asset`/`cve`/`ioc` surfaces but they are generated-but-unserved (no routes, no adapter tables); future follow-up story required to serve them. **CrowdStrike row corrected:** route paths corrected from non-existent `/device/api/devices/v2` and `/device/api/alerts/v1` to actual registered routes `/devices/queries/devices/v1`, `/devices/entities/devices/v2`, `/detects/queries/detects/v1`, `/detects/entities/summaries/GET/v1`; surface name corrected from "alerts" to "detections" (matching `crowdstrike.sensor.toml` table name). **Armis row updated:** added `/api/v1/search` as the primary AQL endpoint backing both tables via path_template (per `armis.sensor.toml`); `/api/v1/devices` and `/api/v1/alerts` noted as direct-access compatibility endpoints. **Claroty row updated:** routes corrected to POST method paths per `ClarotyClone::build_router`; added note that `/api/v1/audit_log/get` and `/api/v1/vulnerabilities` routes exist but are static-fixture-backed, not generator-backed, and not covered by INV-DISTINCT-DATA-001 under this BC. lifecycle_status remains draft. |
 | v1.2 | 2026-06-09 — Scope boundary documentation (F-P2-MED-001, `S-DEMO-DTU-LIVE-SCENARIO-001-A` pass 2). Added §Scope Boundary — Non-Generator-Backed Tables: enumerates the four generator-backed clone table surfaces covered by INV-DISTINCT-DATA-001 (CrowdStrike: devices/alerts; Armis: devices/alerts; Claroty: devices/alerts; Cyberint: alerts/asm_assets/cves/iocs). Explicitly documents that the Cyberint `incidents` table is intentionally NON-generator-backed for this BC — the Cyberint generator emits no incident records; the DTU clone has no `/api/v1/incidents` route (cross-referenced: `cyberint.sensor.toml` EC-016-013-002); INV-DISTINCT-DATA-001 therefore does not apply to this table surface. Notes that adding a Cyberint incidents generator surface is future work tracked by `S-DEMO-CYBERINT-INCIDENTS-SEEDING-001`. lifecycle_status remains draft. |
 | v1.1 | ADR-036 v2.0 / D-1078 substrate-reconciliation corrections. Added §Substrate Reality (ADR-036 v2.0 §1.3): documents that seeding postconditions are UNIMPLEMENTED until Story A (`S-DEMO-DTU-LIVE-SCENARIO-001-A`); clones serve static JSON today with no `generate()` call in `build_clone_pairs()`. Added canonical org_slug derivation formula (`hex(org_id.as_bytes()[0..4])`; 8 hex chars) and canonical device ID format (`"dev-{org_slug}-{seed}-{n}"`) per ADR-036 v2.0 §2.2 — replaces incorrect `"dev-acme-..."` placeholder. Removed `"dev-acme-..."` reference from INV-DISTINCT-DATA-001. Added "New Config Requirement" for `CloneConfig.org_id: Option<String>` (UUID string → OrgId). Corrected `seeded_rng` signature to `seeded_rng(seed: u64, org_id: &OrgId)` (takes `&OrgId`, NOT `&str`) in Postcondition 1, INV-DISTINCT-DATA-001, and Architecture Anchors. Registered E-DEMO-004 (scenario.enabled but org_id absent) and E-DEMO-005 (org_id not valid UUID) in §Error Codes. Updated Error Codes section to note E-DEMO-001 already registered in error-taxonomy.md v1.63. Precondition 4 rewritten to match new `CloneConfig.org_id: Option<String>` field. lifecycle_status remains draft. |
 | v1.0 | Initial authoring. Product-owner decision: BC-2.06.018 namespace chosen over BC-3.4.005 — this BC governs demo-server config-wiring layer (how `DemoConfig` fields feed `build_clone_pairs`), not generator internals; BC-2.06 is the established namespace for demo-server config-wiring BCs (BC-2.06.017 precedent). Subsystem: SS-01 per ARCH-INDEX.md (prism-dtu-demo-server is owned by Sensor Adapters / SS-01). Capability: CAP-036 ("Multi-Tenant DTU Test Harness") — the harness orchestration capability, not CAP-039 (generator internals) or CAP-009 (production client configuration). |
