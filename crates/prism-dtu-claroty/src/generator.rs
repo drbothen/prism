@@ -82,6 +82,13 @@ pub fn generate(org_id: &OrgId, archetype: Archetype, opts: &GenOpts) -> Fixture
 /// level. We embed `device_id` (our tracking field) plus realistic shape fields.
 fn make_device(slug: &str, seed: u64, index: usize) -> Value {
     json!({
+        // F3 / DTU-05 (review 2026-06-10): authoritative surface discriminator —
+        // route handlers filter on `_surface`, never on key-presence heuristics
+        // (the fragile pattern behind Cyberint's F-P3-CRIT-001 cross-surface leak).
+        // Mirrors the Cyberint generator pattern exactly: the tag is emitted in
+        // responses as-is (additionalProperties:true per poller-bear specs.json;
+        // flat r.get(col) serving extraction ignores unknown keys).
+        "_surface": "device",
         "device_id": format!("dev-{slug}-{seed}-{index}"),
         "asset_id": format!("ASSET-{slug}-{seed}-{index}"),
         "device_category": "OT",
@@ -105,6 +112,8 @@ fn make_device(slug: &str, seed: u64, index: usize) -> Value {
 /// Build a minimal valid Claroty device record with a specific subnet.
 fn make_device_with_subnet(slug: &str, seed: u64, index: usize, subnet: &str) -> Value {
     json!({
+        // F3 / DTU-05: authoritative surface discriminator (see make_device).
+        "_surface": "device",
         "device_id": format!("dev-{slug}-{seed}-{index}"),
         "asset_id": format!("ASSET-{slug}-{seed}-{index}"),
         "device_category": "OT",
@@ -129,6 +138,8 @@ fn make_device_with_subnet(slug: &str, seed: u64, index: usize, subnet: &str) ->
 /// Build a minimal valid Claroty alert record (GetAlertsResponse items shape).
 fn make_alert(slug: &str, seed: u64, index: usize, severity_id: u64) -> Value {
     json!({
+        // F3 / DTU-05: authoritative surface discriminator (see make_device).
+        "_surface": "alert",
         "alert_id": format!("alert-{slug}-{seed}-{index}"),
         "alert_type_name": "Network Anomaly",
         "category": "Segmentation",
@@ -253,6 +264,9 @@ fn gen_auth_outage(org_id: &OrgId, opts: &GenOpts) -> FixtureSet {
 
     // The simulated 401 call record (no device_id — not a device)
     let call_record = json!({
+        // F3 / DTU-05: "call" surface — served by NEITHER the alerts nor the
+        // devices route (it models a failed API call, not a data record).
+        "_surface": "call",
         "status_code": 401u64,
         "call_index": 0u64,
         "error": "Unauthorized",
@@ -377,6 +391,8 @@ fn gen_schema_drift(org_id: &OrgId, opts: &GenOpts) -> FixtureSet {
     // required item fields, so we inject an extra sentinel to mark it as drifted
     // while still having a device_id for ID-prefix tests.
     let drifted = json!({
+        // F3 / DTU-05: drifted record is still device-surface (served by devices route).
+        "_surface": "device",
         "device_id": format!("dev-{slug}-{seed}-drift-0", seed = opts.seed),
         "asset_id": format!("ASSET-{slug}-{seed}-drift-0", seed = opts.seed),
         "_schema_drift": true,
@@ -420,6 +436,8 @@ fn gen_high_churn(org_id: &OrgId, opts: &GenOpts) -> FixtureSet {
         if i < 20 {
             // First 20 are tombstone records (BC-3.4.004 EC-07: dev-{slug}-{seed}-tomb-{n})
             let rec = json!({
+                // F3 / DTU-05: tombstones are device-surface records.
+                "_surface": "device",
                 "device_id": format!("dev-{slug}-{seed}-tomb-{i}", seed = opts.seed),
                 "asset_id": format!("ASSET-{slug}-{seed}-tomb-{i}", seed = opts.seed),
                 "device_category": "OT",

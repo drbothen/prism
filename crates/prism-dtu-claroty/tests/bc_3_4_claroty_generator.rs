@@ -812,3 +812,56 @@ fn test_bc_3_4_001_vp_108_seeded_rng_primitive_idempotent() {
         "VP-108: seeded_rng must produce byte-identical stream for repeated invocations"
     );
 }
+
+// ---------------------------------------------------------------------------
+// F3 / DTU-05 (review 2026-06-10) — _surface discriminator hardening
+// ---------------------------------------------------------------------------
+
+/// F3 / DTU-05: every generated record must carry an explicit `_surface` tag
+/// ("device", "alert", or "call") so route handlers filter on the authoritative
+/// discriminator instead of fragile key-presence checks
+/// (`rec.get("alert_id").is_some()` — the exact pattern behind Cyberint's
+/// F-P3-CRIT-001 cross-surface leak). The tag must agree with the record's
+/// actual surface shape.
+#[test]
+fn test_f3_dtu_05_all_records_carry_surface_tag() {
+    let all = [
+        Archetype::HealthyOtEnvironment,
+        Archetype::CompromisedEndpoint,
+        Archetype::AuthOutage,
+        Archetype::LargeScale,
+        Archetype::PaginationEdgeCases,
+        Archetype::SchemaDrift,
+        Archetype::HighChurn,
+        Archetype::DormantTenant,
+    ];
+
+    for archetype in all {
+        let fs = generate(&org_a(), archetype, &default_opts());
+        for (i, rec) in fs.records.iter().enumerate() {
+            let surface = rec
+                .get("_surface")
+                .and_then(|v| v.as_str())
+                .unwrap_or_else(|| {
+                    panic!("archetype {archetype:?} record[{i}] missing _surface tag")
+                });
+            match surface {
+                "device" => assert!(
+                    rec.get("device_id").is_some(),
+                    "archetype {archetype:?} record[{i}] tagged device but has no device_id"
+                ),
+                "alert" => assert!(
+                    rec.get("alert_id").is_some(),
+                    "archetype {archetype:?} record[{i}] tagged alert but has no alert_id"
+                ),
+                "call" => assert!(
+                    rec.get("status_code").is_some(),
+                    "archetype {archetype:?} record[{i}] tagged call but has no status_code"
+                ),
+                other => {
+                    panic!("archetype {archetype:?} record[{i}] has unknown _surface '{other}'")
+                }
+            }
+        }
+    }
+}
