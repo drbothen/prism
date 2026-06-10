@@ -186,11 +186,16 @@ fn gen_ioc_domains(rng: &mut impl rand::Rng, count: usize) -> Vec<String> {
 }
 
 /// Generate N IOC SHA256 hashes (as hex strings) from RNG.
+///
+/// Produces a proper 64-hex-char string from 32 random bytes (`{:02x}` per byte),
+/// matching the SHA-256 output representation (256 bits / 8 bits-per-char = 64 chars).
+/// The prior `{:01x}` with nibble-masking discarded the upper nibble, yielding only
+/// 4 bits per character and a non-representative hash distribution.
 fn gen_ioc_hashes(rng: &mut impl rand::Rng, count: usize) -> Vec<String> {
     (0..count)
         .map(|_| {
-            (0..64)
-                .map(|_| format!("{:01x}", rng.gen::<u8>() & 0x0f))
+            (0..32)
+                .map(|_| format!("{:02x}", rng.gen::<u8>()))
                 .collect::<String>()
         })
         .collect()

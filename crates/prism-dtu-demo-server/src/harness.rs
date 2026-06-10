@@ -343,16 +343,24 @@ pub fn build_clone_pairs(config: &DemoConfig) -> anyhow::Result<Vec<ClonePair>> 
     // ---------------------------------------------------------------------------
     // Story A: Validate ALL generator-backed clone configs BEFORE constructing any clone
     // (INV-CONSTRUCTION-TIME-FAILURE-001 — errors surface before constructors are called)
+    //
+    // The pre-loop both validates AND collects the parsed (Archetype, Option<OrgId>) for
+    // each enabled clone into `validated_gen`. Construction blocks below look up from this
+    // map — no re-parse, no `.expect()`.
     // ---------------------------------------------------------------------------
     #[cfg(feature = "fixture-gen")]
-    {
+    let validated_gen: std::collections::HashMap<
+        &'static str,
+        (prism_dtu_common::Archetype, Option<prism_dtu_common::OrgId>),
+    > = {
         // Names and configs for generator-backed clones.
-        let gen_clones = [
+        let gen_clones: [(&'static str, &CloneConfig); 4] = [
             ("crowdstrike", &config.clones.crowdstrike),
             ("armis", &config.clones.armis),
             ("claroty", &config.clones.claroty),
             ("cyberint", &config.clones.cyberint),
         ];
+        let mut map = std::collections::HashMap::new();
         for (name, cfg) in &gen_clones {
             if !cfg.enabled {
                 continue;
@@ -365,12 +373,16 @@ pub fn build_clone_pairs(config: &DemoConfig) -> anyhow::Result<Vec<ClonePair>> 
             {
                 require_org_id(&cfg.org_id, name)?;
             }
-            // E-DEMO-005: if org_id present, validate UUID format
-            if let Some(org_id_str) = &cfg.org_id {
-                parse_org_id(org_id_str, name)?;
-            }
+            // E-DEMO-005: if org_id present, parse and store it now (one parse per name)
+            let org_id = if let Some(org_id_str) = &cfg.org_id {
+                Some(parse_org_id(org_id_str, name)?)
+            } else {
+                None
+            };
+            map.insert(*name, (archetype, org_id));
         }
-    }
+        map
+    };
 
     let mut pairs = Vec::new();
 
@@ -378,15 +390,9 @@ pub fn build_clone_pairs(config: &DemoConfig) -> anyhow::Result<Vec<ClonePair>> 
         #[cfg(feature = "fixture-gen")]
         let pair_clone: Box<dyn BehavioralClone> = {
             let cfg = &config.clones.crowdstrike;
-            if let Some(org_id_str) = &cfg.org_id {
-                // SAFETY: already validated above — parse cannot fail for a pre-validated config.
-                #[allow(clippy::expect_used)]
-                let org_id = parse_org_id(org_id_str, "crowdstrike").expect("validated above");
-                // Map fixture_set → Archetype and forward to new_with_seed (ADR-036 v2.2).
-                // SAFETY: already validated above — fixture_set_to_archetype cannot fail.
-                #[allow(clippy::expect_used)]
-                let archetype = fixture_set_to_archetype(&cfg.fixture_set, "crowdstrike")
-                    .expect("validated above");
+            // Look up the pre-validated (archetype, org_id) from the validation map.
+            // If the entry is present with an OrgId, use new_with_seed; otherwise new().
+            if let Some((archetype, Some(org_id))) = validated_gen.get("crowdstrike").cloned() {
                 // new_with_seed calls generate() at construction time (ADR-036 §2.3).
                 Box::new(CrowdstrikeClone::new_with_seed(cfg.seed, archetype, org_id))
             } else {
@@ -405,13 +411,8 @@ pub fn build_clone_pairs(config: &DemoConfig) -> anyhow::Result<Vec<ClonePair>> 
         #[cfg(feature = "fixture-gen")]
         let pair_clone: Box<dyn BehavioralClone> = {
             let cfg = &config.clones.claroty;
-            if let Some(org_id_str) = &cfg.org_id {
-                #[allow(clippy::expect_used)]
-                let org_id = parse_org_id(org_id_str, "claroty").expect("validated above");
-                // Map fixture_set → Archetype and forward to new_with_seed (ADR-036 v2.2).
-                #[allow(clippy::expect_used)]
-                let archetype =
-                    fixture_set_to_archetype(&cfg.fixture_set, "claroty").expect("validated above");
+            // Look up the pre-validated (archetype, org_id) from the validation map.
+            if let Some((archetype, Some(org_id))) = validated_gen.get("claroty").cloned() {
                 Box::new(ClarotyClone::new_with_seed(cfg.seed, archetype, org_id))
             } else {
                 Box::new(ClarotyClone::new())
@@ -432,13 +433,8 @@ pub fn build_clone_pairs(config: &DemoConfig) -> anyhow::Result<Vec<ClonePair>> 
         #[cfg(feature = "fixture-gen")]
         let clone: Box<dyn BehavioralClone> = {
             let cfg = &config.clones.cyberint;
-            if let Some(org_id_str) = &cfg.org_id {
-                #[allow(clippy::expect_used)]
-                let org_id = parse_org_id(org_id_str, "cyberint").expect("validated above");
-                // Map fixture_set → Archetype and forward to new_with_seed (ADR-036 v2.2).
-                #[allow(clippy::expect_used)]
-                let archetype = fixture_set_to_archetype(&cfg.fixture_set, "cyberint")
-                    .expect("validated above");
+            // Look up the pre-validated (archetype, org_id) from the validation map.
+            if let Some((archetype, Some(org_id))) = validated_gen.get("cyberint").cloned() {
                 Box::new(
                     CyberintClone::new_with_seed(cfg.seed, archetype, org_id)
                         .context("failed to construct CyberintClone::new_with_seed")?,
@@ -473,14 +469,9 @@ pub fn build_clone_pairs(config: &DemoConfig) -> anyhow::Result<Vec<ClonePair>> 
         #[cfg(feature = "fixture-gen")]
         let pair_clone: Box<dyn BehavioralClone> = {
             let cfg = &config.clones.armis;
-            if let Some(org_id_str) = &cfg.org_id {
-                #[allow(clippy::expect_used)]
-                let org_id = parse_org_id(org_id_str, "armis").expect("validated above");
-                // Map fixture_set → Archetype and forward to new_with_seed (ADR-036 v2.2).
-                // org_slug is derived internally by new_with_seed (no longer a constructor arg).
-                #[allow(clippy::expect_used)]
-                let archetype =
-                    fixture_set_to_archetype(&cfg.fixture_set, "armis").expect("validated above");
+            // Look up the pre-validated (archetype, org_id) from the validation map.
+            // org_slug is derived internally by new_with_seed (no longer a constructor arg).
+            if let Some((archetype, Some(org_id))) = validated_gen.get("armis").cloned() {
                 Box::new(
                     ArmisClone::new_with_seed(cfg.seed, archetype, org_id)
                         .context("failed to construct ArmisClone::new_with_seed")?,

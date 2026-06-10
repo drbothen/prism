@@ -614,22 +614,19 @@ pub fn v50_spec_driven_sensor_adapter() {
 /// External callers MUST use `build_scenario_entity_catalog(seed, &org_id)` — direct
 /// struct literal construction MUST NOT compile (E0639).
 ///
-/// ci.yml EXPECTED count: implementer MUST bump EXPECTED by the exact count of new
-/// `#[non_exhaustive]` types added in S-DEMO-DTU-LIVE-SCENARIO-001-A.
-/// `ScenarioEntityCatalog` is the primary new type (minimum +1).
-/// Implementer reads the gate output before committing (AC-014).
-///
-/// Gate 3 RED status: This function causes a compile error (E0432 unresolved import)
-/// because `prism_dtu_common::scenario::ScenarioEntityCatalog` does not yet exist
-/// as a public type (the scenario module is a stub in Gate 3). Once Gate 4 implements
-/// the type with `#[non_exhaustive]`, E0432 transitions to E0639 (correct violation).
+/// This function constructs `ScenarioEntityCatalog` with all currently-known fields from a
+/// foreign crate (this violation crate uses `features=["fixture-gen"]`). Because
+/// `ScenarioEntityCatalog` is `#[non_exhaustive]`, the struct literal fails with E0639
+/// (non-exhaustive type constructed outside its defining crate), which is the intended gate
+/// violation counted in `ci.yml EXPECTED=50`.
 ///
 /// Added: S-DEMO-DTU-LIVE-SCENARIO-001-A (AC-014).
 #[allow(dead_code)]
 pub fn v51_scenario_entity_catalog() {
-    // Gate 3 stub: This import will fail with E0432 (unresolved import) because
-    // ScenarioEntityCatalog is not yet a public type. After Gate 4 implements it
-    // with #[non_exhaustive], this will fail with E0639 (the correct violation).
+    // ScenarioEntityCatalog is publicly exported from prism_dtu_common::scenario
+    // (lib.rs `pub use scenario::{..., ScenarioEntityCatalog}`). The struct is
+    // #[non_exhaustive], so this struct literal in a foreign crate fails with E0639
+    // (the correct intended violation), not E0432.
     let _catalog = prism_dtu_common::scenario::ScenarioEntityCatalog {
         org_slug: "deadbeef".to_string(),
         primary_device_id_cs: "dev-deadbeef-42-0".to_string(),
