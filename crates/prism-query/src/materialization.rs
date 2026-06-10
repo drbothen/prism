@@ -44,7 +44,13 @@ use prism_core::{OrgId, OrgSlug, PrismError, SensorId};
 use prism_ocsf::OcsfNormalizer;
 use prism_sensors::{AdapterRegistry, CredentialResolver, SensorSpec};
 
-use crate::{engine::QueryOptions, pushdown::PushDownPlan, types::SensorQueryDescriptor};
+use crate::{
+    cache::SensorResponseCache,
+    cache_key::{CacheKey, PushDownParams},
+    engine::QueryOptions,
+    pushdown::PushDownPlan,
+    types::SensorQueryDescriptor,
+};
 
 // ---------------------------------------------------------------------------
 // inject_source_type
@@ -197,6 +203,16 @@ pub struct MaterializationContext {
             >,
         >,
     >,
+    /// Cross-query sensor-fetch response cache (BC-2.07.003/005/006).
+    ///
+    /// When `Some`, the pipeline checks this cache BEFORE issuing sensor API
+    /// calls (keyed by the BC-2.07.005 4-tuple) and stores the complete fetch
+    /// response after a successful fan-out. `force_refresh: true` bypasses the
+    /// read and replaces the entry. When `None` (test/query-only mode), every
+    /// fetch goes to the sensor API. Wired from `QueryEngine` via
+    /// `with_response_cache` (QRY-02 closure — the engine-owned cache was
+    /// previously constructed but never consulted).
+    pub(crate) response_cache: Option<Arc<SensorResponseCache>>,
 }
 
 impl MaterializationContext {
@@ -247,7 +263,18 @@ impl MaterializationContext {
             credential_resolver,
             org_registry,
             resolved_spec_map,
+            response_cache: None,
         }
+    }
+
+    /// Attach the cross-query sensor-fetch response cache (BC-2.07.003).
+    ///
+    /// Called by `QueryEngine` so the pipeline shares the engine-owned
+    /// `SensorResponseCache` (the same instance the write path invalidates
+    /// through `CacheInvalidator`, BC-2.07.004).
+    pub fn with_response_cache(mut self, cache: Arc<SensorResponseCache>) -> Self {
+        self.response_cache = Some(cache);
+        self
     }
 
     /// Increment the running record count, enforcing the 10K cap. (BC-2.11.006 EC-003)
@@ -301,6 +328,43 @@ impl CredentialResolver for NullMaterializationCredentialResolver {
             ),
         })
     }
+}
+
+// ---------------------------------------------------------------------------
+// derive_response_cache_key
+// ---------------------------------------------------------------------------
+
+/// Derive the BC-2.07.005 response-cache key for a fan-out target.
+///
+/// The `push_down_hash` input is the canonicalized set of sensor-native
+/// push-down parameters for the fetch: the WHERE-clause equality `FilterMap`
+/// (namespaced `filter.<column>`) plus the ADR-033 extracted time-window
+/// bounds (`start_time` / `end_time`). The original PrismQL query string, the
+/// tool-level `limit`, the `force_refresh` flag, and PrismQL post-filters are
+/// excluded per BC-2.07.005 §Hash Input. Two different PrismQL queries that
+/// produce identical push-down parameters therefore share a cache entry
+/// (BC-2.07.003 §Postconditions).
+pub(crate) fn derive_response_cache_key(
+    client_id: &OrgSlug,
+    sensor_id: &SensorId,
+    source_table: &str,
+    filters: &prism_sensors::types::FilterMap,
+    start_time: &Option<String>,
+    end_time: &Option<String>,
+) -> CacheKey {
+    let mut params = PushDownParams::new();
+    // Namespace filter keys so a sensor column literally named "start_time"
+    // cannot collide with the time-window parameters below.
+    for (k, v) in filters {
+        params.insert(format!("filter.{k}"), v.clone());
+    }
+    if let Some(st) = start_time {
+        params.insert("start_time", serde_json::Value::String(st.clone()));
+    }
+    if let Some(et) = end_time {
+        params.insert("end_time", serde_json::Value::String(et.clone()));
+    }
+    CacheKey::derive(client_id.as_str(), sensor_id.clone(), source_table, &params)
 }
 
 // ---------------------------------------------------------------------------
@@ -395,6 +459,10 @@ pub async fn run_materialization_pipeline(
     // ADV-W3MT-P58-HIGH-005: sensors_queried was always empty before this fix.
     let mut sensors_queried: std::collections::HashSet<String> = std::collections::HashSet::new();
 
+    // Cross-query response cache (BC-2.07.003): clone the Arc out of mat_ctx so
+    // the per-target loop can hold it alongside &mut mat_ctx borrows.
+    let response_cache = mat_ctx.response_cache.clone();
+
     // F-LP1-CRIT-2/3: use fan_out() with CredentialResolver.
     // Process each target independently so virtual field injection uses the
     // correct per-target (org_id, client_id) — grouping by source_table would
@@ -423,6 +491,58 @@ pub async fn run_materialization_pipeline(
                     .push(batch);
             }
             continue;
+        }
+
+        // BC-2.07.005: derive the cross-query response-cache key from the
+        // sensor-native push-down parameters for this target.
+        let response_cache_key = response_cache.as_ref().map(|_| {
+            derive_response_cache_key(
+                &target.client_id,
+                &target.sensor_id,
+                &target.source_table,
+                &where_filters,
+                &extracted_start_time,
+                &extracted_end_time,
+            )
+        });
+
+        // BC-2.07.003: check the cross-query response cache BEFORE issuing the
+        // sensor API call. `force_refresh: true` bypasses the read (the fresh
+        // response replaces the entry below). Cache errors are E-CACHE-001
+        // (poisoned mutex) — unrecoverable per BC-2.07.004 §Error Cases, so
+        // they propagate rather than degrade to a miss.
+        if !options.force_refresh {
+            if let (Some(cache), Some(key)) = (&response_cache, &response_cache_key) {
+                if let Some(raw_batches) = cache.get(key)? {
+                    // Cached complete response: apply the post-retrieval
+                    // transformations (virtual-field injection) exactly as on
+                    // the fresh-fetch path (BC-2.07.003 — "normalization and
+                    // post-filters are applied after cache retrieval").
+                    sensors_queried.insert(target.sensor_id.to_string());
+                    let mut fetched_batches: Vec<RecordBatch> = Vec::new();
+                    for batch in raw_batches {
+                        let n = batch.num_rows();
+                        mat_ctx.increment_record_count(n)?;
+                        let annotated = crate::virtual_fields::inject_virtual_fields(
+                            batch,
+                            &target.sensor_id,
+                            &target.client_id,
+                            &target.source_table,
+                        )
+                        .map_err(|e| PrismError::QueryExecutionFailed {
+                            detail: format!("virtual field injection failed: {e}"),
+                        })?;
+                        fetched_batches.push(annotated.clone());
+                        table_batches
+                            .entry(target.source_table.clone())
+                            .or_default()
+                            .push(annotated);
+                    }
+                    // Also seed the in-query cache so self-joins reuse the hit.
+                    mat_ctx.cache_insert(cache_key, fetched_batches);
+                    continue;
+                }
+            }
         }
 
         // Build the fan_out FanOutTarget (prism-sensors type, not our local type).
@@ -486,6 +606,25 @@ pub async fn run_materialization_pipeline(
                 // F-PASS12-HIGH-1: use Display (to_string) not Debug format — Debug produces
                 // `SensorId("crowdstrike")` while the safety envelope expects `"crowdstrike"`.
                 sensors_queried.insert(target.sensor_id.to_string());
+
+                // BC-2.07.003: store the COMPLETE response (pre-virtual-field
+                // injection — no query-engine transformation applied before
+                // caching) in the cross-query response cache. Only complete
+                // responses are cached: if this target had partial errors, the
+                // result set is incomplete and caching it would serve partial
+                // data for the TTL duration. `force_refresh` replaces any
+                // existing entry (BC-2.07.003 §Postconditions); TTL selection
+                // by source data type happens inside `put` (60s alerts /
+                // 300s devices / health not cached).
+                if fan_result.errors.is_empty() {
+                    if let (Some(cache), Some(key)) = (&response_cache, response_cache_key) {
+                        if options.force_refresh {
+                            cache.force_refresh(key, fan_result.successes.clone())?;
+                        } else {
+                            cache.put(key, fan_result.successes.clone())?;
+                        }
+                    }
+                }
 
                 // Collect successes with per-target virtual field injection.
                 let mut fetched_batches: Vec<RecordBatch> = Vec::new();

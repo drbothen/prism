@@ -27,7 +27,9 @@ use prism_sensors::AdapterRegistry;
 use prism_spec_engine::write_endpoint::WriteEndpointRegistry;
 
 use crate::{
+    cache::SensorResponseValue,
     dry_run::{DryRunGate, GateInputs},
+    invalidation::CacheInvalidator,
     safety_check::{
         phase2_safety_check, resolve_batch_limit, CompileFeatureGate, WriteTargetDescriptor,
     },
@@ -226,16 +228,27 @@ pub struct WriteExecutor {
     pub(crate) dispatcher: Arc<WriteDispatcher>,
     /// Write endpoint registry for endpoint spec resolution.
     pub(crate) endpoint_registry: Arc<WriteEndpointRegistry>,
+    /// Synchronous cache invalidator for write-then-read consistency
+    /// (BC-2.07.004). MUST wrap the SAME `SensorResponseCache` instance the
+    /// `QueryEngine` read pipeline populates — in production the boot path
+    /// constructs it from `QueryEngine::response_cache()`.
+    pub(crate) cache_invalidator: Arc<CacheInvalidator<SensorResponseValue>>,
 }
 
 impl WriteExecutor {
     /// Construct a `WriteExecutor` with the provided dependencies.
+    ///
+    /// `cache_invalidator` must wrap the query engine's response cache
+    /// (`QueryEngine::response_cache()`) so successful writes synchronously
+    /// invalidate the entries that subsequent reads would otherwise hit
+    /// (BC-2.07.004 §Write-then-read consistency).
     pub fn new(
         feature_flags: Arc<FeatureFlagEvaluator>,
         confirmation_store: Arc<ConfirmationTokenStore>,
         audit_writer: Arc<dyn AuditWriter>,
         adapter_registry: Arc<AdapterRegistry>,
         endpoint_registry: Arc<WriteEndpointRegistry>,
+        cache_invalidator: Arc<CacheInvalidator<SensorResponseValue>>,
     ) -> Self {
         let dispatcher = Arc::new(WriteDispatcher::new(audit_writer, adapter_registry));
         Self {
@@ -243,6 +256,7 @@ impl WriteExecutor {
             confirmation_store,
             dispatcher,
             endpoint_registry,
+            cache_invalidator,
         }
     }
 
@@ -432,6 +446,47 @@ impl WriteExecutor {
                 capability_check: &safety_passed.capability_check,
             })
             .await?;
+
+        // ----------------------------------------------------------------
+        // Phase 5b: Synchronous cache invalidation (BC-2.07.004)
+        // ----------------------------------------------------------------
+        // The write succeeded at the sensor (including partial-batch success,
+        // which still mutates sensor state). Invalidate all cache entries for
+        // the affected (client, sensor, source_id) prefixes BEFORE returning
+        // the write response, so a query issued after this response can never
+        // return pre-write cached data (write-then-read consistency, DEC-018).
+        //
+        // Tool-name convention matches BC-2.07.004 §Write Tool to source_id
+        // Mapping ("{sensor}_{verb}", e.g. "crowdstrike_contain_host"); the
+        // sanitized forms keep plugin hyphenated names consistent with their
+        // registered tool names. Unmapped tools fall back to sensor-wide
+        // invalidation inside invalidate_for_write_operation (safe superset).
+        let sensor_id = prism_core::SensorId::try_from_str(&plan.sensor).map_err(|e| {
+            // Unreachable in practice: dispatch above already constructed the
+            // same SensorId fallibly; surface a structured error if it ever fires.
+            PrismError::Internal {
+                detail: format!(
+                    "E-INT-003: invalid sensor name '{}' reached cache invalidation: {e}",
+                    plan.sensor
+                ),
+            }
+        })?;
+        let tool_name = format!("{sanitized_sensor}_{sanitized_verb}");
+        let evicted = self.cache_invalidator.invalidate_for_write_operation(
+            &context.org_slug,
+            &sensor_id,
+            &tool_name,
+        )?;
+        // BC-2.07.004 §Postconditions: the evicted count is logged for the
+        // write operation's audit trail (number of entries evicted).
+        tracing::info!(
+            sensor = %plan.sensor,
+            verb = %plan.verb,
+            client_id = %context.client_id,
+            tool_name = %tool_name,
+            evicted_entries = evicted,
+            "write cache invalidation completed before write response (BC-2.07.004)"
+        );
 
         // ----------------------------------------------------------------
         // Phase 6: Return

@@ -1398,3 +1398,201 @@ fn test_p8_007_ec07030_concurrent_miss_final_state_consistent() {
         "OBS-007: after concurrent puts to same key, total_bytes must equal 1×AVG_ROW_SIZE_BYTES"
     );
 }
+
+// ---------------------------------------------------------------------------
+// QRY-02: response-cache key derivation + SensorResponseCache instantiation
+// ---------------------------------------------------------------------------
+
+/// Build a single 1-row RecordBatch for SensorResponseCache tests.
+fn make_response_batch() -> arrow::record_batch::RecordBatch {
+    let schema = Arc::new(arrow::datatypes::Schema::new(vec![
+        arrow::datatypes::Field::new("detection_id", arrow::datatypes::DataType::Utf8, false),
+    ]));
+    let arr = Arc::new(arrow::array::StringArray::from(vec!["det-1"])) as _;
+    arrow::record_batch::RecordBatch::try_new(schema, vec![arr]).expect("test batch")
+}
+
+/// BC-2.07.005: `derive_response_cache_key` is deterministic — identical
+/// push-down inputs (filters + time window) produce identical keys.
+#[test]
+fn test_qry02_derive_response_cache_key_deterministic() {
+    use crate::materialization::derive_response_cache_key;
+
+    let mut filters = prism_sensors::types::FilterMap::new();
+    filters.insert("severity".to_string(), json!("High"));
+    let start = Some("2026-01-01T00:00:00Z".to_string());
+    let end = Some("2026-01-02T00:00:00Z".to_string());
+
+    let client = OrgSlug::new("acme");
+    let sensor = SensorId::from("crowdstrike");
+
+    let k1 = derive_response_cache_key(
+        &client,
+        &sensor,
+        "crowdstrike_detections",
+        &filters,
+        &start,
+        &end,
+    );
+    let k2 = derive_response_cache_key(
+        &client,
+        &sensor,
+        "crowdstrike_detections",
+        &filters,
+        &start,
+        &end,
+    );
+    assert_eq!(
+        k1, k2,
+        "BC-2.07.005: identical inputs must produce identical keys"
+    );
+}
+
+/// BC-2.07.005: different push-down filter values produce different keys;
+/// the time-window params are part of the hash input.
+#[test]
+fn test_qry02_derive_response_cache_key_sensitive_to_filters_and_time_window() {
+    use crate::materialization::derive_response_cache_key;
+
+    let client = OrgSlug::new("acme");
+    let sensor = SensorId::from("crowdstrike");
+    let empty = prism_sensors::types::FilterMap::new();
+
+    let mut filters_high = prism_sensors::types::FilterMap::new();
+    filters_high.insert("severity".to_string(), json!("High"));
+    let mut filters_low = prism_sensors::types::FilterMap::new();
+    filters_low.insert("severity".to_string(), json!("Low"));
+
+    let k_high = derive_response_cache_key(
+        &client,
+        &sensor,
+        "crowdstrike_detections",
+        &filters_high,
+        &None,
+        &None,
+    );
+    let k_low = derive_response_cache_key(
+        &client,
+        &sensor,
+        "crowdstrike_detections",
+        &filters_low,
+        &None,
+        &None,
+    );
+    assert_ne!(
+        k_high.push_down_hash, k_low.push_down_hash,
+        "different filter values must produce different push_down_hash"
+    );
+
+    let k_no_window = derive_response_cache_key(
+        &client,
+        &sensor,
+        "crowdstrike_detections",
+        &empty,
+        &None,
+        &None,
+    );
+    let k_with_window = derive_response_cache_key(
+        &client,
+        &sensor,
+        "crowdstrike_detections",
+        &empty,
+        &Some("2026-01-01T00:00:00Z".to_string()),
+        &None,
+    );
+    assert_ne!(
+        k_no_window.push_down_hash, k_with_window.push_down_hash,
+        "time-window bounds must be part of the push-down hash input"
+    );
+}
+
+/// QRY-02 namespacing: a sensor column literally named "start_time" in the
+/// FilterMap must NOT collide with the extracted time-window `start_time`
+/// parameter (filter keys are namespaced `filter.<column>`).
+#[test]
+fn test_qry02_derive_response_cache_key_filter_namespace_no_time_window_collision() {
+    use crate::materialization::derive_response_cache_key;
+
+    let client = OrgSlug::new("acme");
+    let sensor = SensorId::from("crowdstrike");
+
+    let mut filters_with_start = prism_sensors::types::FilterMap::new();
+    filters_with_start.insert("start_time".to_string(), json!("2026-01-01T00:00:00Z"));
+    let k_filter = derive_response_cache_key(
+        &client,
+        &sensor,
+        "crowdstrike_detections",
+        &filters_with_start,
+        &None,
+        &None,
+    );
+
+    let empty = prism_sensors::types::FilterMap::new();
+    let k_window = derive_response_cache_key(
+        &client,
+        &sensor,
+        "crowdstrike_detections",
+        &empty,
+        &Some("2026-01-01T00:00:00Z".to_string()),
+        &None,
+    );
+
+    assert_ne!(
+        k_filter.push_down_hash, k_window.push_down_hash,
+        "a filter column named 'start_time' must not collide with the \
+         time-window start_time parameter (namespacing)"
+    );
+}
+
+/// BC-2.07.003: the production `SensorResponseCache` instantiation honors TTL —
+/// an entry inserted with an elapsed TTL is treated as a miss on read.
+#[test]
+fn test_qry02_sensor_response_cache_ttl_expiry_treated_as_miss() {
+    use std::time::Duration;
+
+    use crate::cache::SensorResponseCache;
+
+    let cache = SensorResponseCache::with_defaults();
+    let key = make_key("acme", "crowdstrike", "crowdstrike_detections");
+
+    // Zero TTL → instantly expired.
+    cache
+        .put_with_ttl(key.clone(), vec![make_response_batch()], Duration::ZERO)
+        .expect("put_with_ttl must succeed");
+
+    assert!(
+        cache.get(&key).expect("get must not error").is_none(),
+        "BC-2.07.003: an expired entry must be treated as a cache miss"
+    );
+}
+
+/// BC-2.07.003 round-trip on the production instantiation: a stored batch set
+/// is returned intact on hit and the aggregate hit counter increments.
+#[test]
+fn test_qry02_sensor_response_cache_round_trip_and_hit_counter() {
+    use crate::cache::SensorResponseCache;
+
+    let cache = SensorResponseCache::with_defaults();
+    let key = make_key("acme", "crowdstrike", "crowdstrike_detections");
+    let batches = vec![make_response_batch()];
+
+    cache
+        .put(key.clone(), batches.clone())
+        .expect("put must succeed");
+    let hit = cache
+        .get(&key)
+        .expect("get must not error")
+        .expect("must be a cache hit");
+
+    assert_eq!(hit.len(), 1, "hit must return the stored batch set");
+    assert_eq!(
+        hit[0].num_rows(),
+        batches[0].num_rows(),
+        "stored response must be returned unmodified (no transformation before caching)"
+    );
+    assert_eq!(
+        cache.total_hits(),
+        1,
+        "BC-2.07.003: cache hits must increment the aggregate total_hits counter"
+    );
+}

@@ -26,7 +26,7 @@ use std::sync::{
 use prism_core::{error::PrismError, OrgSlug, SensorId};
 use prism_spec_engine::error::SpecEngineError;
 
-use crate::cache::QueryCache;
+use crate::cache::{CacheValue, GenericQueryCache};
 
 // ---------------------------------------------------------------------------
 // Dynamic write-tool registry (S-PLUGIN-PREREQ-E AC-9 / Task 7)
@@ -343,19 +343,61 @@ pub fn register_builtin_write_tools() -> Result<(), SpecEngineError> {
 
 /// Orchestrates synchronous cache invalidation for write operations.
 ///
-/// Holds a shared reference to the `QueryCache` and performs prefix-scan
-/// eviction before the write response is returned to the caller (BC-2.07.004
-/// §Postconditions — "synchronous before write response").
-pub struct CacheInvalidator {
-    cache: Arc<QueryCache>,
+/// Holds a shared reference to the sensor-fetch response cache and performs
+/// prefix-scan eviction before the write response is returned to the caller
+/// (BC-2.07.004 §Postconditions — "synchronous before write response").
+///
+/// Generic over the cache value type so it can wrap either the JSON-row
+/// instantiation (`QueryCache`, unit tests) or the production
+/// `SensorResponseCache` shared with `QueryEngine` (defaults to the JSON-row
+/// form for backward compatibility).
+pub struct CacheInvalidator<V: CacheValue = Vec<serde_json::Value>> {
+    cache: Arc<GenericQueryCache<V>>,
 }
 
-impl CacheInvalidator {
+impl<V: CacheValue> CacheInvalidator<V> {
     /// Construct a `CacheInvalidator` wrapping the given shared cache.
     ///
     /// GREEN-BY-DESIGN: stores the `Arc` reference, no branching, no I/O, 1 line.
-    pub fn new(cache: Arc<QueryCache>) -> Self {
+    pub fn new(cache: Arc<GenericQueryCache<V>>) -> Self {
         CacheInvalidator { cache }
+    }
+
+    /// Invalidate cache entries for a completed write operation, preferring the
+    /// per-tool mapping and falling back to sensor-wide invalidation when the
+    /// tool has no mapping (BC-2.07.004 §Write Tool to source_id Mapping).
+    ///
+    /// Per BC-2.07.004, every write tool MUST have an invalidation mapping —
+    /// "omitting a mapping is a bug". Failing the (already-succeeded) sensor
+    /// write because of that bug would be the wrong tradeoff; instead this
+    /// method logs a WARN and invalidates ALL source_ids mapped to the sensor
+    /// (a strict superset, so the write-then-read consistency invariant still
+    /// holds while the missing mapping is surfaced for fixing).
+    ///
+    /// Returns `Ok(n)` where `n` is the total number of entries evicted (I-2:
+    /// BC-2.07.004 §Postconditions audit count).
+    pub fn invalidate_for_write_operation(
+        &self,
+        client_id: &OrgSlug,
+        sensor_id: &SensorId,
+        tool_name: &str,
+    ) -> Result<usize, PrismError> {
+        match self.invalidate_for_write_tool(client_id, tool_name) {
+            Ok(n) => Ok(n),
+            Err(PrismError::Internal { detail }) if detail.starts_with("E-INT-001") => {
+                // Missing per-tool mapping — a BC-2.07.004 mapping bug. Surface it
+                // and fall back to sensor-wide invalidation (safe superset) so the
+                // write-then-read consistency invariant is preserved.
+                tracing::warn!(
+                    tool_name,
+                    sensor_id = %sensor_id,
+                    "write tool has no invalidation mapping (BC-2.07.004 bug) — \
+                     falling back to sensor-wide cache invalidation"
+                );
+                self.invalidate_for_sensor(client_id, sensor_id)
+            }
+            Err(e) => Err(e),
+        }
     }
 
     /// Invalidate all cache entries for all `source_id` values associated with
@@ -507,6 +549,7 @@ impl CacheInvalidator {
 #[allow(clippy::expect_used, clippy::unwrap_used)]
 mod tests {
     use super::*;
+    use crate::cache::QueryCache;
 
     /// BC-2.07.004: `WRITE_TOOL_INVALIDATION_MAP` contains all 8 write tools.
     ///
@@ -672,6 +715,99 @@ mod tests {
         assert!(
             cache.get(&key_dets).expect("get must not fail").is_none(),
             "I-2: crowdstrike_detections entry must be evicted"
+        );
+    }
+
+    /// BC-2.07.004: `invalidate_for_write_operation` with a MAPPED tool name
+    /// performs the per-tool prefix eviction (same scope as
+    /// `invalidate_for_write_tool`).
+    #[test]
+    fn test_invalidate_for_write_operation_mapped_tool_uses_tool_mapping() {
+        use prism_core::tenant::OrgSlug;
+
+        reset_query_phase_for_test();
+        reset_dynamic_registry_for_test();
+
+        let cache = Arc::new(QueryCache::with_defaults());
+        // cyberint_acknowledge_alert maps ONLY to cyberint_alerts.
+        let key_alerts = crate::cache_key::CacheKey {
+            client_id: "acme".to_string(),
+            sensor_id: prism_core::SensorId::from("cyberint"),
+            source_id: "cyberint_alerts".to_string(),
+            push_down_hash: "a".repeat(64),
+        };
+        cache
+            .put(key_alerts.clone(), vec![serde_json::json!({"id": "al-1"})])
+            .expect("put alerts");
+
+        let invalidator = CacheInvalidator::new(Arc::clone(&cache));
+        let evicted = invalidator
+            .invalidate_for_write_operation(
+                &OrgSlug::new("acme"),
+                &prism_core::SensorId::from("cyberint"),
+                "cyberint_acknowledge_alert",
+            )
+            .expect("mapped tool invalidation must succeed");
+
+        assert_eq!(evicted, 1, "mapped tool must evict exactly its source_ids");
+        assert!(
+            cache.get(&key_alerts).expect("get").is_none(),
+            "cyberint_alerts entry must be evicted via the tool mapping"
+        );
+    }
+
+    /// BC-2.07.004 ("omitting a mapping is a bug"): an UNMAPPED tool name must
+    /// NOT fail the (already-succeeded) write — `invalidate_for_write_operation`
+    /// falls back to sensor-wide invalidation (a safe superset) so the
+    /// write-then-read consistency invariant still holds.
+    #[test]
+    fn test_invalidate_for_write_operation_unmapped_tool_falls_back_to_sensor_wide() {
+        use prism_core::tenant::OrgSlug;
+
+        reset_query_phase_for_test();
+        reset_dynamic_registry_for_test();
+
+        let cache = Arc::new(QueryCache::with_defaults());
+        // crowdstrike sensor maps (via its write tools) to hosts/alerts/detections.
+        let key_hosts = crate::cache_key::CacheKey {
+            client_id: "acme".to_string(),
+            sensor_id: prism_core::SensorId::from("crowdstrike"),
+            source_id: "crowdstrike_hosts".to_string(),
+            push_down_hash: "b".repeat(64),
+        };
+        let key_dets = crate::cache_key::CacheKey {
+            client_id: "acme".to_string(),
+            sensor_id: prism_core::SensorId::from("crowdstrike"),
+            source_id: "crowdstrike_detections".to_string(),
+            push_down_hash: "c".repeat(64),
+        };
+        cache
+            .put(key_hosts.clone(), vec![serde_json::json!({"id": "h-1"})])
+            .expect("put hosts");
+        cache
+            .put(key_dets.clone(), vec![serde_json::json!({"id": "d-1"})])
+            .expect("put detections");
+
+        let invalidator = CacheInvalidator::new(Arc::clone(&cache));
+        let result = invalidator.invalidate_for_write_operation(
+            &OrgSlug::new("acme"),
+            &prism_core::SensorId::from("crowdstrike"),
+            "crowdstrike_tool_with_no_mapping",
+        );
+
+        let evicted =
+            result.expect("unmapped tool must NOT error — falls back to sensor-wide invalidation");
+        assert_eq!(
+            evicted, 2,
+            "sensor-wide fallback must evict all cached sources for the sensor"
+        );
+        assert!(
+            cache.get(&key_hosts).expect("get hosts").is_none(),
+            "fallback must evict crowdstrike_hosts"
+        );
+        assert!(
+            cache.get(&key_dets).expect("get dets").is_none(),
+            "fallback must evict crowdstrike_detections"
         );
     }
 

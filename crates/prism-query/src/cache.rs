@@ -139,28 +139,76 @@ impl SourceDataType {
 }
 
 // ---------------------------------------------------------------------------
+// CacheValue
+// ---------------------------------------------------------------------------
+
+/// A value type storable in the sensor-fetch response cache.
+///
+/// The cache logic (TTL, LRU, per-partition bounds, byte budget, prefix
+/// invalidation) is value-type agnostic; only the byte-size estimation differs.
+/// Two instantiations exist:
+/// - `Vec<serde_json::Value>` — raw JSON rows (the BC-2.07.003 "raw sensor
+///   response" form, used by unit tests and JSON-level callers).
+/// - [`SensorResponseValue`] (`Vec<RecordBatch>`) — the production query-engine
+///   instantiation. The as-built `SensorAdapter::fetch` boundary returns Arrow
+///   `RecordBatch`es (normalization happens inside the adapter), so the
+///   fan-out-level response cache stores the adapter's complete response in
+///   that form. Virtual-field injection and PrismQL post-filters are applied
+///   after cache retrieval, preserving the BC-2.07.003 "no transformation
+///   before caching" invariant at this layer.
+pub trait CacheValue: Clone + std::fmt::Debug + Send + Sync + 'static {
+    /// Estimated in-memory size of this value in bytes, used for the
+    /// BC-2.07.006 byte-budget accounting and the SEC-003 per-entry cap.
+    fn estimated_bytes(&self) -> usize;
+}
+
+impl CacheValue for Vec<serde_json::Value> {
+    /// Conservative estimate: [`AVG_ROW_SIZE_BYTES`] per JSON row (CR-006).
+    fn estimated_bytes(&self) -> usize {
+        self.len() * AVG_ROW_SIZE_BYTES
+    }
+}
+
+impl CacheValue for Vec<arrow::record_batch::RecordBatch> {
+    /// Actual Arrow buffer memory for the batch set.
+    ///
+    /// `get_array_memory_size` reports the total bytes of all buffers backing
+    /// the batch (shared `Arc` buffers may be counted per referencing batch —
+    /// a conservative over-estimate, which is the safe direction for a budget).
+    fn estimated_bytes(&self) -> usize {
+        self.iter()
+            .map(arrow::record_batch::RecordBatch::get_array_memory_size)
+            .sum()
+    }
+}
+
+/// Production cache value: complete sensor-fetch response as Arrow batches.
+pub type SensorResponseValue = Vec<arrow::record_batch::RecordBatch>;
+
+// ---------------------------------------------------------------------------
 // CacheEntry
 // ---------------------------------------------------------------------------
 
 /// A single cached sensor-fetch response.
 ///
-/// Stores the raw sensor API response rows (pre-OCSF normalization) along with
-/// metadata for TTL enforcement (BC-2.07.003 §Postconditions).
+/// Stores the complete sensor API response (no query-engine transformation
+/// applied before caching) along with metadata for TTL enforcement
+/// (BC-2.07.003 §Postconditions).
 ///
 /// Hit metrics are tracked at the cache level via `QueryCache::total_hits()`
-/// rather than per-entry to avoid cloning the full `rows` vec on every hit
+/// rather than per-entry to avoid cloning the full `rows` value on every hit
 /// (CR-005). Aggregate counts are sufficient for `check_sensor_health` visibility.
 #[derive(Debug, Clone)]
-pub struct CacheEntry {
-    /// Raw sensor API response rows stored as JSON (pre-OCSF normalization).
-    pub rows: Vec<serde_json::Value>,
+pub struct CacheEntry<V: CacheValue = Vec<serde_json::Value>> {
+    /// Complete sensor API response (pre-query-engine transformation).
+    pub rows: V,
     /// Absolute creation timestamp — TTL is measured from this (BC-2.07.003).
     pub created_at: Instant,
     /// TTL duration for this entry (data-type dependent).
     pub ttl: Duration,
 }
 
-impl CacheEntry {
+impl<V: CacheValue> CacheEntry<V> {
     /// Returns `true` if this entry's TTL has elapsed (BC-2.07.003).
     ///
     /// TTL is measured from `created_at` (absolute), not from last access.
@@ -216,11 +264,16 @@ fn partition_key(key: &CacheKey) -> PartitionKey {
 // QueryCache
 // ---------------------------------------------------------------------------
 
-/// Thread-safe sensor-fetch response cache.
+/// Thread-safe sensor-fetch response cache, generic over the cached value type.
 ///
 /// Implements BC-2.07.003 (TTL-based caching) and BC-2.07.006 (LRU eviction
 /// with per-partition entry count bound and 50 MB total byte budget). Intended
-/// to be held in a single `Arc<QueryCache>` shared across all `QueryEngine` tasks.
+/// to be held in a single `Arc` shared across all `QueryEngine` tasks.
+///
+/// Two instantiations are exported:
+/// - [`QueryCache`] (`GenericQueryCache<Vec<serde_json::Value>>`) — JSON-row form.
+/// - [`SensorResponseCache`] (`GenericQueryCache<SensorResponseValue>`) — the
+///   production query-engine instantiation storing Arrow `RecordBatch` sets.
 ///
 /// Internally uses `moka::sync::Cache` for thread-safe LRU eviction and
 /// TTL-based entry expiry (story §Caching Context Summary — moka 0.12).
@@ -229,11 +282,11 @@ fn partition_key(key: &CacheKey) -> PartitionKey {
 /// If the `partition_counts` mutex is poisoned, all cache operations that
 /// require the lock return `Err(PrismError::Internal { detail: "E-CACHE-001: ..." })`.
 /// Silent recovery via `unwrap_or_else(|e| e.into_inner())` is prohibited.
-pub struct QueryCache {
+pub struct GenericQueryCache<V: CacheValue> {
     config: CacheConfig,
     /// moka LRU cache: provides O(1) get/put with background TTL eviction.
     /// Large capacity; per-partition bounds enforced by `partition_counts`.
-    inner: MokaCache<CacheKey, CacheEntry>,
+    inner: MokaCache<CacheKey, CacheEntry<V>>,
     /// Per-`(client_id, sensor_id)` entry tracking for DI-018 bound enforcement.
     /// Each element is `(key, estimated_byte_size)` — the byte size is stored
     /// alongside the key so removal paths can decrement `total_bytes` accurately
@@ -244,13 +297,27 @@ pub struct QueryCache {
     total_bytes: AtomicUsize,
     /// Aggregate cache hit counter — incremented on every successful get()
     /// (BC-2.07.003, CR-005). Using an aggregate counter avoids cloning the
-    /// full `rows` Vec on every hot-path hit; per-entry counts are not required
+    /// full `rows` value on every hot-path hit; per-entry counts are not required
     /// by the BC.
     total_hits: AtomicU64,
 }
 
-impl QueryCache {
-    /// Construct a new `QueryCache` with the given configuration.
+/// JSON-row instantiation of the sensor-fetch cache (historical name).
+///
+/// All pre-existing unit tests and JSON-level callers use this alias; the
+/// production query engine uses [`SensorResponseCache`].
+pub type QueryCache = GenericQueryCache<Vec<serde_json::Value>>;
+
+/// Production sensor-fetch response cache instantiation (BC-2.07.003).
+///
+/// Stores the complete per-`(client_id, sensor_id, source_id, push_down_hash)`
+/// sensor fetch response as Arrow `RecordBatch`es, shared between
+/// `QueryEngine` (read/populate path) and `CacheInvalidator` (write
+/// invalidation path, BC-2.07.004).
+pub type SensorResponseCache = GenericQueryCache<SensorResponseValue>;
+
+impl<V: CacheValue> GenericQueryCache<V> {
+    /// Construct a new cache with the given configuration.
     pub fn new(config: CacheConfig) -> Self {
         // moka capacity: large global pool; per-partition bounds via partition_counts.
         // We use a large moka capacity so it never evicts by itself —
@@ -263,7 +330,7 @@ impl QueryCache {
             .max_capacity(moka_cap)
             .time_to_live(max_ttl)
             .build();
-        QueryCache {
+        GenericQueryCache {
             config,
             inner,
             partition_counts: Mutex::new(HashMap::new()),
@@ -272,7 +339,7 @@ impl QueryCache {
         }
     }
 
-    /// Construct a `QueryCache` with default configuration.
+    /// Construct a cache with default configuration.
     pub fn with_defaults() -> Self {
         Self::new(CacheConfig::default())
     }
@@ -306,7 +373,7 @@ impl QueryCache {
     /// `rows` Vec on every hot-path access.
     ///
     /// Returns `Err(PrismError::Internal)` if the mutex is poisoned (E-CACHE-001).
-    pub fn get(&self, key: &CacheKey) -> Result<Option<Vec<serde_json::Value>>, PrismError> {
+    pub fn get(&self, key: &CacheKey) -> Result<Option<V>, PrismError> {
         let entry = match self.inner.get(key) {
             Some(e) => e,
             None => {
@@ -367,7 +434,7 @@ impl QueryCache {
     /// the put is a no-op (health endpoints are not cached — BC-2.07.003).
     ///
     /// Returns `Err(PrismError::Internal)` if the mutex is poisoned (E-CACHE-001).
-    pub fn put(&self, key: CacheKey, rows: Vec<serde_json::Value>) -> Result<(), PrismError> {
+    pub fn put(&self, key: CacheKey, rows: V) -> Result<(), PrismError> {
         let data_type = SourceDataType::from_source_id(&key.source_id);
         let ttl = match data_type.ttl() {
             Some(t) => t,
@@ -398,7 +465,7 @@ impl QueryCache {
     pub(crate) fn put_with_ttl(
         &self,
         key: CacheKey,
-        rows: Vec<serde_json::Value>,
+        rows: V,
         ttl: Duration,
     ) -> Result<(), PrismError> {
         // max_entries_per_sensor == 0 → caching disabled.
@@ -407,7 +474,7 @@ impl QueryCache {
         }
 
         // Per-entry byte cap: reject entries exceeding MAX_ENTRY_BYTES (SEC-003).
-        let entry_size = rows.len() * AVG_ROW_SIZE_BYTES;
+        let entry_size = rows.estimated_bytes();
         if entry_size > MAX_ENTRY_BYTES {
             return Ok(()); // silent drop: caller receives no cache benefit but no error
         }
@@ -561,11 +628,7 @@ impl QueryCache {
     /// BC-2.07.003 force_refresh semantics (bypass + replace) — the miss simply
     /// causes a fresh sensor fetch. No accounting drift or orphan state is
     /// possible in any interleaving.
-    pub fn force_refresh(
-        &self,
-        key: CacheKey,
-        rows: Vec<serde_json::Value>,
-    ) -> Result<(), PrismError> {
+    pub fn force_refresh(&self, key: CacheKey, rows: V) -> Result<(), PrismError> {
         // Remove existing entry if present, then insert fresh.
         self.remove_entry(&key)?;
         self.put(key, rows)
@@ -789,7 +852,7 @@ impl QueryCache {
     /// a specific entry bypassing `put_with_ttl` invariants (e.g., to test
     /// SEC-001 mutex-poison behaviour). (CR-016)
     #[cfg(test)]
-    pub fn insert_raw_for_test(&self, key: CacheKey, entry: CacheEntry) {
+    pub fn insert_raw_for_test(&self, key: CacheKey, entry: CacheEntry<V>) {
         self.inner.insert(key, entry);
     }
 

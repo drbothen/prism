@@ -2277,3 +2277,188 @@ async fn test_resolve_source_refs_unknown_table_returns_e_query_006() {
         "F-LP1-CRITICAL-001: error must contain 'E-QUERY-006'; got: {detail}"
     );
 }
+
+// ---------------------------------------------------------------------------
+// QRY-02 (BC-2.07.003): cross-query response cache wired into QueryEngine
+// ---------------------------------------------------------------------------
+
+/// Sensor adapter that counts `fetch` invocations — used to observe whether the
+/// engine served a query from the cross-query response cache (no fetch) or hit
+/// the sensor API (fetch counted).
+struct FetchCountingAdapter {
+    call_count: Arc<std::sync::atomic::AtomicUsize>,
+}
+
+#[async_trait]
+impl prism_sensors::adapter::SensorAdapter for FetchCountingAdapter {
+    fn sensor_type(&self) -> prism_core::SensorId {
+        prism_core::SensorId::from("crowdstrike")
+    }
+
+    fn sensor_name(&self) -> &'static str {
+        "crowdstrike"
+    }
+
+    async fn fetch(
+        &self,
+        _spec: &prism_sensors::adapter::SensorSpec,
+        _params: &prism_sensors::adapter::QueryParams,
+        _auth: &dyn prism_sensors::auth::SensorAuth,
+    ) -> Result<Vec<RecordBatch>, prism_sensors::adapter::SensorError> {
+        self.call_count
+            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        let schema = Arc::new(arrow::datatypes::Schema::new(vec![
+            arrow::datatypes::Field::new("detection_id", arrow::datatypes::DataType::Utf8, false),
+        ]));
+        let arr = Arc::new(arrow::array::StringArray::from(vec!["det-1", "det-2"])) as _;
+        let batch = RecordBatch::try_new(schema, vec![arr]).expect("counting batch");
+        Ok(vec![batch])
+    }
+}
+
+/// Build a `QueryEngine` backed by a single `FetchCountingAdapter`.
+fn make_counting_engine() -> (
+    prism_query::engine::QueryEngine,
+    Arc<std::sync::atomic::AtomicUsize>,
+) {
+    use prism_core::OrgId;
+
+    let call_count = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    let mut registry = AdapterRegistry::new();
+    registry.register(
+        OrgId::new(),
+        Arc::new(FetchCountingAdapter {
+            call_count: Arc::clone(&call_count),
+        }),
+    );
+    let engine = helpers::make_engine(registry, vec![helpers::org("acme")]);
+    (engine, call_count)
+}
+
+/// QRY-02 / BC-2.07.003: two identical queries through the SAME engine must
+/// share the cross-query response cache — the second `execute` returns the
+/// cached sensor response without calling the sensor API.
+///
+/// Pre-fix failure mode: `Arc<QueryCache>` was constructed by the engine but
+/// `execute_inner` never consulted it, so every query re-fetched from the
+/// sensor (cache dead in production).
+#[tokio::test]
+async fn test_QRY_02_cross_query_cache_hit_skips_sensor_fetch() {
+    use prism_query::engine::QueryOptions;
+
+    let (engine, call_count) = make_counting_engine();
+    let make_options = || QueryOptions {
+        clients: Some(vec![helpers::org("acme")]),
+        ..QueryOptions::default()
+    };
+
+    let r1 = engine
+        .execute("SELECT * FROM crowdstrike_detections", make_options())
+        .await
+        .expect("first execute must succeed");
+    let r2 = engine
+        .execute("SELECT * FROM crowdstrike_detections", make_options())
+        .await
+        .expect("second execute must succeed");
+
+    assert_eq!(
+        call_count.load(std::sync::atomic::Ordering::SeqCst),
+        1,
+        "QRY-02/BC-2.07.003: second identical query must be served from the \
+         cross-query response cache (exactly 1 sensor fetch expected)"
+    );
+    assert_eq!(
+        r1.returned_results, r2.returned_results,
+        "cached response must produce the same result count as the fresh fetch"
+    );
+    assert!(
+        r2.returned_results > 0,
+        "cache-hit result must not be empty (got {} rows)",
+        r2.returned_results
+    );
+}
+
+/// QRY-02 / BC-2.07.003 §Postconditions: `force_refresh: true` bypasses the
+/// cache read and REPLACES the existing entry with the fresh response; a
+/// subsequent normal query is then served from the replaced entry.
+#[tokio::test]
+async fn test_QRY_02_force_refresh_bypasses_and_replaces_cache_entry() {
+    use prism_query::engine::QueryOptions;
+
+    let (engine, call_count) = make_counting_engine();
+    let make_options = |force_refresh: bool| QueryOptions {
+        clients: Some(vec![helpers::org("acme")]),
+        force_refresh,
+        ..QueryOptions::default()
+    };
+
+    // 1) Populate the cache (1 fetch).
+    engine
+        .execute("SELECT * FROM crowdstrike_detections", make_options(false))
+        .await
+        .expect("populate execute must succeed");
+    // 2) force_refresh bypasses the cached entry (2nd fetch) and replaces it.
+    engine
+        .execute("SELECT * FROM crowdstrike_detections", make_options(true))
+        .await
+        .expect("force_refresh execute must succeed");
+    assert_eq!(
+        call_count.load(std::sync::atomic::Ordering::SeqCst),
+        2,
+        "BC-2.07.003: force_refresh must bypass the cache and call the sensor API"
+    );
+    // 3) Normal query is served from the replaced entry (still 2 fetches).
+    engine
+        .execute("SELECT * FROM crowdstrike_detections", make_options(false))
+        .await
+        .expect("post-refresh execute must succeed");
+    assert_eq!(
+        call_count.load(std::sync::atomic::Ordering::SeqCst),
+        2,
+        "BC-2.07.003 EC-07-032 spirit: force_refresh must REPLACE the entry — \
+         the following normal query must hit the refreshed cache entry"
+    );
+}
+
+/// BC-2.07.004: a write-operation invalidation against the engine's response
+/// cache (`QueryEngine::response_cache()`) evicts the cached entries, so the
+/// next query re-fetches from the sensor (write-then-read consistency, DEC-018).
+#[tokio::test]
+async fn test_BC_2_07_004_write_invalidation_evicts_engine_response_cache() {
+    use prism_query::{engine::QueryOptions, invalidation::CacheInvalidator};
+
+    let (engine, call_count) = make_counting_engine();
+    let make_options = || QueryOptions {
+        clients: Some(vec![helpers::org("acme")]),
+        ..QueryOptions::default()
+    };
+
+    // Populate the cache (1 fetch).
+    engine
+        .execute("SELECT * FROM crowdstrike_detections", make_options())
+        .await
+        .expect("populate execute must succeed");
+
+    // Simulate a successful write: crowdstrike_acknowledge_alert invalidates
+    // crowdstrike_alerts + crowdstrike_detections (BC-2.07.004 mapping table).
+    let invalidator = CacheInvalidator::new(engine.response_cache());
+    invalidator
+        .invalidate_for_write_operation(
+            &helpers::org("acme"),
+            &prism_core::SensorId::from("crowdstrike"),
+            "crowdstrike_acknowledge_alert",
+        )
+        .expect("invalidation must succeed");
+
+    // The next identical query must MISS the cache and re-fetch (2nd fetch).
+    engine
+        .execute("SELECT * FROM crowdstrike_detections", make_options())
+        .await
+        .expect("post-write execute must succeed");
+    assert_eq!(
+        call_count.load(std::sync::atomic::Ordering::SeqCst),
+        2,
+        "BC-2.07.004/DEC-018: a query after write invalidation must re-fetch \
+         from the sensor API (cache entry evicted before write response)"
+    );
+}

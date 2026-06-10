@@ -2417,12 +2417,20 @@ pub async fn step9_start_mcp_server(
     let write_adapter_registry = Arc::new(AdapterRegistry::new());
     let endpoint_registry = Arc::new(WriteEndpointRegistry::new());
 
+    // BC-2.07.004: the write path invalidates the SAME response cache the
+    // query engine's read pipeline populates (write-then-read consistency).
+    // Constructed from QueryEngine::response_cache() — never a fresh cache.
+    let cache_invalidator = Arc::new(prism_query::invalidation::CacheInvalidator::new(
+        query_engine.response_cache(),
+    ));
+
     let write_executor = Arc::new(WriteExecutor::new(
         feature_flags,
         confirmation_store,
         audit_writer.clone(),
         write_adapter_registry,
         endpoint_registry,
+        cache_invalidator,
     ));
 
     // ── Construct PrismServer and spawn serve_stdio ───────────────────────────

@@ -41,7 +41,7 @@ use tokio_util::sync::CancellationToken;
 use crate::{
     alias_store::AliasStore,
     alias_types::AliasScope,
-    cache::{CacheConfig, QueryCache},
+    cache::{CacheConfig, SensorResponseCache},
     cursor::{spawn_cursor_cleanup_task, QueryCursorRegistry},
     scoping::ClientRegistry,
 };
@@ -198,9 +198,13 @@ pub struct QueryEngine {
     #[allow(dead_code)]
     pub(crate) cursor_registry: Arc<Mutex<QueryCursorRegistry>>,
     /// Shared sensor-fetch response cache (BC-2.07.003/006).
-    /// Used by cache module; not read directly in execute_inner. (ADV-W3MT-P58-MED-002)
-    #[allow(dead_code)]
-    pub(crate) cache: Arc<QueryCache>,
+    ///
+    /// Threaded into the materialization pipeline via
+    /// `MaterializationContext::with_response_cache` so sensor fetches are
+    /// cache-checked before fan-out and populated after (QRY-02 closure).
+    /// Shared with the write path through `response_cache()` →
+    /// `CacheInvalidator` (BC-2.07.004).
+    pub(crate) cache: Arc<SensorResponseCache>,
     /// Cancellation token used to signal the cursor cleanup task to stop.
     cleanup_shutdown: CancellationToken,
     /// Handle to the background cursor cleanup task (BC-2.07.002 §Background Cleanup).
@@ -279,7 +283,7 @@ impl QueryEngine {
         cache_config: CacheConfig,
     ) -> Self {
         let cursor_registry = Arc::new(Mutex::new(QueryCursorRegistry::new()));
-        let cache = Arc::new(QueryCache::new(cache_config));
+        let cache = Arc::new(SensorResponseCache::new(cache_config));
         let shutdown = CancellationToken::new();
 
         // Start cursor cleanup background task (BC-2.07.002 §Background Cleanup).
@@ -328,6 +332,16 @@ impl QueryEngine {
         Arc::clone(&self.client_registry)
     }
 
+    /// Return the engine-owned sensor-fetch response cache (BC-2.07.003).
+    ///
+    /// Exposed so the boot path can construct a `CacheInvalidator` over the
+    /// SAME cache instance the read pipeline populates — write-then-read
+    /// consistency (BC-2.07.004) requires the write path to invalidate the
+    /// cache the query path reads from, not a separate instance.
+    pub fn response_cache(&self) -> Arc<SensorResponseCache> {
+        Arc::clone(&self.cache)
+    }
+
     /// Construct a `QueryEngine` with full production dependencies.
     ///
     /// Includes `CredentialResolver`, `OrgRegistry`, `RocksStorageBackend`,
@@ -354,7 +368,7 @@ impl QueryEngine {
         alias_store: Arc<Mutex<AliasStore>>,
     ) -> Self {
         let cursor_registry = Arc::new(Mutex::new(QueryCursorRegistry::new()));
-        let cache = Arc::new(QueryCache::new(CacheConfig::default()));
+        let cache = Arc::new(SensorResponseCache::new(CacheConfig::default()));
         let shutdown = CancellationToken::new();
         let handle = spawn_cursor_cleanup_task(Arc::clone(&cursor_registry), shutdown.clone());
 
@@ -522,6 +536,8 @@ impl QueryEngine {
         // Step 3: Set up MaterializationContext with engine dependencies.
         // F-LP2-CRIT-001: pass resolved_spec_map so fan_out_with_overlay_map is used
         // when per-org overlay endpoints are configured (ADR-029).
+        // QRY-02: attach the engine-owned response cache so sensor fetches are
+        // cache-checked before fan-out and populated after (BC-2.07.003).
         let mut mat_ctx = crate::materialization::MaterializationContext::new_with_resolver(
             Arc::clone(&self.adapter_registry),
             Arc::clone(&self.ocsf_normalizer),
@@ -529,7 +545,8 @@ impl QueryEngine {
             Arc::clone(&self.credential_resolver),
             self.org_registry.clone(),
             self.resolved_spec_map.clone(),
-        );
+        )
+        .with_response_cache(Arc::clone(&self.cache));
 
         // Step 4: Resolve effective options (merge client scope into options).
         //
@@ -701,6 +718,8 @@ impl QueryEngine {
         // Set up MaterializationContext.
         // F-LP2-CRIT-001: pass resolved_spec_map so fan_out_with_overlay_map is used
         // when per-org overlay endpoints are configured (ADR-029).
+        // QRY-02: scheduled queries share the same response cache as analyst
+        // queries (BC-2.07.003 — single cache type, keyed per BC-2.07.005).
         let mut mat_ctx = crate::materialization::MaterializationContext::new_with_resolver(
             Arc::clone(&self.adapter_registry),
             Arc::clone(&self.ocsf_normalizer),
@@ -708,7 +727,8 @@ impl QueryEngine {
             Arc::clone(&self.credential_resolver),
             self.org_registry.clone(),
             self.resolved_spec_map.clone(),
-        );
+        )
+        .with_response_cache(Arc::clone(&self.cache));
 
         let effective_options = QueryOptions {
             clients: Some(resolved_clients.clone()),
