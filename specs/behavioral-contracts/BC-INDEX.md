@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "6.08"
+version: "6.09"
 status: draft
 producer: product-owner
 timestamp: 2026-06-09T18:00:00Z
@@ -115,7 +115,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.06.015 | OrgRegistry Cross-Validation at Boot — Unknown Overlay Directory Triggers E-SPEC-022 | 06 - Client Configuration | CAP-009 | P0 | active — v1.1; promoted D-825 (PR #155 merge 2026-05-26) |
 | BC-2.06.016 | Error Taxonomy for Per-Org Overlay Override Violations (E-SPEC-019 through E-SPEC-023) | 06 - Client Configuration | CAP-009 | P0 | active — v1.3; promoted D-825 (PR #155 merge 2026-05-26) |
 | BC-2.06.017 | Per-DTU-Instance Multi-Address Binding for Multi-Tenant Overlay Testing | SS-01 (Sensor Adapters) | CAP-036 | P2 | draft — v1.1 (D-1076: Amendment-1 Postcondition-5 start_on prose corrected; Amendment-2 error-table inner types disambiguated; 5 invariants UNCHANGED) |
-| BC-2.06.018 | Demo-Server Config-Time Data Seeding — Per-Clone seed + fixture_set Wire-Up | SS-01 (Sensor Adapters) | CAP-036 | P2 | draft — v1.4 (D-1085: F-P5-HIGH-001 phantom-anchor fix — 7 story-ref anchor sites corrected S-DEMO-DTU-DATA-SEEDING-001 → S-DEMO-DTU-LIVE-SCENARIO-001-A by product-owner; serving-path/discriminator class VERIFIED CLOSED; no BC count changes) |
+| BC-2.06.018 | Demo-Server Config-Time Data Seeding — Per-Clone seed + fixture_set Wire-Up | SS-01 (Sensor Adapters) | CAP-036 | P2 | draft — v1.5 (D-1086: F-P6-HIGH-001 archetype-driven contract reconciliation — canonical 3-arg `new_with_seed(seed, archetype, org_id)` replacing 2-arg form; line-75 2-arg drift fixed by product-owner; DormantTenant-empty-fallback bug EC-018-003 fixed via `fixture_gen_seeded: bool` sentinel) |
 | BC-2.06.019 | Demo-Server Scenario Progression — Pure-Function Temporal Stage Advancement with Reproducibility Guarantee | SS-01 (Sensor Adapters) | CAP-036 | P2 | draft — v1.1 (D-1079: ADR-036 v2.0 substrate reconciliation; stage_duration_secs 4-entry mapping; activates_after_secs; Result signatures corrected) |
 | BC-2.06.020 | Demo-Server Enrichment Correlation — Scenario IOCs Resolve in ThreatIntel; Scenario CVEs Resolve in NVD | SS-01 (Sensor Adapters) | CAP-036 | P2 | draft — v1.1 (D-1079: ADR-036 v2.0 substrate reconciliation; NvdState::lookup_and_count; CVSS path metrics.cvss_metric_v31[0].cvss_data.base_score; Result signatures corrected) |
 | BC-2.07.001 | Internal Ephemeral Pagination Token Structure | 07 - Adapter Pagination & Response Cache | CAP-011 | P0 | draft |
@@ -380,6 +380,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v6.09 (2026-06-09, D-1086 — BC-2.06.018 v1.4→v1.5: F-P6-HIGH-001 archetype-driven contract reconciliation; full 8-archetype support; BC counts UNCHANGED 250/235/6):** state-manager | BC-2.06.018 v1.4→v1.5 — product-owner archetype-driven contract reconciliation (F-P6-HIGH-001, user decision: full 8-archetype support): canonical constructor updated to 3-arg `new_with_seed(seed: u64, archetype: Archetype, org_id: OrgId)` — archetype forwarded to `generate()` across all 4 clones (CrowdStrike, Armis, Claroty, Cyberint); line-75 2-arg drift fixed; DormantTenant-empty-fallback bug EC-018-003 fixed via `fixture_gen_seeded: bool` sentinel. ADR-036 v2.1→v2.2. Story A v1.3→v1.4 (3-arg ACs + 3 differential archetype Red Gate tests; red_gate_tests 14→17). No BC count changes (active: 235 UNCHANGED; draft: 6 UNCHANGED; total: 250 UNCHANGED). BC-INDEX inline row updated to v1.5. STORY-INDEX row updated to v1.4. ARCH-INDEX v2.118→v2.119. STATE D-1086 decision row added. BC-INDEX v6.08→v6.09.
 
 **v6.08 (2026-06-09, D-1085 — BC-2.06.018 v1.3→v1.4: F-P5-HIGH-001 phantom-anchor correction — 7 live story-ref sites corrected S-DEMO-DTU-DATA-SEEDING-001 → S-DEMO-DTU-LIVE-SCENARIO-001-A; serving-path/discriminator class VERIFIED CLOSED by Pass 5; BC counts UNCHANGED 250/235/6):** state-manager | BC-2.06.018 v1.3→v1.4 — product-owner phantom-anchor correction (F-P5-HIGH-001, LOCAL Pass-5 finding): 7 story-anchor references inside BC-2.06.018 that still cited S-DEMO-DTU-DATA-SEEDING-001 (the superseded name) corrected to S-DEMO-DTU-LIVE-SCENARIO-001-A (the current canonical story). All 8 serving-path routes and discriminator-class contracts verified clean by adversary Pass 5 — no CRIT findings. No BC count changes (active: 235 UNCHANGED; draft: 6 UNCHANGED; total: 250 UNCHANGED — version bump within existing registered BC). BC-INDEX inline row 118 updated to v1.4. Sibling sweep: story S-DEMO-DTU-LIVE-SCENARIO-001-A §Behavioral Contracts table row + §Token Budget row updated v1.3→v1.4 per POL-23/POL-29 sibling sweep; story v1.2→v1.3. STORY-INDEX row updated to reflect story v1.3. STATE D-1085 decision row added. BC-INDEX v6.07→v6.08.
 

@@ -2,7 +2,7 @@
 document_type: behavioral-contract
 level: L3
 bc_id: "BC-2.06.018"
-version: "1.4"
+version: "1.5"
 status: draft
 lifecycle_status: draft
 producer: product-owner
@@ -12,7 +12,7 @@ origin: greenfield
 subsystem: "SS-01"
 capability: "CAP-036"
 introduced: "2026-06-09"
-modified: "2026-06-09T00:02:00Z"
+modified: "2026-06-09T00:03:00Z"
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -72,11 +72,12 @@ code reality:
 - `DemoConfig` and `CloneConfig` currently have no `org_id` field. The `OrgId` required
   by `seeded_rng(seed, &OrgId)` has no source in the demo-server today.
 
-**Story A RETROFIT:** A new per-clone `new_with_seed(seed: u64, org_id: OrgId)` constructor
+**Story A RETROFIT:** A new per-clone `new_with_seed(seed: u64, archetype: Archetype, org_id: OrgId)` constructor
 calls `generate(...)` under `#[cfg(feature = "fixture-gen")]`, stores the resulting records
 in a new state field (`generated_records: Vec<serde_json::Value>`), and route handlers serve
-or stage-filter from `generated_records` when present. The existing `new()` static-JSON path
-is unchanged for backward compatibility.
+or stage-filter from `generated_records` when present. CrowdStrike and Claroty clones return
+`Self` directly; Armis and Cyberint clones return `anyhow::Result<Self>`. The existing
+`new()` static-JSON path is unchanged for backward compatibility.
 
 ### Canonical Org Slug and Device ID Format
 
@@ -469,6 +470,7 @@ None at BC authoring time. The architect decision (this session) resolved:
 
 | Version | Change |
 |---------|--------|
+| v1.5 | 2026-06-09 — Internal contradiction fix (F-P6-HIGH-001, LOCAL adversary pass 6; user decision: implement full 8-archetype support; ADR-036 v2.2 reconciliation). §Story A RETROFIT paragraph (line ~75) carried a **2-arg** `new_with_seed(seed: u64, org_id: OrgId)` form that contradicted the canonical **3-arg** `new_with_seed(seed: u64, archetype: Archetype, org_id: OrgId)` specified by Postcondition 1, INV-FIXTURE-SET-ARCHETYPE-MAP-001, EC-018-003/005, TV-018-005/006, and VP-018-C. The 2-arg form was ADR-036 drift that the implementation followed, hardcoding `CompromisedEndpoint`. Fixed: §Story A RETROFIT now cites the canonical 3-arg signature with return-type note (CrowdStrike/Claroty return `Self`; Armis/Cyberint return `anyhow::Result<Self>`) per ADR-036 v2.2. All other live-narrative `new_with_seed` occurrences (lines 46, 105, 119, 135, 175, 185, 381, 421, 464) were already 3-arg or reference-only and required no change. PC-1, INV-FIXTURE-SET-ARCHETYPE-MAP-001, EC-018-003 (dormant→empty), EC-018-005 (large_scale→10 000), TV-018-005 (compromised→≥3 alerts severity≥4), TV-018-006 (dormant→empty list), and VP-018-C (exhaustive 8-variant mapping) verified internally consistent — no further changes needed. lifecycle_status remains draft. |
 | v1.4 | 2026-06-09 — Phantom story-anchor correction (F-P5-HIGH-001, `S-DEMO-DTU-LIVE-SCENARIO-001-A` pass 5). All six live narrative sites referencing the non-existent planning-era story ID `S-DEMO-DTU-DATA-SEEDING-001` replaced with the real implementing story `S-DEMO-DTU-LIVE-SCENARIO-001-A` per STORY-INDEX (D-1077 split). Sites updated: frontmatter `anchored_stories`, Postcondition 4 prose, INV-DISTINCT-DATA-001 prose, §Traceability `Stories` row, §Story Anchor, §VP Anchors. Changelog rows untouched (TD-VSDD-091 exempt). lifecycle_status remains draft. |
 | v1.3 | 2026-06-09 — §Scope Boundary table factual correction (F-P4-MED-003, `S-DEMO-DTU-LIVE-SCENARIO-001-A` pass 4). **Cyberint row corrected:** "Route(s) Served" was `/api/v1/alerts, /api/v1/asm_assets, /api/v1/cves, /api/v1/iocs`; corrected to `/api/v1/alerts` only — the three non-alert routes do not exist in `CyberintClone::build_router` and have no entries in `cyberint.sensor.toml`. "Generator-Backed Table Surface(s)" corrected to "alerts only (adapter-consumed)". Added new subsection §Cyberint Generator-Emitted-but-Unserved Surfaces documenting that the Cyberint generator does emit `asm_asset`/`cve`/`ioc` surfaces but they are generated-but-unserved (no routes, no adapter tables); future follow-up story required to serve them. **CrowdStrike row corrected:** route paths corrected from non-existent `/device/api/devices/v2` and `/device/api/alerts/v1` to actual registered routes `/devices/queries/devices/v1`, `/devices/entities/devices/v2`, `/detects/queries/detects/v1`, `/detects/entities/summaries/GET/v1`; surface name corrected from "alerts" to "detections" (matching `crowdstrike.sensor.toml` table name). **Armis row updated:** added `/api/v1/search` as the primary AQL endpoint backing both tables via path_template (per `armis.sensor.toml`); `/api/v1/devices` and `/api/v1/alerts` noted as direct-access compatibility endpoints. **Claroty row updated:** routes corrected to POST method paths per `ClarotyClone::build_router`; added note that `/api/v1/audit_log/get` and `/api/v1/vulnerabilities` routes exist but are static-fixture-backed, not generator-backed, and not covered by INV-DISTINCT-DATA-001 under this BC. lifecycle_status remains draft. |
 | v1.2 | 2026-06-09 — Scope boundary documentation (F-P2-MED-001, `S-DEMO-DTU-LIVE-SCENARIO-001-A` pass 2). Added §Scope Boundary — Non-Generator-Backed Tables: enumerates the four generator-backed clone table surfaces covered by INV-DISTINCT-DATA-001 (CrowdStrike: devices/alerts; Armis: devices/alerts; Claroty: devices/alerts; Cyberint: alerts/asm_assets/cves/iocs). Explicitly documents that the Cyberint `incidents` table is intentionally NON-generator-backed for this BC — the Cyberint generator emits no incident records; the DTU clone has no `/api/v1/incidents` route (cross-referenced: `cyberint.sensor.toml` EC-016-013-002); INV-DISTINCT-DATA-001 therefore does not apply to this table surface. Notes that adding a Cyberint incidents generator surface is future work tracked by `S-DEMO-CYBERINT-INCIDENTS-SEEDING-001`. lifecycle_status remains draft. |

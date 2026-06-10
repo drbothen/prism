@@ -6,7 +6,7 @@ status: ACCEPTED
 date: 2026-06-09
 wave: 5
 phase: 3.demo
-version: "2.1"
+version: "2.2"
 authors: [architect]
 related_decisions: [D-1077]
 related_adrs: [ADR-009, ADR-011, ADR-002, ADR-031, ADR-028]
@@ -45,11 +45,11 @@ inputs:
 wiring_deferred_to: S-DEMO-DTU-LIVE-SCENARIO-001-A
 ---
 
-# ADR-036 v2.1: Deterministic Scenario-Progression Engine — Substrate-Corrected Design
+# ADR-036 v2.2: Deterministic Scenario-Progression Engine — Substrate-Corrected Design
 
 ## Status
 
-ACCEPTED 2026-06-09 (v1.0). Substrate-corrected 2026-06-09 (v2.0) per remove-uncertainty scan findings U-01 through U-09 (D-1077 follow-up). Symbol/path/syntax corrections 2026-06-09 (v2.1) per Story-A re-validation scan U-A-01, U-A-04, U-A-07. Governs the live-scenario story split (S-DEMO-DTU-LIVE-SCENARIO-001-A baseline retrofit and S-DEMO-DTU-LIVE-SCENARIO-001-B scenario progression). Extends ADR-009 (multi-tenant deterministic generator) with a temporal scenario-progression layer.
+ACCEPTED 2026-06-09 (v1.0). Substrate-corrected 2026-06-09 (v2.0) per remove-uncertainty scan findings U-01 through U-09 (D-1077 follow-up). Symbol/path/syntax corrections 2026-06-09 (v2.1) per Story-A re-validation scan U-A-01, U-A-04, U-A-07. Archetype-forwarding reconciliation 2026-06-09 (v2.2) per local adversary pass 6 finding F-P6-HIGH-001 and user decision 2026-06-09: the canonical Story-A constructor is the 3-arg `new_with_seed(seed: u64, archetype: Archetype, org_id: OrgId)` for all four generator-backed clones; the `fixture_set→Archetype` map drives the generator (NOT a hardcoded `CompromisedEndpoint`). Governs the live-scenario story split (S-DEMO-DTU-LIVE-SCENARIO-001-A baseline retrofit and S-DEMO-DTU-LIVE-SCENARIO-001-B scenario progression). Extends ADR-009 (multi-tenant deterministic generator) with a temporal scenario-progression layer.
 
 ---
 
@@ -320,7 +320,9 @@ two-phase retrofit:
 demo-server clone serving path. Each generator-backed clone gains a `new_with_seed`
 constructor that:
 1. Calls `generate(org_id, [org_slug,] archetype, &GenOpts { seed, ..GenOpts::default() })` to produce
-   a `FixtureSet`.
+   a `FixtureSet`. The `archetype` argument is the `Archetype` variant mapped from
+   `CloneConfig.fixture_set` by `build_clone_pairs` via INV-FIXTURE-SET-ARCHETYPE-MAP-001.
+   It is NEVER hardcoded — any of the 8 archetypes may be requested.
 2. Stores the generated records in a new field `generated_records: Vec<serde_json::Value>`
    in the state struct (alongside the existing static-JSON fixture fields).
 3. Route handlers serve from `generated_records` when this field is populated; fall
@@ -344,9 +346,11 @@ Phase B timeline attachment.
 - `CrowdstrikeState` gains `generated_devices: Vec<serde_json::Value>` and
   `generated_detections: Vec<serde_json::Value>` (from FixtureSet, filtered by
   `_record_type`).
-- New constructor `CrowdstrikeClone::new_with_seed(seed: u64, org_id: OrgId)` calls
-  `generate(org_id, Archetype::CompromisedEndpoint, GenOpts { seed, ..GenOpts::default() })` under
-  `#[cfg(feature = "fixture-gen")]`.
+- New constructor `CrowdstrikeClone::new_with_seed(seed: u64, archetype: Archetype, org_id: OrgId)` calls
+  `generate(org_id, archetype, GenOpts { seed, ..GenOpts::default() })` under
+  `#[cfg(feature = "fixture-gen")]`. The `archetype` parameter is supplied by `build_clone_pairs`
+  via the `fixture_set→Archetype` mapping (INV-FIXTURE-SET-ARCHETYPE-MAP-001); it is NOT hardcoded
+  to `Archetype::CompromisedEndpoint`.
 - Route `routes/hosts.rs` and `routes/detections.rs` serve `generated_devices` /
   `generated_detections` when non-empty; fall back to the static device-read path
   (`load_host_ids()` / `load_host_details()` in `routes/hosts.rs`) when empty.
@@ -359,22 +363,33 @@ Phase B timeline attachment.
 **Armis** (`crates/prism-dtu-armis/src/`):
 - `ArmisState` gains `generated_records: Vec<serde_json::Value>` alongside the
   existing `devices_ordered: Vec<DeviceRecord>` and `alert_fixture: Vec<AlertRecord>`.
-- New constructor `ArmisClone::new_with_seed(seed: u64, org_id: OrgId, org_slug: &str)`.
-  Under `#[cfg(feature = "fixture-gen")]`, calls
-  `generate(org_id, org_slug, Archetype::CompromisedEndpoint, &GenOpts { seed, ..GenOpts::default() })`.
+- New constructor `ArmisClone::new_with_seed(seed: u64, archetype: Archetype, org_id: OrgId)`.
+  Internally derives `org_slug = org_slug_from_org_id(&org_id)` (8-hex formula, same as
+  `ScenarioEntityCatalog`). Under `#[cfg(feature = "fixture-gen")]`, calls
+  `generate(org_id, &org_slug, archetype, &GenOpts { seed, ..GenOpts::default() })`.
+  The `archetype` parameter is supplied by `build_clone_pairs` via INV-FIXTURE-SET-ARCHETYPE-MAP-001;
+  it is NOT hardcoded to `Archetype::CompromisedEndpoint`.
   Stores FixtureSet records in `generated_records`.
 - Route `routes/devices.rs` `paginate_devices` serves from `generated_records` when
   non-empty, deserialized as `DeviceRecord`; falls back to `devices_ordered`.
 - `fixture-gen` feature already declared in `Cargo.toml`.
 - `chrono` already a direct dependency.
 
-**Claroty** (`crates/prism-dtu-claroty/src/`): same pattern — `new_with_seed`, generated
-records in state, route handler fallback logic. The Claroty generator signature must be
-read before implementing (out of scope for this ADR; Story A implementer reads it).
+**Claroty** (`crates/prism-dtu-claroty/src/`): same 3-arg pattern —
+`ClarotyClone::new_with_seed(seed: u64, archetype: Archetype, org_id: OrgId)`.
+Internally calls `generate(&org_id, archetype, &GenOpts { seed, ..GenOpts::default() })`
+(Claroty generator signature: `generate(org_id: &OrgId, archetype: Archetype, opts: &GenOpts)`).
+The `archetype` is supplied by `build_clone_pairs` via INV-FIXTURE-SET-ARCHETYPE-MAP-001;
+NOT hardcoded. Generated records stored in state; route handler fallback logic as per
+CrowdStrike/Armis pattern.
 
-**Cyberint** (`crates/prism-dtu-cyberint/src/`): same pattern. Cyberint constructor is
-currently fallible (`CyberintClone::new() -> anyhow::Result<Self>`); `new_with_seed`
-is also fallible.
+**Cyberint** (`crates/prism-dtu-cyberint/src/`): same 3-arg pattern —
+`CyberintClone::new_with_seed(seed: u64, archetype: Archetype, org_id: OrgId) -> anyhow::Result<Self>`.
+Internally calls `generate(&org_id, archetype, &GenOpts { seed, ..GenOpts::default() })`
+(Cyberint generator signature: `generate(org_id: &OrgId, archetype: Archetype, opts: &GenOpts)`).
+The `archetype` is supplied by `build_clone_pairs` via INV-FIXTURE-SET-ARCHETYPE-MAP-001;
+NOT hardcoded. Cyberint constructor is currently fallible (`CyberintClone::new() -> anyhow::Result<Self>`);
+`new_with_seed` is also fallible for the same reason.
 
 #### Enrichment clones (ThreatIntel, NVD)
 
@@ -460,8 +475,14 @@ pub org_id: Option<String>,  // parsed as uuid::Uuid → OrgId
 6. Construct generator-backed clones with `new_with_scenario(seed, archetype, org_id, Arc::clone(&timeline))`.
 7. Construct ThreatIntel with `ThreatIntelClone::new_with_scenario(&catalog)`.
 8. Construct NVD with `NvdClone::new_with_scenario(&catalog)?`.
-9. When `scenario.enabled = false` (or absent): construct with existing `new()` /
-   `new_with_access_token()` path (backward-compatible with BC-2.06.018 postcondition 4).
+9. When `CloneConfig.fixture_set != "default"` (any non-default archetype) and
+   `scenario.enabled = false` (or absent): call `new_with_seed(seed, archetype, org_id)`
+   where `archetype` is the INV-FIXTURE-SET-ARCHETYPE-MAP-001 mapping of `fixture_set`.
+   This is the Story A baseline seeding path. The `org_id` is from `CloneConfig.org_id`
+   (parsed to `OrgId`; absence returns E-DEMO-004 for the generator-backed clone).
+   When `CloneConfig.fixture_set = "default"` AND no `org_id` is provided: construct
+   with existing `new()` / `new_with_access_token()` path (backward-compatible with
+   BC-2.06.018 postcondition 4).
 
 ### 2.5 Backward Compatibility and Perimeter
 
@@ -469,6 +490,22 @@ pub org_id: Option<String>,  // parsed as uuid::Uuid → OrgId
 `ArmisClone::new()`, etc.) are unchanged. Scenario progression is opt-in via the
 `[clones.*.scenario]` block. When absent, behavior is byte-identical to pre-ADR-036
 behavior (BC-2.06.018 postcondition 4).
+
+**VP-018-B backward-compat case (canonical).** The 3-arg `new_with_seed` preserves full
+backward compatibility because `"default"` maps to `Archetype::HealthyOtEnvironment` via
+INV-FIXTURE-SET-ARCHETYPE-MAP-001. The BC-2.06.018 Postcondition 4 backward-compat call is:
+
+```text
+new_with_seed(42, Archetype::HealthyOtEnvironment, <default_org_id>)
+```
+
+where `<default_org_id>` is a well-known test UUID (implementer to define once and use
+consistently across all backward-compat regression tests, RG-A-005). This triple must
+produce data semantically equivalent to the pre-seeding `new()` behavior. The
+`HealthyOtEnvironment` archetype MUST be the generator's natural default behavior — if the
+pre-seeding `new()` used a different internal archetype baseline, the implementer MUST either
+align `HealthyOtEnvironment` output to match it or update the regression tests accordingly
+(BC-2.06.018 Postcondition 4 note).
 
 **INV-PERIMETER-001.** `ScenarioEntityCatalog` and `IncidentTimeline` live in
 `prism-dtu-common` (behind `feature = "fixture-gen"`). They carry no dependency on
@@ -647,11 +684,21 @@ splitting into:
    Gated `#[cfg(feature = "fixture-gen")]`. `#[non_exhaustive]` on all public types.
 2. `DemoConfig`/`CloneConfig` extension: `org_id: Option<String>`, `ScenarioConfig` struct
    (enabled, archetype, scenario_start_secs, stage_duration_secs).
-3. Per-clone `new_with_seed(seed, org_id)` constructors: CrowdStrike, Armis, Claroty, Cyberint.
-   Each calls `generate()` under `fixture-gen` feature, stores records in state.
-   Route handlers add dual-path (generated vs static-JSON fallback).
-4. `build_clone_pairs` seed-forwarding: read `CloneConfig.seed` and forward to new constructors.
-   Add `E-DEMO-002` (seed mismatch), `E-DEMO-004` (missing org_id), `E-DEMO-005` (invalid UUID).
+3. Per-clone `new_with_seed(seed: u64, archetype: Archetype, org_id: OrgId)` constructors:
+   CrowdStrike, Armis (also derives `org_slug` internally), Claroty, Cyberint (fallible).
+   Each calls `generate(org_id, [org_slug,] archetype, &GenOpts { seed, ..GenOpts::default() })`
+   under `fixture-gen` feature; the `archetype` argument is the INV-FIXTURE-SET-ARCHETYPE-MAP-001
+   mapping of `CloneConfig.fixture_set` forwarded by `build_clone_pairs`. NOT hardcoded to
+   `CompromisedEndpoint`. Stores records in state. Route handlers add dual-path (generated vs
+   static-JSON fallback).
+4. `build_clone_pairs` seed-and-archetype forwarding: read `CloneConfig.seed` and
+   `CloneConfig.fixture_set`; map `fixture_set→Archetype` via INV-FIXTURE-SET-ARCHETYPE-MAP-001;
+   forward both `seed` and the resolved `Archetype` to `new_with_seed(seed, archetype, org_id)`.
+   The mapped `Archetype` drives the generator for all 8 fixture_set values — NO internal
+   default to `CompromisedEndpoint` anywhere in this call path.
+   Add `E-DEMO-001` (unrecognized fixture_set), `E-DEMO-002` (seed mismatch when
+   scenario.enabled on multiple clones), `E-DEMO-004` (missing org_id when new_with_seed
+   called with non-default archetype), `E-DEMO-005` (invalid UUID).
 5. Cargo.toml additions: `fixture-gen` feature to `prism-dtu-threatintel` and `prism-dtu-nvd`.
 6. Update ci.yml `EXPECTED` to account for new `#[non_exhaustive]` types (exact count by implementer).
 7. Integration test: start demo-server with seed=1 and seed=2 for two "clients"; assert
@@ -735,3 +782,4 @@ superseded in its frontmatter.
 | 1.0 | 2026-06-09 | architect | Initial authoring. Decision D-1077. |
 | 2.0 | 2026-06-09 | architect | Substrate-corrected. U-01: clones serve static JSON, generators not in serving path. U-02: CloneConfig.seed never forwarded; baseline seeding unimplemented. U-03: org_slug is 8-hex-from-UUID not arbitrary string; corrected ID format. U-05: NvdClone::new() is fallible; cve_registry is immutable HashMap; no lookup() method; corrected CVSS path. U-06: DemoConfig has no org_id field; added required new field. U-07/U-08: threatintel/nvd have no fixture-gen feature; added Cargo requirements; perimeter confirmed safe. U-09: pinned stage_duration_secs as 4-entry array for 5-stage timeline. Story split authorized and specified. |
 | 2.1 | 2026-06-09 | architect | Symbol/path/syntax corrections from Story-A re-validation scan. U-A-01: catalog derivation call site corrected from `seeded_rng` to `gen_seeded_rng` (two-arg re-export alias in prism-dtu-common::lib; avoids collision with one-arg legacy seeded_rng). U-A-04: CrowdStrike device-read fallback corrected from "stateful-write-target path (containment_store/detection_status_store)" to `load_host_ids()/load_host_details()` (static JSON helpers in routes/hosts.rs); containment_store/detection_status_store are write-target overlays only. U-A-07: GenOpts struct-literal corrected from bare `..` to `..GenOpts::default()` in all three Phase A call sites (§2.3 Phase A description and per-clone CrowdStrike + Armis constructor notes). No design change. |
+| 2.2 | 2026-06-09 | architect | Archetype-forwarding reconciliation. F-P6-HIGH-001 + user decision 2026-06-09: the canonical Story-A constructor is the **3-arg** `new_with_seed(seed: u64, archetype: Archetype, org_id: OrgId)` for all four generator-backed clones. The v2.1 §2.3 per-clone constructor notes had a substrate-reconciliation drift error: CrowdStrike was `new_with_seed(seed, org_id)` (2-arg, implicitly hardcoding `CompromisedEndpoint`); Armis was `new_with_seed(seed, org_id, org_slug)` (no `archetype`). Both are now corrected to the 3-arg form with explicit `archetype` parameter. Armis derives `org_slug` internally from `org_id` rather than taking it as a constructor argument (keeps the constructor signature symmetric with the other three clones). Claroty and Cyberint prose updated to state the 3-arg form explicitly (previously said "same pattern" which was ambiguous). §2.3 Phase A description updated: `archetype` note added to the generate() call. §2.4 step 9 expanded to document the Story A non-scenario path explicitly (previously only documented the Story B scenario path). §8 scope item 4 updated to state that `build_clone_pairs` maps `fixture_set→Archetype` and forwards the result to `new_with_seed`. §2.5 VP-018-B backward-compat canonical call documented: `new_with_seed(42, Archetype::HealthyOtEnvironment, <default_org_id>)`. Root cause of drift: v2.0/v2.1 focused on substrate corrections (empty state stores, no generate() call in serving path) and chose the 2-arg form as a "simpler retrofit"; this was incorrect because BC-2.06.018 Postcondition 1, INV-FIXTURE-SET-ARCHETYPE-MAP-001, EC-018-003, EC-018-005, TV-018-005, TV-018-006, and VP-018-C all specify full 8-archetype support driven by fixture_set. The 2-arg form was drift, not a deliberate scope decision. |

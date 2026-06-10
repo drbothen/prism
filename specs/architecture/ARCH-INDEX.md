@@ -1,7 +1,7 @@
 ---
 document_type: architecture-index
 level: L3
-version: "2.118"
+version: "2.119"
 status: draft
 producer: state-manager
 timestamp: 2026-05-31T12:00:00
@@ -102,7 +102,7 @@ deployment_topology: single-service  # planned — no service binary exists yet 
 | ADR-033 | Push-Down Time-Window Extraction Strategy — Pre-Fan-Out Heuristic (T1) vs Post-Resolution classify_predicates (T2) | ACCEPTED v1.0 | 2026-06-05 | decisions/ADR-033-push-down-time-window-extraction-strategy-pre-fan-out-heuristic.md |
 | ADR-034 | Tier-3 Keyring Resolution — OrgId Threading via Injected OrgRegistry, OrgId-Keyed Write Reconciliation, and Async Safety | ACCEPTED v1.2 | 2026-06-06 | decisions/ADR-034-tier3-keyring-resolution-org-id-threading.md |
 | ADR-035 | E-CRED Namespace Reconciliation — Canonical E-CRED-001..010 Error Codes, Collision Resolution, and Migration Mapping | ACCEPTED v1.2 | 2026-06-07 | decisions/ADR-035-e-cred-namespace-reconciliation.md |
-| ADR-036 | Deterministic Scenario-Progression Engine — IncidentTimeline, Per-DTU Projection, and Cross-DTU Entity Coherence for Live Demo | ACCEPTED v2.1 | 2026-06-09 | decisions/ADR-036-deterministic-scenario-progression-engine.md |
+| ADR-036 | Deterministic Scenario-Progression Engine — IncidentTimeline, Per-DTU Projection, and Cross-DTU Entity Coherence for Live Demo | ACCEPTED v2.2 | 2026-06-09 | decisions/ADR-036-deterministic-scenario-progression-engine.md |
 
 ## Architecture Decisions
 
@@ -162,6 +162,7 @@ deployment_topology: single-service  # planned — no service binary exists yet 
 
 | Version | Pass | Date | Author | Change |
 |---------|------|------|--------|--------|
+| 2.119 | D-1086 | 2026-06-09 | state-manager | F-P6-HIGH-001 closure (user decision: full 8-archetype support): ADR-036 row bumped ACCEPTED v2.1→v2.2 (architect 3-arg archetype-driven constructor — canonical `new_with_seed(seed: u64, archetype: Archetype, org_id: OrgId)` replacing 2-arg form; archetype forwarded to `generate()` across all 4 clones; DormantTenant-empty-fallback bug EC-018-003 fixed via `fixture_gen_seeded: bool` sentinel). BC-2.06.018 v1.4→v1.5 (product-owner; line-75 2-arg drift fixed; archetype-driven contract reconciled). Story S-DEMO-DTU-LIVE-SCENARIO-001-A v1.3→v1.4 (story-writer; 3-arg ACs + 3 differential archetype tests; red_gate_tests 14→17). ARCH-INDEX v2.118→v2.119. BC-INDEX v6.08→v6.09. STORY-INDEX v2.335→v2.336. |
 | 2.118 | D-1080 | 2026-06-09 | state-manager | ADR-036 row bumped ACCEPTED v2.0→v2.1 (architect re-validation corrections: gen_seeded_rng vs 1-arg seeded_rng symbol; CrowdStrike fallback load_host_ids()/load_host_details() not containment_store; GenOpts::default() syntax). Story A (S-DEMO-DTU-LIVE-SCENARIO-001-A) v1.0→v1.1 (story-writer; all U-A-01..U-A-10 corrections applied; still status:ready; BC-2.06.018). ARCH-INDEX v2.117→v2.118. |
 | 2.117 | D-1079 | 2026-06-09 | state-manager | ADR-036 row bumped ACCEPTED v1.0→v2.0 (architect substrate reconciliation: two-phase retrofit — new_with_seed wires generate() into demo-server clone serving path + generated_records state field + dual-path routes; canonical org_slug=hex(org_id[0..4]); device ID dev-{8hex}-{seed}-{n}; new CloneConfig.org_id field + E-DEMO-004/005; BC-2.06.018/019/020 corrected to v1.1 substrate reality). Story split materialized: original S-DEMO-DTU-LIVE-SCENARIO-001 SUPERSEDED → Story A (001-A; 8pt; ready; BC-2.06.018) + Story B (001-B; 7pt; draft; BC-2.06.019/020). BC-INDEX v6.04→v6.05. ARCH-INDEX v2.116→v2.117. |
 | 2.116 | D-1078 | 2026-06-09 | architect | ADR-036 Deterministic Scenario-Progression Engine registered: ACCEPTED v1.0. Architect authored per D-1078 design-artifacts durability burst. Subsystems: SS-01. Anchor stories: S-DEMO-DTU-LIVE-SCENARIO-001-A, S-DEMO-DTU-LIVE-SCENARIO-001-B. BC-2.06.019+BC-2.06.020 authored (PO). E-DEMO-001/002/003 in error-taxonomy v1.63. ADR-036 ADR Registry row added. ARCH-INDEX v2.115→v2.116. (POL-11 backfill: row missing at D-1078; added here per D-1079 sweep.) |

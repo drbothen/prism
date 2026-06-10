@@ -6,12 +6,12 @@ wave: 5
 epic_id: E-DEMO
 priority: P2
 status: ready
-version: "1.3"
+version: "1.4"
 level: "L4"
 producer: story-writer
 timestamp: "2026-06-09T00:00:00Z"
 created: "2026-06-09"
-modified: "2026-06-09T18:00:00Z"
+modified: "2026-06-09T22:00:00Z"
 tdd_mode: strict
 subsystems: [SS-01]
 # Subsystem anchor justifications:
@@ -57,20 +57,22 @@ risk: HIGH
 #   ci.yml EXPECTED count must be computed precisely; Cyberint new_with_seed is fallible
 #   (Cyberint::new() is already fallible), requiring consistent error propagation.
 acceptance_criteria_count: 14
-red_gate_tests: 14
+red_gate_tests: 17
 estimated_passes: "3-4 LOCAL adversary passes"
 holdout_scenarios: []
 assumption_validations: []
 risk_mitigations:
   - "INV-DISTINCT-DATA-001: canonical device ID format is 'dev-{8hex}-{seed}-{n}' where 8hex = hex(org_id.as_bytes()[0..4]). Any test using 'dev-acme-...' is incorrect (ADR-036 §3.5 / BC-2.06.018 §Canonical Org Slug). Test vectors must use a real org UUID and derive expected IDs from it."
-  - "Backward compat (BC-2.06.018 postcondition 4): new() static-JSON path must remain unchanged. new_with_seed(42, HealthyOtEnvironment, default_org) must produce data semantically equivalent to pre-Story-A new() behavior. Regression test (RG-A-005) verifies this before PR can merge."
+  - "Backward compat (BC-2.06.018 postcondition 4): new() static-JSON path must remain unchanged. new_with_seed(42, Archetype::HealthyOtEnvironment, default_org) must produce data semantically equivalent to pre-Story-A new() behavior. Regression test (RG-A-005) verifies this before PR can merge."
   - "Cyberint new_with_seed fallibility: CyberintClone::new() is already anyhow::Result<Self>; new_with_seed must also be anyhow::Result<Self>. build_clone_pairs propagates the error consistently."
+  - "Archetype forwarding — NO hardcoded CompromisedEndpoint: build_clone_pairs maps fixture_set→Archetype via INV-FIXTURE-SET-ARCHETYPE-MAP-001 and forwards the variant to each new_with_seed(seed, archetype, org_id). The old 2-arg form new_with_seed(seed, org_id) and any call with literal Archetype::CompromisedEndpoint in harness.rs are SUPERSEDED by ADR-036 v2.2 (F-P6-HIGH-001 closure). The archetype arg reaches generate() and changes served data — differential Red Gate tests enforce this."
+  - "Armis org_slug is derived INTERNALLY: ArmisClone::new_with_seed takes (seed, archetype, org_id) — NOT (seed, org_id, org_slug). org_slug_from_org_id(&org_id) is called inside new_with_seed before forwarding to generate(). The old 3-arg-with-org_slug form AC-004 v1.3 is superseded (ADR-036 v2.2)."
   - "reqwest::Client timeout: any new HTTP client in integration tests uses .timeout(Duration::from_secs(30)) per CLAUDE.md conventions."
   - "#[non_exhaustive] EXPECTED bump: implementer must read the current EXPECTED=N value in ci.yml, count new #[non_exhaustive] pub types added (ScenarioEntityCatalog = 1), and increment EXPECTED atomically. ScenarioEntityCatalog is the only new public #[non_exhaustive] type in this story; IncidentTimeline/IncidentStage/StageMask are Story B scope."
   - "INV-PERIMETER-001: fixture-gen feature additions to prism-dtu-threatintel and prism-dtu-nvd Cargo.toml must only add prism-dtu-common/fixture-gen as transitive dep. No prism-spec-engine/prism-sensors/prism-query dependency may be introduced. Verified by existing compile-fail gate."
-  - "gen_seeded_rng signature: use `gen_seeded_rng(seed: u64, org_id: &OrgId)` (2-arg XOR-formula function, re-exported from prism-dtu-common lib.rs; Cyberint already imports it). The bare 1-arg `seeded_rng` is a legacy helper — do NOT use it. Takes &OrgId ([u8;16]), NOT &str. CrowdStrike generator derives org_slug internally; Armis generator takes org_slug: &str as explicit argument; pass catalog.org_slug."
+  - "gen_seeded_rng signature: use `gen_seeded_rng(seed: u64, org_id: &OrgId)` (2-arg XOR-formula function, re-exported from prism-dtu-common lib.rs; Cyberint already imports it). The bare 1-arg `seeded_rng` is a legacy helper — do NOT use it. Takes &OrgId ([u8;16]), NOT &str. All four generators derive org_slug internally (via org_slug_from_org_id); org_slug is NOT a new_with_seed constructor argument for any clone (ADR-036 v2.2)."
   - "ArmisClone::new_with_seed fallibility: ArmisClone::new() is already fallible (crates/prism-dtu-armis/src/clone.rs:58); new_with_seed must also return anyhow::Result<Self>. build_clone_pairs propagates the error via ? consistently with Cyberint."
-traces_to: [D-1077, ADR-036]
+traces_to: [D-1077, ADR-036, F-P6-HIGH-001]
 supersedes: []
 ---
 
@@ -91,12 +93,14 @@ serve data derived from a unique seed and org UUID, so that two analysts investi
 demo clients see completely different device IDs, alert IDs, and detection IDs that cannot be
 confused with each other.
 
-**Goal:** After this story, `demo.toml` entries with `seed = N` and `org_id = "<uuid>"` in
-`CloneConfig` cause `build_clone_pairs` to call `new_with_seed(N, org_id)` on each generator-backed
-clone, which calls `generate(...)` and stores the resulting records in a new `generated_records`
+**Goal:** After this story, `demo.toml` entries with `seed = N`, `fixture_set = "<archetype-name>"`, and `org_id = "<uuid>"` in
+`CloneConfig` cause `build_clone_pairs` to map `fixture_set→Archetype` (per INV-FIXTURE-SET-ARCHETYPE-MAP-001) and call `new_with_seed(N, mapped_archetype, org_id)` on each generator-backed
+clone, which calls `generate(..., mapped_archetype, ...)` and stores the resulting records in a new `generated_records`
 field in state. Route handlers serve from `generated_records` when present, falling back to the
 existing static-JSON path when absent (backward compat). Two clients with different seeds
-produce pairwise-disjoint canonical ID sets per INV-DISTINCT-DATA-001.
+produce pairwise-disjoint canonical ID sets per INV-DISTINCT-DATA-001. The `mapped_archetype` drives
+the content of served records — `dormant` → empty responses, `large_scale` → large record sets, etc.
+No hardcoded `Archetype::CompromisedEndpoint` exists anywhere in harness.rs or constructors.
 
 ---
 
@@ -104,7 +108,7 @@ produce pairwise-disjoint canonical ID sets per INV-DISTINCT-DATA-001.
 
 | BC | Title | Key Invariants |
 |----|-------|----------------|
-| BC-2.06.018 v1.4 | Demo-Server Config-Time Data Seeding — Per-Clone seed + fixture_set Wire-Up | INV-DISTINCT-DATA-001, INV-FIXTURE-SET-ARCHETYPE-MAP-001, INV-CONSTRUCTION-TIME-FAILURE-001, INV-CONFIGURE-ENDPOINT-SECONDARY-001 |
+| BC-2.06.018 v1.5 | Demo-Server Config-Time Data Seeding — Per-Clone seed + fixture_set Wire-Up | INV-DISTINCT-DATA-001, INV-FIXTURE-SET-ARCHETYPE-MAP-001, INV-CONSTRUCTION-TIME-FAILURE-001, INV-CONFIGURE-ENDPOINT-SECONDARY-001 |
 
 ---
 
@@ -133,26 +137,29 @@ and for any `OrgId`, the returned string is exactly 8 characters of `[0-9a-f]`.
 
 Red Gate: `test_BC_2_06_018_org_slug_from_org_id_canonical_format`
 
-### AC-003 — new_with_seed forwarded from build_clone_pairs to CrowdStrike clone
-(traces to BC-2.06.018 postcondition 1)
+### AC-003 — new_with_seed(seed, archetype, org_id) forwarded from build_clone_pairs to CrowdStrike clone
+(traces to BC-2.06.018 postcondition 1 and ADR-036 v2.2 canonical 3-arg constructor)
 
 Given `demo.toml` with `clones.crowdstrike.seed = 100`, `clones.crowdstrike.org_id = "<uuid>"`, and `fixture_set = "compromised"`,
 when `build_clone_pairs` runs,
-then `CrowdstrikeClone::new_with_seed(100, org_id)` is called and the resulting `/devices/entities/devices/v2` responses contain device IDs in `"dev-{8hex}-100-{n}"` format,
+then `CrowdstrikeClone::new_with_seed(100, Archetype::CompromisedEndpoint, org_id) -> Self` is called (archetype forwarded from the INV-FIXTURE-SET-ARCHETYPE-MAP-001 mapping, not hardcoded in harness.rs),
+and the resulting `/devices/entities/devices/v2` responses contain device IDs in `"dev-{8hex}-100-{n}"` format,
 and these IDs are different from those of a clone seeded with `seed = 200`.
 
 Red Gate: `test_BC_2_06_018_crowdstrike_new_with_seed_forwarded`
 
-### AC-004 — new_with_seed forwarded to Armis clone with org_slug explicit arg (fallible)
-(traces to BC-2.06.018 postcondition 1 and ADR-036 §2.3 Armis retrofit)
+### AC-004 — new_with_seed(seed, archetype, org_id) forwarded to Armis clone; org_slug derived internally (fallible)
+(traces to BC-2.06.018 postcondition 1 and ADR-036 v2.2 canonical 3-arg constructor)
 
-Given `demo.toml` with `clones.armis.seed = 100`, `clones.armis.org_id = "<uuid>"`,
+Given `demo.toml` with `clones.armis.seed = 100`, `clones.armis.org_id = "<uuid>"`, and `fixture_set = "compromised"`,
 when `build_clone_pairs` runs,
-then `ArmisClone::new_with_seed(100, org_id, org_slug) -> anyhow::Result<Self>` is called where `org_slug = org_slug_from_org_id(&org_id)` (mirrors `ArmisClone::new()` which is fallible per `crates/prism-dtu-armis/src/clone.rs:58`);
-and the resulting `/api/v1/devices` responses contain device records with IDs in `"dev-{org_slug}-100-{n}"` format;
-and a construction error propagates through `build_clone_pairs`'s `anyhow::Result<Vec<ClonePair>>` return via `?`.
+then `ArmisClone::new_with_seed(100, Archetype::CompromisedEndpoint, org_id) -> anyhow::Result<Self>` is called
+  (mirrors `ArmisClone::new()` which is fallible per `crates/prism-dtu-armis/src/clone.rs:58`);
+  and org_slug is derived INTERNALLY inside new_with_seed via `org_slug_from_org_id(&org_id)` before being forwarded to `generate()` — org_slug is NOT a constructor argument (ADR-036 v2.2 supersedes the old 3-arg-with-org_slug form);
+  and the resulting `/api/v1/devices` responses contain device records with IDs in `"dev-{8hex}-100-{n}"` format;
+  and a construction error propagates through `build_clone_pairs`'s `anyhow::Result<Vec<ClonePair>>` return via `?`.
 
-Red Gate: `test_BC_2_06_018_armis_new_with_seed_with_org_slug_arg`
+Red Gate: `test_BC_2_06_018_armis_new_with_seed_canonical_3arg`
 
 ### AC-005 — INV-DISTINCT-DATA-001: disjoint ID sets for distinct seeds
 (traces to BC-2.06.018 invariant INV-DISTINCT-DATA-001)
@@ -175,15 +182,22 @@ and for `ArmisClone`, the fallible `new_with_seed(...) -> anyhow::Result<Self>` 
 
 Red Gate: `test_BC_2_06_018_backward_compat_seed42_default`
 
-### AC-007 — INV-FIXTURE-SET-ARCHETYPE-MAP-001: fixture_set → Archetype canonical mapping
-(traces to BC-2.06.018 invariant INV-FIXTURE-SET-ARCHETYPE-MAP-001)
+### AC-007 — INV-FIXTURE-SET-ARCHETYPE-MAP-001: fixture_set → Archetype canonical mapping, archetype reaches generator and changes served data
+(traces to BC-2.06.018 invariant INV-FIXTURE-SET-ARCHETYPE-MAP-001 and ADR-036 v2.2 §4)
 
 Given each of the 8 canonical `fixture_set` strings (`"default"`, `"compromised"`, `"auth_outage"`, `"large_scale"`, `"pagination_edges"`, `"schema_drift"`, `"high_churn"`, `"dormant"`),
 when `build_clone_pairs` constructs the clone with that `fixture_set`,
-then the correct `Archetype` variant is selected with no construction-time error;
+then the correct `Archetype` variant is selected with no construction-time error (construction `is_ok()` for all 8);
+AND the mapped archetype actually reaches `generate()` and changes the served route output — verified by differential assertions:
+  - `fixture_set = "dormant"` → served device/alert response bodies are EMPTY (zero records) per BC-2.06.018 EC-018-003 / TV-018-006;
+  - `fixture_set = "large_scale"` → served record count matches the `LargeScale` archetype baseline (implementer reads the generator's `LargeScale` branch to get the canonical expected count — do NOT assume 10 000 if the generator uses a different scale value);
+  - same seed + org_id, `fixture_set = "compromised"` vs `fixture_set = "dormant"` → DIFFERENT served route output (proves archetype drives output, not merely construction);
 and given `fixture_set = "xyzzy_unknown"`, then `build_clone_pairs` returns `Err` containing `"E-DEMO-001"`.
 
+NOTE: The differential assertions in this AC are load-bearing. An implementation that passes `is_ok()` but does NOT forward the archetype to `generate()` (e.g., hardcoded `Archetype::CompromisedEndpoint`) will fail the dormant-empty-response and compromised-vs-dormant differential assertions. This is the TD-VSDD-059 paper-test upgrade per F-P6-HIGH-001.
+
 Red Gate: `test_BC_2_06_018_fixture_set_archetype_mapping_all_8_valid_plus_error`
+Additional differential Red Gates — see §Red Gate Test Plan rows 15, 16, 17 below.
 
 ### AC-008 — E-DEMO-001 propagates at construction, not request time (INV-CONSTRUCTION-TIME-FAILURE-001)
 (traces to BC-2.06.018 invariant INV-CONSTRUCTION-TIME-FAILURE-001)
@@ -212,21 +226,23 @@ then it returns `Err(e)` where `e.to_string()` contains `"E-DEMO-005"`, the clon
 
 Red Gate: `test_BC_2_06_018_e_demo_005_invalid_uuid_at_construction`
 
-### AC-011 — Claroty new_with_seed wired (same pattern as Armis/CrowdStrike)
-(traces to BC-2.06.018 postcondition 1)
+### AC-011 — new_with_seed(seed, archetype, org_id) forwarded to Claroty clone (infallible)
+(traces to BC-2.06.018 postcondition 1 and ADR-036 v2.2 canonical 3-arg constructor)
 
-Given `demo.toml` with `clones.claroty.seed = 100` and `clones.claroty.org_id = "<uuid>"`,
+Given `demo.toml` with `clones.claroty.seed = 100`, `clones.claroty.org_id = "<uuid>"`, and `fixture_set = "compromised"`,
 when `build_clone_pairs` runs,
-then `ClarotyClone::new_with_seed(100, org_id)` is called; the route handlers serve from `generated_records` when non-empty.
+then `ClarotyClone::new_with_seed(100, Archetype::CompromisedEndpoint, org_id) -> Self` is called (archetype forwarded from INV-FIXTURE-SET-ARCHETYPE-MAP-001 mapping, NOT hardcoded in harness.rs; org_slug derived internally in new_with_seed);
+and the route handlers serve from `generated_records` when non-empty.
 
 Red Gate: `test_BC_2_06_018_claroty_new_with_seed_forwarded`
 
-### AC-012 — Cyberint new_with_seed wired and fallible (same as existing Cyberint::new())
-(traces to BC-2.06.018 postcondition 1)
+### AC-012 — new_with_seed(seed, archetype, org_id) forwarded to Cyberint clone (fallible)
+(traces to BC-2.06.018 postcondition 1 and ADR-036 v2.2 canonical 3-arg constructor)
 
-Given `demo.toml` with `clones.cyberint.seed = 100` and `clones.cyberint.org_id = "<uuid>"`,
+Given `demo.toml` with `clones.cyberint.seed = 100`, `clones.cyberint.org_id = "<uuid>"`, and `fixture_set = "compromised"`,
 when `build_clone_pairs` runs,
-then `CyberintClone::new_with_seed(100, org_id) -> anyhow::Result<Self>` is called; a construction error propagates through `build_clone_pairs`'s `anyhow::Result<Vec<ClonePair>>` return.
+then `CyberintClone::new_with_seed(100, Archetype::CompromisedEndpoint, org_id) -> anyhow::Result<Self>` is called (archetype forwarded from INV-FIXTURE-SET-ARCHETYPE-MAP-001 mapping, NOT hardcoded in harness.rs; mirrors existing `CyberintClone::new() -> anyhow::Result<Self>` fallibility);
+and a construction error propagates through `build_clone_pairs`'s `anyhow::Result<Vec<ClonePair>>` return via `?`.
 
 Red Gate: `test_BC_2_06_018_cyberint_new_with_seed_forwarded_fallible`
 
@@ -263,7 +279,7 @@ unless a specific external-service dependency is cited.
 | 1 | `test_BC_2_06_018_scenario_catalog_secondary_rng_and_canonical_ids` | prism-dtu-common | BC-2.06.018 PC-4 / ADR-036 §2.2 | unit |
 | 2 | `test_BC_2_06_018_org_slug_from_org_id_canonical_format` | prism-dtu-common | BC-2.06.018 §Canonical Org Slug | unit |
 | 3 | `test_BC_2_06_018_crowdstrike_new_with_seed_forwarded` | prism-dtu-crowdstrike | BC-2.06.018 PC-1 | unit |
-| 4 | `test_BC_2_06_018_armis_new_with_seed_with_org_slug_arg` | prism-dtu-armis | BC-2.06.018 PC-1 | unit |
+| 4 | `test_BC_2_06_018_armis_new_with_seed_canonical_3arg` | prism-dtu-armis | BC-2.06.018 PC-1 / ADR-036 v2.2 | unit |
 | 5 | `test_BC_2_06_018_distinct_seeds_disjoint_ids` | prism-dtu-demo-server | BC-2.06.018 INV-DISTINCT-DATA-001 | integration |
 | 6 | `test_BC_2_06_018_backward_compat_seed42_default` | prism-dtu-demo-server | BC-2.06.018 PC-4 | regression |
 | 7 | `test_BC_2_06_018_fixture_set_archetype_mapping_all_8_valid_plus_error` | prism-dtu-demo-server | BC-2.06.018 INV-FIXTURE-SET-ARCHETYPE-MAP-001 | unit |
@@ -274,6 +290,9 @@ unless a specific external-service dependency is cited.
 | 12 | `test_BC_2_06_018_cyberint_new_with_seed_forwarded_fallible` | prism-dtu-cyberint | BC-2.06.018 PC-1 | unit |
 | 13 | `test_BC_2_06_018_perimeter_compile_fail_gate_passes_after_feature_additions` | tests/external/perimeter-violation | BC-2.06.018 / INV-PERIMETER-001 | compile-fail |
 | 14 | (ci.yml EXPECTED gate) | .github/workflows + tests/external/non-exhaustive-violation | CLAUDE.md discipline | compile-fail |
+| 15 | `test_BC_2_06_018_dormant_archetype_empty_served_response` | prism-dtu-demo-server | BC-2.06.018 EC-018-003 / TV-018-006 / INV-FIXTURE-SET-ARCHETYPE-MAP-001 | route-output |
+| 16 | `test_BC_2_06_018_large_scale_archetype_record_count` | prism-dtu-demo-server | BC-2.06.018 EC-018-005 / INV-FIXTURE-SET-ARCHETYPE-MAP-001 | route-output |
+| 17 | `test_BC_2_06_018_archetype_drives_served_output_differential` | prism-dtu-demo-server | BC-2.06.018 INV-FIXTURE-SET-ARCHETYPE-MAP-001 / ADR-036 v2.2 | route-output (differential) |
 
 ---
 
@@ -283,7 +302,7 @@ unless a specific external-service dependency is cited.
 |------|-----------------|
 | Story spec (this file) | ~5 500 |
 | ADR-036 v2.0 (full) | ~5 500 |
-| BC-2.06.018 v1.4 (full) | ~3 500 |
+| BC-2.06.018 v1.5 (full) | ~3 500 |
 | prism-dtu-common/src/generator/{archetype,rng,opts,fixture}.rs | ~2 500 |
 | prism-dtu-demo-server/src/{harness,config}.rs | ~2 000 |
 | prism-dtu-armis/src/{state,clone,generator}.rs | ~1 800 |
@@ -293,11 +312,11 @@ unless a specific external-service dependency is cited.
 | prism-dtu-threatintel/src/{state,clone}.rs + Cargo.toml | ~900 |
 | prism-dtu-nvd/src/{state,clone,types}.rs + Cargo.toml | ~1 000 |
 | ci.yml (EXPECTED line + feature flags) | ~200 |
-| Test files (14 stubs × ~40 lines each) | ~1 800 |
+| Test files (17 stubs × ~40 lines each) | ~2 200 |
 | Tool outputs (nextest, clippy, compile-fail) | ~2 000 |
-| **Total estimate** | **~30 900** |
+| **Total estimate** | **~31 300** |
 
-At ~200k context window, this is ~15% — well within the 20-30% ceiling.
+At ~200k context window, this is ~16% — well within the 20-30% ceiling.
 
 ---
 
@@ -325,26 +344,26 @@ Implementation checklist (TDD order — write failing tests before each implemen
 
 - [ ] Read CrowdStrike `state.rs`, `clone.rs`, `generator.rs` before editing
 - [ ] Add `generated_devices: Vec<serde_json::Value>` and `generated_detections: Vec<serde_json::Value>` to `CrowdstrikeState`
-- [ ] Add `CrowdstrikeClone::new_with_seed(seed: u64, org_id: OrgId) -> Self` under `#[cfg(feature = "fixture-gen")]`: calls `generate(org_id, Archetype::CompromisedEndpoint, GenOpts { seed, ..GenOpts::default() })` (use `..GenOpts::default()` — NOT bare `..`; GenOpts has 4 fields and is not `#[non_exhaustive]`, so bare `..` is a syntax error), stores records in `generated_devices` / `generated_detections` by `_record_type` filter
+- [ ] Add `CrowdstrikeClone::new_with_seed(seed: u64, archetype: Archetype, org_id: OrgId) -> Self` under `#[cfg(feature = "fixture-gen")]` (ADR-036 v2.2 canonical 3-arg signature): accepts `archetype: Archetype` parameter and forwards it to `generate(org_id, archetype, GenOpts { seed, ..GenOpts::default() })` (use `..GenOpts::default()` — NOT bare `..`; GenOpts has 4 fields and is not `#[non_exhaustive]`, so bare `..` is a syntax error); stores records in `generated_devices` / `generated_detections` by `_record_type` filter. DO NOT hardcode `Archetype::CompromisedEndpoint` here; the caller (build_clone_pairs) provides the mapped variant.
 - [ ] Modify `routes/hosts.rs`: serve `generated_devices` when non-empty; fall back to `load_host_ids()` / `load_host_details()` (static embedded JSON in routes/hosts.rs — the READ fallback, NOT `containment_store` which is a write-target overlay) when `generated_devices` is empty
 - [ ] Modify `routes/detections.rs`: serve `generated_detections` when non-empty; fall back to the existing static detection path when `generated_detections` is empty
 - [ ] Write unit test 3 (FAIL first): CrowdStrike new_with_seed forwarded
 
 - [ ] Read Armis `state.rs`, `clone.rs`, `generator.rs` before editing
 - [ ] Add `generated_records: Vec<serde_json::Value>` to `ArmisState` (alongside existing `devices_ordered`, `alert_fixture`)
-- [ ] Add `ArmisClone::new_with_seed(seed: u64, org_id: OrgId, org_slug: &str) -> anyhow::Result<Self>` under `#[cfg(feature = "fixture-gen")]` (fallible — mirrors existing `new() -> anyhow::Result<Self>`; `build_clone_pairs` uses `?` to propagate): calls `generate(org_id, org_slug, Archetype::CompromisedEndpoint, &GenOpts { seed, ..GenOpts::default() })` (Armis takes org_id BY VALUE as `OrgId`, org_slug as `&str`, opts BY REF as `&GenOpts`), stores FixtureSet records in `generated_records`
+- [ ] Add `ArmisClone::new_with_seed(seed: u64, archetype: Archetype, org_id: OrgId) -> anyhow::Result<Self>` under `#[cfg(feature = "fixture-gen")]` (ADR-036 v2.2 canonical 3-arg signature; fallible — mirrors existing `new() -> anyhow::Result<Self>`; `build_clone_pairs` uses `?` to propagate): INTERNALLY derive `org_slug = org_slug_from_org_id(&org_id)`, then call `generate(org_id, &org_slug, archetype, &GenOpts { seed, ..GenOpts::default() })` (Armis generator takes org_id BY VALUE as `OrgId`, org_slug as `&str`, archetype by value, opts BY REF as `&GenOpts`); stores FixtureSet records in `generated_records`. DO NOT add org_slug as a constructor parameter — it is derived internally (ADR-036 v2.2 supersedes the old 3-arg-with-org_slug form). DO NOT hardcode `Archetype::CompromisedEndpoint` here.
 - [ ] Modify `routes/devices.rs` `paginate_devices`: serve from `generated_records` (deserialized as `DeviceRecord`) when non-empty; fall back to `devices_ordered` when empty
 - [ ] Write unit test 4 (FAIL first): Armis new_with_seed with org_slug
 
 - [ ] Read Claroty `state.rs`, `clone.rs` (and generator if present) before editing
 - [ ] Add `generated_records: Vec<serde_json::Value>` to `ClarotyState`
-- [ ] Add `ClarotyClone::new_with_seed(seed: u64, org_id: OrgId) -> Self` under `#[cfg(feature = "fixture-gen")]`: calls Claroty generator per its signature (implementer reads generator.rs to confirm signature), stores records in `generated_records`
+- [ ] Add `ClarotyClone::new_with_seed(seed: u64, archetype: Archetype, org_id: OrgId) -> Self` under `#[cfg(feature = "fixture-gen")]` (ADR-036 v2.2 canonical 3-arg signature; infallible — returns `Self`): forwards `archetype` parameter to Claroty generator per its actual signature (implementer reads generator.rs to confirm — Claroty/Cyberint use org_id BY REF `&OrgId`, opts BY REF `&GenOpts`, org_slug derived internally); stores records in `generated_records`. DO NOT hardcode `Archetype::CompromisedEndpoint` here.
 - [ ] Modify Claroty route handlers: dual-path (generated vs static JSON fallback)
 - [ ] Write unit test 11 (FAIL first): Claroty new_with_seed forwarded
 
 - [ ] Read Cyberint `state.rs`, `clone.rs` before editing
 - [ ] Add `generated_records: Vec<serde_json::Value>` to `CyberintState`
-- [ ] Add `CyberintClone::new_with_seed(seed: u64, org_id: OrgId) -> anyhow::Result<Self>` under `#[cfg(feature = "fixture-gen")]` (fallible — mirrors existing `new() -> anyhow::Result<Self>`)
+- [ ] Add `CyberintClone::new_with_seed(seed: u64, archetype: Archetype, org_id: OrgId) -> anyhow::Result<Self>` under `#[cfg(feature = "fixture-gen")]` (ADR-036 v2.2 canonical 3-arg signature; fallible — mirrors existing `new() -> anyhow::Result<Self>`): forwards `archetype` parameter to Cyberint generator (Claroty/Cyberint use org_id BY REF `&OrgId`, opts BY REF `&GenOpts`, org_slug derived internally). DO NOT hardcode `Archetype::CompromisedEndpoint` here.
 - [ ] Modify Cyberint route handlers: dual-path
 - [ ] Write unit test 12 (FAIL first): Cyberint new_with_seed forwarded fallible
 
@@ -352,11 +371,16 @@ Implementation checklist (TDD order — write failing tests before each implemen
 
 - [ ] Read `crates/prism-dtu-demo-server/Cargo.toml` fully before editing; add `uuid`, `prism-core` deps if absent; add `fixture-gen` feature fanning out to `prism-dtu-{crowdstrike,armis,claroty,cyberint}/fixture-gen` + `prism-dtu-common/fixture-gen` (without this feature the `new_with_seed` constructors are not visible to harness.rs at compile time)
 - [ ] Read `crates/prism-dtu-demo-server/src/harness.rs` fully before editing
-- [ ] Add E-DEMO-004 guard: if any clone has `fixture_set` mapped to a non-`HealthyOtEnvironment` archetype AND `org_id` is `None`, return `E-DEMO-004` before any constructor is called
+- [ ] Map `fixture_set` string → `Archetype` variant for each clone config using the INV-FIXTURE-SET-ARCHETYPE-MAP-001 8-entry table; unknown fixture_set returns E-DEMO-001 before any constructor is called
+- [ ] Add E-DEMO-004 guard: if any clone's mapped archetype is non-`HealthyOtEnvironment` AND `org_id` is `None`, return `E-DEMO-004` before any constructor is called (per BC-2.06.018 §Error Codes)
 - [ ] Add E-DEMO-005 guard: parse `org_id` string with `uuid::Uuid::parse_str()`; on error, return `E-DEMO-005`
-- [ ] Forward `seed` + `OrgId` to `new_with_seed` for each generator-backed clone (Armis passes org_slug derived from `org_slug_from_org_id`)
+- [ ] Forward `(seed, mapped_archetype, org_id)` to `new_with_seed` for each generator-backed clone — the canonical ADR-036 v2.2 3-arg form; NO hardcoded Archetype variants in harness.rs; Armis derives org_slug internally inside its new_with_seed
 - [ ] For static-file clones (ThreatIntel, NVD): continue using existing `new()` / `new_with_access_token()` path (static-file clones are not generator-backed; enrichment injection is Story B scope)
 - [ ] Write unit tests 5, 6, 7, 8, 9, 10 (FAIL first): disjoint IDs, backward compat, fixture_set mapping, E-DEMO-001, E-DEMO-004, E-DEMO-005
+- [ ] Write differential route-output tests 15, 16, 17 (FAIL first) per ADR-036 v2.2 archetype-forwarding requirement and TD-VSDD-059 paper-test upgrade (F-P6-HIGH-001):
+  - Test 15 (`test_BC_2_06_018_dormant_archetype_empty_served_response`): construct a clone (Armis or CrowdStrike) with `fixture_set = "dormant"`, invoke the served route (e.g., `/api/v1/devices` or `/devices/entities/devices/v2`), assert zero records in the response body (proves `Archetype::DormantTenant` reached `generate()` and produced empty output per BC-2.06.018 EC-018-003 / TV-018-006)
+  - Test 16 (`test_BC_2_06_018_large_scale_archetype_record_count`): construct a clone with `fixture_set = "large_scale"`, invoke the served route, assert the record count matches the `Archetype::LargeScale` generator baseline — implementer MUST read `crates/prism-dtu-{clone}/src/generator.rs` `LargeScale` branch to obtain the exact expected count; do NOT assume 10 000 (BC-2.06.018 EC-018-005)
+  - Test 17 (`test_BC_2_06_018_archetype_drives_served_output_differential`): construct two clones with identical `seed` + `org_id` but `fixture_set = "compromised"` vs `fixture_set = "dormant"`; assert their served route responses differ (proves archetype, not a hardcoded default, drives output)
 
 **Phase 5: Cargo.toml and ci.yml**
 
@@ -369,7 +393,7 @@ Implementation checklist (TDD order — write failing tests before each implemen
 
 **Phase 6: Final gate**
 
-- [ ] Run `just check` — all 14 Red Gate tests pass; no clippy warnings; fmt clean
+- [ ] Run `just check` — all 17 Red Gate tests pass; no clippy warnings; fmt clean
 - [ ] Confirm backward compat regression (test 6) passes
 - [ ] Confirm perimeter compile-fail gate (test 13) passes with zero new violations
 - [ ] Run SAP-1 probe: `rg 'event_type\s*=' crates/ --type rust` — verify any new `tracing::*!(event_type=...)` emissions have BC-2.16.002 Structured Event Catalog rows
@@ -398,9 +422,11 @@ This is Story A of the E-DEMO live-scenario split. No direct predecessor in the 
 - `build_clone_pairs` returns `anyhow::Result<Vec<ClonePair>>`; use `anyhow::bail!` for E-DEMO-004/005 errors (consistent with E-DEMO-001 pattern).
 
 **Implementer notes — per-clone generate() signature divergence (U-A-08):**
-The four generator-backed clones have DIVERGING `generate()` signatures — verify each before calling:
-- **Armis:** `generate(org_id: OrgId, org_slug: &str, archetype: Archetype, opts: &GenOpts)` — org_id BY VALUE, org_slug explicit `&str`, opts BY REF
-- **CrowdStrike:** `generate(org_id: OrgId, archetype: Archetype, opts: GenOpts)` — org_id BY VALUE, opts BY VALUE (not ref), org_slug derived internally
+The four generator-backed clones have DIVERGING `generate()` signatures — verify each before calling.
+NOTE: `new_with_seed` for ALL four clones now takes `(seed: u64, archetype: Archetype, org_id: OrgId)` per ADR-036 v2.2.
+The divergence is in the INTERNAL call from new_with_seed to generate(), not in the constructor parameter list:
+- **Armis:** `generate(org_id: OrgId, org_slug: &str, archetype: Archetype, opts: &GenOpts)` — org_id BY VALUE, org_slug explicit `&str` (derived internally in new_with_seed via org_slug_from_org_id before passing to generate), opts BY REF
+- **CrowdStrike:** `generate(org_id: OrgId, archetype: Archetype, opts: GenOpts)` — org_id BY VALUE, opts BY VALUE (not ref), org_slug derived internally inside generate()
 - **Claroty/Cyberint:** `generate(org_id: &OrgId, archetype: Archetype, opts: &GenOpts)` — org_id BY REF, opts BY REF, org_slug derived internally
 All four return `FixtureSet { records: Vec<serde_json::Value>, .. }` so `generated_records: Vec<serde_json::Value>` works for all.
 For CrowdStrike: verify whether `FixtureSet` records carry a `_record_type` discriminator before splitting `generated_devices` vs `generated_detections` — read `crates/prism-dtu-crowdstrike/src/generator.rs` and the FixtureSet struct before writing the split logic.
@@ -463,19 +489,19 @@ Do NOT invent version numbers from training data.
 | `crates/prism-dtu-common/src/lib.rs` | MODIFY | Add `pub mod scenario;` under `#[cfg(feature = "fixture-gen")]` |
 | `crates/prism-dtu-demo-server/Cargo.toml` | MODIFY | (1) Add `uuid = { workspace = true }` under `[dependencies]` if absent; (2) Add `prism-core = { path = "../../crates/prism-core" }` (for `OrgId`) if absent; (3) Add `fixture-gen = ["prism-dtu-crowdstrike/fixture-gen", "prism-dtu-armis/fixture-gen", "prism-dtu-claroty/fixture-gen", "prism-dtu-cyberint/fixture-gen", "prism-dtu-common/fixture-gen"]` feature so `build_clone_pairs` can activate `new_with_seed` on all 4 generator-backed clones |
 | `crates/prism-dtu-demo-server/src/config.rs` | MODIFY | Add `org_id: Option<String>` + `scenario: Option<ScenarioConfig>` to `CloneConfig`; add `ScenarioConfig` struct |
-| `crates/prism-dtu-demo-server/src/harness.rs` | MODIFY | `build_clone_pairs`: E-DEMO-004/005 guards; derive OrgId from org_id string; forward seed + OrgId to `new_with_seed` for 4 generator-backed clones |
+| `crates/prism-dtu-demo-server/src/harness.rs` | MODIFY | `build_clone_pairs`: map `fixture_set→Archetype` via INV-FIXTURE-SET-ARCHETYPE-MAP-001 table; E-DEMO-004/005 guards; derive OrgId from org_id string; forward `(seed, mapped_archetype, org_id)` to `new_with_seed` for all 4 generator-backed clones — NO hardcoded Archetype variants in harness.rs (ADR-036 v2.2) |
 | `crates/prism-dtu-crowdstrike/src/state.rs` | MODIFY | Add `generated_devices: Vec<serde_json::Value>`, `generated_detections: Vec<serde_json::Value>` |
-| `crates/prism-dtu-crowdstrike/src/clone.rs` | MODIFY | Add `new_with_seed(seed: u64, org_id: OrgId) -> Self` under `#[cfg(feature = "fixture-gen")]` |
+| `crates/prism-dtu-crowdstrike/src/clone.rs` | MODIFY | Add `new_with_seed(seed: u64, archetype: Archetype, org_id: OrgId) -> Self` under `#[cfg(feature = "fixture-gen")]` (ADR-036 v2.2 canonical 3-arg, infallible) |
 | `crates/prism-dtu-crowdstrike/src/routes/hosts.rs` | MODIFY | Dual-path: serve from `generated_devices` when non-empty; fall back to `load_host_ids()` / `load_host_details()` (static embedded JSON — the READ path) when empty. Do NOT fall back to `containment_store` / `detection_status_store` (write-target overlays, not READ sources) |
 | `crates/prism-dtu-crowdstrike/src/routes/detections.rs` | MODIFY | Dual-path: serve from `generated_detections` when non-empty |
 | `crates/prism-dtu-armis/src/state.rs` | MODIFY | Add `generated_records: Vec<serde_json::Value>` |
-| `crates/prism-dtu-armis/src/clone.rs` | MODIFY | Add `new_with_seed(seed: u64, org_id: OrgId, org_slug: &str) -> anyhow::Result<Self>` under `#[cfg(feature = "fixture-gen")]` (fallible — mirrors existing `new() -> anyhow::Result<Self>` per clone.rs:58) |
+| `crates/prism-dtu-armis/src/clone.rs` | MODIFY | Add `new_with_seed(seed: u64, archetype: Archetype, org_id: OrgId) -> anyhow::Result<Self>` under `#[cfg(feature = "fixture-gen")]` (ADR-036 v2.2 canonical 3-arg, fallible — mirrors clone.rs:58; org_slug derived INTERNALLY via org_slug_from_org_id(&org_id)) |
 | `crates/prism-dtu-armis/src/routes/devices.rs` | MODIFY | `paginate_devices`: dual-path — generated_records when non-empty, `devices_ordered` fallback |
 | `crates/prism-dtu-claroty/src/state.rs` | MODIFY | Add `generated_records: Vec<serde_json::Value>` |
-| `crates/prism-dtu-claroty/src/clone.rs` | MODIFY | Add `new_with_seed(seed: u64, org_id: OrgId) -> Self` under `#[cfg(feature = "fixture-gen")]` |
+| `crates/prism-dtu-claroty/src/clone.rs` | MODIFY | Add `new_with_seed(seed: u64, archetype: Archetype, org_id: OrgId) -> Self` under `#[cfg(feature = "fixture-gen")]` (ADR-036 v2.2 canonical 3-arg, infallible; org_slug derived internally) |
 | `crates/prism-dtu-claroty/src/routes/` | MODIFY | Claroty route handler(s): dual-path (implementer reads current routes to identify which handler) |
 | `crates/prism-dtu-cyberint/src/state.rs` | MODIFY | Add `generated_records: Vec<serde_json::Value>` |
-| `crates/prism-dtu-cyberint/src/clone.rs` | MODIFY | Add `new_with_seed(seed: u64, org_id: OrgId) -> anyhow::Result<Self>` under `#[cfg(feature = "fixture-gen")]` |
+| `crates/prism-dtu-cyberint/src/clone.rs` | MODIFY | Add `new_with_seed(seed: u64, archetype: Archetype, org_id: OrgId) -> anyhow::Result<Self>` under `#[cfg(feature = "fixture-gen")]` (ADR-036 v2.2 canonical 3-arg, fallible; org_slug derived internally) |
 | `crates/prism-dtu-cyberint/src/routes/` | MODIFY | Cyberint route handler(s): dual-path |
 | `crates/prism-dtu-threatintel/Cargo.toml` | MODIFY | Add `fixture-gen = ["prism-dtu-common/fixture-gen"]` feature (enables `ScenarioEntityCatalog` usage in Story B) |
 | `crates/prism-dtu-nvd/Cargo.toml` | MODIFY | Add `fixture-gen = ["prism-dtu-common/fixture-gen"]` feature (enables `ScenarioEntityCatalog` usage in Story B) |
@@ -516,7 +542,7 @@ Do NOT invent version numbers from training data.
 | `ScenarioConfig` | `prism-dtu-demo-server/src/config.rs` | Pure (TOML deserialization struct) | ADR-036 §2.4 |
 | `build_clone_pairs` (seed-forwarding additions) | `prism-dtu-demo-server/src/harness.rs` | Effectful (constructs clones, reads config, calls generate) | BC-2.06.018 PC-1 |
 | `CrowdstrikeClone::new_with_seed` | `prism-dtu-crowdstrike/src/clone.rs` | Effectful (calls generate, stores records in state) | ADR-036 §2.3 |
-| `ArmisClone::new_with_seed` | `prism-dtu-armis/src/clone.rs` | Effectful (fallible — returns `anyhow::Result<Self>`; mirrors `ArmisClone::new()` at clone.rs:58; calls generate, stores records in state) | ADR-036 §2.3 |
+| `ArmisClone::new_with_seed` | `prism-dtu-armis/src/clone.rs` | Effectful (fallible — returns `anyhow::Result<Self>`; mirrors `ArmisClone::new()` at clone.rs:58; derives org_slug internally via org_slug_from_org_id; forwards archetype to generate; stores records in state) | ADR-036 v2.2 §2.3 |
 | `ClarotyClone::new_with_seed` | `prism-dtu-claroty/src/clone.rs` | Effectful (calls generate, stores records in state) | ADR-036 §2.3 |
 | `CyberintClone::new_with_seed` | `prism-dtu-cyberint/src/clone.rs` | Effectful (fallible; calls generate, stores records in state) | ADR-036 §2.3 |
 | Route handler dual-path logic (4 clones) | `prism-dtu-{armis,crowdstrike,claroty,cyberint}/src/routes/` | Effectful (HTTP handler checks non-empty generated_records) | ADR-036 §2.3 |
@@ -568,6 +594,7 @@ If NO new `event_type` emissions are added, state so explicitly in the PR descri
 
 | Version | Date | Change |
 |---------|------|--------|
+| v1.4 | 2026-06-09 | F-P6-HIGH-001 closure + USER DECISION (full 8-archetype support): Reconciled story to ADR-036 v2.2 canonical 3-arg archetype-driven constructor. All four clone new_with_seed signatures updated to `(seed, archetype, org_id)` — CrowdStrike/Claroty return `Self`; Armis/Cyberint return `anyhow::Result<Self>`. AC-003/AC-011: archetype arg added, CompromisedEndpoint now forwarded-not-hardcoded. AC-004: removed explicit org_slug parameter (now derived internally via org_slug_from_org_id inside new_with_seed; test renamed to `test_BC_2_06_018_armis_new_with_seed_canonical_3arg`). AC-012: archetype arg added. AC-007: strengthened from is_ok()-only to archetype-drives-output differential assertions (TD-VSDD-059 paper-test upgrade). Three new differential Red Gate tests added: #15 dormant→empty served response (TV-018-006), #16 large_scale record count, #17 compromised-vs-dormant differential output. `red_gate_tests` 14→17. Tasks Phase 3: all CompromisedEndpoint hardcodes replaced with forwarded archetype param; Armis internal org_slug derivation documented. Tasks Phase 4: fixture_set→Archetype mapping step added before constructor dispatch. File Structure: all four clone.rs rows updated to canonical 3-arg; harness.rs row updated. BC pin bumped v1.4→v1.5. Token Budget test count 14→17. traces_to: F-P6-HIGH-001 added. risk_mitigations: archetype-forwarding and Armis-internal-slug invariants added. |
 | v1.3 | 2026-06-09 | F-P5-HIGH-001: BC version pins synced v1.3→v1.4. §Behavioral Contracts table row pin and §Token Budget row pin both updated (BC-2.06.018 v1.3→v1.4). Phantom-anchor fix in BC-2.06.018: 7 story-ref sites corrected S-DEMO-DTU-DATA-SEEDING-001 → S-DEMO-DTU-LIVE-SCENARIO-001-A by product-owner. Sweep confirmed no other live-narrative BC-2.06.018 v1.x pins remain. Historical changelog rows v1.0, v1.1, and v1.2 are immutable audit trail per TD-VSDD-091 — not altered. POL-23/POL-29 sibling sweep complete. |
 | v1.2 | 2026-06-09 | F-P4-MED-002: BC version pins synced v1.1→v1.3. §Behavioral Contracts table row pin and §Token Budget row pin both updated (BC-2.06.018 v1.1→v1.3). Sweep confirmed no other live-narrative v1.x pins remain. Historical changelog rows v1.0 and v1.1 are immutable audit trail per TD-VSDD-091 — not altered. POL-23/POL-29 sibling sweep complete. |
 | v1.1 | 2026-06-09 | U-A-01: Replace `seeded_rng` with `gen_seeded_rng(seed.wrapping_add(1), &org_id)` (2-arg XOR-formula re-export) in AC-001, Tasks Phase 1, risk_mitigations, Library table. U-A-02: Add `crates/prism-dtu-demo-server/Cargo.toml` to File Structure (uuid+prism-core deps + fixture-gen feature) and Tasks Phase 4 (read-before-edit step). Add `prism-core` Library row. U-A-03: ArmisClone::new_with_seed returns `anyhow::Result<Self>` (mirrors clone.rs:58 fallibility) — updated AC-004, AC-006, File Structure (armis/clone.rs), Architecture Mapping, risk_mitigations. U-A-04: CrowdStrike READ fallback corrected from `containment_store` to `load_host_ids()`/`load_host_details()` in Tasks Phase 3 and File Structure. U-A-05: tests/external/non-exhaustive-violation/Cargo.toml dep addition (prism-dtu-common fixture-gen) added to AC-014, Tasks Phase 5, File Structure. U-A-06: Architecture Compliance rule added clarifying ADR-036 §2.2 8-hex slug authority vs BC-3.4.004/BC-3.5.001 standalone-generator test vectors. U-A-07: `GenOpts { seed, .. }` → `GenOpts { seed, ..GenOpts::default() }` in Tasks Phase 3 (both CrowdStrike and Armis). U-A-08/09/10: Per-clone generate() signature divergence, OrgId byte-access, and Story A fixture-gen scope (no premature unused import) added to Previous Story Intelligence. |
