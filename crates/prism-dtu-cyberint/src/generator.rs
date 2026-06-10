@@ -212,6 +212,17 @@ fn generate_alerts(
             "category": categories[cat_idx],
             "type": "phishing",
             "source_category": "external",
+            // F1 / DTU-01 (review 2026-06-10): the cyberint.sensor.toml alerts table
+            // declares a `source` column (ocsf_field metadata.product.vendor_name) and
+            // the static path emits "source": "cyberint" for every record
+            // (fixtures/alerts.json + routes/alerts.rs get_alerts). The serving
+            // extraction is flat r.get(col_name) — omitting the key silently
+            // normalized the column to NULL on the seeded path.
+            "source": "cyberint",
+            // Static-fixture shape parity (sibling-sweep TD-VSDD-060): the static
+            // record shape also carries `affected_assets` (array). Deterministic,
+            // index-derived — no extra RNG draws so per-surface streams are unchanged.
+            "affected_assets": [format!("asset-{}-{}.example.com", org_slug, i)],
             "title": format!("Alert {} for {}", i, org_slug),
             "modification_date": "2024-01-01T00:00:00Z",
             "description": format!("Description for alert {}", i),
@@ -623,6 +634,70 @@ mod tests {
             j1, j2,
             "BC-3.4.001: two identical calls must produce byte-identical records"
         );
+    }
+
+    /// F1 / DTU-01 (review 2026-06-10): every generated alert record must carry
+    /// every flat key declared as a column in cyberint.sensor.toml `[[tables]]`
+    /// alerts AND every flat key present in the static-fixture record shape
+    /// (fixtures/alerts.json / routes/alerts.rs static path). The serving
+    /// extraction is flat `r.get(col_name)` — an absent key normalizes to NULL,
+    /// so a missing `source` key silently nulls the metadata.product.vendor_name
+    /// column on the seeded path.
+    #[test]
+    fn test_generated_alert_covers_toml_and_static_fixture_keys() {
+        // cyberint.sensor.toml [[tables]] alerts columns (flat key set).
+        let toml_columns = [
+            "alert_id",
+            "title",
+            "type",
+            "severity",
+            "status",
+            "created_at",
+            "source",
+        ];
+        // Static fixture record shape (fixtures/alerts.json, all 20 records share it;
+        // mirrored verbatim by routes/alerts.rs get_alerts static path).
+        let static_keys = [
+            "alert_id",
+            "title",
+            "severity",
+            "status",
+            "created_at",
+            "source",
+            "type",
+            "affected_assets",
+        ];
+
+        let org = OrgId([0u8; 16]);
+        let opts = GenOpts::default();
+        let fs = generate(&org, Archetype::HealthyOtEnvironment, &opts);
+        let alerts: Vec<_> = fs
+            .records
+            .iter()
+            .filter(|r| r.get("_surface").and_then(|v| v.as_str()) == Some("alert"))
+            .collect();
+        assert!(!alerts.is_empty(), "must generate at least one alert");
+
+        for (i, record) in alerts.iter().enumerate() {
+            for key in toml_columns.iter().chain(static_keys.iter()) {
+                assert!(
+                    record.get(key).is_some(),
+                    "generated alert[{i}] missing flat key '{key}' \
+                     (TOML column or static-fixture shape key)"
+                );
+            }
+            // The static path emits "source": "cyberint" for every record — the
+            // generated path must match so metadata.product.vendor_name is stable.
+            assert_eq!(
+                record.get("source").and_then(|v| v.as_str()),
+                Some("cyberint"),
+                "generated alert[{i}] 'source' must be \"cyberint\""
+            );
+            assert!(
+                record.get("affected_assets").map(|v| v.is_array()) == Some(true),
+                "generated alert[{i}] 'affected_assets' must be an array"
+            );
+        }
     }
 
     /// AC-006 / RNG stream: different seed produces different records on all surfaces.
