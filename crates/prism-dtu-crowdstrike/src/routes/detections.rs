@@ -157,10 +157,12 @@ pub async fn list_detection_ids(
         .map(crate::state::CrowdstrikeState::parse_fql_time_bounds)
         .unwrap_or((None, None));
 
-    // Dual-path: serve generated detection IDs when available (ADR-036 §2.3).
+    // Dual-path: serve generated detection IDs when clone was built via new_with_seed (ADR-036 §2.3).
+    // Use fixture_gen_seeded (not generated_detections.is_empty()) so DormantTenant (seeded=true,
+    // 0 detections) serves empty — not the static fixture. F-P10-HIGH-001 / F-P6-HIGH-001 / ADR-036 v2.2.
     // Generated records are immutable after construction — no lock needed.
     #[cfg(feature = "fixture-gen")]
-    let all_ids: Vec<String> = if !state.generated_detections.is_empty() {
+    let all_ids: Vec<String> = if state.fixture_gen_seeded {
         state
             .generated_detections
             .iter()
@@ -324,22 +326,24 @@ pub async fn get_detection_summaries(
             .into_response();
     }
 
-    // Dual-path: use generated detection records when available (ADR-036 §2.3).
+    // Dual-path: use generated detection records when clone was built via new_with_seed (ADR-036 §2.3).
+    // Use fixture_gen_seeded (not generated_detections.is_empty()) so DormantTenant (seeded=true,
+    // 0 detections) serves empty — not the static fixture. F-P10-HIGH-001 / F-P6-HIGH-001 / ADR-036 v2.2.
     #[cfg(feature = "fixture-gen")]
-    let details: std::collections::HashMap<String, serde_json::Value> =
-        if !state.generated_detections.is_empty() {
-            state
-                .generated_detections
-                .iter()
-                .filter_map(|rec| {
-                    rec.get("detection_id")
-                        .and_then(|v| v.as_str())
-                        .map(|id| (id.to_owned(), rec.clone()))
-                })
-                .collect()
-        } else {
-            load_detection_details()
-        };
+    let details: std::collections::HashMap<String, serde_json::Value> = if state.fixture_gen_seeded
+    {
+        state
+            .generated_detections
+            .iter()
+            .filter_map(|rec| {
+                rec.get("detection_id")
+                    .and_then(|v| v.as_str())
+                    .map(|id| (id.to_owned(), rec.clone()))
+            })
+            .collect()
+    } else {
+        load_detection_details()
+    };
     #[cfg(not(feature = "fixture-gen"))]
     let details = load_detection_details();
 
