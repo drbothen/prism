@@ -12,6 +12,6 @@ pub mod rng;
 
 pub use archetype::{all_archetypes, Archetype};
 pub use fixture::{apply_overrides, FixtureSet, OrgId, Provenance};
-pub use opts::{GenOpts, GenOptsError};
+pub use opts::{demo_time_anchor, GenOpts, GenOptsError, DEMO_TIME_ANCHOR_EPOCH_SECS};
 pub use pagination::default_page_size;
 pub use rng::seeded_rng;

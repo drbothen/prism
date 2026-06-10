@@ -394,6 +394,9 @@ pub fn build_clone_pairs(config: &DemoConfig) -> anyhow::Result<Vec<ClonePair>> 
             // If the entry is present with an OrgId, use new_with_seed; otherwise new().
             if let Some((archetype, Some(org_id))) = validated_gen.get("crowdstrike").cloned() {
                 // new_with_seed calls generate() at construction time (ADR-036 §2.3).
+                // Generated timestamps anchor at demo_time_anchor() (review-2026-06-10
+                // P1-01). Story B (S-DEMO-DTU-LIVE-SCENARIO-001-B) wires
+                // scenario_start_secs → time_anchor via new_with_seed_anchored.
                 Box::new(CrowdstrikeClone::new_with_seed(cfg.seed, archetype, org_id))
             } else {
                 Box::new(CrowdstrikeClone::new())

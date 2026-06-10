@@ -144,6 +144,29 @@ impl ArmisClone {
         archetype: prism_dtu_common::Archetype,
         org_id: prism_dtu_common::OrgId,
     ) -> anyhow::Result<Self> {
+        // Default anchor: fixed demo-era constant (review-2026-06-10 P1-01).
+        Self::new_with_seed_anchored(
+            seed,
+            archetype,
+            org_id,
+            prism_dtu_common::demo_time_anchor(),
+        )
+    }
+
+    /// `new_with_seed` with an explicit `time_anchor` for generated timestamps.
+    ///
+    /// Review-2026-06-10 P1-01: exposes the `GenOpts::time_anchor` input on the
+    /// construction chain so callers can anchor generated data to a chosen era.
+    /// Story B (S-DEMO-DTU-LIVE-SCENARIO-001-B) wires `scenario_start_secs` →
+    /// `time_anchor`; this fix-burst deliberately does NOT wire
+    /// `ScenarioConfig.scenario_start_secs` into generation (BC-2.06.019 scope).
+    #[cfg(feature = "fixture-gen")]
+    pub fn new_with_seed_anchored(
+        seed: u64,
+        archetype: prism_dtu_common::Archetype,
+        org_id: prism_dtu_common::OrgId,
+        time_anchor: chrono::DateTime<chrono::Utc>,
+    ) -> anyhow::Result<Self> {
         use crate::generator::generate;
         use prism_dtu_common::GenOpts;
 
@@ -152,6 +175,7 @@ impl ArmisClone {
 
         let opts = GenOpts {
             seed,
+            time_anchor,
             ..GenOpts::default()
         };
         let fixture = generate(org_id, &org_slug, archetype, &opts);

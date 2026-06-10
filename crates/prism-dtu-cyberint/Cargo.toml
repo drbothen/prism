@@ -14,12 +14,14 @@ name = "prism_dtu_cyberint"
 [features]
 dtu = []
 tls = ["dep:axum-server", "prism-dtu-common/tls"]
-fixture-gen = ["prism-dtu-common/fixture-gen", "dep:rand_chacha", "dep:rand"]
+# chrono under fixture-gen: time_anchor threading (review-2026-06-10 P1-01/P1-02).
+fixture-gen = ["prism-dtu-common/fixture-gen", "dep:rand_chacha", "dep:rand", "dep:chrono"]
 
 [dependencies]
 prism-dtu-common = { path = "../prism-dtu-common", version = "0.1.0", features = ["dtu"] }
 rand = { version = "0.8", optional = true }
 rand_chacha = { version = "0.3", optional = true }
+chrono = { version = "0.4", features = ["serde"], optional = true }
 prism-core = { path = "../prism-core" }
 axum-server = { version = "0.7", features = ["tls-rustls"], optional = true }
 axum = "0.7"

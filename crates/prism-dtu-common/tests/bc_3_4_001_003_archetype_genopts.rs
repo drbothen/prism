@@ -14,8 +14,8 @@
 use chrono::DateTime;
 use prism_core::SensorId;
 use prism_dtu_common::generator::{
-    all_archetypes, apply_overrides, default_page_size, seeded_rng, Archetype, FixtureSet, GenOpts,
-    GenOptsError, OrgId, Provenance,
+    all_archetypes, apply_overrides, default_page_size, demo_time_anchor, seeded_rng, Archetype,
+    FixtureSet, GenOpts, GenOptsError, OrgId, Provenance, DEMO_TIME_ANCHOR_EPOCH_SECS,
 };
 use rand::RngCore;
 use serde_json::json;
@@ -114,13 +114,30 @@ fn test_bc_3_4_001_ac_002_genopts_default_scale_is_1() {
     );
 }
 
+/// Review-2026-06-10 P1-01: the default anchor moved from `DateTime::UNIX_EPOCH`
+/// to the fixed demo-era constant `demo_time_anchor()` (2026-01-01T00:00:00Z) so
+/// realistic time-window queries match seeded-clone data. The default remains a
+/// deterministic constant — NOT wall-clock — preserving BC-3.4.001 invariant 1.
+/// BC-3.4.001 precondition 4 amendment pending (product-owner dispatch).
 #[test]
-fn test_bc_3_4_001_ac_002_genopts_default_time_anchor_is_unix_epoch() {
+fn test_bc_3_4_001_ac_002_genopts_default_time_anchor_is_demo_anchor() {
     let opts = GenOpts::default();
     assert_eq!(
         opts.time_anchor,
-        DateTime::UNIX_EPOCH,
-        "GenOpts::default().time_anchor must be DateTime::UNIX_EPOCH"
+        demo_time_anchor(),
+        "GenOpts::default().time_anchor must be demo_time_anchor() (P1-01)"
+    );
+    let expected: DateTime<chrono::Utc> =
+        "2026-01-01T00:00:00Z".parse().expect("literal must parse");
+    assert_eq!(
+        demo_time_anchor(),
+        expected,
+        "demo_time_anchor() must be exactly 2026-01-01T00:00:00Z"
+    );
+    assert_eq!(
+        demo_time_anchor().timestamp(),
+        DEMO_TIME_ANCHOR_EPOCH_SECS,
+        "DEMO_TIME_ANCHOR_EPOCH_SECS must agree with demo_time_anchor()"
     );
 }
 

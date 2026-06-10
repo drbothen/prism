@@ -237,8 +237,9 @@ fn test_f7_cs04_generated_detection_timestamps_vary() {
 /// static load_detection_details() map (whose IDs never match generated IDs,
 /// yielding ZERO rows for ANY bounded query).
 ///
-/// - A window covering the generation time_anchor (UNIX_EPOCH for
-///   GenOpts::default(), offsets ≤ 90 days earlier) returns > 0 rows.
+/// - A window covering the generation time_anchor (`demo_time_anchor()` =
+///   2026-01-01T00:00:00Z for GenOpts::default() per review-2026-06-10 P1-01;
+///   detection offsets ≤ 7 days earlier) returns > 0 rows.
 /// - A window entirely before all generated timestamps returns 0 rows.
 #[tokio::test]
 async fn test_f7_cs04_seeded_fql_window_filters_generated_timestamps() {
@@ -256,9 +257,10 @@ async fn test_f7_cs04_seeded_fql_window_filters_generated_timestamps() {
         .build()
         .expect("client build");
 
-    // Window covering the anchor (epoch) and the seeded offsets before it.
+    // Window covering the demo-era anchor (2026-01-01T00:00:00Z) and the seeded
+    // offsets up to 7 days before it (P1-01: realistic demo windows match data).
     let covering =
-        "created_timestamp:>'1969-01-01T00:00:00Z'+created_timestamp:<'1970-01-02T00:00:00Z'";
+        "created_timestamp:>'2025-12-01T00:00:00Z'+created_timestamp:<'2026-01-02T00:00:00Z'";
     let resp = client
         .get(format!("{base_url}/detects/queries/detects/v1"))
         .query(&[("filter", covering)])
@@ -275,9 +277,10 @@ async fn test_f7_cs04_seeded_fql_window_filters_generated_timestamps() {
          (CS-04: static detail map consulted instead of generated detections)"
     );
 
-    // Window entirely before all generated timestamps (anchor minus ≥ 1 year).
+    // Window entirely before all generated timestamps (pre-anchor era; the
+    // earliest generated detection is anchor minus 7 days = 2025-12-25).
     let before_all =
-        "created_timestamp:>'1950-01-01T00:00:00Z'+created_timestamp:<'1960-01-01T00:00:00Z'";
+        "created_timestamp:>'2020-01-01T00:00:00Z'+created_timestamp:<'2021-01-01T00:00:00Z'";
     let resp = client
         .get(format!("{base_url}/detects/queries/detects/v1"))
         .query(&[("filter", before_all)])
@@ -292,6 +295,77 @@ async fn test_f7_cs04_seeded_fql_window_filters_generated_timestamps() {
         resources.is_empty(),
         "window entirely before all generated timestamps must return 0 rows, got {}",
         resources.len()
+    );
+
+    clone.stop().await.expect("clone stop must succeed");
+}
+
+// ---------------------------------------------------------------------------
+// P1-01 (cascade pass-1) — demo-era default anchor + anchored constructor
+// ---------------------------------------------------------------------------
+
+/// P1-01: with `GenOpts::default()` the generated timestamps live in the
+/// demo era (anchored at 2026-01-01T00:00:00Z, offsets ≤ 97 days earlier) —
+/// NOT at UNIX_EPOCH. Realistic demo time-window queries must match data.
+#[test]
+fn test_p1_01_default_generated_timestamps_in_demo_era() {
+    let anchor = prism_dtu_common::demo_time_anchor();
+    let floor = anchor - chrono::Duration::days(98); // devices: first_seen ≤ 97d before
+    for (i, det) in generated_records("detection").iter().enumerate() {
+        let ts = det.get("created_timestamp").and_then(|v| v.as_str());
+        let ts = parse_ts(ts.unwrap_or_default(), "created_timestamp");
+        assert!(
+            ts > floor && ts <= anchor,
+            "generated detection[{i}] created_timestamp {ts} outside demo era \
+             ({floor}..={anchor}) — P1-01 anchor regression"
+        );
+    }
+    for (i, dev) in generated_records("device").iter().enumerate() {
+        let ts = dev.get("first_seen").and_then(|v| v.as_str());
+        let ts = parse_ts(ts.unwrap_or_default(), "first_seen");
+        assert!(
+            ts > floor && ts <= anchor,
+            "generated device[{i}] first_seen {ts} outside demo era — P1-01"
+        );
+    }
+}
+
+/// P1-01: `new_with_seed_anchored` threads a caller-chosen anchor through to
+/// the generated records (Story B `scenario_start_secs` → `time_anchor` hook).
+#[tokio::test]
+async fn test_p1_01_anchored_constructor_threads_time_anchor() {
+    use prism_dtu_common::BehavioralClone;
+
+    let custom: chrono::DateTime<chrono::Utc> =
+        "2030-06-15T00:00:00Z".parse().expect("literal must parse");
+    let mut clone = prism_dtu_crowdstrike::CrowdstrikeClone::new_with_seed_anchored(
+        42,
+        Archetype::CompromisedEndpoint,
+        deadbeef_org(),
+        custom,
+    );
+    clone.start().await.expect("clone start must succeed");
+    let base_url = clone.base_url();
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .expect("client build");
+
+    // Window covering the custom anchor era returns rows.
+    let covering =
+        "created_timestamp:>'2030-06-01T00:00:00Z'+created_timestamp:<'2030-06-16T00:00:00Z'";
+    let resp = client
+        .get(format!("{base_url}/detects/queries/detects/v1"))
+        .query(&[("filter", covering)])
+        .header("Authorization", "Bearer test-token-p101")
+        .send()
+        .await
+        .expect("request must succeed");
+    assert_eq!(resp.status(), 200);
+    let body: serde_json::Value = resp.json().await.expect("json body");
+    assert!(
+        !body["resources"].as_array().expect("resources").is_empty(),
+        "custom-anchored clone must serve rows in the custom anchor window"
     );
 
     clone.stop().await.expect("clone stop must succeed");
