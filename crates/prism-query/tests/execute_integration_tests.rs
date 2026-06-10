@@ -432,12 +432,13 @@ async fn test_AC_1_query_engine_execute_with_dtu_returns_results() {
 // ---------------------------------------------------------------------------
 
 // ---------------------------------------------------------------------------
-// AC-3: record cap returns E-QUERY-003 before DataFusion execution
+// AC-3: record cap returns E-QUERY-005 before DataFusion execution
 // ---------------------------------------------------------------------------
 
 /// AC-3 (BC-2.11.006): When `run_materialization_pipeline` would exceed the
-/// `max_records` cap, it must return `Err` containing "E-QUERY-003" before
-/// any DataFusion SQL plan begins.
+/// `max_records` cap, it must return `Err` containing "E-QUERY-005"
+/// (materialization limit exceeded, per error-taxonomy.md) before any
+/// DataFusion SQL plan begins.
 ///
 /// We set `max_records = 1` so any response with >=2 rows exceeds the cap.
 ///
@@ -446,10 +447,10 @@ async fn test_AC_1_query_engine_execute_with_dtu_returns_results() {
 ///
 /// Red-Gate: panics at `todo!("S-3.02 — run_materialization_pipeline")`.
 #[tokio::test]
-async fn test_AC_3_size_limit_returns_e_query_003() {
+async fn test_AC_3_size_limit_returns_e_query_005() {
     use prism_query::engine::QueryOptions;
 
-    // Cap at 1 row; stub returns 5 rows — 2nd row exceeds cap → E-QUERY-003.
+    // Cap at 1 row; stub returns 5 rows — 2nd row exceeds cap → E-QUERY-005.
     let mut mat_ctx = helpers::make_mat_ctx_with_stub(1, 5);
     let session_ctx = helpers::make_ctx();
     let options = QueryOptions {
@@ -460,7 +461,7 @@ async fn test_AC_3_size_limit_returns_e_query_003() {
         ..QueryOptions::default()
     };
 
-    // Post-implementation: must return Err with E-QUERY-003.
+    // Post-implementation: must return Err with E-QUERY-005.
     let result = run_materialization_pipeline(
         "SELECT * FROM crowdstrike_detections",
         &options,
@@ -473,8 +474,8 @@ async fn test_AC_3_size_limit_returns_e_query_003() {
         result.expect_err("AC-3: pipeline with 1-row cap must return Err when sensor has >1 row");
     let detail = err.to_string();
     assert!(
-        detail.contains("E-QUERY-003"),
-        "AC-3: error must contain 'E-QUERY-003' (record cap exceeded); got: {detail}"
+        detail.contains("E-QUERY-005"),
+        "AC-3: error must contain 'E-QUERY-005' (materialization limit exceeded); got: {detail}"
     );
 }
 
@@ -1149,10 +1150,10 @@ async fn test_HIGH_4_internal_table_virtual_fields_present() {
 // ---------------------------------------------------------------------------
 
 /// F-LP1-MED-3 (BC-2.11.006): Two stub adapters each returning 6K rows (12K total)
-/// MUST trigger E-QUERY-003 at the pipeline level, verifying the cap is checked
+/// MUST trigger E-QUERY-005 at the pipeline level, verifying the cap is checked
 /// BEFORE DataFusion execution and across multiple sources.
 ///
-/// This complements `test_AC_3_size_limit_returns_e_query_003` which only
+/// This complements `test_AC_3_size_limit_returns_e_query_005` which only
 /// tests a 1-row cap with a single-source stub.
 #[tokio::test]
 async fn test_AC_3_bis_size_limit_at_10k_boundary() {
@@ -1195,12 +1196,12 @@ async fn test_AC_3_bis_size_limit_at_10k_boundary() {
         .await;
 
     let err = result.expect_err(
-        "AC-3-bis: 12K total rows (6K×2 adapters) must exceed the 10K cap → E-QUERY-003",
+        "AC-3-bis: 12K total rows (6K×2 adapters) must exceed the 10K cap → E-QUERY-005",
     );
     let detail = err.to_string();
     assert!(
-        detail.contains("E-QUERY-003"),
-        "AC-3-bis: error must contain 'E-QUERY-003' (record cap exceeded); got: {detail}"
+        detail.contains("E-QUERY-005"),
+        "AC-3-bis: error must contain 'E-QUERY-005' (materialization limit exceeded); got: {detail}"
     );
 }
 
@@ -2081,7 +2082,7 @@ async fn test_HIGH_7_limit_exactly_1000_pipeline_success_with_stub() {
 }
 
 // ---------------------------------------------------------------------------
-// HIGH-002 (ADV-W3MT-P58): Timeout (E-QUERY-004) and depth-limit (E-QUERY-005) tests
+// HIGH-002 (ADV-W3MT-P58): Timeout (E-QUERY-004) and depth-limit (E-QUERY-003) tests
 // ---------------------------------------------------------------------------
 
 /// HIGH-002 / ADV-W3MT-P58-HIGH-002: Story §Tasks item 8 mandates a timeout test.
@@ -2090,8 +2091,9 @@ async fn test_HIGH_7_limit_exactly_1000_pipeline_success_with_stub() {
 /// `execute` must return `PrismError::QueryTimeout` (E-QUERY-004 path — timeout fires
 /// before DataFusion execution begins when the sensor adapter is slow).
 ///
-/// Note: E-QUERY-004 is the memory-budget error code; E-QUERY-005 is the timeout code.
-/// The `PrismError::QueryTimeout` variant displays "E-QUERY-005: query timed out after".
+/// Note (error-taxonomy.md): E-QUERY-004 is the query timeout code; E-WATCHDOG-001
+/// is the memory-budget code; E-QUERY-005 is the materialization-limit code.
+/// The `PrismError::QueryTimeout` variant displays "E-QUERY-004: query timed out after".
 /// The test verifies the correct variant, not a string code, to avoid brittle assertions.
 #[tokio::test]
 async fn test_AC_timeout_returns_query_timeout_error() {
@@ -2170,7 +2172,7 @@ async fn test_AC_timeout_returns_query_timeout_error() {
         .expect_err("timeout-test: execute with 1s timeout and 2s SlowAdapter must return Err");
     assert!(
         matches!(err, prism_core::PrismError::QueryTimeout { .. }),
-        "timeout-test: error must be PrismError::QueryTimeout (E-QUERY-005); got: {err:?}"
+        "timeout-test: error must be PrismError::QueryTimeout (E-QUERY-004); got: {err:?}"
     );
 }
 

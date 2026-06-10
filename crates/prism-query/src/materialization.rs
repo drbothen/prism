@@ -252,17 +252,15 @@ impl MaterializationContext {
 
     /// Increment the running record count, enforcing the 10K cap. (BC-2.11.006 EC-003)
     ///
-    /// Returns `Err(PrismError::QueryExecutionFailed)` with E-QUERY-003 if the
-    /// new count would exceed `max_records`. Uses saturating addition to prevent
-    /// integer overflow.
+    /// Returns `Err(PrismError::QueryMaterializationLimitExceeded)` (E-QUERY-005,
+    /// error-taxonomy.md materialization limit) if the new count would exceed
+    /// `max_records`. Uses saturating addition to prevent integer overflow.
     pub(crate) fn increment_record_count(&mut self, n: usize) -> Result<(), PrismError> {
         let new = self.record_count.saturating_add(n);
         if new > self.max_records {
-            return Err(PrismError::QueryExecutionFailed {
-                detail: format!(
-                    "E-QUERY-003: record cap exceeded: {} records (limit {})",
-                    new, self.max_records
-                ),
+            return Err(PrismError::QueryMaterializationLimitExceeded {
+                count: new,
+                max: self.max_records,
             });
         }
         self.record_count = new;
@@ -324,7 +322,7 @@ impl CredentialResolver for NullMaterializationCredentialResolver {
 /// # Record Cap (BC-2.11.006, EC-003)
 /// Streaming counter across all sources. If the record counter exceeds
 /// the maximum during Step 3, abort with
-/// `PrismError::QueryExecutionFailed` containing E-QUERY-003 message.
+/// `PrismError::QueryMaterializationLimitExceeded` (E-QUERY-005).
 ///
 /// # Returns
 /// `MaterializationOutput` containing batches, sensor_errors, and registered_tables.

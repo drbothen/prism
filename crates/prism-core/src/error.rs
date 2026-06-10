@@ -397,13 +397,29 @@ pub enum PrismError {
     #[error("E-QUERY-003: query execution error: {detail}")]
     QueryExecutionFailed { detail: String },
 
-    /// E-QUERY-004: Memory budget exceeded.
-    #[error("E-QUERY-004: query memory budget exceeded: limit {limit_mb}MB, used {used_mb}MB")]
+    /// E-WATCHDOG-001: Memory budget exceeded.
+    ///
+    /// Per error-taxonomy.md, query memory exhaustion is an E-WATCHDOG code
+    /// ("Query memory limit exceeded"), NOT an E-QUERY code. The query's memory
+    /// consumption exceeded the watchdog budget and the query was terminated.
+    #[error("E-WATCHDOG-001: query memory budget exceeded: limit {limit_mb}MB, used {used_mb}MB")]
     QueryMemoryBudgetExceeded { limit_mb: u64, used_mb: u64 },
 
-    /// E-QUERY-005: Query timeout.
-    #[error("E-QUERY-005: query timed out after {elapsed_ms}ms")]
+    /// E-QUERY-004: Query timeout (retryable with a narrower scope per
+    /// error-taxonomy.md).
+    #[error("E-QUERY-004: query timed out after {elapsed_ms}ms")]
     QueryTimeout { elapsed_ms: u64 },
+
+    /// E-QUERY-005: Materialization limit exceeded — the streaming record
+    /// counter exceeded the 10K cap during sensor fan-out fetch
+    /// (BC-2.11.006 EC-003, error-taxonomy.md E-QUERY-005).
+    #[error("E-QUERY-005: materialization limit exceeded: fetched {count} records (max {max})")]
+    QueryMaterializationLimitExceeded {
+        /// Number of records the fetch would have materialized.
+        count: usize,
+        /// Configured materialization cap (10,000 per BC-2.11.006).
+        max: usize,
+    },
 
     /// E-QUERY-010: Virtual field resolution failed.
     #[error("E-QUERY-010: virtual field resolution failed for {field}: {detail}")]
@@ -620,8 +636,8 @@ pub enum PrismError {
     /// Returned by `QueryCursorRegistry::next_page()` when the cursor's TTL
     /// (60 seconds) has elapsed since creation (BC-2.07.002 §Cursor TTL Expiry).
     ///
-    /// Distinct from E-QUERY-004 (query memory budget exceeded) and E-QUERY-005
-    /// (query execution timeout) — this error specifically signals that a previously
+    /// Distinct from E-QUERY-004 (query timeout) and E-WATCHDOG-001 (query memory
+    /// budget exceeded) — this error specifically signals that a previously
     /// valid cursor has aged out of the registry.
     #[error(
         "E-QUERY-012: pagination cursor expired (>60s); re-execute the query to obtain a fresh cursor"

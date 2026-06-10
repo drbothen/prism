@@ -827,11 +827,12 @@ mod bc_gap_fill {
             );
         }
 
-        /// BC-2.11.006 EC-001: Memory pool limit exceeded → E-QUERY-004,
+        /// BC-2.11.006 EC-001: Memory pool limit exceeded → E-WATCHDOG-001,
         /// no partial results emitted.
         ///
         /// Tests that map_datafusion_memory_error maps ResourcesExhausted to
-        /// PrismError::QueryMemoryBudgetExceeded (E-QUERY-004).
+        /// PrismError::QueryMemoryBudgetExceeded (E-WATCHDOG-001 per
+        /// error-taxonomy.md).
         #[tokio::test]
         async fn test_BC_2_11_006_ec001_memory_pool_limit_no_partial_results() {
             use datafusion::error::DataFusionError;
@@ -842,7 +843,7 @@ mod bc_gap_fill {
 
             assert!(
                 matches!(mapped, PrismError::QueryMemoryBudgetExceeded { .. }),
-                "ResourcesExhausted must map to QueryMemoryBudgetExceeded (E-QUERY-004): {:?}",
+                "ResourcesExhausted must map to QueryMemoryBudgetExceeded (E-WATCHDOG-001): {:?}",
                 mapped
             );
         }
@@ -940,35 +941,53 @@ mod bc_gap_fill {
                 "Non-memory errors must map to QueryExecutionFailed: {:?}",
                 mapped
             );
-            // QueryTimeout (E-QUERY-005) is NOT QueryExecutionFailed.
+            // QueryTimeout (E-QUERY-004) is NOT QueryExecutionFailed.
             assert!(
                 !matches!(mapped, PrismError::QueryTimeout { .. }),
                 "map_datafusion_memory_error must NOT produce QueryTimeout"
             );
         }
 
-        /// BC-2.11.006 EC-003: Record cap error message includes count and sources.
+        /// BC-2.11.006 EC-003: Record cap error message includes count and limit.
         ///
-        /// Tests the QueryExecutionFailed error message format for record cap violations.
-        /// The actual cap enforcement is in run_materialization_pipeline.
+        /// Exercises the PRODUCTION error path (`increment_record_count`) rather
+        /// than a hand-constructed error string. Per error-taxonomy.md the
+        /// materialization limit is E-QUERY-005
+        /// (`QueryMaterializationLimitExceeded`).
         #[tokio::test]
-        async fn test_BC_2_11_006_ec003_record_cap_message_includes_count_and_sources() {
+        async fn test_BC_2_11_006_ec003_record_cap_message_includes_count_and_limit() {
+            use std::sync::Arc;
+
             use prism_core::PrismError;
-            // Simulate the error that would be emitted when record cap is exceeded.
-            // E-QUERY-003 is QueryExecutionFailed; the message includes count and sources.
-            let err = PrismError::QueryExecutionFailed {
-                detail:
-                    "E-QUERY-003: record cap exceeded: 10001 records from [crowdstrike.detections]"
-                        .to_string(),
-            };
+            use prism_ocsf::OcsfNormalizer;
+            use prism_sensors::AdapterRegistry;
+
+            use crate::materialization::MaterializationContext;
+
+            let mut ctx = MaterializationContext::new(
+                Arc::new(AdapterRegistry::new()),
+                Arc::new(OcsfNormalizer::new()),
+                10_000,
+            );
+            let err = ctx
+                .increment_record_count(10_001)
+                .expect_err("10,001 records must exceed the 10K cap");
+            assert!(
+                matches!(err, PrismError::QueryMaterializationLimitExceeded { .. }),
+                "record cap error must be QueryMaterializationLimitExceeded: {err:?}"
+            );
             let msg = err.to_string();
             assert!(
-                msg.contains("10001"),
-                "Record cap message must include count"
+                msg.contains("E-QUERY-005"),
+                "Record cap message must include E-QUERY-005: {msg}"
             );
             assert!(
-                msg.contains("crowdstrike.detections"),
-                "Record cap message must include sources"
+                msg.contains("10001"),
+                "Record cap message must include count: {msg}"
+            );
+            assert!(
+                msg.contains("10000"),
+                "Record cap message must include the limit: {msg}"
             );
         }
     }
@@ -1268,7 +1287,7 @@ mod bc_gap_fill {
             let mapped = map_datafusion_memory_error(err);
             assert!(
                 matches!(mapped, PrismError::QueryMemoryBudgetExceeded { .. }),
-                "ResourcesExhausted must map to QueryMemoryBudgetExceeded (E-QUERY-004): {:?}",
+                "ResourcesExhausted must map to QueryMemoryBudgetExceeded (E-WATCHDOG-001): {:?}",
                 mapped
             );
         }
@@ -1550,14 +1569,14 @@ mod bc_gap_fill {
                 .err()
                 .ok_or("expected increment over cap to return error")?;
             assert!(
-                matches!(err, PrismError::QueryExecutionFailed { .. }),
-                "over-cap error must be QueryExecutionFailed: {:?}",
+                matches!(err, PrismError::QueryMaterializationLimitExceeded { .. }),
+                "over-cap error must be QueryMaterializationLimitExceeded: {:?}",
                 err
             );
             let msg = err.to_string();
             assert!(
-                msg.contains("E-QUERY-003"),
-                "over-cap error must include E-QUERY-003: {msg}"
+                msg.contains("E-QUERY-005"),
+                "over-cap error must include E-QUERY-005 (error-taxonomy.md): {msg}"
             );
             Ok(())
         }

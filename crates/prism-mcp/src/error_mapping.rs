@@ -37,7 +37,7 @@ pub fn map_prism_error(err: PrismError) -> (i32, String) {
             format!("Invalid parameter for tool '{tool}': {detail}"),
         ),
 
-        // E-QUERY-005: Query timeout → -32001 Timeout
+        // E-QUERY-004: Query timeout → -32001 Timeout
         PrismError::QueryTimeout { .. } => (codes::TIMEOUT, "Query timeout exceeded".to_owned()),
 
         // E-FLAG-001: Capability denied → -32002 Forbidden
@@ -242,9 +242,11 @@ pub fn map_prism_error(err: PrismError) -> (i32, String) {
             "Internal error; see audit log".to_owned(),
         ),
 
-        // E-QUERY-002..004: Query planning/execution/memory errors → -32000 Internal
+        // E-QUERY-002/003/005/010 + E-WATCHDOG-001: Query planning/execution/
+        // materialization-limit/memory errors → -32000 Internal
         PrismError::QueryPlanFailed { .. }
         | PrismError::QueryExecutionFailed { .. }
+        | PrismError::QueryMaterializationLimitExceeded { .. }
         | PrismError::QueryMemoryBudgetExceeded { .. }
         | PrismError::QueryVirtualFieldFailed { .. } => (
             codes::INTERNAL_ERROR,

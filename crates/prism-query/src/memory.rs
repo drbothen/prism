@@ -11,7 +11,8 @@
 //! # 3-Tier Fallback
 //! 1. Query runs within 200MB budget — normal path.
 //! 2. Pool trips → DataFusion returns `ResourcesExhausted` → mapped to
-//!    `PrismError::QueryMemoryBudgetExceeded` (E-QUERY-004). (BC-2.11.006)
+//!    `PrismError::QueryMemoryBudgetExceeded` (E-WATCHDOG-001 per
+//!    error-taxonomy.md). (BC-2.11.006)
 //! 3. OOM before pool trips (should not happen) — caught at task boundary.
 //!
 //! # BC References
@@ -82,7 +83,7 @@ pub fn build_session_context(pool_bytes: usize) -> Result<SessionContext, PrismE
 /// `PrismError::QueryExecutionFailed`. (BC-2.11.006)
 ///
 /// # BC-2.11.006
-/// Pool trips return E-QUERY-004 (memory budget exceeded).
+/// Pool trips return E-WATCHDOG-001 (memory budget exceeded, error-taxonomy.md).
 ///
 /// # `used_mb` accuracy
 /// DataFusion formats `ResourcesExhausted` as:
