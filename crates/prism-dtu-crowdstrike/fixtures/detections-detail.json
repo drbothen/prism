@@ -7,7 +7,7 @@
     "updated_timestamp": "2026-01-02T10:05:00Z",
     "device_id": "h-001",
     "tactic": "Initial Access",
-    "technique": "T1059",
+    "technique": "Command and Scripting Interpreter",
     "severity_id": 1,
     "confidence": 75,
     "display_name": "Initial Access via T1059",
@@ -24,7 +24,8 @@
     "behaviors": [
       {
         "tactic": "Initial Access",
-        "technique": "T1059"
+        "technique": "Command and Scripting Interpreter",
+        "technique_id": "T1059"
       }
     ]
   },
@@ -36,7 +37,7 @@
     "updated_timestamp": "2026-01-03T10:05:00Z",
     "device_id": "h-002",
     "tactic": "Execution",
-    "technique": "T1078",
+    "technique": "Valid Accounts",
     "severity_id": 2,
     "confidence": 73,
     "display_name": "Execution via T1078",
@@ -53,7 +54,8 @@
     "behaviors": [
       {
         "tactic": "Execution",
-        "technique": "T1078"
+        "technique": "Valid Accounts",
+        "technique_id": "T1078"
       }
     ]
   },
@@ -65,7 +67,7 @@
     "updated_timestamp": "2026-01-04T10:05:00Z",
     "device_id": "h-003",
     "tactic": "Persistence",
-    "technique": "T1053",
+    "technique": "Scheduled Task/Job",
     "severity_id": 3,
     "confidence": 80,
     "display_name": "Persistence via T1053",
@@ -82,7 +84,8 @@
     "behaviors": [
       {
         "tactic": "Persistence",
-        "technique": "T1053"
+        "technique": "Scheduled Task/Job",
+        "technique_id": "T1053"
       }
     ]
   },
@@ -94,7 +97,7 @@
     "updated_timestamp": "2026-01-05T10:05:00Z",
     "device_id": "h-004",
     "tactic": "Privilege Escalation",
-    "technique": "T1055",
+    "technique": "Process Injection",
     "severity_id": 4,
     "confidence": 63,
     "display_name": "Privilege Escalation via T1055",
@@ -111,7 +114,8 @@
     "behaviors": [
       {
         "tactic": "Privilege Escalation",
-        "technique": "T1055"
+        "technique": "Process Injection",
+        "technique_id": "T1055"
       }
     ]
   },
@@ -123,7 +127,7 @@
     "updated_timestamp": "2026-01-06T10:05:00Z",
     "device_id": "h-005",
     "tactic": "Defense Evasion",
-    "technique": "T1003",
+    "technique": "OS Credential Dumping",
     "severity_id": 1,
     "confidence": 60,
     "display_name": "Defense Evasion via T1003",
@@ -140,7 +144,8 @@
     "behaviors": [
       {
         "tactic": "Defense Evasion",
-        "technique": "T1003"
+        "technique": "OS Credential Dumping",
+        "technique_id": "T1003"
       }
     ]
   },
@@ -152,7 +157,7 @@
     "updated_timestamp": "2026-01-07T10:05:00Z",
     "device_id": "h-006",
     "tactic": "Credential Access",
-    "technique": "T1021",
+    "technique": "Remote Services",
     "severity_id": 2,
     "confidence": 75,
     "display_name": "Credential Access via T1021",
@@ -169,7 +174,8 @@
     "behaviors": [
       {
         "tactic": "Credential Access",
-        "technique": "T1021"
+        "technique": "Remote Services",
+        "technique_id": "T1021"
       }
     ]
   },
@@ -181,7 +187,7 @@
     "updated_timestamp": "2026-01-08T10:05:00Z",
     "device_id": "h-007",
     "tactic": "Discovery",
-    "technique": "T1018",
+    "technique": "Remote System Discovery",
     "severity_id": 3,
     "confidence": 62,
     "display_name": "Discovery via T1018",
@@ -198,7 +204,8 @@
     "behaviors": [
       {
         "tactic": "Discovery",
-        "technique": "T1018"
+        "technique": "Remote System Discovery",
+        "technique_id": "T1018"
       }
     ]
   },
@@ -210,7 +217,7 @@
     "updated_timestamp": "2026-01-09T10:05:00Z",
     "device_id": "h-008",
     "tactic": "Lateral Movement",
-    "technique": "T1082",
+    "technique": "System Information Discovery",
     "severity_id": 4,
     "confidence": 63,
     "display_name": "Lateral Movement via T1082",
@@ -227,7 +234,8 @@
     "behaviors": [
       {
         "tactic": "Lateral Movement",
-        "technique": "T1082"
+        "technique": "System Information Discovery",
+        "technique_id": "T1082"
       }
     ]
   },
@@ -239,7 +247,7 @@
     "updated_timestamp": "2026-01-10T10:05:00Z",
     "device_id": "h-009",
     "tactic": "Collection",
-    "technique": "T1098",
+    "technique": "Account Manipulation",
     "severity_id": 1,
     "confidence": 73,
     "display_name": "Collection via T1098",
@@ -256,7 +264,8 @@
     "behaviors": [
       {
         "tactic": "Collection",
-        "technique": "T1098"
+        "technique": "Account Manipulation",
+        "technique_id": "T1098"
       }
     ]
   },
@@ -268,7 +277,7 @@
     "updated_timestamp": "2026-01-11T10:05:00Z",
     "device_id": "h-010",
     "tactic": "Exfiltration",
-    "technique": "T1071",
+    "technique": "Application Layer Protocol",
     "severity_id": 2,
     "confidence": 99,
     "display_name": "Exfiltration via T1071",
@@ -285,7 +294,8 @@
     "behaviors": [
       {
         "tactic": "Exfiltration",
-        "technique": "T1071"
+        "technique": "Application Layer Protocol",
+        "technique_id": "T1071"
       }
     ]
   },
@@ -297,7 +307,7 @@
     "updated_timestamp": "2026-01-12T10:05:00Z",
     "device_id": "h-011",
     "tactic": "Initial Access",
-    "technique": "T1059",
+    "technique": "Command and Scripting Interpreter",
     "severity_id": 3,
     "confidence": 95,
     "display_name": "Initial Access via T1059",
@@ -314,7 +324,8 @@
     "behaviors": [
       {
         "tactic": "Initial Access",
-        "technique": "T1059"
+        "technique": "Command and Scripting Interpreter",
+        "technique_id": "T1059"
       }
     ]
   },
@@ -326,7 +337,7 @@
     "updated_timestamp": "2026-01-13T10:05:00Z",
     "device_id": "h-012",
     "tactic": "Execution",
-    "technique": "T1078",
+    "technique": "Valid Accounts",
     "severity_id": 4,
     "confidence": 71,
     "display_name": "Execution via T1078",
@@ -343,7 +354,8 @@
     "behaviors": [
       {
         "tactic": "Execution",
-        "technique": "T1078"
+        "technique": "Valid Accounts",
+        "technique_id": "T1078"
       }
     ]
   },
@@ -355,7 +367,7 @@
     "updated_timestamp": "2026-01-14T10:05:00Z",
     "device_id": "h-013",
     "tactic": "Persistence",
-    "technique": "T1053",
+    "technique": "Scheduled Task/Job",
     "severity_id": 1,
     "confidence": 61,
     "display_name": "Persistence via T1053",
@@ -372,7 +384,8 @@
     "behaviors": [
       {
         "tactic": "Persistence",
-        "technique": "T1053"
+        "technique": "Scheduled Task/Job",
+        "technique_id": "T1053"
       }
     ]
   },
@@ -384,7 +397,7 @@
     "updated_timestamp": "2026-01-15T10:05:00Z",
     "device_id": "h-014",
     "tactic": "Privilege Escalation",
-    "technique": "T1055",
+    "technique": "Process Injection",
     "severity_id": 2,
     "confidence": 86,
     "display_name": "Privilege Escalation via T1055",
@@ -401,7 +414,8 @@
     "behaviors": [
       {
         "tactic": "Privilege Escalation",
-        "technique": "T1055"
+        "technique": "Process Injection",
+        "technique_id": "T1055"
       }
     ]
   },
@@ -413,7 +427,7 @@
     "updated_timestamp": "2026-01-16T10:05:00Z",
     "device_id": "h-015",
     "tactic": "Defense Evasion",
-    "technique": "T1003",
+    "technique": "OS Credential Dumping",
     "severity_id": 3,
     "confidence": 82,
     "display_name": "Defense Evasion via T1003",
@@ -430,7 +444,8 @@
     "behaviors": [
       {
         "tactic": "Defense Evasion",
-        "technique": "T1003"
+        "technique": "OS Credential Dumping",
+        "technique_id": "T1003"
       }
     ]
   },
@@ -442,7 +457,7 @@
     "updated_timestamp": "2026-01-17T10:05:00Z",
     "device_id": "h-016",
     "tactic": "Credential Access",
-    "technique": "T1021",
+    "technique": "Remote Services",
     "severity_id": 4,
     "confidence": 62,
     "display_name": "Credential Access via T1021",
@@ -459,7 +474,8 @@
     "behaviors": [
       {
         "tactic": "Credential Access",
-        "technique": "T1021"
+        "technique": "Remote Services",
+        "technique_id": "T1021"
       }
     ]
   },
@@ -471,7 +487,7 @@
     "updated_timestamp": "2026-01-18T10:05:00Z",
     "device_id": "h-017",
     "tactic": "Discovery",
-    "technique": "T1018",
+    "technique": "Remote System Discovery",
     "severity_id": 1,
     "confidence": 99,
     "display_name": "Discovery via T1018",
@@ -488,7 +504,8 @@
     "behaviors": [
       {
         "tactic": "Discovery",
-        "technique": "T1018"
+        "technique": "Remote System Discovery",
+        "technique_id": "T1018"
       }
     ]
   },
@@ -500,7 +517,7 @@
     "updated_timestamp": "2026-01-19T10:05:00Z",
     "device_id": "h-018",
     "tactic": "Lateral Movement",
-    "technique": "T1082",
+    "technique": "System Information Discovery",
     "severity_id": 2,
     "confidence": 78,
     "display_name": "Lateral Movement via T1082",
@@ -517,7 +534,8 @@
     "behaviors": [
       {
         "tactic": "Lateral Movement",
-        "technique": "T1082"
+        "technique": "System Information Discovery",
+        "technique_id": "T1082"
       }
     ]
   },
@@ -529,7 +547,7 @@
     "updated_timestamp": "2026-01-20T10:05:00Z",
     "device_id": "h-019",
     "tactic": "Collection",
-    "technique": "T1098",
+    "technique": "Account Manipulation",
     "severity_id": 3,
     "confidence": 64,
     "display_name": "Collection via T1098",
@@ -546,7 +564,8 @@
     "behaviors": [
       {
         "tactic": "Collection",
-        "technique": "T1098"
+        "technique": "Account Manipulation",
+        "technique_id": "T1098"
       }
     ]
   },
@@ -558,7 +577,7 @@
     "updated_timestamp": "2026-01-21T10:05:00Z",
     "device_id": "h-020",
     "tactic": "Exfiltration",
-    "technique": "T1071",
+    "technique": "Application Layer Protocol",
     "severity_id": 4,
     "confidence": 97,
     "display_name": "Exfiltration via T1071",
@@ -575,7 +594,8 @@
     "behaviors": [
       {
         "tactic": "Exfiltration",
-        "technique": "T1071"
+        "technique": "Application Layer Protocol",
+        "technique_id": "T1071"
       }
     ]
   },
@@ -587,7 +607,7 @@
     "updated_timestamp": "2026-01-22T10:05:00Z",
     "device_id": "h-021",
     "tactic": "Initial Access",
-    "technique": "T1059",
+    "technique": "Command and Scripting Interpreter",
     "severity_id": 1,
     "confidence": 78,
     "display_name": "Initial Access via T1059",
@@ -604,7 +624,8 @@
     "behaviors": [
       {
         "tactic": "Initial Access",
-        "technique": "T1059"
+        "technique": "Command and Scripting Interpreter",
+        "technique_id": "T1059"
       }
     ]
   },
@@ -616,7 +637,7 @@
     "updated_timestamp": "2026-01-23T10:05:00Z",
     "device_id": "h-022",
     "tactic": "Execution",
-    "technique": "T1078",
+    "technique": "Valid Accounts",
     "severity_id": 2,
     "confidence": 62,
     "display_name": "Execution via T1078",
@@ -633,7 +654,8 @@
     "behaviors": [
       {
         "tactic": "Execution",
-        "technique": "T1078"
+        "technique": "Valid Accounts",
+        "technique_id": "T1078"
       }
     ]
   },
@@ -645,7 +667,7 @@
     "updated_timestamp": "2026-01-24T10:05:00Z",
     "device_id": "h-023",
     "tactic": "Persistence",
-    "technique": "T1053",
+    "technique": "Scheduled Task/Job",
     "severity_id": 3,
     "confidence": 91,
     "display_name": "Persistence via T1053",
@@ -662,7 +684,8 @@
     "behaviors": [
       {
         "tactic": "Persistence",
-        "technique": "T1053"
+        "technique": "Scheduled Task/Job",
+        "technique_id": "T1053"
       }
     ]
   },
@@ -674,7 +697,7 @@
     "updated_timestamp": "2026-01-25T10:05:00Z",
     "device_id": "h-024",
     "tactic": "Privilege Escalation",
-    "technique": "T1055",
+    "technique": "Process Injection",
     "severity_id": 4,
     "confidence": 68,
     "display_name": "Privilege Escalation via T1055",
@@ -691,7 +714,8 @@
     "behaviors": [
       {
         "tactic": "Privilege Escalation",
-        "technique": "T1055"
+        "technique": "Process Injection",
+        "technique_id": "T1055"
       }
     ]
   },
@@ -703,7 +727,7 @@
     "updated_timestamp": "2026-01-26T10:05:00Z",
     "device_id": "h-025",
     "tactic": "Defense Evasion",
-    "technique": "T1003",
+    "technique": "OS Credential Dumping",
     "severity_id": 1,
     "confidence": 99,
     "display_name": "Defense Evasion via T1003",
@@ -720,7 +744,8 @@
     "behaviors": [
       {
         "tactic": "Defense Evasion",
-        "technique": "T1003"
+        "technique": "OS Credential Dumping",
+        "technique_id": "T1003"
       }
     ]
   },
@@ -732,7 +757,7 @@
     "updated_timestamp": "2026-01-27T10:05:00Z",
     "device_id": "h-026",
     "tactic": "Credential Access",
-    "technique": "T1021",
+    "technique": "Remote Services",
     "severity_id": 2,
     "confidence": 78,
     "display_name": "Credential Access via T1021",
@@ -749,7 +774,8 @@
     "behaviors": [
       {
         "tactic": "Credential Access",
-        "technique": "T1021"
+        "technique": "Remote Services",
+        "technique_id": "T1021"
       }
     ]
   },
@@ -761,7 +787,7 @@
     "updated_timestamp": "2026-01-28T10:05:00Z",
     "device_id": "h-027",
     "tactic": "Discovery",
-    "technique": "T1018",
+    "technique": "Remote System Discovery",
     "severity_id": 3,
     "confidence": 99,
     "display_name": "Discovery via T1018",
@@ -778,7 +804,8 @@
     "behaviors": [
       {
         "tactic": "Discovery",
-        "technique": "T1018"
+        "technique": "Remote System Discovery",
+        "technique_id": "T1018"
       }
     ]
   },
@@ -790,7 +817,7 @@
     "updated_timestamp": "2026-01-01T10:05:00Z",
     "device_id": "h-028",
     "tactic": "Lateral Movement",
-    "technique": "T1082",
+    "technique": "System Information Discovery",
     "severity_id": 4,
     "confidence": 84,
     "display_name": "Lateral Movement via T1082",
@@ -807,7 +834,8 @@
     "behaviors": [
       {
         "tactic": "Lateral Movement",
-        "technique": "T1082"
+        "technique": "System Information Discovery",
+        "technique_id": "T1082"
       }
     ]
   },
@@ -819,7 +847,7 @@
     "updated_timestamp": "2026-01-02T10:05:00Z",
     "device_id": "h-029",
     "tactic": "Collection",
-    "technique": "T1098",
+    "technique": "Account Manipulation",
     "severity_id": 1,
     "confidence": 92,
     "display_name": "Collection via T1098",
@@ -836,7 +864,8 @@
     "behaviors": [
       {
         "tactic": "Collection",
-        "technique": "T1098"
+        "technique": "Account Manipulation",
+        "technique_id": "T1098"
       }
     ]
   },
@@ -848,7 +877,7 @@
     "updated_timestamp": "2026-01-03T10:05:00Z",
     "device_id": "h-030",
     "tactic": "Exfiltration",
-    "technique": "T1071",
+    "technique": "Application Layer Protocol",
     "severity_id": 2,
     "confidence": 98,
     "display_name": "Exfiltration via T1071",
@@ -865,7 +894,8 @@
     "behaviors": [
       {
         "tactic": "Exfiltration",
-        "technique": "T1071"
+        "technique": "Application Layer Protocol",
+        "technique_id": "T1071"
       }
     ]
   },
@@ -877,7 +907,7 @@
     "updated_timestamp": "2026-01-04T10:05:00Z",
     "device_id": "h-001",
     "tactic": "Initial Access",
-    "technique": "T1059",
+    "technique": "Command and Scripting Interpreter",
     "severity_id": 3,
     "confidence": 71,
     "display_name": "Initial Access via T1059",
@@ -894,7 +924,8 @@
     "behaviors": [
       {
         "tactic": "Initial Access",
-        "technique": "T1059"
+        "technique": "Command and Scripting Interpreter",
+        "technique_id": "T1059"
       }
     ]
   },
@@ -906,7 +937,7 @@
     "updated_timestamp": "2026-01-05T10:05:00Z",
     "device_id": "h-002",
     "tactic": "Execution",
-    "technique": "T1078",
+    "technique": "Valid Accounts",
     "severity_id": 4,
     "confidence": 77,
     "display_name": "Execution via T1078",
@@ -923,7 +954,8 @@
     "behaviors": [
       {
         "tactic": "Execution",
-        "technique": "T1078"
+        "technique": "Valid Accounts",
+        "technique_id": "T1078"
       }
     ]
   },
@@ -935,7 +967,7 @@
     "updated_timestamp": "2026-01-06T10:05:00Z",
     "device_id": "h-003",
     "tactic": "Persistence",
-    "technique": "T1053",
+    "technique": "Scheduled Task/Job",
     "severity_id": 1,
     "confidence": 65,
     "display_name": "Persistence via T1053",
@@ -952,7 +984,8 @@
     "behaviors": [
       {
         "tactic": "Persistence",
-        "technique": "T1053"
+        "technique": "Scheduled Task/Job",
+        "technique_id": "T1053"
       }
     ]
   },
@@ -964,7 +997,7 @@
     "updated_timestamp": "2026-01-07T10:05:00Z",
     "device_id": "h-004",
     "tactic": "Privilege Escalation",
-    "technique": "T1055",
+    "technique": "Process Injection",
     "severity_id": 2,
     "confidence": 94,
     "display_name": "Privilege Escalation via T1055",
@@ -981,7 +1014,8 @@
     "behaviors": [
       {
         "tactic": "Privilege Escalation",
-        "technique": "T1055"
+        "technique": "Process Injection",
+        "technique_id": "T1055"
       }
     ]
   },
@@ -993,7 +1027,7 @@
     "updated_timestamp": "2026-01-08T10:05:00Z",
     "device_id": "h-005",
     "tactic": "Defense Evasion",
-    "technique": "T1003",
+    "technique": "OS Credential Dumping",
     "severity_id": 3,
     "confidence": 75,
     "display_name": "Defense Evasion via T1003",
@@ -1010,7 +1044,8 @@
     "behaviors": [
       {
         "tactic": "Defense Evasion",
-        "technique": "T1003"
+        "technique": "OS Credential Dumping",
+        "technique_id": "T1003"
       }
     ]
   },
@@ -1022,7 +1057,7 @@
     "updated_timestamp": "2026-01-09T10:05:00Z",
     "device_id": "h-006",
     "tactic": "Credential Access",
-    "technique": "T1021",
+    "technique": "Remote Services",
     "severity_id": 4,
     "confidence": 88,
     "display_name": "Credential Access via T1021",
@@ -1039,7 +1074,8 @@
     "behaviors": [
       {
         "tactic": "Credential Access",
-        "technique": "T1021"
+        "technique": "Remote Services",
+        "technique_id": "T1021"
       }
     ]
   },
@@ -1051,7 +1087,7 @@
     "updated_timestamp": "2026-01-10T10:05:00Z",
     "device_id": "h-007",
     "tactic": "Discovery",
-    "technique": "T1018",
+    "technique": "Remote System Discovery",
     "severity_id": 1,
     "confidence": 73,
     "display_name": "Discovery via T1018",
@@ -1068,7 +1104,8 @@
     "behaviors": [
       {
         "tactic": "Discovery",
-        "technique": "T1018"
+        "technique": "Remote System Discovery",
+        "technique_id": "T1018"
       }
     ]
   },
@@ -1080,7 +1117,7 @@
     "updated_timestamp": "2026-01-11T10:05:00Z",
     "device_id": "h-008",
     "tactic": "Lateral Movement",
-    "technique": "T1082",
+    "technique": "System Information Discovery",
     "severity_id": 2,
     "confidence": 62,
     "display_name": "Lateral Movement via T1082",
@@ -1097,7 +1134,8 @@
     "behaviors": [
       {
         "tactic": "Lateral Movement",
-        "technique": "T1082"
+        "technique": "System Information Discovery",
+        "technique_id": "T1082"
       }
     ]
   },
@@ -1109,7 +1147,7 @@
     "updated_timestamp": "2026-01-12T10:05:00Z",
     "device_id": "h-009",
     "tactic": "Collection",
-    "technique": "T1098",
+    "technique": "Account Manipulation",
     "severity_id": 3,
     "confidence": 97,
     "display_name": "Collection via T1098",
@@ -1126,7 +1164,8 @@
     "behaviors": [
       {
         "tactic": "Collection",
-        "technique": "T1098"
+        "technique": "Account Manipulation",
+        "technique_id": "T1098"
       }
     ]
   },
@@ -1138,7 +1177,7 @@
     "updated_timestamp": "2026-01-13T10:05:00Z",
     "device_id": "h-010",
     "tactic": "Exfiltration",
-    "technique": "T1071",
+    "technique": "Application Layer Protocol",
     "severity_id": 4,
     "confidence": 91,
     "display_name": "Exfiltration via T1071",
@@ -1155,7 +1194,8 @@
     "behaviors": [
       {
         "tactic": "Exfiltration",
-        "technique": "T1071"
+        "technique": "Application Layer Protocol",
+        "technique_id": "T1071"
       }
     ]
   },
@@ -1167,7 +1207,7 @@
     "updated_timestamp": "2026-01-14T10:05:00Z",
     "device_id": "h-011",
     "tactic": "Initial Access",
-    "technique": "T1059",
+    "technique": "Command and Scripting Interpreter",
     "severity_id": 1,
     "confidence": 77,
     "display_name": "Initial Access via T1059",
@@ -1184,7 +1224,8 @@
     "behaviors": [
       {
         "tactic": "Initial Access",
-        "technique": "T1059"
+        "technique": "Command and Scripting Interpreter",
+        "technique_id": "T1059"
       }
     ]
   },
@@ -1196,7 +1237,7 @@
     "updated_timestamp": "2026-01-15T10:05:00Z",
     "device_id": "h-012",
     "tactic": "Execution",
-    "technique": "T1078",
+    "technique": "Valid Accounts",
     "severity_id": 2,
     "confidence": 96,
     "display_name": "Execution via T1078",
@@ -1213,7 +1254,8 @@
     "behaviors": [
       {
         "tactic": "Execution",
-        "technique": "T1078"
+        "technique": "Valid Accounts",
+        "technique_id": "T1078"
       }
     ]
   },
@@ -1225,7 +1267,7 @@
     "updated_timestamp": "2026-01-16T10:05:00Z",
     "device_id": "h-013",
     "tactic": "Persistence",
-    "technique": "T1053",
+    "technique": "Scheduled Task/Job",
     "severity_id": 3,
     "confidence": 87,
     "display_name": "Persistence via T1053",
@@ -1242,7 +1284,8 @@
     "behaviors": [
       {
         "tactic": "Persistence",
-        "technique": "T1053"
+        "technique": "Scheduled Task/Job",
+        "technique_id": "T1053"
       }
     ]
   },
@@ -1254,7 +1297,7 @@
     "updated_timestamp": "2026-01-17T10:05:00Z",
     "device_id": "h-014",
     "tactic": "Privilege Escalation",
-    "technique": "T1055",
+    "technique": "Process Injection",
     "severity_id": 4,
     "confidence": 96,
     "display_name": "Privilege Escalation via T1055",
@@ -1271,7 +1314,8 @@
     "behaviors": [
       {
         "tactic": "Privilege Escalation",
-        "technique": "T1055"
+        "technique": "Process Injection",
+        "technique_id": "T1055"
       }
     ]
   },
@@ -1283,7 +1327,7 @@
     "updated_timestamp": "2026-01-18T10:05:00Z",
     "device_id": "h-015",
     "tactic": "Defense Evasion",
-    "technique": "T1003",
+    "technique": "OS Credential Dumping",
     "severity_id": 1,
     "confidence": 95,
     "display_name": "Defense Evasion via T1003",
@@ -1300,7 +1344,8 @@
     "behaviors": [
       {
         "tactic": "Defense Evasion",
-        "technique": "T1003"
+        "technique": "OS Credential Dumping",
+        "technique_id": "T1003"
       }
     ]
   },
@@ -1312,7 +1357,7 @@
     "updated_timestamp": "2026-01-19T10:05:00Z",
     "device_id": "h-016",
     "tactic": "Credential Access",
-    "technique": "T1021",
+    "technique": "Remote Services",
     "severity_id": 2,
     "confidence": 85,
     "display_name": "Credential Access via T1021",
@@ -1329,7 +1374,8 @@
     "behaviors": [
       {
         "tactic": "Credential Access",
-        "technique": "T1021"
+        "technique": "Remote Services",
+        "technique_id": "T1021"
       }
     ]
   },
@@ -1341,7 +1387,7 @@
     "updated_timestamp": "2026-01-20T10:05:00Z",
     "device_id": "h-017",
     "tactic": "Discovery",
-    "technique": "T1018",
+    "technique": "Remote System Discovery",
     "severity_id": 3,
     "confidence": 97,
     "display_name": "Discovery via T1018",
@@ -1358,7 +1404,8 @@
     "behaviors": [
       {
         "tactic": "Discovery",
-        "technique": "T1018"
+        "technique": "Remote System Discovery",
+        "technique_id": "T1018"
       }
     ]
   },
@@ -1370,7 +1417,7 @@
     "updated_timestamp": "2026-01-21T10:05:00Z",
     "device_id": "h-018",
     "tactic": "Lateral Movement",
-    "technique": "T1082",
+    "technique": "System Information Discovery",
     "severity_id": 4,
     "confidence": 83,
     "display_name": "Lateral Movement via T1082",
@@ -1387,7 +1434,8 @@
     "behaviors": [
       {
         "tactic": "Lateral Movement",
-        "technique": "T1082"
+        "technique": "System Information Discovery",
+        "technique_id": "T1082"
       }
     ]
   },
@@ -1399,7 +1447,7 @@
     "updated_timestamp": "2026-01-22T10:05:00Z",
     "device_id": "h-019",
     "tactic": "Collection",
-    "technique": "T1098",
+    "technique": "Account Manipulation",
     "severity_id": 1,
     "confidence": 61,
     "display_name": "Collection via T1098",
@@ -1416,7 +1464,8 @@
     "behaviors": [
       {
         "tactic": "Collection",
-        "technique": "T1098"
+        "technique": "Account Manipulation",
+        "technique_id": "T1098"
       }
     ]
   },
@@ -1428,7 +1477,7 @@
     "updated_timestamp": "2026-01-23T10:05:00Z",
     "device_id": "h-020",
     "tactic": "Exfiltration",
-    "technique": "T1071",
+    "technique": "Application Layer Protocol",
     "severity_id": 2,
     "confidence": 61,
     "display_name": "Exfiltration via T1071",
@@ -1445,7 +1494,8 @@
     "behaviors": [
       {
         "tactic": "Exfiltration",
-        "technique": "T1071"
+        "technique": "Application Layer Protocol",
+        "technique_id": "T1071"
       }
     ]
   }

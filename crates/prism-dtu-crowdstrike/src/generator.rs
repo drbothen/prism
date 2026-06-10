@@ -500,6 +500,39 @@ fn make_device(device_id: &str, opts: &GenOpts) -> Value {
 /// time_anchor minus a seeded offset (stable fold of detection_id × seed,
 /// 0..7 days) — so FQL time-window filtering can discriminate between records.
 /// A single shared timestamp made every bounded window all-or-nothing.
+/// Canonical MITRE ATT&CK technique name ↔ ID table (review-2026-06-10 P1-03).
+///
+/// Single mapping source for the generator AND the static fixtures
+/// (`fixtures/detections-detail.json`): the flat `technique` column carries the
+/// DISPLAY NAME and the flat `technique_id` column carries the MITRE ID — the
+/// same value classes on both serving paths, so the crowdstrike.sensor.toml
+/// `attack.technique.name` mapping normalizes identically regardless of path.
+/// Covers every technique ID cycled by the static fixture set.
+///
+/// NOTE: real-API value semantics (name vs ID in the flat `technique` field of
+/// CrowdStrike detect responses) carry a MEDIUM confidence flag from the
+/// adversary — to be confirmed by dtu-validator against the live API.
+pub const MITRE_TECHNIQUES: &[(&str, &str)] = &[
+    ("T1059", "Command and Scripting Interpreter"),
+    ("T1078", "Valid Accounts"),
+    ("T1053", "Scheduled Task/Job"),
+    ("T1055", "Process Injection"),
+    ("T1003", "OS Credential Dumping"),
+    ("T1021", "Remote Services"),
+    ("T1018", "Remote System Discovery"),
+    ("T1082", "System Information Discovery"),
+    ("T1098", "Account Manipulation"),
+    ("T1071", "Application Layer Protocol"),
+];
+
+/// Look up the canonical MITRE technique display name for an ID (P1-03).
+pub fn technique_name(technique_id: &str) -> Option<&'static str> {
+    MITRE_TECHNIQUES
+        .iter()
+        .find(|(id, _)| *id == technique_id)
+        .map(|(_, name)| *name)
+}
+
 fn make_detection(detection_id: &str, device_id: &str, severity_id: u8, opts: &GenOpts) -> Value {
     // created_timestamp: 0..10080 minutes (7 days) before the anchor, stable
     // per (detection_id, seed) — deterministic per BC-3.4.001.
@@ -529,8 +562,12 @@ fn make_detection(detection_id: &str, device_id: &str, severity_id: u8, opts: &G
         "platform": "Linux",
         "tactic": "Execution",
         "tactic_id": "TA0002",
-        "technique": "Command and Scripting Interpreter",
-        "technique_id": "T1059",
+        // P1-03: technique pair sourced from the canonical table — name in
+        // `technique`, MITRE ID in `technique_id` (same value classes as the
+        // static fixtures). MITRE_TECHNIQUES[0] is the T1059 pair this
+        // generator has always emitted; output is byte-identical to before.
+        "technique": MITRE_TECHNIQUES[0].1,
+        "technique_id": MITRE_TECHNIQUES[0].0,
         "objective": "Falcon Detection Method"
     })
 }

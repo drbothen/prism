@@ -301,6 +301,88 @@ async fn test_f7_cs04_seeded_fql_window_filters_generated_timestamps() {
 }
 
 // ---------------------------------------------------------------------------
+// P1-03 (cascade pass-1) — technique VALUE-class parity (name vs MITRE ID)
+// ---------------------------------------------------------------------------
+
+/// `^T\d{4}$`-shaped MITRE technique ID (e.g. "T1059") without a regex dep.
+fn is_technique_id_shaped(s: &str) -> bool {
+    s.len() == 5 && s.starts_with('T') && s[1..].chars().all(|c| c.is_ascii_digit())
+}
+
+/// P1-03: VALUE-class agreement between the generator and the static fixtures —
+/// not just key presence (the F8 shape-parity gap). On BOTH paths:
+/// - flat `technique` is the MITRE display NAME (never ID-shaped),
+/// - flat `technique_id` is the MITRE ID,
+/// - the (id, name) pair matches the canonical `MITRE_TECHNIQUES` table,
+/// so the TOML `attack.technique.name` column normalizes identically.
+///
+/// Real-API value semantics to be confirmed by dtu-validator (MEDIUM
+/// confidence flag from the adversary).
+#[test]
+fn test_p1_03_technique_value_class_agreement_both_paths() {
+    use prism_dtu_crowdstrike::generator::technique_name;
+
+    let check = |records: &[serde_json::Value], path: &str| {
+        for (i, det) in records.iter().enumerate() {
+            let tid = det
+                .get("technique_id")
+                .and_then(|v| v.as_str())
+                .unwrap_or_else(|| panic!("{path}[{i}] missing technique_id"));
+            assert!(
+                is_technique_id_shaped(tid),
+                "{path}[{i}] technique_id '{tid}' is not MITRE-ID-shaped (P1-03)"
+            );
+            let tech = det
+                .get("technique")
+                .and_then(|v| v.as_str())
+                .unwrap_or_else(|| panic!("{path}[{i}] missing technique"));
+            assert!(
+                !is_technique_id_shaped(tech),
+                "{path}[{i}] technique '{tech}' is ID-shaped — must be the display \
+                 name (value-class divergence, P1-03)"
+            );
+            let expected = technique_name(tid).unwrap_or_else(|| {
+                panic!("{path}[{i}] technique_id '{tid}' not in MITRE_TECHNIQUES table")
+            });
+            assert_eq!(
+                tech, expected,
+                "{path}[{i}] technique must be the canonical name for {tid}"
+            );
+        }
+    };
+
+    check(&generated_records("detection"), "generated detection");
+    check(&static_detections(), "static detection");
+}
+
+/// P1-03: nested `behaviors[0]` agrees with the flat pair on the static path —
+/// `behaviors[0].technique` is the display name and `behaviors[0].technique_id`
+/// is the MITRE ID (the nested object is the API-shape fidelity carrier).
+#[test]
+fn test_p1_03_static_behaviors_nested_flat_agreement() {
+    for (i, det) in static_detections().iter().enumerate() {
+        let b0 = det
+            .get("behaviors")
+            .and_then(|b| b.get(0))
+            .unwrap_or_else(|| panic!("static detection[{i}] missing behaviors[0]"));
+        for key in ["technique", "technique_id"] {
+            let nested = b0
+                .get(key)
+                .and_then(|v| v.as_str())
+                .unwrap_or_else(|| panic!("static detection[{i}] behaviors[0] missing {key}"));
+            let flat = det
+                .get(key)
+                .and_then(|v| v.as_str())
+                .unwrap_or_else(|| panic!("static detection[{i}] missing flat {key}"));
+            assert_eq!(
+                flat, nested,
+                "static detection[{i}] flat {key} must equal behaviors[0].{key} (P1-03)"
+            );
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
 // P1-01 (cascade pass-1) — demo-era default anchor + anchored constructor
 // ---------------------------------------------------------------------------
 
