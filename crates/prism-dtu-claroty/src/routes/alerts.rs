@@ -54,6 +54,26 @@ pub async fn list_alerts(
         }
     }
 
+    // F-P2-MED-001: dual-path — when generated_records is non-empty (clone built via
+    // new_with_seed), serve generated alert records as raw serde_json::Value.
+    // Generated Claroty records include an "alert_id" field (generator.rs line 132:
+    // `"alert_id": format!("alert-{slug}-{seed}-{index}")`).
+    // The adapter reads "$.alerts" response_path — the envelope structure is preserved.
+    #[cfg(feature = "fixture-gen")]
+    if !state.generated_records.is_empty() {
+        let generated_alerts: Vec<serde_json::Value> = state
+            .generated_records
+            .iter()
+            .filter(|rec| rec.get("alert_id").is_some())
+            .cloned()
+            .collect();
+        let total = generated_alerts.len() as u32;
+        return (
+            StatusCode::OK,
+            Json(json!({"alerts": generated_alerts, "total": total, "page": 1u32})),
+        );
+    }
+
     // SAFETY: fixture files are bundled at build time; missing fixture is a build error, not runtime condition.
     #[allow(clippy::expect_used)]
     let raw = prism_dtu_common::load_fixture(env!("CARGO_MANIFEST_DIR"), "alerts")
