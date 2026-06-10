@@ -11,6 +11,7 @@ The following superseded snapshots are archived here (chronological order, most 
 
 | Snapshot | D-NNN | Date | STATE version |
 |----------|-------|------|---------------|
+| §RESUME SNAPSHOT 2026-06-09-COMPLETE-ROADMAP-D1082 | D-1082/D-1089 | 2026-06-09/10 | v7.733→v7.740 |
 | §RESUME SNAPSHOT 2026-06-08-TRAILING-SLASH-MERGED | D-1060/D-1061 | 2026-06-08 | v7.712 |
 | §RESUME SNAPSHOT 2026-06-07-D1047-S-MAINT-ECRED-MERGED-S-DEMO-003-REBASELINE-PAUSED | D-1047 | 2026-06-07 | v7.698 |
 | RESUME SNAPSHOT 2026-06-07 — D-1046 / S-MAINT-ECRED-TAXONOMY-SYNC-001-MERGED-PR175 / S-DEMO-003-PAUSED | D-1046 | 2026-06-07 | v7.698 |
@@ -96,3 +97,14 @@ _Archived from SESSION-HANDOFF.md §D-512. These standing orchestrator process r
 - No pragmatic convergence — fix all issues before build (user_directive_persistent)
 
 _Full historical content (Wave 3 backward) available in git history on factory-artifacts branch._
+
+---
+
+## §RESUME SNAPSHOT 2026-06-09-COMPLETE-ROADMAP-D1082 (SUPERSEDED by D-1090 2026-06-10)
+
+_Superseded 2026-06-10 by §RESUME SNAPSHOT 2026-06-10-STORY-B-DELIVERY-D1090 (STATE v7.741)._
+_This snapshot covered STATE v7.733 (D-1082) through STATE v7.740 (D-1089 T4-A merged)._
+
+**Summary:** D-1082 Complete Story Roadmap enumeration — 9 stories (6 core + 3 optional) added to §ACTIVE OBJECTIVE Build Sequence; task ledger §Complete Story Roadmap published; all statuses verified against STORY-INDEX v2.332. Span: D-1082 (STATE v7.733) through D-1089 (T4-A merged, STATE v7.740). develop_head range: 64d34967 (start) → c287b00d (T4-A merged). At supersession: T4-A DONE, CURRENT POINTER = T5, BC-2.06.018 v1.6 active, BC-INDEX v6.10, STORY-INDEX v2.338, active_contracts 236, draft_contracts 5.
+
+_Full snapshot content available in git history on factory-artifacts branch at the commit immediately preceding the D-1090 burst commit._

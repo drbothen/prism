@@ -2,10 +2,10 @@
 document_type: task-ledger
 objective: multi-client-soc-analyst-demo
 level: ops
-version: "1.12"
+version: "1.13"
 producer: state-manager
 status: active
-timestamp: 2026-06-10T00:00:00Z
+timestamp: 2026-06-10T06:00:00Z
 related:
   - SESSION-HANDOFF.md §ACTIVE OBJECTIVE
   - .factory/STATE.md
@@ -44,7 +44,23 @@ Foundations: COMPLETE (reused). Build: 4/15 tasks done; T4 DONE; T4-A **DONE (D-
 
 ## NEXT ACTION (verbatim, for cold resume)
 
-T4-A DONE (PR #181 squash-merged develop@c287b00d 2026-06-10; BC-2.06.018 v1.6 active). T5 NEXT: dispatch vsdd-factory:story-writer for S-DEMO-DTU-LIVE-SCENARIO-001-B (Story B v1.0 draft shell; scenario progression + enrichment correlation; 7pt; BC-2.06.019+020) to materialize full implementation spec. After spec ready: dclaude:remove-uncertainty → vsdd-factory:worktree-manage create S-DEMO-DTU-LIVE-SCENARIO-001-B → vsdd-factory:test-writer → vsdd-factory:implementer → LOCAL adversary 3-CLEAN strict (BC-5.39.001) → demo-recorder → push → pr-manager PR → PR-LEVEL 3-CLEAN strict + pr-reviewer APPROVE + security CLEAR → CI → squash-merge → state-manager post-merge burst. T6 (S-DEMO-MULTI-TENANT-DTU-001 ready v1.2) is independently deliverable in parallel after T5 starts.
+T4-A DONE (PR #181 squash-merged develop@c287b00d 2026-06-10; BC-2.06.018 v1.6 active). **USER AUTHORIZATION (D-1090 2026-06-10): full-autonomous materialize + deliver of T5 (Story B). Autonomy envelope: run all gates A→merge autonomously; PAUSE ONLY for §7 spec-to-match-code amendments / genuine product-business decisions / Level-3 escalation / CLAUDE.md edits.**
+
+T5 SEQUENCE:
+
+**(1) story-writer MATERIALIZE** — dispatch vsdd-factory:story-writer for S-DEMO-DTU-LIVE-SCENARIO-001-B (Story B v1.0 draft shell at `.factory/stories/S-DEMO-DTU-LIVE-SCENARIO-001-B-scenario-progression-enrichment.md`; scenario progression + enrichment correlation; 7pt; BC-2.06.019+020; ADR-036 v2.2) to materialize full implementation spec.
+
+**CONTRACT-COMPLETENESS FRONT-LOAD (Story-A P6 lesson — REQUIRED before locking spec):** story-writer MUST verify the progression mechanism — deterministic-over-time timeline (same seed+clock-offset → same timeline; NOT random append), stage masks (recon→lateral-movement→exfil→containment), and enrichment correlation (IOCs the progression introduces resolve in ThreatIntel; CVEs on affected devices resolve in NVD) — is FULLY specified in BC-2.06.019/020 + ADR-036. If any design gap exists, surface to orchestrator to route to architect/PO BEFORE locking the story.
+
+Also fold in the 2 Story-A NIT follow-ups during materialization:
+- NIT-1 (E-DEMO-004 message reconcile): E-DEMO-004 fires on non-default fixture_set archetype + missing org_id in Story A; reconcile message/trigger when Story B wires `scenario.enabled` (BC-2.06.019 anchor).
+- NIT-2 (ScenarioConfig field wiring): `ScenarioConfig` fields (`enabled`/`archetype`/`scenario_start_secs`/`stage_duration_secs`) deserialized-but-unconsumed in Story A — Story B consumes them (BC-2.06.019 anchor).
+
+**(2) remove-uncertainty** — run `dclaude:remove-uncertainty` on materialized Story B spec (standing directive D-1061).
+
+**(3) 12-gate delivery** — vsdd-factory:worktree-manage create S-DEMO-DTU-LIVE-SCENARIO-001-B → vsdd-factory:test-writer → vsdd-factory:implementer → LOCAL adversary 3-CLEAN strict (BC-5.39.001) → demo-recorder → push (timeout: 600000 or run_in_background; pre-push gate ~14 min cold) → pr-manager PR → PR-LEVEL 3-CLEAN strict (adversary uses absolute worktree path + directory sanity-check guard) + pr-reviewer APPROVE + security CLEAR → CI → squash-merge → state-manager post-merge burst (POL-14: BC-2.06.019+020 draft→active).
+
+T6 (S-DEMO-MULTI-TENANT-DTU-001 ready v1.2; BC-2.06.017) is independently deliverable in parallel after T5 materialize step starts (remove-uncertainty already COMPLETE from D-1076).
 
 ---
 
@@ -149,6 +165,7 @@ Per-story delivery tasks (T6, T7, T10, T12) follow the canonical 12-gate per-sto
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.13 | 2026-06-10 | state-manager | D-1090: Zero-context resume durability hardening for Story B (T5). (1) Local develop branch fast-forwarded to c287b00d confirmed (no SHA drift — note recorded for fresh sessions). (2) USER AUTHORIZATION recorded: full-autonomous materialize+deliver of T5 (Story B); autonomy envelope identical to Story A (D-989): run all gates A→merge autonomously; PAUSE only for §7/product-business/Level-3/CLAUDE.md. (3) NEXT ACTION augmented with contract-completeness front-loading step (story-writer must verify progression mechanism + stage masks + enrichment correlation fully specified in BC-2.06.019/020 + ADR-036 BEFORE locking spec; surface gaps to orchestrator for architect/PO routing). (4) Two Story-A NIT follow-ups folded into NEXT ACTION (NIT-1 E-DEMO-004 message reconcile; NIT-2 ScenarioConfig field wiring — both anchored to BC-2.06.019). (5) Operational lessons from cycles/wave-5-e-demo-fidelity/lessons.md folded into SESSION-HANDOFF resume protocol (3 Story-A process-gaps: adversary worktree-path-guard; push timeout 600s; exhaustive sibling-sweep). No task status changes; no code/spec/BC/count changes. STATE v7.740→v7.741. Ledger version 1.12→1.13. |
 | 1.12 | 2026-06-10 | state-manager | D-1089: T4-A DONE — PR #181 squash-merged develop@c287b00d. BC-2.06.018 v1.6 active (POL-14). T4-A status in-progress→done. CURRENT POINTER advanced to T5 (S-DEMO-DTU-LIVE-SCENARIO-001-B UNBLOCKED). §Complete Story Roadmap Story A row updated to merged v1.5. §TASK LEDGER T4-A row updated to done. NEXT ACTION updated verbatim. Progress Summary updated (4/15 tasks done). Two NIT follow-up anchors added to §Notes (NIT-1 E-DEMO-004 message/trigger; NIT-2 ScenarioConfig stub). T5 unblocked: story-writer materializes Story B spec → remove-uncertainty → 12-gate delivery. BC-INDEX v6.09→v6.10. STORY-INDEX v2.337→v2.338. STATE v7.739→v7.740. Ledger version 1.11→1.12. |
 | 1.11 | 2026-06-10 | state-manager | D-1088: T4-A LOCAL 3-CLEAN STRICT CONVERGENCE durability checkpoint. T4-A status note updated to "LOCAL CONVERGED (18-pass cascade; 3-CLEAN strict P16/17/18); demo+PR gates in progress". T4-A row status not-started→in-progress (done only at squash-merge per convention). CURRENT POINTER updated. NEXT ACTION updated verbatim. Progress Summary updated. Spec artifact versions UNCHANGED (ADR-036 v2.2, BC-2.06.018 v1.5, story v1.5, BC-INDEX v6.09, STORY-INDEX v2.337 — no bumps; state-narrative checkpoint only). STATE v7.738→v7.739. Ledger version 1.10→1.11. |
 | 1.10 | 2026-06-09 | state-manager | D-1083: Mid-cascade spec-consistency burst. S-DEMO-CYBERINT-INCIDENTS-SEEDING-001 deferred follow-up added to §Notes (anchored to BC-2.06.018 §Scope Boundary; split off from Story A per LOCAL Pass-2 F-P2-MED-001; Cyberint incidents table intentionally non-generator-backed in Story A; draft stub registered in STORY-INDEX v2.333). BC-INDEX v6.05→v6.06. STORY-INDEX v2.332→v2.333. STATE v7.733→v7.734. Ledger version 1.9→1.10. |

@@ -678,8 +678,8 @@ current_story:
   story_id: S-DEMO-DTU-LIVE-SCENARIO-001-B
   delivery_step: not-started
   spec_version: "1.0"
-  resume_at: "T4-A DONE (S-DEMO-DTU-LIVE-SCENARIO-001-A merged PR #181 develop@c287b00d 2026-06-10). CURRENT = T5: S-DEMO-DTU-LIVE-SCENARIO-001-B (Story B — scenario progression + enrichment correlation; 7pt; BC-2.06.019+020; draft v1.0). NEXT: story-writer materializes full Story B impl spec from draft shell → dclaude:remove-uncertainty → 12-gate TDD delivery. Depends on Story A merge (NOW SATISFIED). S-DEMO-MULTI-TENANT-DTU-001 v1.2 also independently deliverable (T6, after T5)."
-  note: "D-1089 2026-06-10 post-merge burst. T4-A DONE. T5 UNBLOCKED: Story B spec materialization (story-writer) + remove-uncertainty → delivery. BC-2.06.018 v1.6 active. develop@c287b00d."
+  resume_at: "D-1090 2026-06-10. T4-A DONE (PR #181 develop@c287b00d; BC-2.06.018 v1.6 active). CURRENT = T5: S-DEMO-DTU-LIVE-SCENARIO-001-B (Story B — scenario progression + enrichment correlation; 7pt; BC-2.06.019+020; draft v1.0). USER AUTHORIZATION D-1090: full-autonomous materialize+deliver. NEXT: (1) story-writer materializes full Story B impl spec from draft shell with CONTRACT-COMPLETENESS FRONT-LOAD (verify progression mechanism + stage masks + enrichment correlation fully specified in BC-2.06.019/020 + ADR-036 v2.2 BEFORE locking spec); fold in NIT-1 E-DEMO-004 message reconcile + NIT-2 ScenarioConfig field wiring. (2) dclaude:remove-uncertainty. (3) 12-gate TDD delivery. T6 (S-DEMO-MULTI-TENANT-DTU-001 v1.2) independently deliverable in parallel. Autonomy: auto-merge on gates; pause for §7/product-business/Level-3/CLAUDE.md only."
+  note: "D-1090 2026-06-10 durability-hardening burst. T5 UNBLOCKED + full-autonomous authorized. BC-2.06.018 v1.6 active. develop@c287b00d. STATE v7.741."
   last_updated_at: "2026-06-10"
 
 prereq_artifacts:
