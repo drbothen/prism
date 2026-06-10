@@ -201,7 +201,13 @@ fn generate_alerts(
             "status": statuses[status_idx],
             "severity": severity,
             "severity_id": severity_id,
-            "created_date": "2024-01-01T00:00:00Z",
+            // F-P3-HIGH-001 fix: emit "created_at" to match the adapter's declared column
+            // (cyberint.sensor.toml alerts table column name = "created_at") and the static
+            // route path (routes/alerts.rs get_alerts static path emits "created_at").
+            // The prior field name "created_date" caused the adapter's created_at column to
+            // normalize to null for every generated alert. "created_date" is used nowhere else
+            // in the codebase (sibling-site sweep TD-VSDD-060: only generator.rs had the field).
+            "created_at": "2024-01-01T00:00:00Z",
             "created_by": "system",
             "category": categories[cat_idx],
             "type": "phishing",
@@ -426,8 +432,12 @@ mod schema_validation {
     /// Validate an alert record against the Alert schema (required fields from spec).
     ///
     /// Alert schema requires: id, environment, ref_id, confidence, status, severity,
-    /// created_date, created_by, category, type, source_category, title,
+    /// created_at, created_by, category, type, source_category, title,
     /// modification_date, description, recommendation, update_date.
+    ///
+    /// NOTE: field is "created_at" (matches cyberint.sensor.toml column + static route path),
+    /// NOT "created_date" (F-P3-HIGH-001 fix — the old generator emitted "created_date" which
+    /// caused adapter OCSF normalization to produce null for the time column).
     pub(super) fn validate_alert(record: &Value, index: usize) {
         let required_fields = [
             "id",
@@ -436,7 +446,7 @@ mod schema_validation {
             "confidence",
             "status",
             "severity",
-            "created_date",
+            "created_at",
             "created_by",
             "category",
             "type",

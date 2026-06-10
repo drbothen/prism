@@ -174,13 +174,23 @@ pub async fn get_alerts(
     // Generated records are immutable after construction — no lock needed.
     #[cfg(feature = "fixture-gen")]
     if !state.generated_records.is_empty() {
-        // Filter to alert records only (generated_records may also contain asset records).
+        // Filter to alert surface records only using the authoritative _surface discriminator.
+        //
+        // F-P3-CRIT-001 fix: the prior discriminator `rec.get("alert_id").is_some()` was
+        // incorrect because generate_cves and generate_iocs ALSO emit `alert_id` (their
+        // primary key reuses the same ID format). This caused CVE and IOC records to leak
+        // into the `/api/v1/alerts` response, corrupting OCSF normalization (20 of 40 records
+        // were non-alert garbage in CompromisedEndpoint archetype).
+        //
+        // Correct discriminator: `_surface == "alert"` — the generator stamps this tag on
+        // every surface independently (generate_alerts → "alert", generate_cves → "cve",
+        // generate_iocs → "ioc", generate_asm_assets → "asm_asset").
         let data: Vec<serde_json::Value> = state
             .generated_records
             .iter()
             .filter(|rec| {
-                // Include records that have "alert_id" field (alert-type records).
-                rec.get("alert_id").is_some()
+                // Include ONLY records whose _surface tag is exactly "alert".
+                rec.get("_surface").and_then(|v| v.as_str()) == Some("alert")
             })
             .cloned()
             .collect();
