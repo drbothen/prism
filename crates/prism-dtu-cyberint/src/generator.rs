@@ -192,6 +192,21 @@ fn generate_alerts(
         let alert_id = format!("alert-{}-{}-{}", org_slug, seed, i);
         let ref_id = format!("REF-{}-{}-{}", org_slug, seed, i);
 
+        let category = categories[cat_idx];
+        // F2 / DTU-02 (review 2026-06-10): derive `type` from the already-varied
+        // category instead of a hardcoded "phishing" for every alert. The type
+        // vocabulary mirrors the static fixture's variety (fixtures/alerts.json).
+        let alert_type = match category {
+            "Phishing" => "phishing",
+            "Malware" => "malware_distribution",
+            "Data Exposure" => "data_exposure",
+            "Brand Abuse" => "brand_abuse",
+            "Vulnerability" => "exposed_service",
+            // Unreachable today — categories is a closed array above; keep a
+            // deterministic fallback rather than panicking in the generator.
+            _ => "threat_intelligence",
+        };
+
         let record = json!({
             "alert_id": alert_id,
             "id": format!("id-{}-{}-{}", org_slug, seed, i),
@@ -209,8 +224,8 @@ fn generate_alerts(
             // in the codebase (sibling-site sweep TD-VSDD-060: only generator.rs had the field).
             "created_at": "2024-01-01T00:00:00Z",
             "created_by": "system",
-            "category": categories[cat_idx],
-            "type": "phishing",
+            "category": category,
+            "type": alert_type,
             "source_category": "external",
             // F1 / DTU-01 (review 2026-06-10): the cyberint.sensor.toml alerts table
             // declares a `source` column (ocsf_field metadata.product.vendor_name) and
@@ -698,6 +713,59 @@ mod tests {
                 "generated alert[{i}] 'affected_assets' must be an array"
             );
         }
+    }
+
+    /// F2 / DTU-02 (review 2026-06-10): generated alert `type` must derive from
+    /// the (already-varied) category — not a hardcoded "phishing" for every record.
+    /// The category→type table mirrors the static fixture's type vocabulary
+    /// (fixtures/alerts.json: phishing, malware_distribution, data_exposure,
+    /// brand_abuse, exposed_service, ...).
+    #[test]
+    fn test_generated_alert_type_derives_from_category() {
+        let expected = |category: &str| -> &'static str {
+            match category {
+                "Phishing" => "phishing",
+                "Malware" => "malware_distribution",
+                "Data Exposure" => "data_exposure",
+                "Brand Abuse" => "brand_abuse",
+                "Vulnerability" => "exposed_service",
+                other => panic!("unexpected category '{other}'"),
+            }
+        };
+
+        let org = OrgId([0u8; 16]);
+        let opts = GenOpts::default();
+        // CompromisedEndpoint: 20 alerts — enough draws to exercise category variety.
+        let fs = generate(&org, Archetype::CompromisedEndpoint, &opts);
+        let alerts: Vec<_> = fs
+            .records
+            .iter()
+            .filter(|r| r.get("_surface").and_then(|v| v.as_str()) == Some("alert"))
+            .collect();
+        assert!(!alerts.is_empty(), "must generate at least one alert");
+
+        let mut distinct_types = std::collections::BTreeSet::new();
+        for (i, record) in alerts.iter().enumerate() {
+            let category = record
+                .get("category")
+                .and_then(|v| v.as_str())
+                .unwrap_or_else(|| panic!("alert[{i}] missing category"));
+            let ty = record
+                .get("type")
+                .and_then(|v| v.as_str())
+                .unwrap_or_else(|| panic!("alert[{i}] missing type"));
+            assert_eq!(
+                ty,
+                expected(category),
+                "alert[{i}] type must derive from category '{category}'"
+            );
+            distinct_types.insert(ty.to_owned());
+        }
+        assert!(
+            distinct_types.len() > 1,
+            "20 alerts must yield >1 distinct type (got {distinct_types:?}) — \
+             hardcoded type defeats category variety"
+        );
     }
 
     /// AC-006 / RNG stream: different seed produces different records on all surfaces.
