@@ -325,28 +325,43 @@ pub enum PrismError {
     // -------------------------------------------------------------------------
     // E-CFG — Configuration errors
     // -------------------------------------------------------------------------
-    /// E-CFG-001: Config file not found.
-    #[error("E-CFG-001: config file not found: {path}")]
+    /// E-CFG-100: Referenced `client_id` is not configured (tool parameter or
+    /// alias scope names an unknown client).
+    ///
+    /// New variant per ADR-038 D3 (client-not-found variant split): carries the
+    /// typed `client_id` for the most caller-visible config error in the MCP
+    /// surface. Contract anchors: BC-2.10.004, BC-2.11.001/008/011/013/014,
+    /// BC-2.08.008, BC-2.14.010 (all pin E-CFG-100 for this condition).
+    /// Maps to JSON-RPC `-32602 INVALID_PARAMS` per ADR-038 D4 — a wrong
+    /// `client_id` is caller-resolvable, not an internal failure.
+    #[error("E-CFG-100: client '{client_id}' not found in configuration")]
+    ClientNotFound { client_id: String },
+
+    /// E-CFG-103: Config file not found (renumbered per ADR-038 D2).
+    #[error("E-CFG-103: config file not found: {path}")]
     ConfigNotFound { path: String },
 
-    /// E-CFG-002: Config parse error.
-    #[error("E-CFG-002: config parse error: {detail}")]
+    /// E-CFG-104: Config parse error (renumbered per ADR-038 D2;
+    /// AD-007 hot-reload surface — zero emitters today, forward-declared).
+    #[error("E-CFG-104: config parse error: {detail}")]
     ConfigParseFailed { detail: String },
 
-    /// E-CFG-003: Config validation error.
-    #[error("E-CFG-003: config validation failed: {detail}")]
+    /// E-CFG-102: Config validation error (renumbered per ADR-038 D2;
+    /// `{detail}` SHOULD carry the toml_path, expected, and actual values).
+    #[error("E-CFG-102: config validation failed: {detail}")]
     ConfigValidationFailed { detail: String },
 
-    /// E-CFG-010: Config snapshot stale.
-    #[error("E-CFG-010: config snapshot stale: version {current} < required {required}")]
+    /// E-CFG-105: Config snapshot stale (renumbered per ADR-038 D2;
+    /// transient/retryable — retry acquires a fresh `ArcSwap::load()` snapshot, AD-007).
+    #[error("E-CFG-105: config snapshot stale: version {current} < required {required}")]
     ConfigSnapshotStale { current: u64, required: u64 },
 
-    /// E-CFG-020: Capability path validation failed.
+    /// E-CFG-106: Capability path validation failed (renumbered per ADR-038 D2).
     ///
     /// Returned by `CapabilityPath::new()` when the input string violates any
     /// of the format rules: empty string, empty segment, invalid characters,
     /// more than 8 segments, or total length > 256 characters.
-    #[error("E-CFG-020: invalid capability path: {reason}")]
+    #[error("E-CFG-106: invalid capability path: {reason}")]
     InvalidCapabilityPath {
         /// Human-readable description of the validation failure.
         reason: String,
