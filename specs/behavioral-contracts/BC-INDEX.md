@@ -1,14 +1,14 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "6.09"
+version: "6.10"
 status: draft
 producer: product-owner
-timestamp: 2026-06-09T18:00:00Z
+timestamp: 2026-06-10T00:00:00Z
 phase: 3.A
 total_contracts: 250
-active_contracts: 235
-draft_contracts: 6
+active_contracts: 236
+draft_contracts: 5
 deprecated_contracts: 0
 removed_contracts: 7
 retired_contracts: 2
@@ -16,10 +16,10 @@ retired_contracts: 2
 
 # Behavioral Contract Index
 
-Flat index of all 250 behavioral contracts for Prism (250 total files, 235 active, 6 draft, 0 deprecated, 7 removed, 2 retired), organized by BC ID. Note: 5 prior index-only reserved entries (BC-2.07.007/008/009/010, BC-2.14.011) were dropped — they never had corresponding files.
+Flat index of all 250 behavioral contracts for Prism (250 total files, 236 active, 5 draft, 0 deprecated, 7 removed, 2 retired), organized by BC ID. Note: 5 prior index-only reserved entries (BC-2.07.007/008/009/010, BC-2.14.011) were dropped — they never had corresponding files.
 
 **Note on `total_contracts`:** This count represents unique BC identifiers ever filed
-(active + draft + deprecated + removed + retired = 235 + 6 + 0 + 7 + 2 = 250). D-1078: BC-2.06.019 Demo-Server Scenario Progression + BC-2.06.020 Demo-Server Enrichment Correlation registered (both draft; SS-01; CAP-036; P2). D-1077: BC-2.06.018 Demo-Server Config-Time Data Seeding registered (draft; SS-01; CAP-036; P2). D-1074: BC-2.06.017 Per-DTU-Instance Multi-Address Binding for Multi-Tenant Overlay Testing registered (draft; SS-01; CAP-036; P2). 1 new BC (BC-2.01.017) added in D-849 for ADR-031 StaticCookieAuthProvider no-login-roundtrip contract. 5 new BCs (BC-2.06.012–016) added in D-803 burst-3 for ADR-029 multi-tenant sensor endpoint overrides. Five prior index-only reserved entries
+(active + draft + deprecated + removed + retired = 236 + 5 + 0 + 7 + 2 = 250). D-1089 (2026-06-10): BC-2.06.018 v1.5→v1.6 promoted draft→active per POL-14 (anchor story S-DEMO-DTU-LIVE-SCENARIO-001-A merged PR #181 develop@c287b00d); active 235→236, draft 6→5. D-1078: BC-2.06.019 Demo-Server Scenario Progression + BC-2.06.020 Demo-Server Enrichment Correlation registered (both draft; SS-01; CAP-036; P2). D-1077: BC-2.06.018 Demo-Server Config-Time Data Seeding registered (draft; SS-01; CAP-036; P2). D-1074: BC-2.06.017 Per-DTU-Instance Multi-Address Binding for Multi-Tenant Overlay Testing registered (draft; SS-01; CAP-036; P2). 1 new BC (BC-2.01.017) added in D-849 for ADR-031 StaticCookieAuthProvider no-login-roundtrip contract. 5 new BCs (BC-2.06.012–016) added in D-803 burst-3 for ADR-029 multi-tenant sensor endpoint overrides. Five prior index-only reserved entries
 (BC-2.07.007/008/009/010, BC-2.14.011) were dropped in v4.8 because they never had
 corresponding files — they are NOT counted in `total_contracts` and remain only in the
 historical references section below. Counts are derived from workspace enumeration of
@@ -115,7 +115,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.06.015 | OrgRegistry Cross-Validation at Boot — Unknown Overlay Directory Triggers E-SPEC-022 | 06 - Client Configuration | CAP-009 | P0 | active — v1.1; promoted D-825 (PR #155 merge 2026-05-26) |
 | BC-2.06.016 | Error Taxonomy for Per-Org Overlay Override Violations (E-SPEC-019 through E-SPEC-023) | 06 - Client Configuration | CAP-009 | P0 | active — v1.3; promoted D-825 (PR #155 merge 2026-05-26) |
 | BC-2.06.017 | Per-DTU-Instance Multi-Address Binding for Multi-Tenant Overlay Testing | SS-01 (Sensor Adapters) | CAP-036 | P2 | draft — v1.1 (D-1076: Amendment-1 Postcondition-5 start_on prose corrected; Amendment-2 error-table inner types disambiguated; 5 invariants UNCHANGED) |
-| BC-2.06.018 | Demo-Server Config-Time Data Seeding — Per-Clone seed + fixture_set Wire-Up | SS-01 (Sensor Adapters) | CAP-036 | P2 | draft — v1.5 (D-1086: F-P6-HIGH-001 archetype-driven contract reconciliation — canonical 3-arg `new_with_seed(seed, archetype, org_id)` replacing 2-arg form; line-75 2-arg drift fixed by product-owner; DormantTenant-empty-fallback bug EC-018-003 fixed via `fixture_gen_seeded: bool` sentinel) |
+| BC-2.06.018 | Demo-Server Config-Time Data Seeding — Per-Clone seed + fixture_set Wire-Up | SS-01 (Sensor Adapters) | CAP-036 | P2 | active — v1.6 (D-1089 2026-06-10: POL-14 draft→active; anchor story S-DEMO-DTU-LIVE-SCENARIO-001-A merged PR #181 develop@c287b00d; full 8-archetype archetype-driven seeding delivered; fixture_gen_seeded sentinel; per-client distinct data proven INV-DISTINCT-DATA-001) |
 | BC-2.06.019 | Demo-Server Scenario Progression — Pure-Function Temporal Stage Advancement with Reproducibility Guarantee | SS-01 (Sensor Adapters) | CAP-036 | P2 | draft — v1.1 (D-1079: ADR-036 v2.0 substrate reconciliation; stage_duration_secs 4-entry mapping; activates_after_secs; Result signatures corrected) |
 | BC-2.06.020 | Demo-Server Enrichment Correlation — Scenario IOCs Resolve in ThreatIntel; Scenario CVEs Resolve in NVD | SS-01 (Sensor Adapters) | CAP-036 | P2 | draft — v1.1 (D-1079: ADR-036 v2.0 substrate reconciliation; NvdState::lookup_and_count; CVSS path metrics.cvss_metric_v31[0].cvss_data.base_score; Result signatures corrected) |
 | BC-2.07.001 | Internal Ephemeral Pagination Token Structure | 07 - Adapter Pagination & Response Cache | CAP-011 | P0 | draft |
@@ -380,6 +380,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v6.10 (2026-06-10, D-1089 — BC-2.06.018 v1.5→v1.6: POL-14 draft→active promotion; S-DEMO-DTU-LIVE-SCENARIO-001-A (T4-A) MERGED PR #181 develop@c287b00d; active 235→236, draft 6→5):** state-manager | POL-14 auto-promotion: BC-2.06.018 v1.5→v1.6 `status: draft→active` + `lifecycle_status: draft→active` — anchor story S-DEMO-DTU-LIVE-SCENARIO-001-A (T4-A) squash-merged via PR #181 to develop@c287b00d 2026-06-10. Full 8-archetype archetype-driven seeding delivered; `fixture_gen_seeded: bool` sentinel wired; per-client distinct data proven (INV-DISTINCT-DATA-001). LOCAL adversary: 18-pass 3-CLEAN strict (BC-5.39.001 D-779 at passes 16/17/18). PR-LEVEL adversary: 3-pass 3-CLEAN strict (passes 1/2/3). Security: SECURITY-CLEAR-TO-MERGE. pr-reviewer: APPROVE. CI: all green. BC-INDEX inline row 118 updated to `active — v1.6`. active_contracts 235→236, draft_contracts 6→5 (BC-2.06.011 + BC-2.06.017 + BC-2.06.019 + BC-2.06.020 + BC-2.21.001 remain draft). total_contracts 250 UNCHANGED. BC-INDEX v6.09→v6.10.
 
 **v6.09 (2026-06-09, D-1086 — BC-2.06.018 v1.4→v1.5: F-P6-HIGH-001 archetype-driven contract reconciliation; full 8-archetype support; BC counts UNCHANGED 250/235/6):** state-manager | BC-2.06.018 v1.4→v1.5 — product-owner archetype-driven contract reconciliation (F-P6-HIGH-001, user decision: full 8-archetype support): canonical constructor updated to 3-arg `new_with_seed(seed: u64, archetype: Archetype, org_id: OrgId)` — archetype forwarded to `generate()` across all 4 clones (CrowdStrike, Armis, Claroty, Cyberint); line-75 2-arg drift fixed; DormantTenant-empty-fallback bug EC-018-003 fixed via `fixture_gen_seeded: bool` sentinel. ADR-036 v2.1→v2.2. Story A v1.3→v1.4 (3-arg ACs + 3 differential archetype Red Gate tests; red_gate_tests 14→17). No BC count changes (active: 235 UNCHANGED; draft: 6 UNCHANGED; total: 250 UNCHANGED). BC-INDEX inline row updated to v1.5. STORY-INDEX row updated to v1.4. ARCH-INDEX v2.118→v2.119. STATE D-1086 decision row added. BC-INDEX v6.08→v6.09.
 

@@ -1,7 +1,7 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.739"
+version: "7.740"
 producer: state-manager
 timestamp: 2026-06-10T00:00:00Z
 inputs: []
@@ -16,15 +16,15 @@ repos: [poller-cobra, poller-express, poller-bear, poller-coaster, serveMyAPI, t
 safe_to_compact: true
 
 # ── CANONICAL CURRENT-STATE VALUES (authoritative; do not drop in future compactions) ──
-develop_head: "64d34967"
-bc_index_version: "6.09"
+develop_head: "c287b00d"
+bc_index_version: "6.10"
 vp_index_version: "1.76"
-story_index_version: "v2.337"
+story_index_version: "v2.338"
 arch_index_version: "2.119"
 error_taxonomy_version: "1.64"
 total_stories: 189
-active_contracts: 235
-draft_contracts: 6
+active_contracts: 236
+draft_contracts: 5
 prd_version: "1.10"
 policies_version: "1.31"
 subsystem_count: 22
@@ -34,7 +34,7 @@ workspace_test_count: 4064
 vsdd_factory_version: "1.0.0-rc.18"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-1088 LOCAL 3-CLEAN STRICT CONVERGED for S-DEMO-DTU-LIVE-SCENARIO-001-A (T4-A): 18-pass cascade complete; BC-5.39.001 3-CLEAN strict achieved at passes 16/17/18; feature HEAD 3e5179a2; just check GREEN 4141+ tests. NEXT: demo-recorder (Gate 6) → push feature → pr-manager PR → PR-LEVEL 3-CLEAN strict + pr-reviewer APPROVE + security CLEAR → CI → squash-merge → state-manager post-merge (POL-14 BC-2.06.018 draft→active). STATE v7.739."
+current_step: "D-1089 T4-A DONE — S-DEMO-DTU-LIVE-SCENARIO-001-A MERGED PR #181 develop@c287b00d 2026-06-10. BC-2.06.018 v1.6 active (POL-14). T5 NEXT: S-DEMO-DTU-LIVE-SCENARIO-001-B — story-writer materializes full impl spec from draft v1.0 → dclaude:remove-uncertainty → 12-gate delivery. T6 (S-DEMO-MULTI-TENANT-DTU-001 ready v1.2 BC-2.06.017) also independently deliverable. STATE v7.740."
 wave5_phase_b_status: "COMPLETE — Lanes 1/2/3/4 + S-MAINT all merged. Lane 1: S-SPEC-HTTP-METHOD-VALIDATION-001 PR#172 develop@752e407a. Lane 2: S-DEMO-QUERY-PUSHDOWN-001 PR#173 develop@9447671f. Lane 3: OCSF-CLASS-MIGRATION-001 PR#174 develop@0e89789a. Lane 4: S-DEMO-003 PR#176 develop@a42e3eaf. S-MAINT-ECRED-TAXONOMY-SYNC-001 PR#175 develop@c603741d."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
@@ -42,7 +42,7 @@ wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict 
 worktree_status: "stale: S-3.09 (FROZEN) + W3-FIX-S307-001 (BLOCKED superseded) — leave alone"
 
 # ── POL-14 STATE (last merge) ──
-pol14_last_merge: "S-DEMO-HARNESS-CLONE-PARITY-001 PR #180 — BC-2.16.013 idempotent (already active since D-776); no BC-INDEX count change (active=235 draft=2 UNCHANGED)"
+pol14_last_merge: "S-DEMO-DTU-LIVE-SCENARIO-001-A PR #181 — BC-2.06.018 v1.5→v1.6 draft→active (D-1089); active 235→236, draft 6→5"
 
 # ── DTU + PIPELINE META ──
 dtu_required: true
@@ -85,9 +85,9 @@ safe_to_compact: true
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-06-10 (D-1088 — LOCAL 3-CLEAN STRICT CONVERGED for S-DEMO-DTU-LIVE-SCENARIO-001-A; 18-pass cascade; BC-5.39.001 3-CLEAN at passes 16/17/18; STATE v7.738→v7.739) |
-| **Current Phase** | Wave 5 (wave-5-e-demo-fidelity) — **Phase C COMPLETE** (all 4 lanes merged). Phase B COMPLETE. T4 RECONCILED+COMPLETE (ADR-036 v2.2; BCs v1.5; E-DEMO taxonomy v1.64; Story A 001-A LOCAL CONVERGED — demo+PR gates next). Draft/deferred: S-DEMO-MULTI-TENANT-DTU-001 [T6]; S-MAINT-W3SEC-CITE-SWEEP-002 [D-954]; S-MAINT-ORPHAN-SENSORS-DIR-001 [D-977]; S-MAINT-EDITION-SYNC-001 [D-1027]; S-DEMO-LAUNCHER-CONSOLIDATION-001 [D-1029]. |
-| **Current Step** | D-1088 — LOCAL 3-CLEAN STRICT CONVERGED for S-DEMO-DTU-LIVE-SCENARIO-001-A (T4-A). 18-pass LOCAL adversary cascade complete; BC-5.39.001 3-CLEAN strict achieved at passes 16/17/18 (all CLEAN strict). Feature branch HEAD 3e5179a2 (11 code commits; develop base 64d34967). just check GREEN, 4141+ tests. Defect classes closed: serving-path/discriminator (P1–P5), archetype-forwarding reconciliation (P6; ADR-036 v2.2 3-arg new_with_seed; fixture_gen_seeded sentinel), LOW doc-pin (P7), CrowdStrike detections sentinel (P10), route rustdoc (P11), trace label (P12), Armis alerts route via exhaustive route inventory (P15). BC counts UNCHANGED 250/235/6; total_stories 189 UNCHANGED. BC-2.06.018 remains draft (POL-14 promotes at merge). NEXT: demo-recorder (Gate 6) → push feature → pr-manager PR → PR-LEVEL 3-CLEAN strict + pr-reviewer APPROVE + security CLEAR → CI → squash-merge → state-manager post-merge (POL-14 BC-2.06.018 draft→active). STATE v7.739. |
+| **Last Updated** | 2026-06-10 (D-1089 — T4-A DONE; S-DEMO-DTU-LIVE-SCENARIO-001-A MERGED PR #181 develop@c287b00d; POL-14 BC-2.06.018 v1.6 active; active 235→236 draft 6→5; T5 NEXT; STATE v7.739→v7.740) |
+| **Current Phase** | Wave 5 (wave-5-e-demo-fidelity) — **Phase C COMPLETE** (all 4 lanes merged). Phase B COMPLETE. T4-A DONE: S-DEMO-DTU-LIVE-SCENARIO-001-A MERGED PR #181 develop@c287b00d. T5 NEXT: S-DEMO-DTU-LIVE-SCENARIO-001-B story materialization. Draft/deferred: S-DEMO-MULTI-TENANT-DTU-001 [T6]; S-MAINT-W3SEC-CITE-SWEEP-002 [D-954]; S-MAINT-ORPHAN-SENSORS-DIR-001 [D-977]; S-MAINT-EDITION-SYNC-001 [D-1027]; S-DEMO-LAUNCHER-CONSOLIDATION-001 [D-1029]. |
+| **Current Step** | D-1089 — T4-A POST-MERGE. S-DEMO-DTU-LIVE-SCENARIO-001-A squash-merged PR #181 to develop@c287b00d 2026-06-10. LOCAL 18-pass 3-CLEAN strict (BC-5.39.001 P16/17/18) + PR-LEVEL 3-pass 3-CLEAN strict (P1/2/3) + security CLEAR + pr-reviewer APPROVE + CI all green. POL-14: BC-2.06.018 v1.5→v1.6 draft→active. Full 8-archetype seeding delivered; fixture_gen_seeded sentinel; per-client distinct data proven (INV-DISTINCT-DATA-001; ADR-036 v2.2). 21-pass total adversarial effort. BC counts: 250/236/5 (active 235→236, draft 6→5). T5 UNBLOCKED: story-writer materializes S-DEMO-DTU-LIVE-SCENARIO-001-B → dclaude:remove-uncertainty → 12-gate delivery. STATE v7.740. |
 
 ## Active Objective (North Star)
 
@@ -139,6 +139,7 @@ Build sequence (6 core + 3 optional; D-1082 complete roadmap): (1) S-DEMO-MULTI-
 | **5: S-DEMO-CLAROTY-PAGINATION-001** | **MERGED** | 2026-06-08 | 2026-06-08 | PR #179 develop@9ca7e7d7 | LOCAL 3-CLEAN strict (P1 FB-001 MED EC-002-test-gap fixed; P2/P3/P4 CLEAN) + PR-LEVEL 3-CLEAN strict (P1 OBS stale-SHA + SEC-001 MED CWE-209 fixed; DRIFT-ORCH-PRLEVEL-PUSH-001 push-before-regate; re-cascade P1/2/3 CLEAN fc8df590); security SECURITY-CLEAR-TO-MERGE; pr-reviewer APPROVE; CI 42 GREEN; Gap-CL-004 CLOSED; POL-14 idempotent; Phase C Lane 3 COMPLETE |
 | **5: S-DEMO-HARNESS-CLONE-PARITY-001** | **MERGED** | 2026-06-08 | 2026-06-09 | PR #180 develop@64d34967 | LOCAL 3-CLEAN strict CONVERGED + PR-LEVEL 3-CLEAN strict CONVERGED; security CLEAR; pr-reviewer APPROVE; CI 43/43 GREEN; F-P6-DEFER-001+F-P10-LOW-001 CLOSED; POL-14 idempotent; Phase C COMPLETE |
 | **5: Wave 5 Phase C** | **COMPLETE** | — | 2026-06-09 | All 4 lanes merged | Phase C COMPLETE — Lanes 1/2/3/4 all merged: #177 #178 #179 #180; develop@64d34967 |
+| **5: S-DEMO-DTU-LIVE-SCENARIO-001-A (T4-A)** | **MERGED** | 2026-06-09 | 2026-06-10 | PR #181 develop@c287b00d | LOCAL 18-pass 3-CLEAN strict (BC-5.39.001 P16/17/18) + PR-LEVEL 3-pass 3-CLEAN strict (P1/2/3); security CLEAR; pr-reviewer APPROVE; CI GREEN; BC-2.06.018 v1.6 active (POL-14); ADR-036 v2.2; full 8-archetype seeding; fixture_gen_seeded sentinel; INV-DISTINCT-DATA-001 proven |
 
 ## Current Phase Steps
 
@@ -159,6 +160,7 @@ _D-001..D-046 archived: `cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-1089 | 2026-06-10 | state-manager | **T4-A (S-DEMO-DTU-LIVE-SCENARIO-001-A) SQUASH-MERGED — post-merge burst. (1) PR #181 squash-merged to develop@c287b00d 2026-06-10. Feature branch auto-deleted. (2) LOCAL adversary: 18-pass 3-CLEAN strict convergence (BC-5.39.001 3-CLEAN strict at passes 16/17/18). PR-LEVEL adversary: 3-pass 3-CLEAN strict (passes 1/2/3). Security: SECURITY-CLEAR-TO-MERGE. pr-reviewer: APPROVE. CI: all green. (3) ADR-036 v2.2 full 8-archetype archetype-driven seeding delivered. `fixture_gen_seeded: bool` sentinel wired. Per-client distinct data proven (INV-DISTINCT-DATA-001). 21-pass total adversarial effort. Defect classes closed across all 21 passes: serving-path/discriminator, archetype-forwarding reconciliation, BC/story scope boundary, doc-pin, CrowdStrike detections sentinel, route rustdoc, trace label, Armis exhaustive route inventory, PR-LEVEL worktree-path-guard (directory-guard process gap), sibling-sweep recurrences (fixture_gen_seeded/counts), long-push timeout. (4) POL-14 BC auto-promotion: BC-2.06.018 v1.5→v1.6 draft→active. active_contracts 235→236, draft_contracts 6→5. (5) Artifact versions bumped: BC-INDEX v6.09→v6.10, STORY-INDEX v2.337→v2.338, ledger v1.11→v1.12. (6) T4-A task status: in-progress→done. T5 (S-DEMO-DTU-LIVE-SCENARIO-001-B) UNBLOCKED. T6 (S-DEMO-MULTI-TENANT-DTU-001 ready v1.2) also independently deliverable. (7) Two pr-reviewer NITs recorded as Story-B follow-up anchors: NIT-1 E-DEMO-004 message/trigger reconciliation (scenario.enabled vs non-default archetype); NIT-2 ScenarioConfig deserialized-but-unconsumed stub — consumed by Story B. (8) Lessons codified to cycles/wave-5-e-demo-fidelity/lessons.md: adversary directory-guard process gap (worktree absolute path requirement), sibling-sweep recurrence (fixture_gen_seeded + per-route/per-doc exhaustive inventory required), long-push timeout (pre-push gate 14min cold — background bash with 600s timeout). (9) pr-description.md in .factory/code-delivery/S-DEMO-DTU-LIVE-SCENARIO-001-A/ included (legitimate delivery bookkeeping). develop_head 64d34967→c287b00d. STATE v7.739→v7.740. Single-commit burst per TD-VSDD-053. LOCAL-ONLY — no push; origin/factory-artifacts remains 4d28cbc2.** | wave-5-e-demo-fidelity | 2026-06-10 | Decided by: pr-manager (squash-merge gate verification); recorded by state-manager (D-1089 post-merge burst per TD-VSDD-053; no push). |
 | D-1088 | 2026-06-10 | state-manager | **LOCAL 3-CLEAN STRICT CONVERGENCE durability checkpoint for S-DEMO-DTU-LIVE-SCENARIO-001-A (T4-A). (1) BC-5.39.001 3-CLEAN STRICT ACHIEVED at LOCAL adversary passes 16/17/18 (all three passes CLEAN(strict)=yes, CLEAN(PR-merge)=yes; zero findings of any severity at passes 16/17/18). Feature branch HEAD 3e5179a2 (11 code commits on feature/S-DEMO-DTU-LIVE-SCENARIO-001-A; develop base 64d34967). just check GREEN, 4141+ tests. (2) 18-pass cascade summary — defect classes closed: serving-path/discriminator (P1 CRIT: DTU clone serving path not wired to generator; P2 MED: Cyberint incidents scope; P3 MED: discriminator correctness; P4 CRIT: Claroty surface-purity + MED route-output purity + MED BC-pin sync + MED §Scope Boundary; P5 HIGH: BC-2.06.018 phantom-anchor); archetype-forwarding reconciliation (P6 HIGH: user decision full 8-archetype support → ADR-036 v2.2 3-arg new_with_seed + fixture_gen_seeded sentinel; PO/story-writer/implementer multi-agent); LOW doc pin (P7: OBS-P7-001 ADR-036 version pin in Token Budget); CrowdStrike detections sentinel (P10); route rustdoc (P11); trace label (P12); Armis alerts route via exhaustive route inventory (P15). Passes 8/9 CLEAN; P13/P14/P16/P17/P18 CLEAN. (3) Spec artifact versions UNCHANGED this burst: ADR-036 v2.2, BC-2.06.018 v1.5, story v1.5, BC-INDEX v6.09, STORY-INDEX v2.337, ARCH-INDEX v2.119 — all confirmed consistent (sibling-sweep read-only; no version bumps in this state-narrative checkpoint). (4) BC-2.06.018 remains draft — POL-14 promotes draft→active at merge. (5) NEXT GATES: Gate 6 demo-recorder per-AC → push feature/S-DEMO-DTU-LIVE-SCENARIO-001-A → pr-manager PR → PR-LEVEL 3-CLEAN strict (BC-5.39.001) + pr-reviewer APPROVE + security-reviewer CLEAR → CI all green → squash-merge develop → state-manager post-merge burst (POL-14 BC-2.06.018 draft→active, STORY-INDEX merged-row update). Story A NOT yet merged. (6) T4-A status: LOCAL CONVERGED; demo+PR gates in progress. Task ledger T4-A status note updated. (7) STATE v7.738→v7.739. Single-commit burst per TD-VSDD-053. LOCAL-ONLY — no push (factory-artifacts local HEAD ab3ae796 moved forward; origin/factory-artifacts remains 4d28cbc2).** | wave-5-e-demo-fidelity | 2026-06-10 | Decided by: adversary (LOCAL passes 16/17/18 — BC-5.39.001 3-CLEAN strict convergence for S-DEMO-DTU-LIVE-SCENARIO-001-A feature/S-DEMO-DTU-LIVE-SCENARIO-001-A HEAD 3e5179a2); recorded by state-manager (D-1088 durability-checkpoint burst; no spec/code/BC/story/index changes). |
 | D-1087 | 2026-06-09 | state-manager | **OBS-P7-001 closure burst (LOCAL adversary Pass 7 — LOW finding). (1) OBS-P7-001 CLOSED: §Token Budget ADR-036 full-read pin was "ADR-036 v2.0 (full)" — a stale citation to the superseded ADR version. Canonical ADR-036 is v2.2 (per D-1086; ARCH-INDEX v2.119). Corrected story S-DEMO-DTU-LIVE-SCENARIO-001-A §Token Budget row to "ADR-036 v2.2 (full)". §Narrative line and §Previous Story Intelligence line citations of "ADR-036 v2.0 §1.3" are intentionally PRESERVED — §1.3 is self-titled "Substrate Reality (v2.0 Correction)"; those are correct provenance anchors, not stale version pins. Sibling sweep (grep): 4 occurrences of "ADR-036 v2.0" in story file — Token Budget row CHANGED; 2× "v2.0 §1.3" provenance citations PRESERVED; 1× changelog v1.0 historical row PRESERVED (immutable per TD-VSDD-091). No other artifacts contain the stale full-read pin. (2) Story S-DEMO-DTU-LIVE-SCENARIO-001-A v1.4→v1.5; modified 2026-06-09; changelog v1.5 row added (monotonic descending). (3) STORY-INDEX v2.336→v2.337: S-DEMO-DTU-LIVE-SCENARIO-001-A Full Story List row updated to ready v1.5 + D-1087 annotation; changelog v2.337 row added (total_stories 189 UNCHANGED; BC counts 250/235/6 UNCHANGED). (4) STATE story_index_version v2.336→v2.337. (5) LOCAL adversary Pass 7 status recorded: CLEAN(strict)=no (OBS-P7-001 LOW was the sole finding); CLEAN(PR-merge)=yes (zero CRIT/HIGH/MED; this LOW/OBS-class is non-blocking for PR-merge purposes). Serving-path/discriminator class (P1–P5 findings) and archetype-forwarding (P6) are all verified closed and load-bearing. CASCADE STILL IN PROGRESS — strict streak 0/3 (OBS-P7-001 breaks the streak even at LOW severity per BC-5.39.001; CLEAN(strict) requires ZERO findings of any severity). Pass 8 is next — expected first strict-CLEAN candidate. Story A NOT delivered/merged; 12-gate TDD STILL NEXT after cascade converges. STATE v7.737→v7.738. Single-commit burst per TD-VSDD-053.** | wave-5-e-demo-fidelity | 2026-06-09 | Decided by: adversary (OBS-P7-001 finding — Token Budget stale pin); recorded by state-manager (D-1087 single-commit burst per TD-VSDD-053; LOCAL-ONLY — no push). |
 | D-1086 | 2026-06-09 | state-manager | **F-P6-HIGH-001 reconciliation burst — full 8-archetype support (user decision). (1) F-P6-HIGH-001 CLOSED: full 8-archetype forwarding — architect authored ADR-036 v2.1→v2.2 (canonical 3-arg `new_with_seed(seed: u64, archetype: Archetype, org_id: OrgId)` constructor; 2-arg form superseded; archetype forwarded to `generate()` across all 4 clones; DormantTenant-empty-fallback bug EC-018-003 fixed via `fixture_gen_seeded: bool` sentinel). (2) BC-2.06.018 v1.4→v1.5 (product-owner; line-75 2-arg drift fixed; archetype-driven contract reconciled to 3-arg canonical). (3) Story S-DEMO-DTU-LIVE-SCENARIO-001-A v1.3→v1.4 (story-writer; 3-arg ACs + 3 differential archetype Red Gate tests added; `red_gate_tests` 14→17; `acceptance_criteria_count` 14 UNCHANGED — ACs restructured not added; fixture_gen_seeded sentinel narrative added). (4) Implementer threaded `fixture_set→Archetype` through all 4 clones + added `fixture_gen_seeded: bool` sentinel on feature branch (code changes NOT in .factory). (5) ARCH-INDEX v2.118→v2.119: ADR-036 row bumped v2.1→v2.2; changelog v2.119 entry added. (6) BC-INDEX v6.08→v6.09: BC-2.06.018 inline row updated to v1.5; changelog v6.09 entry added. (7) STORY-INDEX v2.335→v2.336: S-DEMO-DTU-LIVE-SCENARIO-001-A row updated to v1.4 (17 RG tests); changelog v2.336 entry added. (8) STATE frontmatter: bc_index_version 6.08→6.09; story_index_version v2.335→v2.336; arch_index_version 2.118→2.119. BC counts UNCHANGED 250/235/6. total_stories 189 UNCHANGED. LOCAL cascade STILL IN PROGRESS — streak 0/3; Pass 7 next. Story A NOT delivered/merged; 12-gate TDD STILL NEXT after cascade converges. STATE v7.736→v7.737. Single-commit burst per TD-VSDD-053.** | wave-5-e-demo-fidelity | 2026-06-09 | Decided by: USER (full 8-archetype support — F-P6-HIGH-001 resolution via architect/PO/story-writer/implementer multi-agent reconciliation); recorded by state-manager (D-1086 single-commit burst per TD-VSDD-053; LOCAL-ONLY — no push). |
@@ -285,20 +287,20 @@ All historical cycle files:
 
 ---
 
-## Session Resume Checkpoint (2026-06-10 — D-1088: T4-A LOCAL 3-CLEAN STRICT CONVERGED; 18-pass cascade; feature HEAD 3e5179a2; STATE v7.739)
+## Session Resume Checkpoint (2026-06-10 — D-1089: T4-A DONE; PR #181 MERGED develop@c287b00d; BC-2.06.018 v1.6 active; T5 NEXT; STATE v7.740)
 
-_Previous checkpoint (D-1087; STATE v7.738) superseded by D-1088 LOCAL convergence durability checkpoint. Full durable resume snapshot is in SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-06-09-COMPLETE-ROADMAP-D1082 (still current — no SESSION-HANDOFF update needed for state-narrative checkpoint)._
+_Previous checkpoint (D-1088; STATE v7.739) superseded by D-1089 post-merge burst. Full durable resume snapshot in SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-06-09-COMPLETE-ROADMAP-D1082 (still current position — SESSION-HANDOFF update recommended for next session start)._
 
-**STATE v7.739. D-1088 — T4-A LOCAL 3-CLEAN STRICT CONVERGED: S-DEMO-DTU-LIVE-SCENARIO-001-A 18-pass cascade; BC-5.39.001 3-CLEAN strict at passes 16/17/18; feature HEAD 3e5179a2; just check GREEN 4141+ tests. STORY-INDEX v2.337. ADR-036 v2.2. BC-2.06.018 v1.5. BC-INDEX v6.09. ARCH-INDEX v2.119. total_stories 189 UNCHANGED. BC counts UNCHANGED 250/235/6. develop@64d34967. D-989 autonomy ACTIVE. BC-2.06.018 DRAFT (POL-14 promotes at merge). Wave 5 Phase C COMPLETE.**
+**STATE v7.740. D-1089 — T4-A DONE: S-DEMO-DTU-LIVE-SCENARIO-001-A MERGED PR #181 develop@c287b00d. BC-2.06.018 v1.6 active (POL-14). BC-INDEX v6.10. STORY-INDEX v2.338. ARCH-INDEX v2.119. total_stories 189. BC counts 250/236/5 (active 235→236, draft 6→5). D-989 autonomy ACTIVE. Wave 5 Phase C COMPLETE. T5 UNBLOCKED.**
 
 **RESUME PROTOCOL (run on fresh session start):**
 0. Read SESSION-HANDOFF.md §ACTIVE OBJECTIVE (North Star) — multi-client SOC demo; Build Sequence table shows all 6 core + 3 optional stories. Source of truth: task ledger §Complete Story Roadmap.
-0a. Read `.factory/objectives/multi-client-soc-demo-tasks.md`, find CURRENT POINTER = T4-A, execute its NEXT ACTION. §Complete Story Roadmap shows all 9 stories with verified status.
+0a. Read `.factory/objectives/multi-client-soc-demo-tasks.md`, find CURRENT POINTER = T5, execute its NEXT ACTION: story-writer materializes S-DEMO-DTU-LIVE-SCENARIO-001-B full impl spec → dclaude:remove-uncertainty → 12-gate delivery.
 1. `vsdd-factory:factory-worktree-health` (BLOCKING)
-2. Verify `git log --oneline develop | head -1` shows `64d34967`
-3. Verify `grep "^version:" .factory/STATE.md` shows `"7.739"`
-4. `gh pr list --state open` → expect NONE (Story A not yet pushed to origin)
+2. Verify `git log --oneline develop | head -1` shows `c287b00d`
+3. Verify `grep "^version:" .factory/STATE.md` shows `"7.740"`
+4. `gh pr list --state open` → expect NONE (Story A merged; Story B not yet started)
 5. Read SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-06-09-COMPLETE-ROADMAP-D1082 + §ACTIVE OBJECTIVE
-6. Read task ledger → CURRENT TASK: T4-A LOCAL CONVERGED; demo+PR gates in progress. NEXT ACTION: Gate 6 demo-recorder per-AC for S-DEMO-DTU-LIVE-SCENARIO-001-A (feature HEAD 3e5179a2; LOCAL 3-CLEAN strict DONE; 18-pass cascade closed).
-7. Read `.factory/stories/sprint-state.yaml` `current_story` — expect story_id: S-DEMO-DTU-LIVE-SCENARIO-001-A
-8. Wave 5 Phase C COMPLETE. NORTH STAR: multi-client SOC-analyst live demo. Story A v1.5, ADR-036 v2.2, BC-2.06.018 v1.5 → LOCAL CONVERGED (18-pass cascade; 3-CLEAN strict P16/17/18); NEXT: demo-recorder → push → pr-manager → PR-LEVEL 3-CLEAN strict + security + CI → squash-merge → POL-14 BC-2.06.018 draft→active. Full story roadmap: 6 core (2 ready + 1 deferred follow-up registered, 1 draft, 1 not-in-STORY-INDEX, 1 stub, 1 not-authored) + 3 optional.
+6. Read task ledger → CURRENT POINTER: T5 (S-DEMO-DTU-LIVE-SCENARIO-001-B; UNBLOCKED; story-writer materializes full impl spec from draft v1.0 shell; remove-uncertainty before dispatch; 12-gate delivery).
+7. Read `.factory/stories/sprint-state.yaml` `current_story` — expect story_id: S-DEMO-DTU-LIVE-SCENARIO-001-B
+8. Wave 5 Phase C COMPLETE. T4-A MERGED. NORTH STAR: multi-client SOC-analyst live demo. BC-2.06.018 v1.6 ACTIVE. T5 (Story B) NEXT; T6 (S-DEMO-MULTI-TENANT-DTU-001 v1.2 independent) also deliverable. Full roadmap: 6 core (1 merged, 1 ready, 1 draft, 1 draft-shell, 1 stub, 1 not-authored) + 3 optional.

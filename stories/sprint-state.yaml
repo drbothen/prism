@@ -675,17 +675,17 @@ deferred_post_demo:
   # reclassification from permitted-divergence → required-fidelity; user directive no-scope-compromise).
 
 current_story:
-  story_id: S-DEMO-DTU-LIVE-SCENARIO-001-A
+  story_id: S-DEMO-DTU-LIVE-SCENARIO-001-B
   delivery_step: not-started
-  spec_version: "1.4"
-  resume_at: "Story A (S-DEMO-DTU-LIVE-SCENARIO-001-A) ready v1.4, validated, delivery-ready. Deliver via 12-gate per-story TDD (worktree → test-writer 17 Red Gate → implementer 8 crates → LOCAL 3-CLEAN → demo → PR → PR-LEVEL 3-CLEAN → merge → POL-14 BC-2.06.018 active). Multi-client SOC demo objective; ledger `.factory/objectives/multi-client-soc-demo-tasks.md` CURRENT POINTER=T4-A. Story B (001-B) follows after A merges. S-DEMO-MULTI-TENANT-DTU-001 v1.2 also deliverable (independent, T6 — after T4-A+T5)."
-  note: "D-1086 2026-06-09 F-P6-HIGH-001 reconciliation burst. ADR-036 v2.2 (canonical 3-arg new_with_seed); BC-2.06.018 v1.5 (archetype-driven; line-75 drift fixed); story v1.4 (red_gate_tests 17; fixture_gen_seeded sentinel). See SESSION-HANDOFF §ACTIVE OBJECTIVE + §RESUME SNAPSHOT + ledger T4-A for full delivery spec."
-  last_updated_at: "2026-06-09"
+  spec_version: "1.0"
+  resume_at: "T4-A DONE (S-DEMO-DTU-LIVE-SCENARIO-001-A merged PR #181 develop@c287b00d 2026-06-10). CURRENT = T5: S-DEMO-DTU-LIVE-SCENARIO-001-B (Story B — scenario progression + enrichment correlation; 7pt; BC-2.06.019+020; draft v1.0). NEXT: story-writer materializes full Story B impl spec from draft shell → dclaude:remove-uncertainty → 12-gate TDD delivery. Depends on Story A merge (NOW SATISFIED). S-DEMO-MULTI-TENANT-DTU-001 v1.2 also independently deliverable (T6, after T5)."
+  note: "D-1089 2026-06-10 post-merge burst. T4-A DONE. T5 UNBLOCKED: Story B spec materialization (story-writer) + remove-uncertainty → delivery. BC-2.06.018 v1.6 active. develop@c287b00d."
+  last_updated_at: "2026-06-10"
 
 prereq_artifacts:
-  story_index: .factory/stories/STORY-INDEX.md         # v2.336 (STORY-INDEX v2.336 current; total_stories 189)
-  bc_index: .factory/specs/behavioral-contracts/BC-INDEX.md  # BC-INDEX v6.09; active 235, draft 6
-  state: .factory/STATE.md                              # v7.737 (D-1086 F-P6-HIGH-001 reconciliation burst)
+  story_index: .factory/stories/STORY-INDEX.md         # v2.338 (STORY-INDEX v2.338 current; total_stories 189)
+  bc_index: .factory/specs/behavioral-contracts/BC-INDEX.md  # BC-INDEX v6.10; active 236, draft 5
+  state: .factory/STATE.md                              # v7.740 (D-1089 post-merge burst)
   governing_adr: .factory/specs/architecture/decisions/ADR-031-dtu-equals-true-dtu-fidelity-principle.md  # v1.2 (ADR-031 architect e57eb5b1 reclassified 3 divergences)
   governing_audit: .factory/proposals/POLLER-DTU-FIDELITY-AUDIT-2026-05-29.md  # v1.1
 

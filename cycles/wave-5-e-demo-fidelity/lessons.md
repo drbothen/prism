@@ -547,3 +547,98 @@ Architect substrate assumptions about "generators are wired in" MUST be verified
 **Key observation:** The standing per-story remove-uncertainty directive (D-1061) caught a flaw that a dedicated architect ADR authoring session missed. This is the strongest ROI evidence yet for the directive. It is not a reflection on architect quality — architect reads at design-intent level; remove-uncertainty reads at call-chain and API-shape level. Both lenses are necessary and complementary.
 
 ---
+
+### [process-gap] S-DEMO-DTU-LIVE-SCENARIO-001-A: Adversary worktree-path-guard — sub-agent Grep/Glob/Read tools do NOT inherit bash `cd`; PR-LEVEL pass falsely reported "implementation missing"
+
+**Date recorded:** 2026-06-10
+**D-NNN anchor:** D-1089 (post-merge burst; process-gap lessons codification)
+**Story:** S-DEMO-DTU-LIVE-SCENARIO-001-A
+**Tags:** [process-gap] [adversary-dispatch] [worktree] [directory-guard] [PR-LEVEL]
+**Classification:** PROCESS-GAP — adversary dispatch on a worktree must use absolute worktree paths + a directory sanity-check guard.
+
+**Description:**
+
+During the PR-LEVEL adversary cascade for S-DEMO-DTU-LIVE-SCENARIO-001-A, one pass falsely reported "implementation missing" for a feature that was demonstrably present in the feature worktree. Root cause: the adversary sub-agent's Grep/Glob/Read tool calls resolved against the main checkout (`/Users/jmagady/Dev/prism/`) instead of the feature worktree (`/Users/jmagady/Dev/prism/.worktrees/S-DEMO-DTU-LIVE-SCENARIO-001-A/`). Sub-agent Bash tool calls with an explicit `cd` set the working directory for that Bash invocation, but the file-access tools (Grep/Glob/Read) do NOT inherit the Bash working directory — they require absolute paths. A PR-LEVEL adversary dispatched to review a worktree that searches relative paths (or searches from the parent directory) will silently examine the wrong tree and report missing/stale code.
+
+**Evidence:** The pass reported a CRITICAL finding ("feature not implemented") that was immediately refuted by reading the feature worktree directly. The finding was a false positive caused by path resolution, not a real defect.
+
+**Correct response (codified rule):**
+
+When dispatching an adversary (or any review agent) to evaluate a feature worktree:
+1. Pass the worktree's ABSOLUTE PATH explicitly in the dispatch instructions (e.g., `worktree_root: /Users/jmagady/Dev/prism/.worktrees/S-DEMO-DTU-LIVE-SCENARIO-001-A`).
+2. Require the adversary to include a directory sanity-check guard as its FIRST act: run `ls <worktree_root>/crates/` or `git -C <worktree_root> rev-parse HEAD` and verify the output matches the expected feature branch HEAD SHA. If the directory check fails or returns the main checkout content, STOP and report a dispatch error rather than producing false findings.
+3. All Grep/Glob/Read tool calls inside the adversary must use the absolute worktree path, not relative paths.
+
+**Self-improvement follow-up:**
+
+This is an upstream vsdd-factory / orchestrator-prompt improvement, not a prism story. Recommend codifying in the adversary dispatch discipline (adversary agent prompt) in the vsdd-factory engine. Justified deferral target: `drbothen/vsdd-factory` issue tracker (upstream adversary-dispatch discipline hardening). Non-blocking for current prism delivery.
+
+---
+
+### [process-gap] S-DEMO-DTU-LIVE-SCENARIO-001-A: Sibling-sweep recurrence — fixture_gen_seeded sentinel + count changes require exhaustive per-route/per-doc-surface inventory
+
+**Date recorded:** 2026-06-10
+**D-NNN anchor:** D-1089 (post-merge burst; process-gap lessons codification)
+**Story:** S-DEMO-DTU-LIVE-SCENARIO-001-A
+**Tags:** [process-gap] [sibling-sweep] [TD-VSDD-060] [sentinel] [count-change] [streak-reset]
+**Classification:** PROCESS-GAP — value/sentinel/count changes require exhaustive inventory of ALL sibling surfaces (TD-VSDD-060 strengthening).
+
+**Description:**
+
+The `fixture_gen_seeded` sentinel and related count/doc values recurred as sibling-miss findings across multiple passes in the S-DEMO-DTU-LIVE-SCENARIO-001-A cascade:
+- Pass 10 (P10): CrowdStrike detections sentinel missed in CI count expectations (`struct_violations` and related doc counts in `ci.yml`).
+- Pass 11 (P11): `fixture_gen_seeded` rustdoc missing in route handler doc comments.
+- Pass 15 (P15): Armis alerts route discovered via exhaustive route inventory — the initial fix had covered CrowdStrike/Claroty/Cyberint routes but missed Armis because the sweep was not route-by-route exhaustive.
+- PR-LEVEL passes: `ci.yml`/`struct_violations` doc counts recurred as sibling misses even after targeted fixes.
+
+Each of these findings reset or threatened the 3-CLEAN strict streak and required an additional fix burst + re-pass.
+
+**Root cause:**
+
+When implementing a new sentinel (like `fixture_gen_seeded: bool`), implementers (and story-writers doing subsequent claim-verification sweeps) ran targeted searches — e.g., "find all generator call sites" or "find all clone-pair build sites" — rather than exhaustive per-route and per-document-surface inventories. Targeted sweeps find the sites the sweeper expected but miss unexpected sites.
+
+**Correct response (codified rule — TD-VSDD-060 strengthening):**
+
+When a value, sentinel, or count change is made that must propagate across multiple routes or document surfaces:
+1. Produce an EXHAUSTIVE inventory FIRST: enumerate every route handler (not "the three routes I know about"), every doc comment surface, every CI count reference, every rustdoc site — before patching any of them.
+2. Apply the fix to ALL surfaces in a single commit. Do not apply to a subset and wait for the adversary to catch the rest.
+3. For route-by-route changes: read `impl Router::build_router()` or equivalent and count ALL arms/branches before editing. Do not rely on mental model of "the main routes."
+4. For CI count changes (e.g., `EXPECTED=N` in `ci.yml`): grep for the exact old count string across ALL CI-relevant files before changing any one file.
+
+This is a strengthening of TD-VSDD-060 (sibling-site sweep on value changes). The specific new clause: sentinel + count changes require per-route/per-doc-surface exhaustive inventory, not targeted/incremental sweeps.
+
+**Self-improvement follow-up:**
+
+Candidate for addition to the prism CLAUDE.md §Standing Adversary Probes as SAP-3 (exhaustive per-route/per-doc inventory on sentinel + count changes). Recommend the human add this as a CLAUDE.md entry (CLAUDE.md edits are human-only per Pipeline Authority). Interim: operationally apply the above rule in all future cascades. Non-blocking for current delivery.
+
+---
+
+### [process-gap] S-DEMO-DTU-LIVE-SCENARIO-001-A: Long-push timeout — pre-push `just check` gate runs ~14 min cold, exceeding sub-agent Bash timeouts
+
+**Date recorded:** 2026-06-10
+**D-NNN anchor:** D-1089 (post-merge burst; process-gap lessons codification)
+**Story:** S-DEMO-DTU-LIVE-SCENARIO-001-A
+**Tags:** [process-gap] [pre-push-gate] [bash-timeout] [background-bash] [delivery-discipline]
+**Classification:** PROCESS-GAP — feature-branch pushes with the full pre-push gate must be run as long-running background ops, not inside a normal agent turn.
+
+**Description:**
+
+When pushing the S-DEMO-DTU-LIVE-SCENARIO-001-A feature branch to origin, the pre-push lefthook hook runs `just check` — the full workspace check (fmt + clippy + nextest + doctests + crate-layout). On a cold build (first push after a feature branch's 11 commits), this runs approximately 14 minutes, which exceeds the default sub-agent Bash tool timeout. The pushes were completed successfully by the orchestrator by running the push command as a background Bash call with an explicit 600-second timeout parameter.
+
+**Evidence:** Bash calls with `timeout: 600000` (600s) succeeded; calls without extended timeout would have timed out mid-push (the hook was running during the timeout window).
+
+**Correct response (codified rule):**
+
+Feature-branch pushes that will trigger the pre-push `just check` gate MUST be run as:
+1. Background Bash (`run_in_background: true`) so the agent turn is not blocked, OR
+2. Bash with an explicit `timeout: 600000` (600 seconds = 10 minutes) or longer if the workspace is cold.
+
+The orchestrator MUST warn any sub-agent that is about to push a feature branch: "This push will trigger `just check` (~14 min cold). Run with `run_in_background: true` or `timeout: 600000`."
+
+Do NOT attempt a plain unadorned `git push` for a feature branch in a normal agent turn — it will time out before the lefthook gate completes.
+
+**Self-improvement follow-up:**
+
+This is an upstream vsdd-factory / pr-manager prompt improvement: the pr-manager's push step should explicitly document the long-running gate and prescribe the background/timeout pattern. Recommend adding to the pr-manager SKILL.md as a delivery discipline note. Justified deferral target: `drbothen/vsdd-factory` issue tracker (pr-manager push discipline). Non-blocking for current prism delivery.
+
+---
