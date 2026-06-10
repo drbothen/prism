@@ -97,3 +97,48 @@ fn test_f4_cs01_static_detection_has_flat_device_id() {
         );
     }
 }
+
+// ---------------------------------------------------------------------------
+// F5 / CS-02 — detections.tactic / technique flat on the static path
+// ---------------------------------------------------------------------------
+
+/// F5 / CS-02: every static fixture detection carries flat `tactic` / `technique`
+/// equal to `behaviors[0].tactic` / `behaviors[0].technique` (behaviors[] kept
+/// intact for API-shape fidelity). The generator already emits these flat.
+#[test]
+fn test_f5_cs02_static_detection_has_flat_tactic_technique() {
+    for (i, det) in static_detections().iter().enumerate() {
+        let b0 = det
+            .get("behaviors")
+            .and_then(|b| b.get(0))
+            .unwrap_or_else(|| panic!("static detection[{i}] missing behaviors[0]"));
+        for key in ["tactic", "technique"] {
+            let nested = b0
+                .get(key)
+                .and_then(|v| v.as_str())
+                .unwrap_or_else(|| panic!("static detection[{i}] behaviors[0] missing {key}"));
+            let flat = det
+                .get(key)
+                .and_then(|v| v.as_str())
+                .unwrap_or_else(|| panic!("static detection[{i}] missing flat {key} (CS-02)"));
+            assert_eq!(
+                flat, nested,
+                "static detection[{i}] flat {key} must equal behaviors[0].{key}"
+            );
+        }
+    }
+}
+
+/// F5 / CS-02 (non-regression): the generated path already emits flat
+/// `tactic` / `technique` — keep it that way.
+#[test]
+fn test_f5_cs02_generated_detection_has_flat_tactic_technique() {
+    for (i, det) in generated_records("detection").iter().enumerate() {
+        for key in ["tactic", "technique"] {
+            assert!(
+                det.get(key).and_then(|v| v.as_str()).is_some(),
+                "generated detection[{i}] missing flat {key}"
+            );
+        }
+    }
+}

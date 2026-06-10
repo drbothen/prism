@@ -6,6 +6,8 @@
     "created_timestamp": "2026-01-02T10:00:00Z",
     "updated_timestamp": "2026-01-02T10:05:00Z",
     "device_id": "h-001",
+    "tactic": "Initial Access",
+    "technique": "T1059",
     "device": {
       "device_id": "h-001",
       "hostname": "host-001.example.com"
@@ -24,6 +26,8 @@
     "created_timestamp": "2026-01-03T10:00:00Z",
     "updated_timestamp": "2026-01-03T10:05:00Z",
     "device_id": "h-002",
+    "tactic": "Execution",
+    "technique": "T1078",
     "device": {
       "device_id": "h-002",
       "hostname": "host-002.example.com"
@@ -42,6 +46,8 @@
     "created_timestamp": "2026-01-04T10:00:00Z",
     "updated_timestamp": "2026-01-04T10:05:00Z",
     "device_id": "h-003",
+    "tactic": "Persistence",
+    "technique": "T1053",
     "device": {
       "device_id": "h-003",
       "hostname": "host-003.example.com"
@@ -60,6 +66,8 @@
     "created_timestamp": "2026-01-05T10:00:00Z",
     "updated_timestamp": "2026-01-05T10:05:00Z",
     "device_id": "h-004",
+    "tactic": "Privilege Escalation",
+    "technique": "T1055",
     "device": {
       "device_id": "h-004",
       "hostname": "host-004.example.com"
@@ -78,6 +86,8 @@
     "created_timestamp": "2026-01-06T10:00:00Z",
     "updated_timestamp": "2026-01-06T10:05:00Z",
     "device_id": "h-005",
+    "tactic": "Defense Evasion",
+    "technique": "T1003",
     "device": {
       "device_id": "h-005",
       "hostname": "host-005.example.com"
@@ -96,6 +106,8 @@
     "created_timestamp": "2026-01-07T10:00:00Z",
     "updated_timestamp": "2026-01-07T10:05:00Z",
     "device_id": "h-006",
+    "tactic": "Credential Access",
+    "technique": "T1021",
     "device": {
       "device_id": "h-006",
       "hostname": "host-006.example.com"
@@ -114,6 +126,8 @@
     "created_timestamp": "2026-01-08T10:00:00Z",
     "updated_timestamp": "2026-01-08T10:05:00Z",
     "device_id": "h-007",
+    "tactic": "Discovery",
+    "technique": "T1018",
     "device": {
       "device_id": "h-007",
       "hostname": "host-007.example.com"
@@ -132,6 +146,8 @@
     "created_timestamp": "2026-01-09T10:00:00Z",
     "updated_timestamp": "2026-01-09T10:05:00Z",
     "device_id": "h-008",
+    "tactic": "Lateral Movement",
+    "technique": "T1082",
     "device": {
       "device_id": "h-008",
       "hostname": "host-008.example.com"
@@ -150,6 +166,8 @@
     "created_timestamp": "2026-01-10T10:00:00Z",
     "updated_timestamp": "2026-01-10T10:05:00Z",
     "device_id": "h-009",
+    "tactic": "Collection",
+    "technique": "T1098",
     "device": {
       "device_id": "h-009",
       "hostname": "host-009.example.com"
@@ -168,6 +186,8 @@
     "created_timestamp": "2026-01-11T10:00:00Z",
     "updated_timestamp": "2026-01-11T10:05:00Z",
     "device_id": "h-010",
+    "tactic": "Exfiltration",
+    "technique": "T1071",
     "device": {
       "device_id": "h-010",
       "hostname": "host-010.example.com"
@@ -186,6 +206,8 @@
     "created_timestamp": "2026-01-12T10:00:00Z",
     "updated_timestamp": "2026-01-12T10:05:00Z",
     "device_id": "h-011",
+    "tactic": "Initial Access",
+    "technique": "T1059",
     "device": {
       "device_id": "h-011",
       "hostname": "host-011.example.com"
@@ -204,6 +226,8 @@
     "created_timestamp": "2026-01-13T10:00:00Z",
     "updated_timestamp": "2026-01-13T10:05:00Z",
     "device_id": "h-012",
+    "tactic": "Execution",
+    "technique": "T1078",
     "device": {
       "device_id": "h-012",
       "hostname": "host-012.example.com"
@@ -222,6 +246,8 @@
     "created_timestamp": "2026-01-14T10:00:00Z",
     "updated_timestamp": "2026-01-14T10:05:00Z",
     "device_id": "h-013",
+    "tactic": "Persistence",
+    "technique": "T1053",
     "device": {
       "device_id": "h-013",
       "hostname": "host-013.example.com"
@@ -240,6 +266,8 @@
     "created_timestamp": "2026-01-15T10:00:00Z",
     "updated_timestamp": "2026-01-15T10:05:00Z",
     "device_id": "h-014",
+    "tactic": "Privilege Escalation",
+    "technique": "T1055",
     "device": {
       "device_id": "h-014",
       "hostname": "host-014.example.com"
@@ -258,6 +286,8 @@
     "created_timestamp": "2026-01-16T10:00:00Z",
     "updated_timestamp": "2026-01-16T10:05:00Z",
     "device_id": "h-015",
+    "tactic": "Defense Evasion",
+    "technique": "T1003",
     "device": {
       "device_id": "h-015",
       "hostname": "host-015.example.com"
@@ -276,6 +306,8 @@
     "created_timestamp": "2026-01-17T10:00:00Z",
     "updated_timestamp": "2026-01-17T10:05:00Z",
     "device_id": "h-016",
+    "tactic": "Credential Access",
+    "technique": "T1021",
     "device": {
       "device_id": "h-016",
       "hostname": "host-016.example.com"
@@ -294,6 +326,8 @@
     "created_timestamp": "2026-01-18T10:00:00Z",
     "updated_timestamp": "2026-01-18T10:05:00Z",
     "device_id": "h-017",
+    "tactic": "Discovery",
+    "technique": "T1018",
     "device": {
       "device_id": "h-017",
       "hostname": "host-017.example.com"
@@ -312,6 +346,8 @@
     "created_timestamp": "2026-01-19T10:00:00Z",
     "updated_timestamp": "2026-01-19T10:05:00Z",
     "device_id": "h-018",
+    "tactic": "Lateral Movement",
+    "technique": "T1082",
     "device": {
       "device_id": "h-018",
       "hostname": "host-018.example.com"
@@ -330,6 +366,8 @@
     "created_timestamp": "2026-01-20T10:00:00Z",
     "updated_timestamp": "2026-01-20T10:05:00Z",
     "device_id": "h-019",
+    "tactic": "Collection",
+    "technique": "T1098",
     "device": {
       "device_id": "h-019",
       "hostname": "host-019.example.com"
@@ -348,6 +386,8 @@
     "created_timestamp": "2026-01-21T10:00:00Z",
     "updated_timestamp": "2026-01-21T10:05:00Z",
     "device_id": "h-020",
+    "tactic": "Exfiltration",
+    "technique": "T1071",
     "device": {
       "device_id": "h-020",
       "hostname": "host-020.example.com"
@@ -366,6 +406,8 @@
     "created_timestamp": "2026-01-22T10:00:00Z",
     "updated_timestamp": "2026-01-22T10:05:00Z",
     "device_id": "h-021",
+    "tactic": "Initial Access",
+    "technique": "T1059",
     "device": {
       "device_id": "h-021",
       "hostname": "host-021.example.com"
@@ -384,6 +426,8 @@
     "created_timestamp": "2026-01-23T10:00:00Z",
     "updated_timestamp": "2026-01-23T10:05:00Z",
     "device_id": "h-022",
+    "tactic": "Execution",
+    "technique": "T1078",
     "device": {
       "device_id": "h-022",
       "hostname": "host-022.example.com"
@@ -402,6 +446,8 @@
     "created_timestamp": "2026-01-24T10:00:00Z",
     "updated_timestamp": "2026-01-24T10:05:00Z",
     "device_id": "h-023",
+    "tactic": "Persistence",
+    "technique": "T1053",
     "device": {
       "device_id": "h-023",
       "hostname": "host-023.example.com"
@@ -420,6 +466,8 @@
     "created_timestamp": "2026-01-25T10:00:00Z",
     "updated_timestamp": "2026-01-25T10:05:00Z",
     "device_id": "h-024",
+    "tactic": "Privilege Escalation",
+    "technique": "T1055",
     "device": {
       "device_id": "h-024",
       "hostname": "host-024.example.com"
@@ -438,6 +486,8 @@
     "created_timestamp": "2026-01-26T10:00:00Z",
     "updated_timestamp": "2026-01-26T10:05:00Z",
     "device_id": "h-025",
+    "tactic": "Defense Evasion",
+    "technique": "T1003",
     "device": {
       "device_id": "h-025",
       "hostname": "host-025.example.com"
@@ -456,6 +506,8 @@
     "created_timestamp": "2026-01-27T10:00:00Z",
     "updated_timestamp": "2026-01-27T10:05:00Z",
     "device_id": "h-026",
+    "tactic": "Credential Access",
+    "technique": "T1021",
     "device": {
       "device_id": "h-026",
       "hostname": "host-026.example.com"
@@ -474,6 +526,8 @@
     "created_timestamp": "2026-01-28T10:00:00Z",
     "updated_timestamp": "2026-01-28T10:05:00Z",
     "device_id": "h-027",
+    "tactic": "Discovery",
+    "technique": "T1018",
     "device": {
       "device_id": "h-027",
       "hostname": "host-027.example.com"
@@ -492,6 +546,8 @@
     "created_timestamp": "2026-01-01T10:00:00Z",
     "updated_timestamp": "2026-01-01T10:05:00Z",
     "device_id": "h-028",
+    "tactic": "Lateral Movement",
+    "technique": "T1082",
     "device": {
       "device_id": "h-028",
       "hostname": "host-028.example.com"
@@ -510,6 +566,8 @@
     "created_timestamp": "2026-01-02T10:00:00Z",
     "updated_timestamp": "2026-01-02T10:05:00Z",
     "device_id": "h-029",
+    "tactic": "Collection",
+    "technique": "T1098",
     "device": {
       "device_id": "h-029",
       "hostname": "host-029.example.com"
@@ -528,6 +586,8 @@
     "created_timestamp": "2026-01-03T10:00:00Z",
     "updated_timestamp": "2026-01-03T10:05:00Z",
     "device_id": "h-030",
+    "tactic": "Exfiltration",
+    "technique": "T1071",
     "device": {
       "device_id": "h-030",
       "hostname": "host-030.example.com"
@@ -546,6 +606,8 @@
     "created_timestamp": "2026-01-04T10:00:00Z",
     "updated_timestamp": "2026-01-04T10:05:00Z",
     "device_id": "h-001",
+    "tactic": "Initial Access",
+    "technique": "T1059",
     "device": {
       "device_id": "h-001",
       "hostname": "host-001.example.com"
@@ -564,6 +626,8 @@
     "created_timestamp": "2026-01-05T10:00:00Z",
     "updated_timestamp": "2026-01-05T10:05:00Z",
     "device_id": "h-002",
+    "tactic": "Execution",
+    "technique": "T1078",
     "device": {
       "device_id": "h-002",
       "hostname": "host-002.example.com"
@@ -582,6 +646,8 @@
     "created_timestamp": "2026-01-06T10:00:00Z",
     "updated_timestamp": "2026-01-06T10:05:00Z",
     "device_id": "h-003",
+    "tactic": "Persistence",
+    "technique": "T1053",
     "device": {
       "device_id": "h-003",
       "hostname": "host-003.example.com"
@@ -600,6 +666,8 @@
     "created_timestamp": "2026-01-07T10:00:00Z",
     "updated_timestamp": "2026-01-07T10:05:00Z",
     "device_id": "h-004",
+    "tactic": "Privilege Escalation",
+    "technique": "T1055",
     "device": {
       "device_id": "h-004",
       "hostname": "host-004.example.com"
@@ -618,6 +686,8 @@
     "created_timestamp": "2026-01-08T10:00:00Z",
     "updated_timestamp": "2026-01-08T10:05:00Z",
     "device_id": "h-005",
+    "tactic": "Defense Evasion",
+    "technique": "T1003",
     "device": {
       "device_id": "h-005",
       "hostname": "host-005.example.com"
@@ -636,6 +706,8 @@
     "created_timestamp": "2026-01-09T10:00:00Z",
     "updated_timestamp": "2026-01-09T10:05:00Z",
     "device_id": "h-006",
+    "tactic": "Credential Access",
+    "technique": "T1021",
     "device": {
       "device_id": "h-006",
       "hostname": "host-006.example.com"
@@ -654,6 +726,8 @@
     "created_timestamp": "2026-01-10T10:00:00Z",
     "updated_timestamp": "2026-01-10T10:05:00Z",
     "device_id": "h-007",
+    "tactic": "Discovery",
+    "technique": "T1018",
     "device": {
       "device_id": "h-007",
       "hostname": "host-007.example.com"
@@ -672,6 +746,8 @@
     "created_timestamp": "2026-01-11T10:00:00Z",
     "updated_timestamp": "2026-01-11T10:05:00Z",
     "device_id": "h-008",
+    "tactic": "Lateral Movement",
+    "technique": "T1082",
     "device": {
       "device_id": "h-008",
       "hostname": "host-008.example.com"
@@ -690,6 +766,8 @@
     "created_timestamp": "2026-01-12T10:00:00Z",
     "updated_timestamp": "2026-01-12T10:05:00Z",
     "device_id": "h-009",
+    "tactic": "Collection",
+    "technique": "T1098",
     "device": {
       "device_id": "h-009",
       "hostname": "host-009.example.com"
@@ -708,6 +786,8 @@
     "created_timestamp": "2026-01-13T10:00:00Z",
     "updated_timestamp": "2026-01-13T10:05:00Z",
     "device_id": "h-010",
+    "tactic": "Exfiltration",
+    "technique": "T1071",
     "device": {
       "device_id": "h-010",
       "hostname": "host-010.example.com"
@@ -726,6 +806,8 @@
     "created_timestamp": "2026-01-14T10:00:00Z",
     "updated_timestamp": "2026-01-14T10:05:00Z",
     "device_id": "h-011",
+    "tactic": "Initial Access",
+    "technique": "T1059",
     "device": {
       "device_id": "h-011",
       "hostname": "host-011.example.com"
@@ -744,6 +826,8 @@
     "created_timestamp": "2026-01-15T10:00:00Z",
     "updated_timestamp": "2026-01-15T10:05:00Z",
     "device_id": "h-012",
+    "tactic": "Execution",
+    "technique": "T1078",
     "device": {
       "device_id": "h-012",
       "hostname": "host-012.example.com"
@@ -762,6 +846,8 @@
     "created_timestamp": "2026-01-16T10:00:00Z",
     "updated_timestamp": "2026-01-16T10:05:00Z",
     "device_id": "h-013",
+    "tactic": "Persistence",
+    "technique": "T1053",
     "device": {
       "device_id": "h-013",
       "hostname": "host-013.example.com"
@@ -780,6 +866,8 @@
     "created_timestamp": "2026-01-17T10:00:00Z",
     "updated_timestamp": "2026-01-17T10:05:00Z",
     "device_id": "h-014",
+    "tactic": "Privilege Escalation",
+    "technique": "T1055",
     "device": {
       "device_id": "h-014",
       "hostname": "host-014.example.com"
@@ -798,6 +886,8 @@
     "created_timestamp": "2026-01-18T10:00:00Z",
     "updated_timestamp": "2026-01-18T10:05:00Z",
     "device_id": "h-015",
+    "tactic": "Defense Evasion",
+    "technique": "T1003",
     "device": {
       "device_id": "h-015",
       "hostname": "host-015.example.com"
@@ -816,6 +906,8 @@
     "created_timestamp": "2026-01-19T10:00:00Z",
     "updated_timestamp": "2026-01-19T10:05:00Z",
     "device_id": "h-016",
+    "tactic": "Credential Access",
+    "technique": "T1021",
     "device": {
       "device_id": "h-016",
       "hostname": "host-016.example.com"
@@ -834,6 +926,8 @@
     "created_timestamp": "2026-01-20T10:00:00Z",
     "updated_timestamp": "2026-01-20T10:05:00Z",
     "device_id": "h-017",
+    "tactic": "Discovery",
+    "technique": "T1018",
     "device": {
       "device_id": "h-017",
       "hostname": "host-017.example.com"
@@ -852,6 +946,8 @@
     "created_timestamp": "2026-01-21T10:00:00Z",
     "updated_timestamp": "2026-01-21T10:05:00Z",
     "device_id": "h-018",
+    "tactic": "Lateral Movement",
+    "technique": "T1082",
     "device": {
       "device_id": "h-018",
       "hostname": "host-018.example.com"
@@ -870,6 +966,8 @@
     "created_timestamp": "2026-01-22T10:00:00Z",
     "updated_timestamp": "2026-01-22T10:05:00Z",
     "device_id": "h-019",
+    "tactic": "Collection",
+    "technique": "T1098",
     "device": {
       "device_id": "h-019",
       "hostname": "host-019.example.com"
@@ -888,6 +986,8 @@
     "created_timestamp": "2026-01-23T10:00:00Z",
     "updated_timestamp": "2026-01-23T10:05:00Z",
     "device_id": "h-020",
+    "tactic": "Exfiltration",
+    "technique": "T1071",
     "device": {
       "device_id": "h-020",
       "hostname": "host-020.example.com"
