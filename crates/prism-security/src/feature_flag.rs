@@ -204,10 +204,18 @@ impl FeatureFlagEvaluator {
                      into this binary",
                     capability
                 ),
+                // SNS-02 (2026-06-10 review): post-BC-2.16.012 the write pipeline is
+                // registry-driven — the compile-time tier is derived from whether the
+                // sensor's TOML spec declares [[write_endpoints]] sections that are
+                // loaded into the WriteEndpointRegistry at boot. The {sensor}-write
+                // Cargo features are empty test-gating declarations (see
+                // prism-query/src/write_pipeline.rs registry-lookup site), so a
+                // "rebuild with --features" suggestion is unactionable.
                 suggestion: format!(
-                    "Rebuild prism with the appropriate Cargo feature enabled. \
-                     For '{}', enable the corresponding crowdstrike-write feature flag \
-                     during compilation: `cargo build --features crowdstrike-write`.",
+                    "Declare a [[write_endpoints]] section for '{}' in the sensor's \
+                     TOML spec and ensure the spec is loaded at boot so the \
+                     write-endpoint registry contains this capability \
+                     (registry-driven write dispatch, BC-2.16.012).",
                     capability
                 ),
                 resolution_trace: resolution_trace.clone(),

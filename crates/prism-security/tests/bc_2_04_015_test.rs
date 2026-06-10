@@ -101,12 +101,22 @@ fn test_BC_2_04_015_ac6_compile_absent_returns_capability_denied_with_rebuild_su
                 "BC-2.04.015: compile-time denied reason must mention 'not compiled', got: {}",
                 reason
             );
-            // Suggestion must mention rebuilding.
+            // SNS-02 (2026-06-10 review): suggestion must point at the registry-driven
+            // remediation — loading a TOML [[write_endpoints]] spec for the sensor
+            // (BC-2.16.012) — NOT at rebuilding with Cargo features. Post-BC-2.16.012
+            // the {sensor}-write Cargo features are empty test-gating declarations;
+            // a "cargo build --features" suggestion is unactionable and misleading.
             assert!(
-                suggestion.contains("Rebuild")
-                    || suggestion.contains("rebuild")
-                    || suggestion.contains("crowdstrike-write"),
-                "BC-2.04.015: compile-time suggestion must mention rebuild, got: {}",
+                suggestion.contains("[[write_endpoints]]"),
+                "BC-2.04.015/SNS-02: compile-tier suggestion must direct the operator to \
+                 load a TOML [[write_endpoints]] spec (registry-driven dispatch, \
+                 BC-2.16.012), got: {}",
+                suggestion
+            );
+            assert!(
+                !suggestion.contains("cargo build --features"),
+                "BC-2.04.015/SNS-02: suggestion must NOT point at Cargo feature rebuilds \
+                 (registry-driven dispatch per BC-2.16.012), got: {}",
                 suggestion
             );
             assert!(
