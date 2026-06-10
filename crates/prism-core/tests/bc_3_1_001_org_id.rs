@@ -57,6 +57,7 @@ fn test_bc_3_1_001_ac_1_new_generates_v7_uuid() {
 /// given a v4 UUID. The test calls `from_uuid_v7` directly (not the unchecked
 /// `from_uuid`) and relies on that enforcement.
 #[test]
+// POL-16-OK: intentional-panic contract test
 #[should_panic(expected = "not a UUID v7")]
 fn test_bc_3_1_001_ac_1_from_uuid_panics_on_v4() {
     // Construct a deterministic v4 UUID for reproducible failure output.
@@ -195,6 +196,7 @@ fn test_bc_3_1_001_ac_4_display_hyphenated_lowercase() {
 /// `OrgId::from_uuid_v7` enforces the UUID version and panics with "not a UUID v7"
 /// when given a non-v7 UUID (see `ids.rs:83`).
 #[test]
+// POL-16-OK: intentional-panic contract test
 #[should_panic(expected = "not a UUID v7")]
 fn test_bc_3_1_001_ec_001_from_uuid_v4_panics() {
     // A well-known v4 UUID (RFC 4122 nil-like with v4 version bits set).

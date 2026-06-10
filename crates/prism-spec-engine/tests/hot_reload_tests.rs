@@ -1104,6 +1104,7 @@ fn test_arch_compliance_config_snapshot_immutable_after_construction() {
 
 /// BC-2.16.007: HotReloadWatcher::start stub exists and panics with unimplemented.
 #[test]
+// POL-16-OK: Red Gate stub-surface test — retires when S-1.12 implements HotReloadWatcher::start
 #[should_panic(expected = "not yet implemented")]
 fn test_BC_2_16_007_hot_reload_watcher_start_is_stub() {
     let dir = TempDir::new().unwrap();
