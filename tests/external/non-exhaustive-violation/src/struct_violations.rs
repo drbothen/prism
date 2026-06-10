@@ -4,9 +4,10 @@
 //! struct-literal construction. After `#[non_exhaustive]` is applied, each
 //! literal MUST fail with E0639 (cannot create non-exhaustive struct expression).
 //!
-//! Violations 1-6, 9-12, 16-17, 20-24, 26, 32-36, 37-43, 45, 49-51 (34 total E0639 expected after Gate 4).
-//! Gate 3: v51 causes E0432 (unresolved import) — ScenarioEntityCatalog not yet public.
-//! Gate 4: v51 will cause E0639 once ScenarioEntityCatalog is implemented with #[non_exhaustive].
+//! Violations 1-6, 9-12, 16-17, 20-24, 26, 32-36, 37-43, 45, 47, 49-51 (35 total E0639 in this file).
+//! v51 (ScenarioEntityCatalog) is a LIVE E0639 violation — the type is public
+//! (prism_dtu_common::scenario; lib.rs pub use) and #[non_exhaustive]; counted in
+//! ci.yml EXPECTED=50 (ADR-036 §2.2, S-DEMO-DTU-LIVE-SCENARIO-001-A AC-014).
 //!
 //! S-SPEC-TYPE-UNIFICATION-001: Violation 30 (types::SensorSpec) removed.
 //! `types::SensorSpec` was deleted (ADR-030 Approach D — unified on spec_parser::SensorSpec).
