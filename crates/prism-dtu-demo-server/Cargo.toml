@@ -8,6 +8,9 @@ publish = false
 
 [features]
 default = ["dtu"]
+# F9 / DTU-04 (review 2026-06-10): jira/pagerduty clone wiring removed — the demo
+# server never constructed either clone. Re-add the deps + dtu/tls feature fan-out
+# entries when wave-4 S-4.08 action demos materialize.
 dtu = [
     "prism-dtu-crowdstrike/dtu",
     "prism-dtu-claroty/dtu",
@@ -15,8 +18,6 @@ dtu = [
     "prism-dtu-armis/dtu",
     "prism-dtu-threatintel/dtu",
     "prism-dtu-nvd/dtu",
-    "prism-dtu-pagerduty/dtu",
-    "prism-dtu-jira/dtu",
 ]
 # S-DEMO-DTU-LIVE-SCENARIO-001-A: fixture-gen activates new_with_seed constructors on all 4
 # generator-backed clones (BC-2.06.018 postcondition 1 / ADR-036 §2.3).
@@ -42,7 +43,6 @@ tls = [
     "prism-dtu-armis/tls",
     "prism-dtu-threatintel/tls",
     "prism-dtu-nvd/tls",
-    "prism-dtu-pagerduty/tls",
 ]
 
 [[bin]]
@@ -58,8 +58,6 @@ prism-dtu-cyberint = { path = "../prism-dtu-cyberint", version = "0.1.0" }
 prism-dtu-armis = { path = "../prism-dtu-armis", version = "0.1.0" }
 prism-dtu-threatintel = { path = "../prism-dtu-threatintel", version = "0.1.0" }
 prism-dtu-nvd = { path = "../prism-dtu-nvd", version = "0.1.0" }
-prism-dtu-pagerduty = { path = "../prism-dtu-pagerduty", version = "0.1.0" }
-prism-dtu-jira = { path = "../prism-dtu-jira", version = "0.1.0" }
 # S-DEMO-DTU-LIVE-SCENARIO-001-A: uuid for parsing org_id strings; prism-core for OrgId type
 # (BC-2.06.018 E-DEMO-005 guard in build_clone_pairs — ADR-036 §6)
 uuid = { version = "1", features = ["v4"] }
