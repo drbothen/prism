@@ -123,8 +123,12 @@ impl FeatureFlagEvaluator {
             return CapabilityCheckResult::DeniedCompileTime {
                 capability: capability.to_string(),
                 client_id: client_id.to_string(),
+                // P1-02 (2026-06-10 review pass-1): registry semantics — the
+                // compile-time tier is Absent when no [[write_endpoints]] declaration
+                // for the capability is loaded into the registry (BC-2.16.012).
                 resolution_trace: vec![format!(
-                    "compile-time=Absent: feature not compiled for '{}'",
+                    "compile-time=Absent: no [[write_endpoints]] declaration for '{}' \
+                     (registry-driven dispatch, BC-2.16.012)",
                     capability
                 )],
             };
@@ -199,9 +203,13 @@ impl FeatureFlagEvaluator {
             } => Some(PrismError::CapabilityDenied {
                 capability: capability.clone(),
                 client_id: client_id.clone(),
+                // P1-02 (2026-06-10 review pass-1): registry semantics, not Cargo
+                // features — under registry-driven dispatch nothing is "un-compiled";
+                // the compile-time tier is Absent because the sensor's TOML spec
+                // declares no [[write_endpoints]] for this capability (BC-2.16.012).
                 reason: format!(
-                    "Feature not compiled: the write code family for '{}' is not compiled \
-                     into this binary",
+                    "Write capability '{}' has no [[write_endpoints]] declaration in \
+                     the sensor's TOML spec (registry-driven dispatch, BC-2.16.012)",
                     capability
                 ),
                 // SNS-02 (2026-06-10 review): post-BC-2.16.012 the write pipeline is

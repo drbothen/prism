@@ -76,7 +76,11 @@ fn test_BC_2_04_015_ac6_denied_write_returns_capability_denied_error() {
     }
 }
 
-/// AC-6 variant: compile-time absent → CapabilityDenied with rebuild suggestion.
+/// AC-6 variant: compile-time absent → CapabilityDenied with registry-driven
+/// remediation suggestion ([[write_endpoints]] TOML declaration, BC-2.16.012).
+/// Fn name retains the historical "rebuild_suggestion" suffix — it is the Red Gate
+/// traceability anchor in the S-1.08 red-gate-log; the asserted suggestion is the
+/// registry framing (SNS-02), and the reason is registry framing too (P1-02).
 #[test]
 fn test_BC_2_04_015_ac6_compile_absent_returns_capability_denied_with_rebuild_suggestion() {
     let evaluator = make_empty_evaluator();
@@ -95,10 +99,22 @@ fn test_BC_2_04_015_ac6_compile_absent_returns_capability_denied_with_rebuild_su
             resolution_trace,
             ..
         } => {
-            // Reason must indicate compile-time denial.
+            // P1-02 (2026-06-10 review pass-1): reason must indicate compile-tier
+            // denial in REGISTRY semantics — the capability has no [[write_endpoints]]
+            // declaration in the sensor's TOML spec (BC-2.16.012). The retired
+            // "Feature not compiled" framing is false under registry-driven dispatch
+            // (nothing is un-compiled) and must NOT reappear.
             assert!(
-                reason.contains("not compiled") || reason.contains("Feature not compiled"),
-                "BC-2.04.015: compile-time denied reason must mention 'not compiled', got: {}",
+                reason.contains("no [[write_endpoints]] declaration"),
+                "BC-2.04.015/P1-02: compile-tier denied reason must cite the missing \
+                 [[write_endpoints]] declaration (registry-driven dispatch, \
+                 BC-2.16.012), got: {}",
+                reason
+            );
+            assert!(
+                !reason.contains("not compiled"),
+                "BC-2.04.015/P1-02: reason must NOT claim the code family is \
+                 'not compiled' (false under registry-driven dispatch), got: {}",
                 reason
             );
             // SNS-02 (2026-06-10 review): suggestion must point at the registry-driven
