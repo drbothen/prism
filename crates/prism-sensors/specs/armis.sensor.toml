@@ -22,7 +22,12 @@
 # by the normalization layer; self-referential entries yield the same absent value and are skipped
 # by the defensive guard in normalize_timestamp_fields (pipeline.rs).
 # A tracing::warn! with event_type = "timestamp.fallback_to_now" is emitted by the
-# normalization layer when all chain fields are absent (BC-2.16.002 row 35).
+# prism-spec-engine pipeline normalization pass (normalize_timestamp_fields in
+# crates/prism-spec-engine/src/pipeline.rs, invoked by PipelineExecutor for every
+# table fetch) when all chain fields are absent (BC-2.16.002 row 35). There is no
+# Armis-specific adapter emission — the legacy ArmisAdapter was deleted by
+# PLUGIN-MIGRATION-001-A. Engagement for THIS spec is pinned by the pipeline unit
+# test test_f11_sns04_armis_devices_last_seen_fallback_engages (loads this file).
 
 sensor_id = "armis"
 name = "Armis Centrix"
@@ -81,7 +86,12 @@ ocsf_class = "device"
 
   # Primary timestamp column: last_seen (may be null per DTU fixture d-001).
   # timestamp_fallback_chain per ADR-028 v1.10 §D8-B (Option A LOCKED):
-  #   last_seen → first_seen → DateTime::now() UTC with tracing::warn!(event_type = "timestamp.fallback_to_now")
+  #   last_seen → first_seen → Utc::now() with tracing::warn!(event_type = "timestamp.fallback_to_now")
+  # The whole chain (including the now() fallback + warn emission) is executed by the
+  # prism-spec-engine pipeline normalization pass (normalize_timestamp_fields,
+  # crates/prism-spec-engine/src/pipeline.rs) — NOT by any Armis-specific adapter; the
+  # legacy ArmisAdapter was deleted by PLUGIN-MIGRATION-001-A. Engagement for this
+  # column is pinned by test_f11_sns04_armis_devices_last_seen_fallback_engages.
   # DTU DeviceRecord: last_seen: Option<String> (primary), first_seen: Option<String> (secondary).
   # Fixture d-001 has last_seen: null + first_seen: "2024-01-15T10:00:00Z" to exercise fallback path.
   # F-LP2-HIGH-004 (arch-handoff#1): removed redundant "last_seen" entry from chain —
