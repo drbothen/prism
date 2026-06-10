@@ -735,7 +735,7 @@ pub async fn run_materialization_pipeline(
 /// For Filter/Pipe mode: returns the union of all materialized `table_batches`
 /// (DataFusion MemTable registration already happened; no separate SQL step).
 /// (F-LP1-HIGH-1: Filter and Pipe must NOT return empty Vec)
-async fn execute_against_session(
+pub(crate) async fn execute_against_session(
     session_ctx: &SessionContext,
     query_str: &str,
     ast: &crate::ast::Ast,
@@ -752,12 +752,15 @@ async fn execute_against_session(
                     detail: "SQL planning error: <redacted; see server logs>".to_string(),
                 }
             })?;
-            let stream = df.execute_stream().await.map_err(|e| {
-                tracing::error!(error = %e, "DataFusion execution error");
-                PrismError::QueryExecutionFailed {
-                    detail: "SQL execution error: <redacted; see server logs>".to_string(),
-                }
-            })?;
+            // QRY-03: route execution errors through map_datafusion_memory_error
+            // so a GreedyMemoryPool trip (ResourcesExhausted) surfaces as
+            // PrismError::QueryMemoryBudgetExceeded (E-WATCHDOG-001) instead of
+            // a generic QueryExecutionFailed. Non-memory errors are logged and
+            // redacted inside the mapper (BC-2.11.006 EC-001).
+            let stream = df
+                .execute_stream()
+                .await
+                .map_err(crate::memory::map_datafusion_memory_error)?;
             collect_record_batch_stream(stream).await
         }
         // F-LP1-HIGH-1: For Filter and Pipe modes, return the union of all materialized batches.
@@ -1480,17 +1483,13 @@ pub(crate) fn register_mem_table(
 pub(crate) async fn collect_record_batch_stream(
     stream: datafusion::physical_plan::SendableRecordBatchStream,
 ) -> Result<Vec<RecordBatch>, PrismError> {
+    // QRY-03: route collection errors through map_datafusion_memory_error so a
+    // GreedyMemoryPool trip during streaming (ResourcesExhausted) surfaces as
+    // PrismError::QueryMemoryBudgetExceeded (E-WATCHDOG-001). Non-memory
+    // errors are logged and redacted inside the mapper (BC-2.11.006 EC-001).
     datafusion::physical_plan::common::collect(stream)
         .await
-        .map_err(|e| {
-            tracing::error!(
-                error = %e,
-                "stream collection error (detail redacted from client response)"
-            );
-            PrismError::QueryExecutionFailed {
-                detail: "stream collection error: <redacted; see server logs>".to_string(),
-            }
-        })
+        .map_err(crate::memory::map_datafusion_memory_error)
 }
 
 // ---------------------------------------------------------------------------

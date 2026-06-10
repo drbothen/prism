@@ -169,6 +169,45 @@ mod tests {
         );
     }
 
+    /// QRY-03: a GreedyMemoryPool trip during ACTUAL DataFusion SQL execution
+    /// (not a hand-constructed error) must surface as
+    /// `PrismError::QueryMemoryBudgetExceeded` (E-WATCHDOG-001), exercising the
+    /// `execute_against_session` → `map_datafusion_memory_error` production path.
+    ///
+    /// Pre-fix failure mode: the SQL branch mapped ALL DataFusion errors to
+    /// generic `QueryExecutionFailed`, swallowing the memory-budget signal.
+    #[tokio::test]
+    async fn test_qry03_memory_pool_trip_in_sql_execution_maps_to_memory_variant() {
+        use prism_core::PrismError;
+
+        use crate::{filter_parser::PrismQlParser, materialization::execute_against_session};
+
+        // 1-byte pool: ANY operator memory reservation trips ResourcesExhausted.
+        let ctx = build_session_context(1).expect("1-byte pool context must build");
+        let batch = make_batch("alert_id", &["a3", "a1", "a2"]);
+        register_mem_table(&ctx, "crowdstrike_detections", vec![batch])
+            .expect("mem table registration");
+
+        // ORDER BY forces a SortExec, which reserves batch memory from the pool.
+        let sql = "SELECT * FROM crowdstrike_detections ORDER BY alert_id";
+        let ast = PrismQlParser::parse(sql).expect("SQL must parse");
+
+        let result =
+            execute_against_session(&ctx, sql, &ast, std::collections::HashMap::new()).await;
+
+        let err = result.expect_err("1-byte pool must trip during sorted execution");
+        assert!(
+            matches!(err, PrismError::QueryMemoryBudgetExceeded { .. }),
+            "QRY-03: pool trip during execution must map to QueryMemoryBudgetExceeded \
+             (E-WATCHDOG-001), not generic QueryExecutionFailed; got: {err:?}"
+        );
+        let msg = err.to_string();
+        assert!(
+            msg.contains("E-WATCHDOG-001"),
+            "QRY-03: memory-budget error must carry E-WATCHDOG-001; got: {msg}"
+        );
+    }
+
     // -----------------------------------------------------------------------
     // AC-4: REQUIRED column push-down
     // -----------------------------------------------------------------------

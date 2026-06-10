@@ -20,9 +20,6 @@
 //!
 //! Story: S-3.02
 
-// S-3.02 stub functions: dead_code suppressed pending implementation (stub-phase convention).
-#![allow(dead_code)]
-
 use datafusion::execution::{
     context::SessionContext, memory_pool::GreedyMemoryPool, runtime_env::RuntimeEnvBuilder,
 };
@@ -95,7 +92,11 @@ pub fn build_session_context(pool_bytes: usize) -> Result<SessionContext, PrismE
 /// when the parse fails.
 pub fn map_datafusion_memory_error(err: datafusion::error::DataFusionError) -> PrismError {
     use datafusion::error::DataFusionError;
-    match &err {
+    // QRY-03: match on the ROOT error. At execution time DataFusion wraps the
+    // pool's ResourcesExhausted in Context/External layers (e.g.
+    // `Context("SortExec", ResourcesExhausted(...))`), so a top-level match
+    // would misclassify real pool trips as generic execution errors.
+    match err.find_root() {
         DataFusionError::ResourcesExhausted(msg) => {
             let limit_mb = (QUERY_MEMORY_POOL_BYTES / (1024 * 1024)) as u64;
             let used_mb = parse_bytes_from_error_msg(msg)
