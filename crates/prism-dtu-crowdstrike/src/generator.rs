@@ -117,10 +117,11 @@ fn gen_healthy_ot(org_id: &OrgId, opts: &GenOpts) -> (Vec<Value>, Vec<String>) {
         })
         .collect();
 
+    // F4 / CS-01: each detection links to a device from the seeded pool (n % dev_count).
     let det_records: Vec<Value> = (0..det_count)
         .map(|n| {
             let det_id = format!("alert-{slug}-{}-{n}", opts.seed);
-            make_detection(&det_id, 1, opts)
+            make_detection(&det_id, &device_ids[n % device_ids.len()], 1, opts)
         })
         .collect();
 
@@ -137,11 +138,16 @@ fn gen_compromised_endpoint(org_id: &OrgId, opts: &GenOpts) -> (Vec<Value>, Vec<
     let dev_count = scaled(50, opts.scale, 1);
     let det_count = scaled(20, opts.scale, 1);
 
+    let device_ids: Vec<String> = (0..dev_count)
+        .map(|n| format!("dev-{slug}-{}-{n}", opts.seed))
+        .collect();
+
     // Ensure at least 1 contained device
-    let mut records: Vec<Value> = (0..dev_count)
-        .map(|n| {
-            let id = format!("dev-{slug}-{}-{n}", opts.seed);
-            let mut dev = make_device(&id, opts);
+    let mut records: Vec<Value> = device_ids
+        .iter()
+        .enumerate()
+        .map(|(n, id)| {
+            let mut dev = make_device(id, opts);
             // First device is always contained (EC-003)
             if n == 0 {
                 dev["containment_status"] = json!("contained");
@@ -153,13 +159,20 @@ fn gen_compromised_endpoint(org_id: &OrgId, opts: &GenOpts) -> (Vec<Value>, Vec<
         })
         .collect();
 
-    // Generate detections: first 5 are high-severity (severity_id >= 4)
+    // Generate detections: first 5 are high-severity (severity_id >= 4).
+    // F4 / CS-01: each detection links to a device from the seeded pool
+    // (n % dev_count) — detection 0 maps to device 0, the contained endpoint.
     let det_records: Vec<Value> = (0..det_count)
         .map(|n| {
             let det_id = format!("alert-{slug}-{}-{n}", opts.seed);
             // First 5 get severity_id=4+, rest get severity_id=2
             let severity_id = if n < 5 { 4_u8 } else { 2_u8 };
-            make_detection(&det_id, severity_id, opts)
+            make_detection(
+                &det_id,
+                &device_ids[n % device_ids.len()],
+                severity_id,
+                opts,
+            )
         })
         .collect();
 
@@ -238,11 +251,12 @@ fn gen_large_scale(org_id: &OrgId, opts: &GenOpts) -> (Vec<Value>, Vec<String>) 
         })
         .collect();
 
-    // Build detection records
+    // Build detection records.
+    // F4 / CS-01: each detection links to a device from the seeded pool (n % dev_count).
     let det_records: Vec<Value> = (0..det_count)
         .map(|n| {
             let det_id = format!("alert-{slug}-{}-{n}", opts.seed);
-            make_detection(&det_id, 2, opts)
+            make_detection(&det_id, &device_ids[n % device_ids.len()], 2, opts)
         })
         .collect();
 
@@ -448,7 +462,12 @@ fn make_device(device_id: &str, opts: &GenOpts) -> Value {
 ///
 /// Tagged with `"_record_type": "detection"`.
 /// `detection_id` field aligns with `detection_status_store` key in state.rs (AC-004).
-fn make_detection(detection_id: &str, severity_id: u8, opts: &GenOpts) -> Value {
+///
+/// F4 / CS-01 (review 2026-06-10): `device_id` links the detection to a record
+/// from the seeded device pool — crowdstrike.sensor.toml declares a flat
+/// `detections.device_id` column, and the serving extraction is flat
+/// `r.get(col_name)`; an absent key silently normalized the column to NULL.
+fn make_detection(detection_id: &str, device_id: &str, severity_id: u8, opts: &GenOpts) -> Value {
     let ts = opts.time_anchor.format("%Y-%m-%dT%H:%M:%SZ").to_string();
     let severity = match severity_id {
         1 => "Low",
@@ -459,6 +478,7 @@ fn make_detection(detection_id: &str, severity_id: u8, opts: &GenOpts) -> Value 
     json!({
         "_record_type": "detection",
         "detection_id": detection_id,
+        "device_id": device_id,
         "status": "new",
         "severity": severity,
         "severity_id": severity_id,
