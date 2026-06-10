@@ -2,10 +2,10 @@
 document_type: task-ledger
 objective: multi-client-soc-analyst-demo
 level: ops
-version: "1.10"
+version: "1.11"
 producer: state-manager
 status: active
-timestamp: 2026-06-09T16:00:00Z
+timestamp: 2026-06-10T00:00:00Z
 related:
   - SESSION-HANDOFF.md §ACTIVE OBJECTIVE
   - .factory/STATE.md
@@ -34,17 +34,17 @@ Deliver a multi-client SOC-analyst LIVE DEMO — multiple clients, different sen
 
 ## Progress Summary
 
-Foundations: COMPLETE (reused). Build: 3/15 tasks done; T4 DONE; T4-A **VALIDATED + DELIVERY-READY** (D-1080: dclaude:remove-uncertainty on Story A CONFIRMED SOUND; ADR-036 v2.1; Story A v1.1; all U-A-01..U-A-10 corrections applied). **CURRENT TASK: T4-A — deliver Story A via 12-gate per-story TDD sequence NEXT.**
+Foundations: COMPLETE (reused). Build: 3/15 tasks done; T4 DONE; T4-A **LOCAL CONVERGED (D-1088: 18-pass cascade; BC-5.39.001 3-CLEAN strict at passes 16/17/18; feature HEAD 3e5179a2; just check GREEN 4141+ tests)**. **CURRENT TASK: T4-A — demo-recorder (Gate 6) → push → pr-manager PR → PR-LEVEL 3-CLEAN strict + security + CI → squash-merge → POL-14 promote.**
 
 **6 core stories in scope (2 delivery-ready; 1 draft; 1 draft/stub needing architect-PO; 1 draft stub; 1 not-authored narrative capstone) + 3 optional capability-discovery stories. See §Complete Story Roadmap below.**
 
 ## CURRENT POINTER
 
-**T4-A: S-DEMO-DTU-LIVE-SCENARIO-001-A VALIDATED + DELIVERY-READY (D-1080).** dclaude:remove-uncertainty re-validation CONFIRMED SOUND — ADR-036 v2.0 substrate design is correct; all mechanism/wiring corrections applied (U-A-01..U-A-10). ADR-036 v2.1. Story A v1.1. **NEXT: deliver Story A via 12-gate per-story TDD sequence. Story B after A merges.**
+**T4-A: S-DEMO-DTU-LIVE-SCENARIO-001-A LOCAL CONVERGED (D-1088).** 18-pass LOCAL adversary cascade complete; BC-5.39.001 3-CLEAN strict achieved at passes 16/17/18. Feature HEAD 3e5179a2; just check GREEN, 4141+ tests. ADR-036 v2.2. Story A v1.5. BC-2.06.018 v1.5 (draft; POL-14 promotes at merge). **NEXT: Gate 6 demo-recorder per-AC → push feature → pr-manager PR → PR-LEVEL 3-CLEAN strict + pr-reviewer APPROVE + security CLEAR → CI → squash-merge → state-manager post-merge burst (POL-14 BC-2.06.018 draft→active). Story B after A merges.**
 
 ## NEXT ACTION (verbatim, for cold resume)
 
-Deliver Story A (S-DEMO-DTU-LIVE-SCENARIO-001-A, ready v1.1, 8pt, BC-2.06.018) via the 12-gate per-story TDD sequence: vsdd-factory:worktree-manage create → test-writer (14 Red Gate tests, FAIL-first) → implementer TDD across 8 crates (prism-dtu-common scenario stub + per-clone new_with_seed + dual-path routes + build_clone_pairs seed/org_id + Cargo/feature/ci.yml) → LOCAL adversary 3-CLEAN strict (BC-5.39.001) → demo-recorder → push origin/feature → pr-manager PR → PR-LEVEL 3-CLEAN strict + pr-reviewer APPROVE + security CLEAR → CI green → squash-merge → state-manager post-merge (POL-14 BC-2.06.018 draft→active). Then Story B (progression+enrichment) once A merges.
+T4-A LOCAL 3-CLEAN STRICT CONVERGED (18-pass cascade; passes 16/17/18 all CLEAN strict; feature HEAD 3e5179a2; just check GREEN 4141+ tests). GATE 6 NEXT: dispatch vsdd-factory:demo-recorder for S-DEMO-DTU-LIVE-SCENARIO-001-A (Story A v1.5, BC-2.06.018 v1.5, ADR-036 v2.2) → per-AC demo evidence. After demo-recorder: push feature/S-DEMO-DTU-LIVE-SCENARIO-001-A to origin → pr-manager (PR targeting develop; 9-step PR lifecycle) → PR-LEVEL adversary 3-CLEAN strict (BC-5.39.001) + pr-reviewer APPROVE + security-reviewer CLEAR → CI all green → squash-merge → state-manager post-merge burst (POL-14 BC-2.06.018 draft→active; STORY-INDEX merged-row; T4-A done). Then Story B (progression+enrichment) once A merges.
 
 ---
 
@@ -108,7 +108,7 @@ Status vocab: `not-started` | `in-progress` | `blocked` | `done`
 | T2 | done | architect | T1 | S-DEMO-MULTI-TENANT-DTU-001 | OQ-1 resolved: MultiInstanceConfig+InstanceEntry → prism-dtu-demo-server/src/multi_instance.rs; MultiInstanceHarness+HarnessEntry → prism-dtu-harness/src/multi_instance.rs; NOT prism-dtu-common (architect override D-1075). OQ-2 resolved: Box<dyn BehavioralClone>; HarnessError gains DuplicateKey+BindFailure; canonical signature start+socket_map; INV-PERIMETER-001 satisfied. OQ-3 resolved: behavioral_contracts:[BC-2.06.017]; BC-2.06.014 §References only. No ADR. Story defects for T3 flagged (server.rs→multi_instance.rs; [SS-17]→[SS-01]; behavioral_contracts []→[BC-2.06.017]). |
 | T3 | done | story-writer | T1, T2 | S-DEMO-MULTI-TENANT-DTU-001 | Story finalized to status:ready v1.2 (D-1076 2026-06-09): behavioral_contracts:[BC-2.06.017]; subsystems:[SS-01]; §File Structure corrected server.rs→multi_instance.rs; §Architecture Mapping corrected; OQ-1/OQ-2 design directives reflected in body/ACs (Box<dyn BehavioralClone>; HarnessError DuplicateKey+BindFailure(Vec<BindError>); canonical signatures start+socket_map; crate placement per D-1075); dclaude:remove-uncertainty applied (8 uncertainties closed: 4 HIGH incl CRIT U-002, 3 MED, 1 LOW); BC-2.06.017 v1.0→v1.1 (2 PO amendments); S-7.01 gate CLEARED. |
 | T4 | done | architect+PO+story-writer | — | S-DEMO-DTU-LIVE-SCENARIO-001-A + 001-B | **RECONCILED+COMPLETE (D-1079):** ADR-036 v2.0 substrate reconciliation complete (architect; two-phase retrofit; new_with_seed; generated_records; dual-path routes; canonical org_slug + device IDs; E-DEMO-004/005). BC-2.06.018/019/020 v1.1 corrections complete (PO; substrate reality + canonical IDs). E-DEMO-004/005 registered in error-taxonomy v1.64. Story split materialized (story-writer; user-authorized): original S-DEMO-DTU-LIVE-SCENARIO-001 SUPERSEDED → Story A (S-DEMO-DTU-LIVE-SCENARIO-001-A; 8pt baseline retrofit; ready v1.0; BC-2.06.018; 14 ACs; depends_on S-CONFIG-MULTI-TENANT-OVERRIDE-001 SATISFIED; blocks 001-B) + Story B (S-DEMO-DTU-LIVE-SCENARIO-001-B; 7pt progression+enrichment; draft v1.0; BC-2.06.019+BC-2.06.020; 16 ACs; depends_on A). |
-| T4-A | not-started | per-story delivery | T4 | S-DEMO-DTU-LIVE-SCENARIO-001-A | Story A (baseline seeding retrofit; 8pt; BC-2.06.018; v1.1 VALIDATED D-1080) implemented + merged via 12-gate per-story sequence. **NEXT UNBLOCKED DELIVERY — remove-uncertainty COMPLETE (D-1080); proceed directly to 12-gate TDD.** |
+| T4-A | in-progress | per-story delivery | T4 | S-DEMO-DTU-LIVE-SCENARIO-001-A | Story A (baseline seeding retrofit; 8pt; BC-2.06.018; v1.5) implemented + merged via 12-gate per-story sequence. **LOCAL CONVERGED (18-pass cascade; 3-CLEAN strict P16/17/18; D-1088); demo+PR gates in progress. NOT done until squash-merge.** |
 | T5 | blocked | per-story delivery + story-writer | T4-A | S-DEMO-DTU-LIVE-SCENARIO-001-B | Story B (scenario progression + enrichment correlation; 7pt; BC-2.06.019+020; draft v1.0) finalized to ready after Story A merges (story-writer materializes full implementation spec from draft shell); remove-uncertainty applied; then 12-gate delivery. |
 | T6 | blocked | orchestrator-driven per-story delivery | T3 | S-DEMO-MULTI-TENANT-DTU-001 | Multi-instance bind implemented + merged (test-writer → implementer → LOCAL 3-CLEAN strict → demo → PR → PR-LEVEL 3-CLEAN strict → merge). |
 | T7 | blocked | per-story delivery | T5, T6 | (data-seeding story) | Per-client data seeding implemented + merged; org A != org B data verified. |
@@ -147,6 +147,7 @@ Per-story delivery tasks (T6, T7, T10, T12) follow the canonical 12-gate per-sto
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.11 | 2026-06-10 | state-manager | D-1088: T4-A LOCAL 3-CLEAN STRICT CONVERGENCE durability checkpoint. T4-A status note updated to "LOCAL CONVERGED (18-pass cascade; 3-CLEAN strict P16/17/18); demo+PR gates in progress". T4-A row status not-started→in-progress (done only at squash-merge per convention). CURRENT POINTER updated. NEXT ACTION updated verbatim. Progress Summary updated. Spec artifact versions UNCHANGED (ADR-036 v2.2, BC-2.06.018 v1.5, story v1.5, BC-INDEX v6.09, STORY-INDEX v2.337 — no bumps; state-narrative checkpoint only). STATE v7.738→v7.739. Ledger version 1.10→1.11. |
 | 1.10 | 2026-06-09 | state-manager | D-1083: Mid-cascade spec-consistency burst. S-DEMO-CYBERINT-INCIDENTS-SEEDING-001 deferred follow-up added to §Notes (anchored to BC-2.06.018 §Scope Boundary; split off from Story A per LOCAL Pass-2 F-P2-MED-001; Cyberint incidents table intentionally non-generator-backed in Story A; draft stub registered in STORY-INDEX v2.333). BC-INDEX v6.05→v6.06. STORY-INDEX v2.332→v2.333. STATE v7.733→v7.734. Ledger version 1.9→1.10. |
 | 1.9 | 2026-06-09 | state-manager | D-1082: Complete story roadmap enumerated (user-directed — "include all the stories we are going to work on"). §Complete Story Roadmap table added (9 stories: 6 core + 3 optional). Progress Summary updated to reference roadmap. SESSION-HANDOFF §ACTIVE OBJECTIVE Build Sequence augmented with full enumerated story list + source-of-truth pointer to §Complete Story Roadmap. STATE v7.732→v7.733 (D-1082 decision row). All statuses verified against STORY-INDEX v2.332: S-DEMO-MULTI-TENANT-DTU-001 ready v1.2 ✓; S-DEMO-DTU-LIVE-SCENARIO-001-A ready v1.1 ✓; S-DEMO-DTU-LIVE-SCENARIO-001-B draft v1.0 ✓; S-DEMO-004 not-in-STORY-INDEX (draft/stub per T8) ✓; S-DEMO-LAUNCHER-CONSOLIDATION-001 draft stub pts=0 ✓; narrative capstone not-authored ✓; S-5.02/S-3.13/S-5.04 not-started ✓. No story files authored, no BCs/counts changed — enumeration/durability only. Ledger version 1.8→1.9. |
 | 1.8 | 2026-06-09 | state-manager | D-1081: Zero-context resume durability hardening (user-directed). No task-status changes — bookkeeping only. sprint-state.yaml current_story fixed to point at T4-A Story A. SESSION-HANDOFF snapshot refreshed + §7 checklist expected values corrected. Coherence sweep confirmed ledger agrees with STATE v7.732/develop 64d34967/BC counts 250/235/6/total_stories 188. Ledger version 1.7→1.8. |
