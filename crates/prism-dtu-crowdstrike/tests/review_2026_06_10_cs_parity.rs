@@ -208,3 +208,91 @@ fn test_f6_cs03_static_host_first_seen() {
         );
     }
 }
+
+// ---------------------------------------------------------------------------
+// F7 / CS-04 — seeded-path FQL time-window filtering (demo-critical)
+// ---------------------------------------------------------------------------
+
+/// F7 / CS-04 (part 1): generated detections must NOT all share one
+/// created_timestamp — timestamps vary deterministically per record
+/// (time_anchor minus seeded offsets) so FQL time windows can discriminate.
+#[test]
+fn test_f7_cs04_generated_detection_timestamps_vary() {
+    let detections = generated_records("detection");
+    assert!(detections.len() > 1, "need >1 detection to assert variety");
+    let distinct: BTreeSet<&str> = detections
+        .iter()
+        .filter_map(|d| d.get("created_timestamp").and_then(|v| v.as_str()))
+        .collect();
+    assert!(
+        distinct.len() > 1,
+        "all {} generated detections share one created_timestamp ({distinct:?}) — \
+         FQL time-window filtering cannot discriminate",
+        detections.len()
+    );
+}
+
+/// F7 / CS-04 (part 2): on a SEEDED clone, FQL created_timestamp window
+/// filtering must consult the generated detections' own timestamps — not the
+/// static load_detection_details() map (whose IDs never match generated IDs,
+/// yielding ZERO rows for ANY bounded query).
+///
+/// - A window covering the generation time_anchor (UNIX_EPOCH for
+///   GenOpts::default(), offsets ≤ 90 days earlier) returns > 0 rows.
+/// - A window entirely before all generated timestamps returns 0 rows.
+#[tokio::test]
+async fn test_f7_cs04_seeded_fql_window_filters_generated_timestamps() {
+    use prism_dtu_common::BehavioralClone;
+
+    let mut clone = prism_dtu_crowdstrike::CrowdstrikeClone::new_with_seed(
+        42,
+        Archetype::CompromisedEndpoint,
+        deadbeef_org(),
+    );
+    clone.start().await.expect("clone start must succeed");
+    let base_url = clone.base_url();
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .expect("client build");
+
+    // Window covering the anchor (epoch) and the seeded offsets before it.
+    let covering =
+        "created_timestamp:>'1969-01-01T00:00:00Z'+created_timestamp:<'1970-01-02T00:00:00Z'";
+    let resp = client
+        .get(format!("{base_url}/detects/queries/detects/v1"))
+        .query(&[("filter", covering)])
+        .header("Authorization", "Bearer test-token-f7")
+        .send()
+        .await
+        .expect("request must succeed");
+    assert_eq!(resp.status(), 200);
+    let body: serde_json::Value = resp.json().await.expect("json body");
+    let resources = body["resources"].as_array().expect("resources array");
+    assert!(
+        !resources.is_empty(),
+        "seeded clone returned ZERO rows for an FQL window covering the anchor \
+         (CS-04: static detail map consulted instead of generated detections)"
+    );
+
+    // Window entirely before all generated timestamps (anchor minus ≥ 1 year).
+    let before_all =
+        "created_timestamp:>'1950-01-01T00:00:00Z'+created_timestamp:<'1960-01-01T00:00:00Z'";
+    let resp = client
+        .get(format!("{base_url}/detects/queries/detects/v1"))
+        .query(&[("filter", before_all)])
+        .header("Authorization", "Bearer test-token-f7")
+        .send()
+        .await
+        .expect("request must succeed");
+    assert_eq!(resp.status(), 200);
+    let body: serde_json::Value = resp.json().await.expect("json body");
+    let resources = body["resources"].as_array().expect("resources array");
+    assert!(
+        resources.is_empty(),
+        "window entirely before all generated timestamps must return 0 rows, got {}",
+        resources.len()
+    );
+
+    clone.stop().await.expect("clone stop must succeed");
+}

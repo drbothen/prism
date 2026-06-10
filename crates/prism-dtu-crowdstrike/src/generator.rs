@@ -492,8 +492,18 @@ fn make_device(device_id: &str, opts: &GenOpts) -> Value {
 /// from the seeded device pool — crowdstrike.sensor.toml declares a flat
 /// `detections.device_id` column, and the serving extraction is flat
 /// `r.get(col_name)`; an absent key silently normalized the column to NULL.
+///
+/// F7 / CS-04 (review 2026-06-10): `created_timestamp` varies per record —
+/// time_anchor minus a seeded offset (stable fold of detection_id × seed,
+/// 0..7 days) — so FQL time-window filtering can discriminate between records.
+/// A single shared timestamp made every bounded window all-or-nothing.
 fn make_detection(detection_id: &str, device_id: &str, severity_id: u8, opts: &GenOpts) -> Value {
-    let ts = opts.time_anchor.format("%Y-%m-%dT%H:%M:%SZ").to_string();
+    // created_timestamp: 0..10080 minutes (7 days) before the anchor, stable
+    // per (detection_id, seed) — deterministic per BC-3.4.001.
+    let minutes_before = (stable_offset(detection_id, opts.seed) % 10_080) as i64;
+    let created = (opts.time_anchor - chrono::Duration::minutes(minutes_before))
+        .format("%Y-%m-%dT%H:%M:%SZ")
+        .to_string();
     let severity = match severity_id {
         1 => "Low",
         2 => "Medium",
@@ -507,8 +517,8 @@ fn make_detection(detection_id: &str, device_id: &str, severity_id: u8, opts: &G
         "status": "new",
         "severity": severity,
         "severity_id": severity_id,
-        "created_timestamp": ts,
-        "updated_timestamp": ts,
+        "created_timestamp": created,
+        "updated_timestamp": created,
         "confidence": 80,
         "display_name": format!("Detection {detection_id}"),
         "description": "Fixture detection record",
