@@ -138,6 +138,15 @@ pub(crate) fn check_auth(
 /// `GET /api/v1/alerts` or `POST /api/v1/alerts`
 ///
 /// Returns a paginated list of alerts. Merges current status from `alert_store`.
+///
+/// Dual-path (ADR-036 §2.3, BC-2.06.018, F-P6-HIGH-001):
+/// - When `state.fixture_gen_seeded == true` (clone built via `new_with_seed`):
+///   serves alert records directly from generated JSON values (no status merge, as
+///   generated records have no corresponding alert_store entries).
+///   A seeded clone with zero generated alert records (e.g. `Archetype::DormantTenant`)
+///   serves an EMPTY list — it does NOT fall back to `alert_fixture` + `alert_store`.
+/// - When `state.fixture_gen_seeded == false` (`new()` / non-seeded path):
+///   merges `alert_fixture` with `alert_store` status (static-fixture backward-compatible path).
 pub async fn get_alerts(
     State(state): State<Arc<CyberintState>>,
     headers: HeaderMap,
@@ -163,6 +172,43 @@ pub async fn get_alerts(
         return *resp;
     }
 
+    // Dual-path: use fixture_gen_seeded (not generated_records.is_empty()) so DormantTenant
+    // (seeded=true, 0 records) serves empty — not the static fixture. F-P6-HIGH-001.
+    // Generated records are immutable after construction — no lock needed.
+    #[cfg(feature = "fixture-gen")]
+    if state.fixture_gen_seeded {
+        // Filter to alert surface records only using the authoritative _surface discriminator.
+        //
+        // F-P3-CRIT-001 fix: the prior discriminator `rec.get("alert_id").is_some()` was
+        // incorrect because generate_cves and generate_iocs ALSO emit `alert_id` (their
+        // primary key reuses the same ID format). This caused CVE and IOC records to leak
+        // into the `/api/v1/alerts` response, corrupting OCSF normalization (20 of 40 records
+        // were non-alert garbage in CompromisedEndpoint archetype).
+        //
+        // Correct discriminator: `_surface == "alert"` — the generator stamps this tag on
+        // every surface independently (generate_alerts → "alert", generate_cves → "cve",
+        // generate_iocs → "ioc", generate_asm_assets → "asm_asset").
+        let data: Vec<serde_json::Value> = state
+            .generated_records
+            .iter()
+            .filter(|rec| {
+                // Include ONLY records whose _surface tag is exactly "alert".
+                rec.get("_surface").and_then(|v| v.as_str()) == Some("alert")
+            })
+            .cloned()
+            .collect();
+
+        return (
+            StatusCode::OK,
+            Json(serde_json::json!({
+                "data": data,
+                "next_cursor": serde_json::Value::Null,
+            })),
+        )
+            .into_response();
+    }
+
+    // Static-fixture fallback path.
     // SAFETY: mutex poison only occurs if a previous holder panicked — not possible in normal operation.
     #[allow(clippy::expect_used)]
     let alert_store = state.alert_store.lock().expect("alert_store poisoned");

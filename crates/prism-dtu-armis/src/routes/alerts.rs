@@ -11,6 +11,14 @@
 //! - Default-instance clones: absent header → 200 (backward compat).
 //!
 //! (CR-017 / M-50-001; BC-3.5.002 precondition 3; BC-3.2.001 precondition 4)
+//!
+//! # Dual-path (F-P15-MED-001 / ADR-036 §2.3 / BC-2.06.018 / F-P6-HIGH-001)
+//!
+//! When the clone was built via `new_with_seed` (`fixture_gen_seeded == true`), this
+//! handler serves generated alert records from `state.generated_records` — NOT the
+//! static `state.alert_fixture`.  `DormantTenant` (seeded=true, 0 generated alert records)
+//! serves an EMPTY response.  The sentinel is `fixture_gen_seeded` (NOT `.is_empty()`)
+//! so that DormantTenant never falls back to the static fixture (EC-018-003 / F-P6-HIGH-001).
 
 use std::sync::Arc;
 
@@ -39,6 +47,18 @@ pub struct AlertQueryParams {
 ///
 /// Returns a paginated list of alert / policy violation records.
 /// Pagination: `page` (1-based, default 1), `size` (default 25).
+///
+/// # Dual-path (F-P15-MED-001 / ADR-036 §2.3 / BC-2.06.018 / F-P6-HIGH-001)
+///
+/// When `state.fixture_gen_seeded == true` (clone built via `new_with_seed`):
+///   serves generated alert records as raw `serde_json::Value` (Claroty/search.rs pattern).
+///   A seeded clone with zero generated alert records (e.g. `Archetype::DormantTenant`)
+///   serves EMPTY — it does NOT fall back to the static `alert_fixture`.
+/// When `state.fixture_gen_seeded == false` (clone built via `new()`):
+///   serves from `state.alert_fixture` (static fixture, backward-compatible path).
+///
+/// Response envelope: `{"data": {"alerts": [...], "total": N}}` — matching the existing
+/// `AlertsResponse` shape consumed by the Armis adapter (response_path `$.data.alerts`).
 pub async fn get_alerts(
     State(state): State<Arc<ArmisState>>,
     headers: HeaderMap,
@@ -64,6 +84,42 @@ pub async fn get_alerts(
     let size = params.size.unwrap_or(25).max(1) as usize;
     let offset = ((page - 1) as usize) * size;
 
+    // F-P15-MED-001: dual-path — use fixture_gen_seeded (NOT .is_empty()) as sentinel.
+    // DormantTenant (seeded=true, 0 records) must serve EMPTY, not the static fixture.
+    // Mirrors the pattern used in search.rs (lines ~198-222) and Claroty/Cyberint alert routes.
+    #[cfg(feature = "fixture-gen")]
+    if state.fixture_gen_seeded {
+        // Serve generated alert records partitioned by "alert_id" presence.
+        // Generated records use Armis-native shapes; raw serde_json::Value is correct
+        // (adapter reads by $.data.alerts response_path and accepts any JSON object).
+        let generated_alerts: Vec<&serde_json::Value> = state
+            .generated_records
+            .iter()
+            .filter(|rec| rec.get("alert_id").is_some())
+            .collect();
+        let total = generated_alerts.len() as u32;
+        let page_alerts: Vec<serde_json::Value> = if offset >= generated_alerts.len() {
+            vec![]
+        } else {
+            generated_alerts
+                .iter()
+                .skip(offset)
+                .take(size)
+                .map(|v| (*v).clone())
+                .collect()
+        };
+        // Return as hand-assembled JSON to match the AlertsResponse envelope shape
+        // (`{"data": {"alerts": [...], "total": N}}`).
+        let body = serde_json::json!({
+            "data": {
+                "alerts": page_alerts,
+                "total": total,
+            }
+        });
+        return (StatusCode::OK, Json(body)).into_response();
+    }
+
+    // Static-fixture path (backward-compatible: clone built via new()).
     let all_alerts = &state.alert_fixture;
     let total = all_alerts.len() as u32;
 

@@ -39,7 +39,9 @@ use crate::{
 
 /// L2-fidelity behavioral clone of the Armis Centrix API.
 pub struct ArmisClone {
-    state: Arc<ArmisState>,
+    /// Shared mutable state — public to allow test inspection of `generated_records`
+    /// (fixture-gen Red Gate tests) and `instance_org_id` (org-isolation tests).
+    pub state: Arc<ArmisState>,
     bound_addr: Option<SocketAddr>,
     server_handle: Option<JoinHandle<()>>,
     /// True when the server is currently bound via TLS (axum_server::bind_rustls).
@@ -107,6 +109,73 @@ impl ArmisClone {
         ));
         Ok(Self {
             state,
+            bound_addr: None,
+            server_handle: None,
+            tls_active: false,
+            #[cfg(feature = "tls")]
+            tls_handle: None,
+            admin_token,
+        })
+    }
+
+    // -----------------------------------------------------------------------
+    // Story A: new_with_seed constructor stub (BC-2.06.018 / ADR-036 §2.3)
+    // -----------------------------------------------------------------------
+
+    /// Construct an `ArmisClone` with deterministic fixture data generated at
+    /// construction time from `(seed, archetype, org_id)`.
+    ///
+    /// Gated `#[cfg(feature = "fixture-gen")]` — not compiled for production binaries.
+    ///
+    /// Internally derives `org_slug` via `prism_dtu_common::org_slug_from_org_id(&org_id)`
+    /// (ADR-036 §2.2 / ADR-036 v2.2). The `org_slug` is NO LONGER a constructor argument.
+    ///
+    /// Calls `generate(org_id, &org_slug, archetype, &GenOpts { seed, ..GenOpts::default() })`
+    /// under `fixture-gen`, stores the resulting records in `generated_records` in state.
+    ///
+    /// This constructor is **fallible** — mirrors `ArmisClone::new() -> anyhow::Result<Self>`.
+    /// `build_clone_pairs` propagates the error via `?`.
+    ///
+    /// ADR-036 v2.2: canonical 3-arg form — `archetype` is forwarded to `generate()`;
+    /// NO hardcoded archetype inside this constructor.
+    #[cfg(feature = "fixture-gen")]
+    pub fn new_with_seed(
+        seed: u64,
+        archetype: prism_dtu_common::Archetype,
+        org_id: prism_dtu_common::OrgId,
+    ) -> anyhow::Result<Self> {
+        use crate::generator::generate;
+        use prism_dtu_common::GenOpts;
+
+        // Derive org_slug internally from org_id bytes (ADR-036 §2.2).
+        let org_slug = prism_dtu_common::org_slug_from_org_id(&org_id);
+
+        let opts = GenOpts {
+            seed,
+            ..GenOpts::default()
+        };
+        let fixture = generate(org_id, &org_slug, archetype, &opts);
+
+        // Load static fixtures (required by ArmisState; still used for activity and alerts).
+        // We also need them to populate device_registry/devices_ordered for backward compat.
+        let crate_dir = env!("CARGO_MANIFEST_DIR");
+        let devices: Vec<crate::types::DeviceRecord> =
+            prism_dtu_common::load_fixture_as(crate_dir, "devices")?;
+        let activity: Vec<crate::types::ActivityRecord> =
+            prism_dtu_common::load_fixture_as(crate_dir, "device-activity")?;
+        let alerts: Vec<crate::types::AlertRecord> =
+            prism_dtu_common::load_fixture_as(crate_dir, "alerts")?;
+
+        let admin_token = uuid::Uuid::new_v4().to_string();
+        let mut state =
+            ArmisState::with_admin_token(devices, activity, alerts, admin_token.clone());
+        state.generated_records = fixture.records;
+        // Mark as seeded so route handlers use the generated path (even for DormantTenant
+        // which produces 0 records). F-P6-HIGH-001 / ADR-036 v2.2.
+        state.fixture_gen_seeded = true;
+
+        Ok(Self {
+            state: Arc::new(state),
             bound_addr: None,
             server_handle: None,
             tls_active: false,

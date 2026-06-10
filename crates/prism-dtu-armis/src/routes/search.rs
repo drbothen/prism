@@ -186,6 +186,41 @@ pub async fn get_search(
     if return_alerts {
         // AC-003: alert AQL → paginated AlertRecord results.
         // §8.3: apply AQL time filtering BEFORE pagination (pushdown-redesign.md).
+        //
+        // F-P2-CRIT-001: dual-path — when generated_records is non-empty, serve
+        // generated alert records as raw serde_json::Value (Claroty pattern).
+        // Generated records use camelCase Armis-native shapes; the adapter reads
+        // by response_path "$.data.results" so raw Value is correct here.
+        // Partition by "alert_id" presence (generator.rs::build_alert always emits "alert_id").
+        // Use fixture_gen_seeded (not generated_records.is_empty()) so DormantTenant
+        // (seeded=true, 0 records) serves empty — not the static fixture. F-P6-HIGH-001.
+        #[cfg(feature = "fixture-gen")]
+        if state.fixture_gen_seeded {
+            let generated_alerts: Vec<&serde_json::Value> = state
+                .generated_records
+                .iter()
+                .filter(|rec| rec.get("alert_id").is_some())
+                .collect();
+            let total = generated_alerts.len() as u32;
+            let page_alerts: Vec<serde_json::Value> = if start_offset >= generated_alerts.len() {
+                vec![]
+            } else {
+                generated_alerts
+                    .iter()
+                    .skip(start_offset)
+                    .take(size)
+                    .map(|v| (*v).clone())
+                    .collect()
+            };
+            let body = SearchResponse {
+                data: SearchData {
+                    results: page_alerts,
+                    total,
+                },
+            };
+            return (StatusCode::OK, Json(body)).into_response();
+        }
+
         // Filter by created_at using after:/before: bounds from AQL string.
         let time_filtered_alerts: Vec<&crate::types::AlertRecord> = state
             .alert_fixture
@@ -215,6 +250,41 @@ pub async fn get_search(
     } else {
         // AC-002: device AQL (or absent AQL per EC-001) → paginated DeviceRecord results.
         // §8.3: apply AQL time filtering BEFORE pagination.
+        //
+        // F-P2-CRIT-001: dual-path — when generated_records is non-empty, serve
+        // generated device records as raw serde_json::Value.
+        // Generated records use camelCase Armis-native shapes ("asset_id", "lastSeen", etc.);
+        // the adapter reads by response_path "$.data.results" so raw Value is correct.
+        // Partition by "asset_id" presence (generator.rs::build_asset always emits "asset_id").
+        // Use fixture_gen_seeded (not generated_records.is_empty()) so DormantTenant
+        // (seeded=true, 0 records) serves empty — not the static fixture. F-P6-HIGH-001.
+        #[cfg(feature = "fixture-gen")]
+        if state.fixture_gen_seeded {
+            let generated_devices: Vec<&serde_json::Value> = state
+                .generated_records
+                .iter()
+                .filter(|rec| rec.get("asset_id").is_some() && rec.get("alert_id").is_none())
+                .collect();
+            let total = generated_devices.len() as u32;
+            let page_devices: Vec<serde_json::Value> = if start_offset >= generated_devices.len() {
+                vec![]
+            } else {
+                generated_devices
+                    .iter()
+                    .skip(start_offset)
+                    .take(size)
+                    .map(|v| (*v).clone())
+                    .collect()
+            };
+            let body = SearchResponse {
+                data: SearchData {
+                    results: page_devices,
+                    total,
+                },
+            };
+            return (StatusCode::OK, Json(body)).into_response();
+        }
+
         // Filter by last_seen (with first_seen fallback) using after:/before: bounds.
         let time_filtered_devices: Vec<&crate::types::DeviceRecord> = state
             .devices_ordered

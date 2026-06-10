@@ -76,6 +76,82 @@ impl Default for CrowdstrikeClone {
     }
 }
 
+// ---------------------------------------------------------------------------
+// Story A: new_with_seed constructor stub (BC-2.06.018 / ADR-036 §2.3)
+// ---------------------------------------------------------------------------
+
+#[cfg(feature = "fixture-gen")]
+impl CrowdstrikeClone {
+    /// Construct a `CrowdstrikeClone` with deterministic fixture data generated at
+    /// construction time from `(seed, archetype, org_id)`.
+    ///
+    /// Calls `generate(org_id, archetype, GenOpts { seed, ..GenOpts::default() })`
+    /// under `#[cfg(feature = "fixture-gen")]`, stores the resulting records in
+    /// `generated_devices` / `generated_detections` in state.
+    ///
+    /// Sets `state.fixture_gen_seeded = true`. Route handlers check this flag (not
+    /// `generated_devices.is_empty()` / `generated_detections.is_empty()`) as the
+    /// dual-path sentinel so that `Archetype::DormantTenant` (seeded=true, 0 records)
+    /// serves EMPTY — it does NOT fall back to the static embedded JSON.
+    /// F-P6-HIGH-001 / F-P10-HIGH-001 / ADR-036 v2.2.
+    ///
+    /// `CrowdstrikeClone::new()` is unchanged (backward-compatible, ADR-036 §2.5);
+    /// it leaves `fixture_gen_seeded = false` and route handlers use the static fixture.
+    ///
+    /// ADR-036 §2.3: `new_with_seed` calls `generate()` ONCE at construction;
+    /// route handlers MUST NOT call `generate()` per-request.
+    ///
+    /// ADR-036 v2.2: canonical 3-arg form — `archetype` is forwarded to `generate()`;
+    /// NO hardcoded archetype inside this constructor.
+    pub fn new_with_seed(
+        seed: u64,
+        archetype: prism_dtu_common::Archetype,
+        org_id: prism_dtu_common::OrgId,
+    ) -> Self {
+        use crate::generator::generate;
+        use prism_dtu_common::GenOpts;
+
+        let opts = GenOpts {
+            seed,
+            ..GenOpts::default()
+        };
+        let fixture = generate(org_id, archetype, opts);
+
+        // Split records by _record_type discriminator (ADR-036 §2.3).
+        // "device" records go to generated_devices; "detection" records go to
+        // generated_detections. id_page / tombstone / oauth2_token records are
+        // routing artifacts and not served by the dual-path handler.
+        let mut generated_devices = Vec::new();
+        let mut generated_detections = Vec::new();
+        for record in fixture.records {
+            match record.get("_record_type").and_then(|v| v.as_str()) {
+                Some("device") => generated_devices.push(record),
+                Some("detection") => generated_detections.push(record),
+                _ => {} // id_page, tombstone, oauth2_token — not served via dual-path
+            }
+        }
+
+        let admin_token = uuid::Uuid::new_v4().to_string();
+        let mut state = CrowdstrikeState::with_admin_token(admin_token.clone());
+        state.generated_devices = generated_devices;
+        state.generated_detections = generated_detections;
+        // Mark as seeded so route handlers use the generated path (even for DormantTenant
+        // which produces 0 records). F-P6-HIGH-001 / ADR-036 v2.2.
+        state.fixture_gen_seeded = true;
+
+        Self {
+            config: prism_dtu_common::StubConfig::default(),
+            state: Arc::new(state),
+            server_handle: None,
+            bound_addr: None,
+            tls_active: false,
+            #[cfg(feature = "tls")]
+            tls_handle: None,
+            admin_token,
+        }
+    }
+}
+
 #[async_trait]
 impl BehavioralClone for CrowdstrikeClone {
     /// Start with an explicit bind address, optional graceful-shutdown receiver, and

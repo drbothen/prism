@@ -71,6 +71,63 @@ impl ClarotyClone {
         }
     }
 
+    // -----------------------------------------------------------------------
+    // Story A: new_with_seed constructor stub (BC-2.06.018 / ADR-036 §2.3)
+    // -----------------------------------------------------------------------
+
+    /// Construct a `ClarotyClone` with deterministic fixture data generated at
+    /// construction time from `(seed, archetype, org_id)`.
+    ///
+    /// Gated `#[cfg(feature = "fixture-gen")]`.
+    ///
+    /// Sets `state.fixture_gen_seeded = true`. Route handlers check this flag (not
+    /// `generated_records.is_empty()`) as the dual-path sentinel so that
+    /// `Archetype::DormantTenant` (seeded=true, 0 records) serves EMPTY — it does
+    /// NOT fall back to the static-JSON path. F-P6-HIGH-001 / ADR-036 v2.2.
+    ///
+    /// `ClarotyClone::new()` is unchanged (backward-compatible, ADR-036 §2.5);
+    /// it leaves `fixture_gen_seeded = false` and route handlers use the static fixture.
+    ///
+    /// `ClarotyClone::new_with_seed` is INFALLIBLE (`-> Self`) per ADR-036 §2.3
+    /// (mirrors the existing infallible `ClarotyClone::new()`).
+    ///
+    /// ADR-036 v2.2: canonical 3-arg form — `archetype` is forwarded to `generate()`;
+    /// NO hardcoded archetype inside this constructor.
+    #[cfg(feature = "fixture-gen")]
+    pub fn new_with_seed(
+        seed: u64,
+        archetype: prism_dtu_common::Archetype,
+        org_id: prism_dtu_common::OrgId,
+    ) -> Self {
+        use crate::generator::generate;
+        use prism_dtu_common::GenOpts;
+
+        let opts = GenOpts {
+            seed,
+            ..GenOpts::default()
+        };
+        let fixture = generate(&org_id, archetype, &opts);
+
+        let admin_token = uuid::Uuid::new_v4().to_string();
+        let mut state = ClarotyState::with_admin_token(admin_token.clone());
+        state.generated_records = fixture.records;
+        // Mark as seeded so route handlers use the generated path (even for DormantTenant
+        // which produces 0 records). Without this flag, DormantTenant would fall back to
+        // the static fixture — violating BC EC-018-003 / F-P6-HIGH-001.
+        state.fixture_gen_seeded = true;
+
+        Self {
+            config: prism_dtu_common::StubConfig::default(),
+            state: Arc::new(state),
+            bound_addr: None,
+            server_handle: None,
+            tls_active: false,
+            #[cfg(feature = "tls")]
+            tls_handle: None,
+            admin_token,
+        }
+    }
+
     /// Create with explicit configuration.
     pub fn with_config(config: StubConfig) -> Self {
         let admin_token = uuid::Uuid::new_v4().to_string();

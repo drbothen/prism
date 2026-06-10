@@ -39,7 +39,9 @@ use crate::{
 
 /// L2-fidelity behavioral clone of the Cyberint API.
 pub struct CyberintClone {
-    state: Arc<CyberintState>,
+    /// Shared mutable state — public to allow test inspection of `generated_records`
+    /// (fixture-gen Red Gate tests) and `instance_org_id` (org-isolation tests).
+    pub state: Arc<CyberintState>,
     bound_addr: Option<SocketAddr>,
     server_handle: Option<JoinHandle<()>>,
     /// True when the server is currently bound via TLS (axum_server::bind_rustls).
@@ -127,6 +129,73 @@ impl CyberintClone {
             tls_handle: None,
             admin_token,
             org_id,
+        })
+    }
+
+    // -----------------------------------------------------------------------
+    // Story A: new_with_seed constructor stub (BC-2.06.018 / ADR-036 §2.3)
+    // -----------------------------------------------------------------------
+
+    /// Construct a `CyberintClone` with deterministic fixture data generated at
+    /// construction time from `(seed, archetype, org_id)`.
+    ///
+    /// Gated `#[cfg(feature = "fixture-gen")]`.
+    ///
+    /// This constructor is **fallible** — mirrors `CyberintClone::new() -> anyhow::Result<Self>`.
+    /// `build_clone_pairs` propagates the error via `?`.
+    ///
+    /// `CyberintClone::new()` is unchanged (backward-compatible, ADR-036 §2.5).
+    ///
+    /// ADR-036 v2.2: canonical 3-arg form — `archetype` is forwarded to `generate()`;
+    /// NO hardcoded archetype inside this constructor.
+    #[cfg(feature = "fixture-gen")]
+    pub fn new_with_seed(
+        seed: u64,
+        archetype: prism_dtu_common::Archetype,
+        org_id: prism_dtu_common::OrgId,
+    ) -> anyhow::Result<Self> {
+        use crate::generator::generate;
+        use prism_dtu_common::GenOpts;
+
+        let opts = GenOpts {
+            seed,
+            ..GenOpts::default()
+        };
+        let fixture = generate(&org_id, archetype, &opts);
+
+        // Load static fixtures (required for alert_fixture / alert_store initialization).
+        let crate_dir = env!("CARGO_MANIFEST_DIR");
+        let alerts: Vec<crate::types::Alert> =
+            prism_dtu_common::load_fixture_as(crate_dir, "alerts")?;
+        let alerts_page2: Vec<crate::types::Alert> =
+            prism_dtu_common::load_fixture_as(crate_dir, "alerts-page2")?;
+        let threats: Vec<serde_json::Value> =
+            prism_dtu_common::load_fixture_as(crate_dir, "threats")?;
+
+        let admin_token = uuid::Uuid::new_v4().to_string();
+        // Use prism_core::OrgId::new() to get a fresh OrgId for the clone instance.
+        let instance_org_id = OrgId::new();
+        let mut state = CyberintState::with_org_id_and_admin_token(
+            instance_org_id,
+            alerts,
+            alerts_page2,
+            threats,
+            admin_token.clone(),
+        );
+        state.generated_records = fixture.records;
+        // Mark as seeded so route handlers use the generated path (even for DormantTenant
+        // which produces 0 records). F-P6-HIGH-001 / ADR-036 v2.2.
+        state.fixture_gen_seeded = true;
+
+        Ok(Self {
+            state: Arc::new(state),
+            bound_addr: None,
+            server_handle: None,
+            tls_active: false,
+            #[cfg(feature = "tls")]
+            tls_handle: None,
+            admin_token,
+            org_id: instance_org_id,
         })
     }
 

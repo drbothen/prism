@@ -140,6 +140,44 @@ pub struct CrowdstrikeState {
     /// equivalent is the FQL filter param — captured verbatim before any parsing
     /// so wire-level tests can assert the exact string that reached the DTU.
     pub filter_log: Mutex<Vec<String>>,
+
+    // -----------------------------------------------------------------------
+    // Story A: generated fixture fields (BC-2.06.018 / ADR-036 §2.3)
+    // -----------------------------------------------------------------------
+    // Immutable after construction (no Arc<Mutex<...>>).
+    // Populated by new_with_seed(); empty for new().
+    // Route handlers use fixture_gen_seeded (NOT is_empty()) as the dual-path sentinel.
+    /// Device records from the fixture generator (BC-2.06.018 postcondition 1).
+    ///
+    /// Populated when the clone is constructed via `new_with_seed`; empty for `new()`.
+    ///
+    /// Route handlers MUST NOT use `generated_devices.is_empty()` as the dual-path
+    /// sentinel — use `fixture_gen_seeded` instead. `DormantTenant` produces zero
+    /// device records but is seeded, so handlers must serve EMPTY (not fall back
+    /// to the static fixture). F-P6-HIGH-001 / ADR-036 v2.2.
+    ///
+    /// ADR-036 §2.3: immutable after construction (NOT Arc<Mutex<...>>).
+    #[cfg(feature = "fixture-gen")]
+    pub generated_devices: Vec<serde_json::Value>,
+
+    /// Detection records from the fixture generator (BC-2.06.018 postcondition 1).
+    ///
+    /// Populated when the clone is constructed via `new_with_seed`; empty for `new()`.
+    ///
+    /// Route handlers MUST NOT use `generated_detections.is_empty()` as the dual-path
+    /// sentinel — use `fixture_gen_seeded` instead. F-P10-HIGH-001 / ADR-036 v2.2.
+    ///
+    /// ADR-036 §2.3: immutable after construction.
+    #[cfg(feature = "fixture-gen")]
+    pub generated_detections: Vec<serde_json::Value>,
+
+    /// True when the clone was constructed via `new_with_seed` (fixture-gen path).
+    ///
+    /// Route handlers MUST use this flag (not `generated_devices.is_empty()`) as the
+    /// dual-path sentinel so DormantTenant (seeded=true, 0 device/detection records)
+    /// serves empty — not the static fixture. F-P6-HIGH-001 / ADR-036 v2.2.
+    #[cfg(feature = "fixture-gen")]
+    pub fixture_gen_seeded: bool,
 }
 
 impl CrowdstrikeState {
@@ -172,6 +210,15 @@ impl CrowdstrikeState {
             admin_token,
             instance_org_id,
             filter_log: Mutex::new(Vec::new()),
+            // Story A: generated fields default empty (static-JSON path).
+            // Populated by new_with_seed() in clone.rs.
+            #[cfg(feature = "fixture-gen")]
+            generated_devices: Vec::new(),
+            #[cfg(feature = "fixture-gen")]
+            generated_detections: Vec::new(),
+            // fixture_gen_seeded: false on new() path — route handlers use static fixture.
+            #[cfg(feature = "fixture-gen")]
+            fixture_gen_seeded: false,
         }
     }
 
