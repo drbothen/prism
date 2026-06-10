@@ -738,7 +738,11 @@ async fn get_health() -> impl IntoResponse {
 // Configure handler (harness format)
 // ---------------------------------------------------------------------------
 
+/// F10 / finding ⑫ (2026-06-10 review): strict payload schema — an unknown
+/// field in a configure payload is a harness-side bug (typo'd failure-mode key
+/// silently ignored), so it must be rejected with 400, not dropped.
 #[derive(Debug, Deserialize, Default)]
+#[serde(deny_unknown_fields)]
 struct HarnessConfigure {
     #[serde(default)]
     auth_mode: Option<String>,

@@ -15,7 +15,12 @@ use serde::{Deserialize, Serialize};
 /// Top-level demo harness configuration.
 ///
 /// Loaded from a TOML file, e.g. `configs/demo.toml`.
+///
+/// F10 / finding ⑫ (2026-06-10 review): `deny_unknown_fields` on every config
+/// struct — a typo'd key silently ignored means the demo runs with defaults
+/// the operator believes they overrode. Unknown keys are a parse ERROR.
 #[derive(Debug, Clone, Deserialize, Serialize, Default)]
+#[serde(deny_unknown_fields)]
 pub struct DemoConfig {
     /// Global harness settings.
     #[serde(default)]
@@ -27,6 +32,7 @@ pub struct DemoConfig {
 
 /// Global harness configuration (the `[harness]` section).
 #[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct HarnessConfig {
     /// Bind IP for the admin/health listener. Defaults to loopback.
     #[serde(default = "default_bind_ip")]
@@ -47,6 +53,7 @@ fn default_bind_ip() -> String {
 
 /// Per-clone configuration container (the `[clones]` section).
 #[derive(Debug, Clone, Deserialize, Serialize, Default)]
+#[serde(deny_unknown_fields)]
 pub struct ClonesConfig {
     #[serde(default)]
     pub crowdstrike: CloneConfig,
@@ -80,6 +87,7 @@ pub struct ClonesConfig {
 ///
 /// Fields present; `build_clone_pairs` integration is Gate 4's job.
 #[derive(Debug, Clone, Deserialize, Serialize, Default)]
+#[serde(deny_unknown_fields)]
 pub struct ScenarioConfig {
     /// When `true`, `build_clone_pairs` calls `new_with_seed` instead of `new()`.
     ///
@@ -111,6 +119,7 @@ fn default_scenario_archetype() -> String {
 
 /// Configuration for a single DTU clone (e.g. `[clones.crowdstrike]`).
 #[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct CloneConfig {
     /// Whether this clone is enabled. When `false`, the clone is not started.
     #[serde(default = "default_enabled")]
@@ -231,5 +240,59 @@ impl DemoConfig {
     #[allow(clippy::should_implement_trait)]
     pub fn from_str(toml_str: &str) -> anyhow::Result<Self> {
         toml_str.parse()
+    }
+}
+
+// ---------------------------------------------------------------------------
+// F10 / finding ⑫ (2026-06-10 review): deny_unknown_fields strictness tests
+// ---------------------------------------------------------------------------
+
+#[cfg(test)]
+mod tests {
+    use super::DemoConfig;
+
+    /// Non-regression: a known-good minimal config still parses.
+    #[test]
+    fn test_f10_valid_config_parses() {
+        let toml = r#"
+            [harness]
+            bind = "127.0.0.1"
+
+            [clones.crowdstrike]
+            enabled = true
+            seed = 7
+
+            [clones.crowdstrike.scenario]
+            enabled = false
+        "#;
+        let cfg = DemoConfig::from_str(toml).expect("valid config must parse");
+        assert_eq!(cfg.clones.crowdstrike.seed, 7);
+    }
+
+    /// F10: an unknown key anywhere in the demo TOML must be a parse ERROR —
+    /// a typo'd key silently ignored means the demo runs with defaults the
+    /// operator believes they overrode.
+    #[test]
+    fn test_f10_unknown_keys_rejected_at_every_level() {
+        let cases: &[(&str, &str)] = &[
+            ("top-level", "unknown_top = true\n"),
+            ("[harness]", "[harness]\nbnd = \"127.0.0.1\"\n"), // typo'd 'bind'
+            ("[clones]", "[clones]\nnotaclone = {}\n"),
+            (
+                "[clones.crowdstrike]",
+                "[clones.crowdstrike]\nsede = 7\n", // typo'd 'seed'
+            ),
+            (
+                "[clones.crowdstrike.scenario]",
+                "[clones.crowdstrike.scenario]\narchetyp = \"compromised_endpoint\"\n", // typo'd 'archetype'
+            ),
+        ];
+        for (level, toml) in cases {
+            assert!(
+                DemoConfig::from_str(toml).is_err(),
+                "unknown key at {level} must be rejected (deny_unknown_fields — \
+                 finding ⑫, 2026-06-10 review), but it parsed: {toml:?}"
+            );
+        }
     }
 }

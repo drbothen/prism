@@ -223,10 +223,15 @@ async fn get_health() -> impl IntoResponse {
 
 /// The harness configure payload format (mirrors `clone_server::ConfigureBody`).
 ///
-/// Using `deny_unknown_fields = false` (no annotation) so any extra fields from
-/// the harness are ignored. This is the same format that `Harness::inject_failure`
-/// sends via `failure_mode_to_json`.
+/// This is the same format that `Harness::inject_failure` sends via
+/// `failure_mode_to_json`.
+///
+/// F10 / finding ⑫ (2026-06-10 review): strict payload schema — an unknown
+/// field in a configure payload is a harness-side bug (typo'd failure-mode key
+/// silently ignored), so it must be rejected with 400, not dropped. Human
+/// overrode the prior "deliberately permissive" stance on 2026-06-10.
 #[derive(Debug, Deserialize, Default)]
+#[serde(deny_unknown_fields)]
 struct HarnessConfigure {
     #[serde(default)]
     auth_mode: Option<String>,

@@ -45,6 +45,12 @@ name = "logical_isolation_test"
 path = "tests/logical_isolation_test.rs"
 required-features = ["dtu"]
 
+# F10 / finding ⑫ (2026-06-10 review): /dtu/configure deny_unknown_fields strictness.
+[[test]]
+name = "review_2026_06_10_deny_unknown"
+path = "tests/review_2026_06_10_deny_unknown.rs"
+required-features = ["dtu"]
+
 [[test]]
 name = "network_isolation_test"
 path = "tests/network_isolation_test.rs"
