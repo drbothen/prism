@@ -2481,6 +2481,124 @@ async fn test_QRY_P1_01_lower_limit_entry_must_not_serve_higher_limit_query() {
     );
 }
 
+/// Sensor adapter with a toggleable failure mode and a fetch counter — used to
+/// exercise the BC-2.07.003 force_refresh invalidation semantics (P1-05 /
+/// architect adjudication D3).
+struct TogglingFailureAdapter {
+    fail: Arc<std::sync::atomic::AtomicBool>,
+    call_count: Arc<std::sync::atomic::AtomicUsize>,
+}
+
+#[async_trait]
+impl prism_sensors::adapter::SensorAdapter for TogglingFailureAdapter {
+    fn sensor_type(&self) -> prism_core::SensorId {
+        prism_core::SensorId::from("crowdstrike")
+    }
+
+    fn sensor_name(&self) -> &'static str {
+        "crowdstrike"
+    }
+
+    async fn fetch(
+        &self,
+        _spec: &prism_sensors::adapter::SensorSpec,
+        _params: &prism_sensors::adapter::QueryParams,
+        _auth: &dyn prism_sensors::auth::SensorAuth,
+    ) -> Result<Vec<RecordBatch>, prism_sensors::adapter::SensorError> {
+        self.call_count
+            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        if self.fail.load(std::sync::atomic::Ordering::SeqCst) {
+            return Err(prism_sensors::adapter::SensorError::Internal {
+                detail: "injected fetch failure (P1-05 test)".to_string(),
+            });
+        }
+        let schema = Arc::new(arrow::datatypes::Schema::new(vec![
+            arrow::datatypes::Field::new("detection_id", arrow::datatypes::DataType::Utf8, false),
+        ]));
+        let arr = Arc::new(arrow::array::StringArray::from(vec!["det-1", "det-2"])) as _;
+        let batch = RecordBatch::try_new(schema, vec![arr]).expect("toggling batch");
+        Ok(vec![batch])
+    }
+}
+
+/// Build a `QueryEngine` backed by a single `TogglingFailureAdapter`.
+fn make_toggling_engine() -> (
+    prism_query::engine::QueryEngine,
+    Arc<std::sync::atomic::AtomicBool>,
+    Arc<std::sync::atomic::AtomicUsize>,
+) {
+    use prism_core::OrgId;
+
+    let fail = Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let call_count = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    let mut registry = AdapterRegistry::new();
+    registry.register(
+        OrgId::new(),
+        Arc::new(TogglingFailureAdapter {
+            fail: Arc::clone(&fail),
+            call_count: Arc::clone(&call_count),
+        }),
+    );
+    let engine = helpers::make_engine(registry, vec![helpers::org("acme")]);
+    (engine, fail, call_count)
+}
+
+/// P1-05 / BC-2.07.003 (EC-07-033, architect adjudication D3): a forced
+/// refresh whose fetch fails for all targets must INVALIDATE the existing
+/// cache entry — `force_refresh` is an explicit analyst distrust signal, and
+/// retaining the distrusted entry would silently serve it to later non-forced
+/// queries. The fetch failure is surfaced to the forcing caller via the
+/// partial-failure envelope (BC-2.11.011 `sensor_errors`), and a subsequent
+/// non-forced identical query is a cache MISS that re-attempts the fetch.
+#[tokio::test]
+async fn test_QRY_P1_05_forced_refresh_failed_fetch_invalidates_entry() {
+    use prism_query::engine::QueryOptions;
+
+    let (engine, fail, call_count) = make_toggling_engine();
+    let make_options = |force_refresh: bool| QueryOptions {
+        clients: Some(vec![helpers::org("acme")]),
+        force_refresh,
+        ..QueryOptions::default()
+    };
+
+    // 1) Populate the cache (1 fetch, success).
+    engine
+        .execute("SELECT * FROM crowdstrike_detections", make_options(false))
+        .await
+        .expect("populate execute must succeed");
+    assert_eq!(call_count.load(std::sync::atomic::Ordering::SeqCst), 1);
+
+    // 2) Forced refresh while the sensor is failing (2nd fetch, fails).
+    //    The forcing caller receives the error via the partial-failure envelope.
+    fail.store(true, std::sync::atomic::Ordering::SeqCst);
+    let forced = engine
+        .execute("SELECT * FROM crowdstrike_detections", make_options(true))
+        .await
+        .expect("forced execute must return Ok with partial-failure envelope");
+    assert_eq!(call_count.load(std::sync::atomic::Ordering::SeqCst), 2);
+    assert!(
+        !forced.sensor_errors.is_empty(),
+        "BC-2.11.011: the forcing caller must receive the fetch failure via \
+         sensor_errors; got empty envelope"
+    );
+
+    // 3) Sensor recovers; a NON-forced identical query must be a cache MISS
+    //    (3rd fetch) — the distrusted entry was invalidated, not retained.
+    //    Pre-fix failure mode: the stale entry kept serving non-forced queries
+    //    for the remainder of its TTL (count stayed 2).
+    fail.store(false, std::sync::atomic::Ordering::SeqCst);
+    engine
+        .execute("SELECT * FROM crowdstrike_detections", make_options(false))
+        .await
+        .expect("post-recovery execute must succeed");
+    assert_eq!(
+        call_count.load(std::sync::atomic::Ordering::SeqCst),
+        3,
+        "EC-07-033: after a failed forced refresh the entry must be \
+         invalidated — the subsequent non-forced query must MISS and re-fetch"
+    );
+}
+
 /// BC-2.07.004: a write-operation invalidation against the engine's response
 /// cache (`QueryEngine::response_cache()`) evicts the cached entries, so the
 /// next query re-fetches from the sensor (write-then-read consistency, DEC-018).

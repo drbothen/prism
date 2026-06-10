@@ -1721,3 +1721,93 @@ fn test_qry02_sensor_response_cache_round_trip_and_hit_counter() {
         "BC-2.07.003: cache hits must increment the aggregate total_hits counter"
     );
 }
+
+/// P1-05 / BC-2.07.003 (EC-07-034, architect adjudication D3): a FORCED
+/// refresh that cannot store a complete replacement (all targets failed or
+/// partial errors — `complete_response: None`) must INVALIDATE the existing
+/// entry. This drives the production decision function
+/// (`store_or_invalidate_response_cache`) directly — the partial-errors case
+/// is structurally unreachable through the single-target-per-fan_out
+/// production loop, but the BC covers it and the decision logic must too.
+#[test]
+fn test_qry_p105_forced_refresh_incomplete_replacement_invalidates_entry() {
+    use crate::cache::SensorResponseCache;
+    use crate::materialization::store_or_invalidate_response_cache;
+
+    let cache = SensorResponseCache::with_defaults();
+    let key = make_key("acme", "crowdstrike", "crowdstrike_detections");
+    cache
+        .put(key.clone(), vec![make_response_batch()])
+        .expect("put must succeed");
+    assert!(cache.get(&key).expect("get").is_some(), "entry must exist");
+
+    // Forced refresh, incomplete replacement (all-failed or partial).
+    store_or_invalidate_response_cache(&cache, &key, true, None)
+        .expect("invalidation must succeed");
+
+    assert!(
+        cache.get(&key).expect("get must not error").is_none(),
+        "EC-07-033/034: forced refresh with no complete replacement must \
+         remove the distrusted entry — subsequent queries must miss"
+    );
+}
+
+/// P1-05 / BC-2.07.003 (architect adjudication D3): availability-asymmetry
+/// guard — a NON-forced fetch failure must NEVER invalidate an existing
+/// unexpired entry. Only the explicit `force_refresh` distrust signal
+/// tightens staleness below the TTL bound.
+#[test]
+fn test_qry_p105_nonforced_fetch_failure_retains_unexpired_entry() {
+    use crate::cache::SensorResponseCache;
+    use crate::materialization::store_or_invalidate_response_cache;
+
+    let cache = SensorResponseCache::with_defaults();
+    let key = make_key("acme", "crowdstrike", "crowdstrike_detections");
+    cache
+        .put(key.clone(), vec![make_response_batch()])
+        .expect("put must succeed");
+
+    // Non-forced fetch failure (incomplete replacement, force_refresh: false).
+    store_or_invalidate_response_cache(&cache, &key, false, None)
+        .expect("non-forced no-op must succeed");
+
+    assert!(
+        cache.get(&key).expect("get must not error").is_some(),
+        "D3 availability asymmetry: a non-forced fetch failure must RETAIN \
+         the existing unexpired entry (normal-path availability unchanged)"
+    );
+}
+
+/// P1-05 / TD-PRISM-QUERY-CACHE-001 (CR-014-style): the forced-refresh
+/// invalidation path must not desync `total_bytes` or the partition tracker —
+/// eviction accounting stays atomic with partition mutation.
+#[test]
+fn test_qry_p105_forced_invalidation_does_not_desync_accounting() {
+    use crate::cache::SensorResponseCache;
+    use crate::materialization::store_or_invalidate_response_cache;
+
+    let cache = SensorResponseCache::with_defaults();
+    let key = make_key("acme", "crowdstrike", "crowdstrike_detections");
+    cache
+        .put(key.clone(), vec![make_response_batch()])
+        .expect("put must succeed");
+    assert!(cache.total_bytes() > 0, "put must account bytes");
+
+    store_or_invalidate_response_cache(&cache, &key, true, None)
+        .expect("invalidation must succeed");
+
+    assert_eq!(
+        cache.total_bytes(),
+        0,
+        "TD-PRISM-QUERY-CACHE-001: invalidation must decrement total_bytes \
+         by the stored entry size (no accounting drift)"
+    );
+    assert_eq!(
+        cache.partition_count_map_len(),
+        0,
+        "CR-006: emptied partition must be removed from the tracker map"
+    );
+    cache
+        .check_consistency_for_test()
+        .expect("tracker ↔ moka ↔ byte accounting must stay consistent");
+}

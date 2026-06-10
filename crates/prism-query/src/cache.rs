@@ -801,20 +801,26 @@ impl<V: CacheValue> GenericQueryCache<V> {
         self.total_hits.load(Ordering::Relaxed)
     }
 
-    // Internal: remove a single entry from both moka and partition tracker.
-    //
-    // Returns `Err(PrismError::Internal)` if the mutex is poisoned (E-CACHE-001).
-    //
-    // ## Atomicity (TD-PRISM-QUERY-CACHE-001 closure)
-    //
-    // The tracker removal, the moka invalidation, and the total_bytes decrement
-    // all occur INSIDE the partition lock. The previously documented residual
-    // race (pass-9 I9-003: T1.remove drops the lock, T2.put completes, T1's
-    // post-lock invalidate wipes T2's fresh entry → orphan tracker entry +
-    // overstated total_bytes) is structurally impossible: a concurrent
-    // put_with_ttl serializes on the same lock and either completes fully
-    // before this removal or starts fully after it (SEC-NEW-002 closed).
-    fn remove_entry(&self, key: &CacheKey) -> Result<(), PrismError> {
+    /// Remove a single entry from both moka and the partition tracker.
+    ///
+    /// Crate-visible for the BC-2.07.003 forced-refresh invalidation path
+    /// (`materialization::store_or_invalidate_response_cache`, P1-05 /
+    /// architect adjudication D3): a forced refresh that cannot store a
+    /// complete replacement removes the distrusted entry. Also used internally
+    /// by `force_refresh` (replace) and `get` (lazy TTL expiry).
+    ///
+    /// Returns `Err(PrismError::Internal)` if the mutex is poisoned (E-CACHE-001).
+    ///
+    /// ## Atomicity (TD-PRISM-QUERY-CACHE-001 closure)
+    ///
+    /// The tracker removal, the moka invalidation, and the total_bytes decrement
+    /// all occur INSIDE the partition lock. The previously documented residual
+    /// race (pass-9 I9-003: T1.remove drops the lock, T2.put completes, T1's
+    /// post-lock invalidate wipes T2's fresh entry → orphan tracker entry +
+    /// overstated total_bytes) is structurally impossible: a concurrent
+    /// put_with_ttl serializes on the same lock and either completes fully
+    /// before this removal or starts fully after it (SEC-NEW-002 closed).
+    pub(crate) fn remove_entry(&self, key: &CacheKey) -> Result<(), PrismError> {
         let pk = partition_key(key);
         let mut counts = self.lock_partition_counts()?;
         let mut dropped_size = 0usize;

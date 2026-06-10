@@ -393,6 +393,51 @@ pub(crate) fn derive_response_cache_key(
 }
 
 // ---------------------------------------------------------------------------
+// store_or_invalidate_response_cache
+// ---------------------------------------------------------------------------
+
+/// Store/invalidate decision for the cross-query response cache after a
+/// fan-out fetch (BC-2.07.003 §Postconditions; P1-05 / architect adjudication
+/// D3, `proposals/cache-envelope-adjudication-2026-06-10.md`).
+///
+/// - `complete_response = Some(rows)` (fetch succeeded with NO per-target
+///   errors): store the complete response — `force_refresh` replaces any
+///   existing entry, the normal path inserts. TTL selection by source data
+///   type happens inside `put` (60s alerts / 300s devices / health not cached).
+/// - `complete_response = None` (the fetch cannot produce a complete
+///   replacement: all targets failed OR per-target errors made the result
+///   partial — partial responses are never cached):
+///   - `force_refresh: true` → the existing entry is **invalidated (removed)**
+///     (EC-07-033 / EC-07-034). `force_refresh` is an explicit analyst
+///     distrust signal; retaining the distrusted entry would silently serve it
+///     to later non-forced queries. Subsequent non-forced queries for the
+///     tuple miss the cache and re-attempt the fetch.
+///   - `force_refresh: false` → the existing unexpired entry is **retained**
+///     (availability asymmetry — a normal fetch failure never invalidates).
+///
+/// Invalidation is per-entry (per cache key); sibling entries at other
+/// fetch-limits age out by TTL. Eviction accounting stays atomic with
+/// partition mutation via `remove_entry` (TD-PRISM-QUERY-CACHE-001).
+pub(crate) fn store_or_invalidate_response_cache(
+    cache: &crate::cache::SensorResponseCache,
+    key: &CacheKey,
+    force_refresh: bool,
+    complete_response: Option<Vec<RecordBatch>>,
+) -> Result<(), PrismError> {
+    match complete_response {
+        Some(rows) => {
+            if force_refresh {
+                cache.force_refresh(key.clone(), rows)
+            } else {
+                cache.put(key.clone(), rows)
+            }
+        }
+        None if force_refresh => cache.remove_entry(key),
+        None => Ok(()),
+    }
+}
+
+// ---------------------------------------------------------------------------
 // run_materialization_pipeline
 // ---------------------------------------------------------------------------
 
@@ -653,17 +698,20 @@ pub async fn run_materialization_pipeline(
                 // responses are cached: if this target had partial errors, the
                 // result set is incomplete and caching it would serve partial
                 // data for the TTL duration. `force_refresh` replaces any
-                // existing entry (BC-2.07.003 §Postconditions); TTL selection
-                // by source data type happens inside `put` (60s alerts /
-                // 300s devices / health not cached).
-                if fan_result.errors.is_empty() {
-                    if let (Some(cache), Some(key)) = (&response_cache, response_cache_key) {
-                        if options.force_refresh {
-                            cache.force_refresh(key, fan_result.successes.clone())?;
-                        } else {
-                            cache.put(key, fan_result.successes.clone())?;
-                        }
-                    }
+                // existing entry; a forced refresh whose result is PARTIAL
+                // additionally invalidates the existing entry instead of
+                // retaining it (EC-07-034, P1-05 / architect adjudication D3).
+                // Non-forced partial results never invalidate (availability
+                // asymmetry). TTL selection by source data type happens inside
+                // `put` (60s alerts / 300s devices / health not cached).
+                if let (Some(cache), Some(key)) = (&response_cache, &response_cache_key) {
+                    let complete = fan_result.errors.is_empty();
+                    store_or_invalidate_response_cache(
+                        cache,
+                        key,
+                        options.force_refresh,
+                        complete.then(|| fan_result.successes.clone()),
+                    )?;
                 }
 
                 // Collect successes with per-target virtual field injection.
@@ -721,6 +769,15 @@ pub async fn run_materialization_pipeline(
                     target.source_table,
                     e.error_code()
                 ));
+
+                // EC-07-033 (P1-05 / architect adjudication D3): a FORCED
+                // refresh whose fetch failed for all targets cannot store a
+                // complete replacement — invalidate the distrusted entry so
+                // later non-forced queries miss and re-attempt the fetch.
+                // Non-forced failures never invalidate (availability asymmetry).
+                if let (Some(cache), Some(key)) = (&response_cache, &response_cache_key) {
+                    store_or_invalidate_response_cache(cache, key, options.force_refresh, None)?;
+                }
             }
         }
     }
