@@ -129,11 +129,13 @@ fn shuffle_ids_by_seed(ids: &[String], seed: u64) -> Vec<String> {
 ///
 /// Paginated host ID list.
 ///
-/// Dual-path (ADR-036 §2.3, BC-2.06.018):
-/// - When `state.generated_devices` is non-empty (clone built via `new_with_seed`):
+/// Dual-path (ADR-036 §2.3, BC-2.06.018, F-P6-HIGH-001):
+/// - When `state.fixture_gen_seeded == true` (clone built via `new_with_seed`):
 ///   extracts device IDs from the generated records and serves them.
-/// - When `state.generated_devices` is empty: falls back to `load_host_ids()` (static
-///   embedded JSON, backward-compatible `new()` path).
+///   A seeded clone with zero generated devices (e.g. `Archetype::DormantTenant`)
+///   serves an EMPTY list — it does NOT fall back to the static fixture.
+/// - When `state.fixture_gen_seeded == false` (`new()` / non-seeded path):
+///   loads IDs from `load_host_ids()` (static embedded JSON).
 ///
 /// Registers returned IDs in session registry under `X-DTU-Session-Id`.
 /// Supports `filter` (FQL string, accepted but not parsed), `limit`, `offset` query params.

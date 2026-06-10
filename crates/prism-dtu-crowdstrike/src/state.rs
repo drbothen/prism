@@ -146,13 +146,15 @@ pub struct CrowdstrikeState {
     // -----------------------------------------------------------------------
     // Immutable after construction (no Arc<Mutex<...>>).
     // Populated by new_with_seed(); empty for new().
-    // Route handlers serve from these when non-empty; fall back to static JSON.
+    // Route handlers use fixture_gen_seeded (NOT is_empty()) as the dual-path sentinel.
     /// Device records from the fixture generator (BC-2.06.018 postcondition 1).
     ///
-    /// Non-empty when the clone is constructed via `new_with_seed`.
-    /// Empty when constructed via `new()` (static-JSON path, ADR-036 §2.5).
-    /// Route handlers serve from this slice when non-empty;
-    /// fall back to `load_host_ids()` / `load_host_details()` when empty.
+    /// Populated when the clone is constructed via `new_with_seed`; empty for `new()`.
+    ///
+    /// Route handlers MUST NOT use `generated_devices.is_empty()` as the dual-path
+    /// sentinel — use `fixture_gen_seeded` instead. `DormantTenant` produces zero
+    /// device records but is seeded, so handlers must serve EMPTY (not fall back
+    /// to the static fixture). F-P6-HIGH-001 / ADR-036 v2.2.
     ///
     /// ADR-036 §2.3: immutable after construction (NOT Arc<Mutex<...>>).
     #[cfg(feature = "fixture-gen")]
@@ -160,8 +162,10 @@ pub struct CrowdstrikeState {
 
     /// Detection records from the fixture generator (BC-2.06.018 postcondition 1).
     ///
-    /// Non-empty when the clone is constructed via `new_with_seed`.
-    /// Empty when constructed via `new()`.
+    /// Populated when the clone is constructed via `new_with_seed`; empty for `new()`.
+    ///
+    /// Route handlers MUST NOT use `generated_detections.is_empty()` as the dual-path
+    /// sentinel — use `fixture_gen_seeded` instead. F-P10-HIGH-001 / ADR-036 v2.2.
     ///
     /// ADR-036 §2.3: immutable after construction.
     #[cfg(feature = "fixture-gen")]

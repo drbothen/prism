@@ -89,11 +89,14 @@ impl CrowdstrikeClone {
     /// under `#[cfg(feature = "fixture-gen")]`, stores the resulting records in
     /// `generated_devices` / `generated_detections` in state.
     ///
-    /// Route handlers serve from `generated_devices` / `generated_detections` when
-    /// non-empty; fall back to `load_host_ids()` / `load_host_details()` (static
-    /// embedded JSON in routes/hosts.rs) when empty.
+    /// Sets `state.fixture_gen_seeded = true`. Route handlers check this flag (not
+    /// `generated_devices.is_empty()` / `generated_detections.is_empty()`) as the
+    /// dual-path sentinel so that `Archetype::DormantTenant` (seeded=true, 0 records)
+    /// serves EMPTY — it does NOT fall back to the static embedded JSON.
+    /// F-P6-HIGH-001 / F-P10-HIGH-001 / ADR-036 v2.2.
     ///
-    /// `CrowdstrikeClone::new()` is unchanged (backward-compatible, ADR-036 §2.5).
+    /// `CrowdstrikeClone::new()` is unchanged (backward-compatible, ADR-036 §2.5);
+    /// it leaves `fixture_gen_seeded = false` and route handlers use the static fixture.
     ///
     /// ADR-036 §2.3: `new_with_seed` calls `generate()` ONCE at construction;
     /// route handlers MUST NOT call `generate()` per-request.

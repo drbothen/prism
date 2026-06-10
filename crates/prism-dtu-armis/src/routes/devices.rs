@@ -156,14 +156,16 @@ pub async fn post_devices(
 
 /// Pagination helper shared by GET and POST device queries.
 ///
-/// Dual-path (ADR-036 §2.3, BC-2.06.018, F-P2-CRIT-002):
-/// - When `state.generated_records` is non-empty (clone built via `new_with_seed`):
+/// Dual-path (ADR-036 §2.3, BC-2.06.018, F-P2-CRIT-002, F-P6-HIGH-001):
+/// - When `state.fixture_gen_seeded == true` (clone built via `new_with_seed`):
 ///   serves device records as raw `serde_json::Value` (Claroty pattern).
 ///   Generated records use camelCase Armis-native field names ("asset_id", "lastSeen",
 ///   etc.) which are incompatible with the snake_case `DeviceRecord` struct.
 ///   The adapter reads `$.data.devices` by JSON path, so raw Values are correct.
-/// - When `state.generated_records` is empty: falls back to `state.devices_ordered`
-///   (static fixture, backward-compatible `new()` path).
+///   A seeded clone with zero generated device records (e.g. `Archetype::DormantTenant`)
+///   serves an EMPTY list — it does NOT fall back to `state.devices_ordered`.
+/// - When `state.fixture_gen_seeded == false` (`new()` / non-seeded path):
+///   serves from `state.devices_ordered` (static fixture, backward-compatible path).
 fn paginate_devices(state: &ArmisState, page: u32, size: u32) -> axum::response::Response {
     // Dual-path: use fixture_gen_seeded (not generated_records.is_empty()) as sentinel.
     // DormantTenant (seeded=true, 0 records) must serve empty — not static fixture.

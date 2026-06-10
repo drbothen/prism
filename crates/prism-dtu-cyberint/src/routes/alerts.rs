@@ -139,12 +139,14 @@ pub(crate) fn check_auth(
 ///
 /// Returns a paginated list of alerts. Merges current status from `alert_store`.
 ///
-/// Dual-path (ADR-036 §2.3, BC-2.06.018):
-/// - When `state.generated_records` is non-empty (clone built via `new_with_seed`):
+/// Dual-path (ADR-036 §2.3, BC-2.06.018, F-P6-HIGH-001):
+/// - When `state.fixture_gen_seeded == true` (clone built via `new_with_seed`):
 ///   serves alert records directly from generated JSON values (no status merge, as
 ///   generated records have no corresponding alert_store entries).
-/// - When `state.generated_records` is empty: falls back to `alert_fixture` + `alert_store`
-///   status merge (static-fixture backward-compatible `new()` path).
+///   A seeded clone with zero generated alert records (e.g. `Archetype::DormantTenant`)
+///   serves an EMPTY list — it does NOT fall back to `alert_fixture` + `alert_store`.
+/// - When `state.fixture_gen_seeded == false` (`new()` / non-seeded path):
+///   merges `alert_fixture` with `alert_store` status (static-fixture backward-compatible path).
 pub async fn get_alerts(
     State(state): State<Arc<CyberintState>>,
     headers: HeaderMap,
