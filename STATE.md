@@ -1,9 +1,9 @@
 ---
 document_type: pipeline-state
 level: ops
-version: "7.733"
+version: "7.734"
 producer: state-manager
-timestamp: 2026-06-09T14:00:00Z
+timestamp: 2026-06-09T16:00:00Z
 inputs: []
 input-hash: "[live-state]"
 traces_to: ""
@@ -17,12 +17,12 @@ safe_to_compact: true
 
 # ── CANONICAL CURRENT-STATE VALUES (authoritative; do not drop in future compactions) ──
 develop_head: "64d34967"
-bc_index_version: "6.05"
+bc_index_version: "6.06"
 vp_index_version: "1.76"
-story_index_version: "v2.332"
+story_index_version: "v2.333"
 arch_index_version: "2.118"
 error_taxonomy_version: "1.64"
-total_stories: 188
+total_stories: 189
 active_contracts: 235
 draft_contracts: 6
 prd_version: "1.10"
@@ -34,7 +34,7 @@ workspace_test_count: 4064
 vsdd_factory_version: "1.0.0-rc.18"
 
 # ── WAVE-5 PHASE STATUS ──
-current_step: "D-1082 Complete story roadmap enumerated (user-directed 2026-06-09 — include all stories). §Complete Story Roadmap table added to task ledger (9 stories: 6 core + 3 optional; all statuses verified against STORY-INDEX v2.332). SESSION-HANDOFF §ACTIVE OBJECTIVE Build Sequence replaced with full enumerated roadmap table + source-of-truth pointer. Decision D-1082 added. STATE v7.732→v7.733. CURRENT POINTER = deliver Story A (S-DEMO-DTU-LIVE-SCENARIO-001-A) via 12-gate TDD (unchanged)."
+current_step: "D-1083 Mid-cascade spec-consistency burst (LOCAL adversary Pass-2 F-P2-MED-001 resolution — Cyberint portion). BC-2.06.018 v1.1→v1.2 §Scope Boundary added. S-DEMO-CYBERINT-INCIDENTS-SEEDING-001 draft stub registered. BC-INDEX v6.05→v6.06. STORY-INDEX v2.332→v2.333. total_stories 188→189. STATE v7.733→v7.734. LOCAL cascade IN PROGRESS (streak 0/3; Pass 3 next). Story A NOT delivered — 12-gate TDD STILL NEXT after cascade converges."
 wave5_phase_b_status: "COMPLETE — Lanes 1/2/3/4 + S-MAINT all merged. Lane 1: S-SPEC-HTTP-METHOD-VALIDATION-001 PR#172 develop@752e407a. Lane 2: S-DEMO-QUERY-PUSHDOWN-001 PR#173 develop@9447671f. Lane 3: OCSF-CLASS-MIGRATION-001 PR#174 develop@0e89789a. Lane 4: S-DEMO-003 PR#176 develop@a42e3eaf. S-MAINT-ECRED-TAXONOMY-SYNC-001 PR#175 develop@c603741d."
 wave5_autonomy_granted: "2026-06-04 D-989 — full autonomous A→B→C, strict convergence, auto-merge on objective gates; pause only for §7 amend / product-business decision / Level-3 escalation / CLAUDE.md edit"
 
@@ -85,9 +85,9 @@ safe_to_compact: true
 | **Language** | Rust |
 | **Target Workspace** | per-analyst stdio (MCP server) |
 | **Started** | 2026-04-13 |
-| **Last Updated** | 2026-06-09 (D-1082 — complete story roadmap enumerated user-directed; §Complete Story Roadmap added to task ledger; SESSION-HANDOFF Build Sequence replaced with full table; STATE v7.732→v7.733) |
+| **Last Updated** | 2026-06-09 (D-1083 — mid-cascade spec-consistency burst; BC-2.06.018 v1.1→v1.2 §Scope Boundary; S-DEMO-CYBERINT-INCIDENTS-SEEDING-001 registered draft; BC-INDEX v6.06; STORY-INDEX v2.333; STATE v7.733→v7.734) |
 | **Current Phase** | Wave 5 (wave-5-e-demo-fidelity) — **Phase C COMPLETE** (all 4 lanes merged). Phase B COMPLETE. T4 RECONCILED+COMPLETE (ADR-036 v2.0; BCs v1.1; E-DEMO taxonomy v1.64; Story A 001-A ready for delivery). Draft/deferred: S-DEMO-MULTI-TENANT-DTU-001 [T6]; S-MAINT-W3SEC-CITE-SWEEP-002 [D-954]; S-MAINT-ORPHAN-SENSORS-DIR-001 [D-977]; S-MAINT-EDITION-SYNC-001 [D-1027]; S-DEMO-LAUNCHER-CONSOLIDATION-001 [D-1029]. |
-| **Current Step** | D-1082 — Complete story roadmap enumerated (user-directed). §Complete Story Roadmap table added to task ledger (6 core + 3 optional stories, all statuses verified). SESSION-HANDOFF snapshot: 2026-06-09-COMPLETE-ROADMAP-D1082. STATE v7.733. BC counts UNCHANGED 250/235/6. 12-gate TDD delivery of Story A NEXT (T4-A). |
+| **Current Step** | D-1083 — Mid-cascade spec-consistency burst (LOCAL Pass-2 F-P2-MED-001 Cyberint portion). BC-2.06.018 v1.1→v1.2 §Scope Boundary — Non-Generator-Backed Tables added; Cyberint incidents table documented intentionally non-generator-backed; generator covers alert/asm_asset/cve/ioc only. S-DEMO-CYBERINT-INCIDENTS-SEEDING-001 draft stub registered (E-DEMO; wave 5; pts TBD). BC-INDEX v6.06. STORY-INDEX v2.333. total_stories 189. STATE v7.734. BC counts UNCHANGED 250/235/6. LOCAL cascade IN PROGRESS (streak 0/3; Pass 3 next). 12-gate TDD delivery of Story A STILL NEXT after cascade converges. |
 
 ## Active Objective (North Star)
 
@@ -159,6 +159,7 @@ _D-001..D-046 archived: `cycles/phase-3-dtu-wave-2/decisions-archive-d001-d032.m
 
 | ID | Decision | Rationale | Phase | Date |
 |----|----------|-----------|-------|------|
+| D-1083 | 2026-06-09 | state-manager | **Mid-cascade spec-consistency burst: LOCAL adversary Pass-2 F-P2-MED-001 Cyberint portion resolved. (1) BC-2.06.018 v1.1→v1.2 — §Scope Boundary — Non-Generator-Backed Tables added by product-owner; Cyberint incidents table documented as intentionally non-generator-backed in Story A; Cyberint sensor spec (cyberint.sensor.toml, EC-016-013-002) generator covers alert/asm_asset/cve/ioc only; incidents table requires separate generator surface + /api/v1/incidents DTU route deferred to follow-up story. (2) S-DEMO-CYBERINT-INCIDENTS-SEEDING-001 draft stub registered in STORY-INDEX v2.333 (E-DEMO; wave 5; P2; pts TBD; depends_on S-DEMO-DTU-LIVE-SCENARIO-001-A; story-writer materialization required before dispatch; file not-yet-authored). This provides the concrete future anchor required by Canonical Principle Rule 3 — BC-2.06.018 §Scope Boundary forward pointer now resolves. (3) BC-INDEX v6.05→v6.06 (BC-2.06.018 inline row 118 updated to v1.2; changelog v6.06 entry added). (4) STORY-INDEX v2.332→v2.333 (total_stories 188→189; changelog row added). LOCAL adversary cascade for Story A STILL IN PROGRESS — streak 0/3; Pass 3 dispatched next. Story A NOT delivered; 12-gate TDD STILL NEXT after cascade converges. STATE v7.733→v7.734. Single-commit burst per TD-VSDD-053.** | wave-5-e-demo-fidelity | 2026-06-09 | Decided by: product-owner (BC-2.06.018 §Scope Boundary amendment per orchestrator direction — mid-cascade F-P2-MED-001 resolution); recorded by state-manager (D-1083 single-commit burst; no code changes; BC counts 250/235/6 UNCHANGED). |
 | D-1082 | 2026-06-09 | state-manager | **Complete story roadmap enumerated (user-directed — "include all the stories we are going to work on"). §Complete Story Roadmap table added to `.factory/objectives/multi-client-soc-demo-tasks.md` (9 stories: 6 core + 3 optional; all statuses verified against STORY-INDEX v2.332). Order 1 (parallel/independent): S-DEMO-MULTI-TENANT-DTU-001 ready v1.2 8pt BC-2.06.017. Order 2 (NEXT): S-DEMO-DTU-LIVE-SCENARIO-001-A ready v1.1 8pt BC-2.06.018. Order 3: S-DEMO-DTU-LIVE-SCENARIO-001-B draft v1.0 7pt BC-2.06.019/020. Order 4: S-DEMO-004 draft/not-yet-authored-in-STORY-INDEX (needs architect+PO T8). Order 5: S-DEMO-LAUNCHER-CONSOLIDATION-001 draft stub (needs story-writer T11). Order 6 capstone: Multi-client SOC-analyst narrative story not-authored (T13). Optional: S-5.02/S-3.13/S-5.04 not-started (T15). SESSION-HANDOFF §ACTIVE OBJECTIVE Build Sequence replaced with full enumerated roadmap table (source-of-truth pointer to task ledger §Complete Story Roadmap). Progress Summary updated. SESSION-HANDOFF snapshot renamed to 2026-06-09-COMPLETE-ROADMAP-D1082. Ledger v1.8→v1.9. No story files authored, no BCs/counts changed — enumeration/durability only. STATE v7.732→v7.733. Single-commit burst per TD-VSDD-053.** | wave-5-e-demo-fidelity | 2026-06-09 | Decided by: user (explicit direction 2026-06-09 — "include all the stories we are going to work on"); recorded by state-manager (D-1082 complete-roadmap enumeration burst; no code/spec/BC/story/count changes). |
 | D-1081 | 2026-06-09 | state-manager | **Zero-context resume durability hardening (user-directed). Fixed stale sprint-state.yaml current_story (was null / "Phase C complete, needs human direction" → now story_id: S-DEMO-DTU-LIVE-SCENARIO-001-A, delivery_step: not-started, spec_version: "1.1", resume_at points to 12-gate delivery, ledger T4-A). Refreshed SESSION-HANDOFF §RESUME SNAPSHOT to 2026-06-09-STORY-A-DELIVERY-READY-D1081 (current position: Story A delivery-ready; D-1081). Corrected §7 Resume Protocol Checklist expected values (STATE 7.732; ledger T4-A VALIDATED + DELIVERY-READY; develop 64d34967; sprint-state current_story.story_id = S-DEMO-DTU-LIVE-SCENARIO-001-A, delivery_step = not-started). Updated ARCH-INDEX + STORY-INDEX + task-ledger pointers in sprint-state prereq_artifacts (v2.329/v6.00/v7.722 → v2.332/v6.05/v7.732). Coherence sweep (S-7.02): STATE/SESSION-HANDOFF/task-ledger/sprint-state all agree on next action = deliver Story A, develop HEAD 64d34967, STATE v7.732, BC counts 250/235/6, total_stories 188. Updated stale ARCH-INDEX/STORY-INDEX version cite in SESSION-HANDOFF §ACTIVE OBJECTIVE (v2.117/v2.331 → v2.118/v2.332). No code/spec/BC/VP/count changes — resume-durability bookkeeping only. STATE v7.731→v7.732. Single-commit burst per TD-VSDD-053.** | wave-5-e-demo-fidelity | 2026-06-09 | Decided by: user (explicit direction 2026-06-09 — make state + tasks fully durable for zero-context restart); recorded by state-manager (D-1081 durability-hardening burst; no code/spec/BC/story/count changes). |
 | D-1080 | 2026-06-09 | state-manager | **Story A (S-DEMO-DTU-LIVE-SCENARIO-001-A) re-validation via dclaude:remove-uncertainty — substrate correction (ADR-036 v2.0) CONFIRMED SOUND; scan found 2 HIGH + 4 MED + notes, ALL mechanism/wiring (no design flaw): gen_seeded_rng vs 1-arg seeded_rng; demo-server Cargo.toml needs uuid+prism-core+fixture-gen feature; Armis new_with_seed fallible; CrowdStrike device-read fallback is load_host_ids()/load_host_details() not containment_store; non-exhaustive-violation crate needs prism-dtu-common(fixture-gen) dep; per-clone generate() signature divergence noted. ADR-036 v2.0→v2.1 (3 fixes by architect); Story A v1.0→v1.1 (all corrections by story-writer). Story A now VALIDATED + delivery-ready (12-gate TDD next). Standing remove-uncertainty directive (D-1061) ROI re-confirmed. No code changes. DRIFT-SLUG-FORMAT-BC34004-001 registered (non-blocking): BC-3.4.004 + BC-3.5.001 carry org_slug="acme-corp" standalone-generator/harness test vectors that differ from ADR-036 §2.2 canonical demo-server slug hex(org_id.as_bytes()[0..4]); Story A documents the demo-server authority so it does not block; optional future PO reconciliation of standalone-generator BC test vectors; target: maintenance/Story-B-adjacent. ARCH-INDEX v2.117→v2.118. STORY-INDEX v2.331→v2.332. STATE v7.730→v7.731. Single-commit burst per TD-VSDD-053.** | wave-5-e-demo-fidelity | 2026-06-09 | Decided by: dclaude:remove-uncertainty (substrate validation + corrections); architect (ADR-036 v2.1); story-writer (Story A v1.1); recorded by state-manager (D-1080 single-commit burst; no code changes). |
@@ -279,20 +280,20 @@ All historical cycle files:
 
 ---
 
-## Session Resume Checkpoint (2026-06-09 — D-1082: Complete story roadmap enumerated; task ledger §Complete Story Roadmap added; SESSION-HANDOFF Build Sequence updated; STATE v7.733)
+## Session Resume Checkpoint (2026-06-09 — D-1083: Mid-cascade spec-consistency burst; BC-2.06.018 v1.2 §Scope Boundary; S-DEMO-CYBERINT-INCIDENTS-SEEDING-001 registered; STATE v7.734)
 
-_Previous checkpoint (D-1081; STATE v7.732) superseded by D-1082 complete-roadmap enumeration burst. Full durable resume snapshot is in SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-06-09-COMPLETE-ROADMAP-D1082._
+_Previous checkpoint (D-1082; STATE v7.733) superseded by D-1083 mid-cascade spec-consistency burst. Full durable resume snapshot is in SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-06-09-COMPLETE-ROADMAP-D1082 (still current — no SESSION-HANDOFF update needed; this is a spec-index burst only)._
 
-**STATE v7.733. D-1082 — Complete story roadmap enumerated (user-directed). §Complete Story Roadmap table in task ledger: 6 core stories (Orders 1-6) + 3 optional. SESSION-HANDOFF Build Sequence replaced with full enumerated table. All statuses verified against STORY-INDEX v2.332. BC counts UNCHANGED 250/235/6. BC-INDEX v6.05. ARCH-INDEX v2.118. STORY-INDEX v2.332. total_stories 188. develop@64d34967. D-989 autonomy ACTIVE. factory-artifacts pushed to origin after each burst. Story A DELIVERY-READY — 12-gate TDD next. Wave 5 Phase C COMPLETE.**
+**STATE v7.734. D-1083 — Mid-cascade spec-consistency burst: BC-2.06.018 v1.1→v1.2 §Scope Boundary — Non-Generator-Backed Tables (Cyberint incidents table documented intentionally non-generator-backed; generator covers alert/asm_asset/cve/ioc only); S-DEMO-CYBERINT-INCIDENTS-SEEDING-001 draft stub registered (E-DEMO; wave 5; pts TBD; depends_on Story A). BC-INDEX v6.06. STORY-INDEX v2.333. total_stories 189. BC counts UNCHANGED 250/235/6. ARCH-INDEX v2.118. develop@64d34967. D-989 autonomy ACTIVE. LOCAL adversary cascade for Story A IN PROGRESS (streak 0/3; Pass 3 next). Story A NOT delivered — 12-gate TDD STILL NEXT after cascade converges. Wave 5 Phase C COMPLETE.**
 
 **RESUME PROTOCOL (run on fresh session start):**
 0. Read SESSION-HANDOFF.md §ACTIVE OBJECTIVE (North Star) — multi-client SOC demo; Build Sequence table shows all 6 core + 3 optional stories. Source of truth: task ledger §Complete Story Roadmap.
 0a. Read `.factory/objectives/multi-client-soc-demo-tasks.md`, find CURRENT POINTER = T4-A, execute its NEXT ACTION. §Complete Story Roadmap shows all 9 stories with verified status.
 1. `vsdd-factory:factory-worktree-health` (BLOCKING)
 2. Verify `git log --oneline develop | head -1` shows `64d34967`
-3. Verify `grep "^version:" .factory/STATE.md` shows `"7.733"`
+3. Verify `grep "^version:" .factory/STATE.md` shows `"7.734"`
 4. `gh pr list --state open` → expect NONE
 5. Read SESSION-HANDOFF.md §RESUME SNAPSHOT 2026-06-09-COMPLETE-ROADMAP-D1082 + §ACTIVE OBJECTIVE
-6. Read task ledger → CURRENT TASK: T4-A not-started. NEXT ACTION: Deliver Story A via the 12-gate per-story TDD sequence (vsdd-factory:worktree-manage create → test-writer 14 Red Gate tests → implementer TDD across 8 crates → LOCAL adversary 3-CLEAN strict → demo-recorder → push origin/feature → pr-manager PR → PR-LEVEL 3-CLEAN strict + pr-reviewer APPROVE + security CLEAR → CI green → squash-merge → state-manager post-merge POL-14 BC-2.06.018 active). Story B after A merges.
+6. Read task ledger → CURRENT TASK: T4-A not-started. NEXT ACTION: LOCAL Pass 3 adversarial review of Story A (cascade IN PROGRESS after D-1083 spec-consistency burst; Pass 2 F-P2-MED-001 Cyberint portion CLOSED; Pass 3 NEXT to check BC-2.06.018 v1.2 amendment resolves all findings + check for additional findings). Streak 0/3. After 3-CLEAN, proceed to 12-gate TDD delivery.
 7. Read `.factory/stories/sprint-state.yaml` `current_story` — expect story_id: S-DEMO-DTU-LIVE-SCENARIO-001-A, delivery_step: not-started (spec-ready; gate 1 = worktree-manage create)
-8. Wave 5 Phase C COMPLETE. NORTH STAR: multi-client SOC-analyst live demo. Story A VALIDATED v1.1, ADR-036 v2.1 → 12-gate TDD delivery NEXT. Full story roadmap: 6 core (2 ready, 1 draft, 1 not-in-STORY-INDEX, 1 stub, 1 not-authored) + 3 optional.
+8. Wave 5 Phase C COMPLETE. NORTH STAR: multi-client SOC-analyst live demo. Story A VALIDATED v1.1, ADR-036 v2.1, BC-2.06.018 v1.2 → LOCAL adversary 3-CLEAN convergence NEXT, then 12-gate TDD delivery. Full story roadmap: 6 core (2 ready + 1 deferred follow-up registered, 1 draft, 1 not-in-STORY-INDEX, 1 stub, 1 not-authored) + 3 optional.

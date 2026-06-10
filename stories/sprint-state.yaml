@@ -683,9 +683,9 @@ current_story:
   last_updated_at: "2026-06-09"
 
 prereq_artifacts:
-  story_index: .factory/stories/STORY-INDEX.md         # v2.332 (STORY-INDEX v2.332 current; total_stories 188)
-  bc_index: .factory/specs/behavioral-contracts/BC-INDEX.md  # BC-INDEX v6.05; active 235, draft 6
-  state: .factory/STATE.md                              # v7.732 (D-1081 durability-hardening burst)
+  story_index: .factory/stories/STORY-INDEX.md         # v2.333 (STORY-INDEX v2.333 current; total_stories 189)
+  bc_index: .factory/specs/behavioral-contracts/BC-INDEX.md  # BC-INDEX v6.06; active 235, draft 6
+  state: .factory/STATE.md                              # v7.734 (D-1083 mid-cascade spec-consistency burst)
   governing_adr: .factory/specs/architecture/decisions/ADR-031-dtu-equals-true-dtu-fidelity-principle.md  # v1.2 (ADR-031 architect e57eb5b1 reclassified 3 divergences)
   governing_audit: .factory/proposals/POLLER-DTU-FIDELITY-AUDIT-2026-05-29.md  # v1.1
 

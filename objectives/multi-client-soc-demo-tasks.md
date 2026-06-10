@@ -2,10 +2,10 @@
 document_type: task-ledger
 objective: multi-client-soc-analyst-demo
 level: ops
-version: "1.9"
+version: "1.10"
 producer: state-manager
 status: active
-timestamp: 2026-06-09T14:00:00Z
+timestamp: 2026-06-09T16:00:00Z
 related:
   - SESSION-HANDOFF.md §ACTIVE OBJECTIVE
   - .factory/STATE.md
@@ -66,9 +66,10 @@ This is the complete set of stories for the multi-client SOC demo. The 12-gate p
 
 **Notes:**
 - S-DEMO-004 has NO formal STORY-INDEX row yet — it is referenced in the task ledger only. The architect+PO reconciliation (T8) will produce the formal story file.
-- S-DEMO-LAUNCHER-CONSOLIDATION-001 has a STORY-INDEX row (line 478) but pts=0 (stub); story-writer materialization at T11 will set real points.
+- S-DEMO-LAUNCHER-CONSOLIDATION-001 has a STORY-INDEX row but pts=0 (stub); story-writer materialization at T11 will set real points.
 - The narrative capstone story (Order 6) has no ID, no file, no STORY-INDEX row — it is the final authoring step before demo recording (T13).
 - Delivery order is sequential for Orders 2→3→4+5→6; Order 1 (S-DEMO-MULTI-TENANT-DTU-001) can ship independently at any time after T4-A+T5 complete.
+- **S-DEMO-CYBERINT-INCIDENTS-SEEDING-001 (deferred follow-up, D-1083):** Draft stub registered in STORY-INDEX v2.333. Split off from Story A per LOCAL adversary Pass-2 F-P2-MED-001: Cyberint incidents table is intentionally non-generator-backed in Story A (generator covers alert/asm_asset/cve/ioc only; cyberint.sensor.toml EC-016-013-002). This story adds a Cyberint incidents generator surface + /api/v1/incidents DTU route so the incidents table becomes generator-backed and per-client distinct. Anchored to BC-2.06.018 §Scope Boundary. Depends on Story A merge. Story-writer materialization + PO BC authorship required before dispatch. Not part of the current demo critical path — included in §Complete Story Roadmap as a deferred item below the core 6.
 
 ---
 
@@ -146,6 +147,7 @@ Per-story delivery tasks (T6, T7, T10, T12) follow the canonical 12-gate per-sto
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.10 | 2026-06-09 | state-manager | D-1083: Mid-cascade spec-consistency burst. S-DEMO-CYBERINT-INCIDENTS-SEEDING-001 deferred follow-up added to §Notes (anchored to BC-2.06.018 §Scope Boundary; split off from Story A per LOCAL Pass-2 F-P2-MED-001; Cyberint incidents table intentionally non-generator-backed in Story A; draft stub registered in STORY-INDEX v2.333). BC-INDEX v6.05→v6.06. STORY-INDEX v2.332→v2.333. STATE v7.733→v7.734. Ledger version 1.9→1.10. |
 | 1.9 | 2026-06-09 | state-manager | D-1082: Complete story roadmap enumerated (user-directed — "include all the stories we are going to work on"). §Complete Story Roadmap table added (9 stories: 6 core + 3 optional). Progress Summary updated to reference roadmap. SESSION-HANDOFF §ACTIVE OBJECTIVE Build Sequence augmented with full enumerated story list + source-of-truth pointer to §Complete Story Roadmap. STATE v7.732→v7.733 (D-1082 decision row). All statuses verified against STORY-INDEX v2.332: S-DEMO-MULTI-TENANT-DTU-001 ready v1.2 ✓; S-DEMO-DTU-LIVE-SCENARIO-001-A ready v1.1 ✓; S-DEMO-DTU-LIVE-SCENARIO-001-B draft v1.0 ✓; S-DEMO-004 not-in-STORY-INDEX (draft/stub per T8) ✓; S-DEMO-LAUNCHER-CONSOLIDATION-001 draft stub pts=0 ✓; narrative capstone not-authored ✓; S-5.02/S-3.13/S-5.04 not-started ✓. No story files authored, no BCs/counts changed — enumeration/durability only. Ledger version 1.8→1.9. |
 | 1.8 | 2026-06-09 | state-manager | D-1081: Zero-context resume durability hardening (user-directed). No task-status changes — bookkeeping only. sprint-state.yaml current_story fixed to point at T4-A Story A. SESSION-HANDOFF snapshot refreshed + §7 checklist expected values corrected. Coherence sweep confirmed ledger agrees with STATE v7.732/develop 64d34967/BC counts 250/235/6/total_stories 188. Ledger version 1.7→1.8. |
 | 1.7 | 2026-06-09 | state-manager | D-1080: Story A (S-DEMO-DTU-LIVE-SCENARIO-001-A) re-validation via dclaude:remove-uncertainty CONFIRMED SOUND. ADR-036 v2.0 substrate design correct; all mechanism/wiring corrections applied (U-A-01..U-A-10): gen_seeded_rng symbol; CrowdStrike load_host_ids()/load_host_details() fallback; GenOpts::default() syntax; demo-server Cargo.toml deps; Armis fallible; non-exhaustive-violation crate dep; per-clone generate() divergence. ADR-036 v2.0→v2.1 (architect). Story A v1.0→v1.1 (story-writer). DRIFT-SLUG-FORMAT-BC34004-001 registered (non-blocking). T4-A status: validated + delivery-ready (remove-uncertainty COMPLETE). CURRENT POINTER updated: T4-A 12-gate TDD NEXT. NEXT ACTION updated verbatim. ARCH-INDEX v2.117→v2.118. STORY-INDEX v2.331→v2.332. STATE v7.730→v7.731. |
