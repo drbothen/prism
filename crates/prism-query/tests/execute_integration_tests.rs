@@ -2420,6 +2420,67 @@ async fn test_QRY_02_force_refresh_bypasses_and_replaces_cache_entry() {
     );
 }
 
+/// P1-01 / BC-2.07.005 v4.4 (EC-07-043): limit-poisoning regression.
+///
+/// The fan-out target pushes the effective fetch-limit to the sensor API
+/// (BC-2.01.013 v1.14 / F-P1-CRIT-004), so the cached response is
+/// limit-truncated at the source. A `limit=3` query must therefore populate an
+/// entry that a later `limit=1000` query with identical filters does NOT hit —
+/// otherwise the analyst silently receives 3 records and a wrong
+/// `total_available`. Same-limit re-queries DO share the entry (bounded
+/// fragmentation, architect adjudication D1,
+/// `proposals/cache-envelope-adjudication-2026-06-10.md`).
+#[tokio::test]
+async fn test_QRY_P1_01_lower_limit_entry_must_not_serve_higher_limit_query() {
+    use prism_query::engine::QueryOptions;
+
+    let (engine, call_count) = make_counting_engine();
+    let make_options = |limit: usize| QueryOptions {
+        clients: Some(vec![helpers::org("acme")]),
+        limit: Some(limit),
+        ..QueryOptions::default()
+    };
+
+    // 1) limit=3 populates a 3-truncated cache entry (1 fetch).
+    engine
+        .execute("SELECT * FROM crowdstrike_detections", make_options(3))
+        .await
+        .expect("limit=3 execute must succeed");
+    assert_eq!(
+        call_count.load(std::sync::atomic::Ordering::SeqCst),
+        1,
+        "limit=3 query must fetch from the sensor"
+    );
+
+    // 2) Identical filters, limit=1000 → MUST be a cache MISS (2nd fetch).
+    //    Pre-fix failure mode: the 3-truncated entry silently served the
+    //    1000-limit query (P1-01 cache poisoning).
+    engine
+        .execute("SELECT * FROM crowdstrike_detections", make_options(1000))
+        .await
+        .expect("limit=1000 execute must succeed");
+    assert_eq!(
+        call_count.load(std::sync::atomic::Ordering::SeqCst),
+        2,
+        "EC-07-043: a limit=1000 query must NOT be served from the entry \
+         populated by the limit=3 fetch (different effective fetch-limit → \
+         different push_down_hash → cache miss)"
+    );
+
+    // 3) Same limit=1000 again → cache HIT (still 2 fetches): entries fetched
+    //    under the same effective fetch-limit share one cache entry.
+    engine
+        .execute("SELECT * FROM crowdstrike_detections", make_options(1000))
+        .await
+        .expect("repeat limit=1000 execute must succeed");
+    assert_eq!(
+        call_count.load(std::sync::atomic::Ordering::SeqCst),
+        2,
+        "BC-2.07.005 v4.4: identical effective fetch-limit must share the \
+         cache entry (exactly 2 fetches expected)"
+    );
+}
+
 /// BC-2.07.004: a write-operation invalidation against the engine's response
 /// cache (`QueryEngine::response_cache()`) evicts the cached entries, so the
 /// next query re-fetches from the sensor (write-then-read consistency, DEC-018).

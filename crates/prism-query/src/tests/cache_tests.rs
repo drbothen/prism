@@ -1433,6 +1433,7 @@ fn test_qry02_derive_response_cache_key_deterministic() {
         &filters,
         &start,
         &end,
+        0,
     );
     let k2 = derive_response_cache_key(
         &client,
@@ -1441,6 +1442,7 @@ fn test_qry02_derive_response_cache_key_deterministic() {
         &filters,
         &start,
         &end,
+        0,
     );
     assert_eq!(
         k1, k2,
@@ -1470,6 +1472,7 @@ fn test_qry02_derive_response_cache_key_sensitive_to_filters_and_time_window() {
         &filters_high,
         &None,
         &None,
+        0,
     );
     let k_low = derive_response_cache_key(
         &client,
@@ -1478,6 +1481,7 @@ fn test_qry02_derive_response_cache_key_sensitive_to_filters_and_time_window() {
         &filters_low,
         &None,
         &None,
+        0,
     );
     assert_ne!(
         k_high.push_down_hash, k_low.push_down_hash,
@@ -1491,6 +1495,7 @@ fn test_qry02_derive_response_cache_key_sensitive_to_filters_and_time_window() {
         &empty,
         &None,
         &None,
+        0,
     );
     let k_with_window = derive_response_cache_key(
         &client,
@@ -1499,6 +1504,7 @@ fn test_qry02_derive_response_cache_key_sensitive_to_filters_and_time_window() {
         &empty,
         &Some("2026-01-01T00:00:00Z".to_string()),
         &None,
+        0,
     );
     assert_ne!(
         k_no_window.push_down_hash, k_with_window.push_down_hash,
@@ -1525,6 +1531,7 @@ fn test_qry02_derive_response_cache_key_filter_namespace_no_time_window_collisio
         &filters_with_start,
         &None,
         &None,
+        0,
     );
 
     let empty = prism_sensors::types::FilterMap::new();
@@ -1535,12 +1542,130 @@ fn test_qry02_derive_response_cache_key_filter_namespace_no_time_window_collisio
         &empty,
         &Some("2026-01-01T00:00:00Z".to_string()),
         &None,
+        0,
     );
 
     assert_ne!(
         k_filter.push_down_hash, k_window.push_down_hash,
         "a filter column named 'start_time' must not collide with the \
          time-window start_time parameter (namespacing)"
+    );
+}
+
+/// P1-01 / BC-2.07.005 v4.4 (EC-07-043): identical filters with different
+/// effective fetch-limits (25 vs 1000) must produce different
+/// `push_down_hash` values — a 25-truncated response must never serve a
+/// 1000-limit query.
+#[test]
+fn test_qry_p101_different_fetch_limits_produce_different_hashes() {
+    use crate::materialization::derive_response_cache_key;
+
+    let client = OrgSlug::new("acme");
+    let sensor = SensorId::from("crowdstrike");
+    let mut filters = prism_sensors::types::FilterMap::new();
+    filters.insert("severity".to_string(), json!("High"));
+
+    let k_25 = derive_response_cache_key(
+        &client,
+        &sensor,
+        "crowdstrike_detections",
+        &filters,
+        &None,
+        &None,
+        25,
+    );
+    let k_1000 = derive_response_cache_key(
+        &client,
+        &sensor,
+        "crowdstrike_detections",
+        &filters,
+        &None,
+        &None,
+        1000,
+    );
+
+    assert_ne!(
+        k_25.push_down_hash, k_1000.push_down_hash,
+        "EC-07-043: different effective fetch-limits must produce different \
+         push_down_hash values (no cache sharing across truncation levels)"
+    );
+}
+
+/// P1-01 / BC-2.07.005 v4.4: identical filters with the SAME effective
+/// fetch-limit share one cache entry (identical full key) — default-limit
+/// queries (the dominant MCP case) must not fragment.
+#[test]
+fn test_qry_p101_same_fetch_limit_produces_identical_key() {
+    use crate::materialization::derive_response_cache_key;
+
+    let client = OrgSlug::new("acme");
+    let sensor = SensorId::from("crowdstrike");
+    let mut filters = prism_sensors::types::FilterMap::new();
+    filters.insert("severity".to_string(), json!("High"));
+
+    let k_a = derive_response_cache_key(
+        &client,
+        &sensor,
+        "crowdstrike_detections",
+        &filters,
+        &None,
+        &None,
+        25,
+    );
+    let k_b = derive_response_cache_key(
+        &client,
+        &sensor,
+        "crowdstrike_detections",
+        &filters,
+        &None,
+        &None,
+        25,
+    );
+
+    assert_eq!(
+        k_a, k_b,
+        "BC-2.07.005 v4.4: identical effective fetch-limits must share one \
+         cache entry (identical full CacheKey)"
+    );
+}
+
+/// P1-01 / BC-2.07.005 v4.4 (EC-07-044): a 0 / no-limit fetch is canonicalized
+/// by OMITTING the `fetch.limit` parameter — the hash equals a manually-derived
+/// key with the same namespaced params and no `fetch.limit` entry (the
+/// null/absent-omission rule).
+#[test]
+fn test_qry_p101_zero_fetch_limit_omitted_equals_absent_param() {
+    use crate::materialization::derive_response_cache_key;
+
+    let client = OrgSlug::new("acme");
+    let sensor = SensorId::from("crowdstrike");
+    let mut filters = prism_sensors::types::FilterMap::new();
+    filters.insert("severity".to_string(), json!("High"));
+
+    let k_zero = derive_response_cache_key(
+        &client,
+        &sensor,
+        "crowdstrike_detections",
+        &filters,
+        &None,
+        &None,
+        0,
+    );
+
+    // Manually-derived key with the same canonical params and NO fetch.limit.
+    let mut params = PushDownParams::new();
+    params.insert("filter.severity", json!("High"));
+    let k_absent = CacheKey::derive(
+        client.as_str(),
+        sensor.clone(),
+        "crowdstrike_detections",
+        &params,
+    );
+
+    assert_eq!(
+        k_zero.push_down_hash, k_absent.push_down_hash,
+        "EC-07-044: fetch_limit 0 (no-limit sentinel) must be omitted from the \
+         canonical form — identical hash to the parameter-absent derivation"
     );
 }
 

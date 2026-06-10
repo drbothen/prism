@@ -338,12 +338,30 @@ impl CredentialResolver for NullMaterializationCredentialResolver {
 ///
 /// The `push_down_hash` input is the canonicalized set of sensor-native
 /// push-down parameters for the fetch: the WHERE-clause equality `FilterMap`
-/// (namespaced `filter.<column>`) plus the ADR-033 extracted time-window
-/// bounds (`start_time` / `end_time`). The original PrismQL query string, the
-/// tool-level `limit`, the `force_refresh` flag, and PrismQL post-filters are
-/// excluded per BC-2.07.005 §Hash Input. Two different PrismQL queries that
-/// produce identical push-down parameters therefore share a cache entry
+/// (namespaced `filter.<column>`), the ADR-033 extracted time-window bounds
+/// (`start_time` / `end_time`), and the **effective fetch-limit** (parameter
+/// key `fetch.limit` — BC-2.07.005 v4.4). The original PrismQL query string,
+/// the `force_refresh` flag, and PrismQL post-filters are excluded per
+/// BC-2.07.005 §Hash Input. Two different PrismQL queries that produce
+/// identical push-down parameters therefore share a cache entry
 /// (BC-2.07.003 §Postconditions).
+///
+/// # Effective fetch-limit (P1-01 / BC-2.07.005 v4.4)
+///
+/// `fetch_limit` is the exact `u64` pushed into the fan-out target's
+/// `QueryParams.limit` (BC-2.01.013 v1.14 / F-P1-CRIT-004). Because fetched
+/// responses are limit-truncated at the sensor API, an entry fetched under
+/// limit L is valid only for queries fetching under the same L. The
+/// tool-level `limit`'s *post-materialization truncation role* remains
+/// excluded — what is hashed is the fetch-limit actually pushed. `0` is the
+/// no-limit sentinel (EC-08 of BC-2.01.013 v1.14): when 0, the parameter is
+/// **omitted** from the canonical form per the null/absent-omission rule, so
+/// unlimited fetches share entries with unlimited fetches (EC-07-044).
+///
+/// Coherence invariant (architect adjudication D1,
+/// `proposals/cache-envelope-adjudication-2026-06-10.md`): the caller must
+/// feed the SAME local binding into this function and into the fan-out
+/// target's `QueryParams.limit` — the limit hashed is the limit fetched.
 pub(crate) fn derive_response_cache_key(
     client_id: &OrgSlug,
     sensor_id: &SensorId,
@@ -351,10 +369,12 @@ pub(crate) fn derive_response_cache_key(
     filters: &prism_sensors::types::FilterMap,
     start_time: &Option<String>,
     end_time: &Option<String>,
+    fetch_limit: u64,
 ) -> CacheKey {
     let mut params = PushDownParams::new();
     // Namespace filter keys so a sensor column literally named "start_time"
-    // cannot collide with the time-window parameters below.
+    // cannot collide with the time-window parameters below. (The `fetch.limit`
+    // key below cannot collide either: filter keys are `filter.<column>`.)
     for (k, v) in filters {
         params.insert(format!("filter.{k}"), v.clone());
     }
@@ -363,6 +383,11 @@ pub(crate) fn derive_response_cache_key(
     }
     if let Some(et) = end_time {
         params.insert("end_time", serde_json::Value::String(et.clone()));
+    }
+    // BC-2.07.005 v4.4: hash the effective fetch-limit; omit the 0 / no-limit
+    // sentinel per the null/absent-omission rule (EC-07-044).
+    if fetch_limit > 0 {
+        params.insert("fetch.limit", serde_json::Value::from(fetch_limit));
     }
     CacheKey::derive(client_id.as_str(), sensor_id.clone(), source_table, &params)
 }
@@ -463,6 +488,18 @@ pub async fn run_materialization_pipeline(
     // the per-target loop can hold it alongside &mut mat_ctx borrows.
     let response_cache = mat_ctx.response_cache.clone();
 
+    // Effective fetch-limit (BC-2.01.013 v1.14 / F-P1-CRIT-004): the limit
+    // pushed into every fan-out target's `QueryParams.limit`. 0 = no-limit
+    // sentinel (EC-008).
+    //
+    // SINGLE-BINDING COHERENCE (P1-01 / BC-2.07.005 v4.4 §Invariants, architect
+    // adjudication D1): this binding feeds BOTH the response-cache key
+    // derivation AND the fan-out target construction below. Do NOT introduce a
+    // second derivation of the pushed limit — the limit hashed into
+    // `push_down_hash` must always be the limit actually fetched, including
+    // under any future pushdown-suppression logic.
+    let fetch_limit: u64 = options.limit.map(|l| l as u64).unwrap_or(0);
+
     // F-LP1-CRIT-2/3: use fan_out() with CredentialResolver.
     // Process each target independently so virtual field injection uses the
     // correct per-target (org_id, client_id) — grouping by source_table would
@@ -503,6 +540,7 @@ pub async fn run_materialization_pipeline(
                 &where_filters,
                 &extracted_start_time,
                 &extracted_end_time,
+                fetch_limit,
             )
         });
 
@@ -563,7 +601,9 @@ pub async fn run_materialization_pipeline(
                 },
                 params: prism_sensors::adapter::QueryParams {
                     cursor: None,
-                    limit: options.limit.map(|l| l as u64).unwrap_or(0),
+                    // Single-binding coherence (P1-01 / BC-2.07.005 v4.4): the
+                    // SAME `fetch_limit` binding feeds the cache key above.
+                    limit: fetch_limit,
                     // ADR-033 T1: populate start_time/end_time from pre-fan-out AST extraction.
                     // These were hardcoded None (F-P6-CRIT-001 dead-code gap); now wired per ADR-033.
                     start_time: extracted_start_time.clone(),
