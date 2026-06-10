@@ -152,5 +152,11 @@ name = "bc_2_06_018_new_with_seed"
 path = "tests/bc_2_06_018_new_with_seed.rs"
 required-features = ["dtu", "fixture-gen"]
 
+# F-P2-CRIT-001/002 + F-P4-MED-001: route-output tests (surface purity + disjointness)
+[[test]]
+name = "f_p2_route_output_tests"
+path = "tests/f_p2_route_output_tests.rs"
+required-features = ["dtu", "fixture-gen"]
+
 [lints]
 workspace = true

@@ -150,5 +150,17 @@ name = "bc_2_06_018_new_with_seed"
 path = "tests/bc_2_06_018_new_with_seed.rs"
 required-features = ["dtu", "fixture-gen"]
 
+# F-P2-MED-001 closure: Claroty alerts dual-path route-output tests
+[[test]]
+name = "f_p2_med_001_alerts_route_output"
+path = "tests/f_p2_med_001_alerts_route_output.rs"
+required-features = ["dtu", "fixture-gen"]
+
+# F-P4-CRIT-001 closure: Claroty devices surface-purity tests (load-bearing completeness matrix)
+[[test]]
+name = "f_p4_crit_001_devices_route_purity"
+path = "tests/f_p4_crit_001_devices_route_purity.rs"
+required-features = ["dtu", "fixture-gen"]
+
 [lints]
 workspace = true

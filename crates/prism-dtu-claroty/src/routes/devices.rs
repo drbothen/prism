@@ -240,9 +240,21 @@ pub async fn list_devices(
 
     // Dual-path: serve from generated_records when available (ADR-036 §2.3, BC-2.06.018).
     // Generated records are immutable after construction — no lock needed.
+    //
+    // F-P4-CRIT-001: filter to device-surface records only.
+    // The generator (CompromisedEndpoint) emits both device records (have `asset_id`,
+    // no `alert_id`) and alert records (have `alert_id`, no `asset_id`) into the same
+    // generated_records vec. We must serve ONLY device-surface records here.
+    // Mirror the discriminator used by Armis devices.rs:
+    //   device record: asset_id present AND alert_id absent.
     #[cfg(feature = "fixture-gen")]
     let mut devices: Vec<serde_json::Value> = if !state.generated_records.is_empty() {
-        state.generated_records.clone()
+        state
+            .generated_records
+            .iter()
+            .filter(|rec| rec.get("asset_id").is_some() && rec.get("alert_id").is_none())
+            .cloned()
+            .collect()
     } else {
         load_devices_fixture()
     };

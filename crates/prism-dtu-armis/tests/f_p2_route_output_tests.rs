@@ -470,3 +470,201 @@ async fn test_f_p2_crit_002_devices_disjoint_across_seeds() {
          intersection={intersection:?}"
     );
 }
+
+// ---------------------------------------------------------------------------
+// F-P4-MED-001: Surface-purity assertions for Armis routes
+//
+// CompromisedEndpoint baseline (scale=1.0):
+//   device records: 50 — discriminator: asset_id present, alert_id absent
+//   alert records:  20 — discriminator: alert_id present
+//   total generated_records: 70
+//
+// These tests assert:
+//   (a) ONLY device-surface records appear in /api/v1/search?aql=in:devices
+//   (b) ONLY device-surface records appear in /api/v1/devices
+//   (c) ONLY alert-surface records appear in /api/v1/search?aql=in:alerts
+//   (d) Exact expected counts (no foreign-surface leakage)
+// ---------------------------------------------------------------------------
+
+/// F-P4-MED-001 (Armis): GET /api/v1/search?aql=in:devices serves ONLY device-surface
+/// records — zero alert records in the response.
+///
+/// Armis CompromisedEndpoint (scale=1.0): 50 device records + 20 alert records = 70 total.
+/// The `in:devices` route must serve exactly 50 device records (no alert records).
+///
+/// Asserts:
+/// - `data.total` == 50
+/// - Every record in `data.results` has NO `alert_id` field
+/// - Every record in `data.results` HAS an `asset_id` field
+#[tokio::test]
+async fn test_f_p4_med_001_armis_search_devices_surface_purity() {
+    let org = deadbeef_org();
+    let slug = org_slug(&org);
+    let seed = 42u64;
+
+    let mut clone =
+        ArmisClone::new_with_seed(seed, org.clone(), &slug).expect("new_with_seed must succeed");
+    clone.start().await.expect("clone start must succeed");
+    let base_url = clone.base_url();
+    let client = test_client();
+
+    let resp = client
+        .get(format!("{base_url}/api/v1/search"))
+        .query(&[("aql", "in:devices")])
+        .header("Authorization", "Bearer test-token")
+        .send()
+        .await
+        .expect("GET /api/v1/search?aql=in:devices must not fail");
+
+    assert_eq!(resp.status().as_u16(), 200, "must return HTTP 200");
+    let body: serde_json::Value = resp.json().await.expect("must be valid JSON");
+    let results = body["data"]["results"]
+        .as_array()
+        .expect("F-P4-MED-001: $.data.results must be an array");
+
+    let total = body["data"]["total"]
+        .as_u64()
+        .expect("F-P4-MED-001: $.data.total must be a number");
+
+    assert_eq!(
+        total, 50,
+        "F-P4-MED-001 (Armis search devices): $.data.total must be exactly 50 \
+         (device-surface count for CompromisedEndpoint at scale=1.0); got {total}"
+    );
+
+    // (a) Surface purity: EVERY record must NOT have alert_id.
+    for (i, record) in results.iter().enumerate() {
+        assert!(
+            record.get("alert_id").is_none(),
+            "F-P4-MED-001 (Armis search devices): $.data.results[{i}] has 'alert_id' — \
+             alert record leaked into the in:devices response. \
+             discriminator: asset_id present AND alert_id absent."
+        );
+    }
+
+    // (a) Surface purity: EVERY record must have asset_id.
+    for (i, record) in results.iter().enumerate() {
+        assert!(
+            record.get("asset_id").is_some(),
+            "F-P4-MED-001 (Armis search devices): $.data.results[{i}] missing 'asset_id'"
+        );
+    }
+}
+
+/// F-P4-MED-001 (Armis): GET /api/v1/search?aql=in:alerts serves ONLY alert-surface
+/// records — zero device records in the response.
+///
+/// CompromisedEndpoint (scale=1.0): 20 alert records at /api/v1/search?aql=in:alerts.
+///
+/// Asserts:
+/// - `data.total` == 20
+/// - Every record in `data.results` HAS an `alert_id` field
+/// - NO record has no `alert_id` (device records absent)
+#[tokio::test]
+async fn test_f_p4_med_001_armis_search_alerts_surface_purity() {
+    let org = deadbeef_org();
+    let slug = org_slug(&org);
+    let seed = 42u64;
+
+    let mut clone =
+        ArmisClone::new_with_seed(seed, org.clone(), &slug).expect("new_with_seed must succeed");
+    clone.start().await.expect("clone start must succeed");
+    let base_url = clone.base_url();
+    let client = test_client();
+
+    let resp = client
+        .get(format!("{base_url}/api/v1/search"))
+        .query(&[("aql", "in:alerts")])
+        .header("Authorization", "Bearer test-token")
+        .send()
+        .await
+        .expect("GET /api/v1/search?aql=in:alerts must not fail");
+
+    assert_eq!(resp.status().as_u16(), 200, "must return HTTP 200");
+    let body: serde_json::Value = resp.json().await.expect("must be valid JSON");
+    let results = body["data"]["results"]
+        .as_array()
+        .expect("F-P4-MED-001: $.data.results must be an array");
+
+    let total = body["data"]["total"]
+        .as_u64()
+        .expect("F-P4-MED-001: $.data.total must be a number");
+
+    assert_eq!(
+        total, 20,
+        "F-P4-MED-001 (Armis search alerts): $.data.total must be exactly 20 \
+         (alert-surface count for CompromisedEndpoint at scale=1.0); got {total}"
+    );
+
+    // (c) Surface purity: EVERY record must have alert_id.
+    for (i, record) in results.iter().enumerate() {
+        assert!(
+            record.get("alert_id").is_some(),
+            "F-P4-MED-001 (Armis search alerts): $.data.results[{i}] missing 'alert_id' — \
+             not an alert record. \
+             discriminator: alert_id present."
+        );
+    }
+}
+
+/// F-P4-MED-001 (Armis): GET /api/v1/devices serves ONLY device-surface records.
+///
+/// CompromisedEndpoint (scale=1.0): 50 device records at /api/v1/devices.
+///
+/// Asserts:
+/// - `data.total` == 50
+/// - Every record in `data.devices` has NO `alert_id` field
+/// - Every record in `data.devices` HAS an `asset_id` field
+#[tokio::test]
+async fn test_f_p4_med_001_armis_devices_endpoint_surface_purity() {
+    let org = deadbeef_org();
+    let slug = org_slug(&org);
+    let seed = 42u64;
+
+    let mut clone =
+        ArmisClone::new_with_seed(seed, org.clone(), &slug).expect("new_with_seed must succeed");
+    clone.start().await.expect("clone start must succeed");
+    let base_url = clone.base_url();
+    let client = test_client();
+
+    let resp = client
+        .get(format!("{base_url}/api/v1/devices"))
+        .header("Authorization", "Bearer test-token")
+        .send()
+        .await
+        .expect("GET /api/v1/devices must not fail");
+
+    assert_eq!(resp.status().as_u16(), 200, "must return HTTP 200");
+    let body: serde_json::Value = resp.json().await.expect("must be valid JSON");
+    let devices = body["data"]["devices"]
+        .as_array()
+        .expect("F-P4-MED-001: $.data.devices must be an array");
+
+    let total = body["data"]["total"]
+        .as_u64()
+        .expect("F-P4-MED-001: $.data.total must be a number");
+
+    assert_eq!(
+        total, 50,
+        "F-P4-MED-001 (Armis /api/v1/devices): $.data.total must be exactly 50 \
+         (device-surface count for CompromisedEndpoint at scale=1.0); got {total}"
+    );
+
+    // (b) Surface purity: EVERY device record must NOT have alert_id.
+    for (i, record) in devices.iter().enumerate() {
+        assert!(
+            record.get("alert_id").is_none(),
+            "F-P4-MED-001 (Armis /api/v1/devices): $.data.devices[{i}] has 'alert_id' — \
+             alert record leaked into the /api/v1/devices response. \
+             discriminator: asset_id present AND alert_id absent."
+        );
+    }
+
+    // (b) Surface purity: EVERY device record must have asset_id.
+    for (i, record) in devices.iter().enumerate() {
+        assert!(
+            record.get("asset_id").is_some(),
+            "F-P4-MED-001 (Armis /api/v1/devices): $.data.devices[{i}] missing 'asset_id'"
+        );
+    }
+}

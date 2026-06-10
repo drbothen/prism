@@ -404,3 +404,71 @@ async fn test_f_p3_route_output_alerts_disjoint_across_seeds() {
          must be DISJOINT at GET /api/v1/alerts; intersection={intersection:?}"
     );
 }
+
+// ---------------------------------------------------------------------------
+// F-P4-MED-001: Exact-count assertions for Cyberint route
+//
+// CompromisedEndpoint baseline (scale=1.0):
+//   alert surface: 20 records (_surface="alert")
+//   asm_asset surface: 10 records (_surface="asm_asset")
+//   cve surface: 10 records (_surface="cve")
+//   ioc surface: 10 records (_surface="ioc")
+//   total generated_records: 50
+//
+// The existing test_f_p3_crit_001_alerts_only_alert_surface_records verifies
+// _surface purity per-record. This test adds exact-count verification.
+// ---------------------------------------------------------------------------
+
+/// F-P4-MED-001 (Cyberint): GET /api/v1/alerts serves exactly 20 alert-surface records.
+///
+/// CompromisedEndpoint (scale=1.0): 20 alert records, 10 cve, 10 ioc, 10 asm_asset.
+/// The alerts route must serve exactly 20 (_surface="alert").
+///
+/// Asserts:
+/// - `$.data` length == 20
+/// - Every record has `_surface == "alert"` (no CVE/IOC/ASM leakage)
+#[tokio::test]
+async fn test_f_p4_med_001_cyberint_alerts_exact_count_and_purity() {
+    let org = deadbeef_org();
+    let seed = 42u64;
+
+    let clone = start_seeded_clone(seed, org.clone()).await;
+    let base_url = clone.base_url();
+    let client = test_client();
+
+    let resp = client
+        .get(format!("{base_url}/api/v1/alerts"))
+        .header("Cookie", format!("access_token={TEST_ACCESS_TOKEN}"))
+        .send()
+        .await
+        .expect("GET /api/v1/alerts must not fail");
+
+    assert_eq!(resp.status().as_u16(), 200, "must return HTTP 200");
+    let body: serde_json::Value = resp.json().await.expect("must be valid JSON");
+    let data = body["data"]
+        .as_array()
+        .expect("F-P4-MED-001: $.data must be an array");
+
+    // Exact count: CompromisedEndpoint at scale=1.0 has 20 alert-surface records.
+    assert_eq!(
+        data.len(),
+        20,
+        "F-P4-MED-001 (Cyberint alerts): $.data must contain exactly 20 records \
+         (_surface=alert); got {} — if 50, all surfaces are leaking; \
+         if 30 or 40, CVE/IOC are leaking into the alerts response",
+        data.len()
+    );
+
+    // Surface purity: every record must be alert-surface.
+    for (i, record) in data.iter().enumerate() {
+        let surface = record
+            .get("_surface")
+            .and_then(|v| v.as_str())
+            .unwrap_or("MISSING");
+        assert_eq!(
+            surface, "alert",
+            "F-P4-MED-001 (Cyberint alerts): $.data[{i}] has _surface={surface:?} but \
+             must be 'alert'. CVE/IOC/ASM records are leaking — discriminator bug."
+        );
+    }
+}

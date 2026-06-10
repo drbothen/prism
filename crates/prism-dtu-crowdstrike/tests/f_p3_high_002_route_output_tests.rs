@@ -356,3 +356,138 @@ async fn test_f_p3_high_002_device_ids_disjoint_across_seeds() {
     clone_a.stop().await.expect("clone_a stop must succeed");
     clone_b.stop().await.expect("clone_b stop must succeed");
 }
+
+// ---------------------------------------------------------------------------
+// F-P4-MED-001: Surface-purity assertions for CrowdStrike device routes
+//
+// CompromisedEndpoint baseline (scale=1.0):
+//   device records: 50 (generated_devices, _record_type="device")
+//   detection records: 20 (generated_detections, _record_type="detection")
+//
+// CrowdStrike uses SEPARATE state fields (generated_devices / generated_detections)
+// so structural cross-contamination is impossible by design. The surface-purity
+// tests below verify that:
+//   (a) /devices/queries/devices/v1 (Step 1) returns exactly 50 device IDs
+//   (b) No detection ID format ("alert-{slug}-{seed}-") appears in the device ID list
+//   (c) Device detail records (_record_type="device") are served, not detection records
+// ---------------------------------------------------------------------------
+
+/// F-P4-MED-001 (CrowdStrike): GET /devices/queries/devices/v1 returns exactly 50
+/// device IDs and no detection IDs.
+///
+/// CompromisedEndpoint (scale=1.0): 50 device records in generated_devices.
+/// Detection records are in the separate generated_detections field.
+///
+/// Asserts:
+/// - `$.meta.pagination.total` == 50
+/// - No returned ID starts with "alert-" (detection ID format)
+/// - All returned IDs start with "dev-" (device ID format)
+#[tokio::test]
+async fn test_f_p4_med_001_crowdstrike_device_id_list_exact_count_and_purity() {
+    let org = deadbeef_org();
+    let slug = org_slug(&org);
+    let seed = 42u64;
+
+    let mut clone = start_seeded_clone(seed, org.clone()).await;
+    let base_url = clone.base_url();
+    let client = test_client();
+
+    let resp = client
+        .get(format!("{base_url}/devices/queries/devices/v1"))
+        .header("Authorization", "Bearer test-token-f-p4")
+        .send()
+        .await
+        .expect("GET /devices/queries/devices/v1 must not fail");
+
+    assert_eq!(resp.status().as_u16(), 200, "must return HTTP 200");
+    let body: serde_json::Value = resp.json().await.expect("must be valid JSON");
+
+    let resources = body["resources"]
+        .as_array()
+        .expect("F-P4-MED-001: $.resources must be an array");
+
+    let total = body["meta"]["pagination"]["total"]
+        .as_u64()
+        .expect("F-P4-MED-001: $.meta.pagination.total must be a number");
+
+    // (a) Exact count: CompromisedEndpoint at scale=1.0 has 50 device records.
+    assert_eq!(
+        total, 50,
+        "F-P4-MED-001 (CrowdStrike device IDs): $.meta.pagination.total must be exactly 50 \
+         (CompromisedEndpoint at scale=1.0 has 50 device records); got {total}"
+    );
+
+    // (b) No detection IDs in device ID list.
+    for (i, id_val) in resources.iter().enumerate() {
+        let id = id_val.as_str().expect("$.resources[{i}] must be a string");
+        assert!(
+            !id.starts_with("alert-"),
+            "F-P4-MED-001 (CrowdStrike): $.resources[{i}] = '{id}' starts with 'alert-' — \
+             detection ID appeared in the device ID list. \
+             CrowdStrike uses separate generated_devices/generated_detections fields; \
+             this indicates a routing bug."
+        );
+        // (c) All device IDs start with "dev-".
+        assert!(
+            id.starts_with("dev-"),
+            "F-P4-MED-001 (CrowdStrike): $.resources[{i}] = '{id}' does not start with 'dev-' — \
+             expected device ID format dev-{{slug}}-{{seed}}-N"
+        );
+    }
+
+    // (c) Device details must have _record_type="device".
+    // Step 2: fetch first 3 device details and verify they are device records.
+    let ids: Vec<String> = resources
+        .iter()
+        .take(3)
+        .filter_map(|v| v.as_str().map(|s| s.to_owned()))
+        .collect();
+
+    let query: String = ids
+        .iter()
+        .map(|id| format!("ids={id}"))
+        .collect::<Vec<_>>()
+        .join("&");
+    let step2_url = format!("{base_url}/devices/entities/devices/v2?{query}");
+    let step2_resp = client
+        .get(&step2_url)
+        .header("Authorization", "Bearer test-token-f-p4")
+        .send()
+        .await
+        .expect("Step 2 must not fail");
+
+    assert_eq!(
+        step2_resp.status().as_u16(),
+        200,
+        "Step 2 must return HTTP 200"
+    );
+    let step2_body: serde_json::Value = step2_resp.json().await.expect("must be valid JSON");
+    let detail_resources = step2_body["resources"]
+        .as_array()
+        .expect("$.resources must be array");
+
+    // Every detail record must have _record_type="device" (not "detection").
+    for (i, record) in detail_resources.iter().enumerate() {
+        let record_type = record
+            .get("_record_type")
+            .and_then(|v| v.as_str())
+            .unwrap_or("MISSING");
+        assert_eq!(
+            record_type, "device",
+            "F-P4-MED-001 (CrowdStrike): detail resource[{i}] has _record_type={record_type:?} \
+             but must be 'device'. Detection records must not appear in device detail response."
+        );
+    }
+
+    let expected_dev_prefix = format!("dev-{slug}-{seed}-");
+    if let Some(first) = detail_resources.first() {
+        let device_id = first["device_id"].as_str().expect("must have device_id");
+        assert!(
+            device_id.starts_with(&expected_dev_prefix),
+            "F-P4-MED-001 (CrowdStrike): first detail device_id '{device_id}' must start \
+             with '{expected_dev_prefix}'"
+        );
+    }
+
+    clone.stop().await.expect("clone stop must succeed");
+}
