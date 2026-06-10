@@ -142,3 +142,69 @@ fn test_f5_cs02_generated_detection_has_flat_tactic_technique() {
         }
     }
 }
+
+// ---------------------------------------------------------------------------
+// F6 / CS-03 — devices.first_seen on both paths
+// ---------------------------------------------------------------------------
+
+/// Parse an ISO-8601 Z timestamp, panicking with context on failure.
+fn parse_ts(s: &str, ctx: &str) -> chrono::DateTime<chrono::Utc> {
+    s.parse::<chrono::DateTime<chrono::Utc>>()
+        .unwrap_or_else(|e| panic!("{ctx}: '{s}' is not ISO-8601 Z: {e}"))
+}
+
+fn static_hosts() -> Vec<serde_json::Value> {
+    let raw = include_str!("../fixtures/hosts-detail.json");
+    serde_json::from_str(raw).expect("hosts-detail.json must be a JSON array")
+}
+
+/// F6 / CS-03: every generated device carries `first_seen` (ISO-8601 Z) strictly
+/// earlier than `last_seen`, and the value is seeded-deterministic (two identical
+/// generate calls produce byte-identical device records).
+#[test]
+fn test_f6_cs03_generated_device_first_seen() {
+    let devices = generated_records("device");
+    assert!(!devices.is_empty(), "must generate devices");
+    for (i, dev) in devices.iter().enumerate() {
+        let first = dev
+            .get("first_seen")
+            .and_then(|v| v.as_str())
+            .unwrap_or_else(|| panic!("generated device[{i}] missing first_seen (CS-03)"));
+        let last = dev
+            .get("last_seen")
+            .and_then(|v| v.as_str())
+            .unwrap_or_else(|| panic!("generated device[{i}] missing last_seen"));
+        assert!(
+            parse_ts(first, "first_seen") < parse_ts(last, "last_seen"),
+            "generated device[{i}] first_seen '{first}' must be earlier than last_seen '{last}'"
+        );
+    }
+
+    // Determinism: identical inputs → byte-identical records (BC-3.4.001).
+    let again = generated_records("device");
+    assert_eq!(
+        serde_json::to_string(&devices).unwrap(),
+        serde_json::to_string(&again).unwrap(),
+        "generated devices (incl. first_seen) must be deterministic for identical inputs"
+    );
+}
+
+/// F6 / CS-03: every static fixture host carries `first_seen` (ISO-8601 Z)
+/// strictly earlier than `last_seen`.
+#[test]
+fn test_f6_cs03_static_host_first_seen() {
+    for (i, host) in static_hosts().iter().enumerate() {
+        let first = host
+            .get("first_seen")
+            .and_then(|v| v.as_str())
+            .unwrap_or_else(|| panic!("static host[{i}] missing first_seen (CS-03)"));
+        let last = host
+            .get("last_seen")
+            .and_then(|v| v.as_str())
+            .unwrap_or_else(|| panic!("static host[{i}] missing last_seen"));
+        assert!(
+            parse_ts(first, "first_seen") < parse_ts(last, "last_seen"),
+            "static host[{i}] first_seen '{first}' must be earlier than last_seen '{last}'"
+        );
+    }
+}

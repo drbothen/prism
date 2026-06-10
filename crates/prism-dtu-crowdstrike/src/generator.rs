@@ -435,12 +435,36 @@ fn make_id_page(ids: &[String], offset_cursor: Option<&str>) -> Value {
     page
 }
 
+/// Stable per-record offset fold for seeded-deterministic timestamp derivation.
+///
+/// NOT `std::hash::DefaultHasher` — its output is explicitly unstable across
+/// Rust releases, which would break BC-3.4.001 byte-identical determinism.
+/// Simple FNV-1a-style fold over the device_id bytes mixed with the seed.
+fn stable_offset(device_id: &str, seed: u64) -> u64 {
+    let mut acc: u64 = 0xcbf2_9ce4_8422_2325 ^ seed;
+    for b in device_id.as_bytes() {
+        acc ^= u64::from(*b);
+        acc = acc.wrapping_mul(0x0000_0100_0000_01b3);
+    }
+    acc
+}
+
 /// Build a `FalconDevice` JSON record (Step-2 detail).
 ///
 /// Tagged with `"_record_type": "device"`.
 /// `device_id` field aligns with `containment_store` key in state.rs (AC-004).
+///
+/// F6 / CS-03 (review 2026-06-10): `first_seen` is required by the
+/// crowdstrike.sensor.toml `devices` table (flat datetime column). It is
+/// seeded-deterministic (stable fold of device_id × seed → 7..90 days before
+/// `last_seen`) and always strictly earlier than `last_seen`.
 fn make_device(device_id: &str, opts: &GenOpts) -> Value {
     let ts = opts.time_anchor.format("%Y-%m-%dT%H:%M:%SZ").to_string();
+    // first_seen: 7..=90 days before the time anchor, stable per (device_id, seed).
+    let days_before = 7 + (stable_offset(device_id, opts.seed) % 84) as i64;
+    let first_seen = (opts.time_anchor - chrono::Duration::days(days_before))
+        .format("%Y-%m-%dT%H:%M:%SZ")
+        .to_string();
     json!({
         "_record_type": "device",
         "device_id": device_id,
@@ -449,6 +473,7 @@ fn make_device(device_id: &str, opts: &GenOpts) -> Value {
         "os_version": "Ubuntu 22.04",
         "status": "normal",
         "containment_status": "normal",
+        "first_seen": first_seen,
         "last_seen": ts,
         "external_ip": "203.0.113.1",
         "local_ip": "10.0.0.1",
