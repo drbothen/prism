@@ -168,7 +168,7 @@ impl AliasEntryView {
 ///    If `CreateResult::Created`: return success with expanded form.
 ///
 /// **Client-scope restriction:** This variant does not receive a valid client
-/// list, so `Client(_)` scopes are rejected with `E-CFG-001`. Pass
+/// list, so `Client(_)` scopes are rejected with `E-CFG-100`. Pass
 /// `create_alias_with_clients` with an explicit `valid_client_ids` list to
 /// permit per-client alias creation (CR-007).
 ///
@@ -193,9 +193,8 @@ pub(crate) fn create_alias(
     // Reject Client-scoped creates when no valid client list is available (CR-007).
     let scope_check = AliasScope::parse(&input.scope)?;
     if let AliasScope::Client(ref client_id) = scope_check {
-        let id_str = client_id.0.as_str();
-        return Err(PrismError::ConfigNotFound {
-            path: format!("client:{id_str}"),
+        return Err(PrismError::ClientNotFound {
+            client_id: client_id.0.as_str().to_string(),
         });
     }
     let token_store = prism_security::ConfirmationTokenStore::new();
@@ -304,12 +303,12 @@ pub(crate) fn create_alias_with_clients_gated_inner(
 
     // Validate client ID when scope is Client(_). ALWAYS enforced — an empty
     // valid_client_ids list means no client is valid, so any client-scoped op
-    // is rejected with E-CFG-001. (CR-007 fix)
+    // is rejected with E-CFG-100. (CR-007 fix; ADR-038 D3)
     if let AliasScope::Client(ref client_id) = scope {
         let id_str = client_id.0.as_str();
         if !valid_client_ids.iter().any(|v| v == id_str) {
-            return Err(PrismError::ConfigNotFound {
-                path: format!("client:{id_str}"),
+            return Err(PrismError::ClientNotFound {
+                client_id: id_str.to_string(),
             });
         }
     }
@@ -486,7 +485,7 @@ pub(crate) fn create_alias_with_clients_gated_inner(
 ///
 /// # Steps
 /// 1. Parse optional scope filter.
-/// 2. If `scope` references a non-existent client: return `E-CFG-001`.
+/// 2. If `scope` references a non-existent client: return `E-CFG-100`.
 /// 3. Call `AliasStore::list(scope_filter)`.
 /// 4. Sort alphabetically by name within each scope group.
 ///
@@ -501,12 +500,12 @@ pub fn list_aliases(
         None => None,
         Some(ref s) => {
             let parsed = AliasScope::parse(s)?;
-            // Validate client ID exists if scope is per-client.
+            // Validate client ID exists if scope is per-client (E-CFG-100, ADR-038 D3).
             if let AliasScope::Client(ref client_id) = parsed {
                 let id_str = client_id.0.as_str();
                 if !valid_client_ids.iter().any(|v| v == id_str) {
-                    return Err(PrismError::ConfigNotFound {
-                        path: format!("client:{id_str}"),
+                    return Err(PrismError::ClientNotFound {
+                        client_id: id_str.to_string(),
                     });
                 }
             }
@@ -600,12 +599,12 @@ pub fn delete_alias_gated(
         )?;
     }
 
-    // Step 2: validate client ID.
+    // Step 2: validate client ID (E-CFG-100, ADR-038 D3).
     if let AliasScope::Client(ref client_id) = scope {
         let id_str = client_id.0.as_str();
         if !valid_client_ids.iter().any(|v| v == id_str) {
-            return Err(PrismError::ConfigNotFound {
-                path: format!("client:{id_str}"),
+            return Err(PrismError::ClientNotFound {
+                client_id: id_str.to_string(),
             });
         }
     }
