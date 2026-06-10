@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "6.07"
+version: "6.08"
 status: draft
 producer: product-owner
 timestamp: 2026-06-09T18:00:00Z
@@ -115,7 +115,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.06.015 | OrgRegistry Cross-Validation at Boot — Unknown Overlay Directory Triggers E-SPEC-022 | 06 - Client Configuration | CAP-009 | P0 | active — v1.1; promoted D-825 (PR #155 merge 2026-05-26) |
 | BC-2.06.016 | Error Taxonomy for Per-Org Overlay Override Violations (E-SPEC-019 through E-SPEC-023) | 06 - Client Configuration | CAP-009 | P0 | active — v1.3; promoted D-825 (PR #155 merge 2026-05-26) |
 | BC-2.06.017 | Per-DTU-Instance Multi-Address Binding for Multi-Tenant Overlay Testing | SS-01 (Sensor Adapters) | CAP-036 | P2 | draft — v1.1 (D-1076: Amendment-1 Postcondition-5 start_on prose corrected; Amendment-2 error-table inner types disambiguated; 5 invariants UNCHANGED) |
-| BC-2.06.018 | Demo-Server Config-Time Data Seeding — Per-Clone seed + fixture_set Wire-Up | SS-01 (Sensor Adapters) | CAP-036 | P2 | draft — v1.3 (D-1084: §Scope Boundary table all-rows correction — F-P4-MED-003; all table rows reviewed and corrected by product-owner per LOCAL Pass-4 finding; PO committed v1.3 at factory-artifacts 5e17654d) |
+| BC-2.06.018 | Demo-Server Config-Time Data Seeding — Per-Clone seed + fixture_set Wire-Up | SS-01 (Sensor Adapters) | CAP-036 | P2 | draft — v1.4 (D-1085: F-P5-HIGH-001 phantom-anchor fix — 7 story-ref anchor sites corrected S-DEMO-DTU-DATA-SEEDING-001 → S-DEMO-DTU-LIVE-SCENARIO-001-A by product-owner; serving-path/discriminator class VERIFIED CLOSED; no BC count changes) |
 | BC-2.06.019 | Demo-Server Scenario Progression — Pure-Function Temporal Stage Advancement with Reproducibility Guarantee | SS-01 (Sensor Adapters) | CAP-036 | P2 | draft — v1.1 (D-1079: ADR-036 v2.0 substrate reconciliation; stage_duration_secs 4-entry mapping; activates_after_secs; Result signatures corrected) |
 | BC-2.06.020 | Demo-Server Enrichment Correlation — Scenario IOCs Resolve in ThreatIntel; Scenario CVEs Resolve in NVD | SS-01 (Sensor Adapters) | CAP-036 | P2 | draft — v1.1 (D-1079: ADR-036 v2.0 substrate reconciliation; NvdState::lookup_and_count; CVSS path metrics.cvss_metric_v31[0].cvss_data.base_score; Result signatures corrected) |
 | BC-2.07.001 | Internal Ephemeral Pagination Token Structure | 07 - Adapter Pagination & Response Cache | CAP-011 | P0 | draft |
@@ -380,6 +380,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v6.08 (2026-06-09, D-1085 — BC-2.06.018 v1.3→v1.4: F-P5-HIGH-001 phantom-anchor correction — 7 live story-ref sites corrected S-DEMO-DTU-DATA-SEEDING-001 → S-DEMO-DTU-LIVE-SCENARIO-001-A; serving-path/discriminator class VERIFIED CLOSED by Pass 5; BC counts UNCHANGED 250/235/6):** state-manager | BC-2.06.018 v1.3→v1.4 — product-owner phantom-anchor correction (F-P5-HIGH-001, LOCAL Pass-5 finding): 7 story-anchor references inside BC-2.06.018 that still cited S-DEMO-DTU-DATA-SEEDING-001 (the superseded name) corrected to S-DEMO-DTU-LIVE-SCENARIO-001-A (the current canonical story). All 8 serving-path routes and discriminator-class contracts verified clean by adversary Pass 5 — no CRIT findings. No BC count changes (active: 235 UNCHANGED; draft: 6 UNCHANGED; total: 250 UNCHANGED — version bump within existing registered BC). BC-INDEX inline row 118 updated to v1.4. Sibling sweep: story S-DEMO-DTU-LIVE-SCENARIO-001-A §Behavioral Contracts table row + §Token Budget row updated v1.3→v1.4 per POL-23/POL-29 sibling sweep; story v1.2→v1.3. STORY-INDEX row updated to reflect story v1.3. STATE D-1085 decision row added. BC-INDEX v6.07→v6.08.
 
 **v6.07 (2026-06-09, D-1084 — BC-2.06.018 v1.2→v1.3: §Scope Boundary table all-rows correction; F-P4-MED-003 closed; story BC-pin sync F-P4-MED-002; BC counts UNCHANGED 250/235/6):** state-manager | BC-2.06.018 v1.2→v1.3 — product-owner §Scope Boundary table all-rows correction (F-P4-MED-003, LOCAL Pass-4 finding): PO reviewed and corrected all rows in the §Scope Boundary table; commit 5e17654d on factory-artifacts. No BC count changes (active: 235 UNCHANGED; draft: 6 UNCHANGED; total: 250 UNCHANGED — version bump within existing registered BC). BC-INDEX in-line row 118 updated to v1.3. Sibling sweep: story S-DEMO-DTU-LIVE-SCENARIO-001-A §Behavioral Contracts table row + §Token Budget row updated v1.1→v1.3 per F-P4-MED-002 (POL-23/POL-29 sibling sweep; story v1.1→v1.2). STORY-INDEX row updated to reflect story v1.2. STATE D-1084 decision row added (LOCAL Pass-4 closure burst). BC-INDEX v6.06→v6.07.
 

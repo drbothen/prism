@@ -2,7 +2,7 @@
 document_type: behavioral-contract
 level: L3
 bc_id: "BC-2.06.018"
-version: "1.3"
+version: "1.4"
 status: draft
 lifecycle_status: draft
 producer: product-owner
@@ -19,7 +19,7 @@ replacement: null
 retired: null
 removed: null
 removal_reason: null
-anchored_stories: [S-DEMO-DTU-DATA-SEEDING-001]
+anchored_stories: [S-DEMO-DTU-LIVE-SCENARIO-001-A]
 verifying_vps: []
 crates: [prism-dtu-demo-server, prism-dtu-common, prism-dtu-claroty, prism-dtu-armis, prism-dtu-crowdstrike, prism-dtu-cyberint, prism-dtu-threatintel, prism-dtu-nvd]
 inputs:
@@ -183,7 +183,7 @@ fixture data semantically equivalent to the pre-seeding `new()` behavior:
 
 **Note:** If the pre-seeding `new()` constructors used different internal defaults, the
 implementer MUST either preserve those defaults in `new_with_seed(42, ...)` or update
-the affected integration tests in the same story as S-DEMO-DTU-DATA-SEEDING-001. This
+the affected integration tests in the same story as S-DEMO-DTU-LIVE-SCENARIO-001-A. This
 postcondition prohibits silent data-shape changes that cause existing tests to fail
 without the implementer noticing.
 
@@ -212,7 +212,7 @@ This invariant holds because:
   `(seed, org_id)` pair, making IDs structurally disjoint across distinct `(seed, org_id)`
   tuples (ADR-036 v2.0 §2.2, Substrate Reality section above).
 
-The invariant is verified by integration tests in S-DEMO-DTU-DATA-SEEDING-001 that
+The invariant is verified by integration tests in S-DEMO-DTU-LIVE-SCENARIO-001-A that
 start two clone instances with `seed_A = 100` and `seed_B = 200` and assert that
 `responses_A.ids ∩ responses_B.ids = ∅`.
 
@@ -431,7 +431,7 @@ error-taxonomy.md §DEMO (v1.64, same correction burst as BC-2.06.018 v1.1).
 | Capability Anchor Justification | CAP-036 ("Multi-Tenant DTU Test Harness (Internal)") per capabilities.md §CAP-036 — this BC specifies the per-clone seeding wiring in `build_clone_pairs`, which is the demo-server's harness-layer mechanism for constructing per-customer DTU clone instances with distinct fixture data. CAP-036 defines the multi-tenant DTU test harness as "orchestrating per-customer DTU clone instances" with "per-org fixture data via the deterministic generator (ADR-009)". Seeding wiring is a core orchestration behavior of the harness; it is not generator-internal behavior (CAP-039) or client configuration loading (CAP-009). |
 | L2 Domain Invariants | N/A (demo-server seeding wiring; no DI-NNN in L2 domain spec maps to this concern) |
 | Architecture Module | SS-01 (Sensor Adapters) per ARCH-INDEX.md; `prism-dtu-demo-server` and `prism-dtu-common` are the implementation sites |
-| Stories | S-DEMO-DTU-DATA-SEEDING-001 |
+| Stories | S-DEMO-DTU-LIVE-SCENARIO-001-A |
 | Upstream BC | BC-3.4.001 (Generator Determinism — Identical Inputs Produce Byte-Identical FixtureSet) — this BC operates at the wiring layer above BC-3.4.001; generation-layer determinism is delegated to BC-3.4.001 |
 
 ## Related BCs
@@ -452,11 +452,11 @@ error-taxonomy.md §DEMO (v1.64, same correction burst as BC-2.06.018 v1.1).
 
 ## Story Anchor
 
-S-DEMO-DTU-DATA-SEEDING-001
+S-DEMO-DTU-LIVE-SCENARIO-001-A
 
 ## VP Anchors
 
-- VP-018-A through VP-018-E (above) — all verified by integration/unit tests in S-DEMO-DTU-DATA-SEEDING-001
+- VP-018-A through VP-018-E (above) — all verified by integration/unit tests in S-DEMO-DTU-LIVE-SCENARIO-001-A
 
 ## Open Questions
 
@@ -469,6 +469,7 @@ None at BC authoring time. The architect decision (this session) resolved:
 
 | Version | Change |
 |---------|--------|
+| v1.4 | 2026-06-09 — Phantom story-anchor correction (F-P5-HIGH-001, `S-DEMO-DTU-LIVE-SCENARIO-001-A` pass 5). All six live narrative sites referencing the non-existent planning-era story ID `S-DEMO-DTU-DATA-SEEDING-001` replaced with the real implementing story `S-DEMO-DTU-LIVE-SCENARIO-001-A` per STORY-INDEX (D-1077 split). Sites updated: frontmatter `anchored_stories`, Postcondition 4 prose, INV-DISTINCT-DATA-001 prose, §Traceability `Stories` row, §Story Anchor, §VP Anchors. Changelog rows untouched (TD-VSDD-091 exempt). lifecycle_status remains draft. |
 | v1.3 | 2026-06-09 — §Scope Boundary table factual correction (F-P4-MED-003, `S-DEMO-DTU-LIVE-SCENARIO-001-A` pass 4). **Cyberint row corrected:** "Route(s) Served" was `/api/v1/alerts, /api/v1/asm_assets, /api/v1/cves, /api/v1/iocs`; corrected to `/api/v1/alerts` only — the three non-alert routes do not exist in `CyberintClone::build_router` and have no entries in `cyberint.sensor.toml`. "Generator-Backed Table Surface(s)" corrected to "alerts only (adapter-consumed)". Added new subsection §Cyberint Generator-Emitted-but-Unserved Surfaces documenting that the Cyberint generator does emit `asm_asset`/`cve`/`ioc` surfaces but they are generated-but-unserved (no routes, no adapter tables); future follow-up story required to serve them. **CrowdStrike row corrected:** route paths corrected from non-existent `/device/api/devices/v2` and `/device/api/alerts/v1` to actual registered routes `/devices/queries/devices/v1`, `/devices/entities/devices/v2`, `/detects/queries/detects/v1`, `/detects/entities/summaries/GET/v1`; surface name corrected from "alerts" to "detections" (matching `crowdstrike.sensor.toml` table name). **Armis row updated:** added `/api/v1/search` as the primary AQL endpoint backing both tables via path_template (per `armis.sensor.toml`); `/api/v1/devices` and `/api/v1/alerts` noted as direct-access compatibility endpoints. **Claroty row updated:** routes corrected to POST method paths per `ClarotyClone::build_router`; added note that `/api/v1/audit_log/get` and `/api/v1/vulnerabilities` routes exist but are static-fixture-backed, not generator-backed, and not covered by INV-DISTINCT-DATA-001 under this BC. lifecycle_status remains draft. |
 | v1.2 | 2026-06-09 — Scope boundary documentation (F-P2-MED-001, `S-DEMO-DTU-LIVE-SCENARIO-001-A` pass 2). Added §Scope Boundary — Non-Generator-Backed Tables: enumerates the four generator-backed clone table surfaces covered by INV-DISTINCT-DATA-001 (CrowdStrike: devices/alerts; Armis: devices/alerts; Claroty: devices/alerts; Cyberint: alerts/asm_assets/cves/iocs). Explicitly documents that the Cyberint `incidents` table is intentionally NON-generator-backed for this BC — the Cyberint generator emits no incident records; the DTU clone has no `/api/v1/incidents` route (cross-referenced: `cyberint.sensor.toml` EC-016-013-002); INV-DISTINCT-DATA-001 therefore does not apply to this table surface. Notes that adding a Cyberint incidents generator surface is future work tracked by `S-DEMO-CYBERINT-INCIDENTS-SEEDING-001`. lifecycle_status remains draft. |
 | v1.1 | ADR-036 v2.0 / D-1078 substrate-reconciliation corrections. Added §Substrate Reality (ADR-036 v2.0 §1.3): documents that seeding postconditions are UNIMPLEMENTED until Story A (`S-DEMO-DTU-LIVE-SCENARIO-001-A`); clones serve static JSON today with no `generate()` call in `build_clone_pairs()`. Added canonical org_slug derivation formula (`hex(org_id.as_bytes()[0..4])`; 8 hex chars) and canonical device ID format (`"dev-{org_slug}-{seed}-{n}"`) per ADR-036 v2.0 §2.2 — replaces incorrect `"dev-acme-..."` placeholder. Removed `"dev-acme-..."` reference from INV-DISTINCT-DATA-001. Added "New Config Requirement" for `CloneConfig.org_id: Option<String>` (UUID string → OrgId). Corrected `seeded_rng` signature to `seeded_rng(seed: u64, org_id: &OrgId)` (takes `&OrgId`, NOT `&str`) in Postcondition 1, INV-DISTINCT-DATA-001, and Architecture Anchors. Registered E-DEMO-004 (scenario.enabled but org_id absent) and E-DEMO-005 (org_id not valid UUID) in §Error Codes. Updated Error Codes section to note E-DEMO-001 already registered in error-taxonomy.md v1.63. Precondition 4 rewritten to match new `CloneConfig.org_id: Option<String>` field. lifecycle_status remains draft. |
