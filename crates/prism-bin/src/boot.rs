@@ -2149,6 +2149,99 @@ pub async fn step8_init_query_engine() -> Result<(), BootError> {
     Ok(())
 }
 
+/// Production `AuditWriter` wired into `WriteExecutor` + `PrismServer` at boot
+/// step 9 (P1-03 2026-06-10 review pass-1: hoisted from a function-local item to
+/// module scope so the production path is unit-testable via CF readback).
+///
+/// Behavior (current, complete):
+/// - `write_intent` / `write_outcome` emit structured tracing events
+///   (`write.intent.recorded` / `write.outcome.recorded`, BC-2.05.009 family).
+/// - `write_tool_call` (MCP-02, 2026-06-10 review) appends a durable
+///   key+payload envelope to the RocksDB `audit_buffer` CF via the established
+///   `prism_storage::audit_buffer::append_audit_entry` pattern (same
+///   construction as prism-audit credential_events). This durable per-call
+///   write IS the production MCP tool-call audit mechanism.
+pub struct BootAuditWriter {
+    /// RocksDB backend from boot step 6 — durable tool-call audit target.
+    storage: Arc<prism_storage::rocksdb_backend::RocksDbBackend>,
+}
+
+impl BootAuditWriter {
+    /// Construct a `BootAuditWriter` over the RocksDB backend opened in boot
+    /// step 6 (all column families, including `audit_buffer`, are already open).
+    pub fn new(storage: Arc<prism_storage::rocksdb_backend::RocksDbBackend>) -> Self {
+        BootAuditWriter { storage }
+    }
+}
+
+#[async_trait::async_trait]
+impl prism_query::write_dispatch::AuditWriter for BootAuditWriter {
+    async fn write_intent(
+        &self,
+        plan: &prism_query::WritePlan,
+        _context: &prism_query::QueryContext,
+        _capability_check: &prism_security::feature_flag::CapabilityCheckResult,
+    ) -> Result<ulid::Ulid, prism_core::error::PrismError> {
+        let id = ulid::Ulid::new();
+        tracing::info!(
+            event_type = "write.intent.recorded",
+            intent_id = %id,
+            sensor = %plan.sensor,
+            "write intent recorded (BC-2.05.009 tracing audit stub)"
+        );
+        Ok(id)
+    }
+    async fn write_outcome(
+        &self,
+        intent_id: ulid::Ulid,
+        result: &prism_query::WriteResult,
+    ) -> Result<(), prism_core::error::PrismError> {
+        tracing::info!(
+            event_type = "write.outcome.recorded",
+            intent_id = %intent_id,
+            succeeded = result.succeeded_count,
+            failed = result.failed_count,
+            "write outcome recorded (BC-2.05.009 tracing audit stub)"
+        );
+        Ok(())
+    }
+
+    /// MCP-02 (2026-06-10 review): durable MCP tool-call audit record.
+    ///
+    /// Appends a lightweight key+payload envelope to the `audit_buffer` CF
+    /// (BC-2.05.009 family / CRIT-005), following the established
+    /// `prism_audit::credential_events` construction pattern. Not
+    /// fail-closed: the caller (`emit_tool_audit`) logs Err and proceeds
+    /// (BC-2.05.008 EC-05-013 read-path audit semantics).
+    async fn write_tool_call(
+        &self,
+        tool_name: &str,
+        client_id: Option<&str>,
+        outcome: &str,
+    ) -> Result<(), prism_core::error::PrismError> {
+        let timestamp_ns = chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0) as u64;
+        let trace_id = uuid::Uuid::now_v7().to_string();
+        let mut payload = std::collections::BTreeMap::new();
+        payload.insert("event_type".to_owned(), "mcp.tool.called".to_owned());
+        payload.insert("tool_name".to_owned(), tool_name.to_owned());
+        // BC-2.05.002 sentinel: "MISSING" when the request carried no client_id.
+        payload.insert(
+            "client_id".to_owned(),
+            client_id.unwrap_or("MISSING").to_owned(),
+        );
+        payload.insert("outcome".to_owned(), outcome.to_owned());
+        prism_storage::audit_buffer::append_audit_entry(
+            self.storage.as_ref(),
+            &prism_storage::audit_buffer::AuditEntry {
+                timestamp_ns,
+                trace_id,
+                payload,
+            },
+        )
+        .map_err(|_| prism_core::error::PrismError::AuditPersistenceFailed)
+    }
+}
+
 /// Step 9 [BACKGROUND]: MCP server start.
 ///
 /// Constructs `QueryEngine` + `WriteExecutor` from available boot deps, builds
@@ -2163,9 +2256,9 @@ pub async fn step8_init_query_engine() -> Result<(), BootError> {
 /// Uses OrgRegistry from step 3 and CredentialStore from step 5 (CRIT-5 fix).
 /// Step 9A (S-DEMO-001): calls `step9a_populate_adapter_registry` to wire spec-driven adapters.
 /// The AuditWriter (`BootAuditWriter`) writes MCP tool-call audit records durably to the
-/// RocksDB audit_buffer CF (`write_tool_call`, MCP-02 2026-06-10 review); write-path
-/// intent/outcome records remain structured tracing events until the Tower
-/// AuditEmitterLayer integration story ships.
+/// RocksDB audit_buffer CF (`write_tool_call`, MCP-02 2026-06-10 review) — the durable
+/// per-call write is the production tool-call audit mechanism; write-path intent/outcome
+/// records are structured tracing events (`write.intent.recorded` / `write.outcome.recorded`).
 ///
 /// # Background task semantics
 ///
@@ -2384,86 +2477,13 @@ pub async fn step9_start_mcp_server(
     let feature_flags = Arc::new(FeatureFlagEvaluator::new(BTreeMap::new()));
     let confirmation_store = Arc::new(ConfirmationTokenStore::new());
 
-    // BootAuditWriter — write-path intent/outcome records are structured tracing
-    // events (full AuditEmitter integration via Tower layer is a future story);
-    // MCP tool-call records (`write_tool_call`, MCP-02 2026-06-10 review) are
-    // written DURABLY to the RocksDB audit_buffer CF via the established
-    // `prism_storage::audit_buffer::append_audit_entry` pattern
-    // (same construction as prism-audit credential_events).
-    struct BootAuditWriter {
-        /// RocksDB backend from boot step 6 — durable tool-call audit target.
-        storage: Arc<prism_storage::rocksdb_backend::RocksDbBackend>,
-    }
-    #[async_trait::async_trait]
-    impl AuditWriter for BootAuditWriter {
-        async fn write_intent(
-            &self,
-            plan: &WritePlan,
-            _context: &prism_query::QueryContext,
-            _capability_check: &CapabilityCheckResult,
-        ) -> Result<ulid::Ulid, prism_core::error::PrismError> {
-            let id = ulid::Ulid::new();
-            tracing::info!(
-                event_type = "write.intent.recorded",
-                intent_id = %id,
-                sensor = %plan.sensor,
-                "write intent recorded (BC-2.05.009 tracing audit stub)"
-            );
-            Ok(id)
-        }
-        async fn write_outcome(
-            &self,
-            intent_id: ulid::Ulid,
-            result: &WriteResult,
-        ) -> Result<(), prism_core::error::PrismError> {
-            tracing::info!(
-                event_type = "write.outcome.recorded",
-                intent_id = %intent_id,
-                succeeded = result.succeeded_count,
-                failed = result.failed_count,
-                "write outcome recorded (BC-2.05.009 tracing audit stub)"
-            );
-            Ok(())
-        }
-
-        /// MCP-02 (2026-06-10 review): durable MCP tool-call audit record.
-        ///
-        /// Appends a lightweight key+payload envelope to the `audit_buffer` CF
-        /// (BC-2.05.009 family / CRIT-005), following the established
-        /// `prism_audit::credential_events` construction pattern. Not
-        /// fail-closed: the caller (`emit_tool_audit`) logs Err and proceeds
-        /// (BC-2.05.008 EC-05-013 read-path audit semantics).
-        async fn write_tool_call(
-            &self,
-            tool_name: &str,
-            client_id: Option<&str>,
-            outcome: &str,
-        ) -> Result<(), prism_core::error::PrismError> {
-            let timestamp_ns = chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0) as u64;
-            let trace_id = uuid::Uuid::now_v7().to_string();
-            let mut payload = std::collections::BTreeMap::new();
-            payload.insert("event_type".to_owned(), "mcp.tool.called".to_owned());
-            payload.insert("tool_name".to_owned(), tool_name.to_owned());
-            // BC-2.05.002 sentinel: "MISSING" when the request carried no client_id.
-            payload.insert(
-                "client_id".to_owned(),
-                client_id.unwrap_or("MISSING").to_owned(),
-            );
-            payload.insert("outcome".to_owned(), outcome.to_owned());
-            prism_storage::audit_buffer::append_audit_entry(
-                self.storage.as_ref(),
-                &prism_storage::audit_buffer::AuditEntry {
-                    timestamp_ns,
-                    trace_id,
-                    payload,
-                },
-            )
-            .map_err(|_| prism_core::error::PrismError::AuditPersistenceFailed)
-        }
-    }
-    let audit_writer: Arc<dyn AuditWriter> = Arc::new(BootAuditWriter {
-        storage: storage_for_audit,
-    });
+    // BootAuditWriter (module-scope item below, P1-03 2026-06-10 review pass-1):
+    // write-path intent/outcome records are structured tracing events
+    // (`write.intent.recorded` / `write.outcome.recorded`); MCP tool-call records
+    // (`write_tool_call`, MCP-02 2026-06-10 review) are written DURABLY to the
+    // RocksDB audit_buffer CF — this durable per-call write IS the production
+    // tool-call audit mechanism.
+    let audit_writer: Arc<dyn AuditWriter> = Arc::new(BootAuditWriter::new(storage_for_audit));
     let write_adapter_registry = Arc::new(AdapterRegistry::new());
     let endpoint_registry = Arc::new(WriteEndpointRegistry::new());
 
