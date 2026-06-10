@@ -210,16 +210,45 @@ async fn do_http_request(
     match request_builder.send().await {
         Ok(resp) => {
             let status = resp.status().as_u16();
+            // F6 (2026-06-10 review): header values are bytes per RFC 9110, but the
+            // WIT `host` interface carries them as strings — a decode decision is
+            // unavoidable. Decision: LOSSY decode (invalid bytes → U+FFFD), not skip
+            // and not silent-empty. `v.to_str().unwrap_or("")` silently emptied any
+            // non-UTF8 value, hiding the valid portion from the plugin; skipping the
+            // header entirely would hide its presence. Lossy decoding preserves the
+            // valid prefix/suffix and makes the corruption visible as U+FFFD.
             let resp_headers: Vec<(String, String)> = resp
                 .headers()
                 .iter()
-                .map(|(k, v)| (k.as_str().to_string(), v.to_str().unwrap_or("").to_string()))
+                .map(|(k, v)| {
+                    (
+                        k.as_str().to_string(),
+                        String::from_utf8_lossy(v.as_bytes()).into_owned(),
+                    )
+                })
                 .collect();
-            let body = resp.bytes().await.unwrap_or_default().to_vec();
-            HttpResponse {
-                status,
-                headers: resp_headers,
-                body,
+            // F6 (2026-06-10 review): a mid-body read failure (connection reset,
+            // truncated Content-Length, timeout during streaming) must NOT surface
+            // as the origin success status with a silently-empty body — plugins
+            // could not distinguish that from a genuine 2xx-with-empty-body. Map it
+            // to a synthetic error response exactly like the sibling send-error arm
+            // below: 408 for timeouts, 500 with a diagnostic body otherwise.
+            match resp.bytes().await {
+                Ok(bytes) => HttpResponse {
+                    status,
+                    headers: resp_headers,
+                    body: bytes.to_vec(),
+                },
+                Err(e) if e.is_timeout() => HttpResponse {
+                    status: 408,
+                    headers: vec![],
+                    body: b"request timeout".to_vec(),
+                },
+                Err(e) => HttpResponse {
+                    status: 500,
+                    headers: vec![],
+                    body: format!("body read error: {}", e).into_bytes(),
+                },
             }
         }
         Err(e) => {
