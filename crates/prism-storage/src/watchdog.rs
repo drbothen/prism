@@ -270,7 +270,8 @@ impl ResourceWatchdog {
     /// Check whether the current resource level requires killing the given query.
     ///
     /// If `current_level() == Kill`, cancels the token and returns
-    /// `Err(PrismError::WatchdogKilled)` (E-WATCHDOG-001, BC-2.15.007).
+    /// `Err(PrismError::WatchdogKilled)` (E-WATCHDOG-002, BC-2.15.007;
+    /// error-taxonomy.md v1.68 — E-WATCHDOG-001 is the per-query memory-pool trip).
     ///
     /// AC-4: RSS at 96% → token cancelled → `Err(PrismError::WatchdogKilled)`.
     pub fn check_query(&self, cancel_token: CancellationToken) -> Result<(), PrismError> {

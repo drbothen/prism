@@ -110,8 +110,9 @@ mod inner {
     /// AC-4 (BC-2.15.007 postcondition): at ~96.7% RSS (Kill level), `check_query`
     /// cancels the registered token and returns `Err(PrismError::WatchdogKilled)`.
     ///
-    /// The error Display must contain `"E-WATCHDOG-001"` (story v1.7 correction;
-    /// anchored to the literal taxonomy ID, not the stub constant).
+    /// The error Display must contain `"E-WATCHDOG-002"` (error-taxonomy.md v1.68,
+    /// P1-04 adjudication: the process-RSS watchdog kill is E-WATCHDOG-002;
+    /// E-WATCHDOG-001 is reserved for the per-query DataFusion memory-pool trip).
     #[test]
     fn test_BC_2_15_007_kill_level_cancels_token_and_returns_watchdog_killed() {
         let watchdog = ResourceWatchdog::with_probe(Arc::new(StaticProbe(RSS_96_7_PCT)));
@@ -139,12 +140,13 @@ mod inner {
             err
         );
 
-        // Error Display must contain the canonical error code E-WATCHDOG-001
-        // (story v1.7 correction — forces implementer to update error.rs Display string).
+        // Error Display must contain the canonical error code E-WATCHDOG-002
+        // (error-taxonomy.md v1.68 / P1-04 adjudication: process-RSS watchdog kill
+        // is E-WATCHDOG-002; E-WATCHDOG-001 is the per-query memory-pool trip).
         let display = err.to_string();
         assert!(
-            display.contains("E-WATCHDOG-001"),
-            "BC-2.15.007 / error-taxonomy.md: error Display must contain \"E-WATCHDOG-001\"; \
+            display.contains("E-WATCHDOG-002"),
+            "BC-2.15.007 / error-taxonomy.md v1.68: error Display must contain \"E-WATCHDOG-002\"; \
              got: {display}"
         );
     }

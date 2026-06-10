@@ -732,11 +732,13 @@ pub enum PrismError {
     #[error("E-WATCH-002: watchdog restart limit exceeded for {component}: {count} restarts")]
     WatchdogRestartLimitExceeded { component: String, count: u32 },
 
-    /// E-WATCHDOG-001 (query kill): Watchdog killed the running query because process RSS
+    /// E-WATCHDOG-002 (query kill): Watchdog killed the running query because process RSS
     /// exceeded the Kill threshold (95% of 512 MB budget) on two consecutive checks
-    /// (BC-2.15.007, VP-058).
+    /// (BC-2.15.007, VP-058). Distinct from E-WATCHDOG-001 (per-query DataFusion
+    /// memory-pool trip, `QueryMemoryBudgetExceeded`) — error-taxonomy.md v1.68,
+    /// P1-04 adjudication.
     #[error(
-        "E-WATCHDOG-001: watchdog killed query — process RSS exceeded kill threshold \
+        "E-WATCHDOG-002: watchdog killed query — process RSS exceeded kill threshold \
          ({budget_bytes} bytes budget); query token cancelled"
     )]
     WatchdogKilled {
