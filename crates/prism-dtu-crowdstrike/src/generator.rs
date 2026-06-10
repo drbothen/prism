@@ -38,7 +38,7 @@
 
 use prism_core::SensorId;
 use prism_dtu_common::generator::{
-    default_page_size, Archetype, FixtureSet, GenOpts, OrgId, Provenance,
+    default_page_size, stable_offset, Archetype, FixtureSet, GenOpts, OrgId, Provenance,
 };
 use serde_json::{json, Value};
 
@@ -447,19 +447,10 @@ fn make_id_page(ids: &[String], offset_cursor: Option<&str>) -> Value {
     page
 }
 
-/// Stable per-record offset fold for seeded-deterministic timestamp derivation.
-///
-/// NOT `std::hash::DefaultHasher` — its output is explicitly unstable across
-/// Rust releases, which would break BC-3.4.001 byte-identical determinism.
-/// Simple FNV-1a-style fold over the device_id bytes mixed with the seed.
-fn stable_offset(device_id: &str, seed: u64) -> u64 {
-    let mut acc: u64 = 0xcbf2_9ce4_8422_2325 ^ seed;
-    for b in device_id.as_bytes() {
-        acc ^= u64::from(*b);
-        acc = acc.wrapping_mul(0x0000_0100_0000_01b3);
-    }
-    acc
-}
+// `stable_offset` lifted to `prism_dtu_common::generator::offset::stable_offset`
+// (review-2026-06-10 P1-02) so the Cyberint/Claroty/Armis generators share one
+// RNG-free fold instead of triplicating it. Identical FNV-1a algorithm —
+// derived timestamps are byte-identical to the pre-lift values.
 
 /// Build a `FalconDevice` JSON record (Step-2 detail).
 ///

@@ -69,9 +69,13 @@ pub fn generate(org_id: &OrgId, archetype: Archetype, opts: &GenOpts) -> Fixture
     }
 
     // Generate each surface in order, advancing the shared RNG stream.
-    let mut alerts = generate_alerts(&slug, seed, archetype, scale, &mut rng);
-    let asm_assets = generate_asm_assets(&slug, seed, archetype, scale, &mut rng);
-    let cves = generate_cves(&slug, seed, archetype, scale, &mut rng);
+    // P1-02 (review 2026-06-10): opts.time_anchor threads into surfaces that
+    // carry timestamps; derivation is stable_offset-based (RNG-free), so the
+    // primary ChaCha20 stream is unchanged (INV-SECONDARY-RNG-STREAM-INDEPENDENCE-001).
+    let anchor = opts.time_anchor;
+    let mut alerts = generate_alerts(&slug, seed, archetype, scale, anchor, &mut rng);
+    let asm_assets = generate_asm_assets(&slug, seed, archetype, scale, anchor, &mut rng);
+    let cves = generate_cves(&slug, seed, archetype, scale, anchor, &mut rng);
     let iocs = generate_iocs(&slug, seed, archetype, scale, &mut rng);
 
     // SchemaDrift: mark alert surface[0] as intentionally invalid (AC-003).
@@ -152,6 +156,7 @@ fn generate_alerts(
     seed: u64,
     archetype: Archetype,
     scale: f64,
+    time_anchor: chrono::DateTime<chrono::Utc>,
     rng: &mut rand_chacha::ChaCha20Rng,
 ) -> Vec<Value> {
     let (alert_baseline, _, _, _) = baselines(archetype);
@@ -192,6 +197,19 @@ fn generate_alerts(
         let alert_id = format!("alert-{}-{}-{}", org_slug, seed, i);
         let ref_id = format!("REF-{}-{}-{}", org_slug, seed, i);
 
+        // P1-02 (review 2026-06-10): per-record timestamps derive from
+        // time_anchor minus a seeded RNG-free stable_offset fold (0..7 days),
+        // so time-window queries can discriminate between records. update /
+        // modification fall between created and the anchor. The fold draws
+        // NOTHING from `rng` — the primary ChaCha20 stream is unchanged.
+        let minutes_before = (prism_dtu_common::stable_offset(&alert_id, seed) % 10_080) as i64;
+        let created_dt = time_anchor - chrono::Duration::minutes(minutes_before);
+        let update_minutes =
+            (prism_dtu_common::stable_offset(&ref_id, seed) % (minutes_before as u64 + 1)) as i64;
+        let updated_dt = created_dt + chrono::Duration::minutes(update_minutes);
+        let created_at = created_dt.format("%Y-%m-%dT%H:%M:%SZ").to_string();
+        let updated_at = updated_dt.format("%Y-%m-%dT%H:%M:%SZ").to_string();
+
         let category = categories[cat_idx];
         // F2 / DTU-02 (review 2026-06-10): derive `type` from the already-varied
         // category instead of a hardcoded "phishing" for every alert. The type
@@ -222,7 +240,8 @@ fn generate_alerts(
             // The prior field name "created_date" caused the adapter's created_at column to
             // normalize to null for every generated alert. "created_date" is used nowhere else
             // in the codebase (sibling-site sweep TD-VSDD-060: only generator.rs had the field).
-            "created_at": "2024-01-01T00:00:00Z",
+            // P1-02: anchor-derived per-record value (see derivation above the json! block).
+            "created_at": created_at,
             "created_by": "system",
             "category": category,
             "type": alert_type,
@@ -239,10 +258,10 @@ fn generate_alerts(
             // index-derived — no extra RNG draws so per-surface streams are unchanged.
             "affected_assets": [format!("asset-{}-{}.example.com", org_slug, i)],
             "title": format!("Alert {} for {}", i, org_slug),
-            "modification_date": "2024-01-01T00:00:00Z",
+            "modification_date": updated_at.clone(),
             "description": format!("Description for alert {}", i),
             "recommendation": "Investigate and remediate.",
-            "update_date": "2024-01-01T00:00:00Z",
+            "update_date": updated_at,
             "_surface": "alert",
         });
         records.push(record);
@@ -258,6 +277,7 @@ fn generate_asm_assets(
     seed: u64,
     archetype: Archetype,
     scale: f64,
+    time_anchor: chrono::DateTime<chrono::Utc>,
     rng: &mut rand_chacha::ChaCha20Rng,
 ) -> Vec<Value> {
     let (_, asm_baseline, _, _) = baselines(archetype);
@@ -273,14 +293,25 @@ fn generate_asm_assets(
 
         let asset_id = format!("dev-{}-{}-{}", org_slug, seed, i);
 
+        // P1-02: anchor-derived per-record timestamps (RNG-free stable_offset;
+        // primary ChaCha20 stream unchanged). created 0..90 days before anchor;
+        // updated between created and the anchor.
+        let days_before = (prism_dtu_common::stable_offset(&asset_id, seed) % 90) as i64;
+        let created_dt = time_anchor - chrono::Duration::days(days_before);
+        let update_days = (prism_dtu_common::stable_offset(&asset_id, seed.wrapping_add(1))
+            % (days_before as u64 + 1)) as i64;
+        let updated_dt = created_dt + chrono::Duration::days(update_days);
+        let created = created_dt.format("%Y-%m-%dT%H:%M:%SZ").to_string();
+        let updated = updated_dt.format("%Y-%m-%dT%H:%M:%SZ").to_string();
+
         let record = json!({
             "asset_id": asset_id,
             "id": asset_id,
             "name": format!("asset-{}.example.com", i),
             "type": types[type_idx],
             "status": statuses[status_idx],
-            "created": "2024-01-01T00:00:00Z",
-            "updated": "2024-01-01T00:00:00Z",
+            "created": created,
+            "updated": updated,
             "_surface": "asm_asset",
         });
         records.push(record);
@@ -296,6 +327,7 @@ fn generate_cves(
     seed: u64,
     archetype: Archetype,
     scale: f64,
+    time_anchor: chrono::DateTime<chrono::Utc>,
     rng: &mut rand_chacha::ChaCha20Rng,
 ) -> Vec<Value> {
     let (_, _, cve_baseline, _) = baselines(archetype);
@@ -307,14 +339,25 @@ fn generate_cves(
         let cve_id = format!("alert-{}-{}-{}", org_slug, seed, i);
         let cve_name = format!("CVE-2024-{:04}", rng.gen_range(1000u32..9999));
 
+        // P1-02: anchor-derived per-record timestamps (RNG-free stable_offset;
+        // primary ChaCha20 stream unchanged). published 0..90 days before the
+        // anchor; modified between published and the anchor.
+        let days_before = (prism_dtu_common::stable_offset(&cve_id, seed) % 90) as i64;
+        let published_dt = time_anchor - chrono::Duration::days(days_before);
+        let modified_days = (prism_dtu_common::stable_offset(&cve_id, seed.wrapping_add(1))
+            % (days_before as u64 + 1)) as i64;
+        let modified_dt = published_dt + chrono::Duration::days(modified_days);
+        let published = published_dt.format("%Y-%m-%dT%H:%M:%SZ").to_string();
+        let modified = modified_dt.format("%Y-%m-%dT%H:%M:%SZ").to_string();
+
         let record = json!({
             "alert_id": cve_id,
             "id": cve_id,
             "cve_id": cve_name,
             "cyberint_score": score,
-            "cyberint_score_modification_date": "2024-01-01T00:00:00Z",
-            "published_date": "2024-01-01T00:00:00Z",
-            "last_modified_date": "2024-01-01T00:00:00Z",
+            "cyberint_score_modification_date": modified.clone(),
+            "published_date": published,
+            "last_modified_date": modified,
             "_surface": "cve",
         });
         records.push(record);

@@ -136,15 +136,37 @@ fn make_device_with_subnet(slug: &str, seed: u64, index: usize, subnet: &str) ->
 }
 
 /// Build a minimal valid Claroty alert record (GetAlertsResponse items shape).
-fn make_alert(slug: &str, seed: u64, index: usize, severity_id: u64) -> Value {
+///
+/// P1-02 (review 2026-06-10): `detected_time` / `updated_time` derive per
+/// record from `time_anchor` minus a seeded RNG-free `stable_offset` fold
+/// (0..7 days), so time-window queries can discriminate between records.
+/// `updated_time` falls between `detected_time` and the anchor. The fold
+/// draws nothing from the ChaCha20 stream
+/// (INV-SECONDARY-RNG-STREAM-INDEPENDENCE-001).
+fn make_alert(
+    slug: &str,
+    seed: u64,
+    index: usize,
+    severity_id: u64,
+    time_anchor: chrono::DateTime<chrono::Utc>,
+) -> Value {
+    let alert_id = format!("alert-{slug}-{seed}-{index}");
+    let minutes_before = (prism_dtu_common::stable_offset(&alert_id, seed) % 10_080) as i64;
+    let detected_dt = time_anchor - chrono::Duration::minutes(minutes_before);
+    let update_minutes = (prism_dtu_common::stable_offset(&alert_id, seed.wrapping_add(1))
+        % (minutes_before as u64 + 1)) as i64;
+    let updated_dt = detected_dt + chrono::Duration::minutes(update_minutes);
+    // Match the real-API shape: RFC 3339 with microseconds and "+00:00" offset.
+    let detected_time = detected_dt.to_rfc3339_opts(chrono::SecondsFormat::Micros, false);
+    let updated_time = updated_dt.to_rfc3339_opts(chrono::SecondsFormat::Micros, false);
     json!({
         // F3 / DTU-05: authoritative surface discriminator (see make_device).
         "_surface": "alert",
-        "alert_id": format!("alert-{slug}-{seed}-{index}"),
+        "alert_id": alert_id,
         "alert_type_name": "Network Anomaly",
         "category": "Segmentation",
         "description": format!("Alert {index} detected by fixture generator"),
-        "detected_time": "2021-07-11T19:40:46.835404+00:00",
+        "detected_time": detected_time,
         "devices_count": 1,
         "id": seed.wrapping_add(index as u64),
         "iot_devices_count": 0,
@@ -156,7 +178,7 @@ fn make_alert(slug: &str, seed: u64, index: usize, severity_id: u64) -> Value {
         "mitre_technique_ics_names": [],
         "status": "Unresolved",
         "unresolved_devices_count": 1,
-        "updated_time": "2021-07-11T19:40:46.835404+00:00",
+        "updated_time": updated_time,
         "severity_id": severity_id
     })
 }
@@ -187,7 +209,7 @@ fn gen_healthy_ot_environment(org_id: &OrgId, opts: &GenOpts) -> FixtureSet {
     for i in 0..n_alerts {
         // Healthy: low severity only (severity_id 1-3)
         let sev = 1u64 + (i as u64 % 3);
-        records.push(make_alert(&slug, opts.seed, i, sev));
+        records.push(make_alert(&slug, opts.seed, i, sev, opts.time_anchor));
     }
 
     FixtureSet {
@@ -228,7 +250,7 @@ fn gen_compromised_endpoint(org_id: &OrgId, opts: &GenOpts) -> FixtureSet {
         } else {
             1u64 + (i as u64 % 3)
         };
-        records.push(make_alert(&slug, opts.seed, i, sev));
+        records.push(make_alert(&slug, opts.seed, i, sev, opts.time_anchor));
     }
 
     FixtureSet {
@@ -318,7 +340,7 @@ fn gen_large_scale(org_id: &OrgId, opts: &GenOpts) -> FixtureSet {
 
     for i in 0..n_alerts {
         let sev = if i < 10 { 4u64 } else { 2u64 };
-        records.push(make_alert(&slug, opts.seed, i, sev));
+        records.push(make_alert(&slug, opts.seed, i, sev, opts.time_anchor));
     }
 
     FixtureSet {

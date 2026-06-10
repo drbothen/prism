@@ -55,6 +55,11 @@ path = "tests/bc_3_4_claroty_generator.rs"
 required-features = ["fixture-gen"]
 
 [[test]]
+name = "review_2026_06_10_p1_02_timestamps"
+path = "tests/review_2026_06_10_p1_02_timestamps.rs"
+required-features = ["fixture-gen"]
+
+[[test]]
 name = "fidelity_validator"
 path = "tests/fidelity_validator.rs"
 required-features = ["dtu"]

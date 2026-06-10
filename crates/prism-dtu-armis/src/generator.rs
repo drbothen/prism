@@ -101,10 +101,16 @@ fn generate_healthy_ot(org_id: &OrgId, org_slug: &str, opts: &GenOpts) -> Fixtur
     let mut records = Vec::with_capacity(n_assets + n_alerts);
     for i in 0..n_assets {
         let status = if i % 2 == 0 { "online" } else { "active" };
-        records.push(build_asset(org_slug, opts.seed, i, status));
+        records.push(build_asset(
+            org_slug,
+            opts.seed,
+            i,
+            status,
+            opts.time_anchor,
+        ));
     }
     for i in 0..n_alerts {
-        records.push(build_alert(org_slug, opts.seed, i, "LOW"));
+        records.push(build_alert(org_slug, opts.seed, i, "LOW", opts.time_anchor));
     }
 
     FixtureSet {
@@ -130,7 +136,13 @@ fn generate_compromised_endpoint(org_id: &OrgId, org_slug: &str, opts: &GenOpts)
         } else {
             "compromised"
         };
-        records.push(build_asset(org_slug, opts.seed, i, status));
+        records.push(build_asset(
+            org_slug,
+            opts.seed,
+            i,
+            status,
+            opts.time_anchor,
+        ));
     }
 
     // ≥3 alerts with HIGH/CRITICAL severity
@@ -144,7 +156,13 @@ fn generate_compromised_endpoint(org_id: &OrgId, org_slug: &str, opts: &GenOpts)
         } else {
             "MEDIUM"
         };
-        records.push(build_alert(org_slug, opts.seed, i, severity));
+        records.push(build_alert(
+            org_slug,
+            opts.seed,
+            i,
+            severity,
+            opts.time_anchor,
+        ));
     }
 
     FixtureSet {
@@ -160,12 +178,18 @@ fn generate_auth_outage(org_id: &OrgId, org_slug: &str, opts: &GenOpts) -> Fixtu
     let mut records = Vec::with_capacity(n_assets);
 
     // First record carries status_code=401 (BC-3.4.003 TV-3.4.003-03)
-    let mut first = build_asset(org_slug, opts.seed, 0, "online");
+    let mut first = build_asset(org_slug, opts.seed, 0, "online", opts.time_anchor);
     first["status_code"] = json!(401i64);
     records.push(first);
 
     for i in 1..n_assets {
-        records.push(build_asset(org_slug, opts.seed, i, "online"));
+        records.push(build_asset(
+            org_slug,
+            opts.seed,
+            i,
+            "online",
+            opts.time_anchor,
+        ));
     }
 
     FixtureSet {
@@ -183,10 +207,22 @@ fn generate_large_scale(org_id: &OrgId, org_slug: &str, opts: &GenOpts) -> Fixtu
     let mut records = Vec::with_capacity(n_assets + n_alerts);
     for i in 0..n_assets {
         let status = if i % 2 == 0 { "online" } else { "active" };
-        records.push(build_asset(org_slug, opts.seed, i, status));
+        records.push(build_asset(
+            org_slug,
+            opts.seed,
+            i,
+            status,
+            opts.time_anchor,
+        ));
     }
     for i in 0..n_alerts {
-        records.push(build_alert(org_slug, opts.seed, i, "MEDIUM"));
+        records.push(build_alert(
+            org_slug,
+            opts.seed,
+            i,
+            "MEDIUM",
+            opts.time_anchor,
+        ));
     }
 
     FixtureSet {
@@ -223,7 +259,7 @@ fn generate_pagination_edge_cases(org_id: &OrgId, org_slug: &str, opts: &GenOpts
 
     // Each asset becomes a single-item AQL envelope record
     for i in 0..total_assets {
-        let asset = build_asset(org_slug, opts.seed, i, "online");
+        let asset = build_asset(org_slug, opts.seed, i, "online", opts.time_anchor);
         // Determine which page this asset belongs to (for cursor reference)
         let page = i / page_size;
         let cursor = cursors[page.min(2)].clone();
@@ -245,15 +281,20 @@ fn generate_schema_drift(org_id: &OrgId, org_slug: &str, opts: &GenOpts) -> Fixt
     let mut records = Vec::with_capacity(n_assets);
 
     // records[0]: drifted — omits required "id" field (BC-3.4.003 invariant 4)
+    // P1-02: timestamps anchor-derived like every other record — the drift is
+    // the missing "id" key, not the timestamp era.
+    let drift_id = format!("drift-{}-{}-0", org_slug, opts.seed);
+    let (drift_last_dt, drift_first_dt) =
+        derive_seen_window(&drift_id, opts.seed, opts.time_anchor);
     let drifted = json!({
         // "id" intentionally omitted — schema-drifted record
-        "asset_id": format!("drift-{}-{}-0", org_slug, opts.seed),
+        "asset_id": drift_id,
         "name": format!("drifted-device-{}", org_slug),
         "title": format!("Drifted Device for {}", org_slug),
         "type": "Unknown",
         "status": "online",
-        "lastSeen": "2024-01-01T00:00:00Z",
-        "firstSeen": "2023-01-01T00:00:00Z",
+        "lastSeen": format_ts(drift_last_dt),
+        "firstSeen": format_ts(drift_first_dt),
         "ipAddress": null,
         "macAddress": null,
         "manufacturer": null,
@@ -268,7 +309,13 @@ fn generate_schema_drift(org_id: &OrgId, org_slug: &str, opts: &GenOpts) -> Fixt
 
     // records[1..]: conformant assets
     for i in 1..n_assets {
-        records.push(build_asset(org_slug, opts.seed, i, "online"));
+        records.push(build_asset(
+            org_slug,
+            opts.seed,
+            i,
+            "online",
+            opts.time_anchor,
+        ));
     }
 
     FixtureSet {
@@ -287,10 +334,16 @@ fn generate_high_churn(org_id: &OrgId, org_slug: &str, opts: &GenOpts) -> Fixtur
 
     let mut records = Vec::with_capacity(n_assets);
     for i in 0..n_normal {
-        records.push(build_asset(org_slug, opts.seed, i, "online"));
+        records.push(build_asset(
+            org_slug,
+            opts.seed,
+            i,
+            "online",
+            opts.time_anchor,
+        ));
     }
     for t in 0..n_tombstones {
-        records.push(build_tombstone(org_slug, opts.seed, t));
+        records.push(build_tombstone(org_slug, opts.seed, t, opts.time_anchor));
     }
 
     FixtureSet {
@@ -316,6 +369,34 @@ fn generate_dormant_tenant(org_id: &OrgId, org_slug: &str, opts: &GenOpts) -> Fi
 // Record builders
 // ---------------------------------------------------------------------------
 
+/// Derive a per-record `(lastSeen, firstSeen)` pair from the time anchor
+/// (review-2026-06-10 P1-02).
+///
+/// - `lastSeen`: 0..7 days (in minutes) before `time_anchor`, stable per
+///   `(record_key, seed)`.
+/// - `firstSeen`: 7..=90 days before `lastSeen` — always strictly earlier.
+///
+/// RNG-free (`stable_offset` fold) — the primary ChaCha20 stream is never
+/// consulted, so per-record variance cannot perturb other generated values
+/// (INV-SECONDARY-RNG-STREAM-INDEPENDENCE-001 / BC-3.4.001).
+fn derive_seen_window(
+    record_key: &str,
+    seed: u64,
+    time_anchor: chrono::DateTime<chrono::Utc>,
+) -> (chrono::DateTime<chrono::Utc>, chrono::DateTime<chrono::Utc>) {
+    let minutes_before = (prism_dtu_common::stable_offset(record_key, seed) % 10_080) as i64;
+    let last_seen = time_anchor - chrono::Duration::minutes(minutes_before);
+    let days_before =
+        7 + (prism_dtu_common::stable_offset(record_key, seed.wrapping_add(1)) % 84) as i64;
+    let first_seen = last_seen - chrono::Duration::days(days_before);
+    (last_seen, first_seen)
+}
+
+/// Format a derived timestamp in the Armis fixture shape (`%Y-%m-%dT%H:%M:%SZ`).
+fn format_ts(ts: chrono::DateTime<chrono::Utc>) -> String {
+    ts.format("%Y-%m-%dT%H:%M:%SZ").to_string()
+}
+
 /// Build a single `ArmisAsset` record as a JSON Value.
 ///
 /// `id_index`: 0-based position; every 5th record (i % 5 == 0) uses integer-form `id` (EC-001).
@@ -326,7 +407,13 @@ fn generate_dormant_tenant(org_id: &OrgId, org_slug: &str, opts: &GenOpts) -> Fi
 ///
 /// `primary_id()` in tests checks `asset_id` first, so VP-120 passes regardless of
 /// `id` type. `asset["id"].is_number()` for i%5==0 satisfies EC-001.
-fn build_asset(org_slug: &str, seed: u64, id_index: usize, status: &str) -> Value {
+fn build_asset(
+    org_slug: &str,
+    seed: u64,
+    id_index: usize,
+    status: &str,
+    time_anchor: chrono::DateTime<chrono::Utc>,
+) -> Value {
     let string_id = format!("dev-{}-{}-{}", org_slug, seed, id_index);
     let id: Value = if id_index.is_multiple_of(5) {
         // EC-001: integer-form ArmisId for every 5th record
@@ -335,6 +422,15 @@ fn build_asset(org_slug: &str, seed: u64, id_index: usize, status: &str) -> Valu
         json!(string_id.clone())
     };
 
+    // P1-02 (review 2026-06-10): per-record timestamps derive from time_anchor
+    // minus a seeded RNG-free stable_offset fold so AQL time-window queries can
+    // discriminate between records. lastSeen: 0..7 days before the anchor;
+    // firstSeen: 7..=90 days before lastSeen (strictly earlier). The fold draws
+    // nothing from the ChaCha20 stream (INV-SECONDARY-RNG-STREAM-INDEPENDENCE-001).
+    let (last_dt, first_dt) = derive_seen_window(&string_id, seed, time_anchor);
+    let last_seen = format_ts(last_dt);
+    let first_seen = format_ts(first_dt);
+
     json!({
         "id": id,
         "asset_id": string_id,
@@ -342,8 +438,8 @@ fn build_asset(org_slug: &str, seed: u64, id_index: usize, status: &str) -> Valu
         "title": format!("Device {} for {}", id_index, org_slug),
         "type": "IoT Device",
         "status": status,
-        "lastSeen": "2024-01-01T00:00:00Z",
-        "firstSeen": "2023-01-01T00:00:00Z",
+        "lastSeen": last_seen,
+        "firstSeen": first_seen,
         "ipAddress": format!("10.{}.{}.{}", (id_index / 65536) % 256, (id_index / 256) % 256, id_index % 256),
         "macAddress": format!("AA:BB:CC:{:02X}:{:02X}:{:02X}", (id_index / 65536) % 256, (id_index / 256) % 256, id_index % 256),
         "manufacturer": "Siemens",
@@ -360,9 +456,22 @@ fn build_asset(org_slug: &str, seed: u64, id_index: usize, status: &str) -> Valu
 ///
 /// Tombstone ID format: `dev-{org_slug}-tomb-{n}` (BC-3.4.004 tombstone row).
 /// The test asserts `id.contains("{org_slug}-tomb-")` which requires the seed to be absent.
-fn build_tombstone(org_slug: &str, seed: u64, tomb_index: usize) -> Value {
+fn build_tombstone(
+    org_slug: &str,
+    seed: u64,
+    tomb_index: usize,
+    time_anchor: chrono::DateTime<chrono::Utc>,
+) -> Value {
     // Format: "dev-{org_slug}-tomb-{n}" — no seed in tombstone ID per BC-3.4.004 TV-3.4.004-07
     let id = format!("dev-{}-tomb-{}", org_slug, tomb_index);
+    // P1-02: anchor-derived per-record timestamps (RNG-free stable_offset).
+    // deleted_at = lastSeen + 1 hour, clamped to the anchor (the device
+    // disappeared shortly after last sight, never "in the future").
+    let (last_dt, first_dt) = derive_seen_window(&id, seed, time_anchor);
+    let deleted_dt = (last_dt + chrono::Duration::hours(1)).min(time_anchor);
+    let last_seen = format_ts(last_dt);
+    let first_seen = format_ts(first_dt);
+    let deleted_at = format_ts(deleted_dt);
     json!({
         "id": id,
         "asset_id": id.clone(),
@@ -370,8 +479,8 @@ fn build_tombstone(org_slug: &str, seed: u64, tomb_index: usize) -> Value {
         "title": format!("Tombstone {} for {}", tomb_index, org_slug),
         "type": "IoT Device",
         "status": "tombstone",
-        "lastSeen": "2023-12-31T23:59:59Z",
-        "firstSeen": "2023-01-01T00:00:00Z",
+        "lastSeen": last_seen,
+        "firstSeen": first_seen,
         "ipAddress": null,
         "macAddress": null,
         "manufacturer": null,
@@ -381,7 +490,7 @@ fn build_tombstone(org_slug: &str, seed: u64, tomb_index: usize) -> Value {
         "riskLevel": null,
         "site": null,
         "zone": null,
-        "deleted_at": "2024-01-01T00:00:00Z",
+        "deleted_at": deleted_at,
         "_seed": seed
     })
 }
@@ -390,7 +499,13 @@ fn build_tombstone(org_slug: &str, seed: u64, tomb_index: usize) -> Value {
 ///
 /// `alertId` (integer) incorporates the org_slug hash to ensure disjoint ID sets (VP-119).
 /// `alert_id` (string) always contains org_slug (VP-120 for alerts).
-fn build_alert(org_slug: &str, seed: u64, id_index: usize, severity: &str) -> Value {
+fn build_alert(
+    org_slug: &str,
+    seed: u64,
+    id_index: usize,
+    severity: &str,
+    time_anchor: chrono::DateTime<chrono::Utc>,
+) -> Value {
     // alertId: org-specific integer to ensure disjoint sets between orgs (VP-119)
     let slug_hash = simple_hash_bytes(org_slug.as_bytes()) as i64;
     let alert_id_num: i64 = slug_hash
@@ -398,6 +513,15 @@ fn build_alert(org_slug: &str, seed: u64, id_index: usize, severity: &str) -> Va
         .saturating_add((seed as i64).saturating_mul(1_000))
         .saturating_add(id_index as i64);
     let alert_id_str = format!("alert-{}-{}-{}", org_slug, seed, id_index);
+
+    // P1-02: alert `time` derives from time_anchor minus a seeded RNG-free
+    // stable_offset fold (0..7 days); lastAlertUpdateTime keeps the +5min
+    // update lag of the previous static values, clamped to the anchor.
+    let minutes_before = (prism_dtu_common::stable_offset(&alert_id_str, seed) % 10_080) as i64;
+    let time_dt = time_anchor - chrono::Duration::minutes(minutes_before);
+    let update_dt = (time_dt + chrono::Duration::minutes(5)).min(time_anchor);
+    let time = format_ts(time_dt);
+    let last_update = format_ts(update_dt);
 
     json!({
         "alertId": alert_id_num,
@@ -407,8 +531,8 @@ fn build_alert(org_slug: &str, seed: u64, id_index: usize, severity: &str) -> Va
         "status": "UNHANDLED",
         "severity": severity,
         "type": "Policy Violation",
-        "time": "2024-01-01T12:00:00Z",
-        "lastAlertUpdateTime": "2024-01-01T12:05:00Z",
+        "time": time,
+        "lastAlertUpdateTime": last_update,
         "deviceId": id_index as i64,
         "description": format!("Detected anomaly {} for org {}", id_index, org_slug),
         "remediation": null
