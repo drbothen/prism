@@ -62,6 +62,53 @@ pub struct ClonesConfig {
     pub nvd: CloneConfig,
 }
 
+// ---------------------------------------------------------------------------
+// Story A: ScenarioConfig stub (BC-2.06.018 / ADR-036 §2.4)
+// ---------------------------------------------------------------------------
+
+/// Per-clone scenario configuration (the `[clones.<name>.scenario]` section).
+///
+/// Used by `build_clone_pairs` to determine whether to call `new_with_seed` and
+/// to derive the `ScenarioEntityCatalog` for cross-DTU entity coherence.
+///
+/// # ADR-036 §2.4 — ScenarioConfig fields
+///
+/// All fields have defaults. When `enabled = false` (default), the clone uses the
+/// backward-compatible `new()` static-JSON path.
+///
+/// # Story A stub
+///
+/// Fields present; `build_clone_pairs` integration is Gate 4's job.
+#[derive(Debug, Clone, Deserialize, Serialize, Default)]
+pub struct ScenarioConfig {
+    /// When `true`, `build_clone_pairs` calls `new_with_seed` instead of `new()`.
+    ///
+    /// Requires `org_id` to be set in `CloneConfig`; absence produces E-DEMO-004.
+    #[serde(default)]
+    pub enabled: bool,
+
+    /// Scenario archetype string. Only `"compromised_endpoint"` is supported in v1.
+    ///
+    /// Unrecognized values produce E-DEMO-003 at construction time.
+    #[serde(default = "default_scenario_archetype")]
+    pub archetype: String,
+
+    /// Unix epoch seconds for scenario start time. `None` = start at construction time.
+    #[serde(default)]
+    pub scenario_start_secs: Option<i64>,
+
+    /// 4-entry array of cumulative `activates_after_secs` thresholds for stages 1..=4.
+    ///
+    /// Stage 0 (Baseline) always activates at 0 (no entry needed).
+    /// Empty = use archetype defaults `[60, 180, 360, 600]`.
+    #[serde(default)]
+    pub stage_duration_secs: Vec<u64>,
+}
+
+fn default_scenario_archetype() -> String {
+    "compromised_endpoint".to_string()
+}
+
 /// Configuration for a single DTU clone (e.g. `[clones.crowdstrike]`).
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct CloneConfig {
@@ -101,6 +148,29 @@ pub struct CloneConfig {
     /// mechanism for seeding the allowlist at startup time.
     #[serde(default)]
     pub initial_access_token: Option<String>,
+
+    // -----------------------------------------------------------------------
+    // Story A additions: org_id + scenario (BC-2.06.018 / ADR-036 §2.4)
+    // -----------------------------------------------------------------------
+    /// Org UUID (hyphenated string) for this demo client.
+    ///
+    /// Required when `scenario.enabled = true` for any clone in this config block.
+    /// Parsed as `uuid::Uuid` and converted to `OrgId` (`[u8; 16]`) by `build_clone_pairs`.
+    ///
+    /// - Absence when scenario.enabled = true → E-DEMO-004 at construction time.
+    /// - Non-UUID value → E-DEMO-005 at construction time.
+    /// - Optional (may be `None`) when scenario.enabled = false — backward compatible.
+    ///
+    /// ADR-036 §2.4 / BC-2.06.018 "New Config Requirement"
+    #[serde(default)]
+    pub org_id: Option<String>,
+
+    /// Per-clone scenario configuration (the `[clones.<name>.scenario]` subsection).
+    ///
+    /// When `None` or `enabled = false`, the clone uses the backward-compatible `new()` path.
+    /// ADR-036 §2.4
+    #[serde(default)]
+    pub scenario: Option<ScenarioConfig>,
 }
 
 impl Default for CloneConfig {
@@ -115,6 +185,9 @@ impl Default for CloneConfig {
             tls: false,
             continue_on_error: false,
             initial_access_token: None,
+            // Story A fields: default to None (backward-compatible path)
+            org_id: None,
+            scenario: None,
         }
     }
 }

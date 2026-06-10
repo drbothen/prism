@@ -237,6 +237,31 @@ pub async fn list_devices(
     };
 
     let params = body.map(|Json(b)| b).unwrap_or_default();
+
+    // Dual-path: serve from generated_records when available (ADR-036 §2.3, BC-2.06.018).
+    // Generated records are immutable after construction — no lock needed.
+    //
+    // F-P4-CRIT-001: filter to device-surface records only.
+    // The generator (CompromisedEndpoint) emits both device records (have `asset_id`,
+    // no `alert_id`) and alert records (have `alert_id`, no `asset_id`) into the same
+    // generated_records vec. We must serve ONLY device-surface records here.
+    // Mirror the discriminator used by Armis devices.rs:
+    //   device record: asset_id present AND alert_id absent.
+    // Dual-path sentinel: use `fixture_gen_seeded` (not generated_records.is_empty()) so that
+    // DormantTenant (seeded=true, 0 records) serves empty — not the static fixture.
+    // F-P6-HIGH-001 fix: emptiness check was wrong for archetypes that generate 0 records.
+    #[cfg(feature = "fixture-gen")]
+    let mut devices: Vec<serde_json::Value> = if state.fixture_gen_seeded {
+        state
+            .generated_records
+            .iter()
+            .filter(|rec| rec.get("asset_id").is_some() && rec.get("alert_id").is_none())
+            .cloned()
+            .collect()
+    } else {
+        load_devices_fixture()
+    };
+    #[cfg(not(feature = "fixture-gen"))]
     let mut devices = load_devices_fixture();
 
     // Merge tag state into each device (AC-3, AC-4).

@@ -4,7 +4,10 @@
 //! struct-literal construction. After `#[non_exhaustive]` is applied, each
 //! literal MUST fail with E0639 (cannot create non-exhaustive struct expression).
 //!
-//! Violations 1-6, 9-12, 16-17, 20-24, 26, 32-36, 37-43, 45, 49-50 (33 total E0639 expected).
+//! Violations 1-6, 9-12, 16-17, 20-24, 26, 32-36, 37-43, 45, 47, 49-51 (35 total E0639 in this file).
+//! v51 (ScenarioEntityCatalog) is a LIVE E0639 violation — the type is public
+//! (prism_dtu_common::scenario; lib.rs pub use) and #[non_exhaustive]; counted in
+//! ci.yml EXPECTED=50 (ADR-036 §2.2, S-DEMO-DTU-LIVE-SCENARIO-001-A AC-014).
 //!
 //! S-SPEC-TYPE-UNIFICATION-001: Violation 30 (types::SensorSpec) removed.
 //! `types::SensorSpec` was deleted (ADR-030 Approach D — unified on spec_parser::SensorSpec).
@@ -600,4 +603,42 @@ pub fn v50_spec_driven_sensor_adapter() {
         http_client: todo!(),
     };
     let _ = _adapter;
+}
+
+/// Violation 51: prism_dtu_common::scenario::ScenarioEntityCatalog struct literal (E0639).
+///
+/// `ScenarioEntityCatalog` is the shared entity namespace for one client's incident scenario
+/// (ADR-036 §2.2, S-DEMO-DTU-LIVE-SCENARIO-001-A). `#[non_exhaustive]` ensures future
+/// catalog fields (e.g., `lateral_device_ids_cs`, `lateral_device_ids_armis`) can be added
+/// without breaking external match arms or struct literals.
+///
+/// External callers MUST use `build_scenario_entity_catalog(seed, &org_id)` — direct
+/// struct literal construction MUST NOT compile (E0639).
+///
+/// This function constructs `ScenarioEntityCatalog` with all currently-known fields from a
+/// foreign crate (this violation crate uses `features=["fixture-gen"]`). Because
+/// `ScenarioEntityCatalog` is `#[non_exhaustive]`, the struct literal fails with E0639
+/// (non-exhaustive type constructed outside its defining crate), which is the intended gate
+/// violation counted in `ci.yml EXPECTED=50`.
+///
+/// Added: S-DEMO-DTU-LIVE-SCENARIO-001-A (AC-014).
+#[allow(dead_code)]
+pub fn v51_scenario_entity_catalog() {
+    // ScenarioEntityCatalog is publicly exported from prism_dtu_common::scenario
+    // (lib.rs `pub use scenario::{..., ScenarioEntityCatalog}`). The struct is
+    // #[non_exhaustive], so this struct literal in a foreign crate fails with E0639
+    // (the correct intended violation), not E0432.
+    let _catalog = prism_dtu_common::scenario::ScenarioEntityCatalog {
+        org_slug: "deadbeef".to_string(),
+        primary_device_id_cs: "dev-deadbeef-42-0".to_string(),
+        primary_device_id_armis: "dev-deadbeef-42-0".to_string(),
+        primary_hostname: "host-0".to_string(),
+        lateral_device_ids_cs: vec![],
+        lateral_device_ids_armis: vec![],
+        ioc_ips: vec![],
+        ioc_domains: vec![],
+        ioc_hashes: vec![],
+        device_cves: vec![],
+    };
+    let _ = _catalog;
 }

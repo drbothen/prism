@@ -146,5 +146,24 @@ name = "s_demo_armis_aql_001_red_gate"
 path = "tests/s_demo_armis_aql_001_red_gate.rs"
 required-features = ["dtu"]
 
+# S-DEMO-DTU-LIVE-SCENARIO-001-A: Red Gate test RG-4 (BC-2.06.018 postcondition 1)
+[[test]]
+name = "bc_2_06_018_new_with_seed"
+path = "tests/bc_2_06_018_new_with_seed.rs"
+required-features = ["dtu", "fixture-gen"]
+
+# F-P2-CRIT-001/002 + F-P4-MED-001: route-output tests (surface purity + disjointness)
+[[test]]
+name = "f_p2_route_output_tests"
+path = "tests/f_p2_route_output_tests.rs"
+required-features = ["dtu", "fixture-gen"]
+
+# F-P15-MED-001: GET /api/v1/alerts dual-path route-output tests
+# (seeded-prefix, cross-seed disjointness, DormantTenant→empty)
+[[test]]
+name = "f_p15_alerts_route_output"
+path = "tests/f_p15_alerts_route_output.rs"
+required-features = ["dtu", "fixture-gen"]
+
 [lints]
 workspace = true

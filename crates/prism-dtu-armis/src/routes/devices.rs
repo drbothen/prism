@@ -155,7 +155,74 @@ pub async fn post_devices(
 }
 
 /// Pagination helper shared by GET and POST device queries.
+///
+/// Dual-path (ADR-036 §2.3, BC-2.06.018, F-P2-CRIT-002, F-P6-HIGH-001):
+/// - When `state.fixture_gen_seeded == true` (clone built via `new_with_seed`):
+///   serves device records as raw `serde_json::Value` (Claroty pattern).
+///   Generated records use camelCase Armis-native field names ("asset_id", "lastSeen",
+///   etc.) which are incompatible with the snake_case `DeviceRecord` struct.
+///   The adapter reads `$.data.devices` by JSON path, so raw Values are correct.
+///   A seeded clone with zero generated device records (e.g. `Archetype::DormantTenant`)
+///   serves an EMPTY list — it does NOT fall back to `state.devices_ordered`.
+/// - When `state.fixture_gen_seeded == false` (`new()` / non-seeded path):
+///   serves from `state.devices_ordered` (static fixture, backward-compatible path).
 fn paginate_devices(state: &ArmisState, page: u32, size: u32) -> axum::response::Response {
+    // Dual-path: use fixture_gen_seeded (not generated_records.is_empty()) as sentinel.
+    // DormantTenant (seeded=true, 0 records) must serve empty — not static fixture.
+    // F-P6-HIGH-001 / ADR-036 v2.2.
+    #[cfg(feature = "fixture-gen")]
+    let use_generated = state.fixture_gen_seeded;
+    #[cfg(not(feature = "fixture-gen"))]
+    let use_generated = false;
+
+    #[cfg(feature = "fixture-gen")]
+    if use_generated {
+        // F-P2-CRIT-002: serve generated records as raw serde_json::Value (Claroty pattern).
+        //
+        // Generated Armis records use camelCase native field names ("asset_id", "lastSeen", etc.)
+        // which do NOT match the DeviceRecord struct's snake_case fields.
+        // The adapter reads $.data.devices by JSON path — raw Value is correct here.
+        //
+        // Only include records that have "asset_id" and no "alert_id" (device discriminator).
+        // This partitioning is consistent with the search.rs dual-path for /api/v1/search.
+        //
+        // NO silent .ok() drops: every generated record that has "asset_id" is served.
+        // Records without "asset_id" (alerts in the fixture) are intentionally excluded
+        // from the /api/v1/devices endpoint — this is not data loss, it is correct partitioning.
+        let all_generated: Vec<&serde_json::Value> = state
+            .generated_records
+            .iter()
+            .filter(|v| v.get("asset_id").is_some() && v.get("alert_id").is_none())
+            .collect();
+
+        let total = all_generated.len() as u32;
+        let offset = ((page - 1) * size) as usize;
+        let page_devices: Vec<serde_json::Value> = if offset >= all_generated.len() {
+            vec![]
+        } else {
+            all_generated
+                .iter()
+                .skip(offset)
+                .take(size as usize)
+                .map(|v| (*v).clone())
+                .collect()
+        };
+
+        // DevicesResponse wraps a Vec<DeviceRecord>, but we need to return raw Values.
+        // Return as a hand-assembled JSON response to avoid the DeviceRecord deserialization
+        // mismatch that caused F-P2-CRIT-002 (camelCase vs snake_case field names).
+        let body = serde_json::json!({
+            "data": {
+                "devices": page_devices,
+                "total": total,
+                "page": page,
+            }
+        });
+        return (StatusCode::OK, Json(body)).into_response();
+    }
+
+    // Static-fixture fallback path.
+    let _ = use_generated; // suppress unused warning in non-fixture-gen builds
     let all_devices = &state.devices_ordered;
     let total = all_devices.len() as u32;
     let offset = ((page - 1) * size) as usize;

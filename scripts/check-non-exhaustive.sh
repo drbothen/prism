@@ -8,8 +8,9 @@
 #
 # Update EXPECTED when adding/removing violations from enum_violations.rs or struct_violations.rs.
 # (BC-2.01.013 AC-5 / F-LP2-OBS-001 S-PLUGIN-PREREQ-C)
+# S-DEMO-DTU-LIVE-SCENARIO-001-A: bumped 49→50 for ScenarioEntityCatalog (AC-014, ADR-036 §2.2).
 
-EXPECTED=49
+EXPECTED=50
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WORKSPACE_ROOT="$(dirname "${SCRIPT_DIR}")"
 

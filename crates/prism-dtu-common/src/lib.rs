@@ -23,6 +23,10 @@ pub mod fidelity;
 pub mod fixture;
 #[cfg(feature = "fixture-gen")]
 pub mod generator;
+#[cfg(feature = "fixture-gen")]
+pub mod scenario;
+#[cfg(feature = "fixture-gen")]
+pub use scenario::{build_scenario_entity_catalog, org_slug_from_org_id, ScenarioEntityCatalog};
 #[cfg(any(test, feature = "dtu"))]
 pub mod layers;
 #[cfg(any(test, feature = "dtu"))]

@@ -319,6 +319,19 @@ impl DemoHarness {
 ///
 /// Handles both infallible constructors (crowdstrike, claroty, threatintel) and fallible
 /// constructors (cyberint, armis, nvd) by propagating errors with `?`.
+///
+/// # Story A — seed-forwarding (BC-2.06.018 / ADR-036 §2.4)
+///
+/// When `fixture-gen` is active AND a generator-backed clone (crowdstrike, armis,
+/// claroty, cyberint) has a non-default archetype OR has `org_id` set, this function:
+///
+/// 1. Validates `fixture_set` → `Archetype` via `fixture_set_to_archetype` (E-DEMO-001).
+/// 2. If the archetype is non-HealthyOtEnvironment AND `org_id` is None → E-DEMO-004.
+/// 3. If `org_id` is Some, parses it as UUID → E-DEMO-005 on failure.
+/// 4. Calls `new_with_seed(seed, archetype, org_id)` on the clone (ADR-036 v2.2).
+///
+/// When `fixture-gen` is NOT active, or `org_id` is None AND `fixture_set = "default"`,
+/// falls back to the static-JSON `new()` path (backward-compatible, ADR-036 §2.5).
 pub fn build_clone_pairs(config: &DemoConfig) -> anyhow::Result<Vec<ClonePair>> {
     use prism_dtu_armis::ArmisClone;
     use prism_dtu_claroty::ClarotyClone;
@@ -327,16 +340,88 @@ pub fn build_clone_pairs(config: &DemoConfig) -> anyhow::Result<Vec<ClonePair>> 
     use prism_dtu_nvd::NvdClone;
     use prism_dtu_threatintel::ThreatIntelClone;
 
+    // ---------------------------------------------------------------------------
+    // Story A: Validate ALL generator-backed clone configs BEFORE constructing any clone
+    // (INV-CONSTRUCTION-TIME-FAILURE-001 — errors surface before constructors are called)
+    //
+    // The pre-loop both validates AND collects the parsed (Archetype, Option<OrgId>) for
+    // each enabled clone into `validated_gen`. Construction blocks below look up from this
+    // map — no re-parse, no `.expect()`.
+    // ---------------------------------------------------------------------------
+    #[cfg(feature = "fixture-gen")]
+    let validated_gen: std::collections::HashMap<
+        &'static str,
+        (prism_dtu_common::Archetype, Option<prism_dtu_common::OrgId>),
+    > = {
+        // Names and configs for generator-backed clones.
+        let gen_clones: [(&'static str, &CloneConfig); 4] = [
+            ("crowdstrike", &config.clones.crowdstrike),
+            ("armis", &config.clones.armis),
+            ("claroty", &config.clones.claroty),
+            ("cyberint", &config.clones.cyberint),
+        ];
+        let mut map = std::collections::HashMap::new();
+        for (name, cfg) in &gen_clones {
+            if !cfg.enabled {
+                continue;
+            }
+            // E-DEMO-001: validate fixture_set (always, regardless of org_id)
+            let archetype = fixture_set_to_archetype(&cfg.fixture_set, name)?;
+            // E-DEMO-004: non-HealthyOtEnvironment archetype requires org_id
+            if !matches!(archetype, prism_dtu_common::Archetype::HealthyOtEnvironment)
+                && cfg.org_id.is_none()
+            {
+                require_org_id(&cfg.org_id, name)?;
+            }
+            // E-DEMO-005: if org_id present, parse and store it now (one parse per name)
+            let org_id = if let Some(org_id_str) = &cfg.org_id {
+                Some(parse_org_id(org_id_str, name)?)
+            } else {
+                None
+            };
+            map.insert(*name, (archetype, org_id));
+        }
+        map
+    };
+
     let mut pairs = Vec::new();
 
     if config.clones.crowdstrike.enabled {
-        let mut pair = ClonePair::new("crowdstrike", Box::new(CrowdstrikeClone::new()));
+        #[cfg(feature = "fixture-gen")]
+        let pair_clone: Box<dyn BehavioralClone> = {
+            let cfg = &config.clones.crowdstrike;
+            // Look up the pre-validated (archetype, org_id) from the validation map.
+            // If the entry is present with an OrgId, use new_with_seed; otherwise new().
+            if let Some((archetype, Some(org_id))) = validated_gen.get("crowdstrike").cloned() {
+                // new_with_seed calls generate() at construction time (ADR-036 §2.3).
+                Box::new(CrowdstrikeClone::new_with_seed(cfg.seed, archetype, org_id))
+            } else {
+                Box::new(CrowdstrikeClone::new())
+            }
+        };
+        #[cfg(not(feature = "fixture-gen"))]
+        let pair_clone: Box<dyn BehavioralClone> = Box::new(CrowdstrikeClone::new());
+
+        let mut pair = ClonePair::new("crowdstrike", pair_clone);
         pair.continue_on_error = config.clones.crowdstrike.continue_on_error;
         pairs.push(pair);
     }
 
     if config.clones.claroty.enabled {
-        let mut pair = ClonePair::new("claroty", Box::new(ClarotyClone::new()));
+        #[cfg(feature = "fixture-gen")]
+        let pair_clone: Box<dyn BehavioralClone> = {
+            let cfg = &config.clones.claroty;
+            // Look up the pre-validated (archetype, org_id) from the validation map.
+            if let Some((archetype, Some(org_id))) = validated_gen.get("claroty").cloned() {
+                Box::new(ClarotyClone::new_with_seed(cfg.seed, archetype, org_id))
+            } else {
+                Box::new(ClarotyClone::new())
+            }
+        };
+        #[cfg(not(feature = "fixture-gen"))]
+        let pair_clone: Box<dyn BehavioralClone> = Box::new(ClarotyClone::new());
+
+        let mut pair = ClonePair::new("claroty", pair_clone);
         pair.continue_on_error = config.clones.claroty.continue_on_error;
         pairs.push(pair);
     }
@@ -345,24 +430,61 @@ pub fn build_clone_pairs(config: &DemoConfig) -> anyhow::Result<Vec<ClonePair>> 
         // Seed the access_token allowlist at construction time via new_with_access_token()
         // (ADR-031 §D3-a). When initial_access_token is set in demo.toml, it is registered
         // in the Cyberint clone's static allowlist before the server starts.
-        // This lets test harnesses provide the Cyberint API key in demo.toml without
-        // a separate POST /dtu/configure (which requires the random admin token secret).
-        let clone = if let Some(token) = &config.clones.cyberint.initial_access_token {
-            CyberintClone::new_with_access_token(token.clone())
-                .context("failed to construct CyberintClone with access token")?
-        } else {
-            CyberintClone::new().context("failed to construct CyberintClone")?
+        #[cfg(feature = "fixture-gen")]
+        let clone: Box<dyn BehavioralClone> = {
+            let cfg = &config.clones.cyberint;
+            // Look up the pre-validated (archetype, org_id) from the validation map.
+            if let Some((archetype, Some(org_id))) = validated_gen.get("cyberint").cloned() {
+                Box::new(
+                    CyberintClone::new_with_seed(cfg.seed, archetype, org_id)
+                        .context("failed to construct CyberintClone::new_with_seed")?,
+                )
+            } else if let Some(token) = &cfg.initial_access_token {
+                Box::new(
+                    CyberintClone::new_with_access_token(token.clone())
+                        .context("failed to construct CyberintClone with access token")?,
+                )
+            } else {
+                Box::new(CyberintClone::new().context("failed to construct CyberintClone")?)
+            }
         };
-        let mut pair = ClonePair::new("cyberint", Box::new(clone));
+        #[cfg(not(feature = "fixture-gen"))]
+        let clone: Box<dyn BehavioralClone> = {
+            let cfg = &config.clones.cyberint;
+            if let Some(token) = &cfg.initial_access_token {
+                Box::new(
+                    CyberintClone::new_with_access_token(token.clone())
+                        .context("failed to construct CyberintClone with access token")?,
+                )
+            } else {
+                Box::new(CyberintClone::new().context("failed to construct CyberintClone")?)
+            }
+        };
+        let mut pair = ClonePair::new("cyberint", clone);
         pair.continue_on_error = config.clones.cyberint.continue_on_error;
         pairs.push(pair);
     }
 
     if config.clones.armis.enabled {
-        let mut pair = ClonePair::new(
-            "armis",
-            Box::new(ArmisClone::new().context("failed to construct ArmisClone")?),
-        );
+        #[cfg(feature = "fixture-gen")]
+        let pair_clone: Box<dyn BehavioralClone> = {
+            let cfg = &config.clones.armis;
+            // Look up the pre-validated (archetype, org_id) from the validation map.
+            // org_slug is derived internally by new_with_seed (no longer a constructor arg).
+            if let Some((archetype, Some(org_id))) = validated_gen.get("armis").cloned() {
+                Box::new(
+                    ArmisClone::new_with_seed(cfg.seed, archetype, org_id)
+                        .context("failed to construct ArmisClone::new_with_seed")?,
+                )
+            } else {
+                Box::new(ArmisClone::new().context("failed to construct ArmisClone")?)
+            }
+        };
+        #[cfg(not(feature = "fixture-gen"))]
+        let pair_clone: Box<dyn BehavioralClone> =
+            Box::new(ArmisClone::new().context("failed to construct ArmisClone")?);
+
+        let mut pair = ClonePair::new("armis", pair_clone);
         pair.continue_on_error = config.clones.armis.continue_on_error;
         pairs.push(pair);
     }
@@ -383,6 +505,95 @@ pub fn build_clone_pairs(config: &DemoConfig) -> anyhow::Result<Vec<ClonePair>> 
     }
 
     Ok(pairs)
+}
+
+// ---------------------------------------------------------------------------
+// Story A: fixture_set → Archetype mapping + E-DEMO error guards
+// (BC-2.06.018 / ADR-036 §2.4)
+// ---------------------------------------------------------------------------
+
+/// Canonical `fixture_set` string → `Archetype` mapping (INV-FIXTURE-SET-ARCHETYPE-MAP-001).
+///
+/// Returns `Err` with E-DEMO-001 message for unrecognized values.
+///
+/// # Error format (BC-2.06.018 §Error Codes E-DEMO-001)
+///
+/// ```text
+/// demo-server: E-DEMO-001: clone '{clone_name}': unrecognized fixture_set '{value}';
+/// valid values: default, compromised, auth_outage, large_scale, pagination_edges,
+///               schema_drift, high_churn, dormant
+/// ```
+///
+/// Gated `#[cfg(feature = "fixture-gen")]` because `Archetype` is only available
+/// when the generator module is active.
+#[cfg(feature = "fixture-gen")]
+pub fn fixture_set_to_archetype(
+    fixture_set: &str,
+    clone_name: &str,
+) -> anyhow::Result<prism_dtu_common::Archetype> {
+    use prism_dtu_common::Archetype;
+    match fixture_set {
+        "default" => Ok(Archetype::HealthyOtEnvironment),
+        "compromised" => Ok(Archetype::CompromisedEndpoint),
+        "auth_outage" => Ok(Archetype::AuthOutage),
+        "large_scale" => Ok(Archetype::LargeScale),
+        "pagination_edges" => Ok(Archetype::PaginationEdgeCases),
+        "schema_drift" => Ok(Archetype::SchemaDrift),
+        "high_churn" => Ok(Archetype::HighChurn),
+        "dormant" => Ok(Archetype::DormantTenant),
+        other => anyhow::bail!(
+            "demo-server: E-DEMO-001: clone '{}': unrecognized fixture_set '{}'; \
+             valid values: default, compromised, auth_outage, large_scale, pagination_edges, \
+             schema_drift, high_churn, dormant",
+            clone_name,
+            other
+        ),
+    }
+}
+
+/// Parse `org_id` string to `prism_dtu_common::OrgId`.
+///
+/// Returns E-DEMO-005 if the string is not a valid UUID.
+///
+/// # Error format (BC-2.06.018 §Error Codes E-DEMO-005)
+///
+/// ```text
+/// demo-server: E-DEMO-005: clone '{clone_name}': org_id '{value}' is not a valid UUID
+/// ```
+///
+/// Gated `#[cfg(feature = "fixture-gen")]` because `OrgId` (the generator's [u8;16] type)
+/// is only available when the generator module is active.
+#[cfg(feature = "fixture-gen")]
+pub fn parse_org_id(org_id_str: &str, clone_name: &str) -> anyhow::Result<prism_dtu_common::OrgId> {
+    let uuid = uuid::Uuid::parse_str(org_id_str).map_err(|_| {
+        anyhow::anyhow!(
+            "demo-server: E-DEMO-005: clone '{}': org_id '{}' is not a valid UUID",
+            clone_name,
+            org_id_str
+        )
+    })?;
+    Ok(prism_dtu_common::OrgId(*uuid.as_bytes()))
+}
+
+/// Validate that `org_id` is present when `new_with_seed` is required.
+///
+/// Returns E-DEMO-004 if `org_id` is `None` and the fixture_set requires seeding
+/// (i.e., when `new_with_seed` would be called).
+///
+/// # Error format (BC-2.06.018 §Error Codes E-DEMO-004)
+///
+/// ```text
+/// demo-server: E-DEMO-004: clone '{clone_name}': scenario.enabled requires org_id to be set (UUID string)
+/// ```
+///
+pub fn require_org_id(org_id: &Option<String>, clone_name: &str) -> anyhow::Result<()> {
+    if org_id.is_none() {
+        anyhow::bail!(
+            "demo-server: E-DEMO-004: clone '{}': scenario.enabled requires org_id to be set (UUID string)",
+            clone_name
+        );
+    }
+    Ok(())
 }
 
 /// Parse a `SocketAddr` from a `CloneConfig` bind IP and port.

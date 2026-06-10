@@ -127,7 +127,16 @@ fn shuffle_ids_by_seed(ids: &[String], seed: u64) -> Vec<String> {
 
 /// `GET /devices/queries/devices/v1`
 ///
-/// Paginated host ID list. Loads IDs from `fixtures/hosts-ids.json`.
+/// Paginated host ID list.
+///
+/// Dual-path (ADR-036 §2.3, BC-2.06.018, F-P6-HIGH-001):
+/// - When `state.fixture_gen_seeded == true` (clone built via `new_with_seed`):
+///   extracts device IDs from the generated records and serves them.
+///   A seeded clone with zero generated devices (e.g. `Archetype::DormantTenant`)
+///   serves an EMPTY list — it does NOT fall back to the static fixture.
+/// - When `state.fixture_gen_seeded == false` (`new()` / non-seeded path):
+///   loads IDs from `load_host_ids()` (static embedded JSON).
+///
 /// Registers returned IDs in session registry under `X-DTU-Session-Id`.
 /// Supports `filter` (FQL string, accepted but not parsed), `limit`, `offset` query params.
 pub async fn list_host_ids(
@@ -151,6 +160,24 @@ pub async fn list_host_ids(
         }
     }
 
+    // Dual-path: serve generated device IDs when clone was built via new_with_seed (ADR-036 §2.3).
+    // Use fixture_gen_seeded (not generated_devices.is_empty()) so DormantTenant (seeded=true,
+    // 0 devices) serves empty — not the static fixture. F-P6-HIGH-001 / ADR-036 v2.2.
+    #[cfg(feature = "fixture-gen")]
+    let all_ids: Vec<String> = if state.fixture_gen_seeded {
+        state
+            .generated_devices
+            .iter()
+            .filter_map(|rec| {
+                rec.get("device_id")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_owned())
+            })
+            .collect()
+    } else {
+        load_host_ids()
+    };
+    #[cfg(not(feature = "fixture-gen"))]
     let all_ids = load_host_ids();
 
     // SAFETY: mutex poison only occurs if a previous holder panicked — not possible in normal operation.
@@ -303,7 +330,27 @@ pub async fn get_host_details(
 
     let org_id = extract_org_id(&headers);
 
+    // Dual-path: use generated device records when clone was built via new_with_seed (ADR-036 §2.3).
+    // Use fixture_gen_seeded (not generated_devices.is_empty()) so DormantTenant (seeded=true,
+    // 0 devices) serves empty — not the static fixture. F-P6-HIGH-001 / ADR-036 v2.2.
+    #[cfg(feature = "fixture-gen")]
+    let fixture: std::collections::HashMap<String, serde_json::Value> = if state.fixture_gen_seeded
+    {
+        state
+            .generated_devices
+            .iter()
+            .filter_map(|rec| {
+                rec.get("device_id")
+                    .and_then(|v| v.as_str())
+                    .map(|id| (id.to_owned(), rec.clone()))
+            })
+            .collect()
+    } else {
+        load_host_details()
+    };
+    #[cfg(not(feature = "fixture-gen"))]
     let fixture = load_host_details();
+
     // SAFETY: mutex poison only occurs if a previous holder panicked — not possible in normal operation.
     #[allow(clippy::expect_used)]
     let containment = state
