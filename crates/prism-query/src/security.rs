@@ -727,16 +727,22 @@ pub fn effective_pipe_stage_limit() -> usize {
     {
         None => PRISM_MAX_PIPE_STAGES,
         Some(v) if v < MIN_SAFE_PIPE_STAGES => {
-            eprintln!(
-                "prism-query: PRISM_MAX_PIPE_STAGES={v} is below minimum safe value \
-                 ({MIN_SAFE_PIPE_STAGES}); clamping to {MIN_SAFE_PIPE_STAGES}"
+            // No event_type= field: plain env-var clamp diagnostic, SAP-1 exempt.
+            tracing::warn!(
+                env_var = "PRISM_MAX_PIPE_STAGES",
+                value = v,
+                clamped_to = MIN_SAFE_PIPE_STAGES,
+                "PRISM_MAX_PIPE_STAGES below minimum safe value; clamping"
             );
             MIN_SAFE_PIPE_STAGES
         }
         Some(v) if v > MAX_SAFE_PIPE_STAGES => {
-            eprintln!(
-                "prism-query: PRISM_MAX_PIPE_STAGES={v} is above maximum safe value \
-                 ({MAX_SAFE_PIPE_STAGES}); clamping to {MAX_SAFE_PIPE_STAGES}"
+            // No event_type= field: plain env-var clamp diagnostic, SAP-1 exempt.
+            tracing::warn!(
+                env_var = "PRISM_MAX_PIPE_STAGES",
+                value = v,
+                clamped_to = MAX_SAFE_PIPE_STAGES,
+                "PRISM_MAX_PIPE_STAGES above maximum safe value; clamping"
             );
             MAX_SAFE_PIPE_STAGES
         }
@@ -757,16 +763,22 @@ pub fn effective_regex_pattern_length_limit() -> usize {
     {
         None => PRISM_MAX_REGEX_PATTERN_LEN,
         Some(v) if v < MIN_SAFE_REGEX_PATTERN_LEN => {
-            eprintln!(
-                "prism-query: PRISM_MAX_REGEX_PATTERN_LEN={v} is below minimum safe value \
-                 ({MIN_SAFE_REGEX_PATTERN_LEN}); clamping to {MIN_SAFE_REGEX_PATTERN_LEN}"
+            // No event_type= field: plain env-var clamp diagnostic, SAP-1 exempt.
+            tracing::warn!(
+                env_var = "PRISM_MAX_REGEX_PATTERN_LEN",
+                value = v,
+                clamped_to = MIN_SAFE_REGEX_PATTERN_LEN,
+                "PRISM_MAX_REGEX_PATTERN_LEN below minimum safe value; clamping"
             );
             MIN_SAFE_REGEX_PATTERN_LEN
         }
         Some(v) if v > MAX_SAFE_REGEX_PATTERN_LEN => {
-            eprintln!(
-                "prism-query: PRISM_MAX_REGEX_PATTERN_LEN={v} is above maximum safe value \
-                 ({MAX_SAFE_REGEX_PATTERN_LEN}); clamping to {MAX_SAFE_REGEX_PATTERN_LEN}"
+            // No event_type= field: plain env-var clamp diagnostic, SAP-1 exempt.
+            tracing::warn!(
+                env_var = "PRISM_MAX_REGEX_PATTERN_LEN",
+                value = v,
+                clamped_to = MAX_SAFE_REGEX_PATTERN_LEN,
+                "PRISM_MAX_REGEX_PATTERN_LEN above maximum safe value; clamping"
             );
             MAX_SAFE_REGEX_PATTERN_LEN
         }
@@ -803,16 +815,22 @@ pub fn effective_list_items_limit() -> usize {
     {
         None => PRISM_MAX_LIST_ITEMS,
         Some(v) if v < MIN_SAFE_LIST_ITEMS => {
-            eprintln!(
-                "prism-query: PRISM_MAX_LIST_ITEMS={v} is below minimum safe value \
-                 ({MIN_SAFE_LIST_ITEMS}); clamping to {MIN_SAFE_LIST_ITEMS}"
+            // No event_type= field: plain env-var clamp diagnostic, SAP-1 exempt.
+            tracing::warn!(
+                env_var = "PRISM_MAX_LIST_ITEMS",
+                value = v,
+                clamped_to = MIN_SAFE_LIST_ITEMS,
+                "PRISM_MAX_LIST_ITEMS below minimum safe value; clamping"
             );
             MIN_SAFE_LIST_ITEMS
         }
         Some(v) if v > MAX_SAFE_LIST_ITEMS => {
-            eprintln!(
-                "prism-query: PRISM_MAX_LIST_ITEMS={v} is above maximum safe value \
-                 ({MAX_SAFE_LIST_ITEMS}); clamping to {MAX_SAFE_LIST_ITEMS}"
+            // No event_type= field: plain env-var clamp diagnostic, SAP-1 exempt.
+            tracing::warn!(
+                env_var = "PRISM_MAX_LIST_ITEMS",
+                value = v,
+                clamped_to = MAX_SAFE_LIST_ITEMS,
+                "PRISM_MAX_LIST_ITEMS above maximum safe value; clamping"
             );
             MAX_SAFE_LIST_ITEMS
         }
@@ -984,16 +1002,22 @@ pub fn effective_query_size_limit() -> usize {
     {
         None => PRISM_MAX_QUERY_SIZE,
         Some(v) if v < MIN_SAFE_QUERY_SIZE => {
-            eprintln!(
-                "prism-query: PRISM_MAX_QUERY_SIZE={v} is below minimum safe value \
-                 ({MIN_SAFE_QUERY_SIZE}); clamping to {MIN_SAFE_QUERY_SIZE}"
+            // No event_type= field: plain env-var clamp diagnostic, SAP-1 exempt.
+            tracing::warn!(
+                env_var = "PRISM_MAX_QUERY_SIZE",
+                value = v,
+                clamped_to = MIN_SAFE_QUERY_SIZE,
+                "PRISM_MAX_QUERY_SIZE below minimum safe value; clamping"
             );
             MIN_SAFE_QUERY_SIZE
         }
         Some(v) if v > MAX_SAFE_QUERY_SIZE => {
-            eprintln!(
-                "prism-query: PRISM_MAX_QUERY_SIZE={v} is above maximum safe value \
-                 ({MAX_SAFE_QUERY_SIZE}); clamping to {MAX_SAFE_QUERY_SIZE}"
+            // No event_type= field: plain env-var clamp diagnostic, SAP-1 exempt.
+            tracing::warn!(
+                env_var = "PRISM_MAX_QUERY_SIZE",
+                value = v,
+                clamped_to = MAX_SAFE_QUERY_SIZE,
+                "PRISM_MAX_QUERY_SIZE above maximum safe value; clamping"
             );
             MAX_SAFE_QUERY_SIZE
         }
@@ -1011,16 +1035,22 @@ pub fn effective_nesting_depth_limit() -> u32 {
     {
         None => PRISM_MAX_NESTING_DEPTH,
         Some(v) if v < MIN_SAFE_NESTING_DEPTH => {
-            eprintln!(
-                "prism-query: PRISM_MAX_NESTING_DEPTH={v} is below minimum safe value \
-                 ({MIN_SAFE_NESTING_DEPTH}); clamping to {MIN_SAFE_NESTING_DEPTH}"
+            // No event_type= field: plain env-var clamp diagnostic, SAP-1 exempt.
+            tracing::warn!(
+                env_var = "PRISM_MAX_NESTING_DEPTH",
+                value = v,
+                clamped_to = MIN_SAFE_NESTING_DEPTH,
+                "PRISM_MAX_NESTING_DEPTH below minimum safe value; clamping"
             );
             MIN_SAFE_NESTING_DEPTH
         }
         Some(v) if v > MAX_SAFE_NESTING_DEPTH => {
-            eprintln!(
-                "prism-query: PRISM_MAX_NESTING_DEPTH={v} is above maximum safe value \
-                 ({MAX_SAFE_NESTING_DEPTH}); clamping to {MAX_SAFE_NESTING_DEPTH}"
+            // No event_type= field: plain env-var clamp diagnostic, SAP-1 exempt.
+            tracing::warn!(
+                env_var = "PRISM_MAX_NESTING_DEPTH",
+                value = v,
+                clamped_to = MAX_SAFE_NESTING_DEPTH,
+                "PRISM_MAX_NESTING_DEPTH above maximum safe value; clamping"
             );
             MAX_SAFE_NESTING_DEPTH
         }

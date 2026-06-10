@@ -846,8 +846,9 @@ mod tests {
     //       after mark_query_phase_started(); WARN tracing event captured via
     //       tracing-test subscriber.
     //
-    // Pre-implementation failure mode: register_write_tool() and
-    // mark_query_phase_started() are both todo!() — panics on first call.
+    // GREEN since S-PLUGIN-PREREQ-E: register_write_tool() and
+    // mark_query_phase_started() are fully implemented above (no todo!()
+    // bodies remain). The Red Gate retired when the implementation landed.
     // -----------------------------------------------------------------------
 
     /// BC-2.16.012 AC-9 / INV-INVALIDATION-EXT-001: WriteToolInvalidationMap is
@@ -856,7 +857,8 @@ mod tests {
     /// Sub-test (a): Happy path — `register_write_tool(entry)` returns `Ok(())`;
     /// the entry is present in the map on the next read.
     ///
-    /// Red Gate failure mode: `register_write_tool` is `todo!()` — panics.
+    /// (Historical Red Gate: failed on the pre-implementation `todo!()` stub;
+    /// `register_write_tool` has been implemented since S-PLUGIN-PREREQ-E.)
     ///
     /// Story: S-PLUGIN-PREREQ-E AC-9a | BC: BC-2.16.012 | ADR-026 §D7
     #[test]
@@ -872,7 +874,6 @@ mod tests {
             plugin_name: "test_plugin".to_string(),
         };
 
-        // Panics pre-implementation on todo!() in register_write_tool.
         let result = register_write_tool(entry);
         assert!(
             result.is_ok(),
@@ -885,12 +886,10 @@ mod tests {
     /// BC-2.16.012 AC-9 / EC-016-012-004: A second `register_write_tool` call
     /// with the same `tool_name` must be rejected (E-PLUGIN-012 / DuplicateWriteToolRegistration).
     ///
-    /// Red Gate failure mode: `register_write_tool` is `todo!()` — panics.
-    ///
-    /// Note: `DuplicateWriteToolRegistration` variant is not yet added to
-    /// `SpecEngineError` by the stub-architect; this test asserts `is_err()` and
-    /// that the error display contains "duplicate" or "Duplicate" (case-insensitive
-    /// check). The implementer adds the variant; this test then passes fully.
+    /// (Historical Red Gate: failed on the pre-implementation `todo!()` stub;
+    /// `register_write_tool` and the `DuplicateWriteToolRegistration` variant
+    /// have been implemented since S-PLUGIN-PREREQ-E. The assertion remains
+    /// display-string based — "duplicate" substring — by design.)
     ///
     /// Story: S-PLUGIN-PREREQ-E AC-9b | BC: BC-2.16.012 | EC-016-012-004 | ADR-026 §D7
     #[test]
@@ -944,15 +943,15 @@ mod tests {
     /// asserts: `event_type = "write_tool_registration_after_boot"`,
     /// `plugin_name = <plugin>`, `tool_name = <tool>`, `error = "E-PLUGIN-020"`.
     ///
-    /// Red Gate failure mode: `mark_query_phase_started` and `register_write_tool`
-    /// are both `todo!()` — panic on first call.
+    /// (Historical Red Gate: failed on the pre-implementation `todo!()` stubs;
+    /// `mark_query_phase_started` and `register_write_tool` have been
+    /// implemented since S-PLUGIN-PREREQ-E.)
     ///
     /// Story: S-PLUGIN-PREREQ-E AC-9c/9d | BC: BC-2.16.012 | BC-2.16.002 row 33 | ADR-026 §D7
     #[test]
     #[tracing_test::traced_test]
     fn test_BC_2_16_012_003_write_tool_invalidation_post_boot_rejected_with_warn_event() {
         // Set the query-phase flag via the public API (NOT direct store).
-        // Panics pre-implementation on todo!() in mark_query_phase_started().
         mark_query_phase_started();
 
         let entry = WriteToolInvalidationMap {
@@ -962,7 +961,6 @@ mod tests {
             plugin_name: "late_registrar".to_string(),
         };
 
-        // Panics pre-implementation on todo!() in register_write_tool().
         let result = register_write_tool(entry);
         assert!(
             result.is_err(),
