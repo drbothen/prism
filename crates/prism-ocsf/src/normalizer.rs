@@ -25,10 +25,10 @@ pub struct OcsfNormalizer {
     mappers: Vec<Box<dyn SensorMapper>>,
 }
 
-// Safety: OcsfNormalizer holds a Vec of trait objects that are themselves Send + Sync.
-// The Vec is never mutated after construction.
-unsafe impl Send for OcsfNormalizer {}
-unsafe impl Sync for OcsfNormalizer {}
+// Send + Sync are auto-derived by the compiler: `SensorMapper` declares
+// `Send + Sync` supertraits (mappers/mod.rs), so `Vec<Box<dyn SensorMapper>>`
+// is Send + Sync without any unsafe assertion (F5, 2026-06-10 review —
+// removed redundant `unsafe impl Send/Sync`).
 
 impl OcsfNormalizer {
     /// Creates a new `OcsfNormalizer` with no registered mappers.
@@ -240,5 +240,20 @@ fn ocsf_class_uid_to_message_name(class_uid: u32) -> Option<&'static str> {
 
         // Unknown class_uid — not in OCSF v1.7.0 schema.
         _ => None,
+    }
+}
+
+#[cfg(test)]
+mod thread_safety_tests {
+    use super::*;
+
+    /// F5 (2026-06-10 review): `OcsfNormalizer` must be `Send + Sync` via
+    /// compiler proof (SensorMapper's `Send + Sync` supertraits), NOT via
+    /// `unsafe impl`. This assertion fails to compile if the auto-derivation
+    /// is ever broken (e.g., a non-Sync field is added).
+    #[test]
+    fn test_ocsf_normalizer_is_send_sync_without_unsafe() {
+        fn assert_send_sync<T: Send + Sync>() {}
+        assert_send_sync::<OcsfNormalizer>();
     }
 }
