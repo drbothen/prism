@@ -64,6 +64,25 @@ use crate::{
     types::{CustomerSpec, DtuType, IsolationMode, OrgKey},
 };
 
+/// Build the harness-wide `reqwest::Client` used for clone admin calls
+/// (`POST /dtu/configure` failure injection, etc.).
+///
+/// Sets an explicit 10-second request timeout per the workspace HTTP-client
+/// timeout rule (CLAUDE.md §Conventions): a bare `reqwest::Client::new()` has
+/// an infinite default timeout, so a hung clone admin endpoint would hang the
+/// harness (and the test run) indefinitely. 10s is generous for localhost
+/// admin calls while still bounding the failure.
+///
+/// # Errors
+///
+/// Returns `HarnessError::Http` if the underlying TLS/connector initialization
+/// fails (the only failure mode of `ClientBuilder::build`).
+pub(crate) fn build_harness_http_client() -> Result<reqwest::Client, HarnessError> {
+    Ok(reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(10))
+        .build()?)
+}
+
 /// Builder for constructing a [`Harness`].
 ///
 /// Created via `Harness::builder()` or `HarnessBuilder::new()`.
@@ -489,7 +508,7 @@ impl HarnessBuilder {
                     admin_tokens.insert(key, started.admin_token);
                 }
 
-                let http_client = reqwest::Client::new();
+                let http_client = build_harness_http_client()?;
 
                 let harness = Harness {
                     endpoints,
@@ -772,7 +791,7 @@ async fn build_network(builder: HarnessBuilder) -> Result<Harness, HarnessError>
         shutdown_senders.insert(key, shutdown_tx.clone());
     }
 
-    let http_client = reqwest::Client::new();
+    let http_client = build_harness_http_client()?;
 
     let harness = Harness {
         endpoints,
@@ -1143,5 +1162,24 @@ async fn start_armis_clone_network(
         handle,
         admin_token,
         state: placeholder_state,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// F9 (2026-06-10 review): the harness HTTP client must be constructed
+    /// with an explicit timeout via `build_harness_http_client` — a bare
+    /// `reqwest::Client::new()` has an infinite default timeout and would hang
+    /// the harness on an unresponsive clone admin endpoint.
+    #[test]
+    fn test_build_harness_http_client_constructs_with_timeout() {
+        let client = build_harness_http_client();
+        assert!(
+            client.is_ok(),
+            "build_harness_http_client must construct the timeout-bounded client: {:?}",
+            client.err()
+        );
     }
 }
