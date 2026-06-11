@@ -7662,6 +7662,9 @@ mod tests {
             Arc::new(RecordingAudit::default()),
             Arc::new(AdapterRegistry::new()),
             Arc::new(WriteEndpointRegistry::new()),
+            Arc::new(prism_query::invalidation::CacheInvalidator::new(Arc::new(
+                prism_query::cache::SensorResponseCache::with_defaults(),
+            ))),
         ));
         let mut server = PrismServer::new();
         server.write_executor = Some(write_executor);
