@@ -500,6 +500,10 @@ impl<V: CacheValue> CacheInvalidator<V> {
     /// `Err(PrismError::Internal)` is returned with a prose-only detail (no E- prefix) —
     /// missing mapping = bug per BC-2.07.004.
     ///
+    /// **Post-write callers:** use [`CacheInvalidator::invalidate_for_write_operation`]
+    /// instead. It falls back to sensor-wide invalidation on a missing mapping, so an
+    /// already-succeeded write is never failed due to a mapping bug.
+    ///
     /// Read guard over `DYNAMIC_WRITE_TOOLS` is acquired FIRST, held for the lookup scan,
     /// then released before cache I/O (F-LP-IMPL-P1-001: per story Task 7 "acquire a read
     /// guard instead of dereferencing the LazyLock"; BC-2.07.004 §Write-then-read

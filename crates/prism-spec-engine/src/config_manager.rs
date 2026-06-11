@@ -114,8 +114,8 @@ impl ConfigManager {
     /// exist. A poisoned write lock (a registrant panicked mid-push) is
     /// recovered: `Vec::push` either completed or did not — the Vec is
     /// structurally valid either way, and dropping listeners would silently
-    /// disable the cache-flush safety hook (fail-open), which is the worse
-    /// direction.
+    /// disable the cache-flush safety hook (fail-safe recovery: preserve the
+    /// listener chain rather than abandon it on lock poison).
     pub fn register_swap_listener(&self, listener: SwapListener) {
         let mut guard = match self.swap_listeners.write() {
             Ok(guard) => guard,
@@ -136,7 +136,7 @@ impl ConfigManager {
     ///
     /// Takes the read lock only — registration (the sole writer) happens at
     /// boot, so contention here is nil. A poisoned lock is recovered for the
-    /// same fail-closed rationale as `register_swap_listener`: skipping
+    /// same fail-safe-recovery rationale as `register_swap_listener`: skipping
     /// listeners would skip the response-cache flush and serve stale
     /// normalization (the exact defect P1-03 mitigates).
     fn notify_swap_listeners(&self) {
