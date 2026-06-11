@@ -325,28 +325,43 @@ pub enum PrismError {
     // -------------------------------------------------------------------------
     // E-CFG — Configuration errors
     // -------------------------------------------------------------------------
-    /// E-CFG-001: Config file not found.
-    #[error("E-CFG-001: config file not found: {path}")]
+    /// E-CFG-100: Referenced `client_id` is not configured (tool parameter or
+    /// alias scope names an unknown client).
+    ///
+    /// New variant per ADR-038 D3 (client-not-found variant split): carries the
+    /// typed `client_id` for the most caller-visible config error in the MCP
+    /// surface. Contract anchors: BC-2.10.004, BC-2.11.001/008/011/013/014,
+    /// BC-2.08.008, BC-2.14.010 (all pin E-CFG-100 for this condition).
+    /// Maps to JSON-RPC `-32602 INVALID_PARAMS` per ADR-038 D4 — a wrong
+    /// `client_id` is caller-resolvable, not an internal failure.
+    #[error("E-CFG-100: client '{client_id}' not found in configuration")]
+    ClientNotFound { client_id: String },
+
+    /// E-CFG-103: Config file not found (renumbered per ADR-038 D2).
+    #[error("E-CFG-103: config file not found: {path}")]
     ConfigNotFound { path: String },
 
-    /// E-CFG-002: Config parse error.
-    #[error("E-CFG-002: config parse error: {detail}")]
+    /// E-CFG-104: Config parse error (renumbered per ADR-038 D2;
+    /// AD-007 hot-reload surface — zero emitters today, forward-declared).
+    #[error("E-CFG-104: config parse error: {detail}")]
     ConfigParseFailed { detail: String },
 
-    /// E-CFG-003: Config validation error.
-    #[error("E-CFG-003: config validation failed: {detail}")]
+    /// E-CFG-102: Config validation error (renumbered per ADR-038 D2;
+    /// `{detail}` SHOULD carry the toml_path, expected, and actual values).
+    #[error("E-CFG-102: config validation failed: {detail}")]
     ConfigValidationFailed { detail: String },
 
-    /// E-CFG-010: Config snapshot stale.
-    #[error("E-CFG-010: config snapshot stale: version {current} < required {required}")]
+    /// E-CFG-105: Config snapshot stale (renumbered per ADR-038 D2;
+    /// transient/retryable — retry acquires a fresh `ArcSwap::load()` snapshot, AD-007).
+    #[error("E-CFG-105: config snapshot stale: version {current} < required {required}")]
     ConfigSnapshotStale { current: u64, required: u64 },
 
-    /// E-CFG-020: Capability path validation failed.
+    /// E-CFG-106: Capability path validation failed (renumbered per ADR-038 D2).
     ///
     /// Returned by `CapabilityPath::new()` when the input string violates any
     /// of the format rules: empty string, empty segment, invalid characters,
     /// more than 8 segments, or total length > 256 characters.
-    #[error("E-CFG-020: invalid capability path: {reason}")]
+    #[error("E-CFG-106: invalid capability path: {reason}")]
     InvalidCapabilityPath {
         /// Human-readable description of the validation failure.
         reason: String,
@@ -393,17 +408,52 @@ pub enum PrismError {
     #[error("E-QUERY-002: query planning failed: {detail}")]
     QueryPlanFailed { detail: String },
 
-    /// E-QUERY-003: Query execution error.
-    #[error("E-QUERY-003: query execution error: {detail}")]
+    /// E-QUERY-003: Query security limit exceeded (security-only variant).
+    ///
+    /// Per error-taxonomy.md v1.72, E-QUERY-003 is reserved for security-limit
+    /// violations (query size cap, AST depth cap, regex complexity caps, IN-list
+    /// caps, etc.). The `detail` carries the specific limit violation message;
+    /// the Display impl supplies the single canonical "E-QUERY-003: " prefix —
+    /// callers MUST NOT embed the prefix in `detail`.
+    ///
+    /// Maps to JSON-RPC `-32602 INVALID_PARAMS` — the caller supplied a query
+    /// that violates a pre-execution security limit and can fix it by narrowing
+    /// the query. Distinct from E-QUERY-034 (`QueryExecutionFailed`), which is
+    /// the generic runtime execution error and maps to `-32000`.
+    #[error("E-QUERY-003: {detail}")]
+    QuerySecurityLimitExceeded { detail: String },
+
+    /// E-QUERY-034: Query execution error (generic runtime execution failure).
+    ///
+    /// Renumbered from E-QUERY-003 per error-taxonomy.md v1.72 + ADR-038 v1.3
+    /// §P5-02: E-QUERY-003 is now security-only (`QuerySecurityLimitExceeded`);
+    /// generic execution failures carry E-QUERY-034 and map to JSON-RPC `-32000`.
+    #[error("E-QUERY-034: query execution error: {detail}")]
     QueryExecutionFailed { detail: String },
 
-    /// E-QUERY-004: Memory budget exceeded.
-    #[error("E-QUERY-004: query memory budget exceeded: limit {limit_mb}MB, used {used_mb}MB")]
+    /// E-WATCHDOG-001: Memory budget exceeded.
+    ///
+    /// Per error-taxonomy.md, query memory exhaustion is an E-WATCHDOG code
+    /// ("Query memory limit exceeded"), NOT an E-QUERY code. The query's memory
+    /// consumption exceeded the watchdog budget and the query was terminated.
+    #[error("E-WATCHDOG-001: query memory budget exceeded: limit {limit_mb}MB, used {used_mb}MB")]
     QueryMemoryBudgetExceeded { limit_mb: u64, used_mb: u64 },
 
-    /// E-QUERY-005: Query timeout.
-    #[error("E-QUERY-005: query timed out after {elapsed_ms}ms")]
+    /// E-QUERY-004: Query timeout (retryable with a narrower scope per
+    /// error-taxonomy.md).
+    #[error("E-QUERY-004: query timed out after {elapsed_ms}ms")]
     QueryTimeout { elapsed_ms: u64 },
+
+    /// E-QUERY-005: Materialization limit exceeded — the streaming record
+    /// counter exceeded the 10K cap during sensor fan-out fetch
+    /// (BC-2.11.006 EC-003, error-taxonomy.md E-QUERY-005).
+    #[error("E-QUERY-005: materialization limit exceeded: fetched {count} records (max {max})")]
+    QueryMaterializationLimitExceeded {
+        /// Number of records the fetch would have materialized.
+        count: usize,
+        /// Configured materialization cap (10,000 per BC-2.11.006).
+        max: usize,
+    },
 
     /// E-QUERY-010: Virtual field resolution failed.
     #[error("E-QUERY-010: virtual field resolution failed for {field}: {detail}")]
@@ -480,6 +530,16 @@ pub enum PrismError {
     /// thiserror's reserved `source` field name for error chaining.
     #[error("E-QUERY-023: Write verb '{verb}' is not available for source '{sensor_source}'")]
     WriteVerbNotAvailable { verb: String, sensor_source: String },
+
+    /// E-QUERY-036: Query references an unregistered sensor table or an invalid table name prefix.
+    ///
+    /// Caller-resolvable: check spelling or register the sensor in prism.toml.
+    /// Reference: error-taxonomy.md v1.73 E-QUERY-036; BC-2.11.007 EC-001; P6-02 adjudication 2026-06-11.
+    #[error(
+        "E-QUERY-036: unknown source table '{source_name}': table is not a registered sensor \
+         or internal table. Check spelling or register the sensor in prism.toml."
+    )]
+    UnknownSourceTable { source_name: String },
 
     /// E-QUERY-032: Sensor is not registered for the requesting org.
     ///
@@ -593,7 +653,7 @@ pub enum PrismError {
     /// E-QUERY-007: Requested limit exceeds the maximum allowed value (BC-2.11.001).
     ///
     /// Returned when `QueryOptions.limit > 1000`. Semantically distinct from
-    /// `QueryExecutionFailed` (E-QUERY-003) — this is a pre-execution parameter
+    /// `QueryExecutionFailed` (E-QUERY-034) — this is a pre-execution parameter
     /// validation error, not a runtime execution error. Assigned E-QUERY-007 to
     /// avoid collision with E-QUERY-001 (QueryParseFailed). (ADV-W3MT-P58-CRIT-001)
     #[error("E-QUERY-007: limit {requested} exceeds maximum of {max} (BC-2.11.001)")]
@@ -620,8 +680,8 @@ pub enum PrismError {
     /// Returned by `QueryCursorRegistry::next_page()` when the cursor's TTL
     /// (60 seconds) has elapsed since creation (BC-2.07.002 §Cursor TTL Expiry).
     ///
-    /// Distinct from E-QUERY-004 (query memory budget exceeded) and E-QUERY-005
-    /// (query execution timeout) — this error specifically signals that a previously
+    /// Distinct from E-QUERY-004 (query timeout) and E-WATCHDOG-001 (query memory
+    /// budget exceeded) — this error specifically signals that a previously
     /// valid cursor has aged out of the registry.
     #[error(
         "E-QUERY-012: pagination cursor expired (>60s); re-execute the query to obtain a fresh cursor"
@@ -701,15 +761,18 @@ pub enum PrismError {
     #[error("E-WATCH-002: watchdog restart limit exceeded for {component}: {count} restarts")]
     WatchdogRestartLimitExceeded { component: String, count: u32 },
 
-    /// E-WATCHDOG-001 (query kill): Watchdog killed the running query because process RSS
+    /// E-WATCHDOG-002 (query kill): Watchdog killed the running query because process RSS
     /// exceeded the Kill threshold (95% of 512 MB budget) on two consecutive checks
-    /// (BC-2.15.007, VP-058).
+    /// (BC-2.15.007, VP-058). Distinct from E-WATCHDOG-001 (per-query DataFusion
+    /// memory-pool trip, `QueryMemoryBudgetExceeded`) — error-taxonomy.md v1.68,
+    /// P1-04 adjudication.
     #[error(
-        "E-WATCHDOG-001: watchdog killed query — process RSS exceeded kill threshold \
+        "E-WATCHDOG-002: watchdog killed query — process RSS exceeded kill threshold \
          ({budget_bytes} bytes budget); query token cancelled"
     )]
     WatchdogKilled {
-        /// Configured memory budget in bytes (default 512 MiB).
+        /// Configured memory budget in bytes — default 512 MB (SI, 512_000_000 bytes)
+        /// per BC-2.15.006 / ADR-S2.02-002 ("512 MB" is SI decimal, NOT MiB).
         budget_bytes: usize,
     },
 
@@ -1261,6 +1324,33 @@ mod tests {
         assert!(
             display.contains("does not match filename stem"),
             "display must include message: {display}"
+        );
+    }
+
+    /// E-QUERY-003 security-only variant Display (error-taxonomy.md v1.72,
+    /// ADR-038 v1.3 §P5-02): exactly "E-QUERY-003: {detail}" — the Display
+    /// impl supplies the single canonical prefix; `detail` carries no prefix.
+    #[test]
+    fn test_query_security_limit_exceeded_display_e_query_003() {
+        let err = PrismError::QuerySecurityLimitExceeded {
+            detail: "query exceeds maximum size of 8192 bytes".to_string(),
+        };
+        assert_eq!(
+            format!("{err}"),
+            "E-QUERY-003: query exceeds maximum size of 8192 bytes"
+        );
+    }
+
+    /// E-QUERY-034 generic execution error Display (error-taxonomy.md v1.72,
+    /// ADR-038 v1.3 §P5-02): `QueryExecutionFailed` renumbered 003 → 034.
+    #[test]
+    fn test_query_execution_failed_display_e_query_034() {
+        let err = PrismError::QueryExecutionFailed {
+            detail: "DataFusion plan execution aborted".to_string(),
+        };
+        assert_eq!(
+            format!("{err}"),
+            "E-QUERY-034: query execution error: DataFusion plan execution aborted"
         );
     }
 }

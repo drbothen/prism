@@ -176,6 +176,9 @@ mod helpers {
             audit,
             registry,
             Arc::new(endpoint_registry),
+            Arc::new(prism_query::invalidation::CacheInvalidator::new(Arc::new(
+                prism_query::cache::SensorResponseCache::with_defaults(),
+            ))),
         )
     }
 }
@@ -591,6 +594,9 @@ async fn test_BC_2_04_001_flag_disabled_between_calls_second_call_returns_e_flag
         Arc::new(NoOpAudit),
         Arc::new(prism_sensors::AdapterRegistry::new()),
         Arc::new(endpoint_registry),
+        Arc::new(prism_query::invalidation::CacheInvalidator::new(Arc::new(
+            prism_query::cache::SensorResponseCache::with_defaults(),
+        ))),
     );
 
     let plan = helpers::make_irreversible_plan();

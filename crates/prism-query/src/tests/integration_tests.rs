@@ -7,12 +7,17 @@
 //! # Tests cover:
 //! - AC-1: Virtual fields present in every result row (BC-2.11.001, BC-2.11.012)
 //! - AC-2: Parallel fan-out to multiple sources (BC-2.11.005)
-//! - AC-3: GreedyMemoryPool 200MB limit → E-QUERY-004 (BC-2.11.006)
+//! - AC-3: GreedyMemoryPool 200MB limit → E-WATCHDOG-001 (BC-2.11.006)
 //! - AC-4: REQUIRED column push-down to sensor adapter (BC-2.11.007)
 //! - AC-5: `clients: None` fans out to all configured clients (BC-2.11.011)
 //! - AC-6: Cross-client data merged with `_client` field distinguishing rows (BC-2.11.011)
 //! - AC-7: SessionContext dropped after `execute()` returns (BC-2.11.005)
-//! - AC-9: Cold-start tag injection (full execution path tests deferred to TD-S302-005 — pipeline body is todo!())
+//! - AC-9: Cold-start tag injection (full execution path tests deferred to TD-S302-005 —
+//!   `run_materialization_pipeline` is implemented (the QRY-03 test below exercises its
+//!   production `execute_against_session` path), but the cold-start EventStream buffer routing
+//!   (`inject_source_type` / `SensorQueryDescriptor.rows_from_buffer` / EventBufferStore
+//!   integration per S-2.08 Architecture Compliance Rule 5) is not yet wired into the pipeline,
+//!   so the SensorAdapter-call / buffer-write / INFO-log assertions still have no path to drive)
 //!
 //! Story: S-3.02
 
@@ -140,32 +145,81 @@ mod tests {
     }
 
     // -----------------------------------------------------------------------
-    // AC-3: Memory pool limit → E-QUERY-004
+    // AC-3: Memory pool limit → E-WATCHDOG-001
     // -----------------------------------------------------------------------
 
-    /// AC-3: Verify map_datafusion_memory_error returns E-QUERY-004 on
-    /// ResourcesExhausted. (BC-2.11.006, EC-001)
+    /// AC-3: Verify map_datafusion_memory_error returns E-WATCHDOG-001 on
+    /// ResourcesExhausted. (BC-2.11.006, EC-001; error-taxonomy.md E-WATCHDOG-001)
     #[tokio::test]
     async fn test_ac3_memory_pool_limit_returns_error() {
         use datafusion::error::DataFusionError;
         use prism_core::PrismError;
 
-        use crate::memory::map_datafusion_memory_error;
+        use crate::memory::{map_datafusion_memory_error, QUERY_MEMORY_POOL_BYTES};
 
         let df_err = DataFusionError::ResourcesExhausted("memory pool exhausted".to_string());
-        let prism_err = map_datafusion_memory_error(df_err);
+        let prism_err = map_datafusion_memory_error(df_err, QUERY_MEMORY_POOL_BYTES);
 
         assert!(
             matches!(prism_err, PrismError::QueryMemoryBudgetExceeded { .. }),
-            "AC-3: ResourcesExhausted must map to E-QUERY-004 (QueryMemoryBudgetExceeded): {:?}",
+            "AC-3: ResourcesExhausted must map to E-WATCHDOG-001 (QueryMemoryBudgetExceeded): {:?}",
             prism_err
         );
 
-        // Verify the error display includes E-QUERY-004.
+        // Verify the error display includes E-WATCHDOG-001.
         let msg = prism_err.to_string();
         assert!(
-            msg.contains("E-QUERY-004"),
-            "AC-3: error code must be E-QUERY-004: {msg}"
+            msg.contains("E-WATCHDOG-001"),
+            "AC-3: error code must be E-WATCHDOG-001: {msg}"
+        );
+    }
+
+    /// QRY-03: a GreedyMemoryPool trip during ACTUAL DataFusion SQL execution
+    /// (not a hand-constructed error) must surface as
+    /// `PrismError::QueryMemoryBudgetExceeded` (E-WATCHDOG-001), exercising the
+    /// `execute_against_session` → `map_datafusion_memory_error` production path.
+    ///
+    /// Pre-fix failure mode: the SQL branch mapped ALL DataFusion errors to
+    /// generic `QueryExecutionFailed`, swallowing the memory-budget signal.
+    #[tokio::test]
+    async fn test_qry03_memory_pool_trip_in_sql_execution_maps_to_memory_variant() {
+        use prism_core::PrismError;
+
+        use crate::{filter_parser::PrismQlParser, materialization::execute_against_session};
+
+        // 1-byte pool: ANY operator memory reservation trips ResourcesExhausted.
+        let ctx = build_session_context(1).expect("1-byte pool context must build");
+        let batch = make_batch("alert_id", &["a3", "a1", "a2"]);
+        register_mem_table(&ctx, "crowdstrike_detections", vec![batch])
+            .expect("mem table registration");
+
+        // ORDER BY forces a SortExec, which reserves batch memory from the pool.
+        let sql = "SELECT * FROM crowdstrike_detections ORDER BY alert_id";
+        let ast = PrismQlParser::parse(sql).expect("SQL must parse");
+
+        let result =
+            execute_against_session(&ctx, sql, &ast, std::collections::HashMap::new()).await;
+
+        let err = result.expect_err("1-byte pool must trip during sorted execution");
+        assert!(
+            matches!(err, PrismError::QueryMemoryBudgetExceeded { .. }),
+            "QRY-03: pool trip during execution must map to QueryMemoryBudgetExceeded \
+             (E-WATCHDOG-001), not generic QueryExecutionFailed; got: {err:?}"
+        );
+        // P5-04 (cascade pass-5): the production path must report the limit of
+        // the ACTUAL session pool (1 byte → 0 MiB integer division), not the
+        // hardcoded 200MB QUERY_MEMORY_POOL_BYTES default.
+        if let PrismError::QueryMemoryBudgetExceeded { limit_mb, .. } = &err {
+            assert_eq!(
+                *limit_mb, 0,
+                "P5-04: limit_mb must reflect the actual 1-byte session pool (0 MiB), \
+                 not the 200MB default"
+            );
+        }
+        let msg = err.to_string();
+        assert!(
+            msg.contains("E-WATCHDOG-001"),
+            "QRY-03: memory-budget error must carry E-WATCHDOG-001; got: {msg}"
         );
     }
 
@@ -352,7 +406,12 @@ mod tests {
     /// AC-9b: Verify cold-start descriptor tag: `inject_source_type` injects "live"
     /// for EventStream rows with rows_from_buffer=false. (S-2.08 AC-5b inherited)
     /// Full execution path (SensorAdapter call, EventBufferStore write, INFO log) deferred to
-    /// TD-S302-005 — pipeline body is todo!().
+    /// TD-S302-005. The original deferral premise ("pipeline body is todo!()") is stale —
+    /// `run_materialization_pipeline` is implemented. The remaining blocker is that the
+    /// cold-start EventStream buffer routing (`inject_source_type` /
+    /// `SensorQueryDescriptor.rows_from_buffer` / EventBufferStore integration) is not yet
+    /// wired into the pipeline, so `inject_source_type` has no production caller to assert
+    /// against end-to-end.
     #[tokio::test]
     async fn test_ac9b_cold_start_descriptor_tags_rows_as_live() {
         use prism_core::TableType;
@@ -406,11 +465,12 @@ mod tests {
     // EC-003: Materialization record cap
     // -----------------------------------------------------------------------
 
-    /// EC-003: Verify E-QUERY-003 error format for record cap violation. (BC-2.11.006)
+    /// EC-003: Verify E-QUERY-005 error format for record cap violation. (BC-2.11.006)
     ///
     /// The record cap enforcement happens in run_materialization_pipeline. This test
     /// verifies the error structure and that the constant MAX_MATERIALIZED_RECORDS is
-    /// the enforced limit.
+    /// the enforced limit. Per error-taxonomy.md, the materialization limit is
+    /// E-QUERY-005 (E-QUERY-003 is the syntactic security-limit code).
     #[tokio::test]
     async fn test_ec003_materialization_record_cap_10k() {
         use prism_core::PrismError;
@@ -422,19 +482,16 @@ mod tests {
             "EC-003: record cap must be 10,000"
         );
 
-        // Simulate the error emitted when 10,001 records are encountered.
-        let cap_err = PrismError::QueryExecutionFailed {
-            detail: format!(
-                "E-QUERY-003: materialization record cap exceeded: {} records (limit: {}) from [crowdstrike.detections]",
-                MAX_MATERIALIZED_RECORDS + 1,
-                MAX_MATERIALIZED_RECORDS
-            ),
+        // The error emitted when 10,001 records are encountered.
+        let cap_err = PrismError::QueryMaterializationLimitExceeded {
+            count: MAX_MATERIALIZED_RECORDS + 1,
+            max: MAX_MATERIALIZED_RECORDS,
         };
 
         let msg = cap_err.to_string();
         assert!(
-            msg.contains("E-QUERY-003"),
-            "EC-003: error must include E-QUERY-003 code"
+            msg.contains("E-QUERY-005"),
+            "EC-003: error must include E-QUERY-005 code"
         );
         assert!(
             msg.contains(&(MAX_MATERIALIZED_RECORDS + 1).to_string()),
@@ -449,7 +506,8 @@ mod tests {
     /// EC-002: Verify QueryTimeout error format. (BC-2.11.006)
     ///
     /// The timeout enforcement wraps execute() in tokio::time::timeout.
-    /// This test verifies the error variant and its E-QUERY-005 code.
+    /// This test verifies the error variant and its E-QUERY-004 code
+    /// (error-taxonomy.md: E-QUERY-004 = query timeout, retryable).
     #[tokio::test]
     async fn test_ec002_query_timeout_30s() {
         use prism_core::PrismError;
@@ -458,20 +516,20 @@ mod tests {
 
         assert_eq!(QUERY_TIMEOUT_SECS, 30, "EC-002: timeout must be 30s");
 
-        // The QueryTimeout error (E-QUERY-005) is emitted when tokio::time::timeout fires.
+        // The QueryTimeout error (E-QUERY-004) is emitted when tokio::time::timeout fires.
         let timeout_err = PrismError::QueryTimeout { elapsed_ms: 30_001 };
 
         let msg = timeout_err.to_string();
         assert!(
-            msg.contains("E-QUERY-005"),
-            "EC-002: timeout error must use E-QUERY-005"
+            msg.contains("E-QUERY-004"),
+            "EC-002: timeout error must use E-QUERY-004"
         );
         assert!(
             msg.contains("30001"),
             "EC-002: elapsed_ms must be in error message"
         );
 
-        // E-QUERY-005 is NOT E-QUERY-003 (which is execution error, not timeout).
+        // E-QUERY-004 is NOT E-QUERY-003 (which is the security-limit code, not timeout).
         assert!(
             matches!(timeout_err, PrismError::QueryTimeout { .. }),
             "EC-002: must be QueryTimeout variant"

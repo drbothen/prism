@@ -10,20 +10,27 @@
 // Traces to: BC-2.15.007 postconditions, AC-7.
 
 /// State passed to `should_terminate_for_memory` to determine whether the
-/// watchdog should cancel the query for exceeding the per-query memory limit.
+/// watchdog should cancel all running queries because process-wide RSS has
+/// exceeded the kill threshold (95% of the 512 MB process budget).
 ///
-/// The `consecutive_over_limit` counter is incremented by the watchdog background
-/// task each polling interval (500 ms) while the query's estimated memory usage
-/// exceeds `per_query_memory_budget`.  It is reset to 0 when usage drops below
-/// the budget.
+/// The `consecutive_over_limit` counter is a per-monitor-loop counter
+/// maintained by `spawn_monitor`.  It is incremented each polling interval
+/// (500 ms) while `current_level() == Kill` (process RSS ≥ 95% of budget)
+/// and reset to 0 on any sub-Kill poll.  The counter is NOT per-query; it
+/// tracks consecutive watchdog polls across the entire process lifetime
+/// (BC-2.15.007 postcondition 2, DI-027).
 ///
 /// Threshold: exactly 2 (VP-058 / BC-2.15.007 DI-027 grace period).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct WatchdogCheckState {
-    /// Number of consecutive watchdog checks where per-query memory exceeded budget.
+    /// Number of consecutive watchdog polls where process RSS exceeded the
+    /// Kill threshold (95% of the 512 MB process budget).
     ///
-    /// `u8` is sufficient: the watchdog reacts within two checks (1 second at
-    /// the 500 ms poll interval); values > 255 are structurally impossible.
+    /// Per-monitor-loop, not per-query: a single counter tracks the whole
+    /// process.  When it reaches 2, ALL registered query tokens are cancelled
+    /// (EC-003 / BC-2.15.007).  `u8` is sufficient: the watchdog reacts
+    /// within two checks (1 second at the 500 ms poll interval); values
+    /// > 255 are structurally impossible.
     pub consecutive_over_limit: u8,
 }
 

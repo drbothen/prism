@@ -2,7 +2,7 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-> **Toolchain:** Rust stable (per `rust-toolchain.toml`), edition 2024, resolver 2. Components: rustfmt, clippy, rust-src. Cross-compile targets: aarch64-apple-darwin, x86_64-apple-darwin, x86_64-unknown-linux-gnu, x86_64-unknown-linux-musl, x86_64-pc-windows-msvc. 24-crate workspace.
+> **Toolchain:** Rust stable (per `rust-toolchain.toml`), edition 2024, resolver 2. Components: rustfmt, clippy, rust-src. Cross-compile targets: aarch64-apple-darwin, x86_64-apple-darwin, x86_64-unknown-linux-gnu, x86_64-unknown-linux-musl, x86_64-pc-windows-msvc. 26-crate workspace (25 once ADR-037 retires prism-customer-config; root Cargo.toml `members` is the source of truth).
 
 ---
 
@@ -226,13 +226,13 @@ Prism-specific coding patterns enforced by CI and/or adversarial review. These a
 
 ### Highlights
 
-- **`#[non_exhaustive]` discipline.** All public TOML-deserialized types and pub-API surface types require `#[non_exhaustive]`. 36+ types currently enforced via the compile-fail gate at `tests/external/non-exhaustive-violation/` (AC-5 of S-PLUGIN-PREREQ-C; `ci.yml EXPECTED=36` is the authority). External match arms must include a wildcard `_ => {}` arm. New public types added to `prism-core`, `prism-spec-engine`, or `prism-query` need `#[non_exhaustive]` added before the PR can merge.
+- **`#[non_exhaustive]` discipline.** All public TOML-deserialized types and pub-API surface types require `#[non_exhaustive]`. 50 types currently enforced via the compile-fail gate at `tests/external/non-exhaustive-violation/` (AC-5 of S-PLUGIN-PREREQ-C, expanded by S-DEMO-DTU-LIVE-SCENARIO-001-A AC-014; `ci.yml EXPECTED=50` is the authority — when the gate grows, update BOTH ci.yml and this sentence). External match arms must include a wildcard `_ => {}` arm. New public types added to `prism-core`, `prism-spec-engine`, or `prism-query` need `#[non_exhaustive]` added before the PR can merge.
 
 - **Arc-DI plumbing.** Production runtime wires dependencies via `Arc<dyn ...>` constructors per ADR-022. The placeholder-construct anti-pattern (constructing a type without wiring real Arc dependencies "for now") is explicitly forbidden (Standing Rule 3 §4 in SESSION-HANDOFF.md). Adding `Arc<dyn Foo>` to a constructor that lacked it is "wiring, not redesign" and must be done in-scope.
 
 - **Structured event catalog discipline.** Every `tracing::*!(event_type=…)` site must appear as a row in BC-2.16.002 Structured Event Catalog with full field schema, audit role, and recurrence policy (PG-LP11-001, established during S-PLUGIN-PREREQ-B cascade). New emission sites added without a corresponding BC-2.16.002 row are a P1 finding in adversarial review.
 
-- **Newtype + redacted `Debug` for credentials.** Sensitive types (`AuthToken`, `OrgSlug`, credential names) use newtypes with redacted `Debug` impls. `OrgSlug::new_unchecked` is test-helpers-feature-gated and must not appear in production code paths. Credential values never transit AI context (AD-017; see project memory `project_ai_opaque_credentials.md`).
+- **Newtype + redacted `Debug` for credentials.** Sensitive types (`AuthToken`, `OrgSlug`, credential names) use newtypes with redacted `Debug` impls. `OrgSlug::new_unchecked` is a `pub` validation-bypass constructor guarded by a symbol-keyed allowlist audit test (`crates/prism-core/tests/new_unchecked_audit.rs`) rather than a Cargo feature gate — `#[cfg(test)]` does not propagate to downstream crates' test builds, so the audit-test-as-compensating-control mechanism is the ratified exception (human-approved 2026-06-10). It must never appear in production code paths; new call sites require an allowlist entry with justification. Credential values never transit AI context (AD-017; see project memory `project_ai_opaque_credentials.md`).
 
 - **ColumnType canonical naming.** `prism_core::column::ColumnType` (variants `String / Integer / Float / Boolean / Datetime / Json`) is the canonical sensor schema API (ADR-024). The retired shadow enum `prism_spec_engine::types::ColumnType` must not be reintroduced. The distinct `prism_core::types::ColumnType` (variants `Text / Int64 / UInt64 / Float64 / Bool / Timestamp / Json / Bytes`) serves internal table schemas only — do not conflate the two.
 
@@ -246,7 +246,7 @@ Prism-specific coding patterns enforced by CI and/or adversarial review. These a
 
 - **OCSF normalization.** Sensor adapters emit OCSF + protobuf shapes per the project vision (ephemeral federated query engine, see `project_core_architecture_insight.md` memory). Raw API responses are not forwarded; they are normalized at the adapter boundary.
 
-- **HTTP client timeout.** Production `reqwest::Client` instances must use `.timeout(Duration::from_secs(30))`. The missing production timeout is tracked as TD-S-PLUGIN-PREREQ-B-005 P2 (PipelineExecutor HTTP client wired via `reqwest::Client::builder()` but default timeout is infinite; production wiring gap open as of 2026-05-12).
+- **HTTP client timeout.** Production `reqwest::Client` instances must use `.timeout(Duration::from_secs(30))`. The historical PipelineExecutor gap (TD-S-PLUGIN-PREREQ-B-005) was closed by PR #149 (plugin clients via `PLUGIN_HTTP_CLIENT_TIMEOUT_SECS`, boot.rs) and PR #166 (`build_http_client_with_timeout()` on the spec-driven adapter path); verified closed 2026-06-10. The rule remains binding for all new clients.
 
 ### Forbidden patterns
 
@@ -254,9 +254,9 @@ Prism-specific coding patterns enforced by CI and/or adversarial review. These a
 |---------|--------|
 | `prism_spec_engine::types::ColumnType::Int64` / `::Float64` / `::Timestamp` | Retired shadow enum variants (ADR-024); use `prism_core::column::ColumnType::Integer` / `::Float` / `::Datetime` |
 | `lifecycle: active` in BC frontmatter | Retired field (ADR-025); use `lifecycle_status: active` + `status:` per ADR-021 |
-| `OrgSlug::new_unchecked` outside `#[cfg(feature = "test-helpers")]` | Credential safety (AD-017) |
+| `OrgSlug::new_unchecked` in any production code path, or a new call site without a `new_unchecked_audit.rs` allowlist entry | Credential safety (AD-017); enforced by the symbol-keyed audit test, not a feature gate |
 | `Arc::new(SomeThing::placeholder())` style stub construction in production boot path | ADR-022 wiring contract; placeholder-construct is Standing Rule 3 §4 violation |
-| `reqwest::Client::new()` without `.timeout()` in production code | TD-S-PLUGIN-PREREQ-B-005 P2 open gap; must set 30s timeout |
+| `reqwest::Client::new()` without `.timeout()` in production code | Must set 30s timeout (TD-S-PLUGIN-PREREQ-B-005 precedent, closed 2026-06-10) |
 | `unwrap()` / `expect()` on `Result` in non-test code paths | Error taxonomy rule; use `?` + structured `SpecEngineError` / `PrismError` variants |
 | `tracing::*!(event_type=…)` without BC-2.16.002 catalog row | PG-LP11-001; structured event catalog must be kept in sync |
 
@@ -277,7 +277,7 @@ Prism-specific coding patterns enforced by CI and/or adversarial review. These a
 
 - Tokio multi-threaded runtime (AD-013). All sensor fan-out is async. Do not block the tokio thread pool with synchronous I/O.
 - Arc-swap for config hot-reload (AD-007): read via `ArcSwap::load()`, not via Mutex. In-flight queries hold a snapshot reference across their lifetime.
-- Concurrency permit limits: 8 permits for sensor fetch + 8 permits for DataFusion execution per ADR-022 §D (D-209 8/8 split). Do not acquire both pools simultaneously without explicit justification.
+- Concurrency permit limits — two distinct subsystems, do not conflate: (a) **query fan-out** uses `MAX_FANOUT_CONCURRENCY = 10` (`prism-sensors/src/fanout.rs`, BC-2.01.002) nested with the global `HTTP_SEMAPHORE_PERMITS = 200` (`http.rs`) — one fan-out permit + one HTTP permit per task is the intended nested pattern; (b) the **8/8 split** (ADR-022 §D, D-209) applies to the prism-operations scheduler/action-delivery subsystem only (see `architecture/concurrency-architecture.md`). Do not acquire pools across subsystems simultaneously without explicit justification.
 
 ### Conflict resolution
 

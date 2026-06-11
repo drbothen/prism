@@ -26,7 +26,7 @@ use std::sync::{
 use prism_core::{error::PrismError, OrgSlug, SensorId};
 use prism_spec_engine::error::SpecEngineError;
 
-use crate::cache::QueryCache;
+use crate::cache::{CacheValue, GenericQueryCache};
 
 // ---------------------------------------------------------------------------
 // Dynamic write-tool registry (S-PLUGIN-PREREQ-E AC-9 / Task 7)
@@ -338,24 +338,89 @@ pub fn register_builtin_write_tools() -> Result<(), SpecEngineError> {
 }
 
 // ---------------------------------------------------------------------------
+// WriteToolOutcome — crate-private discriminant for invalidate_for_write_tool_inner
+// ---------------------------------------------------------------------------
+
+/// Crate-private outcome returned by `CacheInvalidator::invalidate_for_write_tool_inner`.
+///
+/// Using a typed variant instead of embedding a string prefix in
+/// `PrismError::Internal.detail` means `invalidate_for_write_operation` can
+/// match on `MappingMissing` without inspecting the prose detail field.
+///
+/// This enum MUST NOT be made `pub` — it is an internal implementation detail
+/// of the invalidation module (P9-01 structural fix, taxonomy v1.74).
+enum WriteToolOutcome {
+    /// Invalidation succeeded; `n` entries were evicted.
+    Evicted(usize),
+    /// The tool name has no per-tool mapping in either the static or dynamic
+    /// registry.  The caller (public API) converts this to an appropriate
+    /// `PrismError::Internal` with prose-only detail, or falls back to
+    /// sensor-wide invalidation.
+    MappingMissing { tool_name: String },
+}
+
+// ---------------------------------------------------------------------------
 // CacheInvalidator
 // ---------------------------------------------------------------------------
 
 /// Orchestrates synchronous cache invalidation for write operations.
 ///
-/// Holds a shared reference to the `QueryCache` and performs prefix-scan
-/// eviction before the write response is returned to the caller (BC-2.07.004
-/// §Postconditions — "synchronous before write response").
-pub struct CacheInvalidator {
-    cache: Arc<QueryCache>,
+/// Holds a shared reference to the sensor-fetch response cache and performs
+/// prefix-scan eviction before the write response is returned to the caller
+/// (BC-2.07.004 §Postconditions — "synchronous before write response").
+///
+/// Generic over the cache value type so it can wrap either the JSON-row
+/// instantiation (`QueryCache`, unit tests) or the production
+/// `SensorResponseCache` shared with `QueryEngine` (defaults to the JSON-row
+/// form for backward compatibility).
+pub struct CacheInvalidator<V: CacheValue = Vec<serde_json::Value>> {
+    cache: Arc<GenericQueryCache<V>>,
 }
 
-impl CacheInvalidator {
+impl<V: CacheValue> CacheInvalidator<V> {
     /// Construct a `CacheInvalidator` wrapping the given shared cache.
     ///
     /// GREEN-BY-DESIGN: stores the `Arc` reference, no branching, no I/O, 1 line.
-    pub fn new(cache: Arc<QueryCache>) -> Self {
+    pub fn new(cache: Arc<GenericQueryCache<V>>) -> Self {
         CacheInvalidator { cache }
+    }
+
+    /// Invalidate cache entries for a completed write operation, preferring the
+    /// per-tool mapping and falling back to sensor-wide invalidation when the
+    /// tool has no mapping (BC-2.07.004 §Write Tool to source_id Mapping).
+    ///
+    /// Per BC-2.07.004, every write tool MUST have an invalidation mapping —
+    /// "omitting a mapping is a bug". Failing the (already-succeeded) sensor
+    /// write because of that bug would be the wrong tradeoff; instead this
+    /// method logs a WARN and invalidates ALL source_ids mapped to the sensor
+    /// (a strict superset, so the write-then-read consistency invariant still
+    /// holds while the missing mapping is surfaced for fixing).
+    ///
+    /// Returns `Ok(n)` where `n` is the total number of entries evicted (I-2:
+    /// BC-2.07.004 §Postconditions audit count).
+    pub fn invalidate_for_write_operation(
+        &self,
+        client_id: &OrgSlug,
+        sensor_id: &SensorId,
+        tool_name: &str,
+    ) -> Result<usize, PrismError> {
+        match self.invalidate_for_write_tool_inner(client_id, tool_name)? {
+            WriteToolOutcome::Evicted(n) => Ok(n),
+            WriteToolOutcome::MappingMissing {
+                tool_name: ref name,
+            } => {
+                // Missing per-tool mapping — a BC-2.07.004 mapping bug. Surface it
+                // and fall back to sensor-wide invalidation (safe superset) so the
+                // write-then-read consistency invariant is preserved.
+                tracing::warn!(
+                    tool_name = %name,
+                    sensor_id = %sensor_id,
+                    "write tool has no invalidation mapping (BC-2.07.004 bug) — \
+                     falling back to sensor-wide cache invalidation"
+                );
+                self.invalidate_for_sensor(client_id, sensor_id)
+            }
+        }
     }
 
     /// Invalidate all cache entries for all `source_id` values associated with
@@ -402,7 +467,7 @@ impl CacheInvalidator {
         let dynamic_guard = DYNAMIC_WRITE_TOOLS
             .read()
             .map_err(|_| PrismError::Internal {
-                detail: "E-INT-002: DYNAMIC_WRITE_TOOLS RwLock is poisoned".to_string(),
+                detail: "DYNAMIC_WRITE_TOOLS RwLock is poisoned — a prior panic in a read-guard holder has left the registry unreadable; process restart required".to_string(),
             })?;
         for entry in dynamic_guard.iter() {
             if entry.sensor_id == *sensor_id {
@@ -432,7 +497,12 @@ impl CacheInvalidator {
     /// `tool_name` is looked up in BOTH `WRITE_TOOL_INVALIDATION_MAP` (static built-ins)
     /// AND `DYNAMIC_WRITE_TOOLS` (plugin-registered, held under read guard); each matching
     /// `source_id` is evicted for `client_id`. If `tool_name` is not in either map,
-    /// a `PrismError::Internal` is returned (missing mapping = bug).
+    /// `Err(PrismError::Internal)` is returned with a prose-only detail (no E- prefix) —
+    /// missing mapping = bug per BC-2.07.004.
+    ///
+    /// **Post-write callers:** use [`CacheInvalidator::invalidate_for_write_operation`]
+    /// instead. It falls back to sensor-wide invalidation on a missing mapping, so an
+    /// already-succeeded write is never failed due to a mapping bug.
     ///
     /// Read guard over `DYNAMIC_WRITE_TOOLS` is acquired FIRST, held for the lookup scan,
     /// then released before cache I/O (F-LP-IMPL-P1-001: per story Task 7 "acquire a read
@@ -446,11 +516,37 @@ impl CacheInvalidator {
         client_id: &OrgSlug,
         tool_name: &str,
     ) -> Result<usize, PrismError> {
+        match self.invalidate_for_write_tool_inner(client_id, tool_name)? {
+            WriteToolOutcome::Evicted(n) => Ok(n),
+            WriteToolOutcome::MappingMissing { tool_name: name } => Err(PrismError::Internal {
+                detail: format!(
+                    "write tool '{name}' has no invalidation mapping — this is a bug; \
+                     add it to WRITE_TOOL_INVALIDATION_MAP or register it via register_write_tool()"
+                ),
+            }),
+        }
+    }
+
+    /// Crate-private core of `invalidate_for_write_tool` that returns a typed
+    /// `WriteToolOutcome` instead of converting a missing-mapping case to
+    /// `PrismError::Internal`.
+    ///
+    /// This allows `invalidate_for_write_operation` to discriminate between
+    /// "no mapping (bug)" and "cache I/O error" without inspecting the prose
+    /// content of `PrismError::Internal.detail` (P9-01 structural fix,
+    /// taxonomy v1.74 prose-only convention).
+    ///
+    /// Only errors on `DYNAMIC_WRITE_TOOLS` RwLock poisoning or cache I/O failure.
+    fn invalidate_for_write_tool_inner(
+        &self,
+        client_id: &OrgSlug,
+        tool_name: &str,
+    ) -> Result<WriteToolOutcome, PrismError> {
         // Acquire the dynamic registry read guard FIRST (per F-LP-IMPL-P1-001 ordering).
         let dynamic_guard = DYNAMIC_WRITE_TOOLS
             .read()
             .map_err(|_| PrismError::Internal {
-                detail: "E-INT-002: DYNAMIC_WRITE_TOOLS RwLock is poisoned".to_string(),
+                detail: "DYNAMIC_WRITE_TOOLS RwLock is poisoned — a prior panic in a read-guard holder has left the registry unreadable; process restart required".to_string(),
             })?;
 
         // Search static map first (common case for built-in sensors), then dynamic.
@@ -465,13 +561,13 @@ impl CacheInvalidator {
                     .map(|e| std::borrow::Cow::Owned(e.clone()))
             });
 
-        let entry = entry.ok_or_else(|| PrismError::Internal {
-            detail: format!(
-                "E-INT-001: write tool '{}' has no invalidation mapping — this is a bug; \
-                 add it to WRITE_TOOL_INVALIDATION_MAP or register it via register_write_tool()",
-                tool_name
-            ),
-        })?;
+        let Some(entry) = entry else {
+            // Release the read guard before returning.
+            drop(dynamic_guard);
+            return Ok(WriteToolOutcome::MappingMissing {
+                tool_name: tool_name.to_string(),
+            });
+        };
 
         // Release the read guard before performing cache I/O.
         drop(dynamic_guard);
@@ -487,7 +583,7 @@ impl CacheInvalidator {
             total_evicted = total_evicted.saturating_add(n);
         }
 
-        Ok(total_evicted)
+        Ok(WriteToolOutcome::Evicted(total_evicted))
     }
 
     /// Invalidate all cache entries for the given `client_id` across all sensors
@@ -501,12 +597,74 @@ impl CacheInvalidator {
         let n = self.cache.invalidate_by_client(client_id.as_str())?;
         Ok(n)
     }
+
+    /// Invalidate ALL cache entries across every client, sensor, and source.
+    ///
+    /// Config hot-reload flush (P1-03 interim mitigation, review 2026-06-10):
+    /// called when the sensor-spec config snapshot is swapped (BC-2.16.005
+    /// `reload_config`, `add_sensor_spec`, and the S-1.12-FOLLOWUP hot-reload
+    /// watcher — all funnel through `ConfigManager::store`). Cached entries
+    /// store responses in their normalized form (human-authorized BC-2.07.003
+    /// deviation; spec compliance lands in S-CACHE-SPEC-COMPLIANCE-001), so a
+    /// spec change invalidates every entry's normalization — a full flush is
+    /// required to prevent serving data normalized under a retired spec.
+    ///
+    /// Returns `Ok(n)` where `n` is the total number of entries evicted
+    /// (audit visibility, consistent with the BC-2.07.004 invalidation paths).
+    pub fn invalidate_all(&self) -> Result<usize, PrismError> {
+        self.cache.invalidate_all()
+    }
 }
 
 #[cfg(test)]
 #[allow(clippy::expect_used, clippy::unwrap_used)]
 mod tests {
     use super::*;
+    use crate::cache::QueryCache;
+
+    /// P1-03 interim mitigation: `CacheInvalidator::invalidate_all` flushes the
+    /// entire wrapped cache — hit before, miss after — and reports the evicted
+    /// count for audit visibility (BC-2.16.005 reload → response-cache flush).
+    #[test]
+    fn test_p1_03_invalidator_invalidate_all_flushes_entire_cache() {
+        use std::sync::Arc;
+
+        let cache = Arc::new(QueryCache::with_defaults());
+        let make_key = |client: &str, src: &str, h: char| crate::cache_key::CacheKey {
+            client_id: client.to_string(),
+            sensor_id: prism_core::SensorId::from("crowdstrike"),
+            source_id: src.to_string(),
+            push_down_hash: h.to_string().repeat(64),
+        };
+        let k1 = make_key("acme", "cs_devices", 'a');
+        let k2 = make_key("globex", "cs_detections", 'b');
+        cache
+            .put(k1.clone(), vec![serde_json::json!({"id": 1})])
+            .expect("put k1");
+        cache
+            .put(k2.clone(), vec![serde_json::json!({"id": 2})])
+            .expect("put k2");
+        assert!(
+            cache.get(&k1).expect("get k1").is_some() && cache.get(&k2).expect("get k2").is_some(),
+            "pre-condition: both entries hit"
+        );
+
+        let invalidator = CacheInvalidator::new(Arc::clone(&cache));
+        let evicted = invalidator
+            .invalidate_all()
+            .expect("invalidate_all must succeed");
+
+        assert_eq!(evicted, 2, "P1-03: both entries must be reported evicted");
+        assert!(
+            cache.get(&k1).expect("get k1").is_none() && cache.get(&k2).expect("get k2").is_none(),
+            "P1-03: all entries must miss after invalidate_all"
+        );
+        assert_eq!(
+            cache.total_bytes(),
+            0,
+            "P1-03: byte accounting must return to 0 after full flush"
+        );
+    }
 
     /// BC-2.07.004: `WRITE_TOOL_INVALIDATION_MAP` contains all 8 write tools.
     ///
@@ -675,6 +833,162 @@ mod tests {
         );
     }
 
+    /// BC-2.07.004: `invalidate_for_write_operation` with a MAPPED tool name
+    /// performs the per-tool prefix eviction (same scope as
+    /// `invalidate_for_write_tool`).
+    #[test]
+    fn test_invalidate_for_write_operation_mapped_tool_uses_tool_mapping() {
+        use prism_core::tenant::OrgSlug;
+
+        reset_query_phase_for_test();
+        reset_dynamic_registry_for_test();
+
+        let cache = Arc::new(QueryCache::with_defaults());
+        // cyberint_acknowledge_alert maps ONLY to cyberint_alerts.
+        let key_alerts = crate::cache_key::CacheKey {
+            client_id: "acme".to_string(),
+            sensor_id: prism_core::SensorId::from("cyberint"),
+            source_id: "cyberint_alerts".to_string(),
+            push_down_hash: "a".repeat(64),
+        };
+        cache
+            .put(key_alerts.clone(), vec![serde_json::json!({"id": "al-1"})])
+            .expect("put alerts");
+
+        let invalidator = CacheInvalidator::new(Arc::clone(&cache));
+        let evicted = invalidator
+            .invalidate_for_write_operation(
+                &OrgSlug::new("acme"),
+                &prism_core::SensorId::from("cyberint"),
+                "cyberint_acknowledge_alert",
+            )
+            .expect("mapped tool invalidation must succeed");
+
+        assert_eq!(evicted, 1, "mapped tool must evict exactly its source_ids");
+        assert!(
+            cache.get(&key_alerts).expect("get").is_none(),
+            "cyberint_alerts entry must be evicted via the tool mapping"
+        );
+    }
+
+    /// BC-2.07.004 ("omitting a mapping is a bug"): an UNMAPPED tool name must
+    /// NOT fail the (already-succeeded) write — `invalidate_for_write_operation`
+    /// falls back to sensor-wide invalidation (a safe superset) so the
+    /// write-then-read consistency invariant still holds.
+    #[test]
+    fn test_invalidate_for_write_operation_unmapped_tool_falls_back_to_sensor_wide() {
+        use prism_core::tenant::OrgSlug;
+
+        reset_query_phase_for_test();
+        reset_dynamic_registry_for_test();
+
+        let cache = Arc::new(QueryCache::with_defaults());
+        // crowdstrike sensor maps (via its write tools) to hosts/alerts/detections.
+        let key_hosts = crate::cache_key::CacheKey {
+            client_id: "acme".to_string(),
+            sensor_id: prism_core::SensorId::from("crowdstrike"),
+            source_id: "crowdstrike_hosts".to_string(),
+            push_down_hash: "b".repeat(64),
+        };
+        let key_dets = crate::cache_key::CacheKey {
+            client_id: "acme".to_string(),
+            sensor_id: prism_core::SensorId::from("crowdstrike"),
+            source_id: "crowdstrike_detections".to_string(),
+            push_down_hash: "c".repeat(64),
+        };
+        cache
+            .put(key_hosts.clone(), vec![serde_json::json!({"id": "h-1"})])
+            .expect("put hosts");
+        cache
+            .put(key_dets.clone(), vec![serde_json::json!({"id": "d-1"})])
+            .expect("put detections");
+
+        let invalidator = CacheInvalidator::new(Arc::clone(&cache));
+        let result = invalidator.invalidate_for_write_operation(
+            &OrgSlug::new("acme"),
+            &prism_core::SensorId::from("crowdstrike"),
+            "crowdstrike_tool_with_no_mapping",
+        );
+
+        let evicted =
+            result.expect("unmapped tool must NOT error — falls back to sensor-wide invalidation");
+        assert_eq!(
+            evicted, 2,
+            "sensor-wide fallback must evict all cached sources for the sensor"
+        );
+        assert!(
+            cache.get(&key_hosts).expect("get hosts").is_none(),
+            "fallback must evict crowdstrike_hosts"
+        );
+        assert!(
+            cache.get(&key_dets).expect("get dets").is_none(),
+            "fallback must evict crowdstrike_detections"
+        );
+    }
+
+    /// P9-01 regression guard — BC-2.07.004 typed-discriminant invariant:
+    ///
+    /// `invalidate_for_write_operation` with an unmapped tool name MUST take the
+    /// sensor-wide fallback path (superset invalidation) and return `Ok`.  It must
+    /// NOT propagate the mapping-missing error to the caller.
+    ///
+    /// This test is the safety net for the P9-01 structural fix.  It was written
+    /// BEFORE the refactor so it passes against the current string-sentinel code
+    /// AND must continue to pass after the typed-discriminant refactor.
+    #[test]
+    fn test_p9_01_unmapped_write_tool_takes_sensor_wide_fallback_not_err() {
+        use prism_core::tenant::OrgSlug;
+
+        reset_query_phase_for_test();
+        reset_dynamic_registry_for_test();
+
+        let cache = Arc::new(QueryCache::with_defaults());
+
+        // Populate two crowdstrike entries so we can verify the superset eviction.
+        let make_cs_key = |source: &str, h: char| crate::cache_key::CacheKey {
+            client_id: "acme".to_string(),
+            sensor_id: prism_core::SensorId::from("crowdstrike"),
+            source_id: source.to_string(),
+            push_down_hash: h.to_string().repeat(64),
+        };
+        let key_hosts = make_cs_key("crowdstrike_hosts", 'p');
+        let key_dets = make_cs_key("crowdstrike_detections", 'q');
+        cache
+            .put(key_hosts.clone(), vec![serde_json::json!({"id": "h-p9"})])
+            .expect("put hosts");
+        cache
+            .put(key_dets.clone(), vec![serde_json::json!({"id": "d-p9"})])
+            .expect("put detections");
+
+        let invalidator = CacheInvalidator::new(Arc::clone(&cache));
+
+        // This tool name has NO per-tool mapping; the BC-2.07.004 superset invariant
+        // requires the call to SUCCEED by falling back to sensor-wide invalidation.
+        let result = invalidator.invalidate_for_write_operation(
+            &OrgSlug::new("acme"),
+            &prism_core::SensorId::from("crowdstrike"),
+            "crowdstrike_tool_unmapped_p9_guard",
+        );
+
+        assert!(
+            result.is_ok(),
+            "P9-01: invalidate_for_write_operation with unmapped tool must NOT return \
+             an error — it must fall back to sensor-wide invalidation; got: {:?}",
+            result.err()
+        );
+
+        // Sensor-wide fallback MUST have evicted both cached entries (BC-2.07.004
+        // write-then-read consistency invariant — safe superset).
+        assert!(
+            cache.get(&key_hosts).expect("get hosts").is_none(),
+            "P9-01: sensor-wide fallback must evict crowdstrike_hosts"
+        );
+        assert!(
+            cache.get(&key_dets).expect("get dets").is_none(),
+            "P9-01: sensor-wide fallback must evict crowdstrike_detections"
+        );
+    }
+
     /// EC-07-010 / BC-2.07.004: Invalidation with no matching entries is a no-op.
     #[test]
     fn test_ec07010_invalidation_no_matching_entries_is_noop() {
@@ -710,8 +1024,9 @@ mod tests {
     //       after mark_query_phase_started(); WARN tracing event captured via
     //       tracing-test subscriber.
     //
-    // Pre-implementation failure mode: register_write_tool() and
-    // mark_query_phase_started() are both todo!() — panics on first call.
+    // GREEN since S-PLUGIN-PREREQ-E: register_write_tool() and
+    // mark_query_phase_started() are fully implemented above (no todo!()
+    // bodies remain). The Red Gate retired when the implementation landed.
     // -----------------------------------------------------------------------
 
     /// BC-2.16.012 AC-9 / INV-INVALIDATION-EXT-001: WriteToolInvalidationMap is
@@ -720,7 +1035,8 @@ mod tests {
     /// Sub-test (a): Happy path — `register_write_tool(entry)` returns `Ok(())`;
     /// the entry is present in the map on the next read.
     ///
-    /// Red Gate failure mode: `register_write_tool` is `todo!()` — panics.
+    /// (Historical Red Gate: failed on the pre-implementation `todo!()` stub;
+    /// `register_write_tool` has been implemented since S-PLUGIN-PREREQ-E.)
     ///
     /// Story: S-PLUGIN-PREREQ-E AC-9a | BC: BC-2.16.012 | ADR-026 §D7
     #[test]
@@ -736,7 +1052,6 @@ mod tests {
             plugin_name: "test_plugin".to_string(),
         };
 
-        // Panics pre-implementation on todo!() in register_write_tool.
         let result = register_write_tool(entry);
         assert!(
             result.is_ok(),
@@ -749,12 +1064,10 @@ mod tests {
     /// BC-2.16.012 AC-9 / EC-016-012-004: A second `register_write_tool` call
     /// with the same `tool_name` must be rejected (E-PLUGIN-012 / DuplicateWriteToolRegistration).
     ///
-    /// Red Gate failure mode: `register_write_tool` is `todo!()` — panics.
-    ///
-    /// Note: `DuplicateWriteToolRegistration` variant is not yet added to
-    /// `SpecEngineError` by the stub-architect; this test asserts `is_err()` and
-    /// that the error display contains "duplicate" or "Duplicate" (case-insensitive
-    /// check). The implementer adds the variant; this test then passes fully.
+    /// (Historical Red Gate: failed on the pre-implementation `todo!()` stub;
+    /// `register_write_tool` and the `DuplicateWriteToolRegistration` variant
+    /// have been implemented since S-PLUGIN-PREREQ-E. The assertion remains
+    /// display-string based — "duplicate" substring — by design.)
     ///
     /// Story: S-PLUGIN-PREREQ-E AC-9b | BC: BC-2.16.012 | EC-016-012-004 | ADR-026 §D7
     #[test]
@@ -808,15 +1121,15 @@ mod tests {
     /// asserts: `event_type = "write_tool_registration_after_boot"`,
     /// `plugin_name = <plugin>`, `tool_name = <tool>`, `error = "E-PLUGIN-020"`.
     ///
-    /// Red Gate failure mode: `mark_query_phase_started` and `register_write_tool`
-    /// are both `todo!()` — panic on first call.
+    /// (Historical Red Gate: failed on the pre-implementation `todo!()` stubs;
+    /// `mark_query_phase_started` and `register_write_tool` have been
+    /// implemented since S-PLUGIN-PREREQ-E.)
     ///
     /// Story: S-PLUGIN-PREREQ-E AC-9c/9d | BC: BC-2.16.012 | BC-2.16.002 row 33 | ADR-026 §D7
     #[test]
     #[tracing_test::traced_test]
     fn test_BC_2_16_012_003_write_tool_invalidation_post_boot_rejected_with_warn_event() {
         // Set the query-phase flag via the public API (NOT direct store).
-        // Panics pre-implementation on todo!() in mark_query_phase_started().
         mark_query_phase_started();
 
         let entry = WriteToolInvalidationMap {
@@ -826,7 +1139,6 @@ mod tests {
             plugin_name: "late_registrar".to_string(),
         };
 
-        // Panics pre-implementation on todo!() in register_write_tool().
         let result = register_write_tool(entry);
         assert!(
             result.is_err(),

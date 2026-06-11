@@ -363,7 +363,7 @@ fn test_BC_2_08_start_pollers_max_concurrency_zero_returns_empty() {
 #[test]
 fn test_BC_2_08_start_pollers_returns_vec_of_poller_ids() {
     // AC-1 (structural): start_pollers signature is correct and returns Vec<PollerId>;
-    // full spawn behavior deferred to S-3.02.
+    // full spawn behavior did not ship in S-3.02 — tracked under TD-S302-005.
     //
     // S-2.08 stub: no SensorAdapter or event-stream specs are wired, so the result
     // is always an empty Vec. This asserts the structural contract rather than
@@ -374,7 +374,7 @@ fn test_BC_2_08_start_pollers_returns_vec_of_poller_ids() {
     let ids: Vec<PollerId> = start_pollers(buffer, cancel, 4);
     assert!(
         ids.is_empty(),
-        "S-2.08 stub: start_pollers returns empty until S-3.02 wires real specs"
+        "S-2.08 stub: start_pollers returns empty until TD-S302-005 wires real specs"
     );
 }
 
