@@ -150,7 +150,7 @@ pub fn map_datafusion_memory_error(
                 "DataFusion error (detail redacted from client response)"
             );
             PrismError::QueryExecutionFailed {
-                detail: "query execution error: <redacted; see server logs>".to_string(),
+                detail: "<redacted; see server logs>".to_string(),
             }
         }
     }

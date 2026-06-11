@@ -1459,3 +1459,56 @@ fn test_p5_02_security_limit_display_has_exactly_one_e_query_003_prefix() {
          E-QUERY-034 execution-error wrapper, got: {display}"
     );
 }
+
+/// P6-01: `map_datafusion_memory_error` non-`ResourcesExhausted` fallback arm must
+/// NOT embed the phrase "query execution error" in `detail`.
+///
+/// The `QueryExecutionFailed` Display impl is:
+///   `"E-QUERY-034: query execution error: {detail}"`
+///
+/// Prior to the fix the fallback arm set:
+///   `detail: "query execution error: <redacted; see server logs>"`
+/// producing the double-phrase stutter:
+///   `"E-QUERY-034: query execution error: query execution error: <redacted; see server logs>"`
+///
+/// After the fix the detail is simply `"<redacted; see server logs>"`, rendering:
+///   `"E-QUERY-034: query execution error: <redacted; see server logs>"`
+/// — exactly ONE occurrence of "query execution error" in the Display output.
+///
+/// Traces: P6-01, BC-2.11.006, error-taxonomy.md v1.72 E-QUERY-034
+#[test]
+fn test_p6_01_map_datafusion_memory_error_fallback_display_has_exactly_one_query_execution_error_phrase(
+) {
+    use crate::memory::map_datafusion_memory_error;
+    use datafusion::error::DataFusionError;
+
+    // A generic DataFusion error that is NOT ResourcesExhausted — exercises the
+    // fallback arm that produces QueryExecutionFailed.
+    let generic_err = DataFusionError::Plan("test plan error".to_string());
+
+    let err = map_datafusion_memory_error(generic_err, 200 * 1024 * 1024);
+
+    assert!(
+        matches!(
+            err,
+            prism_core::error::PrismError::QueryExecutionFailed { .. }
+        ),
+        "P6-01: non-ResourcesExhausted DataFusion error must map to QueryExecutionFailed, got: {err:?}"
+    );
+
+    let display = err.to_string();
+
+    // The display MUST start with the E-QUERY-034 prefix.
+    assert!(
+        display.starts_with("E-QUERY-034:"),
+        "P6-01: Display must start with E-QUERY-034 prefix, got: {display}"
+    );
+
+    // There must be exactly ONE occurrence of "query execution error" — no stutter.
+    let count = display.matches("query execution error").count();
+    assert_eq!(
+        count, 1,
+        "P6-01: Display must contain exactly ONE occurrence of 'query execution error' (no double-phrase stutter); \
+         got {count} occurrence(s): {display}"
+    );
+}
