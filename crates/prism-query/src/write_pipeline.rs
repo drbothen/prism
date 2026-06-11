@@ -466,7 +466,7 @@ impl WriteExecutor {
             // same SensorId fallibly; surface a structured error if it ever fires.
             PrismError::Internal {
                 detail: format!(
-                    "E-INT-003: invalid sensor name '{}' reached cache invalidation: {e}",
+                    "invalid sensor name '{}' reached cache invalidation — this is a bug: {e}",
                     plan.sensor
                 ),
             }

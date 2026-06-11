@@ -338,6 +338,28 @@ pub fn register_builtin_write_tools() -> Result<(), SpecEngineError> {
 }
 
 // ---------------------------------------------------------------------------
+// WriteToolOutcome — crate-private discriminant for invalidate_for_write_tool_inner
+// ---------------------------------------------------------------------------
+
+/// Crate-private outcome returned by `CacheInvalidator::invalidate_for_write_tool_inner`.
+///
+/// Using a typed variant instead of embedding a string prefix in
+/// `PrismError::Internal.detail` means `invalidate_for_write_operation` can
+/// match on `MappingMissing` without inspecting the prose detail field.
+///
+/// This enum MUST NOT be made `pub` — it is an internal implementation detail
+/// of the invalidation module (P9-01 structural fix, taxonomy v1.74).
+enum WriteToolOutcome {
+    /// Invalidation succeeded; `n` entries were evicted.
+    Evicted(usize),
+    /// The tool name has no per-tool mapping in either the static or dynamic
+    /// registry.  The caller (public API) converts this to an appropriate
+    /// `PrismError::Internal` with prose-only detail, or falls back to
+    /// sensor-wide invalidation.
+    MappingMissing { tool_name: String },
+}
+
+// ---------------------------------------------------------------------------
 // CacheInvalidator
 // ---------------------------------------------------------------------------
 
@@ -382,21 +404,22 @@ impl<V: CacheValue> CacheInvalidator<V> {
         sensor_id: &SensorId,
         tool_name: &str,
     ) -> Result<usize, PrismError> {
-        match self.invalidate_for_write_tool(client_id, tool_name) {
-            Ok(n) => Ok(n),
-            Err(PrismError::Internal { detail }) if detail.starts_with("E-INT-001") => {
+        match self.invalidate_for_write_tool_inner(client_id, tool_name)? {
+            WriteToolOutcome::Evicted(n) => Ok(n),
+            WriteToolOutcome::MappingMissing {
+                tool_name: ref name,
+            } => {
                 // Missing per-tool mapping — a BC-2.07.004 mapping bug. Surface it
                 // and fall back to sensor-wide invalidation (safe superset) so the
                 // write-then-read consistency invariant is preserved.
                 tracing::warn!(
-                    tool_name,
+                    tool_name = %name,
                     sensor_id = %sensor_id,
                     "write tool has no invalidation mapping (BC-2.07.004 bug) — \
                      falling back to sensor-wide cache invalidation"
                 );
                 self.invalidate_for_sensor(client_id, sensor_id)
             }
-            Err(e) => Err(e),
         }
     }
 
@@ -474,7 +497,8 @@ impl<V: CacheValue> CacheInvalidator<V> {
     /// `tool_name` is looked up in BOTH `WRITE_TOOL_INVALIDATION_MAP` (static built-ins)
     /// AND `DYNAMIC_WRITE_TOOLS` (plugin-registered, held under read guard); each matching
     /// `source_id` is evicted for `client_id`. If `tool_name` is not in either map,
-    /// a `PrismError::Internal` is returned (missing mapping = bug).
+    /// `Err(PrismError::Internal)` is returned with a prose-only detail (no E- prefix) —
+    /// missing mapping = bug per BC-2.07.004.
     ///
     /// Read guard over `DYNAMIC_WRITE_TOOLS` is acquired FIRST, held for the lookup scan,
     /// then released before cache I/O (F-LP-IMPL-P1-001: per story Task 7 "acquire a read
@@ -488,6 +512,32 @@ impl<V: CacheValue> CacheInvalidator<V> {
         client_id: &OrgSlug,
         tool_name: &str,
     ) -> Result<usize, PrismError> {
+        match self.invalidate_for_write_tool_inner(client_id, tool_name)? {
+            WriteToolOutcome::Evicted(n) => Ok(n),
+            WriteToolOutcome::MappingMissing { tool_name: name } => Err(PrismError::Internal {
+                detail: format!(
+                    "write tool '{name}' has no invalidation mapping — this is a bug; \
+                     add it to WRITE_TOOL_INVALIDATION_MAP or register it via register_write_tool()"
+                ),
+            }),
+        }
+    }
+
+    /// Crate-private core of `invalidate_for_write_tool` that returns a typed
+    /// `WriteToolOutcome` instead of converting a missing-mapping case to
+    /// `PrismError::Internal`.
+    ///
+    /// This allows `invalidate_for_write_operation` to discriminate between
+    /// "no mapping (bug)" and "cache I/O error" without inspecting the prose
+    /// content of `PrismError::Internal.detail` (P9-01 structural fix,
+    /// taxonomy v1.74 prose-only convention).
+    ///
+    /// Only errors on `DYNAMIC_WRITE_TOOLS` RwLock poisoning or cache I/O failure.
+    fn invalidate_for_write_tool_inner(
+        &self,
+        client_id: &OrgSlug,
+        tool_name: &str,
+    ) -> Result<WriteToolOutcome, PrismError> {
         // Acquire the dynamic registry read guard FIRST (per F-LP-IMPL-P1-001 ordering).
         let dynamic_guard = DYNAMIC_WRITE_TOOLS
             .read()
@@ -507,13 +557,13 @@ impl<V: CacheValue> CacheInvalidator<V> {
                     .map(|e| std::borrow::Cow::Owned(e.clone()))
             });
 
-        let entry = entry.ok_or_else(|| PrismError::Internal {
-            detail: format!(
-                "E-INT-001: write tool '{}' has no invalidation mapping — this is a bug; \
-                 add it to WRITE_TOOL_INVALIDATION_MAP or register it via register_write_tool()",
-                tool_name
-            ),
-        })?;
+        let Some(entry) = entry else {
+            // Release the read guard before returning.
+            drop(dynamic_guard);
+            return Ok(WriteToolOutcome::MappingMissing {
+                tool_name: tool_name.to_string(),
+            });
+        };
 
         // Release the read guard before performing cache I/O.
         drop(dynamic_guard);
@@ -529,7 +579,7 @@ impl<V: CacheValue> CacheInvalidator<V> {
             total_evicted = total_evicted.saturating_add(n);
         }
 
-        Ok(total_evicted)
+        Ok(WriteToolOutcome::Evicted(total_evicted))
     }
 
     /// Invalidate all cache entries for the given `client_id` across all sensors
@@ -869,6 +919,69 @@ mod tests {
         assert!(
             cache.get(&key_dets).expect("get dets").is_none(),
             "fallback must evict crowdstrike_detections"
+        );
+    }
+
+    /// P9-01 regression guard — BC-2.07.004 typed-discriminant invariant:
+    ///
+    /// `invalidate_for_write_operation` with an unmapped tool name MUST take the
+    /// sensor-wide fallback path (superset invalidation) and return `Ok`.  It must
+    /// NOT propagate the mapping-missing error to the caller.
+    ///
+    /// This test is the safety net for the P9-01 structural fix.  It was written
+    /// BEFORE the refactor so it passes against the current string-sentinel code
+    /// AND must continue to pass after the typed-discriminant refactor.
+    #[test]
+    fn test_p9_01_unmapped_write_tool_takes_sensor_wide_fallback_not_err() {
+        use prism_core::tenant::OrgSlug;
+
+        reset_query_phase_for_test();
+        reset_dynamic_registry_for_test();
+
+        let cache = Arc::new(QueryCache::with_defaults());
+
+        // Populate two crowdstrike entries so we can verify the superset eviction.
+        let make_cs_key = |source: &str, h: char| crate::cache_key::CacheKey {
+            client_id: "acme".to_string(),
+            sensor_id: prism_core::SensorId::from("crowdstrike"),
+            source_id: source.to_string(),
+            push_down_hash: h.to_string().repeat(64),
+        };
+        let key_hosts = make_cs_key("crowdstrike_hosts", 'p');
+        let key_dets = make_cs_key("crowdstrike_detections", 'q');
+        cache
+            .put(key_hosts.clone(), vec![serde_json::json!({"id": "h-p9"})])
+            .expect("put hosts");
+        cache
+            .put(key_dets.clone(), vec![serde_json::json!({"id": "d-p9"})])
+            .expect("put detections");
+
+        let invalidator = CacheInvalidator::new(Arc::clone(&cache));
+
+        // This tool name has NO per-tool mapping; the BC-2.07.004 superset invariant
+        // requires the call to SUCCEED by falling back to sensor-wide invalidation.
+        let result = invalidator.invalidate_for_write_operation(
+            &OrgSlug::new("acme"),
+            &prism_core::SensorId::from("crowdstrike"),
+            "crowdstrike_tool_unmapped_p9_guard",
+        );
+
+        assert!(
+            result.is_ok(),
+            "P9-01: invalidate_for_write_operation with unmapped tool must NOT return \
+             an error — it must fall back to sensor-wide invalidation; got: {:?}",
+            result.err()
+        );
+
+        // Sensor-wide fallback MUST have evicted both cached entries (BC-2.07.004
+        // write-then-read consistency invariant — safe superset).
+        assert!(
+            cache.get(&key_hosts).expect("get hosts").is_none(),
+            "P9-01: sensor-wide fallback must evict crowdstrike_hosts"
+        );
+        assert!(
+            cache.get(&key_dets).expect("get dets").is_none(),
+            "P9-01: sensor-wide fallback must evict crowdstrike_detections"
         );
     }
 
