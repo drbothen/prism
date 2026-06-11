@@ -741,8 +741,18 @@ async fn get_search(
         .into_response()
     } else {
         #[allow(clippy::expect_used)]
-        let all_devices: Vec<Value> =
+        let mut all_devices: Vec<Value> =
             serde_json::from_str(DEVICES_FIXTURE).expect("DEVICES_FIXTURE is valid JSON");
+
+        // BC-3.5.001 Postcondition 1 / P23-02: scope device_id for org isolation,
+        // mirroring device_page exactly. Without this, two non-test-tenant orgs
+        // both receive the raw fixture IDs (d-001..d-025) — violating disjointness.
+        for device in &mut all_devices {
+            let raw_id = device["device_id"].as_str().unwrap_or_default().to_owned();
+            let scoped_id = state.scope_device_id(&raw_id);
+            device["device_id"] = Value::String(scoped_id);
+        }
+
         let total = all_devices.len() as u32;
 
         let page_results: Vec<Value> = if offset >= all_devices.len() {
