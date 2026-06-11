@@ -839,7 +839,7 @@ mod bc_gap_fill {
             use prism_core::PrismError;
 
             let err = DataFusionError::ResourcesExhausted("pool exhausted".to_string());
-            let mapped = map_datafusion_memory_error(err);
+            let mapped = map_datafusion_memory_error(err, QUERY_MEMORY_POOL_BYTES);
 
             assert!(
                 matches!(mapped, PrismError::QueryMemoryBudgetExceeded { .. }),
@@ -861,7 +861,7 @@ mod bc_gap_fill {
             let err = DataFusionError::ResourcesExhausted(
                 "Failed to allocate 209715201 bytes for sort".to_string(),
             );
-            let mapped = map_datafusion_memory_error(err);
+            let mapped = map_datafusion_memory_error(err, QUERY_MEMORY_POOL_BYTES);
             match mapped {
                 PrismError::QueryMemoryBudgetExceeded { used_mb, limit_mb } => {
                     // 209715201 bytes / (1024*1024) = 200 MiB (integer division)
@@ -879,7 +879,7 @@ mod bc_gap_fill {
             use prism_core::PrismError;
 
             let err = DataFusionError::ResourcesExhausted("pool exhausted".to_string());
-            let mapped = map_datafusion_memory_error(err);
+            let mapped = map_datafusion_memory_error(err, QUERY_MEMORY_POOL_BYTES);
             match mapped {
                 PrismError::QueryMemoryBudgetExceeded { used_mb, limit_mb } => {
                     assert_eq!(
@@ -935,7 +935,7 @@ mod bc_gap_fill {
 
             // A non-memory DataFusion error should wrap to QueryExecutionFailed (not QueryTimeout).
             let err = DataFusionError::Plan("some plan error".to_string());
-            let mapped = map_datafusion_memory_error(err);
+            let mapped = map_datafusion_memory_error(err, QUERY_MEMORY_POOL_BYTES);
             assert!(
                 matches!(mapped, PrismError::QueryExecutionFailed { .. }),
                 "Non-memory errors must map to QueryExecutionFailed: {:?}",
@@ -1251,7 +1251,53 @@ mod bc_gap_fill {
     // =========================================================================
 
     mod memory_subsystem {
-        use crate::memory::{build_session_context, map_datafusion_memory_error};
+        use crate::memory::{
+            build_session_context, map_datafusion_memory_error, session_memory_pool_bytes,
+        };
+
+        /// P5-04 (review 2026-06-10, cascade pass-5): `limit_mb` must reflect the
+        /// ACTUAL pool size threaded by the caller, not the hardcoded
+        /// `QUERY_MEMORY_POOL_BYTES` default. The `used_mb` parse-failure
+        /// fallback must use the same threaded value.
+        #[test]
+        fn test_P5_04_non_default_pool_size_reported_in_limit_mb() {
+            use datafusion::error::DataFusionError;
+            use prism_core::PrismError;
+
+            // Message with no parseable byte count → used_mb falls back to the
+            // threaded limit, NOT the 200MB default.
+            let err = DataFusionError::ResourcesExhausted("pool exhausted".to_string());
+            let mapped = map_datafusion_memory_error(err, 50 * 1024 * 1024);
+            match mapped {
+                PrismError::QueryMemoryBudgetExceeded { limit_mb, used_mb } => {
+                    assert_eq!(
+                        limit_mb, 50,
+                        "limit_mb must reflect the threaded 50MiB pool, not the 200MB default"
+                    );
+                    assert_eq!(
+                        used_mb, 50,
+                        "used_mb parse-failure fallback must use the threaded pool size"
+                    );
+                }
+                other => panic!("expected QueryMemoryBudgetExceeded, got {other:?}"),
+            }
+        }
+
+        /// P5-04: `session_memory_pool_bytes` reads the configured pool size
+        /// back from the SessionContext built by `build_session_context`, so
+        /// the execution-stream error-mapping sites report the limit of the
+        /// pool that actually tripped.
+        #[test]
+        fn test_P5_04_session_memory_pool_bytes_reflects_configured_pool(
+        ) -> Result<(), Box<dyn std::error::Error>> {
+            let ctx = build_session_context(64 * 1024 * 1024)?;
+            assert_eq!(
+                session_memory_pool_bytes(&ctx),
+                64 * 1024 * 1024,
+                "session_memory_pool_bytes must return the GreedyMemoryPool's configured size"
+            );
+            Ok(())
+        }
 
         /// BC-2.11.006: build_session_context creates a per-query SessionContext.
         #[test]
@@ -1284,7 +1330,7 @@ mod bc_gap_fill {
             use prism_core::PrismError;
 
             let err = DataFusionError::ResourcesExhausted("pool limit exceeded".to_string());
-            let mapped = map_datafusion_memory_error(err);
+            let mapped = map_datafusion_memory_error(err, crate::memory::QUERY_MEMORY_POOL_BYTES);
             assert!(
                 matches!(mapped, PrismError::QueryMemoryBudgetExceeded { .. }),
                 "ResourcesExhausted must map to QueryMemoryBudgetExceeded (E-WATCHDOG-001): {:?}",
@@ -1300,7 +1346,7 @@ mod bc_gap_fill {
             use prism_core::PrismError;
 
             let err = DataFusionError::Plan("plan error".to_string());
-            let mapped = map_datafusion_memory_error(err);
+            let mapped = map_datafusion_memory_error(err, crate::memory::QUERY_MEMORY_POOL_BYTES);
             assert!(
                 matches!(mapped, PrismError::QueryExecutionFailed { .. }),
                 "Non-memory errors must wrap to QueryExecutionFailed: {:?}",
@@ -1323,7 +1369,7 @@ mod bc_gap_fill {
             let err = DataFusionError::Plan(
                 "internal plan detail that must not reach the client".to_string(),
             );
-            let mapped = map_datafusion_memory_error(err);
+            let mapped = map_datafusion_memory_error(err, crate::memory::QUERY_MEMORY_POOL_BYTES);
 
             match &mapped {
                 PrismError::QueryExecutionFailed { detail } => {
@@ -1429,7 +1475,11 @@ mod bc_gap_fill {
                 .execute_stream()
                 .await?;
 
-            let collected = collect_record_batch_stream(stream).await?;
+            // P5-04: thread the session's actual pool capacity, mirroring the
+            // production call in execute_against_session.
+            let collected =
+                collect_record_batch_stream(stream, crate::memory::session_memory_pool_bytes(&ctx))
+                    .await?;
 
             let total_rows: usize = collected.iter().map(|b| b.num_rows()).sum();
             assert_eq!(

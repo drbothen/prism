@@ -71,6 +71,35 @@ pub fn build_session_context(pool_bytes: usize) -> Result<SessionContext, PrismE
 }
 
 // ---------------------------------------------------------------------------
+// session_memory_pool_bytes
+// ---------------------------------------------------------------------------
+
+/// Read back the configured memory-pool size (in bytes) from a `SessionContext`.
+///
+/// `build_session_context` installs a `GreedyMemoryPool`, which reports its
+/// configured capacity via `MemoryPool::memory_limit()` as
+/// `MemoryLimit::Finite(pool_size)`. This lets the execution-stream error
+/// mapping sites report the limit of the pool that ACTUALLY tripped instead of
+/// the `QUERY_MEMORY_POOL_BYTES` default — the engine builds the pool from
+/// `QueryEngineConfig::memory_pool_bytes`, which may differ from the default.
+/// (P5-04, review 2026-06-10 cascade pass-5)
+///
+/// # Fallback
+/// If the session's pool reports `Infinite` or `Unknown` (e.g., a
+/// `SessionContext` built outside `build_session_context` with an unbounded
+/// pool), this falls back to `QUERY_MEMORY_POOL_BYTES`. An unbounded pool
+/// cannot trip `ResourcesExhausted` from pool exhaustion, so the fallback
+/// value is never load-bearing on that path; it exists only to keep the
+/// function total.
+pub fn session_memory_pool_bytes(ctx: &SessionContext) -> usize {
+    use datafusion::execution::memory_pool::MemoryLimit;
+    match ctx.runtime_env().memory_pool.memory_limit() {
+        MemoryLimit::Finite(bytes) => bytes,
+        _ => QUERY_MEMORY_POOL_BYTES,
+    }
+}
+
+// ---------------------------------------------------------------------------
 // map_datafusion_memory_error
 // ---------------------------------------------------------------------------
 
@@ -82,15 +111,26 @@ pub fn build_session_context(pool_bytes: usize) -> Result<SessionContext, PrismE
 /// # BC-2.11.006
 /// Pool trips return E-WATCHDOG-001 (memory budget exceeded, error-taxonomy.md).
 ///
+/// # `pool_bytes`
+/// The capacity of the memory pool that produced `err`, threaded by the caller
+/// (typically via [`session_memory_pool_bytes`] on the executing
+/// `SessionContext`). `limit_mb` in the resulting error is derived from this
+/// value so that non-default pool sizes (engine config `memory_pool_bytes`)
+/// are reported accurately. (P5-04)
+///
 /// # `used_mb` accuracy
 /// DataFusion formats `ResourcesExhausted` as:
 /// `"Resources exhausted: Failed to allocate NNN bytes for REASON"`
 /// This function attempts to parse `NNN` from the message and converts it to
 /// MiB. If parsing fails (message format changes or lacks a byte count), the
-/// function falls back to `limit_mb` as an upper-bound approximation. The
-/// `used_mb` field is therefore a best-effort estimate; exact at limit boundary
-/// when the parse fails.
-pub fn map_datafusion_memory_error(err: datafusion::error::DataFusionError) -> PrismError {
+/// function falls back to `limit_mb` (derived from the same threaded
+/// `pool_bytes`) as an upper-bound approximation. The `used_mb` field is
+/// therefore a best-effort estimate; exact at limit boundary when the parse
+/// fails.
+pub fn map_datafusion_memory_error(
+    err: datafusion::error::DataFusionError,
+    pool_bytes: usize,
+) -> PrismError {
     use datafusion::error::DataFusionError;
     // QRY-03: match on the ROOT error. At execution time DataFusion wraps the
     // pool's ResourcesExhausted in Context/External layers (e.g.
@@ -98,7 +138,7 @@ pub fn map_datafusion_memory_error(err: datafusion::error::DataFusionError) -> P
     // would misclassify real pool trips as generic execution errors.
     match err.find_root() {
         DataFusionError::ResourcesExhausted(msg) => {
-            let limit_mb = (QUERY_MEMORY_POOL_BYTES / (1024 * 1024)) as u64;
+            let limit_mb = (pool_bytes / (1024 * 1024)) as u64;
             let used_mb = parse_bytes_from_error_msg(msg)
                 .map(|bytes| bytes / (1024 * 1024))
                 .unwrap_or(limit_mb);

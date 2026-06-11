@@ -155,10 +155,10 @@ mod tests {
         use datafusion::error::DataFusionError;
         use prism_core::PrismError;
 
-        use crate::memory::map_datafusion_memory_error;
+        use crate::memory::{map_datafusion_memory_error, QUERY_MEMORY_POOL_BYTES};
 
         let df_err = DataFusionError::ResourcesExhausted("memory pool exhausted".to_string());
-        let prism_err = map_datafusion_memory_error(df_err);
+        let prism_err = map_datafusion_memory_error(df_err, QUERY_MEMORY_POOL_BYTES);
 
         assert!(
             matches!(prism_err, PrismError::QueryMemoryBudgetExceeded { .. }),
@@ -206,6 +206,16 @@ mod tests {
             "QRY-03: pool trip during execution must map to QueryMemoryBudgetExceeded \
              (E-WATCHDOG-001), not generic QueryExecutionFailed; got: {err:?}"
         );
+        // P5-04 (cascade pass-5): the production path must report the limit of
+        // the ACTUAL session pool (1 byte → 0 MiB integer division), not the
+        // hardcoded 200MB QUERY_MEMORY_POOL_BYTES default.
+        if let PrismError::QueryMemoryBudgetExceeded { limit_mb, .. } = &err {
+            assert_eq!(
+                *limit_mb, 0,
+                "P5-04: limit_mb must reflect the actual 1-byte session pool (0 MiB), \
+                 not the 200MB default"
+            );
+        }
         let msg = err.to_string();
         assert!(
             msg.contains("E-WATCHDOG-001"),

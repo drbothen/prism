@@ -845,6 +845,10 @@ pub(crate) async fn execute_against_session(
 
     match ast {
         Ast::Sql(SqlStatement::Select(_)) => {
+            // P5-04: read the executing session's ACTUAL pool capacity so
+            // budget-exceeded errors report the configured limit (engine
+            // config `memory_pool_bytes`), not the 200MB default constant.
+            let pool_bytes = crate::memory::session_memory_pool_bytes(session_ctx);
             // Execute the SQL string via DataFusion.
             let df = session_ctx.sql(query_str).await.map_err(|e| {
                 tracing::error!(error = %e, "DataFusion SQL planning error");
@@ -860,8 +864,8 @@ pub(crate) async fn execute_against_session(
             let stream = df
                 .execute_stream()
                 .await
-                .map_err(crate::memory::map_datafusion_memory_error)?;
-            collect_record_batch_stream(stream).await
+                .map_err(|e| crate::memory::map_datafusion_memory_error(e, pool_bytes))?;
+            collect_record_batch_stream(stream, pool_bytes).await
         }
         // F-LP1-HIGH-1: For Filter and Pipe modes, return the union of all materialized batches.
         // The batches were already collected in the fan-out loop with virtual field injection.
@@ -1582,14 +1586,18 @@ pub(crate) fn register_mem_table(
 /// schema exposure via MCP responses.
 pub(crate) async fn collect_record_batch_stream(
     stream: datafusion::physical_plan::SendableRecordBatchStream,
+    pool_bytes: usize,
 ) -> Result<Vec<RecordBatch>, PrismError> {
     // QRY-03: route collection errors through map_datafusion_memory_error so a
     // GreedyMemoryPool trip during streaming (ResourcesExhausted) surfaces as
     // PrismError::QueryMemoryBudgetExceeded (E-WATCHDOG-001). Non-memory
     // errors are logged and redacted inside the mapper (BC-2.11.006 EC-001).
+    // P5-04: `pool_bytes` is the executing session's actual pool capacity
+    // (threaded from `execute_against_session` via `session_memory_pool_bytes`)
+    // so the reported limit matches the pool that tripped.
     datafusion::physical_plan::common::collect(stream)
         .await
-        .map_err(crate::memory::map_datafusion_memory_error)
+        .map_err(|e| crate::memory::map_datafusion_memory_error(e, pool_bytes))
 }
 
 // ---------------------------------------------------------------------------
