@@ -2,7 +2,7 @@
 document_type: architecture-section
 level: L3
 section: "module-decomposition"
-version: "1.16"
+version: "1.18"
 status: draft
 producer: architect
 timestamp: 2026-05-03T00:00:00
@@ -17,16 +17,17 @@ traces_to: ARCH-INDEX.md
 
 ## Cargo Workspace Structure
 
-Prism is a Cargo workspace with 22 crates (11 non-DTU production/build-helper + 11 DTU test-only) organized in 4 layers: binary, application, domain, and infrastructure. Each crate has a single responsibility and explicit public API. The DTU crates (`prism-dtu-common` plus 10 per-surface sensor/action/infusion clones; log-forwarding clones are planned for future waves) are dev-dependencies only, gated with `#[cfg(any(test, feature = "dtu"))]`, and never compiled into the production binary.
+Prism is a Cargo workspace with 26 member crates per the root `Cargo.toml` on develop — 14 non-DTU production/build-helper members (including `prism-bin`, the nested `prism-spec-engine/plugins/crowdstrike-oauth2` WASM plugin crate, and `prism-customer-config`, retired per ADR-037 with deletion executed via Fix PR 3 on the review-2026-06-10 fix branch and pending merge to develop; 25 members thereafter) plus 12 DTU test-only members — organized in 4 layers: binary, application, domain, and infrastructure. Each crate has a single responsibility and explicit public API. The 12 on-disk DTU crates (`prism-dtu-common`, 9 per-surface sensor/action/infusion clones, the `prism-dtu-demo-server` scaffold, and the `prism-dtu-harness` multi-tenant harness; 4 log-forwarding clones are planned for future waves and not yet in Cargo.toml) are dev-dependencies only, compile-gated out of production, and never compiled into the production binary. Gate precision: `prism-dtu-common` and the four generator-backed sensor clones (`prism-dtu-claroty`, `prism-dtu-armis`, `prism-dtu-crowdstrike`, `prism-dtu-cyberint`) carry the 3-way crate gate `#![cfg(any(test, feature = "dtu", feature = "fixture-gen"))]` (BC-3.4.001 v0.10 Invariant 4 / D-056; generator-backed clones per BC-2.06.018 / S-3.7.02–S-3.7.05); all other DTU crates carry the 2-way gate `#[cfg(any(test, feature = "dtu"))]`. Neither the `dtu` nor `fixture-gen` Cargo feature is ever enabled in release builds.
 
 ```
 prism/
   Cargo.toml          (workspace root)
-  prism-bin/           (binary crate — main entry point) (planned for future waves)
+  prism-bin/           (binary crate — main entry point; shipped via S-WAVE5-PREP-01, sole [[bin]] target per ADR-022 §A)
   prism-mcp/           (MCP server, tool registration, routing)
   prism-query/         (PrismQL parser + DataFusion query engine)
   prism-sensors/       (sensor adapter orchestration, auth traits)
   prism-spec-engine/   (TOML spec parser, pipeline executor)
+    plugins/crowdstrike-oauth2/  (nested workspace member — in-repo .prx WASM plugin for CrowdStrike OAuth2 auth; PLUGIN-MIGRATION-001-E)
   prism-ocsf/          (OCSF normalization via DynamicMessage)
   prism-operations/    (scheduler, differential, detection, alerts, cases) (planned for future waves)
   prism-security/      (feature flags, confirmation tokens, prompt injection)
@@ -34,6 +35,7 @@ prism/
   prism-storage/       (RocksDB wrapper, StorageDomain, StorageBackend trait)
   prism-audit/         (audit entry construction, buffered forwarding)
   prism-core/          (shared types, errors, OrgId, OrgSlug, config, decorators)
+  prism-customer-config/  (per-customer config loading — retired per ADR-037; deletion via Fix PR 3 pending merge to develop)
   ocsf-proto-gen/      (build-helper crate — protobuf code generation)
   --- DTU crates (dev-dependencies only; not compiled into production binary) ---
   prism-dtu-common/         (shared DTU test infrastructure — LatencyLayer, FailureLayer, fixture loader, BehavioralClone trait, SyslogReceiver, WebhookReceiver)
@@ -43,7 +45,7 @@ prism/
   prism-dtu-cyberint/       (behavioral DTU clone for Cyberint API — L2 (stateful); depends on prism-dtu-common)
   prism-dtu-armis/          (behavioral DTU clone for Armis API — L2 (stateful); depends on prism-dtu-common)
   prism-dtu-demo-server/    (test-only scaffold instantiating all production DTU clones — L2 (stateful); test_only per ADR-007 D-051; depends on prism-dtu-common)
-  prism-dtu-harness/        (multi-tenant test harness — logical + network isolation modes; planned per ADR-011)
+  prism-dtu-harness/        (multi-tenant test harness — logical + network isolation modes per ADR-011; shipped, on disk — see ARCH-INDEX AD-001)
   --- Action DTU clones ---
   prism-dtu-slack/          (behavioral DTU clone for Slack webhook API — L2 (stateful); depends on prism-dtu-common)
   prism-dtu-pagerduty/      (behavioral DTU clone for PagerDuty Events API v2 — L3 (behavioral); depends on prism-dtu-common)
@@ -159,7 +161,7 @@ quadrantChart
 components:
   - id: COMP-001
     name: "prism-bin"
-    status: "specified — S-WAVE5-PREP-01 (not yet in Cargo.toml)"  # ADR-022 §A is the authoritative spec; boot sequence in ADR-022 §B; wiring contracts in ADR-022 §C
+    status: "shipped — S-WAVE5-PREP-01 (in Cargo.toml members; sole [[bin]] target)"  # ADR-022 §A is the authoritative spec; boot sequence in ADR-022 §B; wiring contracts in ADR-022 §C
     layer: "binary"
     purity: "effectful-shell"
     criticality: "CRITICAL"  # no binary = no runtime; reclassified from LOW in ADR-022 B-0
@@ -216,7 +218,7 @@ components:
 
   - id: COMP-007
     name: "prism-operations"
-    status: "planned for future waves"  # not yet in Cargo.toml; not counted in AD-001's 11 non-DTU production/build-helper crates
+    status: "planned for future waves"  # not yet in Cargo.toml; not counted in AD-001's non-DTU workspace members (14 on develop; 13 after ADR-037 Fix PR 3 merges)
     layer: "business-logic"
     purity: "mixed"
     criticality: "HIGH"
@@ -282,8 +284,8 @@ components:
 
   # DTU crates — test-only, never in production binary
   # NOTE: COMP-DTU-005 (prism-dtu-common) is placed first despite its higher ID number because
-  # it is the foundational shared-infrastructure crate on which all 10 per-surface DTU crates
-  # (and prism-dtu-harness when created in Wave 3) depend. Renumbering to COMP-DTU-000 was rejected to avoid breaking references in dtu-assessment.md,
+  # it is the foundational shared-infrastructure crate on which all 11 other on-disk DTU crates
+  # (9 per-surface clones, prism-dtu-demo-server, prism-dtu-harness) depend. Renumbering to COMP-DTU-000 was rejected to avoid breaking references in dtu-assessment.md,
   # story frontmatter (S-6.06), and VP traceability. The ordering here reflects dependency precedence,
   # not ID sequence.
   - id: COMP-DTU-005
@@ -291,20 +293,20 @@ components:
     layer: "test-infrastructure"
     purity: "effectful-shell"
     criticality: "LOW"
-    gate: "#[cfg(any(test, feature = \"dtu\"))]"
+    gate: "#![cfg(any(test, feature = \"dtu\", feature = \"fixture-gen\"))]"
     fidelity: "N/A (shared harness, not a clone itself)"
     owned_bcs: "none (infrastructure only)"
     dependencies: [axum, tokio, tower, serde]
     interfaces_provided: ["LatencyLayer (tower middleware)", "FailureLayer (tower middleware)", "fixture_loader()", "BehavioralClone trait", "SyslogReceiver (RFC 5424 UDP+TCP)", "WebhookReceiver (generic HTTP receiver)"]
     interfaces_consumed: []
-    notes: "Shared test infrastructure consumed by all 10 per-surface DTU crates (and prism-dtu-harness when created in Wave 3). Provides tower middleware layers for latency simulation and failure injection, a JSON fixture loader, the BehavioralClone trait that each per-surface crate implements (e.g., impl BehavioralClone for CrowdStrikeDTU), a generic RFC 5424 syslog receiver (SyslogReceiver, covering syslog action and log-forward syslog tests), and a generic HTTP POST capture server (WebhookReceiver, covering webhook action and generic forwarder tests). Dev-dependency only; never compiled into production binary."
+    notes: "Shared test infrastructure consumed by all 11 other on-disk DTU crates (9 per-surface clones plus prism-dtu-demo-server and prism-dtu-harness; the 4 planned log-forwarding clones will also consume it). Provides tower middleware layers for latency simulation and failure injection, a JSON fixture loader, the BehavioralClone trait that each per-surface crate implements (e.g., impl BehavioralClone for CrowdStrikeDTU), a generic RFC 5424 syslog receiver (SyslogReceiver, covering syslog action and log-forward syslog tests), and a generic HTTP POST capture server (WebhookReceiver, covering webhook action and generic forwarder tests). Dev-dependency only; never compiled into production binary."
 
   - id: COMP-DTU-001
     name: "prism-dtu-crowdstrike"
     layer: "test-infrastructure"
     purity: "effectful-shell"
     criticality: "LOW"
-    gate: "#[cfg(any(test, feature = \"dtu\"))]"
+    gate: "#![cfg(any(test, feature = \"dtu\", feature = \"fixture-gen\"))]"
     fidelity: "L4 (adversarial)"
     dependencies: [COMP-DTU-005, axum, tokio, serde_json]
     interfaces_provided: ["CrowdStrikeApiServer (Axum router)", "failure injection hooks", "stateful detection/alert lifecycle", "impl BehavioralClone for CrowdStrikeDTU"]
@@ -316,7 +318,7 @@ components:
     layer: "test-infrastructure"
     purity: "effectful-shell"
     criticality: "LOW"
-    gate: "#[cfg(any(test, feature = \"dtu\"))]"
+    gate: "#![cfg(any(test, feature = \"dtu\", feature = \"fixture-gen\"))]"
     fidelity: "L4 (adversarial)"
     dependencies: [COMP-DTU-005, axum, tokio, serde_json]
     interfaces_provided: ["ClarotyApiServer (Axum router)", "stateful xDome asset/alert lifecycle", "impl BehavioralClone for ClarotyDTU"]
@@ -328,7 +330,7 @@ components:
     layer: "test-infrastructure"
     purity: "effectful-shell"
     criticality: "LOW"
-    gate: "#[cfg(any(test, feature = \"dtu\"))]"
+    gate: "#![cfg(any(test, feature = \"dtu\", feature = \"fixture-gen\"))]"
     fidelity: "L2 (stateful)"
     dependencies: [COMP-DTU-005, axum, tokio, serde_json]
     interfaces_provided: ["CyberintApiServer (Axum router)", "cookie-auth simulation", "stateful alert lifecycle", "impl BehavioralClone for CyberintDTU"]
@@ -340,7 +342,7 @@ components:
     layer: "test-infrastructure"
     purity: "effectful-shell"
     criticality: "LOW"
-    gate: "#[cfg(any(test, feature = \"dtu\"))]"
+    gate: "#![cfg(any(test, feature = \"dtu\", feature = \"fixture-gen\"))]"
     fidelity: "L2 (stateful)"
     dependencies: [COMP-DTU-005, axum, tokio, serde_json]
     interfaces_provided: ["ArmisApiServer (Axum router)", "AQL query pass-through", "stateful device/alert lifecycle", "impl BehavioralClone for ArmisDTU"]
@@ -369,8 +371,8 @@ components:
     gate: "#[cfg(any(test, feature = \"dtu\"))]"
     fidelity: "N/A (harness orchestrator)"
     category: "test-harness"
-    status: "planned for Wave 3 per ADR-011"
-    dependencies: [COMP-DTU-005, COMP-DTU-001, COMP-DTU-002, COMP-DTU-003, COMP-DTU-004, COMP-DTU-006, COMP-DTU-007, COMP-DTU-008, tokio, anyhow]
+    status: "shipped (on disk; in Cargo.toml members — see ARCH-INDEX AD-001)"
+    dependencies: [COMP-DTU-005, COMP-012, tokio, axum, reqwest, serde, anyhow]  # per crates/prism-dtu-harness/Cargo.toml [dependencies]; clones are wired via the BehavioralClone trait from prism-dtu-common, NOT via crate deps on the clone crates
     interfaces_provided: ["HarnessBuilder (builder API)", "Harness struct with customer_endpoints table", "IsolationMode::Logical (in-process per-org DTU instances)", "IsolationMode::Network (per-port per-org DTU instances)", "Harness::inject_failure(org_id, dtu_type, mode) — per-org failure injection", "Harness::crash_detected(org_id, dtu_type) — crash detection via task handle poll", "CustomerEndpoints keyed by (OrgId, DtuType)", "HarnessError::CloneCrashed / PortConflict / GeneratorError variants", "cross_tenant_isolation integration test suite"]
     interfaces_consumed: ["BehavioralClone trait (prism-dtu-common)", "LatencyLayer, FailureLayer (prism-dtu-common)", "generate() from prism-dtu-common generator module (ADR-009)", "OrgId, OrgSlug (prism-core)", "StubConfig (prism-dtu-common)"]
     notes: "Multi-tenant test harness crate per ADR-011 §2.9. Orchestrates multiple BehavioralClone instances — one per (OrgId, DtuType) — in either logical (in-process, shared port space) or network (per-port Docker Compose topology) isolation mode. Calls ADR-009 generate() to populate each clone's initial fixture state before start_on. Required integration test: cross_tenant_isolation.rs verifying no data bleeds across org boundaries. Dev-dependency only; never compiled into production binary."
@@ -511,7 +513,7 @@ components:
 |-------|-----------|----------|-------------|
 | prism-core | SS-21 | 1 *(BC-2.21.001 OrgRegistry init — first BC under SS-21, anchored 2026-05-08 per Option (d) decomposition)* | OrgId, OrgSlug, PrismError, ConfigSnapshot, entity types, decorator types |
 | ocsf-proto-gen | (build-helper) | — | OCSF protobuf .rs generation |
-| prism-mcp | SS-10, SS-06, SS-08, SS-20 | 36 *(+1: BC-2.06.011 config-manager init (SS-06) per Option (d) decomposition; planned — AD-005; crate is currently a 10-line stub with `safety_envelope` and `tool_registry` modules only; PrismServer struct absent; no rmcp dep; full implementation per ADR-022 §F tracked by S-5.01-FOLLOWUP-MCP-BOOT)* | PrismServer, tool dispatch, resource/prompt handlers, config tool surface, health probe tools |
+| prism-mcp | SS-10, SS-06, SS-08, SS-20 | 36 *(+1: BC-2.06.011 config-manager init (SS-06) per Option (d) decomposition — AD-005; PrismServer implemented per ADR-022 §F via S-5.01-FOLLOWUP-MCP-BOOT, merged PR #163 develop@e898c3c9 2026-05-29: `server.rs` PrismServer struct + rmcp dep + error_mapping/safety_envelope/tool_registry/tools modules on disk)* | PrismServer, tool dispatch, resource/prompt handlers, config tool surface, health probe tools |
 | prism-query | SS-11, SS-07 (partial) | 21 | QueryEngine, PrismQlParser, AliasResolver, UdfRegistry |
 | prism-sensors | SS-01, SS-08 (partial) | 9 | SensorAdapter, SensorAuth, AdapterRegistry, health probe impl |
 | prism-spec-engine | SS-16, SS-17, SS-19 | 21 | SpecParser, PipelineExecutor, ConfigManager, PluginRuntime, InfusionRegistry |
@@ -521,8 +523,8 @@ components:
 | prism-credentials | SS-03 | 13 *(+1: BC-2.03.013 credential-store init per Option (d) decomposition)* | CredentialStore, KeyringBackend, FileBackend |
 | prism-storage | SS-15 (partial) | 11 | StorageBackend, RocksDbBackend, InMemoryBackend |
 | prism-audit | SS-05 | 12 *(+1: BC-2.05.012 audit-emitter init per Option (d) decomposition)* | AuditEmitter, BufferedForwarder |
-| prism-bin *(S-WAVE5-PREP-01 — not yet in Cargo.toml; covered by ADR-022 §A)* | SS-22 | 1 *(BC-2.22.001 boot orchestration; per-subsystem init BCs distributed to SS-06/SS-21/SS-03/SS-05)* | main(), CLI (clap), boot sequence orchestrator, signal handlers (SIGTERM/SIGHUP), exit-code contract |
-| **DTU crates (dev-dependencies only — 11 in workspace; log-forwarding clones planned for future waves)** | | | |
+| prism-bin *(shipped via S-WAVE5-PREP-01 — in Cargo.toml members; ADR-022 §A)* | SS-22 | 1 *(BC-2.22.001 boot orchestration; per-subsystem init BCs distributed to SS-06/SS-21/SS-03/SS-05)* | main(), CLI (clap), boot sequence orchestrator, signal handlers (SIGTERM/SIGHUP), exit-code contract |
+| **DTU crates (dev-dependencies only — 12 in workspace; 4 log-forwarding clones planned for future waves)** | | | |
 | prism-dtu-common | (test infra) | — | BehavioralClone trait, LatencyLayer, FailureLayer, fixture_loader, SyslogReceiver, WebhookReceiver |
 | **Sensor DTU clones** | | | |
 | prism-dtu-crowdstrike | (test — sensor) | — | CrowdStrikeApiServer, L4 (adversarial) behavioral clone |
@@ -530,7 +532,7 @@ components:
 | prism-dtu-cyberint | (test — sensor) | — | CyberintApiServer, L2 (stateful) behavioral clone |
 | prism-dtu-armis | (test — sensor) | — | ArmisApiServer, L2 (stateful) behavioral clone |
 | prism-dtu-demo-server | (test — sensor, test_only) | — | DemoApiServer, L2 (stateful); multi-clone end-to-end scaffold; test_only per ADR-007 D-051 |
-| prism-dtu-harness *(planned per ADR-011)* | (test — harness) | — | HarnessBuilder, Harness, IsolationMode::Logical/Network; per-org failure injection; cross_tenant_isolation test suite |
+| prism-dtu-harness *(shipped; ADR-011)* | (test — harness) | — | HarnessBuilder, Harness, IsolationMode::Logical/Network; per-org failure injection; cross_tenant_isolation test suite |
 | **Action DTU clones** | | | |
 | prism-dtu-slack | (test — action) | — | SlackWebhookServer, L2 (stateful); Block Kit validation, 429 simulation |
 | prism-dtu-pagerduty | (test — action) | — | PagerDutyEventsServer, L3 (behavioral); incident lifecycle (trigger→ack→resolve) |
@@ -550,6 +552,8 @@ components:
 
 | Version | Pass | Date | Author | Change |
 |---------|------|------|--------|--------|
+| 1.18 | DTU-cascade-P7-01-02-03-architect-micro | 2026-06-10 | architect | DTU cascade P7 burst (residue of P6-01). **P7-02:** five per-component `gate:` YAML cells flipped to the 3-way string `#![cfg(any(test, feature = "dtu", feature = "fixture-gen"))]` — COMP-DTU-005 (common), COMP-DTU-001 (crowdstrike), COMP-DTU-002 (claroty), COMP-DTU-003 (cyberint), COMP-DTU-004 (armis) — matching `crates/prism-dtu-*/src/lib.rs` inner attributes verified on disk; the other 11 `gate:` cells re-verified as correctly 2-way (7 on-disk 2-way crates: demo-server, harness, slack, pagerduty, jira, threatintel, nvd; 4 planned log-fwd clones keep the ADR-002 template default). **P7-01:** intro-paragraph + v1.17-row generator-story cite "S-3.7.04" → S-3.7.02–S-3.7.05 (S-3.7.01 is the catalog/GenOpts story per STORY-INDEX + BC-3.4.004). **P7-03:** workspace counts reconciled to root Cargo.toml on develop — "22 crates (11+11)" → 26 members (14 non-DTU incl. nested crowdstrike-oauth2 plugin + retiring prism-customer-config; 25 after ADR-037 Fix PR 3 merges) + 12 on-disk DTU crates (common + 9 per-surface + demo-server + harness; 4 log-fwd planned); tree gains crowdstrike-oauth2 + prism-customer-config entries; stale ship-status claims fixed against disk: prism-bin tree annotation + COMP-001 status ("not yet in Cargo.toml" → shipped, sole [[bin]] target), harness tree/COMP-DTU-016 status/Crate Responsibilities row ("planned per ADR-011" → shipped), COMP-DTU-016 `dependencies` synced to harness Cargo.toml (clone-crate deps removed — clones wired via BehavioralClone trait; COMP-012 prism-core added), COMP-DTU-005 consumer count "10 per-surface (+harness when created)" → 11 other on-disk DTU crates, DTU table header 11→12 in workspace, COMP-007 comment AD-001 count ref 11→14, prism-mcp Crate Responsibilities row stale "10-line stub / PrismServer absent / no rmcp dep" claim replaced with shipped state (S-5.01-FOLLOWUP-MCP-BOOT merged PR #163 develop@e898c3c9 2026-05-29; `server.rs` PrismServer + rmcp dep verified on disk). v1.17 row corrected in place pre-commit (uncommitted; ARCH-INDEX v2.121 fold-companion precedent). |
+| 1.17 | DTU-cascade-P6-01-stale-gate-string-sweep | 2026-06-10 | architect | Cargo Workspace Structure intro gate claim made precise: blanket "gated with `#[cfg(any(test, feature = "dtu"))]`" replaced with the actual split — `prism-dtu-common` + 4 generator-backed sensor clones (claroty/armis/crowdstrike/cyberint) 3-way gated `#![cfg(any(test, feature = "dtu", feature = "fixture-gen"))]` (BC-3.4.001 v0.10 Invariant 4 / D-056; BC-2.06.018 / S-3.7.02–S-3.7.05 *[row corrected in place pre-commit by P7-01; originally mis-cited "S-3.7.04"]*), all other DTU crates 2-way gated. Verified against `crates/prism-dtu-*/src/lib.rs` on disk. Production-exclusion guarantee unchanged. NOTE (P7-02): as authored, this sweep missed the five per-component `gate:` YAML cells (COMP-DTU-005/001/002/003/004), which still carried the 2-way string — closed at v1.18. |
 | 1.16 | bundle-B-1b-option-d-decomposition-2026-05-08 | 2026-05-08 | architect | Bundle B Phase B-1b Option (d) correction: SS-22 scope narrowed to boot orchestration only (BC-2.22.001); per-subsystem init BCs distributed to natural subsystems — BC-2.06.011 (config init) → SS-06/prism-mcp, BC-2.21.001 (org init) → SS-21/prism-core (first BC under SS-21), BC-2.03.013 (cred init) → SS-03/prism-credentials, BC-2.05.012 (audit init) → SS-05/prism-audit. COMP-001 subsystems comment updated. Crate Responsibilities: prism-bin 4→1, prism-mcp 35→36, prism-credentials 12→13, prism-audit 11→12, prism-core —→1 (SS-21 first BC). BC counts footnote updated; 222 active BC total unchanged (all 5 new BCs are draft per ADR-021). |
 | 1.15 | bundle-B-1b-ss22-process-lifecycle-2026-05-08 | 2026-05-08 | architect | Bundle B Phase B-1b: SS-22 (Process Lifecycle) decided as namespace for boot-sequence BCs. COMP-001 (prism-bin) subsystems field added — SS-22. Crate Responsibilities table prism-bin row updated: subsystem column SS-22, BC count 4 pending PO authorship (BC-2.22.001..004). |
 | 1.14 | bundle-B-0-adr-022-2026-05-08 | 2026-05-08 | architect | Bundle B Phase B-0: COMP-001 (prism-bin) upgraded from "planned LOW criticality" to "specified CRITICAL" per ADR-022 §A — full dependency list, CLI interface (clap: start/query/validate-config/version), boot sequence wiring, signal handlers, exit-code contract. COMP-001 status updated to "specified — S-WAVE5-PREP-01". Crate Responsibilities table row updated to reflect ADR-022 §A spec. prism-mcp row annotated [NOT IMPLEMENTED — 10-line stub; S-5.01-FOLLOWUP-MCP-BOOT]. |

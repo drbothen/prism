@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "0.8"
+version: "0.9"
 status: draft
 producer: product-owner
 timestamp: 2026-04-27T00:00:00
@@ -9,7 +9,7 @@ phase: 3.A
 inputs:
   - ".factory/specs/architecture/decisions/ADR-009-multi-tenant-data-generator.md"
   - ".factory/specs/domain-spec/capabilities.md"
-input-hash: "9fcdd15"
+input-hash: "288c597"
 traces_to: ".factory/specs/architecture/decisions/ADR-009-multi-tenant-data-generator.md"
 origin: greenfield
 extracted_from: null
@@ -202,12 +202,13 @@ S-3.7.01, S-3.7.02, S-3.7.03, S-3.7.04, S-3.7.05
 None. All open questions resolved.
 
 - `PaginationEdgeCases` baseline count: **Resolved via D-055** — `PaginationEdgeCases` baseline = `default_page_size() × 3` per-sensor function, not a global constant.
-- Armis/CrowdStrike schema availability: **Resolved via D-054** — Schema derivation is pre-story S-3.7.0 under E-3.7; blocks generator implementation for those 2 sensors, not BC authoring.
+- Armis/CrowdStrike schema availability: **Resolved via D-054** — Schema derivation is pre-story S-3.7.00 under E-3.7; blocks generator implementation for those 2 sensors, not BC authoring.
 
 ## BC Changelog
 
 | Version | Change |
 |---------|--------|
+| v0.9 | DTU cascade P6-02 (review-2026-06-10 PO micro-burst): Open Questions D-054 row story ID `S-3.7.0` → `S-3.7.00` (canonical 2-digit suffix per STORY-INDEX; same class as ADR-009 v0.5 m-003 fix). Sole occurrence in behavioral-contracts/ verified via anchored grep `S-3\.7\.0[^0-9]`. |
 | v0.8 | DTU cascade P5-01 (review-2026-06-10 PO micro-burst): Precondition 3 stale default `time_anchor = DateTime::UNIX_EPOCH` replaced with `prism_dtu_common::demo_time_anchor()` (`2026-01-01T00:00:00Z`, epoch `1_767_225_600` — fixed demo-era constant, NOT wall-clock) per BC-3.4.001 v0.9 precondition 4 (review-2026-06-10 P1-01 propagation; the shared test vehicle now asserts the default IS `demo_time_anchor()`). Explicit anchors remain permitted for vectors that pin one. POL-27 `modified:` synced to 2026-06-10. |
 | v0.7 | M-24-001 (Pass 24): Body Traceability Architecture Module row corrected SS-06 (Client Configuration) → SS-01 (Sensor Adapters) per ARCH-INDEX.md; prism-dtu-common is the implementation site per D-056. |
 | v0.6 | M-23-001 (Pass 23): `subsystem:` corrected SS-06 (Client Configuration) → SS-01 (Sensor Adapters — prism-dtu-common is the implementation site per D-056). |

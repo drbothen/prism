@@ -39,3 +39,9 @@ _Recovery note (D-1091, 2026-06-10): STATE.md's Current Phase Steps note claimed
 | D-1082 | state-manager | 2026-06-09 | Complete story roadmap enumerated (user-directed). §Complete Story Roadmap table added to task ledger (9 stories: 6 core + 3 optional). SESSION-HANDOFF §ACTIVE OBJECTIVE Build Sequence updated. Ledger v1.8→v1.9. STATE v7.732→v7.733. |
 | D-1083 | state-manager | 2026-06-09 | Mid-cascade spec-consistency burst: BC-2.06.018 v1.1→v1.2 (§Scope Boundary — Non-Generator-Backed Tables; PO amendment per F-P2-MED-001). S-DEMO-CYBERINT-INCIDENTS-SEEDING-001 draft stub registered (STORY-INDEX v2.332→v2.333; total_stories 188→189). BC-INDEX v6.05→v6.06. STATE v7.733→v7.734. |
 | D-1084 | state-manager | 2026-06-09 | LOCAL Pass-4 closure burst: F-P4-CRIT-001 (Claroty surface-purity) + F-P4-MED-001 (route-output purity) + F-P4-MED-002 (story BC-pin sync) + F-P4-MED-003 (BC-2.06.018 §Scope Boundary) CLOSED. Story v1.1→v1.2. BC-INDEX v6.06→v6.07. STORY-INDEX v2.333→v2.334. STATE v7.734→v7.735. |
+
+## Archived Current Phase Steps — D-1085+ (normal rotation)
+
+| Step | Agent | Status | Output |
+|------|-------|--------|--------|
+| D-1085 | state-manager | 2026-06-09 | LOCAL Pass-5 closure burst: F-P5-HIGH-001 (BC-2.06.018 phantom-anchor 7 sites corrected) CLOSED. BC v1.3→v1.4. Story v1.2→v1.3. BC-INDEX v6.07→v6.08. STORY-INDEX v2.334→v2.335. STATE v7.735→v7.736. |

@@ -4,11 +4,11 @@ title: "DTU Reset-Lookup Semantics and Fidelity Probe Auth"
 document_type: architecture-section
 level: ADR
 section: decisions/ADR-003-dtu-reset-lookup-and-fidelity-auth
-version: "1.4"
+version: "1.5"
 status: Accepted
 producer: architect
 timestamp: 2026-04-22T00:00:00Z
-amended: 2026-04-24T00:00:00Z
+amended: 2026-06-10T00:00:00Z
 phase: phase-3-dtu-wave-1
 inputs:
   - .factory/stories/S-6.07-dtu-crowdstrike.md
@@ -428,8 +428,12 @@ This integrates cleanly with the existing `reqwest::RequestBuilder` chain.
    be deferred to Wave 2 if Wave 1.5 capacity is limited — they are improvements, not
    correctness fixes.
 
-**Security note:** The `headers` field is test-only infrastructure (all DTU code is
-gated behind `#[cfg(any(test, feature = "dtu"))]`). The bearer tokens used in fidelity
+**Security note:** The `headers` field is test-only infrastructure — all DTU code is
+compile-gated out of production binaries via crate-level `#![cfg]` gates (2-way
+`any(test, feature = "dtu")` for most clones; 3-way adding `feature = "fixture-gen"`
+for `prism-dtu-common` — where `FidelityCheck` lives — and the generator-backed
+sensor clones, per BC-3.4.001 v0.10 Invariant 4 / D-056; neither feature is ever
+enabled in release builds). The bearer tokens used in fidelity
 probes are the same fake tokens already used in per-AC integration tests. No new
 credential surface is introduced.
 
@@ -699,3 +703,9 @@ This amendment does NOT cover:
   after each test; health is a liveness probe)
 - Wave 2+ clones (they adopt this pattern from inception via the updated trait)
 - Production auth middleware or credential handling
+
+## Changelog
+
+| Version | Date | Author | Change |
+|---------|------|--------|--------|
+| 1.5 | 2026-06-10 | architect | DTU cascade P6-01 stale gate-string sweep: Security note blanket claim "all DTU code is gated behind `#[cfg(any(test, feature = "dtu"))]`" made precise — `prism-dtu-common` (home of `FidelityCheck`/`headers`) and the 4 generator-backed sensor clones are 3-way gated `#![cfg(any(test, feature = "dtu", feature = "fixture-gen"))]` per BC-3.4.001 v0.10 Invariant 4 / D-056; remaining clones 2-way gated. Test-only/production-exclusion security argument unchanged (neither feature is enabled in release builds). Changelog section added (prior bumps predate the changelog convention for this ADR; v1.4 was Bundle A.2.3 frontmatter backfill per ARCH-INDEX row 2.33). |

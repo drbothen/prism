@@ -4,7 +4,7 @@ title: "Canonical L2 DTU Clone Template"
 document_type: architecture-section
 level: ADR
 section: decisions/ADR-002-l2-dtu-clone-template
-version: "1.1"
+version: "1.3"
 status: accepted
 producer: architect
 timestamp: 2026-04-22T00:00:00
@@ -120,8 +120,18 @@ Rules:
 - `[lib] name` — REQUIRED. Set to the snake_case crate name (underscores). Cargo's
   derived default sometimes diverges from the explicit name; make it explicit.
 - `[features] dtu = []` — REQUIRED. All clone code is gated behind
-  `#[cfg(any(test, feature = "dtu"))]`.
+  `#[cfg(any(test, feature = "dtu"))]` (generator-backed clones: see variant
+  note below).
 - `[lints] workspace = true` — REQUIRED. Inherits workspace clippy policy.
+
+**Generator-backed clone variant (BC-3.4.001 / BC-2.06.018):** Clones that ship a
+fixture generator (currently `prism-dtu-claroty`, `prism-dtu-armis`,
+`prism-dtu-crowdstrike`, `prism-dtu-cyberint`, introduced via S-3.7.02–S-3.7.05)
+additionally declare `fixture-gen = ["prism-dtu-common/fixture-gen", ...]` in
+`[features]` and extend the crate gate to the 3-way form
+`#![cfg(any(test, feature = "dtu", feature = "fixture-gen"))]` (mirroring
+`prism-dtu-common`'s own gate per BC-3.4.001 v0.10 Invariant 4 / D-056). All other
+template rules apply unchanged. Non-generator clones keep the 2-way gate below.
 
 ### 3. src/lib.rs Required Shape
 
@@ -139,7 +149,10 @@ pub use state::<Name>State;
 
 Rules:
 
-- The `#![cfg(...)]` attribute MUST be the first non-comment item in the file.
+- The `#![cfg(...)]` attribute MUST be the first non-comment item in the file
+  (generator-backed clones use the 3-way gate
+  `#![cfg(any(test, feature = "dtu", feature = "fixture-gen"))]` per the variant
+  note in Section 2).
 - `pub use clone::<Name>Clone` — always re-export the clone struct.
 - `pub use state::<Name>State` — always re-export the state struct.
 - Additional `pub use` for domain error types or key response types is permitted.
@@ -327,7 +340,7 @@ Paste this list into story ACs for S-6.09, S-6.10, and all future L2 clones.
 [ ] Cargo.toml: `[lib] name = "prism_dtu_<name>"` declared explicitly
 [ ] Cargo.toml: `[features] dtu = []` declared
 [ ] Cargo.toml: `[lints] workspace = true` declared
-[ ] src/lib.rs: `#![cfg(any(test, feature = "dtu"))]` is first non-comment attribute
+[ ] src/lib.rs: `#![cfg(any(test, feature = "dtu"))]` is first non-comment attribute (generator-backed clones: 3-way gate incl. `feature = "fixture-gen"` per Section 2 variant note)
 [ ] src/lib.rs: `pub use clone::<Name>Clone` present
 [ ] src/lib.rs: `pub use state::<Name>State` present
 [ ] src/clone.rs: `configure()` delegates to `self.state.apply_config(&config)` — no inline JSON parsing
@@ -590,3 +603,11 @@ When writing or reviewing a non-DTU story:
 - Stories: S-6.14, S-6.15 (retroactive cleanup target)
 - `prism-dtu-common::BehavioralClone` trait (canonical interface)
 - `prism-dtu-common::FidelityValidator` (required in every clone's test suite)
+
+## Changelog
+
+| Version | Date | Author | Change |
+|---------|------|--------|--------|
+| 1.3 | 2026-06-10 | architect | DTU cascade P7-01 story-provenance fix (residue of the P6-01 burst): §2 "Generator-backed clone variant" note mis-cited the generator stories as "S-3.7.01–S-3.7.04" — corrected to **S-3.7.02–S-3.7.05** (S-3.7.02 Claroty, S-3.7.03 Cyberint, S-3.7.04 Armis, S-3.7.05 CrowdStrike per STORY-INDEX rows + BC-3.4.004 §Traceability; S-3.7.01 is the archetype-catalog/GenOpts story in `prism-dtu-common`, NOT a clone). Same mis-cite in the v1.2 changelog row corrected in place pre-commit (row uncommitted at fix time; ARCH-INDEX v2.121 fold-companion precedent). No decision content changed. |
+| 1.2 | 2026-06-10 | architect | DTU cascade P6-01 stale gate-string sweep: Section 2 gains "Generator-backed clone variant" note — clones shipping a fixture generator (claroty/armis/crowdstrike/cyberint, S-3.7.02–S-3.7.05 *[row corrected in place pre-commit by P7-01; originally mis-cited "S-3.7.01–S-3.7.04"]*) declare `fixture-gen` in `[features]` and extend the crate gate to 3-way `#![cfg(any(test, feature = "dtu", feature = "fixture-gen"))]` per BC-3.4.001 v0.10 Invariant 4 / D-056 + BC-2.06.018, reconciling the template with shipped code (`crates/prism-dtu-{claroty,armis,crowdstrike,cyberint}/src/lib.rs`). Section 3 first-attribute rule and audit checklist annotated with the variant. 2-way gate remains the template default for non-generator clones. Changelog section added (prior bumps 1.0→1.1 predate the changelog convention for this ADR). |
+| 1.1 | 2026-05-08 | architect | (Row reconstructed 2026-06-10 — bump landed without a changelog section.) Bundle A.2.3 ADR frontmatter backfill: `runtime_deliverables: []` and `wiring_deferred_to` fields added (pure methodology ADR), enabling POL-15 enforcement. See ARCH-INDEX changelog row 2.33. |

@@ -9,7 +9,7 @@ phase: 3.A
 inputs:
   - ".factory/specs/architecture/decisions/ADR-009-multi-tenant-data-generator.md"
   - ".factory/specs/domain-spec/capabilities.md"
-input-hash: "9fcdd15"
+input-hash: "288c597"
 traces_to: ".factory/specs/architecture/decisions/ADR-009-multi-tenant-data-generator.md"
 origin: greenfield
 extracted_from: null

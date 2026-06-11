@@ -6,7 +6,7 @@ status: ACCEPTED
 date: 2026-05-01
 wave: 3
 phase: 3.A
-version: "0.15"
+version: "0.16"
 authors: [architect]
 related_decisions: [D-044, D-045, D-058]
 related_adrs: [ADR-006, ADR-007, ADR-008, ADR-009, ADR-012]
@@ -556,7 +556,10 @@ The following BCs were authored during Phase 3.A; see BC-INDEX for canonical met
    DTU BC tests need multi-org harness support.
 
 3. **`prism-dtu-harness` feature flag naming.** The crate is gated behind
-   `#[cfg(any(test, feature = "dtu"))]` following `prism-dtu-common`'s convention.
+   `#[cfg(any(test, feature = "dtu"))]` following the per-surface DTU clone gate
+   convention (ADR-002 §3). (Attribution note: `prism-dtu-common` itself has since
+   moved to the 3-way gate `#![cfg(any(test, feature = "dtu", feature = "fixture-gen"))]`
+   per BC-3.4.001 Invariant 4 / D-056; the harness gate remains correct as 2-way.)
    Should the feature flag be named `dtu` (matching existing convention) or `harness`
    (more specific)? Recommend `dtu` for consistency; spec-writer confirms in BC-3.5
    authoring.
@@ -630,6 +633,8 @@ The following questions surfaced during BC authoring (Phase 3.A) and were resolv
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 0.16 | 2026-06-10 | architect | DTU cascade P6-01 stale gate-string sweep: §5 Open Question 3 stale attribution "following `prism-dtu-common`'s convention" corrected — `prism-dtu-common` is now 3-way gated `#![cfg(any(test, feature = "dtu", feature = "fixture-gen"))]` (BC-3.4.001 v0.10 Invariant 4 / D-056); harness 2-way gate claim itself verified correct against `crates/prism-dtu-harness/src/lib.rs` and re-attributed to the per-surface clone gate convention (ADR-002 §3). §2.9 and §4 Step 1 harness gate cites verified accurate (2-way, unchanged). |
+| 0.15 | 2026-05-08 | architect | (Row backfilled 2026-06-10 during v0.16 burst — bump landed without a changelog row.) Bundle A.2.3 ADR frontmatter backfill: `runtime_deliverables` and `wiring_deferred_to` fields added, enabling POL-15 (runtime_wiring_required_for_accepted_adrs) enforcement. See ARCH-INDEX changelog row 2.33. |
 | 0.14 | 2026-05-01 | state-manager | ACCEPTED→IMPLEMENTED status promoted post-Wave-3 closure. §2 Status block updated from PROPOSED to ACCEPTED per D-183. Wave 3 integration gate findings tracked in cycles/wave-3-multi-tenant/. |
 | 0.13 | 2026-04-28 | product-owner | Phase 3.A APPROVED by user — status: PROPOSED → ACCEPTED. D-136. Wave 3 implementation cleared to begin per D-045 (Spec-First Discipline) post-approval. |
 | 0.12 | 2026-04-27 | product-owner | M-24-002 (Pass 24): `related_adrs` frontmatter corrected — ADR-009 and ADR-012 added (body §9 lists both as related consequents but frontmatter array was missing them). |

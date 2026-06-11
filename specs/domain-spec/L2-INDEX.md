@@ -1,13 +1,13 @@
 ---
 document_type: domain-spec-index
 level: L2
-version: "1.16"
+version: "1.17"
 status: draft
 producer: business-analyst
 timestamp: 2026-04-27T00:00:00
 phase: 1a
 inputs: [product-brief.md, capabilities.md]
-input-hash: "d697c67"
+input-hash: "d121557"
 traces_to: L2-INDEX.md
 sections:
   - architecture-concept.md
@@ -90,7 +90,7 @@ Prism is a Rust MCP server that unifies multi-client security sensor management 
 | CAP-036 | BC-3.5.001, BC-3.5.002, BC-3.6.001, BC-3.6.002, CAP-039, ADR-011 | Multi-Tenant DTU Test Harness (SS-01, internal): per-customer DTU clone instances with Logical (in-process) and Network (per-TCP-port) isolation modes; `CustomerEndpoints` table keyed by `(OrgId, DtuType)`; deterministic fixture data via CAP-039 generator; per-org failure injection; crash detection (`ConnectionRefused` → `HarnessError::CloneCrashed`). Test-only (#[cfg(any(test, feature = "dtu"))]). |
 | CAP-037 | BC-3.7.001, ADR-012 | Workspace Crate Layout Convention (SS-01 primary, cross-cutting): canonical workspace crate shape enforced by `scripts/check-crate-layout.sh` (`just check-layout`) as CI check and lefthook pre-commit hook. Applies to all 22+ workspace crates. Documented in `docs/CRATE-LAYOUT.md`. |
 | CAP-038 | DI-033, BC-3.1.001, BC-3.1.003, BC-3.1.004, CAP-004, CAP-009, ADR-006 | Multi-Tenant Identity Model (SS-21, internal): three-layer org identity — `OrgId` (UUID v7), `OrgSlug` (kebab-case), `OrgRegistry` (bijective BiMap, O(1) resolve/slug_for). Registry populated at startup from `customers/*.toml`; read-only for process lifetime. Bijectivity invariant enforced at registration time (DI-033). `OrgRegistry` is `prism-core` per D-047. Constrained by DI-033. |
-| CAP-039 | BC-3.4.001, BC-3.4.002, BC-3.4.003, BC-3.4.004, CAP-036, ADR-009 | Multi-Tenant Fixture Generation (SS-01, internal): deterministic org-keyed test fixture generator seeded by `ChaCha20Rng::seed_from_u64(seed ^ org_id_hash)`; 8-archetype catalog; org-tagged primary IDs for cross-tenant leakage detection; schema-validates against vendored OpenAPI specs. Test-only (#[cfg(any(test, feature = "dtu"))]). |
+| CAP-039 | BC-3.4.001, BC-3.4.002, BC-3.4.003, BC-3.4.004, CAP-036, ADR-009 | Multi-Tenant Fixture Generation (SS-01, internal): deterministic org-keyed test fixture generator seeded by `ChaCha20Rng::seed_from_u64(seed ^ org_id_hash)`; 8-archetype catalog; org-tagged primary IDs for cross-tenant leakage detection; schema-validates against vendored OpenAPI specs. Test-only via two-level gate (BC-3.4.001 v0.10 Invariant 4): generator module `#[cfg(feature = "fixture-gen")]` inside `prism-dtu-common`, whose crate-level gate is `#![cfg(any(test, feature = "dtu", feature = "fixture-gen"))]`. |
 | CAP-040 | BC-3.2.004, BC-3.2.005, CAP-001, ADR-006, ADR-007 | Multi-Tenant Adapter Dispatch Mode (SS-21 registry / SS-06 config parsing / SS-01 enforcement, internal): two-mode model — `client` (per-org `HashMap<(OrgId, String), V>` state; dispatch verified at OrgId boundary) and `shared` (MSSP-wide single instance; OrgId as payload annotation only). Mode declared at deployment time via `[[dtu]]` TOML blocks; `DtuMode` enum has no setter after startup. `DTU_DEFAULT_MODE` compile-time registry classifies each DTU type. `allow_shared_override` deferred to Wave 4. |
 
 ## ID Registry Summary
@@ -121,6 +121,7 @@ Prism is a Rust MCP server that unifies multi-client security sensor management 
 
 | Version | Date | Change |
 |---------|------|--------|
+| 1.17 | 2026-06-10 | DTU cascade P6-01 (review-2026-06-10 BA micro-burst): CAP-039 cross-reference row gate claim corrected — "Test-only (#[cfg(any(test, feature = "dtu"))])" → two-level gate per BC-3.4.001 v0.10 Invariant 4 (generator module `#[cfg(feature = "fixture-gen")]` inside `prism-dtu-common`, crate-level gate `#![cfg(any(test, feature = "dtu", feature = "fixture-gen"))]`). CAP-036 row's identical-looking gate cite verified accurate and left unchanged (it cites the `prism-dtu-harness` crate gate, which IS `#![cfg(any(test, feature = "dtu"))]`). Companion to capabilities.md v1.18 CAP-039 fix (same burst). No ID registry or count changes. |
 | 1.16 | 2026-06-10 | review-2026-06-10 BA micro-burst (watchdog config-key prose sync): capabilities.md CAP-024 TOML key citations synced from flat form to the sectioned `[watchdog]` form per BC-2.15.006 — `watchdog_level` → `watchdog.level`, `watchdog_memory_limit_mb` → `watchdog.memory_limit_mb`, `watchdog_query_timeout_s` → `watchdog.query_timeout_seconds` (verbatim BC key name). capabilities.md bumped v1.16 → v1.17. Domain-spec sweep found no other flat `watchdog_*` TOML-key citations. No ID registry or count changes. |
 | 1.15 | 2026-06-10 | QRY cascade pass-1 P1-04 D2 companion sweep (review-2026-06-10 BA micro-burst): DI-027 and DEC-033 reworded to the ratified watchdog memory-enforcement division of labor (error-taxonomy v1.68 architect adjudication D2; BC-2.11.006 → `E-WATCHDOG-001` per-query GreedyMemoryPool budget; BC-2.15.007 v1.5 → `E-WATCHDOG-002` process-RSS kill with two-consecutive-check grace; BC-2.15.008 denylist). invariants.md bumped v1.6 → v1.7; edge-cases.md bumped v1.1 → v1.2. Companion to capabilities.md v1.16 CAP-024 (same authority). No ID registry or count changes. |
 | 1.14 | 2026-05-28 | (backfilled row — bump landed in commit 80d28d14 without a changelog entry) S-5.01-FOLLOWUP-MCP-BOOT F-PASS10-HIGH-2 sibling sweep: CAP-034 cross-reference text corrected "rmcp 1.4" → "rmcp 1.7" (1 occurrence). capabilities.md bumped v1.14 → v1.15 in the same sweep. |

@@ -2,7 +2,7 @@
 document_type: architecture-section
 level: L3
 section: "dependency-graph"
-version: "1.1"
+version: "1.3"
 status: draft
 producer: architect
 timestamp: 2026-04-27T00:00:00
@@ -142,13 +142,13 @@ Build order from leaves to root (each level can build in parallel):
 
 ## DTU Crates (Dev-Only Dependencies)
 
-The 11 DTU crates are Axum-based HTTP servers (and in-process receivers) that clone external service API behavior for integration testing. They are **never** compiled into the production binary. `prism-dtu-common` is the shared test infrastructure hub; all 10 per-surface crates depend on it.
+The 12 on-disk DTU crates are Axum-based HTTP servers (and in-process receivers) that clone external service API behavior for integration testing (4 log-forwarding clones are additionally planned and not yet in Cargo.toml). They are **never** compiled into the production binary. `prism-dtu-common` is the shared test infrastructure hub; the other 11 on-disk DTU crates (9 per-surface clones plus `prism-dtu-demo-server` and `prism-dtu-harness`) depend on it.
 
-**CRITICAL:** No DTU crate depends on any `prism-*` production crate. They are standalone Axum servers that speak the real external-service API protocol over localhost HTTP. They mimic external APIs, not Prism internals.
+**CRITICAL:** No DTU crate depends on any `prism-*` production crate, with one bounded exception: 10 of the 12 on-disk DTU crates (all except `prism-dtu-threatintel` and `prism-dtu-nvd`) consume `prism-core` for shared multi-tenant identity types (OrgId/OrgSlug) — verified against `crates/prism-dtu-*/Cargo.toml` `[dependencies]`. No DTU crate depends on any other production crate (mcp/query/sensors/spec-engine/etc.), and no production crate depends on a DTU crate outside its own `[dev-dependencies]`. The clones are standalone Axum servers that speak the real external-service API protocol over localhost HTTP. They mimic external APIs, not Prism internals.
 
 ```mermaid
 graph TD
-    subgraph DTU["DTU Crates — 11 total (dev-dependency only)"]
+    subgraph DTU["DTU Crates — 12 on disk + 4 planned log-forwarding (dev-dependency only)"]
         DTUCOMMON["prism-dtu-common<br/><i>BehavioralClone trait<br/>LatencyLayer, FailureLayer<br/>fixture_loader<br/>SyslogReceiver<br/>WebhookReceiver</i>"]
 
         subgraph SENSORS["Sensor clones"]
@@ -169,7 +169,12 @@ graph TD
             DTUNVD["prism-dtu-nvd<br/><i>L2 stateful</i>"]
         end
 
-        subgraph LOGFWD["Log-forwarding clones"]
+        subgraph HARNESS["Harness & scaffold"]
+            DTUDS["prism-dtu-demo-server<br/><i>L2 stateful scaffold</i>"]
+            DTUH["prism-dtu-harness<br/><i>multi-tenant harness (ADR-011)</i>"]
+        end
+
+        subgraph LOGFWD["Log-forwarding clones (planned — not yet in Cargo.toml)"]
             DTUDD["prism-dtu-datadog<br/><i>L2 stateful</i>"]
             DTUSH["prism-dtu-splunk-hec<br/><i>L2 stateful</i>"]
             DTUES["prism-dtu-elasticsearch<br/><i>L2 stateful</i>"]
@@ -212,6 +217,8 @@ graph TD
     DTUES --> DTUCOMMON
     DTUOT --> DTUCOMMON
     DTUTI --> DTUCOMMON
+    DTUDS --> DTUCOMMON
+    DTUH --> DTUCOMMON
 
     DTUCOMMON --> AXM2["axum + tokio + tower + serde<br/><i>(external)</i>"]
 
@@ -219,42 +226,37 @@ graph TD
     style SENSORS fill:#1a1a2e,stroke:#0f3460,color:#e0e0e0
     style ACTIONS fill:#0f3460,stroke:#533483,color:#e0e0e0
     style INFUSIONS fill:#533483,stroke:#7c3aed,color:#fff
-    style LOGFWD fill:#1a1a2e,stroke:#0f3460,color:#e0e0e0
+    style LOGFWD fill:#1a1a2e,stroke:#0f3460,color:#e0e0e0,stroke-dasharray:5 5
+    style HARNESS fill:#2d3436,stroke:#533483,color:#e0e0e0
     style CONSUMERS fill:#2d3436,stroke:#636e72,color:#e0e0e0
     style AXM2 fill:#636e72,stroke:#b2bec3,color:#fff
     style DTUCOMMON fill:#2d3436,stroke:#e94560,color:#e0e0e0,font-weight:bold
 ```
 
-**DTU gate:** All 14 crates are compiled only under `#[cfg(any(test, feature = "dtu"))]`. The `dtu` Cargo feature is never enabled in release builds. The production `Cargo.toml` workspace root lists them as:
+**DTU gate:** All 12 on-disk DTU crates are compile-gated out of production builds (the 4 planned log-forwarding clones will follow the same ADR-002 template gate when created). Gate precision: `prism-dtu-common` and the four generator-backed sensor clones (`prism-dtu-claroty`, `prism-dtu-armis`, `prism-dtu-crowdstrike`, `prism-dtu-cyberint`) carry the 3-way crate gate `#![cfg(any(test, feature = "dtu", feature = "fixture-gen"))]` (BC-3.4.001 v0.10 Invariant 4 / D-056; generator-backed clones per BC-2.06.018 / S-3.7.02–S-3.7.05); all other DTU crates carry the 2-way gate `#[cfg(any(test, feature = "dtu"))]`. Neither the `dtu` nor `fixture-gen` Cargo feature is ever enabled in release builds. The workspace root `Cargo.toml` lists the 12 on-disk DTU crates as workspace `members` (it is a virtual manifest — consumer crates such as `prism-bin`, `prism-spec-engine`, and `prism-query` pull individual DTU crates in via their own `[dev-dependencies]`):
 
 ```toml
-[dev-dependencies]
-# Shared infrastructure (required by all per-surface crates)
-prism-dtu-common          = { path = "prism-dtu-common" }
-
-# Sensor behavioral clones
-prism-dtu-crowdstrike     = { path = "prism-dtu-crowdstrike" }
-prism-dtu-claroty         = { path = "prism-dtu-claroty" }
-prism-dtu-cyberint        = { path = "prism-dtu-cyberint" }
-prism-dtu-armis           = { path = "prism-dtu-armis" }
-
-# Action behavioral clones
-prism-dtu-slack           = { path = "prism-dtu-slack" }
-prism-dtu-pagerduty       = { path = "prism-dtu-pagerduty" }
-prism-dtu-jira            = { path = "prism-dtu-jira" }
-
-# Infusion behavioral clones
-prism-dtu-threatintel     = { path = "prism-dtu-threatintel" }
-prism-dtu-nvd             = { path = "prism-dtu-nvd" }
-
-# Log-forwarding behavioral clones
-prism-dtu-datadog         = { path = "prism-dtu-datadog" }
-prism-dtu-splunk-hec      = { path = "prism-dtu-splunk-hec" }
-prism-dtu-elasticsearch   = { path = "prism-dtu-elasticsearch" }
-prism-dtu-otlp            = { path = "prism-dtu-otlp" }
+[workspace]
+members = [
+    # ... 14 non-DTU members ...
+    "crates/prism-dtu-common",        # shared infrastructure (consumed by all other DTU crates)
+    "crates/prism-dtu-crowdstrike",   # sensor clones
+    "crates/prism-dtu-claroty",
+    "crates/prism-dtu-cyberint",
+    "crates/prism-dtu-armis",
+    "crates/prism-dtu-threatintel",   # infusion clones
+    "crates/prism-dtu-nvd",
+    "crates/prism-dtu-pagerduty",     # action clones
+    "crates/prism-dtu-jira",
+    "crates/prism-dtu-slack",
+    "crates/prism-dtu-demo-server",   # all-clone scaffold (ADR-007 D-051)
+    "crates/prism-dtu-harness",       # multi-tenant harness (ADR-011)
+]
+# Planned, not yet members: prism-dtu-datadog, prism-dtu-splunk-hec,
+# prism-dtu-elasticsearch, prism-dtu-otlp (log-forwarding clones)
 ```
 
-**DTU dependency edges:** All 10 per-surface crates depend on `prism-dtu-common` for shared tower middleware (LatencyLayer, FailureLayer), the `BehavioralClone` trait, fixture loading, and the generic `SyslogReceiver` + `WebhookReceiver`. Each per-surface crate then adds its own route handlers and state stores on top. **No DTU crate depends on any prism-* production crate** — they are standalone Axum servers that speak the real external-service API protocol over localhost HTTP.
+**DTU dependency edges:** All 11 other on-disk DTU crates (9 per-surface clones plus `prism-dtu-demo-server` and `prism-dtu-harness`) depend on `prism-dtu-common` for shared tower middleware (LatencyLayer, FailureLayer), the `BehavioralClone` trait, fixture loading, and the generic `SyslogReceiver` + `WebhookReceiver`. Each per-surface crate then adds its own route handlers and state stores on top. **No DTU crate depends on any prism-* production crate other than the bounded `prism-core` shared-types exception noted above** — they are standalone Axum servers that speak the real external-service API protocol over localhost HTTP.
 
 ## External Dependency Summary
 
@@ -299,4 +301,6 @@ prism-dtu-otlp            = { path = "prism-dtu-otlp" }
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.3 | 2026-06-10 | architect | DTU cascade P7-01/P7-03 burst (residue of P6-01). **P7-01:** "DTU gate" paragraph + v1.2-row generator-story cite "S-3.7.04" → S-3.7.02–S-3.7.05 (S-3.7.01 is the catalog/GenOpts story per STORY-INDEX + BC-3.4.004; v1.2 row corrected in place pre-commit — uncommitted at fix time, ARCH-INDEX v2.121 fold-companion precedent). **P7-03:** DTU crate counts reconciled to disk (`ls crates/` + root Cargo.toml members on develop): "The 11 DTU crates" / Mermaid "11 total" / "All 14 crates" → **12 on-disk DTU crates** (common + 9 per-surface + demo-server + harness) + 4 planned log-forwarding clones explicitly marked planned; Mermaid gains demo-server/harness nodes with edges to prism-dtu-common and LOGFWD subgraph marked planned/dashed; false workspace-root `[dev-dependencies]` snippet replaced with the actual `[workspace] members` excerpt (root is a virtual manifest; consumers pull DTU crates via their own `[dev-dependencies]` — verified prism-bin/prism-spec-engine/prism-query); "All 10 per-surface crates depend on prism-dtu-common" → all 11 other on-disk DTU crates. Same-burst precision fix verified against `crates/prism-dtu-*/Cargo.toml`: blanket "No DTU crate depends on any prism-* production crate" CRITICAL claim bounded — 10 of 12 on-disk DTU crates (all except threatintel/nvd) consume `prism-core` identity types (OrgId/OrgSlug, Wave 3 multi-tenancy); no other production-crate deps; reverse direction (production→DTU) confirmed dev-dependencies-only. |
+| 1.2 | 2026-06-10 | architect | DTU cascade P6-01 stale gate-string sweep: "DTU gate" paragraph blanket claim "All 14 crates are compiled only under `#[cfg(any(test, feature = "dtu"))]`" made precise — `prism-dtu-common` + 4 generator-backed sensor clones (claroty/armis/crowdstrike/cyberint) are 3-way gated `#![cfg(any(test, feature = "dtu", feature = "fixture-gen"))]` (BC-3.4.001 v0.10 Invariant 4 / D-056; BC-2.06.018 / S-3.7.02–S-3.7.05 *[row corrected in place pre-commit by P7-01; originally mis-cited "S-3.7.04"]*); all other DTU crates 2-way gated. Verified against `crates/prism-dtu-*/src/lib.rs` on disk. Production-exclusion guarantee unchanged ("never enabled in release builds" extended to cover `fixture-gen`). |
 | 1.1 | 2026-04-27 | product-owner | Pass 15 sweep: DTU crate count corrected 14→11 total, 13→10 per-surface (log-forwarding DTUs planned, not yet in Cargo.toml); Mermaid subgraph label updated; added `## [Section Content]` template compliance marker. |

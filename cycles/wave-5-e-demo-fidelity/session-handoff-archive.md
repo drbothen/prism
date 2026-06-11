@@ -11,6 +11,8 @@ The following superseded snapshots are archived here (chronological order, most 
 
 | Snapshot | D-NNN | Date | STATE version |
 |----------|-------|------|---------------|
+| §RESUME SNAPSHOT 2026-06-10-REVIEW-CYCLE-CHECKPOINT-D1091 | D-1091 | 2026-06-10 | v7.742 |
+| §RESUME SNAPSHOT 2026-06-10-STORY-B-DELIVERY-D1090 | D-1090 | 2026-06-10 | v7.741 |
 | §RESUME SNAPSHOT 2026-06-09-COMPLETE-ROADMAP-D1082 | D-1082/D-1089 | 2026-06-09/10 | v7.733→v7.740 |
 | §RESUME SNAPSHOT 2026-06-08-TRAILING-SLASH-MERGED | D-1060/D-1061 | 2026-06-08 | v7.712 |
 | §RESUME SNAPSHOT 2026-06-07-D1047-S-MAINT-ECRED-MERGED-S-DEMO-003-REBASELINE-PAUSED | D-1047 | 2026-06-07 | v7.698 |
@@ -119,3 +121,14 @@ _This snapshot covered STATE v7.741 (D-1090 Story B autonomy grant) until the us
 **Summary:** D-1090 durability hardening — full-autonomous Story B (T5 = S-DEMO-DTU-LIVE-SCENARIO-001-B) materialize+deliver authorized (same envelope as Story A / D-989); contract-completeness front-load + 2 Story-A NIT follow-ups encoded in NEXT ACTION; local develop fast-forwarded to c287b00d confirmed. T5 was NOT started — interrupted by the user-directed 2026-06-10 full-codebase review (8 lanes; 14-item adjudication package approved; ADR-037 + ADR-038 accepted; 3 fix-branch BC-5.39.001 cascades opened). At supersession: develop_head c287b00d, BC-2.06.018 v1.6 active, BC-INDEX v6.10→(review cycle)→v6.21, STORY-INDEX v2.338→v2.346, T5 remains the post-review resume target. The Story B NEXT-ACTION content (contract-completeness front-load, NIT-1/NIT-2 fold-in, 12-gate sequence) remains VALID and is preserved in the D-1091 snapshot §RESUME T5.
 
 _Full snapshot content available in git history on factory-artifacts branch at the commit immediately preceding the D-1091 burst commit._
+
+---
+
+## §RESUME SNAPSHOT 2026-06-10-REVIEW-CYCLE-CHECKPOINT-D1091 (SUPERSEDED by D-1092 2026-06-11)
+
+_Superseded 2026-06-11 by §RESUME SNAPSHOT 2026-06-11-REVIEW-CYCLE-PAUSE-D1092 (STATE v7.743)._
+_This snapshot covered STATE v7.742 (D-1091 mid-cycle review checkpoint) while the 3 fix-branch BC-5.39.001 cascades ran passes 5–7._
+
+**Summary:** D-1091 mid-cycle review checkpoint — coordinated review-2026-06-10 spec set (~80 files; ADR-037 + ADR-038 + 4 new stories + BC retirements + taxonomy v1.72) committed as one burst; 3 cascades recorded in flight (dtu-fleet 36e3fc7b pass-5; query-core 3c91b0c0 E-QUERY-034 attempt-4; mcp-boot aa7b1c2e P4 fix-burst); 16-item register-burst checklist + 7 process-gap lessons (a)–(g) recorded. At supersession (D-1092 pause checkpoint): query-core advanced to 25 commits head cf0dfe1e (E-QUERY-034 split landed; pass 6 next); dtu-fleet pass-5/6/7 spec-side residue closed (21 commits head 36e3fc7b unchanged; pass 8 next); mcp-boot advanced to 30 commits head 7c1c2a5e (P5-01/02/03 closed; pass 6 next). Register-burst checklist extended 16→19 items. BC-INDEX v6.21→v6.23; STORY-INDEX v2.346→v2.348; ARCH-INDEX v2.129→v2.132. The D-1090 Story B §RESUME T5 content remains VALID and is preserved in the D-1092 snapshot §RESUME T5.
+
+_Full snapshot content available in git history on factory-artifacts branch at the commit immediately preceding the D-1092 burst commit._

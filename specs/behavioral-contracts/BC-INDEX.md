@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "6.22"
+version: "6.23"
 status: draft
 producer: product-owner
 timestamp: 2026-06-10T00:00:00Z
@@ -380,6 +380,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v6.23 (2026-06-10, DTU cascade P6-02 story-ID canonicalization — review-2026-06-10 PO micro-burst):** product-owner | **BC-3.4.003 v0.8→v0.9** — §Open Questions D-054 row story ID `S-3.7.0` → `S-3.7.00` (canonical 2-digit suffix per STORY-INDEX BC Traceability Matrix; same defect class as ADR-009 v0.5 m-003 fix). TD-VSDD-060 anchored sibling-grep `S-3\.7\.0[^0-9]` across behavioral-contracts/ verified line 205 was the SOLE occurrence — no other BC requires this rewrite. POL-27 `modified:` already 2026-06-10 (synced at v0.8); no frontmatter date change. No H1 retitles — title cell unchanged (Wave 3 Family 3.4 rows carry no version cell; remains draft). No edge-case-ID, lifecycle, or status changes; counts UNCHANGED (250/232/5/0/7/6). BC-INDEX v6.22→v6.23.
 
 **v6.22 (2026-06-10, DTU cascade P5-01/P5-02 BC propagation fixes — review-2026-06-10 PO micro-burst):** product-owner | Two BC bumps. **P5-01: BC-3.4.003 v0.7→v0.8** — precondition 3 stale default `time_anchor = DateTime::UNIX_EPOCH` replaced with `prism_dtu_common::demo_time_anchor()` (`2026-01-01T00:00:00Z`, epoch `1_767_225_600` — fixed demo-era constant, NOT wall-clock) per BC-3.4.001 v0.9 precondition 4 (review-2026-06-10 P1-01 propagation; the shared test vehicle asserts the default IS `demo_time_anchor()`); explicit anchors remain permitted for vectors that pin one. POL-27 `modified:` synced to 2026-06-10. **P5-02: BC-3.4.001 v0.9→v0.10** — Invariant 4 single-level gate citation `#[cfg(any(test, feature = "dtu"))]` corrected to the actual two-level gate per the BC's own D-056 resolution (§Open Questions) and shipped code (`crates/prism-dtu-common/src/lib.rs`): generator module `#[cfg(feature = "fixture-gen")]` inside crate-level gate `#![cfg(any(test, feature = "dtu", feature = "fixture-gen"))]`; production-exclusion guarantee unchanged. POL-23 sibling-grep (TD-VSDD-060) across behavioral-contracts/: remaining `#[cfg(any(test, feature = "dtu"))]` pins at BC-3.5.001 p6 + BC-3.5.002 p7 verified ACCURATE — they cite the `prism-dtu-harness` crate gate, which IS `#![cfg(any(test, feature = "dtu"))]` per `crates/prism-dtu-harness/src/lib.rs`; no edit. Remaining `UNIX_EPOCH` cite in BC-3.4.001 v0.9 changelog row is historical append-only (BC-3.4.001 v0.9 precondition-4 text itself is the CORRECT canonical source — untouched). No H1 retitles — title cells unchanged (Wave 3 Family 3.4 rows carry no version cell; both remain draft). No edge-case-ID, lifecycle, or status changes; counts UNCHANGED (250/232/5/0/7/6). BC-INDEX v6.21→v6.22.
 
