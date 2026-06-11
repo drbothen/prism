@@ -12,7 +12,12 @@
 //! - AC-5: `clients: None` fans out to all configured clients (BC-2.11.011)
 //! - AC-6: Cross-client data merged with `_client` field distinguishing rows (BC-2.11.011)
 //! - AC-7: SessionContext dropped after `execute()` returns (BC-2.11.005)
-//! - AC-9: Cold-start tag injection (full execution path tests deferred to TD-S302-005 — pipeline body is todo!())
+//! - AC-9: Cold-start tag injection (full execution path tests deferred to TD-S302-005 —
+//!   `run_materialization_pipeline` is implemented (the QRY-03 test below exercises its
+//!   production `execute_against_session` path), but the cold-start EventStream buffer routing
+//!   (`inject_source_type` / `SensorQueryDescriptor.rows_from_buffer` / EventBufferStore
+//!   integration per S-2.08 Architecture Compliance Rule 5) is not yet wired into the pipeline,
+//!   so the SensorAdapter-call / buffer-write / INFO-log assertions still have no path to drive)
 //!
 //! Story: S-3.02
 
@@ -391,7 +396,12 @@ mod tests {
     /// AC-9b: Verify cold-start descriptor tag: `inject_source_type` injects "live"
     /// for EventStream rows with rows_from_buffer=false. (S-2.08 AC-5b inherited)
     /// Full execution path (SensorAdapter call, EventBufferStore write, INFO log) deferred to
-    /// TD-S302-005 — pipeline body is todo!().
+    /// TD-S302-005. The original deferral premise ("pipeline body is todo!()") is stale —
+    /// `run_materialization_pipeline` is implemented. The remaining blocker is that the
+    /// cold-start EventStream buffer routing (`inject_source_type` /
+    /// `SensorQueryDescriptor.rows_from_buffer` / EventBufferStore integration) is not yet
+    /// wired into the pipeline, so `inject_source_type` has no production caller to assert
+    /// against end-to-end.
     #[tokio::test]
     async fn test_ac9b_cold_start_descriptor_tags_rows_as_live() {
         use prism_core::TableType;

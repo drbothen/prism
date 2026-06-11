@@ -167,8 +167,13 @@ impl SourceDataType {
 /// adjudication, 2026-06-10); the BC stays unamended. Spec compliance is
 /// implemented by S-CACHE-SPEC-COMPLIANCE-001 (post-demo). Interim mitigation:
 /// every config hot-reload flushes this cache (`invalidate_all`, registered as
-/// a `ConfigManager` swap listener at boot) so entries normalized under a
-/// retired spec cannot be served.
+/// a `ConfigManager` swap listener at boot), evicting all pre-swap-epoch
+/// entries. Note the flush is forward-provisioning today — fetch-path
+/// normalization is boot-frozen (adapters hold the boot-time resolved spec),
+/// and in-flight pre-swap queries may insert after the flush; see
+/// [`GenericQueryCache::invalidate_all`] for the full caveats.
+/// Full reload-effectiveness arrives with S-CACHE-SPEC-COMPLIANCE-001's
+/// normalize-on-read model.
 pub trait CacheValue: Clone + std::fmt::Debug + Send + Sync + 'static {
     /// Estimated in-memory size of this value in bytes, used for the
     /// BC-2.07.006 byte-budget accounting and the SEC-003 per-entry cap.
@@ -794,11 +799,23 @@ impl<V: CacheValue> GenericQueryCache<V> {
     ///
     /// Config hot-reload flush (P1-03 interim mitigation, review 2026-06-10):
     /// cached entries store the sensor response in its normalized form (see the
-    /// human-authorized BC-2.07.003 deviation documented on [`CacheValue`]), so
-    /// a sensor-spec / config reload (BC-2.16.005) can change the normalization
-    /// that produced them. Until S-CACHE-SPEC-COMPLIANCE-001 implements the
-    /// raw-response model, every config snapshot swap flushes this cache so no
-    /// entry normalized under a retired spec can be served.
+    /// human-authorized BC-2.07.003 deviation documented on [`CacheValue`]).
+    /// Every config snapshot swap (BC-2.16.005) invokes this flush; the
+    /// guarantee is eviction of all pre-swap-epoch entries. Two caveats bound
+    /// what that buys today:
+    ///
+    /// 1. Fetch-path normalization is boot-frozen — `SpecDrivenSensorAdapter`
+    ///    holds the boot-time resolved spec and a reload never rebuilds the
+    ///    `AdapterRegistry` — so a reload does not change how fresh fetches
+    ///    normalize. The flush is forward-provisioning; today's risk posture
+    ///    is "the cache can never be staler than fresh fetches".
+    /// 2. Under BC-2.16.006 in-flight Guard semantics, a query that started
+    ///    before the swap completes under the OLD snapshot and may insert its
+    ///    entry after this flush runs — swap-before-notify covers only
+    ///    queries that start after the swap.
+    ///
+    /// Full reload-effectiveness arrives with S-CACHE-SPEC-COMPLIANCE-001's
+    /// normalize-on-read model.
     ///
     /// Returns `Ok(n)` where `n` is the number of entries evicted (audit
     /// visibility, consistent with the other invalidation primitives).

@@ -2154,10 +2154,26 @@ pub async fn step8_init_query_engine() -> Result<(), BootError> {
 ///
 /// Cached entries store sensor responses in their normalized form (the
 /// human-authorized BC-2.07.003 deviation, P1-03 adjudication 2026-06-10;
-/// spec compliance lands in S-CACHE-SPEC-COMPLIANCE-001). A sensor-spec /
-/// config hot-reload can change the normalization that produced those entries,
-/// so every snapshot swap must purge the cache or stale normalization could be
-/// served until TTL expiry.
+/// spec compliance lands in S-CACHE-SPEC-COMPLIANCE-001). The guarantee this
+/// flush provides: every snapshot swap evicts all pre-swap-epoch cache
+/// entries. Two caveats bound what that buys today:
+///
+/// 1. **Fetch-path normalization is boot-frozen.** `SpecDrivenSensorAdapter`
+///    holds an `Arc<ResolvedSensorSpec>` resolved at boot; a hot-reload swaps
+///    only the `ConfigSnapshot` and never rebuilds the `AdapterRegistry`, so
+///    a reload does not change how fresh fetches normalize. The flush is
+///    forward-provisioning for when adapters consume the live snapshot;
+///    today's risk posture is "the cache can never be staler than fresh
+///    fetches".
+/// 2. **In-flight queries can insert after the flush.** Under BC-2.16.006
+///    Guard semantics, a query that loaded its snapshot Guard before the swap
+///    completes under the OLD snapshot and may cache its result after the
+///    flush runs — swap-before-notify only covers queries that START after
+///    the swap.
+///
+/// Full reload-effectiveness (reload actually changing served normalization,
+/// with no stale residue) arrives with S-CACHE-SPEC-COMPLIANCE-001's
+/// normalize-on-read model.
 ///
 /// Registers a swap listener on the boot-time `ConfigManager` instance.
 /// `ConfigManager::store` is the sole snapshot write path (BC-2.16.006), so
@@ -2473,9 +2489,11 @@ pub async fn step9_start_mcp_server(
 
     // P1-03 interim mitigation: every config snapshot swap (reload_config /
     // add_sensor_spec / future hot-reload watcher — all land on
-    // ConfigManager::store per BC-2.16.006) flushes the response cache so no
-    // entry normalized under a retired spec can be served (review 2026-06-10
-    // Item 1; deviation authorized pending S-CACHE-SPEC-COMPLIANCE-001).
+    // ConfigManager::store per BC-2.16.006) evicts all pre-swap-epoch entries
+    // from the response cache (review 2026-06-10 Item 1; deviation authorized
+    // pending S-CACHE-SPEC-COMPLIANCE-001). See wire_config_swap_cache_flush
+    // docs for the two caveats bounding this guarantee (boot-frozen adapter
+    // normalization; in-flight pre-swap queries may insert after the flush).
     wire_config_swap_cache_flush(&config_manager, Arc::clone(&cache_invalidator));
 
     let write_executor = Arc::new(WriteExecutor::new(

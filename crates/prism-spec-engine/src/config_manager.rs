@@ -84,10 +84,20 @@ impl ConfigManager {
     ///
     /// # Swap-before-notify ordering (P1-03)
     /// Listeners run AFTER the new snapshot is visible to readers. For the
-    /// response-cache flush listener this ordering closes the re-populate race:
-    /// any query that re-caches concurrently with the flush already reads the
-    /// NEW spec, so no entry normalized under the retired spec can be inserted
-    /// after the flush completes.
+    /// response-cache flush listener, the guarantee this provides is: the
+    /// flush evicts every entry cached before the swap (pre-swap-epoch
+    /// entries), and any query that STARTS after the swap loads the new
+    /// snapshot. It does NOT guarantee that no old-snapshot-derived entry can
+    /// be inserted after the flush — under the in-flight Guard semantics
+    /// above (BC-2.16.006), a query that loaded its Guard before the swap
+    /// completes under the OLD snapshot and may insert its result after the
+    /// flush has run. Today that residual window is benign: fetch-path
+    /// normalization is boot-frozen (`SpecDrivenSensorAdapter` holds an
+    /// `Arc<ResolvedSensorSpec>` resolved at boot; `store()` swaps only the
+    /// `ConfigSnapshot` and never rebuilds the `AdapterRegistry`), so a
+    /// post-flush insert from an in-flight query is no staler than a fresh
+    /// fetch. Full reload-effectiveness arrives with
+    /// S-CACHE-SPEC-COMPLIANCE-001's normalize-on-read model.
     pub fn store(&self, new_snapshot: ConfigSnapshot) {
         self.inner.store(Arc::new(new_snapshot));
         self.notify_swap_listeners();
