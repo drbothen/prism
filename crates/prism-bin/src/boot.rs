@@ -2164,7 +2164,11 @@ pub async fn step8_init_query_engine() -> Result<(), BootError> {
 ///
 /// Behavior (current, complete):
 /// - `write_intent` / `write_outcome` emit structured tracing events
-///   (`write.intent.recorded` / `write.outcome.recorded`, BC-2.05.009 family).
+///   (`write.intent.recorded` / `write.outcome.recorded`) — the BC-2.05.001
+///   write-pipeline audit-coverage trail. `write_intent` additionally records
+///   the BC-2.05.009 capability-check fields (`capability_path`,
+///   `compile_time_enabled`, `runtime_enabled`, `result`) derived from the
+///   Phase 2 `CapabilityCheckResult` (P5-03, 2026-06-10 review pass-5).
 /// - `write_tool_call` (MCP-02, 2026-06-10 review) appends a durable
 ///   key+payload envelope to the RocksDB `audit_buffer` CF via the established
 ///   `prism_storage::audit_buffer::append_audit_entry` pattern (same
@@ -2181,6 +2185,44 @@ impl BootAuditWriter {
     pub fn new(storage: Arc<prism_storage::rocksdb_backend::RocksDbBackend>) -> Self {
         BootAuditWriter { storage }
     }
+
+    /// Derive the BC-2.05.009 capability-check audit fields
+    /// (`capability_path`, `compile_time_enabled`, `runtime_enabled`, `result`)
+    /// from the Phase 2 `CapabilityCheckResult` for the `write.intent.recorded`
+    /// emission (P5-03, 2026-06-10 review pass-5).
+    ///
+    /// Field semantics (BC-2.05.009 postconditions + deny-by-default rule):
+    /// - `Allowed`: both tiers passed → `(true, true, "permitted")`. The variant
+    ///   carries no capability path, so it is derived from the plan with the
+    ///   same hyphen→underscore sanitization `WriteExecutor::execute` applied
+    ///   when it built the path for evaluation (`sensor.{sensor}.{verb}`).
+    /// - `DeniedCompileTime`: compile tier denied; the runtime tier is never
+    ///   reached → `(false, false, "denied")` (deny-by-default records the
+    ///   unevaluated tier as not enabled).
+    /// - `DeniedRuntime`: the runtime tier is only evaluated after the compile
+    ///   tier passes → `(true, false, "denied")`.
+    pub fn capability_audit_fields(
+        plan: &prism_query::WritePlan,
+        capability_check: &prism_security::feature_flag::CapabilityCheckResult,
+    ) -> (String, bool, bool, &'static str) {
+        use prism_security::feature_flag::CapabilityCheckResult;
+        match capability_check {
+            CapabilityCheckResult::Allowed => {
+                let path = format!(
+                    "sensor.{}.{}",
+                    plan.sensor.replace('-', "_"),
+                    plan.verb.replace('-', "_")
+                );
+                (path, true, true, "permitted")
+            }
+            CapabilityCheckResult::DeniedCompileTime { capability, .. } => {
+                (capability.clone(), false, false, "denied")
+            }
+            CapabilityCheckResult::DeniedRuntime { capability, .. } => {
+                (capability.clone(), true, false, "denied")
+            }
+        }
+    }
 }
 
 #[async_trait::async_trait]
@@ -2189,14 +2231,23 @@ impl prism_query::write_dispatch::AuditWriter for BootAuditWriter {
         &self,
         plan: &prism_query::WritePlan,
         _context: &prism_query::QueryContext,
-        _capability_check: &prism_security::feature_flag::CapabilityCheckResult,
+        capability_check: &prism_security::feature_flag::CapabilityCheckResult,
     ) -> Result<ulid::Ulid, prism_core::error::PrismError> {
         let id = ulid::Ulid::new();
+        // P5-03 (2026-06-10 review pass-5): record the BC-2.05.009 capability
+        // fields in the intent emission instead of dropping the check result.
+        let (capability_path, compile_time_enabled, runtime_enabled, result) =
+            Self::capability_audit_fields(plan, capability_check);
         tracing::info!(
             event_type = "write.intent.recorded",
             intent_id = %id,
             sensor = %plan.sensor,
-            "write intent recorded (BC-2.05.009 tracing audit stub)"
+            capability_path = %capability_path,
+            compile_time_enabled,
+            runtime_enabled,
+            result = %result,
+            "write intent recorded (BC-2.05.001 tracing audit coverage; \
+             BC-2.05.009 capability fields)"
         );
         Ok(id)
     }
@@ -2210,7 +2261,7 @@ impl prism_query::write_dispatch::AuditWriter for BootAuditWriter {
             intent_id = %intent_id,
             succeeded = result.succeeded_count,
             failed = result.failed_count,
-            "write outcome recorded (BC-2.05.009 tracing audit stub)"
+            "write outcome recorded (BC-2.05.001 tracing audit coverage)"
         );
         Ok(())
     }
