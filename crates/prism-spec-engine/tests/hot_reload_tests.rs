@@ -25,9 +25,7 @@ use prism_spec_engine::{
     SpecEngineError,
     add_sensor_spec::{add_sensor_spec, parse_and_validate_spec_toml},
     config_manager::{ConfigManager, parse_spec_directory},
-    hot_reload::{
-        HotReloadConfig, HotReloadWatcher, SpecChangeEvent, WatchMechanism, process_spec_changes,
-    },
+    hot_reload::{SpecChangeEvent, process_spec_changes},
     list_sensor_specs::list_sensor_specs,
     reload_config::{reload_config, validate_snapshot},
     spec_parser::{AuthType, ColumnSpec, SensorSpec, TableSpec},
@@ -1099,24 +1097,17 @@ fn test_arch_compliance_config_snapshot_immutable_after_construction() {
 }
 
 // ---------------------------------------------------------------------------
-// HotReloadWatcher stub surface tests
-// ---------------------------------------------------------------------------
-
-/// BC-2.16.007: HotReloadWatcher::start stub exists and panics with unimplemented.
-#[test]
-// POL-16-OK: Red Gate stub-surface test — retires when S-1.12 implements HotReloadWatcher::start
-#[should_panic(expected = "not yet implemented")]
-fn test_BC_2_16_007_hot_reload_watcher_start_is_stub() {
-    let dir = TempDir::new().unwrap();
-    let manager = Arc::new(ConfigManager::empty());
-    let config = HotReloadConfig {
-        spec_dir: dir.path().to_path_buf(),
-        debounce_ms: 50,
-        mechanism: WatchMechanism::FsEvents,
-    };
-    let _ = HotReloadWatcher::start(config, manager);
-}
-
+// HotReloadWatcher stub surface
+//
+// P5-03 (cascade pass-5, orchestrator-adjudicated): the inverted-polarity test
+// `test_BC_2_16_007_hot_reload_watcher_start_is_stub` (asserted that
+// HotReloadWatcher::start panics with `unimplemented!`) was RETIRED. Per
+// POL-16 step 3, S-1.12 is a partial merge, so an inverted-polarity test
+// asserting stub residue is in violation regardless of annotation; the
+// POL-16-OK suppress marker was mis-scoped (POL-16's escape covers
+// intentional-panic CONTRACTS, not stub residue). The stub surface remains
+// tracked by POL-12 — `hot_reload.rs` carries the S-1.12 story citation on
+// its `unimplemented!` sites — and by S-1.12-FOLLOWUP ownership.
 // ---------------------------------------------------------------------------
 // S-SPEC-TYPE-UNIFICATION-001 Acceptance Criteria Tests
 //
