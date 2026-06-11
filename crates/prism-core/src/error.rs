@@ -531,6 +531,16 @@ pub enum PrismError {
     #[error("E-QUERY-023: Write verb '{verb}' is not available for source '{sensor_source}'")]
     WriteVerbNotAvailable { verb: String, sensor_source: String },
 
+    /// E-QUERY-036: Query references an unregistered sensor table or an invalid table name prefix.
+    ///
+    /// Caller-resolvable: check spelling or register the sensor in prism.toml.
+    /// Reference: error-taxonomy.md v1.73 E-QUERY-036; BC-2.11.007 EC-001; P6-02 adjudication 2026-06-11.
+    #[error(
+        "E-QUERY-036: unknown source table '{source_name}': table is not a registered sensor \
+         or internal table. Check spelling or register the sensor in prism.toml."
+    )]
+    UnknownSourceTable { source_name: String },
+
     /// E-QUERY-032: Sensor is not registered for the requesting org.
     ///
     /// Raised by `resolve_source_refs` at the query-planning boundary when an

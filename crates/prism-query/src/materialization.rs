@@ -916,51 +916,46 @@ pub(crate) async fn resolve_source_refs(
             continue;
         }
         // ADV-W3MT-P58-LOW-002 / F-LP1-CRITICAL-001: unknown table names (not prism_*,
-        // not a prefix for a registered sensor) return E-QUERY-006 per EC-001.
+        // not a prefix for a registered sensor) return E-QUERY-036 per EC-001.
         // This prevents silent empty results for typos or unregistered sensor names.
         //
         // Two-stage check:
         //   1. sensor_id_from_table_name: extracts and validates the prefix (returns None
         //      for empty or invalid-charset prefixes — cannot be a valid SensorId).
-        //   2. is_sensor_registered: checks adapter_registry membership (returns E-QUERY-006
+        //   2. is_sensor_registered: checks adapter_registry membership (returns E-QUERY-036
         //      for valid-looking prefixes with no registered adapter — unknown sensor name).
+        //
+        // P6-02 adjudication 2026-06-11: returns PrismError::UnknownSourceTable (E-QUERY-036)
+        // instead of QueryExecutionFailed with embedded E-QUERY-006 string. The dedicated
+        // variant maps to -32602 INVALID_PARAMS in error_mapping.rs (caller-resolvable).
         let Some(sensor_id) = sensor_id_from_table_name(source_name) else {
             tracing::debug!(
                 source_name,
-                "resolve_source_refs: unknown sensor prefix; returning E-QUERY-006"
+                "resolve_source_refs: unknown sensor prefix; returning E-QUERY-036"
             );
-            return Err(PrismError::QueryExecutionFailed {
-                detail: format!(
-                    "E-QUERY-006: unknown source table '{source_name}'; \
-                     table is not a registered sensor or internal table. \
-                     Check spelling or register the sensor in prism.toml."
-                ),
+            return Err(PrismError::UnknownSourceTable {
+                source_name: source_name.to_string(),
             });
         };
 
         // F-LP1-CRITICAL-001: after extracting the sensor prefix, verify that at least
         // one adapter is registered for it. Without this check, unknown sensor names
-        // (e.g. "unknown_table") silently produce empty results rather than E-QUERY-006.
+        // (e.g. "unknown_table") silently produce empty results rather than E-QUERY-036.
         //
         // Guard: only apply when the registry is non-empty. An empty registry indicates
         // test mode or early boot where no adapters are wired yet — in that state we
         // cannot distinguish "unknown sensor" from "known sensor not yet registered".
         // In production, the registry is always populated at boot with at least the
         // four built-in sensors; any table prefix absent from a populated registry is
-        // genuinely unknown and must return E-QUERY-006.
+        // genuinely unknown and must return E-QUERY-036.
         if !adapter_registry.is_empty() && !adapter_registry.is_sensor_registered(&sensor_id) {
             tracing::debug!(
                 source_name,
                 sensor_id = %sensor_id,
-                "resolve_source_refs: no adapter registered for sensor prefix; returning E-QUERY-006"
+                "resolve_source_refs: no adapter registered for sensor prefix; returning E-QUERY-036"
             );
-            return Err(PrismError::QueryExecutionFailed {
-                detail: format!(
-                    "E-QUERY-006: unknown source table '{source_name}'; \
-                     sensor prefix '{}' is not registered in the adapter registry. \
-                     Check spelling or register the sensor in prism.toml.",
-                    sensor_id
-                ),
+            return Err(PrismError::UnknownSourceTable {
+                source_name: source_name.to_string(),
             });
         }
 
@@ -2329,6 +2324,138 @@ mod cross_org_isolation_tests {
             targets.len(),
             1,
             "Must produce exactly one FanOutTarget for org_b + claroty; got: {targets:?}"
+        );
+    }
+}
+
+// ---------------------------------------------------------------------------
+// P6-02 unit tests: E-QUERY-036 UnknownSourceTable from resolve_source_refs
+// ---------------------------------------------------------------------------
+
+#[cfg(test)]
+mod unknown_source_table_tests {
+    //! SID-1 unit test: `resolve_source_refs` must return
+    //! `PrismError::UnknownSourceTable` (E-QUERY-036) when:
+    //! (a) the table name prefix fails `sensor_id_from_table_name` validation, OR
+    //! (b) the prefix is valid but not registered in a non-empty AdapterRegistry.
+    //!
+    //! This is the P6-02 adjudication 2026-06-11 regression test.
+    //! Before the fix, both sites returned `QueryExecutionFailed { detail: "E-QUERY-006: ..." }`,
+    //! routing caller-resolvable errors to -32000 INTERNAL_ERROR with a redacted message.
+    //! After the fix, `UnknownSourceTable` routes to -32602 INVALID_PARAMS.
+    //!
+    //! No external DTU or subprocess required (SID-1 compliance).
+    //! Ref: error-taxonomy.md v1.73 E-QUERY-036; BC-2.11.007 EC-001; P6-02 adjudication.
+
+    use std::sync::Arc;
+
+    use async_trait::async_trait;
+    use prism_core::{OrgId, PrismError, SensorId};
+    use prism_sensors::{
+        adapter::{QueryParams, SensorSpec},
+        AdapterRegistry, SensorAdapter, SensorAuth, SensorError,
+    };
+
+    struct StubAdapterForUnknownTest {
+        sensor_id: SensorId,
+    }
+
+    #[async_trait]
+    impl SensorAdapter for StubAdapterForUnknownTest {
+        fn sensor_type(&self) -> SensorId {
+            self.sensor_id.clone()
+        }
+
+        fn sensor_name(&self) -> &'static str {
+            "stub-unknown-test"
+        }
+
+        async fn fetch(
+            &self,
+            _spec: &SensorSpec,
+            _params: &QueryParams,
+            _auth: &dyn SensorAuth,
+        ) -> Result<Vec<arrow::record_batch::RecordBatch>, SensorError> {
+            // Never called — the path under test returns UnknownSourceTable before adapter dispatch.
+            unreachable!("StubAdapterForUnknownTest::fetch must not be called in E-QUERY-036 test")
+        }
+    }
+
+    /// P6-02: `resolve_source_refs` returns `PrismError::UnknownSourceTable` (E-QUERY-036)
+    /// when the registry is non-empty and the queried table prefix is not registered.
+    ///
+    /// Mental-deletion proof: removing the `UnknownSourceTable` return from
+    /// `resolve_source_refs` would cause this test to fail with `Ok(...)` or a
+    /// different error variant — neither of which is `UnknownSourceTable`.
+    #[tokio::test]
+    async fn test_BC_2_11_007_resolve_source_refs_unregistered_prefix_returns_unknown_source_table()
+    {
+        let org_id = OrgId::new();
+        let mut registry = AdapterRegistry::new();
+        registry.register(
+            org_id,
+            Arc::new(StubAdapterForUnknownTest {
+                sensor_id: SensorId::new("crowdstrike"),
+            }),
+        );
+
+        let source_names = vec!["ghost_sensor.devices".to_string()];
+        let clients = vec![];
+        let org_registry = None;
+
+        let result =
+            super::resolve_source_refs(&source_names, &clients, &registry, &org_registry).await;
+
+        let err = result.expect_err(
+            "resolve_source_refs must return Err for unregistered sensor prefix; got Ok",
+        );
+        assert!(
+            matches!(err, PrismError::UnknownSourceTable { .. }),
+            "error must be PrismError::UnknownSourceTable (E-QUERY-036); got: {err:?}"
+        );
+        let display = err.to_string();
+        assert!(
+            display.contains("E-QUERY-036"),
+            "error display must contain 'E-QUERY-036'; got: {display}"
+        );
+        assert!(
+            display.contains("ghost_sensor.devices"),
+            "error display must include the source_name; got: {display}"
+        );
+    }
+
+    /// P6-02: `resolve_source_refs` returns `PrismError::UnknownSourceTable` (E-QUERY-036)
+    /// when the table name prefix fails `sensor_id_from_table_name` validation
+    /// (e.g. empty prefix, invalid charset).
+    ///
+    /// The `...` table name has no valid sensor-id prefix — `sensor_id_from_table_name`
+    /// returns `None`. Even with an empty registry (test-mode guard inactive), the
+    /// prefix-extraction failure fires unconditionally.
+    #[tokio::test]
+    async fn test_BC_2_11_007_resolve_source_refs_invalid_prefix_returns_unknown_source_table() {
+        let mut registry = AdapterRegistry::new();
+        // Register a sensor to make the registry non-empty (triggers the guard).
+        let org_id = OrgId::new();
+        registry.register(
+            org_id,
+            Arc::new(StubAdapterForUnknownTest {
+                sensor_id: SensorId::new("crowdstrike"),
+            }),
+        );
+
+        // A dot-only name: sensor_id_from_table_name returns None for ".".
+        let source_names = vec![".invalid".to_string()];
+        let clients = vec![];
+        let org_registry = None;
+
+        let result =
+            super::resolve_source_refs(&source_names, &clients, &registry, &org_registry).await;
+
+        let err = result
+            .expect_err("resolve_source_refs must return Err for invalid table prefix; got Ok");
+        assert!(
+            matches!(err, PrismError::UnknownSourceTable { .. }),
+            "error must be PrismError::UnknownSourceTable (E-QUERY-036) for invalid prefix; got: {err:?}"
         );
     }
 }

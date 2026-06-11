@@ -1114,12 +1114,15 @@ fn test_alias_echo_truncates_safely_on_unicode_boundary() {
     let query = format!("@alias:{long_name}");
     let result = explain(&query, default_opts());
 
-    // Must return Err, not panic, and the error must contain E-ALIAS-001.
+    // Must return Err, not panic, and the error display must contain E-ALIAS-001.
     assert!(
         result.is_err(),
         "explain() must return Err for undefined alias; got: {result:?}"
     );
-    let err_msg = format!("{:?}", result.unwrap_err());
+    let err_val = result.unwrap_err();
+    // Use Display (not Debug) — PrismError Display starts with "E-ALIAS-001: ...";
+    // Debug shows the struct variant name "AliasNotFound { ... }" without the code prefix.
+    let err_msg = format!("{err_val}");
     assert!(
         err_msg.contains("E-ALIAS-001"),
         "error must be E-ALIAS-001 for undefined alias; got: {err_msg}"

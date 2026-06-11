@@ -118,6 +118,12 @@ pub fn map_prism_error(err: PrismError) -> (i32, String) {
             (codes::INVALID_PARAMS, format!("{err}"))
         }
 
+        // E-QUERY-036: Unknown source table → -32602 Invalid params (caller-resolvable)
+        // MUST be explicit: #[non_exhaustive] fall-through would regress to opaque -32000.
+        // Caller can fix by checking spelling or registering the sensor in prism.toml.
+        // P6-02 adjudication 2026-06-11; error-taxonomy.md v1.73 E-QUERY-036.
+        PrismError::UnknownSourceTable { .. } => (codes::INVALID_PARAMS, format!("{err}")),
+
         // E-QUERY-032: Sensor not registered for org → -32602 Invalid params.
         // SURFACED (NOT redacted): the org slug and sensor name are safe to expose to
         // the MCP caller — they contain no credential values (AD-017). This is an
@@ -383,4 +389,58 @@ pub mod codes {
 pub fn to_error_data(err: PrismError) -> ErrorData {
     let (code, message) = map_prism_error(err);
     ErrorData::new(ErrorCode(code), message, None)
+}
+
+// ---------------------------------------------------------------------------
+// Unit tests for error_mapping
+// ---------------------------------------------------------------------------
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use prism_core::PrismError;
+
+    /// P6-02: UnknownSourceTable (E-QUERY-036) must map to -32602 INVALID_PARAMS.
+    ///
+    /// EXPLICIT arm required: `PrismError` is `#[non_exhaustive]`; without the
+    /// explicit arm the variant would fall through to the catch-all `-32000`
+    /// INTERNAL_ERROR, losing the caller-actionable E-QUERY-036 guidance.
+    #[test]
+    fn test_unknown_source_table_maps_to_invalid_params() {
+        let err = PrismError::UnknownSourceTable {
+            source_name: "ghost_sensor.table".to_string(),
+        };
+        let (code, message) = map_prism_error(err);
+        assert_eq!(
+            code,
+            codes::INVALID_PARAMS,
+            "UnknownSourceTable must map to INVALID_PARAMS (-32602), got: {code}"
+        );
+        assert!(
+            message.contains("E-QUERY-036"),
+            "message must contain 'E-QUERY-036'; got: {message}"
+        );
+        assert!(
+            message.contains("ghost_sensor.table"),
+            "message must include the source_name; got: {message}"
+        );
+    }
+
+    /// UnknownSourceTable must NOT fall through to the catch-all -32000 arm.
+    ///
+    /// This test is distinct from the code-value test above: it explicitly confirms
+    /// the error is NOT -32000, providing a mutation-resistant assertion that the
+    /// explicit arm is load-bearing (not just incidentally green via fall-through).
+    #[test]
+    fn test_unknown_source_table_does_not_map_to_internal_error() {
+        let err = PrismError::UnknownSourceTable {
+            source_name: "unknown.devices".to_string(),
+        };
+        let (code, _) = map_prism_error(err);
+        assert_ne!(
+            code,
+            codes::INTERNAL_ERROR,
+            "UnknownSourceTable must NOT map to INTERNAL_ERROR (-32000); got: {code}"
+        );
+    }
 }

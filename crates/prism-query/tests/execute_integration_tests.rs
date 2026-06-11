@@ -2222,16 +2222,21 @@ async fn test_AC_depth_limit_returns_parse_error() {
 }
 
 // ---------------------------------------------------------------------------
-// F-LP1-CRITICAL-001 regression: unknown source table must return E-QUERY-006
+// F-LP1-CRITICAL-001 regression: unknown source table must return E-QUERY-036
 // ---------------------------------------------------------------------------
 
 /// S-PLUGIN-PREREQ-A F-LP1-CRITICAL-001 regression test.
 ///
 /// An unknown table name (prefix not registered in the adapter registry) MUST
-/// return `Err` containing "E-QUERY-006" rather than silently producing empty
+/// return `Err` containing "E-QUERY-036" rather than silently producing empty
 /// results. Before the fix, `unknown_table | host = 'x'` would silently produce
 /// an empty result set because `sensor_id_from_table_name` accepted any
 /// non-empty prefix, and `get_all_for_sensor("unknown")` returned empty.
+///
+/// P6-02 adjudication 2026-06-11: the error is now `PrismError::UnknownSourceTable`
+/// (E-QUERY-036) rather than `QueryExecutionFailed` with an embedded E-QUERY-006
+/// prefix. Both conditions describe the same caller-visible condition; the variant
+/// change maps the error to -32602 INVALID_PARAMS instead of -32000 INTERNAL_ERROR.
 ///
 /// The registry must be NON-EMPTY for this guard to fire — an empty registry
 /// indicates test/boot mode where the sensor roster is not yet known. In production
@@ -2239,7 +2244,7 @@ async fn test_AC_depth_limit_returns_parse_error() {
 ///
 /// This test verifies the two-stage check: extract prefix + registry membership.
 #[tokio::test]
-async fn test_resolve_source_refs_unknown_table_returns_e_query_006() {
+async fn test_resolve_source_refs_unknown_table_returns_e_query_036() {
     use prism_core::{OrgId, OrgSlug, SensorId};
     use prism_query::engine::QueryOptions;
     use prism_sensors::AdapterRegistry;
@@ -2264,17 +2269,26 @@ async fn test_resolve_source_refs_unknown_table_returns_e_query_006() {
         ..QueryOptions::default()
     };
 
-    // "unknown_table" has prefix "unknown" — not in registry → must be E-QUERY-006.
+    // "unknown_table" has prefix "unknown" — not in registry → must be E-QUERY-036.
     // (Registry is non-empty so the guard fires; "unknown" != "crowdstrike".)
     let result = engine.execute("unknown_table | host = 'x'", options).await;
 
     let err = result.expect_err(
-        "F-LP1-CRITICAL-001: unknown_table must return Err (E-QUERY-006), not empty results",
+        "F-LP1-CRITICAL-001: unknown_table must return Err (E-QUERY-036), not empty results",
+    );
+    // Verify the error is the dedicated UnknownSourceTable variant (E-QUERY-036).
+    assert!(
+        matches!(err, prism_core::PrismError::UnknownSourceTable { .. }),
+        "F-LP1-CRITICAL-001: error must be PrismError::UnknownSourceTable (E-QUERY-036); got: {err:?}"
     );
     let detail = err.to_string();
     assert!(
-        detail.contains("E-QUERY-006"),
-        "F-LP1-CRITICAL-001: error must contain 'E-QUERY-006'; got: {detail}"
+        detail.contains("E-QUERY-036"),
+        "F-LP1-CRITICAL-001: error display must contain 'E-QUERY-036'; got: {detail}"
+    );
+    assert!(
+        detail.contains("unknown_table"),
+        "F-LP1-CRITICAL-001: error display must include the unknown table name; got: {detail}"
     );
 }
 
