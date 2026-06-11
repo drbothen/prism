@@ -2248,7 +2248,21 @@ impl prism_query::write_dispatch::AuditWriter for BootAuditWriter {
                 payload,
             },
         )
-        .map_err(|_| prism_core::error::PrismError::AuditPersistenceFailed)
+        .map_err(|e| {
+            // P4-06 (2026-06-10 review pass-4): surface the storage-layer cause
+            // before collapsing to the typed E-AUDIT-001 variant. The caller
+            // (`emit_tool_audit`) only sees `AuditPersistenceFailed`, so without
+            // this log the underlying detail (e.g. StorageWriteFailed cause)
+            // would be lost to operators.
+            tracing::warn!(
+                tool_name = %tool_name,
+                error = %e,
+                "write_tool_call: audit_buffer append failed — mapping to \
+                 AuditPersistenceFailed (E-AUDIT-001); read-path tool call \
+                 proceeds with _meta.audit_warning (BC-2.05.001 EC-05-002)"
+            );
+            prism_core::error::PrismError::AuditPersistenceFailed
+        })
     }
 }
 
