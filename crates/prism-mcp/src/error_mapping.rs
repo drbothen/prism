@@ -294,11 +294,16 @@ pub fn map_prism_error(err: PrismError) -> (i32, String) {
             "Internal error; see audit log".to_owned(),
         ),
 
-        // E-AUDIT-001: Audit persistence failure → -32000 Internal
-        PrismError::AuditPersistenceFailed => (
-            codes::INTERNAL_ERROR,
-            "Internal error; see audit log".to_owned(),
-        ),
+        // E-AUDIT-001: Audit persistence failure → -32000 Internal.
+        // The variant Display IS the taxonomy-verbatim structured error
+        // ("E-AUDIT-001: Audit emission failed; write operation blocked. Retry
+        // the operation. ...") mandated by the BC-2.05.001 DEC-014 fail-closed
+        // contract: write-classified tools abort with this structured error
+        // when audit emission fails (P5-02, 2026-06-10 review pass-5). Surfaced
+        // verbatim (not the generic internal-error suppression): the message
+        // carries no sensitive detail and the agent caller needs the code +
+        // retry suggestion to act on the transient, retryable condition.
+        PrismError::AuditPersistenceFailed => (codes::INTERNAL_ERROR, format!("{err}")),
 
         // E-INFUSE-*: Infusion errors → -32000 Internal
         PrismError::Infusion(_) => (

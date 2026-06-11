@@ -30,6 +30,7 @@ use std::{
 
 // CRIT-1: arrow-json for RecordBatch → JSON rows serialization.
 use arrow_json;
+use prism_audit::{ToolClass, ToolClassificationRegistry};
 use prism_core::error::PrismError;
 use prism_query::{
     alias_store::AliasStore, engine::QueryEngine, write_dispatch::AuditWriter,
@@ -1377,6 +1378,36 @@ fn not_yet_available_msg(feature: &str) -> rmcp::model::ErrorData {
     )
 }
 
+/// Tool classification registry for the BC-2.05.001 two-class audit contract
+/// (P5-02, 2026-06-10 review pass-5).
+///
+/// Uses prism-audit's [`ToolClassificationRegistry`] / [`ToolClass`] types.
+/// The four write/mutation-capable MCP tool handlers are classified
+/// [`ToolClass::WriteTool`] (fail-closed on audit failure per BC-2.05.001
+/// DEC-014):
+///
+/// - `confirm_action` — confirmed action execution (write + alias-token paths)
+/// - `add_sensor_spec` — writes a sensor spec TOML to `spec_dir`
+/// - `create_alias` — alias-registry mutation + overwrite-confirmation token
+///   generation
+/// - `delete_alias` — alias-registry mutation + delete-confirmation token
+///   generation
+///
+/// Every other tool defaults to [`ToolClass::ReadTool`] (fail-open with
+/// `_meta.audit_warning` per BC-2.05.001 EC-05-002), mirroring the
+/// unclassified-tool default in `prism_audit::AuditEmitterService::call`.
+fn tool_classification_registry() -> &'static ToolClassificationRegistry {
+    static REGISTRY: std::sync::OnceLock<ToolClassificationRegistry> = std::sync::OnceLock::new();
+    REGISTRY.get_or_init(|| {
+        let mut registry = ToolClassificationRegistry::new();
+        registry.insert("confirm_action", ToolClass::WriteTool);
+        registry.insert("add_sensor_spec", ToolClass::WriteTool);
+        registry.insert("create_alias", ToolClass::WriteTool);
+        registry.insert("delete_alias", ToolClass::WriteTool);
+        registry
+    })
+}
+
 /// Emit an audit entry for a tool invocation.
 ///
 /// CRIT-005 / BC-2.05.001: every tool call must produce a structured audit entry.
@@ -1385,19 +1416,33 @@ fn not_yet_available_msg(feature: &str) -> rmcp::model::ErrorData {
 /// 1. **Tracing** — the `mcp.tool.called` structured event (BC-2.16.002 catalog row).
 /// 2. **Durable** — MCP-02 (2026-06-10 review): when an `AuditWriter` is wired,
 ///    `AuditWriter::write_tool_call` persists the record to the RocksDB
-///    `audit_buffer` CF. Tool-call audit is NOT fail-closed (BC-2.05.001
-///    postcondition "Read operations proceed on audit failure" / EC-05-002):
-///    on persistence failure a WARN is logged with `audit_warning` semantics
-///    and the tool call proceeds.
+///    `audit_buffer` CF.
 ///
 /// The durable per-call write via `AuditWriter::write_tool_call` IS the
 /// production MCP tool-call audit mechanism (P1-04, 2026-06-10 review pass-1).
 ///
+/// # Two-class audit-failure contract (P5-02, BC-2.05.001)
+///
+/// Durable-audit failure handling depends on the tool's classification in
+/// [`tool_classification_registry`]:
+///
+/// - **Write-classified tools** (`ToolClass::WriteTool`) are FAIL-CLOSED
+///   (BC-2.05.001 postcondition / DEC-014): on persistence failure this
+///   function returns `Err` carrying the `E-AUDIT-001` structured error
+///   ("Audit emission failed; write operation blocked"). Handlers propagate
+///   it with `?` so the write is aborted BEFORE any mutation or confirmation
+///   token generation — the write is never executed without a successful
+///   audit record.
+/// - **Read-classified tools** (`ToolClass::ReadTool`, the default) are
+///   FAIL-OPEN (BC-2.05.001 EC-05-002): on persistence failure a WARN is
+///   logged and `Ok(Some("audit emission failed"))`
+///   ([`AUDIT_EMISSION_FAILED_WARNING`]) is returned; the tool call proceeds.
+///
 /// # Return value — `_meta.audit_warning` threading (P4-03, BC-2.05.001)
 ///
-/// Returns `Some("audit emission failed")` ([`AUDIT_EMISSION_FAILED_WARNING`])
-/// when the durable audit write failed, `None` otherwise. Handlers that return
-/// a success envelope MUST thread this value into
+/// Returns `Ok(Some("audit emission failed"))` when the durable audit write
+/// failed for a read-classified tool, `Ok(None)` otherwise. Handlers that
+/// return a success envelope MUST thread this value into
 /// `SafetyEnvelopeBuilder::wrap(..., audit_warning)` so the response carries
 /// `_meta.audit_warning` per BC-2.05.001 EC-05-002. Handlers that return a
 /// JSON-RPC error (e.g. the `-32003 not_yet_available` stubs) have no `_meta`
@@ -1407,7 +1452,11 @@ async fn emit_tool_audit(
     tool: &str,
     client_id: Option<&str>,
     outcome: &str,
-) -> Option<String> {
+) -> Result<Option<String>, rmcp::model::ErrorData> {
+    let tool_class = tool_classification_registry()
+        .get(tool)
+        .copied()
+        .unwrap_or(ToolClass::ReadTool);
     // Structured tracing emission — BC-2.16.002 catalog row: mcp.tool.called
     tracing::info!(
         event_type = "mcp.tool.called",
@@ -1419,18 +1468,36 @@ async fn emit_tool_audit(
     match audit_writer {
         Some(writer) => {
             if let Err(e) = writer.write_tool_call(tool, client_id, outcome).await {
-                // Not fail-closed: read-path audit failure is surfaced as a warning,
-                // not an abort (BC-2.05.001 EC-05-002 `audit_warning` semantics).
-                tracing::warn!(
-                    tool_name = %tool,
-                    error = %e,
-                    audit_warning = AUDIT_EMISSION_FAILED_WARNING,
-                    "emit_tool_audit: durable tool-call audit write failed — \
-                     tool call proceeds (read-path audit is not fail-closed)"
-                );
-                return Some(AUDIT_EMISSION_FAILED_WARNING.to_owned());
+                return match tool_class {
+                    ToolClass::WriteTool => {
+                        // Fail-closed: write-classified tool audit failure aborts
+                        // the operation with E-AUDIT-001 BEFORE any mutation or
+                        // token generation (BC-2.05.001 DEC-014).
+                        tracing::error!(
+                            tool_name = %tool,
+                            error = %e,
+                            "emit_tool_audit: durable tool-call audit write failed \
+                             for write-classified tool — operation ABORTED with \
+                             E-AUDIT-001 (BC-2.05.001 DEC-014 fail-closed)"
+                        );
+                        Err(to_error_data(PrismError::AuditPersistenceFailed))
+                    }
+                    ToolClass::ReadTool => {
+                        // Fail-open: read-path audit failure is surfaced as a
+                        // warning, not an abort (BC-2.05.001 EC-05-002
+                        // `audit_warning` semantics).
+                        tracing::warn!(
+                            tool_name = %tool,
+                            error = %e,
+                            audit_warning = AUDIT_EMISSION_FAILED_WARNING,
+                            "emit_tool_audit: durable tool-call audit write failed — \
+                             tool call proceeds (read-path audit is not fail-closed)"
+                        );
+                        Ok(Some(AUDIT_EMISSION_FAILED_WARNING.to_owned()))
+                    }
+                };
             }
-            None
+            Ok(None)
         }
         None => {
             // Test-only construction (PrismServer::new()) — production boot
@@ -1440,7 +1507,7 @@ async fn emit_tool_audit(
                 "emit_tool_audit: AuditWriter not wired — tracing-only audit \
                  (test-only construction path)"
             );
-            None
+            Ok(None)
         }
     }
 }
@@ -1496,7 +1563,7 @@ impl PrismServer {
                 .and_then(|c| c.first().map(|s| s.as_str())),
             "invoked",
         )
-        .await;
+        .await?;
 
         // P1-02 (2026-06-10 review pass-1): map the full tool-param surface
         // (clients per F-PASS12-CRIT-2, limit per BC-2.11.001, force_refresh per
@@ -1623,7 +1690,7 @@ impl PrismServer {
                 .and_then(|c| c.first().map(|s| s.as_str())),
             "invoked",
         )
-        .await;
+        .await?;
 
         let Some(qe) = &self.query_engine else {
             return Err(to_error_data(PrismError::Internal {
@@ -1751,7 +1818,7 @@ impl PrismServer {
             params.scope.as_deref(),
             "invoked",
         )
-        .await;
+        .await?;
 
         // CRIT-4 fix: wire create_alias via the real AliasStore.
         let Some(alias_arc) = &self.alias_store else {
@@ -1863,7 +1930,7 @@ impl PrismServer {
             params.client_id.as_deref(),
             "invoked",
         )
-        .await;
+        .await?;
 
         // CRIT-4 fix: wire list_aliases via the real AliasStore.
         let Some(alias_arc) = &self.alias_store else {
@@ -1939,7 +2006,7 @@ impl PrismServer {
             params.scope.as_deref(),
             "invoked",
         )
-        .await;
+        .await?;
 
         // CRIT-4 fix: wire delete_alias via the real AliasStore.
         let Some(alias_arc) = &self.alias_store else {
@@ -2048,7 +2115,7 @@ impl PrismServer {
             params.scope.as_deref(),
             "invoked",
         )
-        .await;
+        .await?;
 
         // CRIT-4 fix: wire explain_alias via the real AliasStore.
         let Some(alias_arc) = &self.alias_store else {
@@ -2133,7 +2200,7 @@ impl PrismServer {
             Some(&params.client_id),
             "invoked",
         )
-        .await;
+        .await?;
 
         // WriteExecutor must be wired — enforced by boot step 9.
         let Some(we) = &self.write_executor else {
@@ -2583,7 +2650,7 @@ impl PrismServer {
             None,
             "invoked",
         )
-        .await;
+        .await?;
 
         // CRIT-4 fix: sensor health check requires live adapter pings (GAP-002-A).
         // AdapterRegistry is intentionally empty — all sensor auth routes through WASM
@@ -2630,7 +2697,7 @@ impl PrismServer {
             None,
             "invoked",
         )
-        .await;
+        .await?;
 
         // CRIT-4 fix: sensor diagnostics require live adapter queries (GAP-002-A).
         // AdapterRegistry is intentionally empty — all sensor auth routes through WASM
@@ -2665,7 +2732,7 @@ impl PrismServer {
         &self,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
         let audit_warning =
-            emit_tool_audit(self.audit_writer.as_ref(), "reload_config", None, "invoked").await;
+            emit_tool_audit(self.audit_writer.as_ref(), "reload_config", None, "invoked").await?;
 
         // CRIT-4 fix: reload from disk using real ConfigManager + spec_dir.
         let Some(cm_arc) = &self.config_manager else {
@@ -2757,7 +2824,7 @@ impl PrismServer {
             None,
             "invoked",
         )
-        .await;
+        .await?;
 
         // CRIT-4 fix: add sensor spec via real ConfigManager + spec_dir.
         let Some(cm_arc) = &self.config_manager else {
@@ -2870,7 +2937,7 @@ impl PrismServer {
             None,
             "invoked",
         )
-        .await;
+        .await?;
 
         // CRIT-4 fix: use real ConfigManager when wired.
         let Some(cm_arc) = &self.config_manager else {
@@ -2959,7 +3026,7 @@ impl PrismServer {
             None,
             "invoked",
         )
-        .await;
+        .await?;
 
         // CRIT-4 fix: validate TOML content via parse_and_validate_spec_toml.
         // ConfigManager is not required for validation — the function only needs the raw TOML.
@@ -3044,7 +3111,7 @@ impl PrismServer {
             params.client_id.as_deref(),
             "invoked",
         )
-        .await;
+        .await?;
 
         // CRIT-4 fix: report capability status via FeatureFlagEvaluator from WriteExecutor.
         // FeatureFlagEvaluator is available when WriteExecutor is wired.
@@ -3161,7 +3228,7 @@ impl PrismServer {
             None,
             "invoked",
         )
-        .await;
+        .await?;
         Err(not_yet_available_msg("schedule management"))
     }
 
@@ -3192,7 +3259,7 @@ impl PrismServer {
             None,
             "invoked",
         )
-        .await;
+        .await?;
         Err(not_yet_available_msg("schedule management"))
     }
 
@@ -3227,7 +3294,7 @@ impl PrismServer {
             None,
             "invoked",
         )
-        .await;
+        .await?;
         Err(not_yet_available_msg("schedule management"))
     }
 
@@ -3262,7 +3329,7 @@ impl PrismServer {
             None,
             "invoked",
         )
-        .await;
+        .await?;
         Err(not_yet_available_msg("schedule management"))
     }
 
@@ -3301,7 +3368,7 @@ impl PrismServer {
             inputs.push(("scope", scope.as_str()));
         }
         self.scan_inputs_audited("create_rule", &inputs).await?;
-        emit_tool_audit(self.audit_writer.as_ref(), "create_rule", None, "invoked").await;
+        emit_tool_audit(self.audit_writer.as_ref(), "create_rule", None, "invoked").await?;
         Err(not_yet_available_msg("detection rules"))
     }
 
@@ -3324,7 +3391,7 @@ impl PrismServer {
         output_schema = schema_for_type::<ResponseEnvelopeSchema>()
     )]
     pub async fn list_rules(&self) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
-        emit_tool_audit(self.audit_writer.as_ref(), "list_rules", None, "invoked").await;
+        emit_tool_audit(self.audit_writer.as_ref(), "list_rules", None, "invoked").await?;
         Err(not_yet_available_msg("detection rules"))
     }
 
@@ -3354,7 +3421,7 @@ impl PrismServer {
         validate_id_field("id", params.id.as_str())?;
         self.scan_inputs_audited("delete_rule", &[("id", params.id.as_str())])
             .await?;
-        emit_tool_audit(self.audit_writer.as_ref(), "delete_rule", None, "invoked").await;
+        emit_tool_audit(self.audit_writer.as_ref(), "delete_rule", None, "invoked").await?;
         Err(not_yet_available_msg("detection rules"))
     }
 
@@ -3395,7 +3462,7 @@ impl PrismServer {
             inputs.push(("scope", scope.as_str()));
         }
         self.scan_inputs_audited("create_case", &inputs).await?;
-        emit_tool_audit(self.audit_writer.as_ref(), "create_case", None, "invoked").await;
+        emit_tool_audit(self.audit_writer.as_ref(), "create_case", None, "invoked").await?;
         Err(not_yet_available_msg("case management"))
     }
 
@@ -3418,7 +3485,7 @@ impl PrismServer {
         output_schema = schema_for_type::<ResponseEnvelopeSchema>()
     )]
     pub async fn list_cases(&self) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
-        emit_tool_audit(self.audit_writer.as_ref(), "list_cases", None, "invoked").await;
+        emit_tool_audit(self.audit_writer.as_ref(), "list_cases", None, "invoked").await?;
         Err(not_yet_available_msg("case management"))
     }
 
@@ -3448,7 +3515,7 @@ impl PrismServer {
         validate_id_field("id", params.id.as_str())?;
         self.scan_inputs_audited("get_case", &[("id", params.id.as_str())])
             .await?;
-        emit_tool_audit(self.audit_writer.as_ref(), "get_case", None, "invoked").await;
+        emit_tool_audit(self.audit_writer.as_ref(), "get_case", None, "invoked").await?;
         Err(not_yet_available_msg("case management"))
     }
 
@@ -3491,7 +3558,7 @@ impl PrismServer {
             inputs.push(("description", desc.as_str()));
         }
         self.scan_inputs_audited("update_case", &inputs).await?;
-        emit_tool_audit(self.audit_writer.as_ref(), "update_case", None, "invoked").await;
+        emit_tool_audit(self.audit_writer.as_ref(), "update_case", None, "invoked").await?;
         Err(not_yet_available_msg("case management"))
     }
 
@@ -3516,7 +3583,7 @@ impl PrismServer {
     pub async fn case_metrics(
         &self,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
-        emit_tool_audit(self.audit_writer.as_ref(), "case_metrics", None, "invoked").await;
+        emit_tool_audit(self.audit_writer.as_ref(), "case_metrics", None, "invoked").await?;
         Err(not_yet_available_msg("case management"))
     }
 
@@ -3556,7 +3623,7 @@ impl PrismServer {
             Some(params.client_id.as_str()),
             "invoked",
         )
-        .await;
+        .await?;
         Err(not_yet_available_msg("credential management"))
     }
 
@@ -3594,7 +3661,7 @@ impl PrismServer {
             Some(params.client_id.as_str()),
             "invoked",
         )
-        .await;
+        .await?;
         Err(not_yet_available_msg("credential management"))
     }
 
@@ -3642,7 +3709,7 @@ impl PrismServer {
             Some(params.client_id.as_str()),
             "invoked",
         )
-        .await;
+        .await?;
         Err(not_yet_available_msg("credential management"))
     }
 
@@ -3688,7 +3755,7 @@ impl PrismServer {
             Some(params.client_id.as_str()),
             "invoked",
         )
-        .await;
+        .await?;
         Err(not_yet_available_msg("credential management"))
     }
 
@@ -3722,7 +3789,7 @@ impl PrismServer {
             None,
             "invoked",
         )
-        .await;
+        .await?;
         Err(not_yet_available_msg("watchdog"))
     }
 
@@ -3800,7 +3867,7 @@ impl PrismServer {
             params.client_id.as_deref(),
             "invoked",
         )
-        .await;
+        .await?;
         Err(not_yet_available_msg("alerting"))
     }
 
@@ -3829,7 +3896,7 @@ impl PrismServer {
         validate_id_field("alert_id", params.alert_id.as_str())?;
         self.scan_inputs_audited("get_alert", &[("alert_id", params.alert_id.as_str())])
             .await?;
-        emit_tool_audit(self.audit_writer.as_ref(), "get_alert", None, "invoked").await;
+        emit_tool_audit(self.audit_writer.as_ref(), "get_alert", None, "invoked").await?;
         Err(not_yet_available_msg("alerting"))
     }
 
@@ -3867,7 +3934,7 @@ impl PrismServer {
             None,
             "invoked",
         )
-        .await;
+        .await?;
         Err(not_yet_available_msg("alerting"))
     }
 
@@ -3911,7 +3978,7 @@ impl PrismServer {
             Some(params.client_id.as_str()),
             "invoked",
         )
-        .await;
+        .await?;
         Err(not_yet_available_msg("crowdstrike sensor actions"))
     }
 
@@ -3953,7 +4020,7 @@ impl PrismServer {
             Some(params.client_id.as_str()),
             "invoked",
         )
-        .await;
+        .await?;
         Err(not_yet_available_msg("crowdstrike sensor actions"))
     }
 
@@ -3981,7 +4048,7 @@ impl PrismServer {
         &self,
         Parameters(_params): Parameters<ListPacksParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
-        emit_tool_audit(self.audit_writer.as_ref(), "list_packs", None, "invoked").await;
+        emit_tool_audit(self.audit_writer.as_ref(), "list_packs", None, "invoked").await?;
         Err(not_yet_available_msg("pack management"))
     }
 
@@ -4023,7 +4090,7 @@ impl PrismServer {
             params.client_id.as_deref(),
             "invoked",
         )
-        .await;
+        .await?;
         Err(not_yet_available_msg("pack management"))
     }
 
@@ -4081,7 +4148,7 @@ impl PrismServer {
             }
         }
         self.scan_inputs_audited("create_pack", &inputs).await?;
-        emit_tool_audit(self.audit_writer.as_ref(), "create_pack", None, "invoked").await;
+        emit_tool_audit(self.audit_writer.as_ref(), "create_pack", None, "invoked").await?;
         Err(not_yet_available_msg("pack management"))
     }
 
@@ -4111,7 +4178,7 @@ impl PrismServer {
         validate_id_field("pack_id", params.pack_id.as_str())?;
         self.scan_inputs_audited("delete_pack", &[("pack_id", params.pack_id.as_str())])
             .await?;
-        emit_tool_audit(self.audit_writer.as_ref(), "delete_pack", None, "invoked").await;
+        emit_tool_audit(self.audit_writer.as_ref(), "delete_pack", None, "invoked").await?;
         Err(not_yet_available_msg("pack management"))
     }
 
@@ -4150,7 +4217,7 @@ impl PrismServer {
             params.client_id.as_deref(),
             "invoked",
         )
-        .await;
+        .await?;
         Err(not_yet_available_msg("infusion management"))
     }
 
@@ -4188,7 +4255,7 @@ impl PrismServer {
             None,
             "invoked",
         )
-        .await;
+        .await?;
         Err(not_yet_available_msg("infusion management"))
     }
 
@@ -4226,7 +4293,7 @@ impl PrismServer {
             None,
             "invoked",
         )
-        .await;
+        .await?;
         Err(not_yet_available_msg("infusion management"))
     }
 
@@ -4254,7 +4321,7 @@ impl PrismServer {
         &self,
         Parameters(_params): Parameters<ListPluginsParams>,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
-        emit_tool_audit(self.audit_writer.as_ref(), "list_plugins", None, "invoked").await;
+        emit_tool_audit(self.audit_writer.as_ref(), "list_plugins", None, "invoked").await?;
         Err(not_yet_available_msg("plugin management"))
     }
 
@@ -4283,7 +4350,7 @@ impl PrismServer {
         validate_id_field("plugin_id", params.plugin_id.as_str())?;
         self.scan_inputs_audited("plugin_status", &[("plugin_id", params.plugin_id.as_str())])
             .await?;
-        emit_tool_audit(self.audit_writer.as_ref(), "plugin_status", None, "invoked").await;
+        emit_tool_audit(self.audit_writer.as_ref(), "plugin_status", None, "invoked").await?;
         Err(not_yet_available_msg("plugin management"))
     }
 
@@ -4312,7 +4379,7 @@ impl PrismServer {
         validate_id_field("plugin_id", params.plugin_id.as_str())?;
         self.scan_inputs_audited("reload_plugin", &[("plugin_id", params.plugin_id.as_str())])
             .await?;
-        emit_tool_audit(self.audit_writer.as_ref(), "reload_plugin", None, "invoked").await;
+        emit_tool_audit(self.audit_writer.as_ref(), "reload_plugin", None, "invoked").await?;
         Err(not_yet_available_msg("plugin management"))
     }
 
@@ -4351,7 +4418,7 @@ impl PrismServer {
             params.client_id.as_deref(),
             "invoked",
         )
-        .await;
+        .await?;
         Err(not_yet_available_msg("action management"))
     }
 
@@ -4380,7 +4447,7 @@ impl PrismServer {
         validate_id_field("action_id", params.action_id.as_str())?;
         self.scan_inputs_audited("action_status", &[("action_id", params.action_id.as_str())])
             .await?;
-        emit_tool_audit(self.audit_writer.as_ref(), "action_status", None, "invoked").await;
+        emit_tool_audit(self.audit_writer.as_ref(), "action_status", None, "invoked").await?;
         Err(not_yet_available_msg("action management"))
     }
 
@@ -4416,7 +4483,7 @@ impl PrismServer {
             inputs.push(("context", ctx.as_str()));
         }
         self.scan_inputs_audited("fire_action", &inputs).await?;
-        emit_tool_audit(self.audit_writer.as_ref(), "fire_action", None, "invoked").await;
+        emit_tool_audit(self.audit_writer.as_ref(), "fire_action", None, "invoked").await?;
         Err(not_yet_available_msg("action management"))
     }
 
@@ -4445,7 +4512,7 @@ impl PrismServer {
         validate_id_field("action_id", params.action_id.as_str())?;
         self.scan_inputs_audited("test_action", &[("action_id", params.action_id.as_str())])
             .await?;
-        emit_tool_audit(self.audit_writer.as_ref(), "test_action", None, "invoked").await;
+        emit_tool_audit(self.audit_writer.as_ref(), "test_action", None, "invoked").await?;
         Err(not_yet_available_msg("action management"))
     }
 
@@ -4475,7 +4542,7 @@ impl PrismServer {
         validate_text_field("spec_toml", params.spec_toml.as_str(), 256 * 1024)?;
         self.scan_inputs_audited("create_action", &[("spec_toml", params.spec_toml.as_str())])
             .await?;
-        emit_tool_audit(self.audit_writer.as_ref(), "create_action", None, "invoked").await;
+        emit_tool_audit(self.audit_writer.as_ref(), "create_action", None, "invoked").await?;
         Err(not_yet_available_msg("action management"))
     }
 
@@ -4504,7 +4571,7 @@ impl PrismServer {
         validate_id_field("action_id", params.action_id.as_str())?;
         self.scan_inputs_audited("delete_action", &[("action_id", params.action_id.as_str())])
             .await?;
-        emit_tool_audit(self.audit_writer.as_ref(), "delete_action", None, "invoked").await;
+        emit_tool_audit(self.audit_writer.as_ref(), "delete_action", None, "invoked").await?;
         Err(not_yet_available_msg("action management"))
     }
 
@@ -4536,7 +4603,7 @@ impl PrismServer {
         validate_text_field("topic", params.topic.as_str(), 256)?;
         self.scan_inputs_audited("get_help", &[("topic", params.topic.as_str())])
             .await?;
-        emit_tool_audit(self.audit_writer.as_ref(), "get_help", None, "invoked").await;
+        emit_tool_audit(self.audit_writer.as_ref(), "get_help", None, "invoked").await?;
         Err(not_yet_available_msg("help system"))
     }
 }
@@ -7056,7 +7123,9 @@ mod tests {
         let recording = Arc::new(RecordingAudit::default());
         let writer: Arc<dyn AuditWriter> = recording.clone();
 
-        let warning = emit_tool_audit(Some(&writer), "query", Some("acme"), "invoked").await;
+        let warning = emit_tool_audit(Some(&writer), "query", Some("acme"), "invoked")
+            .await
+            .expect("read tool audit emission must not abort");
         assert_eq!(
             warning, None,
             "BC-2.05.001 (P4-03): successful audit emission must return None — \
@@ -7110,8 +7179,51 @@ mod tests {
     #[tokio::test]
     async fn test_MCP_02_audit_write_failure_does_not_abort() {
         let writer: Arc<dyn AuditWriter> = Arc::new(FailingAudit);
-        // Must complete without panic — failure is logged, not propagated.
-        emit_tool_audit(Some(&writer), "query", None, "invoked").await;
+        // Read-classified tool: failure is surfaced as a warning, not an abort
+        // (BC-2.05.001 EC-05-002 — fail-open is read-path-only per P5-02).
+        let result = emit_tool_audit(Some(&writer), "query", None, "invoked").await;
+        assert!(
+            result.is_ok(),
+            "read-classified tool audit failure must NOT abort; got {result:?}"
+        );
+    }
+
+    /// P5-02 (2026-06-10 review pass-5) / BC-2.05.001 DEC-014: a WRITE-classified
+    /// tool whose durable audit emission fails must ABORT — `emit_tool_audit`
+    /// returns `Err` carrying the `E-AUDIT-001` structured error, never a
+    /// fail-open warning.
+    ///
+    /// Mental-deletion proof: if the two-class contract is removed (all tools
+    /// fail-open), this returns `Ok(Some("audit emission failed"))` and the
+    /// `expect_err` fails.
+    #[tokio::test]
+    async fn test_BC_2_05_001_emit_tool_audit_write_tool_failure_returns_e_audit_001() {
+        let writer: Arc<dyn AuditWriter> = Arc::new(FailingAudit);
+        for write_tool in [
+            "confirm_action",
+            "add_sensor_spec",
+            "create_alias",
+            "delete_alias",
+        ] {
+            let err = emit_tool_audit(Some(&writer), write_tool, None, "invoked")
+                .await
+                .expect_err("write-classified tool audit failure must ABORT (DEC-014)");
+            assert_eq!(
+                err.code.0,
+                codes::INTERNAL_ERROR,
+                "E-AUDIT-001 maps to -32000 Internal for '{write_tool}'; got {}",
+                err.code.0
+            );
+            assert!(
+                err.message.contains("E-AUDIT-001")
+                    && err
+                        .message
+                        .contains("Audit emission failed; write operation blocked"),
+                "BC-2.05.001 DEC-014: '{write_tool}' abort must carry the verbatim \
+                 E-AUDIT-001 taxonomy message; got: '{}'",
+                err.message
+            );
+        }
     }
 
     /// BC-2.05.001 EC-05-002 (P4-03, 2026-06-10 review pass-4): when the
@@ -7124,7 +7236,9 @@ mod tests {
     #[tokio::test]
     async fn test_BC_2_05_001_emit_tool_audit_returns_warning_on_failure() {
         let writer: Arc<dyn AuditWriter> = Arc::new(FailingAudit);
-        let warning = emit_tool_audit(Some(&writer), "query", None, "invoked").await;
+        let warning = emit_tool_audit(Some(&writer), "query", None, "invoked")
+            .await
+            .expect("read tool audit failure must not abort (EC-05-002)");
         assert_eq!(
             warning.as_deref(),
             Some("audit emission failed"),
@@ -7143,7 +7257,9 @@ mod tests {
     /// fabricated when there is no durable write to fail.
     #[tokio::test]
     async fn test_BC_2_05_001_emit_tool_audit_unwired_returns_none() {
-        let warning = emit_tool_audit(None, "query", None, "invoked").await;
+        let warning = emit_tool_audit(None, "query", None, "invoked")
+            .await
+            .expect("unwired AuditWriter path must not abort");
         assert_eq!(
             warning, None,
             "unwired AuditWriter (test-only construction) must not fabricate \
@@ -7198,6 +7314,226 @@ mod tests {
             "BC-2.05.001: _meta.audit_warning must be OMITTED when audit \
              emission succeeds; got _meta: {}",
             json["_meta"]
+        );
+    }
+
+    // ─── P5-02 (2026-06-10 review pass-5) — BC-2.05.001 fail-closed write tools ──
+    //
+    // BC-2.05.001 postcondition "Write operations fail-closed on audit failure"
+    // (DEC-014): if audit emission fails for a write operation (including
+    // confirmation token generation and confirmed action execution), the write
+    // is aborted with the E-AUDIT-001 structured error BEFORE any mutation or
+    // token generation. Read tools keep the EC-05-002 fail-open behavior.
+    //
+    // Each test wires a FailingAudit writer into the production handler path and
+    // asserts (a) the handler returns the E-AUDIT-001 structured error and
+    // (b) the underlying store is untouched (no mutation occurred).
+
+    /// P5-02: confirm_action with failing audit → E-AUDIT-001 abort BEFORE the
+    /// token is peeked or consumed — the stored token must remain in the store.
+    ///
+    /// Mental-deletion proof: under fail-open behavior the handler proceeds to
+    /// the token peek + capability check and returns FORBIDDEN (-32002) from the
+    /// empty-client-map evaluator — the E-AUDIT-001 assertion fails.
+    #[tokio::test]
+    async fn test_BC_2_05_001_confirm_action_audit_failure_aborts_before_token_consumption() {
+        use prism_security::confirmation_token::BoundingMetadata;
+
+        let (mut server, confirmation_store, _tmpdir) = build_server_for_f_pass16_med2_tests();
+        server.audit_writer = Some(Arc::new(FailingAudit));
+
+        let client_id = "test-client";
+        let action_params = serde_json::json!({
+            "sensor": "test_sensor",
+            "target_table": "test_sensor_table",
+            "verb": "test_verb",
+            "params": {}
+        });
+        let token = confirmation_store
+            .generate_with_bounding(
+                client_id,
+                "write.test_verb",
+                action_params,
+                "test action",
+                BoundingMetadata::new(true, false, None, None),
+            )
+            .expect("token generation must succeed");
+
+        let result = server
+            .confirm_action(Parameters(ConfirmActionParams {
+                token: token.token_id.clone(),
+                client_id: client_id.to_owned(),
+            }))
+            .await;
+
+        let err = result.expect_err(
+            "BC-2.05.001 DEC-014: confirm_action must ABORT when write-path \
+             audit emission fails",
+        );
+        assert_eq!(
+            err.code.0,
+            codes::INTERNAL_ERROR,
+            "E-AUDIT-001 maps to -32000 Internal; got code {}",
+            err.code.0
+        );
+        assert!(
+            err.message.contains("E-AUDIT-001"),
+            "BC-2.05.001 DEC-014: abort must carry the E-AUDIT-001 structured \
+             error; got: '{}'",
+            err.message
+        );
+        // NO mutation: the confirmation token was never peeked/consumed — it
+        // must still be present in the store.
+        assert!(
+            confirmation_store.peek(&token.token_id).is_ok(),
+            "BC-2.05.001: the confirmation token must NOT be consumed when the \
+             write aborts on audit failure"
+        );
+    }
+
+    /// P5-02: create_alias with failing audit → E-AUDIT-001 abort BEFORE any
+    /// alias-store mutation or overwrite-confirmation token generation.
+    #[tokio::test]
+    async fn test_BC_2_05_001_create_alias_audit_failure_aborts_no_mutation() {
+        let (mut server, _confirmation_store, _tmpdir) = build_server_for_f_pass16_med2_tests();
+        server.audit_writer = Some(Arc::new(FailingAudit));
+
+        let result = server
+            .create_alias(Parameters(CreateAliasParams {
+                name: "p5_new_alias".to_owned(),
+                query: "from crowdstrike_alerts".to_owned(),
+                description: None,
+                scope: Some("global".to_owned()),
+            }))
+            .await;
+
+        let err = result.expect_err(
+            "BC-2.05.001 DEC-014: create_alias must ABORT when write-path \
+             audit emission fails",
+        );
+        assert!(
+            err.message.contains("E-AUDIT-001"),
+            "BC-2.05.001 DEC-014: abort must carry the E-AUDIT-001 structured \
+             error; got: '{}'",
+            err.message
+        );
+        // NO mutation: the alias store must not contain the alias.
+        let store_arc = server.alias_store.as_ref().expect("alias_store wired");
+        let store = store_arc.lock().expect("test alias store lock");
+        let scope = prism_query::alias_types::AliasScope::parse("global").expect("global scope");
+        assert!(
+            store
+                .get("p5_new_alias", &scope)
+                .expect("alias store get must not error")
+                .is_none(),
+            "BC-2.05.001: no alias may be created when the write aborts on \
+             audit failure"
+        );
+    }
+
+    /// P5-02: delete_alias with failing audit → E-AUDIT-001 abort BEFORE any
+    /// alias-store mutation or delete-confirmation token generation — the
+    /// pre-existing alias must survive.
+    #[tokio::test]
+    async fn test_BC_2_05_001_delete_alias_audit_failure_aborts_no_mutation() {
+        let (mut server, _confirmation_store, _tmpdir) = build_server_for_f_pass16_med2_tests();
+
+        // Pre-populate the alias store through the production alias_tools path
+        // (capability gate None — setup only; the handler under test aborts
+        // before its own gate is reached).
+        {
+            let store_arc = server.alias_store.as_ref().expect("alias_store wired");
+            let mut store = store_arc.lock().expect("test alias store lock");
+            let setup_token_store =
+                prism_security::confirmation_token::ConfirmationTokenStore::new();
+            prism_query::alias_tools::create_alias_with_clients_gated(
+                prism_query::alias_tools::CreateAliasInput {
+                    name: "p5_keep_alias".to_owned(),
+                    scope: "global".to_owned(),
+                    query: "from crowdstrike_alerts".to_owned(),
+                    parameters: None,
+                    description: None,
+                    token_id: None,
+                },
+                &mut store,
+                &std::collections::HashSet::new(),
+                &[],
+                None,
+                &setup_token_store,
+            )
+            .expect("test setup: alias creation must succeed");
+        }
+
+        server.audit_writer = Some(Arc::new(FailingAudit));
+        let result = server
+            .delete_alias(Parameters(DeleteAliasParams {
+                name: "p5_keep_alias".to_owned(),
+                scope: Some("global".to_owned()),
+            }))
+            .await;
+
+        let err = result.expect_err(
+            "BC-2.05.001 DEC-014: delete_alias must ABORT when write-path \
+             audit emission fails",
+        );
+        assert!(
+            err.message.contains("E-AUDIT-001"),
+            "BC-2.05.001 DEC-014: abort must carry the E-AUDIT-001 structured \
+             error; got: '{}'",
+            err.message
+        );
+        // NO mutation: the alias must still be present.
+        let store_arc = server.alias_store.as_ref().expect("alias_store wired");
+        let store = store_arc.lock().expect("test alias store lock");
+        let scope = prism_query::alias_types::AliasScope::parse("global").expect("global scope");
+        assert!(
+            store
+                .get("p5_keep_alias", &scope)
+                .expect("alias store get must not error")
+                .is_some(),
+            "BC-2.05.001: the alias must NOT be deleted when the write aborts \
+             on audit failure"
+        );
+    }
+
+    /// P5-02: add_sensor_spec with failing audit → E-AUDIT-001 abort BEFORE the
+    /// spec TOML is parsed or written to spec_dir.
+    #[tokio::test]
+    async fn test_BC_2_05_001_add_sensor_spec_audit_failure_aborts_no_file_written() {
+        let tmpdir = tempfile::tempdir().expect("create tempdir for spec_dir");
+        let mut server = PrismServer::new();
+        server.audit_writer = Some(Arc::new(FailingAudit));
+        server.config_manager = Some(Arc::new(arc_swap::ArcSwap::from_pointee(
+            prism_spec_engine::config_manager::ConfigManager::empty(),
+        )));
+        server.spec_dir = Some(tmpdir.path().to_path_buf());
+
+        let result = server
+            .add_sensor_spec(Parameters(AddSensorSpecParams {
+                name: "p5-test.sensor.toml".to_owned(),
+                toml_content: "[sensor]\nid = \"p5_test\"\n".to_owned(),
+            }))
+            .await;
+
+        let err = result.expect_err(
+            "BC-2.05.001 DEC-014: add_sensor_spec must ABORT when write-path \
+             audit emission fails",
+        );
+        assert!(
+            err.message.contains("E-AUDIT-001"),
+            "BC-2.05.001 DEC-014: abort must carry the E-AUDIT-001 structured \
+             error; got: '{}'",
+            err.message
+        );
+        // NO mutation: spec_dir must remain empty — no spec file was written.
+        let entries: Vec<_> = std::fs::read_dir(tmpdir.path())
+            .expect("read spec_dir")
+            .collect();
+        assert!(
+            entries.is_empty(),
+            "BC-2.05.001: no spec file may be written when the write aborts on \
+             audit failure; found {} entries",
+            entries.len()
         );
     }
 
