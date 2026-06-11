@@ -2116,35 +2116,44 @@ pub async fn step7_init_storage(
 /// close the write-tool registration window (ADR-026 §D7; ADR-022 §B step 7.5/8).
 /// This is the sole load-bearing act of this step (implemented in S-3.02-FOLLOWUP-RUNTIME, PR #162).
 ///
-/// QueryEngine + WriteExecutor construction and wiring into PrismServer is
-/// performed by S-5.01-FOLLOWUP-MCP-BOOT (boot step 9), which is the first
-/// consumer of the constructed engine.
+/// QueryEngine + WriteExecutor construction and wiring into PrismServer happen
+/// in boot step 9 (`step9_start_mcp_server`, implemented by the merged
+/// S-5.01-FOLLOWUP-MCP-BOOT story), which is the first consumer of the
+/// constructed engine.
 ///
-/// # AdapterRegistry assertion (S-5.01-FOLLOWUP-MCP-BOOT)
+/// # Empty AdapterRegistry handling (BC-2.22.001 AC-006)
 ///
-/// When step 9 (S-5.01-FOLLOWUP-MCP-BOOT) constructs the QueryEngine, the FIRST
-/// thing it must do is verify the `AdapterRegistry` contains at least one adapter
-/// before serving queries. Without this assertion, a silent `init_registry_for_org`
-/// failure would propagate as silent empty results across all queries (regressing
-/// ADV-W3MT-P58-LOW-002 fix).
+/// The non-empty `AdapterRegistry` assertion once promised here for step 9 was
+/// SUPERSEDED: TD-S-PLUGIN-PREREQ-A-004 was closed-as-superseded by BC-2.22.001
+/// AC-006 (architect ratification:
+/// `.factory/proposals/TD-S-PLUGIN-PREREQ-A-004-close-as-superseded-ratification.md`).
+/// Per AC-006, an empty spec catalog at boot step 9A
+/// (`step9a_populate_adapter_registry`) emits the explicit structured event
+/// `boot.step9a.adapter_registry_populated` with `sensor_count = 0` /
+/// `org_count = 0` and boot CONTINUES BY DESIGN — a zero-sensor analyst
+/// session is a valid, observable state, not a fatal one. A fatal-on-empty
+/// assertion would contradict the active contract (spec wins, Source-of-Truth
+/// Precedence Rule 7).
 ///
-/// Defense-in-depth: `materialization.rs` retains `is_empty()` short-circuit
-/// (test-mode aware) until this assertion is enforced in S-5.01-FOLLOWUP-MCP-BOOT.
+/// The accepted defense against silent empty results (the TD's underlying
+/// intent, ADV-W3MT-P58-LOW-002) is the materialization short-circuit:
+/// `materialization.rs` `is_empty()` prevents an empty registry from
+/// masquerading as a successful fan-out.
 pub async fn step8_init_query_engine() -> Result<(), BootError> {
     // Mark query phase started as the FIRST act of step 8, before QueryEngine construction.
     // This permanently closes the write-tool registration window (ADR-026 §D7; ADR-022 §B step 7.5/8).
     // F-LP56-HIGH-001 adjudication: this is the sole permitted boot.rs change in S-PLUGIN-PREREQ-E.
     prism_query::invalidation::mark_query_phase_started();
 
-    // QueryEngine + WriteExecutor construction: S-5.01-FOLLOWUP-MCP-BOOT.
-    // Requires Arc<RocksDbBackend>, Arc<AdapterRegistry>, Arc<OcsfNormalizer>,
-    // Arc<ClientRegistry>, Arc<dyn CredentialResolver>, and Arc<OrgRegistry> —
-    // all of which live in BootContext / RunningServer and are threaded into
-    // step 9 by run_boot_sequence when S-5.01-FOLLOWUP-MCP-BOOT implements it.
+    // QueryEngine + WriteExecutor construction happens in step 9
+    // (S-5.01-FOLLOWUP-MCP-BOOT, merged): run_boot_sequence threads
+    // Arc<RocksDbBackend>, Arc<AdapterRegistry>, Arc<OcsfNormalizer>,
+    // Arc<ClientRegistry>, Arc<dyn CredentialResolver>, and Arc<OrgRegistry>
+    // from BootContext / RunningServer into step9_start_mcp_server.
     tracing::info!(
         event_type = "boot.step8.query_engine_started",
         "boot: step 8 query-engine phase started — write-tool registration window closed \
-         (QueryEngine + WriteExecutor wired via S-5.01-FOLLOWUP-MCP-BOOT)"
+         (QueryEngine + WriteExecutor are wired in step 9, S-5.01-FOLLOWUP-MCP-BOOT)"
     );
     Ok(())
 }
