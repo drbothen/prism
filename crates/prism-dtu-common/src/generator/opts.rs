@@ -21,9 +21,10 @@ pub enum GenOptsError {
 /// NOT wall-clock — so BC-3.4.001 invariant 1 (no `SystemTime::now()` in the
 /// generator call stack) and the byte-identity postconditions are preserved.
 ///
-/// NOTE: BC-3.4.001 precondition 4 still says "default is `DateTime::UNIX_EPOCH`
-/// for tests"; a BC amendment (product-owner dispatch) is required to record the
-/// new default. The determinism contract itself is unaffected.
+/// BC-3.4.001 v0.9 (PO consolidated amendment burst, 2026-06-10) records this
+/// default: precondition 4 now reads "default is
+/// `prism_dtu_common::demo_time_anchor()` (`2026-01-01T00:00:00Z`, epoch
+/// `1_767_225_600`)". The determinism contract itself is unaffected.
 ///
 /// Story B (S-DEMO-DTU-LIVE-SCENARIO-001-B) wires `scenario_start_secs` →
 /// `time_anchor`; until then this constant is the anchor for all seeded clones.

@@ -118,7 +118,8 @@ fn test_bc_3_4_001_ac_002_genopts_default_scale_is_1() {
 /// to the fixed demo-era constant `demo_time_anchor()` (2026-01-01T00:00:00Z) so
 /// realistic time-window queries match seeded-clone data. The default remains a
 /// deterministic constant — NOT wall-clock — preserving BC-3.4.001 invariant 1.
-/// BC-3.4.001 precondition 4 amendment pending (product-owner dispatch).
+/// BC-3.4.001 v0.9 precondition 4 records this default (PO consolidated
+/// amendment burst, 2026-06-10).
 #[test]
 fn test_bc_3_4_001_ac_002_genopts_default_time_anchor_is_demo_anchor() {
     let opts = GenOpts::default();
