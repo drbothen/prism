@@ -1,10 +1,10 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "6.24"
+version: "6.25"
 status: draft
 producer: product-owner
-timestamp: 2026-06-10T00:00:00Z
+timestamp: 2026-06-11T00:00:00Z
 phase: 3.A
 total_contracts: 250
 active_contracts: 232
@@ -380,6 +380,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v6.25 (2026-06-11, DTU cascade P14-01 micro-adjudication — BC-3.4.003 v0.9→v1.0 invariant 6 scope clarification):** product-owner | **BC-3.4.003 v0.9→v1.0** — Ruling (A): invariant 6 is generator-fixture-layer-only. Added scope-clarification note to the `AuthOutage` postcondition and to invariant 6: the `GenOpts::overrides` JSON Merge Patch requirement applies only to DTU clones that model `AuthOutage` at the generator/fixture layer (CrowdStrike, Claroty, Armis). Cyberint models auth-outage at the route/state layer (`AuthMode::Reject/Accept`, toggled via `POST /dtu/configure {auth_mode: "reject|accept"}`); this mechanism provides equivalent deterministic rehearsal capability and is explicitly exempt. Rationale: (a) BC postcondition specifies the behavior not the implementation layer; (b) Cyberint's static-cookie auth has no OAuth2 token endpoint making fixture 401-records inappropriate; (c) route-layer auth injection satisfies the functional requirement (deterministically injectable and recoverable). S-3.7.02 (Claroty) and S-3.7.05 (CrowdStrike) story citations of BC-3.4.003 invariant 6 remain accurate — both are generator-layer clones still fully bound. POL-27 `modified:` synced to 2026-06-11. No H1 retitle — title cell unchanged (BC-INDEX row 299 "Archetype Catalog Enumeration — 8 Archetypes with Defined Baselines" is accurate). No edge-case-ID, lifecycle, or status changes; counts UNCHANGED (250/232/5/0/7/6). BC-INDEX v6.24→v6.25.
 
 **v6.24 (2026-06-11, review-2026-06-10 round-2/3 register-burst item 17 — BC-INDEX row-220 pin sync to BC-2.16.002 v1.76):** state-manager | POL-11/POL-26/POL-32 compliance. Inline row 220 (BC-2.16.002 Multi-Step Fetch Pipeline Execution) version pin synced: `v1.70` (stale residue from D-1092 register-burst checklist item 17) → `v1.76` (current on-disk version; PO-authored during review-2026-06-10 cascade without a concurrent BC-INDEX version bump — this entry retroactively records that inline-pin sync per POL-11 index-versioning obligation). BC-2.16.002 v1.76 adds a sibling-catalog cross-reference note documenting that the SAP-1 probe for tracing event-type completeness applies within the declared crate scope of BC-2.16.002 (capability_check references BC-2.04.013; credential_access references BC-2.03.010) — closes the PO-half of MCP-cascade P8-OBS-01 [process-gap]. Register-burst checklist item 17 RESOLVED (targeted v1.75; actual sync lands at v1.76 — PO committed v1.76 directly). No H1 retitles — title cell unchanged (BC-INDEX row 220 carries no version cell in the index table; status annotation carries the inline pin). No lifecycle/status/count changes; counts UNCHANGED (250/232/5/0/7/6). BC-INDEX v6.23→v6.24.
 

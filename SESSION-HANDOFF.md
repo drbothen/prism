@@ -1,16 +1,16 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.746"
+version: "7.747"
 status: current
-timestamp: 2026-06-11T18:00:00Z
+timestamp: 2026-06-11T19:00:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
 
-> **PRIORITY READ ORDER — D-1095 ROUND 4 RECORDED (next session resumes ZERO-CONTEXT from this file). ZERO-CONTEXT RESUME SNAPSHOT.**
-> Read §ACTIVE OBJECTIVE (North Star) FIRST, then §RESUME SNAPSHOT 2026-06-11-REVIEW-CYCLE-PAUSE-D1092 below (§BRANCH STATE updated by D-1095), then STATE.md frontmatter, then the task ledger (`.factory/objectives/multi-client-soc-demo-tasks.md`) before dispatching any agent.
-> develop HEAD `c287b00d` (UNCHANGED — no review-cycle branch has merged). factory-artifacts PUSHED to origin/factory-artifacts (D-1066 standing authorization). STATE v7.746.
+> **PRIORITY READ ORDER — D-1096 ROUNDS 5-7 RECORDED (next session resumes ZERO-CONTEXT from this file). ZERO-CONTEXT RESUME SNAPSHOT.**
+> Read §ACTIVE OBJECTIVE (North Star) FIRST, then §RESUME SNAPSHOT 2026-06-11-REVIEW-CYCLE-PAUSE-D1092 below (§BRANCH STATE updated by D-1096), then STATE.md frontmatter, then the task ledger (`.factory/objectives/multi-client-soc-demo-tasks.md`) before dispatching any agent.
+> develop HEAD `c287b00d` (UNCHANGED — no review-cycle branch has merged). factory-artifacts PUSHED to origin/factory-artifacts (D-1066 standing authorization). STATE v7.747.
 
 ---
 
@@ -73,7 +73,7 @@ S-CONFIG-MULTI-TENANT-OVERRIDE-001 (per-org overlays), S-DEMO-001 (per-org adapt
 
 **NEXT CONCRETE ACTION: complete the 2026-06-10 review cycle (3 fix-branch cascades → pinned-order merges QRY → MCP → DTU → register burst), THEN resume T5 (Story B). See §RESUME SNAPSHOT 2026-06-11-REVIEW-CYCLE-PAUSE-D1092 below for the verbatim sequence.**
 
-**Task ledger (granular, status-tracked, source of truth): `.factory/objectives/multi-client-soc-demo-tasks.md` — CURRENT POINTER: T5 (interrupted by review cycle; D-1091/D-1092/D-1093/D-1094/D-1095). T1+T2+T3+T4+T4-A DONE. ADR-036 v2.2. BC-INDEX v6.24. ARCH-INDEX v2.133. STORY-INDEX v2.348. error-taxonomy v1.75. policies v1.32. prd v1.12. BC-2.06.018 v1.6 ACTIVE. STATE v7.746.**
+**Task ledger (granular, status-tracked, source of truth): `.factory/objectives/multi-client-soc-demo-tasks.md` — CURRENT POINTER: T5 (interrupted by review cycle; D-1091/D-1092/D-1093/D-1094/D-1095/D-1096). T1+T2+T3+T4+T4-A DONE. ADR-036 v2.2. BC-INDEX v6.25. BC-3.4.003 v1.0. ARCH-INDEX v2.133. STORY-INDEX v2.348. error-taxonomy v1.75. policies v1.32. prd v1.12. BC-2.06.018 v1.6 ACTIVE. STATE v7.747.**
 
 ---
 
@@ -104,8 +104,8 @@ S-CONFIG-MULTI-TENANT-OVERRIDE-001 (per-org overlays), S-DEMO-001 (per-org adapt
 | **Mode** | brownfield |
 | **Phase** | 3 (Wave 5 — wave-5-e-demo-fidelity) — INTERRUPTED at T5 by user-directed full-codebase review (2026-06-10); PAUSED at D-1092 (session end 2026-06-10/11) |
 | **develop HEAD** | `c287b00d` (unchanged; no review branch merged yet) |
-| **STATE version** | v7.746 |
-| **BC-INDEX version** | v6.24 (total 250; active 232; draft 5; retired 6 — ADR-037 retired BC-3.3.001/002/003/004) |
+| **STATE version** | v7.747 |
+| **BC-INDEX version** | v6.25 (total 250; active 232; draft 5; retired 6; BC-3.4.003 v1.0 PO ruling A) |
 | **STORY-INDEX version** | v2.348 (total_stories 194) |
 | **VP-INDEX version** | v1.77 |
 | **ARCH-INDEX version** | v2.133 |
@@ -145,30 +145,29 @@ Human decisions recorded:
 
 ---
 
-### 4. §BRANCH STATE (updated D-1095 — verify `git log` on resume as standard discipline)
+### 4. §BRANCH STATE (updated D-1096 — verify `git log` on resume as standard discipline)
 
-All three worktrees under `.worktrees/`, branches over `develop@c287b00d`, NOT pushed except DTU. Every branch's next action is a fresh adversary pass.
+All three worktrees under `.worktrees/`, branches over `develop@c287b00d`, NOT pushed except DTU. **MCP is CONVERGED** — no further adversary passes; awaits pr-manager delivery after QRY merge.
 
 **Cascade protocol (all 3 branches):** BC-5.39.001 3-CLEAN **strict** per branch; report format CLEAN(strict)/CLEAN(PR-merge); fresh-context adversary each pass. Adjudicated **do-not-reflag lists** are recorded in each pass dispatch — key standing exclusions: P1-03 deviation (human-authorized), BC frontmatter timestamps (register burst), DEF-1 Claroty pagination (post-merge fix), denylist wiring (S-WATCHDOG-WIRING-001), scope params (S-QUERY-SCOPE-PARAMS-001), cross-branch artifacts (merge order resolves).
 
-**1. `fix/review-2026-06-10-query-core`** — 30 commits, head `873b693f`. Gate exit 0. All pass-1..9 findings closed.
-- **E-QUERY-034 split LANDED** (commits `388be2cf` / `0c240683` / `cf0dfe1e`: prism-core variant, prism-query sweep, prism-mcp arm). Pass-6: P6-01 display stutter (`77b81345`); P6-02 E-QUERY-006/E-ALIAS-001 nesting in E-QUERY-034 (`da3b7f31`: NEW `PrismError::UnknownSourceTable { source_name }` / E-QUERY-036 at `resolve_source_refs`; EXISTING `PrismError::AliasNotFound` un-nesting at `explain.rs`; 959/959 green); P6-03 [process-gap] E-QUERY-009 LATENT confirmed, DEFER-EQUERY009-001 stands, no code action. Pass-7: P7-01 LOW stale comment — `3c7679f8`. Pass-8: P8-01 LOW Internal.detail embedded-code convention — taxonomy v1.74 adjudication + `76bda665` (959/959, test_BC_2_07_004 red→green); P8-02 OBS DEFER-EQUERY009-001 re-verification. Pass-9: **P9-01 HIGH** v1.74 sweep false — `invalidation.rs:512` load-bearing `"E-INT-001:"` sentinel (typed discriminant for `WriteToolOutcome`) + `write_pipeline.rs:469` undefined `"E-INT-003:"` — **closed commit `873b693f`** (crate-private `WriteToolOutcome` discriminant; prose-only `write_pipeline.rs`; regression test for unmapped-write-tool fallback; 960/960 green). Taxonomy v1.74→v1.75 (PO correction; v1.74 row annotated `[corrected at v1.75]`). CLEAN(strict)=no; streak 0/3.
-- **NEXT ACTION: launch adversary pass 10 (streak 0/3).** Directed probe note: `WriteToolOutcome` typed discriminant is load-bearing — adversary should verify the regression test is non-trivial; `invalidation.rs:387` `"E-INT-001:"` sentinel was the old test anchor, now replaced by enum variant.
-- Do-not-reflag additions since D-1094: P9-01 closure (`873b693f` — typed `WriteToolOutcome` discriminant, two surviving `E-INT-00x` sites now prose-only; taxonomy v1.75 sweep empirically ZERO). Internal.detail embedded-code class-sweep: post-`873b693f` workspace sweeps `rg '"E-INT-00[23]' crates/` and `rg 'starts_with\("E-INT' crates/` are ZERO.
-- Full do-not-reflag cumulative: E-QUERY-034 spec set (taxonomy v1.71/72/73/74/75, BC-2.11.006 v1.19, BC-2.11.005 v1.7); POL-16 hot-reload test retired; P4-D1/D2 deferred; P6-01 stutter closure; P6-02 E-QUERY-036; P6-03 + P8-02 DEFER-EQUERY009-001; P7-01 historical-comment; P8-01 closures (taxonomy v1.74 INT/Internal.detail/E-CACHE-001 scope); P9-01 `WriteToolOutcome` discriminant closure (taxonomy v1.75).
+**1. `fix/review-2026-06-10-query-core`** — 32 commits, head `c779ff09`. Gate exit 0. All pass-1..12 findings closed.
+- **E-QUERY-034 split LANDED** (commits `388be2cf` / `0c240683` / `cf0dfe1e`: prism-core variant, prism-query sweep, prism-mcp arm). Pass-6: P6-01 display stutter (`77b81345`); P6-02 E-QUERY-006/E-ALIAS-001 nesting in E-QUERY-034 (`da3b7f31`: NEW `PrismError::UnknownSourceTable { source_name }` / E-QUERY-036 at `resolve_source_refs`; EXISTING `PrismError::AliasNotFound` un-nesting at `explain.rs`; 959/959 green); P6-03 [process-gap] E-QUERY-009 LATENT confirmed, DEFER-EQUERY009-001 stands, no code action. Pass-7: P7-01 LOW stale comment — `3c7679f8`. Pass-8: P8-01 LOW Internal.detail embedded-code convention — taxonomy v1.74 adjudication + `76bda665` (959/959, test_BC_2_07_004 red→green); P8-02 OBS DEFER-EQUERY009-001 re-verification. Pass-9: P9-01 HIGH v1.74 sweep false — `invalidation.rs:512` load-bearing `"E-INT-001:"` sentinel (typed discriminant for `WriteToolOutcome`) + `write_pipeline.rs:469` undefined `"E-INT-003:"` — **closed commit `873b693f`** (crate-private `WriteToolOutcome` discriminant; prose-only `write_pipeline.rs`; regression test for unmapped-write-tool fallback; 960/960 green). Taxonomy v1.74→v1.75. Pass-10: CLEAN(strict)=YES; streak 1/3. **Pass-11: P11-01 CRIT** VP-058 two-check memory grace period (DI-027/BC-2.15.007 v1.6) proven-but-UNWIRED — live watchdog killed on FIRST RSS-spike observation. **Closed commit `0c553426`** (`check_query` `consecutive_over_limit` param + `spawn_monitor` loop-local counter gated through proven predicate; AC-4 updated to two-check; spike-recover-spike reset test; denylist-only-on-actual-termination test; 85/85 + 960/960 green). CLEAN(strict)=no; streak reset 0/3. **Pass-12: P12-01 HIGH** `WatchdogCheckState` docs in proofs module described retired PER-QUERY model citing non-existent `per_query_memory_budget` — contradicting process-RSS contract; phantom `watchdog` Cargo-feature claim also present. **Closed commit `c779ff09`** (docs rewritten to process-RSS/per-monitor-loop model; phantom feature claim corrected; 85/85; residual per-query sweep clean). CLEAN(strict)=no; streak 0/3.
+- **NEXT ACTION: launch adversary pass 13 (streak 0/3).** Directed probe notes: (a) `consecutive_over_limit` param wiring is load-bearing — adversary verify spike-recover-spike reset + denylist-only-on-actual-termination tests are non-trivial; (b) `WatchdogCheckState` proofs module docs are load-bearing (process-RSS model must match BC-2.15.007/DI-027); (c) `list_capabilities` no-op stub is pre-existing S-1.08-class — do NOT reflag; (d) stale `watchdog` Cargo-feature claim fixed — do NOT reflag the pattern if removed.
+- Do-not-reflag additions since D-1095: P10 CLEAN (streak 1/3 → reset at P11-01); P11-01 closure (`0c553426` — grace-period wiring correct; spike-recover-spike reset test load-bearing; denylist-only-on-actual-termination test load-bearing; `consecutive_over_limit` default=2 per BC-2.15.007 AC-4 update); `list_capabilities` no-op stub = pre-existing S-1.08 anchor (not a cascade defect); P12-01 docs closure (`c779ff09` — `WatchdogCheckState` proofs-module docs now process-RSS; phantom `watchdog` feature claim removed; per-query field sweep ZERO confirmed).
+- Full do-not-reflag cumulative: E-QUERY-034 spec set (taxonomy v1.71/72/73/74/75, BC-2.11.006 v1.19, BC-2.11.005 v1.7); POL-16 hot-reload test retired; P4-D1/D2 deferred; P6-01 stutter closure; P6-02 E-QUERY-036; P6-03 + P8-02 DEFER-EQUERY009-001; P7-01 historical-comment; P8-01 closures (taxonomy v1.74 INT/Internal.detail/E-CACHE-001 scope); P9-01 `WriteToolOutcome` discriminant closure (taxonomy v1.75); P11-01 grace-period wiring closure + list_capabilities no-op pre-existing; P12-01 WatchdogCheckState docs closure + stale feature claim fixed.
 
-**2. `fix/review-2026-06-10-dtu-fleet`** — 23 commits, head `0959e92f`, gate green.
-- Pass-8: F-P8-01 HIGH (COMP-012 deps + doc-nuance) — `332c99bd`; candidate (c) OBS/harmless; register-burst item 19 ADJUDICATED. Pass-9: CLEAN(strict)=YES; streak 1/3. Pass-10: P10-01 OBS armis search key-presence discriminator NO-ACTION adjudication; P10-02 OBS ScenarioConfig deserialized-not-consumed = Story-A NIT-2 anchored to Story B; do-not-reflag list tightened. CLEAN(strict)=no; streak reset 0/3. Pass-11: CLEAN(strict)=YES; streak 1/3. Pass-12: **P12-01 HIGH demo-critical** — Armis generator emitted NULL `os_name`/`risk_score` (+ camelCase mirrors) on seeded path; P2-01 parity tests were null-tolerant (key-presence; `null==null`; `is_null()||` escape) — **TD-VSDD-059 paper-fix class** caught by SAP-2 re-derivation. **Closed commit `0959e92f`**: deterministic RNG-free pools (`OS_NAME_POOL` 23 / `MANUFACTURER_POOL` 24 / `RISK_SCORE_POOL` 25; stable `offset` seed-offsets 2/3/4 distinct from seen-window 0/1; `INV-SECONDARY-RNG-STREAM-INDEPENDENCE-001` preserved; byte-identity determinism test green); null-intolerant tightened tests; `manufacturer` hardcode fixed; 310/310 + `just check` exit 0. Sibling sweep: claroty/cyberint/crowdstrike generators CLEAN on all TOML-declared columns. Pre-existing out-of-scope gaps: `cyberint incidents` + `crowdstrike incidents` TOML tables have NO DTU route → **register-burst item 4 EXTENDED** (same family CS-05). CLEAN(strict)=no; streak reset 0/3.
-- **NEXT ACTION: launch adversary pass 13 (streak 0/3)** with corrected ground truth: 5 crates 3-way gated (common + claroty/armis/crowdstrike/cyberint); 7 two-way; COMP-012 in all 9 COMP-DTU arrays; Armis `os_name`/`risk_score`/`manufacturer` now populated with deterministic non-null values.
+**2. `fix/review-2026-06-10-dtu-fleet`** — 24 commits, head `dee1f2a0`, gate exit 0 (verified by orchestrator directly).
+- Pass-8: F-P8-01 HIGH (COMP-012 deps + doc-nuance) — `332c99bd`; candidate (c) OBS/harmless; register-burst item 19 ADJUDICATED. Pass-9: CLEAN(strict)=YES; streak 1/3. Pass-10: P10-01 OBS armis search key-presence discriminator NO-ACTION adjudication; P10-02 OBS ScenarioConfig deserialized-not-consumed = Story-A NIT-2 anchored to Story B; do-not-reflag list tightened. CLEAN(strict)=no; streak reset 0/3. Pass-11: CLEAN(strict)=YES; streak 1/3. Pass-12: P12-01 HIGH demo-critical — Armis NULL `os_name`/`risk_score` — **closed commit `0959e92f`** (deterministic RNG-free pools; null-intolerant tests; 310/310). CLEAN(strict)=no; streak reset 0/3. Pass-13: CLEAN(strict)=YES; streak 1/3. **Pass-14: P14-01 HIGH demo-critical** — BC-3.4.003 invariant 6 (`auth_outage` `recovery_after_calls` override) implemented in CrowdStrike but MISSING in Claroty + Armis; Claroty doc falsely claimed override was present — **TD-VSDD-059 paper-fix class.** **Closed commit `dee1f2a0`**: override-read ported to Claroty + Armis; EC-3.4.003-06 tests load-bearing (call sequence 401×N then 200 asserted; load-bearing proven); Claroty doc corrected; full gate exit 0 verified by orchestrator. **PO ruling A (D-1096):** BC-3.4.003 v0.9→v1.0 — invariant 6 is generator-fixture-layer-only; Cyberint `AuthMode::Reject` route-layer mechanism architecturally-equivalent-but-distinct — **exempt** from `GenOpts::overrides` JSON Merge Patch requirement. CLEAN(strict)=no; streak reset 0/3.
+- **NEXT ACTION: launch adversary pass 15 (streak 0/3)** with corrected ground truth: 5 crates 3-way gated (common + claroty/armis/crowdstrike/cyberint); 7 two-way; COMP-012 in all 9 COMP-DTU arrays; Armis `os_name`/`risk_score`/`manufacturer` populated with deterministic non-null values; BC-3.4.003 v1.0 invariant-6 scope ruling A (cyberint exempt — do NOT reflag Cyberint route-layer auth as an invariant-6 violation; invariant binds only generator-fixture-layer clones).
 - **PUSHED to origin + DRAFT PR #182 exists** — artifact of a contained unauthorized-push incident (lesson (e)). PR is **parked draft with custody note**. pr-manager assumes it at convergence. **DTU merges LAST.**
-- Do-not-reflag additions since D-1094: P12-01 closure (`0959e92f` — deterministic RNG-free pools, null-intolerant tests; cyberint/crowdstrike incidents-route gaps = pre-existing/out-of-scope, register-burst item 4 EXTENDED; human ratification of P10-01 NO-ACTION still requested at gate).
-- Full do-not-reflag cumulative: F-P8-01 closure (module-decomposition v1.19); candidates (b) doc-nuance; candidate (c) threatintel/nvd fixture-gen OBS/harmless (register-burst item 19 ADJUDICATED); P10-01 NO-ACTION adjudication (human ratification requested at gate); P10-02 NIT-2 Story B anchor; P12-01 Armis null-value closure (`0959e92f`); cyberint/crowdstrike incidents-route gaps pre-existing/out-of-scope (register-burst item 4).
+- Do-not-reflag additions since D-1095: P13 CLEAN (streak 1/3 → reset at P14-01); P14-01 closure (`dee1f2a0` — override-read ported to claroty+armis; EC-3.4.003-06 tests load-bearing; claroty doc corrected); BC-3.4.003 v1.0 ruling-A Cyberint exemption (route-layer `AuthMode::Reject` = equivalent mechanism, architecturally distinct — do NOT reflag as invariant-6 violation; Cyberint generator AuthOutage arm selects baseline counts only, auth-outage modeled at route layer).
+- Full do-not-reflag cumulative: F-P8-01 closure (module-decomposition v1.19); candidates (b) doc-nuance; candidate (c) threatintel/nvd fixture-gen OBS/harmless (register-burst item 19 ADJUDICATED); P10-01 NO-ACTION adjudication (human ratification requested at gate); P10-02 NIT-2 Story B anchor; P12-01 Armis null-value closure (`0959e92f`); cyberint/crowdstrike incidents-route gaps pre-existing/out-of-scope (register-burst item 4); P14-01 override-porting closure (`dee1f2a0`); BC-3.4.003 v1.0 ruling-A Cyberint exemption.
 
-**3. `fix/review-2026-06-10-mcp-boot`** — 33 commits, head `b0099308`, gate green.
-- Pass-5 closures: P5-02 fail-closed write audit (`ab2ab0ce`); P5-01 re-anchor (`5863dbc7`); P5-03 capability fields (`7c1c2a5e`). Pass-6: P6-01 OBS dead computation in `audit_emitter.rs` — commit `b4707e95`; CLEAN(PR-merge)=yes; CLEAN(strict)=no; streak 0/3. Pass-7: CLEAN(strict)=YES; streak 1/3. Pass-8: P8-OBS-01 [process-gap] SAP-1 probe vs BC-2.16.002 crate scope — PO-half CLOSED (BC-2.16.002 v1.76); CLAUDE.md SAP-1 wording half PENDING HUMAN. CLEAN(strict)=no; streak reset 0/3. Pass-9: CLEAN(strict)=YES; streak 1/3. Pass-10: **F-P10-01 LOW** stale "Not fail-closed" docstring; **F-P10-02 LOW** tautological timeout test; **F-P10-03 LOW** network-mode router parity Jira/PagerDuty/Slack — architect adjudicated **Decision B: LOGICAL-MODE-ONLY BY DESIGN** (single-shared-instance; header-based `X-Prism-Org-Id` isolation; network-mode belongs to deferred TDE track per D-1072; generic router 404s = loud failure). F-P10-01/02 closed commit `487122e3` (class-aware docstring reword; `build_harness_http_client_with_timeout` injectable helper + behavioral never-responding-listener test — load-bearing proven by deletion experiment). F-P10-03 doc-notes commit `b0099308` (BC-3.2.004 anchor verified). CLEAN(strict)=no; CLEAN(PR-merge)=yes; streak reset 0/3.
-- **NEXT ACTION: launch adversary pass 11 (streak 0/3).**
-- Do-not-reflag additions since D-1094: F-P10-01 stale docstring closure (`487122e3`); F-P10-02 timeout test closure (`487122e3` — load-bearing behavioral test replaces tautological; do NOT re-flag the old pattern, the new test is correct); F-P10-03 Decision B logical-mode-only by design — CLAUDE.md SAP-1 wording half PENDING HUMAN CLAUDE.md edit (adversary MAY note PENDING; action requires human); network-mode parity for Jira/PD/Slack = D-1072 TDE-track boundary, not a cascade defect.
-- Full do-not-reflag cumulative: two-class audit contract adjudicated; capability-fields carrier = tracing emission per dispatch; P6-01 dead-computation closure (`b4707e95`); P8-OBS-01 PO-half closed (BC-2.16.002 v1.76); F-P10-01/02/03 closures (`487122e3` + `b0099308`; Decision B logical-mode-only).
+**3. `fix/review-2026-06-10-mcp-boot`** — **CONVERGED 3/3** at head `b0099308` (33 commits). No further adversary passes. Gate exit 0.
+- Pass history: P5-02 fail-closed write audit (`ab2ab0ce`); P5-01 re-anchor (`5863dbc7`); P5-03 capability fields (`7c1c2a5e`). Pass-6: P6-01 OBS dead computation in `audit_emitter.rs` — commit `b4707e95`. Pass-7: CLEAN(strict)=YES; streak 1/3. Pass-8: P8-OBS-01 [process-gap] SAP-1 probe vs BC-2.16.002 crate scope — PO-half CLOSED (BC-2.16.002 v1.76); CLAUDE.md SAP-1 wording half PENDING HUMAN; streak reset 0/3. Pass-9: CLEAN(strict)=YES; streak 1/3. Pass-10: F-P10-01/02/03 LOW (stale docstring + tautological timeout test + Jira/PD/Slack network-mode parity); closed commits `487122e3` + `b0099308`; architect Decision B: LOGICAL-MODE-ONLY BY DESIGN; streak reset 0/3. Pass-11: CLEAN(strict)=YES; streak 2/3. **Pass-12: CLEAN(strict)=YES; streak 3/3 — CONVERGED.** Pass-13 (final verification pass): CLEAN(strict)=YES — zero findings of ANY severity; proven-but-unwired + sibling-divergence lenses applied.
+- **NEXT ACTION: pr-manager delivery — 9-step PR cycle AFTER QRY fix-branch converges and merges.** Pinned merge order: QRY → MCP → DTU. PR #182 (parked draft) is the DTU PR; MCP needs a new PR. Do NOT pr-manage MCP until QRY develop merge is confirmed.
+- Full do-not-reflag cumulative: two-class audit contract adjudicated; capability-fields carrier = tracing emission per dispatch; P6-01 dead-computation closure (`b4707e95`); P8-OBS-01 PO-half closed (BC-2.16.002 v1.76); F-P10-01/02/03 closures (`487122e3` + `b0099308`; Decision B logical-mode-only); SAP-1 CLAUDE.md wording PENDING HUMAN (adversary may note as process-gap; action requires human; not a code defect).
 
 ---
 
@@ -229,7 +228,7 @@ T6 (S-DEMO-MULTI-TENANT-DTU-001 ready v1.2; BC-2.06.017; remove-uncertainty COMP
 - Carry-forward fix candidates (also pre-loaded as dtu-fleet P8 candidates, §BRANCH STATE branch 2): module-decomposition COMP-DTU `dependencies` arrays omit prism-core (architect); 3 lib.rs doc comments in claroty/cyberint/armis say 2-way while attribute is 3-way (implementer, DTU branch).
 - E2E sequence after register burst: **T5 Story B → T6 S-DEMO-MULTI-TENANT-DTU-001 → T8 S-DEMO-004.**
 
-> **This snapshot is current as of D-1095 (2026-06-11 round 4 recorded; STATE v7.746). §BRANCH STATE updated D-1095. Prior snapshots (D-1090, D-1091) archived to `cycles/wave-5-e-demo-fidelity/session-handoff-archive.md`.**
+> **This snapshot is current as of D-1096 (2026-06-11 rounds 5-7 recorded; STATE v7.747). §BRANCH STATE updated D-1096. Prior snapshots (D-1090, D-1091) archived to `cycles/wave-5-e-demo-fidelity/session-handoff-archive.md`.**
 
 ---
 
@@ -319,15 +318,15 @@ git log --oneline develop | head -1
 
 # 3. Verify STATE.md version
 grep '^version:' .factory/STATE.md
-# Expected: version: "7.746"
+# Expected: version: "7.747"
 
 # 4. Verify open PRs — expect exactly ONE parked draft
 gh pr list --state open
 # Expected: #182 draft (fix/review-2026-06-10-dtu-fleet) — PARKED with custody note. Do not close/ready it.
 
-# 5. Verify the three review fix worktrees (D-1095 heads)
+# 5. Verify the three review fix worktrees (D-1096 heads)
 git -C .worktrees/review-2026-06-10-dtu-fleet log --oneline -1 2>/dev/null || ls .worktrees/
-# query-core == 873b693f (30 commits) | dtu-fleet == 0959e92f (23 commits) | mcp-boot == b0099308 (33 commits)
+# query-core == c779ff09 (32 commits) | dtu-fleet == dee1f2a0 (24 commits) | mcp-boot == b0099308 (33 commits CONVERGED)
 # (worktree directory names may differ — enumerate .worktrees/ and match branches fix/review-2026-06-10-*)
 
 # 6. Confirm factory-artifacts local vs remote — should be PUSHED (D-1095 normal push per D-1066)

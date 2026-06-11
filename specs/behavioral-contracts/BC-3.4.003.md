@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "0.9"
+version: "1.0"
 status: draft
 producer: product-owner
 timestamp: 2026-04-27T00:00:00
@@ -17,7 +17,7 @@ subsystem: "SS-01"
 capability: "CAP-039"
 lifecycle_status: active
 introduced: cycle-3
-modified: ["2026-06-10"]
+modified: ["2026-06-10", "2026-06-11"]
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -83,6 +83,7 @@ The archetype catalog is a fixed enumeration of 8 named deployment scenarios. Ea
 - The first simulated API call for this fixture returns an HTTP 401 response record
 - Subsequent simulated calls return normal 200 responses (recovery behavior)
 - The recovery delay is configurable via `GenOpts::overrides` using JSON Merge Patch: `{"auth_outage": {"recovery_after_calls": N}}`; default N=1
+- **Implementation note:** This specification applies to DTU clones that model `AuthOutage` at the generator/fixture layer (CrowdStrike, Claroty, Armis), where the `FixtureSet::records` includes explicit 401 status-code records followed by recovery records. Cyberint models auth-outage at the route/state layer via `AuthMode::Reject → Accept` mode toggle (configured via `POST /dtu/configure {"auth_mode": "reject|accept"}` or `POST /dtu/reset`). The route-layer mechanism is architecturally equivalent for test and demo rehearsal — it provides deterministic auth-outage injection and deterministic recovery — but operates through a different control plane that does not use `GenOpts::overrides`. Invariant 6 below therefore applies only to generator-fixture-layer clones.
 
 **`LargeScale`**
 - 10,000 devices, 500 alerts, 10 high-severity at scale=1.0
@@ -124,7 +125,7 @@ The archetype catalog is a fixed enumeration of 8 named deployment scenarios. Ea
 3. Baseline counts scale linearly with the `scale` parameter: `actual_count = floor(baseline * scale)`.
 4. `SchemaDrift` MUST produce exactly 1 non-conformant record (not zero, not two) to ensure the drift detector fires exactly once per fixture.
 5. `DormantTenant` MUST produce 0 records at all scale values; scale has no effect.
-6. `AuthOutage` recovery delay (number of 401-class calls before recovery) MUST be overridable via `GenOpts::overrides` JSON Merge Patch.
+6. `AuthOutage` recovery delay (number of 401-class calls before recovery) MUST be overridable via `GenOpts::overrides` JSON Merge Patch. **Scope: this invariant applies to DTU clones that implement `AuthOutage` at the generator/fixture layer** (i.e., where `FixtureSet::records` contains explicit 401 response records). Cyberint implements auth-outage at the route/state layer (`AuthMode::Reject`, toggled via `POST /dtu/configure {auth_mode: "reject|accept"}`); that mechanism satisfies the `AuthOutage` rehearsal capability through an equivalent route-layer control plane and is **exempt** from the `GenOpts::overrides` JSON Merge Patch requirement of this invariant. The functional requirement is: the failure mode is deterministically injectable and deterministically recoverable for test/demo use. Both the generator-fixture approach and Cyberint's route-state approach satisfy this requirement.
 
 ## Edge Cases
 
@@ -208,6 +209,7 @@ None. All open questions resolved.
 
 | Version | Change |
 |---------|--------|
+| v1.0 | DTU cascade P14-01 (review-2026-06-10 dtu-fleet cascade, PO micro-adjudication): Ruling (A) — invariant 6 is generator-fixture-layer-only. Added scope-clarification note to the `AuthOutage` postcondition and to invariant 6: the `GenOpts::overrides` JSON Merge Patch requirement binds clones whose AuthOutage is modeled at the generator/fixture layer (CrowdStrike, Claroty, Armis). Cyberint models auth-outage at the route/state layer via `AuthMode::Reject/Accept` toggle (configured via `POST /dtu/configure`); this mechanism provides equivalent deterministic rehearsal capability through a different control plane and is explicitly exempt from the generator-layer override requirement. Rationale: (a) BC text specifies behavior ("first call 401, recovery overridable"), not implementation layer; (b) Cyberint's static-cookie auth has no OAuth2 token endpoint for which fixture records would be appropriate; (c) route-layer auth injection is testable, deterministic, and fully controllable — equivalent capability, different architecture. No other BCs reference invariant 6's generator-layer override assumption. |
 | v0.9 | DTU cascade P6-02 (review-2026-06-10 PO micro-burst): Open Questions D-054 row story ID `S-3.7.0` → `S-3.7.00` (canonical 2-digit suffix per STORY-INDEX; same class as ADR-009 v0.5 m-003 fix). Sole occurrence in behavioral-contracts/ verified via anchored grep `S-3\.7\.0[^0-9]`. |
 | v0.8 | DTU cascade P5-01 (review-2026-06-10 PO micro-burst): Precondition 3 stale default `time_anchor = DateTime::UNIX_EPOCH` replaced with `prism_dtu_common::demo_time_anchor()` (`2026-01-01T00:00:00Z`, epoch `1_767_225_600` — fixed demo-era constant, NOT wall-clock) per BC-3.4.001 v0.9 precondition 4 (review-2026-06-10 P1-01 propagation; the shared test vehicle now asserts the default IS `demo_time_anchor()`). Explicit anchors remain permitted for vectors that pin one. POL-27 `modified:` synced to 2026-06-10. |
 | v0.7 | M-24-001 (Pass 24): Body Traceability Architecture Module row corrected SS-06 (Client Configuration) → SS-01 (Sensor Adapters) per ARCH-INDEX.md; prism-dtu-common is the implementation site per D-056. |
