@@ -620,3 +620,142 @@ fn test_p2_06_tactic_technique_pairing_validity_both_paths() {
     check(&generated_records("detection"), "generated detection");
     check(&static_detections(), "static detection");
 }
+
+// ---------------------------------------------------------------------------
+// P4-01 / P4-02 (cascade pass-4) — per-record distribution assertions
+// ---------------------------------------------------------------------------
+
+/// Generated device records for an archetype at the given scale (seed 42,
+/// demo-era anchor — `GenOpts::default()` otherwise).
+fn generated_devices_for(archetype: Archetype, scale: f64) -> Vec<serde_json::Value> {
+    let opts = GenOpts {
+        scale,
+        ..GenOpts::default()
+    };
+    generate(deadbeef_org(), archetype, opts)
+        .records
+        .into_iter()
+        .filter(|r| r.get("_record_type").and_then(|v| v.as_str()) == Some("device"))
+        .collect()
+}
+
+/// P4-01: generated devices must NOT all share one `last_seen` — the value
+/// varies deterministically per record (time_anchor minus a seeded RNG-free
+/// `stable_offset` fold, 0..7 days in minutes, mirroring Armis
+/// `derive_seen_window`) so FQL `last_seen` windows and agent-facing data can
+/// discriminate between devices. Covers every non-dormant archetype that
+/// emits device records (DormantTenant emits zero records by contract).
+#[test]
+fn test_p4_01_generated_device_last_seen_varies_per_archetype() {
+    let anchor = prism_dtu_common::demo_time_anchor();
+    let cases = [
+        (Archetype::HealthyOtEnvironment, 1.0),
+        (Archetype::CompromisedEndpoint, 1.0),
+        (Archetype::AuthOutage, 1.0),
+        (Archetype::LargeScale, 0.01),
+        (Archetype::PaginationEdgeCases, 1.0),
+        (Archetype::SchemaDrift, 1.0),
+        (Archetype::HighChurn, 1.0),
+    ];
+    for (archetype, scale) in cases {
+        let devices = generated_devices_for(archetype, scale);
+        assert!(
+            devices.len() > 1,
+            "{archetype:?}: need >1 device to assert last_seen variety"
+        );
+        let distinct: BTreeSet<&str> = devices
+            .iter()
+            .filter_map(|d| d.get("last_seen").and_then(|v| v.as_str()))
+            .collect();
+        assert!(
+            distinct.len() > 1,
+            "{archetype:?}: all {} generated devices share one last_seen \
+             ({distinct:?}) — per-record variance regression (P4-01)",
+            devices.len()
+        );
+        // Window sanity: every last_seen lives in (anchor - 7d, anchor] so the
+        // first_seen floor (P1-01 demo era, ≤ 97d before anchor) still holds.
+        for (i, dev) in devices.iter().enumerate() {
+            let last = dev
+                .get("last_seen")
+                .and_then(|v| v.as_str())
+                .unwrap_or_else(|| panic!("{archetype:?} device[{i}] missing last_seen"));
+            let last = parse_ts(last, "last_seen");
+            assert!(
+                last <= anchor && last > anchor - chrono::Duration::days(7),
+                "{archetype:?} device[{i}] last_seen {last} outside (anchor-7d, anchor] \
+                 window (P4-01)"
+            );
+        }
+    }
+}
+
+/// P4-02: generated detections must NOT all pin `MITRE_TECHNIQUES[0]` — the
+/// canonical table cycles per record (`det_index % MITRE_TECHNIQUES.len()`,
+/// deterministic and RNG-free), and each record carries the full canonical
+/// `(technique_id, technique, tactic_id, tactic)` tuple for its cycle slot
+/// (pairing validity guaranteed by the P2-06 table).
+#[test]
+fn test_p4_02_generated_detection_techniques_cycle() {
+    use prism_dtu_crowdstrike::generator::MITRE_TECHNIQUES;
+
+    let detections = generated_records("detection");
+    assert!(
+        detections.len() > 1,
+        "need >1 detection to assert technique variety"
+    );
+
+    let distinct: BTreeSet<&str> = detections
+        .iter()
+        .filter_map(|d| d.get("technique_id").and_then(|v| v.as_str()))
+        .collect();
+    assert!(
+        distinct.len() > 1,
+        "all {} generated detections share one technique_id ({distinct:?}) — \
+         MITRE_TECHNIQUES[0] pinning regression (P4-02)",
+        detections.len()
+    );
+
+    // Exact cycle contract: detection n carries MITRE_TECHNIQUES[n % len].
+    for (i, det) in detections.iter().enumerate() {
+        let (tid, tname, tac_id, tac_name) = MITRE_TECHNIQUES[i % MITRE_TECHNIQUES.len()];
+        for (key, expected) in [
+            ("technique_id", tid),
+            ("technique", tname),
+            ("tactic_id", tac_id),
+            ("tactic", tac_name),
+        ] {
+            assert_eq!(
+                det.get(key).and_then(|v| v.as_str()),
+                Some(expected),
+                "generated detection[{i}] {key} must be the canonical table entry \
+                 for cycle slot {} (P4-02)",
+                i % MITRE_TECHNIQUES.len()
+            );
+        }
+    }
+}
+
+/// P4-01 + P4-02: the FULL fixture set (devices incl. varied last_seen,
+/// detections incl. cycled techniques) is byte-identical across same-seed
+/// constructions — per-record variance must come only from the seeded
+/// RNG-free fold, never from ambient state (BC-3.4.001).
+#[test]
+fn test_p4_full_fixture_set_deterministic_same_seed() {
+    let a = generate(
+        deadbeef_org(),
+        Archetype::CompromisedEndpoint,
+        GenOpts::default(),
+    );
+    let b = generate(
+        deadbeef_org(),
+        Archetype::CompromisedEndpoint,
+        GenOpts::default(),
+    );
+    assert_eq!(
+        serde_json::to_string(&a.records).unwrap(),
+        serde_json::to_string(&b.records).unwrap(),
+        "full fixture set must be byte-identical for identical (org, archetype, opts) \
+         (P4-01/P4-02 determinism)"
+    );
+}

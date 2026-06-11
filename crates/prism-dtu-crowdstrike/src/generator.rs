@@ -133,7 +133,7 @@ fn gen_healthy_ot(org_id: &OrgId, opts: &GenOpts) -> (Vec<Value>, Vec<String>) {
     let det_records: Vec<Value> = (0..det_count)
         .map(|n| {
             let det_id = format!("alert-{slug}-{}-{n}", opts.seed);
-            make_detection(&det_id, &device_ids[n % device_ids.len()], 1, opts)
+            make_detection(&det_id, &device_ids[n % device_ids.len()], 1, n, opts)
         })
         .collect();
 
@@ -183,6 +183,7 @@ fn gen_compromised_endpoint(org_id: &OrgId, opts: &GenOpts) -> (Vec<Value>, Vec<
                 &det_id,
                 &device_ids[n % device_ids.len()],
                 severity_id,
+                n,
                 opts,
             )
         })
@@ -268,7 +269,7 @@ fn gen_large_scale(org_id: &OrgId, opts: &GenOpts) -> (Vec<Value>, Vec<String>) 
     let det_records: Vec<Value> = (0..det_count)
         .map(|n| {
             let det_id = format!("alert-{slug}-{}-{n}", opts.seed);
-            make_detection(&det_id, &device_ids[n % device_ids.len()], 2, opts)
+            make_detection(&det_id, &device_ids[n % device_ids.len()], 2, n, opts)
         })
         .collect();
 
@@ -459,13 +460,26 @@ fn make_id_page(ids: &[String], offset_cursor: Option<&str>) -> Value {
 ///
 /// F6 / CS-03 (review 2026-06-10): `first_seen` is required by the
 /// crowdstrike.sensor.toml `devices` table (flat datetime column). It is
-/// seeded-deterministic (stable fold of device_id × seed → 7..90 days before
+/// seeded-deterministic (stable fold of device_id × seed → 7..=90 days before
 /// `last_seen`) and always strictly earlier than `last_seen`.
+///
+/// P4-01 (cascade pass-4): `last_seen` varies per record — `time_anchor`
+/// minus a seeded `stable_offset` fold (0..7 days in minutes), mirroring
+/// Armis `derive_seen_window`. RNG-free: the fold never consults the ChaCha20
+/// stream, so per-record variance cannot perturb other generated values
+/// (BC-3.4.001 determinism preserved). Strict ordering holds by construction:
+/// `last_seen >= anchor - 10_079 min` while
+/// `first_seen <= last_seen - 7 days (10_080 min)`.
 fn make_device(device_id: &str, opts: &GenOpts) -> Value {
-    let ts = opts.time_anchor.format("%Y-%m-%dT%H:%M:%SZ").to_string();
-    // first_seen: 7..=90 days before the time anchor, stable per (device_id, seed).
-    let days_before = 7 + (stable_offset(device_id, opts.seed) % 84) as i64;
-    let first_seen = (opts.time_anchor - chrono::Duration::days(days_before))
+    // last_seen: 0..7 days (in minutes) before the time anchor, stable per
+    // (device_id, seed) — P4-01.
+    let minutes_before = (stable_offset(device_id, opts.seed) % 10_080) as i64;
+    let last_seen_dt = opts.time_anchor - chrono::Duration::minutes(minutes_before);
+    let ts = last_seen_dt.format("%Y-%m-%dT%H:%M:%SZ").to_string();
+    // first_seen: 7..=90 days before last_seen, stable per (device_id, seed+1)
+    // — strictly earlier than last_seen (F6 / CS-03).
+    let days_before = 7 + (stable_offset(device_id, opts.seed.wrapping_add(1)) % 84) as i64;
+    let first_seen = (last_seen_dt - chrono::Duration::days(days_before))
         .format("%Y-%m-%dT%H:%M:%SZ")
         .to_string();
     json!({
@@ -578,7 +592,18 @@ pub fn tactic_pair_for_technique(technique_id: &str) -> Option<(&'static str, &'
 /// time_anchor minus a seeded offset (stable fold of detection_id × seed,
 /// 0..7 days) — so FQL time-window filtering can discriminate between records.
 /// A single shared timestamp made every bounded window all-or-nothing.
-fn make_detection(detection_id: &str, device_id: &str, severity_id: u8, opts: &GenOpts) -> Value {
+///
+/// P4-02 (cascade pass-4): the MITRE tuple cycles the canonical table per
+/// record (`det_index % MITRE_TECHNIQUES.len()`) — deterministic and RNG-free
+/// — instead of pinning `MITRE_TECHNIQUES[0]` on every detection. Pairing
+/// validity for every cycle slot is guaranteed by the P2-06 table.
+fn make_detection(
+    detection_id: &str,
+    device_id: &str,
+    severity_id: u8,
+    det_index: usize,
+    opts: &GenOpts,
+) -> Value {
     // created_timestamp: 0..10080 minutes (7 days) before the anchor, stable
     // per (detection_id, seed) — deterministic per BC-3.4.001.
     let minutes_before = (stable_offset(detection_id, opts.seed) % 10_080) as i64;
@@ -591,6 +616,10 @@ fn make_detection(detection_id: &str, device_id: &str, severity_id: u8, opts: &G
         3 => "High",
         _ => "Critical",
     };
+    // P4-02: cycle the canonical MITRE table per record — full tuple from one
+    // slot, so the (tactic, technique) pairing is always table-valid.
+    let (technique_id, technique, tactic_id, tactic) =
+        MITRE_TECHNIQUES[det_index % MITRE_TECHNIQUES.len()];
     json!({
         "_record_type": "detection",
         "detection_id": detection_id,
@@ -605,15 +634,14 @@ fn make_detection(detection_id: &str, device_id: &str, severity_id: u8, opts: &G
         "description": "Fixture detection record",
         "product": "epp",
         "platform": "Linux",
-        // P1-03 + P2-06: tactic and technique sourced from the canonical
-        // table — name in `technique`/`tactic`, MITRE IDs in `technique_id`/
-        // `tactic_id` (same value classes as the static fixtures).
-        // MITRE_TECHNIQUES[0] is the T1059/Execution pair this generator has
-        // always emitted; output is byte-identical to before.
-        "tactic": MITRE_TECHNIQUES[0].3,
-        "tactic_id": MITRE_TECHNIQUES[0].2,
-        "technique": MITRE_TECHNIQUES[0].1,
-        "technique_id": MITRE_TECHNIQUES[0].0,
+        // P1-03 + P2-06 + P4-02: tactic and technique sourced from the
+        // canonical table — name in `technique`/`tactic`, MITRE IDs in
+        // `technique_id`/`tactic_id` (same value classes as the static
+        // fixtures), cycled per record by det_index (P4-02).
+        "tactic": tactic,
+        "tactic_id": tactic_id,
+        "technique": technique,
+        "technique_id": technique_id,
         "objective": "Falcon Detection Method"
     })
 }
