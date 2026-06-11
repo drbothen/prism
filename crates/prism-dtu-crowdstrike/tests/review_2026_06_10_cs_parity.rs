@@ -572,3 +572,51 @@ fn test_f8_cs06_toml_columns_covered() {
         );
     }
 }
+
+// ---------------------------------------------------------------------------
+// P2-06 (cascade pass-2) — MITRE tactic ↔ technique pairing validity
+// ---------------------------------------------------------------------------
+
+/// P2-06: the (tactic_id, tactic) pair on EVERY record — both serving paths —
+/// must equal the canonical pairing pinned for the record's technique_id in
+/// `MITRE_TECHNIQUES`. The static fixtures previously rotated independent
+/// tactic and technique lists into invalid MITRE cross-pairings (e.g.
+/// "Initial Access"/TA0001 with T1059, which is Execution/TA0002).
+#[test]
+fn test_p2_06_tactic_technique_pairing_validity_both_paths() {
+    use prism_dtu_crowdstrike::generator::tactic_pair_for_technique;
+
+    let check = |records: &[serde_json::Value], path: &str| {
+        for (i, det) in records.iter().enumerate() {
+            let tid = det
+                .get("technique_id")
+                .and_then(|v| v.as_str())
+                .unwrap_or_else(|| panic!("{path}[{i}] missing technique_id"));
+            let (canon_tactic_id, canon_tactic) =
+                tactic_pair_for_technique(tid).unwrap_or_else(|| {
+                    panic!("{path}[{i}] technique_id '{tid}' not in MITRE_TECHNIQUES table")
+                });
+            let tactic_id = det
+                .get("tactic_id")
+                .and_then(|v| v.as_str())
+                .unwrap_or_else(|| panic!("{path}[{i}] missing tactic_id"));
+            assert_eq!(
+                tactic_id, canon_tactic_id,
+                "{path}[{i}] tactic_id '{tactic_id}' is not the canonical tactic for \
+                 {tid} (P2-06 invalid MITRE pairing)"
+            );
+            let tactic = det
+                .get("tactic")
+                .and_then(|v| v.as_str())
+                .unwrap_or_else(|| panic!("{path}[{i}] missing tactic"));
+            assert_eq!(
+                tactic, canon_tactic,
+                "{path}[{i}] tactic '{tactic}' is not the canonical tactic name for \
+                 {tid} (P2-06)"
+            );
+        }
+    };
+
+    check(&generated_records("detection"), "generated detection");
+    check(&static_detections(), "static detection");
+}

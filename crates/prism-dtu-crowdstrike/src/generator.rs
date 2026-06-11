@@ -486,7 +486,9 @@ fn make_device(device_id: &str, opts: &GenOpts) -> Value {
     })
 }
 
-/// Canonical MITRE ATT&CK technique name ↔ ID table (review-2026-06-10 P1-03).
+/// Canonical MITRE ATT&CK technique ↔ tactic table (review-2026-06-10 P1-03 + P2-06).
+///
+/// Tuple layout: `(technique_id, technique_name, tactic_id, tactic_name)`.
 ///
 /// Single mapping source for the generator AND the static fixtures
 /// (`fixtures/detections-detail.json`): the flat `technique` column carries the
@@ -495,28 +497,71 @@ fn make_device(device_id: &str, opts: &GenOpts) -> Value {
 /// `attack.technique.name` mapping normalizes identically regardless of path.
 /// Covers every technique ID cycled by the static fixture set.
 ///
+/// P2-06 (cascade pass-2): each technique additionally carries its canonical
+/// tactic pairing, valid per the MITRE ATT&CK Enterprise matrix. For
+/// multi-tactic techniques (e.g. T1078 Valid Accounts, T1053 Scheduled
+/// Task/Job) ONE valid tactic is pinned so fixtures and generator agree on a
+/// single, verifiable pairing. The static fixtures previously cross-paired
+/// rotated tactic/technique lists (e.g. "Initial Access"/TA0001 with T1059,
+/// which is Execution/TA0002) — invalid MITRE data that an LLM agent consumer
+/// would reproduce.
+///
 /// NOTE: real-API value semantics (name vs ID in the flat `technique` field of
 /// CrowdStrike detect responses) carry a MEDIUM confidence flag from the
 /// adversary — to be confirmed by dtu-validator against the live API.
-pub const MITRE_TECHNIQUES: &[(&str, &str)] = &[
-    ("T1059", "Command and Scripting Interpreter"),
-    ("T1078", "Valid Accounts"),
-    ("T1053", "Scheduled Task/Job"),
-    ("T1055", "Process Injection"),
-    ("T1003", "OS Credential Dumping"),
-    ("T1021", "Remote Services"),
-    ("T1018", "Remote System Discovery"),
-    ("T1082", "System Information Discovery"),
-    ("T1098", "Account Manipulation"),
-    ("T1071", "Application Layer Protocol"),
+pub const MITRE_TECHNIQUES: &[(&str, &str, &str, &str)] = &[
+    (
+        "T1059",
+        "Command and Scripting Interpreter",
+        "TA0002",
+        "Execution",
+    ),
+    ("T1078", "Valid Accounts", "TA0001", "Initial Access"),
+    ("T1053", "Scheduled Task/Job", "TA0003", "Persistence"),
+    (
+        "T1055",
+        "Process Injection",
+        "TA0004",
+        "Privilege Escalation",
+    ),
+    (
+        "T1003",
+        "OS Credential Dumping",
+        "TA0006",
+        "Credential Access",
+    ),
+    ("T1021", "Remote Services", "TA0008", "Lateral Movement"),
+    ("T1018", "Remote System Discovery", "TA0007", "Discovery"),
+    (
+        "T1082",
+        "System Information Discovery",
+        "TA0007",
+        "Discovery",
+    ),
+    ("T1098", "Account Manipulation", "TA0003", "Persistence"),
+    (
+        "T1071",
+        "Application Layer Protocol",
+        "TA0011",
+        "Command and Control",
+    ),
 ];
 
 /// Look up the canonical MITRE technique display name for an ID (P1-03).
 pub fn technique_name(technique_id: &str) -> Option<&'static str> {
     MITRE_TECHNIQUES
         .iter()
-        .find(|(id, _)| *id == technique_id)
-        .map(|(_, name)| *name)
+        .find(|(id, _, _, _)| *id == technique_id)
+        .map(|(_, name, _, _)| *name)
+}
+
+/// Look up the canonical `(tactic_id, tactic_name)` pairing for a technique
+/// ID (P2-06). Returns the single pinned tactic from [`MITRE_TECHNIQUES`].
+pub fn tactic_pair_for_technique(technique_id: &str) -> Option<(&'static str, &'static str)> {
+    MITRE_TECHNIQUES
+        .iter()
+        .find(|(id, _, _, _)| *id == technique_id)
+        .map(|(_, _, tactic_id, tactic_name)| (*tactic_id, *tactic_name))
 }
 
 /// Build a `FalconDetection` JSON record (Step-2 detail).
@@ -560,12 +605,13 @@ fn make_detection(detection_id: &str, device_id: &str, severity_id: u8, opts: &G
         "description": "Fixture detection record",
         "product": "epp",
         "platform": "Linux",
-        "tactic": "Execution",
-        "tactic_id": "TA0002",
-        // P1-03: technique pair sourced from the canonical table — name in
-        // `technique`, MITRE ID in `technique_id` (same value classes as the
-        // static fixtures). MITRE_TECHNIQUES[0] is the T1059 pair this
-        // generator has always emitted; output is byte-identical to before.
+        // P1-03 + P2-06: tactic and technique sourced from the canonical
+        // table — name in `technique`/`tactic`, MITRE IDs in `technique_id`/
+        // `tactic_id` (same value classes as the static fixtures).
+        // MITRE_TECHNIQUES[0] is the T1059/Execution pair this generator has
+        // always emitted; output is byte-identical to before.
+        "tactic": MITRE_TECHNIQUES[0].3,
+        "tactic_id": MITRE_TECHNIQUES[0].2,
         "technique": MITRE_TECHNIQUES[0].1,
         "technique_id": MITRE_TECHNIQUES[0].0,
         "objective": "Falcon Detection Method"

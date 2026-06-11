@@ -6,15 +6,15 @@
     "created_timestamp": "2026-01-02T10:00:00Z",
     "updated_timestamp": "2026-01-02T10:05:00Z",
     "device_id": "h-001",
-    "tactic": "Initial Access",
+    "tactic": "Execution",
     "technique": "Command and Scripting Interpreter",
     "severity_id": 1,
     "confidence": 75,
-    "display_name": "Initial Access via T1059",
-    "description": "Initial Access behavior detected on host-001.example.com",
+    "display_name": "Execution via T1059",
+    "description": "Execution behavior detected on host-001.example.com",
     "product": "epp",
     "platform": "Linux",
-    "tactic_id": "TA0001",
+    "tactic_id": "TA0002",
     "technique_id": "T1059",
     "objective": "Falcon Detection Method",
     "device": {
@@ -23,7 +23,7 @@
     },
     "behaviors": [
       {
-        "tactic": "Initial Access",
+        "tactic": "Execution",
         "technique": "Command and Scripting Interpreter",
         "technique_id": "T1059"
       }
@@ -36,15 +36,15 @@
     "created_timestamp": "2026-01-03T10:00:00Z",
     "updated_timestamp": "2026-01-03T10:05:00Z",
     "device_id": "h-002",
-    "tactic": "Execution",
+    "tactic": "Initial Access",
     "technique": "Valid Accounts",
     "severity_id": 2,
     "confidence": 73,
-    "display_name": "Execution via T1078",
-    "description": "Execution behavior detected on host-002.example.com",
+    "display_name": "Initial Access via T1078",
+    "description": "Initial Access behavior detected on host-002.example.com",
     "product": "epp",
     "platform": "Windows",
-    "tactic_id": "TA0002",
+    "tactic_id": "TA0001",
     "technique_id": "T1078",
     "objective": "Falcon Detection Method",
     "device": {
@@ -53,7 +53,7 @@
     },
     "behaviors": [
       {
-        "tactic": "Execution",
+        "tactic": "Initial Access",
         "technique": "Valid Accounts",
         "technique_id": "T1078"
       }
@@ -126,15 +126,15 @@
     "created_timestamp": "2026-01-06T10:00:00Z",
     "updated_timestamp": "2026-01-06T10:05:00Z",
     "device_id": "h-005",
-    "tactic": "Defense Evasion",
+    "tactic": "Credential Access",
     "technique": "OS Credential Dumping",
     "severity_id": 1,
     "confidence": 60,
-    "display_name": "Defense Evasion via T1003",
-    "description": "Defense Evasion behavior detected on host-005.example.com",
+    "display_name": "Credential Access via T1003",
+    "description": "Credential Access behavior detected on host-005.example.com",
     "product": "epp",
     "platform": "Windows",
-    "tactic_id": "TA0005",
+    "tactic_id": "TA0006",
     "technique_id": "T1003",
     "objective": "Falcon Detection Method",
     "device": {
@@ -143,7 +143,7 @@
     },
     "behaviors": [
       {
-        "tactic": "Defense Evasion",
+        "tactic": "Credential Access",
         "technique": "OS Credential Dumping",
         "technique_id": "T1003"
       }
@@ -156,15 +156,15 @@
     "created_timestamp": "2026-01-07T10:00:00Z",
     "updated_timestamp": "2026-01-07T10:05:00Z",
     "device_id": "h-006",
-    "tactic": "Credential Access",
+    "tactic": "Lateral Movement",
     "technique": "Remote Services",
     "severity_id": 2,
     "confidence": 75,
-    "display_name": "Credential Access via T1021",
-    "description": "Credential Access behavior detected on host-006.example.com",
+    "display_name": "Lateral Movement via T1021",
+    "description": "Lateral Movement behavior detected on host-006.example.com",
     "product": "epp",
     "platform": "macOS",
-    "tactic_id": "TA0006",
+    "tactic_id": "TA0008",
     "technique_id": "T1021",
     "objective": "Falcon Detection Method",
     "device": {
@@ -173,7 +173,7 @@
     },
     "behaviors": [
       {
-        "tactic": "Credential Access",
+        "tactic": "Lateral Movement",
         "technique": "Remote Services",
         "technique_id": "T1021"
       }
@@ -216,15 +216,15 @@
     "created_timestamp": "2026-01-09T10:00:00Z",
     "updated_timestamp": "2026-01-09T10:05:00Z",
     "device_id": "h-008",
-    "tactic": "Lateral Movement",
+    "tactic": "Discovery",
     "technique": "System Information Discovery",
     "severity_id": 4,
     "confidence": 63,
-    "display_name": "Lateral Movement via T1082",
-    "description": "Lateral Movement behavior detected on host-008.example.com",
+    "display_name": "Discovery via T1082",
+    "description": "Discovery behavior detected on host-008.example.com",
     "product": "epp",
     "platform": "Windows",
-    "tactic_id": "TA0008",
+    "tactic_id": "TA0007",
     "technique_id": "T1082",
     "objective": "Falcon Detection Method",
     "device": {
@@ -233,7 +233,7 @@
     },
     "behaviors": [
       {
-        "tactic": "Lateral Movement",
+        "tactic": "Discovery",
         "technique": "System Information Discovery",
         "technique_id": "T1082"
       }
@@ -246,15 +246,15 @@
     "created_timestamp": "2026-01-10T10:00:00Z",
     "updated_timestamp": "2026-01-10T10:05:00Z",
     "device_id": "h-009",
-    "tactic": "Collection",
+    "tactic": "Persistence",
     "technique": "Account Manipulation",
     "severity_id": 1,
     "confidence": 73,
-    "display_name": "Collection via T1098",
-    "description": "Collection behavior detected on host-009.example.com",
+    "display_name": "Persistence via T1098",
+    "description": "Persistence behavior detected on host-009.example.com",
     "product": "epp",
     "platform": "macOS",
-    "tactic_id": "TA0009",
+    "tactic_id": "TA0003",
     "technique_id": "T1098",
     "objective": "Falcon Detection Method",
     "device": {
@@ -263,7 +263,7 @@
     },
     "behaviors": [
       {
-        "tactic": "Collection",
+        "tactic": "Persistence",
         "technique": "Account Manipulation",
         "technique_id": "T1098"
       }
@@ -276,15 +276,15 @@
     "created_timestamp": "2026-01-11T10:00:00Z",
     "updated_timestamp": "2026-01-11T10:05:00Z",
     "device_id": "h-010",
-    "tactic": "Exfiltration",
+    "tactic": "Command and Control",
     "technique": "Application Layer Protocol",
     "severity_id": 2,
     "confidence": 99,
-    "display_name": "Exfiltration via T1071",
-    "description": "Exfiltration behavior detected on host-010.example.com",
+    "display_name": "Command and Control via T1071",
+    "description": "Command and Control behavior detected on host-010.example.com",
     "product": "epp",
     "platform": "Linux",
-    "tactic_id": "TA0010",
+    "tactic_id": "TA0011",
     "technique_id": "T1071",
     "objective": "Falcon Detection Method",
     "device": {
@@ -293,7 +293,7 @@
     },
     "behaviors": [
       {
-        "tactic": "Exfiltration",
+        "tactic": "Command and Control",
         "technique": "Application Layer Protocol",
         "technique_id": "T1071"
       }
@@ -306,15 +306,15 @@
     "created_timestamp": "2026-01-12T10:00:00Z",
     "updated_timestamp": "2026-01-12T10:05:00Z",
     "device_id": "h-011",
-    "tactic": "Initial Access",
+    "tactic": "Execution",
     "technique": "Command and Scripting Interpreter",
     "severity_id": 3,
     "confidence": 95,
-    "display_name": "Initial Access via T1059",
-    "description": "Initial Access behavior detected on host-011.example.com",
+    "display_name": "Execution via T1059",
+    "description": "Execution behavior detected on host-011.example.com",
     "product": "epp",
     "platform": "Windows",
-    "tactic_id": "TA0001",
+    "tactic_id": "TA0002",
     "technique_id": "T1059",
     "objective": "Falcon Detection Method",
     "device": {
@@ -323,7 +323,7 @@
     },
     "behaviors": [
       {
-        "tactic": "Initial Access",
+        "tactic": "Execution",
         "technique": "Command and Scripting Interpreter",
         "technique_id": "T1059"
       }
@@ -336,15 +336,15 @@
     "created_timestamp": "2026-01-13T10:00:00Z",
     "updated_timestamp": "2026-01-13T10:05:00Z",
     "device_id": "h-012",
-    "tactic": "Execution",
+    "tactic": "Initial Access",
     "technique": "Valid Accounts",
     "severity_id": 4,
     "confidence": 71,
-    "display_name": "Execution via T1078",
-    "description": "Execution behavior detected on host-012.example.com",
+    "display_name": "Initial Access via T1078",
+    "description": "Initial Access behavior detected on host-012.example.com",
     "product": "epp",
     "platform": "macOS",
-    "tactic_id": "TA0002",
+    "tactic_id": "TA0001",
     "technique_id": "T1078",
     "objective": "Falcon Detection Method",
     "device": {
@@ -353,7 +353,7 @@
     },
     "behaviors": [
       {
-        "tactic": "Execution",
+        "tactic": "Initial Access",
         "technique": "Valid Accounts",
         "technique_id": "T1078"
       }
@@ -426,15 +426,15 @@
     "created_timestamp": "2026-01-16T10:00:00Z",
     "updated_timestamp": "2026-01-16T10:05:00Z",
     "device_id": "h-015",
-    "tactic": "Defense Evasion",
+    "tactic": "Credential Access",
     "technique": "OS Credential Dumping",
     "severity_id": 3,
     "confidence": 82,
-    "display_name": "Defense Evasion via T1003",
-    "description": "Defense Evasion behavior detected on host-015.example.com",
+    "display_name": "Credential Access via T1003",
+    "description": "Credential Access behavior detected on host-015.example.com",
     "product": "epp",
     "platform": "macOS",
-    "tactic_id": "TA0005",
+    "tactic_id": "TA0006",
     "technique_id": "T1003",
     "objective": "Falcon Detection Method",
     "device": {
@@ -443,7 +443,7 @@
     },
     "behaviors": [
       {
-        "tactic": "Defense Evasion",
+        "tactic": "Credential Access",
         "technique": "OS Credential Dumping",
         "technique_id": "T1003"
       }
@@ -456,15 +456,15 @@
     "created_timestamp": "2026-01-17T10:00:00Z",
     "updated_timestamp": "2026-01-17T10:05:00Z",
     "device_id": "h-016",
-    "tactic": "Credential Access",
+    "tactic": "Lateral Movement",
     "technique": "Remote Services",
     "severity_id": 4,
     "confidence": 62,
-    "display_name": "Credential Access via T1021",
-    "description": "Credential Access behavior detected on host-016.example.com",
+    "display_name": "Lateral Movement via T1021",
+    "description": "Lateral Movement behavior detected on host-016.example.com",
     "product": "epp",
     "platform": "Linux",
-    "tactic_id": "TA0006",
+    "tactic_id": "TA0008",
     "technique_id": "T1021",
     "objective": "Falcon Detection Method",
     "device": {
@@ -473,7 +473,7 @@
     },
     "behaviors": [
       {
-        "tactic": "Credential Access",
+        "tactic": "Lateral Movement",
         "technique": "Remote Services",
         "technique_id": "T1021"
       }
@@ -516,15 +516,15 @@
     "created_timestamp": "2026-01-19T10:00:00Z",
     "updated_timestamp": "2026-01-19T10:05:00Z",
     "device_id": "h-018",
-    "tactic": "Lateral Movement",
+    "tactic": "Discovery",
     "technique": "System Information Discovery",
     "severity_id": 2,
     "confidence": 78,
-    "display_name": "Lateral Movement via T1082",
-    "description": "Lateral Movement behavior detected on host-018.example.com",
+    "display_name": "Discovery via T1082",
+    "description": "Discovery behavior detected on host-018.example.com",
     "product": "epp",
     "platform": "macOS",
-    "tactic_id": "TA0008",
+    "tactic_id": "TA0007",
     "technique_id": "T1082",
     "objective": "Falcon Detection Method",
     "device": {
@@ -533,7 +533,7 @@
     },
     "behaviors": [
       {
-        "tactic": "Lateral Movement",
+        "tactic": "Discovery",
         "technique": "System Information Discovery",
         "technique_id": "T1082"
       }
@@ -546,15 +546,15 @@
     "created_timestamp": "2026-01-20T10:00:00Z",
     "updated_timestamp": "2026-01-20T10:05:00Z",
     "device_id": "h-019",
-    "tactic": "Collection",
+    "tactic": "Persistence",
     "technique": "Account Manipulation",
     "severity_id": 3,
     "confidence": 64,
-    "display_name": "Collection via T1098",
-    "description": "Collection behavior detected on host-019.example.com",
+    "display_name": "Persistence via T1098",
+    "description": "Persistence behavior detected on host-019.example.com",
     "product": "epp",
     "platform": "Linux",
-    "tactic_id": "TA0009",
+    "tactic_id": "TA0003",
     "technique_id": "T1098",
     "objective": "Falcon Detection Method",
     "device": {
@@ -563,7 +563,7 @@
     },
     "behaviors": [
       {
-        "tactic": "Collection",
+        "tactic": "Persistence",
         "technique": "Account Manipulation",
         "technique_id": "T1098"
       }
@@ -576,15 +576,15 @@
     "created_timestamp": "2026-01-21T10:00:00Z",
     "updated_timestamp": "2026-01-21T10:05:00Z",
     "device_id": "h-020",
-    "tactic": "Exfiltration",
+    "tactic": "Command and Control",
     "technique": "Application Layer Protocol",
     "severity_id": 4,
     "confidence": 97,
-    "display_name": "Exfiltration via T1071",
-    "description": "Exfiltration behavior detected on host-020.example.com",
+    "display_name": "Command and Control via T1071",
+    "description": "Command and Control behavior detected on host-020.example.com",
     "product": "epp",
     "platform": "Windows",
-    "tactic_id": "TA0010",
+    "tactic_id": "TA0011",
     "technique_id": "T1071",
     "objective": "Falcon Detection Method",
     "device": {
@@ -593,7 +593,7 @@
     },
     "behaviors": [
       {
-        "tactic": "Exfiltration",
+        "tactic": "Command and Control",
         "technique": "Application Layer Protocol",
         "technique_id": "T1071"
       }
@@ -606,15 +606,15 @@
     "created_timestamp": "2026-01-22T10:00:00Z",
     "updated_timestamp": "2026-01-22T10:05:00Z",
     "device_id": "h-021",
-    "tactic": "Initial Access",
+    "tactic": "Execution",
     "technique": "Command and Scripting Interpreter",
     "severity_id": 1,
     "confidence": 78,
-    "display_name": "Initial Access via T1059",
-    "description": "Initial Access behavior detected on host-021.example.com",
+    "display_name": "Execution via T1059",
+    "description": "Execution behavior detected on host-021.example.com",
     "product": "epp",
     "platform": "macOS",
-    "tactic_id": "TA0001",
+    "tactic_id": "TA0002",
     "technique_id": "T1059",
     "objective": "Falcon Detection Method",
     "device": {
@@ -623,7 +623,7 @@
     },
     "behaviors": [
       {
-        "tactic": "Initial Access",
+        "tactic": "Execution",
         "technique": "Command and Scripting Interpreter",
         "technique_id": "T1059"
       }
@@ -636,15 +636,15 @@
     "created_timestamp": "2026-01-23T10:00:00Z",
     "updated_timestamp": "2026-01-23T10:05:00Z",
     "device_id": "h-022",
-    "tactic": "Execution",
+    "tactic": "Initial Access",
     "technique": "Valid Accounts",
     "severity_id": 2,
     "confidence": 62,
-    "display_name": "Execution via T1078",
-    "description": "Execution behavior detected on host-022.example.com",
+    "display_name": "Initial Access via T1078",
+    "description": "Initial Access behavior detected on host-022.example.com",
     "product": "epp",
     "platform": "Linux",
-    "tactic_id": "TA0002",
+    "tactic_id": "TA0001",
     "technique_id": "T1078",
     "objective": "Falcon Detection Method",
     "device": {
@@ -653,7 +653,7 @@
     },
     "behaviors": [
       {
-        "tactic": "Execution",
+        "tactic": "Initial Access",
         "technique": "Valid Accounts",
         "technique_id": "T1078"
       }
@@ -726,15 +726,15 @@
     "created_timestamp": "2026-01-26T10:00:00Z",
     "updated_timestamp": "2026-01-26T10:05:00Z",
     "device_id": "h-025",
-    "tactic": "Defense Evasion",
+    "tactic": "Credential Access",
     "technique": "OS Credential Dumping",
     "severity_id": 1,
     "confidence": 99,
-    "display_name": "Defense Evasion via T1003",
-    "description": "Defense Evasion behavior detected on host-025.example.com",
+    "display_name": "Credential Access via T1003",
+    "description": "Credential Access behavior detected on host-025.example.com",
     "product": "epp",
     "platform": "Linux",
-    "tactic_id": "TA0005",
+    "tactic_id": "TA0006",
     "technique_id": "T1003",
     "objective": "Falcon Detection Method",
     "device": {
@@ -743,7 +743,7 @@
     },
     "behaviors": [
       {
-        "tactic": "Defense Evasion",
+        "tactic": "Credential Access",
         "technique": "OS Credential Dumping",
         "technique_id": "T1003"
       }
@@ -756,15 +756,15 @@
     "created_timestamp": "2026-01-27T10:00:00Z",
     "updated_timestamp": "2026-01-27T10:05:00Z",
     "device_id": "h-026",
-    "tactic": "Credential Access",
+    "tactic": "Lateral Movement",
     "technique": "Remote Services",
     "severity_id": 2,
     "confidence": 78,
-    "display_name": "Credential Access via T1021",
-    "description": "Credential Access behavior detected on host-026.example.com",
+    "display_name": "Lateral Movement via T1021",
+    "description": "Lateral Movement behavior detected on host-026.example.com",
     "product": "epp",
     "platform": "Windows",
-    "tactic_id": "TA0006",
+    "tactic_id": "TA0008",
     "technique_id": "T1021",
     "objective": "Falcon Detection Method",
     "device": {
@@ -773,7 +773,7 @@
     },
     "behaviors": [
       {
-        "tactic": "Credential Access",
+        "tactic": "Lateral Movement",
         "technique": "Remote Services",
         "technique_id": "T1021"
       }
@@ -816,15 +816,15 @@
     "created_timestamp": "2026-01-01T10:00:00Z",
     "updated_timestamp": "2026-01-01T10:05:00Z",
     "device_id": "h-028",
-    "tactic": "Lateral Movement",
+    "tactic": "Discovery",
     "technique": "System Information Discovery",
     "severity_id": 4,
     "confidence": 84,
-    "display_name": "Lateral Movement via T1082",
-    "description": "Lateral Movement behavior detected on host-028.example.com",
+    "display_name": "Discovery via T1082",
+    "description": "Discovery behavior detected on host-028.example.com",
     "product": "epp",
     "platform": "Linux",
-    "tactic_id": "TA0008",
+    "tactic_id": "TA0007",
     "technique_id": "T1082",
     "objective": "Falcon Detection Method",
     "device": {
@@ -833,7 +833,7 @@
     },
     "behaviors": [
       {
-        "tactic": "Lateral Movement",
+        "tactic": "Discovery",
         "technique": "System Information Discovery",
         "technique_id": "T1082"
       }
@@ -846,15 +846,15 @@
     "created_timestamp": "2026-01-02T10:00:00Z",
     "updated_timestamp": "2026-01-02T10:05:00Z",
     "device_id": "h-029",
-    "tactic": "Collection",
+    "tactic": "Persistence",
     "technique": "Account Manipulation",
     "severity_id": 1,
     "confidence": 92,
-    "display_name": "Collection via T1098",
-    "description": "Collection behavior detected on host-029.example.com",
+    "display_name": "Persistence via T1098",
+    "description": "Persistence behavior detected on host-029.example.com",
     "product": "epp",
     "platform": "Windows",
-    "tactic_id": "TA0009",
+    "tactic_id": "TA0003",
     "technique_id": "T1098",
     "objective": "Falcon Detection Method",
     "device": {
@@ -863,7 +863,7 @@
     },
     "behaviors": [
       {
-        "tactic": "Collection",
+        "tactic": "Persistence",
         "technique": "Account Manipulation",
         "technique_id": "T1098"
       }
@@ -876,15 +876,15 @@
     "created_timestamp": "2026-01-03T10:00:00Z",
     "updated_timestamp": "2026-01-03T10:05:00Z",
     "device_id": "h-030",
-    "tactic": "Exfiltration",
+    "tactic": "Command and Control",
     "technique": "Application Layer Protocol",
     "severity_id": 2,
     "confidence": 98,
-    "display_name": "Exfiltration via T1071",
-    "description": "Exfiltration behavior detected on host-030.example.com",
+    "display_name": "Command and Control via T1071",
+    "description": "Command and Control behavior detected on host-030.example.com",
     "product": "epp",
     "platform": "macOS",
-    "tactic_id": "TA0010",
+    "tactic_id": "TA0011",
     "technique_id": "T1071",
     "objective": "Falcon Detection Method",
     "device": {
@@ -893,7 +893,7 @@
     },
     "behaviors": [
       {
-        "tactic": "Exfiltration",
+        "tactic": "Command and Control",
         "technique": "Application Layer Protocol",
         "technique_id": "T1071"
       }
@@ -906,15 +906,15 @@
     "created_timestamp": "2026-01-04T10:00:00Z",
     "updated_timestamp": "2026-01-04T10:05:00Z",
     "device_id": "h-001",
-    "tactic": "Initial Access",
+    "tactic": "Execution",
     "technique": "Command and Scripting Interpreter",
     "severity_id": 3,
     "confidence": 71,
-    "display_name": "Initial Access via T1059",
-    "description": "Initial Access behavior detected on host-001.example.com",
+    "display_name": "Execution via T1059",
+    "description": "Execution behavior detected on host-001.example.com",
     "product": "epp",
     "platform": "Linux",
-    "tactic_id": "TA0001",
+    "tactic_id": "TA0002",
     "technique_id": "T1059",
     "objective": "Falcon Detection Method",
     "device": {
@@ -923,7 +923,7 @@
     },
     "behaviors": [
       {
-        "tactic": "Initial Access",
+        "tactic": "Execution",
         "technique": "Command and Scripting Interpreter",
         "technique_id": "T1059"
       }
@@ -936,15 +936,15 @@
     "created_timestamp": "2026-01-05T10:00:00Z",
     "updated_timestamp": "2026-01-05T10:05:00Z",
     "device_id": "h-002",
-    "tactic": "Execution",
+    "tactic": "Initial Access",
     "technique": "Valid Accounts",
     "severity_id": 4,
     "confidence": 77,
-    "display_name": "Execution via T1078",
-    "description": "Execution behavior detected on host-002.example.com",
+    "display_name": "Initial Access via T1078",
+    "description": "Initial Access behavior detected on host-002.example.com",
     "product": "epp",
     "platform": "Windows",
-    "tactic_id": "TA0002",
+    "tactic_id": "TA0001",
     "technique_id": "T1078",
     "objective": "Falcon Detection Method",
     "device": {
@@ -953,7 +953,7 @@
     },
     "behaviors": [
       {
-        "tactic": "Execution",
+        "tactic": "Initial Access",
         "technique": "Valid Accounts",
         "technique_id": "T1078"
       }
@@ -1026,15 +1026,15 @@
     "created_timestamp": "2026-01-08T10:00:00Z",
     "updated_timestamp": "2026-01-08T10:05:00Z",
     "device_id": "h-005",
-    "tactic": "Defense Evasion",
+    "tactic": "Credential Access",
     "technique": "OS Credential Dumping",
     "severity_id": 3,
     "confidence": 75,
-    "display_name": "Defense Evasion via T1003",
-    "description": "Defense Evasion behavior detected on host-005.example.com",
+    "display_name": "Credential Access via T1003",
+    "description": "Credential Access behavior detected on host-005.example.com",
     "product": "epp",
     "platform": "Windows",
-    "tactic_id": "TA0005",
+    "tactic_id": "TA0006",
     "technique_id": "T1003",
     "objective": "Falcon Detection Method",
     "device": {
@@ -1043,7 +1043,7 @@
     },
     "behaviors": [
       {
-        "tactic": "Defense Evasion",
+        "tactic": "Credential Access",
         "technique": "OS Credential Dumping",
         "technique_id": "T1003"
       }
@@ -1056,15 +1056,15 @@
     "created_timestamp": "2026-01-09T10:00:00Z",
     "updated_timestamp": "2026-01-09T10:05:00Z",
     "device_id": "h-006",
-    "tactic": "Credential Access",
+    "tactic": "Lateral Movement",
     "technique": "Remote Services",
     "severity_id": 4,
     "confidence": 88,
-    "display_name": "Credential Access via T1021",
-    "description": "Credential Access behavior detected on host-006.example.com",
+    "display_name": "Lateral Movement via T1021",
+    "description": "Lateral Movement behavior detected on host-006.example.com",
     "product": "epp",
     "platform": "macOS",
-    "tactic_id": "TA0006",
+    "tactic_id": "TA0008",
     "technique_id": "T1021",
     "objective": "Falcon Detection Method",
     "device": {
@@ -1073,7 +1073,7 @@
     },
     "behaviors": [
       {
-        "tactic": "Credential Access",
+        "tactic": "Lateral Movement",
         "technique": "Remote Services",
         "technique_id": "T1021"
       }
@@ -1116,15 +1116,15 @@
     "created_timestamp": "2026-01-11T10:00:00Z",
     "updated_timestamp": "2026-01-11T10:05:00Z",
     "device_id": "h-008",
-    "tactic": "Lateral Movement",
+    "tactic": "Discovery",
     "technique": "System Information Discovery",
     "severity_id": 2,
     "confidence": 62,
-    "display_name": "Lateral Movement via T1082",
-    "description": "Lateral Movement behavior detected on host-008.example.com",
+    "display_name": "Discovery via T1082",
+    "description": "Discovery behavior detected on host-008.example.com",
     "product": "epp",
     "platform": "Windows",
-    "tactic_id": "TA0008",
+    "tactic_id": "TA0007",
     "technique_id": "T1082",
     "objective": "Falcon Detection Method",
     "device": {
@@ -1133,7 +1133,7 @@
     },
     "behaviors": [
       {
-        "tactic": "Lateral Movement",
+        "tactic": "Discovery",
         "technique": "System Information Discovery",
         "technique_id": "T1082"
       }
@@ -1146,15 +1146,15 @@
     "created_timestamp": "2026-01-12T10:00:00Z",
     "updated_timestamp": "2026-01-12T10:05:00Z",
     "device_id": "h-009",
-    "tactic": "Collection",
+    "tactic": "Persistence",
     "technique": "Account Manipulation",
     "severity_id": 3,
     "confidence": 97,
-    "display_name": "Collection via T1098",
-    "description": "Collection behavior detected on host-009.example.com",
+    "display_name": "Persistence via T1098",
+    "description": "Persistence behavior detected on host-009.example.com",
     "product": "epp",
     "platform": "macOS",
-    "tactic_id": "TA0009",
+    "tactic_id": "TA0003",
     "technique_id": "T1098",
     "objective": "Falcon Detection Method",
     "device": {
@@ -1163,7 +1163,7 @@
     },
     "behaviors": [
       {
-        "tactic": "Collection",
+        "tactic": "Persistence",
         "technique": "Account Manipulation",
         "technique_id": "T1098"
       }
@@ -1176,15 +1176,15 @@
     "created_timestamp": "2026-01-13T10:00:00Z",
     "updated_timestamp": "2026-01-13T10:05:00Z",
     "device_id": "h-010",
-    "tactic": "Exfiltration",
+    "tactic": "Command and Control",
     "technique": "Application Layer Protocol",
     "severity_id": 4,
     "confidence": 91,
-    "display_name": "Exfiltration via T1071",
-    "description": "Exfiltration behavior detected on host-010.example.com",
+    "display_name": "Command and Control via T1071",
+    "description": "Command and Control behavior detected on host-010.example.com",
     "product": "epp",
     "platform": "Linux",
-    "tactic_id": "TA0010",
+    "tactic_id": "TA0011",
     "technique_id": "T1071",
     "objective": "Falcon Detection Method",
     "device": {
@@ -1193,7 +1193,7 @@
     },
     "behaviors": [
       {
-        "tactic": "Exfiltration",
+        "tactic": "Command and Control",
         "technique": "Application Layer Protocol",
         "technique_id": "T1071"
       }
@@ -1206,15 +1206,15 @@
     "created_timestamp": "2026-01-14T10:00:00Z",
     "updated_timestamp": "2026-01-14T10:05:00Z",
     "device_id": "h-011",
-    "tactic": "Initial Access",
+    "tactic": "Execution",
     "technique": "Command and Scripting Interpreter",
     "severity_id": 1,
     "confidence": 77,
-    "display_name": "Initial Access via T1059",
-    "description": "Initial Access behavior detected on host-011.example.com",
+    "display_name": "Execution via T1059",
+    "description": "Execution behavior detected on host-011.example.com",
     "product": "epp",
     "platform": "Windows",
-    "tactic_id": "TA0001",
+    "tactic_id": "TA0002",
     "technique_id": "T1059",
     "objective": "Falcon Detection Method",
     "device": {
@@ -1223,7 +1223,7 @@
     },
     "behaviors": [
       {
-        "tactic": "Initial Access",
+        "tactic": "Execution",
         "technique": "Command and Scripting Interpreter",
         "technique_id": "T1059"
       }
@@ -1236,15 +1236,15 @@
     "created_timestamp": "2026-01-15T10:00:00Z",
     "updated_timestamp": "2026-01-15T10:05:00Z",
     "device_id": "h-012",
-    "tactic": "Execution",
+    "tactic": "Initial Access",
     "technique": "Valid Accounts",
     "severity_id": 2,
     "confidence": 96,
-    "display_name": "Execution via T1078",
-    "description": "Execution behavior detected on host-012.example.com",
+    "display_name": "Initial Access via T1078",
+    "description": "Initial Access behavior detected on host-012.example.com",
     "product": "epp",
     "platform": "macOS",
-    "tactic_id": "TA0002",
+    "tactic_id": "TA0001",
     "technique_id": "T1078",
     "objective": "Falcon Detection Method",
     "device": {
@@ -1253,7 +1253,7 @@
     },
     "behaviors": [
       {
-        "tactic": "Execution",
+        "tactic": "Initial Access",
         "technique": "Valid Accounts",
         "technique_id": "T1078"
       }
@@ -1326,15 +1326,15 @@
     "created_timestamp": "2026-01-18T10:00:00Z",
     "updated_timestamp": "2026-01-18T10:05:00Z",
     "device_id": "h-015",
-    "tactic": "Defense Evasion",
+    "tactic": "Credential Access",
     "technique": "OS Credential Dumping",
     "severity_id": 1,
     "confidence": 95,
-    "display_name": "Defense Evasion via T1003",
-    "description": "Defense Evasion behavior detected on host-015.example.com",
+    "display_name": "Credential Access via T1003",
+    "description": "Credential Access behavior detected on host-015.example.com",
     "product": "epp",
     "platform": "macOS",
-    "tactic_id": "TA0005",
+    "tactic_id": "TA0006",
     "technique_id": "T1003",
     "objective": "Falcon Detection Method",
     "device": {
@@ -1343,7 +1343,7 @@
     },
     "behaviors": [
       {
-        "tactic": "Defense Evasion",
+        "tactic": "Credential Access",
         "technique": "OS Credential Dumping",
         "technique_id": "T1003"
       }
@@ -1356,15 +1356,15 @@
     "created_timestamp": "2026-01-19T10:00:00Z",
     "updated_timestamp": "2026-01-19T10:05:00Z",
     "device_id": "h-016",
-    "tactic": "Credential Access",
+    "tactic": "Lateral Movement",
     "technique": "Remote Services",
     "severity_id": 2,
     "confidence": 85,
-    "display_name": "Credential Access via T1021",
-    "description": "Credential Access behavior detected on host-016.example.com",
+    "display_name": "Lateral Movement via T1021",
+    "description": "Lateral Movement behavior detected on host-016.example.com",
     "product": "epp",
     "platform": "Linux",
-    "tactic_id": "TA0006",
+    "tactic_id": "TA0008",
     "technique_id": "T1021",
     "objective": "Falcon Detection Method",
     "device": {
@@ -1373,7 +1373,7 @@
     },
     "behaviors": [
       {
-        "tactic": "Credential Access",
+        "tactic": "Lateral Movement",
         "technique": "Remote Services",
         "technique_id": "T1021"
       }
@@ -1416,15 +1416,15 @@
     "created_timestamp": "2026-01-21T10:00:00Z",
     "updated_timestamp": "2026-01-21T10:05:00Z",
     "device_id": "h-018",
-    "tactic": "Lateral Movement",
+    "tactic": "Discovery",
     "technique": "System Information Discovery",
     "severity_id": 4,
     "confidence": 83,
-    "display_name": "Lateral Movement via T1082",
-    "description": "Lateral Movement behavior detected on host-018.example.com",
+    "display_name": "Discovery via T1082",
+    "description": "Discovery behavior detected on host-018.example.com",
     "product": "epp",
     "platform": "macOS",
-    "tactic_id": "TA0008",
+    "tactic_id": "TA0007",
     "technique_id": "T1082",
     "objective": "Falcon Detection Method",
     "device": {
@@ -1433,7 +1433,7 @@
     },
     "behaviors": [
       {
-        "tactic": "Lateral Movement",
+        "tactic": "Discovery",
         "technique": "System Information Discovery",
         "technique_id": "T1082"
       }
@@ -1446,15 +1446,15 @@
     "created_timestamp": "2026-01-22T10:00:00Z",
     "updated_timestamp": "2026-01-22T10:05:00Z",
     "device_id": "h-019",
-    "tactic": "Collection",
+    "tactic": "Persistence",
     "technique": "Account Manipulation",
     "severity_id": 1,
     "confidence": 61,
-    "display_name": "Collection via T1098",
-    "description": "Collection behavior detected on host-019.example.com",
+    "display_name": "Persistence via T1098",
+    "description": "Persistence behavior detected on host-019.example.com",
     "product": "epp",
     "platform": "Linux",
-    "tactic_id": "TA0009",
+    "tactic_id": "TA0003",
     "technique_id": "T1098",
     "objective": "Falcon Detection Method",
     "device": {
@@ -1463,7 +1463,7 @@
     },
     "behaviors": [
       {
-        "tactic": "Collection",
+        "tactic": "Persistence",
         "technique": "Account Manipulation",
         "technique_id": "T1098"
       }
@@ -1476,15 +1476,15 @@
     "created_timestamp": "2026-01-23T10:00:00Z",
     "updated_timestamp": "2026-01-23T10:05:00Z",
     "device_id": "h-020",
-    "tactic": "Exfiltration",
+    "tactic": "Command and Control",
     "technique": "Application Layer Protocol",
     "severity_id": 2,
     "confidence": 61,
-    "display_name": "Exfiltration via T1071",
-    "description": "Exfiltration behavior detected on host-020.example.com",
+    "display_name": "Command and Control via T1071",
+    "description": "Command and Control behavior detected on host-020.example.com",
     "product": "epp",
     "platform": "Windows",
-    "tactic_id": "TA0010",
+    "tactic_id": "TA0011",
     "technique_id": "T1071",
     "objective": "Falcon Detection Method",
     "device": {
@@ -1493,7 +1493,7 @@
     },
     "behaviors": [
       {
-        "tactic": "Exfiltration",
+        "tactic": "Command and Control",
         "technique": "Application Layer Protocol",
         "technique_id": "T1071"
       }
