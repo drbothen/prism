@@ -1,4 +1,4 @@
-//! BC-3.6.001 v0.5 — Ops-clone failure-mode coverage tests.
+//! BC-3.6.001 — Ops-clone failure-mode coverage tests.
 //!
 //! Tests that all 6 `FailureMode` variants are fully honored by the three
 //! MSSP-coordination clones (Jira, PagerDuty, Slack).
@@ -9,7 +9,7 @@
 //!
 //! | Mode | Expected behavior |
 //! |------|-------------------|
-//! | AuthReject | HTTP 401 on every user-facing request |
+//! | AuthReject | HTTP 401 on every user-facing request, EXCEPT PagerDuty which returns 403 (see BC-3.6.001 Invariant 5 per-clone table) |
 //! | NetworkTimeout | Response delayed by configured `after_ms` |
 //! | MalformedResponse | Response body is NOT valid JSON |
 //! | Unprocessable | HTTP 422 at configured `at_request_n` |
@@ -937,7 +937,7 @@ async fn test_BC_3_6_001_slack_rate_limit_honored() {
 // ---------------------------------------------------------------------------
 // VP-157: Postcondition-5 — HTTP 400 with exact unsupported_failure_mode body
 //
-// BC-3.6.001 v0.6 Postcondition 5: POST /dtu/configure with an unsupported
+// BC-3.6.001 Postcondition 5: POST /dtu/configure with an unsupported
 // failure mode returns HTTP 400 with body EXACTLY:
 //   {"error":"unsupported_failure_mode","mode":"<variant-name>"}
 //
@@ -953,7 +953,7 @@ async fn test_BC_3_6_001_slack_rate_limit_honored() {
 //
 // VP-157: POST /dtu/configure with unsupported mode returns HTTP 400 with
 //         {"error":"unsupported_failure_mode","mode":"<variant>"} and leaves
-//         clone state unchanged (BC-3.6.001 v0.6 Postcondition 5 / EC-008 / EC-009).
+//         clone state unchanged (BC-3.6.001 Postcondition 5 / EC-008 / EC-009).
 // ---------------------------------------------------------------------------
 
 /// VP-157: Jira /dtu/configure returns exact Postcondition-5 body for unsupported auth_mode.

@@ -355,7 +355,7 @@ async fn post_configure(
         }
     };
 
-    // BC-3.6.001 v0.6 Postcondition 5: a structurally-valid payload that requests
+    // BC-3.6.001 Postcondition 5: a structurally-valid payload that requests
     // an unrecognized mode (e.g. a future FailureMode variant) must return HTTP 400
     // with {"error":"unsupported_failure_mode","mode":"<variant-name>"}.  This is
     // distinct from the serde deny_unknown_fields path above (schema-invalid payload).
@@ -377,7 +377,7 @@ async fn post_configure(
 /// Returns `Ok(FailureMode)` for recognized modes (including `None` for
 /// empty / clear payloads).  Returns `Err(mode_name)` when a known field
 /// carries an unrecognized value — the caller maps this to HTTP 400 with the
-/// BC-3.6.001 v0.6 Postcondition-5 body
+/// BC-3.6.001 Postcondition-5 body
 /// `{"error":"unsupported_failure_mode","mode":"<mode_name>"}`.
 fn harness_configure_to_failure_mode(cfg: &HarnessConfigure) -> Result<FailureMode, String> {
     if cfg.clear == Some(true) {
