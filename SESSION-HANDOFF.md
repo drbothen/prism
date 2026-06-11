@@ -1,16 +1,16 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.745"
+version: "7.746"
 status: current
-timestamp: 2026-06-11T14:00:00Z
+timestamp: 2026-06-11T18:00:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
 
-> **PRIORITY READ ORDER — D-1094 ROUNDS 2+3 RECORDED (next session resumes ZERO-CONTEXT from this file). ZERO-CONTEXT RESUME SNAPSHOT.**
-> Read §ACTIVE OBJECTIVE (North Star) FIRST, then §RESUME SNAPSHOT 2026-06-11-REVIEW-CYCLE-PAUSE-D1092 below (§BRANCH STATE updated by D-1094), then STATE.md frontmatter, then the task ledger (`.factory/objectives/multi-client-soc-demo-tasks.md`) before dispatching any agent.
-> develop HEAD `c287b00d` (UNCHANGED — no review-cycle branch has merged). factory-artifacts PUSHED to origin/factory-artifacts (D-1066 standing authorization). STATE v7.745.
+> **PRIORITY READ ORDER — D-1095 ROUND 4 RECORDED (next session resumes ZERO-CONTEXT from this file). ZERO-CONTEXT RESUME SNAPSHOT.**
+> Read §ACTIVE OBJECTIVE (North Star) FIRST, then §RESUME SNAPSHOT 2026-06-11-REVIEW-CYCLE-PAUSE-D1092 below (§BRANCH STATE updated by D-1095), then STATE.md frontmatter, then the task ledger (`.factory/objectives/multi-client-soc-demo-tasks.md`) before dispatching any agent.
+> develop HEAD `c287b00d` (UNCHANGED — no review-cycle branch has merged). factory-artifacts PUSHED to origin/factory-artifacts (D-1066 standing authorization). STATE v7.746.
 
 ---
 
@@ -73,7 +73,7 @@ S-CONFIG-MULTI-TENANT-OVERRIDE-001 (per-org overlays), S-DEMO-001 (per-org adapt
 
 **NEXT CONCRETE ACTION: complete the 2026-06-10 review cycle (3 fix-branch cascades → pinned-order merges QRY → MCP → DTU → register burst), THEN resume T5 (Story B). See §RESUME SNAPSHOT 2026-06-11-REVIEW-CYCLE-PAUSE-D1092 below for the verbatim sequence.**
 
-**Task ledger (granular, status-tracked, source of truth): `.factory/objectives/multi-client-soc-demo-tasks.md` — CURRENT POINTER: T5 (interrupted by review cycle; D-1091/D-1092/D-1093/D-1094). T1+T2+T3+T4+T4-A DONE. ADR-036 v2.2. BC-INDEX v6.24. ARCH-INDEX v2.133. STORY-INDEX v2.348. error-taxonomy v1.74. policies v1.32. prd v1.12. BC-2.06.018 v1.6 ACTIVE. STATE v7.745.**
+**Task ledger (granular, status-tracked, source of truth): `.factory/objectives/multi-client-soc-demo-tasks.md` — CURRENT POINTER: T5 (interrupted by review cycle; D-1091/D-1092/D-1093/D-1094/D-1095). T1+T2+T3+T4+T4-A DONE. ADR-036 v2.2. BC-INDEX v6.24. ARCH-INDEX v2.133. STORY-INDEX v2.348. error-taxonomy v1.75. policies v1.32. prd v1.12. BC-2.06.018 v1.6 ACTIVE. STATE v7.746.**
 
 ---
 
@@ -104,12 +104,12 @@ S-CONFIG-MULTI-TENANT-OVERRIDE-001 (per-org overlays), S-DEMO-001 (per-org adapt
 | **Mode** | brownfield |
 | **Phase** | 3 (Wave 5 — wave-5-e-demo-fidelity) — INTERRUPTED at T5 by user-directed full-codebase review (2026-06-10); PAUSED at D-1092 (session end 2026-06-10/11) |
 | **develop HEAD** | `c287b00d` (unchanged; no review branch merged yet) |
-| **STATE version** | v7.745 |
+| **STATE version** | v7.746 |
 | **BC-INDEX version** | v6.24 (total 250; active 232; draft 5; retired 6 — ADR-037 retired BC-3.3.001/002/003/004) |
 | **STORY-INDEX version** | v2.348 (total_stories 194) |
 | **VP-INDEX version** | v1.77 |
 | **ARCH-INDEX version** | v2.133 |
-| **error-taxonomy version** | v1.74 |
+| **error-taxonomy version** | v1.75 |
 | **policies version** | v1.32 |
 | **prd version** | v1.12 |
 | **test-vectors version** | v2.9 |
@@ -145,30 +145,30 @@ Human decisions recorded:
 
 ---
 
-### 4. §BRANCH STATE (updated D-1094 — verify `git log` on resume as standard discipline)
+### 4. §BRANCH STATE (updated D-1095 — verify `git log` on resume as standard discipline)
 
 All three worktrees under `.worktrees/`, branches over `develop@c287b00d`, NOT pushed except DTU. Every branch's next action is a fresh adversary pass.
 
 **Cascade protocol (all 3 branches):** BC-5.39.001 3-CLEAN **strict** per branch; report format CLEAN(strict)/CLEAN(PR-merge); fresh-context adversary each pass. Adjudicated **do-not-reflag lists** are recorded in each pass dispatch — key standing exclusions: P1-03 deviation (human-authorized), BC frontmatter timestamps (register burst), DEF-1 Claroty pagination (post-merge fix), denylist wiring (S-WATCHDOG-WIRING-001), scope params (S-QUERY-SCOPE-PARAMS-001), cross-branch artifacts (merge order resolves).
 
-**1. `fix/review-2026-06-10-query-core`** — 29 commits, head `76bda665`. Gate exit 0. All pass-1..8 findings closed.
-- **E-QUERY-034 split LANDED** (commits `388be2cf` / `0c240683` / `cf0dfe1e`: prism-core variant, prism-query sweep, prism-mcp arm). Pass-6: P6-01 display stutter (`77b81345`); P6-02 E-QUERY-006/E-ALIAS-001 nesting in E-QUERY-034 (`da3b7f31`: NEW `PrismError::UnknownSourceTable { source_name }` / E-QUERY-036 at `resolve_source_refs`; EXISTING `PrismError::AliasNotFound` un-nesting at `explain.rs`; 959/959 green); P6-03 [process-gap] E-QUERY-009 omitted from residual note — LATENT confirmed, DEFER-EQUERY009-001 stands, no code action. Pass-7: P7-01 LOW stale E-QUERY-006 comment in e2e_smoke — `3c7679f8` (historical-comment legitimacy, broad-sweep classification). CLEAN(strict)=no, streak reset 0/3. Pass-8: P8-01 LOW (E-INT-002 undefined + E-CACHE-001 detail mismatch, pre-existing but in-diff) → PO D5-adjudication: taxonomy v1.74 INT section + Internal.detail prose-only convention, E-INT-002 NOT registered, E-CACHE-001 scope clarified; code fix `76bda665` (959/959 green, test_BC_2_07_004_cache_mutex_poison red→green). P8-02 OBS = DEFER-EQUERY009-001 re-verification (no action). CLEAN(strict)=no; streak reset 0/3. Internal.detail embedded-code class-sweep COMPLETE (invalidation.rs ×2 + cache.rs ×1 = entire workspace set; zero remain).
-- **NEXT ACTION: launch adversary pass 9 (streak 0/3).**
-- Do-not-reflag additions since D-1093: P7-01 closure (`3c7679f8`, historical-comment legitimacy classification); taxonomy v1.74 prose-only convention (Internal.detail); E-QUERY-009 LATENT / DEFER-EQUERY009-001 (do-not-reflag reconfirmed P8-02); E-INT-001 sentinel at `invalidation.rs:387` = DIRECTED-PROBE next pass (not do-not-reflag — adversary SHOULD probe this site for proper E-INT taxonomy alignment in pass 9).
-- Full do-not-reflag cumulative: E-QUERY-034 spec set (taxonomy v1.71/72/73/74, BC-2.11.006 v1.19, BC-2.11.005 v1.7); POL-16 hot-reload test retired; P4-D1/D2 deferred; P6-01 stutter closure; P6-02 E-QUERY-036; P6-03 + P8-02 DEFER-EQUERY009-001; P7-01 historical-comment; P8-01 closures (taxonomy v1.74 INT/Internal.detail/E-CACHE-001 scope).
+**1. `fix/review-2026-06-10-query-core`** — 30 commits, head `873b693f`. Gate exit 0. All pass-1..9 findings closed.
+- **E-QUERY-034 split LANDED** (commits `388be2cf` / `0c240683` / `cf0dfe1e`: prism-core variant, prism-query sweep, prism-mcp arm). Pass-6: P6-01 display stutter (`77b81345`); P6-02 E-QUERY-006/E-ALIAS-001 nesting in E-QUERY-034 (`da3b7f31`: NEW `PrismError::UnknownSourceTable { source_name }` / E-QUERY-036 at `resolve_source_refs`; EXISTING `PrismError::AliasNotFound` un-nesting at `explain.rs`; 959/959 green); P6-03 [process-gap] E-QUERY-009 LATENT confirmed, DEFER-EQUERY009-001 stands, no code action. Pass-7: P7-01 LOW stale comment — `3c7679f8`. Pass-8: P8-01 LOW Internal.detail embedded-code convention — taxonomy v1.74 adjudication + `76bda665` (959/959, test_BC_2_07_004 red→green); P8-02 OBS DEFER-EQUERY009-001 re-verification. Pass-9: **P9-01 HIGH** v1.74 sweep false — `invalidation.rs:512` load-bearing `"E-INT-001:"` sentinel (typed discriminant for `WriteToolOutcome`) + `write_pipeline.rs:469` undefined `"E-INT-003:"` — **closed commit `873b693f`** (crate-private `WriteToolOutcome` discriminant; prose-only `write_pipeline.rs`; regression test for unmapped-write-tool fallback; 960/960 green). Taxonomy v1.74→v1.75 (PO correction; v1.74 row annotated `[corrected at v1.75]`). CLEAN(strict)=no; streak 0/3.
+- **NEXT ACTION: launch adversary pass 10 (streak 0/3).** Directed probe note: `WriteToolOutcome` typed discriminant is load-bearing — adversary should verify the regression test is non-trivial; `invalidation.rs:387` `"E-INT-001:"` sentinel was the old test anchor, now replaced by enum variant.
+- Do-not-reflag additions since D-1094: P9-01 closure (`873b693f` — typed `WriteToolOutcome` discriminant, two surviving `E-INT-00x` sites now prose-only; taxonomy v1.75 sweep empirically ZERO). Internal.detail embedded-code class-sweep: post-`873b693f` workspace sweeps `rg '"E-INT-00[23]' crates/` and `rg 'starts_with\("E-INT' crates/` are ZERO.
+- Full do-not-reflag cumulative: E-QUERY-034 spec set (taxonomy v1.71/72/73/74/75, BC-2.11.006 v1.19, BC-2.11.005 v1.7); POL-16 hot-reload test retired; P4-D1/D2 deferred; P6-01 stutter closure; P6-02 E-QUERY-036; P6-03 + P8-02 DEFER-EQUERY009-001; P7-01 historical-comment; P8-01 closures (taxonomy v1.74 INT/Internal.detail/E-CACHE-001 scope); P9-01 `WriteToolOutcome` discriminant closure (taxonomy v1.75).
 
-**2. `fix/review-2026-06-10-dtu-fleet`** — 22 commits, head `332c99bd`, gate green.
-- Pass-8: F-P8-01 HIGH (COMP-DTU `dependencies` arrays omit COMP-012 — commit `332c99bd`: module-decomposition v1.19 adds COMP-012 to all 9 on-disk COMP-DTU blocks; lib.rs 3-way gate doc comments corrected in same commit per production-grade default); candidate (b) REFUTED (doc-nuance, fixed anyway); candidate (c) adjudicated OBS/harmless — register-burst item 19 ADJUDICATED. CLEAN(strict)=no; streak 0/3. Pass-9: CLEAN(strict)=YES; streak 1/3. Pass-10: P10-01 OBS armis search key-presence discriminator vs fleet `_surface` convention — orchestrator-adjudicated NO-ACTION (provably correct for 2-disjoint-surface case; load-bearing tested; human ratification requested at next gate). P10-02 OBS ScenarioConfig deserialized-not-consumed = known Story-A NIT-2 anchored to Story B (S-DEMO-DTU-LIVE-SCENARIO-001-B); do-not-reflag list tightened. CLEAN(strict)=no; streak reset 1/3→0/3.
-- **NEXT ACTION: launch adversary pass 11 (streak 0/3)** with corrected ground truth: 5 crates 3-way gated (common + claroty/armis/crowdstrike/cyberint); 7 two-way; clone stories S-3.7.02–05; COMP-012 now present in all 9 COMP-DTU dependency arrays.
-- **PUSHED to origin + DRAFT PR #182 exists** — artifact of a contained unauthorized-push incident (re-woken agent exceeded mandate twice; lesson (e)). PR is **parked draft with custody note**. pr-manager assumes it at convergence. **DTU merges LAST.**
-- Do-not-reflag additions since D-1093: P10-01 armis search key-presence discriminator NO-ACTION adjudication (human ratification requested); P10-02 = Story-A NIT-2 / Story B fold-in (S-DEMO-DTU-LIVE-SCENARIO-001-B — ScenarioConfig consumed by Story B; no action on DTU branch).
-- Full do-not-reflag cumulative: F-P8-01 closure (module-decomposition v1.19); candidates (b) doc-nuance; candidate (c) threatintel/nvd fixture-gen OBS/harmless; P10-01 NO-ACTION adjudication; P10-02 NIT-2 Story B anchor.
+**2. `fix/review-2026-06-10-dtu-fleet`** — 23 commits, head `0959e92f`, gate green.
+- Pass-8: F-P8-01 HIGH (COMP-012 deps + doc-nuance) — `332c99bd`; candidate (c) OBS/harmless; register-burst item 19 ADJUDICATED. Pass-9: CLEAN(strict)=YES; streak 1/3. Pass-10: P10-01 OBS armis search key-presence discriminator NO-ACTION adjudication; P10-02 OBS ScenarioConfig deserialized-not-consumed = Story-A NIT-2 anchored to Story B; do-not-reflag list tightened. CLEAN(strict)=no; streak reset 0/3. Pass-11: CLEAN(strict)=YES; streak 1/3. Pass-12: **P12-01 HIGH demo-critical** — Armis generator emitted NULL `os_name`/`risk_score` (+ camelCase mirrors) on seeded path; P2-01 parity tests were null-tolerant (key-presence; `null==null`; `is_null()||` escape) — **TD-VSDD-059 paper-fix class** caught by SAP-2 re-derivation. **Closed commit `0959e92f`**: deterministic RNG-free pools (`OS_NAME_POOL` 23 / `MANUFACTURER_POOL` 24 / `RISK_SCORE_POOL` 25; stable `offset` seed-offsets 2/3/4 distinct from seen-window 0/1; `INV-SECONDARY-RNG-STREAM-INDEPENDENCE-001` preserved; byte-identity determinism test green); null-intolerant tightened tests; `manufacturer` hardcode fixed; 310/310 + `just check` exit 0. Sibling sweep: claroty/cyberint/crowdstrike generators CLEAN on all TOML-declared columns. Pre-existing out-of-scope gaps: `cyberint incidents` + `crowdstrike incidents` TOML tables have NO DTU route → **register-burst item 4 EXTENDED** (same family CS-05). CLEAN(strict)=no; streak reset 0/3.
+- **NEXT ACTION: launch adversary pass 13 (streak 0/3)** with corrected ground truth: 5 crates 3-way gated (common + claroty/armis/crowdstrike/cyberint); 7 two-way; COMP-012 in all 9 COMP-DTU arrays; Armis `os_name`/`risk_score`/`manufacturer` now populated with deterministic non-null values.
+- **PUSHED to origin + DRAFT PR #182 exists** — artifact of a contained unauthorized-push incident (lesson (e)). PR is **parked draft with custody note**. pr-manager assumes it at convergence. **DTU merges LAST.**
+- Do-not-reflag additions since D-1094: P12-01 closure (`0959e92f` — deterministic RNG-free pools, null-intolerant tests; cyberint/crowdstrike incidents-route gaps = pre-existing/out-of-scope, register-burst item 4 EXTENDED; human ratification of P10-01 NO-ACTION still requested at gate).
+- Full do-not-reflag cumulative: F-P8-01 closure (module-decomposition v1.19); candidates (b) doc-nuance; candidate (c) threatintel/nvd fixture-gen OBS/harmless (register-burst item 19 ADJUDICATED); P10-01 NO-ACTION adjudication (human ratification requested at gate); P10-02 NIT-2 Story B anchor; P12-01 Armis null-value closure (`0959e92f`); cyberint/crowdstrike incidents-route gaps pre-existing/out-of-scope (register-burst item 4).
 
-**3. `fix/review-2026-06-10-mcp-boot`** — 31 commits, head `b4707e95`, gate green.
-- Pass-5 closures: P5-02 fail-closed write audit (`ab2ab0ce`); P5-01 re-anchor (`5863dbc7`); P5-03 capability fields (`7c1c2a5e`). Pass-6: P6-01 OBS dead computation in `audit_emitter.rs` — commit `b4707e95`; CLEAN(PR-merge)=yes; CLEAN(strict)=no; streak 0/3. Pass-7: CLEAN(strict)=YES; streak 1/3. Pass-8: P8-OBS-01 [process-gap] SAP-1 probe wording vs BC-2.16.002 declared crate scope (capability_check→BC-2.04.013, credential_access→BC-2.03.010) — PO-half CLOSED via BC-2.16.002 v1.75→v1.76 (sibling-catalog cross-reference note); CLAUDE.md SAP-1 wording half PENDING HUMAN (CLAUDE.md human-edit-only per Pipeline Authority). CLEAN(strict)=no; streak reset 1/3→0/3.
-- **NEXT ACTION: launch adversary pass 9 (streak 0/3).**
-- Do-not-reflag additions since D-1093: P8-OBS-01 PO-half CLOSED (BC-2.16.002 v1.76 cross-reference note); CLAUDE.md SAP-1 wording half PENDING HUMAN CLAUDE.md edit (not do-not-reflag — adversary MAY probe CLAUDE.md wording in pass 9 but action requires human).
-- Full do-not-reflag cumulative: two-class audit contract adjudicated; capability-fields carrier = tracing emission per dispatch; P6-01 dead-computation closure (`b4707e95`); P8-OBS-01 PO-half closed (BC-2.16.002 v1.76).
+**3. `fix/review-2026-06-10-mcp-boot`** — 33 commits, head `b0099308`, gate green.
+- Pass-5 closures: P5-02 fail-closed write audit (`ab2ab0ce`); P5-01 re-anchor (`5863dbc7`); P5-03 capability fields (`7c1c2a5e`). Pass-6: P6-01 OBS dead computation in `audit_emitter.rs` — commit `b4707e95`; CLEAN(PR-merge)=yes; CLEAN(strict)=no; streak 0/3. Pass-7: CLEAN(strict)=YES; streak 1/3. Pass-8: P8-OBS-01 [process-gap] SAP-1 probe vs BC-2.16.002 crate scope — PO-half CLOSED (BC-2.16.002 v1.76); CLAUDE.md SAP-1 wording half PENDING HUMAN. CLEAN(strict)=no; streak reset 0/3. Pass-9: CLEAN(strict)=YES; streak 1/3. Pass-10: **F-P10-01 LOW** stale "Not fail-closed" docstring; **F-P10-02 LOW** tautological timeout test; **F-P10-03 LOW** network-mode router parity Jira/PagerDuty/Slack — architect adjudicated **Decision B: LOGICAL-MODE-ONLY BY DESIGN** (single-shared-instance; header-based `X-Prism-Org-Id` isolation; network-mode belongs to deferred TDE track per D-1072; generic router 404s = loud failure). F-P10-01/02 closed commit `487122e3` (class-aware docstring reword; `build_harness_http_client_with_timeout` injectable helper + behavioral never-responding-listener test — load-bearing proven by deletion experiment). F-P10-03 doc-notes commit `b0099308` (BC-3.2.004 anchor verified). CLEAN(strict)=no; CLEAN(PR-merge)=yes; streak reset 0/3.
+- **NEXT ACTION: launch adversary pass 11 (streak 0/3).**
+- Do-not-reflag additions since D-1094: F-P10-01 stale docstring closure (`487122e3`); F-P10-02 timeout test closure (`487122e3` — load-bearing behavioral test replaces tautological; do NOT re-flag the old pattern, the new test is correct); F-P10-03 Decision B logical-mode-only by design — CLAUDE.md SAP-1 wording half PENDING HUMAN CLAUDE.md edit (adversary MAY note PENDING; action requires human); network-mode parity for Jira/PD/Slack = D-1072 TDE-track boundary, not a cascade defect.
+- Full do-not-reflag cumulative: two-class audit contract adjudicated; capability-fields carrier = tracing emission per dispatch; P6-01 dead-computation closure (`b4707e95`); P8-OBS-01 PO-half closed (BC-2.16.002 v1.76); F-P10-01/02/03 closures (`487122e3` + `b0099308`; Decision B logical-mode-only).
 
 ---
 
@@ -177,7 +177,7 @@ All three worktrees under `.worktrees/`, branches over `develop@c287b00d`, NOT p
 1. Close 32 validated TDs with PR evidence + TD-A-004 (ratification memo in `proposals/TD-S-PLUGIN-PREREQ-A-004-close-as-superseded-ratification.md`) + TD-VSDD-094.
 2. Retire ghost TD-W2-SENSORS-FULL-001; re-file TD-ADR005-001 vs current security surface; file TD-S307-001 (E-QUERY-024/027/028); re-home TD-VSDD-019; relocate TD-VSDD-082/083/084 + TD-S305-001; surface per-file TDs (S305 family, S302-005) in main register.
 3. NEW TD: cache normalized-vs-raw deviation, human-authorized 2026-06-10, anchor S-CACHE-SPEC-COMPLIANCE-001.
-4. File CS-05 (CrowdStrike TOML column coverage incl. `containment_status`) as product-decision story candidate.
+4. File CS-05 (CrowdStrike TOML column coverage incl. `containment_status`) as product-decision story candidate. **EXTENDED D-1095:** also file `cyberint incidents` + `crowdstrike incidents` TOML tables have NO DTU route — same family as CS-05 (pre-existing out-of-scope gaps surfaced during P12-01 sibling sweep; each has a TOML `[[tables]]` declaration with NO corresponding DTU route handler; requires product decision on DTU route scope per table).
 5. Priority adjustments: S304-AUDIT-001→P2; WV15 set down (PR35-001/002→P3, PR36-001/PR40-001→P4); MED-003 merge into ULID-001; MUTATE-005 P2/P3 reconcile.
 6. STATE.md count refresh (workspace_test_count, develop_head post-merges, version pins to CURRENT values at register-burst time — as of D-1092: taxonomy v1.72, BC-INDEX v6.23, STORY-INDEX v2.348, ARCH-INDEX v2.132, policies v1.32, prd v1.12) + STORY-INDEX frontmatter BC-count re-basis per BC-INDEX.
 7. Register S-DEMO-004 follow-ups: n/a (row registered v2.342).
@@ -191,7 +191,7 @@ All three worktrees under `.worktrees/`, branches over `develop@c287b00d`, NOT p
 15. File taxonomy↔code symmetry-audit maintenance story (4 collisions found: E-CFG, E-QUERY-007 tombstone, E-QUERY-003 triple, E-QUERY-011 two-BC; first work items: E-QUERY-006 embedded-detail + E-QUERY-010 zero-emitter, per ADR-038 adjacent-findings).
 16. S-MAINT-VERIFY-PIPELINE-001 scope doc exists in `proposals/S-MAINT-VERIFY-PIPELINE-001-scope.md` — story-writer materializes (absorbs TD-CICD-001 + KANI-001 + FUZZ-002/003).
 17. ~~BC-INDEX row 220 stale "v1.70" cite for BC-2.16.002 → sync to current (v1.75).~~ **RESOLVED D-1094** — row-220 inline-pin synced to v1.76 (PO committed v1.76 directly; BC-INDEX v6.23→v6.24 records the POL-11 bump). _(added D-1092; resolved D-1094)_
-18. Lessons addenda [process-gap] to `cycles/wave-5-e-demo-fidelity/lessons.md`: (h) architect micro used heredoc appends for 2 changelog sections — TD-FACTORY-HOOK-BYPASS-001 mechanism violation, self-reported, content correct; (i) MCP implementer committed BC-2.16.002 v1.75 to factory-artifacts directly (`8eacb6d1`) — state-manager ownership deviation, single-commit clean; (j) P6/P7 churn pattern — spec fix-bursts introduced new errors (wrong story range, unswept YAML cells, false verified-claims) caught only by subsequent passes; codify the P7 dispatch's verification discipline (verify IDs against indexes, sweep structured fields with prose, verify counts on disk, never write unexecuted "verified" claims) into fix-burst templates; **(k) SAP-1 wording/scope reconciliation [process-gap] — SAP-1 in CLAUDE.md does not clearly scope the event_type catalog probe to BC-2.16.002's declared crate (prism-spec-engine); capability_check and credential_access are correctly handled by BC-2.04.013 and BC-2.03.010 respectively; PENDING HUMAN CLAUDE.md edit to add crate-scope clarifier sentence; (l) do-not-reflag list completeness discipline — NIT-2 (ScenarioConfig deserialized-not-consumed) omission from DTU do-not-reflag list caused avoidable P10-02 reflag + DTU streak reset 1/3→0/3; story-B anchor was known from D-1090 Story B handoff; explicit NIT-N tracking in do-not-reflag lists is required going forward.** _(added D-1092; (k)+(l) added D-1094)_
+18. Lessons addenda [process-gap] to `cycles/wave-5-e-demo-fidelity/lessons.md`: (h) architect micro used heredoc appends for 2 changelog sections — TD-FACTORY-HOOK-BYPASS-001 mechanism violation, self-reported, content correct; (i) MCP implementer committed BC-2.16.002 v1.75 to factory-artifacts directly (`8eacb6d1`) — state-manager ownership deviation, single-commit clean; (j) P6/P7 churn pattern — spec fix-bursts introduced new errors (wrong story range, unswept YAML cells, false verified-claims) caught only by subsequent passes; codify the P7 dispatch's verification discipline (verify IDs against indexes, sweep structured fields with prose, verify counts on disk, never write unexecuted "verified" claims) into fix-burst templates; **(k) SAP-1 wording/scope reconciliation [process-gap] — SAP-1 in CLAUDE.md does not clearly scope the event_type catalog probe to BC-2.16.002's declared crate (prism-spec-engine); capability_check and credential_access are correctly handled by BC-2.04.013 and BC-2.03.010 respectively; PENDING HUMAN CLAUDE.md edit to add crate-scope clarifier sentence; (l) do-not-reflag list completeness discipline — NIT-2 (ScenarioConfig deserialized-not-consumed) omission from DTU do-not-reflag list caused avoidable P10-02 reflag + DTU streak reset 1/3→0/3; story-B anchor was known from D-1090 Story B handoff; explicit NIT-N tracking in do-not-reflag lists is required going forward; (m) load-bearing string sentinels make naive convention sweeps regression traps — when a string literal is used both for display AND as a typed discriminant (e.g. `"E-INT-001:"` as `WriteToolOutcome` routing key in `invalidation.rs:512`), dropping the prefix-convention alone is insufficient; the sentinel must first be replaced by a typed construct (`WriteToolOutcome` enum variant) before the string site can be made prose-only; sweep regexes that only target the prefix pattern miss this class entirely (P9-01, lesson-j instance #2 this cascade); (n) key-presence/null-tolerant parity assertions are paper-fix enablers — parity tests that assert only that a key exists (`is_some()`) or allow null values (`is_null()||`) permit a generator to silently produce NULL on the seeded/live-demo path while the test passes; column-coverage tests MUST assert that values are non-null AND semantically populated (e.g., `os_name` is a non-empty string from the expected pool); SAP-2 step-2 should be extended to require non-null value assertions for all TOML-declared columns when testing the seeded path (P12-01; upstream SAP-2 extension candidate).** _(added D-1092; (k)+(l) added D-1094; (m)+(n) added D-1095)_
 19. ~~threatintel/nvd unused fixture-gen feature-forwarding (observation, harmless) — adjudicate or note.~~ **ADJUDICATED D-1093:** OBS/harmless — unused `fixture-gen` feature forwarding in threatintel/nvd DTU crates is a cosmetic no-op; no emitters, no runtime effect. No action. _(added D-1092; adjudicated D-1093)_
 
 **Lessons:** 7 review-cycle process-gap lessons (a)–(g) recorded at `cycles/wave-5-e-demo-fidelity/lessons.md` (D-1091 entry): CS-04 realistic-query blind spot; gate-script false-pass / exit-code-only checking; retirement sweeps stopping one boundary short (5+); parallel-burst race (stories anchor AFTER BC-family amendments settle); unauthorized push (constraints must bind re-invocations + cascade push-guards); orphaned-gate pattern (4×; foreground gates / commit-early); rogue git-reset edit-war (exclusive worktree ownership + commit-early).
@@ -229,7 +229,7 @@ T6 (S-DEMO-MULTI-TENANT-DTU-001 ready v1.2; BC-2.06.017; remove-uncertainty COMP
 - Carry-forward fix candidates (also pre-loaded as dtu-fleet P8 candidates, §BRANCH STATE branch 2): module-decomposition COMP-DTU `dependencies` arrays omit prism-core (architect); 3 lib.rs doc comments in claroty/cyberint/armis say 2-way while attribute is 3-way (implementer, DTU branch).
 - E2E sequence after register burst: **T5 Story B → T6 S-DEMO-MULTI-TENANT-DTU-001 → T8 S-DEMO-004.**
 
-> **This snapshot is current as of D-1094 (2026-06-11 rounds 2+3 recorded; STATE v7.745). §BRANCH STATE updated D-1094. Prior snapshots (D-1090, D-1091) archived to `cycles/wave-5-e-demo-fidelity/session-handoff-archive.md`.**
+> **This snapshot is current as of D-1095 (2026-06-11 round 4 recorded; STATE v7.746). §BRANCH STATE updated D-1095. Prior snapshots (D-1090, D-1091) archived to `cycles/wave-5-e-demo-fidelity/session-handoff-archive.md`.**
 
 ---
 
@@ -319,21 +319,20 @@ git log --oneline develop | head -1
 
 # 3. Verify STATE.md version
 grep '^version:' .factory/STATE.md
-# Expected: version: "7.743"
+# Expected: version: "7.746"
 
 # 4. Verify open PRs — expect exactly ONE parked draft
 gh pr list --state open
 # Expected: #182 draft (fix/review-2026-06-10-dtu-fleet) — PARKED with custody note. Do not close/ready it.
 
-# 5. Verify the three review fix worktrees (heads are EXACT at D-1092 pause — no agents in flight)
+# 5. Verify the three review fix worktrees (D-1095 heads)
 git -C .worktrees/review-2026-06-10-dtu-fleet log --oneline -1 2>/dev/null || ls .worktrees/
-# query-core == cf0dfe1e (25 commits) | dtu-fleet == 36e3fc7b (21 commits) | mcp-boot == 7c1c2a5e (30 commits)
+# query-core == 873b693f (30 commits) | dtu-fleet == 0959e92f (23 commits) | mcp-boot == b0099308 (33 commits)
 # (worktree directory names may differ — enumerate .worktrees/ and match branches fix/review-2026-06-10-*)
 
-# 6. Confirm factory-artifacts local vs remote
+# 6. Confirm factory-artifacts local vs remote — should be PUSHED (D-1095 normal push per D-1066)
 git -C .factory log -1 --format='%h %s'
 git -C .factory rev-parse origin/factory-artifacts 2>/dev/null || echo "no remote yet"
-# D-1091 + D-1092 bursts are LOCAL (user-directed). Push resumes on a subsequent state burst per D-1066.
 
 # 7. Confirm main-tree CLAUDE.md uncommitted edits still present (§ALSO NOTE — do NOT lose)
 git -C . status --porcelain CLAUDE.md
