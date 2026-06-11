@@ -2688,7 +2688,9 @@ mod tests {
     /// BC: BC-2.21.001 EC-21-001-001 — minimum org list: 1 entry is valid
     ///
     /// Verifies that OrgEntry with a valid UUID and kebab-case slug compiles.
-    /// The actual validation is in step3_init_org_registry (todo!()).
+    /// The actual validation lives in `step3_init_org_registry`, which is
+    /// implemented (it was a `todo!()` stub when this test was written —
+    /// P2-07, 2026-06-10 review pass-2 historical annotation).
     #[test]
     #[allow(non_snake_case)]
     fn test_BC_2_21_001_org_entry_with_valid_uuid_and_kebab_slug() {
@@ -2714,9 +2716,10 @@ mod tests {
     /// Story: S-WAVE5-PREP-01
     /// BC: BC-2.21.001 EC-21-001-004 — org_slug with uppercase fails kebab validation
     ///
-    /// Demonstrates the malformed-slug detection that step3_init_org_registry
-    /// must implement. This test exercises the OrgEntry type (not the validator,
-    /// which is todo!() in step 3).
+    /// Demonstrates the malformed-slug detection that `step3_init_org_registry`
+    /// implements. This test exercises the OrgEntry type directly (the step-3
+    /// validator was a `todo!()` stub when this test was written; it is
+    /// implemented now — P2-07, 2026-06-10 review pass-2 historical annotation).
     #[test]
     #[allow(non_snake_case)]
     fn test_BC_2_21_001_malformed_slug_fails_kebab_check() {
