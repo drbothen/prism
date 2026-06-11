@@ -97,6 +97,14 @@ pub fn map_prism_error(err: PrismError) -> (i32, String) {
             format!("Invalid parameter: limit {requested} exceeds maximum of {max}"),
         ),
 
+        // E-QUERY-003: Query security limit exceeded → -32602 Invalid params
+        // (error-taxonomy.md v1.72 / ADR-038 v1.3 §P5-02). Caller-resolvable:
+        // narrow or simplify the query. EXPLICIT arm required: PrismError is
+        // #[non_exhaustive]; letting this variant fall to the catch-all would
+        // regress to opaque -32000 INTERNAL_ERROR and violate BC-2.11.006's
+        // structured caller-visible limit responses.
+        PrismError::QuerySecurityLimitExceeded { .. } => (codes::INVALID_PARAMS, format!("{err}")),
+
         // E-QUERY-022: Unbounded write → -32602 Invalid params
         PrismError::WriteUnbounded => (codes::INVALID_PARAMS, format!("{err}")),
 
@@ -251,7 +259,7 @@ pub fn map_prism_error(err: PrismError) -> (i32, String) {
             "Internal error; see audit log".to_owned(),
         ),
 
-        // E-QUERY-002/003/005/010 + E-WATCHDOG-001: Query planning/execution/
+        // E-QUERY-002/034/005/010 + E-WATCHDOG-001: Query planning/execution/
         // materialization-limit/memory errors → -32000 Internal
         PrismError::QueryPlanFailed { .. }
         | PrismError::QueryExecutionFailed { .. }

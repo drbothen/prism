@@ -232,6 +232,44 @@ fn test_ADR_038_map_prism_error_client_not_found_to_32602() {
     );
 }
 
+/// P5-02 (error-taxonomy.md v1.72 / ADR-038 v1.3): PrismError::
+/// QuerySecurityLimitExceeded maps to -32602 (Invalid params) with the
+/// caller-visible single-prefix E-QUERY-003 display string.
+///
+/// A security-limit violation (query size, nesting depth, list/pipe/regex
+/// caps) is caller-resolvable — narrow or simplify the query. The arm MUST
+/// be explicit: `PrismError` is `#[non_exhaustive]`, and falling through to
+/// the catch-all would regress to opaque -32000 INTERNAL_ERROR, violating
+/// BC-2.11.006's structured caller-visible limit responses.
+#[test]
+fn test_P5_02_map_prism_error_query_security_limit_to_32602() {
+    let err = PrismError::QuerySecurityLimitExceeded {
+        detail: "query size 65537 bytes exceeds maximum allowed 65536 bytes (64KB limit)"
+            .to_owned(),
+    };
+    let (code, message) = map_prism_error(err);
+    assert_eq!(
+        code,
+        codes::INVALID_PARAMS,
+        "QuerySecurityLimitExceeded must map to INVALID_PARAMS ({}) per taxonomy v1.72 P5-02; got {}",
+        codes::INVALID_PARAMS,
+        code
+    );
+    assert!(
+        message.starts_with("E-QUERY-003: "),
+        "message must start with the canonical E-QUERY-003 prefix; got: '{message}'"
+    );
+    assert_eq!(
+        message.matches("E-QUERY-003").count(),
+        1,
+        "message must carry exactly ONE E-QUERY-003 token (no double prefix); got: '{message}'"
+    );
+    assert!(
+        message.contains("query size 65537 bytes"),
+        "message must carry the limit detail; got: '{message}'"
+    );
+}
+
 /// BC-2.10.007: PrismError::Internal maps to -32000 (Internal error).
 ///
 /// Catch-all for unrecognized errors — must not expose detail in message.

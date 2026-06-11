@@ -1421,10 +1421,11 @@ fn test_clamp_regex_pattern_above_max_clamped_down() {
 /// errors carry exactly ONE "E-QUERY-003" prefix in their Display output.
 ///
 /// Pre-split, security limits routed through `QueryExecutionFailed` with an
-/// embedded "E-QUERY-003: " prefix in `detail`, producing the double-prefixed
-/// display "E-QUERY-003: query execution error: E-QUERY-003: query size...".
-/// The dedicated `QuerySecurityLimitExceeded` variant supplies the single
-/// canonical prefix via its Display impl; emission sites no longer embed it.
+/// embedded "E-QUERY-003: " prefix in `detail`, producing a double-prefixed
+/// display (the code token appeared twice, wrapped in the generic
+/// execution-error text). The dedicated `QuerySecurityLimitExceeded` variant
+/// supplies the single canonical prefix via its Display impl; emission sites
+/// no longer embed it.
 ///
 /// Traces: P5-02, BC-2.11.006, error-taxonomy.md v1.72 E-QUERY-003/E-QUERY-034
 #[test]
