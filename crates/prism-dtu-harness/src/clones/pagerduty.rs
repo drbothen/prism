@@ -579,43 +579,66 @@ async fn post_configure(
         }
     };
 
-    // Delegate to the unified failure-mode mapper (covers all 6 modes including
-    // auth_mode=reject → FailureMode::AuthReject in CloneState).
-    // The legacy pd_state.auth_reject flag is cleared on every configure call
-    // so it does not interfere with the new apply_failure_mode path.
-    ctx.pd_state.set_auth_reject(false);
-    let mode = harness_configure_to_failure_mode(&cfg);
-    ctx.clone_state.request_count.store(0, Ordering::SeqCst);
-    ctx.clone_state.set_failure_mode(mode);
-    (StatusCode::OK, Json(json!({"status": "ok"})))
+    // BC-3.6.001 v0.6 Postcondition 5: a structurally-valid payload that requests
+    // an unrecognized mode (e.g. a future FailureMode variant) must return HTTP 400
+    // with {"error":"unsupported_failure_mode","mode":"<variant-name>"}.  This is
+    // distinct from the serde deny_unknown_fields path above (schema-invalid payload).
+    // EC-009: the 400 path must be stateless — no state change occurs on rejection.
+    match harness_configure_to_failure_mode(&cfg) {
+        Ok(mode) => {
+            // Clear the legacy pd_state.auth_reject flag on successful configure so it
+            // does not interfere with the apply_failure_mode path in CloneState.
+            ctx.pd_state.set_auth_reject(false);
+            ctx.clone_state.request_count.store(0, Ordering::SeqCst);
+            ctx.clone_state.set_failure_mode(mode);
+            (StatusCode::OK, Json(json!({"status": "ok"})))
+        }
+        Err(mode_name) => (
+            StatusCode::BAD_REQUEST,
+            Json(json!({"error": "unsupported_failure_mode", "mode": mode_name})),
+        ),
+    }
 }
 
-fn harness_configure_to_failure_mode(cfg: &HarnessConfigure) -> FailureMode {
+/// Convert `HarnessConfigure` to a `FailureMode`.
+///
+/// Returns `Ok(FailureMode)` for recognized modes (including `None` for
+/// empty / clear payloads).  Returns `Err(mode_name)` when a known field
+/// carries an unrecognized value — the caller maps this to HTTP 400 with the
+/// BC-3.6.001 v0.6 Postcondition-5 body
+/// `{"error":"unsupported_failure_mode","mode":"<mode_name>"}`.
+fn harness_configure_to_failure_mode(cfg: &HarnessConfigure) -> Result<FailureMode, String> {
     if cfg.clear == Some(true) {
-        return FailureMode::None;
+        return Ok(FailureMode::None);
     }
-    if cfg.auth_mode.as_deref() == Some("reject") {
-        return FailureMode::AuthReject;
-    }
-    if let Some(n) = cfg.rate_limit_after {
-        return FailureMode::RateLimit {
-            after_n_requests: n,
-            retry_after_secs: cfg.retry_after_secs.unwrap_or(60),
+    if let Some(mode) = &cfg.auth_mode {
+        return match mode.as_str() {
+            "reject" => Ok(FailureMode::AuthReject),
+            // "none" is an explicit no-op clear via auth_mode field.
+            "none" => Ok(FailureMode::None),
+            // Any other value is an unsupported mode (future variant contract).
+            other => Err(other.to_owned()),
         };
     }
+    if let Some(n) = cfg.rate_limit_after {
+        return Ok(FailureMode::RateLimit {
+            after_n_requests: n,
+            retry_after_secs: cfg.retry_after_secs.unwrap_or(60),
+        });
+    }
     if let Some(n) = cfg.internal_error_at {
-        return FailureMode::InternalError { at_request_n: n };
+        return Ok(FailureMode::InternalError { at_request_n: n });
     }
     if let Some(ms) = cfg.network_timeout_ms {
-        return FailureMode::NetworkTimeout { after_ms: ms };
+        return Ok(FailureMode::NetworkTimeout { after_ms: ms });
     }
     if cfg.malformed_response == Some(true) {
-        return FailureMode::MalformedResponse;
+        return Ok(FailureMode::MalformedResponse);
     }
     if let Some(n) = cfg.unprocessable_at {
-        return FailureMode::Unprocessable { at_request_n: n };
+        return Ok(FailureMode::Unprocessable { at_request_n: n });
     }
-    FailureMode::None
+    Ok(FailureMode::None)
 }
 
 // ---------------------------------------------------------------------------

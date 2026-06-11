@@ -28,7 +28,7 @@
 //! is unreachable. A future-variant guard test documents the contract for the
 //! `#[non_exhaustive]` future-variant arm (BC-3.6.001 Postcondition 5 / EC-008 / EC-009).
 //!
-//! BC anchors: BC-3.6.001 Postconditions 1+5, Invariant 5, VP-129, VP-131.
+//! BC anchors: BC-3.6.001 Postconditions 1+5, Invariant 5, VP-129, VP-157.
 
 #![allow(clippy::expect_used, non_snake_case)]
 
@@ -928,29 +928,30 @@ async fn test_BC_3_6_001_slack_rate_limit_honored() {
 }
 
 // ---------------------------------------------------------------------------
-// Phase-1 hardening: 400 guard for future unsupported variants
+// VP-157: Postcondition-5 — HTTP 400 with exact unsupported_failure_mode body
 //
-// After Phase 2, all 6 current FailureMode variants are representable by the
-// configure mapper. The 400 path is NOT reachable for current variants.
-// These tests verify the documented contract: a payload that maps to no known
-// variant returns 400 with the unsupported_failure_mode error shape.
+// BC-3.6.001 v0.6 Postcondition 5: POST /dtu/configure with an unsupported
+// failure mode returns HTTP 400 with body EXACTLY:
+//   {"error":"unsupported_failure_mode","mode":"<variant-name>"}
 //
-// Since serde deny_unknown_fields already handles unrecognized fields (400 via
-// serde error), the future-variant arm in `harness_configure_to_failure_mode`
-// is exercised indirectly by any payload that passes field validation but maps
-// to FailureMode::None — which is intentionally allowed (the clear path).
+// Trigger mechanism: `auth_mode` is a known field accepted by serde
+// (so deny_unknown_fields does NOT fire), but the value "FutureVariant"
+// is not recognized by the configure mapper. The mapper therefore returns
+// an Err with the unrecognized mode name, and the handler returns the
+// Postcondition-5 shape.
 //
-// VP-131: POST /dtu/configure with unsupported mode returns 400.
+// This is distinct from the serde-level deny_unknown_fields rejection
+// (tested in review_2026_06_10_deny_unknown.rs), which returns
+// {"error":"invalid configure payload: ..."} for truly unknown field names.
 //
-// NOTE: Until a future FailureMode variant is added, the "unsupported" 400 path
-// can only be reached via unknown serde fields (already tested by deny_unknown_fields).
-// These tests serve as documentation of the contract and verify the serde-level
-// 400 is returned (satisfying VP-131 for current variants).
+// VP-157: POST /dtu/configure with unsupported mode returns HTTP 400 with
+//         {"error":"unsupported_failure_mode","mode":"<variant>"} and leaves
+//         clone state unchanged (BC-3.6.001 v0.6 Postcondition 5 / EC-008 / EC-009).
 // ---------------------------------------------------------------------------
 
-/// VP-131: Jira /dtu/configure rejects truly unknown fields with 400.
-/// (Exercises the serde-level deny_unknown_fields guard which is the
-/// current mechanism for the future-variant 400 path.)
+/// VP-157: Jira /dtu/configure returns exact Postcondition-5 body for unsupported auth_mode.
+/// Trigger: structurally-valid payload (`auth_mode` is a known field) with unrecognized
+/// value → mapper Err path → HTTP 400 + `{"error":"unsupported_failure_mode","mode":"FutureVariant"}`.
 #[tokio::test]
 async fn test_BC_3_6_001_jira_unsupported_mode_returns_400() {
     let harness = prism_dtu_harness::Harness::builder()
@@ -971,11 +972,12 @@ async fn test_BC_3_6_001_jira_unsupported_mode_returns_400() {
         .to_owned();
     let client = test_client();
 
-    // Post a payload with an unknown field name — serde deny_unknown_fields → 400.
+    // Structurally-valid payload: `auth_mode` is a known field, but value is
+    // not in {"reject","none"} — triggers the Postcondition-5 unsupported-mode path.
     let resp = client
         .post(format!("http://{addr}/dtu/configure"))
         .header("x-admin-token", &admin_token)
-        .json(&json!({"future_unknown_mode": true}))
+        .json(&json!({"auth_mode": "FutureVariant"}))
         .send()
         .await
         .expect("configure request must not fail at transport level");
@@ -983,18 +985,19 @@ async fn test_BC_3_6_001_jira_unsupported_mode_returns_400() {
     let status = resp.status().as_u16();
     assert_eq!(
         status, 400,
-        "Jira /dtu/configure must return 400 for unrecognized configure fields \
-         (VP-131 / BC-3.6.001 Postcondition 5 / EC-008)"
+        "Jira /dtu/configure must return 400 for unsupported auth_mode \
+         (VP-157 / BC-3.6.001 Postcondition 5 / EC-008)"
     );
 
     let body: serde_json::Value = resp.json().await.expect("400 body must be JSON");
-    assert!(
-        body.get("error").is_some(),
-        "400 response must contain 'error' field; body={body}"
+    assert_eq!(
+        body,
+        json!({"error": "unsupported_failure_mode", "mode": "FutureVariant"}),
+        "400 response must match exact Postcondition-5 shape; body={body}"
     );
 }
 
-/// VP-131: PagerDuty /dtu/configure rejects unknown fields with 400.
+/// VP-157: PagerDuty /dtu/configure returns exact Postcondition-5 body for unsupported auth_mode.
 #[tokio::test]
 async fn test_BC_3_6_001_pagerduty_unsupported_mode_returns_400() {
     let harness = prism_dtu_harness::Harness::builder()
@@ -1018,7 +1021,7 @@ async fn test_BC_3_6_001_pagerduty_unsupported_mode_returns_400() {
     let resp = client
         .post(format!("http://{addr}/dtu/configure"))
         .header("x-admin-token", &admin_token)
-        .json(&json!({"future_unknown_mode": true}))
+        .json(&json!({"auth_mode": "FutureVariant"}))
         .send()
         .await
         .expect("configure request must not fail at transport level");
@@ -1026,18 +1029,19 @@ async fn test_BC_3_6_001_pagerduty_unsupported_mode_returns_400() {
     let status = resp.status().as_u16();
     assert_eq!(
         status, 400,
-        "PagerDuty /dtu/configure must return 400 for unrecognized configure fields \
-         (VP-131 / BC-3.6.001 Postcondition 5 / EC-008)"
+        "PagerDuty /dtu/configure must return 400 for unsupported auth_mode \
+         (VP-157 / BC-3.6.001 Postcondition 5 / EC-008)"
     );
 
     let body: serde_json::Value = resp.json().await.expect("400 body must be JSON");
-    assert!(
-        body.get("error").is_some(),
-        "400 response must contain 'error' field; body={body}"
+    assert_eq!(
+        body,
+        json!({"error": "unsupported_failure_mode", "mode": "FutureVariant"}),
+        "400 response must match exact Postcondition-5 shape; body={body}"
     );
 }
 
-/// VP-131: Slack /dtu/configure rejects unknown fields with 400.
+/// VP-157: Slack /dtu/configure returns exact Postcondition-5 body for unsupported auth_mode.
 #[tokio::test]
 async fn test_BC_3_6_001_slack_unsupported_mode_returns_400() {
     let harness = prism_dtu_harness::Harness::builder()
@@ -1061,7 +1065,7 @@ async fn test_BC_3_6_001_slack_unsupported_mode_returns_400() {
     let resp = client
         .post(format!("http://{addr}/dtu/configure"))
         .header("x-admin-token", &admin_token)
-        .json(&json!({"future_unknown_mode": true}))
+        .json(&json!({"auth_mode": "FutureVariant"}))
         .send()
         .await
         .expect("configure request must not fail at transport level");
@@ -1069,13 +1073,14 @@ async fn test_BC_3_6_001_slack_unsupported_mode_returns_400() {
     let status = resp.status().as_u16();
     assert_eq!(
         status, 400,
-        "Slack /dtu/configure must return 400 for unrecognized configure fields \
-         (VP-131 / BC-3.6.001 Postcondition 5 / EC-008)"
+        "Slack /dtu/configure must return 400 for unsupported auth_mode \
+         (VP-157 / BC-3.6.001 Postcondition 5 / EC-008)"
     );
 
     let body: serde_json::Value = resp.json().await.expect("400 body must be JSON");
-    assert!(
-        body.get("error").is_some(),
-        "400 response must contain 'error' field; body={body}"
+    assert_eq!(
+        body,
+        json!({"error": "unsupported_failure_mode", "mode": "FutureVariant"}),
+        "400 response must match exact Postcondition-5 shape; body={body}"
     );
 }
