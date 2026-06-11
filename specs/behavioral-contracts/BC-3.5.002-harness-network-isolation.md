@@ -3,7 +3,7 @@ document_type: behavioral-contract
 level: L3
 bc_id: BC-3.5.002
 title: Harness Network Isolation Invariants
-version: "0.4"
+version: "0.5"
 status: draft
 producer: product-owner
 timestamp: 2026-04-27T00:00:00
@@ -44,6 +44,16 @@ This mode catches cross-process routing bugs — specifically, a request bearing
 credentials that is accidentally routed to `OrgId(B)`'s port will receive an HTTP 401 from
 `OrgId(B)`'s authentication middleware, making the routing error observable. Per D-044
 (ADR-011 §1.1), network isolation ships in Wave 3 and is not deferred.
+
+**Clone scope for network-mode (Decision B, architect 2026-06-11, D-1072):** Network-mode
+per-org address isolation applies to **per-org Security-Telemetry clones** (CrowdStrike,
+Cyberint, Armis, Claroty) only. MSSP-Coordination clones (Jira, PagerDuty, Slack) are
+single-shared-instance clones with header-based `X-Prism-Org-Id` isolation (BC-3.2.004);
+assigning a separate `SocketAddr` per org for a single shared instance is semantically
+undefined. MSSP-Coordination clones are Logical-mode only within this harness contract;
+network-mode support is deferred to the TDE write-back track (D-1072). A generic-router
+`404` when network-mode routes Jira/PagerDuty/Slack to per-org ports is an intentional
+loud failure, not a routing bug.
 
 ## Preconditions
 
@@ -134,7 +144,7 @@ credentials that is accidentally routed to `OrgId(B)`'s port will receive an HTT
 ## Related BCs
 
 - BC-3.5.001 — logical-mode counterpart; provides fast unit-test coverage; this BC provides the network-boundary routing verification layer
-- BC-3.6.001 — per-org failure injection is exercised within network-mode harness instances
+- BC-3.6.001 — per-org failure injection is exercised within network-mode harness instances **for Security-Telemetry clones**; MSSP-Coordination clones (Jira, PagerDuty, Slack) are Logical-mode only (Decision B, architect 2026-06-11, D-1072)
 - BC-3.6.002 — crash detection applies within network-mode harness instances
 
 ## Architecture Anchors
@@ -157,6 +167,7 @@ S-3.3.04, S-3.3.05, S-3.4.01, S-3.4.02, S-3.4.03, S-3.4.04, S-3.6.02
 
 | Version | Change |
 |---------|--------|
+| v0.5 | P20-03 consistency amendment (PO, 2026-06-11): Description expanded with clone scope note — Decision B (architect 2026-06-11, D-1072): network-mode per-org address isolation applies to Security-Telemetry clones only (CrowdStrike, Cyberint, Armis, Claroty); MSSP-Coordination clones (Jira, PagerDuty, Slack) are Logical-mode only; generic-router 404 is intentional loud failure. Related BCs section updated to scope BC-3.6.001 failure injection reference to Security-Telemetry clones only. No postcondition or invariant changes — this BC's invariants already apply only to the clone types it provisions in network-mode. |
 | v0.4 | m-001 (Pass 6): `input-hash` populated: SHA1 of input file path (first 7 chars = `8606916`). |
 | v0.3 | M-004/Audit-5 (Pass 5): Frontmatter `title:` corrected to title-case to match H1 heading. `traces_to:` corrected from `specs/domain-spec/capabilities.md` to `.factory/specs/architecture/decisions/ADR-011-harness-isolation-modes.md`. |
 | v0.2 | Initial authoring from ADR-011. |
