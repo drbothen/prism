@@ -1252,3 +1252,153 @@ fn test_S_SPEC_TYPE_UNIFICATION_001_006_list_sensor_specs_response_unchanged() {
          ('sensor_id.table_name') after on-demand TableSpec → SensorTableDescriptor conversion"
     );
 }
+
+// ---------------------------------------------------------------------------
+// P1-03 interim mitigation — reload path fires config swap listeners
+// (review 2026-06-10 Item 1: hot-reload → response-cache flush hook.
+//  ConfigManager::store is the sole snapshot write path per BC-2.16.006;
+//  reload_config / add_sensor_spec / hot_reload all funnel through it.)
+// ---------------------------------------------------------------------------
+
+/// P1-03: an APPLIED reload (status Ok) fires the swap listener exactly once.
+#[test]
+fn test_p1_03_reload_config_applied_fires_swap_listener() {
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    let dir = TempDir::new().unwrap();
+    write_sensor_file(&dir, "vendor_a");
+
+    let manager = ConfigManager::new(ConfigSnapshot::empty());
+    let calls = Arc::new(AtomicUsize::new(0));
+    let calls_in_listener = Arc::clone(&calls);
+    manager.register_swap_listener(Box::new(move || {
+        calls_in_listener.fetch_add(1, Ordering::SeqCst);
+    }));
+
+    let result = reload_config(&manager, dir.path(), ReloadConfigArgs { dry_run: false }).unwrap();
+
+    assert_eq!(result.status, ReloadStatus::Ok);
+    assert_eq!(
+        calls.load(Ordering::SeqCst),
+        1,
+        "P1-03: applied reload must fire the swap listener exactly once \
+         (response cache flush hook)"
+    );
+}
+
+/// P1-03: an Unchanged reload (hash no-op) must NOT fire the swap listener —
+/// no snapshot swap occurred, so no cache flush is needed.
+#[test]
+fn test_p1_03_reload_config_unchanged_does_not_fire_swap_listener() {
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    let dir = TempDir::new().unwrap();
+    write_sensor_file(&dir, "vendor_a");
+
+    let initial = parse_spec_directory(dir.path()).unwrap();
+    let manager = ConfigManager::new(initial);
+    let calls = Arc::new(AtomicUsize::new(0));
+    let calls_in_listener = Arc::clone(&calls);
+    manager.register_swap_listener(Box::new(move || {
+        calls_in_listener.fetch_add(1, Ordering::SeqCst);
+    }));
+
+    let result = reload_config(&manager, dir.path(), ReloadConfigArgs { dry_run: false }).unwrap();
+
+    assert_eq!(result.status, ReloadStatus::Unchanged);
+    assert_eq!(
+        calls.load(Ordering::SeqCst),
+        0,
+        "P1-03: Unchanged reload must not fire the swap listener (no swap, no flush)"
+    );
+}
+
+/// P1-03: a dry-run reload must NOT fire the swap listener (no swap applied).
+#[test]
+fn test_p1_03_reload_config_dry_run_does_not_fire_swap_listener() {
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    let dir = TempDir::new().unwrap();
+    write_sensor_file(&dir, "vendor_b");
+
+    let manager = ConfigManager::new(ConfigSnapshot::empty());
+    let calls = Arc::new(AtomicUsize::new(0));
+    let calls_in_listener = Arc::clone(&calls);
+    manager.register_swap_listener(Box::new(move || {
+        calls_in_listener.fetch_add(1, Ordering::SeqCst);
+    }));
+
+    let result = reload_config(&manager, dir.path(), ReloadConfigArgs { dry_run: true }).unwrap();
+
+    assert_eq!(result.status, ReloadStatus::DryRun);
+    assert_eq!(
+        calls.load(Ordering::SeqCst),
+        0,
+        "P1-03: dry-run reload must not fire the swap listener (no swap applied)"
+    );
+}
+
+/// P1-03: a full validation failure retains the old config (DI-031 fail-closed)
+/// and must NOT fire the swap listener — the snapshot was never swapped.
+#[test]
+fn test_p1_03_reload_config_validation_failed_does_not_fire_swap_listener() {
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    let dir = TempDir::new().unwrap();
+    let bad_path = dir.path().join("broken.sensor.toml");
+    std::fs::write(&bad_path, invalid_toml_content()).unwrap();
+
+    let manager = ConfigManager::new(snapshot_with_one_spec("original_sensor"));
+    let calls = Arc::new(AtomicUsize::new(0));
+    let calls_in_listener = Arc::clone(&calls);
+    manager.register_swap_listener(Box::new(move || {
+        calls_in_listener.fetch_add(1, Ordering::SeqCst);
+    }));
+
+    let result = reload_config(&manager, dir.path(), ReloadConfigArgs { dry_run: false }).unwrap();
+
+    assert_eq!(result.status, ReloadStatus::ValidationFailed);
+    assert_eq!(
+        calls.load(Ordering::SeqCst),
+        0,
+        "P1-03: full validation failure retains old config and must not fire \
+         the swap listener (DI-031 fail-closed, no swap occurred)"
+    );
+}
+
+/// P1-03: `add_sensor_spec` (non-dry-run, applied) swaps the snapshot via
+/// `ConfigManager::store` and therefore must fire the swap listener.
+#[test]
+fn test_p1_03_add_sensor_spec_applied_fires_swap_listener() {
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    let dir = TempDir::new().unwrap();
+    let manager = ConfigManager::new(ConfigSnapshot::empty());
+    let calls = Arc::new(AtomicUsize::new(0));
+    let calls_in_listener = Arc::clone(&calls);
+    manager.register_swap_listener(Box::new(move || {
+        calls_in_listener.fetch_add(1, Ordering::SeqCst);
+    }));
+
+    let result = add_sensor_spec(
+        &manager,
+        dir.path(),
+        AddSensorSpecArgs {
+            spec_toml: minimal_valid_sensor_toml("new_sensor"),
+            file_name: Some("new_sensor".to_string()),
+            dry_run: false,
+        },
+    )
+    .unwrap();
+
+    assert!(
+        matches!(result, AddSensorSpecResult::Added { .. }),
+        "pre-condition: spec must be added; got {result:?}"
+    );
+    assert_eq!(
+        calls.load(Ordering::SeqCst),
+        1,
+        "P1-03: add_sensor_spec apply path swaps the snapshot and must fire \
+         the swap listener (response cache flush hook)"
+    );
+}
