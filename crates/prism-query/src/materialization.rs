@@ -44,7 +44,13 @@ use prism_core::{OrgId, OrgSlug, PrismError, SensorId};
 use prism_ocsf::OcsfNormalizer;
 use prism_sensors::{AdapterRegistry, CredentialResolver, SensorSpec};
 
-use crate::{engine::QueryOptions, pushdown::PushDownPlan, types::SensorQueryDescriptor};
+use crate::{
+    cache::SensorResponseCache,
+    cache_key::{CacheKey, PushDownParams},
+    engine::QueryOptions,
+    pushdown::PushDownPlan,
+    types::SensorQueryDescriptor,
+};
 
 // ---------------------------------------------------------------------------
 // inject_source_type
@@ -60,9 +66,12 @@ use crate::{engine::QueryOptions, pushdown::PushDownPlan, types::SensorQueryDesc
 /// Operates on `serde_json::Value` row maps only — no DataFusion, no Arrow.
 /// Non-object values in the slice are skipped without error.
 ///
-/// S-3.02 will call this function from the DataFusion `TableProvider` integration
-/// using the same virtual field injection path as `_sensor`, `_client`, and
-/// `_source_table` (S-2.08 Architecture Compliance Rule 5).
+/// Zero production callers as of S-3.02: `run_materialization_pipeline` shipped via
+/// the MemTable path without calling this function. The cold-start EventStream buffer
+/// routing (`SensorQueryDescriptor.rows_from_buffer` / `EventBufferStore` integration
+/// per S-2.08 Architecture Compliance Rule 5) is not yet wired into the pipeline;
+/// end-to-end wiring is tracked under TD-S302-005 alongside the deferred
+/// integration-test assertions in `tests/integration_tests.rs`.
 ///
 /// # AC-9
 /// Given `EventStream` rows from the buffer: every row has `"_source_type": "buffered"`.
@@ -70,8 +79,8 @@ use crate::{engine::QueryOptions, pushdown::PushDownPlan, types::SensorQueryDesc
 /// # AC-10
 /// Given `PointInTime` rows or cold-start fallback live rows:
 /// every row has `"_source_type": "live"`.
-// S-2.08 spec mandates &mut Vec<serde_json::Value> signature for S-3.02 wiring;
-// clippy::ptr_arg is suppressed intentionally.
+// S-2.08 spec mandates &mut Vec<serde_json::Value> signature for the pipeline
+// wiring (TD-S302-005); clippy::ptr_arg is suppressed intentionally.
 #[allow(clippy::ptr_arg)]
 pub fn inject_source_type(rows: &mut Vec<serde_json::Value>, descriptor: &SensorQueryDescriptor) {
     use prism_core::TableType;
@@ -197,6 +206,16 @@ pub struct MaterializationContext {
             >,
         >,
     >,
+    /// Cross-query sensor-fetch response cache (BC-2.07.003/005/006).
+    ///
+    /// When `Some`, the pipeline checks this cache BEFORE issuing sensor API
+    /// calls (keyed by the BC-2.07.005 4-tuple) and stores the complete fetch
+    /// response after a successful fan-out. `force_refresh: true` bypasses the
+    /// read and replaces the entry. When `None` (test/query-only mode), every
+    /// fetch goes to the sensor API. Wired from `QueryEngine` via
+    /// `with_response_cache` (QRY-02 closure — the engine-owned cache was
+    /// previously constructed but never consulted).
+    pub(crate) response_cache: Option<Arc<SensorResponseCache>>,
 }
 
 impl MaterializationContext {
@@ -247,22 +266,31 @@ impl MaterializationContext {
             credential_resolver,
             org_registry,
             resolved_spec_map,
+            response_cache: None,
         }
+    }
+
+    /// Attach the cross-query sensor-fetch response cache (BC-2.07.003).
+    ///
+    /// Called by `QueryEngine` so the pipeline shares the engine-owned
+    /// `SensorResponseCache` (the same instance the write path invalidates
+    /// through `CacheInvalidator`, BC-2.07.004).
+    pub fn with_response_cache(mut self, cache: Arc<SensorResponseCache>) -> Self {
+        self.response_cache = Some(cache);
+        self
     }
 
     /// Increment the running record count, enforcing the 10K cap. (BC-2.11.006 EC-003)
     ///
-    /// Returns `Err(PrismError::QueryExecutionFailed)` with E-QUERY-003 if the
-    /// new count would exceed `max_records`. Uses saturating addition to prevent
-    /// integer overflow.
+    /// Returns `Err(PrismError::QueryMaterializationLimitExceeded)` (E-QUERY-005,
+    /// error-taxonomy.md materialization limit) if the new count would exceed
+    /// `max_records`. Uses saturating addition to prevent integer overflow.
     pub(crate) fn increment_record_count(&mut self, n: usize) -> Result<(), PrismError> {
         let new = self.record_count.saturating_add(n);
         if new > self.max_records {
-            return Err(PrismError::QueryExecutionFailed {
-                detail: format!(
-                    "E-QUERY-003: record cap exceeded: {} records (limit {})",
-                    new, self.max_records
-                ),
+            return Err(PrismError::QueryMaterializationLimitExceeded {
+                count: new,
+                max: self.max_records,
             });
         }
         self.record_count = new;
@@ -306,6 +334,113 @@ impl CredentialResolver for NullMaterializationCredentialResolver {
 }
 
 // ---------------------------------------------------------------------------
+// derive_response_cache_key
+// ---------------------------------------------------------------------------
+
+/// Derive the BC-2.07.005 response-cache key for a fan-out target.
+///
+/// The `push_down_hash` input is the canonicalized set of sensor-native
+/// push-down parameters for the fetch: the WHERE-clause equality `FilterMap`
+/// (namespaced `filter.<column>`), the ADR-033 extracted time-window bounds
+/// (`start_time` / `end_time`), and the **effective fetch-limit** (parameter
+/// key `fetch.limit` — BC-2.07.005 v4.4). The original PrismQL query string,
+/// the `force_refresh` flag, and PrismQL post-filters are excluded per
+/// BC-2.07.005 §Hash Input. Two different PrismQL queries that produce
+/// identical push-down parameters therefore share a cache entry
+/// (BC-2.07.003 §Postconditions).
+///
+/// # Effective fetch-limit (P1-01 / BC-2.07.005 v4.4)
+///
+/// `fetch_limit` is the exact `u64` pushed into the fan-out target's
+/// `QueryParams.limit` (BC-2.01.013 v1.14 / F-P1-CRIT-004). Because fetched
+/// responses are limit-truncated at the sensor API, an entry fetched under
+/// limit L is valid only for queries fetching under the same L. The
+/// tool-level `limit`'s *post-materialization truncation role* remains
+/// excluded — what is hashed is the fetch-limit actually pushed. `0` is the
+/// no-limit sentinel (EC-08 of BC-2.01.013 v1.14): when 0, the parameter is
+/// **omitted** from the canonical form per the null/absent-omission rule, so
+/// unlimited fetches share entries with unlimited fetches (EC-07-044).
+///
+/// Coherence invariant (architect adjudication D1,
+/// `proposals/cache-envelope-adjudication-2026-06-10.md`): the caller must
+/// feed the SAME local binding into this function and into the fan-out
+/// target's `QueryParams.limit` — the limit hashed is the limit fetched.
+pub(crate) fn derive_response_cache_key(
+    client_id: &OrgSlug,
+    sensor_id: &SensorId,
+    source_table: &str,
+    filters: &prism_sensors::types::FilterMap,
+    start_time: &Option<String>,
+    end_time: &Option<String>,
+    fetch_limit: u64,
+) -> CacheKey {
+    let mut params = PushDownParams::new();
+    // Namespace filter keys so a sensor column literally named "start_time"
+    // cannot collide with the time-window parameters below. (The `fetch.limit`
+    // key below cannot collide either: filter keys are `filter.<column>`.)
+    for (k, v) in filters {
+        params.insert(format!("filter.{k}"), v.clone());
+    }
+    if let Some(st) = start_time {
+        params.insert("start_time", serde_json::Value::String(st.clone()));
+    }
+    if let Some(et) = end_time {
+        params.insert("end_time", serde_json::Value::String(et.clone()));
+    }
+    // BC-2.07.005 v4.4: hash the effective fetch-limit; omit the 0 / no-limit
+    // sentinel per the null/absent-omission rule (EC-07-044).
+    if fetch_limit > 0 {
+        params.insert("fetch.limit", serde_json::Value::from(fetch_limit));
+    }
+    CacheKey::derive(client_id.as_str(), sensor_id.clone(), source_table, &params)
+}
+
+// ---------------------------------------------------------------------------
+// store_or_invalidate_response_cache
+// ---------------------------------------------------------------------------
+
+/// Store/invalidate decision for the cross-query response cache after a
+/// fan-out fetch (BC-2.07.003 §Postconditions; P1-05 / architect adjudication
+/// D3, `proposals/cache-envelope-adjudication-2026-06-10.md`).
+///
+/// - `complete_response = Some(rows)` (fetch succeeded with NO per-target
+///   errors): store the complete response — `force_refresh` replaces any
+///   existing entry, the normal path inserts. TTL selection by source data
+///   type happens inside `put` (60s alerts / 300s devices / health not cached).
+/// - `complete_response = None` (the fetch cannot produce a complete
+///   replacement: all targets failed OR per-target errors made the result
+///   partial — partial responses are never cached):
+///   - `force_refresh: true` → the existing entry is **invalidated (removed)**
+///     (EC-07-033 / EC-07-034). `force_refresh` is an explicit analyst
+///     distrust signal; retaining the distrusted entry would silently serve it
+///     to later non-forced queries. Subsequent non-forced queries for the
+///     tuple miss the cache and re-attempt the fetch.
+///   - `force_refresh: false` → the existing unexpired entry is **retained**
+///     (availability asymmetry — a normal fetch failure never invalidates).
+///
+/// Invalidation is per-entry (per cache key); sibling entries at other
+/// fetch-limits age out by TTL. Eviction accounting stays atomic with
+/// partition mutation via `remove_entry` (TD-PRISM-QUERY-CACHE-001).
+pub(crate) fn store_or_invalidate_response_cache(
+    cache: &crate::cache::SensorResponseCache,
+    key: &CacheKey,
+    force_refresh: bool,
+    complete_response: Option<Vec<RecordBatch>>,
+) -> Result<(), PrismError> {
+    match complete_response {
+        Some(rows) => {
+            if force_refresh {
+                cache.force_refresh(key.clone(), rows)
+            } else {
+                cache.put(key.clone(), rows)
+            }
+        }
+        None if force_refresh => cache.remove_entry(key),
+        None => Ok(()),
+    }
+}
+
+// ---------------------------------------------------------------------------
 // run_materialization_pipeline
 // ---------------------------------------------------------------------------
 
@@ -324,7 +459,7 @@ impl CredentialResolver for NullMaterializationCredentialResolver {
 /// # Record Cap (BC-2.11.006, EC-003)
 /// Streaming counter across all sources. If the record counter exceeds
 /// the maximum during Step 3, abort with
-/// `PrismError::QueryExecutionFailed` containing E-QUERY-003 message.
+/// `PrismError::QueryMaterializationLimitExceeded` (E-QUERY-005).
 ///
 /// # Returns
 /// `MaterializationOutput` containing batches, sensor_errors, and registered_tables.
@@ -397,6 +532,22 @@ pub async fn run_materialization_pipeline(
     // ADV-W3MT-P58-HIGH-005: sensors_queried was always empty before this fix.
     let mut sensors_queried: std::collections::HashSet<String> = std::collections::HashSet::new();
 
+    // Cross-query response cache (BC-2.07.003): clone the Arc out of mat_ctx so
+    // the per-target loop can hold it alongside &mut mat_ctx borrows.
+    let response_cache = mat_ctx.response_cache.clone();
+
+    // Effective fetch-limit (BC-2.01.013 v1.14 / F-P1-CRIT-004): the limit
+    // pushed into every fan-out target's `QueryParams.limit`. 0 = no-limit
+    // sentinel (EC-008).
+    //
+    // SINGLE-BINDING COHERENCE (P1-01 / BC-2.07.005 v4.4 §Invariants, architect
+    // adjudication D1): this binding feeds BOTH the response-cache key
+    // derivation AND the fan-out target construction below. Do NOT introduce a
+    // second derivation of the pushed limit — the limit hashed into
+    // `push_down_hash` must always be the limit actually fetched, including
+    // under any future pushdown-suppression logic.
+    let fetch_limit: u64 = options.limit.map(|l| l as u64).unwrap_or(0);
+
     // F-LP1-CRIT-2/3: use fan_out() with CredentialResolver.
     // Process each target independently so virtual field injection uses the
     // correct per-target (org_id, client_id) — grouping by source_table would
@@ -427,6 +578,59 @@ pub async fn run_materialization_pipeline(
             continue;
         }
 
+        // BC-2.07.005: derive the cross-query response-cache key from the
+        // sensor-native push-down parameters for this target.
+        let response_cache_key = response_cache.as_ref().map(|_| {
+            derive_response_cache_key(
+                &target.client_id,
+                &target.sensor_id,
+                &target.source_table,
+                &where_filters,
+                &extracted_start_time,
+                &extracted_end_time,
+                fetch_limit,
+            )
+        });
+
+        // BC-2.07.003: check the cross-query response cache BEFORE issuing the
+        // sensor API call. `force_refresh: true` bypasses the read (the fresh
+        // response replaces the entry below). Cache errors are E-CACHE-001
+        // (poisoned mutex) — unrecoverable per BC-2.07.004 §Error Cases, so
+        // they propagate rather than degrade to a miss.
+        if !options.force_refresh {
+            if let (Some(cache), Some(key)) = (&response_cache, &response_cache_key) {
+                if let Some(raw_batches) = cache.get(key)? {
+                    // Cached complete response: apply the post-retrieval
+                    // transformations (virtual-field injection) exactly as on
+                    // the fresh-fetch path (BC-2.07.003 — "normalization and
+                    // post-filters are applied after cache retrieval").
+                    sensors_queried.insert(target.sensor_id.to_string());
+                    let mut fetched_batches: Vec<RecordBatch> = Vec::new();
+                    for batch in raw_batches {
+                        let n = batch.num_rows();
+                        mat_ctx.increment_record_count(n)?;
+                        let annotated = crate::virtual_fields::inject_virtual_fields(
+                            batch,
+                            &target.sensor_id,
+                            &target.client_id,
+                            &target.source_table,
+                        )
+                        .map_err(|e| PrismError::QueryExecutionFailed {
+                            detail: format!("virtual field injection failed: {e}"),
+                        })?;
+                        fetched_batches.push(annotated.clone());
+                        table_batches
+                            .entry(target.source_table.clone())
+                            .or_default()
+                            .push(annotated);
+                    }
+                    // Also seed the in-query cache so self-joins reuse the hit.
+                    mat_ctx.cache_insert(cache_key, fetched_batches);
+                    continue;
+                }
+            }
+        }
+
         // Build the fan_out FanOutTarget (prism-sensors type, not our local type).
         // One FanOutTarget per (org_id, source_table) pair → correct per-org dispatch.
         // (F-LP1-CRIT-3: org_id matches the adapter's registered key; no random OrgId::new())
@@ -445,7 +649,9 @@ pub async fn run_materialization_pipeline(
                 },
                 params: prism_sensors::adapter::QueryParams {
                     cursor: None,
-                    limit: options.limit.map(|l| l as u64).unwrap_or(0),
+                    // Single-binding coherence (P1-01 / BC-2.07.005 v4.4): the
+                    // SAME `fetch_limit` binding feeds the cache key above.
+                    limit: fetch_limit,
                     // ADR-033 T1: populate start_time/end_time from pre-fan-out AST extraction.
                     // These were hardcoded None (F-P6-CRIT-001 dead-code gap); now wired per ADR-033.
                     start_time: extracted_start_time.clone(),
@@ -488,6 +694,28 @@ pub async fn run_materialization_pipeline(
                 // F-PASS12-HIGH-1: use Display (to_string) not Debug format — Debug produces
                 // `SensorId("crowdstrike")` while the safety envelope expects `"crowdstrike"`.
                 sensors_queried.insert(target.sensor_id.to_string());
+
+                // BC-2.07.003: store the COMPLETE response (pre-virtual-field
+                // injection — no query-engine transformation applied before
+                // caching) in the cross-query response cache. Only complete
+                // responses are cached: if this target had partial errors, the
+                // result set is incomplete and caching it would serve partial
+                // data for the TTL duration. `force_refresh` replaces any
+                // existing entry; a forced refresh whose result is PARTIAL
+                // additionally invalidates the existing entry instead of
+                // retaining it (EC-07-034, P1-05 / architect adjudication D3).
+                // Non-forced partial results never invalidate (availability
+                // asymmetry). TTL selection by source data type happens inside
+                // `put` (60s alerts / 300s devices / health not cached).
+                if let (Some(cache), Some(key)) = (&response_cache, &response_cache_key) {
+                    let complete = fan_result.errors.is_empty();
+                    store_or_invalidate_response_cache(
+                        cache,
+                        key,
+                        options.force_refresh,
+                        complete.then(|| fan_result.successes.clone()),
+                    )?;
+                }
 
                 // Collect successes with per-target virtual field injection.
                 let mut fetched_batches: Vec<RecordBatch> = Vec::new();
@@ -544,6 +772,15 @@ pub async fn run_materialization_pipeline(
                     target.source_table,
                     e.error_code()
                 ));
+
+                // EC-07-033 (P1-05 / architect adjudication D3): a FORCED
+                // refresh whose fetch failed for all targets cannot store a
+                // complete replacement — invalidate the distrusted entry so
+                // later non-forced queries miss and re-attempt the fetch.
+                // Non-forced failures never invalidate (availability asymmetry).
+                if let (Some(cache), Some(key)) = (&response_cache, &response_cache_key) {
+                    store_or_invalidate_response_cache(cache, key, options.force_refresh, None)?;
+                }
             }
         }
     }
@@ -598,7 +835,7 @@ pub async fn run_materialization_pipeline(
 /// For Filter/Pipe mode: returns the union of all materialized `table_batches`
 /// (DataFusion MemTable registration already happened; no separate SQL step).
 /// (F-LP1-HIGH-1: Filter and Pipe must NOT return empty Vec)
-async fn execute_against_session(
+pub(crate) async fn execute_against_session(
     session_ctx: &SessionContext,
     query_str: &str,
     ast: &crate::ast::Ast,
@@ -608,6 +845,10 @@ async fn execute_against_session(
 
     match ast {
         Ast::Sql(SqlStatement::Select(_)) => {
+            // P5-04: read the executing session's ACTUAL pool capacity so
+            // budget-exceeded errors report the configured limit (engine
+            // config `memory_pool_bytes`), not the 200MB default constant.
+            let pool_bytes = crate::memory::session_memory_pool_bytes(session_ctx);
             // Execute the SQL string via DataFusion.
             let df = session_ctx.sql(query_str).await.map_err(|e| {
                 tracing::error!(error = %e, "DataFusion SQL planning error");
@@ -615,13 +856,16 @@ async fn execute_against_session(
                     detail: "SQL planning error: <redacted; see server logs>".to_string(),
                 }
             })?;
-            let stream = df.execute_stream().await.map_err(|e| {
-                tracing::error!(error = %e, "DataFusion execution error");
-                PrismError::QueryExecutionFailed {
-                    detail: "SQL execution error: <redacted; see server logs>".to_string(),
-                }
-            })?;
-            collect_record_batch_stream(stream).await
+            // QRY-03: route execution errors through map_datafusion_memory_error
+            // so a GreedyMemoryPool trip (ResourcesExhausted) surfaces as
+            // PrismError::QueryMemoryBudgetExceeded (E-WATCHDOG-001) instead of
+            // a generic QueryExecutionFailed. Non-memory errors are logged and
+            // redacted inside the mapper (BC-2.11.006 EC-001).
+            let stream = df
+                .execute_stream()
+                .await
+                .map_err(|e| crate::memory::map_datafusion_memory_error(e, pool_bytes))?;
+            collect_record_batch_stream(stream, pool_bytes).await
         }
         // F-LP1-HIGH-1: For Filter and Pipe modes, return the union of all materialized batches.
         // The batches were already collected in the fan-out loop with virtual field injection.
@@ -672,51 +916,46 @@ pub(crate) async fn resolve_source_refs(
             continue;
         }
         // ADV-W3MT-P58-LOW-002 / F-LP1-CRITICAL-001: unknown table names (not prism_*,
-        // not a prefix for a registered sensor) return E-QUERY-006 per EC-001.
+        // not a prefix for a registered sensor) return E-QUERY-036 per EC-001.
         // This prevents silent empty results for typos or unregistered sensor names.
         //
         // Two-stage check:
         //   1. sensor_id_from_table_name: extracts and validates the prefix (returns None
         //      for empty or invalid-charset prefixes — cannot be a valid SensorId).
-        //   2. is_sensor_registered: checks adapter_registry membership (returns E-QUERY-006
+        //   2. is_sensor_registered: checks adapter_registry membership (returns E-QUERY-036
         //      for valid-looking prefixes with no registered adapter — unknown sensor name).
+        //
+        // P6-02 adjudication 2026-06-11: returns PrismError::UnknownSourceTable (E-QUERY-036)
+        // instead of QueryExecutionFailed with embedded E-QUERY-006 string. The dedicated
+        // variant maps to -32602 INVALID_PARAMS in error_mapping.rs (caller-resolvable).
         let Some(sensor_id) = sensor_id_from_table_name(source_name) else {
             tracing::debug!(
                 source_name,
-                "resolve_source_refs: unknown sensor prefix; returning E-QUERY-006"
+                "resolve_source_refs: unknown sensor prefix; returning E-QUERY-036"
             );
-            return Err(PrismError::QueryExecutionFailed {
-                detail: format!(
-                    "E-QUERY-006: unknown source table '{source_name}'; \
-                     table is not a registered sensor or internal table. \
-                     Check spelling or register the sensor in prism.toml."
-                ),
+            return Err(PrismError::UnknownSourceTable {
+                source_name: source_name.to_string(),
             });
         };
 
         // F-LP1-CRITICAL-001: after extracting the sensor prefix, verify that at least
         // one adapter is registered for it. Without this check, unknown sensor names
-        // (e.g. "unknown_table") silently produce empty results rather than E-QUERY-006.
+        // (e.g. "unknown_table") silently produce empty results rather than E-QUERY-036.
         //
         // Guard: only apply when the registry is non-empty. An empty registry indicates
         // test mode or early boot where no adapters are wired yet — in that state we
         // cannot distinguish "unknown sensor" from "known sensor not yet registered".
         // In production, the registry is always populated at boot with at least the
         // four built-in sensors; any table prefix absent from a populated registry is
-        // genuinely unknown and must return E-QUERY-006.
+        // genuinely unknown and must return E-QUERY-036.
         if !adapter_registry.is_empty() && !adapter_registry.is_sensor_registered(&sensor_id) {
             tracing::debug!(
                 source_name,
                 sensor_id = %sensor_id,
-                "resolve_source_refs: no adapter registered for sensor prefix; returning E-QUERY-006"
+                "resolve_source_refs: no adapter registered for sensor prefix; returning E-QUERY-036"
             );
-            return Err(PrismError::QueryExecutionFailed {
-                detail: format!(
-                    "E-QUERY-006: unknown source table '{source_name}'; \
-                     sensor prefix '{}' is not registered in the adapter registry. \
-                     Check spelling or register the sensor in prism.toml.",
-                    sensor_id
-                ),
+            return Err(PrismError::UnknownSourceTable {
+                source_name: source_name.to_string(),
             });
         }
 
@@ -1342,18 +1581,18 @@ pub(crate) fn register_mem_table(
 /// schema exposure via MCP responses.
 pub(crate) async fn collect_record_batch_stream(
     stream: datafusion::physical_plan::SendableRecordBatchStream,
+    pool_bytes: usize,
 ) -> Result<Vec<RecordBatch>, PrismError> {
+    // QRY-03: route collection errors through map_datafusion_memory_error so a
+    // GreedyMemoryPool trip during streaming (ResourcesExhausted) surfaces as
+    // PrismError::QueryMemoryBudgetExceeded (E-WATCHDOG-001). Non-memory
+    // errors are logged and redacted inside the mapper (BC-2.11.006 EC-001).
+    // P5-04: `pool_bytes` is the executing session's actual pool capacity
+    // (threaded from `execute_against_session` via `session_memory_pool_bytes`)
+    // so the reported limit matches the pool that tripped.
     datafusion::physical_plan::common::collect(stream)
         .await
-        .map_err(|e| {
-            tracing::error!(
-                error = %e,
-                "stream collection error (detail redacted from client response)"
-            );
-            PrismError::QueryExecutionFailed {
-                detail: "stream collection error: <redacted; see server logs>".to_string(),
-            }
-        })
+        .map_err(|e| crate::memory::map_datafusion_memory_error(e, pool_bytes))
 }
 
 // ---------------------------------------------------------------------------
@@ -2085,6 +2324,138 @@ mod cross_org_isolation_tests {
             targets.len(),
             1,
             "Must produce exactly one FanOutTarget for org_b + claroty; got: {targets:?}"
+        );
+    }
+}
+
+// ---------------------------------------------------------------------------
+// P6-02 unit tests: E-QUERY-036 UnknownSourceTable from resolve_source_refs
+// ---------------------------------------------------------------------------
+
+#[cfg(test)]
+mod unknown_source_table_tests {
+    //! SID-1 unit test: `resolve_source_refs` must return
+    //! `PrismError::UnknownSourceTable` (E-QUERY-036) when:
+    //! (a) the table name prefix fails `sensor_id_from_table_name` validation, OR
+    //! (b) the prefix is valid but not registered in a non-empty AdapterRegistry.
+    //!
+    //! This is the P6-02 adjudication 2026-06-11 regression test.
+    //! Before the fix, both sites returned `QueryExecutionFailed { detail: "E-QUERY-006: ..." }`,
+    //! routing caller-resolvable errors to -32000 INTERNAL_ERROR with a redacted message.
+    //! After the fix, `UnknownSourceTable` routes to -32602 INVALID_PARAMS.
+    //!
+    //! No external DTU or subprocess required (SID-1 compliance).
+    //! Ref: error-taxonomy.md v1.73 E-QUERY-036; BC-2.11.007 EC-001; P6-02 adjudication.
+
+    use std::sync::Arc;
+
+    use async_trait::async_trait;
+    use prism_core::{OrgId, PrismError, SensorId};
+    use prism_sensors::{
+        adapter::{QueryParams, SensorSpec},
+        AdapterRegistry, SensorAdapter, SensorAuth, SensorError,
+    };
+
+    struct StubAdapterForUnknownTest {
+        sensor_id: SensorId,
+    }
+
+    #[async_trait]
+    impl SensorAdapter for StubAdapterForUnknownTest {
+        fn sensor_type(&self) -> SensorId {
+            self.sensor_id.clone()
+        }
+
+        fn sensor_name(&self) -> &'static str {
+            "stub-unknown-test"
+        }
+
+        async fn fetch(
+            &self,
+            _spec: &SensorSpec,
+            _params: &QueryParams,
+            _auth: &dyn SensorAuth,
+        ) -> Result<Vec<arrow::record_batch::RecordBatch>, SensorError> {
+            // Never called — the path under test returns UnknownSourceTable before adapter dispatch.
+            unreachable!("StubAdapterForUnknownTest::fetch must not be called in E-QUERY-036 test")
+        }
+    }
+
+    /// P6-02: `resolve_source_refs` returns `PrismError::UnknownSourceTable` (E-QUERY-036)
+    /// when the registry is non-empty and the queried table prefix is not registered.
+    ///
+    /// Mental-deletion proof: removing the `UnknownSourceTable` return from
+    /// `resolve_source_refs` would cause this test to fail with `Ok(...)` or a
+    /// different error variant — neither of which is `UnknownSourceTable`.
+    #[tokio::test]
+    async fn test_BC_2_11_007_resolve_source_refs_unregistered_prefix_returns_unknown_source_table()
+    {
+        let org_id = OrgId::new();
+        let mut registry = AdapterRegistry::new();
+        registry.register(
+            org_id,
+            Arc::new(StubAdapterForUnknownTest {
+                sensor_id: SensorId::new("crowdstrike"),
+            }),
+        );
+
+        let source_names = vec!["ghost_sensor.devices".to_string()];
+        let clients = vec![];
+        let org_registry = None;
+
+        let result =
+            super::resolve_source_refs(&source_names, &clients, &registry, &org_registry).await;
+
+        let err = result.expect_err(
+            "resolve_source_refs must return Err for unregistered sensor prefix; got Ok",
+        );
+        assert!(
+            matches!(err, PrismError::UnknownSourceTable { .. }),
+            "error must be PrismError::UnknownSourceTable (E-QUERY-036); got: {err:?}"
+        );
+        let display = err.to_string();
+        assert!(
+            display.contains("E-QUERY-036"),
+            "error display must contain 'E-QUERY-036'; got: {display}"
+        );
+        assert!(
+            display.contains("ghost_sensor.devices"),
+            "error display must include the source_name; got: {display}"
+        );
+    }
+
+    /// P6-02: `resolve_source_refs` returns `PrismError::UnknownSourceTable` (E-QUERY-036)
+    /// when the table name prefix fails `sensor_id_from_table_name` validation
+    /// (e.g. empty prefix, invalid charset).
+    ///
+    /// The `...` table name has no valid sensor-id prefix — `sensor_id_from_table_name`
+    /// returns `None`. Even with an empty registry (test-mode guard inactive), the
+    /// prefix-extraction failure fires unconditionally.
+    #[tokio::test]
+    async fn test_BC_2_11_007_resolve_source_refs_invalid_prefix_returns_unknown_source_table() {
+        let mut registry = AdapterRegistry::new();
+        // Register a sensor to make the registry non-empty (triggers the guard).
+        let org_id = OrgId::new();
+        registry.register(
+            org_id,
+            Arc::new(StubAdapterForUnknownTest {
+                sensor_id: SensorId::new("crowdstrike"),
+            }),
+        );
+
+        // A dot-only name: sensor_id_from_table_name returns None for ".".
+        let source_names = vec![".invalid".to_string()];
+        let clients = vec![];
+        let org_registry = None;
+
+        let result =
+            super::resolve_source_refs(&source_names, &clients, &registry, &org_registry).await;
+
+        let err = result
+            .expect_err("resolve_source_refs must return Err for invalid table prefix; got Ok");
+        assert!(
+            matches!(err, PrismError::UnknownSourceTable { .. }),
+            "error must be PrismError::UnknownSourceTable (E-QUERY-036) for invalid prefix; got: {err:?}"
         );
     }
 }

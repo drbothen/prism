@@ -122,17 +122,18 @@ mod kani_proofs {
             "VP-014: check_query_size must return Err for any len > PRISM_MAX_QUERY_SIZE",
         );
 
-        // Defense in depth: the error MUST be QueryExecutionFailed (the
-        // only Err variant `check_query_size` constructs). We do not
+        // Defense in depth: the error MUST be QuerySecurityLimitExceeded (the
+        // only Err variant `check_query_size` constructs; E-QUERY-003 per
+        // error-taxonomy.md v1.72 / ADR-038 v1.3 §P5-02). We do not
         // string-match `E-QUERY-003` here because Kani's String handling
         // would balloon the search space; the dynamic test below covers
         // the error code string.
         kani::assert(
             matches!(
                 result,
-                Err(prism_core::error::PrismError::QueryExecutionFailed { .. })
+                Err(prism_core::error::PrismError::QuerySecurityLimitExceeded { .. })
             ),
-            "VP-014: oversize rejection must use PrismError::QueryExecutionFailed",
+            "VP-014: oversize rejection must use PrismError::QuerySecurityLimitExceeded",
         );
     }
 
@@ -179,7 +180,9 @@ mod dynamic_tests {
                 result.is_err(),
                 "VP-014 fallback: check_query_size must reject len = LIMIT+{extra}"
             );
-            let msg = format!("{:?}", result.unwrap_err());
+            // Display (not Debug): the E-QUERY-003 prefix lives in the
+            // QuerySecurityLimitExceeded Display impl, not in `detail`.
+            let msg = result.unwrap_err().to_string();
             assert!(
                 msg.contains("E-QUERY-003"),
                 "VP-014 fallback: error must reference E-QUERY-003, got: {msg}"

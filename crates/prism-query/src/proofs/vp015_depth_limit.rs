@@ -262,7 +262,9 @@ mod dynamic_tests {
                 result.is_err(),
                 "VP-015 fallback: SqlQuery WHERE depth LIMIT+{extra} must return Err"
             );
-            let msg = format!("{:?}", result.unwrap_err());
+            // Display (not Debug): the E-QUERY-003 prefix lives in the
+            // QuerySecurityLimitExceeded Display impl, not in `detail`.
+            let msg = result.unwrap_err().to_string();
             assert!(
                 msg.contains("E-QUERY-003"),
                 "VP-015 fallback: SqlQuery depth error must reference E-QUERY-003, got: {msg}"
@@ -304,7 +306,9 @@ mod dynamic_tests {
                 result.is_err(),
                 "VP-015 fallback: SqlQuery HAVING depth LIMIT+{extra} must return Err"
             );
-            let msg = format!("{:?}", result.unwrap_err());
+            // Display (not Debug): the E-QUERY-003 prefix lives in the
+            // QuerySecurityLimitExceeded Display impl, not in `detail`.
+            let msg = result.unwrap_err().to_string();
             assert!(
                 msg.contains("E-QUERY-003"),
                 "VP-015 fallback: SqlQuery HAVING depth error must reference E-QUERY-003, got: {msg}"
@@ -339,7 +343,9 @@ mod dynamic_tests {
                 result.is_err(),
                 "VP-015 fallback: SqlQuery JOIN ON depth LIMIT+{extra} must return Err"
             );
-            let msg = format!("{:?}", result.unwrap_err());
+            // Display (not Debug): the E-QUERY-003 prefix lives in the
+            // QuerySecurityLimitExceeded Display impl, not in `detail`.
+            let msg = result.unwrap_err().to_string();
             assert!(
                 msg.contains("E-QUERY-003"),
                 "VP-015 fallback: SqlQuery JOIN ON depth error must reference E-QUERY-003, got: {msg}"
@@ -372,7 +378,9 @@ mod dynamic_tests {
                 result.is_err(),
                 "VP-015 fallback: SqlQuery ORDER BY depth LIMIT+{extra} must return Err"
             );
-            let msg = format!("{:?}", result.unwrap_err());
+            // Display (not Debug): the E-QUERY-003 prefix lives in the
+            // QuerySecurityLimitExceeded Display impl, not in `detail`.
+            let msg = result.unwrap_err().to_string();
             assert!(
                 msg.contains("E-QUERY-003"),
                 "VP-015 fallback: SqlQuery ORDER BY depth error must reference E-QUERY-003, got: {msg}"

@@ -508,6 +508,7 @@ mod tests {
     /// This ensures `new()` is not a validation bypass for future callers who
     /// reach for it instead of the validated `from`/`try_from_str` constructors.
     #[test]
+    // POL-16-OK: intentional-panic contract test
     #[should_panic(expected = "invalid SensorId string")]
     fn test_sensorid_new_panics_on_invalid_uppercase() {
         SensorId::new("CrowdStrike");
@@ -515,6 +516,7 @@ mod tests {
 
     /// F-LP6-HIGH-001: SensorId::new must panic on empty string.
     #[test]
+    // POL-16-OK: intentional-panic contract test
     #[should_panic(expected = "invalid SensorId string")]
     fn test_sensorid_new_panics_on_empty() {
         SensorId::new("");

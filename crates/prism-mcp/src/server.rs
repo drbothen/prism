@@ -4545,6 +4545,9 @@ mod tests {
             Arc::new(HighOneStubAudit),
             adapter_registry,
             Arc::new(endpoint_registry),
+            Arc::new(prism_query::invalidation::CacheInvalidator::new(Arc::new(
+                prism_query::cache::SensorResponseCache::with_defaults(),
+            ))),
         ));
 
         // Construct PrismServer with only write_executor wired.
@@ -4918,6 +4921,9 @@ mod tests {
             Arc::new(HighOneStubAudit),
             adapter_registry,
             Arc::new(endpoint_registry),
+            Arc::new(prism_query::invalidation::CacheInvalidator::new(Arc::new(
+                prism_query::cache::SensorResponseCache::with_defaults(),
+            ))),
         ));
 
         // Wire alias_store so confirm_action reaches the 'name' extraction step.
@@ -5805,6 +5811,9 @@ mod tests {
             Arc::new(HighOneStubAudit),
             adapter_registry,
             Arc::new(endpoint_registry),
+            Arc::new(prism_query::invalidation::CacheInvalidator::new(Arc::new(
+                prism_query::cache::SensorResponseCache::with_defaults(),
+            ))),
         ));
 
         let tmpdir = tempfile::tempdir().expect("create tempdir for f-pass16 test alias store");

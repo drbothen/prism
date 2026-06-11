@@ -152,11 +152,8 @@ impl AliasResolver {
 
         // Step 5 pre-check: reject oversized input before any expansion.
         if query.len() > MAX_EXPANDED_QUERY_BYTES {
-            return Err(PrismError::QueryExecutionFailed {
-                detail: format!(
-                    "E-QUERY-003: expanded query exceeds 64KB limit ({} bytes)",
-                    query.len()
-                ),
+            return Err(PrismError::QuerySecurityLimitExceeded {
+                detail: format!("expanded query exceeds 64KB limit ({} bytes)", query.len()),
             });
         }
 
@@ -198,11 +195,8 @@ impl AliasResolver {
 
         // Step 5: size check on expanded output.
         if result.len() > MAX_EXPANDED_QUERY_BYTES {
-            return Err(PrismError::QueryExecutionFailed {
-                detail: format!(
-                    "E-QUERY-003: expanded query exceeds 64KB limit ({} bytes)",
-                    result.len()
-                ),
+            return Err(PrismError::QuerySecurityLimitExceeded {
+                detail: format!("expanded query exceeds 64KB limit ({} bytes)", result.len()),
             });
         }
 

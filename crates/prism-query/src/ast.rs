@@ -1070,8 +1070,7 @@ impl RegexLiteral {
         let limit = crate::security::ParseLimits::current_regex_limit();
         if pattern.len() > limit {
             return Err(format!(
-                "{}: regex pattern length {} bytes exceeds maximum allowed {} bytes",
-                crate::security::E_QUERY_003,
+                "E-QUERY-003: regex pattern length {} bytes exceeds maximum allowed {} bytes",
                 pattern.len(),
                 limit
             ));
