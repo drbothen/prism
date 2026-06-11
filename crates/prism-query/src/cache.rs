@@ -4,10 +4,14 @@
 //!
 //! # Cache model
 //! A single in-memory sensor-fetch cache keyed by [`crate::cache_key::CacheKey`]
-//! (4-tuple: `client_id`, `sensor_id`, `source_id`, `push_down_hash`). Cache
-//! entries store the raw sensor API response pre-OCSF normalization. OCSF
-//! normalization and PrismQL post-filters are applied after cache retrieval
-//! (BC-2.07.003 §Postconditions).
+//! (4-tuple: `client_id`, `sensor_id`, `source_id`, `push_down_hash`).
+//! BC-2.07.003 specifies entries store the raw sensor API response pre-OCSF
+//! normalization; the production instantiation ([`SensorResponseValue`])
+//! caches the adapter's normalized Arrow output instead — a human-authorized
+//! deviation (P1-03 adjudication, 2026-06-10; spec compliance lands in
+//! S-CACHE-SPEC-COMPLIANCE-001; interim mitigation: hot-reload cache flush).
+//! See [`CacheValue`] for the full deviation record. PrismQL post-filters are
+//! applied after cache retrieval (BC-2.07.003 §Postconditions).
 //!
 //! # TTL semantics
 //! TTL is measured from `created_at` (absolute expiry), not from last access
@@ -150,12 +154,21 @@ impl SourceDataType {
 /// - `Vec<serde_json::Value>` — raw JSON rows (the BC-2.07.003 "raw sensor
 ///   response" form, used by unit tests and JSON-level callers).
 /// - [`SensorResponseValue`] (`Vec<RecordBatch>`) — the production query-engine
-///   instantiation. The as-built `SensorAdapter::fetch` boundary returns Arrow
-///   `RecordBatch`es (normalization happens inside the adapter), so the
-///   fan-out-level response cache stores the adapter's complete response in
-///   that form. Virtual-field injection and PrismQL post-filters are applied
-///   after cache retrieval, preserving the BC-2.07.003 "no transformation
-///   before caching" invariant at this layer.
+///   instantiation, storing the post-normalization Arrow output of
+///   `SensorAdapter::fetch`.
+///
+/// # Authorized deviation from BC-2.07.003 (P1-03 adjudication, 2026-06-10)
+///
+/// BC-2.07.003 specifies that cache entries store the RAW sensor API response
+/// pre-OCSF normalization. The production instantiation deviates: it caches
+/// the adapter's normalized `RecordBatch` output, because normalization
+/// happens inside the as-built `SensorAdapter::fetch` boundary. This is a
+/// HUMAN-AUTHORIZED deviation from the BC-2.07.003 raw-response model (P1-03
+/// adjudication, 2026-06-10); the BC stays unamended. Spec compliance is
+/// implemented by S-CACHE-SPEC-COMPLIANCE-001 (post-demo). Interim mitigation:
+/// every config hot-reload flushes this cache (`invalidate_all`, registered as
+/// a `ConfigManager` swap listener at boot) so entries normalized under a
+/// retired spec cannot be served.
 pub trait CacheValue: Clone + std::fmt::Debug + Send + Sync + 'static {
     /// Estimated in-memory size of this value in bytes, used for the
     /// BC-2.07.006 byte-budget accounting and the SEC-003 per-entry cap.
@@ -183,6 +196,11 @@ impl CacheValue for Vec<arrow::record_batch::RecordBatch> {
 }
 
 /// Production cache value: complete sensor-fetch response as Arrow batches.
+///
+/// Stores the adapter's NORMALIZED output — a human-authorized deviation from
+/// the BC-2.07.003 raw-response model (P1-03 adjudication, 2026-06-10); spec
+/// compliance implemented by S-CACHE-SPEC-COMPLIANCE-001 (post-demo); interim
+/// mitigation: hot-reload response-cache flush. See [`CacheValue`].
 pub type SensorResponseValue = Vec<arrow::record_batch::RecordBatch>;
 
 // ---------------------------------------------------------------------------
