@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
+version: "1.1"
 status: draft
 producer: product-owner
 timestamp: 2026-04-27T00:00:00
@@ -57,7 +57,7 @@ The archetype catalog is a fixed enumeration of 8 named deployment scenarios. Ea
 |-----------|----------------------------|-----------------------|---------------------|-------|
 | `HealthyOtEnvironment` | 50 | 5 | 0 | Stable OT network; no active threats |
 | `CompromisedEndpoint` | 50 | 20 | 3 | Elevated alerts; containment state changes |
-| `AuthOutage` | 20 | 2 | 0 | First API call returns HTTP 401; recovers after configurable delay (default: 2nd call succeeds) |
+| `AuthOutage` | 20 | 2 | 0 | First N API calls return HTTP 401; recovers after configurable delay (default N=1). Recovery representation is per-clone (see §AuthOutage postcondition). |
 | `LargeScale` | 10,000 | 500 | 10 | Exercises pagination and memory budget |
 | `PaginationEdgeCases` | `page_size × 3` | 0 | 0 | Exact multiples of page size; single-page and empty-final-page variants |
 | `SchemaDrift` | 30 | 1 | 0 | 1 record has non-conformant field shape (missing required field or wrong type) |
@@ -80,10 +80,14 @@ The archetype catalog is a fixed enumeration of 8 named deployment scenarios. Ea
 
 **`AuthOutage`**
 - 20 devices at scale=1.0 (represents a smaller deployment for simplicity)
-- The first simulated API call for this fixture returns an HTTP 401 response record
-- Subsequent simulated calls return normal 200 responses (recovery behavior)
-- The recovery delay is configurable via `GenOpts::overrides` using JSON Merge Patch: `{"auth_outage": {"recovery_after_calls": N}}`; default N=1
-- **Implementation note:** This specification applies to DTU clones that model `AuthOutage` at the generator/fixture layer (CrowdStrike, Claroty, Armis), where the `FixtureSet::records` includes explicit 401 status-code records followed by recovery records. Cyberint models auth-outage at the route/state layer via `AuthMode::Reject → Accept` mode toggle (configured via `POST /dtu/configure {"auth_mode": "reject|accept"}` or `POST /dtu/reset`). The route-layer mechanism is architecturally equivalent for test and demo rehearsal — it provides deterministic auth-outage injection and deterministic recovery — but operates through a different control plane that does not use `GenOpts::overrides`. Invariant 6 below therefore applies only to generator-fixture-layer clones.
+- The first N simulated API calls for this fixture return HTTP 401 response records (default N=1)
+- Recovery representation is **per-clone**, determined by real-API response shape fidelity (see implementation note below)
+- The recovery delay (N) is configurable via `GenOpts::overrides` using JSON Merge Patch: `{"auth_outage": {"recovery_after_calls": N}}`; default N=1
+- **Per-clone recovery representation (DTU P15-02 adjudication, v1.1):**
+  - **CrowdStrike (OAuth2 token endpoint):** N 401 OAuth2 call records (`status_code=401`), then one explicit 200 OAuth2 call record (`status_code=200`, with `access_token`), then normal device records. The real CrowdStrike OAuth2 endpoint returns a JSON body with `access_token` on successful token grant — the explicit 200 record accurately represents the token-endpoint response. EC-3.4.003-05/06 and TV-3.4.003-04 apply to this clone.
+  - **Claroty (URL-token auth — no OAuth2 endpoint):** N 401 call records (`_surface="call"`, `status_code=401`), then normal device records. No explicit 200 call record is emitted. The real Claroty API does not have a token endpoint whose response shape maps to a "call record" — recovery is the resumption of normal device-fetch records, NOT a dedicated call record with `status_code=200`. Emitting a synthetic 200 call record would misrepresent Claroty's real API shape.
+  - **Armis (asset search API — no call-record concept):** First N asset records have `status_code=401` injected onto the standard asset schema; record N+1 and beyond have no `status_code` field (absence-of-injection = recovery). No explicit recovery record with `status_code=200` is emitted. The real Armis search API returns asset objects that do not carry a `status_code` field — injecting `status_code=200` on the recovery record would fabricate a field absent from the real API schema.
+- **Implementation note:** This specification applies to DTU clones that model `AuthOutage` at the generator/fixture layer (CrowdStrike, Claroty, Armis). Cyberint models auth-outage at the route/state layer via `AuthMode::Reject → Accept` mode toggle (configured via `POST /dtu/configure {"auth_mode": "reject|accept"}` or `POST /dtu/reset`). The route-layer mechanism is architecturally equivalent for test and demo rehearsal — it provides deterministic auth-outage injection and deterministic recovery — but operates through a different control plane that does not use `GenOpts::overrides`. Invariant 6 below therefore applies only to generator-fixture-layer clones.
 
 **`LargeScale`**
 - 10,000 devices, 500 alerts, 10 high-severity at scale=1.0
@@ -135,8 +139,8 @@ The archetype catalog is a fixed enumeration of 8 named deployment scenarios. Ea
 | EC-3.4.003-02 | `scale = 10.0` for `HealthyOtEnvironment` | 500 devices, 50 alerts, 0 high-severity |
 | EC-3.4.003-03 | `DormantTenant` at `scale = 100.0` | 0 records; scale has no effect |
 | EC-3.4.003-04 | `SchemaDrift` schema validation | Exactly 1 record fails; `provenance.schema_valid = false` (see BC-3.4.002) |
-| EC-3.4.003-05 | `AuthOutage` with default overrides | First simulated call returns 401; second returns 200 |
-| EC-3.4.003-06 | `AuthOutage` with `overrides = {"auth_outage": {"recovery_after_calls": 3}}` | First 3 calls return 401; 4th returns 200 |
+| EC-3.4.003-05 | `AuthOutage` with default overrides (N=1) | First simulated call record has `status_code=401`. Recovery representation is per-clone: CrowdStrike emits an explicit OAuth2 call record with `status_code=200`; Claroty and Armis do NOT emit an explicit 200 record — recovery is the resumption of normal device/asset records (Claroty: absence of further `_surface="call"` records; Armis: asset records without injected `status_code` field). |
+| EC-3.4.003-06 | `AuthOutage` with `overrides = {"auth_outage": {"recovery_after_calls": 3}}` | First 3 call/auth records have `status_code=401`. Recovery representation is per-clone: CrowdStrike emits an explicit 4th OAuth2 call record with `status_code=200`; Claroty emits exactly 3 `_surface="call"` records with `status_code=401` then normal device records (no 200 call record); Armis injects `status_code=401` onto records[0..2], records[3] and beyond have no `status_code` field (no explicit 200 injection). |
 | EC-3.4.003-07 | `PaginationEdgeCases` — last page is empty | `FixtureSet::cursors` includes a cursor pointing to an empty page; empty page produces 0 records when fetched |
 | EC-3.4.003-08 | `HighChurn` — tombstone records identified | All tombstone records have deterministic IDs following `dev-{org_slug}-{seed}-tomb-{n}` pattern |
 
@@ -146,8 +150,10 @@ The archetype catalog is a fixed enumeration of 8 named deployment scenarios. Ea
 |-------|-------|-----------------|----------|
 | TV-3.4.003-01 | `generate(orgA, claroty, HealthyOtEnvironment, scale=1.0)` | `len(records) == 50` devices + 5 alerts; 0 high-severity | happy-path |
 | TV-3.4.003-02 | `generate(orgA, claroty, CompromisedEndpoint, scale=1.0)` | `len(records) == 50` devices + 20 alerts; at least 3 `severity_id >= 4` | happy-path |
-| TV-3.4.003-03 | `generate(orgA, claroty, AuthOutage, scale=1.0)` — first-call response | Response record has `status_code = 401` | happy-path |
-| TV-3.4.003-04 | `generate(orgA, claroty, AuthOutage, scale=1.0)` — second-call response | Response record has `status_code = 200`; normal device records returned | happy-path |
+| TV-3.4.003-03 | `generate(orgA, claroty, AuthOutage, scale=1.0)` — first-call response | First record has `_surface="call"` and `status_code=401` | happy-path |
+| TV-3.4.003-04 | `generate(orgA, claroty, AuthOutage, scale=1.0)` — full fixture shape | Exactly 1 `_surface="call"` record (status_code=401); followed by 20 normal device records; NO `_surface="call"` record with status_code=200 (Claroty recovery = absence of call records, not an explicit 200 call record) | happy-path |
+| TV-3.4.003-04b | `generate(orgA, crowdstrike, AuthOutage, scale=1.0)` — OAuth2 recovery record | Second OAuth2 record (index 1) has `status_code=200` and `access_token` field; records[0] has `status_code=401`; device records follow after the 200 token record | happy-path |
+| TV-3.4.003-04c | `generate(orgA, armis, AuthOutage, scale=1.0)` — recovery by absence | records[0] has `status_code=401` injected; records[1..19] have NO `status_code` field (absence = recovery); all 20 records are standard asset records | happy-path |
 | TV-3.4.003-05 | `generate(orgA, claroty, LargeScale, scale=1.0)` | `len(records) == 10,000` devices + 500 alerts; at least 100 distinct subnets | edge-case |
 | TV-3.4.003-06 | `generate(orgA, claroty, SchemaDrift, scale=1.0)` | `records[0]` fails Claroty schema; `provenance.schema_valid == false`; remaining 29 records are valid | edge-case |
 | TV-3.4.003-07 | `generate(orgA, claroty, DormantTenant, scale=1.0)` | `len(records) == 0`; `len(cursors) == 0` | edge-case |
@@ -209,6 +215,7 @@ None. All open questions resolved.
 
 | Version | Change |
 |---------|--------|
+| v1.1 | DTU cascade P15-02 (review-2026-06-10 dtu-fleet cascade, PO micro-adjudication, 2026-06-11): **Ruling (B) — per-clone recovery-record representation defined; EC-3.4.003-05/06 and TV-3.4.003-04 updated; TV-3.4.003-04b/04c added.** Adversary finding P15-02 (MED) observed that EC-05/06 said "second returns 200" / "4th returns 200" with no per-clone differentiation, but the three generator-fixture-layer clones have structurally different real-API response shapes that drive different recovery representations: (1) CrowdStrike uses an OAuth2 token endpoint that genuinely returns a JSON body with `access_token` on 200 OK — an explicit 200 OAuth2 call record is authentic and must be emitted; (2) Claroty uses URL-token auth with no OAuth2 endpoint — the `_surface:"call"` records are a fixture abstraction for failed HTTP calls; recovery is the resumption of normal device records, and emitting a synthetic 200 call record would misrepresent the real Claroty API shape; (3) Armis uses asset records that carry no `status_code` field in the real API — recovery is the absence of the injected 401 field, not the injection of a 200 field. Ruling: Spec amended to define per-clone recovery representations (Spec wins per Source-of-Truth rule 7; code is consistent with the ruling: CrowdStrike generator already emits an explicit 200 OAuth2 record; Claroty generator already emits only 401 call records + device records; Armis generator already uses absence-of-injection for recovery). **No code changes required** — all three generators already implement the correct per-clone fidelity model; this amendment brings the spec into alignment with the code's correct behavior. EC-3.4.003-05 and EC-3.4.003-06 updated to describe per-clone recovery shapes. TV-3.4.003-04 updated to correctly describe Claroty behavior (no 200 call record). TV-3.4.003-04b added for CrowdStrike OAuth2 explicit-200 recovery. TV-3.4.003-04c added for Armis absence-of-injection recovery. Existing EC-06 tests in `bc_3_4_claroty_generator.rs` and `bc_3_4_armis_generator.rs` are valid under this ruling — they correctly assert absence of explicit 200 recovery records. No test amendments required. |
 | v1.0 | DTU cascade P14-01 (review-2026-06-10 dtu-fleet cascade, PO micro-adjudication): Ruling (A) — invariant 6 is generator-fixture-layer-only. Added scope-clarification note to the `AuthOutage` postcondition and to invariant 6: the `GenOpts::overrides` JSON Merge Patch requirement binds clones whose AuthOutage is modeled at the generator/fixture layer (CrowdStrike, Claroty, Armis). Cyberint models auth-outage at the route/state layer via `AuthMode::Reject/Accept` toggle (configured via `POST /dtu/configure`); this mechanism provides equivalent deterministic rehearsal capability through a different control plane and is explicitly exempt from the generator-layer override requirement. Rationale: (a) BC text specifies behavior ("first call 401, recovery overridable"), not implementation layer; (b) Cyberint's static-cookie auth has no OAuth2 token endpoint for which fixture records would be appropriate; (c) route-layer auth injection is testable, deterministic, and fully controllable — equivalent capability, different architecture. No other BCs reference invariant 6's generator-layer override assumption. |
 | v0.9 | DTU cascade P6-02 (review-2026-06-10 PO micro-burst): Open Questions D-054 row story ID `S-3.7.0` → `S-3.7.00` (canonical 2-digit suffix per STORY-INDEX; same class as ADR-009 v0.5 m-003 fix). Sole occurrence in behavioral-contracts/ verified via anchored grep `S-3\.7\.0[^0-9]`. |
 | v0.8 | DTU cascade P5-01 (review-2026-06-10 PO micro-burst): Precondition 3 stale default `time_anchor = DateTime::UNIX_EPOCH` replaced with `prism_dtu_common::demo_time_anchor()` (`2026-01-01T00:00:00Z`, epoch `1_767_225_600` — fixed demo-era constant, NOT wall-clock) per BC-3.4.001 v0.9 precondition 4 (review-2026-06-10 P1-01 propagation; the shared test vehicle now asserts the default IS `demo_time_anchor()`). Explicit anchors remain permitted for vectors that pin one. POL-27 `modified:` synced to 2026-06-10. |
