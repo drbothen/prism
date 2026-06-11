@@ -286,7 +286,7 @@ mod inner {
             fn current_rss_bytes(&self) -> usize {
                 let n = self.call_count.fetch_add(1, Ordering::Relaxed);
                 // Even calls → Kill level; odd calls → sub-Kill (Throttle)
-                if n % 2 == 0 {
+                if n.is_multiple_of(2) {
                     RSS_96_7_PCT
                 } else {
                     RSS_86_PCT

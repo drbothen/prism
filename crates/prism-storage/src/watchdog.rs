@@ -26,9 +26,9 @@
 // `check_query` accepts the counter from the caller, giving callers explicit control
 // over the grace state across sequential spot-checks.
 //
-// The `watchdog` Cargo feature enables the runtime dependencies (sysinfo, dashmap,
-// tokio-util).  Type declarations are always compiled so downstream crates can name
-// the types without enabling the feature.
+// The runtime dependencies (sysinfo, dashmap, tokio-util) are unconditional
+// in Cargo.toml — there is no `watchdog` feature gate.  All types and the
+// background monitor are always compiled.
 //
 // ## MemoryProbe — test-driven design seam (introduced by test-writer, S-2.02)
 //
