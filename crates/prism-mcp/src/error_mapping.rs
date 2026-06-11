@@ -88,7 +88,7 @@ pub fn map_prism_error(err: PrismError) -> (i32, String) {
             (codes::INVALID_PARAMS, format!("MCP tool not found: {tool}"))
         }
 
-        // E-QUERY-007: Limit exceeded → -32602 Invalid params (validation failure)
+        // E-QUERY-033: Limit exceeded → -32602 Invalid params (validation failure)
         PrismError::QueryLimitExceeded { requested, max } => (
             codes::INVALID_PARAMS,
             format!("Invalid parameter: limit {requested} exceeds maximum of {max}"),

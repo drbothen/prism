@@ -611,7 +611,7 @@ pub struct QueryToolParams {
     /// context is used. When present, the query is scoped to the listed clients.
     pub clients: Option<Vec<String>>,
     /// Maximum results returned (tool-level truncation). Default 25, max 1000
-    /// (BC-2.11.001). Values above 1000 are rejected with E-QUERY-007
+    /// (BC-2.11.001). Values above 1000 are rejected with E-QUERY-033
     /// (-32602 INVALID_PARAMS). Numeric — exempt from injection scanning
     /// (BC-2.09.001 scans string inputs; a u32 carries no scannable content).
     pub limit: Option<u32>,
@@ -1327,7 +1327,7 @@ fn validate_string_vec_field(
 ///   default 25 and max 1000, so the tool boundary owns both: an omitted
 ///   `limit` forwards `Some(25)` (forwarding `None` would be treated as
 ///   unbounded by the engine), and `limit > 1000` is rejected here with
-///   `PrismError::QueryLimitExceeded` (E-QUERY-007 → -32602 INVALID_PARAMS).
+///   `PrismError::QueryLimitExceeded` (E-QUERY-033 → -32602 INVALID_PARAMS).
 ///   The engine repeats the max-1000 check pre-execution as defense in depth.
 /// - `force_refresh` — BC-2.07.003: default false; `true` bypasses the
 ///   sensor-fetch cache and replaces the existing entry.
@@ -4754,7 +4754,7 @@ mod tests {
     }
 
     /// BC-2.11.001: `limit > 1000` is rejected with the structured validation
-    /// error E-QUERY-007 (PrismError::QueryLimitExceeded → -32602 INVALID_PARAMS).
+    /// error E-QUERY-033 (PrismError::QueryLimitExceeded → -32602 INVALID_PARAMS).
     #[test]
     fn test_BC_2_11_001_limit_over_max_rejected() {
         let params = QueryToolParams {
@@ -4767,7 +4767,7 @@ mod tests {
         assert_eq!(
             err.code,
             rmcp::model::ErrorCode(codes::INVALID_PARAMS),
-            "limit > 1000 must map to -32602 INVALID_PARAMS (E-QUERY-007)"
+            "limit > 1000 must map to -32602 INVALID_PARAMS (E-QUERY-033)"
         );
         let msg = err.message.to_string();
         assert!(
@@ -4821,7 +4821,7 @@ mod tests {
 
     /// BC-2.11.001 full-handler path: `limit > 1000` with a clean query is
     /// rejected by PrismServer::query BEFORE the engine-wiring check — the
-    /// caller gets the E-QUERY-007 validation error, not an internal
+    /// caller gets the E-QUERY-033 validation error, not an internal
     /// "QueryEngine not wired" error and not an injection rejection.
     #[tokio::test]
     async fn test_BC_2_11_001_query_tool_rejects_limit_over_max() {

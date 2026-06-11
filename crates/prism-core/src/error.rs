@@ -604,13 +604,16 @@ pub enum PrismError {
         total: u32,
     },
 
-    /// E-QUERY-007: Requested limit exceeds the maximum allowed value (BC-2.11.001).
+    /// E-QUERY-033: Requested limit exceeds the maximum allowed value (BC-2.11.001).
     ///
     /// Returned when `QueryOptions.limit > 1000`. Semantically distinct from
     /// `QueryExecutionFailed` (E-QUERY-003) — this is a pre-execution parameter
-    /// validation error, not a runtime execution error. Assigned E-QUERY-007 to
-    /// avoid collision with E-QUERY-001 (QueryParseFailed). (ADV-W3MT-P58-CRIT-001)
-    #[error("E-QUERY-007: limit {requested} exceeds maximum of {max} (BC-2.11.001)")]
+    /// validation error, not a runtime execution error. Moved off E-QUERY-001 to
+    /// avoid collision with QueryParseFailed (ADV-W3MT-P58-CRIT-001); assigned
+    /// E-QUERY-033 per taxonomy v1.70 P2-01 adjudication (ADR-038 D5 tombstone
+    /// permanence — the interim code was a Phase-1 tombstone; full history in
+    /// the error-taxonomy.md E-QUERY-033 row).
+    #[error("E-QUERY-033: limit {requested} exceeds maximum of {max} (BC-2.11.001)")]
     QueryLimitExceeded {
         /// The limit value supplied by the caller.
         requested: usize,
