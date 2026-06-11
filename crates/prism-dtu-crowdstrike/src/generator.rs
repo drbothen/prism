@@ -486,20 +486,6 @@ fn make_device(device_id: &str, opts: &GenOpts) -> Value {
     })
 }
 
-/// Build a `FalconDetection` JSON record (Step-2 detail).
-///
-/// Tagged with `"_record_type": "detection"`.
-/// `detection_id` field aligns with `detection_status_store` key in state.rs (AC-004).
-///
-/// F4 / CS-01 (review 2026-06-10): `device_id` links the detection to a record
-/// from the seeded device pool — crowdstrike.sensor.toml declares a flat
-/// `detections.device_id` column, and the serving extraction is flat
-/// `r.get(col_name)`; an absent key silently normalized the column to NULL.
-///
-/// F7 / CS-04 (review 2026-06-10): `created_timestamp` varies per record —
-/// time_anchor minus a seeded offset (stable fold of detection_id × seed,
-/// 0..7 days) — so FQL time-window filtering can discriminate between records.
-/// A single shared timestamp made every bounded window all-or-nothing.
 /// Canonical MITRE ATT&CK technique name ↔ ID table (review-2026-06-10 P1-03).
 ///
 /// Single mapping source for the generator AND the static fixtures
@@ -533,6 +519,20 @@ pub fn technique_name(technique_id: &str) -> Option<&'static str> {
         .map(|(_, name)| *name)
 }
 
+/// Build a `FalconDetection` JSON record (Step-2 detail).
+///
+/// Tagged with `"_record_type": "detection"`.
+/// `detection_id` field aligns with `detection_status_store` key in state.rs (AC-004).
+///
+/// F4 / CS-01 (review 2026-06-10): `device_id` links the detection to a record
+/// from the seeded device pool — crowdstrike.sensor.toml declares a flat
+/// `detections.device_id` column, and the serving extraction is flat
+/// `r.get(col_name)`; an absent key silently normalized the column to NULL.
+///
+/// F7 / CS-04 (review 2026-06-10): `created_timestamp` varies per record —
+/// time_anchor minus a seeded offset (stable fold of detection_id × seed,
+/// 0..7 days) — so FQL time-window filtering can discriminate between records.
+/// A single shared timestamp made every bounded window all-or-nothing.
 fn make_detection(detection_id: &str, device_id: &str, severity_id: u8, opts: &GenOpts) -> Value {
     // created_timestamp: 0..10080 minutes (7 days) before the anchor, stable
     // per (detection_id, seed) — deterministic per BC-3.4.001.
