@@ -359,6 +359,108 @@ impl JiraError {
 }
 
 // ---------------------------------------------------------------------------
+// Failure mode application (mirrors claroty::apply_failure_mode)
+//
+// Auth ordering (per BC-3.6.001 work-order): auth is checked FIRST on all
+// user-facing routes, then apply_failure_mode is called. This mirrors
+// claroty.rs list_devices: check_bearer_auth → increment_counter →
+// apply_failure_mode.
+//
+// All 6 modes are represented:
+//   AuthReject → 401
+//   InternalError → 500 at at_request_n
+//   RateLimit → 429 after N requests
+//   NetworkTimeout → sleep(after_ms) (EC-007: 0ms = no-op)
+//   MalformedResponse → non-JSON body
+//   Unprocessable → 422 at at_request_n
+// ---------------------------------------------------------------------------
+
+/// Apply the current failure mode. Returns `Some(response)` if a failure should be served.
+///
+/// For NetworkTimeout: returns `None` here; callers must check for NetworkTimeout
+/// BEFORE calling this function and sleep appropriately (same pattern as claroty.rs).
+fn apply_failure_mode(mode: &FailureMode, n: u32) -> Option<axum::response::Response> {
+    match mode {
+        FailureMode::None => None,
+        FailureMode::AuthReject => Some(
+            (
+                StatusCode::UNAUTHORIZED,
+                Json(json!({"errorMessages": ["auth rejected by failure mode"], "errors": {}})),
+            )
+                .into_response(),
+        ),
+        FailureMode::InternalError { at_request_n } => {
+            if n == *at_request_n {
+                Some(
+                    (
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        Json(json!({"errorMessages": ["internal server error (injected)"], "errors": {}})),
+                    )
+                        .into_response(),
+                )
+            } else {
+                None
+            }
+        }
+        FailureMode::RateLimit {
+            after_n_requests,
+            retry_after_secs,
+        } => {
+            if n > *after_n_requests {
+                let retry_str = retry_after_secs.to_string();
+                let mut resp = (
+                    StatusCode::TOO_MANY_REQUESTS,
+                    Json(json!({"errorMessages": ["rate limit exceeded"], "errors": {}})),
+                )
+                    .into_response();
+                #[allow(clippy::expect_used)]
+                resp.headers_mut().insert(
+                    "retry-after",
+                    retry_str
+                        .parse()
+                        .expect("retry_after_secs is a valid header value"),
+                );
+                Some(resp)
+            } else {
+                None
+            }
+        }
+        FailureMode::NetworkTimeout { after_ms } => {
+            // EC-007: delay_ms=0 is a no-op. Non-zero delays are handled
+            // per-route via tokio::time::sleep before this function is called.
+            let _ = after_ms;
+            None
+        }
+        FailureMode::Unprocessable { at_request_n } => {
+            if n == *at_request_n {
+                Some(
+                    (
+                        StatusCode::UNPROCESSABLE_ENTITY,
+                        Json(json!({"errorMessages": ["unprocessable entity (injected)"], "errors": {}})),
+                    )
+                        .into_response(),
+                )
+            } else {
+                None
+            }
+        }
+        FailureMode::MalformedResponse =>
+        {
+            #[allow(clippy::expect_used)]
+            Some(
+                axum::response::Response::builder()
+                    .status(200)
+                    .header("Content-Type", "application/json")
+                    .body(axum::body::Body::from(
+                        b"\xff\xfe{not valid json!@#$%^&*(" as &[u8],
+                    ))
+                    .expect("build malformed response"),
+            )
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Basic auth check (mirrors prism-dtu-jira)
 // ---------------------------------------------------------------------------
 
@@ -447,7 +549,8 @@ fn resolve_org_id(headers: &HeaderMap) -> String {
 
 /// `POST /rest/api/3/issue` — create a Jira issue.
 ///
-/// Applies rate-limit failure mode from CloneState before processing.
+/// Applies full failure mode from CloneState before processing.
+/// Auth ordering: basic auth first, then failure injection (mirrors claroty.rs authenticated routes).
 async fn create_issue(
     State(ctx): State<Arc<JiraCloneCtx>>,
     headers: HeaderMap,
@@ -457,30 +560,19 @@ async fn create_issue(
         return err;
     }
 
-    // Apply failure mode: rate-limit returns 429 without creating.
+    // NetworkTimeout: sleep before counting/applying other modes (EC-007: 0ms = no-op).
+    let mode_pre = ctx.clone_state.current_failure_mode();
+    if let FailureMode::NetworkTimeout { after_ms } = &mode_pre {
+        if *after_ms > 0 {
+            tokio::time::sleep(tokio::time::Duration::from_millis(*after_ms)).await;
+        }
+    }
+
+    // Apply full failure mode (all 6 variants).
     let count = ctx.clone_state.increment_request();
     let mode = ctx.clone_state.current_failure_mode();
-    match &mode {
-        FailureMode::RateLimit {
-            after_n_requests,
-            retry_after_secs,
-        } if count > *after_n_requests => {
-            let retry_str = retry_after_secs.to_string();
-            let mut resp = (
-                StatusCode::TOO_MANY_REQUESTS,
-                Json(json!({"error": "rate limited"})),
-            )
-                .into_response();
-            #[allow(clippy::expect_used)]
-            resp.headers_mut().insert(
-                "retry-after",
-                retry_str
-                    .parse()
-                    .expect("retry_after_secs is a valid header value"),
-            );
-            return resp;
-        }
-        _ => {}
+    if let Some(resp) = apply_failure_mode(&mode, count) {
+        return resp;
     }
 
     // Validate required field: project.key
@@ -570,6 +662,21 @@ async fn get_issue(
         return err;
     }
 
+    // NetworkTimeout: sleep before counting (EC-007: 0ms = no-op).
+    let mode_pre = ctx.clone_state.current_failure_mode();
+    if let FailureMode::NetworkTimeout { after_ms } = &mode_pre {
+        if *after_ms > 0 {
+            tokio::time::sleep(tokio::time::Duration::from_millis(*after_ms)).await;
+        }
+    }
+
+    // Apply full failure mode.
+    let count = ctx.clone_state.increment_request();
+    let mode = ctx.clone_state.current_failure_mode();
+    if let Some(resp) = apply_failure_mode(&mode, count) {
+        return resp;
+    }
+
     match ctx.jira_state.get(&issue_key) {
         None => (
             StatusCode::NOT_FOUND,
@@ -618,6 +725,21 @@ async fn add_comment(
         return err;
     }
 
+    // NetworkTimeout: sleep before counting (EC-007: 0ms = no-op).
+    let mode_pre = ctx.clone_state.current_failure_mode();
+    if let FailureMode::NetworkTimeout { after_ms } = &mode_pre {
+        if *after_ms > 0 {
+            tokio::time::sleep(tokio::time::Duration::from_millis(*after_ms)).await;
+        }
+    }
+
+    // Apply full failure mode.
+    let count = ctx.clone_state.increment_request();
+    let mode = ctx.clone_state.current_failure_mode();
+    if let Some(resp) = apply_failure_mode(&mode, count) {
+        return resp;
+    }
+
     if !ctx.jira_state.increment_comment_count(&issue_key) {
         return (
             StatusCode::NOT_FOUND,
@@ -655,6 +777,21 @@ async fn list_transitions(
         return err;
     }
 
+    // NetworkTimeout: sleep before counting (EC-007: 0ms = no-op).
+    let mode_pre = ctx.clone_state.current_failure_mode();
+    if let FailureMode::NetworkTimeout { after_ms } = &mode_pre {
+        if *after_ms > 0 {
+            tokio::time::sleep(tokio::time::Duration::from_millis(*after_ms)).await;
+        }
+    }
+
+    // Apply full failure mode.
+    let count = ctx.clone_state.increment_request();
+    let mode = ctx.clone_state.current_failure_mode();
+    if let Some(resp) = apply_failure_mode(&mode, count) {
+        return resp;
+    }
+
     match ctx.jira_state.available_transitions(&issue_key) {
         None => (
             StatusCode::NOT_FOUND,
@@ -676,6 +813,21 @@ async fn execute_transition(
 ) -> impl IntoResponse {
     if let Some(err) = check_basic_auth(&headers) {
         return err;
+    }
+
+    // NetworkTimeout: sleep before counting (EC-007: 0ms = no-op).
+    let mode_pre = ctx.clone_state.current_failure_mode();
+    if let FailureMode::NetworkTimeout { after_ms } = &mode_pre {
+        if *after_ms > 0 {
+            tokio::time::sleep(tokio::time::Duration::from_millis(*after_ms)).await;
+        }
+    }
+
+    // Apply full failure mode.
+    let count = ctx.clone_state.increment_request();
+    let mode = ctx.clone_state.current_failure_mode();
+    if let Some(resp) = apply_failure_mode(&mode, count) {
+        return resp;
     }
 
     if ctx.jira_state.get(&issue_key).is_none() {

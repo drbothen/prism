@@ -169,58 +169,136 @@ fn resolve_org_id(headers: &HeaderMap) -> String {
 }
 
 // ---------------------------------------------------------------------------
+// Failure mode application (mirrors claroty::apply_failure_mode)
+//
+// Auth ordering (per BC-3.6.001 work-order): no explicit auth check on the
+// enqueue route (PagerDuty uses routing_key validation, not a header auth
+// check). Failure injection runs BEFORE routing_key validation — same
+// pattern as claroty.rs get_assets (which has no auth check either):
+// counter → apply_failure_mode → normal processing.
+//
+// All 6 modes are represented:
+//   AuthReject → 401
+//   InternalError → 500 at at_request_n
+//   RateLimit → 429 after N requests
+//   NetworkTimeout → sleep(after_ms) (EC-007: 0ms = no-op)
+//   MalformedResponse → non-JSON body
+//   Unprocessable → 422 at at_request_n
+// ---------------------------------------------------------------------------
+
+/// Apply the current failure mode. Returns `Some(response)` if a failure should be served.
+///
+/// For NetworkTimeout: returns `None` here; callers must check for NetworkTimeout
+/// BEFORE calling this function and sleep appropriately (same pattern as claroty.rs).
+fn apply_failure_mode(mode: &FailureMode, n: u32) -> Option<axum::response::Response> {
+    match mode {
+        FailureMode::None => None,
+        FailureMode::AuthReject => Some(
+            (
+                StatusCode::UNAUTHORIZED,
+                Json(json!({"status": "unauthorized", "message": "Auth rejected by failure mode"})),
+            )
+                .into_response(),
+        ),
+        FailureMode::InternalError { at_request_n } => {
+            if n == *at_request_n {
+                Some(
+                    (
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        Json(json!({"status": "internal error (injected)"})),
+                    )
+                        .into_response(),
+                )
+            } else {
+                None
+            }
+        }
+        FailureMode::RateLimit {
+            after_n_requests,
+            retry_after_secs,
+        } => {
+            if n > *after_n_requests {
+                let retry_str = retry_after_secs.to_string();
+                let mut resp = (
+                    StatusCode::TOO_MANY_REQUESTS,
+                    Json(json!({"status": "rate limited"})),
+                )
+                    .into_response();
+                #[allow(clippy::expect_used)]
+                resp.headers_mut().insert(
+                    "retry-after",
+                    retry_str
+                        .parse()
+                        .expect("retry_after_secs is a valid header value"),
+                );
+                Some(resp)
+            } else {
+                None
+            }
+        }
+        FailureMode::NetworkTimeout { after_ms } => {
+            // EC-007: delay_ms=0 is a no-op. Non-zero delays are handled
+            // per-route via tokio::time::sleep before this function is called.
+            let _ = after_ms;
+            None
+        }
+        FailureMode::Unprocessable { at_request_n } => {
+            if n == *at_request_n {
+                Some(
+                    (
+                        StatusCode::UNPROCESSABLE_ENTITY,
+                        Json(json!({"status": "unprocessable entity (injected)"})),
+                    )
+                        .into_response(),
+                )
+            } else {
+                None
+            }
+        }
+        FailureMode::MalformedResponse =>
+        {
+            #[allow(clippy::expect_used)]
+            Some(
+                axum::response::Response::builder()
+                    .status(200)
+                    .header("Content-Type", "application/json")
+                    .body(axum::body::Body::from(
+                        b"\xff\xfe{not valid json!@#$%^&*(" as &[u8],
+                    ))
+                    .expect("build malformed response"),
+            )
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Route handlers
 // ---------------------------------------------------------------------------
 
 /// `POST /v2/enqueue` — PagerDuty Events API v2.
 ///
 /// Implements the full incident lifecycle: trigger / acknowledge / resolve.
-/// Applies failure mode from CloneState before processing.
+/// Applies full failure mode from CloneState before processing.
+/// Auth ordering: failure injection runs before routing_key validation
+/// (PagerDuty has no header auth check; mirrors claroty.rs get_assets pattern).
 async fn post_enqueue(
     State(ctx): State<Arc<PdCloneCtx>>,
     headers: HeaderMap,
     Json(body): Json<EnqueueRequest>,
 ) -> impl IntoResponse {
-    // Auth-reject check (takes precedence over everything else).
-    if ctx.pd_state.is_auth_reject() {
-        return (
-            StatusCode::FORBIDDEN,
-            Json(json!({"status": "invalid key", "message": "Forbidden"})),
-        )
-            .into_response();
+    // NetworkTimeout: sleep before counting (EC-007: 0ms = no-op).
+    let mode_pre = ctx.clone_state.current_failure_mode();
+    if let FailureMode::NetworkTimeout { after_ms } = &mode_pre {
+        if *after_ms > 0 {
+            tokio::time::sleep(tokio::time::Duration::from_millis(*after_ms)).await;
+        }
     }
 
-    // Failure mode from CloneState (rate-limit, internal-error, etc.).
+    // Apply full failure mode (all 6 variants).
     let count = ctx.clone_state.increment_request();
     let mode = ctx.clone_state.current_failure_mode();
-    match &mode {
-        FailureMode::RateLimit {
-            after_n_requests,
-            retry_after_secs,
-        } if count > *after_n_requests => {
-            let retry_str = retry_after_secs.to_string();
-            let mut resp = (
-                StatusCode::TOO_MANY_REQUESTS,
-                Json(json!({"status": "rate limited"})),
-            )
-                .into_response();
-            #[allow(clippy::expect_used)]
-            resp.headers_mut().insert(
-                "retry-after",
-                retry_str
-                    .parse()
-                    .expect("retry_after_secs is a valid header value"),
-            );
-            return resp;
-        }
-        FailureMode::InternalError { at_request_n } if count == *at_request_n => {
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(json!({"status": "internal error"})),
-            )
-                .into_response();
-        }
-        _ => {}
+    if let Some(resp) = apply_failure_mode(&mode, count) {
+        return resp;
     }
 
     // Validate `routing_key`.
@@ -501,25 +579,11 @@ async fn post_configure(
         }
     };
 
-    // `{"clear": true}` clears ALL failure state, including auth_reject.
-    if cfg.clear == Some(true) {
-        ctx.pd_state.set_auth_reject(false);
-        ctx.clone_state.set_failure_mode(FailureMode::None);
-        ctx.clone_state.request_count.store(0, Ordering::SeqCst);
-        return (StatusCode::OK, Json(json!({"status": "ok"})));
-    }
-
-    // Handle auth_mode separately (PagerDuty-specific auth reject mode).
-    if let Some(auth_mode) = cfg.auth_mode.as_deref() {
-        ctx.pd_state.set_auth_reject(auth_mode == "reject");
-        // If clearing auth mode via "none", also clear failure mode.
-        if auth_mode != "reject" {
-            ctx.clone_state.set_failure_mode(FailureMode::None);
-        }
-        ctx.clone_state.request_count.store(0, Ordering::SeqCst);
-        return (StatusCode::OK, Json(json!({"status": "ok"})));
-    }
-
+    // Delegate to the unified failure-mode mapper (covers all 6 modes including
+    // auth_mode=reject → FailureMode::AuthReject in CloneState).
+    // The legacy pd_state.auth_reject flag is cleared on every configure call
+    // so it does not interfere with the new apply_failure_mode path.
+    ctx.pd_state.set_auth_reject(false);
     let mode = harness_configure_to_failure_mode(&cfg);
     ctx.clone_state.request_count.store(0, Ordering::SeqCst);
     ctx.clone_state.set_failure_mode(mode);
@@ -529,6 +593,9 @@ async fn post_configure(
 fn harness_configure_to_failure_mode(cfg: &HarnessConfigure) -> FailureMode {
     if cfg.clear == Some(true) {
         return FailureMode::None;
+    }
+    if cfg.auth_mode.as_deref() == Some("reject") {
+        return FailureMode::AuthReject;
     }
     if let Some(n) = cfg.rate_limit_after {
         return FailureMode::RateLimit {

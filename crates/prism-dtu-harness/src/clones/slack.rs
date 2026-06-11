@@ -112,6 +112,89 @@ const ALLOWED_BLOCK_KIT_KEYS: &[&str] = &[
 ];
 
 // ---------------------------------------------------------------------------
+// Failure mode application (mirrors claroty::apply_failure_mode)
+//
+// Auth ordering (per BC-3.6.001 work-order): no explicit auth check on the
+// webhook route (Slack uses a token-in-path model, not a header auth check).
+// Failure injection runs BEFORE payload validation — same pattern as
+// claroty.rs get_assets (which has no auth check either):
+// counter → apply_failure_mode → normal processing.
+//
+// All 6 modes are represented:
+//   AuthReject → 401
+//   InternalError → 500 at at_request_n
+//   RateLimit → 429 after N requests
+//   NetworkTimeout → sleep(after_ms) (EC-007: 0ms = no-op)
+//   MalformedResponse → non-JSON body
+//   Unprocessable → 422 at at_request_n
+// ---------------------------------------------------------------------------
+
+/// Apply the current failure mode. Returns `Some(response)` if a failure should be served.
+///
+/// For NetworkTimeout: returns `None` here; callers must check for NetworkTimeout
+/// BEFORE calling this function and sleep appropriately (same pattern as claroty.rs).
+fn apply_failure_mode(mode: &FailureMode, n: u32) -> Option<axum::response::Response> {
+    use axum::response::IntoResponse as _;
+    match mode {
+        FailureMode::None => None,
+        FailureMode::AuthReject => {
+            Some((StatusCode::UNAUTHORIZED, "\"unauthorized\"").into_response())
+        }
+        FailureMode::InternalError { at_request_n } => {
+            if n == *at_request_n {
+                Some((StatusCode::INTERNAL_SERVER_ERROR, "\"internal_error\"").into_response())
+            } else {
+                None
+            }
+        }
+        FailureMode::RateLimit {
+            after_n_requests,
+            retry_after_secs,
+        } => {
+            if n > *after_n_requests {
+                let retry_str = retry_after_secs.to_string();
+                Some(
+                    (
+                        StatusCode::TOO_MANY_REQUESTS,
+                        [("Retry-After", retry_str.as_str())],
+                        "\"ratelimited\"",
+                    )
+                        .into_response(),
+                )
+            } else {
+                None
+            }
+        }
+        FailureMode::NetworkTimeout { after_ms } => {
+            // EC-007: delay_ms=0 is a no-op. Non-zero delays are handled
+            // per-route via tokio::time::sleep before this function is called.
+            let _ = after_ms;
+            None
+        }
+        FailureMode::Unprocessable { at_request_n } => {
+            if n == *at_request_n {
+                Some((StatusCode::UNPROCESSABLE_ENTITY, "\"unprocessable_entity\"").into_response())
+            } else {
+                None
+            }
+        }
+        FailureMode::MalformedResponse =>
+        {
+            #[allow(clippy::expect_used)]
+            Some(
+                axum::response::Response::builder()
+                    .status(200)
+                    .header("Content-Type", "application/json")
+                    .body(axum::body::Body::from(
+                        b"\xff\xfe{not valid json!@#$%^&*(" as &[u8],
+                    ))
+                    .expect("build malformed response"),
+            )
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Route handlers
 // ---------------------------------------------------------------------------
 
@@ -127,36 +210,29 @@ fn resolve_org_id(headers: &HeaderMap) -> String {
 
 /// `POST /services/*token` — Slack Incoming Webhook endpoint.
 ///
-/// Applies failure mode from CloneState, validates Block Kit payload,
+/// Applies full failure mode from CloneState, validates Block Kit payload,
 /// captures tagged payload, returns HTTP 200 `{"ok":true,"message_ts":"..."}`.
+/// Auth ordering: failure injection runs before payload validation
+/// (Slack has no header auth check; mirrors claroty.rs get_assets pattern).
 async fn post_webhook(
     Path(_token): Path<String>,
     State(ctx): State<Arc<SlackCloneCtx>>,
     headers: HeaderMap,
     body: axum::body::Bytes,
 ) -> impl IntoResponse {
-    // Step 1: increment request count.
-    let count = ctx.clone_state.increment_request();
+    // Step 1: NetworkTimeout — sleep before counting (EC-007: 0ms = no-op).
+    let mode_pre = ctx.clone_state.current_failure_mode();
+    if let FailureMode::NetworkTimeout { after_ms } = &mode_pre {
+        if *after_ms > 0 {
+            tokio::time::sleep(tokio::time::Duration::from_millis(*after_ms)).await;
+        }
+    }
 
-    // Step 2: check failure mode.
+    // Step 2: increment request count and apply full failure mode (all 6 variants).
+    let count = ctx.clone_state.increment_request();
     let mode = ctx.clone_state.current_failure_mode();
-    match &mode {
-        FailureMode::RateLimit {
-            after_n_requests,
-            retry_after_secs,
-        } if count > *after_n_requests => {
-            let retry_str = retry_after_secs.to_string();
-            return (
-                StatusCode::TOO_MANY_REQUESTS,
-                [("Retry-After", retry_str.as_str())],
-                "\"ratelimited\"",
-            )
-                .into_response();
-        }
-        FailureMode::InternalError { at_request_n } if count == *at_request_n => {
-            return (StatusCode::INTERNAL_SERVER_ERROR, "\"internal_error\"").into_response();
-        }
-        _ => {}
+    if let Some(resp) = apply_failure_mode(&mode, count) {
+        return resp;
     }
 
     // Step 3: parse and validate payload.

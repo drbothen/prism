@@ -87,5 +87,11 @@ name = "harness_clone_parity_test"
 path = "tests/harness_clone_parity_test.rs"
 required-features = ["dtu"]
 
+# BC-3.6.001 v0.5 — ops-clone full failure-mode coverage (D-1096 / PO work-order 2026-06-11)
+[[test]]
+name = "bc_3_6_001_ops_clone_failure_modes"
+path = "tests/bc_3_6_001_ops_clone_failure_modes.rs"
+required-features = ["dtu"]
+
 [lints]
 workspace = true
