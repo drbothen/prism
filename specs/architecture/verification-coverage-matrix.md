@@ -2,10 +2,10 @@
 document_type: architecture-section
 level: L3
 section: "verification-coverage-matrix"
-version: "1.43"
+version: "1.44"
 status: draft
-producer: architect
-timestamp: 2026-06-10T00:00:00
+producer: state-manager
+timestamp: 2026-06-11T00:00:00
 phase: 1b
 inputs: [prd.md, domain-spec/invariants.md]
 input-hash: "c5e53ac"
@@ -35,10 +35,10 @@ See detailed tables below.
 | prism-dtu-crowdstrike | HIGH | 0 | 0 | 0 | 0 | 2 | 75% | VP-033, VP-036 (integration_test) |
 | prism-mcp | HIGH | 0 | 3 | 0 | 0 | 0 | 75% | VP-050, VP-061, VP-062 (proptest) |
 | prism-dtu-common | HIGH | 1 | 11 | 0 | 0 | 2 | 80% | VP-108 (kani); VP-109, VP-110, VP-111, VP-113, VP-114, VP-116, VP-117, VP-118, VP-119, VP-120, VP-121 (proptest); VP-112, VP-115 (integration_test) |
-| prism-dtu-harness | HIGH | 0 | 4 | 0 | 0 | 8 | 80% | VP-122, VP-123, VP-125, VP-128 (proptest); VP-124, VP-126, VP-127, VP-129, VP-130, VP-131, VP-132, VP-133 (integration_test) |
+| prism-dtu-harness | HIGH | 0 | 4 | 1 | 0 | 8 | 80% | VP-122, VP-123, VP-125, VP-128 (proptest); VP-157 (unit_test); VP-124, VP-126, VP-127, VP-129, VP-130, VP-131, VP-132, VP-133 (integration_test) |
 | prism-bin | LOW | 0 | 1 | 0 | 0 | 2 | 60% | VP-135 (proptest); VP-134, VP-136 (integration_test) |
 | prism-siem-formats | HIGH | 0 | 1 | 0 | 0 | 0 | 80% | VP-144 (proptest) *(new in Wave 4 per ADR-019)* |
-| **Totals** | | **30** | **88** | **4** | **6** | **28** | | **156** |
+| **Totals** | | **30** | **88** | **5** | **6** | **28** | | **157** |
 
 ## Totals
 
@@ -46,12 +46,12 @@ See detailed tables below.
 |--------|--------------|----|----|-------------------|--------|
 | Kani proofs | 30 | 23 | 7 | 0 | 30 |
 | Proptest properties | 88 | 66 | 22 | 8 | 80 |
-| Unit test VPs | 4 | 4 | 0 | 4 | 0 |
+| Unit test VPs | 5 | 4 | 1 | 4 | 1 |
 | Fuzz targets | 6 | 5 | 1 | 0 | 6 |
 | Integration test VPs | 28 | 24 | 4 | 1 | 27 |
-| **Total VPs** | **156** | **122** | **34** | **13** | **143** |
+| **Total VPs** | **157** | **122** | **35** | **13** | **144** |
 
-> **Count basis (POL-1):** Planned Count / P0 / P1 columns are row-count basis — retired rows are never deleted and remain counted (preserves Coverage-by-Module column-sum symmetry with VP-INDEX Summary). The 13 ADR-037-retired VPs (VP-095..VP-107, all P0, all prism-spec-engine) are excluded from the release verification gate: **active P0 = 109** (Kani 23, Proptest 58, Unit test 0, Fuzz 5, Integration test 23); active P1 = 34. Per-VP disposition: VP-INDEX §ADR-037 Retirement.
+> **Count basis (POL-1):** Planned Count / P0 / P1 columns are row-count basis — retired rows are never deleted and remain counted (preserves Coverage-by-Module column-sum symmetry with VP-INDEX Summary). The 13 ADR-037-retired VPs (VP-095..VP-107, all P0, all prism-spec-engine) are excluded from the release verification gate: **active P0 = 109** (Kani 23, Proptest 58, Unit test 0, Fuzz 5, Integration test 23); active P1 = 35 (VP-157 unit_test P1 added D-1099). Per-VP disposition: VP-INDEX §ADR-037 Retirement.
 
 <!-- P0/P1 per-method breakdown from VP-INDEX v1.22 recount (Wave 4 Phase 3 ADR burst):
      Kani: 23 P0 / 7 P1; Proptest: 64 P0 / 21 P1; Unit test: 4 P0 / 0 P1;
@@ -147,6 +147,7 @@ See detailed tables below.
 
 | Version | Author | Date | Description |
 |---------|--------|------|-------------|
+| 1.44 | state-manager | 2026-06-11 | D-1099 BC-3.6.001 v0.5 POL-9 same-burst propagation: VP-157 (unit_test, P1, prism-dtu-harness) added. prism-dtu-harness row: Unit Tests 0→1; VP cell updated. Totals row: Unit test VPs 4→5, Total VPs 156→157. Totals method table: Unit test 4→5 / P1 0→1 / Active 0→1; Total VPs 156→157 / P1 34→35 / Active 143→144. Count-basis note: active P1 34→35. POL-9 same-burst with VP-INDEX v1.78 + verification-architecture v1.43. |
 | 1.43 | architect | 2026-06-10 | ADR-037 VP retirement propagation (POL-9 same-burst with VP-INDEX v1.77 + verification-architecture v1.42): prism-spec-engine VPs cell regrouped — VP-099..VP-106 (proptest), VP-095..VP-098 (unit_test), VP-107 (integration_test) annotated "retired, ADR-037" (BC-3.3.001..004 retired at BC-INDEX v6.11; prism-customer-config crate retirement). Per-module counts and Totals row unchanged (POL-1 row-count basis; preserves column-sum symmetry with VP-INDEX Summary: Kani 30/Proptest 88/Unit 4/Fuzz 6/Integration 28/Total 156). Totals method table gains Retired (ADR-037) + Active columns (13 retired, 143 active) and count-basis note: active P0 = 109 (Kani 23, Proptest 58, Unit 0, Fuzz 5, Integration 23), active P1 = 34. HTML audit-trail comment appended. |
 | 1.42 | architect | 2026-05-17 | FB61 D-682 F-LP73-HIGH-001 closure (architect scope): DI-012 row updated v1.0→v1.6 amendment (line 96: "Sealed auth trait" → "Spec-Driven Auth With Runtime Composition Guards"; "Compile-time enforcement by type system" → "VP-153 runtime enforcement via spec-load validation per ADR-026 D3 / ADR-023 Rule 2"; "(no runtime VP needed)" removed — VP-153 IS the runtime VP). Survived 6 days + 73 adversarial passes since DI-012 v1.6 PREREQ-F amendment (2026-05-11). POL-25 multi-cite propagation closure. Sibling-sweep across DI-NNN rows: 0 additional catches (DI-026/027/028 all verified current; full 26-row DI sweep clean). New axis surfaced by pass-73: DI→VP→arch-doc reverse-traceability — cycle-close DRIFT candidate to add to POL-2 verification_steps. |
 | 1.38 | state-manager | 2026-05-16 | FB40 D-659 POL-9 same-burst propagation: VP-153 file advanced v0.8→v0.9 (F-LP50-MED-002 §Changelog row ordering corrected to monotonic ascending per POL-26 — 49-pass-surviving defect). This document carries VP-153 by ID only (no version pin in Coverage by Module table); POL-11 changelog row recorded to maintain contiguous version history. |

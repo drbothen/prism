@@ -2,10 +2,10 @@
 document_type: architecture-section
 level: L3
 section: "verification-architecture"
-version: "1.42"
+version: "1.43"
 status: draft
-producer: architect
-timestamp: 2026-06-10T00:00:00
+producer: state-manager
+timestamp: 2026-06-11T00:00:00
 phase: 1b
 inputs: [prd.md, domain-spec/invariants.md]
 input-hash: "c5e53ac"
@@ -102,10 +102,16 @@ graph TB
         I4["Wave-4 / PREREQ-D / PREREQ-E Plugin-Migration Integration VPs<br/>VP-146 (FORBIDDEN-SYMBOLS-001 perimeter)<br/>VP-147..VP-152 (plugin runtime + auth)<br/>VP-154 (CustomAdapter behavioral equivalence)<br/>VP-155 (CustomAdapter perimeter)"]
     end
 
-    TIER1 -->|"Proves correctness<br/>for ALL inputs"| SAFE["156 Registered Properties — 143 active, 13 retired per ADR-037"]
+    subgraph UNIT["Unit Test VPs (5 registered; 4 retired per ADR-037)"]
+        U1["BC-3.3.001 bounded DTU type enumeration (VP-095..VP-098 — retired, ADR-037)"]
+        U2["BC-3.6.001 unsupported-mode 400 guard per ops clone (VP-157 — P1)"]
+    end
+
+    TIER1 -->|"Proves correctness<br/>for ALL inputs"| SAFE["157 Registered Properties — 144 active, 13 retired per ADR-037"]
     TIER2 -->|"Explores complex<br/>input spaces"| SAFE
     TIER3 -->|"Finds crashes in<br/>untrusted input paths"| SAFE
     INTEG -->|"Verifies I/O ordering<br/>and lifecycle"| SAFE
+    UNIT -->|"Verifies unit-level<br/>contract enforcement"| SAFE
 
     style TIER1 fill:#e94560,stroke:#ff6b6b,color:#fff
     style TIER2 fill:#f39c12,stroke:#f1c40f,color:#fff
@@ -260,7 +266,7 @@ Properties are organized by the domain invariant or BC postcondition they verify
 | VP-126 | Wrong-org credentials to live clone returns HTTP 401, never HTTP 200 | prism-dtu-harness | integration_test | feasible | P0 | BC-3.5.002 |
 | VP-127 | devices(OrgA) ∩ devices(OrgB) = ∅ for all org pairs in 3-org canonical scenario | prism-dtu-harness | integration_test | feasible | P0 | BC-3.5.002 |
 | VP-128 | inject_failure on (OrgA,X) does not mutate FailureLayerShared of (OrgB,Y) | prism-dtu-harness | proptest | feasible | P0 | BC-3.6.001 |
-| VP-129 | All FailureMode variants produce the documented HTTP status code or behavior | prism-dtu-harness | integration_test | feasible | P0 | BC-3.6.001 |
+| VP-129 | All supported FailureMode variants for each clone produce the documented HTTP status code or behavior (per Invariant 5 supported-mode table) | prism-dtu-harness | integration_test | feasible | P0 | BC-3.6.001 |
 | VP-130 | clear_failure followed by request always returns HTTP 200 | prism-dtu-harness | integration_test | feasible | P0 | BC-3.6.001 |
 | VP-131 | Clone panic detected within 1s of task exit | prism-dtu-harness | integration_test | feasible | P0 | BC-3.6.002 |
 | VP-132 | drop(harness) after any number of clone crashes completes without hanging | prism-dtu-harness | integration_test | feasible | P0 | BC-3.6.002 |
@@ -288,12 +294,13 @@ Properties are organized by the domain invariant or BC postcondition they verify
 | VP-154 | CustomAdapter behavioral equivalence: PluginRuntime WASM dispatch produces non-empty records matching plugin fixture output; TOML fallthrough when no plugin registered | prism-spec-engine | integration_test | feasible | P1 | ADR-027 D3 |
 | VP-155 | CustomAdapter absent from prism-spec-engine public API: compile-fail perimeter asserts CustomAdapter and CustomAdapterRegistry are unimportable post-PREREQ-E | prism-spec-engine | integration_test | feasible | P0 | ADR-027 D3 |
 | VP-156 | WriteToolInvalidationMap registration uniqueness: duplicate tool_name returns Err(DuplicateWriteToolRegistration); first registration persists unchanged | prism-query | proptest | feasible | P1 | ADR-026 D7 |
+| VP-157 | POST /dtu/configure with unsupported mode returns HTTP 400 with unsupported_failure_mode error body; no state change (per Invariant 5 table — ops clones Jira, PagerDuty, Slack scope until full coverage ported) | prism-dtu-harness | unit_test | feasible | P1 | BC-3.6.001 |
 
 ## Verification Priority
 
 **P0 (must-verify before release):** VP-001 through VP-024, VP-027, VP-028, VP-031, VP-033, VP-034, VP-036, VP-038, VP-039, VP-044, VP-045, VP-046, VP-047, VP-050, VP-051, VP-052, VP-053, VP-057, VP-058, VP-060 (Phase 1-2 baseline, 43); plus Wave 3 P0: VP-063, VP-064, VP-066, VP-067, VP-068, VP-069, VP-070, VP-071, VP-072, VP-073, VP-074, VP-075, VP-076, VP-077, VP-078, VP-079, VP-080, VP-081, VP-082, VP-083, VP-084, VP-085, VP-086, VP-087, VP-088, VP-089, VP-090, VP-091, VP-092, VP-093, VP-094, VP-108, VP-109, VP-110, VP-111, VP-112, VP-113, VP-114, VP-115, VP-116, VP-117, VP-118, VP-119, VP-120, VP-121, VP-122, VP-123, VP-124, VP-125, VP-126, VP-127, VP-128, VP-129, VP-130, VP-131, VP-132, VP-133 (57); plus Wave 4 Phase 4.A pass-4 P0 elevation: VP-138 (1); plus ADR-023 plugin migration P0: VP-146, VP-147, VP-148, VP-149, VP-150, VP-152 (6); plus PREREQ-E ADR-026/ADR-027 P0: VP-153, VP-155 (2) — all safety-critical invariants and security properties. (**109 active P0**; additionally 13 P0 rows — VP-095..VP-107 — are retired per ADR-037 (2026-06-10) and excluded from the release gate while remaining registered rows, for 122 P0 rows total per VP-INDEX Summary row-count basis)
 
-**P1 (verify during hardening):** VP-025, VP-026, VP-029, VP-030, VP-032, VP-035, VP-037, VP-040, VP-041, VP-042, VP-043, VP-048, VP-049, VP-054, VP-055, VP-056, VP-059, VP-061, VP-062 (Phase 1-2 baseline, 19); plus Wave 3 P1: VP-065, VP-134, VP-135, VP-136 (4); plus Wave 4 Phase 1 ADR P1: VP-137 (1); plus Wave 4 ADR P1: VP-139, VP-140, VP-141, VP-142, VP-143, VP-144, VP-145 (7); plus ADR-023 plugin migration P1: VP-151 (1); plus PREREQ-E ADR-027 P1: VP-154 (1); plus PREREQ-E fix-burst-1 P1: VP-156 (1) — correctness properties that are important but not safety-critical. (**34 total P1**)
+**P1 (verify during hardening):** VP-025, VP-026, VP-029, VP-030, VP-032, VP-035, VP-037, VP-040, VP-041, VP-042, VP-043, VP-048, VP-049, VP-054, VP-055, VP-056, VP-059, VP-061, VP-062 (Phase 1-2 baseline, 19); plus Wave 3 P1: VP-065, VP-134, VP-135, VP-136 (4); plus Wave 4 Phase 1 ADR P1: VP-137 (1); plus Wave 4 ADR P1: VP-139, VP-140, VP-141, VP-142, VP-143, VP-144, VP-145 (7); plus ADR-023 plugin migration P1: VP-151 (1); plus PREREQ-E ADR-027 P1: VP-154 (1); plus PREREQ-E fix-burst-1 P1: VP-156 (1); plus D-1099 BC-3.6.001 P1: VP-157 (1) — correctness properties that are important but not safety-critical. (**35 total P1**)
 
 ## Proof Harness Patterns
 
@@ -316,6 +323,7 @@ Proptest strategies generate complex inputs (alias graphs, detection rules, OCSF
 
 | Version | Pass | Date | Author | Notes |
 |---------|------|------|--------|-------|
+| 1.43 | D-1099 | 2026-06-11 | state-manager | BC-3.6.001 v0.5 POL-9 same-burst propagation: VP-129 description updated (Invariant 5 per-clone scope qualifier); VP-157 added to Provable Properties Catalog (prism-dtu-harness, unit_test, P1, BC-3.6.001 — unsupported-mode 400 guard); UNIT subgraph added to Mermaid (VP-095..098 retired + VP-157); SAFE node 156→157; P1 enumeration updated 34→35 (added VP-157). POL-9 same-burst with VP-INDEX v1.77→v1.78 + verification-coverage-matrix v1.43→v1.44. |
 | 1.42 | review-2026-06-10-architect-burst-2 | 2026-06-10 | architect | ADR-037 VP retirement propagation (POL-9 same-burst with VP-INDEX v1.77 + verification-coverage-matrix v1.43): VP-095..VP-107 (13 P0 VPs anchored to retired BC-3.3.001..004) marked retired in Provable Properties Catalog (Feasibility `feasible`→`retired (ADR-037)`, property text struck, Source column annotated "(retired)"); catalog preamble retirement note added. §Verification Priority: 13 retired VPs removed from Wave 3 P0 enumeration (70→57); release-gate P0 restated as 109 active (122 P0 rows total, row-count basis). Mermaid 5-site sweep (POL-25): TIER2 header (88 registered/8 retired + unit-test quartet retired), P28 node (VP-095..106 split out as retired), I3 node (VP-107 split out as retired), INTEG header (28 registered/1 retired), SAFE node (156 registered — 143 active/13 retired). Rows and grand totals retained per POL-1; hook row-count symmetry preserved (Kani 30/Proptest 88/Unit 4/Fuzz 6/Integration 28). |
 | 1.41 | state(D-659) | 2026-05-16 | state-manager | FB40 D-659 POL-9 same-burst propagation: VP-153 file advanced v0.8→v0.9 (F-LP50-MED-002 §Changelog row ordering corrected to monotonic ascending per POL-26 — 49-pass-surviving defect). This document carries VP-153 by ID only (no version pin in Provable Properties Catalog table); POL-11 changelog row recorded to maintain contiguous version history. |
 | 1.40 | state(D-658) | 2026-05-16 | state-manager | FB39 D-658 POL-9 same-burst propagation: VP-153 file advanced v0.7→v0.8 (F-LP49-HIGH-001 5-site error-taxonomy v1.30→v1.31 cascade closure — inline-comment cites at lines 167+210 updated by architect). This document carries VP-153 by ID only (no version pin in Provable Properties Catalog table); POL-11 changelog row recorded to maintain contiguous version history. |

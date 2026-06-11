@@ -1,15 +1,15 @@
 ---
 document_type: verification-property-index
 level: L4
-version: "1.77"
+version: "1.78"
 status: draft
 producer: state-manager
-timestamp: 2026-06-10T00:00:00Z
+timestamp: 2026-06-11T00:00:00Z
 phase: 2-patch
 inputs: [architecture/verification-architecture.md]
 traces_to: architecture/ARCH-INDEX.md
-total_vps: 156
-active_vps: 143
+total_vps: 157
+active_vps: 144
 retired_vps: 13  # VP-095..VP-107 retired 2026-06-10 per ADR-037 (BC-3.3.001..004 retired); rows retained per POL-1
 ---
 
@@ -158,7 +158,7 @@ retired_vps: 13  # VP-095..VP-107 retired 2026-06-10 per ADR-037 (BC-3.3.001..00
 | VP-126 | [BC-3.5.002] Wrong-org credentials to live clone returns HTTP 401, never HTTP 200 | prism-dtu-harness | integration_test | P0 | draft | S-3.3.04 |
 | VP-127 | [BC-3.5.002] devices(OrgA) ∩ devices(OrgB) = ∅ for all org pairs in 3-org canonical scenario | prism-dtu-harness | integration_test | P0 | draft | S-3.3.04 |
 | VP-128 | [BC-3.6.001] inject_failure on (OrgA,X) does not mutate FailureLayerShared of (OrgB,Y) | prism-dtu-harness | proptest | P0 | draft | S-3.6.01 |
-| VP-129 | [BC-3.6.001] All FailureMode variants produce the documented HTTP status code or behavior | prism-dtu-harness | integration_test | P0 | draft | S-3.6.01 |
+| VP-129 | [BC-3.6.001] All supported FailureMode variants for each clone produce the documented HTTP status code or behavior (per Invariant 5 supported-mode table) | prism-dtu-harness | integration_test | P0 | draft | S-3.6.01 |
 | VP-130 | [BC-3.6.001] clear_failure followed by request always returns HTTP 200 | prism-dtu-harness | integration_test | P0 | draft | S-3.6.01 |
 | VP-131 | [BC-3.6.002] Clone panic detected within 1s of task exit | prism-dtu-harness | integration_test | P0 | draft | S-3.6.02 |
 | VP-132 | [BC-3.6.002] drop(harness) after any number of clone crashes completes without hanging | prism-dtu-harness | integration_test | P0 | draft | S-3.6.02 |
@@ -186,6 +186,7 @@ retired_vps: 13  # VP-095..VP-107 retired 2026-06-10 per ADR-037 (BC-3.3.001..00
 | VP-154 | CustomAdapter behavioral equivalence: PluginRuntime WASM dispatch produces non-empty records matching plugin fixture output; TOML fallthrough when no plugin registered | prism-spec-engine | integration_test | P1 | draft | PLUGIN-MIGRATION-001-A |
 | VP-155 | CustomAdapter absent from prism-spec-engine public API: compile-fail perimeter asserts CustomAdapter and CustomAdapterRegistry are unimportable post-PREREQ-E | prism-spec-engine | integration_test | P0 | draft | PLUGIN-MIGRATION-001-A |
 | VP-156 | WriteToolInvalidationMap registration uniqueness: duplicate tool_name returns Err(DuplicateWriteToolRegistration); first registration persists unchanged | prism-query | proptest | P1 | active — v0.24 | S-PLUGIN-PREREQ-E |
+| VP-157 | [BC-3.6.001] POST /dtu/configure with unsupported mode returns HTTP 400 with unsupported_failure_mode error; no state change | prism-dtu-harness | unit_test | P1 | draft | S-3.6.01 |
 
 ## VP-PLUGIN-001..007 Named Series (PREREQ-F Registration, ADR-023 §Architectural Constraints)
 
@@ -209,14 +210,14 @@ F-PASS3-HIGH-001. The numeric VP-146..VP-152 entries above are the sequential in
 |--------|-------|----|----|
 | Kani | 30 | 23 | 7 |
 | Proptest | 88 | 66 | 22 |
-| Unit test | 4 | 4 | 0 |
+| Unit test | 5 | 4 | 1 |
 | Fuzz | 6 | 5 | 1 |
 | Integration test | 28 | 24 | 4 |
-| **Total** | **156** | **122** | **34** |
+| **Total** | **157** | **122** | **35** |
 
-> Note: VP-PLUGIN-001..007 are named aliases for VP-146..VP-152; they do not add to the sequential count. Total sequential VPs is 156 (VP-153, VP-154, VP-155 added for S-PLUGIN-PREREQ-E in burst 2026-05-15; VP-156 added in prereq-e-fix-burst-1 2026-05-15).
+> Note: VP-PLUGIN-001..007 are named aliases for VP-146..VP-152; they do not add to the sequential count. Total sequential VPs is 157 (VP-153, VP-154, VP-155 added for S-PLUGIN-PREREQ-E in burst 2026-05-15; VP-156 added in prereq-e-fix-burst-1 2026-05-15; VP-157 added D-1099 2026-06-11).
 
-> **Count basis (POL-1 append-only):** The table above counts REGISTERED rows — retired VPs are never deleted. Of the 156 rows, 13 are retired per ADR-037 (2026-06-10): VP-095..VP-098 (unit_test, P0), VP-099..VP-106 (proptest, P0), VP-107 (integration_test, P0). **Active basis: 143 VPs; active P0 = 109** (Kani 23, Proptest 58, Unit test 0, Fuzz 5, Integration test 23); active P1 = 34 (unchanged — no retired VP was P1). Retired VPs are excluded from the release verification gate. Per-VP disposition: see §ADR-037 Retirement below.
+> **Count basis (POL-1 append-only):** The table above counts REGISTERED rows — retired VPs are never deleted. Of the 157 rows, 13 are retired per ADR-037 (2026-06-10): VP-095..VP-098 (unit_test, P0), VP-099..VP-106 (proptest, P0), VP-107 (integration_test, P0). **Active basis: 144 VPs; active P0 = 109** (Kani 23, Proptest 58, Unit test 0, Fuzz 5, Integration test 23); active P1 = 35 (VP-157 unit_test P1 added D-1099). Retired VPs are excluded from the release verification gate. Per-VP disposition: see §ADR-037 Retirement below.
 
 ### ADR-037 Retirement (2026-06-10) — BC-3.3.001..004 VPs
 
@@ -267,6 +268,7 @@ S-1.02 frontmatter has been updated to `subsystems: [SS-03, SS-07, SS-11, SS-12,
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.78 | D-1099 | 2026-06-11 | state-manager | BC-3.6.001 v0.5 POL-9 propagation: VP-129 description updated with Invariant 5 per-clone supported-mode table scope qualifier. VP-157 added (unit_test, P1, prism-dtu-harness, BC-3.6.001, S-3.6.01) — POST /dtu/configure unsupported-mode 400 guard. **ID note:** PO authored BC-3.6.001 v0.5 citing VP-131 for this property; VP-131 was already registered to BC-3.6.002 (Clone panic detection). Allocated next available sequential ID VP-157. BC-3.6.001 references to VP-131 for this property require a PO correction burst (BC body edit outside state-manager scope). Summary: Unit test 4→5, Total 156→157, P1 34→35. Active basis: 144 VPs, active P1 = 35. POL-9 same-burst propagation: verification-architecture.md v1.42→v1.43, verification-coverage-matrix.md v1.43→v1.44. VP-INDEX v1.77→v1.78. |
 | 1.77 | review-2026-06-10-architect-burst-2 | 2026-06-10 | architect | ADR-037 VP retirement (POL-9 same-burst propagation with verification-architecture.md v1.42 + verification-coverage-matrix.md v1.43): VP-095..VP-107 (13 VPs anchored to BC-3.3.001..004, retired at BC-INDEX v6.11) Status draft→retired (ADR-037), Property text struck through; Module/Method/Priority retained verbatim (rows never deleted per POL-1 — Summary table stays row-count basis: 156 total / 122 P0 / 34 P1, satisfying validate-vp-consistency row-count symmetry). Active-basis counts introduced: 143 active VPs, 109 active P0 (Kani 23 / Proptest 58 / Unit 0 / Fuzz 5 / Integration 23), 34 active P1. Frontmatter active_vps/retired_vps fields added. New §ADR-037 Retirement section records per-VP disposition (no successor VPs registered; intent carried by BC-2.06.017/BC-3.2.005 [VP-091..094 active], BC-2.06.003/ADR-032, BC-2.21.001 + BC-2.06.012–016; BC-3.3.003 schema_version checks have no successor per ADR-037 §Consequences). No VP files exist for VP-095..107, so no withdrawal documents required. VP-INDEX v1.76→v1.77. |
 | 1.76 | FB-IMPL-10 | 2026-05-18 | product-owner | F-LP-IMPL-P13-MED-001 closure: VP-156 v0.23→v0.24 (line 171 cfg-gate sibling-sweep — `#[cfg(test)]` → `#[cfg(any(test, feature = "test-helpers"))]`). VP-INDEX v1.75→v1.76. |
 | 1.75 | D-717-state-mgr | 2026-05-18 | state-manager | D-717 state-manager closure: VP-156 v0.22→v0.23 (§Changelog v0.20/v0.21 monotonic ordering repair — second-order POL-26 recurrence surfaced by architect FB-IMPL-9 ZERO-DRIFT discipline; closed in same burst). VP-INDEX v1.74→v1.75. |

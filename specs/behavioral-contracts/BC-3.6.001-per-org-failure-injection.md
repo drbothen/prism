@@ -3,7 +3,7 @@ document_type: behavioral-contract
 level: L3
 bc_id: BC-3.6.001
 title: Per-Org Failure Injection
-version: "0.4"
+version: "0.5"
 status: draft
 producer: product-owner
 timestamp: 2026-04-27T00:00:00
@@ -17,7 +17,7 @@ extracted_from: null
 subsystem: SS-01
 capability: CAP-036
 authors: [product-owner]
-related_decisions: [D-044, D-045]
+related_decisions: [D-044, D-045, D-1096]
 related_adrs: [ADR-011]
 inherits_from: null
 superseded_by: null
@@ -61,12 +61,13 @@ failure injection granularity (ADR-011 §2.7, Rationale).
 
 1. After `inject_failure(org_slug, dtu_type, mode)` returns `Ok(())`, all subsequent HTTP
    requests to `(org_slug, dtu_type)` receive the injected failure response corresponding
-   to `mode`:
+   to `mode`, **subject to the per-clone supported-mode table in Invariant 5**:
    - `FailureMode::AuthReject` → HTTP 401 on every request
    - `FailureMode::InternalError { after_n }` → HTTP 500 after N requests
    - `FailureMode::RateLimit { after_n }` → HTTP 429 after N requests
-   - `FailureMode::Timeout { after_n, delay_ms }` → response delayed by `delay_ms` after N requests
+   - `FailureMode::NetworkTimeout { after_ms }` → response delayed by `after_ms` ms
    - `FailureMode::MalformedResponse` → response body is not valid JSON
+   - `FailureMode::Unprocessable { at_request_n }` → HTTP 422 at request N
 2. All other `(OrgId, DtuType)` clones in the same harness return normal (non-injected)
    responses; their `FailureLayerShared` state is unchanged.
 3. After `clear_failure(org_slug, dtu_type)` returns `Ok(())`, the target clone resumes
@@ -74,6 +75,11 @@ failure injection granularity (ADR-011 §2.7, Rationale).
    valid data.
 4. Failure injection and clearing are idempotent: calling `inject_failure` with the same
    mode twice has the same observable effect as calling it once.
+5. If `inject_failure` is called with a `FailureMode` that the target clone does not
+   support (see Invariant 5 supported-mode table), `POST /dtu/configure` returns
+   **HTTP 400** with body `{"error": "unsupported_failure_mode", "mode": "<mode-name>"}`.
+   No state change occurs; a subsequent request to that clone continues to behave normally.
+   The 400 is deterministic: it does not depend on request count or prior state.
 
 ## Invariants
 
@@ -88,6 +94,29 @@ failure injection granularity (ADR-011 §2.7, Rationale).
    another clone's admin token.
 4. `FailureMode::None` is equivalent to `clear_failure` — setting it explicitly clears
    any previously injected mode.
+5. **Per-clone supported failure modes.** Not all clones support all `FailureMode`
+   variants. The authoritative supported-mode table is:
+
+   | Clone | Supported Modes | Rationale |
+   |-------|----------------|-----------|
+   | Claroty | ALL (AuthReject, InternalError, RateLimit, NetworkTimeout, MalformedResponse, Unprocessable) | Cyber-sensor clone; full `apply_failure_mode` coverage |
+   | Armis | ALL | Cyber-sensor clone; full `apply_failure_mode` coverage |
+   | CrowdStrike | ALL | Cyber-sensor clone; full `apply_failure_mode` coverage |
+   | Cyberint | ALL | Cyber-sensor clone; full `apply_failure_mode` coverage |
+   | Jira | RateLimit, InternalError, AuthReject, NetworkTimeout, MalformedResponse, Unprocessable | MSSP-coordination clone; TDE-track (D-1072); full coverage required per this BC |
+   | PagerDuty | RateLimit, InternalError, AuthReject, NetworkTimeout, MalformedResponse, Unprocessable | MSSP-coordination clone; TDE-track (D-1072); full coverage required per this BC |
+   | Slack | RateLimit, InternalError, AuthReject, NetworkTimeout, MalformedResponse, Unprocessable | MSSP-coordination clone; TDE-track (D-1072); full coverage required per this BC |
+
+   A `POST /dtu/configure` call with a mode NOT listed as supported for that clone MUST
+   return HTTP 400 with body `{"error": "unsupported_failure_mode", "mode": "<variant-name>"}`.
+   Silent acceptance (200 ACK + no behavioral effect) is a SOUL.md §4 violation and is
+   explicitly prohibited by Postcondition 5.
+
+   **Note (2026-06-11):** The MSSP-coordination clones (Jira, PagerDuty, Slack) were
+   initially implemented with route-level `match` that only honored RateLimit and
+   InternalError while silently ACKing all other modes. This BC amendment (v0.5) mandates
+   either full mode coverage (preferred) or honest 400 rejection for modes a clone does not
+   honor. Implementer work-order: see D-1096 (PO adjudication burst, 2026-06-11).
 
 ## Edge Cases
 
@@ -100,6 +129,8 @@ failure injection granularity (ADR-011 §2.7, Rationale).
 | EC-005 | `AuthReject` injection on OrgA's Claroty; OrgB's Claroty queried simultaneously | OrgA's Claroty returns 401; OrgB's Claroty returns HTTP 200 with valid data — no cross-contamination |
 | EC-006 | `clear_failure` called when no failure is active | Returns `Ok(())`; no state change; idempotent |
 | EC-007 | `Timeout` injection with `delay_ms = 0` | Treated as `FailureMode::None` (zero delay is a no-op); returns `Ok(())`; no latency injected |
+| EC-008 | `inject_failure` called with a mode not in the clone's supported-mode list (Invariant 5) | `POST /dtu/configure` returns HTTP 400 with `{"error": "unsupported_failure_mode", "mode": "<variant-name>"}` — no state change, no silent ACK |
+| EC-009 | Caller verifies a clone's behavior after sending an unsupported mode and receiving 400 | Clone continues to return normal responses as if no configure was called; 400 is stateless with respect to prior or future injections |
 
 ## Canonical Test Vectors
 
@@ -111,14 +142,18 @@ failure injection granularity (ADR-011 §2.7, Rationale).
 | TV-4: Clear restores normal behavior | harness(OrgA:CrowdStrike); inject AuthReject; clear failure | Query after inject; query after clear | HTTP 401 (post-inject) | HTTP 200 (post-clear) | State correctly restored |
 | TV-5: Unknown org returns error | harness(OrgA:Claroty) | inject_failure("unknown-org", "claroty", AuthReject) | `HarnessError::UnknownOrg` | n/a | No panic; error returned |
 | TV-6: Timeout does not block OrgB | harness(OrgA:Cyberint, OrgB:Cyberint); inject Timeout(delay_ms=2000) on OrgA | Concurrent queries to both orgs | OrgA responds after ~2s | OrgB responds in < 200ms | OrgB latency unaffected |
+| TV-7: Jira rejects MalformedResponse mode | harness(OrgA:Jira); POST /dtu/configure with `{"malformed_response": true}` — before full ops-clone coverage implemented | POST /dtu/configure → HTTP 400 `{"error": "unsupported_failure_mode", "mode": "MalformedResponse"}` | HTTP 400 body matches error shape | n/a | No state change; subsequent issue-creation returns HTTP 200 normally |
+| TV-8: Jira accepts RateLimit mode (currently supported) | harness(OrgA:Jira); POST /dtu/configure with `{"rate_limit_after": 2}` | POST /dtu/configure → HTTP 200 `{"status": "ok"}`; 3rd issue-creation request → HTTP 429 | HTTP 429 with Retry-After header | n/a | 429 only after N requests; count is zero-reset on configure |
+| TV-9: Jira accepts AuthReject mode (after ops-clone full coverage) | harness(OrgA:Jira); POST /dtu/configure with `{"auth_mode": "reject"}` | POST /dtu/configure → HTTP 200; subsequent issue-creation → HTTP 401 | HTTP 401 on every request | n/a | Requires ops-clone full apply_failure_mode implementation |
 
 ## Verification Properties
 
 | VP-NNN | Property | Proof Method |
 |--------|----------|-------------|
 | VP-128 | `inject_failure` on `(OrgA, X)` does not mutate `FailureLayerShared` of any `(OrgB, Y)` where `OrgA != OrgB` | proptest (over random org pairs) |
-| VP-129 | All `FailureMode` variants produce the documented HTTP status code or behavior | integration test (one test per variant) |
+| VP-129 | All supported `FailureMode` variants for each clone produce the documented HTTP status code or behavior (per Invariant 5 supported-mode table) | integration test (one test per variant per clone category) |
 | VP-130 | `clear_failure` followed by a request to the cleared clone always returns HTTP 200 (assuming no underlying clone error) | integration test |
+| VP-131 | `POST /dtu/configure` with an unsupported mode returns HTTP 400 with `{"error": "unsupported_failure_mode", "mode": "<variant>"}` and leaves clone state unchanged | unit test (per ops clone — Jira, PagerDuty, Slack; once-per-unsupported-mode until full coverage is ported) |
 
 ## Traceability
 
@@ -148,13 +183,15 @@ S-3.3.03, S-3.3.05, S-3.4.04, S-3.6.01, S-3.6.02
 ## VP Anchors
 
 - VP-128 — proptest: inject_failure on (OrgA, X) does not mutate FailureLayerShared of (OrgB, Y)
-- VP-129 — integration_test: all FailureMode variants produce documented HTTP status code or behavior
+- VP-129 — integration_test: all supported FailureMode variants per clone produce documented HTTP status code (per Invariant 5 table)
 - VP-130 — integration_test: clear_failure followed by request always returns HTTP 200
+- VP-131 — unit_test: POST /dtu/configure with unsupported mode returns HTTP 400 with unsupported_failure_mode error body; no state change
 
 ## BC Changelog
 
 | Version | Change |
 |---------|--------|
+| v0.5 | D-1096 (PO adjudication burst, 2026-06-11): Per-clone failure-mode scope ruling. Ruling: Option (A) REJECT-UNSUPPORTED. Postcondition 1 clarified with per-clone supported-mode caveat reference. Postcondition 5 added: `POST /dtu/configure` with unsupported mode MUST return HTTP 400 with `{"error": "unsupported_failure_mode", "mode": "<variant>"}`. Invariant 5 added: authoritative per-clone supported-mode table. Invariant 5 initially lists ALL modes as required for all clones (cyber-sensor and ops-coordination alike) because BC-3.6.001 Postcondition 1 binds all clones uniformly — the TDE-track deferral (D-1072) scopes the ops clones' write-back FEATURE scope, not their test-infrastructure failure-injection contract. EC-008/EC-009 added for unsupported-mode 400 behavior. TV-7/TV-8/TV-9 added. VP-131 added. VP-129 scope note updated to cite Invariant 5 per-clone table. Implementer work-order captured in D-1096. |
 | v0.4 | m-001 (Pass 6): `input-hash` populated: SHA1 of input file path (first 7 chars = `8606916`). |
 | v0.3 | M-004/Audit-5 (Pass 5): Frontmatter `title:` corrected to title-case to match H1 heading. `traces_to:` corrected from `specs/domain-spec/capabilities.md` to `.factory/specs/architecture/decisions/ADR-011-harness-isolation-modes.md`. |
 | v0.2 | Initial authoring from ADR-011. |
