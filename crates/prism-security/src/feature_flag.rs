@@ -203,13 +203,17 @@ impl FeatureFlagEvaluator {
             } => Some(PrismError::CapabilityDenied {
                 capability: capability.clone(),
                 client_id: client_id.clone(),
-                // P1-02 (2026-06-10 review pass-1): registry semantics, not Cargo
-                // features — under registry-driven dispatch nothing is "un-compiled";
-                // the compile-time tier is Absent because the sensor's TOML spec
-                // declares no [[write_endpoints]] for this capability (BC-2.16.012).
+                // P2-02 (2026-06-10 review pass-2): the spec-pinned E-FLAG-002
+                // message template, VERBATIM — three spec layers agree on it
+                // (error-taxonomy.md E-FLAG-002 row, BC-2.04.015 v1.2,
+                // BC-2.04.001 v1.2; spec wins per POL-24). Registry semantics,
+                // not Cargo features — under registry-driven dispatch nothing is
+                // "un-compiled"; the compile-time tier is Absent because the
+                // sensor's TOML spec declares no [[write_endpoints]] for this
+                // capability (BC-2.16.012).
                 reason: format!(
-                    "Write capability '{}' has no [[write_endpoints]] declaration in \
-                     the sensor's TOML spec (registry-driven dispatch, BC-2.16.012)",
+                    "Write capability '{}' denied: no write-endpoint declaration \
+                     (no [[write_endpoints]] entry in the sensor's TOML spec)",
                     capability
                 ),
                 // SNS-02 (2026-06-10 review): post-BC-2.16.012 the write pipeline is

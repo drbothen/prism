@@ -599,12 +599,13 @@ async fn test_crit3_crowdstrike_write_denied_in_default_build() {
     let result = executor.execute(plan, context).await;
     let err = result.expect_err("Crowdstrike write must be denied when feature absent");
     let err_msg = err.to_string();
-    // P1-02 (2026-06-10 review pass-1): compile-tier denial reason uses registry
-    // semantics ("no [[write_endpoints]] declaration", BC-2.16.012) — the retired
-    // "not compiled" alternate is removed from this OR so it cannot phantom-pass.
+    // P2-02 (2026-06-10 review pass-2): compile-tier denial reason is the
+    // spec-pinned E-FLAG-002 template ("no write-endpoint declaration",
+    // error-taxonomy E-FLAG-002 row / BC-2.04.015 v1.2 / BC-2.04.001 v1.2) —
+    // the retired "not compiled" alternate stays removed so it cannot phantom-pass.
     assert!(
         err_msg.contains("E-FLAG-002")
-            || err_msg.contains("no [[write_endpoints]] declaration")
+            || err_msg.contains("no write-endpoint declaration")
             || err_msg.contains("CAPABILITY_DENIED"),
         "Absent compile gate must produce E-FLAG-002 or CAPABILITY_DENIED; got: {err_msg}"
     );
@@ -1271,8 +1272,8 @@ async fn test_BC_2_16_012_B_002_write_gate_absent_for_unregistered_sensor() {
     // We assert the execute does NOT return a capability-denied error.
     // (It may succeed, return a preview, or fail for a different structural reason —
     // but it must NOT fail with E-FLAG-002 / CAPABILITY_DENIED / a missing
-    // [[write_endpoints]] compile-tier denial. P1-02 2026-06-10: denial reason
-    // uses registry semantics, BC-2.16.012.)
+    // write-endpoint-declaration compile-tier denial. P2-02 2026-06-10: denial
+    // reason is the spec-pinned E-FLAG-002 template, BC-2.16.012.)
     let result = executor.execute(plan, context).await;
 
     // Post-migration: the registry presence check makes "plugin-sensor-xyz" Present.
@@ -1283,7 +1284,7 @@ async fn test_BC_2_16_012_B_002_write_gate_absent_for_unregistered_sensor() {
             let msg = e.to_string();
             msg.contains("E-FLAG-002")
                 || msg.contains("CAPABILITY_DENIED")
-                || msg.contains("no [[write_endpoints]] declaration")
+                || msg.contains("no write-endpoint declaration")
                 || msg.contains("CapabilityDenied")
         }
         Ok(_) => false,

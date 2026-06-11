@@ -179,14 +179,19 @@ fn test_BC_2_04_001_compile_gate_absent_returns_e_flag_002() {
     // todo!() → panic
     let err = result.expect_err("Absent compile gate must return Err");
     let err_msg = err.to_string();
-    // P1-02 (2026-06-10 review pass-1): the E-FLAG-002 compile-tier denial reason
-    // uses registry semantics — "no [[write_endpoints]] declaration" — not the
-    // retired "not compiled" Cargo-feature framing (BC-2.16.012).
+    // P2-02 (2026-06-10 review pass-2): the E-FLAG-002 compile-tier denial reason
+    // is the spec-pinned template (error-taxonomy E-FLAG-002 row / BC-2.04.015 v1.2 /
+    // BC-2.04.001 v1.2) — registry semantics, not the retired "not compiled"
+    // Cargo-feature framing (BC-2.16.012).
     assert!(
         err_msg.contains("CAPABILITY_DENIED")
-            && err_msg.contains("no [[write_endpoints]] declaration"),
+            && err_msg.contains(
+                "denied: no write-endpoint declaration \
+                 (no [[write_endpoints]] entry in the sensor's TOML spec)"
+            ),
         "Absent compile gate must return the E-FLAG-002 compile-tier denial \
-         (CAPABILITY_DENIED with missing [[write_endpoints]] declaration); got: {err_msg}"
+         (CAPABILITY_DENIED with the spec-pinned no-write-endpoint-declaration \
+         template); got: {err_msg}"
     );
 }
 
