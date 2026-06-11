@@ -310,7 +310,7 @@ pub fn map_prism_error(err: PrismError) -> (i32, String) {
             "Internal error; see audit log".to_owned(),
         ),
 
-        // E-WATCH-*: Watchdog errors → -32000 Internal
+        // E-WATCH-*/E-WATCHDOG-*: Watchdog errors → -32000 Internal
         PrismError::WatchdogHeartbeatMissed { .. }
         | PrismError::WatchdogRestartLimitExceeded { .. }
         | PrismError::WatchdogKilled { .. } => (
