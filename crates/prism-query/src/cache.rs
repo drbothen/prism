@@ -34,9 +34,9 @@
 //! `QueryCache` is `Send + Sync` and designed to be shared via `Arc<QueryCache>`.
 //! The `moka::sync::Cache` inner type is itself thread-safe. If the `partition_counts`
 //! mutex is poisoned (a thread panicked while holding the lock), all subsequent
-//! cache operations return `Err(PrismError::Internal { detail: "E-CACHE-001: ..." })`
+//! cache operations return `Err(PrismError::Internal)` with a prose-only detail
 //! instead of silently continuing with potentially corrupted state (BC-2.07.004
-//! E-CACHE-001, SEC-001).
+//! mutex-poison condition, SEC-001).
 //!
 //! # BC References
 //! - BC-2.07.003 — Query Engine Sensor-Fetch Cache with Configurable TTL
@@ -301,9 +301,9 @@ fn partition_key(key: &CacheKey) -> PartitionKey {
 /// Internally uses `moka::sync::Cache` for thread-safe LRU eviction and
 /// TTL-based entry expiry (story §Caching Context Summary — moka 0.12).
 ///
-/// ## Mutex poison safety (SEC-001 / BC-2.07.004 E-CACHE-001)
+/// ## Mutex poison safety (SEC-001 / BC-2.07.004 mutex-poison condition)
 /// If the `partition_counts` mutex is poisoned, all cache operations that
-/// require the lock return `Err(PrismError::Internal { detail: "E-CACHE-001: ..." })`.
+/// require the lock return `Err(PrismError::Internal)` with a prose-only detail.
 /// Silent recovery via `unwrap_or_else(|e| e.into_inner())` is prohibited.
 pub struct GenericQueryCache<V: CacheValue> {
     config: CacheConfig,
@@ -367,21 +367,22 @@ impl<V: CacheValue> GenericQueryCache<V> {
         Self::new(CacheConfig::default())
     }
 
-    /// Acquire the `partition_counts` mutex, propagating poison as E-CACHE-001.
+    /// Acquire the `partition_counts` mutex, propagating poison as `PrismError::Internal`.
     ///
-    /// SEC-001 / BC-2.07.004 E-CACHE-001: a poisoned mutex means a thread panicked
-    /// while holding the lock, leaving the partition map in an unknown state.
-    /// Silently recovering with `into_inner()` would operate on corrupted state.
-    /// We propagate as `PrismError::Internal` so the caller can terminate cleanly.
+    /// SEC-001 / BC-2.07.004: a poisoned mutex means a thread panicked while holding
+    /// the lock, leaving the partition map in an unknown state. Silently recovering
+    /// with `into_inner()` would operate on corrupted state. We propagate as
+    /// `PrismError::Internal` (prose-only detail) so the caller can terminate cleanly.
     fn lock_partition_counts(
         &self,
     ) -> Result<MutexGuard<'_, HashMap<PartitionKey, PartitionVec>>, PrismError> {
         self.partition_counts
             .lock()
             .map_err(|_| PrismError::Internal {
-                detail: "E-CACHE-001: cache mutex poisoned — internal state may be inconsistent; \
+                detail:
+                    "cache partition_counts mutex poisoned — internal state may be inconsistent; \
                      terminate and restart the query engine"
-                    .to_string(),
+                        .to_string(),
             })
     }
 
@@ -1279,10 +1280,11 @@ mod tests {
         );
     }
 
-    /// SEC-001 / BC-2.07.004 E-CACHE-001: poisoned mutex returns E-CACHE-001 error.
+    /// SEC-001 / BC-2.07.004: poisoned mutex returns prose-only Internal detail.
     ///
     /// Regression test: a thread that panics while holding the partition_counts lock
-    /// poisons the mutex. Subsequent operations must return E-CACHE-001 instead of
+    /// poisons the mutex. Subsequent operations must return a prose-only
+    /// PrismError::Internal detail (no embedded E- code prefix) instead of
     /// silently recovering with potentially corrupted state.
     #[test]
     fn test_sec001_poisoned_mutex_returns_e_cache_001() {
@@ -1312,7 +1314,7 @@ mod tests {
         // Spawn a thread that panics while holding the lock.
         // Poison the mutex directly via raw field access (same-module access to
         // private field). We intentionally bypass lock_partition_counts() to acquire
-        // the lock without E-CACHE-001 propagation — the point of the test is to
+        // the lock without Internal-error propagation — the point of the test is to
         // poison the mutex, not to guard against it.
         let handle = std::thread::spawn(move || {
             let _guard = cache_clone
@@ -1326,17 +1328,17 @@ mod tests {
         let _ = handle.join();
 
         // Now attempt a get() on an existing entry — it hits the lock (for LRU update).
-        // Must return E-CACHE-001.
+        // Must return PrismError::Internal with prose-only detail (no E- prefix).
         let result = cache.get(&key);
         match result {
             Err(PrismError::Internal { detail }) => {
                 assert!(
-                    detail.contains("E-CACHE-001"),
-                    "poisoned mutex must return E-CACHE-001; got: {detail}"
+                    detail.contains("cache partition_counts mutex poisoned"),
+                    "poisoned mutex must return prose-only Internal detail; got: {detail}"
                 );
             }
             other => panic!(
-                "SEC-001: poisoned mutex must return Err(PrismError::Internal{{E-CACHE-001}}); \
+                "SEC-001: poisoned mutex must return Err(PrismError::Internal) with prose detail; \
                  got: {other:?}"
             ),
         }

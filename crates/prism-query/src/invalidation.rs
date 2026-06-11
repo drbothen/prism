@@ -444,7 +444,7 @@ impl<V: CacheValue> CacheInvalidator<V> {
         let dynamic_guard = DYNAMIC_WRITE_TOOLS
             .read()
             .map_err(|_| PrismError::Internal {
-                detail: "E-INT-002: DYNAMIC_WRITE_TOOLS RwLock is poisoned".to_string(),
+                detail: "DYNAMIC_WRITE_TOOLS RwLock is poisoned — a prior panic in a read-guard holder has left the registry unreadable; process restart required".to_string(),
             })?;
         for entry in dynamic_guard.iter() {
             if entry.sensor_id == *sensor_id {
@@ -492,7 +492,7 @@ impl<V: CacheValue> CacheInvalidator<V> {
         let dynamic_guard = DYNAMIC_WRITE_TOOLS
             .read()
             .map_err(|_| PrismError::Internal {
-                detail: "E-INT-002: DYNAMIC_WRITE_TOOLS RwLock is poisoned".to_string(),
+                detail: "DYNAMIC_WRITE_TOOLS RwLock is poisoned — a prior panic in a read-guard holder has left the registry unreadable; process restart required".to_string(),
             })?;
 
         // Search static map first (common case for built-in sensors), then dynamic.
