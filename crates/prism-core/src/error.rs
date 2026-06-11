@@ -408,8 +408,27 @@ pub enum PrismError {
     #[error("E-QUERY-002: query planning failed: {detail}")]
     QueryPlanFailed { detail: String },
 
-    /// E-QUERY-003: Query execution error.
-    #[error("E-QUERY-003: query execution error: {detail}")]
+    /// E-QUERY-003: Query security limit exceeded (security-only variant).
+    ///
+    /// Per error-taxonomy.md v1.72, E-QUERY-003 is reserved for security-limit
+    /// violations (query size cap, AST depth cap, regex complexity caps, IN-list
+    /// caps, etc.). The `detail` carries the specific limit violation message;
+    /// the Display impl supplies the single canonical "E-QUERY-003: " prefix —
+    /// callers MUST NOT embed the prefix in `detail`.
+    ///
+    /// Maps to JSON-RPC `-32602 INVALID_PARAMS` — the caller supplied a query
+    /// that violates a pre-execution security limit and can fix it by narrowing
+    /// the query. Distinct from E-QUERY-034 (`QueryExecutionFailed`), which is
+    /// the generic runtime execution error and maps to `-32000`.
+    #[error("E-QUERY-003: {detail}")]
+    QuerySecurityLimitExceeded { detail: String },
+
+    /// E-QUERY-034: Query execution error (generic runtime execution failure).
+    ///
+    /// Renumbered from E-QUERY-003 per error-taxonomy.md v1.72 + ADR-038 v1.3
+    /// §P5-02: E-QUERY-003 is now security-only (`QuerySecurityLimitExceeded`);
+    /// generic execution failures carry E-QUERY-034 and map to JSON-RPC `-32000`.
+    #[error("E-QUERY-034: query execution error: {detail}")]
     QueryExecutionFailed { detail: String },
 
     /// E-WATCHDOG-001: Memory budget exceeded.
@@ -624,7 +643,7 @@ pub enum PrismError {
     /// E-QUERY-007: Requested limit exceeds the maximum allowed value (BC-2.11.001).
     ///
     /// Returned when `QueryOptions.limit > 1000`. Semantically distinct from
-    /// `QueryExecutionFailed` (E-QUERY-003) — this is a pre-execution parameter
+    /// `QueryExecutionFailed` (E-QUERY-034) — this is a pre-execution parameter
     /// validation error, not a runtime execution error. Assigned E-QUERY-007 to
     /// avoid collision with E-QUERY-001 (QueryParseFailed). (ADV-W3MT-P58-CRIT-001)
     #[error("E-QUERY-007: limit {requested} exceeds maximum of {max} (BC-2.11.001)")]
@@ -1295,6 +1314,33 @@ mod tests {
         assert!(
             display.contains("does not match filename stem"),
             "display must include message: {display}"
+        );
+    }
+
+    /// E-QUERY-003 security-only variant Display (error-taxonomy.md v1.72,
+    /// ADR-038 v1.3 §P5-02): exactly "E-QUERY-003: {detail}" — the Display
+    /// impl supplies the single canonical prefix; `detail` carries no prefix.
+    #[test]
+    fn test_query_security_limit_exceeded_display_e_query_003() {
+        let err = PrismError::QuerySecurityLimitExceeded {
+            detail: "query exceeds maximum size of 8192 bytes".to_string(),
+        };
+        assert_eq!(
+            format!("{err}"),
+            "E-QUERY-003: query exceeds maximum size of 8192 bytes"
+        );
+    }
+
+    /// E-QUERY-034 generic execution error Display (error-taxonomy.md v1.72,
+    /// ADR-038 v1.3 §P5-02): `QueryExecutionFailed` renumbered 003 → 034.
+    #[test]
+    fn test_query_execution_failed_display_e_query_034() {
+        let err = PrismError::QueryExecutionFailed {
+            detail: "DataFusion plan execution aborted".to_string(),
+        };
+        assert_eq!(
+            format!("{err}"),
+            "E-QUERY-034: query execution error: DataFusion plan execution aborted"
         );
     }
 }
