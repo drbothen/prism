@@ -2218,7 +2218,7 @@ impl prism_query::write_dispatch::AuditWriter for BootAuditWriter {
     /// MCP-02 (2026-06-10 review): durable MCP tool-call audit record.
     ///
     /// Appends a lightweight key+payload envelope to the `audit_buffer` CF
-    /// (BC-2.05.009 family / CRIT-005), following the established
+    /// (BC-2.05.001 / CRIT-005), following the established
     /// `prism_audit::credential_events` construction pattern. Not
     /// fail-closed: the caller (`emit_tool_audit`) logs Err and proceeds
     /// (BC-2.05.001 postcondition "Read operations proceed on audit

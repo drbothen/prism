@@ -109,8 +109,8 @@ pub trait AuditWriter: Send + Sync + 'static {
     /// returned to the caller — the sensor API calls are already complete.
     async fn write_outcome(&self, intent_id: Ulid, result: &WriteResult) -> Result<(), PrismError>;
 
-    /// Write a durable audit record for an MCP tool invocation (BC-2.05.009
-    /// family; CRIT-005 — every tool call must produce a structured audit entry).
+    /// Write a durable audit record for an MCP tool invocation (BC-2.05.001;
+    /// CRIT-005 — every tool call must produce a structured audit entry).
     ///
     /// MCP-02 (2026-06-10 review): this is the durable complement to the
     /// `mcp.tool.called` tracing emission in `prism-mcp::server::emit_tool_audit`.

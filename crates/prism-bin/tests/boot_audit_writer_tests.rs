@@ -3,7 +3,8 @@
 //! `BootAuditWriter` is the production `AuditWriter` wired into `WriteExecutor` +
 //! `PrismServer` at boot step 9. Its `write_tool_call` method (MCP-02, 2026-06-10
 //! review) persists MCP tool-call audit records durably to the RocksDB
-//! `audit_buffer` CF (BC-2.05.009 family / CRIT-005).
+//! `audit_buffer` CF (BC-2.05.001 — one audit entry per tool invocation —
+//! / CRIT-005).
 //!
 //! These tests follow the repo's own CF-readback precedent:
 //! - `plugin_boot_tests.rs::test_AC_4_VP_PLUGIN_004_unsigned_plugin_durable_audit_entry`
@@ -61,12 +62,12 @@ fn read_tool_call_entries(backend: &RocksDbBackend) -> Vec<StorageAuditEntry> {
     decoded_entries
 }
 
-/// BC-2.05.009 family / CRIT-005 / MCP-02: `write_tool_call` with outcome
+/// BC-2.05.001 / CRIT-005 / MCP-02: `write_tool_call` with outcome
 /// `"invoked"` and a present `client_id` persists a durable `mcp.tool.called`
 /// entry to the `audit_buffer` CF whose payload fields (tool_name, client_id,
 /// outcome) survive the round-trip.
 #[tokio::test]
-async fn test_BC_2_05_009_write_tool_call_invoked_cf_readback() {
+async fn test_BC_2_05_001_write_tool_call_invoked_cf_readback() {
     let (_state_dir, backend, writer) = make_writer();
 
     writer
@@ -113,11 +114,11 @@ async fn test_BC_2_05_009_write_tool_call_invoked_cf_readback() {
     );
 }
 
-/// BC-2.05.009 family / CRIT-005 / MCP-02 + BC-2.05.002: `write_tool_call`
+/// BC-2.05.001 / CRIT-005 / MCP-02 + BC-2.05.002: `write_tool_call`
 /// with outcome `"rejected_injection"` and NO client_id persists a durable
 /// entry whose `client_id` field carries the BC-2.05.002 `"MISSING"` sentinel.
 #[tokio::test]
-async fn test_BC_2_05_009_write_tool_call_rejected_injection_missing_client_id_cf_readback() {
+async fn test_BC_2_05_001_write_tool_call_rejected_injection_missing_client_id_cf_readback() {
     let (_state_dir, backend, writer) = make_writer();
 
     writer
@@ -152,11 +153,11 @@ async fn test_BC_2_05_009_write_tool_call_rejected_injection_missing_client_id_c
     );
 }
 
-/// BC-2.05.009 family / MCP-02: two sequential `write_tool_call` invocations
+/// BC-2.05.001 / MCP-02: two sequential `write_tool_call` invocations
 /// (one per outcome) persist two distinct durable entries — the append pattern
 /// must not overwrite prior records.
 #[tokio::test]
-async fn test_BC_2_05_009_write_tool_call_appends_distinct_entries() {
+async fn test_BC_2_05_001_write_tool_call_appends_distinct_entries() {
     let (_state_dir, backend, writer) = make_writer();
 
     writer

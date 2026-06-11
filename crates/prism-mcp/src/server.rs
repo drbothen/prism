@@ -1378,7 +1378,7 @@ fn not_yet_available_msg(feature: &str) -> rmcp::model::ErrorData {
 
 /// Emit an audit entry for a tool invocation.
 ///
-/// CRIT-005 / BC-2.05.009: every tool call must produce a structured audit entry.
+/// CRIT-005 / BC-2.05.001: every tool call must produce a structured audit entry.
 /// Two complementary emissions per call:
 ///
 /// 1. **Tracing** — the `mcp.tool.called` structured event (BC-2.16.002 catalog row).
@@ -1403,7 +1403,7 @@ async fn emit_tool_audit(
         tool_name = %tool,
         client_id = ?client_id,
         outcome = %outcome,
-        "MCP tool invocation audit (BC-2.05.009)"
+        "MCP tool invocation audit (BC-2.05.001)"
     );
     match audit_writer {
         Some(writer) => {
