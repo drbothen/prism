@@ -24,8 +24,9 @@
 //! This value is deterministic and injective over distinct org slugs (with negligible
 //! collision probability) while remaining a valid JSON number.
 //!
-//! Tombstone ID format: `dev-{org_slug}-tomb-{n}` (no seed in tombstone IDs per
-//! BC-3.4.004 TV-3.4.004-07 test assertion: id.contains("{org_slug}-tomb-")).
+//! Tombstone ID format: `dev-{org_slug}-{seed}-tomb-{n}` (BC-3.4.004 TV-3.4.004-07 /
+//! EC-3.4.004-07 / Invariant 2: the prefix formula `dev-{slug}-{seed}` applies to ALL
+//! record types including tombstones; seed is always present).
 //!
 //! Unregistered org detection (VP-121): org_id bytes all equal to 0xFF are treated as
 //! an unregistered org and cause a panic with `GeneratorError::UnregisteredOrg`.
@@ -618,16 +619,18 @@ fn build_asset(
 
 /// Build a tombstone `ArmisAsset` record.
 ///
-/// Tombstone ID format: `dev-{org_slug}-tomb-{n}` (BC-3.4.004 tombstone row).
-/// The test asserts `id.contains("{org_slug}-tomb-")` which requires the seed to be absent.
+/// Tombstone ID format: `dev-{org_slug}-{seed}-tomb-{n}` (BC-3.4.004 tombstone row /
+/// EC-3.4.004-07 / TV-3.4.004-07). Invariant 2: the prefix formula `dev-{slug}-{seed}`
+/// applies consistently to ALL record types (assets and tombstones alike).
+/// Sibling generators CrowdStrike (`make_tombstone`) and Claroty also include the seed.
 fn build_tombstone(
     org_slug: &str,
     seed: u64,
     tomb_index: usize,
     time_anchor: chrono::DateTime<chrono::Utc>,
 ) -> Value {
-    // Format: "dev-{org_slug}-tomb-{n}" — no seed in tombstone ID per BC-3.4.004 TV-3.4.004-07
-    let id = format!("dev-{}-tomb-{}", org_slug, tomb_index);
+    // Format: "dev-{org_slug}-{seed}-tomb-{n}" — seed is required per BC-3.4.004 Invariant 2
+    let id = format!("dev-{}-{}-tomb-{}", org_slug, seed, tomb_index);
     // P1-02: anchor-derived per-record timestamps (RNG-free stable_offset).
     // deleted_at = lastSeen + 1 hour, clamped to the anchor (the device
     // disappeared shortly after last sight, never "in the future").

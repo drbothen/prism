@@ -811,9 +811,15 @@ fn test_bc_3_4_004_first_asset_id_follows_format() {
 
 /// BC-3.4.004 postcondition table (tombstone) / TV-3.4.004-07 / EC-004:
 /// HighChurn tombstone IDs follow `dev-{org_slug}-{seed}-tomb-{n}` pattern.
+///
+/// The FULL canonical format is `dev-{org_slug}-{seed}-tomb-{n}` — the seed
+/// MUST be present between the org_slug and the "-tomb-" suffix.
+/// BC-3.4.004 Invariant 2: the prefix formula `dev-{slug}-{seed}` applies
+/// consistently to ALL record types (assets AND tombstones).
+/// EC-3.4.004-07 and TV-3.4.004-07 require the seed component.
 #[test]
 fn test_bc_3_4_004_tombstone_ids_follow_pattern() {
-    let opts = GenOpts::default();
+    let opts = GenOpts::default(); // seed = 42
     let fs = generate(org_a(), SLUG_A, Archetype::HighChurn, &opts);
 
     let tombstones: Vec<&Value> = fs
@@ -824,14 +830,24 @@ fn test_bc_3_4_004_tombstone_ids_follow_pattern() {
         })
         .collect();
 
+    assert!(
+        !tombstones.is_empty(),
+        "BC-3.4.004 TV-3.4.004-07: HighChurn must produce tombstone records"
+    );
+
     for (i, tomb) in tombstones.iter().enumerate() {
         let id = tomb["id"].as_str().unwrap_or("");
+        // The full pattern: dev-{slug}-{seed}-tomb-{n}
+        // Seed must appear between the slug and "-tomb-" suffix.
+        let seed_prefix = format!("{}-{}-tomb-", SLUG_A, opts.seed);
         assert!(
-            id.contains(&format!("{}-tomb-", SLUG_A)),
-            "BC-3.4.004 TV-3.4.004-07: tombstone[{}] id '{}' must contain '{}-tomb-'",
+            id.contains(&seed_prefix),
+            "BC-3.4.004 TV-3.4.004-07: tombstone[{}] id '{}' must contain \
+             '{}' (seed {} must be present per BC-3.4.004 Invariant 2 / EC-3.4.004-07)",
             i,
             id,
-            SLUG_A
+            seed_prefix,
+            opts.seed
         );
     }
 }
