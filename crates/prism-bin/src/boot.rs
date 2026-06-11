@@ -2382,7 +2382,7 @@ pub(crate) fn wire_config_swap_cache_flush(
             ),
             Err(e) => tracing::error!(
                 error = %e,
-                "config snapshot swapped but response-cache flush failed (E-CACHE-001) — \
+                "config snapshot swapped but response-cache flush failed — \
                  cached entries may carry stale normalization until TTL expiry; \
                  terminate and restart the query engine"
             ),
