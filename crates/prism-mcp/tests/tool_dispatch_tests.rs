@@ -161,23 +161,12 @@ fn test_BC_2_10_007_map_prism_error_capability_denied_to_32002() {
     );
 }
 
-/// BC-2.10.007: PrismError::FeatureFlagDisabled maps to -32002 (Forbidden).
-///
-/// Canonical variant for feature-flag-denied scenario per ADR-022 §F.
-#[test]
-fn test_BC_2_10_007_map_prism_error_feature_flag_disabled_to_32002() {
-    let err = PrismError::FeatureFlagDisabled {
-        flag: "write.crowdstrike".to_owned(),
-    };
-    let (code, _message) = map_prism_error(err);
-    assert_eq!(
-        code,
-        codes::FORBIDDEN,
-        "FeatureFlagDisabled must map to FORBIDDEN ({}) for AC-7; got {}",
-        codes::FORBIDDEN,
-        code
-    );
-}
+// P2-03(c) (2026-06-10 review pass-2): the FeatureFlagDisabled→-32002 pinning
+// test was removed together with the PrismError::FeatureFlagDisabled variant —
+// the variant had zero spec backing (no .factory/specs hit, incl. BC-2.10.007)
+// and zero production emitters. The feature-flag-denied scenario maps via
+// CapabilityDenied (E-FLAG-001 runtime / E-FLAG-002 compile), covered by the
+// CapabilityDenied test above.
 
 /// BC-2.10.007: PrismError::McpParameterInvalid maps to -32602 (Invalid params).
 ///

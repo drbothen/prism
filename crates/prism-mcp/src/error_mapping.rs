@@ -40,15 +40,12 @@ pub fn map_prism_error(err: PrismError) -> (i32, String) {
         // E-QUERY-005: Query timeout → -32001 Timeout
         PrismError::QueryTimeout { .. } => (codes::TIMEOUT, "Query timeout exceeded".to_owned()),
 
-        // E-FLAG-001: Capability denied → -32002 Forbidden
+        // E-FLAG-001 (runtime tier) / E-FLAG-002 (compile tier): capability
+        // denied → -32002 Forbidden. Both tiers surface as CapabilityDenied
+        // (BC-2.04.015; P2-03 2026-06-10 review pass-2 — the spec-unbacked
+        // FeatureFlagDisabled variant was removed from PrismError).
         // Display includes full context per BC-2.10.007.
         PrismError::CapabilityDenied { .. } => (codes::FORBIDDEN, format!("{err}")),
-
-        // E-FLAG-002: Feature flag disabled → -32002 Forbidden
-        PrismError::FeatureFlagDisabled { flag } => (
-            codes::FORBIDDEN,
-            format!("Feature flag denied: flag '{flag}' is disabled; write operations are locked"),
-        ),
 
         // E-FLAG-010: Feature flag eval error → -32002 Forbidden
         PrismError::FeatureFlagEvalError { flag, detail } => (

@@ -1365,7 +1365,9 @@ fn build_query_options(
 ///
 /// HIGH-008 / MED-001: uses `codes::NOT_IMPLEMENTED` (-32003) consistently.
 /// This helper ensures all operations tools use the same error code and message
-/// format (not raw string Err or FeatureFlagDisabled).
+/// format (not raw string Err or a Forbidden-class policy denial; the
+/// `FeatureFlagDisabled` variant referenced by the original finding was removed
+/// in P2-03, 2026-06-10 review pass-2).
 fn not_yet_available_msg(feature: &str) -> rmcp::model::ErrorData {
     rmcp::model::ErrorData::new(
         rmcp::model::ErrorCode(codes::NOT_IMPLEMENTED),
@@ -5026,8 +5028,9 @@ mod tests {
 
     /// BC-2.10.003: confirm_action returns Internal error when WriteExecutor is not wired.
     ///
-    /// MED-006 fix: should NOT return FeatureFlagDisabled (implies policy denial),
-    /// but Internal (dependency not wired at boot step 9).
+    /// MED-006 fix: should NOT return a Forbidden-class policy denial (at the
+    /// time, the since-removed FeatureFlagDisabled variant; P2-03 2026-06-10
+    /// review pass-2), but Internal (dependency not wired at boot step 9).
     #[tokio::test]
     async fn test_confirm_action_returns_internal_when_not_wired() {
         let server = PrismServer::new();
@@ -5042,7 +5045,7 @@ mod tests {
         );
         let err = result.unwrap_err();
         let msg = err.message.to_string();
-        // Must be Internal (-32000), NOT FeatureFlagDisabled (-32002).
+        // Must be Internal (-32000), NOT a Forbidden-class denial (-32002).
         assert_eq!(
             err.code.0,
             codes::INTERNAL_ERROR,

@@ -90,12 +90,19 @@ fn test_ac5_prism_error_display_e_cred_001() {
 }
 
 /// AC-5: E-FLAG category.
+///
+/// P2-03(c) (2026-06-10 review pass-2): previously exercised the
+/// `FeatureFlagDisabled` variant, which was removed (zero spec backing, zero
+/// production emitters; E-FLAG-002 is the compile-tier `CapabilityDenied`
+/// denial per BC-2.04.015 v1.2). E-FLAG category Display coverage is preserved
+/// via `FeatureFlagEvalError` (E-FLAG-010).
 #[test]
-fn test_ac5_prism_error_display_e_flag_002() {
-    let err = PrismError::FeatureFlagDisabled {
+fn test_ac5_prism_error_display_e_flag_010() {
+    let err = PrismError::FeatureFlagEvalError {
         flag: "sensor.write".to_string(),
+        detail: "evaluation failed".to_string(),
     };
-    assert_error_code_prefix(&err, "E-FLAG-002");
+    assert_error_code_prefix(&err, "E-FLAG-010");
 }
 
 /// AC-5: E-OCSF category.

@@ -40,16 +40,18 @@ pub enum CompileTimeGate {
 // ─────────────────────────────────────────────────────────────
 
 /// The outcome of a two-tier capability check, including the denial tier and
-/// resolution trace required by E-FLAG-001 (BC-2.04.015).
+/// resolution trace required by the structured capability-denied errors
+/// (E-FLAG-001 runtime tier / E-FLAG-002 compile tier, BC-2.04.015).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum CapabilityCheckResult {
     /// Both tiers passed — the operation is permitted.
     Allowed,
-    /// Denied by the compile-time tier (Cargo feature absent).
+    /// Denied by the compile-time tier (no write-endpoint declaration;
+    /// registry-derived per BC-2.04.001 v1.2 / BC-2.16.012).
     DeniedCompileTime {
         capability: String,
         client_id: String,
-        /// Ordered resolution trace for E-FLAG-001 structured error.
+        /// Ordered resolution trace for the E-FLAG-002 structured error.
         resolution_trace: Vec<String>,
     },
     /// Denied by the runtime tier (capability not in client config).
@@ -189,7 +191,9 @@ impl FeatureFlagEvaluator {
     }
 
     /// Convert a `CapabilityCheckResult::Denied*` into a structured
-    /// `PrismError::CapabilityDenied` (E-FLAG-001, BC-2.04.015).
+    /// `PrismError::CapabilityDenied` (BC-2.04.015) — E-FLAG-001 for the
+    /// runtime tier (`DeniedRuntime`) or E-FLAG-002 for the compile tier
+    /// (`DeniedCompileTime`).
     ///
     /// Returns `None` if the result is `Allowed`.
     pub fn to_error(&self, result: &CapabilityCheckResult) -> Option<PrismError> {
