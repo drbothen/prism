@@ -42,6 +42,78 @@ use prism_dtu_common::generator::{
 use serde_json::{json, Value};
 
 // ---------------------------------------------------------------------------
+// Per-record diversity pools (P12-01)
+//
+// All pools are derived from the static fixture (fixtures/devices.json) to
+// maintain realistic OT/IoT sensor diversity consistent with the demo data.
+// Index selection uses the RNG-free `stable_offset` fold via
+// `prism_dtu_common::stable_offset(record_key, seed.wrapping_add(N))` —
+// no draws from the primary ChaCha20 stream, so
+// INV-SECONDARY-RNG-STREAM-INDEPENDENCE-001 is preserved (BC-3.4.001).
+// ---------------------------------------------------------------------------
+
+/// Realistic OT/IoT OS names drawn from the static devices.json fixture pool.
+const OS_NAME_POOL: &[&str] = &[
+    "IOS",
+    "IOS XE",
+    "PAN-OS",
+    "S7-1500",
+    "Windows",
+    "Windows Server",
+    "Linux",
+    "Logix 5000",
+    "EcoStruxure",
+    "Niagara",
+    "AXIS OS",
+    "ArubaOS",
+    "RTU500",
+    "DSM",
+    "FactoryTalk",
+    "APC NMC",
+    "Tracer SC+",
+    "Spectrum IQ",
+    "HP FutureSmart",
+    "CUCM",
+    "RIVA",
+    "KRC4",
+    "iCLASS SE",
+];
+
+/// Realistic OT/IoT manufacturer names drawn from the static devices.json fixture pool.
+const MANUFACTURER_POOL: &[&str] = &[
+    "Siemens",
+    "Cisco",
+    "Rockwell",
+    "Schneider",
+    "Honeywell",
+    "ABB",
+    "Allen-Bradley",
+    "Palo Alto",
+    "Axis",
+    "Aruba",
+    "HP",
+    "Dell",
+    "Moxa",
+    "Advantech",
+    "Hikvision",
+    "KUKA",
+    "Trane",
+    "Itron",
+    "OSIsoft",
+    "Baxter",
+    "Endress+Hauser",
+    "HID",
+    "APC",
+    "Synology",
+];
+
+/// Realistic risk score values (5..=95, drawn from static fixture distribution).
+const RISK_SCORE_POOL: &[u64] = &[
+    5, 8, 10, 15, 18, 20, 25, 30, 35, 38, 40, 45, 50, 55, 60, 62, 65, 70, 72, 78, 82, 85, 88, 90,
+    95,
+];
+
+// ---------------------------------------------------------------------------
 // Unregistered org sentinel (VP-121)
 // ---------------------------------------------------------------------------
 
@@ -286,11 +358,18 @@ fn generate_schema_drift(org_id: &OrgId, org_slug: &str, opts: &GenOpts) -> Fixt
     let drift_id = format!("drift-{}-{}-0", org_slug, opts.seed);
     let (drift_last_dt, drift_first_dt) =
         derive_seen_window(&drift_id, opts.seed, opts.time_anchor);
+    // P12-01: the schema drift is ONLY the missing "id" key. The other columns
+    // (os_name, risk_score, manufacturer) should be populated — a device without
+    // an ID still has an OS, manufacturer, and risk level. Null on these columns
+    // is not part of the schema-drift intent and would pollute the live demo.
+    let drift_os = derive_os_name(&drift_id, opts.seed);
+    let drift_mfr = derive_manufacturer(&drift_id, opts.seed);
+    let drift_risk = derive_risk_score(&drift_id, opts.seed);
     // P2-01: additive flat snake_case TOML-parity keys (see build_asset).
     // The drift is the missing camelCase "id" key — the flat keys are
     // unaffected by the schema-drift semantics.
     let drifted = json!({
-        // "id" intentionally omitted — schema-drifted record
+        // "id" intentionally omitted — schema-drifted record (BC-3.4.003 invariant 4)
         "asset_id": drift_id.clone(),
         "device_id": drift_id,
         "name": format!("drifted-device-{}", org_slug),
@@ -305,13 +384,13 @@ fn generate_schema_drift(org_id: &OrgId, org_slug: &str, opts: &GenOpts) -> Fixt
         "ip_address": null,
         "macAddress": null,
         "mac_address": null,
-        "manufacturer": null,
+        "manufacturer": drift_mfr,
         "model": null,
         "firmwareVersion": null,
-        "operatingSystem": null,
-        "os_name": null,
-        "riskLevel": null,
-        "risk_score": null,
+        "operatingSystem": drift_os,
+        "os_name": drift_os,
+        "riskLevel": drift_risk,
+        "risk_score": drift_risk,
         "site": null,
         "zone": null
     });
@@ -378,6 +457,31 @@ fn generate_dormant_tenant(org_id: &OrgId, org_slug: &str, opts: &GenOpts) -> Fi
 // ---------------------------------------------------------------------------
 // Record builders
 // ---------------------------------------------------------------------------
+
+/// Pick a per-record OS name from `OS_NAME_POOL` using the RNG-free stable_offset
+/// fold (P12-01 — seed offset 2 avoids collision with the seen-window derivations
+/// at offsets 0 and 1).
+fn derive_os_name(record_key: &str, seed: u64) -> &'static str {
+    let idx = prism_dtu_common::stable_offset(record_key, seed.wrapping_add(2)) as usize
+        % OS_NAME_POOL.len();
+    OS_NAME_POOL[idx]
+}
+
+/// Pick a per-record manufacturer from `MANUFACTURER_POOL` using the RNG-free
+/// stable_offset fold (P12-01 — seed offset 3 avoids collision with offsets 0..2).
+fn derive_manufacturer(record_key: &str, seed: u64) -> &'static str {
+    let idx = prism_dtu_common::stable_offset(record_key, seed.wrapping_add(3)) as usize
+        % MANUFACTURER_POOL.len();
+    MANUFACTURER_POOL[idx]
+}
+
+/// Pick a per-record risk score from `RISK_SCORE_POOL` using the RNG-free
+/// stable_offset fold (P12-01 — seed offset 4 avoids collision with offsets 0..3).
+fn derive_risk_score(record_key: &str, seed: u64) -> u64 {
+    let idx = prism_dtu_common::stable_offset(record_key, seed.wrapping_add(4)) as usize
+        % RISK_SCORE_POOL.len();
+    RISK_SCORE_POOL[idx]
+}
 
 /// Derive a per-record `(lastSeen, firstSeen)` pair from the time anchor
 /// (review-2026-06-10 P1-02).
@@ -453,6 +557,18 @@ fn build_asset(
         id_index % 256
     );
 
+    // P12-01 (review-2026-06-10 cascade pass-12, HIGH / demo-critical):
+    // os_name / operatingSystem and risk_score / riskLevel were null for EVERY
+    // generated device — the demo harness uses new_with_seed which serves
+    // generator output verbatim, so the live demo showed 100% NULL for both
+    // columns. manufacturer was hardcoded "Siemens" for all records.
+    // Fix: derive deterministic non-null values from per-record pools using the
+    // same RNG-free stable_offset fold used for timestamps (seed offsets 2, 3, 4
+    // avoid collision with the seen-window fold at offsets 0 and 1).
+    let os_name = derive_os_name(&string_id, seed);
+    let manufacturer = derive_manufacturer(&string_id, seed);
+    let risk_score = derive_risk_score(&string_id, seed);
+
     // P2-01 (review 2026-06-10 cascade pass-2, SAP-2): in addition to the
     // camelCase real-API keys, emit ADDITIVE flat snake_case TOML-parity keys
     // (device_id, last_seen, first_seen, ip_address, mac_address, os_name,
@@ -476,13 +592,13 @@ fn build_asset(
         "ip_address": ip_address,
         "macAddress": mac_address.clone(),
         "mac_address": mac_address,
-        "manufacturer": "Siemens",
+        "manufacturer": manufacturer,
         "model": null,
         "firmwareVersion": null,
-        "operatingSystem": null,
-        "os_name": null,
-        "riskLevel": null,
-        "risk_score": null,
+        "operatingSystem": os_name,
+        "os_name": os_name,
+        "riskLevel": risk_score,
+        "risk_score": risk_score,
         "site": format!("site-{}", id_index % 5),
         "zone": null
     })
@@ -508,6 +624,14 @@ fn build_tombstone(
     let last_seen = format_ts(last_dt);
     let first_seen = format_ts(first_dt);
     let deleted_at = format_ts(deleted_dt);
+    // P12-01: derive non-null os_name, manufacturer, risk_score for tombstones
+    // using the same pool + RNG-free stable_offset pattern as build_asset.
+    // Tombstone devices are real assets that disappeared — they had OS names,
+    // manufacturers, and risk scores before deletion.
+    let os_name = derive_os_name(&id, seed);
+    let manufacturer = derive_manufacturer(&id, seed);
+    let risk_score = derive_risk_score(&id, seed);
+
     // P2-01: additive flat snake_case TOML-parity keys (see build_asset).
     json!({
         "id": id,
@@ -525,13 +649,13 @@ fn build_tombstone(
         "ip_address": null,
         "macAddress": null,
         "mac_address": null,
-        "manufacturer": null,
+        "manufacturer": manufacturer,
         "model": null,
         "firmwareVersion": null,
-        "operatingSystem": null,
-        "os_name": null,
-        "riskLevel": null,
-        "risk_score": null,
+        "operatingSystem": os_name,
+        "os_name": os_name,
+        "riskLevel": risk_score,
+        "risk_score": risk_score,
         "site": null,
         "zone": null,
         "deleted_at": deleted_at,

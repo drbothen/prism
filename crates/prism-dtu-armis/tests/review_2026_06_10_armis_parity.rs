@@ -216,8 +216,10 @@ fn test_p2_01_static_alerts_cover_toml_columns() {
 // (CrowdStrike F4 additive pattern: flat == nested/camel agreement)
 // ---------------------------------------------------------------------------
 
-/// P2-01: on generated devices the additive flat keys mirror their camelCase
+/// P2-01 + P12-01: on generated devices the additive flat keys mirror their camelCase
 /// real-API counterparts exactly — the two shapes cannot drift apart.
+/// P12-01 addition: explicitly assert non-null on os_name/operatingSystem and
+/// risk_score/riskLevel pairs (equal-and-null is not acceptable).
 #[test]
 fn test_p2_01_generated_device_flat_keys_mirror_camelcase() {
     let mirrors = [
@@ -237,6 +239,26 @@ fn test_p2_01_generated_device_flat_keys_mirror_camelcase() {
                 "generated device[{i}] flat '{flat}' must mirror '{camel}' (P2-01)"
             );
         }
+        // P12-01: os_name and risk_score mirrors must be non-null (equal-to-null
+        // trivially satisfies the equality assertion but still serves null to the demo).
+        assert!(
+            !dev.get("os_name").is_some_and(serde_json::Value::is_null),
+            "generated device[{i}] os_name must not be null (P12-01)"
+        );
+        assert!(
+            !dev.get("operatingSystem")
+                .is_some_and(serde_json::Value::is_null),
+            "generated device[{i}] operatingSystem must not be null (P12-01)"
+        );
+        assert!(
+            !dev.get("risk_score")
+                .is_some_and(serde_json::Value::is_null),
+            "generated device[{i}] risk_score must not be null (P12-01)"
+        );
+        assert!(
+            !dev.get("riskLevel").is_some_and(serde_json::Value::is_null),
+            "generated device[{i}] riskLevel must not be null (P12-01)"
+        );
     }
 }
 
@@ -288,9 +310,144 @@ fn test_p2_01_generated_alert_flat_keys_mirror_api_shape() {
     }
 }
 
-/// P2-01: TOML column TYPES hold on the generated path — datetime columns are
+/// P12-01: every TOML-declared data column must be NON-NULL on the generated
+/// (seeded) path — the demo harness uses `new_with_seed` and serves generator
+/// output verbatim, so NULL values on declared columns mean 100% NULL in the
+/// live demo.
+///
+/// - `os_name` (TOML column_type = "string"): must be a non-empty string.
+/// - `risk_score` (TOML column_type = "integer"): must be a non-null u64.
+/// - `manufacturer` (TOML column_type = "string"): must be a non-empty string.
+/// - All other declared data columns: must be non-null (already covered by
+///   type assertions below, but belt-and-suspenders null check here).
+#[test]
+fn test_p12_01_generated_device_data_columns_non_null() {
+    let devices = generated_devices();
+    assert!(!devices.is_empty(), "must generate devices");
+    for (i, dev) in devices.iter().enumerate() {
+        // os_name: TOML string column — must be a non-empty, non-null string.
+        let os = dev
+            .get("os_name")
+            .and_then(serde_json::Value::as_str)
+            .unwrap_or_else(|| {
+                panic!(
+                    "generated device[{i}] os_name must be a non-null string \
+                     (P12-01: demo harness serves NULL for os_name on seeded path)"
+                )
+            });
+        assert!(
+            !os.is_empty(),
+            "generated device[{i}] os_name must be non-empty (P12-01)"
+        );
+
+        // risk_score: TOML integer column — must be a non-null u64 in range 1..=100.
+        let risk = dev
+            .get("risk_score")
+            .and_then(serde_json::Value::as_u64)
+            .unwrap_or_else(|| {
+                panic!(
+                    "generated device[{i}] risk_score must be a non-null integer \
+                     (P12-01: demo harness serves NULL for risk_score on seeded path)"
+                )
+            });
+        assert!(
+            (1..=100).contains(&risk),
+            "generated device[{i}] risk_score {risk} must be in range 1..=100 (P12-01)"
+        );
+
+        // manufacturer: TOML string column — must be a non-empty, non-null string
+        // (was hardcoded "Siemens" for all records — P12-01 requires per-record variance).
+        let mfr = dev
+            .get("manufacturer")
+            .and_then(serde_json::Value::as_str)
+            .unwrap_or_else(|| {
+                panic!("generated device[{i}] manufacturer must be a non-null string (P12-01)")
+            });
+        assert!(
+            !mfr.is_empty(),
+            "generated device[{i}] manufacturer must be non-empty (P12-01)"
+        );
+    }
+
+    // Variance check: manufacturer and os_name must not all be identical
+    // (deterministic per-record variance from a pool, not a single hardcoded value).
+    let manufacturers: std::collections::BTreeSet<String> = devices
+        .iter()
+        .filter_map(|d| d.get("manufacturer").and_then(serde_json::Value::as_str))
+        .map(String::from)
+        .collect();
+    assert!(
+        manufacturers.len() > 1,
+        "generated devices manufacturer must have > 1 distinct value (P12-01: \
+         was hardcoded 'Siemens' for all; require per-record pool variance), \
+         found: {manufacturers:?}"
+    );
+
+    let os_names: std::collections::BTreeSet<String> = devices
+        .iter()
+        .filter_map(|d| d.get("os_name").and_then(serde_json::Value::as_str))
+        .map(String::from)
+        .collect();
+    assert!(
+        os_names.len() > 1,
+        "generated devices os_name must have > 1 distinct value (P12-01: \
+         was null for all; require per-record pool variance), \
+         found: {os_names:?}"
+    );
+}
+
+/// P12-01: camelCase mirror fields (`operatingSystem`, `riskLevel`) must also be
+/// non-null and match their flat snake_case counterparts (P2-01 additive mirror
+/// pattern). Non-null guard: assert equality of values that are both non-null.
+#[test]
+fn test_p12_01_generated_device_camel_mirrors_non_null() {
+    for (i, dev) in generated_devices().iter().enumerate() {
+        // operatingSystem mirrors os_name — must be non-null string.
+        let os_flat = dev
+            .get("os_name")
+            .and_then(serde_json::Value::as_str)
+            .unwrap_or_else(|| panic!("generated device[{i}] os_name must be non-null (P12-01)"));
+        let os_camel = dev
+            .get("operatingSystem")
+            .and_then(serde_json::Value::as_str)
+            .unwrap_or_else(|| {
+                panic!(
+                    "generated device[{i}] operatingSystem must be non-null \
+                     (P12-01: must mirror os_name)"
+                )
+            });
+        assert_eq!(
+            os_flat, os_camel,
+            "generated device[{i}] os_name must equal operatingSystem (P12-01 mirror parity)"
+        );
+
+        // riskLevel mirrors risk_score — must be non-null u64.
+        let risk_flat = dev
+            .get("risk_score")
+            .and_then(serde_json::Value::as_u64)
+            .unwrap_or_else(|| {
+                panic!("generated device[{i}] risk_score must be non-null u64 (P12-01)")
+            });
+        let risk_camel = dev
+            .get("riskLevel")
+            .and_then(serde_json::Value::as_u64)
+            .unwrap_or_else(|| {
+                panic!(
+                    "generated device[{i}] riskLevel must be non-null u64 \
+                     (P12-01: must mirror risk_score)"
+                )
+            });
+        assert_eq!(
+            risk_flat, risk_camel,
+            "generated device[{i}] risk_score must equal riskLevel (P12-01 mirror parity)"
+        );
+    }
+}
+
+/// P2-01 + P12-01: TOML column TYPES hold on the generated path — datetime columns are
 /// ISO-8601 datetime strings (anchor-derived per the P1-02 pattern), string
-/// columns are strings, and `risk_score` is integer-or-null.
+/// columns are strings, and `risk_score` is a non-null integer (P12-01 removes
+/// the null escape that was masking the bug).
 #[test]
 fn test_p2_01_generated_flat_key_types_match_toml() {
     for (i, dev) in generated_devices().iter().enumerate() {
@@ -308,16 +465,18 @@ fn test_p2_01_generated_flat_key_types_match_toml() {
             "manufacturer",
             "ip_address",
             "mac_address",
+            "os_name",
         ] {
             assert!(
                 dev.get(col).is_some_and(serde_json::Value::is_string),
                 "generated device[{i}] '{col}' must be a string (TOML column_type)"
             );
         }
+        // P12-01: risk_score must be a non-null integer (removed `is_null() ||` escape).
         let risk = dev.get("risk_score").expect("risk_score key present");
         assert!(
-            risk.is_null() || risk.is_u64(),
-            "generated device[{i}] risk_score must be integer-or-null (TOML integer), got {risk}"
+            risk.is_u64(),
+            "generated device[{i}] risk_score must be a non-null integer (TOML integer, P12-01), got {risk}"
         );
     }
     for (i, alert) in generated_alerts().iter().enumerate() {
