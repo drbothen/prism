@@ -343,3 +343,97 @@ fn test_p2_01_generated_flat_key_types_match_toml() {
         }
     }
 }
+
+// ---------------------------------------------------------------------------
+// P2-02 — seeded-path AQL after:/before: window filtering (wire level)
+// ---------------------------------------------------------------------------
+//
+// The seeded branches of routes/search.rs bypassed the AQL time-window
+// filtering that the static branches apply (alert_in_time_window /
+// device_in_time_window) — every bounded window returned ALL seeded records.
+// Post-P2-01 the flat timestamp keys exist on generated records, so the same
+// filtering now applies. Wire-level coverage per the CrowdStrike CS-04
+// precedent: a window covering the demo anchor returns > 0 rows; a window
+// entirely before all generated timestamps returns 0 rows.
+
+/// Spin up a seeded clone and return `data.results` for the given AQL string.
+async fn seeded_search_results(aql: &str) -> Vec<serde_json::Value> {
+    use prism_dtu_common::BehavioralClone;
+
+    let mut clone = prism_dtu_armis::ArmisClone::new_with_seed(
+        42,
+        Archetype::CompromisedEndpoint,
+        deadbeef_org(),
+    )
+    .expect("seeded clone construction must succeed");
+    clone.start().await.expect("clone start must succeed");
+    let base_url = clone.base_url();
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build()
+        .expect("client build");
+
+    let resp = client
+        .get(format!("{base_url}/api/v1/search"))
+        .query(&[("aql", aql)])
+        .header("Authorization", "Bearer test-token-p202")
+        .send()
+        .await
+        .expect("request must succeed");
+    assert_eq!(resp.status(), 200, "search must return 200 for AQL '{aql}'");
+    let body: serde_json::Value = resp.json().await.expect("json body");
+    let results = body["data"]["results"]
+        .as_array()
+        .expect("data.results array")
+        .clone();
+
+    clone.stop().await.expect("clone stop must succeed");
+    results
+}
+
+/// P2-02: seeded DEVICES — covering window (demo-era anchor 2026-01-01, device
+/// last_seen offsets ≤ 7 days earlier) returns > 0 rows; a window entirely
+/// before all generated timestamps returns 0 rows.
+#[tokio::test]
+async fn test_p2_02_seeded_devices_aql_window_filters() {
+    let covering =
+        seeded_search_results("in:devices after:2025-12-01T00:00:00 before:2026-01-02T00:00:00")
+            .await;
+    assert!(
+        !covering.is_empty(),
+        "seeded devices: window covering the anchor must return > 0 rows"
+    );
+
+    let pre_anchor =
+        seeded_search_results("in:devices after:2020-01-01T00:00:00 before:2021-01-01T00:00:00")
+            .await;
+    assert!(
+        pre_anchor.is_empty(),
+        "seeded devices: window entirely before all generated timestamps must \
+         return 0 rows, got {} (P2-02: seeded branch bypasses AQL window filtering)",
+        pre_anchor.len()
+    );
+}
+
+/// P2-02: seeded ALERTS — same covering/pre-anchor window contract, filtered
+/// by `created_at` (the flat P2-01 key mirroring alert `time`).
+#[tokio::test]
+async fn test_p2_02_seeded_alerts_aql_window_filters() {
+    let covering =
+        seeded_search_results("in:alerts after:2025-12-01T00:00:00 before:2026-01-02T00:00:00")
+            .await;
+    assert!(
+        !covering.is_empty(),
+        "seeded alerts: window covering the anchor must return > 0 rows"
+    );
+
+    let pre_anchor =
+        seeded_search_results("in:alerts after:2020-01-01T00:00:00 before:2021-01-01T00:00:00")
+            .await;
+    assert!(
+        pre_anchor.is_empty(),
+        "seeded alerts: window entirely before all generated timestamps must \
+         return 0 rows, got {} (P2-02)",
+        pre_anchor.len()
+    );
+}
