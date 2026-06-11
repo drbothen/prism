@@ -423,11 +423,17 @@ async fn test_BC_3_6_001_jira_rate_limit_honored() {
 // PAGERDUTY — AuthReject
 // ---------------------------------------------------------------------------
 
-/// BC-3.6.001 Postcondition 1: AuthReject → HTTP 401 on post_enqueue.
+/// BC-3.6.001 Postcondition 1 / PagerDuty-specific contract: AuthReject → HTTP 403
+/// with body `{"status": "invalid key"}`.
 ///
-/// Note: Prior PagerDuty implementation returned 403 for auth_reject via
-/// `PdHarnessState.auth_reject`; BC-3.6.001 mandates 401 for AuthReject.
-/// Phase 2 ports `apply_failure_mode` which returns 401.
+/// BC-3.6.001 Postcondition 1 generically says "401" for AuthReject, but the PagerDuty
+/// Events API returns HTTP 403 for an invalid routing key ("invalid key"), which is the
+/// behavior the real `prism-dtu-pagerduty` clone has always served. The harness clone
+/// must match the real clone's contract. BC-3.6.001 line 41 acknowledges "auth-reject
+/// (401/403)" — per-clone variation is expected.
+///
+/// Authoritative anchor: `fidelity.rs::test_ac8_auth_reject_mode_returns_403` and
+/// `harness_tests.rs::test_BC_3_5_001_pd_ac8_auth_reject_mode_returns_403` (BC-3.5.001).
 #[tokio::test]
 async fn test_BC_3_6_001_pagerduty_auth_reject_honored() {
     let harness = prism_dtu_harness::Harness::builder()
@@ -452,9 +458,10 @@ async fn test_BC_3_6_001_pagerduty_auth_reject_honored() {
 
     let status = pd_enqueue(&client, addr).await;
     assert_eq!(
-        status, 401,
-        "PagerDuty post_enqueue must return 401 under AuthReject \
-         (BC-3.6.001 Postcondition 1 / Invariant 5)"
+        status, 403,
+        "PagerDuty post_enqueue must return 403 under AuthReject — \
+         PagerDuty Events API uses 403 'invalid key' for bad routing_key; \
+         harness clone must match real-clone contract (BC-3.5.001 / fidelity.rs AC-8)"
     );
 }
 

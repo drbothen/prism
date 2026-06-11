@@ -178,7 +178,7 @@ fn resolve_org_id(headers: &HeaderMap) -> String {
 // counter → apply_failure_mode → normal processing.
 //
 // All 6 modes are represented:
-//   AuthReject → 401
+//   AuthReject → 403 "invalid key" (PagerDuty-specific; real Events API returns 403 for bad routing_key)
 //   InternalError → 500 at at_request_n
 //   RateLimit → 429 after N requests
 //   NetworkTimeout → sleep(after_ms) (EC-007: 0ms = no-op)
@@ -195,8 +195,8 @@ fn apply_failure_mode(mode: &FailureMode, n: u32) -> Option<axum::response::Resp
         FailureMode::None => None,
         FailureMode::AuthReject => Some(
             (
-                StatusCode::UNAUTHORIZED,
-                Json(json!({"status": "unauthorized", "message": "Auth rejected by failure mode"})),
+                StatusCode::FORBIDDEN,
+                Json(json!({"status": "invalid key", "message": "Forbidden"})),
             )
                 .into_response(),
         ),
