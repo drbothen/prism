@@ -24,6 +24,7 @@ fn test_BC_2_09_004_ac4_envelope_original_data_intact_flags_in_meta() {
         1,
         false,
         None,
+        None,
     );
 
     let json_val = serde_json::to_value(&envelope).expect("serialize");
@@ -69,6 +70,7 @@ fn test_BC_2_09_004_multiple_injections_all_in_meta_safety_flags() {
         results,
         1,
         false,
+        None,
         None,
     );
 

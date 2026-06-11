@@ -256,6 +256,7 @@ fn test_BC_2_09_008_response_envelope_wrapping_with_trust_metadata() {
         1,
         false,
         None,
+        None,
     );
 
     // AC-3 assertion 1: trust_level present and correct
@@ -292,6 +293,7 @@ fn test_BC_2_09_008_response_envelope_safety_flags_populated_on_injection() {
         results,
         1,
         false,
+        None,
         None,
     );
 

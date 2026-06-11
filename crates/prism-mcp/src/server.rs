@@ -51,6 +51,7 @@ use crate::{
     error_mapping::{codes, to_error_data},
     safety_envelope::{
         DataSource, ResponseEnvelope, ResponseEnvelopeSchema, SafetyEnvelopeBuilder,
+        AUDIT_EMISSION_FAILED_WARNING,
     },
 };
 
@@ -1391,12 +1392,22 @@ fn not_yet_available_msg(feature: &str) -> rmcp::model::ErrorData {
 ///
 /// The durable per-call write via `AuditWriter::write_tool_call` IS the
 /// production MCP tool-call audit mechanism (P1-04, 2026-06-10 review pass-1).
+///
+/// # Return value — `_meta.audit_warning` threading (P4-03, BC-2.05.001)
+///
+/// Returns `Some("audit emission failed")` ([`AUDIT_EMISSION_FAILED_WARNING`])
+/// when the durable audit write failed, `None` otherwise. Handlers that return
+/// a success envelope MUST thread this value into
+/// `SafetyEnvelopeBuilder::wrap(..., audit_warning)` so the response carries
+/// `_meta.audit_warning` per BC-2.05.001 EC-05-002. Handlers that return a
+/// JSON-RPC error (e.g. the `-32003 not_yet_available` stubs) have no `_meta`
+/// envelope to annotate and drop the value.
 async fn emit_tool_audit(
     audit_writer: Option<&Arc<dyn AuditWriter>>,
     tool: &str,
     client_id: Option<&str>,
     outcome: &str,
-) {
+) -> Option<String> {
     // Structured tracing emission — BC-2.16.002 catalog row: mcp.tool.called
     tracing::info!(
         event_type = "mcp.tool.called",
@@ -1413,11 +1424,13 @@ async fn emit_tool_audit(
                 tracing::warn!(
                     tool_name = %tool,
                     error = %e,
-                    audit_warning = "audit emission failed",
+                    audit_warning = AUDIT_EMISSION_FAILED_WARNING,
                     "emit_tool_audit: durable tool-call audit write failed — \
                      tool call proceeds (read-path audit is not fail-closed)"
                 );
+                return Some(AUDIT_EMISSION_FAILED_WARNING.to_owned());
             }
+            None
         }
         None => {
             // Test-only construction (PrismServer::new()) — production boot
@@ -1427,6 +1440,7 @@ async fn emit_tool_audit(
                 "emit_tool_audit: AuditWriter not wired — tracing-only audit \
                  (test-only construction path)"
             );
+            None
         }
     }
 }
@@ -1473,7 +1487,7 @@ impl PrismServer {
         }
         self.scan_inputs_audited("query", &inputs).await?;
 
-        emit_tool_audit(
+        let audit_warning = emit_tool_audit(
             self.audit_writer.as_ref(),
             "query",
             params
@@ -1556,6 +1570,7 @@ impl PrismServer {
             1,
             result.is_truncated,
             None,
+            audit_warning,
         );
         let envelope_val = serde_json::to_value(&envelope).map_err(|e| {
             to_error_data(PrismError::Internal {
@@ -1599,7 +1614,7 @@ impl PrismServer {
         }
         self.scan_inputs_audited("explain_query", &inputs).await?;
 
-        emit_tool_audit(
+        let audit_warning = emit_tool_audit(
             self.audit_writer.as_ref(),
             "explain_query",
             params
@@ -1675,6 +1690,7 @@ impl PrismServer {
             1,
             false,
             None,
+            audit_warning,
         );
         serde_json::to_value(&envelope)
             .map(rmcp::model::CallToolResult::structured)
@@ -1729,7 +1745,7 @@ impl PrismServer {
         }
         self.scan_inputs_audited("create_alias", &inputs).await?;
 
-        emit_tool_audit(
+        let audit_warning = emit_tool_audit(
             self.audit_writer.as_ref(),
             "create_alias",
             params.scope.as_deref(),
@@ -1801,6 +1817,7 @@ impl PrismServer {
             1,
             false,
             None,
+            audit_warning,
         );
         serde_json::to_value(&envelope)
             .map(rmcp::model::CallToolResult::structured)
@@ -1840,7 +1857,7 @@ impl PrismServer {
             validate_client_ids(std::slice::from_ref(client_id))?;
         }
 
-        emit_tool_audit(
+        let audit_warning = emit_tool_audit(
             self.audit_writer.as_ref(),
             "list_aliases",
             params.client_id.as_deref(),
@@ -1873,6 +1890,7 @@ impl PrismServer {
             1,
             false,
             None,
+            audit_warning,
         );
         serde_json::to_value(&envelope)
             .map(rmcp::model::CallToolResult::structured)
@@ -1915,7 +1933,7 @@ impl PrismServer {
         }
         self.scan_inputs_audited("delete_alias", &inputs).await?;
 
-        emit_tool_audit(
+        let audit_warning = emit_tool_audit(
             self.audit_writer.as_ref(),
             "delete_alias",
             params.scope.as_deref(),
@@ -1981,6 +1999,7 @@ impl PrismServer {
             1,
             false,
             None,
+            audit_warning,
         );
         serde_json::to_value(&envelope)
             .map(rmcp::model::CallToolResult::structured)
@@ -2023,7 +2042,7 @@ impl PrismServer {
         }
         self.scan_inputs_audited("explain_alias", &inputs).await?;
 
-        emit_tool_audit(
+        let audit_warning = emit_tool_audit(
             self.audit_writer.as_ref(),
             "explain_alias",
             params.scope.as_deref(),
@@ -2060,6 +2079,7 @@ impl PrismServer {
             1,
             false,
             None,
+            audit_warning,
         );
         serde_json::to_value(&envelope)
             .map(rmcp::model::CallToolResult::structured)
@@ -2107,7 +2127,7 @@ impl PrismServer {
         .await?;
         validate_client_ids(std::slice::from_ref(&params.client_id))?;
 
-        emit_tool_audit(
+        let audit_warning = emit_tool_audit(
             self.audit_writer.as_ref(),
             "confirm_action",
             Some(&params.client_id),
@@ -2508,8 +2528,15 @@ impl PrismServer {
             DataSource::Multiple(vec![])
         };
         // result_json is populated by the match arms above (write or alias path).
-        let envelope =
-            SafetyEnvelopeBuilder::wrap("confirm_action", datasource, result_json, 1, false, None);
+        let envelope = SafetyEnvelopeBuilder::wrap(
+            "confirm_action",
+            datasource,
+            result_json,
+            1,
+            false,
+            None,
+            audit_warning,
+        );
         serde_json::to_value(&envelope)
             .map(rmcp::model::CallToolResult::structured)
             .map_err(|e| {
@@ -2637,7 +2664,8 @@ impl PrismServer {
     pub async fn reload_config(
         &self,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
-        emit_tool_audit(self.audit_writer.as_ref(), "reload_config", None, "invoked").await;
+        let audit_warning =
+            emit_tool_audit(self.audit_writer.as_ref(), "reload_config", None, "invoked").await;
 
         // CRIT-4 fix: reload from disk using real ConfigManager + spec_dir.
         let Some(cm_arc) = &self.config_manager else {
@@ -2677,6 +2705,7 @@ impl PrismServer {
             1,
             false,
             None,
+            audit_warning,
         );
         serde_json::to_value(&envelope)
             .map(rmcp::model::CallToolResult::structured)
@@ -2722,7 +2751,7 @@ impl PrismServer {
         )
         .await?;
 
-        emit_tool_audit(
+        let audit_warning = emit_tool_audit(
             self.audit_writer.as_ref(),
             "add_sensor_spec",
             None,
@@ -2803,6 +2832,7 @@ impl PrismServer {
             1,
             false,
             None,
+            audit_warning,
         );
         serde_json::to_value(&envelope)
             .map(rmcp::model::CallToolResult::structured)
@@ -2834,7 +2864,7 @@ impl PrismServer {
     pub async fn list_sensor_specs(
         &self,
     ) -> Result<rmcp::model::CallToolResult, rmcp::model::ErrorData> {
-        emit_tool_audit(
+        let audit_warning = emit_tool_audit(
             self.audit_writer.as_ref(),
             "list_sensor_specs",
             None,
@@ -2882,6 +2912,7 @@ impl PrismServer {
             1,
             false,
             None,
+            audit_warning,
         );
         serde_json::to_value(&envelope)
             .map(rmcp::model::CallToolResult::structured)
@@ -2922,7 +2953,7 @@ impl PrismServer {
         )
         .await?;
 
-        emit_tool_audit(
+        let audit_warning = emit_tool_audit(
             self.audit_writer.as_ref(),
             "validate_config",
             None,
@@ -2966,6 +2997,7 @@ impl PrismServer {
             1,
             false,
             None,
+            audit_warning,
         );
         let _ = valid; // captured in the JSON above
         serde_json::to_value(&envelope)
@@ -3006,7 +3038,7 @@ impl PrismServer {
             validate_client_ids(std::slice::from_ref(client_id))?;
         }
 
-        emit_tool_audit(
+        let audit_warning = emit_tool_audit(
             self.audit_writer.as_ref(),
             "list_capabilities",
             params.client_id.as_deref(),
@@ -3075,6 +3107,7 @@ impl PrismServer {
             1,
             false,
             None,
+            audit_warning,
         );
         serde_json::to_value(&envelope)
             .map(rmcp::model::CallToolResult::structured)
@@ -7023,7 +7056,12 @@ mod tests {
         let recording = Arc::new(RecordingAudit::default());
         let writer: Arc<dyn AuditWriter> = recording.clone();
 
-        emit_tool_audit(Some(&writer), "query", Some("acme"), "invoked").await;
+        let warning = emit_tool_audit(Some(&writer), "query", Some("acme"), "invoked").await;
+        assert_eq!(
+            warning, None,
+            "BC-2.05.001 (P4-03): successful audit emission must return None — \
+             no _meta.audit_warning is threaded into the response"
+        );
 
         let calls = recording.tool_calls.lock().expect("test mutex").clone();
         assert_eq!(
@@ -7074,6 +7112,93 @@ mod tests {
         let writer: Arc<dyn AuditWriter> = Arc::new(FailingAudit);
         // Must complete without panic — failure is logged, not propagated.
         emit_tool_audit(Some(&writer), "query", None, "invoked").await;
+    }
+
+    /// BC-2.05.001 EC-05-002 (P4-03, 2026-06-10 review pass-4): when the
+    /// durable tool-call audit write fails, `emit_tool_audit` returns the
+    /// exact BC warning literal `"audit emission failed"` so handlers can
+    /// thread it into `_meta.audit_warning`.
+    ///
+    /// Mental-deletion proof: if emit_tool_audit reverts to returning `()`
+    /// (the pre-P4-03 behavior), this test fails to compile / assert.
+    #[tokio::test]
+    async fn test_BC_2_05_001_emit_tool_audit_returns_warning_on_failure() {
+        let writer: Arc<dyn AuditWriter> = Arc::new(FailingAudit);
+        let warning = emit_tool_audit(Some(&writer), "query", None, "invoked").await;
+        assert_eq!(
+            warning.as_deref(),
+            Some("audit emission failed"),
+            "BC-2.05.001 EC-05-002: audit emission failure must surface the \
+             exact BC literal 'audit emission failed' to the caller"
+        );
+        assert_eq!(
+            warning.as_deref(),
+            Some(crate::safety_envelope::AUDIT_EMISSION_FAILED_WARNING),
+            "the shared constant must equal the BC-2.05.001 literal"
+        );
+    }
+
+    /// BC-2.05.001 (P4-03): the test-only unwired path (AuditWriter not
+    /// wired via `PrismServer::new()`) returns None — no warning is
+    /// fabricated when there is no durable write to fail.
+    #[tokio::test]
+    async fn test_BC_2_05_001_emit_tool_audit_unwired_returns_none() {
+        let warning = emit_tool_audit(None, "query", None, "invoked").await;
+        assert_eq!(
+            warning, None,
+            "unwired AuditWriter (test-only construction) must not fabricate \
+             an audit_warning"
+        );
+    }
+
+    /// BC-2.05.001 EC-05-002 (P4-03) END-TO-END: a read tool whose durable
+    /// audit emission fails still SUCCEEDS, and its response carries
+    /// `_meta.audit_warning: "audit emission failed"`.
+    ///
+    /// Uses the full production handler path (`list_capabilities`) with a
+    /// failing AuditWriter wired at the server.
+    ///
+    /// Mental-deletion proof: if any handler stops threading the
+    /// emit_tool_audit return value into `SafetyEnvelopeBuilder::wrap`, the
+    /// serialized `_meta` loses the `audit_warning` key and this test FAILS.
+    #[tokio::test]
+    async fn test_BC_2_05_001_read_audit_failure_sets_meta_audit_warning() {
+        let mut server = server_with_write_executor("acme");
+        server.audit_writer = Some(Arc::new(FailingAudit));
+
+        let result = server
+            .list_capabilities(Parameters(ListCapabilitiesParams { client_id: None }))
+            .await
+            .expect("BC-2.05.001: read op must PROCEED on audit emission failure");
+        let json = envelope_json(result);
+        assert_eq!(
+            json["_meta"]["audit_warning"],
+            serde_json::json!("audit emission failed"),
+            "BC-2.05.001 EC-05-002: response _meta.audit_warning must carry the \
+             exact BC literal on read-path audit failure; got _meta: {}",
+            json["_meta"]
+        );
+    }
+
+    /// BC-2.05.001 (P4-03) END-TO-END complement: when the durable audit
+    /// emission SUCCEEDS, the response `_meta` has NO `audit_warning` key.
+    #[tokio::test]
+    async fn test_BC_2_05_001_read_audit_success_omits_meta_audit_warning() {
+        let mut server = server_with_write_executor("acme");
+        server.audit_writer = Some(Arc::new(RecordingAudit::default()));
+
+        let result = server
+            .list_capabilities(Parameters(ListCapabilitiesParams { client_id: None }))
+            .await
+            .expect("list_capabilities must succeed with a healthy AuditWriter");
+        let json = envelope_json(result);
+        let meta = json["_meta"].as_object().expect("_meta must be an object");
+        assert!(
+            !meta.contains_key("audit_warning"),
+            "BC-2.05.001: _meta.audit_warning must be OMITTED when audit \
+             emission succeeds; got _meta: {}",
+            json["_meta"]
+        );
     }
 
     /// MCP-03: an injection rejection must produce a durable rejection audit
