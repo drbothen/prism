@@ -742,7 +742,8 @@ pub enum PrismError {
          ({budget_bytes} bytes budget); query token cancelled"
     )]
     WatchdogKilled {
-        /// Configured memory budget in bytes (default 512 MiB).
+        /// Configured memory budget in bytes — default 512 MB (SI, 512_000_000 bytes)
+        /// per BC-2.15.006 / ADR-S2.02-002 ("512 MB" is SI decimal, NOT MiB).
         budget_bytes: usize,
     },
 

@@ -66,9 +66,12 @@ use crate::{
 /// Operates on `serde_json::Value` row maps only — no DataFusion, no Arrow.
 /// Non-object values in the slice are skipped without error.
 ///
-/// S-3.02 will call this function from the DataFusion `TableProvider` integration
-/// using the same virtual field injection path as `_sensor`, `_client`, and
-/// `_source_table` (S-2.08 Architecture Compliance Rule 5).
+/// Zero production callers as of S-3.02: `run_materialization_pipeline` shipped via
+/// the MemTable path without calling this function. The cold-start EventStream buffer
+/// routing (`SensorQueryDescriptor.rows_from_buffer` / `EventBufferStore` integration
+/// per S-2.08 Architecture Compliance Rule 5) is not yet wired into the pipeline;
+/// end-to-end wiring is tracked under TD-S302-005 alongside the deferred
+/// integration-test assertions in `tests/integration_tests.rs`.
 ///
 /// # AC-9
 /// Given `EventStream` rows from the buffer: every row has `"_source_type": "buffered"`.
@@ -76,8 +79,8 @@ use crate::{
 /// # AC-10
 /// Given `PointInTime` rows or cold-start fallback live rows:
 /// every row has `"_source_type": "live"`.
-// S-2.08 spec mandates &mut Vec<serde_json::Value> signature for S-3.02 wiring;
-// clippy::ptr_arg is suppressed intentionally.
+// S-2.08 spec mandates &mut Vec<serde_json::Value> signature for the pipeline
+// wiring (TD-S302-005); clippy::ptr_arg is suppressed intentionally.
 #[allow(clippy::ptr_arg)]
 pub fn inject_source_type(rows: &mut Vec<serde_json::Value>, descriptor: &SensorQueryDescriptor) {
     use prism_core::TableType;
