@@ -827,22 +827,23 @@ mod bc_gap_fill {
             );
         }
 
-        /// BC-2.11.006 EC-001: Memory pool limit exceeded → E-QUERY-004,
+        /// BC-2.11.006 EC-001: Memory pool limit exceeded → E-WATCHDOG-001,
         /// no partial results emitted.
         ///
         /// Tests that map_datafusion_memory_error maps ResourcesExhausted to
-        /// PrismError::QueryMemoryBudgetExceeded (E-QUERY-004).
+        /// PrismError::QueryMemoryBudgetExceeded (E-WATCHDOG-001 per
+        /// error-taxonomy.md).
         #[tokio::test]
         async fn test_BC_2_11_006_ec001_memory_pool_limit_no_partial_results() {
             use datafusion::error::DataFusionError;
             use prism_core::PrismError;
 
             let err = DataFusionError::ResourcesExhausted("pool exhausted".to_string());
-            let mapped = map_datafusion_memory_error(err);
+            let mapped = map_datafusion_memory_error(err, QUERY_MEMORY_POOL_BYTES);
 
             assert!(
                 matches!(mapped, PrismError::QueryMemoryBudgetExceeded { .. }),
-                "ResourcesExhausted must map to QueryMemoryBudgetExceeded (E-QUERY-004): {:?}",
+                "ResourcesExhausted must map to QueryMemoryBudgetExceeded (E-WATCHDOG-001): {:?}",
                 mapped
             );
         }
@@ -860,7 +861,7 @@ mod bc_gap_fill {
             let err = DataFusionError::ResourcesExhausted(
                 "Failed to allocate 209715201 bytes for sort".to_string(),
             );
-            let mapped = map_datafusion_memory_error(err);
+            let mapped = map_datafusion_memory_error(err, QUERY_MEMORY_POOL_BYTES);
             match mapped {
                 PrismError::QueryMemoryBudgetExceeded { used_mb, limit_mb } => {
                     // 209715201 bytes / (1024*1024) = 200 MiB (integer division)
@@ -878,7 +879,7 @@ mod bc_gap_fill {
             use prism_core::PrismError;
 
             let err = DataFusionError::ResourcesExhausted("pool exhausted".to_string());
-            let mapped = map_datafusion_memory_error(err);
+            let mapped = map_datafusion_memory_error(err, QUERY_MEMORY_POOL_BYTES);
             match mapped {
                 PrismError::QueryMemoryBudgetExceeded { used_mb, limit_mb } => {
                     assert_eq!(
@@ -934,41 +935,59 @@ mod bc_gap_fill {
 
             // A non-memory DataFusion error should wrap to QueryExecutionFailed (not QueryTimeout).
             let err = DataFusionError::Plan("some plan error".to_string());
-            let mapped = map_datafusion_memory_error(err);
+            let mapped = map_datafusion_memory_error(err, QUERY_MEMORY_POOL_BYTES);
             assert!(
                 matches!(mapped, PrismError::QueryExecutionFailed { .. }),
                 "Non-memory errors must map to QueryExecutionFailed: {:?}",
                 mapped
             );
-            // QueryTimeout (E-QUERY-005) is NOT QueryExecutionFailed.
+            // QueryTimeout (E-QUERY-004) is NOT QueryExecutionFailed.
             assert!(
                 !matches!(mapped, PrismError::QueryTimeout { .. }),
                 "map_datafusion_memory_error must NOT produce QueryTimeout"
             );
         }
 
-        /// BC-2.11.006 EC-003: Record cap error message includes count and sources.
+        /// BC-2.11.006 EC-003: Record cap error message includes count and limit.
         ///
-        /// Tests the QueryExecutionFailed error message format for record cap violations.
-        /// The actual cap enforcement is in run_materialization_pipeline.
+        /// Exercises the PRODUCTION error path (`increment_record_count`) rather
+        /// than a hand-constructed error string. Per error-taxonomy.md the
+        /// materialization limit is E-QUERY-005
+        /// (`QueryMaterializationLimitExceeded`).
         #[tokio::test]
-        async fn test_BC_2_11_006_ec003_record_cap_message_includes_count_and_sources() {
+        async fn test_BC_2_11_006_ec003_record_cap_message_includes_count_and_limit() {
+            use std::sync::Arc;
+
             use prism_core::PrismError;
-            // Simulate the error that would be emitted when record cap is exceeded.
-            // E-QUERY-003 is QueryExecutionFailed; the message includes count and sources.
-            let err = PrismError::QueryExecutionFailed {
-                detail:
-                    "E-QUERY-003: record cap exceeded: 10001 records from [crowdstrike.detections]"
-                        .to_string(),
-            };
+            use prism_ocsf::OcsfNormalizer;
+            use prism_sensors::AdapterRegistry;
+
+            use crate::materialization::MaterializationContext;
+
+            let mut ctx = MaterializationContext::new(
+                Arc::new(AdapterRegistry::new()),
+                Arc::new(OcsfNormalizer::new()),
+                10_000,
+            );
+            let err = ctx
+                .increment_record_count(10_001)
+                .expect_err("10,001 records must exceed the 10K cap");
+            assert!(
+                matches!(err, PrismError::QueryMaterializationLimitExceeded { .. }),
+                "record cap error must be QueryMaterializationLimitExceeded: {err:?}"
+            );
             let msg = err.to_string();
             assert!(
-                msg.contains("10001"),
-                "Record cap message must include count"
+                msg.contains("E-QUERY-005"),
+                "Record cap message must include E-QUERY-005: {msg}"
             );
             assert!(
-                msg.contains("crowdstrike.detections"),
-                "Record cap message must include sources"
+                msg.contains("10001"),
+                "Record cap message must include count: {msg}"
+            );
+            assert!(
+                msg.contains("10000"),
+                "Record cap message must include the limit: {msg}"
             );
         }
     }
@@ -1232,7 +1251,53 @@ mod bc_gap_fill {
     // =========================================================================
 
     mod memory_subsystem {
-        use crate::memory::{build_session_context, map_datafusion_memory_error};
+        use crate::memory::{
+            build_session_context, map_datafusion_memory_error, session_memory_pool_bytes,
+        };
+
+        /// P5-04 (review 2026-06-10, cascade pass-5): `limit_mb` must reflect the
+        /// ACTUAL pool size threaded by the caller, not the hardcoded
+        /// `QUERY_MEMORY_POOL_BYTES` default. The `used_mb` parse-failure
+        /// fallback must use the same threaded value.
+        #[test]
+        fn test_P5_04_non_default_pool_size_reported_in_limit_mb() {
+            use datafusion::error::DataFusionError;
+            use prism_core::PrismError;
+
+            // Message with no parseable byte count → used_mb falls back to the
+            // threaded limit, NOT the 200MB default.
+            let err = DataFusionError::ResourcesExhausted("pool exhausted".to_string());
+            let mapped = map_datafusion_memory_error(err, 50 * 1024 * 1024);
+            match mapped {
+                PrismError::QueryMemoryBudgetExceeded { limit_mb, used_mb } => {
+                    assert_eq!(
+                        limit_mb, 50,
+                        "limit_mb must reflect the threaded 50MiB pool, not the 200MB default"
+                    );
+                    assert_eq!(
+                        used_mb, 50,
+                        "used_mb parse-failure fallback must use the threaded pool size"
+                    );
+                }
+                other => panic!("expected QueryMemoryBudgetExceeded, got {other:?}"),
+            }
+        }
+
+        /// P5-04: `session_memory_pool_bytes` reads the configured pool size
+        /// back from the SessionContext built by `build_session_context`, so
+        /// the execution-stream error-mapping sites report the limit of the
+        /// pool that actually tripped.
+        #[test]
+        fn test_P5_04_session_memory_pool_bytes_reflects_configured_pool(
+        ) -> Result<(), Box<dyn std::error::Error>> {
+            let ctx = build_session_context(64 * 1024 * 1024)?;
+            assert_eq!(
+                session_memory_pool_bytes(&ctx),
+                64 * 1024 * 1024,
+                "session_memory_pool_bytes must return the GreedyMemoryPool's configured size"
+            );
+            Ok(())
+        }
 
         /// BC-2.11.006: build_session_context creates a per-query SessionContext.
         #[test]
@@ -1265,10 +1330,10 @@ mod bc_gap_fill {
             use prism_core::PrismError;
 
             let err = DataFusionError::ResourcesExhausted("pool limit exceeded".to_string());
-            let mapped = map_datafusion_memory_error(err);
+            let mapped = map_datafusion_memory_error(err, crate::memory::QUERY_MEMORY_POOL_BYTES);
             assert!(
                 matches!(mapped, PrismError::QueryMemoryBudgetExceeded { .. }),
-                "ResourcesExhausted must map to QueryMemoryBudgetExceeded (E-QUERY-004): {:?}",
+                "ResourcesExhausted must map to QueryMemoryBudgetExceeded (E-WATCHDOG-001): {:?}",
                 mapped
             );
         }
@@ -1281,7 +1346,7 @@ mod bc_gap_fill {
             use prism_core::PrismError;
 
             let err = DataFusionError::Plan("plan error".to_string());
-            let mapped = map_datafusion_memory_error(err);
+            let mapped = map_datafusion_memory_error(err, crate::memory::QUERY_MEMORY_POOL_BYTES);
             assert!(
                 matches!(mapped, PrismError::QueryExecutionFailed { .. }),
                 "Non-memory errors must wrap to QueryExecutionFailed: {:?}",
@@ -1304,7 +1369,7 @@ mod bc_gap_fill {
             let err = DataFusionError::Plan(
                 "internal plan detail that must not reach the client".to_string(),
             );
-            let mapped = map_datafusion_memory_error(err);
+            let mapped = map_datafusion_memory_error(err, crate::memory::QUERY_MEMORY_POOL_BYTES);
 
             match &mapped {
                 PrismError::QueryExecutionFailed { detail } => {
@@ -1410,7 +1475,11 @@ mod bc_gap_fill {
                 .execute_stream()
                 .await?;
 
-            let collected = collect_record_batch_stream(stream).await?;
+            // P5-04: thread the session's actual pool capacity, mirroring the
+            // production call in execute_against_session.
+            let collected =
+                collect_record_batch_stream(stream, crate::memory::session_memory_pool_bytes(&ctx))
+                    .await?;
 
             let total_rows: usize = collected.iter().map(|b| b.num_rows()).sum();
             assert_eq!(
@@ -1550,14 +1619,14 @@ mod bc_gap_fill {
                 .err()
                 .ok_or("expected increment over cap to return error")?;
             assert!(
-                matches!(err, PrismError::QueryExecutionFailed { .. }),
-                "over-cap error must be QueryExecutionFailed: {:?}",
+                matches!(err, PrismError::QueryMaterializationLimitExceeded { .. }),
+                "over-cap error must be QueryMaterializationLimitExceeded: {:?}",
                 err
             );
             let msg = err.to_string();
             assert!(
-                msg.contains("E-QUERY-003"),
-                "over-cap error must include E-QUERY-003: {msg}"
+                msg.contains("E-QUERY-005"),
+                "over-cap error must include E-QUERY-005 (error-taxonomy.md): {msg}"
             );
             Ok(())
         }

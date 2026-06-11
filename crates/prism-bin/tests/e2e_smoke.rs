@@ -128,7 +128,7 @@ async fn test_BC_2_11_005_e2e_crowdstrike_query_returns_ocsf_data() {
     // Table name: "detections" (crowdstrike.sensor.toml [[tables]] table_name = "detections").
     // Full qualified source: "crowdstrike_detections" — underscore notation per PrismQL SQL mode.
     // SQL form required: "FROM source LIMIT N" is invalid pipe syntax; use "SELECT * FROM ... LIMIT N".
-    // The resolver (sensor_id_from_table_name) rejects dot notation (E-QUERY-006).
+    // The resolver (sensor_id_from_table_name) rejects dot notation (E-QUERY-036 UnknownSourceTable).
     let response = mcp
         .tool_query("SELECT * FROM crowdstrike_detections LIMIT 5")
         .expect("tool_query failed for crowdstrike");

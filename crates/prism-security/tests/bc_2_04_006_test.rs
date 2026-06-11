@@ -7,7 +7,7 @@
 //  - When client_id is None, returns per-client breakdown.
 //  - EC-04-012: null client_id returns global matrix.
 //  - EC-04-013: zero write features → all write paths show compile_time: false.
-//  - Unknown client_id returns error (PrismError::ConfigValidationFailed).
+//  - Unknown client_id returns error (PrismError::ClientNotFound, E-CFG-100 per ADR-038 D3).
 //
 // Naming: test_BC_2_04_006_<assertion>
 #![allow(non_snake_case)]
@@ -225,7 +225,21 @@ fn test_BC_2_04_006_unknown_client_id_returns_error() {
     );
 
     let err = result.unwrap_err();
+    assert!(
+        matches!(
+            err,
+            prism_core::PrismError::ClientNotFound { ref client_id }
+                if client_id == "unknown-client"
+        ),
+        "BC-2.04.006: unknown client_id must return PrismError::ClientNotFound \
+         carrying the client_id (ADR-038 D3), got: {err}"
+    );
     let err_string = err.to_string();
+    assert!(
+        err_string.starts_with("E-CFG-100"),
+        "BC-2.04.006: error display must carry E-CFG-100, got: {}",
+        err_string
+    );
     assert!(
         err_string.contains("unknown-client"),
         "BC-2.04.006: error message must include the unknown client_id, got: {}",

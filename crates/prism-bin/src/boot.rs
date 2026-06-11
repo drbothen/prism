@@ -2327,6 +2327,69 @@ impl prism_query::write_dispatch::AuditWriter for BootAuditWriter {
     }
 }
 
+/// P1-03 interim mitigation: flush the sensor-fetch response cache on every
+/// config snapshot swap (review 2026-06-10 Item 1).
+///
+/// Cached entries store sensor responses in their normalized form (the
+/// human-authorized BC-2.07.003 deviation, P1-03 adjudication 2026-06-10;
+/// spec compliance lands in S-CACHE-SPEC-COMPLIANCE-001). The guarantee this
+/// flush provides: every snapshot swap evicts all pre-swap-epoch cache
+/// entries. Two caveats bound what that buys today:
+///
+/// 1. **Fetch-path normalization is boot-frozen.** `SpecDrivenSensorAdapter`
+///    holds an `Arc<ResolvedSensorSpec>` resolved at boot; a hot-reload swaps
+///    only the `ConfigSnapshot` and never rebuilds the `AdapterRegistry`, so
+///    a reload does not change how fresh fetches normalize. The flush is
+///    forward-provisioning for when adapters consume the live snapshot;
+///    today's risk posture is "the cache can never be staler than fresh
+///    fetches".
+/// 2. **In-flight queries can insert after the flush.** Under BC-2.16.006
+///    Guard semantics, a query that loaded its snapshot Guard before the swap
+///    completes under the OLD snapshot and may cache its result after the
+///    flush runs — swap-before-notify only covers queries that START after
+///    the swap.
+///
+/// Full reload-effectiveness (reload actually changing served normalization,
+/// with no stale residue) arrives with S-CACHE-SPEC-COMPLIANCE-001's
+/// normalize-on-read model.
+///
+/// Registers a swap listener on the boot-time `ConfigManager` instance.
+/// `ConfigManager::store` is the sole snapshot write path (BC-2.16.006), so
+/// the flush is structurally on EVERY production reload trigger:
+/// - the `reload_config` MCP tool (BC-2.16.005),
+/// - the `add_sensor_spec` MCP tool (BC-2.16.008), and
+/// - the S-1.12-FOLLOWUP hot-reload filesystem watcher when it ships (it calls
+///   the same spec-engine reload entry points, which land on `store`).
+///
+/// The outer `ArcSwap<ConfigManager>` is never re-stored after boot (only the
+/// inner `ArcSwap<ConfigSnapshot>` swaps), so the listener registered here
+/// stays live for the process lifetime.
+pub(crate) fn wire_config_swap_cache_flush(
+    config_manager: &arc_swap::ArcSwap<prism_spec_engine::config_manager::ConfigManager>,
+    cache_invalidator: Arc<
+        prism_query::invalidation::CacheInvalidator<prism_query::cache::SensorResponseValue>,
+    >,
+) {
+    let manager = config_manager.load_full();
+    manager.register_swap_listener(Box::new(move || {
+        // SAP-1 exemption: no event_type fields — operational reload diagnostics,
+        // not catalog-tracked structured events (no BC-2.16.002 row required).
+        match cache_invalidator.invalidate_all() {
+            Ok(evicted) => tracing::info!(
+                evicted,
+                "config snapshot swapped — response cache flushed \
+                 (P1-03 interim mitigation: purge entries normalized under the retired spec)"
+            ),
+            Err(e) => tracing::error!(
+                error = %e,
+                "config snapshot swapped but response-cache flush failed (E-CACHE-001) — \
+                 cached entries may carry stale normalization until TTL expiry; \
+                 terminate and restart the query engine"
+            ),
+        }
+    }));
+}
+
 /// Step 9 [BACKGROUND]: MCP server start.
 ///
 /// Constructs `QueryEngine` + `WriteExecutor` from available boot deps, builds
@@ -2572,12 +2635,29 @@ pub async fn step9_start_mcp_server(
     let write_adapter_registry = Arc::new(AdapterRegistry::new());
     let endpoint_registry = Arc::new(WriteEndpointRegistry::new());
 
+    // BC-2.07.004: the write path invalidates the SAME response cache the
+    // query engine's read pipeline populates (write-then-read consistency).
+    // Constructed from QueryEngine::response_cache() — never a fresh cache.
+    let cache_invalidator = Arc::new(prism_query::invalidation::CacheInvalidator::new(
+        query_engine.response_cache(),
+    ));
+
+    // P1-03 interim mitigation: every config snapshot swap (reload_config /
+    // add_sensor_spec / future hot-reload watcher — all land on
+    // ConfigManager::store per BC-2.16.006) evicts all pre-swap-epoch entries
+    // from the response cache (review 2026-06-10 Item 1; deviation authorized
+    // pending S-CACHE-SPEC-COMPLIANCE-001). See wire_config_swap_cache_flush
+    // docs for the two caveats bounding this guarantee (boot-frozen adapter
+    // normalization; in-flight pre-swap queries may insert after the flush).
+    wire_config_swap_cache_flush(&config_manager, Arc::clone(&cache_invalidator));
+
     let write_executor = Arc::new(WriteExecutor::new(
         feature_flags,
         confirmation_store,
         audit_writer.clone(),
         write_adapter_registry,
         endpoint_registry,
+        cache_invalidator,
     ));
 
     // ── Construct PrismServer and spawn serve_stdio ───────────────────────────
@@ -3300,6 +3380,135 @@ base_url = "https://armis.acme-corp.io"
             Err(e) => {
                 panic!("F-P2-MED-001: wrong error variant — expected ConfigInvalid, got: {e:?}")
             }
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Unit tests — wire_config_swap_cache_flush (P1-03 interim mitigation)
+// ---------------------------------------------------------------------------
+//
+// SID-1: in-process unit tests exercising the production wiring helper directly
+// against the real SensorResponseCache + ConfigManager types; no subprocess
+// spawning, no #[ignore], no external dependencies.
+
+#[cfg(test)]
+#[allow(clippy::expect_used)]
+mod p1_03_config_swap_cache_flush_tests {
+    use std::sync::Arc;
+
+    use arrow::{
+        array::StringArray,
+        datatypes::{DataType, Field, Schema},
+        record_batch::RecordBatch,
+    };
+
+    use super::*;
+
+    /// Build a small real RecordBatch so the cached entry has non-zero
+    /// estimated bytes (makes the post-flush accounting assertion load-bearing).
+    fn small_batch() -> RecordBatch {
+        let schema = Arc::new(Schema::new(vec![Field::new("id", DataType::Utf8, false)]));
+        RecordBatch::try_new(
+            schema,
+            vec![Arc::new(StringArray::from(vec!["row-1", "row-2"]))],
+        )
+        .expect("RecordBatch construction must succeed")
+    }
+
+    /// P1-03 hit→reload→miss: after `wire_config_swap_cache_flush`, a config
+    /// snapshot swap through `ConfigManager::store` (the BC-2.16.006 sole write
+    /// path used by reload_config / add_sensor_spec / the future hot-reload
+    /// watcher) must flush the response cache: an entry that hit before the
+    /// reload must miss after it, with byte accounting back to zero.
+    #[test]
+    fn test_p1_03_config_swap_flushes_response_cache_hit_then_miss() {
+        // Production cache instantiation (SensorResponseCache = Vec<RecordBatch>).
+        let cache = Arc::new(prism_query::cache::SensorResponseCache::with_defaults());
+        let key = prism_query::cache_key::CacheKey {
+            client_id: "acme".to_string(),
+            sensor_id: prism_core::SensorId::from("crowdstrike"),
+            source_id: "crowdstrike_devices".to_string(),
+            push_down_hash: "a".repeat(64),
+        };
+        cache
+            .put(key.clone(), vec![small_batch()])
+            .expect("cache put must succeed");
+        assert!(
+            cache.get(&key).expect("cache get must not fail").is_some(),
+            "pre-condition: entry must hit before the config reload"
+        );
+        assert!(
+            cache.total_bytes() > 0,
+            "pre-condition: cached batch must have non-zero tracked bytes"
+        );
+
+        // Same wiring shape as step9: invalidator over the SAME cache instance,
+        // ConfigManager behind the boot-time ArcSwap.
+        let invalidator = Arc::new(prism_query::invalidation::CacheInvalidator::new(
+            Arc::clone(&cache),
+        ));
+        let config_manager = Arc::new(arc_swap::ArcSwap::from_pointee(
+            prism_spec_engine::config_manager::ConfigManager::empty(),
+        ));
+
+        wire_config_swap_cache_flush(&config_manager, invalidator);
+
+        // Simulate a hot-reload apply: reload_config / add_sensor_spec land on
+        // ConfigManager::store (BC-2.16.006 sole write path).
+        config_manager
+            .load()
+            .store(prism_spec_engine::types::ConfigSnapshot::empty());
+
+        assert!(
+            cache.get(&key).expect("cache get must not fail").is_none(),
+            "P1-03: entry must MISS after the config swap — the reload flush must \
+             purge entries normalized under the retired spec"
+        );
+        assert_eq!(
+            cache.total_bytes(),
+            0,
+            "P1-03: byte accounting must return to 0 after the reload flush \
+             (TD-PRISM-QUERY-CACHE-001 atomic accounting)"
+        );
+    }
+
+    /// P1-03: every swap flushes — a cache re-populated after one reload is
+    /// flushed again by the next reload (listener stays live across swaps).
+    #[test]
+    fn test_p1_03_repeated_swaps_keep_flushing() {
+        let cache = Arc::new(prism_query::cache::SensorResponseCache::with_defaults());
+        let key = prism_query::cache_key::CacheKey {
+            client_id: "acme".to_string(),
+            sensor_id: prism_core::SensorId::from("armis"),
+            source_id: "armis_devices".to_string(),
+            push_down_hash: "b".repeat(64),
+        };
+
+        let invalidator = Arc::new(prism_query::invalidation::CacheInvalidator::new(
+            Arc::clone(&cache),
+        ));
+        let config_manager = Arc::new(arc_swap::ArcSwap::from_pointee(
+            prism_spec_engine::config_manager::ConfigManager::empty(),
+        ));
+        wire_config_swap_cache_flush(&config_manager, invalidator);
+
+        for generation in 0..3 {
+            cache
+                .put(key.clone(), vec![small_batch()])
+                .expect("cache put must succeed");
+            assert!(
+                cache.get(&key).expect("get must not fail").is_some(),
+                "generation {generation}: entry must hit before the swap"
+            );
+            config_manager
+                .load()
+                .store(prism_spec_engine::types::ConfigSnapshot::empty());
+            assert!(
+                cache.get(&key).expect("get must not fail").is_none(),
+                "generation {generation}: entry must miss after the swap — \
+                 the flush listener must stay live across repeated reloads"
+            );
         }
     }
 }

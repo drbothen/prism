@@ -191,18 +191,20 @@ pub trait CredentialResolver: Send + Sync {
 /// # S-2.08 note
 /// The `FanOutTarget` carries a `SensorSpec` (with tables Vec) but not a
 /// per-table `TableType` at this level. Full EventStream → buffer-scan wiring
-/// requires S-3.02's DataFusion `TableProvider` integration which will call
-/// `route_table_query` and `EventBufferStore::scan_events` per table.
+/// (calling `route_table_query` and `EventBufferStore::scan_events` per table)
+/// did not ship in S-3.02 — `run_materialization_pipeline` went live via the
+/// MemTable path without it; the wiring is tracked under TD-S302-005.
 /// This implementation correctly routes all targets through the live API fetch
-/// path (the existing S-2.06 path), which is the correct behavior until S-3.02
-/// wires in the EventStream buffer scan.
+/// path (the existing S-2.06 path), which is the correct behavior until
+/// TD-S302-005 wires in the EventStream buffer scan.
 ///
 /// Story: S-2.08 | AC-2, AC-3, AC-5, AC-8
 #[allow(dead_code)]
 pub async fn dispatch_by_table_type(target: &FanOutTarget) -> Result<FanOutResult, SensorError> {
     // S-2.08: FanOutTarget carries SensorSpec but no per-table routing context.
-    // The table-type dispatch at the fan-out layer requires S-3.02's TableProvider
-    // integration. For now, all targets go through the live API fetch path.
+    // The table-type dispatch at the fan-out layer awaits the EventStream buffer
+    // routing tracked under TD-S302-005 (not shipped in S-3.02). Until that wiring
+    // lands, all targets go through the live API fetch path.
     // This is correct behavior: PointInTime always goes live; EventStream falls back
     // to live on cold-start (AC-5), which is the behavior here.
     //
@@ -212,7 +214,7 @@ pub async fn dispatch_by_table_type(target: &FanOutTarget) -> Result<FanOutResul
     tracing::debug!(
         org_id = %target.org_id,
         sensor_id = %target.sensor_id,
-        "AC-3/AC-5: dispatch_by_table_type: routing through live API fetch (S-3.02 will wire EventStream buffer scan)"
+        "AC-3/AC-5: dispatch_by_table_type: routing through live API fetch (EventStream buffer scan wiring tracked under TD-S302-005)"
     );
     // Return empty result — callers that need actual data use fan_out() directly.
     // This function's role is table-type inspection; it returns empty FanOutResult

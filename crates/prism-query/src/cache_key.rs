@@ -15,8 +15,17 @@
 //!   bytes, then SHA-256 hashed.
 //! - `push_down_hash` is a 64-character lowercase hex string.
 //!
+//! **Hashed components** (assembled by `materialization::derive_response_cache_key`):
+//! WHERE-clause equality filters (namespaced `filter.<column>`), the ADR-033
+//! time-window bounds (`start_time` / `end_time`), and the **effective
+//! fetch-limit** as parameter key `fetch.limit` (BC-2.07.005 v4.4 / P1-01) —
+//! the exact `u64` pushed into the sensor fetch's `QueryParams.limit`; omitted
+//! when 0 / no limit is pushed (null/absent-omission rule, EC-07-044).
+//!
 //! **Excluded from hash:** original PrismQL query string, `force_refresh` flag,
-//! PrismQL post-filters, `limit` from the `query` tool (BC-2.07.005).
+//! PrismQL post-filters (BC-2.07.005). The tool-level `limit`'s
+//! post-materialization truncation role remains excluded — what is hashed is
+//! the fetch-limit actually pushed into the fan-out fetch.
 //!
 //! # VP References
 //! - VP-025 — Cache Key Derivation: Deterministic (kani proof in proofs/vp025_cache_key.rs)

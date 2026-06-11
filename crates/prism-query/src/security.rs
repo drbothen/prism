@@ -36,9 +36,6 @@ pub const PRISM_MAX_REGEX_PATTERN_LEN: usize = 1_024;
 /// Prevents O(N) denial-of-service attacks via large list literals.
 pub const PRISM_MAX_LIST_ITEMS: usize = 1_024;
 
-/// Error code string for security-limit violations.
-pub const E_QUERY_003: &str = "E-QUERY-003";
-
 // ── Thread-local ParseLimits for AST-construction-time checks (F-HIGH-001) ──
 //
 // `RegexLiteral::new` is called during AST construction by the Chumsky parser.
@@ -164,9 +161,9 @@ impl ParseLimits {
     /// Check query size using the snapshotted limit (no env-var re-read).
     pub fn check_query_size(&self, raw: &str) -> Result<(), PrismError> {
         if raw.len() > self.query_size {
-            return Err(PrismError::QueryExecutionFailed {
+            return Err(PrismError::QuerySecurityLimitExceeded {
                 detail: format!(
-                    "{E_QUERY_003}: query size {} bytes exceeds maximum allowed {} bytes (64KB limit)",
+                    "query size {} bytes exceeds maximum allowed {} bytes (64KB limit)",
                     raw.len(),
                     self.query_size
                 ),
@@ -188,9 +185,9 @@ impl ParseLimits {
                 '(' if !in_sq && !in_dq => {
                     depth += 1;
                     if depth > limit {
-                        return Err(PrismError::QueryExecutionFailed {
+                        return Err(PrismError::QuerySecurityLimitExceeded {
                             detail: format!(
-                                "{E_QUERY_003}: expression nesting depth exceeds maximum allowed {limit}"
+                                "expression nesting depth exceeds maximum allowed {limit}"
                             ),
                         });
                     }
@@ -202,8 +199,8 @@ impl ParseLimits {
             }
         }
         if in_sq || in_dq {
-            return Err(PrismError::QueryExecutionFailed {
-                detail: format!("{E_QUERY_003}: unclosed string literal (quote) at end of input"),
+            return Err(PrismError::QuerySecurityLimitExceeded {
+                detail: "unclosed string literal (quote) at end of input".to_string(),
             });
         }
         Ok(())
@@ -222,10 +219,8 @@ impl ParseLimits {
     ) -> Result<(), PrismError> {
         let limit = self.nesting_depth;
         if depth > limit {
-            return Err(PrismError::QueryExecutionFailed {
-                detail: format!(
-                    "{E_QUERY_003}: expression nesting depth {depth} exceeds maximum allowed {limit}"
-                ),
+            return Err(PrismError::QuerySecurityLimitExceeded {
+                detail: format!("expression nesting depth {depth} exceeds maximum allowed {limit}"),
             });
         }
         let next = depth + 1;
@@ -267,10 +262,8 @@ impl ParseLimits {
     ) -> Result<(), PrismError> {
         let limit = self.nesting_depth;
         if depth > limit {
-            return Err(PrismError::QueryExecutionFailed {
-                detail: format!(
-                    "{E_QUERY_003}: expression nesting depth {depth} exceeds maximum allowed {limit}"
-                ),
+            return Err(PrismError::QuerySecurityLimitExceeded {
+                detail: format!("expression nesting depth {depth} exceeds maximum allowed {limit}"),
             });
         }
         let next = depth + 1;
@@ -295,10 +288,8 @@ impl ParseLimits {
     pub fn check_expr_nesting_depth_with(&self, expr: &Expr, depth: u32) -> Result<(), PrismError> {
         let limit = self.nesting_depth;
         if depth > limit {
-            return Err(PrismError::QueryExecutionFailed {
-                detail: format!(
-                    "{E_QUERY_003}: expression nesting depth {depth} exceeds maximum allowed {limit}"
-                ),
+            return Err(PrismError::QuerySecurityLimitExceeded {
+                detail: format!("expression nesting depth {depth} exceeds maximum allowed {limit}"),
             });
         }
         let next = depth + 1;
@@ -338,10 +329,8 @@ impl ParseLimits {
     pub fn check_list_length_with(&self, count: usize, context: &str) -> Result<(), PrismError> {
         let limit = self.list_items;
         if count > limit {
-            return Err(PrismError::QueryExecutionFailed {
-                detail: format!(
-                    "{E_QUERY_003}: {context} item count {count} exceeds maximum allowed {limit}"
-                ),
+            return Err(PrismError::QuerySecurityLimitExceeded {
+                detail: format!("{context} item count {count} exceeds maximum allowed {limit}"),
             });
         }
         Ok(())
@@ -353,9 +342,9 @@ impl ParseLimits {
     pub fn check_pipe_stage_count_with(&self, stages: &[PipeStage]) -> Result<(), PrismError> {
         let limit = self.pipe_stages;
         if stages.len() > limit {
-            return Err(PrismError::QueryExecutionFailed {
+            return Err(PrismError::QuerySecurityLimitExceeded {
                 detail: format!(
-                    "{E_QUERY_003}: pipe stage count {} exceeds maximum allowed {}",
+                    "pipe stage count {} exceeds maximum allowed {}",
                     stages.len(),
                     limit
                 ),
@@ -370,9 +359,9 @@ impl ParseLimits {
     pub fn check_regex_pattern_length_with(&self, pattern: &str) -> Result<(), PrismError> {
         let limit = self.regex_pattern;
         if pattern.len() > limit {
-            return Err(PrismError::QueryExecutionFailed {
+            return Err(PrismError::QuerySecurityLimitExceeded {
                 detail: format!(
-                    "{E_QUERY_003}: regex pattern length {} bytes exceeds maximum allowed {} bytes",
+                    "regex pattern length {} bytes exceeds maximum allowed {} bytes",
                     pattern.len(),
                     limit
                 ),
@@ -476,14 +465,14 @@ impl ParseLimits {
 /// MUST run before any parsing attempt. (BC-2.11.006 postcondition 1, EC-001, VP-014)
 ///
 /// # Errors
-/// Returns `PrismError::QueryExecutionFailed` with code `E-QUERY-003` if
+/// Returns `PrismError::QuerySecurityLimitExceeded` (code `E-QUERY-003`) if
 /// `raw.len() > PRISM_MAX_QUERY_SIZE`.
 pub fn check_query_size(raw: &str) -> Result<(), PrismError> {
     let limit = effective_query_size_limit();
     if raw.len() > limit {
-        return Err(PrismError::QueryExecutionFailed {
+        return Err(PrismError::QuerySecurityLimitExceeded {
             detail: format!(
-                "{E_QUERY_003}: query size {} bytes exceeds maximum allowed {} bytes (64KB limit)",
+                "query size {} bytes exceeds maximum allowed {} bytes (64KB limit)",
                 raw.len(),
                 limit
             ),
@@ -504,15 +493,13 @@ pub fn check_query_size(raw: &str) -> Result<(), PrismError> {
 /// (BC-2.11.006, DI-019, EC-002, VP-015)
 ///
 /// # Errors
-/// Returns `PrismError::QueryExecutionFailed` with code `E-QUERY-003` if
+/// Returns `PrismError::QuerySecurityLimitExceeded` (code `E-QUERY-003`) if
 /// the depth of `pred` exceeds `PRISM_MAX_NESTING_DEPTH`.
 pub fn check_predicate_nesting_depth(pred: &Predicate, depth: u32) -> Result<(), PrismError> {
     let limit = effective_nesting_depth_limit();
     if depth > limit {
-        return Err(PrismError::QueryExecutionFailed {
-            detail: format!(
-                "{E_QUERY_003}: expression nesting depth {depth} exceeds maximum allowed {limit}"
-            ),
+        return Err(PrismError::QuerySecurityLimitExceeded {
+            detail: format!("expression nesting depth {depth} exceeds maximum allowed {limit}"),
         });
     }
     let next = depth + 1;
@@ -548,10 +535,8 @@ pub fn check_predicate_nesting_depth(pred: &Predicate, depth: u32) -> Result<(),
 pub fn check_sql_query_nesting_depth(sq: &SqlQuery, depth: u32) -> Result<(), PrismError> {
     let limit = effective_nesting_depth_limit();
     if depth > limit {
-        return Err(PrismError::QueryExecutionFailed {
-            detail: format!(
-                "{E_QUERY_003}: expression nesting depth {depth} exceeds maximum allowed {limit}"
-            ),
+        return Err(PrismError::QuerySecurityLimitExceeded {
+            detail: format!("expression nesting depth {depth} exceeds maximum allowed {limit}"),
         });
     }
     let next = depth + 1;
@@ -576,10 +561,8 @@ pub fn check_sql_query_nesting_depth(sq: &SqlQuery, depth: u32) -> Result<(), Pr
 pub fn check_expr_nesting_depth(expr: &Expr, depth: u32) -> Result<(), PrismError> {
     let limit = effective_nesting_depth_limit();
     if depth > limit {
-        return Err(PrismError::QueryExecutionFailed {
-            detail: format!(
-                "{E_QUERY_003}: expression nesting depth {depth} exceeds maximum allowed {limit}"
-            ),
+        return Err(PrismError::QuerySecurityLimitExceeded {
+            detail: format!("expression nesting depth {depth} exceeds maximum allowed {limit}"),
         });
     }
     let next = depth + 1;
@@ -656,10 +639,8 @@ pub fn check_paren_depth(raw: &str) -> Result<(), PrismError> {
             '(' if !in_sq && !in_dq => {
                 depth += 1;
                 if depth > limit {
-                    return Err(PrismError::QueryExecutionFailed {
-                        detail: format!(
-                            "{E_QUERY_003}: expression nesting depth exceeds maximum allowed {limit}"
-                        ),
+                    return Err(PrismError::QuerySecurityLimitExceeded {
+                        detail: format!("expression nesting depth exceeds maximum allowed {limit}"),
                     });
                 }
             }
@@ -673,8 +654,8 @@ pub fn check_paren_depth(raw: &str) -> Result<(), PrismError> {
     // An unclosed quote silently masks all subsequent parens from the depth counter,
     // allowing an attacker to bypass this guard. Rejecting here is defence-in-depth.
     if in_sq || in_dq {
-        return Err(PrismError::QueryExecutionFailed {
-            detail: format!("{E_QUERY_003}: unclosed string literal (quote) at end of input"),
+        return Err(PrismError::QuerySecurityLimitExceeded {
+            detail: "unclosed string literal (quote) at end of input".to_string(),
         });
     }
     Ok(())
@@ -727,16 +708,22 @@ pub fn effective_pipe_stage_limit() -> usize {
     {
         None => PRISM_MAX_PIPE_STAGES,
         Some(v) if v < MIN_SAFE_PIPE_STAGES => {
-            eprintln!(
-                "prism-query: PRISM_MAX_PIPE_STAGES={v} is below minimum safe value \
-                 ({MIN_SAFE_PIPE_STAGES}); clamping to {MIN_SAFE_PIPE_STAGES}"
+            // No event_type= field: plain env-var clamp diagnostic, SAP-1 exempt.
+            tracing::warn!(
+                env_var = "PRISM_MAX_PIPE_STAGES",
+                value = v,
+                clamped_to = MIN_SAFE_PIPE_STAGES,
+                "PRISM_MAX_PIPE_STAGES below minimum safe value; clamping"
             );
             MIN_SAFE_PIPE_STAGES
         }
         Some(v) if v > MAX_SAFE_PIPE_STAGES => {
-            eprintln!(
-                "prism-query: PRISM_MAX_PIPE_STAGES={v} is above maximum safe value \
-                 ({MAX_SAFE_PIPE_STAGES}); clamping to {MAX_SAFE_PIPE_STAGES}"
+            // No event_type= field: plain env-var clamp diagnostic, SAP-1 exempt.
+            tracing::warn!(
+                env_var = "PRISM_MAX_PIPE_STAGES",
+                value = v,
+                clamped_to = MAX_SAFE_PIPE_STAGES,
+                "PRISM_MAX_PIPE_STAGES above maximum safe value; clamping"
             );
             MAX_SAFE_PIPE_STAGES
         }
@@ -757,16 +744,22 @@ pub fn effective_regex_pattern_length_limit() -> usize {
     {
         None => PRISM_MAX_REGEX_PATTERN_LEN,
         Some(v) if v < MIN_SAFE_REGEX_PATTERN_LEN => {
-            eprintln!(
-                "prism-query: PRISM_MAX_REGEX_PATTERN_LEN={v} is below minimum safe value \
-                 ({MIN_SAFE_REGEX_PATTERN_LEN}); clamping to {MIN_SAFE_REGEX_PATTERN_LEN}"
+            // No event_type= field: plain env-var clamp diagnostic, SAP-1 exempt.
+            tracing::warn!(
+                env_var = "PRISM_MAX_REGEX_PATTERN_LEN",
+                value = v,
+                clamped_to = MIN_SAFE_REGEX_PATTERN_LEN,
+                "PRISM_MAX_REGEX_PATTERN_LEN below minimum safe value; clamping"
             );
             MIN_SAFE_REGEX_PATTERN_LEN
         }
         Some(v) if v > MAX_SAFE_REGEX_PATTERN_LEN => {
-            eprintln!(
-                "prism-query: PRISM_MAX_REGEX_PATTERN_LEN={v} is above maximum safe value \
-                 ({MAX_SAFE_REGEX_PATTERN_LEN}); clamping to {MAX_SAFE_REGEX_PATTERN_LEN}"
+            // No event_type= field: plain env-var clamp diagnostic, SAP-1 exempt.
+            tracing::warn!(
+                env_var = "PRISM_MAX_REGEX_PATTERN_LEN",
+                value = v,
+                clamped_to = MAX_SAFE_REGEX_PATTERN_LEN,
+                "PRISM_MAX_REGEX_PATTERN_LEN above maximum safe value; clamping"
             );
             MAX_SAFE_REGEX_PATTERN_LEN
         }
@@ -779,9 +772,9 @@ pub fn effective_regex_pattern_length_limit() -> usize {
 pub fn check_pipe_stage_count(stages: &[PipeStage]) -> Result<(), PrismError> {
     let limit = effective_pipe_stage_limit();
     if stages.len() > limit {
-        return Err(PrismError::QueryExecutionFailed {
+        return Err(PrismError::QuerySecurityLimitExceeded {
             detail: format!(
-                "{E_QUERY_003}: pipe stage count {} exceeds maximum allowed {}",
+                "pipe stage count {} exceeds maximum allowed {}",
                 stages.len(),
                 limit
             ),
@@ -803,16 +796,22 @@ pub fn effective_list_items_limit() -> usize {
     {
         None => PRISM_MAX_LIST_ITEMS,
         Some(v) if v < MIN_SAFE_LIST_ITEMS => {
-            eprintln!(
-                "prism-query: PRISM_MAX_LIST_ITEMS={v} is below minimum safe value \
-                 ({MIN_SAFE_LIST_ITEMS}); clamping to {MIN_SAFE_LIST_ITEMS}"
+            // No event_type= field: plain env-var clamp diagnostic, SAP-1 exempt.
+            tracing::warn!(
+                env_var = "PRISM_MAX_LIST_ITEMS",
+                value = v,
+                clamped_to = MIN_SAFE_LIST_ITEMS,
+                "PRISM_MAX_LIST_ITEMS below minimum safe value; clamping"
             );
             MIN_SAFE_LIST_ITEMS
         }
         Some(v) if v > MAX_SAFE_LIST_ITEMS => {
-            eprintln!(
-                "prism-query: PRISM_MAX_LIST_ITEMS={v} is above maximum safe value \
-                 ({MAX_SAFE_LIST_ITEMS}); clamping to {MAX_SAFE_LIST_ITEMS}"
+            // No event_type= field: plain env-var clamp diagnostic, SAP-1 exempt.
+            tracing::warn!(
+                env_var = "PRISM_MAX_LIST_ITEMS",
+                value = v,
+                clamped_to = MAX_SAFE_LIST_ITEMS,
+                "PRISM_MAX_LIST_ITEMS above maximum safe value; clamping"
             );
             MAX_SAFE_LIST_ITEMS
         }
@@ -829,14 +828,14 @@ pub fn effective_list_items_limit() -> usize {
 ///   `"ORDER BY"`, `"GROUP BY"`, `"sort"`, `"dedup"`, `"fields"`, `"stats"`).
 ///
 /// # Errors
-/// Returns `PrismError::QueryExecutionFailed` with code `E-QUERY-003` if
+/// Returns `PrismError::QuerySecurityLimitExceeded` (code `E-QUERY-003`) if
 /// `count > effective_list_items_limit()`.
 pub fn check_list_length(count: usize, context: &str) -> Result<(), PrismError> {
     let limit = effective_list_items_limit();
     if count > limit {
-        return Err(PrismError::QueryExecutionFailed {
+        return Err(PrismError::QuerySecurityLimitExceeded {
             detail: format!(
-                "{E_QUERY_003}: {context} item count {count} exceeds maximum allowed \
+                "{context} item count {count} exceeds maximum allowed \
                  {limit}"
             ),
         });
@@ -854,9 +853,9 @@ pub fn check_list_length(count: usize, context: &str) -> Result<(), PrismError> 
 pub fn check_regex_pattern_length(pattern: &str) -> Result<(), PrismError> {
     let limit = effective_regex_pattern_length_limit();
     if pattern.len() > limit {
-        return Err(PrismError::QueryExecutionFailed {
+        return Err(PrismError::QuerySecurityLimitExceeded {
             detail: format!(
-                "{E_QUERY_003}: regex pattern length {} bytes exceeds maximum allowed {} bytes",
+                "regex pattern length {} bytes exceeds maximum allowed {} bytes",
                 pattern.len(),
                 limit
             ),
@@ -984,16 +983,22 @@ pub fn effective_query_size_limit() -> usize {
     {
         None => PRISM_MAX_QUERY_SIZE,
         Some(v) if v < MIN_SAFE_QUERY_SIZE => {
-            eprintln!(
-                "prism-query: PRISM_MAX_QUERY_SIZE={v} is below minimum safe value \
-                 ({MIN_SAFE_QUERY_SIZE}); clamping to {MIN_SAFE_QUERY_SIZE}"
+            // No event_type= field: plain env-var clamp diagnostic, SAP-1 exempt.
+            tracing::warn!(
+                env_var = "PRISM_MAX_QUERY_SIZE",
+                value = v,
+                clamped_to = MIN_SAFE_QUERY_SIZE,
+                "PRISM_MAX_QUERY_SIZE below minimum safe value; clamping"
             );
             MIN_SAFE_QUERY_SIZE
         }
         Some(v) if v > MAX_SAFE_QUERY_SIZE => {
-            eprintln!(
-                "prism-query: PRISM_MAX_QUERY_SIZE={v} is above maximum safe value \
-                 ({MAX_SAFE_QUERY_SIZE}); clamping to {MAX_SAFE_QUERY_SIZE}"
+            // No event_type= field: plain env-var clamp diagnostic, SAP-1 exempt.
+            tracing::warn!(
+                env_var = "PRISM_MAX_QUERY_SIZE",
+                value = v,
+                clamped_to = MAX_SAFE_QUERY_SIZE,
+                "PRISM_MAX_QUERY_SIZE above maximum safe value; clamping"
             );
             MAX_SAFE_QUERY_SIZE
         }
@@ -1011,16 +1016,22 @@ pub fn effective_nesting_depth_limit() -> u32 {
     {
         None => PRISM_MAX_NESTING_DEPTH,
         Some(v) if v < MIN_SAFE_NESTING_DEPTH => {
-            eprintln!(
-                "prism-query: PRISM_MAX_NESTING_DEPTH={v} is below minimum safe value \
-                 ({MIN_SAFE_NESTING_DEPTH}); clamping to {MIN_SAFE_NESTING_DEPTH}"
+            // No event_type= field: plain env-var clamp diagnostic, SAP-1 exempt.
+            tracing::warn!(
+                env_var = "PRISM_MAX_NESTING_DEPTH",
+                value = v,
+                clamped_to = MIN_SAFE_NESTING_DEPTH,
+                "PRISM_MAX_NESTING_DEPTH below minimum safe value; clamping"
             );
             MIN_SAFE_NESTING_DEPTH
         }
         Some(v) if v > MAX_SAFE_NESTING_DEPTH => {
-            eprintln!(
-                "prism-query: PRISM_MAX_NESTING_DEPTH={v} is above maximum safe value \
-                 ({MAX_SAFE_NESTING_DEPTH}); clamping to {MAX_SAFE_NESTING_DEPTH}"
+            // No event_type= field: plain env-var clamp diagnostic, SAP-1 exempt.
+            tracing::warn!(
+                env_var = "PRISM_MAX_NESTING_DEPTH",
+                value = v,
+                clamped_to = MAX_SAFE_NESTING_DEPTH,
+                "PRISM_MAX_NESTING_DEPTH above maximum safe value; clamping"
             );
             MAX_SAFE_NESTING_DEPTH
         }

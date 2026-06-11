@@ -19,6 +19,7 @@ mod inner {
             DENYLIST_THRESHOLD,
         },
         memory_backend::InMemoryBackend,
+        proofs::watchdog_memory::{should_terminate_for_memory, WatchdogCheckState},
         watchdog::{ResourceWatchdog, StaticProbe, WatchdogLevel},
     };
 
@@ -105,30 +106,72 @@ mod inner {
         );
     }
 
-    // ── AC-4: BC-2.15.007 — kill level cancels token and returns WatchdogKilled ──
+    // ── AC-4: BC-2.15.007 — two-check grace period (DI-027) ─────────────────────
+    //
+    // The memory grace period (DI-027) requires the watchdog to observe the
+    // process-RSS kill threshold exceeded on TWO CONSECUTIVE checks before
+    // terminating.  A single spike must NOT kill.  An intervening sub-Kill
+    // observation resets the counter (spike-recover-spike = no kill).
+    //
+    // check_query implements the kill decision via should_terminate_for_memory
+    // (VP-058 proven predicate) and takes a consecutive_over_limit counter
+    // maintained by the caller.  spawn_monitor maintains a loop-local counter.
 
-    /// AC-4 (BC-2.15.007 postcondition): at ~96.7% RSS (Kill level), `check_query`
-    /// cancels the registered token and returns `Err(PrismError::WatchdogKilled)`.
+    /// AC-4 (BC-2.15.007 postcondition, two-check contract): at Kill-level RSS,
+    /// `check_query` with `consecutive_over_limit=1` (first observation — grace
+    /// period active) does NOT cancel the token and returns `Ok(())`.
     ///
-    /// The error Display must contain `"E-WATCHDOG-001"` (story v1.7 correction;
-    /// anchored to the literal taxonomy ID, not the stub constant).
+    /// BC-2.15.007/DI-027: a single spike above the process-RSS kill threshold
+    /// must not immediately terminate the query.
     #[test]
-    fn test_BC_2_15_007_kill_level_cancels_token_and_returns_watchdog_killed() {
+    fn test_BC_2_15_007_first_kill_observation_grace_period_does_not_cancel() {
         let watchdog = ResourceWatchdog::with_probe(Arc::new(StaticProbe(RSS_96_7_PCT)));
         let token = CancellationToken::new();
 
-        let result = watchdog.check_query(token.clone());
+        // First Kill-level observation — consecutive_over_limit=1 (grace period).
+        let result = watchdog.check_query(token.clone(), 1);
+
+        assert!(
+            result.is_ok(),
+            "BC-2.15.007/DI-027 grace period: first Kill-level observation \
+             (consecutive_over_limit=1) must NOT cancel token; got {:?}",
+            result
+        );
+        assert!(
+            !token.is_cancelled(),
+            "BC-2.15.007/DI-027 grace period: CancellationToken must NOT be cancelled \
+             on first Kill-level observation (single spike tolerance)"
+        );
+    }
+
+    /// AC-4 (BC-2.15.007 postcondition, two-check contract): at Kill-level RSS,
+    /// `check_query` with `consecutive_over_limit=2` (second consecutive observation)
+    /// DOES cancel the token and returns `Err(PrismError::WatchdogKilled)`.
+    ///
+    /// The error Display must contain `"E-WATCHDOG-002"` (error-taxonomy.md v1.68,
+    /// P1-04 adjudication: the process-RSS watchdog kill is E-WATCHDOG-002;
+    /// E-WATCHDOG-001 is reserved for the per-query DataFusion memory-pool trip).
+    #[test]
+    fn test_BC_2_15_007_second_consecutive_kill_observation_cancels_token() {
+        let watchdog = ResourceWatchdog::with_probe(Arc::new(StaticProbe(RSS_96_7_PCT)));
+        let token = CancellationToken::new();
+
+        // Second consecutive Kill-level observation — must terminate.
+        let result = watchdog.check_query(token.clone(), 2);
 
         // Token must be cancelled.
         assert!(
             token.is_cancelled(),
-            "BC-2.15.007 postcondition: CancellationToken must be cancelled when Kill level reached"
+            "BC-2.15.007 postcondition: CancellationToken must be cancelled on \
+             second consecutive Kill-level observation (consecutive_over_limit=2)"
         );
 
         // Result must be Err.
         assert!(
             result.is_err(),
-            "BC-2.15.007 postcondition: check_query must return Err when Kill level reached"
+            "BC-2.15.007 postcondition: check_query must return Err on second \
+             consecutive Kill-level observation; got {:?}",
+            result
         );
 
         // Error variant must be WatchdogKilled.
@@ -139,24 +182,26 @@ mod inner {
             err
         );
 
-        // Error Display must contain the canonical error code E-WATCHDOG-001
-        // (story v1.7 correction — forces implementer to update error.rs Display string).
+        // Error Display must contain the canonical error code E-WATCHDOG-002
+        // (error-taxonomy.md v1.68 / P1-04 adjudication: process-RSS watchdog kill
+        // is E-WATCHDOG-002; E-WATCHDOG-001 is the per-query memory-pool trip).
         let display = err.to_string();
         assert!(
-            display.contains("E-WATCHDOG-001"),
-            "BC-2.15.007 / error-taxonomy.md: error Display must contain \"E-WATCHDOG-001\"; \
-             got: {display}"
+            display.contains("E-WATCHDOG-002"),
+            "BC-2.15.007 / error-taxonomy.md v1.68: error Display must contain \
+             \"E-WATCHDOG-002\"; got: {display}"
         );
     }
 
-    /// AC-4 boundary: below Kill threshold, `check_query` does NOT cancel the token.
+    /// AC-4 boundary: below Kill threshold, `check_query` does NOT cancel the token
+    /// regardless of consecutive_over_limit.
     #[test]
     fn test_BC_2_15_007_below_kill_level_does_not_cancel_token() {
         // 86% → Throttle, not Kill.
         let watchdog = ResourceWatchdog::with_probe(Arc::new(StaticProbe(RSS_86_PCT)));
         let token = CancellationToken::new();
 
-        let result = watchdog.check_query(token.clone());
+        let result = watchdog.check_query(token.clone(), 2);
 
         assert!(
             result.is_ok(),
@@ -166,6 +211,197 @@ mod inner {
         assert!(
             !token.is_cancelled(),
             "BC-2.15.007: token must NOT be cancelled when level is below Kill"
+        );
+    }
+
+    // ── AC-4 spawn_monitor: two-check grace period via the monitor loop ────────
+    //
+    // These tests exercise the spawn_monitor two-check grace period.
+    //
+    // Implementation note on test design: `spawn_monitor` uses `tokio::time::sleep`
+    // internally, so the tests must let the tokio runtime schedule the spawned task
+    // between assertions.  We use `tokio::time::sleep` in the test itself (which
+    // yields the current task and allows other tasks — including the monitor — to
+    // run), with generous margins relative to the poll interval.  The poll is set
+    // to 50ms and we wait 1.5× per assertion to give the monitor task reliable
+    // scheduling time under parallel test load without needing `#[ignore]`.
+
+    /// AC-4 (BC-2.15.007/DI-027): `spawn_monitor` does NOT cancel registered tokens
+    /// on the first Kill-level poll; only on the second consecutive Kill-level poll.
+    ///
+    /// Test mechanism: StaticProbe always returns Kill-level RSS.
+    /// - After 1× poll interval: token must NOT be cancelled (grace period, consecutive=1).
+    /// - After 2× poll interval: token IS cancelled (consecutive=2 >= 2).
+    #[tokio::test]
+    async fn test_BC_2_15_007_spawn_monitor_first_kill_poll_grace_period() {
+        // 50ms poll gives robust margin on loaded CI/parallel test runners.
+        let poll = std::time::Duration::from_millis(50);
+        let margin = std::time::Duration::from_millis(25);
+        let watchdog = Arc::new(ResourceWatchdog::with_probe(Arc::new(StaticProbe(
+            RSS_96_7_PCT,
+        ))));
+        let token = CancellationToken::new();
+        let _qid = watchdog.register_query(token.clone());
+
+        let _handle = watchdog.clone().spawn_monitor(poll);
+
+        // After ~1.5 poll intervals: monitor has fired once → consecutive=1
+        // (grace period) → token must NOT be cancelled.
+        tokio::time::sleep(poll + margin).await;
+        assert!(
+            !token.is_cancelled(),
+            "BC-2.15.007/DI-027: token must NOT be cancelled after first Kill-level \
+             poll (grace period — single spike must not kill; consecutive=1 < 2)"
+        );
+
+        // After another full poll + margin: monitor fires again → consecutive=2
+        // → should_terminate_for_memory returns true → token is cancelled.
+        tokio::time::sleep(poll + margin).await;
+        assert!(
+            token.is_cancelled(),
+            "BC-2.15.007/DI-027: token MUST be cancelled after second consecutive \
+             Kill-level poll (consecutive=2 >= 2)"
+        );
+    }
+
+    /// AC-4 (BC-2.15.007/DI-027): spike-recover-spike pattern does NOT kill.
+    ///
+    /// Monitor sees: Kill → sub-Kill (counter reset) → Kill.
+    /// The third observation is the first Kill since the reset → grace period
+    /// applies again → token must NOT be cancelled.
+    ///
+    /// Test mechanism: ToggleProbe alternates between Kill and sub-Kill on each read.
+    #[tokio::test]
+    async fn test_BC_2_15_007_spawn_monitor_intervening_sub_kill_resets_counter() {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+
+        // RSS values: alternates Kill / sub-Kill / Kill / sub-Kill ...
+        // Poll 1 → Kill (consecutive=1, grace), poll 2 → sub-Kill (reset=0),
+        // poll 3 → Kill (consecutive=1, grace) → token must NOT be cancelled.
+        struct ToggleProbe {
+            call_count: AtomicUsize,
+        }
+
+        impl crate::watchdog::MemoryProbe for ToggleProbe {
+            fn current_rss_bytes(&self) -> usize {
+                let n = self.call_count.fetch_add(1, Ordering::Relaxed);
+                // Even calls → Kill level; odd calls → sub-Kill (Throttle)
+                if n.is_multiple_of(2) {
+                    RSS_96_7_PCT
+                } else {
+                    RSS_86_PCT
+                }
+            }
+        }
+
+        let poll = std::time::Duration::from_millis(50);
+        let margin = std::time::Duration::from_millis(25);
+        let watchdog = Arc::new(ResourceWatchdog::with_probe(Arc::new(ToggleProbe {
+            call_count: AtomicUsize::new(0),
+        })));
+        let token = CancellationToken::new();
+        let _qid = watchdog.register_query(token.clone());
+
+        let _handle = watchdog.clone().spawn_monitor(poll);
+
+        // Three poll intervals: Kill→sub-Kill→Kill.
+        // Even after 3 polls the token must NOT be cancelled because no two
+        // consecutive Kill observations occur (counter always resets to 0 at the
+        // sub-Kill poll between the two Kill polls).
+        tokio::time::sleep(poll * 3 + margin * 2).await;
+        assert!(
+            !token.is_cancelled(),
+            "BC-2.15.007/DI-027: spike-recover-spike must NOT kill — \
+             intervening sub-Kill resets the consecutive counter; \
+             pattern Kill(1)→sub-Kill(0)→Kill(1) never reaches consecutive=2"
+        );
+    }
+
+    /// AC-4 integration: VP-058 proven predicate `should_terminate_for_memory`
+    /// is wired into the live `check_query` kill path.
+    ///
+    /// Verifies that `check_query(token, consecutive)` agrees with
+    /// `should_terminate_for_memory(WatchdogCheckState { consecutive_over_limit: consecutive })`
+    /// for boundary values 0, 1, 2 at Kill-level RSS.
+    #[test]
+    fn test_BC_2_15_007_check_query_agrees_with_vp058_predicate() {
+        let watchdog = ResourceWatchdog::with_probe(Arc::new(StaticProbe(RSS_96_7_PCT)));
+
+        // consecutive=0 — predicate false, must not kill.
+        let token0 = CancellationToken::new();
+        let result0 = watchdog.check_query(token0.clone(), 0);
+        assert_eq!(
+            result0.is_err(),
+            should_terminate_for_memory(WatchdogCheckState {
+                consecutive_over_limit: 0
+            }),
+            "check_query(consecutive=0) must agree with VP-058 predicate"
+        );
+        assert!(!token0.is_cancelled());
+
+        // consecutive=1 — predicate false, must not kill.
+        let token1 = CancellationToken::new();
+        let result1 = watchdog.check_query(token1.clone(), 1);
+        assert_eq!(
+            result1.is_err(),
+            should_terminate_for_memory(WatchdogCheckState {
+                consecutive_over_limit: 1
+            }),
+            "check_query(consecutive=1) must agree with VP-058 predicate"
+        );
+        assert!(!token1.is_cancelled());
+
+        // consecutive=2 — predicate true, must kill.
+        let token2 = CancellationToken::new();
+        let result2 = watchdog.check_query(token2.clone(), 2);
+        assert_eq!(
+            result2.is_err(),
+            should_terminate_for_memory(WatchdogCheckState {
+                consecutive_over_limit: 2
+            }),
+            "check_query(consecutive=2) must agree with VP-058 predicate"
+        );
+        assert!(token2.is_cancelled());
+    }
+
+    // ── BC-2.15.008 denylist-interaction: recorded only on ACTUAL termination ──
+
+    /// BC-2.15.008 / DI-027 denylist interaction: `check_query` only records a
+    /// watchdog termination (denylist-eligible) when it actually cancels — i.e.,
+    /// when `consecutive_over_limit >= 2`.  A grace-period observation (consecutive=1)
+    /// must NOT trigger denylist recording.
+    ///
+    /// The denylist recording itself is the caller's responsibility after receiving
+    /// Err(WatchdogKilled).  This test verifies that `check_query` returns Ok on
+    /// consecutive=1 (so callers have nothing to record) and Err on consecutive=2
+    /// (so callers receive the signal to record).
+    #[test]
+    fn test_BC_2_15_007_denylist_recording_only_on_actual_termination() {
+        let watchdog = ResourceWatchdog::with_probe(Arc::new(StaticProbe(RSS_96_7_PCT)));
+
+        // Grace-period observation → Ok → caller must NOT record for denylist.
+        let token_grace = CancellationToken::new();
+        let result_grace = watchdog.check_query(token_grace.clone(), 1);
+        assert!(
+            result_grace.is_ok(),
+            "BC-2.15.007/DI-027: grace-period check_query must return Ok \
+             (no WatchdogKilled signal → caller must not record for denylist)"
+        );
+
+        // Actual termination → Err(WatchdogKilled) → caller MUST record for denylist.
+        let token_kill = CancellationToken::new();
+        let result_kill = watchdog.check_query(token_kill.clone(), 2);
+        assert!(
+            result_kill.is_err(),
+            "BC-2.15.007/DI-027: second-check_query must return Err(WatchdogKilled) \
+             (caller receives signal to record for denylist)"
+        );
+        assert!(
+            matches!(
+                result_kill.unwrap_err(),
+                prism_core::PrismError::WatchdogKilled { .. }
+            ),
+            "BC-2.15.007: kill result must be WatchdogKilled for denylist-eligible error"
         );
     }
 

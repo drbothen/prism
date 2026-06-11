@@ -89,8 +89,8 @@ impl ListCapabilitiesEngine {
     /// Execute the `list_capabilities` query (BC-2.04.006 postconditions).
     ///
     /// - If `query.client_id` is `Some(id)`, returns the capability matrix for
-    ///   that specific client.  Returns `PrismError::ConfigValidationFailed`
-    ///   ("Client '{id}' not found in configuration") if unknown.
+    ///   that specific client.  Returns `PrismError::ClientNotFound`
+    ///   (E-CFG-100, ADR-038 D3) if unknown.
     /// - If `query.client_id` is `None`, returns the global matrix with all
     ///   configured clients.
     pub fn execute(
@@ -103,8 +103,8 @@ impl ListCapabilitiesEngine {
                 let caps = self
                     .client_capabilities
                     .get(client_id.as_str())
-                    .ok_or_else(|| PrismError::ConfigValidationFailed {
-                        detail: format!("Client '{}' not found in configuration", client_id),
+                    .ok_or_else(|| PrismError::ClientNotFound {
+                        client_id: client_id.clone(),
                     })?;
 
                 Ok(self.capability_matrix_for_client(client_id, caps))

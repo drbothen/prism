@@ -18,7 +18,9 @@
 //!
 //! Story: S-3.07 | BCs: BC-2.04.007, BC-2.04.008
 
-// Stub module: all non-trivial bodies are todo!() pending implementation.
+// Implemented since S-3.07 — no todo!() bodies remain. This module is pure
+// data types; the dead_code allow covers constructors/accessors that exist
+// for API completeness but are not yet referenced by every consumer crate.
 #![allow(dead_code)]
 
 use chrono::{DateTime, Utc};
