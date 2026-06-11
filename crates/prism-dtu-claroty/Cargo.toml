@@ -59,6 +59,13 @@ name = "review_2026_06_10_p1_02_timestamps"
 path = "tests/review_2026_06_10_p1_02_timestamps.rs"
 required-features = ["fixture-gen"]
 
+# 2026-06-10 review cascade pass-2: P2-01 generator↔TOML↔static-fixture shape
+# parity (CS-06 test class for Claroty).
+[[test]]
+name = "review_2026_06_10_claroty_parity"
+path = "tests/review_2026_06_10_claroty_parity.rs"
+required-features = ["fixture-gen"]
+
 [[test]]
 name = "fidelity_validator"
 path = "tests/fidelity_validator.rs"

@@ -286,22 +286,32 @@ fn generate_schema_drift(org_id: &OrgId, org_slug: &str, opts: &GenOpts) -> Fixt
     let drift_id = format!("drift-{}-{}-0", org_slug, opts.seed);
     let (drift_last_dt, drift_first_dt) =
         derive_seen_window(&drift_id, opts.seed, opts.time_anchor);
+    // P2-01: additive flat snake_case TOML-parity keys (see build_asset).
+    // The drift is the missing camelCase "id" key — the flat keys are
+    // unaffected by the schema-drift semantics.
     let drifted = json!({
         // "id" intentionally omitted — schema-drifted record
-        "asset_id": drift_id,
+        "asset_id": drift_id.clone(),
+        "device_id": drift_id,
         "name": format!("drifted-device-{}", org_slug),
         "title": format!("Drifted Device for {}", org_slug),
         "type": "Unknown",
         "status": "online",
         "lastSeen": format_ts(drift_last_dt),
+        "last_seen": format_ts(drift_last_dt),
         "firstSeen": format_ts(drift_first_dt),
+        "first_seen": format_ts(drift_first_dt),
         "ipAddress": null,
+        "ip_address": null,
         "macAddress": null,
+        "mac_address": null,
         "manufacturer": null,
         "model": null,
         "firmwareVersion": null,
         "operatingSystem": null,
+        "os_name": null,
         "riskLevel": null,
+        "risk_score": null,
         "site": null,
         "zone": null
     });
@@ -430,23 +440,49 @@ fn build_asset(
     let (last_dt, first_dt) = derive_seen_window(&string_id, seed, time_anchor);
     let last_seen = format_ts(last_dt);
     let first_seen = format_ts(first_dt);
+    let ip_address = format!(
+        "10.{}.{}.{}",
+        (id_index / 65536) % 256,
+        (id_index / 256) % 256,
+        id_index % 256
+    );
+    let mac_address = format!(
+        "AA:BB:CC:{:02X}:{:02X}:{:02X}",
+        (id_index / 65536) % 256,
+        (id_index / 256) % 256,
+        id_index % 256
+    );
 
+    // P2-01 (review 2026-06-10 cascade pass-2, SAP-2): in addition to the
+    // camelCase real-API keys, emit ADDITIVE flat snake_case TOML-parity keys
+    // (device_id, last_seen, first_seen, ip_address, mac_address, os_name,
+    // risk_score) mirroring the camelCase values exactly — armis.sensor.toml
+    // extracts exact-name flat keys (column_mapping.rs raw.get), so without
+    // these the seeded path silently normalized every column to NULL.
+    // CrowdStrike F4 additive pattern: API-shape fidelity kept, flat keys added.
     json!({
         "id": id,
-        "asset_id": string_id,
+        "asset_id": string_id.clone(),
+        "device_id": string_id,
         "name": format!("device-{}-{}", org_slug, id_index),
         "title": format!("Device {} for {}", id_index, org_slug),
         "type": "IoT Device",
         "status": status,
-        "lastSeen": last_seen,
-        "firstSeen": first_seen,
-        "ipAddress": format!("10.{}.{}.{}", (id_index / 65536) % 256, (id_index / 256) % 256, id_index % 256),
-        "macAddress": format!("AA:BB:CC:{:02X}:{:02X}:{:02X}", (id_index / 65536) % 256, (id_index / 256) % 256, id_index % 256),
+        "lastSeen": last_seen.clone(),
+        "last_seen": last_seen,
+        "firstSeen": first_seen.clone(),
+        "first_seen": first_seen,
+        "ipAddress": ip_address.clone(),
+        "ip_address": ip_address,
+        "macAddress": mac_address.clone(),
+        "mac_address": mac_address,
         "manufacturer": "Siemens",
         "model": null,
         "firmwareVersion": null,
         "operatingSystem": null,
+        "os_name": null,
         "riskLevel": null,
+        "risk_score": null,
         "site": format!("site-{}", id_index % 5),
         "zone": null
     })
@@ -472,22 +508,30 @@ fn build_tombstone(
     let last_seen = format_ts(last_dt);
     let first_seen = format_ts(first_dt);
     let deleted_at = format_ts(deleted_dt);
+    // P2-01: additive flat snake_case TOML-parity keys (see build_asset).
     json!({
         "id": id,
         "asset_id": id.clone(),
+        "device_id": id.clone(),
         "name": format!("tombstone-{}-{}", org_slug, tomb_index),
         "title": format!("Tombstone {} for {}", tomb_index, org_slug),
         "type": "IoT Device",
         "status": "tombstone",
-        "lastSeen": last_seen,
-        "firstSeen": first_seen,
+        "lastSeen": last_seen.clone(),
+        "last_seen": last_seen,
+        "firstSeen": first_seen.clone(),
+        "first_seen": first_seen,
         "ipAddress": null,
+        "ip_address": null,
         "macAddress": null,
+        "mac_address": null,
         "manufacturer": null,
         "model": null,
         "firmwareVersion": null,
         "operatingSystem": null,
+        "os_name": null,
         "riskLevel": null,
+        "risk_score": null,
         "site": null,
         "zone": null,
         "deleted_at": deleted_at,
@@ -522,18 +566,32 @@ fn build_alert(
     let update_dt = (time_dt + chrono::Duration::minutes(5)).min(time_anchor);
     let time = format_ts(time_dt);
     let last_update = format_ts(update_dt);
+    let title = format!("Alert {} for {}", id_index, org_slug);
+    let policy_id = format!("policy-{}-{}", org_slug, id_index % 10);
 
+    // P2-01 (review 2026-06-10 cascade pass-2, SAP-2): additive flat snake_case
+    // TOML-parity keys mirroring the real-API values — armis.sensor.toml alerts
+    // columns are name/policy_name/device_id/created_at/updated_at, extracted
+    // by exact-name flat raw.get (column_mapping.rs). `device_id` is the STRING
+    // form per the TOML column type and links to the seeded device pool
+    // (build_asset string id for the same index — CrowdStrike CS-01 pattern;
+    // every archetype generates at least as many assets as alerts).
     json!({
         "alertId": alert_id_num,
         "alert_id": alert_id_str,
-        "policyId": format!("policy-{}-{}", org_slug, id_index % 10),
-        "title": format!("Alert {} for {}", id_index, org_slug),
+        "policyId": policy_id.clone(),
+        "policy_name": policy_id,
+        "title": title.clone(),
+        "name": title,
         "status": "UNHANDLED",
         "severity": severity,
         "type": "Policy Violation",
-        "time": time,
-        "lastAlertUpdateTime": last_update,
+        "time": time.clone(),
+        "created_at": time,
+        "lastAlertUpdateTime": last_update.clone(),
+        "updated_at": last_update,
         "deviceId": id_index as i64,
+        "device_id": format!("dev-{}-{}-{}", org_slug, seed, id_index),
         "description": format!("Detected anomaly {} for org {}", id_index, org_slug),
         "remediation": null
     })
