@@ -2221,7 +2221,8 @@ impl prism_query::write_dispatch::AuditWriter for BootAuditWriter {
     /// (BC-2.05.009 family / CRIT-005), following the established
     /// `prism_audit::credential_events` construction pattern. Not
     /// fail-closed: the caller (`emit_tool_audit`) logs Err and proceeds
-    /// (BC-2.05.008 EC-05-013 read-path audit semantics).
+    /// (BC-2.05.001 postcondition "Read operations proceed on audit
+    /// failure" / EC-05-002).
     async fn write_tool_call(
         &self,
         tool_name: &str,

@@ -117,7 +117,7 @@ pub trait AuditWriter: Send + Sync + 'static {
     /// `outcome` is a short machine-readable outcome tag (e.g. `"invoked"`,
     /// `"rejected_injection"`).
     ///
-    /// # Not fail-closed (BC-2.05.008 EC-05-013)
+    /// # Not fail-closed (BC-2.05.001 EC-05-002)
     ///
     /// Unlike `write_intent`, tool-call audit is NOT fail-closed: on `Err` the
     /// caller logs an audit warning and the tool call proceeds — read-path

@@ -183,7 +183,7 @@ impl PrismServer {
     /// 1. the `mcp.tool.rejected` tracing event (BC-2.16.002 catalog row), and
     /// 2. a durable `AuditWriter::write_tool_call` record with outcome
     ///    `"rejected_injection"` (MCP-02 mechanism; not fail-closed per
-    ///    BC-2.05.008 EC-05-013).
+    ///    BC-2.05.001 EC-05-002).
     ///
     /// # Security — classification only, never content
     ///
@@ -1384,9 +1384,10 @@ fn not_yet_available_msg(feature: &str) -> rmcp::model::ErrorData {
 /// 1. **Tracing** — the `mcp.tool.called` structured event (BC-2.16.002 catalog row).
 /// 2. **Durable** — MCP-02 (2026-06-10 review): when an `AuditWriter` is wired,
 ///    `AuditWriter::write_tool_call` persists the record to the RocksDB
-///    `audit_buffer` CF. Tool-call audit is NOT fail-closed (BC-2.05.008
-///    EC-05-013 read-path semantics): on persistence failure a WARN is logged
-///    with `audit_warning` semantics and the tool call proceeds.
+///    `audit_buffer` CF. Tool-call audit is NOT fail-closed (BC-2.05.001
+///    postcondition "Read operations proceed on audit failure" / EC-05-002):
+///    on persistence failure a WARN is logged with `audit_warning` semantics
+///    and the tool call proceeds.
 ///
 /// The durable per-call write via `AuditWriter::write_tool_call` IS the
 /// production MCP tool-call audit mechanism (P1-04, 2026-06-10 review pass-1).
@@ -1408,7 +1409,7 @@ async fn emit_tool_audit(
         Some(writer) => {
             if let Err(e) = writer.write_tool_call(tool, client_id, outcome).await {
                 // Not fail-closed: read-path audit failure is surfaced as a warning,
-                // not an abort (BC-2.05.008 EC-05-013 `audit_warning` semantics).
+                // not an abort (BC-2.05.001 EC-05-002 `audit_warning` semantics).
                 tracing::warn!(
                     tool_name = %tool,
                     error = %e,
@@ -7038,7 +7039,7 @@ mod tests {
     }
 
     /// MCP-02 (not fail-closed): a failing AuditWriter must NOT panic or abort —
-    /// emit_tool_audit logs and proceeds (BC-2.05.008 EC-05-013).
+    /// emit_tool_audit logs and proceeds (BC-2.05.001 EC-05-002).
     struct FailingAudit;
 
     #[async_trait::async_trait]
