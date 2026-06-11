@@ -21,7 +21,8 @@
 //! - `POST /dtu/reset` — reset all mutable state
 //! - `GET /dtu/health` — liveness check
 //!
-//! Gated behind `#[cfg(any(test, feature = "dtu"))]` — never compiled into production.
+//! This crate is gated behind `#[cfg(any(test, feature = "dtu", feature = "fixture-gen"))]`
+//! and must NEVER link into a production binary.
 #![cfg(any(test, feature = "dtu", feature = "fixture-gen"))]
 
 #[cfg(any(test, feature = "dtu"))]

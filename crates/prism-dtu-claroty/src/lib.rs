@@ -6,8 +6,8 @@
 //! fidelity addition).  Also implements `group_by` parameter behavior, stateful
 //! device tag store, and full failure injection via `FailureLayer`.
 //!
-//! Gated behind `#[cfg(any(test, feature = "dtu"))]` — never compiled into
-//! production binaries.
+//! This crate is gated behind `#[cfg(any(test, feature = "dtu", feature = "fixture-gen"))]`
+//! and must NEVER link into a production binary.
 //!
 //! The `generator` module is additionally gated behind `#[cfg(feature = "fixture-gen")]`
 //! (S-3.7.02 / AC-007 / D-056).
