@@ -1449,7 +1449,7 @@ impl PrismServer {
         WHEN TO USE: when you need to retrieve sensor data for analysis or investigation\n\
         WHEN NOT TO USE: do not use for write operations — use confirm_action for confirmed writes\n\
         PARAMETERS: query (required PrismQL string), clients (optional list of client IDs), limit (optional, default 25, max 1000), force_refresh (optional boolean, default false — bypass response cache)\n\
-        PAGINATION: cursor-based; check _meta.has_more and _meta.next_cursor for continuation\n\
+        PAGINATION: none — query results have no cross-call pagination (the query session is ephemeral; _meta.next_cursor is always null). If results.is_truncated is true, results.total_available reports the full match count: re-query with a higher limit (max 1000) or narrow the query scope\n\
         RESPONSE: _meta envelope with trust_level plus safety_flags; results array with sensor records\n\
         ERRORS: -32602 parse error, -32001 timeout, -32002 capability denied, -32000 internal",
         output_schema = schema_for_type::<ResponseEnvelopeSchema>()
@@ -4770,9 +4770,10 @@ mod tests {
             "limit > 1000 must map to -32602 INVALID_PARAMS (E-QUERY-033)"
         );
         let msg = err.message.to_string();
-        assert!(
-            msg.contains("1001") && msg.contains("1000"),
-            "error must carry requested and max values; got: '{msg}'"
+        assert_eq!(
+            msg, "E-QUERY-033: limit 1001 exceeds maximum of 1000 (BC-2.11.001)",
+            "message must be the error-taxonomy.md v1.70 verbatim E-QUERY-033 row \
+             (BC-2.11.001 Error Cases table) — the variant Display, not a re-format"
         );
     }
 
@@ -4846,8 +4847,9 @@ mod tests {
              got: '{msg}'"
         );
         assert!(
-            msg.contains("1001") && msg.contains("1000"),
-            "error must carry requested and max values; got: '{msg}'"
+            msg.contains("E-QUERY-033") && msg.contains("1001") && msg.contains("1000"),
+            "error must carry the E-QUERY-033 code plus requested and max values \
+             (taxonomy v1.70 verbatim row); got: '{msg}'"
         );
     }
 

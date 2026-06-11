@@ -37,7 +37,9 @@ pub fn map_prism_error(err: PrismError) -> (i32, String) {
             format!("Invalid parameter for tool '{tool}': {detail}"),
         ),
 
-        // E-QUERY-005: Query timeout → -32001 Timeout
+        // E-QUERY-004: Query timeout → -32001 Timeout (taxonomy v1.69 assignment;
+        // pre-v1.69 the timeout condition was mislabeled E-QUERY-005, which is
+        // the materialization limit)
         PrismError::QueryTimeout { .. } => (codes::TIMEOUT, "Query timeout exceeded".to_owned()),
 
         // E-FLAG-001 (runtime tier) / E-FLAG-002 (compile tier): capability
@@ -88,11 +90,11 @@ pub fn map_prism_error(err: PrismError) -> (i32, String) {
             (codes::INVALID_PARAMS, format!("MCP tool not found: {tool}"))
         }
 
-        // E-QUERY-033: Limit exceeded → -32602 Invalid params (validation failure)
-        PrismError::QueryLimitExceeded { requested, max } => (
-            codes::INVALID_PARAMS,
-            format!("Invalid parameter: limit {requested} exceeds maximum of {max}"),
-        ),
+        // E-QUERY-033: Limit exceeded → -32602 Invalid params (validation failure).
+        // The variant Display IS the taxonomy v1.70 verbatim Message Format
+        // ("E-QUERY-033: limit {requested} exceeds maximum of {max} (BC-2.11.001)")
+        // mandated by the BC-2.11.001 Error Cases row — do not re-format here.
+        PrismError::QueryLimitExceeded { .. } => (codes::INVALID_PARAMS, format!("{err}")),
 
         // E-QUERY-022: Unbounded write → -32602 Invalid params
         PrismError::WriteUnbounded => (codes::INVALID_PARAMS, format!("{err}")),
@@ -239,7 +241,9 @@ pub fn map_prism_error(err: PrismError) -> (i32, String) {
             "Internal error; see audit log".to_owned(),
         ),
 
-        // E-QUERY-002..004: Query planning/execution/memory errors → -32000 Internal
+        // E-QUERY-002 (planning), E-QUERY-003 (execution), E-WATCHDOG-001
+        // (per-query memory budget, taxonomy v1.68), E-QUERY-010 (virtual
+        // field) → -32000 Internal
         PrismError::QueryPlanFailed { .. }
         | PrismError::QueryExecutionFailed { .. }
         | PrismError::QueryMemoryBudgetExceeded { .. }
