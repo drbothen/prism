@@ -1,13 +1,13 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.3"
+version: "1.4"
 status: draft
 producer: product-owner
 timestamp: 2026-04-16T14:00:00
 phase: 2-patch
 inputs: [".factory/specs/prd.md", ".factory/specs/domain-spec/capabilities.md"]
-input-hash: "c36ec87"
+input-hash: "566def3"
 traces_to: ["CAP-008"]
 extracted_from: ".factory/specs/prd.md"
 origin: greenfield
@@ -15,7 +15,7 @@ subsystem: "SS-08"
 capability: "CAP-008"
 lifecycle_status: active
 introduced: cycle-1
-modified: null
+modified: "2026-06-10"  # v1.4: ADR-038 D6 sweep — client-not-found error code E-CFG-001 → E-CFG-100
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -120,7 +120,7 @@ analyst permissions).
 | `E-MCP-004` | `tenant_id` fails client_id character-set validation | Structured error per BC-2.06.010 |
 | `E-MCP-004` | `trace_id` is not a valid UUID v7 | Structured error: "Invalid trace_id format. Expected UUID v7." |
 | `E-MCP-DIAG-001` | Response payload exceeds 10 MB after serialization | Response is returned with `_meta.truncated: true`; data trimmed to 10 MB at a complete record boundary. This is not an error — it is a normal size-limit postcondition. The message field includes: "Response truncated at 10 MB. Narrow the query with 'since' or 'subsystem'." |
-| `E-CFG-001` | `tenant_id` refers to a client not in the configuration | Structured error: "Client '{tenant_id}' not found." |
+| `E-CFG-100` | `tenant_id` refers to a client not in the configuration | Structured error: "Client '{tenant_id}' not found." |
 
 ## Edge Cases
 
@@ -193,6 +193,7 @@ Integration test: `tests/diagnostics_tests.rs` — "Verify get_diagnostics does 
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.4 | ADR-038-D6-sweep | 2026-06-10 | product-owner | ADR-038 D6 number sweep: Error Cases row "`tenant_id` refers to a client not in the configuration" code `E-CFG-001` → `E-CFG-100` (ClientNotFound). The BC froze the pre-v1.8 number; error-taxonomy v1.8 renumbered the client-not-found condition to E-CFG-100, and ADR-037 tombstoned the low number for the retired customer-config semantics. Condition text and response shape unchanged. Per ADR-038 (error-taxonomy v1.66). |
 | 1.3 | pass-73-fix | 2026-04-20 | state-manager | Deterministic changelog reorder: sorted all rows to descending version order (pass-73 bash script). |
 | 1.2 | pass-69-housekeeping | 2026-04-20 | product-owner | Normalized changelog schema to canonical 5-col schema. |
 | 1.1 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added missing lifecycle fields (deprecated, deprecated_by, replacement, retired, removed, removal_reason); added ## Canonical Test Vectors scaffolding; added ## Changelog. |

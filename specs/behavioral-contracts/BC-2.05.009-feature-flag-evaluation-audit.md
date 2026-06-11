@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.1"
+version: "1.2"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -11,7 +11,7 @@ subsystem: "SS-05"
 capability: "CAP-007"
 lifecycle_status: active
 introduced: cycle-1
-modified: null
+modified: "2026-06-10"
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -19,7 +19,7 @@ retired: null
 removed: null
 removal_reason: null
 inputs: [".factory/specs/prd.md", ".factory/specs/domain-spec/capabilities.md"]
-input-hash: "c36ec87"
+input-hash: "566def3"
 traces_to: ["CAP-007"]
 extracted_from: ".factory/specs/prd.md"
 ---
@@ -55,7 +55,7 @@ was permitted or denied, supporting both SOC 2 and ISO 27001 least-privilege evi
 ## Error Cases
 | Error | Condition | Behavior |
 |-------|-----------|----------|
-| Compile-time feature absent | The cargo feature for the sensor's write capability is not compiled in | `capability_checks` records `compile_time_enabled: false` and `result: "denied"`; the tool is not registered and this path should not normally be reached |
+| Compile tier denied | The sensor's TOML spec declares no matching `[[write_endpoints]]` entry (registry-derived compile tier, BC-2.04.001/BC-2.16.012; for `alias.write`, the `alias-write` cfg feature is absent) | `capability_checks` records `compile_time_enabled: false` and `result: "denied"`; the denial surfaces as E-FLAG-002 (`PrismError::CapabilityDenied`, BC-2.04.015) and the denied check is audit-logged per BC-2.04.013 |
 
 ## Edge Cases
 | ID | Description | Expected Behavior |
@@ -88,4 +88,5 @@ No VPs in VP-INDEX v1.5 directly verify the `capability_checks` resolution chain
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.2 | MCP cascade pass-1 P1-02 BC sibling sweep (2026-06-10 review-cycle PO micro-burst) | 2026-06-10 | product-owner | Error Cases compile-tier row rewritten from cargo-feature framing ("The cargo feature for the sensor's write capability is not compiled in") to registry-derived semantics aligned with error-taxonomy v1.67 E-FLAG-002 row: condition = no matching `[[write_endpoints]]` entry in the sensor's TOML spec (BC-2.04.001/BC-2.16.012; alias-write cfg feature for `alias.write`). Removed the now-false "the tool is not registered and this path should not normally be reached" claim — post-PLUGIN-MIGRATION-001-B the `DeniedCompileTime` path is evaluated per invocation by `write_pipeline.rs` and surfaces as E-FLAG-002 (BC-2.04.015). Audit field schema (`compile_time_enabled`, `runtime_enabled`, `result`) unchanged. |
 | 1.1 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; added ## Changelog. |

@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.3"
+version: "1.4"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T07:00:00
@@ -11,7 +11,7 @@ subsystem: "SS-11"
 capability: "CAP-016"
 lifecycle_status: active
 introduced: cycle-1
-modified: null
+modified: "2026-06-10"  # v1.4: ADR-038 D6 sweep — client-not-found error code E-CFG-001 → E-CFG-100
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -19,7 +19,7 @@ retired: null
 removed: null
 removal_reason: null
 inputs: [".factory/specs/prd.md", ".factory/specs/domain-spec/capabilities.md"]
-input-hash: "c36ec87"
+input-hash: "566def3"
 traces_to: ["CAP-016"]
 extracted_from: ".factory/specs/prd.md"
 ---
@@ -57,7 +57,7 @@ The `delete_alias` tool removes an alias at a specified scope, always requiring 
 |-------|-----------|----------|
 | `E-ALIAS-001` | Alias does not exist at the specified scope | Structured error with the alias name and scope |
 | `E-ALIAS-005` | Alias has dependent aliases and `force` is not `true` | Structured error listing the dependent aliases; analyst must delete dependents first or use `force: true` for cascade deletion |
-| `E-CFG-001` | `scope` references a client ID that does not exist | Structured error listing valid client IDs |
+| `E-CFG-100` | `scope` references a client ID that does not exist | Structured error listing valid client IDs |
 
 ## Edge Cases
 | ID | Description | Expected Behavior |
@@ -95,6 +95,7 @@ The `delete_alias` tool removes an alias at a specified scope, always requiring 
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.4 | ADR-038-D6-sweep | 2026-06-10 | product-owner | ADR-038 D6 number sweep: Error Cases row "`scope` references a client ID that does not exist" code `E-CFG-001` → `E-CFG-100` (ClientNotFound). The BC froze the pre-v1.8 number; error-taxonomy v1.8 renumbered the client-not-found condition to E-CFG-100, and ADR-037 tombstoned the low number for the retired customer-config semantics. Condition text and response shape unchanged. Per ADR-038 (error-taxonomy v1.66). |
 | 1.3 | pass-73-fix | 2026-04-20 | state-manager | Deterministic changelog reorder: sorted all rows to descending version order (pass-73 bash script). |
 | 1.2 | pass-69-housekeeping | 2026-04-20 | product-owner | Normalized changelog schema to canonical 5-col schema. |
 | 1.1 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; added ## Changelog. |

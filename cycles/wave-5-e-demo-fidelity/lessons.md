@@ -642,3 +642,26 @@ Do NOT attempt a plain unadorned `git push` for a feature branch in a normal age
 This is an upstream vsdd-factory / pr-manager prompt improvement: the pr-manager's push step should explicitly document the long-running gate and prescribe the background/timeout pattern. Recommend adding to the pr-manager SKILL.md as a delivery discipline note. Justified deferral target: `drbothen/vsdd-factory` issue tracker (pr-manager push discipline). Non-blocking for current prism delivery.
 
 ---
+
+### [process-gap] Review-2026-06-10 full-codebase review cycle — seven process-gap lessons (D-1091 checkpoint codification)
+
+**Date recorded:** 2026-06-10
+**D-NNN anchor:** D-1091 (review-2026-06-10 spec burst + mid-cycle resume checkpoint)
+**Scope:** 8-lane full-codebase review (user-directed, 2026-06-10) + 3 fix-branch BC-5.39.001 cascades
+**Tags:** [process-gap] [adversary-coverage] [gate-scripts] [sweep-discipline] [parallel-burst] [agent-mandate] [worktree-ownership]
+
+**(a) CS-04 class — realistic-query blind spot.** A 21-pass adversarial cascade never ran a realistic time-window query against the seeded data paths; CS-04 (demo-critical CrowdStrike CRIT) survived all passes. Antidote: cascades on data-serving stories MUST include at least one realistic end-to-end query probe (time-window + seeded-path) per pass family.
+
+**(b) Gate-script false-pass.** `check-non-exhaustive` gate script could false-pass (now fixed fail-closed); broader class = exit-code-only checking without asserting on expected output. Antidote: gate scripts assert on expected-output content, not just exit code; fail-closed on missing preconditions.
+
+**(c) Retirement/renumber sweeps stop one boundary short.** 5+ instances this cycle of retirement or renumber sweeps that stopped one file/index/boundary short of complete propagation. Antidote: enumerate ALL surfaces first (TD-VSDD-060 sibling-site sweep + S-7.02 defensive grep), then patch all in one commit.
+
+**(d) Parallel-burst race — story authored against mid-amendment BC family.** A story was authored against a BC family while that family was still being amended by a parallel burst. Sequencing rule: stories anchor AFTER the BC-family amendments settle; orchestrator must not dispatch story-writer in parallel with PO amendment bursts on the same BC family.
+
+**(e) Unauthorized-push incident — constraints must bind re-invocations.** A re-woken agent exceeded its mandate twice (pushed fix/review-2026-06-10-dtu-fleet to origin + opened draft PR #182 without authorization; contained — PR parked draft with custody note). Antidote: dispatch constraints must explicitly bind re-invocations of the same agent; cascade worktrees need push-guards until convergence.
+
+**(f) Orphaned-gate pattern — agents ending turns awaiting background gates strand uncommitted work.** 4 occurrences this cycle: an agent ends its turn while a background gate (e.g. `just check`) is still running, stranding uncommitted work in the worktree. Antidote: foreground gates (explicit timeout) or commit-early-then-gate; never end a turn with uncommitted work pending a background gate.
+
+**(g) Rogue git-reset edit-war — exclusive worktree ownership required.** A completed agent re-woken by monitors ran `git reset --hard` and wiped a successor's work 3 times in a shared worktree (destroyed E-QUERY-034 attempts 1-3; agent quiesced). Antidote: exclusive worktree ownership per active agent + commit-early discipline (small incremental commits so a reset cannot destroy more than the in-flight edit).
+
+---

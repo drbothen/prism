@@ -2,7 +2,7 @@
 document_type: architecture-section
 level: L3
 section: "query-engine"
-version: "1.2"
+version: "1.3"
 status: draft
 producer: architect
 timestamp: 2026-04-27T00:00:00
@@ -146,12 +146,12 @@ let batches = df.collect().await?;
 // ctx drops here — all memory freed (including DataFusion internal allocations)
 ```
 
-**DataFusion memory enforcement:** `GreedyMemoryPool` (from `datafusion::execution::memory_pool`) enforces the per-query budget on all intermediate allocations (sort buffers, hash tables for GROUP BY, join probe tables). When the pool limit is reached, DataFusion returns `ResourcesExhausted` error which Prism translates to `E-WATCHDOG-001`. This is critical because the watchdog's RecordBatch byte tracking (DI-027) only measures materialized data, not DataFusion's internal state. With both enforcement layers active, a complex aggregation query cannot silently exceed the memory budget through DataFusion's intermediate allocations.
+**DataFusion memory enforcement:** `GreedyMemoryPool` (from `datafusion::execution::memory_pool`) enforces the per-query budget on all intermediate allocations (sort buffers, hash tables for GROUP BY, join probe tables). When the pool limit is reached, DataFusion returns `ResourcesExhausted` error which Prism translates to `E-WATCHDOG-001`. This is critical because the pool is the sole per-query memory enforcement layer (BC-2.11.006): the watchdog's memory enforcement is the process-RSS kill threshold (`E-WATCHDOG-002`, BC-2.15.007), which guards the process as a whole and cannot attribute DataFusion's internal allocations to an individual query. With both enforcement layers active, a complex aggregation query cannot silently exceed the memory budget through DataFusion's intermediate allocations.
 
 **DataFusion memory pool API validation (ASM-013):** The exact DataFusion 53 memory pool API must be validated during implementation. If `GreedyMemoryPool` is unavailable or renamed:
 1. **Preferred fallback:** Use `datafusion::execution::memory_pool::TrackConsumersPool` wrapping an `UnboundedMemoryPool` with manual size checks after each batch
-2. **Minimum viable fallback:** Configure `SessionConfig::with_target_partitions(1)` and set `datafusion.execution.batch_size` to a small value (2048), then rely solely on the RecordBatch byte tracking in DI-027's watchdog for memory enforcement
-3. **Unacceptable:** Running without any DataFusion memory enforcement — if no pool API is available, the per-query memory budget from DI-027's RecordBatch tracking must be the sole enforcement, and the two-check grace period must account for DataFusion's internal allocations (which can be 2-5x the RecordBatch size for complex aggregations)
+2. **Minimum viable fallback:** Configure `SessionConfig::with_target_partitions(1)` and set `datafusion.execution.batch_size` to a small value (2048), then add explicit per-batch RecordBatch byte accounting in the query execution path as the per-query enforcement — the process-RSS watchdog kill (`E-WATCHDOG-002`, BC-2.15.007) is NOT a per-query substitute, since it cannot attribute memory to an individual query
+3. **Unacceptable:** Running without any per-query DataFusion memory enforcement — if no pool API is available, explicit per-batch RecordBatch byte accounting must be the sole per-query enforcement, and it must account for DataFusion's internal allocations (which can be 2-5x the materialized RecordBatch size for complex aggregations); the process-RSS watchdog remains only a last-resort process-level guard
 
 Add a CI smoke test that verifies the DataFusion memory pool integration compiles and limits memory correctly.
 
@@ -504,5 +504,6 @@ These fields are prefixed with `_` to distinguish them from OCSF fields. They ar
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.3 | 2026-06-10 | architect | Residual E-WATCHDOG drift sweep (QRY cascade P1-04 D2 adjudication companion; error-taxonomy v1.68/v1.69 authority, `proposals/cache-envelope-adjudication-2026-06-10.md`). §DataFusion memory enforcement narrative reworded to the D2 division of labor: pool = sole per-query memory enforcement (`E-WATCHDOG-001`, BC-2.11.006); watchdog = process-RSS kill threshold (`E-WATCHDOG-002`, BC-2.15.007) — replaces pre-adjudication "watchdog's RecordBatch byte tracking (DI-027) only measures materialized data" framing. The `ResourcesExhausted` → `E-WATCHDOG-001` mappings (here and §JOIN memory budget) were already correct and are unchanged. ASM-013 fallback options 2/3 reworded: per-query fallback enforcement is explicit per-batch RecordBatch byte accounting in the query path, not "DI-027's watchdog" (the watchdog cannot attribute memory to an individual query). Sibling fix in system-overview.md v1.4. |
 | 1.2 | 2026-05-03 | architect | F-PreP24-H-002: corrected `execute_scheduled` error-path memory-budget text — 16 concurrent tasks → 8 (D-209 LOCKED), 3.2 GB → 1.6 GB (8 × 200 MB). Watchdog-exceeds-512-MB-RSS risk reasoning preserved. POL-6 compliance. |
 | 1.1 | 2026-04-27 | product-owner | Pass 15 sweep: `_client` virtual field description updated TenantId → OrgSlug (ADR-006); added `## [Section Content]` template compliance marker. |

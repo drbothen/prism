@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.6"
+version: "1.7"
 status: active
 producer: product-owner
 timestamp: 2026-04-14T07:00:00
@@ -11,7 +11,7 @@ subsystem: "SS-11"
 capability: "CAP-015"
 lifecycle_status: active
 introduced: cycle-1
-modified: "2026-06-05"
+modified: "2026-06-10"
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -19,7 +19,7 @@ retired: null
 removed: null
 removal_reason: null
 inputs: [".factory/specs/prd.md", ".factory/specs/domain-spec/capabilities.md"]
-input-hash: "c36ec87"
+input-hash: "566def3"
 traces_to: ["CAP-015"]
 extracted_from: ".factory/specs/prd.md"
 ---
@@ -67,7 +67,7 @@ Within a single query execution, the query engine maintains a per-query cache of
 ## Error Cases
 | Error | Condition | Behavior |
 |-------|-----------|----------|
-| `E-QUERY-003` | Fan-out fetched record count exceeds 10K during streaming | Fetch aborted; error includes per-sensor fetched counts and narrowing suggestions (materialization records limit per BC-2.11.006 §EC-003) |
+| `E-QUERY-005` | Fan-out fetched record count exceeds 10K during streaming | Fetch aborted; error includes per-sensor fetched counts and narrowing suggestions. `PrismError::QueryMaterializationLimitExceeded { count, max }` — `"E-QUERY-005: materialization limit exceeded: fetched {count} records (max {max})"` (materialization records limit per BC-2.11.006 canonical mapping, error-taxonomy v1.68+) |
 | `E-SENSOR-001` | One or more sensor API calls fail | Partial materialization: successful sensors contribute data; failed sensors listed in `sensor_errors` |
 | `E-AUTH-005` | Credentials unavailable for a sensor | Sensor excluded from fan-out; listed in `sensor_errors` |
 
@@ -85,7 +85,7 @@ Within a single query execution, the query engine maintains a per-query cache of
 | Input | Expected Output | Category |
 |-------|----------------|----------|
 | QueryPlan with 2 sensors, both return 500 records each | 1000 records materialized; MemTable registered | happy-path |
-| QueryPlan where total fan-out reaches 10001 records | `Err(E-QUERY-003)` with per-sensor counts | error |
+| QueryPlan where total fan-out reaches 10001 records | `Err(E-QUERY-005)` with per-sensor counts | error |
 | QueryPlan where one of 3 sensors returns HTTP 503 | Partial results from 2 sensors; failed sensor in `sensor_errors` | edge-case |
 | QueryPlan with all sensors returning empty | Empty MemTable; query returns empty result set | edge-case |
 
@@ -108,6 +108,7 @@ Within a single query execution, the query engine maintains a per-query cache of
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.7 | QRY cascade P5-02 adjudication sweep (review-2026-06-10 PO micro-burst; error-taxonomy v1.71) | 2026-06-10 | product-owner | Record-cap error code resynced E-QUERY-003 → E-QUERY-005: the 10K streaming-counter condition migrated to `PrismError::QueryMaterializationLimitExceeded { count, max }` / E-QUERY-005 at QRY-01 (BC-2.11.006 v1.18 canonical mapping, taxonomy v1.68 D2 adjudication), but this BC's Error Cases row and the 10001-record canonical vector still cited E-QUERY-003 from the v1.4 reconciliation (which matched the then-current code). Error Cases row updated with the verbatim shipped variant + display per ADR-035 canonical-row convention; stale `§EC-003` cross-ref into BC-2.11.006 replaced with the canonical-mapping citation. E-QUERY-003 is now security-limits-only (P5-02; `QuerySecurityLimitExceeded`, `-32602`) — no condition in this BC qualifies. No postcondition/edge-case/invariant changes. |
 | 1.6 | S-DEMO-QUERY-PUSHDOWN-001-v2-bc-respec | 2026-06-05 | product-owner | Cite-pin sweep: BC-2.01.013 v1.12 → v1.13 in Postconditions OCSF note (body line) and Traceability §Related BCs table. Amended note now references the corrected per-sensor translation spec in BC-2.01.013 v1.13 (CrowdStrike FQL via ADR-033 T1; Armis AQL passthrough; Cyberint/Claroty no native time-window). No semantic change to this BC's own postconditions or invariants. |
 | 1.5 | D-924-bc-amendment | 2026-05-31 | product-owner | S-DEMO-001 adversary pass-2 F-001-R cross-reference: added forward-reference to BC-2.01.013 v1.8 OCSF Conformance Clause in the OCSF normalization postcondition bullet (spec-driven adapters must pass ColumnMapper + OcsfNormalizer; envelope-only RecordBatch is NON-CONFORMANT). Added BC-2.01.013 to Related BCs in Traceability. No semantic change to this BC's own invariants — the conformance detail lives in BC-2.01.013; this BC carries the pointer. |
 | 1.4 | PR-129-pass-1 | 2026-05-06 | product-owner | Adversary F-PR129-PR-MED-A remediation: error-code reconciliation per BC-2.11.006 v1.12 canonical SoT mapping. E-QUERY-005 (timeout) → E-QUERY-003 (records limit) for the 10K record cap rows. Implementation already emits E-QUERY-003 at materialization.rs:186; this BC update closes spec↔code drift. |

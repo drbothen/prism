@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.17"
+version: "1.19"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T07:00:00
@@ -11,7 +11,7 @@ subsystem: "SS-11"
 capability: "CAP-015"
 lifecycle_status: active
 introduced: cycle-1
-modified: "2026-05-07"
+modified: "2026-06-10"
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -19,7 +19,7 @@ retired: null
 removed: null
 removal_reason: null
 inputs: [".factory/specs/prd.md", ".factory/specs/domain-spec/capabilities.md"]
-input-hash: "c36ec87"
+input-hash: "566def3"
 traces_to: ["CAP-015"]
 extracted_from: ".factory/specs/prd.md"
 restricted_symbols:
@@ -104,17 +104,34 @@ This BC defines the complete set of security limits that constitute DI-019. Seve
 
 ## Error Cases
 
-> **Canonical E-QUERY-NNN mapping (SoT: `crates/prism-core/src/error.rs` `PrismError` enum):**
+> **Canonical error-code mapping (SoT: `crates/prism-core/src/error.rs` `PrismError` enum):**
 >
 > | Error Code | PrismError Variant | Condition |
 > |------------|-------------------|-----------|
-> | `E-QUERY-003` | `QueryExecutionFailed` | Parse-time structural limits (length, depth, pipe stages, regex) |
-> | `E-QUERY-004` | `QueryMemoryBudgetExceeded` | DataFusion GreedyMemoryPool exceeds 200MB per-query budget |
-> | `E-QUERY-005` | `QueryTimeout` | 30s wall-clock timeout |
+> | `E-QUERY-003` | `QuerySecurityLimitExceeded` | Parse-time structural limits (length, depth, pipe stages, regex) |
+> | `E-QUERY-004` | `QueryTimeout` | 30s wall-clock timeout |
+> | `E-QUERY-005` | `QueryMaterializationLimitExceeded` | Streaming record counter exceeds 10K during sensor fan-out fetch |
+> | `E-WATCHDOG-001` | `QueryMemoryBudgetExceeded` | DataFusion GreedyMemoryPool exceeds 200MB per-query budget |
 > | `E-QUERY-008` | `QueryDenylisted` | Query auto-denylisted after N consecutive watchdog terminations |
 >
-> Note: prior to v1.12, this table incorrectly swapped E-QUERY-004 (memory) and E-QUERY-005 (timeout).
+> Note: prior to v1.12, this table incorrectly swapped the timeout and memory codes; the v1.12–v1.17
+> mapping (E-QUERY-004 = memory, E-QUERY-005 = timeout) was in turn superseded post-QRY-01: the
+> canonical mapping is E-QUERY-004 = timeout, E-QUERY-005 = materialization limit, and the per-query
+> memory budget = E-WATCHDOG-001 (error-taxonomy v1.68; architect adjudication D2,
+> `proposals/cache-envelope-adjudication-2026-06-10.md`). The process-RSS watchdog kill is a distinct
+> condition: E-WATCHDOG-002 / `WatchdogKilled` (BC-2.15.007).
 > The `PrismError` enum in `error.rs` is the single source of truth for code emission order.
+>
+> **Post-P5-02 split (QRY cascade adjudication 2026-06-10; error-taxonomy v1.71, ADR-038 v1.3):** security
+> limits are emitted by the dedicated variant `PrismError::QuerySecurityLimitExceeded { detail }` with display
+> `"E-QUERY-003: {limit_detail}"`, surfaced via `map_prism_error` as MCP `-32602` INVALID_PARAMS — these errors
+> are caller-resolvable (narrow/simplify the query), satisfying this BC's structured-error postcondition. Pre-split,
+> the security-limit path routed through `QueryExecutionFailed` (display `"E-QUERY-003: query execution error: {detail}"`),
+> double-prefixing the message AND surfacing as an opaque MCP `-32000` INTERNAL_ERROR — a latent violation of this
+> BC's caller-visible structured-error requirement. Generic query planning/execution failures (DataFusion planning,
+> MemTable/catalog registration, virtual-field injection) retain `QueryExecutionFailed` and are recoded
+> `E-QUERY-034` (MCP `-32000`, operator-resolvable); they are NOT security-limit conditions and are out of this
+> BC's scope. VP-014/VP-015 Kani property text pins the `E-QUERY-003` substring and is unchanged by the split.
 
 | Error | Condition | Behavior |
 |-------|-----------|----------|
@@ -122,8 +139,9 @@ This BC defines the complete set of security limits that constitute DI-019. Seve
 | `E-QUERY-003` | Nesting depth exceeds 64 | `"Query nesting depth is {N} (max 64). Reduce nested parentheses or boolean expressions."` |
 | `E-QUERY-003` | Pipe stages exceed 32 | `"Query has {N} pipe stages (max 32). Combine operations or simplify the pipeline."` |
 | `E-QUERY-003` | Regex pattern exceeds 1024 bytes | `"Regex pattern is {N} bytes (max 1024). Simplify the pattern."` |
-| `E-QUERY-004` | DataFusion GreedyMemoryPool exceeds 200MB per-query limit | `PrismError::QueryMemoryBudgetExceeded { limit_mb: 200, used_mb }` — no partial results emitted; SessionContext dropped via RAII |
-| `E-QUERY-005` | 30s wall-clock timeout exceeded | `PrismError::QueryTimeout { elapsed_ms }` — `"query timed out after {elapsed_ms}ms"` — transient, retryable |
+| `E-QUERY-004` | 30s wall-clock timeout exceeded | `PrismError::QueryTimeout { elapsed_ms }` — `"E-QUERY-004: query timed out after {elapsed_ms}ms"` — transient, retryable |
+| `E-QUERY-005` | Materialization streaming counter exceeds 10K during fan-out | `PrismError::QueryMaterializationLimitExceeded { count, max }` — `"E-QUERY-005: materialization limit exceeded: fetched {count} records (max {max})"` — no partial results |
+| `E-WATCHDOG-001` | DataFusion GreedyMemoryPool exceeds 200MB per-query limit | `PrismError::QueryMemoryBudgetExceeded { limit_mb: 200, used_mb }` — `"E-WATCHDOG-001: query memory budget exceeded: limit {limit_mb}MB, used {used_mb}MB"` — no partial results emitted; SessionContext dropped via RAII |
 | `E-QUERY-008` | Query auto-denylisted after N consecutive watchdog terminations | `PrismError::QueryDenylisted { failure_count, reason, expiry_ts }` — includes expiry timestamp and `force_execute` override hint |
 
 ## Edge Cases
@@ -167,6 +185,8 @@ This BC defines the complete set of security limits that constitute DI-019. Seve
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.19 | QRY cascade P5-02 adjudication sweep (review-2026-06-10 PO micro-burst; error-taxonomy v1.71, ADR-038 v1.3) | 2026-06-10 | product-owner | Canonical mapping table E-QUERY-003 variant cell corrected `QueryExecutionFailed` → `QuerySecurityLimitExceeded` per the P5-02 one-code-three-conditions adjudication: security limits get the NEW dedicated variant `PrismError::QuerySecurityLimitExceeded { detail }` (display `"E-QUERY-003: {limit_detail}"`, un-nesting the double-prefixed pre-split display), surfaced via `map_prism_error` as MCP `-32602` INVALID_PARAMS — closing the latent violation where caller-resolvable limit errors surfaced as opaque `-32000` internal errors. Post-split note paragraph added under the mapping table documenting the split: generic execution (DataFusion planning, MemTable/catalog registration, virtual-field injection) retains `QueryExecutionFailed` recoded E-QUERY-034 (`-32000`), out of this BC's scope; VP-014/VP-015 property text pins `E-QUERY-003` substring, unchanged. E-QUERY-003 body Error Cases rows, edge cases, and vectors unchanged (all four conditions remain security limits under 003). Implementer work-order on QRY branch per taxonomy v1.71 changelog. |
+| 1.18 | QRY cascade pass-1 P1-04 D2 companion sweep (review-2026-06-10 PO consolidated amendment burst) | 2026-06-10 | product-owner | Canonical mapping table refreshed to post-QRY-01 + taxonomy v1.68 state (architect adjudication D2, `proposals/cache-envelope-adjudication-2026-06-10.md`): E-QUERY-004 = `QueryTimeout` (30s timeout), E-QUERY-005 = `QueryMaterializationLimitExceeded` (10K streaming counter), per-query memory budget = E-WATCHDOG-001 `QueryMemoryBudgetExceeded` (GreedyMemoryPool); supersession note documents the v1.12–v1.17 mapping it replaces and distinguishes E-WATCHDOG-002 `WatchdogKilled` (process-RSS kill, BC-2.15.007). Error Cases body rows re-coded to match, message formats regularized to verbatim shipped displays (ADR-035 canonical-row convention), and a previously missing E-QUERY-005 materialization-limit row added so all enforcement-stage limits in §Postconditions have an error row. |
 | 1.17 | S-3.04-local-adversary-pass2 | 2026-05-07 | product-owner | F-LOCAL-P2-CRIT-001 + F-LOCAL-P2-HIGH-005 closure: added 5 S-3.04 alias-system symbols to `restricted_symbols` — `alias_tools::create_alias`, `alias_tools::create_alias_with_clients`, `alias_tools::create_alias_with_clients_gated_inner`, `alias_tools::delete_alias`, `alias_store::AliasStore::create_or_update`. Layer-5 (S-3.04): 0→5 symbols. Total perimeter list: 26→31 entries. Expected E-errors in perimeter-violation crate: 27→32. Documented `alias-write` Cargo feature as runtime-advisory gate (F-LOCAL-P2-HIGH-004, option b). Updated Description prose with DI-034 layer-5 paragraph. |
 | 1.16 | maintenance-clippy-unwrap-pass2 | 2026-05-07 | product-owner | C-1 adversary pass-2 closure: removed `prism_query::sql_parser::build_dml_parser` from `restricted_symbols`. The function was dead code (unused since S-3.06 introduced direct dispatch in `parse_sql_dml`); removed in `maintenance/clippy-unwrap-cleanup` (commit `159e922b`). Layer-4 group: 10→9 symbols. Total perimeter list: 27→26 entries. Expected E-errors in perimeter-violation crate: 28→27. Updated Description prose to record v1.16 change. |
 | 1.15 | S-3.06-pr130-pass3 | 2026-05-06 | product-owner | Adversary PR-130 pass-3 P3-MED-001 remediation: appended v1.14 amendment note in body Description paragraph to document the tenth symbol (`parse_sql_dml_with_limits`) and updated version anchor from `(v1.11)` to `(v1.11/v1.14)`. No content change to `restricted_symbols` list. Closes BC body↔frontmatter drift. |

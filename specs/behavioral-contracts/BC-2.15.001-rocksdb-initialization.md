@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.3"
+version: "1.4"
 status: draft
 producer: product-owner
 timestamp: 2026-04-13T12:00:00
@@ -21,7 +21,7 @@ removal_reason: null
 inputs:
   - ".factory/specs/prd.md"
   - ".factory/specs/domain-spec/capabilities.md"
-input-hash: "76729b7"
+input-hash: "2580252"
 traces_to:
   - "CAP-019"
 extracted_from: ".factory/specs/prd.md"
@@ -32,7 +32,7 @@ extracted_from: ".factory/specs/prd.md"
 ## Description
 
 At startup Prism opens (or creates) a RocksDB database at `{state_dir}/prism.db` and
-idempotently ensures all 16 required column families are present. Column families are
+idempotently ensures all 19 required column families are present. Column families are
 the storage domains for every persistent subsystem: schedules, alerts, cases, detection
 state, audit buffer, crash-recovery dirty bits, watchdog denylist, decorators, aliases,
 and more. If the database is corrupted, automatic repair is attempted before a fatal
@@ -49,7 +49,7 @@ from affecting query or case operations.
 
 ## Postconditions
 - A RocksDB database is opened (or created if not existing) at `{state_dir}/prism.db` where `state_dir` defaults to `./state` (set via `--state-dir` CLI flag)
-- The following column families are created if not already present (16 total):
+- The following column families are created if not already present (19 total, per AD-004 / ADR-022 v1.15; code source of truth: `prism-core` storage.rs `ALL_DOMAINS: [StorageDomain; 19]`):
   - `default` -- general-purpose key-value storage
   - `schedules` -- scheduled query definitions, splay offsets, epoch counters, timing state (BC-2.12.010)
   - `diff_results` -- differential result history (BC-2.12.010)
@@ -66,6 +66,9 @@ from affecting query or case operations.
   - `infusion_cache` -- per-query dedup cache for infusion UDF results (BC-2.19.002)
   - `plugin_state` -- WASM plugin registration and hot-reload metadata (BC-2.17.005)
   - `event_buffer` -- buffered sensor events for event-stream table abstraction (S-2.08; osquery event publisher pattern)
+  - `credentials` -- credential store domain (SS-03); added by S-1.02, opened and health-checked at boot; reserved — production write path lands with credential-store storage backend wiring; persisted values are encrypted at rest and never transit AI context (AD-017)
+  - `feature_flags` -- feature flag state domain (SS-08); added by S-1.02, opened and health-checked at boot; reserved — production write path lands with feature-flag persistence wiring
+  - `scheduler` -- scheduler runtime-state domain (SS-12); added by S-1.02, opened and health-checked at boot; distinct from `schedules` (schedule definitions) — reserved for execution-engine state
 - RocksDB options are configured for Prism's workload:
   - Write buffer size: 64MB (default)
   - Max open files: 256
@@ -102,7 +105,7 @@ See `.factory/specs/prd-supplements/test-vectors.md` for full canonical vectors.
 
 | Scenario | Input | Expected Output |
 |----------|-------|-----------------|
-| Happy path — fresh start | empty state_dir | All 16 CFs created; health check passes |
+| Happy path — fresh start | empty state_dir | All 19 CFs created; health check passes |
 | Idempotent open | existing DB with all CFs | Opens successfully; no mutation to existing CFs |
 | Lock conflict | second Prism instance starts | `E-STORE-005` fatal error |
 | Corruption + repair succeeds | corrupted DB, repair possible | DB repaired; startup proceeds |
@@ -125,6 +128,7 @@ See `.factory/specs/prd-supplements/test-vectors.md` for full canonical vectors.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.4 | review-2026-06-10-po-burst | 2026-06-10 | product-owner | CF count corrected 16→19 per AD-004 / ADR-022 v1.15 + ARCH-INDEX v2.120 + data-layer v1.4 (code source of truth: `prism-core` storage.rs `ALL_DOMAINS: [StorageDomain; 19]`). Postcondition CF list extended with the three S-1.02 domains (`credentials`, `feature_flags`, `scheduler`); Description and happy-path test vector counts updated 16→19. |
 | 1.3 | pass-74-fix | 2026-04-20 | product-owner | Resolved (placeholder) row in ## Verification Properties per pass-74 VP-TBD decision matrix extension. |
 | 1.2 | pass-73-fix | 2026-04-20 | state-manager | Deterministic changelog reorder: sorted all rows to descending version order (pass-73 bash script). |
 | 1.1 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; renamed Error Cases → Error Conditions; added ## Changelog. |

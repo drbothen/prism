@@ -1,13 +1,13 @@
 ---
 document_type: prd-supplement-test-vectors
 level: L3
-version: "2.7"
+version: "2.9"
 status: draft
 producer: product-owner
 timestamp: 2026-04-19T00:00:00Z
 phase: 1a
 inputs: [prd.md, behavioral-contracts/]
-input-hash: "83d46e6"
+input-hash: "af1ec3a"
 traces_to: prd.md
 ---
 
@@ -113,7 +113,7 @@ traces_to: prd.md
 | Input | Expected Output | Category | Notes |
 |-------|-----------------|----------|-------|
 | `{clients: ["acme-corp"], sensors: ["crowdstrike", "cyberint"], query: "SELECT hostname, process FROM processes WHERE user='root' LIMIT 100"}` | Planner expands scope into per-sensor federated subqueries for (acme-corp, crowdstrike) and (acme-corp, cyberint); returns OCSF-normalized rows bounded by LIMIT 100; `query_context` includes `clients_queried`, `sensors_queried`, `is_truncated`, `total_available` | happy-path | TV-003; DI-008 provenance |
-| `{query: "..."}` with no clients configured in Prism at all | Rejection with `E-CFG-001` (no matching clients/sensors found) | error | Required scope absent |
+| `{query: "..."}` with no clients configured in Prism at all | Rejection with `E-CFG-100` (no matching clients/sensors found) | error | Required scope absent |
 | `{clients: ["acme"], sensors: ["crowdstrike"], query: "SELECT * FROM alerts"}` where query text also contains `client_id = "globex"` | Intersection of tool-level scope and query predicate is empty; empty result set returned with metadata explaining intersection was empty; not an error | edge-case | EC-11-001; scope intersection narrowing |
 | Query that would materialize more than 10,000 records | Rejection with `E-QUERY-006` (materialization cap); structured error with per-sensor counts and narrowing suggestions | error | DEC-023; DI-019 enforced |
 | Query execution exceeds 30 seconds | Rejection with `E-QUERY-004` (timeout); no partial results | error | DEC-026; DI-019 enforced |
@@ -255,7 +255,7 @@ traces_to: prd.md
 |-------|-----------------|----------|-------|
 | Valid spec file modified at runtime (column added); `reload_config` invoked | New spec activates atomically via arc-swap; schema change triggers `notifications/tools/list_changed` MCP notification; reload result includes `"modified": ["sensor_id.table_name"]` with `"schema_changed": true` | happy-path | TV-010 co-anchor; DI-031 |
 | Invalid spec file modified at runtime (TOML syntax error); `reload_config` invoked | Previous spec stays active; validation error returned in reload result alongside successful updates for other specs; no partial registration | edge-case | DI-030 + DI-031 atomic rollback |
-| Spec file deleted from `sensor_specs_dir`; `reload_config` invoked | Tables unregistered from DataFusion catalog; queries targeting removed tables return `E-QUERY-011` | edge-case | Removed spec path |
+| Spec file deleted from `sensor_specs_dir`; `reload_config` invoked | Tables unregistered from DataFusion catalog; queries targeting removed tables return `E-QUERY-035` | edge-case | Removed spec path |
 | New spec file added to `sensor_specs_dir`; `reload_config` invoked | New `SensorSpec` loaded; tables registered; immediately queryable; reload result includes `"added"` list | happy-path | New spec path |
 | `reload_config` invoked while a query is in-flight using old spec | In-flight query uses `ConfigSnapshot` captured at query start (arc-swap guard); completes against old schema; next query uses new schema | edge-case | DEC-037; in-flight query safety |
 | Non-schema field updated in spec (e.g., `rate_limit_hints` changed); `reload_config` invoked | Spec re-registered; no `list_changed` notification sent (schema unchanged); reload result includes `"schema_changed": false` | edge-case | Non-schema reload; no agent notification |
@@ -331,6 +331,8 @@ traces_to: prd.md
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 2.9 | review-2026-06-10-PO-micro | 2026-06-10 | product-owner | MCP cascade P4-05 re-home citation sweep (architect adjudication, error-taxonomy v1.72 / ADR-038 v1.4 D5 family): BC-2.16.007 removed-spec vector (spec deleted + `reload_config`) expected-output code `E-QUERY-011` → `E-QUERY-035`. E-QUERY-011 retained by the live audit-capability condition (BC-2.15.011 `AuditTableAccessDenied`); the reload condition re-homed to E-QUERY-035 (namespace tail, zero emitters, future scope S-3.13). Vector condition and expected behavior unchanged; updated in the same burst as BC-2.16.007 v1.4 per the BC source-of-truth rule. TD-VSDD-060 sweep: zero other E-QUERY-011 citations in this supplement. |
+| 2.8 | ADR-038-D6-sweep | 2026-06-10 | product-owner | ADR-038 D6 number sweep: BC-2.11.001 "no clients configured" rejection vector code `E-CFG-001` → `E-CFG-100` (ClientNotFound). The vector froze the pre-v1.8 number; error-taxonomy v1.8 renumbered the client-not-found condition to E-CFG-100, and ADR-037 tombstoned the low number for the retired customer-config semantics. Vector condition and expected behavior unchanged. Per ADR-038 (error-taxonomy v1.66). Verified zero other E-CFG-001/002/003/010/020 citations remain in this supplement. |
 | 2.7 | pass-15-remediation | 2026-04-27 | product-owner | Client placeholder description updated TenantId → OrgSlug (ADR-006); virtual fields table `_client` description updated to match. |
 | 2.6 | pass-80-remediation | 2026-04-21 | product-owner | F80-003: corrected subsystem header CAP triples — SS-05 CAP-024→CAP-025, SS-04 removed CAP-014, SS-14 removed CAP-021. Added preamble paragraph for Per-Subsystem Test Vectors scope. |
 | 2.5 | pass-72-fix | 2026-04-20 | product-owner | Renamed changelog header Notes → Change to match canonical 5-col supplement schema (HIGH-001). |

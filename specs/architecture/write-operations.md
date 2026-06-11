@@ -2,7 +2,7 @@
 document_type: architecture-section
 level: L3
 section: "write-operations"
-version: "1.2"
+version: "1.3"
 status: draft
 producer: architect
 timestamp: 2026-04-27T00:00:00
@@ -30,7 +30,7 @@ traces_to: ARCH-INDEX.md
 **Rationale:**
 - Composability: `FROM crowdstrike_hosts WHERE last_seen < 7d | contain` is a single atomic operator expression. No multi-step MCP tool orchestration needed.
 - Consistency: writes use the same `OrgSlug` scoping (formerly `TenantId`, renamed per ADR-006), the same push-down filter classification, the same OCSF normalized record surface that reads use. There is no second mental model.
-- Safety non-negotiation: routing writes through the identical safety stack as dedicated tools means no capability is bypassed by using query syntax. The three gates (compile-time feature, runtime TOML capability, risk-tier confirmation) fire identically whether the write originates from a PrismQL expression or a direct MCP tool call.
+- Safety non-negotiation: routing writes through the identical safety stack as dedicated tools means no capability is bypassed by using query syntax. The three gates (compile tier — registry-derived from `[[write_endpoints]]` declaration presence per BC-2.16.012, runtime TOML capability, risk-tier confirmation) fire identically whether the write originates from a PrismQL expression or a direct MCP tool call.
 - DataFusion alignment: DataFusion 53 already defines `TableProvider::insert_into()`, `update()`, and `delete_from()` on the same trait used for reads. Write operations reuse the registered table and memory pool infrastructure rather than building a second path.
 
 **Consequences:**
@@ -142,7 +142,7 @@ graph TD
     end
 
     subgraph SAFETYCHECK["Phase 2: Safety Pre-check (pure)"]
-        S1["Feature Flag Gate 1<br/><i>Compile-time Cargo feature<br/>present for sensor write?</i>"]
+        S1["Feature Flag Gate 1 (compile tier)<br/><i>[[write_endpoints]] declaration in<br/>WriteEndpointRegistry for this sensor?</i>"]
         S2["Feature Flag Gate 2<br/><i>Runtime TOML capability<br/>Allow / Deny / No-match→Deny</i>"]
         S3["Batch Limit Pre-check<br/><i>Count SELECT results<br/>vs per-endpoint batch_limit</i>"]
         S4["Risk Tier Classification<br/><i>Read / Reversible / Irreversible</i>"]
@@ -172,7 +172,7 @@ graph TD
 
     INPUT --> P1 --> P2 --> P3
     P3 --> S1
-    S1 -->|"Feature absent"| DENY1["E-FLAG-002: not compiled"]
+    S1 -->|"No declaration"| DENY1["E-FLAG-002: no write-endpoint declaration"]
     S1 -->|"Present"| S2
     S2 -->|"Deny"| DENY2["E-FLAG-001: not enabled"]
     S2 -->|"Allow"| S3
@@ -439,7 +439,7 @@ Write operations in PrismQL compose with all existing safety infrastructure with
 
 ### Feature Flag Integration (BC-2.04.001, BC-2.04.005)
 
-The `capability_path` declared in `[[sensor.write_endpoints]]` is evaluated identically to capability paths for dedicated MCP tool writes. Gate 1 (compile-time) and Gate 2 (runtime TOML) fire in sequence during Phase 2 (Safety Pre-check), before any I/O.
+The `capability_path` declared in `[[sensor.write_endpoints]]` is evaluated identically to capability paths for dedicated MCP tool writes. Gate 1 (compile tier — registry-derived: the sensor has write capability if and only if a matching `[[write_endpoints]]` declaration is loaded in the `WriteEndpointRegistry` at boot, per BC-2.16.012; denial surfaces `E-FLAG-002`) and Gate 2 (runtime TOML) fire in sequence during Phase 2 (Safety Pre-check), before any I/O.
 
 ```toml
 # prism.toml — capability configuration (unchanged from dedicated tool model)
@@ -659,7 +659,7 @@ This table extends `BC-2.04.007` with PrismQL write endpoints for the four initi
 | Armis | `device_tags` | `tag` | `armis_device_tags` | Reversible | No |
 | Armis | `device_tags` | `remove_tag` | `armis_removed_tags` | Reversible | No |
 
-All write endpoints above require `sensor.{sensor_id}.{endpoint_id}` capability in the runtime TOML and the corresponding Cargo feature (`{sensor_id}-write`) at compile time.
+All write endpoints above require their declared `capability_path` (e.g., `sensor.crowdstrike.containment`) to resolve to Allow in the runtime TOML. The compile tier is satisfied by the `[[write_endpoints]]` declaration itself — registry-derived per BC-2.16.012; the `{sensor_id}-write` Cargo features are empty test-gating declarations in `prism-query`, NOT the gate. (The sole surviving genuinely feature-gated write path is alias-write, `alias.write` / BC-2.11.008, which is outside this sensor write-endpoint register.)
 
 ---
 
@@ -703,3 +703,4 @@ Formal verification scope: VP-NNN (to be defined) will cover `parse_write_query`
 |---------|------|--------|--------|
 | 1.1 | 2026-04-27 | product-owner | Pass 15 sweep: Rationale prose updated TenantId → OrgSlug scoping (ADR-006); WriteDispatcher::execute signature updated &TenantId → &OrgSlug with migration comment; added `## [Section Content]` template compliance marker. |
 | 1.2 | 2026-05-07 | architect | S-3.07 LOCAL pass-3 fix-pass-2-correction (D-285): Added E-QUERY-030 (WriteTargetTableUnknown) to catalog; updated range prose to E-QUERY-020..030. Per F-PASS3-MED-001 follow-on — correctness-over-speed adjudication from orchestrator + user. E-QUERY-030 covers the from_dml_node failure mode (target table absent from WriteEndpointRegistry), distinct from E-QUERY-029 (adapter not initialized for client). POL-1 append-only preserved; no existing codes renumbered. |
+| 1.3 | 2026-06-10 | architect | Cargo-feature-gate framing sweep for sensor writes (sibling of error-taxonomy v1.67 E-FLAG-002 registry-semantics fix, 2026-06-10 review-cycle MCP cascade pass-1 P1-02). Compile tier is registry-derived per BC-2.16.012: `write_pipeline.rs` derives the gate from `WriteEndpointRegistry` presence (`[[write_endpoints]]` declaration in the sensor's TOML spec); the `{sensor}-write` Cargo features are empty test-gating declarations, not the gate. 5 sites updated: (1) write-pipeline Mermaid S1 node "Compile-time Cargo feature present for sensor write?" → "[[write_endpoints]] declaration in WriteEndpointRegistry for this sensor?"; (2) S1→DENY1 edge "Feature absent"/"E-FLAG-002: not compiled" → "No declaration"/"E-FLAG-002: no write-endpoint declaration" (matches v1.67 message format); (3) AD-022 Rationale "compile-time feature" gate → registry-derived compile tier; (4) §Feature Flag Integration Gate 1 parenthetical expanded to registry derivation + E-FLAG-002 surface; (5) Risk Classification Table footnote — stale "corresponding Cargo feature (`{sensor_id}-write`) at compile time" requirement replaced with registry-derived compile tier + test-gating clarification + alias-write (BC-2.11.008) named as the sole surviving genuinely feature-gated write path; same footnote's capability formula `sensor.{sensor_id}.{endpoint_id}` corrected to "declared `capability_path`" (doc's own schema shows endpoint_id=contained_hosts vs capability_path=sensor.crowdstrike.containment — formula was internally inconsistent). No structural/grammar/error-code changes. |

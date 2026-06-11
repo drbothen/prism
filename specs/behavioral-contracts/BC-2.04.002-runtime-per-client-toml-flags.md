@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.1"
+version: "1.2"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -11,7 +11,7 @@ subsystem: "SS-04"
 capability: "CAP-005"
 lifecycle_status: active
 introduced: cycle-1
-modified: null
+modified: "2026-06-10"
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -19,7 +19,7 @@ retired: null
 removed: null
 removal_reason: null
 inputs: [".factory/specs/prd.md", ".factory/specs/domain-spec/capabilities.md"]
-input-hash: "c36ec87"
+input-hash: "566def3"
 traces_to: ["CAP-005"]
 extracted_from: ".factory/specs/prd.md"
 ---
@@ -34,9 +34,10 @@ and are overridden by per-client entries in `[clients.{id}.capabilities]`. The r
 capability set for each client is a flat `HashSet<String>` of enabled paths computed once
 at config load time and held immutable for the session.
 
-This is the second tier of Prism's two-tier write gate (see BC-2.04.004): even when a
-write feature is compiled in, the runtime TOML flag must also permit the operation for
-the specific client making the request.
+This is the second tier of Prism's two-tier write gate (see BC-2.04.004): even when the
+compile tier permits (registry-derived per BC-2.04.001 — matching `[[write_endpoints]]`
+declaration in the sensor's TOML spec), the runtime TOML flag must also permit the
+operation for the specific client making the request.
 
 ## Preconditions
 - `prism.toml` contains `[defaults.capabilities]` and optionally `[clients.{id}.capabilities]` sections
@@ -78,7 +79,7 @@ See `.factory/specs/prd-supplements/test-vectors.md` for canonical test vectors 
 
 ## Verification Properties
 
-- **VP-020** (Feature flag: compile AND runtime must both permit) — verifies the runtime tier is not bypassed even when compile-time feature is present.
+- **VP-020** (Feature flag: compile AND runtime must both permit) — verifies the runtime tier is not bypassed even when the compile tier permits (registry-derived per BC-2.04.001).
 
 ## Traceability
 | Field | Value |
@@ -91,4 +92,5 @@ See `.factory/specs/prd-supplements/test-vectors.md` for canonical test vectors 
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.2 | MCP cascade pass-1 P1-02 BC sibling sweep (2026-06-10 review-cycle PO micro-burst) | 2026-06-10 | product-owner | Stale compile-tier phrasing reworded at two sites — Description "even when a write feature is compiled in" and VP-020 trailing description "even when compile-time feature is present" — both now "even when the compile tier permits (registry-derived per BC-2.04.001)": sensor-write compile tier is `[[write_endpoints]]`-declaration-derived, not cargo-feature-derived (error-taxonomy v1.67 E-FLAG-002 row). Runtime-tier contract content (TOML resolution, defaults/overrides, deny-by-default) unchanged. |
 | 1.1 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; added ## Changelog. |

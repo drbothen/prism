@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.1"
+version: "1.2"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -11,7 +11,7 @@ subsystem: "SS-04"
 capability: "CAP-005"
 lifecycle_status: active
 introduced: cycle-1
-modified: null
+modified: "2026-06-10"
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -19,7 +19,7 @@ retired: null
 removed: null
 removal_reason: null
 inputs: [".factory/specs/prd.md", ".factory/specs/domain-spec/capabilities.md"]
-input-hash: "c36ec87"
+input-hash: "566def3"
 traces_to: ["CAP-005"]
 extracted_from: ".factory/specs/prd.md"
 ---
@@ -46,9 +46,9 @@ and vice versa.
 - Returns a complete capability matrix showing all possible tools and their enablement status
 - For each capability path, reports:
   - `enabled: bool` (the combined result of both tiers)
-  - `compile_time: bool` (whether the cargo feature is present in the binary)
+  - `compile_time: bool` (whether the compile tier permits — registry-derived: the sensor's TOML spec declares a matching `[[write_endpoints]]` entry loaded into the `WriteEndpointRegistry` at boot, BC-2.04.001/BC-2.16.012; for `alias.write`, whether the `alias-write` cfg feature is compiled in, BC-2.11.008)
   - `runtime: bool` (whether the runtime TOML flag permits it for this client)
-  - `reason: String` (human-readable explanation when disabled, e.g., "Feature not compiled (crowdstrike-write)" or "Not enabled in client config")
+  - `reason: String` (human-readable explanation when disabled, e.g., "no write-endpoint declaration (no [[write_endpoints]] entry in the sensor's TOML spec)" or "Not enabled in client config")
 - If `client_id` is provided, shows capabilities for that specific client
 - If `client_id` is null, shows capabilities for all clients in a per-client breakdown
 
@@ -65,7 +65,7 @@ and vice versa.
 | ID | Description | Expected Behavior |
 |----|-------------|-------------------|
 | EC-04-012 | Agent calls `list_capabilities` with no client context | Returns global capability matrix showing all clients; useful for "which clients can I contain hosts for?" queries |
-| EC-04-013 | Binary built with zero write features | All write capabilities show `compile_time: false, enabled: false` with reason "Feature not compiled" |
+| EC-04-013 | No sensor TOML spec declares `[[write_endpoints]]` entries (empty `WriteEndpointRegistry`) | All sensor write capabilities show `compile_time: false, enabled: false` with the "no write-endpoint declaration" reason |
 
 ## Canonical Test Vectors
 
@@ -73,9 +73,9 @@ See `.factory/specs/prd-supplements/test-vectors.md` for canonical test vectors 
 
 | Scenario | Input | Expected Output |
 |----------|-------|----------------|
-| All features compiled, runtime allow | `client_id: "acme"`, `crowdstrike-write` feature present, `sensor.crowdstrike.containment: Allow` | `{enabled: true, compile_time: true, runtime: true}` |
-| Feature absent | `client_id: "acme"`, `crowdstrike-write` absent | `{enabled: false, compile_time: false, runtime: false, reason: "Feature not compiled (crowdstrike-write)"}` |
-| Feature present, runtime deny | `client_id: "acme"`, feature present, no capability entry | `{enabled: false, compile_time: true, runtime: false, reason: "Not enabled in client config"}` |
+| Compile tier permits, runtime allow | `client_id: "acme"`, CrowdStrike `[[write_endpoints]]` declared, `sensor.crowdstrike.containment: Allow` | `{enabled: true, compile_time: true, runtime: true}` |
+| Declaration absent | `client_id: "acme"`, no `[[write_endpoints]]` entry in the CrowdStrike sensor TOML spec | `{enabled: false, compile_time: false, runtime: false, reason: "no write-endpoint declaration (no [[write_endpoints]] entry in the sensor's TOML spec)"}` |
+| Compile tier permits, runtime deny | `client_id: "acme"`, declaration present, no capability entry | `{enabled: false, compile_time: true, runtime: false, reason: "Not enabled in client config"}` |
 
 ## Verification Properties
 
@@ -92,4 +92,5 @@ No VPs in VP-INDEX v1.5 directly verify `list_capabilities` meta-tool behavior. 
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.2 | MCP cascade pass-1 P1-02 BC sibling sweep (2026-06-10 review-cycle PO micro-burst) | 2026-06-10 | product-owner | Stale cargo-feature framing rewritten to registry-derived compile-tier semantics, aligned with error-taxonomy v1.67 E-FLAG-002 row and BC-2.04.001 v1.2: `compile_time: bool` redefined as registry-derived compile-tier permission (`[[write_endpoints]]` in sensor TOML, BC-2.16.012; alias-write cfg feature for `alias.write`); `reason` example "Feature not compiled (crowdstrike-write)" replaced with the "no write-endpoint declaration" message format; EC-04-013 and test vectors restated to declaration-present/absent semantics (EC ID preserved). Response field names (`compile_time`, `runtime`, `enabled`, `reason`) unchanged. |
 | 1.1 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; added ## Changelog. |

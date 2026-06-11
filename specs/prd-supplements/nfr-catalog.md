@@ -2,14 +2,14 @@
 document_type: prd-supplement
 level: L3
 section: "nfr-catalog"
-version: "1.5"
+version: "1.6"
 status: draft
 producer: product-owner
 timestamp: 2026-04-21T00:00:00Z
 phase: 1a
 origin: greenfield
 inputs: [".factory/specs/prd.md"]
-input-hash: "76729b7"
+input-hash: "2580252"
 traces_to: [".factory/specs/prd.md"]
 ---
 
@@ -154,7 +154,7 @@ traces_to: [".factory/specs/prd.md"]
 | Category | Performance |
 | Requirement | Prism's resident memory usage should remain under 512MB during normal operation (single analyst session, up to 50 configured clients). Sensor API responses are processed page-by-page, not buffered entirely in memory. Per-query memory budget is 200MB at the normal watchdog level, enforced by the resource watchdog (CAP-024, BC-2.15.006). |
 | Memory Budget Breakdown | Base process + runtime: ~30MB. RocksDB (block cache, memtables, indexes): ~50-100MB. Cache (50 clients x N sensors x 50 entries x ~10KB; ~100MB for 4 sensors, scales linearly with sensor count): Detection state (correlation windows, sequence trackers): ~10-50MB. Confirmation tokens + cursors: ~5MB. Query materialization: ~50MB per query (10K records in Arrow columnar format with two-tier storage), capped at 200MB per-query by the resource watchdog. Concurrent queries each get their own 10K record budget but share the 512MB process limit. Under typical single-analyst usage, at most 1-2 queries are materialized concurrently (~100MB for materialization). Headroom: ~27-67MB for transient allocations, HTTP buffers, OCSF schema, and normalization intermediates. |
-| Concurrent Query Note | The 10K record limit (DI-019) is per-query. Concurrent queries compete for the shared 512MB process memory. The per-query memory budget of 200MB (normal watchdog level) ensures no single query can consume more than ~40% of the process budget. If concurrent materialization would exceed the memory budget, the later query receives `E-WATCHDOG-002` (retryable: true) with a suggestion to wait for the active query to complete or narrow the query scope. `E-WATCHDOG-001` (retryable: false) is reserved for per-query limit violations that trigger denylist. |
+| Concurrent Query Note | The 10K record limit (DI-019) is per-query. Concurrent queries compete for the shared 512MB process memory. The per-query memory budget of 200MB (normal watchdog level) ensures no single query can consume more than ~40% of the process budget. If concurrent materialization would exceed the memory budget, the later query receives `E-WATCHDOG-002` (retryable: true) with a suggestion to wait for the active query to complete or narrow the query scope. `E-WATCHDOG-001` (retryable: false) is reserved for per-query memory-budget violations (DataFusion GreedyMemoryPool trips, BC-2.11.006). Denylisting (E-QUERY-008) tracks consecutive watchdog terminations per BC-2.15.008 — i.e., E-WATCHDOG-002 kills — not per-query pool trips (error-taxonomy v1.68; architect adjudication D2, `proposals/cache-envelope-adjudication-2026-06-10.md`). |
 | Traces to | R-010 |
 
 ## NFR-016: Rate Limit Respect
@@ -244,6 +244,7 @@ traces_to: [".factory/specs/prd.md"]
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.6 | QRY cascade pass-1 P1-04 D2 companion sweep (review-2026-06-10 PO consolidated amendment burst) | 2026-06-10 | product-owner | NFR-015 Concurrent Query Note denylist clause aligned to error-taxonomy v1.68 (architect adjudication D2): "per-query limit violations that trigger denylist" corrected — E-WATCHDOG-001 is reserved for per-query memory-budget violations (DataFusion GreedyMemoryPool, BC-2.11.006); denylisting (E-QUERY-008) tracks consecutive watchdog terminations (E-WATCHDOG-002 kills) per BC-2.15.008, not pool trips. |
 | 1.5 | pass-82-remediation | 2026-04-21 | product-owner | F82-006: NFR-023 config key renamed max_batch_age → flush_interval_seconds (default 5s → 10s) to match observability.md line 401–402 and capabilities.md CAP-035. Verification method timings updated to match 10s default. |
 | 1.4 | pass-80-follow-on | 2026-04-21 | product-owner | NFR-023 Traces To: added CAP-035 (business-analyst created CAP-035 Diagnostic Log Forwarding post-hoc per pass-80 F80-002 follow-on). |
 | 1.3 | pass-80-remediation | 2026-04-21 | product-owner | F80-005: added NFR-019 (Plugin Memory Bounds), NFR-020 (Plugin CPU Epoch Deadline), NFR-021 (Action Delivery Latency & Retry Bounds), NFR-022 (Infusion Dedup Cache Effectiveness), NFR-023 (Log Forwarder Batch Flush Interval). |

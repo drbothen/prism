@@ -4,7 +4,7 @@ adr_id: "ADR-022"
 title: "Production Runtime Wiring — prism-bin Chassis, Boot Sequence, Wiring Contracts, Infusion Fate, Hot-Reload Watcher, MCP Topology"
 status: ACCEPTED
 date: "2026-05-17"
-version: "1.14"
+version: "1.15"
 producer: architect
 subsystems_affected: [SS-06, SS-10, SS-11, SS-16, SS-17, SS-19]
 supersedes: null
@@ -29,7 +29,7 @@ runtime_deliverables:
   - crates/prism-mcp/src/tools/mod.rs      # tool router + all 35+ tool implementations
   - crates/prism-spec-engine/src/hot_reload.rs  # HotReloadWatcher::start/stop (notify 7)
 wiring_deferred_to: null  # This ADR IS the wiring specification — no further deferral
-input-hash: "[pending-recompute]"
+input-hash: "1a916c8"
 ---
 
 # ADR-022: Production Runtime Wiring — prism-bin Chassis, Boot Sequence, Wiring Contracts, Infusion Fate, Hot-Reload Watcher, MCP Topology
@@ -217,7 +217,9 @@ Step 6   [BLOCKING] Audit subsystem init
          Failure: exit 4 (internal-error — audit is required for SOC 2)
 
 Step 7   [BLOCKING] Storage + internal-tables provider init
-         Action: open RocksDB with all 17 column families (per AD-004; prism-storage)
+         Action: open RocksDB with all 19 column families (per AD-004; prism-storage opens
+                 the full StorageDomain::all() set — prism-core storage.rs ALL_DOMAINS,
+                 16 S-1.01 domains + 3 S-1.02 domains: credentials, feature_flags, scheduler)
          Action: call register_internal_tables (prism-query/src/internal_tables.rs)
                  — was todo!("S-3.02 — register_internal_tables") until S-3.02-FOLLOWUP-RUNTIME
          Action: construct AdapterRegistry::new() — registry starts EMPTY; spec-driven adapter
@@ -818,6 +820,7 @@ Bundle B Phase B-0 architecture output. Authored at D-302 from workspace audit D
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.15 | 2026-06-10 | architect | BOOT-02 closure (2026-06-10 full-codebase review package, human-approved): §B step 7 column-family count corrected 17→19 to match code source of truth (`prism-core/src/storage.rs` `ALL_DOMAINS: [StorageDomain; 19]` — 16 S-1.01 domains + 3 S-1.02 domains `credentials`/`feature_flags`/`scheduler`; rocksdb_backend opens and health-checks all 19). Stale "17 (per AD-004)" reflected the pre-S-1.02 AD-004 enumeration, which also counted the not-yet-implemented `case_dedup_idx` CF (S-4.06 Task 9b, planned). AD-004 row in ARCH-INDEX, data-layer.md §Persistent Data Path, and system-overview.md platform-layer diagram corrected in the same burst (TD-VSDD-060 sibling-site sweep). |
 | 1.14 | 2026-05-31 | architect | S-DEMO-001 boot step 9A wiring accuracy (GAP-002-A closure). §B step 7: replaced stale `AdapterRegistry::init_registry_for_org` action with `AdapterRegistry::new()` (empty) and note that population happens at step 9A. §B: added step 7.5b (PluginAuthProvider construction via validate_and_construct_auth_providers, plugin_auth_providers threaded to step 9) and step 7.5c (dynamic write-tool registration) sub-steps. §B step 9: added step 9A sub-step documenting step9a_populate_adapter_registry call (called from within step9_start_mcp_server before QueryEngine construction) per BC-2.22.001 §Step 9A. §C QueryEngine contract: added note that AdapterRegistry is populated by step9a_populate_adapter_registry before QueryEngine::new() (S-DEMO-001). No architectural redesign — wiring-only accuracy corrections per TD-VSDD-091. |
 | 1.13 | 2026-05-28 | implementer | F-PASS9-MED-1 closure: all 7 "rmcp 1.4" narrative references updated to "rmcp 1.7" (frontmatter runtime_deliverables, §Decision, §F transport note, §B Step 9, §F heading, §F inline dependency sentence, §G Story 6 scope). OQ-1 confirmed: rmcp 1.4 unavailable on crates.io; 1.7 is the actual published version used at TDD time. ARCH-INDEX AD-005 row updated in same burst (F-PASS9-MED-1). Version 1.12→1.13. |
 | 1.12 | 2026-05-17 | architect | FB73 F-LP85-HIGH-001 closure (architect scope): ADR-026 §D7 v1.22→v1.23 at line 243 §B Step 8 first-statement note (1 site). 7th 1-finding cascade-restart-#4 attempt — cross-value-class side-effect dimension. PO swept 7 spec files in same burst. POL-29 v1.25→v1.26 step 8g by SM. Sibling-sweep other ADRs: 0 additional sites found. |

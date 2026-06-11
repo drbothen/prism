@@ -6,7 +6,7 @@ status: ACCEPTED
 date: 2026-05-01
 wave: 3
 phase: 3.A
-version: "0.15"
+version: "0.16"
 authors: [architect]
 related_decisions: [D-043, D-045, D-054, D-055, D-056, D-059]
 related_adrs: [ADR-006, ADR-010, ADR-011, ADR-012]
@@ -207,7 +207,11 @@ impl Default for GenOpts {
         Self {
             seed: 42,
             scale: 1.0,
-            time_anchor: DateTime::UNIX_EPOCH, // tests use fixed anchor
+            // Fixed demo-era constant (2026-01-01T00:00:00Z, epoch 1_767_225_600),
+            // NOT wall-clock. Canonical default per BC-3.4.001 precondition 4
+            // (review-2026-06-10 P1-01). Story B (S-DEMO-DTU-LIVE-SCENARIO-001-B)
+            // supplies explicit anchors via `scenario_start_secs`.
+            time_anchor: demo_time_anchor(),
             overrides: serde_json::Value::Null,
         }
     }
@@ -648,6 +652,8 @@ The following questions surfaced during BC authoring (Phase 3.A) and were resolv
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 0.16 | 2026-06-10 | architect | DTU cascade P5-01 anchor-default sync (review-2026-06-10 P1-01): §2.3 `impl Default for GenOpts` default `time_anchor` corrected `DateTime::UNIX_EPOCH` → `prism_dtu_common::demo_time_anchor()` (2026-01-01T00:00:00Z, epoch 1_767_225_600 — fixed demo-era constant, NOT wall-clock) per BC-3.4.001 v0.9 precondition 4. Explicit-anchor usages (Story B `scenario_start_secs`) unaffected. Full-document sweep confirmed the §2.3 snippet was the sole UNIX_EPOCH-default claim. Also backfills the missing 0.15 changelog row (below). |
+| 0.15 | 2026-05-08 | architect | (Row backfilled 2026-06-10 during v0.16 burst — bump landed without a changelog row.) Bundle A.2.3 ADR frontmatter backfill: `runtime_deliverables` and `wiring_deferred_to` fields added, enabling POL-15 (runtime_wiring_required_for_accepted_adrs) enforcement. See ARCH-INDEX changelog row 2.33. |
 | 0.14 | 2026-05-01 | state-manager | ACCEPTED→IMPLEMENTED status promoted post-Wave-3 closure. §2 Status block updated from PROPOSED to ACCEPTED per D-183. Wave 3 integration gate findings tracked in cycles/wave-3-multi-tenant/. |
 | 0.13 | 2026-04-28 | product-owner | Phase 3.A APPROVED by user — status: PROPOSED → ACCEPTED. D-136. Wave 3 implementation cleared to begin per D-045 (Spec-First Discipline) post-approval. |
 | 0.12 | 2026-04-27 | product-owner | M-24-002 (Pass 24): `related_adrs` frontmatter corrected — ADR-011 and ADR-012 added (body §9 lists both as related consequents). |

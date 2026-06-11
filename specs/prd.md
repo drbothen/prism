@@ -1,13 +1,13 @@
 ---
 document_type: prd
 level: L3
-version: "1.11"
+version: "1.12"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T06:00:00
 phase: 1a
 inputs: [domain-spec/L2-INDEX.md, product-brief.md]
-input-hash: "215fb2c"
+input-hash: "fa545a9"
 traces_to: domain-spec/L2-INDEX.md
 supplements: [prd-supplements/interface-definitions.md, prd-supplements/error-taxonomy.md, prd-supplements/nfr-catalog.md, prd-supplements/test-vectors.md]
 ---
@@ -123,7 +123,7 @@ Capabilities: CAP-005, CAP-006
 
 | BC ID | Title | Priority |
 |-------|-------|----------|
-| [BC-2.04.001](behavioral-contracts/BC-2.04.001-compile-time-cargo-features.md) | Compile-Time Cargo Features Gate Write Code Families | P0 |
+| [BC-2.04.001](behavioral-contracts/BC-2.04.001-compile-time-cargo-features.md) | Compile-Time Write Capability Tier Is Registry-Derived from Write-Endpoint Declarations | P0 |
 | [BC-2.04.002](behavioral-contracts/BC-2.04.002-runtime-per-client-toml-flags.md) | Runtime Per-Client TOML Feature Flag Configuration | P0 |
 | [BC-2.04.003](behavioral-contracts/BC-2.04.003-hierarchical-flag-resolution.md) | Hierarchical Capability Resolution (BTreeMap, Most-Specific-Path Wins, Deny Support) | P0 |
 | [BC-2.04.004](behavioral-contracts/BC-2.04.004-two-tier-gate-both-must-pass.md) | Two-Tier Gate -- Both Compile-Time and Runtime Must Permit Operation | P0 |
@@ -603,7 +603,7 @@ Two-tier gate with three-tier risk classification, hierarchical override (BTreeM
 
 | BC ID | Contribution |
 |-------|-------------|
-| BC-2.04.001 | Compile-time cargo features gate write code |
+| BC-2.04.001 | Compile-time write tier registry-derived from write-endpoint declarations |
 | BC-2.04.002 | Runtime per-client TOML flags |
 | BC-2.04.003 | Hierarchical capability resolution (BTreeMap, most-specific-path wins, deny) |
 | BC-2.04.004 | Two-tier gate (both must pass) |
@@ -932,6 +932,7 @@ Regenerated from BC file `capability:` frontmatter fields (Burst 13 Part B, upda
 
 ## Change Log
 
+- 2026-06-10 (review-2026-06-10 PO consolidated amendment burst, POL-7 H1 title sync): §2 BC-2.04.001 title cell synced to retitled BC H1 "Compile-Time Write Capability Tier Is Registry-Derived from Write-Endpoint Declarations" (BC retitled in BC-INDEX v6.13 P1-02 sweep; prd.md §2 was flagged there for owner-routed follow-up — closed here). §6.4 contribution one-liner for BC-2.04.001 updated from stale "Compile-time cargo features gate write code" to registry-derived framing (same retired cargo-feature semantics surface). Filename slug immutable per append_only_numbering; link target unchanged. Version bumped 1.11→1.12. (Audit note: the 1.10→1.11 bump on 2026-05 was the rmcp 1.4→1.7 sibling sweep, F-PASS10-HIGH-2 commit 80d28d14, which omitted a Change Log bullet.)
 - 2026-05-04 (Pass-25 F-P25-H-001): §2 line 382 token `prism-operations::action_dispatcher` → `prism-operations::action_delivery` (canonical per concurrency-architecture.md v1.1 + BC-2.18.004 v1.5 module path `action/delivery.rs`). Stale orphan introduced by pre-Pass-24 fix-burst prompt; corrected. Version bumped 1.9→1.10.
 - 2026-05-04 (Pass-24 F-P24-CRIT-001+sweep): §2 line 389 BC-2.18.004 cell title corrected from superseded "Scheduled Report Queries — try_acquire() on 16-Permit Semaphore, Skip If Unavailable" to canonical "Action Delivery Semaphore — 8-Permit Independent Pool, try_acquire() Skip-If-Unavailable" (matches BC H1 + BC-INDEX). PLUS proactive TD-VSDD-049-style sweep across ALL 200 PRD §2 BC table rows — programmatic H1↔PRD-cell comparison confirmed zero additional drift sites. Version bumped 1.8→1.9.
 - 2026-05-03 (Pre-Pass-24 F-PreP24-CRIT-001): §2 SS-18 INV-ACTION-004 root contract corrected from "shared 16-permit semaphore" to D-209 LOCKED 8/8 independent split (schedule_executor_semaphore + action_delivery_semaphore, structurally independent, no shared budget). PRD-level architectural drift surviving 23 prior adversary passes — would have shipped as wrong product contract. TD-VSDD-048 grep-completeness sweep finding. Version bumped 1.7→1.8.

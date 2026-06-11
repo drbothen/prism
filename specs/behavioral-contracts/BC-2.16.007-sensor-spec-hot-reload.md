@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.3"
+version: "1.4"
 status: draft
 producer: product-owner
 timestamp: 2026-04-13T12:00:00
@@ -11,7 +11,7 @@ subsystem: "SS-16"
 capability: "CAP-030"
 lifecycle_status: active
 introduced: cycle-1
-modified: null
+modified: "2026-06-10"
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -21,7 +21,7 @@ removal_reason: null
 inputs:
   - ".factory/specs/prd.md"
   - ".factory/specs/domain-spec/capabilities.md"
-input-hash: "76729b7"
+input-hash: "2580252"
 traces_to:
   - "CAP-030"
 extracted_from: ".factory/specs/prd.md"
@@ -53,7 +53,7 @@ validation, it is rejected and the previous version remains active.
 
 - **Removed spec files** (present in current snapshot but absent from directory):
   - The sensor's tables are unregistered from the DataFusion catalog
-  - Queries targeting removed tables return `E-QUERY-011: "Table '{sensor_id}.{table_name}' is no longer available. The sensor spec was removed."`
+  - Queries targeting removed tables return `E-QUERY-035: "Table '{sensor_id}.{table_name}' is no longer available. The sensor spec was removed."`
   - Scheduled queries referencing removed tables continue to run but produce empty results with a `sensor_errors` entry
   - A reload result entry is emitted: `"removed": ["{sensor_id}.{table_name}", ...]`
 
@@ -80,7 +80,7 @@ validation, it is rejected and the previous version remains active.
 ## Error Conditions
 | Error | Condition | Behavior |
 |-------|-----------|----------|
-| `E-QUERY-011` | Query targets a removed sensor table after reload | Structured error: "Table '{sensor_id}.{table_name}' is no longer available. The sensor spec was removed." |
+| `E-QUERY-035` | Query targets a removed sensor table after reload | Structured error: "Table '{sensor_id}.{table_name}' is no longer available. The sensor spec was removed." |
 | (validation failure) | Modified spec file fails validation | Previous version retained; validation error included in reload result |
 
 ## Edge Cases
@@ -98,7 +98,7 @@ See `.factory/specs/prd-supplements/test-vectors.md` for full canonical vectors.
 | Scenario | Input | Expected Output |
 |----------|-------|-----------------|
 | Add new spec | new `vendor.sensor.toml` appears in directory | Tables registered; `"added": ["vendor.table1"]` in result |
-| Remove spec | existing spec file deleted | Tables unregistered; queries on removed tables get `E-QUERY-011` |
+| Remove spec | existing spec file deleted | Tables unregistered; queries on removed tables get `E-QUERY-035` |
 | Modify spec — schema change | column added | Tables re-registered; `notifications/tools/list_changed` sent; `schema_changed: true` |
 | Modify spec — no schema change | rate limit changed | Tables re-registered; no notification; `schema_changed: false` |
 | Modified spec fails validation | invalid TOML after edit | Previous version retained; validation error in result |
@@ -122,6 +122,7 @@ See `.factory/specs/prd-supplements/test-vectors.md` for full canonical vectors.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.4 | review-2026-06-10-PO-micro | 2026-06-10 | product-owner | MCP cascade P4-05 re-home citation sweep (architect adjudication, error-taxonomy v1.72 / ADR-038 v1.4 D5 family): removed-after-reload error code `E-QUERY-011` → `E-QUERY-035` at all 3 citation sites (Postconditions removed-spec bullet, Error Conditions row, Canonical Test Vectors remove-spec row). E-QUERY-011 retained by the live audit-capability condition (BC-2.15.011, `PrismError::AuditTableAccessDenied` shipped display); this BC's reload condition RE-HOMED to E-QUERY-035, next sequential free at the namespace tail. Message text UNCHANGED — taxonomy v1.72 harmonized the E-QUERY-035 Message Format TO this BC's pinned text ("Table '{sensor_id}.{table_name}' is no longer available. The sensor spec was removed."); no shipped display binds (zero code emitters; future scope S-3.13). No semantic, edge-case, VP, or lifecycle changes. |
 | 1.3 | pass-74-fix | 2026-04-20 | product-owner | Resolved (placeholder) row in ## Verification Properties per pass-74 VP-TBD decision matrix extension. |
 | 1.2 | pass-73-fix | 2026-04-20 | state-manager | Deterministic changelog reorder: sorted all rows to descending version order (pass-73 bash script). |
 | 1.1 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description; added ## Invariants; added ## Error Conditions (extracted from body); added ## Canonical Test Vectors; added ## Verification Properties; added ## Changelog. |

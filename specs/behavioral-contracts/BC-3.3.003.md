@@ -1,29 +1,29 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "0.3"
-status: draft
+version: "0.4"
+status: retired
 producer: product-owner
 timestamp: 2026-04-27T00:00:00
 phase: 3.A
 inputs:
   - ".factory/specs/architecture/decisions/ADR-010-customer-config-schema.md"
   - ".factory/specs/domain-spec/capabilities.md"
-input-hash: "280b5e7"
+input-hash: "0e6ff00"
 traces_to: ".factory/specs/architecture/decisions/ADR-010-customer-config-schema.md"
 origin: greenfield
 extracted_from: null
 subsystem: "SS-06"
 capability: "CAP-009"
-lifecycle_status: active
+lifecycle_status: retired
 introduced: cycle-3
-modified: []
+modified: [adr-037-disposition-2026-06-10]
 deprecated: null
 deprecated_by: null
 replacement: null
-retired: null
+retired: "2026-06-10"
 removed: null
-removal_reason: null
+removal_reason: "Versioned schema retired with prism-customer-config crate (ADR-037 supersedes ADR-010). The schema_version field existed only in the customers/{org_slug}.toml schema; the superseding config surfaces (prism.toml [[orgs]] validated per BC-2.06.011/BC-2.21.001; per-org overlay files validated per BC-2.06.012-016) define no schema_version field, so there is no behavior-equivalent successor BC. ADR-037 §Consequences explicitly accepts that the retired schema's validation has no successor."
 bc_id: BC-3.3.003
 title: Schema Version Enforcement Rejects Unknown or Missing schema_version
 wave: 3
@@ -33,14 +33,24 @@ authors: [product-owner]
 related_decisions: [D-041]
 related_adrs: [ADR-010]
 inherits_from: null
-superseded_by: null
+superseded_by: "ADR-037"
 ---
+
+> **RETIRED (2026-06-10, ADR-037):** The `customers/{org_slug}.toml` schema (ADR-010) and the
+> `prism-customer-config` crate that implemented this gate are retired per ADR-037. The
+> `schema_version` field existed only in that retired schema; the superseding production config
+> surfaces — `prism.toml` `[[orgs]]` (validated at boot per BC-2.06.011 / BC-2.21.001) and the
+> ADR-029 per-org overlay files `customers/<org_slug>/<sensor_id>.sensor.toml` (validated per
+> BC-2.06.012–016) — define no `schema_version` field, so this contract has no
+> behavior-equivalent successor (`replacement: null`). ADR-037 §Consequences explicitly accepts
+> that the retired schema's validation surface has no successor. E-CFG-030 / E-CFG-031 are
+> retired with this contract. Body below is retained verbatim for historical traceability.
 
 # BC-3.3.003: Schema Version Enforcement Rejects Unknown or Missing schema_version
 
 ## Description
 
-Every `customers/*.toml` file must contain a top-level `schema_version` integer field equal to `1`. Wave 3 supports only schema version 1; no other value is accepted. A missing `schema_version` is not silently treated as version 0 — it is an explicit error identical in severity to an unknown version. This single-version rule eliminates version-dispatch logic from the loader and makes migration explicit via the `prism config migrate` CLI command when breaking schema changes are introduced in future waves.
+RETIRED — see banner above; retained for historical traceability. Every `customers/*.toml` file must contain a top-level `schema_version` integer field equal to `1`. Wave 3 supports only schema version 1; no other value is accepted. A missing `schema_version` is not silently treated as version 0 — it is an explicit error identical in severity to an unknown version. This single-version rule eliminates version-dispatch logic from the loader and makes migration explicit via the `prism config migrate` CLI command when breaking schema changes are introduced in future waves.
 
 ## Preconditions
 
@@ -153,5 +163,6 @@ S-3.3.01
 
 | Version | Change |
 |---------|--------|
+| v0.4 | RETIRED per ADR-037 (2026-06-10 review package recommendation ⑨, human-approved; BC disposition mandated by ADR-037 §Decision). The `schema_version` field is exclusive to the retired ADR-010 schema; superseding config surfaces define their own validation contracts (BC-2.06.011/BC-2.21.001 for prism.toml; BC-2.06.012–016 for ADR-029 overlays) with no schema_version field — `replacement: null` per ADR-037 §Consequences ("the schema itself is retired"). `superseded_by: ADR-037`. Body preserved as historical record (append-only; filename slug immutable). |
 | v0.3 | M-004 (Pass 5): Frontmatter `title:` corrected to title-case to match H1 heading. |
 | v0.2 | Initial authoring from ADR-010. |

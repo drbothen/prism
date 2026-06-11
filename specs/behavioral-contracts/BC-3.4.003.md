@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "0.7"
+version: "0.8"
 status: draft
 producer: product-owner
 timestamp: 2026-04-27T00:00:00
@@ -9,7 +9,7 @@ phase: 3.A
 inputs:
   - ".factory/specs/architecture/decisions/ADR-009-multi-tenant-data-generator.md"
   - ".factory/specs/domain-spec/capabilities.md"
-input-hash: "e4160eb"
+input-hash: "9fcdd15"
 traces_to: ".factory/specs/architecture/decisions/ADR-009-multi-tenant-data-generator.md"
 origin: greenfield
 extracted_from: null
@@ -17,7 +17,7 @@ subsystem: "SS-01"
 capability: "CAP-039"
 lifecycle_status: active
 introduced: cycle-3
-modified: []
+modified: ["2026-06-10"]
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -46,7 +46,7 @@ The archetype catalog is a fixed enumeration of 8 named deployment scenarios. Ea
 
 1. The archetype catalog is compiled into the `prism-dtu-common` crate as a `#[non_exhaustive]` enum.
 2. `scale = 1.0` is used for all baseline count assertions (unless otherwise noted).
-3. `time_anchor = DateTime::UNIX_EPOCH` is used for all time-dependent assertions in test vectors.
+3. The default `time_anchor` is `prism_dtu_common::demo_time_anchor()` (`2026-01-01T00:00:00Z`, epoch `1_767_225_600` — fixed demo-era constant, NOT wall-clock) per BC-3.4.001 precondition 4; time-dependent assertions in test vectors use this default unless a vector pins an explicit `time_anchor` (explicit anchors remain permitted).
 4. The generator has been called with a valid `(org_id, sensor_type, archetype, GenOpts)`.
 
 ## Postconditions
@@ -208,6 +208,7 @@ None. All open questions resolved.
 
 | Version | Change |
 |---------|--------|
+| v0.8 | DTU cascade P5-01 (review-2026-06-10 PO micro-burst): Precondition 3 stale default `time_anchor = DateTime::UNIX_EPOCH` replaced with `prism_dtu_common::demo_time_anchor()` (`2026-01-01T00:00:00Z`, epoch `1_767_225_600` — fixed demo-era constant, NOT wall-clock) per BC-3.4.001 v0.9 precondition 4 (review-2026-06-10 P1-01 propagation; the shared test vehicle now asserts the default IS `demo_time_anchor()`). Explicit anchors remain permitted for vectors that pin one. POL-27 `modified:` synced to 2026-06-10. |
 | v0.7 | M-24-001 (Pass 24): Body Traceability Architecture Module row corrected SS-06 (Client Configuration) → SS-01 (Sensor Adapters) per ARCH-INDEX.md; prism-dtu-common is the implementation site per D-056. |
 | v0.6 | M-23-001 (Pass 23): `subsystem:` corrected SS-06 (Client Configuration) → SS-01 (Sensor Adapters — prism-dtu-common is the implementation site per D-056). |
 | v0.5 | M-004 (Pass 5): Frontmatter `title:` corrected to title-case to match H1 heading. |

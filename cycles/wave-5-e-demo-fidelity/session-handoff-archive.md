@@ -108,3 +108,14 @@ _This snapshot covered STATE v7.733 (D-1082) through STATE v7.740 (D-1089 T4-A m
 **Summary:** D-1082 Complete Story Roadmap enumeration — 9 stories (6 core + 3 optional) added to §ACTIVE OBJECTIVE Build Sequence; task ledger §Complete Story Roadmap published; all statuses verified against STORY-INDEX v2.332. Span: D-1082 (STATE v7.733) through D-1089 (T4-A merged, STATE v7.740). develop_head range: 64d34967 (start) → c287b00d (T4-A merged). At supersession: T4-A DONE, CURRENT POINTER = T5, BC-2.06.018 v1.6 active, BC-INDEX v6.10, STORY-INDEX v2.338, active_contracts 236, draft_contracts 5.
 
 _Full snapshot content available in git history on factory-artifacts branch at the commit immediately preceding the D-1090 burst commit._
+
+---
+
+## §RESUME SNAPSHOT 2026-06-10-STORY-B-DELIVERY-D1090 (SUPERSEDED by D-1091 2026-06-10)
+
+_Superseded 2026-06-10 by §RESUME SNAPSHOT 2026-06-10-REVIEW-CYCLE-CHECKPOINT-D1091 (STATE v7.742)._
+_This snapshot covered STATE v7.741 (D-1090 Story B autonomy grant) until the user-directed full-codebase review (2026-06-10) interrupted T5 before story-writer dispatch._
+
+**Summary:** D-1090 durability hardening — full-autonomous Story B (T5 = S-DEMO-DTU-LIVE-SCENARIO-001-B) materialize+deliver authorized (same envelope as Story A / D-989); contract-completeness front-load + 2 Story-A NIT follow-ups encoded in NEXT ACTION; local develop fast-forwarded to c287b00d confirmed. T5 was NOT started — interrupted by the user-directed 2026-06-10 full-codebase review (8 lanes; 14-item adjudication package approved; ADR-037 + ADR-038 accepted; 3 fix-branch BC-5.39.001 cascades opened). At supersession: develop_head c287b00d, BC-2.06.018 v1.6 active, BC-INDEX v6.10→(review cycle)→v6.21, STORY-INDEX v2.338→v2.346, T5 remains the post-review resume target. The Story B NEXT-ACTION content (contract-completeness front-load, NIT-1/NIT-2 fold-in, 12-gate sequence) remains VALID and is preserved in the D-1091 snapshot §RESUME T5.
+
+_Full snapshot content available in git history on factory-artifacts branch at the commit immediately preceding the D-1091 burst commit._

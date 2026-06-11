@@ -12,7 +12,7 @@ estimated_days: 3
 points: 5
 status: merged
 document_type: story
-version: "1.0"
+version: "1.1"
 producer: story-writer
 timestamp: "2026-05-02T00:00:00Z"
 input-hash: ""
@@ -417,3 +417,9 @@ No new Cargo dependencies introduced by this story.
 - Do NOT replace the `debug_assert_eq!` with a runtime `Result`-returning check —
   that would change `fan_out`'s function signature and is a bigger refactor than this
   story's scope.
+
+## Changelog
+
+| Version | Date | Author | Changes |
+|---------|------|--------|---------|
+| 1.1 | 2026-06-10 | story-writer | BC retirement annotation (POL-8 propagation, review-2026-06-10 cycle, annotation-only): BC-3.3.004 retired per ADR-037 (2026-06-10); behavior superseded by BC-2.21.001 (boot step 3 OrgRegistry validation; + BC-2.06.012–016 OverlayLoader validation). Story merged (PR #118) and retained as historical record — body, ACs, and behavioral_contracts array UNCHANGED (history append-only). Added Changelog section. |

@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.3"
+version: "1.4"
 status: draft
 producer: product-owner
 timestamp: 2026-04-13T12:00:00
@@ -11,7 +11,7 @@ subsystem: "SS-14"
 capability: "CAP-022"
 lifecycle_status: active
 introduced: cycle-1
-modified: null
+modified: "2026-06-10"  # v1.4: ADR-038 D6 sweep — client-not-found error code E-CFG-001 → E-CFG-100
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -21,7 +21,7 @@ removal_reason: null
 inputs:
   - ".factory/specs/prd.md"
   - ".factory/specs/domain-spec/capabilities.md"
-input-hash: "76729b7"
+input-hash: "2580252"
 traces_to:
   - "CAP-022"
 extracted_from: ".factory/specs/prd.md"
@@ -64,7 +64,7 @@ no qualifying data exists; zero is never used to represent "no data."
 ## Error Conditions
 | Error | Condition | Behavior |
 |-------|-----------|----------|
-| `E-CFG-001` | `client_id` is not a valid configured client | Structured error |
+| `E-CFG-100` | `client_id` is not a valid configured client | Structured error |
 | `E-MCP-004` | Invalid `since` timestamp format | Structured error with expected ISO8601 format |
 
 ## Edge Cases
@@ -84,7 +84,7 @@ See `.factory/specs/prd-supplements/test-vectors.md` for full canonical vectors.
 | No resolved cases | all cases in New/Investigating | `mttd_avg=null, mttr_avg=null` |
 | Cross-client | `client_id=null` | Aggregates all clients; top_clients_by_open_cases populated |
 | Invalid since | `since="not-a-date"` | `E-MCP-004` |
-| Invalid client | `client_id="nonexistent"` | `E-CFG-001` |
+| Invalid client | `client_id="nonexistent"` | `E-CFG-100` |
 
 ## Verification Properties
 
@@ -103,6 +103,7 @@ See `.factory/specs/prd-supplements/test-vectors.md` for full canonical vectors.
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.4 | ADR-038-D6-sweep | 2026-06-10 | product-owner | ADR-038 D6 number sweep: Error Conditions row "`client_id` is not a valid configured client" and canonical test vector "Invalid client" code `E-CFG-001` → `E-CFG-100` (ClientNotFound). The BC froze the pre-v1.8 number; error-taxonomy v1.8 renumbered the client-not-found condition to E-CFG-100, and ADR-037 tombstoned the low number for the retired customer-config semantics. Condition text and response shape unchanged. Per ADR-038 (error-taxonomy v1.66). |
 | 1.3 | pass-74-fix | 2026-04-20 | product-owner | Resolved (placeholder) row in ## Verification Properties per pass-74 VP-TBD decision matrix extension. |
 | 1.2 | pass-73-fix | 2026-04-20 | state-manager | Deterministic changelog reorder: sorted all rows to descending version order (pass-73 bash script). |
 | 1.1 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; renamed Error Cases → Error Conditions; added ## Changelog. |

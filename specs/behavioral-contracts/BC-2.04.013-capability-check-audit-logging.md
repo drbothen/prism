@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.1"
+version: "1.2"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
@@ -11,7 +11,7 @@ subsystem: "SS-04"
 capability: "CAP-005"
 lifecycle_status: active
 introduced: cycle-1
-modified: null
+modified: "2026-06-10"
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -19,7 +19,7 @@ retired: null
 removed: null
 removal_reason: null
 inputs: [".factory/specs/prd.md", ".factory/specs/domain-spec/capabilities.md"]
-input-hash: "c36ec87"
+input-hash: "566def3"
 traces_to: ["CAP-005"]
 extracted_from: ".factory/specs/prd.md"
 ---
@@ -47,7 +47,7 @@ the audit trail complete even for attempted unauthorized access.
   - `capability`: the checked path (e.g., `sensor.crowdstrike.containment`)
   - `result`: "allowed" | "denied"
   - `tool_name`: the MCP tool that triggered the check
-  - `denied_reason` (if denied): "Feature not compiled" or "Not enabled in client config" or "No matching capability path"
+  - `denied_reason` (if denied): the compile-tier registry-derived reason "no write-endpoint declaration (no [[write_endpoints]] entry in the sensor's TOML spec)" (E-FLAG-002, BC-2.04.001) or "Not enabled in client config" or "No matching capability path"
   - `timestamp`: UTC
 - Read operations do not emit capability check events (they are always allowed)
 
@@ -64,7 +64,7 @@ the audit trail complete even for attempted unauthorized access.
 | ID | Description | Expected Behavior |
 |----|-------------|-------------------|
 | EC-04-027 | Cross-client query triggers capability checks for 10 clients | 10 separate capability check events emitted (one per client) |
-| EC-04-028 | Capability denied at compile-time tier | Event still emitted with `result: "denied"` and `denied_reason: "Feature not compiled"` |
+| EC-04-028 | Capability denied at compile tier (no `[[write_endpoints]]` entry in the sensor's TOML spec; for `alias.write`, the `alias-write` cfg feature absent) | Event still emitted with `result: "denied"` and the compile-tier `denied_reason` ("no write-endpoint declaration...") |
 
 ## Canonical Test Vectors
 
@@ -74,7 +74,7 @@ See `.factory/specs/prd-supplements/test-vectors.md` for canonical test vectors 
 |----------|-------------|----------------------|
 | Allowed | `sensor.crowdstrike.containment: Allow` | `result: "allowed"`, no `denied_reason` |
 | Denied runtime | Capability path not in client map | `result: "denied"`, `denied_reason: "Not enabled in client config"` |
-| Denied compile-time | Feature not compiled | `result: "denied"`, `denied_reason: "Feature not compiled"` |
+| Denied compile tier | No `[[write_endpoints]]` entry in the sensor's TOML spec (registry-derived, BC-2.04.001) | `result: "denied"`, `denied_reason: "no write-endpoint declaration (no [[write_endpoints]] entry in the sensor's TOML spec)"` |
 | Cross-client fan-out (10 clients) | Mix of allow/deny per client | 10 separate events, one per client |
 
 ## Verification Properties
@@ -92,4 +92,5 @@ No VPs in VP-INDEX v1.5 directly verify `CapabilityCheckEvent` emission complete
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.2 | MCP cascade pass-1 P1-02 BC sibling sweep (2026-06-10 review-cycle PO micro-burst) | 2026-06-10 | product-owner | Compile-tier `denied_reason` value "Feature not compiled" rewritten to the registry-derived E-FLAG-002 "no write-endpoint declaration (no [[write_endpoints]] entry in the sensor's TOML spec)" reason (error-taxonomy v1.67 row; BC-2.04.001 v1.2) at three sites: Postconditions `denied_reason` enumeration, EC-04-028 (EC ID preserved; alias-write cfg case noted), and the "Denied compile-time" test vector. Event schema field names and emission semantics unchanged. |
 | 1.1 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; added ## Changelog. |

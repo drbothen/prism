@@ -1,14 +1,16 @@
 ---
 document_type: verification-property-index
 level: L4
-version: "1.76"
+version: "1.77"
 status: draft
 producer: state-manager
-timestamp: 2026-05-18T22:00:00Z
+timestamp: 2026-06-10T00:00:00Z
 phase: 2-patch
 inputs: [architecture/verification-architecture.md]
 traces_to: architecture/ARCH-INDEX.md
 total_vps: 156
+active_vps: 143
+retired_vps: 13  # VP-095..VP-107 retired 2026-06-10 per ADR-037 (BC-3.3.001..004 retired); rows retained per POL-1
 ---
 
 # Verification Property Index: Prism
@@ -122,19 +124,19 @@ total_vps: 156
 | VP-092 | [BC-3.2.005] Startup rejects unknown mode values: serde of non-shared/non-client string returns Err | prism-sensors | proptest | P0 | draft | S-3.2.05 |
 | VP-093 | [BC-3.2.005] Security Telemetry type with mode=shared causes startup error | prism-sensors | proptest | P0 | draft | S-3.2.05 |
 | VP-094 | [BC-3.2.005] reload_config does not apply mode changes | prism-sensors | integration_test | P0 | draft | S-3.3.06 |
-| VP-095 | [BC-3.3.001] Every ST type in DTU_DEFAULT_MODE triggers startup error paired with mode=shared | prism-spec-engine | unit_test | P0 | draft | S-3.3.01 |
-| VP-096 | [BC-3.3.001] No MSSP Coordination type triggers startup error paired with mode=client | prism-spec-engine | unit_test | P0 | draft | S-3.3.01 |
-| VP-097 | [BC-3.3.001] Startup error message contains DTU type string and config file path | prism-spec-engine | unit_test | P0 | draft | S-3.3.01 |
-| VP-098 | [BC-3.3.001] Multi-error: N violations produce N errors in one pass before abort | prism-spec-engine | unit_test | P0 | draft | S-3.3.01 |
-| VP-099 | [BC-3.3.002] Non-scheme credential-pattern field value always causes exit code 1 | prism-spec-engine | proptest | P0 | draft | S-3.3.01 |
-| VP-100 | [BC-3.3.002] E-CFG-020 error message never contains the literal field value | prism-spec-engine | proptest | P0 | draft | S-3.3.01 |
-| VP-101 | [BC-3.3.002] All four allowed scheme prefixes accepted for credential-pattern fields | prism-spec-engine | proptest | P0 | draft | S-3.3.01 |
-| VP-102 | [BC-3.3.003] All integer schema_version values != 1 produce exit code 1 | prism-spec-engine | proptest | P0 | draft | S-3.3.01 |
-| VP-103 | [BC-3.3.003] Absent schema_version produces E-CFG-030, not E-CFG-031 | prism-spec-engine | proptest | P0 | draft | S-3.3.01 |
-| VP-104 | [BC-3.3.003] schema_version=1 never produces schema-version error regardless of other fields | prism-spec-engine | proptest | P0 | draft | S-3.3.01 |
-| VP-105 | [BC-3.3.004] Exit code 0 implies OrgRegistry entry count equals file count | prism-spec-engine | proptest | P0 | draft | S-3.3.02 |
-| VP-106 | [BC-3.3.004] Any validation error implies exit code 1 and empty OrgRegistry | prism-spec-engine | proptest | P0 | draft | S-3.3.02 |
-| VP-107 | [BC-3.3.004] Validation error output always includes the offending filename | prism-spec-engine | integration_test | P0 | draft | S-3.3.02 |
+| VP-095 | ~~[BC-3.3.001] Every ST type in DTU_DEFAULT_MODE triggers startup error paired with mode=shared~~ | prism-spec-engine | unit_test | P0 | retired (ADR-037) | S-3.3.01 |
+| VP-096 | ~~[BC-3.3.001] No MSSP Coordination type triggers startup error paired with mode=client~~ | prism-spec-engine | unit_test | P0 | retired (ADR-037) | S-3.3.01 |
+| VP-097 | ~~[BC-3.3.001] Startup error message contains DTU type string and config file path~~ | prism-spec-engine | unit_test | P0 | retired (ADR-037) | S-3.3.01 |
+| VP-098 | ~~[BC-3.3.001] Multi-error: N violations produce N errors in one pass before abort~~ | prism-spec-engine | unit_test | P0 | retired (ADR-037) | S-3.3.01 |
+| VP-099 | ~~[BC-3.3.002] Non-scheme credential-pattern field value always causes exit code 1~~ | prism-spec-engine | proptest | P0 | retired (ADR-037) | S-3.3.01 |
+| VP-100 | ~~[BC-3.3.002] E-CFG-020 error message never contains the literal field value~~ | prism-spec-engine | proptest | P0 | retired (ADR-037) | S-3.3.01 |
+| VP-101 | ~~[BC-3.3.002] All four allowed scheme prefixes accepted for credential-pattern fields~~ | prism-spec-engine | proptest | P0 | retired (ADR-037) | S-3.3.01 |
+| VP-102 | ~~[BC-3.3.003] All integer schema_version values != 1 produce exit code 1~~ | prism-spec-engine | proptest | P0 | retired (ADR-037) | S-3.3.01 |
+| VP-103 | ~~[BC-3.3.003] Absent schema_version produces E-CFG-030, not E-CFG-031~~ | prism-spec-engine | proptest | P0 | retired (ADR-037) | S-3.3.01 |
+| VP-104 | ~~[BC-3.3.003] schema_version=1 never produces schema-version error regardless of other fields~~ | prism-spec-engine | proptest | P0 | retired (ADR-037) | S-3.3.01 |
+| VP-105 | ~~[BC-3.3.004] Exit code 0 implies OrgRegistry entry count equals file count~~ | prism-spec-engine | proptest | P0 | retired (ADR-037) | S-3.3.02 |
+| VP-106 | ~~[BC-3.3.004] Any validation error implies exit code 1 and empty OrgRegistry~~ | prism-spec-engine | proptest | P0 | retired (ADR-037) | S-3.3.02 |
+| VP-107 | ~~[BC-3.3.004] Validation error output always includes the offending filename~~ | prism-spec-engine | integration_test | P0 | retired (ADR-037) | S-3.3.02 |
 | VP-108 | [BC-3.4.001] Generator idempotent: generate(inputs) == generate(inputs) | prism-dtu-common | kani | P0 | draft | S-3.7.01 |
 | VP-109 | [BC-3.4.001] Different seeds produce different records with overwhelming probability | prism-dtu-common | proptest | P0 | draft | S-3.7.01 |
 | VP-110 | [BC-3.4.001] Different orgs produce different records for same seed with overwhelming probability | prism-dtu-common | proptest | P0 | draft | S-3.7.01 |
@@ -214,6 +216,28 @@ F-PASS3-HIGH-001. The numeric VP-146..VP-152 entries above are the sequential in
 
 > Note: VP-PLUGIN-001..007 are named aliases for VP-146..VP-152; they do not add to the sequential count. Total sequential VPs is 156 (VP-153, VP-154, VP-155 added for S-PLUGIN-PREREQ-E in burst 2026-05-15; VP-156 added in prereq-e-fix-burst-1 2026-05-15).
 
+> **Count basis (POL-1 append-only):** The table above counts REGISTERED rows — retired VPs are never deleted. Of the 156 rows, 13 are retired per ADR-037 (2026-06-10): VP-095..VP-098 (unit_test, P0), VP-099..VP-106 (proptest, P0), VP-107 (integration_test, P0). **Active basis: 143 VPs; active P0 = 109** (Kani 23, Proptest 58, Unit test 0, Fuzz 5, Integration test 23); active P1 = 34 (unchanged — no retired VP was P1). Retired VPs are excluded from the release verification gate. Per-VP disposition: see §ADR-037 Retirement below.
+
+### ADR-037 Retirement (2026-06-10) — BC-3.3.001..004 VPs
+
+BC-3.3.001 through BC-3.3.004 were retired at BC-INDEX v6.11 per ADR-037 (prism-customer-config crate retirement; ADR-010 superseded — the `customers/{org_slug}.toml` schema these VPs verified no longer exists). All 13 VPs anchored to those BCs are retired in place: rows above retain Module/Method/Priority verbatim (row-count basis), Status → `retired (ADR-037)`. No individual VP files exist for VP-095..VP-107 (registered index-only during wave-3-registration v1.12), so no VP-file withdrawal documents are required.
+
+| VP | Source BC (retired) | Method | Disposition |
+|----|--------------------|--------|-------------|
+| VP-095 | BC-3.3.001 | unit_test | Retired — property surface gone: per-customer `mode` declaration retired with the `[[dtu]]` schema, so the ST+shared misconfiguration is no longer expressible. Isolation is structural: prism-core `DtuMode` + per-instance binding (BC-2.06.017) + BC-3.2.005 (VP-091..VP-094 remain active, incl. VP-093 ST+shared serde/spec-layer rejection). No successor VP. |
+| VP-096 | BC-3.3.001 | unit_test | Retired — same surface as VP-095 (MSSP-Coordination/client acceptance leg of the retired guard). No successor VP. |
+| VP-097 | BC-3.3.001 | unit_test | Retired — error-message property of retired guard (E-CFG-017 path retired with the schema). No successor VP. |
+| VP-098 | BC-3.3.001 | unit_test | Retired — multi-error reporting over `customers/*.toml`; collect-all-errors intent survives on the superseding surfaces (BC-2.21.001 boot step 3; BC-2.06.015/016 OverlayLoader). No successor VP. |
+| VP-099 | BC-3.3.002 | proptest | Retired — credential-pattern scan of retired schema. No-credential-values intent carried by BC-2.06.003 / ADR-032 reference-based resolution (credential-redaction coverage in prism-credentials per ADR-037 §Consequences). No successor VP. |
+| VP-100 | BC-3.3.002 | proptest | Retired — E-CFG-020 no-value-echo property; error code retired with the schema. Redaction intent carried by BC-2.06.003 / ADR-032 surfaces. No successor VP. |
+| VP-101 | BC-3.3.002 | proptest | Retired — four-scheme `credential_ref` prefix acceptance; the scheme grammar itself was superseded by the ADR-032 env-var convention + ADR-034 Tier-3 keyring. No successor VP. |
+| VP-102 | BC-3.3.003 | proptest | Retired — `schema_version` exclusive to the retired schema; ADR-037 §Consequences accepts no successor. No successor VP. |
+| VP-103 | BC-3.3.003 | proptest | Retired — E-CFG-030/031 distinction retired with `schema_version`. No successor VP. |
+| VP-104 | BC-3.3.003 | proptest | Retired — `schema_version = 1` acceptance leg of the retired check. No successor VP. |
+| VP-105 | BC-3.3.004 | proptest | Retired — exit-0 ⇒ OrgRegistry-count==file-count over `customers/*.toml`; superseded surface is BC-2.21.001 (prism.toml `[[orgs]]` boot step 3 validation) + BC-2.06.012–016 (OverlayLoader). Equivalent coverage exists as boot tests in prism-bin per ADR-037 §Consequences; no successor VP registered for the retired file-count formulation. |
+| VP-106 | BC-3.3.004 | proptest | Retired — any-error ⇒ exit-1 + empty OrgRegistry; refuse-to-start intent carried by BC-2.21.001 (exit 2 on failure, ADR-022 §B step 3). No successor VP. |
+| VP-107 | BC-3.3.004 | integration_test | Retired — offending-filename property of retired directory loader; OverlayLoader validation (BC-2.06.013/015/016) names the offending overlay file on its superseding surface. No successor VP. |
+
 ### Phase 3-Patch Addition (2026-04-16, Burst 2.5)
 
 **VP-039** proposed by BC-2.05.011 (Audit Forwarding At-Least-Once). Kani harness proves the per-destination forward watermark is monotonically non-decreasing across all event sequences: ACK, transient network failure, permanent destination failure, and process restart with RocksDB watermark recovery. Story anchor: S-5.10.
@@ -243,6 +267,7 @@ S-1.02 frontmatter has been updated to `subsystems: [SS-03, SS-07, SS-11, SS-12,
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.77 | review-2026-06-10-architect-burst-2 | 2026-06-10 | architect | ADR-037 VP retirement (POL-9 same-burst propagation with verification-architecture.md v1.42 + verification-coverage-matrix.md v1.43): VP-095..VP-107 (13 VPs anchored to BC-3.3.001..004, retired at BC-INDEX v6.11) Status draft→retired (ADR-037), Property text struck through; Module/Method/Priority retained verbatim (rows never deleted per POL-1 — Summary table stays row-count basis: 156 total / 122 P0 / 34 P1, satisfying validate-vp-consistency row-count symmetry). Active-basis counts introduced: 143 active VPs, 109 active P0 (Kani 23 / Proptest 58 / Unit 0 / Fuzz 5 / Integration 23), 34 active P1. Frontmatter active_vps/retired_vps fields added. New §ADR-037 Retirement section records per-VP disposition (no successor VPs registered; intent carried by BC-2.06.017/BC-3.2.005 [VP-091..094 active], BC-2.06.003/ADR-032, BC-2.21.001 + BC-2.06.012–016; BC-3.3.003 schema_version checks have no successor per ADR-037 §Consequences). No VP files exist for VP-095..107, so no withdrawal documents required. VP-INDEX v1.76→v1.77. |
 | 1.76 | FB-IMPL-10 | 2026-05-18 | product-owner | F-LP-IMPL-P13-MED-001 closure: VP-156 v0.23→v0.24 (line 171 cfg-gate sibling-sweep — `#[cfg(test)]` → `#[cfg(any(test, feature = "test-helpers"))]`). VP-INDEX v1.75→v1.76. |
 | 1.75 | D-717-state-mgr | 2026-05-18 | state-manager | D-717 state-manager closure: VP-156 v0.22→v0.23 (§Changelog v0.20/v0.21 monotonic ordering repair — second-order POL-26 recurrence surfaced by architect FB-IMPL-9 ZERO-DRIFT discipline; closed in same burst). VP-INDEX v1.74→v1.75. |
 | 1.74 | pass-12-spec-hygiene | 2026-05-18 | architect | D-717 pass-12 INDEX cascade: VP-156 v0.21→v0.22 (F-LP-IMPL-P12-OBS-001 closure: §Test-only reset hooks line 175 — `dynamic_write_tool_count()` corrected from "`#[cfg(test)]`-gated" to "unconditional `pub fn`"). VP-INDEX v1.73→v1.74. |

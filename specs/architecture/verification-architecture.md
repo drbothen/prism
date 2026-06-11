@@ -2,13 +2,13 @@
 document_type: architecture-section
 level: L3
 section: "verification-architecture"
-version: "1.41"
+version: "1.42"
 status: draft
 producer: architect
-timestamp: 2026-05-16T00:00:00
+timestamp: 2026-06-10T00:00:00
 phase: 1b
 inputs: [prd.md, domain-spec/invariants.md]
-input-hash: "962624a"
+input-hash: "c5e53ac"
 traces_to: ARCH-INDEX.md
 ---
 
@@ -48,7 +48,7 @@ graph TB
         K19["Generator idempotent (VP-108)"]
     end
 
-    subgraph TIER2["Tier 2: Proptest — Property-Based Testing (88 properties) + Unit Tests (4 properties — VP-095..VP-098)"]
+    subgraph TIER2["Tier 2: Proptest — Property-Based Testing (88 registered; 8 retired per ADR-037) + Unit Tests (4 — VP-095..VP-098, all retired per ADR-037)"]
         P1["OCSF normalization validity (VP-016/017)"]
         P2["Detection rule validation (VP-018)"]
         P3["Diff computation determinism (VP-019)"]
@@ -76,7 +76,7 @@ graph TB
         P25["Log forwarder min-level filter determinism (VP-061)"]
         P26["Log forwarder queue cap bounded at 10×batch_size (VP-062)"]
         P27["OrgRegistry identity properties — proptest (VP-063, VP-064, VP-066, VP-067, VP-069, VP-072..076)"]
-        P28["Per-org sensor/cred/token isolation — proptest (VP-077..082, VP-084..089, VP-091..093, VP-095..106)"]
+        P28["Per-org sensor/cred/token isolation — proptest (VP-077..082, VP-084..089, VP-091..093; VP-095..106 retired per ADR-037)"]
         P29a["Multi-tenant data generator (VP-109..VP-111, VP-113..VP-114, VP-116..VP-121)"]
         P29b["DTU test harness (VP-122, VP-123, VP-125, VP-128)"]
         P29c["Workspace layout lint (VP-135)"]
@@ -95,14 +95,14 @@ graph TB
         F6["Alias expansion (VP-037)"]
     end
 
-    subgraph INTEG["Integration Test VPs (28)"]
+    subgraph INTEG["Integration Test VPs (28 registered; 1 retired per ADR-037)"]
         I1["Audit buffer ordering (VP-033)"]
         I2["SessionContext drop on error (VP-036)"]
-        I3["Wave 3 integration VPs (VP-068, VP-083, VP-090, VP-094, VP-107, VP-112, VP-115, VP-124, VP-126, VP-127, VP-129, VP-130, VP-131, VP-132, VP-133, VP-134, VP-136)"]
+        I3["Wave 3 integration VPs (VP-068, VP-083, VP-090, VP-094, VP-112, VP-115, VP-124, VP-126, VP-127, VP-129, VP-130, VP-131, VP-132, VP-133, VP-134, VP-136; VP-107 retired per ADR-037)"]
         I4["Wave-4 / PREREQ-D / PREREQ-E Plugin-Migration Integration VPs<br/>VP-146 (FORBIDDEN-SYMBOLS-001 perimeter)<br/>VP-147..VP-152 (plugin runtime + auth)<br/>VP-154 (CustomAdapter behavioral equivalence)<br/>VP-155 (CustomAdapter perimeter)"]
     end
 
-    TIER1 -->|"Proves correctness<br/>for ALL inputs"| SAFE["156 Verified Properties"]
+    TIER1 -->|"Proves correctness<br/>for ALL inputs"| SAFE["156 Registered Properties — 143 active, 13 retired per ADR-037"]
     TIER2 -->|"Explores complex<br/>input spaces"| SAFE
     TIER3 -->|"Finds crashes in<br/>untrusted input paths"| SAFE
     INTEG -->|"Verifies I/O ordering<br/>and lifecycle"| SAFE
@@ -127,6 +127,8 @@ Prism uses a three-tier verification approach, with tool selection driven by mod
 ## Provable Properties Catalog
 
 Properties are organized by the domain invariant or BC postcondition they verify. Each VP traces to a specific Source Invariant / BC and, where applicable, a domain-spec DI-NNN or a BC-level postcondition ID.
+
+> **ADR-037 retirement (2026-06-10):** VP-095..VP-107 (13 VPs anchored to BC-3.3.001..004, retired at BC-INDEX v6.11 per ADR-037 — prism-customer-config crate retirement) are retired in place: rows below retain Module/Method/Priority verbatim (POL-1 — rows never deleted; grand totals remain row-count basis), Feasibility → `retired (ADR-037)`. Retired VPs are excluded from the release verification gate (§Verification Priority). Per-VP disposition: VP-INDEX §ADR-037 Retirement.
 
 | ID | Property | Module | Method | Feasibility | Priority | Source Invariant / BC |
 |----|----------|--------|--------|-------------|----------|-----------------------|
@@ -224,19 +226,19 @@ Properties are organized by the domain invariant or BC postcondition they verify
 | VP-092 | Startup rejects unknown mode values: serde of non-shared/non-client string returns Err | prism-sensors | proptest | feasible | P0 | BC-3.2.005 |
 | VP-093 | Security Telemetry type with mode=shared causes startup error | prism-sensors | proptest | feasible | P0 | BC-3.2.005 |
 | VP-094 | reload_config does not apply mode changes | prism-sensors | integration_test | feasible | P0 | BC-3.2.005 |
-| VP-095 | Every ST type in DTU_DEFAULT_MODE triggers startup error when paired with mode=shared | prism-spec-engine | unit_test | feasible | P0 | BC-3.3.001 |
-| VP-096 | No MSSP Coordination type triggers startup error when paired with mode=client | prism-spec-engine | unit_test | feasible | P0 | BC-3.3.001 |
-| VP-097 | Startup error message contains DTU type string and config file path | prism-spec-engine | unit_test | feasible | P0 | BC-3.3.001 |
-| VP-098 | Multi-error: N violations produce N errors in one pass before abort | prism-spec-engine | unit_test | feasible | P0 | BC-3.3.001 |
-| VP-099 | Non-scheme credential-pattern field value always causes exit code 1 | prism-spec-engine | proptest | feasible | P0 | BC-3.3.002 |
-| VP-100 | E-CFG-020 error message never contains the literal field value | prism-spec-engine | proptest | feasible | P0 | BC-3.3.002 |
-| VP-101 | All four allowed scheme prefixes accepted for credential-pattern fields | prism-spec-engine | proptest | feasible | P0 | BC-3.3.002 |
-| VP-102 | All integer schema_version values != 1 produce exit code 1 | prism-spec-engine | proptest | feasible | P0 | BC-3.3.003 |
-| VP-103 | Absent schema_version produces E-CFG-030, not E-CFG-031 | prism-spec-engine | proptest | feasible | P0 | BC-3.3.003 |
-| VP-104 | schema_version=1 never produces schema-version error regardless of other fields | prism-spec-engine | proptest | feasible | P0 | BC-3.3.003 |
-| VP-105 | Exit code 0 implies OrgRegistry entry count equals file count | prism-spec-engine | proptest | feasible | P0 | BC-3.3.004 |
-| VP-106 | Any validation error implies exit code 1 and empty OrgRegistry | prism-spec-engine | proptest | feasible | P0 | BC-3.3.004 |
-| VP-107 | Validation error output always includes the offending filename | prism-spec-engine | integration_test | feasible | P0 | BC-3.3.004 |
+| VP-095 | ~~Every ST type in DTU_DEFAULT_MODE triggers startup error when paired with mode=shared~~ | prism-spec-engine | unit_test | retired (ADR-037) | P0 | BC-3.3.001 (retired) |
+| VP-096 | ~~No MSSP Coordination type triggers startup error when paired with mode=client~~ | prism-spec-engine | unit_test | retired (ADR-037) | P0 | BC-3.3.001 (retired) |
+| VP-097 | ~~Startup error message contains DTU type string and config file path~~ | prism-spec-engine | unit_test | retired (ADR-037) | P0 | BC-3.3.001 (retired) |
+| VP-098 | ~~Multi-error: N violations produce N errors in one pass before abort~~ | prism-spec-engine | unit_test | retired (ADR-037) | P0 | BC-3.3.001 (retired) |
+| VP-099 | ~~Non-scheme credential-pattern field value always causes exit code 1~~ | prism-spec-engine | proptest | retired (ADR-037) | P0 | BC-3.3.002 (retired) |
+| VP-100 | ~~E-CFG-020 error message never contains the literal field value~~ | prism-spec-engine | proptest | retired (ADR-037) | P0 | BC-3.3.002 (retired) |
+| VP-101 | ~~All four allowed scheme prefixes accepted for credential-pattern fields~~ | prism-spec-engine | proptest | retired (ADR-037) | P0 | BC-3.3.002 (retired) |
+| VP-102 | ~~All integer schema_version values != 1 produce exit code 1~~ | prism-spec-engine | proptest | retired (ADR-037) | P0 | BC-3.3.003 (retired) |
+| VP-103 | ~~Absent schema_version produces E-CFG-030, not E-CFG-031~~ | prism-spec-engine | proptest | retired (ADR-037) | P0 | BC-3.3.003 (retired) |
+| VP-104 | ~~schema_version=1 never produces schema-version error regardless of other fields~~ | prism-spec-engine | proptest | retired (ADR-037) | P0 | BC-3.3.003 (retired) |
+| VP-105 | ~~Exit code 0 implies OrgRegistry entry count equals file count~~ | prism-spec-engine | proptest | retired (ADR-037) | P0 | BC-3.3.004 (retired) |
+| VP-106 | ~~Any validation error implies exit code 1 and empty OrgRegistry~~ | prism-spec-engine | proptest | retired (ADR-037) | P0 | BC-3.3.004 (retired) |
+| VP-107 | ~~Validation error output always includes the offending filename~~ | prism-spec-engine | integration_test | retired (ADR-037) | P0 | BC-3.3.004 (retired) |
 | VP-108 | Generator idempotent: generate(inputs) == generate(inputs) for identical inputs | prism-dtu-common | kani | feasible | P0 | BC-3.4.001 |
 | VP-109 | Different seeds produce different records with overwhelming probability | prism-dtu-common | proptest | feasible | P0 | BC-3.4.001 |
 | VP-110 | Different orgs produce different records for same seed with overwhelming probability | prism-dtu-common | proptest | feasible | P0 | BC-3.4.001 |
@@ -289,7 +291,7 @@ Properties are organized by the domain invariant or BC postcondition they verify
 
 ## Verification Priority
 
-**P0 (must-verify before release):** VP-001 through VP-024, VP-027, VP-028, VP-031, VP-033, VP-034, VP-036, VP-038, VP-039, VP-044, VP-045, VP-046, VP-047, VP-050, VP-051, VP-052, VP-053, VP-057, VP-058, VP-060 (Phase 1-2 baseline, 43); plus Wave 3 P0: VP-063, VP-064, VP-066, VP-067, VP-068, VP-069, VP-070, VP-071, VP-072, VP-073, VP-074, VP-075, VP-076, VP-077, VP-078, VP-079, VP-080, VP-081, VP-082, VP-083, VP-084, VP-085, VP-086, VP-087, VP-088, VP-089, VP-090, VP-091, VP-092, VP-093, VP-094, VP-095, VP-096, VP-097, VP-098, VP-099, VP-100, VP-101, VP-102, VP-103, VP-104, VP-105, VP-106, VP-107, VP-108, VP-109, VP-110, VP-111, VP-112, VP-113, VP-114, VP-115, VP-116, VP-117, VP-118, VP-119, VP-120, VP-121, VP-122, VP-123, VP-124, VP-125, VP-126, VP-127, VP-128, VP-129, VP-130, VP-131, VP-132, VP-133 (70); plus Wave 4 Phase 4.A pass-4 P0 elevation: VP-138 (1); plus ADR-023 plugin migration P0: VP-146, VP-147, VP-148, VP-149, VP-150, VP-152 (6); plus PREREQ-E ADR-026/ADR-027 P0: VP-153, VP-155 (2) — all safety-critical invariants and security properties. (**122 total P0**)
+**P0 (must-verify before release):** VP-001 through VP-024, VP-027, VP-028, VP-031, VP-033, VP-034, VP-036, VP-038, VP-039, VP-044, VP-045, VP-046, VP-047, VP-050, VP-051, VP-052, VP-053, VP-057, VP-058, VP-060 (Phase 1-2 baseline, 43); plus Wave 3 P0: VP-063, VP-064, VP-066, VP-067, VP-068, VP-069, VP-070, VP-071, VP-072, VP-073, VP-074, VP-075, VP-076, VP-077, VP-078, VP-079, VP-080, VP-081, VP-082, VP-083, VP-084, VP-085, VP-086, VP-087, VP-088, VP-089, VP-090, VP-091, VP-092, VP-093, VP-094, VP-108, VP-109, VP-110, VP-111, VP-112, VP-113, VP-114, VP-115, VP-116, VP-117, VP-118, VP-119, VP-120, VP-121, VP-122, VP-123, VP-124, VP-125, VP-126, VP-127, VP-128, VP-129, VP-130, VP-131, VP-132, VP-133 (57); plus Wave 4 Phase 4.A pass-4 P0 elevation: VP-138 (1); plus ADR-023 plugin migration P0: VP-146, VP-147, VP-148, VP-149, VP-150, VP-152 (6); plus PREREQ-E ADR-026/ADR-027 P0: VP-153, VP-155 (2) — all safety-critical invariants and security properties. (**109 active P0**; additionally 13 P0 rows — VP-095..VP-107 — are retired per ADR-037 (2026-06-10) and excluded from the release gate while remaining registered rows, for 122 P0 rows total per VP-INDEX Summary row-count basis)
 
 **P1 (verify during hardening):** VP-025, VP-026, VP-029, VP-030, VP-032, VP-035, VP-037, VP-040, VP-041, VP-042, VP-043, VP-048, VP-049, VP-054, VP-055, VP-056, VP-059, VP-061, VP-062 (Phase 1-2 baseline, 19); plus Wave 3 P1: VP-065, VP-134, VP-135, VP-136 (4); plus Wave 4 Phase 1 ADR P1: VP-137 (1); plus Wave 4 ADR P1: VP-139, VP-140, VP-141, VP-142, VP-143, VP-144, VP-145 (7); plus ADR-023 plugin migration P1: VP-151 (1); plus PREREQ-E ADR-027 P1: VP-154 (1); plus PREREQ-E fix-burst-1 P1: VP-156 (1) — correctness properties that are important but not safety-critical. (**34 total P1**)
 
@@ -314,6 +316,7 @@ Proptest strategies generate complex inputs (alias graphs, detection rules, OCSF
 
 | Version | Pass | Date | Author | Notes |
 |---------|------|------|--------|-------|
+| 1.42 | review-2026-06-10-architect-burst-2 | 2026-06-10 | architect | ADR-037 VP retirement propagation (POL-9 same-burst with VP-INDEX v1.77 + verification-coverage-matrix v1.43): VP-095..VP-107 (13 P0 VPs anchored to retired BC-3.3.001..004) marked retired in Provable Properties Catalog (Feasibility `feasible`→`retired (ADR-037)`, property text struck, Source column annotated "(retired)"); catalog preamble retirement note added. §Verification Priority: 13 retired VPs removed from Wave 3 P0 enumeration (70→57); release-gate P0 restated as 109 active (122 P0 rows total, row-count basis). Mermaid 5-site sweep (POL-25): TIER2 header (88 registered/8 retired + unit-test quartet retired), P28 node (VP-095..106 split out as retired), I3 node (VP-107 split out as retired), INTEG header (28 registered/1 retired), SAFE node (156 registered — 143 active/13 retired). Rows and grand totals retained per POL-1; hook row-count symmetry preserved (Kani 30/Proptest 88/Unit 4/Fuzz 6/Integration 28). |
 | 1.41 | state(D-659) | 2026-05-16 | state-manager | FB40 D-659 POL-9 same-burst propagation: VP-153 file advanced v0.8→v0.9 (F-LP50-MED-002 §Changelog row ordering corrected to monotonic ascending per POL-26 — 49-pass-surviving defect). This document carries VP-153 by ID only (no version pin in Provable Properties Catalog table); POL-11 changelog row recorded to maintain contiguous version history. |
 | 1.40 | state(D-658) | 2026-05-16 | state-manager | FB39 D-658 POL-9 same-burst propagation: VP-153 file advanced v0.7→v0.8 (F-LP49-HIGH-001 5-site error-taxonomy v1.30→v1.31 cascade closure — inline-comment cites at lines 167+210 updated by architect). This document carries VP-153 by ID only (no version pin in Provable Properties Catalog table); POL-11 changelog row recorded to maintain contiguous version history. |
 | 1.39 | state(D-653) | 2026-05-16 | state-manager | FB34 D-653 POL-9 same-burst propagation: VP-153 file advanced v0.6→v0.7 (§Proof Harness Skeleton expanded — Rules A+B proptests scaffolded for E-SPEC-012/013). This document carries VP-153 by ID only (no version pin in Provable Properties Catalog table); POL-11 changelog row recorded to maintain contiguous version history. |

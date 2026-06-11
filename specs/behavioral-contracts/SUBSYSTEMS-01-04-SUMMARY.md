@@ -1,11 +1,11 @@
 ---
 document_type: behavioral-contract-summary
 level: L3
-version: "1.1"
+version: "1.2"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
-modified: 2026-05-17
+modified: 2026-06-10
 phase: 1a
 subsystems: ["01-Sensor Adapters", "02-OCSF Normalization", "03-Credential Management", "04-Feature Flags"]
 ---
@@ -80,7 +80,7 @@ Capabilities: CAP-005, CAP-006
 
 | ID | Title | Capability | Priority |
 |----|-------|-----------|----------|
-| BC-2.04.001 | Compile-Time Cargo Features Gate Write Code Families | CAP-005 | P0 |
+| BC-2.04.001 | Compile-Time Write Capability Tier Is Registry-Derived from Write-Endpoint Declarations | CAP-005 | P0 |
 | BC-2.04.002 | Runtime Per-Client TOML Feature Flag Configuration | CAP-005 | P0 |
 | BC-2.04.003 | Hierarchical Capability Resolution (BTreeMap, Most-Specific-Path Wins, Deny Support) | CAP-005 | P0 |
 | BC-2.04.004 | Two-Tier Gate -- Both Compile-Time and Runtime Must Permit Operation | CAP-005 | P0 |
@@ -141,4 +141,5 @@ Capabilities: CAP-005, CAP-006
 
 | Version | Date | Change |
 |---------|------|--------|
+| v1.2 | 2026-06-10 | MCP cascade pass-1 P1-02 BC sibling sweep (review-cycle PO micro-burst): BC-2.04.001 title row synced to retitled H1 "Compile-Time Write Capability Tier Is Registry-Derived from Write-Endpoint Declarations" (BC-2.04.001 v1.2 registry-derived compile-tier rewrite, aligned with error-taxonomy v1.67 E-FLAG-002 row; bc_h1_is_title_source_of_truth). |
 | v1.1 | 2026-05-17 | F-LP73-HIGH-002 closure (PO scope): DI-012 row updated — "Sealed Auth Trait" → "Spec-Driven Auth With Runtime Composition Guards" (per DI-012 v1.6 amendment 2026-05-11) + BC-2.01.016 added to enforcer list (PREREQ-E primary auth BC, per its §Traceability L2 Invariants). Survived 73 adversarial passes; POL-2 bidirectional DI↔BC traceability restored. Sibling-sweep across SUBSYSTEMS summaries: 0 additional stale DI labels found in SUBSYSTEMS-05-07-SUMMARY.md and SUBSYSTEMS-08-10-SUMMARY.md; DI-015 embellishment "(Confirmation Token 100 Active Cap)" vs invariants.md canonical "Confirmation Token Cap" noted as summary-label shorthand (not a stale label, since invariants.md uses the base name and the 100-cap detail is in BC-2.04.009 title). |

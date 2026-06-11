@@ -1,13 +1,13 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "2.6"
+version: "2.7"
 status: active
 producer: product-owner
 timestamp: 2026-04-14T05:00:00
 phase: 1a
 inputs: [".factory/specs/prd.md", ".factory/specs/domain-spec/capabilities.md"]
-input-hash: "c36ec87"
+input-hash: "566def3"
 traces_to: ["CAP-009"]
 extracted_from: ".factory/specs/prd.md"
 origin: greenfield
@@ -15,7 +15,7 @@ subsystem: "SS-10"
 capability: "CAP-009"
 lifecycle_status: active
 introduced: cycle-1
-modified: null
+modified: "2026-06-10"  # v2.7: ADR-038 D6 sweep — client-not-found error code E-CFG-001 → E-CFG-100; variant label → PrismError::ClientNotFound
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -74,7 +74,7 @@ Every tool call carries explicit client scoping — there is no session-level "a
 | Error | Condition | Behavior |
 |-------|-----------|----------|
 | `PrismError::InvalidInput` | `client_id` or `clients` entry contains invalid characters | Structured error: `code: "E-MCP-001"`, `message: "Invalid client_id format"`, `allowed_pattern: "[a-zA-Z0-9_-]+"` |
-| `PrismError::Config` | Non-null `client_id` not found in config | Structured error: `code: "E-CFG-001"`, `message: "Client '{id}' not found"`, `suggestion: "Check TOML config for available clients"` |
+| `PrismError::ClientNotFound` | Non-null `client_id` not found in config | Structured error: `code: "E-CFG-100"`, `message: "Client '{id}' not found"`, `suggestion: "Check TOML config for available clients"` |
 
 ## Edge Cases
 | ID | Description | Expected Behavior |
@@ -112,6 +112,7 @@ See `.factory/specs/prd-supplements/test-vectors.md` for canonical test vector t
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 2.7 | ADR-038-D6-sweep | 2026-06-10 | product-owner | ADR-038 D6 number sweep: Error Cases row "Non-null `client_id` not found in config" code `E-CFG-001` → `E-CFG-100` (ClientNotFound). The BC froze the pre-v1.8 number; error-taxonomy v1.8 renumbered the client-not-found condition to E-CFG-100, and ADR-037 tombstoned the low number for the retired customer-config semantics. Error-column variant label corrected `PrismError::Config` (nonexistent variant) → `PrismError::ClientNotFound` (the ADR-038 D3 variant whose doc comment cites this BC). Condition text and response shape otherwise unchanged. Per ADR-038 (error-taxonomy v1.66). |
 | 2.5 | pass-15-remediation | 2026-04-27 | product-owner | VP-001 label updated TenantId → OrgSlug (ADR-006); DI-033 added to L2 Invariants. |
 | 2.4 | pass-69-housekeeping | 2026-04-20 | product-owner | Normalized changelog schema to canonical 5-col schema. |
 | 2.3 | pass-63-fix | 2026-04-20 | product-owner | P3P63-A-OBS-001: Quoted `capability` frontmatter value per corpus convention. Corrected row 2.2 from 5-column to canonical 4-column schema. |

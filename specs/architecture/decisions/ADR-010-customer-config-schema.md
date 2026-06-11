@@ -2,11 +2,11 @@
 document_type: adr
 adr_id: ADR-010
 title: "Customer Config Schema — `customers/{org_slug}.toml` Structure, Validation Rules, Loading Lifecycle, and Schema Versioning"
-status: ACCEPTED
+status: SUPERSEDED
 date: 2026-05-01
 wave: 3
 phase: 3.A
-version: "0.17"
+version: "0.18"
 authors: [architect]
 related_decisions: [D-041, D-042, D-046, D-052, D-053]
 related_adrs: [ADR-006, ADR-007, ADR-008, ADR-009, ADR-011]
@@ -14,7 +14,7 @@ related_bcs_planned: [BC-3.3.001, BC-3.3.002, BC-3.3.003, BC-3.3.004]
 subsystems_affected: [SS-06, SS-03, SS-01, SS-21]
 anchored_capabilities: [CAP-009]
 supersedes: null
-superseded_by: null
+superseded_by: ADR-037
 traces_to: specs/architecture/ARCH-INDEX.md
 inputs:
   - .factory/specs/architecture/decisions/ADR-006-multi-tenant-dtu-topology.md
@@ -32,7 +32,14 @@ wiring_deferred_to: null  # All deliverables confirmed implemented in prism-cust
 
 ## Status
 
-ACCEPTED 2026-04-28; implementation merged through Wave 3 closure (PRs #73–#112). Wave 3 integration gate findings tracked in `cycles/wave-3-multi-tenant/`.
+SUPERSEDED by ADR-037 (2026-06-10, human-approved review-package recommendation ⑨ /
+finding BOOT-01). The `prism-customer-config` crate delivering this ADR's runtime
+deliverables has zero production dependents and is retired; the functional surface is
+re-delivered by boot step 3 OrgRegistry (BC-2.21.001), spec-engine per-org overlays
+(ADR-029), and the per-client credential convention (ADR-032). See ADR-037 §Context for
+the deliverable-by-deliverable supersession map.
+
+Historical: ACCEPTED 2026-04-28; implementation merged through Wave 3 closure (PRs #73–#112). Wave 3 integration gate findings tracked in `cycles/wave-3-multi-tenant/`.
 
 ---
 
@@ -729,6 +736,7 @@ The following questions surfaced during BC authoring (Phase 3.A) and were resolv
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 0.18 | 2026-06-10 | architect | SUPERSEDED by ADR-037 (BOOT-01 closure; human-approved 2026-06-10 review package recommendation ⑨). Frontmatter `status: ACCEPTED → SUPERSEDED`, `superseded_by: ADR-037`; §Status rewritten with supersession summary (historical ACCEPTED note preserved). prism-customer-config crate retired via Fix PR 3; BC-3.3.001..004 disposition routed to product-owner per ADR-021. NOTE: pre-existing bookkeeping gap — frontmatter was at v0.17 with no v0.17 changelog row (likely the `wiring_deferred_to` annotation edit); flagged for state-manager reconciliation, not reconstructed here. |
 | 0.16 | 2026-05-01 | state-manager | ACCEPTED→IMPLEMENTED status promoted post-Wave-3 closure. §2 Status block updated from PROPOSED to ACCEPTED per D-183. Wave 3 integration gate findings tracked in cycles/wave-3-multi-tenant/. |
 | 0.15 | 2026-04-28 | product-owner | Phase 3.A APPROVED by user — status: PROPOSED → ACCEPTED. D-136. Wave 3 implementation cleared to begin per D-045 (Spec-First Discipline) post-approval. |
 | 0.14 | 2026-04-27 | product-owner | M-24-002 (Pass 24): `related_adrs` frontmatter corrected — ADR-008 and ADR-011 added (body §8/§9 lists both as related antecedent/consequent but frontmatter array was missing them). |

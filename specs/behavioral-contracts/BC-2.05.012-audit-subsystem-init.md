@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.5"
+version: "1.6"
 status: active
 producer: product-owner
 timestamp: 2026-05-08T00:00:00Z
@@ -26,7 +26,7 @@ inputs:
   - .factory/specs/architecture/decisions/ADR-022-production-runtime-wiring.md
   - .factory/specs/architecture/module-decomposition.md
   - .factory/cycles/wave-4-operations/research/audit-emitter-architecture-2026-05-09.md
-input-hash: "d852024"
+input-hash: "8bce1ba"
 traces_to: ["CAP-007"]
 ---
 
@@ -217,7 +217,7 @@ persistence ordering is deferred to the S-WAVE5-PREP-01 implementer.
 
 - `specs/architecture/decisions/ADR-022-production-runtime-wiring.md` §B step 6 (boot step spec)
 - `specs/architecture/decisions/ADR-022-production-runtime-wiring.md` §A exit-code contract
-- Architecture decision AD-004 (RocksDB with 17 column families; `audit_buffer` CF spec)
+- Architecture decision AD-004 (RocksDB with 19 column families per ADR-022 v1.15; `audit_buffer` CF spec)
 - `specs/architecture/module-decomposition.md` COMP-001 `prism-bin` (SS-22), COMP-011 `prism-audit` (SS-05)
 - `specs/architecture/data-layer.md` (RocksDB CF catalog, WAL configuration)
 
@@ -237,7 +237,7 @@ this boot step; see Verification Properties)
 | L2 Capability | CAP-007 |
 | Capability Anchor Justification | CAP-007 ("Audit Logging") per capabilities.md §CAP-007 — this BC specifies the startup-time initialization of the `AuditEmitter` and `audit_buffer` CF, which is the foundational setup for the "Log every MCP tool invocation" behavior that CAP-007 defines. The SOC 2 non-negotiability ("Audit entries are append-only and include sufficient detail for SOC 2 Type II and ISO 27001 compliance") motivates this BC's hard exit-4-on-failure design. |
 | L2 Invariants | DI-004 (Audit Completeness — every MCP tool invocation produces exactly one AuditEntry): this BC establishes the prerequisite that AuditEmitter is ready before any MCP traffic begins (step 9), satisfying DI-004's foundation. |
-| ADR Source | ADR-022 §B step 6, §A exit-code table; AD-004 (RocksDB 17 CFs, audit_buffer) |
+| ADR Source | ADR-022 §B step 6, §A exit-code table; AD-004 (RocksDB 19 CFs per ADR-022 v1.15, audit_buffer) |
 | Priority | P0 |
 | SOC 2 Note | Audit initialization is non-optional. Exit code 4 on failure is a hard failure by design — there is no degraded mode that skips audit. This is a SOC 2 Type II control requirement. |
 | POL-12 Note | The production code path satisfying this BC MUST contain no `todo!()`, `unimplemented!()`, or `panic!("stub...")` before S-WAVE5-PREP-01 transitions to `merged`. |
@@ -250,6 +250,7 @@ this boot step; see Verification Properties)
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.6 | review-2026-06-10-po-burst | 2026-06-10 | product-owner | Stale CF count corrected 17→19 at Architecture Anchors and Traceability ADR Source rows, per AD-004 / ADR-022 v1.15 + ARCH-INDEX v2.120 + data-layer v1.4 (code source of truth: `prism-core` storage.rs `ALL_DOMAINS: [StorageDomain; 19]`). |
 | 1.5 | D-452-maintenance-burst | 2026-05-12 | architect | D-452 maintenance: (1) Add required template frontmatter keys (lifecycle_status, introduced, modified, deprecated, deprecated_by, replacement, retired, removed, removal_reason, extracted_from) per behavioral-contract-template.md; (2) Remove retired lifecycle: active field per ADR-025; (3) Fix duplicate version 1.0 in changelog (relocation row corrected to 1.1, shifting subsequent rows); (4) Fix POL-7 nit: BC-2.05.001 reference at Related BCs now includes full H1 suffix "(Fail-Closed for Writes)"; (5) Sync input-hash to d852024. |
 | 1.4 | D-319-post-merge-state-burst | 2026-05-10 | state-manager | Promoted status: draft → active per ADR-021 POL-14 (S-WAVE5-PREP-01 merged at develop@53b87961 PR #138 2026-05-10T00:55:49Z). Note: BC-INDEX v4.51 records this as v1.2→v1.3 (pre-correction numbering before duplicate-1.0 was fixed). |
 | 1.3 | f-pass4-low-2-cleanup-2026-05-09 | 2026-05-09 | product-owner | F-PASS4-LOW-2 closure — clarify §Failure paths and Error Cases that BootAuditEmitter::new is infallible; the fallible step is RocksDbBackend::open(state_dir). Removed phantom "AuditEmitter construction failure" failure path; replaced with accurate "RocksDB backend construction failure" path. |

@@ -12,7 +12,7 @@ estimated_days: 2
 points: 5
 status: merged
 document_type: story
-version: "1.0"
+version: "1.1"
 producer: story-writer
 timestamp: "2026-05-01T00:00:00Z"
 input-hash: ""
@@ -311,3 +311,9 @@ No new external Cargo dependencies.
   entry point. Only `validate_all` changes visibility.
 - Do NOT use `unwrap()` in the audit cross-check path — `OrgRegistry::slug_for` may
   return `None` and must be handled gracefully.
+
+## Changelog
+
+| Version | Date | Author | Changes |
+|---------|------|--------|---------|
+| 1.1 | 2026-06-10 | story-writer | BC retirement annotation (POL-8 propagation, review-2026-06-10 cycle, annotation-only): BC-3.3.001 retired per ADR-037 (2026-06-10), behavior superseded by BC-2.06.017 (isolation structural via prism-core DtuMode + per-instance binding + BC-3.2.005); BC-3.3.004 retired, superseded by BC-2.21.001 (+ BC-2.06.012–016 OverlayLoader validation). Story merged (PR #120) and retained as historical record — body, ACs, and behavioral_contracts array UNCHANGED (history append-only). Added Changelog section. |

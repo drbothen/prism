@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.4"
+version: "1.7"
 status: active
 producer: product-owner
 timestamp: 2026-04-14T07:00:00
@@ -11,7 +11,7 @@ subsystem: "SS-11"
 capability: "CAP-015"
 lifecycle_status: active
 introduced: cycle-1
-modified: null
+modified: "2026-06-10"  # v1.7: MCP cascade P2-04 — interim-status annotation for declared-but-unwired scope params (sensors/sources/time_range rejected -32602 fail-closed)
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -19,7 +19,7 @@ retired: null
 removed: null
 removal_reason: null
 inputs: [".factory/specs/prd.md", ".factory/specs/domain-spec/capabilities.md"]
-input-hash: "c36ec87"
+input-hash: "566def3"
 traces_to: ["CAP-015"]
 extracted_from: ".factory/specs/prd.md"
 ---
@@ -33,6 +33,7 @@ The `query` MCP tool is the primary interface for analysts to interrogate sensor
 ## Preconditions
 - The `query` MCP tool is invoked with at minimum a `query` string parameter (required)
 - Optional scoping parameters: `clients` (array of client IDs or null for all), `sensors` (array of sensor types or null for all — includes `"prism"` for internal tables), `sources` (array of data source names or null for all — includes `prism.*` names like `"prism.alerts"`, `"prism.cases"` for internal RocksDB-backed tables), `time_range` (relative or absolute), `limit` (max results, default 25, max 1000), `force_refresh` (boolean, default false -- bypass response cache; has no effect on internal tables which always read fresh from RocksDB)
+  - **Interim implementation status (2026-06-10, MCP cascade P2-04 — implementer-verified):** `clients`, `limit`, and `force_refresh` are wired end-to-end in the shipped `query` tool. `sensors`, `sources`, and `time_range` are **declared; production wiring tracked by the query scope-params story per the 2026-06-10 review** (story-writer burst registering the anchor in parallel); **interim behavior: rejected with MCP `-32602` INVALID_PARAMS (`deny_unknown_fields`) — fail-closed, never silently ignored.** The declarations remain normative (POL-1 append-only spirit): the postconditions referencing `sensors`/`sources`/`time_range` resolution (scoping resolution, predicate intersection, `time_range_applied` in `query_context`) describe the target contract behavior the wiring story must deliver, not currently-shipped behavior.
 - At least one client with at least one enabled sensor exists in configuration
 
 ## Postconditions
@@ -63,8 +64,9 @@ The `query` MCP tool is the primary interface for analysts to interrogate sensor
 | `E-QUERY-001` | PrismQL query string cannot be parsed | Structured error with position, context, suggestion, and syntax help |
 | `E-QUERY-006` | Materialization would exceed 10K records | Structured error with estimated counts and narrowing suggestions (DEC-023) |
 | `E-QUERY-004` | Execution exceeds 30 seconds | Structured error with timeout duration and narrowing suggestions (DEC-026) |
+| `E-QUERY-033` | Tool-level `limit` parameter exceeds the 1000 maximum (`limit` default 25, max 1000) | Pre-execution parameter validation rejection; `PrismError::QueryLimitExceeded { requested, max }` surfaced via `map_prism_error` as MCP `-32602` INVALID_PARAMS with message `"E-QUERY-033: limit {requested} exceeds maximum of {max} (BC-2.11.001)"` (taxonomy v1.70 verbatim shipped display) |
 | `E-MCP-004` | `clients` array contains invalid client ID | Structured error with rejected value |
-| `E-CFG-001` | No matching clients/sensors found for scoping parameters | Structured error listing configured clients/sensors |
+| `E-CFG-100` | No matching clients/sensors found for scoping parameters | Structured error listing configured clients/sensors |
 
 ## Edge Cases
 | ID | Description | Expected Behavior |
@@ -108,6 +110,9 @@ The `query` MCP tool is the primary interface for analysts to interrogate sensor
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.7 | mcp-cascade-P2-04 | 2026-06-10 | product-owner | MCP cascade P2-04: interim-status annotation added under the optional-scoping-parameters precondition for the declared-but-unwired params. Shipped `query` tool (implementer-verified 2026-06-10) wires `clients`/`limit`/`force_refresh` only; `sensors`/`sources`/`time_range` have no engine plumbing and are rejected fail-closed with MCP `-32602` INVALID_PARAMS via `deny_unknown_fields` — never silently ignored. Declarations NOT deleted (POL-1 append-only spirit): they remain the normative target contract; production wiring tracked by the query scope-params story per the 2026-06-10 review (story-writer anchor burst in parallel). No postcondition/error-case/edge-case/vector changes; the annotation marks the affected postconditions as target behavior. |
+| 1.6 | mcp-cascade-P2-01 | 2026-06-10 | product-owner | MCP cascade P2-01 (architect adjudication, error-taxonomy v1.70): added missing Error Cases row for tool-level `limit` > 1000 rejection — code `E-QUERY-033`, surfaced as MCP `-32602` INVALID_PARAMS via `map_prism_error`, Message Format verbatim `"E-QUERY-033: limit {requested} exceeds maximum of {max} (BC-2.11.001)"`. The condition was prose-only in Preconditions/Postconditions ("max 1000") while code (`PrismError::QueryLimitExceeded`) + 9 tests enforce it; the row closes the BC↔taxonomy gap. Default-25/max-1000 semantics unchanged (cross-referenced in the row). No precondition/postcondition/edge-case changes. |
+| 1.5 | ADR-038-D6-sweep | 2026-06-10 | product-owner | ADR-038 D6 number sweep: Error Cases row "No matching clients/sensors found" code `E-CFG-001` → `E-CFG-100` (ClientNotFound). The BC froze the pre-v1.8 number; error-taxonomy v1.8 renumbered the client-not-found condition to E-CFG-100, and ADR-037 tombstoned the low number for the retired customer-config semantics. Condition text and response shape unchanged. Per ADR-038 (error-taxonomy v1.66). |
 | 1.3 | pass-73-fix | 2026-04-20 | state-manager | Deterministic changelog reorder: sorted all rows to descending version order (pass-73 bash script). |
 | 1.2 | pass-69-housekeeping | 2026-04-20 | product-owner | Normalized changelog schema to canonical 5-col schema. |
 | 1.1 | pre-build-sweep | 2026-04-20 | product-owner | Template-compliance sweep: added extracted_from/inputs/input-hash/traces_to frontmatter; added ## Description synthesized from body; added ## Canonical Test Vectors scaffolding; added ## Verification Properties cross-ref; added ## Changelog. |

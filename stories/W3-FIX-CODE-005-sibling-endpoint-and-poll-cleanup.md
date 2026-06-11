@@ -12,7 +12,7 @@ estimated_days: 2
 points: 5
 status: merged
 document_type: story
-version: "1.0"
+version: "1.1"
 producer: story-writer
 timestamp: "2026-05-02T00:00:00Z"
 input-hash: ""
@@ -450,3 +450,9 @@ No new Cargo dependencies introduced by this story.
   sentinel forms are crate-specific; mixing them is a correctness error.
 - Do NOT remove or alter the existing tests in `cr012_validate_org_id_consistency.rs` —
   all additions must be in a new test file or appended as new functions.
+
+## Changelog
+
+| Version | Date | Author | Changes |
+|---------|------|--------|---------|
+| 1.1 | 2026-06-10 | story-writer | BC retirement annotation (POL-8 propagation, review-2026-06-10 cycle, annotation-only): BC-3.3.004 (cited in AC-004 trace only; not in behavioral_contracts frontmatter) retired per ADR-037 (2026-06-10); behavior superseded by BC-2.21.001 (boot step 3 OrgRegistry validation; + BC-2.06.012–016 OverlayLoader validation). Story merged (PR #123) and retained as historical record — body, ACs, and behavioral_contracts array UNCHANGED (history append-only). Added Changelog section. |

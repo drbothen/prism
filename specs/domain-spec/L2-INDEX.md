@@ -1,13 +1,13 @@
 ---
 document_type: domain-spec-index
 level: L2
-version: "1.14"
+version: "1.16"
 status: draft
 producer: business-analyst
 timestamp: 2026-04-27T00:00:00
 phase: 1a
 inputs: [product-brief.md, capabilities.md]
-input-hash: "f9f6ccf"
+input-hash: "d697c67"
 traces_to: L2-INDEX.md
 sections:
   - architecture-concept.md
@@ -121,6 +121,9 @@ Prism is a Rust MCP server that unifies multi-client security sensor management 
 
 | Version | Date | Change |
 |---------|------|--------|
+| 1.16 | 2026-06-10 | review-2026-06-10 BA micro-burst (watchdog config-key prose sync): capabilities.md CAP-024 TOML key citations synced from flat form to the sectioned `[watchdog]` form per BC-2.15.006 — `watchdog_level` → `watchdog.level`, `watchdog_memory_limit_mb` → `watchdog.memory_limit_mb`, `watchdog_query_timeout_s` → `watchdog.query_timeout_seconds` (verbatim BC key name). capabilities.md bumped v1.16 → v1.17. Domain-spec sweep found no other flat `watchdog_*` TOML-key citations. No ID registry or count changes. |
+| 1.15 | 2026-06-10 | QRY cascade pass-1 P1-04 D2 companion sweep (review-2026-06-10 BA micro-burst): DI-027 and DEC-033 reworded to the ratified watchdog memory-enforcement division of labor (error-taxonomy v1.68 architect adjudication D2; BC-2.11.006 → `E-WATCHDOG-001` per-query GreedyMemoryPool budget; BC-2.15.007 v1.5 → `E-WATCHDOG-002` process-RSS kill with two-consecutive-check grace; BC-2.15.008 denylist). invariants.md bumped v1.6 → v1.7; edge-cases.md bumped v1.1 → v1.2. Companion to capabilities.md v1.16 CAP-024 (same authority). No ID registry or count changes. |
+| 1.14 | 2026-05-28 | (backfilled row — bump landed in commit 80d28d14 without a changelog entry) S-5.01-FOLLOWUP-MCP-BOOT F-PASS10-HIGH-2 sibling sweep: CAP-034 cross-reference text corrected "rmcp 1.4" → "rmcp 1.7" (1 occurrence). capabilities.md bumped v1.14 → v1.15 in the same sweep. |
 | 1.13 | 2026-05-05 | DI-034 layer 4 updated: per-symbol granular detection clause added + perimeter-symbols-sync companion job documented (adversary pass-8 F-LOW-004 closure). invariants.md bumped v1.4 → v1.5. |
 | 1.12 | 2026-05-05 | DI-034 layer 4 updated: 'pending devops dispatch' replaced with concrete reference to implemented `.github/workflows/ci.yml` `perimeter-compile-fail` job (adversary pass-6 F-MEDIUM-001 closure). invariants.md bumped v1.3 → v1.4. |
 | 1.11 | 2026-05-05 | Adversary pass-5 F-MEDIUM-002 remediation: Add DI-034 (prism-query security perimeter) — lifted from BC-2.11.006 INV-SEC-PERIMETER-001 per POLICY 2 lift-invariants gap. DI registry updated DI-001..DI-033 → DI-001..DI-034, count 29 → 30; total IDs 139 → 140. CAP-015 cross-reference updated to include DI-034. Document Map Invariants row updated. PR-127. |

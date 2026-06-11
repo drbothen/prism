@@ -6,7 +6,7 @@ wave: 5
 epic_id: E-DEMO
 priority: P0
 status: draft
-version: "1.0"
+version: "1.1"
 level: "L4"
 producer: architect
 timestamp: "2026-05-29T00:00:00Z"
@@ -41,8 +41,15 @@ depends_on:
   - S-DEMO-001   # Per-org adapter registration (boot step 9A) must be complete.
   - S-DEMO-002   # Single-org single-sensor E2E smoke test must pass first (build on its foundation).
   - S-CONFIG-MULTI-TENANT-OVERRIDE-001  # Per-org overlay loading must be complete.
-blocks:
-  - S-DEMO-003   # Runbook should not ship until multi-org isolation is verified.
+blocks: []
+# Historical edge scrubbed (v1.1, 2026-06-10 story-writer micro-burst): blocks
+# originally carried S-DEMO-003 ("runbook should not ship until multi-org isolation
+# is verified"). S-DEMO-003 MERGED via PR #176 on 2026-06-08 while this story was
+# still draft — a merged story cannot be blocked, so the edge is moot and would
+# only mislead the wave scheduler. The shipped-runbook-before-isolation-verification
+# risk the edge encoded is now tracked by this story's own ACs (the isolation
+# assertions still must pass before the demo is presented). See §Dispatch Ordering
+# for the annotated historical diagram.
 points: 8
 # Points justification:
 #   - 3-org test config setup (prism.toml with 3 orgs + 3 customers/ overlay dirs): ~1 pt
@@ -363,6 +370,14 @@ to execute it. Comment: `// E2E-MULTI-001: requires multi-org DTU setup; un-gate
 
 ## Dispatch Ordering in Critical Path
 
+> **HISTORICAL (annotated v1.1, 2026-06-10):** the diagram below reflects the
+> 2026-05-29 authoring-time plan. S-DEMO-003 has since MERGED (PR #176,
+> 2026-06-08) ahead of this story, so the `blocks: [S-DEMO-003]` edge was
+> scrubbed from frontmatter (see frontmatter annotation). The isolation
+> assertions remain a precondition for PRESENTING the live demo — that
+> sequencing is carried by the demo-objective ordering (T5 Story B → T6 → T8),
+> not by a story-graph edge to an already-merged story.
+
 ```
 S-DEMO-001 (boot step 9A + all 3 auth providers)
     │
@@ -370,11 +385,13 @@ S-DEMO-001 (boot step 9A + all 3 auth providers)
             │
             ├── S-DEMO-004 (multi-org isolation test) ← THIS STORY
             │
-            └── S-DEMO-003 (runbook + scripts — after both S-DEMO-002 and S-DEMO-004 pass)
+            └── S-DEMO-003 (runbook + scripts — MERGED PR #176 2026-06-08; edge historical)
 ```
 
 S-DEMO-004 can run in parallel with S-DEMO-003 preparation, but S-DEMO-003 should not ship
-until S-DEMO-004's isolation assertions pass.
+until S-DEMO-004's isolation assertions pass. *(Historical note: S-DEMO-003 shipped first
+in practice — PR #176, 2026-06-08 — under the live-demo objective's re-sequencing; the
+isolation-verification obligation transfers to this story's own AC gate before demo day.)*
 
 ---
 
@@ -382,4 +399,5 @@ until S-DEMO-004's isolation assertions pass.
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.1 | 2026-06-10 | story-writer | Moot `blocks: [S-DEMO-003]` frontmatter edge scrubbed to `blocks: []` with historical annotation — S-DEMO-003 merged PR #176 (2026-06-08) ahead of this draft story; a merged story cannot be blocked and the stale edge would mislead the wave scheduler. §Dispatch Ordering diagram + narrative annotated historical (isolation-verification obligation transfers to this story's AC gate before demo presentation). Index row already carried the note since STORY-INDEX v2.342; file now matches (story_frontmatter_index_consistency). No AC/scope changes. |
 | 1.0 | 2026-05-29 | architect | Initial draft — addresses multi-client demo scope gap not covered by S-DEMO-002 v1.0 |

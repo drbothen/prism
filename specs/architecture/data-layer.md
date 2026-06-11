@@ -2,10 +2,10 @@
 document_type: architecture-section
 level: L3
 section: "data-layer"
-version: "1.3"
+version: "1.4"
 status: draft
 producer: architect
-timestamp: 2026-05-03T00:00:00
+timestamp: 2026-06-10T00:00:00
 phase: 1b
 inputs: [prd.md, domain-spec/entities.md]
 traces_to: ARCH-INDEX.md
@@ -139,7 +139,7 @@ No sensor data touches disk. The response cache (CAP-014) holds serialized adapt
 
 ### Persistent Data Path (RocksDB)
 
-RocksDB stores operational state organized by 17 column families. Each column family maps to a `StorageDomain` enum variant.
+RocksDB stores operational state organized by 19 column families — the full `StorageDomain::all()` set (`prism-core` storage.rs `ALL_DOMAINS`, 16 S-1.01 domains + 3 S-1.02 domains). Each implemented column family maps to a `StorageDomain` enum variant. One additional CF (`case_dedup_idx`) is specified but [PLANNED] — it ships with S-4.06 Task 9b and has no `StorageDomain` variant yet.
 
 | Column Family | Domain | Key Pattern | Value Format | Access Pattern |
 |--------------|--------|------------|-------------|---------------|
@@ -150,7 +150,7 @@ RocksDB stores operational state organized by 17 column families. Each column fa
 | `detection_state` | DetectionState | `[rule_id_len: u16][rule_id bytes][type_tag: u8][payload bytes]` (length-prefix with type tag — see operational-pipeline.md; type \x00=group, \x01=rate_limit, \x02=dedup) | bincode | Read/write per detection evaluation. Size cap: 100 MB. Eviction: correlation/sequence group entries (type \x00) not updated in 7 days are purged on periodic sweep (every 3600s). Rate limit (type \x01) and dedup (type \x02) entries are exempt from time-based eviction — evicted only when their owning rule is deleted. |
 | `alerts` | Alerts | `{alert_id}` (UUID v7, time-sortable) | bincode | Append-only, scan by prefix. Each alert includes inline `matched_event_snapshots` (EventSnapshot per matched record — hot fields + event_data excerpt captured at alert creation). Storage: ~2-10 KB per alert (vs ~500 bytes without snapshots). Budget: ~100 MB for 10K alerts with snapshots. |
 | `cases` | Cases | `{case_id}` (UUID v7) | bincode | CRUD on case lifecycle |
-| `case_dedup_idx` | CaseDedupIdx | `{dedup_hash}` | bincode | Auto-case-dedup secondary index for BC-2.14.013 / VP-060 (per S-4.06 Task 9b; introduced P5-XADR-A-M-006) |
+| `case_dedup_idx` | CaseDedupIdx **[PLANNED — S-4.06 Task 9b; no StorageDomain variant in code yet]** | `{dedup_hash}` | bincode | Auto-case-dedup secondary index for BC-2.14.013 / VP-060 (per S-4.06 Task 9b; introduced P5-XADR-A-M-006). Not counted in the 19 implemented CFs; becomes the 20th when S-4.06 adds the `CaseDedupIdx` domain variant. |
 | `audit_buffer` | AuditBuffer | `{timestamp_nanos}:{trace_id}` | bincode | Append, sequential scan, delete on ack |
 | `dirty_bits` | DirtyBits | `{query_hash}` | bincode (DirtyBitEntry) | Set before query, clear after; crash recovery on startup |
 | `watchdog` | Watchdog | `{query_hash}` | bincode (DenylistEntry with expiry_timestamp) | Read on query start (check if denylisted + check expiry), write on denylist add. TTL enforcement: expired entries are lazily removed when checked at query start. No periodic sweep needed — expiry is checked inline. |
@@ -160,6 +160,9 @@ RocksDB stores operational state organized by 17 column families. Each column fa
 | `infusion_cache` | InfusionCache | `{infusion_id}:{input_value_hash}` | bincode | Persistent infusion lookup cache (AD-020). Size cap: 50 MB. TTL-based eviction: periodic sweep every 3600s purges entries past their per-infusion TTL. LRU eviction when size cap reached. Separate from `decorators` to avoid key collision. |
 | `plugin_state` | PluginState | `{plugin_id}:{key}` | bincode 2.x | Per-plugin key-value store for WASM plugin transient state (AD-019). Accessed via `host::kv_get`/`host::kv_set` host functions. Scoped per plugin — plugins cannot access other plugins' entries. Size limit: 1 MB per plugin total; `kv_set` returns `E-PLUGIN-003` when exceeded. Values are opaque bytes from the plugin's perspective; stored as raw bytes. No TTL-based eviction — entries persist until the plugin explicitly deletes them or the plugin is unloaded and its entries are garbage-collected. BC ownership: BC-2.17.002 (sandbox), BC-2.17.003 (memory limit). |
 | `event_buffer` | EventBuffer | `{sensor_id}/{table_name}/{client_id}/{timestamp_micros_be}/{ulid}` | JSON (OCSF-normalized record) | Local buffer for event-stream tables (osquery event publisher pattern). Timestamp in big-endian bytes enables lexicographic range scans in chronological order. ULID suffix provides uniqueness within the same microsecond. TTL-based eviction: lazy eviction at read time before returning results, plus periodic sweep after each poller ingest cycle (retention configurable per table spec, default 24h, max 7d). No size cap at the CF level — retention period is the primary eviction mechanism. Background pollers (one per `(sensor_id, table_name, client_id)` event-stream table) write here on each poll cycle. BC ownership: S-2.08 (event table abstraction). |
+| `credentials` | Credentials | — (reserved; no production writer yet) | bincode | Credential store domain (SS-03). Added by S-1.02; opened and health-checked at boot (`StorageDomain::all()`); exercised by VP-055 domain-isolation proptest. Production write path lands with the credential-store storage backend wiring; any persisted values are encrypted at rest and never transit AI context (AD-017). |
+| `feature_flags` | FeatureFlags | — (reserved; no production writer yet) | bincode | Feature flag state domain (SS-08). Added by S-1.02; opened and health-checked at boot; exercised by VP-055 domain-isolation proptest. Production write path lands with feature-flag persistence wiring. |
+| `scheduler` | Scheduler | — (reserved; no production writer yet) | bincode | Scheduler runtime-state domain (SS-12). Added by S-1.02; opened and health-checked at boot; exercised by VP-055 domain-isolation proptest. Distinct from `schedules` (schedule definitions): this CF is reserved for execution-engine state. |
 
 ### Decision: Bincode for Value Serialization (AD-012)
 
@@ -233,7 +236,7 @@ This two-tier design keeps hot-path queries (filtering by severity, hostname, IP
 ```
 state_dir: ./state (configurable via --state-dir)
 WAL: enabled (crash safety)
-Column families: 17 (created at first open)
+Column families: 19 (created at first open; full `StorageDomain::all()` set per `prism-core` storage.rs `ALL_DOMAINS: [StorageDomain; 19]` — see §Persistent Data Path)
 LOCK file: prevents multi-process access (DI-017)
 Sync writes: enabled for audit_buffer domain only (DI-026)
 Compaction: level-based (default)
@@ -294,6 +297,7 @@ The `diff_results` column family stores previous query results for differential 
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.4 | 2026-06-10 | architect | BOOT-02 sibling-sweep (2026-06-10 review package, human-approved): CF count 17→19 to match code source of truth (`prism-core` storage.rs `ALL_DOMAINS: [StorageDomain; 19]`). Added 3 missing S-1.02 CF rows (`credentials`, `feature_flags`, `scheduler` — reserved domains, opened/health-checked at boot, VP-055 coverage, no production writer yet). `case_dedup_idx` row marked [PLANNED — S-4.06 Task 9b]: it has no StorageDomain variant in code and is not counted in the 19; it becomes the 20th CF when S-4.06 ships. ADR-022 v1.15 / AD-004 / system-overview.md corrected in same burst. Same-burst follow-up (PO-routed residual, TD-VSDD-060): §RocksDB Configuration block "Column families: 17"→19 — site missed by the initial v1.4 sweep; full architecture/ re-grep confirms zero remaining live 16/17 CF counts (remaining matches are immutable changelog rows). |
 | 1.3 | 2026-05-03 | architect | F-P21-H-001+H-002+M-001 — Pass 21 SUBSTANTIVE fixes: (H-001) concurrency claim updated from stale "16 scheduled" to D-209 LOCKED 8/8 split (8 schedule + 8 action delivery + 2 ad-hoc = 18 total); (H-002) CF count 16→17 + added case_dedup_idx CF row per AD-004 P5-XADR-A-M-006; (M-001) retry CF key updated to canonical `{org_id}:\x04:{action_id}:{idempotency_key}` per ADR-016 §2.5 (was stale `{action_id}:retry:{alert_id}`). |
 | 1.2 | 2026-05-03 | architect | F-PreP21-H-001: renamed ActionEngine's retry queue → ActionDeliveryEngine's retry queue (line 266) per ADR-016 §1.1. |
 | 1.1 | 2026-04-27 | product-owner | Pass 15 sweep: `_client` virtual field description updated TenantId → OrgSlug (ADR-006); added `## [Section Content]` template compliance marker. |

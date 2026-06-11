@@ -2,7 +2,7 @@
 document_type: architecture-section
 level: L3
 section: "system-overview"
-version: "1.2"
+version: "1.4"
 status: draft
 producer: architect
 timestamp: 2026-04-15T12:00:00
@@ -212,10 +212,10 @@ graph TB
             end
             
             subgraph PLATFORM["Platform Layer"]
-                ROCKS["RocksDB<br/>16 column families"]
+                ROCKS["RocksDB<br/>19 column families"]
                 CREDS["Credentials<br/>keyring + AES file"]
                 AUDIT["Audit<br/>SOC 2 trail"]
-                WATCH["Watchdog<br/>RSS + per-query"]
+                WATCH["Watchdog<br/>process RSS"]
             end
         end
     end
@@ -334,7 +334,7 @@ The 512MB process RSS budget is allocated as follows under worst-case normal ope
 | Scheduled query overhead | ~50 MB | Schedule executions share per-query memory budget; counted separately when running concurrent with ad-hoc queries |
 | Headroom | ~72 MB | Absorbs spikes from RocksDB compaction, detection state, tokio task overhead; RSS watchdog triggers at 512 MB |
 
-The "max concurrent queries: 50" in prismql-grammar.md section 8.1 is the hard ceiling for the `permissive` watchdog level (512 MB per-query budget, intended for single-query debugging). Under the default `normal` level (200 MB per-query), the practical limit is 2 concurrent ad-hoc queries. Additional queries beyond this receive `E-WATCHDOG-001` with `retryable: true` and a suggestion to wait. The watchdog's two-check grace period (DI-027) means brief spikes to ~550 MB are possible before self-SIGTERM; this is acceptable for a per-analyst process.
+The "max concurrent queries: 50" in prismql-grammar.md section 8.1 is the hard ceiling for the `permissive` watchdog level (512 MB per-query budget, intended for single-query debugging). Under the default `normal` level (200 MB per-query), the practical limit is 2 concurrent ad-hoc queries. Additional queries beyond this push process RSS toward the watchdog's kill threshold (95% of the 512 MB process budget); the watchdog kills the later query with `E-WATCHDOG-002` (`retryable: true` — the killed query is not necessarily at fault) and a suggestion to retry after active queries complete (BC-2.15.007). A query that trips its own per-query GreedyMemoryPool budget instead receives `E-WATCHDOG-001` (`retryable: false`, BC-2.11.006). The watchdog's two-check grace period (DI-027) means brief RSS spikes to ~550 MB are possible before the kill fires — process self-SIGTERM at 512 MB remains the last-resort guard; this is acceptable for a per-analyst process.
 
 ### Latency Targets (p95)
 
@@ -429,6 +429,8 @@ This lets the AI say: "Your query took 4.2 seconds. Prism's overhead was 72 ms �
 
 | Version | Pass | Date | Author | Change |
 |---------|------|------|--------|--------|
+| 1.4 | QRY-cascade-P1-04-D2-sweep | 2026-06-10 | architect | Residual E-WATCHDOG drift sweep (architect micro-burst; D2 adjudication, error-taxonomy v1.68/v1.69 authority, `proposals/cache-envelope-adjudication-2026-06-10.md`). Memory-budget narrative: concurrent-query pressure error corrected `E-WATCHDOG-001`/`retryable: true` → `E-WATCHDOG-002`/`retryable: true` process-RSS watchdog kill at 95% kill threshold (BC-2.15.007 v1.5), with per-query GreedyMemoryPool trip = `E-WATCHDOG-001`/`retryable: false` (BC-2.11.006 v1.18) stated as contrast; spike/grace-period sentence reattributed — two-check grace gates the watchdog kill, self-SIGTERM at 512 MB is the last-resort guard. Platform Layer diagram Watchdog node "RSS + per-query" → "process RSS" (per-query budget is the pool's, not the watchdog's). Sibling fix in query-engine.md v1.3. |
+| 1.3 | BOOT-02-sweep | 2026-06-10 | architect | BOOT-02 sibling-sweep (2026-06-10 review package, human-approved): Platform Layer diagram RocksDB CF count 16→19 to match code source of truth (`prism-core` storage.rs `ALL_DOMAINS: [StorageDomain; 19]`; 16 S-1.01 + 3 S-1.02 domains). Sibling fixes in ADR-022 v1.15, data-layer.md v1.4, ARCH-INDEX AD-004 row. |
 | 1.2 | pass-14-remediation | 2026-04-27 | product-owner | m-14-002: Added Changelog section (previously missing). M-14-004: Design Principle 6 updated — "TenantId newtype threading prevents cross-client data leakage" → "OrgId/OrgSlug newtype threading prevents cross-org data leakage" to reflect Wave-3 rename. |
 | 1.1 | pass-13-remediation | 2026-04-27 | architect | M-001: crate count in Architecture Vision corrected to match Cargo.toml (12 production crates → 11 non-DTU). |
 | 1.0 | initial | 2026-04-15 | architect | Initial version. |

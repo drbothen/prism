@@ -23,8 +23,14 @@
 #                                   # here so the adversary knows HOW to verify them.
 
 metadata:
-  version: "1.31"
+  version: "1.32"
   changelog:
+    - version: "1.32"
+      date: 2026-06-10
+      burst: spec-steward-P2-02-Direction-A-micro-burst
+      decision: P2-02-adjudication-2026-06-10
+      findings: [P2-02]
+      change: "v1.31 → v1.32 2026-06-10 — POL-23 amended per P2-02 adjudication (2026-06-10, sample 11/15, Direction A creation-immutable ratified by orchestrator): step 4 rewritten — `timestamp:` is the BC creation time and IMMUTABLE after initial authoring (never synced on amendment); full ISO 8601 with Z suffix required for NEW BCs, legacy non-Z values grandfathered. Amendment dates tracked solely via `modified:` in POL-27's YYYY-MM-DD format. POL-23 description sentence updated in same edit to remove the contradictory 'timestamp synced to amendment date' rule. BC frontmatter normalizations (b)/(c)/(d) folded into state-manager register burst (not this edit)."
     - version: "1.31"
       date: 2026-05-30
       burst: D-870-F-LP10-MED-001-comprehensive-sweep
@@ -537,9 +543,11 @@ policies:
       When a BC version is bumped in a fix-burst, the SAME atomic commit must update ALL
       story body prose sites that pin the old version string. This includes: (1) inline
       trace-header lines, (2) §References section version annotations, (3) Architecture
-      Compliance Rules table version cells. Additionally, BC frontmatter `modified:` and
-      `timestamp:` fields must be synced to the amendment date. Story version bumps must
-      also sync both `version:` and `updated:` frontmatter fields.
+      Compliance Rules table version cells. Additionally, BC frontmatter `modified:` must
+      be synced to the amendment date (POL-27 YYYY-MM-DD format); `timestamp:` is the
+      creation time and is IMMUTABLE after initial authoring (Direction A, P2-02
+      adjudication 2026-06-10). Story version bumps must also sync both `version:` and
+      `updated:` frontmatter fields.
     adopted: S-PLUGIN-PREREQ-D-pass-33-D-530-2026-05-14
     severity: HIGH
     enforced_by: [adversary-prompt, story-writer-self-check, product-owner-self-check]
@@ -549,7 +557,7 @@ policies:
       - "When a BC version bumps from vX.Y to vX.(Y+1): run grep -n 'BC-N.NN.NNN v<old_version>' across all story body files that reference this BC."
       - "Every hit must be updated to the new version string in the same atomic commit."
       - "Also verify BC frontmatter `modified:` field reflects the amendment date (ISO YYYY-MM-DD format)."
-      - "Also verify BC frontmatter `timestamp:` field reflects the amendment date (ISO YYYY-MM-DDTHH:MM:SSZ format)."
+      - "Also verify BC frontmatter `timestamp:` field is the CREATION time and is IMMUTABLE after initial authoring (Direction A, P2-02 adjudication 2026-06-10) — it must NOT be synced on amendment. Full ISO 8601 with Z suffix (YYYY-MM-DDTHH:MM:SSZ) required for NEW BCs; legacy non-Z values are grandfathered. Amendment dates are tracked solely via the `modified:` field in POL-27's YYYY-MM-DD format (cross-reference POL-27)."
       - "Sibling-sweep must include VP-INDEX named-alias row descriptions that reference AC anchors from the amended BC (see POL-25 for cross-document propagation rule)."
       - "(D-571 PG-IMPL-LP6-003 extension) For every story version bump in a fix-burst: verify story frontmatter `version:` field matches the new version string in §Changelog top row. Verify story frontmatter `updated:` field is set to the fix-burst date (ISO YYYY-MM-DD). Both fields in the same atomic commit."
 

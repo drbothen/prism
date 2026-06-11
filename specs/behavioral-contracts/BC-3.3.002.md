@@ -1,29 +1,29 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "0.4"
-status: draft
+version: "0.5"
+status: retired
 producer: product-owner
 timestamp: 2026-04-27T00:00:00
 phase: 3.A
 inputs:
   - ".factory/specs/architecture/decisions/ADR-010-customer-config-schema.md"
   - ".factory/specs/domain-spec/capabilities.md"
-input-hash: "280b5e7"
+input-hash: "0e6ff00"
 traces_to: ".factory/specs/architecture/decisions/ADR-010-customer-config-schema.md"
 origin: greenfield
 extracted_from: null
 subsystem: "SS-06"
 capability: "CAP-009"
-lifecycle_status: active
+lifecycle_status: retired
 introduced: cycle-3
-modified: []
+modified: [adr-037-disposition-2026-06-10]
 deprecated: null
 deprecated_by: null
-replacement: null
-retired: null
+replacement: "BC-2.06.003"
+retired: "2026-06-10"
 removed: null
-removal_reason: null
+removal_reason: "Scanned config surface retired with prism-customer-config crate (ADR-037 supersedes ADR-010). The no-credential-values-in-config-files intent is carried by ADR-032's per-client env-var convention and BC-2.06.003 (reference-based 4-tier resolution; config files carry only [[credential_refs]] names validated against [a-zA-Z0-9_\\-\\.]+ per DI-014; values resolve via env/file/keyring and never transit AI context per AD-017). ADR-037 §Decision names this supersession explicitly."
 bc_id: BC-3.3.002
 title: No Credential Values in Customer Config Files
 wave: 3
@@ -33,14 +33,25 @@ authors: [product-owner]
 related_decisions: [D-041, D-046]
 related_adrs: [ADR-010]
 inherits_from: null
-superseded_by: null
+superseded_by: "ADR-037"
 ---
+
+> **RETIRED (2026-06-10, ADR-037):** The `customers/{org_slug}.toml` schema (ADR-010) and the
+> `prism-customer-config` crate that implemented this credential-value scanner are retired per
+> ADR-037, which names this BC's supersession explicitly: the "no credential values in config
+> files" intent is carried by ADR-032 (per-client credential env-var convention, 4-tier
+> resolution chain) and the active BC-2.06.003 (Credential Reference Resolution). On the
+> superseding surface, config files carry only `[[credential_refs]]` names (validated against
+> `[a-zA-Z0-9_\-\.]+` at config load, DI-014); credential values resolve at query time via
+> env/file/keyring and never transit AI context (AD-017). In all conflicts, BC-2.06.003 wins.
+> E-CFG-020 is retired with this contract. Body below is retained verbatim for historical
+> traceability.
 
 # BC-3.3.002: No Credential Values in Customer Config Files
 
 ## Description
 
-Customer config TOML files (`customers/*.toml`) MUST NOT contain literal credential values — bearer tokens, API keys, passwords, or secrets of any kind. The startup validator performs static analysis of each parsed config to detect fields that appear to contain credential values rather than opaque reference strings. Any field whose name matches a credential-like pattern (e.g., `*_token`, `*_secret`, `*_key`, `*_password`) and whose value does not match one of the four allowed opaque reference schemes is rejected at parse time, before the process starts or any AI context window sees the file.
+RETIRED — superseded by BC-2.06.003 per ADR-037; retained for historical traceability. Customer config TOML files (`customers/*.toml`) MUST NOT contain literal credential values — bearer tokens, API keys, passwords, or secrets of any kind. The startup validator performs static analysis of each parsed config to detect fields that appear to contain credential values rather than opaque reference strings. Any field whose name matches a credential-like pattern (e.g., `*_token`, `*_secret`, `*_key`, `*_password`) and whose value does not match one of the four allowed opaque reference schemes is rejected at parse time, before the process starts or any AI context window sees the file.
 
 ## Preconditions
 
@@ -155,6 +166,7 @@ S-3.3.01
 
 | Version | Change |
 |---------|--------|
+| v0.5 | RETIRED per ADR-037 (2026-06-10 review package recommendation ⑨, human-approved; BC disposition mandated by ADR-037 §Decision, which cites this BC's intent as "carried by ADR-032/BC-2.06.003"). `replacement: BC-2.06.003`; `superseded_by: ADR-037`. Heuristic credential-value scanner (R-CRED-001..006) retired with the schema it scanned; reference-based resolution (BC-2.06.003, active) is the normative successor. Body preserved as historical record (append-only; filename slug immutable). |
 | v0.4 | D-468 (2026-05-13): TD-VSDD-091 cleanup — line-number anchor in Architecture Anchors converted to symbol-name form (`prism_credentials::namespace::namespace_key_by_org_id`). POL-20 migration: `introduced: wave-3` → `introduced: cycle-3`. |
 | v0.3 | M-004 (Pass 5): Frontmatter `title:` corrected to title-case to match H1 heading. |
 | v0.2 | Initial authoring from ADR-010. |

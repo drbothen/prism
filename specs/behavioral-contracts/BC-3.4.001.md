@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "0.8"
+version: "0.10"
 status: draft
 producer: product-owner
 timestamp: 2026-04-27T00:00:00
@@ -9,7 +9,7 @@ phase: 3.A
 inputs:
   - ".factory/specs/architecture/decisions/ADR-009-multi-tenant-data-generator.md"
   - ".factory/specs/domain-spec/capabilities.md"
-input-hash: "e4160eb"
+input-hash: "9fcdd15"
 traces_to: ".factory/specs/architecture/decisions/ADR-009-multi-tenant-data-generator.md"
 origin: greenfield
 extracted_from: null
@@ -17,7 +17,7 @@ subsystem: "SS-01"
 capability: "CAP-039"
 lifecycle_status: active
 introduced: cycle-3
-modified: []
+modified: ["2026-06-10"]
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -47,7 +47,7 @@ The `generate(org_id, sensor_type, archetype, GenOpts { seed, scale, time_anchor
 1. The `generate` function is called from within the same compiled binary (determinism is per-binary, not cross-toolchain).
 2. `GenOpts::seed` is a `u64` value provided by the caller (default `42`).
 3. `GenOpts::scale` is a positive finite `f64` (validated by BC-3.3.001 if sourced from customer config).
-4. `GenOpts::time_anchor` is a `DateTime<Utc>` value; default is `DateTime::UNIX_EPOCH` for tests.
+4. `GenOpts::time_anchor` is a `DateTime<Utc>` value; default is `prism_dtu_common::demo_time_anchor()` (`2026-01-01T00:00:00Z`, epoch `1_767_225_600` — fixed demo-era constant, NOT wall-clock; review-2026-06-10 P1-01). Story B (S-DEMO-DTU-LIVE-SCENARIO-001-B) supplies explicit anchors via `scenario_start_secs`.
 5. `GenOpts::overrides` is a `serde_json::Value` (default `Null` = no overrides).
 6. `org_id` is a valid `OrgId` (UUID v7).
 7. No `rand::thread_rng()` or timestamp-seeded entropy is used anywhere in the generator call stack.
@@ -67,7 +67,7 @@ The `generate(org_id, sensor_type, archetype, GenOpts { seed, scale, time_anchor
 1. The generator MUST NOT call `rand::thread_rng()`, `SystemTime::now()`, or any other non-deterministic entropy source (ADR-009 §3.2 threat mitigation).
 2. The RNG initialization formula is exactly `ChaCha20Rng::seed_from_u64(seed ^ org_id_hash)` where `org_id_hash = u64::from_le_bytes(org_id.as_bytes()[0..8])` (ADR-009 §2.4).
 3. `FixtureSet::provenance` is excluded from the byte-identity comparison (it is metadata, not canonical output).
-4. The `#[cfg(any(test, feature = "dtu"))]` gate ensures the generator never links into production binaries.
+4. A two-level feature gate ensures the generator never links into production binaries: the generator module is gated `#[cfg(feature = "fixture-gen")]` (D-056) inside the `prism-dtu-common` crate, which is itself gated crate-level `#![cfg(any(test, feature = "dtu", feature = "fixture-gen"))]` (`crates/prism-dtu-common/src/lib.rs`).
 
 ## Edge Cases
 
@@ -147,6 +147,8 @@ None. All open questions resolved.
 
 | Version | Change |
 |---------|--------|
+| v0.10 | DTU cascade P5-02 (review-2026-06-10 PO micro-burst): Invariant 4 single-level gate citation `#[cfg(any(test, feature = "dtu"))]` corrected to the actual two-level gate per this BC's own D-056 resolution (§Open Questions) and shipped code: generator module gated `#[cfg(feature = "fixture-gen")]` inside the `prism-dtu-common` crate gated crate-level `#![cfg(any(test, feature = "dtu", feature = "fixture-gen"))]` (`crates/prism-dtu-common/src/lib.rs`). Production-exclusion guarantee unchanged. POL-23 sibling-grep: BC-3.5.001 p6 + BC-3.5.002 p7 gate cites verified accurate — they cite the `prism-dtu-harness` crate gate, which IS `#![cfg(any(test, feature = "dtu"))]`. |
+| v0.9 | DTU-burst handoff (review-2026-06-10 P1-01, PO consolidated amendment burst, 2026-06-10): Precondition 4 default `time_anchor` corrected `DateTime::UNIX_EPOCH` → `prism_dtu_common::demo_time_anchor()` (`2026-01-01T00:00:00Z`, epoch `1_767_225_600` — fixed demo-era constant, NOT wall-clock). Story B (S-DEMO-DTU-LIVE-SCENARIO-001-B) supplies explicit anchors via `scenario_start_secs`. |
 | v0.8 | D-468 (2026-05-13): TD-VSDD-091 cleanup — line-number anchor in Architecture Anchors converted to symbol-name form (`prism_dtu_common::seed::seeded_rng`). POL-20 migration: `introduced: wave-3` → `introduced: cycle-3`. |
 | v0.7 | M-24-001 (Pass 24): Body Traceability Architecture Module row corrected SS-06 (Client Configuration) → SS-01 (Sensor Adapters) per ARCH-INDEX.md; prism-dtu-common is the implementation site per D-056. |
 | v0.6 | M-23-001 (Pass 23): `subsystem:` corrected SS-06 (Client Configuration) → SS-01 (Sensor Adapters — prism-dtu-common is the implementation site per D-056). |

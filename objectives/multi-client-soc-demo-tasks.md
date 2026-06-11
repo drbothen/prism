@@ -2,7 +2,7 @@
 document_type: task-ledger
 objective: multi-client-soc-analyst-demo
 level: ops
-version: "1.13"
+version: "1.14"
 producer: state-manager
 status: active
 timestamp: 2026-06-10T06:00:00Z
@@ -40,9 +40,11 @@ Foundations: COMPLETE (reused). Build: 4/15 tasks done; T4 DONE; T4-A **DONE (D-
 
 ## CURRENT POINTER
 
-**T5: S-DEMO-DTU-LIVE-SCENARIO-001-B (UNBLOCKED — T4-A DONE).** T4-A squash-merged PR #181 develop@c287b00d 2026-06-10; BC-2.06.018 v1.6 active; POL-14 complete. T5 NEXT: story-writer materializes full Story B impl spec from draft v1.0 shell (scenario progression + enrichment correlation; 7pt; BC-2.06.019+020) → dclaude:remove-uncertainty → 12-gate delivery. T6 (S-DEMO-MULTI-TENANT-DTU-001 v1.2, BC-2.06.017) also independently deliverable after T5 (can parallelize after T5 starts).
+**T5: S-DEMO-DTU-LIVE-SCENARIO-001-B (UNBLOCKED but PAUSED — D-1091 review-cycle interruption).** T4-A squash-merged PR #181 develop@c287b00d 2026-06-10; BC-2.06.018 v1.6 active; POL-14 complete. **T5 was interrupted BEFORE story-writer dispatch by the user-directed full-codebase review (2026-06-10). PREREQUISITE SEQUENCE before T5 resumes (SESSION-HANDOFF §RESUME SNAPSHOT 2026-06-10-REVIEW-CYCLE-CHECKPOINT-D1091 is the authoritative resume block): (1) finish 3 fix-branch BC-5.39.001 cascades to 3-CLEAN strict; (2) pr-manager delivery per branch, PINNED merge order QRY→MCP→DTU (draft PR #182 parked); (3) state-manager 16-item register burst (SESSION-HANDOFF §5). THEN T5:** story-writer materializes full Story B impl spec from draft v1.0 shell (scenario progression + enrichment correlation; 7pt; BC-2.06.019+020) → dclaude:remove-uncertainty → 12-gate delivery. T6 (S-DEMO-MULTI-TENANT-DTU-001 v1.2, BC-2.06.017) also independently deliverable after T5 (can parallelize after T5 starts).
 
 ## NEXT ACTION (verbatim, for cold resume)
+
+**D-1091 GATE: complete the 2026-06-10 review cycle (cascades → QRY→MCP→DTU merges → register burst) BEFORE executing the T5 sequence below. See SESSION-HANDOFF §RESUME SNAPSHOT 2026-06-10-REVIEW-CYCLE-CHECKPOINT-D1091.**
 
 T4-A DONE (PR #181 squash-merged develop@c287b00d 2026-06-10; BC-2.06.018 v1.6 active). **USER AUTHORIZATION (D-1090 2026-06-10): full-autonomous materialize + deliver of T5 (Story B). Autonomy envelope: run all gates A→merge autonomously; PAUSE ONLY for §7 spec-to-match-code amendments / genuine product-business decisions / Level-3 escalation / CLAUDE.md edits.**
 
@@ -165,6 +167,7 @@ Per-story delivery tasks (T6, T7, T10, T12) follow the canonical 12-gate per-sto
 
 | Version | Date | Author | Notes |
 |---------|------|--------|-------|
+| 1.14 | 2026-06-10 | state-manager | D-1091: Review-cycle mid-cycle checkpoint. T5 PAUSED — user-directed full-codebase review (2026-06-10) interrupted T5 before story-writer dispatch. CURRENT POINTER + NEXT ACTION gated on review-cycle completion (3 fix-branch cascades to 3-CLEAN strict → PINNED merges QRY→MCP→DTU → 16-item register burst per SESSION-HANDOFF §5). T5 sequence content UNCHANGED (resumes verbatim after register burst per D-1090 envelope). No task status changes. STATE v7.741→v7.742. Ledger version 1.13→1.14. |
 | 1.13 | 2026-06-10 | state-manager | D-1090: Zero-context resume durability hardening for Story B (T5). (1) Local develop branch fast-forwarded to c287b00d confirmed (no SHA drift — note recorded for fresh sessions). (2) USER AUTHORIZATION recorded: full-autonomous materialize+deliver of T5 (Story B); autonomy envelope identical to Story A (D-989): run all gates A→merge autonomously; PAUSE only for §7/product-business/Level-3/CLAUDE.md. (3) NEXT ACTION augmented with contract-completeness front-loading step (story-writer must verify progression mechanism + stage masks + enrichment correlation fully specified in BC-2.06.019/020 + ADR-036 BEFORE locking spec; surface gaps to orchestrator for architect/PO routing). (4) Two Story-A NIT follow-ups folded into NEXT ACTION (NIT-1 E-DEMO-004 message reconcile; NIT-2 ScenarioConfig field wiring — both anchored to BC-2.06.019). (5) Operational lessons from cycles/wave-5-e-demo-fidelity/lessons.md folded into SESSION-HANDOFF resume protocol (3 Story-A process-gaps: adversary worktree-path-guard; push timeout 600s; exhaustive sibling-sweep). No task status changes; no code/spec/BC/count changes. STATE v7.740→v7.741. Ledger version 1.12→1.13. |
 | 1.12 | 2026-06-10 | state-manager | D-1089: T4-A DONE — PR #181 squash-merged develop@c287b00d. BC-2.06.018 v1.6 active (POL-14). T4-A status in-progress→done. CURRENT POINTER advanced to T5 (S-DEMO-DTU-LIVE-SCENARIO-001-B UNBLOCKED). §Complete Story Roadmap Story A row updated to merged v1.5. §TASK LEDGER T4-A row updated to done. NEXT ACTION updated verbatim. Progress Summary updated (4/15 tasks done). Two NIT follow-up anchors added to §Notes (NIT-1 E-DEMO-004 message/trigger; NIT-2 ScenarioConfig stub). T5 unblocked: story-writer materializes Story B spec → remove-uncertainty → 12-gate delivery. BC-INDEX v6.09→v6.10. STORY-INDEX v2.337→v2.338. STATE v7.739→v7.740. Ledger version 1.11→1.12. |
 | 1.11 | 2026-06-10 | state-manager | D-1088: T4-A LOCAL 3-CLEAN STRICT CONVERGENCE durability checkpoint. T4-A status note updated to "LOCAL CONVERGED (18-pass cascade; 3-CLEAN strict P16/17/18); demo+PR gates in progress". T4-A row status not-started→in-progress (done only at squash-merge per convention). CURRENT POINTER updated. NEXT ACTION updated verbatim. Progress Summary updated. Spec artifact versions UNCHANGED (ADR-036 v2.2, BC-2.06.018 v1.5, story v1.5, BC-INDEX v6.09, STORY-INDEX v2.337 — no bumps; state-narrative checkpoint only). STATE v7.738→v7.739. Ledger version 1.10→1.11. |

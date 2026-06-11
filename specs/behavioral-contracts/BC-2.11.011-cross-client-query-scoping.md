@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.4"
+version: "1.5"
 status: draft
 producer: product-owner
 timestamp: 2026-04-14T07:00:00
@@ -11,7 +11,7 @@ subsystem: "SS-11"
 capability: "CAP-015"
 lifecycle_status: active
 introduced: cycle-1
-modified: null
+modified: "2026-06-10"  # v1.5: ADR-038 D6 sweep — client-not-found error code E-CFG-001 → E-CFG-100
 deprecated: null
 deprecated_by: null
 replacement: null
@@ -19,7 +19,7 @@ retired: null
 removed: null
 removal_reason: null
 inputs: [".factory/specs/prd.md", ".factory/specs/domain-spec/capabilities.md"]
-input-hash: "c36ec87"
+input-hash: "566def3"
 traces_to: ["CAP-015"]
 extracted_from: ".factory/specs/prd.md"
 ---
@@ -54,7 +54,7 @@ Cross-client queries fan out to all configured clients simultaneously, with each
 | Error | Condition | Behavior |
 |-------|-----------|----------|
 | `E-ALIAS-001` | Per-client alias not defined for all queried clients | Error listing defined_in and missing_in clients (DEC-025) |
-| `E-CFG-001` | No clients match the intersection of tool params and query predicates | Empty result set with metadata explaining the empty intersection |
+| `E-CFG-100` | No clients match the intersection of tool params and query predicates | Empty result set with metadata explaining the empty intersection |
 
 ## Edge Cases
 | ID | Description | Expected Behavior |
@@ -91,6 +91,7 @@ Cross-client queries fan out to all configured clients simultaneously, with each
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.5 | ADR-038-D6-sweep | 2026-06-10 | product-owner | ADR-038 D6 number sweep: Error Cases row "No clients match the intersection" code `E-CFG-001` → `E-CFG-100` (ClientNotFound). The BC froze the pre-v1.8 number; error-taxonomy v1.8 renumbered the client-not-found condition to E-CFG-100, and ADR-037 tombstoned the low number for the retired customer-config semantics. Condition text and response shape unchanged. Per ADR-038 (error-taxonomy v1.66). |
 | 1.4 | pass-15-remediation | 2026-04-27 | product-owner | VP-001 label updated TenantId → OrgSlug (ADR-006); DI-033 added to L2 Invariants. |
 | 1.3 | pass-73-fix | 2026-04-20 | state-manager | Deterministic changelog reorder: sorted all rows to descending version order (pass-73 bash script). |
 | 1.2 | pass-69-housekeeping | 2026-04-20 | product-owner | Normalized changelog schema to canonical 5-col schema. |

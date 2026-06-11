@@ -6,11 +6,11 @@ status: ACCEPTED
 date: 2026-05-01
 wave: 3
 phase: 3.A
-version: "0.15"
+version: "0.16"
 authors: [architect]
 related_decisions: [D-042, D-045, D-049, D-051]
-related_adrs: [ADR-006, ADR-008, ADR-009, ADR-010]
-related_bcs_planned: [BC-3.2.004, BC-3.2.005, BC-3.3.001]
+related_adrs: [ADR-006, ADR-008, ADR-009, ADR-010, ADR-029, ADR-032, ADR-037]  # ADR-010 superseded by ADR-037 (2026-06-10); ADR-029/ADR-032 are the superseding config/credential surfaces
+related_bcs_planned: [BC-3.2.004, BC-3.2.005, BC-3.3.001]  # BC-3.3.001 retired 2026-06-10 per ADR-037 (BC-INDEX v6.11); BC-3.2.004/005 remain active
 anchored_capabilities: [CAP-040]
 subsystems_affected: [SS-01, SS-03, SS-05, SS-06, SS-21]
 supersedes: null
@@ -38,6 +38,23 @@ wiring_deferred_to: null  # All deliverables confirmed implemented in prism-core
 ## Status
 
 ACCEPTED 2026-04-28; implementation merged through Wave 3 closure (PRs #73–#112). Wave 3 integration gate findings tracked in `cycles/wave-3-multi-tenant/`.
+
+> **Amendment (2026-06-10, v0.16 — partial supersession by ADR-037):** The customer-config
+> validation surface of this ADR is superseded; the ADR otherwise remains ACCEPTED and in force.
+> ADR-010 (customer config schema, `customers/{org_slug}.toml`) was superseded by ADR-037
+> (prism-customer-config crate retirement), which retires the `[[dtu]]` config block — and with
+> it this ADR's §2.4 validation rules (the E-CFG-004/010/013 startup checks over `customers/*.toml`),
+> the §2.1/§3.1 BC-3.3.001 startup guard (BC-3.3.001 retired at BC-INDEX v6.11; the ST+shared
+> misconfiguration is no longer expressible because the per-customer `mode` declaration path is
+> gone), and the §7 OQ-1 `allow_shared_override` escape hatch (mooted with the schema).
+> **What remains in force:** §2.1 Security Telemetry / MSSP Coordination classification, §2.2 mode
+> semantics, §2.3 `DTU_DEFAULT_MODE` registry (shipped in `prism-core::dtu` per
+> `runtime_deliverables`), §2.5 deployment-time immutability (BC-3.2.005, active), §3.2/§3.3
+> threat models, and refinements D-049/D-051. Per-customer sensor configuration now flows through
+> ADR-029 per-org overlays; credential references through ADR-032/ADR-034. ST-DTU isolation is
+> structural: `prism-core::DtuMode` + per-instance binding (BC-2.06.017) + BC-3.2.005
+> (VP-091..VP-094 remain active, including VP-093's ST+shared rejection at the spec/serde layer).
+> Superseded subsections below carry inline markers; VP-095..VP-098 retired per VP-INDEX v1.77.
 
 ---
 
@@ -119,6 +136,10 @@ unconditional — `allow_shared_override` is NOT IMPLEMENTED in Wave 3. See BC-3
 and §7 OQ-1 (DEFERRED to Wave 4).** Any `allow_shared_override` field in a
 `customers/*.toml` file is rejected as an unknown field (`E-CFG-010`) by serde
 `deny_unknown_fields`.
+
+> **[Superseded in part — ADR-037, 2026-06-10]:** The config-validation guard above (BC-3.3.001)
+> is retired with the `customers/*.toml` `[[dtu]]` schema; see the Amendment note in §Status.
+> The classification itself (the two tables in this section) remains in force.
 
 **Category: MSSP Coordination (default mode: `shared`)**
 
@@ -214,8 +235,16 @@ This prevents silently accepting a mistyped DTU type string.
 
 ### 2.4 Config Schema (Summary)
 
-Full customer config schema is specified in ADR-010. The mode-relevant portion of a
-`[[dtu]]` block is:
+> **[SUPERSEDED — ADR-037, 2026-06-10]:** This entire subsection describes the ADR-010
+> `customers/{org_slug}.toml` `[[dtu]]` schema, retired with the prism-customer-config crate.
+> Validation rules 1–4 below (E-CFG-004/010/013 over `customers/*.toml`) have no production
+> surface; per-customer sensor configuration is now ADR-029 per-org overlay composition
+> (`customers/<org_slug>/<sensor_id>.sensor.toml`), and credential references are ADR-032/ADR-034.
+> Rule 5's read-once-at-startup principle survives as §2.5 / BC-3.2.005 (active). Retained
+> verbatim below for historical traceability.
+
+Full customer config schema is specified in ADR-010 (superseded by ADR-037). The mode-relevant
+portion of a `[[dtu]]` block was:
 
 ```toml
 [[dtu]]
@@ -333,6 +362,8 @@ all DTU state from scratch under the new mode. Deployment-time-only is therefore
 correct constraint, not a limitation.
 
 **Why `allow_shared_override` rather than outright prohibition?**
+*[Mooted — ADR-037, 2026-06-10: the escape hatch was never implemented (§7 OQ-1 DEFERRED) and
+its host schema is retired; see the Amendment note in §Status.]*
 The "quality over speed" principle (memory: `feedback_quality_over_speed.md`) means
 best-in-class design, not inflexibility. An MSSP may legitimately need a Security
 Telemetry sensor in shared mode for a non-standard deployment scenario (e.g., a
@@ -346,6 +377,13 @@ auditable and loudly logged.
 ## 3. Threat Model
 
 ### 3.1 Sensor Mode Misconfiguration (BC-3.3.001)
+
+> **[Superseded mitigation — ADR-037, 2026-06-10]:** BC-3.3.001 and the §2.4 rule-3 startup
+> guard cited below are retired. The threat itself is now structurally precluded: there is no
+> per-customer `mode` declaration path (the `[[dtu]]` schema is retired), so an operator cannot
+> declare a Security Telemetry type as `shared` in customer config. Residual mode handling at the
+> sensor-spec layer is covered by BC-3.2.005 (active; VP-092/VP-093 reject unknown values and
+> ST+shared at serde/spec load). Retained verbatim below for historical traceability.
 
 **Threat:** An operator accidentally sets `mode = "shared"` for a client-scoped
 sensor like Claroty. All orgs' Claroty queries then route to a single DTU instance
@@ -420,6 +458,7 @@ appear in analyst-facing query results.
 - The `allow_shared_override` escape hatch satisfies the "quality over speed"
   principle (memory: `feedback_quality_over_speed.md`): non-standard deployments are
   possible, but they require an explicit acknowledgment that carries a logged warning.
+  *[Mooted — ADR-037, 2026-06-10: never implemented; host schema retired.]*
 - Mode metadata is static after startup, making formal verification feasible: a Kani
   proof harness can treat `DtuMode` as a constant for the lifetime of the process
   and verify isolation invariants accordingly.
@@ -435,6 +474,8 @@ appear in analyst-facing query results.
 - The `allow_shared_override` mechanism requires implementation and testing of a
   non-obvious escape hatch path. If poorly documented, operators may use it as a
   workaround for config errors rather than fixing the underlying classification issue.
+  *[Mooted — ADR-037, 2026-06-10: never implemented; host schema retired. Any future
+  per-customer override must be re-specified against the ADR-029 overlay model.]*
 - Shared-mode OrgId threading (Step 3 in Section 2.6) modifies the route handler
   call sites in `slack`, `pagerduty`, and `jira` without changing the HTTP API. These
   changes are internal to the crate but require test updates for the payload shape.
@@ -449,13 +490,17 @@ The following BCs were authored during Phase 3.A; see BC-INDEX for canonical met
 |-------|-------|-----------------------|
 | BC-3.2.004 | Shared-Mode DTU Tags OrgId in Payload Body Not in Routing Headers | A shared-mode adapter MUST include `OrgId` in the upstream API payload body. It MUST NOT use `OrgId` as an HTTP routing discriminant (URL path or header). |
 | BC-3.2.005 | DTU Mode is Deployment-Time Config — No Runtime API to Change It | (Inherited from ADR-006.) The `mode` field is read at startup and immutable for the process lifetime. No runtime API changes mode. |
-| BC-3.3.001 | Startup Rejects Security Telemetry DTU Type Declared with Shared Mode | If `type` is a Security Telemetry type and `mode = "shared"`, the process MUST NOT start and MUST emit a diagnostic error naming the offending `[[dtu]]` block. **Wave 3: guard is unconditional; `allow_shared_override` is NOT IMPLEMENTED (see §7 OQ-1 DEFERRED).** |
+| BC-3.3.001 | ~~Startup Rejects Security Telemetry DTU Type Declared with Shared Mode~~ | **RETIRED 2026-06-10 per ADR-037** (BC-INDEX v6.11). The `[[dtu]]` schema and per-customer `mode` declaration are retired; isolation is structural (prism-core `DtuMode` + per-instance binding BC-2.06.017 + BC-3.2.005). VP-095..VP-098 retired (VP-INDEX v1.77). Historical postcondition: if `type` was a Security Telemetry type and `mode = "shared"`, the process refused to start with a diagnostic naming the offending `[[dtu]]` block. |
 
 ---
 
 ## 7. Open Questions for Next Dispatch
 
-1. **`allow_shared_override` field: implement or defer?** **RESOLVED: DEFERRED to
+1. **`allow_shared_override` field: implement or defer?** **MOOTED (2026-06-10, ADR-037):**
+   the deferred escape hatch was never implemented and its host schema (`customers/*.toml`
+   `[[dtu]]` blocks, ADR-010) is retired; any future per-customer override must be re-specified
+   fresh against the ADR-029 overlay composition model (per ADR-037 §Consequences). Prior
+   resolution retained below for historical traceability. **RESOLVED: DEFERRED to
    Wave 4.** Wave 3 ST guard is unconditional; `allow_shared_override` is NOT
    IMPLEMENTED. Any `allow_shared_override` field in `customers/*.toml` is rejected
    as an unknown field (`E-CFG-010` via serde `deny_unknown_fields`). No Wave 3 story
@@ -498,9 +543,11 @@ The following BCs were authored during Phase 3.A; see BC-INDEX for canonical met
 - **ADR-008** (consequent): Specifies the HashMap key migration from `String` to
   `(OrgId, String)` for client-mode sensor DTUs. ADR-008 depends on this ADR's
   Security Telemetry classification to know which crates require re-keying.
-- **ADR-010** (consequent): Specifies the full customer config schema including
-  the `[[dtu]]` block fields. ADR-010 depends on this ADR's `mode` field validation
-  rules and the `allow_shared_override` flag definition.
+- **ADR-010** (consequent; SUPERSEDED by ADR-037 2026-06-10): Specified the full customer
+  config schema including the `[[dtu]]` block fields. ADR-010 depended on this ADR's `mode`
+  field validation rules and the `allow_shared_override` flag definition. Both surfaces are
+  retired with ADR-010 (see Amendment note in §Status); superseding surfaces are ADR-029
+  (per-org overlays) and ADR-032/ADR-034 (credential references).
 - **ADR-009** (PROPOSED): Multi-Tenant Data Generator. Will reference the Security
   Telemetry / MSSP Coordination classification when constructing per-org DTU instance
   maps for integration tests.
@@ -561,6 +608,8 @@ The following questions surfaced during BC authoring (Phase 3.A) and were resolv
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 0.16 | 2026-06-10 | architect | Partial-supersession amendment per ADR-037 (review-2026-06-10-architect-burst-2; ACCEPTED status retained — decision NOT fully superseded). §Status Amendment note added delimiting superseded vs in-force surfaces. Superseded/mooted markers: §2.1 guard note, §2.4 (entire subsection — `customers/*.toml` `[[dtu]]` schema + E-CFG-004/010/013 rules retired; rule-5 principle survives as §2.5/BC-3.2.005), §3.1 mitigation (threat now structurally precluded), Rationale `allow_shared_override` ¶, §5 escape-hatch bullets ×2, §6 BC-3.3.001 row (RETIRED, BC-INDEX v6.11; VP-095..098 retired VP-INDEX v1.77), §7 OQ-1 (MOOTED), §8 ADR-010 bullet. Frontmatter: related_adrs += ADR-029/ADR-032/ADR-037; related_bcs_planned BC-3.3.001 annotated retired. In-force surfaces unchanged: §2.1 classification, §2.2 semantics, §2.3 DTU_DEFAULT_MODE registry (shipped, prism-core::dtu), §2.5/BC-3.2.005, §3.2/§3.3, D-049/D-051. Bidirectional ref added in ADR-037 §Related ADRs. |
+| 0.15 | 2026-05-08 | architect | [Backfilled at v0.16 per POL-11 contiguous-history — row was missing.] Bundle A.2.3 ADR frontmatter backfill: `runtime_deliverables` (prism-core::DtuMode / DtuRegistryEntry / DTU_DEFAULT_MODE) and `wiring_deferred_to: null` fields added enabling POL-15 enforcement. Recorded in ARCH-INDEX v2.33; ADR-local changelog row omitted at the time. |
 | 0.14 | 2026-05-01 | state-manager | ACCEPTED→IMPLEMENTED status promoted post-Wave-3 closure. §2 Status block updated from PROPOSED to ACCEPTED per D-183. Wave 3 integration gate findings tracked in cycles/wave-3-multi-tenant/. |
 | 0.13 | 2026-04-28 | product-owner | Phase 3.A APPROVED by user — status: PROPOSED → ACCEPTED. D-136. Wave 3 implementation cleared to begin per D-045 (Spec-First Discipline) post-approval. |
 | 0.12 | 2026-04-27 | product-owner | M-24-002 (Pass 24): `related_adrs` frontmatter corrected — ADR-009 added. Body §8 listed ADR-009 as a related document but frontmatter array was missing it. |

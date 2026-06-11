@@ -1,8 +1,8 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "1.0"
-status: draft
+version: "1.1"
+status: retired
 producer: product-owner
 timestamp: 2026-04-27T00:00:00
 phase: 3.A
@@ -10,21 +10,21 @@ inputs:
   - ".factory/specs/architecture/decisions/ADR-007-configurable-dtu-mode.md"
   - ".factory/specs/architecture/decisions/ADR-010-customer-config-schema.md"
   - ".factory/specs/domain-spec/capabilities.md"
-input-hash: "2099a1c"
+input-hash: "ca75330"
 traces_to: ".factory/specs/architecture/decisions/ADR-010-customer-config-schema.md"
 origin: greenfield
 extracted_from: null
 subsystem: "SS-06"
 capability: "CAP-009"
-lifecycle_status: active
+lifecycle_status: retired
 introduced: cycle-3
-modified: []
+modified: [adr-037-disposition-2026-06-10]
 deprecated: null
 deprecated_by: null
-replacement: null
-retired: null
+replacement: "BC-2.21.001"
+retired: "2026-06-10"
 removed: null
-removal_reason: null
+removal_reason: "Validated schema retired with prism-customer-config crate (ADR-037 supersedes ADR-010). The collect-all-errors, refuse-to-start intent is carried by BC-2.21.001 (boot step 3 OrgRegistry: UUID-v7, kebab-case slug, bijectivity checks; exit 2 on failure) and the OverlayLoader validation contracts BC-2.06.012-016 (per-org overlay discovery, deny-unknown-fields, multi-error reporting, boot cross-validation). ADR-037 §Decision names this supersession explicitly."
 bc_id: BC-3.3.004
 title: Customer Config Validation Rejects Invalid Schema at Startup
 wave: 3
@@ -34,14 +34,27 @@ authors: [product-owner]
 related_decisions: [D-041, D-042, D-046]
 related_adrs: [ADR-010]
 inherits_from: null
-superseded_by: null
+superseded_by: "ADR-037"
 ---
+
+> **RETIRED (2026-06-10, ADR-037):** The `customers/{org_slug}.toml` schema (ADR-010) and the
+> `prism-customer-config` crate (`load_and_validate`, `boot_org_registry`) that implemented
+> this validation pass are retired per ADR-037, which names this BC's supersession explicitly:
+> the collect-all-errors, refuse-to-start intent "is carried by BC-2.21.001 and the
+> OverlayLoader validation of BC-2.06.012–016." Org identity (org_id/org_slug/display_name)
+> now lives in `prism.toml` `[[orgs]]`, validated at boot step 3 per BC-2.21.001 (UUID-v7
+> check, kebab-case slug check, bijectivity check; exit 2 on failure); per-customer sensor
+> configuration now lives in the ADR-029 overlay composition directory
+> `customers/<org_slug>/<sensor_id>.sensor.toml`, validated per BC-2.06.012–016. In all
+> conflicts, BC-2.21.001 and BC-2.06.012–016 win. The R-CUST-001..016 rules and their
+> E-CFG-001..016 codes are retired with this contract. Body below is retained verbatim for
+> historical traceability.
 
 # BC-3.3.004: Customer Config Validation Rejects Invalid Schema at Startup
 
 ## Description
 
-At Prism startup, every `customers/*.toml` file is parsed and structurally validated before the `OrgRegistry` is populated. Any file that fails field-type checks, violates constraint rules, or contains unknown fields causes the process to refuse to start and emit an error message identifying the offending file and the specific rule violation. Validation is multi-error: all problems across all files are collected and reported in a single startup pass rather than stopping at the first failure.
+RETIRED — superseded by BC-2.21.001 + BC-2.06.012–016 per ADR-037; retained for historical traceability. At Prism startup, every `customers/*.toml` file is parsed and structurally validated before the `OrgRegistry` is populated. Any file that fails field-type checks, violates constraint rules, or contains unknown fields causes the process to refuse to start and emit an error message identifying the offending file and the specific rule violation. Validation is multi-error: all problems across all files are collected and reported in a single startup pass rather than stopping at the first failure.
 
 ## Preconditions
 
@@ -175,6 +188,7 @@ S-3.3.01, S-3.3.02
 
 | Version | Change |
 |---------|--------|
+| v1.1 | RETIRED per ADR-037 (2026-06-10 review package recommendation ⑨, human-approved; BC disposition mandated by ADR-037 §Decision, which cites this BC's intent as "carried by BC-2.21.001 and the OverlayLoader validation of BC-2.06.012–016"). `replacement: BC-2.21.001`; `superseded_by: ADR-037`. Validation rules R-CUST-001..016 retired with the ADR-010 schema. Body preserved as historical record (append-only; filename slug immutable). |
 | v1.0 | D-468 (2026-05-13): TD-VSDD-091 cleanup — line-number anchor in Architecture Anchors converted to symbol-name form (`prism_core::ids::uuid_v7_newtype` macro / `OrgId`). POL-20 migration: `introduced: wave-3` → `introduced: cycle-3`. |
 | v0.9 | M-31-002 (Pass 31): R-CUST-013 cross-reference removed from R-CUST-001 note row — R-CUST-013 covers test-only types (E-CFG-013), not `schema_version`. Note now reads: "`schema_version` absent → E-CFG-030 (BC-3.3.003); `schema_version` unsupported value → E-CFG-031 (BC-3.3.003)." |
 | v0.8 | M-30-001 (Pass 30): R-CUST-001 condition updated — removed `schema_version` from the missing-required-field enumeration. R-CUST-001 now covers only `org_id`, `org_slug`, `display_name`. Added cross-reference note: `schema_version` absent → E-CFG-030 / BC-3.3.003; unsupported value → E-CFG-031 / BC-3.3.003. Eliminates contradiction with E-CFG-030 disclaimer. |

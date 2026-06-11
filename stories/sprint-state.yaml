@@ -678,20 +678,20 @@ current_story:
   story_id: S-DEMO-DTU-LIVE-SCENARIO-001-B
   delivery_step: not-started
   spec_version: "1.0"
-  resume_at: "D-1090 2026-06-10. T4-A DONE (PR #181 develop@c287b00d; BC-2.06.018 v1.6 active). CURRENT = T5: S-DEMO-DTU-LIVE-SCENARIO-001-B (Story B — scenario progression + enrichment correlation; 7pt; BC-2.06.019+020; draft v1.0). USER AUTHORIZATION D-1090: full-autonomous materialize+deliver. NEXT: (1) story-writer materializes full Story B impl spec from draft shell with CONTRACT-COMPLETENESS FRONT-LOAD (verify progression mechanism + stage masks + enrichment correlation fully specified in BC-2.06.019/020 + ADR-036 v2.2 BEFORE locking spec); fold in NIT-1 E-DEMO-004 message reconcile + NIT-2 ScenarioConfig field wiring. (2) dclaude:remove-uncertainty. (3) 12-gate TDD delivery. T6 (S-DEMO-MULTI-TENANT-DTU-001 v1.2) independently deliverable in parallel. Autonomy: auto-merge on gates; pause for §7/product-business/Level-3/CLAUDE.md only."
-  note: "D-1090 2026-06-10 durability-hardening burst. T5 UNBLOCKED + full-autonomous authorized. BC-2.06.018 v1.6 active. develop@c287b00d. STATE v7.741."
+  resume_at: "D-1091 2026-06-10. T5 INTERRUPTED BEFORE START by user-directed full-codebase review (2026-06-10). Do NOT dispatch story-writer for Story B until the review cycle completes: (1) finish 3 fix-branch BC-5.39.001 cascades to 3-CLEAN strict (fix/review-2026-06-10-{dtu-fleet,query-core,mcp-boot} — see SESSION-HANDOFF §BRANCH STATE; verify git log on resume); (2) pr-manager delivery per branch, PINNED merge order QRY→MCP→DTU (draft PR #182 parked — pr-manager assumes at DTU convergence); (3) state-manager 16-item register burst (SESSION-HANDOFF §5); (4) THEN resume T5 per D-1090 envelope: story-writer materializes Story B impl spec with CONTRACT-COMPLETENESS FRONT-LOAD (progression mechanism + stage masks + enrichment correlation fully specified in BC-2.06.019/020 + ADR-036 v2.2 before locking); fold in NIT-1 E-DEMO-004 message reconcile + NIT-2 ScenarioConfig field wiring; then dclaude:remove-uncertainty; then 12-gate TDD delivery. T6 (S-DEMO-MULTI-TENANT-DTU-001 v1.2) independently deliverable after T5 starts. Autonomy (D-1090): auto-merge on gates; pause for §7/product-business/Level-3/CLAUDE.md only."
+  note: "D-1091 2026-06-10 review-cycle mid-cycle checkpoint. T5 paused for review cycle (cascades → QRY→MCP→DTU merges → register burst → T5). BC-2.06.018 v1.6 active. develop@c287b00d unchanged. STATE v7.742."
   last_updated_at: "2026-06-10"
 
 prereq_artifacts:
-  story_index: .factory/stories/STORY-INDEX.md         # v2.338 (STORY-INDEX v2.338 current; total_stories 189)
-  bc_index: .factory/specs/behavioral-contracts/BC-INDEX.md  # BC-INDEX v6.10; active 236, draft 5
-  state: .factory/STATE.md                              # v7.740 (D-1089 post-merge burst)
+  story_index: .factory/stories/STORY-INDEX.md         # v2.346 (STORY-INDEX v2.346 current; total_stories 194)
+  bc_index: .factory/specs/behavioral-contracts/BC-INDEX.md  # BC-INDEX v6.21; total 250, active 232, draft 5, retired 6
+  state: .factory/STATE.md                              # v7.742 (D-1091 review-cycle mid-cycle checkpoint)
   governing_adr: .factory/specs/architecture/decisions/ADR-031-dtu-equals-true-dtu-fidelity-principle.md  # v1.2 (ADR-031 architect e57eb5b1 reclassified 3 divergences)
   governing_audit: .factory/proposals/POLLER-DTU-FIDELITY-AUDIT-2026-05-29.md  # v1.1
 
 provenance:
   authored_at: "2026-05-29"
-  last_updated_at: "2026-06-09"
+  last_updated_at: "2026-06-10"
   last_updated_by: "state-manager D-1081"
   authored_by: "state-manager D-850"
   rationale: >

@@ -1,43 +1,54 @@
 ---
 document_type: behavioral-contract
 level: L3
-version: "0.7"
-status: draft
+version: "0.8"
+status: retired
 producer: product-owner
 timestamp: 2026-04-27T00:00:00
 phase: 3.A
 inputs:
   - .factory/specs/architecture/decisions/ADR-007-configurable-dtu-mode.md
   - .factory/specs/architecture/decisions/ADR-010-customer-config-schema.md
-input-hash: "2099a1c"
+input-hash: "ca75330"
 traces_to: .factory/specs/architecture/decisions/ADR-007-configurable-dtu-mode.md
 origin: greenfield
 extracted_from: null
 subsystem: SS-06
 capability: CAP-009
-lifecycle_status: active
+lifecycle_status: retired
 introduced: cycle-3
-modified: []
+modified: [adr-037-disposition-2026-06-10]
 deprecated: null
 deprecated_by: null
-replacement: null
-retired: null
+replacement: "BC-2.06.017"
+retired: "2026-06-10"
 removed: null
-removal_reason: null
+removal_reason: "Config surface retired with prism-customer-config crate (ADR-037 supersedes ADR-010): the customers/{org_slug}.toml [[dtu]] mode field this guard validated no longer exists. Cross-tenant ST DTU isolation is structural on the superseding surface: DtuMode is a compile-time per-clone classification in prism_core::dtu (S-3.0.02, not operator-configurable); per-org DTU instances bind distinct addresses per BC-2.06.017; mode remains deployment-time-only per BC-3.2.005."
 bc_id: BC-3.3.001
 title: Startup Rejects Security Telemetry DTU Type Declared with Shared Mode
 wave: 3
 related_decisions: [D-042, D-045]
 related_adrs: [ADR-007]
 inherits_from: null
-superseded_by: null
+superseded_by: "ADR-037"
 ---
+
+> **RETIRED (2026-06-10, ADR-037):** The `customers/{org_slug}.toml` schema (ADR-010) and the
+> `prism-customer-config` crate that implemented this validation pass are retired per ADR-037.
+> The `[[dtu]]` `mode` config field this guard validated no longer exists on any production
+> config surface, so the Security-Telemetry + shared-mode misconfiguration can no longer be
+> expressed. The cross-tenant isolation intent survives structurally: `DtuMode` is a
+> compile-time per-clone classification in `prism_core::dtu` (S-3.0.02; e.g.
+> `SLACK_DTU_MODE: DtuMode = DtuMode::Shared`), per-org DTU instances bind distinct addresses
+> per BC-2.06.017, per-org data is independently seeded per BC-2.06.018, and mode remains
+> deployment-time-only with no runtime mutation API per BC-3.2.005. E-CFG-017 is retired with
+> this contract. Body below is retained verbatim for historical traceability.
 
 # BC-3.3.001: Startup Rejects Security Telemetry DTU Type Declared with Shared Mode
 
 ## Description
 
-If a `[[dtu]]` config block declares a Security Telemetry type (claroty, armis, crowdstrike, cyberint, demo-server) with `mode = "shared"`, the process must refuse to start and must emit `E-CFG-017` — a diagnostic error that names the offending DTU type and the config block location. This guard prevents cross-tenant data leakage that would result from sharing a client-mode DTU instance across organizations. **Wave 3 status: the guard is unconditional — `allow_shared_override` is NOT IMPLEMENTED in Wave 3** (deferred to Wave 4 per ADR-007 §7 OQ-1, locked as DEFERRED). Any `allow_shared_override` field in a `customers/*.toml` file is rejected as an unknown field (`E-CFG-010` from BC-3.3.004 R-CUST-010) because `deny_unknown_fields` is applied by serde at parse time.
+RETIRED — see banner above; retained for historical traceability. If a `[[dtu]]` config block declares a Security Telemetry type (claroty, armis, crowdstrike, cyberint, demo-server) with `mode = "shared"`, the process must refuse to start and must emit `E-CFG-017` — a diagnostic error that names the offending DTU type and the config block location. This guard prevents cross-tenant data leakage that would result from sharing a client-mode DTU instance across organizations. **Wave 3 status: the guard is unconditional — `allow_shared_override` is NOT IMPLEMENTED in Wave 3** (deferred to Wave 4 per ADR-007 §7 OQ-1, locked as DEFERRED). Any `allow_shared_override` field in a `customers/*.toml` file is rejected as an unknown field (`E-CFG-010` from BC-3.3.004 R-CUST-010) because `deny_unknown_fields` is applied by serde at parse time.
 
 ## Preconditions
 
@@ -138,6 +149,7 @@ None. All open questions resolved.
 
 | Version | Change |
 |---------|--------|
+| v0.8 | RETIRED per ADR-037 (2026-06-10 review package recommendation ⑨, human-approved; BC disposition mandated by ADR-037 §Decision). The validated config surface (`customers/*.toml` `[[dtu]]` `mode`) is retired with the `prism-customer-config` crate; the misconfiguration is no longer expressible. Isolation intent carried structurally by `prism_core::dtu::DtuMode` (compile-time classification, S-3.0.02) + BC-2.06.017 (per-instance multi-address binding) + BC-2.06.018 (per-org seeded data) + BC-3.2.005 (mode deployment-time-only). `replacement: BC-2.06.017`; `superseded_by: ADR-037`. Body preserved as historical record (append-only; filename slug immutable). |
 | v0.7 | m-004 (pass-7-remediation): H1 and frontmatter `title:` corrected to Title Case "Startup Rejects Security Telemetry DTU Type Declared with Shared Mode" (was sentence-case) — POL 7 H1 source-of-truth; siblings BC-3.3.002/003/004 were already Title Case. BC-INDEX entry updated to match. |
 | v0.6 | Pass 6 fixes: m-002: VP table and VP Anchors updated to dual form (VP-095/VP-3.3.001-01 through VP-098/VP-3.3.001-04) matching BC-3.3.004/3.4.004 pattern. m-003: ADR-010 added to inputs list (BC references BC-3.3.004 R-CUST-010/E-CFG-010 which lives in ADR-010 schema). m-005: E-CFG-017 assigned for "Security Telemetry type with shared mode rejected" — EC-008 updated to name E-CFG-017 for the ST+shared guard error; EC-001/EC-002 updated; Description and Postcondition 1 updated with E-CFG-017 code. E-CFG-017 added to error-taxonomy.md v1.10. |
 | v0.5 | M-006 fix (2026-04-27): VP proof method labels updated from "unit test (iterate ...)" to "unit_test" — VP-INDEX VP-095..098 are the source of truth (proptest→unit_test per M-006 resolution); BC body now matches. m-002 fix: EC-008 (demo-server+shared) and EC-001..EC-007 already have error codes; no additional citation needed beyond existing text. |
