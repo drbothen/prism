@@ -766,6 +766,18 @@ async fn build_network(builder: HarnessBuilder) -> Result<Harness, HarnessError>
                     start_armis_clone_network(listener, slug, shutdown_rx, crash_tx, counter).await
                 }
                 _ => {
+                    // MSSP Coordination DTUs (Slack, PagerDuty, Jira) are single-shared-instance
+                    // clones — one clone serves all orgs via X-Prism-Org-Id header tagging
+                    // (clones/mod.rs architecture note; BC-3.2.004). Network-mode isolation is
+                    // per-org address-based (one listener per org) and is semantically undefined
+                    // for shared-instance clones: there is no "org A endpoint" vs "org B endpoint"
+                    // to distinguish. These DTU types are intentionally logical-mode-only.
+                    //
+                    // Network-mode support for MSSP Coordination DTUs belongs to the TDE write-back
+                    // track (prism-operations; deferred per D-1072). Until that track ships, any
+                    // attempt to start Slack/PagerDuty/Jira in network mode routes here and will
+                    // serve the generic stub, which 404s on all MSSP Coordination routes — a loud
+                    // failure, not a silent one.
                     start_clone_network(
                         listener,
                         slug,
@@ -1030,7 +1042,17 @@ fn check_bearer(
     None
 }
 
-/// Build a Network-mode axum router with bearer-token validation on device-list routes.
+/// Generic network-mode router for Security Telemetry DTU types that do not have
+/// a dedicated network router (i.e., all types except CrowdStrike, Cyberint, Armis,
+/// and Claroty). Serves device-list routes with bearer-token validation and
+/// `/dtu/{configure,health}` for failure injection.
+///
+/// **MSSP Coordination DTUs (Slack, PagerDuty, Jira) are NOT intended to use this
+/// router in production test scenarios.** They are single-shared-instance clones
+/// whose isolation mechanism is header-based (X-Prism-Org-Id), not address-based.
+/// Network-mode for MSSP Coordination is deferred to the TDE write-back track
+/// (D-1072). If one of these types reaches this function, it will 404 on all
+/// legitimate routes — this is intentional loud failure, not silent data loss.
 ///
 /// Bearer token validation logic (via `check_bearer`):
 /// - If `Authorization: Bearer <token>` is present and `<token>` ≠ `admin_token` → HTTP 401.
