@@ -772,6 +772,65 @@ impl<V: CacheValue> GenericQueryCache<V> {
         Ok(evicted_count)
     }
 
+    /// Remove ALL entries from the cache across every partition.
+    ///
+    /// Config hot-reload flush (P1-03 interim mitigation, review 2026-06-10):
+    /// cached entries store the sensor response in its normalized form (see the
+    /// human-authorized BC-2.07.003 deviation documented on [`CacheValue`]), so
+    /// a sensor-spec / config reload (BC-2.16.005) can change the normalization
+    /// that produced them. Until S-CACHE-SPEC-COMPLIANCE-001 implements the
+    /// raw-response model, every config snapshot swap flushes this cache so no
+    /// entry normalized under a retired spec can be served.
+    ///
+    /// Returns `Ok(n)` where `n` is the number of entries evicted (audit
+    /// visibility, consistent with the other invalidation primitives).
+    ///
+    /// Returns `Err(PrismError::Internal)` if the mutex is poisoned (E-CACHE-001).
+    ///
+    /// ## Atomicity (TD-PRISM-QUERY-CACHE-001 pattern)
+    ///
+    /// The partition tracker drain, the per-key moka invalidations, and the
+    /// `total_bytes` decrement all occur INSIDE the partition lock — atomic
+    /// with respect to concurrent `put_with_ttl` / `remove_entry` /
+    /// `invalidate_by_*` calls, which serialize on the same lock. A concurrent
+    /// put either completes fully before the flush (and is evicted here) or
+    /// starts after it (and inserts a fresh, correctly-tracked entry).
+    pub fn invalidate_all(&self) -> Result<usize, PrismError> {
+        let mut counts = self.lock_partition_counts()?;
+
+        let mut evicted_count: usize = 0;
+        let mut to_decrement: usize = 0;
+        for (_, partition_keys) in counts.drain() {
+            for (key, stored_size) in &partition_keys {
+                self.inner.invalidate(key);
+                to_decrement = to_decrement.saturating_add(*stored_size);
+            }
+            evicted_count = evicted_count.saturating_add(partition_keys.len());
+        }
+
+        // Decrement total_bytes once for the entire flushed batch, inside the
+        // lock so accounting is serialized with concurrent puts.
+        // SEC-NEW-001: saturating to prevent usize underflow.
+        if to_decrement > 0 {
+            let _ =
+                self.total_bytes
+                    .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |current| {
+                        Some(current.saturating_sub(to_decrement))
+                    });
+        }
+
+        // Release the lock before emitting the diagnostic.
+        drop(counts);
+
+        // O-2: emit diagnostic after lock release so operators can trace "where did my cache go".
+        debug!(
+            evicted_count,
+            "cache full invalidation (config reload flush)"
+        );
+
+        Ok(evicted_count)
+    }
+
     /// Returns the current entry count after draining moka's write-op buffer.
     ///
     /// **Note:** This method calls `run_pending_tasks()` to ensure an accurate
@@ -1669,5 +1728,148 @@ mod tests {
             2 * AVG_ROW_SIZE_BYTES,
             "C10-001b: total_bytes must be unchanged after oversized-entry rejection"
         );
+    }
+
+    // -----------------------------------------------------------------------
+    // P1-03 interim mitigation — full-cache flush on config hot-reload
+    // (BC-2.16.005 reload → response-cache flush; review 2026-06-10 Item 1)
+    // -----------------------------------------------------------------------
+
+    /// P1-03: `invalidate_all` flushes every entry across all partitions —
+    /// entries that hit before the flush must miss after it.
+    #[test]
+    fn test_p1_03_invalidate_all_flushes_all_entries_hit_then_miss() {
+        let cache = QueryCache::with_defaults();
+
+        let make_key =
+            |client: &str, sensor: &str, src: &str, h: char| crate::cache_key::CacheKey {
+                client_id: client.to_string(),
+                sensor_id: prism_core::SensorId::from(sensor),
+                source_id: src.to_string(),
+                push_down_hash: h.to_string().repeat(64),
+            };
+
+        // Multiple partitions: 2 clients × 3 sensors.
+        let keys = vec![
+            make_key("acme", "crowdstrike", "cs_detections", 'a'),
+            make_key("acme", "armis", "armis_devices", 'b'),
+            make_key("globex", "crowdstrike", "cs_devices", 'c'),
+            make_key("globex", "claroty", "claroty_alerts", 'd'),
+        ];
+        for (i, key) in keys.iter().enumerate() {
+            cache
+                .put(key.clone(), vec![serde_json::json!({"id": i})])
+                .expect("put must succeed");
+        }
+
+        // Pre-condition: all entries hit.
+        for key in &keys {
+            assert!(
+                cache.get(key).expect("get must not fail").is_some(),
+                "pre-condition: entry must hit before invalidate_all"
+            );
+        }
+
+        let evicted = cache.invalidate_all().expect("invalidate_all must succeed");
+        assert_eq!(
+            evicted, 4,
+            "P1-03: invalidate_all must report all 4 evicted entries"
+        );
+
+        // Post-condition: every entry misses.
+        for key in &keys {
+            assert!(
+                cache.get(key).expect("get must not fail").is_none(),
+                "P1-03: entry must miss after invalidate_all (stale normalization purged)"
+            );
+        }
+    }
+
+    /// P1-03 / TD-PRISM-QUERY-CACHE-001: accounting must be consistent after a
+    /// full flush — total_bytes returns to 0, the partition map is empty, and
+    /// the tracker ↔ moka ↔ byte-accounting consistency invariant holds.
+    #[test]
+    fn test_p1_03_invalidate_all_accounting_consistent_after_flush() {
+        let cache = QueryCache::with_defaults();
+
+        let make_key = |src: &str, h: char| crate::cache_key::CacheKey {
+            client_id: "acme".to_string(),
+            sensor_id: prism_core::SensorId::from("crowdstrike"),
+            source_id: src.to_string(),
+            push_down_hash: h.to_string().repeat(64),
+        };
+
+        cache
+            .put(
+                make_key("cs_devices", 'a'),
+                vec![serde_json::json!({"i": 1})],
+            )
+            .expect("put 1");
+        cache
+            .put(
+                make_key("cs_detections", 'b'),
+                vec![serde_json::json!({"i": 2}), serde_json::json!({"i": 3})],
+            )
+            .expect("put 2");
+        assert!(cache.total_bytes() > 0, "pre-condition: bytes tracked");
+
+        cache.invalidate_all().expect("invalidate_all must succeed");
+
+        assert_eq!(
+            cache.total_bytes(),
+            0,
+            "P1-03: total_bytes must return to 0 after full flush"
+        );
+        assert_eq!(
+            cache.partition_count_map_len(),
+            0,
+            "P1-03: partition map must be empty after full flush (no stale partitions)"
+        );
+        assert_eq!(
+            cache.entry_count(),
+            0,
+            "P1-03: moka must hold no entries after full flush"
+        );
+        cache
+            .check_consistency_for_test()
+            .expect("P1-03: tracker/moka/byte accounting must be consistent after flush");
+    }
+
+    /// P1-03: `invalidate_all` on an empty cache is a no-op returning Ok(0).
+    #[test]
+    fn test_p1_03_invalidate_all_empty_cache_returns_zero() {
+        let cache = QueryCache::with_defaults();
+        let evicted = cache.invalidate_all().expect("invalidate_all must succeed");
+        assert_eq!(evicted, 0, "P1-03: empty cache flush must evict 0 entries");
+        assert_eq!(cache.total_bytes(), 0);
+    }
+
+    /// P1-03: the cache remains fully usable after `invalidate_all` —
+    /// subsequent puts and gets behave normally with consistent accounting.
+    #[test]
+    fn test_p1_03_invalidate_all_cache_usable_after_flush() {
+        let cache = QueryCache::with_defaults();
+        let key = crate::cache_key::CacheKey {
+            client_id: "acme".to_string(),
+            sensor_id: prism_core::SensorId::from("crowdstrike"),
+            source_id: "cs_devices".to_string(),
+            push_down_hash: "f".repeat(64),
+        };
+
+        cache
+            .put(key.clone(), vec![serde_json::json!({"gen": 1})])
+            .expect("put gen-1");
+        cache.invalidate_all().expect("invalidate_all must succeed");
+
+        let fresh = vec![serde_json::json!({"gen": 2})];
+        cache.put(key.clone(), fresh.clone()).expect("put gen-2");
+        assert_eq!(
+            cache.get(&key).expect("get must not fail"),
+            Some(fresh),
+            "P1-03: cache must serve fresh entries inserted after a full flush"
+        );
+        cache
+            .check_consistency_for_test()
+            .expect("P1-03: accounting must be consistent after post-flush insert");
     }
 }

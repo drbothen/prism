@@ -543,6 +543,23 @@ impl<V: CacheValue> CacheInvalidator<V> {
         let n = self.cache.invalidate_by_client(client_id.as_str())?;
         Ok(n)
     }
+
+    /// Invalidate ALL cache entries across every client, sensor, and source.
+    ///
+    /// Config hot-reload flush (P1-03 interim mitigation, review 2026-06-10):
+    /// called when the sensor-spec config snapshot is swapped (BC-2.16.005
+    /// `reload_config`, `add_sensor_spec`, and the S-1.12-FOLLOWUP hot-reload
+    /// watcher — all funnel through `ConfigManager::store`). Cached entries
+    /// store responses in their normalized form (human-authorized BC-2.07.003
+    /// deviation; spec compliance lands in S-CACHE-SPEC-COMPLIANCE-001), so a
+    /// spec change invalidates every entry's normalization — a full flush is
+    /// required to prevent serving data normalized under a retired spec.
+    ///
+    /// Returns `Ok(n)` where `n` is the total number of entries evicted
+    /// (audit visibility, consistent with the BC-2.07.004 invalidation paths).
+    pub fn invalidate_all(&self) -> Result<usize, PrismError> {
+        self.cache.invalidate_all()
+    }
 }
 
 #[cfg(test)]
@@ -550,6 +567,50 @@ impl<V: CacheValue> CacheInvalidator<V> {
 mod tests {
     use super::*;
     use crate::cache::QueryCache;
+
+    /// P1-03 interim mitigation: `CacheInvalidator::invalidate_all` flushes the
+    /// entire wrapped cache — hit before, miss after — and reports the evicted
+    /// count for audit visibility (BC-2.16.005 reload → response-cache flush).
+    #[test]
+    fn test_p1_03_invalidator_invalidate_all_flushes_entire_cache() {
+        use std::sync::Arc;
+
+        let cache = Arc::new(QueryCache::with_defaults());
+        let make_key = |client: &str, src: &str, h: char| crate::cache_key::CacheKey {
+            client_id: client.to_string(),
+            sensor_id: prism_core::SensorId::from("crowdstrike"),
+            source_id: src.to_string(),
+            push_down_hash: h.to_string().repeat(64),
+        };
+        let k1 = make_key("acme", "cs_devices", 'a');
+        let k2 = make_key("globex", "cs_detections", 'b');
+        cache
+            .put(k1.clone(), vec![serde_json::json!({"id": 1})])
+            .expect("put k1");
+        cache
+            .put(k2.clone(), vec![serde_json::json!({"id": 2})])
+            .expect("put k2");
+        assert!(
+            cache.get(&k1).expect("get k1").is_some() && cache.get(&k2).expect("get k2").is_some(),
+            "pre-condition: both entries hit"
+        );
+
+        let invalidator = CacheInvalidator::new(Arc::clone(&cache));
+        let evicted = invalidator
+            .invalidate_all()
+            .expect("invalidate_all must succeed");
+
+        assert_eq!(evicted, 2, "P1-03: both entries must be reported evicted");
+        assert!(
+            cache.get(&k1).expect("get k1").is_none() && cache.get(&k2).expect("get k2").is_none(),
+            "P1-03: all entries must miss after invalidate_all"
+        );
+        assert_eq!(
+            cache.total_bytes(),
+            0,
+            "P1-03: byte accounting must return to 0 after full flush"
+        );
+    }
 
     /// BC-2.07.004: `WRITE_TOOL_INVALIDATION_MAP` contains all 8 write tools.
     ///
