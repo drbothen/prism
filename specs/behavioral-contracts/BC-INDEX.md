@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "6.23"
+version: "6.24"
 status: draft
 producer: product-owner
 timestamp: 2026-06-10T00:00:00Z
@@ -217,7 +217,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.15.010 | Decorator Three-Phase Model — Config-Time, Query-Time, Periodic | 15 - Storage Layer | CAP-026 | P0 | draft |
 | BC-2.15.011 | Internal Table Registration — RocksDB Domains as DataFusion Tables | 15 - Storage Layer | CAP-028 | P0 | draft |
 | BC-2.16.001 | Sensor Spec File Loading — Parse TOML, Validate Schema, Register Tables | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-776 per POL-14; anchor story PLUGIN-MIGRATION-001-D merged PR #153 develop@3f2de889 2026-05-22) — v1.7 |
-| BC-2.16.002 | Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-427 per POL-14; anchor story S-PLUGIN-PREREQ-B merged PR #143 develop@ae7e26c8 2026-05-12) — v1.70 |
+| BC-2.16.002 | Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-427 per POL-14; anchor story S-PLUGIN-PREREQ-B merged PR #143 develop@ae7e26c8 2026-05-12) — v1.76 |
 | BC-2.16.003 | Column-to-OCSF Mapping at Query Time — Map Sensor Columns to OCSF Fields Per Spec | 16 - Spec Engine | CAP-029 | P0 | draft |
 | BC-2.16.004 | ~~Rust Escape Hatch for Custom Adapters — Trait-Based Override When Config Is Insufficient~~ | 16 - Spec Engine | CAP-029 | P0 | removed (lifecycle_status: removed since PREREQ-E impl; status aligned at D-726 per POL-14 PR #151 merge) — v1.5 |
 | BC-2.16.005 | `reload_config` MCP Tool — Re-Read All Config Files, Validate, Atomic Swap, Notify | 16 - Spec Engine | CAP-030 | P1 | draft |
@@ -380,6 +380,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v6.24 (2026-06-11, review-2026-06-10 round-2/3 register-burst item 17 — BC-INDEX row-220 pin sync to BC-2.16.002 v1.76):** state-manager | POL-11/POL-26/POL-32 compliance. Inline row 220 (BC-2.16.002 Multi-Step Fetch Pipeline Execution) version pin synced: `v1.70` (stale residue from D-1092 register-burst checklist item 17) → `v1.76` (current on-disk version; PO-authored during review-2026-06-10 cascade without a concurrent BC-INDEX version bump — this entry retroactively records that inline-pin sync per POL-11 index-versioning obligation). BC-2.16.002 v1.76 adds a sibling-catalog cross-reference note documenting that the SAP-1 probe for tracing event-type completeness applies within the declared crate scope of BC-2.16.002 (capability_check references BC-2.04.013; credential_access references BC-2.03.010) — closes the PO-half of MCP-cascade P8-OBS-01 [process-gap]. Register-burst checklist item 17 RESOLVED (targeted v1.75; actual sync lands at v1.76 — PO committed v1.76 directly). No H1 retitles — title cell unchanged (BC-INDEX row 220 carries no version cell in the index table; status annotation carries the inline pin). No lifecycle/status/count changes; counts UNCHANGED (250/232/5/0/7/6). BC-INDEX v6.23→v6.24.
 
 **v6.23 (2026-06-10, DTU cascade P6-02 story-ID canonicalization — review-2026-06-10 PO micro-burst):** product-owner | **BC-3.4.003 v0.8→v0.9** — §Open Questions D-054 row story ID `S-3.7.0` → `S-3.7.00` (canonical 2-digit suffix per STORY-INDEX BC Traceability Matrix; same defect class as ADR-009 v0.5 m-003 fix). TD-VSDD-060 anchored sibling-grep `S-3\.7\.0[^0-9]` across behavioral-contracts/ verified line 205 was the SOLE occurrence — no other BC requires this rewrite. POL-27 `modified:` already 2026-06-10 (synced at v0.8); no frontmatter date change. No H1 retitles — title cell unchanged (Wave 3 Family 3.4 rows carry no version cell; remains draft). No edge-case-ID, lifecycle, or status changes; counts UNCHANGED (250/232/5/0/7/6). BC-INDEX v6.22→v6.23.
 
