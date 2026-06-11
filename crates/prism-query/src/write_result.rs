@@ -75,7 +75,7 @@ pub struct WriteResult {
     pub execution_started_at: DateTime<Utc>,
     /// Wall-clock time the write execution completed (all records attempted).
     pub execution_completed_at: DateTime<Utc>,
-    /// Audit INTENT record ID written in Phase 5a (BC-2.05.009).
+    /// Audit INTENT record ID written in Phase 5a (BC-2.05.001).
     pub audit_intent_id: Ulid,
     /// Total number of records that were targeted by this write.
     pub affected_count: u32,

@@ -281,7 +281,7 @@ impl WriteExecutor {
     /// - BC-2.04.001: compile-time feature gate (Phase 2b Gate 1)
     /// - BC-2.04.007: risk tier classification (Phase 2e)
     /// - BC-2.04.008: dry-run default (Phase 4)
-    /// - BC-2.05.009: audit intent before sensor call (Phase 5a)
+    /// - BC-2.05.001: audit intent before sensor call (Phase 5a)
     pub async fn execute(
         &self,
         plan: WritePlan,

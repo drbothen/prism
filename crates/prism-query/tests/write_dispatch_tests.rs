@@ -1,8 +1,8 @@
 //! Write dispatch phase (Phase 5) tests — S-3.07.
 //!
 //! Covers:
-//! - BC-2.05.009: audit intent written before any sensor call (fail-closed)
-//! - BC-2.05.009: audit outcome written after all records attempted
+//! - BC-2.05.001: audit intent written before any sensor call (fail-closed)
+//! - BC-2.05.001: audit outcome written after all records attempted
 //! - BC-2.05.009: capability_checks emitted in hierarchical evaluation order
 //! - BC-2.05.009: denied capability path still produces an audit record
 //! - BC-2.05.009: EC-05-016 — read ops produce empty capability_checks
@@ -13,7 +13,7 @@
 //!
 //! All tests are RED-GATE stubs. Every body calls into `todo!()` implementations.
 //!
-//! Story: S-3.07 | BCs: BC-2.05.009, BC-2.04.007
+//! Story: S-3.07 | BCs: BC-2.05.001, BC-2.05.009, BC-2.04.007
 
 #![allow(
     unused_imports,
@@ -178,16 +178,16 @@ fn test_BC_2_04_007_write_semaphore_capacity_is_four() {
 }
 
 // ---------------------------------------------------------------------------
-// BC-2.05.009: audit intent written BEFORE any sensor call (fail-closed)
+// BC-2.05.001: audit intent written BEFORE any sensor call (fail-closed)
 // ---------------------------------------------------------------------------
 
-/// BC-2.05.009 postcondition: `write_intent` is called first, and if it fails
+/// BC-2.05.001 postcondition: `write_intent` is called first, and if it fails
 /// the dispatcher returns `E-AUDIT-001` without contacting any sensor.
 ///
 /// Exercises story §Task 6a: "Audit INTENT record (fail-closed)".
 #[tokio::test]
 
-async fn test_BC_2_05_009_audit_intent_fail_closed_returns_e_audit_001() {
+async fn test_BC_2_05_001_audit_intent_fail_closed_returns_e_audit_001() {
     use prism_query::write_dispatch::DispatchInputs;
     use prism_spec_engine::write_endpoint::{BatchMode, WriteEndpointSpec, WriteStep};
 
@@ -227,7 +227,7 @@ async fn test_BC_2_05_009_audit_intent_fail_closed_returns_e_audit_001() {
     let err_msg = err.to_string();
     assert!(
         err_msg.contains("E-AUDIT-001") || err_msg.contains("Audit emission failed"),
-        "BC-2.05.009: failed intent must produce E-AUDIT-001; got: {err_msg}"
+        "BC-2.05.001: failed intent must produce E-AUDIT-001; got: {err_msg}"
     );
     // write_intent was called (before aborting)
     assert_eq!(
@@ -239,13 +239,13 @@ async fn test_BC_2_05_009_audit_intent_fail_closed_returns_e_audit_001() {
     );
 }
 
-/// BC-2.05.009 postcondition: when audit intent succeeds, `write_intent` is
+/// BC-2.05.001 postcondition: when audit intent succeeds, `write_intent` is
 /// called exactly once and the outcome record is written after fan-out.
 ///
 /// Tests the sequencing invariant: intent before sensor calls, outcome after.
 #[tokio::test]
 
-async fn test_BC_2_05_009_audit_intent_called_before_sensor_outcome_after() {
+async fn test_BC_2_05_001_audit_intent_called_before_sensor_outcome_after() {
     use prism_query::write_dispatch::DispatchInputs;
     use prism_spec_engine::write_endpoint::{BatchMode, WriteEndpointSpec};
 
@@ -291,7 +291,7 @@ async fn test_BC_2_05_009_audit_intent_called_before_sensor_outcome_after() {
             .intent_call_count
             .load(std::sync::atomic::Ordering::SeqCst),
         1,
-        "BC-2.05.009: write_intent must be called exactly once"
+        "BC-2.05.001: write_intent must be called exactly once"
     );
     // write_outcome must be called exactly once (after fan-out)
     assert_eq!(
@@ -299,7 +299,7 @@ async fn test_BC_2_05_009_audit_intent_called_before_sensor_outcome_after() {
             .outcome_call_count
             .load(std::sync::atomic::Ordering::SeqCst),
         1,
-        "BC-2.05.009: write_outcome must be called exactly once after fan-out"
+        "BC-2.05.001: write_outcome must be called exactly once after fan-out"
     );
     // Result must be Ok (partial failure is not Err)
     assert!(
@@ -309,10 +309,10 @@ async fn test_BC_2_05_009_audit_intent_called_before_sensor_outcome_after() {
 }
 
 // ---------------------------------------------------------------------------
-// BC-2.05.009: audit outcome failure does NOT unwind completed sensor calls
+// BC-2.05.001: audit outcome failure does NOT unwind completed sensor calls
 // ---------------------------------------------------------------------------
 
-/// BC-2.05.009: when `write_outcome` fails, the `WriteResult` is still
+/// BC-2.05.001: when `write_outcome` fails, the `WriteResult` is still
 /// returned to the caller — the sensor API calls are already complete and
 /// must not be unwound.
 ///
@@ -320,7 +320,7 @@ async fn test_BC_2_05_009_audit_intent_called_before_sensor_outcome_after() {
 /// unwind the write."
 #[tokio::test]
 
-async fn test_BC_2_05_009_audit_outcome_failure_does_not_unwind_write() {
+async fn test_BC_2_05_001_audit_outcome_failure_does_not_unwind_write() {
     use prism_query::write_dispatch::DispatchInputs;
     use prism_spec_engine::write_endpoint::{BatchMode, WriteEndpointSpec};
 
@@ -359,7 +359,7 @@ async fn test_BC_2_05_009_audit_outcome_failure_does_not_unwind_write() {
     let result = dispatcher
         .dispatch(inputs)
         .await
-        .expect("BC-2.05.009: WriteResult must be returned even when outcome write fails");
+        .expect("BC-2.05.001: WriteResult must be returned even when outcome write fails");
 
     assert!(
         !result.dry_run,

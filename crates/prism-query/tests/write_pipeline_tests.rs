@@ -358,7 +358,7 @@ async fn test_ac4_internal_table_write_rejected_e_query_026() {
 /// AC-5: When `AuditWriter::write_intent()` fails, the entire write is aborted
 /// with `E-AUDIT-001` and no sensor API call is made.
 ///
-/// BC-2.05.009 fail-closed behavior.
+/// BC-2.05.001 fail-closed behavior.
 ///
 /// Uses a Reversible plan (update) with dry_run=false so Phase 4 proceeds without
 /// requiring a confirmation token, allowing Phase 5 (audit write) to be reached.
