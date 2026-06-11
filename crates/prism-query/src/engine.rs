@@ -423,7 +423,7 @@ impl QueryEngine {
     ///
     /// # BC-2.11.006
     /// Enforces 30s timeout, 10K record cap, 200MB GreedyMemoryPool.
-    /// Rejects `limit > 1000` with `E-QUERY-003`. (F-LP1-HIGH-7)
+    /// Rejects `limit > 1000` with `E-QUERY-033`. (F-LP1-HIGH-7)
     pub async fn execute(
         &self,
         query_str: &str,

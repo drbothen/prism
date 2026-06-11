@@ -2209,13 +2209,13 @@ async fn test_AC_depth_limit_returns_parse_error() {
         .expect_err("depth-limit-test: a 60-level nested subquery must fail the depth limit check");
     let detail = err.to_string();
     // Depth limit fires inside PrismQlParser::parse → QueryParseFailed (E-QUERY-001)
-    // OR security module returns QueryExecutionFailed with depth-limit detail.
-    // Either way the result must be Err.
+    // OR security module returns QuerySecurityLimitExceeded (E-QUERY-003) with
+    // depth-limit detail. Either way the result must be Err.
     assert!(
         matches!(
             err,
             prism_core::PrismError::QueryParseFailed { .. }
-                | prism_core::PrismError::QueryExecutionFailed { .. }
+                | prism_core::PrismError::QuerySecurityLimitExceeded { .. }
         ),
         "depth-limit-test: error must be a parse or execution failure (depth limit); got: {detail}"
     );

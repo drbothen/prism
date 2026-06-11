@@ -1416,3 +1416,45 @@ fn test_clamp_regex_pattern_above_max_clamped_down() {
         "F-LOW-001: PRISM_MAX_REGEX_PATTERN_LEN=65537 (MAX+1) must clamp to {MAX_SAFE_REGEX_PATTERN_LEN}, got {limit}"
     );
 }
+
+/// P5-02 (QRY cascade, error-taxonomy.md v1.72 / ADR-038 v1.3): security-limit
+/// errors carry exactly ONE "E-QUERY-003" prefix in their Display output.
+///
+/// Pre-split, security limits routed through `QueryExecutionFailed` with an
+/// embedded "E-QUERY-003: " prefix in `detail`, producing the double-prefixed
+/// display "E-QUERY-003: query execution error: E-QUERY-003: query size...".
+/// The dedicated `QuerySecurityLimitExceeded` variant supplies the single
+/// canonical prefix via its Display impl; emission sites no longer embed it.
+///
+/// Traces: P5-02, BC-2.11.006, error-taxonomy.md v1.72 E-QUERY-003/E-QUERY-034
+#[test]
+fn test_p5_02_security_limit_display_has_exactly_one_e_query_003_prefix() {
+    use crate::security::{check_query_size, PRISM_MAX_QUERY_SIZE};
+
+    let oversized = "a".repeat(PRISM_MAX_QUERY_SIZE + 1);
+    let err = check_query_size(&oversized)
+        .expect_err("P5-02: oversized query must be rejected by check_query_size");
+    assert!(
+        matches!(
+            err,
+            prism_core::error::PrismError::QuerySecurityLimitExceeded { .. }
+        ),
+        "P5-02: security-limit rejection must use QuerySecurityLimitExceeded, got: {err:?}"
+    );
+
+    let display = err.to_string();
+    assert!(
+        display.starts_with("E-QUERY-003: "),
+        "P5-02: Display must start with the canonical E-QUERY-003 prefix, got: {display}"
+    );
+    assert_eq!(
+        display.matches("E-QUERY-003").count(),
+        1,
+        "P5-02: Display must contain exactly ONE E-QUERY-003 token (no double prefix), got: {display}"
+    );
+    assert!(
+        !display.contains("query execution error"),
+        "P5-02: security-limit Display must not route through the generic \
+         E-QUERY-034 execution-error wrapper, got: {display}"
+    );
+}

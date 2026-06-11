@@ -848,9 +848,9 @@ pub fn explain(query_str: &str, options: ExplainOptions) -> Result<ExplainResult
                 outcome_summary: "E-QUERY-003".to_string(),
             });
         }
-        return Err(PrismError::QueryExecutionFailed {
+        return Err(PrismError::QuerySecurityLimitExceeded {
             detail: format!(
-                "E-QUERY-003: query size {} bytes exceeds maximum {} bytes",
+                "query size {} bytes exceeds maximum {} bytes",
                 query_str.len(),
                 PRISM_MAX_QUERY_SIZE
             ),
@@ -883,9 +883,9 @@ pub fn explain(query_str: &str, options: ExplainOptions) -> Result<ExplainResult
     // ── Step 2: Security size check on expanded query (E-QUERY-003, DI-019) ───
     if expanded_query.len() > PRISM_MAX_QUERY_SIZE {
         emit_audit("E-QUERY-003");
-        return Err(PrismError::QueryExecutionFailed {
+        return Err(PrismError::QuerySecurityLimitExceeded {
             detail: format!(
-                "E-QUERY-003: expanded query size {} bytes exceeds maximum allowed {} bytes",
+                "expanded query size {} bytes exceeds maximum allowed {} bytes",
                 expanded_query.len(),
                 PRISM_MAX_QUERY_SIZE
             ),
