@@ -152,11 +152,18 @@ fn make_evaluator_deny_all() -> FeatureFlagEvaluator {
 // BC-2.04.001: compile-time feature gate ABSENT → E-FLAG-002
 // ---------------------------------------------------------------------------
 
-/// BC-2.04.001 postcondition: when the `{sensor}-write` Cargo feature is absent,
-/// `phase2_safety_check` returns `E-FLAG-002` — write code does not exist in binary.
+/// BC-2.04.001 v1.2 postcondition: the compile-time write capability tier is
+/// REGISTRY-DERIVED — when the sensor's TOML spec declares no matching
+/// `[[write_endpoints]]` entry, `phase2_safety_check` denies with E-FLAG-002
+/// (`DeniedCompileTime` → `CAPABILITY_DENIED`). The write code remains in the
+/// binary; remediation is adding the `[[write_endpoints]]` declaration and
+/// restarting — not a rebuild. (P2-05, 2026-06-10 review pass-2: retired the
+/// "write code does not exist in binary" Cargo-feature framing.)
 ///
-/// Canonical test vector: "Write feature absent | Binary built without
-/// crowdstrike-write | crowdstrike_contain_host tool absent from binary"
+/// Canonical test vector (BC-2.04.001 v1.2): "Declaration absent | CrowdStrike
+/// sensor TOML spec has no [[write_endpoints]] entry for the target table |
+/// Write denied DeniedCompileTime → CAPABILITY_DENIED (E-FLAG-002); runtime
+/// config cannot override"
 #[test]
 
 fn test_BC_2_04_001_compile_gate_absent_returns_e_flag_002() {
