@@ -2270,10 +2270,20 @@ impl prism_query::write_dispatch::AuditWriter for BootAuditWriter {
     ///
     /// Appends a lightweight key+payload envelope to the `audit_buffer` CF
     /// (BC-2.05.001 / CRIT-005), following the established
-    /// `prism_audit::credential_events` construction pattern. Not
-    /// fail-closed: the caller (`emit_tool_audit`) logs Err and proceeds
-    /// (BC-2.05.001 postcondition "Read operations proceed on audit
-    /// failure" / EC-05-002).
+    /// `prism_audit::credential_events` construction pattern.
+    ///
+    /// On `Err`, the caller (`emit_tool_audit` in `prism-mcp/src/server.rs`)
+    /// surfaces `AuditPersistenceFailed` and the outcome depends on the tool's
+    /// class as resolved by `tool_classification_registry()`:
+    ///
+    /// - **`ToolClass::WriteTool`** (e.g. `confirm_action`, `add_sensor_spec`):
+    ///   **fail-closed** — the caller returns `E-AUDIT-001` and aborts the
+    ///   operation before any mutation or token generation
+    ///   (BC-2.05.001 DEC-014).
+    /// - **`ToolClass::ReadTool`** (all other tools; the default):
+    ///   **fail-open** — the caller logs a warning and sets
+    ///   `_meta.audit_warning`; the tool call proceeds
+    ///   (BC-2.05.001 EC-05-002).
     async fn write_tool_call(
         &self,
         tool_name: &str,

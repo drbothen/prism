@@ -78,9 +78,24 @@ use crate::{
 /// Returns `HarnessError::Http` if the underlying TLS/connector initialization
 /// fails (the only failure mode of `ClientBuilder::build`).
 pub(crate) fn build_harness_http_client() -> Result<reqwest::Client, HarnessError> {
-    Ok(reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(10))
-        .build()?)
+    build_harness_http_client_with_timeout(std::time::Duration::from_secs(10))
+}
+
+/// Build the harness-wide `reqwest::Client` with an explicit timeout.
+///
+/// Used directly by tests to inject a short timeout (e.g. 1s) so the
+/// behavioral timeout assertion completes quickly rather than waiting the
+/// full 10-second production default. Production callers use
+/// [`build_harness_http_client`] which fixes the timeout at 10s.
+///
+/// # Errors
+///
+/// Returns `HarnessError::Http` if the underlying TLS/connector initialization
+/// fails (the only failure mode of `ClientBuilder::build`).
+pub(crate) fn build_harness_http_client_with_timeout(
+    timeout: std::time::Duration,
+) -> Result<reqwest::Client, HarnessError> {
+    Ok(reqwest::Client::builder().timeout(timeout).build()?)
 }
 
 /// Builder for constructing a [`Harness`].
@@ -1168,18 +1183,62 @@ async fn start_armis_clone_network(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::time::{Duration, Instant};
 
-    /// F9 (2026-06-10 review): the harness HTTP client must be constructed
-    /// with an explicit timeout via `build_harness_http_client` — a bare
-    /// `reqwest::Client::new()` has an infinite default timeout and would hang
-    /// the harness on an unresponsive clone admin endpoint.
-    #[test]
-    fn test_build_harness_http_client_constructs_with_timeout() {
-        let client = build_harness_http_client();
+    /// F-P10-02 (2026-06-10 review): behavioral guard — the harness HTTP client
+    /// timeout is load-bearing.  Removing `.timeout()` from
+    /// `build_harness_http_client_with_timeout` leaves this test hanging (the
+    /// connection would be accepted but the server never responds, so the request
+    /// would never resolve without a timeout bound).
+    ///
+    /// Design:
+    /// 1. Bind a local TcpListener that accepts connections but never sends
+    ///    a response (simulates a hung clone admin endpoint).
+    /// 2. Build a client with a 1-second timeout via the internal helper
+    ///    (avoids waiting the full 10s production default in CI).
+    /// 3. Assert the request fails with `err.is_timeout() == true`.
+    /// 4. Assert elapsed < 5s to catch accidental infinite-wait regressions.
+    #[tokio::test]
+    async fn test_build_harness_http_client_timeout_is_load_bearing() {
+        use tokio::net::TcpListener;
+
+        // Bind a listener that accepts the connection but never writes a response.
+        let listener = TcpListener::bind("127.0.0.1:0")
+            .await
+            .expect("bind local listener");
+        let addr = listener.local_addr().expect("listener addr");
+
+        // Accept in background — hold the connection open but send nothing.
+        tokio::spawn(async move {
+            if let Ok((_stream, _peer)) = listener.accept().await {
+                // Intentionally hold `_stream` alive and never respond,
+                // so the client hangs waiting for HTTP response bytes.
+                tokio::time::sleep(Duration::from_secs(60)).await;
+            }
+        });
+
+        let client = build_harness_http_client_with_timeout(Duration::from_secs(1))
+            .expect("build_harness_http_client_with_timeout must not fail");
+
+        let url = format!("http://{}/dtu/configure", addr);
+        let start = Instant::now();
+        let result = client.post(&url).body("{}").send().await;
+        let elapsed = start.elapsed();
+
+        // The request must time out, not succeed or fail for a different reason.
+        let err = result.expect_err("expected timeout error, got Ok");
         assert!(
-            client.is_ok(),
-            "build_harness_http_client must construct the timeout-bounded client: {:?}",
-            client.err()
+            err.is_timeout(),
+            "expected is_timeout() == true, got: {:?}",
+            err
+        );
+
+        // Guard against regressions where the timeout bound is accidentally
+        // removed (elapsed would approach 60s in that case).
+        assert!(
+            elapsed < Duration::from_secs(5),
+            "elapsed {:?} >= 5s — timeout guard is not load-bearing",
+            elapsed
         );
     }
 }
