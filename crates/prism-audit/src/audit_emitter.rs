@@ -243,28 +243,23 @@ where
                     (resp, os, rs, ec)
                 }
                 Err(ref e) => {
+                    let error_str = e.to_string();
                     let outcome = AuditOutcome::Failure {
-                        error_code: e.to_string(),
+                        error_code: error_str.clone(),
                     };
                     let result_summary = format!("error: {e}");
-                    let error_code = Some(e.to_string());
+                    let error_code = Some(error_str.clone());
                     // We still need to emit a completion entry for read tools;
                     // for write tools the pre-entry was already emitted.
-                    let _ = (outcome.clone(), result_summary.clone(), error_code.clone());
-                    // Re-derive for the emit below.
                     (
                         AuditedResponse {
-                            outcome: AuditOutcome::Failure {
-                                error_code: e.to_string(),
-                            },
-                            result_summary: format!("error: {e}"),
-                            error_code: Some(e.to_string()),
+                            outcome: outcome.clone(),
+                            result_summary: result_summary.clone(),
+                            error_code: error_code.clone(),
                         },
-                        AuditOutcome::Failure {
-                            error_code: e.to_string(),
-                        },
-                        format!("error: {e}"),
-                        Some(e.to_string()),
+                        outcome,
+                        result_summary,
+                        error_code,
                     )
                 }
             };
