@@ -268,10 +268,15 @@ fn gen_compromised_endpoint(org_id: &OrgId, opts: &GenOpts) -> FixtureSet {
 
 /// Generate the Claroty `AuthOutage` archetype records.
 ///
-/// Returns `floor(20 * opts.scale)` device records; the first simulated call record has
-/// `status_code = 401`. Recovery delay is read from
-/// `opts.overrides["auth_outage"]["recovery_after_calls"]` via `apply_overrides`
-/// (BC-3.4.003 invariant 6 / EC-AuthOutage).
+/// Returns `floor(20 * opts.scale)` device records preceded by N simulated call records
+/// each with `status_code = 401`.  N is read from
+/// `opts.overrides["auth_outage"]["recovery_after_calls"]` (BC-3.4.003 invariant 6 /
+/// EC-3.4.003-06); default N = 1.
+///
+/// Each 401 call record carries `_surface = "call"` (F3 / DTU-05) and a deterministic
+/// `call_index` so the count is recoverable from the fixture without tracking external
+/// state.  Recovery is implicit: the fixture encodes only the failure-sequence length;
+/// the route layer transitions to `AuthMode::Accept` after draining these records.
 fn gen_auth_outage(org_id: &OrgId, opts: &GenOpts) -> FixtureSet {
     let slug = org_slug(org_id);
     let n_devices = (20.0 * opts.scale).floor() as usize;
@@ -279,24 +284,32 @@ fn gen_auth_outage(org_id: &OrgId, opts: &GenOpts) -> FixtureSet {
     let mut rng = seeded_rng(opts.seed, org_id);
     let _jitter: u32 = rng.gen();
 
-    // First record is the 401 call record (BC-3.4.003 baseline row 3).
-    // NOTE: This record does NOT have a device_id — it represents a failed API call,
-    // not a device record. Tests count devices via presence of "device_id" field.
-    let mut records: Vec<Value> = Vec::with_capacity(1 + n_devices);
+    // BC-3.4.003 invariant 6 / EC-3.4.003-06: read recovery_after_calls from overrides.
+    // Default N = 1 (one 401 call record before recovery).
+    let recovery_after_calls = opts
+        .overrides
+        .get("auth_outage")
+        .and_then(|v| v.get("recovery_after_calls"))
+        .and_then(serde_json::Value::as_u64)
+        .unwrap_or(1) as usize;
 
-    // The simulated 401 call record (no device_id — not a device)
-    let call_record = json!({
-        // F3 / DTU-05: "call" surface — served by NEITHER the alerts nor the
-        // devices route (it models a failed API call, not a data record).
-        "_surface": "call",
-        "status_code": 401u64,
-        "call_index": 0u64,
-        "error": "Unauthorized",
-        "message": "Auth outage simulated by fixture generator"
-    });
-    records.push(call_record);
+    let mut records: Vec<Value> = Vec::with_capacity(recovery_after_calls + n_devices);
 
-    // Subsequent device records (normal) — exactly n_devices of them
+    // Emit N 401 call records (BC-3.4.003 invariant 6).
+    // These do NOT carry a device_id — each represents a failed API call surface.
+    for call_index in 0..recovery_after_calls {
+        records.push(json!({
+            // F3 / DTU-05: "call" surface — served by NEITHER the alerts nor the
+            // devices route (it models a failed API call, not a data record).
+            "_surface": "call",
+            "status_code": 401u64,
+            "call_index": call_index as u64,
+            "error": "Unauthorized",
+            "message": "Auth outage simulated by fixture generator"
+        }));
+    }
+
+    // Device records (normal) — exactly n_devices of them
     for i in 0..n_devices {
         records.push(make_device(&slug, opts.seed, i));
     }

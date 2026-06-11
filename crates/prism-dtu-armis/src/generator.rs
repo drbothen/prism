@@ -244,24 +244,36 @@ fn generate_compromised_endpoint(org_id: &OrgId, org_slug: &str, opts: &GenOpts)
     }
 }
 
-/// Build records for `AuthOutage`: 20 assets; first call record has status_code=401.
+/// Build records for `AuthOutage`: 20 assets; first N records carry status_code=401.
+///
+/// N is read from `opts.overrides["auth_outage"]["recovery_after_calls"]`
+/// (BC-3.4.003 invariant 6 / EC-3.4.003-06); default N = 1.
+///
+/// The N 401-tagged records are standard `ArmisAsset` records with an injected
+/// `status_code=401` field, preserving the existing Armis schema shape and the
+/// `asset.len()==20` invariant. Recovery is implicit: record[N] and beyond have
+/// no status_code injection.
 fn generate_auth_outage(org_id: &OrgId, org_slug: &str, opts: &GenOpts) -> FixtureSet {
     let n_assets = scale(20, opts.scale);
+
+    // BC-3.4.003 invariant 6 / EC-3.4.003-06: read recovery_after_calls from overrides.
+    // Default N = 1 (one leading 401-tagged asset before recovery).
+    let recovery_after_calls = opts
+        .overrides
+        .get("auth_outage")
+        .and_then(|v| v.get("recovery_after_calls"))
+        .and_then(serde_json::Value::as_u64)
+        .unwrap_or(1) as usize;
+
     let mut records = Vec::with_capacity(n_assets);
 
-    // First record carries status_code=401 (BC-3.4.003 TV-3.4.003-03)
-    let mut first = build_asset(org_slug, opts.seed, 0, "online", opts.time_anchor);
-    first["status_code"] = json!(401i64);
-    records.push(first);
-
-    for i in 1..n_assets {
-        records.push(build_asset(
-            org_slug,
-            opts.seed,
-            i,
-            "online",
-            opts.time_anchor,
-        ));
+    for i in 0..n_assets {
+        let mut asset = build_asset(org_slug, opts.seed, i, "online", opts.time_anchor);
+        if i < recovery_after_calls {
+            // BC-3.4.003 TV-3.4.003-03 / EC-3.4.003-06: inject 401 on first N records
+            asset["status_code"] = json!(401i64);
+        }
+        records.push(asset);
     }
 
     FixtureSet {

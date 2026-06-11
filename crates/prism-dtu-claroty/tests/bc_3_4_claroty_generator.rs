@@ -865,3 +865,102 @@ fn test_f3_dtu_05_all_records_carry_surface_tag() {
         }
     }
 }
+
+// ---------------------------------------------------------------------------
+// BC-3.4.003 invariant 6 / EC-3.4.003-06 — configurable AuthOutage recovery
+// ---------------------------------------------------------------------------
+
+/// EC-3.4.003-06: AuthOutage with overrides `{"auth_outage":{"recovery_after_calls":3}}`
+/// must emit exactly 3 call records with status_code=401 before recovery.
+///
+/// Mirrors the crowdstrike EC-002 assertion shape (bc_3_4_crowdstrike_generator.rs
+/// `test_bc_3_4_003_ec_002_auth_outage_configurable_recovery_after_3_calls`), adapted
+/// to Claroty's `_surface:"call"` discriminator pattern where the generator emits
+/// N×401 call records (recovery is implicit — no additional recovery call record is
+/// emitted since the route layer handles state transitions).
+///
+/// BC-3.4.003 invariant 6 (normative MUST): recovery_after_calls is overridable via
+/// GenOpts::overrides JSON Merge Patch; default N=1.
+#[test]
+fn test_bc_3_4_003_ec_006_auth_outage_configurable_recovery_after_3_calls() {
+    use serde_json::json;
+    let opts = GenOpts::new(
+        42,
+        1.0_f64,
+        chrono::DateTime::UNIX_EPOCH,
+        json!({"auth_outage": {"recovery_after_calls": 3}}),
+    )
+    .expect("valid opts");
+    let fs = generate(&org_a(), Archetype::AuthOutage, &opts);
+
+    // Collect call-surface records (status_code-bearing records)
+    let call_records: Vec<_> = fs
+        .records
+        .iter()
+        .filter(|r| r.get("_surface").and_then(|v| v.as_str()) == Some("call"))
+        .collect();
+
+    assert_eq!(
+        call_records.len(),
+        3,
+        "EC-3.4.003-06: AuthOutage with recovery_after_calls=3 must produce exactly 3 call \
+         records (3×401), got {}",
+        call_records.len()
+    );
+
+    // All 3 call records must be 401
+    for i in 0..3 {
+        let status = call_records[i]
+            .get("status_code")
+            .and_then(|v| v.as_u64())
+            .unwrap_or(0);
+        assert_eq!(
+            status, 401,
+            "EC-3.4.003-06: call record[{i}] must have status_code=401 \
+             (recovery_after_calls=3)"
+        );
+    }
+
+    // Device count unchanged: 20 at scale=1.0
+    let devices: Vec<_> = fs
+        .records
+        .iter()
+        .filter(|r| r.get("_surface").and_then(|v| v.as_str()) == Some("device"))
+        .collect();
+    assert_eq!(
+        devices.len(),
+        20,
+        "EC-3.4.003-06: AuthOutage device count must remain 20 regardless of recovery_after_calls"
+    );
+}
+
+/// EC-3.4.003-06 (default): AuthOutage with no overrides uses N=1 (one 401 call record).
+/// Preserves the existing baseline behavior.
+#[test]
+fn test_bc_3_4_003_ec_006_auth_outage_default_recovery_after_1_call() {
+    let opts = GenOpts::default();
+    let fs = generate(&org_a(), Archetype::AuthOutage, &opts);
+
+    let call_records: Vec<_> = fs
+        .records
+        .iter()
+        .filter(|r| r.get("_surface").and_then(|v| v.as_str()) == Some("call"))
+        .collect();
+
+    assert_eq!(
+        call_records.len(),
+        1,
+        "EC-3.4.003-06 (default N=1): AuthOutage must produce exactly 1 call record \
+         (1×401), got {}",
+        call_records.len()
+    );
+
+    let status = call_records[0]
+        .get("status_code")
+        .and_then(|v| v.as_u64())
+        .unwrap_or(0);
+    assert_eq!(
+        status, 401,
+        "EC-3.4.003-06 (default): the single call record must have status_code=401"
+    );
+}
