@@ -29,6 +29,9 @@ fixture-gen = [
     "prism-dtu-claroty/fixture-gen",
     "prism-dtu-cyberint/fixture-gen",
     "prism-dtu-common/fixture-gen",
+    "prism-dtu-threatintel/fixture-gen",
+    "prism-dtu-nvd/fixture-gen",
+    "dep:chrono",
 ]
 tls = [
     "dep:axum-server",
@@ -61,6 +64,9 @@ prism-dtu-nvd = { path = "../prism-dtu-nvd", version = "0.1.0" }
 # S-DEMO-DTU-LIVE-SCENARIO-001-A: uuid for parsing org_id strings; prism-core for OrgId type
 # (BC-2.06.018 E-DEMO-005 guard in build_clone_pairs — ADR-036 §6)
 uuid = { version = "1", features = ["v4"] }
+# S-DEMO-DTU-LIVE-SCENARIO-001-B: chrono required for scenario time_anchor derivation
+# (build_clone_pairs scenario context — BC-2.06.019 §2.3; gated under fixture-gen)
+chrono = { version = "0.4", features = ["serde"], optional = true }
 prism-core = { path = "../../crates/prism-core" }
 
 

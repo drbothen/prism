@@ -175,32 +175,40 @@ impl CrowdstrikeClone {
     }
 
     // -----------------------------------------------------------------------
-    // Story B: new_with_scenario stub (BC-2.06.019 / ADR-036 v2.3 §2.4)
+    // Story B: new_with_scenario constructor (BC-2.06.019 / ADR-036 v2.3 §2.4)
     // -----------------------------------------------------------------------
 
     /// Construct a `CrowdstrikeClone` with the scenario timeline layer.
     ///
     /// 5-arg form per ADR-036 v2.3 §2.4. Internally calls
     /// `new_with_seed_anchored(seed, archetype, org_id, time_anchor)` (NOT the 3-arg
-    /// `new_with_seed` which would produce stale timestamps).
+    /// `new_with_seed` which would produce stale timestamps for a June 2026 demo).
     ///
-    /// Sets `state.timeline = Some(Arc::clone(&timeline))` after construction.
+    /// Sets `state.timeline = Some(Arc::clone(&timeline))` so route handlers can
+    /// compute the current stage and apply StageMask filtering.
     ///
-    /// # Stub (S-DEMO-DTU-LIVE-SCENARIO-001-B)
-    ///
-    /// Returns a clone with `timeline = None` so compilation succeeds. Tests
-    /// asserting timeline-based stage-mask filtering will FAIL (Red Gate).
-    #[allow(dead_code)] // S-DEMO-DTU-LIVE-SCENARIO-001-B: transient until implementation
+    /// `time_anchor` is derived ONCE in `build_clone_pairs` from
+    /// `scenario_start_epoch_secs` via `DateTime::from_timestamp`.
     pub fn new_with_scenario(
         seed: u64,
         archetype: prism_dtu_common::Archetype,
         org_id: prism_dtu_common::OrgId,
-        _timeline: std::sync::Arc<prism_dtu_common::IncidentTimeline>,
+        timeline: std::sync::Arc<prism_dtu_common::IncidentTimeline>,
         time_anchor: chrono::DateTime<chrono::Utc>,
     ) -> Self {
-        // Stub: calls new_with_seed_anchored (not the forbidden 3-arg new_with_seed)
-        // but does NOT attach timeline to state. Tests will FAIL on stage-mask assertions.
-        Self::new_with_seed_anchored(seed, archetype, org_id, time_anchor)
+        // Call new_with_seed_anchored (NOT the 3-arg new_with_seed) to use the
+        // caller-supplied time_anchor for era-coherent generated timestamps.
+        // ADR-036 v2.3 §2.3: the 3-arg path anchors at demo_time_anchor() = 2026-01-01
+        // which is stale for a June 2026 demo. Forbidden pattern per story spec.
+        let mut clone = Self::new_with_seed_anchored(seed, archetype, org_id, time_anchor);
+        // Attach the timeline so route handlers can compute the current stage index.
+        // ADR-036 v2.3 §2.3: Arc<IncidentTimeline> is read-only after construction.
+        // SAFETY: Arc::get_mut only fails if there are other references; we just
+        // constructed the Arc in new_with_seed_anchored and have the sole reference.
+        if let Some(state) = Arc::get_mut(&mut clone.state) {
+            state.timeline = Some(Arc::clone(&timeline));
+        }
+        clone
     }
 }
 

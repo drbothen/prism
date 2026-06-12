@@ -99,19 +99,66 @@ impl NvdClone {
     /// Must NOT import `prism-spec-engine`, `prism-sensors`, or `prism-query`
     /// (INV-PERIMETER-COMPLIANCE-001 / BC-2.06.020).
     ///
-    /// # Stub (S-DEMO-DTU-LIVE-SCENARIO-001-B)
-    ///
-    /// Delegates to `new()` without inserting scenario CVEs. Tests asserting that
-    /// `lookup_and_count(&entities.device_cves[0])` returns `Some(record)` with
-    /// `base_score >= 7.0` will FAIL (Red Gate — CVE not in registry).
     #[cfg(feature = "fixture-gen")]
-    #[allow(dead_code)] // S-DEMO-DTU-LIVE-SCENARIO-001-B: transient until implementation
     pub fn new_with_scenario(
-        _entities: &prism_dtu_common::ScenarioEntityCatalog,
+        entities: &prism_dtu_common::ScenarioEntityCatalog,
     ) -> anyhow::Result<Self> {
-        // Stub: delegates to new() without inserting scenario CVEs.
-        // Tests will FAIL because lookup_and_count returns None for scenario CVE IDs.
-        Self::new()
+        // Load base fixture records from fixtures/cves.json (same as new()).
+        let crate_dir = env!("CARGO_MANIFEST_DIR");
+        let records: Vec<CveRecord> = prism_dtu_common::load_fixture_as(crate_dir, "cves")?;
+
+        let mut registry: HashMap<String, CveRecord> = records
+            .into_iter()
+            .map(|r| (r.id.to_uppercase(), r))
+            .collect();
+
+        // Insert synthetic CveRecord for each device CVE (BC-2.06.020 INV-NVD-CVE-CORRELATION-001).
+        // BC-2.06.020 PC-4: base_score = 8.1, base_severity = "HIGH".
+        for cve_id in &entities.device_cves {
+            let synthetic = CveRecord {
+                id: cve_id.clone(),
+                source_identifier: "prism-scenario@example.com".to_string(),
+                published: "2024-01-01T00:00:00.000".to_string(),
+                last_modified: "2024-01-01T00:00:00.000".to_string(),
+                vuln_status: "Analyzed".to_string(),
+                descriptions: vec![crate::types::LangValue {
+                    lang: "en".to_string(),
+                    value: format!("Scenario synthetic CVE {cve_id}"),
+                }],
+                metrics: crate::types::CveMetrics {
+                    cvss_metric_v31: Some(vec![crate::types::CvssMetricV31 {
+                        source: "prism-scenario@example.com".to_string(),
+                        r#type: "Primary".to_string(),
+                        cvss_data: crate::types::CvssData {
+                            version: "3.1".to_string(),
+                            vector_string: "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:N"
+                                .to_string(),
+                            base_score: 8.1,
+                            base_severity: "HIGH".to_string(),
+                        },
+                        exploitability_score: 3.9,
+                        impact_score: 5.2,
+                    }]),
+                },
+                weaknesses: vec![],
+                configurations: vec![],
+                references: vec![],
+                cisa_kev_vuln_added: None,
+            };
+            registry.insert(cve_id.to_uppercase(), synthetic);
+        }
+
+        let admin_token = uuid::Uuid::new_v4().to_string();
+        let state = Arc::new(NvdState::with_admin_token(registry, admin_token.clone()));
+        Ok(Self {
+            state,
+            bound_addr: None,
+            server_handle: None,
+            tls_active: false,
+            #[cfg(feature = "tls")]
+            tls_handle: None,
+            admin_token,
+        })
     }
 
     fn build_router(&self) -> Router {

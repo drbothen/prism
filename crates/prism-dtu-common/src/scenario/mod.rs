@@ -102,13 +102,15 @@ pub fn current_stage_index(timeline: &IncidentTimeline, now_epoch_secs: i64) -> 
         .saturating_sub(timeline.scenario_start_epoch_secs)
         .max(0) as u64;
 
-    // Stub: return 0 so compilation succeeds but tests exercising specific stage
-    // boundaries FAIL (Red Gate — assertion will mismatch).
-    //
-    // S-DEMO-DTU-LIVE-SCENARIO-001-B: implementer replaces with the correct loop
-    // (last index i where stages[i].activates_after_secs <= elapsed).
-    let _ = elapsed;
-    0
+    // ADR-036 v2.2 §2.2 formula: last index i where stages[i].activates_after_secs <= elapsed.
+    // Stage index saturates at stages.len() - 1 (EC-019-004 / EC-002: far-future elapsed).
+    let mut stage = 0usize;
+    for (i, s) in timeline.stages.iter().enumerate() {
+        if s.activates_after_secs <= elapsed {
+            stage = i;
+        }
+    }
+    stage
 }
 
 /// Build the default `CompromisedEndpoint` `IncidentTimeline` from a catalog and thresholds.
@@ -121,32 +123,88 @@ pub fn current_stage_index(timeline: &IncidentTimeline, now_epoch_secs: i64) -> 
 ///
 /// Returns a 1-stage timeline so compilation succeeds. Tests exercising the 5-stage
 /// structure will FAIL (Red Gate).
-#[allow(dead_code)] // S-DEMO-DTU-LIVE-SCENARIO-001-B: transient until implementation wires this
 pub fn build_default_incident_timeline(
     catalog: ScenarioEntityCatalog,
     start_secs: i64,
     stage_duration_secs: &[u64],
 ) -> IncidentTimeline {
-    let _thresholds: &[u64] = if stage_duration_secs.is_empty() {
-        &[60, 180, 360, 600]
+    // Default thresholds for stages 1-4 (stage 0 always activates at 0).
+    // BC-2.06.019 §Postcondition 2 canonical table.
+    const DEFAULT_THRESHOLDS: &[u64] = &[60, 180, 360, 600];
+    let thresholds: &[u64] = if stage_duration_secs.is_empty() {
+        DEFAULT_THRESHOLDS
     } else {
         stage_duration_secs
     };
 
-    // Stub: builds only the Baseline stage so compilation works but multi-stage
-    // tests FAIL (Red Gate — stage count and mask assertions will mismatch).
-    let stages = vec![IncidentStage {
-        name: "Baseline",
-        activates_after_secs: 0,
-        visible_entity_mask: StageMask {
-            primary_device: true,
-            lateral_devices: false,
-            ioc_ips: false,
-            ioc_domains: false,
-            ioc_hashes: false,
-            device_cves: false,
+    // Build 5 stages per BC-2.06.019 §Postcondition 2 table:
+    // Stage 0 (Baseline, 0s):          primary_device=true; all others false
+    // Stage 1 (Recon, thresholds[0]):   primary_device=true; rest false
+    // Stage 2 (LateralMovement, [1]):   primary_device+lateral_devices+ioc_hashes=true
+    // Stage 3 (Exfil, [2]):             primary+lateral+ioc_ips+ioc_domains+ioc_hashes=true
+    // Stage 4 (Containment, [3]):       all 6 fields true
+    let stages = vec![
+        IncidentStage {
+            name: "Baseline",
+            activates_after_secs: 0,
+            visible_entity_mask: StageMask {
+                primary_device: true,
+                lateral_devices: false,
+                ioc_ips: false,
+                ioc_domains: false,
+                ioc_hashes: false,
+                device_cves: false,
+            },
         },
-    }];
+        IncidentStage {
+            name: "Recon",
+            activates_after_secs: thresholds[0],
+            visible_entity_mask: StageMask {
+                primary_device: true,
+                lateral_devices: false,
+                ioc_ips: false,
+                ioc_domains: false,
+                ioc_hashes: false,
+                device_cves: false,
+            },
+        },
+        IncidentStage {
+            name: "LateralMovement",
+            activates_after_secs: thresholds[1],
+            visible_entity_mask: StageMask {
+                primary_device: true,
+                lateral_devices: true,
+                ioc_ips: false,
+                ioc_domains: false,
+                ioc_hashes: true,
+                device_cves: false,
+            },
+        },
+        IncidentStage {
+            name: "Exfil",
+            activates_after_secs: thresholds[2],
+            visible_entity_mask: StageMask {
+                primary_device: true,
+                lateral_devices: true,
+                ioc_ips: true,
+                ioc_domains: true,
+                ioc_hashes: true,
+                device_cves: false,
+            },
+        },
+        IncidentStage {
+            name: "Containment",
+            activates_after_secs: thresholds[3],
+            visible_entity_mask: StageMask {
+                primary_device: true,
+                lateral_devices: true,
+                ioc_ips: true,
+                ioc_domains: true,
+                ioc_hashes: true,
+                device_cves: true,
+            },
+        },
+    ];
 
     IncidentTimeline {
         entities: catalog,

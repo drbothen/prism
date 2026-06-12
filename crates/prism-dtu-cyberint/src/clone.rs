@@ -224,7 +224,7 @@ impl CyberintClone {
     }
 
     // -----------------------------------------------------------------------
-    // Story B: new_with_scenario stub (BC-2.06.019 / ADR-036 v2.3 §2.4)
+    // Story B: new_with_scenario constructor (BC-2.06.019 / ADR-036 v2.3 §2.4)
     // -----------------------------------------------------------------------
 
     /// Construct a `CyberintClone` with the scenario timeline layer.
@@ -234,25 +234,28 @@ impl CyberintClone {
     /// in this crate (dep:chrono gating in Cargo.toml).
     ///
     /// Internally calls `new_with_seed_anchored(seed, archetype, org_id, time_anchor)`
-    /// (NOT the forbidden 3-arg `new_with_seed`). Return type is `anyhow::Result<Self>`
-    /// to match `new_with_seed_anchored`.
+    /// (NOT the forbidden 3-arg `new_with_seed` which would produce stale timestamps).
     ///
-    /// # Stub (S-DEMO-DTU-LIVE-SCENARIO-001-B)
-    ///
-    /// Returns a clone with `timeline = None` so compilation succeeds. Tests
-    /// asserting stage-mask filtering will FAIL (Red Gate).
+    /// Sets `state.timeline = Some(Arc::clone(&timeline))` so route handlers can
+    /// compute the current stage index and apply StageMask filtering.
     #[cfg(feature = "fixture-gen")]
-    #[allow(dead_code)] // S-DEMO-DTU-LIVE-SCENARIO-001-B: transient until implementation
     pub fn new_with_scenario(
         seed: u64,
         archetype: prism_dtu_common::Archetype,
         org_id: prism_dtu_common::OrgId,
-        _timeline: std::sync::Arc<prism_dtu_common::IncidentTimeline>,
+        timeline: std::sync::Arc<prism_dtu_common::IncidentTimeline>,
         time_anchor: chrono::DateTime<chrono::Utc>,
     ) -> anyhow::Result<Self> {
-        // Stub: calls new_with_seed_anchored (not the forbidden 3-arg new_with_seed)
-        // but does NOT attach timeline. Tests will FAIL on stage-mask assertions.
-        Self::new_with_seed_anchored(seed, archetype, org_id, time_anchor)
+        // Call new_with_seed_anchored (NOT the 3-arg new_with_seed) to use the
+        // caller-supplied time_anchor for era-coherent generated timestamps.
+        // ADR-036 v2.3 §2.3 mandates this; the 3-arg path is FORBIDDEN here.
+        let mut clone = Self::new_with_seed_anchored(seed, archetype, org_id, time_anchor)?;
+        // Attach the timeline so route handlers can compute the current stage index.
+        // ADR-036 v2.3 §2.3: Arc<IncidentTimeline> is read-only after construction.
+        if let Some(state) = Arc::get_mut(&mut clone.state) {
+            state.timeline = Some(Arc::clone(&timeline));
+        }
+        Ok(clone)
     }
 
     /// Return the base URL for this clone (e.g. `http://127.0.0.1:PORT`).
