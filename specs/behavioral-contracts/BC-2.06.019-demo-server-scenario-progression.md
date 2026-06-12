@@ -2,7 +2,7 @@
 document_type: behavioral-contract
 level: L3
 bc_id: "BC-2.06.019"
-version: "1.2"
+version: "1.3"
 status: draft
 lifecycle_status: draft
 producer: product-owner
@@ -84,9 +84,9 @@ generator determinism guarantee remains owned by BC-3.4.001.
    incoherence at construction time.
    Guard order within `build_clone_pairs` pre-construction validation:
    `E-DEMO-002 (seed mismatch) → E-DEMO-006 (org_id mismatch) → E-DEMO-003 (bad archetype) → E-DEMO-004 (missing org_id)`
-8. `scenario.archetype` for each scenario-enabled clone is one of the recognized strings
+7. `scenario.archetype` for each scenario-enabled clone is one of the recognized strings
    (`"compromised_endpoint"`, `"healthy"`, etc.); unrecognized values cause `E-DEMO-003`.
-9. `build_clone_pairs` is called before `DemoHarness::start_all`.
+8. `build_clone_pairs` is called before `DemoHarness::start_all`.
 
 ## Postconditions
 
@@ -473,6 +473,7 @@ VP-019-A through VP-019-I (above) — verified by integration/unit tests in S-DE
 
 | Version | Change |
 |---------|--------|
-| v1.2 | PO micro-burst 2026-06-12 — OBS-1 org_id-equality gap closed. Added PRE-6 (org_id equality guard across scenario-enabled clones; E-DEMO-006; detection before E-DEMO-003; rationale: silent INV-CROSS-DTU-ENTITY-COHERENCE-001 incoherence is SOUL.md §4 class). Renumbered former PRE-6→PRE-8 (archetype) and PRE-7→PRE-9 (build_clone_pairs before start_all). Added E-DEMO-006 error code section with full format table. Added EC-019-013 (org_id mismatch edge case). Added TV-019-015 (E-DEMO-006 test vector). Added VP-019-I (E-DEMO-006 unit test). OBS-2 anchor drift fixed: Stories traceability row, Story Anchor section, and VP Anchors section updated to include S-DEMO-DTU-LIVE-SCENARIO-001-B. Guard order in PRE-6: E-DEMO-002 → E-DEMO-006 → E-DEMO-003 → E-DEMO-004. |
+| v1.3 | PO micro-burst 2026-06-12 — B-P5-01 precondition renumbering correction. The v1.2 insertion of PRE-6 (org_id equality guard) displaced the archetype and build-before-start preconditions but the body labels were incorrectly written as PRE-8 and PRE-9, skipping PRE-7. Corrected: archetype precondition → PRE-7 (was mislabeled 8), build-before-start → PRE-8 (was mislabeled 9). The v1.2 changelog claim "Renumbered former PRE-6→PRE-8 … PRE-7→PRE-9" is annotated `[corrected at v1.3]` below. No semantic change to any precondition. B-P5-02 (taxonomy half): error-taxonomy.md E-DEMO-003 row updated from "§Precondition 6" to "§Precondition 7" (archetype is PRE-7 post-renumber). |
+| v1.2 | PO micro-burst 2026-06-12 — OBS-1 org_id-equality gap closed. Added PRE-6 (org_id equality guard across scenario-enabled clones; E-DEMO-006; detection before E-DEMO-003; rationale: silent INV-CROSS-DTU-ENTITY-COHERENCE-001 incoherence is SOUL.md §4 class). Renumbered former PRE-6→PRE-8 (archetype) and PRE-7→PRE-9 (build_clone_pairs before start_all) [corrected at v1.3: body labels were written as 8 and 9, skipping 7; correct labels are PRE-7 (archetype) and PRE-8 (build-before-start)]. Added E-DEMO-006 error code section with full format table. Added EC-019-013 (org_id mismatch edge case). Added TV-019-015 (E-DEMO-006 test vector). Added VP-019-I (E-DEMO-006 unit test). OBS-2 anchor drift fixed: Stories traceability row, Story Anchor section, and VP Anchors section updated to include S-DEMO-DTU-LIVE-SCENARIO-001-B. Guard order in PRE-6: E-DEMO-002 → E-DEMO-006 → E-DEMO-003 → E-DEMO-004. |
 | v1.1 | ADR-036 v2.0 / D-1078 substrate-reconciliation corrections. Pinned `stage_duration_secs` 4-entry convention (ADR-036 v2.0 §1.3, §2.1): added explicit 4-entry table showing array-index-to-stage mapping in §Postcondition 2; stage 0 (Baseline) always activates at 0s and is NOT represented in the array. Corrected EC-019-006 which incorrectly described 4 entries as an E-DEMO-003 error — 4 entries IS the correct count for `CompromisedEndpoint`; added EC-019-006b (3 entries → error) and EC-019-006c (5 entries → error) to document the actual error cases. Confirmed `activates_after_secs: u64` as the authoritative `IncidentStage` field name (NOT "duration") per ADR-036 v2.0 §2.2. All stage threshold values (60/180/360/600) unchanged. lifecycle_status remains draft. Invariant semantics unchanged. |
 | v1.0 | Initial authoring. ADR-036 ACCEPTED 2026-06-09. BC-2.06.019 namespace confirmed (next-available after BC-2.06.018). Subsystem: SS-01 (prism-dtu-demo-server, prism-dtu-common). Capability: CAP-036 — harness wiring layer (temporal staging extends the harness orchestration that BC-2.06.018 began). Error codes E-DEMO-002 and E-DEMO-003 registered here (to be reflected in error-taxonomy.md by error-taxonomy owner in same burst per BC-2.06.018 precedent). Invariant naming follows ADR-036 §7 candidate invariant IDs verbatim with BC-house-style expansion. |

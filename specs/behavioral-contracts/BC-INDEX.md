@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "6.28"
+version: "6.30"
 status: draft
 producer: story-writer
 timestamp: 2026-06-12T00:00:00Z
@@ -116,7 +116,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.06.016 | Error Taxonomy for Per-Org Overlay Override Violations (E-SPEC-019 through E-SPEC-023) | 06 - Client Configuration | CAP-009 | P0 | active — v1.3; promoted D-825 (PR #155 merge 2026-05-26) |
 | BC-2.06.017 | Per-DTU-Instance Multi-Address Binding for Multi-Tenant Overlay Testing | SS-01 (Sensor Adapters) | CAP-036 | P2 | draft — v1.1 (D-1076: Amendment-1 Postcondition-5 start_on prose corrected; Amendment-2 error-table inner types disambiguated; 5 invariants UNCHANGED) |
 | BC-2.06.018 | Demo-Server Config-Time Data Seeding — Per-Clone seed + fixture_set Wire-Up | SS-01 (Sensor Adapters) | CAP-036 | P2 | active — v1.6 (D-1089 2026-06-10: POL-14 draft→active; anchor story S-DEMO-DTU-LIVE-SCENARIO-001-A merged PR #181 develop@c287b00d; full 8-archetype archetype-driven seeding delivered; fixture_gen_seeded sentinel; per-client distinct data proven INV-DISTINCT-DATA-001) |
-| BC-2.06.019 | Demo-Server Scenario Progression — Pure-Function Temporal Stage Advancement with Reproducibility Guarantee | SS-01 (Sensor Adapters) | CAP-036 | P2 | draft — v1.2 (OBS-1 2026-06-12: PRE-6 org_id-equality guard + E-DEMO-006 + EC-019-013 + TV-019-015 + VP-019-I; OBS-2: Story Anchor/VP Anchors/Traceability propagate S-DEMO-DTU-LIVE-SCENARIO-001-B); anchor story S-DEMO-DTU-LIVE-SCENARIO-001-B ready v2.2 (D-1090 2026-06-12) |
+| BC-2.06.019 | Demo-Server Scenario Progression — Pure-Function Temporal Stage Advancement with Reproducibility Guarantee | SS-01 (Sensor Adapters) | CAP-036 | P2 | draft — v1.3 (B-P5-01 2026-06-12: precondition renumbering correction — archetype PRE-7, build-before-start PRE-8; v1.2 body had mislabeled them 8/9 skipping 7; v1.2: OBS-1 PRE-6 org_id-equality guard + E-DEMO-006 + EC-019-013 + TV-019-015 + VP-019-I); anchor story S-DEMO-DTU-LIVE-SCENARIO-001-B ready v2.3 (D-1090 2026-06-12) |
 | BC-2.06.020 | Demo-Server Enrichment Correlation — Scenario IOCs Resolve in ThreatIntel; Scenario CVEs Resolve in NVD | SS-01 (Sensor Adapters) | CAP-036 | P2 | draft — v1.2 (OBS-2 2026-06-12: Story Anchor/VP Anchors/Traceability propagate S-DEMO-DTU-LIVE-SCENARIO-001-B); anchor story S-DEMO-DTU-LIVE-SCENARIO-001-B ready v2.2 (D-1090 2026-06-12) |
 | BC-2.07.001 | Internal Ephemeral Pagination Token Structure | 07 - Adapter Pagination & Response Cache | CAP-011 | P0 | draft |
 | BC-2.07.002 | Internal Pagination Token Lifecycle — Forward Progress, Timeout, and Cleanup | 07 - Adapter Pagination & Response Cache | CAP-011 | P0 | draft |
@@ -380,6 +380,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v6.30 (2026-06-12, PO micro-burst — B-P5-01 precondition renumbering correction):** product-owner | **BC-2.06.019 v1.2→v1.3** (B-P5-01, HIGH). The v1.2 insertion of PRE-6 (org_id equality guard) produced body labels 8 and 9 for the archetype and build-before-start preconditions, skipping PRE-7. Corrected: archetype precondition → PRE-7 (was mislabeled 8), build-before-start → PRE-8 (was mislabeled 9). v1.2 changelog row annotated `[corrected at v1.3]`. No semantic change. **B-P5-02 (taxonomy half):** error-taxonomy.md E-DEMO-003 row cite corrected from "§Precondition 6" to "§Precondition 7" (archetype is PRE-7 post-renumber); E-DEMO-006 row "§Precondition 6" is correct (org_id guard IS PRE-6) — no change. Taxonomy frontmatter bumped v1.76→v1.78 (v1.77 entry existed in changelog but frontmatter had not been updated). Counts UNCHANGED (250/232/5/0/7/6). BC-INDEX v6.29→v6.30.
 
 **v6.29 (2026-06-12, PO micro-burst — OBS-1 org_id-equality gap + OBS-2 body-anchor drift):** product-owner | **OBS-1 (BC-2.06.019 v1.1→v1.2):** PRE-6 added — org_id equality guard across scenario-enabled clones (E-DEMO-006; detection after E-DEMO-002, before E-DEMO-003; silent INV-CROSS-DTU-ENTITY-COHERENCE-001 incoherence is SOUL.md §4 class). PRE-7 renumbered PRE-8; PRE-8 renumbered PRE-9. E-DEMO-006 error code section added to BC body. EC-019-013 (org_id mismatch edge case) added. TV-019-015 (E-DEMO-006 test vector) added. VP-019-I (E-DEMO-006 unit test) added. OBS-2 (both BCs v1.1→v1.2): Stories traceability row, Story Anchor section, VP Anchors section updated to include S-DEMO-DTU-LIVE-SCENARIO-001-B in both BC-2.06.019 and BC-2.06.020. E-DEMO-006 registered in error-taxonomy.md v1.76→v1.77. Implementer work-order: new Red Gate test `test_BC_2_06_019_e_demo_006_org_id_mismatch_across_scenario_clones` required in prism-dtu-demo-server (VP-019-I); guard position AFTER E-DEMO-002 check, BEFORE E-DEMO-003 check in `build_clone_pairs`; story spec v2.2→v2.3 update delegated to story-writer (BC array propagation per `bc_array_changes_propagate_to_body_and_acs` policy — see work-order below). Counts UNCHANGED (250/232/5/0/7/6). BC-INDEX v6.28→v6.29.
 
