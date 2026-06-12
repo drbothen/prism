@@ -118,11 +118,6 @@ pub fn current_stage_index(timeline: &IncidentTimeline, now_epoch_secs: i64) -> 
 /// `stage_duration_secs`: 4-entry array for stages 1-4 activation thresholds.
 /// Stage 0 (Baseline) always activates at 0 — no array entry.
 /// When empty, defaults to `[60, 180, 360, 600]` (BC-2.06.019 §Postcondition 2).
-///
-/// # Stub (S-DEMO-DTU-LIVE-SCENARIO-001-B)
-///
-/// Returns a 1-stage timeline so compilation succeeds. Tests exercising the 5-stage
-/// structure will FAIL (Red Gate).
 pub fn build_default_incident_timeline(
     catalog: ScenarioEntityCatalog,
     start_secs: i64,

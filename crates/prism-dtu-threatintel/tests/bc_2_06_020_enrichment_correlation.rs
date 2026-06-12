@@ -2,16 +2,18 @@
 //!
 //! Tests:
 //!   Test 13: test_BC_2_06_020_threatintel_ioc_correlation_all_types
+//!            test_BC_2_06_020_ac013_lookup_response_fields (companion — HTTP route verification)
 //!   Test 16: test_BC_2_06_020_non_scenario_passthrough_and_perimeter_gate
 //!
 //! Story: S-DEMO-DTU-LIVE-SCENARIO-001-B
 //! Traces to: BC-2.06.020 INV-THREATINTEL-IOC-CORRELATION-001 / PC-1, PC-2
 //!            BC-2.06.020 INV-NON-SCENARIO-LOOKUP-PASSTHROUGH-001 + INV-PERIMETER-COMPLIANCE-001 / PC-6
+//!            AC-013/PC-2: lookup response must carry threat_is_known_malicious=true, threat_score >= 75
 
 #![cfg(feature = "fixture-gen")]
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
-use prism_dtu_common::{build_scenario_entity_catalog, OrgId};
+use prism_dtu_common::{build_scenario_entity_catalog, build_test_client, BehavioralClone, OrgId};
 use prism_dtu_threatintel::ThreatIntelClone;
 
 /// Org ID with well-known first 4 bytes [0xde, 0xad, 0xbe, 0xef] → org_slug = "deadbeef".
@@ -290,4 +292,95 @@ fn test_BC_2_06_020_non_scenario_passthrough_and_perimeter_gate() {
     // The compile-fail gate at tests/external/perimeter-violation/ enforces this.
     // Since no new perimeter-violating imports were added by this story's stubs,
     // the compile-fail gate remains satisfied.
+}
+
+// ---------------------------------------------------------------------------
+// COMPANION TEST for AC-013/PC-2 — HTTP route-level response field verification
+//
+// BC-2.06.020 AC-013/PC-2: a lookup response for catalog.ioc_ips[0] issued via
+// the HTTP route (GET /v3/ip/:ip) must carry threat_is_known_malicious=true AND
+// threat_score >= 75.
+//
+// This companion test starts an actual ThreatIntelClone server (new_with_scenario),
+// issues an HTTP GET for ioc_ips[0], and asserts the AC-013/PC-2 response fields.
+// It keeps the registry-presence assertions from test 13 separate (construction-time
+// INV evidence) and adds direct end-to-end HTTP evidence here.
+//
+// Deterministic: ioc_ips are RNG-derived from (seed=77, deadbeef_org) and are always
+// the same set; none will collide with benign or unknown fixture entries.
+// ---------------------------------------------------------------------------
+
+/// Companion to Test 13 — AC-013/PC-2 HTTP route lookup response fields.
+///
+/// BC-2.06.020 AC-013/PC-2: GET /v3/ip/{ioc_ips[0]} via new_with_scenario clone
+/// must return HTTP 200 with threat_is_known_malicious=true and threat_score >= 75.
+#[tokio::test]
+async fn test_BC_2_06_020_ac013_lookup_response_fields() {
+    let org = deadbeef_org();
+    let seed: u64 = 77;
+
+    let catalog = build_scenario_entity_catalog(seed, &org);
+
+    assert!(
+        !catalog.ioc_ips.is_empty(),
+        "catalog.ioc_ips must be non-empty for this test to be valid"
+    );
+    let ioc_ip = &catalog.ioc_ips[0];
+
+    // Start a real server via new_with_scenario.
+    let mut clone = ThreatIntelClone::new_with_scenario(&catalog);
+    clone
+        .start()
+        .await
+        .expect("AC-013: ThreatIntelClone::start() must succeed");
+
+    let base = clone.base_url();
+    let client = build_test_client();
+
+    // Issue HTTP GET /v3/ip/{ioc_ip}?key=test-key
+    let resp = client
+        .get(format!("{base}/v3/ip/{ioc_ip}"))
+        .query(&[("key", "test-key-valid")])
+        .send()
+        .await
+        .expect("AC-013: HTTP request to ThreatIntelClone must succeed");
+
+    assert_eq!(
+        resp.status().as_u16(),
+        200,
+        "AC-013: scenario IOC IP lookup must return HTTP 200; got {}",
+        resp.status()
+    );
+
+    let body: serde_json::Value = resp
+        .json()
+        .await
+        .expect("AC-013: response must be valid JSON");
+
+    // AC-013/PC-2: threat_is_known_malicious must be true.
+    let is_malicious = body
+        .get("threat_is_known_malicious")
+        .and_then(|v| v.as_bool())
+        .expect("AC-013: response must contain 'threat_is_known_malicious' field");
+    assert!(
+        is_malicious,
+        "AC-013/PC-2: threat_is_known_malicious must be true for scenario IOC IP '{ioc_ip}'; \
+         BC-2.06.020 PC-2"
+    );
+
+    // AC-013/PC-2: threat_score must be >= 75.
+    let threat_score = body
+        .get("threat_score")
+        .and_then(|v| v.as_u64())
+        .expect("AC-013: response must contain 'threat_score' field");
+    assert!(
+        threat_score >= 75,
+        "AC-013/PC-2: threat_score must be >= 75 for scenario IOC IP '{ioc_ip}'; \
+         got {threat_score} — BC-2.06.020 PC-2"
+    );
+
+    clone
+        .stop()
+        .await
+        .expect("AC-013: clone.stop() must succeed");
 }
