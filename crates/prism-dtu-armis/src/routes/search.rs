@@ -196,10 +196,24 @@ pub async fn get_search(
         // (seeded=true, 0 records) serves empty — not the static fixture. F-P6-HIGH-001.
         #[cfg(feature = "fixture-gen")]
         if state.fixture_gen_seeded {
+            // P2-02 (review 2026-06-10 cascade pass-2): apply the SAME AQL
+            // after:/before: window filtering as the static branch
+            // (alert_in_time_window) — the seeded branch previously bypassed
+            // it, so every bounded window returned ALL seeded records.
+            // Filters on the flat `created_at` key (P2-01 mirror of `time`).
             let generated_alerts: Vec<&serde_json::Value> = state
                 .generated_records
                 .iter()
                 .filter(|rec| rec.get("alert_id").is_some())
+                .filter(|rec| {
+                    generated_in_time_window(
+                        rec,
+                        "created_at",
+                        None,
+                        aql_after_bound,
+                        aql_before_bound,
+                    )
+                })
                 .collect();
             let total = generated_alerts.len() as u32;
             let page_alerts: Vec<serde_json::Value> = if start_offset >= generated_alerts.len() {
@@ -260,10 +274,23 @@ pub async fn get_search(
         // (seeded=true, 0 records) serves empty — not the static fixture. F-P6-HIGH-001.
         #[cfg(feature = "fixture-gen")]
         if state.fixture_gen_seeded {
+            // P2-02: apply the SAME AQL after:/before: window filtering as the
+            // static branch (device_in_time_window) — filters on the flat
+            // `last_seen` key with `first_seen` fallback (P2-01 mirrors of
+            // `lastSeen` / `firstSeen`), matching the §8.3 fallback chain.
             let generated_devices: Vec<&serde_json::Value> = state
                 .generated_records
                 .iter()
                 .filter(|rec| rec.get("asset_id").is_some() && rec.get("alert_id").is_none())
+                .filter(|rec| {
+                    generated_in_time_window(
+                        rec,
+                        "last_seen",
+                        Some("first_seen"),
+                        aql_after_bound,
+                        aql_before_bound,
+                    )
+                })
                 .collect();
             let total = generated_devices.len() as u32;
             let page_devices: Vec<serde_json::Value> = if start_offset >= generated_devices.len() {
@@ -391,6 +418,53 @@ fn alert_in_time_window(
         None => return false,
     };
     // Apply bounds with inclusive boundary (keep ts == bound; ADV-P08-MED-001).
+    if let Some(after) = after_bound {
+        if ts < after {
+            return false;
+        }
+    }
+    if let Some(before) = before_bound {
+        if ts > before {
+            return false;
+        }
+    }
+    true
+}
+
+/// Check whether a SEEDED (generator-emitted) record falls within the given
+/// AQL time window (P2-02, review 2026-06-10 cascade pass-2).
+///
+/// Generic over the flat timestamp key because seeded records are raw
+/// `serde_json::Value` (not typed `DeviceRecord` / `AlertRecord`):
+/// - devices: `primary = "last_seen"`, `fallback = Some("first_seen")` —
+///   the same §8.3 fallback chain as `device_in_time_window`.
+/// - alerts: `primary = "created_at"`, no fallback — same as
+///   `alert_in_time_window`.
+///
+/// Semantics are identical to the static-branch helpers: no bounds → include
+/// all; missing/unparseable timestamp under active bounds → EXCLUDE
+/// (conservative per §8.3); inclusive boundaries (ADV-P08-MED-001).
+#[cfg(feature = "fixture-gen")]
+fn generated_in_time_window(
+    rec: &serde_json::Value,
+    primary: &str,
+    fallback: Option<&str>,
+    after_bound: Option<DateTime<Utc>>,
+    before_bound: Option<DateTime<Utc>>,
+) -> bool {
+    if after_bound.is_none() && before_bound.is_none() {
+        return true;
+    }
+    let ts_str = rec
+        .get(primary)
+        .and_then(|v| v.as_str())
+        .or_else(|| fallback.and_then(|f| rec.get(f).and_then(|v| v.as_str())));
+    let Some(ts_str) = ts_str else {
+        return false; // No timestamp → exclude (conservative per §8.3).
+    };
+    let Some(ts) = parse_iso8601_utc(ts_str) else {
+        return false; // Unparseable timestamp → exclude (conservative).
+    };
     if let Some(after) = after_bound {
         if ts < after {
             return false;

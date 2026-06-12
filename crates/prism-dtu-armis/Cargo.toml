@@ -107,6 +107,18 @@ path = "tests/bc_3_4_armis_generator.rs"
 required-features = ["fixture-gen"]
 
 [[test]]
+name = "review_2026_06_10_p1_02_timestamps"
+path = "tests/review_2026_06_10_p1_02_timestamps.rs"
+required-features = ["fixture-gen"]
+
+# 2026-06-10 review cascade pass-2: P2-01 generator↔TOML↔static-fixture shape
+# parity (CS-06 test class for Armis) + P2-02 seeded-path AQL window filtering.
+[[test]]
+name = "review_2026_06_10_armis_parity"
+path = "tests/review_2026_06_10_armis_parity.rs"
+required-features = ["dtu", "fixture-gen"]
+
+[[test]]
 name = "multi_tenant"
 path = "tests/multi_tenant.rs"
 required-features = ["dtu"]

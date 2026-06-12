@@ -112,6 +112,89 @@ const ALLOWED_BLOCK_KIT_KEYS: &[&str] = &[
 ];
 
 // ---------------------------------------------------------------------------
+// Failure mode application (mirrors claroty::apply_failure_mode)
+//
+// Auth ordering (per BC-3.6.001 work-order): no explicit auth check on the
+// webhook route (Slack uses a token-in-path model, not a header auth check).
+// Failure injection runs BEFORE payload validation — same pattern as
+// claroty.rs get_assets (which has no auth check either):
+// counter → apply_failure_mode → normal processing.
+//
+// All 6 modes are represented:
+//   AuthReject → 401
+//   InternalError → 500 at at_request_n
+//   RateLimit → 429 after N requests
+//   NetworkTimeout → sleep(after_ms) (EC-007: 0ms = no-op)
+//   MalformedResponse → non-JSON body
+//   Unprocessable → 422 at at_request_n
+// ---------------------------------------------------------------------------
+
+/// Apply the current failure mode. Returns `Some(response)` if a failure should be served.
+///
+/// For NetworkTimeout: returns `None` here; callers must check for NetworkTimeout
+/// BEFORE calling this function and sleep appropriately (same pattern as claroty.rs).
+fn apply_failure_mode(mode: &FailureMode, n: u32) -> Option<axum::response::Response> {
+    use axum::response::IntoResponse as _;
+    match mode {
+        FailureMode::None => None,
+        FailureMode::AuthReject => {
+            Some((StatusCode::UNAUTHORIZED, "\"unauthorized\"").into_response())
+        }
+        FailureMode::InternalError { at_request_n } => {
+            if n == *at_request_n {
+                Some((StatusCode::INTERNAL_SERVER_ERROR, "\"internal_error\"").into_response())
+            } else {
+                None
+            }
+        }
+        FailureMode::RateLimit {
+            after_n_requests,
+            retry_after_secs,
+        } => {
+            if n > *after_n_requests {
+                let retry_str = retry_after_secs.to_string();
+                Some(
+                    (
+                        StatusCode::TOO_MANY_REQUESTS,
+                        [("Retry-After", retry_str.as_str())],
+                        "\"ratelimited\"",
+                    )
+                        .into_response(),
+                )
+            } else {
+                None
+            }
+        }
+        FailureMode::NetworkTimeout { after_ms } => {
+            // EC-007: delay_ms=0 is a no-op. Non-zero delays are handled
+            // per-route via tokio::time::sleep before this function is called.
+            let _ = after_ms;
+            None
+        }
+        FailureMode::Unprocessable { at_request_n } => {
+            if n == *at_request_n {
+                Some((StatusCode::UNPROCESSABLE_ENTITY, "\"unprocessable_entity\"").into_response())
+            } else {
+                None
+            }
+        }
+        FailureMode::MalformedResponse =>
+        {
+            #[allow(clippy::expect_used)]
+            Some(
+                axum::response::Response::builder()
+                    .status(200)
+                    .header("Content-Type", "application/json")
+                    .body(axum::body::Body::from(
+                        b"\xff\xfe{not valid json!@#$%^&*(" as &[u8],
+                    ))
+                    .expect("build malformed response"),
+            )
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Route handlers
 // ---------------------------------------------------------------------------
 
@@ -127,36 +210,29 @@ fn resolve_org_id(headers: &HeaderMap) -> String {
 
 /// `POST /services/*token` — Slack Incoming Webhook endpoint.
 ///
-/// Applies failure mode from CloneState, validates Block Kit payload,
+/// Applies full failure mode from CloneState, validates Block Kit payload,
 /// captures tagged payload, returns HTTP 200 `{"ok":true,"message_ts":"..."}`.
+/// Auth ordering: failure injection runs before payload validation
+/// (Slack has no header auth check; mirrors claroty.rs get_assets pattern).
 async fn post_webhook(
     Path(_token): Path<String>,
     State(ctx): State<Arc<SlackCloneCtx>>,
     headers: HeaderMap,
     body: axum::body::Bytes,
 ) -> impl IntoResponse {
-    // Step 1: increment request count.
-    let count = ctx.clone_state.increment_request();
+    // Step 1: NetworkTimeout — sleep before counting (EC-007: 0ms = no-op).
+    let mode_pre = ctx.clone_state.current_failure_mode();
+    if let FailureMode::NetworkTimeout { after_ms } = &mode_pre {
+        if *after_ms > 0 {
+            tokio::time::sleep(tokio::time::Duration::from_millis(*after_ms)).await;
+        }
+    }
 
-    // Step 2: check failure mode.
+    // Step 2: increment request count and apply full failure mode (all 6 variants).
+    let count = ctx.clone_state.increment_request();
     let mode = ctx.clone_state.current_failure_mode();
-    match &mode {
-        FailureMode::RateLimit {
-            after_n_requests,
-            retry_after_secs,
-        } if count > *after_n_requests => {
-            let retry_str = retry_after_secs.to_string();
-            return (
-                StatusCode::TOO_MANY_REQUESTS,
-                [("Retry-After", retry_str.as_str())],
-                "\"ratelimited\"",
-            )
-                .into_response();
-        }
-        FailureMode::InternalError { at_request_n } if count == *at_request_n => {
-            return (StatusCode::INTERNAL_SERVER_ERROR, "\"internal_error\"").into_response();
-        }
-        _ => {}
+    if let Some(resp) = apply_failure_mode(&mode, count) {
+        return resp;
     }
 
     // Step 3: parse and validate payload.
@@ -223,10 +299,15 @@ async fn get_health() -> impl IntoResponse {
 
 /// The harness configure payload format (mirrors `clone_server::ConfigureBody`).
 ///
-/// Using `deny_unknown_fields = false` (no annotation) so any extra fields from
-/// the harness are ignored. This is the same format that `Harness::inject_failure`
-/// sends via `failure_mode_to_json`.
+/// This is the same format that `Harness::inject_failure` sends via
+/// `failure_mode_to_json`.
+///
+/// F10 / finding ⑫ (2026-06-10 review): strict payload schema — an unknown
+/// field in a configure payload is a harness-side bug (typo'd failure-mode key
+/// silently ignored), so it must be rejected with 400, not dropped. Human
+/// overrode the prior "deliberately permissive" stance on 2026-06-10.
 #[derive(Debug, Deserialize, Default)]
+#[serde(deny_unknown_fields)]
 struct HarnessConfigure {
     #[serde(default)]
     auth_mode: Option<String>,
@@ -274,42 +355,62 @@ async fn post_configure(
         }
     };
 
-    let mode = harness_configure_to_failure_mode(&cfg);
-    ctx.clone_state.request_count.store(0, Ordering::SeqCst);
-    ctx.clone_state.set_failure_mode(mode);
-    (StatusCode::OK, Json(json!({"status": "ok"})))
+    // BC-3.6.001 Postcondition 5: a structurally-valid payload that requests
+    // an unrecognized mode (e.g. a future FailureMode variant) must return HTTP 400
+    // with {"error":"unsupported_failure_mode","mode":"<variant-name>"}.  This is
+    // distinct from the serde deny_unknown_fields path above (schema-invalid payload).
+    match harness_configure_to_failure_mode(&cfg) {
+        Ok(mode) => {
+            ctx.clone_state.request_count.store(0, Ordering::SeqCst);
+            ctx.clone_state.set_failure_mode(mode);
+            (StatusCode::OK, Json(json!({"status": "ok"})))
+        }
+        Err(mode_name) => (
+            StatusCode::BAD_REQUEST,
+            Json(json!({"error": "unsupported_failure_mode", "mode": mode_name})),
+        ),
+    }
 }
 
 /// Convert `HarnessConfigure` to a `FailureMode`.
-fn harness_configure_to_failure_mode(cfg: &HarnessConfigure) -> FailureMode {
+///
+/// Returns `Ok(FailureMode)` for recognized modes (including `None` for
+/// empty / clear payloads).  Returns `Err(mode_name)` when a known field
+/// carries an unrecognized value — the caller maps this to HTTP 400 with the
+/// BC-3.6.001 Postcondition-5 body
+/// `{"error":"unsupported_failure_mode","mode":"<mode_name>"}`.
+fn harness_configure_to_failure_mode(cfg: &HarnessConfigure) -> Result<FailureMode, String> {
     if cfg.clear == Some(true) {
-        return FailureMode::None;
+        return Ok(FailureMode::None);
     }
-    if cfg.auth_mode.as_deref() == Some("reject") {
-        return FailureMode::AuthReject;
-    }
-    if let Some(n) = cfg.rate_limit_after {
-        return FailureMode::RateLimit {
-            after_n_requests: n,
-            retry_after_secs: cfg.retry_after_secs.unwrap_or(60),
+    if let Some(mode) = &cfg.auth_mode {
+        return match mode.as_str() {
+            "reject" => Ok(FailureMode::AuthReject),
+            // "none" is an explicit no-op clear via auth_mode field.
+            "none" => Ok(FailureMode::None),
+            // Any other value is an unsupported mode (future variant contract).
+            other => Err(other.to_owned()),
         };
     }
+    if let Some(n) = cfg.rate_limit_after {
+        return Ok(FailureMode::RateLimit {
+            after_n_requests: n,
+            retry_after_secs: cfg.retry_after_secs.unwrap_or(60),
+        });
+    }
     if let Some(n) = cfg.internal_error_at {
-        return FailureMode::InternalError { at_request_n: n };
+        return Ok(FailureMode::InternalError { at_request_n: n });
     }
     if let Some(ms) = cfg.network_timeout_ms {
-        return FailureMode::NetworkTimeout { after_ms: ms };
+        return Ok(FailureMode::NetworkTimeout { after_ms: ms });
     }
     if cfg.malformed_response == Some(true) {
-        return FailureMode::MalformedResponse;
+        return Ok(FailureMode::MalformedResponse);
     }
     if let Some(n) = cfg.unprocessable_at {
-        return FailureMode::Unprocessable { at_request_n: n };
+        return Ok(FailureMode::Unprocessable { at_request_n: n });
     }
-    if cfg.auth_mode.as_deref() == Some("none") {
-        return FailureMode::None;
-    }
-    FailureMode::None
+    Ok(FailureMode::None)
 }
 
 // ---------------------------------------------------------------------------

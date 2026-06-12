@@ -65,8 +65,15 @@ pub async fn post_configure(
 /// only that org's `alert_store` entries are cleared (`reset_for`); the
 /// `access_token_allowlist` is org-agnostic and is not cleared per-org.
 /// When the header is absent, all orgs' alert state and the full
-/// `access_token_allowlist` are cleared (`reset_all`), then the demo token
-/// is re-registered so the clone is immediately usable post-reset.
+/// `access_token_allowlist` are cleared (`reset_all`).  The allowlist is
+/// left empty after reset — callers must re-provision a token via
+/// `POST /dtu/configure` with `{"access_token": "..."}` before making
+/// authenticated requests (see `CyberintState::apply_config`).
+///
+/// Note: the harness-layer reset (`prism-dtu-harness::clones::cyberint::reset`)
+/// differs — it re-registers the stored demo token automatically so harness
+/// clones are immediately usable after reset.  This standalone clone stores
+/// no demo token and cannot do the same.
 /// Backward-compatible with integration tests that predate multi-tenancy.
 ///
 /// # ADR-003 Amendment #5 (TD-WV0-08)

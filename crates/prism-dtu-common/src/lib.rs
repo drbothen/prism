@@ -54,8 +54,9 @@ pub use fixture::{load_fixture, load_fixture_as};
 // for all new generator code.
 #[cfg(feature = "fixture-gen")]
 pub use generator::{
-    all_archetypes, apply_overrides, default_page_size, seeded_rng as gen_seeded_rng, Archetype,
-    FixtureSet, GenOpts, GenOptsError, OrgId, Provenance,
+    all_archetypes, apply_overrides, default_page_size, demo_time_anchor,
+    seeded_rng as gen_seeded_rng, stable_offset, Archetype, FixtureSet, GenOpts, GenOptsError,
+    OrgId, Provenance, DEMO_TIME_ANCHOR_EPOCH_SECS,
 };
 #[cfg(any(test, feature = "dtu"))]
 pub use layers::{FailureLayer, FailureLayerShared, LatencyLayer};

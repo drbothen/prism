@@ -135,6 +135,10 @@ impl SlackState {
                     let at_n = payload.at_request_n.unwrap_or(1);
                     FailureMode::InternalError { at_request_n: at_n }
                 }
+                "unprocessable" => {
+                    let at_n = payload.at_request_n.unwrap_or(1);
+                    FailureMode::Unprocessable { at_request_n: at_n }
+                }
                 other => {
                     anyhow::bail!("unknown failure_mode: {other}");
                 }
@@ -223,5 +227,27 @@ impl SlackState {
         #[allow(clippy::expect_used)]
         let mode = self.failure_mode.lock().expect("failure_mode poisoned");
         mode.clone()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn apply_config_unprocessable_sets_failure_mode() {
+        let state = SlackState::new();
+        let config = serde_json::json!({"failure_mode": "unprocessable", "at_request_n": 1});
+        state
+            .apply_config(&config)
+            .expect("apply_config should succeed");
+        // SAFETY: mutex poison only occurs if a previous holder panicked — not possible in normal operation.
+        #[allow(clippy::expect_used)]
+        let guard = state.failure_mode.lock().expect("failure_mode poisoned");
+        assert!(
+            matches!(*guard, FailureMode::Unprocessable { at_request_n: 1 }),
+            "expected Unprocessable {{ at_request_n: 1 }}, got {:?}",
+            *guard
+        );
     }
 }

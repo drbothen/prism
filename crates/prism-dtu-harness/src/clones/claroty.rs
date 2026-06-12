@@ -139,8 +139,8 @@ pub enum ClarotyTestHookSignal {
 ///
 /// Each clone stores `org_slug` so that device IDs can be made unique per org.
 /// When a harness has multiple Claroty clones, each clone's device IDs are
-/// prefixed with the org slug, ensuring pairwise-disjoint ID sets
-/// (BC-3.5.001 postcondition 2; VP-123).
+/// prefixed with the org slug (BC-3.5.001 postcondition 1; prefix-scoping property),
+/// ensuring pairwise-disjoint ID sets (BC-3.5.001 postcondition 2; VP-123).
 ///
 /// Single-tenant tests use org_slug `""` (empty), which preserves the original
 /// `asset_id` values from the fixture (e.g. `"asset-001"`) so that tests that
@@ -184,7 +184,7 @@ impl ClarotyCloneState {
     /// Create state with a specific admin token and org slug.
     ///
     /// `org_slug` is embedded in device IDs to ensure multi-org isolation
-    /// (BC-3.5.001 postcondition 2). Pass an empty string for single-tenant tests
+    /// (BC-3.5.001 postcondition 1). Pass an empty string for single-tenant tests
     /// that reference specific `asset_id` values from the fixture.
     /// Create state with admin token, org slug, and id prefix.
     ///
@@ -433,7 +433,7 @@ struct AddTagBody {
 ///
 /// Always prefixes `asset_id` with `org_slug` (regardless of seed) so that
 /// the logical isolation tests can assert `id.contains("acme-corp")` etc.
-/// (BC-3.5.001 postcondition 2; D-059).
+/// (BC-3.5.001 postcondition 1; D-059).
 ///
 /// When `org_slug` is non-empty, the response sets `"id"` to
 /// `"{org_slug}-{original_asset_id}"`. When empty, falls back to `asset_id`.
@@ -810,6 +810,22 @@ async fn dtu_configure(
         }
     }
 
+    // BC-3.6.001 Postcondition 5: auth_mode carries an enumerated value set.
+    // Any value outside {"reject","none"} is an unsupported mode — return HTTP 400
+    // with the contractual body {"error":"unsupported_failure_mode","mode":"<value>"}.
+    // Mirrors the harness_configure_to_failure_mode Err-arm pattern in pagerduty.rs.
+    if let Some(mode_str) = &body.auth_mode {
+        match mode_str.as_str() {
+            "reject" | "none" => {} // handled in mode-determination chain below
+            other => {
+                return (
+                    StatusCode::BAD_REQUEST,
+                    Json(json!({"error": "unsupported_failure_mode", "mode": other})),
+                );
+            }
+        }
+    }
+
     // Determine failure mode.
     let mode = if body.clear == Some(true) {
         FailureMode::None
@@ -829,6 +845,7 @@ async fn dtu_configure(
     } else if body.malformed_response == Some(true) {
         FailureMode::MalformedResponse
     } else {
+        // auth_mode == "none" or absent → clear (idempotent, EC-006)
         FailureMode::None
     };
 

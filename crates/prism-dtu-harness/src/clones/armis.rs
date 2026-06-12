@@ -39,12 +39,13 @@
 //! Armis returns **HTTP 403** (not 401) for missing/malformed Bearer tokens.
 //! This is intentional per AC-5 and the Armis API spec.
 //!
-//! # Isolation (BC-3.5.001 postcondition 2)
+//! # Isolation (BC-3.5.001 postconditions 1, 2)
 //!
 //! Device IDs are prefixed with `{org_slug}-` when the org slug is not the
-//! canonical "test-tenant" slug. This ensures that when two harness orgs are
-//! started simultaneously, their device ID sets are pairwise-disjoint, satisfying
-//! BC-3.5.001 postcondition 2 (TV-2; VP-122, VP-123; AC-003).
+//! canonical "test-tenant" slug. The prefix-scoping mechanism satisfies
+//! BC-3.5.001 postcondition 1 (prefix-scoping property), which in turn ensures
+//! that device ID sets are pairwise-disjoint, satisfying postcondition 2
+//! (disjointness property) (TV-2; VP-122, VP-123; AC-003).
 //!
 //! The "test-tenant" slug is treated as the canonical test org and serves fixture
 //! device IDs verbatim (`d-001`..`d-025`), allowing AC-002 timestamp-fallback tests
@@ -100,7 +101,7 @@ const ACTIVITY_FIXTURE: &str =
 /// One instance exists per `(OrgId, DtuType::Armis)` pair in the harness.
 /// State is never shared across org boundaries (BC-3.5.001 postcondition 2).
 pub struct ArmisHarnessState {
-    /// Org slug — used for device ID scoping (BC-3.5.001 postcondition 2).
+    /// Org slug — used for device ID scoping (BC-3.5.001 postcondition 1).
     pub org_slug: String,
     /// Per-device tag store keyed by device_id. Cleared on reset.
     ///
@@ -213,13 +214,13 @@ impl ArmisHarnessState {
             .unwrap_or_default()
     }
 
-    /// Scope a device ID for org isolation (BC-3.5.001 postcondition 2).
+    /// Scope a device ID for org isolation (BC-3.5.001 postcondition 1).
     ///
     /// The canonical "test-tenant" org serves fixture device IDs verbatim (e.g. `d-001`)
     /// so that AC-002 timestamp-fallback tests can find the fixture device by exact ID.
     ///
     /// All other org slugs have their device IDs prefixed with `{org_slug}-`, making
-    /// device ID sets pairwise-disjoint across orgs (AC-003; VP-123).
+    /// device ID sets pairwise-disjoint across orgs (BC-3.5.001 postcondition 2; AC-003; VP-123).
     pub fn scope_device_id(&self, raw_id: &str) -> String {
         if self.org_slug == "test-tenant" {
             raw_id.to_owned()
@@ -741,8 +742,20 @@ async fn get_search(
         .into_response()
     } else {
         #[allow(clippy::expect_used)]
-        let all_devices: Vec<Value> =
+        let mut all_devices: Vec<Value> =
             serde_json::from_str(DEVICES_FIXTURE).expect("DEVICES_FIXTURE is valid JSON");
+
+        // BC-3.5.001 Postconditions 1, 2 / P23-02: scope device_id for org isolation,
+        // mirroring device_page exactly. Postcondition 1 (prefix-scoping) requires each
+        // org's IDs carry its namespace prefix; postcondition 2 (disjointness) requires
+        // that without this scoping, two non-test-tenant orgs would both receive the raw
+        // fixture IDs (d-001..d-025) — violating the disjointness invariant.
+        for device in &mut all_devices {
+            let raw_id = device["device_id"].as_str().unwrap_or_default().to_owned();
+            let scoped_id = state.scope_device_id(&raw_id);
+            device["device_id"] = Value::String(scoped_id);
+        }
+
         let total = all_devices.len() as u32;
 
         let page_results: Vec<Value> = if offset >= all_devices.len() {
@@ -857,6 +870,22 @@ async fn dtu_configure(
         }
     };
 
+    // BC-3.6.001 Postcondition 5: auth_mode carries an enumerated value set.
+    // Any value outside {"reject","none"} is an unsupported mode — return HTTP 400
+    // with the contractual body {"error":"unsupported_failure_mode","mode":"<value>"}.
+    // EC-009: stateless — no mode change on rejection.
+    if let Some(mode_str) = &body.auth_mode {
+        match mode_str.as_str() {
+            "reject" | "none" => {} // handled in mode-determination chain below
+            other => {
+                return (
+                    StatusCode::BAD_REQUEST,
+                    Json(json!({"error": "unsupported_failure_mode", "mode": other})),
+                );
+            }
+        }
+    }
+
     // Determine failure mode. Check harness-format fields first (used by inject_failure),
     // then fall back to Armis-native `failure_mode` string format (used by direct test calls).
     let mode = if body.clear == Some(true) {
@@ -901,10 +930,13 @@ async fn dtu_configure(
             Some("network_timeout") => FailureMode::NetworkTimeout {
                 after_ms: body.after_ms.unwrap_or(5000),
             },
+            // BC-3.6.001 Postcondition 5: unrecognized native failure_mode string.
+            // Normalize to contractual body {"error":"unsupported_failure_mode","mode":"<value>"}
+            // (previously returned non-contractual {"error":"unknown failure_mode: <value>"}).
             Some(other) => {
                 return (
                     StatusCode::BAD_REQUEST,
-                    Json(json!({"error": format!("unknown failure_mode: {other}")})),
+                    Json(json!({"error": "unsupported_failure_mode", "mode": other})),
                 );
             }
         }
@@ -1035,7 +1067,7 @@ pub async fn poll_armis_test_hook(
 ///
 /// Called by `clone_server::start_clone` when `DtuType::Armis` is dispatched.
 /// The state is constructed with the org slug and admin token so that device IDs
-/// can be scoped for multi-tenant isolation (BC-3.5.001 postcondition 2).
+/// can be scoped for multi-tenant isolation (BC-3.5.001 postcondition 1).
 pub fn router(state: Arc<ArmisHarnessState>) -> Router {
     Router::new()
         // Vendor API endpoints (all require Bearer auth → 403 if missing)

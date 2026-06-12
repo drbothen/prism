@@ -11,12 +11,14 @@ name = "prism_dtu_claroty"
 
 [features]
 dtu = []
-fixture-gen = ["prism-dtu-common/fixture-gen", "dep:rand"]
+# chrono under fixture-gen: time_anchor threading (review-2026-06-10 P1-01/P1-02).
+fixture-gen = ["prism-dtu-common/fixture-gen", "dep:rand", "dep:chrono"]
 tls = ["dep:axum-server", "prism-dtu-common/tls"]
 
 [dependencies]
 prism-dtu-common = { path = "../prism-dtu-common", version = "0.1.0", features = ["dtu"] }
 rand = { version = "0.8", optional = true }
+chrono = { version = "0.4", features = ["serde"], optional = true }
 prism-core = { path = "../prism-core" }
 axum-server = { version = "0.7", features = ["tls-rustls"], optional = true }
 axum = "0.7"
@@ -50,6 +52,18 @@ prism-dtu-harness = { path = "../prism-dtu-harness", features = ["dtu"] }
 [[test]]
 name = "bc_3_4_claroty_generator"
 path = "tests/bc_3_4_claroty_generator.rs"
+required-features = ["fixture-gen"]
+
+[[test]]
+name = "review_2026_06_10_p1_02_timestamps"
+path = "tests/review_2026_06_10_p1_02_timestamps.rs"
+required-features = ["fixture-gen"]
+
+# 2026-06-10 review cascade pass-2: P2-01 generator↔TOML↔static-fixture shape
+# parity (CS-06 test class for Claroty).
+[[test]]
+name = "review_2026_06_10_claroty_parity"
+path = "tests/review_2026_06_10_claroty_parity.rs"
 required-features = ["fixture-gen"]
 
 [[test]]

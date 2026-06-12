@@ -56,7 +56,7 @@ fn org_b() -> OrgId {
     ])
 }
 
-/// Default GenOpts (seed=42, scale=1.0, time_anchor=UNIX_EPOCH, overrides=Null)
+/// Default GenOpts (seed=42, scale=1.0, time_anchor=demo_time_anchor(), overrides=Null)
 fn default_opts() -> GenOpts {
     GenOpts::default()
 }

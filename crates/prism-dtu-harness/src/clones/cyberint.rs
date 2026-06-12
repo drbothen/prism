@@ -1153,6 +1153,24 @@ async fn dtu_configure(
             .into_response();
     }
 
+    // BC-3.6.001 Postcondition 5: auth_mode carries an enumerated value set.
+    // Check for unrecognized auth_mode values BEFORE apply_config so we can return
+    // the contractual two-field body {"error":"unsupported_failure_mode","mode":"<value>"}.
+    // Cyberint accepts {"reject","accept","none"} (same as CrowdStrike); any other value
+    // is unsupported. EC-009: stateless — no state change on rejection.
+    if let Some(auth_mode_val) = body.get("auth_mode").and_then(|v| v.as_str()) {
+        match auth_mode_val {
+            "reject" | "accept" | "none" => {} // recognized values — proceed to apply_config
+            other => {
+                return (
+                    StatusCode::BAD_REQUEST,
+                    Json(json!({"error": "unsupported_failure_mode", "mode": other})),
+                )
+                    .into_response();
+            }
+        }
+    }
+
     // Apply Cyberint-specific config.
     if let Err(e) = state.cyberint.apply_config(&body) {
         return (StatusCode::BAD_REQUEST, Json(json!({"error": e}))).into_response();
@@ -1166,6 +1184,11 @@ async fn dtu_configure(
             FailureMode::None
         } else if cfg.auth_mode.as_deref() == Some("reject") {
             FailureMode::AuthReject
+        } else if cfg.auth_mode.as_deref() == Some("accept")
+            || cfg.auth_mode.as_deref() == Some("none")
+        {
+            // "accept" or "none" → clear (idempotent, EC-006)
+            FailureMode::None
         } else if let Some(n) = cfg.rate_limit_after {
             FailureMode::RateLimit {
                 after_n_requests: n,
@@ -1180,6 +1203,7 @@ async fn dtu_configure(
         } else if let Some(n) = cfg.unprocessable_at {
             FailureMode::Unprocessable { at_request_n: n }
         } else {
+            // Empty body → clear failure mode (idempotent, EC-006)
             FailureMode::None
         };
 
