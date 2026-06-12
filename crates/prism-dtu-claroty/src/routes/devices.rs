@@ -266,12 +266,15 @@ pub async fn list_devices(
             let now = chrono::Utc::now().timestamp();
             let stage_idx = current_stage_index(timeline, now);
             let mask = &timeline.stages[stage_idx].visible_entity_mask;
-            // Claroty uses ASSET-{org_slug}-{seed}-{n} format (BC-3.4.004).
-            // Must use primary_device_id_claroty (not primary_device_id_armis which has "dev-" prefix).
-            let primary_id = &timeline.entities.primary_device_id_claroty;
+            // Claroty stage-gating uses `device_id` (the canonical `dev-` key) as the
+            // coherence field — the same value as `primary_device_id_cs` in the catalog.
+            // BC-2.06.020 PC-5 / INV-CROSS-DTU-ENTITY-COHERENCE-001 / BC-3.4.004 TV-3.4.004-01.
+            // `asset_id` (ASSET- prefix) is an additive Claroty-specific field on each record
+            // but is NOT the stage-gating key.
+            let primary_id = &timeline.entities.primary_device_id_cs;
             let lateral_ids: std::collections::HashSet<&str> = timeline
                 .entities
-                .lateral_device_ids_claroty
+                .lateral_device_ids_cs
                 .iter()
                 .map(|s| s.as_str())
                 .collect();
@@ -281,12 +284,12 @@ pub async fn list_devices(
                 .iter()
                 .filter(|rec| rec.get("_surface").and_then(|v| v.as_str()) == Some("device"))
                 .filter(|rec| {
-                    let asset_id = rec.get("asset_id").and_then(|v| v.as_str()).unwrap_or("");
-                    if asset_id == primary_id {
+                    let device_id = rec.get("device_id").and_then(|v| v.as_str()).unwrap_or("");
+                    if device_id == primary_id {
                         // Stage 0: primary device not yet surfaced.
                         // stage_idx > 0 guard per BC-2.06.019 PC-4 / TV-019-007.
                         mask.primary_device && stage_idx > 0
-                    } else if lateral_ids.contains(asset_id) {
+                    } else if lateral_ids.contains(device_id) {
                         mask.lateral_devices
                     } else {
                         true

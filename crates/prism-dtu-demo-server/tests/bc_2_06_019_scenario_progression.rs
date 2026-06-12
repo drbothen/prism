@@ -663,13 +663,17 @@ async fn test_BC_2_06_020_cross_dtu_entity_coherence_stage1_all_three_clones() {
     // At stage 1 (Recon), primary device must be present; lateral devices must
     // be ABSENT (StageMask lateral_devices=false at stage 1).
     //
-    // Claroty uses "ASSET-{org_slug}-{seed}-{index}" for the asset_id field
-    // (BC-3.4.004: "dev-" prefix on device_id, "ASSET-" prefix on asset_id).
-    // Primary device: asset_id = "ASSET-deadbeef-100-0".
-    // Lateral devices: asset_id = "ASSET-deadbeef-100-1", "ASSET-deadbeef-100-2", ...
+    // Cross-DTU coherence (BC-2.06.020 PC-5 / INV-CROSS-DTU-ENTITY-COHERENCE-001):
+    // Claroty's canonical stage-gating key is `device_id` with the `dev-` prefix
+    // (BC-3.4.004 TV-3.4.004-01/02/04). The `device_id` value EQUALS `primary_device_id_cs`
+    // from the catalog — both are "dev-{slug}-{seed}-0" per ADR-036 §2.2. This is the
+    // JOIN key that makes cross-DTU correlation possible.
+    //
+    // `asset_id` (format "ASSET-{slug}-{seed}-{index}") is an additive Claroty-specific
+    // field present in every record, but it is NOT the coherence key.
     //
     // FAIL: without StageMask projection, ALL generated records are served →
-    // lateral device IDs (ASSET-deadbeef-100-1, etc.) ARE in the response →
+    // lateral device IDs (`dev-deadbeef-100-1`, etc.) ARE in the response →
     // the lateral-absent assertion FAILS.
     // -------------------------------------------------------------------------
     let claroty_resp = client
@@ -693,20 +697,44 @@ async fn test_BC_2_06_020_cross_dtu_entity_coherence_stage1_all_three_clones() {
         .await
         .expect("Claroty response must be JSON");
 
-    // Claroty response shape: {"assets": [...]} or {"devices": [...]}.
-    // The canonical field for device ID in Claroty is "asset_id"
-    // (BC-3.4.004: asset_id = "ASSET-{slug}-{seed}-{index}").
-    let claroty_assets = claroty_body["assets"]
+    // Claroty response shape: {"devices": [...]} from the route handler.
+    let claroty_devices = claroty_body["devices"]
         .as_array()
-        .or_else(|| claroty_body["devices"].as_array())
         .cloned()
         .unwrap_or_default();
 
-    // Claroty primary device asset_id = "ASSET-{org_slug}-{seed}-0"
-    // (same entity as CS/Armis "dev-deadbeef-100-0", different ID scheme).
-    let expected_primary_claroty = format!("ASSET-{}-{}-0", catalog.org_slug, seed);
+    // The coherence key is `device_id` = "dev-{org_slug}-{seed}-0" — same value as
+    // `catalog.primary_device_id_cs`. This is what INV-CROSS-DTU-ENTITY-COHERENCE-001
+    // requires: `id_cs ∈ Claroty.devices response (device_id field)`.
+    // BC-2.06.020 PC-5 / BC-3.4.004 TV-3.4.004-01.
+    let expected_primary_claroty_device_id = &catalog.primary_device_id_cs; // "dev-deadbeef-100-0"
 
-    let claroty_asset_ids: Vec<String> = claroty_assets
+    let claroty_device_ids: Vec<String> = claroty_devices
+        .iter()
+        .filter_map(|rec| {
+            rec.get("device_id")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_owned())
+        })
+        .collect();
+
+    // BC-2.06.020 PC-5 / AC-015: at stage 1, primary device must be present via device_id.
+    // This is the load-bearing cross-DTU JOIN assertion: device_id must equal primary_device_id_cs.
+    let claroty_primary_found =
+        claroty_device_ids.contains(&expected_primary_claroty_device_id.to_string());
+
+    assert!(
+        claroty_primary_found,
+        "Cross-DTU coherence: Claroty response at stage 1 must contain primary device \
+         device_id='{}'; got device_ids: {:?}. BC-2.06.020 PC-5 / INV-CROSS-DTU-ENTITY-COHERENCE-001 \
+         [RED GATE: StageMask projection absent OR route filters on ASSET- key instead of dev- key]",
+        expected_primary_claroty_device_id, claroty_device_ids
+    );
+
+    // Verify asset_id is also present (additive Claroty-specific field, not the JOIN key).
+    // BC-3.4.004: every record carries both device_id (dev-) and asset_id (ASSET-).
+    let expected_primary_asset_id = format!("ASSET-{}-{}-0", catalog.org_slug, seed);
+    let claroty_asset_ids: Vec<String> = claroty_devices
         .iter()
         .filter_map(|rec| {
             rec.get("asset_id")
@@ -714,36 +742,27 @@ async fn test_BC_2_06_020_cross_dtu_entity_coherence_stage1_all_three_clones() {
                 .map(|s| s.to_owned())
         })
         .collect();
-
-    // BC-2.06.020 PC-5 / AC-015: at stage 1, primary device must be present.
-    let claroty_primary_found = claroty_asset_ids.contains(&expected_primary_claroty);
-
     assert!(
-        claroty_primary_found,
-        "Cross-DTU coherence: Claroty response at stage 1 must contain primary device \
-         '{}' (field: asset_id); got asset_ids: {:?}. BC-2.06.020 PC-5 / AC-015 \
-         [RED GATE: StageMask projection absent OR timeline=None prevents scenario routing]",
-        expected_primary_claroty, claroty_asset_ids
+        claroty_asset_ids.contains(&expected_primary_asset_id),
+        "Claroty primary device record must also carry asset_id='{}' (additive field, BC-3.4.004); \
+         got asset_ids: {:?}",
+        expected_primary_asset_id, claroty_asset_ids
     );
 
     // BC-2.06.020 PC-5 / AC-015: at stage 1, lateral devices must be ABSENT.
     // StageMask at stage 1: primary_device=true, lateral_devices=false.
-    // Lateral Claroty devices: "ASSET-{slug}-{seed}-1", "ASSET-{slug}-{seed}-2", ...
+    // Lateral device_ids: "dev-deadbeef-100-1", "dev-deadbeef-100-2", "dev-deadbeef-100-3".
     // FAIL: without StageMask projection, ALL records are served → lateral devices
     //       ARE in the response → this assertion FAILS.
-    let lateral_claroty_ids: Vec<String> = (1..=3)
-        .map(|n| format!("ASSET-{}-{}-{}", catalog.org_slug, seed, n))
-        .collect();
-
-    for lat_id in &lateral_claroty_ids {
+    for lat_id in &catalog.lateral_device_ids_cs {
         assert!(
-            !claroty_asset_ids.contains(lat_id),
-            "TV-015-cross-dtu: at stage 1 (Recon), lateral Claroty device '{}' must be ABSENT \
+            !claroty_device_ids.contains(lat_id),
+            "TV-015-cross-dtu: at stage 1 (Recon), lateral Claroty device device_id='{}' must be ABSENT \
              from POST /api/v1/devices response (StageMask lateral_devices=false at stage 1); \
              found it in {:?}. BC-2.06.020 PC-5 / AC-015 \
              [RED GATE: StageMask projection not implemented — lateral devices leak at stage 1]",
             lat_id,
-            claroty_asset_ids
+            claroty_device_ids
         );
     }
 

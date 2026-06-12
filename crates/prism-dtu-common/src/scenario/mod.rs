@@ -283,20 +283,13 @@ pub struct ScenarioEntityCatalog {
     /// Secondary device IDs involved in lateral movement (Armis format).
     pub lateral_device_ids_armis: Vec<String>,
 
-    /// The primary compromised device ID in Claroty asset_id format.
-    ///
-    /// Format: `"ASSET-{org_slug}-{seed}-0"`.
-    /// Example (org_slug=`"deadbeef"`, seed=42): `"ASSET-deadbeef-42-0"`.
-    ///
-    /// Distinct from `primary_device_id_armis` which uses the `"dev-"` prefix.
-    /// Claroty uses the `"ASSET-"` prefix for the `asset_id` field (BC-3.4.004).
-    pub primary_device_id_claroty: String,
-
-    /// Secondary device IDs involved in lateral movement (Claroty format).
-    ///
-    /// Format: `"ASSET-{org_slug}-{seed}-{n}"` for n in 1..=3.
-    pub lateral_device_ids_claroty: Vec<String>,
-
+    // NOTE: No separate Claroty-specific device ID fields.
+    // Claroty's stage-gating coherence key is `device_id` = "dev-{slug}-{seed}-{n}"
+    // — identical to `primary_device_id_cs` / `lateral_device_ids_cs`.
+    // The `asset_id` field ("ASSET-{slug}-{seed}-{n}") is a Claroty-specific additive
+    // record field, but it is NOT the cross-DTU JOIN key.
+    // BC-2.06.020 PC-5 / INV-CROSS-DTU-ENTITY-COHERENCE-001 / BC-3.4.004 TV-3.4.004-01.
+    // Route handlers for Claroty filter on `device_id` using `primary_device_id_cs`.
     /// IOC IPv4 addresses introduced during Exfil stage.
     ///
     /// Derived from the secondary RNG stream (`gen_seeded_rng(seed.wrapping_add(1), &org_id)`).
@@ -372,12 +365,6 @@ pub fn build_scenario_entity_catalog(seed: u64, org_id: &OrgId) -> ScenarioEntit
         .map(|n| format!("dev-{org_slug}-{seed}-{n}"))
         .collect();
 
-    // Claroty uses "ASSET-" prefix (BC-3.4.004).
-    let primary_device_id_claroty = format!("ASSET-{org_slug}-{seed}-0");
-    let lateral_device_ids_claroty: Vec<String> = (1..=3)
-        .map(|n| format!("ASSET-{org_slug}-{seed}-{n}"))
-        .collect();
-
     // Secondary RNG stream — completely independent of the primary generator stream.
     // gen_seeded_rng(seed.wrapping_add(1), org_id) per ADR-036 §2.2.
     let mut rng = gen_seeded_rng(seed.wrapping_add(1), org_id);
@@ -391,11 +378,9 @@ pub fn build_scenario_entity_catalog(seed: u64, org_id: &OrgId) -> ScenarioEntit
         org_slug,
         primary_device_id_cs,
         primary_device_id_armis,
-        primary_device_id_claroty,
         primary_hostname,
         lateral_device_ids_cs,
         lateral_device_ids_armis,
-        lateral_device_ids_claroty,
         ioc_ips,
         ioc_domains,
         ioc_hashes,
