@@ -131,10 +131,35 @@ pub fn build_default_incident_timeline(
     // Default thresholds for stages 1-4 (stage 0 always activates at 0).
     // BC-2.06.019 §Postcondition 2 canonical table.
     const DEFAULT_THRESHOLDS: &[u64] = &[60, 180, 360, 600];
+
+    // B-P1-04: validate slice length before indexing.
+    // Production path: callers pass `&[]` (→ DEFAULT_THRESHOLDS, always 4 entries)
+    // or a validated 4-entry slice from the E-DEMO-003 harness guard.
+    // A non-empty slice with fewer than 4 entries would panic at thresholds[3].
+    // Production-grade fix: fall back to defaults when the slice is wrong-length,
+    // logging the deviation so it's diagnosable. The harness E-DEMO-003 guard prevents
+    // wrong-length slices from reaching this function in normal operation; this guard
+    // is defense-in-depth against future callers that bypass harness validation.
     let thresholds: &[u64] = if stage_duration_secs.is_empty() {
         DEFAULT_THRESHOLDS
-    } else {
+    } else if stage_duration_secs.len() == 4 {
         stage_duration_secs
+    } else {
+        // Non-empty but wrong length: fall back to defaults.
+        // The harness E-DEMO-003 guard should have caught this; reaching here is a
+        // caller bug. Log at error level so it's diagnosable in production (SAP-1:
+        // no new event_type emissions needed — this uses the "dtu.scenario" target
+        // with a plain error! emission, no event_type field).
+        tracing::error!(
+            target: "dtu.scenario",
+            got_len = stage_duration_secs.len(),
+            expected_len = 4usize,
+            "build_default_incident_timeline: stage_duration_secs has wrong length; \
+             falling back to DEFAULT_THRESHOLDS [60, 180, 360, 600]. \
+             Caller must provide exactly 4 entries or an empty slice. \
+             B-P1-04 / BC-2.06.019"
+        );
+        DEFAULT_THRESHOLDS
     };
 
     // Build 5 stages per BC-2.06.019 §Postcondition 2 table:
@@ -258,6 +283,20 @@ pub struct ScenarioEntityCatalog {
     /// Secondary device IDs involved in lateral movement (Armis format).
     pub lateral_device_ids_armis: Vec<String>,
 
+    /// The primary compromised device ID in Claroty asset_id format.
+    ///
+    /// Format: `"ASSET-{org_slug}-{seed}-0"`.
+    /// Example (org_slug=`"deadbeef"`, seed=42): `"ASSET-deadbeef-42-0"`.
+    ///
+    /// Distinct from `primary_device_id_armis` which uses the `"dev-"` prefix.
+    /// Claroty uses the `"ASSET-"` prefix for the `asset_id` field (BC-3.4.004).
+    pub primary_device_id_claroty: String,
+
+    /// Secondary device IDs involved in lateral movement (Claroty format).
+    ///
+    /// Format: `"ASSET-{org_slug}-{seed}-{n}"` for n in 1..=3.
+    pub lateral_device_ids_claroty: Vec<String>,
+
     /// IOC IPv4 addresses introduced during Exfil stage.
     ///
     /// Derived from the secondary RNG stream (`gen_seeded_rng(seed.wrapping_add(1), &org_id)`).
@@ -325,12 +364,18 @@ pub fn build_scenario_entity_catalog(seed: u64, org_id: &OrgId) -> ScenarioEntit
     let primary_device_id_armis = format!("dev-{org_slug}-{seed}-0");
     let primary_hostname = format!("host-{org_slug}-{seed}");
 
-    // Lateral device IDs (indices 1..=3)
+    // Lateral device IDs (indices 1..=3) — per-DTU format
     let lateral_device_ids_cs: Vec<String> = (1..=3)
         .map(|n| format!("dev-{org_slug}-{seed}-{n}"))
         .collect();
     let lateral_device_ids_armis: Vec<String> = (1..=3)
         .map(|n| format!("dev-{org_slug}-{seed}-{n}"))
+        .collect();
+
+    // Claroty uses "ASSET-" prefix (BC-3.4.004).
+    let primary_device_id_claroty = format!("ASSET-{org_slug}-{seed}-0");
+    let lateral_device_ids_claroty: Vec<String> = (1..=3)
+        .map(|n| format!("ASSET-{org_slug}-{seed}-{n}"))
         .collect();
 
     // Secondary RNG stream — completely independent of the primary generator stream.
@@ -346,9 +391,11 @@ pub fn build_scenario_entity_catalog(seed: u64, org_id: &OrgId) -> ScenarioEntit
         org_slug,
         primary_device_id_cs,
         primary_device_id_armis,
+        primary_device_id_claroty,
         primary_hostname,
         lateral_device_ids_cs,
         lateral_device_ids_armis,
+        lateral_device_ids_claroty,
         ioc_ips,
         ioc_domains,
         ioc_hashes,

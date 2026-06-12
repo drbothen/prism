@@ -156,18 +156,23 @@ pub async fn post_devices(
 
 /// Pagination helper shared by GET and POST device queries.
 ///
-/// Dual-path (ADR-036 §2.3, BC-2.06.018, F-P2-CRIT-002, F-P6-HIGH-001):
-/// - When `state.fixture_gen_seeded == true` (clone built via `new_with_seed`):
-///   serves device records as raw `serde_json::Value` (Claroty pattern).
-///   Generated records use camelCase Armis-native field names ("asset_id", "lastSeen",
-///   etc.) which are incompatible with the snake_case `DeviceRecord` struct.
-///   The adapter reads `$.data.devices` by JSON path, so raw Values are correct.
-///   A seeded clone with zero generated device records (e.g. `Archetype::DormantTenant`)
-///   serves an EMPTY list — it does NOT fall back to `state.devices_ordered`.
-/// - When `state.fixture_gen_seeded == false` (`new()` / non-seeded path):
-///   serves from `state.devices_ordered` (static fixture, backward-compatible path).
+/// Three-way composition (ADR-036 v2.3 §2.4, BC-2.06.019 PC-4, F-P6-HIGH-001):
+/// - Scenario path (`fixture_gen_seeded == true && timeline.is_some()`):
+///   applies StageMask projection — only entities visible at the current stage are served.
+///   Primary device: visible when `mask.primary_device && stage_index > 0`.
+///   Lateral devices: visible when `mask.lateral_devices`.
+///   Non-catalog records: always visible (pass-through).
+/// - Seeded path (`fixture_gen_seeded == true && timeline.is_none()`):
+///   serves all generated records (Story-A behavior, unchanged).
+///   DormantTenant (seeded=true, 0 records) serves EMPTY — not static fixture.
+/// - Static path (`fixture_gen_seeded == false`):
+///   serves from `state.devices_ordered` (backward-compatible path).
+///
+/// MUST branch on `fixture_gen_seeded`, NOT `generated_records.is_empty()`.
+/// DormantTenant guard: zero records + seeded=true → empty, not static.
+/// F-P6-HIGH-001 / ADR-036 v2.2 / ADR-036 v2.3 §2.4.
 fn paginate_devices(state: &ArmisState, page: u32, size: u32) -> axum::response::Response {
-    // Dual-path: use fixture_gen_seeded (not generated_records.is_empty()) as sentinel.
+    // Three-way composition sentinel: use fixture_gen_seeded (not is_empty()).
     // DormantTenant (seeded=true, 0 records) must serve empty — not static fixture.
     // F-P6-HIGH-001 / ADR-036 v2.2.
     #[cfg(feature = "fixture-gen")]
@@ -189,6 +194,69 @@ fn paginate_devices(state: &ArmisState, page: u32, size: u32) -> axum::response:
         // NO silent .ok() drops: every generated record that has "asset_id" is served.
         // Records without "asset_id" (alerts in the fixture) are intentionally excluded
         // from the /api/v1/devices endpoint — this is not data loss, it is correct partitioning.
+
+        // Scenario path: apply StageMask projection (BC-2.06.019 PC-4 / B-P1-01).
+        // Must nest INSIDE fixture_gen_seeded=true (three-way composition requirement).
+        // DormantTenant guard: branching on fixture_gen_seeded, NOT is_empty().
+        if let Some(ref timeline) = state.timeline {
+            use prism_dtu_common::current_stage_index;
+            let now = chrono::Utc::now().timestamp();
+            let stage_idx = current_stage_index(timeline, now);
+            let mask = &timeline.stages[stage_idx].visible_entity_mask;
+            let primary_id = &timeline.entities.primary_device_id_armis;
+            let lateral_ids: std::collections::HashSet<&str> = timeline
+                .entities
+                .lateral_device_ids_armis
+                .iter()
+                .map(|s| s.as_str())
+                .collect();
+
+            // Stage 0 (Baseline): no attack entities visible yet — primary device
+            // appears first at stage 1 (Recon), even though mask.primary_device=true
+            // at stage 0. The `stage_idx > 0` guard implements "scenario not yet started"
+            // semantics: the device is enrolled in the scenario but not yet surfaced.
+            // BC-2.06.019 PC-4 / TV-019-007, TV-019-017 (stage 0 → primary absent).
+            let all_generated: Vec<&serde_json::Value> = state
+                .generated_records
+                .iter()
+                .filter(|v| v.get("asset_id").is_some() && v.get("alert_id").is_none())
+                .filter(|v| {
+                    let asset_id = v.get("asset_id").and_then(|a| a.as_str()).unwrap_or("");
+                    if asset_id == primary_id {
+                        mask.primary_device && stage_idx > 0
+                    } else if lateral_ids.contains(asset_id) {
+                        mask.lateral_devices
+                    } else {
+                        // Non-catalog records always pass through.
+                        true
+                    }
+                })
+                .collect();
+
+            let total = all_generated.len() as u32;
+            let offset = ((page - 1) * size) as usize;
+            let page_devices: Vec<serde_json::Value> = if offset >= all_generated.len() {
+                vec![]
+            } else {
+                all_generated
+                    .iter()
+                    .skip(offset)
+                    .take(size as usize)
+                    .map(|v| (*v).clone())
+                    .collect()
+            };
+
+            let body = serde_json::json!({
+                "data": {
+                    "devices": page_devices,
+                    "total": total,
+                    "page": page,
+                }
+            });
+            return (StatusCode::OK, Json(body)).into_response();
+        }
+
+        // Seeded path (no scenario): serve all generated records (Story-A behavior).
         let all_generated: Vec<&serde_json::Value> = state
             .generated_records
             .iter()

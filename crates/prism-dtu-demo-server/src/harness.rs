@@ -341,6 +341,53 @@ pub fn build_clone_pairs(config: &DemoConfig) -> anyhow::Result<Vec<ClonePair>> 
     use prism_dtu_threatintel::ThreatIntelClone;
 
     // ---------------------------------------------------------------------------
+    // B-P1-03 fix: E-DEMO-002 (seed mismatch) must fire BEFORE E-DEMO-004 (missing
+    // org_id). Architecture Compliance Rules (story spec): guard order is
+    // E-DEMO-002 → E-DEMO-003 → E-DEMO-004, all before any constructor.
+    //
+    // This block runs before `validated_gen` (which checks E-DEMO-004) so that
+    // seed-mismatch is detected first even when org_id is also missing.
+    // ---------------------------------------------------------------------------
+    #[cfg(feature = "fixture-gen")]
+    {
+        let all_gen_clones_prescan: [(&'static str, &CloneConfig); 4] = [
+            ("crowdstrike", &config.clones.crowdstrike),
+            ("armis", &config.clones.armis),
+            ("claroty", &config.clones.claroty),
+            ("cyberint", &config.clones.cyberint),
+        ];
+        let scenario_seeds: Vec<(&'static str, u64)> = all_gen_clones_prescan
+            .iter()
+            .filter_map(|(name, cfg)| {
+                if !cfg.enabled {
+                    return None;
+                }
+                let sc = cfg.scenario.as_ref()?;
+                if !sc.enabled {
+                    return None;
+                }
+                Some((*name, cfg.seed))
+            })
+            .collect();
+        if scenario_seeds.len() >= 2 {
+            let (first_name, first_seed) = scenario_seeds[0];
+            for (name, seed) in &scenario_seeds[1..] {
+                if *seed != first_seed {
+                    anyhow::bail!(
+                        "demo-server: E-DEMO-002: scenario clones '{}' (seed={}) and '{}' \
+                         (seed={}) have different seeds; cross-DTU coherence requires all \
+                         scenario-enabled clones to share the same seed",
+                        first_name,
+                        first_seed,
+                        name,
+                        seed
+                    );
+                }
+            }
+        }
+    }
+
+    // ---------------------------------------------------------------------------
     // Story A: Validate ALL generator-backed clone configs BEFORE constructing any clone
     // (INV-CONSTRUCTION-TIME-FAILURE-001 — errors surface before constructors are called)
     //
