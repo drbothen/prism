@@ -388,9 +388,66 @@ pub fn build_clone_pairs(config: &DemoConfig) -> anyhow::Result<Vec<ClonePair>> 
     }
 
     // ---------------------------------------------------------------------------
+    // BC-2.06.019 PRE-6: E-DEMO-006 (org_id mismatch across scenario-enabled clones)
+    // prescan runs AFTER E-DEMO-002 (seed mismatch) and BEFORE E-DEMO-003 (bad
+    // archetype). Canonical guard order: E-DEMO-002 → E-DEMO-006 → E-DEMO-003 → E-DEMO-004.
+    //
+    // Compare org_ids only for scenario-enabled clones where org_id is Some(_).
+    // Clones with org_id=None are absent from the equality check — their missing
+    // org_id will surface as E-DEMO-004 later (that is a distinct error class).
+    // Rationale: the ScenarioEntityCatalog is derived from the first scenario-enabled
+    // clone's (seed, org_id). A second clone with a different org_id generates device
+    // IDs using dev-{slug_B}-{seed}-0, which cannot equal catalog.primary_device_id
+    // derived from slug_A — causing INV-CROSS-DTU-ENTITY-COHERENCE-001 (BC-2.06.020)
+    // cross-DTU join to return empty with no diagnostic (SOUL.md §4 silent partial-
+    // failure). This guard prevents silent incoherence at construction time.
+    // ---------------------------------------------------------------------------
+    #[cfg(feature = "fixture-gen")]
+    {
+        let all_gen_clones_e006_prescan: [(&'static str, &CloneConfig); 4] = [
+            ("crowdstrike", &config.clones.crowdstrike),
+            ("armis", &config.clones.armis),
+            ("claroty", &config.clones.claroty),
+            ("cyberint", &config.clones.cyberint),
+        ];
+        // Collect (name, org_id_str) for scenario-enabled clones with a present org_id.
+        let scenario_org_ids: Vec<(&'static str, &str)> = all_gen_clones_e006_prescan
+            .iter()
+            .filter_map(|(name, cfg)| {
+                if !cfg.enabled {
+                    return None;
+                }
+                let sc = cfg.scenario.as_ref()?;
+                if !sc.enabled {
+                    return None;
+                }
+                // Only participate in equality check when org_id is present.
+                let org_id_str = cfg.org_id.as_deref()?;
+                Some((*name, org_id_str))
+            })
+            .collect();
+        if scenario_org_ids.len() >= 2 {
+            let (first_name, first_org_id) = scenario_org_ids[0];
+            for (name, org_id) in &scenario_org_ids[1..] {
+                if *org_id != first_org_id {
+                    anyhow::bail!(
+                        "demo-server: E-DEMO-006: scenario clones '{}' (org_id={}) and '{}' \
+                         (org_id={}) have different org_ids; cross-DTU coherence requires all \
+                         scenario-enabled clones to share the same org_id",
+                        first_name,
+                        first_org_id,
+                        name,
+                        org_id
+                    );
+                }
+            }
+        }
+    }
+
+    // ---------------------------------------------------------------------------
     // B-P4-01 fix: E-DEMO-003 (bad scenario archetype) must fire BEFORE E-DEMO-004
     // (missing org_id). Architecture Compliance Rules (story spec): guard order is
-    // E-DEMO-002 → E-DEMO-003 → E-DEMO-004, all before any constructor.
+    // E-DEMO-002 → E-DEMO-006 → E-DEMO-003 → E-DEMO-004, all before any constructor.
     //
     // This prescan runs BEFORE `validated_gen` (which checks E-DEMO-004) so that
     // unrecognized/unsupported/contradictory scenario archetypes are detected first

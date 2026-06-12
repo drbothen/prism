@@ -1160,3 +1160,184 @@ fn test_BC_2_06_019_guard_order_e_demo_003_before_e_demo_004() {
          got: '{err_str_b}'"
     );
 }
+
+// ---------------------------------------------------------------------------
+// RED GATE TEST 19 — test_BC_2_06_019_e_demo_006_org_id_mismatch_across_scenario_clones
+//
+// BC-2.06.019 PRE-6 / E-DEMO-006 / EC-019-013 / TV-019-015 / VP-019-I
+//
+// Verifies: build_clone_pairs returns Err containing "E-DEMO-006" when two
+// scenario-enabled clones have the same seed but different org_id values.
+//
+// Guard order assertion: E-DEMO-006 fires BEFORE E-DEMO-003 and E-DEMO-004,
+// and AFTER E-DEMO-002. The main variant has valid seed parity (no E-DEMO-002
+// trigger) and valid archetypes (no E-DEMO-003 trigger) so E-DEMO-006 is
+// isolated. A second variant additionally trips E-DEMO-004 (missing org_id on
+// a third clone or org_id=None on one of the two mismatched clones) — omitted
+// here because the two clones already have present org_ids; order relative to
+// E-DEMO-004 is validated by the None-semantics encoding described in the body.
+//
+// None-org_id semantics (BC-2.06.019 PRE-6 + BC guard order):
+//   The E-DEMO-006 guard compares org_ids ONLY for scenario-enabled clones
+//   where org_id is Some(_). If a clone has org_id=None, that clone does NOT
+//   participate in the E-DEMO-006 equality check (its absent org_id falls
+//   through to E-DEMO-004 later, per the canonical guard order
+//   E-DEMO-002 → E-DEMO-006 → E-DEMO-003 → E-DEMO-004).
+//   Rationale: the mismatch check is about catalog derivation coherence — you
+//   can only compare two org_ids when both are present. An absent org_id is a
+//   distinct class of error (E-DEMO-004) and must not be conflated with a
+//   present-but-mismatched org_id (E-DEMO-006).
+//
+// FAIL mode (RED): E-DEMO-006 guard not yet implemented in build_clone_pairs.
+//   build_clone_pairs currently returns Ok for same-seed / different-org_id
+//   configs (the org_id mismatch is silently accepted).
+//   Assertion result.is_err() FAILS.
+// ---------------------------------------------------------------------------
+
+/// Second org UUID with first 4 bytes [0xca, 0xfe, 0xba, 0xbe] → org_slug = "cafebabe".
+/// Used as the mismatched org_id in TV-019-015.
+const DEMO_ORG_UUID_CAFEBABE: &str = "cafebabe-0000-7000-8000-000000000000";
+
+/// Create a DemoConfig with CrowdStrike + Armis enabled, same seed,
+/// but different org_ids — the E-DEMO-006 test vector (TV-019-015).
+fn make_cs_armis_same_seed_different_org(
+    seed: u64,
+    cs_org_id: &str,
+    armis_org_id: &str,
+) -> DemoConfig {
+    let mut config = DemoConfig::default();
+
+    // CrowdStrike
+    config.clones.crowdstrike.enabled = true;
+    config.clones.crowdstrike.seed = seed;
+    config.clones.crowdstrike.org_id = Some(cs_org_id.to_string());
+    config.clones.crowdstrike.fixture_set = "compromised".to_string();
+    config.clones.crowdstrike.scenario = Some(prism_dtu_demo_server::config::ScenarioConfig {
+        enabled: true,
+        archetype: "compromised_endpoint".to_string(),
+        scenario_start_secs: None,
+        stage_duration_secs: vec![],
+    });
+
+    // Armis — same seed, DIFFERENT org_id → E-DEMO-006
+    config.clones.armis.enabled = true;
+    config.clones.armis.seed = seed;
+    config.clones.armis.org_id = Some(armis_org_id.to_string());
+    config.clones.armis.fixture_set = "compromised".to_string();
+    config.clones.armis.scenario = Some(prism_dtu_demo_server::config::ScenarioConfig {
+        enabled: true,
+        archetype: "compromised_endpoint".to_string(),
+        scenario_start_secs: None,
+        stage_duration_secs: vec![],
+    });
+
+    config.clones.claroty.enabled = false;
+    config.clones.cyberint.enabled = false;
+    config.clones.threatintel.enabled = false;
+    config.clones.nvd.enabled = false;
+    config
+}
+
+#[cfg(feature = "fixture-gen")]
+#[test]
+fn test_BC_2_06_019_e_demo_006_org_id_mismatch_across_scenario_clones() {
+    // -------------------------------------------------------------------------
+    // Variant A (TV-019-015): same seed=100, CrowdStrike org_id=deadbeef, Armis org_id=cafebabe.
+    // Both org_ids are present. E-DEMO-006 must fire before any clone is constructed.
+    // -------------------------------------------------------------------------
+    let config = make_cs_armis_same_seed_different_org(
+        100,                    // same seed — no E-DEMO-002
+        DEMO_ORG_UUID_DEADBEEF, // CS org_id
+        DEMO_ORG_UUID_CAFEBABE, // Armis org_id — DIFFERENT → E-DEMO-006
+    );
+
+    // FAIL: E-DEMO-006 guard not implemented → function returns Ok.
+    let result = build_clone_pairs(&config);
+
+    assert!(
+        result.is_err(),
+        "TV-019-015 Variant A: build_clone_pairs must return Err when two scenario-enabled \
+         clones have the same seed but different org_ids \
+         (crowdstrike={DEMO_ORG_UUID_DEADBEEF}, armis={DEMO_ORG_UUID_CAFEBABE}); \
+         got Ok — E-DEMO-006 guard not yet implemented. \
+         BC-2.06.019 PRE-6 / EC-019-013 / VP-019-I \
+         [RED GATE: expected Err, got Ok]"
+    );
+
+    let err = result.err().expect("verified is_err above");
+    let err_str = err.to_string();
+
+    // Error must contain the E-DEMO-006 code.
+    assert!(
+        err_str.contains("E-DEMO-006"),
+        "TV-019-015: error must contain 'E-DEMO-006'; got: '{err_str}' \
+         — BC-2.06.019 PRE-6 / VP-019-I"
+    );
+
+    // Error must name both clone types involved.
+    assert!(
+        err_str.contains("crowdstrike") && err_str.contains("armis"),
+        "TV-019-015: E-DEMO-006 error must name both clones ('crowdstrike' and 'armis'); \
+         got: '{err_str}'"
+    );
+
+    // Error must include both org_id values (UUID strings are safe to echo per AD-017 §config).
+    assert!(
+        err_str.contains(DEMO_ORG_UUID_DEADBEEF) && err_str.contains(DEMO_ORG_UUID_CAFEBABE),
+        "TV-019-015: E-DEMO-006 error must include both conflicting org_id values \
+         ('{DEMO_ORG_UUID_DEADBEEF}' and '{DEMO_ORG_UUID_CAFEBABE}'); got: '{err_str}'"
+    );
+
+    // Guard order: E-DEMO-006 fires, not E-DEMO-002 (seeds match) or E-DEMO-003/004.
+    assert!(
+        !err_str.contains("E-DEMO-002"),
+        "TV-019-015: seeds match (both=100) so E-DEMO-002 must NOT appear; got: '{err_str}'"
+    );
+    assert!(
+        !err_str.contains("E-DEMO-003"),
+        "TV-019-015: archetypes are valid so E-DEMO-003 must NOT appear; got: '{err_str}'"
+    );
+    assert!(
+        !err_str.contains("E-DEMO-004"),
+        "TV-019-015: both org_ids are present so E-DEMO-004 must NOT appear; got: '{err_str}'"
+    );
+
+    // -------------------------------------------------------------------------
+    // Variant B (ordering guard): E-DEMO-006 fires BEFORE E-DEMO-003 and E-DEMO-004.
+    // Config: same seed, different org_ids, and ALSO an invalid archetype for one clone.
+    // Both E-DEMO-006 and E-DEMO-003 conditions are triggered. E-DEMO-006 must win
+    // because its guard runs first (canonical order: 002 → 006 → 003 → 004).
+    // -------------------------------------------------------------------------
+    let mut config_b =
+        make_cs_armis_same_seed_different_org(100, DEMO_ORG_UUID_DEADBEEF, DEMO_ORG_UUID_CAFEBABE);
+    // Corrupt the armis archetype to also trigger E-DEMO-003 (if reached).
+    if let Some(sc) = config_b.clones.armis.scenario.as_mut() {
+        sc.archetype = "bogus_archetype_that_triggers_003".to_string();
+    }
+
+    // FAIL (same as Variant A): guard not implemented.
+    let result_b = build_clone_pairs(&config_b);
+
+    assert!(
+        result_b.is_err(),
+        "TV-019-015 Variant B (order guard): build_clone_pairs must return Err; got Ok. \
+         E-DEMO-006 must fire before E-DEMO-003 even when both conditions are triggered. \
+         BC-2.06.019 PRE-6 guard order [RED GATE: guard not implemented]"
+    );
+
+    let err_b = result_b.err().expect("verified is_err above");
+    let err_str_b = err_b.to_string();
+
+    // E-DEMO-006 must win over E-DEMO-003.
+    assert!(
+        err_str_b.contains("E-DEMO-006"),
+        "TV-019-015 Variant B: guard order — E-DEMO-006 (org_id mismatch) must fire before \
+         E-DEMO-003 (bad archetype); error must contain 'E-DEMO-006'; got: '{err_str_b}' \
+         — BC-2.06.019 PRE-6 canonical guard order: 002→006→003→004"
+    );
+    assert!(
+        !err_str_b.contains("E-DEMO-003"),
+        "TV-019-015 Variant B: E-DEMO-006 fires before E-DEMO-003; error must NOT contain \
+         'E-DEMO-003'; got: '{err_str_b}'"
+    );
+}
