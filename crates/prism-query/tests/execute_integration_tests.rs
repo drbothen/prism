@@ -861,14 +861,16 @@ async fn test_AC_7_virtual_fields_present_in_all_results() {
 // ---------------------------------------------------------------------------
 
 // ---------------------------------------------------------------------------
-// F-LP1-HIGH-7: limit > 1000 returns E-QUERY-001
+// F-LP1-HIGH-7: limit > 1000 returns E-QUERY-033
 // ---------------------------------------------------------------------------
 
 /// F-LP1-HIGH-7 (BC-2.11.001): `execute` MUST return an error when `limit > 1000`.
 ///
 /// BC-2.11.001: "Max results returned (tool-level truncation). Default 25, max 1000."
 /// The engine rejects limit=1001 before any sensor contact. Error message must
-/// contain "E-QUERY-007" (ADV-W3MT-P58-CRIT-001: E-QUERY-001 is reserved for parse errors).
+/// contain "E-QUERY-033" (taxonomy v1.70 P2-01 adjudication: the interim code was a
+/// Phase-1 tombstone, permanently unreusable per ADR-038 D5; E-QUERY-001 is reserved
+/// for parse errors per ADV-W3MT-P58-CRIT-001).
 #[tokio::test]
 async fn test_HIGH_7_limit_exceeds_1000_returns_error() {
     use prism_query::engine::QueryOptions;
@@ -893,8 +895,8 @@ async fn test_HIGH_7_limit_exceeds_1000_returns_error() {
     );
     let detail = err.to_string();
     assert!(
-        detail.contains("E-QUERY-007"),
-        "HIGH-7: error must contain 'E-QUERY-007' (limit exceeds 1000; ADV-W3MT-P58-CRIT-001); got: {detail}"
+        detail.contains("E-QUERY-033"),
+        "HIGH-7: error must contain 'E-QUERY-033' (limit exceeds 1000; taxonomy v1.70 P2-01); got: {detail}"
     );
 }
 
@@ -2023,12 +2025,14 @@ async fn test_LP2_LOW_1_limit_exceeded_returns_query_limit_exceeded_variant() {
          got: {err:?}"
     );
 
-    // Display must contain E-QUERY-007 (ADV-W3MT-P58-CRIT-001: code changed from E-QUERY-001
-    // to avoid collision with QueryParseFailed which uses E-QUERY-001).
+    // Display must contain E-QUERY-033 (taxonomy v1.70 P2-01 adjudication: the interim
+    // code was a Phase-1 tombstone, permanently unreusable per ADR-038 D5; the code was
+    // moved off E-QUERY-001 by ADV-W3MT-P58-CRIT-001 to avoid the QueryParseFailed
+    // collision).
     let display = err.to_string();
     assert!(
-        display.contains("E-QUERY-007"),
-        "LP2-LOW-1: display must contain 'E-QUERY-007' (limit exceeded, ADV-W3MT-P58-CRIT-001); got: {display}"
+        display.contains("E-QUERY-033"),
+        "LP2-LOW-1: display must contain 'E-QUERY-033' (limit exceeded, taxonomy v1.70 P2-01); got: {display}"
     );
 }
 

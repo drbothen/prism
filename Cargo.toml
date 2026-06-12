@@ -47,7 +47,6 @@ members = [
     "crates/prism-storage",
     "crates/prism-audit",
     "crates/prism-query",
-    "crates/prism-customer-config",
     "crates/prism-dtu-harness",
 ]
 

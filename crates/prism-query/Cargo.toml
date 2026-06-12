@@ -74,7 +74,7 @@ sha2 = "0.10"
 # tokio-util is already a transitive dep via datafusion 53.1; this is a direct pin
 # to make the dependency explicit. CancellationToken has no feature gate in 0.7.x.
 tokio-util = { version = "0.7", default-features = false }
-# S-3.07 — Write execution pipeline: intent/outcome audit trail (BC-2.05.009).
+# S-3.07 — Write execution pipeline: intent/outcome audit trail (BC-2.05.001).
 prism-audit = { path = "../prism-audit" }
 # S-3.07 — ULID generation for operation_id and audit_intent_id.
 ulid = { version = "1", features = ["serde"] }

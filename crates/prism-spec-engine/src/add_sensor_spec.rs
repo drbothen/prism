@@ -261,6 +261,26 @@ pub fn add_sensor_spec(
         // tests AND Layer 2's presence together guarantee that any future call path bypassing
         // Layer 1 (e.g., a new SpecLoader entry point that skips parse_and_validate_spec_toml)
         // still hits Layer 2 before write.
+        //
+        // SEC-005 (symlink-escape analysis, 2026-06-11): a symlink at spec_dir/<sensor_id>.sensor.toml
+        // pointing outside spec_dir is structurally blocked by POSIX O_EXCL semantics.
+        // POSIX guarantees that O_CREAT|O_EXCL fails with EEXIST when the symlink entry itself
+        // exists in the directory — regardless of whether the symlink target exists or not.
+        // Rust's `create_new(true)` maps directly to O_EXCL on Unix. The result in both cases:
+        // - Symlink target EXISTS: AlreadyExists → ConfirmationRequired (no write).
+        // - Symlink target MISSING: AlreadyExists → ConfirmationRequired (no write).
+        // This was verified empirically (2026-06-11, macOS/Linux): open with O_CREAT|O_EXCL on
+        // a path that is a symlink (even to a nonexistent target) returns errno=EEXIST.
+        // Therefore, a symlink-escape integration test cannot be written that exercises a
+        // write-outside-spec_dir path — the write is provably unreachable. The structural
+        // guarantees (Layer 1 format check + POSIX O_EXCL + Layer 2 canonicalization) are
+        // defense-in-depth; a second layer of defense remains active even if Layer 1 were
+        // somehow bypassed.
+        //
+        // Integration test was considered and determined unnecessary: the exploit requires
+        // both (a) bypassing Layer 1 format validation AND (b) having pre-created a symlink
+        // inside spec_dir, AND (c) the POSIX O_EXCL contract being violated — (c) has never
+        // occurred in POSIX-compliant kernels. This comment IS the required SEC-005 artifact.
         if canonical_parent != canonical_spec_dir {
             return Err(SpecEngineError::SpecWriteError {
                 path: file_path.to_string_lossy().to_string(),

@@ -29,6 +29,13 @@
 //! NEVER interpolated sensor field values. This prevents prompt injection via
 //! attacker-controlled hostnames, descriptions, and process names from appearing
 //! in the LLM's primary reasoning context.
+//!
+//! # Audit warning annotation (BC-2.05.001)
+//!
+//! When read-path tool-call audit emission fails, the envelope additionally
+//! carries `_meta.audit_warning: "audit emission failed"` (BC-2.05.001
+//! postcondition "Read operations proceed on audit failure" / EC-05-002).
+//! The field is OMITTED entirely when audit emission succeeded.
 
 use chrono::Utc;
 use prism_core::{SafetyFlag, TrustLevel};
@@ -36,6 +43,12 @@ use prism_security::{injection_scanner::InjectionScanner, trust_level::trust_lev
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+
+/// Exact warning literal mandated by BC-2.05.001: when read-path tool-call
+/// audit emission fails, the response carries
+/// `_meta.audit_warning: "audit emission failed"` (EC-05-002). The read
+/// operation still proceeds — read-path audit is not fail-closed.
+pub const AUDIT_EMISSION_FAILED_WARNING: &str = "audit emission failed";
 
 /// The `_meta` section of a Prism MCP response envelope (BC-2.09.008).
 #[non_exhaustive]
@@ -50,6 +63,12 @@ pub struct ResponseMeta {
     pub page: u64,
     pub has_more: bool,
     pub next_cursor: Option<String>,
+    /// BC-2.05.001 EC-05-002 (P4-03, 2026-06-10 review): set to
+    /// [`AUDIT_EMISSION_FAILED_WARNING`] when the durable tool-call audit
+    /// emission failed for this (read-path) invocation; OMITTED from the
+    /// serialized envelope otherwise (`skip_serializing_if`).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub audit_warning: Option<String>,
 }
 
 /// Data source: single sensor or multiple sensors (cross-client query).
@@ -120,6 +139,9 @@ impl SafetyEnvelopeBuilder {
     /// 5. Set `_meta.query_time` to the current UTC timestamp.
     /// 6. Build prose summary with counts only (BC-2.09.001).
     /// 7. Never modify `results` values (flag-don't-strip).
+    /// 8. Thread `audit_warning` into `_meta.audit_warning` (BC-2.05.001
+    ///    EC-05-002 — `Some("audit emission failed")` when the read-path
+    ///    tool-call audit emission failed; `None` → field omitted).
     ///
     /// ## Scan coverage
     ///
@@ -137,6 +159,7 @@ impl SafetyEnvelopeBuilder {
         page: u64,
         has_more: bool,
         next_cursor: Option<String>,
+        audit_warning: Option<String>,
     ) -> ResponseEnvelope {
         let scanner = InjectionScanner::global();
 
@@ -227,6 +250,7 @@ impl SafetyEnvelopeBuilder {
                 page,
                 has_more,
                 next_cursor,
+                audit_warning,
             },
             results,
             content,
@@ -373,6 +397,9 @@ pub struct MetaEnvelopeSchemaType {
     pub page: u64,
     pub has_more: bool,
     pub next_cursor: Option<String>,
+    /// BC-2.05.001 EC-05-002: present (with the literal "audit emission failed")
+    /// only when read-path tool-call audit emission failed; omitted otherwise.
+    pub audit_warning: Option<String>,
 }
 
 /// Schema-only representation of the full response envelope (BC-2.09.007, BC-2.09.008).
@@ -426,6 +453,7 @@ mod tests {
             1,
             false,
             None,
+            None,
         );
         // The injection payload is in `inner_field` — must surface a safety flag.
         assert!(
@@ -466,6 +494,7 @@ mod tests {
             results,
             1,
             false,
+            None,
             None,
         );
         // The injection payload is in the second array element — must produce a flag.
@@ -513,6 +542,7 @@ mod tests {
             results,
             1,
             false,
+            None,
             None,
         );
 
@@ -583,6 +613,7 @@ mod tests {
             results,
             1,
             false,
+            None,
             None,
         );
 
@@ -689,6 +720,7 @@ mod tests {
             1,
             false,
             None,
+            None,
         );
 
         // The injection payload is in rows[0].hostname — must produce a safety flag.
@@ -734,6 +766,7 @@ mod tests {
             1,
             false,
             None,
+            None,
         );
 
         // Clean data must not produce any safety flags.
@@ -749,6 +782,66 @@ mod tests {
         assert_eq!(
             envelope.meta.total_results, 1,
             "total_results must be 1 for a single-row clean payload"
+        );
+    }
+
+    /// BC-2.05.001 EC-05-002 (P4-03, 2026-06-10 review pass-4): when the
+    /// read-path tool-call audit emission failed, the serialized envelope
+    /// carries `_meta.audit_warning` with the EXACT BC literal
+    /// `"audit emission failed"`.
+    ///
+    /// Mental-deletion proof: if the `audit_warning` field is removed from
+    /// `ResponseMeta` (or `wrap()` stops threading it), the serialized `_meta`
+    /// has no `audit_warning` key and this test FAILS.
+    #[test]
+    fn test_BC_2_05_001_audit_warning_present_with_exact_bc_literal() {
+        let envelope = SafetyEnvelopeBuilder::wrap(
+            "list_aliases",
+            DataSource::Multiple(vec![]),
+            json!([]),
+            1,
+            false,
+            None,
+            Some(AUDIT_EMISSION_FAILED_WARNING.to_owned()),
+        );
+        let serialized = serde_json::to_value(&envelope).expect("envelope must serialize");
+        assert_eq!(
+            serialized["_meta"]["audit_warning"],
+            serde_json::json!("audit emission failed"),
+            "BC-2.05.001 EC-05-002: _meta.audit_warning must carry the exact BC \
+             literal 'audit emission failed' when read-path audit emission failed; \
+             got _meta: {}",
+            serialized["_meta"]
+        );
+    }
+
+    /// BC-2.05.001 (P4-03, 2026-06-10 review pass-4): when audit emission
+    /// succeeded, the serialized `_meta` object has NO `audit_warning` key —
+    /// the field is OMITTED (`skip_serializing_if`), not serialized as null.
+    ///
+    /// Mental-deletion proof: if `#[serde(skip_serializing_if = "Option::is_none")]`
+    /// is removed from `ResponseMeta::audit_warning`, the key serializes as
+    /// `null` and this test FAILS.
+    #[test]
+    fn test_BC_2_05_001_audit_warning_omitted_when_audit_succeeded() {
+        let envelope = SafetyEnvelopeBuilder::wrap(
+            "list_aliases",
+            DataSource::Multiple(vec![]),
+            json!([]),
+            1,
+            false,
+            None,
+            None,
+        );
+        let serialized = serde_json::to_value(&envelope).expect("envelope must serialize");
+        let meta = serialized["_meta"]
+            .as_object()
+            .expect("_meta must be an object");
+        assert!(
+            !meta.contains_key("audit_warning"),
+            "BC-2.05.001: _meta.audit_warning must be OMITTED (not null) when \
+             audit emission succeeded; got _meta: {}",
+            serialized["_meta"]
         );
     }
 
@@ -769,6 +862,7 @@ mod tests {
             results,
             1,
             false,
+            None,
             None,
         );
         // At depth 63 (within limit), the string IS reachable — must produce a flag.

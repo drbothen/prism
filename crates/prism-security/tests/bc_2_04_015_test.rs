@@ -76,7 +76,11 @@ fn test_BC_2_04_015_ac6_denied_write_returns_capability_denied_error() {
     }
 }
 
-/// AC-6 variant: compile-time absent → CapabilityDenied with rebuild suggestion.
+/// AC-6 variant: compile-time absent → CapabilityDenied with registry-driven
+/// remediation suggestion ([[write_endpoints]] TOML declaration, BC-2.16.012).
+/// Fn name retains the historical "rebuild_suggestion" suffix — it is the Red Gate
+/// traceability anchor in the S-1.08 red-gate-log; the asserted suggestion is the
+/// registry framing (SNS-02), and the reason is registry framing too (P1-02).
 #[test]
 fn test_BC_2_04_015_ac6_compile_absent_returns_capability_denied_with_rebuild_suggestion() {
     let evaluator = make_empty_evaluator();
@@ -95,18 +99,40 @@ fn test_BC_2_04_015_ac6_compile_absent_returns_capability_denied_with_rebuild_su
             resolution_trace,
             ..
         } => {
-            // Reason must indicate compile-time denial.
+            // P2-02 (2026-06-10 review pass-2): reason must match the spec-pinned
+            // E-FLAG-002 message template VERBATIM — three spec layers agree on it:
+            // error-taxonomy.md E-FLAG-002 row, BC-2.04.015 v1.2, BC-2.04.001 v1.2.
+            // The retired "Feature not compiled" framing is false under registry-driven
+            // dispatch (nothing is un-compiled) and must NOT reappear.
+            assert_eq!(
+                reason,
+                "Write capability 'sensor.crowdstrike.containment' denied: no write-endpoint declaration (no [[write_endpoints]] entry in the sensor's TOML spec)",
+                "BC-2.04.015/P2-02: compile-tier denied reason must be the exact \
+                 spec-pinned E-FLAG-002 template (error-taxonomy E-FLAG-002 row, \
+                 BC-2.04.015 v1.2, BC-2.04.001 v1.2)"
+            );
             assert!(
-                reason.contains("not compiled") || reason.contains("Feature not compiled"),
-                "BC-2.04.015: compile-time denied reason must mention 'not compiled', got: {}",
+                !reason.contains("not compiled"),
+                "BC-2.04.015/P1-02: reason must NOT claim the code family is \
+                 'not compiled' (false under registry-driven dispatch), got: {}",
                 reason
             );
-            // Suggestion must mention rebuilding.
+            // SNS-02 (2026-06-10 review): suggestion must point at the registry-driven
+            // remediation — loading a TOML [[write_endpoints]] spec for the sensor
+            // (BC-2.16.012) — NOT at rebuilding with Cargo features. Post-BC-2.16.012
+            // the {sensor}-write Cargo features are empty test-gating declarations;
+            // a "cargo build --features" suggestion is unactionable and misleading.
             assert!(
-                suggestion.contains("Rebuild")
-                    || suggestion.contains("rebuild")
-                    || suggestion.contains("crowdstrike-write"),
-                "BC-2.04.015: compile-time suggestion must mention rebuild, got: {}",
+                suggestion.contains("[[write_endpoints]]"),
+                "BC-2.04.015/SNS-02: compile-tier suggestion must direct the operator to \
+                 load a TOML [[write_endpoints]] spec (registry-driven dispatch, \
+                 BC-2.16.012), got: {}",
+                suggestion
+            );
+            assert!(
+                !suggestion.contains("cargo build --features"),
+                "BC-2.04.015/SNS-02: suggestion must NOT point at Cargo feature rebuilds \
+                 (registry-driven dispatch per BC-2.16.012), got: {}",
                 suggestion
             );
             assert!(

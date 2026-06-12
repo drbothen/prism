@@ -167,11 +167,22 @@ pub enum PrismError {
     Io(String),
 
     // -------------------------------------------------------------------------
-    // E-FLAG — Feature flag / capability errors (BC-2.04.015, E-FLAG-001)
+    // E-FLAG — Feature flag / capability errors (BC-2.04.015,
+    // E-FLAG-001 runtime tier / E-FLAG-002 compile tier)
     // -------------------------------------------------------------------------
-    /// E-FLAG-001 (CAPABILITY_DENIED): Write capability is denied — structured
-    /// error for BC-2.04.015.  The `resolution_trace` is a BTreeMap-derived
-    /// ordered list of path→effect pairs showing how the denial was reached.
+    /// CAPABILITY_DENIED: Write capability is denied — structured error for
+    /// BC-2.04.015. Carries BOTH denial tiers (P2-03, 2026-06-10 review pass-2):
+    ///
+    /// - **E-FLAG-001 (runtime tier)** — produced from
+    ///   `CapabilityCheckResult::DeniedRuntime`: the capability is not enabled
+    ///   in the client's runtime TOML configuration.
+    /// - **E-FLAG-002 (compile tier)** — produced from
+    ///   `CapabilityCheckResult::DeniedCompileTime`: no `[[write_endpoints]]`
+    ///   declaration for the capability in the sensor's TOML spec
+    ///   (registry-derived per BC-2.04.001 v1.2 / BC-2.16.012).
+    ///
+    /// The `resolution_trace` is a BTreeMap-derived ordered list of path→effect
+    /// pairs showing how the denial was reached.
     #[error(
         "CAPABILITY_DENIED: capability '{capability}' denied for client '{client_id}': {reason}"
     )]
@@ -195,10 +206,13 @@ pub enum PrismError {
     )]
     WriteRequiresClientId,
 
-    /// E-FLAG-002: Feature flag disabled — write operation blocked.
-    #[error("E-FLAG-002: feature flag {flag} is disabled; write operations are locked")]
-    FeatureFlagDisabled { flag: String },
-
+    // P2-03(c) (2026-06-10 review pass-2): the `FeatureFlagDisabled` variant
+    // (formerly claiming the E-FLAG-002 code here) was REMOVED — it had zero
+    // spec backing (no hit in .factory/specs/, incl. BC-2.10.007) and zero
+    // production emitters (constructed only in its own pinning tests).
+    // E-FLAG-002 is the COMPILE-TIER capability denial carried by
+    // `CapabilityDenied` (via `CapabilityCheckResult::DeniedCompileTime`) per
+    // error-taxonomy E-FLAG-002 row / BC-2.04.015 v1.2 / BC-2.04.001 v1.2.
     /// E-FLAG-010: Feature flag evaluation error.
     #[error("E-FLAG-010: feature flag evaluation error for {flag}: {detail}")]
     FeatureFlagEvalError { flag: String, detail: String },
@@ -650,13 +664,16 @@ pub enum PrismError {
         total: u32,
     },
 
-    /// E-QUERY-007: Requested limit exceeds the maximum allowed value (BC-2.11.001).
+    /// E-QUERY-033: Requested limit exceeds the maximum allowed value (BC-2.11.001).
     ///
     /// Returned when `QueryOptions.limit > 1000`. Semantically distinct from
     /// `QueryExecutionFailed` (E-QUERY-034) — this is a pre-execution parameter
-    /// validation error, not a runtime execution error. Assigned E-QUERY-007 to
-    /// avoid collision with E-QUERY-001 (QueryParseFailed). (ADV-W3MT-P58-CRIT-001)
-    #[error("E-QUERY-007: limit {requested} exceeds maximum of {max} (BC-2.11.001)")]
+    /// validation error, not a runtime execution error. Moved off E-QUERY-001 to
+    /// avoid collision with QueryParseFailed (ADV-W3MT-P58-CRIT-001); assigned
+    /// E-QUERY-033 per taxonomy v1.70 P2-01 adjudication (ADR-038 D5 tombstone
+    /// permanence — the interim code was a Phase-1 tombstone; full history in
+    /// the error-taxonomy.md E-QUERY-033 row).
+    #[error("E-QUERY-033: limit {requested} exceeds maximum of {max} (BC-2.11.001)")]
     QueryLimitExceeded {
         /// The limit value supplied by the caller.
         requested: usize,

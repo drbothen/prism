@@ -1038,3 +1038,104 @@ fn test_BC_2_17_004_ec17_015_per_plugin_timeout_override() {
     );
     // If we reach here, create_store accepted the custom timeout.
 }
+
+// ============================================================
+// F6 (2026-06-10 review) — host_http_request body-read failure
+// and non-UTF8 header handling
+// ============================================================
+
+/// F6: a mid-body read failure (server closes the connection before
+/// delivering the full Content-Length) must NOT be surfaced to the plugin as
+/// success-status + silently-empty body. It must map to a synthetic error
+/// status (sibling pattern to the 408 timeout arm) so plugins can distinguish
+/// "2xx with empty body" from "body read failed after the status line".
+#[test]
+fn test_F6_body_read_failure_maps_to_synthetic_error_status() {
+    use std::io::{Read, Write};
+
+    use prism_spec_engine::plugin::{host_functions::host_http_request, loader::HostState};
+
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind local test server");
+    let addr = listener.local_addr().expect("local addr");
+    std::thread::spawn(move || {
+        if let Ok((mut sock, _)) = listener.accept() {
+            let mut buf = [0u8; 2048];
+            let _ = sock.read(&mut buf);
+            // Claim 100 body bytes but deliver only 5, then close the connection.
+            let _ = sock.write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 100\r\n\r\nshort");
+            let _ = sock.flush();
+            // Socket drops here — mid-body connection reset.
+        }
+    });
+
+    let state = HostState::test_with_allowed_urls("f6-body-test", vec!["127.0.0.1".to_string()]);
+    let resp = host_http_request(&state, "GET", &format!("http://{addr}/"), vec![], None);
+
+    assert!(
+        resp.status >= 400,
+        "F6: body-read failure must produce a synthetic error status (>=400), \
+         not the origin success status; got status {} with body {:?}",
+        resp.status,
+        String::from_utf8_lossy(&resp.body)
+    );
+    assert!(
+        !resp.body.is_empty(),
+        "F6: synthetic error response must carry a diagnostic body, not be empty"
+    );
+    // SEC-004 (CWE-209): the error body MUST NOT contain reqwest error detail
+    // (URL topology, TLS info, OS error text). A partially-trusted WASM plugin
+    // must not be able to use error messages to probe the host network topology.
+    // After the fix, the body is the static string "body read error" — no dynamic content.
+    let body_str = String::from_utf8_lossy(&resp.body);
+    assert!(
+        !body_str.contains("tcp") && !body_str.contains("://") && !body_str.contains("error:"),
+        "SEC-004 (CWE-209): body-read-failure body MUST NOT contain reqwest error \
+         detail (URL/topology/TLS leakage to plugin sandbox); got: {body_str:?}"
+    );
+}
+
+/// F6: a non-UTF8 header value must be decoded lossily (invalid bytes become
+/// U+FFFD) rather than silently replaced with the empty string — the plugin
+/// must still see the valid portion of the header value.
+#[test]
+fn test_F6_non_utf8_header_value_is_lossy_not_empty() {
+    use std::io::{Read, Write};
+
+    use prism_spec_engine::plugin::{host_functions::host_http_request, loader::HostState};
+
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind local test server");
+    let addr = listener.local_addr().expect("local addr");
+    std::thread::spawn(move || {
+        if let Ok((mut sock, _)) = listener.accept() {
+            let mut buf = [0u8; 2048];
+            let _ = sock.read(&mut buf);
+            // X-Vendor header value contains a latin-1 0xE9 byte (invalid UTF-8).
+            let _ = sock
+                .write_all(b"HTTP/1.1 200 OK\r\nX-Vendor: caf\xe9\r\nContent-Length: 2\r\n\r\nok");
+            let _ = sock.flush();
+        }
+    });
+
+    let state = HostState::test_with_allowed_urls("f6-header-test", vec!["127.0.0.1".to_string()]);
+    let resp = host_http_request(&state, "GET", &format!("http://{addr}/"), vec![], None);
+
+    assert_eq!(
+        resp.status, 200,
+        "happy-path response status must pass through"
+    );
+    let vendor = resp
+        .headers
+        .iter()
+        .find(|(k, _)| k.eq_ignore_ascii_case("x-vendor"))
+        .map(|(_, v)| v.clone())
+        .expect("X-Vendor header must be present in the proxied response");
+    assert!(
+        vendor.starts_with("caf"),
+        "F6: non-UTF8 header value must be lossily decoded (valid prefix preserved), \
+         not silently emptied; got {vendor:?}"
+    );
+    assert!(
+        vendor.contains('\u{FFFD}'),
+        "F6: invalid byte must surface as U+FFFD replacement char; got {vendor:?}"
+    );
+}
