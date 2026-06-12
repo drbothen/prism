@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "6.25"
+version: "6.26"
 status: draft
 producer: product-owner
 timestamp: 2026-06-11T00:00:00Z
@@ -217,7 +217,7 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.15.010 | Decorator Three-Phase Model — Config-Time, Query-Time, Periodic | 15 - Storage Layer | CAP-026 | P0 | draft |
 | BC-2.15.011 | Internal Table Registration — RocksDB Domains as DataFusion Tables | 15 - Storage Layer | CAP-028 | P0 | draft |
 | BC-2.16.001 | Sensor Spec File Loading — Parse TOML, Validate Schema, Register Tables | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-776 per POL-14; anchor story PLUGIN-MIGRATION-001-D merged PR #153 develop@3f2de889 2026-05-22) — v1.7 |
-| BC-2.16.002 | Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-427 per POL-14; anchor story S-PLUGIN-PREREQ-B merged PR #143 develop@ae7e26c8 2026-05-12) — v1.76 |
+| BC-2.16.002 | Multi-Step Fetch Pipeline Execution — Sequential Steps with Variable Interpolation | 16 - Spec Engine | CAP-029 | P0 | active (promoted draft→active D-427 per POL-14; anchor story S-PLUGIN-PREREQ-B merged PR #143 develop@ae7e26c8 2026-05-12) — v1.77 |
 | BC-2.16.003 | Column-to-OCSF Mapping at Query Time — Map Sensor Columns to OCSF Fields Per Spec | 16 - Spec Engine | CAP-029 | P0 | draft |
 | BC-2.16.004 | ~~Rust Escape Hatch for Custom Adapters — Trait-Based Override When Config Is Insufficient~~ | 16 - Spec Engine | CAP-029 | P0 | removed (lifecycle_status: removed since PREREQ-E impl; status aligned at D-726 per POL-14 PR #151 merge) — v1.5 |
 | BC-2.16.005 | `reload_config` MCP Tool — Re-Read All Config Files, Validate, Atomic Swap, Notify | 16 - Spec Engine | CAP-030 | P1 | draft |
@@ -380,6 +380,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v6.26 (2026-06-11, PRL-P4-01 adjudication burst — `reload_config` reclassified WriteTool):** product-owner | **BC-2.05.001 v1.3→v1.4** and **BC-2.16.002 v1.76→v1.77**. PRL-P4-01 (MEDIUM, ground-truth-verified): `reload_config` (dry_run=false) calls `ConfigManager::store(candidate)` — mutation-equivalent to `add_sensor_spec`. Reclassified from ReadTool (fail-open) to WriteTool (fail-closed) under BC-2.05.001 no-unaudited-writes invariant. BC-2.05.001 v1.4: Description updated (five write tools enumerated); Postconditions §write-fail-closed updated; Invariants §write-tool-set-invariant added with `reload_plugin` future-wiring note; EC-05-003 added; test vectors updated. BC-2.16.002 v1.77: row 145 `mcp.tool.called` trigger narrative updated to add `reload_config` to WRITE-classified set (five tools). Row 220 inline pin v1.76→v1.77. BC-INDEX row 89 (BC-2.05.001) carries no inline version pin — no change needed. No H1 retitles; no count changes; counts UNCHANGED (250/232/5/0/7/6). BC-INDEX v6.25→v6.26.
 
 **v6.25 (2026-06-11, DTU cascade P14-01 micro-adjudication — BC-3.4.003 v0.9→v1.0 invariant 6 scope clarification):** product-owner | **BC-3.4.003 v0.9→v1.0** — Ruling (A): invariant 6 is generator-fixture-layer-only. Added scope-clarification note to the `AuthOutage` postcondition and to invariant 6: the `GenOpts::overrides` JSON Merge Patch requirement applies only to DTU clones that model `AuthOutage` at the generator/fixture layer (CrowdStrike, Claroty, Armis). Cyberint models auth-outage at the route/state layer (`AuthMode::Reject/Accept`, toggled via `POST /dtu/configure {auth_mode: "reject|accept"}`); this mechanism provides equivalent deterministic rehearsal capability and is explicitly exempt. Rationale: (a) BC postcondition specifies the behavior not the implementation layer; (b) Cyberint's static-cookie auth has no OAuth2 token endpoint making fixture 401-records inappropriate; (c) route-layer auth injection satisfies the functional requirement (deterministically injectable and recoverable). S-3.7.02 (Claroty) and S-3.7.05 (CrowdStrike) story citations of BC-3.4.003 invariant 6 remain accurate — both are generator-layer clones still fully bound. POL-27 `modified:` synced to 2026-06-11. No H1 retitle — title cell unchanged (BC-INDEX row 299 "Archetype Catalog Enumeration — 8 Archetypes with Defined Baselines" is accurate). No edge-case-ID, lifecycle, or status changes; counts UNCHANGED (250/232/5/0/7/6). BC-INDEX v6.24→v6.25.
 
