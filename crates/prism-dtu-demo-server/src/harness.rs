@@ -342,7 +342,7 @@ pub fn build_clone_pairs(config: &DemoConfig) -> anyhow::Result<Vec<ClonePair>> 
 
     // ---------------------------------------------------------------------------
     // B-P1-03 + B-P4-01 fix: Architecture Compliance Rules (story spec AC-017):
-    // guard order is E-DEMO-002 → E-DEMO-003 → E-DEMO-004, all before any constructor.
+    // guard order is E-DEMO-002 → E-DEMO-006 → E-DEMO-003 → E-DEMO-004, all before any constructor.
     //
     // This block (E-DEMO-002 prescan) runs first, before the E-DEMO-003 prescan
     // and before `validated_gen` (which checks E-DEMO-004), so that seed-mismatch

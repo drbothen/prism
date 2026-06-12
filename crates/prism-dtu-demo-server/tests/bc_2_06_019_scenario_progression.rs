@@ -12,7 +12,7 @@
 //! Traces to: BC-2.06.019 E-DEMO-002/003 / TV-019-012,013,007
 //!            BC-2.06.020 INV-CROSS-DTU-ENTITY-COHERENCE-001 / PC-5
 //!            BC-2.06.019 EC-019-012: archetype/fixture_set contradiction
-//!            Architecture Compliance Rules: E-DEMO-002 → E-DEMO-003 → E-DEMO-004 order
+//!            Architecture Compliance Rules: E-DEMO-002 → E-DEMO-006 → E-DEMO-003 → E-DEMO-004 order
 
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
@@ -1019,7 +1019,7 @@ fn test_BC_2_06_019_e_demo_003_archetype_fixture_set_contradiction() {
 // NEW TEST (B-P4-01) — test_BC_2_06_019_guard_order_e_demo_003_before_e_demo_004
 //
 // Architecture Compliance Rules (story spec AC-017 + guard order):
-//   E-DEMO-002 → E-DEMO-003 → E-DEMO-004, all before any constructor.
+//   E-DEMO-002 → E-DEMO-006 → E-DEMO-003 → E-DEMO-004, all before any constructor.
 //
 // This is the SIBLING of the B-P1-03 fix (which covered 002→004 order).
 // B-P4-01 covers the 003→004 slot: E-DEMO-003 must fire BEFORE E-DEMO-004
