@@ -458,3 +458,119 @@ async fn test_BC_2_06_019_cyberint_non_ioc_alerts_not_filtered() {
 
     clone.stop().await.expect("server stop must succeed");
 }
+
+/// Test: fail-closed behavior when `_ioc_value` is present but `_ioc_type` is absent.
+///
+/// BC-2.06.019 PC-4 projection integrity: a record with `_ioc_value` but no `_ioc_type`
+/// is malformed scenario data. It must be WITHHELD (fail-closed) rather than silently
+/// assuming "ip" — an incorrect type assumption could leak restricted IOC data through
+/// the projection at the wrong stage (BPRL-P3-OBS-1).
+///
+/// This test is RED before the fix (old code: `unwrap_or("ip")` — record appears at
+/// stage 3 with the wrong type assumption). After the fix (fail-closed None branch),
+/// the record is withheld at ALL stages.
+#[tokio::test]
+async fn test_BC_2_06_019_cyberint_ioc_value_without_ioc_type_withheld() {
+    let org = deadbeef_org();
+    let seed: u64 = 42;
+    let demo_token = "test-demo-token-absent-ioc-type".to_owned();
+
+    // Stage 3 (ioc_ips=true): even when masks allow IOC records, a record with
+    // _ioc_value but no _ioc_type must be withheld (fail-closed).
+    let now = chrono::Utc::now().timestamp();
+    let start_stage3: i64 = now - 400;
+
+    let catalog = build_scenario_entity_catalog(seed, &org);
+    let catalog_ioc_ip = catalog.ioc_ips[0].clone();
+
+    let timeline = Arc::new(build_default_incident_timeline(catalog, start_stage3, &[]));
+    let time_anchor = chrono::DateTime::from_timestamp(start_stage3, 0)
+        .expect("valid timestamp")
+        .with_timezone(&chrono::Utc);
+
+    let mut clone = CyberintClone::new_with_scenario(
+        seed,
+        Archetype::CompromisedEndpoint,
+        org.clone(),
+        Arc::clone(&timeline),
+        time_anchor,
+    )
+    .expect("new_with_scenario must succeed");
+
+    clone.state.register_access_token(demo_token.clone());
+
+    {
+        let state_mut =
+            Arc::get_mut(&mut clone.state).expect("Arc refcount must be 1 before server start");
+
+        // Malformed record: _ioc_value present, _ioc_type ABSENT.
+        // Fail-closed: must be withheld at all stages.
+        state_mut.generated_records.push(serde_json::json!({
+            "alert_id": "malformed-absent-ioc-type",
+            "id": "malformed-absent-ioc-type",
+            "ref_id": "REF-absent-type",
+            "environment": "production",
+            "confidence": 85u64,
+            "status": "open",
+            "severity": "high",
+            "severity_id": 4u64,
+            "created_at": "2026-01-01T00:00:00Z",
+            "created_by": "system",
+            "category": "Phishing",
+            "type": "phishing",
+            "source_category": "external",
+            "source": "cyberint",
+            "affected_assets": ["asset.example.com"],
+            "title": "Malformed absent _ioc_type alert",
+            "modification_date": "2026-01-01T00:01:00Z",
+            "description": "BPRL-P3-OBS-1 fail-closed test.",
+            "recommendation": "Investigate.",
+            "update_date": "2026-01-01T00:01:00Z",
+            "_surface": "alert",
+            // _ioc_value present but _ioc_type absent — malformed scenario data.
+            // Old code: unwrap_or("ip") → leaks as "ip"-typed record.
+            // New code: fail-closed → withheld.
+            "_ioc_value": catalog_ioc_ip.clone(),
+            // NOTE: _ioc_type field is intentionally absent here.
+        }));
+    }
+
+    clone.start().await.expect("server start must succeed");
+    let base_url = clone.base_url();
+
+    let client = prism_dtu_common::build_test_client();
+
+    let resp = client
+        .get(format!("{base_url}/api/v1/alerts"))
+        .header("Cookie", access_token_cookie(&demo_token))
+        .send()
+        .await
+        .expect("GET /api/v1/alerts must reach the server");
+
+    assert_eq!(resp.status().as_u16(), 200);
+
+    let body: serde_json::Value = resp.json().await.expect("response must be JSON");
+    let data = body["data"].as_array().cloned().unwrap_or_default();
+
+    let alert_ids: Vec<String> = data
+        .iter()
+        .filter_map(|rec| {
+            rec.get("alert_id")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_owned())
+        })
+        .collect();
+
+    // Malformed record must be WITHHELD (fail-closed) even at stage 3 where ioc_ips=true.
+    // Without the fix, old unwrap_or("ip") would cause the record to appear here because
+    // at stage 3 ioc_ips=true, so the "ip"-typed path would pass through.
+    assert!(
+        !alert_ids.contains(&"malformed-absent-ioc-type".to_owned()),
+        "BPRL-P3-OBS-1 / BC-2.06.019 PC-4: record with _ioc_value but absent _ioc_type \
+         must be WITHHELD (fail-closed) at all stages; found 'malformed-absent-ioc-type' \
+         in {:?}. Route handler must not default _ioc_type='ip' when _ioc_type is absent.",
+        alert_ids
+    );
+
+    clone.stop().await.expect("server stop must succeed");
+}

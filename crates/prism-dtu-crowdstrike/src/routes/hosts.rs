@@ -526,6 +526,15 @@ pub async fn get_host_details(
             // the stage-2 assertion ("must NOT be 'contained'") would fail.
             // At stage 4 (Containment), all mask fields are true and we serve as-is.
             // Stage index 4 = Containment (activates_after_secs = 600).
+            //
+            // Precedence rule (BC-2.06.019 PC-4, BPRL-P3-OBS-2): in scenario mode
+            // (scenario_stage_ctx.is_some()), stage-driven containment projection takes
+            // precedence over operator-driven `containment_store` entries for the primary
+            // device at stage < 4. This is by design — the demo narrative controls
+            // containment visibility through the stage timeline; operator-driven containment
+            // actions (PATCH /devices/entities/devices/actions/v2) are visible only at
+            // stage 4 ('Containment', activates_after_secs=600) when the mask permits it.
+            // Non-primary devices and non-scenario requests are not subject to this override.
             #[cfg(feature = "fixture-gen")]
             if let Some((stage_idx, ref primary_id, _, _, _)) = scenario_stage_ctx {
                 if id == *primary_id && stage_idx < 4 {

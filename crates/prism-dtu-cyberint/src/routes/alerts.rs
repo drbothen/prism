@@ -244,19 +244,26 @@ pub async fn get_alerts(
                     // `_ioc_type`: "ip" | "domain" | "hash" selects which catalog set and
                     // which mask field to consult. Records without `_ioc_value` are not IOC-
                     // referencing and always pass through (non-referencing alerts unaffected).
+                    //
+                    // Fail-closed: if `_ioc_value` is present but `_ioc_type` is absent or
+                    // unrecognised, WITHHOLD the record rather than guessing a type. Malformed
+                    // scenario data must not leak through projection (BC-2.06.019 PC-4).
                     if let Some(ioc_value) = rec.get("_ioc_value").and_then(|v| v.as_str()) {
-                        let ioc_type = rec
-                            .get("_ioc_type")
-                            .and_then(|v| v.as_str())
-                            .unwrap_or("ip");
+                        let ioc_type = match rec.get("_ioc_type").and_then(|v| v.as_str()) {
+                            Some(t) => t,
+                            // _ioc_value present but _ioc_type absent → malformed record;
+                            // withhold (fail-closed) per BC-2.06.019 PC-4 projection integrity.
+                            None => return false,
+                        };
                         let passes = match ioc_type {
                             "ip" => mask.ioc_ips || !catalog_ioc_ips.contains(ioc_value),
                             "domain" => {
                                 mask.ioc_domains || !catalog_ioc_domains.contains(ioc_value)
                             }
                             "hash" => mask.ioc_hashes || !catalog_ioc_hashes.contains(ioc_value),
-                            // Unknown IOC type — pass through (not a catalog IOC).
-                            _ => true,
+                            // Unrecognised IOC type — withhold (fail-closed); not a known
+                            // catalog IOC type so we cannot safely determine visibility.
+                            _ => return false,
                         };
                         if !passes {
                             return false;
