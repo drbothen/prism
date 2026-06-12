@@ -6,12 +6,12 @@ wave: 5
 epic_id: E-DEMO
 priority: P2
 status: ready
-version: "2.0"
+version: "2.1"
 level: "L4"
 producer: story-writer
 timestamp: "2026-06-12T00:00:00Z"
 created: "2026-06-09"
-modified: "2026-06-12T00:00:00Z"
+modified: "2026-06-12T12:00:00Z"
 tdd_mode: strict
 subsystems: [SS-01]
 # Subsystem anchor justifications:
@@ -59,24 +59,26 @@ risk: HIGH
 #   stage_duration_secs array has 4 entries (for stages 1-4 activation thresholds);
 #   stage 0 always activates at 0 — no array entry needed.
 acceptance_criteria_count: 16
-red_gate_tests: 16
+red_gate_tests: 17
 estimated_passes: "3-5 LOCAL adversary passes"
 holdout_scenarios: []
 assumption_validations: []
 risk_mitigations:
-  - "stage_duration_secs 4-entry array: [60, 180, 360, 600] for stages 1-4; stage 0 always at 0. BC-2.06.019 §Postcondition 2 and ADR-036 v2.2 §2.2 are authoritative. Any test using 5-entry arrays or different thresholds is wrong."
-  - "current_stage_index is a pure function: no side effects, no shared mutable state, no tokio::spawn, no Arc<AtomicU64> progression counter. ADR-036 v2.2 §2.1 mandates this; Architecture Compliance Rules section is binding."
+  - "stage_duration_secs 4-entry array: [60, 180, 360, 600] for stages 1-4; stage 0 always at 0. BC-2.06.019 §Postcondition 2 and ADR-036 v2.3 §2.2 are authoritative. Any test using 5-entry arrays or different thresholds is wrong."
+  - "current_stage_index is a pure function: no side effects, no shared mutable state, no tokio::spawn, no Arc<AtomicU64> progression counter. ADR-036 v2.3 §2.1 mandates this; Architecture Compliance Rules section is binding."
   - "NvdClone::new_with_scenario returns anyhow::Result<Self> (fallible, like NvdClone::new()). ThreatIntelClone::new_with_scenario is infallible (like ThreatIntelClone::new()). Test must handle Result for NVD."
-  - "CVSS path is CveRecord.metrics.cvss_metric_v31[0].cvss_data.base_score (f64) >= 7.0, NOT metrics.score or any flat field. Implementer MUST read crates/prism-dtu-nvd/src/types.rs before writing the constructor."
-  - "Cross-DTU entity coherence: primary_device_id_cs and primary_device_id_armis in ScenarioEntityCatalog use the same org_slug derivation (hex of org_id.as_bytes()[0..4]). They MUST match across Armis and CrowdStrike queries. ADR-036 v2.2 §2.2."
+  - "CVSS path is CveRecord.metrics.cvss_metric_v31[0].cvss_data.base_score (f64) >= 7.0, NOT metrics.score or any flat field. cvss_metric_v31 is Option<Vec<CvssMetricV31>> — test code must unwrap/as_ref the Option (pre-flight task at ~line 404 already documents this). Implementer MUST read crates/prism-dtu-nvd/src/types.rs before writing the constructor."
+  - "Cross-DTU entity coherence: primary_device_id_cs and primary_device_id_armis in ScenarioEntityCatalog use the same org_slug derivation (hex of org_id.as_bytes()[0..4]). They MUST match across Armis and CrowdStrike queries. ADR-036 v2.3 §2.2."
   - "Secondary RNG stream independence (INV-SECONDARY-RNG-STREAM-INDEPENDENCE-001): seeded_rng(seed.wrapping_add(1), org_id) for catalog derivation must be a SEPARATE ChaCha20Rng instance from the primary generator stream. Implementing build_clone_pairs must NOT advance the primary stream before catalog derivation."
-  - "StageMask must NOT carry #[non_exhaustive] — it is internal to prism-dtu-common and must be exhaustively constructible within the crate (BC-2.06.019 INV-STAGE-MASK-COMPLETENESS-001). NOTE: ADR-036 v2.2 §2.2 code snippet erroneously shows StageMask as #[non_exhaustive]; BC-2.06.019 wins on contract semantics per CLAUDE.md Source-of-Truth Precedence."
-  - "#[non_exhaustive] EXPECTED bump: new pub types IncidentTimeline, IncidentStage (minimum +2) added in this story; implementer must read live EXPECTED= from ci.yml and increment by exact new-type count (ADR-036 v2.2 §2.5: 49 was pre-Story-A baseline; Story A incremented for ScenarioEntityCatalog; implementer reads current ci.yml value before incrementing)."
+  - "StageMask must NOT carry #[non_exhaustive] — it is internal to prism-dtu-common and must be exhaustively constructible within the crate (BC-2.06.019 INV-STAGE-MASK-COMPLETENESS-001). NOTE: ADR-036 v2.3 §2.2 code snippet erroneously shows StageMask as #[non_exhaustive]; BC-2.06.019 wins on contract semantics per CLAUDE.md Source-of-Truth Precedence."
+  - "#[non_exhaustive] EXPECTED bump: new pub types IncidentTimeline, IncidentStage (minimum +2) added in this story; implementer must read live EXPECTED= from ci.yml and increment by exact new-type count (ADR-036 v2.3 §2.5: 49 was pre-Story-A baseline; Story A incremented for ScenarioEntityCatalog; implementer reads current ci.yml value before incrementing)."
   - "reqwest::Client timeout: .timeout(Duration::from_secs(30)) in all new integration test HTTP clients per CLAUDE.md conventions."
   - "INV-PERIMETER-001: ThreatIntel and NVD new_with_scenario constructors must not import prism-spec-engine/prism-sensors/prism-query. prism-dtu-common dep (fixture-gen feature) added by Story A; no new cross-DTU perimeter changes needed beyond adding fixture-gen feature to prism-dtu-threatintel/Cargo.toml and prism-dtu-nvd/Cargo.toml."
   - "NIT-1 E-DEMO-004 trigger reconciliation: Story A fires E-DEMO-004 when new_with_seed is called for a non-default fixture_set + missing org_id. Story B adds the scenario.enabled path which also requires org_id. The E-DEMO-004 guard already present from Story A (guards org_id absent before any constructor) covers both trigger cases. The message 'scenario.enabled requires org_id' in the error-taxonomy is accurate for the scenario-enabled path; Story B does NOT need to add a separate guard — it inherits the Story A guard and the message is correct."
   - "NIT-2 ScenarioConfig fields (enabled/archetype/scenario_start_secs/stage_duration_secs) were deserialized in Story A but unconsumed. Story B is the sole consumer of all four fields — this is the core implementation scope of this story."
-traces_to: [D-1077, ADR-036]
+  - "time_anchor wiring (ADR-036 v2.3 §2.3): the 3-arg new_with_seed anchors generated record timestamps at demo_time_anchor() = 2026-01-01, which is stale for a June 2026 demo. Story B's new_with_scenario MUST internally call the 4-arg new_with_seed_anchored(seed, archetype, org_id, time_anchor) (NOT new_with_seed), then set timeline = Some(Arc::clone(&timeline)). time_anchor is passed in from build_clone_pairs (derived ONCE from scenario_start_epoch_secs via DateTime::from_timestamp). When scenario_start_secs = None, Utc::now() is called ONCE and used for BOTH scenario_start_epoch_secs and time_anchor — do NOT call Utc::now() twice."
+  - "5-arg new_with_scenario signature (ADR-036 v2.3 §2.4): new_with_scenario(seed: u64, archetype: Archetype, org_id: OrgId, timeline: Arc<IncidentTimeline>, time_anchor: DateTime<Utc>) -> Self. The 4-arg form without time_anchor is FORBIDDEN in the scenario-enabled path — it would produce dead code for new_with_seed_anchored and stale record timestamps."
+traces_to: [D-1077, D-1090, ADR-036]
 supersedes: []
 ---
 
@@ -86,6 +88,14 @@ Add the `IncidentTimeline` temporal layer on top of Story A's seeded generator s
 Implements BC-2.06.019 (pure-function-of-time stage engine with 5 stages) and BC-2.06.020
 (ThreatIntel IOC injection + NVD CVE injection from the shared `ScenarioEntityCatalog`).
 Together with Story A, this delivers the complete multi-client SOC demo live-scenario layer.
+
+**ADR-036 v2.3 amendment (time_anchor wiring):** `new_with_scenario` for generator-backed clones
+MUST internally call `new_with_seed_anchored(seed, archetype, org_id, time_anchor)` (4-arg), NOT
+the 3-arg `new_with_seed` (which anchors at `demo_time_anchor()` = 2026-01-01). The 5-arg
+constructor signature is `new_with_scenario(seed, archetype, org_id, timeline: Arc<IncidentTimeline>, time_anchor: DateTime<Utc>)`.
+`time_anchor` is derived ONCE at `build_clone_pairs` from `scenario_start_epoch_secs` via
+`DateTime::from_timestamp(scenario_start_epoch_secs, 0)`. This ensures generated record
+timestamps are era-coherent with the scenario clock (a June 2026 demo gets June 2026 timestamps).
 
 **Depends on:** S-DEMO-DTU-LIVE-SCENARIO-001-A (merged PR #181 develop@c287b00d — SATISFIED).
 Story A delivered: `new_with_seed` constructors + `generated_records`/`generated_devices`/
@@ -223,7 +233,7 @@ Red Gate: `test_BC_2_06_019_stage_mask_completeness_all_6_fields`
 **AC-007 — Armis new_with_scenario: primary_device not visible at stage 0; visible at stage 1+**
 (traces to BC-2.06.019 postcondition 4 and TV-019-009, TV-019-010)
 
-Given an Armis clone constructed with `new_with_scenario(seed, archetype, org_id, Arc::clone(&timeline))` and `scenario_start_secs = T`:
+Given an Armis clone constructed with `new_with_scenario(seed, archetype, org_id, Arc::clone(&timeline), time_anchor)` (5-arg, ADR-036 v2.3 §2.4) and `scenario_start_secs = T`:
 - At `now = T + 30s` (stage 0 / Baseline): `GET /api/v1/devices` response does NOT contain `catalog.primary_device_id_armis`
 - At `now = T + 90s` (stage 1 / Recon): `GET /api/v1/devices` response CONTAINS `catalog.primary_device_id_armis`; lateral device IDs are NOT present
 
@@ -234,7 +244,7 @@ Red Gate: `test_BC_2_06_019_armis_primary_device_stage_visibility`
 **AC-008 — CrowdStrike new_with_scenario: containment_status = "contained" only at stage 4**
 (traces to BC-2.06.019 postcondition 4 and TV-019-011)
 
-Given a CrowdStrike clone with `new_with_scenario(seed, archetype, org_id, Arc::clone(&timeline))` and `scenario_start_secs = T`:
+Given a CrowdStrike clone with `new_with_scenario(seed, archetype, org_id, Arc::clone(&timeline), time_anchor)` (5-arg, ADR-036 v2.3 §2.4) and `scenario_start_secs = T`:
 - At `now = T + 200s` (stage 2 / LateralMovement): the device record for `primary_device_id_cs` shows `containment_status = "normal"` (or equivalent non-contained value)
 - At `now = T + 700s` (stage 4 / Containment): the same device record shows `containment_status = "contained"`
 
@@ -267,6 +277,8 @@ Red Gate: `test_BC_2_06_019_e_demo_003_unrecognized_archetype`
 (traces to BC-2.06.019 invariant INV-SCENARIO-DISABLED-COMPAT-001 and TV-019-007)
 
 Given a clone constructed with `scenario.enabled = false` (or absent `[clones.*.scenario]` block) and `seed = 42`, `fixture_set = "default"`, when queried at any fixed request path, then responses are byte-identical to the Story A `new_with_seed(42, HealthyOtEnvironment, default_org)` responses; `timeline: Option<Arc<IncidentTimeline>>` is `None` in the clone state.
+
+NOTE on determinism (ADR-036 v2.3 §2.3): for the scenario-enabled path, determinism means fixed `(seed, org_id, scenario_start_secs)` config inputs → identical output across runs. When `scenario_start_secs = None`, `Utc::now()` is called ONCE at `build_clone_pairs` entry and used for both `scenario_start_epoch_secs` and `time_anchor` — this path is deterministic per-run but NOT cross-run (expected behavior). The `scenario.enabled = false` path delegates to `new_with_seed` which internally calls `new_with_seed_anchored(demo_time_anchor())` — this IS cross-run deterministic (static 2026-01-01 anchor), which is correct for static-snapshot use where no operator `scenario_start_secs` exists.
 
 Red Gate: `test_BC_2_06_019_scenario_disabled_byte_identical_to_seeded_path`
 
@@ -303,7 +315,8 @@ Red Gate: `test_BC_2_06_020_threatintel_ioc_correlation_all_types`
 Given `NvdClone::new_with_scenario(entities: &ScenarioEntityCatalog) -> anyhow::Result<Self>` (fallible, mirrors `NvdClone::new() -> anyhow::Result<Self>`),
 when `NvdState::lookup_and_count(&state, &entities.device_cves[0])` is called (NOT `NvdClone::lookup()` — this method does not exist),
 then it returns `Some(record)` where:
-- `record.metrics.cvss_metric_v31[0].cvss_data.base_score >= 7.0` (type: `f64`; exact path per ADR-036 v2.2 §2.3 and `crates/prism-dtu-nvd/src/types.rs`)
+- `record.metrics.cvss_metric_v31` is `Option<Vec<CvssMetricV31>>` — test code MUST call `.as_ref().and_then(|v| v.first())` (or equivalent) to unwrap the Option before accessing `.cvss_data`
+- `record.metrics.cvss_metric_v31[0].cvss_data.base_score >= 7.0` (type: `f64`; exact path per ADR-036 v2.3 §2.3 and `crates/prism-dtu-nvd/src/types.rs`)
 - `record.metrics.cvss_metric_v31[0].cvss_data.base_severity == "HIGH"` (type: `String`; field is `base_severity`, NOT `severity`)
 - Default values for construction: `base_score = 8.1`, `base_severity = "HIGH".to_string()`
 
@@ -362,6 +375,7 @@ All tests written FAIL-first per SID-1 (CLAUDE.md §SID-1). Unit tests in `#[cfg
 | 14 | `test_BC_2_06_020_nvd_cve_correlation_high_cvss_base_score` | prism-dtu-nvd | BC-2.06.020 INV-NVD-CVE-CORRELATION-001 / PC-3, PC-4 | unit |
 | 15 | `test_BC_2_06_020_cross_dtu_entity_coherence_stage1_all_three_clones` | prism-dtu-demo-server | BC-2.06.020 INV-CROSS-DTU-ENTITY-COHERENCE-001 / PC-5 | integration |
 | 16 | `test_BC_2_06_020_non_scenario_passthrough_and_perimeter_gate` | prism-dtu-threatintel + tests/external/perimeter-violation | BC-2.06.020 INV-NON-SCENARIO-LOOKUP-PASSTHROUGH-001 + INV-PERIMETER-COMPLIANCE-001 / PC-6 | unit + compile-fail |
+| 17 | `test_dormant_tenant_seeded_empty_records_not_static_fallback` | prism-dtu-armis (or prism-dtu-crowdstrike) | DormantTenant regression: `fixture_gen_seeded=true + generated_records=[]` must NOT fall back to static JSON — it must return empty response, not static-fixture data | unit |
 
 ---
 
@@ -369,8 +383,8 @@ All tests written FAIL-first per SID-1 (CLAUDE.md §SID-1). Unit tests in `#[cfg
 
 | Item | Estimated Tokens |
 |------|-----------------|
-| Story spec (this file, v2.0) | ~6 500 |
-| ADR-036 v2.2 (full) | ~5 500 |
+| Story spec (this file, v2.1) | ~7 200 |
+| ADR-036 v2.3 (full) | ~5 800 |
 | BC-2.06.019 v1.1 (full) | ~3 000 |
 | BC-2.06.020 v1.1 (full) | ~3 000 |
 | Story A spec (substrate context; confirmed merged) | ~3 000 |
@@ -386,9 +400,9 @@ All tests written FAIL-first per SID-1 (CLAUDE.md §SID-1). Unit tests in `#[cfg
 | Test files (16 stubs × ~40 lines each) | ~2 000 |
 | Tool outputs (nextest, clippy, compile-fail) | ~2 000 |
 | BC files (2 BCs: BC-2.06.019, BC-2.06.020) | included above |
-| **Total estimate** | **~35 100** |
+| **Total estimate** | **~36 000** |
 
-At ~200k context window, this is ~17.5% — within the 20-30% ceiling.
+At ~200k context window, this is ~18.0% — within the 20-30% ceiling.
 
 ---
 
@@ -424,32 +438,34 @@ Implementation checklist (TDD order — write failing tests before each implemen
 - [ ] Write failing test 8 (FAIL first): `test_BC_2_06_019_crowdstrike_containment_visible_at_stage4_only`
 - [ ] Read CrowdStrike `state.rs`, `clone.rs` (post-Story-A) — confirm `generated_devices: Vec<serde_json::Value>` and `generated_detections: Vec<serde_json::Value>` present
 - [ ] Add `timeline: Option<Arc<IncidentTimeline>>` to `CrowdstrikeState`
-- [ ] Add `CrowdstrikeClone::new_with_scenario(seed: u64, archetype: Archetype, org_id: OrgId, timeline: Arc<IncidentTimeline>) -> Self` under `#[cfg(feature = "fixture-gen")]`: calls `new_with_seed(seed, archetype, org_id)` internally, then sets `timeline = Some(Arc::clone(&timeline))`
-- [ ] Modify `routes/hosts.rs`: when `timeline.is_some()`, call `current_stage_index` and apply `StageMask` filter on `generated_devices`; `timeline.is_none()` path unchanged (Story A dual-path preserved)
+- [ ] Add `CrowdstrikeClone::new_with_scenario(seed: u64, archetype: Archetype, org_id: OrgId, timeline: Arc<IncidentTimeline>, time_anchor: DateTime<Utc>) -> Self` under `#[cfg(feature = "fixture-gen")]` (5-arg, ADR-036 v2.3 §2.4): calls `new_with_seed_anchored(seed, archetype, org_id, time_anchor)` internally (NOT the 3-arg `new_with_seed` — ADR-036 v2.3 §2.3), then sets `timeline = Some(Arc::clone(&timeline))`. `time_anchor` is passed in from `build_clone_pairs` (derived ONCE from `scenario_start_epoch_secs` via `DateTime::from_timestamp`).
+- [ ] Modify `routes/hosts.rs`: when `fixture_gen_seeded == true && timeline.is_some()` (scenario path), call `current_stage_index` and apply `StageMask` filter on `generated_devices`; when `fixture_gen_seeded == true && timeline.is_none()` (Story A seeded path), serve all `generated_devices` without mask filter; when `fixture_gen_seeded == false` (static path), serve unchanged static JSON — three-way composition, NOT `generated_devices.is_empty()` branching (DormantTenant guard: seeded=true produces records=[] for some archetypes — DO NOT branch on `generated_devices.is_empty()`). NOTE: if CrowdstrikeState uses `fixture_gen_seeded: bool` flag (see state.rs MUST-level doc comment), branch on that flag, not record count.
 - [ ] Verify test 8 passes
 
 - [ ] Write failing test 7 (FAIL first): `test_BC_2_06_019_armis_primary_device_stage_visibility`
 - [ ] Read Armis `state.rs`, `clone.rs` (post-Story-A) — confirm `generated_records: Vec<serde_json::Value>` present
 - [ ] Add `timeline: Option<Arc<IncidentTimeline>>` to `ArmisState`
-- [ ] Add `ArmisClone::new_with_scenario(seed: u64, archetype: Archetype, org_id: OrgId, timeline: Arc<IncidentTimeline>) -> Self`
-- [ ] Modify Armis `routes/devices.rs` `paginate_devices`: scenario projection (StageMask filter on `generated_records`) when `timeline.is_some()`
+- [ ] Add `ArmisClone::new_with_scenario(seed: u64, archetype: Archetype, org_id: OrgId, timeline: Arc<IncidentTimeline>, time_anchor: DateTime<Utc>) -> Self` (5-arg, ADR-036 v2.3 §2.4): calls `new_with_seed_anchored(seed, archetype, org_id, time_anchor)` internally (NOT 3-arg `new_with_seed`), then sets `timeline = Some(Arc::clone(&timeline))`.
+- [ ] Modify Armis `routes/devices.rs` `paginate_devices`: three-way composition on `fixture_gen_seeded` flag — scenario path (`fixture_gen_seeded == true && timeline.is_some()`): apply `StageMask` filter on `generated_records`; seeded path (`fixture_gen_seeded == true && timeline.is_none()`): serve all `generated_records`; static path (`fixture_gen_seeded == false`): serve `devices_ordered` unchanged. DO NOT branch on `generated_records.is_empty()` (DormantTenant guard).
 - [ ] Verify test 7 passes
 
 - [ ] Read Claroty `state.rs`, `clone.rs` (post-Story-A) before editing
-- [ ] Add `timeline: Option<Arc<IncidentTimeline>>` to `ClarotyState`
-- [ ] Add `ClarotyClone::new_with_scenario(seed: u64, archetype: Archetype, org_id: OrgId, timeline: Arc<IncidentTimeline>) -> Self`
-- [ ] Modify Claroty route handlers: stage projection when `timeline.is_some()`
+- [ ] IMPORTANT — chrono feature gate in Claroty: `chrono` is gated behind `dep:chrono` in `crates/prism-dtu-claroty/Cargo.toml` under `[features] fixture-gen = [...]` (unlike armis/crowdstrike where chrono is unconditional). The `timeline: Option<Arc<IncidentTimeline>>` state field, `time_anchor: DateTime<Utc>` constructor parameter, and all `Utc::now()` / chrono call sites in handlers MUST be `#[cfg(feature = "fixture-gen")]`-gated. Non-gated code must not reference `chrono`. Verification task: `cargo check -p prism-dtu-claroty` WITHOUT `--features fixture-gen` must compile with zero errors.
+- [ ] Add `#[cfg(feature = "fixture-gen")] timeline: Option<Arc<IncidentTimeline>>` to `ClarotyState`
+- [ ] Add `#[cfg(feature = "fixture-gen")] ClarotyClone::new_with_scenario(seed: u64, archetype: Archetype, org_id: OrgId, timeline: Arc<IncidentTimeline>, time_anchor: DateTime<Utc>) -> Self` (5-arg, ADR-036 v2.3 §2.4): calls `new_with_seed_anchored(seed, archetype, org_id, time_anchor)` internally (NOT 3-arg `new_with_seed`), then sets `timeline = Some(Arc::clone(&timeline))`.
+- [ ] Modify Claroty route handlers: three-way composition on `fixture_gen_seeded` (same DormantTenant guard as armis/crowdstrike); scenario branch gated `#[cfg(feature = "fixture-gen")]`. Verify `cargo check -p prism-dtu-claroty` (without fixture-gen) passes.
 
 - [ ] Read Cyberint `state.rs`, `clone.rs` (post-Story-A) before editing
-- [ ] Add `timeline: Option<Arc<IncidentTimeline>>` to `CyberintState`
-- [ ] Add `CyberintClone::new_with_scenario(seed: u64, archetype: Archetype, org_id: OrgId, timeline: Arc<IncidentTimeline>) -> anyhow::Result<Self>` (fallible, like `new_with_seed`)
-- [ ] Modify Cyberint route handlers: stage projection
+- [ ] IMPORTANT — chrono feature gate in Cyberint: `chrono` is gated behind `dep:chrono` in `crates/prism-dtu-cyberint/Cargo.toml` under `[features] fixture-gen = [...]` (like Claroty; unlike armis/crowdstrike). Same constraint applies: `timeline` state field, `time_anchor` constructor parameter, and all chrono call sites in handlers MUST be `#[cfg(feature = "fixture-gen")]`-gated. Verification task: `cargo check -p prism-dtu-cyberint` WITHOUT `--features fixture-gen` must compile with zero errors.
+- [ ] Add `#[cfg(feature = "fixture-gen")] timeline: Option<Arc<IncidentTimeline>>` to `CyberintState`
+- [ ] Add `#[cfg(feature = "fixture-gen")] CyberintClone::new_with_scenario(seed: u64, archetype: Archetype, org_id: OrgId, timeline: Arc<IncidentTimeline>, time_anchor: DateTime<Utc>) -> anyhow::Result<Self>` (5-arg fallible, ADR-036 v2.3 §2.4): calls `new_with_seed_anchored(seed, archetype, org_id, time_anchor)` internally (NOT 3-arg `new_with_seed`), then sets `timeline = Some(Arc::clone(&timeline))`.
+- [ ] Modify Cyberint route handlers: three-way composition on `fixture_gen_seeded` (same DormantTenant guard); scenario branch gated `#[cfg(feature = "fixture-gen")]`. Verify `cargo check -p prism-dtu-cyberint` (without fixture-gen) passes.
 
 **Phase 3: Enrichment clone constructors**
 
 - [ ] Write failing tests 13, 16 (FAIL first): IOC correlation + passthrough
 - [ ] Add `fixture-gen = ["prism-dtu-common/fixture-gen"]` to `crates/prism-dtu-threatintel/Cargo.toml`
-- [ ] Add `ThreatIntelClone::new_with_scenario(entities: &ScenarioEntityCatalog) -> Self` (infallible): calls `with_admin_token`, then locks `fixture_registry` and inserts all `ioc_ips`, `ioc_domains`, `ioc_hashes` as `FixtureKey::Malicious`; releases lock before returning; must NOT import `prism-spec-engine`/`prism-sensors`/`prism-query`
+- [ ] Add `ThreatIntelClone::new_with_scenario(entities: &ScenarioEntityCatalog) -> Self` (infallible): replicates `ThreatIntelClone::new()` body (clone.rs:48-60) — generates an `admin_token` uuid, constructs `ThreatIntelState::with_admin_token(admin_token.clone())` (state.rs:38 — this is a `ThreatIntelState` method, NOT a `ThreatIntelClone` method), stores in `Arc::new(...)`, fills in the other `ThreatIntelClone` fields — then locks `fixture_registry` on the resulting state and inserts all `ioc_ips`, `ioc_domains`, `ioc_hashes` as `FixtureKey::Malicious`; releases lock before returning; must NOT import `prism-spec-engine`/`prism-sensors`/`prism-query`
 - [ ] Verify tests 13, 16 pass
 
 - [ ] Write failing test 14 (FAIL first): `test_BC_2_06_020_nvd_cve_correlation_high_cvss_base_score`
@@ -463,10 +479,11 @@ Implementation checklist (TDD order — write failing tests before each implemen
 - [ ] Write failing tests 9, 10, 11, 12 (FAIL first): E-DEMO-002, E-DEMO-003, scenario-disabled compat, secondary RNG independence
 - [ ] Add E-DEMO-002 guard: before any constructor, if multiple scenario-enabled clones have different `seed` values, return `Err(anyhow!("demo-server: E-DEMO-002: ..."))`
 - [ ] Add E-DEMO-003 guard: if `scenario.archetype` is not a recognized string (`"compromised_endpoint"`, `"healthy"`), return `Err(anyhow!("demo-server: E-DEMO-003: ..."))`; also if `stage_duration_secs` length != 4 for `compromised_endpoint`
-- [ ] Consume `scenario.scenario_start_secs` (NIT-2): set `scenario_start_epoch_secs = config.scenario.scenario_start_secs.unwrap_or_else(|| Utc::now().timestamp())`
+- [ ] Fix stale doc comment at `crates/prism-dtu-demo-server/src/config.rs:98` — currently reads "Only `\"compromised_endpoint\"` is supported in v1"; update to list both recognized values: "Valid values: `\"compromised_endpoint\"`, `\"healthy\"`" (or equivalent accurate prose); must be fixed in the SAME commit as the E-DEMO-003 guard implementation (D item from remove-uncertainty findings)
+- [ ] Consume `scenario.scenario_start_secs` (NIT-2): derive ONCE — `let scenario_start_epoch_secs = config.scenario.scenario_start_secs.unwrap_or_else(|| Utc::now().timestamp()); let time_anchor = DateTime::from_timestamp(scenario_start_epoch_secs, 0).expect("scenario_start_epoch_secs always in-range");` (ADR-036 v2.3 §2.4 step 4). When `scenario_start_secs = None`, `Utc::now()` is called AT MOST ONCE; both `scenario_start_epoch_secs` and `time_anchor` share the same captured epoch so they cannot diverge by milliseconds.
 - [ ] Consume `scenario.stage_duration_secs` (NIT-2): pass to `build_default_incident_timeline`; empty vec uses defaults `[60, 180, 360, 600]`
 - [ ] Consume `scenario.enabled` and `scenario.archetype` (NIT-2): gate scenario path on `enabled = true`; validate `archetype` string and emit E-DEMO-003 if invalid
-- [ ] When `scenario.enabled = true`: derive `org_slug = org_slug_from_org_id(&org_id)` (already in Story A); build `ScenarioEntityCatalog` via `build_scenario_entity_catalog(seed, &org_id)` using `gen_seeded_rng(seed.wrapping_add(1), &org_id)` secondary stream; build `IncidentTimeline` from catalog + `stage_duration_secs`; wrap in `Arc::new(timeline)`; call `new_with_scenario(seed, archetype, org_id, Arc::clone(&timeline))` for 4 generator-backed clones; call `ThreatIntelClone::new_with_scenario(&catalog)` and `NvdClone::new_with_scenario(&catalog)?`
+- [ ] When `scenario.enabled = true`: derive `org_slug = org_slug_from_org_id(&org_id)` (already in Story A); build `ScenarioEntityCatalog` via `build_scenario_entity_catalog(seed, &org_id)` using `gen_seeded_rng(seed.wrapping_add(1), &org_id)` secondary stream; build `IncidentTimeline` from catalog + `stage_duration_secs`; wrap in `Arc::new(timeline)`; call `new_with_scenario(seed, archetype, org_id, Arc::clone(&timeline), time_anchor)` (5-arg, ADR-036 v2.3 §2.4) for 4 generator-backed clones; call `ThreatIntelClone::new_with_scenario(&catalog)` and `NvdClone::new_with_scenario(&catalog)?`
 - [ ] Verify NIT-1: the E-DEMO-004 guard (from Story A) fires correctly when `scenario.enabled = true` but `org_id = None`; add a test assertion confirming the guard order: E-DEMO-002 (seed mismatch) → E-DEMO-003 (bad archetype) → E-DEMO-004 (missing org_id) — all before any constructor is called
 - [ ] Verify tests 9-12 pass
 
@@ -479,7 +496,9 @@ Implementation checklist (TDD order — write failing tests before each implemen
 **Phase 6: Final gates**
 
 - [ ] Run SAP-1 probe (CLAUDE.md §SAP-1): `rg 'event_type\s*=' crates/ --type rust` — verify any new `event_type` emissions have BC-2.16.002 catalog rows; if NO new emissions added, state explicitly in PR description
-- [ ] Run `just check` — all 16 Red Gate tests pass; zero clippy warnings; fmt clean
+- [ ] Run `cargo check -p prism-dtu-claroty` and `cargo check -p prism-dtu-cyberint` WITHOUT `--features fixture-gen` — both must compile with zero errors (chrono feature-gate verification, MEDIUM-C item)
+- [ ] Sibling-sweep for forbidden 3-arg path in scenario context: `grep -rn "new_with_seed\b" crates/prism-dtu-*/src/clone.rs` — any occurrence inside a `new_with_scenario` body is a violation (must use `new_with_seed_anchored`)
+- [ ] Run `just check` — all 17 Red Gate tests pass; zero clippy warnings; fmt clean
 - [ ] Verify compile-fail gate (test 16) passes with zero new perimeter violations
 - [ ] Confirm all 4 `ScenarioConfig` fields consumed in `build_clone_pairs` — zero dead code warnings on `scenario.enabled`, `scenario.archetype`, `scenario.scenario_start_secs`, `scenario.stage_duration_secs`
 
@@ -516,21 +535,24 @@ is the direct predecessor — merged PR #181 develop@c287b00d (D-1089 2026-06-10
 
 | Rule | Source | Enforcement |
 |------|--------|-------------|
-| `current_stage_index` is a pure function: no side effects, no shared mutable state, no tokio spawn, no Arc<AtomicU64> counter | ADR-036 v2.2 §2.1 + BC-2.06.019 PC-3 | Adversary probe: grep for Mutex<StageIndex> / Arc<AtomicU64> in state structs |
-| `StageMask` must NOT carry `#[non_exhaustive]` — internal struct, exhaustively constructible within the crate | BC-2.06.019 INV-STAGE-MASK-COMPLETENESS-001 (wins over ADR-036 v2.2 §2.2 code snippet which erroneously shows it with #[non_exhaustive] — BC wins per CLAUDE.md Source-of-Truth Precedence for contract semantics) | Adversary + compile test |
+| `current_stage_index` is a pure function: no side effects, no shared mutable state, no tokio spawn, no Arc<AtomicU64> counter | ADR-036 v2.3 §2.1 + BC-2.06.019 PC-3 | Adversary probe: grep for Mutex<StageIndex> / Arc<AtomicU64> in state structs |
+| `StageMask` must NOT carry `#[non_exhaustive]` — internal struct, exhaustively constructible within the crate | BC-2.06.019 INV-STAGE-MASK-COMPLETENESS-001 (wins over ADR-036 v2.3 §2.2 code snippet which erroneously shows it with #[non_exhaustive] — BC wins per CLAUDE.md Source-of-Truth Precedence for contract semantics) | Adversary + compile test |
 | `IncidentTimeline`, `IncidentStage` MUST carry `#[non_exhaustive]` as public types in `prism-dtu-common` | CLAUDE.md §Conventions #[non_exhaustive] discipline | ci.yml EXPECTED bump + non-exhaustive-violation/ rows |
-| `IncidentTimeline` threaded via `Arc` (NOT `Arc<Mutex<...>>`) — read-only after construction | ADR-036 v2.2 §2.3 | Adversary: grep for Mutex<IncidentTimeline> |
-| `NvdState.cve_registry` is an immutable `HashMap` (NOT Mutex-wrapped); built entirely at construction time | ADR-036 v2.2 §2.3 + BC-2.06.020 PC-3 | Adversary: grep for Mutex<.*cve_registry> |
-| `new_with_scenario` for ThreatIntel/NVD must NOT import `prism-spec-engine`, `prism-sensors`, or `prism-query` | BC-2.06.020 INV-PERIMETER-COMPLIANCE-001 + ADR-036 v2.2 §2.5 | Compile-fail gate `tests/external/perimeter-violation/` |
-| CVSS path: `CveRecord.metrics.cvss_metric_v31[0].cvss_data.base_score: f64` and `.base_severity: String` — implementer MUST read `crates/prism-dtu-nvd/src/types.rs` | ADR-036 v2.2 §1.3 + §2.3 | Adversary: read types.rs before review; check test assertions |
-| `stage_duration_secs` config array has exactly 4 entries for the 5-stage timeline (stages 1-4 thresholds; stage 0 always 0) | ADR-036 v2.2 §2.2 + BC-2.06.019 PC-2 | Tests 3, 10 |
-| E-DEMO-002 and E-DEMO-003 detected BEFORE any clone constructor is called in `build_clone_pairs`; E-DEMO-004 also fires before construction | ADR-036 v2.2 §2.4 + BC-2.06.019 PRE-5/PRE-6 | Tests 9, 10 |
+| `IncidentTimeline` threaded via `Arc` (NOT `Arc<Mutex<...>>`) — read-only after construction | ADR-036 v2.3 §2.3 | Adversary: grep for Mutex<IncidentTimeline> |
+| `NvdState.cve_registry` is an immutable `HashMap` (NOT Mutex-wrapped); built entirely at construction time | ADR-036 v2.3 §2.3 + BC-2.06.020 PC-3 | Adversary: grep for Mutex<.*cve_registry> |
+| `new_with_scenario` for ThreatIntel/NVD must NOT import `prism-spec-engine`, `prism-sensors`, or `prism-query` | BC-2.06.020 INV-PERIMETER-COMPLIANCE-001 + ADR-036 v2.3 §2.5 | Compile-fail gate `tests/external/perimeter-violation/` |
+| CVSS path: `CveRecord.metrics.cvss_metric_v31[0].cvss_data.base_score: f64` (field `cvss_metric_v31` is `Option<Vec<CvssMetricV31>>` — unwrap the Option) and `.base_severity: String` — implementer MUST read `crates/prism-dtu-nvd/src/types.rs` | ADR-036 v2.3 §1.3 + §2.3 | Adversary: read types.rs before review; check test assertions |
+| `stage_duration_secs` config array has exactly 4 entries for the 5-stage timeline (stages 1-4 thresholds; stage 0 always 0) | ADR-036 v2.3 §2.2 + BC-2.06.019 PC-2 | Tests 3, 10 |
+| E-DEMO-002 and E-DEMO-003 detected BEFORE any clone constructor is called in `build_clone_pairs`; E-DEMO-004 also fires before construction | ADR-036 v2.3 §2.4 + BC-2.06.019 PRE-5/PRE-6 | Tests 9, 10 |
 | All 4 `ScenarioConfig` fields (`enabled`, `archetype`, `scenario_start_secs`, `stage_duration_secs`) must be consumed in `build_clone_pairs`; zero dead-code warnings | NIT-2 (from Story A) | Adversary: clippy dead-code sweep |
 | E-DEMO-004 guard order: seed-mismatch (E-DEMO-002) → bad-archetype (E-DEMO-003) → missing-org_id (E-DEMO-004) — all before any constructor | NIT-1 reconciliation | Test 9/10 + adversary guard-order probe |
 | `await_holding_lock = "deny"` (ADR-002 §H1): no `.await` inside a Mutex lock guard in route handlers | ADR-002 | clippy deny list |
 | All tracing emission sites with `event_type =` must have BC-2.16.002 catalog rows | SAP-1 / CLAUDE.md §SAP-1 | Adversary SAP-1 probe post-implementation |
 | Forbidden pattern: `Arc::new(SomeThing::placeholder())` in production boot path | ADR-022 §C + CLAUDE.md | Adversary |
 | Do NOT use `gen_seeded_rng(seed.wrapping_add(1), ...)` with the one-arg legacy `seeded_rng`; use the two-arg re-export alias `gen_seeded_rng` in `prism-dtu-common::lib` | ADR-036 v2.1 U-A-01 | Adversary: grep for one-arg seeded_rng usage in scenario catalog derivation |
+| `new_with_scenario` for generator-backed clones MUST internally call `new_with_seed_anchored(seed, archetype, org_id, time_anchor)` (4-arg) — NOT the 3-arg `new_with_seed` (which anchors at `demo_time_anchor()` = 2026-01-01, producing stale timestamps for a June 2026 demo). The `time_anchor` argument is passed in from `build_clone_pairs` (derived once from `scenario_start_epoch_secs`). Using 3-arg `new_with_seed` in the scenario path is a FORBIDDEN pattern. | ADR-036 v2.3 §2.3 | Adversary: grep for `new_with_seed\b` inside `new_with_scenario` bodies; any occurrence is a violation |
+| Route handlers must branch on `fixture_gen_seeded` flag (from state struct), NOT on `generated_records.is_empty()` / `generated_devices.is_empty()`. DormantTenant archetype: `fixture_gen_seeded=true` but records=[] is a VALID state that must NOT fall through to static-JSON path. Three-way composition: scenario path (seeded + timeline.is_some()), seeded path (seeded + timeline.is_none()), static path (not seeded). | Post-Story-A MUST-level doc comments in crates/prism-dtu-armis/src/state.rs:160-169 and crates/prism-dtu-crowdstrike/src/state.rs:154-176 | Adversary: read state.rs before review; grep for generated_records.is_empty() in handler bodies — any occurrence is a violation |
+| `chrono` in claroty and cyberint is gated `dep:chrono` under `[features] fixture-gen`. The `timeline` state field, `time_anchor` parameter, and all chrono call sites in handlers for these two clones MUST be `#[cfg(feature = "fixture-gen")]`-gated. Verification: `cargo check -p prism-dtu-claroty` and `cargo check -p prism-dtu-cyberint` WITHOUT `--features fixture-gen` must compile. | crates/prism-dtu-claroty/Cargo.toml:15 + crates/prism-dtu-cyberint/Cargo.toml:18 | Pre-merge CI gate |
 
 ---
 
@@ -542,7 +564,7 @@ Versions pinned from `dependency-graph.md` and `rust-toolchain.toml`. Do NOT inv
 |-------|---------|-------|
 | `axum` | `0.7` | Route handlers in all prism-dtu-* crates |
 | `tokio` | `1` (multi-threaded runtime) | Async runtime per ADR-002 / AD-013 |
-| `chrono` | project-pinned | `Utc::now().timestamp()` for `now_epoch_secs`; already in armis/crowdstrike/claroty/cyberint; NOT added to threatintel/nvd |
+| `chrono` | project-pinned | `Utc::now().timestamp()` for `now_epoch_secs` and `DateTime::from_timestamp` for `time_anchor`. Already a direct (unconditional) dependency in armis and crowdstrike. In claroty and cyberint, `chrono` is gated `dep:chrono` under `[features] fixture-gen` — any `timeline` field, `time_anchor` parameter, or `Utc::now()` / `DateTime` usage in these two crates MUST be `#[cfg(feature = "fixture-gen")]`-gated; non-gated code must not reference chrono. NOT added to threatintel/nvd (no chrono needed for their constructors). |
 | `serde` / `serde_json` | project-pinned | `CloneConfig` / `ScenarioConfig` deserialization + `generated_records` JSON handling |
 | `rand_chacha` (`ChaCha20Rng`) | project-pinned | Secondary RNG stream for `build_scenario_entity_catalog` via `gen_seeded_rng` |
 | `anyhow` | project-pinned | Error propagation for E-DEMO-002/003; `NvdClone::new_with_scenario` return type; `CyberintClone::new_with_scenario` return type |
@@ -565,16 +587,16 @@ Versions pinned from `dependency-graph.md` and `rust-toolchain.toml`. Do NOT inv
 |------|--------|---------|
 | `crates/prism-dtu-common/src/scenario/mod.rs` | MODIFY (Story A stub exists) | Add `IncidentTimeline`, `IncidentStage`, `StageMask`, `current_stage_index`, `build_default_incident_timeline` |
 | `crates/prism-dtu-crowdstrike/src/state.rs` | MODIFY (Story A: `generated_devices` present) | Add `timeline: Option<Arc<IncidentTimeline>>` |
-| `crates/prism-dtu-crowdstrike/src/clone.rs` | MODIFY (Story A: `new_with_seed` present) | Add `new_with_scenario(seed, archetype, org_id, timeline: Arc<IncidentTimeline>) -> Self` |
+| `crates/prism-dtu-crowdstrike/src/clone.rs` | MODIFY (Story A: `new_with_seed_anchored` present) | Add `new_with_scenario(seed, archetype, org_id, timeline: Arc<IncidentTimeline>, time_anchor: DateTime<Utc>) -> Self` (5-arg; internally calls `new_with_seed_anchored`, NOT `new_with_seed`) |
 | `crates/prism-dtu-crowdstrike/src/routes/hosts.rs` | MODIFY (Story A: dual-path present) | Add StageMask filter when `timeline.is_some()` |
 | `crates/prism-dtu-armis/src/state.rs` | MODIFY (Story A: `generated_records` present) | Add `timeline: Option<Arc<IncidentTimeline>>` |
-| `crates/prism-dtu-armis/src/clone.rs` | MODIFY (Story A: `new_with_seed` present) | Add `new_with_scenario(seed, archetype, org_id, timeline: Arc<IncidentTimeline>) -> Self` |
+| `crates/prism-dtu-armis/src/clone.rs` | MODIFY (Story A: `new_with_seed_anchored` present) | Add `new_with_scenario(seed, archetype, org_id, timeline: Arc<IncidentTimeline>, time_anchor: DateTime<Utc>) -> Self` (5-arg; internally calls `new_with_seed_anchored`, NOT `new_with_seed`) |
 | `crates/prism-dtu-armis/src/routes/devices.rs` | MODIFY (Story A: dual-path present) | Add StageMask filter when `timeline.is_some()` |
 | `crates/prism-dtu-claroty/src/state.rs` | MODIFY (Story A: `generated_records` present) | Add `timeline: Option<Arc<IncidentTimeline>>` |
-| `crates/prism-dtu-claroty/src/clone.rs` | MODIFY | Add `new_with_scenario(seed, archetype, org_id, timeline: Arc<IncidentTimeline>) -> Self` |
+| `crates/prism-dtu-claroty/src/clone.rs` | MODIFY | Add `new_with_scenario(seed, archetype, org_id, timeline: Arc<IncidentTimeline>, time_anchor: DateTime<Utc>) -> Self` (5-arg; #[cfg(feature="fixture-gen")]; calls `new_with_seed_anchored`; chrono gated) |
 | `crates/prism-dtu-claroty/src/routes/` | MODIFY (Story A: dual-path present) | Add StageMask filter |
 | `crates/prism-dtu-cyberint/src/state.rs` | MODIFY (Story A: `generated_records` present) | Add `timeline: Option<Arc<IncidentTimeline>>` |
-| `crates/prism-dtu-cyberint/src/clone.rs` | MODIFY | Add `new_with_scenario(seed, archetype, org_id, timeline: Arc<IncidentTimeline>) -> anyhow::Result<Self>` (fallible) |
+| `crates/prism-dtu-cyberint/src/clone.rs` | MODIFY | Add `new_with_scenario(seed, archetype, org_id, timeline: Arc<IncidentTimeline>, time_anchor: DateTime<Utc>) -> anyhow::Result<Self>` (5-arg fallible; #[cfg(feature="fixture-gen")]; calls `new_with_seed_anchored`; chrono gated) |
 | `crates/prism-dtu-cyberint/src/routes/` | MODIFY | Add StageMask filter |
 | `crates/prism-dtu-threatintel/src/clone.rs` | MODIFY | Add `ThreatIntelClone::new_with_scenario(entities: &ScenarioEntityCatalog) -> Self` |
 | `crates/prism-dtu-threatintel/Cargo.toml` | MODIFY (if not done in Story A §5) | Add `fixture-gen = ["prism-dtu-common/fixture-gen"]` feature; verify Story A already added it |
@@ -658,5 +680,6 @@ If NO new `event_type` emissions are added in this story, state explicitly in th
 
 | Version | Date | Change |
 |---------|------|--------|
+| v2.1 | 2026-06-12 | Amendment burst — remove-uncertainty findings closure (ADR-036 v2.3 work-order). HIGH: time_anchor wiring — all 4 generator-backed clone constructors updated from 4-arg to 5-arg `new_with_scenario(seed, archetype, org_id, Arc::clone(&timeline), time_anchor)`; `new_with_scenario` body must call `new_with_seed_anchored(seed, archetype, org_id, time_anchor)` (NOT 3-arg `new_with_seed`); `time_anchor` derived ONCE in `build_clone_pairs` from `scenario_start_epoch_secs`; `Utc::now()` called AT MOST ONCE for the None path; ADR-036 version bumped v2.2→v2.3 throughout; Architecture Compliance Rules + risk_mitigations extended; body intro ADR-036 v2.3 amendment block added; AC-007/AC-008 updated to 5-arg form; AC-011 None-path determinism note added. MEDIUM-B: DormantTenant regression guard — Phase 2 handler tasks updated with explicit three-way composition rule (fixture_gen_seeded flag, NOT generated_records.is_empty()); Red Gate test 17 added (dormant_tenant guard); red_gate_tests 16→17; Architecture Compliance Rules row added. MEDIUM-C: chrono feature-gating in claroty/cyberint — Phase 2 Claroty + Cyberint tasks updated with explicit `#[cfg(feature="fixture-gen")]` gating requirement; Phase 6 cargo-check verification tasks added; Library & Framework Requirements chrono row updated; Architecture Compliance Rules row added; FSR rows for claroty/cyberint updated. LOW-D1: E-DEMO-003 config.rs doc comment fix task added to Phase 4 E-DEMO-003 guard step. LOW-D2: with_admin_token phrasing clarified — it is `ThreatIntelState::with_admin_token` (state.rs:38) called from the clone constructor body, not a `ThreatIntelClone` method; full constructor body replication described. LOW-D3: AC-014 cvss_metric_v31 Option<Vec<>> unwrap note added. Token Budget ~35 100→~36 000. version 2.0→2.1; modified timestamp updated. |
 | v2.0 | 2026-06-12 | T5 materialization burst (D-1090 full-autonomy grant). Story A MERGED (PR #181 develop@c287b00d) — status draft→ready. CONTRACT-COMPLETENESS FRONT-LOAD verified: all 4 mechanisms fully specified in BC-2.06.019 v1.1 + BC-2.06.020 v1.1 + ADR-036 v2.2. NIT-1 folded in: E-DEMO-004 trigger/message reconciliation documented in frontmatter risk_mitigations + story body + §Tasks (no change to error message needed; Story A guard covers scenario path). NIT-2 folded in: all 4 ScenarioConfig fields explicitly noted as consumed in Story B in body intro + §Tasks + frontmatter risk_mitigations. Architecture Compliance Rules extended with: ADR-036 v2.2 StageMask #[non_exhaustive] conflict note (BC-2.06.019 wins); E-DEMO-002/003/004 guard order constraint; NIT-1 E-DEMO-004 order rule; gen_seeded_rng two-arg alias rule (ADR-036 v2.1 U-A-01). AC-002 implementation formula added verbatim. AC-003 TV source cites (BC-2.06.019 TV-019-001..005). AC-012 gen_seeded_rng alias correction. AC-013 lock-and-insert-then-release description. AC-014 exact NvdState::lookup_and_count method name + fallibility note. AC-015 org_slug formula cited verbatim. Token Budget updated (+2 500 for additional context). Pre-flight §Tasks items added (substrate read checklist). version 1.0→2.0; modified timestamp updated; BC-INDEX Story anchor update pending state-manager. |
 | v1.0 | 2026-06-09 | Initial authoring per ADR-036 v2.0 §8 story split (D-1077). Derived from S-DEMO-DTU-LIVE-SCENARIO-001 Group B+C ACs with substrate corrections: stage_duration_secs 4-entry array; NvdState::lookup_and_count → NvdState::cve_registry immutable HashMap; CVSS path metrics.cvss_metric_v31[0].cvss_data.base_score; NvdClone::new_with_scenario fallible; ThreatIntelClone::new_with_scenario infallible; canonical IDs "dev-{8hex}-{seed}-{n}" per ADR-036 §2.2. Depends on Story A merge. |
