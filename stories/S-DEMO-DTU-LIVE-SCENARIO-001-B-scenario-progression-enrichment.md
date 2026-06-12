@@ -6,12 +6,12 @@ wave: 5
 epic_id: E-DEMO
 priority: P2
 status: ready
-version: "2.2"
+version: "2.3"
 level: "L4"
 producer: story-writer
 timestamp: "2026-06-12T00:00:00Z"
 created: "2026-06-09"
-modified: "2026-06-12T18:00:00Z"
+modified: "2026-06-12T21:00:00Z"
 tdd_mode: strict
 subsystems: [SS-01]
 # Subsystem anchor justifications:
@@ -23,7 +23,7 @@ subsystems: [SS-01]
 target_module: prism-dtu-common
 crates_touched: [prism-dtu-common, prism-dtu-demo-server, prism-dtu-armis, prism-dtu-crowdstrike, prism-dtu-claroty, prism-dtu-cyberint, prism-dtu-threatintel, prism-dtu-nvd]
 behavioral_contracts: [BC-2.06.019, BC-2.06.020]
-verification_properties: [VP-019-A, VP-019-B, VP-019-C, VP-019-D, VP-019-E, VP-019-F, VP-019-G, VP-019-H, VP-020-A, VP-020-B, VP-020-C, VP-020-D, VP-020-E, VP-020-F, VP-020-G, VP-020-H]
+verification_properties: [VP-019-A, VP-019-B, VP-019-C, VP-019-D, VP-019-E, VP-019-F, VP-019-G, VP-019-H, VP-019-I, VP-020-A, VP-020-B, VP-020-C, VP-020-D, VP-020-E, VP-020-F, VP-020-G, VP-020-H]
 depends_on:
   - S-DEMO-DTU-LIVE-SCENARIO-001-A
   # Dependency anchor: Story A delivers new_with_seed constructors + generated_records in state
@@ -58,8 +58,8 @@ risk: HIGH
 #   CveRecord.metrics.cvss_metric_v31[0].cvss_data.base_score (f64), NOT a flat field.
 #   stage_duration_secs array has 4 entries (for stages 1-4 activation thresholds);
 #   stage 0 always activates at 0 — no array entry needed.
-acceptance_criteria_count: 17
-red_gate_tests: 18
+acceptance_criteria_count: 18
+red_gate_tests: 19
 estimated_passes: "3-5 LOCAL adversary passes"
 holdout_scenarios: []
 assumption_validations: []
@@ -143,7 +143,7 @@ different seeds produce coherent but disjoint entity catalogs (INV-CROSS-DTU-ENT
 
 | BC | Title | Key Invariants |
 |----|-------|----------------|
-| BC-2.06.019 v1.1 | Demo-Server Scenario Progression — Pure-Function Temporal Stage Advancement | INV-PROGRESSION-REPRODUCIBILITY-001, INV-STAGE-MONOTONICITY-001, INV-STAGE-MASK-COMPLETENESS-001, INV-SCENARIO-DISABLED-COMPAT-001, INV-SECONDARY-RNG-STREAM-INDEPENDENCE-001 |
+| BC-2.06.019 v1.2 | Demo-Server Scenario Progression — Pure-Function Temporal Stage Advancement | INV-PROGRESSION-REPRODUCIBILITY-001, INV-STAGE-MONOTONICITY-001, INV-STAGE-MASK-COMPLETENESS-001, INV-SCENARIO-DISABLED-COMPAT-001, INV-SECONDARY-RNG-STREAM-INDEPENDENCE-001 |
 | BC-2.06.020 v1.1 | Demo-Server Enrichment Correlation — Scenario IOCs/CVEs Resolve in ThreatIntel/NVD | INV-THREATINTEL-IOC-CORRELATION-001, INV-NVD-CVE-CORRELATION-001, INV-CROSS-DTU-ENTITY-COHERENCE-001, INV-NON-SCENARIO-LOOKUP-PASSTHROUGH-001, INV-PERIMETER-COMPLIANCE-001, INV-CONSTRUCTION-TIME-INJECTION-001 |
 
 ---
@@ -371,10 +371,27 @@ Given `scenario.archetype = "compromised_endpoint"` (explicitly set) but `fixtur
 
 The `scenario.archetype` field is consumed, not decorative: for every clone with `scenario.enabled = true`, `build_clone_pairs` MUST verify that `scenario.archetype` agrees with the archetype derived from `fixture_set`. If they contradict, E-DEMO-003 fires before any constructor is called.
 
-Guard placement: within the ordered pre-construction validation block, the archetype/fixture_set contradiction check at the E-DEMO-003 position — AFTER the E-DEMO-002 seed-mismatch check and BEFORE the E-DEMO-004 missing-org_id check:
-`E-DEMO-002 (seed mismatch) → E-DEMO-003 (bad archetype / archetype×fixture_set contradiction) → E-DEMO-004 (missing org_id)`
+Guard placement: within the ordered pre-construction validation block, the archetype/fixture_set contradiction check at the E-DEMO-003 position — AFTER the E-DEMO-002 seed-mismatch check and E-DEMO-006 org_id-mismatch check, and BEFORE the E-DEMO-004 missing-org_id check:
+`E-DEMO-002 (seed mismatch) → E-DEMO-006 (org_id mismatch) → E-DEMO-003 (bad archetype / archetype×fixture_set contradiction) → E-DEMO-004 (missing org_id)`
 
 Red Gate: `test_BC_2_06_019_e_demo_003_archetype_fixture_set_contradiction`
+
+**AC-018 — E-DEMO-006: mismatched org_ids across scenario-enabled clones rejected at construction**
+(traces to BC-2.06.019 precondition 6 and EC-019-013; TV-019-015)
+
+Given two or more scenario-enabled clones in the same client config block that share the same `seed` but have different `org_id` values (e.g., `clones.crowdstrike.org_id = "<uuid-A>"` and `clones.armis.org_id = "<uuid-B>"` where uuid-B ≠ uuid-A), both with `scenario.enabled = true`, when `build_clone_pairs` runs, then it returns `Err(e)` where `e.to_string()` contains `"E-DEMO-006"` and both clone names and both org_id values — BEFORE any clone constructor is called.
+
+Verbatim message format (error-taxonomy.md v1.77 E-DEMO-006):
+`"demo-server: E-DEMO-006: scenario clones '{clone_a}' (org_id={org_id_a}) and '{clone_b}' (org_id={org_id_b}) have different org_ids; cross-DTU coherence requires all scenario-enabled clones to share the same org_id"`
+
+Guard placement: AFTER the E-DEMO-002 seed-mismatch check and BEFORE the E-DEMO-003 archetype check. The full canonical order is:
+`E-DEMO-002 (seed mismatch) → E-DEMO-006 (org_id mismatch) → E-DEMO-003 (bad archetype / archetype×fixture_set contradiction) → E-DEMO-004 (missing org_id)`
+
+Rationale (BC-2.06.019 PRE-6): without this guard, `ScenarioEntityCatalog` is derived from the first clone's `(seed, org_id_A)` pair, producing `primary_device_id = "dev-{slug_A}-{seed}-0"`. A second clone using `org_id_B` generates devices as `"dev-{slug_B}-{seed}-0"` (different slug). INV-CROSS-DTU-ENTITY-COHERENCE-001 (BC-2.06.020) cross-DTU join returns empty with no diagnostic — a SOUL.md §4 silent partial-failure. The guard prevents this silent incoherence.
+
+Test vector: BC-2.06.019 TV-019-015 (`seed_A = 100` for crowdstrike org_id=uuid-A and armis org_id=uuid-B ≠ uuid-A, both scenario.enabled=true → Err containing E-DEMO-006, no clone constructed).
+
+Red Gate: `test_BC_2_06_019_e_demo_006_org_id_mismatch_across_scenario_clones`
 
 ---
 
@@ -401,7 +418,8 @@ All tests written FAIL-first per SID-1 (CLAUDE.md §SID-1). Unit tests in `#[cfg
 | 15 | `test_BC_2_06_020_cross_dtu_entity_coherence_stage1_all_three_clones` | prism-dtu-demo-server | BC-2.06.020 INV-CROSS-DTU-ENTITY-COHERENCE-001 / PC-5 | integration |
 | 16 | `test_BC_2_06_020_non_scenario_passthrough_and_perimeter_gate` | prism-dtu-threatintel + tests/external/perimeter-violation | BC-2.06.020 INV-NON-SCENARIO-LOOKUP-PASSTHROUGH-001 + INV-PERIMETER-COMPLIANCE-001 / PC-6 | unit + compile-fail |
 | 17 | `test_dormant_tenant_seeded_empty_records_not_static_fallback` | prism-dtu-armis (or prism-dtu-crowdstrike) | DormantTenant regression: `fixture_gen_seeded=true + generated_records=[]` must NOT fall back to static JSON — it must return empty response, not static-fixture data | unit |
-| 18 | `test_BC_2_06_019_e_demo_003_archetype_fixture_set_contradiction` | prism-dtu-demo-server | BC-2.06.019 EC-019-012: archetype/fixture_set contradiction (`compromised_endpoint` × `DormantTenant`, and `healthy` archetype with scenario enabled) returns E-DEMO-003 before any constructor called; guard position: E-DEMO-002 → **E-DEMO-003** → E-DEMO-004 | unit |
+| 18 | `test_BC_2_06_019_e_demo_003_archetype_fixture_set_contradiction` | prism-dtu-demo-server | BC-2.06.019 EC-019-012: archetype/fixture_set contradiction (`compromised_endpoint` × `DormantTenant`, and `healthy` archetype with scenario enabled) returns E-DEMO-003 before any constructor called; guard position: E-DEMO-002 → E-DEMO-006 → **E-DEMO-003** → E-DEMO-004 | unit |
+| 19 | `test_BC_2_06_019_e_demo_006_org_id_mismatch_across_scenario_clones` | prism-dtu-demo-server | BC-2.06.019 PRE-6 / EC-019-013 / TV-019-015: two scenario-enabled clones with same seed but different org_ids returns E-DEMO-006 containing both clone names and org_id values before any constructor called; guard position: E-DEMO-002 → **E-DEMO-006** → E-DEMO-003 → E-DEMO-004 | unit |
 
 ---
 
@@ -409,9 +427,9 @@ All tests written FAIL-first per SID-1 (CLAUDE.md §SID-1). Unit tests in `#[cfg
 
 | Item | Estimated Tokens |
 |------|-----------------|
-| Story spec (this file, v2.2) | ~7 700 |
+| Story spec (this file, v2.3) | ~8 200 |
 | ADR-036 v2.3 (full) | ~5 800 |
-| BC-2.06.019 v1.1 (full) | ~3 000 |
+| BC-2.06.019 v1.2 (full) | ~3 200 |
 | BC-2.06.020 v1.1 (full) | ~3 000 |
 | Story A spec (substrate context; confirmed merged) | ~3 000 |
 | prism-dtu-common/src/scenario/mod.rs (from Story A + extensions) | ~1 500 |
@@ -423,12 +441,12 @@ All tests written FAIL-first per SID-1 (CLAUDE.md §SID-1). Unit tests in `#[cfg
 | prism-dtu-threatintel/src/{state,clone}.rs | ~900 |
 | prism-dtu-nvd/src/{state,clone,types}.rs | ~1 000 |
 | ci.yml (EXPECTED line) | ~200 |
-| Test files (18 stubs × ~40 lines each) | ~2 200 |
+| Test files (19 stubs × ~40 lines each) | ~2 300 |
 | Tool outputs (nextest, clippy, compile-fail) | ~2 000 |
 | BC files (2 BCs: BC-2.06.019, BC-2.06.020) | included above |
-| **Total estimate** | **~36 400** |
+| **Total estimate** | **~37 200** |
 
-At ~200k context window, this is ~18.2% — within the 20-30% ceiling.
+At ~200k context window, this is ~18.6% — within the 20-30% ceiling.
 
 ---
 
@@ -502,16 +520,17 @@ Implementation checklist (TDD order — write failing tests before each implemen
 **Phase 4: build_clone_pairs scenario coordination**
 
 - [ ] Read `crates/prism-dtu-demo-server/src/harness.rs` (post-Story-A) before editing
-- [ ] Write failing tests 9, 10, 11, 12, 18 (FAIL first): E-DEMO-002, E-DEMO-003 (unrecognized archetype), E-DEMO-003 (archetype×fixture_set contradiction, AC-017), scenario-disabled compat, secondary RNG independence
+- [ ] Write failing tests 9, 10, 11, 12, 18, 19 (FAIL first): E-DEMO-002, E-DEMO-003 (unrecognized archetype), E-DEMO-003 (archetype×fixture_set contradiction, AC-017), scenario-disabled compat, secondary RNG independence, E-DEMO-006 (org_id mismatch, AC-018)
 - [ ] Add E-DEMO-002 guard: before any constructor, if multiple scenario-enabled clones have different `seed` values, return `Err(anyhow!("demo-server: E-DEMO-002: ..."))`
-- [ ] Add E-DEMO-003 guard (position: AFTER E-DEMO-002, BEFORE E-DEMO-004): (a) if `scenario.archetype` is not a recognized string (`"compromised_endpoint"`, `"healthy"`), return E-DEMO-003; (b) if `stage_duration_secs` length != 4 for `compromised_endpoint`; (c) if `scenario.archetype = "healthy"` with `scenario.enabled = true` (archetype does not support progression); (d) if `scenario.archetype = "compromised_endpoint"` but `fixture_set` maps to `DormantTenant` (archetype/fixture_set incoherence, EC-019-012 Direction 2). All four sub-cases return E-DEMO-003 before any clone constructor is called (AC-017).
+- [ ] Add E-DEMO-006 guard (position: AFTER E-DEMO-002, BEFORE E-DEMO-003): if multiple scenario-enabled clones have different `org_id` values, return `Err(anyhow!("demo-server: E-DEMO-006: scenario clones '{clone_a}' (org_id={org_id_a}) and '{clone_b}' (org_id={org_id_b}) have different org_ids; cross-DTU coherence requires all scenario-enabled clones to share the same org_id"))` — before any clone constructor is called (AC-018, BC-2.06.019 PRE-6, EC-019-013, TV-019-015). Both clone names and both org_id values must appear in the error string.
+- [ ] Add E-DEMO-003 guard (position: AFTER E-DEMO-006, BEFORE E-DEMO-004): (a) if `scenario.archetype` is not a recognized string (`"compromised_endpoint"`, `"healthy"`), return E-DEMO-003; (b) if `stage_duration_secs` length != 4 for `compromised_endpoint`; (c) if `scenario.archetype = "healthy"` with `scenario.enabled = true` (archetype does not support progression); (d) if `scenario.archetype = "compromised_endpoint"` but `fixture_set` maps to `DormantTenant` (archetype/fixture_set incoherence, EC-019-012 Direction 2). All four sub-cases return E-DEMO-003 before any clone constructor is called (AC-017).
 - [ ] Fix stale doc comment at `crates/prism-dtu-demo-server/src/config.rs:98` — currently reads "Only `\"compromised_endpoint\"` is supported in v1"; update to list both recognized values: "Valid values: `\"compromised_endpoint\"`, `\"healthy\"`" (or equivalent accurate prose); must be fixed in the SAME commit as the E-DEMO-003 guard implementation (D item from remove-uncertainty findings)
 - [ ] Consume `scenario.scenario_start_secs` (NIT-2): derive ONCE — `let scenario_start_epoch_secs = config.scenario.scenario_start_secs.unwrap_or_else(|| Utc::now().timestamp()); let time_anchor = DateTime::from_timestamp(scenario_start_epoch_secs, 0).expect("scenario_start_epoch_secs always in-range");` (ADR-036 v2.3 §2.4 step 4). When `scenario_start_secs = None`, `Utc::now()` is called AT MOST ONCE; both `scenario_start_epoch_secs` and `time_anchor` share the same captured epoch so they cannot diverge by milliseconds.
 - [ ] Consume `scenario.stage_duration_secs` (NIT-2): pass to `build_default_incident_timeline`; empty vec uses defaults `[60, 180, 360, 600]`
 - [ ] Consume `scenario.enabled` and `scenario.archetype` (NIT-2): gate scenario path on `enabled = true`; validate `archetype` string and emit E-DEMO-003 if invalid
 - [ ] When `scenario.enabled = true`: derive `org_slug = org_slug_from_org_id(&org_id)` (already in Story A); build `ScenarioEntityCatalog` via `build_scenario_entity_catalog(seed, &org_id)` using `gen_seeded_rng(seed.wrapping_add(1), &org_id)` secondary stream; build `IncidentTimeline` from catalog + `stage_duration_secs`; wrap in `Arc::new(timeline)`; call `new_with_scenario(seed, archetype, org_id, Arc::clone(&timeline), time_anchor)` (5-arg, ADR-036 v2.3 §2.4) for 4 generator-backed clones; call `ThreatIntelClone::new_with_scenario(&catalog)` and `NvdClone::new_with_scenario(&catalog)?`
-- [ ] Verify NIT-1: the E-DEMO-004 guard (from Story A) fires correctly when `scenario.enabled = true` but `org_id = None`; add a test assertion confirming the guard order: E-DEMO-002 (seed mismatch) → E-DEMO-003 (bad archetype) → E-DEMO-004 (missing org_id) — all before any constructor is called
-- [ ] Verify tests 9-12 pass
+- [ ] Verify NIT-1: the E-DEMO-004 guard (from Story A) fires correctly when `scenario.enabled = true` but `org_id = None`; add a test assertion confirming the guard order: E-DEMO-002 (seed mismatch) → E-DEMO-006 (org_id mismatch) → E-DEMO-003 (bad archetype) → E-DEMO-004 (missing org_id) — all before any constructor is called
+- [ ] Verify tests 9-12, 18-19 pass
 
 **Phase 5: Cross-DTU coherence integration test**
 
@@ -524,7 +543,7 @@ Implementation checklist (TDD order — write failing tests before each implemen
 - [ ] Run SAP-1 probe (CLAUDE.md §SAP-1): `rg 'event_type\s*=' crates/ --type rust` — verify any new `event_type` emissions have BC-2.16.002 catalog rows; if NO new emissions added, state explicitly in PR description
 - [ ] Run `cargo check -p prism-dtu-claroty` and `cargo check -p prism-dtu-cyberint` WITHOUT `--features fixture-gen` — both must compile with zero errors (chrono feature-gate verification, MEDIUM-C item)
 - [ ] Sibling-sweep for forbidden 3-arg path in scenario context: `grep -rn "new_with_seed\b" crates/prism-dtu-*/src/clone.rs` — any occurrence inside a `new_with_scenario` body is a violation (must use `new_with_seed_anchored`)
-- [ ] Run `just check` — all 18 Red Gate tests pass; zero clippy warnings; fmt clean
+- [ ] Run `just check` — all 19 Red Gate tests pass; zero clippy warnings; fmt clean
 - [ ] Verify compile-fail gate (test 16) passes with zero new perimeter violations
 - [ ] Confirm all 4 `ScenarioConfig` fields consumed in `build_clone_pairs` — zero dead code warnings on `scenario.enabled`, `scenario.archetype`, `scenario.scenario_start_secs`, `scenario.stage_duration_secs`
 
@@ -569,9 +588,9 @@ is the direct predecessor — merged PR #181 develop@c287b00d (D-1089 2026-06-10
 | `new_with_scenario` for ThreatIntel/NVD must NOT import `prism-spec-engine`, `prism-sensors`, or `prism-query` | BC-2.06.020 INV-PERIMETER-COMPLIANCE-001 + ADR-036 v2.3 §2.5 | Compile-fail gate `tests/external/perimeter-violation/` |
 | CVSS path: `CveRecord.metrics.cvss_metric_v31[0].cvss_data.base_score: f64` (field `cvss_metric_v31` is `Option<Vec<CvssMetricV31>>` — unwrap the Option) and `.base_severity: String` — implementer MUST read `crates/prism-dtu-nvd/src/types.rs` | ADR-036 v2.3 §1.3 + §2.3 | Adversary: read types.rs before review; check test assertions |
 | `stage_duration_secs` config array has exactly 4 entries for the 5-stage timeline (stages 1-4 thresholds; stage 0 always 0) | ADR-036 v2.3 §2.2 + BC-2.06.019 PC-2 | Tests 3, 10 |
-| E-DEMO-002 and E-DEMO-003 detected BEFORE any clone constructor is called in `build_clone_pairs`; E-DEMO-004 also fires before construction | ADR-036 v2.3 §2.4 + BC-2.06.019 PRE-5/PRE-6 | Tests 9, 10 |
+| E-DEMO-002, E-DEMO-006, E-DEMO-003, and E-DEMO-004 all detected BEFORE any clone constructor is called in `build_clone_pairs`; canonical guard order: E-DEMO-002 (seed mismatch) → E-DEMO-006 (org_id mismatch) → E-DEMO-003 (bad archetype / archetype×fixture_set contradiction) → E-DEMO-004 (missing org_id) | ADR-036 v2.3 §2.4 + BC-2.06.019 PRE-5 / PRE-6 + error-taxonomy v1.77 | Tests 9, 10, 18, 19 |
 | All 4 `ScenarioConfig` fields (`enabled`, `archetype`, `scenario_start_secs`, `stage_duration_secs`) must be consumed in `build_clone_pairs`; zero dead-code warnings | NIT-2 (from Story A) | Adversary: clippy dead-code sweep |
-| E-DEMO-004 guard order: seed-mismatch (E-DEMO-002) → bad-archetype (E-DEMO-003) → missing-org_id (E-DEMO-004) — all before any constructor | NIT-1 reconciliation | Test 9/10 + adversary guard-order probe |
+| Guard order: seed-mismatch (E-DEMO-002) → org_id-mismatch (E-DEMO-006) → bad-archetype (E-DEMO-003) → missing-org_id (E-DEMO-004) — all before any constructor | NIT-1 reconciliation + BC-2.06.019 PRE-6 | Tests 9, 10, 18, 19 + adversary guard-order probe |
 | `await_holding_lock = "deny"` (ADR-002 §H1): no `.await` inside a Mutex lock guard in route handlers | ADR-002 | clippy deny list |
 | All tracing emission sites with `event_type =` must have BC-2.16.002 catalog rows | SAP-1 / CLAUDE.md §SAP-1 | Adversary SAP-1 probe post-implementation |
 | Forbidden pattern: `Arc::new(SomeThing::placeholder())` in production boot path | ADR-022 §C + CLAUDE.md | Adversary |
@@ -593,7 +612,7 @@ Versions pinned from `dependency-graph.md` and `rust-toolchain.toml`. Do NOT inv
 | `chrono` | project-pinned | `Utc::now().timestamp()` for `now_epoch_secs` and `DateTime::from_timestamp` for `time_anchor`. Already a direct (unconditional) dependency in armis and crowdstrike. In claroty and cyberint, `chrono` is gated `dep:chrono` under `[features] fixture-gen` — any `timeline` field, `time_anchor` parameter, or `Utc::now()` / `DateTime` usage in these two crates MUST be `#[cfg(feature = "fixture-gen")]`-gated; non-gated code must not reference chrono. NOT added to threatintel/nvd (no chrono needed for their constructors). |
 | `serde` / `serde_json` | project-pinned | `CloneConfig` / `ScenarioConfig` deserialization + `generated_records` JSON handling |
 | `rand_chacha` (`ChaCha20Rng`) | project-pinned | Secondary RNG stream for `build_scenario_entity_catalog` via `gen_seeded_rng` |
-| `anyhow` | project-pinned | Error propagation for E-DEMO-002/003; `NvdClone::new_with_scenario` return type; `CyberintClone::new_with_scenario` return type |
+| `anyhow` | project-pinned | Error propagation for E-DEMO-002/E-DEMO-006/E-DEMO-003; `NvdClone::new_with_scenario` return type; `CyberintClone::new_with_scenario` return type |
 | `uuid` | project-pinned | `uuid::Uuid::parse_str()` for org_id (already used in Story A substrate) |
 | `reqwest` | project-pinned | Integration test HTTP clients; `.timeout(Duration::from_secs(30))` mandatory per CLAUDE.md |
 
@@ -628,7 +647,7 @@ Versions pinned from `dependency-graph.md` and `rust-toolchain.toml`. Do NOT inv
 | `crates/prism-dtu-threatintel/Cargo.toml` | MODIFY (if not done in Story A §5) | Add `fixture-gen = ["prism-dtu-common/fixture-gen"]` feature; verify Story A already added it |
 | `crates/prism-dtu-nvd/src/clone.rs` | MODIFY | Add `NvdClone::new_with_scenario(entities: &ScenarioEntityCatalog) -> anyhow::Result<Self>` |
 | `crates/prism-dtu-nvd/Cargo.toml` | MODIFY (if not done in Story A §5) | Add `fixture-gen = ["prism-dtu-common/fixture-gen"]` feature; verify Story A already added it |
-| `crates/prism-dtu-demo-server/src/harness.rs` | MODIFY (Story A: E-DEMO-004/005 present) | Add scenario coordination: E-DEMO-002/003, `scenario.enabled/archetype/scenario_start_secs/stage_duration_secs` consumption, catalog derivation, IncidentTimeline construction, Arc threading |
+| `crates/prism-dtu-demo-server/src/harness.rs` | MODIFY (Story A: E-DEMO-004/005 present) | Add scenario coordination: E-DEMO-002/E-DEMO-006/E-DEMO-003 guards (in canonical order), `scenario.enabled/archetype/scenario_start_secs/stage_duration_secs` consumption, catalog derivation, IncidentTimeline construction, Arc threading |
 | `.github/workflows/ci.yml` | MODIFY | Bump `EXPECTED=N` by count of new `#[non_exhaustive]` pub types (at minimum +2: `IncidentTimeline`, `IncidentStage`; read live value first) |
 | `tests/external/non-exhaustive-violation/` | MODIFY | Add violation rows for new `#[non_exhaustive]` types |
 
@@ -652,6 +671,7 @@ Versions pinned from `dependency-graph.md` and `rust-toolchain.toml`. Do NOT inv
 | EC-012 | ADR-036 v2.2 §2.3 | Stage-mask filter applied when `generated_records` is empty (Story A produced empty set) | No records to filter; empty response; no panic; existing behavior preserved |
 | EC-013 | ADR-036 v2.2 §2.3 | `NvdClone::new_with_scenario` returns `Err` (e.g., fixture file missing) | Error propagated through `build_clone_pairs -> anyhow::Result<Vec<ClonePair>>`; harness aborts cleanly |
 | EC-014 | BC-2.06.019 EC-019-012 | `scenario.enabled = true` with `fixture_set = "dormant"` (DormantTenant archetype) — Direction 1: `scenario.archetype = "healthy"` with `scenario.enabled = true`; Direction 2: `scenario.archetype = "compromised_endpoint"` with `fixture_set = "dormant"` | `build_clone_pairs` returns `E-DEMO-003` before any clone constructor is called; guard at E-DEMO-003 position in the ordered check sequence (AC-017) |
+| EC-015 | BC-2.06.019 EC-019-013 | Two scenario-enabled clones with same `seed` but different `org_ids` (e.g., CrowdStrike `org_id="<uuid-A>"`, Armis `org_id="<uuid-B>"`, both `scenario.enabled = true`) | `build_clone_pairs` returns `Err` containing `"E-DEMO-006"`, both clone names, and both org_id values before any constructor is called; guard position: after E-DEMO-002, before E-DEMO-003 (AC-018, TV-019-015) |
 
 ---
 
@@ -664,7 +684,7 @@ Versions pinned from `dependency-graph.md` and `rust-toolchain.toml`. Do NOT inv
 | `StageMask` | `prism-dtu-common/src/scenario/` | Pure (data struct; internal, NOT non-exhaustive) | ADR-036 v2.2 §2.2 + BC-2.06.019 INV-STAGE-MASK-COMPLETENESS-001 |
 | `current_stage_index` | `prism-dtu-common/src/scenario/` | Pure (function: `(&IncidentTimeline, i64) -> usize`) | ADR-036 v2.2 §2.1 |
 | `build_default_incident_timeline` | `prism-dtu-common/src/scenario/` | Pure (deterministic from catalog + thresholds) | ADR-036 v2.2 §2.2 |
-| `build_clone_pairs` (scenario coordination additions) | `prism-dtu-demo-server/src/harness.rs` | Effectful (constructs clones, reads config, calls catalog + timeline builders; E-DEMO-002/003 guards) | ADR-036 v2.2 §2.4 |
+| `build_clone_pairs` (scenario coordination additions) | `prism-dtu-demo-server/src/harness.rs` | Effectful (constructs clones, reads config, calls catalog + timeline builders; E-DEMO-002/E-DEMO-006/E-DEMO-003/E-DEMO-004 guards in canonical order) | ADR-036 v2.2 §2.4 + BC-2.06.019 PRE-5/PRE-6 |
 | `ArmisState.timeline` / route projection | `prism-dtu-armis/src/state.rs` + routes | Effectful (HTTP handler calling pure `current_stage_index`) | ADR-036 v2.2 §2.3 |
 | `CrowdstrikeState.timeline` / route projection | `prism-dtu-crowdstrike/src/state.rs` + routes | Effectful | ADR-036 v2.2 §2.3 |
 | `ClarotyState.timeline` / route projection | `prism-dtu-claroty/src/state.rs` + routes | Effectful | ADR-036 v2.2 §2.3 |
@@ -707,6 +727,7 @@ If NO new `event_type` emissions are added in this story, state explicitly in th
 
 | Version | Date | Change |
 |---------|------|--------|
+| v2.3 | 2026-06-12 | Micro-amendment — PO burst 13c1b17a OBS-1 work-order: BC-2.06.019 v1.2 PRE-6 org_id-equality guard added. AC-018 (traced to BC-2.06.019 PRE-6 / EC-019-013 / TV-019-015): `build_clone_pairs` rejects scenario-enabled clones with mismatched `org_id` values → `Err` containing `"E-DEMO-006"` with both clone names and org_id values, BEFORE any clone constructor. Verbatim message from error-taxonomy v1.77: `"demo-server: E-DEMO-006: scenario clones '{clone_a}' (org_id={org_id_a}) and '{clone_b}' (org_id={org_id_b}) have different org_ids; cross-DTU coherence requires all scenario-enabled clones to share the same org_id"`. Full guard order updated everywhere it appears (AC-017, Architecture Compliance Rules, Phase-4 tasks, NIT-1 verification): `E-DEMO-002 (seed mismatch) → E-DEMO-006 (org_id mismatch) → E-DEMO-003 (bad archetype) → E-DEMO-004 (missing org_id)`. Red Gate test 19 (`test_BC_2_06_019_e_demo_006_org_id_mismatch_across_scenario_clones`) added. EC-015 (EC-019-013) added to Edge Cases table. BC-2.06.019 version pin bumped v1.1→v1.2 in BC table. VP-019-I added to verification_properties frontmatter. Token Budget story-spec ~7 700→~8 200; BC-2.06.019 ~3 000→~3 200; test-stubs 18→19 × 40 lines; total ~36 400→~37 200. acceptance_criteria_count 17→18; red_gate_tests 18→19; version 2.2→2.3. STORY-INDEX row synced v2.2→v2.3. |
 | v2.2 | 2026-06-12 | Micro-amendment — LOCAL pass-3 finding B-P3-01 scope closure. Added AC-017 traced to BC-2.06.019 EC-019-012: `build_clone_pairs` rejects archetype/fixture_set contradictions with E-DEMO-003 before any constructor. Two directions covered: (1) `scenario.archetype = "healthy"` with `scenario.enabled = true` (archetype does not support 5-stage progression); (2) `scenario.archetype = "compromised_endpoint"` × `fixture_set = "dormant"` (CompromisedEndpoint × DormantTenant incoherence). Guard placement documented: E-DEMO-002 → E-DEMO-003 → E-DEMO-004. EC table row EC-014 (EC-019-012). Red Gate test 18 (`test_BC_2_06_019_e_demo_003_archetype_fixture_set_contradiction`). Phase 4 E-DEMO-003 guard task extended with four sub-cases (a–d). Token Budget story-spec ~7 200→~7 700; test-stubs 16→18 × 40 lines; total ~36 000→~36 400. acceptance_criteria_count 16→17; red_gate_tests 17→18; version 2.1→2.2. STORY-INDEX row updated v2.1→v2.2. |
 | v2.1 | 2026-06-12 | Amendment burst — remove-uncertainty findings closure (ADR-036 v2.3 work-order). HIGH: time_anchor wiring — all 4 generator-backed clone constructors updated from 4-arg to 5-arg `new_with_scenario(seed, archetype, org_id, Arc::clone(&timeline), time_anchor)`; `new_with_scenario` body must call `new_with_seed_anchored(seed, archetype, org_id, time_anchor)` (NOT 3-arg `new_with_seed`); `time_anchor` derived ONCE in `build_clone_pairs` from `scenario_start_epoch_secs`; `Utc::now()` called AT MOST ONCE for the None path; ADR-036 version bumped v2.2→v2.3 throughout; Architecture Compliance Rules + risk_mitigations extended; body intro ADR-036 v2.3 amendment block added; AC-007/AC-008 updated to 5-arg form; AC-011 None-path determinism note added. MEDIUM-B: DormantTenant regression guard — Phase 2 handler tasks updated with explicit three-way composition rule (fixture_gen_seeded flag, NOT generated_records.is_empty()); Red Gate test 17 added (dormant_tenant guard); red_gate_tests 16→17; Architecture Compliance Rules row added. MEDIUM-C: chrono feature-gating in claroty/cyberint — Phase 2 Claroty + Cyberint tasks updated with explicit `#[cfg(feature="fixture-gen")]` gating requirement; Phase 6 cargo-check verification tasks added; Library & Framework Requirements chrono row updated; Architecture Compliance Rules row added; FSR rows for claroty/cyberint updated. LOW-D1: E-DEMO-003 config.rs doc comment fix task added to Phase 4 E-DEMO-003 guard step. LOW-D2: with_admin_token phrasing clarified — it is `ThreatIntelState::with_admin_token` (state.rs:38) called from the clone constructor body, not a `ThreatIntelClone` method; full constructor body replication described. LOW-D3: AC-014 cvss_metric_v31 Option<Vec<>> unwrap note added. Token Budget ~35 100→~36 000. version 2.0→2.1; modified timestamp updated. |
 | v2.0 | 2026-06-12 | T5 materialization burst (D-1090 full-autonomy grant). Story A MERGED (PR #181 develop@c287b00d) — status draft→ready. CONTRACT-COMPLETENESS FRONT-LOAD verified: all 4 mechanisms fully specified in BC-2.06.019 v1.1 + BC-2.06.020 v1.1 + ADR-036 v2.2. NIT-1 folded in: E-DEMO-004 trigger/message reconciliation documented in frontmatter risk_mitigations + story body + §Tasks (no change to error message needed; Story A guard covers scenario path). NIT-2 folded in: all 4 ScenarioConfig fields explicitly noted as consumed in Story B in body intro + §Tasks + frontmatter risk_mitigations. Architecture Compliance Rules extended with: ADR-036 v2.2 StageMask #[non_exhaustive] conflict note (BC-2.06.019 wins); E-DEMO-002/003/004 guard order constraint; NIT-1 E-DEMO-004 order rule; gen_seeded_rng two-arg alias rule (ADR-036 v2.1 U-A-01). AC-002 implementation formula added verbatim. AC-003 TV source cites (BC-2.06.019 TV-019-001..005). AC-012 gen_seeded_rng alias correction. AC-013 lock-and-insert-then-release description. AC-014 exact NvdState::lookup_and_count method name + fallibility note. AC-015 org_slug formula cited verbatim. Token Budget updated (+2 500 for additional context). Pre-flight §Tasks items added (substrate read checklist). version 1.0→2.0; modified timestamp updated; BC-INDEX Story anchor update pending state-manager. |
