@@ -497,10 +497,19 @@ pub fn build_clone_pairs(config: &DemoConfig) -> anyhow::Result<Vec<ClonePair>> 
                 }
             }
 
-            // E-DEMO-003: for each scenario-enabled clone, validate archetype string
-            // and stage_duration_secs length.
+            // E-DEMO-003: for each scenario-enabled clone, validate archetype string,
+            // check that the archetype supports scenario progression, check that the
+            // scenario.archetype agrees with the fixture_set-derived archetype, and
+            // validate stage_duration_secs length.
+            //
             // Valid scenario archetype strings: "compromised_endpoint", "healthy".
+            // Only "compromised_endpoint" (CompromisedEndpoint) supports 5-stage progression.
+            // "healthy" (HealthyOtEnvironment) does NOT support progression → E-DEMO-003.
+            // Additionally: scenario.archetype-derived archetype must equal the
+            // fixture_set-derived archetype in validated_gen → mismatch → E-DEMO-003.
             // "compromised_endpoint" requires exactly 4 stage_duration_secs entries (or 0 for defaults).
+            //
+            // BC-2.06.019 EC-019-012 / AC-017 (B-P3-01)
             for (name, _, archetype_str, stage_duration) in &scenario_enabled {
                 let scenario_archetype = match *archetype_str {
                     "compromised_endpoint" => Archetype::CompromisedEndpoint,
@@ -512,6 +521,34 @@ pub fn build_clone_pairs(config: &DemoConfig) -> anyhow::Result<Vec<ClonePair>> 
                         other
                     ),
                 };
+
+                // EC-019-012 Direction 1: only CompromisedEndpoint supports scenario
+                // progression. Any other archetype (including HealthyOtEnvironment) does
+                // not have a meaningful 5-stage IncidentTimeline and must be rejected.
+                if !matches!(scenario_archetype, Archetype::CompromisedEndpoint) {
+                    anyhow::bail!(
+                        "demo-server: E-DEMO-003: clone '{}': unrecognized scenario archetype \
+                         '{}'; valid values: compromised_endpoint, healthy",
+                        name,
+                        archetype_str
+                    );
+                }
+
+                // EC-019-012 Direction 2: scenario.archetype must agree with the archetype
+                // derived from fixture_set. If they contradict (e.g., scenario.archetype =
+                // "compromised_endpoint" but fixture_set = "dormant" → DormantTenant),
+                // the combination is incoherent and must be rejected.
+                if let Some((fixture_archetype, _)) = validated_gen.get(*name) {
+                    if *fixture_archetype != scenario_archetype {
+                        anyhow::bail!(
+                            "demo-server: E-DEMO-003: clone '{}': unrecognized scenario archetype \
+                             '{}'; valid values: compromised_endpoint, healthy",
+                            name,
+                            archetype_str
+                        );
+                    }
+                }
+
                 // Stage count validation: 0 = use defaults (allowed); non-zero must be exactly 4.
                 let expected_stages = match scenario_archetype {
                     Archetype::CompromisedEndpoint => 4usize,

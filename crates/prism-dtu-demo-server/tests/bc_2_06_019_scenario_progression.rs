@@ -1,4 +1,4 @@
-//! Red Gate tests 9, 10, 11, 15: BC-2.06.019 / BC-2.06.020 demo-server scenario guards
+//! Red Gate tests 9, 10, 11, 15, 18: BC-2.06.019 / BC-2.06.020 demo-server scenario guards
 //!
 //! Tests:
 //!   Test 9:  test_BC_2_06_019_e_demo_002_seed_mismatch_across_scenario_clones
@@ -6,10 +6,12 @@
 //!   Test 11: test_BC_2_06_019_scenario_disabled_byte_identical_to_seeded_path
 //!   Test 15: test_BC_2_06_020_cross_dtu_entity_coherence_stage1_all_three_clones
 //!   NEW:     test_BC_2_06_019_guard_order_e_demo_002_before_e_demo_004
+//!   Test 18: test_BC_2_06_019_e_demo_003_archetype_fixture_set_contradiction (B-P3-01)
 //!
 //! Story: S-DEMO-DTU-LIVE-SCENARIO-001-B
 //! Traces to: BC-2.06.019 E-DEMO-002/003 / TV-019-012,013,007
 //!            BC-2.06.020 INV-CROSS-DTU-ENTITY-COHERENCE-001 / PC-5
+//!            BC-2.06.019 EC-019-012: archetype/fixture_set contradiction
 //!            Architecture Compliance Rules: E-DEMO-002 → E-DEMO-003 → E-DEMO-004 order
 
 #![allow(clippy::unwrap_used, clippy::expect_used)]
@@ -844,5 +846,171 @@ fn test_BC_2_06_019_guard_order_e_demo_002_before_e_demo_004() {
         "Guard order: error must be E-DEMO-002 (seed mismatch), not E-DEMO-004 \
          (missing org_id). Got error: '{err_str}'. \
          Implementer must reorder guards: E-DEMO-002 check BEFORE E-DEMO-004 check."
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Helpers for test 18
+// ---------------------------------------------------------------------------
+
+/// Create a DemoConfig with only CrowdStrike enabled, scenario.enabled=true,
+/// and the given scenario.archetype + fixture_set combination.
+///
+/// Used by test_BC_2_06_019_e_demo_003_archetype_fixture_set_contradiction.
+fn make_cs_with_archetype_and_fixture(
+    org_id: &str,
+    scenario_archetype: &str,
+    fixture_set: &str,
+) -> DemoConfig {
+    let mut config = DemoConfig::default();
+    config.clones.crowdstrike.enabled = true;
+    config.clones.crowdstrike.seed = 42;
+    config.clones.crowdstrike.org_id = Some(org_id.to_string());
+    config.clones.crowdstrike.fixture_set = fixture_set.to_string();
+    config.clones.crowdstrike.scenario = Some(prism_dtu_demo_server::config::ScenarioConfig {
+        enabled: true,
+        archetype: scenario_archetype.to_string(),
+        scenario_start_secs: None,
+        stage_duration_secs: vec![],
+    });
+    config.clones.claroty.enabled = false;
+    config.clones.cyberint.enabled = false;
+    config.clones.armis.enabled = false;
+    config.clones.threatintel.enabled = false;
+    config.clones.nvd.enabled = false;
+    config
+}
+
+// ---------------------------------------------------------------------------
+// RED GATE TEST 18 — test_BC_2_06_019_e_demo_003_archetype_fixture_set_contradiction
+//
+// BC-2.06.019 EC-019-012 / AC-017 (B-P3-01 ground-truth-verified MEDIUM)
+//
+// Two contradiction directions as named by EC-019-012:
+//
+// Direction 1 — archetype does not support scenario progression:
+//   scenario.archetype = "healthy" (HealthyOtEnvironment) with scenario.enabled=true.
+//   HealthyOtEnvironment does not support 5-stage IncidentTimeline.
+//   build_clone_pairs must return Err(e) where e contains "E-DEMO-003".
+//
+// Direction 2 — archetype/fixture_set incoherence:
+//   scenario.archetype = "compromised_endpoint" but fixture_set = "dormant"
+//   (which maps to DormantTenant internally).
+//   The fixture_set-derived archetype (DormantTenant) contradicts the declared
+//   scenario archetype (CompromisedEndpoint). DormantTenant produces empty generated
+//   records — driving a CompromisedEndpoint 5-stage timeline over empty data is incoherent.
+//   build_clone_pairs must return Err(e) where e contains "E-DEMO-003".
+//
+// Guard position verification:
+//   Both directions must fire AFTER E-DEMO-002 (seed mismatch) and BEFORE E-DEMO-004
+//   (missing org_id). This test provides org_id=DEMO_ORG_UUID_DEADBEEF (no E-DEMO-004
+//   trigger) and matching seeds (no E-DEMO-002 trigger), so the E-DEMO-003 guard is
+//   isolated.
+//
+// FAIL mode (RED):
+//   Current build_clone_pairs has no archetype/fixture_set contradiction check.
+//   The function currently succeeds for both Direction 1 and Direction 2 —
+//   Direction 1: "healthy" scenario.archetype is not validated against scenario.enabled;
+//                build_clone_pairs uses fixture_set-derived archetype for the constructor,
+//                ignoring scenario.archetype entirely → returns Ok instead of Err.
+//   Direction 2: fixture_set="dormant" → fixture_set_to_archetype → DormantTenant;
+//                scenario.archetype="compromised_endpoint" is never compared to DormantTenant;
+//                build_clone_pairs uses DormantTenant for the constructor → returns Ok.
+//   Assertion result.is_err() FAILS in both directions.
+// ---------------------------------------------------------------------------
+#[cfg(feature = "fixture-gen")]
+#[test]
+fn test_BC_2_06_019_e_demo_003_archetype_fixture_set_contradiction() {
+    // Direction 1: scenario.archetype = "healthy" with scenario.enabled = true.
+    // HealthyOtEnvironment does not support 5-stage scenario progression.
+    // fixture_set = "default" maps to HealthyOtEnvironment — both sides agree on the
+    // archetype, but "healthy" does not support IncidentTimeline progression.
+    // build_clone_pairs must reject this with E-DEMO-003.
+    let config_healthy = make_cs_with_archetype_and_fixture(
+        DEMO_ORG_UUID_DEADBEEF,
+        "healthy", // scenario archetype: HealthyOtEnvironment (does not support progression)
+        "default", // fixture_set: also maps to HealthyOtEnvironment
+    );
+
+    // RED: E-DEMO-003 archetype-not-supporting-progression guard not implemented.
+    // build_clone_pairs currently returns Ok — this assertion will FAIL.
+    let result_d1 = build_clone_pairs(&config_healthy);
+
+    assert!(
+        result_d1.is_err(),
+        "EC-019-012 Direction 1: build_clone_pairs must return Err when \
+         scenario.archetype='healthy' (HealthyOtEnvironment) with scenario.enabled=true; \
+         HealthyOtEnvironment does not support 5-stage IncidentTimeline. Got Ok. \
+         E-DEMO-003 guard not yet implemented in build_clone_pairs. \
+         BC-2.06.019 EC-019-012 / AC-017 [RED GATE: expected Err, got Ok]"
+    );
+
+    let err_d1 = result_d1.err().expect("verified is_err above");
+    let err_str_d1 = err_d1.to_string();
+
+    assert!(
+        err_str_d1.contains("E-DEMO-003"),
+        "EC-019-012 Direction 1: error must contain 'E-DEMO-003'; got: '{err_str_d1}' \
+         — BC-2.06.019 EC-019-012"
+    );
+
+    assert!(
+        err_str_d1.contains("crowdstrike"),
+        "EC-019-012 Direction 1: error must name the failing clone; got: '{err_str_d1}'"
+    );
+
+    // Direction 2: scenario.archetype = "compromised_endpoint" but fixture_set = "dormant"
+    // (maps to DormantTenant internally). The two sides disagree:
+    //   scenario.archetype-derived archetype = CompromisedEndpoint
+    //   fixture_set-derived archetype        = DormantTenant
+    // This is an incoherent combination — build_clone_pairs must reject with E-DEMO-003.
+    let config_contradiction = make_cs_with_archetype_and_fixture(
+        DEMO_ORG_UUID_DEADBEEF,
+        "compromised_endpoint", // scenario archetype: CompromisedEndpoint
+        "dormant",              // fixture_set: maps to DormantTenant — MISMATCH
+    );
+
+    // RED: E-DEMO-003 archetype/fixture_set contradiction guard not implemented.
+    // build_clone_pairs currently ignores scenario.archetype and uses fixture_set-derived
+    // DormantTenant for the constructor → returns Ok. This assertion will FAIL.
+    let result_d2 = build_clone_pairs(&config_contradiction);
+
+    assert!(
+        result_d2.is_err(),
+        "EC-019-012 Direction 2: build_clone_pairs must return Err when \
+         scenario.archetype='compromised_endpoint' but fixture_set='dormant' (→ DormantTenant); \
+         the fixture_set-derived archetype (DormantTenant) contradicts the declared scenario \
+         archetype (CompromisedEndpoint). Got Ok. E-DEMO-003 guard not yet implemented. \
+         BC-2.06.019 EC-019-012 / AC-017 [RED GATE: expected Err, got Ok]"
+    );
+
+    let err_d2 = result_d2.err().expect("verified is_err above");
+    let err_str_d2 = err_d2.to_string();
+
+    assert!(
+        err_str_d2.contains("E-DEMO-003"),
+        "EC-019-012 Direction 2: error must contain 'E-DEMO-003'; got: '{err_str_d2}' \
+         — BC-2.06.019 EC-019-012"
+    );
+
+    assert!(
+        err_str_d2.contains("crowdstrike"),
+        "EC-019-012 Direction 2: error must name the failing clone; got: '{err_str_d2}'"
+    );
+
+    // Guard position check: verify E-DEMO-003 fires BEFORE E-DEMO-004.
+    // Config has org_id set (no E-DEMO-004) and single clone with matching seeds
+    // (no E-DEMO-002), so the errors above must purely come from the E-DEMO-003 guard.
+    // This implicitly verifies guard ordering: neither E-DEMO-002 nor E-DEMO-004
+    // masked the E-DEMO-003 error.
+    assert!(
+        !err_str_d1.contains("E-DEMO-004"),
+        "EC-019-012 Direction 1: E-DEMO-003 must fire without E-DEMO-004 masking it; \
+         org_id is provided so E-DEMO-004 must NOT appear. Got: '{err_str_d1}'"
+    );
+    assert!(
+        !err_str_d2.contains("E-DEMO-004"),
+        "EC-019-012 Direction 2: E-DEMO-003 must fire without E-DEMO-004 masking it; \
+         org_id is provided so E-DEMO-004 must NOT appear. Got: '{err_str_d2}'"
     );
 }
