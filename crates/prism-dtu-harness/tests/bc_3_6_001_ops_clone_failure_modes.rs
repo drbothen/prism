@@ -1099,8 +1099,13 @@ async fn test_BC_3_6_001_slack_unsupported_mode_returns_400() {
 //   - Claroty dtu_configure (auth_mode unknown value → silently ACKed as None → 200)
 //   - Armis dtu_configure  (a) auth_mode unknown value → silently ACKed as None → 200;
 //                           (b) failure_mode unknown string → 400 with WRONG body shape
-//   - clone_server dtu_configure_pub (generic: CrowdStrike/Cyberint/Nvd/ThreatIntel)
+//   - clone_server dtu_configure_pub (generic handler: Nvd/ThreatIntel/DemoServer/etc.)
 //                           auth_mode unknown value → silently ACKed as None → 200
+//
+// Routing note (builder.rs Logical-mode dispatch):
+//   DtuType::CrowdStrike → start_crowdstrike_clone  (dedicated handler)
+//   DtuType::Cyberint    → start_cyberint_clone     (dedicated handler)
+//   DtuType::_           → start_clone → dtu_configure_pub  (generic handler)
 //
 // Each test:
 //   1. Sends a structurally-valid payload with an unrecognized value for a
@@ -1255,13 +1260,16 @@ async fn test_BC_3_6_001_armis_native_unknown_mode_returns_400_correct_body() {
     );
 }
 
-/// VP-157 (F-P29-01): Generic clone handler (CrowdStrike) /dtu/configure —
+/// VP-157 (F-P29-01): CrowdStrike dedicated handler /dtu/configure —
 /// unrecognized auth_mode value must return HTTP 400 with contractual body,
 /// NOT silently ACK as FailureMode::None → 200.
-/// The generic `dtu_configure_pub` in clone_server.rs serves CrowdStrike, Cyberint,
-/// Nvd, ThreatIntel, and DemoServer; CrowdStrike is used as the representative clone.
+/// CrowdStrike routes to `start_crowdstrike_clone` (dedicated handler), NOT
+/// through `dtu_configure_pub` in clone_server.rs (which serves Nvd/ThreatIntel/
+/// DemoServer/etc.). This test covers the CrowdStrike dedicated handler path.
+/// See `test_BC_3_6_001_generic_handler_nvd_unsupported_auth_mode_returns_400`
+/// for the generic dtu_configure_pub coverage.
 #[tokio::test]
-async fn test_BC_3_6_001_generic_clone_unsupported_auth_mode_returns_400() {
+async fn test_BC_3_6_001_crowdstrike_clone_unsupported_auth_mode_returns_400() {
     let harness = prism_dtu_harness::Harness::builder()
         .isolation(IsolationMode::Logical)
         .with_customer_overrides("cs-unsupported", |spec| {
@@ -1294,8 +1302,69 @@ async fn test_BC_3_6_001_generic_clone_unsupported_auth_mode_returns_400() {
     let status = resp.status().as_u16();
     assert_eq!(
         status, 400,
-        "Generic clone (CrowdStrike) /dtu/configure must return 400 for unsupported auth_mode \
+        "CrowdStrike dedicated clone /dtu/configure must return 400 for unsupported auth_mode \
          (VP-157 / BC-3.6.001 Postcondition 5 / EC-008 / F-P29-01)"
+    );
+
+    let body: serde_json::Value = resp.json().await.expect("400 body must be JSON");
+    assert_eq!(
+        body,
+        json!({"error": "unsupported_failure_mode", "mode": "FutureVariant"}),
+        "400 response must match exact Postcondition-5 shape; body={body}"
+    );
+}
+
+/// VP-157 (F-P30-01): Generic `dtu_configure_pub` handler (clone_server.rs) —
+/// unrecognized auth_mode value must return HTTP 400 with contractual body,
+/// NOT silently ACK as FailureMode::None → 200.
+///
+/// DtuType::Nvd routes through the Logical-mode `_` arm → `start_clone` →
+/// `dtu_configure_pub` (clone_server.rs:352-362), making it the correct
+/// representative for the generic handler path (unlike CrowdStrike/Cyberint
+/// which have dedicated handlers intercepted in builder.rs before reaching
+/// dtu_configure_pub).
+///
+/// Mental-deletion proof: commenting out the `auth_mode` guard at
+/// clone_server.rs:352-362 causes this test to receive HTTP 200 (silent ACK)
+/// instead of 400 — confirming the test exercises dtu_configure_pub, not a
+/// dedicated handler. The CrowdStrike-typed test is unaffected by that deletion
+/// because it routes to start_crowdstrike_clone (separate code path).
+#[tokio::test]
+async fn test_BC_3_6_001_generic_handler_nvd_unsupported_auth_mode_returns_400() {
+    let harness = prism_dtu_harness::Harness::builder()
+        .isolation(IsolationMode::Logical)
+        .with_customer_overrides("nvd-unsupported", |spec| {
+            spec.dtu_types = vec![DtuType::Nvd];
+        })
+        .build()
+        .await
+        .expect("harness build must succeed");
+
+    let addr = harness
+        .endpoint_for("nvd-unsupported", DtuType::Nvd)
+        .expect("nvd endpoint must exist");
+    let admin_token = harness
+        .admin_token_for("nvd-unsupported", DtuType::Nvd)
+        .expect("nvd admin token must exist")
+        .to_owned();
+    let client = test_client();
+
+    // Structurally-valid payload: `auth_mode` is a known field, value "FutureVariant"
+    // is not in {"reject","none"} — must trigger the Postcondition-5 guard in
+    // dtu_configure_pub (clone_server.rs:352-362), returning 400, not 200.
+    let resp = client
+        .post(format!("http://{addr}/dtu/configure"))
+        .header("x-admin-token", &admin_token)
+        .json(&json!({"auth_mode": "FutureVariant"}))
+        .send()
+        .await
+        .expect("configure request must not fail at transport level");
+
+    let status = resp.status().as_u16();
+    assert_eq!(
+        status, 400,
+        "Generic dtu_configure_pub handler (Nvd clone) must return 400 for unsupported auth_mode \
+         (VP-157 / BC-3.6.001 Postcondition 5 / EC-008 / F-P30-01)"
     );
 
     let body: serde_json::Value = resp.json().await.expect("400 body must be JSON");
