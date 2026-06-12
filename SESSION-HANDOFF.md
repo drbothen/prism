@@ -1,17 +1,17 @@
 ---
 document_type: session-handoff
 level: ops
-version: "7.753"
+version: "7.754"
 status: current
-timestamp: 2026-06-12T03:45:00Z
+timestamp: 2026-06-12T06:00:00Z
 ---
 
 # Session Handoff — Prism VSDD Pipeline
 
-> **D-1102 UPDATE (2026-06-12T03:45Z) — SEE STATE.md D-1102 FOR FULL DETAIL.** MCP PR #184 squash-merged → develop@`c200d5a2`. DTU LOCAL CONVERGED 3/3 strict at pass 33 (head `80749dbb`). NEXT: DTU reconciliation vs c200d5a2 → un-park PR #182 → PR-LEVEL cascade → merge LAST → register burst (22 items) → RESUME T5. BC-INDEX v6.26. STATE v7.753. Full SESSION-HANDOFF rewrite deferred to register burst after DTU merge.
+> **D-1103 REGISTER BURST (2026-06-12T06:00Z) — REVIEW CYCLE COMPLETE.** All 3 fix-PRs merged: QRY PR #183 → f88b10e3, MCP PR #184 → c200d5a2, DTU PR #182 → develop@`939f36ce` (2026-06-12T05:18Z). Register burst COMPLETE (25 items). SESSION-HANDOFF rewritten as D-1103 zero-context snapshot. STATE v7.754.
 >
-> **PRIORITY READ ORDER — 2026-06-12-REVIEW-CYCLE-CHECKPOINT-D1101 base snapshot below still valid for branch context except where superseded by D-1102 note above.** Read §ACTIVE OBJECTIVE (North Star) FIRST, then §RESUME SNAPSHOT below, then STATE.md frontmatter.
-> develop HEAD NOW `c200d5a2` (MCP PR #184 squash-merged; D-1102). DTU LOCAL CONVERGED head `80749dbb`. factory-artifacts PUSHED to origin/factory-artifacts (D-1066 standing authorization). STATE v7.753.
+> **PRIORITY READ ORDER:** Read §ACTIVE OBJECTIVE (North Star) FIRST, then §RESUME SNAPSHOT D-1103 below, then STATE.md frontmatter. D-1101 base snapshot SUPERSEDED — archived to cycles/wave-5-e-demo-fidelity/session-handoff-archive.md.
+> develop HEAD `939f36ce` (DTU PR #182 squash-merged; D-1103). factory-artifacts PUSHED to origin/factory-artifacts (D-1066 standing authorization). STATE v7.754.
 
 ---
 
@@ -72,43 +72,29 @@ S-CONFIG-MULTI-TENANT-OVERRIDE-001 (per-org overlays), S-DEMO-001 (per-org adapt
 | optional | **S-3.13** | not-started (wave 3) | 3 | 3 proxy | S-3.02, S-1.12 | Dynamic per-org table availability |
 | optional | **S-5.04** | not-started (wave 5; depends_on updated S-5.04-FIX-001) | 5 | -- | S-5.03, S-DEMO-001 | Sensor health subsystem |
 
-**NEXT CONCRETE ACTION: MCP push branch → PR → PR-LEVEL 3-CLEAN strict (directed probe: wire_config_swap_cache_flush cache-flush listener chain; verify boot.rs wire_config_swap_cache_flush present + invoked + integration tests green in pass-1) → pr-reviewer → security → CI → squash-merge SECOND. PARALLEL: DTU LOCAL cascade continues (NEXT pass 23, streak 1/3, head 0ed1f976, 30c over c287b00d/f88b10e3) → if pass 23+24 CLEAN(strict) → LOCAL CONVERGED → merge-base reconciliation vs f88b10e3 → push to PR #182 → un-park → PR-LEVEL cascade → merge LAST. See §BRANCH STATE for per-branch NEXT ACTIONS.**
+**NEXT CONCRETE ACTION: T5 — dispatch `vsdd-factory:story-writer` to materialize S-DEMO-DTU-LIVE-SCENARIO-001-B from its draft v1.0 shell. See §RESUME T5 below for the full materialize+remove-uncertainty+12-gate delivery envelope (D-1090 autonomy grant still active).**
 
-**Task ledger (granular, status-tracked, source of truth): `.factory/objectives/multi-client-soc-demo-tasks.md` — CURRENT POINTER: T5 (interrupted by review cycle; D-1091..D-1101). T1+T2+T3+T4+T4-A DONE. ADR-036 v2.2. BC-INDEX v6.25. BC-3.4.003 v1.1. BC-3.6.001 v0.8. BC-3.5.002 v0.5. ARCH-INDEX v2.133. STORY-INDEX v2.348. error-taxonomy v1.76. VP-INDEX v1.78 (157/144). policies v1.32. prd v1.12. BC-2.06.018 v1.6 ACTIVE. STATE v7.752.**
-
----
-
-## §RESUME SNAPSHOT — D-1102 NOTE (2026-06-12T03:45Z — supersedes branch state in D-1101 snapshot below)
-
-> **D-1102: MCP MERGED + DTU LOCAL CONVERGED.** See STATE.md D-1102 for full detail.
-> - develop HEAD: `c200d5a2` (PR #184 fix/review-2026-06-10-mcp-boot squash-merged 2026-06-12T03:37Z)
-> - BC-INDEX: v6.26 (BC-2.05.001 v1.4, BC-2.16.002 v1.77 updated in MCP cascade)
-> - DTU LOCAL: CONVERGED 3/3 strict at pass 33 — head `80749dbb`; PR #182 PARKED (merges LAST)
-> - QRY worktree + local branch: CLEANED (remote already auto-deleted)
-> - Register-burst checklist: 22 items (items 20/21/22 added this session)
-> - **NEXT ACTION:** DTU merge-reconciliation vs develop@c200d5a2 → pr-manager → PR-LEVEL 3-CLEAN strict → squash-merge → register burst → RESUME T5 (S-DEMO-DTU-LIVE-SCENARIO-001-B)
-> _Full SESSION-HANDOFF zero-context rewrite deferred to register burst after DTU merge. D-1101 base snapshot below remains accurate for all context EXCEPT branch state superseded above._
+**Task ledger (granular, status-tracked, source of truth): `.factory/objectives/multi-client-soc-demo-tasks.md` — CURRENT POINTER: T5 (review cycle COMPLETE D-1103; ready for story-writer dispatch). T1+T2+T3+T4+T4-A DONE. ADR-036 v2.2. BC-INDEX v6.26. BC-3.4.003 v1.1. BC-3.6.001 v0.8. BC-3.5.002 v0.5. ARCH-INDEX v2.133. STORY-INDEX v2.348. error-taxonomy v1.76. VP-INDEX v1.78 (157/144). policies v1.32. prd v1.12. BC-2.06.018 v1.6 ACTIVE. STATE v7.754.**
 
 ---
 
-## §RESUME SNAPSHOT 2026-06-12-REVIEW-CYCLE-CHECKPOINT-D1101
+## §RESUME SNAPSHOT — D-1103 (2026-06-12T06:00Z — REVIEW CYCLE COMPLETE; ZERO-CONTEXT REWRITE)
 
-> **START HERE (base snapshot — superseded for branch state by D-1102 note above).** This snapshot is self-contained for context. A fresh session should read the D-1102 note above first for current branch state, then use this snapshot for full context.
-> _Previous snapshot (2026-06-11-REVIEW-CYCLE-CHECKPOINT-D1100; STATE v7.751) supersedes and archived to `cycles/wave-5-e-demo-fidelity/session-handoff-archive.md`. The D-1090 Story B NEXT-ACTION content remains valid and is preserved in §RESUME T5 below._
-> _D-1101 pause checkpoint: user physically relocating; session pausing. All branch heads in §BRANCH STATE are EXACT at checkpoint — superseded by D-1102 note above for current heads._
+> **D-1103: REVIEW CYCLE COMPLETE + REGISTER BURST DONE.** All 3 fix-PRs merged. STATE v7.754. NEXT = T5.
+> _D-1101 base snapshot and D-1102 note SUPERSEDED — archived to `cycles/wave-5-e-demo-fidelity/session-handoff-archive.md`._
 
 ---
 
 ### FRESH-SESSION RESUME PROTOCOL (zero prior context)
 
 1. Run `vsdd-factory:factory-worktree-health` (devops-engineer) — **BLOCKING**; do not read state until it passes.
-2. Read §GOAL below (sequence to completion), then STATE.md frontmatter (`current_step`, D-1101 decision row).
-3. **Verify branch state with `git log`.** Worktree dirs are under `.worktrees/` (names: `FIX-REVIEW-DTU-2026-06-10`, `FIX-REVIEW-MCP-2026-06-10`, `FIX-REVIEW-QRY-2026-06-10`). Run `git -C .worktrees/<dir> log --oneline -3` and compare against §BRANCH STATE below. The D-1101 checkpoint heads are EXACT (session paused cleanly; no agents in flight).
-4. Confirm develop HEAD `f88b10e3` (`git log --oneline develop | head -1`) — QRY PR #183 squash-merged last session.
-5. `gh pr list --state open` → expect exactly ONE: draft PR #182 (fix/review-2026-06-10-dtu-fleet — parked with custody note; merges LAST; do NOT close, do NOT mark ready; pr-manager assumes it at DTU convergence).
-6. Confirm main-tree CLAUDE.md is CLEAN (`git status --porcelain CLAUDE.md` → nothing; carry-forward resolved at QRY merge). Apply the read-discipline rule for adversary dispatches (lesson p — ALL code reads, grep/rg, and line-number citations MUST use the worktree absolute path; verify `git -C <worktree-path> log -1` matches stated head before citing anything).
-7. Long gates (pre-push `just check`, multi-minute CI waits) run harness-tracked in orchestrator context or via Monitor-equipped agents — do NOT dispatch sub-agents to wait on long gates (lesson r; 4 agent terminations this session).
-8. **QRY worktree cleanup PENDING:** `worktree-manage cleanup FIX-REVIEW-QRY-2026-06-10` (or equivalent) + `git push origin --delete fix/review-2026-06-10-query-core`. Do this at start of next session before dispatching any new agents.
+2. Read §ACTIVE OBJECTIVE (North Star) FIRST. Then read STATE.md frontmatter (`current_step`, D-1103 decision row).
+3. Verify develop HEAD: `git log --oneline origin/develop | head -1` → expect `939f36ce` (DTU PR #182 squash-merged 2026-06-12T05:18Z).
+4. Verify STATE version: `grep "^version:" .factory/STATE.md` → expect `"7.754"`.
+5. `gh pr list --state open` → expect ZERO open PRs. All 3 review-cycle fix-PRs merged.
+6. Worktree status: `.worktrees/S-3.09` (FROZEN — leave alone) + `.worktrees/W3-FIX-S307-001` (BLOCKED/superseded — leave alone). All review worktrees (`FIX-REVIEW-QRY/MCP/DTU-2026-06-10`) cleaned.
+7. Apply lessons (a)–(v) from `cycles/wave-5-e-demo-fidelity/lessons.md`.
+8. **NEXT ACTION: T5** — dispatch `vsdd-factory:story-writer` to materialize S-DEMO-DTU-LIVE-SCENARIO-001-B from `.factory/stories/S-DEMO-DTU-LIVE-SCENARIO-001-B-scenario-progression-enrichment.md`, per §RESUME T5 below and D-1090 autonomy envelope.
 
 ---
 
@@ -117,32 +103,32 @@ S-CONFIG-MULTI-TENANT-OVERRIDE-001 (per-org overlays), S-DEMO-001 (per-org adapt
 | Field | Value |
 |-------|-------|
 | **Mode** | brownfield |
-| **Phase** | 3 (Wave 5 — wave-5-e-demo-fidelity) — INTERRUPTED at T5 by user-directed full-codebase review (2026-06-10); PAUSED at D-1101 (user physically relocating 2026-06-12) |
-| **develop HEAD** | `f88b10e3` (QRY PR #183 squash-merged 2026-06-11; was c287b00d) |
-| **STATE version** | v7.752 |
-| **BC-INDEX version** | v6.25 (total 250; active 232; draft 5; retired 6; BC-3.4.003 v1.1 human-authorized per-clone recovery; BC-3.6.001 v0.8 PagerDuty-403 carve-out + Invariant 5 AuthReject column; BC-3.5.002 v0.5 Decision-B network-mode scope) |
+| **Phase** | 3 (Wave 5 — wave-5-e-demo-fidelity) — RESUMING T5 after review cycle COMPLETE (D-1103 register burst) |
+| **develop HEAD** | `939f36ce` (DTU PR #182 squash-merged 2026-06-12T05:18Z; was c200d5a2) |
+| **STATE version** | v7.754 |
+| **BC-INDEX version** | v6.26 (total 250; active 232; draft 5; retired 6; BC-2.05.001 v1.4 reload_config WriteTool; BC-2.16.002 v1.77 updated; BC-3.4.003 v1.1 human-authorized per-clone recovery; BC-3.6.001 v0.8 PagerDuty-403 carve-out + Invariant 5 AuthReject column; BC-3.5.002 v0.5 Decision-B network-mode scope) |
 | **STORY-INDEX version** | v2.348 (total_stories 194) |
-| **VP-INDEX version** | v1.78 (157 registered, 144 active; VP-157 added D-1099 — BC-3.6.001 unsupported-mode 400 guard) |
+| **VP-INDEX version** | v1.78 (157 registered; VP-157 added D-1099 — BC-3.6.001 unsupported-mode 400 guard) |
 | **ARCH-INDEX version** | v2.133 |
 | **error-taxonomy version** | v1.76 |
 | **policies version** | v1.32 |
 | **prd version** | v1.12 |
 | **test-vectors version** | v2.9 |
-| **Open PRs** | 1 — draft PR #182 (parked; custody note; see §BRANCH STATE branch 2) |
-| **factory-artifacts** | PUSHED to origin/factory-artifacts (D-1066; D-1100 burst pushed) |
+| **Open PRs** | 0 — all 3 review-cycle fix-PRs merged (QRY #183, MCP #184, DTU #182) |
+| **factory-artifacts** | PUSHED to origin/factory-artifacts (D-1066; D-1103 burst pushed) |
 
 ---
 
 ### 2. §GOAL (unchanged — do not override)
 
-Active objective: **multi-client SOC-analyst live demo**. Interrupted at T5 by a user-directed full-codebase review (2026-06-10). Sequence to completion:
+Active objective: **multi-client SOC-analyst live demo**. Review cycle COMPLETE (D-1103). Register burst COMPLETE. Sequence to completion:
 
-1. MCP pr-manager 9-step delivery (SECOND in pinned order; merge-reconciliation COMPLETE head 08fdc38c; push branch → PR → PR-LEVEL 3-CLEAN strict with directed probe on wire_config_swap_cache_flush chain → pr-reviewer APPROVE → security MAY PROCEED → CI green → squash-merge).
-2. DTU LOCAL cascade to **3-CLEAN strict** (NEXT pass 23, streak 1/3, head 0ed1f976) → pr-manager 9-step delivery LAST via PR #182.
-3. State-manager **register burst** (§REGISTER BURST CHECKLIST below — 19 items as amended through D-1100).
-4. **RESUME T5**: Story B (S-DEMO-DTU-LIVE-SCENARIO-001-B) materialize + remove-uncertainty + 12-gate delivery per task ledger CURRENT POINTER T5 / D-1090 autonomy envelope (§RESUME T5 below).
+1. ~~MCP pr-manager delivery~~ DONE (PR #184 → develop@c200d5a2 2026-06-12T03:37Z).
+2. ~~DTU LOCAL cascade + pr-manager delivery~~ DONE (PR #182 → develop@939f36ce 2026-06-12T05:18Z).
+3. ~~State-manager register burst~~ DONE (D-1103; 25 items).
+4. **CURRENT: RESUME T5**: Story B (S-DEMO-DTU-LIVE-SCENARIO-001-B) materialize + remove-uncertainty + 12-gate delivery per task ledger CURRENT POINTER T5 / D-1090 autonomy envelope (§RESUME T5 below).
 
-E2E sequence after register burst: **T5 Story B → T6 S-DEMO-MULTI-TENANT-DTU-001 → T8 S-DEMO-004.**
+E2E sequence: **T5 Story B (CURRENT) → T6 S-DEMO-MULTI-TENANT-DTU-001 → T8 S-DEMO-004.**
 
 ---
 
@@ -160,18 +146,13 @@ Human decisions recorded:
 
 ---
 
-### 4. §BRANCH STATE (updated D-1101 — verify `git log` on resume as standard discipline)
+### 4. §BRANCH STATE (updated D-1103 — all review-cycle fix branches MERGED)
 
-Worktree directories: `.worktrees/FIX-REVIEW-QRY-2026-06-10` (MERGED — cleanup pending), `.worktrees/FIX-REVIEW-MCP-2026-06-10` (CONVERGED), `.worktrees/FIX-REVIEW-DTU-2026-06-10` (cascade in flight). Branches were cut from develop@c287b00d. QRY branch squash-merged to f88b10e3 this session.
+All 3 review-cycle fix branches merged to develop. No active fix branches. Parked worktrees: `.worktrees/S-3.09` (FROZEN) + `.worktrees/W3-FIX-S307-001` (BLOCKED/superseded). Review worktrees cleaned.
 
-**Cascade protocol (active branches):** BC-5.39.001 3-CLEAN **strict** per branch; report format CLEAN(strict)/CLEAN(PR-merge); fresh-context adversary each pass. Adjudicated **do-not-reflag lists** are recorded per branch — key standing exclusions: P1-03 deviation (human-authorized), BC frontmatter timestamps (register burst), DEF-1 Claroty pagination (post-merge fix), denylist wiring (S-WATCHDOG-WIRING-001), scope params (S-QUERY-SCOPE-PARAMS-001).
+**1. `fix/review-2026-06-10-query-core`** — **MERGED** (PR #183 → develop@f88b10e3 2026-06-11T15:47Z). LOCAL 16p + PR-LEVEL 3p 3-CLEAN strict. CLAUDE.md carry-forward resolved. Feature branch and worktree cleaned.
 
-**1. `fix/review-2026-06-10-query-core`** — **MERGED** (PR #183 squash-merged to develop@f88b10e3 2026-06-11). **LOCAL cascade CONVERGED 3/3** (16 passes); **PR-LEVEL cascade CONVERGED 3/3** (passes 1–3 strict). pr-reviewer APPROVED (261b98d9 polish + PR-body count fix). Security MAY PROCEED. All CI green. Branch MERGED and feature branch should be deleted.
-- **NEXT ACTION: CLEANUP** — `worktree-manage cleanup FIX-REVIEW-QRY-2026-06-10` + `git push origin --delete fix/review-2026-06-10-query-core`. Do this FIRST at next session start.
-- Out-of-diff OBS from PR-LEVEL pass 3 (do-not-reflag in DTU/MCP passes): **PRL3-01** E-QUERY-010/QueryVirtualFieldFailed zero-emitter collision → register-burst item 15 EXTENDED (alongside E-QUERY-009 and Internal.detail class-sweep).
-- CLAUDE.md carry-forward RESOLVED: commit 261b98d9 landed on develop via QRY merge. Main-tree `M CLAUDE.md` staged edits were verified-subsumed by the worktree commit and discarded from main tree. Main checkout is clean.
-
-**2. `fix/review-2026-06-10-dtu-fleet`** — 30 commits over c287b00d (= 30 commits over f88b10e3, same base; DTU was branched from c287b00d before QRY merged), head `0ed1f976`. Streak 1/3; **NEXT pass 23**.
+**2. `fix/review-2026-06-10-dtu-fleet`** — **MERGED** (PR #182 → develop@939f36ce 2026-06-12T05:18Z). LOCAL 33p + PR-LEVEL 3p 3-CLEAN strict. Feature branch and worktree cleaned. develop HEAD is now `939f36ce`.
 
 Pass history since D-1099 (passes 20–22):
 - **Pass 20 CLEAN(strict)=no:** `d58af213` (P20-01/02 — BC-3.6.001 v0.6: Postcondition 5 `{"error":"unsupported_failure_mode","mode":"<name>"}` body + VP-157 anchor corrections replacing erroneously-cited VP-131 sites); `c46f3944` (P20-03 RCA: `136497b4` had wrongly ported Claroty's Tower-layer 401 to PagerDuty's route-level path — PagerDuty MUST return 403 via `PagerDutyState.auth_reject` in `enqueue.rs` to match real Events API; restored contractually); `050fa46d` (P20-04 real-crate `apply_config` unprocessable arms ×3: Jira `state.rs:299-337`, PagerDuty `state.rs:186-231`, Slack `state.rs:107-151`; closing work-order from BC-3.6.001 v0.7). Streak reset 0/3.
@@ -251,10 +232,8 @@ T6 (S-DEMO-MULTI-TENANT-DTU-001 ready v1.2; BC-2.06.017; remove-uncertainty COMP
 
 ### 7. §ALSO NOTE (durability items)
 
-- **CLAUDE.md carry-forward RESOLVED (D-1098/D-1100):** Main-checkout uncommitted CLAUDE.md review-cycle edits landed on develop via QRY PR #183 (commit 261b98d9 → squash to f88b10e3). Main-tree staged `M CLAUDE.md` edits verified-subsumed by worktree commit and discarded. Main checkout is now clean (`git status` should show no `M CLAUDE.md`).
-- **QRY WORKTREE CLEANUP PENDING:** `.worktrees/FIX-REVIEW-QRY-2026-06-10` + remote branch `fix/review-2026-06-10-query-core` — delete at next session start.
-- **DTU REBASE-OR-MERGE ASSESSMENT:** DTU branch was cut from c287b00d. f88b10e3 (QRY squash) has the same merge-base. Expected CLEAN (DTU touches `crates/prism-dtu-*`; QRY/MCP touch `crates/prism-query/`, `crates/prism-mcp/`). Before pr-manager delivery, verify: `git -C .worktrees/FIX-REVIEW-DTU-2026-06-10 merge-base HEAD f88b10e3` = c287b00d (confirms no divergence). If clean, pr-manager can push directly.
-- **MCP MERGE-RECONCILIATION COMPLETE (D-1101):** develop@f88b10e3 merged INTO fix/review-2026-06-10-mcp-boot — merge commit 1f5c1a06 + post-merge fix 08fdc38c. Union-resolution verified: E-QUERY-007 sweep ZERO (033 flip survives), E-INT-002/003 ZERO, prism-customer-config ZERO. Gate 4140/4140 green. CAUTION: PR-LEVEL pass-1 MUST include directed probe verifying wire_config_swap_cache_flush chain (merge agent initially dropped it during conflict resolution; re-inserted from develop — verify survival).
+- **CLAUDE.md carry-forward RESOLVED (D-1098/D-1100):** Main-checkout uncommitted CLAUDE.md review-cycle edits landed on develop via QRY PR #183 (commit 261b98d9 → squash to f88b10e3). Main checkout is clean.
+- **ALL 3 REVIEW WORKTREES CLEANED (D-1103):** `.worktrees/FIX-REVIEW-QRY-2026-06-10`, `.worktrees/FIX-REVIEW-MCP-2026-06-10`, `.worktrees/FIX-REVIEW-DTU-2026-06-10` — all merged and cleaned. Remote branches deleted. develop HEAD is now `939f36ce`.
 - **PENDING HUMAN items:**
   - CLAUDE.md SAP-1 wording clarification (register-burst item 18k — CLAUDE.md edit required; HUMAN-ONLY per Pipeline Authority; non-blocking for delivery)
   - Armis key-presence discriminator ratification (P10-01 do-not-reflag adjudication noted; human sign-off needed for final ratification)
@@ -301,9 +280,9 @@ T6 (S-DEMO-MULTI-TENANT-DTU-001 ready v1.2; BC-2.06.017; remove-uncertainty COMP
 |----------|--------|--------|
 | `.worktrees/S-3.09` | FROZEN | Leave alone |
 | `.worktrees/W3-FIX-S307-001` | BLOCKED/superseded | Leave alone |
-| `.worktrees/FIX-REVIEW-QRY-2026-06-10` | MERGED — cleanup pending | Delete at next session start via `worktree-manage cleanup` |
-| `.worktrees/FIX-REVIEW-MCP-2026-06-10` | MERGE-RECONCILIATION COMPLETE (08fdc38c) — push → PR → PR-LEVEL NEXT | Exclusive ownership; directed cache-flush probe in PR-LEVEL pass-1 |
-| `.worktrees/FIX-REVIEW-DTU-2026-06-10` | CASCADE IN FLIGHT — pass 23 next (streak 1/3) | Exclusive ownership; push-guard until LOCAL convergence |
+| `.worktrees/FIX-REVIEW-QRY-2026-06-10` | CLEANED (D-1103) | None — deleted |
+| `.worktrees/FIX-REVIEW-MCP-2026-06-10` | CLEANED (D-1103) | None — PR #184 merged, worktree deleted |
+| `.worktrees/FIX-REVIEW-DTU-2026-06-10` | CLEANED (D-1103) | None — PR #182 merged, worktree deleted |
 
 ---
 
@@ -341,45 +320,39 @@ T6 (S-DEMO-MULTI-TENANT-DTU-001 ready v1.2; BC-2.06.017; remove-uncertainty COMP
 Run these commands at start of a fresh session to verify state:
 
 ```bash
-# 0. Read SESSION-HANDOFF.md §ACTIVE OBJECTIVE (North Star) + §RESUME SNAPSHOT D-1101
-# The review cycle must complete (cascades → MCP→DTU merges → register burst) BEFORE T5 resumes.
+# 0. Read SESSION-HANDOFF.md §ACTIVE OBJECTIVE (North Star) + §RESUME SNAPSHOT D-1103
+# Review cycle COMPLETE. Register burst COMPLETE. T5 is NEXT.
 
 # 1. Factory worktree health (BLOCKING preflight)
 # Use: vsdd-factory:factory-worktree-health skill
 
-# 2. Verify develop HEAD == f88b10e3 (QRY merged; MCP and DTU not yet)
-git log --oneline develop | head -1
+# 2. Verify develop HEAD == 939f36ce (DTU PR #182 squash-merged 2026-06-12T05:18Z)
+git log --oneline origin/develop | head -1
 
 # 3. Verify STATE.md version
 grep '^version:' .factory/STATE.md
-# Expected: version: "7.752"
+# Expected: version: "7.754"
 
-# 4. Verify open PRs — expect exactly ONE parked draft
+# 4. Verify open PRs — expect ZERO
 gh pr list --state open
-# Expected: #182 draft (fix/review-2026-06-10-dtu-fleet) — PARKED with custody note. Do not close/ready it.
+# Expected: no open PRs; all 3 review-cycle fix-PRs merged (#183/#184/#182)
 
-# 5. Verify the two remaining review fix worktrees (QRY should be cleaned up)
-git -C .worktrees/FIX-REVIEW-MCP-2026-06-10 log --oneline -1
-# Expected: 08fdc38c (MCP merge-reconciliation COMPLETE — NEXT push → PR → PR-LEVEL 3-CLEAN)
-git -C .worktrees/FIX-REVIEW-DTU-2026-06-10 log --oneline -1
-# Expected: 0ed1f976 (DTU NEXT pass 23 streak 1/3)
+# 5. Confirm parked worktrees (review worktrees cleaned)
+ls .worktrees/
+# Expected: S-3.09 + W3-FIX-S307-001 only. All FIX-REVIEW-* worktrees removed.
 
-# 6. Confirm factory-artifacts local vs remote — should be PUSHED (D-1100 burst)
+# 6. Confirm factory-artifacts pushed (D-1103 burst)
 git -C .factory log -1 --format='%h %s'
 git -C .factory rev-parse origin/factory-artifacts 2>/dev/null || echo "no remote yet"
+# Verify local and remote SHAs match
 
-# 7. Confirm main-tree CLAUDE.md is clean (carry-forward resolved at QRY merge; should be clean since D-1100)
-git -C . status --porcelain CLAUDE.md
-# Expected: nothing (clean; carry-forward landed in PR #183 commit 261b98d9)
+# 7. Confirm main-tree CLAUDE.md is clean
+git -C /Users/jmagady/Dev/prism status --porcelain CLAUDE.md
+# Expected: nothing (clean; carry-forward landed in PR #183)
 
-# 8. QRY worktree cleanup (do this FIRST if worktree still exists)
-ls .worktrees/FIX-REVIEW-QRY-2026-06-10 2>/dev/null && echo "NEEDS CLEANUP"
-# If present: worktree-manage cleanup FIX-REVIEW-QRY-2026-06-10
-# Then: git push origin --delete fix/review-2026-06-10-query-core
-
-# 9. Task ledger pointer (resumes AFTER register burst)
+# 8. Task ledger pointer
 grep -A5 'CURRENT POINTER' .factory/objectives/multi-client-soc-demo-tasks.md
-# Expected: CURRENT POINTER = T5 (resumes after review cycle + register burst)
+# Expected: CURRENT POINTER = T5 (story-writer dispatch for S-DEMO-DTU-LIVE-SCENARIO-001-B)
 ```
 
 ---
@@ -392,7 +365,7 @@ grep -A5 'CURRENT POINTER' .factory/objectives/multi-client-soc-demo-tasks.md
 | Decision rows D-700..D-1054 | `cycles/wave-5-e-demo-fidelity/decisions-archive-D700-D1054.md` |
 | Superseded SESSION-HANDOFF resume snapshots (incl. D-1082, D-1090, D-1091, D-1092) | `cycles/wave-5-e-demo-fidelity/session-handoff-archive.md` |
 | Burst narratives (D-735..D-1084) | `cycles/wave-5-e-demo-fidelity/burst-log.md` |
-| Lessons learned (incl. D-1091 review-cycle lessons a–g; D-1095/D-1097/D-1099 addenda m,n,o,p,q,r) | `cycles/wave-5-e-demo-fidelity/lessons.md` |
+| Lessons learned (incl. D-1091 review-cycle lessons a–g; D-1095/D-1097/D-1099 addenda m,n,o,p,q,r; D-1103 addenda s,t,u,v) | `cycles/wave-5-e-demo-fidelity/lessons.md` |
 | Wave-0 history | `cycles/wave-0-plugin-prereqs/` |
 | Wave-3 history | `cycles/wave-3-multi-tenant/` |
 | Wave-4 history | `cycles/wave-4-operations/` |

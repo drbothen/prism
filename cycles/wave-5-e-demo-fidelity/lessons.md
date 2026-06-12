@@ -643,6 +643,23 @@ This is an upstream vsdd-factory / pr-manager prompt improvement: the pr-manager
 
 ---
 
+### [process-gap] Review-2026-06-10 full-codebase review cycle — four additional process-gap lessons (D-1103 register burst codification — items s/t/u/v)
+
+**Date recorded:** 2026-06-12
+**D-NNN anchor:** D-1103 (register burst — item 18 EXTENDED)
+**Scope:** 2026-06-10 review cycle (3-lane BC-5.39.001 cascades: QRY/MCP/DTU) + register burst session
+**Tags:** [process-gap] [pol-27] [push-output] [build-lock] [vacuous-fixture] [D-1103]
+
+**(s) POL-27 lint_hook null — burst-ID format recurred ≥3× across wave-3 BC amendments.** The POL-27 `modified:` field format lint hook null-fires when burst authors use a non-ISO date format (e.g., `modified: June 10` vs `modified: "2026-06-10"`). This recurred ≥3 times across BC amendments in the wave-3/review-cycle period. Antidote: add a POL-27 lint hook that validates the `modified:` field format against `YYYY-MM-DD` pattern and rejects bare prose dates. Codification: [follow-up: spec-steward to author POL-27 lint rule].
+
+**(t) Push-output tail-piping discards gate diagnostics on long-gate pushes.** When push commands are piped or output is truncated on long-gate pre-push runs (~14 min cold), the actual gate failure message is lost. During two review-cycle push sequences, a push succeeded at the network level but the pre-push hook diagnostic output was not captured — requiring a re-push to verify gate status. Antidote: capture full push output on long-gate pushes via `git push ... 2>&1 | tee /tmp/push-output.txt`; always verify exit code AND check the full output file. [follow-up: update pr-manager skill push step to capture output].
+
+**(u) Orphaned background build processes from terminated agents caused build-lock contention + one transient pre-push gate failure.** Two instances: an implementer sub-agent was terminated mid-cargo-build; the orphaned `cargo` process held a build lock. The next agent's build blocked for ~3 minutes until the orphan timed out. One pre-push gate failure was caused by this contention. Antidote: before dispatching a new agent after a terminated agent, clean the process table (`pkill -f "cargo build"` or equivalent) and verify no orphaned rust build processes remain. [follow-up: orchestrator dispatch template to include orphan-process check].
+
+**(v) Vacuous-fixture test class (PRL-P7-01/PRL-P8-01): closure tests whose fixture cannot reach the guarded mutation.** PRL-P7-01 and PRL-P8-01 both found test fixtures that used a bare `[sensor]\nname = "test"` TOML stub — this stub is invalid per the spec-parser (which guards `add_sensor_spec` behind validation), so the test never exercises the audit mutation path it was meant to guard. The adversary correctly identified these as vacuous — they produced green results but provided zero coverage of the actual guard. Antidote: when writing a test for a guarded path (e.g., a WriteTool audit guard), the test fixture MUST be a fully-valid input that can reach the guard; a minimal/malformed fixture that fails pre-guard validation is a mental-deletion proof that must be EXECUTED (verify the test actually reaches the intended code path). Fix-bursts for this class must sweep test-fixture siblings to find other vacuous stubs in the same file. [follow-up: add to SAP probes — adversary must probe for vacuous fixtures on guarded-path tests].
+
+---
+
 ### [process-gap] Review-2026-06-10 full-codebase review cycle — seven process-gap lessons (D-1091 checkpoint codification)
 
 **Date recorded:** 2026-06-10
