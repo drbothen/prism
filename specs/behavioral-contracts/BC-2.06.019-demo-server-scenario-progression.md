@@ -2,7 +2,7 @@
 document_type: behavioral-contract
 level: L3
 bc_id: "BC-2.06.019"
-version: "1.1"
+version: "1.2"
 status: draft
 lifecycle_status: draft
 producer: product-owner
@@ -71,9 +71,22 @@ generator determinism guarantee remains owned by BC-3.4.001.
    client config block share the same `seed` value. If any two scenario-enabled clones
    have different seeds, `build_clone_pairs` must return `E-DEMO-002` before any clone
    is constructed.
-6. `scenario.archetype` for each scenario-enabled clone is one of the recognized strings
+6. When multiple clones have `scenario.enabled = true`, all such clones in the same
+   client config block share the same `org_id` value. If any two scenario-enabled clones
+   have different `org_id` values, `build_clone_pairs` must return `E-DEMO-006` before
+   any clone is constructed. Rationale: the `ScenarioEntityCatalog` is derived from the
+   first scenario-enabled clone's `(seed, org_id)` via
+   `seeded_rng(seed.wrapping_add(1), org_id)` (§Postcondition 1). A second clone with a
+   different `org_id` generates device IDs using `dev-{slug_B}-{seed}-0` (its own
+   org_slug), which cannot equal `catalog.primary_device_id` derived from slug_A. The
+   cross-DTU join in INV-CROSS-DTU-ENTITY-COHERENCE-001 (BC-2.06.020) returns empty with
+   no diagnostic — a SOUL.md §4 silent partial-failure. The guard prevents this silent
+   incoherence at construction time.
+   Guard order within `build_clone_pairs` pre-construction validation:
+   `E-DEMO-002 (seed mismatch) → E-DEMO-006 (org_id mismatch) → E-DEMO-003 (bad archetype) → E-DEMO-004 (missing org_id)`
+8. `scenario.archetype` for each scenario-enabled clone is one of the recognized strings
    (`"compromised_endpoint"`, `"healthy"`, etc.); unrecognized values cause `E-DEMO-003`.
-7. `build_clone_pairs` is called before `DemoHarness::start_all`.
+9. `build_clone_pairs` is called before `DemoHarness::start_all`.
 
 ## Postconditions
 
@@ -319,6 +332,36 @@ Detection occurs before any clone constructor is called. If `E-DEMO-002` is trig
 client. Cross-DTU coherence requires all scenario-enabled clones to produce the same
 `ScenarioEntityCatalog` (same entity IDs), which requires a single shared seed.
 
+### E-DEMO-006 — Scenario-Enabled Clones Have Mismatched org_ids
+
+When `build_clone_pairs` detects that two or more scenario-enabled clones in the same client
+config block have different `org_id` values:
+
+| Field | Value |
+|-------|-------|
+| Code | `E-DEMO-006` |
+| Category | configuration |
+| Severity | broken |
+| Exit code | `1` (startup failure) |
+| Message format | `"demo-server: E-DEMO-006: scenario clones '{clone_a}' (org_id={org_id_a}) and '{clone_b}' (org_id={org_id_b}) have different org_ids; cross-DTU coherence requires all scenario-enabled clones to share the same org_id"` |
+| Recoverable | No — operator must fix `demo.toml` to use the same `org_id` for all scenario-enabled clones under the same client config block |
+
+`{clone_a}` and `{clone_b}` are the clone type names of the first mismatched pair found.
+`{org_id_a}` and `{org_id_b}` are the conflicting org_id UUID strings from `demo.toml`
+(safe to echo: configuration values, not credentials per AD-017).
+
+Detection occurs after the E-DEMO-002 seed-mismatch check and before the E-DEMO-003
+archetype check. If `E-DEMO-006` is triggered, `build_clone_pairs` returns `Err(...)`
+immediately and no clones are constructed for that client.
+
+Rationale: the `ScenarioEntityCatalog` is derived from the first scenario-enabled clone's
+`(seed, org_id)` pair. If a second clone has a different `org_id`, its generator produces
+device IDs with `org_slug_B = hex(org_id_B.as_bytes()[0..4])` while the catalog's
+`primary_device_id` uses `org_slug_A`. The cross-DTU join defined in
+INV-CROSS-DTU-ENTITY-COHERENCE-001 (BC-2.06.020) returns empty with no diagnostic —
+a silent partial-failure (SOUL.md §4). This guard surfaces the misconfiguration at
+construction time instead.
+
 ### E-DEMO-003 — Unrecognized Scenario Archetype
 
 When `scenario.archetype` is a string not in the recognized set:
@@ -354,6 +397,7 @@ for the named archetype. In that case the message variant is:
 | EC-019-010 | Process restart with same `demo.toml` and same `scenario_start_secs` | INV-PROGRESSION-REPRODUCIBILITY-001: same `now` produces same stage; responses byte-identical across restarts |
 | EC-019-011 | Route handler called concurrently from multiple async tasks | `current_stage_index` is a pure function with no shared mutable state; concurrent calls are safe with no locking required |
 | EC-019-012 | `scenario.enabled = true` with `fixture_set = "dormant"` (DormantTenant archetype) | Archetype mismatch: the default 5-stage timeline is for `CompromisedEndpoint`; `E-DEMO-003` if archetype doesn't support scenario progression; or if archetype IS `compromised_endpoint` but `fixture_set` maps to `DormantTenant`, `build_clone_pairs` detects the contradiction and returns `E-DEMO-003` |
+| EC-019-013 | Two scenario-enabled clones with same `seed` but different `org_ids` (e.g., CrowdStrike `org_id="<uuid-A>"`, Armis `org_id="<uuid-B>"`) | `build_clone_pairs` returns `E-DEMO-006` before any clone is constructed. Silent path (no guard): catalog uses slug_A; Armis generator produces `dev-{slug_B}-{seed}-0`; cross-DTU join returns empty. The guard prevents this silent incoherence (PRE-6, INV-CROSS-DTU-ENTITY-COHERENCE-001 in BC-2.06.020). |
 
 ## Canonical Test Vectors
 
@@ -373,6 +417,7 @@ for the named archetype. In that case the message variant is:
 | TV-019-012 | `seed_A = 100` for crowdstrike, `seed_B = 200` for armis, both `scenario.enabled = true` | `build_clone_pairs` returns `Err` containing `E-DEMO-002` | error-path |
 | TV-019-013 | `scenario.archetype = "unknown_value"` | `build_clone_pairs` returns `Err` containing `E-DEMO-003` | error-path |
 | TV-019-014 | 3 concurrent HTTP requests to same route at same `now = T + 200s` | All 3 responses byte-identical (pure function, no lock contention) | concurrency |
+| TV-019-015 | `seed_A = 100` for crowdstrike (`org_id="<uuid-A>"`), `seed_A = 100` for armis (`org_id="<uuid-B>"` where uuid-B ≠ uuid-A), both `scenario.enabled = true` | `build_clone_pairs` returns `Err` containing `E-DEMO-006` and both clone names and org_id values; no clone constructed (PRE-6, EC-019-013) | error-path |
 
 ## Verification Properties
 
@@ -386,6 +431,7 @@ for the named archetype. In that case the message variant is:
 | VP-019-F | Concurrent requests at same `now` produce identical responses (no lock contention, no shared mutable state) | concurrency test (TV-019-014) |
 | VP-019-G | Entity visibility at stage boundaries: primary device not present at stage 0, present at stage 1+ | integration test (TV-019-009, TV-019-010) |
 | VP-019-H | Containment status visible at stage 4 only | integration test (TV-019-011) |
+| VP-019-I | E-DEMO-006 fires when two scenario-enabled clones have same seed but different org_ids; no clone constructed | unit test (TV-019-015) |
 
 ## Traceability
 
@@ -396,7 +442,7 @@ for the named archetype. In that case the message variant is:
 | L2 Domain Invariants | N/A (demo-server scenario wiring; no DI-NNN in L2 domain spec maps to this concern) |
 | Architecture Module | SS-01 (Sensor Adapters) per ARCH-INDEX.md; `prism-dtu-demo-server` and `prism-dtu-common` are the primary implementation sites |
 | Governing ADR | ADR-036 ("Deterministic Scenario-Progression Engine") — this BC encodes ADR-036 §2.1, §2.2, §2.3, §2.5 as testable contracts |
-| Stories | S-DEMO-DTU-LIVE-SCENARIO-001 |
+| Stories | S-DEMO-DTU-LIVE-SCENARIO-001, S-DEMO-DTU-LIVE-SCENARIO-001-B |
 | Upstream BCs | BC-2.06.018 (Config-Time Data Seeding — baseline this BC extends); BC-3.4.001 (Generator Determinism — the FixtureSet being filtered is guaranteed reproducible by BC-3.4.001) |
 
 ## Related BCs
@@ -417,15 +463,16 @@ for the named archetype. In that case the message variant is:
 
 ## Story Anchor
 
-S-DEMO-DTU-LIVE-SCENARIO-001
+S-DEMO-DTU-LIVE-SCENARIO-001, S-DEMO-DTU-LIVE-SCENARIO-001-B
 
 ## VP Anchors
 
-VP-019-A through VP-019-H (above) — all verified by integration/unit tests in S-DEMO-DTU-LIVE-SCENARIO-001
+VP-019-A through VP-019-I (above) — verified by integration/unit tests in S-DEMO-DTU-LIVE-SCENARIO-001 (original scenario-progression delivery) and S-DEMO-DTU-LIVE-SCENARIO-001-B (org_id-equality guard VP-019-I + all AC implementations)
 
 ## BC Changelog
 
 | Version | Change |
 |---------|--------|
+| v1.2 | PO micro-burst 2026-06-12 — OBS-1 org_id-equality gap closed. Added PRE-6 (org_id equality guard across scenario-enabled clones; E-DEMO-006; detection before E-DEMO-003; rationale: silent INV-CROSS-DTU-ENTITY-COHERENCE-001 incoherence is SOUL.md §4 class). Renumbered former PRE-6→PRE-8 (archetype) and PRE-7→PRE-9 (build_clone_pairs before start_all). Added E-DEMO-006 error code section with full format table. Added EC-019-013 (org_id mismatch edge case). Added TV-019-015 (E-DEMO-006 test vector). Added VP-019-I (E-DEMO-006 unit test). OBS-2 anchor drift fixed: Stories traceability row, Story Anchor section, and VP Anchors section updated to include S-DEMO-DTU-LIVE-SCENARIO-001-B. Guard order in PRE-6: E-DEMO-002 → E-DEMO-006 → E-DEMO-003 → E-DEMO-004. |
 | v1.1 | ADR-036 v2.0 / D-1078 substrate-reconciliation corrections. Pinned `stage_duration_secs` 4-entry convention (ADR-036 v2.0 §1.3, §2.1): added explicit 4-entry table showing array-index-to-stage mapping in §Postcondition 2; stage 0 (Baseline) always activates at 0s and is NOT represented in the array. Corrected EC-019-006 which incorrectly described 4 entries as an E-DEMO-003 error — 4 entries IS the correct count for `CompromisedEndpoint`; added EC-019-006b (3 entries → error) and EC-019-006c (5 entries → error) to document the actual error cases. Confirmed `activates_after_secs: u64` as the authoritative `IncidentStage` field name (NOT "duration") per ADR-036 v2.0 §2.2. All stage threshold values (60/180/360/600) unchanged. lifecycle_status remains draft. Invariant semantics unchanged. |
 | v1.0 | Initial authoring. ADR-036 ACCEPTED 2026-06-09. BC-2.06.019 namespace confirmed (next-available after BC-2.06.018). Subsystem: SS-01 (prism-dtu-demo-server, prism-dtu-common). Capability: CAP-036 — harness wiring layer (temporal staging extends the harness orchestration that BC-2.06.018 began). Error codes E-DEMO-002 and E-DEMO-003 registered here (to be reflected in error-taxonomy.md by error-taxonomy owner in same burst per BC-2.06.018 precedent). Invariant naming follows ADR-036 §7 candidate invariant IDs verbatim with BC-house-style expansion. |

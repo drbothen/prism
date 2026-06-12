@@ -2,7 +2,7 @@
 document_type: behavioral-contract
 level: L3
 bc_id: "BC-2.06.020"
-version: "1.1"
+version: "1.2"
 status: draft
 lifecycle_status: draft
 producer: product-owner
@@ -387,7 +387,7 @@ correct implementation.
 | L2 Domain Invariants | N/A (demo-server enrichment wiring; no DI-NNN in L2 domain spec maps to this concern) |
 | Architecture Module | SS-01 (Sensor Adapters) per ARCH-INDEX.md; `prism-dtu-demo-server` (harness wiring), `prism-dtu-threatintel`, and `prism-dtu-nvd` are the primary implementation sites |
 | Governing ADR | ADR-036 §2.3 ("Enrichment clones: static lookup injection, not a new generator") — this BC encodes the lookup injection mechanism as testable contracts |
-| Stories | S-DEMO-DTU-LIVE-SCENARIO-001 |
+| Stories | S-DEMO-DTU-LIVE-SCENARIO-001, S-DEMO-DTU-LIVE-SCENARIO-001-B |
 | Upstream BCs | BC-2.06.019 (Scenario Progression — produces the `ScenarioEntityCatalog` that this BC's constructors consume); BC-2.06.018 (Config-Time Data Seeding — enrichment clone construction follows the same wiring pattern) |
 
 ## Related BCs
@@ -406,15 +406,16 @@ correct implementation.
 
 ## Story Anchor
 
-S-DEMO-DTU-LIVE-SCENARIO-001
+S-DEMO-DTU-LIVE-SCENARIO-001, S-DEMO-DTU-LIVE-SCENARIO-001-B
 
 ## VP Anchors
 
-VP-020-A through VP-020-H (above) — all verified by integration/unit tests in S-DEMO-DTU-LIVE-SCENARIO-001
+VP-020-A through VP-020-H (above) — verified by integration/unit tests in S-DEMO-DTU-LIVE-SCENARIO-001 (original enrichment-correlation delivery) and S-DEMO-DTU-LIVE-SCENARIO-001-B (AC implementations for all 8 VPs)
 
 ## BC Changelog
 
 | Version | Change |
 |---------|--------|
+| v1.2 | PO micro-burst 2026-06-12 — OBS-2 anchor drift fixed. Stories traceability row, Story Anchor section, and VP Anchors section updated to include S-DEMO-DTU-LIVE-SCENARIO-001-B (frontmatter `anchored_stories` already included -B per D-1090 v6.28 backlink; body sections were stale). INV-CROSS-DTU-ENTITY-COHERENCE-001 now receives downstream enforcement from BC-2.06.019 PRE-6 / E-DEMO-006 guard (org_id equality) — no change to this BC's invariant text required (the invariant remains structurally enforced by generator determinism; the new guard prevents the misconfiguration that would silently violate it). |
 | v1.1 | ADR-036 v2.0 / D-1078 substrate-reconciliation corrections. Replaced `NvdClone::lookup()` (which does not exist) with `NvdState::lookup_and_count(&self, cve_id) -> Option<CveRecord>` in Precondition 3, Postcondition 4, INV-NVD-CVE-CORRELATION-001, VP-020-D, and Architecture Anchors. Corrected CVSS access path to `CveRecord.metrics.cvss_metric_v31[0].cvss_data.base_score: f64` and `.base_severity: String` (NOT `.severity`) per `crates/prism-dtu-nvd/src/types.rs` CvssData struct; updated all occurrences. Noted `NvdState.cve_registry` is IMMUTABLE `HashMap` (not Mutex-wrapped); `new_with_scenario` builds the initial map including scenario CVEs at construction and never mutates after. Clarified `NvdClone::new_with_scenario` is FALLIBLE (`anyhow::Result<Self>`) mirroring `NvdClone::new()`. Noted `ThreatIntelClone::new_with_scenario` is INFALLIBLE (`Self`) mirroring `ThreatIntelClone::new()`. Updated INV-CROSS-DTU-ENTITY-COHERENCE-001 to use split `primary_device_id_cs` / `primary_device_id_armis` fields from `ScenarioEntityCatalog` (ADR-036 v2.0 §2.2); documented Armis's explicit `org_slug: &str` injection pattern. Extended INV-PERIMETER-COMPLIANCE-001 to explicitly confirm `prism-core` is on the INV-PERIMETER-001 allow-list (transitive via `prism-dtu-common/fixture-gen`); noted required Cargo.toml additions for `prism-dtu-threatintel` and `prism-dtu-nvd`. Postcondition 5 updated to reference `primary_device_id_cs` for CrowdStrike/Claroty and `primary_device_id_armis` for Armis. lifecycle_status remains draft. Invariant semantics (threshold values, IOC resolution, additive injection) unchanged. |
 | v1.0 | Initial authoring. ADR-036 ACCEPTED 2026-06-09. BC-2.06.020 namespace confirmed (next-available after BC-2.06.019). Subsystem: SS-01. Capability: CAP-036 — enrichment wiring is harness-layer orchestration. EC-020-003 documents HashMap insert semantics for potential IOC collision between scenario injection and prior Benign entries. EC-020-011 explicitly permits partial scenario activation (enrichment disabled while operational DTUs enabled) as a valid operator configuration. INV-CONSTRUCTION-TIME-INJECTION-001 added to prevent deferred-injection race condition that would produce incorrect lookup results during concurrent startup request handling. |
