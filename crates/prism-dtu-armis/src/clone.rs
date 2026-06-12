@@ -209,6 +209,33 @@ impl ArmisClone {
         })
     }
 
+    // -----------------------------------------------------------------------
+    // Story B: new_with_scenario stub (BC-2.06.019 / ADR-036 v2.3 §2.4)
+    // -----------------------------------------------------------------------
+
+    /// Construct an `ArmisClone` with the scenario timeline layer.
+    ///
+    /// 5-arg form per ADR-036 v2.3 §2.4. Internally calls
+    /// `new_with_seed_anchored(seed, archetype, org_id, time_anchor)` (NOT the 3-arg
+    /// `new_with_seed`).
+    ///
+    /// # Stub (S-DEMO-DTU-LIVE-SCENARIO-001-B)
+    ///
+    /// Returns a clone with `timeline = None` so compilation succeeds. Tests
+    /// asserting stage-mask filtering will FAIL (Red Gate).
+    #[allow(dead_code)] // S-DEMO-DTU-LIVE-SCENARIO-001-B: transient until implementation
+    pub fn new_with_scenario(
+        seed: u64,
+        archetype: prism_dtu_common::Archetype,
+        org_id: prism_dtu_common::OrgId,
+        _timeline: std::sync::Arc<prism_dtu_common::IncidentTimeline>,
+        time_anchor: chrono::DateTime<chrono::Utc>,
+    ) -> anyhow::Result<Self> {
+        // Stub: calls new_with_seed_anchored (not the forbidden 3-arg new_with_seed)
+        // but does NOT attach timeline. Tests will FAIL on stage-mask assertions.
+        Self::new_with_seed_anchored(seed, archetype, org_id, time_anchor)
+    }
+
     /// Return the base URL for the bound server (e.g. `"http://127.0.0.1:12345"`).
     ///
     /// Delegates to the trait's `base_url()` which checks `is_tls_active()`.

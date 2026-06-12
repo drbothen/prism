@@ -86,6 +86,33 @@ impl ThreatIntelClone {
     }
 }
 
+// ---------------------------------------------------------------------------
+// Story B: new_with_scenario stub (BC-2.06.020 / ADR-036 v2.3 §2.3)
+// ---------------------------------------------------------------------------
+
+#[cfg(feature = "fixture-gen")]
+impl ThreatIntelClone {
+    /// Construct a `ThreatIntelClone` with scenario IOCs pre-populated as `Malicious`.
+    ///
+    /// Infallible. Mirrors `ThreatIntelClone::new()` construction, then inserts all
+    /// `entities.ioc_ips`, `entities.ioc_domains`, and `entities.ioc_hashes` into
+    /// `fixture_registry` as `FixtureKey::Malicious`.
+    ///
+    /// Must NOT import `prism-spec-engine`, `prism-sensors`, or `prism-query`
+    /// (INV-PERIMETER-COMPLIANCE-001 / BC-2.06.020).
+    ///
+    /// # Stub (S-DEMO-DTU-LIVE-SCENARIO-001-B)
+    ///
+    /// Constructs via `new()` without inserting IOCs. Tests asserting IOC resolution
+    /// as Malicious will FAIL (Red Gate — `fixture_registry` won't contain the IOC keys).
+    #[allow(dead_code)] // S-DEMO-DTU-LIVE-SCENARIO-001-B: transient until implementation
+    pub fn new_with_scenario(_entities: &prism_dtu_common::ScenarioEntityCatalog) -> Self {
+        // Stub: returns a clone with only the default fixture registry.
+        // Tests will FAIL because IOC lookups return None (not Malicious).
+        Self::new()
+    }
+}
+
 impl Default for ThreatIntelClone {
     fn default() -> Self {
         Self::new()

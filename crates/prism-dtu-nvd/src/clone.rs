@@ -82,6 +82,38 @@ impl NvdClone {
         self.state.request_count_for(cve_id)
     }
 
+    // -----------------------------------------------------------------------
+    // Story B: new_with_scenario stub (BC-2.06.020 / ADR-036 v2.3 §2.3)
+    // -----------------------------------------------------------------------
+
+    /// Construct an `NvdClone` with scenario CVEs pre-populated as HIGH CVSS entries.
+    ///
+    /// Fallible — mirrors `NvdClone::new() -> anyhow::Result<Self>`.
+    ///
+    /// Loads base fixtures from `fixtures/cves.json` (same as `new()`), then inserts
+    /// synthetic `CveRecord` entries for each CVE ID in `entities.device_cves` with
+    /// `base_score = 8.1` and `base_severity = "HIGH"`.
+    ///
+    /// `cve_registry` is an IMMUTABLE `HashMap<String, CveRecord>` (NOT Mutex-wrapped).
+    ///
+    /// Must NOT import `prism-spec-engine`, `prism-sensors`, or `prism-query`
+    /// (INV-PERIMETER-COMPLIANCE-001 / BC-2.06.020).
+    ///
+    /// # Stub (S-DEMO-DTU-LIVE-SCENARIO-001-B)
+    ///
+    /// Delegates to `new()` without inserting scenario CVEs. Tests asserting that
+    /// `lookup_and_count(&entities.device_cves[0])` returns `Some(record)` with
+    /// `base_score >= 7.0` will FAIL (Red Gate — CVE not in registry).
+    #[cfg(feature = "fixture-gen")]
+    #[allow(dead_code)] // S-DEMO-DTU-LIVE-SCENARIO-001-B: transient until implementation
+    pub fn new_with_scenario(
+        _entities: &prism_dtu_common::ScenarioEntityCatalog,
+    ) -> anyhow::Result<Self> {
+        // Stub: delegates to new() without inserting scenario CVEs.
+        // Tests will FAIL because lookup_and_count returns None for scenario CVE IDs.
+        Self::new()
+    }
+
     fn build_router(&self) -> Router {
         Router::new()
             .route("/rest/json/cves/2.0", get(get_cves))

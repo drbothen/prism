@@ -152,6 +152,37 @@ impl ClarotyClone {
         }
     }
 
+    // -----------------------------------------------------------------------
+    // Story B: new_with_scenario stub (BC-2.06.019 / ADR-036 v2.3 §2.4)
+    // -----------------------------------------------------------------------
+
+    /// Construct a `ClarotyClone` with the scenario timeline layer.
+    ///
+    /// 5-arg form per ADR-036 v2.3 §2.4. Gated `#[cfg(feature = "fixture-gen")]`
+    /// because `chrono::DateTime<Utc>` is only available under `fixture-gen`
+    /// in this crate (dep:chrono gating in Cargo.toml).
+    ///
+    /// Internally calls `new_with_seed_anchored(seed, archetype, org_id, time_anchor)`
+    /// (NOT the forbidden 3-arg `new_with_seed`).
+    ///
+    /// # Stub (S-DEMO-DTU-LIVE-SCENARIO-001-B)
+    ///
+    /// Returns a clone with `timeline = None` so compilation succeeds. Tests
+    /// asserting stage-mask filtering will FAIL (Red Gate).
+    #[cfg(feature = "fixture-gen")]
+    #[allow(dead_code)] // S-DEMO-DTU-LIVE-SCENARIO-001-B: transient until implementation
+    pub fn new_with_scenario(
+        seed: u64,
+        archetype: prism_dtu_common::Archetype,
+        org_id: prism_dtu_common::OrgId,
+        _timeline: std::sync::Arc<prism_dtu_common::IncidentTimeline>,
+        time_anchor: chrono::DateTime<chrono::Utc>,
+    ) -> Self {
+        // Stub: calls new_with_seed_anchored (not the forbidden 3-arg new_with_seed)
+        // but does NOT attach timeline. Tests will FAIL on stage-mask assertions.
+        Self::new_with_seed_anchored(seed, archetype, org_id, time_anchor)
+    }
+
     /// Create with explicit configuration.
     pub fn with_config(config: StubConfig) -> Self {
         let admin_token = uuid::Uuid::new_v4().to_string();

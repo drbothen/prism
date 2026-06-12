@@ -87,6 +87,17 @@ pub struct ClarotyState {
     /// ADR-036 v2.2 / F-P6-HIGH-001 fix: always false on `new()` path.
     #[cfg(feature = "fixture-gen")]
     pub fixture_gen_seeded: bool,
+
+    // -----------------------------------------------------------------------
+    // Story B: scenario timeline (BC-2.06.019 / ADR-036 v2.3 §2.3)
+    // -----------------------------------------------------------------------
+    /// Scenario incident timeline. `Some` when constructed via `new_with_scenario`.
+    ///
+    /// Must be `#[cfg(feature = "fixture-gen")]`-gated because `chrono` is only
+    /// available under `fixture-gen` in this crate (dep:chrono gating).
+    /// ADR-036 v2.3 §2.3: threaded as `Arc<IncidentTimeline>` (NOT `Arc<Mutex<...>>`).
+    #[cfg(feature = "fixture-gen")]
+    pub timeline: Option<std::sync::Arc<prism_dtu_common::IncidentTimeline>>,
 }
 
 impl ClarotyState {
@@ -119,6 +130,9 @@ impl ClarotyState {
             // fixture_gen_seeded is false on new() path — route handlers use static fixture.
             #[cfg(feature = "fixture-gen")]
             fixture_gen_seeded: false,
+            // Story B: timeline is None on new() and new_with_seed() paths.
+            #[cfg(feature = "fixture-gen")]
+            timeline: None,
         }
     }
 
