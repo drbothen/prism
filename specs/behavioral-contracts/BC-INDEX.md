@@ -1,10 +1,10 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "6.27"
+version: "6.28"
 status: draft
-producer: product-owner
-timestamp: 2026-06-11T00:00:00Z
+producer: story-writer
+timestamp: 2026-06-12T00:00:00Z
 phase: 3.A
 total_contracts: 250
 active_contracts: 232
@@ -116,8 +116,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 | BC-2.06.016 | Error Taxonomy for Per-Org Overlay Override Violations (E-SPEC-019 through E-SPEC-023) | 06 - Client Configuration | CAP-009 | P0 | active — v1.3; promoted D-825 (PR #155 merge 2026-05-26) |
 | BC-2.06.017 | Per-DTU-Instance Multi-Address Binding for Multi-Tenant Overlay Testing | SS-01 (Sensor Adapters) | CAP-036 | P2 | draft — v1.1 (D-1076: Amendment-1 Postcondition-5 start_on prose corrected; Amendment-2 error-table inner types disambiguated; 5 invariants UNCHANGED) |
 | BC-2.06.018 | Demo-Server Config-Time Data Seeding — Per-Clone seed + fixture_set Wire-Up | SS-01 (Sensor Adapters) | CAP-036 | P2 | active — v1.6 (D-1089 2026-06-10: POL-14 draft→active; anchor story S-DEMO-DTU-LIVE-SCENARIO-001-A merged PR #181 develop@c287b00d; full 8-archetype archetype-driven seeding delivered; fixture_gen_seeded sentinel; per-client distinct data proven INV-DISTINCT-DATA-001) |
-| BC-2.06.019 | Demo-Server Scenario Progression — Pure-Function Temporal Stage Advancement with Reproducibility Guarantee | SS-01 (Sensor Adapters) | CAP-036 | P2 | draft — v1.1 (D-1079: ADR-036 v2.0 substrate reconciliation; stage_duration_secs 4-entry mapping; activates_after_secs; Result signatures corrected) |
-| BC-2.06.020 | Demo-Server Enrichment Correlation — Scenario IOCs Resolve in ThreatIntel; Scenario CVEs Resolve in NVD | SS-01 (Sensor Adapters) | CAP-036 | P2 | draft — v1.1 (D-1079: ADR-036 v2.0 substrate reconciliation; NvdState::lookup_and_count; CVSS path metrics.cvss_metric_v31[0].cvss_data.base_score; Result signatures corrected) |
+| BC-2.06.019 | Demo-Server Scenario Progression — Pure-Function Temporal Stage Advancement with Reproducibility Guarantee | SS-01 (Sensor Adapters) | CAP-036 | P2 | draft — v1.1 (D-1079: ADR-036 v2.0 substrate reconciliation; stage_duration_secs 4-entry mapping; activates_after_secs; Result signatures corrected); anchor story S-DEMO-DTU-LIVE-SCENARIO-001-B ready v2.0 (D-1090 2026-06-12) |
+| BC-2.06.020 | Demo-Server Enrichment Correlation — Scenario IOCs Resolve in ThreatIntel; Scenario CVEs Resolve in NVD | SS-01 (Sensor Adapters) | CAP-036 | P2 | draft — v1.1 (D-1079: ADR-036 v2.0 substrate reconciliation; NvdState::lookup_and_count; CVSS path metrics.cvss_metric_v31[0].cvss_data.base_score; Result signatures corrected); anchor story S-DEMO-DTU-LIVE-SCENARIO-001-B ready v2.0 (D-1090 2026-06-12) |
 | BC-2.07.001 | Internal Ephemeral Pagination Token Structure | 07 - Adapter Pagination & Response Cache | CAP-011 | P0 | draft |
 | BC-2.07.002 | Internal Pagination Token Lifecycle — Forward Progress, Timeout, and Cleanup | 07 - Adapter Pagination & Response Cache | CAP-011 | P0 | draft |
 | BC-2.07.003 | Query Engine Sensor-Fetch Cache with Configurable TTL | 07 - Adapter Pagination & Response Cache | CAP-014 | P1 | draft |
@@ -380,6 +380,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v6.28 (2026-06-12, D-1090 T5 story-writer story materialization — Story B anchor backlinks):** story-writer | Bidirectional traceability update per story-writer BC backlink obligation. BC-2.06.019 `anchored_stories` updated: `[S-DEMO-DTU-LIVE-SCENARIO-001]` → `[S-DEMO-DTU-LIVE-SCENARIO-001, S-DEMO-DTU-LIVE-SCENARIO-001-B]`. BC-2.06.020 `anchored_stories` updated identically. BC-INDEX inline rows 119 and 120 annotated with `anchor story S-DEMO-DTU-LIVE-SCENARIO-001-B ready v2.0 (D-1090 2026-06-12)`. S-DEMO-DTU-LIVE-SCENARIO-001-B story materialized to `ready v2.0` with CONTRACT-COMPLETENESS verified (4/4 mechanisms), NIT-1/NIT-2 folded in, StageMask #[non_exhaustive] conflict resolved (BC wins per CLAUDE.md precedence), all 16 ACs traced to BC clauses, both BCs cited by ACs (bidirectional). STORY-INDEX v2.351→v2.352. Counts UNCHANGED (250/232/5/0/7/6). BC-INDEX v6.27→v6.28.
 
 **v6.27 (2026-06-12, D-1103 PO governance burst — POL-23/27/32 corrections, story stubs):** product-owner | Governance-only corrections; zero contract-semantics changes. **POL-23/27 timestamp+modified normalizations (item 10):** `timestamp:` fields restored to creation dates (IMMUTABLE per POL-23 Direction-A): BC-2.07.003 `2026-05-07T00:00:00`→`2026-04-14T00:00:00Z`; BC-2.16.002 `2026-06-05T00:00:00Z`→`2026-04-14T00:00:00Z`; BC-2.06.018 `2026-06-10T00:00:00Z`→`2026-06-09T00:00:00Z`; BC-2.01.017 `2026-05-31T00:00:00Z`→`2026-05-29T00:00:00Z`. `modified:` format normalized (POL-27 YYYY-MM-DD quoted string): BC-2.16.002 datetime→date; BC-2.06.018 datetime→date; BC-3.3.001/002/003/004 burst-ID array `[adr-037-disposition-2026-06-10]`→`"2026-06-10"`. POL-29 sibling grep found no other files pinning the corrected values. No BC version increments for these frontmatter-only governance corrections. **POL-32 reconstructed tombstones (item 11):** BC-2.11.001 reconstructed v1.4 `[reconstructed-tombstone]` row added (D-987 POL-14 S-DEMO-002 PR #171 2026-06-04 gap in original state-manager burst); BC-3.2.001 reconstructed v0.9 `[reconstructed-tombstone]` row added (same D-987 gap). BC frontmatter versions UNCHANGED (BC-2.11.001 remains v1.7; BC-3.2.001 remains v0.9 — tombstone reconstructs a historical row, not a new version). **Story stubs (items 4+20):** 3 new STORY-INDEX stubs registered — `S-DTU-CROWDSTRIKE-COLUMN-COVERAGE-001` (CS-05 containment_status column gap), `S-DTU-CROWDSTRIKE-INCIDENTS-ROUTE-001` (DTU-EXT-001 incidents handler gap), `S-RELOAD-DRY-RUN-001` (PRL-P5-OBS-1+OBS-2 dry_run wiring). BC Traceability Matrix: BC-2.05.001 += S-RELOAD-DRY-RUN-001; BC-2.16.005 += S-RELOAD-DRY-RUN-001. **Item 24 auth_type ruling:** `sensors/cyberint.sensor.toml auth_type="api_key"` is WRONG; canonical is `cookie_roundtrip` (ADR-028 §D2, LOCKED decision 4). Work-order registered in STORY-INDEX changelog; implementer executes code correction in maintenance story or TD-SEC scope. No H1 retitles; counts UNCHANGED (250/232/5/0/7/6). BC-INDEX v6.26→v6.27.
 

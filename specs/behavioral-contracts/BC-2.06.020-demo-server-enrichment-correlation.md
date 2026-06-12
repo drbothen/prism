@@ -19,7 +19,7 @@ replacement: null
 retired: null
 removed: null
 removal_reason: null
-anchored_stories: [S-DEMO-DTU-LIVE-SCENARIO-001]
+anchored_stories: [S-DEMO-DTU-LIVE-SCENARIO-001, S-DEMO-DTU-LIVE-SCENARIO-001-B]
 verifying_vps: []
 crates: [prism-dtu-demo-server, prism-dtu-common, prism-dtu-threatintel, prism-dtu-nvd, prism-dtu-armis, prism-dtu-crowdstrike, prism-dtu-claroty]
 inputs:
