@@ -7,7 +7,8 @@
 //! Violations 1-6, 9-12, 16-17, 20-24, 26, 32-36, 37-43, 45, 47, 49-53 (37 total E0639 in this file).
 //! v51 (ScenarioEntityCatalog) is a LIVE E0639 violation — the type is public
 //! (prism_dtu_common::scenario; lib.rs pub use) and #[non_exhaustive]; counted in
-//! ci.yml EXPECTED=50 (ADR-036 §2.2, S-DEMO-DTU-LIVE-SCENARIO-001-A AC-014).
+//! ci.yml EXPECTED=52 (ADR-036 §2.2, S-DEMO-DTU-LIVE-SCENARIO-001-A AC-014,
+//! S-DEMO-DTU-LIVE-SCENARIO-001-B BPRL-P3-01 sibling sweep).
 //! v52 (IncidentTimeline) and v53 (IncidentStage) are LIVE E0639 violations added
 //! by S-DEMO-DTU-LIVE-SCENARIO-001-B. ci.yml EXPECTED bumped from 50 to 52.
 //!
@@ -621,7 +622,7 @@ pub fn v50_spec_driven_sensor_adapter() {
 /// foreign crate (this violation crate uses `features=["fixture-gen"]`). Because
 /// `ScenarioEntityCatalog` is `#[non_exhaustive]`, the struct literal fails with E0639
 /// (non-exhaustive type constructed outside its defining crate), which is the intended gate
-/// violation counted in `ci.yml EXPECTED=50`.
+/// violation counted in `ci.yml EXPECTED=52`.
 ///
 /// Added: S-DEMO-DTU-LIVE-SCENARIO-001-A (AC-014).
 #[allow(dead_code)]
