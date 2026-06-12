@@ -1,15 +1,15 @@
 ---
 document_type: verification-property-index
 level: L4
-version: "1.78"
+version: "1.79"
 status: draft
 producer: state-manager
-timestamp: 2026-06-11T00:00:00Z
+timestamp: 2026-06-12T00:00:00Z
 phase: 2-patch
 inputs: [architecture/verification-architecture.md]
 traces_to: architecture/ARCH-INDEX.md
-total_vps: 157
-active_vps: 144
+total_vps: 158
+active_vps: 145
 retired_vps: 13  # VP-095..VP-107 retired 2026-06-10 per ADR-037 (BC-3.3.001..004 retired); rows retained per POL-1
 ---
 
@@ -187,6 +187,7 @@ retired_vps: 13  # VP-095..VP-107 retired 2026-06-10 per ADR-037 (BC-3.3.001..00
 | VP-155 | CustomAdapter absent from prism-spec-engine public API: compile-fail perimeter asserts CustomAdapter and CustomAdapterRegistry are unimportable post-PREREQ-E | prism-spec-engine | integration_test | P0 | draft | PLUGIN-MIGRATION-001-A |
 | VP-156 | WriteToolInvalidationMap registration uniqueness: duplicate tool_name returns Err(DuplicateWriteToolRegistration); first registration persists unchanged | prism-query | proptest | P1 | active — v0.24 | S-PLUGIN-PREREQ-E |
 | VP-157 | [BC-3.6.001] POST /dtu/configure with unsupported mode returns HTTP 400 with unsupported_failure_mode error; no state change | prism-dtu-harness | unit_test | P1 | draft | S-3.6.01 |
+| VP-158 | [BC-2.06.019] E-DEMO-006 fires when two scenario-enabled clones share same seed but have different org_ids; no clone constructed — VP-019-I alias | prism-dtu-demo-server | unit_test | P1 | draft | S-DEMO-DTU-LIVE-SCENARIO-001-B |
 
 ## VP-PLUGIN-001..007 Named Series (PREREQ-F Registration, ADR-023 §Architectural Constraints)
 
@@ -210,14 +211,14 @@ F-PASS3-HIGH-001. The numeric VP-146..VP-152 entries above are the sequential in
 |--------|-------|----|----|
 | Kani | 30 | 23 | 7 |
 | Proptest | 88 | 66 | 22 |
-| Unit test | 5 | 4 | 1 |
+| Unit test | 6 | 4 | 2 |
 | Fuzz | 6 | 5 | 1 |
 | Integration test | 28 | 24 | 4 |
-| **Total** | **157** | **122** | **35** |
+| **Total** | **158** | **122** | **36** |
 
-> Note: VP-PLUGIN-001..007 are named aliases for VP-146..VP-152; they do not add to the sequential count. Total sequential VPs is 157 (VP-153, VP-154, VP-155 added for S-PLUGIN-PREREQ-E in burst 2026-05-15; VP-156 added in prereq-e-fix-burst-1 2026-05-15; VP-157 added D-1099 2026-06-11).
+> Note: VP-PLUGIN-001..007 are named aliases for VP-146..VP-152; they do not add to the sequential count. VP-019-I is a BC-2.06.019 named alias for VP-158; it does not add to the sequential count. Total sequential VPs is 158 (VP-153, VP-154, VP-155 added for S-PLUGIN-PREREQ-E in burst 2026-05-15; VP-156 added in prereq-e-fix-burst-1 2026-05-15; VP-157 added D-1099 2026-06-11; VP-158 added 2026-06-12 BC-2.06.019 E-DEMO-006 guard).
 
-> **Count basis (POL-1 append-only):** The table above counts REGISTERED rows — retired VPs are never deleted. Of the 157 rows, 13 are retired per ADR-037 (2026-06-10): VP-095..VP-098 (unit_test, P0), VP-099..VP-106 (proptest, P0), VP-107 (integration_test, P0). **Active basis: 144 VPs; active P0 = 109** (Kani 23, Proptest 58, Unit test 0, Fuzz 5, Integration test 23); active P1 = 35 (VP-157 unit_test P1 added D-1099). Retired VPs are excluded from the release verification gate. Per-VP disposition: see §ADR-037 Retirement below.
+> **Count basis (POL-1 append-only):** The table above counts REGISTERED rows — retired VPs are never deleted. Of the 158 rows, 13 are retired per ADR-037 (2026-06-10): VP-095..VP-098 (unit_test, P0), VP-099..VP-106 (proptest, P0), VP-107 (integration_test, P0). **Active basis: 145 VPs; active P0 = 109** (Kani 23, Proptest 58, Unit test 0, Fuzz 5, Integration test 23); active P1 = 36 (VP-157 unit_test P1 added D-1099; VP-158 unit_test P1 added 2026-06-12). Retired VPs are excluded from the release verification gate. Per-VP disposition: see §ADR-037 Retirement below.
 
 ### ADR-037 Retirement (2026-06-10) — BC-3.3.001..004 VPs
 
@@ -268,6 +269,7 @@ S-1.02 frontmatter has been updated to `subsystems: [SS-03, SS-07, SS-11, SS-12,
 
 | Version | Burst | Date | Author | Change |
 |---------|-------|------|--------|--------|
+| 1.79 | BC-2.06.019-vp-propagation | 2026-06-12 | architect | BC-2.06.019 v1.2 OBS-1 VP propagation (POL-9 same-burst): VP-158 added (unit_test, P1, prism-dtu-demo-server, BC-2.06.019 PRE-6, S-DEMO-DTU-LIVE-SCENARIO-001-B) — E-DEMO-006 org_id-equality guard; named alias VP-019-I. Summary: Unit test 5→6, Total 157→158, P1 35→36. Active basis: 144→145 VPs, active P1 = 36. POL-9 same-burst propagation: verification-architecture.md v1.43→v1.44, verification-coverage-matrix.md v1.44→v1.45. VP-INDEX v1.78→v1.79. |
 | 1.78 | D-1099 | 2026-06-11 | state-manager | BC-3.6.001 v0.5 POL-9 propagation: VP-129 description updated with Invariant 5 per-clone supported-mode table scope qualifier. VP-157 added (unit_test, P1, prism-dtu-harness, BC-3.6.001, S-3.6.01) — POST /dtu/configure unsupported-mode 400 guard. **ID note:** PO authored BC-3.6.001 v0.5 citing VP-131 for this property; VP-131 was already registered to BC-3.6.002 (Clone panic detection). Allocated next available sequential ID VP-157. BC-3.6.001 references to VP-131 for this property require a PO correction burst (BC body edit outside state-manager scope). Summary: Unit test 4→5, Total 156→157, P1 34→35. Active basis: 144 VPs, active P1 = 35. POL-9 same-burst propagation: verification-architecture.md v1.42→v1.43, verification-coverage-matrix.md v1.43→v1.44. VP-INDEX v1.77→v1.78. |
 | 1.77 | review-2026-06-10-architect-burst-2 | 2026-06-10 | architect | ADR-037 VP retirement (POL-9 same-burst propagation with verification-architecture.md v1.42 + verification-coverage-matrix.md v1.43): VP-095..VP-107 (13 VPs anchored to BC-3.3.001..004, retired at BC-INDEX v6.11) Status draft→retired (ADR-037), Property text struck through; Module/Method/Priority retained verbatim (rows never deleted per POL-1 — Summary table stays row-count basis: 156 total / 122 P0 / 34 P1, satisfying validate-vp-consistency row-count symmetry). Active-basis counts introduced: 143 active VPs, 109 active P0 (Kani 23 / Proptest 58 / Unit 0 / Fuzz 5 / Integration 23), 34 active P1. Frontmatter active_vps/retired_vps fields added. New §ADR-037 Retirement section records per-VP disposition (no successor VPs registered; intent carried by BC-2.06.017/BC-3.2.005 [VP-091..094 active], BC-2.06.003/ADR-032, BC-2.21.001 + BC-2.06.012–016; BC-3.3.003 schema_version checks have no successor per ADR-037 §Consequences). No VP files exist for VP-095..107, so no withdrawal documents required. VP-INDEX v1.76→v1.77. |
 | 1.76 | FB-IMPL-10 | 2026-05-18 | product-owner | F-LP-IMPL-P13-MED-001 closure: VP-156 v0.23→v0.24 (line 171 cfg-gate sibling-sweep — `#[cfg(test)]` → `#[cfg(any(test, feature = "test-helpers"))]`). VP-INDEX v1.75→v1.76. |
