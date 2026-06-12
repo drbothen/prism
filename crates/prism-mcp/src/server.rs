@@ -7514,8 +7514,27 @@ mod tests {
         );
     }
 
-    /// P5-02: add_sensor_spec with failing audit → E-AUDIT-001 abort BEFORE the
-    /// spec TOML is parsed or written to spec_dir.
+    /// PRL-P8-01 / BC-2.05.001 DEC-014: add_sensor_spec with failing audit →
+    /// E-AUDIT-001 abort BEFORE the spec TOML is parsed or written to spec_dir.
+    ///
+    /// Mental-deletion proof (TD-VSDD-059 / PRL-P8-01): the fixture TOML is
+    /// FULLY VALID (flat top-level fields, all mandatory fields present) so
+    /// parse_and_validate_spec_toml() succeeds → the ValidationFailed early-return
+    /// in add_sensor_spec (add_sensor_spec.rs:184-189) is bypassed → the write at
+    /// Step 4 (add_sensor_spec.rs:287-294) IS reachable after the audit gate.
+    /// Without the audit `?` at server.rs emit_tool_audit call, add_sensor_spec()
+    /// proceeds to write the file → spec_dir is NON-EMPTY → the
+    /// `assert!(entries.is_empty())` assertion FAILS.
+    /// Conversely, with the audit `?` present, emit_tool_audit(FailingAudit)
+    /// returns Err(E-AUDIT-001) which aborts the handler before add_sensor_spec()
+    /// is called → no file written → assertion PASSES.
+    /// An unparseable or [sensor]-wrapped TOML (PRL-P8-01 root cause) would cause
+    /// ValidationFailed before Step 4 regardless of the audit gate, making the test
+    /// vacuous (entries.is_empty() passes even with `?` deleted).
+    ///
+    /// IMPORTANT: the TOML must be FLAT top-level (no `[sensor]` wrapper).
+    /// SensorSpec requires flat mandatory fields: sensor_id/name/version/base_url/
+    /// auth_type. No [[tables]] needed (serde default → Vec::new()).
     #[tokio::test]
     async fn test_BC_2_05_001_add_sensor_spec_audit_failure_aborts_no_file_written() {
         let tmpdir = tempfile::tempdir().expect("create tempdir for spec_dir");
@@ -7526,16 +7545,24 @@ mod tests {
         )));
         server.spec_dir = Some(tmpdir.path().to_path_buf());
 
+        // IMPORTANT (PRL-P8-01 / TD-VSDD-059): fully valid flat TOML — no [sensor]
+        // wrapper, all mandatory fields present. Mirrors the PRL-P7-01 fix pattern
+        // from test_BC_2_05_001_reload_config_audit_failure_aborts_no_swap.
         let result = server
             .add_sensor_spec(Parameters(AddSensorSpecParams {
                 name: "p5-test.sensor.toml".to_owned(),
-                toml_content: "[sensor]\nid = \"p5_test\"\n".to_owned(),
+                toml_content: "sensor_id = \"p5-test\"\n\
+                               name = \"PRL P8-01 test sensor\"\n\
+                               version = \"1.0.0\"\n\
+                               base_url = \"https://example.com\"\n\
+                               auth_type = \"api_key\"\n"
+                    .to_owned(),
             }))
             .await;
 
         let err = result.expect_err(
-            "BC-2.05.001 DEC-014: add_sensor_spec must ABORT when write-path \
-             audit emission fails",
+            "BC-2.05.001 DEC-014 / PRL-P8-01: add_sensor_spec must ABORT when \
+             write-path audit emission fails",
         );
         assert!(
             err.message.contains("E-AUDIT-001"),
@@ -7543,14 +7570,15 @@ mod tests {
              error; got: '{}'",
             err.message
         );
-        // NO mutation: spec_dir must remain empty — no spec file was written.
+        // NO mutation: spec_dir must remain empty — the audit abort fires BEFORE
+        // add_sensor_spec() is called, so no spec file is written.
         let entries: Vec<_> = std::fs::read_dir(tmpdir.path())
             .expect("read spec_dir")
             .collect();
         assert!(
             entries.is_empty(),
-            "BC-2.05.001: no spec file may be written when the write aborts on \
-             audit failure; found {} entries",
+            "BC-2.05.001 / PRL-P8-01: no spec file may be written when the \
+             handler aborts on audit failure; found {} entries",
             entries.len()
         );
     }
