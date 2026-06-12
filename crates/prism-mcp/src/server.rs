@@ -1382,7 +1382,7 @@ fn not_yet_available_msg(feature: &str) -> rmcp::model::ErrorData {
 /// (P5-02, 2026-06-10 review pass-5).
 ///
 /// Uses prism-audit's [`ToolClassificationRegistry`] / [`ToolClass`] types.
-/// The four write/mutation-capable MCP tool handlers are classified
+/// The five write/mutation-capable MCP tool handlers are classified
 /// [`ToolClass::WriteTool`] (fail-closed on audit failure per BC-2.05.001
 /// DEC-014):
 ///
@@ -1392,6 +1392,13 @@ fn not_yet_available_msg(feature: &str) -> rmcp::model::ErrorData {
 ///   generation
 /// - `delete_alias` — alias-registry mutation + delete-confirmation token
 ///   generation
+/// - `reload_config` — live config-snapshot swap (ConfigManager::store,
+///   non-dry-run path)
+///
+/// NOTE: `reload_plugin` is currently a non-mutating stub (returns
+/// `not_yet_available` before any mutation) and is NOT classified here. It
+/// MUST be added as WriteTool when wired to actual plugin mutation
+/// (BC-2.05.001 v1.4 Invariants §write-tool-set-invariant).
 ///
 /// Every other tool defaults to [`ToolClass::ReadTool`] (fail-open with
 /// `_meta.audit_warning` per BC-2.05.001 EC-05-002), mirroring the
@@ -1404,6 +1411,7 @@ fn tool_classification_registry() -> &'static ToolClassificationRegistry {
         registry.insert("add_sensor_spec", ToolClass::WriteTool);
         registry.insert("create_alias", ToolClass::WriteTool);
         registry.insert("delete_alias", ToolClass::WriteTool);
+        registry.insert("reload_config", ToolClass::WriteTool); // PRL-P4-01: reclassified WriteTool 2026-06-11
         registry
     })
 }
@@ -7213,6 +7221,7 @@ mod tests {
             "add_sensor_spec",
             "create_alias",
             "delete_alias",
+            "reload_config", // PRL-P4-01: reclassified WriteTool 2026-06-11
         ] {
             let err = emit_tool_audit(Some(&writer), write_tool, None, "invoked")
                 .await
@@ -7543,6 +7552,89 @@ mod tests {
             "BC-2.05.001: no spec file may be written when the write aborts on \
              audit failure; found {} entries",
             entries.len()
+        );
+    }
+
+    /// PRL-P4-01 / BC-2.05.001 DEC-014: reload_config with failing audit →
+    /// E-AUDIT-001 abort BEFORE the ConfigManager snapshot is swapped.
+    ///
+    /// The test proves the audit `?` early-return in the reload_config handler
+    /// executes BEFORE `prism_spec_engine::reload_config::reload_config()` is
+    /// called (i.e., before any `store()` call). Because reload_config is now
+    /// classified as WriteTool, `emit_tool_audit` returns `Err(E-AUDIT-001)`
+    /// when the durable write fails, and the `?` aborts the handler before any
+    /// mutation.
+    ///
+    /// Mental-deletion proof (TD-VSDD-059): if `reload_config` is removed from
+    /// `tool_classification_registry()`, `emit_tool_audit` returns
+    /// `Ok(Some("audit emission failed"))` (fail-open) and the handler proceeds
+    /// to call `reload_config(...)` which calls `store()` with the new snapshot
+    /// — the `is_err()` assertion on the result fails. Conversely, if the audit
+    /// `?` is deleted from the handler body, the handler proceeds past audit
+    /// failure to mutation regardless of classification — the `is_err()`
+    /// assertion fails.
+    #[tokio::test]
+    async fn test_BC_2_05_001_reload_config_audit_failure_aborts_no_swap() {
+        // Set up a tempdir with ≥1 valid sensor TOML so reload would detect a
+        // change and call store() if it were allowed to proceed.
+        let tmpdir = tempfile::tempdir().expect("create tempdir for spec_dir");
+        let sensor_toml = tmpdir.path().join("test_sensor.sensor.toml");
+        std::fs::write(
+            &sensor_toml,
+            "[sensor]\nid = \"prl_p4_01_test\"\nname = \"PRL P4-01 test sensor\"\n\
+             version = \"1.0\"\n\
+             [[tables]]\nname = \"devices\"\n",
+        )
+        .expect("write test sensor TOML");
+
+        // Wire an empty ConfigManager so the initial hash won't match the
+        // spec_dir contents (which now has a file) → reload WOULD proceed to
+        // store() if not aborted by audit failure.
+        let cm = Arc::new(prism_spec_engine::config_manager::ConfigManager::empty());
+        let initial_hash = cm.current_hash();
+
+        let mut server = PrismServer::new();
+        server.audit_writer = Some(Arc::new(FailingAudit));
+        server.config_manager = Some(Arc::new(arc_swap::ArcSwap::from_pointee(
+            // Reconstruct from the same empty() so the ArcSwap holds the real CM
+            // that we can inspect via `cm` for hash changes.
+            // We need to hold `cm` separately to verify the hash post-call.
+            // Use a separate Arc<ConfigManager> for the swap and inspect via it.
+            prism_spec_engine::config_manager::ConfigManager::empty(),
+        )));
+        // Capture the config_manager Arc to inspect the hash after the call.
+        // We need to check the CM the server actually holds.
+        let cm_for_check = Arc::clone(server.config_manager.as_ref().expect("cm wired"));
+        let hash_before = cm_for_check.load().current_hash();
+        server.spec_dir = Some(tmpdir.path().to_path_buf());
+
+        let result = server.reload_config().await;
+
+        let err = result.expect_err(
+            "BC-2.05.001 DEC-014 / PRL-P4-01: reload_config must ABORT when \
+             write-path audit emission fails",
+        );
+        assert!(
+            err.message.contains("E-AUDIT-001"),
+            "BC-2.05.001 DEC-014: abort must carry the E-AUDIT-001 structured \
+             error; got: '{}'",
+            err.message
+        );
+
+        // NO mutation: the ConfigManager snapshot hash must be UNCHANGED —
+        // store() was never called because the abort happened before mutation.
+        let hash_after = cm_for_check.load().current_hash();
+        assert_eq!(
+            hash_before, hash_after,
+            "BC-2.05.001 DEC-014 / PRL-P4-01: ConfigManager snapshot must be \
+             UNCHANGED when reload_config aborts on audit failure; \
+             store() must never be called before a successful audit record"
+        );
+
+        // Sanity: the initial hash equals hash_before (no concurrent mutation).
+        assert_eq!(
+            initial_hash, hash_before,
+            "test invariant: initial empty ConfigManager hash must match pre-call hash"
         );
     }
 
