@@ -164,5 +164,16 @@ name = "bc_2_06_019_scenario_progression"
 path = "tests/bc_2_06_019_scenario_progression.rs"
 required-features = ["dtu", "fixture-gen"]
 
+# TD-VSDD-060 sibling-sweep: detection route org-id guard and dormant-detection tests missing [[test]] entries
+[[test]]
+name = "cr018_detections_org_id_guard"
+path = "tests/cr018_detections_org_id_guard.rs"
+required-features = ["dtu"]
+
+[[test]]
+name = "f_p10_high_001_dormant_detection_routes"
+path = "tests/f_p10_high_001_dormant_detection_routes.rs"
+required-features = ["dtu", "fixture-gen"]
+
 [lints]
 workspace = true

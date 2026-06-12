@@ -98,5 +98,11 @@ name = "td_wv0_08_reset_requires_admin_token"
 path = "tests/td_wv0_08_reset_requires_admin_token.rs"
 required-features = ["dtu"]
 
+# B-P9-01: fixture-gen-gated scenario test requires dtu+fixture-gen (mirrors nvd sibling pattern)
+[[test]]
+name = "bc_2_06_020_enrichment_correlation"
+path = "tests/bc_2_06_020_enrichment_correlation.rs"
+required-features = ["dtu", "fixture-gen"]
+
 [lints]
 workspace = true

@@ -191,5 +191,11 @@ name = "dormant_tenant_seeded_regression"
 path = "tests/dormant_tenant_seeded_regression.rs"
 required-features = ["dtu", "fixture-gen"]
 
+# TD-VSDD-060 sibling-sweep: X-Org-Id guard test for search endpoint was missing [[test]] entry
+[[test]]
+name = "f_p2_med_001_search_org_id_guard"
+path = "tests/f_p2_med_001_search_org_id_guard.rs"
+required-features = ["dtu"]
+
 [lints]
 workspace = true
