@@ -848,9 +848,9 @@ pub fn explain(query_str: &str, options: ExplainOptions) -> Result<ExplainResult
                 outcome_summary: "E-QUERY-003".to_string(),
             });
         }
-        return Err(PrismError::QueryExecutionFailed {
+        return Err(PrismError::QuerySecurityLimitExceeded {
             detail: format!(
-                "E-QUERY-003: query size {} bytes exceeds maximum {} bytes",
+                "query size {} bytes exceeds maximum {} bytes",
                 query_str.len(),
                 PRISM_MAX_QUERY_SIZE
             ),
@@ -883,9 +883,9 @@ pub fn explain(query_str: &str, options: ExplainOptions) -> Result<ExplainResult
     // ── Step 2: Security size check on expanded query (E-QUERY-003, DI-019) ───
     if expanded_query.len() > PRISM_MAX_QUERY_SIZE {
         emit_audit("E-QUERY-003");
-        return Err(PrismError::QueryExecutionFailed {
+        return Err(PrismError::QuerySecurityLimitExceeded {
             detail: format!(
-                "E-QUERY-003: expanded query size {} bytes exceeds maximum allowed {} bytes",
+                "expanded query size {} bytes exceeds maximum allowed {} bytes",
                 expanded_query.len(),
                 PRISM_MAX_QUERY_SIZE
             ),
@@ -1178,10 +1178,17 @@ fn expand_query_with_aliases(
                 } else {
                     alias_name.to_string()
                 };
-                return Err(PrismError::QueryExecutionFailed {
-                    detail: format!(
-                        "E-ALIAS-001: alias '{alias_display}' is not defined in the alias registry"
-                    ),
+                // P6-02 adjudication 2026-06-11: return PrismError::AliasNotFound (E-ALIAS-001)
+                // directly. Previously the site used a nested QueryExecutionFailed wrapper,
+                // which routed the caller-resolvable condition to -32000 INTERNAL_ERROR.
+                // AliasNotFound maps to -32602 INVALID_PARAMS in error_mapping.rs.
+                // `available` is intentionally empty here: the simple alias_registry
+                // HashMap does not expose iteration in the explain path without redesign;
+                // the alias name and scope are sufficient for caller diagnostics.
+                return Err(PrismError::AliasNotFound {
+                    name: alias_display,
+                    scope: "alias registry".to_string(),
+                    available: String::new(),
                 });
             }
         }

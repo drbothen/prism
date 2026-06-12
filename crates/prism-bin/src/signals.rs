@@ -1,25 +1,38 @@
-//! Signal handlers for the `prism` binary.
+//! Signal handlers for the `prism` binary (ADR-022 §B step 11; BC-2.10.010).
 //!
-//! Implements SIGTERM and SIGHUP tokio signal handlers per ADR-022 §B step 11
-//! and BC-2.10.010 (Graceful Shutdown on SIGTERM/SIGINT).
+//! # Scope — test-injection path ONLY (BOOT-03, 2026-06-10 review)
 //!
-//! # SIGTERM (AC-6; BC-2.10.010)
+//! The handlers in this module are wired exclusively on the
+//! `PRISM_TEST_STOP_AFTER_STEP=6` test-injection path in `boot.rs` (the
+//! SIGTERM readiness-gate used by `tests/signal_handlers.rs`). They are NOT
+//! part of the production serving path.
 //!
-//! On SIGTERM:
+//! **The production graceful drain lives in prism-mcp:**
+//! `PrismServer::serve_stdio` → `serve_with_transport_and_shutdown`
+//! (`crates/prism-mcp/src/server.rs`) implements the full BC-2.10.010
+//! shutdown sequence — stop accepting requests, drain in-flight tasks under a
+//! 5-second grace window via `close_with_timeout`, then return cleanly (audit
+//! durability is provided by RocksDB's synchronous per-write WAL, so no
+//! explicit flush step exists anywhere).
+//!
+//! # SIGTERM — actual behavior of THIS module (AC-6; BC-2.10.010 subset)
+//!
+//! On SIGTERM (or Ctrl-C):
 //! 1. Emit `tracing::info!("Received SIGTERM — shutting down")`.
-//! 2. Send on `shutdown_tx` broadcast channel to notify all subsystems.
-//! 3. Drain in-flight queries.
-//! 4. Close MCP server.
-//! 5. Flush audit buffer.
-//! 6. Close RocksDB.
-//! 7. Exit 0.
+//! 2. Send on `shutdown_tx` broadcast channel to notify any subscribers.
+//! 3. Emit the audit-durability log line (RocksDB WAL — no explicit flush).
+//! 4. `std::process::exit(0)` immediately — there is NO in-process drain
+//!    here. Steps such as "drain in-flight queries" / "close MCP server"
+//!    happen only in the prism-mcp `serve_stdio` path described above.
 //!
 //! # SIGHUP
 //!
 //! On SIGHUP:
 //! 1. Send on `reload_tx` mpsc channel.
 //! 2. The reload consumer (HotReloadWatcher step 10) processes the reload.
-//!    This path is a `todo!()` until S-1.12-FOLLOWUP wires HotReloadWatcher.
+//!    That consumer is not yet wired — deferred to S-1.12-FOLLOWUP. Until
+//!    then `install_sighup_handler` is referenced only by
+//!    `tests/signal_handlers.rs` (ADR-022 §B step 11 presence gate).
 //!
 //! # Platform Note
 //!
@@ -28,13 +41,16 @@
 
 use tokio::sync::{broadcast, mpsc};
 
-/// Install the SIGTERM handler.
+/// Install the SIGTERM handler (test-injection path only — see module doc).
 ///
-/// Waits for SIGTERM and broadcasts on `shutdown_tx` to initiate graceful
-/// shutdown across all subsystem tasks.
+/// Waits for SIGTERM, broadcasts on `shutdown_tx`, then calls
+/// `std::process::exit(0)` immediately. No in-process drain happens here —
+/// the production drain is `PrismServer::serve_stdio` in prism-mcp.
 ///
-/// Contract (BC-2.10.010): MUST emit `tracing::info!("Received SIGTERM — shutting down")`
-/// before sending on `shutdown_tx`. MUST flush the audit buffer before `exit(0)`.
+/// Contract (BC-2.10.010 subset): MUST emit
+/// `tracing::info!("Received SIGTERM — shutting down")` before sending on
+/// `shutdown_tx`. Audit durability before `exit(0)` is provided by RocksDB's
+/// synchronous per-write WAL (no explicit flush call exists).
 ///
 /// AC-6: Given SIGTERM delivered, process emits the SIGTERM log entry and exits 0.
 pub async fn install_sigterm_handler(shutdown_tx: broadcast::Sender<()>) {

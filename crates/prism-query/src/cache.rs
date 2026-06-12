@@ -4,10 +4,14 @@
 //!
 //! # Cache model
 //! A single in-memory sensor-fetch cache keyed by [`crate::cache_key::CacheKey`]
-//! (4-tuple: `client_id`, `sensor_id`, `source_id`, `push_down_hash`). Cache
-//! entries store the raw sensor API response pre-OCSF normalization. OCSF
-//! normalization and PrismQL post-filters are applied after cache retrieval
-//! (BC-2.07.003 §Postconditions).
+//! (4-tuple: `client_id`, `sensor_id`, `source_id`, `push_down_hash`).
+//! BC-2.07.003 specifies entries store the raw sensor API response pre-OCSF
+//! normalization; the production instantiation ([`SensorResponseValue`])
+//! caches the adapter's normalized Arrow output instead — a human-authorized
+//! deviation (P1-03 adjudication, 2026-06-10; spec compliance lands in
+//! S-CACHE-SPEC-COMPLIANCE-001; interim mitigation: hot-reload cache flush).
+//! See [`CacheValue`] for the full deviation record. PrismQL post-filters are
+//! applied after cache retrieval (BC-2.07.003 §Postconditions).
 //!
 //! # TTL semantics
 //! TTL is measured from `created_at` (absolute expiry), not from last access
@@ -30,9 +34,9 @@
 //! `QueryCache` is `Send + Sync` and designed to be shared via `Arc<QueryCache>`.
 //! The `moka::sync::Cache` inner type is itself thread-safe. If the `partition_counts`
 //! mutex is poisoned (a thread panicked while holding the lock), all subsequent
-//! cache operations return `Err(PrismError::Internal { detail: "E-CACHE-001: ..." })`
+//! cache operations return `Err(PrismError::Internal)` with a prose-only detail
 //! instead of silently continuing with potentially corrupted state (BC-2.07.004
-//! E-CACHE-001, SEC-001).
+//! mutex-poison condition, SEC-001).
 //!
 //! # BC References
 //! - BC-2.07.003 — Query Engine Sensor-Fetch Cache with Configurable TTL
@@ -139,28 +143,95 @@ impl SourceDataType {
 }
 
 // ---------------------------------------------------------------------------
+// CacheValue
+// ---------------------------------------------------------------------------
+
+/// A value type storable in the sensor-fetch response cache.
+///
+/// The cache logic (TTL, LRU, per-partition bounds, byte budget, prefix
+/// invalidation) is value-type agnostic; only the byte-size estimation differs.
+/// Two instantiations exist:
+/// - `Vec<serde_json::Value>` — raw JSON rows (the BC-2.07.003 "raw sensor
+///   response" form, used by unit tests and JSON-level callers).
+/// - [`SensorResponseValue`] (`Vec<RecordBatch>`) — the production query-engine
+///   instantiation, storing the post-normalization Arrow output of
+///   `SensorAdapter::fetch`.
+///
+/// # Authorized deviation from BC-2.07.003 (P1-03 adjudication, 2026-06-10)
+///
+/// BC-2.07.003 specifies that cache entries store the RAW sensor API response
+/// pre-OCSF normalization. The production instantiation deviates: it caches
+/// the adapter's normalized `RecordBatch` output, because normalization
+/// happens inside the as-built `SensorAdapter::fetch` boundary. This is a
+/// HUMAN-AUTHORIZED deviation from the BC-2.07.003 raw-response model (P1-03
+/// adjudication, 2026-06-10); the BC stays unamended. Spec compliance is
+/// implemented by S-CACHE-SPEC-COMPLIANCE-001 (post-demo). Interim mitigation:
+/// every config hot-reload flushes this cache (`invalidate_all`, registered as
+/// a `ConfigManager` swap listener at boot), evicting all pre-swap-epoch
+/// entries. Note the flush is forward-provisioning today — fetch-path
+/// normalization is boot-frozen (adapters hold the boot-time resolved spec),
+/// and in-flight pre-swap queries may insert after the flush; see
+/// [`GenericQueryCache::invalidate_all`] for the full caveats.
+/// Full reload-effectiveness arrives with S-CACHE-SPEC-COMPLIANCE-001's
+/// normalize-on-read model.
+pub trait CacheValue: Clone + std::fmt::Debug + Send + Sync + 'static {
+    /// Estimated in-memory size of this value in bytes, used for the
+    /// BC-2.07.006 byte-budget accounting and the SEC-003 per-entry cap.
+    fn estimated_bytes(&self) -> usize;
+}
+
+impl CacheValue for Vec<serde_json::Value> {
+    /// Conservative estimate: [`AVG_ROW_SIZE_BYTES`] per JSON row (CR-006).
+    fn estimated_bytes(&self) -> usize {
+        self.len() * AVG_ROW_SIZE_BYTES
+    }
+}
+
+impl CacheValue for Vec<arrow::record_batch::RecordBatch> {
+    /// Actual Arrow buffer memory for the batch set.
+    ///
+    /// `get_array_memory_size` reports the total bytes of all buffers backing
+    /// the batch (shared `Arc` buffers may be counted per referencing batch —
+    /// a conservative over-estimate, which is the safe direction for a budget).
+    fn estimated_bytes(&self) -> usize {
+        self.iter()
+            .map(arrow::record_batch::RecordBatch::get_array_memory_size)
+            .sum()
+    }
+}
+
+/// Production cache value: complete sensor-fetch response as Arrow batches.
+///
+/// Stores the adapter's NORMALIZED output — a human-authorized deviation from
+/// the BC-2.07.003 raw-response model (P1-03 adjudication, 2026-06-10); spec
+/// compliance implemented by S-CACHE-SPEC-COMPLIANCE-001 (post-demo); interim
+/// mitigation: hot-reload response-cache flush. See [`CacheValue`].
+pub type SensorResponseValue = Vec<arrow::record_batch::RecordBatch>;
+
+// ---------------------------------------------------------------------------
 // CacheEntry
 // ---------------------------------------------------------------------------
 
 /// A single cached sensor-fetch response.
 ///
-/// Stores the raw sensor API response rows (pre-OCSF normalization) along with
-/// metadata for TTL enforcement (BC-2.07.003 §Postconditions).
+/// Stores the complete sensor API response (no query-engine transformation
+/// applied before caching) along with metadata for TTL enforcement
+/// (BC-2.07.003 §Postconditions).
 ///
 /// Hit metrics are tracked at the cache level via `QueryCache::total_hits()`
-/// rather than per-entry to avoid cloning the full `rows` vec on every hit
+/// rather than per-entry to avoid cloning the full `rows` value on every hit
 /// (CR-005). Aggregate counts are sufficient for `check_sensor_health` visibility.
 #[derive(Debug, Clone)]
-pub struct CacheEntry {
-    /// Raw sensor API response rows stored as JSON (pre-OCSF normalization).
-    pub rows: Vec<serde_json::Value>,
+pub struct CacheEntry<V: CacheValue = Vec<serde_json::Value>> {
+    /// Complete sensor API response (pre-query-engine transformation).
+    pub rows: V,
     /// Absolute creation timestamp — TTL is measured from this (BC-2.07.003).
     pub created_at: Instant,
     /// TTL duration for this entry (data-type dependent).
     pub ttl: Duration,
 }
 
-impl CacheEntry {
+impl<V: CacheValue> CacheEntry<V> {
     /// Returns `true` if this entry's TTL has elapsed (BC-2.07.003).
     ///
     /// TTL is measured from `created_at` (absolute), not from last access.
@@ -216,24 +287,29 @@ fn partition_key(key: &CacheKey) -> PartitionKey {
 // QueryCache
 // ---------------------------------------------------------------------------
 
-/// Thread-safe sensor-fetch response cache.
+/// Thread-safe sensor-fetch response cache, generic over the cached value type.
 ///
 /// Implements BC-2.07.003 (TTL-based caching) and BC-2.07.006 (LRU eviction
 /// with per-partition entry count bound and 50 MB total byte budget). Intended
-/// to be held in a single `Arc<QueryCache>` shared across all `QueryEngine` tasks.
+/// to be held in a single `Arc` shared across all `QueryEngine` tasks.
+///
+/// Two instantiations are exported:
+/// - [`QueryCache`] (`GenericQueryCache<Vec<serde_json::Value>>`) — JSON-row form.
+/// - [`SensorResponseCache`] (`GenericQueryCache<SensorResponseValue>`) — the
+///   production query-engine instantiation storing Arrow `RecordBatch` sets.
 ///
 /// Internally uses `moka::sync::Cache` for thread-safe LRU eviction and
 /// TTL-based entry expiry (story §Caching Context Summary — moka 0.12).
 ///
-/// ## Mutex poison safety (SEC-001 / BC-2.07.004 E-CACHE-001)
+/// ## Mutex poison safety (SEC-001 / BC-2.07.004 mutex-poison condition)
 /// If the `partition_counts` mutex is poisoned, all cache operations that
-/// require the lock return `Err(PrismError::Internal { detail: "E-CACHE-001: ..." })`.
+/// require the lock return `Err(PrismError::Internal)` with a prose-only detail.
 /// Silent recovery via `unwrap_or_else(|e| e.into_inner())` is prohibited.
-pub struct QueryCache {
+pub struct GenericQueryCache<V: CacheValue> {
     config: CacheConfig,
     /// moka LRU cache: provides O(1) get/put with background TTL eviction.
     /// Large capacity; per-partition bounds enforced by `partition_counts`.
-    inner: MokaCache<CacheKey, CacheEntry>,
+    inner: MokaCache<CacheKey, CacheEntry<V>>,
     /// Per-`(client_id, sensor_id)` entry tracking for DI-018 bound enforcement.
     /// Each element is `(key, estimated_byte_size)` — the byte size is stored
     /// alongside the key so removal paths can decrement `total_bytes` accurately
@@ -244,13 +320,27 @@ pub struct QueryCache {
     total_bytes: AtomicUsize,
     /// Aggregate cache hit counter — incremented on every successful get()
     /// (BC-2.07.003, CR-005). Using an aggregate counter avoids cloning the
-    /// full `rows` Vec on every hot-path hit; per-entry counts are not required
+    /// full `rows` value on every hot-path hit; per-entry counts are not required
     /// by the BC.
     total_hits: AtomicU64,
 }
 
-impl QueryCache {
-    /// Construct a new `QueryCache` with the given configuration.
+/// JSON-row instantiation of the sensor-fetch cache (historical name).
+///
+/// All pre-existing unit tests and JSON-level callers use this alias; the
+/// production query engine uses [`SensorResponseCache`].
+pub type QueryCache = GenericQueryCache<Vec<serde_json::Value>>;
+
+/// Production sensor-fetch response cache instantiation (BC-2.07.003).
+///
+/// Stores the complete per-`(client_id, sensor_id, source_id, push_down_hash)`
+/// sensor fetch response as Arrow `RecordBatch`es, shared between
+/// `QueryEngine` (read/populate path) and `CacheInvalidator` (write
+/// invalidation path, BC-2.07.004).
+pub type SensorResponseCache = GenericQueryCache<SensorResponseValue>;
+
+impl<V: CacheValue> GenericQueryCache<V> {
+    /// Construct a new cache with the given configuration.
     pub fn new(config: CacheConfig) -> Self {
         // moka capacity: large global pool; per-partition bounds via partition_counts.
         // We use a large moka capacity so it never evicts by itself —
@@ -263,7 +353,7 @@ impl QueryCache {
             .max_capacity(moka_cap)
             .time_to_live(max_ttl)
             .build();
-        QueryCache {
+        GenericQueryCache {
             config,
             inner,
             partition_counts: Mutex::new(HashMap::new()),
@@ -272,26 +362,27 @@ impl QueryCache {
         }
     }
 
-    /// Construct a `QueryCache` with default configuration.
+    /// Construct a cache with default configuration.
     pub fn with_defaults() -> Self {
         Self::new(CacheConfig::default())
     }
 
-    /// Acquire the `partition_counts` mutex, propagating poison as E-CACHE-001.
+    /// Acquire the `partition_counts` mutex, propagating poison as `PrismError::Internal`.
     ///
-    /// SEC-001 / BC-2.07.004 E-CACHE-001: a poisoned mutex means a thread panicked
-    /// while holding the lock, leaving the partition map in an unknown state.
-    /// Silently recovering with `into_inner()` would operate on corrupted state.
-    /// We propagate as `PrismError::Internal` so the caller can terminate cleanly.
+    /// SEC-001 / BC-2.07.004: a poisoned mutex means a thread panicked while holding
+    /// the lock, leaving the partition map in an unknown state. Silently recovering
+    /// with `into_inner()` would operate on corrupted state. We propagate as
+    /// `PrismError::Internal` (prose-only detail) so the caller can terminate cleanly.
     fn lock_partition_counts(
         &self,
     ) -> Result<MutexGuard<'_, HashMap<PartitionKey, PartitionVec>>, PrismError> {
         self.partition_counts
             .lock()
             .map_err(|_| PrismError::Internal {
-                detail: "E-CACHE-001: cache mutex poisoned — internal state may be inconsistent; \
+                detail:
+                    "cache partition_counts mutex poisoned — internal state may be inconsistent; \
                      terminate and restart the query engine"
-                    .to_string(),
+                        .to_string(),
             })
     }
 
@@ -306,7 +397,7 @@ impl QueryCache {
     /// `rows` Vec on every hot-path access.
     ///
     /// Returns `Err(PrismError::Internal)` if the mutex is poisoned (E-CACHE-001).
-    pub fn get(&self, key: &CacheKey) -> Result<Option<Vec<serde_json::Value>>, PrismError> {
+    pub fn get(&self, key: &CacheKey) -> Result<Option<V>, PrismError> {
         let entry = match self.inner.get(key) {
             Some(e) => e,
             None => {
@@ -367,7 +458,7 @@ impl QueryCache {
     /// the put is a no-op (health endpoints are not cached — BC-2.07.003).
     ///
     /// Returns `Err(PrismError::Internal)` if the mutex is poisoned (E-CACHE-001).
-    pub fn put(&self, key: CacheKey, rows: Vec<serde_json::Value>) -> Result<(), PrismError> {
+    pub fn put(&self, key: CacheKey, rows: V) -> Result<(), PrismError> {
         let data_type = SourceDataType::from_source_id(&key.source_id);
         let ttl = match data_type.ttl() {
             Some(t) => t,
@@ -385,27 +476,20 @@ impl QueryCache {
     ///
     /// Returns `Err(PrismError::Internal)` if the mutex is poisoned (E-CACHE-001).
     ///
-    /// ## Eviction-path residual race (acknowledged, self-healing)
+    /// ## Atomicity (TD-PRISM-QUERY-CACHE-001 closure)
     ///
-    /// Between the partition lock release and the post-lock `inner.invalidate(evict_key)`
-    /// for each evicted entry, a concurrent `put_with_ttl(evict_key, ...)` can succeed
-    /// (acquiring the partition lock, pushing to partition_keys, dropping the lock, and
-    /// inserting into moka). Our subsequent `inner.invalidate(evict_key)` will then wipe
-    /// the freshly-inserted entry from moka, leaving the partition_keys tracking entry
-    /// orphaned (tracked but not in moka). Worst-case orphan size per evicted key:
-    /// MAX_ENTRY_BYTES (5MB). With concurrent racing puts on K evicted keys, total
-    /// worst-case orphan inflation is K × MAX_ENTRY_BYTES (bounded by
-    /// max_entries_per_sensor × MAX_ENTRY_BYTES = 50 × 5MB = 250MB).
-    ///
-    /// Self-heals on the next put-to-same-key (existing_size capture detects the
-    /// inconsistency and the new put correctly accounts for it). Identical race
-    /// characteristic to `remove_entry`'s documented race; see `remove_entry`'s
-    /// `### Residual race (acknowledged, self-healing)` block (in-source comment)
-    /// for the canonical residual-race rationale.
+    /// ALL cache mutations — partition-tracker updates, moka invalidations for
+    /// LRU-evicted entries, `total_bytes` adjustments, and the final moka insert —
+    /// occur INSIDE the partition lock. This closes the SEC-NEW-002 evict-vs-put
+    /// race where a concurrent `put_with_ttl(evict_key, ...)` could interleave
+    /// between the lock release and the post-lock `inner.invalidate(evict_key)`,
+    /// leaving the partition tracker orphaned (tracked-but-not-in-moka) and
+    /// `total_bytes` inflated. moka operations are in-memory and never call back
+    /// into this module, so holding the mutex across them cannot deadlock.
     pub(crate) fn put_with_ttl(
         &self,
         key: CacheKey,
-        rows: Vec<serde_json::Value>,
+        rows: V,
         ttl: Duration,
     ) -> Result<(), PrismError> {
         // max_entries_per_sensor == 0 → caching disabled.
@@ -414,7 +498,7 @@ impl QueryCache {
         }
 
         // Per-entry byte cap: reject entries exceeding MAX_ENTRY_BYTES (SEC-003).
-        let entry_size = rows.len() * AVG_ROW_SIZE_BYTES;
+        let entry_size = rows.estimated_bytes();
         if entry_size > MAX_ENTRY_BYTES {
             return Ok(()); // silent drop: caller receives no cache benefit but no error
         }
@@ -423,39 +507,25 @@ impl QueryCache {
 
         // Enforce per-partition bound synchronously before insert (DI-018).
         //
-        // Lock pattern: partition accounting (partition_keys mutation + total_bytes
-        // net adjustment for the new entry) happens inside the lock; moka invalidations
-        // for LRU-evicted entries happen outside the lock (to avoid holding the mutex
-        // across potentially-blocking moka operations). total_bytes decrements for LRU-
-        // evicted entries are applied outside the lock after moka invalidation.
+        // Lock pattern (TD-PRISM-QUERY-CACHE-001): partition accounting, moka
+        // invalidations for LRU-evicted entries, total_bytes adjustments, AND the
+        // final moka insert ALL happen inside the partition lock so the tracker
+        // and moka can never diverge (SEC-NEW-002 evict-vs-put race closed).
+        // moka operations are in-memory and never re-enter this module, so
+        // holding the mutex across them cannot deadlock.
         //
         // C10-001 fix: the net byte-change budget check factors in evicted_bytes so
         // that LRU eviction can free budget for the incoming entry. On rejection,
         // evicted entries are restored to partition_keys so the partition remains
-        // consistent (no orphan moka entries, no inflated total_bytes).
-        let mut evicted: Vec<(CacheKey, usize)> = Vec::new();
-        // CRITICAL-P8-001 / FIX-OBS-007: capture the byte size of any pre-existing
-        // entry for this key AND apply the net byte change (sub old + add new) INSIDE
-        // the partition lock. This eliminates the concurrent-put race where T2's
-        // saturating_sub executes before T1's fetch_add, permanently undercounting.
-        //
-        // I9-002: The total byte budget check is performed INSIDE the partition lock
-        // so that `existing_size` is known before deciding whether to reject. A
-        // same-key replacement has a net byte change of (entry_size - existing_size)
-        // which may be ≤ 0 even when current_bytes == max_bytes. The pre-lock
-        // early-reject removed here caused same-key replacements at full budget to
-        // be silently dropped. Soft over-commitment under concurrent load is still
-        // bounded by N × MAX_ENTRY_BYTES (SEC-NEW-002, pre-existing heuristic; not
-        // a security boundary).
-        //
-        // O10-002: Eviction freed bytes are correctly subtracted from total_bytes
-        // BEFORE the budget check via net_change semantics; orphan eviction-without-
-        // invalidate is no longer possible (C10-001 closed).
+        // consistent (no orphan moka entries, no inflated total_bytes). moka
+        // invalidation for evicted entries happens only AFTER the budget check
+        // passes, so the restore path never has to undo a moka invalidation.
         {
             let mut counts = self.lock_partition_counts()?;
             let partition_keys = counts.entry(pk.clone()).or_default();
 
             // Evict LRU entries until there is space for the new entry.
+            let mut evicted: Vec<(CacheKey, usize)> = Vec::new();
             while partition_keys.len() >= self.config.max_entries_per_sensor {
                 // Remove the first entry in the Vec (oldest = LRU for FIFO tiebreaker).
                 // CR-015: use the stored byte size, not the fixed AVG_ROW_SIZE_BYTES.
@@ -487,25 +557,41 @@ impl QueryCache {
             // If net_change > 0 and budget is exceeded even AFTER eviction, we must
             // restore the evicted entries to partition_keys before returning so the
             // partition remains consistent (no orphan moka entries, no inflated
-            // total_bytes) — C10-001 closure.
-            //
-            // Note: This budget check uses Relaxed atomics. Under concurrent insert
-            // load, multiple threads can pass the check before any increments, causing
-            // transient soft over-commitment by up to N × MAX_ENTRY_BYTES. Acceptable
-            // for this resource-management heuristic (SEC-NEW-002, pre-existing).
+            // total_bytes) — C10-001 closure. Nothing has been invalidated in moka at
+            // this point, so the restore is purely a tracker operation.
             let current_bytes = self.total_bytes.load(Ordering::Relaxed);
             let net_change = entry_size as i64 - existing_size as i64 - evicted_bytes as i64;
             if net_change > 0
                 && current_bytes.saturating_add(net_change as usize) > self.config.max_bytes
             {
                 // Byte budget exceeded even after accounting for LRU eviction.
-                // Restore evicted entries to partition_keys so partition stays consistent
-                // (C10-001: without this, evicted entries become orphan moka entries and
-                // total_bytes inflates permanently).
                 for evicted_entry in evicted.into_iter().rev() {
                     partition_keys.insert(0, evicted_entry);
                 }
                 return Ok(());
+            }
+
+            // Budget check passed — commit the LRU evictions: invalidate moka entries
+            // and decrement total_bytes INSIDE the lock, atomic with the partition
+            // mutation above (TD-PRISM-QUERY-CACHE-001 / SEC-NEW-002 closure).
+            for (evict_key, evicted_size) in &evicted {
+                // I-1: log LRU eviction event with diagnostic fields.
+                debug!(
+                    sensor_id = %evict_key.sensor_id,
+                    source_id = %evict_key.source_id,
+                    client_id = %evict_key.client_id,
+                    evicted_bytes = evicted_size,
+                    "cache LRU eviction"
+                );
+                self.inner.invalidate(evict_key);
+                // CR-014/CR-015: decrement by the evicted entry's actual stored size.
+                // SEC-NEW-001: use saturating fetch_update to prevent usize underflow
+                // wrapping to usize::MAX (which would DoS all future inserts).
+                let _ = self.total_bytes.fetch_update(
+                    Ordering::Relaxed,
+                    Ordering::Relaxed,
+                    |current| Some(current.saturating_sub(*evicted_size)),
+                );
             }
 
             partition_keys.retain(|(k, _)| k != &key);
@@ -514,16 +600,6 @@ impl QueryCache {
             // FIX-OBS-007: apply the net byte change for this key replacement INSIDE
             // the partition lock so that the subtraction-then-addition is serialized
             // with respect to other concurrent puts to the same key.
-            //
-            // Root cause of the race: when T1 and T2 both start from an empty entry
-            // (existing_size = 0 for T1, existing_size = 512 for T2 after T1 pushes),
-            // T2 captures dropped_size = 512 under the lock, but T2's post-lock
-            // saturating_sub(512) executes before T1's post-lock fetch_add(512).
-            // saturating_sub(512) on total_bytes = 0 saturates to 0; then both threads
-            // call fetch_add(512), resulting in total_bytes = 1024 instead of 512.
-            //
-            // Fix: both the subtraction (existing entry credit) and addition (new entry
-            // cost) happen under the partition mutex, eliminating the interleaving window.
             // SEC-NEW-001: saturating arithmetic to prevent underflow wrapping.
             if existing_size > 0 {
                 let _ = self
@@ -533,45 +609,29 @@ impl QueryCache {
                     });
             }
             self.total_bytes.fetch_add(entry_size, Ordering::Relaxed);
-        }; // partition lock released here, before any moka operations
 
-        // Invalidate evicted moka entries and decrement total_bytes outside the lock.
-        for (evict_key, evicted_size) in &evicted {
-            // I-1: log LRU eviction event with diagnostic fields.
+            // I-1: log insert with diagnostic fields (entry size, TTL — no query
+            // string / PII).
             debug!(
-                sensor_id = %evict_key.sensor_id,
-                source_id = %evict_key.source_id,
-                client_id = %evict_key.client_id,
-                evicted_bytes = evicted_size,
-                "cache LRU eviction"
+                sensor_id = %key.sensor_id,
+                source_id = %key.source_id,
+                client_id = %key.client_id,
+                entry_bytes = entry_size,
+                ttl_secs = ttl.as_secs(),
+                "cache insert"
             );
-            self.inner.invalidate(evict_key);
-            // CR-014/CR-015: decrement by the evicted entry's actual stored size.
-            // SEC-NEW-001: use saturating fetch_update to prevent usize underflow
-            // wrapping to usize::MAX (which would DoS all future inserts).
-            let _ =
-                self.total_bytes
-                    .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |current| {
-                        Some(current.saturating_sub(*evicted_size))
-                    });
-        }
 
-        // I-1: log insert with diagnostic fields (entry size, TTL — no query string / PII).
-        debug!(
-            sensor_id = %key.sensor_id,
-            source_id = %key.source_id,
-            client_id = %key.client_id,
-            entry_bytes = entry_size,
-            ttl_secs = ttl.as_secs(),
-            "cache insert"
-        );
+            // Insert into moka INSIDE the lock so a concurrent remove/invalidate
+            // cannot interleave between the tracker push above and this insert
+            // (which would orphan the tracker entry).
+            let entry = CacheEntry {
+                rows,
+                created_at: Instant::now(),
+                ttl,
+            };
+            self.inner.insert(key, entry);
+        } // partition lock released here
 
-        let entry = CacheEntry {
-            rows,
-            created_at: Instant::now(),
-            ttl,
-        };
-        self.inner.insert(key, entry);
         Ok(())
     }
 
@@ -583,24 +643,16 @@ impl QueryCache {
     ///
     /// Returns `Err(PrismError::Internal)` if the mutex is poisoned (E-CACHE-001).
     ///
-    /// ## Compound-race window (acknowledged, self-healing)
+    /// ## Atomicity note (TD-PRISM-QUERY-CACHE-001)
     ///
-    /// Calling `force_refresh` composes `remove_entry` and `put`, both of which have
-    /// documented residual lock-then-moka races (see their respective doc-comments).
-    /// Under concurrent load, a 3-way interleaving is possible:
-    ///   1. T1.remove_entry captures dropped_size, drops lock
-    ///   2. T2.put_with_ttl(k, ...) completes (lock, push, drop, fetch_add, insert)
-    ///   3. T1.remove_entry post-lock invalidate wipes T2's entry from moka
-    ///   4. T1.put re-acquires lock, observes orphan, pushes new tracking, inserts to moka
-    ///
-    /// Worst-case bound: 1 × MAX_ENTRY_BYTES (5MB) orphan partition entry from T2's put.
-    /// Self-heals on next put-to-same-key. See `remove_entry` and `put_with_ttl` for
-    /// canonical race rationales.
-    pub fn force_refresh(
-        &self,
-        key: CacheKey,
-        rows: Vec<serde_json::Value>,
-    ) -> Result<(), PrismError> {
+    /// `force_refresh` composes `remove_entry` and `put`, each of which is
+    /// individually atomic (tracker + moka + byte accounting mutate under the
+    /// partition lock). The pair is NOT atomic: a concurrent reader may observe
+    /// a cache miss between the remove and the put. That is acceptable under
+    /// BC-2.07.003 force_refresh semantics (bypass + replace) — the miss simply
+    /// causes a fresh sensor fetch. No accounting drift or orphan state is
+    /// possible in any interleaving.
+    pub fn force_refresh(&self, key: CacheKey, rows: V) -> Result<(), PrismError> {
         // Remove existing entry if present, then insert fresh.
         self.remove_entry(&key)?;
         self.put(key, rows)
@@ -617,18 +669,14 @@ impl QueryCache {
     ///
     /// Returns `Err(PrismError::Internal)` if the mutex is poisoned (E-CACHE-001).
     ///
-    /// ## Eviction-path residual race (acknowledged, self-healing)
+    /// ## Atomicity (TD-PRISM-QUERY-CACHE-001 closure)
     ///
-    /// Between the partition lock release and the post-lock `inner.invalidate(k)` for
-    /// each evicted entry, a concurrent `put_with_ttl(k, ...)` can complete and insert
-    /// a fresh entry into moka. Our subsequent `inner.invalidate(k)` will then wipe the
-    /// freshly-inserted entry, leaving the partition tracking entry orphaned. Worst-case
-    /// orphan size per evicted key: MAX_ENTRY_BYTES (5MB). With concurrent racing puts on K
-    /// evicted keys, total worst-case orphan inflation is K × MAX_ENTRY_BYTES (bounded by
-    /// max_entries_per_sensor × MAX_ENTRY_BYTES = 50 × 5MB = 250MB).
-    ///
-    /// Self-heals on next put-to-same-key. See `remove_entry`'s
-    /// `### Residual race (acknowledged, self-healing)` block for the canonical race rationale.
+    /// moka invalidation and the `total_bytes` decrement occur INSIDE the
+    /// partition lock, atomic with the tracker mutation. A concurrent
+    /// `put_with_ttl(k, ...)` either completes fully before this invalidation
+    /// (and is then evicted here) or starts after it (and inserts a fresh,
+    /// correctly-tracked entry). No orphan tracker entries or byte-accounting
+    /// drift are possible (SEC-NEW-002 closed).
     pub fn invalidate_by_prefix(
         &self,
         client_id: &str,
@@ -663,18 +711,14 @@ impl QueryCache {
 
         let evicted_count = evicted_keys.len();
 
-        // Drop the partition lock before invalidating moka entries to avoid
-        // holding the mutex across potentially-blocking moka operations.
-        // Same canonical pattern as put_with_ttl and invalidate_by_client; see
-        // put_with_ttl for the canonical doc.
-        drop(counts);
-
-        // Invalidate moka entries (idempotent — safe to call even if already evicted).
+        // Invalidate moka entries INSIDE the lock — atomic with the tracker
+        // mutation above (TD-PRISM-QUERY-CACHE-001 / SEC-NEW-002 closure).
         for k in &evicted_keys {
             self.inner.invalidate(k);
         }
 
-        // Decrement total_bytes once for the entire evicted batch.
+        // Decrement total_bytes once for the entire evicted batch, also inside
+        // the lock so accounting is serialized with concurrent puts.
         // SEC-NEW-001: saturating to prevent usize underflow on unexpected double-evict.
         if to_decrement > 0 {
             let _ =
@@ -683,6 +727,9 @@ impl QueryCache {
                         Some(current.saturating_sub(to_decrement))
                     });
         }
+
+        // Release the lock before emitting the diagnostic.
+        drop(counts);
 
         // O-2: emit diagnostic after lock release so operators can trace "where did my cache go".
         debug!(
@@ -703,18 +750,11 @@ impl QueryCache {
     ///
     /// Returns `Err(PrismError::Internal)` if the mutex is poisoned (E-CACHE-001).
     ///
-    /// ## Eviction-path residual race (acknowledged, self-healing)
+    /// ## Atomicity (TD-PRISM-QUERY-CACHE-001 closure)
     ///
-    /// Between the partition lock release and the post-lock `inner.invalidate(k)` for
-    /// each evicted entry, a concurrent `put_with_ttl(k, ...)` can complete and insert
-    /// a fresh entry into moka. Our subsequent `inner.invalidate(k)` will then wipe the
-    /// freshly-inserted entry, leaving the partition tracking entry orphaned. Worst-case
-    /// orphan size per evicted key: MAX_ENTRY_BYTES (5MB). With concurrent racing puts on K
-    /// evicted keys, total worst-case orphan inflation is K × MAX_ENTRY_BYTES (bounded by
-    /// max_entries_per_sensor × MAX_ENTRY_BYTES = 50 × 5MB = 250MB).
-    ///
-    /// Self-heals on next put-to-same-key. See `remove_entry`'s
-    /// `### Residual race (acknowledged, self-healing)` block for the canonical race rationale.
+    /// moka invalidation and the `total_bytes` decrement occur INSIDE the
+    /// partition lock, atomic with the tracker mutation — same invariant as
+    /// `invalidate_by_prefix` (SEC-NEW-002 closed).
     pub fn invalidate_by_client(&self, client_id: &str) -> Result<usize, PrismError> {
         let mut counts = self.lock_partition_counts()?;
 
@@ -725,10 +765,6 @@ impl QueryCache {
             .cloned()
             .collect();
 
-        // Collect all entries to evict while holding the lock, then drop the lock
-        // before calling moka — mirrors invalidate_by_prefix and put_with_ttl pattern;
-        // see put_with_ttl for canonical doc — collects entries while holding the
-        // partition lock, drops the lock, then invalidates moka entries outside the lock.
         let mut evicted_entries: Vec<(CacheKey, usize)> = Vec::new();
         for pk in client_partitions {
             if let Some(partition_keys) = counts.remove(&pk) {
@@ -738,10 +774,8 @@ impl QueryCache {
 
         let evicted_count = evicted_entries.len();
 
-        // Drop the partition lock before invalidating moka entries.
-        drop(counts);
-
-        // Invalidate moka entries and decrement total_bytes outside the lock.
+        // Invalidate moka entries and decrement total_bytes INSIDE the lock —
+        // atomic with the tracker mutation (TD-PRISM-QUERY-CACHE-001 / SEC-NEW-002).
         for (k, stored_size) in &evicted_entries {
             self.inner.invalidate(k);
             // CR-014: decrement total_bytes by the stored size of each evicted entry.
@@ -753,8 +787,82 @@ impl QueryCache {
                     });
         }
 
+        // Release the lock before emitting the diagnostic.
+        drop(counts);
+
         // O-2: emit diagnostic after lock release so operators can trace "where did my cache go".
         debug!(client_id, evicted_count, "cache client invalidation");
+
+        Ok(evicted_count)
+    }
+
+    /// Remove ALL entries from the cache across every partition.
+    ///
+    /// Config hot-reload flush (P1-03 interim mitigation, review 2026-06-10):
+    /// cached entries store the sensor response in its normalized form (see the
+    /// human-authorized BC-2.07.003 deviation documented on [`CacheValue`]).
+    /// Every config snapshot swap (BC-2.16.005) invokes this flush; the
+    /// guarantee is eviction of all pre-swap-epoch entries. Two caveats bound
+    /// what that buys today:
+    ///
+    /// 1. Fetch-path normalization is boot-frozen — `SpecDrivenSensorAdapter`
+    ///    holds the boot-time resolved spec and a reload never rebuilds the
+    ///    `AdapterRegistry` — so a reload does not change how fresh fetches
+    ///    normalize. The flush is forward-provisioning; today's risk posture
+    ///    is "the cache can never be staler than fresh fetches".
+    /// 2. Under BC-2.16.006 in-flight Guard semantics, a query that started
+    ///    before the swap completes under the OLD snapshot and may insert its
+    ///    entry after this flush runs — swap-before-notify covers only
+    ///    queries that start after the swap.
+    ///
+    /// Full reload-effectiveness arrives with S-CACHE-SPEC-COMPLIANCE-001's
+    /// normalize-on-read model.
+    ///
+    /// Returns `Ok(n)` where `n` is the number of entries evicted (audit
+    /// visibility, consistent with the other invalidation primitives).
+    ///
+    /// Returns `Err(PrismError::Internal)` if the mutex is poisoned (E-CACHE-001).
+    ///
+    /// ## Atomicity (TD-PRISM-QUERY-CACHE-001 pattern)
+    ///
+    /// The partition tracker drain, the per-key moka invalidations, and the
+    /// `total_bytes` decrement all occur INSIDE the partition lock — atomic
+    /// with respect to concurrent `put_with_ttl` / `remove_entry` /
+    /// `invalidate_by_*` calls, which serialize on the same lock. A concurrent
+    /// put either completes fully before the flush (and is evicted here) or
+    /// starts after it (and inserts a fresh, correctly-tracked entry).
+    pub fn invalidate_all(&self) -> Result<usize, PrismError> {
+        let mut counts = self.lock_partition_counts()?;
+
+        let mut evicted_count: usize = 0;
+        let mut to_decrement: usize = 0;
+        for (_, partition_keys) in counts.drain() {
+            for (key, stored_size) in &partition_keys {
+                self.inner.invalidate(key);
+                to_decrement = to_decrement.saturating_add(*stored_size);
+            }
+            evicted_count = evicted_count.saturating_add(partition_keys.len());
+        }
+
+        // Decrement total_bytes once for the entire flushed batch, inside the
+        // lock so accounting is serialized with concurrent puts.
+        // SEC-NEW-001: saturating to prevent usize underflow.
+        if to_decrement > 0 {
+            let _ =
+                self.total_bytes
+                    .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |current| {
+                        Some(current.saturating_sub(to_decrement))
+                    });
+        }
+
+        // Release the lock before emitting the diagnostic.
+        drop(counts);
+
+        // O-2: emit diagnostic after lock release so operators can trace "where did my cache go".
+        debug!(
+            evicted_count,
+            "cache full invalidation (config reload flush)"
+        );
 
         Ok(evicted_count)
     }
@@ -788,55 +896,47 @@ impl QueryCache {
         self.total_hits.load(Ordering::Relaxed)
     }
 
-    // Internal: remove a single entry from both moka and partition tracker.
-    //
-    // Returns `Err(PrismError::Internal)` if the mutex is poisoned (E-CACHE-001).
-    //
-    // ## Lock-vs-moka ordering rationale
-    //
-    // The `remove_entry` path uses **lock-then-moka** ordering (Phase 1: acquire
-    // partition lock, capture dropped_size; Phase 2: drop lock, call moka.invalidate;
-    // Phase 3: fetch_update saturating_sub).
-    //
-    // ### Residual race (acknowledged, self-healing)
-    // Under concurrent `remove_entry(k)` + `put_with_ttl(k, ...)`, an interleaving
-    // exists where:
-    //   T1.remove (lock, capture, drop) → T2.put (lock, push, drop, fetch_add, insert)
-    //   → T1.invalidate (wipes T2's entry from moka) → T1.fetch_update (decrement)
-    // results in: moka empty for k; partition tracks orphan (k, new_size); total_bytes
-    // overstated by new_size. Worst-case orphan size: MAX_ENTRY_BYTES (5MB).
-    //
-    // Self-heals on next put-to-same-key (dropped_size capture corrects accounting).
-    // Documented per pass-9 I9-003.
-    fn remove_entry(&self, key: &CacheKey) -> Result<(), PrismError> {
+    /// Remove a single entry from both moka and the partition tracker.
+    ///
+    /// Crate-visible for the BC-2.07.003 forced-refresh invalidation path
+    /// (`materialization::store_or_invalidate_response_cache`, P1-05 /
+    /// architect adjudication D3): a forced refresh that cannot store a
+    /// complete replacement removes the distrusted entry. Also used internally
+    /// by `force_refresh` (replace) and `get` (lazy TTL expiry).
+    ///
+    /// Returns `Err(PrismError::Internal)` if the mutex is poisoned (E-CACHE-001).
+    ///
+    /// ## Atomicity (TD-PRISM-QUERY-CACHE-001 closure)
+    ///
+    /// The tracker removal, the moka invalidation, and the total_bytes decrement
+    /// all occur INSIDE the partition lock. The previously documented residual
+    /// race (pass-9 I9-003: T1.remove drops the lock, T2.put completes, T1's
+    /// post-lock invalidate wipes T2's fresh entry → orphan tracker entry +
+    /// overstated total_bytes) is structurally impossible: a concurrent
+    /// put_with_ttl serializes on the same lock and either completes fully
+    /// before this removal or starts fully after it (SEC-NEW-002 closed).
+    pub(crate) fn remove_entry(&self, key: &CacheKey) -> Result<(), PrismError> {
         let pk = partition_key(key);
-        // Phase 1: Update partition accounting under the lock, capture stored size.
-        let dropped_size = {
-            let mut counts = self.lock_partition_counts()?;
-            let mut stored_size = 0usize;
-            if let Some(partition_keys) = counts.get_mut(&pk) {
-                // CR-014: look up the stored byte size before removing the tuple so
-                // we can decrement total_bytes accurately.
-                if let Some(pos) = partition_keys.iter().position(|(k, _)| k == key) {
-                    let (_, sz) = partition_keys.remove(pos);
-                    stored_size = sz;
-                }
-                // CR-006: remove the partition entry if now empty to prevent unbounded
-                // growth of the partition_counts map (TTL-expiry and force_refresh paths).
-                if partition_keys.is_empty() {
-                    counts.remove(&pk);
-                }
+        let mut counts = self.lock_partition_counts()?;
+        let mut dropped_size = 0usize;
+        if let Some(partition_keys) = counts.get_mut(&pk) {
+            // CR-014: look up the stored byte size before removing the tuple so
+            // we can decrement total_bytes accurately.
+            if let Some(pos) = partition_keys.iter().position(|(k, _)| k == key) {
+                let (_, sz) = partition_keys.remove(pos);
+                dropped_size = sz;
             }
-            stored_size
-        }; // partition lock released here
+            // CR-006: remove the partition entry if now empty to prevent unbounded
+            // growth of the partition_counts map (TTL-expiry and force_refresh paths).
+            if partition_keys.is_empty() {
+                counts.remove(&pk);
+            }
+        }
 
-        // Phase 2: Invalidate moka AFTER releasing the partition lock.
-        // Any concurrent put that inserts between our partition update and this
-        // invalidate will be correctly reflected in the partition tracker on the
-        // next put, because put acquires the lock after our release.
+        // Invalidate moka and decrement total_bytes INSIDE the lock — atomic
+        // with the tracker mutation (TD-PRISM-QUERY-CACHE-001 / SEC-NEW-002).
         self.inner.invalidate(key);
 
-        // Phase 3: Decrement total_bytes outside the lock.
         // SEC-NEW-001: saturating_sub prevents usize underflow on unexpected double-remove.
         if dropped_size > 0 {
             let _ =
@@ -853,7 +953,7 @@ impl QueryCache {
     /// a specific entry bypassing `put_with_ttl` invariants (e.g., to test
     /// SEC-001 mutex-poison behaviour). (CR-016)
     #[cfg(test)]
-    pub fn insert_raw_for_test(&self, key: CacheKey, entry: CacheEntry) {
+    pub fn insert_raw_for_test(&self, key: CacheKey, entry: CacheEntry<V>) {
         self.inner.insert(key, entry);
     }
 
@@ -863,6 +963,45 @@ impl QueryCache {
     #[cfg(test)]
     pub fn partition_count_map_len(&self) -> usize {
         self.partition_counts.lock().map(|g| g.len()).unwrap_or(0)
+    }
+
+    /// Verify tracker ↔ moka ↔ byte-accounting consistency. Test-only.
+    ///
+    /// TD-PRISM-QUERY-CACHE-001 invariant: after any quiescent point,
+    /// 1. every key tracked in `partition_counts` is present in moka
+    ///    (no tracked-but-not-in-moka orphans), and
+    /// 2. `total_bytes` equals the sum of all tracked entry sizes.
+    ///
+    /// Returns `Err(description)` on the first violation found.
+    #[cfg(test)]
+    pub fn check_consistency_for_test(&self) -> Result<(), String> {
+        // Drain moka's write-op buffer so contains_key reflects all completed ops.
+        self.inner.run_pending_tasks();
+        let counts = self
+            .partition_counts
+            .lock()
+            .map_err(|_| "partition_counts mutex poisoned".to_string())?;
+        let mut tracked_bytes: usize = 0;
+        for ((client, sensor), entries) in counts.iter() {
+            for (key, size) in entries {
+                tracked_bytes = tracked_bytes.saturating_add(*size);
+                if !self.inner.contains_key(key) {
+                    return Err(format!(
+                        "orphan tracker entry: partition ({client}, {sensor}) tracks key \
+                         (source_id={}, hash={}…) but moka has no such entry",
+                        key.source_id,
+                        &key.push_down_hash[..8]
+                    ));
+                }
+            }
+        }
+        let total = self.total_bytes.load(Ordering::Relaxed);
+        if total != tracked_bytes {
+            return Err(format!(
+                "byte-accounting drift: total_bytes={total} but sum of tracked sizes={tracked_bytes}"
+            ));
+        }
+        Ok(())
     }
 }
 
@@ -1141,10 +1280,11 @@ mod tests {
         );
     }
 
-    /// SEC-001 / BC-2.07.004 E-CACHE-001: poisoned mutex returns E-CACHE-001 error.
+    /// SEC-001 / BC-2.07.004: poisoned mutex returns prose-only Internal detail.
     ///
     /// Regression test: a thread that panics while holding the partition_counts lock
-    /// poisons the mutex. Subsequent operations must return E-CACHE-001 instead of
+    /// poisons the mutex. Subsequent operations must return a prose-only
+    /// PrismError::Internal detail (no embedded E- code prefix) instead of
     /// silently recovering with potentially corrupted state.
     #[test]
     fn test_sec001_poisoned_mutex_returns_e_cache_001() {
@@ -1174,7 +1314,7 @@ mod tests {
         // Spawn a thread that panics while holding the lock.
         // Poison the mutex directly via raw field access (same-module access to
         // private field). We intentionally bypass lock_partition_counts() to acquire
-        // the lock without E-CACHE-001 propagation — the point of the test is to
+        // the lock without Internal-error propagation — the point of the test is to
         // poison the mutex, not to guard against it.
         let handle = std::thread::spawn(move || {
             let _guard = cache_clone
@@ -1188,17 +1328,17 @@ mod tests {
         let _ = handle.join();
 
         // Now attempt a get() on an existing entry — it hits the lock (for LRU update).
-        // Must return E-CACHE-001.
+        // Must return PrismError::Internal with prose-only detail (no E- prefix).
         let result = cache.get(&key);
         match result {
             Err(PrismError::Internal { detail }) => {
                 assert!(
-                    detail.contains("E-CACHE-001"),
-                    "poisoned mutex must return E-CACHE-001; got: {detail}"
+                    detail.contains("cache partition_counts mutex poisoned"),
+                    "poisoned mutex must return prose-only Internal detail; got: {detail}"
                 );
             }
             other => panic!(
-                "SEC-001: poisoned mutex must return Err(PrismError::Internal{{E-CACHE-001}}); \
+                "SEC-001: poisoned mutex must return Err(PrismError::Internal) with prose detail; \
                  got: {other:?}"
             ),
         }
@@ -1469,6 +1609,88 @@ mod tests {
         );
     }
 
+    /// TD-PRISM-QUERY-CACHE-001 regression: concurrent evict-vs-put must leave the
+    /// cache in a fully consistent state — no tracked-but-not-in-moka orphans and
+    /// no byte-accounting drift.
+    ///
+    /// Pre-fix failure mode (SEC-NEW-002): `invalidate_by_prefix` / `remove_entry` /
+    /// `put_with_ttl` performed their moka invalidations and `total_bytes`
+    /// decrements AFTER releasing the partition lock. A concurrent `put` on an
+    /// evicted key could interleave between the lock release and the post-lock
+    /// `inner.invalidate`, wiping the fresh moka entry while the tracker still
+    /// recorded it (orphan) and leaving `total_bytes` overstated.
+    ///
+    /// This test hammers the exact interleaving: writer threads `put` a small set
+    /// of keys in a tight loop while invalidator threads concurrently
+    /// `invalidate_by_prefix` the same prefix and `force_refresh` the same keys.
+    /// After all threads join, `check_consistency_for_test()` must report a fully
+    /// consistent tracker ↔ moka ↔ byte-accounting state.
+    #[test]
+    fn test_td_cache_001_concurrent_evict_vs_put_consistency() {
+        use std::sync::Arc;
+
+        let config = CacheConfig {
+            max_entries_per_sensor: 4, // small bound → constant LRU eviction pressure
+            max_bytes: DEFAULT_MAX_CACHE_BYTES,
+        };
+        let cache = Arc::new(QueryCache::new(config));
+
+        let make_key = |n: u8| crate::cache_key::CacheKey {
+            client_id: "acme".to_string(),
+            sensor_id: prism_core::SensorId::from("crowdstrike"),
+            source_id: "cs_devices".to_string(),
+            push_down_hash: format!("{:0<64}", n),
+        };
+
+        std::thread::scope(|s| {
+            // Two writer threads: tight put loops over an overlapping key set
+            // (8 keys > 4-entry bound → every put evicts).
+            for t in 0..2u8 {
+                let c = Arc::clone(&cache);
+                s.spawn(move || {
+                    for i in 0..200u32 {
+                        let key = make_key((i % 8) as u8);
+                        c.put(key, vec![serde_json::json!({"t": t, "i": i})])
+                            .expect("writer put must not fail");
+                    }
+                });
+            }
+            // One force-refresh thread: remove+put composition on the same keys.
+            {
+                let c = Arc::clone(&cache);
+                s.spawn(move || {
+                    for i in 0..200u32 {
+                        let key = make_key((i % 8) as u8);
+                        c.force_refresh(key, vec![serde_json::json!({"fr": i})])
+                            .expect("force_refresh must not fail");
+                    }
+                });
+            }
+            // One invalidator thread: prefix invalidation racing the puts.
+            {
+                let c = Arc::clone(&cache);
+                s.spawn(move || {
+                    for _ in 0..200u32 {
+                        c.invalidate_by_prefix("acme", "crowdstrike", "cs_devices")
+                            .expect("invalidate_by_prefix must not fail");
+                    }
+                });
+            }
+        });
+
+        // Post-quiescence: tracker ↔ moka ↔ byte accounting must be consistent.
+        cache.check_consistency_for_test().expect(
+            "TD-PRISM-QUERY-CACHE-001: cache must be consistent after concurrent evict-vs-put",
+        );
+
+        // Partition bound must still hold.
+        assert!(
+            cache.entry_count() <= 4,
+            "partition bound must hold after concurrent churn (got {})",
+            cache.entry_count()
+        );
+    }
+
     /// C10-001b regression: when the incoming entry is larger than the bytes freed
     /// by LRU eviction, the put must be REJECTED and the evicted entries must be
     /// restored to partition_keys (no orphan moka entries, no inflated total_bytes).
@@ -1543,5 +1765,148 @@ mod tests {
             2 * AVG_ROW_SIZE_BYTES,
             "C10-001b: total_bytes must be unchanged after oversized-entry rejection"
         );
+    }
+
+    // -----------------------------------------------------------------------
+    // P1-03 interim mitigation — full-cache flush on config hot-reload
+    // (BC-2.16.005 reload → response-cache flush; review 2026-06-10 Item 1)
+    // -----------------------------------------------------------------------
+
+    /// P1-03: `invalidate_all` flushes every entry across all partitions —
+    /// entries that hit before the flush must miss after it.
+    #[test]
+    fn test_p1_03_invalidate_all_flushes_all_entries_hit_then_miss() {
+        let cache = QueryCache::with_defaults();
+
+        let make_key =
+            |client: &str, sensor: &str, src: &str, h: char| crate::cache_key::CacheKey {
+                client_id: client.to_string(),
+                sensor_id: prism_core::SensorId::from(sensor),
+                source_id: src.to_string(),
+                push_down_hash: h.to_string().repeat(64),
+            };
+
+        // Multiple partitions: 2 clients × 3 sensors.
+        let keys = vec![
+            make_key("acme", "crowdstrike", "cs_detections", 'a'),
+            make_key("acme", "armis", "armis_devices", 'b'),
+            make_key("globex", "crowdstrike", "cs_devices", 'c'),
+            make_key("globex", "claroty", "claroty_alerts", 'd'),
+        ];
+        for (i, key) in keys.iter().enumerate() {
+            cache
+                .put(key.clone(), vec![serde_json::json!({"id": i})])
+                .expect("put must succeed");
+        }
+
+        // Pre-condition: all entries hit.
+        for key in &keys {
+            assert!(
+                cache.get(key).expect("get must not fail").is_some(),
+                "pre-condition: entry must hit before invalidate_all"
+            );
+        }
+
+        let evicted = cache.invalidate_all().expect("invalidate_all must succeed");
+        assert_eq!(
+            evicted, 4,
+            "P1-03: invalidate_all must report all 4 evicted entries"
+        );
+
+        // Post-condition: every entry misses.
+        for key in &keys {
+            assert!(
+                cache.get(key).expect("get must not fail").is_none(),
+                "P1-03: entry must miss after invalidate_all (stale normalization purged)"
+            );
+        }
+    }
+
+    /// P1-03 / TD-PRISM-QUERY-CACHE-001: accounting must be consistent after a
+    /// full flush — total_bytes returns to 0, the partition map is empty, and
+    /// the tracker ↔ moka ↔ byte-accounting consistency invariant holds.
+    #[test]
+    fn test_p1_03_invalidate_all_accounting_consistent_after_flush() {
+        let cache = QueryCache::with_defaults();
+
+        let make_key = |src: &str, h: char| crate::cache_key::CacheKey {
+            client_id: "acme".to_string(),
+            sensor_id: prism_core::SensorId::from("crowdstrike"),
+            source_id: src.to_string(),
+            push_down_hash: h.to_string().repeat(64),
+        };
+
+        cache
+            .put(
+                make_key("cs_devices", 'a'),
+                vec![serde_json::json!({"i": 1})],
+            )
+            .expect("put 1");
+        cache
+            .put(
+                make_key("cs_detections", 'b'),
+                vec![serde_json::json!({"i": 2}), serde_json::json!({"i": 3})],
+            )
+            .expect("put 2");
+        assert!(cache.total_bytes() > 0, "pre-condition: bytes tracked");
+
+        cache.invalidate_all().expect("invalidate_all must succeed");
+
+        assert_eq!(
+            cache.total_bytes(),
+            0,
+            "P1-03: total_bytes must return to 0 after full flush"
+        );
+        assert_eq!(
+            cache.partition_count_map_len(),
+            0,
+            "P1-03: partition map must be empty after full flush (no stale partitions)"
+        );
+        assert_eq!(
+            cache.entry_count(),
+            0,
+            "P1-03: moka must hold no entries after full flush"
+        );
+        cache
+            .check_consistency_for_test()
+            .expect("P1-03: tracker/moka/byte accounting must be consistent after flush");
+    }
+
+    /// P1-03: `invalidate_all` on an empty cache is a no-op returning Ok(0).
+    #[test]
+    fn test_p1_03_invalidate_all_empty_cache_returns_zero() {
+        let cache = QueryCache::with_defaults();
+        let evicted = cache.invalidate_all().expect("invalidate_all must succeed");
+        assert_eq!(evicted, 0, "P1-03: empty cache flush must evict 0 entries");
+        assert_eq!(cache.total_bytes(), 0);
+    }
+
+    /// P1-03: the cache remains fully usable after `invalidate_all` —
+    /// subsequent puts and gets behave normally with consistent accounting.
+    #[test]
+    fn test_p1_03_invalidate_all_cache_usable_after_flush() {
+        let cache = QueryCache::with_defaults();
+        let key = crate::cache_key::CacheKey {
+            client_id: "acme".to_string(),
+            sensor_id: prism_core::SensorId::from("crowdstrike"),
+            source_id: "cs_devices".to_string(),
+            push_down_hash: "f".repeat(64),
+        };
+
+        cache
+            .put(key.clone(), vec![serde_json::json!({"gen": 1})])
+            .expect("put gen-1");
+        cache.invalidate_all().expect("invalidate_all must succeed");
+
+        let fresh = vec![serde_json::json!({"gen": 2})];
+        cache.put(key.clone(), fresh.clone()).expect("put gen-2");
+        assert_eq!(
+            cache.get(&key).expect("get must not fail"),
+            Some(fresh),
+            "P1-03: cache must serve fresh entries inserted after a full flush"
+        );
+        cache
+            .check_consistency_for_test()
+            .expect("P1-03: accounting must be consistent after post-flush insert");
     }
 }

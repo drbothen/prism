@@ -90,12 +90,19 @@ fn test_ac5_prism_error_display_e_cred_001() {
 }
 
 /// AC-5: E-FLAG category.
+///
+/// P2-03(c) (2026-06-10 review pass-2): previously exercised the
+/// `FeatureFlagDisabled` variant, which was removed (zero spec backing, zero
+/// production emitters; E-FLAG-002 is the compile-tier `CapabilityDenied`
+/// denial per BC-2.04.015 v1.2). E-FLAG category Display coverage is preserved
+/// via `FeatureFlagEvalError` (E-FLAG-010).
 #[test]
-fn test_ac5_prism_error_display_e_flag_002() {
-    let err = PrismError::FeatureFlagDisabled {
+fn test_ac5_prism_error_display_e_flag_010() {
+    let err = PrismError::FeatureFlagEvalError {
         flag: "sensor.write".to_string(),
+        detail: "evaluation failed".to_string(),
     };
-    assert_error_code_prefix(&err, "E-FLAG-002");
+    assert_error_code_prefix(&err, "E-FLAG-010");
 }
 
 /// AC-5: E-OCSF category.
@@ -107,13 +114,33 @@ fn test_ac5_prism_error_display_e_ocsf_001() {
     assert_error_code_prefix(&err, "E-OCSF-001");
 }
 
-/// AC-5: E-CFG category.
+/// AC-5: E-CFG category — ConfigNotFound renumbered to E-CFG-103 (ADR-038 D2).
+/// The prefix assertion also guards the tombstoned pre-v1.8 number from
+/// reappearing (ADR-038 D5): a display starting with "E-CFG-103" cannot
+/// carry any retired E-CFG-0NN prefix.
 #[test]
-fn test_ac5_prism_error_display_e_cfg_001() {
+fn test_ac5_prism_error_display_e_cfg_103() {
     let err = PrismError::ConfigNotFound {
         path: "/etc/prism.toml".to_string(),
     };
-    assert_error_code_prefix(&err, "E-CFG-001");
+    assert_error_code_prefix(&err, "E-CFG-103");
+}
+
+/// AC-5: E-CFG-100 — NEW `ClientNotFound` variant (ADR-038 D3 variant split).
+///
+/// Canonical display (ADR-038 D1 / error-taxonomy v1.66):
+///   "E-CFG-100: client '{client_id}' not found in configuration"
+#[test]
+fn test_ac5_prism_error_display_e_cfg_100() {
+    let err = PrismError::ClientNotFound {
+        client_id: "acme".to_string(),
+    };
+    assert_error_code_prefix(&err, "E-CFG-100");
+    let msg = format!("{err}");
+    assert_eq!(
+        msg, "E-CFG-100: client 'acme' not found in configuration",
+        "ClientNotFound Display must match the canonical taxonomy v1.66 format"
+    );
 }
 
 /// AC-5: E-MCP category.

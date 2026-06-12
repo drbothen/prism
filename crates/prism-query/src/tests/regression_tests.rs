@@ -1416,3 +1416,99 @@ fn test_clamp_regex_pattern_above_max_clamped_down() {
         "F-LOW-001: PRISM_MAX_REGEX_PATTERN_LEN=65537 (MAX+1) must clamp to {MAX_SAFE_REGEX_PATTERN_LEN}, got {limit}"
     );
 }
+
+/// P5-02 (QRY cascade, error-taxonomy.md v1.72 / ADR-038 v1.3): security-limit
+/// errors carry exactly ONE "E-QUERY-003" prefix in their Display output.
+///
+/// Pre-split, security limits routed through `QueryExecutionFailed` with an
+/// embedded "E-QUERY-003: " prefix in `detail`, producing a double-prefixed
+/// display (the code token appeared twice, wrapped in the generic
+/// execution-error text). The dedicated `QuerySecurityLimitExceeded` variant
+/// supplies the single canonical prefix via its Display impl; emission sites
+/// no longer embed it.
+///
+/// Traces: P5-02, BC-2.11.006, error-taxonomy.md v1.72 E-QUERY-003/E-QUERY-034
+#[test]
+fn test_p5_02_security_limit_display_has_exactly_one_e_query_003_prefix() {
+    use crate::security::{check_query_size, PRISM_MAX_QUERY_SIZE};
+
+    let oversized = "a".repeat(PRISM_MAX_QUERY_SIZE + 1);
+    let err = check_query_size(&oversized)
+        .expect_err("P5-02: oversized query must be rejected by check_query_size");
+    assert!(
+        matches!(
+            err,
+            prism_core::error::PrismError::QuerySecurityLimitExceeded { .. }
+        ),
+        "P5-02: security-limit rejection must use QuerySecurityLimitExceeded, got: {err:?}"
+    );
+
+    let display = err.to_string();
+    assert!(
+        display.starts_with("E-QUERY-003: "),
+        "P5-02: Display must start with the canonical E-QUERY-003 prefix, got: {display}"
+    );
+    assert_eq!(
+        display.matches("E-QUERY-003").count(),
+        1,
+        "P5-02: Display must contain exactly ONE E-QUERY-003 token (no double prefix), got: {display}"
+    );
+    assert!(
+        !display.contains("query execution error"),
+        "P5-02: security-limit Display must not route through the generic \
+         E-QUERY-034 execution-error wrapper, got: {display}"
+    );
+}
+
+/// P6-01: `map_datafusion_memory_error` non-`ResourcesExhausted` fallback arm must
+/// NOT embed the phrase "query execution error" in `detail`.
+///
+/// The `QueryExecutionFailed` Display impl is:
+///   `"E-QUERY-034: query execution error: {detail}"`
+///
+/// Prior to the fix the fallback arm set:
+///   `detail: "query execution error: <redacted; see server logs>"`
+/// producing the double-phrase stutter:
+///   `"E-QUERY-034: query execution error: query execution error: <redacted; see server logs>"`
+///
+/// After the fix the detail is simply `"<redacted; see server logs>"`, rendering:
+///   `"E-QUERY-034: query execution error: <redacted; see server logs>"`
+/// — exactly ONE occurrence of "query execution error" in the Display output.
+///
+/// Traces: P6-01, BC-2.11.006, error-taxonomy.md v1.72 E-QUERY-034
+#[test]
+fn test_p6_01_map_datafusion_memory_error_fallback_display_has_exactly_one_query_execution_error_phrase(
+) {
+    use crate::memory::map_datafusion_memory_error;
+    use datafusion::error::DataFusionError;
+
+    // A generic DataFusion error that is NOT ResourcesExhausted — exercises the
+    // fallback arm that produces QueryExecutionFailed.
+    let generic_err = DataFusionError::Plan("test plan error".to_string());
+
+    let err = map_datafusion_memory_error(generic_err, 200 * 1024 * 1024);
+
+    assert!(
+        matches!(
+            err,
+            prism_core::error::PrismError::QueryExecutionFailed { .. }
+        ),
+        "P6-01: non-ResourcesExhausted DataFusion error must map to QueryExecutionFailed, got: {err:?}"
+    );
+
+    let display = err.to_string();
+
+    // The display MUST start with the E-QUERY-034 prefix.
+    assert!(
+        display.starts_with("E-QUERY-034:"),
+        "P6-01: Display must start with E-QUERY-034 prefix, got: {display}"
+    );
+
+    // There must be exactly ONE occurrence of "query execution error" — no stutter.
+    let count = display.matches("query execution error").count();
+    assert_eq!(
+        count, 1,
+        "P6-01: Display must contain exactly ONE occurrence of 'query execution error' (no double-phrase stutter); \
+         got {count} occurrence(s): {display}"
+    );
+}

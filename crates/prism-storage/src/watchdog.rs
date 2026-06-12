@@ -9,9 +9,26 @@
 // Concurrent query token registry uses `DashMap<QueryId, CancellationToken>` so that
 // the Kill level cancels ALL registered tokens, not just the newest (EC-003 / AC-4).
 //
-// The `watchdog` Cargo feature enables the runtime dependencies (sysinfo, dashmap,
-// tokio-util).  Type declarations are always compiled so downstream crates can name
-// the types without enabling the feature.
+// ## Memory grace period (DI-027, VP-058, BC-2.15.007)
+//
+// A single spike above the process-RSS kill threshold does NOT immediately kill the
+// query.  The watchdog must observe the threshold exceeded on TWO CONSECUTIVE checks
+// before terminating.  This prevents false-positive kills during transient Arrow
+// RecordBatch materialization spikes.
+//
+// The grace-period predicate is `should_terminate_for_memory(WatchdogCheckState)`
+// from `crate::proofs::watchdog_memory` (VP-058 proven function).  Both the monitor
+// loop (`spawn_monitor`) and the one-shot probe (`check_query`) route the kill
+// decision through this single proven predicate — no forked logic.
+//
+// `spawn_monitor` maintains a loop-local `consecutive_over_limit: u8` counter,
+// incrementing on each Kill-level poll and resetting on any sub-Kill poll.
+// `check_query` accepts the counter from the caller, giving callers explicit control
+// over the grace state across sequential spot-checks.
+//
+// The runtime dependencies (sysinfo, dashmap, tokio-util) are unconditional
+// in Cargo.toml — there is no `watchdog` feature gate.  All types and the
+// background monitor are always compiled.
 //
 // ## MemoryProbe — test-driven design seam (introduced by test-writer, S-2.02)
 //
@@ -29,6 +46,7 @@ use prism_core::PrismError;
 use tokio_util::sync::CancellationToken;
 
 use crate::denylist::DenylistEntry;
+use crate::proofs::watchdog_memory::{should_terminate_for_memory, WatchdogCheckState};
 
 // ── MemoryProbe — test-driven seam ───────────────────────────────────────────
 
@@ -267,14 +285,36 @@ impl ResourceWatchdog {
         self.tokens.remove(&id);
     }
 
-    /// Check whether the current resource level requires killing the given query.
+    /// Check whether the current resource level requires killing the given query,
+    /// applying the two-check memory grace period (DI-027, VP-058, BC-2.15.007).
     ///
-    /// If `current_level() == Kill`, cancels the token and returns
-    /// `Err(PrismError::WatchdogKilled)` (E-WATCHDOG-001, BC-2.15.007).
+    /// # Grace period (DI-027)
     ///
-    /// AC-4: RSS at 96% → token cancelled → `Err(PrismError::WatchdogKilled)`.
-    pub fn check_query(&self, cancel_token: CancellationToken) -> Result<(), PrismError> {
-        if self.current_level() == WatchdogLevel::Kill {
+    /// A single spike above the process-RSS kill threshold must not immediately
+    /// terminate the query.  The caller maintains a `consecutive_over_limit`
+    /// counter across sequential calls and passes it here:
+    ///
+    /// - `0` or `1` at Kill level → grace period active → returns `Ok(())`.
+    /// - `>= 2` at Kill level → termination → cancels token → returns
+    ///   `Err(PrismError::WatchdogKilled)` (E-WATCHDOG-002, error-taxonomy.md v1.68).
+    /// - Below Kill level → returns `Ok(())` regardless of counter.
+    ///
+    /// The kill decision is gated through `should_terminate_for_memory`
+    /// (`crate::proofs::watchdog_memory`) — the VP-058 proven predicate — as the
+    /// single source of truth.  No forked logic.
+    ///
+    /// Note: E-WATCHDOG-001 is the per-query DataFusion memory-pool trip
+    /// (BC-2.11.006), distinct from the process-RSS kill (E-WATCHDOG-002) here.
+    pub fn check_query(
+        &self,
+        cancel_token: CancellationToken,
+        consecutive_over_limit: u8,
+    ) -> Result<(), PrismError> {
+        if self.current_level() == WatchdogLevel::Kill
+            && should_terminate_for_memory(WatchdogCheckState {
+                consecutive_over_limit,
+            })
+        {
             cancel_token.cancel();
             return Err(PrismError::WatchdogKilled {
                 budget_bytes: self.budget_bytes,
@@ -284,7 +324,19 @@ impl ResourceWatchdog {
     }
 
     /// Spawn a background tokio task that polls every `poll_interval` and cancels
-    /// all registered query tokens when `Kill` level is reached.
+    /// all registered query tokens when `Kill` level is reached on two consecutive
+    /// checks (memory grace period, DI-027, VP-058, BC-2.15.007).
+    ///
+    /// # Grace period behaviour
+    ///
+    /// A loop-local `consecutive_over_limit: u8` counter is incremented each poll
+    /// where `current_level() == Kill` and reset to `0` on any sub-Kill poll.
+    /// The actual cancellation is gated through `should_terminate_for_memory`
+    /// (VP-058 proven predicate) — the counter must reach `>= 2` before any token
+    /// is cancelled.  A single transient spike at Kill level is tolerated.
+    ///
+    /// This means: spike → no kill (consecutive=1), sub-Kill → counter reset,
+    /// Kill again → no kill (consecutive=1 again).  Only Kill → Kill → kill fires.
     ///
     /// Stops when the watchdog is dropped (shutdown signal via internal
     /// `CancellationToken`).
@@ -294,14 +346,35 @@ impl ResourceWatchdog {
     ) -> tokio::task::JoinHandle<()> {
         let watchdog = self.clone();
         tokio::spawn(async move {
+            // Loop-local consecutive-over-limit counter (DI-027 grace period).
+            // Per-monitor-loop (not per-registered-query): the watchdog monitors
+            // process-wide RSS, not per-query memory.  When Kill fires after two
+            // consecutive checks, ALL registered tokens are cancelled (EC-003).
+            let mut consecutive_over_limit: u8 = 0;
             loop {
                 tokio::select! {
                     _ = watchdog.shutdown.cancelled() => break,
                     _ = tokio::time::sleep(poll_interval) => {
                         if watchdog.current_level() == WatchdogLevel::Kill {
-                            for entry in watchdog.tokens.iter() {
-                                entry.value().cancel();
+                            // Saturating-add: counter can never wrap below 2 on a
+                            // sustained Kill condition; u8::MAX (255) is unreachable
+                            // in practice (watchdog reacts within two 500ms checks).
+                            consecutive_over_limit =
+                                consecutive_over_limit.saturating_add(1);
+
+                            if should_terminate_for_memory(WatchdogCheckState {
+                                consecutive_over_limit,
+                            }) {
+                                // Two consecutive Kill-level checks — terminate all
+                                // registered queries (EC-003 / AC-4).
+                                for entry in watchdog.tokens.iter() {
+                                    entry.value().cancel();
+                                }
                             }
+                        } else {
+                            // Sub-Kill level observed — reset the consecutive counter
+                            // (spike-recover-spike = no kill, DI-027).
+                            consecutive_over_limit = 0;
                         }
                     }
                 }

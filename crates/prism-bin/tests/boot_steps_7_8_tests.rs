@@ -94,6 +94,15 @@ impl AuditWriter for NoOpAuditWriter {
     ) -> Result<(), PrismError> {
         Ok(())
     }
+
+    async fn write_tool_call(
+        &self,
+        _tool_name: &str,
+        _client_id: Option<&str>,
+        _outcome: &str,
+    ) -> Result<(), PrismError> {
+        Ok(())
+    }
 }
 
 /// Build a minimal in-memory `RocksStorageBackend` for use as the step-7 storage.
@@ -251,6 +260,9 @@ fn make_write_executor() -> WriteExecutor {
         audit_writer,
         adapter_registry,
         endpoint_registry,
+        Arc::new(prism_query::invalidation::CacheInvalidator::new(Arc::new(
+            prism_query::cache::SensorResponseCache::with_defaults(),
+        ))),
     )
 }
 
@@ -660,6 +672,9 @@ fn test_BC_2_22_001_step8_constructs_write_executor() {
         audit_writer,
         adapter_registry,
         populated_endpoint_registry,
+        Arc::new(prism_query::invalidation::CacheInvalidator::new(Arc::new(
+            prism_query::cache::SensorResponseCache::with_defaults(),
+        ))),
     );
     // If we get here, the constructor succeeded — the wiring API works.
     // WriteExecutor is ready (though it won't execute real writes without full boot context).

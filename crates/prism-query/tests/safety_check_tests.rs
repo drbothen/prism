@@ -19,7 +19,11 @@
 //! - proptest: risk tier classification is total (every WritePlan gets a tier)
 //! - proptest: resolve_batch_limit always ≤ system ceiling
 //!
-//! All non-proptest-structural tests call into `todo!()` stubs and MUST FAIL.
+//! Red Gate history (P2-07, 2026-06-10 review pass-2 annotation): when this
+//! suite was written, all non-proptest-structural tests called into `todo!()`
+//! stubs and were REQUIRED to fail. The safety-check functions are implemented
+//! now and the suite passes; the per-test "todo!() → panic" stub annotations
+//! were removed in the same pass.
 //!
 //! Story: S-3.07 | BCs: BC-2.04.001, BC-2.04.005, BC-2.04.007, BC-2.04.008
 
@@ -152,11 +156,18 @@ fn make_evaluator_deny_all() -> FeatureFlagEvaluator {
 // BC-2.04.001: compile-time feature gate ABSENT → E-FLAG-002
 // ---------------------------------------------------------------------------
 
-/// BC-2.04.001 postcondition: when the `{sensor}-write` Cargo feature is absent,
-/// `phase2_safety_check` returns `E-FLAG-002` — write code does not exist in binary.
+/// BC-2.04.001 v1.2 postcondition: the compile-time write capability tier is
+/// REGISTRY-DERIVED — when the sensor's TOML spec declares no matching
+/// `[[write_endpoints]]` entry, `phase2_safety_check` denies with E-FLAG-002
+/// (`DeniedCompileTime` → `CAPABILITY_DENIED`). The write code remains in the
+/// binary; remediation is adding the `[[write_endpoints]]` declaration and
+/// restarting — not a rebuild. (P2-05, 2026-06-10 review pass-2: retired the
+/// "write code does not exist in binary" Cargo-feature framing.)
 ///
-/// Canonical test vector: "Write feature absent | Binary built without
-/// crowdstrike-write | crowdstrike_contain_host tool absent from binary"
+/// Canonical test vector (BC-2.04.001 v1.2): "Declaration absent | CrowdStrike
+/// sensor TOML spec has no [[write_endpoints]] entry for the target table |
+/// Write denied DeniedCompileTime → CAPABILITY_DENIED (E-FLAG-002); runtime
+/// config cannot override"
 #[test]
 
 fn test_BC_2_04_001_compile_gate_absent_returns_e_flag_002() {
@@ -176,12 +187,24 @@ fn test_BC_2_04_001_compile_gate_absent_returns_e_flag_002() {
         &endpoint_spec,
         limit,
     );
-    // todo!() → panic
+    // phase2_safety_check is implemented — Absent compile gate returns Err
+    // (the "todo!() → panic" annotation here predated the implementation;
+    // P2-07, 2026-06-10 review pass-2 cleanup).
     let err = result.expect_err("Absent compile gate must return Err");
     let err_msg = err.to_string();
+    // P2-02 (2026-06-10 review pass-2): the E-FLAG-002 compile-tier denial reason
+    // is the spec-pinned template (error-taxonomy E-FLAG-002 row / BC-2.04.015 v1.2 /
+    // BC-2.04.001 v1.2) — registry semantics, not the retired "not compiled"
+    // Cargo-feature framing (BC-2.16.012).
     assert!(
-        err_msg.contains("E-FLAG-002") || err_msg.contains("not compiled"),
-        "Absent compile gate must return E-FLAG-002; got: {err_msg}"
+        err_msg.contains("CAPABILITY_DENIED")
+            && err_msg.contains(
+                "denied: no write-endpoint declaration \
+                 (no [[write_endpoints]] entry in the sensor's TOML spec)"
+            ),
+        "Absent compile gate must return the E-FLAG-002 compile-tier denial \
+         (CAPABILITY_DENIED with the spec-pinned no-write-endpoint-declaration \
+         template); got: {err_msg}"
     );
 }
 
@@ -211,7 +234,6 @@ fn test_BC_2_04_001_compile_gate_present_runtime_deny_returns_e_flag_001() {
         &endpoint_spec,
         limit,
     );
-    // todo!() → panic
     let err = result.expect_err("Runtime deny must return Err");
     let err_msg = err.to_string();
     assert!(
@@ -249,7 +271,6 @@ fn test_BC_2_04_005_composite_source_returns_structured_error_before_fetch() {
         &endpoint_spec,
         limit,
     );
-    // todo!() → panic
     let err = result.expect_err("Composite source must be rejected");
     let err_msg = err.to_string();
     assert!(
@@ -298,7 +319,6 @@ fn test_BC_2_04_005_internal_table_write_returns_e_query_026_before_api_contact(
         &endpoint_spec,
         limit,
     );
-    // todo!() → panic
     let err = result.expect_err("Internal table write must be rejected");
     let err_msg = err.to_string();
     assert!(
@@ -328,7 +348,6 @@ fn test_BC_2_04_007_delete_dml_always_irreversible_regardless_of_spec() {
     // Spec says Reversible — but DELETE must override this
     let spec_reversible = make_write_endpoint_spec(RiskTier::Reversible);
 
-    // classify_risk_tier → todo!() → panic
     let tier = classify_risk_tier(&plan, &spec_reversible);
     assert_eq!(
         tier,
@@ -346,7 +365,6 @@ fn test_BC_2_04_007_non_delete_risk_tier_follows_endpoint_spec() {
     let plan = make_bounded_plan(); // verb=contain, no dml_operation
     let spec_reversible = make_write_endpoint_spec(RiskTier::Reversible);
 
-    // classify_risk_tier → todo!() → panic
     let tier = classify_risk_tier(&plan, &spec_reversible);
     assert_eq!(
         tier,
@@ -431,7 +449,6 @@ fn test_BC_2_04_007_ec_04_014_pipe_mode_reversible_spec_uses_reversible_tier() {
 fn test_BC_2_04_008_unbounded_write_returns_e_query_022() {
     let plan = make_unbounded_plan(); // has_where_clause=false, has_explicit_limit=false
 
-    // check_unbounded_write → todo!() → panic
     let result = check_unbounded_write(&plan);
     let err = result.expect_err("Unbounded write must be rejected");
     let err_msg = err.to_string();
@@ -457,7 +474,6 @@ fn test_BC_2_04_008_bounded_by_where_clause_passes_unbounded_check() {
         params: HashMap::new(),
     };
 
-    // check_unbounded_write → todo!() → panic
     let result = check_unbounded_write(&plan);
     // Post-implementation: must return Ok(())
     result.expect("Bounded write (WHERE clause) must pass unbounded check");
@@ -478,7 +494,6 @@ fn test_BC_2_04_008_bounded_by_limit_passes_unbounded_check() {
         params: HashMap::new(),
     };
 
-    // check_unbounded_write → todo!() → panic
     let result = check_unbounded_write(&plan);
     result.expect("Bounded write (LIMIT) must pass unbounded check");
 }
@@ -494,7 +509,6 @@ fn test_BC_2_04_008_bounded_by_limit_passes_unbounded_check() {
 #[test]
 
 fn test_BC_2_04_008_resolve_batch_limit_no_override_uses_endpoint() {
-    // resolve_batch_limit → todo!() → panic
     let resolved = resolve_batch_limit(50, None, 200);
     assert_eq!(
         resolved.limit, 50,
@@ -508,7 +522,6 @@ fn test_BC_2_04_008_resolve_batch_limit_no_override_uses_endpoint() {
 
 fn test_BC_2_04_008_resolve_batch_limit_client_override_wins_when_lower() {
     let resolved = resolve_batch_limit(200, Some(30), 500);
-    // todo!() → panic
     assert_eq!(
         resolved.limit, 30,
         "Client override must win when lower than endpoint"
@@ -521,7 +534,6 @@ fn test_BC_2_04_008_resolve_batch_limit_client_override_wins_when_lower() {
 
 fn test_BC_2_04_008_resolve_batch_limit_system_ceiling_always_applies() {
     let resolved = resolve_batch_limit(1000, Some(500), 100);
-    // todo!() → panic
     assert_eq!(
         resolved.limit, 100,
         "System ceiling must always cap the resolved limit"
@@ -552,7 +564,6 @@ fn test_BC_2_04_008_structural_batch_limit_exceeded_returns_e_query_021() {
     };
     let limit = ResolvedBatchLimit { limit: 100 };
 
-    // check_structural_batch_limit → todo!() → panic
     let result = check_structural_batch_limit(&plan, &limit, "test-client");
     let err = result.expect_err("Exceeded batch limit must be rejected");
     let err_msg = err.to_string();
@@ -580,7 +591,6 @@ fn test_BC_2_04_008_structural_batch_limit_within_bound_passes() {
     };
     let limit = ResolvedBatchLimit { limit: 100 };
 
-    // check_structural_batch_limit → todo!() → panic
     let result = check_structural_batch_limit(&plan, &limit, "test-client");
     result.expect("Limit within bound must pass");
 }
@@ -625,7 +635,6 @@ fn test_BC_2_04_005_ec_04_011_all_clients_deny_write_invocation_returns_e_flag_0
         &endpoint_spec,
         limit,
     );
-    // todo!() → panic
     let err = result.expect_err("All-deny clients must reject write invocation");
     let err_msg = err.to_string();
     assert!(
@@ -661,7 +670,6 @@ fn test_BC_2_04_005_ec_04_010_tool_enabled_for_a_denied_for_b() {
     let limit = ResolvedBatchLimit { limit: 100 };
 
     // Client-a: should pass phase2 (compile gate present + runtime allow)
-    // todo!() → panic
     let result_a = phase2_safety_check(
         &plan,
         &target,
@@ -731,7 +739,6 @@ fn test_BC_2_05_009_capability_checks_emitted_in_hierarchical_order() {
         &endpoint_spec,
         limit,
     );
-    // todo!() → panic
     let passed = result.expect("Parent-allow must permit the write at Phase 2");
 
     // The capability_check field in SafetyCheckPassed must record both the
@@ -785,7 +792,6 @@ fn test_BC_2_05_009_ec_05_015_child_deny_overrides_parent_allow() {
         &endpoint_spec,
         limit,
     );
-    // todo!() → panic
     let err = result.expect_err("Child deny must override parent allow");
     let err_msg = err.to_string();
     assert!(
@@ -827,7 +833,6 @@ proptest::proptest! {
         // Use Reversible spec to test that DELETE overrides spec (BC-2.04.007 invariant)
         let spec = make_write_endpoint_spec(RiskTier::Reversible);
 
-        // classify_risk_tier → todo!() → panic (RED gate: this proptest WILL fail)
         let tier = classify_risk_tier(&plan, &spec);
 
         // DELETE always Irreversible; non-DELETE follows spec (Reversible here)
@@ -855,7 +860,6 @@ proptest::proptest! {
         client_override in proptest::option::of(1u32..100_000u32),
         system_ceiling in 1u32..10_000u32,
     ) {
-        // resolve_batch_limit → todo!() → panic (RED gate)
         let resolved = resolve_batch_limit(endpoint_limit, client_override, system_ceiling);
         proptest::prop_assert!(
             resolved.limit <= system_ceiling,

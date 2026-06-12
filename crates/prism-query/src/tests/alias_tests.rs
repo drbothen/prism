@@ -862,10 +862,11 @@ fn test_BC_2_11_008_rejects_null_byte_in_name() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// BC-2.11.008 PRECONDITION: unknown client ID rejects E-CFG-001
+// BC-2.11.008 PRECONDITION: unknown client ID rejects E-CFG-100
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// BC-2.11.008 precondition: scope references non-existent client rejects E-CFG-001.
+/// BC-2.11.008 precondition: scope references non-existent client rejects E-CFG-100
+/// (`PrismError::ClientNotFound`, ADR-038 D3).
 #[test]
 fn test_BC_2_11_008_rejects_unknown_client_scope() {
     let _test_path_8 = temp_path(&format!("test_alias_mut_8_{}.toml", std::process::id()));
@@ -883,9 +884,18 @@ fn test_BC_2_11_008_rejects_unknown_client_scope() {
     let valid_clients = vec!["known_client".to_string()];
     let token_store = prism_security::ConfirmationTokenStore::new();
     let result = create_alias_with_clients(input, &mut store, &ocsf, &valid_clients, &token_store);
+    let err = result.expect_err("nonexistent client scope must reject E-CFG-100");
     assert!(
-        result.is_err(),
-        "nonexistent client scope must reject E-CFG-001"
+        matches!(
+            err,
+            prism_core::PrismError::ClientNotFound { ref client_id }
+                if client_id == "nonexistent_client_xyz"
+        ),
+        "must reject with PrismError::ClientNotFound carrying the client_id, got: {err}"
+    );
+    assert!(
+        err.to_string().starts_with("E-CFG-100"),
+        "error display must carry E-CFG-100, got: {err}"
     );
 }
 
@@ -1459,9 +1469,10 @@ fn test_BC_2_11_013_results_sorted_alphabetically_by_name() {
     assert!(arr.as_array().is_some_and(|a| a.is_empty()));
 }
 
-/// BC-2.11.013 error E-CFG-001: scope references non-existent client returns structured error.
+/// BC-2.11.013 error E-CFG-100: scope references non-existent client returns structured error.
 ///
-/// Canonical test vector: list_aliases(scope="client:nonexistent") rejects E-CFG-001.
+/// Canonical test vector: list_aliases(scope="client:nonexistent") rejects E-CFG-100
+/// (`PrismError::ClientNotFound`, ADR-038 D3).
 #[test]
 fn test_BC_2_11_013_rejects_nonexistent_client_scope() {
     let store = AliasStore::empty(temp_path("test_aliases.toml"));
@@ -1469,9 +1480,18 @@ fn test_BC_2_11_013_rejects_nonexistent_client_scope() {
         scope: Some("client:nonexistent_xyz".to_string()),
     };
     let result = list_aliases(input, &store, &[]);
+    let err = result.expect_err("nonexistent client scope must return E-CFG-100");
     assert!(
-        result.is_err(),
-        "nonexistent client scope must return E-CFG-001"
+        matches!(
+            err,
+            prism_core::PrismError::ClientNotFound { ref client_id }
+                if client_id == "nonexistent_xyz"
+        ),
+        "must reject with PrismError::ClientNotFound carrying the client_id, got: {err}"
+    );
+    assert!(
+        err.to_string().starts_with("E-CFG-100"),
+        "error display must carry E-CFG-100, got: {err}"
     );
 }
 
@@ -1515,10 +1535,10 @@ fn test_BC_2_11_014_rejects_delete_nonexistent_alias() {
     assert!(result.is_err(), "todo!() fires — test is RED");
 }
 
-/// BC-2.11.014 error E-CFG-001: delete_alias with non-existent client scope.
+/// BC-2.11.014 error E-CFG-100: delete_alias with non-existent client scope
+/// rejects with `PrismError::ClientNotFound` (ADR-038 D3).
 #[test]
 fn test_BC_2_11_014_rejects_delete_nonexistent_client_scope() {
-    // RED: delete_alias is todo!()
     let _test_path_16 = temp_path(&format!("test_alias_mut_16_{}.toml", std::process::id()));
     let mut store = AliasStore::empty(&_test_path_16);
     let token_store = prism_security::ConfirmationTokenStore::new();
@@ -1529,7 +1549,19 @@ fn test_BC_2_11_014_rejects_delete_nonexistent_client_scope() {
         token_id: None,
     };
     let result = delete_alias(input, &mut store, &token_store, &[]);
-    assert!(result.is_err(), "todo!() fires — test is RED");
+    let err = result.expect_err("nonexistent client scope must return E-CFG-100");
+    assert!(
+        matches!(
+            err,
+            prism_core::PrismError::ClientNotFound { ref client_id }
+                if client_id == "nonexistent_xyz"
+        ),
+        "must reject with PrismError::ClientNotFound carrying the client_id, got: {err}"
+    );
+    assert!(
+        err.to_string().starts_with("E-CFG-100"),
+        "error display must carry E-CFG-100, got: {err}"
+    );
 }
 
 /// BC-2.11.014 postcondition: force=true cascade-delete — confirmation token returned first.
@@ -2664,7 +2696,8 @@ fn test_BC_2_11_009_quoted_string_with_tab_rejected() {
 // CR-007: create_alias rejects Client scopes
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// CR-007: create_alias (no client list) rejects Client-scoped creation.
+/// CR-007: create_alias (no client list) rejects Client-scoped creation
+/// with E-CFG-100 (`PrismError::ClientNotFound`, ADR-038 D3).
 #[test]
 fn test_BC_2_11_008_create_alias_rejects_client_scope_without_client_list() {
     let path = temp_path(&format!("test_create_client_{}.toml", std::process::id()));
@@ -2680,9 +2713,18 @@ fn test_BC_2_11_008_create_alias_rejects_client_scope_without_client_list() {
     };
     // create_alias (no client list) must reject Client scope.
     let result = create_alias(input, &mut store, &ocsf);
+    let err =
+        result.expect_err("create_alias must reject Client scope without valid_client_ids list");
     assert!(
-        result.is_err(),
-        "create_alias must reject Client scope without valid_client_ids list"
+        matches!(
+            err,
+            prism_core::PrismError::ClientNotFound { ref client_id } if client_id == "acme"
+        ),
+        "must reject with PrismError::ClientNotFound carrying the client_id, got: {err}"
+    );
+    assert!(
+        err.to_string().starts_with("E-CFG-100"),
+        "error display must carry E-CFG-100, got: {err}"
     );
     // No file written since error occurred before any store mutation.
     let _ = std::fs::remove_file(&path);

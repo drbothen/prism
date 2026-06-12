@@ -40,16 +40,18 @@ pub enum CompileTimeGate {
 // ─────────────────────────────────────────────────────────────
 
 /// The outcome of a two-tier capability check, including the denial tier and
-/// resolution trace required by E-FLAG-001 (BC-2.04.015).
+/// resolution trace required by the structured capability-denied errors
+/// (E-FLAG-001 runtime tier / E-FLAG-002 compile tier, BC-2.04.015).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum CapabilityCheckResult {
     /// Both tiers passed — the operation is permitted.
     Allowed,
-    /// Denied by the compile-time tier (Cargo feature absent).
+    /// Denied by the compile-time tier (no write-endpoint declaration;
+    /// registry-derived per BC-2.04.001 v1.2 / BC-2.16.012).
     DeniedCompileTime {
         capability: String,
         client_id: String,
-        /// Ordered resolution trace for E-FLAG-001 structured error.
+        /// Ordered resolution trace for the E-FLAG-002 structured error.
         resolution_trace: Vec<String>,
     },
     /// Denied by the runtime tier (capability not in client config).
@@ -123,8 +125,12 @@ impl FeatureFlagEvaluator {
             return CapabilityCheckResult::DeniedCompileTime {
                 capability: capability.to_string(),
                 client_id: client_id.to_string(),
+                // P1-02 (2026-06-10 review pass-1): registry semantics — the
+                // compile-time tier is Absent when no [[write_endpoints]] declaration
+                // for the capability is loaded into the registry (BC-2.16.012).
                 resolution_trace: vec![format!(
-                    "compile-time=Absent: feature not compiled for '{}'",
+                    "compile-time=Absent: no [[write_endpoints]] declaration for '{}' \
+                     (registry-driven dispatch, BC-2.16.012)",
                     capability
                 )],
             };
@@ -185,7 +191,9 @@ impl FeatureFlagEvaluator {
     }
 
     /// Convert a `CapabilityCheckResult::Denied*` into a structured
-    /// `PrismError::CapabilityDenied` (E-FLAG-001, BC-2.04.015).
+    /// `PrismError::CapabilityDenied` (BC-2.04.015) — E-FLAG-001 for the
+    /// runtime tier (`DeniedRuntime`) or E-FLAG-002 for the compile tier
+    /// (`DeniedCompileTime`).
     ///
     /// Returns `None` if the result is `Allowed`.
     pub fn to_error(&self, result: &CapabilityCheckResult) -> Option<PrismError> {
@@ -199,15 +207,31 @@ impl FeatureFlagEvaluator {
             } => Some(PrismError::CapabilityDenied {
                 capability: capability.clone(),
                 client_id: client_id.clone(),
+                // P2-02 (2026-06-10 review pass-2): the spec-pinned E-FLAG-002
+                // message template, VERBATIM — three spec layers agree on it
+                // (error-taxonomy.md E-FLAG-002 row, BC-2.04.015 v1.2,
+                // BC-2.04.001 v1.2; spec wins per POL-24). Registry semantics,
+                // not Cargo features — under registry-driven dispatch nothing is
+                // "un-compiled"; the compile-time tier is Absent because the
+                // sensor's TOML spec declares no [[write_endpoints]] for this
+                // capability (BC-2.16.012).
                 reason: format!(
-                    "Feature not compiled: the write code family for '{}' is not compiled \
-                     into this binary",
+                    "Write capability '{}' denied: no write-endpoint declaration \
+                     (no [[write_endpoints]] entry in the sensor's TOML spec)",
                     capability
                 ),
+                // SNS-02 (2026-06-10 review): post-BC-2.16.012 the write pipeline is
+                // registry-driven — the compile-time tier is derived from whether the
+                // sensor's TOML spec declares [[write_endpoints]] sections that are
+                // loaded into the WriteEndpointRegistry at boot. The {sensor}-write
+                // Cargo features are empty test-gating declarations (see
+                // prism-query/src/write_pipeline.rs registry-lookup site), so a
+                // "rebuild with --features" suggestion is unactionable.
                 suggestion: format!(
-                    "Rebuild prism with the appropriate Cargo feature enabled. \
-                     For '{}', enable the corresponding crowdstrike-write feature flag \
-                     during compilation: `cargo build --features crowdstrike-write`.",
+                    "Declare a [[write_endpoints]] section for '{}' in the sensor's \
+                     TOML spec and ensure the spec is loaded at boot so the \
+                     write-endpoint registry contains this capability \
+                     (registry-driven write dispatch, BC-2.16.012).",
                     capability
                 ),
                 resolution_trace: resolution_trace.clone(),

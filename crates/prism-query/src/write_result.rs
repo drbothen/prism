@@ -18,7 +18,9 @@
 //!
 //! Story: S-3.07 | BCs: BC-2.04.007, BC-2.04.008
 
-// Stub module: all non-trivial bodies are todo!() pending implementation.
+// Implemented since S-3.07 — no todo!() bodies remain. This module is pure
+// data types; the dead_code allow covers constructors/accessors that exist
+// for API completeness but are not yet referenced by every consumer crate.
 #![allow(dead_code)]
 
 use chrono::{DateTime, Utc};
@@ -75,7 +77,7 @@ pub struct WriteResult {
     pub execution_started_at: DateTime<Utc>,
     /// Wall-clock time the write execution completed (all records attempted).
     pub execution_completed_at: DateTime<Utc>,
-    /// Audit INTENT record ID written in Phase 5a (BC-2.05.009).
+    /// Audit INTENT record ID written in Phase 5a (BC-2.05.001).
     pub audit_intent_id: Ulid,
     /// Total number of records that were targeted by this write.
     pub affected_count: u32,

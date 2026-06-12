@@ -161,9 +161,10 @@ fn test_BC_2_10_010_sigterm_causes_graceful_exit_zero() {
 /// We inject the panic using PRISM_TEST_INJECT_PANIC=true which the boot.rs
 /// cfg(test) path will panic on to trigger the hook.
 ///
-/// RED GATE: Fails today because `dispatch()` is `todo!()` — the todo!() itself
-/// panics, producing exit code 101 without the hook. After the panic hook is
-/// installed in main.rs (pre-dispatch), the exit code changes to 1.
+/// RED GATE (historical): `dispatch()` was `todo!()` at Red Gate — the todo!()
+/// itself panicked, producing exit code 101 without the hook. The panic hook
+/// was installed in main.rs (pre-dispatch) in S-WAVE5-PREP-01 (PR #138), so the
+/// exit code is 1 (P1-06 sibling sweep, 2026-06-10 review pass-1).
 #[test]
 fn test_AC_12_panic_hook_produces_exit_code_1() {
     // Panic injection fires before step 2 (config load), so spec_dir doesn't matter.
@@ -201,11 +202,12 @@ fn test_AC_12_panic_hook_produces_exit_code_1() {
 /// has the correct type signatures. It does not exercise the async behavior
 /// (which requires a running tokio runtime and actual signals).
 ///
-/// The type-level check ensures the stub signatures match what boot.rs expects.
+/// The type-level check ensures the signatures match what boot.rs expects.
 ///
-/// RED GATE: Fails today because `install_sigterm_handler` and
-/// `install_sighup_handler` are `todo!()` stubs that panic when awaited.
-/// This test does NOT await them — it only verifies the function signatures.
+/// RED GATE (historical): `install_sigterm_handler` and `install_sighup_handler`
+/// were `todo!()` stubs that panicked when awaited at Red Gate; both were
+/// implemented in S-WAVE5-PREP-01 (PR #138). This test does NOT await them —
+/// it only verifies the function signatures (P1-06, 2026-06-10 review pass-1).
 #[test]
 fn test_signal_handler_api_surface_compiles() {
     use prism_bin::signals::{install_sighup_handler, install_sigterm_handler};

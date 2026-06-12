@@ -110,6 +110,15 @@ mod helpers {
         ) -> Result<(), PrismError> {
             Ok(())
         }
+
+        async fn write_tool_call(
+            &self,
+            _tool_name: &str,
+            _client_id: Option<&str>,
+            _outcome: &str,
+        ) -> Result<(), PrismError> {
+            Ok(())
+        }
     }
 
     pub fn make_executor() -> WriteExecutor {
@@ -176,6 +185,9 @@ mod helpers {
             audit,
             registry,
             Arc::new(endpoint_registry),
+            Arc::new(prism_query::invalidation::CacheInvalidator::new(Arc::new(
+                prism_query::cache::SensorResponseCache::with_defaults(),
+            ))),
         )
     }
 }
@@ -564,6 +576,15 @@ async fn test_BC_2_04_001_flag_disabled_between_calls_second_call_returns_e_flag
         ) -> Result<(), PrismError> {
             Ok(())
         }
+
+        async fn write_tool_call(
+            &self,
+            _tool_name: &str,
+            _client_id: Option<&str>,
+            _outcome: &str,
+        ) -> Result<(), PrismError> {
+            Ok(())
+        }
     }
 
     // Post-PLUGIN-MIGRATION-001-B: CompileFeatureGate is registry-driven, not feature-flag-driven.
@@ -591,6 +612,9 @@ async fn test_BC_2_04_001_flag_disabled_between_calls_second_call_returns_e_flag
         Arc::new(NoOpAudit),
         Arc::new(prism_sensors::AdapterRegistry::new()),
         Arc::new(endpoint_registry),
+        Arc::new(prism_query::invalidation::CacheInvalidator::new(Arc::new(
+            prism_query::cache::SensorResponseCache::with_defaults(),
+        ))),
     );
 
     let plan = helpers::make_irreversible_plan();

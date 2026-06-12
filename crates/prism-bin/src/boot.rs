@@ -2116,37 +2116,278 @@ pub async fn step7_init_storage(
 /// close the write-tool registration window (ADR-026 §D7; ADR-022 §B step 7.5/8).
 /// This is the sole load-bearing act of this step (implemented in S-3.02-FOLLOWUP-RUNTIME, PR #162).
 ///
-/// QueryEngine + WriteExecutor construction and wiring into PrismServer is
-/// performed by S-5.01-FOLLOWUP-MCP-BOOT (boot step 9), which is the first
-/// consumer of the constructed engine.
+/// QueryEngine + WriteExecutor construction and wiring into PrismServer happen
+/// in boot step 9 (`step9_start_mcp_server`, implemented by the merged
+/// S-5.01-FOLLOWUP-MCP-BOOT story), which is the first consumer of the
+/// constructed engine.
 ///
-/// # AdapterRegistry assertion (S-5.01-FOLLOWUP-MCP-BOOT)
+/// # Empty AdapterRegistry handling (BC-2.22.001 AC-006)
 ///
-/// When step 9 (S-5.01-FOLLOWUP-MCP-BOOT) constructs the QueryEngine, the FIRST
-/// thing it must do is verify the `AdapterRegistry` contains at least one adapter
-/// before serving queries. Without this assertion, a silent `init_registry_for_org`
-/// failure would propagate as silent empty results across all queries (regressing
-/// ADV-W3MT-P58-LOW-002 fix).
+/// The non-empty `AdapterRegistry` assertion once promised here for step 9 was
+/// SUPERSEDED: TD-S-PLUGIN-PREREQ-A-004 was closed-as-superseded by BC-2.22.001
+/// AC-006 (architect ratification:
+/// `.factory/proposals/TD-S-PLUGIN-PREREQ-A-004-close-as-superseded-ratification.md`).
+/// Per AC-006, an empty spec catalog at boot step 9A
+/// (`step9a_populate_adapter_registry`) emits the explicit structured event
+/// `boot.step9a.adapter_registry_populated` with `sensor_count = 0` /
+/// `org_count = 0` and boot CONTINUES BY DESIGN — a zero-sensor analyst
+/// session is a valid, observable state, not a fatal one. A fatal-on-empty
+/// assertion would contradict the active contract (spec wins, Source-of-Truth
+/// Precedence Rule 7).
 ///
-/// Defense-in-depth: `materialization.rs` retains `is_empty()` short-circuit
-/// (test-mode aware) until this assertion is enforced in S-5.01-FOLLOWUP-MCP-BOOT.
+/// The accepted defense against silent empty results (the TD's underlying
+/// intent, ADV-W3MT-P58-LOW-002) is the materialization short-circuit:
+/// `materialization.rs` `is_empty()` prevents an empty registry from
+/// masquerading as a successful fan-out.
 pub async fn step8_init_query_engine() -> Result<(), BootError> {
     // Mark query phase started as the FIRST act of step 8, before QueryEngine construction.
     // This permanently closes the write-tool registration window (ADR-026 §D7; ADR-022 §B step 7.5/8).
     // F-LP56-HIGH-001 adjudication: this is the sole permitted boot.rs change in S-PLUGIN-PREREQ-E.
     prism_query::invalidation::mark_query_phase_started();
 
-    // QueryEngine + WriteExecutor construction: S-5.01-FOLLOWUP-MCP-BOOT.
-    // Requires Arc<RocksDbBackend>, Arc<AdapterRegistry>, Arc<OcsfNormalizer>,
-    // Arc<ClientRegistry>, Arc<dyn CredentialResolver>, and Arc<OrgRegistry> —
-    // all of which live in BootContext / RunningServer and are threaded into
-    // step 9 by run_boot_sequence when S-5.01-FOLLOWUP-MCP-BOOT implements it.
+    // QueryEngine + WriteExecutor construction happens in step 9
+    // (S-5.01-FOLLOWUP-MCP-BOOT, merged): run_boot_sequence threads
+    // Arc<RocksDbBackend>, Arc<AdapterRegistry>, Arc<OcsfNormalizer>,
+    // Arc<ClientRegistry>, Arc<dyn CredentialResolver>, and Arc<OrgRegistry>
+    // from BootContext / RunningServer into step9_start_mcp_server.
     tracing::info!(
         event_type = "boot.step8.query_engine_started",
         "boot: step 8 query-engine phase started — write-tool registration window closed \
-         (QueryEngine + WriteExecutor wired via S-5.01-FOLLOWUP-MCP-BOOT)"
+         (QueryEngine + WriteExecutor are wired in step 9, S-5.01-FOLLOWUP-MCP-BOOT)"
     );
     Ok(())
+}
+
+/// Production `AuditWriter` wired into `WriteExecutor` + `PrismServer` at boot
+/// step 9 (P1-03 2026-06-10 review pass-1: hoisted from a function-local item to
+/// module scope so the production path is unit-testable via CF readback).
+///
+/// Behavior (current, complete):
+/// - `write_intent` / `write_outcome` emit structured tracing events
+///   (`write.intent.recorded` / `write.outcome.recorded`) — the BC-2.05.001
+///   write-pipeline audit-coverage trail. `write_intent` additionally records
+///   the BC-2.05.009 capability-check fields (`capability_path`,
+///   `compile_time_enabled`, `runtime_enabled`, `result`) derived from the
+///   Phase 2 `CapabilityCheckResult` (P5-03, 2026-06-10 review pass-5).
+/// - `write_tool_call` (MCP-02, 2026-06-10 review) appends a durable
+///   key+payload envelope to the RocksDB `audit_buffer` CF via the established
+///   `prism_storage::audit_buffer::append_audit_entry` pattern (same
+///   construction as prism-audit credential_events). This durable per-call
+///   write IS the production MCP tool-call audit mechanism.
+pub struct BootAuditWriter {
+    /// RocksDB backend from boot step 6 — durable tool-call audit target.
+    storage: Arc<prism_storage::rocksdb_backend::RocksDbBackend>,
+}
+
+impl BootAuditWriter {
+    /// Construct a `BootAuditWriter` over the RocksDB backend opened in boot
+    /// step 6 (all column families, including `audit_buffer`, are already open).
+    pub fn new(storage: Arc<prism_storage::rocksdb_backend::RocksDbBackend>) -> Self {
+        BootAuditWriter { storage }
+    }
+
+    /// Derive the BC-2.05.009 capability-check audit fields
+    /// (`capability_path`, `compile_time_enabled`, `runtime_enabled`, `result`)
+    /// from the Phase 2 `CapabilityCheckResult` for the `write.intent.recorded`
+    /// emission (P5-03, 2026-06-10 review pass-5).
+    ///
+    /// Field semantics (BC-2.05.009 postconditions + deny-by-default rule):
+    /// - `Allowed`: both tiers passed → `(true, true, "permitted")`. The variant
+    ///   carries no capability path, so it is derived from the plan with the
+    ///   same hyphen→underscore sanitization `WriteExecutor::execute` applied
+    ///   when it built the path for evaluation (`sensor.{sensor}.{verb}`).
+    /// - `DeniedCompileTime`: compile tier denied; the runtime tier is never
+    ///   reached → `(false, false, "denied")` (deny-by-default records the
+    ///   unevaluated tier as not enabled).
+    /// - `DeniedRuntime`: the runtime tier is only evaluated after the compile
+    ///   tier passes → `(true, false, "denied")`.
+    pub fn capability_audit_fields(
+        plan: &prism_query::WritePlan,
+        capability_check: &prism_security::feature_flag::CapabilityCheckResult,
+    ) -> (String, bool, bool, &'static str) {
+        use prism_security::feature_flag::CapabilityCheckResult;
+        match capability_check {
+            CapabilityCheckResult::Allowed => {
+                let path = format!(
+                    "sensor.{}.{}",
+                    plan.sensor.replace('-', "_"),
+                    plan.verb.replace('-', "_")
+                );
+                (path, true, true, "permitted")
+            }
+            CapabilityCheckResult::DeniedCompileTime { capability, .. } => {
+                (capability.clone(), false, false, "denied")
+            }
+            CapabilityCheckResult::DeniedRuntime { capability, .. } => {
+                (capability.clone(), true, false, "denied")
+            }
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl prism_query::write_dispatch::AuditWriter for BootAuditWriter {
+    async fn write_intent(
+        &self,
+        plan: &prism_query::WritePlan,
+        _context: &prism_query::QueryContext,
+        capability_check: &prism_security::feature_flag::CapabilityCheckResult,
+    ) -> Result<ulid::Ulid, prism_core::error::PrismError> {
+        let id = ulid::Ulid::new();
+        // P5-03 (2026-06-10 review pass-5): record the BC-2.05.009 capability
+        // fields in the intent emission instead of dropping the check result.
+        let (capability_path, compile_time_enabled, runtime_enabled, result) =
+            Self::capability_audit_fields(plan, capability_check);
+        tracing::info!(
+            event_type = "write.intent.recorded",
+            intent_id = %id,
+            sensor = %plan.sensor,
+            capability_path = %capability_path,
+            compile_time_enabled,
+            runtime_enabled,
+            result = %result,
+            "write intent recorded (BC-2.05.001 tracing audit coverage; \
+             BC-2.05.009 capability fields)"
+        );
+        Ok(id)
+    }
+    async fn write_outcome(
+        &self,
+        intent_id: ulid::Ulid,
+        result: &prism_query::WriteResult,
+    ) -> Result<(), prism_core::error::PrismError> {
+        tracing::info!(
+            event_type = "write.outcome.recorded",
+            intent_id = %intent_id,
+            succeeded = result.succeeded_count,
+            failed = result.failed_count,
+            "write outcome recorded (BC-2.05.001 tracing audit coverage)"
+        );
+        Ok(())
+    }
+
+    /// MCP-02 (2026-06-10 review): durable MCP tool-call audit record.
+    ///
+    /// Appends a lightweight key+payload envelope to the `audit_buffer` CF
+    /// (BC-2.05.001 / CRIT-005), following the established
+    /// `prism_audit::credential_events` construction pattern.
+    ///
+    /// On `Err`, the caller (`emit_tool_audit` in `prism-mcp/src/server.rs`)
+    /// surfaces `AuditPersistenceFailed` and the outcome depends on the tool's
+    /// class as resolved by `tool_classification_registry()`:
+    ///
+    /// - **`ToolClass::WriteTool`** (e.g. `confirm_action`, `add_sensor_spec`):
+    ///   **fail-closed** — the caller returns `E-AUDIT-001` and aborts the
+    ///   operation before any mutation or token generation
+    ///   (BC-2.05.001 DEC-014).
+    /// - **`ToolClass::ReadTool`** (all other tools; the default):
+    ///   **fail-open** — the caller logs a warning and sets
+    ///   `_meta.audit_warning`; the tool call proceeds
+    ///   (BC-2.05.001 EC-05-002).
+    async fn write_tool_call(
+        &self,
+        tool_name: &str,
+        client_id: Option<&str>,
+        outcome: &str,
+    ) -> Result<(), prism_core::error::PrismError> {
+        let timestamp_ns = chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0) as u64;
+        let trace_id = uuid::Uuid::now_v7().to_string();
+        let mut payload = std::collections::BTreeMap::new();
+        payload.insert("event_type".to_owned(), "mcp.tool.called".to_owned());
+        payload.insert("tool_name".to_owned(), tool_name.to_owned());
+        // BC-2.05.002 sentinel: "MISSING" when the request carried no client_id.
+        payload.insert(
+            "client_id".to_owned(),
+            client_id.unwrap_or("MISSING").to_owned(),
+        );
+        payload.insert("outcome".to_owned(), outcome.to_owned());
+        prism_storage::audit_buffer::append_audit_entry(
+            self.storage.as_ref(),
+            &prism_storage::audit_buffer::AuditEntry {
+                timestamp_ns,
+                trace_id,
+                payload,
+            },
+        )
+        .map_err(|e| {
+            // P4-06 (2026-06-10 review pass-4): surface the storage-layer cause
+            // before collapsing to the typed E-AUDIT-001 variant. The caller
+            // (`emit_tool_audit`) only sees `AuditPersistenceFailed`, so without
+            // this log the underlying detail (e.g. StorageWriteFailed cause)
+            // would be lost to operators.
+            tracing::warn!(
+                tool_name = %tool_name,
+                error = %e,
+                "write_tool_call: audit_buffer append failed — mapping to \
+                 AuditPersistenceFailed (E-AUDIT-001); read-path tool call \
+                 proceeds with _meta.audit_warning (BC-2.05.001 EC-05-002)"
+            );
+            prism_core::error::PrismError::AuditPersistenceFailed
+        })
+    }
+}
+
+/// P1-03 interim mitigation: flush the sensor-fetch response cache on every
+/// config snapshot swap (review 2026-06-10 Item 1).
+///
+/// Cached entries store sensor responses in their normalized form (the
+/// human-authorized BC-2.07.003 deviation, P1-03 adjudication 2026-06-10;
+/// spec compliance lands in S-CACHE-SPEC-COMPLIANCE-001). The guarantee this
+/// flush provides: every snapshot swap evicts all pre-swap-epoch cache
+/// entries. Two caveats bound what that buys today:
+///
+/// 1. **Fetch-path normalization is boot-frozen.** `SpecDrivenSensorAdapter`
+///    holds an `Arc<ResolvedSensorSpec>` resolved at boot; a hot-reload swaps
+///    only the `ConfigSnapshot` and never rebuilds the `AdapterRegistry`, so
+///    a reload does not change how fresh fetches normalize. The flush is
+///    forward-provisioning for when adapters consume the live snapshot;
+///    today's risk posture is "the cache can never be staler than fresh
+///    fetches".
+/// 2. **In-flight queries can insert after the flush.** Under BC-2.16.006
+///    Guard semantics, a query that loaded its snapshot Guard before the swap
+///    completes under the OLD snapshot and may cache its result after the
+///    flush runs — swap-before-notify only covers queries that START after
+///    the swap.
+///
+/// Full reload-effectiveness (reload actually changing served normalization,
+/// with no stale residue) arrives with S-CACHE-SPEC-COMPLIANCE-001's
+/// normalize-on-read model.
+///
+/// Registers a swap listener on the boot-time `ConfigManager` instance.
+/// `ConfigManager::store` is the sole snapshot write path (BC-2.16.006), so
+/// the flush is structurally on EVERY production reload trigger:
+/// - the `reload_config` MCP tool (BC-2.16.005),
+/// - the `add_sensor_spec` MCP tool (BC-2.16.008), and
+/// - the S-1.12-FOLLOWUP hot-reload filesystem watcher when it ships (it calls
+///   the same spec-engine reload entry points, which land on `store`).
+///
+/// The outer `ArcSwap<ConfigManager>` is never re-stored after boot (only the
+/// inner `ArcSwap<ConfigSnapshot>` swaps), so the listener registered here
+/// stays live for the process lifetime.
+pub(crate) fn wire_config_swap_cache_flush(
+    config_manager: &arc_swap::ArcSwap<prism_spec_engine::config_manager::ConfigManager>,
+    cache_invalidator: Arc<
+        prism_query::invalidation::CacheInvalidator<prism_query::cache::SensorResponseValue>,
+    >,
+) {
+    let manager = config_manager.load_full();
+    manager.register_swap_listener(Box::new(move || {
+        // SAP-1 exemption: no event_type fields — operational reload diagnostics,
+        // not catalog-tracked structured events (no BC-2.16.002 row required).
+        match cache_invalidator.invalidate_all() {
+            Ok(evicted) => tracing::info!(
+                evicted,
+                "config snapshot swapped — response cache flushed \
+                 (P1-03 interim mitigation: purge entries normalized under the retired spec)"
+            ),
+            Err(e) => tracing::error!(
+                error = %e,
+                "config snapshot swapped but response-cache flush failed — \
+                 cached entries may carry stale normalization until TTL expiry; \
+                 terminate and restart the query engine"
+            ),
+        }
+    }));
 }
 
 /// Step 9 [BACKGROUND]: MCP server start.
@@ -2162,7 +2403,10 @@ pub async fn step8_init_query_engine() -> Result<(), BootError> {
 /// Uses RocksDbBackend from step 6 (via BootContext) as the query storage backend.
 /// Uses OrgRegistry from step 3 and CredentialStore from step 5 (CRIT-5 fix).
 /// Step 9A (S-DEMO-001): calls `step9a_populate_adapter_registry` to wire spec-driven adapters.
-/// The AuditWriter is a tracing stub until the full audit-writer integration story (S-2.04) ships.
+/// The AuditWriter (`BootAuditWriter`) writes MCP tool-call audit records durably to the
+/// RocksDB audit_buffer CF (`write_tool_call`, MCP-02 2026-06-10 review) — the durable
+/// per-call write is the production tool-call audit mechanism; write-path intent/outcome
+/// records are structured tracing events (`write.intent.recorded` / `write.outcome.recorded`).
 ///
 /// # Background task semantics
 ///
@@ -2353,6 +2597,9 @@ pub async fn step9_start_mcp_server(
     // Arc::clone before the move into QueryEngine::new_full so PrismServer::with_deps
     // can also receive the registry for alias CRUD allowlist validation.
     let org_registry_for_server = Arc::clone(&org_registry);
+    // MCP-02 (2026-06-10 review): retain storage Arc for the boot AuditWriter so
+    // MCP tool-call audit records land durably in the RocksDB audit_buffer CF.
+    let storage_for_audit = Arc::clone(&storage);
     let query_engine = Arc::new(QueryEngine::new_full(
         adapter_registry.clone(),
         // CRIT-5: real credential_store from step 5 — replaces BootNullCredentialStore.
@@ -2378,44 +2625,31 @@ pub async fn step9_start_mcp_server(
     let feature_flags = Arc::new(FeatureFlagEvaluator::new(BTreeMap::new()));
     let confirmation_store = Arc::new(ConfirmationTokenStore::new());
 
-    // TracingAuditWriter — emits structured tracing events for write audit entries.
-    // Full AuditEmitter integration via Tower layer requires S-2.04.
-    struct TracingAuditWriter;
-    #[async_trait::async_trait]
-    impl AuditWriter for TracingAuditWriter {
-        async fn write_intent(
-            &self,
-            plan: &WritePlan,
-            _context: &prism_query::QueryContext,
-            _capability_check: &CapabilityCheckResult,
-        ) -> Result<ulid::Ulid, prism_core::error::PrismError> {
-            let id = ulid::Ulid::new();
-            tracing::info!(
-                event_type = "write.intent.recorded",
-                intent_id = %id,
-                sensor = %plan.sensor,
-                "write intent recorded (BC-2.05.009 tracing audit stub)"
-            );
-            Ok(id)
-        }
-        async fn write_outcome(
-            &self,
-            intent_id: ulid::Ulid,
-            result: &WriteResult,
-        ) -> Result<(), prism_core::error::PrismError> {
-            tracing::info!(
-                event_type = "write.outcome.recorded",
-                intent_id = %intent_id,
-                succeeded = result.succeeded_count,
-                failed = result.failed_count,
-                "write outcome recorded (BC-2.05.009 tracing audit stub)"
-            );
-            Ok(())
-        }
-    }
-    let audit_writer: Arc<dyn AuditWriter> = Arc::new(TracingAuditWriter);
+    // BootAuditWriter (module-scope item below, P1-03 2026-06-10 review pass-1):
+    // write-path intent/outcome records are structured tracing events
+    // (`write.intent.recorded` / `write.outcome.recorded`); MCP tool-call records
+    // (`write_tool_call`, MCP-02 2026-06-10 review) are written DURABLY to the
+    // RocksDB audit_buffer CF — this durable per-call write IS the production
+    // tool-call audit mechanism.
+    let audit_writer: Arc<dyn AuditWriter> = Arc::new(BootAuditWriter::new(storage_for_audit));
     let write_adapter_registry = Arc::new(AdapterRegistry::new());
     let endpoint_registry = Arc::new(WriteEndpointRegistry::new());
+
+    // BC-2.07.004: the write path invalidates the SAME response cache the
+    // query engine's read pipeline populates (write-then-read consistency).
+    // Constructed from QueryEngine::response_cache() — never a fresh cache.
+    let cache_invalidator = Arc::new(prism_query::invalidation::CacheInvalidator::new(
+        query_engine.response_cache(),
+    ));
+
+    // P1-03 interim mitigation: every config snapshot swap (reload_config /
+    // add_sensor_spec / future hot-reload watcher — all land on
+    // ConfigManager::store per BC-2.16.006) evicts all pre-swap-epoch entries
+    // from the response cache (review 2026-06-10 Item 1; deviation authorized
+    // pending S-CACHE-SPEC-COMPLIANCE-001). See wire_config_swap_cache_flush
+    // docs for the two caveats bounding this guarantee (boot-frozen adapter
+    // normalization; in-flight pre-swap queries may insert after the flush).
+    wire_config_swap_cache_flush(&config_manager, Arc::clone(&cache_invalidator));
 
     let write_executor = Arc::new(WriteExecutor::new(
         feature_flags,
@@ -2423,6 +2657,7 @@ pub async fn step9_start_mcp_server(
         audit_writer.clone(),
         write_adapter_registry,
         endpoint_registry,
+        cache_invalidator,
     ));
 
     // ── Construct PrismServer and spawn serve_stdio ───────────────────────────
@@ -2609,7 +2844,9 @@ mod tests {
     /// BC: BC-2.21.001 EC-21-001-001 — minimum org list: 1 entry is valid
     ///
     /// Verifies that OrgEntry with a valid UUID and kebab-case slug compiles.
-    /// The actual validation is in step3_init_org_registry (todo!()).
+    /// The actual validation lives in `step3_init_org_registry`, which is
+    /// implemented (it was a `todo!()` stub when this test was written —
+    /// P2-07, 2026-06-10 review pass-2 historical annotation).
     #[test]
     #[allow(non_snake_case)]
     fn test_BC_2_21_001_org_entry_with_valid_uuid_and_kebab_slug() {
@@ -2635,9 +2872,10 @@ mod tests {
     /// Story: S-WAVE5-PREP-01
     /// BC: BC-2.21.001 EC-21-001-004 — org_slug with uppercase fails kebab validation
     ///
-    /// Demonstrates the malformed-slug detection that step3_init_org_registry
-    /// must implement. This test exercises the OrgEntry type (not the validator,
-    /// which is todo!() in step 3).
+    /// Demonstrates the malformed-slug detection that `step3_init_org_registry`
+    /// implements. This test exercises the OrgEntry type directly (the step-3
+    /// validator was a `todo!()` stub when this test was written; it is
+    /// implemented now — P2-07, 2026-06-10 review pass-2 historical annotation).
     #[test]
     #[allow(non_snake_case)]
     fn test_BC_2_21_001_malformed_slug_fails_kebab_check() {
@@ -3142,6 +3380,135 @@ base_url = "https://armis.acme-corp.io"
             Err(e) => {
                 panic!("F-P2-MED-001: wrong error variant — expected ConfigInvalid, got: {e:?}")
             }
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Unit tests — wire_config_swap_cache_flush (P1-03 interim mitigation)
+// ---------------------------------------------------------------------------
+//
+// SID-1: in-process unit tests exercising the production wiring helper directly
+// against the real SensorResponseCache + ConfigManager types; no subprocess
+// spawning, no #[ignore], no external dependencies.
+
+#[cfg(test)]
+#[allow(clippy::expect_used)]
+mod p1_03_config_swap_cache_flush_tests {
+    use std::sync::Arc;
+
+    use arrow::{
+        array::StringArray,
+        datatypes::{DataType, Field, Schema},
+        record_batch::RecordBatch,
+    };
+
+    use super::*;
+
+    /// Build a small real RecordBatch so the cached entry has non-zero
+    /// estimated bytes (makes the post-flush accounting assertion load-bearing).
+    fn small_batch() -> RecordBatch {
+        let schema = Arc::new(Schema::new(vec![Field::new("id", DataType::Utf8, false)]));
+        RecordBatch::try_new(
+            schema,
+            vec![Arc::new(StringArray::from(vec!["row-1", "row-2"]))],
+        )
+        .expect("RecordBatch construction must succeed")
+    }
+
+    /// P1-03 hit→reload→miss: after `wire_config_swap_cache_flush`, a config
+    /// snapshot swap through `ConfigManager::store` (the BC-2.16.006 sole write
+    /// path used by reload_config / add_sensor_spec / the future hot-reload
+    /// watcher) must flush the response cache: an entry that hit before the
+    /// reload must miss after it, with byte accounting back to zero.
+    #[test]
+    fn test_p1_03_config_swap_flushes_response_cache_hit_then_miss() {
+        // Production cache instantiation (SensorResponseCache = Vec<RecordBatch>).
+        let cache = Arc::new(prism_query::cache::SensorResponseCache::with_defaults());
+        let key = prism_query::cache_key::CacheKey {
+            client_id: "acme".to_string(),
+            sensor_id: prism_core::SensorId::from("crowdstrike"),
+            source_id: "crowdstrike_devices".to_string(),
+            push_down_hash: "a".repeat(64),
+        };
+        cache
+            .put(key.clone(), vec![small_batch()])
+            .expect("cache put must succeed");
+        assert!(
+            cache.get(&key).expect("cache get must not fail").is_some(),
+            "pre-condition: entry must hit before the config reload"
+        );
+        assert!(
+            cache.total_bytes() > 0,
+            "pre-condition: cached batch must have non-zero tracked bytes"
+        );
+
+        // Same wiring shape as step9: invalidator over the SAME cache instance,
+        // ConfigManager behind the boot-time ArcSwap.
+        let invalidator = Arc::new(prism_query::invalidation::CacheInvalidator::new(
+            Arc::clone(&cache),
+        ));
+        let config_manager = Arc::new(arc_swap::ArcSwap::from_pointee(
+            prism_spec_engine::config_manager::ConfigManager::empty(),
+        ));
+
+        wire_config_swap_cache_flush(&config_manager, invalidator);
+
+        // Simulate a hot-reload apply: reload_config / add_sensor_spec land on
+        // ConfigManager::store (BC-2.16.006 sole write path).
+        config_manager
+            .load()
+            .store(prism_spec_engine::types::ConfigSnapshot::empty());
+
+        assert!(
+            cache.get(&key).expect("cache get must not fail").is_none(),
+            "P1-03: entry must MISS after the config swap — the reload flush must \
+             purge entries normalized under the retired spec"
+        );
+        assert_eq!(
+            cache.total_bytes(),
+            0,
+            "P1-03: byte accounting must return to 0 after the reload flush \
+             (TD-PRISM-QUERY-CACHE-001 atomic accounting)"
+        );
+    }
+
+    /// P1-03: every swap flushes — a cache re-populated after one reload is
+    /// flushed again by the next reload (listener stays live across swaps).
+    #[test]
+    fn test_p1_03_repeated_swaps_keep_flushing() {
+        let cache = Arc::new(prism_query::cache::SensorResponseCache::with_defaults());
+        let key = prism_query::cache_key::CacheKey {
+            client_id: "acme".to_string(),
+            sensor_id: prism_core::SensorId::from("armis"),
+            source_id: "armis_devices".to_string(),
+            push_down_hash: "b".repeat(64),
+        };
+
+        let invalidator = Arc::new(prism_query::invalidation::CacheInvalidator::new(
+            Arc::clone(&cache),
+        ));
+        let config_manager = Arc::new(arc_swap::ArcSwap::from_pointee(
+            prism_spec_engine::config_manager::ConfigManager::empty(),
+        ));
+        wire_config_swap_cache_flush(&config_manager, invalidator);
+
+        for generation in 0..3 {
+            cache
+                .put(key.clone(), vec![small_batch()])
+                .expect("cache put must succeed");
+            assert!(
+                cache.get(&key).expect("get must not fail").is_some(),
+                "generation {generation}: entry must hit before the swap"
+            );
+            config_manager
+                .load()
+                .store(prism_spec_engine::types::ConfigSnapshot::empty());
+            assert!(
+                cache.get(&key).expect("get must not fail").is_none(),
+                "generation {generation}: entry must miss after the swap — \
+                 the flush listener must stay live across repeated reloads"
+            );
         }
     }
 }

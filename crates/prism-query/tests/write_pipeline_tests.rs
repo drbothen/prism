@@ -154,6 +154,15 @@ mod test_helpers {
         ) -> Result<(), PrismError> {
             Ok(())
         }
+
+        async fn write_tool_call(
+            &self,
+            _tool_name: &str,
+            _client_id: Option<&str>,
+            _outcome: &str,
+        ) -> Result<(), PrismError> {
+            Ok(())
+        }
     }
 }
 
@@ -215,6 +224,9 @@ fn make_executor(fail_audit: bool) -> WriteExecutor {
         audit,
         registry,
         Arc::new(endpoint_registry),
+        Arc::new(prism_query::invalidation::CacheInvalidator::new(Arc::new(
+            prism_query::cache::SensorResponseCache::with_defaults(),
+        ))),
     )
 }
 
@@ -349,7 +361,7 @@ async fn test_ac4_internal_table_write_rejected_e_query_026() {
 /// AC-5: When `AuditWriter::write_intent()` fails, the entire write is aborted
 /// with `E-AUDIT-001` and no sensor API call is made.
 ///
-/// BC-2.05.009 fail-closed behavior.
+/// BC-2.05.001 fail-closed behavior.
 ///
 /// Uses a Reversible plan (update) with dry_run=false so Phase 4 proceeds without
 /// requiring a confirmation token, allowing Phase 5 (audit write) to be reached.
@@ -464,6 +476,9 @@ async fn test_ac7_feature_flag_deny_returns_e_flag_001() {
         audit,
         registry,
         Arc::new(endpoint_registry),
+        Arc::new(prism_query::invalidation::CacheInvalidator::new(Arc::new(
+            prism_query::cache::SensorResponseCache::with_defaults(),
+        ))),
     );
 
     let plan = WritePlan {
@@ -581,7 +596,16 @@ async fn test_crit3_crowdstrike_write_denied_in_default_build() {
     let audit = test_helpers::MockAuditWriter::always_succeed();
     let registry = Arc::new(prism_sensors::AdapterRegistry::new());
     let endpoint_registry = Arc::new(WriteEndpointRegistry::new());
-    let executor = WriteExecutor::new(evaluator, store, audit, registry, endpoint_registry);
+    let executor = WriteExecutor::new(
+        evaluator,
+        store,
+        audit,
+        registry,
+        endpoint_registry,
+        Arc::new(prism_query::invalidation::CacheInvalidator::new(Arc::new(
+            prism_query::cache::SensorResponseCache::with_defaults(),
+        ))),
+    );
 
     let plan = make_contain_plan(true); // crowdstrike sensor
     let context = make_query_context(true, None);
@@ -590,9 +614,13 @@ async fn test_crit3_crowdstrike_write_denied_in_default_build() {
     let result = executor.execute(plan, context).await;
     let err = result.expect_err("Crowdstrike write must be denied when feature absent");
     let err_msg = err.to_string();
+    // P2-02 (2026-06-10 review pass-2): compile-tier denial reason is the
+    // spec-pinned E-FLAG-002 template ("no write-endpoint declaration",
+    // error-taxonomy E-FLAG-002 row / BC-2.04.015 v1.2 / BC-2.04.001 v1.2) —
+    // the retired "not compiled" alternate stays removed so it cannot phantom-pass.
     assert!(
         err_msg.contains("E-FLAG-002")
-            || err_msg.contains("not compiled")
+            || err_msg.contains("no write-endpoint declaration")
             || err_msg.contains("CAPABILITY_DENIED"),
         "Absent compile gate must produce E-FLAG-002 or CAPABILITY_DENIED; got: {err_msg}"
     );
@@ -1237,6 +1265,9 @@ async fn test_BC_2_16_012_B_002_write_gate_absent_for_unregistered_sensor() {
         audit,
         registry,
         Arc::new(endpoint_registry),
+        Arc::new(prism_query::invalidation::CacheInvalidator::new(Arc::new(
+            prism_query::cache::SensorResponseCache::with_defaults(),
+        ))),
     );
 
     // Build a WritePlan for "plugin-sensor-xyz" / "write".
@@ -1258,7 +1289,9 @@ async fn test_BC_2_16_012_B_002_write_gate_absent_for_unregistered_sensor() {
     //
     // We assert the execute does NOT return a capability-denied error.
     // (It may succeed, return a preview, or fail for a different structural reason —
-    // but it must NOT fail with E-FLAG-002 / CAPABILITY_DENIED / "not compiled".)
+    // but it must NOT fail with E-FLAG-002 / CAPABILITY_DENIED / a missing
+    // write-endpoint-declaration compile-tier denial. P2-02 2026-06-10: denial
+    // reason is the spec-pinned E-FLAG-002 template, BC-2.16.012.)
     let result = executor.execute(plan, context).await;
 
     // Post-migration: the registry presence check makes "plugin-sensor-xyz" Present.
@@ -1269,7 +1302,7 @@ async fn test_BC_2_16_012_B_002_write_gate_absent_for_unregistered_sensor() {
             let msg = e.to_string();
             msg.contains("E-FLAG-002")
                 || msg.contains("CAPABILITY_DENIED")
-                || msg.contains("not compiled")
+                || msg.contains("no write-endpoint declaration")
                 || msg.contains("CapabilityDenied")
         }
         Ok(_) => false,
@@ -1284,5 +1317,105 @@ async fn test_BC_2_16_012_B_002_write_gate_absent_for_unregistered_sensor() {
          This test FAILS (RED) against pre-migration code where the hardcoded \
          `_ => CompileFeatureGate::Absent` arm fires. \
          Got: {result:?}"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// BC-2.07.004: WriteExecutor Phase 5b — synchronous cache invalidation
+// ---------------------------------------------------------------------------
+
+/// BC-2.07.004 / QRY-02(b): a successful (non-dry-run) write through
+/// `WriteExecutor::execute` must synchronously invalidate the response-cache
+/// entries for the affected sensor BEFORE the write response is returned
+/// (write-then-read consistency, DEC-018).
+///
+/// Pre-fix failure mode: `CacheInvalidator` was never instantiated in the
+/// production write path — cached sensor responses survived writes and served
+/// stale data until TTL expiry.
+// Gated to crowdstrike-write for the same reason as
+// test_crit1_write_result_returned_with_zero_records_on_empty_registry:
+// in no-default-features builds the compile-time gate denies before Phase 5.
+#[cfg(feature = "crowdstrike-write")]
+#[tokio::test]
+async fn test_BC_2_07_004_executor_success_invalidates_response_cache() {
+    use prism_core::{CapabilityEffect, CapabilityPath, ClientCapabilities};
+    use prism_query::{
+        cache::SensorResponseCache, cache_key::CacheKey, invalidation::CacheInvalidator,
+    };
+    use prism_spec_engine::write_endpoint::{BatchMode, WriteEndpointRegistry, WriteEndpointSpec};
+
+    // Shared response cache — pre-populated as the read pipeline would.
+    let cache = Arc::new(SensorResponseCache::with_defaults());
+    let key = CacheKey {
+        client_id: "acme".to_string(),
+        sensor_id: prism_core::SensorId::from("crowdstrike"),
+        source_id: "crowdstrike_detections".to_string(),
+        push_down_hash: "a".repeat(64),
+    };
+    let schema = Arc::new(arrow::datatypes::Schema::new(vec![
+        arrow::datatypes::Field::new("detection_id", arrow::datatypes::DataType::Utf8, false),
+    ]));
+    let arr = Arc::new(arrow::array::StringArray::from(vec!["det-1"])) as _;
+    let batch = arrow::record_batch::RecordBatch::try_new(schema, vec![arr])
+        .expect("test batch must construct");
+    cache
+        .put(key.clone(), vec![batch])
+        .expect("cache put must succeed");
+    assert!(
+        cache.get(&key).expect("get").is_some(),
+        "pre-condition: cache entry must exist before the write"
+    );
+
+    // Build an executor whose invalidator wraps the SAME cache (mirrors the
+    // production boot wiring from QueryEngine::response_cache()).
+    let store = Arc::new(ConfirmationTokenStore::new());
+    let mut caps = BTreeMap::new();
+    let mut acme_caps = ClientCapabilities::new();
+    acme_caps.grant(
+        CapabilityPath::new("sensor").expect("sensor is a valid capability path"),
+        CapabilityEffect::Allow,
+    );
+    caps.insert("acme".to_string(), acme_caps);
+    let evaluator = Arc::new(FeatureFlagEvaluator::new(caps));
+    let mut endpoint_registry = WriteEndpointRegistry::new();
+    let _ = endpoint_registry.register(
+        "crowdstrike",
+        vec![WriteEndpointSpec::new(
+            "update",
+            "crowdstrike_detections",
+            prism_core::RiskTier::Reversible,
+            "sensor.crowdstrike.update",
+            100,
+            BatchMode::Serial,
+            "id",
+            vec![],
+        )],
+    );
+    let executor = WriteExecutor::new(
+        evaluator,
+        store,
+        test_helpers::MockAuditWriter::always_succeed(),
+        Arc::new(prism_sensors::AdapterRegistry::new()),
+        Arc::new(endpoint_registry),
+        Arc::new(CacheInvalidator::new(Arc::clone(&cache))),
+    );
+
+    // Reversible plan, dry_run=false → reaches Phase 5 dispatch → Phase 5b invalidation.
+    let outcome = executor
+        .execute(make_update_plan(), make_query_context(false, None))
+        .await
+        .expect("execute must succeed (empty adapter registry, reversible plan)");
+    assert!(
+        matches!(outcome, WriteOutcome::Result(_)),
+        "non-dry-run reversible write must return WriteOutcome::Result"
+    );
+
+    // BC-2.07.004: the cached entry for the affected sensor must be gone.
+    // "crowdstrike_update" has no per-tool mapping → sensor-wide fallback evicts
+    // all crowdstrike sources, including crowdstrike_detections.
+    assert!(
+        cache.get(&key).expect("get").is_none(),
+        "BC-2.07.004: write success must synchronously evict the sensor's \
+         cached response entries before the write response is returned"
     );
 }

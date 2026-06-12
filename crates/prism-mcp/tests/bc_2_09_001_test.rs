@@ -49,6 +49,7 @@ fn test_BC_2_09_001_sensor_hostname_in_structured_content_not_prose() {
         1,
         false,
         None,
+        None,
     );
 
     // Prose must NOT contain the hostname value
@@ -85,6 +86,7 @@ fn test_BC_2_09_001_prose_summary_contains_counts_not_field_values() {
         results,
         1,
         false,
+        None,
         None,
     );
 
@@ -125,6 +127,7 @@ fn test_BC_2_09_001_empty_string_field_in_structured_content() {
         1,
         false,
         None,
+        None,
     );
 
     let envelope_json = serde_json::to_value(&envelope).expect("serialize");
@@ -150,6 +153,7 @@ fn test_BC_2_09_001_triple_backtick_description_not_in_prose() {
         results,
         1,
         false,
+        None,
         None,
     );
 
@@ -188,6 +192,7 @@ fn test_BC_2_09_001_invariant_no_sensor_values_in_prose_for_clean_record() {
         results,
         1,
         false,
+        None,
         None,
     );
 

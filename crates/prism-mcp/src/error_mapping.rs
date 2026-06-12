@@ -37,18 +37,17 @@ pub fn map_prism_error(err: PrismError) -> (i32, String) {
             format!("Invalid parameter for tool '{tool}': {detail}"),
         ),
 
-        // E-QUERY-005: Query timeout → -32001 Timeout
+        // E-QUERY-004: Query timeout → -32001 Timeout (taxonomy v1.69 assignment;
+        // pre-v1.69 the timeout condition was mislabeled E-QUERY-005, which is
+        // the materialization limit)
         PrismError::QueryTimeout { .. } => (codes::TIMEOUT, "Query timeout exceeded".to_owned()),
 
-        // E-FLAG-001: Capability denied → -32002 Forbidden
+        // E-FLAG-001 (runtime tier) / E-FLAG-002 (compile tier): capability
+        // denied → -32002 Forbidden. Both tiers surface as CapabilityDenied
+        // (BC-2.04.015; P2-03 2026-06-10 review pass-2 — the spec-unbacked
+        // FeatureFlagDisabled variant was removed from PrismError).
         // Display includes full context per BC-2.10.007.
         PrismError::CapabilityDenied { .. } => (codes::FORBIDDEN, format!("{err}")),
-
-        // E-FLAG-002: Feature flag disabled → -32002 Forbidden
-        PrismError::FeatureFlagDisabled { flag } => (
-            codes::FORBIDDEN,
-            format!("Feature flag denied: flag '{flag}' is disabled; write operations are locked"),
-        ),
 
         // E-FLAG-010: Feature flag eval error → -32002 Forbidden
         PrismError::FeatureFlagEvalError { flag, detail } => (
@@ -91,11 +90,19 @@ pub fn map_prism_error(err: PrismError) -> (i32, String) {
             (codes::INVALID_PARAMS, format!("MCP tool not found: {tool}"))
         }
 
-        // E-QUERY-007: Limit exceeded → -32602 Invalid params (validation failure)
-        PrismError::QueryLimitExceeded { requested, max } => (
-            codes::INVALID_PARAMS,
-            format!("Invalid parameter: limit {requested} exceeds maximum of {max}"),
-        ),
+        // E-QUERY-033: Limit exceeded → -32602 Invalid params (validation failure).
+        // The variant Display IS the taxonomy v1.70 verbatim Message Format
+        // ("E-QUERY-033: limit {requested} exceeds maximum of {max} (BC-2.11.001)")
+        // mandated by the BC-2.11.001 Error Cases row — do not re-format here.
+        PrismError::QueryLimitExceeded { .. } => (codes::INVALID_PARAMS, format!("{err}")),
+
+        // E-QUERY-003: Query security limit exceeded → -32602 Invalid params
+        // (error-taxonomy.md v1.72 / ADR-038 v1.3 §P5-02). Caller-resolvable:
+        // narrow or simplify the query. EXPLICIT arm required: PrismError is
+        // #[non_exhaustive]; letting this variant fall to the catch-all would
+        // regress to opaque -32000 INTERNAL_ERROR and violate BC-2.11.006's
+        // structured caller-visible limit responses.
+        PrismError::QuerySecurityLimitExceeded { .. } => (codes::INVALID_PARAMS, format!("{err}")),
 
         // E-QUERY-022: Unbounded write → -32602 Invalid params
         PrismError::WriteUnbounded => (codes::INVALID_PARAMS, format!("{err}")),
@@ -109,6 +116,12 @@ pub fn map_prism_error(err: PrismError) -> (i32, String) {
         | PrismError::WriteAdapterNotConfiguredForClient { .. } => {
             (codes::INVALID_PARAMS, format!("{err}"))
         }
+
+        // E-QUERY-036: Unknown source table → -32602 Invalid params (caller-resolvable)
+        // MUST be explicit: #[non_exhaustive] fall-through would regress to opaque -32000.
+        // Caller can fix by checking spelling or registering the sensor in prism.toml.
+        // P6-02 adjudication 2026-06-11; error-taxonomy.md v1.73 E-QUERY-036.
+        PrismError::UnknownSourceTable { .. } => (codes::INVALID_PARAMS, format!("{err}")),
 
         // E-QUERY-032: Sensor not registered for org → -32602 Invalid params.
         // SURFACED (NOT redacted): the org slug and sensor name are safe to expose to
@@ -138,7 +151,14 @@ pub fn map_prism_error(err: PrismError) -> (i32, String) {
         | PrismError::CursorTokenUnknown
         | PrismError::CursorCapExceeded => (codes::INVALID_PARAMS, format!("{err}")),
 
-        // E-CFG-020: Invalid capability path → -32602 Invalid params
+        // E-CFG-100: Client not found → -32602 Invalid params (ADR-038 D4).
+        // EXPLICIT arm required: PrismError is #[non_exhaustive]; letting this
+        // variant fall to the catch-all would regress to opaque -32000
+        // INTERNAL_ERROR and violate BC-2.10.004 et al. (caller-visible
+        // structured error for an unknown client_id).
+        PrismError::ClientNotFound { .. } => (codes::INVALID_PARAMS, format!("{err}")),
+
+        // E-CFG-106: Invalid capability path → -32602 Invalid params
         PrismError::InvalidCapabilityPath { .. } => (codes::INVALID_PARAMS, format!("{err}")),
 
         // E-AUTH-001..003: Identity validation failures → -32602 Invalid params
@@ -163,7 +183,9 @@ pub fn map_prism_error(err: PrismError) -> (i32, String) {
             "Internal error; see audit log".to_owned(),
         ),
 
-        // E-CFG-*: Config errors → -32000 Internal
+        // E-CFG-102..105: Config errors → -32000 Internal (operator-resolvable,
+        // not caller-resolvable; ADR-038 D4 — arm covers only the four
+        // operator-class variants after the ClientNotFound split).
         PrismError::ConfigNotFound { .. }
         | PrismError::ConfigParseFailed { .. }
         | PrismError::ConfigValidationFailed { .. }
@@ -242,9 +264,11 @@ pub fn map_prism_error(err: PrismError) -> (i32, String) {
             "Internal error; see audit log".to_owned(),
         ),
 
-        // E-QUERY-002..004: Query planning/execution/memory errors → -32000 Internal
+        // E-QUERY-002/034/005/010 + E-WATCHDOG-001: Query planning/execution/
+        // materialization-limit/memory errors → -32000 Internal
         PrismError::QueryPlanFailed { .. }
         | PrismError::QueryExecutionFailed { .. }
+        | PrismError::QueryMaterializationLimitExceeded { .. }
         | PrismError::QueryMemoryBudgetExceeded { .. }
         | PrismError::QueryVirtualFieldFailed { .. } => (
             codes::INTERNAL_ERROR,
@@ -285,7 +309,7 @@ pub fn map_prism_error(err: PrismError) -> (i32, String) {
             "Internal error; see audit log".to_owned(),
         ),
 
-        // E-WATCH-*: Watchdog errors → -32000 Internal
+        // E-WATCH-*/E-WATCHDOG-*: Watchdog errors → -32000 Internal
         PrismError::WatchdogHeartbeatMissed { .. }
         | PrismError::WatchdogRestartLimitExceeded { .. }
         | PrismError::WatchdogKilled { .. } => (
@@ -293,11 +317,16 @@ pub fn map_prism_error(err: PrismError) -> (i32, String) {
             "Internal error; see audit log".to_owned(),
         ),
 
-        // E-AUDIT-001: Audit persistence failure → -32000 Internal
-        PrismError::AuditPersistenceFailed => (
-            codes::INTERNAL_ERROR,
-            "Internal error; see audit log".to_owned(),
-        ),
+        // E-AUDIT-001: Audit persistence failure → -32000 Internal.
+        // The variant Display IS the taxonomy-verbatim structured error
+        // ("E-AUDIT-001: Audit emission failed; write operation blocked. Retry
+        // the operation. ...") mandated by the BC-2.05.001 DEC-014 fail-closed
+        // contract: write-classified tools abort with this structured error
+        // when audit emission fails (P5-02, 2026-06-10 review pass-5). Surfaced
+        // verbatim (not the generic internal-error suppression): the message
+        // carries no sensitive detail and the agent caller needs the code +
+        // retry suggestion to act on the transient, retryable condition.
+        PrismError::AuditPersistenceFailed => (codes::INTERNAL_ERROR, format!("{err}")),
 
         // E-INFUSE-*: Infusion errors → -32000 Internal
         PrismError::Infusion(_) => (
@@ -364,4 +393,58 @@ pub mod codes {
 pub fn to_error_data(err: PrismError) -> ErrorData {
     let (code, message) = map_prism_error(err);
     ErrorData::new(ErrorCode(code), message, None)
+}
+
+// ---------------------------------------------------------------------------
+// Unit tests for error_mapping
+// ---------------------------------------------------------------------------
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use prism_core::PrismError;
+
+    /// P6-02: UnknownSourceTable (E-QUERY-036) must map to -32602 INVALID_PARAMS.
+    ///
+    /// EXPLICIT arm required: `PrismError` is `#[non_exhaustive]`; without the
+    /// explicit arm the variant would fall through to the catch-all `-32000`
+    /// INTERNAL_ERROR, losing the caller-actionable E-QUERY-036 guidance.
+    #[test]
+    fn test_unknown_source_table_maps_to_invalid_params() {
+        let err = PrismError::UnknownSourceTable {
+            source_name: "ghost_sensor.table".to_string(),
+        };
+        let (code, message) = map_prism_error(err);
+        assert_eq!(
+            code,
+            codes::INVALID_PARAMS,
+            "UnknownSourceTable must map to INVALID_PARAMS (-32602), got: {code}"
+        );
+        assert!(
+            message.contains("E-QUERY-036"),
+            "message must contain 'E-QUERY-036'; got: {message}"
+        );
+        assert!(
+            message.contains("ghost_sensor.table"),
+            "message must include the source_name; got: {message}"
+        );
+    }
+
+    /// UnknownSourceTable must NOT fall through to the catch-all -32000 arm.
+    ///
+    /// This test is distinct from the code-value test above: it explicitly confirms
+    /// the error is NOT -32000, providing a mutation-resistant assertion that the
+    /// explicit arm is load-bearing (not just incidentally green via fall-through).
+    #[test]
+    fn test_unknown_source_table_does_not_map_to_internal_error() {
+        let err = PrismError::UnknownSourceTable {
+            source_name: "unknown.devices".to_string(),
+        };
+        let (code, _) = map_prism_error(err);
+        assert_ne!(
+            code,
+            codes::INTERNAL_ERROR,
+            "UnknownSourceTable must NOT map to INTERNAL_ERROR (-32000); got: {code}"
+        );
+    }
 }

@@ -243,28 +243,23 @@ where
                     (resp, os, rs, ec)
                 }
                 Err(ref e) => {
+                    let error_str = e.to_string();
                     let outcome = AuditOutcome::Failure {
-                        error_code: e.to_string(),
+                        error_code: error_str.clone(),
                     };
                     let result_summary = format!("error: {e}");
-                    let error_code = Some(e.to_string());
+                    let error_code = Some(error_str.clone());
                     // We still need to emit a completion entry for read tools;
                     // for write tools the pre-entry was already emitted.
-                    let _ = (outcome.clone(), result_summary.clone(), error_code.clone());
-                    // Re-derive for the emit below.
                     (
                         AuditedResponse {
-                            outcome: AuditOutcome::Failure {
-                                error_code: e.to_string(),
-                            },
-                            result_summary: format!("error: {e}"),
-                            error_code: Some(e.to_string()),
+                            outcome: outcome.clone(),
+                            result_summary: result_summary.clone(),
+                            error_code: error_code.clone(),
                         },
-                        AuditOutcome::Failure {
-                            error_code: e.to_string(),
-                        },
-                        format!("error: {e}"),
-                        Some(e.to_string()),
+                        outcome,
+                        result_summary,
+                        error_code,
                     )
                 }
             };
@@ -308,8 +303,14 @@ where
                         error = %e,
                         "audit emission failed for read tool — read proceeds with audit_warning"
                     );
-                    // The caller receives a response with _meta.audit_warning set,
-                    // but that annotation is applied at the MCP transport layer, not here.
+                    // P4-03 (2026-06-10 review pass-4): the BC-2.05.001 EC-05-002
+                    // `_meta.audit_warning: "audit emission failed"` response
+                    // annotation is implemented in prism-mcp (`emit_tool_audit`
+                    // returns the warning; tool handlers thread it into
+                    // `SafetyEnvelopeBuilder::wrap`). This Tower middleware is
+                    // NOT currently wired into the MCP transport, so a failure
+                    // logged here does not set that field — it only produces
+                    // this structured error log.
                 } else {
                     // Write tools already emitted pre-entry; log but don't abort again.
                     tracing::warn!(

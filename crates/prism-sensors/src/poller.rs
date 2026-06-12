@@ -146,11 +146,14 @@ impl EventPoller {
     ///
     /// # S-2.08 Status
     ///
-    /// **AC-5 + AC-6 DEFERRED to S-3.02.** The current implementation is a
-    /// structural foundation: it owns the loop, the CancellationToken handshake,
-    /// and lazy `evict_expired` calls. The sensor-API fetch (AC-5: live-fetch
-    /// fallback + buffer write + INFO log) and HTTP 429 handling (AC-6: WARN +
-    /// continue) are wired when `SensorAdapter` becomes available in S-3.02.
+    /// **AC-5 + AC-6 wiring did not ship in S-3.02** — S-3.02 went live via the
+    /// MemTable materialization path without wiring `SensorAdapter` into this
+    /// loop; the wiring is tracked under TD-S302-005. The current implementation
+    /// is a structural foundation: it owns the loop, the CancellationToken
+    /// handshake, and lazy `evict_expired` calls. The sensor-API fetch (AC-5:
+    /// live-fetch fallback + buffer write + INFO log) and HTTP 429 handling
+    /// (AC-6: WARN + continue) land when TD-S302-005 wires `SensorAdapter`
+    /// into the poll cycle.
     pub async fn run(self) {
         // AC-1: check for cancellation before entering the first sleep
         if self.cancel.is_cancelled() {
@@ -168,8 +171,8 @@ impl EventPoller {
 
                     // Fetch from sensor API (stub: no actual SensorAdapter wired here yet)
                     // AC-6: On API error, log WARN and continue loop
-                    // The full wiring (SensorAdapter call) is deferred to S-3.02
-                    // when the query engine is wired up. The loop structure is correct.
+                    // The full wiring (SensorAdapter call) did not ship in S-3.02;
+                    // it is tracked under TD-S302-005. The loop structure is correct.
 
                     // Evict expired records after each ingest cycle (AC-4)
                     if let Err(e) = self.buffer.evict_expired(
@@ -251,18 +254,18 @@ impl std::fmt::Debug for EventPoller {
 /// Shared semaphore caps concurrent background pollers at
 /// `event_poller_concurrency` (default 4, configured via `[query]` section).
 ///
-/// # S-2.08 Status — STRUCTURAL STUB (AC-5 DEFERRED to S-3.02)
+/// # S-2.08 Status — STRUCTURAL STUB (AC-5 wiring tracked under TD-S302-005)
 ///
-/// **This function returns an empty `Vec` in S-2.08.** No event-stream table
-/// specs are wired at this stage. The full wiring — iterating over sensor
-/// specs from the spec registry and spawning per-`(sensor_id, table_name,
-/// client_id)` poller tasks — is implemented in S-3.02 when `SensorAdapter`
-/// and the query engine spec registry become available.
+/// **This function returns an empty `Vec`.** No event-stream table specs are
+/// wired at this stage. The full wiring — iterating over sensor specs from
+/// the spec registry and spawning per-`(sensor_id, table_name, client_id)`
+/// poller tasks — did not ship in S-3.02 (S-3.02 went live via the MemTable
+/// materialization path without it); the wiring is tracked under TD-S302-005.
 ///
 /// The function signature, return type (`Vec<PollerId>`), and
 /// `CancellationToken` contract are the final API surface; only the loop body
 /// is stubbed out. Callers may rely on the empty-Vec return value as a
-/// documented S-2.08 invariant until S-3.02 lands.
+/// documented invariant until TD-S302-005 wires real specs.
 pub fn start_pollers(
     _buffer: Arc<EventBufferStore>,
     _cancel: CancellationToken,
@@ -270,6 +273,7 @@ pub fn start_pollers(
 ) -> Vec<PollerId> {
     // S-2.08: No event-stream specs are wired at this stage.
     // When max_concurrency=0, no pollers should be spawned regardless of specs.
-    // When specs are provided (S-3.02), this will iterate them and spawn tasks.
+    // When specs are provided (TD-S302-005 wiring), this will iterate them and
+    // spawn tasks.
     Vec::new()
 }
