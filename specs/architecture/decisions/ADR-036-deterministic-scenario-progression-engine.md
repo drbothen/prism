@@ -6,7 +6,7 @@ status: ACCEPTED
 date: 2026-06-09
 wave: 5
 phase: 3.demo
-version: "2.2"
+version: "2.3"
 authors: [architect]
 related_decisions: [D-1077]
 related_adrs: [ADR-009, ADR-011, ADR-002, ADR-031, ADR-028]
@@ -49,7 +49,7 @@ wiring_deferred_to: S-DEMO-DTU-LIVE-SCENARIO-001-A
 
 ## Status
 
-ACCEPTED 2026-06-09 (v1.0). Substrate-corrected 2026-06-09 (v2.0) per remove-uncertainty scan findings U-01 through U-09 (D-1077 follow-up). Symbol/path/syntax corrections 2026-06-09 (v2.1) per Story-A re-validation scan U-A-01, U-A-04, U-A-07. Archetype-forwarding reconciliation 2026-06-09 (v2.2) per local adversary pass 6 finding F-P6-HIGH-001 and user decision 2026-06-09: the canonical Story-A constructor is the 3-arg `new_with_seed(seed: u64, archetype: Archetype, org_id: OrgId)` for all four generator-backed clones; the `fixture_set→Archetype` map drives the generator (NOT a hardcoded `CompromisedEndpoint`). Governs the live-scenario story split (S-DEMO-DTU-LIVE-SCENARIO-001-A baseline retrofit and S-DEMO-DTU-LIVE-SCENARIO-001-B scenario progression). Extends ADR-009 (multi-tenant deterministic generator) with a temporal scenario-progression layer.
+ACCEPTED 2026-06-09 (v1.0). Substrate-corrected 2026-06-09 (v2.0) per remove-uncertainty scan findings U-01 through U-09 (D-1077 follow-up). Symbol/path/syntax corrections 2026-06-09 (v2.1) per Story-A re-validation scan U-A-01, U-A-04, U-A-07. Archetype-forwarding reconciliation 2026-06-09 (v2.2) per local adversary pass 6 finding F-P6-HIGH-001 and user decision 2026-06-09: the canonical Story-A constructor is the 3-arg `new_with_seed(seed: u64, archetype: Archetype, org_id: OrgId)` for all four generator-backed clones; the `fixture_set→Archetype` map drives the generator (NOT a hardcoded `CompromisedEndpoint`). `scenario_start_secs → time_anchor` wiring adjudicated 2026-06-12 (v2.3): Story B MUST call `new_with_seed_anchored` (4-arg) not `new_with_seed` (3-arg) when constructing generator-backed clones in the scenario-enabled path; `time_anchor` is derived from `scenario_start_epoch_secs` so generated record timestamps are era-coherent with the scenario clock. Governs the live-scenario story split (S-DEMO-DTU-LIVE-SCENARIO-001-A baseline retrofit and S-DEMO-DTU-LIVE-SCENARIO-001-B scenario progression). Extends ADR-009 (multi-tenant deterministic generator) with a temporal scenario-progression layer.
 
 ---
 
@@ -340,6 +340,35 @@ from `generated_records` add the stage-mask filter. New constructors
 `new_with_scenario(seed, archetype, org_id, timeline)` combine Phase A generation with
 Phase B timeline attachment.
 
+**`time_anchor` wiring (v2.3, authoritative):** `new_with_scenario` MUST call
+`new_with_seed_anchored(seed, archetype, org_id, time_anchor)` internally, NOT the 3-arg
+`new_with_seed` (which anchors at the fixed `demo_time_anchor()` constant = 2026-01-01).
+The `time_anchor` argument is derived from `scenario_start_epoch_secs` at `build_clone_pairs`
+call time:
+
+```rust
+let time_anchor = DateTime::from_timestamp(scenario_start_epoch_secs, 0)
+    .expect("scenario_start_epoch_secs always in-range");
+```
+
+This ensures generated record timestamps (device `last_seen`, alert `created_at`, etc.) are
+era-coherent with the scenario clock. An analyst running a demo in June 2026 with
+`scenario_start_secs = 1_749_729_600` gets records timestamped in June 2026, not January 2026.
+
+`new_with_seed_anchored` (the 4-arg form exposing `time_anchor`) exists in all four clone.rs
+files from the review-2026-06-10 P1-01 fix burst, specifically to be wired here. Using the
+3-arg `new_with_seed` in Story B would leave `new_with_seed_anchored` as dead code and produce
+six-month-stale record timestamps in a live demo.
+
+**`scenario_start_secs = None` handling:** Capture `Utc::now()` ONCE at `build_clone_pairs`
+entry, use it for both `scenario_start_epoch_secs` (timeline anchor) and `time_anchor`
+(generator anchor). Do not call `Utc::now()` twice — the two calls can diverge by milliseconds.
+
+**`scenario.enabled = false` path:** Unchanged. `new_with_seed(seed, archetype, org_id)`
+delegates to `new_with_seed_anchored` with `demo_time_anchor()`. The 2026-01-01 fixed anchor
+is correct for static-snapshot (non-scenario) use where no operator `scenario_start_secs`
+exists.
+
 #### Generator-backed clones: per-clone retrofit scope
 
 **CrowdStrike** (`crates/prism-dtu-crowdstrike/src/`):
@@ -470,11 +499,25 @@ pub org_id: Option<String>,  // parsed as uuid::Uuid → OrgId
 2. Parse `org_id` string as `uuid::Uuid` → `OrgId`. All scenario-enabled clones MUST
    share the same `seed` — if they differ, return `E-DEMO-002`.
 3. Derive `org_slug = org_slug_from_org_id(&org_id)` (8 hex chars from UUID bytes).
-4. Build `ScenarioEntityCatalog` from `(seed, org_id, org_slug)`.
-5. Build `IncidentTimeline` from catalog + stage definitions.
-6. Construct generator-backed clones with `new_with_scenario(seed, archetype, org_id, Arc::clone(&timeline))`.
-7. Construct ThreatIntel with `ThreatIntelClone::new_with_scenario(&catalog)`.
-8. Construct NVD with `NvdClone::new_with_scenario(&catalog)?`.
+4. Capture `scenario_start_epoch_secs` ONCE:
+   ```rust
+   let scenario_start_epoch_secs = config.scenario.scenario_start_secs
+       .unwrap_or_else(|| Utc::now().timestamp());
+   let time_anchor = DateTime::from_timestamp(scenario_start_epoch_secs, 0)
+       .expect("scenario_start_epoch_secs always in-range");
+   ```
+   (v2.3: `Utc::now()` called AT MOST ONCE; `time_anchor` and `scenario_start_epoch_secs`
+   share the same epoch so generated record timestamps are era-coherent with stage math.)
+5. Build `ScenarioEntityCatalog` from `(seed, org_id, org_slug)`.
+6. Build `IncidentTimeline` from catalog + stage definitions with `scenario_start_epoch_secs`.
+7. Construct generator-backed clones with `new_with_scenario(seed, archetype, org_id, Arc::clone(&timeline))`.
+   The `new_with_scenario` implementation MUST internally call
+   `new_with_seed_anchored(seed, archetype, org_id, time_anchor)` (NOT the 3-arg
+   `new_with_seed`). The `time_anchor` is passed from `build_clone_pairs` (step 4 above)
+   into `new_with_scenario`'s body — it is NOT recomputed inside the constructor.
+   **Constructor signature:** `new_with_scenario(seed, archetype, org_id, timeline: Arc<IncidentTimeline>, time_anchor: DateTime<Utc>) -> Self` (5-arg for generator-backed clones).
+8. Construct ThreatIntel with `ThreatIntelClone::new_with_scenario(&catalog)`.
+9. Construct NVD with `NvdClone::new_with_scenario(&catalog)?`.
 9. When `CloneConfig.fixture_set != "default"` (any non-default archetype) and
    `scenario.enabled = false` (or absent): call `new_with_seed(seed, archetype, org_id)`
    where `archetype` is the INV-FIXTURE-SET-ARCHETYPE-MAP-001 mapping of `fixture_set`.
@@ -783,3 +826,4 @@ superseded in its frontmatter.
 | 2.0 | 2026-06-09 | architect | Substrate-corrected. U-01: clones serve static JSON, generators not in serving path. U-02: CloneConfig.seed never forwarded; baseline seeding unimplemented. U-03: org_slug is 8-hex-from-UUID not arbitrary string; corrected ID format. U-05: NvdClone::new() is fallible; cve_registry is immutable HashMap; no lookup() method; corrected CVSS path. U-06: DemoConfig has no org_id field; added required new field. U-07/U-08: threatintel/nvd have no fixture-gen feature; added Cargo requirements; perimeter confirmed safe. U-09: pinned stage_duration_secs as 4-entry array for 5-stage timeline. Story split authorized and specified. |
 | 2.1 | 2026-06-09 | architect | Symbol/path/syntax corrections from Story-A re-validation scan. U-A-01: catalog derivation call site corrected from `seeded_rng` to `gen_seeded_rng` (two-arg re-export alias in prism-dtu-common::lib; avoids collision with one-arg legacy seeded_rng). U-A-04: CrowdStrike device-read fallback corrected from "stateful-write-target path (containment_store/detection_status_store)" to `load_host_ids()/load_host_details()` (static JSON helpers in routes/hosts.rs); containment_store/detection_status_store are write-target overlays only. U-A-07: GenOpts struct-literal corrected from bare `..` to `..GenOpts::default()` in all three Phase A call sites (§2.3 Phase A description and per-clone CrowdStrike + Armis constructor notes). No design change. |
 | 2.2 | 2026-06-09 | architect | Archetype-forwarding reconciliation. F-P6-HIGH-001 + user decision 2026-06-09: the canonical Story-A constructor is the **3-arg** `new_with_seed(seed: u64, archetype: Archetype, org_id: OrgId)` for all four generator-backed clones. The v2.1 §2.3 per-clone constructor notes had a substrate-reconciliation drift error: CrowdStrike was `new_with_seed(seed, org_id)` (2-arg, implicitly hardcoding `CompromisedEndpoint`); Armis was `new_with_seed(seed, org_id, org_slug)` (no `archetype`). Both are now corrected to the 3-arg form with explicit `archetype` parameter. Armis derives `org_slug` internally from `org_id` rather than taking it as a constructor argument (keeps the constructor signature symmetric with the other three clones). Claroty and Cyberint prose updated to state the 3-arg form explicitly (previously said "same pattern" which was ambiguous). §2.3 Phase A description updated: `archetype` note added to the generate() call. §2.4 step 9 expanded to document the Story A non-scenario path explicitly (previously only documented the Story B scenario path). §8 scope item 4 updated to state that `build_clone_pairs` maps `fixture_set→Archetype` and forwards the result to `new_with_seed`. §2.5 VP-018-B backward-compat canonical call documented: `new_with_seed(42, Archetype::HealthyOtEnvironment, <default_org_id>)`. Root cause of drift: v2.0/v2.1 focused on substrate corrections (empty state stores, no generate() call in serving path) and chose the 2-arg form as a "simpler retrofit"; this was incorrect because BC-2.06.018 Postcondition 1, INV-FIXTURE-SET-ARCHETYPE-MAP-001, EC-018-003, EC-018-005, TV-018-005, TV-018-006, and VP-018-C all specify full 8-archetype support driven by fixture_set. The 2-arg form was drift, not a deliberate scope decision. |
+| 2.3 | 2026-06-12 | architect | `scenario_start_secs → time_anchor` wiring adjudicated (D-1090 autonomy envelope). Conflict between Story-B spec (tasks called 3-arg `new_with_seed` internally) and substrate doc-comments (all four clone.rs `new_with_seed_anchored` explicitly reserved for Story B wiring). Ruling: ANCHORED (4-arg path). Rationale: (a) `demo_time_anchor()` = 2026-01-01 anchors generated record timestamps 6 months before a June 2026 demo, making device `last_seen` and alert timestamps stale and breaking demo believability; (b) BC-2.06.019 INV-PROGRESSION-REPRODUCIBILITY-001 requires determinism from fixed config inputs — `scenario_start_secs` is config-fixed, so anchoring `time_anchor` to it preserves the invariant; (c) ADR-036 §2.1 scenario_start_secs rationale and §4 reproducibility consequence both identify `scenario_start_secs` as the primary temporal anchor for the entire scenario; (d) the 4-arg `new_with_seed_anchored` constructor exists specifically for this wiring — Story B bypassing it would produce dead code. §2.3 Phase B text updated: `new_with_scenario` MUST call `new_with_seed_anchored` internally (NOT 3-arg `new_with_seed`). §2.4 `build_clone_pairs` steps renumbered and expanded: step 4 now captures `scenario_start_epoch_secs` and `time_anchor` once from `Utc::now()` (single call); `new_with_scenario` signature updated to 5-arg form (adds `time_anchor: DateTime<Utc>` alongside `Arc<IncidentTimeline>`). `scenario.enabled = false` path unchanged: `new_with_seed` → `new_with_seed_anchored(demo_time_anchor())` is correct for static-snapshot use. |
