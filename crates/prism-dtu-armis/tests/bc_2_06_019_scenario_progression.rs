@@ -5,39 +5,29 @@
 //! Traces to: BC-2.06.019 postcondition 4 / TV-019-009, TV-019-010
 //! Story: S-DEMO-DTU-LIVE-SCENARIO-001-B
 //!
-//! FAIL mode (Red Gate): `new_with_scenario` sets `timeline = None` in state.
-//! Route handlers inspect `state.timeline.is_some()` for stage-mask filtering.
-//! Since `timeline = None`, the handler falls through to the seeded path (no mask
-//! filtering), serving all generated records regardless of stage. Therefore the
-//! primary device ID is visible at ALL stages — including stage 0 where the mask
-//! says `lateral_devices = false` but the primary device SHOULD be visible.
+//! FAIL mode (Red Gate): route handler in routes/devices.rs does not implement
+//! StageMask projection (BC-2.06.019 PC-4). The handler currently serves all
+//! generated_records regardless of stage, so:
+//! - At stage 0 (T+30s): primary device IS visible (should be ABSENT per AC-007 /
+//!   task spec: primary appears from stage 1+ only at the HTTP response level)
+//! - At stage 1 (T+90s): lateral devices ARE visible (should be ABSENT per mask)
 //!
-//! Wait — for test 7 specifically, the primary device SHOULD appear at stage 1
-//! (Recon; `primary_device = true`) but NOT at stage 0 if the handler filters
-//! only devices that appear in the current stage mask.
+//! HTTP-level load-bearing assertion pattern (B-P1-02): this test starts a real
+//! ArmisClone server and makes actual GET /api/v1/devices requests with stage-clock
+//! control via scenario_start_secs placement relative to Utc::now().
 //!
-//! Actually: the test design from the story is:
-//! - At `now = T + 30s` (stage 0 / Baseline): only primary device visible.
-//!   Stage 0 mask: `primary_device=true` only.
-//! - At `now = T + 90s` (stage 1 / Recon): primary device still visible.
-//!   Stage 1 mask: `primary_device=true` only (same as baseline).
+//! Stage clock control (spec'd mechanism ADR-036 §2.1):
+//!   Handlers call current_stage_index(&timeline, Utc::now().timestamp()) per request.
+//!   We control the stage by placing scenario_start_secs far enough in the past:
+//!   - Stage 0: scenario_start_secs = now - 10   (elapsed ≈ 10s < 60s threshold)
+//!   - Stage 1: scenario_start_secs = now - 90   (elapsed ≈ 90s, in [60, 180))
+//!   With stage_duration_secs default [60, 180, 360, 600].
 //!
-//! The FAIL for test 7 is: `timeline = None` means no mask filtering happens,
-//! so ALL generated records appear at both time points — including lateral devices
-//! that should only appear at stage 2+. The test asserts that `lateral_device_ids`
-//! are ABSENT at stage 0/1, which passes trivially without stage filtering, BUT
-//! it also asserts the PRIMARY device IS present at stage 1, which requires the
-//! timeline to be attached so the filtering knows which records are primary.
-//!
-//! The canonical FAIL from the story spec is:
-//! > "Tests asserting stage-mask filtering will FAIL (Red Gate)"
-//!
-//! Specifically, the test verifies that at stage 0, only the primary device ID
-//! appears — NOT lateral devices. Without timeline, the seeded path returns ALL
-//! generated records, so lateral devices ARE present at stage 0. That assertion FAILS.
-//!
-//! Red Gate: FAIL because timeline=None → no stage-mask filtering → lateral devices
-//! visible at stage 0 when they should be masked.
+//! Primary Red Gate failures:
+//! 1. Stage 0: primary device IS in HTTP response (should be absent per task spec).
+//!    Without StageMask projection, all generated records are served.
+//! 2. Stage 1: lateral device IDs ARE in HTTP response (should be absent — mask
+//!    lateral_devices=false at stage 1).
 
 #![cfg(feature = "fixture-gen")]
 #![allow(clippy::unwrap_used, clippy::expect_used)]
@@ -46,7 +36,8 @@ use std::sync::Arc;
 
 use prism_dtu_armis::ArmisClone;
 use prism_dtu_common::{
-    build_default_incident_timeline, build_scenario_entity_catalog, Archetype, OrgId,
+    build_default_incident_timeline, build_scenario_entity_catalog, Archetype, BehavioralClone,
+    OrgId,
 };
 
 /// Org ID with well-known first 4 bytes [0xde, 0xad, 0xbe, 0xef] → org_slug = "deadbeef".
@@ -61,105 +52,91 @@ fn deadbeef_org() -> OrgId {
 ///
 /// BC-2.06.019 PC-4 / TV-019-009, TV-019-010
 ///
-/// Verifies that at stage 0 (T+30s), only primary device appears in generated_records,
-/// while lateral device IDs are absent (masked by StageMask.lateral_devices=false).
-/// At stage 1 (T+90s), primary device still appears; lateral devices still absent
-/// (StageMask for stage 1: primary_device=true, rest false).
+/// HTTP-level load-bearing test (B-P1-02). Starts a real ArmisClone server and
+/// makes GET /api/v1/devices requests at two controlled stage-clock positions.
 ///
-/// FAIL mode: new_with_scenario stub leaves `timeline = None`. Since timeline is None,
-/// no stage-mask filtering occurs — all generated_records are served at both time points.
-/// The test asserts that lateral device IDs are NOT in the stage-0 response, but
-/// without filtering, lateral devices ARE included. Assertion FAILS.
+/// Stage clock control: scenario_start_secs is placed in the past so that
+/// Utc::now().timestamp() - scenario_start_secs yields the desired elapsed time
+/// at the moment of the HTTP request.
 ///
-/// Additionally asserts that the primary device IS present at stage 1, which also
-/// requires timeline to compute the stage index — without timeline, the check on
-/// `state.timeline.is_some()` fails (None), so the implementation would fall back
-/// to the seeded path (all records, no filtering). A correctly written filter
-/// requires `timeline.is_some()` to gate the mask logic.
-#[test]
-fn test_BC_2_06_019_armis_primary_device_stage_visibility() {
+/// Asserts:
+/// - At stage 0 (scenario_start = now - 10s): primary device ABSENT from response.
+///   The primary device only appears from stage 1 onward (AC-007 / task spec).
+/// - At stage 1 (scenario_start = now - 90s): primary device PRESENT in response;
+///   lateral device IDs ABSENT (StageMask lateral_devices=false at stage 1).
+///
+/// FAIL mode (without StageMask projection):
+/// - Stage 0 request: ALL generated records are served → primary device IS visible
+///   → assertion "primary absent at stage 0" FAILS.
+/// - Stage 1 request: ALL generated records are served → lateral devices ARE visible
+///   → assertion "lateral absent at stage 1" FAILS.
+#[tokio::test]
+async fn test_BC_2_06_019_armis_primary_device_stage_visibility() {
     let org = deadbeef_org();
     let seed: u64 = 100;
 
-    // Build the scenario entity catalog to get canonical entity IDs.
-    let catalog = build_scenario_entity_catalog(seed, &org);
+    // --- Stage 0 server (scenario_start = now - 10s → elapsed ≈ 10s < 60s) ---
+    // At request time the handler computes: elapsed = now - start ≈ 10s → stage 0.
+    let now = chrono::Utc::now().timestamp();
+    let start_stage0: i64 = now - 10; // elapsed ≈ 10s → stage 0 (Baseline)
 
+    let catalog = build_scenario_entity_catalog(seed, &org);
     let primary_id = catalog.primary_device_id_armis.clone();
     let lateral_ids: Vec<String> = catalog.lateral_device_ids_armis.clone();
 
-    // Stage thresholds: [60, 180, 360, 600] — defaults.
-    let start_secs: i64 = 1_000_000;
-    let timeline = build_default_incident_timeline(catalog.clone(), start_secs, &[]);
+    let timeline_stage0 = Arc::new(build_default_incident_timeline(
+        catalog.clone(),
+        start_stage0,
+        &[],
+    ));
 
-    let timeline_arc = Arc::new(timeline);
+    let time_anchor_stage0 = chrono::DateTime::from_timestamp(start_stage0, 0)
+        .expect("valid timestamp")
+        .with_timezone(&chrono::Utc);
 
-    // Construct ArmisClone via new_with_scenario (5-arg stub).
-    let clone = ArmisClone::new_with_scenario(
+    let mut clone_stage0 = ArmisClone::new_with_scenario(
         seed,
         Archetype::CompromisedEndpoint,
-        org,
-        Arc::clone(&timeline_arc),
-        // time_anchor = scenario start (deterministic)
-        chrono::DateTime::from_timestamp(start_secs, 0)
-            .expect("valid timestamp")
-            .with_timezone(&chrono::Utc),
+        org.clone(),
+        Arc::clone(&timeline_stage0),
+        time_anchor_stage0,
     )
-    .expect("new_with_scenario must succeed");
+    .expect("new_with_scenario must succeed for stage-0 server");
 
-    // The clone must have generated records (CompromisedEndpoint produces non-empty records).
-    assert!(
-        !clone.state.generated_records.is_empty(),
-        "ArmisClone::new_with_scenario with CompromisedEndpoint must produce non-empty \
-         generated_records; got empty. BC-2.06.019 PC-4"
-    );
+    clone_stage0
+        .start()
+        .await
+        .expect("stage-0 server start must succeed");
 
-    // The clone must have timeline attached (proves scenario path was taken).
-    // FAIL: stub leaves timeline = None.
-    assert!(
-        clone.state.timeline.is_some(),
-        "ArmisClone::new_with_scenario must attach timeline to state.timeline (Some); \
-         got None — BC-2.06.019 PC-4 / ADR-036 v2.3 §2.4 \
-         [RED GATE: stub leaves timeline = None]"
-    );
+    let base_url_stage0 = clone_stage0.base_url();
+    let admin_token_stage0 = clone_stage0.admin_token().to_owned();
 
-    // At stage 0 (T + 30s; elapsed=30 < 60): mask = primary_device=true, lateral_devices=false.
-    // Only primary device should be visible. Lateral devices should NOT appear.
-    //
-    // The implementation is expected to filter generated_records by current stage mask.
-    // For now, we can inspect the timeline-based filtering by checking what the
-    // stage index would be (pure function) and verifying the mask says lateral_devices=false.
-    let now_stage0 = start_secs + 30;
-    let stage0_idx = prism_dtu_common::current_stage_index(&timeline_arc, now_stage0);
+    let client = prism_dtu_common::build_test_client();
 
-    // stage_index at T+30s must be 0 (Baseline — elapsed=30 < 60s threshold).
-    // FAIL: build_default_incident_timeline stub returns 1 stage, so timeline only has
-    // stage 0; current_stage_index returns 0 always (another stub). Both stubs mask
-    // the real failure. The primary failing assertion is timeline.is_some() above.
+    // Stage 0: primary device MUST be absent from /api/v1/devices response.
+    // FAIL: without StageMask projection, all generated records are served
+    //       → primary device IS in the response → this assertion FAILS.
+    let resp0 = client
+        .get(format!("{base_url_stage0}/api/v1/devices"))
+        .header("Authorization", format!("Bearer {admin_token_stage0}"))
+        .send()
+        .await
+        .expect("GET /api/v1/devices (stage 0) must reach the server");
+
     assert_eq!(
-        stage0_idx, 0,
-        "TV-019-009: at T+30s, stage index must be 0 (Baseline); got {stage0_idx}"
+        resp0.status().as_u16(),
+        200,
+        "Stage 0: GET /api/v1/devices must return HTTP 200; got {}",
+        resp0.status().as_u16()
     );
 
-    let stage0_mask = &timeline_arc.stages[stage0_idx].visible_entity_mask;
+    let body0: serde_json::Value = resp0.json().await.expect("stage-0 response must be JSON");
+    let devices0: Vec<serde_json::Value> = body0["data"]["devices"]
+        .as_array()
+        .cloned()
+        .unwrap_or_default();
 
-    // Stage 0: lateral_devices must be false.
-    assert!(
-        !stage0_mask.lateral_devices,
-        "Stage 0 (Baseline) mask must have lateral_devices=false; got true. \
-         BC-2.06.019 PC-2 table / TV-019-009"
-    );
-    // Stage 0: primary_device must be true.
-    assert!(
-        stage0_mask.primary_device,
-        "Stage 0 (Baseline) mask must have primary_device=true; got false. \
-         BC-2.06.019 PC-2 table / TV-019-009"
-    );
-
-    // Verify that lateral device IDs are present in generated_records (they WILL be without filtering,
-    // which is the evidence of what would go wrong at runtime without filtering).
-    let all_asset_ids: Vec<String> = clone
-        .state
-        .generated_records
+    let device_ids0: Vec<String> = devices0
         .iter()
         .filter_map(|rec| {
             rec.get("asset_id")
@@ -168,37 +145,116 @@ fn test_BC_2_06_019_armis_primary_device_stage_visibility() {
         })
         .collect();
 
-    // Verify primary device ID is in the generated records.
+    // BC-2.06.019 AC-007 / TV-019-009: primary device must NOT appear at stage 0.
+    // Without StageMask projection the handler returns all records → this FAILS.
     assert!(
-        all_asset_ids.iter().any(|id| id == &primary_id),
-        "Primary device ID '{primary_id}' must appear in generated_records; \
-         got IDs: {all_asset_ids:?}. BC-2.06.019 PC-4 / TV-019-009"
+        !device_ids0.contains(&primary_id),
+        "TV-019-009: at stage 0 (elapsed ≈ 10s < 60s), primary device '{}' must be ABSENT \
+         from GET /api/v1/devices response; found it in {:?}. \
+         Route handler must apply StageMask projection before serving records. \
+         BC-2.06.019 PC-4 / AC-007 \
+         [RED GATE: StageMask projection not implemented in routes/devices.rs]",
+        primary_id,
+        device_ids0
     );
 
-    // Verify at least one lateral device ID IS in generated_records (it should be for
-    // CompromisedEndpoint). This proves that without stage-mask filtering, lateral
-    // devices would leak into stage 0 responses.
-    let lateral_in_records = lateral_ids
-        .iter()
-        .any(|lat_id| all_asset_ids.iter().any(|id| id == lat_id));
+    clone_stage0
+        .stop()
+        .await
+        .expect("stage-0 server stop must succeed");
 
-    // For a CompromisedEndpoint archetype, lateral devices are generated.
-    // Without stage-mask filtering, they would be visible at stage 0 (wrong).
-    // The failing assertion is timeline.is_some() above — once that passes,
-    // the implementer must ensure filtering is applied per current_stage_index.
-    // This assertion documents the expected presence of lateral records (implementer guide).
-    let _ = lateral_in_records; // informational; primary FAIL is timeline.is_some() above.
+    // --- Stage 1 server (scenario_start = now - 90s → elapsed ≈ 90s ≥ 60s, < 180s) ---
+    // At request time the handler computes: elapsed = now - start ≈ 90s → stage 1 (Recon).
+    let now = chrono::Utc::now().timestamp();
+    let start_stage1: i64 = now - 90; // elapsed ≈ 90s → stage 1 (Recon)
 
-    // At stage 1 (T + 90s; elapsed=90 >= 60): mask = primary_device=true, rest false.
-    // Primary device must still be visible at stage 1.
-    let now_stage1 = start_secs + 90;
-    let stage1_idx = prism_dtu_common::current_stage_index(&timeline_arc, now_stage1);
+    let timeline_stage1 = Arc::new(build_default_incident_timeline(
+        catalog.clone(),
+        start_stage1,
+        &[],
+    ));
 
-    // FAIL: current_stage_index stub always returns 0, so stage1_idx = 0 (not 1).
+    let time_anchor_stage1 = chrono::DateTime::from_timestamp(start_stage1, 0)
+        .expect("valid timestamp")
+        .with_timezone(&chrono::Utc);
+
+    let mut clone_stage1 = ArmisClone::new_with_scenario(
+        seed,
+        Archetype::CompromisedEndpoint,
+        org,
+        Arc::clone(&timeline_stage1),
+        time_anchor_stage1,
+    )
+    .expect("new_with_scenario must succeed for stage-1 server");
+
+    clone_stage1
+        .start()
+        .await
+        .expect("stage-1 server start must succeed");
+
+    let base_url_stage1 = clone_stage1.base_url();
+    let admin_token_stage1 = clone_stage1.admin_token().to_owned();
+
+    // Stage 1: primary device MUST be present in /api/v1/devices response.
+    // (Stage 1 mask: primary_device=true.)
+    let resp1 = client
+        .get(format!("{base_url_stage1}/api/v1/devices"))
+        .header("Authorization", format!("Bearer {admin_token_stage1}"))
+        .send()
+        .await
+        .expect("GET /api/v1/devices (stage 1) must reach the server");
+
     assert_eq!(
-        stage1_idx, 1,
-        "TV-019-010: at T+90s, stage index must be 1 (Recon; elapsed 90 >= 60s); \
-         got {stage1_idx} — BC-2.06.019 PC-3 / TV-019-010 \
-         [RED GATE: current_stage_index stub always returns 0]"
+        resp1.status().as_u16(),
+        200,
+        "Stage 1: GET /api/v1/devices must return HTTP 200; got {}",
+        resp1.status().as_u16()
     );
+
+    let body1: serde_json::Value = resp1.json().await.expect("stage-1 response must be JSON");
+    let devices1: Vec<serde_json::Value> = body1["data"]["devices"]
+        .as_array()
+        .cloned()
+        .unwrap_or_default();
+
+    let device_ids1: Vec<String> = devices1
+        .iter()
+        .filter_map(|rec| {
+            rec.get("asset_id")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_owned())
+        })
+        .collect();
+
+    // BC-2.06.019 AC-007 / TV-019-010: primary device MUST appear at stage 1.
+    // (Stage 1 mask: primary_device=true.)
+    assert!(
+        device_ids1.contains(&primary_id),
+        "TV-019-010: at stage 1 (elapsed ≈ 90s ≥ 60s), primary device '{}' must be PRESENT \
+         in GET /api/v1/devices response; found IDs: {:?}. \
+         BC-2.06.019 PC-4 / AC-007 / TV-019-010",
+        primary_id,
+        device_ids1
+    );
+
+    // BC-2.06.019 AC-007 / TV-019-010: lateral device IDs must NOT appear at stage 1.
+    // Stage 1 mask: lateral_devices=false.
+    // FAIL: without StageMask projection, all generated records are served
+    //       → lateral devices ARE in the response → this assertion FAILS.
+    for lat_id in &lateral_ids {
+        assert!(
+            !device_ids1.contains(lat_id),
+            "TV-019-010: at stage 1 (elapsed ≈ 90s), lateral device '{}' must be ABSENT \
+             from GET /api/v1/devices response (StageMask lateral_devices=false at stage 1); \
+             found it in {:?}. BC-2.06.019 PC-4 / AC-007 / TV-019-010 \
+             [RED GATE: StageMask projection not implemented — lateral devices leak at stage 1]",
+            lat_id,
+            device_ids1
+        );
+    }
+
+    clone_stage1
+        .stop()
+        .await
+        .expect("stage-1 server stop must succeed");
 }

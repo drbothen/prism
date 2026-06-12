@@ -178,6 +178,13 @@ name = "td_wv1_04_binary_tls_e2e"
 path = "tests/td_wv1_04_binary_tls_e2e.rs"
 required-features = ["dtu", "tls"]
 
+# S-DEMO-DTU-LIVE-SCENARIO-001-B: Red Gate tests 9-11, 15 (BC-2.06.019)
+# Cross-DTU coherence + guard-order test (E-DEMO-002 before E-DEMO-004)
+[[test]]
+name = "bc_2_06_019_scenario_progression"
+path = "tests/bc_2_06_019_scenario_progression.rs"
+required-features = ["dtu", "fixture-gen"]
+
 [dev-dependencies]
 reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-features = false }
 serde_json = "1"

@@ -157,5 +157,12 @@ name = "f_p3_high_002_route_output_tests"
 path = "tests/f_p3_high_002_route_output_tests.rs"
 required-features = ["dtu", "fixture-gen"]
 
+# S-DEMO-DTU-LIVE-SCENARIO-001-B: Red Gate test 8 (BC-2.06.019 PC-4)
+# HTTP-level StageMask projection — containment_status per stage
+[[test]]
+name = "bc_2_06_019_scenario_progression"
+path = "tests/bc_2_06_019_scenario_progression.rs"
+required-features = ["dtu", "fixture-gen"]
+
 [lints]
 workspace = true

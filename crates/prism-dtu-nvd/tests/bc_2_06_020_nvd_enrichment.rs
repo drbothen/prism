@@ -67,7 +67,7 @@ async fn test_BC_2_06_020_nvd_cve_correlation_high_cvss_base_score() {
     clone.start().await.expect("NvdClone start must succeed");
 
     let base_url = clone.base_url();
-    let client = reqwest::Client::new();
+    let client = prism_dtu_common::build_test_client();
 
     // Query for the first scenario CVE.
     let cve_id = &catalog.device_cves[0];
