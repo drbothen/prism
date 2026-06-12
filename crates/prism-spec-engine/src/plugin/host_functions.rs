@@ -131,11 +131,20 @@ pub fn host_http_request(
         .build()
     {
         Ok(rt) => rt.block_on(do_http_request(state, method, url, &headers, body)),
-        Err(e) => HttpResponse {
-            status: 500,
-            headers: vec![],
-            body: format!("runtime error: {}", e).into_bytes(),
-        },
+        Err(e) => {
+            // SEC-004 (CWE-209): route error detail to debug-level tracing only —
+            // do NOT surface tokio runtime build errors (OS detail) to the plugin sandbox.
+            debug!(
+                plugin_id = %state.plugin_id,
+                error = %e,
+                "host_http_request: tokio runtime build failed (current-thread fallback)"
+            );
+            HttpResponse {
+                status: 500,
+                headers: vec![],
+                body: b"runtime error".to_vec(),
+            }
+        }
     };
 
     let elapsed_ms = start.elapsed().as_millis() as u64;
@@ -244,11 +253,21 @@ async fn do_http_request(
                     headers: vec![],
                     body: b"request timeout".to_vec(),
                 },
-                Err(e) => HttpResponse {
-                    status: 500,
-                    headers: vec![],
-                    body: format!("body read error: {}", e).into_bytes(),
-                },
+                Err(e) => {
+                    // SEC-004 (CWE-209): route reqwest error detail to debug-level
+                    // tracing only — do NOT surface host network topology, TLS detail,
+                    // or OS error text to the partially-trusted plugin sandbox.
+                    debug!(
+                        plugin_id = %state.plugin_id,
+                        error = %e,
+                        "host_http_request: mid-body read failure after successful response status"
+                    );
+                    HttpResponse {
+                        status: 500,
+                        headers: vec![],
+                        body: b"body read error".to_vec(),
+                    }
+                }
             }
         }
         Err(e) => {
@@ -259,10 +278,17 @@ async fn do_http_request(
                     body: b"request timeout".to_vec(),
                 }
             } else {
+                // SEC-004 (CWE-209): route reqwest send-error detail to debug-level
+                // tracing only — URL/topology/TLS detail must not reach the plugin sandbox.
+                debug!(
+                    plugin_id = %state.plugin_id,
+                    error = %e,
+                    "host_http_request: send failed (non-timeout)"
+                );
                 HttpResponse {
                     status: 500,
                     headers: vec![],
-                    body: format!("request error: {}", e).into_bytes(),
+                    body: b"request error".to_vec(),
                 }
             }
         }

@@ -1082,6 +1082,16 @@ fn test_F6_body_read_failure_maps_to_synthetic_error_status() {
         !resp.body.is_empty(),
         "F6: synthetic error response must carry a diagnostic body, not be empty"
     );
+    // SEC-004 (CWE-209): the error body MUST NOT contain reqwest error detail
+    // (URL topology, TLS info, OS error text). A partially-trusted WASM plugin
+    // must not be able to use error messages to probe the host network topology.
+    // After the fix, the body is the static string "body read error" — no dynamic content.
+    let body_str = String::from_utf8_lossy(&resp.body);
+    assert!(
+        !body_str.contains("tcp") && !body_str.contains("://") && !body_str.contains("error:"),
+        "SEC-004 (CWE-209): body-read-failure body MUST NOT contain reqwest error \
+         detail (URL/topology/TLS leakage to plugin sandbox); got: {body_str:?}"
+    );
 }
 
 /// F6: a non-UTF8 header value must be decoded lossily (invalid bytes become

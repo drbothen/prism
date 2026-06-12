@@ -1466,10 +1466,13 @@ async fn emit_tool_audit(
         .copied()
         .unwrap_or(ToolClass::ReadTool);
     // Structured tracing emission — BC-2.16.002 catalog row: mcp.tool.called
+    // SEC-006 (LOW): use display format matching the durable payload sentinel
+    // ("MISSING" when absent) rather than debug format ("Some(\"acme\")" / "None")
+    // which differs from the durable audit record and leaks the Option wrapper.
     tracing::info!(
         event_type = "mcp.tool.called",
         tool_name = %tool,
-        client_id = ?client_id,
+        client_id = %client_id.unwrap_or("MISSING"),
         outcome = %outcome,
         "MCP tool invocation audit (BC-2.05.001)"
     );
