@@ -1014,3 +1014,149 @@ fn test_BC_2_06_019_e_demo_003_archetype_fixture_set_contradiction() {
          org_id is provided so E-DEMO-004 must NOT appear. Got: '{err_str_d2}'"
     );
 }
+
+// ---------------------------------------------------------------------------
+// NEW TEST (B-P4-01) — test_BC_2_06_019_guard_order_e_demo_003_before_e_demo_004
+//
+// Architecture Compliance Rules (story spec AC-017 + guard order):
+//   E-DEMO-002 → E-DEMO-003 → E-DEMO-004, all before any constructor.
+//
+// This is the SIBLING of the B-P1-03 fix (which covered 002→004 order).
+// B-P4-01 covers the 003→004 slot: E-DEMO-003 must fire BEFORE E-DEMO-004
+// even when org_id is missing.
+//
+// Two variants to exercise both E-DEMO-003 directions (unrecognized archetype,
+// archetype/fixture_set contradiction) each paired with org_id=None.
+//
+// Reachable violation path (pre-fix):
+//   scenario.enabled=true + scenario.archetype="bogus" + fixture_set="compromised" +
+//   org_id=None → validated_gen loop calls require_org_id → E-DEMO-004 fires;
+//   scenario_ctx E-DEMO-003 check never reached.
+//
+// FAIL mode (RED):
+//   Variant A: archetype="bogus" + org_id=None → E-DEMO-004 fires first (wrong order).
+//              err contains "E-DEMO-004" and assertion err_str.contains("E-DEMO-003") FAILS.
+//   Variant B: archetype="compromised_endpoint" + fixture_set="dormant" + org_id=None →
+//              validated_gen: fixture_set_to_archetype("dormant") → DormantTenant;
+//              DormantTenant != HealthyOtEnvironment → require_org_id fires E-DEMO-004.
+//              E-DEMO-003 contradiction check never reached.
+//
+// BC-2.06.019 EC-019-012 / AC-017 / Architecture Compliance Rules guard order.
+// ---------------------------------------------------------------------------
+#[cfg(feature = "fixture-gen")]
+#[test]
+fn test_BC_2_06_019_guard_order_e_demo_003_before_e_demo_004() {
+    // Variant A: scenario.archetype = "bogus" (unrecognized) + org_id = None.
+    // E-DEMO-003 (unrecognized archetype) must fire before E-DEMO-004 (missing org_id).
+    // Pre-fix: validated_gen hits require_org_id for CompromisedEndpoint (from fixture_set
+    // "compromised") with org_id=None → E-DEMO-004 fires before the scenario_ctx block.
+    let config_a = {
+        let mut config = DemoConfig::default();
+        config.clones.crowdstrike.enabled = true;
+        config.clones.crowdstrike.seed = 42;
+        config.clones.crowdstrike.org_id = None; // missing → E-DEMO-004 if order is wrong
+        config.clones.crowdstrike.fixture_set = "compromised".to_string(); // → CompromisedEndpoint
+        config.clones.crowdstrike.scenario = Some(prism_dtu_demo_server::config::ScenarioConfig {
+            enabled: true,
+            archetype: "bogus_archetype_string".to_string(), // unrecognized → E-DEMO-003
+            scenario_start_secs: None,
+            stage_duration_secs: vec![],
+        });
+        config.clones.claroty.enabled = false;
+        config.clones.cyberint.enabled = false;
+        config.clones.armis.enabled = false;
+        config.clones.threatintel.enabled = false;
+        config.clones.nvd.enabled = false;
+        config
+    };
+
+    // build_clone_pairs must return Err. The error must be E-DEMO-003, not E-DEMO-004.
+    // FAIL: pre-fix code emits E-DEMO-004 (validated_gen/require_org_id fires first).
+    let result_a = build_clone_pairs(&config_a);
+
+    assert!(
+        result_a.is_err(),
+        "B-P4-01 Variant A: build_clone_pairs must return Err when scenario.archetype='bogus' \
+         (E-DEMO-003) + org_id=None (E-DEMO-004); got Ok. \
+         Architecture Compliance Rules: E-DEMO-003 must fire before E-DEMO-004. \
+         [RED GATE: function returns Ok — neither guard reached]"
+    );
+
+    let err_a = result_a.err().expect("verified is_err above");
+    let err_str_a = err_a.to_string();
+
+    // FAIL: pre-fix err_str_a contains "E-DEMO-004" (fired by validated_gen), not "E-DEMO-003".
+    assert!(
+        err_str_a.contains("E-DEMO-003"),
+        "B-P4-01 Variant A: guard order E-DEMO-003 before E-DEMO-004 — error must contain \
+         'E-DEMO-003' (unrecognized archetype 'bogus_archetype_string'); got: '{err_str_a}'. \
+         Pre-fix: validated_gen/require_org_id fires E-DEMO-004 first. \
+         Architecture Compliance Rules: 002→003→004 order required. \
+         [RED GATE: E-DEMO-004 fires before E-DEMO-003 — guard order wrong]"
+    );
+
+    assert!(
+        !err_str_a.contains("E-DEMO-004"),
+        "B-P4-01 Variant A: error must NOT contain 'E-DEMO-004' — E-DEMO-003 must fire first; \
+         got: '{err_str_a}'"
+    );
+
+    // Variant B: scenario.archetype="compromised_endpoint" + fixture_set="dormant" +
+    // org_id=None. Direction 2 contradiction (DormantTenant vs CompromisedEndpoint) +
+    // missing org_id. E-DEMO-003 must fire before E-DEMO-004.
+    // Pre-fix: validated_gen: fixture_set_to_archetype("dormant") → DormantTenant;
+    // DormantTenant != HealthyOtEnvironment → require_org_id fires E-DEMO-004.
+    // The scenario_ctx contradiction check never runs.
+    let config_b = {
+        let mut config = DemoConfig::default();
+        config.clones.crowdstrike.enabled = true;
+        config.clones.crowdstrike.seed = 42;
+        config.clones.crowdstrike.org_id = None; // missing → E-DEMO-004 if order is wrong
+        config.clones.crowdstrike.fixture_set = "dormant".to_string(); // → DormantTenant
+        config.clones.crowdstrike.scenario = Some(prism_dtu_demo_server::config::ScenarioConfig {
+            enabled: true,
+            archetype: "compromised_endpoint".to_string(), // contradicts DormantTenant → E-DEMO-003
+            scenario_start_secs: None,
+            stage_duration_secs: vec![],
+        });
+        config.clones.claroty.enabled = false;
+        config.clones.cyberint.enabled = false;
+        config.clones.armis.enabled = false;
+        config.clones.threatintel.enabled = false;
+        config.clones.nvd.enabled = false;
+        config
+    };
+
+    // build_clone_pairs must return Err. The error must be E-DEMO-003, not E-DEMO-004.
+    // FAIL: pre-fix code emits E-DEMO-004 from validated_gen (DormantTenant + org_id=None
+    // triggers require_org_id) before the scenario_ctx contradiction check runs.
+    let result_b = build_clone_pairs(&config_b);
+
+    assert!(
+        result_b.is_err(),
+        "B-P4-01 Variant B: build_clone_pairs must return Err when \
+         scenario.archetype='compromised_endpoint' + fixture_set='dormant' (→ DormantTenant, \
+         Direction 2 contradiction) + org_id=None; got Ok. \
+         Architecture Compliance Rules: E-DEMO-003 must fire before E-DEMO-004. \
+         [RED GATE: function returns Ok — neither guard reached]"
+    );
+
+    let err_b = result_b.err().expect("verified is_err above");
+    let err_str_b = err_b.to_string();
+
+    // FAIL: pre-fix err_str_b contains "E-DEMO-004" (validated_gen fires it), not "E-DEMO-003".
+    assert!(
+        err_str_b.contains("E-DEMO-003"),
+        "B-P4-01 Variant B: guard order E-DEMO-003 before E-DEMO-004 — error must contain \
+         'E-DEMO-003' (Direction 2: DormantTenant contradicts CompromisedEndpoint scenario); \
+         got: '{err_str_b}'. Pre-fix: validated_gen fires E-DEMO-004 first (DormantTenant + \
+         org_id=None). Architecture Compliance Rules: 002→003→004 order required. \
+         [RED GATE: E-DEMO-004 fires before E-DEMO-003 — guard order wrong]"
+    );
+
+    assert!(
+        !err_str_b.contains("E-DEMO-004"),
+        "B-P4-01 Variant B: error must NOT contain 'E-DEMO-004' — E-DEMO-003 must fire first; \
+         got: '{err_str_b}'"
+    );
+}

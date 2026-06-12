@@ -341,12 +341,12 @@ pub fn build_clone_pairs(config: &DemoConfig) -> anyhow::Result<Vec<ClonePair>> 
     use prism_dtu_threatintel::ThreatIntelClone;
 
     // ---------------------------------------------------------------------------
-    // B-P1-03 fix: E-DEMO-002 (seed mismatch) must fire BEFORE E-DEMO-004 (missing
-    // org_id). Architecture Compliance Rules (story spec): guard order is
-    // E-DEMO-002 → E-DEMO-003 → E-DEMO-004, all before any constructor.
+    // B-P1-03 + B-P4-01 fix: Architecture Compliance Rules (story spec AC-017):
+    // guard order is E-DEMO-002 → E-DEMO-003 → E-DEMO-004, all before any constructor.
     //
-    // This block runs before `validated_gen` (which checks E-DEMO-004) so that
-    // seed-mismatch is detected first even when org_id is also missing.
+    // This block (E-DEMO-002 prescan) runs first, before the E-DEMO-003 prescan
+    // and before `validated_gen` (which checks E-DEMO-004), so that seed-mismatch
+    // is detected first even when org_id and/or scenario archetype are also invalid.
     // ---------------------------------------------------------------------------
     #[cfg(feature = "fixture-gen")]
     {
@@ -383,6 +383,71 @@ pub fn build_clone_pairs(config: &DemoConfig) -> anyhow::Result<Vec<ClonePair>> 
                         seed
                     );
                 }
+            }
+        }
+    }
+
+    // ---------------------------------------------------------------------------
+    // B-P4-01 fix: E-DEMO-003 (bad scenario archetype) must fire BEFORE E-DEMO-004
+    // (missing org_id). Architecture Compliance Rules (story spec): guard order is
+    // E-DEMO-002 → E-DEMO-003 → E-DEMO-004, all before any constructor.
+    //
+    // This prescan runs BEFORE `validated_gen` (which checks E-DEMO-004) so that
+    // unrecognized/unsupported/contradictory scenario archetypes are detected first
+    // even when org_id is also missing.
+    // Mirrors the E-DEMO-002 prescan pattern above (lines 351-388).
+    // ---------------------------------------------------------------------------
+    #[cfg(feature = "fixture-gen")]
+    {
+        let gen_clones_e003_prescan: [(&'static str, &CloneConfig); 4] = [
+            ("crowdstrike", &config.clones.crowdstrike),
+            ("armis", &config.clones.armis),
+            ("claroty", &config.clones.claroty),
+            ("cyberint", &config.clones.cyberint),
+        ];
+        for (name, cfg) in &gen_clones_e003_prescan {
+            if !cfg.enabled {
+                continue;
+            }
+            let sc = match cfg.scenario.as_ref() {
+                Some(s) if s.enabled => s,
+                _ => continue,
+            };
+            // Validate scenario.archetype string; unrecognized → E-DEMO-003.
+            let scenario_archetype = match sc.archetype.as_str() {
+                "compromised_endpoint" => prism_dtu_common::Archetype::CompromisedEndpoint,
+                "healthy" => prism_dtu_common::Archetype::HealthyOtEnvironment,
+                other => anyhow::bail!(
+                    "demo-server: E-DEMO-003: clone '{}': unrecognized scenario archetype \
+                     '{}'; valid values: compromised_endpoint, healthy",
+                    name,
+                    other
+                ),
+            };
+            // Direction 1: only CompromisedEndpoint supports scenario progression.
+            if !matches!(
+                scenario_archetype,
+                prism_dtu_common::Archetype::CompromisedEndpoint
+            ) {
+                anyhow::bail!(
+                    "demo-server: E-DEMO-003: clone '{}': unrecognized scenario archetype \
+                     '{}'; valid values: compromised_endpoint, healthy",
+                    name,
+                    sc.archetype.as_str()
+                );
+            }
+            // Direction 2: scenario.archetype must agree with fixture_set-derived archetype.
+            // fixture_set_to_archetype is callable without org_id (no E-DEMO-004 risk).
+            // If fixture_set is invalid, E-DEMO-001 fires here (before E-DEMO-003/004) —
+            // that is the correct order since an invalid fixture_set makes the comparison moot.
+            let fixture_archetype = fixture_set_to_archetype(&cfg.fixture_set, name)?;
+            if fixture_archetype != scenario_archetype {
+                anyhow::bail!(
+                    "demo-server: E-DEMO-003: clone '{}': unrecognized scenario archetype \
+                     '{}'; valid values: compromised_endpoint, healthy",
+                    name,
+                    sc.archetype.as_str()
+                );
             }
         }
     }
