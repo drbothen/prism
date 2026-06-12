@@ -726,10 +726,11 @@ const DEFAULT_SEED: u64 = 42;
 /// admin token so `inject_failure` continues to work via the harness's
 /// `POST /dtu/configure` path (which the Claroty router handles natively).
 ///
-/// # Device ID prefixing (BC-3.5.001 postcondition 2)
+/// # Device ID prefixing (BC-3.5.001 postcondition 1)
 ///
 /// When `seed != DEFAULT_SEED` (42), device IDs are prefixed with `org_slug`
-/// so that multi-org harnesses return pairwise-disjoint ID sets.
+/// (postcondition 1: prefix-scoping property) so that multi-org harnesses return
+/// pairwise-disjoint ID sets (postcondition 2: disjointness property).
 /// Single-tenant tests use the default seed and get raw fixture IDs
 /// (e.g. `"asset-001"`) so named-ID assertions continue to pass.
 ///

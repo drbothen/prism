@@ -9,12 +9,13 @@
 //! Provides a complete CrowdStrike Falcon API behavioral clone that integrates
 //! with the harness lifecycle (`start_clone`, `inject_failure`, `reset`).
 //!
-//! # Org-scoped ID generation (D-059, BC-3.5.001 postcondition 2)
+//! # Org-scoped ID generation (D-059, BC-3.5.001 postcondition 1)
 //!
 //! Detection and host IDs are generated as `det-{org_slug}-{seed}-{index}` and
-//! `h-{org_slug}-{seed}-{index}` respectively. This guarantees that two orgs
-//! with different slugs always produce pairwise-disjoint ID sets, satisfying
-//! BC-3.5.001 postcondition 2 (TV-2) without relying on static fixtures.
+//! `h-{org_slug}-{seed}-{index}` respectively. The org-slug prefix satisfies
+//! BC-3.5.001 postcondition 1 (prefix-scoping property), guaranteeing that two
+//! orgs with different slugs always produce pairwise-disjoint ID sets, satisfying
+//! BC-3.5.001 postcondition 2 (disjointness property; TV-2) without relying on static fixtures.
 //!
 //! # Session registry (BC-3.2.003, D-048)
 //!

@@ -1530,7 +1530,7 @@ async fn force_clone_non_string_panic(
 /// BC-3.5.001 Postcondition 1 — Armis GET /api/v1/search returns org-scoped device IDs.
 ///
 /// Two distinct non-`test-tenant` orgs each query `GET /api/v1/search?aql=in:devices`.
-/// The returned `device_id` sets must be pairwise disjoint (BC-3.5.001 postcondition 1).
+/// The returned `device_id` sets must be pairwise disjoint (BC-3.5.001 postcondition 2).
 ///
 /// Previously `get_search` returned `DEVICES_FIXTURE` verbatim (no scoping) while
 /// `get_devices` (paginated) correctly applied `state.scope_device_id`. This caused
@@ -1570,8 +1570,10 @@ async fn test_BC_3_5_001_armis_search_device_ids_disjoint_across_orgs() {
 
     assert!(
         shared.is_empty(),
-        "BC-3.5.001 Postcondition 1 / P23-02: acme-corp and globex Armis search \
-         device_id sets must be disjoint (get_search must scope IDs like get_devices). \
+        "BC-3.5.001 Postconditions 1, 2 / P23-02: acme-corp and globex Armis search \
+         device_id sets must be disjoint — postcondition 1 (prefix-scoping) ensures each \
+         org's IDs carry its namespace prefix; postcondition 2 (disjointness) requires \
+         the intersection be empty (get_search must scope IDs like get_devices). \
          Shared IDs: {:?}",
         shared
     );
