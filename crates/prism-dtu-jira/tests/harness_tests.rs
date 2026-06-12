@@ -3,7 +3,8 @@
 //! # Behavioral contracts
 //!
 //! - BC-3.2.004: Shared-Mode DTU Tags OrgId in Payload Body Not in Routing Headers
-//! - BC-3.3.001: DTU Mode Policy (startup EC-003: MSSP Coordination types permit client override)
+//! - BC-3.2.005: DTU Mode is Deployment-Time Config (EC-002: MSSP Coordination types permit
+//!   client-mode override; ADR-007 §2.2 mode semantics. BC-3.3.001 retired per ADR-037.)
 //! - BC-3.5.001: Harness Logical Isolation Invariants
 //!
 //! # Test catalog (migrated from existing tests + new AC tests)
@@ -1788,15 +1789,16 @@ async fn ac_multi_org_logical_isolation_shared_mode() {
     );
 }
 
-/// AC-007 / EC-003 (S-3.4.05): `CustomerSpec` with `mode = "client"` for Jira does NOT
-/// produce a startup error (BC-3.3.001-startup EC-003: MSSP Coordination types permit
-/// client mode override).
+/// AC-007 (S-3.4.05) / BC-3.2.005 EC-002: `CustomerSpec` with `mode = "client"` for Jira
+/// does NOT produce a startup error (BC-3.2.005 EC-002: MSSP Coordination types permit
+/// client mode override; ADR-007 §2.2 mode semantics).
 ///
 /// RED GATE: This test verifies that `HarnessBuilder::build()` returns `Ok` — which
 /// requires `DtuType::Jira` to be wired into the clone-server dispatch.
 ///
 /// Traces to: BC-3.5.001 precondition 2 (valid customer registered);
-///            BC-3.3.001-startup EC-003; S-3.4.05 AC-007.
+///            BC-3.2.005 EC-002 (surviving mode-semantics contract; BC-3.3.001
+///            retired per ADR-037); S-3.4.05 AC-007.
 #[tokio::test]
 async fn ac_client_mode_override_does_not_produce_startup_error() {
     let harness_result = HarnessBuilder::new()
@@ -1809,7 +1811,7 @@ async fn ac_client_mode_override_does_not_produce_startup_error() {
 
     assert!(
         harness_result.is_ok(),
-        "BC-3.3.001 EC-003: HarnessBuilder with DtuType::Jira must NOT produce a startup \
+        "BC-3.2.005 EC-002: HarnessBuilder with DtuType::Jira must NOT produce a startup \
          error; got: {:?}",
         harness_result.err()
     );
@@ -1829,6 +1831,6 @@ async fn ac_client_mode_override_does_not_produce_startup_error() {
     assert_eq!(
         resp.status().as_u16(),
         200,
-        "BC-3.3.001 EC-003: Jira clone health check must return 200 after clean startup"
+        "BC-3.2.005 EC-002: Jira clone health check must return 200 after clean startup"
     );
 }

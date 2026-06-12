@@ -37,18 +37,17 @@ pub fn map_prism_error(err: PrismError) -> (i32, String) {
             format!("Invalid parameter for tool '{tool}': {detail}"),
         ),
 
-        // E-QUERY-004: Query timeout → -32001 Timeout
+        // E-QUERY-004: Query timeout → -32001 Timeout (taxonomy v1.69 assignment;
+        // pre-v1.69 the timeout condition was mislabeled E-QUERY-005, which is
+        // the materialization limit)
         PrismError::QueryTimeout { .. } => (codes::TIMEOUT, "Query timeout exceeded".to_owned()),
 
-        // E-FLAG-001: Capability denied → -32002 Forbidden
+        // E-FLAG-001 (runtime tier) / E-FLAG-002 (compile tier): capability
+        // denied → -32002 Forbidden. Both tiers surface as CapabilityDenied
+        // (BC-2.04.015; P2-03 2026-06-10 review pass-2 — the spec-unbacked
+        // FeatureFlagDisabled variant was removed from PrismError).
         // Display includes full context per BC-2.10.007.
         PrismError::CapabilityDenied { .. } => (codes::FORBIDDEN, format!("{err}")),
-
-        // E-FLAG-002: Feature flag disabled → -32002 Forbidden
-        PrismError::FeatureFlagDisabled { flag } => (
-            codes::FORBIDDEN,
-            format!("Feature flag denied: flag '{flag}' is disabled; write operations are locked"),
-        ),
 
         // E-FLAG-010: Feature flag eval error → -32002 Forbidden
         PrismError::FeatureFlagEvalError { flag, detail } => (
@@ -91,11 +90,11 @@ pub fn map_prism_error(err: PrismError) -> (i32, String) {
             (codes::INVALID_PARAMS, format!("MCP tool not found: {tool}"))
         }
 
-        // E-QUERY-007: Limit exceeded → -32602 Invalid params (validation failure)
-        PrismError::QueryLimitExceeded { requested, max } => (
-            codes::INVALID_PARAMS,
-            format!("Invalid parameter: limit {requested} exceeds maximum of {max}"),
-        ),
+        // E-QUERY-033: Limit exceeded → -32602 Invalid params (validation failure).
+        // The variant Display IS the taxonomy v1.70 verbatim Message Format
+        // ("E-QUERY-033: limit {requested} exceeds maximum of {max} (BC-2.11.001)")
+        // mandated by the BC-2.11.001 Error Cases row — do not re-format here.
+        PrismError::QueryLimitExceeded { .. } => (codes::INVALID_PARAMS, format!("{err}")),
 
         // E-QUERY-003: Query security limit exceeded → -32602 Invalid params
         // (error-taxonomy.md v1.72 / ADR-038 v1.3 §P5-02). Caller-resolvable:
@@ -318,11 +317,16 @@ pub fn map_prism_error(err: PrismError) -> (i32, String) {
             "Internal error; see audit log".to_owned(),
         ),
 
-        // E-AUDIT-001: Audit persistence failure → -32000 Internal
-        PrismError::AuditPersistenceFailed => (
-            codes::INTERNAL_ERROR,
-            "Internal error; see audit log".to_owned(),
-        ),
+        // E-AUDIT-001: Audit persistence failure → -32000 Internal.
+        // The variant Display IS the taxonomy-verbatim structured error
+        // ("E-AUDIT-001: Audit emission failed; write operation blocked. Retry
+        // the operation. ...") mandated by the BC-2.05.001 DEC-014 fail-closed
+        // contract: write-classified tools abort with this structured error
+        // when audit emission fails (P5-02, 2026-06-10 review pass-5). Surfaced
+        // verbatim (not the generic internal-error suppression): the message
+        // carries no sensitive detail and the agent caller needs the code +
+        // retry suggestion to act on the transient, retryable condition.
+        PrismError::AuditPersistenceFailed => (codes::INTERNAL_ERROR, format!("{err}")),
 
         // E-INFUSE-*: Infusion errors → -32000 Internal
         PrismError::Infusion(_) => (

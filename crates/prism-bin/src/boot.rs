@@ -2116,37 +2116,215 @@ pub async fn step7_init_storage(
 /// close the write-tool registration window (ADR-026 §D7; ADR-022 §B step 7.5/8).
 /// This is the sole load-bearing act of this step (implemented in S-3.02-FOLLOWUP-RUNTIME, PR #162).
 ///
-/// QueryEngine + WriteExecutor construction and wiring into PrismServer is
-/// performed by S-5.01-FOLLOWUP-MCP-BOOT (boot step 9), which is the first
-/// consumer of the constructed engine.
+/// QueryEngine + WriteExecutor construction and wiring into PrismServer happen
+/// in boot step 9 (`step9_start_mcp_server`, implemented by the merged
+/// S-5.01-FOLLOWUP-MCP-BOOT story), which is the first consumer of the
+/// constructed engine.
 ///
-/// # AdapterRegistry assertion (S-5.01-FOLLOWUP-MCP-BOOT)
+/// # Empty AdapterRegistry handling (BC-2.22.001 AC-006)
 ///
-/// When step 9 (S-5.01-FOLLOWUP-MCP-BOOT) constructs the QueryEngine, the FIRST
-/// thing it must do is verify the `AdapterRegistry` contains at least one adapter
-/// before serving queries. Without this assertion, a silent `init_registry_for_org`
-/// failure would propagate as silent empty results across all queries (regressing
-/// ADV-W3MT-P58-LOW-002 fix).
+/// The non-empty `AdapterRegistry` assertion once promised here for step 9 was
+/// SUPERSEDED: TD-S-PLUGIN-PREREQ-A-004 was closed-as-superseded by BC-2.22.001
+/// AC-006 (architect ratification:
+/// `.factory/proposals/TD-S-PLUGIN-PREREQ-A-004-close-as-superseded-ratification.md`).
+/// Per AC-006, an empty spec catalog at boot step 9A
+/// (`step9a_populate_adapter_registry`) emits the explicit structured event
+/// `boot.step9a.adapter_registry_populated` with `sensor_count = 0` /
+/// `org_count = 0` and boot CONTINUES BY DESIGN — a zero-sensor analyst
+/// session is a valid, observable state, not a fatal one. A fatal-on-empty
+/// assertion would contradict the active contract (spec wins, Source-of-Truth
+/// Precedence Rule 7).
 ///
-/// Defense-in-depth: `materialization.rs` retains `is_empty()` short-circuit
-/// (test-mode aware) until this assertion is enforced in S-5.01-FOLLOWUP-MCP-BOOT.
+/// The accepted defense against silent empty results (the TD's underlying
+/// intent, ADV-W3MT-P58-LOW-002) is the materialization short-circuit:
+/// `materialization.rs` `is_empty()` prevents an empty registry from
+/// masquerading as a successful fan-out.
 pub async fn step8_init_query_engine() -> Result<(), BootError> {
     // Mark query phase started as the FIRST act of step 8, before QueryEngine construction.
     // This permanently closes the write-tool registration window (ADR-026 §D7; ADR-022 §B step 7.5/8).
     // F-LP56-HIGH-001 adjudication: this is the sole permitted boot.rs change in S-PLUGIN-PREREQ-E.
     prism_query::invalidation::mark_query_phase_started();
 
-    // QueryEngine + WriteExecutor construction: S-5.01-FOLLOWUP-MCP-BOOT.
-    // Requires Arc<RocksDbBackend>, Arc<AdapterRegistry>, Arc<OcsfNormalizer>,
-    // Arc<ClientRegistry>, Arc<dyn CredentialResolver>, and Arc<OrgRegistry> —
-    // all of which live in BootContext / RunningServer and are threaded into
-    // step 9 by run_boot_sequence when S-5.01-FOLLOWUP-MCP-BOOT implements it.
+    // QueryEngine + WriteExecutor construction happens in step 9
+    // (S-5.01-FOLLOWUP-MCP-BOOT, merged): run_boot_sequence threads
+    // Arc<RocksDbBackend>, Arc<AdapterRegistry>, Arc<OcsfNormalizer>,
+    // Arc<ClientRegistry>, Arc<dyn CredentialResolver>, and Arc<OrgRegistry>
+    // from BootContext / RunningServer into step9_start_mcp_server.
     tracing::info!(
         event_type = "boot.step8.query_engine_started",
         "boot: step 8 query-engine phase started — write-tool registration window closed \
-         (QueryEngine + WriteExecutor wired via S-5.01-FOLLOWUP-MCP-BOOT)"
+         (QueryEngine + WriteExecutor are wired in step 9, S-5.01-FOLLOWUP-MCP-BOOT)"
     );
     Ok(())
+}
+
+/// Production `AuditWriter` wired into `WriteExecutor` + `PrismServer` at boot
+/// step 9 (P1-03 2026-06-10 review pass-1: hoisted from a function-local item to
+/// module scope so the production path is unit-testable via CF readback).
+///
+/// Behavior (current, complete):
+/// - `write_intent` / `write_outcome` emit structured tracing events
+///   (`write.intent.recorded` / `write.outcome.recorded`) — the BC-2.05.001
+///   write-pipeline audit-coverage trail. `write_intent` additionally records
+///   the BC-2.05.009 capability-check fields (`capability_path`,
+///   `compile_time_enabled`, `runtime_enabled`, `result`) derived from the
+///   Phase 2 `CapabilityCheckResult` (P5-03, 2026-06-10 review pass-5).
+/// - `write_tool_call` (MCP-02, 2026-06-10 review) appends a durable
+///   key+payload envelope to the RocksDB `audit_buffer` CF via the established
+///   `prism_storage::audit_buffer::append_audit_entry` pattern (same
+///   construction as prism-audit credential_events). This durable per-call
+///   write IS the production MCP tool-call audit mechanism.
+pub struct BootAuditWriter {
+    /// RocksDB backend from boot step 6 — durable tool-call audit target.
+    storage: Arc<prism_storage::rocksdb_backend::RocksDbBackend>,
+}
+
+impl BootAuditWriter {
+    /// Construct a `BootAuditWriter` over the RocksDB backend opened in boot
+    /// step 6 (all column families, including `audit_buffer`, are already open).
+    pub fn new(storage: Arc<prism_storage::rocksdb_backend::RocksDbBackend>) -> Self {
+        BootAuditWriter { storage }
+    }
+
+    /// Derive the BC-2.05.009 capability-check audit fields
+    /// (`capability_path`, `compile_time_enabled`, `runtime_enabled`, `result`)
+    /// from the Phase 2 `CapabilityCheckResult` for the `write.intent.recorded`
+    /// emission (P5-03, 2026-06-10 review pass-5).
+    ///
+    /// Field semantics (BC-2.05.009 postconditions + deny-by-default rule):
+    /// - `Allowed`: both tiers passed → `(true, true, "permitted")`. The variant
+    ///   carries no capability path, so it is derived from the plan with the
+    ///   same hyphen→underscore sanitization `WriteExecutor::execute` applied
+    ///   when it built the path for evaluation (`sensor.{sensor}.{verb}`).
+    /// - `DeniedCompileTime`: compile tier denied; the runtime tier is never
+    ///   reached → `(false, false, "denied")` (deny-by-default records the
+    ///   unevaluated tier as not enabled).
+    /// - `DeniedRuntime`: the runtime tier is only evaluated after the compile
+    ///   tier passes → `(true, false, "denied")`.
+    pub fn capability_audit_fields(
+        plan: &prism_query::WritePlan,
+        capability_check: &prism_security::feature_flag::CapabilityCheckResult,
+    ) -> (String, bool, bool, &'static str) {
+        use prism_security::feature_flag::CapabilityCheckResult;
+        match capability_check {
+            CapabilityCheckResult::Allowed => {
+                let path = format!(
+                    "sensor.{}.{}",
+                    plan.sensor.replace('-', "_"),
+                    plan.verb.replace('-', "_")
+                );
+                (path, true, true, "permitted")
+            }
+            CapabilityCheckResult::DeniedCompileTime { capability, .. } => {
+                (capability.clone(), false, false, "denied")
+            }
+            CapabilityCheckResult::DeniedRuntime { capability, .. } => {
+                (capability.clone(), true, false, "denied")
+            }
+        }
+    }
+}
+
+#[async_trait::async_trait]
+impl prism_query::write_dispatch::AuditWriter for BootAuditWriter {
+    async fn write_intent(
+        &self,
+        plan: &prism_query::WritePlan,
+        _context: &prism_query::QueryContext,
+        capability_check: &prism_security::feature_flag::CapabilityCheckResult,
+    ) -> Result<ulid::Ulid, prism_core::error::PrismError> {
+        let id = ulid::Ulid::new();
+        // P5-03 (2026-06-10 review pass-5): record the BC-2.05.009 capability
+        // fields in the intent emission instead of dropping the check result.
+        let (capability_path, compile_time_enabled, runtime_enabled, result) =
+            Self::capability_audit_fields(plan, capability_check);
+        tracing::info!(
+            event_type = "write.intent.recorded",
+            intent_id = %id,
+            sensor = %plan.sensor,
+            capability_path = %capability_path,
+            compile_time_enabled,
+            runtime_enabled,
+            result = %result,
+            "write intent recorded (BC-2.05.001 tracing audit coverage; \
+             BC-2.05.009 capability fields)"
+        );
+        Ok(id)
+    }
+    async fn write_outcome(
+        &self,
+        intent_id: ulid::Ulid,
+        result: &prism_query::WriteResult,
+    ) -> Result<(), prism_core::error::PrismError> {
+        tracing::info!(
+            event_type = "write.outcome.recorded",
+            intent_id = %intent_id,
+            succeeded = result.succeeded_count,
+            failed = result.failed_count,
+            "write outcome recorded (BC-2.05.001 tracing audit coverage)"
+        );
+        Ok(())
+    }
+
+    /// MCP-02 (2026-06-10 review): durable MCP tool-call audit record.
+    ///
+    /// Appends a lightweight key+payload envelope to the `audit_buffer` CF
+    /// (BC-2.05.001 / CRIT-005), following the established
+    /// `prism_audit::credential_events` construction pattern.
+    ///
+    /// On `Err`, the caller (`emit_tool_audit` in `prism-mcp/src/server.rs`)
+    /// surfaces `AuditPersistenceFailed` and the outcome depends on the tool's
+    /// class as resolved by `tool_classification_registry()`:
+    ///
+    /// - **`ToolClass::WriteTool`** (e.g. `confirm_action`, `add_sensor_spec`):
+    ///   **fail-closed** — the caller returns `E-AUDIT-001` and aborts the
+    ///   operation before any mutation or token generation
+    ///   (BC-2.05.001 DEC-014).
+    /// - **`ToolClass::ReadTool`** (all other tools; the default):
+    ///   **fail-open** — the caller logs a warning and sets
+    ///   `_meta.audit_warning`; the tool call proceeds
+    ///   (BC-2.05.001 EC-05-002).
+    async fn write_tool_call(
+        &self,
+        tool_name: &str,
+        client_id: Option<&str>,
+        outcome: &str,
+    ) -> Result<(), prism_core::error::PrismError> {
+        let timestamp_ns = chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0) as u64;
+        let trace_id = uuid::Uuid::now_v7().to_string();
+        let mut payload = std::collections::BTreeMap::new();
+        payload.insert("event_type".to_owned(), "mcp.tool.called".to_owned());
+        payload.insert("tool_name".to_owned(), tool_name.to_owned());
+        // BC-2.05.002 sentinel: "MISSING" when the request carried no client_id.
+        payload.insert(
+            "client_id".to_owned(),
+            client_id.unwrap_or("MISSING").to_owned(),
+        );
+        payload.insert("outcome".to_owned(), outcome.to_owned());
+        prism_storage::audit_buffer::append_audit_entry(
+            self.storage.as_ref(),
+            &prism_storage::audit_buffer::AuditEntry {
+                timestamp_ns,
+                trace_id,
+                payload,
+            },
+        )
+        .map_err(|e| {
+            // P4-06 (2026-06-10 review pass-4): surface the storage-layer cause
+            // before collapsing to the typed E-AUDIT-001 variant. The caller
+            // (`emit_tool_audit`) only sees `AuditPersistenceFailed`, so without
+            // this log the underlying detail (e.g. StorageWriteFailed cause)
+            // would be lost to operators.
+            tracing::warn!(
+                tool_name = %tool_name,
+                error = %e,
+                "write_tool_call: audit_buffer append failed — mapping to \
+                 AuditPersistenceFailed (E-AUDIT-001); read-path tool call \
+                 proceeds with _meta.audit_warning (BC-2.05.001 EC-05-002)"
+            );
+            prism_core::error::PrismError::AuditPersistenceFailed
+        })
+    }
 }
 
 /// P1-03 interim mitigation: flush the sensor-fetch response cache on every
@@ -2204,7 +2382,7 @@ pub(crate) fn wire_config_swap_cache_flush(
             ),
             Err(e) => tracing::error!(
                 error = %e,
-                "config snapshot swapped but response-cache flush failed (E-CACHE-001) — \
+                "config snapshot swapped but response-cache flush failed — \
                  cached entries may carry stale normalization until TTL expiry; \
                  terminate and restart the query engine"
             ),
@@ -2225,7 +2403,10 @@ pub(crate) fn wire_config_swap_cache_flush(
 /// Uses RocksDbBackend from step 6 (via BootContext) as the query storage backend.
 /// Uses OrgRegistry from step 3 and CredentialStore from step 5 (CRIT-5 fix).
 /// Step 9A (S-DEMO-001): calls `step9a_populate_adapter_registry` to wire spec-driven adapters.
-/// The AuditWriter is a tracing stub until the full audit-writer integration story (S-2.04) ships.
+/// The AuditWriter (`BootAuditWriter`) writes MCP tool-call audit records durably to the
+/// RocksDB audit_buffer CF (`write_tool_call`, MCP-02 2026-06-10 review) — the durable
+/// per-call write is the production tool-call audit mechanism; write-path intent/outcome
+/// records are structured tracing events (`write.intent.recorded` / `write.outcome.recorded`).
 ///
 /// # Background task semantics
 ///
@@ -2416,6 +2597,9 @@ pub async fn step9_start_mcp_server(
     // Arc::clone before the move into QueryEngine::new_full so PrismServer::with_deps
     // can also receive the registry for alias CRUD allowlist validation.
     let org_registry_for_server = Arc::clone(&org_registry);
+    // MCP-02 (2026-06-10 review): retain storage Arc for the boot AuditWriter so
+    // MCP tool-call audit records land durably in the RocksDB audit_buffer CF.
+    let storage_for_audit = Arc::clone(&storage);
     let query_engine = Arc::new(QueryEngine::new_full(
         adapter_registry.clone(),
         // CRIT-5: real credential_store from step 5 — replaces BootNullCredentialStore.
@@ -2441,42 +2625,13 @@ pub async fn step9_start_mcp_server(
     let feature_flags = Arc::new(FeatureFlagEvaluator::new(BTreeMap::new()));
     let confirmation_store = Arc::new(ConfirmationTokenStore::new());
 
-    // TracingAuditWriter — emits structured tracing events for write audit entries.
-    // Full AuditEmitter integration via Tower layer requires S-2.04.
-    struct TracingAuditWriter;
-    #[async_trait::async_trait]
-    impl AuditWriter for TracingAuditWriter {
-        async fn write_intent(
-            &self,
-            plan: &WritePlan,
-            _context: &prism_query::QueryContext,
-            _capability_check: &CapabilityCheckResult,
-        ) -> Result<ulid::Ulid, prism_core::error::PrismError> {
-            let id = ulid::Ulid::new();
-            tracing::info!(
-                event_type = "write.intent.recorded",
-                intent_id = %id,
-                sensor = %plan.sensor,
-                "write intent recorded (BC-2.05.009 tracing audit stub)"
-            );
-            Ok(id)
-        }
-        async fn write_outcome(
-            &self,
-            intent_id: ulid::Ulid,
-            result: &WriteResult,
-        ) -> Result<(), prism_core::error::PrismError> {
-            tracing::info!(
-                event_type = "write.outcome.recorded",
-                intent_id = %intent_id,
-                succeeded = result.succeeded_count,
-                failed = result.failed_count,
-                "write outcome recorded (BC-2.05.009 tracing audit stub)"
-            );
-            Ok(())
-        }
-    }
-    let audit_writer: Arc<dyn AuditWriter> = Arc::new(TracingAuditWriter);
+    // BootAuditWriter (module-scope item below, P1-03 2026-06-10 review pass-1):
+    // write-path intent/outcome records are structured tracing events
+    // (`write.intent.recorded` / `write.outcome.recorded`); MCP tool-call records
+    // (`write_tool_call`, MCP-02 2026-06-10 review) are written DURABLY to the
+    // RocksDB audit_buffer CF — this durable per-call write IS the production
+    // tool-call audit mechanism.
+    let audit_writer: Arc<dyn AuditWriter> = Arc::new(BootAuditWriter::new(storage_for_audit));
     let write_adapter_registry = Arc::new(AdapterRegistry::new());
     let endpoint_registry = Arc::new(WriteEndpointRegistry::new());
 
@@ -2689,7 +2844,9 @@ mod tests {
     /// BC: BC-2.21.001 EC-21-001-001 — minimum org list: 1 entry is valid
     ///
     /// Verifies that OrgEntry with a valid UUID and kebab-case slug compiles.
-    /// The actual validation is in step3_init_org_registry (todo!()).
+    /// The actual validation lives in `step3_init_org_registry`, which is
+    /// implemented (it was a `todo!()` stub when this test was written —
+    /// P2-07, 2026-06-10 review pass-2 historical annotation).
     #[test]
     #[allow(non_snake_case)]
     fn test_BC_2_21_001_org_entry_with_valid_uuid_and_kebab_slug() {
@@ -2715,9 +2872,10 @@ mod tests {
     /// Story: S-WAVE5-PREP-01
     /// BC: BC-2.21.001 EC-21-001-004 — org_slug with uppercase fails kebab validation
     ///
-    /// Demonstrates the malformed-slug detection that step3_init_org_registry
-    /// must implement. This test exercises the OrgEntry type (not the validator,
-    /// which is todo!() in step 3).
+    /// Demonstrates the malformed-slug detection that `step3_init_org_registry`
+    /// implements. This test exercises the OrgEntry type directly (the step-3
+    /// validator was a `todo!()` stub when this test was written; it is
+    /// implemented now — P2-07, 2026-06-10 review pass-2 historical annotation).
     #[test]
     #[allow(non_snake_case)]
     fn test_BC_2_21_001_malformed_slug_fails_kebab_check() {

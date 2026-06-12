@@ -64,6 +64,40 @@ use crate::{
     types::{CustomerSpec, DtuType, IsolationMode, OrgKey},
 };
 
+/// Build the harness-wide `reqwest::Client` used for clone admin calls
+/// (`POST /dtu/configure` failure injection, etc.).
+///
+/// Sets an explicit 10-second request timeout per the workspace HTTP-client
+/// timeout rule (CLAUDE.md §Conventions): a bare `reqwest::Client::new()` has
+/// an infinite default timeout, so a hung clone admin endpoint would hang the
+/// harness (and the test run) indefinitely. 10s is generous for localhost
+/// admin calls while still bounding the failure.
+///
+/// # Errors
+///
+/// Returns `HarnessError::Http` if the underlying TLS/connector initialization
+/// fails (the only failure mode of `ClientBuilder::build`).
+pub(crate) fn build_harness_http_client() -> Result<reqwest::Client, HarnessError> {
+    build_harness_http_client_with_timeout(std::time::Duration::from_secs(10))
+}
+
+/// Build the harness-wide `reqwest::Client` with an explicit timeout.
+///
+/// Used directly by tests to inject a short timeout (e.g. 1s) so the
+/// behavioral timeout assertion completes quickly rather than waiting the
+/// full 10-second production default. Production callers use
+/// [`build_harness_http_client`] which fixes the timeout at 10s.
+///
+/// # Errors
+///
+/// Returns `HarnessError::Http` if the underlying TLS/connector initialization
+/// fails (the only failure mode of `ClientBuilder::build`).
+pub(crate) fn build_harness_http_client_with_timeout(
+    timeout: std::time::Duration,
+) -> Result<reqwest::Client, HarnessError> {
+    Ok(reqwest::Client::builder().timeout(timeout).build()?)
+}
+
 /// Builder for constructing a [`Harness`].
 ///
 /// Created via `Harness::builder()` or `HarnessBuilder::new()`.
@@ -489,7 +523,7 @@ impl HarnessBuilder {
                     admin_tokens.insert(key, started.admin_token);
                 }
 
-                let http_client = reqwest::Client::new();
+                let http_client = build_harness_http_client()?;
 
                 let harness = Harness {
                     endpoints,
@@ -732,6 +766,18 @@ async fn build_network(builder: HarnessBuilder) -> Result<Harness, HarnessError>
                     start_armis_clone_network(listener, slug, shutdown_rx, crash_tx, counter).await
                 }
                 _ => {
+                    // MSSP Coordination DTUs (Slack, PagerDuty, Jira) are single-shared-instance
+                    // clones — one clone serves all orgs via X-Prism-Org-Id header tagging
+                    // (clones/mod.rs architecture note; BC-3.2.004). Network-mode isolation is
+                    // per-org address-based (one listener per org) and is semantically undefined
+                    // for shared-instance clones: there is no "org A endpoint" vs "org B endpoint"
+                    // to distinguish. These DTU types are intentionally logical-mode-only.
+                    //
+                    // Network-mode support for MSSP Coordination DTUs belongs to the TDE write-back
+                    // track (prism-operations; deferred per D-1072). Until that track ships, any
+                    // attempt to start Slack/PagerDuty/Jira in network mode routes here and will
+                    // serve the generic stub, which 404s on all MSSP Coordination routes — a loud
+                    // failure, not a silent one.
                     start_clone_network(
                         listener,
                         slug,
@@ -772,7 +818,7 @@ async fn build_network(builder: HarnessBuilder) -> Result<Harness, HarnessError>
         shutdown_senders.insert(key, shutdown_tx.clone());
     }
 
-    let http_client = reqwest::Client::new();
+    let http_client = build_harness_http_client()?;
 
     let harness = Harness {
         endpoints,
@@ -996,7 +1042,17 @@ fn check_bearer(
     None
 }
 
-/// Build a Network-mode axum router with bearer-token validation on device-list routes.
+/// Generic network-mode router for Security Telemetry DTU types that do not have
+/// a dedicated network router (i.e., all types except CrowdStrike, Cyberint, Armis,
+/// and Claroty). Serves device-list routes with bearer-token validation and
+/// `/dtu/{configure,health}` for failure injection.
+///
+/// **MSSP Coordination DTUs (Slack, PagerDuty, Jira) are NOT intended to use this
+/// router in production test scenarios.** They are single-shared-instance clones
+/// whose isolation mechanism is header-based (X-Prism-Org-Id), not address-based.
+/// Network-mode for MSSP Coordination is deferred to the TDE write-back track
+/// (D-1072). If one of these types reaches this function, it will 404 on all
+/// legitimate routes — this is intentional loud failure, not silent data loss.
 ///
 /// Bearer token validation logic (via `check_bearer`):
 /// - If `Authorization: Bearer <token>` is present and `<token>` ≠ `admin_token` → HTTP 401.
@@ -1143,5 +1199,68 @@ async fn start_armis_clone_network(
         handle,
         admin_token,
         state: placeholder_state,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::time::{Duration, Instant};
+
+    /// F-P10-02 (2026-06-10 review): behavioral guard — the harness HTTP client
+    /// timeout is load-bearing.  Removing `.timeout()` from
+    /// `build_harness_http_client_with_timeout` leaves this test hanging (the
+    /// connection would be accepted but the server never responds, so the request
+    /// would never resolve without a timeout bound).
+    ///
+    /// Design:
+    /// 1. Bind a local TcpListener that accepts connections but never sends
+    ///    a response (simulates a hung clone admin endpoint).
+    /// 2. Build a client with a 1-second timeout via the internal helper
+    ///    (avoids waiting the full 10s production default in CI).
+    /// 3. Assert the request fails with `err.is_timeout() == true`.
+    /// 4. Assert elapsed < 5s to catch accidental infinite-wait regressions.
+    #[tokio::test]
+    async fn test_build_harness_http_client_timeout_is_load_bearing() {
+        use tokio::net::TcpListener;
+
+        // Bind a listener that accepts the connection but never writes a response.
+        let listener = TcpListener::bind("127.0.0.1:0")
+            .await
+            .expect("bind local listener");
+        let addr = listener.local_addr().expect("listener addr");
+
+        // Accept in background — hold the connection open but send nothing.
+        tokio::spawn(async move {
+            if let Ok((_stream, _peer)) = listener.accept().await {
+                // Intentionally hold `_stream` alive and never respond,
+                // so the client hangs waiting for HTTP response bytes.
+                tokio::time::sleep(Duration::from_secs(60)).await;
+            }
+        });
+
+        let client = build_harness_http_client_with_timeout(Duration::from_secs(1))
+            .expect("build_harness_http_client_with_timeout must not fail");
+
+        let url = format!("http://{}/dtu/configure", addr);
+        let start = Instant::now();
+        let result = client.post(&url).body("{}").send().await;
+        let elapsed = start.elapsed();
+
+        // The request must time out, not succeed or fail for a different reason.
+        let err = result.expect_err("expected timeout error, got Ok");
+        assert!(
+            err.is_timeout(),
+            "expected is_timeout() == true, got: {:?}",
+            err
+        );
+
+        // Guard against regressions where the timeout bound is accidentally
+        // removed (elapsed would approach 60s in that case).
+        assert!(
+            elapsed < Duration::from_secs(5),
+            "elapsed {:?} >= 5s — timeout guard is not load-bearing",
+            elapsed
+        );
     }
 }

@@ -28,6 +28,7 @@ fn test_BC_2_09_008_envelope_has_meta_and_results_fields() {
         1,
         false,
         None,
+        None,
     );
 
     assert_eq!(envelope.meta.tool, "crowdstrike_detections");
@@ -47,6 +48,7 @@ fn test_BC_2_09_008_safety_flags_always_present_in_envelope() {
         results,
         1,
         false,
+        None,
         None,
     );
 
@@ -68,6 +70,7 @@ fn test_BC_2_09_008_safety_flags_empty_array_for_clean_records() {
         1,
         false,
         None,
+        None,
     );
     assert!(
         envelope.meta.safety_flags.is_empty(),
@@ -85,6 +88,7 @@ fn test_BC_2_09_008_meta_query_time_is_present() {
         results,
         1,
         false,
+        None,
         None,
     );
     assert!(
@@ -109,6 +113,7 @@ fn test_BC_2_09_008_meta_data_source_identifies_sensor() {
         1,
         false,
         None,
+        None,
     );
     let json = serde_json::to_value(&envelope).expect("serialize");
     assert_eq!(
@@ -131,6 +136,7 @@ fn test_BC_2_09_008_zero_results_envelope_still_present() {
         results,
         1,
         false,
+        None,
         None,
     );
     assert_eq!(
@@ -164,6 +170,7 @@ fn test_BC_2_09_008_cross_client_query_data_source_is_array() {
         1,
         false,
         None,
+        None,
     );
     let json = serde_json::to_value(&envelope).expect("serialize");
     let sources = json["_meta"]["data_source"]
@@ -194,6 +201,7 @@ fn test_BC_2_09_008_pagination_fields_present_when_paginating() {
         1,
         true,
         cursor.clone(),
+        None,
     );
     assert!(envelope.meta.has_more, "_meta.has_more must be true");
     assert_eq!(
@@ -214,6 +222,7 @@ fn test_BC_2_09_008_envelope_trust_level_is_untrusted_external() {
         results,
         1,
         false,
+        None,
         None,
     );
     assert_eq!(
@@ -236,6 +245,7 @@ fn test_BC_2_09_008_invariant_meta_and_results_are_typed_separately() {
         results.clone(),
         1,
         false,
+        None,
         None,
     );
 

@@ -183,7 +183,7 @@ pub struct AuditEntry {
     /// Empty array (not omitted) when none triggered.
     pub safety_flags: Vec<String>,
 
-    // ── Optional warning annotation (BC-2.05.008 EC-05-013) ──────────────────
+    // ── Optional warning annotation (BC-2.05.001 EC-05-002) ──────────────────
     /// Set to `"audit emission failed"` on read-op audit failure (read is not
     /// fail-closed). Absent on normal entries.
     #[serde(skip_serializing_if = "Option::is_none")]

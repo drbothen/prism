@@ -94,6 +94,15 @@ impl AuditWriter for NoOpAuditWriter {
     ) -> Result<(), PrismError> {
         Ok(())
     }
+
+    async fn write_tool_call(
+        &self,
+        _tool_name: &str,
+        _client_id: Option<&str>,
+        _outcome: &str,
+    ) -> Result<(), PrismError> {
+        Ok(())
+    }
 }
 
 /// Build a minimal in-memory `RocksStorageBackend` for use as the step-7 storage.

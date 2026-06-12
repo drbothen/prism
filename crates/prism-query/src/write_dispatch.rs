@@ -16,7 +16,7 @@
 //! - Partial batch failure does NOT abort the batch; errors go to `sensor_errors`.
 //! - Only infrastructure failures (audit, semaphore) are `Err()` returns.
 //!
-//! Story: S-3.07 | BCs: BC-2.05.009, BC-2.04.007
+//! Story: S-3.07 | BCs: BC-2.05.001, BC-2.05.009, BC-2.04.007
 
 use std::sync::Arc;
 
@@ -54,7 +54,7 @@ pub struct WriteDispatcher {
     pub(crate) write_semaphore: Arc<Semaphore>,
     /// Sensor adapter registry for write fan-out (CRIT-1: now wired in fan_out).
     pub(crate) adapter_registry: Arc<AdapterRegistry>,
-    /// Audit writer for intent and outcome persistence (BC-2.05.009).
+    /// Audit writer for intent and outcome persistence (BC-2.05.001).
     pub(crate) audit_writer: Arc<dyn AuditWriter>,
 }
 
@@ -68,7 +68,7 @@ pub struct WriteDispatcher {
 /// (AD-016 pattern). This trait is defined here (rather than in `prism-audit`)
 /// to avoid circular dependency: prism-query → prism-audit, not the reverse.
 ///
-/// # Fail-Closed Contract (BC-2.05.009)
+/// # Fail-Closed Contract (BC-2.05.001)
 /// `write_intent` MUST resolve before any sensor HTTP call. If it returns `Err`,
 /// the entire write is aborted.
 ///
@@ -90,7 +90,7 @@ pub trait AuditWriter: Send + Sync + 'static {
     /// `runtime_enabled`, `result`. This enables audit trail reconstruction of the
     /// full two-tier capability decision (BC-2.05.009 postcondition).
     ///
-    /// # Fail-Closed (BC-2.05.009)
+    /// # Fail-Closed (BC-2.05.001)
     /// If this returns `Err(PrismError::AuditPersistenceFailed)`, the dispatcher
     /// MUST abort with `E-AUDIT-001` and MUST NOT contact any sensor API.
     async fn write_intent(
@@ -108,6 +108,30 @@ pub trait AuditWriter: Send + Sync + 'static {
     /// If this returns `Err`, the failure is logged but the write result is still
     /// returned to the caller — the sensor API calls are already complete.
     async fn write_outcome(&self, intent_id: Ulid, result: &WriteResult) -> Result<(), PrismError>;
+
+    /// Write a durable audit record for an MCP tool invocation (BC-2.05.001;
+    /// CRIT-005 — every tool call must produce a structured audit entry).
+    ///
+    /// MCP-02 (2026-06-10 review): this is the durable complement to the
+    /// `mcp.tool.called` tracing emission in `prism-mcp::server::emit_tool_audit`.
+    /// `outcome` is a short machine-readable outcome tag (e.g. `"invoked"`,
+    /// `"rejected_injection"`).
+    ///
+    /// # Not fail-closed (BC-2.05.001 EC-05-002)
+    ///
+    /// Unlike `write_intent`, tool-call audit is NOT fail-closed: on `Err` the
+    /// caller logs an audit warning and the tool call proceeds — read-path
+    /// audit failure must not abort the invocation.
+    ///
+    /// This method is REQUIRED (no default impl) so that a production
+    /// `AuditWriter` cannot silently inherit a no-op and lose the durable
+    /// tool-call audit trail.
+    async fn write_tool_call(
+        &self,
+        tool_name: &str,
+        client_id: Option<&str>,
+        outcome: &str,
+    ) -> Result<(), PrismError>;
 }
 
 // ---------------------------------------------------------------------------
@@ -169,7 +193,7 @@ impl WriteDispatcher {
 
         // Phase 5 ordering per S-3.07 Task 6 spec (story file lines 222-246):
         // 5a: Audit INTENT record (fail-closed) — every write attempt produces an audit
-        //     trace, even attempts that fail at the throttle. This satisfies BC-2.05.009's
+        //     trace, even attempts that fail at the throttle. This satisfies BC-2.05.001's
         //     audit-coverage guarantee for ALL attempted writes.
         // 5b: Write semaphore acquisition — throttle protection.
         // 5c: Write fan-out — sensor API contact.
@@ -181,7 +205,7 @@ impl WriteDispatcher {
         // coverage erosion under reversed order was real (throttled attempts left no trace).
         // Reference: F-PASS2-HIGH-002 closure in fix-pass-1.
 
-        // Phase 5a: Write audit INTENT (fail-closed — BC-2.05.009)
+        // Phase 5a: Write audit INTENT (fail-closed — BC-2.05.001)
         // Every attempted write — including those that will be throttled — must produce
         // an audit trace. CRIT-4: pass capability_check so audit entry includes resolution trace.
         let intent_id = self
@@ -428,6 +452,15 @@ mod fan_out_empty_batch_tests {
         }
 
         async fn write_outcome(&self, _id: Ulid, _r: &WriteResult) -> Result<(), PrismError> {
+            Ok(())
+        }
+
+        async fn write_tool_call(
+            &self,
+            _tool_name: &str,
+            _client_id: Option<&str>,
+            _outcome: &str,
+        ) -> Result<(), PrismError> {
             Ok(())
         }
     }
