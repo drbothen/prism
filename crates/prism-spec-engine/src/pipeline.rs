@@ -3236,6 +3236,75 @@ mod timestamp_normalization_tests {
             "resolved value must contain the first_seen date; got: {s}"
         );
     }
+
+    // -----------------------------------------------------------------------
+    // F11 / SNS-04 (2026-06-10 review) — Armis-spec engagement verification
+    // -----------------------------------------------------------------------
+    /// F11 / SNS-04: the `timestamp.fallback_to_now` path ENGAGES for the
+    /// bundled armis.sensor.toml — not just for synthetic ColumnSpecs.
+    ///
+    /// Loads the production Armis TOML via `SpecLoader::parse`, extracts the
+    /// `devices` table's actual parsed columns (last_seen: Datetime with
+    /// `timestamp_fallback_chain = ["first_seen"]`), and feeds a record where
+    /// BOTH last_seen and first_seen are null. The normalization pass must
+    /// resolve last_seen to ~now() (the fallback-to-now branch — the branch
+    /// that emits `tracing::warn!(event_type = "timestamp.fallback_to_now")`,
+    /// BC-2.16.002 row 35). This pins the armis.sensor.toml comment claims to
+    /// live spec-engine behavior.
+    #[test]
+    fn test_f11_sns04_armis_devices_last_seen_fallback_engages() {
+        use chrono::{DateTime, Utc};
+
+        let toml_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../prism-sensors/specs/armis.sensor.toml");
+        let raw = std::fs::read_to_string(&toml_path)
+            .unwrap_or_else(|e| panic!("read {}: {e}", toml_path.display()));
+        // SpecLoader::parse does not perform env-var resolution (that is
+        // load_all Rule 6) — substitute the base_url token so parsing succeeds
+        // without mutating process env (set_var is unsafe in edition 2024).
+        let raw = raw.replace("${env.ARMIS_INSTANCE_URL}", "https://armis.example.com");
+        let spec = crate::spec_parser::SpecLoader::parse(&raw)
+            .expect("bundled armis.sensor.toml must parse");
+
+        let devices = spec
+            .tables
+            .iter()
+            .find(|t| t.table_name == "devices")
+            .expect("armis spec must have a 'devices' table");
+        let last_seen_col = devices
+            .columns
+            .iter()
+            .find(|c| c.name == "last_seen")
+            .expect("devices table must declare last_seen");
+        assert_eq!(
+            last_seen_col.timestamp_fallback_chain,
+            vec!["first_seen".to_string()],
+            "armis devices.last_seen must declare timestamp_fallback_chain = [\"first_seen\"] \
+             (ADR-028 §D8-B; armis.sensor.toml comment claim)"
+        );
+
+        // Both chain sources null → fallback-to-now branch must engage.
+        let records = vec![json!({"last_seen": null, "first_seen": null})];
+        let before = Utc::now();
+        let normalized = normalize_timestamp_fields(&records, &devices.columns, "armis")
+            .expect("fallback-to-now must succeed, not error");
+        let after = Utc::now();
+
+        let val = normalized[0]
+            .get("last_seen")
+            .and_then(|v| v.as_str())
+            .expect("last_seen must be a string after fallback-to-now");
+        let resolved: DateTime<Utc> = val
+            .parse()
+            .unwrap_or_else(|e| panic!("fallback value '{val}' must be RFC3339: {e}"));
+        // Secs-precision output truncates sub-second — allow 1s slack on the lower bound.
+        assert!(
+            resolved >= before - chrono::Duration::seconds(1) && resolved <= after,
+            "fallback-resolved last_seen '{val}' must be ~Utc::now() \
+             (window {before}..{after}) — proves the timestamp.fallback_to_now \
+             branch engages for the bundled Armis spec (F11 / SNS-04)"
+        );
+    }
 }
 
 // ---------------------------------------------------------------------------

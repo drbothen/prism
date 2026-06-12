@@ -49,6 +49,12 @@ name = "integration_vp033"
 path = "tests/integration_vp033.rs"
 required-features = ["dtu"]
 
+# 2026-06-10 review fix-burst: CS-01..CS-06 generator/static-fixture parity tests.
+[[test]]
+name = "review_2026_06_10_cs_parity"
+path = "tests/review_2026_06_10_cs_parity.rs"
+required-features = ["dtu", "fixture-gen"]
+
 [[test]]
 name = "integration_vp036"
 path = "tests/integration_vp036.rs"

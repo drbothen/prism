@@ -1522,3 +1522,114 @@ async fn force_clone_non_string_panic(
         .await
         .expect("POST /dtu/test-hook/non-string-panic must not fail at network level");
 }
+
+// ============================================================================
+// BC-3.5.001 — Armis GET /api/v1/search isolation (P23-02)
+// ============================================================================
+
+/// BC-3.5.001 Postcondition 1 — Armis GET /api/v1/search returns org-scoped device IDs.
+///
+/// Two distinct non-`test-tenant` orgs each query `GET /api/v1/search?aql=in:devices`.
+/// The returned `device_id` sets must be pairwise disjoint (BC-3.5.001 postcondition 2).
+///
+/// Previously `get_search` returned `DEVICES_FIXTURE` verbatim (no scoping) while
+/// `get_devices` (paginated) correctly applied `state.scope_device_id`. This caused
+/// two non-`test-tenant` orgs to receive identical `d-001..d-025` IDs via the
+/// search endpoint, violating isolation (P23-02 finding).
+#[tokio::test]
+async fn test_BC_3_5_001_armis_search_device_ids_disjoint_across_orgs() {
+    let harness = prism_dtu_harness::Harness::builder()
+        .isolation(IsolationMode::Logical)
+        .with_customer_overrides("acme-corp", |spec| {
+            spec.dtu_types = vec![DtuType::Armis];
+            spec.seed = 42;
+        })
+        .with_customer_overrides("globex", |spec| {
+            spec.dtu_types = vec![DtuType::Armis];
+            spec.seed = 43;
+        })
+        .build()
+        .await
+        .expect("two-org Armis harness build must succeed");
+
+    let acme_ids = fetch_armis_search_device_ids(&harness, "acme-corp").await;
+    let globex_ids = fetch_armis_search_device_ids(&harness, "globex").await;
+
+    assert!(
+        !acme_ids.is_empty(),
+        "acme-corp Armis search must return at least one device"
+    );
+    assert!(
+        !globex_ids.is_empty(),
+        "globex Armis search must return at least one device"
+    );
+
+    let acme_set: std::collections::HashSet<&String> = acme_ids.iter().collect();
+    let globex_set: std::collections::HashSet<&String> = globex_ids.iter().collect();
+    let shared: Vec<&&String> = acme_set.intersection(&globex_set).collect();
+
+    assert!(
+        shared.is_empty(),
+        "BC-3.5.001 Postconditions 1, 2 / P23-02: acme-corp and globex Armis search \
+         device_id sets must be disjoint — postcondition 1 (prefix-scoping) ensures each \
+         org's IDs carry its namespace prefix; postcondition 2 (disjointness) requires \
+         the intersection be empty (get_search must scope IDs like get_devices). \
+         Shared IDs: {:?}",
+        shared
+    );
+
+    // Additionally verify each org's IDs contain its own slug (VP-120 for search path)
+    for id in &acme_ids {
+        assert!(
+            id.contains("acme-corp"),
+            "BC-3.5.001: acme-corp search device_id {:?} must contain 'acme-corp'",
+            id
+        );
+    }
+    for id in &globex_ids {
+        assert!(
+            id.contains("globex"),
+            "BC-3.5.001: globex search device_id {:?} must contain 'globex'",
+            id
+        );
+    }
+}
+
+/// Fetch device_id strings from `GET /api/v1/search?aql=in:devices` for a given org.
+///
+/// The search response envelope is `{"data": {"results": [...], "total": N}}`.
+/// Each result carries `device_id` as the primary ID field.
+async fn fetch_armis_search_device_ids(
+    harness: &prism_dtu_harness::Harness,
+    slug: &str,
+) -> Vec<String> {
+    let addr = get_addr(harness, slug, DtuType::Armis);
+    let token = harness
+        .admin_token_for(slug, DtuType::Armis)
+        .expect("Armis admin token must be present");
+
+    let resp = reqwest::Client::new()
+        .get(format!("http://{addr}/api/v1/search"))
+        .query(&[("aql", "in:devices")])
+        .bearer_auth(token)
+        .send()
+        .await
+        .expect("GET /api/v1/search must not fail at transport level");
+
+    assert_eq!(
+        resp.status().as_u16(),
+        200,
+        "GET /api/v1/search must return 200 for {slug}"
+    );
+
+    let body: serde_json::Value = resp.json().await.expect("response must be valid JSON");
+    let results = body["data"]["results"]
+        .as_array()
+        .cloned()
+        .unwrap_or_default();
+
+    results
+        .iter()
+        .filter_map(|item| item["device_id"].as_str().map(|s| s.to_owned()))
+        .collect()
+}

@@ -15,6 +15,18 @@
 //! This convention must be consistent with how the CrowdStrike DTU handler reads
 //! fixture data — any change here requires a matching change in `routes/`.
 //!
+//! # Canonical record shape (F8 / CS-06, review 2026-06-10)
+//!
+//! The flat scalar key set of generated `detection` / `device` records MUST
+//! equal the flat scalar key set of the static fixtures
+//! (`fixtures/detections-detail.json` / `fixtures/hosts-detail.json`).
+//! Serving extraction is flat `r.get(col_name)` — a key present on only one
+//! path silently NULLs that column on the other path the moment a TOML column
+//! references it (the CS-01/02/03 failure class). Enforced by
+//! `tests/review_2026_06_10_cs_parity.rs::test_f8_cs06_*_shape_parity`:
+//! adding/removing a flat field here requires the matching static-fixture
+//! change in the same commit (and vice versa).
+//!
 //! # Org-tagging
 //!
 //! All IDs are prefixed with the org slug derived from the first 8 hex chars of
@@ -26,7 +38,7 @@
 
 use prism_core::SensorId;
 use prism_dtu_common::generator::{
-    default_page_size, Archetype, FixtureSet, GenOpts, OrgId, Provenance,
+    default_page_size, stable_offset, Archetype, FixtureSet, GenOpts, OrgId, Provenance,
 };
 use serde_json::{json, Value};
 
@@ -117,10 +129,11 @@ fn gen_healthy_ot(org_id: &OrgId, opts: &GenOpts) -> (Vec<Value>, Vec<String>) {
         })
         .collect();
 
+    // F4 / CS-01: each detection links to a device from the seeded pool (n % dev_count).
     let det_records: Vec<Value> = (0..det_count)
         .map(|n| {
             let det_id = format!("alert-{slug}-{}-{n}", opts.seed);
-            make_detection(&det_id, 1, opts)
+            make_detection(&det_id, &device_ids[n % device_ids.len()], 1, n, opts)
         })
         .collect();
 
@@ -137,11 +150,16 @@ fn gen_compromised_endpoint(org_id: &OrgId, opts: &GenOpts) -> (Vec<Value>, Vec<
     let dev_count = scaled(50, opts.scale, 1);
     let det_count = scaled(20, opts.scale, 1);
 
+    let device_ids: Vec<String> = (0..dev_count)
+        .map(|n| format!("dev-{slug}-{}-{n}", opts.seed))
+        .collect();
+
     // Ensure at least 1 contained device
-    let mut records: Vec<Value> = (0..dev_count)
-        .map(|n| {
-            let id = format!("dev-{slug}-{}-{n}", opts.seed);
-            let mut dev = make_device(&id, opts);
+    let mut records: Vec<Value> = device_ids
+        .iter()
+        .enumerate()
+        .map(|(n, id)| {
+            let mut dev = make_device(id, opts);
             // First device is always contained (EC-003)
             if n == 0 {
                 dev["containment_status"] = json!("contained");
@@ -153,13 +171,21 @@ fn gen_compromised_endpoint(org_id: &OrgId, opts: &GenOpts) -> (Vec<Value>, Vec<
         })
         .collect();
 
-    // Generate detections: first 5 are high-severity (severity_id >= 4)
+    // Generate detections: first 5 are high-severity (severity_id >= 4).
+    // F4 / CS-01: each detection links to a device from the seeded pool
+    // (n % dev_count) — detection 0 maps to device 0, the contained endpoint.
     let det_records: Vec<Value> = (0..det_count)
         .map(|n| {
             let det_id = format!("alert-{slug}-{}-{n}", opts.seed);
             // First 5 get severity_id=4+, rest get severity_id=2
             let severity_id = if n < 5 { 4_u8 } else { 2_u8 };
-            make_detection(&det_id, severity_id, opts)
+            make_detection(
+                &det_id,
+                &device_ids[n % device_ids.len()],
+                severity_id,
+                n,
+                opts,
+            )
         })
         .collect();
 
@@ -238,11 +264,12 @@ fn gen_large_scale(org_id: &OrgId, opts: &GenOpts) -> (Vec<Value>, Vec<String>) 
         })
         .collect();
 
-    // Build detection records
+    // Build detection records.
+    // F4 / CS-01: each detection links to a device from the seeded pool (n % dev_count).
     let det_records: Vec<Value> = (0..det_count)
         .map(|n| {
             let det_id = format!("alert-{slug}-{}-{n}", opts.seed);
-            make_detection(&det_id, 2, opts)
+            make_detection(&det_id, &device_ids[n % device_ids.len()], 2, n, opts)
         })
         .collect();
 
@@ -421,12 +448,40 @@ fn make_id_page(ids: &[String], offset_cursor: Option<&str>) -> Value {
     page
 }
 
+// `stable_offset` lifted to `prism_dtu_common::generator::offset::stable_offset`
+// (review-2026-06-10 P1-02) so the Cyberint/Claroty/Armis generators share one
+// RNG-free fold instead of triplicating it. Identical FNV-1a algorithm —
+// derived timestamps are byte-identical to the pre-lift values.
+
 /// Build a `FalconDevice` JSON record (Step-2 detail).
 ///
 /// Tagged with `"_record_type": "device"`.
 /// `device_id` field aligns with `containment_store` key in state.rs (AC-004).
+///
+/// F6 / CS-03 (review 2026-06-10): `first_seen` is required by the
+/// crowdstrike.sensor.toml `devices` table (flat datetime column). It is
+/// seeded-deterministic (stable fold of device_id × seed → 7..=90 days before
+/// `last_seen`) and always strictly earlier than `last_seen`.
+///
+/// P4-01 (cascade pass-4): `last_seen` varies per record — `time_anchor`
+/// minus a seeded `stable_offset` fold (0..7 days in minutes), mirroring
+/// Armis `derive_seen_window`. RNG-free: the fold never consults the ChaCha20
+/// stream, so per-record variance cannot perturb other generated values
+/// (BC-3.4.001 determinism preserved). Strict ordering holds by construction:
+/// `last_seen >= anchor - 10_079 min` while
+/// `first_seen <= last_seen - 7 days (10_080 min)`.
 fn make_device(device_id: &str, opts: &GenOpts) -> Value {
-    let ts = opts.time_anchor.format("%Y-%m-%dT%H:%M:%SZ").to_string();
+    // last_seen: 0..7 days (in minutes) before the time anchor, stable per
+    // (device_id, seed) — P4-01.
+    let minutes_before = (stable_offset(device_id, opts.seed) % 10_080) as i64;
+    let last_seen_dt = opts.time_anchor - chrono::Duration::minutes(minutes_before);
+    let ts = last_seen_dt.format("%Y-%m-%dT%H:%M:%SZ").to_string();
+    // first_seen: 7..=90 days before last_seen, stable per (device_id, seed+1)
+    // — strictly earlier than last_seen (F6 / CS-03).
+    let days_before = 7 + (stable_offset(device_id, opts.seed.wrapping_add(1)) % 84) as i64;
+    let first_seen = (last_seen_dt - chrono::Duration::days(days_before))
+        .format("%Y-%m-%dT%H:%M:%SZ")
+        .to_string();
     json!({
         "_record_type": "device",
         "device_id": device_id,
@@ -435,6 +490,7 @@ fn make_device(device_id: &str, opts: &GenOpts) -> Value {
         "os_version": "Ubuntu 22.04",
         "status": "normal",
         "containment_status": "normal",
+        "first_seen": first_seen,
         "last_seen": ts,
         "external_ip": "203.0.113.1",
         "local_ip": "10.0.0.1",
@@ -444,35 +500,148 @@ fn make_device(device_id: &str, opts: &GenOpts) -> Value {
     })
 }
 
+/// Canonical MITRE ATT&CK technique ↔ tactic table (review-2026-06-10 P1-03 + P2-06).
+///
+/// Tuple layout: `(technique_id, technique_name, tactic_id, tactic_name)`.
+///
+/// Single mapping source for the generator AND the static fixtures
+/// (`fixtures/detections-detail.json`): the flat `technique` column carries the
+/// DISPLAY NAME and the flat `technique_id` column carries the MITRE ID — the
+/// same value classes on both serving paths, so the crowdstrike.sensor.toml
+/// `attack.technique.name` mapping normalizes identically regardless of path.
+/// Covers every technique ID cycled by the static fixture set.
+///
+/// P2-06 (cascade pass-2): each technique additionally carries its canonical
+/// tactic pairing, valid per the MITRE ATT&CK Enterprise matrix. For
+/// multi-tactic techniques (e.g. T1078 Valid Accounts, T1053 Scheduled
+/// Task/Job) ONE valid tactic is pinned so fixtures and generator agree on a
+/// single, verifiable pairing. The static fixtures previously cross-paired
+/// rotated tactic/technique lists (e.g. "Initial Access"/TA0001 with T1059,
+/// which is Execution/TA0002) — invalid MITRE data that an LLM agent consumer
+/// would reproduce.
+///
+/// NOTE: real-API value semantics (name vs ID in the flat `technique` field of
+/// CrowdStrike detect responses) carry a MEDIUM confidence flag from the
+/// adversary — to be confirmed by dtu-validator against the live API.
+pub const MITRE_TECHNIQUES: &[(&str, &str, &str, &str)] = &[
+    (
+        "T1059",
+        "Command and Scripting Interpreter",
+        "TA0002",
+        "Execution",
+    ),
+    ("T1078", "Valid Accounts", "TA0001", "Initial Access"),
+    ("T1053", "Scheduled Task/Job", "TA0003", "Persistence"),
+    (
+        "T1055",
+        "Process Injection",
+        "TA0004",
+        "Privilege Escalation",
+    ),
+    (
+        "T1003",
+        "OS Credential Dumping",
+        "TA0006",
+        "Credential Access",
+    ),
+    ("T1021", "Remote Services", "TA0008", "Lateral Movement"),
+    ("T1018", "Remote System Discovery", "TA0007", "Discovery"),
+    (
+        "T1082",
+        "System Information Discovery",
+        "TA0007",
+        "Discovery",
+    ),
+    ("T1098", "Account Manipulation", "TA0003", "Persistence"),
+    (
+        "T1071",
+        "Application Layer Protocol",
+        "TA0011",
+        "Command and Control",
+    ),
+];
+
+/// Look up the canonical MITRE technique display name for an ID (P1-03).
+pub fn technique_name(technique_id: &str) -> Option<&'static str> {
+    MITRE_TECHNIQUES
+        .iter()
+        .find(|(id, _, _, _)| *id == technique_id)
+        .map(|(_, name, _, _)| *name)
+}
+
+/// Look up the canonical `(tactic_id, tactic_name)` pairing for a technique
+/// ID (P2-06). Returns the single pinned tactic from [`MITRE_TECHNIQUES`].
+pub fn tactic_pair_for_technique(technique_id: &str) -> Option<(&'static str, &'static str)> {
+    MITRE_TECHNIQUES
+        .iter()
+        .find(|(id, _, _, _)| *id == technique_id)
+        .map(|(_, _, tactic_id, tactic_name)| (*tactic_id, *tactic_name))
+}
+
 /// Build a `FalconDetection` JSON record (Step-2 detail).
 ///
 /// Tagged with `"_record_type": "detection"`.
 /// `detection_id` field aligns with `detection_status_store` key in state.rs (AC-004).
-fn make_detection(detection_id: &str, severity_id: u8, opts: &GenOpts) -> Value {
-    let ts = opts.time_anchor.format("%Y-%m-%dT%H:%M:%SZ").to_string();
+///
+/// F4 / CS-01 (review 2026-06-10): `device_id` links the detection to a record
+/// from the seeded device pool — crowdstrike.sensor.toml declares a flat
+/// `detections.device_id` column, and the serving extraction is flat
+/// `r.get(col_name)`; an absent key silently normalized the column to NULL.
+///
+/// F7 / CS-04 (review 2026-06-10): `created_timestamp` varies per record —
+/// time_anchor minus a seeded offset (stable fold of detection_id × seed,
+/// 0..7 days) — so FQL time-window filtering can discriminate between records.
+/// A single shared timestamp made every bounded window all-or-nothing.
+///
+/// P4-02 (cascade pass-4): the MITRE tuple cycles the canonical table per
+/// record (`det_index % MITRE_TECHNIQUES.len()`) — deterministic and RNG-free
+/// — instead of pinning `MITRE_TECHNIQUES[0]` on every detection. Pairing
+/// validity for every cycle slot is guaranteed by the P2-06 table.
+fn make_detection(
+    detection_id: &str,
+    device_id: &str,
+    severity_id: u8,
+    det_index: usize,
+    opts: &GenOpts,
+) -> Value {
+    // created_timestamp: 0..10080 minutes (7 days) before the anchor, stable
+    // per (detection_id, seed) — deterministic per BC-3.4.001.
+    let minutes_before = (stable_offset(detection_id, opts.seed) % 10_080) as i64;
+    let created = (opts.time_anchor - chrono::Duration::minutes(minutes_before))
+        .format("%Y-%m-%dT%H:%M:%SZ")
+        .to_string();
     let severity = match severity_id {
         1 => "Low",
         2 => "Medium",
         3 => "High",
         _ => "Critical",
     };
+    // P4-02: cycle the canonical MITRE table per record — full tuple from one
+    // slot, so the (tactic, technique) pairing is always table-valid.
+    let (technique_id, technique, tactic_id, tactic) =
+        MITRE_TECHNIQUES[det_index % MITRE_TECHNIQUES.len()];
     json!({
         "_record_type": "detection",
         "detection_id": detection_id,
+        "device_id": device_id,
         "status": "new",
         "severity": severity,
         "severity_id": severity_id,
-        "created_timestamp": ts,
-        "updated_timestamp": ts,
+        "created_timestamp": created,
+        "updated_timestamp": created,
         "confidence": 80,
         "display_name": format!("Detection {detection_id}"),
         "description": "Fixture detection record",
         "product": "epp",
         "platform": "Linux",
-        "tactic": "Execution",
-        "tactic_id": "TA0002",
-        "technique": "Command and Scripting Interpreter",
-        "technique_id": "T1059",
+        // P1-03 + P2-06 + P4-02: tactic and technique sourced from the
+        // canonical table — name in `technique`/`tactic`, MITRE IDs in
+        // `technique_id`/`tactic_id` (same value classes as the static
+        // fixtures), cycled per record by det_index (P4-02).
+        "tactic": tactic,
+        "tactic_id": tactic_id,
+        "technique": technique,
+        "technique_id": technique_id,
         "objective": "Falcon Detection Method"
     })
 }

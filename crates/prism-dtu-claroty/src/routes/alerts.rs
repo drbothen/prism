@@ -58,15 +58,19 @@ pub async fn list_alerts(
     // serve generated alert records as raw serde_json::Value.
     // Use fixture_gen_seeded (not generated_records.is_empty()) so DormantTenant (seeded=true,
     // 0 records) serves empty alerts — not static fixture. F-P6-HIGH-001 fix.
-    // Generated Claroty records include an "alert_id" field (generator.rs:
-    // `"alert_id": format!("alert-{slug}-{seed}-{index}")`).
     // The adapter reads "$.alerts" response_path — the envelope structure is preserved.
+    //
+    // F3 / DTU-05 (review 2026-06-10): filter on the authoritative `_surface`
+    // discriminator stamped by the generator — NOT key-presence heuristics like
+    // `rec.get("alert_id").is_some()`, the exact fragile pattern behind Cyberint's
+    // F-P3-CRIT-001 cross-surface leak. Mirrors prism-dtu-cyberint routes/alerts.rs
+    // exactly (the tag is served as-is; Cyberint does not strip it either).
     #[cfg(feature = "fixture-gen")]
     if state.fixture_gen_seeded {
         let generated_alerts: Vec<serde_json::Value> = state
             .generated_records
             .iter()
-            .filter(|rec| rec.get("alert_id").is_some())
+            .filter(|rec| rec.get("_surface").and_then(|v| v.as_str()) == Some("alert"))
             .cloned()
             .collect();
         let total = generated_alerts.len() as u32;

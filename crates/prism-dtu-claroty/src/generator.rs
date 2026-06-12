@@ -82,6 +82,13 @@ pub fn generate(org_id: &OrgId, archetype: Archetype, opts: &GenOpts) -> Fixture
 /// level. We embed `device_id` (our tracking field) plus realistic shape fields.
 fn make_device(slug: &str, seed: u64, index: usize) -> Value {
     json!({
+        // F3 / DTU-05 (review 2026-06-10): authoritative surface discriminator —
+        // route handlers filter on `_surface`, never on key-presence heuristics
+        // (the fragile pattern behind Cyberint's F-P3-CRIT-001 cross-surface leak).
+        // Mirrors the Cyberint generator pattern exactly: the tag is emitted in
+        // responses as-is (additionalProperties:true per poller-bear specs.json;
+        // flat r.get(col) serving extraction ignores unknown keys).
+        "_surface": "device",
         "device_id": format!("dev-{slug}-{seed}-{index}"),
         "asset_id": format!("ASSET-{slug}-{seed}-{index}"),
         "device_category": "OT",
@@ -105,6 +112,8 @@ fn make_device(slug: &str, seed: u64, index: usize) -> Value {
 /// Build a minimal valid Claroty device record with a specific subnet.
 fn make_device_with_subnet(slug: &str, seed: u64, index: usize, subnet: &str) -> Value {
     json!({
+        // F3 / DTU-05: authoritative surface discriminator (see make_device).
+        "_surface": "device",
         "device_id": format!("dev-{slug}-{seed}-{index}"),
         "asset_id": format!("ASSET-{slug}-{seed}-{index}"),
         "device_category": "OT",
@@ -127,13 +136,37 @@ fn make_device_with_subnet(slug: &str, seed: u64, index: usize, subnet: &str) ->
 }
 
 /// Build a minimal valid Claroty alert record (GetAlertsResponse items shape).
-fn make_alert(slug: &str, seed: u64, index: usize, severity_id: u64) -> Value {
+///
+/// P1-02 (review 2026-06-10): `detected_time` / `updated_time` derive per
+/// record from `time_anchor` minus a seeded RNG-free `stable_offset` fold
+/// (0..7 days), so time-window queries can discriminate between records.
+/// `updated_time` falls between `detected_time` and the anchor. The fold
+/// draws nothing from the ChaCha20 stream
+/// (INV-SECONDARY-RNG-STREAM-INDEPENDENCE-001).
+fn make_alert(
+    slug: &str,
+    seed: u64,
+    index: usize,
+    severity_id: u64,
+    time_anchor: chrono::DateTime<chrono::Utc>,
+) -> Value {
+    let alert_id = format!("alert-{slug}-{seed}-{index}");
+    let minutes_before = (prism_dtu_common::stable_offset(&alert_id, seed) % 10_080) as i64;
+    let detected_dt = time_anchor - chrono::Duration::minutes(minutes_before);
+    let update_minutes = (prism_dtu_common::stable_offset(&alert_id, seed.wrapping_add(1))
+        % (minutes_before as u64 + 1)) as i64;
+    let updated_dt = detected_dt + chrono::Duration::minutes(update_minutes);
+    // Match the real-API shape: RFC 3339 with microseconds and "+00:00" offset.
+    let detected_time = detected_dt.to_rfc3339_opts(chrono::SecondsFormat::Micros, false);
+    let updated_time = updated_dt.to_rfc3339_opts(chrono::SecondsFormat::Micros, false);
     json!({
-        "alert_id": format!("alert-{slug}-{seed}-{index}"),
+        // F3 / DTU-05: authoritative surface discriminator (see make_device).
+        "_surface": "alert",
+        "alert_id": alert_id,
         "alert_type_name": "Network Anomaly",
         "category": "Segmentation",
         "description": format!("Alert {index} detected by fixture generator"),
-        "detected_time": "2021-07-11T19:40:46.835404+00:00",
+        "detected_time": detected_time,
         "devices_count": 1,
         "id": seed.wrapping_add(index as u64),
         "iot_devices_count": 0,
@@ -145,7 +178,7 @@ fn make_alert(slug: &str, seed: u64, index: usize, severity_id: u64) -> Value {
         "mitre_technique_ics_names": [],
         "status": "Unresolved",
         "unresolved_devices_count": 1,
-        "updated_time": "2021-07-11T19:40:46.835404+00:00",
+        "updated_time": updated_time,
         "severity_id": severity_id
     })
 }
@@ -176,7 +209,7 @@ fn gen_healthy_ot_environment(org_id: &OrgId, opts: &GenOpts) -> FixtureSet {
     for i in 0..n_alerts {
         // Healthy: low severity only (severity_id 1-3)
         let sev = 1u64 + (i as u64 % 3);
-        records.push(make_alert(&slug, opts.seed, i, sev));
+        records.push(make_alert(&slug, opts.seed, i, sev, opts.time_anchor));
     }
 
     FixtureSet {
@@ -217,7 +250,7 @@ fn gen_compromised_endpoint(org_id: &OrgId, opts: &GenOpts) -> FixtureSet {
         } else {
             1u64 + (i as u64 % 3)
         };
-        records.push(make_alert(&slug, opts.seed, i, sev));
+        records.push(make_alert(&slug, opts.seed, i, sev, opts.time_anchor));
     }
 
     FixtureSet {
@@ -235,10 +268,15 @@ fn gen_compromised_endpoint(org_id: &OrgId, opts: &GenOpts) -> FixtureSet {
 
 /// Generate the Claroty `AuthOutage` archetype records.
 ///
-/// Returns `floor(20 * opts.scale)` device records; the first simulated call record has
-/// `status_code = 401`. Recovery delay is read from
-/// `opts.overrides["auth_outage"]["recovery_after_calls"]` via `apply_overrides`
-/// (BC-3.4.003 invariant 6 / EC-AuthOutage).
+/// Returns `floor(20 * opts.scale)` device records preceded by N simulated call records
+/// each with `status_code = 401`.  N is read from
+/// `opts.overrides["auth_outage"]["recovery_after_calls"]` (BC-3.4.003 invariant 6 /
+/// EC-3.4.003-06); default N = 1.
+///
+/// Each 401 call record carries `_surface = "call"` (F3 / DTU-05) and a deterministic
+/// `call_index` so the count is recoverable from the fixture without tracking external
+/// state.  Recovery is implicit: the fixture encodes only the failure-sequence length;
+/// the route layer transitions to `AuthMode::Accept` after draining these records.
 fn gen_auth_outage(org_id: &OrgId, opts: &GenOpts) -> FixtureSet {
     let slug = org_slug(org_id);
     let n_devices = (20.0 * opts.scale).floor() as usize;
@@ -246,21 +284,32 @@ fn gen_auth_outage(org_id: &OrgId, opts: &GenOpts) -> FixtureSet {
     let mut rng = seeded_rng(opts.seed, org_id);
     let _jitter: u32 = rng.gen();
 
-    // First record is the 401 call record (BC-3.4.003 baseline row 3).
-    // NOTE: This record does NOT have a device_id — it represents a failed API call,
-    // not a device record. Tests count devices via presence of "device_id" field.
-    let mut records: Vec<Value> = Vec::with_capacity(1 + n_devices);
+    // BC-3.4.003 invariant 6 / EC-3.4.003-06: read recovery_after_calls from overrides.
+    // Default N = 1 (one 401 call record before recovery).
+    let recovery_after_calls = opts
+        .overrides
+        .get("auth_outage")
+        .and_then(|v| v.get("recovery_after_calls"))
+        .and_then(serde_json::Value::as_u64)
+        .unwrap_or(1) as usize;
 
-    // The simulated 401 call record (no device_id — not a device)
-    let call_record = json!({
-        "status_code": 401u64,
-        "call_index": 0u64,
-        "error": "Unauthorized",
-        "message": "Auth outage simulated by fixture generator"
-    });
-    records.push(call_record);
+    let mut records: Vec<Value> = Vec::with_capacity(recovery_after_calls + n_devices);
 
-    // Subsequent device records (normal) — exactly n_devices of them
+    // Emit N 401 call records (BC-3.4.003 invariant 6).
+    // These do NOT carry a device_id — each represents a failed API call surface.
+    for call_index in 0..recovery_after_calls {
+        records.push(json!({
+            // F3 / DTU-05: "call" surface — served by NEITHER the alerts nor the
+            // devices route (it models a failed API call, not a data record).
+            "_surface": "call",
+            "status_code": 401u64,
+            "call_index": call_index as u64,
+            "error": "Unauthorized",
+            "message": "Auth outage simulated by fixture generator"
+        }));
+    }
+
+    // Device records (normal) — exactly n_devices of them
     for i in 0..n_devices {
         records.push(make_device(&slug, opts.seed, i));
     }
@@ -304,7 +353,7 @@ fn gen_large_scale(org_id: &OrgId, opts: &GenOpts) -> FixtureSet {
 
     for i in 0..n_alerts {
         let sev = if i < 10 { 4u64 } else { 2u64 };
-        records.push(make_alert(&slug, opts.seed, i, sev));
+        records.push(make_alert(&slug, opts.seed, i, sev, opts.time_anchor));
     }
 
     FixtureSet {
@@ -377,6 +426,8 @@ fn gen_schema_drift(org_id: &OrgId, opts: &GenOpts) -> FixtureSet {
     // required item fields, so we inject an extra sentinel to mark it as drifted
     // while still having a device_id for ID-prefix tests.
     let drifted = json!({
+        // F3 / DTU-05: drifted record is still device-surface (served by devices route).
+        "_surface": "device",
         "device_id": format!("dev-{slug}-{seed}-drift-0", seed = opts.seed),
         "asset_id": format!("ASSET-{slug}-{seed}-drift-0", seed = opts.seed),
         "_schema_drift": true,
@@ -420,6 +471,8 @@ fn gen_high_churn(org_id: &OrgId, opts: &GenOpts) -> FixtureSet {
         if i < 20 {
             // First 20 are tombstone records (BC-3.4.004 EC-07: dev-{slug}-{seed}-tomb-{n})
             let rec = json!({
+                // F3 / DTU-05: tombstones are device-surface records.
+                "_surface": "device",
                 "device_id": format!("dev-{slug}-{seed}-tomb-{i}", seed = opts.seed),
                 "asset_id": format!("ASSET-{slug}-{seed}-tomb-{i}", seed = opts.seed),
                 "device_category": "OT",

@@ -178,9 +178,32 @@ pub async fn list_detection_ids(
     #[cfg(not(feature = "fixture-gen"))]
     let all_ids = load_detection_ids();
 
-    // When FQL time bounds are present, load the detail fixture to filter by created_timestamp.
-    // When no bounds, all IDs pass (no filtering — verbatim passthrough).
+    // When FQL time bounds are present, filter by created_timestamp against the
+    // SAME source the IDs came from. When no bounds, all IDs pass (verbatim passthrough).
+    //
+    // F7 / CS-04 (review 2026-06-10): on the seeded path the time-window filter
+    // previously consulted the STATIC load_detection_details() map — generated
+    // detection IDs never match static IDs, so seeded clones returned ZERO rows
+    // for ANY created_timestamp-bounded query. The filter source must follow the
+    // dual-path sentinel: generated_detections when fixture_gen_seeded, static
+    // detail fixture otherwise. Same inclusive FQL boundary semantics either way.
     let filtered_ids: Vec<String> = if fql_after.is_some() || fql_before.is_some() {
+        #[cfg(feature = "fixture-gen")]
+        let details: std::collections::HashMap<String, serde_json::Value> =
+            if state.fixture_gen_seeded {
+                state
+                    .generated_detections
+                    .iter()
+                    .filter_map(|rec| {
+                        rec.get("detection_id")
+                            .and_then(|v| v.as_str())
+                            .map(|id| (id.to_owned(), rec.clone()))
+                    })
+                    .collect()
+            } else {
+                load_detection_details()
+            };
+        #[cfg(not(feature = "fixture-gen"))]
         let details = load_detection_details();
         all_ids
             .into_iter()

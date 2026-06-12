@@ -811,9 +811,15 @@ fn test_bc_3_4_004_first_asset_id_follows_format() {
 
 /// BC-3.4.004 postcondition table (tombstone) / TV-3.4.004-07 / EC-004:
 /// HighChurn tombstone IDs follow `dev-{org_slug}-{seed}-tomb-{n}` pattern.
+///
+/// The FULL canonical format is `dev-{org_slug}-{seed}-tomb-{n}` — the seed
+/// MUST be present between the org_slug and the "-tomb-" suffix.
+/// BC-3.4.004 Invariant 2: the prefix formula `dev-{slug}-{seed}` applies
+/// consistently to ALL record types (assets AND tombstones).
+/// EC-3.4.004-07 and TV-3.4.004-07 require the seed component.
 #[test]
 fn test_bc_3_4_004_tombstone_ids_follow_pattern() {
-    let opts = GenOpts::default();
+    let opts = GenOpts::default(); // seed = 42
     let fs = generate(org_a(), SLUG_A, Archetype::HighChurn, &opts);
 
     let tombstones: Vec<&Value> = fs
@@ -824,14 +830,24 @@ fn test_bc_3_4_004_tombstone_ids_follow_pattern() {
         })
         .collect();
 
+    assert!(
+        !tombstones.is_empty(),
+        "BC-3.4.004 TV-3.4.004-07: HighChurn must produce tombstone records"
+    );
+
     for (i, tomb) in tombstones.iter().enumerate() {
         let id = tomb["id"].as_str().unwrap_or("");
+        // The full pattern: dev-{slug}-{seed}-tomb-{n}
+        // Seed must appear between the slug and "-tomb-" suffix.
+        let seed_prefix = format!("{}-{}-tomb-", SLUG_A, opts.seed);
         assert!(
-            id.contains(&format!("{}-tomb-", SLUG_A)),
-            "BC-3.4.004 TV-3.4.004-07: tombstone[{}] id '{}' must contain '{}-tomb-'",
+            id.contains(&seed_prefix),
+            "BC-3.4.004 TV-3.4.004-07: tombstone[{}] id '{}' must contain \
+             '{}' (seed {} must be present per BC-3.4.004 Invariant 2 / EC-3.4.004-07)",
             i,
             id,
-            SLUG_A
+            seed_prefix,
+            opts.seed
         );
     }
 }
@@ -1120,4 +1136,106 @@ fn test_bc_3_4_001_provenance_fields_correct() {
         SensorId::from("armis"),
         "Provenance.sensor_id must be Armis"
     );
+}
+
+// ---------------------------------------------------------------------------
+// BC-3.4.003 invariant 6 / EC-3.4.003-06 — configurable AuthOutage recovery
+// ---------------------------------------------------------------------------
+
+/// EC-3.4.003-06: AuthOutage with overrides `{"auth_outage":{"recovery_after_calls":3}}`
+/// must emit exactly 3 call records with status_code=401 before recovery.
+///
+/// Mirrors the crowdstrike EC-002 assertion shape (bc_3_4_crowdstrike_generator.rs
+/// `test_bc_3_4_003_ec_002_auth_outage_configurable_recovery_after_3_calls`), adapted
+/// to the Armis generator's pattern where status_code is injected on the leading
+/// asset records.
+///
+/// BC-3.4.003 invariant 6 (normative MUST): recovery_after_calls is overridable via
+/// GenOpts::overrides JSON Merge Patch; default N=1.
+#[test]
+fn test_bc_3_4_003_ec_006_auth_outage_configurable_recovery_after_3_calls() {
+    use serde_json::json;
+    let opts = GenOpts::new(
+        42,
+        1.0_f64,
+        chrono::DateTime::UNIX_EPOCH,
+        json!({"auth_outage": {"recovery_after_calls": 3}}),
+    )
+    .expect("valid opts");
+    let fs = generate(org_a(), SLUG_A, Archetype::AuthOutage, &opts);
+
+    assert!(
+        fs.records.len() >= 20,
+        "EC-3.4.003-06: AuthOutage with recovery_after_calls=3 must produce >=20 records, \
+         got {}",
+        fs.records.len()
+    );
+
+    // First 3 records must carry status_code=401
+    for i in 0..3 {
+        let status = fs.records[i]
+            .get("status_code")
+            .and_then(|v| v.as_i64())
+            .or_else(|| fs.records[i].get("statusCode").and_then(|v| v.as_i64()))
+            .unwrap_or(0);
+        assert_eq!(
+            status, 401,
+            "EC-3.4.003-06: records[{i}] must have status_code=401 (recovery_after_calls=3)"
+        );
+    }
+
+    // 4th record must NOT carry status_code=401 — it is the first normal asset after recovery
+    let fourth_status = fs.records[3]
+        .get("status_code")
+        .and_then(|v| v.as_i64())
+        .or_else(|| fs.records[3].get("statusCode").and_then(|v| v.as_i64()))
+        .unwrap_or(-1); // -1 = field absent = not a 401 call record
+    assert_ne!(
+        fourth_status, 401,
+        "EC-3.4.003-06: records[3] must NOT have status_code=401 — it is the first normal asset"
+    );
+
+    // Total asset count still 20 at scale=1.0 (device count unchanged)
+    let assets: Vec<_> = fs
+        .records
+        .iter()
+        .filter(|r| r.get("id").is_some() && r.get("alertId").is_none())
+        .collect();
+    assert_eq!(
+        assets.len(),
+        20,
+        "EC-3.4.003-06: AuthOutage asset count must remain 20 regardless of recovery_after_calls"
+    );
+}
+
+/// EC-3.4.003-06 (default): AuthOutage with no overrides uses N=1 (one 401 leading record).
+/// Preserves the existing baseline behavior.
+#[test]
+fn test_bc_3_4_003_ec_006_auth_outage_default_recovery_after_1_call() {
+    let opts = GenOpts::default();
+    let fs = generate(org_a(), SLUG_A, Archetype::AuthOutage, &opts);
+
+    // Default N=1: exactly first record is 401, second is normal
+    let first_status = fs.records[0]
+        .get("status_code")
+        .and_then(|v| v.as_i64())
+        .or_else(|| fs.records[0].get("statusCode").and_then(|v| v.as_i64()))
+        .unwrap_or(0);
+    assert_eq!(
+        first_status, 401,
+        "EC-3.4.003-06 (default N=1): records[0] must have status_code=401"
+    );
+
+    // records[1] must NOT be 401 (recovery is immediate after 1 call)
+    if fs.records.len() > 1 {
+        let second_status = fs.records[1]
+            .get("status_code")
+            .and_then(|v| v.as_i64())
+            .or_else(|| fs.records[1].get("statusCode").and_then(|v| v.as_i64()))
+            .unwrap_or(-1);
+        assert_ne!(
+            second_status, 401,
+            "EC-3.4.003-06 (default N=1): records[1] must NOT be 401 — recovery after 1 call"
+        );
+    }
 }
