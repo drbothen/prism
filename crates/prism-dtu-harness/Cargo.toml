@@ -93,10 +93,11 @@ name = "bc_3_6_001_ops_clone_failure_modes"
 path = "tests/bc_3_6_001_ops_clone_failure_modes.rs"
 required-features = ["dtu"]
 
-# TD-VSDD-060 sibling-sweep: per-DtuType failure scope test was missing [[test]] entry (no feature gate)
+# F-P10-01: per-DtuType failure scope test requires dtu feature (imports DtuType, IsolationMode, Harness, FailureMode)
 [[test]]
 name = "failure_scope_test"
 path = "tests/failure_scope_test.rs"
+required-features = ["dtu"]
 
 [lints]
 workspace = true
