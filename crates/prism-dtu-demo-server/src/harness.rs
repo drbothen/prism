@@ -410,8 +410,16 @@ pub fn build_clone_pairs(config: &DemoConfig) -> anyhow::Result<Vec<ClonePair>> 
             ("claroty", &config.clones.claroty),
             ("cyberint", &config.clones.cyberint),
         ];
-        // Collect (name, org_id_str) for scenario-enabled clones with a present org_id.
-        let scenario_org_ids: Vec<(&'static str, &str)> = all_gen_clones_e006_prescan
+        // Collect (name, org_id_str, parsed_bytes) for scenario-enabled clones with a
+        // present org_id that is a parseable UUID.
+        // Clones with org_id=None are excluded from equality (E-DEMO-004 handles them).
+        // Clones with an unparseable org_id string are also excluded here and will
+        // surface as E-DEMO-005 (invalid UUID) during the validated_gen phase below.
+        // Comparison is on PARSED UUID bytes to be case/format-insensitive:
+        // "deadbeef-..." and "DEADBEEF-..." round-trip to the same 16-byte OrgId, so they
+        // must NOT trigger E-DEMO-006. The guard's invariant is byte-based, not string-based.
+        // (BC-2.06.019 PRE-6 rationale comment above, B-P5-05 fix.)
+        let scenario_org_ids: Vec<(&'static str, &str, [u8; 16])> = all_gen_clones_e006_prescan
             .iter()
             .filter_map(|(name, cfg)| {
                 if !cfg.enabled {
@@ -421,23 +429,26 @@ pub fn build_clone_pairs(config: &DemoConfig) -> anyhow::Result<Vec<ClonePair>> 
                 if !sc.enabled {
                     return None;
                 }
-                // Only participate in equality check when org_id is present.
+                // Only participate when org_id is present.
                 let org_id_str = cfg.org_id.as_deref()?;
-                Some((*name, org_id_str))
+                // Parse to UUID bytes; skip (don't bail) if unparseable — E-DEMO-005
+                // will fire for this clone in the validated_gen phase.
+                let uuid = uuid::Uuid::parse_str(org_id_str).ok()?;
+                Some((*name, org_id_str, *uuid.as_bytes()))
             })
             .collect();
         if scenario_org_ids.len() >= 2 {
-            let (first_name, first_org_id) = scenario_org_ids[0];
-            for (name, org_id) in &scenario_org_ids[1..] {
-                if *org_id != first_org_id {
+            let (first_name, first_org_id_str, first_bytes) = scenario_org_ids[0];
+            for (name, org_id_str, bytes) in &scenario_org_ids[1..] {
+                if *bytes != first_bytes {
                     anyhow::bail!(
                         "demo-server: E-DEMO-006: scenario clones '{}' (org_id={}) and '{}' \
                          (org_id={}) have different org_ids; cross-DTU coherence requires all \
                          scenario-enabled clones to share the same org_id",
                         first_name,
-                        first_org_id,
+                        first_org_id_str,
                         name,
-                        org_id
+                        org_id_str
                     );
                 }
             }
@@ -506,6 +517,21 @@ pub fn build_clone_pairs(config: &DemoConfig) -> anyhow::Result<Vec<ClonePair>> 
                     sc.archetype.as_str()
                 );
             }
+            // Stage count validation (moved here from scenario_ctx as part of B-P5-OBS-2
+            // single-source-of-truth): 0 = use defaults (allowed); non-zero must be exactly 4.
+            // CompromisedEndpoint requires exactly 4 stage_duration_secs entries.
+            let expected_stages: usize = 4; // CompromisedEndpoint (only supported archetype)
+            if !sc.stage_duration_secs.is_empty() && sc.stage_duration_secs.len() != expected_stages
+            {
+                anyhow::bail!(
+                    "demo-server: E-DEMO-003: clone '{}': stage_duration_secs has {} \
+                     entries but archetype '{}' requires exactly {}",
+                    name,
+                    sc.stage_duration_secs.len(),
+                    sc.archetype.as_str(),
+                    expected_stages
+                );
+            }
         }
     }
 
@@ -554,12 +580,16 @@ pub fn build_clone_pairs(config: &DemoConfig) -> anyhow::Result<Vec<ClonePair>> 
     };
 
     // ---------------------------------------------------------------------------
-    // Story B: Scenario guards — E-DEMO-002 (seed mismatch) and E-DEMO-003
-    // (unrecognized archetype / wrong stage_duration_secs length).
-    // All checks run BEFORE any clone constructor is called.
-    // Produces a shared `scenario_ctx` (Arc<IncidentTimeline> + ScenarioEntityCatalog)
-    // used by construction blocks when scenario.enabled == true.
-    // (BC-2.06.019 E-DEMO-002 / E-DEMO-003 / INV-CONSTRUCTION-TIME-FAILURE-001)
+    // Story B: Scenario context builder.
+    //
+    // The E-DEMO-002 (seed mismatch) and E-DEMO-003 (unrecognized archetype /
+    // wrong stage_duration_secs length) guards have already fired as prescans
+    // above (lines ~351-509). Any remaining scenario-enabled clones here have
+    // already passed those checks. This block only builds the shared
+    // `scenario_ctx` (Arc<IncidentTimeline> + ScenarioEntityCatalog) used by
+    // construction blocks below. (B-P5-OBS-2: removed dead duplicate guards.)
+    //
+    // (BC-2.06.019 / INV-CONSTRUCTION-TIME-FAILURE-001)
     // ---------------------------------------------------------------------------
     #[cfg(feature = "fixture-gen")]
     let scenario_ctx: Option<(
@@ -567,11 +597,12 @@ pub fn build_clone_pairs(config: &DemoConfig) -> anyhow::Result<Vec<ClonePair>> 
         prism_dtu_common::ScenarioEntityCatalog,
         chrono::DateTime<chrono::Utc>,
     )> = {
-        use prism_dtu_common::{
-            build_default_incident_timeline, build_scenario_entity_catalog, Archetype,
-        };
+        use prism_dtu_common::{build_default_incident_timeline, build_scenario_entity_catalog};
 
-        // Collect all scenario-enabled generator-backed clones (name, seed, archetype_str).
+        // Collect all scenario-enabled generator-backed clones (name, seed).
+        // archetype_str and stage_duration_secs were needed by the E-DEMO-003 guard
+        // which now lives exclusively in the prescan above. Only name and seed are
+        // needed here to build the scenario context. (B-P5-OBS-2)
         let all_gen_clones: [(&'static str, &CloneConfig); 4] = [
             ("crowdstrike", &config.clones.crowdstrike),
             ("armis", &config.clones.armis),
@@ -579,7 +610,7 @@ pub fn build_clone_pairs(config: &DemoConfig) -> anyhow::Result<Vec<ClonePair>> 
             ("cyberint", &config.clones.cyberint),
         ];
 
-        let scenario_enabled: Vec<(&'static str, u64, &str, &[u64])> = all_gen_clones
+        let scenario_enabled: Vec<(&'static str, u64)> = all_gen_clones
             .iter()
             .filter_map(|(name, cfg)| {
                 if !cfg.enabled {
@@ -589,109 +620,19 @@ pub fn build_clone_pairs(config: &DemoConfig) -> anyhow::Result<Vec<ClonePair>> 
                 if !sc.enabled {
                     return None;
                 }
-                Some((
-                    *name,
-                    cfg.seed,
-                    sc.archetype.as_str(),
-                    sc.stage_duration_secs.as_slice(),
-                ))
+                Some((*name, cfg.seed))
             })
             .collect();
 
         if scenario_enabled.is_empty() {
             None
         } else {
-            // E-DEMO-002: all scenario-enabled clones must share the same seed.
-            // Detect any mismatch before calling any constructor.
-            let first_seed = scenario_enabled[0].1;
-            let first_name = scenario_enabled[0].0;
-            for (name, seed, _, _) in &scenario_enabled[1..] {
-                if *seed != first_seed {
-                    anyhow::bail!(
-                        "demo-server: E-DEMO-002: scenario clones '{}' (seed={}) and '{}' \
-                         (seed={}) have different seeds; cross-DTU coherence requires all \
-                         scenario-enabled clones to share the same seed",
-                        first_name,
-                        first_seed,
-                        name,
-                        seed
-                    );
-                }
-            }
-
-            // E-DEMO-003: for each scenario-enabled clone, validate archetype string,
-            // check that the archetype supports scenario progression, check that the
-            // scenario.archetype agrees with the fixture_set-derived archetype, and
-            // validate stage_duration_secs length.
-            //
-            // Valid scenario archetype strings: "compromised_endpoint", "healthy".
-            // Only "compromised_endpoint" (CompromisedEndpoint) supports 5-stage progression.
-            // "healthy" (HealthyOtEnvironment) does NOT support progression → E-DEMO-003.
-            // Additionally: scenario.archetype-derived archetype must equal the
-            // fixture_set-derived archetype in validated_gen → mismatch → E-DEMO-003.
-            // "compromised_endpoint" requires exactly 4 stage_duration_secs entries (or 0 for defaults).
-            //
-            // BC-2.06.019 EC-019-012 / AC-017 (B-P3-01)
-            for (name, _, archetype_str, stage_duration) in &scenario_enabled {
-                let scenario_archetype = match *archetype_str {
-                    "compromised_endpoint" => Archetype::CompromisedEndpoint,
-                    "healthy" => Archetype::HealthyOtEnvironment,
-                    other => anyhow::bail!(
-                        "demo-server: E-DEMO-003: clone '{}': unrecognized scenario archetype \
-                         '{}'; valid values: compromised_endpoint, healthy",
-                        name,
-                        other
-                    ),
-                };
-
-                // EC-019-012 Direction 1: only CompromisedEndpoint supports scenario
-                // progression. Any other archetype (including HealthyOtEnvironment) does
-                // not have a meaningful 5-stage IncidentTimeline and must be rejected.
-                if !matches!(scenario_archetype, Archetype::CompromisedEndpoint) {
-                    anyhow::bail!(
-                        "demo-server: E-DEMO-003: clone '{}': unrecognized scenario archetype \
-                         '{}'; valid values: compromised_endpoint, healthy",
-                        name,
-                        archetype_str
-                    );
-                }
-
-                // EC-019-012 Direction 2: scenario.archetype must agree with the archetype
-                // derived from fixture_set. If they contradict (e.g., scenario.archetype =
-                // "compromised_endpoint" but fixture_set = "dormant" → DormantTenant),
-                // the combination is incoherent and must be rejected.
-                if let Some((fixture_archetype, _)) = validated_gen.get(*name) {
-                    if *fixture_archetype != scenario_archetype {
-                        anyhow::bail!(
-                            "demo-server: E-DEMO-003: clone '{}': unrecognized scenario archetype \
-                             '{}'; valid values: compromised_endpoint, healthy",
-                            name,
-                            archetype_str
-                        );
-                    }
-                }
-
-                // Stage count validation: 0 = use defaults (allowed); non-zero must be exactly 4.
-                let expected_stages = match scenario_archetype {
-                    Archetype::CompromisedEndpoint => 4usize,
-                    _ => 4usize, // default for any future archetype; same rule applies
-                };
-                if !stage_duration.is_empty() && stage_duration.len() != expected_stages {
-                    anyhow::bail!(
-                        "demo-server: E-DEMO-003: clone '{}': stage_duration_secs has {} \
-                         entries but archetype '{}' requires exactly {}",
-                        name,
-                        stage_duration.len(),
-                        archetype_str,
-                        expected_stages
-                    );
-                }
-            }
-
-            // All guards passed. Build the shared scenario context.
+            // All E-DEMO-002/003/006 guards have already fired as prescans above.
+            // Build the shared scenario context from the verified inputs.
+            // (B-P5-OBS-2 single-source-of-truth: guards live in prescans only.)
             // Use the first scenario-enabled clone's config for seed + org_id.
             // (E-DEMO-002 guarantees all seeds match; E-DEMO-004 guarantees org_id present.)
-            let (first_sc_name, scenario_seed, _, _) = &scenario_enabled[0];
+            let (first_sc_name, scenario_seed) = &scenario_enabled[0];
             let first_cfg = match *first_sc_name {
                 "crowdstrike" => &config.clones.crowdstrike,
                 "armis" => &config.clones.armis,

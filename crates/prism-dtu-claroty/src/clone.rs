@@ -179,11 +179,27 @@ impl ClarotyClone {
         // caller-supplied time_anchor for era-coherent generated timestamps.
         // ADR-036 v2.3 §2.3 mandates this; the 3-arg path is FORBIDDEN here.
         let mut clone = Self::new_with_seed_anchored(seed, archetype, org_id, time_anchor);
-        // Attach the timeline so route handlers can compute the current stage index.
+        // Attach the timeline BEFORE any other reference can be taken.
+        //
+        // Structural threading (B-P5-OBS-1): use Arc::try_unwrap to reclaim the state
+        // struct (refcount=1 immediately post-construction), set timeline, then re-wrap.
+        // This is safe because new_with_seed_anchored just returned the only Arc clone;
+        // no other thread can hold a reference at this point.
+        //
+        // Prefer try_unwrap over get_mut to avoid silent-drop risk: if a future refactor
+        // creates a second Arc clone before this point, try_unwrap returns Err with the
+        // original Arc, which we catch with expect() so the bug is loud.
+        //
         // ADR-036 v2.3 §2.3: Arc<IncidentTimeline> is read-only after construction.
-        if let Some(state) = Arc::get_mut(&mut clone.state) {
-            state.timeline = Some(Arc::clone(&timeline));
-        }
+        let mut state = Arc::try_unwrap(clone.state).unwrap_or_else(|_| {
+            panic!(
+                "ClarotyClone::new_with_scenario: Arc refcount must be 1 immediately after \
+                 new_with_seed_anchored; a second Arc clone would indicate a refactor \
+                 invariant violation (B-P5-OBS-1)"
+            )
+        });
+        state.timeline = Some(Arc::clone(&timeline));
+        clone.state = Arc::new(state);
         clone
     }
 

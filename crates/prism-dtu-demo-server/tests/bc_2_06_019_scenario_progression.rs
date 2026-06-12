@@ -1198,6 +1198,10 @@ fn test_BC_2_06_019_guard_order_e_demo_003_before_e_demo_004() {
 /// Used as the mismatched org_id in TV-019-015.
 const DEMO_ORG_UUID_CAFEBABE: &str = "cafebabe-0000-7000-8000-000000000000";
 
+/// Same UUID as DEMO_ORG_UUID_DEADBEEF but in uppercase hex — byte-identical after
+/// Uuid::parse_str, distinct raw string.  Used by B-P5-05 case-variant test.
+const DEMO_ORG_UUID_DEADBEEF_UPPER: &str = "DEADBEEF-0000-7000-8000-000000000000";
+
 /// Create a DemoConfig with CrowdStrike + Armis enabled, same seed,
 /// but different org_ids — the E-DEMO-006 test vector (TV-019-015).
 fn make_cs_armis_same_seed_different_org(
@@ -1339,5 +1343,49 @@ fn test_BC_2_06_019_e_demo_006_org_id_mismatch_across_scenario_clones() {
         !err_str_b.contains("E-DEMO-003"),
         "TV-019-015 Variant B: E-DEMO-006 fires before E-DEMO-003; error must NOT contain \
          'E-DEMO-003'; got: '{err_str_b}'"
+    );
+}
+
+// ---------------------------------------------------------------------------
+// B-P5-05 — test_BC_2_06_019_e_demo_006_case_variant_org_ids_succeed
+//
+// The E-DEMO-006 guard compares org_ids by PARSED UUID bytes, not raw strings.
+// Two org_id strings that differ only in hex case ("deadbeef-..." vs "DEADBEEF-...")
+// parse to identical Uuid bytes → same OrgId → NO E-DEMO-006 false-positive.
+//
+// FAIL mode (RED): current guard uses raw string comparison (`*org_id != first_org_id`),
+//   so DEADBEEF-... and deadbeef-... (same bytes) are treated as different → E-DEMO-006
+//   fires falsely → build_clone_pairs returns Err instead of Ok.
+//   Assertion `result.is_ok()` FAILS.
+//
+// BC-2.06.019 PRE-6: the guard's invariant is slug/byte-based (rationale comment in
+//   harness.rs ~398-403). Raw-string comparison violates that invariant.
+// ---------------------------------------------------------------------------
+#[cfg(feature = "fixture-gen")]
+#[test]
+fn test_BC_2_06_019_e_demo_006_case_variant_org_ids_succeed() {
+    // Same UUID, different string case:
+    //   crowdstrike org_id = "deadbeef-0000-7000-8000-000000000000" (lower)
+    //   armis       org_id = "DEADBEEF-0000-7000-8000-000000000000" (upper)
+    // Both parse to the same Uuid bytes → same OrgId → E-DEMO-006 must NOT fire.
+    let config = make_cs_armis_same_seed_different_org(
+        100,
+        DEMO_ORG_UUID_DEADBEEF,       // lowercase
+        DEMO_ORG_UUID_DEADBEEF_UPPER, // uppercase — byte-identical after parse
+    );
+
+    // build_clone_pairs must SUCCEED (no E-DEMO-006 false-positive).
+    // FAIL (RED): raw-string comparison treats these as different → Err("E-DEMO-006").
+    let result = build_clone_pairs(&config);
+
+    assert!(
+        result.is_ok(),
+        "B-P5-05: build_clone_pairs must return Ok when two scenario-enabled clones share \
+         the same UUID in different case forms \
+         ('{DEMO_ORG_UUID_DEADBEEF}' vs '{DEMO_ORG_UUID_DEADBEEF_UPPER}'); \
+         raw-string comparison produces a false-positive E-DEMO-006. \
+         The guard invariant is byte-based (parsed Uuid), not string-based. \
+         BC-2.06.019 PRE-6 \
+         [RED GATE: E-DEMO-006 fires for case-variant of same UUID — false positive]"
     );
 }
