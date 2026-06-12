@@ -7565,25 +7565,42 @@ mod tests {
     /// when the durable write fails, and the `?` aborts the handler before any
     /// mutation.
     ///
-    /// Mental-deletion proof (TD-VSDD-059): if `reload_config` is removed from
-    /// `tool_classification_registry()`, `emit_tool_audit` returns
-    /// `Ok(Some("audit emission failed"))` (fail-open) and the handler proceeds
-    /// to call `reload_config(...)` which calls `store()` with the new snapshot
-    /// — the `is_err()` assertion on the result fails. Conversely, if the audit
-    /// `?` is deleted from the handler body, the handler proceeds past audit
-    /// failure to mutation regardless of classification — the `is_err()`
-    /// assertion fails.
+    /// Mental-deletion proof (TD-VSDD-059 / PRL-P7-01): the fixture TOML is
+    /// FULLY VALID (parses cleanly → has_successes=true) so the ValidationFailed
+    /// early-return in `reload_config::reload_config` is bypassed. Without
+    /// WriteTool classification, `emit_tool_audit` returns `Ok(fail-open)` and
+    /// the handler proceeds to call `reload_config(...)` which calls `store()` —
+    /// the hash changes and the `hash_before == hash_after` assertion FAILS.
+    /// Conversely, if the audit `?` is deleted from the handler body, the handler
+    /// proceeds past audit failure to mutation regardless of classification and
+    /// the hash assertion FAILS. An unparseable TOML would short-circuit at
+    /// ValidationFailed before reaching `store()`, making the test vacuous
+    /// (PRL-P7-01 root cause).
     #[tokio::test]
     async fn test_BC_2_05_001_reload_config_audit_failure_aborts_no_swap() {
         // Set up a tempdir with ≥1 valid sensor TOML so reload would detect a
         // change and call store() if it were allowed to proceed.
+        //
+        // IMPORTANT (PRL-P7-01 / TD-VSDD-059): the TOML must be FULLY VALID so that
+        // SpecLoader::parse succeeds → has_successes=true → the ValidationFailed
+        // early-return in reload_config is bypassed → store() is the next reachable
+        // step after the audit gate. An unparseable TOML causes has_failures=true and
+        // has_successes=false → ValidationFailed short-circuit → store() is never
+        // reached even without the WriteTool classification → the test passes for the
+        // wrong reason (mental-deletion proof fails).
+        //
+        // Minimal valid structure: flat top-level fields (no [sensor] wrapper),
+        // sensor_id + name + auth_type + base_url + version (all mandatory). No
+        // [[tables]] needed (tables is #[serde(default)] → Vec::new()).
         let tmpdir = tempfile::tempdir().expect("create tempdir for spec_dir");
-        let sensor_toml = tmpdir.path().join("test_sensor.sensor.toml");
+        let sensor_toml = tmpdir.path().join("test-sensor.sensor.toml");
         std::fs::write(
             &sensor_toml,
-            "[sensor]\nid = \"prl_p4_01_test\"\nname = \"PRL P4-01 test sensor\"\n\
-             version = \"1.0\"\n\
-             [[tables]]\nname = \"devices\"\n",
+            "sensor_id = \"prl-p4-01-test\"\n\
+             name = \"PRL P4-01 test sensor\"\n\
+             version = \"1.0.0\"\n\
+             base_url = \"https://example.com\"\n\
+             auth_type = \"api_key\"\n",
         )
         .expect("write test sensor TOML");
 
