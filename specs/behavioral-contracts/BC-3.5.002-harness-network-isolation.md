@@ -23,7 +23,7 @@ inherits_from: null
 superseded_by: null
 lifecycle_status: active
 introduced: cycle-3
-modified: []
+modified: ["2026-06-11"]
 deprecated: null
 deprecated_by: null
 replacement: null

@@ -23,7 +23,7 @@ inherits_from: null
 superseded_by: null
 lifecycle_status: active
 introduced: cycle-3
-modified: [v0.8-2026-06-11-P21-01-pagerduty-403-carve-out]
+modified: ["2026-06-11"]
 deprecated: null
 deprecated_by: null
 replacement: null
