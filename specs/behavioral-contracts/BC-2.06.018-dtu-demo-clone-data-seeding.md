@@ -6,13 +6,13 @@ version: "1.6"
 status: active
 lifecycle_status: active
 producer: product-owner
-timestamp: 2026-06-10T00:00:00Z
+timestamp: 2026-06-09T00:00:00Z
 phase: 1a
 origin: greenfield
 subsystem: "SS-01"
 capability: "CAP-036"
 introduced: "2026-06-09"
-modified: "2026-06-09T00:03:00Z"
+modified: "2026-06-09"
 deprecated: null
 deprecated_by: null
 replacement: null

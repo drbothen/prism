@@ -4,7 +4,7 @@ level: L3
 version: "1.7"
 status: active
 producer: product-owner
-timestamp: 2026-05-31T00:00:00Z
+timestamp: 2026-05-29T00:00:00Z
 phase: 1a
 origin: greenfield
 subsystem: "SS-01"

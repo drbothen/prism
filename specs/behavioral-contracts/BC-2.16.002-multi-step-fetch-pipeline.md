@@ -4,14 +4,14 @@ level: L3
 version: "1.77"
 status: active
 producer: product-owner
-timestamp: 2026-06-05T00:00:00Z
+timestamp: 2026-04-14T00:00:00Z
 phase: 1a
 origin: greenfield
 subsystem: "SS-16"
 capability: "CAP-029"
 lifecycle_status: active
 introduced: cycle-1
-modified: 2026-06-11T12:00:00Z
+modified: "2026-06-11"
 deprecated: ~
 deprecated_by: ~
 replacement: null

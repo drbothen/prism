@@ -1,7 +1,7 @@
 ---
 document_type: behavioral-contract-index
 level: L3
-version: "6.26"
+version: "6.27"
 status: draft
 producer: product-owner
 timestamp: 2026-06-11T00:00:00Z
@@ -380,6 +380,8 @@ Phase 3-patch additions (2026-04-16): 22 new BCs added in Burst 1 to close trace
 - Subsystem 19: Infusion Enrichment Framework (AD-020, CAP-031)
 
 ### Change Log (Adversarial Review Fixes)
+
+**v6.27 (2026-06-12, D-1103 PO governance burst — POL-23/27/32 corrections, story stubs):** product-owner | Governance-only corrections; zero contract-semantics changes. **POL-23/27 timestamp+modified normalizations (item 10):** `timestamp:` fields restored to creation dates (IMMUTABLE per POL-23 Direction-A): BC-2.07.003 `2026-05-07T00:00:00`→`2026-04-14T00:00:00Z`; BC-2.16.002 `2026-06-05T00:00:00Z`→`2026-04-14T00:00:00Z`; BC-2.06.018 `2026-06-10T00:00:00Z`→`2026-06-09T00:00:00Z`; BC-2.01.017 `2026-05-31T00:00:00Z`→`2026-05-29T00:00:00Z`. `modified:` format normalized (POL-27 YYYY-MM-DD quoted string): BC-2.16.002 datetime→date; BC-2.06.018 datetime→date; BC-3.3.001/002/003/004 burst-ID array `[adr-037-disposition-2026-06-10]`→`"2026-06-10"`. POL-29 sibling grep found no other files pinning the corrected values. No BC version increments for these frontmatter-only governance corrections. **POL-32 reconstructed tombstones (item 11):** BC-2.11.001 reconstructed v1.4 `[reconstructed-tombstone]` row added (D-987 POL-14 S-DEMO-002 PR #171 2026-06-04 gap in original state-manager burst); BC-3.2.001 reconstructed v0.9 `[reconstructed-tombstone]` row added (same D-987 gap). BC frontmatter versions UNCHANGED (BC-2.11.001 remains v1.7; BC-3.2.001 remains v0.9 — tombstone reconstructs a historical row, not a new version). **Story stubs (items 4+20):** 3 new STORY-INDEX stubs registered — `S-DTU-CROWDSTRIKE-COLUMN-COVERAGE-001` (CS-05 containment_status column gap), `S-DTU-CROWDSTRIKE-INCIDENTS-ROUTE-001` (DTU-EXT-001 incidents handler gap), `S-RELOAD-DRY-RUN-001` (PRL-P5-OBS-1+OBS-2 dry_run wiring). BC Traceability Matrix: BC-2.05.001 += S-RELOAD-DRY-RUN-001; BC-2.16.005 += S-RELOAD-DRY-RUN-001. **Item 24 auth_type ruling:** `sensors/cyberint.sensor.toml auth_type="api_key"` is WRONG; canonical is `cookie_roundtrip` (ADR-028 §D2, LOCKED decision 4). Work-order registered in STORY-INDEX changelog; implementer executes code correction in maintenance story or TD-SEC scope. No H1 retitles; counts UNCHANGED (250/232/5/0/7/6). BC-INDEX v6.26→v6.27.
 
 **v6.26 (2026-06-11, PRL-P4-01 adjudication burst — `reload_config` reclassified WriteTool):** product-owner | **BC-2.05.001 v1.3→v1.4** and **BC-2.16.002 v1.76→v1.77**. PRL-P4-01 (MEDIUM, ground-truth-verified): `reload_config` (dry_run=false) calls `ConfigManager::store(candidate)` — mutation-equivalent to `add_sensor_spec`. Reclassified from ReadTool (fail-open) to WriteTool (fail-closed) under BC-2.05.001 no-unaudited-writes invariant. BC-2.05.001 v1.4: Description updated (five write tools enumerated); Postconditions §write-fail-closed updated; Invariants §write-tool-set-invariant added with `reload_plugin` future-wiring note; EC-05-003 added; test vectors updated. BC-2.16.002 v1.77: row 145 `mcp.tool.called` trigger narrative updated to add `reload_config` to WRITE-classified set (five tools). Row 220 inline pin v1.76→v1.77. BC-INDEX row 89 (BC-2.05.001) carries no inline version pin — no change needed. No H1 retitles; no count changes; counts UNCHANGED (250/232/5/0/7/6). BC-INDEX v6.25→v6.26.
 

@@ -4,7 +4,7 @@ level: L3
 version: "4.5"
 status: draft
 producer: product-owner
-timestamp: 2026-05-07T00:00:00
+timestamp: 2026-04-14T00:00:00Z
 phase: 1a
 inputs: [".factory/specs/prd.md", ".factory/specs/domain-spec/capabilities.md"]
 input-hash: "566def3"

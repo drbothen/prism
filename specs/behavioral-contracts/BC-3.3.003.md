@@ -17,7 +17,7 @@ subsystem: "SS-06"
 capability: "CAP-009"
 lifecycle_status: retired
 introduced: cycle-3
-modified: [adr-037-disposition-2026-06-10]
+modified: "2026-06-10"
 deprecated: null
 deprecated_by: null
 replacement: null
